@@ -729,6 +729,8 @@ MIEN = {
 	"scrDiemBan": KHONG_PHAI, "scrPtThanhToan": KHONG_PHAI, "scrTaiKhoan": KHONG_PHAI,
 	"scrCaiDatKho": KHONG_PHAI, "scrMayIn": KHONG_PHAI, "scrNguoiDung": KHONG_PHAI,
 	"scrMauBg": KHONG_PHAI, "scrMauIn": KHONG_PHAI,
+	# v621: ba thẻ kịch bản cố định, không phải sổ để tra (sổ tin nằm ở scrCrmZaloTin).
+	"scrCrmZalo": KHONG_PHAI,
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 

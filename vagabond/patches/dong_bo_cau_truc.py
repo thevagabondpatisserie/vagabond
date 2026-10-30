@@ -408,3 +408,14 @@ def execute():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: bo bat buoc tham chieu")
 
+
+	# v621 (anh Việt 30/10/2026): chương trình Quà chào mừng 20.000đ cho khách
+	# khai hồ sơ trên trang thành viên. Chỉ dựng khi chưa có, không bao giờ
+	# ghi đè chương trình quản lý đã sửa (giá trị, ngày, bật tắt).
+	try:
+		from vagabond import thanh_vien
+
+		if thanh_vien.dam_bao_ctkm_qua():
+			frappe.logger().info("dong_bo_cau_truc: đã dựng chương trình Quà chào mừng")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: dựng Quà chào mừng")

@@ -130,6 +130,10 @@ def chay():
         dat('Cookie có HttpOnly Secure SameSite Strict',all(x in cookie for x in ('vgb_thanh_vien=','httponly','secure','samesite=strict')))
         dat('API xác thực không trả token vào JS','token' not in tra.json()['message'])
         toi = goi(khach,'vagabond.thanh_vien.toi')
+        if toi.status_code != 200:
+            # In thân lỗi để đọc được lý do ngay trên log CI (PR #517 vòng 9
+            # chỉ thấy KeyError 'message', không biết máy chủ hỏng ở đâu).
+            print('thanh_vien.toi HTTP %s: %s' % (toi.status_code, toi.text[:4000]), flush=True)
         dat('Cookie jar HTTPS đọc đúng hồ sơ và điểm',toi.json()['message']['diem']==25000 and toi.json()['message']['sdt']=='0900000245')
         dat('Hồ sơ HTTP không cache','no-store' in toi.headers.get('Cache-Control',''))
         la = goi(requests.Session(),'vagabond.thanh_vien.toi')

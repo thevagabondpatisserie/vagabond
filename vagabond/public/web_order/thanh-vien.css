@@ -36,3 +36,128 @@
 .mon-don .ph img{width:100%;height:100%;object-fit:cover}.mon-don .c-name{font-family:'Vagabond Sans',var(--sans);text-transform:uppercase;color:var(--amber);font-size:21px;line-height:1.2;overflow-wrap:anywhere}
 @media(max-width:600px){.luoi{grid-template-columns:1fr}.trang-dich-vu main{padding-top:28px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+/* v621 (anh Việt 30/10/2026 duyệt bản phác): chữ lớn kiểu tạp chí, số điểm
+   khổng lồ, nhãn nhỏ trong ngoặc vuông, thẻ mã thành viên chấm bi, voucher
+   dạng cuống vé, bốn tab dưới. Vagabond Sans chỉ cho chữ từ 18px; chữ nhỏ dùng
+   Qualy viết hoa giãn chữ (Vagabond Sans nhỏ đọc không ra). Trang đặt bàn dùng chung
+   tệp này: mọi quy tắc v621 đè lên phần chung đều nằm dưới .tv (main của trang
+   thành viên) để không đổi giao diện đặt bàn. */
+.trang-dich-vu main.tv{padding-top:30px;padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+.tv .nhan{font:11.5px var(--qualy);letter-spacing:.16em}
+.nhan.sang{color:var(--paper)}.nhan.cyan,.cyan{color:var(--cyan-bright)}.vang{color:var(--amber)}
+.ngoac{font-size:13px;color:var(--fog-2);letter-spacing:.04em;margin:30px 0 10px}
+.ngoac:before{content:"[ "}.ngoac:after{content:" ]"}
+.tieu-de{font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:clamp(38px,10vw,52px)!important;line-height:.98!important;color:var(--paper)!important;margin:8px 0 12px}
+.phu{color:var(--fog)}.phu.nho,.nho{font-size:13px;line-height:1.5}
+.tv .the-hang{margin:24px 0 8px}
+.tv .so-diem{font-family:'Vagabond Sans',var(--sans);font-size:clamp(72px,22vw,96px);line-height:.9;color:var(--paper);margin:6px 0 10px;overflow-wrap:anywhere}
+.so-to{font-family:'Vagabond Sans',var(--sans);font-size:clamp(64px,22vw,96px);line-height:.9;margin:12px 0 8px}
+.tv button,.tv .nut-vien{min-height:48px;border:1px solid var(--line);padding:10px 20px;font:13px var(--qualy);letter-spacing:.14em;text-transform:uppercase;color:var(--paper);background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.tv button.rong{width:100%;margin-top:18px}
+.nut-vien.cyan{border-color:var(--cyan-dim);color:var(--cyan-bright)}
+.tv input,.tv select{display:block;width:100%;min-width:0;min-height:48px;margin-top:8px;background:var(--bg-2);color:var(--paper);border:1px solid var(--line);border-radius:0;padding:12px;font:16px var(--qualy);color-scheme:dark}
+.o-ma{font-size:28px!important;letter-spacing:.5em;text-align:center}
+.buoc{display:flex;gap:6px;margin:4px 0 18px}.buoc i{flex:1;height:3px;background:var(--line)}.buoc i.on{background:var(--cyan)}
+/* Thanh trên và lời chào */
+.vach{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.chao{display:grid;grid-template-columns:118px 1fr;gap:16px;align-items:end;margin-top:22px}
+.av{width:118px;height:118px;background:#222 center/cover no-repeat}
+.av.xam{filter:grayscale(1) contrast(1.15)}
+.chip-hang{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border:1px solid var(--line);font:10.5px var(--qualy);letter-spacing:.14em;text-transform:uppercase;color:var(--fog)}
+.cham{width:7px;height:7px;border-radius:50%;background:var(--cyan-bright);box-shadow:0 0 10px var(--cyan-bright);display:inline-block}
+.ten-lon{font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:clamp(34px,10vw,44px);line-height:.98;margin:8px 0 8px;overflow-wrap:anywhere}
+.hang-ten{font-size:22px!important;margin:6px 0 0}
+.tien-do{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.td-dau{display:flex;justify-content:space-between;font:11.5px var(--qualy);letter-spacing:.14em;text-transform:uppercase;color:var(--fog)}
+.td-dau span:first-child{color:var(--amber)}
+.td-thanh{height:4px;background:var(--line-2);margin:12px 0 10px;position:relative}
+.td-thanh b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#B4522E,var(--amber))}
+.so3{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:24px 0 0}
+.so3>div{padding:16px 12px 14px 0;border-right:1px solid var(--line)}.so3>div:last-child{border:0}.so3>div+div{padding-left:14px}
+.so3 b{display:block;font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:40px;line-height:1;margin-top:8px}
+.quyen-loi{white-space:pre-line;font-size:14.5px;line-height:1.6}
+.moi{margin:24px 0 8px;border:1px solid var(--cyan-dim);padding:18px;position:relative;background:linear-gradient(135deg,rgba(41,189,179,.10),transparent 60%)}
+.moi h3{text-transform:uppercase;font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:22px;letter-spacing:.04em;margin:6px 0}
+.moi-gia{position:absolute;right:16px;top:14px;font-family:'Vagabond Sans',var(--sans);font-size:24px}
+/* Ví quà */
+.the-tv{background:#1A1A1A;border-radius:18px;padding:18px;position:relative;overflow:hidden;margin-top:14px}
+.the-tv:before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.13) 1.1px,transparent 1.3px);background-size:9px 9px;pointer-events:none}
+.the-tv>*{position:relative}
+.the-tv-dau{display:flex;justify-content:space-between;align-items:center}
+.qr{width:184px;height:184px;margin:18px auto 12px;background:#fff;padding:12px}
+.qr img{width:100%;height:100%;display:block;image-rendering:pixelated}
+.the-tv-ma{text-align:center;font-family:'Vagabond Sans',var(--sans);font-size:24px;letter-spacing:.24em}
+.the-tv p{text-align:center;margin-top:6px}
+.ve{display:grid;grid-template-columns:112px 1fr;background:#161616;position:relative;min-height:118px;margin-top:14px}
+.ve:before,.ve:after{content:"";position:absolute;left:103px;width:18px;height:18px;border-radius:50%;background:var(--bg)}
+.ve:before{top:-9px}.ve:after{bottom:-9px}
+.ve-trai{border-right:1.5px dashed rgba(255,255,255,.18);display:flex;align-items:center;padding:12px}
+.ve-trai b{font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:26px;line-height:1}
+.ve-phai{padding:14px 14px 12px 16px;min-width:0}
+.ve-phai h3{font:13px var(--qualy);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+.ve-chan{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px}
+.ve-chan code{font:15px var(--qualy);letter-spacing:.2em}
+.ve.mo{opacity:.45}
+.chip-tt{font:10.5px var(--qualy);letter-spacing:.14em;text-transform:uppercase;border:1px solid var(--line);padding:4px 8px}
+.chip-tt.xanh{border-color:var(--cyan-dim);color:var(--cyan-bright)}.chip-tt.xam{color:var(--fog)}
+.diem-ve{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.diem-ve b{display:block;font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:34px}
+.diem-ve p{max-width:200px}
+/* Đơn bánh */
+.hai{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.hai a{border:1px solid var(--line);padding:16px 14px;min-height:104px;display:flex;flex-direction:column;justify-content:space-between;color:var(--paper)}
+.hai b{font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:22px;letter-spacing:.04em;text-transform:uppercase}
+.hai small{font-size:12.5px;color:var(--fog)}
+/* Hồ sơ */
+.hs-av{display:flex;gap:18px;align-items:center}.hs-av .av{width:104px;height:104px;flex:none}.hs-nut{flex:1}
+.hs-nut label{margin:0}
+.banh-av{display:flex;gap:10px;margin:16px 0 4px;flex-wrap:wrap}
+.trang-dich-vu .banh-av button{width:52px;height:52px;min-height:52px;padding:0;background:#222 center/cover no-repeat;filter:grayscale(1) contrast(1.1);opacity:.85}
+.trang-dich-vu .banh-av button[aria-pressed=true]{outline:2px solid var(--cyan-bright);outline-offset:2px;filter:none;opacity:1}
+.o-khoa,.o-ngay,.o-st{margin:18px 0 10px}
+.gia-tri{display:flex;justify-content:space-between;align-items:center;min-height:48px;border-bottom:1px solid var(--line);font-size:16px}
+.xm{font:10.5px var(--qualy);letter-spacing:.12em;text-transform:uppercase;color:var(--cyan-bright)}
+.ba-o{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.trang-dich-vu .chips button{min-height:40px;padding:0 12px;letter-spacing:.02em;text-transform:none;font-size:13.5px}
+.trang-dich-vu .chips button[aria-pressed=true]{background:rgba(41,189,179,.1);color:var(--cyan-bright);border-color:var(--cyan-bright)}
+.dong-y{display:grid!important;grid-template-columns:26px 1fr;gap:12px;align-items:start;margin:22px 0 4px!important;padding:14px;border:1px solid var(--cyan-dim);background:rgba(41,189,179,.06);cursor:pointer}
+.trang-dich-vu .dong-y input{width:22px;height:22px;min-height:0;margin:2px 0 0;accent-color:var(--cyan)}
+.dong-y b{font-weight:400;font-size:14.5px;display:block}.dong-y small{display:block;color:var(--fog);font-size:12.5px;margin-top:4px;line-height:1.45}
+/* Mã quà cho thu ngân */
+.ve-to{margin:18px 0 0;background:#F3E6CF;color:#1a1a1a;position:relative;padding:22px 20px 20px}
+.ve-to:before,.ve-to:after{content:"";position:absolute;top:96px;width:22px;height:22px;border-radius:50%;background:var(--bg)}
+.ve-to:before{left:-11px}.ve-to:after{right:-11px}
+.ve-dau{border-bottom:1.5px dashed rgba(0,0,0,.25);padding-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.ve-dau b{font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:clamp(30px,9vw,44px);line-height:.95;color:#B4522E}
+.ve-dau span{font:11px var(--qualy);letter-spacing:.14em;text-transform:uppercase;color:#6b5a48;text-align:right;max-width:120px}
+.ve-ma{font-family:'Vagabond Sans',var(--sans);font-size:clamp(56px,18vw,84px);text-align:center;letter-spacing:.1em;line-height:1;margin:20px 0 8px;overflow-wrap:anywhere}
+.ve-to p{text-align:center;font-size:13px;color:#5a4a3a}
+.ve-han{text-align:center;margin-top:10px;font:11.5px var(--qualy);letter-spacing:.12em;text-transform:uppercase;color:#7a6650}
+/* Bốn tab dưới */
+.tab-duoi{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);padding:6px 6px calc(8px + env(safe-area-inset-bottom));background:rgba(5,5,5,.96);backdrop-filter:blur(12px)}
+.trang-dich-vu .tab-duoi button,.trang-dich-vu .tab-duoi button[aria-pressed=true]{background:transparent;border:0;min-height:52px;flex-direction:column;gap:5px;padding:4px;font-size:10px;letter-spacing:.12em;color:var(--fog-2)}
+.trang-dich-vu .tab-duoi button[aria-pressed=true]{color:var(--paper)}
+.ic{width:22px;height:22px;display:block;background:currentColor;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.tab-duoi button[aria-pressed=true] .ic{background:var(--cyan-bright)}
+.ic-nha{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5'%3E%3Cpath d='M3 11l9-7 9 7v9h-6v-6H9v6H3z'/%3E%3C/svg%3E")}
+.ic-qua{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5'%3E%3Crect x='3' y='8' width='18' height='13'/%3E%3Cpath d='M3 12h18M12 8v13M12 8c-2-4-6-4-6-1s6 1 6 1c0 0 6 2 6-1s-4-3-6 1'/%3E%3C/svg%3E")}
+.ic-tui{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5'%3E%3Cpath d='M5 8h14l-1 13H6zM9 8V6a3 3 0 016 0v2'/%3E%3C/svg%3E")}
+.ic-nguoi{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c1-5 5-7 8-7s7 2 8 7'/%3E%3C/svg%3E")}
+@media(min-width:760px){.tab-duoi{left:50%;right:auto;width:560px;transform:translateX(-50%);border:1px solid var(--line);bottom:16px}}
+/* Bảng để quầy (?bang=) */
+.bang-quay{max-width:420px;margin:0 auto;border:1px solid var(--line-2)}
+.bq-anh{height:240px;background:url("/assets/vagabond/web_order/anh-bia.png") 50% 12%/cover;position:relative}
+.bq-anh img{position:absolute;left:22px;top:20px;height:34px}
+.bq-noi{padding:24px}
+.bq-noi h2{color:var(--paper)!important;font-size:28px!important;letter-spacing:.06em;margin-top:10px}
+.bq-qr{display:grid;grid-template-columns:172px 1fr;gap:18px;align-items:center;margin-top:18px}
+.bq-qr .qr{width:172px;height:172px;margin:0;padding:10px}
+.bq-qr ol{list-style:none;counter-reset:b;margin:0;padding:0}
+.bq-qr li{counter-increment:b;display:grid;grid-template-columns:26px 1fr;font-size:13.5px;line-height:1.35;margin-bottom:10px}
+.bq-qr li:before{content:counter(b,decimal-leading-zero);font-family:'Vagabond Sans',var(--sans);color:var(--cyan-bright);font-size:15px}
+.bq-chan{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--fog-2);line-height:1.5}
+.in-bang header,.in-bang .ho-tro,.in-bang .thong-bao{display:none}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.bq-in,header,.ho-tro,.thong-bao{display:none!important}.bang-quay{border:0}}
+.ho-tro{margin-top:30px;color:var(--fog);font-size:13px}
+@media(max-width:600px){.luoi{grid-template-columns:1fr}.trang-dich-vu main.tv{padding-top:22px}.bq-qr{grid-template-columns:140px 1fr}.bq-qr .qr{width:140px;height:140px}}

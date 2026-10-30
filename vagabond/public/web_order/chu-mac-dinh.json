@@ -3224,5 +3224,653 @@
     "ten": "Mục 04: chữ nhỏ dòng gấp",
     "nhom": "dat_banh",
     "mac_dinh": "Mỗi bánh đã có sẵn một bộ."
+  },
+  "tv6_qua_nhan": {
+    "ten": "quà thành viên mới",
+    "nhom": "thanh_vien",
+    "mac_dinh": "quà thành viên mới",
+    "nhieu_dong": true
+  },
+  "tv6_qua_mo_ta": {
+    "ten": "Trừ ngay vào hoá đơn quý khách đang thanh toán. Không dùng hôm nay thì vẫn dùng được trong 7 ngày.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Trừ ngay vào hoá đơn quý khách đang thanh toán. Không dùng hôm nay thì vẫn dùng được trong 7 ngày.",
+    "nhieu_dong": true
+  },
+  "tv6_sdt_nhan": {
+    "ten": "Số điện thoại có Zalo",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số điện thoại có Zalo",
+    "nhieu_dong": true
+  },
+  "tv6_gan_xong": {
+    "ten": "gần xong rồi",
+    "nhom": "thanh_vien",
+    "mac_dinh": "gần xong rồi",
+    "nhieu_dong": true
+  },
+  "tv6_goi_la": {
+    "ten": "Vagabond gọi quý khách là",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Vagabond gọi quý khách là",
+    "nhieu_dong": true
+  },
+  "tv6_dua_man_hinh": {
+    "ten": "Đưa màn hình cho thu ngân",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đưa màn hình cho thu ngân",
+    "nhieu_dong": true
+  },
+  "tv6_qua_mot_lan": {
+    "ten": "Quà chào mừng, dùng một lần",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà chào mừng, dùng một lần",
+    "nhieu_dong": true
+  },
+  "tv6_thu_ngan_go": {
+    "ten": "Thu ngân gõ mã này vào ô mã ưu đãi của hoá đơn đang tính.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thu ngân gõ mã này vào ô mã ưu đãi của hoá đơn đang tính.",
+    "nhieu_dong": true
+  },
+  "tv6_mo_trang": {
+    "ten": "Mở trang thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mở trang thành viên",
+    "nhieu_dong": true
+  },
+  "tv6_diem_hien_co": {
+    "ten": "điểm hiện có",
+    "nhom": "thanh_vien",
+    "mac_dinh": "điểm hiện có",
+    "nhieu_dong": true
+  },
+  "tv6_diem_giai_thich": {
+    "ten": "1 điểm = 1đ. Báo thu ngân để trừ thẳng vào hoá đơn.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "1 điểm = 1đ. Báo thu ngân để trừ thẳng vào hoá đơn.",
+    "nhieu_dong": true
+  },
+  "tv6_don_banh": {
+    "ten": "Đơn bánh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đơn bánh",
+    "nhieu_dong": true
+  },
+  "tv6_voucher": {
+    "ten": "Voucher",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Voucher",
+    "nhieu_dong": true
+  },
+  "tv6_hang_hien": {
+    "ten": "Hồ sơ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hồ sơ",
+    "nhieu_dong": true
+  },
+  "tv6_quyen_loi": {
+    "ten": "quyền lợi của hạng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "quyền lợi của hạng",
+    "nhieu_dong": true
+  },
+  "tv6_hoan_thien": {
+    "ten": "Hoàn thiện hồ sơ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hoàn thiện hồ sơ",
+    "nhieu_dong": true
+  },
+  "tv6_cap_nhat_ngay": {
+    "ten": "Cập nhật ngay",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Cập nhật ngay",
+    "nhieu_dong": true
+  },
+  "tv6_ma_tv": {
+    "ten": "mã thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "mã thành viên",
+    "nhieu_dong": true
+  },
+  "tv6_dua_ma": {
+    "ten": "Đưa mã cho quầy",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đưa mã cho quầy",
+    "nhieu_dong": true
+  },
+  "tv6_dua_ma_mo_ta": {
+    "ten": "Thu ngân quét hoặc gõ mã này để tích điểm vào đúng hồ sơ, không cần đọc số điện thoại.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thu ngân quét hoặc gõ mã này để tích điểm vào đúng hồ sơ, không cần đọc số điện thoại.",
+    "nhieu_dong": true
+  },
+  "tv6_the_tv": {
+    "ten": "Thẻ thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thẻ thành viên",
+    "nhieu_dong": true
+  },
+  "tv6_voucher_cua": {
+    "ten": "voucher của quý khách",
+    "nhom": "thanh_vien",
+    "mac_dinh": "voucher của quý khách",
+    "nhieu_dong": true
+  },
+  "tv6_diem_dung_duoc": {
+    "ten": "Điểm dùng được",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Điểm dùng được",
+    "nhieu_dong": true
+  },
+  "tv6_tru_diem": {
+    "ten": "Muốn trừ điểm, quý khách báo thu ngân số điểm cần dùng khi tính tiền.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Muốn trừ điểm, quý khách báo thu ngân số điểm cần dùng khi tính tiền.",
+    "nhieu_dong": true
+  },
+  "tv6_dat_truoc": {
+    "ten": "Đặt trước",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đặt trước",
+    "nhieu_dong": true
+  },
+  "tv6_dat_banh": {
+    "ten": "Đặt bánh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đặt bánh",
+    "nhieu_dong": true
+  },
+  "tv6_dat_banh_mo_ta": {
+    "ten": "Giao tận nơi hoặc lấy tại quầy",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Giao tận nơi hoặc lấy tại quầy",
+    "nhieu_dong": true
+  },
+  "tv6_tai_tiem": {
+    "ten": "Tại cửa hàng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tại cửa hàng",
+    "nhieu_dong": true
+  },
+  "tv6_dat_ban": {
+    "ten": "Đặt bàn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đặt bàn",
+    "nhieu_dong": true
+  },
+  "tv6_dat_ban_mo_ta": {
+    "ten": "Giữ chỗ cho nhóm của quý khách",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Giữ chỗ cho nhóm của quý khách",
+    "nhieu_dong": true
+  },
+  "tv6_anh_dai_dien": {
+    "ten": "Ảnh đại diện",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Ảnh đại diện",
+    "nhieu_dong": true
+  },
+  "tv6_tai_anh": {
+    "ten": "Tải ảnh của quý khách",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tải ảnh của quý khách",
+    "nhieu_dong": true
+  },
+  "tv6_hoac_banh": {
+    "ten": "Hoặc chọn một hình bánh bên dưới.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hoặc chọn một hình bánh bên dưới.",
+    "nhieu_dong": true
+  },
+  "tv6_tab_chinh": {
+    "ten": "Trang chính",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Trang chính",
+    "nhieu_dong": true
+  },
+  "tv6_tab_vi": {
+    "ten": "Ví quà",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Ví quà",
+    "nhieu_dong": true
+  },
+  "tv6_tab_don": {
+    "ten": "Đơn bánh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đơn bánh",
+    "nhieu_dong": true
+  },
+  "tv6_tab_ho_so": {
+    "ten": "Hồ sơ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hồ sơ",
+    "nhieu_dong": true
+  },
+  "tv6_bq_nhan": {
+    "ten": "Thành viên Vagabond",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên Vagabond",
+    "nhieu_dong": true
+  },
+  "tv6_bq_tieu_de": {
+    "ten": "Quà cho hoá đơn hôm nay",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà cho hoá đơn hôm nay",
+    "nhieu_dong": true
+  },
+  "tv6_bq_b1": {
+    "ten": "Quét mã bằng camera điện thoại",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quét mã bằng camera điện thoại",
+    "nhieu_dong": true
+  },
+  "tv6_bq_b2": {
+    "ten": "Nhập mã Zalo vừa nhận",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhập mã Zalo vừa nhận",
+    "nhieu_dong": true
+  },
+  "tv6_bq_b3": {
+    "ten": "Đưa mã quà cho thu ngân",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đưa mã quà cho thu ngân",
+    "nhieu_dong": true
+  },
+  "tv6_bq_chan": {
+    "ten": "Mỗi số điện thoại nhận một lần. Quà dùng ngay trên hoá đơn đang tính, hoặc trong 7 ngày.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mỗi số điện thoại nhận một lần. Quà dùng ngay trên hoá đơn đang tính, hoặc trong 7 ngày.",
+    "nhieu_dong": true
+  },
+  "tv6_bq_in": {
+    "ten": "In bảng này",
+    "nhom": "thanh_vien",
+    "mac_dinh": "In bảng này",
+    "nhieu_dong": true
+  },
+  "tv6_tab_nhan": {
+    "ten": "Trang thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Trang thành viên",
+    "nhieu_dong": true
+  },
+  "tv6_ly_chua_dn": {
+    "ten": "Phiên đăng nhập đã hết. Nhập lại số điện thoại để tiếp tục.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Phiên đăng nhập đã hết. Nhập lại số điện thoại để tiếp tục.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_thieu_ten": {
+    "ten": "Quý khách điền tên để chúng tôi gọi đúng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quý khách điền tên để chúng tôi gọi đúng.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_ten": {
+    "ten": "Tên chưa đúng, quý khách kiểm tra lại.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tên chưa đúng, quý khách kiểm tra lại.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_ngay_thieu": {
+    "ten": "Chọn đủ ngày và tháng sinh.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chọn đủ ngày và tháng sinh.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_ngay": {
+    "ten": "Ngày sinh chưa đúng, quý khách kiểm tra lại.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Ngày sinh chưa đúng, quý khách kiểm tra lại.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_email": {
+    "ten": "Email chưa đúng, quý khách kiểm tra lại hoặc để trống.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Email chưa đúng, quý khách kiểm tra lại hoặc để trống.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_anh": {
+    "ten": "Chưa đọc được ảnh này, quý khách chọn ảnh khác.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa đọc được ảnh này, quý khách chọn ảnh khác.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_anh_lon": {
+    "ten": "Ảnh quá lớn, quý khách chọn ảnh khác.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Ảnh quá lớn, quý khách chọn ảnh khác.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_qua_mo": {
+    "ten": "Chương trình quà chào mừng đang tạm dừng. Quý khách vẫn tích điểm như thường.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chương trình quà chào mừng đang tạm dừng. Quý khách vẫn tích điểm như thường.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_nhan_vien": {
+    "ten": "Số của nhân viên Vagabond không nhận quà chào mừng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số của nhân viên Vagabond không nhận quà chào mừng.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_ho_so": {
+    "ten": "Quý khách điền đủ tên, ngày sinh và đồng ý nhận tin Zalo để nhận quà.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quý khách điền đủ tên, ngày sinh và đồng ý nhận tin Zalo để nhận quà.",
+    "nhieu_dong": true
+  },
+  "tv6_ly_tao": {
+    "ten": "Chưa tạo được hồ sơ. Gọi 0931 224 334 để được hỗ trợ.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa tạo được hồ sơ. Gọi 0931 224 334 để được hỗ trợ.",
+    "nhieu_dong": true
+  },
+  "tv6_st_croissant": {
+    "ten": "Croissant và bánh mì",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Croissant và bánh mì",
+    "nhieu_dong": true
+  },
+  "tv6_st_entremet": {
+    "ten": "Entremet",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Entremet",
+    "nhieu_dong": true
+  },
+  "tv6_st_banh_kem": {
+    "ten": "Bánh kem sinh nhật",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Bánh kem sinh nhật",
+    "nhieu_dong": true
+  },
+  "tv6_st_tart": {
+    "ten": "Tart",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tart",
+    "nhieu_dong": true
+  },
+  "tv6_st_do_uong": {
+    "ten": "Đồ uống",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đồ uống",
+    "nhieu_dong": true
+  },
+  "tv6_vi_rong": {
+    "ten": "Chưa có voucher nào. Quà sinh nhật và ưu đãi sẽ nằm ở đây.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa có voucher nào. Quà sinh nhật và ưu đãi sẽ nằm ở đây.",
+    "nhieu_dong": true
+  },
+  "tv6_vc_dung_ngay": {
+    "ten": "Đã dùng ngày {ngay}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã dùng ngày {ngay}",
+    "nhieu_dong": true
+  },
+  "tv6_vc_han": {
+    "ten": "Hạn {han}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạn {han}",
+    "nhieu_dong": true
+  },
+  "tv6_thanh_vien": {
+    "ten": "Thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên",
+    "nhieu_dong": true
+  },
+  "tv6_ma_so": {
+    "ten": "Mã {ma}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã {ma}",
+    "nhieu_dong": true
+  },
+  "tv6_hang_mac": {
+    "ten": "Thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên",
+    "nhieu_dong": true
+  },
+  "tv6_tu_nam": {
+    "ten": "Thành viên từ {nam}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên từ {nam}",
+    "nhieu_dong": true
+  },
+  "tv6_td_chu": {
+    "ten": "Đã mua {da} trong {thang} tháng. Thêm {thieu} để lên {hang}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã mua {da} trong {thang} tháng. Thêm {thieu} để lên {hang}.",
+    "nhieu_dong": true
+  },
+  "tv6_ho_so_dem": {
+    "ten": "Hồ sơ {du}/{tong}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hồ sơ {du}/{tong}",
+    "nhieu_dong": true
+  },
+  "tv6_moi_chu": {
+    "ten": "Thêm ngày sinh và đồng ý nhận tin Zalo để nhận ngay voucher {uu_dai}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thêm ngày sinh và đồng ý nhận tin Zalo để nhận ngay voucher {uu_dai}.",
+    "nhieu_dong": true
+  },
+  "tv6_moi_du": {
+    "ten": "Hồ sơ đã đủ. Bấm nhận voucher {uu_dai}, dùng ngay hoặc trong {so_ngay} ngày.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hồ sơ đã đủ. Bấm nhận voucher {uu_dai}, dùng ngay hoặc trong {so_ngay} ngày.",
+    "nhieu_dong": true
+  },
+  "tv6_nhan_voucher_nut": {
+    "ten": "Nhận voucher",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhận voucher",
+    "nhieu_dong": true
+  },
+  "tv6_qua_web": {
+    "ten": "Đã nhận voucher {uu_dai}. Mã nằm trong Ví quà, dùng ngay hoặc đến hết {han}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã nhận voucher {uu_dai}. Mã nằm trong Ví quà, dùng ngay hoặc đến hết {han}.",
+    "nhieu_dong": true
+  },
+  "tv6_o_ten_goi": {
+    "ten": "Tên gọi",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tên gọi",
+    "nhieu_dong": true
+  },
+  "tv6_o_ho_ten": {
+    "ten": "Họ và tên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Họ và tên",
+    "nhieu_dong": true
+  },
+  "tv6_o_sdt": {
+    "ten": "Số điện thoại",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số điện thoại",
+    "nhieu_dong": true
+  },
+  "tv6_da_xac_minh": {
+    "ten": "Đã xác minh qua Zalo",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã xác minh qua Zalo",
+    "nhieu_dong": true
+  },
+  "tv6_o_ngay_sinh": {
+    "ten": "Ngày sinh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Ngày sinh",
+    "nhieu_dong": true
+  },
+  "tv6_ngay": {
+    "ten": "Ngày",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Ngày",
+    "nhieu_dong": true
+  },
+  "tv6_thang": {
+    "ten": "Tháng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tháng",
+    "nhieu_dong": true
+  },
+  "tv6_nam": {
+    "ten": "Năm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Năm",
+    "nhieu_dong": true
+  },
+  "tv6_ngay_sinh_mo_ta": {
+    "ten": "Để gửi quà sinh nhật đúng tháng. Năm sinh không bắt buộc.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Để gửi quà sinh nhật đúng tháng. Năm sinh không bắt buộc.",
+    "nhieu_dong": true
+  },
+  "tv6_o_email": {
+    "ten": "Email (không bắt buộc)",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Email (không bắt buộc)",
+    "nhieu_dong": true
+  },
+  "tv6_o_so_thich": {
+    "ten": "Quý khách hay chọn (không bắt buộc)",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quý khách hay chọn (không bắt buộc)",
+    "nhieu_dong": true
+  },
+  "tv6_dy_tieu_de": {
+    "ten": "Đồng ý nhận tin từ Vagabond qua Zalo",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đồng ý nhận tin từ Vagabond qua Zalo",
+    "nhieu_dong": true
+  },
+  "tv6_dy_mo_ta": {
+    "ten": "Quà sinh nhật, voucher, báo đơn bánh. Tắt lúc nào cũng được trong trang thành viên.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà sinh nhật, voucher, báo đơn bánh. Tắt lúc nào cũng được trong trang thành viên.",
+    "nhieu_dong": true
+  },
+  "tv6_nhan_qua_nut": {
+    "ten": "Nhận quà {uu_dai}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhận quà {uu_dai}",
+    "nhieu_dong": true
+  },
+  "tv6_luu_ho_so": {
+    "ten": "Lưu hồ sơ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Lưu hồ sơ",
+    "nhieu_dong": true
+  },
+  "tv6_chon_hinh": {
+    "ten": "Chọn hình bánh này",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chọn hình bánh này",
+    "nhieu_dong": true
+  },
+  "tv6_luu_loi": {
+    "ten": "Chưa lưu được hồ sơ. Thử lại sau.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa lưu được hồ sơ. Thử lại sau.",
+    "nhieu_dong": true
+  },
+  "tv6_da_luu": {
+    "ten": "Đã lưu hồ sơ.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã lưu hồ sơ.",
+    "nhieu_dong": true
+  },
+  "tv6_chao": {
+    "ten": "chào mừng {ten}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "chào mừng {ten}",
+    "nhieu_dong": true
+  },
+  "tv6_dung_den": {
+    "ten": "Dùng ngay hôm nay hoặc đến hết {han}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Dùng ngay hôm nay hoặc đến hết {han}",
+    "nhieu_dong": true
+  },
+  "tv6_qua_da_dung": {
+    "ten": "Mã quà chào mừng của số này đã dùng. Mỗi số nhận một lần.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã quà chào mừng của số này đã dùng. Mỗi số nhận một lần.",
+    "nhieu_dong": true
+  },
+  "tv6_qua_het": {
+    "ten": "Mã quà chào mừng của số này đã hết hạn. Mỗi số nhận một lần.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã quà chào mừng của số này đã hết hạn. Mỗi số nhận một lần.",
+    "nhieu_dong": true
+  },
+  "tv6_qua_cu": {
+    "ten": "Số này đã nhận quà chào mừng trước đó, đây là mã của quý khách.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số này đã nhận quà chào mừng trước đó, đây là mã của quý khách.",
+    "nhieu_dong": true
+  },
+  "tv6_qua_luu": {
+    "ten": "Mã đã lưu vào Ví quà trong trang thành viên.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã đã lưu vào Ví quà trong trang thành viên.",
+    "nhieu_dong": true
+  },
+  "tv6_qua_loi": {
+    "ten": "Chưa nhận được quà. Quý khách nhờ thu ngân hỗ trợ.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa nhận được quà. Quý khách nhờ thu ngân hỗ trợ.",
+    "nhieu_dong": true
+  },
+  "tv6_can_dong_y": {
+    "ten": "Quà dành cho thành viên nhận tin Zalo. Quý khách tích ô đồng ý để nhận quà.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà dành cho thành viên nhận tin Zalo. Quý khách tích ô đồng ý để nhận quà.",
+    "nhieu_dong": true
+  },
+  "tv6_dang_tai_anh": {
+    "ten": "Đang tải ảnh...",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đang tải ảnh...",
+    "nhieu_dong": true
+  },
+  "tv6_da_doi_anh": {
+    "ten": "Đã đổi ảnh đại diện.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã đổi ảnh đại diện.",
+    "nhieu_dong": true
+  },
+  "tv6_qua_bat_dau": {
+    "ten": "Nhập số điện thoại có Zalo để nhận quà.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhập số điện thoại có Zalo để nhận quà.",
+    "nhieu_dong": true
+  },
+  "tv6_vc_dung": {
+    "ten": "Ví quà: Dùng được",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Dùng được",
+    "nhieu_dong": true
+  },
+  "tv6_vc_da_dung": {
+    "ten": "Ví quà: Đã dùng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã dùng",
+    "nhieu_dong": true
+  },
+  "tv6_vc_het": {
+    "ten": "Ví quà: Hết hạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hết hạn",
+    "nhieu_dong": true
+  },
+  "tv6_vc_huy": {
+    "ten": "Ví quà: Đã huỷ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã huỷ",
+    "nhieu_dong": true
   }
 }

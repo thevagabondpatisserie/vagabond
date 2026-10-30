@@ -251,10 +251,26 @@ function posSheetMaVc() {
         ma: ma, quay: (posQuay && posQuay.ma) || '', nguon: posNguonThuc()
       });
       if (!kq.dung_duoc) { bao.style.color = '#b3261e'; bao.textContent = kq.ly_do || 'Mã không dùng được lúc này.'; return; }
+      /* Codex PR #503: mã gắn người nhận (quà chào mừng, voucher tin Zalo). Hoá
+         đơn chưa có khách thì gắn luôn người nhận để tích điểm đúng người; quà
+         chào mừng mà hoá đơn đang chọn khách khác thì không áp. */
+      posDoc();
+      var dangChon = posDon.khach_ma || (posDon.khach_no && posDon.khach_no.ma) || '';
+      if (kq.danh_cho && dangChon && dangChon !== kq.danh_cho && kq.rang_buoc) {
+        bao.style.color = '#b3261e';
+        bao.textContent = 'Mã quà này của khách ' + (kq.ten_khach || '') + ', chỉ dùng cho hoá đơn của chính khách đó. Bỏ khách đang chọn rồi áp lại.';
+        return;
+      }
+      var ganKhach = !!(kq.danh_cho && !dangChon);
+      if (ganKhach) {
+        posDiemDat();
+        posDon.khach_ma = kq.danh_cho;
+        posDon.ten = kq.ten_khach || kq.danh_cho;
+      }
       posDon.maVc = ma;
       posDon.kmKq = null;
       ov.remove();
-      toast('Đã áp mã ' + ma + ' · ' + kq.ten);
+      toast('Đã áp mã ' + ma + ' · ' + kq.ten + (ganKhach ? ' · hoá đơn của ' + (kq.ten_khach || '') : ''));
       go(scrPosQuay, true);
     } catch (e) {
       bao.style.color = '#b3261e';

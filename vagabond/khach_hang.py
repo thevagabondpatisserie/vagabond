@@ -58,8 +58,19 @@ def _nhom_si():
 
 @frappe.whitelist()
 def ds_hang():
-	"""Bang hang khach dang cau hinh, xep tu thap len cao."""
+	"""Bang hang khach dang cau hinh, xep tu thap len cao (API cho nhan vien)."""
 	_kiem_quyen_ban()
+	return bang_hang()
+
+
+def bang_hang():
+	"""Doc bang hang, KHONG kiem quyen nhan vien.
+
+	Trang thanh vien chay voi phien Guest (khach dang nhap OTP chi co cookie
+	rieng), nen phai doc bang hang qua ham nay, khong qua ds_hang (Codex PR
+	#517 vong 8: goi ds_hang lam trang thanh vien do voi moi khach).
+	Khong whitelist: chi goi tu ma may chu.
+	"""
 	try:
 		ds = frappe.get_all(
 			"Vagabond Hang Khach",
@@ -807,6 +818,29 @@ def _lien_he(khach):
 	}
 
 
+def tien_do_hang(bang, tien_ky):
+	"""Hạng đủ điều kiện, hạng kế và số tiền còn thiếu. THUẦN.
+
+	MỘT nguồn cho màn Chi tiết khách (app) và trang thành viên (web, v621):
+	bang là các hạng xét theo chi tiêu, tien_ky là tiền đã mua trong kỳ xét.
+	ty_le là phần đã đi được tới mốc hạng kế (0 tới 1), không còn hạng kế thì 1.
+	"""
+	bang = sorted(bang or [], key=lambda x: flt(x.get("chi_tieu_tu")))
+	tien_ky = flt(tien_ky)
+	dat = ""
+	for h in bang:
+		if tien_ky >= flt(h.get("chi_tieu_tu")):
+			dat = h["name"]
+	tiep, con_thieu, ty_le = "", 0, 1.0
+	for h in bang:
+		nguong = flt(h.get("chi_tieu_tu"))
+		if nguong > tien_ky:
+			tiep, con_thieu = h["name"], nguong - tien_ky
+			ty_le = max(0.0, min(1.0, tien_ky / nguong)) if nguong else 1.0
+			break
+	return {"dat": dat, "tiep": tiep, "con_thieu": con_thieu, "ty_le": round(ty_le, 4)}
+
+
 @frappe.whitelist()
 def ho_so(khach=None):
 	"""Ho so day du cua mot khach, cho man Chi tiet khach hang tren app."""
@@ -857,16 +891,8 @@ def ho_so(khach=None):
 	so_thang = max([int(h.get("so_thang_xet") or 12) for h in bang] or [12])
 	ct = _chi_tieu([khach], so_thang).get(khach) or {}
 	tien_ky = flt(ct.get("tien"))
-	dat = ""
-	for h in bang:
-		if tien_ky >= flt(h.get("chi_tieu_tu")):
-			dat = h["name"]
-	tiep, con_thieu = "", 0
-	for h in bang:
-		if flt(h.get("chi_tieu_tu")) > tien_ky:
-			tiep = h["name"]
-			con_thieu = flt(h.get("chi_tieu_tu")) - tien_ky
-			break
+	td = tien_do_hang(bang, tien_ky)
+	dat, tiep, con_thieu = td["dat"], td["tiep"], td["con_thieu"]
 
 	hang_dang = d.get("vgb_hang") or ""
 	hd = {}
