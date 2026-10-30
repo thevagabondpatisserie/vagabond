@@ -231,6 +231,19 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     dung('không hiện mã nội bộ', chu(sheet(m)).indexOf('KM-CU') < 0);
   });
 
+  await ca('PR517 Codex vòng 7: chương trình giới hạn đối tượng thì thẻ cài đặt nói rõ khách ngoài phạm vi được bỏ qua', async function () {
+    var m = dungMoi(QL);
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzlcd="quay_lai"]'));
+    dung('mọi khách: không có câu đối tượng', !mot(sheet(m), '[data-crmzldt]'));
+    var d = dlMau(); d.ctkm[1].doi_tuong = 'Chỉ áp cho khách hạng VOYAGER, khách khác được bỏ qua';
+    m = dungMoi(QL, { ds_kich_ban: d });
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzlcd="quay_lai"]'));
+    var o = mot(sheet(m), '[data-crmzldt]');
+    dung('có câu đối tượng', o && chu(o).indexOf('khách hạng VOYAGER, khách khác được bỏ qua, không phát mã') >= 0);
+  });
+
   await ca('cài đặt sau mua: không có ô chương trình, voucher, số ngày', async function () {
     var m = dungMoi(QL);
     await m.g.scrCrmZalo();
