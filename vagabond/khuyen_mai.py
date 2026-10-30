@@ -56,13 +56,18 @@ def khach_cua_ma(ma):
 	return dc if dc and frappe.db.exists("Customer", dc) else ""
 
 
-def ma_rang_buoc(km):
+def ma_rang_buoc(km, v=None):
 	"""Mã của chương trình này chỉ dùng cho chính người nhận không. THUẦN.
 
 	Quà chào mừng và mọi chương trình phát vào Ví quà thành viên (v623) là
 	quà riêng của một người: thu ngân không áp được cho hoá đơn khách khác.
+	Mã đã phát vào ví mang dấu chi_nguoi_nhan ngay lúc phát, nên tắt "Phát vào
+	Ví quà" sau đó (chỉ để ngừng phát mới) không mở mã cũ cho khách khác dùng
+	(Codex PR #520).
 	"""
 	km = km or {}
+	if cint((v or {}).get("chi_nguoi_nhan")):
+		return 1
 	return 1 if (km.get("name") == CTKM_QUA or cint(km.get("vi_phat"))) else 0
 
 
@@ -982,7 +987,7 @@ def _tra_ma(ma, quay=None, nguon=None):
 	v = frappe.db.get_value(
 		"Vagabond Voucher",
 		ma,
-		["ctkm", "trang_thai", "han_dung", "hoa_don", "ngay_dung", "gui_cho", "danh_cho", "sdt"],
+		["ctkm", "trang_thai", "han_dung", "hoa_don", "ngay_dung", "gui_cho", "danh_cho", "sdt", "chi_nguoi_nhan"],
 		as_dict=True,
 	)
 	if v.trang_thai == "Da dung":
@@ -1009,7 +1014,7 @@ def _tra_ma(ma, quay=None, nguon=None):
 		"han_dung": v.han_dung,
 		"danh_cho": v.get("danh_cho") or "",
 		"sdt": v.get("sdt") or "",
-		"rang_buoc": ma_rang_buoc(km),
+		"rang_buoc": ma_rang_buoc(km, v),
 		"dung_duoc": 1 if ok else 0,
 		"ly_do": ly_do,
 	}

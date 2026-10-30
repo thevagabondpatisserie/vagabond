@@ -777,6 +777,7 @@ def _phat_voucher(c, kh, khach, ma_kb, han=None):
 	ma = _sinh_ma()
 	frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.name, "ten_ctkm": cat(km.ten, 140),
 		"trang_thai": "Chua dung", "han_dung": han, "khach": cat(kh["ten"], 140), "sdt": kh["sdt84"], "danh_cho": khach,
+		"chi_nguoi_nhan": 1 if int(km.get("vi_phat") or 0) else 0,
 		"gui_cho": cat("Tin Zalo: " + (kich_ban(ma_kb) or {}).get("ten", ""), 140)}).insert(ignore_permissions=True)
 	return ma, han, ""
 

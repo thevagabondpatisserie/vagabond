@@ -571,7 +571,7 @@ def nhan_qua(quay=None):
 	ma = khuyen_mai._sinh_ma_moi(1)[0]
 	frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.name, "ten_ctkm": cat(km.ten, 140),
 		"trang_thai": "Chua dung", "han_dung": han, "khach": cat(tv.get("ten_goi") or kh.customer_name, 140),
-		"sdt": noi_dia, "danh_cho": khach, "quay": quay,
+		"sdt": noi_dia, "danh_cho": khach, "quay": quay, "chi_nguoi_nhan": 1,
 		"gui_cho": cat("Quà chào mừng trang thành viên" + ((" tại quầy " + quay) if quay else ""), 140)}).insert(ignore_permissions=True)
 	from frappe.utils import now_datetime
 
@@ -773,7 +773,7 @@ def cap_vi_tv():
 		ma = khuyen_mai._sinh_ma_moi(1)[0]
 		frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.name, "ten_ctkm": cat(km.ten, 140),
 			"trang_thai": "Chua dung", "han_dung": han, "khach": cat(tv.get("ten_goi") or kh.customer_name, 140),
-			"sdt": noi_dia, "danh_cho": khach, "gui_cho": "Ví quà thành viên"}).insert(ignore_permissions=True)
+			"sdt": noi_dia, "danh_cho": khach, "gui_cho": "Ví quà thành viên", "chi_nguoi_nhan": 1}).insert(ignore_permissions=True)
 		moi.append({"ma": ma, "ten": km.ten or "", "uu_dai": mo_ta_uu_dai(km)[0], "han": ngay_vn(han)})
 	frappe.db.commit()
 	return {'ok':1, 'moi':moi}
