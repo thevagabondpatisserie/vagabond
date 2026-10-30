@@ -44,11 +44,22 @@ MOI, LIEN_HE, HEN_PV, LAM_THU, DE_NGHI, NHAN_VIEC, DUNG = (
 TRANG_THAI = (MOI, LIEN_HE, HEN_PV, LAM_THU, DE_NGHI, NHAN_VIEC, DUNG)
 # Trạng thái cần ngày giờ hẹn (ứng viên phải biết tới lúc nào).
 CAN_HEN = (HEN_PV, LAM_THU)
+# Thanh tiến độ 4 bước (anh Việt 30/10/2026: "tuyển dụng là một quá trình, cần
+# thanh tiến độ 1-2-3-4"). Đây là NGUỒN DUY NHẤT gom trạng thái vào bước; app
+# nhận qua tong_quan (khoá "buoc"), không tự chia lại.
+BUOC = (("Liên hệ", (MOI, LIEN_HE)), ("Phỏng vấn", (HEN_PV,)), ("Làm thử", (LAM_THU,)),
+	("Nhận việc", (DE_NGHI, NHAN_VIEC)))
 LY_DO_DUNG = ("Không phù hợp", "Ứng viên rút", "Không liên lạc được", "Đã đủ người")
 VONG = ("Phỏng vấn", "Làm thử")
 KET_LUAN = ("Nên nhận", "Cân nhắc", "Không nên nhận")
 
 GIO_GOI_LAI = 24
+LO_NHAC = 200
+TRANG_NHAC_TOI_DA = 25
+# Tin Zalo tuyển dụng chép tên, số ứng viên vào sổ tin (Vagabond Tin Kenh.noi_dung);
+# hết hạn lưu thì xoá luôn bản chép đó (Codex #518).
+MA_TIN_TUYEN_DUNG = ("ns_ung_vien_moi", "ns_ung_vien_qua_han")
+CAU_TIN_DA_XOA = "Tin tuyển dụng: đã xoá thông tin ứng viên theo hạn lưu hồ sơ."
 THANG_LUU = 12
 # Tiêu chí mặc định khi vị trí chưa khai, theo nhóm việc. Anh Việt sửa ở màn vị trí.
 TIEU_CHI_MAC_DINH = ("Thái độ, giao tiếp", "Nhanh nhẹn, chịu được giờ cao điểm",
@@ -296,6 +307,31 @@ def kiem_chuyen(cu, moi, lich_hen=None, ly_do=None):
 	if moi == DUNG and len(re.sub(r"\s+", " ", str(ly_do or "")).strip()) < 3:
 		return "Chọn lý do dừng để sau này còn biết vì sao."
 	return ""
+
+
+def so_buoc(trang_thai):
+	"""THUẦN: bước 1 đến 4 của một trạng thái; 0 nếu không thuộc bước nào (Dừng)."""
+	for i, (_ten, ds) in enumerate(BUOC):
+		if trang_thai in ds:
+			return i + 1
+	return 0
+
+
+def buoc_cua(row):
+	"""THUẦN: vị trí của hồ sơ trên thanh tiến độ.
+
+	so: bước đang ở (1 đến 4). xong: đã nhận việc, cả bốn bước xong. dung: dừng ở
+	bước so (lấy từ trạng thái ngay trước khi dừng, ô dung_tu; hồ sơ cũ chưa có ô
+	này thì coi như dừng ở bước 1)."""
+	tt = row.get("trang_thai")
+	if tt == DUNG:
+		return {"so": so_buoc(row.get("dung_tu")) or 1, "xong": 0, "dung": 1}
+	return {"so": so_buoc(tt) or 1, "xong": 1 if tt == NHAN_VIEC else 0, "dung": 0}
+
+
+def buoc_app():
+	"""Bốn bước cho app vẽ thanh tiến độ và xếp lựa chọn Cập nhật theo bước."""
+	return [{"so": i + 1, "ten": ten, "tt": list(ds)} for i, (ten, ds) in enumerate(BUOC)]
 
 
 def qua_han_goi(row, bay_gio, gio=GIO_GOI_LAI):
@@ -650,10 +686,18 @@ def nhac_qua_han():
 	try:
 		from vagabond import kenh_zalo
 		bay_gio = frappe.utils.now_datetime()
-		rows = frappe.get_all(UV, filters={"trang_thai": MOI, "da_an_danh": 0,
-			"creation": ["<=", bay_gio - timedelta(hours=GIO_GOI_LAI)]},
-			fields=["name", "ho_ten", "sdt", "vi_tri", "ten_vi_tri", "creation", "trang_thai", "lien_he_luc"],
-			limit_page_length=200)
+		# Codex #518: lọc "chưa ai liên hệ" NGAY trong câu hỏi, trước khi cắt trang,
+		# và đọc hết các trang. Lọc sau khi cắt thì 200 hồ sơ đã gọi mà không nghe máy
+		# (vẫn Mới nhận) chiếm hết lô, người chưa ai gọi phía sau không bao giờ được nhắc.
+		rows = []
+		for trang in range(TRANG_NHAC_TOI_DA):
+			lo = frappe.get_all(UV, filters={"trang_thai": MOI, "da_an_danh": 0, "lien_he_luc": ["is", "not set"],
+				"creation": ["<=", bay_gio - timedelta(hours=GIO_GOI_LAI)]},
+				fields=["name", "ho_ten", "sdt", "vi_tri", "ten_vi_tri", "creation", "trang_thai", "lien_he_luc"],
+				order_by="creation asc", limit_start=trang * LO_NHAC, limit_page_length=LO_NHAC)
+			rows.extend(lo)
+			if len(lo) < LO_NHAC:
+				break
 		for r in rows:
 			if not qua_han_goi(r, bay_gio):
 				continue
@@ -686,6 +730,9 @@ def xoa_het_han():
 			# Doctype đã tắt lưu lịch sử sửa (track_changes 0); bản ghi lịch sử nào
 			# còn sót (ai đó bật lại) cũng chứa bản cũ của tên, số, nên bỏ luôn.
 			frappe.db.delete("Version", {"ref_doctype": UV, "docname": r["name"]})
+			# Tin Zalo báo hồ sơ mới, nhắc quá hạn chép tên và số vào sổ tin: xoá bản chép.
+			frappe.db.sql("update `tabVagabond Tin Kenh` set noi_dung=%s where nguon=%s and ma_tin in %s",
+				(CAU_TIN_DA_XOA, r["name"], MA_TIN_TUYEN_DUNG))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tuyen_dung: xoa het han")
 
@@ -695,7 +742,7 @@ def xoa_het_han():
 
 TRUONG_UV = ["name", "vi_tri", "ten_vi_tri", "ho_ten", "sdt", "email", "khu_vuc", "ca_ranh", "kinh_nghiem",
 	"gioi_thieu", "lien_ket_cv", "nguon", "nguoi_gioi_thieu", "trang_thai", "ly_do_dung", "lich_hen",
-	"lien_he_luc", "nhat_ky", "xu_ly_boi", "xu_ly_luc", "gio_lam_thu", "tien_cong_thu", "da_tra_cong",
+	"lien_he_luc", "dung_tu", "nhat_ky", "xu_ly_boi", "xu_ly_luc", "gio_lam_thu", "tien_cong_thu", "da_tra_cong",
 	"tra_cong_boi", "tra_cong_luc", "han_luu", "creation", "da_an_danh"]
 
 
@@ -731,6 +778,7 @@ def tong_quan():
 		r["qua_han"] = 1 if qua_han_goi(r, bay_gio) else 0
 		r["lan_nop"] = dem_sdt.get(r["sdt"], 1)
 		r["cham"] = ten_cham.get(r["name"], [])
+		r["buoc"] = buoc_cua(r)
 	so_hs = {}
 	for r in rows:
 		so_hs[r["vi_tri"]] = so_hs.get(r["vi_tri"], 0) + 1
@@ -748,6 +796,7 @@ def tong_quan():
 		"hinh_thuc": list(HINH_THUC), "ca_ranh": list(CA_RANH), "noi_lam": _noi_lam_mau(),
 		"bo_phan": bo_phan, "tieu_chi_mac_dinh": list(TIEU_CHI_MAC_DINH), "cau_dong_y": CAU_DONG_Y,
 		"gio_goi_lai": GIO_GOI_LAI, "thang_luu": THANG_LUU, "link_ung_tuyen": _link_ung_tuyen(),
+		"buoc": buoc_app(),
 	}
 	kq.update(mau_tin_app())
 	return kq
@@ -859,8 +908,12 @@ def cap_nhat(name, trang_thai, lich_hen=None, ly_do=None, ghi_chu=None):
 	if trang_thai == DUNG:
 		doc.ly_do_dung = re.sub(r"\s+", " ", str(ly_do)).strip()[:140]
 		cau += " (" + doc.ly_do_dung + ")"
+		if cu != DUNG:
+			# Thanh tiến độ cần biết dừng ở bước nào; bấm Dừng lần nữa không đổi.
+			doc.dung_tu = cu
 	else:
 		doc.ly_do_dung = ""
+		doc.dung_tu = ""
 	if cu == MOI and trang_thai != MOI and not doc.lien_he_luc:
 		doc.lien_he_luc = frappe.utils.now_datetime()
 	if ghi:
@@ -908,6 +961,10 @@ def cham(name, vong, diem, ket_luan, nhan_xet=None):
 	lại bảng (bài học v619: dựng lại bảng con làm lịch sử sửa phình)."""
 	_kiem_quyen()
 	doc = frappe.get_doc(UV, name, for_update=True)
+	if int(doc.da_an_danh or 0):
+		# Codex #518: phiếu chấm mở từ trước khi nhịp đêm xoá theo hạn; lưu vào là
+		# đưa lại nhận xét nhận ra được người, và các lượt xoá sau bỏ qua hồ sơ này.
+		frappe.throw("Hồ sơ này đã xoá thông tin theo hạn lưu, không chấm thêm được.")
 	vt = frappe.db.get_value(VT, doc.vi_tri, ["tieu_chi"], as_dict=True) or {}
 	try:
 		d = chuan_phieu_cham(tieu_chi_cua(vt), diem, ket_luan, vong)
