@@ -755,7 +755,8 @@ def _gia_tri_sau_mua(row, kh):
 	}, ""
 
 
-COT_CTKM = ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "hd_toi_thieu", "tu_ngay", "den_ngay", "han_ma"]
+COT_CTKM = ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "hd_toi_thieu", "tu_ngay", "den_ngay", "han_ma",
+	"doi_tuong", "hang_khach", "nhom_khach"]
 
 
 def _doc_ctkm(ten):
@@ -776,6 +777,36 @@ def _phat_voucher(c, kh, khach, ma_kb):
 		"trang_thai": "Chua dung", "han_dung": han, "khach": cat(kh["ten"], 140), "sdt": kh["sdt84"], "danh_cho": khach,
 		"gui_cho": cat("Tin Zalo: " + (kich_ban(ma_kb) or {}).get("ten", ""), 140)}).insert(ignore_permissions=True)
 	return ma, han, ""
+
+
+def ghi_doi_tuong(km):
+	"""Câu ngắn cho màn: chương trình chỉ áp cho ai. THUẦN. Mọi khách thì rỗng.
+
+	Codex PR #517 vòng 7: người cài kịch bản phải biết trước khách ngoài phạm vi
+	sẽ bị bỏ qua (không phát mã, không gửi tin)."""
+	dt_ = (km or {}).get("doi_tuong") or "Moi khach"
+	if dt_ == "Moi khach":
+		return ""
+	if dt_ == "Theo hang khach":
+		ds = ", ".join(x.strip() for x in str(km.get("hang_khach") or "").splitlines() if x.strip())
+		ai = "khách hạng " + ds if ds else "một số hạng khách"
+	elif dt_ == "Theo nhom khach":
+		ds = ", ".join(x.strip() for x in str(km.get("nhom_khach") or "").splitlines() if x.strip())
+		ai = "khách nhóm " + ds if ds else "một số nhóm khách"
+	elif dt_ == "Khach chi dinh":
+		ai = "khách trong danh sách chỉ định"
+	elif dt_ == "Nhan vien":
+		ai = "nhân viên"
+	else:
+		ai = "một nhóm khách"
+	return "Chỉ áp cho %s, khách khác được bỏ qua" % ai
+
+
+def _hop_doi_tuong(km, khach, sdt):
+	"""Cùng một phép kiểm đối tượng với quầy (một nguồn: khuyen_mai)."""
+	from vagabond import khuyen_mai
+
+	return khuyen_mai._hop_doi_tuong(km, khach, sdt)
 
 
 def _huy_voucher(ma, ly_do):
@@ -812,6 +843,13 @@ def _gui_mot(c, row):
 			return None
 		if ma_kb == "quay_lai" and not con_vang_mat(_lan_mua_cuoi(row.khach), _bay_gio().date(), c.get("so_ngay")):
 			_xong(row.name, TT_BO, "Khách đã quay lại mua, không gửi lời mời.")
+			return None
+		# Codex PR #517 vòng 7: quầy chỉ nhận mã khi khách đúng đối tượng của
+		# chương trình (khuyen_mai.tinh gọi _hop_doi_tuong). Khách ngoài phạm
+		# vi thì bỏ qua, không phát mã khách không dùng được.
+		ok_dt, ly_dt = _hop_doi_tuong(_doc_ctkm(c.get("ctkm")) or {}, row.khach, kh["sdt84"])
+		if not ok_dt:
+			_xong(row.name, TT_BO, "Khách không thuộc đối tượng của chương trình ưu đãi: %s." % ly_dt)
 			return None
 		ma_v, han, loi = _phat_voucher(c, kh, row.khach, ma_kb)
 		if loi:
@@ -1027,7 +1065,9 @@ def ds_kich_ban():
 		phu = ("Đến hết %s" % ngay_vn(den)) if den else "Không giới hạn ngày"
 		if tu and tu > luc.date():
 			phu = "Bắt đầu %s, %s" % (ngay_vn(tu), phu[0].lower() + phu[1:])
-		ctkm.append({"name": km.get("name"), "ten": km.get("ten") or km.get("name"), "phu": phu})
+		dt_ghi = ghi_doi_tuong(km)
+		ctkm.append({"name": km.get("name"), "ten": km.get("ten") or km.get("name"),
+			"phu": phu + ((" · " + dt_ghi) if dt_ghi else ""), "doi_tuong": dt_ghi})
 	q = _han_muc() or {}
 	return {"ds": ds, "ctkm": ctkm, "han_muc": q, "sua": 1 if _co_lap() else 0}
 

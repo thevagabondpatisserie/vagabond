@@ -35,6 +35,48 @@ from frappe.utils import cint, flt, get_datetime, getdate, now_datetime, nowdate
 CHU_MA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # bo O/0 va I/1 cho khoi doc nham
 DAI_MA = 6
 
+# v621 (anh Việt 30/10/2026): quà chào mừng 20.000đ cho khách khai hồ sơ trên
+# trang thành viên. Mã của chương trình này CHỈ dùng cho đúng người nhận
+# (một số điện thoại một lần), nên quầy không được áp cho hoá đơn khách khác.
+CTKM_QUA = "QUA-CHAO-MUNG"
+
+
+def duoi_sdt(s):
+	"""9 số cuối để so số điện thoại bất kể +84, 84, 0, dấu cách. THUẦN."""
+	so = re.sub(r"\D", "", str(s or ""))
+	return so[-9:] if len(so) >= 9 else ""
+
+
+def khach_cua_ma(ma):
+	"""Khách nhận của một mã dùng một lần (rỗng nếu mã không gắn ai)."""
+	ma = str(ma or "").strip().upper()
+	if not ma:
+		return ""
+	dc = frappe.db.get_value("Vagabond Voucher", ma, "danh_cho") or ""
+	return dc if dc and frappe.db.exists("Customer", dc) else ""
+
+
+def kiem_nguoi_nhan(tt, khach, sdt):
+	"""Mã gắn người nhận (danh_cho) dùng cho hoá đơn nào. THUẦN.
+
+	Trả (khach_dung, loi). Hoá đơn chưa chọn khách thì gắn người nhận vào để
+	hoá đơn tích điểm đúng người (Codex PR #503). Mã quà chào mừng (rang_buoc)
+	chỉ dùng cho chính người nhận: hoá đơn đã chọn khách khác, hay đơn mang số
+	điện thoại khác, thì từ chối.
+	"""
+	dc = (tt or {}).get("danh_cho") or ""
+	khach = (khach or "").strip()
+	if not dc:
+		return khach, ""
+	if not khach:
+		if cint((tt or {}).get("rang_buoc")) and duoi_sdt(sdt) and duoi_sdt((tt or {}).get("sdt")) \
+				and duoi_sdt(sdt) != duoi_sdt(tt.get("sdt")):
+			return khach, "mã quà này là của số điện thoại khác, chỉ dùng cho chính người nhận"
+		return dc, ""
+	if khach != dc and cint((tt or {}).get("rang_buoc")):
+		return khach, "mã quà này là của khách khác, chỉ dùng cho hoá đơn của chính người nhận. Bỏ khách đang chọn rồi áp lại"
+	return khach, ""
+
 QUYEN_KM = {"System Manager", "Sales User", "Sales Manager"}  # 01/10: gỡ Bộ phận đặt hàng (vai thu mua)
 # "VGB - Quan ly khuyen mai" la vai tro rieng cua tiem, dat ra 12/08/2026 cho
 # quan ly cua hang. Khong cap thang Sales Manager vi vai tro do con mo them
@@ -895,7 +937,13 @@ def tra_ma(ma, quay=None, nguon=None):
 	"""Cashier go mot ma vao o voucher. Ma co the la ma co dinh cua chuong
 	trinh, hoac ma dung mot lan xuat theo lo."""
 	_kiem_quyen()
-	return _tra_ma(ma, quay=quay, nguon=nguon)
+	tt = _tra_ma(ma, quay=quay, nguon=nguon)
+	# Màn quầy gắn luôn khách nhận mã vào hoá đơn (Codex PR #503): trả tên để
+	# thu ngân thấy hoá đơn đang của ai. Không trả số điện thoại ra màn.
+	tt.pop("sdt", None)
+	if tt.get("danh_cho"):
+		tt["ten_khach"] = frappe.db.get_value("Customer", tt["danh_cho"], "customer_name") or tt["danh_cho"]
+	return tt
 
 
 def _tra_ma(ma, quay=None, nguon=None):
@@ -924,7 +972,7 @@ def _tra_ma(ma, quay=None, nguon=None):
 	v = frappe.db.get_value(
 		"Vagabond Voucher",
 		ma,
-		["ctkm", "trang_thai", "han_dung", "hoa_don", "ngay_dung", "gui_cho"],
+		["ctkm", "trang_thai", "han_dung", "hoa_don", "ngay_dung", "gui_cho", "danh_cho", "sdt"],
 		as_dict=True,
 	)
 	if v.trang_thai == "Da dung":
@@ -949,6 +997,9 @@ def _tra_ma(ma, quay=None, nguon=None):
 		"ten": km.get("ten"),
 		"gui_cho": v.gui_cho,
 		"han_dung": v.han_dung,
+		"danh_cho": v.get("danh_cho") or "",
+		"sdt": v.get("sdt") or "",
+		"rang_buoc": 1 if km["name"] == CTKM_QUA else 0,
 		"dung_duoc": 1 if ok else 0,
 		"ly_do": ly_do,
 	}
@@ -1036,6 +1087,9 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 		tt = _tra_ma(ma, quay=quay, nguon=nguon)
 		if not tt.get("dung_duoc"):
 			frappe.throw("Mã %s: %s." % (ma, tt.get("ly_do") or "không dùng được lúc này"))
+		khach, loi_nn = kiem_nguoi_nhan(tt, khach, sdt)
+		if loi_nn:
+			frappe.throw("Mã %s: %s." % (ma, loi_nn))
 		ma_ctkm_tu_voucher = tt["ctkm"]
 		if ma_ctkm_tu_voucher not in ctkm:
 			ctkm.append(ma_ctkm_tu_voucher)
@@ -1060,6 +1114,12 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 	for km in ds_km:
 		if not cint(km.get("bat")):
 			bo.append({"ten": km.get("ten"), "ly_do": "chương trình đang tắt"})
+			continue
+		# Codex PR #503: chương trình phát mã dùng một lần chỉ áp qua MÃ của nó.
+		# Gửi thẳng tên chương trình (không mã) là đi vòng qua mã một lần,
+		# qua OTP và qua luật một số một lần của quà chào mừng.
+		if km.get("cach_ma") == "Ma dung mot lan" and km["name"] != ma_ctkm_tu_voucher:
+			bo.append({"ten": km.get("ten"), "ly_do": "chương trình này chỉ áp khi nhập mã dùng một lần của khách"})
 			continue
 		ok, ly_do = _hop_thoi_gian(km)
 		if ok:
