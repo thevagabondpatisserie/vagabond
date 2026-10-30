@@ -58,8 +58,19 @@ def _nhom_si():
 
 @frappe.whitelist()
 def ds_hang():
-	"""Bang hang khach dang cau hinh, xep tu thap len cao."""
+	"""Bang hang khach dang cau hinh, xep tu thap len cao (API cho nhan vien)."""
 	_kiem_quyen_ban()
+	return bang_hang()
+
+
+def bang_hang():
+	"""Doc bang hang, KHONG kiem quyen nhan vien.
+
+	Trang thanh vien chay voi phien Guest (khach dang nhap OTP chi co cookie
+	rieng), nen phai doc bang hang qua ham nay, khong qua ds_hang (Codex PR
+	#517 vong 8: goi ds_hang lam trang thanh vien do voi moi khach).
+	Khong whitelist: chi goi tu ma may chu.
+	"""
 	try:
 		ds = frappe.get_all(
 			"Vagabond Hang Khach",

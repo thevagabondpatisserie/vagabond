@@ -285,7 +285,7 @@ def _vi(khach, hom_nay):
 def _tien_do(khach):
 	from vagabond import khach_hang
 
-	bang = [h for h in (khach_hang.ds_hang().get("hang") or []) if (h.get("loai") or "Theo chi tieu") == "Theo chi tieu"]
+	bang = [h for h in (khach_hang.bang_hang().get("hang") or []) if (h.get("loai") or "Theo chi tieu") == "Theo chi tieu"]
 	so_thang = max([int(h.get("so_thang_xet") or 12) for h in bang] or [12])
 	tien = float((khach_hang._chi_tieu([khach], so_thang).get(khach) or {}).get("tien") or 0)
 	td = khach_hang.tien_do_hang(bang, tien)
