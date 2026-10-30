@@ -128,6 +128,10 @@ scheduler_events = {
 			# chi doi sang "Da gui" khi hang doi that su bao Sent. Nhip 5 phut
 			# la du sat, vi bo lap lich cua Frappe cung nhat thu theo nhip do.
 			"vagabond.trang_thai_thu.soat_tu_dong",
+			# v621: tin Zalo tự động cho khách (sau mua hàng, sinh nhật, lâu
+			# chưa quay lại). Hàm tự kiểm công tắc, giờ gửi và trần từng
+			# kịch bản; quét sinh nhật, quay lại mỗi ngày một lần.
+			"vagabond.zalo_kich_ban.chay_tu_dong",
 		],
 		"*/30 * * * *": [
 			"vagabond.ban_hang.dong_bo_doanh_so_tu_dong",

@@ -202,6 +202,7 @@ async function scrHome() {
       card('✅', 'Sổ đồng ý nhận tin', 'Ai đồng ý, ai từ chối, qua kênh nào, ngày nào, ở đâu', 0, 'CRMDY') +
       card('📣', 'Chiến dịch', 'Chọn nhóm khách, món giới thiệu, mã ưu đãi riêng, chia cho Sales', 0, 'CRMCD') +
       card('📊', 'Hiệu quả chiến dịch', 'Doanh thu nhóm được liên hệ so với nhóm đối chứng', 0, 'CRMHQ') +
+      card('🤖', 'Tin Zalo tự động', 'Máy tự gửi khách: cảm ơn sau mua hàng, sinh nhật, mời quay lại', 0, 'CRMZL') +
       (isSales() ? card('🎁', 'Tặng quà khách VIP', 'Lên danh sách, chia việc, theo dõi đã tặng và đã liên hệ', 0, 'TQV') : '') + '</div>';
   }
   /* Anh Viet 14/08/2026: doi ten nut 'Hop dong event, catering' thanh
@@ -591,11 +592,12 @@ var VGB_NHOM = [
      mẫu 27/10/2026. */
   {
     k: 'KHG', ten: 'Khách hàng', icon: '💝',
-    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'TQV'],
+    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'TQV'],
     nhom: [
       { t: 'Việc hôm nay', p: '', keys: ['CRMGOI'] },
       { t: 'Hồ sơ khách', p: '', keys: ['KH', 'CRMNHOM', 'CRMDY'] },
-      { t: 'Chiến dịch', p: '', keys: ['CRMCD', 'CRMHQ', 'TQV'] }
+      { t: 'Chiến dịch', p: '', keys: ['CRMCD', 'CRMHQ', 'TQV'] },
+      { t: 'Tin tự động', p: '', keys: ['CRMZL'] }
     ]
   },
   {
@@ -1909,6 +1911,7 @@ var VGB_DUONG = {
   'thanh-toan-noi-bo': 'DNC',
   'thong-bao': 'CDTB',
   'thong-tin-dat-ban': 'DATBAN',
+  'tin-zalo-tu-dong': 'CRMZL',
   'ton-kho': 'STOCK',
   'ton-kho-theo-chang': 'TONCHANG',
   'tra-cuu-bang-gia-mua-vao': 'DM:DMGIA',
@@ -2102,6 +2105,7 @@ function vgbGo(k) {
   if (k === 'CRMDY') return go(scrCrmDongY);
   if (k === 'CRMCD') return go(scrCrmCdDs);
   if (k === 'CRMHQ') return go(scrCrmHqDs);
+  if (k === 'CRMZL') return go(scrCrmZalo);
   if (k === 'HDG') return go(scrHopDongHub);
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);

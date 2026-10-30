@@ -4601,6 +4601,13 @@ def tao_don_tay(
 	# hạng giảm giá thì cũng phải tính, kể cả khi không chọn chương trình nào.
 	# Trước đây chỉ truyền khach_no nên cả ưu đãi hạng lẫn chương trình "Theo
 	# hạng khách" không bao giờ thấy khách vừa nhập số điện thoại.
+	# Codex PR #503: mã gắn người nhận (quà chào mừng, voucher tin Zalo) mà
+	# thu ngân chưa chọn khách thì hoá đơn thuộc người nhận, để tích điểm và
+	# chăm sóc đúng người. Đã chọn khách thì khuyen_mai.tinh tự kiểm có khớp.
+	if (ma_voucher or "").strip() and not (khach_no or "").strip() and not (khach_ma or "").strip():
+		from vagabond import khuyen_mai as _km0
+
+		khach_ma = _km0.khach_cua_ma(ma_voucher) or khach_ma
 	khach_km = khach_no or khach_ma or None
 	if ctkm_ap or combo_ap or (ma_voucher or "").strip() or khach_km:
 		from vagabond import khuyen_mai as _km

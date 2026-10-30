@@ -1,33 +1,27 @@
 // #245: lỗi nguồn đơn phải có câu thử lại, không bị biến thành lịch sử rỗng.
-const fs = require('node:fs');
-const vm = require('node:vm');
+// v621: chạy trên trang thật (HTML + chu.js + thanh-vien.js) bằng khung chung
+// tv_khung.js thay cho DOM tự chế; giữ nguyên mọi khẳng định cũ.
 const assert = require('node:assert/strict');
-function phanTu(the = 'div') {
-  return {the, textContent:'', children:[], classList:{toggle(){}},
-    append(...cacCon){this.children.push(...cacCon);}, replaceChildren(...con){this.children=con;}};
-}
+const { dungTrang, nghi } = require('./tv_khung.js');
 (async()=>{
-  const cacO = {};
-  const tim = id => cacO[id] ||= phanTu();
   let duLieu = {ok:1,ten:'Khách',diem:25000,don:[],don_loi:true,co_ho_so:true};
-  const nguon = (fs.readFileSync('vagabond/public/web_order/chu.js','utf8').split('(function ()')[0] + '\n' + fs.readFileSync('vagabond/public/web_order/thanh-vien.js','utf8'));
-  await vm.runInNewContext(nguon, {window:{},document:{getElementById:tim,createElement:phanTu},
-    fetch:async()=>({ok:true,json:async()=>({message:duLieu})})});
+  const t = await dungTrang({ san_sang: { otp: 1, qua: { mo: 1, uu_dai: 'Giảm 20.000đ' } }, toi: () => duLieu });
+  const tim = t.tim;
   assert.match(tim('don').children[0].textContent,/Chưa tải được/);
   assert.ok(!tim('don').children.some(x=>x.textContent.includes('Chưa có đơn')));
-  const nut = tim('don').children.find(x=>x.the==='button');
+  const nut = tim('don').children.find(x=>x.tagName==='BUTTON');
   assert.ok(nut && nut.textContent==='Thử lại');
   duLieu = {...duLieu,don_loi:false};
-  await nut.onclick();
+  await nut.onclick(); await nghi();
   assert.match(tim('don').children[0].textContent,/Chưa có đơn/);
-  assert.ok(!tim('don').children.some(x=>x.the==='button'));
+  assert.ok(!tim('don').children.some(x=>x.tagName==='BUTTON'));
   assert.match(tim('diem').textContent,/25/);
   duLieu = {...duLieu,don_chua_mo:true};
-  await nut.onclick();
+  await nut.onclick(); await nghi();
   assert.match(tim('don').children[0].textContent,/chưa khả dụng/);
-  assert.ok(!tim('don').children.some(x=>x.the==='button'||x.textContent.includes('Chưa có đơn')));
+  assert.ok(!tim('don').children.some(x=>x.tagName==='BUTTON'||x.textContent.includes('Chưa có đơn')));
   duLieu = {...duLieu,don_chua_mo:false,don:[{ma_don:'300',luc_tao:'2026-09-19T17:30:00Z',ngay_dat:'2026-09-20',tong:125000,trang_thai:'Đã giao',mau_trang_thai:'xanh',mon:[{ten:'Bánh <script>',sl:2,hinh:'/files/banh.jpg'},{ten:'Bánh 2',sl:1,hinh:'javascript:alert(1)'}]}]};
-  await nut.onclick();
+  await nut.onclick(); await nghi();
   const dong=tim('don').children[0];
   assert.equal(dong.className,'don');
   assert.match(dong.children[0].children[0].textContent,/20\/09\/2026/);

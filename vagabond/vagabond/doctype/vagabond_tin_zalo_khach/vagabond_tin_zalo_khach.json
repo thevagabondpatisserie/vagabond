@@ -1,0 +1,165 @@
+{
+ "actions": [],
+ "creation": "2026-10-29 16:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Tin Zalo Khach",
+ "modified": "2026-10-29 16:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Sổ tin Zalo tự động: mỗi dòng một tin, ghi trước khi gửi để không gửi trùng.",
+ "autoname": "hash",
+ "field_order": [
+  "kich_ban",
+  "trang_thai",
+  "khach",
+  "ten_khach",
+  "sdt",
+  "khoa",
+  "cb1",
+  "hoa_don",
+  "diem",
+  "voucher",
+  "ma_mau",
+  "gia",
+  "msg_id",
+  "luc_gui",
+  "loi"
+ ],
+ "fields": [
+  {
+   "fieldname": "kich_ban",
+   "fieldtype": "Link",
+   "label": "Kịch bản",
+   "options": "Vagabond Kich Ban Zalo",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Chờ gửi\nĐã gửi\nLỗi\nBỏ qua",
+   "default": "Chờ gửi",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "label": "Khách hàng",
+   "options": "Customer",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ten_khach",
+   "fieldtype": "Data",
+   "label": "Tên trên tin",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "Số Zalo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "khoa",
+   "fieldtype": "Data",
+   "label": "Khoá chống gửi trùng",
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "label": "Hoá đơn",
+   "options": "Sales Invoice"
+  },
+  {
+   "fieldname": "diem",
+   "fieldtype": "Float",
+   "label": "Điểm vừa tích",
+   "read_only": 1
+  },
+  {
+   "fieldname": "voucher",
+   "fieldtype": "Link",
+   "label": "Voucher",
+   "options": "Vagabond Voucher",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ma_mau",
+   "fieldtype": "Data",
+   "label": "Mã mẫu Zalo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gia",
+   "fieldtype": "Currency",
+   "label": "Phí (đồng)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "msg_id",
+   "fieldtype": "Data",
+   "label": "Mã tin Zalo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc_gui",
+   "fieldtype": "Datetime",
+   "label": "Gửi lúc",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "loi",
+   "fieldtype": "Small Text",
+   "label": "Lý do",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "track_changes": 0,
+ "title_field": "khach"
+}

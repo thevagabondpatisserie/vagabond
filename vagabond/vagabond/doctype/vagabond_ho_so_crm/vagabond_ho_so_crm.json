@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Ho So CRM",
- "modified": "2026-10-27 18:00:00.000000",
+ "modified": "2026-10-30 12:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Hồ sơ CRM của một khách: nhóm máy tự chia mỗi đêm và trạng thái đồng ý nhận tin từng kênh.",
@@ -38,7 +38,17 @@
   "dy_luc",
   "dy_noi",
   "khong_quang_cao",
-  "kqc_ghi_chu"
+  "kqc_ghi_chu",
+  "sb_tv",
+  "ten_goi",
+  "email_khach",
+  "so_thich",
+  "cb_tv",
+  "anh_dai_dien",
+  "anh_mau",
+  "qua_chao_mung",
+  "qua_luc",
+  "qua_quay"
  ],
  "fields": [
   {
@@ -220,6 +230,64 @@
    "fieldname": "kqc_ghi_chu",
    "fieldtype": "Small Text",
    "label": "Ghi chú Danh sách không quảng cáo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_tv",
+   "fieldtype": "Section Break",
+   "label": "Trang thành viên (khách tự khai)"
+  },
+  {
+   "fieldname": "ten_goi",
+   "fieldtype": "Data",
+   "label": "Tên khách muốn được gọi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "email_khach",
+   "fieldtype": "Data",
+   "label": "Email khách tự khai",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_thich",
+   "fieldtype": "Small Text",
+   "label": "Món hay chọn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_tv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "anh_dai_dien",
+   "fieldtype": "Data",
+   "label": "Ảnh đại diện (tệp riêng tư)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "anh_mau",
+   "fieldtype": "Data",
+   "label": "Hình bánh làm ảnh đại diện",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qua_chao_mung",
+   "fieldtype": "Link",
+   "options": "Vagabond Voucher",
+   "label": "Mã quà chào mừng đã cấp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qua_luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc cấp quà chào mừng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qua_quay",
+   "fieldtype": "Data",
+   "label": "Quầy khách nhận quà",
    "read_only": 1
   }
  ],
