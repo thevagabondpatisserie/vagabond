@@ -3657,6 +3657,24 @@
     "mac_dinh": "Thêm ngày sinh và đồng ý nhận tin Zalo để nhận ngay voucher {uu_dai}.",
     "nhieu_dong": true
   },
+  "tv6_moi_du": {
+    "ten": "Hồ sơ đã đủ. Bấm nhận voucher {uu_dai}, dùng ngay hoặc trong {so_ngay} ngày.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hồ sơ đã đủ. Bấm nhận voucher {uu_dai}, dùng ngay hoặc trong {so_ngay} ngày.",
+    "nhieu_dong": true
+  },
+  "tv6_nhan_voucher_nut": {
+    "ten": "Nhận voucher",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhận voucher",
+    "nhieu_dong": true
+  },
+  "tv6_qua_web": {
+    "ten": "Đã nhận voucher {uu_dai}. Mã nằm trong Ví quà, dùng ngay hoặc đến hết {han}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã nhận voucher {uu_dai}. Mã nằm trong Ví quà, dùng ngay hoặc đến hết {han}.",
+    "nhieu_dong": true
+  },
   "tv6_o_ten_goi": {
     "ten": "Tên gọi",
     "nhom": "thanh_vien",

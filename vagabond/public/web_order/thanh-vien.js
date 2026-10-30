@@ -150,12 +150,19 @@
     tim('so-vc').textContent = String((d.vi || []).filter(v => v.trang_thai === 'dung_duoc').length).padStart(2, '0');
     tim('so-hs').textContent = muc.du + '/' + muc.tong;
     const q = d.qua || {};
-    const moi = !!(d.co_ho_so !== false && q.mo && !q.da_nhan && (muc.thieu_qua || []).length);
+    /* Quà chưa nhận thì luôn còn đường nhận: hồ sơ thiếu thì mời cập nhật,
+       hồ sơ đã đủ thì nút Nhận voucher (Codex PR #517 vòng 10). */
+    const moi = !!(d.co_ho_so !== false && q.mo && !q.da_nhan);
+    const conThieu = (muc.thieu_qua || []).length > 0;
     an(tim('moi-ho-so'), !moi);
     if (moi) {
       tim('moi-gia').textContent = soQua(q.uu_dai);
       tim('moi-dem').textContent = C('tv6_ho_so_dem', 'Hồ sơ {du}/{tong}', { du: muc.du, tong: muc.tong });
-      tim('moi-chu').textContent = C('tv6_moi_chu', 'Thêm ngày sinh và đồng ý nhận tin Zalo để nhận ngay voucher {uu_dai}.', { uu_dai: q.uu_dai || '' });
+      tim('moi-chu').textContent = conThieu
+        ? C('tv6_moi_chu', 'Thêm ngày sinh và đồng ý nhận tin Zalo để nhận ngay voucher {uu_dai}.', { uu_dai: q.uu_dai || '' })
+        : C('tv6_moi_du', 'Hồ sơ đã đủ. Bấm nhận voucher {uu_dai}, dùng ngay hoặc trong {so_ngay} ngày.', { uu_dai: q.uu_dai || '', so_ngay: q.so_ngay || 7 });
+      an(tim('moi-ho-so').querySelector('[data-di]'), !conThieu);
+      an(tim('nut-moi-nhan'), conThieu);
     }
     tim('diem-vi').textContent = so(d.diem);
     tim('the-tv-hang').textContent = tim('hang-chip').textContent;
@@ -254,8 +261,23 @@
     try {
       const r = await api('luu_ho_so', { dat: dat });
       if (!r.ok) throw new Error(lyDo[r.ly_do] || C('tv6_luu_loi', 'Chưa lưu được hồ sơ. Thử lại sau.'));
-      await hoSo(); moTab('ho-so'); bao(C('tv6_da_luu', 'Đã lưu hồ sơ.'));
+      const qua = await quaSauHoSo();
+      await hoSo(); moTab(qua ? 'vi' : 'ho-so'); bao(qua || C('tv6_da_luu', 'Đã lưu hồ sơ.'));
     } catch (e) { bao(e.message, true); } finally { if (nut) nut.disabled = false; }
+  }
+  /* Khung mời hứa "khai đủ là nhận ngay voucher": lưu xong mà hồ sơ đủ, quà
+     đang mở và chưa nhận thì nhận luôn (không gắn quầy). Máy chủ vẫn tự kiểm
+     đủ điều kiện, một số một lần. Trả câu báo, rỗng khi không cấp mã mới. */
+  async function quaSauHoSo() {
+    const d = await api('toi');
+    const q = (d && d.qua) || {};
+    if (!d || !d.ok || !q.mo || q.da_nhan || ((d.muc || {}).thieu_qua || []).length) return '';
+    return nhanQuaWeb(true);
+  }
+  async function nhanQuaWeb(imLang) {
+    const r = await api('nhan_qua', { quay: '' });
+    if (!r.ok) { if (imLang) return ''; throw new Error(lyDo[r.ly_do] || C('tv6_qua_loi', 'Chưa nhận được quà. Quý khách nhờ thu ngân hỗ trợ.')); }
+    return C('tv6_qua_web', 'Đã nhận voucher {uu_dai}. Mã nằm trong Ví quà, dùng ngay hoặc đến hết {han}.', { uu_dai: r.uu_dai || '', han: r.han || '' });
   }
 
   /* Ảnh đại diện: thu về 512 px vuông JPEG ngay trên máy khách, không gửi ảnh gốc. */
@@ -329,6 +351,11 @@
     } catch (e2) { bao(e2.message, true); } finally { if (nut) nut.disabled = false; }
   };
   tim('form-ho-so').onsubmit = e => { e.preventDefault(); luuHoSo(); };
+  tim('nut-moi-nhan').onclick = async () => {
+    const nut = tim('nut-moi-nhan'); nut.disabled = true;
+    try { const cau = await nhanQuaWeb(false); await hoSo(); moTab('vi'); bao(cau); }
+    catch (e) { bao(e.message, true); } finally { nut.disabled = false; }
+  };
   tim('chon-anh').onchange = async () => {
     const tep = tim('chon-anh').files && tim('chon-anh').files[0];
     if (!tep) return;
