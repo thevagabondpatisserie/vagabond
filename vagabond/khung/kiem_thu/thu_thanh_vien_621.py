@@ -457,3 +457,25 @@ def _khach_guest_chay():
 			if isinstance(n, ast.FunctionDef) and n.name == ham and "_kiem_quyen" in ast.unparse(n):
 				co_cong.append("%s.%s" % (mo, ham))
 	la("không gọi API có cổng quyền nhân viên", co_cong, [])
+
+
+@ca("v621 bench có đủ ô Customer mà trang thành viên và tin Zalo đọc (bench PR #517 vòng 9: thiếu vgb_sinh_nhat nên cửa toi trả 500)")
+def _bench_du_cot():
+	# Ô vgb_* của Customer là Custom Field tạo trên site thật, không nằm trong
+	# doctype JSON của app; bench chỉ có những ô nen_bench dựng.
+	import re
+	nen = (GOC / "khung/bench_thu/nen_bench.py").read_text()
+	khoi = nen[nen.index('_truong("Customer"'):]
+	khoi = khoi[:khoi.index("])") + 2]
+	co = set(re.findall(r'"fieldname": "(vgb_\w+)"', khoi))
+	can = set()
+	for tep in ("thanh_vien.py", "zalo_kich_ban.py"):
+		cay = ast.parse((GOC / tep).read_text())
+		for n in ast.walk(cay):
+			if not (isinstance(n, ast.Call) and n.args and isinstance(n.args[0], ast.Constant) and n.args[0].value == "Customer"):
+				continue
+			for x in ast.walk(n):
+				if isinstance(x, ast.Constant) and isinstance(x.value, str) and x.value.startswith("vgb_"):
+					can.add(x.value)
+	dung("dò ra ô ngày sinh", "vgb_sinh_nhat" in can)
+	la("ô bench còn thiếu", sorted(can - co), [])
