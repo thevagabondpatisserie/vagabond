@@ -28038,7 +28038,8 @@ function kmHtmlCt(ds) {
       kmChipNho(kmMucGiam(x), '#fef3c7', '#92400e') +
       (x.cach_ma === 'Ma co dinh' ? kmChipNho('mã ' + h(x.ma_co_dinh), '#f0fdfa', '#0f766e') : '') +
       (x.cach_ma === 'Ma dung mot lan' ? kmChipNho('mã dùng 1 lần', '#f0fdfa', '#0f766e') : '') +
-      (x.vi_phat ? kmChipNho(x.vi_dip === 'Thang sinh nhat' ? '🎁 Ví quà, tháng sinh nhật' : '🎁 Ví quà thành viên', '#fdf4ff', '#86198f') : '') +
+      (x.vi_phat ? '<span title="' + (x.vi_dip === 'Thang sinh nhat' ? 'Phát vào Ví quà thành viên trong tháng sinh nhật' : 'Phát vào Ví quà thành viên') + '">' +
+        kmChipNho('🎁 Ví quà', '#fdf4ff', '#86198f') + '</span>' : '') +
       (x.can_otp ? kmChipNho('🔐 cần OTP', '#fef2f2', '#b3261e') : '') +
       (x.bat && !x.dung_duoc ? kmChipNho(h(x.ly_do), '#fff7ed', '#9a3412') : '') +
       (x.da_dung ? kmChipNho('đã dùng ' + x.da_dung, '#f6f7f9', '#6b7280') : '') +
@@ -28569,27 +28570,33 @@ function kmViMuc(ds, k) {
   for (var i = 0; i < ds.length; i++) if (ds[i].k === k) return ds[i];
   return ds[0];
 }
+/* Chu toi thieu 13 diem, chip toi da khoang 16 ky tu (AGENTS.md 2b.13, 2b.18;
+   Codex PR #520): trang thai bat tat noi o dong giai thich, khong nhoi vao chip. */
+var KM_VI_TIEU = 'font-size:13px;color:#6b7280;font-weight:700;margin:8px 0 6px';
+var KM_VI_GIAI = 'font-size:13px;color:#667085;margin-bottom:10px;line-height:1.5';
 function kmHtmlVi(k) {
-  var html = '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">VÍ QUÀ THÀNH VIÊN</div>' +
+  var html = '<div style="' + KM_VI_TIEU.replace('8px 0', '14px 0') + '">VÍ QUÀ THÀNH VIÊN</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">' +
-    posChipNut('data-kmvi="1"', k.vi_phat ? '🎁 Đang phát vào Ví quà' : '🎁 Không phát vào Ví quà', !!k.vi_phat) + '</div>';
+    posChipNut('data-kmvi="1"', k.vi_phat ? '🎁 Ví quà: Bật' : '🎁 Ví quà: Tắt', !!k.vi_phat) + '</div>';
   if (!k.vi_phat) {
-    return html + '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">Bật để khách thuộc mục Đối tượng ở trên tự thấy mã trong Ví quà khi mở trang thành viên, không cần xuất lô hay chờ tin Zalo.</div>';
+    return html + '<div style="' + KM_VI_GIAI + '">Đang tắt. Bật để khách thuộc mục Đối tượng ở trên tự thấy mã trong Ví quà khi mở trang thành viên, không cần xuất lô hay chờ tin Zalo.</div>';
   }
   var dip = kmViMuc(KM_VI_DIP, k.vi_dip), sl = kmViMuc(KM_VI_SO_LAN, k.vi_so_lan);
-  html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">DỊP PHÁT</div>' +
+  html += '<div style="' + KM_VI_GIAI + '">Đang phát vào Ví quà thành viên.</div>' +
+    '<div style="' + KM_VI_TIEU + '">DỊP PHÁT</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px">' +
     KM_VI_DIP.map(function (x) { return posChipNut('data-kmvidip="' + x.k + '"', x.nhan, dip.k === x.k); }).join('') + '</div>' +
-    '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">' + dip.mo + '</div>' +
-    '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">SỐ LẦN NHẬN</div>' +
+    '<div style="' + KM_VI_GIAI + '">' + dip.mo + '</div>' +
+    '<div style="' + KM_VI_TIEU + '">SỐ LẦN NHẬN</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px">' +
     KM_VI_SO_LAN.map(function (x) { return posChipNut('data-kmvisl="' + x.k + '"', x.nhan, sl.k === x.k); }).join('') + '</div>' +
-    '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">' + sl.mo + '</div>';
+    '<div style="' + KM_VI_GIAI + '">' + sl.mo + '</div>';
   if (dip.k === 'Moi luc') {
-    html += kmO('MÃ DÙNG ĐƯỢC BAO NHIÊU NGÀY', 'kmViHan', k.vi_han_ngay || 30, '30', 'number',
-      'Tính từ lúc mã hiện trong ví, không quá ngày kết thúc chương trình.');
+    html += '<div style="margin-bottom:11px"><div style="' + KM_VI_TIEU.replace('8px 0 6px', '0 0 5px') + '">MÃ DÙNG ĐƯỢC BAO NHIÊU NGÀY</div>' +
+      '<input class="tin" id="kmViHan" type="number" value="' + h(k.vi_han_ngay || 30) + '" placeholder="30">' +
+      '<div style="' + KM_VI_GIAI.replace('margin-bottom:10px', 'margin-top:4px') + '">Tính từ lúc mã hiện trong ví, không quá ngày kết thúc chương trình.</div></div>';
   }
-  return html + '<div style="font-size:12px;line-height:1.55;margin-bottom:10px;padding:9px 11px;border-radius:9px;background:#ecfdf3;color:#067647">' +
+  return html + '<div style="font-size:13px;line-height:1.55;margin-bottom:10px;padding:9px 11px;border-radius:9px;background:#ecfdf3;color:#067647">' +
     'Ai nhận: theo mục Đối tượng khách ở trên. Mã chỉ dùng cho chính người nhận, thu ngân áp như mã quà chào mừng. ' +
     'Tin Zalo cùng chương trình gửi lại đúng mã trong ví, không phát mã thứ hai.</div>';
 }
