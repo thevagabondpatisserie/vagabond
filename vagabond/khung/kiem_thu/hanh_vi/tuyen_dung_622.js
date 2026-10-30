@@ -449,6 +449,21 @@ async function mo(vai, loi, dat) {
     } finally { THEM_HS = []; }
   });
 
+  await ca('Codex #518 vòng 3: mọi công tắc (vị trí, sửa vị trí, đồng ý lưu) có vùng bấm cao 44, bấm vào vệt màu vẫn đổi', async function () {
+    var m = await mo(QL, null, 'tdTab = "vt";');
+    var ds = m.khung.querySelectorAll('[role="switch"]');
+    dung('màn vị trí có công tắc', ds.length >= 2);
+    ds.forEach(function (x) { bang('vùng bấm công tắc', [x.style.minHeight, x.style.height], ['44px', '44px']); });
+    bam(ds[0].querySelectorAll('span')[0]);
+    await tick();
+    dung('bấm vào vệt màu bên trong vẫn hỏi tắt vị trí', m.hoi.length === 1);
+    await m.g.scrTdThemHs();
+    var dy = m.khung.querySelectorAll('[data-tddy]')[0];
+    bang('công tắc đồng ý lưu cao 44', dy.style.minHeight, '44px');
+    bam(dy.querySelectorAll('span')[1]);
+    bang('bấm vào nút tròn trong công tắc là bật đồng ý', m.khung.querySelectorAll('[data-tddy]')[0].getAttribute('aria-checked'), 'true');
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })().catch(function (e) { console.log('NO TUNG: ' + (e && e.stack || e)); process.exit(1); });
