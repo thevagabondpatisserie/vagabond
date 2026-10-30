@@ -109,6 +109,39 @@ function tdChipTt(k) {
   return '<span style="background:' + t.nen + ';color:' + t.chu + ';border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap">' +
     t.ic + ' ' + h(t.k) + '</span>';
 }
+/* Thanh tiến độ 1-2-3-4 (anh Việt 30/10/2026: tuyển dụng là một quá trình).
+   Bốn bước và trạng thái thuộc bước nào lấy từ máy chủ (tuyen_dung.BUOC qua
+   tdKq.buoc), vị trí của hồ sơ cũng do máy chủ tính (r.buoc), app chỉ vẽ.
+   Bước đã qua: tròn xanh có dấu ✓. Bước đang ở: viền xanh, số đậm. Bước chưa
+   tới: xám. Dừng: bước dừng là tròn đỏ dấu ✕, các bước trước xám. */
+function tdThanhBuoc(r) {
+  var ds = (tdKq && tdKq.buoc) || [], b = r.buoc || {};
+  if (!ds.length || !b.so) return '';
+  var o = [];
+  ds.forEach(function (x, k) {
+    var so = x.so, qua = b.xong || so < b.so, dang = !b.xong && so === b.so;
+    var vien, nen, chu, ky, mauTen = '#98a2b3', dam = 600;
+    if (b.dung && dang) { vien = '#d92d20'; nen = '#d92d20'; chu = '#fff'; ky = '✕'; mauTen = '#b42318'; dam = 800; }
+    else if (b.dung && qua) { vien = '#98a2b3'; nen = '#98a2b3'; chu = '#fff'; ky = '✓'; mauTen = '#667085'; }
+    else if (qua) { vien = '#0d9488'; nen = '#0d9488'; chu = '#fff'; ky = '✓'; mauTen = '#0f766e'; }
+    else if (dang) { vien = '#0d9488'; nen = '#fff'; chu = '#0d9488'; ky = String(so); mauTen = '#0f766e'; dam = 800; }
+    else { vien = '#d0d5dd'; nen = '#fff'; chu = '#98a2b3'; ky = String(so); }
+    if (k) {
+      var noi = (b.xong || so <= b.so) ? (b.dung ? '#98a2b3' : '#0d9488') : '#e4e7ec';
+      o.push('<div style="flex:1 1 0;min-width:8px;height:2px;background:' + noi + ';margin-top:11px"></div>');
+    }
+    o.push('<div data-tdbuoc="' + so + '" data-tdbuoctt="' + (b.dung && dang ? 'dung' : qua ? 'qua' : dang ? 'dang' : 'chua') + '" ' +
+      'style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:62px">' +
+      '<div style="width:24px;height:24px;border-radius:999px;border:2px solid ' + vien + ';background:' + nen + ';color:' + chu +
+      ';font-size:12.5px;font-weight:800;line-height:20px;text-align:center;box-sizing:border-box">' + ky + '</div>' +
+      '<div style="font-size:11.5px;color:' + mauTen + ';font-weight:' + dam + ';margin-top:3px;text-align:center;white-space:nowrap">' + h(x.ten) + '</div></div>');
+  });
+  var cuoi = ds[ds.length - 1] || {}, cua = ds[(b.so || 1) - 1] || {};
+  var nhan = b.xong ? 'Đã xong cả ' + ds.length + ' bước: ' + cuoi.ten : b.dung ? 'Dừng ở bước ' + b.so + ': ' + cua.ten :
+    'Bước ' + b.so + ' trên ' + ds.length + ': ' + cua.ten;
+  return '<div data-tdthanh="1" role="img" aria-label="' + h(nhan) + '" style="display:flex;flex-direction:row;align-items:flex-start;' +
+    'margin:9px -4px 2px">' + o.join('') + '</div>';
+}
 function tdTheHs(r, i, bayGio) {
   var phu = [h(r.ten_vi_tri || r.vi_tri), h(r.nguon || '')];
   var cach = tdCachDay(r.creation, bayGio);
@@ -149,7 +182,7 @@ function tdTheHs(r, i, bayGio) {
     '<div style="display:flex;flex-direction:row;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:16.5px;font-weight:800;color:#101828;min-width:0;overflow-wrap:anywhere">' + h(r.ho_ten) + '</span>' + tdChipTt(r.trang_thai) + '</div>' +
     '<div style="font-size:13px;color:#475467;margin-top:3px;line-height:1.5">' + phu.filter(Boolean).join(' · ') + '</div>' +
-    (dong2.length ? '<div style="font-size:13px;color:#475467">' + dong2.join(' · ') + '</div>' : '') + hen + cv +
+    (dong2.length ? '<div style="font-size:13px;color:#475467">' + dong2.join(' · ') + '</div>' : '') + tdThanhBuoc(r) + hen + cv +
     (nut.length ? '<div style="display:flex;flex-direction:row;gap:7px;margin-top:10px">' + nut.join('') + '</div>' : '') + congNut +
     tdKhoiGhi(ghi, i) + '</div>';
 }
@@ -189,6 +222,9 @@ function tdMoSheet(html) {
   var ov = document.createElement('div'); ov.className = 'sh';
   ov.innerHTML = '<div class="shb" style="padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 18px)">' +
     '<div style="width:40px;height:4px;background:#d0d5dd;border-radius:2px;margin:0 auto 8px"></div>' + html + '</div>';
+  /* Bảng nằm ngoài #vgb nên không ăn luật box-sizing của app: ô nhập rộng
+     100% cộng lề trong là tràn mép phải (thấy khi chụp ảnh duyệt 31/10). */
+  ov.querySelectorAll('input,textarea,select').forEach(function (x) { x.style.boxSizing = 'border-box'; x.style.maxWidth = '100%'; });
   document.body.appendChild(ov);
   ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
   return ov;
@@ -213,7 +249,8 @@ async function tdGoi(method, args, xong) {
 function tdSheetCapNhat(r) {
   var chon = r.trang_thai === 'Mới nhận' ? 'Đã liên hệ' : r.trang_thai;
   var ov = tdMoSheet('<div style="font-size:18px;font-weight:700;margin:4px 0 4px">Cập nhật hồ sơ</div>' +
-    '<div style="font-size:13.5px;color:#475467;margin-bottom:10px"><b style="color:#101828">' + h(r.ho_ten) + '</b> · ' + h(r.ten_vi_tri || '') + '</div>' +
+    '<div style="font-size:13.5px;color:#475467;margin-bottom:4px"><b style="color:#101828">' + h(r.ho_ten) + '</b> · ' + h(r.ten_vi_tri || '') + '</div>' +
+    tdThanhBuoc(r) + '<div style="height:8px"></div>' +
     '<div data-tdcntt="1" style="display:flex;flex-direction:column;gap:6px"></div>' +
     '<div data-tdhen="1" style="margin-top:12px"><div style="font-size:13.5px;font-weight:700;color:#344054;margin-bottom:6px">Ngày giờ hẹn</div>' +
     '<input class="nt" id="tdLichHen" type="datetime-local" style="height:46px" value="' + h(String(r.lich_hen || '').slice(0, 16).replace(' ', 'T')) + '"></div>' +
@@ -225,13 +262,27 @@ function tdSheetCapNhat(r) {
     '<button class="btn" data-tdok="1" style="margin:12px 0 0">Lưu cập nhật</button>' +
     '<button class="btn gh" data-tddong="1" style="margin-top:9px">Để sau</button>');
   function ve() {
-    ov.querySelector('[data-tdcntt]').innerHTML = TD_TT.filter(function (t) { return t.k !== 'Mới nhận'; }).map(function (t) {
+    function nutTt(t) {
       var dang = t.k === chon;
       return '<button type="button" data-tdchon="' + h(t.k) + '" aria-pressed="' + (dang ? 'true' : 'false') + '" style="margin:0;min-height:44px;width:100%;text-align:left;' +
         'padding:8px 12px;border-radius:11px;cursor:pointer;border:' + (dang ? '2px solid #0d9488;background:#f0fdfa' : '1.5px solid #e4e7ec;background:#fff') + '">' +
         '<div style="font-size:14.5px;font-weight:700;color:#101828">' + t.ic + ' ' + h(t.k) + '</div>' +
         '<div style="font-size:12.5px;color:#475467">' + h(t.p) + '</div></button>';
-    }).join('');
+    }
+    function dauMuc(chu) {
+      return '<div style="font-size:12.5px;font-weight:800;color:#0f766e;margin:6px 0 0;text-transform:uppercase;letter-spacing:.3px">' + chu + '</div>';
+    }
+    /* Xếp lựa chọn theo bốn bước của thanh tiến độ (máy chủ chia), Dừng để riêng
+       cuối cùng. Mới nhận không chọn được: đã mở Cập nhật là đã liên hệ. */
+    var daXep = {}, khoi = [];
+    ((tdKq && tdKq.buoc) || []).forEach(function (b) {
+      var tt = b.tt.filter(function (k) { return k !== 'Mới nhận'; });
+      tt.forEach(function (k) { daXep[k] = 1; });
+      if (tt.length) khoi.push(dauMuc('Bước ' + b.so + ' · ' + h(b.ten)) + tt.map(function (k) { return nutTt(tdTtCua(k)); }).join(''));
+    });
+    var con = TD_TT.filter(function (t) { return t.k !== 'Mới nhận' && !daXep[t.k]; });
+    if (con.length) khoi.push(dauMuc(khoi.length ? 'Không tiếp tục' : 'Trạng thái') + con.map(nutTt).join(''));
+    ov.querySelector('[data-tdcntt]').innerHTML = khoi.join('');
     ov.querySelector('[data-tdhen]').style.display = TD_CAN_HEN.indexOf(chon) >= 0 ? 'block' : 'none';
     ov.querySelector('[data-tdly]').style.display = chon === 'Dừng' ? 'block' : 'none';
   }
@@ -389,7 +440,7 @@ function tdSheetNhan(r) {
     '<div style="font-size:13.5px;color:#475467;margin-bottom:10px"><b style="color:#101828">' + h(r.ho_ten) + '</b> · ' + h(tel) + '</div>' +
     '<div data-tdmauds="1" style="display:flex;flex-direction:column;gap:6px"></div>' +
     '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:12px 0 5px">Nội dung (sửa được trước khi gửi)</div>' +
-    '<textarea class="nt" id="tdNoiDungTin" rows="5" maxlength="1000"></textarea>' +
+    '<textarea class="nt" id="tdNoiDungTin" rows="7" maxlength="1000"></textarea>' +
     '<button class="btn" data-tdzl="1" style="margin:12px 0 0">💬 Chép tin và mở Zalo</button>' +
     '<button class="btn gh" data-tdsms="1" style="margin-top:9px">✉️ Mở SMS có sẵn tin này</button>' +
     '<div style="font-size:12.5px;color:#475467;margin-top:8px;line-height:1.5">Tin gửi từ Zalo hoặc SMS trên điện thoại của bạn, không tốn phí của tiệm. Mở Zalo xong, dán tin vào ô chat rồi gửi.</div>' +
@@ -432,12 +483,15 @@ function tdSheetNhan(r) {
 async function tdSheetQr() {
   var link = (tdKq && tdKq.link_ung_tuyen) || '';
   var anh = '';
-  try { anh = await inQrAnh(link + (link.indexOf('?') >= 0 ? '&' : '?') + 'nguon=qr'); } catch (e) { anh = ''; }
+  var duong = link + (link.indexOf('?') >= 0 ? '&' : '?') + 'nguon=qr';
+  try { anh = await inQrAnh(duong); } catch (e) { anh = ''; }
   tdMoSheet('<div style="font-size:18px;font-weight:700;margin:4px 0 6px">Mã QR ứng tuyển</div>' +
     '<div style="font-size:13.5px;color:#475467;line-height:1.55">In mã này dán ở quầy, cửa kính hoặc túi bánh. Ứng viên quét là mở form, hồ sơ ghi nguồn "QR tại cửa hàng".</div>' +
     (anh ? '<div style="text-align:center;margin:12px 0"><img src="' + h(anh) + '" alt="Mã QR ứng tuyển" style="width:220px;height:220px"></div>'
       : '<div style="margin:12px 0;color:#b42318;font-size:13.5px">Chưa vẽ được mã QR, dùng đường dẫn bên dưới.</div>') +
-    '<div style="font-size:13px;word-break:break-all;background:#f8fafc;border-radius:9px;padding:8px 10px">' + h(link + '?nguon=qr') + '</div>');
+    (anh ? '<a href="' + h(anh) + '" download="ma-qr-ung-tuyen-vagabond.png" data-tdqrluu="1" style="display:flex;flex-direction:row;align-items:center;justify-content:center;min-height:46px;border-radius:12px;' +
+      'border:1.5px solid #0d9488;color:#0d9488;font-weight:700;text-decoration:none;margin-bottom:10px">⬇️ Lưu ảnh mã QR để in</a>' : '') +
+    '<div style="font-size:13px;word-break:break-all;background:#f8fafc;border-radius:9px;padding:8px 10px">' + h(duong) + '</div>');
 }
 
 async function scrTuyenDung() {
