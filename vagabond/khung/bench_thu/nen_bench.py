@@ -189,7 +189,14 @@ def dung():
 	])
 	_truong("Customer", [{"fieldname": "vgb_hang", "fieldtype": "Data", "label": "Hang", "insert_after": "customer_name"},
 		# Mã khách Fast, site thật có từ 06/08/2026 (ma_ke_toan.py đọc và cấp).
-		{"fieldname": "custom_ma_khach", "fieldtype": "Data", "label": "Mã khách hàng", "insert_after": "customer_name"}])
+		{"fieldname": "custom_ma_khach", "fieldtype": "Data", "label": "Mã khách hàng", "insert_after": "customer_name"},
+		# Ngày sinh khách (Custom Field Date trên site thật, nhap_khach.py ghi).
+		# Trang thành viên v621 đọc ô này cho mọi khách; bench thiếu thì cửa
+		# thanh_vien.toi nổ Unknown column, trả 500 (bench PR #517 vòng 9).
+		{"fieldname": "vgb_sinh_nhat", "fieldtype": "Date", "label": "Ngày sinh", "insert_after": "customer_name"},
+		# Ô điểm tổng hợp (Float trên site thật). Tin Zalo đọc; ca web 245 ghi
+		# 999999 vào đây để chứng minh trang đọc sổ điểm, không đọc ô này.
+		{"fieldname": "vgb_diem", "fieldtype": "Float", "label": "Điểm", "insert_after": "customer_name"}])
 	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}, {"fieldname": "email_cc", "fieldtype": "Small Text", "label": "Email phụ cần CC", "insert_after": "email_id"}])
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},
