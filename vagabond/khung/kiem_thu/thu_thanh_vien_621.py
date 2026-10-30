@@ -522,3 +522,18 @@ def _vi_giu_ma_dung_duoc():
 	la("mã dùng được đứng đầu", ma[0], "QK7M2P")
 	la("chỉ một mã dùng được", [v["ma"] for v in vi if v["trang_thai"] == "dung_duoc"], ["QK7M2P"])
 	dung("lịch sử vẫn có giới hạn", len(vi) <= 21)
+
+
+@ca("v621 hồ sơ: khách xoá hết ngày, tháng, năm sinh rồi Lưu thì ngày sinh được xoá thật (Codex PR #517 vòng 12)")
+def _xoa_sinh_nhat():
+	m = Moi()
+	kq = m.chay(tv.luu_ho_so, dat={"ten": "Lan Anh", "ngay": "", "thang": "", "nam": "", "email": "", "so_thich": [], "dong_y_zalo": True})
+	la("lưu được", kq, {"ok": 1})
+	la("ngày sinh đã xoá", m.kh.get("vgb_sinh_nhat"), None)
+	# Lưu từ chỗ không gửi ô ngày sinh (vd chỉ đổi hình bánh qua API) thì giữ nguyên.
+	m = Moi()
+	m.chay(tv.luu_ho_so, dat={"ten": "Lan Anh", "anh_mau": "entremet", "dong_y_zalo": True})
+	la("không gửi ô ngày sinh thì giữ", m.kh.get("vgb_sinh_nhat"), D8(1990, 11, 14))
+	m = Moi()
+	m.chay(tv.luu_ho_so, dat={"ten": "Lan Anh", "ngay": "5", "thang": "6", "nam": "", "dong_y_zalo": True})
+	la("đổi ngày sinh", m.kh.get("vgb_sinh_nhat"), D8(tv.NAM_AN, 6, 5))
