@@ -15,6 +15,7 @@
   "sb_kenh", "kenh", "cbk", "quay",
   "sb_dt", "doi_tuong", "hang_khach", "cbdt", "nhom_khach", "dong_khach",
   "sb_ma", "cach_ma", "ma_co_dinh", "cbm", "han_ma",
+  "sb_vi", "vi_phat", "vi_dip", "cbvi", "vi_so_lan", "vi_han_ngay",
   "sb_cgl", "ht_cgl", "can_otp", "lan_moi_ngay", "lan_moi_ca", "cbc", "lan_moi_khach", "so_lan_toi_da", "da_dung",
   "sb_web", "hien_web", "web_anh", "cbw", "web_mo_ta",
   "sb_gc", "ghi_chu", "nguoi_tao"
@@ -85,6 +86,12 @@
   {"fieldname": "ma_co_dinh", "fieldtype": "Data", "label": "Ma co dinh", "depends_on": "eval:doc.cach_ma=='Ma co dinh'", "description": "Cashier go ma nay khi tinh tien. Dung bao nhieu lan cung duoc, chi bi chan boi han muc ben duoi."},
   {"fieldname": "cbm", "fieldtype": "Column Break"},
   {"fieldname": "han_ma", "fieldtype": "Date", "label": "Han dung mac dinh cua ma", "description": "Ap cho lo ma xuat ra ma khong dien han rieng"},
+  {"fieldname": "sb_vi", "fieldtype": "Section Break", "label": "Phat vao Vi qua thanh vien", "depends_on": "eval:doc.cach_ma=='Ma dung mot lan'"},
+  {"fieldname": "vi_phat", "fieldtype": "Check", "label": "Phat vao Vi qua thanh vien", "default": "0", "description": "Tich la khach thuoc doi tuong mo trang thanh vien se tu thay mot ma dung mot lan gan dung ten minh, thu ngan ap nhu ma qua."},
+  {"fieldname": "vi_dip", "fieldtype": "Select", "label": "Dip phat", "options": "Moi luc\nThang sinh nhat", "default": "Moi luc", "depends_on": "eval:doc.vi_phat", "description": "Moi luc: khach du doi tuong la nhan. Thang sinh nhat: chi trong thang sinh nhat cua khach, ma dung toi het thang do."},
+  {"fieldname": "cbvi", "fieldtype": "Column Break"},
+  {"fieldname": "vi_so_lan", "fieldtype": "Select", "label": "So lan nhan", "options": "Mot lan\nMoi nam mot lan", "default": "Mot lan", "depends_on": "eval:doc.vi_phat", "description": "Tinh ca ma da dung, da huy hay da gui qua Zalo cua cung chuong trinh."},
+  {"fieldname": "vi_han_ngay", "fieldtype": "Int", "label": "Han dung ma (ngay)", "default": "30", "depends_on": "eval:doc.vi_phat && doc.vi_dip=='Moi luc'", "description": "So ngay ma con dung duoc ke tu luc khach nhan. Khong vuot ngay ket thuc chuong trinh."},
 
   {"fieldname": "sb_cgl", "fieldtype": "Section Break", "label": "Chong gian lan"},
   {"fieldname": "ht_cgl", "fieldtype": "HTML", "options": "<div class='text-muted small'>De 0 la khong gioi han. Han muc tinh theo so LAN chuong trinh duoc ap len hoa don.</div>"},
@@ -106,7 +113,7 @@
   {"fieldname": "nguoi_tao", "fieldtype": "Data", "label": "Nguoi tao", "read_only": 1}
  ],
  "links": [],
- "modified": "2026-10-10 09:00:00.000000",
+ "modified": "2026-10-31 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond CTKM",

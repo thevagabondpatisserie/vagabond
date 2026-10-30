@@ -100,6 +100,19 @@ class VagabondCTKM(Document):
 			if trung and cint(self.bat):
 				frappe.throw("Mã %s đang được chương trình \"%s\" dùng rồi." % (ma, trung))
 
+		# --- phat vao Vi qua thanh vien (v623) ---
+		# Vi qua chi phat ma dung mot lan gan dung khach; ma co dinh hay khong
+		# can ma thi ai cung dung duoc, phat vao vi la vo nghia.
+		if cint(self.get("vi_phat")):
+			if self.cach_ma != "Ma dung mot lan":
+				frappe.throw("Phát vào Ví quà thành viên cần chọn cách phát mã là Mã dùng một lần.")
+			if not self.get("vi_dip"):
+				self.vi_dip = "Moi luc"
+			if not self.get("vi_so_lan"):
+				self.vi_so_lan = "Mot lan"
+			if self.vi_dip == "Moi luc" and cint(self.get("vi_han_ngay")) <= 0:
+				self.vi_han_ngay = 30
+
 		# --- thoi gian ---
 		if self.tu_ngay and self.den_ngay and str(self.den_ngay) < str(self.tu_ngay):
 			frappe.throw("Ngày kết thúc đang sớm hơn ngày bắt đầu.")
