@@ -84,7 +84,7 @@ function duLieuLuu(g) {
     dung('mã cố định: vẫn không có', !coChu(g, 'VÍ QUÀ THÀNH VIÊN'));
     await bamChip(g, '[data-kmcm="Ma dung mot lan"]');
     dung('mã dùng một lần: có mục', coChu(g, 'VÍ QUÀ THÀNH VIÊN'));
-    dung('mặc định tắt', !dangChon(g, '[data-kmvi]') && coChu(g, 'Không phát vào Ví quà'));
+    dung('mặc định tắt', !dangChon(g, '[data-kmvi]') && coChu(g, 'Ví quà: Tắt') && coChu(g, 'Đang tắt.'));
     dung('câu giải thích khi tắt', coChu(g, 'tự thấy mã trong Ví quà khi mở trang thành viên'));
     dung('chưa bật thì chưa hỏi dịp phát', !coChu(g, 'DỊP PHÁT'));
   });
@@ -95,7 +95,7 @@ function duLieuLuu(g) {
     tam(g).querySelector('#kmTen').value = 'Quà sinh nhật thành viên';
     await bamChip(g, '[data-kmcm="Ma dung mot lan"]');
     await bamChip(g, '[data-kmvi]');
-    dung('đã bật', dangChon(g, '[data-kmvi]') && coChu(g, 'Đang phát vào Ví quà'));
+    dung('đã bật', dangChon(g, '[data-kmvi]') && coChu(g, 'Ví quà: Bật') && coChu(g, 'Đang phát vào Ví quà thành viên'));
     dung('mặc định Mọi lúc, Một lần', dangChon(g, '[data-kmvidip="Moi luc"]') && dangChon(g, '[data-kmvisl="Mot lan"]'));
     bang('ô số ngày mặc định 30', tam(g).querySelector('#kmViHan').value, '30');
     dung('nói ai nhận', coChu(g, 'theo mục Đối tượng khách ở trên'));
@@ -141,8 +141,26 @@ function duLieuLuu(g) {
     dung('bật', dangChon(g, '[data-kmvi]'));
     dung('đúng dịp và số lần', dangChon(g, '[data-kmvidip="Thang sinh nhat"]') && dangChon(g, '[data-kmvisl="Moi nam mot lan"]'));
     var html = g.kmHtmlCt([{ name: 'KMSN01', ten: 'Quà sinh nhật', cach_thuc: 'Giam gia mon', cach_ma: 'Ma dung mot lan', vi_phat: 1, vi_dip: 'Thang sinh nhat', bat: 1, kieu_giam: 'Phan tram', gia_tri: 100 }]);
-    dung('chip danh sách', html.indexOf('Ví quà, tháng sinh nhật') >= 0);
+    dung('chip danh sách gọn, dịp phát trong title', html.indexOf('>🎁 Ví quà<') >= 0 && html.indexOf('title="Phát vào Ví quà thành viên trong tháng sinh nhật"') >= 0);
     dung('chương trình thường không có chip', g.kmHtmlCt([{ name: 'KMA', ten: 'A', cach_thuc: 'Giam tong hoa don', cach_ma: 'Ma dung mot lan', bat: 1, kieu_giam: 'So tien', gia_tri: 1 }]).indexOf('Ví quà') < 0);
+  });
+
+  await ca('app: mục Ví quà chữ tối thiểu 13 điểm, chip tối đa 16 ký tự nhìn thấy, ở mọi trạng thái (AGENTS.md 2b.13, 2b.18; Codex PR #520)', async function () {
+    var dem = function (s) { return Array.from(String(s).replace(/<[^>]+>/g, '').trim()).length; };
+    [{ vi_phat: 0 }, { vi_phat: 1, vi_dip: 'Moi luc' }, { vi_phat: 1, vi_dip: 'Thang sinh nhat', vi_so_lan: 'Moi nam mot lan' }].forEach(function (k) {
+      var g = khoiApp(null);
+      var html = g.kmHtmlVi(Object.assign({ cach_ma: 'Ma dung mot lan' }, k));
+      var co = (html.match(/font-size:\s*([\d.]+)px/g) || []).map(function (x) { return parseFloat(x.replace(/[^\d.]/g, '')); });
+      dung('có cỡ chữ', co.length > 0);
+      bang('không chữ nào dưới 13 (' + JSON.stringify(k) + ')', co.filter(function (n) { return n < 13; }), []);
+      var chip = (html.match(/<button[^>]*>[\s\S]*?<\/button>/g) || []).map(dem);
+      dung('có chip', chip.length > 0);
+      bang('không chip nào quá 16 ký tự (' + JSON.stringify(k) + ')', chip.filter(function (n) { return n > 16; }), []);
+    });
+    var g = khoiApp(null);
+    var ds = g.kmHtmlCt([{ name: 'KMSN01', ten: 'Q', cach_thuc: 'Giam gia mon', cach_ma: 'Ma dung mot lan', vi_phat: 1, vi_dip: 'Thang sinh nhat', bat: 1, kieu_giam: 'Phan tram', gia_tri: 100 }]);
+    var m = ds.match(/>(🎁[^<]*)</);
+    dung('chip danh sách gọn', m && dem(m[1]) <= 16);
   });
 
   /* ---------------- phan 2: trang thanh vien ---------------- */
