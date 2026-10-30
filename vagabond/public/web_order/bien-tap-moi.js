@@ -22,7 +22,7 @@
   const THE = [
     {k: 'uu_dai', ten: 'Ưu đãi', mo: 'Lấy từ ERP, chỉ xem ở đây', them: '+ Thêm ưu đãi', luu: 'Lưu ưu đãi', ten_muc: 'ưu đãi', dau: 'Danh sách ưu đãi'},
     {k: 'tiec', ten: 'Tiệc', mo: 'Tạo tiệc, đặt giá vé, số vé, hạn đăng ký', them: '+ Thêm tiệc', luu: 'Lưu tiệc', ten_muc: 'tiệc', dau: 'Danh sách tiệc'},
-    {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Vị trí đang tuyển, hạn nhận hồ sơ', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
+    {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Lấy từ app ERP, chỉ xem ở đây', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
     {k: 'cua_hang', ten: 'Cửa hàng', mo: 'Địa chỉ, giờ mở cửa, hotline, chỉ đường', them: '+ Thêm cửa hàng', luu: 'Lưu cửa hàng', ten_muc: 'cửa hàng', dau: 'Danh sách cửa hàng'},
     {k: 'chu', ten: 'Trang và chữ', mo: 'Tiêu đề từng trang, khẩu hiệu, chân trang, câu nhắc'},
     {k: 'lien_he', ten: 'Liên hệ', mo: 'Điện thoại, email, mạng xã hội, công ty'},
@@ -145,6 +145,7 @@
   function demThe(k) {
     if (!B) return '';
     if (k === 'uu_dai') return String((B.uu_dai_erp || []).length);
+    if (k === 'tuyen_dung') return String((B.tuyen_dung_erp || []).length);
     if (LOAI_MUC.includes(k)) return String(B.khoi.filter(x => x.loai === k).length);
     if (k === 'cua_hang') return String((B.thong_tin.cua_hang || []).length);
     return '';
@@ -284,8 +285,35 @@
     return g;
   }
 
+  /* v622 (anh Việt 30/10/2026): vị trí tuyển dụng lấy từ app ERP (Nhân sự,
+     Tuyển dụng), nguồn duy nhất như ưu đãi. Thẻ này chỉ xem; bật tắt trên app
+     là web đổi theo, ứng viên bấm Ứng tuyển mở form ghi thẳng vào app. */
+  function dsTuyenDungErp() {
+    const g = tao('section', 'bt-ds'); g.setAttribute('aria-label', 'Danh sách tuyển dụng');
+    const dau = tao('div', 'bt-dau-ds');
+    const mo = tao('a', 'bt-nut chinh', 'Mở Tuyển dụng trên app'); mo.setAttribute('href', '/tuyen-dung'); mo.setAttribute('target', '_blank'); mo.setAttribute('rel', 'noopener');
+    dau.append(mo);
+    g.append(dau);
+    g.append(tao('p', 'bt-rong', 'Vị trí tuyển dụng trên web lấy thẳng từ app. Thêm, sửa hoặc bật tắt vị trí ở app: Nhân sự, Tuyển dụng. Ứng viên bấm Ứng tuyển là mở form, hồ sơ về thẳng app, không qua email.'));
+    const hang = tao('div', 'bt-hang');
+    const ds = B.tuyen_dung_erp || [];
+    if (!ds.length) hang.append(tao('p', 'bt-rong', 'Chưa có vị trí nào trên app.'));
+    ds.forEach(k => {
+      const d = tao('article', 'bt-dong'); d.dataset.mucErp = k.ma_vi_tri || k.id;
+      const trai = tao('div', 'bt-dong-trai');
+      const nhan = tao('div', 'bt-nhan-hang');
+      nhan.append(tao('span', 'bt-tt ' + (k.khach_thay ? 'dang' : 'het'), k.trang_thai_erp || ''));
+      trai.append(nhan, tao('h3', 'bt-ten', k.tieu_de || '(chưa đặt tên)'), tao('p', 'bt-meta', moTa(k)));
+      d.append(trai);
+      hang.append(d);
+    });
+    g.append(hang);
+    return g;
+  }
+
   function dsMuc(loai) {
     if (loai === 'uu_dai') return dsUuDaiErp();
+    if (loai === 'tuyen_dung') return dsTuyenDungErp();
     const t = THE.find(x => x.k === loai);
     const g = tao('section', 'bt-ds'); g.setAttribute('aria-label', t.dau);
     const dau = tao('div', 'bt-dau-ds');
