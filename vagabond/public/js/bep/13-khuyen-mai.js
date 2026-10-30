@@ -586,6 +586,7 @@ function kmHtmlCt(ds) {
       kmChipNho(kmMucGiam(x), '#fef3c7', '#92400e') +
       (x.cach_ma === 'Ma co dinh' ? kmChipNho('mã ' + h(x.ma_co_dinh), '#f0fdfa', '#0f766e') : '') +
       (x.cach_ma === 'Ma dung mot lan' ? kmChipNho('mã dùng 1 lần', '#f0fdfa', '#0f766e') : '') +
+      (x.vi_phat ? kmChipNho(x.vi_dip === 'Thang sinh nhat' ? '🎁 Ví quà, tháng sinh nhật' : '🎁 Ví quà thành viên', '#fdf4ff', '#86198f') : '') +
       (x.can_otp ? kmChipNho('🔐 cần OTP', '#fef2f2', '#b3261e') : '') +
       (x.bat && !x.dung_duoc ? kmChipNho(h(x.ly_do), '#fff7ed', '#9a3412') : '') +
       (x.da_dung ? kmChipNho('đã dùng ' + x.da_dung, '#f6f7f9', '#6b7280') : '') +
@@ -910,6 +911,7 @@ async function kmSheetCtkm(ma) {
         .map(function (d) { return posChipNut('data-kmcm="' + d[0] + '"', d[1], k.cach_ma === d[0]); }).join('') + '</div>';
     if (k.cach_ma === 'Ma co dinh') html += kmO('MÃ CỐ ĐỊNH', 'kmMaCd', k.ma_co_dinh, 'VAGABOND10', 'text', 'Cashier gõ mã này khi tính tiền. Dùng bao nhiêu lần cũng được, chỉ bị chặn bởi hạn mức bên dưới.');
     if (k.cach_ma === 'Ma dung mot lan') html += kmO('HẠN DÙNG MẶC ĐỊNH CỦA MÃ', 'kmHanMa', k.han_ma, '', 'date', 'Lưu chương trình xong, qua thẻ <b>Lô mã</b> để xuất mã và gửi qua email.');
+    if (k.cach_ma === 'Ma dung mot lan') html += kmHtmlVi(k);
 
     /* --- chong gian lan --- */
     html += '<div style="font-size:12.5px;color:#b3261e;font-weight:700;margin:14px 0 6px">CHỐNG GIAN LẬN</div>' +
@@ -955,6 +957,7 @@ async function kmSheetCtkm(ma) {
     if (document.getElementById('kmNhomKh')) k.nhom_khach = kmV('kmNhomKh');
     if (document.getElementById('kmMaCd')) k.ma_co_dinh = kmV('kmMaCd');
     if (document.getElementById('kmHanMa')) k.han_ma = kmV('kmHanMa');
+    if (document.getElementById('kmViHan')) k.vi_han_ngay = kmN('kmViHan');
     if (document.getElementById('kmTran')) k.giam_toi_da = kmN('kmTran');
     if (document.getElementById('kmLanNgay')) k.lan_moi_ngay = kmN('kmLanNgay');
     if (document.getElementById('kmLanCa')) k.lan_moi_ca = kmN('kmLanCa');
@@ -980,12 +983,19 @@ async function kmSheetCtkm(ma) {
     bat('[data-kmkieu]', function (o) { kmSua.kieu_giam = o.getAttribute('data-kmkieu'); });
     bat('[data-kmpv]', function (o) { kmSua.pham_vi = o.getAttribute('data-kmpv'); });
     bat('[data-kmdt]', function (o) { kmSua.doi_tuong = o.getAttribute('data-kmdt'); });
-    bat('[data-kmcm]', function (o) { kmSua.cach_ma = o.getAttribute('data-kmcm'); });
+    bat('[data-kmcm]', function (o) {
+      kmSua.cach_ma = o.getAttribute('data-kmcm');
+      /* Vi qua chi phat ma dung mot lan; doi cach phat ma thi tat luon (may chu cung chan). */
+      if (kmSua.cach_ma !== 'Ma dung mot lan') kmSua.vi_phat = 0;
+    });
     bat('[data-kmthu]', function (o) { var t = o.getAttribute('data-kmthu'); kmSua[t] = kmSua[t] ? 0 : 1; });
     bat('[data-kmotp]', function () { kmSua.can_otp = kmSua.can_otp ? 0 : 1; });
     bat('[data-kmcd]', function () { kmSua.cong_don = kmSua.cong_don ? 0 : 1; });
     bat('[data-kmbatct]', function () { kmSua.bat = kmSua.bat ? 0 : 1; });
     bat('[data-kmweb]', function () { kmSua.hien_web = kmSua.hien_web ? 0 : 1; });
+    bat('[data-kmvi]', function () { kmSua.vi_phat = kmSua.vi_phat ? 0 : 1; });
+    bat('[data-kmvidip]', function (o) { kmSua.vi_dip = o.getAttribute('data-kmvidip'); });
+    bat('[data-kmvisl]', function (o) { kmSua.vi_so_lan = o.getAttribute('data-kmvisl'); });
     bat('[data-kmwebbo]', function () { kmSua.web_anh = ''; });
     var wa = box.querySelector('[data-kmwebanh]');
     if (wa) wa.onclick = function () { thu(); kmChonAnhWeb(function (url) { kmSua.web_anh = url; ve(); }); };
@@ -1090,6 +1100,46 @@ function kmHtmlWeb(k) {
     '<button class="btn gh" data-kmwebanh="1" style="margin:0;min-height:44px">' + (k.web_anh ? 'Đổi ảnh' : 'Chọn ảnh') + '</button>' +
     (k.web_anh ? '<button class="btn gh" data-kmwebbo="1" style="margin:0;min-height:44px">Bỏ ảnh</button>' : '') + '</div>';
   return html;
+}
+/* v623: voucher danh cho thanh vien. Chuong trinh ma dung mot lan bat "Phat
+   vao Vi qua" thi khach thuoc doi tuong o tren mo trang thanh vien la ma tu
+   hien trong Vi qua (thanh_vien.cap_vi_tv), khong phai xuat lo hay cho Zalo.
+   Gia tri chip trung tuyet doi gia tri luu cua o Select. */
+var KM_VI_DIP = [
+  { k: 'Moi luc', nhan: 'Mọi lúc', mo: 'Khách đủ điều kiện mở trang thành viên là có mã ngay.' },
+  { k: 'Thang sinh nhat', nhan: 'Tháng sinh nhật', mo: 'Chỉ trong tháng sinh nhật của khách, mã dùng tới hết tháng đó. Khách chưa khai ngày sinh thì chưa nhận.' }
+];
+var KM_VI_SO_LAN = [
+  { k: 'Mot lan', nhan: 'Một lần', mo: 'Mỗi khách nhận đúng một mã cho cả chương trình.' },
+  { k: 'Moi nam mot lan', nhan: 'Mỗi năm một lần', mo: 'Sang năm mới khách được nhận lại một mã mới.' }
+];
+function kmViMuc(ds, k) {
+  for (var i = 0; i < ds.length; i++) if (ds[i].k === k) return ds[i];
+  return ds[0];
+}
+function kmHtmlVi(k) {
+  var html = '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">VÍ QUÀ THÀNH VIÊN</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">' +
+    posChipNut('data-kmvi="1"', k.vi_phat ? '🎁 Đang phát vào Ví quà' : '🎁 Không phát vào Ví quà', !!k.vi_phat) + '</div>';
+  if (!k.vi_phat) {
+    return html + '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">Bật để khách thuộc mục Đối tượng ở trên tự thấy mã trong Ví quà khi mở trang thành viên, không cần xuất lô hay chờ tin Zalo.</div>';
+  }
+  var dip = kmViMuc(KM_VI_DIP, k.vi_dip), sl = kmViMuc(KM_VI_SO_LAN, k.vi_so_lan);
+  html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">DỊP PHÁT</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px">' +
+    KM_VI_DIP.map(function (x) { return posChipNut('data-kmvidip="' + x.k + '"', x.nhan, dip.k === x.k); }).join('') + '</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">' + dip.mo + '</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">SỐ LẦN NHẬN</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px">' +
+    KM_VI_SO_LAN.map(function (x) { return posChipNut('data-kmvisl="' + x.k + '"', x.nhan, sl.k === x.k); }).join('') + '</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">' + sl.mo + '</div>';
+  if (dip.k === 'Moi luc') {
+    html += kmO('MÃ DÙNG ĐƯỢC BAO NHIÊU NGÀY', 'kmViHan', k.vi_han_ngay || 30, '30', 'number',
+      'Tính từ lúc mã hiện trong ví, không quá ngày kết thúc chương trình.');
+  }
+  return html + '<div style="font-size:12px;line-height:1.55;margin-bottom:10px;padding:9px 11px;border-radius:9px;background:#ecfdf3;color:#067647">' +
+    'Ai nhận: theo mục Đối tượng khách ở trên. Mã chỉ dùng cho chính người nhận, thu ngân áp như mã quà chào mừng. ' +
+    'Tin Zalo cùng chương trình gửi lại đúng mã trong ví, không phát mã thứ hai.</div>';
 }
 function kmChonAnhWeb(xong) {
   var inp = document.createElement('input');
