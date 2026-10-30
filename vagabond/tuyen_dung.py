@@ -775,6 +775,11 @@ def tong_quan():
 	rows = frappe.get_all(UV, filters={"da_an_danh": 0}, or_filters={"creation": [">=", moc],
 		"trang_thai": ["in", [MOI, LIEN_HE, HEN_PV, LAM_THU, DE_NGHI]]},
 		fields=TRUONG_UV, order_by="creation desc", limit_page_length=500)
+	# Codex #518 vòng 4: còn nợ công làm thử thì luôn hiện, dù hồ sơ cũ hơn 120 ngày
+	# hay đã Dừng, Đã nhận việc; không thì số "Công chưa trả" và nút ghi đã trả mất.
+	co = {r["name"] for r in rows}
+	rows += [r for r in frappe.get_all(UV, filters={"da_an_danh": 0, "tien_cong_thu": [">", 0], "da_tra_cong": 0},
+		fields=TRUONG_UV, order_by="creation desc", limit_page_length=500) if r["name"] not in co]
 	ten_cham = {}
 	if rows:
 		for c in frappe.get_all("Vagabond Ung Vien Danh Gia", filters={"parent": ["in", [r["name"] for r in rows]],
