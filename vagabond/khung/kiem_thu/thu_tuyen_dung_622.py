@@ -188,6 +188,7 @@ class _Site:
 			get_value=self.get_value, exists=lambda d, n=None: bool(n) if d == "Department" else bool(self.lay(d, n)),
 			savepoint=lambda *a, **k: None, rollback=lambda *a, **k: None, count=lambda d, f=None: len(self.get_all(d, f)),
 			set_value=lambda d, n, v, **k: self.set_value.append((d, n, v)), sql=lambda *a, **k: self.ghi.append(("sql",) + a),
+			delete=lambda d, f=None: self.ghi.append(("xoa_lich_su", d, f)),
 		)
 		return [
 			um.patch.object(td.frappe, "db", db),
@@ -399,7 +400,7 @@ def _quyen():
 	goi = [lambda: td.tong_quan(), lambda: td.luu_vi_tri(json.dumps({"tieu_de": "Phụ bếp"})),
 		lambda: td.bat_tat_vi_tri("VTT-0001", 0), lambda: td.them_ho_so(json.dumps(_hs())),
 		lambda: td.cap_nhat("UV-1", td.LIEN_HE), lambda: td.cham("UV-1", "Phỏng vấn", "{}", "Nên nhận"),
-		lambda: td.ghi_cong_thu("UV-1", 4, 100000)]
+		lambda: td.ghi_cong_thu("UV-1", 4, 100000), lambda: td.ghi_lien_he("UV-1", "Gọi", "Nghe máy")]
 	for i, g in enumerate(goi):
 		dung("cửa %d chặn nhân viên quầy" % i, "chỉ mở cho quản lý" in _loi(lambda: _chay(site, g, vai=("Sales User",))))
 	la("đếm trên ô trang chủ trả 0 cho người không có quyền", _chay(site, td.dem_cho_goi, vai=("Sales User",)), {"so": 0})
@@ -564,7 +565,7 @@ def _doctype():
 		(1, ["Vagabond Ung Vien Danh Gia"]))
 	for j in (vt, uv, dg):
 		la("%s: thứ tự ô đủ" % j["name"], j["field_order"], [f["fieldname"] for f in j["fields"]])
-		dung("%s: có mốc modified" % j["name"], str(j.get("modified", "")).startswith("2026-10-30"))
+		dung("%s: có mốc modified" % j["name"], str(j.get("modified", "")) >= "2026-10-30")
 
 
 @ca("v622 móc và lịch: hồ sơ mới báo Zalo, nhắc mỗi giờ, xoá theo hạn 03:40; trang /ung-tuyen mở trên miền khách")
@@ -581,3 +582,106 @@ def _moc():
 	dung("/ung-tuyen không mở trên miền app nội bộ", dich_chuyen_huong(MIEN_APP, "/ung-tuyen") != "")
 	from vagabond import duong_app
 	la("màn app có đường riêng", duong_app.bang_duong().get("tuyen-dung"), "TD")
+
+
+# ------------------------------------------------------------ liên hệ ứng viên (30/10/2026)
+
+@ca("v622 liên hệ ứng viên (phép thuần): kênh, kết quả gọi, chuyển trạng thái, mẫu tin đủ chỗ trống")
+def _lien_he_thuan():
+	la("gọi thiếu kết quả", td.kiem_lien_he("Gọi"), "Chọn kết quả cuộc gọi.")
+	dung("kênh lạ", "Gọi, Zalo hoặc SMS" in td.kiem_lien_he("Email"))
+	dung("mẫu lạ", "Mẫu tin" in td.kiem_lien_he("Zalo", mau="khong_co"))
+	la("hợp lệ", [td.kiem_lien_he("Gọi", "Sai số"), td.kiem_lien_he("Zalo", mau="hen_pv"), td.kiem_lien_he("SMS")], ["", "", ""])
+	la("gọi không nghe hoặc sai số: giữ Mới nhận", [td.sau_lien_he(td.MOI, "Gọi", "Không nghe máy"), td.sau_lien_he(td.MOI, "Gọi", "Sai số")], [td.MOI, td.MOI])
+	la("nghe máy, hẹn gọi lại, nhắn tin: sang Đã liên hệ", [td.sau_lien_he(td.MOI, "Gọi", "Nghe máy"),
+		td.sau_lien_he(td.MOI, "Gọi", "Hẹn gọi lại"), td.sau_lien_he(td.MOI, "Zalo"), td.sau_lien_he(td.MOI, "SMS")], [td.LIEN_HE] * 4)
+	la("không kéo lùi hồ sơ đã ở vòng sau", [td.sau_lien_he(td.HEN_PV, "Zalo"), td.sau_lien_he(td.NHAN_VIEC, "Gọi", "Nghe máy")], [td.HEN_PV, td.NHAN_VIEC])
+	la("dòng nhật ký", [td.cau_lien_he("Gọi", "Không nghe máy"), td.cau_lien_he("Zalo", mau="hen_pv"), td.cau_lien_he("SMS")],
+		["Gọi: Không nghe máy", "Nhắn Zalo mẫu Hẹn phỏng vấn", "Nhắn SMS"])
+	for m in td.MAU_TIN:
+		dung("mẫu %s chỉ dùng chỗ trống app điền được" % m[0], set(re.findall(r"\{(\w+)\}", m[3])) <= set(td.CHO_TRONG))
+		dung("mẫu %s có tên, giải thích, không gạch dài" % m[0], m[1] and m[2] and not re.search("[\u2013\u2014]", m[1] + m[2] + m[3]))
+	la("mỗi trạng thái có mẫu gợi ý đúng mã", sorted(td.MAU_THEO_TRANG_THAI), sorted(td.TRANG_THAI))
+	dung("mẫu gợi ý có thật", set(td.MAU_THEO_TRANG_THAI.values()) <= {m[0] for m in td.MAU_TIN})
+	dung("mỗi kết quả gọi có dòng giải thích", all(p for _k, p in td.KET_QUA_GOI))
+	app = td.mau_tin_app()
+	la("gói gửi app", (len(app["mau_tin"]), [k["k"] for k in app["ket_qua_goi"]], app["hotline"]),
+		(len(td.MAU_TIN), [k for k, _p in td.KET_QUA_GOI], td.HOTLINE))
+	cu = {"trang_thai": td.MOI, "creation": "2026-08-14 08:00:00"}
+	la("đã có người gọi thì không còn nhắc chưa ai gọi", [td.qua_han_goi(cu, BAY_GIO), td.qua_han_goi(dict(cu, lien_he_luc="2026-08-14 09:00:00"), BAY_GIO)], [True, False])
+	la("ô Chưa gọi không đếm hồ sơ đã gọi", td.tom_tat([cu, dict(cu, lien_he_luc="2026-08-14 09:00:00")], HOM_NAY, BAY_GIO)["moi"], 1)
+
+
+@ca("v622 ghi liên hệ: gọi không nghe giữ Mới nhận nhưng hết nhắc; nhắn Zalo chuyển Đã liên hệ; nhật ký đúng người")
+def _ghi_lien_he():
+	uv = dict(_hs(), name="UV-1", sdt="0909123456", trang_thai=td.MOI, da_an_danh=0, nhat_ky="")
+	site = _Site(vt=[_vt()], uv=[uv])
+	kq = _chay(site, lambda: td.ghi_lien_he("UV-1", "Gọi", "Không nghe máy"))
+	r = site.lay(td.UV, "UV-1")
+	la("giữ Mới nhận, ghi lần liên hệ đầu", (kq["trang_thai"], r["trang_thai"], r["lien_he_luc"]), (td.MOI, td.MOI, BAY_GIO))
+	dung("nhật ký có người và kết quả", "Lê Hoàng Dễ: Gọi: Không nghe máy" in r["nhat_ky"])
+	_chay(site, lambda: td.ghi_lien_he("UV-1", "Zalo", "", "hen_pv"))
+	la("nhắn Zalo thì sang Đã liên hệ", r["trang_thai"], td.LIEN_HE)
+	dung("nhật ký ghi mẫu và chuyển trạng thái", "Nhắn Zalo mẫu Hẹn phỏng vấn, Mới nhận -> Đã liên hệ" in r["nhat_ky"])
+	la("lần liên hệ đầu không bị ghi đè", r["lien_he_luc"], BAY_GIO)
+	dung("kênh lạ bị chặn", "Gọi, Zalo hoặc SMS" in _loi(lambda: _chay(site, lambda: td.ghi_lien_he("UV-1", "Email"))))
+	dung("gọi thiếu kết quả bị chặn", "kết quả cuộc gọi" in _loi(lambda: _chay(site, lambda: td.ghi_lien_he("UV-1", "Gọi"))))
+	r["da_an_danh"] = 1
+	dung("hồ sơ đã xoá thông tin thì không liên hệ", "hạn lưu" in _loi(lambda: _chay(site, lambda: td.ghi_lien_he("UV-1", "SMS"))))
+
+
+# ------------------------------------------------------------ Codex rà #518 (25615f076e), 31/10/2026
+
+@ca("v622 Codex #518: hồ sơ tạo qua Desk hay API cũng phải có đồng ý lưu và hạn lưu (controller validate)")
+def _codex_dong_y_desk():
+	from vagabond.vagabond.doctype.vagabond_ung_vien.vagabond_ung_vien import VagabondUngVien
+
+	class _D(VagabondUngVien, dict):
+		def set(self, k, v):
+			self[k] = v
+
+	with um.patch.object(td.frappe.utils, "now_datetime", lambda: BAY_GIO):
+		d = _D(ho_ten="An", sdt="0909123456", dong_y=0)
+		dung("Desk không tích đồng ý: chặn, chỉ đường sang app", "Nhân sự, Tuyển dụng, Thêm hồ sơ" in _loi(d.validate))
+		d = _D(ho_ten="An", dong_y=1)
+		d.validate()
+		la("có đồng ý mà thiếu hạn: máy đặt lúc đồng ý và hạn 12 tháng", (d["dong_y_luc"], d["han_luu"]), (BAY_GIO, "2027-08-15"))
+		d = _D(dong_y=1, dong_y_luc="2026-01-31 10:00:00", han_luu="2026-05-01")
+		d.validate()
+		la("đã có hạn thì giữ nguyên", d["han_luu"], "2026-05-01")
+		d = _D(dong_y=1, dong_y_luc="2026-01-31 10:00:00")
+		d.validate()
+		la("hạn tính từ lúc đồng ý ghi sẵn", d["han_luu"], "2027-01-31")
+		d = _D(dong_y=0, da_an_danh=1)
+		d.validate()
+		la("hồ sơ đã xoá thông tin thì không bắt lại", dict(d), {"dong_y": 0, "da_an_danh": 1})
+
+
+@ca("v622 Codex #518: xoá theo hạn bỏ cả lý do dừng gõ tay và lịch sử sửa; lưu lịch sử sửa đã tắt")
+def _codex_an_danh_du():
+	la("an_danh xoá lý do dừng", td.an_danh({})["ly_do_dung"], "")
+	ds = [dict(_hs(), name="UV-1", trang_thai=td.DUNG, ly_do_dung="Nhà ở Thủ Đức, đang mang thai", han_luu="2026-08-14", da_an_danh=0),
+		dict(_hs(), name="UV-2", trang_thai=td.DUNG, han_luu="2026-09-30", da_an_danh=0)]
+	site = _Site(uv=ds)
+	_chay(site, td.xoa_het_han)
+	la("chỉ UV-1 tới hạn, lý do dừng xoá", [(x[1], x[2]["ly_do_dung"]) for x in site.set_value], [("UV-1", "")])
+	la("bỏ lịch sử sửa của đúng hồ sơ đó", [x[1:] for x in site.ghi if x[0] == "xoa_lich_su"], [("Version", {"ref_doctype": td.UV, "docname": "UV-1"})])
+	j = json.loads(_doc_tep("vagabond", "doctype", "vagabond_ung_vien", "vagabond_ung_vien.json"))
+	la("hồ sơ ứng viên không lưu lịch sử sửa (nhật ký trên hồ sơ thay thế)", j.get("track_changes"), 0)
+
+
+@ca("v622 Codex #518: quản lý chốt Đã nhận việc ngay sau khi nhịp đêm chọn lô thì không bị xoá")
+def _codex_khoa_doc_lai():
+	site = _Site(uv=[dict(_hs(), name="UV-1", trang_thai=td.DUNG, han_luu="2026-08-14", da_an_danh=0)])
+	goc = site.get_all
+
+	def chon_lo_roi_chot(d, filters=None, fields=None, **k):
+		ra = goc(d, filters, fields, **k)
+		site.lay(td.UV, "UV-1")["trang_thai"] = td.NHAN_VIEC
+		return ra
+	site.get_all = chon_lo_roi_chot
+	_chay(site, td.xoa_het_han)
+	la("không ghi đè người vừa được nhận", site.set_value, [])
+	la("không bỏ nhận xét, lịch sử", [x[0] for x in site.ghi if x[0] in ("sql", "xoa_lich_su")], [])
+	dung("đọc lại có khoá dòng", "for_update=True" in _doc_tep("tuyen_dung.py").split("def xoa_het_han")[1].split("def ")[0])
+
