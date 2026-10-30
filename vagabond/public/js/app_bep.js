@@ -63843,14 +63843,14 @@ function tdCachDay(s, bayGio) {
 function tdLocHs(rows, loc, homNay) {
   loc = loc || {};
   return (rows || []).filter(function (r) {
+    /* Ô tìm LỌC THÊM cùng các chip đang chọn, không thay chúng (Codex #518). */
     if (loc.tim) {
       var so = String(loc.tim).replace(/[^0-9]/g, '');
-      if (so.length >= 3 && so.length === String(loc.tim).replace(/[\s.+-]/g, '').length) {
-        return String(r.sdt || '').indexOf(so) >= 0;
-      }
-      return vgbKhop([r.ho_ten, r.sdt, r.ten_vi_tri, r.khu_vuc], loc.tim);
+      var khop = (so.length >= 3 && so.length === String(loc.tim).replace(/[\s.+-]/g, '').length) ?
+        String(r.sdt || '').indexOf(so) >= 0 : vgbKhop([r.ho_ten, r.sdt, r.ten_vi_tri, r.khu_vuc], loc.tim);
+      if (!khop) return false;
     }
-    if (loc.the === 'moi' && r.trang_thai !== 'Mới nhận') return false;
+    if (loc.the === 'moi' && (r.trang_thai !== 'Mới nhận' || r.lien_he_luc)) return false;
     if (loc.the === 'qua_han' && !+r.qua_han) return false;
     if (loc.the === 'hen' && !(TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && String(r.lich_hen || '').slice(0, 10) === homNay)) return false;
     if (loc.the === 'cong' && !(+r.tien_cong_thu > 0 && !+r.da_tra_cong)) return false;
@@ -63879,6 +63879,7 @@ function tdNut(attr, chu, kieu) {
     goi: 'border:1.5px solid #0d9488;color:#0d9488;background:#fff;',
     chinh: 'border:1.5px solid #52d8f0;background:#52d8f0;color:#0b2a33;',
     phu: 'border:1.5px solid #d0d5dd;color:#344054;background:#fff;',
+    zalo: 'border:1.5px solid #0068ff;color:#0068ff;background:#fff;',
   }[kieu || 'phu'];
   return '<button type="button" ' + attr + ' style="' + st + 'flex:1 1 0;width:auto;min-width:0;min-height:44px;border-radius:11px;' +
     'font-size:14px;font-weight:700;cursor:pointer;margin:0;padding:0 6px;white-space:nowrap">' + chu + '</button>';
@@ -63903,8 +63904,7 @@ function tdTheHs(r, i, bayGio) {
   if (tel) {
     nut.push('<a href="tel:' + h(tel) + '" data-tdgoi="' + i + '" style="flex:1 1 0;min-width:0;min-height:44px;border-radius:11px;border:1.5px solid #0d9488;' +
       'color:#0d9488;background:#fff;font-size:14px;font-weight:700;display:flex;flex-direction:row;align-items:center;justify-content:center;text-decoration:none">📞 Gọi</a>');
-    nut.push('<a href="https://zalo.me/' + h(tel) + '" target="_blank" rel="noopener" data-tdzalo="' + i + '" style="flex:1 1 0;min-width:0;min-height:44px;border-radius:11px;' +
-      'border:1.5px solid #0068ff;color:#0068ff;background:#fff;font-size:14px;font-weight:700;display:flex;flex-direction:row;align-items:center;justify-content:center;text-decoration:none">💬 Zalo</a>');
+    nut.push(tdNut('data-tdnhan="' + i + '"', '💬 Nhắn', 'zalo'));
   }
   if (r.trang_thai !== 'Đã nhận việc') nut.push(tdNut('data-tdcn="' + i + '"', 'Cập nhật', 'chinh'));
   if (['Hẹn phỏng vấn', 'Làm thử', 'Đề nghị nhận việc', 'Đã liên hệ'].indexOf(r.trang_thai) >= 0) nut.push(tdNut('data-tdcham="' + i + '"', '📝 Chấm'));
@@ -64114,6 +64114,100 @@ function tdSheetCong(r) {
   });
 }
 
+/* ---------- Liên hệ ứng viên như chăm sóc khách hàng (anh Việt 30/10/2026) ----------
+   Gọi, nhắn Zalo, nhắn SMS từ chính điện thoại quản lý với tin soạn sẵn; mỗi
+   lần liên hệ ghi vào nhật ký hồ sơ (tuyen_dung.ghi_lien_he). Mẫu tin và kết
+   quả cuộc gọi lấy từ máy chủ (tuyen_dung.MAU_TIN, KET_QUA_GOI), ở đây chỉ điền
+   chỗ trống. PHÉP THUẦN. */
+function tdDienMau(noiDung, r, vt, hotline) {
+  var gio = tdGioNgay(r.lich_hen);
+  var cong = +r.tien_cong_thu || +(vt && vt.cong_lam_thu) || 0;
+  var gt = {
+    ten: r.ho_ten || 'bạn', vi_tri: r.ten_vi_tri || (vt && vt.tieu_de) || '',
+    gio: gio ? gio.replace(' ', ' ngày ') : '(điền giờ hẹn)',
+    noi_lam: (vt && vt.noi_lam) || '(điền nơi làm)',
+    cong: cong ? money(cong) + 'đ' : 'theo số giờ làm', hotline: hotline || ''
+  };
+  return String(noiDung || '').replace(/\{(\w+)\}/g, function (m, k) { return gt[k] != null ? gt[k] : m; });
+}
+function tdVtCua(r) {
+  return ((tdKq && tdKq.vi_tri) || []).filter(function (v) { return v.name === r.vi_tri; })[0] || {};
+}
+async function tdGhiLienHe(r, kenh, ketQua, mau, xong) {
+  try {
+    await api('vagabond.tuyen_dung.ghi_lien_he', { name: r.name, kenh: kenh, ket_qua: ketQua || '', mau: mau || '' });
+    toast(xong, 3200);
+    go(scrTuyenDung, true);
+  } catch (e) { toast(errMsg(e), 5000); }
+}
+/* Sau khi bấm Gọi: máy mở trình gọi, quay lại app là thấy bảng ghi kết quả. */
+function tdSheetGoi(r) {
+  var ds = (tdKq && tdKq.ket_qua_goi) || [];
+  var ov = tdMoSheet('<div style="font-size:18px;font-weight:700;margin:4px 0 4px">Kết quả cuộc gọi</div>' +
+    '<div style="font-size:13.5px;color:#475467;margin-bottom:10px"><b style="color:#101828">' + h(r.ho_ten) + '</b> · ' + h(r.sdt || '') + '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:6px">' + ds.map(function (k, j) {
+      return '<button type="button" data-tdkq="' + j + '" style="margin:0;min-height:44px;width:100%;text-align:left;padding:8px 12px;border-radius:11px;' +
+        'cursor:pointer;border:1.5px solid #e4e7ec;background:#fff"><div style="font-size:14.5px;font-weight:700;color:#101828">' + h(k.k) + '</div>' +
+        '<div style="font-size:12.5px;color:#475467">' + h(k.p) + '</div></button>';
+    }).join('') + '</div>' +
+    '<button class="btn gh" data-tddong="1" style="margin-top:10px">Chưa gọi, để sau</button>');
+  ov.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tdkq]');
+    if (t) { var k = ds[+t.getAttribute('data-tdkq')].k; ov.remove(); tdGhiLienHe(r, 'Gọi', k, '', 'Đã ghi cuộc gọi: ' + k); return; }
+    if (e.target.closest('[data-tddong]')) ov.remove();
+  });
+  return ov;
+}
+/* Nhắn tin: chọn mẫu (gợi ý sẵn theo trạng thái), sửa chữ nếu cần, rồi chép
+   và mở Zalo, hoặc mở SMS có sẵn chữ. Máy ghi nhật ký đã nhắn bằng kênh nào. */
+function tdSheetNhan(r) {
+  var ds = (tdKq && tdKq.mau_tin) || [], vt = tdVtCua(r), hl = (tdKq && tdKq.hotline) || '';
+  var chon = ((tdKq && tdKq.mau_theo_trang_thai) || {})[r.trang_thai] || (ds[0] && ds[0].k) || '';
+  var tel = String(r.sdt || '').replace(/[^0-9]/g, '');
+  var mau = function (k) { return ds.filter(function (m) { return m.k === k; })[0] || {}; };
+  var ov = tdMoSheet('<div style="font-size:18px;font-weight:700;margin:4px 0 4px">Nhắn tin cho ứng viên</div>' +
+    '<div style="font-size:13.5px;color:#475467;margin-bottom:10px"><b style="color:#101828">' + h(r.ho_ten) + '</b> · ' + h(tel) + '</div>' +
+    '<div data-tdmauds="1" style="display:flex;flex-direction:column;gap:6px"></div>' +
+    '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:12px 0 5px">Nội dung (sửa được trước khi gửi)</div>' +
+    '<textarea class="nt" id="tdNoiDungTin" rows="5" maxlength="1000"></textarea>' +
+    '<button class="btn" data-tdzl="1" style="margin:12px 0 0">💬 Chép tin và mở Zalo</button>' +
+    '<button class="btn gh" data-tdsms="1" style="margin-top:9px">✉️ Mở SMS có sẵn tin này</button>' +
+    '<div style="font-size:12.5px;color:#475467;margin-top:8px;line-height:1.5">Tin gửi từ Zalo hoặc SMS trên điện thoại của bạn, không tốn phí của tiệm. Mở Zalo xong, dán tin vào ô chat rồi gửi.</div>' +
+    '<button class="btn gh" data-tddong="1" style="margin-top:9px">Để sau</button>');
+  var o = ov.querySelector('#tdNoiDungTin');
+  function ve() {
+    ov.querySelector('[data-tdmauds]').innerHTML = ds.map(function (m) {
+      var dang = m.k === chon;
+      return '<button type="button" data-tdmau="' + h(m.k) + '" aria-pressed="' + (dang ? 'true' : 'false') + '" style="margin:0;min-height:44px;width:100%;text-align:left;' +
+        'padding:8px 12px;border-radius:11px;cursor:pointer;border:' + (dang ? '2px solid #0068ff;background:#eff6ff' : '1.5px solid #e4e7ec;background:#fff') + '">' +
+        '<div style="font-size:14.5px;font-weight:700;color:#101828">' + h(m.ten) + '</div><div style="font-size:12.5px;color:#475467">' + h(m.p) + '</div></button>';
+    }).join('');
+    o.value = tdDienMau(mau(chon).noi_dung, r, vt, hl);
+  }
+  ve();
+  ov.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tdmau]');
+    if (t) { chon = t.getAttribute('data-tdmau'); ve(); return; }
+    var chu = String(o.value || '').trim();
+    if (e.target.closest('[data-tdzl]')) {
+      /* Mở Zalo ngay trong lượt bấm (trình duyệt chặn cửa sổ mở sau khi chờ). */
+      try { if (window.navigator && navigator.clipboard) navigator.clipboard.writeText(chu); } catch (x) { /* máy không cho chép: vẫn mở Zalo */ }
+      window.open('https://zalo.me/' + tel, '_blank');
+      ov.remove();
+      tdGhiLienHe(r, 'Zalo', '', chon, 'Đã chép tin, dán vào ô chat Zalo rồi gửi');
+      return;
+    }
+    if (e.target.closest('[data-tdsms]')) {
+      window.location.href = 'sms:' + tel + '?&body=' + encodeURIComponent(chu);
+      ov.remove();
+      tdGhiLienHe(r, 'SMS', '', chon, 'Đã mở SMS, bấm gửi trong máy');
+      return;
+    }
+    if (e.target.closest('[data-tddong]')) ov.remove();
+  });
+  return ov;
+}
+
 /* Mã QR dán ở cửa hàng: mở form ứng tuyển, máy ghi nguồn "QR tại cửa hàng". */
 async function tdSheetQr() {
   var link = (tdKq && tdKq.link_ung_tuyen) || '';
@@ -64211,6 +64305,14 @@ async function scrTuyenDung() {
     t = e.target.closest('[data-tdcn]'); if (t) { tdSheetCapNhat(rows[+t.getAttribute('data-tdcn')]); return; }
     t = e.target.closest('[data-tdcham]'); if (t) { tdSheetCham(rows[+t.getAttribute('data-tdcham')]); return; }
     t = e.target.closest('[data-tdcong]'); if (t) { tdSheetCong(rows[+t.getAttribute('data-tdcong')]); return; }
+    t = e.target.closest('[data-tdnhan]'); if (t) { tdSheetNhan(rows[+t.getAttribute('data-tdnhan')]); return; }
+    t = e.target.closest('[data-tdgoi]');
+    if (t) {
+      /* Không chặn đường tel: để máy mở trình gọi; bảng kết quả chờ sẵn khi quay lại app. */
+      var rg = rows[+t.getAttribute('data-tdgoi')];
+      setTimeout(function () { tdSheetGoi(rg); }, 700);
+      return;
+    }
     if (e.target.closest('[data-tdthemhs]')) { go(scrTdThemHs); return; }
     if (e.target.closest('[data-tdthemvt]')) { go(function () { return scrTdViTri(''); }); return; }
     if (e.target.closest('[data-tdqr]')) { tdSheetQr(); return; }
@@ -64337,7 +64439,11 @@ async function scrTdThemHs() {
   };
   var html = '<div class="card" style="padding:12px 13px">' +
     '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:2px 0 5px">Vị trí</div>' +
-    kmHangChip(vts.map(function (v) { return posChipNut('data-tdhsvt2="' + h(v.name) + '"', h(v.tieu_de), s.vi_tri === v.name, false, '#4338ca'); }).join('')) +
+    /* Quá 8 vị trí thì mở bảng có ô tìm (AGENTS 2b.2, Codex #518), không xếp chip dài. */
+    (vts.length > 8 ?
+      '<button type="button" data-tdhsvtchon="1" style="margin:0;min-height:46px;width:100%;text-align:left;padding:8px 12px;border-radius:10px;border:1.5px solid #d0d5dd;background:#fff;cursor:pointer;font-size:15px">' +
+        h(((vts.filter(function (v) { return v.name === s.vi_tri; })[0]) || {}).tieu_de || 'Chọn vị trí') + ' <span style="float:right;color:#98a2b3">›</span></button>' :
+      kmHangChip(vts.map(function (v) { return posChipNut('data-tdhsvt2="' + h(v.name) + '"', h(v.tieu_de), s.vi_tri === v.name, false, '#4338ca'); }).join(''))) +
     '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:12px 0 5px">Nguồn</div>' +
     kmHangChip((tdKq.nguon || []).map(function (x) { return posChipNut('data-tdng="' + h(x) + '"', h(x), s.nguon === x, false, '#0d9488'); }).join('')) +
     o('Họ tên', 'tdHsTen', s.ho_ten, ' maxlength="120" autocomplete="off"') +
@@ -64360,6 +64466,11 @@ async function scrTdThemHs() {
   var veLai = function () { go(function () { tdHsKhoiPhuc = s; return scrTdThemHs(); }, true); };
   than.addEventListener('click', function (e) {
     var t = e.target.closest('[data-tdhsvt2]'); if (t) { s.vi_tri = t.getAttribute('data-tdhsvt2'); veLai(); return; }
+    if (e.target.closest('[data-tdhsvtchon]')) {
+      sheet('Vị trí', vts.map(function (v) { return { label: v.tieu_de + (+v.dang_tuyen ? '' : ' (đang tắt)'), value: v.name }; }), s.vi_tri,
+        function (it) { s.vi_tri = it.value; veLai(); }, true);
+      return;
+    }
     t = e.target.closest('[data-tdng]'); if (t) { s.nguon = t.getAttribute('data-tdng'); veLai(); return; }
     t = e.target.closest('[data-tdca]');
     if (t) { var c = t.getAttribute('data-tdca'); s.ca_ranh = s.ca_ranh.indexOf(c) >= 0 ? s.ca_ranh.filter(function (x) { return x !== c; }) : s.ca_ranh.concat([c]); veLai(); return; }
