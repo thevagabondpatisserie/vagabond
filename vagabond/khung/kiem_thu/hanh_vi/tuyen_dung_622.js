@@ -52,6 +52,17 @@ function duLieu() {
     noi_lam: ['The Vagabond District 1', 'Xưởng sản xuất Tân Bình'], bo_phan: [{ k: 'Thu ngân - TV', ten: 'Thu ngân' }],
     tieu_chi_mac_dinh: ['Thái độ, giao tiếp', 'Nhanh nhẹn'], cau_dong_y: 'Tôi đồng ý ... trong 12 tháng ...', thang_luu: 12,
     link_ung_tuyen: 'https://order.thevagabondpatisserie.com/ung-tuyen',
+    /* Bản chép của tuyen_dung.MAU_TIN, KET_QUA_GOI (máy chủ gửi qua tong_quan). */
+    hotline: '0931 224 334',
+    ket_qua_goi: [{ k: 'Nghe máy', p: 'Đã nói chuyện' }, { k: 'Hẹn gọi lại', p: 'Hẹn gọi lại sau' },
+      { k: 'Không nghe máy', p: 'Giữ Mới nhận' }, { k: 'Sai số', p: 'Số không liên lạc được' }],
+    mau_theo_trang_thai: { 'Mới nhận': 'da_nhan', 'Hẹn phỏng vấn': 'hen_pv', 'Làm thử': 'lam_thu', 'Dừng': 'cam_on' },
+    mau_tin: [
+      { k: 'da_nhan', ten: 'Đã nhận hồ sơ', p: 'x', noi_dung: 'Chào {ten}, đã nhận hồ sơ vị trí {vi_tri}. Gọi {hotline}.' },
+      { k: 'hen_pv', ten: 'Hẹn phỏng vấn', p: 'x', noi_dung: 'Chào {ten}, hẹn phỏng vấn vị trí {vi_tri} lúc {gio} tại {noi_lam}. Gọi {hotline}.' },
+      { k: 'lam_thu', ten: 'Hẹn làm thử', p: 'x', noi_dung: 'Chào {ten}, làm thử {vi_tri} lúc {gio} tại {noi_lam}, có trả công {cong}.' },
+      { k: 'cam_on', ten: 'Cảm ơn, chưa phù hợp', p: 'x', noi_dung: 'Chào {ten}, cảm ơn bạn đã ứng tuyển {vi_tri}.' },
+    ],
     vi_tri: [
       { name: 'VTT-0001', tieu_de: 'Thu ngân ca tối', ten_bo_phan: 'Thu ngân', noi_lam: 'The Vagabond District 1', hinh_thuc: 'Bán thời gian',
         so_can: 2, dang_tuyen: 1, khach_thay: 1, trang_thai_web: 'Khách đang thấy', so_ho_so: 3, ket_thuc: '',
@@ -85,6 +96,9 @@ function dungMoi(vai, loi) {
   var that = {
     document: tai, console: console, Math: Math, JSON: JSON, String: String, Array: Array, Object: Object,
     RegExp: RegExp, Promise: Promise, Number: Number, Date: Date, setTimeout: setTimeout, isNaN: isNaN, QR: QR,
+    moTab: [], chep: [], location: {},
+    open: function (u) { that.moTab.push(u); },
+    navigator: { clipboard: { writeText: function (t) { that.chep.push(t); return Promise.resolve(); } } },
     S: { roles: vai, stack: [] },
     hasRole: function (r) { return vai.indexOf(r) >= 0; },
     frame: function (t, html, opt) {
@@ -94,7 +108,8 @@ function dungMoi(vai, loi) {
     back: function () { dieuHuong.push('back'); },
     busy: function () {},
     toast: function (m) { toastDs.push(m); },
-    sheet: function () {},
+    bangChon: [],
+    sheet: function (t, ds, cur, chon, tim) { that.bangChon.push({ t: t, ds: ds, cur: cur, chon: chon, tim: tim }); },
     confirmSheet: function (t, m) { hoi.push(t + '|' + m); return Promise.resolve(true); },
     api: function (duong, ts) {
       goi.push({ duong: duong, ts: ts });
@@ -144,7 +159,7 @@ async function mo(vai, loi, dat) {
     bang('không gọi máy chủ', m.goi.length, 0);
   });
 
-  await ca('quản lý mở màn: ba số đầu màn, chip trạng thái và vị trí, thẻ hồ sơ có Gọi, Zalo, Cập nhật', async function () {
+  await ca('quản lý mở màn: ba số đầu màn, chip trạng thái và vị trí, thẻ hồ sơ có Gọi, Nhắn, Cập nhật', async function () {
     var m = await mo();
     bang('tiêu đề', m.g._t, 'Tuyển dụng');
     var tom = m.khung.querySelectorAll('[data-tdtom]')[0];
@@ -158,7 +173,7 @@ async function mo(vai, loi, dat) {
     dung('hồ sơ quá 24 giờ ghi đỏ', chu(t1).indexOf('chưa ai gọi') >= 0);
     dung('nộp hai lần được báo', chu(t1).indexOf('nộp 2 lần') >= 0);
     bang('gọi', nut(t1, 'data-tdgoi').getAttribute('href'), 'tel:0909123456');
-    bang('zalo', nut(t1, 'data-tdzalo').getAttribute('href'), 'https://zalo.me/0909123456');
+    dung('có nút Nhắn', !!nut(t1, 'data-tdnhan'));
     dung('có Cập nhật', !!nut(t1, 'data-tdcn'));
     dung('hồ sơ Mới nhận chưa có nút Chấm', !nut(t1, 'data-tdcham'));
     dung('hẹn phỏng vấn có nút Chấm và giờ hẹn', !!nut(the(m, 'UV-3'), 'data-tdcham') && chu(the(m, 'UV-3')).indexOf('14:00 30/10') >= 0);
@@ -300,6 +315,58 @@ async function mo(vai, loi, dat) {
     dung('nhắc hỏi ứng viên', m.toast.join('|').indexOf('đồng ý lưu hồ sơ') >= 0);
   });
 
+  await ca('Gọi: bấm Gọi (máy mở trình gọi), quay lại có bảng kết quả; bấm Không nghe máy là ghi nhật ký', async function () {
+    var m = await mo();
+    bam(nut(the(m, 'UV-1'), 'data-tdgoi'));
+    dung('chưa hiện ngay (để máy mở trình gọi trước)', !sheet(m));
+    await new Promise(function (r) { setTimeout(r, 760); });
+    var s = sheet(m);
+    dung('bảng kết quả cuộc gọi', !!s && chu(s).indexOf('Kết quả cuộc gọi') >= 0 && chu(s).indexOf('0909123456') >= 0);
+    bang('bốn kết quả có giải thích', s.querySelectorAll('[data-tdkq]').length, 4);
+    bam(s.querySelectorAll('[data-tdkq="2"]')[0]);
+    await tick();
+    bang('gửi đúng', goiTen(m, 'ghi_lien_he')[0].ts, { name: 'UV-1', kenh: 'Gọi', ket_qua: 'Không nghe máy', mau: '' });
+  });
+
+  await ca('Nhắn SMS: hồ sơ Hẹn phỏng vấn gợi sẵn mẫu hẹn, điền đủ tên, vị trí, giờ, nơi làm; mở SMS có sẵn tin, ghi nhật ký', async function () {
+    var m = await mo();
+    bam(nut(the(m, 'UV-3'), 'data-tdnhan'));
+    var s = sheet(m);
+    bang('mẫu gợi sẵn', s.querySelectorAll('[data-tdmau="hen_pv"]')[0].getAttribute('aria-pressed'), 'true');
+    var tin = s.querySelectorAll('#tdNoiDungTin')[0].value;
+    bang('nội dung', tin, 'Chào Lê Cường, hẹn phỏng vấn vị trí Thu ngân ca tối lúc 14:00 ngày 30/10 tại The Vagabond District 1. Gọi 0931 224 334.');
+    bam(s.querySelectorAll('[data-tdsms]')[0]);
+    await tick();
+    var u = String(m.g.location.href || '');
+    dung('mở SMS đúng số', u.indexOf('sms:0987654321?&body=') === 0);
+    bang('tin trong SMS', decodeURIComponent(u.split('body=')[1]), tin);
+    bang('ghi nhật ký', goiTen(m, 'ghi_lien_he')[0].ts, { name: 'UV-3', kenh: 'SMS', ket_qua: '', mau: 'hen_pv' });
+  });
+
+  await ca('Nhắn Zalo: đổi mẫu thì đổi chữ; sửa chữ rồi bấm là chép đúng chữ đã sửa và mở Zalo đúng số', async function () {
+    var m = await mo();
+    bam(nut(the(m, 'UV-4'), 'data-tdnhan'));
+    var s = sheet(m), o = s.querySelectorAll('#tdNoiDungTin')[0];
+    dung('mẫu làm thử có công đã ghi', o.value.indexOf('lúc 08:00 ngày 31/10 tại Xưởng sản xuất Tân Bình, có trả công 100.000đ') >= 0);
+    bam(s.querySelectorAll('[data-tdmau="cam_on"]')[0]);
+    bang('đổi mẫu', o.value, 'Chào Phạm Dũng, cảm ơn bạn đã ứng tuyển Phụ bếp Pastry.');
+    o.value = o.value + ' Hẹn gặp lại.';
+    bam(s.querySelectorAll('[data-tdzl]')[0]);
+    await tick();
+    bang('mở Zalo đúng số', m.g.moTab, ['https://zalo.me/0901111222']);
+    bang('chép đúng chữ đã sửa', m.g.chep, ['Chào Phạm Dũng, cảm ơn bạn đã ứng tuyển Phụ bếp Pastry. Hẹn gặp lại.']);
+    bang('ghi nhật ký', goiTen(m, 'ghi_lien_he')[0].ts, { name: 'UV-4', kenh: 'Zalo', ket_qua: '', mau: 'cam_on' });
+  });
+
+  await ca('điền mẫu (phép thuần): đủ sáu chỗ trống, thiếu giờ hay nơi làm thì nhắc điền, không để lại ngoặc', async function () {
+    var m = dungMoi(QL);
+    var ra = m.g.tdDienMau('{ten}|{vi_tri}|{gio}|{noi_lam}|{cong}|{hotline}', { ho_ten: 'An', ten_vi_tri: 'Thu ngân' }, {}, '0931 224 334');
+    bang('điền', ra, 'An|Thu ngân|(điền giờ hẹn)|(điền nơi làm)|theo số giờ làm|0931 224 334');
+    var rows = duLieu().rows;
+    rows.push({ name: 'UV-5', trang_thai: 'Mới nhận', lien_he_luc: '2026-10-30 08:00:00', ho_ten: 'Gọi rồi', sdt: '0900000005' });
+    bang('ô Chưa gọi bỏ hồ sơ đã gọi', m.g.tdLocHs(rows, { the: 'moi' }, HOM).map(function (r) { return r.name; }), ['UV-1', 'UV-2']);
+  });
+
   await ca('phép lọc thuần: tìm số điện thoại, tìm tên bỏ dấu, lọc công chưa trả', async function () {
     var m = dungMoi(QL);
     var rows = duLieu().rows;
@@ -307,6 +374,34 @@ async function mo(vai, loi, dat) {
     bang('tìm tên bỏ dấu', m.g.tdLocHs(rows, { tim: 'cuong' }, HOM).map(function (r) { return r.name; }), ['UV-3']);
     bang('công chưa trả', m.g.tdLocHs(rows, { the: 'cong' }, HOM).map(function (r) { return r.name; }), ['UV-4']);
     bang('hẹn hôm nay', m.g.tdLocHs(rows, { the: 'hen' }, HOM).map(function (r) { return r.name; }), ['UV-3']);
+  });
+
+  await ca('Codex #518: ô tìm lọc THÊM cùng chip vị trí và trạng thái, không bỏ qua chúng', async function () {
+    var m = dungMoi(QL);
+    var rows = duLieu().rows.concat([{ name: 'UV-6', vi_tri: 'VTT-0002', ten_vi_tri: 'Phụ bếp Pastry', ho_ten: 'Nguyễn Văn Bình', sdt: '0911000006', trang_thai: 'Dừng' }]);
+    bang('tìm tên + vị trí 2', m.g.tdLocHs(rows, { tim: 'nguyen', vt: 'VTT-0002' }, HOM).map(function (r) { return r.name; }), ['UV-6']);
+    bang('tìm tên + vị trí 2 + Mới nhận', m.g.tdLocHs(rows, { tim: 'nguyen', vt: 'VTT-0002', tt: 'Mới nhận' }, HOM).map(function (r) { return r.name; }), []);
+    bang('tìm số + thẻ Chưa gọi', m.g.tdLocHs(rows, { tim: '0911', the: 'moi' }, HOM).map(function (r) { return r.name; }), []);
+  });
+
+  await ca('Codex #518: quá 8 vị trí thì Thêm hồ sơ mở bảng chọn có ô tìm, không xếp chip dài', async function () {
+    var m = dungMoi(QL);
+    var d = duLieu();
+    for (var i = 3; i <= 9; i++) d.vi_tri.push({ name: 'VTT-000' + i, tieu_de: 'Vị trí ' + i, dang_tuyen: i % 2 });
+    m.g.tdKq = d; m.g.tdVt = '';
+    await m.g.scrTdThemHs();
+    bang('không chip vị trí', m.khung.querySelectorAll('[data-tdhsvt2]').length, 0);
+    var nutChon = m.khung.querySelectorAll('[data-tdhsvtchon]')[0];
+    dung('nút chọn hiện vị trí đầu', chu(nutChon).indexOf('Thu ngân ca tối') >= 0);
+    bam(nutChon);
+    var b = m.g.bangChon[0];
+    bang('bảng có ô tìm, đủ 9 vị trí, vị trí tắt có ghi chú', [b.tim, b.ds.length, b.ds[1].label], [true, 9, 'Phụ bếp Pastry (đang tắt)']);
+    b.chon(b.ds[8]);
+    await tick();
+    dung('chọn xong hiện đúng vị trí', chu(m.khung.querySelectorAll('[data-tdhsvtchon]')[0]).indexOf('Vị trí 9') >= 0);
+    m.g.tdKq = duLieu(); m.g.tdHsKhoiPhuc = null;
+    await m.g.scrTdThemHs();
+    bang('8 vị trí trở xuống vẫn là chip', m.khung.querySelectorAll('[data-tdhsvt2]').length, 2);
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
