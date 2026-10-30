@@ -469,6 +469,11 @@ def luu_ho_so(dat=None):
 	frappe.db.set_value(DT_HO_SO, khach, v, update_modified=True)
 	if sn:
 		frappe.db.set_value("Customer", khach, "vgb_sinh_nhat", sn, update_modified=False)
+	elif "ngay" in dat and "thang" in dat:
+		# Biểu mẫu gửi đủ ô mà cả ba trống: khách chủ động xoá ngày sinh, lưu
+		# đúng như vậy chứ không giữ ngày cũ (Codex PR #517 vòng 12). Lời gọi
+		# không gửi ô ngày sinh (chỉ đổi hình bánh) thì giữ nguyên.
+		frappe.db.set_value("Customer", khach, "vgb_sinh_nhat", None, update_modified=False)
 	_ghi_dong_y(khach, dat.get("dong_y_zalo"))
 	frappe.db.commit()
 	return {'ok':1}
