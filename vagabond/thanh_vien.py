@@ -48,6 +48,8 @@ CAU_HOI_TV = (
 	"báo đơn bánh. Tắt lúc nào cũng được trong trang thành viên."
 )
 DT_HO_SO = "Vagabond Ho So CRM"
+VI_LICH_SU = 20      # số mã đã dùng/hết hạn/đã huỷ hiện trong Ví quà
+VI_CON_TOI_DA = 200  # trần an toàn cho mã chưa dùng của một khách
 COT_TV = ("ten_goi", "email_khach", "so_thich", "anh_dai_dien", "anh_mau", "dy_zalo", "qua_chao_mung")
 
 
@@ -267,9 +269,15 @@ def _mo_ta_ma(km_cache, ctkm):
 def _vi(khach, hom_nay):
 	from vagabond.zalo_kich_ban import ngay_vn
 
-	ds = frappe.get_all("Vagabond Voucher", filters={"danh_cho": khach},
-		fields=["ma", "ctkm", "ten_ctkm", "trang_thai", "han_dung", "ngay_dung"],
-		order_by="creation desc", limit_page_length=20)
+	cot = ["ma", "ctkm", "ten_ctkm", "trang_thai", "han_dung", "ngay_dung"]
+	# Mã CHƯA DÙNG lấy riêng, không cắt theo 20 mã mới nhất: khách nhiều mã
+	# đã dùng hay đã huỷ (tin Zalo thử lại phát rồi huỷ) không được đẩy mã còn
+	# hạn ra khỏi ví (Codex PR #517 vòng 11). Chỉ phần lịch sử bị giới hạn.
+	con = frappe.get_all("Vagabond Voucher", filters={"danh_cho": khach, "trang_thai": "Chua dung"},
+		fields=cot, order_by="creation desc", limit_page_length=VI_CON_TOI_DA)
+	cu = frappe.get_all("Vagabond Voucher", filters={"danh_cho": khach, "trang_thai": ["!=", "Chua dung"]},
+		fields=cot, order_by="creation desc", limit_page_length=VI_LICH_SU)
+	ds = list(con) + list(cu)
 	km, ra = {}, []
 	for v in ds:
 		ten_ud, dk = _mo_ta_ma(km, v.ctkm)
@@ -279,7 +287,9 @@ def _vi(khach, hom_nay):
 	# Dùng được lên đầu, rồi sắp mở/đã dùng.
 	thu_tu = {"dung_duoc": 0, "da_dung": 1, "het_han": 2, "da_huy": 3}
 	ra.sort(key=lambda x: thu_tu.get(x["trang_thai"], 9))
-	return ra
+	# Mã dùng được giữ đủ; lịch sử (đã dùng, hết hạn, đã huỷ) tối đa VI_LICH_SU.
+	dung = [x for x in ra if x["trang_thai"] == "dung_duoc"]
+	return dung + [x for x in ra if x["trang_thai"] != "dung_duoc"][:VI_LICH_SU]
 
 
 def _tien_do(khach):
