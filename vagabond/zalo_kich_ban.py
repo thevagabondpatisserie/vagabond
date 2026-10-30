@@ -485,6 +485,24 @@ def ctkm_phat_duoc(km, hom_nay, han_ngay):
 	return han, ""
 
 
+def ly_do_khong_gui_lai(km, hom_nay):
+	"""Mã Ví quà khách đang giữ còn gửi lại được không. THUẦN.
+
+	Trả '' nếu được. Quầy (khuyen_mai._tra_ma) từ chối mã của chương trình
+	đang tắt hay đã qua ngày kết thúc, nên gửi lại lúc đó là gửi quà khách
+	không dùng được (Codex PR #520 vòng 5). Không xét hạn mã mặc định của
+	chương trình vì mã đã phát có hạn riêng.
+	"""
+	km = km or {}
+	ten = km.get("ten") or km.get("name") or ""
+	if not int(km.get("bat") or 0):
+		return "Chương trình %s đang tắt, không gửi lại mã Ví quà." % ten
+	den = ngay_cua(km.get("den_ngay"))
+	if den and ngay_cua(hom_nay) > den:
+		return "Chương trình %s đã hết hạn ngày %s, không gửi lại mã Ví quà." % (ten, ngay_vn(den))
+	return ""
+
+
 def xoa_kiem_mau(ly_do="Đang hỏi Zalo mẫu mới."):
 	"""Các ô kết quả kiểm mẫu phải xoá khi đổi mã mẫu. THUẦN.
 
@@ -873,6 +891,10 @@ def _gui_mot(c, row):
 				cu_vi = next((v for v in trong_ky if thanh_vien.trang_thai_voucher(v, hn) == "dung_duoc"), None)
 				if not cu_vi:
 					_xong(row.name, TT_BO, "Khách đã nhận mã của chương trình này trong kỳ.")
+					return None
+				ly_gl = ly_do_khong_gui_lai(km, hn)
+				if ly_gl:
+					_xong(row.name, TT_BO, ly_gl)
 					return None
 			else:
 				han_vi, ly_vi = thanh_vien.xet_vi(km, row.khach, kh.get("sinh_nhat"), kh["sdt84"], hn)
