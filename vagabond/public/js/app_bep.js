@@ -27703,10 +27703,26 @@ function posSheetMaVc() {
         ma: ma, quay: (posQuay && posQuay.ma) || '', nguon: posNguonThuc()
       });
       if (!kq.dung_duoc) { bao.style.color = '#b3261e'; bao.textContent = kq.ly_do || 'Mã không dùng được lúc này.'; return; }
+      /* Codex PR #503: mã gắn người nhận (quà chào mừng, voucher tin Zalo). Hoá
+         đơn chưa có khách thì gắn luôn người nhận để tích điểm đúng người; quà
+         chào mừng mà hoá đơn đang chọn khách khác thì không áp. */
+      posDoc();
+      var dangChon = posDon.khach_ma || (posDon.khach_no && posDon.khach_no.ma) || '';
+      if (kq.danh_cho && dangChon && dangChon !== kq.danh_cho && kq.rang_buoc) {
+        bao.style.color = '#b3261e';
+        bao.textContent = 'Mã quà này của khách ' + (kq.ten_khach || '') + ', chỉ dùng cho hoá đơn của chính khách đó. Bỏ khách đang chọn rồi áp lại.';
+        return;
+      }
+      var ganKhach = !!(kq.danh_cho && !dangChon);
+      if (ganKhach) {
+        posDiemDat();
+        posDon.khach_ma = kq.danh_cho;
+        posDon.ten = kq.ten_khach || kq.danh_cho;
+      }
       posDon.maVc = ma;
       posDon.kmKq = null;
       ov.remove();
-      toast('Đã áp mã ' + ma + ' · ' + kq.ten);
+      toast('Đã áp mã ' + ma + ' · ' + kq.ten + (ganKhach ? ' · hoá đơn của ' + (kq.ten_khach || '') : ''));
       go(scrPosQuay, true);
     } catch (e) {
       bao.style.color = '#b3261e';
@@ -63743,6 +63759,7 @@ function crmZlSheetCaiDat(k) {
               '<div style="font-size:12.5px;color:#667085;margin-top:2px">' + h(chon ? (chon.phu || '') : 'Chạm để tìm trong ' + ds.length + ' chương trình') + '</div></span><span style="color:#98a2b3;font-size:20px">&#8250;</span></div>'
           : kmHangChip(ds.map(function (c) { return posChipNut('data-crmzlkm="' + h(c.name) + '"', h(c.ten || c.name), c.name === ctkm); }).join(''))) +
         (ctkm && !chon ? '<div style="font-size:13px;color:#b42318;margin-top:4px">Chương trình đã chọn trước đây đã hết hạn hoặc đã tắt, chọn lại chương trình khác.</div>' : '') +
+        (chon && chon.doi_tuong ? '<div data-crmzldt="1" style="font-size:13px;color:#b54708;margin-top:4px">' + h(chon.doi_tuong) + ', không phát mã cho họ.</div>' : '') +
         '<div style="font-size:12.5px;color:#667085;margin-top:3px;line-height:1.4">Mỗi khách nhận một mã riêng dùng một lần của chương trình này, dùng được ở quầy và trên web.</div>' +
         crmZlO('crmZlHan', 'VOUCHER DÙNG ĐƯỢC (NGÀY)', 'Tính từ ngày gửi tin.', k.han_ngay, 'so') +
         crmZlO('crmZlTenUd', 'TÊN ƯU ĐÃI TRÊN TIN (TỐI ĐA 30 CHỮ)', 'Để trống thì máy tự viết từ chương trình, ví dụ Giảm 10%.', k.ten_uu_dai, 'chu', ' maxlength="30"') +
