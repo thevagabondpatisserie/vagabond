@@ -316,10 +316,13 @@ def _nut():
 	js = _doc("vagabond", "public", "js", "bep", "02-trang-chu.js")
 	kh = _doc("vagabond", "public", "js", "bep", "01-khung-app.js")
 	dung("có hàm chặn vai", "function coQuyenHRM(" in kh)
-	dung("khối Nhân sự dựng có điều kiện", "if (coQuyenHRM()) {" in js)
+	# v622: khối Nhân sự mở cho quản lý có quyền KPI HOẶC quyền Tuyển dụng; hai ô
+	# KPI vẫn chỉ dựng khi coQuyenHRM().
+	dung("khối Nhân sự dựng có điều kiện", "if (coQuyenHRM() || coQuyenTuyenDung()) {" in js)
+	dung("hai ô KPI chỉ dựng cho quyền KPI", "(coQuyenHRM() ? card('📊', 'Duyệt KPI và hoa hồng'" in js)
 	# O "KPI cua toi" phai nam NGOAI dieu kien do: ai cung xem duoc diem cua
 	# chinh minh.
-	i = js.find("if (coQuyenHRM()) {")
+	i = js.find("if (coQuyenHRM() || coQuyenTuyenDung()) {")
 	j = js.find("html += '<div class=\"sec\">KPI của tôi</div>")
 	dung("ô KPI của tôi nằm ngoài điều kiện vai", j > i and js.find("}", i) < j)
 	for k in ("'KPI'", "'KPICD'", "'KPITOI'"):

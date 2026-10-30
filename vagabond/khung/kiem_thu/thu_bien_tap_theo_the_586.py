@@ -56,8 +56,9 @@ def _uu(**k):
 def _td(**k):
     # v589: ưu đãi nay tạo trên ERP, luu_muc chặn loại uu_dai. Hai ca kiểm cơ
     # chế lưu (không cuốn nháp, không ghi đè) chuyển sang mục tuyển dụng, cơ
-    # chế lưu y hệt.
-    m = {"id": "td-1", "loai": "tuyen_dung", "vi_tri": "tuyen_dung", "hien": True, "tieu_de": "Phụ bếp", "email": "tuyendung@vagabond.vn"}
+    # chế lưu y hệt. v622: tuyển dụng cũng tạo trên ERP (luu_muc chặn), nên hai
+    # ca chuyển tiếp sang mục tiệc, loại duy nhất còn gõ tay ở trình biên tập.
+    m = {"id": "td-1", "loai": "tiec", "vi_tri": "tiec", "hien": True, "tieu_de": "Tiệc thử", "bat_dau": "2026-12-24"}
     m.update(k)
     return m
 
