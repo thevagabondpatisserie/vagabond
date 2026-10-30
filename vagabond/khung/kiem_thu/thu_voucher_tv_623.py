@@ -275,30 +275,45 @@ def _cua():
 
 # ------------------------------------------------------------------ tin Zalo cùng chương trình
 
-def _gui(km_ct, trong_ky, loi_zalo=0):
-	"""Chạy _gui_mot với chương trình km_ct; trả (vết, kết quả)."""
-	vet = D(phat=[], huy=[], xong=[], gui=[])
+def _gui(km_ct, trong_ky, loi_zalo=0, sinh_nhat=None, nhan_vien=False):
+	"""Chạy _gui_mot với chương trình km_ct; trả (vết, kết quả). Vết `buoc`
+	ghi thứ tự khoá hồ sơ, đọc mã trong kỳ, phát mã, ghi sổ, gửi Zalo."""
+	vet = D(phat=[], huy=[], xong=[], gui=[], buoc=[])
 	c = D(ma="chao_mung", ctkm=km_ct["name"], ma_mau="659378", han_ngay=30, mau_tham_so="")
 	row = D(name="TIN-1", khach="KL0412", khoa="chao_mung:KL0412")
 
-	def phat(c_, kh, khach, ma_kb):
-		vet.phat.append(khach)
-		return "ZMOI01", D8(2026, 12, 12), ""
+	def phat(c_, kh, khach, ma_kb, han=None):
+		vet.phat.append((khach, han))
+		vet.buoc.append("phat")
+		return "ZMOI01", han or D8(2026, 12, 12), ""
+
+	def trong(k, kh, hn):
+		vet.buoc.append("doc_ky")
+		return trong_ky
+
+	def gui(cfg, sdt, mau, data, khoa):
+		vet.buoc.append("gui")
+		vet.gui.append(data)
+		return {"error": loi_zalo}
 	vas = [um.patch.object(zk, "kich_ban", lambda m: {"km": 1, "ten": "Chào mừng"}),
-		um.patch.object(zk, "_ho_so", lambda k: {"sdt84": "84909123412", "dong_y": 1, "ten": "Lan Anh", "sinh_nhat": None}),
+		um.patch.object(zk, "_ho_so", lambda k: {"sdt84": "84909123412", "dong_y": 1, "ten": "Lan Anh", "sinh_nhat": sinh_nhat}),
 		um.patch.object(zk, "_doc_ctkm", lambda t: km_ct),
 		um.patch.object(zk, "_hop_doi_tuong", lambda *a: (True, "")),
-		um.patch.object(tv, "ma_vi_trong_ky", lambda k, kh, hn: trong_ky),
+		um.patch.object(km, "_hop_doi_tuong", lambda *a: (True, "")),
+		um.patch.object(km, "_la_sdt_nhan_vien", lambda s: nhan_vien),
+		# create=True: bản trước Codex PR #520 chưa có khoa_ho_so; ca vẫn chạy để tái hiện.
+		um.patch.object(tv, "khoa_ho_so", lambda k: vet.buoc.append("khoa:" + k), create=True),
+		um.patch.object(tv, "ma_vi_trong_ky", trong),
 		um.patch.object(zk, "_bay_gio", lambda: dt.datetime(2026, 11, 12, 10, 0)),
 		um.patch.object(zk, "_phat_voucher", phat),
 		um.patch.object(zk, "du_lieu_mau", lambda gt, ts: (dict(gt), [])),
 		um.patch.object(zk, "_cfg", lambda: {}),
-		um.patch.object(zk, "_gui_mau", lambda cfg, sdt, mau, data, khoa: (vet.gui.append(data) or {"error": loi_zalo})),
+		um.patch.object(zk, "_gui_mau", gui),
 		um.patch.object(zk, "y_nghia_loi", lambda j: (j["error"], "" if not j["error"] else "Zalo từ chối")),
 		um.patch.object(zk, "_huy_voucher", lambda ma, ly: vet.huy.append(ma)),
 		um.patch.object(zk, "_xong", lambda r, tt, loi="", **v: vet.xong.append((tt, loi, v.get("voucher")))),
 		um.patch.object(zk.frappe, "get_doc", lambda d: D(d, insert=lambda **k: None)),
-		um.patch.object(zk.frappe.db, "commit", lambda: None)]
+		um.patch.object(zk.frappe.db, "commit", lambda: vet.buoc.append("ghi"))]
 	for v in vas:
 		v.start()
 	try:
@@ -322,12 +337,49 @@ def _zalo():
 	vet, kq = _gui(ct, het)
 	la("mã kỳ này đã dùng: bỏ qua, không phát, không gửi", (vet.phat, vet.gui, vet.xong[-1][0]), ([], [], zk.TT_BO))
 	vet, kq = _gui(ct, [])
-	la("chưa có mã: phát mã mới", (kq, vet.phat, vet.gui[0]["ma_voucher"]), (0, ["KL0412"], "ZMOI01"))
-	vet, kq = _gui(ct, [], loi_zalo=-201)
-	la("mã mới phát mà gửi lỗi: huỷ đúng mã mới", vet.huy, ["ZMOI01"])
+	la("chưa có mã: phát mã mới theo hạn Ví quà", (kq, vet.phat, vet.gui[0]["ma_voucher"]), (0, [("KL0412", D8(2026, 12, 12))], "ZMOI01"))
 	thuong = _ct("KMLO01", vi_phat=0)
 	vet, kq = _gui(thuong, con, loi_zalo=-201)
-	la("chương trình thường: như cũ, phát mới và huỷ khi lỗi", (vet.phat, vet.huy), (["KL0412"], ["ZMOI01"]))
+	la("chương trình thường: như cũ, phát mới và huỷ khi lỗi", (vet.phat, vet.huy), ([("KL0412", None)], ["ZMOI01"]))
+	dung("chương trình thường: không khoá hồ sơ", not [b for b in vet.buoc if b.startswith("khoa")])
+
+
+@ca("v623 tin Zalo phát mã Ví quà mới theo đúng luật Ví quà: dịp phát, số nhân viên, hạn tới cuối tháng sinh nhật (Codex PR #520 finding 1)")
+def _zalo_luat_vi():
+	sn = _ct("KMSN01", vi_dip="Thang sinh nhat", vi_so_lan="Moi nam mot lan")
+	vet, kq = _gui(sn, [], sinh_nhat=None)
+	la("chưa khai ngày sinh: không phát, không gửi", (vet.phat, vet.gui, vet.xong[-1][0]), ([], [], zk.TT_BO))
+	dung("lý do nói rõ", "chưa khai ngày sinh" in vet.xong[-1][1])
+	vet, kq = _gui(sn, [], sinh_nhat=D8(1990, 4, 2))
+	la("ngoài tháng sinh nhật: không phát", (vet.phat, vet.xong[-1][0]), ([], zk.TT_BO))
+	vet, kq = _gui(sn, [], sinh_nhat=D8(1990, 11, 14))
+	la("đúng tháng: hạn tới cuối tháng, không theo 30 ngày của kịch bản", (kq, vet.phat, vet.gui[0]["han_dung"]),
+		(0, [("KL0412", D8(2026, 11, 30))], "30/11/2026"))
+	vet, kq = _gui(_ct("KMML01"), [], nhan_vien=True)
+	la("số nhân viên: không phát", (vet.phat, vet.xong[-1][0]), ([], zk.TT_BO))
+	vet, kq = _gui(_ct("KMML01", vi_han_ngay=7), [])
+	la("Mọi lúc: hạn theo số ngày của chương trình", vet.phat, [("KL0412", D8(2026, 11, 19))])
+
+
+@ca("v623 tin Zalo và trang thành viên khoá cùng dòng hồ sơ trước khi xét đã nhận; mã Ví quà mới ghi sổ trước khi gọi Zalo và không bị huỷ khi gửi lỗi (Codex PR #520 finding 2)")
+def _zalo_khoa():
+	ct = _ct("KMML01")
+	vet, kq = _gui(ct, [])
+	la("thứ tự: khoá, xét, phát, ghi sổ (nhả khoá) rồi mới gọi Zalo", vet.buoc[:5], ["khoa:KL0412", "doc_ky", "phat", "ghi", "gui"])
+	vet, kq = _gui(ct, [], loi_zalo=-201)
+	la("gửi lỗi: mã Ví quà mới vẫn giữ trong ví", (vet.phat, vet.huy), ([("KL0412", D8(2026, 12, 12))], [None]))
+	src = (GOC / "thanh_vien.py").read_text()
+	dung("cap_vi_tv khoá qua khoa_ho_so", "\tkhoa_ho_so(khach)\n\ttv = _ho_so_tv(khach)" in src)
+	m = Moi()
+	vas = m.vas()
+	for v in vas:
+		v.start()
+	try:
+		tv.khoa_ho_so("KL0412")
+	finally:
+		for v in reversed(vas):
+			v.stop()
+	la("khoá đúng dòng hồ sơ CRM", m.vet, [("sql", "select name from `tabVagabond Ho So CRM`")])
 
 
 # ------------------------------------------------------------------ cấu hình
