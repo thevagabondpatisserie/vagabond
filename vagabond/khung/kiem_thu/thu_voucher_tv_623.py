@@ -489,3 +489,14 @@ def _json_voucher():
 	la("ô có, kiểu Check, chỉ đọc", [(x["fieldtype"], x.get("read_only")) for x in f], [("Check", 1)])
 	dung("thứ tự ô đủ", d["field_order"] == [x["fieldname"] for x in d["fields"]])
 	dung("mốc modified đã đẩy", d["modified"] >= "2026-10-31")
+
+
+@ca("v623 tin Zalo gửi lại mã Ví quà: chương trình đã tắt hay đã hết hạn thì không gửi mã quầy sẽ từ chối (Codex PR #520 vòng 5)")
+def _zalo_gui_lai_ct_tat():
+	con = [D(ma="VT0001", trang_thai="Chua dung", han_dung=D8(2026, 12, 1), creation=dt.datetime(2026, 11, 10))]
+	for ten, ct in (("đang tắt", _ct("KMML01", bat=0)), ("đã hết hạn", _ct("KMML01", den_ngay=D8(2026, 11, 1)))):
+		vet, kq = _gui(ct, con)
+		la("chương trình %s: không gửi, không phát mã mới, bỏ qua có lý do" % ten,
+			(vet.gui, vet.phat, vet.xong[-1][0], "không gửi lại" in vet.xong[-1][1]), ([], [], zk.TT_BO, True))
+	vet, kq = _gui(_ct("KMML01", den_ngay=D8(2026, 12, 31)), con)
+	la("chương trình còn chạy: vẫn gửi lại đúng mã", (vet.gui[0]["ma_voucher"], vet.phat), ("VT0001", []))
