@@ -75,7 +75,8 @@ Từ khoá: dòng tiền, tiền vào, tiền ra, thu chi, chuyển nội bộ, 
 3. Kéo xuống xem Từng ngày và các khoản vào, ra lớn nhất.
 
 **Lưu ý**
-- Chuyển tiền giữa các tài khoản của mình (MB công ty sang OCB tạm ứng) bị bỏ ra, không tính là vào hay ra.
+- Chuyển tiền giữa các tài khoản của mình (MB công ty sang OCB tạm ứng) bị bỏ ra, không tính là vào hay ra. Máy chỉ coi là chuyển nội bộ khi hai bên cùng mã giao dịch hoặc cùng nội dung chuyển; khách chuyển vào và mình trả nhà cung cấp trùng số tiền vẫn tính là vào và ra.
+- Ghi nội dung chuyển nội bộ rõ ràng (ví dụ "VAGABOND NAP QUY TAM UNG T10") để máy nhận ra.
 - Tiền vào gồm ngân hàng và tiền mặt vào két; tiền ra gồm ngân hàng và chi tiền mặt từ quỹ.
 
 ## Xem dự báo tiền 30 ngày tới
@@ -89,6 +90,7 @@ Tiền đang có, cộng nợ khách, trừ nợ nhà cung cấp đến hạn t�
 
 **Lưu ý**
 - Có hai số cuối: nếu khách trả hết nợ, và nếu khách chưa trả.
+- Dòng vàng "Chưa đọc được: ..." nghĩa là phần đó lỗi lúc đọc: máy không đoán bằng 0 và không ra số cuối kỳ. Mở lại sau ít phút, vẫn vậy thì báo kỹ thuật.
 - Nợ nhà cung cấp đã nằm trong hồ sơ thanh toán chỉ trừ một lần.
 - Chưa tính tiền bán hàng mới và lương sắp trả.
 
