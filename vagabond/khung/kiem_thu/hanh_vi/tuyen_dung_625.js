@@ -230,6 +230,27 @@ function ai(r, k) { return Object.assign(r, k); }
     dung('chấm lại có, mở CV không', !!nut(s, 'data-tdchamlai') && chu(s).indexOf('Mở CV') < 0);
   });
 
+  await ca('Codex #523: Chấm lại thất bại mà còn kết quả cũ: bảng báo lượt mới lỗi và lý do, ghi rõ bên dưới là kết quả lần trước', async function () {
+    var cu = { diem: 82, nhan: 'Rất phù hợp', tom_tat: 'Ba năm thu ngân.', tieu_chi: [{ ten: 'Kinh nghiệm đúng vị trí', diem: 90 }], co_cv: 1 };
+    HO_SO_AI = { name: 'UV-1', trang_thai: 'Chưa đọc được', loi: 'Đã dùng đủ 300 lượt đọc AI trong tháng', luc: '2026-10-30 08:00:00', co_cv: 1, kq: cu };
+    var m = await mo();
+    bam(nut(the(m, 'UV-1'), 'data-tdai')); await tick(); await tick();
+    var s = sheet(m);
+    dung('báo lượt mới lỗi kèm lý do', chu(s).indexOf('Lần chấm lại chưa xong. Lý do: Đã dùng đủ 300 lượt đọc AI trong tháng') >= 0);
+    dung('ghi rõ kết quả cũ', chu(s).indexOf('Bên dưới là kết quả lần trước') >= 0);
+    bang('vẫn hiện kết quả cũ', s.querySelectorAll('[data-tdtc]').length, 1);
+    HO_SO_AI = { name: 'UV-1', trang_thai: 'Đang đọc', loi: '', luc: '2026-10-30 08:00:00', co_cv: 1, kq: cu };
+    m = await mo();
+    bam(nut(the(m, 'UV-1'), 'data-tdai')); await tick(); await tick();
+    s = sheet(m);
+    dung('đang đọc lại', chu(s).indexOf('AI đang đọc lại hồ sơ') >= 0 && chu(s).indexOf('Bên dưới là kết quả lần trước') >= 0);
+    HO_SO_AI = { name: 'UV-1', trang_thai: 'Đã đọc', loi: '', luc: '2026-10-30 08:00:00', co_cv: 1, kq: cu };
+    m = await mo();
+    bam(nut(the(m, 'UV-1'), 'data-tdai')); await tick(); await tick();
+    s = sheet(m);
+    dung('đọc xong: không có dòng báo', chu(s).indexOf('kết quả lần trước') < 0);
+  });
+
   await ca('Sửa vị trí: Tuyển gấp bật tắt, Ảnh trên web chọn bằng thẻ ảnh có dòng giải thích; lưu gửi hai ô mới', async function () {
     var m = await mo();
     vm.runInNewContext('tdKq = null;', m.g);
