@@ -266,6 +266,43 @@ def _noi_bo_bang_chung():
 	la("hai vế không mã, không nội dung", tc.cung_lenh({}, {}), False)
 
 
+@ca("v626 Codex #524: quỹ công ty và chi quỹ theo ngày đọc CÙNG một điều kiện, bỏ hoá đơn bán và phiếu thu tại quầy")
+def _dk_quy():
+	cau = []
+
+	def sql(q, *a, **k):
+		cau.append(q)
+		return [(0, 0)]
+	with um.patch.object(tc.frappe.db, "sql", sql, create=True):
+		tc._so_cai_quy(HOM)
+		tc._chi_quy_theo_ngay(HOM, HOM)
+	la("hai câu đọc sổ cái quỹ", len(cau), 2)
+	la("cả hai dùng chung điều kiện quỹ công ty", [tc.DK_QUY_CONG_TY in q for q in cau], [True, True])
+	dk = re.sub(r"\s+", " ", tc.DK_QUY_CONG_TY)
+	dung("bỏ hoá đơn bán", "not in ('Sales Invoice','POS Invoice')" in dk)
+	dung("bỏ phiếu thu mang ô quầy", "g.voucher_type='Payment Entry' and exists" in dk and "coalesce(pe.vgb_quay,'')!=''" in dk)
+
+
+@ca("v626 Codex #524: Khách nợ mình gồm cả hoá đơn đã nằm trong phiếu đòi nợ chờ thu")
+def _tong_con_doi():
+	from vagabond.thu_tien import tong_con_doi
+	rows = [{"name": "HD1", "con_doi": 5000000}, {"name": "HD3", "con_doi": None}, {"name": "HD2", "con_doi": 1250000.5}]
+	la("cộng mọi tờ, kể cả tờ đã gom", tong_con_doi(rows), 6250000.5)
+	la("rỗng", tong_con_doi(None), 0)
+	with um.patch.dict(sys.modules, {"vagabond.cong_no": type(sys)("vagabond.cong_no")}):
+		sys.modules["vagabond.cong_no"].ds_khach_no = lambda: {"tong": 111973500, "tong_ca_phieu": 176112000}
+		import vagabond
+		with um.patch.object(vagabond, "cong_no", sys.modules["vagabond.cong_no"], create=True):
+			la("Tài chính đọc tổng kể cả phiếu", tc._phai_thu(), 176112000.0)
+			sys.modules["vagabond.cong_no"].ds_khach_no = lambda: {"tong": 111973500}
+			try:
+				tc._phai_thu()
+				loi = ""
+			except Exception as e:
+				loi = str(e)
+			dung("màn Công nợ cũ không trả tổng kể cả phiếu thì báo lỗi, không lấy số thiếu", "phiếu đòi nợ" in loi)
+
+
 # Sổ cái tháng 10/2026 trên site (Có trừ Nợ), thêm hai tài khoản nhân viên.
 GL_T10 = [
 	{"so_hieu": "5111", "loai": "Income", "co_tru_no": 1953867209},
