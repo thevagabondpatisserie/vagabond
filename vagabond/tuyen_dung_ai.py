@@ -293,13 +293,31 @@ def xep(ten):
 
 
 def _ghi(ten, v):
-	frappe.db.set_value("Vagabond Ung Vien", ten, v, update_modified=False)
+	"""Ghi có điều kiện trong MỘT câu UPDATE: hồ sơ đã bị xoá theo hạn trong lúc AI
+	đang đọc thì không ghi lại gì (Codex #523: lần ghi cuối dựng lại tóm tắt, ảnh)."""
+	frappe.db.set_value("Vagabond Ung Vien", {"name": ten, "da_an_danh": 0}, v, update_modified=False)
 	frappe.db.commit()
 
 
-def _da_dung_thang():
+DAU_LUOT = "vgb-ai-doc-ho-so"
+
+
+def _giu_luot(ten):
+	"""Giữ một lượt gọi AI TRƯỚC khi gọi, tính cả Chấm lại và lượt lỗi (Codex #523:
+	đếm theo hồ sơ thì Chấm lại một hồ sơ 301 lần vẫn ra 1). Mỗi lượt là một dòng
+	Comment trên hồ sơ (cũng là vết "AI đã đọc lúc nào" trên Desk). Ghi trước, đếm
+	sau: vượt trần thì gỡ dòng của mình và từ chối, nên hai việc nền chạy cùng lúc
+	ở lượt cuối không cùng lọt qua."""
 	moc = frappe.utils.get_first_day(frappe.utils.nowdate())
-	return frappe.db.count("Vagabond Ung Vien", {"ai_luc": [">=", moc]})
+	c = frappe.get_doc({"doctype": "Comment", "comment_type": "Info", "reference_doctype": "Vagabond Ung Vien",
+		"reference_name": ten, "subject": DAU_LUOT, "content": "AI đọc hồ sơ (một lượt trong trần tháng)"})
+	c.insert(ignore_permissions=True)
+	frappe.db.commit()
+	if frappe.db.count("Comment", {"subject": DAU_LUOT, "comment_type": "Info", "creation": [">=", moc]}) <= TRAN_THANG:
+		return True
+	frappe.db.delete("Comment", {"name": c.name})
+	frappe.db.commit()
+	return False
 
 
 def _tep(url):
@@ -391,9 +409,6 @@ def doc_ho_so(ten):
 		if not khoa or requests is None:
 			_ghi(ten, {"ai_trang_thai": TT_CHUA_BAT, "ai_loi": "Chưa có khoá AI trong Cài đặt (ô khoá Trợ lý)."})
 			return
-		if _da_dung_thang() >= TRAN_THANG:
-			_ghi(ten, {"ai_trang_thai": TT_LOI, "ai_loi": "Đã đọc đủ %d hồ sơ trong tháng, chờ tháng sau hoặc báo anh Việt nâng trần." % TRAN_THANG})
-			return
 		vt = frappe.db.get_value("Vagabond Vi Tri Tuyen", uv.vi_tri,
 			["tieu_de", "noi_dung", "yeu_cau", "muc_luong", "noi_lam", "hinh_thuc"], as_dict=True) or {}
 		form = tuyen_dung_form.form_hien(tuyen_dung.noi_dung_cong_khai())
@@ -407,7 +422,7 @@ def doc_ho_so(ten):
 			cho_ai = [d for d in dong if d["tra_loi"]]
 		else:
 			cho_ai = tuyen_dung_form.tra_loi_cho_ai(form, dong)
-		du_lieu = _tep(uv.tep_cv) if uv.tep_cv else None
+		du_lieu = _tep(uv.tep_cv) if uv.tep_cv and tuyen_dung_form.cv_cho_ai(form) else None
 		kieu = loai_tep(du_lieu) if du_lieu else None
 		khoi, doc_pdf = None, None
 		if du_lieu and kieu == "application/pdf":
@@ -416,6 +431,9 @@ def doc_ho_so(ten):
 		elif du_lieu and kieu:
 			khoi = {"type": "image", "source": {"type": "base64", "media_type": kieu, "data": base64.b64encode(du_lieu).decode()}}
 		he, hoi = dung_loi_dan(vt, cho_ai, bool(khoi), frappe.utils.nowdate())
+		if not _giu_luot(ten):
+			_ghi(ten, {"ai_trang_thai": TT_LOI, "ai_loi": "Đã dùng đủ %d lượt đọc AI trong tháng, chờ tháng sau hoặc báo anh Việt nâng trần." % TRAN_THANG})
+			return
 		kq = doc_ket_qua(_goi(khoa, mo_hinh, he, hoi, khoi), bool(khoi))
 		anh = _lay_anh(du_lieu, kieu, doc_pdf, kq["anh"]) if khoi else None
 		v = {"ai_trang_thai": TT_XONG, "ai_diem": kq["diem"], "ai_tom_tat": kq["tom_tat"], "ai_loi": "",

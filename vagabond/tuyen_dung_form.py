@@ -487,6 +487,12 @@ def chuan_tra_loi(form, ma_vt, tra_loi, hom_nay, chuan_sdt, co_cv=False):
 	return cot, dong
 
 
+def cv_cho_ai(form):
+	"""THUẦN: tệp CV có được gửi cho AI không. Theo công tắc "Cho AI dùng" của
+	câu CV (Codex #523: tắt mà tệp vẫn đi). Form không có câu CV thì không gửi."""
+	return any(c["ma"] == "cv" and c["ai"] for c in form["cau_hoi"])
+
+
 def tra_loi_cho_ai(form, dong):
 	"""THUẦN: các dòng trả lời được phép đưa cho AI (bỏ giới tính, sinh nhật,
 	thông tin liên lạc, và câu Minh Vũ tắt 'Cho AI dùng')."""
