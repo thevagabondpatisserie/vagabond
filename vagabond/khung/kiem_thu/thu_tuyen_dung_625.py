@@ -642,3 +642,34 @@ def _bench_245_thuan():
 	la("bỏ phần dẫn xuất còn đúng mặc định", b245._bo_nhan(ra) == nw.MAC_DINH, True)
 	la("chỉ có khối và phần dẫn xuất", set(ra), {"khoi", *b245.DAN_XUAT})
 	dung("không lộ câu hỏi form ra trang đặt bánh", "tuyen_dung_form" not in ra)
+
+
+@ca("v625 Codex #523 vòng 4: hồ sơ cũ, thêm tay (không có bảng câu trả lời) vẫn theo công tắc \"Cho AI dùng\" của câu tương ứng (trước: lời nhắn vẫn tới AI)")
+def _codex523_du_phong():
+	f = tf.mac_dinh()
+	for c in f["cau_hoi"]:
+		if c["ma"] == "nhan_them":
+			c["ai"] = False
+	f = tf.chuan_form(f)
+	b = _BangAi()
+	hoi = []
+	goc = ai.dung_loi_dan
+
+	def ghi_hoi(vt, cho_ai, co_cv, hom_nay):
+		hoi.append([d["ma"] for d in cho_ai])
+		return goc(vt, cho_ai, co_cv, hom_nay)
+	with um.patch.object(ai, "dung_loi_dan", ghi_hoi):
+		b.chay(_uv_doc(tra_loi=[], kinh_nghiem="Ba năm thu ngân", gioi_thieu="Nhà ở Thủ Đức, 0909123456"), form=f)
+	la("lời nhắn đã tắt AI: không gửi; kinh nghiệm quản lý ghi: vẫn gửi", hoi, [["kinh_nghiem"]])
+	dung("chữ lời nhắn không có trong lời dặn", "Thủ Đức" not in json.dumps(b.gui) and len(b.gui) == 1)
+	hoi.clear()
+	with um.patch.object(ai, "dung_loi_dan", ghi_hoi):
+		_BangAi().chay(_uv_doc(tra_loi=[], kinh_nghiem="Ba năm thu ngân", gioi_thieu="Muốn làm ca tối"))
+	la("mặc định (bật): gửi cả hai", hoi, [["kinh_nghiem", "nhan_them"]])
+	la("phép thuần", tf.du_phong_cho_ai(f, [{"ma": "nhan_them", "tra_loi": "x"}, {"ma": "khu_vuc", "tra_loi": "Q3"},
+		{"ma": "ca_ranh", "tra_loi": ""}, {"ma": "gioi_tinh", "tra_loi": "Nữ"}]), [{"ma": "khu_vuc", "tra_loi": "Q3"}])
+	g = tf.mac_dinh()
+	g["cau_hoi"] = [c for c in g["cau_hoi"] if c["ma"] not in ("gioi_tinh", "sinh_nhat")]
+	g = tf.chuan_form(g)
+	la("form đã xoá câu giới tính, sinh nhật: ô đó vẫn không tới AI", tf.du_phong_cho_ai(g, [{"ma": "gioi_tinh", "tra_loi": "Nữ"},
+		{"ma": "sinh_nhat", "tra_loi": "2001-05-17"}, {"ma": "khu_vuc", "tra_loi": "Q3"}]), [{"ma": "khu_vuc", "tra_loi": "Q3"}])
