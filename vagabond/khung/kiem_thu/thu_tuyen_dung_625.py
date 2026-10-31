@@ -299,7 +299,7 @@ def _chay_ai(uv, khoa="sk-thu", goi=None, da_dung=0):
 			raise goi
 		return goi
 	db = types.SimpleNamespace(get_value=lambda *a, **k: _fr._dict(VTT2), rollback=lambda *a, **k: None)
-	ps = [um.patch.object(ai, "_khoa_mo_hinh", lambda: (khoa, "claude-thu")), um.patch.object(ai, "_da_dung_thang", lambda: da_dung),
+	ps = [um.patch.object(ai, "_khoa_mo_hinh", lambda: (khoa, "claude-thu")), um.patch.object(ai, "_giu_luot", lambda ten: da_dung < ai.TRAN_THANG),
 		um.patch.object(ai, "_goi", _goi), um.patch.object(ai, "_ghi", lambda ten, v: ghi.append((ten, v))),
 		um.patch.object(ai, "requests", types.SimpleNamespace()), um.patch.object(ai.frappe, "db", db),
 		um.patch.object(ai.frappe, "get_doc", lambda *a, **k: uv), um.patch.object(ai.frappe, "log_error", lambda *a, **k: None, create=True),
@@ -449,3 +449,159 @@ def _ma_bam():
 		for tep, ma in ds:
 			with open(os.path.join(goc, "public", tep), "rb") as f:
 				la("%s: %s" % (trang[1], tep), ma, hashlib.sha256(f.read()).hexdigest()[:12])
+
+
+# ------------------------------------------------------------ Codex PR #523 (rà 6e86b8eb73)
+
+class _BangAi:
+	"""Site giả cho việc nền AI: bảng hồ sơ (set_value theo tên hoặc theo bộ lọc,
+	như frappe.db.set_value thật) và bảng Comment (insert, count, delete)."""
+
+	def __init__(self, **uv):
+		self.uv = {"UV-1": dict({"name": "UV-1", "da_an_danh": 0}, **uv)}
+		self.cmt, self.so, self.gui = [], 0, []
+
+	def set_value(self, dt_, dn, v, *a, **k):
+		for r in self.uv.values():
+			if (r["name"] == dn) if isinstance(dn, str) else all(r.get(x) == y for x, y in dn.items()):
+				r.update(v)
+
+	def count(self, dt_, f):
+		assert dt_ == "Comment", dt_
+		return sum(1 for c in self.cmt if all(c.get(k) == v for k, v in f.items() if not isinstance(v, list))
+			and c["creation"] >= f["creation"][1])
+
+	def delete(self, dt_, f):
+		self.cmt = [c for c in self.cmt if c["name"] != f["name"]]
+
+	def doc(self, *a, **k):
+		if a[0] == "Vagabond Ung Vien":
+			return self.uv_doc
+		d = dict(a[0], creation="2026-10-31 09:00:00")
+		bang = self
+
+		class _C:
+			name = None
+
+			def insert(self, **kk):
+				bang.so += 1
+				d["name"] = self.name = "C-%d" % bang.so
+				bang.cmt.append(d)
+		return _C()
+
+	def chay(self, uv_doc, form=None, tep=None, goi=None, lan=1):
+		self.uv_doc = uv_doc
+		tra = json.dumps({"tom_tat": "Hợp", "tieu_chi": [{"ten": t, "diem": 80} for t in ai.TIEU_CHI_AI]})
+
+		def _goi(khoa_, mo_hinh, he, hoi, khoi):
+			self.gui.append(khoi)
+			return goi() if goi else tra
+		db = types.SimpleNamespace(get_value=lambda *a, **k: _fr._dict(VTT2), rollback=lambda *a, **k: None, commit=lambda: None,
+			count=self.count, set_value=self.set_value, delete=self.delete)
+		ps = [um.patch.object(ai, "_khoa_mo_hinh", lambda: ("sk-thu", "claude-thu")), um.patch.object(ai, "_goi", _goi),
+			um.patch.object(ai, "requests", types.SimpleNamespace()), um.patch.object(ai.frappe, "db", db),
+			um.patch.object(ai.frappe, "get_doc", self.doc), um.patch.object(ai.frappe, "log_error", lambda *a, **k: None, create=True),
+			um.patch.object(ai.frappe, "get_traceback", lambda *a, **k: "", create=True),
+			um.patch.object(ai.frappe.utils, "nowdate", lambda: "2026-10-31", create=True),
+			um.patch.object(ai.frappe.utils, "get_first_day", lambda d: "2026-10-01", create=True),
+			um.patch.object(ai.frappe.utils, "now_datetime", lambda: dt.datetime(2026, 10, 31, 9), create=True),
+			um.patch.object(ai, "_tep", lambda url: tep), um.patch.object(ai, "_cat_pdf", lambda b: (b, None)),
+			um.patch.object(td, "noi_dung_cong_khai", lambda: {"tuyen_dung_form": form} if form else {})]
+		for p in ps:
+			p.start()
+		try:
+			for _ in range(lan):
+				ai.doc_ho_so("UV-1")
+		finally:
+			for p in reversed(ps):
+				p.stop()
+		return self.gui
+
+
+@ca("v625 Codex #523: Minh Vũ tắt \"Cho AI dùng\" ở câu CV thì tệp CV KHÔNG được gửi cho AI (trước: vẫn gửi khối document)")
+def _codex523_cv_tat_ai():
+	f = tf.mac_dinh()
+	for c in f["cau_hoi"]:
+		if c["ma"] == "cv":
+			c["ai"] = False
+	f = tf.chuan_form(f)
+	la("chuẩn form giữ công tắc tắt", [c["ai"] for c in f["cau_hoi"] if c["ma"] == "cv"], [False])
+	b = _BangAi()
+	gui = b.chay(_uv_doc(tep_cv="/private/files/cv-a.pdf"), form=f, tep=b"%PDF-1.4 mau")
+	la("vẫn chấm theo câu trả lời, không kèm tệp", gui, [None])
+	la("không lấy ảnh từ CV", b.uv["UV-1"].get("anh_dai_dien"), None)
+	b = _BangAi()
+	gui = b.chay(_uv_doc(tep_cv="/private/files/cv-a.pdf"), tep=b"%PDF-1.4 mau")
+	la("mặc định (bật): gửi CV", [k and k["type"] for k in gui], ["document"])
+	la("phép thuần", (tf.cv_cho_ai(tf.mac_dinh()), tf.cv_cho_ai(f), tf.cv_cho_ai({"cau_hoi": []})), (True, False, False))
+
+
+@ca("v625 Codex #523: lưu phiếu hồ sơ đã xoá theo hạn kèm câu trả lời form mới (Desk, API): chặn (trước: lọt qua)")
+def _codex523_desk_tra_loi():
+	from vagabond.vagabond.doctype.vagabond_ung_vien.vagabond_ung_vien import VagabondUngVien
+
+	class _D(VagabondUngVien, dict):
+		def set(self, k, v):
+			self[k] = v
+
+		def get_doc_before_save(self):
+			return {"da_an_danh": 1}
+	da_xoa = dict(td.an_danh({}), trang_thai=td.DUNG, han_luu="2026-08-14", dong_y=0)
+	d = _D(da_xoa, tra_loi=[{"ma": "kinh_nghiem", "tra_loi": "Nhà ở Thủ Đức, 0909123456"}])
+	dung("chặn", "không ghi lại thông tin cá nhân" in _loi(d.validate))
+	d = _D(da_xoa, tra_loi=[{"ma": "kinh_nghiem", "tra_loi": " "}], trang_thai=td.LIEN_HE)
+	d.validate()
+	la("dòng rỗng vẫn lưu được", d["trang_thai"], td.LIEN_HE)
+
+
+@ca("v625 Codex #523: hồ sơ bị xoá theo hạn trong lúc AI đang đọc thì lần ghi cuối KHÔNG dựng lại tóm tắt, kết quả, ảnh (trước: ghi lại)")
+def _codex523_xoa_giua_chung():
+	b = _BangAi()
+
+	def xoa_giua():
+		b.uv["UV-1"].update(td.an_danh({}), da_an_danh=1)
+		return json.dumps({"tom_tat": "Ở Thủ Đức", "tieu_chi": [{"ten": t, "diem": 80} for t in ai.TIEU_CHI_AI]})
+	b.chay(_uv_doc(), goi=xoa_giua)
+	r = b.uv["UV-1"]
+	la("không ghi lại", (r["da_an_danh"], r.get("ai_tom_tat"), r.get("ai_ket_qua"), r.get("ai_trang_thai")),
+		(1, td.an_danh({}).get("ai_tom_tat"), td.an_danh({}).get("ai_ket_qua"), td.an_danh({}).get("ai_trang_thai")))
+	b = _BangAi()
+
+	def xoa_roi_loi():
+		b.uv["UV-1"].update(td.an_danh({}), da_an_danh=1)
+		raise RuntimeError("Mô hình quá tải")
+	b.chay(_uv_doc(), goi=xoa_roi_loi)
+	la("nhánh lỗi cũng không ghi", b.uv["UV-1"].get("ai_loi"), td.an_danh({}).get("ai_loi"))
+	b = _BangAi()
+	b.chay(_uv_doc())
+	la("hồ sơ còn: ghi bình thường", b.uv["UV-1"]["ai_trang_thai"], ai.TT_XONG)
+
+
+@ca("v625 Codex #523: trần tháng đếm từng LƯỢT gọi AI (Chấm lại, lượt lỗi), không đếm số hồ sơ; giữ lượt trước khi gọi (trước: 301 lượt một hồ sơ vẫn chạy)")
+def _codex523_tran_luot():
+	b = _BangAi()
+	gui = b.chay(_uv_doc(), lan=ai.TRAN_THANG + 1)
+	la("Chấm lại một hồ sơ: dừng đúng ở trần", len(gui), ai.TRAN_THANG)
+	la("lượt bị từ chối gỡ dòng giữ của mình", len(b.cmt), ai.TRAN_THANG)
+	dung("báo lý do trên hồ sơ", "lượt đọc AI" in b.uv["UV-1"]["ai_loi"])
+	b = _BangAi()
+
+	def loi():
+		raise RuntimeError("Không đọc được kết quả")
+	gui = b.chay(_uv_doc(), goi=loi, lan=3)
+	la("lượt lỗi vẫn tính", (len(gui), len(b.cmt)), (3, 3))
+	# Hai việc nền ở lượt cuối: cả hai cùng giữ trước rồi mới đếm, không cùng lọt.
+	b = _BangAi()
+	b.cmt = [{"name": "X-%d" % i, "subject": ai.DAU_LUOT, "comment_type": "Info", "creation": "2026-10-31 08:00:00"} for i in range(ai.TRAN_THANG - 1)]
+	b.cmt.append({"name": "THANG-TRUOC", "subject": ai.DAU_LUOT, "comment_type": "Info", "creation": "2026-09-30 23:00:00"})
+	b.cmt.append({"name": "KHAC", "subject": "khác", "comment_type": "Info", "creation": "2026-10-31 08:00:00"})
+	db = types.SimpleNamespace(count=b.count, delete=b.delete, commit=lambda: None)
+	with um.patch.object(ai.frappe, "db", db), um.patch.object(ai.frappe, "get_doc", b.doc), \
+			um.patch.object(ai.frappe.utils, "nowdate", lambda: "2026-10-31", create=True), \
+			um.patch.object(ai.frappe.utils, "get_first_day", lambda d: "2026-10-01", create=True):
+		a1 = b.doc({"doctype": "Comment", "subject": ai.DAU_LUOT, "comment_type": "Info"})
+		a1.insert()  # việc nền A giữ chỗ, chưa kịp đếm
+		kq_b = ai._giu_luot("UV-2")  # việc nền B giữ rồi đếm: 301 > 300
+		la("B bị từ chối khi A đã giữ chỗ cuối", kq_b, False)
+		la("lượt tháng trước và dòng khác không tính", b.count("Comment", {"subject": ai.DAU_LUOT, "comment_type": "Info",
+			"creation": [">=", "2026-10-01"]}), ai.TRAN_THANG)
