@@ -18,6 +18,7 @@ Một màn trả lời: công ty đang có bao nhiêu tiền, tuần này tiền
 - Dòng vàng "Còn N tài khoản, két chưa chốt số dư đầu" nghĩa là tổng chưa đủ: vào Cài đặt tài chính để chốt.
 - Thẻ nào ghi "Chưa đọc được" là phần đó lỗi, các thẻ khác vẫn đúng. Báo kỹ thuật.
 - Tiền khách gửi trước là tiền của khách, chưa phải của mình.
+- Thẻ Khách nợ mình gồm cả hoá đơn đã nằm trong phiếu đòi nợ chờ thu, nên có thể lớn hơn số trên màn Công nợ (màn đó chỉ cộng hoá đơn chưa gom phiếu).
 
 ## Xem tiền hiện có từng tài khoản, từng két
 Từ khoá: tiền mặt, tiền ngân hàng, số dư, két, quỹ, SePay, khớp, lệch, tạm ứng, OCB, ACB, MB, Shinhan, cash, bank balance
@@ -36,7 +37,7 @@ Số dư = số đã chốt cuối một ngày, cộng tiền vào, trừ tiền
 **Lưu ý**
 - Ngân hàng tính theo giao dịch SePay. MB, OCB, ACB: SePay không báo số dư nên không có chip khớp. Shinhan: lấy luôn số SePay báo.
 - Két: cộng tiền mặt vào két đúng như màn Chốt ca, trừ phiếu nộp quỹ đã giao. Dòng Chốt ca ghi số thu ngân đếm lần gần nhất để so.
-- Quỹ công ty: cộng phiếu nộp quỹ đã ký nhận, trừ chi tiền mặt kế toán đã ghi sổ.
+- Quỹ công ty: cộng phiếu nộp quỹ đã ký nhận, cộng trừ thu chi tiền mặt kế toán đã ghi sổ. Tiền khách nạp hoặc đặt cọc tại quầy đã tính ở két nên không cộng lần nữa vào quỹ.
 - Chi tiền mặt không qua app thì app không thấy. Đếm lại rồi chốt lại số dư.
 
 ## Chốt số dư đầu cho tài khoản, két, quỹ
