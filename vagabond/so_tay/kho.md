@@ -529,6 +529,30 @@ Xem mỗi món còn bao nhiêu ở từng kho.
 - Danh sách dài thì gõ ô tìm để thu hẹp.
 - Muốn biết hàng bếp đang ở chặng nào thì dùng Tồn kho theo chặng.
 
+## Nhận tin tồn kho dưới mức và khai mức tối thiểu
+Từ khoá: tồn kho dưới mức, tồn thấp, sắp hết hàng, mức tối thiểu, mức đặt lại, reorder level, tin Zalo kho 7 giờ, nhắc mua hàng, cảnh báo hết hàng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thủ kho, thu mua | Desk: Mặt hàng; nhóm Zalo kho | [[desk:Lưu]] |
+
+07:00 mỗi sáng máy gửi một tin mỗi kho: món có tồn thấp hơn mức tối thiểu đã khai cho kho đó.
+
+**Các bước**
+1. Trên Desk mở Mặt hàng cần theo dõi.
+2. Ở bảng mức đặt lại theo kho, thêm dòng: chọn kho, gõ mức tối thiểu.
+3. Bấm [[desk:Lưu]].
+4. Nhờ quản trị tích tin Tồn kho dưới mức tối thiểu (07:00) cho nhóm Zalo kho.
+5. Sáng hôm sau đọc tin hoặc xem trong Chuông thông báo, bấm [[Mở]] để lập yêu cầu mua hoặc chuyển hàng từ kho khác.
+
+**Lưu ý**
+- Món chưa khai mức hoặc mức bằng 0 thì máy không xét.
+- Tin kê tên hàng, số tồn, đơn vị và mức tối thiểu, tối đa 8 món rồi ghi thêm số món khác.
+- Tin cho Kho không có số tiền.
+- Mức tối thiểu bao nhiêu: việc này do anh Việt quyết.
+<!-- kiểm: tên tiếng Việt trên Desk của bảng mức đặt lại theo kho (Item Reorder) và ô mức (warehouse_reorder_level) chưa đối chiếu bản dịch site; ai được sửa Mặt hàng cũng chưa kiểm -->
+<!-- kiểm: nút Mở trong tin trỏ tới trang tạo Yêu cầu vật tư mới trên Desk, chưa kiểm người kho có quyền mở -->
+
 ## Tồn kho theo chặng và hàng nằm sai kho
 Từ khoá: tồn theo chặng, chặng, nguyên liệu, bán thành phẩm, BTP sơ cấp, BTP sẵn sàng, thành phẩm, sai kho, chuyển về đúng kho, chưa phân chặng, tồn bếp
 
@@ -646,7 +670,7 @@ Mã có dạng MÃ-NĂM-SỐ, ví dụ PNK-2026-00054. Nhìn tiền tố là bi�
 - Xuất huỷ và xuất dùng cùng mã PXD; phân biệt bằng màn đã lập phiếu.
 
 ## Các câu chặn hay gặp khi ghi sổ phiếu kho
-Từ khoá: lỗi ghi sổ phiếu kho, thiếu hàng, không đủ hàng, tồn âm, vượt tồn, thiếu lô, tài khoản chi phí, không có quyền xuất kho, lỗi phiếu xuất
+Từ khoá: lỗi ghi sổ phiếu kho, thiếu hàng, không đủ hàng, tồn âm, vượt tồn, thiếu lô, tài khoản chi phí, không có quyền xuất kho, lỗi phiếu xuất, chưa đủ hàng để chuyển
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
@@ -666,3 +690,27 @@ Tiệm không cho tồn âm, nên mọi phiếu kho đều kiểm tồn trước
 | Kho này không nằm trong các kho bạn phụ trách | Báo anh Việt khai Kho phụ trách |
 | Phiếu đã ghi sổ thì phải huỷ đúng nghiệp vụ bên máy tính | Liên hệ kế toán trưởng |
 | Phiếu chưa có dòng hàng nào có số lượng lớn hơn 0 | Gõ số lượng cho ít nhất một dòng |
+| ... chưa đủ hàng để chuyển: ... | Xem mục "Nhận hàng điều chuyển không được vì kho xuất chưa đủ hàng" |
+
+## Nhận hàng điều chuyển không được vì kho xuất chưa đủ hàng
+Từ khoá: nhận hàng không được, kho xuất chưa đủ hàng, chưa đủ hàng để chuyển, Đã nhận hàng, yêu cầu điều chuyển nội bộ, chưa có giá nhập, Tỷ giá định giá, valuation rate
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp, cửa hàng (bên nhận); kho xuất | Yêu cầu điều chuyển nội bộ (/phan-he-dat-hang) | [[Đã nhận hàng]] |
+
+Bên nhận bấm Đã nhận hàng mà kho xuất chưa có đủ món trong sổ thì máy chặn, không trừ kho nào.
+
+**Các bước**
+1. Đọc câu báo: món nào thiếu, kho xuất đang có bao nhiêu.
+2. Kho xuất hoàn tất lệnh sản xuất hoặc nhập kho món thiếu vào đúng kho xuất.
+3. Bên nhận mở lại phiếu, bấm [[Đã nhận hàng]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| ... chưa đủ hàng để chuyển: .... Bếp hoặc kho cần ghi nhận sản xuất hoặc nhập kho các món này vào ... trước, rồi bấm nhận lại. | Kho xuất hoàn tất lệnh hoặc nhập kho món thiếu, rồi bên nhận bấm lại |
+
+**Lưu ý**
+- Trong câu đó, món ghi "kho đang có ..." là thiếu số lượng; món ghi "có hàng nhưng máy chưa có giá nhập, báo kế toán" là kho có hàng mà chưa có giá vốn.
+- Từ 25/10/2026, nhận hàng không được vì kho xuất thiếu thì máy không ghi phiếu nào, nhóm Zalo Kho nhận tin "Nhận hàng không được: kho xuất chưa đủ hàng" kèm phiếu, người bấm, món thiếu.

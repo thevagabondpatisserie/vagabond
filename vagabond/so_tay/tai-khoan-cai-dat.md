@@ -335,6 +335,155 @@ Thông báo bắn cho người phải xử lý bước kế tiếp, theo chức 
 | Phải thêm app ra màn hình chính trước đã. | Làm bước 1 |
 | Trình duyệt này không có Web Push. | Dùng Safari trên iPhone hoặc Chrome trên Android |
 
+## Chọn tin Zalo cho từng nhóm nhận tin
+Từ khoá: nhóm Zalo, nhóm nhận tin, chọn tin nhận, tin Zalo nội bộ, cảnh báo Zalo, giờ im, mã nhóm, thêm nhóm Zalo, thư cảnh báo, không nhận được tin Zalo
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị hệ thống | Cài đặt lõi và API (/cai-dat-loi-va-api), nhóm Tin nhắn & cảnh báo | [[Chọn tin nhận]] |
+
+Tin báo nội bộ chỉ đi nhóm Zalo, không còn thư cảnh báo. Mỗi nhóm tích đúng tin cần nhận.
+
+**Các bước**
+1. Trong Zalo: thêm bot vào nhóm, gõ @ chọn bot rồi gửi một lần. Bot trả lời mã nhóm.
+2. App: Cài đặt, [[Cài đặt lõi và API]], nhóm Tin nhắn & cảnh báo, bấm [[Thêm nhóm nhận tin]] (hoặc bấm một nhóm có sẵn).
+3. Gõ Tên nhóm, bấm [[Chọn nhóm đã nhắn bot]], chọn đúng mã nhóm.
+4. Bấm [[Chọn tin nhận]], tích tin (hoặc [[Chọn cả mục]] cho cả bộ phận), bấm [[Xong]].
+5. Giờ im nếu cần: điền đủ hai ô dạng HH:MM. Bấm [[Xong]].
+6. Bấm [[Lưu ... thay đổi]] cuối màn, rồi [[Gửi thử vào nhóm này]] để kiểm.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa có nhóm Zalo nào nhắc bot. ... | Làm bước 1 |
+| ... Mỗi nhóm Zalo chỉ gán cho một dòng. | Sửa dòng cũ |
+| ... phải dạng HH:MM từ 00:00 đến 23:59 | Gõ lại, ví dụ 22:00 |
+| ... tin không còn trong danh mục ... | Mở nhóm, [[Chọn tin nhận]] lại |
+
+**Lưu ý**
+- Không tích tin nào thì nhóm nhận theo Loại tin và Chủ đề như cũ.
+- Giờ im chỉ Cảnh báo được gửi, tin khác gộp gửi sau. Nhóm nhận Báo cáo cuối ngày đừng im lúc 23:30.
+- Thẻ Thư cảnh báo vàng: có nhóm nhận tin Email của tiệm không gửi được mà Zalo Bot đang tắt.
+- Desk cũng có nút Chọn tin nhận.
+
+## Thêm bot Zalo khi bot chính đầy nhóm
+Từ khoá: bot Zalo thứ hai, thêm bot, bot đầy nhóm, vượt quá số lượng nhóm, token bot, nối bot, đổi token, gửi bằng bot số, Zalo Bot Manager
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị hệ thống | Cài đặt lõi và API (/cai-dat-loi-va-api), nhóm Tin nhắn & cảnh báo | [[+ Thêm bot (bot chính đầy nhóm)]] |
+
+Dùng khi Zalo báo "Bot đã vượt quá số lượng nhóm có thể tham gia". Mỗi nhóm tự gửi bằng bot đang ở trong nhóm đó.
+
+**Các bước**
+1. Tạo bot mới trên Zalo Bot Manager, bật quyền vào nhóm, chép token.
+2. App: Cài đặt lõi và API, nhóm Tin nhắn & cảnh báo, bấm [[+ Thêm bot (bot chính đầy nhóm)]].
+3. Gõ Tên gợi nhớ (ví dụ Bot nhóm Bếp), dán Token của bot, bấm [[Thêm và nối bot]].
+4. Thêm bot mới vào nhóm Zalo, @nhắc bot một lần.
+5. Thêm nhóm đó ở Nhóm nhận tin như mục Chọn tin Zalo cho từng nhóm nhận tin. Máy tự điền nhóm gửi bằng bot nào.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Bấm Lưu các thay đổi đang sửa trước, rồi mới thêm hoặc nối bot. | Bấm Lưu cuối màn trước |
+| Dán token của bot mới trước (Zalo Bot Manager, chọn bot, mục Token). | Dán token |
+| Token này đang là của .... Mỗi bot chỉ khai một lần. | Dùng token của bot khác |
+| Bot Zalo này chưa được phép vào nhóm (can_join_groups = false). ... | Bật quyền tham gia nhóm cho bot rồi nối lại |
+
+**Lưu ý**
+- Thẻ bot: Đã nối, Chưa nối hoặc Chưa khai token. Bấm [[Nối lại]] khi chưa nối; bot đổi token thì bấm [[Đổi token, tên]].
+- Token không hiện lại sau khi lưu.
+- Thẻ nhóm ghi "gửi bằng ..." khi nhóm dùng bot thêm.
+
+## Xem lại tin Zalo trong Chuông thông báo
+Từ khoá: chuông, chuông thông báo, thông báo trong app, tin chưa đọc, số đỏ, xem lại tin Zalo, không phải lục Zalo, tin của bộ phận, bell, notification
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi nhân viên | Chuông thông báo (/chuong-thong-bao) | chuông góc trái trang chủ |
+
+Chuông gộp hai thứ: tin Zalo đã gửi cho bộ phận của bạn, và Việc cần làm. Số đỏ là việc đang chờ cộng tin chưa đọc.
+
+**Các bước**
+1. Trang chủ, bấm chuông ở góc trên bên trái.
+2. Thẻ [[Thông báo]]: tin trong 14 ngày gần nhất, tin chưa đọc có vạch xanh bên trái.
+3. Bấm [[Xem hết]] để đọc tin dài, [[Mở]] để vào đúng màn hay phiếu trong tin.
+4. Tin cũ hơn: bấm [[Xem tin cũ hơn]] ở cuối.
+5. Bấm [[Việc cần làm]] để sang danh sách việc chờ bạn.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Tài khoản của bạn chưa gắn phòng ban, nên máy chưa biết tin nào là của bạn. ... | Nhờ quản trị gắn phòng ban ở màn Người dùng |
+
+**Lưu ý**
+- Mở thẻ Thông báo là đã đọc tới tin mới nhất đang hiện. Tin tới sau vẫn là tin mới.
+- Tin theo phòng ban: bếp thấy tin Bếp; Kế toán thấy tin Hoá đơn, kế toán; Thu mua và Kho thấy tin của nhau; Sales, thu ngân, pha chế, Marketing thấy tin Bán hàng, cửa hàng; Vận hành thấy Bán hàng và Kho. Ban giám đốc thấy mọi tin.
+- Chỉ hiện tin đã gửi thật. Tin chờ, lỗi, hay việc đã xong trước giờ gửi không hiện.
+- Chuông không gửi tin mới, chỉ cho xem lại tin Zalo đã gửi.
+
+## Tin Zalo máy tự gửi buổi sáng
+Từ khoá: tin Zalo buổi sáng, tin 7 giờ, tin 8 giờ, lịch tin Zalo, giờ gửi tin, lô sắp hết hạn, tồn âm, đơn mua trễ hẹn
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị hệ thống chọn nhóm nhận | Cài đặt lõi và API (/cai-dat-loi-va-api) | [[Chọn tin nhận]] |
+
+Tin chỉ tới nhóm đã tích tin đó. Tên đúng như trong hộp Chọn tin nhận.
+
+**Lịch**
+| Giờ | Tin | Bộ phận |
+|---|---|---|
+| 05:00 | Kế hoạch sản xuất hôm nay (05:00) | Bếp |
+| 05:00 | Điểm khách hết hạn: máy tự dừng vì chạm trần | Kế toán |
+| 07:00 | Lô sắp hết hạn trong 3 ngày (07:00) | Kho |
+| 07:00 | Tồn kho dưới mức tối thiểu (07:00) | Kho |
+| 07:30 | Kẹt ghi sổ, kẹt hoá đơn cuối ngày | Kế toán |
+| 08:00 | Tiền vào tài khoản công ty chưa gắn chứng từ (08:00) | Kế toán |
+| 08:00 | Đơn mua trễ hẹn chưa về đủ (08:00) | Thu mua |
+| 08:00 | Lệnh sản xuất quá ngày chưa ghi hoàn tất (08:00) | Bếp |
+| 08:00 | Yêu cầu điều chuyển treo quá 2 ngày (08:00) | Kho |
+| 08:00 | Tồn âm trên máy (08:00) | Kho |
+| 08:25 | Hàng về quá 3 ngày chưa có hoá đơn (08:25) | Thu mua |
+| 08:25 | Hoá đơn đầu vào m-invoice tắc nhịp hoặc trùng | Kế toán |
+| Thứ Hai 08:00 | Dữ liệu để tính hao hụt (thứ Hai 08:00) | Kế toán |
+| Thứ Hai 08:00 | Dữ liệu sản xuất cần ghi đủ (thứ Hai 08:00) | Bếp |
+| Thứ Hai 08:05 | Hàng nằm im 30 ngày (Thứ Hai 08:05) | Kho |
+
+**Lưu ý**
+- Không có gì để báo thì máy không gửi. Tin kẹt ghi sổ còn gửi 20 và 45 phút sau giờ chuỗi cuối ngày.
+- Giờ im trùng giờ gửi thì tin bị gộp gửi khi hết giờ im.
+- Tin nào tới nhóm nào: việc này do anh Việt quyết.
+
+## Tin Zalo máy tự gửi buổi tối và theo nhịp
+Từ khoá: tin Zalo buổi tối, tin 23 giờ, báo cáo cuối ngày, sản lượng cuối ngày, tồn bánh cuối ngày, đơn chưa ghi sổ 23:55, hoá đơn trùng, nhắc mỗi giờ, đặt bàn chưa xác nhận, ảnh bảng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị hệ thống chọn nhóm nhận | Cài đặt lõi và API (/cai-dat-loi-va-api) | [[Chọn tin nhận]] |
+
+Tin theo giờ buổi tối và tin nhắc lặp theo nhịp. Tên đúng như trong hộp Chọn tin nhận.
+
+**Lịch**
+| Giờ | Tin | Bộ phận |
+|---|---|---|
+| 20:30 | Tổng yêu cầu sản xuất cho ngày mai (20:30) | Bếp |
+| 20:45 | Thiếu nguyên liệu cho yêu cầu ngày mai (20:45) | Bếp |
+| 21:00 | Sản lượng cuối ngày từng bếp, kèm ảnh bảng (21:00) | Bếp |
+| 23:00 | Tồn bánh cuối ngày từng chi nhánh, kèm ảnh bảng (23:00) | Kho |
+| 23:30 | Báo cáo cuối ngày (23:30) | Ban giám đốc |
+| 23:55 | Đơn chưa ghi sổ còn sót lúc 23:55 | Kế toán |
+| 23:55 | Đã ghi sổ mà chưa xuất hoá đơn điện tử | Kế toán |
+| 02:00 | Đơn có hoá đơn trùng (doanh thu tính đôi) | Kế toán |
+| Mỗi 15 phút | Đặt bàn còn 3 giờ mà chưa xác nhận | Bán hàng, cửa hàng |
+| Mỗi giờ | Hàng chuyển tới quá 2 giờ chưa xác nhận | Kho |
+| Mỗi giờ | Hồ sơ quá 24 giờ chưa ai gọi | Nhân sự |
+
+**Lưu ý**
+- Báo cáo cuối ngày có doanh thu, giảm giá, sửa huỷ và mục Cần để ý; số giống màn Báo cáo.
+- Các tin còn lại trong hộp Chọn tin nhận gửi ngay khi việc xảy ra (phiếu ghi sổ, đơn web mới, yêu cầu mới...).
+- Ngưỡng của mục Cần để ý: việc này do anh Việt quyết.
+
 ## Cài đặt SePay nhận giao dịch ngân hàng
 Từ khoá: SePay, webhook, sao kê, giao dịch ngân hàng, khoá HMAC, secret key, whsec, bản đồ tài khoản, nạp bù sao kê, tiền về không thấy, bank, ACB, MB
 
@@ -427,6 +576,32 @@ Màn này gom mọi khoá kết nối và cấu hình lõi của app. Đầu mà
 - Khoá bí mật chỉ hiện Đã khai hoặc Chưa khai, không ai xem lại được. Muốn đổi thì bấm Đổi khoá rồi dán khoá mới.
 - Nhãn bên phải mỗi nhóm: Ổn, số chưa khai, số đang tắt, hoặc số lỗi. Nhóm không có kết nối nào thì không có nhãn.
 - Trang Cài đặt trên máy tính có cùng câu tóm tắt và cùng thẻ việc đỏ, vàng.
+- Ô của nhóm Giao hàng và phí giao trên web: xem mục kế tiếp.
+
+## Cài đặt giao hàng: Ahamove, GreenSM và phí giao trên web
+Từ khoá: GreenSM, môi trường thử, sandbox, nguồn báo phí giao, miễn phí giao, tên miền chính, thử kết nối, Ahamove, địa chỉ API Ahamove, v3, Không phải máy chủ thật của Ahamove, freeship
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Giám đốc, quản lý hệ thống | Cài đặt lõi và API (/cai-dat-loi-va-api), nhóm Giao hàng | [[Thử kết nối GreenSM]] |
+
+Các ô này quyết định gọi xe thật hay thử, và web báo phí giao cho khách thế nào.
+
+**Các ô cần biết**
+| Ô | Nghĩa |
+|---|---|
+| Địa chỉ API Ahamove (nhóm Giao hàng, mục Ahamove) | Máy chủ thật https://partner-api.ahamove.com; có hay không có đuôi /v3 đều được. Điền máy chủ khác thì thẻ đỏ báo "Không phải máy chủ thật của Ahamove" |
+| Dùng môi trường thử GreenSM (mục GreenSM Express và BE Delivery) | Bật là giá giả, không gọi tài xế thật, web chưa báo phí |
+| Nguồn báo phí giao trên web (nhóm Giao hàng) | Chọn GreenSM hoặc Ahamove |
+| Miễn phí giao từ (đ) (nhóm Web & quảng cáo, mục Trang đặt bánh) | Để trống hoặc 0 là tắt |
+| Dùng tên miền chính cho web khách (cùng mục) | Bật thì order.thevagabondpatisserie.com chuyển về thevagabondpatisserie.com; chỉ bật khi tên miền chính đã trỏ về hệ thống và có SSL |
+
+**Các bước thử GreenSM**
+1. Bật ô Dùng môi trường thử GreenSM. Vừa sửa ô thì bấm Lưu cuối màn trước.
+2. Bấm [[Thử kết nối GreenSM]] để chạy thử đủ chuỗi cho GreenSM nghiệm thu. Nút chỉ chạy khi đang bật môi trường thử.
+
+**Lưu ý**
+- Đổi các ô này: việc này do anh Việt quyết.
 
 ## Cài đặt trợ lý (khoá, hạn mức lượt hỏi)
 Từ khoá: cài đặt trợ lý, khoá API, API key, Anthropic, hạn mức, lượt hỏi mỗi ngày, lượt mỗi tháng, bật tắt trợ lý, mô hình, model

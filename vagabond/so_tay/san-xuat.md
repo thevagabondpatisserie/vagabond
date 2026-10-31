@@ -166,7 +166,7 @@ Ngay sau khi tạo lệnh, máy tính bán thành phẩm có giữ tồn (ruột
 - Hiện "Không cần làm thêm bán thành phẩm nào" là tồn đã đủ.
 
 ## Hoàn tất lệnh sản xuất
-Từ khoá: hoàn tất lệnh, hoàn thành lệnh sản xuất, xong lệnh, nhập kho thành phẩm, trừ nguyên liệu, báo sản lượng, cân thực tế, hao hụt, manufacture, finish work order, ghi sổ nhiều lệnh
+Từ khoá: hoàn tất lệnh, hoàn thành lệnh sản xuất, xong lệnh, nhập kho thành phẩm, trừ nguyên liệu, báo sản lượng, cân thực tế, hao hụt, manufacture, finish work order, ghi sổ nhiều lệnh, số cân, cân thật
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
@@ -192,7 +192,26 @@ Bấm Hoàn tất là lúc máy trừ nguyên liệu và nhập thành phẩm v�
 
 **Lưu ý**
 - Cân ít hơn số làm thì phần chênh ghi là hao hụt và lệnh vẫn đóng.
+- Ô Thực tế cân được phải là số cân thật, không chép lại số làm. Xem mục "Ghi số cân thật để tính được hao hụt".
 - Câu chặn hay gặp: xem mục "Vì sao không hoàn tất được lệnh sản xuất".
+
+## Ghi số cân thật để tính được hao hụt
+Từ khoá: số cân, cân thật, lệnh không cân, dữ liệu hao hụt, Thực tế cân được, tin Zalo thứ Hai, kiểm kê kho bếp, hao hụt nguyên liệu
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp, bếp phó, quản lý sản xuất | Sản xuất (/san-xuat) | [[Hoàn thành]] |
+
+Hao hụt chỉ đo được khi số nhập kho là số cân thật của mẻ.
+
+**Các bước**
+1. Khi hoàn tất lệnh, cân mẻ thật rồi gõ ô Thực tế cân được.
+2. Không chép lại Số lượng làm theo lệnh vào ô Thực tế cân được.
+3. Thứ Hai 08:00 đọc tin Zalo của bếp, sửa từng việc trong tin trước Chủ nhật.
+
+**Lưu ý**
+- Tin thứ Hai đếm số lệnh tuần qua ghi số cân trùng đúng số của lệnh, cùng món bán ra chưa có lệnh và kho bếp lâu chưa kiểm kê. Xem mục "Dữ liệu hao hụt: tin thứ Hai và báo cáo đủ danh sách" (chương Kế toán).
+- Hoàn tất lệnh trừ nguyên liệu đúng theo công thức, nên hao hụt nguyên liệu thật chỉ đo được bằng kiểm kê kho bếp.
 
 ## Vì sao không hoàn tất được lệnh sản xuất
 Từ khoá: không hoàn tất được, lỗi hoàn tất, bị chặn, thiếu hàng, thiếu nguyên liệu, không đủ tồn, kho không đủ, thiếu lô, batch mandatory, lệnh treo, lỗi sản xuất
