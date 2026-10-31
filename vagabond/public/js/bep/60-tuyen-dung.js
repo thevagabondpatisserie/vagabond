@@ -242,6 +242,9 @@ function tdSheetAi(r) {
       html = '<div style="padding:10px 0">' + (x.trang_thai === 'Đang đọc' ? 'AI đang đọc hồ sơ, khoảng 1 phút. Đóng bảng rồi mở lại sau.' :
         'AI chưa đọc được hồ sơ này.' + (x.loi ? ' Lý do: ' + h(x.loi) : '')) + '</div>';
     } else {
+      // Codex #523: lượt chấm mới đang chạy hay lỗi thì nói rõ, kết quả bên dưới là của lần trước.
+      if (x.trang_thai === 'Đang đọc') html += '<div data-tdailuot="1" style="padding:9px 11px;border-radius:10px;background:#eff8ff;color:#175cd3;font-size:13px;margin-bottom:10px">AI đang đọc lại hồ sơ, khoảng 1 phút. Bên dưới là kết quả lần trước.</div>';
+      else if (x.trang_thai && x.trang_thai !== 'Đã đọc') html += '<div data-tdailuot="1" style="padding:9px 11px;border-radius:10px;background:#fffaeb;color:#92400e;font-size:13px;margin-bottom:10px">Lần chấm lại chưa xong.' + (x.loi ? ' Lý do: ' + h(x.loi) + '.' : '') + ' Bên dưới là kết quả lần trước.</div>';
       var m = tdMauDiem(kq.diem);
       html += '<div style="display:flex;flex-direction:row;align-items:center;gap:12px;margin:4px 0 12px">' + tdVongAi({ ai_trang_thai: 'Đã đọc', ai_diem: kq.diem, ai_nhan: kq.nhan }) +
         '<div><div style="font-size:16px;font-weight:800;color:' + m + '">' + h(kq.nhan || '') + '</div><div style="font-size:12.5px;color:#475467">Điểm trung bình ' + (kq.tieu_chi || []).length + ' tiêu chí, AI chấm lúc ' + h(tdGioNgay(x.luc)) + '</div></div></div>';
