@@ -164,6 +164,15 @@ MAN = (
 	# Loi tat ben Ke toan sang cung man (anh Viet 17/09/2026).
 	("DSTTNB", "Danh sách thanh toán nội bộ", None),
 
+	# --- Tài chính (v626, tai_chinh.py, 61-tai-chinh.js)
+	("TCTQ", "Tổng quan tài chính", None),
+	("TCTIEN", "Tiền hiện có", None),
+	("TCDONG", "Dòng tiền", None),
+	("TCDB", "Dự báo 30 ngày", None),
+	("TCLL", "Lãi lỗ tháng", None),
+	("TCTL", "Tỉ lệ giá vốn và hao hụt", None),
+	("TCCD", "Cài đặt tài chính", None),
+
 	# --- Mua hàng và kho
 	("PO", "Đơn mua hàng", None),
 	("DUYETYC", "Duyệt yêu cầu", None),
@@ -331,6 +340,7 @@ PHAN_HE = (
 	("BC", "Báo cáo"),
 	("TM", "Thu mua"),
 	("KT", "Kế toán"),
+	("TC", "Tài chính"),
 	("NS", "Nhân sự"),
 	("DM", "Danh mục"),
 	("KHAC", "Cài đặt"),

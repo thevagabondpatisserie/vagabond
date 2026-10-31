@@ -270,4 +270,15 @@ def khoi_dong():
 		"quyen_nen": {"doc": doc, "ban_hang": bool(vai & QUYEN_BAN_VA_KE_TOAN),
 			"cong_chung": bool(vai & QUYEN_BAN_HANG),
 			"bao_cao": bool(vai & QUYEN_XEM),
-			"bang_sang": bool(vai & QUYEN_BANG_SANG)}}
+			"bang_sang": bool(vai & QUYEN_BANG_SANG),
+			# v626: phân hệ Tài chính, Giám đốc và người Giám đốc chọn đích danh.
+			"tai_chinh": _co_tai_chinh(vai)}}
+
+
+def _co_tai_chinh(vai):
+	try:
+		from vagabond import tai_chinh
+		return bool(tai_chinh.co_quyen(frappe.session.user, vai))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "nhan_su: co quyen tai chinh")
+		return False
