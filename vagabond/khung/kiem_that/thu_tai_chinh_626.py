@@ -94,16 +94,17 @@ def _so_cai():
 		(tc.NGUON_QUY, tc.LOAI_TM, 10000000.0, str(qua)))
 	with patch.object(tc, "_sepay_so_bao", lambda: {}):
 		t0 = tc._tinh_tien()
-	q0, c0 = tc._so_cai_quy(qua), tc._chi_quy_theo_ngay(hom, hom).get(str(hom), 0.0)
+	q0, (v0, c0) = tc._so_cai_quy(qua), tc._quy_theo_ngay(hom, hom)
 	l0 = tc.lai_lo(tc._gl_ky(hom, hom))
 	for no, co, tien, nhan in ((tm, dt, 1000000, "thu tiền mặt bán hàng"), (gv, tm, 400000, "chi giá vốn"),
 			(nv, tm, 300000, "chi lương"), (tm, tk_khac, 50000, "thu khác")):
 		if not _but_toan(cty, no, co, tien, nhan):
 			return
-	q1, c1 = tc._so_cai_quy(qua), tc._chi_quy_theo_ngay(hom, hom).get(str(hom), 0.0)
+	q1, (v1, c1) = tc._so_cai_quy(qua), tc._quy_theo_ngay(hom, hom)
 	la("quỹ: tiền vào sổ cái tăng", round(q1[0] - q0[0], 2), 1050000.0)
 	la("quỹ: tiền ra sổ cái tăng", round(q1[1] - q0[1], 2), 700000.0)
-	la("dòng tiền: chi quỹ hôm nay tăng", round(flt(c1) - flt(c0), 2), 700000.0)
+	la("dòng tiền: thu quỹ hôm nay tăng", round(flt(v1.get(str(hom))) - flt(v0.get(str(hom))), 2), 1050000.0)
+	la("dòng tiền: chi quỹ hôm nay tăng", round(flt(c1.get(str(hom))) - flt(c0.get(str(hom))), 2), 700000.0)
 	l1 = tc.lai_lo(tc._gl_ky(hom, hom))
 	for k, mong in (("doanh_thu", 1000000.0), ("gia_von", 400000.0), ("cp_quan_ly", 300000.0),
 			("nhan_vien", 300000.0), ("khac", 50000.0), ("lai_rong", 350000.0)):
@@ -162,6 +163,7 @@ def _thu_quay():
 	mp.save(ignore_permissions=True)
 	frappe.clear_document_cache("Mode of Payment", "Tiền mặt")
 	q0 = tc._so_cai_quy(qua)
+	vq0 = flt(tc._quy_theo_ngay(hom, hom)[0].get(str(hom)))
 	truoc = flt((tk.thu_nap_tai_quay("TCV", "%s 00:00:00" % hom, "%s 23:59:59" % hom) or {}).get("Tiền mặt"))
 	pe = khong_nem("nạp tiền mặt tại quầy", lambda: _nap(kh, 500000, "tien_mat", "TCV"))
 	if not pe:
@@ -172,11 +174,14 @@ def _thu_quay():
 	la("két quầy TCV đã cộng phiếu này", round(sau - truoc, 2), 500000.0)
 	q1 = tc._so_cai_quy(qua)
 	la("quỹ công ty không cộng lần hai", (round(q1[0] - q0[0], 2), round(q1[1] - q0[1], 2)), (0.0, 0.0))
+	la("dòng tiền: thu quỹ không cộng phiếu tại quầy", round(flt(tc._quy_theo_ngay(hom, hom)[0].get(str(hom))) - vq0, 2), 0.0)
 	# Thu tiền mặt bằng bút toán của kế toán (không qua quầy) thì vẫn là quỹ.
 	dt = _tk(cty, "711", "Income")
 	if _but_toan(cty, tm, dt, 80000, "thu khác vào quỹ"):
 		q2 = tc._so_cai_quy(qua)
 		la("bút toán thu vào quỹ vẫn được cộng", round(q2[0] - q1[0], 2), 80000.0)
+		la("dòng tiền: bút toán thu vào quỹ có trong tiền vào hôm nay (Codex #524 vòng 4)",
+			round(flt(tc._quy_theo_ngay(hom, hom)[0].get(str(hom))) - vq0, 2), 80000.0)
 
 
 @ca("v626 Codex #524: lập phiếu đòi nợ không làm khoản Khách nợ mình biến khỏi Tài chính")
