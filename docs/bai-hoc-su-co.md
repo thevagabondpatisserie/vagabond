@@ -2851,3 +2851,10 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 - Thêm ô vào phiếu Chương trình khuyến mãi thì kiểm cả ba nơi đọc cột theo danh sách cố định: `khuyen_mai.TRUONG_CTKM` (lưu từ app), `zalo_kich_ban.COT_CTKM` (tin Zalo), `thanh_vien.COT_CTKM_VI` (trang thành viên). Thiếu ở một nơi là ô đó im lặng không áp ở kênh đó.
 - Codex PR #520 vòng 4: luật "chỉ người nhận dùng" suy từ công tắc hiện tại của chương trình (Phát vào Ví quà) thì tắt công tắc để ngừng phát mới là mở luôn mã cũ cho khách khác. Thuộc tính của mã đã phát phải ghi lên chính mã lúc phát (ô chi_nguoi_nhan), không đọc lại từ cấu hình đang sống.
 - Codex PR #520 vòng 5: nhánh "gửi lại mã khách đang giữ" bỏ qua mọi phép xét của nhánh phát mới, nên chương trình đã tắt hay hết hạn vẫn được gửi mã quầy sẽ từ chối. Đường dùng lại phải xét lại đúng điều kiện quầy xét khi tra mã (đang bật, chưa qua ngày kết thúc).
+
+## 31/10/2026 (v625): tuyển dụng đợt 2, form câu hỏi sửa được và AI đọc CV
+
+- Đoán "tên mục" trong mô tả công việc theo độ dài dòng (ngắn, không dấu chấm cuối) là sai với dữ liệu thật: dòng việc "Thu tiền đơn hàng qua chuyển khoản, cà thẻ,..." bị biến thành tiêu đề. Chỉ nhận tên mục khi có dấu hiệu chắc (dấu hai chấm cuối, viết hoa toàn bộ, hoặc trùng tên mục quen thuộc). Phép đoán định dạng chữ người gõ phải chạy thử trên bản ghi THẬT của site trước khi giao.
+- Phép "đã xoá theo hạn thì không ghi lại thông tin cá nhân" so `str(giá trị) != giá trị xoá`. Thêm ô ngày, ô tiền vào bộ xoá với giá trị None hay 0 thì phép so luôn lệch và hồ sơ đã xoá không lưu lại được nữa (đổi trạng thái cũng hỏng). So hai vế cùng qua `str(x or "")`.
+- Gửi CV cho dịch vụ AI là chuyển dữ liệu cá nhân ra bên thứ ba: câu đồng ý phải nói rõ trước khi gửi, câu giới tính và sinh nhật không bao giờ tới AI (chặn ở cả cấu hình form lẫn bộ lọc dòng gửi), và nội dung CV là dữ liệu chứ không phải lệnh (điểm tổng do máy tính từ tiêu chí cố định, kẹp 0 đến 100).
+- Trang Vue đọc nội dung bất đồng bộ: chưa tải xong mà vẽ ngay "chưa có vị trí" là khách thấy câu sai vài trăm mili giây (đo 31/10 tưởng là lỗi dữ liệu). Mục nào đọc từ máy chủ phải có trạng thái "đang tải" riêng (`ND.daTai`).
