@@ -64282,7 +64282,8 @@ function tdTheHs(r, i, bayGio) {
   if (+r.co_cv) lk.push('<a href="/api/method/vagabond.tuyen_dung.xem_cv?name=' + encodeURIComponent(r.name) + '" target="_blank" rel="noopener" data-tdmocv="' + i + '" style="' + TD_LK + '">📄 Mở CV</a>');
   if (r.lien_ket_cv) lk.push('<a href="' + h(r.lien_ket_cv) + '" target="_blank" rel="noopener" style="' + TD_LK + '">🔗 CV trên trang ngoài</a>');
   if (!+r.co_cv) lk.push('<button type="button" data-tdtaicv="' + i + '" style="' + TD_LK + 'background:none;border:0;padding:0;margin-right:14px;cursor:pointer;font-weight:400">⇪ Tải CV lên</button>');
-  if (r.ai_trang_thai && r.ai_trang_thai !== 'Chưa bật AI') lk.push('<button type="button" data-tdai="' + i + '" style="' + TD_LK + 'background:none;border:0;padding:0;cursor:pointer;font-weight:700;color:#6d28d9">✦ Hồ sơ AI</button>');
+  /* Codex #523: luôn có nút, kể cả Chưa bật AI hay hồ sơ cũ chưa đọc, để xem lý do và Chấm lại. */
+  lk.push('<button type="button" data-tdai="' + i + '" style="' + TD_LK + 'background:none;border:0;padding:0;cursor:pointer;font-weight:700;color:#6d28d9">✦ Hồ sơ AI</button>');
   var cv = lk.length ? '<div style="display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;margin-top:4px">' + lk.join('') + '</div>' : '';
   return '<div class="card" data-tdhs="' + h(r.name) + '" style="padding:12px 13px">' +
     '<div style="display:flex;flex-direction:row;align-items:center;gap:10px">' + tdAnhDaiDien(r) +
@@ -64334,6 +64335,7 @@ function tdSheetAi(r) {
     var kq = x.kq, html = '';
     if (!kq) {
       html = '<div style="padding:10px 0">' + (x.trang_thai === 'Đang đọc' ? 'AI đang đọc hồ sơ, khoảng 1 phút. Đóng bảng rồi mở lại sau.' :
+        !x.trang_thai ? 'AI chưa đọc hồ sơ này. Bấm Chấm lại để AI đọc.' :
         'AI chưa đọc được hồ sơ này.' + (x.loi ? ' Lý do: ' + h(x.loi) : '')) + '</div>';
     } else {
       // Codex #523: lượt chấm mới đang chạy hay lỗi thì nói rõ, kết quả bên dưới là của lần trước.
