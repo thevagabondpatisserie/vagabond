@@ -419,7 +419,7 @@ def doc_ho_so(ten):
 				{"ma": "ca_ranh", "cau_hoi": "Ca có thể làm", "tra_loi": uv.ca_ranh or ""},
 				{"ma": "khu_vuc", "cau_hoi": "Đang ở khu vực", "tra_loi": uv.khu_vuc or ""},
 				{"ma": "nhan_them", "cau_hoi": "Lời nhắn", "tra_loi": uv.gioi_thieu or ""}]
-			cho_ai = [d for d in dong if d["tra_loi"]]
+			cho_ai = tuyen_dung_form.du_phong_cho_ai(form, dong)
 		else:
 			cho_ai = tuyen_dung_form.tra_loi_cho_ai(form, dong)
 		du_lieu = _tep(uv.tep_cv) if uv.tep_cv and tuyen_dung_form.cv_cho_ai(form) else None

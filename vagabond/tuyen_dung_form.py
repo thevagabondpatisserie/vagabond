@@ -499,6 +499,15 @@ def cv_cho_ai(form):
 	return any(c["ma"] == "cv" and c["ai"] for c in form["cau_hoi"])
 
 
+def du_phong_cho_ai(form, dong):
+	"""THUẦN: dòng dự phòng của hồ sơ cũ, thêm tay (lấy từ ô hồ sơ, không có bảng
+	câu trả lời). Ô trùng mã một câu form thì theo công tắc "Cho AI dùng" của câu
+	đó (Codex #523); ô quản lý tự ghi (kinh nghiệm, ca rảnh, khu vực) vẫn gửi; giới
+	tính, sinh nhật, liên lạc không bao giờ gửi."""
+	tat = {c["ma"] for c in form["cau_hoi"] if not c["ai"]} | set(KHONG_CHO_AI)
+	return [d for d in dong if d.get("tra_loi") and d.get("ma") not in tat]
+
+
 def tra_loi_cho_ai(form, dong):
 	"""THUẦN: các dòng trả lời được phép đưa cho AI (bỏ giới tính, sinh nhật,
 	thông tin liên lạc, và câu Minh Vũ tắt 'Cho AI dùng')."""
