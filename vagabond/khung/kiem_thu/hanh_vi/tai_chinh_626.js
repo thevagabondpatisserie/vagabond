@@ -295,6 +295,33 @@ var TL = {
     bang('đủ nguồn: không ô nào Chưa đọc được', m2.khung.querySelectorAll('[data-tcchuadoc]').length, 0);
   });
 
+  await ca('tính hỏng (Codex #524 vòng 3): Tổng quan và Tiền hiện có báo đỏ chỗ chưa tính được, Dòng tiền báo két thiếu', async function () {
+    function tienLoi() {
+      var t = tien();
+      t.tong.loi = 1;
+      t.dong[0] = Object.assign({}, t.dong[0], { so_du: null, loi: 1, doi_chieu: null, ghi: ['Chưa tính được, báo kỹ thuật'] });
+      return t;
+    }
+    var tq = tongQuan(false);
+    tq.tien.v.loi = 1;
+    tq.dong7.v.thieu = 2;
+    var m = dungMoi(GD, null, Object.assign({}, TL, { 'vagabond.tai_chinh.tong_quan': function () { return tq; } }));
+    await m.g.scrTcTongQuan(); await tick();
+    dung('Tổng quan báo chỗ chưa tính được', chu(mot(m, '[data-tcloi]')).indexOf('chưa tính được') >= 0);
+    dung('thẻ Dòng tiền nói thiếu két', chu(m.khung).indexOf('Thiếu tiền mặt 2 lượt két') >= 0);
+    var m2 = dungMoi(GD, null, Object.assign({}, TL, { 'vagabond.tai_chinh.tien_hien_co': tienLoi }));
+    await m2.g.scrTcTien(); await tick();
+    bang('Tiền hiện có: dòng báo đỏ', m2.khung.querySelectorAll('[data-tcdongloi]').length, 1);
+    dung('Tiền hiện có: dòng tổng nói thiếu', chu(mot(m2, '[data-tcloi]')).indexOf('tổng đang thiếu') >= 0);
+    var dongThieu = function (ts) { var k = TL['vagabond.tai_chinh.dong_tien'](ts); k.thieu = ['District 1 ngày 30/10']; return k; };
+    var m3 = dungMoi(GD, null, Object.assign({}, TL, { 'vagabond.tai_chinh.dong_tien': dongThieu }));
+    await m3.g.scrTcDong(); await tick();
+    dung('Dòng tiền: báo két và ngày thiếu', chu(mot(m3, '[data-tcthieu]')).indexOf('District 1 ngày 30/10') >= 0);
+    var m4 = dungMoi(GD, null, TL);
+    await m4.g.scrTcDong(); await tick();
+    bang('đủ dữ liệu: không báo thiếu', m4.khung.querySelectorAll('[data-tcthieu]').length, 0);
+  });
+
   console.log('');
   console.log(ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
