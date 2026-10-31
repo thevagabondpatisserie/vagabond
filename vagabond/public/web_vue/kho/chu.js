@@ -27,6 +27,8 @@ export const ND = reactive({
   thong_tin: {},
   diem_nhan: null,
   ve: {},
+  /* v625: phúc lợi chung và lời giới thiệu của trang tuyển dụng (trình biên tập). */
+  tuyen_dung_chung: null,
   /* Đang được nhúng trong khung xem thử của trình biên tập. */
   xemThu: false,
   /* Khối đang được chọn trong trình biên tập (tô viền). */
@@ -78,6 +80,7 @@ export function apNoiDung(nd) {
   ND.thong_tin = nd.thong_tin || {};
   ND.diem_nhan = Array.isArray(nd.diem_nhan) ? nd.diem_nhan : null;
   ND.ve = nd.ve || {};
+  ND.tuyen_dung_chung = nd.tuyen_dung_chung && typeof nd.tuyen_dung_chung === 'object' ? nd.tuyen_dung_chung : null;
   ND.daTai = true;
 }
 
