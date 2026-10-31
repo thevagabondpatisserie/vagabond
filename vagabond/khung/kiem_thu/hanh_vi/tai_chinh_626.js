@@ -276,6 +276,25 @@ var TL = {
     bang('không có nút lưu người xem', m2.khung.querySelectorAll('[data-tcluunx]').length, 0);
   });
 
+  await ca('dự báo (Codex #524): nợ NCC đọc hỏng thì ghi Chưa đọc được, báo phần thiếu, không hiện số cuối kỳ', async function () {
+    function duBao(hong) {
+      return { so_du: 100000000, chua_chot: 0, hom_nay: '2026-10-31', phai_thu: 15000000, cho_chi: 0, cho_duyet: 0,
+        theo_tuan: hong ? null : { qua_han: 0, tuan_1: 30000000, tuan_2: 0, tuan_3: 0, tuan_4: 0 },
+        tra_ncc: hong ? null : 30000000, sau_30: hong ? null : 0,
+        cuoi_ky: hong ? null : 85000000, cuoi_ky_khong_thu: hong ? null : 70000000, thieu: hong ? ['Nợ nhà cung cấp'] : [] };
+    }
+    var m = dungMoi(GD, null, Object.assign({}, TL, { 'vagabond.tai_chinh.du_bao_30': function () { return duBao(true); } }));
+    await m.g.scrTcDuBao(); await tick();
+    dung('báo phần thiếu', chu(mot(m, '[data-tcthieu]')).indexOf('Nợ nhà cung cấp') >= 0);
+    bang('không có số cuối kỳ', m.khung.querySelectorAll('[data-tccuoiky]').length, 0);
+    bang('năm dòng nợ NCC ghi Chưa đọc được', m.khung.querySelectorAll('[data-tcchuadoc]').length, 5);
+    var m2 = dungMoi(GD, null, Object.assign({}, TL, { 'vagabond.tai_chinh.du_bao_30': function () { return duBao(false); } }));
+    await m2.g.scrTcDuBao(); await tick();
+    bang('đủ nguồn: không báo thiếu', m2.khung.querySelectorAll('[data-tcthieu]').length, 0);
+    bang('đủ nguồn: có số cuối kỳ', m2.khung.querySelectorAll('[data-tccuoiky]').length, 1);
+    bang('đủ nguồn: không ô nào Chưa đọc được', m2.khung.querySelectorAll('[data-tcchuadoc]').length, 0);
+  });
+
   console.log('');
   console.log(ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
