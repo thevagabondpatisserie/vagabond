@@ -424,13 +424,16 @@ def _thang():
 	la("khoảng tháng 2", tc.khoang_thang("2028-02"), (dt.date(2028, 2, 1), dt.date(2028, 2, 29)))
 
 
-def _tinh(moc, nop_quy_cho=0.0):
+def _tinh(moc, nop_quy_cho=0.0, ps=None):
 	"""Chạy THẬT _tinh_tien với nguồn, mốc và phát sinh giả."""
 	def _ps(ba, sau):
 		return {"MB-CTY-31561568 - MB Bank": (300000000.0, 120000000.0, 42)}.get(ba, (0.0, 0.0, 0))
+	_ps = ps or _ps
 
 	def _nq(diem=None, trang_thai=("Đã nộp quỹ",), sau_ngay=None, theo="giao"):
 		if trang_thai == ("Chờ ký nhận",):
+			if nop_quy_cho == "hong":
+				raise RuntimeError("mất kết nối phiếu nộp quỹ")
 			return nop_quy_cho, 1 if nop_quy_cho else 0
 		if diem == "TCV":
 			return 3000000.0, 1
@@ -591,3 +594,83 @@ def _trang_chu():
 	la("phân hệ chỉ chứa khoá TC", sorted(re.findall(r"'([A-Z]+)'", nhom.group(1))) if nhom else [], sorted(khoa))
 	for k in khoa:
 		la("khoá %s chỉ dựng một lần trên trang chủ" % k, len(re.findall(r", '%s'\)" % k, js)), 1)
+
+
+class _CacheGia:
+	def __init__(self):
+		self.d = {}
+
+	def get_value(self, k):
+		return self.d.get(k)
+
+	def set_value(self, k, v, expires_in_sec=None):
+		self.d[k] = v
+
+
+@ca("v626 Codex #524 vòng 3: một tài khoản tính hỏng thì dự báo không kết luận, Tiền hiện có báo đúng là lỗi chứ không phải chưa chốt")
+def _du_bao_so_du_hong():
+	def _ps(ba, sau):
+		raise RuntimeError("mất kết nối sổ ngân hàng")
+	# MB công ty có mốc chốt, đọc phát sinh hỏng; két District 1 và quỹ vẫn đọc được.
+	kq = _tinh(MOC, ps=_ps)
+	mb = next(d for d in kq["dong"] if d["nguon"] == "nh:31561568")
+	la("MB: không có số, ghi rõ lỗi", (mb["so_du"], mb.get("loi")), (None, 1))
+	la("tổng đếm riêng chỗ lỗi, không lẫn vào chưa chốt", (kq["tong"]["loi"], kq["tong"]["chua_chot"]), (1, 5))
+	with um.patch.object(tc, "_kiem", lambda: None), \
+		um.patch.object(tc, "_tinh_tien", lambda: kq), \
+		um.patch.object(tc, "_phai_thu", lambda: 0.0), \
+		um.patch.object(tc, "_ncc", lambda: ([], 0.0, 0.0)), \
+		um.patch.object(tc, "_giu_boi_app", lambda: {}), \
+		um.patch.object(tc, "_cho_chi", lambda: {"tien": 0.0, "tien_cho_duyet": 0.0}), \
+		um.patch.object(tc, "nowdate", lambda: "2026-08-15"):
+		du = tc.du_bao_30()
+	la("dự báo không có số cuối kỳ", (du["cuoi_ky"], du["cuoi_ky_khong_thu"]), (None, None))
+	la("dự báo báo đúng phần thiếu", du["thieu"], ["Số dư tài khoản, két"])
+	# SePay không đọc được: Shinhan sống nhờ số SePay báo nên cũng là lỗi.
+	with um.patch.object(tc, "_sepay_so_bao", lambda: {}):
+		kq2 = _tinh_khong_sepay(MOC)
+	sh = next(d for d in kq2["dong"] if d["nguon"] == "nh:700037279585")
+	la("Shinhan khi SePay không đọc được: lỗi, không phải chưa chốt", (sh["so_du"], sh.get("loi")), (None, 1))
+	kq3 = _tinh(MOC, nop_quy_cho="hong")
+	dang = [d for d in kq3["dong"] if d["nguon"] == "tm:DANG"]
+	la("phiếu nộp quỹ chờ ký nhận đọc hỏng: có dòng lỗi, tổng đếm lỗi",
+		([(d["so_du"], d.get("loi")) for d in dang], kq3["tong"]["loi"]), ([(None, 1)], 1))
+
+
+def _tinh_khong_sepay(moc):
+	def _ps(ba, sau):
+		return {"MB-CTY-31561568 - MB Bank": (300000000.0, 120000000.0, 42)}.get(ba, (0.0, 0.0, 0))
+
+	def _nq(diem=None, trang_thai=("Đã nộp quỹ",), sau_ngay=None, theo="giao"):
+		return 0.0, 0
+	with um.patch.object(tc, "_cac_nguon", lambda so_bao=None: tc.nguon_ngan_hang(BAN_DO, TK, so_bao or {}) + tc.nguon_tien_mat(DIEM)), \
+		um.patch.object(tc, "_cac_moc", lambda: moc), \
+		um.patch.object(tc, "_phat_sinh_nh", _ps), \
+		um.patch.object(tc, "_tien_mat_vao_ket", lambda diem, tu, den=None: 0.0), \
+		um.patch.object(tc, "_nop_quy", _nq), \
+		um.patch.object(tc, "_so_cai_quy", lambda sau: (0.0, 0.0)), \
+		um.patch.object(tc, "_ca_gan_nhat", lambda d: None):
+		return tc._tinh_tien()
+
+
+@ca("v626 Codex #524 vòng 3: một két đọc hỏng thì dòng tiền báo thiếu, không lưu số thiếu vào bộ nhớ đệm")
+def _tien_mat_ngay_hong():
+	cache = _CacheGia()
+	hong = {"on": True}
+
+	def _vk(diem, tu, den=None):
+		if diem == "NVHTN" and hong["on"]:
+			raise RuntimeError("mất kết nối")
+		return {"TCV": 1000000.0, "NVHTN": 2000000.0}.get(diem, 0.0)
+	tm = tc.nguon_tien_mat(DIEM)
+	with um.patch.object(tc.frappe, "cache", lambda: cache, create=True), \
+		um.patch.object(tc, "_tien_mat_vao_ket", _vk), \
+		um.patch.object(tc, "nowdate", lambda: "2026-08-15"):
+		ra, thieu = tc._tien_mat_theo_ngay(dt.date(2026, 8, 13), dt.date(2026, 8, 14), tm)
+		la("ngày còn đọc được phần két đúng", ra, {"2026-08-13": 1000000.0, "2026-08-14": 1000000.0})
+		la("báo đúng két và ngày thiếu", thieu, [("NVHTN", "2026-08-13"), ("NVHTN", "2026-08-14")])
+		la("không lưu số thiếu vào bộ nhớ đệm", cache.d, {})
+		hong["on"] = False
+		ra2, thieu2 = tc._tien_mat_theo_ngay(dt.date(2026, 8, 13), dt.date(2026, 8, 14), tm)
+		la("hết lỗi thì đọc lại đủ", (ra2, thieu2), ({"2026-08-13": 3000000.0, "2026-08-14": 3000000.0}, []))
+		la("ngày đủ mới lưu bộ nhớ đệm", sorted(cache.d.values()), [3000000.0, 3000000.0])
