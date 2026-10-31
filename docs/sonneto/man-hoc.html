@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Sonneto - Màn học</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Be+Vietnam+Pro:wght@300;400;500&family=JetBrains+Mono&display=swap">
+<style>
+:root{--ink:#0e0f10;--ink2:#161819;--ink3:#1d2022;--paper:#ebe8e1;--mute:#8e9297;--line:#2a2d31;--butter:#cdb98a;
+--fd:"Cormorant Garamond",serif;--fb:"Be Vietnam Pro",sans-serif;--fm:"JetBrains Mono",monospace}
+*{box-sizing:border-box;margin:0}
+body{background:var(--ink);color:var(--paper);font:300 14px/1.55 var(--fb);-webkit-font-smoothing:antialiased}
+.lab{font:400 10.5px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.lab b{color:var(--butter);font-weight:400}
+/* ===== desktop ===== */
+.desk{width:1440px;height:1040px;display:grid;grid-template-rows:56px 1fr;overflow:hidden}
+.top{display:flex;align-items:center;gap:28px;padding:0 32px;border-bottom:1px solid var(--line)}
+.mark{font:400 22px var(--fd);letter-spacing:.02em}
+.top .crumb{display:flex;gap:10px;align-items:center;color:var(--mute);font-size:13px}
+.top .crumb span.c{color:var(--paper)}
+.top .right{margin-left:auto;display:flex;gap:22px;align-items:center}
+.pill{border:1px solid var(--line);padding:6px 12px;font:400 11px/1 var(--fm);letter-spacing:.08em;color:var(--mute)}
+.pill b{color:var(--butter);font-weight:400}
+.ava{width:30px;height:30px;border-radius:50%;background:var(--butter);color:var(--ink);display:grid;place-items:center;font:500 12px var(--fb)}
+.body{display:grid;grid-template-columns:1fr 360px;min-height:0}
+.main{min-width:0;overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+.video{position:relative;height:460px;background:#000;overflow:hidden}
+.video .poster{position:absolute;inset:0}.video .poster{background:radial-gradient(60% 80% at 50% 60%,#3a2a1a,#0d0e0f)}.video .poster svg text,.video .poster svg line{display:none}.video .poster svg{width:100%;height:100%;display:block}.video .poster::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(14,15,16,.55),transparent 35%,transparent 60%,rgba(14,15,16,.6))}
+.video .play{position:absolute;left:50%;top:50%;width:76px;height:76px;transform:translate(-50%,-50%);border:1px solid rgba(235,232,225,.7);border-radius:50%;display:grid;place-items:center;background:rgba(14,15,16,.35);backdrop-filter:blur(4px)}
+.video .play i{width:0;height:0;border-left:18px solid var(--paper);border-top:11px solid transparent;border-bottom:11px solid transparent;margin-left:5px}
+.video .cap{position:absolute;left:28px;top:24px;display:grid;gap:6px}
+.video .cap h1{font:300 34px/1.05 var(--fd);letter-spacing:-.01em}
+.video .cap h1 em{color:var(--butter);font-style:italic}
+.ctrl{position:absolute;left:0;right:0;bottom:0;padding:16px 28px 18px;background:linear-gradient(transparent,rgba(14,15,16,.9))}
+.bar{position:relative;height:2px;background:rgba(235,232,225,.25);margin-bottom:12px}
+.bar .done{position:absolute;left:0;top:0;height:100%;width:38%;background:var(--butter)}
+.bar .knob{position:absolute;left:38%;top:50%;width:10px;height:10px;border-radius:50%;background:var(--butter);transform:translate(-50%,-50%)}
+.bar .m{position:absolute;top:-4px;width:1px;height:10px;background:rgba(235,232,225,.6)}
+.bar .mt{position:absolute;top:-22px;transform:translateX(-50%);font:400 9.5px var(--fm);color:var(--mute);letter-spacing:.06em;white-space:nowrap}
+.ctrl .row{display:flex;align-items:center;gap:18px;font:400 11px var(--fm);color:var(--paper)}
+.ctrl .row .sp{margin-left:auto;display:flex;gap:16px;color:var(--mute)}
+.ico{width:14px;height:14px;border:1px solid currentColor;display:inline-block;vertical-align:middle;border-radius:2px}
+.under{display:grid;grid-template-columns:1fr 1fr;min-height:0}
+.tabs{border-right:1px solid var(--line);display:grid;grid-template-rows:auto 1fr;min-height:0}
+.tabh{display:flex;gap:26px;padding:0 28px;border-bottom:1px solid var(--line)}
+.tabh a{min-height:48px;display:inline-flex;align-items:center;padding:0;font-size:13px;color:var(--mute);border-bottom:1px solid transparent;margin-bottom:-1px}
+.tabh a.on{color:var(--paper);border-bottom-color:var(--butter)}
+.recipe{padding:18px 28px;overflow:hidden;display:grid;gap:14px;align-content:start}
+.rh{display:flex;align-items:baseline;justify-content:space-between}
+.rh h2{font:400 22px/1.1 var(--fd)}
+.scale{display:flex;gap:8px;align-items:center}
+.scale span{font:400 10.5px var(--fm);letter-spacing:.08em;color:var(--mute);margin-right:4px}
+.scale a{border:1px solid var(--line);min-width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;font:400 13px var(--fm);color:var(--mute)}
+.scale a.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{padding:7px 0;border-bottom:1px solid var(--line);text-align:left;vertical-align:baseline}
+th{font:400 10px var(--fm);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+td.n,th.n{text-align:right;font-family:var(--fm);font-size:12.5px;font-variant-numeric:tabular-nums}
+td.pct{color:var(--mute)}
+.dl{display:flex;gap:16px;font-size:12px}
+.dl a{color:var(--butter);text-decoration:none;border-bottom:1px solid rgba(205,185,138,.4);padding-bottom:1px}
+.steps{padding:18px 28px;overflow:hidden;display:grid;gap:0;align-content:start}
+.steps h2{font:400 22px/1.1 var(--fd);margin-bottom:10px}
+.st{display:grid;grid-template-columns:52px 1fr;gap:12px;padding:10px 0;border-top:1px solid var(--line);align-items:start}
+.st .t{font:400 11px var(--fm);color:var(--butter);padding-top:3px;letter-spacing:.04em}
+.st .t.d{color:var(--mute)}
+.st p{font-size:13px;color:var(--paper)}
+.st p small{display:block;color:var(--mute);font-size:12px;margin-top:2px}
+.st.now{background:linear-gradient(90deg,rgba(205,185,138,.08),transparent);margin:0 -10px;padding-left:10px;padding-right:10px}
+/* sidebar */
+.side{border-left:1px solid var(--line);background:var(--ink2);display:grid;grid-template-rows:auto auto 1fr;min-height:0}
+.sh{padding:18px 22px 14px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.sh h3{font:400 19px/1.15 var(--fd)}
+.prog{height:2px;background:var(--line);position:relative}
+.prog i{position:absolute;left:0;top:0;height:100%;width:31%;background:var(--butter)}
+.sh .meta{display:flex;justify-content:space-between;font:400 10.5px var(--fm);color:var(--mute);letter-spacing:.06em}
+.exp{margin:12px 22px 0;padding:10px 12px;border:1px solid rgba(205,185,138,.35);display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.exp b{font-weight:400;color:var(--butter);font-family:var(--fm);font-size:11px}
+.ls{overflow:hidden;padding:12px 0 0}
+.ch{padding:12px 22px 4px}
+.l{display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center;min-height:44px;padding:0 22px;font-size:13px;color:var(--mute)}
+.l .k{width:14px;height:14px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center}
+.l.done{color:var(--paper)}
+.l.done .k{background:var(--butter);border-color:var(--butter)}
+.l.done .k::after{content:"";width:5px;height:3px;border-left:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);transform:translateY(-1px) rotate(-45deg)}
+.l.now{color:var(--paper);background:var(--ink3)}
+.l.now .k{border-color:var(--butter)}
+.l.now .k::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--butter)}
+.l .d{font:400 11px var(--fm);color:var(--mute)}
+.l.lock .k{border-style:dashed}
+/* ===== mobile ===== */
+.mob{width:390px;height:844px;background:var(--ink);display:grid;grid-template-rows:auto auto auto 1fr;overflow:hidden;border-left:1px solid var(--line)}
+.mob .mt{display:flex;align-items:center;justify-content:space-between;padding:54px 18px 10px;font-size:12px;color:var(--mute)}
+.mob .video{height:220px}
+.mob .video .cap{left:16px;top:14px}
+.mob .video .cap h1{font-size:20px}
+.mob .video .play{width:54px;height:54px}
+.mob .ctrl{padding:10px 16px 12px}
+.mob .bar .mt{display:none}
+.mob .mtab{display:flex;gap:20px;padding:0 18px;border-bottom:1px solid var(--line)}
+.mob .mtab a{min-height:48px;display:inline-flex;align-items:center;font-size:14px;color:var(--mute);border-bottom:1px solid transparent;margin-bottom:-1px}
+.mob .mtab a.on{color:var(--paper);border-bottom-color:var(--butter)}
+.mob .recipe{padding:14px 18px}
+.mob .rh h2{font-size:20px}
+.m table{font-size:12.5px}
+.mob .fab{position:absolute;left:0;right:0;bottom:0;padding:12px 18px 28px;background:linear-gradient(transparent,var(--ink) 40%);display:flex;gap:10px}
+.mob .fab a{flex:1;display:flex;align-items:center;justify-content:center;min-height:48px;font:400 12px var(--fm);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--paper)}
+.mob .fab a.s{background:var(--paper);color:var(--ink)}
+.wrap{display:flex;background:#070808}
+.mob{position:relative}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="desk" id="desktop">
+  <div class="top">
+    <span class="mark">Sonneto</span>
+    <span class="crumb"><span>Khoá học</span><span>/</span><span>Viennoiserie</span><span>/</span><span class="c">Bài 4 · Cán bột và gấp bơ</span></span>
+    <div class="right">
+      <span class="pill">HẠN HỌC <b>CÒN 142 NGÀY</b></span>
+      <span class="pill">BÀI <b>4</b> / 12</span>
+      <span class="ava">V</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="main">
+      <div class="video">
+        <div class="poster" data-t="croissant"></div>
+        <div class="cap"><span class="lab">Bài 4 <b>·</b> 24 phút</span><h1>Cán bột <em>và gấp bơ</em></h1></div>
+        <div class="play"><i></i></div>
+        <div class="ctrl">
+          <div class="bar"><div class="done"></div><div class="knob"></div>
+            <i class="m" style="left:12%"></i><span class="mt" style="left:12%">Bơ 82%</span>
+            <i class="m" style="left:38%"></i><span class="mt" style="left:38%">Gấp lần 1</span>
+            <i class="m" style="left:61%"></i><span class="mt" style="left:61%">Nghỉ lạnh</span>
+            <i class="m" style="left:84%"></i><span class="mt" style="left:84%">Gấp lần 3</span>
+          </div>
+          <div class="row"><span>▶</span><span>08:24 / 24:10</span><span class="sp"><span>1.0x</span><span>CC</span><span>HD</span><span class="ico"></span></span></div>
+        </div>
+      </div>
+      <div class="under">
+        <div class="tabs">
+          <div class="tabh"><a class="on">Công thức</a><a>Ghi chú của tôi</a><a>Hỏi giảng viên</a><a>Tải về</a></div>
+          <div class="recipe">
+            <div class="rh"><h2>Croissant bơ 82%</h2>
+              <div class="scale"><span>NHÂN MẺ</span><a>½</a><a class="on">1×</a><a>2×</a><a>4×</a></div></div>
+            <table>
+              <tr><th>Nguyên liệu</th><th class="n">Gram</th><th class="n">% bột</th></tr>
+              <tr><td>Bột mì T55</td><td class="n">1.000</td><td class="n pct">100</td></tr>
+              <tr><td>Nước lạnh 4°C</td><td class="n">480</td><td class="n pct">48</td></tr>
+              <tr><td>Đường</td><td class="n">120</td><td class="n pct">12</td></tr>
+              <tr><td>Muối</td><td class="n">20</td><td class="n pct">2</td></tr>
+              <tr><td>Men tươi</td><td class="n">40</td><td class="n pct">4</td></tr>
+              <tr><td>Bơ nhồi</td><td class="n">80</td><td class="n pct">8</td></tr>
+              <tr><td>Bơ lá 82%</td><td class="n">560</td><td class="n pct">56</td></tr>
+            </table>
+            <div class="dl"><a>Tải công thức PDF</a><a>Bảng tính giá vốn</a></div>
+          </div>
+        </div>
+        <div class="steps">
+          <h2>Các bước</h2>
+          <div class="st"><span class="t d">00:40</span><p>Trộn bột tới vừa dính, nhiệt độ bột ra 24°C.<small>Bột nóng hơn 26°C thì bơ chảy khi cán.</small></p></div>
+          <div class="st"><span class="t d">04:10</span><p>Cán bơ thành tấm 20×20 cm, giữ 12°C.</p></div>
+          <div class="st now"><span class="t">08:24</span><p>Bọc bơ, cán dài 60 cm, gấp ba lần 1.<small>Đang xem</small></p></div>
+          <div class="st"><span class="t d">13:05</span><p>Nghỉ lạnh 30 phút, cán và gấp lần 2.</p></div>
+          <div class="st"><span class="t d">17:50</span><p>Gấp lần 3, đạt 27 lớp bơ. Nghỉ qua đêm.</p></div>
+          <div class="st"><span class="t d">21:30</span><p>Cắt tam giác 9×28 cm, cuộn, ủ 27°C / ẩm 75%.</p></div>
+        </div>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="sh">
+        <span class="lab">Khoá học</span>
+        <h3>Viennoiserie: cán bột và lên men</h3>
+        <div class="prog"><i></i></div>
+        <div class="meta"><span>4 / 12 BÀI</span><span>31%</span></div>
+      </div>
+      <div class="exp"><span>Hạn học tới 12/03/2027</span><b>GIA HẠN</b></div>
+      <div class="ls">
+        <div class="ch lab">Phần 1 <b>·</b> Bột và bơ</div>
+        <div class="l done"><span class="k"></span><span>Chọn bột, chọn bơ</span><span class="d">11:20</span></div>
+        <div class="l done"><span class="k"></span><span>Trộn bột, nhiệt độ bột ra</span><span class="d">16:05</span></div>
+        <div class="l done"><span class="k"></span><span>Chuẩn bị tấm bơ</span><span class="d">09:48</span></div>
+        <div class="l now"><span class="k"></span><span>Cán bột và gấp bơ</span><span class="d">24:10</span></div>
+        <div class="l"><span class="k"></span><span>Tạo hình croissant</span><span class="d">14:30</span></div>
+        <div class="ch lab">Phần 2 <b>·</b> Ủ và nướng</div>
+        <div class="l"><span class="k"></span><span>Ủ: nhiệt độ và độ ẩm</span><span class="d">12:15</span></div>
+        <div class="l"><span class="k"></span><span>Quét trứng, nướng, đọc màu vỏ</span><span class="d">18:40</span></div>
+        <div class="l"><span class="k"></span><span>Đọc mặt cắt: lỗi và cách sửa</span><span class="d">15:00</span></div>
+        <div class="ch lab">Phần 3 <b>·</b> Biến thể</div>
+        <div class="l lock"><span class="k"></span><span>Pain au chocolat</span><span class="d">13:10</span></div>
+        <div class="l lock"><span class="k"></span><span>Cruffin và bánh cuộn</span><span class="d">17:25</span></div>
+        <div class="l lock"><span class="k"></span><span>Bài kiểm tra: nộp ảnh mặt cắt</span><span class="d">—</span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="mob" id="mobile">
+  <div class="mt"><span class="mark" style="font-size:18px">Sonneto</span><span class="lab">BÀI <b>4</b>/12 · CÒN 142 NGÀY</span></div>
+  <div class="video">
+    <div class="poster" data-t="croissant"></div>
+    <div class="cap"><span class="lab">Bài 4 <b>·</b> 24 phút</span><h1>Cán bột <em>và gấp bơ</em></h1></div>
+    <div class="play"><i></i></div>
+    <div class="ctrl"><div class="bar"><div class="done"></div><div class="knob"></div><i class="m" style="left:12%"></i><i class="m" style="left:38%"></i><i class="m" style="left:61%"></i><i class="m" style="left:84%"></i></div>
+      <div class="row"><span>▶</span><span>08:24 / 24:10</span><span class="sp"><span>CC</span><span class="ico"></span></span></div></div>
+  </div>
+  <div class="mtab"><a class="on">Công thức</a><a>Các bước</a><a>Bài học</a><a>Hỏi đáp</a></div>
+  <div class="recipe">
+    <div class="rh"><h2>Croissant bơ 82%</h2><div class="scale"><a>½</a><a class="on">1×</a><a>2×</a></div></div>
+    <table>
+      <tr><th>Nguyên liệu</th><th class="n">Gram</th><th class="n">%</th></tr>
+      <tr><td>Bột mì T55</td><td class="n">1.000</td><td class="n pct">100</td></tr>
+      <tr><td>Nước lạnh 4°C</td><td class="n">480</td><td class="n pct">48</td></tr>
+      <tr><td>Đường</td><td class="n">120</td><td class="n pct">12</td></tr>
+      <tr><td>Muối</td><td class="n">20</td><td class="n pct">2</td></tr>
+      <tr><td>Men tươi</td><td class="n">40</td><td class="n pct">4</td></tr>
+      <tr><td>Bơ nhồi</td><td class="n">80</td><td class="n pct">8</td></tr>
+      <tr><td>Bơ lá 82%</td><td class="n">560</td><td class="n pct">56</td></tr>
+    </table>
+    
+  </div>
+  <div class="fab"><a>Tải PDF</a><a class="s">Bài tiếp theo</a></div>
+</div>
+</div>
+<script src="thumbs.js"></script><script>document.querySelectorAll(".poster").forEach(function(e){e.innerHTML=THUMBS.croissant.replace('preserveAspectRatio="xMidYMid slice"','preserveAspectRatio="xMidYMid meet"')})</script>
+</body></html>
