@@ -376,7 +376,7 @@ def gom_ngay(cac_gd, tien_mat_vao, tien_mat_ra, tu, den):
 	"""Tiền vào, tiền ra từng ngày. THUẦN.
 
 	cac_gd        giao dịch ngân hàng ĐÃ bỏ chuyển nội bộ: {ngay, vao, ra}
-	tien_mat_vao  {ngày: tiền mặt vào két} (bán, đặt bánh, nạp số dư)
+	tien_mat_vao  {ngày: tiền mặt vào két (bán, đặt bánh, nạp số dư) cộng thu quỹ ghi sổ}
 	tien_mat_ra   {ngày: tiền mặt chi từ quỹ ghi sổ}
 	"""
 	ngay = chuoi_ngay(tu, den)
@@ -879,12 +879,19 @@ def _tien_mat_theo_ngay(tu, den, cac_tm):
 	return ra, thieu
 
 
-def _chi_quy_theo_ngay(tu, den):
-	r = frappe.db.sql("""select g.posting_date, sum(g.credit) from `tabGL Entry` g
+def _quy_theo_ngay(tu, den):
+	"""({ngày: tiền vào quỹ}, {ngày: tiền ra quỹ}) theo sổ cái quỹ công ty.
+
+	Codex #524 vòng 4: bản trước chỉ đọc cột Có, nên khoản kế toán thu thẳng
+	vào quỹ (Nợ 1111 / Có 711) làm Tiền hiện có tăng mà Dòng tiền không thấy.
+	Rút hoặc nộp tiền giữa quỹ và ngân hàng hiện ở cả hai bên vào và ra,
+	nên Còn lại vẫn đúng.
+	"""
+	r = frappe.db.sql("""select g.posting_date, sum(g.debit), sum(g.credit) from `tabGL Entry` g
 		join `tabAccount` a on a.name=g.account
 		where """ + DK_QUY_CONG_TY + """ and g.posting_date between %s and %s
 		group by g.posting_date""", (str(tu), str(den)))
-	return {str(x[0]): flt(x[1]) for x in r}
+	return {str(x[0]): flt(x[1]) for x in r}, {str(x[0]): flt(x[2]) for x in r}
 
 
 @frappe.whitelist()
@@ -900,7 +907,10 @@ def dong_tien(so_ngay=30):
 	gd = _gd_ngan_hang(tu, den, nh)
 	ngoai, noi_bo = tach_noi_bo(gd)
 	tm_ngay, thieu = _tien_mat_theo_ngay(tu, den, tm)
-	kq = gom_ngay(ngoai, tm_ngay, _chi_quy_theo_ngay(tu, den), tu, den)
+	quy_vao, quy_ra = _quy_theo_ngay(tu, den)
+	for n, v in quy_vao.items():
+		tm_ngay[n] = flt(tm_ngay.get(n)) + flt(v)
+	kq = gom_ngay(ngoai, tm_ngay, quy_ra, tu, den)
 	ten = {x.get("diem"): x.get("ten") or x.get("diem") for x in tm}
 	kq["thieu"] = ["%s ngày %s/%s" % (ten.get(d, d), n[8:10], n[5:7]) for d, n in thieu]
 	kq.update(so_ngay=n, tu=str(tu), den=str(den), lon_nhat=lon_nhat(ngoai),
