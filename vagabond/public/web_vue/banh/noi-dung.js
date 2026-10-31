@@ -280,23 +280,138 @@ export const TheMuc = {
     ]);
   }
 };
+/* ---------- v625: Tuyển dụng phương án A (anh Việt duyệt 31/10/2026) ----------
+   Danh sách chỉ còn thẻ ảnh: bộ phận, Tuyển gấp, tên vị trí, nơi làm, lương gọn.
+   Bấm thẻ mở trang chi tiết #/tuyen-dung/<mã vị trí>: ảnh đầu trang, bốn ô tóm
+   tắt, mô tả theo mục (dài thì Xem thêm), chúng tôi cần, quyền lợi dạng nhãn,
+   ba bước tuyển và nút Ứng tuyển ngay luôn ở đáy màn. Chữ lấy từ phiếu Vị trí
+   trên app (máy chủ đã tách lương, mục, quyền lợi ở tuyen_dung.the_web). */
+export const TD = reactive({mo: ''});
+const VIEC_HIEN = 4;
+export function moViTri(ma, win = window) {
+  const url = win.location.pathname + win.location.search + (ma ? '#/tuyen-dung/' + encodeURIComponent(ma) : '#/tuyen-dung');
+  win.history.pushState({vgb: 1}, '', url);
+  win.dispatchEvent(new win.PopStateEvent('popstate', {state: {vgb: 1}}));
+  if (win.scrollTo) win.scrollTo(0, 0);
+}
+/* THUẦN: số ngày còn nhận hồ sơ (âm là đã qua), theo ngày lịch. */
+export function ngayCon(kt, homNay) {
+  const a = Date.parse(String(kt || '').slice(0, 10) + 'T00:00:00Z'), b = Date.parse(String(homNay || '').slice(0, 10) + 'T00:00:00Z');
+  return isNaN(a) || isNaN(b) ? null : Math.round((a - b) / 864e5);
+}
+/* THUẦN: bốn ô tóm tắt đầu trang chi tiết. */
+export function oTomTat(k, homNay) {
+  const con = ngayCon(k.ket_thuc, homNay);
+  const han = k.ket_thuc ? ngay(k.ket_thuc).slice(0, 5) + (con === 0 ? ' · hôm nay' : con > 0 ? ' · còn ' + con + ' ngày' : '') : t('chua_han', 'Đến khi đủ người');
+  return [
+    {nhan: t('td_luong', 'Lương'), chu: k.luong_gon || k.luong || t('td_thoa_thuan', 'Thoả thuận khi phỏng vấn'), lop: 'luong'},
+    {nhan: t('td_noi_lam', 'Nơi làm'), chu: k.noi_lam || 'The Vagabond Pâtisserie'},
+    {nhan: t('td_hinh_thuc', 'Hình thức'), chu: k.hinh_thuc || t('td_trao_doi', 'Trao đổi khi phỏng vấn')},
+    {nhan: t('td_han', 'Hạn nhận hồ sơ'), chu: han}
+  ];
+}
+/* THUẦN: quyền lợi của vị trí cộng phúc lợi chung của tiệm, bỏ trùng. */
+export function quyenLoi(k, chung) {
+  const ra = [], thay = new Set();
+  [...(k.quyen_loi || []), ...((chung && chung.phuc_loi) || [])].forEach(x => {
+    const s = String(x || '').trim(), khoa = s.toLocaleLowerCase('vi');
+    if (s && !thay.has(khoa)) { thay.add(khoa); ra.push(s); }
+  });
+  return ra;
+}
+const anhTuyen = k => (anToan(k.anh_the) ? k.anh_the : (anToan(k.anh) ? k.anh : ''));
+export const TheTuyen = {
+  name: 'TheTuyen',
+  props: {k: Object},
+  render() {
+    const k = this.k, anh = anhTuyen(k);
+    return h('a', {class: 'td-the' + lopChon(k), href: '#/tuyen-dung/' + encodeURIComponent(k.ma), 'data-khoi': k.id, 'data-vt': k.ma,
+      onClick: e => { e.preventDefault(); moViTri(k.ma); }}, [
+      h('div', {class: 'td-anh'}, [
+        anh ? h('img', {src: anh, alt: '', loading: 'lazy'}) : null,
+        k.nhom ? h('span', {class: 'td-bp'}, k.nhom) : null,
+        k.tuyen_gap ? h('span', {class: 'td-gap'}, t('td_gap', 'Tuyển gấp')) : null]),
+      h('div', {class: 'td-nd'}, [
+        h('h2', null, k.tieu_de),
+        h('p', {class: 'td-meta'}, [k.noi_lam, k.hinh_thuc].filter(Boolean).join(' · ')),
+        h('div', {class: 'td-duoi'}, [
+          h('span', {class: 'td-luong'}, k.luong_gon || t('td_thoa_thuan_gon', 'Lương thoả thuận')),
+          h('span', {class: 'td-mui', 'aria-hidden': 'true'}, '→')])])
+    ]);
+  }
+};
+const MucViec = {
+  props: {m: Object, dau: Boolean},
+  data() { return {mo: false}; },
+  render() {
+    const ds = this.m.dong || [], gon = this.dau && !this.mo && ds.length > VIEC_HIEN + 1;
+    const hien = gon ? ds.slice(0, VIEC_HIEN) : ds;
+    return h('section', {class: 'td-muc'}, [
+      h('h3', null, this.m.tieu_de),
+      h('ul', null, hien.map(x => h('li', null, x))),
+      gon ? h('button', {class: 'td-them', type: 'button', 'aria-expanded': 'false', onClick: () => { this.mo = true; }},
+        t('td_xem_them', 'Xem thêm {so} việc', {so: ds.length - hien.length}) + ' ▾') : null
+    ]);
+  }
+};
+export const ChiTietTuyen = {
+  name: 'ChiTietTuyen',
+  props: {k: Object, homNay: String},
+  render() {
+    const k = this.k, anh = anhTuyen(k), ql = quyenLoi(k, ND.tuyen_dung_chung);
+    const muc = (k.muc || []).length ? k.muc.map((m, i) => h(MucViec, {m, dau: i === 0, key: i}))
+      : (k.noi_dung ? [h('section', {class: 'td-muc'}, [h('h3', null, t('td_ban_se_lam', 'Bạn sẽ làm')), h(DoanGap, {chu: k.noi_dung})])] : []);
+    const ungTuyen = anToan(k.lien_ket) ? k.lien_ket : '/ung-tuyen?vt=' + encodeURIComponent(k.ma);
+    return h('article', {class: 'td-chi-tiet' + lopChon(k), 'data-khoi': k.id, 'data-vt': k.ma}, [
+      h('div', {class: 'td-hero'}, [
+        anh ? h('img', {src: anh, alt: '', loading: 'eager'}) : null,
+        h('a', {class: 'td-lui', href: '#/tuyen-dung', 'aria-label': t('td_ve_ds', 'Về danh sách vị trí'),
+          onClick: e => { e.preventDefault(); moViTri(''); }}, '←'),
+        h('div', {class: 'td-h'}, [
+          h('p', {class: 'td-tren'}, [k.nhom, k.tuyen_gap ? t('td_gap', 'Tuyển gấp') : t('td_dang_tuyen', 'Đang tuyển')].filter(Boolean).join(' · ')),
+          h('h1', null, k.tieu_de)])]),
+      h('div', {class: 'td-luoi'}, oTomTat(k, this.homNay).map(o => h('div', {class: 'td-o' + (o.lop ? ' td-o-' + o.lop : '')}, [h('span', null, o.nhan), h('b', null, o.chu)]))),
+      ...muc,
+      /* Ô Lương chỉ có chỗ cho bản gọn; câu lương đầy đủ (thử việc, part-time) đọc ở đây. */
+      k.luong && k.luong !== k.luong_gon ? h('section', {class: 'td-muc td-thu-nhap'}, [h('h3', null, t('td_thu_nhap', 'Thu nhập')), h('p', null, k.luong)]) : null,
+      (k.can || []).length ? h('section', {class: 'td-muc'}, [h('h3', null, t('td_can', 'Chúng tôi cần')), h('ul', null, k.can.map(x => h('li', null, x)))]) : null,
+      ql.length ? h('section', {class: 'td-muc'}, [h('h3', null, t('td_quyen_loi', 'Quyền lợi')), h('div', {class: 'td-ql'}, ql.map(x => h('span', null, x)))]) : null,
+      h('section', {class: 'td-quy'}, [
+        h('b', null, t('td_quy_tieu_de', 'Quy trình chỉ 3 bước')),
+        h('p', null, t('td_quy_chu', 'Gửi hồ sơ khoảng 3 phút, không bắt buộc có CV. Quản lý bộ phận gọi lại để hẹn phỏng vấn.')),
+        h('ol', {class: 'td-buoc'}, [t('td_b1', 'Gửi hồ sơ'), t('td_b2', 'Phỏng vấn'), t('td_b3', 'Làm thử có công')].map((x, i) => h('li', null, [h('i', null, String(i + 1)), x])))]),
+      h('div', {class: 'td-day'}, [h('a', {class: 'td-ung', href: ungTuyen}, t('td_ung_tuyen', 'Ứng tuyển ngay'))])
+    ]);
+  }
+};
+function DanhSachTuyen(ds, homNay) {
+  if (!ND.daTai && !ND.xemThu) return h('p', {class: 'cm-rong td-dang-tai', role: 'status'}, t('td_dang_tai', 'Đang tải các vị trí đang tuyển...'));
+  if (TD.mo) {
+    const k = ds.find(x => x.ma === TD.mo);
+    if (k) return h(ChiTietTuyen, {k, homNay, key: k.ma});
+    return h('div', {class: 'td-het'}, [h('p', {class: 'cm-rong'}, t('td_het', 'Vị trí này đã ngừng nhận hồ sơ. Bạn xem các vị trí khác đang tuyển nhé.')),
+      h('a', {class: 'cm-nut', href: '#/tuyen-dung', onClick: e => { e.preventDefault(); moViTri(''); }}, t('td_xem_khac', 'Xem các vị trí đang tuyển'))]);
+  }
+  return null;
+}
 const LOC = reactive({uu_dai: {tim: '', nhom: ''}, tuyen_dung: {tim: '', nhom: ''}, tiec: {tim: '', nhom: ''}});
 export function dsMuc(loai, homNay = ngayVN()) {
   return (ND.khoi || []).filter(k => k.loai === loai && (ND.xemThu || khachThay(k, homNay)));
 }
-const RONG = {uu_dai: 'Chưa có ưu đãi trong nhóm này. Quý khách có thể xem các nhóm khác.', tiec: 'Chưa có tiệc nào đang mở. Quý khách vui lòng quay lại sau.', tuyen_dung: 'Chưa có vị trí phù hợp trong nhóm này. Quý khách vui lòng quay lại sau.'};
+const RONG = {uu_dai: 'Chưa có ưu đãi trong nhóm này. Quý khách có thể xem các nhóm khác.', tiec: 'Chưa có tiệc nào đang mở. Quý khách vui lòng quay lại sau.', tuyen_dung: 'Hiện chưa có vị trí nào đang tuyển trong nhóm này. Bạn quay lại sau nhé.'};
 export const ChuyenMuc = {
   name: 'ChuyenMuc',
   props: {loai: String},
   render() {
     const loai = this.loai, homNay = ngayVN(), tt = LOC[loai], ds = dsMuc(loai, homNay);
+    if (loai === 'tuyen_dung') { const rieng = DanhSachTuyen(ds, homNay); if (rieng) return h('div', {id: 'noi-' + loai}, [rieng]); }
     const nhom = [...new Set(ds.map(k => k.nhom).filter(Boolean))];
     const loc = ds.filter(k => (!tt.nhom || k.nhom === tt.nhom) && [k.tieu_de, k.nhom, k.noi_lam, k.dia_diem, k.noi_dung].join(' ').toLocaleLowerCase('vi').includes(tt.tim.toLocaleLowerCase('vi')));
     const goiY = t('tim_muc', 'Tìm theo tên, nhóm hoặc nơi làm');
     return h('div', {id: 'noi-' + loai}, [
       h('div', {class: 'cm-loc'}, ds.length > 3 ? [h('input', {type: 'search', placeholder: goiY, 'aria-label': goiY, value: tt.tim, onInput: e => { tt.tim = e.target.value; }})] : []),
       h('div', {class: 'cm-chips'}, nhom.length ? ['', ...nhom].map(n => h('button', {'aria-pressed': String(n === tt.nhom), onClick: () => { tt.nhom = n; }}, n || t('tat_ca_muc', 'Tất cả'))) : []),
-      h('div', {class: 'cm-danh-sach'}, loc.length ? loc.map(k => h(TheMuc, {k, homNay, key: k.id})) : [h('p', {class: 'cm-rong'}, t(loai + '_rong', RONG[loai]))])
+      h('div', {class: 'cm-danh-sach' + (loai === 'tuyen_dung' ? ' td-ds' : '')}, loc.length ? loc.map(k => h(loai === 'tuyen_dung' && k.ma ? TheTuyen : TheMuc, {k, homNay, key: k.id})) : [h('p', {class: 'cm-rong'}, t(loai + '_rong', RONG[loai]))])
     ]);
   }
 };
