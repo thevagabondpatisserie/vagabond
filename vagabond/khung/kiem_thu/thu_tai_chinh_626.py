@@ -181,8 +181,8 @@ def _tong():
 @ca("v626 dòng tiền: chuyển nội bộ MB công ty sang OCB tạm ứng không tính vào hay ra")
 def _noi_bo():
 	gd = [
-		{"ten": "A", "tk": "MB", "ngay": "2026-08-10", "vao": 0, "ra": 10000000},
-		{"ten": "B", "tk": "OCB", "ngay": "2026-08-10", "vao": 10000000, "ra": 0},
+		{"ten": "A", "tk": "MB", "ngay": "2026-08-10", "vao": 0, "ra": 10000000, "tham_chieu": "FT26222001"},
+		{"ten": "B", "tk": "OCB", "ngay": "2026-08-10", "vao": 10000000, "ra": 0, "tham_chieu": "FT26222001"},
 		{"ten": "C", "tk": "MB", "ngay": "2026-08-10", "vao": 10000000, "ra": 0},
 		{"ten": "D", "tk": "MB", "ngay": "2026-08-11", "vao": 0, "ra": 3000000},
 		{"ten": "E", "tk": "ACB", "ngay": "2026-08-12", "vao": 3000000, "ra": 0},
@@ -203,15 +203,67 @@ def _noi_bo():
 	# Khoản vào CÙNG tài khoản đứng trước (khách hoàn tiền đúng số đó vào MB):
 	# không được ghép với khoản ra của chính MB, phải ghép sang OCB.
 	gd2 = [
-		{"ten": "A2", "tk": "MB", "ngay": "2026-08-13", "vao": 0, "ra": 7000000},
-		{"ten": "C2", "tk": "MB", "ngay": "2026-08-13", "vao": 7000000, "ra": 0},
-		{"ten": "B2", "tk": "OCB", "ngay": "2026-08-13", "vao": 7000000, "ra": 0},
+		{"ten": "A2", "tk": "MB", "ngay": "2026-08-13", "vao": 0, "ra": 7000000, "mo_ta": "VAGABOND NAP QUY TAM UNG T8"},
+		{"ten": "C2", "tk": "MB", "ngay": "2026-08-13", "vao": 7000000, "ra": 0, "mo_ta": "VAGABOND NAP QUY TAM UNG T8"},
+		{"ten": "B2", "tk": "OCB", "ngay": "2026-08-13", "vao": 7000000, "ra": 0, "mo_ta": "VAGABOND NAP QUY TAM UNG T8"},
 	]
 	ngoai2, nb2 = tc.tach_noi_bo(gd2)
 	la("ghép sang tài khoản khác", (nb2[0]["tu"], nb2[0]["den"]) if nb2 else None, ("MB", "OCB"))
 	la("giữ khoản vào cùng tài khoản", [g["ten"] for g in ngoai2], ["C2"])
 	ln = tc.lon_nhat(ngoai, 2)
 	la("vào lớn nhất", [x["so"] for x in ln["vao"]], [10000000.0, 3000000.0])
+
+
+@ca("v626 Codex #524: cùng ngày cùng số tiền mà không chung lệnh thì KHÔNG phải chuyển nội bộ (dữ liệu site 29/10, 27/10, 05/08)")
+def _noi_bo_bang_chung():
+	# Hình dạng đọc trên site 31/10/2026: từ 01/08 có 99 cặp vào ra cùng ngày
+	# cùng số tiền giữa hai tài khoản của mình, chỉ khoảng một phần tư là chuyển
+	# thật. Ghép theo số tiền thì khách chuyển 665.000 vào MB công ty và quỹ tạm
+	# ứng trả NCC 665.000 cùng ngày bị coi là chuyển nội bộ, mất cả hai.
+	gd = [
+		{"ten": "KH", "tk": "MB-CTY", "ngay": "2026-10-29", "vao": 665000, "ra": 0,
+			"mo_ta": "Qanehu5840  PANCAKE2278 4 S67355O96630T2909380955 96630 0902162418- Ma GD ACSP/ vv639846",
+			"tham_chieu": "FT26302717455878"},
+		{"ten": "NCC", "tk": "MB-TU", "ngay": "2026-10-29", "vao": 0, "ra": 665000,
+			"mo_ta": "VGB TT DH NA244698 NAM AN", "tham_chieu": "FT26302255898648"},
+		# Hoàn ứng MB công ty sang MB tạm ứng: hai vế chung mã FT.
+		{"ten": "HU-RA", "tk": "MB-CTY", "ngay": "2026-10-27", "vao": 0, "ra": 490000,
+			"mo_ta": "VAGABOND APP.26.10.118 HOAN UNG", "tham_chieu": "FT26301316599360"},
+		{"ten": "HU-VAO", "tk": "MB-TU", "ngay": "2026-10-27", "vao": 490000, "ra": 0,
+			"mo_ta": "VAGABOND APP.26.10.118 HOAN UNG", "tham_chieu": "FT26301316599360"},
+		# Khác ngân hàng MB sang OCB: mã FT khác nhau, ngân hàng nhận thêm tiền tố
+		# MBCT, hậu tố mã giao dịch và gộp một dấu cách.
+		{"ten": "OCB-VAO", "tk": "OCB", "ngay": "2026-08-05", "vao": 12272961, "ra": 0,
+			"mo_ta": "VAGABOND HOAN UNG NGUYEN HOANG VIET HD 805 238237 42013 339 3715 239599 893 35683 35237 189 79865404",
+			"tham_chieu": "FT26217Z3MJ4"},
+		{"ten": "MB-RA", "tk": "MB-CTY", "ngay": "2026-08-05", "vao": 0, "ra": 12272961,
+			"mo_ta": "MBCT VAGABOND HOAN UNG NGUYEN HOANG VIET HD 805 238237 42013 339 3715239599 893 35683 35237 189 79865404 D2X6NRU4/539808",
+			"tham_chieu": "FT26217690780621"},
+		# MB công ty sang MB tạm ứng khác mã FT, bên nhận cắt bớt đuôi (07/09).
+		{"ten": "CAT-RA", "tk": "MB-CTY", "ngay": "2026-09-07", "vao": 0, "ra": 7000599,
+			"mo_ta": "VAGABOND APP2609015 HOAN UNG HD1224 HD1661 HD3513 HD170828 HD82396 HD82422 HD82621 HD82 GD 6250MSCBD2IFTL26 070926-18:34:47"},
+		{"ten": "CAT-VAO", "tk": "MB-TU", "ngay": "2026-09-07", "vao": 7000599, "ra": 0,
+			"mo_ta": "MBCT VAGABOND APP 26 09 015 HOAN UNG HD1224 HD1661 HD3513 HD170828 HD82396 HD82422 HD82621 HD82 D2IFTL26/120902"},
+		# Một người chuyển vào và quỹ tạm ứng trả đúng người đó đúng số (01/10):
+		# chung mỗi cái tên 13 ký tự, không phải chuyển nội bộ.
+		{"ten": "TEN-VAO", "tk": "MB-CTY", "ngay": "2026-10-01", "vao": 1200000, "ra": 0,
+			"mo_ta": "BUI NGOC YEN NHI chuyen tien"},
+		{"ten": "TEN-RA", "tk": "MB-TU", "ngay": "2026-10-01", "vao": 0, "ra": 1200000,
+			"mo_ta": "VAGABOND APP.26.10.013 THANH TOAN BUI NGOC YEN NHI"},
+		# Nội dung quá ngắn không đủ làm bằng chứng.
+		{"ten": "N-RA", "tk": "MB-CTY", "ngay": "2026-08-06", "vao": 0, "ra": 100000, "mo_ta": "CK", "tham_chieu": ""},
+		{"ten": "N-VAO", "tk": "OCB", "ngay": "2026-08-06", "vao": 100000, "ra": 0, "mo_ta": "CK", "tham_chieu": None},
+	]
+	ngoai, nb = tc.tach_noi_bo(gd)
+	la("chỉ ba cặp có bằng chứng", sorted((x["tu"], x["den"], x["so"]) for x in nb),
+		[("MB-CTY", "MB-TU", 490000.0), ("MB-CTY", "MB-TU", 7000599.0), ("MB-CTY", "OCB", 12272961.0)])
+	la("khách và NCC cùng số tiền vẫn là tiền vào, tiền ra", sorted(g["ten"] for g in ngoai),
+		["KH", "N-RA", "N-VAO", "NCC", "TEN-RA", "TEN-VAO"])
+	kq = tc.gom_ngay(ngoai, {}, {}, dt.date(2026, 10, 29), dt.date(2026, 10, 29))
+	la("ngày 29/10 đủ tiền vào và ra", (kq["vao"], kq["ra"]), (665000.0, 665000.0))
+	la("mã tham chiếu lệch hoa thường, dấu cách vẫn là một lệnh",
+		tc.cung_lenh({"tham_chieu": " ft2630 1316599360 "}, {"tham_chieu": "FT26301316599360"}), True)
+	la("hai vế không mã, không nội dung", tc.cung_lenh({}, {}), False)
 
 
 # Sổ cái tháng 10/2026 trên site (Có trừ Nợ), thêm hai tài khoản nhân viên.
@@ -286,6 +338,43 @@ def _du_bao():
 	la("cuối kỳ", kq["cuoi_ky"], 100000000 + 15000000 - 56000000 - 8000000 - 2000000.0)
 	la("nếu khách chưa trả", kq["cuoi_ky_khong_thu"], 34000000.0)
 	la("chưa chốt số dư thì không đoán cuối kỳ", tc.du_bao(None, 5, [], {}, 0, 0, HOM)["cuoi_ky"], None)
+
+
+def _du_bao_30(hong=()):
+	"""Chạy THẬT du_bao_30; nguồn nằm trong `hong` thì ném lỗi như mất kết nối."""
+	def _ne(ten, gia_tri):
+		def f(*a, **k):
+			if ten in hong:
+				raise RuntimeError("mất kết nối " + ten)
+			return gia_tri
+		return f
+	tien = {"dong": [{"so_du": 100000000.0}], "tong": {"tong": 100000000.0, "chua_chot": 0}}
+	ncc = ([{"name": "PI-1", "han": "2026-08-20", "con_no": 30000000, "account_currency": "VND"}], 30000000.0, 0.0)
+	with um.patch.object(tc, "_kiem", lambda: None), \
+		um.patch.object(tc, "_tinh_tien", lambda: tien), \
+		um.patch.object(tc, "_phai_thu", _ne("phai_thu", 15000000.0)), \
+		um.patch.object(tc, "_ncc", _ne("ncc", ncc)), \
+		um.patch.object(tc, "_giu_boi_app", _ne("giu", {})), \
+		um.patch.object(tc, "_cho_chi", lambda: {"tien": 0.0, "tien_cho_duyet": 0.0}), \
+		um.patch.object(tc, "nowdate", lambda: "2026-08-15"):
+		return tc.du_bao_30()
+
+
+@ca("v626 Codex #524: dự báo 30 ngày không coi nguồn đọc hỏng là 0, không kết luận số cuối kỳ")
+def _du_bao_hong():
+	du = _du_bao_30()
+	la("đủ nguồn: kết luận cuối kỳ", (du["cuoi_ky"], du["thieu"]), (85000000.0, []))
+	for nguon, nhan in (("ncc", "Nợ nhà cung cấp"), ("phai_thu", "Khách nợ mình"),
+			("giu", "Hồ sơ thanh toán đang giữ hoá đơn")):
+		kq = _du_bao_30(hong=(nguon,))
+		la("hỏng %s: không có số cuối kỳ" % nguon, (kq["cuoi_ky"], kq["cuoi_ky_khong_thu"]), (None, None))
+		la("hỏng %s: báo đúng phần thiếu" % nguon, kq["thieu"], [nhan])
+		hong_ncc = nguon in ("ncc", "giu")
+		la("hỏng %s: các tuần nợ NCC %s" % (nguon, "không hiện số" if hong_ncc else "vẫn có số"),
+			(kq["theo_tuan"] is None, kq["sau_30"] is None, kq["tra_ncc"] is None), (hong_ncc, hong_ncc, hong_ncc))
+	kq = _du_bao_30(hong=("ncc", "phai_thu"))
+	la("hỏng hai nguồn báo cả hai", kq["thieu"], ["Khách nợ mình", "Nợ nhà cung cấp"])
+	la("phần đọc hỏng không hiện thành 0", (kq["phai_thu"], kq["tra_ncc"]), (None, None))
 
 
 @ca("v626 chọn tháng: tháng sau hôm nay về tháng này, gõ thiếu số 0 vẫn nhận, tháng trước của tháng 1")
