@@ -44,6 +44,7 @@ Các hàm trên vạch "phần chạm hệ" THUẦN, ca kiểm chạy thẳng kh
 import json
 import re
 from datetime import date, datetime, timedelta
+from difflib import SequenceMatcher
 
 import frappe
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate
@@ -68,6 +69,9 @@ TIEN_MAT = "Tiền mặt"
 
 # Lệch dưới mức này coi như khớp (làm tròn, phí lẻ).
 NGUONG_KHOP = 1000
+# Hai nội dung chuyển khoản phải chung một đoạn liền ít nhất chừng này ký tự
+# (sau khi bỏ dấu cách) mới là bằng chứng hai vế cùng một lệnh chuyển nội bộ.
+NGAN_NHAT_MO_TA = 20
 
 # Tài khoản chi phí nhân viên, cộng vào giá vốn thành prime cost.
 TK_NHAN_VIEN = ("622", "6411", "6421")
@@ -291,13 +295,41 @@ def tong_tien(cac_dong):
 		"tam_ung": round(tu, 2), "chua_chot": chua}
 
 
+def _gon(x):
+	return re.sub(r"[^0-9A-Z]", "", chuoi(x).upper())
+
+
+def cung_lenh(r, v):
+	"""Hai vế có dấu vết của CÙNG một lệnh chuyển không. THUẦN.
+
+	Codex #524: cùng ngày cùng số tiền chưa đủ. Site 31/10/2026 có 99 cặp
+	như vậy từ 01/08, phần lớn là khách chuyển vào MB công ty và quỹ tạm ứng
+	trả NCC đúng số đó. Bằng chứng nhận:
+	- cùng mã tham chiếu ngân hàng (chuyển trong cùng MB, hai vế chung mã FT);
+	- hai nội dung chung một đoạn liền dài ít nhất NGAN_NHAT_MO_TA ký tự sau
+	  khi bỏ dấu cách và ký tự lạ (khác ngân hàng: bên nhận thêm tiền tố MBCT,
+	  cắt bớt đuôi, thêm mã giao dịch, có khi gộp một dấu cách).
+	Đo trên 99 cặp site: chuyển thật chung từ 25 ký tự trở lên, cặp khách và
+	NCC trùng tiền chung nhiều nhất 13 (một cái tên người).
+	"""
+	a, b = _gon(r.get("tham_chieu")), _gon(v.get("tham_chieu"))
+	if a and a == b:
+		return True
+	x, y = _gon(r.get("mo_ta")), _gon(v.get("mo_ta"))
+	if len(x) < NGAN_NHAT_MO_TA or len(y) < NGAN_NHAT_MO_TA:
+		return False
+	m = SequenceMatcher(None, x, y, autojunk=False).find_longest_match(0, len(x), 0, len(y))
+	return m.size >= NGAN_NHAT_MO_TA
+
+
 def tach_noi_bo(cac_gd):
 	"""Tách chuyển tiền nội bộ giữa các tài khoản của mình. THUẦN.
 
 	Một khoản RA ở tài khoản A và một khoản VÀO ở tài khoản B khác A, cùng
-	ngày, cùng số tiền: đó là chuyển nội bộ (ví dụ MB công ty nạp quỹ tạm ứng
-	OCB), không phải tiền vào hay ra của công ty. Ghép từng cặp một lần, khoản
-	lớn ghép trước. Trả (ngoài, nội bộ).
+	ngày, cùng số tiền VÀ có bằng chứng cùng lệnh (cung_lenh): đó là chuyển
+	nội bộ (ví dụ MB công ty nạp quỹ tạm ứng OCB), không phải tiền vào hay ra
+	của công ty. Cặp không có bằng chứng giữ nguyên là tiền vào, tiền ra.
+	Ghép từng cặp một lần, khoản lớn ghép trước. Trả (ngoài, nội bộ).
 	"""
 	vao = [g for g in cac_gd if flt(g.get("vao")) > 0]
 	ra = [g for g in cac_gd if flt(g.get("ra")) > 0]
@@ -313,6 +345,8 @@ def tach_noi_bo(cac_gd):
 			if str(v.get("ngay"))[:10] != str(r.get("ngay"))[:10]:
 				continue
 			if abs(flt(v.get("vao")) - flt(r.get("ra"))) >= 1:
+				continue
+			if not cung_lenh(r, v):
 				continue
 			da.add(id(v))
 			da.add(id(r))
@@ -520,14 +554,20 @@ def tuan_den_han(han, hom_nay):
 
 
 COT_DU_BAO = ("qua_han", "tuan_1", "tuan_2", "tuan_3", "tuan_4", "tuan_5")
+# Nguồn của dự báo có thể đọc hỏng, theo thứ tự hiện trên màn.
+NGUON_DU_BAO = {"phai_thu": "Khách nợ mình", "ncc": "Nợ nhà cung cấp",
+	"giu": "Hồ sơ thanh toán đang giữ hoá đơn"}
 
 
-def du_bao(so_du, phai_thu, ncc, giu_boi_app, cho_chi, cho_duyet, hom_nay):
+def du_bao(so_du, phai_thu, ncc, giu_boi_app, cho_chi, cho_duyet, hom_nay, thieu=()):
 	"""Số dư dự kiến sau 30 ngày. THUẦN.
 
 	ncc          [{name, han, con_no}] hoá đơn mua còn nợ
 	giu_boi_app  {hoá đơn: số tiền hồ sơ thanh toán đang giữ}: phần này đã
 	             nằm trong chờ chi hoặc chờ duyệt, trừ ra để không trừ hai lần
+	thieu        khoá trong NGUON_DU_BAO đọc hỏng. Codex #524: nguồn hỏng
+	             không được coi là 0; còn thiếu thì không kết luận cuối kỳ,
+	             và ô của nguồn đó trả None để màn ghi "Chưa đọc được".
 	"""
 	cot = {k: 0.0 for k in COT_DU_BAO}
 	sau = 0.0
@@ -545,14 +585,19 @@ def du_bao(so_du, phai_thu, ncc, giu_boi_app, cho_chi, cho_duyet, hom_nay):
 		else:
 			sau += con
 	tra_ncc = sum(cot.values())
-	co_so = so_du is not None
+	thieu = [k for k in NGUON_DU_BAO if k in (thieu or ())]
+	co_so = so_du is not None and not thieu
 	cuoi = (flt(so_du) + flt(phai_thu) - tra_ncc - flt(cho_chi) - flt(cho_duyet)) if co_so else None
+	hong_ncc = "ncc" in thieu or "giu" in thieu
 	return {
-		"so_du": so_du, "phai_thu": round(flt(phai_thu), 2), "tra_ncc": round(tra_ncc, 2),
-		"theo_tuan": {k: round(v, 2) for k, v in cot.items() if k != "tuan_5"},
-		"sau_30": round(sau, 2), "cho_chi": round(flt(cho_chi), 2), "cho_duyet": round(flt(cho_duyet), 2),
+		"so_du": so_du, "phai_thu": None if "phai_thu" in thieu else round(flt(phai_thu), 2),
+		"tra_ncc": None if hong_ncc else round(tra_ncc, 2),
+		"theo_tuan": None if hong_ncc else {k: round(v, 2) for k, v in cot.items() if k != "tuan_5"},
+		"sau_30": None if hong_ncc else round(sau, 2), "cho_chi": round(flt(cho_chi), 2),
+		"cho_duyet": round(flt(cho_duyet), 2),
 		"cuoi_ky": round(cuoi, 2) if co_so else None,
 		"cuoi_ky_khong_thu": round(cuoi - flt(phai_thu), 2) if co_so else None,
+		"thieu": [NGUON_DU_BAO[k] for k in thieu],
 	}
 
 
@@ -766,11 +811,12 @@ def _gd_ngan_hang(tu, den, cac_nh):
 	ten = {n["bank_account"]: n["ten"] for n in cac_nh if n.get("dong_bo")}
 	if not ten:
 		return []
-	r = frappe.db.sql("""select name, date, bank_account, deposit, withdrawal, description
+	r = frappe.db.sql("""select name, date, bank_account, deposit, withdrawal, description, reference_number
 		from `tabBank Transaction` where docstatus=1 and date between %s and %s and bank_account in %s""",
 		(str(tu), str(den), tuple(ten)), as_dict=1)
 	return [{"ten": x.name, "ngay": str(x.date), "tk": x.bank_account, "ten_tk": ten.get(x.bank_account),
-		"vao": flt(x.deposit), "ra": flt(x.withdrawal), "mo_ta": x.description} for x in r]
+		"vao": flt(x.deposit), "ra": flt(x.withdrawal), "mo_ta": x.description,
+		"tham_chieu": x.reference_number} for x in r]
 
 
 def _tien_mat_theo_ngay(tu, den, cac_tm):
@@ -914,6 +960,12 @@ def _tra_truoc():
 	return round(sum(flt(x.get("con_chua_can")) for x in ds), 2), len([x for x in ds if flt(x.get("con_chua_can")) > 0])
 
 
+def _giu_boi_app():
+	"""{hoá đơn mua: số tiền hồ sơ thanh toán đang giữ}."""
+	from vagabond import ho_so_tt
+	return {k: flt(v.get("so_tien")) for k, v in (ho_so_tt._hd_ho_so_giu() or {}).items()}
+
+
 @frappe.whitelist()
 def du_bao_30():
 	"""Màn Dự báo 30 ngày."""
@@ -921,26 +973,27 @@ def du_bao_30():
 	hom = getdate(nowdate())
 	tien = _tinh_tien()
 	so_du = tien["tong"]["tong"] if any(d.get("so_du") is not None for d in tien["dong"]) else None
+	thieu = []
+	pt, dong, giu = 0.0, [], {}
 	try:
 		pt = _phai_thu()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tai_chinh: phai thu")
-		pt = 0.0
+		thieu.append("phai_thu")
 	try:
 		dong, _, _ = _ncc()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tai_chinh: phai tra")
-		dong = []
+		thieu.append("ncc")
 	try:
-		from vagabond import ho_so_tt
-		giu = {k: flt(v.get("so_tien")) for k, v in (ho_so_tt._hd_ho_so_giu() or {}).items()}
+		giu = _giu_boi_app()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tai_chinh: hoa don ho so giu")
-		giu = {}
+		thieu.append("giu")
 	cc = _cho_chi()
 	ncc = [{"name": r.get("name"), "han": r.get("han"), "con_no": r.get("con_no")} for r in dong
 		if r.get("account_currency") in (None, "", "VND")]
-	kq = du_bao(so_du, pt, ncc, giu, cc["tien"], cc["tien_cho_duyet"], hom)
+	kq = du_bao(so_du, pt, ncc, giu, cc["tien"], cc["tien_cho_duyet"], hom, thieu=thieu)
 	kq.update(chua_chot=tien["tong"]["chua_chot"], hom_nay=str(hom))
 	return kq
 
