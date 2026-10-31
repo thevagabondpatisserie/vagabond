@@ -56,6 +56,21 @@ def khach_cua_ma(ma):
 	return dc if dc and frappe.db.exists("Customer", dc) else ""
 
 
+def ma_rang_buoc(km, v=None):
+	"""Mã của chương trình này chỉ dùng cho chính người nhận không. THUẦN.
+
+	Quà chào mừng và mọi chương trình phát vào Ví quà thành viên (v623) là
+	quà riêng của một người: thu ngân không áp được cho hoá đơn khách khác.
+	Mã đã phát vào ví mang dấu chi_nguoi_nhan ngay lúc phát, nên tắt "Phát vào
+	Ví quà" sau đó (chỉ để ngừng phát mới) không mở mã cũ cho khách khác dùng
+	(Codex PR #520).
+	"""
+	km = km or {}
+	if cint((v or {}).get("chi_nguoi_nhan")):
+		return 1
+	return 1 if (km.get("name") == CTKM_QUA or cint(km.get("vi_phat"))) else 0
+
+
 def kiem_nguoi_nhan(tt, khach, sdt):
 	"""Mã gắn người nhận (danh_cho) dùng cho hoá đơn nào. THUẦN.
 
@@ -759,7 +774,7 @@ def ds_ctkm(quay=None, nguon=None, khach=None, sdt=None, ngay=None, tat_ca=0):
 			"tu_ngay", "den_ngay", "gio_tu", "gio_den", "kenh", "quay",
 			"doi_tuong", "hang_khach", "nhom_khach", "nhom_mon", "da_dung",
 			"lan_moi_ngay", "lan_moi_ca", "lan_moi_khach", "so_lan_toi_da",
-			"hien_web", "web_anh", "web_mo_ta",
+			"hien_web", "web_anh", "web_mo_ta", "vi_phat", "vi_dip",
 		] + THU_TRONG_TUAN,
 		order_by="uu_tien asc, ten asc",
 		limit_page_length=0,
@@ -972,7 +987,7 @@ def _tra_ma(ma, quay=None, nguon=None):
 	v = frappe.db.get_value(
 		"Vagabond Voucher",
 		ma,
-		["ctkm", "trang_thai", "han_dung", "hoa_don", "ngay_dung", "gui_cho", "danh_cho", "sdt"],
+		["ctkm", "trang_thai", "han_dung", "hoa_don", "ngay_dung", "gui_cho", "danh_cho", "sdt", "chi_nguoi_nhan"],
 		as_dict=True,
 	)
 	if v.trang_thai == "Da dung":
@@ -999,7 +1014,7 @@ def _tra_ma(ma, quay=None, nguon=None):
 		"han_dung": v.han_dung,
 		"danh_cho": v.get("danh_cho") or "",
 		"sdt": v.get("sdt") or "",
-		"rang_buoc": 1 if km["name"] == CTKM_QUA else 0,
+		"rang_buoc": ma_rang_buoc(km, v),
 		"dung_duoc": 1 if ok else 0,
 		"ly_do": ly_do,
 	}
@@ -1582,6 +1597,7 @@ TRUONG_CTKM = [
 	"doi_tuong", "hang_khach", "nhom_khach", "cach_ma", "ma_co_dinh",
 	"han_ma", "can_otp", "lan_moi_ngay", "lan_moi_ca", "lan_moi_khach",
 	"so_lan_toi_da", "ghi_chu", "hien_web", "web_anh", "web_mo_ta",
+	"vi_phat", "vi_dip", "vi_so_lan", "vi_han_ngay",
 ] + THU_TRONG_TUAN
 
 

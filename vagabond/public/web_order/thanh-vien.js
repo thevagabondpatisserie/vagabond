@@ -248,11 +248,29 @@
     });
     bao(d.co_ho_so ? '' : (chuWeb("thanh_vien_389b3feae", "Số điện thoại đã xác thực; chưa có hồ sơ thành viên tại cửa hàng.")));
   }
+  /* v623: voucher dành cho thành viên cài trong phiếu Chương trình khuyến mãi
+     (bật Phát vào Ví quà). Hồ sơ báo còn chương trình khách đủ điều kiện mà
+     chưa nhận (vi_cho) thì xin cấp luôn, khách không phải bấm; máy chủ tự
+     kiểm đối tượng, dịp phát và một kỳ một mã. Trả câu báo, rỗng khi không
+     có mã mới. Lỗi mạng không chặn trang hồ sơ. */
+  let viBao = '';
+  async function capVi(d) {
+    if (!d || !(Number(d.vi_cho) > 0)) return '';
+    try {
+      const r = await api('cap_vi_tv', {});
+      const n = ((r && r.ok && r.moi) || []).length;
+      return n ? C('tv6_vi_moi', 'Quý khách vừa nhận {so} quà mới trong Ví quà, đưa mã cho thu ngân khi thanh toán.', { so: n }) : '';
+    } catch (e) { return ''; }
+  }
   async function hoSo() {
-    const d = await api('toi');
+    let d = await api('toi');
     if (!d.ok) { moDangNhap(); if (d.ly_do !== 'chua_dang_nhap') bao(lyDo[d.ly_do] || (chuWeb("thanh_vien_a6daf06ad", "Không đọc được hồ sơ.")), true); return false; }
     if (quayQua) return buocQua(d);
-    veHoSo(d); return true;
+    viBao = await capVi(d);
+    if (viBao) d = await api('toi');
+    veHoSo(d);
+    if (viBao) { moTab('vi'); bao(viBao); }
+    return true;
   }
   async function luuHoSo(them) {
     const f = tim('form-ho-so');
@@ -262,7 +280,7 @@
       const r = await api('luu_ho_so', { dat: dat });
       if (!r.ok) throw new Error(lyDo[r.ly_do] || C('tv6_luu_loi', 'Chưa lưu được hồ sơ. Thử lại sau.'));
       const qua = await quaSauHoSo();
-      await hoSo(); moTab(qua ? 'vi' : 'ho-so'); bao(qua || C('tv6_da_luu', 'Đã lưu hồ sơ.'));
+      await hoSo(); moTab((qua || viBao) ? 'vi' : 'ho-so'); bao(qua || viBao || C('tv6_da_luu', 'Đã lưu hồ sơ.'));
     } catch (e) { bao(e.message, true); } finally { if (nut) nut.disabled = false; }
   }
   /* Khung mời hứa "khai đủ là nhận ngay voucher": lưu xong mà hồ sơ đủ, quà

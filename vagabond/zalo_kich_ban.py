@@ -485,6 +485,24 @@ def ctkm_phat_duoc(km, hom_nay, han_ngay):
 	return han, ""
 
 
+def ly_do_khong_gui_lai(km, hom_nay):
+	"""Mã Ví quà khách đang giữ còn gửi lại được không. THUẦN.
+
+	Trả '' nếu được. Quầy (khuyen_mai._tra_ma) từ chối mã của chương trình
+	đang tắt hay đã qua ngày kết thúc, nên gửi lại lúc đó là gửi quà khách
+	không dùng được (Codex PR #520 vòng 5). Không xét hạn mã mặc định của
+	chương trình vì mã đã phát có hạn riêng.
+	"""
+	km = km or {}
+	ten = km.get("ten") or km.get("name") or ""
+	if not int(km.get("bat") or 0):
+		return "Chương trình %s đang tắt, không gửi lại mã Ví quà." % ten
+	den = ngay_cua(km.get("den_ngay"))
+	if den and ngay_cua(hom_nay) > den:
+		return "Chương trình %s đã hết hạn ngày %s, không gửi lại mã Ví quà." % (ten, ngay_vn(den))
+	return ""
+
+
 def xoa_kiem_mau(ly_do="Đang hỏi Zalo mẫu mới."):
 	"""Các ô kết quả kiểm mẫu phải xoá khi đổi mã mẫu. THUẦN.
 
@@ -756,7 +774,7 @@ def _gia_tri_sau_mua(row, kh):
 
 
 COT_CTKM = ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "hd_toi_thieu", "tu_ngay", "den_ngay", "han_ma",
-	"doi_tuong", "hang_khach", "nhom_khach"]
+	"doi_tuong", "hang_khach", "nhom_khach", "vi_phat", "vi_dip", "vi_so_lan", "vi_han_ngay"]
 
 
 def _doc_ctkm(ten):
@@ -765,16 +783,19 @@ def _doc_ctkm(ten):
 	return frappe.db.get_value("Vagabond CTKM", ten, COT_CTKM, as_dict=True)
 
 
-def _phat_voucher(c, kh, khach, ma_kb):
-	"""Một mã dùng một lần cho đúng khách, hạn theo số ngày đã đặt.
-	Trả (mã, hạn, câu lỗi)."""
+def _phat_voucher(c, kh, khach, ma_kb, han=None):
+	"""Một mã dùng một lần cho đúng khách, hạn theo số ngày đã đặt (hay hạn
+	đã tính sẵn theo luật Ví quà, v623). Trả (mã, hạn, câu lỗi)."""
 	km = _doc_ctkm(c.get("ctkm"))
-	han, loi = ctkm_phat_duoc(km, _bay_gio().date(), c.get("han_ngay"))
+	loi = ""
+	if not han:
+		han, loi = ctkm_phat_duoc(km, _bay_gio().date(), c.get("han_ngay"))
 	if not han:
 		return None, None, loi
 	ma = _sinh_ma()
 	frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.name, "ten_ctkm": cat(km.ten, 140),
 		"trang_thai": "Chua dung", "han_dung": han, "khach": cat(kh["ten"], 140), "sdt": kh["sdt84"], "danh_cho": khach,
+		"chi_nguoi_nhan": 1 if int(km.get("vi_phat") or 0) else 0,
 		"gui_cho": cat("Tin Zalo: " + (kich_ban(ma_kb) or {}).get("ten", ""), 140)}).insert(ignore_permissions=True)
 	return ma, han, ""
 
@@ -833,6 +854,7 @@ def _gui_mot(c, row):
 		_xong(row.name, TT_BO, "Khách chưa có số điện thoại.")
 		return None
 	ma_v = None
+	ma_huy = None  # chỉ huỷ mã do chính lượt này phát, không huỷ mã Ví quà đã có
 	if kb["km"]:
 		# Đọc lại đồng ý NGAY TRƯỚC khi gửi: khách rút đồng ý sau lúc quét thì thôi.
 		if not kh["dong_y"]:
@@ -851,11 +873,48 @@ def _gui_mot(c, row):
 		if not ok_dt:
 			_xong(row.name, TT_BO, "Khách không thuộc đối tượng của chương trình ưu đãi: %s." % ly_dt)
 			return None
-		ma_v, han, loi = _phat_voucher(c, kh, row.khach, ma_kb)
-		if loi:
-			_xong(row.name, TT_LOI, loi)
-			return None
 		km = _doc_ctkm(c.get("ctkm")) or {}
+		# v623: chương trình phát vào Ví quà thành viên thì một kỳ một mã cho cả
+		# hai kênh. Khách đã có mã còn dùng được thì gửi lại đúng mã đó; mã của
+		# kỳ này đã dùng hay đã huỷ thì thôi, không phát mã thứ hai. Mã mới đi
+		# theo đúng luật Ví quà (dịp phát, hạn), khoá cùng dòng hồ sơ với trang
+		# thành viên trước khi xét (Codex PR #520).
+		la_vi = bool(so_nguyen(km.get("vi_phat")))
+		cu_vi, han_vi = None, None
+		if la_vi:
+			from vagabond import thanh_vien
+
+			hn = _bay_gio().date()
+			thanh_vien.khoa_ho_so(row.khach)
+			trong_ky = thanh_vien.ma_vi_trong_ky(km, row.khach, hn)
+			if trong_ky:
+				cu_vi = next((v for v in trong_ky if thanh_vien.trang_thai_voucher(v, hn) == "dung_duoc"), None)
+				if not cu_vi:
+					_xong(row.name, TT_BO, "Khách đã nhận mã của chương trình này trong kỳ.")
+					return None
+				ly_gl = ly_do_khong_gui_lai(km, hn)
+				if ly_gl:
+					_xong(row.name, TT_BO, ly_gl)
+					return None
+			else:
+				han_vi, ly_vi = thanh_vien.xet_vi(km, row.khach, kh.get("sinh_nhat"), kh["sdt84"], hn)
+				if not han_vi:
+					_xong(row.name, TT_BO, "Khách chưa đủ điều kiện nhận mã Ví quà của chương trình: %s." % ly_vi)
+					return None
+		if cu_vi:
+			ma_v, han = cu_vi.get("ma"), cu_vi.get("han_dung")
+		else:
+			ma_v, han, loi = _phat_voucher(c, kh, row.khach, ma_kb, han_vi)
+			if loi:
+				_xong(row.name, TT_LOI, loi)
+				return None
+			if la_vi:
+				# Mã Ví quà đã thuộc về khách: ghi ngay để nhả khoá hồ sơ trước khi
+				# gọi Zalo, và gửi lỗi thì KHÔNG huỷ (khách vẫn thấy trong ví;
+				# huỷ là mất quà cả kỳ vì mã đã huỷ vẫn tính là đã nhận).
+				frappe.db.commit()
+			else:
+				ma_huy = ma_v
 		ten_ud, dk = mo_ta_uu_dai(km, c.get("ten_uu_dai"), c.get("dieu_kien"))
 		gt = {"ten_khach": kh["ten"], "ten_uu_dai": ten_ud, "dieu_kien": dk, "han_dung": ngay_vn(han), "ma_voucher": ma_v}
 	else:
@@ -865,7 +924,7 @@ def _gui_mot(c, row):
 			return None
 	data, thieu = du_lieu_mau(gt, doc_tham_so(c.get("mau_tham_so")))
 	if thieu:
-		_huy_voucher(ma_v, "mẫu đòi tham số máy không có")
+		_huy_voucher(ma_huy, "mẫu đòi tham số máy không có")
 		_xong(row.name, TT_LOI, "Mẫu Zalo đòi tham số máy không có: %s. Kiểm lại mã mẫu." % ", ".join(thieu))
 		return None
 	j = _gui_mau(_cfg(), kh["sdt84"], c["ma_mau"], data, row.khoa)
@@ -881,7 +940,7 @@ def _gui_mot(c, row):
 		except Exception:
 			frappe.log_error(title="Vagabond: ghi nhật ký tin Zalo", message=frappe.get_traceback())
 		return 0
-	_huy_voucher(ma_v, cau)
+	_huy_voucher(ma_huy, cau)
 	if ma in LOI_DUNG_LUOT:
 		# Lỗi của cả lượt: để dòng chờ cho lượt sau, ghi lý do để màn hiện.
 		frappe.db.set_value(DT_TIN, row.name, {"loi": cau}, update_modified=False)

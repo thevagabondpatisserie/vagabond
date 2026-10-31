@@ -7,7 +7,7 @@
  "field_order": [
   "ma", "ctkm", "ten_ctkm", "cb0", "trang_thai", "lo", "han_dung",
   "sb1", "ngay_dung", "hoa_don", "tien_giam", "cb1", "thu_ngan", "quay", "khach", "sdt",
-  "sb2", "email_nhan", "gui_cho", "chien_dich", "danh_cho", "ghi_chu"
+  "sb2", "email_nhan", "gui_cho", "chien_dich", "danh_cho", "chi_nguoi_nhan", "ghi_chu"
  ],
  "fields": [
   {"fieldname": "ma", "fieldtype": "Data", "label": "Ma voucher", "reqd": 1, "unique": 1, "read_only": 1, "in_list_view": 1, "in_standard_filter": 1},
@@ -33,10 +33,11 @@
   {"fieldname": "gui_cho", "fieldtype": "Data", "label": "Gui cho", "read_only": 1},
   {"fieldname": "chien_dich", "fieldtype": "Link", "options": "Vagabond Chien Dich", "label": "Chiến dịch phát mã", "read_only": 1, "in_standard_filter": 1},
   {"fieldname": "danh_cho", "fieldtype": "Link", "options": "Customer", "label": "Phát cho khách", "read_only": 1},
+  {"fieldname": "chi_nguoi_nhan", "fieldtype": "Check", "label": "Chỉ dùng cho người nhận", "read_only": 1, "default": "0", "description": "Mã quà riêng (quà chào mừng, Ví quà thành viên): thu ngân không áp được cho hoá đơn khách khác. Đặt lúc phát mã."},
   {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu"}
  ],
  "links": [],
- "modified": "2026-10-28 12:00:00.000000",
+ "modified": "2026-10-31 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Voucher",

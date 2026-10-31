@@ -412,6 +412,7 @@ def _phan_moi(kh, noi_dia):
 		qua["da_nhan"] = 1
 	tao = kh.get("creation")
 	return {"ho_so": ho_so, "anh": anh, "muc": muc, "vi": vi, "qua": qua, "tien_do": _tien_do(kh["name"]),
+		"vi_cho": len(vi_du_dieu_kien(kh, noi_dia, hn)),
 		"ma_tv": kh["name"], "tu_nam": str(tao)[:4] if tao else ""}
 
 
@@ -570,7 +571,7 @@ def nhan_qua(quay=None):
 	ma = khuyen_mai._sinh_ma_moi(1)[0]
 	frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.name, "ten_ctkm": cat(km.ten, 140),
 		"trang_thai": "Chua dung", "han_dung": han, "khach": cat(tv.get("ten_goi") or kh.customer_name, 140),
-		"sdt": noi_dia, "danh_cho": khach, "quay": quay,
+		"sdt": noi_dia, "danh_cho": khach, "quay": quay, "chi_nguoi_nhan": 1,
 		"gui_cho": cat("Quà chào mừng trang thành viên" + ((" tại quầy " + quay) if quay else ""), 140)}).insert(ignore_permissions=True)
 	from frappe.utils import now_datetime
 
@@ -595,6 +596,187 @@ def _qua_da_cap(khach, noi_dia, ma_ho_so):
 		if ds:
 			return ds[0]
 	return None
+
+
+# ------------------------------------------------------------------ VOUCHER THÀNH VIÊN (v623)
+#
+# Anh Việt 30/10/2026: voucher dành cho thành viên cài ngay trong phiếu
+# Chương trình khuyến mãi (ô Đối tượng có sẵn: hạng, nhóm khách, khách chỉ
+# định), bật "Phát vào Ví quà thành viên", chọn Dịp phát (Mọi lúc / Tháng
+# sinh nhật) và Số lần nhận (Một lần / Mỗi năm một lần). Khách đủ điều kiện
+# mở trang thành viên là mã TỰ HIỆN trong Ví quà, thu ngân áp như mã quà
+# chào mừng, không phải chờ Zalo. Mã chỉ tạo khi khách mở ví, nên không
+# phát thừa cho người không ghé.
+
+VI_DIP = ("Moi luc", "Thang sinh nhat")
+VI_SO_LAN = ("Mot lan", "Moi nam mot lan")
+VI_HAN_MAC_DINH = 30
+COT_CTKM_VI = ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "hd_toi_thieu", "tu_ngay", "den_ngay",
+	"han_ma", "doi_tuong", "hang_khach", "nhom_khach", "vi_phat", "vi_dip", "vi_so_lan", "vi_han_ngay"]
+
+
+def ky_vi(km, sinh_nhat, hom_nay):
+	"""Dịp phát của một chương trình Ví quà có tới chưa. THUẦN.
+
+	Trả (ok, lý do, ngày cuối của dịp). Tháng sinh nhật: chỉ trong đúng tháng
+	sinh nhật của khách, mã dùng tới hết tháng đó. Mọi lúc: không có ngày cuối
+	theo dịp (hạn tính theo số ngày đã đặt).
+	"""
+	from calendar import monthrange
+	from vagabond.zalo_kich_ban import ngay_cua
+
+	dip = (km or {}).get("vi_dip") or "Moi luc"
+	if dip == "Thang sinh nhat":
+		sn = ngay_cua(sinh_nhat)
+		if not sn:
+			return False, "chua_co_sinh_nhat", None
+		if sn.month != hom_nay.month:
+			return False, "chua_toi_thang_sinh_nhat", None
+		return True, "", date(hom_nay.year, hom_nay.month, monthrange(hom_nay.year, hom_nay.month)[1])
+	return True, "", None
+
+
+def moc_so_lan(km, hom_nay):
+	"""Từ ngày nào thì tính là "đã nhận trong kỳ". THUẦN. None là tính mọi lúc
+	(Một lần); Mỗi năm một lần tính từ 01/01 năm nay."""
+	if ((km or {}).get("vi_so_lan") or "Mot lan") == "Moi nam mot lan":
+		return date(hom_nay.year, 1, 1)
+	return None
+
+
+def da_nhan_trong_ky(ds_voucher, moc):
+	"""Khách đã có mã của chương trình trong kỳ chưa. THUẦN. Tính mọi trạng
+	thái (đã dùng, đã huỷ, gửi qua Zalo): một kỳ một mã."""
+	from vagabond.zalo_kich_ban import ngay_cua
+
+	for v in ds_voucher or []:
+		if moc is None:
+			return True
+		d = ngay_cua((v or {}).get("creation"))
+		if d is None or d >= moc:
+			return True
+	return False
+
+
+def han_ma_vi(km, hom_nay, cuoi_dip):
+	"""Ngày hết hạn của mã Ví quà. THUẦN. None là chương trình không phát
+	được hôm nay (chưa tới ngày, đã hết, đang tắt). Không vượt ngày cuối dịp."""
+	from vagabond.zalo_kich_ban import ctkm_phat_duoc, so_nguyen
+
+	so_ngay = (cuoi_dip - hom_nay).days if cuoi_dip else (so_nguyen(km.get("vi_han_ngay")) or VI_HAN_MAC_DINH)
+	han, _ = ctkm_phat_duoc(km, hom_nay, max(1, so_ngay))
+	if han and cuoi_dip and han > cuoi_dip:
+		han = cuoi_dip
+	return han
+
+
+def _ds_ctkm_vi():
+	try:
+		return frappe.get_all("Vagabond CTKM", filters={"vi_phat": 1, "bat": 1, "cach_ma": "Ma dung mot lan"},
+			fields=COT_CTKM_VI, order_by="uu_tien asc, ten asc", limit_page_length=50)
+	except Exception:
+		# Site chưa migrate (chưa có ô vi_phat): trang thành viên vẫn phải lên.
+		return []
+
+
+def ma_vi_trong_ky(km, khach, hom_nay):
+	"""Các mã của chương trình đã cấp cho khách trong kỳ (Ví quà hay Zalo)."""
+	moc = moc_so_lan(km, hom_nay)
+	ds = frappe.get_all("Vagabond Voucher", filters={"ctkm": km.get("name"), "danh_cho": khach},
+		fields=["ma", "trang_thai", "han_dung", "creation"], order_by="creation desc", limit_page_length=20)
+	return [v for v in ds if da_nhan_trong_ky([v], moc)]
+
+
+LY_VI = {
+	"chua_co_sinh_nhat": "khách chưa khai ngày sinh",
+	"chua_toi_thang_sinh_nhat": "chưa tới tháng sinh nhật của khách",
+}
+
+
+def xet_vi(km, khach, sinh_nhat, sdt, hom_nay, la_nv=None):
+	"""Khách có đủ điều kiện nhận mã Ví quà của chương trình hôm nay không,
+	CHƯA xét đã nhận trong kỳ. Trả (hạn mã, lý do). Một nguồn cho trang thành
+	viên (cap_vi_tv) và tin Zalo cùng chương trình (Codex PR #520): dịp phát,
+	số nhân viên, đối tượng như quầy, hạn kẹp theo dịp và chương trình."""
+	from vagabond import khuyen_mai
+
+	ok, ly, cuoi = ky_vi(km, sinh_nhat, hom_nay)
+	if not ok:
+		return None, LY_VI.get(ly, ly)
+	if la_nv is None:
+		la_nv = khuyen_mai._la_sdt_nhan_vien(sdt)
+	# Số nhân viên không nhận quà khách (giống quà chào mừng), trừ chương
+	# trình cài cho đúng đối tượng Nhân viên.
+	if la_nv and (km.get("doi_tuong") or "Moi khach") != "Nhan vien":
+		return None, "số điện thoại của nhân viên"
+	ok_dt, ly_dt = khuyen_mai._hop_doi_tuong(km, khach, sdt)
+	if not ok_dt:
+		return None, ly_dt
+	han = han_ma_vi(km, hom_nay, cuoi)
+	if not han:
+		return None, "chương trình chưa tới ngày, đã hết hoặc đang tắt"
+	return han, ""
+
+
+def khoa_ho_so(khach):
+	"""Khoá dòng hồ sơ CRM của khách tới hết giao dịch. Trang thành viên và
+	tin Zalo cùng khoá đúng dòng này trước khi xét "đã nhận trong kỳ" nên hai
+	kênh chạy cùng lúc không ra hai mã (Codex PR #520)."""
+	from vagabond import crm
+
+	crm._ho_so(khach, tao=True)
+	frappe.db.sql("select name from `tabVagabond Ho So CRM` where name = %s for update", (khach,))
+
+
+def vi_du_dieu_kien(kh, noi_dia, hom_nay):
+	"""Các chương trình Ví quà khách đủ điều kiện mà chưa nhận trong kỳ.
+	Trả [(chương trình, hạn mã)]. Cùng phép kiểm đối tượng với quầy."""
+	from vagabond import khuyen_mai
+
+	ds = [km for km in _ds_ctkm_vi() if km.get("name") != khuyen_mai.CTKM_QUA]
+	if not ds or not kh:
+		return []
+	la_nv = khuyen_mai._la_sdt_nhan_vien(noi_dia)
+	ra = []
+	for km in ds:
+		han, _ = xet_vi(km, kh["name"], kh.get("vgb_sinh_nhat"), noi_dia, hom_nay, la_nv)
+		if not han:
+			continue
+		if ma_vi_trong_ky(km, kh["name"], hom_nay):
+			continue
+		ra.append((km, han))
+	return ra
+
+
+@frappe.whitelist(allow_guest=True, methods=['POST'])
+@rate_limit(limit=20, seconds=600)
+def cap_vi_tv():
+	"""Cấp mã cho mọi chương trình Ví quà khách đủ điều kiện. Trang gọi ngay
+	sau khi đọc hồ sơ, khách không phải bấm. Khoá dòng hồ sơ CRM trước khi
+	kiểm nên hai thẻ mở cùng lúc không ra hai mã."""
+	_khong_cache()
+	so = _so_phien()
+	if not so:
+		return {'ok':0, 'ly_do':'chua_dang_nhap'}
+	from vagabond import khuyen_mai
+	from vagabond.zalo_kich_ban import cat, mo_ta_uu_dai, ngay_vn
+
+	noi_dia = _dn()._sdt_noi_dia(so)
+	kh, ly = _khach_cua_so(noi_dia)
+	if ly or not kh:
+		return {'ok':1, 'moi':[]}
+	khach = kh["name"]
+	khoa_ho_so(khach)
+	tv = _ho_so_tv(khach)
+	moi = []
+	for km, han in vi_du_dieu_kien(kh, noi_dia, _hom_nay()):
+		ma = khuyen_mai._sinh_ma_moi(1)[0]
+		frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.name, "ten_ctkm": cat(km.ten, 140),
+			"trang_thai": "Chua dung", "han_dung": han, "khach": cat(tv.get("ten_goi") or kh.customer_name, 140),
+			"sdt": noi_dia, "danh_cho": khach, "gui_cho": "Ví quà thành viên", "chi_nguoi_nhan": 1}).insert(ignore_permissions=True)
+		moi.append({"ma": ma, "ten": km.ten or "", "uu_dai": mo_ta_uu_dai(km)[0], "han": ngay_vn(han)})
+	frappe.db.commit()
+	return {'ok':1, 'moi':moi}
 
 
 # Chương trình mặc định khi site chưa có (anh Việt 30/10/2026: giảm 20.000đ).
