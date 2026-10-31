@@ -2851,3 +2851,9 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 - Thêm ô vào phiếu Chương trình khuyến mãi thì kiểm cả ba nơi đọc cột theo danh sách cố định: `khuyen_mai.TRUONG_CTKM` (lưu từ app), `zalo_kich_ban.COT_CTKM` (tin Zalo), `thanh_vien.COT_CTKM_VI` (trang thành viên). Thiếu ở một nơi là ô đó im lặng không áp ở kênh đó.
 - Codex PR #520 vòng 4: luật "chỉ người nhận dùng" suy từ công tắc hiện tại của chương trình (Phát vào Ví quà) thì tắt công tắc để ngừng phát mới là mở luôn mã cũ cho khách khác. Thuộc tính của mã đã phát phải ghi lên chính mã lúc phát (ô chi_nguoi_nhan), không đọc lại từ cấu hình đang sống.
 - Codex PR #520 vòng 5: nhánh "gửi lại mã khách đang giữ" bỏ qua mọi phép xét của nhánh phát mới, nên chương trình đã tắt hay hết hạn vẫn được gửi mã quầy sẽ từ chối. Đường dùng lại phải xét lại đúng điều kiện quầy xét khi tra mã (đang bật, chưa qua ngày kết thúc).
+
+## 31/10/2026 (v626): phân hệ Tài chính, ba bẫy gặp khi dựng
+
+- Số dư lấy từ sổ cái là sai: 11211 MB đang âm 5,8 tỷ, 1111 âm 249 triệu vì chưa nhập số dư đầu và tiền bán tại quầy không đi qua 1111. Số dư phải là mốc chốt người đếm hoặc sao kê đưa vào, cộng phát sinh sau ngày chốt.
+- SePay `userapi/bankaccounts/list` có ô `accumulated` nhưng MB, OCB, ACB luôn trả 0; chỉ Shinhan trả số dư thật. Đối chiếu chỉ khi SePay báo số dương; báo 0 thì ghi "không báo", không được kết luận khớp hay lệch.
+- Chạy đột biến bằng lệnh có trần thời gian: lệnh bị cắt giữa chừng thì tệp đang bị làm hỏng KHÔNG được trả lại (khối `finally` không chạy khi tiến trình bị giết). Lần chạy sau thấy "mẫu không khớp" là dấu hiệu tệp còn đột biến cũ; kiểm `git diff` ngay. Chạy đột biến chỉ với bộ ca của tính năng cho nhanh, rồi chạy lại cả bộ.
