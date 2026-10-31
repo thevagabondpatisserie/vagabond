@@ -385,7 +385,10 @@ export const ChiTietTuyen = {
   }
 };
 function DanhSachTuyen(ds, homNay) {
-  if (!ND.daTai && !ND.xemThu) return h('p', {class: 'cm-rong td-dang-tai', role: 'status'}, t('td_dang_tai', 'Đang tải các vị trí đang tuyển...'));
+  if (!ND.daTai && !ND.xemThu) {
+    if (ND.loiTai) return h('p', {class: 'cm-rong td-loi-tai', role: 'status'}, t('td_loi_tai', 'Chưa tải được danh sách vị trí. Bạn tải lại trang hoặc nhắn fanpage The Vagabond nhé.'));
+    return h('p', {class: 'cm-rong td-dang-tai', role: 'status'}, t('td_dang_tai', 'Đang tải các vị trí đang tuyển...'));
+  }
   if (TD.mo) {
     const k = ds.find(x => x.ma === TD.mo);
     if (k) return h(ChiTietTuyen, {k, homNay, key: k.ma});
