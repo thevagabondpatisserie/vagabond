@@ -65115,7 +65115,7 @@ async function scrTcDong() {
         '<div style="background:#0d9488;border-radius:2px 2px 0 0;height:' + Math.round(x.vao / lon * 42) + 'px"></div>' +
         '<div style="background:#f97066;border-radius:0 0 2px 2px;height:' + Math.round(x.ra / lon * 42) + 'px"></div></div>';
     }).join('') + '</div>' +
-    '<div style="font-size:12px;color:#667085;margin-top:6px">Xanh: tiền vào. Đỏ: tiền ra. Gồm ngân hàng và tiền mặt vào két, chi tiền mặt từ quỹ.</div>' +
+    '<div style="font-size:12px;color:#667085;margin-top:6px">Xanh: tiền vào. Đỏ: tiền ra. Gồm ngân hàng, tiền mặt vào két, thu và chi tiền mặt của quỹ.</div>' +
     (kq.noi_bo && kq.noi_bo.so ? '<div style="font-size:12.5px;color:#475467;margin-top:4px">Đã bỏ ' + kq.noi_bo.so + ' lần chuyển giữa các tài khoản của mình (' + tcGon(kq.noi_bo.tien) + '), không tính là vào hay ra.</div>' : '') +
     '</div>';
   html += '<div class="card" style="padding:0"><div style="padding:11px 13px 4px;font-weight:700">Từng ngày</div>' +
