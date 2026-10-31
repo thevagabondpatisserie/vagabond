@@ -465,8 +465,14 @@ def chuan_tra_loi(form, ma_vt, tra_loi, hom_nay, chuan_sdt, co_cv=False):
 				raise LoiNhap("Kiểm tra lại email, ví dụ ten@gmail.com.")
 		elif loai == "ngay":
 			d = _ngay(chu)
-			if not d or d > hom_nay or d.year < 1940:
+			if not d:
 				raise LoiNhap("Câu \"%s\": chọn đủ ngày, tháng, năm." % hoi)
+			# Giới hạn ngày sinh chỉ áp cho câu sinh nhật; câu ngày tự thêm (ngày có
+			# thể bắt đầu làm...) nhận cả ngày tương lai (Codex #523).
+			if ma == "sinh_nhat" and (d > hom_nay or d.year < 1940):
+				raise LoiNhap("Câu \"%s\": kiểm tra lại năm sinh." % hoi)
+			if not 1900 <= d.year <= hom_nay.year + 5:
+				raise LoiNhap("Câu \"%s\": kiểm tra lại năm." % hoi)
 			chu = d.isoformat()
 		elif loai == "so_tien":
 			n = doc_tien(chu)
