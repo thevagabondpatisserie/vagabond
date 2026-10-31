@@ -164,7 +164,7 @@ def _tra_loi():
 	la("Khác tự ghi", [d["tra_loi"] for d in tf.chuan_tra_loi(f, "VTT-0002", _tl(gioi_tinh="Genderfluid"), HN, td.chuan_sdt)[1]
 		if d["ma"] == "gioi_tinh"], ["Genderfluid"])
 	dung("lựa chọn lạ ở câu không cho Khác", "chọn một lựa chọn" in _loi(lambda: tf.chuan_tra_loi(f, "VTT-0002", _tl(hoc_van="Tiến sĩ vũ trụ"), HN, td.chuan_sdt)))
-	dung("sinh nhật tương lai", "ngày, tháng, năm" in _loi(lambda: tf.chuan_tra_loi(f, "VTT-0002", _tl(sinh_nhat="2030-01-01"), HN, td.chuan_sdt)))
+	dung("sinh nhật tương lai", "năm sinh" in _loi(lambda: tf.chuan_tra_loi(f, "VTT-0002", _tl(sinh_nhat="2030-01-01"), HN, td.chuan_sdt)))
 	dung("sinh nhật dở dang", "ngày, tháng, năm" in _loi(lambda: tf.chuan_tra_loi(f, "VTT-0002", _tl(sinh_nhat="thieu"), HN, td.chuan_sdt)))
 	dung("email sai", "email" in _loi(lambda: tf.chuan_tra_loi(f, "VTT-0002", _tl(email="binh@"), HN, td.chuan_sdt)))
 	dung("lương chữ", "số tiền" in _loi(lambda: tf.chuan_tra_loi(f, "VTT-0002", _tl(luong="thoả thuận"), HN, td.chuan_sdt)))
@@ -605,3 +605,40 @@ def _codex523_tran_luot():
 		la("B bị từ chối khi A đã giữ chỗ cuối", kq_b, False)
 		la("lượt tháng trước và dòng khác không tính", b.count("Comment", {"subject": ai.DAU_LUOT, "comment_type": "Info",
 			"creation": [">=", "2026-10-01"]}), ai.TRAN_THANG)
+
+
+@ca("v625 Codex #523 vòng 2: câu Ngày tự thêm (ngày bắt đầu làm) nhận ngày tương lai; giới hạn năm sinh chỉ áp câu sinh nhật (trước: 15/11/2026 bị chặn)")
+def _codex523_ngay_tu_them():
+	f = tf.mac_dinh()
+	f["cau_hoi"].append({"ma": "c_batdau1", "hoi": "Bạn bắt đầu đi làm từ ngày nào?", "loai": "ngay", "bat_buoc": True, "buoc": 3, "ai": True})
+	f = tf.chuan_form(f)
+	hn = dt.date(2026, 10, 31)
+
+	def gui(**k):
+		return tf.chuan_tra_loi(f, "VTT-0002", _tl(c_batdau1="2026-11-15", **k), hn, td.chuan_sdt, co_cv=True)
+	cot, dong = gui()
+	la("ngày bắt đầu tương lai nhận", [d["tra_loi"] for d in dong if d["ma"] == "c_batdau1"], ["15/11/2026"])
+	for sn in ("2030-01-01", "1930-01-01"):
+		dung("sinh nhật %s vẫn chặn" % sn, "năm sinh" in _loi(lambda: gui(sinh_nhat=sn)))
+	dung("năm vô lý ở câu tự thêm vẫn chặn", "kiểm tra lại năm" in _loi(lambda: tf.chuan_tra_loi(
+		f, "VTT-0002", _tl(c_batdau1="2099-01-01"), hn, td.chuan_sdt, co_cv=True)))
+	dung("ngày không có thật vẫn chặn", "chọn đủ ngày" in _loi(lambda: tf.chuan_tra_loi(
+		f, "VTT-0002", _tl(c_batdau1="2026-02-30"), hn, td.chuan_sdt, co_cv=True)))
+
+
+@ca("v625 bench web 245 chạy thuần: bản công khai mặc định bỏ các phần dẫn xuất phải BẰNG nội dung mặc định (bench ERPNext đỏ trên bbcc6e67ed vì thiếu tuyen_dung_chung)")
+def _bench_245_thuan():
+	from vagabond.khung.bench_thu import web_editor_245 as b245
+	ps = [um.patch.object(nw, "_ban_cong_khai", lambda *a, **k: copy.deepcopy(nw.MAC_DINH)),
+		um.patch.object(nw, "_the_uu_dai_erp", lambda: []), um.patch.object(nw, "_the_tuyen_dung_erp", lambda: []),
+		um.patch.object(nw, "_dem_ve", lambda c: {}), um.patch("vagabond.don_web.lien_he", lambda: {})]
+	for p in ps:
+		p.start()
+	try:
+		ra = nw.cong_khai()
+	finally:
+		for p in reversed(ps):
+			p.stop()
+	la("bỏ phần dẫn xuất còn đúng mặc định", b245._bo_nhan(ra) == nw.MAC_DINH, True)
+	la("chỉ có khối và phần dẫn xuất", set(ra), {"khoi", *b245.DAN_XUAT})
+	dung("không lộ câu hỏi form ra trang đặt bánh", "tuyen_dung_form" not in ra)
