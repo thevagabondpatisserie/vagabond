@@ -716,12 +716,21 @@ def _nop_quy(diem=None, trang_thai=("Đã nộp quỹ",), sau_ngay=None, theo="g
 	return flt(r[0][0]), cint(r[0][1])
 
 
+# Phát sinh sổ cái 111x KHÔNG thuộc quỹ công ty vì đã vào két qua phép Chốt
+# ca: hoá đơn bán, và phiếu thu tại quầy (Payment Entry mang ô vgb_quay: nạp
+# trả trước, ứng trước đặt bánh). Codex #524: thiếu vế sau thì 5 triệu thu
+# tại quầy thành 10 triệu trên Tổng tiền. Mọi câu đọc sổ cái quỹ dùng chung.
+DK_QUY_CONG_TY = """g.is_cancelled=0 and a.account_number like '111%%'
+		and g.voucher_type not in ('Sales Invoice','POS Invoice')
+		and not (g.voucher_type='Payment Entry' and exists (select 1 from `tabPayment Entry` pe
+			where pe.name=g.voucher_no and coalesce(pe.vgb_quay,'')!=''))"""
+
+
 def _so_cai_quy(sau_ngay):
-	"""Phát sinh sổ cái tiền mặt 111x ngoài hoá đơn bán (chi, thu bằng bút toán)."""
+	"""Phát sinh sổ cái tiền mặt 111x của quỹ công ty (chi, thu bằng bút toán)."""
 	r = frappe.db.sql("""select coalesce(sum(g.debit),0), coalesce(sum(g.credit),0) from `tabGL Entry` g
 		join `tabAccount` a on a.name=g.account
-		where g.is_cancelled=0 and a.account_number like '111%%' and g.posting_date>%s
-		and g.voucher_type not in ('Sales Invoice','POS Invoice')""", (str(sau_ngay),))
+		where """ + DK_QUY_CONG_TY + """ and g.posting_date>%s""", (str(sau_ngay),))
 	return flt(r[0][0]), flt(r[0][1])
 
 
@@ -854,8 +863,8 @@ def _tien_mat_theo_ngay(tu, den, cac_tm):
 def _chi_quy_theo_ngay(tu, den):
 	r = frappe.db.sql("""select g.posting_date, sum(g.credit) from `tabGL Entry` g
 		join `tabAccount` a on a.name=g.account
-		where g.is_cancelled=0 and a.account_number like '111%%' and g.posting_date between %s and %s
-		and g.voucher_type not in ('Sales Invoice','POS Invoice') group by g.posting_date""", (str(tu), str(den)))
+		where """ + DK_QUY_CONG_TY + """ and g.posting_date between %s and %s
+		group by g.posting_date""", (str(tu), str(den)))
 	return {str(x[0]): flt(x[1]) for x in r}
 
 
@@ -932,8 +941,16 @@ def ti_le_thang(thang=""):
 
 
 def _phai_thu():
+	"""Khách còn nợ mình, kể cả hoá đơn đã nằm trong phiếu đòi nợ chờ thu.
+
+	Codex #524: ô "tong" của màn Công nợ bỏ tờ đã gom (để không gom hai lần),
+	nên lập phiếu đòi nợ làm khoản nợ biến khỏi Tài chính dù chưa thu đồng nào.
+	"""
 	from vagabond import cong_no
-	return flt((cong_no.ds_khach_no() or {}).get("tong"))
+	kq = cong_no.ds_khach_no() or {}
+	if "tong_ca_phieu" not in kq:
+		frappe.throw("Màn Công nợ chưa trả tổng nợ kể cả phiếu đòi nợ.")
+	return flt(kq["tong_ca_phieu"])
 
 
 def _ncc():

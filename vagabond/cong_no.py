@@ -340,6 +340,7 @@ def ds_khach_no(tim=""):
 	# Codex #382 vong 8: phan da ve (da xac minh) tru khoi so con phai doi,
 	# ke ca khi moi phu mot phan; phu du thi hoa don tach han. Phep thuan.
 	rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)
+	tong_ca_phieu = tt.tong_con_doi(rows)
 	cho_ghi_so = {"so_hd": the_ve["so_hd"], "tien": the_ve["tien"], "so_khach": 0}
 	for r in rows:
 		# Don da ghi so roi moi phat hien gan nham khach le thi ke toan gan
@@ -400,6 +401,8 @@ def ds_khach_no(tim=""):
 	ra, tong_loc = tt.loc_khach_no(ra, tim)
 	return {
 		"khach": ra, "tong": tong, "so_khach_tat_ca": so_khach_tat_ca,
+		# v626: tổng nợ kể cả tờ đã gom vào phiếu đòi nợ chờ thu (Tài chính).
+		"tong_ca_phieu": tong_ca_phieu,
 		"tong_loc": tong_loc, "dang_loc": 1 if (tim or "").strip() else 0,
 		# Tien da ve cho ghi so: KHONG cong vao "con phai doi", nhung so cai
 		# van ghi la no cho toi khi phieu thu vao so. Man hien ca hai.
