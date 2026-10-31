@@ -2740,6 +2740,11 @@
     "mac_dinh": "Đang tải các vị trí đang tuyển...",
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
   },
+  "td_loi_tai": {
+    "ten": "Tuyển dụng: lúc không tải được danh sách",
+    "mac_dinh": "Chưa tải được danh sách vị trí. Bạn tải lại trang hoặc nhắn fanpage The Vagabond nhé.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
   "td_het": {
     "ten": "Tuyển dụng: mở link vị trí đã ngừng nhận",
     "mac_dinh": "Vị trí này đã ngừng nhận hồ sơ. Bạn xem các vị trí khác đang tuyển nhé.",
