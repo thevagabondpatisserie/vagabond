@@ -20,6 +20,8 @@ export const DT_GOC = '0931 224 334';
 
 export const ND = reactive({
   daTai: false,
+  /* v625: tải nội dung lỗi thì mục Tuyển dụng báo lỗi thay vì "Đang tải" mãi (Codex/CI 31/10). */
+  loiTai: false,
   nhan: {},
   san_pham: {},
   lien_he: null,
@@ -82,6 +84,7 @@ export function apNoiDung(nd) {
   ND.ve = nd.ve || {};
   ND.tuyen_dung_chung = nd.tuyen_dung_chung && typeof nd.tuyen_dung_chung === 'object' ? nd.tuyen_dung_chung : null;
   ND.daTai = true;
+  ND.loiTai = false;
 }
 
 /* Đang nằm trong khung xem thử của trình biên tập (?bien_tap=1 trong iframe). */
@@ -108,6 +111,7 @@ export function napNoiDung(win = window) {
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(d => { if (!d.message) throw new Error('Thiếu nội dung'); apNoiDung(d.message); })
     .catch(e => { /* Lỗi CMS không được chặn đặt bánh: giữ chữ mặc định. */
+      ND.loiTai = true;
       if (win.console) win.console.error('Không tải được nội dung website:', e); });
 }
 
