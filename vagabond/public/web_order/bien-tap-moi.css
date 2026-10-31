@@ -141,3 +141,12 @@ body.bt-che-do-moi header a{color:#fff}
 @media(max-width:700px){#bt-moi{padding:18px 16px 120px}#bt-the{grid-template-columns:repeat(2,minmax(0,1fr))}#bt-moi .bt-o-the{padding:14px}#bt-moi .bt-mo-the{display:none}.bt-dong{flex-direction:column;align-items:stretch;padding:16px}.bt-dong-phai{align-items:flex-start}.bt-hai-cot{grid-template-columns:1fr}}
 @media(max-width:700px){body.bt-che-do-moi header{flex-wrap:nowrap;gap:10px;padding:14px 16px}body.bt-che-do-moi header .phien{display:flex;gap:12px;align-items:center;flex-wrap:nowrap}body.bt-che-do-moi header .phien .nguoi{display:none}body.bt-che-do-moi header .phien>a:first-child{font-size:13px;white-space:nowrap}body.bt-che-do-moi header .dang-xuat{min-height:40px;padding:0 12px;font-size:13px}}
 @media(max-width:360px){body.bt-che-do-moi header .thuong-hieu{font-size:18px}body.bt-che-do-moi header .phien>a:first-child{display:none}}
+/* v625: thẻ Câu hỏi ứng tuyển. */
+.bt-cau-hoi .bt-muc{margin:26px 0 10px}
+.bt-dong-cau{padding:14px 18px;gap:14px;flex-wrap:wrap}
+.bt-dong-cau.dang-sua{border-color:var(--bt-xanh)}
+.bt-dong-cau .bt-ten{font-size:16px}
+.bt-dong-cau .bt-nhan-hang{display:flex;gap:6px;flex-wrap:wrap}
+.bt-form-cau{padding:16px 18px 20px;border:1px solid var(--bt-xanh);border-top:0;background:var(--bt-the);margin:-1px 0 8px}
+.bt-dem-cau{margin:14px 0 0;color:var(--bt-mo);font-size:13px;letter-spacing:.12em;text-transform:uppercase}
+@media(max-width:600px){.bt-dong-cau .bt-hang-nut{width:100%}}

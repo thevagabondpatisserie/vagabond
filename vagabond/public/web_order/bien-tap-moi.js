@@ -23,6 +23,7 @@
     {k: 'uu_dai', ten: 'Ưu đãi', mo: 'Lấy từ ERP, chỉ xem ở đây', them: '+ Thêm ưu đãi', luu: 'Lưu ưu đãi', ten_muc: 'ưu đãi', dau: 'Danh sách ưu đãi'},
     {k: 'tiec', ten: 'Tiệc', mo: 'Tạo tiệc, đặt giá vé, số vé, hạn đăng ký', them: '+ Thêm tiệc', luu: 'Lưu tiệc', ten_muc: 'tiệc', dau: 'Danh sách tiệc'},
     {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Lấy từ app ERP, chỉ xem ở đây', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
+    {k: 'cau_hoi', ten: 'Câu hỏi ứng tuyển', mo: 'Câu hỏi trong form ứng tuyển, phúc lợi chung'},
     {k: 'cua_hang', ten: 'Cửa hàng', mo: 'Địa chỉ, giờ mở cửa, hotline, chỉ đường', them: '+ Thêm cửa hàng', luu: 'Lưu cửa hàng', ten_muc: 'cửa hàng', dau: 'Danh sách cửa hàng'},
     {k: 'chu', ten: 'Trang và chữ', mo: 'Tiêu đề từng trang, khẩu hiệu, chân trang, câu nhắc'},
     {k: 'lien_he', ten: 'Liên hệ', mo: 'Điện thoại, email, mạng xã hội, công ty'},
@@ -36,6 +37,9 @@
   let ban = false;
   let chuSua = {};         // thẻ Trang và chữ: {khoá: chữ mới} chưa lưu
   let lhDoi = false;       // thẻ Liên hệ đang có chữ chưa lưu
+  let fSua = null;         // v625 thẻ Câu hỏi ứng tuyển: bản đang sửa {cau_hoi, phuc_loi, gioi_thieu}
+  let fGoc = '';           // bản gốc (JSON) để biết có thay đổi chưa lưu
+  let fMo = -1;            // câu đang mở để sửa
   let timChu = '', nhomChu = '', timMuc = '';
 
   /* ------------------------------------------------------------ phép nhỏ */
@@ -134,6 +138,7 @@
   }
   function dangDoi() {
     if (sua) return JSON.stringify(sua.muc) !== sua.goc;
+    if (fSua && JSON.stringify(fSua) !== fGoc) return true;
     return lhDoi || Object.keys(chuSua).length > 0;
   }
   async function roiDi() {
@@ -148,6 +153,7 @@
     if (k === 'tuyen_dung') return String((B.tuyen_dung_erp || []).length);
     if (LOAI_MUC.includes(k)) return String(B.khoi.filter(x => x.loai === k).length);
     if (k === 'cua_hang') return String((B.thong_tin.cua_hang || []).length);
+    if (k === 'cau_hoi') return String(((B.tuyen_dung_form || {}).cau_hoi || []).length);
     return '';
   }
   function veThe() {
@@ -158,7 +164,7 @@
       b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(t.k === the)); b.dataset.the = t.k;
       const dau = tao('span', 'bt-ten-the', t.ten); const so = demThe(t.k); if (so) dau.append(tao('span', 'bt-dem', so));
       b.append(dau, tao('span', 'bt-mo-the', t.mo));
-      b.onclick = async () => { if (t.k === the && !sua) return; if (!await roiDi()) return; the = t.k; sua = null; chuSua = {}; lhDoi = false; timMuc = ''; ve(); };
+      b.onclick = async () => { if (t.k === the && !sua) return; if (!await roiDi()) return; the = t.k; sua = null; chuSua = {}; lhDoi = false; timMuc = ''; fSua = null; fMo = -1; ve(); };
       g.append(b);
     });
     const nc = tao('button', 'bt-o-the bt-nang-cao'); nc.type = 'button'; nc.dataset.the = 'nang_cao';
@@ -176,6 +182,7 @@
     else if (LOAI_MUC.includes(the)) noi = dsMuc(the);
     else if (the === 'cua_hang') noi = dsCuaHang();
     else if (the === 'lien_he') noi = formLienHe();
+    else if (the === 'cau_hoi') noi = theCauHoi();
     else noi = theChu();
     g.append(noi);
     /* Việc cần phần tử đã nằm trong trang (khung xem trước) chạy sau khi gắn. */
@@ -706,6 +713,171 @@
     return g;
   }
 
+  /* ------------------------------------------------------------ câu hỏi ứng tuyển */
+  /* v625 (anh Việt 31/10/2026): Minh Vũ sửa câu hỏi của form /ung-tuyen ở đây,
+     không cần quyền màn Tuyển dụng (không thấy hồ sơ ứng viên). Mặc định là 14
+     câu của form Lark. Họ tên, số điện thoại, vị trí là câu gốc (ổ khoá): sửa
+     chữ được, không xoá, luôn bắt buộc, vì app cần để gọi ứng viên. Loại câu,
+     bước, câu khoá đọc từ máy chủ (tuyen_dung_mau), không chép cứng ở đây.
+     Máy chủ (tuyen_dung_form.chuan_form) là nơi quyết; ở đây chỉ chặn sớm. */
+  function mauForm() { return B.tuyen_dung_mau || {loai: {}, loai_tu_chon: [], buoc: {}, khoa_xoa: [], khong_cho_ai: [], loai_theo_ma: {}}; }
+  function batDauSuaForm() {
+    if (fSua) return;
+    const g = B.tuyen_dung_form || mauForm().mac_dinh || {cau_hoi: [], phuc_loi: [], gioi_thieu: ''};
+    fSua = JSON.parse(JSON.stringify({cau_hoi: g.cau_hoi || [], phuc_loi: g.phuc_loi || [], gioi_thieu: g.gioi_thieu || ''}));
+    fGoc = JSON.stringify(fSua);
+  }
+  function maCauMoi() {
+    let ma = '';
+    do { ma = 'c_' + Math.random().toString(36).slice(2, 8).replace(/[^a-z0-9]/g, 'x').padEnd(6, 'x'); } while (fSua.cau_hoi.some(c => c.ma === ma));
+    return ma;
+  }
+  function tenLoai(loai) { const l = mauForm().loai[loai]; return l ? l.ten : loai; }
+  function theCauHoi() {
+    batDauSuaForm();
+    const M = mauForm(), g = tao('section', 'bt-ds bt-cau-hoi'); g.setAttribute('aria-label', 'Câu hỏi ứng tuyển');
+    const dau = tao('div', 'bt-dau-ds');
+    const luu = tao('button', 'bt-nut chinh', 'Lưu và đăng'); luu.type = 'button'; luu.dataset.luuForm = '1';
+    const hoan = tao('button', 'bt-nut vien', 'Hoàn tác'); hoan.type = 'button'; hoan.dataset.hoanTac = '1';
+    const xem = tao('a', 'bt-nut vien', 'Xem trang thật ↗'); xem.setAttribute('href', '/ung-tuyen'); xem.setAttribute('target', '_blank'); xem.setAttribute('rel', 'noopener');
+    dau.append(luu, hoan, xem); g.append(dau);
+    const doi = JSON.stringify(fSua) !== fGoc;
+    g.append(tao('p', 'bt-rong', doi ? 'Có thay đổi chưa lưu. Bấm Lưu và đăng để ứng viên thấy ngay.'
+      : 'Câu hỏi của form ứng tuyển trên web. Bấm một câu để sửa. Câu có ổ khoá là câu gốc: sửa chữ được, không xoá được vì app cần để gọi ứng viên.'));
+    const ds = fSua.cau_hoi;
+    const buoc = Object.keys(M.buoc || {1: 'Về bạn', 2: 'Kinh nghiệm', 3: 'Mong muốn'}).map(Number).sort();
+    g.append(tao('p', 'bt-nhan-hang bt-dem-cau', ds.length + ' câu · ' + buoc.length + ' bước'));
+    buoc.forEach(so => {
+      g.append(tao('h3', 'bt-muc', 'Bước ' + so + ' · ' + ((M.buoc || {})[so] || '')));
+      const hang = tao('div', 'bt-hang');
+      ds.forEach((c, i) => {
+        if ((+c.buoc || 1) !== so) return;
+        hang.append(dongCau(c, i));
+        if (fMo === i) hang.append(formCau(c, i));
+      });
+      if (!hang.children.length) hang.append(tao('p', 'bt-rong', 'Chưa có câu nào ở bước này.'));
+      g.append(hang);
+    });
+    const them = tao('button', 'bt-nut vien', '+ Thêm câu hỏi'); them.type = 'button'; them.dataset.themCau = '1';
+    them.onclick = () => {
+      if (ds.length >= (M.toi_da_cau || 30)) { bao('Form tối đa ' + (M.toi_da_cau || 30) + ' câu. Bớt câu ít dùng trước.', true); return; }
+      ds.push({ma: maCauMoi(), hoi: '', goi_y: '', loai: 'chu', lua_chon: [], cho_khac: false, bat_buoc: false, buoc: 3, vi_tri: [], ai: true});
+      fMo = ds.length - 1; ve();
+    };
+    g.append(them);
+    g.append(tao('h3', 'bt-muc', 'Lời giới thiệu đầu form'));
+    g.append(o('Hiện dưới tên bước 1', fSua.gioi_thieu, v => { fSua.gioi_thieu = v; }, {nhieuDong: true, dong: 3, chu: 'Một hai câu về tiệm và lời nhắc điền nhanh. Để trống thì không hiện.'}));
+    g.append(tao('h3', 'bt-muc', 'Phúc lợi chung'));
+    g.append(o('Mỗi dòng một phúc lợi', (fSua.phuc_loi || []).join('\n'), v => { fSua.phuc_loi = v.split('\n').map(x => x.trim()).filter(Boolean); },
+      {nhieuDong: true, dong: 4, chu: 'Hiện ở mục Quyền lợi của mọi vị trí trên web, sau quyền lợi riêng ghi trên phiếu Vị trí.'}));
+    luu.onclick = async () => {
+      const loi = kiemForm(fSua);
+      if (loi) { bao(loi, true); return; }
+      const ok = await ghi('luu_form_tuyen_dung', {gia_tri: fSua, dau_cu: B.dau_tuyen_dung_form || ''}, 'Đã lưu câu hỏi ứng tuyển. Ứng viên thấy ngay ở trang Ứng tuyển.');
+      if (ok) { fSua = null; fMo = -1; ve(); }
+    };
+    hoan.onclick = async () => {
+      if (JSON.stringify(fSua) === fGoc) return;
+      if (!await hoi('Bỏ thay đổi chưa lưu?', 'Câu hỏi quay về bản ứng viên đang thấy.', 'Bỏ thay đổi', true)) return;
+      fSua = null; fMo = -1; ve();
+    };
+    return g;
+  }
+  /* Chặn sớm những lỗi chắc chắn máy chủ sẽ trả về (chuan_form vẫn là nơi quyết). */
+  function kiemForm(f) {
+    for (let i = 0; i < f.cau_hoi.length; i++) {
+      const c = f.cau_hoi[i];
+      if (String(c.hoi || '').trim().length < 3) return 'Câu ' + (i + 1) + ' chưa có chữ. Điền câu hỏi ứng viên thấy.';
+      if ((c.loai === 'chon_mot' || c.loai === 'chon_nhieu') && (c.lua_chon || []).filter(x => String(x).trim()).length < 2) return 'Câu "' + c.hoi + '" là câu chọn, cần ít nhất 2 lựa chọn.';
+    }
+    return '';
+  }
+  function dongCau(c, i) {
+    const M = mauForm(), khoa = (M.khoa_xoa || []).includes(c.ma);
+    const d = tao('article', 'bt-dong bt-dong-cau' + (fMo === i ? ' dang-sua' : '')); d.dataset.cau = c.ma;
+    const trai = tao('div', 'bt-dong-trai');
+    const nhan = tao('div', 'bt-nhan-hang');
+    nhan.append(tao('span', 'bt-tt dang', tenLoai(c.loai)));
+    if (c.bat_buoc) nhan.append(tao('span', 'bt-tt sap', 'Bắt buộc'));
+    if ((c.vi_tri || []).length) nhan.append(tao('span', 'bt-tt an', 'Chỉ ' + c.vi_tri.length + ' vị trí'));
+    if (khoa) nhan.append(tao('span', 'bt-tt an', '🔒 Câu gốc'));
+    trai.append(nhan, tao('h3', 'bt-ten', (i + 1) + '. ' + (c.hoi || '(chưa có chữ)')));
+    if (c.goi_y) trai.append(tao('p', 'bt-meta', c.goi_y));
+    const phai = tao('div', 'bt-hang-nut');
+    /* Lên, xuống trong cùng bước; câu đầu bước bấm lên là sang cuối bước trước. */
+    const a = fSua.cau_hoi, so = +c.buoc || 1, cacBuoc = Object.keys(M.buoc || {1: 1, 2: 2, 3: 3}).map(Number).sort();
+    const cungBuoc = a.map((x, j) => j).filter(j => (+a[j].buoc || 1) === so), vi = cungBuoc.indexOf(i);
+    const diChuyen = huong => {
+      const j = cungBuoc[vi + huong];
+      if (j != null) { [a[i], a[j]] = [a[j], a[i]]; fMo = fMo === i ? j : fMo === j ? i : fMo; }
+      else {
+        const b = cacBuoc[cacBuoc.indexOf(so) + huong]; if (!b) return;
+        const [x] = a.splice(i, 1); x.buoc = b;
+        if (huong < 0) a.push(x); else a.unshift(x);
+        fMo = fMo === i ? a.indexOf(x) : -1;
+      }
+      ve();
+    };
+    const dau = vi === 0 && cacBuoc.indexOf(so) === 0, cuoi = vi === cungBuoc.length - 1 && cacBuoc.indexOf(so) === cacBuoc.length - 1;
+    const len = tao('button', 'bt-nut nho', '↑'); len.type = 'button'; len.setAttribute('aria-label', 'Đưa câu lên trên'); len.disabled = dau; len.dataset.lenCau = c.ma;
+    const xuong = tao('button', 'bt-nut nho', '↓'); xuong.type = 'button'; xuong.setAttribute('aria-label', 'Đưa câu xuống dưới'); xuong.disabled = cuoi; xuong.dataset.xuongCau = c.ma;
+    len.onclick = () => diChuyen(-1); xuong.onclick = () => diChuyen(1);
+    const suaNut = tao('button', 'bt-nut nho', fMo === i ? 'Đóng' : 'Sửa'); suaNut.type = 'button'; suaNut.dataset.suaCau = c.ma;
+    suaNut.onclick = () => { fMo = fMo === i ? -1 : i; ve(); };
+    phai.append(len, xuong, suaNut);
+    if (!khoa) {
+      const xoa = tao('button', 'bt-nut nho chu-do', 'Xoá'); xoa.type = 'button'; xoa.dataset.xoaCau = c.ma;
+      xoa.onclick = async () => {
+        if (!await hoi('Xoá câu này?', '"' + (c.hoi || 'Câu mới') + '" sẽ không còn trong form. Câu trả lời cũ trên hồ sơ ứng viên vẫn giữ.', 'Xoá câu', true)) return;
+        fSua.cau_hoi.splice(i, 1); fMo = -1; ve();
+      };
+      phai.append(xoa);
+    }
+    d.append(trai, phai);
+    return d;
+  }
+  function formCau(c, i) {
+    const M = mauForm(), coDinh = Object.prototype.hasOwnProperty.call(M.loai_theo_ma || {}, c.ma), khoa = (M.khoa_xoa || []).includes(c.ma);
+    const f = tao('div', 'bt-form bt-form-cau'); f.dataset.formCau = c.ma;
+    f.append(o('Câu hỏi ứng viên thấy', c.hoi, v => { c.hoi = v; }, {ten: 'hoi', chu: 'Viết như đang hỏi trực tiếp, ví dụ "Bạn có thể đi làm từ ngày nào?".'}));
+    f.append(o('Dòng gợi ý dưới câu (không bắt buộc)', c.goi_y, v => { c.goi_y = v; }, {ten: 'goi_y', nhieuDong: true, dong: 2,
+      chu: c.loai === 'so_tien' ? 'Máy tự thêm "Vị trí này từ ..." theo mức lương trên phiếu Vị trí.' : 'Giải thích ngắn để ứng viên trả lời đúng ý.'}));
+    if (coDinh) {
+      f.append(tao('p', 'bt-goi-y', 'Loại câu trả lời: ' + tenLoai(c.loai) + '. Câu có sẵn của hệ thống nên giữ loại này để app đổ đúng vào hồ sơ.'));
+    } else {
+      const ten = {}; (M.loai_tu_chon || []).forEach(k => { ten[(M.loai[k] || {}).ten || k] = k; });
+      const nguoc = k => (M.loai[k] || {}).ten || k;
+      f.append(chip('Loại câu trả lời', Object.keys(ten), () => nguoc(c.loai), v => { if (v) c.loai = ten[v]; ve(); }, false,
+        (M.loai[c.loai] || {}).mo || ''));
+    }
+    if (c.loai === 'chon_mot' || c.loai === 'chon_nhieu') {
+      f.append(o('Các lựa chọn, mỗi dòng một lựa chọn', (c.lua_chon || []).join('\n'), v => { c.lua_chon = v.split('\n').map(x => x.trim()).filter(Boolean); },
+        {ten: 'lua_chon', nhieuDong: true, dong: 4, chu: 'Ít nhất 2, nhiều nhất 12 lựa chọn. Ứng viên bấm chip để chọn.'}));
+      if (c.loai === 'chon_mot') f.append(congTac('Cho ghi "Khác"', c.cho_khac, v => { c.cho_khac = v; }, b => b ? 'Có thêm chip Khác... để ứng viên tự ghi' : 'Ứng viên chỉ chọn trong danh sách'));
+    }
+    if (khoa) f.append(tao('p', 'bt-goi-y', 'Câu gốc luôn bắt buộc và hỏi ở mọi vị trí.'));
+    else {
+      f.append(congTac('Bắt buộc trả lời', c.bat_buoc, v => { c.bat_buoc = v; }, b => b ? 'Ứng viên phải điền mới bấm Tiếp tục được' : 'Ứng viên bỏ trống được'));
+    }
+    const tenBuoc = Object.keys(M.buoc || {}).map(k => k + ' · ' + M.buoc[k]);
+    f.append(chip('Nằm ở bước', tenBuoc, () => tenBuoc.find(x => +x.split(' ')[0] === (+c.buoc || 1)), v => { if (v) c.buoc = +v.split(' ')[0]; ve(); }, false,
+      'Đổi bước là câu chuyển sang nhóm của bước đó.'));
+    if (!khoa) {
+      const vt = (B.tuyen_dung_erp || []).map(k => ({ma: k.ma_vi_tri || k.ma, ten: k.tieu_de}));
+      const tenVt = vt.map(x => x.ten);
+      f.append(chip('Hỏi ở vị trí nào', tenVt, () => vt.filter(x => (c.vi_tri || []).includes(x.ma)).map(x => x.ten).join(' / '),
+        v => { const chon = String(v || '').split(' / ').filter(Boolean); c.vi_tri = vt.filter(x => chon.includes(x.ten)).map(x => x.ma); }, true,
+        'Không chọn vị trí nào là hỏi ở mọi vị trí, kể cả vị trí mở sau này.'));
+    }
+    if ((M.khong_cho_ai || []).includes(c.ma)) {
+      f.append(tao('p', 'bt-goi-y', 'AI không bao giờ dùng câu này khi chấm hồ sơ.'));
+    } else {
+      f.append(congTac('Cho AI dùng câu này khi chấm', c.ai, v => { c.ai = v; },
+        b => b ? (c.loai === 'so_tien' ? 'AI so số tiền này với mức lương của vị trí' : 'AI đọc câu trả lời này cùng CV khi tóm tắt và chấm') : 'AI bỏ qua câu này'));
+    }
+    return f;
+  }
+
   /* ------------------------------------------------------------ nâng cao */
   function moNangCao(mo) {
     const moi = $('bt-moi'), cu = $('bt-cu');
@@ -713,7 +885,7 @@
     moi.hidden = mo; cu.hidden = !mo;
     document.body.className = mo ? 'bt-che-do-cu' : 'bt-che-do-moi';
     if (mo) { const t = $('tai-lai'); if (t) t.click(); }
-    else { sua = null; chuSua = {}; lhDoi = false; tai(); }
+    else { sua = null; chuSua = {}; lhDoi = false; fSua = null; fMo = -1; tai(); }
   }
 
   function batDau() {
