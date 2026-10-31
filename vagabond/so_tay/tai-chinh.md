@@ -79,7 +79,8 @@ Từ khoá: dòng tiền, tiền vào, tiền ra, thu chi, chuyển nội bộ, 
 **Lưu ý**
 - Chuyển tiền giữa các tài khoản của mình (MB công ty sang OCB tạm ứng) bị bỏ ra, không tính là vào hay ra. Máy chỉ coi là chuyển nội bộ khi hai bên cùng mã giao dịch hoặc cùng nội dung chuyển; khách chuyển vào và mình trả nhà cung cấp trùng số tiền vẫn tính là vào và ra.
 - Ghi nội dung chuyển nội bộ rõ ràng (ví dụ "VAGABOND NAP QUY TAM UNG T10") để máy nhận ra.
-- Tiền vào gồm ngân hàng và tiền mặt vào két; tiền ra gồm ngân hàng và chi tiền mặt từ quỹ.
+- Tiền vào gồm ngân hàng, tiền mặt vào két và tiền mặt kế toán thu vào quỹ; tiền ra gồm ngân hàng và chi tiền mặt từ quỹ.
+- Rút tiền ngân hàng về quỹ, hoặc nộp tiền quỹ vào ngân hàng, hiện ở cả tiền vào và tiền ra nên Còn lại không đổi.
 
 ## Xem dự báo tiền 30 ngày tới
 Từ khoá: dự báo, 30 ngày, đủ tiền trả, nợ đến hạn, tuần tới, forecast
