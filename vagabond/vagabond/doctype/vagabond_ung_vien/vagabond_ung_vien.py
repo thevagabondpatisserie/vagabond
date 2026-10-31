@@ -13,6 +13,8 @@ class VagabondUngVien(Document):
 		truoc = self.get_doc_before_save() if hasattr(self, "get_doc_before_save") else None
 		row = {k: self.get(k) for k in an_danh({})}
 		row["danh_gia"] = [{"nhan_xet": d.get("nhan_xet")} for d in (self.get("danh_gia") or [])]
+		# Câu trả lời form cũng là thông tin cá nhân (Codex #523).
+		row["tra_loi"] = [{"tra_loi": d.get("tra_loi")} for d in (self.get("tra_loi") or [])]
 		loi = kiem_an_danh(row, truoc.get("da_an_danh") if truoc else 0)
 		if loi:
 			frappe.throw(loi)
