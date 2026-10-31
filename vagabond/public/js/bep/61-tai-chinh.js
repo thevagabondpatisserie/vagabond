@@ -77,12 +77,15 @@ async function scrTcTongQuan() {
       (tien.tam_ung ? '<div style="font-size:11.5px;color:#667085">gồm tạm ứng ' + tcGon(tien.tam_ung) + '</div>' : '') + '</div>' +
       '<div style="background:#f8fafc;border-radius:10px;padding:8px 10px"><div style="font-size:12px;color:#667085">Tiền mặt</div>' +
       '<div style="font-size:17px;font-weight:800">' + tcGon(tien.tien_mat) + '</div></div></div>' +
+      (tien.loi ? '<div data-tcloi="1" style="margin-top:8px;font-size:12.5px;color:#b42318">Có ' + tien.loi +
+        ' tài khoản, két chưa tính được lúc này nên tổng đang thiếu phần đó. Mở Tiền hiện có xem chỗ nào; vẫn vậy thì báo kỹ thuật.</div>' : '') +
       (tien.chua_chot ? '<div data-tcchuachot="1" style="margin-top:8px;font-size:12.5px;color:#b54708">Còn ' + tien.chua_chot +
         ' tài khoản, két chưa chốt số dư đầu nên chưa cộng vào tổng. Bấm Cài đặt tài chính để chốt.</div>' : '')
       : '<div style="color:#b42318;margin-top:6px">Chưa đọc được tiền hiện có.</div>') + '</div>';
   html += '<div class="sec">Tiền</div>';
   html += tcO('TCTIEN', '💵', 'Tiền hiện có', tien ? tcGon(tien.tong) : '...', 'Từng tài khoản, từng két, đối chiếu SePay');
   var d7 = p(kq.dong7, function (v) {
+    if (v.thieu) return { so: (v.rong >= 0 ? '+' : '') + tcGon(v.rong), phu: 'Thiếu tiền mặt ' + v.thieu + ' lượt két chưa đọc được', mau: '#b54708' };
     return { so: (v.rong >= 0 ? '+' : '') + tcGon(v.rong), phu: '7 ngày: vào ' + tcGon(v.vao) + ', ra ' + tcGon(v.ra), mau: v.rong >= 0 ? '#067647' : '#b42318' };
   });
   html += tcO('TCDONG', '🔁', 'Dòng tiền', d7.so, d7.phu, d7.mau);
@@ -122,9 +125,14 @@ function tcDongTien(d) {
   var dc = d.doi_chieu;
   if (dc && dc.tt === 'khop') chip += tcChip('#ecfdf3', '#067647', '✓ Khớp SePay');
   else if (dc && dc.tt === 'lech') chip += tcChip('#fffaeb', '#b54708', 'Lệch SePay ' + money(dc.lech));
-  (d.ghi || []).forEach(function (g) { chip += tcChip(g.indexOf('SePay') >= 0 ? '#eff8ff' : '#f2f4f7', g.indexOf('SePay') >= 0 ? '#175cd3' : '#475467', h(g)); });
+  (d.ghi || []).forEach(function (g) {
+    if (d.loi) { chip += tcChip('#fef3f2', '#b42318', h(g)); return; }
+    chip += tcChip(g.indexOf('SePay') >= 0 ? '#eff8ff' : '#f2f4f7', g.indexOf('SePay') >= 0 ? '#175cd3' : '#475467', h(g));
+  });
   if (d.ca) dong2.push('Chốt ca ' + tcNgay(d.ca.luc) + ' ' + String(d.ca.luc || '').slice(11, 16) + ' đếm ' + money(d.ca.dem));
-  var so = d.so_du === null || d.so_du === undefined ? '<span style="color:#b54708">Chưa chốt</span>' : money(d.so_du);
+  var so = d.so_du === null || d.so_du === undefined
+    ? (d.loi ? '<span data-tcdongloi="1" style="color:#b42318">Chưa tính được</span>' : '<span style="color:#b54708">Chưa chốt</span>')
+    : money(d.so_du);
   return '<div data-tcnguon="' + h(d.nguon) + '" style="display:flex;gap:10px;align-items:flex-start;padding:10px 13px;border-top:1px solid #f1f5f9;min-height:44px">' +
     '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(d.ten) + '</b>' +
     (dong2.length ? '<div style="font-size:12.5px;color:#667085;margin-top:1px">' + h(dong2.join(' · ')) + '</div>' : '') +
@@ -152,6 +160,7 @@ async function scrTcTien() {
     '<div style="font-size:12px;color:#98a2b3;letter-spacing:.3px">TỔNG TIỀN CÔNG TY ĐANG CÓ · ' + h(String(kq.luc || '').slice(11, 16)) + '</div>' +
     '<div data-tctongtien="1" style="font-size:26px;font-weight:800;line-height:1.3">' + money(t.tong) + ' đ</div>' +
     '<div style="font-size:13px;color:#475467">Ngân hàng ' + money(t.ngan_hang) + ' · Tiền mặt ' + money(t.tien_mat) + '</div>' +
+    (t.loi ? '<div data-tcloi="1" style="margin-top:6px;font-size:12.5px;color:#b42318">Có ' + t.loi + ' chỗ chưa tính được lúc này (dòng ghi đỏ bên dưới), tổng đang thiếu phần đó.</div>' : '') +
     (t.chua_chot ? '<div style="margin-top:6px;font-size:12.5px;color:#b54708">Còn ' + t.chua_chot + ' chỗ chưa chốt số dư đầu, chưa cộng vào tổng.</div>' : '') +
     (kq.sepay_doc_duoc ? '' : '<div style="margin-top:6px;font-size:12.5px;color:#b42318">Chưa đọc được số dư từ SePay lúc này, phần đối chiếu tạm bỏ trống.</div>') +
     '</div>';
@@ -179,6 +188,11 @@ async function scrTcDong() {
     return '<button class="btn gh" data-tcky="' + n + '" style="flex:1;margin:0;min-height:44px;border-radius:999px;' +
       (tcKyDong === n ? 'border:2px solid #0f766e;color:#0f766e;font-weight:800' : '') + '">' + n + ' ngày</button>';
   }).join('') + '</div>';
+  if ((kq.thieu || []).length) {
+    html += '<div class="card" data-tcthieu="1" style="padding:12px 13px;color:#b54708;line-height:1.5">Chưa đọc được tiền mặt vào két: ' +
+      h(kq.thieu.slice(0, 6).join(', ')) + (kq.thieu.length > 6 ? ' và ' + (kq.thieu.length - 6) + ' lượt khác' : '') +
+      '. Tiền vào đang thiếu phần này. Mở lại sau ít phút; vẫn vậy thì báo kỹ thuật.</div>';
+  }
   html += '<div class="card" style="padding:13px">' +
     '<div style="font-size:12px;color:#98a2b3">' + tcNgay(kq.tu) + ' tới ' + tcNgay(kq.den) + '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px">' +
