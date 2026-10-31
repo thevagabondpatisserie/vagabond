@@ -142,3 +142,69 @@ def _ngan_hang():
 	la("một cặp nội bộ đúng chiều", [(x["tu"], x["den"], x["so"]) for x in nb], [(a, b, 5000000.0)])
 	la("khách vào A và NCC ra B cùng số tiền vẫn là tiền vào, tiền ra",
 		sorted((g["vao"], g["ra"]) for g in ngoai), [(0.0, 665000.0), (665000.0, 0.0)])
+
+
+@ca("v626 Codex #524: phiếu thu tiền mặt tại quầy đã vào két thì KHÔNG cộng lần nữa vào quỹ công ty")
+def _thu_quay():
+	from vagabond import tra_truoc_khach as tk
+	from vagabond.khung.kiem_that.thu_tra_truoc_khach_607 import _nap
+	from vagabond.khung.kiem_that.thu_tra_truoc_khach_607 import _nen as _nen_607
+	cty, _tien, _mon, kh = _nen_607()
+	hom = getdate(today())
+	qua = add_days(hom, -1)
+	# Tiền mặt tại quầy đi vào đúng một tài khoản 111x như site thật
+	# (Mode of Payment "Tiền mặt" -> 1111 Tiền Việt Nam).
+	tm = _tk(cty, "1111", "Asset", "Cash")
+	mp = frappe.get_doc("Mode of Payment", "Tiền mặt")
+	for r in mp.accounts:
+		if r.company == cty:
+			r.default_account = tm
+	mp.save(ignore_permissions=True)
+	frappe.clear_document_cache("Mode of Payment", "Tiền mặt")
+	q0 = tc._so_cai_quy(qua)
+	truoc = flt((tk.thu_nap_tai_quay("TCV", "%s 00:00:00" % hom, "%s 23:59:59" % hom) or {}).get("Tiền mặt"))
+	pe = khong_nem("nạp tiền mặt tại quầy", lambda: _nap(kh, 500000, "tien_mat", "TCV"))
+	if not pe:
+		return
+	gl = nen.so_cai_cua(pe)
+	la("phiếu thu tại quầy ghi Nợ đúng tài khoản 1111", sum(flt(g.debit) for g in gl if g.account == tm), 500000.0)
+	sau = flt((tk.thu_nap_tai_quay("TCV", "%s 00:00:00" % hom, "%s 23:59:59" % hom) or {}).get("Tiền mặt"))
+	la("két quầy TCV đã cộng phiếu này", round(sau - truoc, 2), 500000.0)
+	q1 = tc._so_cai_quy(qua)
+	la("quỹ công ty không cộng lần hai", (round(q1[0] - q0[0], 2), round(q1[1] - q0[1], 2)), (0.0, 0.0))
+	# Thu tiền mặt bằng bút toán của kế toán (không qua quầy) thì vẫn là quỹ.
+	dt = _tk(cty, "711", "Income")
+	if _but_toan(cty, tm, dt, 80000, "thu khác vào quỹ"):
+		q2 = tc._so_cai_quy(qua)
+		la("bút toán thu vào quỹ vẫn được cộng", round(q2[0] - q1[0], 2), 80000.0)
+
+
+@ca("v626 Codex #524: lập phiếu đòi nợ không làm khoản Khách nợ mình biến khỏi Tài chính")
+def _phai_thu_gom():
+	from vagabond import cong_no as cn
+	from vagabond import thu_tien as tt
+	from vagabond.khung.kiem_that.thu_cua_thue_243 import _nen as _nen_243
+	from vagabond.khung.kiem_that.thu_gom_phap_nhan_576 import _hd, _khach, _phieu
+	cty, tk_thue, _mau = _nen_243()
+	kh = _khach("Tài chính 626")
+	si = _hd(tk_thue, cty, 5000000, kh)
+	tien = flt(si.outstanding_amount)
+	dung("hoá đơn còn nợ trên sổ cái", tien > 0)
+	# Bench #437: đơn GrabFood không nhận phương thức "Công nợ" ở cửa lưu.
+	# Cho riêng tờ thử này đi đường "có dòng công nợ" của ds_khach_no; mọi
+	# câu đọc sổ cái, phép chia nợ và phép loại tờ đã gom vẫn chạy thật.
+	goc_dong, goc_la = tt.si_co_dong_cong_no, tt.la_cong_no
+	with patch.object(tt, "si_co_dong_cong_no", lambda: list(goc_dong() or []) + [si.name]), \
+		patch.object(tt, "la_cong_no", lambda pt: pt == si.vgb_pt_thanh_toan or goc_la(pt)):
+		truoc = cn.ds_khach_no()
+		pt_truoc = tc._phai_thu()
+		la("Tài chính tính đủ nợ trước khi gom", round(pt_truoc - flt(truoc["tong"]), 2),
+			round(flt(truoc["tong_ca_phieu"]) - flt(truoc["tong"]), 2))
+		p = khong_nem("lập phiếu đòi nợ", lambda: _phieu([si], kh))
+		if not p:
+			return
+		sau = cn.ds_khach_no()
+		pt_sau = tc._phai_thu()
+	la("màn Công nợ bỏ tờ đã gom khỏi số còn gom được", round(flt(truoc["tong"]) - flt(sau["tong"]), 2), tien)
+	la("Tài chính vẫn giữ khoản nợ đó", round(pt_sau - pt_truoc, 2), 0.0)
+	la("tổng kể cả phiếu không đổi khi gom", round(flt(sau["tong_ca_phieu"]) - flt(truoc["tong_ca_phieu"]), 2), 0.0)
