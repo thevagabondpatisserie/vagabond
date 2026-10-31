@@ -17,6 +17,7 @@ Một màn trả lời: công ty đang có bao nhiêu tiền, tuần này tiền
 **Lưu ý**
 - Dòng vàng "Còn N tài khoản, két chưa chốt số dư đầu" nghĩa là tổng chưa đủ: vào Cài đặt tài chính để chốt.
 - Thẻ nào ghi "Chưa đọc được" là phần đó lỗi, các thẻ khác vẫn đúng. Báo kỹ thuật.
+- Dòng đỏ "Có N tài khoản, két chưa tính được" khác với dòng vàng "chưa chốt": máy không đọc được số lúc này, tổng đang thiếu phần đó. Mở lại sau ít phút; vẫn vậy thì báo kỹ thuật.
 - Tiền khách gửi trước là tiền của khách, chưa phải của mình.
 - Thẻ Khách nợ mình gồm cả hoá đơn đã nằm trong phiếu đòi nợ chờ thu, nên có thể lớn hơn số trên màn Công nợ (màn đó chỉ cộng hoá đơn chưa gom phiếu).
 
