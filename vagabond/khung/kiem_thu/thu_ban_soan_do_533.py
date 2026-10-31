@@ -195,7 +195,9 @@ def _thu_tu():
 	# v610: 56-doi-soat-ck.js (màn Đối soát chuyển khoản, chỉ đọc và mở bảng Dò tiền) không lập phiếu nháp, qua đủ ba điều kiện trên.
 	# v611: 57-dat-ban.js (màn Thông tin đặt bàn, đổi trạng thái phiếu có sẵn, không lập phiếu nháp) qua đủ ba điều kiện trên.
 	# v619: 59-chuong.js (màn Chuông thông báo, chỉ đọc tin đã gửi và ghi mốc đã đọc, không lập phiếu nháp) qua đủ ba điều kiện trên.
-	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js", "53-gia-von-tam.js", "54-ly-do-tang.js", "55-so-du-tra-truoc.js", "56-doi-soat-ck.js", "57-dat-ban.js", "58-crm.js", "59-chuong.js", "60-tuyen-dung.js"])
+	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js", "53-gia-von-tam.js", "54-ly-do-tang.js", "55-so-du-tra-truoc.js", "56-doi-soat-ck.js", "57-dat-ban.js", "58-crm.js", "59-chuong.js", "60-tuyen-dung.js",
+		# v626: phân hệ Tài chính, chỉ xem số và chốt số dư, không có màn lập phiếu.
+		"61-tai-chinh.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

@@ -194,6 +194,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_zalo_kich_ban_621,
 	thu_thanh_vien_621,
 	thu_voucher_tv_623,
+	thu_tai_chinh_626,
 )
 
 

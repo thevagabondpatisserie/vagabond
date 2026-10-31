@@ -483,6 +483,9 @@ CUA_NGO = {
 	"doi_soat_sepay.py": ["tu_dong", "ung_vien", "khop_tay"],
 	# v610: màn Đối soát chuyển khoản (chỉ QLCH và kế toán, kiểm trong hàm).
 	"doi_soat_ck.py": ["ds_bill_ck"],
+	# v626: phân hệ Tài chính (Giám đốc và người Giám đốc chọn, kiểm trong hàm).
+	"tai_chinh.py": ["cai_dat", "dong_tien", "du_bao_30", "lai_lo_thang", "luu_moc", "luu_nguoi_xem",
+		"ti_le_thang", "tien_hien_co", "tong_quan"],
 
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi",
