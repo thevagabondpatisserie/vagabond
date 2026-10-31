@@ -563,6 +563,21 @@ Hoá đơn từ m-invoice về ở dạng nháp. Màn này tìm phiếu nhập k
 - Ghi sổ thẳng: xem tài khoản từng dòng trước. Dòng dịch vụ hiện 632 thường là sai.
 - Tờ có chip Hồ sơ là hoá đơn đến sau của hồ sơ chi, không ghi sổ ở đây.
 
+## Hoá đơn mua lệch một đồng vì làm tròn
+Từ khoá: chênh lệch làm tròn, lệch một đồng, làm tròn nửa đồng, thiếu mã hàng, Chênh lệch làm tròn theo hoá đơn điện tử, đối chiếu hoá đơn mua, rounding
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, Thu mua | Đối chiếu mua (/doi-chieu-mua) | [[Khớp và ghi sổ]] |
+
+Người bán làm tròn nửa đồng lên, máy làm tròn kiểu khác, nên thành tiền một dòng có thể lệch dưới một đồng so với hoá đơn điện tử.
+
+**Lưu ý**
+- Từ 28/10/2026, dòng hàng lệch dưới một đồng vì làm tròn thì máy nắn đơn giá dòng đó cho ra đúng thành tiền in trên hoá đơn, không thêm dòng "Chênh lệch làm tròn theo hoá đơn điện tử" nữa.
+- Một dòng chia qua nhiều phiếu nhập cũng cộng lại đúng thành tiền dòng gốc.
+- Dòng "Chênh lệch làm tròn theo hoá đơn điện tử" chỉ còn khi phần chênh không đặt được vào dòng hàng nào.
+- Tờ cũ đã kẹt "Thiếu mã hàng" vì dòng này: liên hệ kế toán trưởng.
+
 ## Xem hoá đơn mua vào và hoá đơn bán ra
 Từ khoá: hoá đơn mua, hoá đơn mua vào, purchase invoice, hoá đơn bán, hoá đơn bán ra, sales invoice, tra cứu hoá đơn, còn nợ, quá hạn
 
@@ -603,6 +618,62 @@ Chỉ hoá đơn bán ĐÃ GHI SỔ mới phát hành sang m-invoice. Điểm b�
 - Khung "Khoá gốc bên m-invoice đang chặn": m-invoice đang tắt phát hành hoặc tắt ký, báo kế toán mở lại.
 - Sửa, huỷ, thay thế hoá đơn điện tử đã phát hành: liên hệ kế toán trưởng. Không tự làm.
 
+## Cài chuỗi cuối ngày: tự ghi sổ và xuất hoá đơn điện tử
+Từ khoá: chuỗi cuối ngày, cuối ngày, 23h, tự ghi sổ, tự xuất hoá đơn, phát hành hoá đơn, ký hoá đơn, chạy ngay, giờ chạy, bật tắt điểm bán, end of day, batch
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, quản lý Sales | Cài đặt cuối ngày (/cai-dat-cuoi-ngay) | [[Lưu cấu hình]], [[Chạy ngay]] |
+
+Mỗi ngày một lần máy chạy liền ba bước: ghi sổ hoá đơn còn nháp, phát hành hoá đơn điện tử, rồi ký. Mặc định 23:00.
+
+**Các bước**
+1. Mở Cài đặt cuối ngày. Chip [[Đang bật]] / [[Đang tắt]] bật tắt cả chuỗi.
+2. Chọn giờ [[22:00]], [[22:30]], [[23:00]], [[23:15]] hoặc gõ Giờ khác.
+3. Bật tắt từng điểm bán ở mục Tự ghi sổ hoá đơn còn nháp và Tự xuất hoá đơn điện tử.
+4. Bấm [[Lưu cấu hình]].
+5. Xem mục Lần chạy gần nhất. Khung đỏ chữ CẢNH BÁO là còn tờ đã ghi sổ chưa có hoá đơn điện tử.
+6. Cần chạy sớm: bấm [[Chạy ngay]], đọc hộp hỏi rồi đồng ý.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chỉ quản lý hoặc kế toán mới được đổi cấu hình cuối ngày. | Nhờ kế toán |
+| Chỉ quản lý hoặc kế toán mới được chạy tay. | Nhờ kế toán |
+| Khung "Khoá gốc bên m-invoice đang chặn" | Báo kế toán mở lại trong cài đặt m-invoice |
+
+**Lưu ý**
+- Chỉ hoá đơn đã ghi sổ mới phát hành. Điểm chưa bật thì hoá đơn nằm yên.
+- Mỗi đơn ghi sổ một lượt riêng. Nhật ký "đã xếp N đơn" là đang chờ, xem lại sau vài phút.
+- Qua nửa đêm máy dừng tờ của ngày đó, nhịp bù làm tiếp.
+- Chạy ngay không lùi lại được.
+
+## Tin báo kẹt ghi sổ cuối ngày và việc cần làm
+Từ khoá: kẹt ghi sổ, kẹt hoá đơn, đơn chưa ghi sổ, tin Zalo cuối ngày, 23:20, 23:45, 23:55, 07:30, báo động, chủ đề Hoá đơn, thông tin xuất hoá đơn sai, thư báo đơn còn treo
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, quản lý Sales | Cài đặt cuối ngày (/cai-dat-cuoi-ngay); Đơn còn treo (/don-con-treo) | [[Chạy ngay]] |
+
+Chuỗi kẹt thì nhóm Zalo đã tích các tin dưới đây nhận tin sớm, còn kịp giờ để xử.
+
+**Tin và lúc gửi**
+| Lúc | Tin |
+|---|---|
+| 20 và 45 phút sau giờ chuỗi (23:20, 23:45 khi chạy 23:00) | Kẹt ghi sổ, kẹt hoá đơn cuối ngày: đơn hôm nay chưa ghi sổ, đếm theo lý do |
+| 23:55 | Đơn chưa ghi sổ còn sót lúc 23:55 |
+| 07:30 sáng hôm sau | Kẹt ghi sổ, kẹt hoá đơn cuối ngày: đơn hôm qua |
+| Khi m-invoice từ chối người mua | Thông tin xuất hoá đơn sai, đơn chưa ghi sổ |
+
+**Các bước**
+1. Đọc tin. Dòng "đủ điều kiện mà máy chưa ghi sổ xong": mở Cài đặt cuối ngày, bấm [[Chạy ngay]]. Vẫn còn thì báo kỹ thuật.
+2. Dòng theo lý do khác: mở Đơn còn treo, sửa từng đơn theo lý do.
+3. Tin thông tin xuất hoá đơn sai: Sales sửa email, mã số thuế, tên theo tin.
+
+**Lưu ý**
+- Nhóm nào nhận tin nào: Cài đặt lõi và API, nút [[Chọn tin nhận]].
+- Ghi sổ tay, kéo đơn sang ngày khác, huỷ ghi sổ: liên hệ kế toán trưởng.
+
 ## Nhập tệp sao kê ngân hàng
 Từ khoá: nhập sao kê, sao kê ngân hàng, bank statement, import sao kê, thiếu giao dịch, nạp bù sao kê, Excel ngân hàng, CSV, SePay thiếu
 
@@ -627,6 +698,58 @@ Dùng khi SePay sót giao dịch, nạp bù từ tệp ngân hàng gửi.
 **Lưu ý**
 - Máy chỉ thêm dòng còn thiếu, không ghi đè dòng đã có.
 - Ghi rồi muốn bỏ: liên hệ kế toán trưởng.
+
+## Đối soát bill quầy trả chuyển khoản
+Từ khoá: đối soát chuyển khoản, đối soát CK, bill chuyển khoản, chưa khớp tiền, chưa đối soát được, khớp đủ tiền, tổng theo bộ lọc, bank transfer reconcile, DSCK
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý cửa hàng, Kế toán, Giám đốc | Đối soát chuyển khoản (/doi-soat-chuyen-khoan) | [[Chưa khớp đủ tiền]] |
+
+Mọi bill quầy trả chuyển khoản của một ngày, ba điểm bán chung một chỗ, bill chưa khớp tiền lên đầu.
+
+**Các bước**
+1. Mở Đối soát chuyển khoản ở phân hệ Bán hàng hoặc Kế toán. Đổi ngày bằng ‹ › hoặc ô ngày.
+2. Thẻ tóm tắt ghi tổng bill cả ngày, ô [[Chưa khớp đủ tiền]] kèm số còn thiếu, ô [[Đã khớp đủ]], chip từng điểm bán. Bấm ô nào là lọc đúng nhóm đó.
+3. Đang lọc thì dòng Tổng theo bộ lọc cộng đúng các bill đang hiện.
+4. Gõ mã bill, số hoá đơn, tên khách vào ô tìm, hoặc quét mã.
+5. Bấm một bill có chữ Dò tiền để mở bảng Dò tiền chuyển khoản, xem mục kế tiếp.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Màn Đối soát chuyển khoản chỉ mở cho Quản lý cửa hàng và Kế toán. | Nhờ quản lý mở |
+
+**Lưu ý**
+- Mỗi bill có chip tiền (Đã khớp đủ tiền, Mới nhận ..., Chưa khớp khoản nào) và chip Đã ghi sổ / Chưa ghi sổ.
+- Bill chuyển khoản chưa khớp đủ tiền thì máy chưa tự ghi sổ.
+
+## Gắn khoản khách chuyển thẳng vào tài khoản công ty
+Từ khoá: SePay không ghi nhận, khách chuyển vào tài khoản công ty, tài khoản chính, MB, vào thẳng TK công ty, dò tiền, gắn giao dịch, tiền chưa gắn chứng từ, chuyển sai tài khoản
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý cửa hàng, Kế toán, Giám đốc | Đối soát chuyển khoản (/doi-soat-chuyen-khoan) | [[Gắn vào hoá đơn]] |
+
+Khách xin số tài khoản rồi chuyển tay vào tài khoản chính, không qua mã QR, nên dò ở tài khoản điểm không thấy.
+
+**Các bước**
+1. Ở Đối soát chuyển khoản bấm bill. Bảng Dò tiền chuyển khoản mở ra.
+2. Bấm chip [[Vào thẳng TK công ty]] (hoặc khung gợi ý vàng "Có ... khoản đúng ...").
+3. Cần thì đổi chip ngày [[Hôm trước]], [[Hôm sau]].
+4. Đối chiếu giờ, số tiền với điện thoại khách, chọn khoản, bấm [[Gắn vào hoá đơn]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Khoản này vào thẳng tài khoản chính công ty, không phải tài khoản của điểm .... Chỉ Quản lý cửa hàng hoặc Kế toán được gắn ... | Thu ngân không gắn được, nhờ quản lý |
+| Khoản này đã thuộc về .... Một khoản tiền chỉ thuộc về một chứng từ. | Chọn khoản khác, hỏi kế toán khoản đó của ai |
+| Dòng sao kê này không có số tham chiếu ngân hàng nên máy không gắn được. ... | Báo anh Việt kiểm dòng đó |
+
+**Lưu ý**
+- Nghe "SePay không ghi nhận" thì mở chip này trước. Tài khoản chính còn nhận tiền khách sỉ trả nợ, đối chiếu thật kỹ.
+- Lệch tiền máy vẫn gắn, ghi số lệch vào ghi chú đối soát.
+- 08:00 mỗi sáng kế toán nhận tin "Tiền vào tài khoản công ty chưa gắn chứng từ" cho khoản quá 24 giờ chưa thuộc đơn hay phiếu nào.
 
 ## Ký nhận biên nhận nộp tiền mặt
 Từ khoá: nộp quỹ, nộp tiền mặt, biên nhận nộp tiền, ký nhận tiền, tiền mặt quầy, bảng kê mệnh giá, lệch tiền mặt, cash deposit
@@ -696,7 +819,7 @@ Tiền khách vào tài khoản cá nhân Giám đốc thì công ty ghi phải 
 3. Báo chưa chọn tài khoản thì bấm [[Chọn tài khoản]] ngay dưới lời báo.
 4. Gõ số tài khoản (ví dụ 1388), bấm dòng đúng, rồi [[Dùng tài khoản này]].
 5. Nhập khách, số tiền, ảnh chuyển khoản, bấm [[Lưu và gửi kế toán ghi sổ]].
-6. Thấy tiền về thì mở sổ của khách, bấm [[✅ Ghi sổ phiếu nạp]].
+6. Thấy tiền về thì mở sổ của khách, bấm [[Ghi sổ phiếu nạp]].
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
@@ -857,3 +980,126 @@ Từ khoá: công nợ tiền vào, trả góp, thu một phần, nhiều khách
 Mất mạng sau khi bấm Gán: bấm lại để kiểm đúng lần đang gửi, không lập phiếu mới. Nếu chọn nhầm, kế toán dùng [[Huỷ phiếu]] cho nháp hoặc huỷ chứng từ đã ghi sổ đúng nghiệp vụ, rồi [[Bỏ đối chiếu]] để chọn lại cả bộ. Không xoá chứng từ, không gỡ huỷ phiếu cũ để dùng lại bộ đã nhả. Không yêu cầu khách chuyển tiền thêm chỉ vì đã bỏ đối chiếu.
 
 Không thấy sao kê vẫn có lối [[Không thấy giao dịch nào khớp]] dành cho kế toán đính UNC theo luồng hiện có.
+
+## Xem giá vốn tạm tính và giá bán đề xuất của bánh đang bán
+Từ khoá: giá vốn tạm tính, giá vốn nguyên liệu, food cost, costing, hệ số giá bán, lãi số lần, markup, phần trăm giá vốn, giá bán đề xuất, định giá, thiếu giá NVL, công thức vòng, vượt giá bán, dưới mục tiêu, GVT
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, kế toán giá thành, Giám đốc | Giá vốn tạm tính (/gia-von-tam-tinh) | [[Món đang bán]] |
+
+Tiền nguyên liệu mỗi bánh theo công thức đang dùng, cộng dồn qua bán thành phẩm, theo giá kho hôm nay. Chưa gồm bao bì, công, hao hụt. Không đổi sổ sách.
+
+**Các bước**
+1. Phân hệ Kế toán, nhóm Giá thành, bấm Giá vốn tạm tính, thẻ [[Món đang bán]].
+2. Lọc bằng chip nhóm, chip trạng thái hoặc ô tìm.
+3. Thẻ có ô Giá vốn, Giá bán, Đề xuất và chip hệ số dạng "x5 · vốn 20%".
+4. Bấm thẻ xem từng nguyên liệu và nguồn giá. Dòng có dấu › là bán thành phẩm, bấm để xuống tầng dưới.
+
+**Chip trạng thái**
+| Chip | Nghĩa là | Làm gì |
+|---|---|---|
+| Vượt giá bán | Giá vốn bằng hoặc cao hơn giá bán | Xem lại đơn vị trong công thức |
+| Công thức vòng | Công thức trỏ vòng vào chính nó | Sửa công thức đó trên Desk |
+| Thiếu giá NVL | Nguyên liệu chưa có giá nào | Khai bảng giá mua |
+| Dưới mục tiêu | Giá bán chưa gấp đủ hệ số của nhóm | Đổi giá bán hay không: việc này do anh Việt quyết |
+
+**Lưu ý**
+- Nguồn giá lần lượt: Giá kho (bình quân kho có tồn), Giá khai trên mặt hàng, Bảng giá nhập.
+- Món nhiều công thức chưa chọn mặc định thì chưa tính: tích Mặc định cho công thức đúng trên Desk.
+- Món đang thử: dùng thẻ [[Món thử (R&D)]].
+- Kế toán viên chỉ xem.
+
+## Đặt hệ số mục tiêu và chốt bảng Giá vốn tạm tính
+Từ khoá: hệ số mục tiêu, hệ số giá bán, đặt mục tiêu, chốt giá vốn, lưu giá vốn, bảng giá Giá vốn tạm tính, trung vị, target markup, price list
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán trưởng, kế toán giá thành, Giám đốc | Giá vốn tạm tính (/gia-von-tam-tinh) | [[Hệ số mục tiêu]], [[Chốt vào bảng Giá vốn tạm tính]] |
+
+Hệ số là giá bán gấp mấy lần giá vốn. Giá bán đề xuất = giá vốn nhân hệ số, làm tròn lên nghìn.
+
+**Các bước (đặt hệ số)**
+1. Ở thẻ [[Món đang bán]] bấm [[Hệ số mục tiêu]].
+2. Mỗi nhóm một ô "x". Dòng dưới ô cho biết trung vị hiện tại của nhóm, gõ tới đâu hiện "tức giá vốn ...% giá bán" tới đó.
+3. Để trống thì nhóm đó không có giá đề xuất. Bấm [[Lưu hệ số]].
+
+**Các bước (chốt)**
+1. Bấm [[Chốt vào bảng Giá vốn tạm tính]] ở cuối màn.
+2. Đọc hộp Chốt giá vốn tạm: số món sẽ lưu, số món bỏ qua, ngày chốt. Bấm [[Chốt]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Nhập số lớn hơn 1, tối đa 20. | Sửa ô hệ số trong khoảng đó |
+| Tài khoản của bạn không có quyền đặt hệ số mục tiêu. / chốt giá vốn tạm tính. | Nhờ kế toán trưởng làm |
+
+**Lưu ý**
+- Hệ số mỗi nhóm là bao nhiêu: việc này do anh Việt quyết.
+- Món thiếu giá nguyên liệu hoặc công thức vòng bị bỏ qua khi chốt.
+- Mỗi món mỗi ngày một dòng trong bảng giá; chốt lại trong ngày thì ghi đè số của hôm đó.
+
+## Tính giá món thử R&D bằng phiếu tính giá thử
+Từ khoá: món thử, R&D, nghiên cứu, món mới, tính giá món mới, phiếu tính giá thử, giá vốn món thử, nguyên liệu chưa có mã, giá tay, dự toán giá, Sonneto Lab
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán trưởng, kế toán giá thành, Giám đốc | Giá vốn tạm tính (/gia-von-tam-tinh), thẻ Món thử (R&D) | [[Phiếu tính giá thử mới]] |
+
+Món chưa bán: nhập nguyên liệu tạm để có giá vốn và giá đề xuất. Không tạo mã hàng, không tạo công thức, không đổi sổ sách.
+
+**Các bước**
+1. Thẻ [[Món thử (R&D)]], bấm [[Phiếu tính giá thử mới]].
+2. Gõ Tên món thử, chọn Nhóm bán dự kiến, Một mẻ ra, Đơn vị, Giá bán dự kiến nếu có.
+3. Bấm [[Thêm nguyên liệu]], gõ ít nhất 2 chữ, chọn mã. Chưa có mã: ghi tên, đơn vị, bấm [[Thêm nguyên liệu chưa có mã]].
+4. Gõ số lượng theo đơn vị kho. Dòng chưa có mã hoặc thiếu giá thì gõ giá tay.
+5. Bấm [[Lưu phiếu]]. Không dùng nữa: [[Bỏ phiếu]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Nhập tên món thử. | Gõ tên món |
+| Một mẻ phải ra hơn 0. ... | Sửa ô Một mẻ ra |
+| Dòng ... (...): ghi đơn vị cho nguyên liệu chưa có mã, ví dụ Gram. | Ghi đơn vị dòng đó |
+| Phiếu ... vừa được sửa ở nơi khác. ... | Mở lại phiếu từ danh sách rồi sửa tiếp |
+| Công thức của một bán thành phẩm trong phiếu trỏ vòng vào chính nó ... | Sửa công thức đó trên Desk |
+
+**Lưu ý**
+- Ô tìm báo mất mạng: bấm [[Tìm lại]], đừng ghi thành dòng chưa có mã.
+- Phiếu ghi người lập, người sửa gần nhất, chip "Đã sửa N lần".
+- Bỏ phiếu chỉ ẩn khỏi danh sách, vẫn tra được trên Desk.
+- Kế toán viên chỉ xem.
+
+## Dữ liệu hao hụt: tin thứ Hai và báo cáo đủ danh sách
+Từ khoá: hao hụt, dữ liệu hao hụt, thực dùng, định mức, lệnh không cân, kho bếp chưa kiểm kê, giá vốn lệch kho, bán thành phẩm chưa có công thức, waste, loss, BC18
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán giá thành, kế toán, Giám đốc | Dữ liệu hao hụt (/du-lieu-hao-hut) | [[Xuất Excel cho kế toán]] |
+
+Hao hụt chỉ đo được khi bếp ghi đủ lệnh, cân thật, kiểm kê kho bếp đều. Thứ Hai 08:00 máy báo chỗ còn thiếu của tuần trước.
+
+**Các bước**
+1. Thứ Hai đọc tin "Dữ liệu hao hụt tuần ..." trong nhóm Zalo, bấm link Mở.
+2. Màn mở sẵn kỳ tuần, mỗi dòng: Việc cần sửa, Chi tiết, Số, Bếp hay kho.
+3. Chuyển việc cho đúng người theo bảng dưới. Cần bản đủ: bấm [[Xuất Excel cho kế toán]].
+
+**Năm mục máy soi**
+| Mục | Ai sửa |
+|---|---|
+| Bánh bán ra mà 14 ngày chưa có lệnh sản xuất | Bếp |
+| Lệnh ghi số cân bằng đúng số làm | Bếp cân thật khi hoàn tất |
+| Kho bếp quá 7 ngày chưa kiểm kê, hoặc lần cuối dưới 5 dòng | Bếp |
+| Giá vốn một món lệch giữa các kho từ 3 lần | Kế toán giá thành |
+| Bán thành phẩm chưa có công thức; chưa khai % hao hụt cho phép | Kế toán giá thành |
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Phân hệ Báo cáo chỉ mở cho ban giám đốc, quản lý và kế toán. ... | Nhờ quản trị cấp vai trò "Vagabond Bao cao" |
+
+**Lưu ý**
+- Tuần đủ dữ liệu thì tin chỉ còn "Dữ liệu tuần này đủ để tính hao hụt."
+- Mỗi bếp có việc nhận riêng tin việc cần làm, hạn Chủ nhật.
+- Tin hao hụt quy ra tiền làm khi nào: việc này do anh Việt quyết.
+- Ô % hao hụt cho phép nằm trên Công thức ở Desk. <!-- kiểm: máy đếm ô Process Loss Percentage của BOM; chưa đối chiếu tên tiếng Việt site đang hiện, app chưa có ô này -->
