@@ -12,7 +12,7 @@
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
-import {ND} from '../../../public/web_vue/kho/chu.js';
+import {ND, napNoiDung} from '../../../public/web_vue/kho/chu.js';
 import {ChuyenMuc, TD, oTomTat, quyenLoi, ngayCon, moViTri} from '../../../public/web_vue/banh/noi-dung.js';
 
 const GOC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
@@ -66,6 +66,24 @@ await ca('chưa tải xong nội dung: hiện "Đang tải", KHÔNG báo "chưa 
   const c = ve();
   dung('đang tải', chu(c).includes('Đang tải các vị trí đang tuyển'));
   dung('không báo rỗng', !chu(c).includes('chưa có vị trí'));
+});
+
+await ca('tải nội dung web lỗi (500): báo chưa tải được, KHÔNG kẹt "Đang tải" mãi (CI ảnh PR #523 31/10)', async () => {
+  ND.khoi = []; ND.daTai = false; ND.loiTai = false; TD.mo = '';
+  const vet = [];
+  const win = {parent: null, location: {search: '', origin: 'http://x'}, console: {error: m => vet.push(m)},
+    fetch: () => Promise.resolve({ok: false, status: 500, json: () => Promise.resolve({})})};
+  win.parent = win;
+  await napNoiDung(win);
+  la('đã ghi lỗi ra console', vet.length, 1);
+  const c = ve();
+  dung('báo lỗi', chu(c).includes('Chưa tải được danh sách vị trí'));
+  dung('không còn đang tải', !chu(c).includes('Đang tải'));
+  // Lần sau tải được thì mất báo lỗi.
+  win.fetch = () => Promise.resolve({ok: true, json: () => Promise.resolve({message: {khoi: MAY.the}})});
+  await napNoiDung(win);
+  la('hết lỗi', ND.loiTai, false);
+  la('hai thẻ', tim(ve(), lop('td-the')).length, 2);
 });
 
 await ca('danh sách phương án A: thẻ ảnh gọn (bộ phận, Tuyển gấp, tên, nơi làm, lương gọn, mũi tên), không đổ cả mô tả ra', async () => {
