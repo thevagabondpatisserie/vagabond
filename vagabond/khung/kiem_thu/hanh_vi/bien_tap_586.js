@@ -137,7 +137,8 @@ function appMoi(tuy) {
 
   await ca('Sau the va Nang cao, the Uu dai chi doc tu ERP: dem, trang thai, chi dung tai cua hang, khong co nut them sua xoa', async function () {
     var app = appMoi(); await nghi();
-    bang('7 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'tiec', 'tuyen_dung', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
+    /* v625: thêm thẻ Câu hỏi ứng tuyển ngay sau Tuyển dụng. */
+    bang('8 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'tiec', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
     dung('dem uu dai tu ERP', String(app.mot('[data-the="uu_dai"]').textContent).indexOf('Ưu đãi2') === 0);
     bang('khong hien uu dai go tay', app.tim('[data-muc]').length, 0);
     var u1 = String(app.mot('[data-muc-erp="SN10"]').textContent);
