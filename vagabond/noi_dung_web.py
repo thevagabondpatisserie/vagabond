@@ -365,8 +365,15 @@ def chuan_hoa(du_lieu):
         if len(du_lieu) > 250000:
             raise ValueError("Nội dung quá dài. Giảm số khối hoặc độ dài bài viết.")
         du_lieu = json.loads(du_lieu)
-    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach", "nhan", "san_pham", "thong_tin"}:
+    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach", "nhan", "san_pham", "thong_tin", "tuyen_dung_form"}:
         raise ValueError("Nội dung phải có danh sách khối.")
+    if "tuyen_dung_form" in du_lieu:
+        # v625: câu hỏi ứng tuyển Minh Vũ sửa trong trình biên tập.
+        from vagabond import tuyen_dung_form
+        try:
+            du_lieu = dict(du_lieu, tuyen_dung_form=tuyen_dung_form.chuan_form(du_lieu["tuyen_dung_form"]))
+        except tuyen_dung_form.LoiNhap as e:
+            raise ValueError(str(e))
     if "thong_tin" in du_lieu:
         _chuan_hoa_thong_tin(du_lieu["thong_tin"])
     if "chinh_sach" in du_lieu:
@@ -633,6 +640,12 @@ def cong_khai():
     # v622 (anh Việt 30/10/2026): tuyển dụng cũng lấy từ ERP, bật tắt vị trí trên
     # app là web đổi theo; nút Ứng tuyển mở form /ung-tuyen ghi thẳng vào app.
     ra["khoi"] = thay_khoi_erp(ra.get("khoi") or [], _the_tuyen_dung_erp(), "tuyen_dung")
+    # v625: phúc lợi chung và lời giới thiệu cho trang chi tiết vị trí; câu hỏi
+    # thì trang /ung-tuyen tự đọc, không cần tải ở trang đặt bánh.
+    from vagabond import tuyen_dung_form
+    g = tuyen_dung_form.form_hien(ra)
+    ra.pop("tuyen_dung_form", None)
+    ra["tuyen_dung_chung"] = {"phuc_loi": g["phuc_loi"], "gioi_thieu": g["gioi_thieu"]}
     # v532: trang luôn nhận bộ nhãn đầy đủ, không tự ghép mặc định ở phía khách.
     ra["nhan"] = nhan_day_du(ra)
     # v586: cửa hàng, liên hệ và số vé tiệc đã đăng ký, cùng một lượt tải.
@@ -952,6 +965,7 @@ def luu(noi_dung, phien_ban, hanh_dong="nhap"):
     nd["khoi"] = giu_uu_dai_da_luu(nd.get("khoi") or [], khoi_cu)
     # v622: tuyển dụng cũng chỉ sửa trên ERP, lưu cả bản không đổi được khối này.
     nd["khoi"] = giu_khoi_da_luu(nd["khoi"], khoi_cu, "tuyen_dung")
+    nd = giu_form_da_luu(nd, json.loads(d.ban_nhap or "{}"))
     if hanh_dong == "xuat_ban" and loi_xuat_ban(nd):
         frappe.throw(loi_xuat_ban(nd))
     d.ban_nhap = json.dumps(nd, ensure_ascii=False)
@@ -1031,7 +1045,49 @@ def bang_moi():
         "uu_dai_erp": _uu_dai_erp_bien_tap(),
         # v622: thẻ Tuyển dụng chỉ đọc, lấy từ ERP (nguồn duy nhất).
         "tuyen_dung_erp": _tuyen_dung_erp_bien_tap(),
+        # v625: câu hỏi ứng tuyển, phúc lợi chung (Minh Vũ sửa ở thẻ Tuyển dụng).
+        "tuyen_dung_form": _form_bien_tap(cong),
+        "dau_tuyen_dung_form": dau_van_tay(_form_bien_tap(cong)),
+        "tuyen_dung_mau": _mau_form(),
     }
+
+
+def giu_form_da_luu(nd, nhap_cu):
+    """THUẦN (v625): câu hỏi ứng tuyển chỉ sửa ở thẻ Câu hỏi ứng tuyển (ghi cả hai
+    bản cùng lúc). Lưu cả bản ở mục Nâng cao, kể cả khôi phục một bản cũ trong
+    lịch sử, giữ nguyên cấu hình đang dùng, không xoá mất câu Minh Vũ vừa sửa."""
+    nd = dict(nd)
+    nd.pop("tuyen_dung_form", None)
+    cu = (nhap_cu or {}).get("tuyen_dung_form")
+    if cu:
+        nd["tuyen_dung_form"] = cu
+    return nd
+
+
+def _form_bien_tap(nd):
+    from vagabond import tuyen_dung_form
+    return tuyen_dung_form.form_hien(nd)
+
+
+def _mau_form():
+    """Loại câu, bước, câu khoá: trình biên tập lấy từ đây, không chép cứng trong JS."""
+    from vagabond import tuyen_dung_form as tf
+    return {"loai": {k: {"ten": v[0], "mo": v[1]} for k, v in tf.LOAI.items()}, "loai_tu_chon": list(tf.LOAI_TU_CHON),
+            "buoc": tf.BUOC, "khoa_xoa": list(tf.KHOA_XOA), "khong_cho_ai": list(tf.KHONG_CHO_AI),
+            "loai_theo_ma": tf.LOAI_THEO_MA, "mac_dinh": tf.mac_dinh(), "toi_da_cau": tf.TOI_DA_CAU}
+
+
+def ap_form_tuyen_dung(nd, gia_tri, dau_cu=None):
+    """THUẦN: thay câu hỏi ứng tuyển. dau_cu khác bản đang có là người khác vừa sửa."""
+    from vagabond import tuyen_dung_form as tf
+    nd = copy.deepcopy(nd)
+    if dau_cu is not None and dau_van_tay(tf.form_hien(nd)) != dau_cu:
+        raise XungDot("Có người vừa sửa câu hỏi ứng tuyển. Tải lại để xem bản mới rồi sửa tiếp.")
+    try:
+        nd["tuyen_dung_form"] = tf.chuan_form(gia_tri)
+    except tf.LoiNhap as e:
+        raise ValueError(str(e))
+    return nd
 
 
 def _ghi_ca_hai(ham, ham_nhap=None):
@@ -1098,6 +1154,15 @@ def xoa_muc_web(id_muc, dau_cu=""):
     """Xoá một ưu đãi, tiệc hoặc vị trí. Bản cũ vẫn nằm trong lịch sử."""
     kiem_quyen()
     return _ghi_ca_hai(lambda nd: xoa_muc(nd, id_muc, dau_cu or ""), lambda nd: xoa_muc(nd, id_muc, None))
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_form_tuyen_dung(gia_tri, dau_cu=""):
+    """v625: lưu câu hỏi ứng tuyển và phúc lợi chung. Khách thấy ngay ở /ung-tuyen."""
+    kiem_quyen()
+    gia_tri = _doc_json(gia_tri)
+    return _ghi_ca_hai(lambda nd: ap_form_tuyen_dung(nd, gia_tri, dau_cu or ""),
+                       lambda nd: ap_form_tuyen_dung(nd, gia_tri, None))
 
 
 @frappe.whitelist(methods=["POST"])
