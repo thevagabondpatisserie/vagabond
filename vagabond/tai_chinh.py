@@ -277,13 +277,18 @@ def nguon_tien_mat(cac_diem):
 
 def tong_tien(cac_dong):
 	"""Cộng số dư các nguồn đã có số. THUẦN. Nguồn chưa chốt không cộng,
-	nhưng được đếm để màn báo "còn N nguồn chưa chốt"."""
+	nhưng được đếm để màn báo "còn N nguồn chưa chốt". Nguồn tính HỎNG (cờ
+	`loi`) đếm riêng: tổng đang thiếu một khoản không biết, không được đọc
+	như "chưa chốt" (Codex #524 vòng 3)."""
 	nh = tm = tu = 0.0
-	chua = 0
+	chua = loi = 0
 	for d in cac_dong or ():
 		v = d.get("so_du")
 		if v is None:
-			chua += 1
+			if d.get("loi"):
+				loi += 1
+			else:
+				chua += 1
 			continue
 		if d.get("loai") == LOAI_NH:
 			nh += flt(v)
@@ -292,7 +297,7 @@ def tong_tien(cac_dong):
 		else:
 			tm += flt(v)
 	return {"tong": round(nh + tm, 2), "ngan_hang": round(nh, 2), "tien_mat": round(tm, 2),
-		"tam_ung": round(tu, 2), "chua_chot": chua}
+		"tam_ung": round(tu, 2), "chua_chot": chua, "loi": loi}
 
 
 def _gon(x):
@@ -555,7 +560,7 @@ def tuan_den_han(han, hom_nay):
 
 COT_DU_BAO = ("qua_han", "tuan_1", "tuan_2", "tuan_3", "tuan_4", "tuan_5")
 # Nguồn của dự báo có thể đọc hỏng, theo thứ tự hiện trên màn.
-NGUON_DU_BAO = {"phai_thu": "Khách nợ mình", "ncc": "Nợ nhà cung cấp",
+NGUON_DU_BAO = {"so_du": "Số dư tài khoản, két", "phai_thu": "Khách nợ mình", "ncc": "Nợ nhà cung cấp",
 	"giu": "Hồ sơ thanh toán đang giữ hoá đơn"}
 
 
@@ -766,7 +771,13 @@ def _tinh_tien():
 				if n["dong_bo"] and not m:
 					d["ghi"].append("Chưa chốt số dư đầu")
 				if not n["dong_bo"] and n["so_bao"] <= 0 and not m:
-					d["ghi"].append("Chưa nối SePay, cần chốt tay")
+					if so_bao:
+						d["ghi"].append("Chưa nối SePay, cần chốt tay")
+					else:
+						# Codex #524 vòng 3: tài khoản sống nhờ số SePay báo mà
+						# SePay không đọc được là LỖI, không phải chưa chốt.
+						d["loi"] = 1
+						d["ghi"].append("Chưa đọc được số dư SePay lúc này")
 			elif n["nguon"] == NGUON_QUY:
 				if m:
 					vao_nq, so_nq = _nop_quy(sau_ngay=m["ngay_chot"], theo="nhan")
@@ -796,12 +807,16 @@ def _tinh_tien():
 			frappe.log_error(frappe.get_traceback(), "tai_chinh: tinh nguon %s" % n["nguon"])
 			d["ghi"].append("Chưa tính được, báo kỹ thuật")
 			d["so_du"] = None
+			d["loi"] = 1
 		dong.append(d)
 	# Tiền két đã giao, quỹ chưa ký nhận: đã trừ khỏi két, chưa cộng vào quỹ.
 	try:
 		dang, so_dang = _nop_quy(trang_thai=("Chờ ký nhận",))
 	except Exception:
+		frappe.log_error(frappe.get_traceback(), "tai_chinh: nop quy cho ky nhan")
 		dang, so_dang = 0.0, 0
+		dong.append({"nguon": "tm:DANG", "loai": LOAI_TM, "ten": "Đang nộp về quỹ (chờ ký nhận)",
+			"so_du": None, "loi": 1, "ghi": ["Chưa tính được, báo kỹ thuật"], "dang_chuyen": 1})
 	if dang:
 		dong.append({"nguon": "tm:DANG", "loai": LOAI_TM, "ten": "Đang nộp về quỹ (chờ ký nhận)",
 			"so_du": dang, "so_phieu": so_dang, "ghi": ["%d phiếu nộp quỹ chờ ký nhận" % so_dang], "dang_chuyen": 1})
@@ -829,9 +844,11 @@ def _gd_ngan_hang(tu, den, cac_nh):
 
 
 def _tien_mat_theo_ngay(tu, den, cac_tm):
-	"""{ngày: tiền mặt vào các két}. Mỗi ngày mỗi điểm một lượt phép Chốt ca."""
+	"""({ngày: tiền mặt vào các két}, [(điểm, ngày) đọc hỏng]). Mỗi ngày mỗi
+	điểm một lượt phép Chốt ca. Codex #524 vòng 3: két đọc hỏng thì báo ra,
+	và ngày đó KHÔNG lưu bộ nhớ đệm để lần mở sau đọc lại."""
 	c = frappe.cache()
-	ra = {}
+	ra, thieu = {}, []
 	for n in chuoi_ngay(tu, den):
 		k = "vgb_tc_tm_%s" % n
 		v = None
@@ -842,7 +859,7 @@ def _tien_mat_theo_ngay(tu, den, cac_tm):
 			except Exception:
 				v = None
 		if v is None:
-			s = 0.0
+			s, du = 0.0, True
 			for d in cac_tm:
 				if not d.get("diem"):
 					continue
@@ -850,14 +867,16 @@ def _tien_mat_theo_ngay(tu, den, cac_tm):
 					s += _tien_mat_vao_ket(d["diem"], n, "%s 23:59:59" % n)
 				except Exception:
 					frappe.log_error(frappe.get_traceback(), "tai_chinh: tien mat %s %s" % (d["diem"], n))
+					thieu.append((d["diem"], n))
+					du = False
 			v = s
-			if not hom:
+			if du and not hom:
 				try:
 					c.set_value(k, v, expires_in_sec=1800)
 				except Exception:
 					pass
 		ra[n] = flt(v)
-	return ra
+	return ra, thieu
 
 
 def _chi_quy_theo_ngay(tu, den):
@@ -880,7 +899,10 @@ def dong_tien(so_ngay=30):
 	tm = [x for x in nguon if x["loai"] == LOAI_TM]
 	gd = _gd_ngan_hang(tu, den, nh)
 	ngoai, noi_bo = tach_noi_bo(gd)
-	kq = gom_ngay(ngoai, _tien_mat_theo_ngay(tu, den, tm), _chi_quy_theo_ngay(tu, den), tu, den)
+	tm_ngay, thieu = _tien_mat_theo_ngay(tu, den, tm)
+	kq = gom_ngay(ngoai, tm_ngay, _chi_quy_theo_ngay(tu, den), tu, den)
+	ten = {x.get("diem"): x.get("ten") or x.get("diem") for x in tm}
+	kq["thieu"] = ["%s ngày %s/%s" % (ten.get(d, d), n[8:10], n[5:7]) for d, n in thieu]
 	kq.update(so_ngay=n, tu=str(tu), den=str(den), lon_nhat=lon_nhat(ngoai),
 		noi_bo={"so": len(noi_bo), "tien": round(sum(x["so"] for x in noi_bo), 2)})
 	return kq
@@ -990,7 +1012,7 @@ def du_bao_30():
 	hom = getdate(nowdate())
 	tien = _tinh_tien()
 	so_du = tien["tong"]["tong"] if any(d.get("so_du") is not None for d in tien["dong"]) else None
-	thieu = []
+	thieu = ["so_du"] if tien["tong"].get("loi") else []
 	pt, dong, giu = 0.0, [], {}
 	try:
 		pt = _phai_thu()
@@ -1037,7 +1059,7 @@ def tong_quan():
 
 	def dong7():
 		k = dong_tien(7)
-		return {"vao": k["vao"], "ra": k["ra"], "rong": k["rong"]}
+		return {"vao": k["vao"], "ra": k["ra"], "rong": k["rong"], "thieu": len(k["thieu"])}
 
 	def ll():
 		tu, den = khoang_thang(t)
