@@ -272,10 +272,10 @@ def _dk_quy():
 
 	def sql(q, *a, **k):
 		cau.append(q)
-		return [(0, 0)]
+		return [(0, 0, 0)]
 	with um.patch.object(tc.frappe.db, "sql", sql, create=True):
 		tc._so_cai_quy(HOM)
-		tc._chi_quy_theo_ngay(HOM, HOM)
+		tc._quy_theo_ngay(HOM, HOM)
 	la("hai câu đọc sổ cái quỹ", len(cau), 2)
 	la("cả hai dùng chung điều kiện quỹ công ty", [tc.DK_QUY_CONG_TY in q for q in cau], [True, True])
 	dk = re.sub(r"\s+", " ", tc.DK_QUY_CONG_TY)
@@ -674,3 +674,23 @@ def _tien_mat_ngay_hong():
 		ra2, thieu2 = tc._tien_mat_theo_ngay(dt.date(2026, 8, 13), dt.date(2026, 8, 14), tm)
 		la("hết lỗi thì đọc lại đủ", (ra2, thieu2), ({"2026-08-13": 3000000.0, "2026-08-14": 3000000.0}, []))
 		la("ngày đủ mới lưu bộ nhớ đệm", sorted(cache.d.values()), [3000000.0, 3000000.0])
+
+
+@ca("v626 Codex #524 vòng 4: thu tiền mặt kế toán ghi thẳng vào quỹ (Nợ 1111 / Có 711) có mặt trong Dòng tiền")
+def _dong_tien_thu_quay():
+	# Câu đọc sổ cái giả đúng như cơ sở dữ liệu: ngày 15/08 quỹ có một bút
+	# toán Nợ 1111 80.000 (thu khác) và một bút toán Có 1111 30.000 (chi).
+	def sql(q, *a, **k):
+		if "sum(g.debit)" in q:
+			return [(dt.date(2026, 8, 15), 80000.0, 30000.0)]
+		return [(dt.date(2026, 8, 15), 30000.0)]
+	with um.patch.object(tc, "_kiem", lambda: None), \
+		um.patch.object(tc, "_cac_nguon", lambda so_bao=None: tc.nguon_tien_mat(DIEM)), \
+		um.patch.object(tc, "_gd_ngan_hang", lambda tu, den, nh: []), \
+		um.patch.object(tc, "_tien_mat_theo_ngay", lambda tu, den, tm: ({"2026-08-15": 1000000.0}, [])), \
+		um.patch.object(tc.frappe.db, "sql", sql, create=True), \
+		um.patch.object(tc, "nowdate", lambda: "2026-08-15"):
+		kq = tc.dong_tien(7)
+	h = next(x for x in kq["ngay"] if x["ngay"] == "2026-08-15")
+	la("ngày 15/08: vào gồm két 1.000.000 và thu quỹ 80.000, ra gồm chi quỹ", (h["vao"], h["ra"]), (1080000.0, 30000.0))
+	la("tổng kỳ", (kq["vao"], kq["ra"], kq["rong"]), (1080000.0, 30000.0, 1050000.0))
