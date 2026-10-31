@@ -251,6 +251,26 @@ function ai(r, k) { return Object.assign(r, k); }
     dung('đọc xong: không có dòng báo', chu(s).indexOf('kết quả lần trước') < 0);
   });
 
+  await ca('Codex #523 vòng 3: hồ sơ nộp lúc chưa có khoá AI (Chưa bật AI, đã có CV) vẫn có nút Hồ sơ AI để xem lý do và Chấm lại', async function () {
+    var cu = SUA_DL;
+    SUA_DL = function (dl) { cu(dl); ai(dl.rows[1], { ai_trang_thai: 'Chưa bật AI', ai_loi: 'Chưa có khoá AI trong Cài đặt (ô khoá Trợ lý).', co_cv: 1 }); };
+    try {
+      HO_SO_AI = { name: 'UV-2', trang_thai: 'Chưa bật AI', loi: 'Chưa có khoá AI trong Cài đặt (ô khoá Trợ lý).', kq: null, co_cv: 1 };
+      var m = await mo();
+      var n = nut(the(m, 'UV-2'), 'data-tdai');
+      dung('có nút Hồ sơ AI', !!n);
+      bam(n); await tick(); await tick();
+      var s = sheet(m);
+      dung('nói lý do thiếu khoá', chu(s).indexOf('Lý do: Chưa có khoá AI trong Cài đặt') >= 0);
+      bam(nut(s, 'data-tdchamlai')); await tick();
+      bang('Chấm lại gọi máy chủ', goiTen(m, 'cham_lai').map(function (g) { return g.ts.name; }), ['UV-2']);
+      HO_SO_AI = { name: 'UV-2', trang_thai: '', loi: '', kq: null, co_cv: 1 };
+      m = await mo();
+      bam(nut(the(m, 'UV-2'), 'data-tdai')); await tick(); await tick();
+      dung('hồ sơ cũ chưa đọc: mời bấm Chấm lại', chu(sheet(m)).indexOf('Bấm Chấm lại để AI đọc') >= 0);
+    } finally { SUA_DL = cu; }
+  });
+
   await ca('Sửa vị trí: Tuyển gấp bật tắt, Ảnh trên web chọn bằng thẻ ảnh có dòng giải thích; lưu gửi hai ô mới', async function () {
     var m = await mo();
     vm.runInNewContext('tdKq = null;', m.g);
