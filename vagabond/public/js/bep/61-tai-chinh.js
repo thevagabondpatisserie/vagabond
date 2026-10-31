@@ -223,23 +223,31 @@ async function scrTcDuBao() {
   var kq;
   try { kq = await api('vagabond.tai_chinh.du_bao_30', {}); } catch (e) { return tcLoi(td, e); }
   var dong = function (ten, so, dau, mau, phu) {
+    var chua = so === null || so === undefined;
     return '<div style="display:flex;justify-content:space-between;gap:8px;padding:9px 13px;border-top:1px solid #f1f5f9">' +
       '<span>' + ten + (phu ? '<div style="font-size:12px;color:#667085">' + phu + '</div>' : '') + '</span>' +
-      '<b style="white-space:nowrap;color:' + (mau || '#101828') + '">' + dau + money(so) + '</b></div>';
+      (chua ? '<b data-tcchuadoc="1" style="white-space:nowrap;color:#b54708">Chưa đọc được</b>'
+        : '<b style="white-space:nowrap;color:' + (mau || '#101828') + '">' + dau + money(so) + '</b>') + '</div>';
   };
+  var hongNcc = kq.theo_tuan === null;
   var tuan = kq.theo_tuan || {};
+  var ncc = function (k) { return hongNcc ? null : (tuan[k] || 0); };
   var html = '';
+  if ((kq.thieu || []).length) {
+    html += '<div class="card" data-tcthieu="1" style="padding:13px;color:#b54708;line-height:1.5">Chưa đọc được: ' + h(kq.thieu.join(', ')) +
+      '. Vì thiếu phần này nên chưa kết luận số dư sau 30 ngày. Thử mở lại sau ít phút; vẫn vậy thì báo kỹ thuật.</div>';
+  }
   if (kq.so_du === null || kq.so_du === undefined) {
     html += '<div class="card" style="padding:13px;color:#b54708">Chưa chốt số dư nào nên chưa dự báo được số dư. Vào Cài đặt tài chính để chốt.</div>';
   }
   html += '<div class="card" style="padding:0"><div style="padding:11px 13px 4px;font-weight:700">Từ hôm nay ' + tcNgay(kq.hom_nay) + ' tới 30 ngày sau</div>' +
     dong('Tiền đang có', kq.so_du || 0, '', '', kq.chua_chot ? 'còn ' + kq.chua_chot + ' chỗ chưa chốt' : '') +
     dong('Khách nợ mình (nếu thu hết)', kq.phai_thu, '+', '#067647') +
-    dong('Nợ nhà cung cấp đã quá hạn', tuan.qua_han || 0, '-', '#b42318') +
-    dong('Nợ nhà cung cấp đến hạn tuần 1', tuan.tuan_1 || 0, '-', '#b42318') +
-    dong('Tuần 2', tuan.tuan_2 || 0, '-', '#b42318') +
-    dong('Tuần 3', tuan.tuan_3 || 0, '-', '#b42318') +
-    dong('Tuần 4 tới hết ngày 30', tuan.tuan_4 || 0, '-', '#b42318') +
+    dong('Nợ nhà cung cấp đã quá hạn', ncc('qua_han'), '-', '#b42318') +
+    dong('Nợ nhà cung cấp đến hạn tuần 1', ncc('tuan_1'), '-', '#b42318') +
+    dong('Tuần 2', ncc('tuan_2'), '-', '#b42318') +
+    dong('Tuần 3', ncc('tuan_3'), '-', '#b42318') +
+    dong('Tuần 4 tới hết ngày 30', ncc('tuan_4'), '-', '#b42318') +
     dong('Hồ sơ thanh toán đã duyệt, chờ chuyển', kq.cho_chi, '-', '#b42318') +
     dong('Hồ sơ thanh toán đang chờ duyệt', kq.cho_duyet, '-', '#b42318') + '</div>';
   if (kq.cuoi_ky !== null && kq.cuoi_ky !== undefined) {
@@ -248,7 +256,7 @@ async function scrTcDuBao() {
       '<div style="font-size:13px;color:#475467">Nếu khách chưa trả nợ: ' + money(kq.cuoi_ky_khong_thu) + ' đ</div></div>';
   }
   html += '<div style="font-size:12.5px;color:#667085;margin:4px 4px 10px;line-height:1.6">Chưa tính tiền bán hàng mới và lương sẽ phát sinh. ' +
-    'Nợ nhà cung cấp đã nằm trong hồ sơ thanh toán thì chỉ trừ một lần ở dòng hồ sơ. Đến hạn sau 30 ngày: ' + money(kq.sau_30) + ' đ, chưa trừ.</div>';
+    'Nợ nhà cung cấp đã nằm trong hồ sơ thanh toán thì chỉ trừ một lần ở dòng hồ sơ. ' + (hongNcc ? '' : 'Đến hạn sau 30 ngày: ' + money(kq.sau_30) + ' đ, chưa trừ.') + '</div>';
   frame(td, html);
 }
 
