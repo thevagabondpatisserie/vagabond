@@ -1,0 +1,108 @@
+{
+ "actions": [],
+ "creation": "2026-10-31 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Moc So Du",
+ "modified": "2026-10-31 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Mốc chốt số dư một tài khoản ngân hàng, một két hoặc quỹ tiền mặt (phân hệ Tài chính, v626). Chỉ thêm, không sửa: chốt lại là thêm mốc mới.",
+ "autoname": "format:MSD-{YY}-{MM}-{#####}",
+ "field_order": [
+  "nguon",
+  "ten_nguon",
+  "loai",
+  "cb1",
+  "ngay_chot",
+  "so_du",
+  "sb1",
+  "ghi_chu",
+  "nguoi",
+  "luc"
+ ],
+ "fields": [
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Data",
+   "label": "Mã nguồn tiền",
+   "reqd": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ten_nguon",
+   "fieldtype": "Data",
+   "label": "Tài khoản hoặc két",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "label": "Loại",
+   "options": "Ngân hàng\nTiền mặt",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngay_chot",
+   "fieldtype": "Date",
+   "label": "Số dư cuối ngày",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "so_du",
+   "fieldtype": "Currency",
+   "label": "Số dư",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sb1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "label": "Người chốt",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc lưu",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "ngay_chot",
+ "sort_order": "DESC",
+ "track_changes": 0,
+ "in_create": 1
+}

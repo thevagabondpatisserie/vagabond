@@ -173,6 +173,9 @@ def dung():
 		{'fieldname': 'vgb_huy_luc', 'fieldtype': 'Datetime', 'label': 'Huỷ lúc', 'read_only': 1, 'insert_after': 'vgb_huy'},
 		{'fieldname': 'vgb_huy_boi', 'fieldtype': 'Data', 'label': 'Người huỷ', 'read_only': 1, 'insert_after': 'vgb_huy'},
 		{"fieldname": "vgb_tam_tinh", "fieldtype": "Check", "label": "Tam tinh", "insert_after": "customer"},
+		# v626: chủ nợ kế toán gán sau khi ghi sổ (site có, staging/cau_truc_cu.json).
+		# ds_khach_no đọc ô này; bench thiếu thì màn Công nợ nổ Unknown column.
+		{"fieldname": "vgb_khach_no", "fieldtype": "Link", "options": "Customer", "label": "Khách công nợ", "insert_after": "customer"},
 		{"fieldname": "vgb_xhd_ten", "fieldtype": "Data", "label": "XHD ten", "insert_after": "customer"},
 		{"fieldname": "vgb_xhd_mst", "fieldtype": "Data", "label": "XHD mst", "insert_after": "customer"},
 		{"fieldname": "vgb_xhd_dia_chi", "fieldtype": "Small Text", "label": "XHD dia chi", "insert_after": "customer"},

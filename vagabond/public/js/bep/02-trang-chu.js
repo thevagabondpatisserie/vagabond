@@ -243,6 +243,23 @@ async function scrHome() {
       card('🍰', 'Món bán chạy', 'Xếp hạng theo số lượng bán ra', 0, 'BC:BC08') +
       card('✂️', 'Sửa và huỷ hoá đơn', 'Ai sửa, ai huỷ, làm gì trên hoá đơn nào', 0, 'BC:BC07') + '</div>';
   }
+  /* v626 phân hệ Tài chính (anh Việt 31/10/2026): chỉ Giám đốc và người Giám
+     đốc chọn đích danh (tai_chinh.VAI_LUON_XEM + Cài đặt Tài chính). Ô Khách
+     nợ mình, Mình nợ NCC, Chờ chi, Tiền khách gửi trước dùng khoá RIÊNG mở
+     sang màn đã có: dùng chung khoá CN, SODU thì Sales cũng thấy phân hệ này. */
+  if (coQuyenTaiChinh()) {
+    html += '<div class="sec">Tài chính</div><div class="card">' + card('📊', 'Tổng quan tài chính', 'Tiền, lãi lỗ, công nợ trên một màn', 0, 'TCTQ') +
+      card('💵', 'Tiền hiện có', 'Tiền mặt từng két và ngân hàng, đối chiếu SePay', 0, 'TCTIEN') +
+      card('🔁', 'Dòng tiền', 'Tiền vào, tiền ra từng ngày, bỏ chuyển nội bộ', 0, 'TCDONG') +
+      card('🔮', 'Dự báo 30 ngày', 'Số dư sau khi thu nợ, trả nhà cung cấp, chi đã duyệt', 0, 'TCDB') +
+      card('📈', 'Lãi lỗ tháng', 'Doanh thu, giá vốn, chi phí, lãi theo sổ cái', 0, 'TCLL') +
+      card('🥐', 'Tỉ lệ giá vốn và hao hụt', 'Food cost, prime cost, hao hụt kiểm kê và xuất huỷ', 0, 'TCTL') +
+      card('📥', 'Khách nợ mình', 'Công nợ phải thu', 0, 'TCPT') +
+      card('📤', 'Mình nợ nhà cung cấp', 'Công nợ phải trả, quá hạn lên đầu', 0, 'TCPTR') +
+      card('⏳', 'Chờ chi', 'Hồ sơ thanh toán đã duyệt, chưa chuyển tiền', 0, 'TCCHO') +
+      card('🎟️', 'Tiền khách gửi trước', 'Số dư trả trước của khách', 0, 'TCTT') +
+      card('⚙️', 'Cài đặt tài chính', 'Chốt số dư đầu, chọn người được xem', 0, 'TCCD') + '</div>';
+  }
   /* KHOI KE TOAN: chi ke toan, thu mua, giam doc. Anh Viet 30/08/2026 bat
      duoc lo hong nay - dieu kien cu la `isSales()` nen ca thu ngan cung
      nhin thay Cong no phai tra, Tai san va But toan tay. Xem
@@ -643,6 +660,18 @@ var VGB_NHOM = [
       { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ'] },
       { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] },
       { t: 'Giá thành', p: 'định giá bán', keys: ['GVT'] }
+    ]
+  },
+  /* Tài chính (v626, anh Việt 31/10/2026). Mọi ô dựng trong scrHome dưới
+     coQuyenTaiChinh(), nên người không được xem thì nhóm rỗng, tự ẩn. */
+  {
+    k: 'TC', ten: 'Tài chính', icon: '💰',
+    keys: ['TCTQ', 'TCTIEN', 'TCDONG', 'TCDB', 'TCLL', 'TCTL', 'TCPT', 'TCPTR', 'TCCHO', 'TCTT', 'TCCD'],
+    nhom: [
+      { t: 'Tiền', p: 'xem hàng ngày', keys: ['TCTQ', 'TCTIEN', 'TCDONG', 'TCDB'] },
+      { t: 'Lãi lỗ', p: 'cuối tuần, cuối tháng', keys: ['TCLL', 'TCTL'] },
+      { t: 'Công nợ và chờ chi', p: 'ai nợ ai', keys: ['TCPT', 'TCPTR', 'TCCHO', 'TCTT'] },
+      { t: 'Cài đặt', p: '', keys: ['TCCD'] }
     ]
   },
   /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
@@ -1822,6 +1851,7 @@ var VGB_DUONG = {
   'but-toan': 'BT',
   'cai-dat-cuoi-ngay': 'CDCN',
   'cai-dat-loi-va-api': 'CDLOI',
+  'cai-dat-tai-chinh': 'TCCD',
   'canh-bao-thanh-toan': 'CBTT',
   'chi-phi-van-don': 'CPX',
   'chien-dich': 'CRMCD',
@@ -1844,6 +1874,8 @@ var VGB_DUONG = {
   'don-da-huy': 'DHUY',
   'don-mua-hang': 'PO',
   'don-tiec': 'TIEC',
+  'dong-tien': 'TCDONG',
+  'du-bao-30-ngay': 'TCDB',
   'du-lieu-hao-hut': 'BCHH',
   'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
@@ -1866,6 +1898,7 @@ var VGB_DUONG = {
   'kpi': 'KPI',
   'kpi-bang-chi-tieu': 'KPICD',
   'kpi-cua-toi': 'KPITOI',
+  'lai-lo-thang': 'TCLL',
   'lap-ke-hoach-san-xuat': 'KHSX',
   'ma-otp': 'OTP',
   'mau-in': 'CDMU',
@@ -1890,6 +1923,7 @@ var VGB_DUONG = {
   'phan-he-nhan-su': 'PH:NS',
   'phan-he-nhap-kho': 'PH:NK',
   'phan-he-san-xuat': 'PH:SX',
+  'phan-he-tai-chinh': 'PH:TC',
   'phan-he-thu-mua': 'PH:TM',
   'phan-he-xuat-kho': 'PH:XK',
   'phan-quyen': 'QLQ',
@@ -1911,9 +1945,12 @@ var VGB_DUONG = {
   'thanh-toan-noi-bo': 'DNC',
   'thong-bao': 'CDTB',
   'thong-tin-dat-ban': 'DATBAN',
+  'ti-le-gia-von-va-hao-hut': 'TCTL',
+  'tien-hien-co': 'TCTIEN',
   'tin-zalo-tu-dong': 'CRMZL',
   'ton-kho': 'STOCK',
   'ton-kho-theo-chang': 'TONCHANG',
+  'tong-quan-tai-chinh': 'TCTQ',
   'tra-cuu-bang-gia-mua-vao': 'DM:DMGIA',
   'tra-cuu-cong-thuc-dinh-muc': 'DM:DMBOM',
   'tra-cuu-danh-muc-khach-hang': 'DM:DMKH',
@@ -2091,6 +2128,17 @@ function vgbGo(k) {
   if (k === 'DS') return go(scrDoanhSo);
   if (k === 'DTREO') return go(scrDonTreo);
   if (k === 'DSCK') return go(scrDoiSoatCk);
+  if (k === 'TCTQ') return go(scrTcTongQuan);
+  if (k === 'TCTIEN') return go(scrTcTien);
+  if (k === 'TCDONG') return go(scrTcDong);
+  if (k === 'TCDB') return go(scrTcDuBao);
+  if (k === 'TCLL') return go(scrTcLaiLo);
+  if (k === 'TCTL') return go(scrTcTiLe);
+  if (k === 'TCCD') return go(scrTcCaiDat);
+  if (k === 'TCPT') return go(scrCongNo);
+  if (k === 'TCPTR') return go(scrNoPhaiTra);
+  if (k === 'TCCHO') return go(scrHoSoTT);
+  if (k === 'TCTT') return go(scrSoDuTraTruoc);
   if (k === 'DATBAN') return go(scrDatBan);
   /* Man "Don da huy cho hoan" truoc gio chi mo duoc tu man khac, khong co
      khoa rieng. Them khoa o day de no co DIA CHI that, con o nho tren trang

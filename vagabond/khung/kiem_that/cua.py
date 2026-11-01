@@ -83,6 +83,7 @@ from vagabond.khung.kiem_that import gia_von_kiem_ke_547  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ngay_ban_573  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hach_toan_kho_542  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_tru_kho_bu_550  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_tai_chinh_626  # noqa: F401,E402
 
 QUYEN = ("System Manager", "Giám đốc", "AP Giám đốc")
 

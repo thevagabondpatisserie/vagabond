@@ -386,6 +386,17 @@ def chia_no_hoa_don(rows, ve):
 	return con, the, khach
 
 
+def tong_con_doi(rows):
+	"""Tổng còn phải đòi của mọi hoá đơn, KỂ CẢ tờ đã nằm trong phiếu đòi nợ
+	chưa thu xong. THUẦN.
+
+	v626 (Codex #524): ô "tong" của ds_khach_no chỉ cộng tờ CHƯA gom, vì màn
+	Công nợ dùng nó để gom phiếu mới. Lập phiếu đòi nợ không làm khách bớt nợ,
+	nên phân hệ Tài chính đọc con số này.
+	"""
+	return round(sum(_so(r.get("con_doi")) for r in rows or ()), 2)
+
+
 def loc_khach_no(ds_khach, tim):
 	"""Lọc danh sách khách đang nợ theo ô tìm, kèm tổng của phần lọc ra. THUẦN.
 

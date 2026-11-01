@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "creation": "2026-10-31 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Tai Chinh Cai Dat",
+ "modified": "2026-10-31 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Cài đặt phân hệ Tài chính (v626): ai được xem ngoài Giám đốc.",
+ "issingle": 1,
+ "field_order": [
+  "nguoi_xem"
+ ],
+ "fields": [
+  {
+   "fieldname": "nguoi_xem",
+   "fieldtype": "Small Text",
+   "label": "Người được xem Tài chính (mỗi dòng một email)",
+   "description": "Giám đốc luôn xem được. Chọn ở màn Cài đặt Tài chính trên app."
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 1
+  }
+ ],
+ "track_changes": 1
+}
