@@ -94,7 +94,7 @@ function dungMoi(vai, quyenNen, traLoi) {
     S: { roles: vai, stack: [], quyenNen: quyenNen || null },
     hasRole: function (r) { return vai.indexOf(r) >= 0; },
     frame: function (t, html) {
-      khung.innerHTML = html; khung._nghe = {}; khung.onclick = null; that._t = t; return khung;
+      khung.innerHTML = html; khung._nghe = {}; khung.onclick = null; that._t = t; that.VGB_TD = t; return khung;
     },
     go: function (fn) { dieuHuong.push(fn.name || 'anDanh'); return fn(); },
     vgbGo: function (k) { vgbGoDs.push(k); },
@@ -186,6 +186,39 @@ var TL = {
     bam(mot(m, '[data-tcgo="TCPTR"]'));
     bam(mot(m, '[data-tcgo="TCTIEN"]'));
     bang('mở đúng màn', m.vgbGo, ['TCPTR', 'TCTIEN']);
+  });
+
+  await ca('v627 tự cập nhật mỗi phút (anh Việt 01/11): Tiền hiện có và Tổng quan đọc lại khi còn đang mở; rời màn thì thôi; đọc lại hỏng thì giữ số cũ', async function () {
+    var so = 1000000;
+    var tl = Object.assign({}, TL, { 'vagabond.tai_chinh.tien_hien_co': function () { var x = JSON.parse(JSON.stringify(TL['vagabond.tai_chinh.tien_hien_co']())); x.tong.tong = so; return x; } });
+    var m = dungMoi(GD, null, tl);
+    var hen = [];
+    m.g.setTimeout = function (f, ms) { hen.push({ f: f, ms: ms }); return hen.length; };
+    m.g.clearTimeout = function () {};
+    await m.g.scrTcTien(); await tick();
+    dung('ghi tự cập nhật', chu(mot(m, '[data-tctongtien]').parentNode).indexOf('tự cập nhật mỗi phút') >= 0);
+    bang('hẹn 1 phút', hen.map(function (x) { return x.ms; }), [60000]);
+    so = 2500000;
+    var dem = m.goi.length;
+    hen[0].f(); await tick(); await tick();
+    bang('đọc lại đúng một lần, không hiện màn chờ', m.goi.slice(dem).map(function (g) { return g.duong; }), ['vagabond.tai_chinh.tien_hien_co']);
+    dung('tổng mới hiện ngay', chu(mot(m, '[data-tctongtien]')).indexOf('2.500.000') >= 0);
+    bang('hẹn tiếp lần sau', hen.length, 2);
+    tl['vagabond.tai_chinh.tien_hien_co'] = function () { throw new Error('mất mạng'); };
+    m.g.api = function (d) { m.goi.push({ duong: d }); return Promise.reject(new Error('mất mạng')); };
+    hen[1].f(); await tick(); await tick();
+    dung('lỗi mạng: giữ số cũ', chu(mot(m, '[data-tctongtien]')).indexOf('2.500.000') >= 0);
+    bang('vẫn hẹn tiếp', hen.length, 3);
+    m.g.VGB_TD = 'Dòng tiền';
+    dem = m.goi.length;
+    hen[2].f(); await tick();
+    bang('rời màn: không đọc lại, không hẹn nữa', [m.goi.length - dem, hen.length], [0, 3]);
+    var m2 = dungMoi(GD, null, TL);
+    var hen2 = [];
+    m2.g.setTimeout = function (f, ms) { hen2.push(ms); return 1; };
+    m2.g.clearTimeout = function () {};
+    await m2.g.scrTcTongQuan(); await tick();
+    bang('tổng quan cũng hẹn 1 phút', hen2, [60000]);
   });
 
   await ca('tiền hiện có: chia công ty, tạm ứng, tiền mặt; chip lệch có số, Shinhan ghi nguồn SePay, chưa chốt ghi rõ', async function () {
