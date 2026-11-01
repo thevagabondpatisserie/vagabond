@@ -634,6 +634,9 @@ def _la_giam_doc():
 	return bool(_vai() & set(VAI_LUON_XEM))
 
 
+SEPAY_DEM_GIAY = 60  # số dư SePay mới tối đa 1 phút
+
+
 def _sepay_so_bao():
 	"""{số TK: số dư SePay báo}. Hỏng mạng thì rỗng, màn ghi "chưa đọc được"."""
 	c = frappe.cache()
@@ -646,15 +649,21 @@ def _sepay_so_bao():
 		pass
 	ra = {}
 	try:
+		# v627: frappe.make_get_request CHỈ có trong System Console và Server
+		# Script; app chạy thật không có, gọi là AttributeError nên màn luôn báo
+		# "Chưa đọc được SePay" (anh Việt 01/11). Nạp đúng như sepay.py.
+		from frappe.integrations.utils import make_get_request
 		stg = frappe.get_doc("SePay Settings")
 		tk = stg.get_password("api_token", raise_exception=False) or ""
 		if not tk:
 			return {}
-		r = frappe.make_get_request("https://my.sepay.vn/userapi/bankaccounts/list",
+		r = make_get_request("https://my.sepay.vn/userapi/bankaccounts/list",
 			headers={"Authorization": "Bearer " + tk, "Content-Type": "application/json"})
 		for a in (r or {}).get("bankaccounts") or []:
 			ra[chuoi(a.get("account_number"))] = flt(a.get("accumulated"))
-		c.set_value(k, json.dumps(ra), expires_in_sec=300)
+		if ra:
+			# Không lưu đệm kết quả rỗng: lần mở sau phải đọc lại SePay.
+			c.set_value(k, json.dumps(ra), expires_in_sec=SEPAY_DEM_GIAY)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tai_chinh: doc so du SePay")
 		return {}
