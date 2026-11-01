@@ -1157,5 +1157,8 @@ scheduler_events.setdefault("cron", {}).setdefault("30 2 * * *", []).append("vag
 # hồ sơ mới, nhắc mỗi giờ hồ sơ quá 24 giờ chưa ai gọi, và 03:40 xoá thông tin
 # cá nhân của hồ sơ không được nhận đã qua hạn lưu (Luật BVDLCN 2025).
 doc_events.setdefault("Vagabond Ung Vien", {})["after_insert"] = "vagabond.tuyen_dung.bao_moi"
+# v625 (anh Việt 31/10/2026): AI đọc CV và chấm mức phù hợp, chạy nền sau khi có hồ sơ.
+doc_events["Vagabond Ung Vien"]["after_insert"] = [doc_events["Vagabond Ung Vien"]["after_insert"],
+	"vagabond.tuyen_dung_ai.xep_doc"]
 scheduler_events.setdefault("hourly", []).append("vagabond.tuyen_dung.nhac_qua_han")
 scheduler_events.setdefault("cron", {}).setdefault("40 3 * * *", []).append("vagabond.tuyen_dung.xoa_het_han")

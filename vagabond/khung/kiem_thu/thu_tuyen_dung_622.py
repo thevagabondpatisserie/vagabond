@@ -586,7 +586,8 @@ def _doctype():
 def _moc():
 	import importlib
 	h = importlib.import_module("vagabond.hooks")
-	la("hook tạo hồ sơ", h.doc_events["Vagabond Ung Vien"]["after_insert"], "vagabond.tuyen_dung.bao_moi")
+	# v625: thêm việc xếp AI đọc hồ sơ (hàng đợi nền), báo Zalo vẫn chạy trước.
+	la("hook tạo hồ sơ", h.doc_events["Vagabond Ung Vien"]["after_insert"], ["vagabond.tuyen_dung.bao_moi", "vagabond.tuyen_dung_ai.xep_doc"])
 	dung("nhắc mỗi giờ", "vagabond.tuyen_dung.nhac_qua_han" in h.scheduler_events["hourly"])
 	dung("xoá 03:40", "vagabond.tuyen_dung.xoa_het_han" in h.scheduler_events["cron"]["40 3 * * *"])
 	for ham in ("bao_moi", "nhac_qua_han", "xoa_het_han", "con_moi_nhan"):
@@ -679,7 +680,9 @@ def _codex_an_danh_du():
 	site = _Site(uv=ds)
 	_chay(site, td.xoa_het_han)
 	la("chỉ UV-1 tới hạn, lý do dừng xoá", [(x[1], x[2]["ly_do_dung"]) for x in site.set_value], [("UV-1", "")])
-	la("bỏ lịch sử sửa của đúng hồ sơ đó", [x[1:] for x in site.ghi if x[0] == "xoa_lich_su"], [("Version", {"ref_doctype": td.UV, "docname": "UV-1"})])
+	# v625: câu trả lời form (bảng con) cũng là thông tin cá nhân, xoá cùng lúc.
+	la("bỏ câu trả lời và lịch sử sửa của đúng hồ sơ đó", [x[1:] for x in site.ghi if x[0] == "xoa_lich_su"],
+		[("Vagabond Ung Vien Tra Loi", {"parent": "UV-1", "parenttype": td.UV}), ("Version", {"ref_doctype": td.UV, "docname": "UV-1"})])
 	j = json.loads(_doc_tep("vagabond", "doctype", "vagabond_ung_vien", "vagabond_ung_vien.json"))
 	la("hồ sơ ứng viên không lưu lịch sử sửa (nhật ký trên hồ sơ thay thế)", j.get("track_changes"), 0)
 

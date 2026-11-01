@@ -2601,8 +2601,8 @@
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
   },
   "tuyen_dung_rong": {
-    "ten": "Chưa có vị trí phù hợp trong nhóm này. Quý khách vui lòng quay lại sau.",
-    "mac_dinh": "Chưa có vị trí phù hợp trong nhóm này. Quý khách vui lòng quay lại sau.",
+    "ten": "Hiện chưa có vị trí nào đang tuyển trong nhóm này. Bạn quay lại sau nhé.",
+    "mac_dinh": "Hiện chưa có vị trí nào đang tuyển trong nhóm này. Bạn quay lại sau nhé.",
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
   },
   "tat_ca_muc": {
@@ -2628,6 +2628,131 @@
   "chua_han": {
     "ten": "Đến khi đủ người",
     "mac_dinh": "Đến khi đủ người",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_luong": {
+    "ten": "Tuyển dụng: nhãn ô Lương",
+    "mac_dinh": "Lương",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_thoa_thuan": {
+    "ten": "Tuyển dụng: lương khi phiếu Vị trí để trống",
+    "mac_dinh": "Thoả thuận khi phỏng vấn",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_noi_lam": {
+    "ten": "Tuyển dụng: nhãn ô Nơi làm",
+    "mac_dinh": "Nơi làm",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_hinh_thuc": {
+    "ten": "Tuyển dụng: nhãn ô Hình thức",
+    "mac_dinh": "Hình thức",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_trao_doi": {
+    "ten": "Tuyển dụng: hình thức khi để trống",
+    "mac_dinh": "Trao đổi khi phỏng vấn",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_han": {
+    "ten": "Tuyển dụng: nhãn ô Hạn nhận hồ sơ",
+    "mac_dinh": "Hạn nhận hồ sơ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_gap": {
+    "ten": "Tuyển dụng: nhãn Tuyển gấp",
+    "mac_dinh": "Tuyển gấp",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_thoa_thuan_gon": {
+    "ten": "Tuyển dụng: lương trên thẻ khi để trống",
+    "mac_dinh": "Lương thoả thuận",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_xem_them": {
+    "ten": "Tuyển dụng: nút xem thêm việc ({so} là số việc)",
+    "mac_dinh": "Xem thêm {so} việc",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_ban_se_lam": {
+    "ten": "Tuyển dụng: tên mục Bạn sẽ làm",
+    "mac_dinh": "Bạn sẽ làm",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_ve_ds": {
+    "ten": "Tuyển dụng: nút quay về danh sách (đọc màn hình)",
+    "mac_dinh": "Về danh sách vị trí",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_dang_tuyen": {
+    "ten": "Tuyển dụng: nhãn Đang tuyển trên ảnh",
+    "mac_dinh": "Đang tuyển",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_thu_nhap": {
+    "ten": "Tuyển dụng: tên mục Thu nhập",
+    "mac_dinh": "Thu nhập",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_can": {
+    "ten": "Tuyển dụng: tên mục Chúng tôi cần",
+    "mac_dinh": "Chúng tôi cần",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_quyen_loi": {
+    "ten": "Tuyển dụng: tên mục Quyền lợi",
+    "mac_dinh": "Quyền lợi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_quy_tieu_de": {
+    "ten": "Tuyển dụng: tiêu đề khung quy trình",
+    "mac_dinh": "Quy trình chỉ 3 bước",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_quy_chu": {
+    "ten": "Tuyển dụng: lời khung quy trình",
+    "mac_dinh": "Gửi hồ sơ khoảng 3 phút, không bắt buộc có CV. Quản lý bộ phận gọi lại để hẹn phỏng vấn.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_b1": {
+    "ten": "Tuyển dụng: quy trình bước 1",
+    "mac_dinh": "Gửi hồ sơ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_b2": {
+    "ten": "Tuyển dụng: quy trình bước 2",
+    "mac_dinh": "Phỏng vấn",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_b3": {
+    "ten": "Tuyển dụng: quy trình bước 3",
+    "mac_dinh": "Làm thử có công",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_ung_tuyen": {
+    "ten": "Tuyển dụng: nút Ứng tuyển ngay",
+    "mac_dinh": "Ứng tuyển ngay",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_dang_tai": {
+    "ten": "Tuyển dụng: lúc đang tải vị trí",
+    "mac_dinh": "Đang tải các vị trí đang tuyển...",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_loi_tai": {
+    "ten": "Tuyển dụng: lúc không tải được danh sách",
+    "mac_dinh": "Chưa tải được danh sách vị trí. Bạn tải lại trang hoặc nhắn fanpage The Vagabond nhé.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_het": {
+    "ten": "Tuyển dụng: mở link vị trí đã ngừng nhận",
+    "mac_dinh": "Vị trí này đã ngừng nhận hồ sơ. Bạn xem các vị trí khác đang tuyển nhé.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "td_xem_khac": {
+    "ten": "Tuyển dụng: nút xem vị trí khác",
+    "mac_dinh": "Xem các vị trí đang tuyển",
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
   },
   "ma_uu_dai": {

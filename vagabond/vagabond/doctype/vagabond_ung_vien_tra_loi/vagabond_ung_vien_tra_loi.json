@@ -1,0 +1,36 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Ung Vien Tra Loi",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "modified": "2026-10-31 20:00:00.000000",
+ "istable": 1,
+ "editable_grid": 0,
+ "fields": [
+  {
+   "fieldname": "ma",
+   "fieldtype": "Data",
+   "label": "Mã câu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cau_hoi",
+   "fieldtype": "Small Text",
+   "label": "Câu hỏi",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "tra_loi",
+   "fieldtype": "Small Text",
+   "label": "Trả lời",
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [],
+ "field_order": [
+  "ma",
+  "cau_hoi",
+  "tra_loi"
+ ]
+}
