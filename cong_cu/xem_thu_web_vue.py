@@ -39,6 +39,27 @@ def _hang(ten):
 	return None
 
 
+def _tuyen_dung():
+	"""v625: thẻ tuyển dụng và form ứng tuyển dựng bằng ĐÚNG phép thuần của app
+	(tuyen_dung.the_web, tuyen_dung_form), vị trí mẫu ở cong_cu/tuyen_dung_mau.json."""
+	import types
+	if 'frappe' not in sys.modules:
+		try:
+			import frappe  # noqa: F401
+		except ImportError:
+			f = types.ModuleType('frappe')
+			f.whitelist = lambda *a, **k: (lambda g: g)
+			f._ = lambda s: s
+			sys.modules['frappe'] = f
+	if str(GOC) not in sys.path:
+		sys.path.insert(0, str(GOC))
+	from vagabond import tuyen_dung, tuyen_dung_form
+	ds = json.loads((GOC / 'cong_cu/tuyen_dung_mau.json').read_text())
+	the = [x for x in (tuyen_dung.the_web(v, '2026-10-31') for v in ds) if x]
+	form = tuyen_dung_form.form_hien({})
+	return tuyen_dung, tuyen_dung_form, the, form
+
+
 def noi_dung():
 	nd = _hang('MAC_DINH') or {'khoi': []}
 	nhan = dict(_hang('NHAN') or {})
@@ -46,7 +67,9 @@ def noi_dung():
 	for k, v in so_tay.items():
 		nhan.setdefault(k, v.get('mac_dinh', '') if isinstance(v, dict) else v)
 	nhan = {k: (v.get('mac_dinh', '') if isinstance(v, dict) else v) for k, v in nhan.items()}
-	return {'khoi': nd.get('khoi', []), 'nhan': nhan, 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334',
+	_, _, the, form = _tuyen_dung()
+	khoi = [k for k in nd.get('khoi', []) if k.get('loai') != 'tuyen_dung'] + the
+	return {'khoi': khoi, 'tuyen_dung_chung': {'phuc_loi': form['phuc_loi'], 'gioi_thieu': form['gioi_thieu']}, 'nhan': nhan, 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334',
 		'messenger': 'https://m.me/thevagabond.saigon'}, 'thong_tin': nd.get('thong_tin', {}), 'san_pham': {},
 		'diem_nhan': [{'id': 'bep-tan-son-hoa', 'n': 'Bếp Tân Sơn Hoà', 'a': '307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà'},
 			{'id': 'cua-hang-sai-gon', 'n': 'Cửa hàng Sài Gòn', 'a': '9 Trần Cao Vân, P. Sài Gòn'}]}
@@ -72,6 +95,10 @@ CAU_HINH = {'mien_phi_tu': 0, 'pixel_id': '', 'lien_he': {'dien_thoai': '0931 22
 def tra_loi_get(phuong, q):
 	if phuong == 'cong_khai':
 		return noi_dung()
+	if phuong == 'vi_tri_cong_khai':
+		td, tf, the, form = _tuyen_dung()
+		return {'vi_tri': the, 'cau_dong_y': td.CAU_DONG_Y, 'thang_luu': td.THANG_LUU, 'cau_hoi': form['cau_hoi'],
+			'phuc_loi': form['phuc_loi'], 'gioi_thieu': form['gioi_thieu'], 'buoc': tf.BUOC, 'cv_toi_da_mb': 8}
 	if phuong == 'co_the_ban_hom_nay':
 		return TON
 	if phuong == 'hang_theo_mua':
@@ -105,6 +132,8 @@ def tra_loi_post(phuong, than):
 		if ma == 'GIAM10':
 			return {'ok': True, 'giam': 100000, 'ap': [{'ten': 'Giảm 100.000 đ cho đơn bánh'}]}
 		return {'ok': True, 'giam': 0, 'ap': []}
+	if phuong == 'ung_tuyen':
+		return {'ok': True, 'ma': 'UV-THU-0001'}
 	if phuong == 'tao_don':
 		return {'ok': True, 'ma_yeu_cau': 'YC-THU-0001', 'duong_dan': '/banh/xong/thu0001'}
 	return {}
@@ -138,6 +167,9 @@ class Xu(BaseHTTPRequestHandler):
 		if duong == '/web_moi/banh':
 			s = (GOC / 'vagabond/www/web_moi/banh.html').read_text().replace('{{ csrf_token }}', 'thu')
 			return self.gui(200, 'text/html; charset=utf-8', s)
+		if duong == '/ung-tuyen':
+			s = (GOC / 'vagabond/www/ung-tuyen.html').read_text().replace('{{ csrf_token }}', 'thu')
+			return self.gui(200, 'text/html; charset=utf-8', s)
 		if duong == '/banh':
 			return self.gui(200, 'text/html; charset=utf-8', BAN_CU.read_text())
 		return self.gui(404, 'text/plain', 'khong co')
@@ -145,6 +177,9 @@ class Xu(BaseHTTPRequestHandler):
 	def do_POST(self):
 		duong = self.path.split('?')[0]
 		dai = int(self.headers.get('Content-Length') or 0)
+		if duong.endswith('.tai_cv'):
+			self.rfile.read(dai)
+			return self.gui(200, 'application/json', json.dumps({'message': {'ma_cv': 'cv-thu-1', 'ten': 'cv-mau.pdf', 'kb': 120}}))
 		try:
 			than = json.loads(self.rfile.read(dai) or b'{}')
 		except Exception:

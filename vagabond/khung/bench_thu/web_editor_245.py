@@ -10,8 +10,9 @@ from vagabond import noi_dung_web as web
 
 
 # Phần cong_khai() tự ghép thêm, không nằm trong nội dung đã lưu: "nhan" từ
-# v532; thông tin cửa hàng, điểm nhận, liên hệ và số vé tiệc từ v586.
-DAN_XUAT = ("nhan", "thong_tin", "diem_nhan", "lien_he", "ve")
+# v532; thông tin cửa hàng, điểm nhận, liên hệ và số vé tiệc từ v586; phúc lợi
+# chung của trang tuyển dụng từ v625.
+DAN_XUAT = ("nhan", "thong_tin", "diem_nhan", "lien_he", "ve", "tuyen_dung_chung")
 
 
 def _bo_nhan(x):
@@ -64,6 +65,10 @@ def chay():
         frappe.set_user("Guest")
         dat("Guest không đọc được nháp", _bo_nhan(web.cong_khai()) == web.MAC_DINH)
         dat("Guest nhận đủ bộ nhãn mặc định", web.cong_khai().get("nhan") == web.nhan_day_du({}))
+        from vagabond import tuyen_dung_form
+        dat("Guest nhận phúc lợi tuyển dụng mặc định, không nhận câu hỏi form",
+            web.cong_khai().get("tuyen_dung_chung") == {"phuc_loi": tuyen_dung_form.mac_dinh()["phuc_loi"],
+                "gioi_thieu": tuyen_dung_form.mac_dinh()["gioi_thieu"]} and "tuyen_dung_form" not in web.cong_khai())
         chan("Guest không đọc dashboard", web.doc_bang)
         chan("Guest không ghi nội dung", lambda: web.luu(json.dumps(nd), 1))
         frappe.set_user(u.name)

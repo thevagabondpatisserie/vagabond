@@ -11,6 +11,10 @@ on:
       - 'vagabond/www/**'
       - 'cong_cu/ra_nut_web.py'
       - 'cong_cu/kiem_web_vue_dom.cjs'
+      - 'cong_cu/kiem_tuyen_dung_dom.cjs'
+      - 'cong_cu/tuyen_dung_mau.json'
+      - 'vagabond/tuyen_dung.py'
+      - 'vagabond/tuyen_dung_form.py'
       - 'vagabond/don_web.py'
       - 'vagabond/noi_dung_web.py'
       - 'cong_cu/xem_thu_web_vue.py'
@@ -123,4 +127,7 @@ jobs:
       - name: Thao tac DOM trang khach
         env:
           NODE_PATH: /tmp/pw/node_modules
-        run: node cong_cu/kiem_web_vue_dom.cjs
+        run: |
+          node cong_cu/kiem_web_vue_dom.cjs
+          # v625: muc Tuyen dung phuong an A va form /ung-tuyen 3 buoc.
+          node cong_cu/kiem_tuyen_dung_dom.cjs

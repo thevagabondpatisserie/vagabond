@@ -3,7 +3,7 @@
  "name": "Vagabond Vi Tri Tuyen",
  "module": "Vagabond",
  "engine": "InnoDB",
- "modified": "2026-10-30 20:00:00.000000",
+ "modified": "2026-10-31 20:00:00.000000",
  "autoname": "VTT-.####",
  "track_changes": 1,
  "title_field": "tieu_de",
@@ -61,6 +61,19 @@
    "fieldname": "cot_1",
    "fieldtype": "Section Break",
    "label": "Nội dung trên web"
+  },
+  {
+   "fieldname": "tuyen_gap",
+   "fieldtype": "Check",
+   "label": "Tuyển gấp",
+   "default": "0",
+   "description": "Bật là thẻ trên web có nhãn Tuyển gấp."
+  },
+  {
+   "fieldname": "anh_web",
+   "fieldtype": "Data",
+   "label": "Ảnh trên web",
+   "description": "Đường dẫn ảnh công khai. Để trống là dùng ảnh theo bộ phận."
   },
   {
    "fieldname": "noi_dung",
@@ -185,6 +198,8 @@
   "so_can",
   "ket_thuc",
   "cot_1",
+  "tuyen_gap",
+  "anh_web",
   "noi_dung",
   "yeu_cau",
   "muc_luong",

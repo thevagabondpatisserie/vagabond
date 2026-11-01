@@ -6,7 +6,8 @@
      #/            bánh có sẵn hôm nay       #/dat-truoc   đặt bánh trước
      #/banh/<ten>  chi tiết một bánh         #/gio-hang    thông tin đơn
      #/in-season[/<ma>]  hàng mùa vụ         #/in-store    bánh trên tủ quầy
-     #/uu-dai  #/tiec  #/tuyen-dung          ba chuyên mục */
+     #/uu-dai  #/tiec  #/tuyen-dung          ba chuyên mục
+     #/tuyen-dung/<mã vị trí>                chi tiết một vị trí (v625) */
 import {createApp, computed, watch, nextTick} from '../lib/vue.esm-browser.prod.js';
 import {ND, t, tMon, napNoiDung, laXemThu, telChu, telSo, mxh} from '../kho/chu.js';
 import {doc, ghi} from '../kho/api.js';
@@ -14,7 +15,7 @@ import {taoKho} from './kho-banh.js';
 import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE} from './du-lieu.js';
 import {LOGO} from './anh.js';
 import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
-import {KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, dsMuc} from './noi-dung.js';
+import {KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, dsMuc, TD} from './noi-dung.js';
 import {thuong} from './chu-giau.js';
 import {MAU} from './mau.js';
 
@@ -140,6 +141,10 @@ export function khoiDong(goc = '#app') {
     const h = (location.hash || '#/').replace(/^#/, '');
     const mBanh = h.match(/^\/banh\/(.+)$/), mMua = h.match(/^\/in-season\/(.+)$/);
     const truocDo = S.trang;
+    /* v625: trang chi tiết một vị trí tuyển dụng. */
+    const mTd = h.match(/^\/tuyen-dung\/(.+)$/);
+    TD.mo = mTd ? decodeURIComponent(mTd[1]) : '';
+    if (mTd) { dongHet(); S.tab = 'tuyen_dung'; return; }
     if (h === '/uu-dai' || h === '/tuyen-dung' || h === '/tiec') { dongHet(); S.tab = h.slice(1).replace('-', '_'); return; }
     if (mBanh) {
       const c = S.CAKES.find(x => kho.T.slug(x.k) === mBanh[1]);

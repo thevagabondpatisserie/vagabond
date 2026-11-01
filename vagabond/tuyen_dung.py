@@ -66,9 +66,12 @@ TIEU_CHI_MAC_DINH = ("Thái độ, giao tiếp", "Nhanh nhẹn, chịu được 
 	"Ca rảnh khớp lịch tiệm", "Vệ sinh, an toàn thực phẩm")
 TOI_DA_TIEU_CHI = 8
 
+# v625 (anh Việt 31/10/2026, "em tự thêm là được"): CV được gửi sang dịch vụ AI để
+# đọc và tóm tắt, nên câu đồng ý nói rõ việc đó và nói rõ AI không quyết thay người.
 CAU_DONG_Y = ("Tôi đồng ý để Công ty TNHH Patisserie Vagabond dùng thông tin trên cho việc tuyển dụng "
-	"và lưu hồ sơ trong %d tháng để liên hệ khi có vị trí phù hợp. Tôi có thể yêu cầu xoá hồ sơ bất cứ "
-	"lúc nào." % THANG_LUU)
+	"và lưu hồ sơ trong %d tháng để liên hệ khi có vị trí phù hợp. Tôi đồng ý để CV và câu trả lời được gửi "
+	"qua dịch vụ AI (Anthropic) để đọc và tóm tắt cho người tuyển dụng; quyết định nhận người do quản lý "
+	"Vagabond đưa ra sau phỏng vấn. Tôi có thể yêu cầu xoá hồ sơ bất cứ lúc nào." % THANG_LUU)
 
 
 class LoiNhap(ValueError):
@@ -184,6 +187,32 @@ def chuan_ho_so(du_lieu, vi_tri_mo, nguon_mac_dinh="Web Vagabond"):
 	}
 
 
+def chuan_ho_so_moi(du_lieu, vi_tri_mo, form, co_cv, hom_nay):
+	"""THUẦN (v625): hồ sơ từ form dựng theo câu hỏi -> (dict ghi hồ sơ, các dòng trả lời).
+
+	Vị trí phải đang mở; bắt tích đồng ý (câu đồng ý nói rõ CV đi qua AI); câu trả
+	lời đi qua tuyen_dung_form.chuan_tra_loi với ĐÚNG phép chuẩn số điện thoại
+	của phân hệ."""
+	from vagabond import tuyen_dung_form as tf
+	vt = str(du_lieu.get("vi_tri") or "").strip()
+	if not vt or vt not in set(vi_tri_mo or ()):
+		raise LoiNhap("Vị trí này đã ngừng nhận hồ sơ. Chọn một vị trí khác đang tuyển.")
+	if not du_lieu.get("dong_y") in (True, 1, "1", "true"):
+		raise LoiNhap("Tích ô đồng ý lưu hồ sơ để gửi. Chúng tôi chỉ dùng thông tin này cho việc tuyển dụng.")
+	try:
+		cot, dong = tf.chuan_tra_loi(form, vt, du_lieu.get("tra_loi"), hom_nay, chuan_sdt, co_cv)
+	except tf.LoiNhap as e:
+		raise LoiNhap(str(e))
+	nguon = "QR tại cửa hàng" if du_lieu.get("nguon") == "QR tại cửa hàng" else "Web Vagabond"
+	nd = {"vi_tri": vt, "nguon": nguon, "dong_y": 1, "email": "", "nguoi_gioi_thieu": "", "gioi_thieu": ""}
+	for k, v in cot.items():
+		nd[k] = v
+	# Ô cũ dài 120 ký tự; câu chữ ngắn của form cho 300, cắt cho vừa ô.
+	nd["ho_ten"] = str(nd["ho_ten"])[:120]
+	nd["nguoi_gioi_thieu"] = str(nd.get("nguoi_gioi_thieu") or "")[:120]
+	return nd, dong
+
+
 def han_luu(luc, thang=THANG_LUU):
 	"""THUẦN: ngày hết hạn lưu hồ sơ, tính từ lúc đồng ý (cộng tròn tháng, ngày 31 lùi về cuối tháng)."""
 	d = luc.date() if isinstance(luc, datetime) else luc
@@ -206,14 +235,30 @@ def con_mo(vt, hom_nay):
 
 def the_web(vt, hom_nay):
 	"""THUẦN: một vị trí trên app -> một thẻ tuyển dụng đúng định dạng trang khách
-	(chuyen-muc.js và web Vue cùng đọc). None khi vị trí không được hiện."""
+	(chuyen-muc.js và web Vue cùng đọc). None khi vị trí không được hiện.
+
+	v625: thêm phần cho thẻ ảnh và trang chi tiết (anh Việt chọn phương án A):
+	lương tách riêng (đầy đủ và gọn), mô tả chia mục, yêu cầu tách "chúng tôi
+	cần" và "quyền lợi", ảnh theo bộ phận, nhãn Tuyển gấp."""
+	from vagabond import tuyen_dung_form as tf
 	if not con_mo(vt, hom_nay):
 		return None
 	yc = [x.strip() for x in str(vt.get("yeu_cau") or "").splitlines() if x.strip()]
 	if str(vt.get("muc_luong") or "").strip():
 		yc.insert(0, "Mức lương: " + str(vt["muc_luong"]).strip())
 	nhom = str(vt.get("ten_bo_phan") or "").strip() or "Cửa hàng"
+	luong, con = tf.tach_luong(vt.get("muc_luong"), vt.get("yeu_cau"))
+	can, quyen_loi = tf.chia_yeu_cau(con)
+	anh = str(vt.get("anh_web") or "").strip()
+	if not anh_web_hop_le(anh):
+		anh = tf.anh_theo_nhom(nhom, vt.get("tieu_de"))
 	return {
+		"ma": str(vt.get("name")),
+		"luong": luong, "luong_gon": tf.luong_gon(luong),
+		"tuyen_gap": 1 if int(vt.get("tuyen_gap") or 0) else 0,
+		"anh_the": anh,
+		"muc": tf.chia_noi_dung(vt.get("noi_dung")),
+		"can": can, "quyen_loi": quyen_loi,
 		"id": "erp-td-" + str(vt.get("name")),
 		"loai": "tuyen_dung", "vi_tri": "tuyen_dung", "hien": True, "nguon": "erp",
 		"tieu_de": vt.get("tieu_de") or vt.get("name"),
@@ -227,6 +272,17 @@ def the_web(vt, hom_nay):
 		"lien_ket": "/ung-tuyen?vt=" + str(vt.get("name")),
 		"nut": "Ứng tuyển vị trí này",
 	}
+
+
+def anh_web_hop_le(u):
+	"""THUẦN: ảnh thẻ web chỉ nhận ảnh công khai trong website (/files/, /assets/vagabond/)
+	hoặc https; không nhận ảnh riêng tư hay đường dẫn lạ."""
+	u = str(u or "").strip()
+	if not u or len(u) > 300 or re.search(r"[\s\\\"'<>]", u):
+		return False
+	if u.startswith("/private/") or ".." in u or u.lower().split("?")[0].endswith(".svg"):
+		return False
+	return bool(re.match(r"(?:/files/|/assets/vagabond/|https://[^/@\s]+/)", u))
 
 
 def trang_thai_web(vt, hom_nay):
@@ -288,9 +344,18 @@ def chuan_vi_tri(du_lieu):
 		"noi_dung": _chu(du_lieu.get("noi_dung"), 2000, "Mô tả công việc"),
 		"yeu_cau": "\n".join(x.strip() for x in str(du_lieu.get("yeu_cau") or "").splitlines() if x.strip())[:3000],
 		"muc_luong": _chu(du_lieu.get("muc_luong"), 140, "Mức lương"),
+		"tuyen_gap": 1 if du_lieu.get("tuyen_gap") in (True, 1, "1", "true") else 0,
+		"anh_web": _anh_web(du_lieu.get("anh_web")),
 		"tieu_chi": "\n".join(tc),
 		"cong_lam_thu": cong, "gio_lam_thu": gio,
 	}
+
+
+def _anh_web(u):
+	u = str(u or "").strip()
+	if u and not anh_web_hop_le(u):
+		raise LoiNhap("Ảnh trên web phải là ảnh công khai của website. Chọn một ảnh có sẵn hoặc để trống.")
+	return u
 
 
 def kiem_chuyen(cu, moi, lich_hen=None, ly_do=None):
@@ -433,6 +498,9 @@ def an_danh(row):
 		"ho_ten": "Hồ sơ đã xoá theo hạn lưu", "sdt": "", "email": "", "khu_vuc": "",
 		"kinh_nghiem": "", "gioi_thieu": "", "lien_ket_cv": "", "nguoi_gioi_thieu": "",
 		"ca_ranh": "", "nhat_ky": "", "ly_do_dung": "", "da_an_danh": 1,
+		# v625: CV, ảnh chân dung, sinh nhật, lương mong muốn và mọi chữ AI rút từ CV.
+		"sinh_nhat": None, "luong_mong_muon": 0, "tep_cv": "", "anh_dai_dien": "", "ai_tom_tat": "",
+		"ai_ket_qua": "", "ai_loi": "",
 	}
 
 
@@ -447,8 +515,9 @@ def kiem_an_danh(row, cu_da_an_danh=0):
 		return "Hồ sơ này đã xoá thông tin theo hạn lưu, không mở lại được."
 	if not int(row.get("da_an_danh") or 0):
 		return ""
-	khac = [k for k, v in an_danh({}).items() if k != "da_an_danh" and str(row.get(k) or "") != v]
-	if khac or any(str((d or {}).get("nhan_xet") or "").strip() for d in (row.get("danh_gia") or [])):
+	khac = [k for k, v in an_danh({}).items() if k != "da_an_danh" and str(row.get(k) or "") != str(v or "")]
+	if khac or any(str((d or {}).get("nhan_xet") or "").strip() for d in (row.get("danh_gia") or [])) \
+			or any(str((d or {}).get("tra_loi") or "").strip() for d in (row.get("tra_loi") or [])):
 		return "Hồ sơ này đã xoá thông tin theo hạn lưu, không ghi lại thông tin cá nhân được."
 	return ""
 
@@ -569,7 +638,7 @@ def _ten_bo_phan(bp):
 
 
 TRUONG_VT = ["name", "tieu_de", "bo_phan", "noi_lam", "hinh_thuc", "so_can", "dang_tuyen", "ket_thuc",
-	"noi_dung", "yeu_cau", "muc_luong", "tieu_chi", "cong_lam_thu", "gio_lam_thu", "modified"]
+	"noi_dung", "yeu_cau", "muc_luong", "tieu_chi", "cong_lam_thu", "gio_lam_thu", "modified", "tuyen_gap", "anh_web"]
 
 
 def _ds_vi_tri():
@@ -615,11 +684,91 @@ def _noi_lam_mau():
 # ------------------------------------------------------------------ trang khách
 
 
+def noi_dung_cong_khai():
+	"""Bản nội dung web đã xuất bản (nơi trình biên tập lưu câu hỏi ứng tuyển)."""
+	from vagabond import noi_dung_web
+	return noi_dung_web._ban_cong_khai()
+
+
 @frappe.whitelist(allow_guest=True)
 def vi_tri_cong_khai():
-	"""Trang /ung-tuyen: vị trí đang nhận hồ sơ và câu đồng ý. Không trả dữ liệu ứng viên."""
+	"""Trang /ung-tuyen: vị trí đang nhận hồ sơ, câu hỏi (Minh Vũ sửa trong trình
+	biên tập web) và câu đồng ý. Không trả dữ liệu ứng viên."""
+	from vagabond import tuyen_dung_form
+	form = tuyen_dung_form.form_hien(noi_dung_cong_khai())
 	return {"vi_tri": the_web_dang_hien(), "ca_ranh": list(CA_RANH), "cau_dong_y": CAU_DONG_Y,
-		"thang_luu": THANG_LUU}
+		"thang_luu": THANG_LUU, "cau_hoi": form["cau_hoi"], "phuc_loi": form["phuc_loi"],
+		"gioi_thieu": form["gioi_thieu"], "buoc": tuyen_dung_form.BUOC, "cv_toi_da_mb": CV_TOI_DA // (1024 * 1024)}
+
+
+# ------------------------------------------------------------------ tệp CV (v625)
+
+CV_TOI_DA = 8 * 1024 * 1024
+KHOA_CV = "vgb_cv_tam:"
+GIU_CV_TAM = 6 * 3600
+
+
+def _luu_tep_cv(du_lieu, ten_goc=""):
+	"""Lưu một tệp CV riêng tư (File is_private). Trả File. Tên tệp do máy chủ đặt
+	để tên người gửi không thành đường dẫn. Chỉ nhận PDF, JPEG, PNG (đọc byte đầu)."""
+	from frappe.utils.file_manager import save_file
+	from vagabond.tuyen_dung_ai import loai_tep
+	if not du_lieu:
+		frappe.throw("Chọn tệp CV (PDF hoặc ảnh) để tải lên.")
+	if len(du_lieu) > CV_TOI_DA:
+		frappe.throw("Tệp CV lớn hơn %d MB. Chọn tệp nhỏ hơn hoặc chụp ảnh CV." % (CV_TOI_DA // (1024 * 1024)))
+	kieu = loai_tep(du_lieu)
+	if not kieu:
+		frappe.throw("Chỉ nhận CV dạng PDF, JPG hoặc PNG.")
+	duoi = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png"}[kieu]
+	if duoi != "pdf":
+		from io import BytesIO
+		from PIL import Image
+		try:
+			with Image.open(BytesIO(du_lieu)) as a:
+				if a.width * a.height > 40000000:
+					raise ValueError("ảnh quá lớn")
+				a.verify()
+		except Exception:
+			frappe.throw("Không đọc được ảnh CV. Chụp lại hoặc chọn tệp PDF.")
+	return save_file("cv-" + frappe.generate_hash(length=16) + "." + duoi, du_lieu, None, None, is_private=1)
+
+
+def _doc_tep_gui_len():
+	tep = frappe.request.files.get("tep") if getattr(frappe, "request", None) else None
+	if not tep:
+		frappe.throw("Chọn tệp CV (PDF hoặc ảnh) để tải lên.")
+	return tep.stream.read(CV_TOI_DA + 1), re.sub(r"[^\w .-]", "", str(tep.filename or ""))[:80]
+
+
+@frappe.whitelist(methods=["POST"], allow_guest=True)
+@rate_limit(limit=10, seconds=600)
+def tai_cv():
+	"""Bước 2 của form: ứng viên chọn CV là tải lên ngay, nhận một mã tạm. Gửi hồ sơ
+	kèm mã đó thì máy gắn tệp vào hồ sơ. Tệp không ai nhận sau một ngày bị xoá."""
+	du_lieu, ten = _doc_tep_gui_len()
+	f = _luu_tep_cv(du_lieu, ten)
+	ma = frappe.generate_hash(length=24)
+	frappe.cache().set_value(KHOA_CV + ma, f.name, expires_in_sec=GIU_CV_TAM)
+	return {"ok": 1, "ma_cv": ma, "ten": ten or "CV", "kb": int(len(du_lieu) / 1024)}
+
+
+def _nhan_cv(ma_cv):
+	"""Mã tạm -> tên File còn chưa gắn hồ sơ nào. Sai mã hay quá hạn thì báo tải lại."""
+	if not ma_cv:
+		return None
+	if not re.fullmatch(r"[a-z0-9]{24}", str(ma_cv)):
+		frappe.throw("Tệp CV không hợp lệ. Tải CV lên lại rồi gửi.")
+	ten = frappe.cache().get_value(KHOA_CV + ma_cv)
+	if not ten or not frappe.db.exists("File", ten):
+		frappe.throw("Tệp CV đã hết hạn chờ. Tải CV lên lại rồi gửi.")
+	return ten
+
+
+def _gan_cv(ten_file, ten_uv):
+	frappe.db.set_value("File", ten_file, {"attached_to_doctype": UV, "attached_to_name": ten_uv,
+		"attached_to_field": "tep_cv"}, update_modified=False)
+	return frappe.db.get_value("File", ten_file, "file_url")
 
 
 def _bam(chuoi):
@@ -637,7 +786,7 @@ def ung_tuyen(du_lieu, ma_lan_gui):
 	try:
 		raw = json.loads(du_lieu) if isinstance(du_lieu, str) else du_lieu
 		chuoi = json.dumps(raw, sort_keys=True, ensure_ascii=False)
-		if not isinstance(raw, dict) or len(chuoi) > 8000:
+		if not isinstance(raw, dict) or len(chuoi) > 20000:
 			raise ValueError("Hồ sơ quá dài hoặc không hợp lệ.")
 	except (TypeError, ValueError) as e:
 		frappe.throw(str(e))
@@ -652,13 +801,21 @@ def ung_tuyen(du_lieu, ma_lan_gui):
 		return {"ok": 1, "ma": cu.name}
 	hn = _hom_nay()
 	mo = [r["name"] for r in _ds_vi_tri() if con_mo(r, hn)]
+	ten_cv = None
 	try:
-		nd = chuan_ho_so(raw, mo, "QR tại cửa hàng" if raw.get("nguon") == "QR tại cửa hàng" else "Web Vagabond")
+		if isinstance(raw.get("tra_loi"), dict):
+			# v625: form dựng từ câu hỏi của trình biên tập.
+			ten_cv = _nhan_cv(raw.get("ma_cv"))
+			nd, dong = chuan_ho_so_moi(raw, mo, _form_hien(), ten_cv is not None, frappe.utils.getdate(hn))
+			if ten_cv:
+				nd["tep_cv"] = frappe.db.get_value("File", ten_cv, "file_url")
+		else:
+			nd, dong = chuan_ho_so(raw, mo, "QR tại cửa hàng" if raw.get("nguon") == "QR tại cửa hàng" else "Web Vagabond"), []
 	except LoiNhap as e:
 		frappe.throw(str(e))
 	luc = frappe.utils.now_datetime()
 	d = frappe.get_doc(dict(nd, doctype=UV, trang_thai=MOI, dong_y_luc=luc, han_luu=str(han_luu(luc)),
-		bam_lan_gui=khoa, bam_noi_dung=_bam(chuoi)))
+		bam_lan_gui=khoa, bam_noi_dung=_bam(chuoi), tra_loi=dong))
 	moc = "ung_tuyen_" + frappe.generate_hash(length=10)
 	frappe.db.savepoint(moc)
 	so_tb = len(frappe.local.message_log or [])
@@ -673,7 +830,15 @@ def ung_tuyen(du_lieu, ma_lan_gui):
 		if cu.bam_noi_dung != _bam(chuoi):
 			frappe.throw("Hồ sơ trước đã được nhận. Tải lại trang nếu muốn nộp vị trí khác.")
 		return {"ok": 1, "ma": cu.name}
+	if ten_cv:
+		_gan_cv(ten_cv, d.name)
+		frappe.cache().delete_value(KHOA_CV + raw.get("ma_cv"))
 	return {"ok": 1, "ma": d.name}
+
+
+def _form_hien():
+	from vagabond import tuyen_dung_form
+	return tuyen_dung_form.form_hien(noi_dung_cong_khai())
 
 
 def bao_moi(doc, method=None):
@@ -742,6 +907,10 @@ def xoa_het_han():
 			if not moi or not can_xoa(moi, hn):
 				continue
 			frappe.db.set_value(UV, r["name"], an_danh(moi), update_modified=False)
+			# v625: câu trả lời trong form và tệp CV (cả tệp trên đĩa).
+			frappe.db.delete("Vagabond Ung Vien Tra Loi", {"parent": r["name"], "parenttype": UV})
+			for f in frappe.get_all("File", filters={"attached_to_doctype": UV, "attached_to_name": r["name"]}, pluck="name"):
+				frappe.delete_doc("File", f, ignore_permissions=True, force=True)
 			# Bảng chấm giữ điểm số nhưng bỏ nhận xét chữ (có thể nhắc tên, đời tư).
 			frappe.db.sql("update `tabVagabond Ung Vien Danh Gia` set nhan_xet='' where parent=%s", r["name"])
 			# Doctype đã tắt lưu lịch sử sửa (track_changes 0); bản ghi lịch sử nào
@@ -752,6 +921,19 @@ def xoa_het_han():
 				(CAU_TIN_DA_XOA, r["name"], MA_TIN_TUYEN_DUNG))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tuyen_dung: xoa het han")
+	xoa_cv_mo_coi()
+
+
+def xoa_cv_mo_coi():
+	"""v625: CV tải lên mà ứng viên không bấm Gửi (không gắn hồ sơ nào) quá một ngày
+	thì xoá, kể cả tệp trên đĩa. Chỉ đụng tệp do form ứng tuyển tạo (tên cv-...)."""
+	try:
+		moc = frappe.utils.add_days(frappe.utils.now_datetime(), -1)
+		for f in frappe.get_all("File", filters={"is_private": 1, "file_url": ["like", "/private/files/cv-%"],
+				"attached_to_name": ["is", "not set"], "creation": ["<", moc]}, pluck="name", limit_page_length=500):
+			frappe.delete_doc("File", f, ignore_permissions=True, force=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "tuyen_dung: xoa cv mo coi")
 
 
 # ------------------------------------------------------------------ màn app
@@ -760,7 +942,8 @@ def xoa_het_han():
 TRUONG_UV = ["name", "vi_tri", "ten_vi_tri", "ho_ten", "sdt", "email", "khu_vuc", "ca_ranh", "kinh_nghiem",
 	"gioi_thieu", "lien_ket_cv", "nguon", "nguoi_gioi_thieu", "trang_thai", "ly_do_dung", "lich_hen",
 	"lien_he_luc", "dung_tu", "nhat_ky", "xu_ly_boi", "xu_ly_luc", "gio_lam_thu", "tien_cong_thu", "da_tra_cong",
-	"tra_cong_boi", "tra_cong_luc", "han_luu", "creation", "da_an_danh"]
+	"tra_cong_boi", "tra_cong_luc", "han_luu", "creation", "da_an_danh",
+	"sinh_nhat", "luong_mong_muon", "tep_cv", "ai_trang_thai", "ai_diem", "ai_tom_tat", "ai_loi", "ai_luc"]
 
 
 @frappe.whitelist()
@@ -780,7 +963,16 @@ def tong_quan():
 	co = {r["name"] for r in rows}
 	rows += [r for r in frappe.get_all(UV, filters={"da_an_danh": 0, "tien_cong_thu": [">", 0], "da_tra_cong": 0},
 		fields=TRUONG_UV, order_by="creation desc", limit_page_length=500) if r["name"] not in co]
-	ten_cham = {}
+	ten_cham, ten_tl = {}, {}
+	if rows:
+		# v625: câu trả lời trong form, đọc một lượt cho mọi hồ sơ trên màn.
+		for t in frappe.get_all("Vagabond Ung Vien Tra Loi", filters={"parent": ["in", [r["name"] for r in rows]],
+				"parenttype": UV}, fields=["parent", "ma", "cau_hoi", "tra_loi", "idx"], order_by="idx asc", limit_page_length=0):
+			ten_tl.setdefault(t["parent"], []).append({"ma": t["ma"], "cau_hoi": t["cau_hoi"], "tra_loi": t["tra_loi"]})
+		co_anh = set(frappe.get_all(UV, filters={"name": ["in", [r["name"] for r in rows]], "anh_dai_dien": ["is", "set"]},
+			pluck="name", limit_page_length=0))
+	else:
+		co_anh = set()
 	if rows:
 		for c in frappe.get_all("Vagabond Ung Vien Danh Gia", filters={"parent": ["in", [r["name"] for r in rows]],
 				"parenttype": UV}, fields=["parent", "vong", "nguoi", "luc", "diem", "diem_tb", "ket_luan", "nhan_xet"],
@@ -801,6 +993,13 @@ def tong_quan():
 		r["lan_nop"] = dem_sdt.get(r["sdt"], 1)
 		r["cham"] = ten_cham.get(r["name"], [])
 		r["buoc"] = buoc_cua(r)
+		r["tra_loi"] = ten_tl.get(r["name"], [])
+		r["co_anh"] = 1 if r["name"] in co_anh else 0
+		r["co_cv"] = 1 if r.get("tep_cv") else 0
+		r.pop("tep_cv", None)
+		r["sinh_nhat"] = str(r.get("sinh_nhat") or "")
+		r["ai_luc"] = str(r.get("ai_luc") or "")
+		r["ai_nhan"] = tuyen_dung_ai.nhan_diem(r.get("ai_diem")) if r.get("ai_trang_thai") == tuyen_dung_ai.TT_XONG else ""
 	so_hs = {}
 	for r in rows:
 		so_hs[r["vi_tri"]] = so_hs.get(r["vi_tri"], 0) + 1
@@ -819,9 +1018,100 @@ def tong_quan():
 		"bo_phan": bo_phan, "tieu_chi_mac_dinh": list(TIEU_CHI_MAC_DINH), "cau_dong_y": CAU_DONG_Y,
 		"gio_goi_lai": GIO_GOI_LAI, "thang_luu": THANG_LUU, "link_ung_tuyen": _link_ung_tuyen(),
 		"buoc": buoc_app(),
+		"anh_web_chon": [{"url": u, "ten": t, "mo": m} for u, t, m in tuyen_dung_form.ANH_CHON],
 	}
 	kq.update(mau_tin_app())
 	return kq
+
+
+from vagabond import tuyen_dung_ai, tuyen_dung_form  # noqa: E402
+
+
+def _uv_xem(name):
+	_kiem_quyen()
+	r = frappe.db.get_value(UV, name, ["name", "da_an_danh", "tep_cv", "anh_dai_dien", "ai_ket_qua", "ai_trang_thai",
+		"ai_loi", "ai_luc", "ho_ten", "vi_tri"], as_dict=True)
+	if not r:
+		frappe.throw("Không tìm thấy hồ sơ.")
+	if int(r.da_an_danh or 0):
+		frappe.throw("Hồ sơ này đã xoá thông tin theo hạn lưu.")
+	return r
+
+
+def _tra_tep(ten_tep, noi_dung, kieu):
+	frappe.local.response.filename = ten_tep
+	frappe.local.response.filecontent = noi_dung
+	frappe.local.response.content_type = kieu
+	frappe.local.response.type = "download"
+	frappe.local.response.display_content_as = "inline"
+
+
+@frappe.whitelist()
+def xem_cv(name):
+	"""Mở tệp CV ngay trong trình duyệt (riêng tư: chỉ quyền Tuyển dụng)."""
+	r = _uv_xem(name)
+	if not r.tep_cv:
+		frappe.throw("Hồ sơ này chưa có tệp CV.")
+	du_lieu = tuyen_dung_ai._tep(r.tep_cv)
+	if not du_lieu:
+		frappe.throw("Không còn tệp CV trên máy chủ.")
+	kieu = tuyen_dung_ai.loai_tep(du_lieu) or "application/octet-stream"
+	_tra_tep("CV-%s.%s" % (name, {"application/pdf": "pdf", "image/png": "png"}.get(kieu, "jpg")), du_lieu, kieu)
+
+
+@frappe.whitelist()
+def anh_ung_vien(name):
+	"""Ảnh chân dung nhỏ AI cắt từ CV, cho thẻ ứng viên."""
+	import base64
+	r = _uv_xem(name)
+	s = str(r.anh_dai_dien or "")
+	if not s.startswith("data:image/jpeg;base64,"):
+		frappe.throw("Hồ sơ này chưa có ảnh.")
+	_tra_tep("anh-%s.jpg" % name, base64.b64decode(s.split(",", 1)[1]), "image/jpeg")
+
+
+@frappe.whitelist()
+def ho_so_ai(name):
+	"""Bảng Hồ sơ AI: điểm từng tiêu chí, thông tin rút từ CV, câu nên hỏi."""
+	r = _uv_xem(name)
+	try:
+		kq = json.loads(r.ai_ket_qua) if r.ai_ket_qua else None
+	except ValueError:
+		kq = None
+	if kq:
+		kq.pop("anh", None)
+	return {"name": r.name, "trang_thai": r.ai_trang_thai or "", "loi": r.ai_loi or "", "luc": str(r.ai_luc or ""),
+		"kq": kq, "co_cv": 1 if r.tep_cv else 0, "co_anh": 1 if r.anh_dai_dien else 0}
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=3600)
+def cham_lai(name):
+	"""Nút Chấm lại: xếp lại việc đọc hồ sơ (sau khi tải CV mới, đổi mô tả vị trí)."""
+	_uv_xem(name)
+	tuyen_dung_ai.xep(name)
+	return {"ok": 1, "ai_trang_thai": tuyen_dung_ai.TT_DANG}
+
+
+@frappe.whitelist(methods=["POST"])
+def tai_cv_app(name):
+	"""Quản lý tải CV cho hồ sơ thêm tay (TopCV, người quen gửi). Tải xong AI đọc lại."""
+	r = _uv_xem(name)
+	du_lieu, ten = _doc_tep_gui_len()
+	f = _luu_tep_cv(du_lieu, ten)
+	cu = frappe.get_all("File", filters={"attached_to_doctype": UV, "attached_to_name": name,
+		"attached_to_field": "tep_cv"}, pluck="name")
+	url = _gan_cv(f.name, name)
+	doc = frappe.get_doc(UV, name, for_update=True)
+	doc.tep_cv = url
+	doc.anh_dai_dien = ""
+	_ghi_vet(doc, "Tải CV lên (%s)" % (ten or "tệp"))
+	doc.flags.ignore_permissions = True
+	doc.save()
+	for x in cu:
+		frappe.delete_doc("File", x, ignore_permissions=True, force=True)
+	tuyen_dung_ai.xep(name)
+	return {"ok": 1, "ai_trang_thai": tuyen_dung_ai.TT_DANG, "ten": r.ho_ten}
 
 
 def _link_ung_tuyen():

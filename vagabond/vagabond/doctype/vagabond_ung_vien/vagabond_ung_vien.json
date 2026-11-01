@@ -3,7 +3,7 @@
  "name": "Vagabond Ung Vien",
  "module": "Vagabond",
  "engine": "InnoDB",
- "modified": "2026-10-31 15:00:00.000000",
+ "modified": "2026-10-31 20:00:00.000000",
  "autoname": "UV-.YY.-.MM.-.####",
  "track_changes": 0,
  "title_field": "ho_ten",
@@ -108,6 +108,79 @@
    "fieldtype": "Small Text",
    "label": "Đường dẫn CV",
    "description": "Đường dẫn https tới CV (Drive, TopCV...), tối đa 500 ký tự."
+  },
+  {
+   "fieldname": "sinh_nhat",
+   "fieldtype": "Date",
+   "label": "Sinh nhật"
+  },
+  {
+   "fieldname": "luong_mong_muon",
+   "fieldtype": "Currency",
+   "label": "Thu nhập mong muốn (đ/tháng)",
+   "description": "Ứng viên tự ghi ở câu \"Tổng thu nhập bạn cảm thấy xứng đáng với năng lực\"."
+  },
+  {
+   "fieldname": "tep_cv",
+   "fieldtype": "Attach",
+   "label": "Tệp CV",
+   "description": "PDF hoặc ảnh ứng viên tải lên, lưu riêng tư. Chỉ người có quyền Tuyển dụng mở được."
+  },
+  {
+   "fieldname": "tra_loi",
+   "fieldtype": "Table",
+   "label": "Câu trả lời trong form ứng tuyển",
+   "options": "Vagabond Ung Vien Tra Loi"
+  },
+  {
+   "fieldname": "sec_ai",
+   "fieldtype": "Section Break",
+   "label": "AI đọc CV và đánh giá"
+  },
+  {
+   "fieldname": "ai_trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái AI",
+   "options": "\nĐang đọc\nĐã đọc\nChưa đọc được\nChưa bật AI",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_diem",
+   "fieldtype": "Int",
+   "label": "Điểm phù hợp AI gợi ý (0 đến 100)",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ai_tom_tat",
+   "fieldtype": "Small Text",
+   "label": "AI tóm tắt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_ket_qua",
+   "fieldtype": "Long Text",
+   "label": "Kết quả AI (JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_luc",
+   "fieldtype": "Datetime",
+   "label": "AI đọc lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_loi",
+   "fieldtype": "Small Text",
+   "label": "Lý do AI chưa đọc được",
+   "read_only": 1
+  },
+  {
+   "fieldname": "anh_dai_dien",
+   "fieldtype": "Long Text",
+   "label": "Ảnh chân dung lấy từ CV (ảnh nhỏ)",
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "sec_cham",
@@ -322,6 +395,18 @@
   "kinh_nghiem",
   "gioi_thieu",
   "lien_ket_cv",
+  "sinh_nhat",
+  "luong_mong_muon",
+  "tep_cv",
+  "tra_loi",
+  "sec_ai",
+  "ai_trang_thai",
+  "ai_diem",
+  "ai_tom_tat",
+  "ai_ket_qua",
+  "ai_luc",
+  "ai_loi",
+  "anh_dai_dien",
   "sec_cham",
   "danh_gia",
   "gio_lam_thu",
