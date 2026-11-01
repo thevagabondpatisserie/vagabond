@@ -221,6 +221,28 @@ var TL = {
     bang('tổng quan cũng hẹn 1 phút', hen2, [60000]);
   });
 
+  await ca('v627 Codex #526: lượt đọc lại của Tiền hiện có trả lỗi SAU KHI đã chuyển sang Tổng quan thì không được xoá lịch của Tổng quan (và chiều ngược lại)', async function () {
+    var chieu = [['scrTcTien', 'scrTcTongQuan', 'vagabond.tai_chinh.tien_hien_co', 'vagabond.tai_chinh.tong_quan'],
+      ['scrTcTongQuan', 'scrTcTien', 'vagabond.tai_chinh.tong_quan', 'vagabond.tai_chinh.tien_hien_co']];
+    for (var c of chieu) {
+      var m = dungMoi(GD, null, TL);
+      var hen = [];
+      m.g.setTimeout = function (f, ms) { hen.push({ f: f, ms: ms, huy: false }); return hen.length; };
+      m.g.clearTimeout = function (id) { if (hen[id - 1]) hen[id - 1].huy = true; };
+      await m.g[c[0]](); await tick();
+      var goc = m.g.api, choTu = null;
+      m.g.api = function (d, ts) { if (d === c[2]) return new Promise(function (ok, loi) { choTu = loi; }); return goc(d, ts); };
+      hen[0].f(); await tick();
+      await m.g[c[1]](); await tick();
+      choTu(new Error('mất mạng')); await tick(); await tick();
+      var conSong = hen.filter(function (x) { return !x.huy; });
+      var dem = m.goi.length;
+      for (var x of conSong) { x.f(); }
+      await tick(); await tick();
+      dung(c[1] + ' vẫn còn lịch tự cập nhật', m.goi.slice(dem).some(function (g) { return g.duong === c[3]; }));
+    }
+  });
+
   await ca('tiền hiện có: chia công ty, tạm ứng, tiền mặt; chip lệch có số, Shinhan ghi nguồn SePay, chưa chốt ghi rõ', async function () {
     var m = dungMoi(GD, null, TL);
     await m.g.scrTcTien(); await tick();
