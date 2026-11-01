@@ -19,6 +19,7 @@ Một màn trả lời: công ty đang có bao nhiêu tiền, tuần này tiền
 - Thẻ nào ghi "Chưa đọc được" là phần đó lỗi, các thẻ khác vẫn đúng. Báo kỹ thuật.
 - Dòng đỏ "Có N tài khoản, két chưa tính được" khác với dòng vàng "chưa chốt": máy không đọc được số lúc này, tổng đang thiếu phần đó. Mở lại sau ít phút; vẫn vậy thì báo kỹ thuật.
 - Tiền khách gửi trước là tiền của khách, chưa phải của mình.
+- Màn Tổng quan và Tiền hiện có tự cập nhật mỗi phút khi đang mở: tiền ngân hàng đổi ngay khi SePay báo giao dịch về app, số dư Shinhan lấy thẳng từ SePay (mới tối đa 1 phút).
 - Thẻ Khách nợ mình gồm cả hoá đơn đã nằm trong phiếu đòi nợ chờ thu, nên có thể lớn hơn số trên màn Công nợ (màn đó chỉ cộng hoá đơn chưa gom phiếu).
 
 ## Xem tiền hiện có từng tài khoản, từng két
@@ -29,6 +30,8 @@ Từ khoá: tiền mặt, tiền ngân hàng, số dư, két, quỹ, SePay, kh�
 | Giám đốc, người Giám đốc chọn | Tiền hiện có (/tien-hien-co) | [[Chốt số dư ở Cài đặt tài chính]] |
 
 Số dư = số đã chốt cuối một ngày, cộng tiền vào, trừ tiền ra từ hôm sau.
+
+Chốt số dư: nhập số dư CUỐI NGÀY của ngày chốt (ví dụ số dư cuối ngày 31/10, chọn ngày 31/10). Giao dịch trong chính ngày chốt đã nằm trong số đó nên app chỉ cộng trừ từ ngày hôm sau. Shinhan không cần chốt vì SePay báo thẳng số dư.
 
 **Các bước**
 1. Mở Tiền hiện có. Ba nhóm: Ngân hàng công ty, Tài khoản tạm ứng, Tiền mặt.

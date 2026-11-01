@@ -26239,7 +26239,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '626';
+var APPVER = '627';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -65100,6 +65100,23 @@ function tcKhoa(tieuDe) {
 function tcLoi(tieuDe, e) {
   frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>');
 }
+/* v627 (anh Việt 01/11/2026: "tiền phải nhảy real time theo SePay"): màn
+   Tổng quan và Tiền hiện có tự đọc lại mỗi phút khi đang mở. Rời màn (tiêu
+   đề khác hoặc mất ô tổng) thì thôi hẹn; tab ẩn thì hoãn tới lần sau. Đọc lại
+   hỏng thì giữ nguyên số đang hiện, không thay bằng màn lỗi. */
+var TC_NHIP = null, TC_NHIP_GIAY = 60;
+function tcHenLamMoi(tieuDe, ham) {
+  /* Codex #526: lượt đọc lại của màn cũ về muộn (người dùng đã sang màn khác)
+     thì KHÔNG được động vào lịch của màn đang mở. */
+  if (VGB_TD !== tieuDe) return;
+  if (TC_NHIP) clearTimeout(TC_NHIP);
+  TC_NHIP = setTimeout(function () {
+    TC_NHIP = null;
+    if (VGB_TD !== tieuDe || !(document.querySelector('[data-tctongtien]') || document.querySelector('[data-tctong]'))) return;
+    if (document.hidden) { tcHenLamMoi(tieuDe, ham); return; }
+    ham(true);
+  }, TC_NHIP_GIAY * 1000);
+}
 function tcDoi(tieuDe, chu) {
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>' + chu + '</div></div>');
 }
@@ -65113,16 +65130,17 @@ function tcO(k, ic, ten, so, phu, mau) {
 }
 
 /* ================= Tổng quan */
-async function scrTcTongQuan() {
+async function scrTcTongQuan(lamMoi) {
   var td = 'Tổng quan tài chính';
   if (!coQuyenTaiChinh()) return tcKhoa(td);
-  tcDoi(td, 'Đang đọc tiền, công nợ, lãi lỗ...');
+  if (!lamMoi) tcDoi(td, 'Đang đọc tiền, công nợ, lãi lỗ...');
   var kq;
-  try { kq = await api('vagabond.tai_chinh.tong_quan', {}); } catch (e) { return tcLoi(td, e); }
+  try { kq = await api('vagabond.tai_chinh.tong_quan', {}); } catch (e) { if (lamMoi) return tcHenLamMoi(td, scrTcTongQuan); return tcLoi(td, e); }
+  if (lamMoi && VGB_TD !== td) return;
   var p = function (x, f) { return x && x.ok ? f(x.v) : { so: '...', phu: 'Chưa đọc được', mau: '#b42318' }; };
   var tien = kq.tien && kq.tien.ok ? kq.tien.v : null;
   var html = '<div class="card" data-tctong="1" style="padding:14px 14px 12px">' +
-    '<div style="font-size:12px;color:#98a2b3;letter-spacing:.3px">TỔNG TIỀN CÔNG TY ĐANG CÓ</div>' +
+    '<div style="font-size:12px;color:#98a2b3;letter-spacing:.3px">TỔNG TIỀN CÔNG TY ĐANG CÓ · tự cập nhật mỗi phút</div>' +
     (tien ? '<div style="font-size:26px;font-weight:800;line-height:1.3">' + money(tien.tong) + ' đ</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
       '<div style="background:#f8fafc;border-radius:10px;padding:8px 10px"><div style="font-size:12px;color:#667085">Ngân hàng</div>' +
@@ -65167,6 +65185,7 @@ async function scrTcTongQuan() {
   than.querySelectorAll('[data-tcgo]').forEach(function (b) {
     b.onclick = function () { vgbGo(b.getAttribute('data-tcgo')); };
   });
+  tcHenLamMoi(td, scrTcTongQuan);
 }
 
 /* ================= Tiền hiện có */
@@ -65192,12 +65211,13 @@ function tcDongTien(d) {
     (chip ? '<div>' + chip + '</div>' : '') + '</div>' +
     '<div style="flex:0 0 auto;text-align:right;font-weight:800;white-space:nowrap">' + so + '</div></div>';
 }
-async function scrTcTien() {
+async function scrTcTien(lamMoi) {
   var td = 'Tiền hiện có';
   if (!coQuyenTaiChinh()) return tcKhoa(td);
-  tcDoi(td, 'Đang tính tiền từng tài khoản, từng két...');
+  if (!lamMoi) tcDoi(td, 'Đang tính tiền từng tài khoản, từng két...');
   var kq;
-  try { kq = await api('vagabond.tai_chinh.tien_hien_co', {}); } catch (e) { return tcLoi(td, e); }
+  try { kq = await api('vagabond.tai_chinh.tien_hien_co', {}); } catch (e) { if (lamMoi) return tcHenLamMoi(td, scrTcTien); return tcLoi(td, e); }
+  if (lamMoi && VGB_TD !== td) return;
   var t = kq.tong || {};
   var nhCty = [], nhTu = [], tm = [];
   (kq.dong || []).forEach(function (d) {
@@ -65210,7 +65230,7 @@ async function scrTcTien() {
       '<b>' + ten + '</b><b>' + money(cong(ds)) + '</b></div>' + ds.map(tcDongTien).join('') + '</div>';
   };
   var html = '<div class="card" style="padding:14px">' +
-    '<div style="font-size:12px;color:#98a2b3;letter-spacing:.3px">TỔNG TIỀN CÔNG TY ĐANG CÓ · ' + h(String(kq.luc || '').slice(11, 16)) + '</div>' +
+    '<div style="font-size:12px;color:#98a2b3;letter-spacing:.3px">TỔNG TIỀN CÔNG TY ĐANG CÓ · ' + h(String(kq.luc || '').slice(11, 16)) + ' · tự cập nhật mỗi phút</div>' +
     '<div data-tctongtien="1" style="font-size:26px;font-weight:800;line-height:1.3">' + money(t.tong) + ' đ</div>' +
     '<div style="font-size:13px;color:#475467">Ngân hàng ' + money(t.ngan_hang) + ' · Tiền mặt ' + money(t.tien_mat) + '</div>' +
     (t.loi ? '<div data-tcloi="1" style="margin-top:6px;font-size:12.5px;color:#b42318">Có ' + t.loi + ' chỗ chưa tính được lúc này (dòng ghi đỏ bên dưới), tổng đang thiếu phần đó.</div>' : '') +
@@ -65226,6 +65246,7 @@ async function scrTcTien() {
   html += '<button class="btn" data-tcgo="TCCD" style="width:100%;min-height:46px;margin-top:4px">Chốt số dư ở Cài đặt tài chính</button>';
   var than = frame(td, html);
   than.querySelectorAll('[data-tcgo]').forEach(function (b) { b.onclick = function () { vgbGo(b.getAttribute('data-tcgo')); }; });
+  tcHenLamMoi(td, scrTcTien);
 }
 
 /* ================= Dòng tiền */

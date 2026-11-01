@@ -2874,3 +2874,9 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 - (Codex #524 vòng 3) "Chưa có số" có hai nghĩa phải tách: CHƯA CHỐT (người dùng chưa nhập, cộng 0 là đúng) và TÍNH HỎNG (không biết số, mọi kết luận cộng dồn phải dừng). Gắn cờ `loi` ở chỗ bắt lỗi, đếm riêng, và đừng lưu bộ nhớ đệm một kết quả còn thiếu phần đọc hỏng.
 - (Codex #524 vòng 4) Đọc sổ cái cho dòng tiền phải đọc CẢ Nợ lẫn Có của cùng tài khoản: chỉ đọc cột Có thì khoản thu thẳng vào quỹ làm số dư tăng mà dòng tiền không thấy. Ca kiểm dựng cả hai chiều trong cùng một ngày và có sẵn tiền két để bắt cả lỗi ghi đè.
 - (Codex #524) Ô "tong" của màn Công nợ là số CÒN GOM ĐƯỢC (bỏ tờ đã nằm trong phiếu đòi nợ chờ thu), không phải tổng khách nợ. Nơi nào cần tổng nợ thật thì đọc `tong_ca_phieu`. Site 31/10: 13 phiếu Chờ thu giữ 27 hoá đơn, nợ sổ cái 64.138.500 đ, nằm ngoài "tong".
+
+## 01/11/2026 (v627): Tài chính báo "Chưa đọc được SePay" trên site thật
+
+- `frappe.make_get_request` chỉ có trong System Console và Server Script (Frappe tiêm vào không gian tên đó). Mã của app gọi nó là AttributeError, bị khối bắt lỗi nuốt, màn báo "Chưa đọc được SePay" mãi. Bài học này đã gặp ngày 19/08 ở `sepay.py` mà vẫn lặp ở `tai_chinh.py`. Trong mã app luôn dùng `from frappe.integrations.utils import make_get_request`.
+- Mọi ca v626 thay `_sepay_so_bao` bằng bản giả nên hàm gọi mạng thật chưa chạy lần nào trong kiểm thử. Hàm chạm dịch vụ ngoài phải có ít nhất một ca chạy HÀM THẬT với frappe giả giống site thật (không có thứ chỉ Console mới có), chỉ thay tầng HTTP.
+- Đừng lưu bộ nhớ đệm kết quả rỗng của một lần gọi ngoài: lỗi tạm thời thành lỗi kéo dài suốt thời gian đệm.
