@@ -53,6 +53,9 @@ function tcLoi(tieuDe, e) {
    hỏng thì giữ nguyên số đang hiện, không thay bằng màn lỗi. */
 var TC_NHIP = null, TC_NHIP_GIAY = 60;
 function tcHenLamMoi(tieuDe, ham) {
+  /* Codex #526: lượt đọc lại của màn cũ về muộn (người dùng đã sang màn khác)
+     thì KHÔNG được động vào lịch của màn đang mở. */
+  if (VGB_TD !== tieuDe) return;
   if (TC_NHIP) clearTimeout(TC_NHIP);
   TC_NHIP = setTimeout(function () {
     TC_NHIP = null;
