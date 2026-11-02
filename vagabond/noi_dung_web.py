@@ -11,17 +11,26 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "tiec", "kenh_dat_hang", "zalo_oa", "nut_kenh"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "tiec", "kenh_dat_hang", "zalo_oa", "nut_kenh", "thiet_ke_rieng"}
 # v586 (Minh Vũ đề xuất, anh Việt duyệt 07/10/2026): ưu đãi có điều kiện đơn
 # tối thiểu và khung giờ, tuyển dụng có yêu cầu và quyền lợi, thêm loại Tiệc
 # có giá vé, số vé, hạn đăng ký. Mọi trường vẫn là CHUỖI để giữ một phép kiểm
 # chung cho chữ; con số được kiểm riêng là chuỗi chữ số.
 TRUONG_MOI_586 = {"don_toi_thieu", "gio_bat_dau", "gio_ket_thuc", "dieu_kien", "yeu_cau",
                   "gia_ve", "so_ve", "han_ban", "dia_diem"}
-TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email"} | TRUONG_MOI_586
-VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec"}
-# Ba loại có thẻ riêng trong trình biên tập mới, mỗi mục một thẻ trên web.
-LOAI_MUC = ("uu_dai", "tuyen_dung", "tiec")
+# v630 (anh Việt chốt 02/11/2026): bánh thiết kế riêng (Croquembouche...). Mỗi
+# tác phẩm là một khối: size và trang trí là DANH SÁCH (không phải chuỗi như
+# mọi trường khác), giá đã gồm VAT, kiểm riêng ở chuan_tkr. Máy chủ tính giá
+# đơn từ chính các số này (thiet_ke_rieng.tinh_gia), nên đây là cửa nhập duy
+# nhất phải chặn số sai.
+TRUONG_TKR_DS = {"kich_co", "trang_tri"}
+TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email", "so_ngay"} | TRUONG_MOI_586 | TRUONG_TKR_DS
+VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng"}
+# Các loại có thẻ riêng trong trình biên tập mới, mỗi mục một thẻ trên web.
+LOAI_MUC = ("uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng")
+# Trần giá một size hoặc một trang trí (đồng, đã gồm VAT): chặn gõ thừa số 0.
+GIA_TKR_TOI_DA = 200000000
+SO_NGAY_TKR_TOI_THIEU = 7
 # Trước v586 tối đa 30 khối; nay ưu đãi, tuyển dụng, tiệc cũng là khối nên
 # nâng trần. Giới hạn 250 KB của cả bản vẫn giữ.
 SO_KHOI_TOI_DA = 80
@@ -359,6 +368,71 @@ def diem_nhan(du_lieu):
             and str(c.get("ten") or "").strip() and str(c.get("id") or "")]
 
 
+def _gia_tkr(v, ten, cho_0=False):
+    """Giá nhập tay: số nguyên đồng, dương (trang trí được 0), có trần. THUẦN."""
+    if isinstance(v, bool):
+        raise ValueError("Giá %s chỉ gõ chữ số." % ten)
+    if isinstance(v, (int, float)) and float(v).is_integer():
+        v = str(int(v))
+    v = str(v if v is not None else "").strip().replace(".", "").replace(" ", "")
+    if v == "" and cho_0:
+        v = "0"
+    if not re.fullmatch(r"[0-9]{1,10}", v):
+        raise ValueError("Giá %s chỉ gõ chữ số, không dấu phẩy hay chữ đ." % ten)
+    n = int(v)
+    if n > GIA_TKR_TOI_DA or (n <= 0 and not cho_0):
+        raise ValueError("Giá %s phải từ 1 đ tới %s đ." % (ten, "{:,}".format(GIA_TKR_TOI_DA).replace(",", ".")))
+    return n
+
+
+def chuan_tkr(k):
+    """Kiểm và chuẩn hoá một tác phẩm thiết kế riêng. THUẦN. Trả bản sạch.
+
+    Size: 1 đến 8, tên không trùng, giá nguyên dương có trần. Trang trí: tối
+    đa 10, giá cộng thêm 0 trở lên, `nhom` (cùng nhóm chỉ chọn một). Số ngày
+    đặt trước không dưới 7 (anh Việt chốt). Ảnh theo luật ảnh công khai của
+    khối thường (kiểm ở chuan_hoa).
+    """
+    k = dict(k)
+    ds = k.get("kich_co")
+    if not isinstance(ds, list) or not 1 <= len(ds) <= 8:
+        raise ValueError("Tác phẩm cần từ 1 đến 8 size.")
+    sach, ten_da = [], set()
+    for x in ds:
+        if not isinstance(x, dict) or set(x) - {"ten", "mo_ta", "gia"}:
+            raise ValueError("Size không hợp lệ. Tải lại trang biên tập.")
+        ten = str(x.get("ten") or "").strip()
+        mo_ta = str(x.get("mo_ta") or "").strip()
+        if not ten or len(ten) > 40 or len(mo_ta) > 160:
+            raise ValueError("Mỗi size cần tên (tối đa 40 ký tự), mô tả tối đa 160 ký tự.")
+        if ten.lower() in ten_da:
+            raise ValueError("Tên size \"%s\" bị trùng." % ten)
+        ten_da.add(ten.lower())
+        sach.append({"ten": ten, "mo_ta": mo_ta, "gia": _gia_tkr(x.get("gia"), "size " + ten)})
+    k["kich_co"] = sach
+    ds = k.get("trang_tri") if k.get("trang_tri") is not None else []
+    if not isinstance(ds, list) or len(ds) > 10:
+        raise ValueError("Tối đa 10 lựa chọn trang trí.")
+    sach, ten_da = [], set()
+    for x in ds:
+        if not isinstance(x, dict) or set(x) - {"ten", "gia_them", "nhom"}:
+            raise ValueError("Trang trí không hợp lệ. Tải lại trang biên tập.")
+        ten = str(x.get("ten") or "").strip()
+        nhom = str(x.get("nhom") or "").strip()
+        if not ten or len(ten) > 60 or len(nhom) > 40:
+            raise ValueError("Mỗi trang trí cần tên (tối đa 60 ký tự).")
+        if ten.lower() in ten_da:
+            raise ValueError("Trang trí \"%s\" bị trùng." % ten)
+        ten_da.add(ten.lower())
+        sach.append({"ten": ten, "gia_them": _gia_tkr(x.get("gia_them"), "trang trí " + ten, cho_0=True), "nhom": nhom})
+    k["trang_tri"] = sach
+    so_ngay = str(k.get("so_ngay") or str(SO_NGAY_TKR_TOI_THIEU)).strip()
+    if not re.fullmatch(r"[0-9]{1,3}", so_ngay) or int(so_ngay) < SO_NGAY_TKR_TOI_THIEU:
+        raise ValueError("Số ngày đặt trước tối thiểu là %d." % SO_NGAY_TKR_TOI_THIEU)
+    k["so_ngay"] = str(int(so_ngay))
+    return k
+
+
 def chuan_hoa(du_lieu):
     """Giới hạn kích thước và cấu trúc trước khi lưu, dùng cả ở Document.save."""
     if isinstance(du_lieu, str):
@@ -388,6 +462,7 @@ def chuan_hoa(du_lieu):
             raise ValueError("Nội dung sản phẩm không hợp lệ. Tải lại danh mục.")
         if any(not isinstance(v, str) or len(v) > 4000 for v in chu.values()):
             raise ValueError("Mỗi ô nội dung sản phẩm tối đa 4.000 ký tự.")
+    du_lieu = copy.deepcopy(du_lieu)
     ds = du_lieu["khoi"]
     if not isinstance(ds, list) or len(ds) > SO_KHOI_TOI_DA:
         raise ValueError("Mỗi trang có tối đa %d mục và khối. Xoá bớt ưu đãi hay vị trí đã hết hạn." % SO_KHOI_TOI_DA)
@@ -395,8 +470,12 @@ def chuan_hoa(du_lieu):
     tieu_de_da_co = set()
     zalo_da_co = False
     nut_kenh_da_co = False
-    for k in ds:
+    for i_k, k in enumerate(ds):
         if not isinstance(k, dict) or set(k) - TRUONG:
+            raise ValueError("Khối có trường không được hỗ trợ.")
+        if k.get("loai") == "thiet_ke_rieng":
+            k = ds[i_k] = chuan_tkr(k)
+        elif TRUONG_TKR_DS & set(k):
             raise ValueError("Khối có trường không được hỗ trợ.")
         if k.get("loai") not in LOAI or not re.fullmatch(r"[a-zA-Z0-9_-]{1,60}", str(k.get("id", ""))):
             raise ValueError("Loại hoặc mã khối không hợp lệ.")
@@ -416,7 +495,7 @@ def chuan_hoa(du_lieu):
             tieu_de_da_co.add(vi_tri)
         if type(k.get("hien")) is not bool:
             raise ValueError("Chọn hiện hoặc ẩn cho từng khối.")
-        for ten in TRUONG - {"hien"}:
+        for ten in TRUONG - {"hien"} - TRUONG_TKR_DS:
             v = k.get(ten, "")
             if not isinstance(v, str) or len(v) > (4000 if ten in ("noi_dung", "yeu_cau") else 1000):
                 raise ValueError("Chữ trong khối quá dài hoặc không hợp lệ: " + ten)
@@ -439,7 +518,7 @@ def chuan_hoa(du_lieu):
                 raise ValueError('Dùng đường dẫn Zalo OA dạng https://zalo.me/tên-OA hoặc mã OA, không dùng số điện thoại cá nhân.')
         if k['loai'] in LOAI_MUC:
             if not k.get('tieu_de', '').strip():
-                raise ValueError('Ưu đãi, tiệc và vị trí tuyển dụng cần có tên.')
+                raise ValueError('Ưu đãi, tiệc, tác phẩm và vị trí tuyển dụng cần có tên.')
             from datetime import date
             for ten in ('bat_dau', 'ket_thuc'):
                 if k.get(ten):
@@ -499,7 +578,7 @@ def ap_muc(nd, muc, dau_cu=None):
     Mục mới chèn lên ĐẦU nhóm cùng loại: ưu đãi vừa tạo phải đứng trên cùng.
     """
     if not isinstance(muc, dict) or muc.get("loai") not in LOAI_MUC:
-        raise ValueError("Chỉ lưu được ưu đãi, tiệc và vị trí tuyển dụng ở đây.")
+        raise ValueError("Chỉ lưu được ưu đãi, tiệc, tác phẩm thiết kế riêng và vị trí tuyển dụng ở đây.")
     nd = copy.deepcopy(nd)
     ds = nd.setdefault("khoi", [])
     muc = dict(muc, vi_tri=muc["loai"])
@@ -581,6 +660,8 @@ def trang_thai_muc(muc, hom_nay):
     """
     loai = muc.get("loai")
     bd, kt = muc.get("bat_dau") or "", muc.get("ket_thuc") or ""
+    if loai == "thiet_ke_rieng":
+        return ("dang", "Đang nhận đặt")
     if loai == "tiec":
         if bd and bd < hom_nay:
             return ("het", "Đã diễn ra")
@@ -878,6 +959,67 @@ def gieo_chinh_sach(ban_nhap_vn):
     return True
 
 
+# v630: tác phẩm đầu tiên, nội dung lấy từ brochure Croquembouche anh Việt
+# duyệt (mẫu m1, 02/11/2026). Giá ĐÃ GỒM VAT (giá brochure cộng 8%).
+TKR_MAU = {
+    "id": "tkr-croquembouche", "loai": "thiet_ke_rieng", "vi_tri": "thiet_ke_rieng", "hien": True,
+    "tieu_de": "Croquembouche",
+    "nhan": "Tháp choux caramel, hoa lan trắng. 110 đến 190 bánh.",
+    "noi_dung": ("Pièce montée từ thời Antonin Carême, biểu tượng của sung túc và may mắn trong tiệc Pháp. "
+                 "Từng viên choux nhúng caramel, xếp tay thành tháp."),
+    "yeu_cau": "Hoa lan trắng tươi cắm trên tháp\nĐế nougatine caramel\nBảo quản ngăn mát, dùng trong ngày tiệc",
+    "dieu_kien": "Chiều cao không tính bục trắng. Choux đường kính 3-3,5 cm. Giá đã gồm VAT.",
+    "anh": "/assets/vagabond/web_order/croquembouche.jpg", "mo_ta_anh": "Tháp Croquembouche cắm hoa lan trắng",
+    "so_ngay": "7",
+    "kich_co": [
+        {"ten": "S", "mo_ta": "35-40 cm, 110-120 bánh", "gia": 5940000},
+        {"ten": "M", "mo_ta": "45-55 cm, 130-160 bánh", "gia": 7560000},
+        {"ten": "L", "mo_ta": "55-65 cm, 170-190 bánh", "gia": 10800000},
+    ],
+    "trang_tri": [
+        {"ten": "Hoa lan trắng", "gia_them": 0, "nhom": "Hoa"},
+        {"ten": "Hoa theo màu tiệc", "gia_them": 0, "nhom": "Hoa"},
+        {"ten": "Không hoa", "gia_them": 0, "nhom": "Hoa"},
+        {"ten": "Thêm bục trắng", "gia_them": 0, "nhom": ""},
+    ],
+}
+KHOA_GIEO_TKR = "vgb_gieo_tkr_630"
+
+
+def them_tkr_mau(nd):
+    """THUẦN: thêm tác phẩm mẫu nếu bản này chưa có tác phẩm thiết kế riêng nào."""
+    nd = copy.deepcopy(nd)
+    ds = nd.setdefault("khoi", [])
+    if any(k.get("loai") == "thiet_ke_rieng" for k in ds) or len(ds) >= SO_KHOI_TOI_DA:
+        return nd
+    ds.append(copy.deepcopy(TKR_MAU))
+    return chuan_hoa(nd)
+
+
+def gieo_thiet_ke_rieng():
+    """Gieo Croquembouche MỘT lần (after_migrate). Chỉ khi site đã có nội dung
+    web: chưa có bản ghi thì cong_khai dùng MAC_DINH, không tạo bản ghi mới
+    (bench web_editor_245 chặn bản ghi có sẵn). Dấu đã gieo nằm ở Defaults, nên
+    Marketing xoá tác phẩm rồi thì lần deploy sau không gieo lại."""
+    if frappe.db.get_default(KHOA_GIEO_TKR) or not frappe.db.exists(DOCTYPE, TEN):
+        return False
+    frappe.db.sql("select name from `tabVagabond Noi Dung Web` where name=%s for update", (TEN,))
+    d = _doc()
+    cong, nhap = json.loads(d.ban_cong_khai), json.loads(d.ban_nhap)
+    cong_moi, nhap_moi = them_tkr_mau(cong), them_tkr_mau(nhap)
+    if cong_moi != cong:
+        ls = json.loads(d.lich_su or "[]")
+        ls.insert(0, {"phien_ban": int(d.phien_ban or 0), "luc": str(frappe.utils.now()),
+                      "nguoi": frappe.session.user, "noi_dung": cong})
+        d.lich_su = json.dumps(ls[:20], ensure_ascii=False)
+    d.ban_cong_khai = json.dumps(cong_moi, ensure_ascii=False)
+    d.ban_nhap = json.dumps(nhap_moi, ensure_ascii=False)
+    d.flags.luu_noi_dung_web = True
+    d.save(ignore_permissions=True)
+    frappe.db.set_default(KHOA_GIEO_TKR, "1")
+    return True
+
+
 @frappe.whitelist()
 def doc_bang():
     kiem_quyen()
@@ -1019,6 +1161,9 @@ def _nhom_nhan():
         "bien_nhan": "Biên nhận sau khi đặt", "chinh_sach": "Chân trang và chính sách",
         "Ưu đãi, tuyển dụng và đặt bánh": "Ưu đãi, tiệc và tuyển dụng", "Kênh đặt hàng": "Kênh đặt hàng",
         "uu_dai": "Ưu đãi, tiệc và tuyển dụng",
+        "thiet_ke_rieng": "Bánh thiết kế riêng",
+        # v630: trang /banh-si cho quán, khách sạn, nhà hàng.
+        "banh_si": "Trang bánh sỉ",
     }
 
 

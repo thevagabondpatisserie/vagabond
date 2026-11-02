@@ -8,11 +8,154 @@ from functools import partial
 import hashlib
 import json
 import re
+import unicodedata
 from datetime import datetime, timedelta
 
 DIP = ('Không có dịp riêng', 'Sinh nhật', 'Kỷ niệm', 'Hẹn hò', 'Gặp đối tác', 'Họp nhóm', 'Khác')
 
 TRANG_THAI = ('Chờ xác nhận', 'Đã xác nhận', 'Đã đến', 'Đã hủy')
+
+
+# v630: đặt trước ít nhất bấy nhiêu phút. MỘT nguồn: máy chủ chặn lúc gửi
+# (chuan_hoa) và trang làm mờ khung giờ hôm nay (khung_con_nhan) cùng gọi
+# qua_han_nhan, để trang không mời khách bấm một giờ mà máy chủ sẽ từ chối.
+TRUOC_PHUT = 60
+
+
+def qua_han_nhan(den, luc):
+    """THUẦN: giờ đến `den` đã quá hạn nhận đặt tại thời điểm `luc`."""
+    return den <= luc + timedelta(minutes=TRUOC_PHUT)
+
+
+def khung_con_nhan(khung_gio, ngay, luc):
+    """THUẦN: các khung giờ của ngày `ngay` (YYYY-MM-DD) còn nhận đặt lúc `luc`."""
+    ra = []
+    for g in khung_gio or []:
+        try:
+            den = datetime.strptime('%s %s' % (str(ngay)[:10], g), '%Y-%m-%d %H:%M')
+        except (TypeError, ValueError):
+            continue
+        if not qua_han_nhan(den, luc):
+            ra.append(g)
+    return ra
+
+
+def _bo_dau(s):
+    s = unicodedata.normalize('NFD', str(s or '')).replace('đ', 'd').replace('Đ', 'D')
+    return ''.join(c for c in s if unicodedata.category(c) != 'Mn').lower()
+
+
+# Giờ mở cửa do marketing gõ tự do ở thẻ Cửa hàng (/bien-tap-web), mỗi dòng
+# một khung, ví dụ "Thứ 2 - Thứ 6: 7:00 - 21:00", "T7, CN: 8h - 22h30",
+# "9:00 - 21:00 mỗi ngày". Giờ phải có phút hoặc chữ h để "Thứ 2 - 6" không
+# bị đọc nhầm thành 2 giờ tới 6 giờ. Dòng không đọc được thì bỏ qua.
+RE_KHOANG_GIO = re.compile(r'(\d{1,2})\s*(?:[:.]\s*(\d{2})|h\s*(\d{2})?)\s*(?:-|\u2013|\u2014|den|toi)\s*'
+                           r'(\d{1,2})\s*(?:[:.]\s*(\d{2})|h\s*(\d{2})?)')
+RE_THU = re.compile(r'\b(?:thu|t)\s*(2|3|4|5|6|7|hai|ba|tu|nam|sau|bay)\b|\b(chu nhat|cn)\b')
+SO_THU = {'2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, 'hai': 0, 'ba': 1, 'tu': 2, 'nam': 3, 'sau': 4, 'bay': 5}
+
+
+def _ngay_ap(phan):
+    """THUẦN: tập thứ (0 = thứ Hai) mà phần chữ trước giờ nói tới; None nếu không hiểu."""
+    # "Thứ 2 - 6" là thứ Hai tới thứ Bảy: số trần sau dấu nối vẫn là thứ.
+    phan = re.sub(r'\b(thu|t)\s*([2-7])\s*(-|\u2013|\u2014|den|toi)\s*([2-7])\b', r'\1 \2 - thu \4', phan)
+    ds = [(m.start(), m.end(), 6 if m.group(2) else SO_THU[m.group(1)]) for m in RE_THU.finditer(phan)]
+    if not ds:
+        bo = re.sub(r'[^a-z]', ' ', phan).split()
+        if not bo or ' '.join(bo) in ('moi ngay', 'hang ngay', 'ca tuan', 'tat ca cac ngay', 'cac ngay', 'ngay'):
+            return set(range(7))
+        return None
+    ra = set()
+    i = 0
+    while i < len(ds):
+        a = ds[i][2]
+        if i + 1 < len(ds) and re.search(r'-|\u2013|\u2014|\bden\b|\btoi\b', phan[ds[i][1]:ds[i + 1][0]]):
+            b = ds[i + 1][2]
+            ra.update((a + k) % 7 for k in range((b - a) % 7 + 1))
+            i += 2
+        else:
+            ra.add(a)
+            i += 1
+    return ra
+
+
+def mo_cua(gio_mo_cua, bay_gio):
+    """THUẦN: {'dang_mo', 'gio'} của hôm nay theo chữ giờ mở cửa; None nếu không
+    đọc được dòng nào (trang khi đó không ghi Đang mở hay Đã đóng)."""
+    doc_duoc = False
+    khoang = []
+    for dong in str(gio_mo_cua or '').splitlines():
+        d = _bo_dau(dong)
+        ms = list(RE_KHOANG_GIO.finditer(d))
+        if not ms:
+            continue
+        m = ms[-1]
+        thu = _ngay_ap(d[:ms[0].start()] + ' ' + d[m.end():])
+        if thu is None:
+            continue
+        mo = (int(m.group(1)), int(m.group(2) or m.group(3) or 0))
+        dong_ = (int(m.group(4)), int(m.group(5) or m.group(6) or 0))
+        if mo[0] > 24 or dong_[0] > 24 or mo[1] > 59 or dong_[1] > 59:
+            continue
+        doc_duoc = True
+        if bay_gio.weekday() in thu:
+            khoang.append((mo, dong_))
+    if not doc_duoc:
+        return None
+    phut = bay_gio.hour * 60 + bay_gio.minute
+    dang_mo = False
+    for (h1, p1), (h2, p2) in khoang:
+        a, b = h1 * 60 + p1, h2 * 60 + p2
+        dang_mo = dang_mo or (a <= phut < b if a < b else (phut >= a or phut < b))
+    gio = ', '.join('%d:%02d - %d:%02d' % (h1, p1, h2, p2) for (h1, p1), (h2, p2) in khoang)
+    return {'dang_mo': dang_mo, 'gio': gio}
+
+
+def _goc_dia_chi(s):
+    """THUẦN: số nhà và tên đường (phần trước dấu phẩy đầu), bỏ dấu, để so hai nguồn."""
+    return re.sub(r'\s+', ' ', _bo_dau(str(s or '').split(',')[0])).strip()
+
+
+def tim_cua_hang(ds, ten_co_so, dia_chi):
+    """THUẦN: thẻ Cửa hàng (trình biên tập web) ứng với cơ sở nhận đặt bàn.
+    Điểm bán và thẻ Cửa hàng là hai danh mục riêng, không có mã chung: so theo
+    tên, không khớp thì theo số nhà và tên đường."""
+    ds = [c for c in (ds or []) if isinstance(c, dict)]
+    ten = _bo_dau(ten_co_so).strip()
+    for c in ds:
+        if ten and _bo_dau(c.get('ten')).strip() == ten:
+            return c
+    goc = _goc_dia_chi(dia_chi)
+    for c in ds:
+        if goc and _goc_dia_chi(c.get('dia_chi')) == goc:
+            return c
+    return None
+
+
+def link_an_toan(u):
+    """THUẦN: chỉ nhận https://, không khoảng trắng, không tài khoản trong link (như vgbLinkHopLe)."""
+    u = str(u or '').strip()
+    return u if re.match(r'^https://[^\s/@\\]+(/|$)', u) and not re.search(r'\s', u) else ''
+
+
+def thong_tin_trang(cua_hang, lien_he, bay_gio):
+    """THUẦN: phần cửa hàng trên trang đặt bàn. Ô nào không có dữ liệu thì
+    không có khoá, để trang ẩn đúng nút đó (Chỉ đường, Gọi, Nhắn Zalo, giờ mở)."""
+    c = cua_hang or {}
+    lh = lien_he or {}
+    ra = {}
+    dt = str(c.get('hotline') or lh.get('dien_thoai') or '').strip()
+    so = re.sub(r'[^0-9+]', '', dt)
+    if re.fullmatch(r'\+?[0-9]{8,12}', so):
+        ra['hotline'], ra['hotline_so'] = dt, so
+    for k, v in (('chi_duong', c.get('chi_duong')), ('zalo', lh.get('zalo'))):
+        if link_an_toan(v):
+            ra[k] = link_an_toan(v)
+    mo = mo_cua(c.get('gio_mo_cua'), bay_gio)
+    if mo is not None:
+        ra['dang_mo'] = mo['dang_mo']
+        ra['gio_hom_nay'] = mo['gio']
+    return ra
 
 
 def chuan_hoa(du_lieu, cau_hinh, luc):
@@ -41,7 +184,7 @@ def chuan_hoa(du_lieu, cau_hinh, luc):
         raise ValueError('Chọn ngày, giờ và số khách trong phạm vi tiệm nhận đặt bàn.')
     if gio not in cau_hinh.get('khung_gio', []):
         raise ValueError('Khung giờ này chưa mở đặt bàn. Chọn lại giờ trên trang.')
-    if den <= luc + timedelta(minutes=60) or ngay > luc.date() + timedelta(days=int(cau_hinh['toi_da_ngay'])):
+    if qua_han_nhan(den, luc) or ngay > luc.date() + timedelta(days=int(cau_hinh['toi_da_ngay'])):
         raise ValueError('Đặt trước ít nhất 1 giờ và trong khoảng ngày tiệm đang nhận.')
     if du_lieu.get('co_so') != cau_hinh.get('co_so'):
         raise ValueError('Chọn đúng cơ sở đang nhận đặt bàn.')
@@ -109,12 +252,34 @@ def _cau_hinh():
             'co_so':d.co_so, 'ten_co_so':(co_so or {}).get('ten', ''),
             'dia_chi':(co_so or {}).get('dia_chi', ''), 'khung_gio':str(d.khung_gio or '').split(),
             'khu_vuc':list(dict.fromkeys(x.strip() for x in str(d.get('khu_vuc') or '').splitlines() if x.strip())),
-            'dip':list(DIP), 'toi_da_khach':d.toi_da_khach or 8, 'toi_da_ngay':d.toi_da_ngay or 30}
+            'dip':list(DIP), 'toi_da_khach':d.toi_da_khach or 8, 'toi_da_ngay':d.toi_da_ngay or 30,
+            'anh':(co_so or {}).get('anh', '')}
+
+
+def _thong_tin_trang(ch, bay_gio):
+    """v630: giờ mở cửa, chỉ đường, hotline, Zalo của cơ sở, đọc từ thẻ Cửa hàng
+    và thẻ Liên hệ mà marketing đã xuất bản (cùng nguồn chân trang web dùng).
+    Lỗi đọc thì trang vẫn nhận đặt bàn, chỉ thiếu các nút này."""
+    try:
+        from vagabond import noi_dung_web
+        from vagabond.don_web import lien_he
+        ds = noi_dung_web.thong_tin_day_du(noi_dung_web._ban_cong_khai())['cua_hang']
+        return thong_tin_trang(tim_cua_hang(ds, ch.get('ten_co_so'), ch.get('dia_chi')), lien_he(), bay_gio)
+    except Exception:
+        frappe.log_error(title='Đặt bàn: chưa đọc được thông tin cửa hàng', message=frappe.get_traceback())
+        return {}
 
 
 @frappe.whitelist(allow_guest=True)
 def cau_hinh():
-    return dict(_cau_hinh(), hom_nay=str(frappe.utils.nowdate()))
+    ch = _cau_hinh()
+    bay_gio = frappe.utils.now_datetime()
+    hom_nay = str(frappe.utils.nowdate())
+    # v630: khung giờ hôm nay còn nhận (cùng luật máy chủ chặn lúc gửi) để
+    # trang làm mờ giờ đã qua theo giờ máy chủ, không theo đồng hồ máy khách.
+    ra = dict(ch, hom_nay=hom_nay, khung_gio_hom_nay=khung_con_nhan(ch['khung_gio'], hom_nay, bay_gio))
+    ra.update(_thong_tin_trang(ch, bay_gio))
+    return ra
 
 
 @frappe.whitelist(methods=['POST'], allow_guest=True)
