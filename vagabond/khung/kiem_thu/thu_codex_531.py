@@ -1101,3 +1101,23 @@ def _bench_cot_bo_sao_ke():
 	dung("có loại chứng từ mang cột bộ sao kê trong sổ: %r" % co_cot, bool(co_cot))
 	dung("các loại đó vẫn lọc phiếu đã vào bộ", all("vgb_bo_sao_ke" in loc for dt, loc in hoi if dt in bsdb.PHIEU))
 	dung("loại không có cột thì không lọc", all("vgb_bo_sao_ke" not in loc for dt, loc in hoi if dt not in bsdb.PHIEU))
+
+
+@ca("Bench #531 v631: số điện thoại ở form thiết kế riêng và bánh sỉ đọc theo MỘT phép với phép tạo khách; số đầu không có nhà mạng bị chặn ở cửa nhập")
+def _bench_mot_phep_sdt():
+	# Bench thật trên 977d3c8: số ngẫu nhiên đầu 095 qua chuan_sdt cũ
+	# (0[35789]xxxxxxxx) nhưng khach_cho_don (lib.sdt, theo đầu số nhà mạng)
+	# trả rỗng, phiếu đặt báo "Chưa ghi nhận được thông tin khách" SAU khi
+	# khách đã gửi. Chặn ở cửa nhập: form phải đọc đúng như phép tạo khách.
+	from vagabond import banh_si as bs_, lib, nhap_khach as nk
+	from vagabond import thiet_ke_rieng as tkr_
+	mau = ["0909 123 456", "84909123456", "+84 909 123 456", "0951234567", "0801234567", "0312345678",
+		"0531234567", "0283 822 9999", "", "abc", "0389123456", "0701234567", "909123456"]
+	for ham, ten in ((tkr_.chuan_sdt, "thiết kế riêng"), (bs_.chuan_sdt, "bánh sỉ")):
+		la(ten + ": khớp phép tạo khách trên mọi mẫu", [ham(x) for x in mau], [nk.sdt_chuan(x) for x in mau])
+		la(ten + ": đầu 095, 080, 031, 053 bị chặn", [ham(x) for x in ("0951234567", "0801234567", "0312345678", "0531234567")],
+			["", "", "", ""])
+		la(ten + ": số thật vẫn nhận", ham("0909 123 456"), "0909123456")
+	la("nk.sdt_chuan là lib.sdt", nk.sdt_chuan is lib.sdt, True)
+	nem("form thiết kế riêng chặn số 095 ngay khi nhận", lambda: tkr_.chuan_don({"tac_pham": "x", "kich_co": "M",
+		"ngay": "2026-12-01", "ten": "An", "sdt": "0951234567", "diem_nhan": "tcv"}, None, "2026-11-02", []), ValueError)
