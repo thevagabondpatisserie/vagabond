@@ -90,6 +90,13 @@ QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager", VAI_QLCH}
 #     (standard_rate) nhu cu. May chu tinh lai gia theo diem khi luu bill nen
 #     khong ai sua tay duoc.
 TIEN_TO_BANG_GIA = "Giá riêng "
+
+
+def loc_bo_bang_rieng():
+	"""Điều kiện price_list loại các bảng giá riêng của điểm bán. Mọi câu đọc
+	"giá bán niêm yết" từ Item Price mà không chỉ rõ bảng giá phải kèm điều kiện
+	này, không thì giá riêng NVH lọt thành giá chung (v631, Codex PR #532)."""
+	return ["not like", TIEN_TO_BANG_GIA + "%"]
 SO_NGAY_GOI_Y = 30
 GIA_TOI_DA = 100000000
 

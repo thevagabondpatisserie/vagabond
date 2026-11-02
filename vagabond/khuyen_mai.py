@@ -581,7 +581,7 @@ def _gia_ban(ma):
 	return flt(
 		frappe.db.get_value(
 			"Item Price",
-			{"item_code": ma, "selling": 1, "price_list": ["not like", diem_ban.TIEN_TO_BANG_GIA + "%"]},
+			{"item_code": ma, "selling": 1, "price_list": diem_ban.loc_bo_bang_rieng()},
 			"price_list_rate",
 			order_by="valid_from desc, modified desc",
 		)
