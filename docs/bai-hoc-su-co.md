@@ -2880,3 +2880,9 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 - `frappe.make_get_request` chỉ có trong System Console và Server Script (Frappe tiêm vào không gian tên đó). Mã của app gọi nó là AttributeError, bị khối bắt lỗi nuốt, màn báo "Chưa đọc được SePay" mãi. Bài học này đã gặp ngày 19/08 ở `sepay.py` mà vẫn lặp ở `tai_chinh.py`. Trong mã app luôn dùng `from frappe.integrations.utils import make_get_request`.
 - Mọi ca v626 thay `_sepay_so_bao` bằng bản giả nên hàm gọi mạng thật chưa chạy lần nào trong kiểm thử. Hàm chạm dịch vụ ngoài phải có ít nhất một ca chạy HÀM THẬT với frappe giả giống site thật (không có thứ chỉ Console mới có), chỉ thay tầng HTTP.
 - Đừng lưu bộ nhớ đệm kết quả rỗng của một lần gọi ngoài: lỗi tạm thời thành lỗi kéo dài suốt thời gian đệm.
+
+## 02/11/2026 (v628): tính năng có trên máy chủ mà app không gọi thì người dùng coi như không có
+
+- Lịch kiểm kê xoay vòng (`kiem_ke.lich_hom_nay`, `tao_phieu_hom_nay`) có từ 02/08 nhưng không màn nào gọi. Bếp chỉ có phiếu cả kho (Pastry 205 món) nên hai tháng gần như không đếm, hao hụt tháng 10 ra 162%. Mỗi hàm mở ra ngoài phải có đường bấm thật trên app; rà `thu_cua_ngo.py` thấy hàm không màn nào gọi thì báo.
+- Mã "APP.26.10.123" trong nội dung chuyển khoản KHÔNG trùng tên phiếu APP-26-10-123 trên ERP (site 02/11: APP-26-10-123 là 875.000 đ, ngân hàng chi 15.725.120 đ). Đừng khớp tiền ra với phiếu chi theo chuỗi này; đọc ô tiền chưa gắn (`unallocated_amount`) của giao dịch ngân hàng.
+- Tin Zalo mới phải được tích ở Tin nhận của nhóm mới tới. Site 02/11: tin "Tiền vào tài khoản công ty chưa gắn chứng từ" (v611) chưa nhóm nào tích nên chưa từng tới ai. Mỗi tin mới kèm bản vá tích sẵn cho nhóm mốc như v619, v628.
