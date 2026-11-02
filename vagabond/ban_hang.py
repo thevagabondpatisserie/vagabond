@@ -4616,11 +4616,7 @@ def tao_don_tay(
 		# điểm, không có thì giá chung danh mục), nên máy chủ đối chiếu cả giá
 		# chung: món vừa bị bỏ giá riêng mà giỏ còn giá cũ thì cũng chặn.
 		# Màn nhập đơn tay (08) không gửi cờ, giữ giá gõ tay như trước.
-		ma_chung = sorted({str(r.get("item_code") or "").strip() for r in items} - set(gia_diem_tao))
-		gia_chung = {
-			x["name"]: x["standard_rate"]
-			for x in frappe.get_all("Item", filters={"name": ["in", ma_chung]}, fields=["name", "standard_rate"])
-		} if ma_chung else {}
+		gia_chung = diem_ban.doc_gia_chung(items, gia_diem_tao)
 		from vagabond import phi_giao as _pg0
 
 		doi_gia += diem_ban.ap_gia_chung(items, rows, gia_diem_tao, mien_tao, gia_chung, (_pg0.MA_PHI_GIAO,))
@@ -6732,6 +6728,7 @@ def pos_sua_don(
 	xhd_dia_chi=None,
 	xhd_email=None,
 	doi_pt=None,
+	gia_theo_diem=0,
 ):
 	"""Sua lai hoa don da tinh tien cho khach - phai co ma OTP quan ly.
 
@@ -6750,12 +6747,23 @@ def pos_sua_don(
 		items = json.loads(items or "[]")
 	gia_diem_sua = {}
 	if items:
-		# v631: sửa bill ở điểm có bảng giá riêng cũng tính lại giá theo điểm,
-		# trước khi xét OTP để giá cũ trên máy khách không bị coi là sửa giá.
-		# Dòng combo giữ giá theo dòng gốc trên hoá đơn ở máy chủ (Codex PR #532).
+		# v631 (Codex PR #532 vòng 5): dòng đã lưu trên bill giữ giá đã chốt với
+		# khách lúc lập bill; chỉ món THÊM MỚI theo giá điểm hiện hành. Làm trước
+		# khi xét OTP. Màn sửa bill mới gửi gia_theo_diem=1: món thêm mới mang
+		# giá cũ (bảng giá vừa đổi) thì CHẶN để thu ngân xem tổng mới trước.
 		dong_cu = {x.name: x.as_dict() for x in si.items}
 		gia_diem_sua = diem_ban.gia_rieng_cua_quay(si.get("vgb_quay"))
-		diem_ban.ap_gia_diem(items, None, gia_diem_sua, diem_ban.dong_combo_sua(items, dong_cu, DAU_COMBO))
+		mien_sua = diem_ban.dong_giu_gia_sua(items, dong_cu)
+		doi_sua = diem_ban.ap_gia_diem(items, None, gia_diem_sua, mien_sua)
+		if cint(gia_theo_diem):
+			from vagabond import phi_giao as _pg1
+
+			moi = [r for i, r in enumerate(items) if i not in mien_sua]
+			doi_sua += diem_ban.ap_gia_chung(
+				items, None, gia_diem_sua, mien_sua, diem_ban.doc_gia_chung(moi, gia_diem_sua), (_pg1.MA_PHI_GIAO,)
+			)
+			if doi_sua:
+				frappe.throw(diem_ban.cau_gia_vua_doi(doi_sua), title="Giá vừa đổi")
 	da_ghi = si.docstatus == 1
 	# Hoa don DA GHI SO thi luon phai co OTP, khong xet muc quyen: luc do
 	# tien da nam trong so sach, khong con la chuyen cua quay nua.

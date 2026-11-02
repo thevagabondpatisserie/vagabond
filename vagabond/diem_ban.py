@@ -241,7 +241,7 @@ def ap_gia_diem(items, rows, gia, mien=()):
 
 	items la dong may khach gui (de khuyen mai tinh tren gia that), rows la
 	dong se ghi vao hoa don, cung thu tu. mien la chi so cac dong combo ma
-	MAY CHU da xac nhan (dong_combo_tao, dong_combo_sua): combo co gia rieng
+	MAY CHU da xac nhan (dong_combo_tao, dong_giu_gia_sua): combo co gia rieng
 	cua no. Nhan combo do may khach tu gui KHONG duoc mien (Codex PR #532:
 	gui combo "bat ky" kem gia 1 dong la lot gia diem). Mon chua co gia o
 	diem nay giu gia may khach gui (gia chung). Tra so dong da doi."""
@@ -295,23 +295,28 @@ def dong_combo_tao(items):
 	return {i for i, r in enumerate(items or []) if r.get("combo_ma")}
 
 
-def dong_combo_sua(items, dong_cu, dau_combo="\u25c8"):
-	"""THUAN: dong combo duoc giu gia khi SUA bill. dong_cu la {ten dong tren
-	hoa don: dong} doc tu MAY CHU. Dong giu lai (dong_goc) la combo neu dong
-	goc tren hoa don mang dau combo (da chia tien, co ma combo, hoac mo ta co
-	dau combo). Dong gui kem combo_ma thi vong dung dong cua pos_sua_don kiem
-	thanh phan va chan truoc khi luu. Nhan combo tu gui khong tinh."""
+def dong_giu_gia_sua(items, dong_cu):
+	"""THUAN: dong GIU GIA khi SUA bill (Codex PR #532 vong 5). Chinh sach: dong
+	da luu tren hoa don (dong_goc co trong dong_cu doc tu MAY CHU) giu dung gia
+	da chot voi khach luc lap bill, ke ca khi quan ly doi bang gia diem sau do;
+	sua ghi chu hay them mon khong lam doi gia dong cu. Dong gui kem combo_ma
+	thi vong dung dong cua pos_sua_don kiem thanh phan truoc khi luu. Chi dong
+	THEM MOI (khong dong_goc) moi theo gia diem hien hanh. Doi gia dong cu van
+	di qua luat OTP sua gia nhu truoc v631."""
 	ra = set()
 	for i, r in enumerate(items or []):
-		if r.get("combo_ma"):
-			ra.add(i)
-			continue
-		cu = (dong_cu or {}).get(r.get("dong_goc") or "")
-		if not cu:
-			continue
-		if cu.get("vgb_combo_luong") or cu.get("vgb_combo_ma") or dau_combo in str(cu.get("description") or ""):
+		if r.get("combo_ma") or (r.get("dong_goc") and r.get("dong_goc") in (dong_cu or {})):
 			ra.add(i)
 	return ra
+
+
+def doc_gia_chung(items, bo=()):
+	"""Gia chung danh muc (Item.standard_rate) cua cac mon trong gio, tru ma
+	trong bo (mon co gia diem). Cham he: doc DB."""
+	ma = sorted({str(r.get("item_code") or "").strip() for r in items or []} - set(bo) - {""})
+	if not ma:
+		return {}
+	return {x["name"]: x["standard_rate"] for x in frappe.get_all("Item", filters={"name": ["in", ma]}, fields=["name", "standard_rate"])}
 
 
 # Câu máy chủ trả khi bảng giá của điểm đổi sau lúc máy quầy đọc giá. Màn quầy
