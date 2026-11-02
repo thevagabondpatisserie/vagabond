@@ -865,6 +865,9 @@ function cdlChonTinZalo(nhap, xong) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
   function ve() {
+    /* Anh Việt 02/11/2026: tích một tin là cả bảng cuộn về đầu, khó thao tác.
+       Mỗi lần tích vẽ lại cả hộp nên .shl mới bắt đầu ở 0; giữ vị trí cuộn cũ. */
+    var cu = box.querySelector('.shl'), cuon = cu ? cu.scrollTop : 0;
     box.innerHTML = '<div class="shh"><b>Nhóm này nhận những tin nào?</b><div class="x">&times;</div></div>' +
       '<div class="cdl-mo" style="padding:6px 14px">' + h(VGB_CD.GHI_CHU_TIN) + '</div>' +
       '<div class="shl">' + BP.map(function (bp, k) {
@@ -875,6 +878,8 @@ function cdlChonTinZalo(nhap, xong) {
               '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
           }).join('');
       }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdltxong="1" style="width:100%;margin:0">Xong</button></div>';
+    var moi = box.querySelector('.shl');
+    if (moi && cuon) moi.scrollTop = cuon;
   }
   ve();
   ov.appendChild(box); document.body.appendChild(ov);
