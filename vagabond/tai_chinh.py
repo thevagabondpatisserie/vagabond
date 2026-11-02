@@ -910,6 +910,15 @@ def dong_tien(so_ngay=30):
 	n = cint(so_ngay) if cint(so_ngay) in KY_DONG_TIEN else 30
 	den = getdate(nowdate())
 	tu = den - timedelta(days=n - 1)
+	kq = dong_tien_khoang(tu, den)
+	kq["so_ngay"] = n
+	return kq
+
+
+def dong_tien_khoang(tu, den):
+	"""Tiền vào, tiền ra từng ngày từ tu tới den (ngày), bỏ chuyển nội bộ.
+	Không kiểm quyền: màn Dòng tiền và tin Zalo Tài chính (v628) cùng gọi."""
+	tu, den = getdate(tu), getdate(den)
 	nguon = _cac_nguon({})
 	nh = [x for x in nguon if x["loai"] == LOAI_NH]
 	tm = [x for x in nguon if x["loai"] == LOAI_TM]
@@ -922,7 +931,7 @@ def dong_tien(so_ngay=30):
 	kq = gom_ngay(ngoai, tm_ngay, quy_ra, tu, den)
 	ten = {x.get("diem"): x.get("ten") or x.get("diem") for x in tm}
 	kq["thieu"] = ["%s ngày %s/%s" % (ten.get(d, d), n[8:10], n[5:7]) for d, n in thieu]
-	kq.update(so_ngay=n, tu=str(tu), den=str(den), lon_nhat=lon_nhat(ngoai),
+	kq.update(so_ngay=(den - tu).days + 1, tu=str(tu), den=str(den), lon_nhat=lon_nhat(ngoai),
 		noi_bo={"so": len(noi_bo), "tien": round(sum(x["so"] for x in noi_bo), 2)})
 	return kq
 
@@ -1028,6 +1037,11 @@ def _giu_boi_app():
 def du_bao_30():
 	"""Màn Dự báo 30 ngày."""
 	_kiem()
+	return du_bao_30_tinh()
+
+
+def du_bao_30_tinh():
+	"""Dự báo 30 ngày, không kiểm quyền: màn Dự báo và tin Zalo tuần (v628) cùng gọi."""
 	hom = getdate(nowdate())
 	tien = _tinh_tien()
 	so_du = tien["tong"]["tong"] if any(d.get("so_du") is not None for d in tien["dong"]) else None

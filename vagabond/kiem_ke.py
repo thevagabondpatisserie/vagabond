@@ -97,6 +97,12 @@ def lich_hom_nay(kho=None, gioi_han=None):
 	Tra ca ma chua bao gio duoc dem (uu tien cao nhat) lan ma da qua chu ky.
 	"""
 	_duoc_dem()
+	return lich_kho(kho, gioi_han)
+
+
+def lich_kho(kho, gioi_han=None):
+	"""Như lich_hom_nay nhưng không kiểm vai: tin Zalo kiểm kê sáng (v628) chạy
+	bằng lịch nền, và nút Đếm hôm nay đã kiểm vai ở cửa của nó."""
 	if not kho:
 		frappe.throw("Chưa chọn kho.")
 	gioi_han = int(gioi_han or MOI_NGAY)
@@ -164,7 +170,7 @@ def tao_phieu_hom_nay(kho=None, gioi_han=None):
 	doc.pham_vi = "Tất cả"
 	doc.trang_thai = "Đang kiểm"
 	doc.nguoi_kiem = frappe.session.user
-	doc.ghi_chu = "Máy chia lịch xoay vòng ngày %s" % lich["ngay"]
+	doc.ghi_chu = GHI_CHU_LICH % lich["ngay"]
 	for d in lich["dong"]:
 		doc.append(
 			"items",
@@ -182,6 +188,88 @@ def tao_phieu_hom_nay(kho=None, gioi_han=None):
 	doc.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "name": doc.name, "so_mon": doc.so_mon}
+
+
+# ------------------------------------------- dem hom nay cua bep (v628)
+#
+# Anh Viet 02/11/2026: bep khong chiu kiem ke. Ra site: tu 01/09 Pastry dem 15
+# mon, Baker gan nhu chua, Lab 1 mon. Lich xoay vong o tren co tu 02/08 nhung
+# app chua goi lan nao; bep phai lap phieu ca kho (Pastry 205 mon) nen bo.
+# Nay moi sang moi kho bep 10 mon may chia san, tin Zalo 07:30 bao ten mon,
+# man Kiem ke co nut "Dem hom nay" mo dung phieu do. Khong chan thao tac nao.
+
+MOI_NGAY_BEP = 10
+TIEN_TO_KHO_BEP = ("Baker", "Pastry", "Kho Lab")
+GHI_CHU_LICH = "Máy chia lịch xoay vòng ngày %s"
+
+
+def la_kho_bep_dem(ten):
+	"""THUAN: kho nguyen lieu cua bep (bo kho thanh pham, bo kho nhom)."""
+	t = str(ten or "")
+	return t.startswith(TIEN_TO_KHO_BEP) and "Thành phẩm" not in t
+
+
+def kho_bep():
+	ds = frappe.get_all("Warehouse", filters={"is_group": 0, "disabled": 0}, pluck="name", order_by="name asc")
+	return [k for k in ds if la_kho_bep_dem(k)]
+
+
+def _phieu_hom_nay(kho, ngay):
+	"""Phieu may chia cua kho trong ngay, chua huy. Dem lai so mon da dem."""
+	r = frappe.db.sql("""select p.name, p.trang_thai, p.so_mon,
+			(select count(*) from `tabChi Tiet Kiem Ke` c where c.parent = p.name and c.parenttype = 'Phieu Kiem Ke'
+				and c.da_dem = 1) da_dem
+		from `tabPhieu Kiem Ke` p
+		where p.kho = %s and p.ngay_kiem = %s and p.ghi_chu = %s and p.trang_thai != 'Đã huỷ'
+		order by p.creation asc limit 1""", (kho, ngay, GHI_CHU_LICH % ngay), as_dict=True)
+	return r[0] if r else None
+
+
+def the_dem_hom_nay(kho, phieu, so_den_han):
+	"""THUAN: mot the tren man Kiem ke cho mot kho bep."""
+	ten = str(kho or "")
+	if ten.startswith("Kho "):
+		ten = ten[4:]
+	ten = ten.split(" - ")[0].strip()
+	if phieu:
+		return {"kho": kho, "bep": ten, "phieu": phieu.get("name"), "trang_thai": phieu.get("trang_thai"),
+			"so_mon": cint(phieu.get("so_mon")), "da_dem": cint(phieu.get("da_dem")), "so_den_han": cint(so_den_han)}
+	return {"kho": kho, "bep": ten, "phieu": "", "trang_thai": "", "so_mon": min(MOI_NGAY_BEP, cint(so_den_han)),
+		"da_dem": 0, "so_den_han": cint(so_den_han)}
+
+
+@frappe.whitelist()
+def ds_dem_hom_nay():
+	"""Man Kiem ke: moi kho bep mot the "Dem hom nay"."""
+	_duoc_dem()
+	ngay = nowdate()
+	ra = []
+	for kho in kho_bep():
+		p = _phieu_hom_nay(kho, ngay)
+		den_han = 0
+		if not p:
+			try:
+				den_han = lich_kho(kho, MOI_NGAY_BEP)["tong_den_han"]
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "kiem_ke: lich %s" % kho)
+		ra.append(the_dem_hom_nay(kho, p, den_han))
+	return {"ngay": ngay, "kho": ra}
+
+
+@frappe.whitelist(methods=["POST"])
+def mo_phieu_hom_nay(kho=None):
+	"""Nut "Dem hom nay": da co phieu may chia trong ngay thi mo lai, chua thi tao.
+
+	Khoa dong kho truoc khi doc, de hai nguoi bam cung luc khong ra hai phieu."""
+	_duoc_dem()
+	if not la_kho_bep_dem(kho) or kho not in kho_bep():
+		frappe.throw("Kho này không thuộc danh sách đếm hằng ngày của bếp.")
+	frappe.db.sql("select name from `tabWarehouse` where name = %s for update", (kho,))
+	ngay = nowdate()
+	p = _phieu_hom_nay(kho, ngay)
+	if p:
+		return {"ok": 1, "name": p["name"], "so_mon": cint(p.get("so_mon")), "co_san": 1}
+	return tao_phieu_hom_nay(kho, MOI_NGAY_BEP)
 
 
 # ---------------------------------------------------- goi y tai khoan (v561)

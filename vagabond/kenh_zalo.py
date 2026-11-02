@@ -77,6 +77,15 @@ TIN = {
 	# v613 (anh Việt 27/10/2026): báo từng bước duyệt phiếu chi APP.
 	"bgd_app_cho_duyet": ("Ban giám đốc", "Phiếu chi chờ giám đốc duyệt",
 		"Kế toán đã kiểm phiếu chi trả nhà cung cấp, chờ giám đốc duyệt.", "viec", "cong_no"),
+	# v628 (anh Việt duyệt mẫu 02/11/2026): tin Tài chính, kiểm kê sáng (tin_tai_chinh.py).
+	"bgd_tien_cuoi_ngay": ("Ban giám đốc", "Tiền cuối ngày (23:35)",
+		"23:35 mỗi tối: số dư từng tài khoản, từng két, tiền vào ra trong ngày, khoản chi lớn nhất.", "ban_tin", "cong_no"),
+	"bgd_ket_lech": ("Ban giám đốc", "Két lệch tiền mặt khi chốt ca",
+		"Ngay khi chốt ca: tiền mặt lệch từ 50.000 đ, hoặc ca mở quá 24 giờ mới chốt.", "canh_bao", "ban_hang"),
+	"bgd_tien_tuan": ("Ban giám đốc", "Bản tin tiền tuần (thứ Hai 08:00)",
+		"Thứ Hai 08:00: dòng tiền tuần trước, công nợ, phiếu chi chờ chuyển tiền, tiền khách gửi trước, dự báo 30 ngày.", "ban_tin", "cong_no"),
+	"bgd_lai_lo_thang": ("Ban giám đốc", "Lãi lỗ tháng (ngày 05, 08:00)",
+		"Ngày 05 hằng tháng: doanh thu, giá vốn, chi phí, lãi ròng tháng trước, so với tháng liền trước.", "ban_tin", "cong_no"),
 	"hd_ket_ghi_so": ("Hoá đơn, kế toán", "Kẹt ghi sổ, kẹt hoá đơn cuối ngày",
 		"20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.", "canh_bao", "hoa_don"),
 	"hd_don_chua_ghi_so": ("Hoá đơn, kế toán", "Đơn chưa ghi sổ còn sót lúc 23:55",
@@ -107,6 +116,9 @@ TIN = {
 		"Kiểm kê vừa điều chỉnh tồn: tên hàng lệch và giá trị chênh lệch đã vào sổ.", "thong_bao", "kho"),
 	"kt_tien_chua_gan": ("Hoá đơn, kế toán", "Tiền vào tài khoản công ty chưa gắn chứng từ (08:00)",
 		"08:00 mỗi sáng: khoản tiền vào tài khoản chính công ty quá 24 giờ mà chưa thuộc đơn hay phiếu nào.", "viec", "cong_no"),
+	# v628 (anh Việt duyệt mẫu 02/11/2026): tin Tài chính, kiểm kê sáng (tin_tai_chinh.py).
+	"kt_tien_ra_chua_gan": ("Hoá đơn, kế toán", "Tiền ra khỏi tài khoản công ty chưa có chứng từ (08:00)",
+		"08:00 mỗi sáng: khoản tiền ra khỏi tài khoản chính công ty quá 24 giờ mà chưa thuộc phiếu chi, bút toán nào.", "viec", "cong_no"),
 	"kt_app_da_duyet": ("Hoá đơn, kế toán", "Phiếu chi giám đốc đã duyệt, chờ chuyển tiền",
 		"Giám đốc vừa duyệt phiếu chi; kế toán chuyển khoản rồi xác nhận đã chuyển.", "viec", "cong_no"),
 	"kt_app_tra_lai": ("Hoá đơn, kế toán", "Phiếu chi bị trả lại",
@@ -163,6 +175,9 @@ TIN = {
 	# v619 (anh Việt chọn 28/10/2026): mỗi bếp một tin việc cần làm cho dữ liệu hao hụt (tin_hao_hut.py).
 	"bep_du_lieu_hao_hut": ("Bếp", "Dữ liệu sản xuất cần ghi đủ (thứ Hai 08:00)",
 		"Thứ Hai 08:00, từng bếp: bánh bán chưa có lệnh, lệnh không ghi số cân thật, kho bếp lâu chưa kiểm kê.", "viec", "san_xuat"),
+	# v628 (anh Việt duyệt mẫu 02/11/2026): tin Tài chính, kiểm kê sáng (tin_tai_chinh.py).
+	"bep_kiem_ke_sang": ("Bếp", "Kiểm kê sáng: 10 món cần đếm (07:30)",
+		"07:30 mỗi sáng, một tin mỗi kho bếp: tên các món máy chia đếm hôm nay, hạn 11:00.", "viec", "kho"),
 	"tm_yeu_cau_mua": ("Thu mua", "Yêu cầu mua hàng mới",
 		"Bộ phận vừa lập yêu cầu mua: tên hàng, số lượng, ngày cần.", "viec", "kho"),
 	"tm_don_mua_moi": ("Thu mua", "Đơn mua hàng vừa đặt",

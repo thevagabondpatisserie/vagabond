@@ -1162,3 +1162,14 @@ doc_events["Vagabond Ung Vien"]["after_insert"] = [doc_events["Vagabond Ung Vien
 	"vagabond.tuyen_dung_ai.xep_doc"]
 scheduler_events.setdefault("hourly", []).append("vagabond.tuyen_dung.nhac_qua_han")
 scheduler_events.setdefault("cron", {}).setdefault("40 3 * * *", []).append("vagabond.tuyen_dung.xoa_het_han")
+# v628 (anh Việt duyệt mẫu 02/11/2026): tin Zalo Tài chính cho Ban giám đốc, kế toán, và
+# tin kiểm kê sáng cho bếp (tin_tai_chinh.py). Tin két lệch gọi thẳng từ ca_quay.chot_ca.
+for _gio_v628, _ham_v628 in (
+	("30 7 * * *", "vagabond.tin_tai_chinh.nhac_kiem_ke_sang"),
+	("0 8 * * *", "vagabond.tin_tai_chinh.nhac_tien_ra"),
+	("0 8 * * 1", "vagabond.tin_tai_chinh.gui_tuan"),
+	("0 8 5 * *", "vagabond.tin_tai_chinh.gui_thang"),
+	("35 23 * * *", "vagabond.tin_tai_chinh.gui_cuoi_ngay"),
+):
+	scheduler_events.setdefault("cron", {}).setdefault(_gio_v628, []).append(_ham_v628)
+del _gio_v628, _ham_v628
