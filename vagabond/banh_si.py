@@ -721,9 +721,15 @@ def _don_cua_khach(khach, gioi_han=30):
 	return [tom_tat(t) for t in ten]
 
 
-def _hang_don(so_name):
-	ds = frappe.get_all("Sales Order Item", filters={"parent": so_name}, fields=["item_code", "item_name", "qty",
-		"rate", "amount", "idx"], order_by="idx asc", limit_page_length=0)
+def _hang_don(so_name, khoa=False):
+	if khoa:
+		# Đọc hiện tại các dòng (ô parent có chỉ mục): phiếu đặt của giao dịch
+		# khác vừa commit thì ảnh chụp không có dòng nào.
+		ds = frappe.db.sql("""select item_code, item_name, qty, rate, amount, idx from `tabSales Order Item`
+			where parent = %s and parenttype = 'Sales Order' order by idx asc for update""", (so_name,), as_dict=True)
+	else:
+		ds = frappe.get_all("Sales Order Item", filters={"parent": so_name}, fields=["item_code", "item_name", "qty",
+			"rate", "amount", "idx"], order_by="idx asc", limit_page_length=0)
 	anh = {r.name: r.image or "" for r in frappe.get_all("Item", filters={"name": ["in", [d.item_code for d in ds] or ["__"]]},
 		fields=["name", "image"], limit_page_length=0)}
 	return [{"ma": d.item_code, "ten": d.item_name, "sl": flt(d.qty), "gia": tron(d.rate), "tien": tron(d.amount),
@@ -784,7 +790,7 @@ def _da_gui(khach, lan, dau, khoa=False):
 		return None
 	if r.customer != khach or json.loads(r.vgb_si_du_lieu or "{}").get("bam") != dau:
 		frappe.throw("Đơn này đã được gửi. Tải lại trang để đặt đơn mới.")
-	return _ket_qua(r.name)
+	return _ket_qua(r.name, khoa=khoa)
 
 
 def _kho_mac_dinh(ma, cty):
@@ -845,8 +851,11 @@ def _qr(ma, so):
 		"so_tien": tron(so), "noi_dung": ma, "anh": qr_chuyen_khoan.anh_qr(tk, so, ma)}
 
 
-def _ket_qua(so_name):
-	t = tom_tat(so_name)
+def _ket_qua(so_name, khoa=False):
+	"""khoa=True: dựng phản hồi bằng phép đọc hiện tại, dùng khi phiếu đặt vừa
+	được tìm thấy sau khi chờ khoá (lần gửi lại). Đọc thường lúc đó là ảnh chụp
+	cũ, không thấy phiếu đặt lần trước vừa commit (Codex #531 vòng 3)."""
+	t = tom_tat(so_name, khoa=khoa)
 	if t["tra_truoc"] and t["con_lai"] > 0 and t["trang_thai"] == "cho_tt":
 		t["qr"] = _qr(t["ma"], t["con_lai"])
 	return dict(t, ok=1)
@@ -1293,9 +1302,9 @@ def quet():
 			frappe.log_error(frappe.get_traceback(), "banh_si: quét %s" % ten)
 
 
-def _hoa_don_cua(ma):
+def _hoa_don_cua(ma, khoa=False):
 	return frappe.db.get_value(SI, {"custom_pancake_id": "%s-%s" % (TIEN_TO_MA, ma), "docstatus": ["<", 2]},
-		["name", "docstatus", "due_date", "outstanding_amount"], as_dict=True)
+		["name", "docstatus", "due_date", "outstanding_amount"], as_dict=True, for_update=khoa)
 
 
 def _phieu_giao_cua(so_name):
@@ -1303,20 +1312,23 @@ def _phieu_giao_cua(so_name):
 		on i.parent = p.name where i.against_sales_order = %s and p.docstatus = 1""", (so_name,))
 
 
-def tom_tat(so_name):
-	"""Một đơn sỉ cho trang khách và màn app. Mọi con số tính ở đây."""
+def tom_tat(so_name, khoa=False):
+	"""Một đơn sỉ cho trang khách và màn app. Mọi con số tính ở đây.
+
+	khoa=True: mọi phép đọc (phiếu đặt, phiếu thu, hoá đơn, dòng hàng) là đọc
+	hiện tại, dùng khi dựng phản hồi cho lần gửi lại sau khoá (Codex #531 vòng 3)."""
 	from vagabond.ung_truoc_don import con_phai_thu, ds_phieu
 
 	so = frappe.db.get_value(SO, so_name, ["name", "docstatus", "customer", "customer_name", "delivery_date",
 		"transaction_date", "grand_total", "rounded_total", "net_total", "total_taxes_and_charges", "vgb_si_ma",
-		"vgb_si_tt", "vgb_si_du_lieu", "creation"], as_dict=True)
+		"vgb_si_tt", "vgb_si_du_lieu", "creation"], as_dict=True, for_update=khoa)
 	tong = flt(so.rounded_total) or flt(so.grand_total)
 	tra_truoc = so.vgb_si_tt == PT_TRA_TRUOC
-	cac_phieu = ds_phieu(so_name) if tra_truoc else []
-	hd = _hoa_don_cua(so.vgb_si_ma)
+	cac_phieu = ds_phieu(so_name, khoa) if tra_truoc else []
+	hd = _hoa_don_cua(so.vgb_si_ma, khoa)
 	ma, nhan = xet_trang_thai(tra_truoc, tong, cac_phieu, bool(hd and int(hd.docstatus) == 1), int(so.docstatus) == 2)
 	don = json.loads(so.vgb_si_du_lieu or "{}")
-	dong = _hang_don(so_name)
+	dong = _hang_don(so_name, khoa)
 	return {
 		"name": so.name, "ma": so.vgb_si_ma, "trang_thai": ma, "nhan": nhan, "khach": so.customer_name or so.customer,
 		"ma_khach": so.customer, "ngay": str(so.delivery_date or ""), "dat_luc": str(so.creation or "")[:16],

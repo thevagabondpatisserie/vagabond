@@ -599,7 +599,7 @@ def _da_gui(lan, dau, khoa=False):
 	du = json.loads(r.vgb_tkr_du_lieu or "{}")
 	if du.get("bam") != dau:
 		frappe.throw("Đơn này đã được gửi. Tải lại trang để đặt đơn mới.")
-	return _ket_qua(r.name)
+	return _ket_qua(r.name, khoa=khoa)
 
 
 def _qr(ma, so):
@@ -610,9 +610,13 @@ def _qr(ma, so):
 		"so_tien": tron(so), "noi_dung": ma, "anh": qr_chuyen_khoan.anh_qr(tk, so, ma)}
 
 
-def _ket_qua(so_name):
+def _ket_qua(so_name, khoa=False):
+	"""Phản hồi của lần đặt. khoa=True khi phiếu đặt vừa được tìm thấy bằng phép
+	đọc hiện tại (lần gửi lại chờ khoá): đọc lại bằng phép thường thì ảnh chụp
+	REPEATABLE READ không thấy phiếu lần trước vừa commit, trả None và nổ thay
+	vì trả mã đơn và QR (Codex #531 vòng 3)."""
 	so = frappe.db.get_value(SO, so_name, ["name", "vgb_tkr_ma", "vgb_tkr_khoa", "vgb_tkr_coc", "grand_total",
-		"rounded_total", "delivery_date"], as_dict=True)
+		"rounded_total", "delivery_date"], as_dict=True, for_update=khoa)
 	tong = flt(so.rounded_total) or flt(so.grand_total)
 	return {"ok": 1, "ma": so.vgb_tkr_ma, "khoa": so.vgb_tkr_khoa, "tong": tron(tong), "coc": tron(so.vgb_tkr_coc),
 		"con_lai": tron(tong) - tron(so.vgb_tkr_coc), "ngay": str(so.delivery_date), "qr": _qr(so.vgb_tkr_ma, so.vgb_tkr_coc)}
