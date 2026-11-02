@@ -138,11 +138,14 @@ def ngay_iso(x):
 
 
 def chuan_sdt(s):
-	"""Số di động Việt Nam về dạng 0xxxxxxxxx, sai thì rỗng. THUẦN."""
-	sdt = re.sub(r"[\s.()+-]", "", str(s or ""))
-	if sdt.startswith("84"):
-		sdt = "0" + sdt[2:]
-	return sdt if re.fullmatch(r"0[35789][0-9]{8}", sdt) else ""
+	"""Số di động Việt Nam về dạng 0xxxxxxxxx, sai thì rỗng.
+
+	MỘT nguồn với `lib.sdt` (bench #531): bản cũ nhận mọi số 0[35789]xxxxxxxx,
+	nên số đầu 095, 080... qua được form trong khi tra khách, gửi Zalo và
+	tạo khách đọc theo lib.sdt; hai phép phải là một."""
+	from vagabond.lib import sdt
+
+	return sdt(s)
 
 
 def chuan_mst(s):
