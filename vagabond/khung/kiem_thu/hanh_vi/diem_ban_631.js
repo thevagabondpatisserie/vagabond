@@ -31,7 +31,7 @@ function layHam(src, ten) {
 var NEN = doc('00-nen.js'), POS = doc('09-tinh-tien-quay.js'), KM = doc('13-khuyen-mai.js'), KHO = doc('03-kho-chung-tu.js'), CD = doc('17-cai-dat.js');
 var HAM = ['h', 'money', 'vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(NEN, t); })
   .concat(['posChipNut', 'posDiemCuaToi', 'posDsDiemChon', 'posGiaMon', 'posDiemTheoQuay', 'posDiemVua', 'scrPosChonQuay', 'posDongBoQuay', 'posGiaVuaDoi'].map(function (t) { return layHam(POS, t); }))
-  .concat([layHam(KM, 'kmHangChip'), layHam(KHO, 'errMsg')])
+  .concat([layHam(KM, 'kmHangChip'), layHam(KM, 'posGiaTang'), layHam(KM, 'posNoiKm'), layHam(KHO, 'errMsg'), "var POS_MA_PHI_GIAO = 'DVBH00001';"])
   .concat(['dbTenNguoi', 'dbChipNguoi', 'scrDiemBanSua', 'dbDoc', 'dbLuu', 'dbChipNguon', 'dbBamNguon', 'dbChuNguon'].map(function (t) { return layHam(CD, t); }))
   .concat(['var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0, dbNguonCoSan = [], dbKhoTang = [], dbGoiY = {}, dbNguoiDung = [], dsItemsCache = null;'])
   .join('\n') + '\n' + doc('63-bang-gia-diem.js');
@@ -65,7 +65,8 @@ function dungMoi(o) {
     CFGBH: { diem: DIEM, diem_cua_toi: o.cua || [] },
     /* Như thật: CFGBH bị xoá (null) thì đọc lại từ máy chủ (o.cfgMoi). */
     cfgBanHang: function () { if (!that.CFGBH) { that.docLaiCfg = (that.docLaiCfg || 0) + 1; that.CFGBH = o.cfgMoi || { diem: DIEM, diem_cua_toi: [] }; } return Promise.resolve(that.CFGBH); },
-    isSales: function () { return false; },
+    isSales: function () { return false; }, posDoc: function () {},
+    getList: function (dt, ts) { (that.goiList = that.goiList || []).push({ dt: dt, ts: ts }); return Promise.resolve(o.item || []); },
     posQuay: null, posDon: null, posHomNayTxt: null,
     scrPosQuay: function scrPosQuay() { that.vaoQuay = that.posQuay && that.posQuay.ma; },
     frame: function (t, html, opt) {
@@ -267,6 +268,38 @@ function goiTen(m, t) { return m.goi.filter(function (x) { return x.duong === 'v
     var m2 = dungMoi();
     gioNvh(m2);
     bang('lỗi khác để màn cũ báo như thường', [await m2.g.posGiaVuaDoi(new Error('Hết phiên')), m2.dieuHuong.length, m2.g.docLaiCfg || 0], [false, 0, 0]);
+  });
+
+  /* Codex PR #532 vòng 3: quản lý TẮT bảng giá NVH (hoặc bỏ giá riêng một món)
+     lúc giỏ còn giá cũ. Máy chủ chặn; quầy đọc giá chung của món trong giỏ từ
+     danh mục (máy chưa nạp bảng món) rồi về đúng giá chung. */
+  await ca('quầy: bảng giá NVH vừa tắt, giỏ còn giá cũ, máy chưa nạp bảng món: máy chủ chặn thì giỏ về giá chung đọc từ danh mục; combo và phí giao giữ nguyên', async function () {
+    var tat = nvhGia({}); tat.diem[2].co_bang_gia = 0;
+    var m = dungMoi({ cfgMoi: tat, item: [{ name: 'TRA-HL-M', standard_rate: 95000 }, { name: 'TRA-MC', standard_rate: 90000 }, { name: 'DVBH00001', standard_rate: 1000 }] });
+    gioNvh(m);
+    m.g.dsItemsCache = null;
+    m.g.posQuay = nvhGia({}).diem[2];
+    m.g.posDon.mon.push({ item_code: 'DVBH00001', ten: 'Phí giao', qty: 1, rate: 15000 });
+    bang('nhận ra lỗi giá', await m.g.posGiaVuaDoi(new Error('Bảng giá của điểm vừa đổi: 2 món đã sang giá mới.')), true);
+    bang('hỏi giá chung mọi món không thuộc combo', m.g.goiList[0].ts.filters.name, ['in', ['TRA-HL-M', 'TRA-MC', 'DVBH00001']]);
+    bang('giá giỏ', m.g.posDon.mon.map(function (x) { return x.rate; }), [95000, 90000, 50000, 15000]);
+  });
+
+  await ca('Khuyến mãi tặng món: thêm món tặng vào giỏ theo giá quầy đang bán (giá NVH nếu có, không thì giá chung), không theo giá gợi ý của máy chủ', async function () {
+    var m = dungMoi();
+    m.g.posQuay = DIEM[2];
+    m.g.dsItemsCache = [{ name: 'TRA-HL-M', standard_rate: 95000 }, { name: 'BM-SHIO', standard_rate: 30000 }];
+    bang('đã nạp bảng món', [m.g.posGiaTang({ item_code: 'TRA-HL-M', rate: 99000 }), m.g.posGiaTang({ item_code: 'BM-SHIO', rate: 99000 })], [70000, 30000]);
+    m.g.dsItemsCache = null;
+    bang('chưa nạp bảng món', [m.g.posGiaTang({ item_code: 'TRA-HL-M', rate: 99000 }), m.g.posGiaTang({ item_code: 'BM-SHIO', rate: 31000 })], [70000, 31000]);
+    /* Bấm đúng nút "+ Thêm món tặng vào đơn" như thu ngân. */
+    m.g.dsItemsCache = [{ name: 'TRA-HL-M', standard_rate: 95000 }];
+    m.g.posDon = { mon: [], kmKq: { them_mon: [{ item_code: 'TRA-HL-M', qty: 1, rate: 99000, tang: 1 }] } };
+    var nutTang = { onclick: null };
+    m.g.document.getElementById = function (id) { return id === 'posKmThemTang' ? nutTang : null; };
+    m.g.posNoiKm();
+    nutTang.onclick();
+    bang('món tặng vào giỏ ở giá NVH', m.g.posDon.mon.map(function (x) { return [x.item_code, x.qty, x.rate]; }), [['TRA-HL-M', 1, 70000]]);
   });
 
   /* Ba chỗ GỌI nằm trong hàm màn quầy quá lớn để nạp vào DOM giả (máy in, ca,
