@@ -138,6 +138,7 @@ Quỹ trừ ngay lúc lưu. Tiền về tài khoản thì máy tự ghép giao d
 **Lưu ý**
 - Máy ghép khoản cùng tài khoản, cùng số tiền, trong 3 ngày kể từ ngày nộp. Khoản đã ghép không bị báo là tiền chưa gắn chứng từ.
 - Quá 2 ngày chưa thấy tiền về thì nhóm Zalo Kế toán nhận tin lúc 08:10.
+- Ghi nhầm số tiền hoặc tài khoản nhận: ở mục Gần đây bấm [[Huỷ phiếu]] trên dòng phiếu đó, ghi lý do, rồi lập lại phiếu đúng. Phiếu kiểm quỹ đã ghi thì chỉ Giám đốc huỷ.
 
 ## Xem dòng tiền vào ra từng ngày
 Từ khoá: dòng tiền, tiền vào, tiền ra, thu chi, chuyển nội bộ, khoản lớn nhất, cash flow
