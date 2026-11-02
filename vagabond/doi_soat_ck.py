@@ -268,22 +268,25 @@ def chu_theo_noi_dung(gds, ma_cua_bill, re_ma_bill, chu_ma=None, tu_do=None, gd_
 		if re_ma_bill:
 			ma_la = [m for m in re_ma_bill.findall(str(g.get("mo_ta") or "").upper()) if m not in cua_minh]
 		if ma_la:
-			m = ma_la[0]
-			if chu_ma.get(m):
-				ra[ten] = "bill %s (mã %s)" % (chu_ma[m], m)
+			# Codex #527 vòng 3: XÉT MỌI MÃ, không chỉ mã đầu. Còn một mã thuộc bill
+			# đang sống là dòng có chủ; chỉ nhả khi mọi mã đều nhả được.
+			song = [m for m in ma_la if chu_ma.get(m)]
+			if song:
+				ra[ten] = "bill %s (mã %s)" % (chu_ma[song[0]], song[0])
 				continue
-			if m in tu_do:
-				if ghi_chu is not None:
+			if not nha_mode:
+				ra[ten] = "bill mang mã " + ma_la[0]
+				continue
+			cho = [m for m in ma_la if m not in tu_do and ten not in gd_qua_han]
+			if cho:
+				ra[ten] = "bill mang mã %s (đang chờ lưu, sau %s phút chưa ai lưu thì gắn được)" % (cho[0], PHUT_MO_COI)
+				continue
+			if ghi_chu is not None:
+				m = ma_la[0]
+				if m in tu_do:
 					ghi_chu[ten] = dict(tu_do[m]) if isinstance(tu_do[m], dict) else {"cau": str(tu_do[m]), "bill": ""}
-			elif ten in gd_qua_han:
-				if ghi_chu is not None:
+				else:
 					ghi_chu[ten] = {"cau": cau_mo_coi(m), "bill": ""}
-			elif nha_mode:
-				ra[ten] = "bill mang mã %s (đang chờ lưu, sau %s phút chưa ai lưu thì gắn được)" % (m, PHUT_MO_COI)
-				continue
-			else:
-				ra[ten] = "bill mang mã " + m
-				continue
 		try:
 			pb = float(g.get("da_phan_bo") or 0)
 		except (TypeError, ValueError):

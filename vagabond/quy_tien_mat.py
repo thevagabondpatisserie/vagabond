@@ -265,6 +265,12 @@ def _khoa_quy():
 	chờ, rồi đọc số quỹ đã gồm phiếu của người trước."""
 	tk = _tk_dung("tk_quy")
 	if tk:
+		# Codex #527 vòng 3: MariaDB REPEATABLE READ chụp ảnh số liệu ở lần đọc thường
+		# ĐẦU TIÊN của giao dịch. Các cửa gọi hàm này đã đọc (tài khoản ngân hàng, quyền)
+		# trước khi xin khoá, nên ảnh chụp có thể có từ trước lúc người giữ khoá trước ghi
+		# xong. Kết thúc giao dịch đang đọc (chưa ghi gì) rồi mới xin khoá: lần đọc số quỹ
+		# sau khoá chụp ảnh mới, thấy phiếu người trước vừa commit.
+		frappe.db.commit()
 		frappe.db.sql("select name from `tabAccount` where name=%s for update", (tk,))
 
 
@@ -476,6 +482,13 @@ def duyet_kiem_quy(name=None, dong_y=0, ly_do=""):
 	doc.duyet_boi = frappe.session.user
 	doc.duyet_luc = now_datetime()
 	if cint(dong_y):
+		# Codex #527 vòng 3: quỹ đã chốt số dư lại từ ngày kiểm trở đi thì số chốt đã gồm
+		# lần đếm này; ghi thêm chênh lệch là trừ quỹ hai lần.
+		from vagabond import tai_chinh
+		moc = tai_chinh.moc_quy() or {}
+		if moc.get("ngay_chot") and getdate(moc["ngay_chot"]) >= getdate(doc.ngay):
+			frappe.throw("Quỹ đã chốt số dư lại ngày %s, số chốt đã tính cả lần đếm của phiếu %s. Bấm Trả lại phiếu này thay vì duyệt." % (
+				getdate(moc["ngay_chot"]).strftime("%d/%m/%Y"), name))
 		hom = getdate(nowdate())
 		je = _lap_but_toan(dong_but_toan_lech(doc.lech, _tk_dung("tk_quy"), _tk_dung("tk_thieu"), _tk_dung("tk_thua")), hom,
 			"Kiểm quỹ %s: %s %s, lý do %s, Giám đốc duyệt" % (doc.name, "thừa" if _f(doc.lech) > 0 else "thiếu",
