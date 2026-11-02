@@ -553,3 +553,136 @@ def _codex_duyet_sau_moc():
 	duyet[-1] = um.patch.object(tc_, "moc_quy", lambda: {"ngay_chot": "2026-11-01", "so_du": 10000000})
 	kq = _chay(vat + duyet, lambda: q.duyet_kiem_quy(a["name"], 1))
 	la("mốc trước ngày kiểm thì duyệt được", kq["trang_thai"], "Đã ghi")
+
+
+# ------------------------------------------------ Codex #527 vòng 4 (SHA a9124bceb)
+
+
+class _KhoaQuyGia:
+	"""Khoá quỹ chung tối thiểu: `for update` trên tài khoản quỹ là giữ khoá tới commit.
+	Người khác bấm trong lúc khoá đang bị giữ thì CHỜ (chạy sau commit). `chen_khi_ghi`
+	là thao tác của người khác chen vào đúng lúc người đang chạy chuẩn bị ghi bút toán;
+	`dang_giu` là thao tác của người đã giữ khoá TRƯỚC, chạy xong rồi mới tới lượt người xin."""
+
+	def __init__(self, so_du):
+		self.so_du = so_du
+		self.cho = 0.0
+		self.giu = False
+		self.hoan = []
+		self.chen_khi_ghi = None
+		self.dang_giu = None
+		self.je = []
+
+	def sql(self, cau, *a, **k):
+		if "tabAccount" in cau and "for update" in cau:
+			if self.dang_giu:
+				f, self.dang_giu = self.dang_giu, None
+				f()
+			self.giu = True
+		return []
+
+	def commit(self):
+		self.so_du += self.cho
+		self.cho = 0.0
+		self.giu = False
+		while self.hoan:
+			self.hoan.pop(0)()
+
+	def thu(self, f):
+		if self.giu:
+			self.hoan.append(f)
+		else:
+			f()
+
+	def lap_bt(self, dong, ngay, dg):
+		if self.chen_khi_ghi:
+			f, self.chen_khi_ghi = self.chen_khi_ghi, None
+			f()
+		self.cho += sum(float(d.get("no") or 0) - float(d.get("co") or 0) for d in dong if d.get("tk") == "1111")
+		self.je.append(dong)
+		return "ACC-JV-%d" % len(self.je)
+
+
+def _vat_khoa_quy(db):
+	vat, kho, _je = _vat_hai_lan(so_may=db.so_du)
+	bo = ("_khoa_quy", "_so_quy", "_lap_but_toan", "sql")
+	vat = [v for v in vat if getattr(v, "attribute", "") not in bo]
+	vat += [um.patch.object(q, "_so_quy", lambda: (db.so_du, {"ngay_chot": "2026-10-31", "so_du": 1})),
+		um.patch.object(q, "_lap_but_toan", db.lap_bt),
+		um.patch.object(_fr.db, "sql", db.sql), um.patch.object(_fr.db, "commit", db.commit)]
+	from vagabond import tai_chinh as tc_
+	vat.append(um.patch.object(tc_, "moc_quy", lambda: {"ngay_chot": "2026-10-31", "so_du": 1}))
+	return vat, kho
+
+
+def _ke_toan_kiem(ket, ghi_chu):
+	"""Kế toán đếm lại được 7.000.000 (14 tờ 500.000) rồi bấm Lưu, chạy trong giao dịch riêng."""
+	def chay():
+		with um.patch.object(_fr, "session", NS(user="dung@x")):
+			ket.append(q.kiem_quy(bang='{"500000": "14"}', ly_do="chua_ro", ghi_chu=ghi_chu))
+	return chay
+
+
+@ca("v628 Codex #527 vòng 4: Giám đốc đang duyệt thiếu 3 triệu thì kế toán kiểm lại phải CHỜ, đọc quỹ 7 triệu sau duyệt, không ra khoản thiếu thứ hai")
+def _codex_duyet_chen_kiem():
+	db = _KhoaQuyGia(10000000.0)
+	vat, kho = _vat_khoa_quy(db)
+	a = _chay(vat, lambda: q.kiem_quy(bang='{"500000": "14"}', ly_do="chua_ro", ghi_chu="đếm lần một"))
+	db.commit()
+	ket = []
+	db.chen_khi_ghi = lambda: db.thu(lambda: (_ke_toan_kiem(ket, "đếm lần hai")(), db.commit()))
+	duyet = [um.patch.object(q, "_la_giam_doc", lambda: True), um.patch.object(_fr, "session", NS(user="viet@x"))]
+	_chay(vat + duyet, lambda: q.duyet_kiem_quy(a["name"], 1))
+	_chay(vat, db.commit)
+	for b in [k for k in ket if k.get("trang_thai") == "Chờ duyệt"]:
+		_chay(vat + duyet, lambda: q.duyet_kiem_quy(b["name"], 1))
+		db.commit()
+	la("kế toán kiểm lại đọc quỹ sau duyệt nên khớp", [k.get("trang_thai") for k in ket], ["Khớp"])
+	la("chỉ MỘT bút toán thiếu 3.000.000", len(db.je), 1)
+	la("quỹ còn 7.000.000", db.so_du, 7000000.0)
+
+
+@ca("v628 Codex #527 vòng 4: kế toán kiểm lại giữ khoá trước thì Giám đốc duyệt phiếu cũ sau đó bị chặn, chỉ phiếu mới được duyệt")
+def _codex_kiem_truoc_duyet():
+	db = _KhoaQuyGia(10000000.0)
+	vat, kho = _vat_khoa_quy(db)
+	a = _chay(vat, lambda: q.kiem_quy(bang='{"500000": "14"}', ly_do="chua_ro", ghi_chu="đếm lần một"))
+	db.commit()
+	ket = []
+	db.dang_giu = lambda: (_ke_toan_kiem(ket, "đếm lần hai")(), db.commit())
+	duyet = [um.patch.object(q, "_la_giam_doc", lambda: True), um.patch.object(_fr, "session", NS(user="viet@x"))]
+	_chay(vat + duyet, lambda: nem("phiếu cũ đã bị lần kiểm sau thay", lambda: q.duyet_kiem_quy(a["name"], 1)))
+	_chay(vat, db.commit)
+	la("phiếu cũ bị thay, không bút toán", (kho[a["name"]]["trang_thai"], len(db.je)), ("Đã thay", 0))
+	_chay(vat + duyet, lambda: q.duyet_kiem_quy(ket[0]["name"], 1))
+	db.commit()
+	la("chỉ MỘT bút toán thiếu 3.000.000", len(db.je), 1)
+	la("quỹ còn 7.000.000", db.so_du, 7000000.0)
+
+
+@ca("v628 Codex #527 vòng 4 (cùng loại): huỷ phiếu nộp 2 triệu lấy khoá quỹ, kế toán kiểm quỹ chen vào phải chờ, đọc quỹ đã cộng lại 2 triệu")
+def _codex_huy_chen_kiem():
+	db = _KhoaQuyGia(8000000.0)
+	vat, kho = _vat_khoa_quy(db)
+
+	class _ButToan(_Doc):
+		def cancel(self):
+			if db.chen_khi_ghi:
+				f, db.chen_khi_ghi = db.chen_khi_ghi, None
+				f()
+			db.cho += 2000000.0
+			self["docstatus"] = 2
+	kho["ACC-JV-NOP"] = _ButToan({"loai": "bút toán", "docstatus": 1})
+	kho["PQ-NOP"] = _Doc({"loai": q.NOP, "trang_thai": "Chờ tiền về", "but_toan": "ACC-JV-NOP", "luc": "2026-11-02 09:00:00"})
+	ket = []
+
+	def ke_toan():
+		with um.patch.object(_fr, "session", NS(user="dung@x")):
+			ket.append(q.kiem_quy(bang='{"500000": "20"}', ly_do="dem_sai", ghi_chu="đếm két"))
+		db.commit()
+	db.chen_khi_ghi = lambda: db.thu(ke_toan)
+	_chay(vat, lambda: q.huy_phieu("PQ-NOP", "ghi nhầm số"))
+	_chay(vat, db.commit)
+	la("kế toán đọc quỹ sau khi huỷ nên khớp", [k.get("trang_thai") for k in ket], ["Khớp"])
+	la("không bút toán thừa 2 triệu", db.je, [])
+	la("quỹ 10.000.000 đúng số két", db.so_du, 10000000.0)
