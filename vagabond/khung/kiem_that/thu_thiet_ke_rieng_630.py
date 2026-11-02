@@ -88,7 +88,9 @@ def _vong_doi():
 	from vagabond import noi_dung_web as nw
 	tp = nw.chuan_tkr(nw.TKR_MAU)
 	diem = [{"id": "tcv", "n": "The Vagabond District 1", "a": "9 Trần Cao Vân"}]
-	sdt = "09%08d" % (int(hashlib.sha1(frappe.generate_hash().encode()).hexdigest(), 16) % 10 ** 8)
+	# Đầu 0909 cố định: số ngẫu nhiên "09xxxxxxxx" từng rơi vào đầu 095 (không
+	# có nhà mạng), đơn qua form cũ nhưng không tạo được khách (bench #531).
+	sdt = "0909%06d" % (int(hashlib.sha1(frappe.generate_hash().encode()).hexdigest(), 16) % 10 ** 6)
 	don = tkr.chuan_don({"tac_pham": tp["id"], "kich_co": "M", "trang_tri": ["Hoa lan trắng"],
 		"ngay": str(add_days(today(), 10)), "ten": "Khách kiểm 630", "sdt": sdt, "diem_nhan": "tcv", "tong": 1}, tp, today(), diem)
 	la("giá máy chủ", (don["tong"], don["coc"]), (7560000, 3780000))
