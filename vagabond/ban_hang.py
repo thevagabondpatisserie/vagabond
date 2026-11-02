@@ -6733,14 +6733,14 @@ def pos_sua_don(
 		)
 	if items is not None and isinstance(items, str):
 		items = json.loads(items or "[]")
+	gia_diem_sua = {}
 	if items:
 		# v631: sửa bill ở điểm có bảng giá riêng cũng tính lại giá theo điểm,
 		# trước khi xét OTP để giá cũ trên máy khách không bị coi là sửa giá.
 		# Dòng combo giữ giá theo dòng gốc trên hoá đơn ở máy chủ (Codex PR #532).
 		dong_cu = {x.name: x.as_dict() for x in si.items}
-		diem_ban.ap_gia_diem(
-			items, None, diem_ban.gia_rieng_cua_quay(si.get("vgb_quay")), diem_ban.dong_combo_sua(items, dong_cu, DAU_COMBO)
-		)
+		gia_diem_sua = diem_ban.gia_rieng_cua_quay(si.get("vgb_quay"))
+		diem_ban.ap_gia_diem(items, None, gia_diem_sua, diem_ban.dong_combo_sua(items, dong_cu, DAU_COMBO))
 	da_ghi = si.docstatus == 1
 	# Hoa don DA GHI SO thi luon phai co OTP, khong xet muc quyen: luc do
 	# tien da nam trong so sach, khong con la chuyen cua quay nua.
@@ -6797,7 +6797,9 @@ def pos_sua_don(
 				if gcm:
 					d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
 			from vagabond.combo_mon import giu_dong_sua
-			rows.append(giu_dong_sua(si, r, d))
+			# Món lẻ thêm mới trùng thành phần combo: giá hợp lệ là giá ĐIỂM nếu
+			# điểm có giá riêng cho món đó (Codex PR #532), không thì giá danh mục.
+			rows.append(giu_dong_sua(si, r, d, gia_diem_sua))
 		# Phi giao gom ve mot dong qty 1 (xem phi_giao.py).
 		from vagabond import phi_giao as _pg
 
