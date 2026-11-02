@@ -4608,7 +4608,22 @@ def tao_don_tay(
 	# Màn quầy mới gửi gia_theo_diem=1: giá trên máy lệch giá điểm (quản lý vừa
 	# đổi bảng giá) thì CHẶN để thu ngân không thu theo tổng cũ; màn cũ chưa tải
 	# lại vẫn được máy chủ tự sửa giá như trước.
-	doi_gia = diem_ban.ap_gia_diem(items, rows, diem_ban.gia_rieng_cua_quay(quay), diem_ban.dong_combo_tao(items))
+	gia_diem_tao = diem_ban.gia_rieng_cua_quay(quay)
+	mien_tao = diem_ban.dong_combo_tao(items)
+	doi_gia = diem_ban.ap_gia_diem(items, rows, gia_diem_tao, mien_tao)
+	if cint(gia_theo_diem):
+		# Codex PR #532 vòng 3: màn quầy mới tính giá bằng đúng hai nguồn (giá
+		# điểm, không có thì giá chung danh mục), nên máy chủ đối chiếu cả giá
+		# chung: món vừa bị bỏ giá riêng mà giỏ còn giá cũ thì cũng chặn.
+		# Màn nhập đơn tay (08) không gửi cờ, giữ giá gõ tay như trước.
+		ma_chung = sorted({str(r.get("item_code") or "").strip() for r in items} - set(gia_diem_tao))
+		gia_chung = {
+			x["name"]: x["standard_rate"]
+			for x in frappe.get_all("Item", filters={"name": ["in", ma_chung]}, fields=["name", "standard_rate"])
+		} if ma_chung else {}
+		from vagabond import phi_giao as _pg0
+
+		doi_gia += diem_ban.ap_gia_chung(items, rows, gia_diem_tao, mien_tao, gia_chung, (_pg0.MA_PHI_GIAO,))
 	if doi_gia and cint(gia_theo_diem):
 		frappe.throw(diem_ban.cau_gia_vua_doi(doi_gia), title="Giá vừa đổi")
 

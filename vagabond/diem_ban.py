@@ -256,6 +256,31 @@ def ap_gia_diem(items, rows, gia, mien=()):
 	return doi
 
 
+def ap_gia_chung(items, rows, gia, mien, gia_chung, bo_qua=()):
+	"""THUAN: dong KHONG co gia rieng o diem (va khong phai combo da xac nhan,
+	khong phai ma bo_qua nhu phi giao) phai dung gia chung trong danh muc
+	(Item.standard_rate, dung nguon may quay dang dung). Codex PR #532 vong 3:
+	quan ly bo gia rieng cua mot mon, hay tat bang gia cua diem, ma gio cu con
+	gia rieng cu thi truoc day may chu giu nguyen gia cu. Mon chua co gia
+	chung (0) thi khong dung. Tra so dong da doi."""
+	doi = 0
+	mien = set(mien or ())
+	gia = gia or {}
+	for i, r in enumerate(items or []):
+		ma = str(r.get("item_code") or "").strip()
+		if i in mien or ma in gia or ma in bo_qua:
+			continue
+		g = flt((gia_chung or {}).get(ma))
+		if not g:
+			continue
+		if flt(r.get("rate")) != g:
+			doi += 1
+		r["rate"] = g
+		if rows is not None and i < len(rows):
+			rows[i]["rate"] = g
+	return doi
+
+
 def dong_combo_tao(items):
 	"""THUAN: dong combo duoc giu gia khi LUU bill moi. Chi dong co ma combo
 	(combo_ma): vong dung dong cua tao_don_tay da doc Vagabond Combo va chan
