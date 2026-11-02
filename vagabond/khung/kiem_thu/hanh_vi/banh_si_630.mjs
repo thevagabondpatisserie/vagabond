@@ -67,7 +67,7 @@ async function moi(toi) {
   VET = []; HEN = [];
   ND.nhan = {}; ND.daTai = true; ND.xemThu = false;
   Object.assign(SI, {man: 'cho', otp: 1, toi: null, ngay: '', sl: {}, ghiChu: '', dangGui: false, loi: '', maLan: '', bao: '', kq: null,
-    trangThai: '', lanHoi: 0, henHoi: null, qrNo: null, dangQr: false, loiQr: ''});
+    trangThai: '', lanHoi: 0, henHoi: null, qrNo: null, dangQr: false, loiQr: '', dangQrDon: '', loiQrDon: ''});
   SI.dk = {ten_quan: '', mst: '', sdt: '', loai_hinh: '', luong: '', ghi_chu: '', gui: false, xong: '', loi: '', maLan: ''};
   SI.dn = {mo: false, sdt: '', ma: '', buoc: 'sdt', gui: false, loi: '', song: 0};
   TRA = {'vagabond.banh_si.san_sang': {otp: 1, so_ngay: 3}, 'vagabond.banh_si.toi': toi || {ok: 0, ly_do: 'chua_dang_nhap'}};
@@ -241,6 +241,51 @@ await ca('khách trả trước: tài khoản không có khối công nợ; đă
   mot(ve(), co('data-si-thoat'), 'thoát').props.onClick(); await cho();
   la('về ngoài', SI.man, 'ngoai');
   la('xoá phiên', SI.toi, null);
+});
+
+/* Codex #531 f4: QR chỉ nằm trong SI.kq ngay sau lúc đặt; khách tải lại trang
+   (kho dựng lại từ đầu, SI.kq rỗng) là mất QR. Ca này dựng ĐÚNG chuỗi đó:
+   khởi động mới với toi() có đơn chờ chuyển khoản, sang Tài khoản, bấm nút. */
+const CHO_TT = {ma: 'BSI26110004', ngay: '2026-11-06', so_cai: 40, nhan: 'Chờ chuyển khoản', tong: 1120000, trang_thai: 'cho_tt',
+  tra_truoc: 1, con_lai: 1120000};
+await ca('Codex #531 f4: khách trả trước tải lại trang trước khi chuyển tiền: Tài khoản có đơn chờ chuyển khoản, bấm Thanh toán qua QR thì máy chủ trả QR đúng mã đơn và trang tự hỏi trạng thái', async () => {
+  const toi = TOI(); toi.cuoi_ky = 0; toi.no = null; toi.sap_giao = [CHO_TT].concat(toi.sap_giao);
+  await moi(toi);
+  la('sau tải lại không còn QR trong bộ nhớ', SI.kq, null);
+  dung('màn đặt nhắc đơn chờ chuyển khoản', chu(mot(ve(), co('data-si-nhac-cho-tt'), 'nhắc')).includes('BSI26110004'));
+  mot(ve(), co('data-si-tab', 'tai_khoan'), 'tab').props.onClick();
+  const c = ve();
+  la('một nút cho đúng đơn chờ chuyển khoản', tim(c, co('data-si-qr-don')).map(n => n.props['data-si-qr-don']), ['BSI26110004']);
+  dung('dòng ghi số tiền còn phải chuyển', chu(mot(c, co('data-si-cho-tt', 'BSI26110004'), 'dòng')).includes('1.120.000'));
+  TRA['vagabond.banh_si.qr_don'] = th => ({ok: 1, ma: th.ma, ngay: '2026-11-06', trang_thai: 'cho_tt', tra_truoc: 1, tong: 1120000, chua_vat: 1037037, vat: 82963,
+    con_lai: 1120000, dong: [{ma: 'BANU00001', ten: 'Croissant bơ', sl: 40, tien: 1120000}],
+    qr: {ngan_hang: 'MB', stk: '0931224334', ten_tk: 'PATISSERIE VAGABOND', so_tien: 1120000, noi_dung: th.ma, anh: 'data:image/svg+xml;base64,CC'}});
+  mot(c, co('data-si-qr-don', 'BSI26110004'), 'nút').props.onClick(); await cho(); await cho();
+  la('hỏi máy chủ đúng mã đơn, không gửi số tiền', VET.filter(v => v[0] === 'vagabond.banh_si.qr_don').map(v => v[1]), [{ma: 'BSI26110004'}]);
+  la('nội dung QR', chu(mot(ve(), co('data-si-qr-nd'), 'nd')), 'BSI26110004');
+  dung('số tiền QR là số máy chủ', chu(mot(ve(), co('data-si-qr-tien'), 'tiền')).includes('1.120.000'));
+  la('hẹn hỏi trạng thái', HEN.map(x => x.ms), [8000]);
+  TRA['vagabond.banh_si.trang_thai_don'] = {trang_thai: 'cho_giao', nhan: 'Chờ giao', con_lai: 0};
+  await HEN[0].f();
+  la('hỏi trạng thái đúng mã', VET.filter(v => v[0] === 'vagabond.banh_si.trang_thai_don')[0][1], {ma: 'BSI26110004'});
+  la('tiền về thì đổi trạng thái', mot(ve(), co('data-si-tt'), 'tt').props['data-si-tt'], 'cho_giao');
+});
+
+await ca('Codex #531 f4: máy chủ từ chối (đơn không còn chờ chuyển khoản hay không thuộc khách) thì báo câu tiếng Việt, ở lại Tài khoản; đơn công nợ không có nút QR đơn', async () => {
+  const toi = TOI(); toi.cuoi_ky = 0; toi.no = null; toi.sap_giao = [CHO_TT];
+  await moi(toi);
+  mot(ve(), co('data-si-tab', 'tai_khoan'), 'tab').props.onClick();
+  TRA['vagabond.banh_si.qr_don'] = {exc_type: 'ValidationError', _server_messages: JSON.stringify([JSON.stringify({message: 'Không tìm thấy đơn.'})])};
+  mot(ve(), co('data-si-qr-don', 'BSI26110004'), 'nút').props.onClick(); await cho(); await cho();
+  la('ở lại Tài khoản', SI.man, 'tai_khoan');
+  la('câu lỗi máy chủ', chu(mot(ve(), co('data-si-loi-qr-don'), 'lỗi')), 'Không tìm thấy đơn.');
+  /* Đơn công nợ và đơn trả trước ĐÃ nhận đủ tiền (chờ giao) đều không có nút QR đơn. */
+  const t2 = TOI(); t2.sap_giao = [Object.assign({}, CHO_TT, {tra_truoc: 0, trang_thai: 'cho_giao', con_lai: 0}),
+    Object.assign({}, CHO_TT, {ma: 'BSI26110005', trang_thai: 'cho_giao', con_lai: 0})];
+  await moi(t2);
+  mot(ve(), co('data-si-tab', 'tai_khoan'), 'tab').props.onClick();
+  la('đơn công nợ, đơn đã đủ tiền không có nút', tim(ve(), co('data-si-qr-don')).length, 0);
+  la('màn đặt không nhắc', tim((SI.man = 'dat', ve()), co('data-si-nhac-cho-tt')).length, 0);
 });
 
 await ca('mọi khoá chữ của trang gọi khi vẽ có trong sổ nhãn, chữ mặc định trùng, không đại từ cũ, không markup', async () => {
