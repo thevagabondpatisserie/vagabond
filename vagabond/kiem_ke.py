@@ -213,6 +213,45 @@ def la_phieu_dem_hang_ngay(ghi_chu):
 	return str(ghi_chu or "").startswith(GHI_CHU_LICH.split("%s")[0])
 
 
+def moc_dem(doc_or_luc):
+	"""THUAN: (ngay, gio HH:MM:SS) cua moc chup ton so, None neu chua co.
+
+	Codex #527 vong 4: phieu dem hang ngay KHONG khoa nhap xuat, nen ghi so
+	phai dat dung moc nay. Lay gio luc quan ly bam ghi so thi phat sinh giua
+	luc dem va luc duyet bi so dem ghi de (dem 10 kg, xuat 3 kg, duyet: tro
+	lai 10 thay vi 7)."""
+	import datetime as _dt
+
+	luc = doc_or_luc.get("vgb_chup_luc") if hasattr(doc_or_luc, "get") else doc_or_luc
+	if not luc:
+		return None
+	if isinstance(luc, _dt.datetime):
+		t = luc
+	else:
+		chu = str(luc).strip().replace("T", " ")[:19]
+		t = _dt.datetime.strptime(chu if len(chu) == 19 else chu[:16] + ":00", "%Y-%m-%d %H:%M:%S")
+	return t.strftime("%Y-%m-%d"), t.strftime("%H:%M:%S")
+
+
+def chup_lai_khi_chot(doc, method=None):
+	"""Phieu dem hang ngay: luc bep chot (Dang kiem -> Cho duyet/Da chot) chup
+	lai ton so va moc. Chenh lech va ghi so cung tinh tai moc do; phat sinh sau
+	moc (truoc luc quan ly duyet) giu nguyen trong so. Phieu thuong da khoa ma
+	tu luc tao nen giu anh chup cu."""
+	if not la_phieu_dem_hang_ngay(doc.get("ghi_chu")):
+		return
+	if doc.get("trang_thai") not in ("Chờ duyệt", "Đã chốt"):
+		return
+	cu = doc.get_doc_before_save()
+	if not cu or cu.get("trang_thai") != "Đang kiểm":
+		return
+	doc.vgb_chup_luc = frappe.utils.now()
+	for r in doc.get("items") or []:
+		r.ton_he_thong = flt(frappe.db.get_value(
+			"Bin", {"item_code": r.item_code, "warehouse": doc.kho}, "actual_qty"))
+		r.lech = flt(r.so_luong) - flt(r.ton_he_thong)
+
+
 def la_kho_bep_dem(ten):
 	"""THUAN: kho nguyen lieu cua bep (bo kho thanh pham, bo kho nhom)."""
 	t = str(ten or "")
@@ -274,6 +313,10 @@ def mo_phieu_hom_nay(kho=None):
 	_duoc_dem()
 	if not la_kho_bep_dem(kho) or kho not in kho_bep():
 		frappe.throw("Kho này không thuộc danh sách đếm hằng ngày của bếp.")
+	# Codex #527 vòng 5: kho_bep() vừa đọc thường nên MariaDB REPEATABLE READ đã
+	# chụp ảnh số liệu. Kết thúc giao dịch đọc (chưa ghi gì) rồi mới xin khoá, để
+	# lần đọc phiếu sau khoá thấy phiếu người bấm trước vừa tạo và commit.
+	frappe.db.commit()
 	frappe.db.sql("select name from `tabWarehouse` where name = %s for update", (kho,))
 	ngay = nowdate()
 	p = _phieu_hom_nay(kho, ngay)
@@ -519,6 +562,9 @@ def mo_phieu(name):
 	ra["dem_mu"] = 0 if hien else 1
 	ra["duoc_duyet"] = 1 if quan_ly else 0
 	ra["ly_do_lech"] = kho_sap.LY_DO_LECH
+	# Codex #527 vòng 4: phiếu đếm hằng ngày ghi sổ đúng mốc bếp chốt; màn Ghi sổ
+	# tra giá vốn theo cùng mốc (máy chủ vẫn tự đặt mốc lúc ghi sổ).
+	ra["moc_ghi_so"] = list(moc_dem(doc) or []) if la_phieu_dem_hang_ngay(doc.get("ghi_chu")) else []
 	return ra
 
 
@@ -666,6 +712,11 @@ def ghi_so(name, phieu):
 			frappe.throw("Chọn điều chỉnh tồn hoặc tồn đầu kỳ rồi thử lại.")
 		sr.posting_date = doc.ngay_kiem
 		sr.posting_time = vao.get("posting_time")
+		moc = moc_dem(doc) if la_phieu_dem_hang_ngay(doc.get("ghi_chu")) else None
+		if moc:
+			# Codex #527 vòng 4: phiếu đếm hằng ngày không khoá nhập xuất, ghi sổ
+			# đúng mốc bếp chốt đếm, không lấy giờ trình duyệt gửi lên.
+			sr.posting_date, sr.posting_time = moc
 		sr.set_posting_time = 1
 		sr.set_warehouse = doc.kho
 		sr.expense_account = vao.get("expense_account")

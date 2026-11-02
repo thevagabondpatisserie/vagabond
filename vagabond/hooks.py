@@ -496,7 +496,9 @@ doc_events = {
 		"on_cancel": "vagabond.giao_viec.khi_xong",
 	},
 	"Phieu Kiem Ke": {
-		"before_validate": "vagabond.kiem_ke.giu_anh_chup_ton",
+		# Codex #527 vòng 4: giữ ảnh chụp cũ trước, rồi phiếu đếm hằng ngày chụp
+		# lại tồn sổ đúng lúc bếp chốt (phiếu đó không khoá nhập xuất).
+		"before_validate": ["vagabond.kiem_ke.giu_anh_chup_ton", "vagabond.kiem_ke.chup_lai_khi_chot"],
 		"after_insert": [
 			"vagabond.giao_viec.khi_sinh_phieu",
 			# Ghi lai thoi diem chup ton so: chenh lech dem ra la chenh lech so
