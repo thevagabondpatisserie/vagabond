@@ -842,6 +842,22 @@ sdKhai('ho_so_ung_vien', 'scrTdThemHs', {
   ten: 'Hồ sơ ứng viên', phat: 1, lay: function () { return tdHsTay; }, dat: function (v) { tdHsKhoiPhuc = v; },
   ma: function () { return ''; }, tieuDe: sdTieuDe('ho_ten', '#tdHsTen'), luu: ['vagabond.tuyen_dung.them_ho_so']
 });
+/* v628 Codex #527 vòng 2: hai màn lập phiếu của Quỹ tiền mặt (62-quy-tien-mat.js,
+   đứng sau 48). Trạng thái ngoài ô nhập (bảng đếm, lý do lệch, tài khoản nhận) nằm
+   ở biến của màn và được đặt lại ở nút MỞ màn, không phải trong hàm màn, nên dat()
+   ghi thẳng vào biến đó; ô ghi chú, số tiền, ngày, người nộp đi theo số liệu ô. */
+sdKhai('kiem_quy', 'scrQuyKiem', {
+  ten: 'Phiếu kiểm quỹ', phat: 1,
+  lay: function () { return { dem: QTM_DEM, ly_do: QTM_LY_DO }; },
+  dat: function (v) { QTM_DEM = (v && v.dem) || {}; QTM_LY_DO = (v && v.ly_do) || ''; },
+  luu: ['vagabond.quy_tien_mat.kiem_quy']
+});
+sdKhai('nop_ngan_hang', 'scrQuyNop', {
+  ten: 'Phiếu nộp tiền mặt vào ngân hàng', phat: 1,
+  lay: function () { return { tk: QTM_NOP.tk || '' }; },
+  dat: function (v) { QTM_NOP = { tk: (v && v.tk) || '' }; },
+  luu: ['vagabond.quy_tien_mat.nop_ngan_hang']
+});
 sdKhai('ctkm', 'kmSheetCtkm', {
   ten: 'Chương trình khuyến mãi', laHop: 1, lay: function () { return kmSua; },
   ghep: function (moi, v) { return v || moi; },
@@ -910,6 +926,8 @@ scrSoDuNap = sdBoc('nap_tra_truoc', 'scrSoDuNap', scrSoDuNap);
 scrCrmCd = sdBoc('chien_dich', 'scrCrmCd', scrCrmCd);
 scrTdViTri = sdBoc('vi_tri_tuyen', 'scrTdViTri', scrTdViTri);
 scrTdThemHs = sdBoc('ho_so_ung_vien', 'scrTdThemHs', scrTdThemHs);
+scrQuyKiem = sdBoc('kiem_quy', 'scrQuyKiem', scrQuyKiem);
+scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
