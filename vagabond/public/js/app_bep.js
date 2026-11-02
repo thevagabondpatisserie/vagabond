@@ -66313,8 +66313,10 @@ function ddtThe(r) {
   return '<div class="card" data-ddtthe="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:15.5px;font-weight:800;color:#0b2a33">' + h(r.ma) + (r.gio ? ' · ' + h(r.gio) : '') + '</span>' + ddtChip(r) + '</div>' +
-    '<div style="font-weight:700;font-size:15px;margin-top:2px">' + h(r.tac_pham) + (r.kich_co ? ' · size ' + h(r.kich_co) : '') + '</div>' +
-    '<div style="font-size:13px;color:#475467;margin-top:2px">' + h(r.khach) + ' · ' + h(r.sdt) + (r.diem_nhan ? ' · ' + h(r.diem_nhan) : '') + '</div>' +
+    /* Codex #531 vòng 7 (AGENTS 2b.4): ảnh tác phẩm từ danh mục, chưa có thì ô 🍰. */
+    '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' + anhMon(r.anh) + '<div style="flex:1;min-width:0">' +
+    '<div style="font-weight:700;font-size:15px">' + h(r.tac_pham) + (r.kich_co ? ' · size ' + h(r.kich_co) : '') + '</div>' +
+    '<div style="font-size:13px;color:#475467;margin-top:2px">' + h(r.khach) + ' · ' + h(r.sdt) + (r.diem_nhan ? ' · ' + h(r.diem_nhan) : '') + '</div></div></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:13.5px;margin-top:6px"><span>Tổng ' + money(r.tong) + 'đ</span>' +
     '<b style="color:' + (r.con_lai > 0 ? '#b45309' : '#15803d') + '">' + (r.con_lai > 0 ? 'Còn ' + money(r.con_lai) + 'đ' : 'Đã thu đủ') + '</b></div>' +
     (nhap ? '<div style="font-size:12.5px;color:#0369a1;margin-top:4px">' + nhap + ' phiếu chuyển khoản chờ kế toán ghi sổ</div>' : '') +
@@ -66562,7 +66564,8 @@ async function scrDonDatTruocCt() {
   var dsQuay = r.quay || [], keToan = !!r.la_ke_toan;
   var html = '<div class="card" data-ddtct="' + h(r.name) + '" style="padding:12px 13px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:18px">' + h(r.ma) + '</b>' + ddtChip(r) + '</div>' +
-    '<div style="font-size:15px;font-weight:700;margin-top:4px">' + h(r.tac_pham) + (r.kich_co ? ' · size ' + h(r.kich_co) : '') + '</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-top:6px">' + anhMon(r.anh) +
+    '<div style="font-size:15px;font-weight:700;flex:1;min-width:0">' + h(r.tac_pham) + (r.kich_co ? ' · size ' + h(r.kich_co) : '') + '</div></div>' +
     '<div style="font-size:13.5px;color:#475467;margin-top:2px">' + h(ddtNhanNgay(r.ngay, today())) + (r.gio ? ' lúc ' + h(r.gio) : '') + ' · ' + h(r.diem_nhan || '') + '</div>' +
     '<div style="font-size:13.5px;margin-top:2px">' + h(r.khach) + ' · <a href="tel:' + h(String(r.sdt || '').replace(/[^0-9+]/g, '')) + '">' + h(r.sdt) + '</a></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;font-size:12.5px;color:#475467">' +
@@ -66656,6 +66659,11 @@ function bsiChip(r) {
   return '<span style="background:' + m.nen + ';color:' + m.chu + ';border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap">' +
     m.ic + ' ' + h(r.nhan) + '</span>';
 }
+/* AGENTS 2b.4: khách có logo (Customer.image, máy chủ chỉ trả ảnh /files/
+   công khai) thì hiện logo qua anhMon; chưa có thì ô biểu tượng nhóm 🏢. */
+function bsiLogo(url) {
+  return url ? anhMon(url) : '<div class="imm immp">🏢</div>';
+}
 function bsiKhop(r, q) {
   return vgbKhop([r.ma, r.khach, r.ma_khach].concat((r.dong || []).map(function (d) { return d.ten; })), q);
 }
@@ -66664,7 +66672,8 @@ function bsiThe(r, coTien) {
   return '<div class="card" data-bsithe="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:15.5px;font-weight:800;color:#0b2a33">' + h(r.ma) + '</span>' + bsiChip(r) + '</div>' +
-    '<div style="font-weight:700;font-size:15px;margin-top:2px">🏢 ' + h(r.khach) + '</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' + bsiLogo(r.logo) +
+    '<div style="font-weight:700;font-size:15px;flex:1;min-width:0">' + h(r.khach) + '</div></div>' +
     '<div style="font-size:13px;color:#475467;margin-top:2px">' + (r.dong || []).length + ' món · ' + money(r.so_cai) + ' cái' +
     (coTien ? ' · ' + (r.tra_truoc ? 'Trả trước' : 'Trả cuối kỳ') : '') + '</div>' +
     (coTien ? '<div style="display:flex;justify-content:space-between;font-size:13.5px;margin-top:6px"><span>Tổng ' + money(r.tong) + 'đ</span>' +
@@ -66890,7 +66899,8 @@ async function scrDonSiWebCt() {
   var coTien = r.tong != null, keToan = !!r.la_ke_toan;
   var html = '<div class="card" data-bsict="' + h(r.name) + '" style="padding:12px 13px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:18px">' + h(r.ma) + '</b>' + bsiChip(r) + '</div>' +
-    '<div style="font-size:15px;font-weight:700;margin-top:4px">🏢 ' + h(r.khach) + '</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-top:6px">' + bsiLogo(r.logo) +
+    '<div style="font-size:15px;font-weight:700;flex:1;min-width:0">' + h(r.khach) + '</div></div>' +
     '<div style="font-size:13.5px;color:#475467;margin-top:2px">Giao ' + h(bsiNhanNgay(r.ngay, today())) + ' · đặt lúc ' + h(String(r.dat_luc || '').slice(11, 16)) + ' ' + h(bsiDdMm(r.dat_luc)) + '</div>' +
     (coTien ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;font-size:12.5px;color:#475467">' +
       '<div>Tổng (gồm VAT)<br><b data-bsitong="1" style="font-size:15px;color:#101828">' + money(r.tong) + 'đ</b></div>' +
@@ -66959,7 +66969,8 @@ function bsiTheDk(r) {
 }
 function bsiTheKhach(r) {
   return '<div class="card" data-bsikh="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
-    '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:15.5px">🏢 ' + h(r.customer_name || r.name) + '</b>' +
+    '<div style="display:flex;align-items:center;gap:10px">' + bsiLogo(r.logo) +
+    '<b style="font-size:15.5px;flex:1;min-width:0">' + h(r.customer_name || r.name) + '</b>' +
     (r.vgb_si_cuoi_ky ? '<span style="background:#e0f2fe;color:#075985;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700">Cuối kỳ 15 ngày</span>' :
       '<span style="background:#f2f4f7;color:#475467;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700">Trả trước</span>') + '</div>' +
     '<div style="font-size:13px;color:#475467;margin-top:2px">Zalo ' + h(r.vgb_si_sdt || 'chưa có') + (r.tax_id ? ' · MST ' + h(r.tax_id) : '') + '</div>' +
@@ -66986,7 +66997,7 @@ function bsiSheetDuyet(r) {
     ov.querySelector('#bsiCachThan').innerHTML = cach === 'moi' ?
       '<input class="nt" id="bsiTenMoi" maxlength="140" value="' + h(r.ten_quan) + '" style="height:46px;padding:0 12px;width:100%;box-sizing:border-box">' +
       '<div style="font-size:12px;color:#98a2b3;margin-top:4px">Nhóm Khách sỉ B2B, mã khách máy tự đặt. MST lấy theo đăng ký.</div>' :
-      '<button class="card" data-bsichonkh="1" style="display:flex;flex-direction:row;align-items:center;gap:10px;width:100%;margin:0;padding:10px 12px;min-height:48px;text-align:left;cursor:pointer"><span>🏢</span><span style="flex:1"><b>' +
+      '<button class="card" data-bsichonkh="1" style="display:flex;flex-direction:row;align-items:center;gap:10px;width:100%;margin:0;padding:10px 12px;min-height:48px;text-align:left;cursor:pointer">' + bsiLogo(khach && khach.logo) + '<span style="flex:1"><b>' +
       h(khach ? (khach.customer_name || khach.name) : 'Chọn khách') + '</b><div style="font-size:12px;color:#98a2b3">' + h(khach ? khach.name + (khach.tax_id ? ' · MST ' + khach.tax_id : '') : 'Tìm theo tên, mã, MST, số điện thoại') + '</div></span><span>›</span></button>';
     ov.querySelector('#bsiCt').innerHTML = bsiCongTac('web', 'Đặt sỉ trên web', 'Khách đăng nhập bằng số ' + r.sdt + ' qua mã Zalo', datWeb) +
       bsiCongTac('ky', 'Trả cuối kỳ 15 ngày', 'Bật: hoá đơn ghi công nợ hạn 15 ngày. Tắt: chuyển khoản trước khi giao', cuoiKy);
@@ -67026,7 +67037,7 @@ function bsiSheetTimKhach(onChon) {
   var lst = box.querySelector('.shl');
   function ve() {
     lst.innerHTML = ds.length ? ds.map(function (x) {
-      return '<div class="shi" data-bsikhchon="' + h(x.name) + '"><span>🏢</span><span style="flex:1;min-width:0">' + h(x.customer_name || x.name) +
+      return '<div class="shi" data-bsikhchon="' + h(x.name) + '">' + bsiLogo(x.logo) + '<span style="flex:1;min-width:0">' + h(x.customer_name || x.name) +
         '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(x.name) + (x.tax_id ? ' · MST ' + h(x.tax_id) : '') + (x.mobile_no ? ' · ' + h(x.mobile_no) : '') +
         (x.customer_group ? ' · ' + h(x.customer_group) : '') + '</div></span></div>';
     }).join('') : '<div class="emp"><div class="e2">Không tìm thấy khách. Chọn "Tạo khách mới".</div></div>';
@@ -67184,7 +67195,8 @@ async function scrGiaSi() {
   catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Bấm quay lại rồi mở lại khách.</div></div>'); return; }
   var k = kq.khach || {}, gia = kq.gia || [], goiY = kq.goi_y || [];
   var html = '<div class="card" data-bsigiakh="' + h(k.name) + '" style="padding:12px 13px">' +
-    '<div style="font-size:17px;font-weight:800">🏢 ' + h(k.customer_name || k.name) + '</div>' +
+    '<div style="display:flex;align-items:center;gap:10px">' + bsiLogo(k.logo) +
+    '<div style="font-size:17px;font-weight:800;flex:1;min-width:0">' + h(k.customer_name || k.name) + '</div></div>' +
     '<div style="font-size:12.5px;color:#98a2b3;margin-bottom:4px">' + h(k.name) + (k.tax_id ? ' · MST ' + h(k.tax_id) : '') + '</div>' +
     bsiCongTac('web', 'Đặt sỉ trên web', 'Khách đăng nhập trang Bánh sỉ bằng mã Zalo', !!k.vgb_si_web) +
     bsiCongTac('ky', 'Trả cuối kỳ 15 ngày', 'Bật: hoá đơn ghi công nợ hạn 15 ngày. Tắt: chuyển khoản trước khi giao', !!k.vgb_si_cuoi_ky) +
