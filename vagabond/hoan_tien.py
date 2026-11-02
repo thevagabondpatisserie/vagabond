@@ -233,9 +233,35 @@ def _tien_da_nhan(si):
 		if not ma:
 			return 0.0
 		g = _sepay_theo_don(cfg().pancake_shop_id, [ma]).get(ma)
-		return flt((g or {}).get("nhan"))
+		nhan = flt((g or {}).get("nhan"))
 	except Exception:
 		return 0.0
+	# v628: bill quay gan tay bang nut Do tien giu SO THAM CHIEU ngan hang
+	# o o Ma tham chieu, noi dung chuyen khoan khong mang ma bill. Hoi ca
+	# duong do, khong thi bill da nhan du tien van doc ra 0 va nut Chuyen
+	# lai tien du bao "khong co phan du".
+	try:
+		from vagabond import ban_hang as _bh
+
+		tc = str(si.get("vgb_ma_tham_chieu") or "").strip().upper()
+		if tc and hasattr(_bh, "_sepay_theo_tham_chieu") and not _bh.RE_MA_BILL.fullmatch(tc):
+			t = _bh._sepay_theo_tham_chieu(tc) or {}
+			if flt(t.get("nhan")) > nhan:
+				g, nhan = t, flt(t.get("nhan"))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc tien theo so tham chieu")
+	# v628 (De bao 02/11/2026, TH3): khoan cua bill da huy co the da chuyen
+	# sang bill lap lai o quay dung. Khoan do khong con la tien cua bill nay
+	# nua: hoan lai lan nua la tra khach hai lan.
+	try:
+		from vagabond import ban_hang as _bh
+
+		if hasattr(_bh, "tien_da_sang_bill_khac"):
+			da_sang, _ds = _bh.tien_da_sang_bill_khac(si.get("name"), (g or {}).get("gd") or [])
+			nhan = max(0.0, nhan - da_sang)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: tru tien da chuyen sang bill khac")
+	return nhan
 
 
 TRUONG_MOI = {

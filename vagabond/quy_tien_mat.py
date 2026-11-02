@@ -27,6 +27,7 @@ DT = "Vagabond Phieu Quy"
 DT_CAI = "Vagabond Tai Chinh Cai Dat"
 KIEM = "Kiểm quỹ"
 NOP = "Nộp ngân hàng"
+THAY = "Đã thay"  # Codex #527 vòng 2: phiếu chờ duyệt bị lần kiểm sau thay, không ghi sổ
 NGUONG_DUYET = 2000000  # anh Việt 02/11/2026: lệch quá 2 triệu thì anh duyệt
 NGAY_KHOP = 3  # tiền nộp ở quầy ngân hàng vào tài khoản trễ tối đa 3 ngày
 NGAY_NHAC = 2  # quá 2 ngày chưa khớp thì báo kế toán
@@ -432,6 +433,13 @@ def kiem_quy(bang=None, ly_do="", ghi_chu="", anh=None):
 		"lech": pl["lech"], "menh_gia": json.dumps(dong, ensure_ascii=False), "ly_do": ly_do if pl["lech"] else "",
 		"ghi_chu": str(ghi_chu or "").strip()[:500]})
 	doc.insert(ignore_permissions=True)
+	# Codex #527 vòng 2: phiếu lệch trước còn chờ duyệt thì số máy CHƯA đổi, nên lần
+	# kiểm này đo lại đúng khoản lệch đó. Để cả hai cùng chờ là Giám đốc duyệt hai lần,
+	# quỹ bị trừ hai lần. Lần kiểm mới nhất là số thật: phiếu chờ cũ chuyển "Đã thay".
+	for cu in frappe.get_all(DT, filters={"loai": KIEM, "trang_thai": "Chờ duyệt", "name": ["!=", doc.name]},
+			fields=["name"], limit_page_length=0):
+		frappe.db.set_value(DT, cu.name, {"trang_thai": THAY,
+			"ly_do_tra": "Lần kiểm sau %s thay phiếu này, phiếu này không ghi sổ." % doc.name}, update_modified=False)
 	ds_anh = tep_dinh_kem.gan_vao(DT, doc.name, "anh", anh)
 	if ds_anh:
 		doc.db_set("anh", tep_dinh_kem.ghi_ds(ds_anh), update_modified=False)
@@ -459,6 +467,12 @@ def duyet_kiem_quy(name=None, dong_y=0, ly_do=""):
 		frappe.throw("Phiếu %s không còn chờ duyệt." % name)
 	if doc.nguoi == frappe.session.user:
 		frappe.throw("Người kiểm quỹ không tự duyệt phiếu của mình.")
+	# Codex #527 vòng 2: có lần kiểm SAU phiếu này thì số máy đã được đo lại; duyệt
+	# phiếu cũ là ghi chênh lệch trên một số đã lỗi thời.
+	sau = frappe.get_all(DT, filters={"loai": KIEM, "trang_thai": ["in", ["Khớp", "Đã ghi", "Chờ duyệt"]],
+		"luc": [">", doc.luc], "name": ["!=", doc.name]}, fields=["name"], limit_page_length=1)
+	if sau:
+		frappe.throw("Đã có lần kiểm quỹ sau phiếu này (%s). Duyệt phiếu mới nhất thay vì phiếu %s." % (sau[0].name, name))
 	doc.duyet_boi = frappe.session.user
 	doc.duyet_luc = now_datetime()
 	if cint(dong_y):
@@ -524,7 +538,7 @@ def huy_phieu(name=None, ly_do=""):
 	if len(str(ly_do or "").strip()) < 3:
 		frappe.throw("Ghi lý do huỷ.")
 	doc = frappe.get_doc(DT, name)
-	if doc.trang_thai in ("Đã huỷ", "Trả lại"):
+	if doc.trang_thai in ("Đã huỷ", "Trả lại", THAY):
 		frappe.throw("Phiếu %s đã %s." % (name, doc.trang_thai.lower()))
 	if doc.loai == KIEM and not _la_giam_doc():
 		frappe.throw("Chỉ Giám đốc huỷ được phiếu kiểm quỹ.", frappe.PermissionError)
@@ -594,22 +608,47 @@ def khop_nop_ngan_hang(chi=None):
 	if not ds:
 		return 0
 	tu = min(getdate(p.ngay) for p in ds)
-	gd = frappe.db.sql("""select name ten, bank_account, deposit, date, creation, description mo_ta, reference_number tham_chieu
-		from `tabBank Transaction` where docstatus=1 and deposit>0 and date>=%s and bank_account in %s""",
+	gd = frappe.db.sql("""select name ten, bank_account, deposit, date, creation, description mo_ta, reference_number tham_chieu,
+		unallocated_amount from `tabBank Transaction` where docstatus=1 and deposit>0 and date>=%s and bank_account in %s""",
 		(str(tu), tuple({p.bank_account for p in ds})), as_dict=True)
 	if not gd:
 		return 0
+	# Codex #527 vòng 2: giữ số ĐÃ PHÂN BỔ thật. Dòng đã khớp chứng từ trong Đối chiếu
+	# ngân hàng của ERPNext là có chủ (doi_soat_ck.chu_theo_noi_dung: > 1 đồng).
 	co_chu = set((ban_hang._gd_co_chu_toan_he([{"ten": g.ten, "mo_ta": g.mo_ta or "", "tham_chieu": g.tham_chieu or "",
-		"da_phan_bo": 0.0} for g in gd]) or {}).keys())
+		"da_phan_bo": da_phan_bo(g.deposit, g.get("unallocated_amount"))} for g in gd]) or {}).keys())
 	da = 0
 	for p in ds:
 		ten = chon_gd_khop(p, gd, co_chu)
 		if not ten:
 			continue
 		co_chu.add(ten)
+		if not _giu_gd(p.name, ten):
+			continue
 		frappe.db.set_value(DT, p.name, {"gd_sepay": ten, "khop_luc": now_datetime(), "trang_thai": "Đã khớp"})
 		da += 1
 	return da
+
+
+def da_phan_bo(tien, chua_phan_bo):
+	"""Số đã phân bổ của một dòng sao kê. THUẦN. Ô chưa phân bổ trống là chưa biết: 0."""
+	if chua_phan_bo is None:
+		return 0.0
+	return max(0.0, _f(tien) - _f(chua_phan_bo))
+
+
+def _giu_gd(phieu, ten_gd):
+	"""Codex #527 vòng 2: hai lượt ghép chạy chen nhau (lịch mỗi giờ và lần ghép ngay khi
+	lưu phiếu) cùng đọc một giao dịch chưa có chủ. Khoá dòng giao dịch và dòng phiếu, rồi
+	đọc lại BẰNG CÂU CÓ KHOÁ (thấy bản đã commit mới nhất, không phải ảnh chụp đầu giao
+	dịch): giao dịch đã thuộc phiếu quỹ khác, hoặc phiếu không còn chờ, thì bỏ qua."""
+	frappe.db.sql("select name from `tabBank Transaction` where name=%s for update", (ten_gd,))
+	tt = frappe.db.sql("select trang_thai from `tab%s` where name=%%s for update" % DT, (phieu,))
+	if tt and tt[0][0] != "Chờ tiền về":
+		return False
+	khac = frappe.db.sql("select name from `tab%s` where gd_sepay=%%s and trang_thai!='Đã huỷ' and name!=%%s for update" % DT,
+		(ten_gd, phieu))
+	return not khac
 
 
 def lich_khop():
