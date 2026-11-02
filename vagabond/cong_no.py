@@ -273,6 +273,46 @@ def _hd_da_gom():
 	return set(r["hoa_don"] for r in ds)
 
 
+# Các ô hoá đơn mà phép tính nợ đọc. Một danh sách cho mọi nơi đọc hoá đơn nợ.
+TRUONG_NO = [
+	"name", "customer", "customer_name", "posting_date",
+	"grand_total", "outstanding_amount", "vgb_pt_thanh_toan",
+	"custom_nguon", "vgb_quay", "vgb_ma_tham_chieu", "vgb_khach_no",
+]
+
+
+def tinh_con_doi(rows):
+	"""MỘT phép tính số CÒN PHẢI ĐÒI của từng hoá đơn, cho mọi nơi: màn Công nợ
+	(bang_khach_no), lập phiếu đòi nợ của Sales (tao_phieu) và của khách sỉ tự
+	bấm QR (qr_no_cua_khach), cả hai đi qua lap_phieu_doi_no.
+
+	Codex #531 vòng 4: lap_phieu_doi_no từng lấy nguyên grand_total làm số tiền
+	dòng phiếu trong khi màn hiện số còn đòi. Hoá đơn 1.000.000 đã trả 600.000
+	thì màn hiện 400.000 nhưng phiếu và QR đòi 1.000.000.
+
+	`rows`: hoá đơn đọc ở máy chủ với các ô TRUONG_NO. Gán `con_no` (thu_tien.
+	con_no_cua: dòng thanh toán và dư nợ sổ cái), rồi `con_doi`, `da_ve` (trừ
+	tiền đã về đã xác minh, phiếu thu chưa ghi sổ). Trả (dòng còn phải đòi,
+	thẻ tiền đã về, tập khách có tiền về) như thu_tien.chia_no_hoa_don."""
+	from vagabond import thu_tien as tt
+
+	bang_dong = tt.bang_dong_cua([r["name"] for r in rows])
+	for r in rows:
+		r["con_no"] = tt.con_no_cua(
+			r.get("grand_total"), r.get("outstanding_amount"),
+			bang_dong.get(r["name"]) or [], r.get("vgb_pt_thanh_toan"),
+		)
+	# Da thu het thi khong con la no, du co con ghi gi di nua.
+	rows = [r for r in rows if r["con_no"] > 0]
+	# v534 (issue #380): tien khach chuyen DA VE, may da lap phieu thu nhung
+	# phieu chua ghi so (thieu uy nhiem chi khach gui). Chi tach ra khi giao
+	# dich ngan hang da xac minh doc lap (Codex #381 F4); con lai van la no.
+	# Codex #382 vong 8: phan da ve (da xac minh) tru khoi so con phai doi,
+	# ke ca khi moi phu mot phan; phu du thi hoa don tach han. Phep thuan.
+	ve = _tien_da_ve_theo_hd([r["name"] for r in rows])
+	return tt.chia_no_hoa_don(rows, ve)
+
+
 @frappe.whitelist()
 def ds_khach_no(tim=""):
 	"""Danh sách khách đang còn nợ (màn Công nợ phải thu). Cổng quyền ở đây,
@@ -314,11 +354,7 @@ def bang_khach_no(tim="", khach=None):
 	"""
 	from vagabond import thu_tien as tt
 
-	TRUONG = [
-		"name", "customer", "customer_name", "posting_date",
-		"grand_total", "outstanding_amount", "vgb_pt_thanh_toan",
-		"custom_nguon", "vgb_quay", "vgb_ma_tham_chieu", "vgb_khach_no",
-	]
+	TRUONG = TRUONG_NO
 	# v630: lọc một khách ở tầng truy vấn (hai đường chủ nợ), rồi lọc lại chắc
 	# chắn ở Python theo đúng luật chủ nợ (vgb_khach_no ưu tiên customer).
 	cua_khach = {"or_filters": {"customer": khach, "vgb_khach_no": khach}} if khach else {}
@@ -342,23 +378,9 @@ def bang_khach_no(tim="", khach=None):
 	if khach:
 		rows = [r for r in rows if (r.get("vgb_khach_no") or r.get("customer")) == khach]
 	rows.sort(key=lambda r: str(r.get("posting_date") or ""))
-	bang_dong = tt.bang_dong_cua([r["name"] for r in rows])
 	da_gom = _hd_da_gom()
-	for r in rows:
-		r["con_no"] = tt.con_no_cua(
-			r.get("grand_total"), r.get("outstanding_amount"),
-			bang_dong.get(r["name"]) or [], r.get("vgb_pt_thanh_toan"),
-		)
-	# Da thu het thi khong con la no, du co con ghi gi di nua.
-	rows = [r for r in rows if r["con_no"] > 0]
-	# v534 (issue #380): tien khach chuyen DA VE, may da lap phieu thu nhung
-	# phieu chua ghi so (thieu uy nhiem chi khach gui). Chi tach ra khi giao
-	# dich ngan hang da xac minh doc lap (Codex #381 F4); con lai van la no.
-	ve = _tien_da_ve_theo_hd([r["name"] for r in rows])
+	rows, the_ve, khach_cho = tinh_con_doi(rows)
 	khach = {}
-	# Codex #382 vong 8: phan da ve (da xac minh) tru khoi so con phai doi,
-	# ke ca khi moi phu mot phan; phu du thi hoa don tach han. Phep thuan.
-	rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)
 	tong_ca_phieu = tt.tong_con_doi(rows)
 	cho_ghi_so = {"so_hd": the_ve["so_hd"], "tien": the_ve["tien"], "so_khach": 0}
 	for r in rows:
@@ -619,33 +641,36 @@ def lap_phieu_doi_no(khach=None, hoa_don=None, ghi_chu="", nhieu_khach=0, nguoi_
 		frappe.throw("Chưa tick hoá đơn nào để gom.")
 	da_gom = _hd_da_gom()
 	dong = []
+	doc_hd = []
 	for name in hoa_don:
 		if name in da_gom:
 			frappe.throw("Hoá đơn %s đã nằm trong một phiếu đề nghị thanh toán khác." % name)
-		si = frappe.db.get_value(
-			"Sales Invoice",
-			name,
-			[
-				"customer", "posting_date", "grand_total", "custom_nguon",
-				"docstatus", "vgb_pt_thanh_toan", "vgb_khach_no",
-			],
-			as_dict=True,
-		)
+		si = frappe.db.get_value("Sales Invoice", name, TRUONG_NO + ["docstatus"], as_dict=True)
 		if not si:
 			frappe.throw("Không có hoá đơn %s." % name)
 		if si.docstatus != 1:
 			frappe.throw("Hoá đơn %s chưa ghi sổ, không gom được." % name)
 		if (si.vgb_pt_thanh_toan or "") != "Công nợ":
 			frappe.throw("Hoá đơn %s không phải hoá đơn công nợ." % name)
+		doc_hd.append(dict(si, name=name))
+	# Codex #531 vòng 4: số tiền mỗi dòng là số CÒN PHẢI ĐÒI tính ở máy chủ
+	# bằng đúng phép của màn Công nợ (tinh_con_doi), không phải cả tờ. Phiếu
+	# đã lập trước đây giữ nguyên số của nó (không sửa dữ liệu cũ).
+	con_doi = {r["name"]: flt(r["con_doi"]) for r in tinh_con_doi(doc_hd)[0]}
+	for si in doc_hd:
+		name = si["name"]
+		if con_doi.get(name, 0) <= 0.5:
+			frappe.throw("Hoá đơn %s đã thu đủ hoặc tiền đã về chờ ghi sổ, không còn số nào để đòi. "
+				"Tải lại màn Công nợ rồi chọn lại." % name)
 		# Chu no that nam o vgb_khach_no neu ke toan da gan lai sau khi ghi
 		# so - cot do uu tien hon customer, giong ben ds_khach_no.
 		dong.append(
 			{
 				"hoa_don": name,
-				"khach": gpn.chu_no(si.customer, si.get("vgb_khach_no")),
-				"ngay": si.posting_date,
-				"nguon": si.custom_nguon or "",
-				"so_tien": flt(si.grand_total),
+				"khach": gpn.chu_no(si.get("customer"), si.get("vgb_khach_no")),
+				"ngay": si.get("posting_date"),
+				"nguon": si.get("custom_nguon") or "",
+				"so_tien": con_doi[name],
 			}
 		)
 	loi, _cac = gpn.kiem_khach(khach, [(d["hoa_don"], d["khach"]) for d in dong], nhieu_khach)
