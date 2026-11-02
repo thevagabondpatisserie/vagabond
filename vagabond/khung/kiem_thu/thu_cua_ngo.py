@@ -54,7 +54,8 @@ CUA_NGO = {
 	# khách từ số đã xác thực, không nhận mã khách từ trình duyệt). Các hàm màn
 	# app kiểm vai ở máy chủ: QUYEN_SALES_SI (duyệt, giá), QUYEN_GIAO_SI (giao,
 	# tiền về, huỷ), QUYEN_XEM_SI (danh sách, bếp không thấy tiền).
-	"banh_si.py": ["san_sang", "gui_ma", "xac_thuc", "thoat", "toi", "dat", "trang_thai_don", "qr_no", "dang_ky",
+	# Codex #531 f4: qr_don mở lại QR một đơn trả trước của chính khách phiên.
+	"banh_si.py": ["san_sang", "gui_ma", "xac_thuc", "thoat", "toi", "dat", "trang_thai_don", "qr_no", "qr_don", "dang_ky",
 		"ds_dang_ky", "tim_khach", "duyet", "tu_choi", "ds_khach", "luu_khach", "bang_gia", "tim_mon", "luu_gia",
 		"bo_gia", "ds_don", "xem_don", "kiem_tien_ve", "ghi_so_phieu", "giao_hang", "huy_don"],
 	# v630 bánh thiết kế riêng: dat, tai_anh_mau, trang_thai_don, nho_tu_van mở

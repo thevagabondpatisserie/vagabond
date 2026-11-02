@@ -502,7 +502,9 @@ def _trung_ten():
 def _cua_ngo():
 	cay, ds = _ham_whitelist()
 	khach = {t for t, (f, tr) in ds.items() if any("allow_guest=True" in d for d in tr)}
-	la("chín hàm khách", sorted(khach), sorted(["san_sang", "gui_ma", "xac_thuc", "thoat", "toi", "dat", "trang_thai_don", "qr_no", "dang_ky"]))
+	# Codex #531 f4: thêm qr_don (mở lại QR đơn trả trước của chính khách phiên).
+	la("mười hàm khách", sorted(khach), sorted(["san_sang", "gui_ma", "xac_thuc", "thoat", "toi", "dat", "trang_thai_don", "qr_no",
+		"qr_don", "dang_ky"]))
 	ham = {f.name: f for f in cay.body if isinstance(f, ast.FunctionDef)}
 	for t, (f, tr) in ds.items():
 		if t in khach:
@@ -607,7 +609,7 @@ def _dat_that():
 	kh = _fr._dict(name="SI00012", customer_name="Café Lá Me", vgb_si_cuoi_ky=1)
 	ps = [mock.patch.object(bs, "_khach_phien", lambda: (kh, "")), mock.patch.object(bs, "_hom_nay", lambda: HOM),
 		mock.patch.object(bs, "gia_cua_khach", lambda k, n=None: dict(BANG) if k == "SI00012" else {}),
-		mock.patch.object(bs, "_da_gui", lambda k, lan, dau: None), mock.patch.object(bs, "_lap_don", lap),
+		mock.patch.object(bs, "_da_gui", lambda k, lan, dau, khoa=False: None), mock.patch.object(bs, "_lap_don", lap),
 		mock.patch.object(bs, "_bao_don_moi", lambda *a: goi.setdefault("bao", a[2])), mock.patch.object(bs, "_ket_qua", lambda ten: {"ok": 1, "ma": ten})]
 	for p in ps:
 		p.start()

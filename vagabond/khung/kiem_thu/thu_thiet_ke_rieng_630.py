@@ -493,7 +493,7 @@ def _dat_that():
 		return _fr._dict(name="SO-9", vgb_tkr_ma="TKR26110009")
 	ps = [mock.patch("vagabond.noi_dung_web._ban_cong_khai", lambda khoa=False: copy.deepcopy(nd)),
 		mock.patch.object(tkr, "_diem_nhan", lambda ban: DIEM), mock.patch.object(tkr, "_hom_nay", lambda: HOM),
-		mock.patch.object(tkr, "_da_gui", lambda lan, dau: None), mock.patch.object(tkr, "_lap_phieu_dat", lap),
+		mock.patch.object(tkr, "_da_gui", lambda lan, dau, khoa=False: None), mock.patch.object(tkr, "_lap_phieu_dat", lap),
 		mock.patch.object(tkr, "_bao_moi", lambda *a, **k: None), mock.patch.object(tkr, "_ket_qua", lambda ten: {"ok": 1, "ma": ten})]
 	for p in ps:
 		p.start()

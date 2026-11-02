@@ -1,0 +1,704 @@
+# -*- coding: utf-8 -*-
+"""v631, Codex rà PR #531 trên 88a247a: bốn finding, anh Việt giao Claude sửa (02/11/2026).
+
+1. Hai lượt hỏi trạng thái (hoặc lượt hỏi và nhịp 5 phút) cùng khớp một đơn:
+   lượt sau chờ khoá phiếu đặt xong vẫn đọc phiếu thu và chủ dòng sao kê bằng
+   ẢNH CHỤP REPEATABLE READ có từ trước lúc chờ, nên lập phiếu thu thứ hai cho
+   CÙNG một dòng sao kê. Cọc 50% thành "đã thu đủ".
+2. Hai lần gửi cùng mã lần gửi: lần sau chờ khoá xong vẫn tra mã lần gửi bằng
+   phép đọc thường, nên lập phiếu đặt thứ hai.
+3. Đính PDF giấy báo Có ở màn Đơn đặt trước và Đơn sỉ web: tệp PDF bị bỏ lặng
+   lẽ, phiếu thu bị hook đính kèm chặn ghi sổ, bánh không giao được.
+4. Khách sỉ trả trước tải lại trang hoặc sang Tài khoản trước khi chuyển tiền
+   thì không mở lại được QR của đơn (QR chỉ nằm trong bộ nhớ trang).
+
+Ca 1 và 2 chạy phép THẬT (trang_thai_don, khop, dat) trên một MariaDB giả có
+HAI KẾT NỐI chạy hai luồng thật: đọc thường thấy ảnh chụp lấy ở lần đọc thường
+đầu tiên của giao dịch, đọc `for update` thấy bản đã commit và giữ khoá dòng
+tới hết yêu cầu, kết nối khác xin cùng khoá thì CHỜ thật. Thứ tự đan xen do ca
+kiểm đặt bằng điểm dừng, không gọi thêm hàm nào "cho chắc".
+"""
+
+import base64
+import contextlib
+import copy
+import json
+import sys
+import threading
+import types
+from pathlib import Path
+from unittest import mock
+
+from vagabond.khung.kiem_thu.nen import ca, dung, gia_lap, la, nem
+
+gia_lap()
+_fr = sys.modules["frappe"]
+if "frappe.rate_limiter" not in sys.modules:
+	sys.modules["frappe.rate_limiter"] = types.ModuleType("frappe.rate_limiter")
+	sys.modules["frappe.rate_limiter"].rate_limit = lambda **k: (lambda f: f)
+if not hasattr(_fr, "UniqueValidationError"):
+	class UniqueValidationError(_fr.ValidationError):
+		pass
+
+	_fr.UniqueValidationError = UniqueValidationError
+
+from vagabond import banh_si as bs  # noqa: E402
+from vagabond import noi_dung_web as nw  # noqa: E402
+from vagabond import thiet_ke_rieng as tkr  # noqa: E402
+from vagabond import ung_truoc_don as utd  # noqa: E402
+
+GOC = Path(__file__).resolve().parents[3]
+KHOA_XEM = "abcdefghijklmnopqrstuvwx"
+CHO = 10.0
+
+
+# ================================================== MariaDB giả hai kết nối
+
+class _KetNoi(object):
+	def __init__(self, ten, dung_tai=()):
+		self.ten = ten
+		self.anh = None          # ảnh chụp REPEATABLE READ, lấy ở lần đọc thường đầu
+		self.cho = []            # dòng chính kết nối này đã ghi, chưa commit
+		self.moc = {}            # savepoint -> số dòng đã ghi lúc đặt
+		self.dung = {d: threading.Event() for d in dung_tai}
+		self.dang_dung = ""
+		self.dang_cho = None     # khoá đang chờ
+		self.xong = False
+		self.kq = None
+		self.loi = None
+
+
+class _MayChu(object):
+	"""Cơ sở dữ liệu giả. Phiếu đặt (so), sao kê (bt), phiếu thu (pe) đã commit
+	nằm ở đây; mỗi yêu cầu web là một luồng có kết nối riêng."""
+
+	def __init__(self, so=None, bt=None, ndw=None):
+		self.so = {r["name"]: dict(r) for r in (so or [])}
+		self.bt = [dict(g) for g in (bt or [])]
+		self.pe = []
+		self.ndw = ndw
+		self.so_moi = []
+		self.thu_ghi_so = 0
+		self.dem_pe = 0
+		self.dem_so = 0
+		self.cv = threading.Condition()
+		self.khoa = {}
+		self.tl = threading.local()
+		self.nhat_ky = []
+		self.tin = []
+
+	# ---------- kết nối, ảnh chụp, khoá
+	def kn(self):
+		return self.tl.kn
+
+	def _anh(self):
+		kn = self.kn()
+		if kn.anh is None:
+			with self.cv:
+				kn.anh = {"pe": copy.deepcopy(self.pe), "bt": copy.deepcopy(self.bt), "so": copy.deepcopy(self.so_moi)}
+		return kn.anh
+
+	def _dung(self, diem):
+		kn = self.kn()
+		ev = kn.dung.get(diem)
+		if ev is None or ev.is_set():
+			return
+		with self.cv:
+			kn.dang_dung = diem
+			self.cv.notify_all()
+		if not ev.wait(CHO):
+			raise AssertionError("kết nối %s dừng ở %s quá lâu" % (kn.ten, diem))
+		with self.cv:
+			kn.dang_dung = ""
+
+	def _khoa(self, k):
+		kn = self.kn()
+		self._dung("truoc_khoa:" + k[0])
+		with self.cv:
+			het = threading.Event()
+			while self.khoa.get(k) not in (None, kn):
+				kn.dang_cho = k
+				self.cv.notify_all()
+				if not self.cv.wait(CHO):
+					het.set()
+					break
+			kn.dang_cho = None
+			if het.is_set():
+				raise AssertionError("kết nối %s chờ khoá %s quá lâu" % (kn.ten, k))
+			self.khoa[k] = kn
+
+	def commit(self, *a, **k):
+		kn = self.kn()
+		with self.cv:
+			for r in kn.cho:
+				(self.pe if r["_bang"] == "pe" else self.so_moi).append(r)
+			kn.cho, kn.moc, kn.anh = [], {}, None
+			for k2 in [x for x, v in self.khoa.items() if v is kn]:
+				del self.khoa[k2]
+			self.cv.notify_all()
+
+	def rollback(self, save_point=None, **k):
+		kn = self.kn()
+		if save_point:
+			del kn.cho[kn.moc.get(save_point, len(kn.cho)):]
+			return
+		with self.cv:
+			kn.cho, kn.moc, kn.anh = [], {}, None
+			for k2 in [x for x, v in self.khoa.items() if v is kn]:
+				del self.khoa[k2]
+			self.cv.notify_all()
+
+	def savepoint(self, ten):
+		self.kn().moc[ten] = len(self.kn().cho)
+
+	# ---------- các bảng nhìn theo hai kiểu đọc
+	def _pe(self, hien_tai):
+		kn = self.kn()
+		if hien_tai:
+			with self.cv:
+				goc = copy.deepcopy(self.pe)
+		else:
+			goc = self._anh()["pe"]
+		return goc + [r for r in kn.cho if r["_bang"] == "pe"]
+
+	def _so_moi(self, hien_tai):
+		kn = self.kn()
+		if hien_tai:
+			with self.cv:
+				goc = copy.deepcopy(self.so_moi)
+		else:
+			goc = self._anh()["so"]
+		return goc + [r for r in kn.cho if r["_bang"] == "so"]
+
+	# ---------- frappe.db.sql
+	def sql(self, q, a=None, as_dict=False, **k):
+		khoa = "for update" in q.lower()
+		if "`tabVagabond Noi Dung Web`" in q:
+			if self.ndw is None:
+				return []
+			if khoa:
+				self._khoa(("NDW", "1"))
+			return [(json.dumps(self.ndw, ensure_ascii=False),)]
+		if "`tabCustomer`" in q:
+			if khoa:
+				self._khoa(("KH", a[0]))
+			return [(a[0],)]
+		if "from `tabSales Order`" in q:
+			if khoa:
+				self._khoa(("SO", a[0]))
+			else:
+				self._anh()
+			r = self.so.get(a[0])
+			return [_fr._dict(r)] if r else []
+		if "`tabBank Transaction`" in q:
+			if khoa:
+				ds = a.get("ds") if isinstance(a, dict) else (a[0],)
+				for ten in sorted(ds):
+					self._khoa(("BT", ten))
+				return [(t,) for t in sorted(ds)]
+			m = a["m"].strip("%")
+			return [_fr._dict(g) for g in self._anh()["bt"]
+				if m in ("%s %s" % (g.get("description") or "", g.get("reference_number") or "")).upper()]
+		if "`tabPayment Entry`" in q:
+			ds = self._pe(khoa)
+			ds = [p for p in ds if int(p["docstatus"]) < 2]
+			if isinstance(a, dict) and "ds" in a:
+				ds = [p for p in ds if p.get("vgb_gd_tkr") in a["ds"]]
+			if isinstance(a, dict) and "so" in a:
+				ds = [p for p in ds if p.get("vgb_phieu_dat") == a["so"]]
+			if isinstance(a, dict) and a.get("tru"):
+				ds = [p for p in ds if p["name"] != a["tru"]]
+			return [_fr._dict(p) for p in ds] if as_dict else [(p["name"], p.get("vgb_gd_tkr")) for p in ds]
+		return []
+
+	# ---------- frappe.get_all / frappe.db.get_value
+	def get_all(self, dt, filters=None, fields=None, **k):
+		if dt == "Payment Entry":
+			f = filters or {}
+			return [_fr._dict(p) for p in self._pe(False)
+				if p.get("vgb_phieu_dat") == f.get("vgb_phieu_dat") and int(p["docstatus"]) < 2]
+		self._anh()
+		return []
+
+	def get_value(self, dt, f=None, fields=None, as_dict=False, for_update=False, **k):
+		if dt == "Bank Account":
+			return "1121 - MB"
+		if dt != "Sales Order":
+			return None
+		if isinstance(f, dict) and ("vgb_tkr_lan" in f or "vgb_si_lan" in f):
+			o = "vgb_tkr_lan" if "vgb_tkr_lan" in f else "vgb_si_lan"
+			ds = [r for r in self._so_moi(for_update) if r.get(o) == f[o]]
+			return _fr._dict(ds[0]) if ds else None
+		self._anh()
+		if isinstance(f, dict):
+			for r in self.so.values():
+				if all(r.get(x) == y for x, y in f.items()):
+					return r["name"]
+			return None
+		r = self.so.get(f) or {}
+		if isinstance(fields, (list, tuple)):
+			return _fr._dict({x: r.get(x) for x in fields})
+		if fields in ("vgb_tkr_du_lieu", "vgb_si_du_lieu"):
+			return "{}"
+		return r.get(fields)
+
+	# ---------- frappe.get_doc(dict) cho phiếu thu
+	def get_doc(self, d, *a, **k):
+		may = self
+
+		class Doc(_fr._dict):
+			def setup_party_account_field(self):
+				pass
+
+			def set_missing_values(self):
+				pass
+
+			def insert(self, **k2):
+				may._dung("truoc_insert")
+				with may.cv:
+					may.dem_pe += 1
+					self.name = "PE-%d" % may.dem_pe
+				may.kn().cho.append({"_bang": "pe", "name": self.name, "docstatus": 0, "payment_type": "Receive",
+					"paid_amount": self.paid_amount, "received_amount": self.received_amount,
+					"vgb_gd_tkr": self.vgb_gd_tkr, "vgb_phieu_dat": self.vgb_phieu_dat,
+					"mode_of_payment": self.mode_of_payment, "vgb_quay": self.vgb_quay,
+					"posting_date": self.posting_date, "creation": "2026-11-03 10:00:%02d" % may.dem_pe})
+		doc = Doc(d)
+		doc.flags = _fr._dict()
+		return doc
+
+	# ---------- phiếu đặt mới (ô mã lần gửi), giữ ràng buộc DUY NHẤT nếu ô khai unique
+	def lap_so(self, o, lan, ma, truong_moi, them=None):
+		self._dung("truoc_insert")
+		with self.cv:
+			self.thu_ghi_so += 1
+		unique = any(x.get("unique") for x in truong_moi if x["fieldname"] == o)
+		if unique and any(r.get(o) == lan for r in self._so_moi(True)):
+			raise _fr.UniqueValidationError("Sales Order", "", "Duplicate entry for key %s" % o)
+		with self.cv:
+			self.dem_so += 1
+			ten = "SO-%d" % (100 + self.dem_so)
+		self.kn().cho.append(dict(them or {}, _bang="so", name=ten, ma=ma, **{o: lan}))
+		return _fr._dict(name=ten, vgb_tkr_ma=ma, vgb_si_ma=ma, vgb_si_tt="Công nợ")
+
+	# ---------- chạy một yêu cầu web trên luồng riêng
+	def chay(self, ten, ham, dung_tai=()):
+		kn = _KetNoi(ten, dung_tai)
+
+		def than():
+			self.tl.kn = kn
+			try:
+				kn.kq = ham()
+				self.commit()
+			except BaseException as e:  # noqa: B902 - ghi lại để ca kiểm đọc
+				kn.loi = e
+				self.rollback()
+			finally:
+				with self.cv:
+					kn.xong = True
+					self.cv.notify_all()
+		threading.Thread(target=than, daemon=True).start()
+		return kn
+
+	def cho_toi(self, dk, ten):
+		with self.cv:
+			if not self.cv.wait_for(dk, CHO):
+				raise AssertionError("treo: " + ten)
+
+	def tha(self, kn, diem):
+		kn.dung[diem].set()
+
+	def doc_lai(self, ham):
+		"""Một yêu cầu thứ ba, chạy sau cùng: đọc trạng thái như khách thấy."""
+		kn = self.chay("doc", ham)
+		self.cho_toi(lambda: kn.xong, "đọc lại")
+		if kn.loi:
+			raise kn.loi
+		return kn.kq
+
+
+def _vao(may, them=()):
+	"""Gắn Frappe giả vào MariaDB giả. Chỉ thay phần chạm hệ và tin Zalo, giữ
+	nguyên trang_thai_don, khop_mot, khop_don, ung_truoc_don.khop, tom_tat."""
+	from vagabond import doi_soat_sepay as dss
+	from vagabond import thu_tien
+
+	def chu_anh_chup(ds, **k):
+		# chu_cua_giao_dich thật đọc bằng frappe.get_all: đọc thường, ảnh chụp.
+		return {p["vgb_gd_tkr"]: "phiếu thu " + p["name"] for p in may._pe(False)
+			if p.get("vgb_gd_tkr") in ds and int(p["docstatus"]) < 2}
+	diem = [{"ma": "SALES", "quay": "", "bat": 1, "ten": "Sales Online"}, {"ma": "TCV", "quay": "TCV", "bat": 1, "ten": "TCV"}]
+	ps = [mock.patch.object(_fr.db, "sql", may.sql), mock.patch.object(_fr, "get_all", may.get_all),
+		mock.patch.object(_fr.db, "get_value", may.get_value), mock.patch.object(_fr, "get_doc", may.get_doc),
+		mock.patch.object(_fr.db, "exists", lambda *a, **k: True),
+		mock.patch.object(_fr.db, "commit", may.commit), mock.patch.object(_fr.db, "rollback", may.rollback),
+		mock.patch.object(_fr.db, "savepoint", may.savepoint),
+		mock.patch.object(_fr, "log_error", lambda *a, **k: may.nhat_ky.append(a[-1] if a else k.get("title"))),
+		mock.patch.object(dss, "chu_cua_giao_dich", chu_anh_chup),
+		mock.patch.object(dss, "tai_khoan_duoc_khop", lambda: {"BA-MB"}),
+		mock.patch.object(thu_tien, "nang_quyen_lap_phieu", contextlib.nullcontext),
+		mock.patch.object(tkr, "_ds_diem", lambda: diem), mock.patch.object(tkr, "_cong_ty", lambda: "Vagabond"),
+		mock.patch.object(tkr, "_bao_sales_coc", lambda *a, **k: may.tin.append("tkr_sales")),
+		mock.patch.object(tkr, "_bao_bep_coc", lambda *a, **k: may.tin.append("tkr_bep")),
+		mock.patch.object(bs, "_ds_diem", lambda: diem), mock.patch.object(bs, "_cong_ty", lambda: "Vagabond"),
+		mock.patch.object(bs, "_bao_da_tt", lambda *a, **k: may.tin.append("bsi_da_tt")),
+		mock.patch.object(bs, "_khach_phien", lambda: (may.get_all("Customer") or 1) and (_fr._dict(name="SI00012",
+			customer_name="Café Lá Me", vgb_si_cuoi_ky=0), ""))]
+	ps += list(them)
+	return ps
+
+
+@contextlib.contextmanager
+def _gan(ps):
+	for p in ps:
+		p.start()
+	try:
+		yield
+	finally:
+		for p in reversed(ps):
+			p.stop()
+
+
+SO_TKR = {"name": "SO-1", "docstatus": 1, "status": "To Deliver and Bill", "vgb_tkr_ma": "TKR26110001",
+	"vgb_tkr_khoa": KHOA_XEM, "vgb_tkr_coc": 3780000, "customer": "KH-1", "customer_name": "Nguyễn An",
+	"grand_total": 7560000, "rounded_total": 7560000, "per_billed": 0, "delivery_date": "2026-11-14",
+	"vgb_tkr_du_lieu": "{}", "vgb_tkr_bang_ke": ""}
+SO_BSI = {"name": "SO-2", "docstatus": 1, "status": "To Deliver and Bill", "vgb_si_ma": "BSI26110002",
+	"vgb_tkr_coc": 0, "customer": "SI00012", "customer_name": "Café Lá Me", "grand_total": 3780000,
+	"rounded_total": 3780000, "per_billed": 0, "vgb_si_tt": "Trả trước", "net_total": 3500000,
+	"total_taxes_and_charges": 280000, "delivery_date": "2026-11-05", "vgb_si_du_lieu": "{}"}
+
+
+def _bt(ten, tien, mo):
+	return {"name": ten, "date": "2026-11-03", "deposit": tien, "withdrawal": 0, "description": mo,
+		"reference_number": "FT" + ten, "bank_account": "BA-MB", "transaction_id": ten}
+
+
+def _hoi_tkr():
+	return tkr.trang_thai_don("TKR26110001", KHOA_XEM)
+
+
+def _hoi_bsi():
+	return bs.trang_thai_don("BSI26110002")
+
+
+def _phieu_cua(may, so):
+	return sorted((p["vgb_gd_tkr"], p["paid_amount"]) for p in may.pe if p["vgb_phieu_dat"] == so and p["docstatus"] < 2)
+
+
+def _khong_loi(may, *kns):
+	for kn in kns:
+		if kn.loi:
+			raise kn.loi
+	la("không lượt khớp nào nuốt lỗi", [x for x in may.nhat_ky if "khớp" in str(x)], [])
+
+
+def _hai_luot_cung_don(may, hoi, khoi_dong_a_truoc=None):
+	"""Lượt B đọc thường trước (ảnh chụp), rồi chờ khoá phiếu đặt đang ở lượt A;
+	A khớp xong, commit; B được khoá và khớp tiếp. Đúng chuỗi của hai lần hỏi
+	trạng thái cách nhau vài trăm mili giây."""
+	b = may.chay("B", hoi, ("truoc_khoa:SO",))
+	may.cho_toi(lambda: b.dang_dung == "truoc_khoa:SO", "B tới khoá phiếu đặt")
+	a = may.chay("A", hoi)
+	may.cho_toi(lambda: a.xong, "A xong")
+	may.tha(b, "truoc_khoa:SO")
+	may.cho_toi(lambda: b.xong, "B xong")
+	_khong_loi(may, a, b)
+	return a, b
+
+
+# ================================================== finding 1: phiếu thu đôi
+
+@ca("Codex #531 f1: hai lượt khách hỏi trạng thái cùng một đơn thiết kế riêng, MỘT dòng sao kê cọc chỉ ra MỘT phiếu thu; đơn vẫn 'đã cọc', không thành 'đủ tiền'")
+def _f1_hai_luot_hoi():
+	may = _MayChu(so=[SO_TKR], bt=[_bt("BT-7", 3780000, "MBVCB TKR26110001 coc")])
+	with _gan(_vao(may)):
+		_hai_luot_cung_don(may, _hoi_tkr)
+		la("phiếu thu của đơn", _phieu_cua(may, "SO-1"), [("BT-7", 3780000.0)])
+		la("báo Sales và bếp đúng một lần", may.tin, ["tkr_sales", "tkr_bep"])
+		la("khách thấy", may.doc_lai(_hoi_tkr)["trang_thai"], "da_coc")
+
+
+@ca("Codex #531 f1: đã cọc rồi khách chuyển thêm CẢ đơn; lượt chờ khoá phải đọc phiếu thu hiện tại, không lập phiếu vượt tổng đơn")
+def _f1_doc_phieu_hien_tai():
+	may = _MayChu(so=[SO_TKR], bt=[_bt("BT-7", 3780000, "TKR26110001 coc"), _bt("BT-8", 7560000, "TKR26110001 tra du")])
+	with _gan(_vao(may)):
+		_hai_luot_cung_don(may, _hoi_tkr)
+		la("phiếu thu của đơn", _phieu_cua(may, "SO-1"), [("BT-7", 3780000.0)])
+		la("tổng phiếu không vượt tổng đơn", sum(x[1] for x in _phieu_cua(may, "SO-1")) <= 7560000, True)
+
+
+@ca("Codex #531 f1: dòng sao kê mới chỉ lượt sau thấy; lượt sau bỏ dòng lượt trước đã chiếm (đọc chủ hiện tại) và vẫn nhận dòng mới")
+def _f1_doc_chu_hien_tai():
+	may = _MayChu(so=[SO_TKR], bt=[_bt("BT-7", 3780000, "TKR26110001 coc")])
+	with _gan(_vao(may)):
+		a = may.chay("A", _hoi_tkr, ("truoc_khoa:SO",))
+		may.cho_toi(lambda: a.dang_dung == "truoc_khoa:SO", "A chụp ảnh")
+		with may.cv:
+			may.bt.append(_bt("BT-8", 3780000, "TKR26110001 phan con lai"))
+		b = may.chay("B", _hoi_tkr, ("truoc_khoa:SO",))
+		may.cho_toi(lambda: b.dang_dung == "truoc_khoa:SO", "B chụp ảnh")
+		may.tha(a, "truoc_khoa:SO")
+		may.cho_toi(lambda: a.xong, "A xong")
+		may.tha(b, "truoc_khoa:SO")
+		may.cho_toi(lambda: b.xong, "B xong")
+		_khong_loi(may, a, b)
+		la("mỗi dòng sao kê một phiếu", _phieu_cua(may, "SO-1"), [("BT-7", 3780000.0), ("BT-8", 3780000.0)])
+		la("khách thấy đủ tiền", may.doc_lai(_hoi_tkr)["trang_thai"], "du_tien")
+
+
+@ca("Codex #531 f1: một dòng sao kê mang mã của HAI đơn (thiết kế riêng và sỉ) khớp cùng lúc: khoá dòng sao kê, chỉ một phiếu thu chiếm dòng")
+def _f1_khoa_dong_sao_ke():
+	may = _MayChu(so=[SO_TKR, SO_BSI], bt=[_bt("BT-5", 3780000, "TKR26110001 BSI26110002")])
+	with _gan(_vao(may)):
+		b = may.chay("B", _hoi_bsi, ("truoc_insert",))
+		may.cho_toi(lambda: b.dang_dung == "truoc_insert", "B sắp ghi phiếu")
+		a = may.chay("A", _hoi_tkr)
+		may.cho_toi(lambda: a.xong or a.dang_cho is not None, "A xong hoặc đang chờ khoá")
+		may.tha(b, "truoc_insert")
+		may.cho_toi(lambda: a.xong and b.xong, "hai lượt xong")
+		_khong_loi(may, a, b)
+		la("số phiếu chiếm BT-5", len([p for p in may.pe if p["vgb_gd_tkr"] == "BT-5"]), 1)
+
+
+# ================================================== finding 2: phiếu đặt đôi
+
+TP = nw.chuan_tkr(nw.TKR_MAU)
+DIEM = [{"id": "tcv", "n": "The Vagabond District 1", "a": "9 Trần Cao Vân"}]
+MA_LAN = "123e4567-e89b-42d3-a456-426614174000"
+
+
+def _don_tkr():
+	return json.dumps({"tac_pham": TP["id"], "kich_co": "M", "trang_tri": ["Hoa lan trắng"], "ngay": "2026-11-14",
+		"gio": "17:00", "ten": "Nguyễn An", "sdt": "0909 123 456", "ghi_chu": "", "diem_nhan": "tcv"}, ensure_ascii=False)
+
+
+def _vao_dat(may):
+	nd = copy.deepcopy(nw.MAC_DINH)
+	nd["khoi"].append(dict(TP))
+	if may.ndw is not None:
+		may.ndw = nd
+	so_ma = {}
+
+	def lap_tkr(don, lan):
+		so = may.lap_so("vgb_tkr_lan", lan, "TKR2611%04d" % (len(so_ma) + 1), tkr.TRUONG_MOI["Sales Order"],
+			{"vgb_tkr_du_lieu": json.dumps({"bam": don["bam"]})})
+		so_ma[so.name] = so.vgb_tkr_ma
+		return so
+
+	def lap_bsi(kh, don, lan):
+		so = may.lap_so("vgb_si_lan", lan, "BSI2611%04d" % (len(so_ma) + 1), bs.TRUONG_MOI["Sales Order"],
+			{"customer": kh.name, "vgb_si_du_lieu": json.dumps({"bam": don["bam"]})})
+		so_ma[so.name] = so.vgb_si_ma
+		return so
+
+	def ket_qua(ten):
+		return {"ok": 1, "ma": so_ma[ten]}
+	them = [mock.patch("vagabond.noi_dung_web._ban_cong_khai", nw._ban_cong_khai if may.ndw is not None else
+		(lambda khoa=False: copy.deepcopy(nd))),
+		mock.patch.object(tkr, "_diem_nhan", lambda ban: DIEM), mock.patch.object(tkr, "_hom_nay", lambda: "2026-11-02"),
+		mock.patch.object(tkr, "_lap_phieu_dat", lap_tkr), mock.patch.object(tkr, "_bao_moi", lambda *a, **k: None),
+		mock.patch.object(tkr, "_ket_qua", ket_qua),
+		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-02"),
+		mock.patch.object(bs, "gia_cua_khach", lambda k, n=None: {"BANU00001": {"ten": "Croissant bơ", "gia": 28000,
+			"anh": "", "dvt": "Cái", "nhom": "Bánh mì"}}),
+		mock.patch.object(bs, "_lap_don", lap_bsi), mock.patch.object(bs, "_bao_don_moi", lambda *a, **k: None),
+		mock.patch.object(bs, "_ket_qua", ket_qua),
+		mock.patch.object(_fr, "generate_hash", lambda *a, **k: "moc", create=True)]
+	return _vao(may, them)
+
+
+def _gui_dong_thoi(may, gui, diem):
+	b = may.chay("B", gui, (diem,))
+	may.cho_toi(lambda: b.dang_dung == diem, "B tới " + diem)
+	a = may.chay("A", gui)
+	may.cho_toi(lambda: a.xong, "A xong")
+	may.tha(b, diem)
+	may.cho_toi(lambda: b.xong, "B xong")
+	return a, b
+
+
+@ca("Codex #531 f2: bấm gửi đơn thiết kế riêng hai lần cùng mã lần gửi, lần sau chờ khoá nội dung web xong phải tra lại mã bằng phép đọc hiện tại: MỘT phiếu đặt")
+def _f2_tkr_khoa():
+	may = _MayChu(ndw={})
+	with _gan(_vao_dat(may)):
+		a, b = _gui_dong_thoi(may, lambda: tkr.dat(_don_tkr(), MA_LAN), "truoc_khoa:NDW")
+		_khong_loi(may, a, b)
+		la("số phiếu đặt mang mã lần gửi", len(may.so_moi), 1)
+		# Lần sau trả đơn cũ ngay ở phép tra có khoá, không đi tới bước ghi rồi
+		# mới nhờ ràng buộc duy nhất (lớp phòng hờ, kiểm ở ca dưới).
+		la("số lần thử ghi phiếu đặt", may.thu_ghi_so, 1)
+		la("lần sau trả đúng đơn lần trước", b.kq["ma"], a.kq["ma"])
+
+
+@ca("Codex #531 f2: chưa có hàng nội dung web để khoá, hai lần gửi cùng mã lọt tới bước ghi: ràng buộc duy nhất của ô mã lần gửi chặn, lần sau trả đơn lần trước")
+def _f2_tkr_duy_nhat():
+	may = _MayChu(ndw=None)
+	with _gan(_vao_dat(may)):
+		a, b = _gui_dong_thoi(may, lambda: tkr.dat(_don_tkr(), MA_LAN), "truoc_insert")
+		_khong_loi(may, a, b)
+		la("số phiếu đặt mang mã lần gửi", len(may.so_moi), 1)
+		la("lần sau trả đúng đơn lần trước", b.kq["ma"], a.kq["ma"])
+
+
+@ca("Codex #531 f2: đơn sỉ bấm gửi hai lần cùng mã lần gửi, lần sau chờ khoá khách xong phải tra lại mã bằng phép đọc hiện tại: MỘT phiếu đặt")
+def _f2_bsi_khoa():
+	may = _MayChu()
+	don = json.dumps({"ngay": "2026-11-05", "ghi_chu": "", "dong": [{"ma": "BANU00001", "sl": 30}]})
+	with _gan(_vao_dat(may)):
+		a, b = _gui_dong_thoi(may, lambda: bs.dat(don, MA_LAN), "truoc_khoa:KH")
+		_khong_loi(may, a, b)
+		la("số phiếu đặt mang mã lần gửi", len(may.so_moi), 1)
+		la("số lần thử ghi phiếu đặt", may.thu_ghi_so, 1)
+		la("lần sau trả đúng đơn lần trước", b.kq["ma"], a.kq["ma"])
+
+
+@ca("Codex #531 f2: ô mã lần gửi trên phiếu đặt (thiết kế riêng, sỉ) khai ràng buộc duy nhất; ô dòng sao kê đã chiếm có chỉ mục để đọc có khoá không khoá cả bảng")
+def _f2_khai_o():
+	o = {f["fieldname"]: f for d in (tkr.TRUONG_MOI, bs.TRUONG_MOI) for v in d.values() for f in v}
+	la("unique", (o["vgb_tkr_lan"].get("unique"), o["vgb_si_lan"].get("unique")), (1, 1))
+	la("chỉ mục vgb_gd_tkr", o["vgb_gd_tkr"].get("search_index"), 1)
+
+
+# ================================================== finding 3: đính PDF giấy báo Có
+
+PDF = "data:application/pdf;base64," + base64.b64encode(b"%PDF-1.4 giay bao co").decode()
+
+
+class _Ghi(object):
+	"""Frappe giả cho ghi_so_phieu: một phiếu thu nháp chuyển khoản do máy lập,
+	hook trước ghi sổ chạy THẬT chung_tu_tien.chan_thieu_dinh_kem."""
+
+	def __init__(self, so, gd="BT-7", khac=()):
+		self.so, self.gd, self.tep, self.da_ghi, self.khac = so, gd, [], [], list(khac)
+
+	def get_doc(self, dt, ten=None, *a, **k):
+		g = self
+		if isinstance(dt, dict) and dt.get("doctype") == "File":
+			class Tep(_fr._dict):
+				def insert(self, **k2):
+					g.tep.append(dict(self))
+			t = Tep(dt)
+			t.flags = _fr._dict()
+			return t
+
+		class Pe(_fr._dict):
+			def submit(self):
+				from vagabond import chung_tu_tien
+				chung_tu_tien.chan_thieu_dinh_kem(self)
+				self.docstatus = 1
+				g.da_ghi.append(self.name)
+		p = Pe(doctype="Payment Entry", name=ten, docstatus=0, vgb_phieu_dat=self.so, vgb_gd_tkr=self.gd,
+			paid_amount=3780000, payment_type="Receive", paid_from="1311 - Phải thu", paid_to="1121 - MB",
+			creation="2026-11-03 10:00:00")
+		p.flags = _fr._dict()
+		return p
+
+	def count(self, dt, f=None):
+		return len([x for x in self.tep if x.get("attached_to_name") == (f or {}).get("attached_to_name")])
+
+	def get_value(self, dt, ten=None, f=None, as_dict=False, **k):
+		if dt == "Bank Transaction":
+			return _fr._dict(docstatus=1, deposit=3780000)
+		return None
+
+	def sql(self, q, a=None, as_dict=False, **k):
+		if "`tabPayment Entry`" in q:
+			# Đọc hiện tại các phiếu chiếm dòng sao kê: chính phiếu đang ghi sổ và phiếu khác (nếu có).
+			return [_fr._dict(name=x, vgb_gd_tkr=self.gd) for x in ["PE-9"] + self.khac]
+		if "`tabSales Order`" in q:
+			return [(a[0],)]
+		return [(self.gd,)]
+
+
+def _ghi_so(mo_dun, so, anh, khac=()):
+	g = _Ghi(so, khac=khac)
+	ps = [mock.patch.object(_fr, "get_doc", g.get_doc), mock.patch.object(_fr.db, "count", g.count, create=True),
+		mock.patch.object(_fr.db, "get_value", g.get_value), mock.patch.object(_fr.db, "sql", g.sql),
+		mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Accounts User"]),
+		mock.patch.object(_fr, "parse_json", json.loads, create=True),
+		mock.patch.object(mo_dun, "tom_tat", lambda ten: {"name": ten})]
+	loi = None
+	with _gan(ps):
+		try:
+			mo_dun.ghi_so_phieu(so, "PE-9", json.dumps(anh))
+		except Exception as e:  # noqa: B902
+			loi = e
+	return g, loi
+
+
+@ca("Codex #531 f3: kế toán đính PDF giấy báo Có ở màn Đơn đặt trước rồi ghi sổ: tệp PDF được đính, phiếu thu ghi sổ được")
+def _f3_pdf_tkr():
+	g, loi = _ghi_so(tkr, "SO-1", [{"ten": "giay-bao-co.pdf", "noi_dung": PDF}])
+	la("lỗi", str(loi) if loi else "", "")
+	la("tệp đính vào phiếu", [(t["file_name"], t["attached_to_name"]) for t in g.tep], [("giay-bao-co.pdf", "PE-9")])
+	la("phiếu đã ghi sổ", g.da_ghi, ["PE-9"])
+
+
+@ca("Codex #531 f3: kế toán đính PDF giấy báo Có ở màn Đơn sỉ web rồi ghi sổ: tệp PDF được đính, phiếu thu ghi sổ được")
+def _f3_pdf_bsi():
+	g, loi = _ghi_so(bs, "SO-2", [{"ten": "GBC 0311.PDF", "noi_dung": PDF}])
+	la("lỗi", str(loi) if loi else "", "")
+	la("tệp đính vào phiếu", [(t["file_name"], t["attached_to_name"]) for t in g.tep], [("GBC 0311.PDF", "PE-9")])
+	la("phiếu đã ghi sổ", g.da_ghi, ["PE-9"])
+
+
+@ca("Codex #531 f3: tệp không nhận (docx) hoặc rỗng thì báo câu tiếng Việt nói rõ cần ảnh hay PDF, KHÔNG gọi ghi sổ")
+def _f3_tep_sai():
+	g, loi = _ghi_so(tkr, "SO-1", [{"ten": "giay-bao-co.docx", "noi_dung": PDF}])
+	dung("câu nói rõ đuôi nhận", loi is not None and "PDF" in str(loi))
+	la("không ghi sổ", g.da_ghi, [])
+	g, loi = _ghi_so(bs, "SO-2", [])
+	dung("không tệp nào thì nói rõ giấy báo Có", loi is not None and "giấy báo Có" in str(loi))
+	dung("câu không phải câu hook Uỷ nhiệm chi", "Uỷ nhiệm chi" not in str(loi))
+	la("không ghi sổ", g.da_ghi, [])
+
+
+@ca("Codex #531 f3: dòng sao kê của phiếu đã có phiếu thu khác chiếm (nháp đôi cũ) thì không ghi sổ phiếu thứ hai")
+def _f3_chan_phieu_doi():
+	g, loi = _ghi_so(tkr, "SO-1", [{"ten": "gbc.jpg", "noi_dung": PDF}], khac=["PE-3"])
+	dung("chặn và nêu phiếu kia", loi is not None and "PE-3" in str(loi))
+	la("không ghi sổ", g.da_ghi, [])
+
+
+# ================================================== finding 4: mở lại QR đơn sỉ trả trước
+
+def _qr_don(t, khach="SI00012", ma="BSI26110002"):
+	ps = [mock.patch.object(bs, "_khach_phien", lambda: (_fr._dict(name=khach), "") if khach else (None, "chua_dang_nhap")),
+		mock.patch.object(_fr.db, "get_value", lambda dt, f=None, *a, **k: "SO-2" if (
+			isinstance(f, dict) and f.get("customer") == "SI00012" and f.get("vgb_si_ma") == "BSI26110002") else None),
+		mock.patch.object(bs, "tom_tat", lambda ten: dict(t, name=ten)),
+		mock.patch.object(bs, "_qr", lambda m, so: {"noi_dung": m, "so_tien": so, "anh": "data:x"}),
+		mock.patch.object(bs, "_khong_cache", lambda: None)]
+	with _gan(ps):
+		return bs.qr_don(ma)
+
+
+@ca("Codex #531 f4: khách sỉ mở lại QR đơn trả trước chưa chuyển: máy chủ trả QR đúng mã đơn, số tiền là phần còn phải thu máy chủ tính")
+def _f4_qr_don():
+	t = {"ma": "BSI26110002", "tra_truoc": 1, "trang_thai": "cho_tt", "con_lai": 3780000.0, "tong": 3780000}
+	r = _qr_don(t)
+	la("qr", (r.get("ok"), r["qr"]["noi_dung"], r["qr"]["so_tien"], r["trang_thai"]), (1, "BSI26110002", 3780000.0, "cho_tt"))
+	r = _qr_don(dict(t, trang_thai="cho_giao", con_lai=0.0))
+	la("đơn đã nhận tiền không có QR", (r.get("ok"), r.get("qr")), (1, None))
+	r = _qr_don(dict(t, tra_truoc=0, trang_thai="cho_giao", con_lai=0.0))
+	la("đơn công nợ không có QR", r.get("qr"), None)
+	nem("đơn của khách khác", lambda: _qr_don(t, khach="SI00099"))
+	nem("chưa đăng nhập", lambda: _qr_don(t, khach=""))
+	nem("mã sai dạng", lambda: _qr_don(t, ma="TKR26110001"))
+
+
+@ca("Codex #531 f4: qr_don là cửa khách (Guest, POST, trần lượt), không đi qua cổng quyền nhân viên, có trong danh sách cửa ngõ")
+def _f4_cua_ngo():
+	import ast
+	cay = ast.parse((GOC / "vagabond/banh_si.py").read_text(encoding="utf-8"))
+	f = [x for x in cay.body if isinstance(x, ast.FunctionDef) and x.name == "qr_don"]
+	la("có một hàm", len(f), 1)
+	trang = [ast.unparse(d) for d in f[0].decorator_list]
+	dung("Guest POST", any("allow_guest=True" in d and "POST" in d for d in trang))
+	dung("trần lượt", any(d.startswith("rate_limit") for d in trang))
+	than = ast.unparse(f[0])
+	dung("không cổng nhân viên", "_kiem_quyen" not in than)
+	dung("lấy khách từ phiên", "_khach_phien()" in than)
+	from vagabond.khung.kiem_thu import thu_cua_ngo
+	dung("đăng ký cửa ngõ", "qr_don" in thu_cua_ngo.CUA_NGO["banh_si.py"])
