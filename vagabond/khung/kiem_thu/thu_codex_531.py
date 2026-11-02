@@ -23,6 +23,7 @@ import base64
 import contextlib
 import copy
 import json
+import re
 import sys
 import threading
 import types
@@ -778,7 +779,10 @@ class _CongNo(object):
 		if "`tabVagabond Cong No Dong`" in q:
 			return [(d.hoa_don,) for p in self.phieu.values() for d in p.dong]
 		if "from `tabVagabond Cong No` where khach" in q:
-			return [{"name": n} for n, p in self.phieu.items() if p.khach == a[0]]
+			ds = [{"name": n} for n, p in self.phieu.items() if p.khach == a[0]]
+			# Câu SQL có LIMIT thì cơ sở dữ liệu cắt đúng như vậy (vòng 5).
+			m = re.search(r"limit (\d+)", q)
+			return ds[:int(m.group(1))] if m else ds
 		return []
 
 	def new_doc(self, dt):
@@ -890,3 +894,161 @@ def _v4_mot_nguon():
 	for t in ("bang_khach_no", "lap_phieu_doi_no"):
 		dung(t + " gọi tinh_con_doi", "tinh_con_doi" in goi(ham[t]))
 	dung("lap_phieu_doi_no không đọc grand_total", "grand_total" not in ast.unparse(ham["lap_phieu_doi_no"]))
+
+
+# ================================================== vòng 5: đủ phiếu, và đọc hiện tại khi dựng QR công nợ
+
+def _phieu_mo(ten, ma, hoa_don, tien, khach="SI00012"):
+	return _fr._dict(name=ten, ma_phieu=ma, khach=khach, tong_tien=tien, da_thu=0, han_qr="2026-11-09", trang_thai="Cho thu",
+		ma_gd="", dong=[_fr._dict(hoa_don=hoa_don, so_tien=tien, khach=khach)])
+
+
+@ca("Codex #531 v5: khách có 21 phiếu đòi nợ còn mở, mỗi phiếu còn 100.000: tổng công nợ và danh sách QR tính ĐỦ 21 phiếu (2.100.000), không cắt ở 20")
+def _v5_du_phieu():
+	from vagabond import cong_no
+	g = _CongNo([])
+	for i in range(1, 22):
+		g.phieu["CN-%02d" % i] = _phieu_mo("CN-%02d" % i, "DNTT-26-10-%05d" % i, "SI-%02d" % i, 100000)
+	kh = _fr._dict(name="SI00012", customer_name="Café Lá Me", vgb_si_cuoi_ky=1)
+	ps = _gan_cong_no(g, ["Guest"]) + [mock.patch.object(bs, "_khach_phien", lambda: (kh, "")),
+		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-02")]
+	with _gan(ps):
+		n = cong_no.no_cua_khach("SI00012")
+		tk = bs.tom_tat_no(n["hd"], n["phieu"], n["han"], "2026-11-02")
+		r = bs.qr_no()
+	la("tổng công nợ trang Tài khoản", tk["tong"], 2100000.0)
+	la("số phiếu có QR", len(r["phieu"]), 21)
+	la("tổng trong phản hồi QR", r["no"]["tong"], 2100000.0)
+
+
+class _CongNoHaiKetNoi(_MayChu):
+	"""MariaDB giả hai kết nối (như _MayChu) cho cong_no: hoá đơn công nợ tĩnh,
+	phiếu đòi nợ và dòng phiếu có ảnh chụp REPEATABLE READ; đọc `for update`
+	(kể cả frappe.get_doc(..., for_update=True)) thấy bản đã commit."""
+
+	def __init__(self, hd):
+		_MayChu.__init__(self)
+		self.hd = {h["name"]: dict(h) for h in hd}
+		self.cn = {}
+		self.dem_cn = 0
+
+	def _anh(self):
+		kn = self.kn()
+		if kn.anh is None:
+			with self.cv:
+				kn.anh = {"pe": copy.deepcopy(self.pe), "bt": copy.deepcopy(self.bt), "so": copy.deepcopy(self.so_moi),
+					"cn": copy.deepcopy(self.cn)}
+		return kn.anh
+
+	def commit(self, *a, **k):
+		kn = self.kn()
+		with self.cv:
+			for r in [x for x in kn.cho if x["_bang"] == "cn"]:
+				self.cn[r["name"]] = r
+			kn.cho = [x for x in kn.cho if x["_bang"] != "cn"]
+		_MayChu.commit(self)
+
+	def _cn(self, hien_tai):
+		if hien_tai:
+			with self.cv:
+				goc = copy.deepcopy(self.cn)
+		else:
+			goc = copy.deepcopy(self._anh()["cn"])
+		for r in self.kn().cho:
+			if r["_bang"] == "cn":
+				goc[r["name"]] = r
+		return goc
+
+	def sql(self, q, a=None, as_dict=False, **k):
+		khoa = "for update" in q.lower()
+		if "inner join" in q and "`tabVagabond Cong No`" in q:
+			return [{"hoa_don": d["hoa_don"]} for p in self._cn(khoa).values()
+				if p["trang_thai"] in ("Cho thu", "Thu thieu") for d in p["dong"]]
+		if "from `tabVagabond Cong No` where khach" in q:
+			ds = [{"name": n} for n, p in sorted(self._cn(khoa).items()) if p["khach"] == a[0]
+				and p["trang_thai"] in ("Cho thu", "Thu thieu")]
+			m = re.search(r"limit (\d+)", q)
+			return ds[:int(m.group(1))] if m else ds
+		if "`tabVagabond Cong No Dong`" in q:
+			cha = set(a[0])
+			return [(d["hoa_don"],) for n, p in self._cn(khoa).items() if n in cha for d in p["dong"]]
+		if "ma_phieu like" in q:
+			return []
+		return _MayChu.sql(self, q, a, as_dict, **k)
+
+	def get_all(self, dt, filters=None, fields=None, **k):
+		if dt == "Sales Invoice":
+			self._anh()
+			return _CongNo.get_all(self, dt, filters, fields, **k)
+		return _MayChu.get_all(self, dt, filters, fields, **k)
+
+	def get_value(self, dt, f=None, fields=None, as_dict=False, for_update=False, **k):
+		if dt in ("Sales Invoice", "Customer"):
+			self._anh()
+			return _CongNo.get_value(self, dt, f, fields, as_dict)
+		return _MayChu.get_value(self, dt, f, fields, as_dict, for_update, **k)
+
+	def get_doc(self, dt, ten=None, *a, **k):
+		if dt != "Vagabond Cong No":
+			return _MayChu.get_doc(self, dt, ten, *a, **k)
+		p = self._cn(bool(k.get("for_update"))).get(ten)
+		if not p:
+			raise _fr.ValidationError("Vagabond Cong No %s not found" % ten)
+		return _fr._dict(p, dong=[_fr._dict(d) for d in p["dong"]])
+
+	def new_doc(self, dt):
+		may = self
+
+		class Phieu(_fr._dict):
+			def append(self, o, d):
+				self.setdefault(o, []).append(_fr._dict(d))
+
+			def insert(self, **k2):
+				with may.cv:
+					may.dem_cn += 1
+					self.name = "CN-%d" % may.dem_cn
+				may.kn().cho.append({"_bang": "cn", "name": self.name, "khach": self.khach, "ma_phieu": self.ma_phieu,
+					"tong_tien": sum(float(d.so_tien or 0) for d in self.get("dong") or []), "da_thu": 0, "ma_gd": "",
+					"han_qr": str(self.han_qr), "trang_thai": self.trang_thai,
+					"dong": [dict(d) for d in self.get("dong") or []]})
+		p = Phieu(doctype=dt)
+		p.flags = _fr._dict()
+		return p
+
+
+@ca("Codex #531 v5: hai lần bấm QR công nợ cùng lúc của một khách: lượt chờ khoá khách dựng phản hồi bằng đọc hiện tại, vẫn nhận QR của phiếu lượt trước vừa lập (không trả danh sách QR rỗng)")
+def _v5_qr_dong_thoi():
+	from vagabond import cong_no, tai_khoan
+	from vagabond import thu_tien as tt
+	may = _CongNoHaiKetNoi([_hd_no("SI-1", 1000000, 400000), _hd_no("SI-2", 500000, 500000)])
+	kh = _fr._dict(name="SI00012", customer_name="Café Lá Me", vgb_si_cuoi_ky=1)
+
+	def khach_phien():
+		may.get_all("Sales Invoice", {"name": ["in", ["__"]]})  # phiên khách: đọc thường, chụp ảnh như get_all thật
+		return kh, ""
+	ps = [mock.patch.object(_fr, "get_all", may.get_all), mock.patch.object(_fr.db, "get_value", may.get_value),
+		mock.patch.object(_fr.db, "sql", may.sql), mock.patch.object(_fr, "new_doc", may.new_doc, create=True),
+		mock.patch.object(_fr, "get_doc", may.get_doc), mock.patch.object(_fr.db, "exists", lambda *a, **k: None),
+		mock.patch.object(_fr.db, "commit", may.commit), mock.patch.object(_fr.db, "rollback", may.rollback),
+		mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Guest"]),
+		mock.patch.object(_fr, "parse_json", json.loads, create=True),
+		mock.patch.object(tt, "si_co_dong_cong_no", lambda: set()), mock.patch.object(tt, "bang_dong_cua", lambda ds: {}),
+		mock.patch.object(cong_no, "_tien_da_ve_theo_hd", lambda ds: {}), mock.patch.object(cong_no, "_sepay_cn", lambda ma: {}),
+		mock.patch.object(tai_khoan, "tk_phieu_no", lambda: {"bank": "MB", "stk": "0931224334", "ten": "VAGABOND"}),
+		mock.patch("vagabond.qr_chuyen_khoan.anh_qr", lambda tk, so, nd: "data:qr"),
+		mock.patch.object(bs, "_khach_phien", khach_phien), mock.patch.object(bs, "_hom_nay", lambda: "2026-11-02")]
+	with _gan(ps):
+		b = may.chay("B", bs.qr_no, ("truoc_khoa:KH",))
+		may.cho_toi(lambda: b.dang_dung == "truoc_khoa:KH", "B tới khoá khách")
+		a = may.chay("A", bs.qr_no)
+		may.cho_toi(lambda: a.xong, "A xong")
+		may.tha(b, "truoc_khoa:KH")
+		may.cho_toi(lambda: b.xong, "B xong")
+	for kn in (a, b):
+		if kn.loi:
+			raise kn.loi
+	la("chỉ một phiếu đòi nợ được lập", len(may.cn), 1)
+	la("lượt trước có QR", [(p["ma_phieu"] and p["qr"]["so_tien"]) for p in a.kq["phieu"]], [900000])
+	la("lượt chờ khoá cũng có QR của đúng phiếu đó", [(p["ma_phieu"], p["qr"]["so_tien"]) for p in b.kq["phieu"]],
+		[(p["ma_phieu"], p["qr"]["so_tien"]) for p in a.kq["phieu"]])
+	la("lượt chờ khoá: tổng công nợ không đếm hai lần", b.kq["no"]["tong"], 900000.0)
