@@ -30,10 +30,10 @@ function layHam(src, ten) {
 }
 var NEN = doc('00-nen.js'), POS = doc('09-tinh-tien-quay.js'), KM = doc('13-khuyen-mai.js'), KHO = doc('03-kho-chung-tu.js'), CD = doc('17-cai-dat.js');
 var HAM = ['h', 'money', 'vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(NEN, t); })
-  .concat(['posChipNut', 'posDiemCuaToi', 'posDsDiemChon', 'posGiaMon', 'posDiemTheoQuay', 'posDiemVua', 'scrPosChonQuay', 'posDongBoQuay', 'posGiaVuaDoi'].map(function (t) { return layHam(POS, t); }))
+  .concat(['posChipNut', 'posDiemCuaToi', 'posDsDiemChon', 'posGiaMon', 'posDiemTheoQuay', 'posDiemVua', 'scrPosChonQuay', 'posDongBoQuay', 'posGiaVuaDoi', 'posDocGiaChung', 'posSuaGiaVuaDoi'].map(function (t) { return layHam(POS, t); }))
   .concat([layHam(KM, 'kmHangChip'), layHam(KM, 'posGiaTang'), layHam(KM, 'posNoiKm'), layHam(KHO, 'errMsg'), "var POS_MA_PHI_GIAO = 'DVBH00001';"])
   .concat(['dbTenNguoi', 'dbChipNguoi', 'scrDiemBanSua', 'dbDoc', 'dbLuu', 'dbChipNguon', 'dbBamNguon', 'dbChuNguon'].map(function (t) { return layHam(CD, t); }))
-  .concat(['var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0, dbNguonCoSan = [], dbKhoTang = [], dbGoiY = {}, dbNguoiDung = [], dsItemsCache = null;'])
+  .concat(['var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0, dbNguonCoSan = [], dbKhoTang = [], dbGoiY = {}, dbNguoiDung = [], dsItemsCache = null, posSua = null;'])
   .join('\n') + '\n' + doc('63-bang-gia-diem.js');
 
 var DIEM = [
@@ -300,6 +300,28 @@ function goiTen(m, t) { return m.goi.filter(function (x) { return x.duong === 'v
     m.g.posNoiKm();
     nutTang.onclick();
     bang('món tặng vào giỏ ở giá NVH', m.g.posDon.mon.map(function (x) { return [x.item_code, x.qty, x.rate]; }), [['TRA-HL-M', 1, 70000]]);
+  });
+
+  /* Codex PR #532 vòng 5: sửa bill nháp sau khi quản lý đổi giá NVH. Dòng đã
+     lưu giữ giá đã chốt; máy chủ chặn vì món thêm mới mang giá cũ thì màn sửa
+     bill đặt lại giá đúng các món thêm mới rồi vẽ lại. */
+  await ca('sửa bill: máy chủ chặn vì món thêm mới mang giá cũ thì chỉ món thêm mới sang giá mới (giá NVH, không có thì giá chung); dòng đã lưu, combo, phí giao giữ nguyên', async function () {
+    var m = dungMoi({ cfgMoi: nvhGia({ 'TRA-HL-M': 80000 }), item: [{ name: 'TRA-MC', standard_rate: 90000 }, { name: 'TRA-HL-M', standard_rate: 95000 }] });
+    m.g.posSua = { mon: [
+      { item_code: 'TRA-HL-M', qty: 2, rate: 70000, dong_goc: 'D1' },
+      { item_code: 'TRA-HL-M', qty: 1, rate: 70000 },
+      { item_code: 'TRA-MC', qty: 1, rate: 80000 },
+      { item_code: 'TRA-HL-M', qty: 1, rate: 50000, combo: 'KMCB01 - Combo sáng' },
+      { item_code: 'DVBH00001', qty: 1, rate: 15000 },
+    ] };
+    m.g.CFGBH = nvhGia({ 'TRA-HL-M': 70000 });
+    bang('nhận ra lỗi giá', await m.g.posSuaGiaVuaDoi(new Error('Bảng giá của điểm vừa đổi: 2 món đã sang giá mới.'), 'NVHTN'), true);
+    bang('đọc lại cấu hình', m.g.docLaiCfg, 1);
+    bang('giá', m.g.posSua.mon.map(function (x) { return x.rate; }), [70000, 80000, 90000, 50000, 15000]);
+    bang('chỉ hỏi giá chung món thêm mới', m.g.goiList[0].ts.filters.name, ['in', ['TRA-HL-M', 'TRA-MC']]);
+    var m2 = dungMoi();
+    m2.g.posSua = { mon: [{ item_code: 'TRA-HL-M', qty: 1, rate: 1 }] };
+    bang('lỗi khác (OTP) để nhánh cũ xử lý', [await m2.g.posSuaGiaVuaDoi(new Error('Thao tác này cần mã OTP'), 'NVHTN'), m2.g.posSua.mon[0].rate], [false, 1]);
   });
 
   /* Ba chỗ GỌI nằm trong hàm màn quầy quá lớn để nạp vào DOM giả (máy in, ca,
