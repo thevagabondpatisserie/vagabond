@@ -203,6 +203,16 @@ TIEN_TO_KHO_BEP = ("Baker", "Pastry", "Kho Lab")
 GHI_CHU_LICH = "Máy chia lịch xoay vòng ngày %s"
 
 
+def la_phieu_dem_hang_ngay(ghi_chu):
+	"""THUAN: phieu may chia lich hang ngay (10 mon bep dem buoi sang).
+
+	Codex #527: phieu nay KHONG khoa nhap xuat. Bep dem 10 mon trong luc van
+	san xuat, dieu chuyen, nhan hang binh thuong; khoa thi lenh san xuat cua
+	dung cac ma do bi chan tu luc bam "Dem hom nay" toi khi quan ly ghi so.
+	Phieu kiem ke thuong (lap tay ca kho) van khoa nhu cu."""
+	return str(ghi_chu or "").startswith(GHI_CHU_LICH.split("%s")[0])
+
+
 def la_kho_bep_dem(ten):
 	"""THUAN: kho nguyen lieu cua bep (bo kho thanh pham, bo kho nhom)."""
 	t = str(ten or "")
@@ -401,9 +411,11 @@ def _phieu_dang_khoa():
 	phieu = frappe.get_all(
 		"Phieu Kiem Ke",
 		filters={"trang_thai": ["in", list(kho_sap.TRANG_THAI_KHOA)]},
-		fields=["name", "kho", "trang_thai", "ngay_kiem"],
+		fields=["name", "kho", "trang_thai", "ngay_kiem", "ghi_chu"],
 		limit_page_length=0,
 	)
+	# Codex #527: phieu dem hang ngay khong khoa ma (xem la_phieu_dem_hang_ngay).
+	phieu = [p for p in phieu if not la_phieu_dem_hang_ngay(p.get("ghi_chu"))]
 	if not phieu:
 		return []
 	hom_nay = getdate(nowdate())

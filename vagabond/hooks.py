@@ -1170,6 +1170,10 @@ for _gio_v628, _ham_v628 in (
 	("0 8 * * 1", "vagabond.tin_tai_chinh.gui_tuan"),
 	("0 8 5 * *", "vagabond.tin_tai_chinh.gui_thang"),
 	("35 23 * * *", "vagabond.tin_tai_chinh.gui_cuoi_ngay"),
+	# Quỹ tiền mặt: nhắc kế toán phiếu nộp ngân hàng quá 2 ngày chưa thấy tiền về.
+	("10 8 * * *", "vagabond.quy_tien_mat.nhac_nop_chua_khop"),
 ):
 	scheduler_events.setdefault("cron", {}).setdefault(_gio_v628, []).append(_ham_v628)
 del _gio_v628, _ham_v628
+# Quỹ tiền mặt (v628): mỗi giờ ghép phiếu nộp ngân hàng với giao dịch SePay vừa về.
+scheduler_events.setdefault("hourly", []).append("vagabond.quy_tien_mat.lich_khop")

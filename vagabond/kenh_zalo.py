@@ -82,6 +82,9 @@ TIN = {
 		"23:35 mỗi tối: số dư từng tài khoản, từng két, tiền vào ra trong ngày, khoản chi lớn nhất.", "ban_tin", "cong_no"),
 	"bgd_ket_lech": ("Ban giám đốc", "Két lệch tiền mặt khi chốt ca",
 		"Ngay khi chốt ca: tiền mặt lệch từ 50.000 đ, hoặc ca mở quá 24 giờ mới chốt.", "canh_bao", "ban_hang"),
+	# Quỹ tiền mặt công ty (v628, quy_tien_mat.py).
+	"bgd_kiem_quy_lech": ("Ban giám đốc", "Kiểm quỹ lệch quá 2 triệu, chờ giám đốc duyệt",
+		"Ngay khi kế toán kiểm quỹ tiền mặt công ty mà lệch quá 2.000.000 đ: số máy, số đếm, lý do.", "viec", "cong_no"),
 	"bgd_tien_tuan": ("Ban giám đốc", "Bản tin tiền tuần (thứ Hai 08:00)",
 		"Thứ Hai 08:00: dòng tiền tuần trước, công nợ, phiếu chi chờ chuyển tiền, tiền khách gửi trước, dự báo 30 ngày.", "ban_tin", "cong_no"),
 	"bgd_lai_lo_thang": ("Ban giám đốc", "Lãi lỗ tháng (ngày 05, 08:00)",
@@ -119,6 +122,8 @@ TIN = {
 	# v628 (anh Việt duyệt mẫu 02/11/2026): tin Tài chính, kiểm kê sáng (tin_tai_chinh.py).
 	"kt_tien_ra_chua_gan": ("Hoá đơn, kế toán", "Tiền ra khỏi tài khoản công ty chưa có chứng từ (08:00)",
 		"08:00 mỗi sáng: khoản tiền ra khỏi tài khoản chính công ty quá 24 giờ mà chưa thuộc phiếu chi, bút toán nào.", "viec", "cong_no"),
+	"kt_nop_nh_chua_khop": ("Hoá đơn, kế toán", "Tiền mặt đã nộp ngân hàng chưa thấy về (08:10)",
+		"08:10 mỗi sáng: phiếu nộp tiền mặt vào ngân hàng quá 2 ngày mà SePay chưa báo tiền về tài khoản.", "viec", "cong_no"),
 	"kt_app_da_duyet": ("Hoá đơn, kế toán", "Phiếu chi giám đốc đã duyệt, chờ chuyển tiền",
 		"Giám đốc vừa duyệt phiếu chi; kế toán chuyển khoản rồi xác nhận đã chuyển.", "viec", "cong_no"),
 	"kt_app_tra_lai": ("Hoá đơn, kế toán", "Phiếu chi bị trả lại",

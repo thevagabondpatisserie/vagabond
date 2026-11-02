@@ -172,6 +172,7 @@ MAN = (
 	("TCLL", "Lãi lỗ tháng", None),
 	("TCTL", "Tỉ lệ giá vốn và hao hụt", None),
 	("TCCD", "Cài đặt tài chính", None),
+	("TCQUY", "Quỹ tiền mặt công ty", None),
 
 	# --- Mua hàng và kho
 	("PO", "Đơn mua hàng", None),

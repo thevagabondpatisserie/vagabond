@@ -102,7 +102,7 @@ def _gio(a, b):
 
 # --- Tin 1: tiền cuối ngày
 
-def soan_cuoi_ngay(ngay, ket, dt):
+def soan_cuoi_ngay(ngay, ket, dt, kiem_quy=None):
 	"""THUẦN: (tiêu đề, các dòng) tin "Tiền cuối ngày".
 
 	ket: kết quả tai_chinh._tinh_tien() ({"dong", "tong"}); dt: kết quả
@@ -145,6 +145,10 @@ def soan_cuoi_ngay(ngay, ket, dt):
 			ra.append("Chuyển nội bộ, không tính vào ra: %d khoản, %s" % (nb["so"], tien(nb.get("tien"))))
 		if dt.get("thieu"):
 			ra.append("Chưa đọc được tiền mặt: %s" % ", ".join(dt["thieu"][:4]))
+	# Quỹ tiền mặt (v628): lệch nhỏ máy ghi ngay, không chờ duyệt, nhưng vẫn phải tới
+	# Ban giám đốc trong tin cuối ngày (anh Việt duyệt mẫu 02/11/2026).
+	from vagabond.quy_tien_mat import dong_cuoi_ngay
+	ra += dong_cuoi_ngay(kiem_quy)
 	return "Tiền cuối ngày %s" % ngay_dmy(ngay), ra
 
 
@@ -368,7 +372,13 @@ def gui_cuoi_ngay():
 		except Exception:
 			_ghi_loi("dòng tiền cuối ngày")
 			dt = None
-		tieu_de, dong = soan_cuoi_ngay(hom, ket, dt)
+		try:
+			from vagabond import quy_tien_mat
+			kq = quy_tien_mat.kiem_quy_trong_ngay(hom)
+		except Exception:
+			_ghi_loi("kiểm quỹ trong ngày")
+			kq = None
+		tieu_de, dong = soan_cuoi_ngay(hom, ket, dt, kq)
 		kenh_zalo.bao_hoac_ghi_loi("ban_tin", "cong_no", tieu_de, dong, link=_link("/tien-hien-co"),
 			khoa="tien-cuoi-ngay:%s" % hom, ma_tin="bgd_tien_cuoi_ngay")
 	except Exception:
@@ -422,7 +432,7 @@ def _ten_ket(quay):
 
 def bao_ket_lech(doc, bang):
 	"""Gọi từ ca_quay.chot_ca, sau khi lưu ca và TRƯỚC commit: tin nằm cùng giao dịch
-	với biên bản chốt ca. Không ném lỗi ra ngoài (bao() tự lo, phần soạn bọc try)."""
+	với biên bản chốt ca. Lỗi thường chỉ ghi log; lỗi chết giao dịch thì ném tiếp."""
 	import frappe
 
 	from vagabond import kenh_zalo
@@ -438,7 +448,12 @@ def bao_ket_lech(doc, bang):
 		kenh_zalo.bao_hoac_ghi_loi("canh_bao", "ban_hang", kq[0], kq[1], link=_link("/tien-hien-co"),
 			nguoi="Quản lý cửa hàng", han="trong ngày", khoa="ket-lech:%s" % doc.get("name"),
 			nguon=doc.get("name"), ma_tin="bgd_ket_lech")
-	except Exception:
+	except Exception as e:
+		# Codex #527: lỗi chết giao dịch (deadlock, chờ khoá quá hạn) đã rollback cả
+		# biên bản chốt ca vừa lưu. Nuốt lỗi thì chot_ca vẫn commit và báo đã chốt
+		# trong khi ca còn mở; phải để lỗi đi lên như tin_ban_hang.
+		if kenh_zalo.chet_giao_dich(e):
+			raise
 		_ghi_loi("két lệch")
 
 
