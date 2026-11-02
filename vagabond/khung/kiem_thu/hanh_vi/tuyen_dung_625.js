@@ -383,6 +383,31 @@ function ai(r, k) { return Object.assign(r, k); }
     dung('câu nhắc khuyến mãi giữ nguyên', m.toast.indexOf('Đã chọn ảnh, bấm Lưu chương trình để áp dụng') >= 0);
   });
 
+  /* Codex PR #532: bấm Hẹn hôm nay thì chip AI, chip nguồn và số theo vị trí
+     phải đếm đúng lịch hẹn hôm nay (trước đây đếm thiếu ngày nên về 0). */
+  await ca('Hẹn hôm nay: chip AI, chip nguồn và chip vị trí đếm đúng hồ sơ hẹn hôm nay; bấm chip nguồn TopCV vẫn ra đúng hồ sơ', async function () {
+    var cu = SUA_DL0 || SUA_DL;
+    SUA_DL = function (dl) { if (cu) cu(dl); ai(dl.rows[2], { ai_trang_thai: 'Đã đọc', ai_diem: 80, ai_nhan: 'Phù hợp', ai_tom_tat: 'Có kinh nghiệm.', ai_loi: '' }); };
+    try {
+      var m = await mo();
+      bam(m.khung.querySelectorAll('[data-tdthe="hen"]')[0]); await tick();
+      var hs = function () { return m.khung.querySelectorAll('[data-tdhs]').map(function (x) { return x.getAttribute('data-tdhs'); }); };
+      bang('danh sách hẹn hôm nay', hs(), ['UV-3']);
+      var tc = m.khung.querySelectorAll('[data-tdnguon="TopCV"]')[0];
+      dung('chip nguồn TopCV còn và đếm 1', !!tc && chu(tc).indexOf('1') >= 0);
+      dung('chip AI từ 65 đếm 1', chu(m.khung.querySelectorAll('[data-tdthem="ai65"]')[0]).indexOf('1') >= 0);
+      var vt = m.khung.querySelectorAll('[data-dscc="vt|VTT-0001"]')[0];
+      dung('chip vị trí Thu ngân ca tối còn, đếm 1', !!vt && chu(vt).indexOf('1') >= 0);
+      bam(tc); await tick();
+      bang('lọc thêm TopCV vẫn ra hồ sơ hẹn', hs(), ['UV-3']);
+      /* Chưa biết ngày hôm nay (máy chủ không gửi) thì không hồ sơ nào là hẹn hôm
+         nay, kể cả hồ sơ chưa có lịch hẹn (hai chuỗi rỗng không được coi là khớp). */
+      var chuaHen = [{ name: 'X', trang_thai: 'Hẹn phỏng vấn', lich_hen: '' }, { name: 'Y', trang_thai: 'Hẹn phỏng vấn' }];
+      bang('thiếu ngày: không khớp', m.g.tdLocHs(chuaHen, { the: 'hen' }).length + m.g.tdLocHs(chuaHen, { the: 'hen', hom_nay: '' }).length, 0);
+      bang('đủ ngày: khớp đúng lịch', m.g.tdLocHs([{ name: 'Z', trang_thai: 'Hẹn phỏng vấn', lich_hen: HOM + ' 10:00:00' }], { the: 'hen', hom_nay: HOM }).length, 1);
+    } finally { SUA_DL = cu; }
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })().catch(function (e) { console.log('NO TUNG: ' + (e && e.stack || e)); process.exit(1); });
