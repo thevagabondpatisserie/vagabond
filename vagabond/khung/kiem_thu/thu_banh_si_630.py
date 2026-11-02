@@ -348,7 +348,7 @@ def _chay_giao(tra_truoc, phieu):
 		if dt == "Item" and f == "is_stock_item":
 			return 1 if ten == "BANU00001" else 0
 		return None
-	ps = [mock.patch.dict(sys.modules, mods), mock.patch.object(bs, "tom_tat", lambda n: dict(t)),
+	ps = [mock.patch.dict(sys.modules, mods), mock.patch.object(bs, "tom_tat", lambda n, khoa=False: dict(t)),
 		mock.patch.object(bs, "_khoa_don", lambda n: None), mock.patch.object(bs, "_phieu_giao_cua", lambda n: ()),
 		mock.patch.object(bs, "_cong_ty", lambda: "Vagabond"), mock.patch.object(bs, "_hom_nay", lambda: "2026-11-05"),
 		mock.patch.object(bs, "_quay", lambda: "SALES"), mock.patch.object(bs, "_kiem_quyen_giao", lambda: None),
@@ -409,7 +409,7 @@ def _giao_chan():
 	for ten, t, kho in (("phiếu nháp", t0, "Kho Sỉ - VGB"), ("thiếu tiền", dict(t0, con_lai=5000.0, phieu=[]), "Kho Sỉ - VGB"),
 			("đã giao", dict(t0, trang_thai="da_giao", hoa_don="SI-9"), "Kho Sỉ - VGB"),
 			("kho lạ", dict(t0, tra_truoc=0, phieu=[]), "Kho Bếp")):
-		with mock.patch.object(bs, "tom_tat", lambda n, t=t: dict(t)), mock.patch.object(bs, "_khoa_don", lambda n: None), \
+		with mock.patch.object(bs, "tom_tat", lambda n, t=t, khoa=False: dict(t)), mock.patch.object(bs, "_khoa_don", lambda n: None), \
 				mock.patch.object(bs, "_kiem_quyen_giao", lambda: None), mock.patch.object(bs, "_phieu_giao_cua", lambda n: ()), \
 				mock.patch.object(bs, "_cong_ty", lambda: "Vagabond"), \
 				mock.patch.object(xuat_kho, "_kho_that", lambda ct: [_fr._dict(name="Kho Sỉ - VGB")]), \
@@ -555,7 +555,7 @@ def _quyen_that():
 	la("chặn trước khi khoá đơn", cham, [])
 	t = {"name": "SO-1", "tong": 100.0, "chua_vat": 93.0, "vat": 7.0, "con_lai": 0.0, "phieu": [{"name": "PE-1"}],
 		"dong": [{"ma": "A", "sl": 3, "gia": 30.0, "tien": 90.0}], "tra_truoc": 1, "trang_thai": "cho_giao"}
-	with mock.patch.object(_fr, "get_roles", lambda *a: ["Manufacturing User"]), mock.patch.object(bs, "tom_tat", lambda n: json.loads(json.dumps(t))):
+	with mock.patch.object(_fr, "get_roles", lambda *a: ["Manufacturing User"]), mock.patch.object(bs, "tom_tat", lambda n, khoa=False: json.loads(json.dumps(t))):
 		r = bs.xem_don("SO-1")
 	la("bếp không thấy tiền", (r["tong"], r["vat"], r["con_lai"], r["phieu"], r["dong"][0]["gia"], r["dong"][0]["tien"]), (None, None, None, [], None, None))
 	la("bếp vẫn thấy món và số lượng", (r["dong"][0]["ma"], r["dong"][0]["sl"]), ("A", 3))

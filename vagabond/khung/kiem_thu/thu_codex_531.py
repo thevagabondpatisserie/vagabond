@@ -183,6 +183,9 @@ class _MayChu(object):
 			if khoa:
 				self._khoa(("KH", a[0]))
 			return [(a[0],)]
+		if "`tabSales Order Item`" in q:
+			ds = [r for r in self._so_moi(khoa) if r["name"] == (a[0] if not isinstance(a, dict) else a.get("so"))]
+			return [_fr._dict(d) for r in ds for d in r.get("items", [])]
 		if "from `tabSales Order`" in q:
 			if khoa:
 				self._khoa(("SO", a[0]))
@@ -217,6 +220,9 @@ class _MayChu(object):
 			f = filters or {}
 			return [_fr._dict(p) for p in self._pe(False)
 				if p.get("vgb_phieu_dat") == f.get("vgb_phieu_dat") and int(p["docstatus"]) < 2]
+		if dt == "Sales Order Item":
+			ten = (filters or {}).get("parent")
+			return [_fr._dict(d) for r in self._so_moi(False) if r["name"] == ten for d in r.get("items", [])]
 		self._anh()
 		return []
 
@@ -235,6 +241,16 @@ class _MayChu(object):
 				if all(r.get(x) == y for x, y in f.items()):
 					return r["name"]
 			return None
+		if f not in self.so:
+			# Phiếu đặt mới lập trong lúc chạy: đọc thường thấy ảnh chụp, đọc có
+			# khoá thấy bản đã commit. Không thấy thì trả None như Frappe thật.
+			ds = [r for r in self._so_moi(for_update) if r["name"] == f]
+			if not ds:
+				return None
+			r = ds[0]
+			if isinstance(fields, (list, tuple)):
+				return _fr._dict({x: r.get(x) for x in fields})
+			return r.get(fields)
 		r = self.so.get(f) or {}
 		if isinstance(fields, (list, tuple)):
 			return _fr._dict({x: r.get(x) for x in fields})
@@ -279,7 +295,7 @@ class _MayChu(object):
 			self.dem_so += 1
 			ten = "SO-%d" % (100 + self.dem_so)
 		self.kn().cho.append(dict(them or {}, _bang="so", name=ten, ma=ma, **{o: lan}))
-		return _fr._dict(name=ten, vgb_tkr_ma=ma, vgb_si_ma=ma, vgb_si_tt="Công nợ")
+		return _fr._dict(name=ten, vgb_tkr_ma=ma, vgb_si_ma=ma, vgb_si_tt=(them or {}).get("vgb_si_tt", "Công nợ"))
 
 	# ---------- chạy một yêu cầu web trên luồng riêng
 	def chay(self, ten, ham, dung_tai=()):
@@ -481,29 +497,41 @@ def _vao_dat(may):
 	so_ma = {}
 
 	def lap_tkr(don, lan):
-		so = may.lap_so("vgb_tkr_lan", lan, "TKR2611%04d" % (len(so_ma) + 1), tkr.TRUONG_MOI["Sales Order"],
-			{"vgb_tkr_du_lieu": json.dumps({"bam": don["bam"]})})
+		ma = "TKR2611%04d" % (len(so_ma) + 1)
+		so = may.lap_so("vgb_tkr_lan", lan, ma, tkr.TRUONG_MOI["Sales Order"],
+			{"vgb_tkr_du_lieu": json.dumps({"bam": don["bam"]}), "vgb_tkr_ma": ma, "vgb_tkr_khoa": KHOA_XEM,
+				"vgb_tkr_coc": don["coc"], "grand_total": don["tong"], "rounded_total": don["tong"],
+				"delivery_date": don["ngay"], "docstatus": 1})
 		so_ma[so.name] = so.vgb_tkr_ma
 		return so
 
 	def lap_bsi(kh, don, lan):
-		so = may.lap_so("vgb_si_lan", lan, "BSI2611%04d" % (len(so_ma) + 1), bs.TRUONG_MOI["Sales Order"],
-			{"customer": kh.name, "vgb_si_du_lieu": json.dumps({"bam": don["bam"]})})
+		ma = "BSI2611%04d" % (len(so_ma) + 1)
+		so = may.lap_so("vgb_si_lan", lan, ma, bs.TRUONG_MOI["Sales Order"],
+			{"customer": kh.name, "customer_name": kh.customer_name, "vgb_si_du_lieu": json.dumps({"bam": don["bam"]}),
+				"vgb_si_ma": ma, "vgb_si_tt": "Trả trước", "docstatus": 1, "delivery_date": don["ngay"],
+				"grand_total": don["tong"], "rounded_total": don["tong"], "net_total": 777778, "total_taxes_and_charges": 62222,
+				"items": [{"item_code": d["ma"], "item_name": "Croissant bơ", "qty": d["sl"], "rate": d["gia"],
+					"amount": d["sl"] * d["gia"], "idx": i + 1} for i, d in enumerate(don["dong"])]})
 		so_ma[so.name] = so.vgb_si_ma
 		return so
 
-	def ket_qua(ten):
-		return {"ok": 1, "ma": so_ma[ten]}
+	# Codex #531 vòng 3: bản trước thay `_ket_qua` bằng hàm giả trả mã từ bộ nhớ
+	# ca kiểm, nên che mất lỗi lượt sau dựng phản hồi bằng phép đọc thường
+	# (không thấy phiếu đặt vừa commit, nổ AttributeError). Nay giữ `_ket_qua`,
+	# `tom_tat` THẬT; chỉ thay phần dựng ảnh QR (cấu hình tài khoản ngân hàng).
+	def qr(ma, so):
+		return {"noi_dung": ma, "so_tien": so, "anh": "data:x"}
 	them = [mock.patch("vagabond.noi_dung_web._ban_cong_khai", nw._ban_cong_khai if may.ndw is not None else
 		(lambda khoa=False: copy.deepcopy(nd))),
 		mock.patch.object(tkr, "_diem_nhan", lambda ban: DIEM), mock.patch.object(tkr, "_hom_nay", lambda: "2026-11-02"),
 		mock.patch.object(tkr, "_lap_phieu_dat", lap_tkr), mock.patch.object(tkr, "_bao_moi", lambda *a, **k: None),
-		mock.patch.object(tkr, "_ket_qua", ket_qua),
+		mock.patch.object(tkr, "_qr", qr),
 		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-02"),
 		mock.patch.object(bs, "gia_cua_khach", lambda k, n=None: {"BANU00001": {"ten": "Croissant bơ", "gia": 28000,
 			"anh": "", "dvt": "Cái", "nhom": "Bánh mì"}}),
 		mock.patch.object(bs, "_lap_don", lap_bsi), mock.patch.object(bs, "_bao_don_moi", lambda *a, **k: None),
-		mock.patch.object(bs, "_ket_qua", ket_qua),
+		mock.patch.object(bs, "_qr", qr),
 		mock.patch.object(_fr, "generate_hash", lambda *a, **k: "moc", create=True)]
 	return _vao(may, them)
 
@@ -529,6 +557,7 @@ def _f2_tkr_khoa():
 		# mới nhờ ràng buộc duy nhất (lớp phòng hờ, kiểm ở ca dưới).
 		la("số lần thử ghi phiếu đặt", may.thu_ghi_so, 1)
 		la("lần sau trả đúng đơn lần trước", b.kq["ma"], a.kq["ma"])
+		la("lần sau vẫn có QR cọc", (b.kq["qr"]["noi_dung"], b.kq["qr"]["so_tien"], b.kq["coc"]), (a.kq["ma"], 3780000.0, 3780000.0))
 
 
 @ca("Codex #531 f2: chưa có hàng nội dung web để khoá, hai lần gửi cùng mã lọt tới bước ghi: ràng buộc duy nhất của ô mã lần gửi chặn, lần sau trả đơn lần trước")
@@ -539,6 +568,7 @@ def _f2_tkr_duy_nhat():
 		_khong_loi(may, a, b)
 		la("số phiếu đặt mang mã lần gửi", len(may.so_moi), 1)
 		la("lần sau trả đúng đơn lần trước", b.kq["ma"], a.kq["ma"])
+		la("lần sau vẫn có QR cọc", b.kq["qr"]["so_tien"], 3780000.0)
 
 
 @ca("Codex #531 f2: đơn sỉ bấm gửi hai lần cùng mã lần gửi, lần sau chờ khoá khách xong phải tra lại mã bằng phép đọc hiện tại: MỘT phiếu đặt")
@@ -551,6 +581,8 @@ def _f2_bsi_khoa():
 		la("số phiếu đặt mang mã lần gửi", len(may.so_moi), 1)
 		la("số lần thử ghi phiếu đặt", may.thu_ghi_so, 1)
 		la("lần sau trả đúng đơn lần trước", b.kq["ma"], a.kq["ma"])
+		la("lần sau có QR đủ tiền đơn và đủ dòng hàng", (b.kq["qr"]["so_tien"], b.kq["con_lai"], [(d["ma"], d["sl"]) for d in b.kq["dong"]]),
+			(840000.0, 840000.0, [("BANU00001", 30.0)]))
 
 
 @ca("Codex #531 f2: ô mã lần gửi trên phiếu đặt (thiết kế riêng, sỉ) khai ràng buộc duy nhất; ô dòng sao kê đã chiếm có chỉ mục để đọc có khoá không khoá cả bảng")
@@ -617,7 +649,7 @@ def _ghi_so(mo_dun, so, anh, khac=()):
 		mock.patch.object(_fr.db, "get_value", g.get_value), mock.patch.object(_fr.db, "sql", g.sql),
 		mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Accounts User"]),
 		mock.patch.object(_fr, "parse_json", json.loads, create=True),
-		mock.patch.object(mo_dun, "tom_tat", lambda ten: {"name": ten})]
+		mock.patch.object(mo_dun, "tom_tat", lambda ten, khoa=False: {"name": ten})]
 	loi = None
 	with _gan(ps):
 		try:
@@ -667,7 +699,7 @@ def _qr_don(t, khach="SI00012", ma="BSI26110002"):
 	ps = [mock.patch.object(bs, "_khach_phien", lambda: (_fr._dict(name=khach), "") if khach else (None, "chua_dang_nhap")),
 		mock.patch.object(_fr.db, "get_value", lambda dt, f=None, *a, **k: "SO-2" if (
 			isinstance(f, dict) and f.get("customer") == "SI00012" and f.get("vgb_si_ma") == "BSI26110002") else None),
-		mock.patch.object(bs, "tom_tat", lambda ten: dict(t, name=ten)),
+		mock.patch.object(bs, "tom_tat", lambda ten, khoa=False: dict(t, name=ten)),
 		mock.patch.object(bs, "_qr", lambda m, so: {"noi_dung": m, "so_tien": so, "anh": "data:x"}),
 		mock.patch.object(bs, "_khong_cache", lambda: None)]
 	with _gan(ps):
