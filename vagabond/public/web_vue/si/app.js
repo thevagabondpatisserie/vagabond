@@ -178,7 +178,9 @@ function veTaiKhoan() {
     (no.dong || []).length ? h('p', {class: 'si-lbl'}, t('bsi_hd_chua_tra', 'Hoá đơn chưa trả')) : null,
     (no.dong || []).length ? h('table', {class: 'si-tbl'}, [h('tbody', null, no.dong.slice(0, 30).map(d => h('tr', {'data-si-hd': d.hoa_don}, [
       h('td', {class: 'n'}, [d.hoa_don, h('small', {class: d.han && d.han < toi.hom_nay ? 'amber' : ''}, d.han ? t('bsi_han', 'Hạn {ngay}', {ngay: dm(d.han)}) : '')]),
-      h('td', {class: 'p'}, d.phieu ? t('bsi_trong_phieu', 'trong phiếu {ma}', {ma: d.phieu}) : tienVN(d.tien))])))]) : null] : [];
+      h('td', {class: 'p'}, d.phieu ? t('bsi_trong_phieu', 'trong phiếu {ma}', {ma: d.phieu}) : tienVN(d.tien))])))]) : null,
+    /* Codex #531 v8: bảng chỉ vẽ 30 dòng, tổng và QR tính đủ: nói rõ phần không hiện. */
+    (no.dong || []).length > 30 ? h('p', {class: 'si-note', 'data-si-hd-con': '1'}, t('bsi_hd_con', 'Còn {so} hoá đơn nữa không hiện ở đây, đã tính trong tổng và mã QR.', {so: no.dong.length - 30})) : null] : [];
   const choCk = donChoChuyen();
   return h('main', {class: 'wrap si-main', id: 'siTaiKhoan'}, [
     h('h1', {class: 'h1 si-h1 si-h1-nho'}, [toi.ten, h('em', null, t('bsi_tai_khoan', 'Tài khoản khách sỉ'))]),
