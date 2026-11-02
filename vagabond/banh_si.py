@@ -731,9 +731,21 @@ def thoat():
 
 
 def _don_cua_khach(khach, gioi_han=30):
-	ten = frappe.get_all(SO, filters={"customer": khach, "vgb_si_ma": ["is", "set"], "docstatus": ["in", [1, 2]]},
-		pluck="name", order_by="creation desc", limit_page_length=gioi_han)
-	return [tom_tat(t) for t in ten]
+	"""Đơn của một khách cho trang Tài khoản: MỌI đơn đang mở (chờ chuyển
+	khoản, chờ giao) cộng `gioi_han` đơn mới nhất (lịch sử). Codex #531 vòng 8:
+	câu cũ cắt 30 đơn mới nhất TRƯỚC khi chia đang mở và lịch sử, nên khách có
+	một đơn chờ chuyển khoản rồi đặt thêm 30 đơn thì đơn đó biến mất khỏi "Đơn
+	sắp giao" cùng nút mở lại QR."""
+	from vagabond.ung_truoc_don import dk_don_mo, gop_ten_don
+
+	dk = dk_don_mo("vgb_si_ma", TIEN_TO_MA)
+	mo = frappe.db.sql("""select so.name, so.creation from `tabSales Order` so where so.customer = %s
+		and ifnull(so.vgb_si_ma, '') != '' and """ + dk + " order by so.creation desc", (khach,), as_dict=True)
+	gan = frappe.db.sql("""select so.name, so.creation from `tabSales Order` so where so.customer = %s
+		and ifnull(so.vgb_si_ma, '') != '' and so.docstatus in (1, 2) order by so.creation desc limit %s""",
+		(khach, int(gioi_han)), as_dict=True)
+	ds = sorted(gop_ten_don(mo, gan), key=lambda r: str(r.get("creation") or ""), reverse=True)
+	return [tom_tat(r["name"]) for r in ds]
 
 
 def _hang_don(so_name, khoa=False):
@@ -1041,9 +1053,19 @@ def kiem_phieu_dang_ky(doc):
 @frappe.whitelist()
 def ds_dang_ky(trang_thai=""):
 	_kiem_quyen_sales()
-	loc = {"trang_thai": trang_thai} if trang_thai in TT_DK else {}
-	rows = frappe.get_all(DT_DK, filters=loc, fields=["name", "ten_quan", "mst", "sdt", "loai_hinh", "luong_tuan",
-		"ghi_chu", "trang_thai", "khach", "xu_ly", "creation", "luc_duyet"], order_by="creation desc", limit_page_length=300)
+	truong = ["name", "ten_quan", "mst", "sdt", "loai_hinh", "luong_tuan", "ghi_chu", "trang_thai", "khach", "xu_ly",
+		"creation", "luc_duyet"]
+	cho = TT_DK[0]
+	# Codex #531 v8: đăng ký CHỜ DUYỆT là việc đang chờ, đọc đủ; chỉ phần đã xử
+	# lý (đã duyệt, từ chối) mới cắt 300 dòng mới nhất.
+	rows = []
+	if trang_thai in ("", cho) or trang_thai not in TT_DK:
+		rows += frappe.get_all(DT_DK, filters={"trang_thai": cho}, fields=truong, order_by="creation desc",
+			limit_page_length=0)
+	if trang_thai != cho:
+		loc = {"trang_thai": trang_thai} if trang_thai in TT_DK else {"trang_thai": ["!=", cho]}
+		rows += frappe.get_all(DT_DK, filters=loc, fields=truong, order_by="creation desc", limit_page_length=300)
+	rows.sort(key=lambda r: str(r.get("creation") or ""), reverse=True)
 	dem = {t: 0 for t in TT_DK}
 	for r in frappe.db.sql("select trang_thai, count(*) from `tab%s` group by trang_thai" % DT_DK):
 		dem[r[0]] = r[1]
@@ -1308,7 +1330,7 @@ def quet():
 	"""Nhịp 5 phút: khớp tiền về cho mọi đơn sỉ trả trước còn phải thu."""
 	ds = frappe.get_all(SO, filters={"vgb_si_ma": ["is", "set"], "vgb_si_tt": PT_TRA_TRUOC, "docstatus": 1,
 		"status": ["not in", ["Closed", "Cancelled", "Completed"]], "per_billed": ["<", 100]},
-		pluck="name", limit_page_length=500)
+		pluck="name", limit_page_length=0)  # Codex #531 v8: mọi đơn còn chờ tiền, không cắt
 	for ten in ds:
 		try:
 			khop_don(ten)
@@ -1392,8 +1414,9 @@ def ds_don(trang_thai_loc="", tim=""):
 	"""Đơn sỉ web theo ngày giao (30 ngày qua tới mọi ngày tới)."""
 	_kiem_quyen_xem()
 	tu = str(frappe.utils.add_days(_hom_nay(), -30))
-	ten = frappe.get_all(SO, filters={"vgb_si_ma": ["is", "set"], "docstatus": ["in", [1, 2]],
-		"delivery_date": [">=", tu]}, pluck="name", order_by="delivery_date asc, creation asc", limit_page_length=400)
+	from vagabond.ung_truoc_don import ten_don_man
+
+	ten = ten_don_man("vgb_si_ma", TIEN_TO_MA, tu)
 	co_tien = _co_tien()
 	rows = [tom_tat(t) if co_tien else _an_tien(tom_tat(t)) for t in ten]
 	logo = _logo_cac_khach([r.get("ma_khach") for r in rows])

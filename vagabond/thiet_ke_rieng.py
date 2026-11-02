@@ -825,7 +825,7 @@ def quet():
 	"""Nhịp 5 phút: khớp tiền về cho mọi phiếu đặt thiết kế riêng còn phải thu."""
 	ds = frappe.get_all(SO, filters={"vgb_tkr_ma": ["is", "set"], "docstatus": 1,
 		"status": ["not in", ["Closed", "Cancelled", "Completed"]], "per_billed": ["<", 100]},
-		pluck="name", limit_page_length=500)
+		pluck="name", limit_page_length=0)  # Codex #531 v8: mọi đơn còn chờ tiền, không cắt
 	for ten in ds:
 		try:
 			khop_mot(ten)
@@ -889,8 +889,11 @@ def ds_don(trang_thai_loc="", tim=""):
 	"""Danh sách đơn đặt trước thiết kế riêng, xếp theo ngày nhận."""
 	_kiem_quyen()
 	tu = str(frappe.utils.add_days(_hom_nay(), -60))
-	ten = frappe.get_all(SO, filters={"vgb_tkr_ma": ["is", "set"], "docstatus": ["in", [1, 2]],
-		"delivery_date": [">=", tu]}, pluck="name", order_by="delivery_date asc, creation asc", limit_page_length=400)
+	# Codex #531 v8: mọi đơn đang mở (kể cả quá hạn trước cửa sổ 60 ngày) cộng
+	# lịch sử trong cửa sổ, cùng một phép với màn Đơn sỉ web.
+	from vagabond.ung_truoc_don import ten_don_man
+
+	ten = ten_don_man("vgb_tkr_ma", TIEN_TO_MA, tu)
 	anh_tp = anh_cac_tac_pham(_ban())
 	rows = [tom_tat(t, anh_tp=anh_tp) for t in ten]
 	dem = {k: 0 for k, _ in TRANG_THAI}

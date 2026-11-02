@@ -222,6 +222,47 @@ import frappe  # noqa: E402
 from frappe.utils import flt  # noqa: E402
 
 
+def dk_don_mo(o_ma, tien_to):
+	"""Điều kiện SQL "phiếu đặt đang mở" (bí danh bảng `so`), khớp ĐÚNG phép
+	phân loại trạng thái của hai luồng (thiet_ke_rieng.trang_thai, banh_si.
+	xet_trang_thai): đã huỷ khi docstatus 2; đã giao khi có hoá đơn ĐÃ GHI SỔ
+	mang custom_pancake_id "<tiền tố>-<mã đơn>" (ô có khoá duy nhất nên phép
+	`not exists` đi bằng chỉ mục). Mọi đơn khác là đang mở.
+
+	Codex #531 vòng 8: câu đọc dùng làm nguồn danh sách việc đang chờ (đơn chờ
+	tiền, chờ giao) không được có LIMIT hay cửa sổ ngày; chỉ phần lịch sử (đã
+	giao, đã huỷ) mới cắt. Một nguồn cho mọi câu đọc đơn đang mở."""
+	return ("so.docstatus = 1 and not exists (select 1 from `tabSales Invoice` si where si.custom_pancake_id = "
+		"concat('%s-', so.`%s`) and si.docstatus = 1)" % (tien_to, o_ma))
+
+
+def gop_ten_don(*cac_lo):
+	"""Gộp các lô {name, ...} đọc từ nhiều câu, bỏ trùng theo tên, giữ thứ tự lô
+	đầu rồi lô sau. THUẦN."""
+	da, ra = set(), []
+	for lo in cac_lo:
+		for r in lo or []:
+			if r["name"] not in da:
+				da.add(r["name"])
+				ra.append(r)
+	return ra
+
+
+def ten_don_man(o_ma, tien_to, tu, tran=400):
+	"""Tên phiếu đặt cho màn danh sách app (Đơn sỉ web, Đơn đặt trước): MỌI đơn
+	đang mở, kể cả đơn quá hạn giao từ trước cửa sổ ngày, cộng các đơn có ngày
+	giao từ `tu` (lịch sử, tối đa `tran`). Xếp theo ngày giao. Codex #531 v8:
+	đơn chờ giao quá 30 ngày không được biến mất khỏi màn vì nằm ngoài cửa sổ."""
+	mo = frappe.db.sql("""select so.name, so.delivery_date, so.creation from `tabSales Order` so
+		where ifnull(so.`%s`, '') != '' and %s""" % (o_ma, dk_don_mo(o_ma, tien_to)), as_dict=True)
+	gan = frappe.db.sql("""select so.name, so.delivery_date, so.creation from `tabSales Order` so
+		where ifnull(so.`%s`, '') != '' and so.docstatus in (1, 2) and so.delivery_date >= %%s
+		order by so.delivery_date asc, so.creation asc limit %d""" % (o_ma, int(tran)), (tu,), as_dict=True)
+	ds = gop_ten_don(mo, gan)
+	ds.sort(key=lambda r: (str(r.get("delivery_date") or ""), str(r.get("creation") or "")))
+	return [r["name"] for r in ds]
+
+
 def phieu_cua(so_name, khoa=False):
 	"""Phiếu thu chưa huỷ của phiếu đặt.
 
