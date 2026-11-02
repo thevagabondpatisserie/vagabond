@@ -227,10 +227,19 @@ class _MayChu(object):
 				ds = a.get("ds") if isinstance(a, dict) else (a[0],)
 				for ten in sorted(ds):
 					self._khoa(("BT", ten))
+				if as_dict:
+					# Đọc HIỆN TẠI trong khoá: bản mới nhất, không phải ảnh chụp.
+					with self.cv:
+						hien = copy.deepcopy(self.bt)
+					return [_fr._dict(g) for g in sorted(hien, key=lambda x: x["name"]) if g["name"] in ds]
 				return [(t,) for t in sorted(ds)]
 			m = a["m"].strip("%")
+			ql = " ".join(q.lower().split())
 			return [_fr._dict(g) for g in self._anh()["bt"]
-				if m in ("%s %s" % (g.get("description") or "", g.get("reference_number") or "")).upper()]
+				if m in ("%s %s" % (g.get("description") or "", g.get("reference_number") or "")).upper()
+				# Điều kiện SQL có trong câu thì làm như cơ sở dữ liệu thật làm.
+				and ("docstatus = 1" not in ql or int(g.get("docstatus", 1)) == 1)
+				and ("deposit > 0" not in ql or float(g.get("deposit") or 0) > 0)]
 		if "`tabDelivery Note`" in q:
 			return [(r["name"],) for r in self._bang_xem("dn", khoa) if r["against_sales_order"] == a[0] and r["docstatus"] == 1]
 		if "`tabPayment Entry`" in q:
@@ -442,7 +451,7 @@ SO_BSI = {"name": "SO-2", "docstatus": 1, "status": "To Deliver and Bill", "vgb_
 
 def _bt(ten, tien, mo):
 	return {"name": ten, "date": "2026-11-03", "deposit": tien, "withdrawal": 0, "description": mo,
-		"reference_number": "FT" + ten, "bank_account": "BA-MB", "transaction_id": ten}
+		"reference_number": "FT" + ten, "bank_account": "BA-MB", "transaction_id": ten, "docstatus": 1}
 
 
 def _hoi_tkr():
@@ -1626,3 +1635,129 @@ def _v8_dang_ky_cho():
 		cho = bs.ds_dang_ky("Chờ duyệt")
 	dung("tất cả: có đăng ký chờ duyệt", "dk-cho" in [r["name"] for r in kq["rows"]])
 	la("lọc chờ duyệt", [r["name"] for r in cho["rows"]], ["dk-cho"])
+
+
+# ================================================== vòng 9: lọc dòng sao kê TRƯỚC khi chọn và cộng dồn
+
+def _bt9(ten, tien, mo, tk="BA-MB", ngay="2026-11-03", **them):
+	d = dict(_bt(ten, tien, mo), bank_account=tk, date=ngay, docstatus=1, currency="VND", unallocated_amount=tien)
+	d.update(them)
+	return d
+
+
+def _khop9(so, bts, hoi, tk_so_cai=None):
+	from vagabond import doi_soat_sepay as dss
+	may = _MayChu(so=[so], bt=bts)
+	tk_so_cai = tk_so_cai or {}
+	goc = may.get_value
+
+	def gv(dt, f=None, *a, **k):
+		if dt == "Bank Account":
+			return tk_so_cai.get(f, "1121 - MB")
+		return goc(dt, f, *a, **k)
+	# Tài khoản trong `tk_so_cai` là tài khoản ĐƯỢC khớp: ca đó thử riêng điều kiện sổ cái.
+	cho_phep = {"BA-MB"} | set(tk_so_cai)
+	with _gan(_vao(may, [mock.patch.object(_fr.db, "get_value", gv),
+			mock.patch.object(dss, "tai_khoan_duoc_khop", lambda: cho_phep)])):
+		kn = may.chay("A", hoi)
+		may.cho_toi(lambda: kn.xong, "khớp xong")
+	if kn.loi:
+		raise kn.loi
+	return _phieu_cua(may, so["name"])
+
+
+@ca("Codex #531 v9: đơn sỉ 3.780.000, dòng sao kê cũ ở tài khoản không được khớp và dòng đúng ở tài khoản được khớp: lập phiếu cho dòng đúng")
+def _v9_sai_tai_khoan_bsi():
+	r = _khop9(SO_BSI, [_bt9("BT-1", 3780000, "BSI26110002", tk="BA-LA", ngay="2026-11-02"),
+		_bt9("BT-2", 3780000, "BSI26110002 chuyen lai", ngay="2026-11-03")], _hoi_bsi)
+	la("phiếu thu", r, [("BT-2", 3780000.0)])
+
+
+@ca("Codex #531 v9: đơn thiết kế riêng, dòng trả đủ 7.560.000 ở tài khoản không được khớp và dòng cọc 3.780.000 đúng tài khoản: lập phiếu cọc")
+def _v9_sai_tai_khoan_tkr():
+	r = _khop9(SO_TKR, [_bt9("BT-1", 7560000, "TKR26110001", tk="BA-LA", ngay="2026-11-02"),
+		_bt9("BT-2", 3780000, "TKR26110001 coc", ngay="2026-11-03")], _hoi_tkr)
+	la("phiếu thu", r, [("BT-2", 3780000.0)])
+
+
+@ca("Codex #531 v9: mọi điều kiện loại dòng đứng trước phép chọn: tài khoản ngân hàng chưa gắn sổ cái, đã đối chiếu hết ở nơi khác, khác tiền tệ, chưa ghi sổ, không phải tiền vào đều không chiếm phần còn thu của dòng đúng")
+def _v9_loai_truoc():
+	dung_bt = _bt9("BT-OK", 3780000, "BSI26110002", ngay="2026-11-05")
+	for ten, bt, tk in (
+			("chưa gắn sổ cái", _bt9("BT-X", 3780000, "BSI26110002", tk="BA-TRONG", ngay="2026-11-01"), {"BA-TRONG": None}),
+			("đã đối chiếu hết", _bt9("BT-X", 3780000, "BSI26110002", ngay="2026-11-01", unallocated_amount=0), None),
+			("khác tiền tệ", _bt9("BT-X", 3780000, "BSI26110002", ngay="2026-11-01", currency="USD"), None),
+			("chưa ghi sổ", _bt9("BT-X", 3780000, "BSI26110002", ngay="2026-11-01", docstatus=0), None),
+			("không phải tiền vào", _bt9("BT-X", 0, "BSI26110002", ngay="2026-11-01", withdrawal=3780000), None)):
+		la(ten, _khop9(SO_BSI, [bt, dict(dung_bt)], _hoi_bsi, tk), [("BT-OK", 3780000.0)])
+
+
+def _khop9_doi(so, bts, hoi, doi):
+	"""Như `_khop9`, nhưng giữa lúc TÌM (ảnh chụp) và lúc KHOÁ dòng sao kê, một
+	phiên khác đổi dòng (huỷ, đối chiếu ở nơi khác) và commit."""
+	may = _MayChu(so=[so], bt=bts)
+	with _gan(_vao(may)):
+		kn = may.chay("A", hoi, ("truoc_khoa:BT",))
+		may.cho_toi(lambda: kn.dang_dung == "truoc_khoa:BT" or kn.xong, "A sắp khoá dòng sao kê")
+		dung("A dừng trước khoá dòng sao kê", kn.dang_dung == "truoc_khoa:BT")
+		with may.cv:
+			for g in may.bt:
+				g.update(doi.get(g["name"], {}))
+		may.tha(kn, "truoc_khoa:BT")
+		may.cho_toi(lambda: kn.xong, "khớp xong")
+	if kn.loi:
+		raise kn.loi
+	return _phieu_cua(may, so["name"])
+
+
+@ca("Codex #531 v9: dòng sao kê bị đối chiếu ở nơi khác hoặc bị huỷ giữa lúc tìm và lúc khoá: phép lọc quyết trên bản đọc trong khoá, lập phiếu cho dòng còn lại")
+def _v9_doi_giua_luc_tim_va_khoa():
+	bts = lambda tien: [_bt9("BT-1", tien, "BSI26110002", ngay="2026-11-02"),  # noqa: E731
+		_bt9("BT-2", 3780000, "BSI26110002 lan 2", ngay="2026-11-03")]
+	la("sỉ, BT-1 đã đối chiếu hết ở nơi khác", _khop9_doi(SO_BSI, bts(3780000), _hoi_bsi,
+		{"BT-1": {"unallocated_amount": 0}}), [("BT-2", 3780000.0)])
+	la("sỉ, BT-1 bị huỷ", _khop9_doi(SO_BSI, bts(3780000), _hoi_bsi, {"BT-1": {"docstatus": 2}}),
+		[("BT-2", 3780000.0)])
+	tk = [_bt9("BT-1", 7560000, "TKR26110001", ngay="2026-11-02"), _bt9("BT-2", 3780000, "TKR26110001 coc", ngay="2026-11-03")]
+	la("thiết kế riêng, BT-1 đã đối chiếu hết ở nơi khác", _khop9_doi(SO_TKR, tk, _hoi_tkr,
+		{"BT-1": {"unallocated_amount": 0}}), [("BT-2", 3780000.0)])
+
+
+@ca("Codex #531 v9: dòng đã có chủ (bộ sao kê, chứng từ khác) bị bỏ trước phép cộng dồn, không chiếm phần còn thu của dòng đúng")
+def _v9_co_chu_truoc():
+	from vagabond import doi_soat_sepay as dss
+	bts = [_bt9("BT-1", 3780000, "BSI26110002", ngay="2026-11-02"), _bt9("BT-2", 3780000, "BSI26110002 lan 2", ngay="2026-11-03")]
+	for ten, chu in (("bộ sao kê", "bộ sao kê BSK-0001"), ("chứng từ khác", "phiếu chi PC-0001")):
+		may = _MayChu(so=[SO_BSI], bt=[dict(g) for g in bts])
+		with _gan(_vao(may, [mock.patch.object(dss, "chu_cua_giao_dich",
+				lambda ds, chu=chu, **k: {g: chu for g in ds if g == "BT-1"})])):
+			kn = may.chay("A", _hoi_bsi)
+			may.cho_toi(lambda: kn.xong, "khớp xong")
+		if kn.loi:
+			raise kn.loi
+		la(ten, _phieu_cua(may, SO_BSI["name"]), [("BT-2", 3780000.0)])
+
+
+@ca("Codex #531 v9: phép lọc thuần trả đúng lý do cho từng điều kiện, và để nguyên dòng hợp lệ")
+def _v9_loc_thuan():
+	ly_do_tk = lambda tk: "" if tk in ("BA-MB", "BA-TRONG") else "chưa được khớp"  # noqa: E731
+	so_cai = {"BA-MB": "1121 - MB", "BA-TRONG": None}
+	g = _bt9("BT-1", 3780000, "BSI26110002")
+	for ten, doi, mong in (
+			("hợp lệ", {}, ""),
+			("chưa biết phần còn lại thì coi như còn đủ", {"unallocated_amount": None}, ""),
+			("lệch dưới 1 đồng vẫn dùng", {"unallocated_amount": 3779999.5}, ""),
+			("tiền đồng viết thường", {"currency": "vnd"}, ""),
+			("tiền ra", {"deposit": 0, "withdrawal": 3780000}, "Dòng sao kê không phải tiền vào."),
+			("vừa vào vừa ra", {"withdrawal": 1}, "Dòng sao kê không phải tiền vào."),
+			("nháp", {"docstatus": 0}, "Dòng sao kê chưa ghi sổ hoặc đã huỷ."),
+			("đã huỷ", {"docstatus": 2}, "Dòng sao kê chưa ghi sổ hoặc đã huỷ."),
+			("đô la", {"currency": "USD"}, "Dòng sao kê không phải tiền đồng."),
+			("tài khoản không được khớp", {"bank_account": "BA-LA"}, "chưa được khớp"),
+			("chưa gắn sổ cái", {"bank_account": "BA-TRONG"}, "Tài khoản ngân hàng BA-TRONG chưa gắn tài khoản sổ cái."),
+			("đã đối chiếu hết", {"unallocated_amount": 0}, "Dòng sao kê đã đối chiếu một phần hoặc toàn bộ ở nơi khác."),
+			("đã đối chiếu một phần", {"unallocated_amount": 1000000}, "Dòng sao kê đã đối chiếu một phần hoặc toàn bộ ở nơi khác.")):
+		la(ten, utd.ly_do_loai_dong(dict(g, **doi), ly_do_tk, so_cai), mong)
+	dung_dc, loai = utd.loc_dong_sao_ke([dict(g, bank_account="BA-LA"), dict(g, name="BT-2")], ly_do_tk, so_cai)
+	la("lọc giữ dòng hợp lệ", [x["name"] for x in dung_dc], ["BT-2"])
+	la("lọc ghi lý do dòng bị loại", loai, [{"gd": "BT-1", "ly_do": "chưa được khớp"}])

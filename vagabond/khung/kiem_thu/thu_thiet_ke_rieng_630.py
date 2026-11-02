@@ -381,7 +381,7 @@ def _chay_khop(l):
 @ca("v630 khop_mot chạy thật: lập MỘT phiếu thu nháp trỏ phiếu đặt, chiếm đúng dòng; chạy lại (nhịp 5 phút, khách hỏi) không lập đôi")
 def _khop_mot():
 	g = {"name": "BT-7", "date": "2026-11-03", "deposit": 3780000, "withdrawal": 0, "description": "TKR26110001 coc",
-		"reference_number": "FT26307", "bank_account": "BA-MB", "transaction_id": "x"}
+		"reference_number": "FT26307", "bank_account": "BA-MB", "transaction_id": "x", "docstatus": 1}
 	l = _Lap([g])
 	la("lần đầu lập một phiếu", _chay_khop(l), 1)
 	p = l.lap[0]

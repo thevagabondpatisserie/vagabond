@@ -283,7 +283,7 @@ def _chay_khop(l):
 @ca("v630 bánh sỉ khop_don chạy thật (bộ máy chung): MỘT phiếu thu nháp trỏ phiếu đặt, quầy SALES, chiếm đúng dòng; chạy lại không lập đôi; đơn công nợ không khớp")
 def _khop_don():
 	g = {"name": "BT-9", "date": "2026-11-03", "deposit": 1760000, "withdrawal": 0, "description": "BSI26110001 chuyen tien",
-		"reference_number": "FT26307", "bank_account": "BA-MB", "transaction_id": "x"}
+		"reference_number": "FT26307", "bank_account": "BA-MB", "transaction_id": "x", "docstatus": 1}
 	l = _Lap([g])
 	la("lần đầu lập một phiếu", _chay_khop(l), 1)
 	p = l.lap[0]
