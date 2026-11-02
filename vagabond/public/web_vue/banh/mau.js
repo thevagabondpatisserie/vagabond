@@ -21,10 +21,12 @@ export const MAU = `
   <button class="tab" :class="{on: tab==='tuyen_dung'}" data-tab="tuyen_dung" @click="go('tuyen_dung')">{{ t('tab_tuyen_dung','Tuyển dụng') }}</button>
   <button class="tab" :class="{on: tab==='today'}" data-tab="today" @click="go('today')">{{ t('tab_today','Có sẵn hôm nay') }}</button>
   <button class="tab" :class="{on: tab==='order'}" data-tab="order" @click="go('order')">{{ t('tab_order','Đặt bánh trước') }}</button>
+  <button class="tab" :class="{on: tab==='thiet_ke_rieng'}" data-tab="thiet_ke_rieng" :hidden="!coTkr" @click="go('thiet_ke_rieng')">{{ t('tab_thiet_ke_rieng','Thiết kế riêng') }}</button>
 </nav>
 
 <section class="wrap" id="uu_dai" :hidden="tab!=='uu_dai'"><header class="sec-head"><h1 class="h1">{{ t('tab_uu_dai','Ưu đãi') }}</h1></header><chuyen-muc v-if="tab==='uu_dai'" loai="uu_dai"/></section>
 <section class="wrap" id="tiec" :hidden="tab!=='tiec'"><header class="sec-head"><h1 class="h1">{{ t('tab_tiec','Tiệc') }}</h1></header><chuyen-muc v-if="tab==='tiec'" loai="tiec"/></section>
+<section class="wrap" id="thiet_ke_rieng" :hidden="tab!=='thiet_ke_rieng'"><thiet-ke-rieng v-if="tab==='thiet_ke_rieng'"/></section>
 <section class="wrap" id="tuyen_dung" :hidden="tab!=='tuyen_dung'"><header class="sec-head"><h1 class="h1">{{ t('tab_tuyen_dung','Tuyển dụng') }}</h1></header><chuyen-muc v-if="tab==='tuyen_dung'" loai="tuyen_dung"/></section>
 
 <main id="season" :hidden="tab!=='season'">
@@ -155,17 +157,7 @@ export const MAU = `
 
 <cua-hang/>
 <div data-vgb-vi-tri="cuoi_trang" :aria-label="t('dat_banh_b69802262','Câu chuyện Vagabond')"><khoi-noi-dung vi-tri="cuoi_trang"/></div>
-<footer><div class="wrap">
-  <div class="f-note"><span id="fNotePhi">{{ S.mienPhiTu > 0 ? t('dat_banh_a6738ef6d','Giá đã gồm thuế GTGT. Miễn phí giao cho đơn từ') + ' ' + tienTom(S.mienPhiTu) : t('dat_banh_8b550092a','Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển') }}</span><br>{{ t('dat_banh_4c203e5ec','Giá và tồn kho thay đổi theo mùa và nguyên liệu nhập khẩu') }}</div>
-  <div class="f-phap-nhan" id="fPhapNhan">
-    <b>{{ t('dat_banh_15f2c7f29','Công ty TNHH Patisserie Vagabond') }}</b><br>
-    {{ t('dat_banh_2085c9658','Mã số thuế 0318561568') }}<br>
-    {{ t('dat_banh_2f7b911ea','Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh') }}<br>
-    {{ t('dat_banh_cc4a76159','Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh') }}<br>
-    <span id="fLienHe"><template v-if="lienHe.dien_thoai || lienHe.email"><template v-if="lienHe.dien_thoai">{{ t('dien_thoai','Điện thoại') }} <a :href="'tel:'+String(lienHe.dien_thoai_so||'')">{{ lienHe.dien_thoai }}</a></template><template v-if="lienHe.dien_thoai && lienHe.email"> · </template><template v-if="lienHe.email">Email <a :href="'mailto:'+lienHe.email">{{ lienHe.email }}</a></template></template><template v-else>{{ t('dat_banh_08fc3ada4','Điện thoại') }} <a :href="'tel:'+telSo()">{{ telChu() }}</a></template></span>
-  </div>
-  <nav class="f-cs" id="fChinhSach" :aria-label="t('dat_banh_e9ba7dd58','Chính sách')"><a v-for="c in chinhSach" :key="c.duong" :href="c.duong">{{ c.ten }}</a></nav>
-</div></footer>
+<chan-trang :kho="kho" :go="go"/>
 
 <div class="bar" id="bar" :class="{on: S.CART.length > 0 && !gioMo}"><div class="wrap in">
   <span class="cnt" id="barTxt"><template v-if="S.CART.length"><b>{{ t('dat_banh_a2f8afb2e','{gia_tri_a} bánh · {gia_tri_b}',{gia_tri_a: kho.soBanh.value, gia_tri_b: tienTom(kho.tienBanh.value)}) }}</b><small>{{ kho.dongMienPhi.value }}</small></template></span>
