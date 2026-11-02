@@ -65972,6 +65972,11 @@ async function scrQuyTm() {
   });
 }
 
+/* Đã gõ ít nhất một ô (kể cả số 0) thì là đã đếm. THUẦN. */
+function qtmDaDem(dem) {
+  return Object.keys(dem || {}).some(function (mg) { return String(dem[mg] === undefined || dem[mg] === null ? '' : dem[mg]).trim() !== ''; });
+}
+
 /* Số đếm và lệch của bảng đang gõ. THUẦN để ca kiểm gọi được. */
 function qtmTinhDem(dem, soMay) {
   var tong = 0;
@@ -66057,8 +66062,15 @@ async function scrQuyKiem() {
   than.querySelector('[data-qtmluu]').onclick = async function () {
     if (dangGui) return;
     var t = qtmTinhDem(QTM_DEM, q.so_du);
-    if (!t.dem) return toast('Gõ số tờ đã đếm được.');
+    /* Codex #527 vòng 4: chưa gõ ô nào là chưa đếm; gõ 0 là đã đếm và quỹ rỗng. */
+    if (!qtmDaDem(QTM_DEM)) return toast('Gõ số tờ đã đếm được. Két trống thì gõ 0.');
     if (t.lech && !QTM_LY_DO) return toast('Quỹ lệch: chọn lý do lệch.');
+    if (!t.dem) {
+      dangGui = true;
+      var rong = await hoiCo('Quỹ đếm được 0 đồng', 'Máy ghi két đang trống, lệch ' + qtmDau(t.lech) + ' so với số quỹ máy tính.', 'Ghi quỹ rỗng');
+      dangGui = false;
+      if (!rong) return;
+    }
     dangGui = true;
     var kq;
     try {
