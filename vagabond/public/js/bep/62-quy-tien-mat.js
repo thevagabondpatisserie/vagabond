@@ -69,6 +69,7 @@ async function scrQuyTm() {
       '<div style="flex:1;min-width:0"><b style="font-size:14px">' + qtmNgayGio(x.luc) + ' · ' + h(x.ten) + '</b>' +
       (x.phu ? '<div style="font-size:12.5px;color:#667085">' + h(x.phu) + '</div>' : '') +
       (x.chip ? '<div>' + tcChip(x.chip === 'Đã khớp SePay' ? '#ecfdf3' : '#fffaeb', x.chip === 'Đã khớp SePay' ? '#067647' : '#b54708', h(x.chip)) + '</div>' : '') +
+      (qtmDuocHuy(x, q) ? '<button class="btn gh" data-qtmhuy="' + h(x.ma) + '" data-qtmhuyloai="' + h(x.huy) + '" style="width:auto;margin:6px 0 0;min-height:44px;padding:4px 12px;font-size:13px">Huỷ phiếu</button>' : '') +
       '</div><div style="flex:0 0 auto;font-weight:800;white-space:nowrap;color:' + mau + '">' + qtmDau(x.tien) + '</div></div>';
   });
   html += '</div>';
@@ -110,6 +111,19 @@ async function scrQuyTm() {
       go(scrQuyTm, true);
     };
   });
+  /* Codex #527 vòng 6: phiếu ghi nhầm (số tiền, tài khoản nhận) huỷ ngay từ lịch sử
+     để máy hoàn bút toán, nhả giao dịch ngân hàng, rồi lập lại phiếu đúng. */
+  than.querySelectorAll('[data-qtmhuy]').forEach(function (n) {
+    n.onclick = async function () {
+      var ma = n.getAttribute('data-qtmhuy'), nop = n.getAttribute('data-qtmhuyloai') === 'nop';
+      var ly = await hoiChu('Huỷ phiếu ' + ma, 'Ghi lý do huỷ. Máy huỷ bút toán nên quỹ trở lại như trước phiếu này' +
+        (nop ? '; giao dịch ngân hàng đã ghép được nhả ra. Sau đó lập lại phiếu nộp đúng.' : '.'), '', { bat_buoc: 1 });
+      if (!ly) return;
+      try { await api('vagabond.quy_tien_mat.huy_phieu', { name: ma, ly_do: ly }); } catch (e) { toast(errMsg(e)); return; }
+      toast('Đã huỷ phiếu ' + ma + (nop ? '. Lập lại phiếu nộp đúng nếu cần.' : ''));
+      go(scrQuyTm, true);
+    };
+  });
   than.querySelectorAll('[data-qtmtk]').forEach(function (n) {
     n.onclick = async function () {
       var k = n.getAttribute('data-qtmtk');
@@ -126,6 +140,13 @@ async function scrQuyTm() {
       });
     };
   });
+}
+
+/* Dòng lịch sử có nút Huỷ phiếu không. THUẦN. Phiếu nộp: người làm quỹ; phiếu kiểm
+   đã ghi: chỉ Giám đốc (máy chủ cũng chặn như vậy). */
+function qtmDuocHuy(x, q) {
+  if (!x || !x.huy) return false;
+  return x.huy === 'nop' ? !!(q && q.duoc_lam) : x.huy === 'kiem' ? !!(q && q.duoc_duyet) : false;
 }
 
 /* Đã gõ ít nhất một ô (kể cả số 0) thì là đã đếm. THUẦN. */
