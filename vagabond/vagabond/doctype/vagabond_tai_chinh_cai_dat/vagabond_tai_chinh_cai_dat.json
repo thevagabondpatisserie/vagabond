@@ -5,13 +5,17 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Tai Chinh Cai Dat",
- "modified": "2026-10-31 18:00:00.000000",
+ "modified": "2026-11-02 18:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Cài đặt phân hệ Tài chính (v626): ai được xem ngoài Giám đốc.",
  "issingle": 1,
  "field_order": [
-  "nguoi_xem"
+  "nguoi_xem",
+  "sec_quy",
+  "tk_quy",
+  "tk_thieu",
+  "tk_thua"
  ],
  "fields": [
   {
@@ -19,6 +23,32 @@
    "fieldtype": "Small Text",
    "label": "Người được xem Tài chính (mỗi dòng một email)",
    "description": "Giám đốc luôn xem được. Chọn ở màn Cài đặt Tài chính trên app."
+  },
+  {
+   "fieldname": "sec_quy",
+   "fieldtype": "Section Break",
+   "label": "Quỹ tiền mặt công ty (v628)"
+  },
+  {
+   "fieldname": "tk_quy",
+   "fieldtype": "Link",
+   "label": "Tài khoản quỹ tiền mặt (111x)",
+   "options": "Account",
+   "description": "Bút toán kiểm quỹ và nộp ngân hàng ghi vào tài khoản này. Để trống thì máy dùng 1111."
+  },
+  {
+   "fieldname": "tk_thieu",
+   "fieldtype": "Link",
+   "label": "Tài khoản tiền thiếu chờ xử lý",
+   "options": "Account",
+   "description": "Kiểm quỹ thiếu: Nợ tài khoản này, Có quỹ. Để trống thì máy dùng 1381."
+  },
+  {
+   "fieldname": "tk_thua",
+   "fieldtype": "Link",
+   "label": "Tài khoản tiền thừa chờ giải quyết",
+   "options": "Account",
+   "description": "Kiểm quỹ thừa: Nợ quỹ, Có tài khoản này. Để trống thì máy dùng 3381."
   }
  ],
  "permissions": [
