@@ -712,3 +712,30 @@ def _mo_phieu_tra_moc():
 				um.patch.object(_fr, "get_doc", lambda *a, **k: phieu(ghi_chu)):
 			ra.append(kk.mo_phieu("PKK")["moc_ghi_so"])
 	la("hằng ngày có mốc, phiếu thường không", ra, [["2026-11-02", "09:15:07"], []])
+
+
+@ca("v628 Codex #527 vòng 7: ca bench đếm hằng ngày chỉ chạy công việc đăng lại của chính phiếu điều chỉnh nó tạo, không đụng công việc thật đang chờ trên site")
+def _bench_chi_dang_lai_cua_minh():
+	import types
+	viec = {"RIV-CUA-CA": NS(voucher_type="Stock Reconciliation", voucher_no="MAT-RECO-9", status="Queued"),
+		"RIV-THAT": NS(voucher_type="Purchase Receipt", voucher_no="MAT-PRE-1", status="Queued"),
+		"RIV-THAT-2": NS(voucher_type="Stock Reconciliation", voucher_no="MAT-RECO-1", status="In Progress")}
+	da_chay = []
+
+	def get_all(dt, filters=None, pluck=None, **k):
+		f = filters or {}
+		ra = []
+		for ten, v in viec.items():
+			if "voucher_type" in f and v.voucher_type != f["voucher_type"]:
+				continue
+			if "voucher_no" in f and v.voucher_no != f["voucher_no"]:
+				continue
+			ra.append(ten)
+		return ra
+	core = types.ModuleType("erpnext.stock.doctype.repost_item_valuation.repost_item_valuation")
+	core.repost = lambda doc: da_chay.append(doc)
+	g = dict(frappe=NS(get_all=get_all, get_doc=lambda dt, ten: ten, db=NS(MAX_WRITES_PER_TRANSACTION=1), flags=NS(get=lambda k: None)))
+	ham = nap("khung/kiem_that/thu_dem_hang_ngay_628.py", "_chay_hang_doi_dang_lai", g)
+	with um.patch.dict(sys.modules, {core.__name__: core}):
+		ham("MAT-RECO-9")
+	la("chỉ công việc của phiếu điều chỉnh ca vừa tạo", da_chay, ["RIV-CUA-CA"])
