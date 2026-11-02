@@ -148,7 +148,8 @@ function appMoi(tuy) {
   await ca('Sau the va Nang cao, the Uu dai chi doc tu ERP: dem, trang thai, chi dung tai cua hang, khong co nut them sua xoa', async function () {
     var app = appMoi(); await nghi();
     /* v625: thêm thẻ Câu hỏi ứng tuyển ngay sau Tuyển dụng. */
-    bang('8 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'tiec', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
+    /* v630: thêm thẻ Thiết kế riêng ngay sau Tiệc. */
+    bang('9 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'tiec', 'thiet_ke_rieng', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
     dung('dem uu dai tu ERP', String(app.mot('[data-the="uu_dai"]').textContent).indexOf('Ưu đãi2') === 0);
     bang('khong hien uu dai go tay', app.tim('[data-muc]').length, 0);
     var u1 = String(app.mot('[data-muc-erp="SN10"]').textContent);
@@ -558,6 +559,50 @@ function appMoi(tuy) {
     var them = [].slice.call(n.tl.getElementById('them-khoi').children).map(function (b) { return String(b.textContent); });
     bang('khong con nut them Uu dai, Tuyen dung', them.filter(function (t) { return t === '+ Ưu đãi' || t === '+ Tuyển dụng'; }), []);
     dung('van them duoc Thong bao', them.indexOf('+ Thông báo') >= 0);
+  });
+
+  /* v630: thẻ Thiết kế riêng (anh Việt chốt 02/11/2026). Marketing thêm tác phẩm,
+     size và giá gồm VAT, trang trí theo nhóm, số ngày đặt trước. */
+  await ca('v630 Them tac pham thiet ke rieng: size, trang tri, so ngay; luu gui dung cau truc cho may chu', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('thiet_ke_rieng');
+    bang('chua co tac pham', app.tim('[data-muc]').length, 0);
+    await app.bam(app.mot('[data-them="thiet_ke_rieng"]'));
+    await app.go(app.oTen('tieu_de'), 'Croquembouche');
+    await app.go(app.oTen('kich_co_gia_0'), '5.940.000');
+    await app.bam(app.mot('[data-them-dong="kich_co"]'));
+    await app.go(app.oTen('kich_co_ten_1'), 'M');
+    await app.go(app.oTen('kich_co_gia_1'), '7560000');
+    await app.bam(app.mot('[data-them-dong="trang_tri"]'));
+    await app.go(app.oTen('trang_tri_ten_0'), 'Hoa lan trắng');
+    await app.go(app.oTen('trang_tri_nhom_0'), 'Hoa');
+    await app.luu();
+    var a = app.cuoi('luu_muc').muc;
+    bang('cau truc gui', [a.loai, a.tieu_de, a.so_ngay, a.kich_co, a.trang_tri],
+      ['thiet_ke_rieng', 'Croquembouche', '7', [{ ten: 'S', mo_ta: '', gia: '5940000' }, { ten: 'M', mo_ta: '', gia: '7560000' }], [{ ten: 'Hoa lan trắng', gia_them: '0', nhom: 'Hoa' }]]);
+    dung('dong danh sach co gia', String(app.mot('[data-muc="' + a.id + '"]').textContent).indexOf('S 5.940.000 đ, M 7.560.000 đ') >= 0);
+    dung('nhan Dang nhan dat', String(app.mot('[data-muc="' + a.id + '"]').textContent).indexOf('Đang nhận đặt') >= 0);
+  });
+
+  await ca('v630 Tac pham thieu gia, trung size, so ngay duoi 7: bao ngay, khong goi may chu; bo dong size', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('thiet_ke_rieng');
+    await app.bam(app.mot('[data-them="thiet_ke_rieng"]'));
+    await app.go(app.oTen('tieu_de'), 'Tháp');
+    await app.luu();
+    dung('bao thieu gia', app.bao().indexOf('giá gồm VAT') >= 0);
+    await app.go(app.oTen('kich_co_gia_0'), '100000');
+    await app.bam(app.mot('[data-them-dong="kich_co"]'));
+    await app.go(app.oTen('kich_co_ten_1'), 's');
+    await app.go(app.oTen('kich_co_gia_1'), '200000');
+    await app.luu();
+    dung('bao trung size', app.bao().indexOf('trùng') >= 0);
+    await app.bam(app.mot('[data-bo-dong="kich_co-1"]'));
+    bang('con mot dong size', app.tim('[data-dong-o]').filter(function (x) { return x.dataset.dongO.indexOf('kich_co') === 0; }).length, 1);
+    await app.go(app.oTen('so_ngay'), '5');
+    await app.luu();
+    dung('bao so ngay', app.bao().indexOf('tối thiểu là 7') >= 0);
+    bang('khong goi luu', app.dem('luu_muc'), 0);
   });
 
   console.log('Bo ca kiem HANH VI v586: trinh bien tap theo the va the Tiec');
