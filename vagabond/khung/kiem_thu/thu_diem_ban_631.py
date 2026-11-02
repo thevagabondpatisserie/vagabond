@@ -144,6 +144,42 @@ def _kiem():
 	la("điểm quầy bật được", _loi(lambda: db._kiem(ds)), "")
 
 
+@ca("v631 Codex PR #532 vòng 3: món KHÔNG có giá riêng phải đúng giá chung danh mục (giá riêng vừa bị bỏ, bảng giá điểm vừa tắt); combo, phí giao, món chưa có giá chung không đụng")
+def _gia_chung():
+	gia_chung = {"TRA": 95000, "BANH": 30000, "DVBH00001": 1000, "KOMB": 50000, "NVH1": 80000}
+	# Quản lý vừa bỏ giá riêng 70.000 của TRA; giỏ cũ còn 70.000.
+	items = [{"item_code": "TRA", "rate": 70000}, {"item_code": "BANH", "rate": 30000}, {"item_code": "DVBH00001", "rate": 15000},
+		{"item_code": "KOMB", "rate": 40000, "combo_ma": "CB-1"}, {"item_code": "MOI", "rate": 12000}, {"item_code": "NVH1", "rate": 1}]
+	rows = [{"item_code": x["item_code"], "rate": x["rate"]} for x in items]
+	gia = {"NVH1": 60000}
+	mien = db.dong_combo_tao(items)
+	n = db.ap_gia_chung(items, rows, gia, mien, gia_chung, ("DVBH00001",))
+	la("một dòng lệch giá chung", n, 1)
+	la("giỏ và hoá đơn về giá chung; phí giao, combo, món chưa có giá chung, món có giá điểm giữ nguyên",
+		([x["rate"] for x in items], [x["rate"] for x in rows]), ([95000, 30000, 15000, 40000, 12000, 1],) * 2)
+	tat = [{"item_code": "TRA", "rate": 70000}]
+	la("bảng giá điểm vừa tắt (gia rỗng): vẫn về giá chung", (db.ap_gia_chung(tat, None, {}, set(), gia_chung), tat[0]["rate"]), (1, 95000))
+	la("giỏ đúng giá: không đổi gì", db.ap_gia_chung([{"item_code": "BANH", "rate": 30000}], None, {}, set(), gia_chung), 0)
+
+
+@ca("v631: giá món tặng của khuyến mãi không lấy nhầm bảng giá riêng của điểm")
+def _gia_tang():
+	import types
+	import unittest.mock as um
+
+	from vagabond import khuyen_mai as km
+
+	hoi = []
+
+	def get_value(dt, flt_, field, **kw):
+		hoi.append((dt, flt_))
+		return 95000
+
+	with um.patch.object(km.frappe, "db", types.SimpleNamespace(get_value=get_value), create=True):
+		la("giá", km._gia_ban("TRA"), 95000)
+	la("loại bảng giá riêng", hoi[0][1].get("price_list"), ["not like", db.TIEN_TO_BANG_GIA + "%"])
+
+
 @ca("v631 Codex PR #532: câu máy chủ báo giá vừa đổi khớp đúng câu màn quầy dò, và hai đường lưu bill quầy đều gửi cờ gia_theo_diem")
 def _cau_gia_doi():
 	cau = db.cau_gia_vua_doi(2)
@@ -168,12 +204,17 @@ def _dong(ham, mau):
 def _thu_tu_may_chu():
 	src = _doc("ban_hang.py")
 	tao = _ham(src, "tao_don_tay")
-	ap = _dong(tao, "doi_gia = diem_ban.ap_gia_diem(items, rows, diem_ban.gia_rieng_cua_quay(quay), diem_ban.dong_combo_tao(items))")
+	ap = _dong(tao, "doi_gia = diem_ban.ap_gia_diem(items, rows, gia_diem_tao, mien_tao)")
 	la("một chỗ đặt giá khi lưu bill", len(ap), 1)
 	dung("sau khi chốt quầy", _dong(tao, "quay = _quay_cua_nguon(nguon, quay)")[0] < ap[0])
 	dung("trước khi tính khuyến mãi", ap[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
 	dung("sau vòng kiểm thành phần combo", _dong(tao, "if ma not in [x.item_code for x in cb.dong]:")[0] < ap[0])
 	chan = _dong(tao, "if doi_gia and cint(gia_theo_diem):")
+	chung = _dong(tao, "doi_gia += diem_ban.ap_gia_chung(items, rows, gia_diem_tao, mien_tao, gia_chung, (_pg0.MA_PHI_GIAO,))")
+	la("đối chiếu giá chung một chỗ", len(chung), 1)
+	dung("giá chung đối chiếu sau giá điểm, trước khi chặn", ap[0] < chung[0] < chan[0])
+	cay = ast.unparse(tao)
+	dung("giá chung chỉ đối chiếu khi màn quầy gửi cờ", "if cint(gia_theo_diem):\n" in cay and cay.index("if cint(gia_theo_diem):") < cay.index("diem_ban.ap_gia_chung("))
 	la("chặn khi màn quầy gửi giá cũ", len(chan), 1)
 	dung("chặn ngay sau khi đặt giá, trước khuyến mãi", ap[0] < chan[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
 	dung("tham số mặc định tắt cho màn cũ", any(a.arg == "gia_theo_diem" for a in tao.args.args))
