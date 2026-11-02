@@ -1024,6 +1024,11 @@ async function scrKkList() {
       filters: {}, limit_page_length: 80, order_by: 'modified desc'
     });
   } catch (e) { toast(errMsg(e)); }
+  /* v628: moi sang moi kho bep 10 mon may chia san (lich xoay vong). Doc hong
+     thi bo the, man danh sach van len nhu cu. */
+  var homNay = [];
+  try { homNay = ((await api('vagabond.kiem_ke.ds_dem_hom_nay', {})) || {}).kho || []; }
+  catch (e) { homNay = []; }
 
   var dang = docs.filter(function (d) { return d.trang_thai === 'Đang kiểm'; });
   var xong = docs.filter(function (d) { return d.trang_thai !== 'Đang kiểm' && d.trang_thai !== 'Đã huỷ'; });
@@ -1038,7 +1043,7 @@ async function scrKkList() {
       '<span class="st ' + s.c + '">' + h(s.t) + '</span></div>';
   }
 
-  var body = '<div class="rcvh">Mỗi phiếu kiểm kê là <b>một kho, một nhóm hàng</b>. Quét mã vạch rồi nhập số đếm được, phiếu tự lưu lại nên có thể kiểm nhiều buổi. Đếm xong mới bấm <b>Chốt phiếu</b>.</div>';
+  var body = kkTheHomNay(homNay) + '<div class="rcvh">Mỗi phiếu kiểm kê là <b>một kho, một nhóm hàng</b>. Quét mã vạch rồi nhập số đếm được, phiếu tự lưu lại nên có thể kiểm nhiều buổi. Đếm xong mới bấm <b>Chốt phiếu</b>.</div>';
   if (dang.length) body += '<div class="sec">Đang kiểm dở</div><div class="lst">' + dang.map(row).join('') + '</div>';
   if (xong.length) body += '<div class="sec">Đã chốt</div><div class="lst">' + xong.map(row).join('') + '</div>';
   if (huy.length) body += '<div class="sec">Đã huỷ</div><div class="lst">' + huy.map(row).join('') + '</div>';
@@ -1046,9 +1051,52 @@ async function scrKkList() {
 
   var b = frame('Kiểm kê', body, { fab: true, onFab: function () { go(scrKkNew); } });
   b.onclick = function (e) {
+    var dh = e.target.closest('[data-dh]');
+    if (dh) return kkMoHomNay(dh.dataset.dh, dh);
     var r = e.target.closest('[data-p]'); if (!r) return;
     go(function () { scrKkDoc(r.dataset.p); });
   };
+}
+
+/* v628: the "Dem hom nay" cua tung kho bep. Anh Viet 02/11/2026: bep khong
+   chiu kiem ke vi phieu ca kho qua dai (Pastry 205 mon); moi sang may chia 10
+   mon, tin Zalo 07:30 bao ten mon, bam la co phieu dien san. */
+function kkTheHomNay(ds) {
+  if (!ds || !ds.length) return '';
+  return '<div class="sec">Đếm hôm nay</div><div class="lst">' + ds.map(function (x) {
+    var xong = x.phieu && x.trang_thai && x.trang_thai !== 'Đang kiểm';
+    var phu, nut, st;
+    if (xong) {
+      phu = 'Đã đếm ' + x.da_dem + '/' + x.so_mon + ' món · ' + h(x.phieu);
+      st = '<span class="st g">' + h(x.trang_thai) + '</span>';
+      nut = '';
+    } else if (x.phieu) {
+      phu = 'Đã đếm ' + x.da_dem + '/' + x.so_mon + ' món, bấm để đếm tiếp';
+      st = '<span class="st w">Đang kiểm</span>';
+      nut = ' data-dh="' + h(x.kho) + '"';
+    } else if (x.so_mon > 0) {
+      phu = 'Máy chia sẵn ' + x.so_mon + ' món, khoảng ' + x.so_mon + ' phút. Bấm để mở phiếu';
+      st = '<span class="st w">Chưa đếm</span>';
+      nut = ' data-dh="' + h(x.kho) + '"';
+    } else {
+      phu = 'Hôm nay không có món nào đến hạn đếm';
+      st = '<span class="st g">Không cần đếm</span>';
+      nut = '';
+    }
+    return '<div class="li"' + nut + '><div class="lt"><div class="l1">Bếp ' + h(x.bep) + '</div>' +
+      '<div class="l2">' + phu + '</div></div>' + st + '</div>';
+  }).join('') + '</div>';
+}
+
+async function kkMoHomNay(kho, el) {
+  if (el && el.dataset.dang) return;
+  if (el) el.dataset.dang = '1';
+  try {
+    var r = (await api('vagabond.kiem_ke.mo_phieu_hom_nay', { kho: kho })) || {};
+    if (!r.name) { toast(r.ly_do || 'Hôm nay kho này không có món nào đến hạn đếm.'); return; }
+    go(function () { scrKkDoc(r.name); });
+  } catch (e) { toast(errMsg(e)); }
+  finally { if (el) delete el.dataset.dang; }
 }
 
 /* ---------- 14b. Tao phieu kiem ke moi ---------- */
