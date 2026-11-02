@@ -105,11 +105,25 @@ def _combo_tu_gui():
 		{"item_code": "TEA", "rate": 1, "combo": "anything"},
 		{"item_code": "TEA", "rate": 1, "dong_goc": "KHONG-CO", "combo": "anything"},
 		{"item_code": "TEA", "rate": 40000, "combo_ma": "CB-1", "combo": "KMCB01 - Combo"}]
-	mien = db.dong_combo_sua(sua, cu)
-	# Dòng 5 có mã combo: vòng dựng dòng của pos_sua_don kiểm thành phần rồi mới lưu.
-	la("sửa bill: dòng gốc combo trên hoá đơn và dòng có mã combo được miễn", mien, {0, 1, 5})
+	mien = db.dong_giu_gia_sua(sua, cu)
+	# Codex PR #532 vòng 5: dòng đã lưu (dòng gốc có thật trên hoá đơn) giữ giá đã
+	# chốt; dòng 5 có mã combo thì vòng dựng dòng của pos_sua_don kiểm thành phần.
+	la("sửa bill: dòng đã lưu và dòng có mã combo giữ giá", mien, {0, 1, 2, 5})
 	db.ap_gia_diem(sua, None, gia, mien)
-	la("sửa bill: dòng thường gắn nhãn tự gửi về giá điểm", [x["rate"] for x in sua], [40000, 45000, 70000, 70000, 70000, 40000])
+	la("sửa bill: chỉ dòng thêm mới (kể cả mang nhãn combo tự gửi, dòng gốc giả) về giá điểm", [x["rate"] for x in sua], [40000, 45000, 1, 70000, 70000, 40000])
+
+
+@ca("v631 Codex PR #532 vòng 5: sửa bill nháp sau khi quản lý đổi giá NVH: hai ly trà đã lưu giữ 70.000 (tổng thu ngân xác nhận 140.000 vẫn đúng); ly thêm mới theo giá mới 80.000")
+def _sua_giu_gia():
+	gia = {"TRA": 80000}
+	cu = {"D1": {"item_code": "TRA", "qty": 2, "rate": 70000}}
+	sua = [{"item_code": "TRA", "qty": 2, "rate": 70000, "dong_goc": "D1"}, {"item_code": "TRA", "qty": 1, "rate": 70000}]
+	mien = db.dong_giu_gia_sua(sua, cu)
+	n = db.ap_gia_diem(sua, None, gia, mien)
+	la("một dòng (dòng thêm mới) đổi", n, 1)
+	la("giá", [x["rate"] for x in sua], [70000, 80000])
+	la("chỉ sửa ghi chú (gửi lại đủ dòng cũ): không đổi gì", db.ap_gia_diem([{"item_code": "TRA", "qty": 2, "rate": 70000, "dong_goc": "D1"}], None, gia,
+		db.dong_giu_gia_sua([{"item_code": "TRA", "dong_goc": "D1"}], cu)), 0)
 
 
 @ca("v631 lưu Bảng giá: đọc từng ô đã đổi, ô trống là xoá giá riêng; mã lạ hay giá sai báo rõ món nào")
@@ -192,6 +206,9 @@ def _cau_gia_doi():
 	for tep in ("09-tinh-tien-quay.js", "10-bill-quay.js"):
 		src = _doc("public", "js", "bep", tep)
 		la("%s: mỗi lần gọi tao_don_tay gửi cờ" % tep, src.count("gia_theo_diem: 1"), src.count("'vagabond.ban_hang.tao_don_tay'"))
+	b10 = _doc("public", "js", "bep", "10-bill-quay.js")
+	la("màn sửa bill gửi cờ một lần", b10.count("goi.gia_theo_diem = 1;"), 1)
+	dung("màn sửa bill bắt câu giá vừa đổi trước nhánh OTP", 0 < b10.index("if (await posSuaGiaVuaDoi(e, d.vgb_quay))") < b10.index("if (loi.indexOf('OTP') < 0)"))
 
 
 def _ham(src, ten):
@@ -222,7 +239,15 @@ def _thu_tu_may_chu():
 	dung("chặn ngay sau khi đặt giá, trước khuyến mãi", ap[0] < chan[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
 	dung("tham số mặc định tắt cho màn cũ", any(a.arg == "gia_theo_diem" for a in tao.args.args))
 	sua = _ham(src, "pos_sua_don")
-	ap2 = _dong(sua, "diem_ban.ap_gia_diem(items, None, gia_diem_sua, diem_ban.dong_combo_sua(items, dong_cu, DAU_COMBO))")
+	ap2 = _dong(sua, "doi_sua = diem_ban.ap_gia_diem(items, None, gia_diem_sua, mien_sua)")
+	la("dòng giữ giá khi sửa bill tính từ dòng gốc trên máy chủ", len(_dong(sua, "mien_sua = diem_ban.dong_giu_gia_sua(items, dong_cu)")), 1)
+	chan2 = _dong(sua, "frappe.throw(diem_ban.cau_gia_vua_doi(doi_sua), title='Giá vừa đổi')")
+	la("sửa bill: chặn món thêm mới mang giá cũ", len(chan2), 1)
+	neu = _dong(sua, "if doi_sua:")
+	la("sửa bill: chặn đúng khi có dòng lệch giá", len(neu), 1)
+	dung("điều kiện chặn đứng ngay trên câu chặn", neu[0] + 1 == chan2[0])
+	dung("chặn sau khi đặt giá, trước khi xét OTP", ap2[0] < chan2[0] < _dong(sua, "can_otp, vi_sao = quyen_quay.can_otp(si, items, giam_gia)")[0])
+	dung("sửa bill: tham số mặc định tắt cho màn cũ", any(a.arg == "gia_theo_diem" for a in sua.args.args))
 	la("giá điểm khi sửa bill đọc một lần từ quầy của bill", len(_dong(sua, "gia_diem_sua = diem_ban.gia_rieng_cua_quay(si.get('vgb_quay'))")), 1)
 	# Codex PR #532 vòng 3: món lẻ thêm mới trùng thành phần combo được kiểm theo CÙNG bảng giá điểm.
 	la("kiểm dòng combo dùng giá điểm", len(_dong(sua, "rows.append(giu_dong_sua(si, r, d, gia_diem_sua))")), 1)
