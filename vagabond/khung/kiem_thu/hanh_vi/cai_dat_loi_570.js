@@ -645,6 +645,14 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
       dung('tin ' + ma + ' có dòng giải thích', chu(d.querySelectorAll('.cdl-mo')[0] || {}) === TIN[ma][2]);
     });
     bang('không lộ mã tin nào trong chữ của hộp', Object.keys(TIN).filter(function (ma) { return chu(box).indexOf(ma) >= 0; }), []);
+    /* Anh Việt 02/11/2026: tích một tin thì bảng không được cuộn về đầu. Bấm THẬT
+       một dòng ở giữa danh sách sau khi đã cuộn xuống, đọc vị trí cuộn của bảng mới. */
+    box.querySelector('.shl').scrollTop = 640;
+    var giua = box.querySelectorAll('[data-cdlt]')[Math.floor(dong.length / 2)];
+    box.onclick({ target: giua });
+    bang('tích một tin: bảng giữ vị trí cuộn', box.querySelector('.shl').scrollTop, 640);
+    box.onclick({ target: box.querySelectorAll('[data-cdlt]')[Math.floor(dong.length / 2)] });
+    bang('bỏ tích lại cũng giữ vị trí', box.querySelector('.shl').scrollTop, 640);
     var ca0 = box.querySelectorAll('[data-cdltca]');
     bang('mỗi bộ phận một nút Chọn cả mục', ca0.length, m.g.VGB_ZALO_BO_PHAN.length);
     /* v606: mục Ban giám đốc đứng đầu, nên tìm nút theo tên bộ phận chứ không theo vị trí. */
