@@ -26550,7 +26550,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '628';
+var APPVER = '630';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -28967,7 +28967,19 @@ function kmHtmlVi(k) {
     'Ai nhận: theo mục Đối tượng khách ở trên. Mã chỉ dùng cho chính người nhận, thu ngân áp như mã quà chào mừng. ' +
     'Tin Zalo cùng chương trình gửi lại đúng mã trong ví, không phát mã thứ hai.</div>';
 }
-function kmChonAnhWeb(xong) {
+/* v630: câu lỗi máy chủ gửi kèm (ảnh quá lớn, sai định dạng) thay cho câu chung. */
+function vgbLoiTaiAnh(j) {
+  try {
+    var ds = JSON.parse((j && j._server_messages) || '[]');
+    var m = ds.length ? JSON.parse(ds[0]).message : '';
+    if (m) return String(m).replace(/<[^>]*>/g, '');
+  } catch (e) { /* bỏ qua, dùng câu chung */ }
+  return 'Không tải được ảnh lên. Chọn ảnh PNG, JPG hoặc WebP dưới 10 MB.';
+}
+/* v630: dùng chung cho ảnh ưu đãi và ảnh thẻ tuyển dụng. tuy.duong là cửa tải
+   riêng (mặc định upload_file của Frappe), tuy.bao là câu báo sau khi tải. */
+function kmChonAnhWeb(xong, tuy) {
+  tuy = tuy || {};
   var inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/png,image/jpeg,image/webp';
   inp.onchange = async function () {
@@ -28983,12 +28995,13 @@ function kmChonAnhWeb(xong) {
       fd.append('folder', 'Home');
       var hd = {};
       hd['X-Frappe-' + 'CSRF-' + 'Token'] = frappe.csrf_token;
-      var r = await fetch('/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
+      var r = await fetch(tuy.duong || '/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
       var j = await r.json();
-      if (!r.ok || !j.message || !j.message.file_url) throw new Error('Không tải được ảnh lên');
+      var url = j && j.message ? (j.message.file_url || j.message.url) : '';
+      if (!r.ok || !url) throw new Error(vgbLoiTaiAnh(j));
       busy(false);
-      xong(j.message.file_url);
-      toast('Đã chọn ảnh, bấm Lưu chương trình để áp dụng');
+      xong(url);
+      toast(tuy.bao || 'Đã chọn ảnh, bấm Lưu chương trình để áp dụng');
     } catch (e) {
       busy(false);
       baoTin((e && e.message) || 'Không tải được ảnh lên');
@@ -65221,6 +65234,17 @@ function tdVtMoi(v) {
     tuyen_gap: v.name ? +v.tuyen_gap || 0 : 0, anh_web: v.anh_web || ''
   };
 }
+/* v630: THUẦN. Danh sách thẻ ảnh của màn sửa vị trí: tự chọn, ảnh đã tải lên
+   riêng cho vị trí (nếu có, để thấy đang chọn ảnh nào), rồi các ảnh có sẵn. */
+function tdAnhRieng(anh, chon) {
+  anh = String(anh || '');
+  return !!anh && !(chon || []).some(function (a) { return a.url === anh; });
+}
+function tdDsAnhWeb(anh, chon) {
+  var ds = [{ url: '', ten: 'Tự chọn theo bộ phận', mo: 'Bếp ra ảnh bếp, sales ra ảnh quầy' }];
+  if (tdAnhRieng(anh, chon)) ds.push({ url: String(anh), ten: 'Ảnh đã tải lên', mo: 'Ảnh riêng của vị trí này' });
+  return ds.concat(chon || []);
+}
 async function scrTdViTri(name) {
   var tieuDe = name ? 'Sửa vị trí' : 'Thêm vị trí';
   if (!tdKq) { try { tdKq = await api('vagabond.tuyen_dung.tong_quan', {}); } catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>'); return; } }
@@ -65260,16 +65284,22 @@ async function scrTdViTri(name) {
     '<div><div style="font-size:15px;font-weight:700">Tuyển gấp</div><div style="font-size:12.5px;color:#475467">Thẻ vị trí trên web có nhãn cam Tuyển gấp.</div></div>' +
     tdCongTac('data-tdgap="1" aria-label="Tuyển gấp"', +s.tuyen_gap) + '</div>' +
     '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:14px 0 5px">Ảnh trên web</div>' +
-    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">' +
-    [{ url: '', ten: 'Tự chọn theo bộ phận', mo: 'Bếp ra ảnh bếp, sales ra ảnh quầy' }].concat(tdKq.anh_web_chon || []).map(function (a) {
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">' +
+    tdDsAnhWeb(s.anh_web, tdKq.anh_web_chon).map(function (a) {
       var on = (s.anh_web || '') === a.url;
       return '<button type="button" data-tdanhweb="' + h(a.url) + '" aria-pressed="' + on + '" style="margin:0;padding:0;text-align:left;border-radius:12px;overflow:hidden;cursor:pointer;background:#fff;' +
         'border:' + (on ? '2.5px solid #0d9488' : '1.5px solid #d0d5dd') + '">' +
         (a.url ? '<img src="' + h(a.url) + '" alt="" loading="lazy" style="display:block;width:100%;height:70px;object-fit:cover">' :
           '<span style="display:flex;height:70px;align-items:center;justify-content:center;background:#f2f4f7;font-size:22px">✨</span>') +
-        '<span style="display:block;padding:6px 8px;font-size:12.5px;font-weight:700;color:#101828">' + h(a.ten) + '</span>' +
-        '<span style="display:block;padding:0 8px 7px;font-size:11.5px;color:#475467;line-height:1.35">' + h(a.mo) + '</span></button>';
-    }).join('') + '</div></div>' +
+        '<span style="display:block;padding:6px 8px;font-size:14px;font-weight:700;color:#101828">' + h(a.ten) + '</span>' +
+        '<span style="display:block;padding:0 8px 7px;font-size:13px;color:#475467;line-height:1.35">' + h(a.mo) + '</span></button>';
+    }).join('') +
+    /* v630 (Minh Vũ 02/11/2026): tải ảnh riêng cho vị trí, không chỉ chọn ảnh có sẵn. */
+    '<button type="button" data-tdtaianhweb="1" style="margin:0;padding:0;text-align:left;border-radius:12px;overflow:hidden;cursor:pointer;background:#fff;border:1.5px dashed #0d9488">' +
+    '<span style="display:flex;height:70px;align-items:center;justify-content:center;background:#f0fdfa;font-size:22px;color:#0d9488">⬆</span>' +
+    '<span style="display:block;padding:6px 8px;font-size:14px;font-weight:700;color:#0f766e">' + (tdAnhRieng(s.anh_web, tdKq.anh_web_chon) ? 'Tải ảnh khác' : 'Tải ảnh lên') + '</span>' +
+    '<span style="display:block;padding:0 8px 7px;font-size:13px;color:#475467;line-height:1.35">PNG, JPG hoặc WebP dưới 10 MB. Ảnh ngang hiện đẹp nhất.</span></button>' +
+    '</div></div>' +
     '<div class="card" style="padding:12px 13px"><div style="font-size:15px;font-weight:800">Phỏng vấn và làm thử</div>' +
     o('Tiêu chí chấm', 'tdTieuChi', s.tieu_chi, 'nhieu', 'Mỗi dòng một tiêu chí, tối đa 8. Để trống thì dùng: ' + h((tdKq.tieu_chi_mac_dinh || []).join(', ')) + '.') +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
@@ -65289,6 +65319,11 @@ async function scrTdViTri(name) {
     t = e.target.closest('[data-tdnl]');
     if (t) { s.noi_lam = t.getAttribute('data-tdnl'); var nl = document.getElementById('tdNoiLam'); if (nl) nl.value = s.noi_lam; go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); return; }
     if (e.target.closest('[data-tdgap]')) { s.tuyen_gap = +s.tuyen_gap ? 0 : 1; go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); return; }
+    if (e.target.closest('[data-tdtaianhweb]')) {
+      kmChonAnhWeb(function (u) { s.anh_web = u; go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); },
+        { duong: '/api/method/vagabond.tuyen_dung.tai_anh_web', bao: 'Đã tải ảnh, bấm ' + (name ? 'Lưu vị trí' : 'Tạo vị trí') + ' để web hiện ảnh này' });
+      return;
+    }
     t = e.target.closest('[data-tdanhweb]');
     if (t) { s.anh_web = t.getAttribute('data-tdanhweb'); go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); return; }
     if (e.target.closest('[data-tdvtbat]')) { s.dang_tuyen = +s.dang_tuyen ? 0 : 1; go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); return; }
