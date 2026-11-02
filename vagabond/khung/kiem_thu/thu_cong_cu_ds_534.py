@@ -301,7 +301,9 @@ def _chia_con_no():
 	s = _doc("cong_no.py")
 	i = s.find("def bang_khach_no(")  # v630: phép tính tách khỏi cửa whitelist ds_khach_no
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("ds_khach_no đi qua phép thuần", "rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)" in than)
+	# Codex #531 vòng 4: phép tính dời vào tinh_con_doi, dùng chung với lập phiếu đòi nợ.
+	dung("ds_khach_no đi qua phép thuần", "rows, the_ve, khach_cho = tinh_con_doi(rows)" in than
+		and "return tt.chia_no_hoa_don(rows, ve)" in s[s.find("def tinh_con_doi("):s.find("def ds_khach_no(")])
 	# v630: cửa ds_khach_no chỉ còn cổng quyền rồi gọi bang_khach_no (trang Bánh sỉ gọi phép tính không cổng).
 	j = s.find("def ds_khach_no(")
 	cua = s[j:s.find("\ndef ", j + 10)]
@@ -478,7 +480,8 @@ def _cong_no_tach():
 	s = _doc("cong_no.py")
 	i = s.find("def bang_khach_no(")  # v630: phép tính tách khỏi cửa whitelist ds_khach_no
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("gọi phép chia thuần", "tt.chia_no_hoa_don(rows, ve)" in than)
+	dung("gọi phép chia thuần", "tinh_con_doi(rows)" in than
+		and "tt.chia_no_hoa_don(rows, ve)" in s[s.find("def tinh_con_doi("):s.find("def ds_khach_no(")])
 	dung("tổng nợ tính trước ô tìm", 0 < than.find("tong = sum(") < than.find("tt.loc_khach_no(ra, tim)"))
 	i = s.find("def _tien_da_ve_theo_hd(")
 	than = s[i:s.find("\ndef ", i + 10) if s.find("\ndef ", i + 10) > 0 else len(s)]

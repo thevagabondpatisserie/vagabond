@@ -524,7 +524,8 @@ def _cua_ngo():
 
 @ca("v630 bánh sỉ phiên Guest: hàm dùng chung mô đun khác mà trang khách gọi (cong_no, ung_truoc_don) không có cổng quyền nhân viên")
 def _guest_mo_dun_khac():
-	tep = {"cong_no.py": ["no_cua_khach", "qr_no_cua_khach", "bang_khach_no", "lap_phieu_doi_no", "_phieu_mo_cua"],
+	tep = {"cong_no.py": ["no_cua_khach", "qr_no_cua_khach", "bang_khach_no", "lap_phieu_doi_no", "_phieu_mo_cua",
+		"tinh_con_doi"],
 		"ung_truoc_don.py": ["khop", "ds_phieu", "phieu_cua", "gd_mang_ma", "con_phai_thu"]}
 	for t, ds in tep.items():
 		cay = ast.parse((GOC / "vagabond" / t).read_text(encoding="utf-8"))

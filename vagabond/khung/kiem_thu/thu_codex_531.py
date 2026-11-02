@@ -734,3 +734,159 @@ def _f4_cua_ngo():
 	dung("lấy khách từ phiên", "_khach_phien()" in than)
 	from vagabond.khung.kiem_thu import thu_cua_ngo
 	dung("đăng ký cửa ngõ", "qr_don" in thu_cua_ngo.CUA_NGO["banh_si.py"])
+
+
+# ================================================== vòng 4: QR công nợ chỉ đòi phần còn lại
+
+class _CongNo(object):
+	"""Frappe giả cho cong_no: hoá đơn công nợ, phiếu đòi nợ lập ra và đọc lại.
+	Chạy THẬT bang_khach_no, lap_phieu_doi_no, no_cua_khach, qr_no_cua_khach
+	và phép tính nợ của thu_tien; phiếu đòi nợ tính tong_tien như controller
+	VagabondCongNo.validate (tổng ô so_tien các dòng)."""
+
+	TRUONG = ("name", "customer", "customer_name", "posting_date", "grand_total", "outstanding_amount",
+		"vgb_pt_thanh_toan", "custom_nguon", "vgb_quay", "vgb_ma_tham_chieu", "vgb_khach_no", "docstatus")
+
+	def __init__(self, hd):
+		self.hd = {h["name"]: dict(h) for h in hd}
+		self.phieu = {}
+
+	def get_all(self, dt, filters=None, fields=None, **k):
+		f = filters or {}
+		if dt != "Sales Invoice":
+			return []
+		ds = [h for h in self.hd.values() if h["docstatus"] == 1]
+		if isinstance(f.get("name"), list):
+			ds = [h for h in ds if h["name"] in f["name"][1]]
+		if f.get("vgb_pt_thanh_toan"):
+			ds = [h for h in ds if h["vgb_pt_thanh_toan"] == f["vgb_pt_thanh_toan"]]
+		if k.get("pluck"):
+			return [h[k["pluck"]] for h in ds]
+		return [_fr._dict(h, due_date="2026-11-20") for h in ds]
+
+	def get_value(self, dt, ten=None, f=None, as_dict=False, **k):
+		if dt == "Sales Invoice":
+			h = self.hd.get(ten)
+			if not h:
+				return None
+			return _fr._dict({x: h.get(x) for x in f}) if isinstance(f, (list, tuple)) else h.get(f)
+		if dt == "Customer":
+			return "Café Lá Me"
+		return None
+
+	def sql(self, q, a=None, as_dict=False, **k):
+		if "`tabVagabond Cong No Dong`" in q:
+			return [(d.hoa_don,) for p in self.phieu.values() for d in p.dong]
+		if "from `tabVagabond Cong No` where khach" in q:
+			return [{"name": n} for n, p in self.phieu.items() if p.khach == a[0]]
+		return []
+
+	def new_doc(self, dt):
+		g = self
+
+		class Phieu(_fr._dict):
+			def append(self, o, d):
+				self.setdefault(o, []).append(_fr._dict(d))
+
+			def insert(self, **k2):
+				self.tong_tien = sum(float(d.so_tien or 0) for d in self.get("dong") or [])
+				self.name = "CN-%d" % (len(g.phieu) + 1)
+				self.da_thu = 0
+				g.phieu[self.name] = self
+		p = Phieu(doctype=dt)
+		p.flags = _fr._dict()
+		return p
+
+	def get_doc(self, dt, ten=None, *a, **k):
+		return self.phieu[ten]
+
+	def da_gom(self):
+		return {d.hoa_don for p in self.phieu.values() for d in p.dong}
+
+
+def _hd_no(ten, tong, con):
+	return {"name": ten, "customer": "SI00012", "customer_name": "Café Lá Me", "posting_date": "2026-10-20",
+		"grand_total": tong, "outstanding_amount": con, "vgb_pt_thanh_toan": "Công nợ", "custom_nguon": "Khách sỉ",
+		"vgb_quay": "SALES", "vgb_ma_tham_chieu": "", "vgb_khach_no": None, "docstatus": 1}
+
+
+def _gan_cong_no(g, vai, ve=None):
+	from vagabond import cong_no, tai_khoan
+	from vagabond import thu_tien as tt
+	return [mock.patch.object(_fr, "get_all", g.get_all), mock.patch.object(_fr.db, "get_value", g.get_value),
+		mock.patch.object(_fr.db, "sql", g.sql), mock.patch.object(_fr, "new_doc", g.new_doc, create=True),
+		mock.patch.object(_fr, "get_doc", g.get_doc), mock.patch.object(_fr.db, "exists", lambda *a, **k: None),
+		mock.patch.object(_fr, "get_roles", lambda *a, **k: vai),
+		mock.patch.object(_fr, "parse_json", json.loads, create=True),
+		mock.patch.object(tt, "si_co_dong_cong_no", lambda: set()), mock.patch.object(tt, "bang_dong_cua", lambda ds: {}),
+		mock.patch.object(cong_no, "_hd_da_gom", g.da_gom), mock.patch.object(cong_no, "_tien_da_ve_theo_hd", lambda ds: {k: v for k, v in (ve or {}).items() if k in ds}),
+		mock.patch.object(cong_no, "_sepay_cn", lambda ma: {}),
+		mock.patch.object(tai_khoan, "tk_phieu_no", lambda: {"bank": "MB", "stk": "0931224334", "ten": "VAGABOND"}),
+		mock.patch("vagabond.qr_chuyen_khoan.anh_qr", lambda tk, so, nd: "data:qr")]
+
+
+@ca("Codex #531 v4: khách sỉ đã trả một phần hoá đơn rồi bấm Thanh toán qua QR: phiếu đòi nợ và QR chỉ đòi phần còn lại (1.000.000 đã trả 600.000 thì đòi 400.000)")
+def _v4_qr_khach_si():
+	g = _CongNo([_hd_no("SI-1", 1000000, 400000), _hd_no("SI-2", 500000, 500000)])
+	kh = _fr._dict(name="SI00012", customer_name="Café Lá Me", vgb_si_cuoi_ky=1)
+	ps = _gan_cong_no(g, ["Guest"]) + [mock.patch.object(bs, "_khach_phien", lambda: (kh, "")),
+		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-02")]
+	with _gan(ps):
+		r = bs.qr_no()
+	la("một phiếu", len(r["phieu"]), 1)
+	p = r["phieu"][0]
+	la("QR đòi", (p["qr"]["so_tien"], p["con_thieu"], p["tong_tien"]), (900000, 900000.0, 900000.0))
+	la("dòng phiếu", sorted((d.hoa_don, d.so_tien) for d in g.phieu["CN-1"].dong), [("SI-1", 400000.0), ("SI-2", 500000.0)])
+
+
+@ca("Codex #531 v4: Sales lập phiếu đòi nợ ở màn Công nợ cho hoá đơn đã trả một phần: phiếu ghi đúng số còn đòi như màn hiện, không ghi cả tờ")
+def _v4_sales_tao_phieu():
+	from vagabond import cong_no
+	g = _CongNo([_hd_no("SI-1", 1000000, 400000)])
+	with _gan(_gan_cong_no(g, ["Sales Manager"]) + [mock.patch.object(cong_no, "xem_phieu", lambda ten: {"name": ten})]):
+		man = cong_no.ds_khach_no()
+		cong_no.tao_phieu("SI00012", json.dumps(["SI-1"]))
+	la("màn Công nợ hiện còn đòi", man["khach"][0]["hd"][0]["tien"], 400000.0)
+	la("phiếu ghi", (g.phieu["CN-1"].tong_tien, g.phieu["CN-1"].dong[0].so_tien), (400000.0, 400000.0))
+
+
+@ca("Codex #531 v4: tiền đã về chờ ghi sổ (đã xác minh) cũng trừ khỏi phiếu, đúng số màn Công nợ hiện: còn nợ sổ cái 400.000, đã về 100.000 thì đòi 300.000")
+def _v4_tien_da_ve():
+	from vagabond import cong_no
+	g = _CongNo([_hd_no("SI-1", 1000000, 400000)])
+	ve = {"SI-1": {"phan_bo": 100000, "da_xac_minh": 1, "cac_pe": ["PE-NHAP"]}}
+	with _gan(_gan_cong_no(g, ["Sales Manager"], ve) + [mock.patch.object(cong_no, "xem_phieu", lambda ten: {"name": ten})]):
+		man = cong_no.ds_khach_no()
+		cong_no.tao_phieu("SI00012", json.dumps(["SI-1"]))
+	la("màn hiện", man["khach"][0]["hd"][0]["tien"], 300000.0)
+	la("phiếu ghi", g.phieu["CN-1"].tong_tien, 300000.0)
+
+
+@ca("Codex #531 v4: hoá đơn đã thu đủ thì không lập phiếu đòi nợ, câu tiếng Việt nêu số hoá đơn")
+def _v4_da_thu_du():
+	from vagabond import cong_no
+	g = _CongNo([_hd_no("SI-1", 1000000, 0)])
+	with _gan(_gan_cong_no(g, ["Sales Manager"])):
+		try:
+			cong_no.lap_phieu_doi_no("SI00012", ["SI-1"])
+			loi = ""
+		except _fr.ValidationError as e:
+			loi = str(e)
+	dung("câu nêu hoá đơn đã thu đủ: " + loi, "SI-1" in loi and "đã thu đủ" in loi)
+	la("không phiếu nào", g.phieu, {})
+
+
+@ca("Codex #531 v4: một phép tính số còn đòi trong cong_no (tinh_con_doi); màn Công nợ và lập phiếu đòi nợ cùng gọi nó, không chỗ nào tự tính hay lấy grand_total làm số đòi")
+def _v4_mot_nguon():
+	import ast
+	cay = ast.parse((GOC / "vagabond/cong_no.py").read_text(encoding="utf-8"))
+	ham = {f.name: f for f in cay.body if isinstance(f, ast.FunctionDef)}
+
+	def goi(f):
+		return {n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
+			for n in ast.walk(f) if isinstance(n, ast.Call)}
+	tu_tinh = sorted(t for t, f in ham.items() if t != "tinh_con_doi" and goi(f) & {"con_no_cua", "chia_no_hoa_don"})
+	la("hàm tự tính nợ ngoài tinh_con_doi", tu_tinh, [])
+	for t in ("bang_khach_no", "lap_phieu_doi_no"):
+		dung(t + " gọi tinh_con_doi", "tinh_con_doi" in goi(ham[t]))
+	dung("lap_phieu_doi_no không đọc grand_total", "grand_total" not in ast.unparse(ham["lap_phieu_doi_no"]))
