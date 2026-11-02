@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Phieu Quy",
- "modified": "2026-11-02 18:00:00.000000",
+ "modified": "2026-11-02 21:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Phiếu quỹ tiền mặt công ty: kiểm quỹ (đếm, lệch, lý do, bút toán chênh lệch) và nộp tiền mặt vào ngân hàng (v628). Lập từ màn Quỹ tiền mặt công ty, không sửa tay.",
@@ -65,7 +65,7 @@
    "fieldtype": "Select",
    "label": "Trạng thái",
    "read_only": 1,
-   "options": "Khớp\nĐã ghi\nChờ duyệt\nTrả lại\nChờ tiền về\nĐã khớp\nĐã huỷ",
+   "options": "Khớp\nĐã ghi\nChờ duyệt\nĐã thay\nTrả lại\nChờ tiền về\nĐã khớp\nĐã huỷ",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "search_index": 1
