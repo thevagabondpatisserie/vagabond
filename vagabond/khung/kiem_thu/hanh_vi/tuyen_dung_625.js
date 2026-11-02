@@ -48,7 +48,7 @@ function duLieu() {
     hom_nay: HOM, bay_gio: HOM + ' 09:00:00',
     tom_tat: { moi: 2, qua_han: 1, hen_hom_nay: 1, cong_chua_tra: 1 },
     nguon: ['Web Vagabond', 'QR tại cửa hàng', 'TopCV', 'Trang việc làm khác', 'Facebook, Zalo', 'Người quen giới thiệu', 'Đến trực tiếp'],
-    ly_do_dung: ['Không phù hợp', 'Ứng viên rút', 'Không liên lạc được', 'Đã đủ người'],
+    ly_do_dung: ['Thiếu kinh nghiệm', 'Lương mong muốn cao', 'Ca làm không khớp', 'Ở xa', 'Không liên lạc được', 'Ứng viên rút', 'Không đạt làm thử', 'Khác'], ly_do_khac: 'Khác', ten_dung: 'Đã loại',
     hinh_thuc: ['Toàn thời gian', 'Bán thời gian', 'Thời vụ', 'Thực tập'], ca_ranh: ['Sáng', 'Chiều', 'Tối', 'Cuối tuần', 'Linh hoạt'],
     noi_lam: ['The Vagabond District 1', 'Xưởng sản xuất Tân Bình'], bo_phan: [{ k: 'Thu ngân - TV', ten: 'Thu ngân' }],
     tieu_chi_mac_dinh: ['Thái độ, giao tiếp', 'Nhanh nhẹn'], cau_dong_y: 'Tôi đồng ý ... trong 12 tháng ...', thang_luu: 12,
@@ -158,6 +158,16 @@ function bam(el) { el.dispatchEvent(dg.suKien('click', {}, el)); }
 function goiTen(m, t) { return m.goi.filter(function (x) { return x.duong === 'vagabond.tuyen_dung.' + t; }); }
 function the(m, ten) { return m.khung.querySelectorAll('[data-tdhs="' + ten + '"]')[0]; }
 function nut(el, attr) { return el ? el.querySelectorAll('[' + attr + ']')[0] : null; }
+/* v631: Hồ sơ AI, CV, câu trả lời nằm ở trang chi tiết; quản lý chạm vào thẻ để mở. */
+async function chiTiet(m, ten, tab) {
+  if (tab) m.g.tdCtTab = tab;
+  bam(the(m, ten));
+  await tick(); await tick();
+  if (tab) m.g.tdCtTab = tab;
+  if (tab && tab !== 'ai') { bam(m.khung.querySelectorAll('[data-tdcttab="' + tab + '"]')[0]); await tick(); await tick(); }
+  dung('đã mở trang chi tiết ' + ten, m.g._t === 'Hồ sơ ứng viên' && !!m.khung.querySelectorAll('[data-tdctdau="' + ten + '"]')[0]);
+  return m.khung;
+}
 
 async function mo(vai, loi, dat) {
   var m = dungMoi(vai || QL, loi);
@@ -195,12 +205,20 @@ function ai(r, k) { return Object.assign(r, k); }
     dung('không ảnh: chữ cái đầu', chu(the(m, 'UV-2')).indexOf('TB') >= 0 && !nut(the(m, 'UV-2'), 'data-tdanh'));
     dung('đang đọc', chu(nut(the(m, 'UV-2'), 'data-tddongai')).indexOf('AI đang đọc') >= 0 && !nut(the(m, 'UV-2'), 'data-tdvongai'));
     dung('lỗi: chỉ đường xem lý do', chu(nut(the(m, 'UV-3'), 'data-tddongai')).indexOf('chưa đọc được') >= 0);
-    dung('có CV: Mở CV qua cửa riêng tư', nut(a, 'data-tdmocv').getAttribute('href') === '/api/method/vagabond.tuyen_dung.xem_cv?name=UV-1');
-    dung('chưa CV: nút Tải CV', !!nut(the(m, 'UV-3'), 'data-tdtaicv') && !nut(a, 'data-tdtaicv'));
-    var ghi = chu(m.khung.querySelectorAll('[data-tdghi="0"]')[0] || a);
-    dung('lương mong muốn có đơn vị', chu(a).indexOf('Lương mong muốn: 9.000.000 đ/tháng') >= 0 || ghi.indexOf('Lương mong muốn: 9.000.000 đ/tháng') >= 0);
-    dung('câu trả lời form, bỏ câu đã có ô riêng', (chu(a) + ghi).indexOf('Trình độ học vấn cao nhất: Tốt nghiệp THPT') >= 0 &&
-      (chu(a) + ghi).indexOf('Họ và tên ứng viên:') < 0 && (chu(a) + ghi).indexOf('Tổng thu nhập:') < 0);
+    /* v631: CV và câu trả lời ở trang chi tiết (thẻ CV, thẻ Câu trả lời). */
+    var cv = await chiTiet(m, 'UV-1', 'cv');
+    dung('có CV: Mở CV qua cửa riêng tư', nut(cv, 'data-tdmocv').getAttribute('href') === '/api/method/vagabond.tuyen_dung.xem_cv?name=UV-1');
+    dung('có CV: nút đổi là Tải CV khác', chu(nut(cv, 'data-tdtaicv')).indexOf('Tải CV khác') >= 0);
+    dung('ảnh chân dung lớn ở thẻ CV', !!nut(cv, 'data-tdctanh'));
+    m = await mo();
+    var cv3 = await chiTiet(m, 'UV-3', 'cv');
+    dung('chưa CV: nút Tải CV lên, không Mở CV', chu(nut(cv3, 'data-tdtaicv')).indexOf('Tải CV lên') >= 0 && !nut(cv3, 'data-tdmocv'));
+    m = await mo();
+    var tl = await chiTiet(m, 'UV-1', 'tl');
+    var dong = tl.querySelectorAll('[data-tdtl]').map(chu);
+    bang('đủ mọi câu form theo thứ tự, rồi ô có sẵn form không hỏi', dong, ['Họ và tên ứng viênNguyễn Văn An', 'Trình độ học vấn cao nhấtTốt nghiệp THPT',
+      'Tổng thu nhập9.000.000 đ/tháng', 'Số điện thoại0909123456', 'Ca rảnhTối', 'Khu vực ởQuận 3']);
+    dung('dòng nộp web, đã đồng ý lưu', chu(tl).indexOf('Nộp trên web lúc 07:00 29/10, đã đồng ý lưu hồ sơ') >= 0);
   });
 
   await ca('Xếp theo điểm AI: điểm cao lên trước, AI chưa đọc xếp cuối; bấm lại về mới nộp trước', async function () {
@@ -219,24 +237,25 @@ function ai(r, k) { return Object.assign(r, k); }
       tieu_chi: [{ ten: 'Kinh nghiệm đúng vị trí', diem: 90, ly_do: 'Ba năm thu ngân' }, { ten: 'Lương mong muốn so khung', diem: 60, ly_do: 'Cao hơn khung' }],
       kinh_nghiem: [{ noi: 'Tiệm A', viec: 'Thu ngân', thoi_gian: '2022 - nay' }], ky_nang: ['Pancake'], can_hoi: ['Bạn làm ca tối được mấy ngày?'], co_cv: 1 } };
     var m = await mo();
-    bam(nut(the(m, 'UV-1'), 'data-tdai')); await tick(); await tick();
-    var s = sheet(m);
-    dung('mở bảng', !!s && chu(s).indexOf('Hồ sơ AI · Nguyễn Văn An') >= 0);
+    var s = await chiTiet(m, 'UV-1');
+    dung('mở trang chi tiết, thẻ Tóm tắt AI đang mở', chu(s).indexOf('Nguyễn Văn An') >= 0 && nut(s, 'data-tdctthan').getAttribute('data-tdctthan') === 'ai');
     bang('hai thanh tiêu chí', s.querySelectorAll('[data-tdtc]').length, 2);
     dung('điểm và lý do', chu(s).indexOf('Kinh nghiệm đúng vị trí90Ba năm thu ngân') >= 0);
-    dung('kinh nghiệm rút từ CV', chu(s).indexOf('Thu ngân · Tiệm A · 2022 - nay') >= 0);
+    dung('kinh nghiệm rút từ CV nằm ở thẻ CV, không lặp ở Tóm tắt AI', chu(s).indexOf('Thu ngân · Tiệm A · 2022 - nay') < 0);
     dung('câu nên hỏi', chu(s).indexOf('Bạn làm ca tối được mấy ngày?') >= 0);
     dung('AI chỉ gợi ý, không dùng giới tính tuổi', chu(s).indexOf('AI không dùng giới tính, tuổi') >= 0);
     bang('gọi đúng hồ sơ', goiTen(m, 'ho_so_ai')[0].ts, { name: 'UV-1' });
     bam(nut(s, 'data-tdchamlai')); await tick();
     bang('chấm lại', goiTen(m, 'cham_lai')[0].ts, { name: 'UV-1' });
+    m = await mo();
+    var cv = await chiTiet(m, 'UV-1', 'cv');
+    dung('thẻ CV có kinh nghiệm, kỹ năng AI rút từ CV', chu(cv).indexOf('Thu ngân · Tiệm A · 2022 - nay') >= 0 && chu(cv).indexOf('Pancake') >= 0);
   });
 
   await ca('Hồ sơ AI chưa đọc được: nói lý do, vẫn có Chấm lại', async function () {
     HO_SO_AI = { name: 'UV-3', trang_thai: 'Chưa đọc được', loi: 'Khoá hết hạn', kq: null, co_cv: 0 };
     var m = await mo();
-    bam(nut(the(m, 'UV-3'), 'data-tdai')); await tick(); await tick();
-    var s = sheet(m);
+    var s = await chiTiet(m, 'UV-3');
     dung('lý do', chu(s).indexOf('Lý do: Khoá hết hạn') >= 0);
     dung('chấm lại có, mở CV không', !!nut(s, 'data-tdchamlai') && chu(s).indexOf('Mở CV') < 0);
   });
@@ -245,40 +264,33 @@ function ai(r, k) { return Object.assign(r, k); }
     var cu = { diem: 82, nhan: 'Rất phù hợp', tom_tat: 'Ba năm thu ngân.', tieu_chi: [{ ten: 'Kinh nghiệm đúng vị trí', diem: 90 }], co_cv: 1 };
     HO_SO_AI = { name: 'UV-1', trang_thai: 'Chưa đọc được', loi: 'Đã dùng đủ 300 lượt đọc AI trong tháng', luc: '2026-10-30 08:00:00', co_cv: 1, kq: cu };
     var m = await mo();
-    bam(nut(the(m, 'UV-1'), 'data-tdai')); await tick(); await tick();
-    var s = sheet(m);
+    var s = await chiTiet(m, 'UV-1');
     dung('báo lượt mới lỗi kèm lý do', chu(s).indexOf('Lần chấm lại chưa xong. Lý do: Đã dùng đủ 300 lượt đọc AI trong tháng') >= 0);
     dung('ghi rõ kết quả cũ', chu(s).indexOf('Bên dưới là kết quả lần trước') >= 0);
     bang('vẫn hiện kết quả cũ', s.querySelectorAll('[data-tdtc]').length, 1);
     HO_SO_AI = { name: 'UV-1', trang_thai: 'Đang đọc', loi: '', luc: '2026-10-30 08:00:00', co_cv: 1, kq: cu };
     m = await mo();
-    bam(nut(the(m, 'UV-1'), 'data-tdai')); await tick(); await tick();
-    s = sheet(m);
+    s = await chiTiet(m, 'UV-1');
     dung('đang đọc lại', chu(s).indexOf('AI đang đọc lại hồ sơ') >= 0 && chu(s).indexOf('Bên dưới là kết quả lần trước') >= 0);
     HO_SO_AI = { name: 'UV-1', trang_thai: 'Đã đọc', loi: '', luc: '2026-10-30 08:00:00', co_cv: 1, kq: cu };
     m = await mo();
-    bam(nut(the(m, 'UV-1'), 'data-tdai')); await tick(); await tick();
-    s = sheet(m);
+    s = await chiTiet(m, 'UV-1');
     dung('đọc xong: không có dòng báo', chu(s).indexOf('kết quả lần trước') < 0);
   });
 
-  await ca('Codex #523 vòng 3: hồ sơ nộp lúc chưa có khoá AI (Chưa bật AI, đã có CV) vẫn có nút Hồ sơ AI để xem lý do và Chấm lại', async function () {
+  await ca('Codex #523 vòng 3: hồ sơ nộp lúc chưa có khoá AI (Chưa bật AI, đã có CV) vẫn xem được lý do và Chấm lại ở thẻ Tóm tắt AI', async function () {
     var cu = SUA_DL;
     SUA_DL = function (dl) { cu(dl); ai(dl.rows[1], { ai_trang_thai: 'Chưa bật AI', ai_loi: 'Chưa có khoá AI trong Cài đặt (ô khoá Trợ lý).', co_cv: 1 }); };
     try {
       HO_SO_AI = { name: 'UV-2', trang_thai: 'Chưa bật AI', loi: 'Chưa có khoá AI trong Cài đặt (ô khoá Trợ lý).', kq: null, co_cv: 1 };
       var m = await mo();
-      var n = nut(the(m, 'UV-2'), 'data-tdai');
-      dung('có nút Hồ sơ AI', !!n);
-      bam(n); await tick(); await tick();
-      var s = sheet(m);
+      var s = await chiTiet(m, 'UV-2');
       dung('nói lý do thiếu khoá', chu(s).indexOf('Lý do: Chưa có khoá AI trong Cài đặt') >= 0);
       bam(nut(s, 'data-tdchamlai')); await tick();
       bang('Chấm lại gọi máy chủ', goiTen(m, 'cham_lai').map(function (g) { return g.ts.name; }), ['UV-2']);
       HO_SO_AI = { name: 'UV-2', trang_thai: '', loi: '', kq: null, co_cv: 1 };
       m = await mo();
-      bam(nut(the(m, 'UV-2'), 'data-tdai')); await tick(); await tick();
-      dung('hồ sơ cũ chưa đọc: mời bấm Chấm lại', chu(sheet(m)).indexOf('Bấm Chấm lại để AI đọc') >= 0);
+      dung('hồ sơ cũ chưa đọc: mời bấm Chấm lại', chu(await chiTiet(m, 'UV-2')).indexOf('Bấm Chấm lại để AI đọc') >= 0);
     } finally { SUA_DL = cu; }
   });
 
