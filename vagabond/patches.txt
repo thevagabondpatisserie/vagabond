@@ -414,3 +414,4 @@ vagabond.patches.dong_bo_cau_truc #v626
 vagabond.patches.dong_bo_cau_truc #v627
 vagabond.patches.dong_bo_cau_truc #v628
 vagabond.patches.v628_tin_tai_chinh
+vagabond.patches.dong_bo_cau_truc #v630
