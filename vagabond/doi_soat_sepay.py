@@ -366,6 +366,17 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu hoa don ban")
 		if cho_bo:raise
+	# v628 Quỹ tiền mặt: tiền mặt công ty mang đi nộp vào ngân hàng. Dòng sao kê tiền
+	# về đã ghép thì thuộc phiếu nộp, không để bill hay tin "tiền chưa gắn" nhận nhầm.
+	try:
+		for r in frappe.get_all("Vagabond Phieu Quy", filters=[["gd_sepay", "in", sorted(muon)],
+				["trang_thai", "!=", "Đã huỷ"]], fields=["name", "gd_sepay"], limit_page_length=0):
+			ma = str(r.get("gd_sepay") or "").strip()
+			if ma in muon and ma not in ra:
+				ra[ma] = "phiếu nộp tiền mặt vào ngân hàng %s" % r["name"]
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu phieu quy")
+		if cho_bo:raise
 	return ra
 
 

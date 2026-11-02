@@ -570,6 +570,10 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 	# Số tiền mặt đếm được lúc chốt: chính là số phiếu nộp quỹ sẽ kỳ vọng.
 	doc.tien_mat_dem = tien_mat_dem
 	doc.save(ignore_permissions=True)
+	# v628: tiền mặt lệch từ 50.000 đ hoặc ca mở quá 24 giờ thì báo Ban giám đốc qua
+	# Zalo. Ghi tin trước commit để tin và biên bản cùng một giao dịch.
+	from vagabond import tin_tai_chinh
+	tin_tai_chinh.bao_ket_lech(doc, bang)
 	frappe.db.commit()
 	return {
 		"ma": doc.name,

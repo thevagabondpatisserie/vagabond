@@ -314,6 +314,9 @@ async function scrHome() {
          loc theo diem ban, xuat Excel. Nhan vien lap phieu o o cung ten
          ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
       card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
+      /* v628 Quỹ tiền mặt công ty (anh Việt duyệt 02/11/2026): chị Dung kiểm quỹ, ghi nộp ngân hàng.
+         Người xem Tài chính mà không thuộc khối này mở từ dòng Quỹ công ty ở màn Tiền hiện có. */
+      card('🪙', 'Quỹ tiền mặt công ty', 'Tiền trong quỹ, kiểm quỹ, nộp tiền mặt vào ngân hàng', 0, 'TCQUY') +
       card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') +
       /* #482: giá vốn nguyên liệu theo công thức và giá bán đề xuất, cho Khải. */
       (coQuyenGvt() ? card('🧮', 'Giá vốn tạm tính', 'Giá vốn nguyên liệu, hệ số giá bán, giá đề xuất, tính giá món thử R&D', 0, 'GVT') : '') +
@@ -653,11 +656,11 @@ var VGB_NHOM = [
   },
   {
     k: 'KT', ten: 'Kế toán', icon: '🧮',
-    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
+    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'TCQUY', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
     nhom: [
       { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'BC:BC05'] },
       { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT'] },
-      { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ'] },
+      { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ', 'TCQUY'] },
       { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] },
       { t: 'Giá thành', p: 'định giá bán', keys: ['GVT'] }
     ]
@@ -1930,6 +1933,7 @@ var VGB_DUONG = {
   'phi-book-app': 'PHIAPP',
   'phieu-hoan-tien': 'PHHUY',
   'phuong-thuc-thanh-toan': 'CDPT',
+  'quy-tien-mat-cong-ty': 'TCQUY',
   'quyen-quay': 'CDQQ',
   'san-xuat': 'MFG',
   'sepay': 'CDSE',
@@ -2135,6 +2139,7 @@ function vgbGo(k) {
   if (k === 'TCLL') return go(scrTcLaiLo);
   if (k === 'TCTL') return go(scrTcTiLe);
   if (k === 'TCCD') return go(scrTcCaiDat);
+  if (k === 'TCQUY') return go(scrQuyTm);
   if (k === 'TCPT') return go(scrCongNo);
   if (k === 'TCPTR') return go(scrNoPhaiTra);
   if (k === 'TCCHO') return go(scrHoSoTT);

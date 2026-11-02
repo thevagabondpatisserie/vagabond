@@ -76,7 +76,7 @@ CUA_NGO = {
 		"luu_xhd", "doi_ngay_hoa_don", "don_treo", "keo_va_ghi_so",
 		"cai_dat_cuoi_ngay", "luu_cai_dat_cuoi_ngay", "chay_cuoi_ngay_ngay_bay_gio", "bu_email_xhd",
 		"tao_don_tay", "pos_bill_them", "ai_lam_gi", "xuat_hoa_don_dien_tu",
-		"xuat_hddt_con_thieu", "pos_kiem_sepay", "pos_do_tien", "pos_gan_tien",
+		"xuat_hddt_con_thieu", "pos_kiem_sepay", "pos_do_tien", "pos_gan_tien", "pos_tien_bill", "pos_chuyen_tien",
 		"pos_ds_bill", "pos_chot", "pos_xoa", "pos_sua_don",
 		"pos_luu_don", "pos_ghi_so", "pos_ds_tuy_chon", "pos_ds_khuyen_mai",
 		"pos_chot_ca", "pos_link_xhd", "xhd_khach_xem", "xhd_khach_luu",
@@ -491,6 +491,9 @@ CUA_NGO = {
 	# v626: phân hệ Tài chính (Giám đốc và người Giám đốc chọn, kiểm trong hàm).
 	"tai_chinh.py": ["cai_dat", "dong_tien", "du_bao_30", "lai_lo_thang", "luu_moc", "luu_nguoi_xem",
 		"ti_le_thang", "tien_hien_co", "tong_quan"],
+	# v628: Quỹ tiền mặt công ty (kế toán, Giám đốc; kiểm trong hàm).
+	"quy_tien_mat.py": ["duyet_kiem_quy", "huy_phieu", "kiem_quy", "luu_tai_khoan", "man_quy", "nop_ngan_hang",
+		"tim_tai_khoan"],
 
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi",
@@ -659,6 +662,8 @@ CUA_NGO = {
 		"phieu_cho_duyet", "phieu_dang_khoa", "tao_phieu_hom_nay",
 		# v561: goi y va nho tai khoan chenh lech ke toan da chon.
 		"tk_goi_y", "nho_tk",
+		# v628: nut "Dem hom nay" cua bep (10 mon may chia moi sang).
+		"ds_dem_hom_nay", "mo_phieu_hom_nay",
 	],
 	# v547: goi y gia von cho man Ghi so kiem ke. `dien_gia` la HOOK, nam NGOAI.
 	"gia_von_kiem_ke.py": ["goi_y_gia"],

@@ -168,7 +168,71 @@ def trang_thai_tien(nhan, tong, sai_so=1.0):
 	return TT_CHUA
 
 
-def chu_theo_noi_dung(gds, ma_cua_bill, re_ma_bill, chu_ma=None):
+# v628 (Dễ báo 02/11/2026, ca TH1 và TH3): một khoản mang mã bill mà KHÔNG
+# bill nào đang sống giữ thì sau bao nhiêu phút được coi là tiền chưa thuộc ai.
+# Mười lăm phút đủ cho thu ngân lưu xong bill đang hiện mã QR; quá mốc đó mà
+# vẫn chưa có bill nào lưu mã này thì bill đã mất trước khi lưu (app tải lại).
+PHUT_MO_COI = 15
+
+
+def bill_huy_nha(rows, co_phieu_hoan):
+	"""Bill nào đã huỷ mềm và NHẢ tiền ra. THUẦN.
+
+	rows           [{name, docstatus, vgb_huy}]
+	co_phieu_hoan  tên các bill đang có phiếu hoàn tiền còn hiệu lực
+
+	Nháp đã huỷ mềm không giữ tiền (đúng luật `doi_soat_sepay.chu_cua_giao_dich`
+	đã dùng từ trước). Riêng bill đã có phiếu hoàn thì tiền đang chờ trả lại
+	khách, không được gắn sang bill khác: gắn là một khoản tiền tính hai chỗ.
+	Bill đã ghi sổ (docstatus 1) luôn giữ tiền.
+	"""
+	co_phieu_hoan = set(co_phieu_hoan or ())
+	ra = set()
+	for r in rows or []:
+		try:
+			ds, huy = int(r.get("docstatus") or 0), int(r.get("vgb_huy") or 0)
+		except (TypeError, ValueError):
+			continue
+		if ds == 0 and huy and r.get("name") and r["name"] not in co_phieu_hoan:
+			ra.add(r["name"])
+	return ra
+
+
+def cau_bill_nha(ma, ten, huy_luc="", ly_do=""):
+	"""Câu giải thích vì sao khoản của một bill đã huỷ được gắn lại. THUẦN."""
+	luc = str(huy_luc or "")[:16]
+	gio = ""
+	if len(luc) >= 16:
+		gio = " lúc %s ngày %s/%s" % (luc[11:16], luc[8:10], luc[5:7])
+	ld = str(ly_do or "").strip()
+	return "Bill %s (%s) đã huỷ%s%s, chưa hoàn tiền cho khách." % (
+		ma or ten, ten, gio, (" (lý do: %s)" % ld) if ld else "")
+
+
+def cau_mo_coi(ma):
+	"""Câu giải thích cho khoản mang mã của bill chưa từng lưu. THUẦN."""
+	return "Chưa có bill nào lưu mã %s (bill bị mất trước khi lưu)." % ma
+
+
+def qua_han_mo_coi(ngay_gd, phut_gd, hom_nay, phut_bay_gio, phut=PHUT_MO_COI):
+	"""Khoản về đã đủ lâu để coi mã mồ côi là tiền chưa thuộc ai. THUẦN.
+
+	Ngày khác hôm nay là đủ lâu. Thiếu giờ thì KHÔNG coi là đủ lâu: không
+	đoán giờ, vì đoán sai là nhả tiền của bill đang chờ lưu.
+	"""
+	if not ngay_gd or not hom_nay:
+		return False
+	if str(ngay_gd)[:10] < str(hom_nay)[:10]:
+		return True
+	if str(ngay_gd)[:10] > str(hom_nay)[:10]:
+		return False
+	try:
+		return float(phut_bay_gio) - float(phut_gd) >= float(phut)
+	except (TypeError, ValueError):
+		return False
+
+
+def chu_theo_noi_dung(gds, ma_cua_bill, re_ma_bill, chu_ma=None, tu_do=None, gd_qua_han=None, ghi_chu=None):
 	"""Hai kiểu "đã có chủ" đọc được ngay trên dòng sao kê. THUẦN.
 
 	  - dòng mang mã của MỘT BILL KHÁC trong nội dung: tiền đó là của bill kia
@@ -178,9 +242,16 @@ def chu_theo_noi_dung(gds, ma_cua_bill, re_ma_bill, chu_ma=None):
 	ma_cua_bill  mọi mã bill đang xem từng mang (mã tham chiếu và mã bill gốc).
 	             Codex #497 v1: sau lần gắn đầu mã tham chiếu đổi thành số ngân
 	             hàng, so một ô thì mã gốc trong nội dung bị tưởng của bill khác.
-	chu_ma       {mã: tên hoá đơn đang mang mã đó}, đã trừ bill đang xem. Mã
-	             không ai mang mà cũng không phải của bill này thì VẪN coi là
-	             có chủ: không đoán.
+	chu_ma       {mã: tên hoá đơn đang mang mã đó}, đã trừ bill đang xem và
+	             bill đã huỷ nhả tiền.
+	tu_do        {mã: câu giải thích} mã chỉ còn bill đã huỷ nhả tiền giữ
+	             (v628). Dòng mang mã này không còn chủ, kèm câu giải thích.
+	gd_qua_han   tên các dòng về đã quá PHUT_MO_COI phút (v628). Mã không ai
+	             mang trên dòng quá hạn là bill đã mất trước khi lưu: tiền chưa
+	             thuộc ai. Dòng chưa quá hạn thì VẪN coi là có chủ, vì bill đang
+	             hiện mã QR có thể sắp được lưu.
+	ghi_chu      dict ra: {tên dòng: {"cau": câu, "bill": bill đã huỷ hoặc ""}}
+	             cho các dòng được nhả theo hai luật trên.
 	Trả {tên dòng: câu nói ai đang giữ}.
 	"""
 	ra = {}
@@ -188,15 +259,34 @@ def chu_theo_noi_dung(gds, ma_cua_bill, re_ma_bill, chu_ma=None):
 		ma_cua_bill = [ma_cua_bill]
 	cua_minh = {str(m or "").strip().upper() for m in (ma_cua_bill or []) if str(m or "").strip()}
 	chu_ma = chu_ma or {}
+	nha_mode = gd_qua_han is not None
+	tu_do = tu_do or {}
+	gd_qua_han = set(gd_qua_han or ())
 	for g in gds or []:
 		ten = g.get("ten")
 		ma_la = []
 		if re_ma_bill:
 			ma_la = [m for m in re_ma_bill.findall(str(g.get("mo_ta") or "").upper()) if m not in cua_minh]
 		if ma_la:
-			m = ma_la[0]
-			ra[ten] = ("bill %s (mã %s)" % (chu_ma[m], m)) if chu_ma.get(m) else ("bill mang mã " + m)
-			continue
+			# Codex #527 vòng 3: XÉT MỌI MÃ, không chỉ mã đầu. Còn một mã thuộc bill
+			# đang sống là dòng có chủ; chỉ nhả khi mọi mã đều nhả được.
+			song = [m for m in ma_la if chu_ma.get(m)]
+			if song:
+				ra[ten] = "bill %s (mã %s)" % (chu_ma[song[0]], song[0])
+				continue
+			if not nha_mode:
+				ra[ten] = "bill mang mã " + ma_la[0]
+				continue
+			cho = [m for m in ma_la if m not in tu_do and ten not in gd_qua_han]
+			if cho:
+				ra[ten] = "bill mang mã %s (đang chờ lưu, sau %s phút chưa ai lưu thì gắn được)" % (cho[0], PHUT_MO_COI)
+				continue
+			if ghi_chu is not None:
+				m = ma_la[0]
+				if m in tu_do:
+					ghi_chu[ten] = dict(tu_do[m]) if isinstance(tu_do[m], dict) else {"cau": str(tu_do[m]), "bill": ""}
+				else:
+					ghi_chu[ten] = {"cau": cau_mo_coi(m), "bill": ""}
 		try:
 			pb = float(g.get("da_phan_bo") or 0)
 		except (TypeError, ValueError):
@@ -206,7 +296,7 @@ def chu_theo_noi_dung(gds, ma_cua_bill, re_ma_bill, chu_ma=None):
 	return ra
 
 
-def dung_bang_do_tien(gds, bang, khoa_diem, rieng, tien, co_chu, vai, nguon, cung_tien):
+def dung_bang_do_tien(gds, bang, khoa_diem, rieng, tien, co_chu, vai, nguon, cung_tien, ghi_chu=None):
 	"""Dựng toàn bộ kết quả của nút Dò tiền từ dữ liệu đã đọc. THUẦN.
 
 	gds        [{ten, tien, gio, mo_ta}] mọi khoản tiền về trong ngày
@@ -215,7 +305,10 @@ def dung_bang_do_tien(gds, bang, khoa_diem, rieng, tien, co_chu, vai, nguon, cun
 	vai        vai của người đang bấm
 	nguon      chip người đã chọn, rỗng là để máy chọn
 	cung_tien  phép "hai số tiền coi là một" (khop_tien.cung_tien)
+	ghi_chu    {tên dòng: {"cau": ...}} khoản của bill đã huỷ hoặc bill mất
+	           trước khi lưu (v628): hiện câu giải thích ngay trên dòng
 	"""
+	ghi_chu = ghi_chu or {}
 	gds = [dict(g) for g in gds or []]
 	for g in gds:
 		g["khoa_tk"], g["nhan_tk"] = thuoc_tk(g.get("mo_ta"), bang)
@@ -238,6 +331,7 @@ def dung_bang_do_tien(gds, bang, khoa_diem, rieng, tien, co_chu, vai, nguon, cun
 			"mo_ta": str(g.get("mo_ta") or "").strip()[:140],
 			"khop": 1 if khop(g) else 0,
 			"cua_bill": co_chu.get(ten) or "",
+			"ghi_chu": "" if co_chu.get(ten) else str((ghi_chu.get(ten) or {}).get("cau") or ""),
 			"tk_nhan": g.get("nhan_tk") or "",
 			"duoc_gan": 1 if duoc_gan(g.get("khoa_tk"), khoa_diem, rieng, vai) else 0,
 		})

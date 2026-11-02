@@ -31,6 +31,8 @@ var GIA_VON_TAM = doc('53-gia-von-tam.js');
 var SO_DU = doc('55-so-du-tra-truoc.js');
 /* v614 Codex #505 vòng 4: màn Chiến dịch CRM thật, để kiểm Lưu nháp xong 48 theo dõi lại. */
 var CRM = doc('58-crm.js');
+/* v628 Codex #527 vòng 2: hai màn lập phiếu Quỹ tiền mặt. */
+var QUY = doc('62-quy-tien-mat.js');
 /* Hàm THẬT của 00-nen.js: tìm bỏ dấu (sheet nhóm bán, Codex #486 v7) và ô ảnh món (thẻ phiếu thử, v6). */
 function layHam(src, ten) {
   var dau = src.indexOf('function ' + ten + '(');
@@ -97,6 +99,9 @@ function mayChu(canh) {
           tong_don: 500000, da_nhan: 500000, muc_hoan: 500000, noi_dung_ck: 'HOAN ' + a.ma_don };
       }
       if (m === 'vagabond.don_huy.tao_hoan') return { ho_so: 'HS-1', phieu_thu: 'PT-1', phieu_chi: 'PC-1' };
+      /* Màn chính Quỹ: tải lại app thì QTM về null, màn lập phiếu phải tự hỏi lại (Codex #527 vòng 3). */
+      if (m === 'vagabond.quy_tien_mat.man_quy') return JSON.parse(JSON.stringify((canh && canh.qtm) || { duoc_lam: 0 }));
+      if (m === 'vagabond.quy_tien_mat.kiem_quy') return { ok: 1, name: 'PQ-26-11-00001', trang_thai: 'Chờ duyệt', lech: -3000000 };
       /* Giá vốn tạm tính, tab Món thử (Codex #486 P1). Số tính đơn giản:
          chỉ dòng giá tay, đủ để thấy màn đọc kết quả máy chủ. */
       if (m === 'vagabond.gia_von_tam.tinh') return { dong: [], nhom: [], sua_duoc: true, cap_nhat_luc: '09:00' };
@@ -212,6 +217,14 @@ function appMoi(kho, canh) {
   vm.runInContext(GIA_VON_TAM, g);
   vm.runInContext(SO_DU, g);
   vm.runInContext(CRM, g);
+  /* Hàm nền mà 62-quy-tien-mat.js gọi nhưng ca này không kiểm: tệp đính kèm, khoá quyền. */
+  /* Chỉ đặt bản giả cho tên CHƯA có: đè `back` thật của khung là làm hỏng các ca bấm lui. */
+  [['tdkKhoi', function () { return ''; }], ['tdkNoi', function () {}], ['tdkDs', function () { return []; }],
+    ['tdkXoaHet', function () {}], ['tcKhoa', function (t) { g.frame(t, '<div>khoá</div>'); }],
+    ['tcNgay', function (x) { return String(x || ''); }],
+    ['tcDoi', function (t, chu) { g.frame(t, '<div>' + chu + '</div>'); }], ['tcLoi', function (t, e) { g.frame(t, '<div>lỗi ' + e + '</div>'); }], ['hoiCo', function () { return Promise.resolve(true); }]]
+    .forEach(function (p) { if (typeof g[p[0]] !== 'function') g[p[0]] = p[1]; });
+  vm.runInContext(QUY, g);
   /* Moi man lap phieu KHAC ma 48 boc: ca nay khong nap that, chi can co ten
      de 48 boc duoc luc nap. Man that cua bao gia thi da nap o tren. */
   var boc = SOAN_DO.match(/^(\w+) = sdBoc(?:Hop)?\(/gm).map(function (x) { return x.split(' ')[0]; });
@@ -333,6 +346,45 @@ async function chayHet() {
     await b.cho(); await b.cho(); await b.cho();
     bang('mở lại có phần sửa sau khi lưu', b.el('crmCdKb').value, 'Kịch bản sửa sau khi lưu');
     bang('tên vẫn đúng', b.el('crmCdTen').value, 'Gọi khách đã ngủ');
+  });
+
+  await ca('v628 Codex #527 vòng 2: kiểm quỹ gõ dở bảng đếm, chọn lý do, ghi chú; máy sập nguồn mở lại từ thẻ còn đủ, Lưu xong hết bản nháp', async function () {
+    var QTM0 = { duoc_lam: 1, so_du: 10000000, nguong: 2000000, menh_gia: [500000, 200000],
+      ly_do: [{ ma: 'chi_chua_nhap', ten: 'Chi chưa nhập app' }, { ma: 'chua_ro', ten: 'Chưa rõ' }], tai_khoan_nh: [] };
+    var kho = khoMay();
+    var a = appMoi(kho, { qtm: QTM0 });
+    await moTrangChu(a);
+    await a.g.go(a.g.scrQuyKiem); await a.cho(); await a.cho();
+    var o500 = a.tl.querySelector('[data-qtmmg="500000"]');
+    dung('màn kiểm quỹ đã về', !!o500);
+    a.go(o500, '14');
+    await a.bam(a.tl.querySelector('[data-qtmly="chua_ro"]')); await a.cho();
+    a.go('qtmGhiChu', 'đếm hai lần vẫn thiếu');
+    await a.tua(700);
+    bang('đúng một bản nháp kiểm quỹ', cacKhoa(kho), ['vgbSoanDo:loananh@vagabond.vn:kiem_quy:moi']);
+    /* Sập nguồn: app mới, QTM còn null như máy thật. KHÔNG đặt sẵn QTM, vì đặt sẵn
+       là che đúng lỗi Codex vòng 3 (màn khoá vì chưa nạp dữ liệu quỹ). */
+    var b = appMoi(kho, { qtm: QTM0 });
+    await moTrangChu(b);
+    bang('app mới chưa có dữ liệu quỹ', b.g.QTM, null);
+    var dong = b.el('sdThe').querySelectorAll('[data-sdmo]');
+    bang('thẻ có đúng một dòng', dong.length, 1);
+    await b.bam(dong[0]);
+    await b.cho(); await b.cho(); await b.cho();
+    dung('mở lại không rơi vào màn khoá', !!b.tl.querySelector('[data-qtmmg="500000"]'));
+    bang('bảng đếm điền lại', [b.g.QTM_DEM['500000'], b.tl.querySelector('[data-qtmmg="500000"]').value], ['14', '14']);
+    bang('lý do điền lại', b.g.QTM_LY_DO, 'chua_ro');
+    bang('ghi chú điền lại', b.el('qtmGhiChu').value, 'đếm hai lần vẫn thiếu');
+    await b.bam(b.tl.querySelector('[data-qtmluu]')); await b.cho(); await b.cho();
+    var luu = b.mc.goi.filter(function (x) { return x.m === 'vagabond.quy_tien_mat.kiem_quy'; });
+    bang('lưu một lần đúng số', luu.map(function (x) { return [x.a.bang, x.a.ly_do, x.a.ghi_chu]; }),
+      [['{"500000":"14"}', 'chua_ro', 'đếm hai lần vẫn thiếu']]);
+    bang('lưu xong hết bản nháp', cacKhoa(kho), []);
+    /* Màn nộp ngân hàng mở trên app vừa tải lại cũng phải tự nạp dữ liệu quỹ. */
+    var c = appMoi(khoMay(), { qtm: QTM0 });
+    await moTrangChu(c);
+    await c.g.go(c.g.scrQuyNop); await c.cho(); await c.cho();
+    dung('màn nộp ngân hàng không rơi vào màn khoá', !!c.el('qtmSoTien'));
   });
 
   await ca('Loan Anh: go bao gia moi, may sap nguon, mo lai app thi the Phieu dang soan do dua ve DUNG to dang go', async function () {
@@ -752,7 +804,7 @@ async function chayHet() {
     /* v607 Codex #493 vong 3: them phieu nap tra truoc (nap_tra_truoc). */
     /* v614 Codex #505: them chien_dich (lap chien dich CRM, 58-crm.js). */
     /* v622: them vi_tri_tuyen va ho_so_ung_vien (Tuyen dung, 60-tuyen-dung.js). */
-    bang('du 46 loai phieu', Object.keys(k.SD_MAN).length, 46);
+    bang('du 48 loai phieu (v628: them kiem_quy, nop_ngan_hang)', Object.keys(k.SD_MAN).length, 48);
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);
