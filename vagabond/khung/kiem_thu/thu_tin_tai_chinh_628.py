@@ -247,11 +247,11 @@ def _kho_bep():
 def _ban_va():
 	bgd = pv.tin_them("bgd_bao_cao_ngay")
 	la("nhóm Ban giám đốc", bgd, "bgd_bao_cao_ngay, bgd_tien_cuoi_ngay, bgd_ket_lech, bgd_tien_tuan, "
-		"bgd_lai_lo_thang, kt_tien_ra_chua_gan")
+		"bgd_lai_lo_thang, kt_tien_ra_chua_gan, bgd_kiem_quy_lech")
 	la("chạy lại không đổi", pv.tin_them(bgd), None)
 	kt = pv.tin_them("hd_ket_ghi_so, hd_dau_vao, kt_du_lieu_hao_hut")
 	la("nhóm Kế toán", kt, "hd_ket_ghi_so, hd_dau_vao, kt_du_lieu_hao_hut, kt_tien_ra_chua_gan, kt_tien_chua_gan, "
-		"bgd_ket_lech")
+		"bgd_ket_lech, kt_nop_nh_chua_khop")
 	la("nhóm Sản xuất", pv.tin_them("bep_lenh_chua_xong, bep_du_lieu_hao_hut"),
 		"bep_lenh_chua_xong, bep_du_lieu_hao_hut, bep_kiem_ke_sang")
 	la("nhóm Bán hàng không đụng", pv.tin_them("bh_dat_ban, hd_ket_ghi_so"), None)
@@ -391,6 +391,70 @@ def _bao_ket_that():
 		("bgd_ket_lech", "canh_bao", "ket-lech:CA-2026-05855", "CA-2026-05855"))
 	la("tiêu đề có tên két", g["tieu_de"], "Két Sales Online lệch tiền mặt khi chốt ca")
 	dung("người chốt có tên thật", "Người chốt: Lê Nguyễn Minh Quân" in g["dong"])
+
+
+@ca("Codex #527: lỗi chết giao dịch khi ghi tin két lệch phải đi lên, lỗi thường chỉ ghi log")
+def _ket_lech_chet_gd():
+	doc = D(name="CA-1", quay="SALES", mo_luc="2026-10-31 06:56:11", chot_luc="2026-11-01 20:19:48",
+		tien_le_dau_ca=1000000, ly_do_lech=".", nguoi_chot="")
+	bang = [{"phuong_thuc": "Tiền mặt", "so_bill": 3, "may": 1420000, "phai_co": 2420000, "dem": 2744000, "lech": 324000}]
+
+	class LoiCsdl(Exception):
+		pass
+	for loi, phai_nem in ((LoiCsdl(1213, "Deadlock found"), True), (RuntimeError("Zalo hỏng"), False)):
+		ghi = []
+
+		def nem(*a, **k):
+			raise loi
+		vat = [um.patch.object(tc, "_cac_nguon", lambda *a: [{"nguon": "tm:SALES", "ten": "Két Sales Online"}]),
+			um.patch.object(kz, "bao_hoac_ghi_loi", nem), um.patch.object(ttc, "_ghi_loi", lambda p: ghi.append(p))]
+		for v in vat:
+			v.start()
+		try:
+			try:
+				ttc.bao_ket_lech(doc, bang)
+				nem_ra = False
+			except Exception as e:
+				nem_ra = e is loi
+		finally:
+			for v in vat:
+				v.stop()
+		la("ném tiếp: %s" % type(loi).__name__, (nem_ra, ghi), (phai_nem, [] if phai_nem else ["két lệch"]))
+
+
+@ca("Codex #527: phiếu Đếm hôm nay không khoá nhập xuất, phiếu kiểm kê thường vẫn khoá")
+def _dem_hang_ngay_khong_khoa():
+	phieu = [
+		{"name": "PKK-1", "kho": "Pastry - Nguyên liệu - TV", "trang_thai": "Đang kiểm", "ngay_kiem": "2026-11-02",
+			"ghi_chu": kk.GHI_CHU_LICH % "2026-11-02"},
+		{"name": "PKK-2", "kho": "Baker - Nguyên liệu - TV", "trang_thai": "Chờ duyệt", "ngay_kiem": "2026-11-02",
+			"ghi_chu": "Kiểm kê cuối tháng"},
+	]
+	dong = [{"parent": "PKK-1", "item_code": "NVL-BO"}, {"parent": "PKK-2", "item_code": "NVL-BOT"}]
+
+	def get_all(dt, filters=None, fields=None, **k):
+		if dt == "Phieu Kiem Ke":
+			return [dict(x) for x in phieu]
+		ten = (filters or {}).get("parent", ["in", []])[1]
+		return [d for d in dong if d["parent"] in ten]
+	vat = [um.patch.object(_fr, "get_all", get_all), um.patch.object(kk, "nowdate", lambda: "2026-11-02"),
+		um.patch.object(_fr, "db", NS(get_value=lambda *a, **k: "Bơ lạt"))]
+	for v in vat:
+		v.start()
+	try:
+		khoa = kk._phieu_dang_khoa()
+		se_dem = NS(get=lambda k, d=None: {"items": [{"item_code": "NVL-BO", "s_warehouse": "Pastry - Nguyên liệu - TV"}]}.get(k, d))
+		kk.chan_khi_dang_kiem(se_dem)
+		qua = True
+		se_thuong = NS(get=lambda k, d=None: {"items": [{"item_code": "NVL-BOT", "s_warehouse": "Baker - Nguyên liệu - TV"}]}.get(k, d))
+		nem("phiếu thường vẫn chặn", lambda: kk.chan_khi_dang_kiem(se_thuong))
+	finally:
+		for v in vat:
+			v.stop()
+	la("chỉ phiếu thường khoá", [x["phieu"] for x in khoa], ["PKK-2"])
+	dung("lệnh dùng món đang đếm hằng ngày đi qua", qua)
+	la("nhận ra phiếu hằng ngày", (kk.la_phieu_dem_hang_ngay(kk.GHI_CHU_LICH % "2026-11-02"),
+		kk.la_phieu_dem_hang_ngay("Kiểm kê cuối tháng"), kk.la_phieu_dem_hang_ngay(None)), (True, False, False))
 
 
 @ca("v628 tin 6 chạy thật: mỗi kho bếp một tin, kho không món thì bỏ, một kho hỏng không chặn kho khác")
