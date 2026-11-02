@@ -127,6 +127,7 @@ node vagabond/khung/kiem_thu/hanh_vi/tham_chieu_tien_267.js
 node vagabond/khung/kiem_thu/hanh_vi/chay.js
 node vagabond/khung/kiem_thu/hanh_vi/ttnb_317.js
 node vagabond/khung/kiem_thu/hanh_vi/kiem_ke_hom_nay_628.js
+node vagabond/khung/kiem_thu/hanh_vi/quy_tien_mat_628.js
 # v513: man Tra ton kho (chip loc, sap xep, chi tiet ma) chay that tren DOM gia.
 node vagabond/khung/kiem_thu/hanh_vi/tra_ton_513.js
 # v515: them tai khoan nhan tien NCC ngay tren man Thanh toan truoc.
