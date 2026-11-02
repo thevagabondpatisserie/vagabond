@@ -23,10 +23,14 @@ def sinh_ma_combo():
 
 
 def gia_ban_mon(item_code):
-	"""Gia ban le dang hieu luc cua mot mon."""
+	"""Gia ban le dang hieu luc cua mot mon. Khong lay bang gia rieng cua diem
+	ban (Gia rieng NVHTN...): gia goc combo la gia chung cho moi diem (v631,
+	Codex PR #532)."""
+	from vagabond import diem_ban
+
 	gia = frappe.db.get_value(
 		"Item Price",
-		{"item_code": item_code, "selling": 1},
+		{"item_code": item_code, "selling": 1, "price_list": diem_ban.loc_bo_bang_rieng()},
 		"price_list_rate",
 		order_by="valid_from desc, modified desc",
 	)
