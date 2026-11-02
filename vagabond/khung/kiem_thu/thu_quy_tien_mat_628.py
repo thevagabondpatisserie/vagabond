@@ -275,7 +275,9 @@ def _khop_that():
 	# mô đun giả chỉ có phép hỏi chủ toàn hệ.
 	import vagabond
 	bh = NS(_gd_co_chu_toan_he=lambda ds, *a, **k: {"BT-9": "hoá đơn bán HDB-1"})
-	vat = [um.patch.object(_fr, "get_all", lambda *a, **k: phieu), um.patch.object(_fr.db, "sql", lambda *a, **k: gd),
+	# Câu đọc sao kê trả gd; các câu khoá dòng (Codex #527 vòng 2) không thấy phiếu nào khác giữ.
+	vat = [um.patch.object(_fr, "get_all", lambda *a, **k: phieu),
+		um.patch.object(_fr.db, "sql", lambda cau, *a, **k: gd if "where docstatus=1" in cau else []),
 		um.patch.object(vagabond, "ban_hang", bh, create=True), um.patch.dict(sys.modules, {"vagabond.ban_hang": bh}),
 		um.patch.object(_fr.db, "set_value", lambda dt_, n, v, *a, **k: ghi.append((n, v["gd_sepay"], v["trang_thai"])))]
 	so = _chay(vat, lambda: q.khop_nop_ngan_hang())
@@ -311,3 +313,142 @@ def _tin():
 		la("JS trùng " + ma, m.groups(), kz.TIN[ma][:3])
 	dung("nhóm Ban giám đốc nhận tin lệch", "bgd_kiem_quy_lech" in pv.tin_them("bgd_bao_cao_ngay"))
 	dung("nhóm kế toán nhận tin nộp chưa khớp", "kt_nop_nh_chua_khop" in pv.tin_them("hd_dau_vao"))
+
+
+# ------------------------------------------------ Codex #527 vòng 2 (SHA 204b484d2)
+
+
+def _vat_hai_lan(so_may=10000000):
+	"""Kiểm quỹ hai lần liên tiếp trên CÙNG một số máy (phiếu trước chưa duyệt nên
+	số máy chưa đổi). Bộ nhớ phiếu giả dùng chung cho get_all, set_value, get_doc."""
+	kho = {}
+	dem = {"n": 0}
+
+	class _DocKho(_Doc):
+		def insert(self, **k):
+			dem["n"] += 1
+			object.__setattr__(self, "name", "PQ-26-11-%05d" % dem["n"])
+			self.setdefault("luc", "2026-11-02 10:%02d:00" % dem["n"])
+			kho[self.name] = self
+			return self
+
+	def get_all(dt_, filters=None, fields=None, **k):
+		if dt_ != q.DT:
+			return []
+		ra = []
+		for n, d in kho.items():
+			ok = True
+			for kk, v in (filters or {}).items():
+				x = d.get(kk) if kk != "name" else n
+				if isinstance(v, (list, tuple)) and v[0] == "!=":
+					ok = ok and x != v[1]
+				elif isinstance(v, (list, tuple)) and v[0] == ">":
+					ok = ok and str(x) > str(v[1])
+				elif isinstance(v, (list, tuple)) and v[0] == "in":
+					ok = ok and x in v[1]
+				else:
+					ok = ok and x == v
+			if ok:
+				ra.append(NS(name=n, **{kk: d.get(kk) for kk in ("trang_thai", "luc", "lech")}))
+		return ra
+
+	def set_value(dt_, n, a, b=None, **k):
+		kho[n].update(a if isinstance(a, dict) else {a: b})
+
+	def get_doc(d, *a):
+		if isinstance(d, dict):
+			return _DocKho(d)
+		return kho[a[0]] if a else kho[d]
+	vat, zalo, je = _vat_kiem(so_may=so_may)
+	vat = [v for v in vat if getattr(v, "attribute", "") != "get_doc"]
+	vat += [um.patch.object(_fr, "get_doc", get_doc), um.patch.object(_fr, "get_all", get_all),
+		um.patch.object(_fr.db, "set_value", set_value), um.patch.object(_fr.db, "sql", lambda *a, **k: [])]
+	return vat, kho, je
+
+
+@ca("v628 Codex #527 vòng 2: kiểm lại khi phiếu lệch trước còn chờ duyệt thì phiếu trước bị thay, không ghi sổ hai lần")
+def _codex_cho_duyet_trung():
+	vat, kho, je = _vat_hai_lan()
+	bang = '{"500000": "14"}'  # 7.000.000, máy 10.000.000: thiếu 3.000.000
+	a = _chay(vat, lambda: q.kiem_quy(bang=bang, ly_do="chua_ro", ghi_chu="đếm lần một"))
+	b = _chay(vat, lambda: q.kiem_quy(bang=bang, ly_do="chua_ro", ghi_chu="đếm lần hai"))
+	la("lần hai vẫn chờ duyệt", b["trang_thai"], "Chờ duyệt")
+	la("phiếu lần một không còn chờ duyệt", kho[a["name"]]["trang_thai"], "Đã thay")
+	dung("phiếu lần một ghi rõ bị phiếu nào thay", b["name"] in (kho[a["name"]].get("ly_do_tra") or ""))
+	duyet = [um.patch.object(q, "_la_giam_doc", lambda: True), um.patch.object(_fr, "session", NS(user="viet@x"))]
+	_chay(vat + duyet, lambda: nem("duyệt phiếu đã bị thay", lambda: q.duyet_kiem_quy(a["name"], 1)))
+	kq = _chay(vat + duyet, lambda: q.duyet_kiem_quy(b["name"], 1))
+	la("duyệt phiếu còn hiệu lực", kq["trang_thai"], "Đã ghi")
+	la("chỉ MỘT bút toán thiếu 3.000.000", [d for d, _n, _g in je],
+		[[{"tk": "1381", "no": 3000000, "co": 0}, {"tk": "1111", "no": 0, "co": 3000000}]])
+
+
+@ca("v628 Codex #527 vòng 2: phiếu chờ duyệt mà đã có lần kiểm sau (ghi chen) thì Giám đốc không duyệt được")
+def _codex_cho_duyet_cu():
+	vat, kho, je = _vat_hai_lan()
+	a = _chay(vat, lambda: q.kiem_quy(bang='{"500000": "14"}', ly_do="chua_ro", ghi_chu="đếm lần một"))
+	# Lần kiểm sau ghi thẳng (không qua cửa kiem_quy), như hai lượt chạy chen nhau.
+	kho["PQ-26-11-00099"] = _Doc({"loai": q.KIEM, "trang_thai": "Khớp", "luc": "2026-11-02 11:00:00", "lech": 0})
+	duyet = [um.patch.object(q, "_la_giam_doc", lambda: True), um.patch.object(_fr, "session", NS(user="viet@x"))]
+	_chay(vat + duyet, lambda: nem("có lần kiểm sau", lambda: q.duyet_kiem_quy(a["name"], 1)))
+	la("không bút toán", je, [])
+
+
+def _khop_gia(phieu, gd, chu_he, khoa_phieu=None):
+	"""Chạy THẬT khop_nop_ngan_hang. Phép hỏi chủ toàn hệ giả dùng ĐÚNG luật
+	doi_soat_ck.chu_theo_noi_dung (dòng đã khớp Đối chiếu ngân hàng là có chủ),
+	cộng chủ ở luồng khác cho sẵn trong `chu_he`. `khoa_phieu` là bảng phiếu quỹ
+	đang giữ giao dịch mà câu đọc có khoá thấy (lượt khác vừa ghi xong)."""
+	import vagabond
+	from vagabond import doi_soat_ck as dsck
+	ghi, nhan = [], []
+
+	def hoi_chu(ds, *a, **k):
+		nhan.extend(ds)
+		ra = dict(dsck.chu_theo_noi_dung(ds, (), None))
+		ra.update({g["ten"]: c for g in ds for t, c in chu_he.items() if g["ten"] == t})
+		return ra
+	bh = NS(_gd_co_chu_toan_he=hoi_chu)
+
+	def sql(cau, *a, **k):
+		if "from `tabBank Transaction` where docstatus=1" in cau:
+			return gd
+		if "gd_sepay" in cau and "for update" in cau:
+			ten = a[0][0] if a and a[0] else ""
+			return [NS(name=n) for n, g in (khoa_phieu or {}).items() if g == ten]
+		return []
+	for x in phieu + gd:
+		x.get = lambda k, d=None, x=x: getattr(x, k, d)
+	vat = [um.patch.object(_fr, "get_all", lambda *a, **k: phieu), um.patch.object(_fr.db, "sql", sql),
+		um.patch.object(vagabond, "ban_hang", bh, create=True), um.patch.dict(sys.modules, {"vagabond.ban_hang": bh}),
+		um.patch.object(_fr.db, "get_value", lambda dt_, n, f=None, **k: "Chờ tiền về"),
+		um.patch.object(_fr.db, "set_value", lambda dt_, n, v, *a, **k: ghi.append((n, v["gd_sepay"])))]
+	so = _chay(vat, lambda: q.khop_nop_ngan_hang())
+	return so, ghi, nhan
+
+
+@ca("v628 Codex #527 vòng 2: giao dịch đã khớp chứng từ trong Đối chiếu ngân hàng thì phiếu nộp quỹ không nhận")
+def _codex_da_phan_bo():
+	phieu = [NS(name="PQ-1", ngay="2026-11-01", so_tien=20000000, bank_account="MB")]
+	gd = [NS(ten="BT-1", bank_account="MB", deposit=20000000, unallocated_amount=0, date="2026-11-01", creation="1",
+		mo_ta="NOP TIEN", tham_chieu="FT1")]
+	so, ghi, nhan = _khop_gia(phieu, gd, {})
+	la("truyền số đã phân bổ thật", [g["da_phan_bo"] for g in nhan], [20000000.0])
+	la("không ghép", (so, ghi), (0, []))
+	gd[0].unallocated_amount = 20000000
+	so, ghi, nhan = _khop_gia(phieu, gd, {})
+	la("chưa phân bổ thì ghép", (so, ghi), (1, [("PQ-1", "BT-1")]))
+
+
+@ca("v628 Codex #527 vòng 2: hai lượt ghép chạy chen nhau thì một giao dịch chỉ xác nhận MỘT phiếu nộp")
+def _codex_chen_nhau():
+	gd = [NS(ten="BT-1", bank_account="MB", deposit=20000000, unallocated_amount=20000000, date="2026-11-01",
+		creation="1", mo_ta="NOP TIEN", tham_chieu="FT1")]
+	p1 = [NS(name="PQ-1", ngay="2026-11-01", so_tien=20000000, bank_account="MB")]
+	p2 = [NS(name="PQ-2", ngay="2026-11-01", so_tien=20000000, bank_account="MB")]
+	so1, ghi1, _n = _khop_gia(p1, gd, {})
+	la("lượt một ghép PQ-1", ghi1, [("PQ-1", "BT-1")])
+	# Lượt hai đọc danh sách chủ TRƯỚC khi lượt một ghi (ảnh chụp cũ, chu_he rỗng),
+	# nhưng câu đọc có khoá thấy PQ-1 đã giữ BT-1.
+	so2, ghi2, _n = _khop_gia(p2, gd, {}, khoa_phieu={"PQ-1": "BT-1"})
+	la("lượt hai không ghép lại BT-1", (so2, ghi2), (0, []))

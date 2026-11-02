@@ -39,6 +39,7 @@ MAN_LAP_PHIEU = [
 	"scrSoDuNap",  # v607 Codex #493 vòng 3: phiếu nạp số dư trả trước, tên không theo mẫu Tao/New
 	"scrCrmCd",  # v614 Codex #505: lập chiến dịch CRM (kịch bản, khách, món, Sales), tên không theo mẫu Tao/New
 	"scrTdViTri", "scrTdThemHs",  # v622: thêm, sửa vị trí tuyển dụng; thêm hồ sơ ứng viên tay
+	"scrQuyKiem", "scrQuyNop",  # v628 Codex #527 vòng 2: kiểm quỹ, nộp tiền mặt vào ngân hàng
 ]
 # Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
 # So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
@@ -56,7 +57,10 @@ SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	"scrCrmCd": "58-crm.js",
 	# v622: hai màn lập phiếu của Tuyển dụng ở 60, cùng điều kiện như scrCrmCd:
 	# ghép bản nháp bằng dat() vào tdVtKhoiPhuc, tdHsKhoiPhuc, không móc sdGhep.
-	"scrTdViTri": "60-tuyen-dung.js", "scrTdThemHs": "60-tuyen-dung.js"}
+	"scrTdViTri": "60-tuyen-dung.js", "scrTdThemHs": "60-tuyen-dung.js",
+	# v628 Codex #527 vòng 2: hai màn lập phiếu của Quỹ tiền mặt ở 62. Trạng thái đặt
+	# lại ở nút mở màn chứ không trong hàm màn, nên dat() ghi thẳng vào biến màn.
+	"scrQuyKiem": "62-quy-tien-mat.js", "scrQuyNop": "62-quy-tien-mat.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",

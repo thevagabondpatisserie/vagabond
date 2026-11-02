@@ -76,7 +76,7 @@ CUA_NGO = {
 		"luu_xhd", "doi_ngay_hoa_don", "don_treo", "keo_va_ghi_so",
 		"cai_dat_cuoi_ngay", "luu_cai_dat_cuoi_ngay", "chay_cuoi_ngay_ngay_bay_gio", "bu_email_xhd",
 		"tao_don_tay", "pos_bill_them", "ai_lam_gi", "xuat_hoa_don_dien_tu",
-		"xuat_hddt_con_thieu", "pos_kiem_sepay", "pos_do_tien", "pos_gan_tien",
+		"xuat_hddt_con_thieu", "pos_kiem_sepay", "pos_do_tien", "pos_gan_tien", "pos_tien_bill", "pos_chuyen_tien",
 		"pos_ds_bill", "pos_chot", "pos_xoa", "pos_sua_don",
 		"pos_luu_don", "pos_ghi_so", "pos_ds_tuy_chon", "pos_ds_khuyen_mai",
 		"pos_chot_ca", "pos_link_xhd", "xhd_khach_xem", "xhd_khach_luu",

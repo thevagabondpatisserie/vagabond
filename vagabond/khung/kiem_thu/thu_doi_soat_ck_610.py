@@ -277,10 +277,21 @@ def _chay_gan(vai, ma_gd, chu_he=None, si_them=None, sao_ke_them=None, hd_khac=N
 		"fmt_money": lambda v: "{:,.0f}".format(float(v)).replace(",", "."),
 		"SAI_SO_DO_TIEN": 1.0,
 	}
+	# v628: cua gan tach than ra _gan_tien_vao, hoi kem bill da huy nha tien
+	# va dong qua 15 phut, nen nap them cac ham do cung bo gia.
+	g.update({
+		"getdate": lambda v: __import__("datetime").date.fromisoformat(str(v)[:10]),
+		"now_datetime": lambda: __import__("datetime").datetime(2026, 10, 23, 18, 0),
+		"nowdate": lambda: "2026-10-23",
+		"_phut_trong_ngay": lambda v: None,
+	})
+	_nap("_bill_nha", g)
+	_nap("_gd_qua_han", g)
 	_nap("_gd_da_co_chu", g)
 	_nap("_ma_cua_bill", g)
 	_nap("_chu_ma_bill", g)
 	_nap("_gd_co_chu_toan_he", g)
+	_nap("_gan_tien_vao", g)
 	gan = _nap("pos_gan_tien", g)
 	import vagabond
 	loi = None
