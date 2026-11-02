@@ -1406,6 +1406,7 @@ def _v7_anh_tac_pham():
 		mock.patch.object(_fr.db, "get_value", may.get_value), mock.patch.object(tkr, "_ban", ban),
 		mock.patch.object(tkr, "_hom_nay", lambda: "2026-11-02"), mock.patch.object(tkr, "_ds_diem", lambda: []),
 		mock.patch.object(tkr, "_la_ke_toan", lambda: 0),
+		mock.patch.object(utd, "ten_don_man", lambda *a, **k: ["SO-1", "SO-2", "SO-3"]),
 		mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Sales Manager"])]
 	with _gan(ps):
 		kq = may.doc_lai(lambda: tkr.ds_don())
@@ -1434,6 +1435,7 @@ def _v7_logo_khach():
 		return []
 	khach_don = {"SO-1": "SI00012", "SO-2": "SI00013", "SO-3": "SI00012", "SO-4": "SI00014"}
 	ps = [mock.patch.object(_fr, "get_all", get_all), mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Sales Manager"]),
+		mock.patch.object(utd, "ten_don_man", lambda *a, **k: ["SO-1", "SO-2", "SO-3", "SO-4"]),
 		mock.patch.object(bs, "tom_tat", lambda t, khoa=False: {"name": t, "ma_khach": khach_don[t], "trang_thai": "cho_giao",
 			"tra_truoc": 0, "con_lai": 0, "phieu": [], "ma": t}),
 		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-05"), mock.patch.object(bs, "_cong_ty", lambda: "Vagabond"),
@@ -1453,3 +1455,174 @@ def _v7_logo_khach():
 		dung("ds_khach không lộ ô image thô", all("image" not in r for r in bs.ds_khach()["rows"]))
 		la("bang_gia có logo", bs.bang_gia("SI00012")["khach"]["logo"], "/files/la-me.png")
 		la("tim_khach có logo", [r["logo"] for r in bs.tim_khach("Lá")], ["/files/la-me.png", "", ""])
+
+
+# ================================================== vòng 8: không cắt nguồn danh sách việc đang chờ
+
+def _khop_loc(r, f):
+	for k, v in (f or {}).items():
+		x = r.get(k)
+		if isinstance(v, (list, tuple)):
+			op, gt = v[0], v[1]
+			if op == "in" and x not in gt:
+				return False
+			if op == "not in" and x in gt:
+				return False
+			if op == "is" and gt == "set" and not x:
+				return False
+			if op == ">=" and not (str(x or "") >= str(gt)):
+				return False
+			if op == "<" and not (float(x or 0) < float(gt)):
+				return False
+			if op == "!=" and x == gt:
+				return False
+		elif x != v:
+			return False
+	return True
+
+
+class _Nguon8(object):
+	"""Bảng giả có LIMIT, ORDER BY và lọc thật cho get_all và cho các câu SQL
+	đọc phiếu đặt (điều kiện "đang mở" đọc từ chính câu SQL: docstatus và hoá
+	đơn đã ghi sổ mang custom_pancake_id), để ca kiểm thấy đúng cái bị cắt."""
+
+	def __init__(self, so, si=(), dk=()):
+		self.so = {r["name"]: dict(r) for r in so}
+		self.si = list(si)
+		self.dk = list(dk)
+
+	def _sap(self, ds, order_by):
+		for phan in reversed([x.strip() for x in str(order_by or "").split(",") if x.strip()]):
+			o, _, chieu = phan.partition(" ")
+			ds = sorted(ds, key=lambda r: str(r.get(o.split(".")[-1]) or ""), reverse=chieu.strip().lower() == "desc")
+		return ds
+
+	def get_all(self, dt, filters=None, fields=None, pluck=None, order_by=None, limit_page_length=20, **k):
+		bang = {"Sales Order": list(self.so.values()), "Vagabond Dang Ky Si": self.dk}.get(dt)
+		if bang is None:
+			return []
+		ds = self._sap([r for r in bang if _khop_loc(r, filters)], order_by)
+		if limit_page_length:
+			ds = ds[:int(limit_page_length)]
+		return [r[pluck] for r in ds] if pluck else [_fr._dict(r) for r in ds]
+
+	def _da_giao(self, r, o, tt):
+		return any(x["custom_pancake_id"] == "%s-%s" % (tt, r.get(o)) and x["docstatus"] == 1 for x in self.si)
+
+	def sql(self, q, a=None, as_dict=False, **k):
+		if "from `tabSales Order` so" not in q:
+			return []
+		o = re.search(r"so\.`?(vgb_\w+_ma)`?", q).group(1)
+		tt = "TKR" if o == "vgb_tkr_ma" else "BSI"
+		a = list(a or [])
+		ds = [r for r in self.so.values() if r.get(o)]
+		if "so.customer = %s" in q:
+			kh = a.pop(0)
+			ds = [r for r in ds if r.get("customer") == kh]
+		if "so.docstatus = 1" in q:
+			ds = [r for r in ds if r["docstatus"] == 1]
+		if "not exists" in q:
+			ds = [r for r in ds if not self._da_giao(r, o, tt)]
+		if "docstatus in (1, 2)" in q:
+			ds = [r for r in ds if r["docstatus"] in (1, 2)]
+		if "delivery_date >= %s" in q:
+			tu = a.pop(0)
+			ds = [r for r in ds if str(r.get("delivery_date") or "") >= str(tu)]
+		m = re.search(r"order by ([^\n]+?)(?: limit|$)", q.strip())
+		if m:
+			ds = self._sap(ds, m.group(1).replace("so.", ""))
+		m = re.search(r"limit (\d+|%s)", q)
+		if m:
+			ds = ds[:int(a.pop(0) if m.group(1) == "%s" else m.group(1))]
+		return [_fr._dict(r) for r in ds]
+
+	def get_value(self, dt, f=None, fields=None, as_dict=False, **k):
+		if dt == "Sales Order":
+			r = self.so.get(f) or {}
+			return _fr._dict({x: r.get(x) for x in fields}) if isinstance(fields, (list, tuple)) else r.get(fields)
+		if dt == "Sales Invoice" and isinstance(f, dict):
+			ds = [x for x in self.si if x["custom_pancake_id"] == f.get("custom_pancake_id") and x["docstatus"] < 2]
+			return _fr._dict(ds[0], name="SI-" + ds[0]["custom_pancake_id"], due_date="", outstanding_amount=0) if ds else None
+		return None
+
+	def gan(self, them=()):
+		return [mock.patch.object(_fr, "get_all", self.get_all), mock.patch.object(_fr.db, "sql", self.sql),
+			mock.patch.object(_fr.db, "get_value", self.get_value)] + list(them)
+
+
+def _don_si(ten, ma, ds, tao, giao="2026-11-10", tt="Trả trước", kh="SI00012"):
+	return {"name": ten, "vgb_si_ma": ma, "customer": kh, "customer_name": "Café Lá Me", "docstatus": ds,
+		"delivery_date": giao, "transaction_date": tao[:10], "creation": tao, "grand_total": 840000, "rounded_total": 840000,
+		"net_total": 777778, "total_taxes_and_charges": 62222, "vgb_si_tt": tt, "vgb_si_du_lieu": "{}",
+		"status": "To Deliver and Bill", "per_billed": 0}
+
+
+@ca("Codex #531 v8: khách có một đơn chờ chuyển khoản rồi đặt thêm 30 đơn mới hơn (đã huỷ): Tài khoản vẫn có đơn đó ở 'Đơn sắp giao', đủ dữ liệu cho nút mở lại QR")
+def _v8_toi_du_don_mo():
+	so = [_don_si("SO-CU", "BSI26100001", 1, "2026-10-01 09:00:00")]
+	so += [_don_si("SO-%02d" % i, "BSI261100%02d" % i, 2, "2026-11-01 09:%02d:00" % i) for i in range(1, 31)]
+	g = _Nguon8(so)
+	kh = _fr._dict(name="SI00012", customer_name="Café Lá Me", vgb_si_cuoi_ky=0)
+	ps = g.gan([mock.patch.object(bs, "_khach_phien", lambda: (kh, "")), mock.patch.object(bs, "_khong_cache", lambda: None),
+		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-02"), mock.patch.object(bs, "gia_cua_khach", lambda k, n=None: {})])
+	with _gan(ps):
+		r = bs.toi()
+	la("đơn sắp giao", [(d["ma"], d["trang_thai"], d["tra_truoc"], d["con_lai"]) for d in r["sap_giao"]],
+		[("BSI26100001", "cho_tt", 1, 840000.0)])
+	la("lịch sử vẫn cắt 20", len(r["lich_su"]), 20)
+
+
+@ca("Codex #531 v8: màn Đơn sỉ web và Đơn đặt trước: đơn đang mở quá hạn giao trước cửa sổ ngày vẫn hiện; đơn đã giao cũ thì không")
+def _v8_ds_don_qua_han():
+	so = [_don_si("SO-QH", "BSI26090001", 1, "2026-09-01 09:00:00", giao="2026-09-03", tt="Công nợ"),
+		_don_si("SO-GIAO-CU", "BSI26090002", 1, "2026-09-01 10:00:00", giao="2026-09-04", tt="Công nợ"),
+		_don_si("SO-HUY-CU", "BSI26080003", 2, "2026-08-01 09:00:00", giao="2026-08-05", tt="Công nợ"),
+		_don_si("SO-MOI", "BSI26110001", 1, "2026-11-01 09:00:00", giao="2026-11-06", tt="Công nợ")]
+	g = _Nguon8(so, si=[{"custom_pancake_id": "BSI-BSI26090002", "docstatus": 1}])
+	ps = g.gan([mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Sales Manager"]),
+		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-02"), mock.patch.object(bs, "_cong_ty", lambda: "Vagabond"),
+		mock.patch.object(bs, "_la_ke_toan", lambda: 0), mock.patch("vagabond.xuat_kho._kho_that", lambda ct: []),
+		mock.patch.object(bs, "_logo_cac_khach", lambda ds: {})])
+	with _gan(ps):
+		kq = bs.ds_don()
+	la("đơn sỉ trên màn", [(r["ma"], r["trang_thai"]) for r in kq["rows"]], [("BSI26090001", "cho_giao"), ("BSI26110001", "cho_giao")])
+	tk = [{"name": "SO-T1", "vgb_tkr_ma": "TKR26080001", "docstatus": 1, "delivery_date": "2026-08-20", "creation": "2026-08-01 09:00:00"},
+		{"name": "SO-T2", "vgb_tkr_ma": "TKR26110002", "docstatus": 2, "delivery_date": "2026-11-20", "creation": "2026-11-01 09:00:00"}]
+	g2 = _Nguon8(tk)
+	thay = []
+	with _gan(g2.gan([mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Sales Manager"]),
+			mock.patch.object(tkr, "_hom_nay", lambda: "2026-11-02"), mock.patch.object(tkr, "_ban", lambda: {}),
+			mock.patch.object(tkr, "tom_tat", lambda t, khoa=False, anh_tp=None: thay.append(t) or {"trang_thai": "cho_coc"}),
+			mock.patch.object(tkr, "_ds_diem", lambda: []), mock.patch.object(tkr, "_la_ke_toan", lambda: 0)])):
+		tkr.ds_don()
+	la("đơn thiết kế riêng trên màn: đơn chờ cọc quá hạn từ tháng 8 vẫn có", thay, ["SO-T1", "SO-T2"])
+
+
+@ca("Codex #531 v8: nhịp 5 phút khớp tiền đi qua MỌI đơn còn chờ tiền (501 đơn sỉ, 501 đơn thiết kế riêng), không cắt 500")
+def _v8_quet_du():
+	so = [_don_si("SO-%03d" % i, "BSI2611%04d" % i, 1, "2026-11-01 09:00:00") for i in range(501)]
+	g = _Nguon8(so)
+	da = []
+	with _gan(g.gan([mock.patch.object(bs, "khop_don", lambda t: da.append(t)), mock.patch.object(_fr.db, "commit", lambda: None)])):
+		bs.quet()
+	la("đơn sỉ đã xét", len(da), 501)
+	tk = [{"name": "SO-T%03d" % i, "vgb_tkr_ma": "TKR2611%04d" % i, "docstatus": 1, "status": "To Deliver and Bill",
+		"per_billed": 0} for i in range(501)]
+	g2 = _Nguon8(tk)
+	da2 = []
+	with _gan(g2.gan([mock.patch.object(tkr, "khop_mot", lambda t: da2.append(t)), mock.patch.object(_fr.db, "commit", lambda: None)])):
+		tkr.quet()
+	la("đơn thiết kế riêng đã xét", len(da2), 501)
+
+
+@ca("Codex #531 v8: đăng ký chờ duyệt là việc đang chờ: 1 đăng ký chờ duyệt cũ và 300 đăng ký đã xử lý mới hơn, danh sách 'tất cả' vẫn có đăng ký chờ duyệt")
+def _v8_dang_ky_cho():
+	dk = [{"name": "dk-cho", "ten_quan": "Café Cũ", "trang_thai": "Chờ duyệt", "creation": "2026-09-01 09:00:00", "khach": ""}]
+	dk += [{"name": "dk-%03d" % i, "ten_quan": "Q%d" % i, "trang_thai": "Từ chối", "creation": "2026-10-%02d 09:%02d:00" % (1 + i % 28, i % 60),
+		"khach": ""} for i in range(300)]
+	g = _Nguon8([], dk=dk)
+	with _gan(g.gan([mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Sales Manager"])])):
+		kq = bs.ds_dang_ky("")
+		cho = bs.ds_dang_ky("Chờ duyệt")
+	dung("tất cả: có đăng ký chờ duyệt", "dk-cho" in [r["name"] for r in kq["rows"]])
+	la("lọc chờ duyệt", [r["name"] for r in cho["rows"]], ["dk-cho"])
