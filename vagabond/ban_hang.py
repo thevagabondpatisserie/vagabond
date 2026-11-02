@@ -915,10 +915,17 @@ def cau_hinh_ban_hang():
 			"tai_cho": d["tai_cho"],
 			"mang_ve": d["mang_ve"],
 			"nguon": d["nguon"],
+			# v631: bảng giá riêng của điểm (món -> giá) để màn tính tiền hiện
+			# đúng giá; máy chủ vẫn tự tính lại khi lưu bill.
+			"gia_rieng": diem_ban.gia_rieng(d["ma"]) if d.get("bang_gia") and d["quay"] else {},
+			"co_bang_gia": 1 if d.get("bang_gia") and d["quay"] else 0,
 		}
 		for d in diem_ban.ds(chi_bat=True)
 	]
 	return {
+		# v631: các điểm tài khoản này được khai đứng. Một điểm thì mở Tính
+		# tiền là vào thẳng điểm đó; nhiều điểm thì chỉ chọn trong số đó.
+		"diem_cua_toi": diem_ban.diem_cua_nguoi(diem_ban.ds(chi_bat=True), frappe.session.user),
 		"pt": pt,
 		"nguon": nguon,
 		"pt_pancake": pt_thanh_toan.ten_online(),
@@ -4592,6 +4599,10 @@ def tao_don_tay(
 	if nguon not in [n["v"] for n in _nguon_don()]:
 		frappe.throw("Nguồn đơn %s không có trong danh mục." % (nguon or "(trống)"))
 	quay = _quay_cua_nguon(nguon, quay)
+	# v631 (anh Việt 02/11/2026): điểm có bảng giá riêng (NVH) thì máy chủ đặt
+	# lại giá các món có giá ở điểm đó, TRƯỚC khi tính khuyến mãi, để không ai
+	# sửa tay giá trên máy khách. Món chưa khai giá riêng giữ giá chung.
+	diem_ban.ap_gia_diem(items, rows, diem_ban.gia_rieng_cua_quay(quay))
 
 	# --- Khuyen mai: may chu tu tinh lai, khong tin so tu may khach ---
 	# Tinh trên gio hang GOC (chua co phi giao) - khong ai duoc giam gia
@@ -6714,6 +6725,10 @@ def pos_sua_don(
 		)
 	if items is not None and isinstance(items, str):
 		items = json.loads(items or "[]")
+	if items:
+		# v631: sửa bill ở điểm có bảng giá riêng cũng tính lại giá theo điểm,
+		# trước khi xét OTP để giá cũ trên máy khách không bị coi là sửa giá.
+		diem_ban.ap_gia_diem(items, None, diem_ban.gia_rieng_cua_quay(si.get("vgb_quay")))
 	da_ghi = si.docstatus == 1
 	# Hoa don DA GHI SO thi luon phai co OTP, khong xet muc quyen: luc do
 	# tien da nam trong so sach, khong con la chuyen cua quay nua.

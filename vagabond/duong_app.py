@@ -229,6 +229,8 @@ MAN = (
 
 	# --- Cài đặt và quản trị
 	("CDDB", "Điểm bán", None),
+	# v631: giá riêng từng điểm bán (NVH), sửa một lượt hoặc qua Excel.
+	("BGDB", "Bảng giá theo điểm bán", None),
 	("CDKS", "Khoá sổ", None),
 	("CDPT", "Phương thức thanh toán", None),
 	("CDTK", "Tài khoản kế toán", None),

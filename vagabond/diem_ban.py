@@ -19,9 +19,10 @@ diem cu. Deploy khong lam thay doi hanh vi cua he thong.
 """
 
 import json
+import re
 
 import frappe
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
 from vagabond.lib import cfg, cfg_o
 
@@ -79,6 +80,37 @@ from vagabond.vai_cua_hang import VAI_QLCH
 
 QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager", VAI_QLCH}
 
+# v631 (anh Viet 02/11/2026, duyet mau "Diem ban tu nhan theo tai khoan va
+# bang gia rieng NVH"):
+#   - Moi diem khai "Nhan vien dung diem nay" (tai khoan dang nhap). Mo Tinh
+#     tien la vao thang diem cua minh, khong con bam nham the diem khac (ca
+#     Gia Bao bam nham Sales Online khi dang dung District 1).
+#   - Moi diem co the co BANG GIA RIENG (mot Price List ban ra). Mon co gia
+#     trong bang do thi quay do ban gia do; mon chua khai thi ban gia chung
+#     (standard_rate) nhu cu. May chu tinh lai gia theo diem khi luu bill nen
+#     khong ai sua tay duoc.
+TIEN_TO_BANG_GIA = "Giá riêng "
+SO_NGAY_GOI_Y = 30
+GIA_TOI_DA = 100000000
+
+
+def ten_bang_gia(ma):
+	"""THUAN: ten Price List rieng cua mot diem. Dat theo MA diem (khong doi
+	khi doi ten hien thi) de cau hinh cu van tro dung bang."""
+	return TIEN_TO_BANG_GIA + str(ma or "").strip().upper()
+
+
+def _ds_nguoi(v):
+	"""THUAN: danh sach tai khoan dung diem, bo trung, bo rong, giu thu tu."""
+	if isinstance(v, str):
+		v = [x for x in re.split(r"[\s,;]+", v) if x]
+	ra = []
+	for x in v or []:
+		x = str(x or "").strip()
+		if x and x not in ra:
+			ra.append(x)
+	return ra
+
 
 def _chuan(d, i=0):
 	"""Mot dong cau hinh bat ky ve dung khuon, thieu truong nao thi bu."""
@@ -114,6 +146,10 @@ def _chuan(d, i=0):
 		"ky_hieu": str(d.get("ky_hieu") or "").strip(),
 		"kho_tang": str(d.get("kho_tang") or "").strip(),
 		"nguon": nguon_ds,
+		"nhan_vien": _ds_nguoi(d.get("nhan_vien")),
+		# Man Cai dat gui gia_rieng 1/0; cau hinh da luu mang san ten bang.
+		"bang_gia": (ten_bang_gia(ma) if cint(d.get("gia_rieng")) else "") if d.get("gia_rieng") is not None
+			else str(d.get("bang_gia") or "").strip(),
 		"bat": 1 if cint(d.get("bat") if d.get("bat") is not None else 1) else 0,
 		"thu_tu": cint(d.get("thu_tu") or (i + 1)),
 	}
@@ -163,6 +199,81 @@ def ten_diem():
 	return {d["ma"]: d["ten_ngan"] for d in ds()}
 
 
+def diem_cua_nguoi(ds_diem, user):
+	"""THUAN: ma cac diem DANG BAT ma tai khoan nay duoc khai dung."""
+	user = str(user or "").strip()
+	return [d["ma"] for d in ds_diem if d.get("bat") and user and user in (d.get("nhan_vien") or [])]
+
+
+def doc_gia(v):
+	"""THUAN: o gia nguoi go tay (hoac o Excel) ve so dong, None la de trong.
+
+	Chiu moi cach go hop ly: 70000, 70.000, 70,000, "70 000 đ", 70000.0 tu
+	Excel. Go sai thi nem ValueError voi cau doc duoc."""
+	if v is None:
+		return None
+	if isinstance(v, (int, float)):
+		so = float(v)
+	else:
+		t = str(v).strip().lower().replace("đ", "").replace("vnd", "").strip()
+		if not t or t == "trống":
+			return None
+		t = re.sub(r"[\s.,]", "", t)
+		if not t.isdigit():
+			raise ValueError("Giá \"%s\" không phải số tiền. Gõ số, ví dụ 70000 hoặc 70.000." % str(v).strip())
+		so = float(t)
+	if so <= 0:
+		return None
+	if so != int(so) or so >= GIA_TOI_DA:
+		raise ValueError("Giá %s không hợp lệ. Gõ số tiền đồng, dưới 100 triệu." % str(v).strip())
+	return int(so)
+
+
+def ap_gia_diem(items, rows, gia):
+	"""THUAN: dat lai gia cac dong theo bang gia rieng cua diem.
+
+	items la dong may khach gui (de khuyen mai tinh tren gia that), rows la
+	dong se ghi vao hoa don, cung thu tu. Dong thuoc combo giu nguyen: combo
+	co gia rieng cua no. Mon chua co gia o diem nay giu gia may khach gui
+	(gia chung). Tra so dong da doi."""
+	doi = 0
+	if not gia:
+		return 0
+	for i, r in enumerate(items or []):
+		if r.get("combo_ma") or r.get("combo"):
+			continue
+		ma = str(r.get("item_code") or "").strip()
+		if ma not in gia:
+			continue
+		if flt(r.get("rate")) != flt(gia[ma]):
+			doi += 1
+		r["rate"] = gia[ma]
+		if rows is not None and i < len(rows):
+			rows[i]["rate"] = gia[ma]
+	return doi
+
+
+def gia_rieng(ma):
+	"""Bang gia rieng cua mot diem: {ma mon: gia}. Diem khong co bang gia
+	rieng thi tra rong (ban gia chung)."""
+	d = theo_ma(ma)
+	if not d or not d.get("bang_gia"):
+		return {}
+	ra = {}
+	for r in frappe.get_all("Item Price", filters={"price_list": d["bang_gia"], "selling": 1},
+			fields=["item_code", "price_list_rate"], order_by="modified asc", limit_page_length=0):
+		if flt(r.get("price_list_rate")) > 0:
+			ra[r["item_code"]] = flt(r["price_list_rate"])
+	return ra
+
+
+def gia_rieng_cua_quay(quay):
+	"""Bang gia rieng theo ma quay tren hoa don. Don online (quay trong) thi
+	khong co bang rieng."""
+	q = str(quay or "").strip()
+	return gia_rieng(ma_theo_quay(q)) if q else {}
+
+
 def nguon_cua(ma):
 	d = theo_ma(ma)
 	return list(d["nguon"]) if d else []
@@ -188,6 +299,11 @@ def danh_sach():
 			fields=['name', 'company'], order_by='name'),
 		"sua_duoc": 1 if QUYEN_SUA & set(frappe.get_roles()) else 0,
 		"nguon_co_san": nguon_co_san(),
+		# v631: goi y nguoi dung diem tu bill 30 ngay, va danh sach tai khoan
+		# de them tay; ten hien cho tai khoan da khai.
+		"goi_y": goi_y_nhan_vien(),
+		"nguoi_dung": _nguoi_dung_he(),
+		"tien_to_bang_gia": TIEN_TO_BANG_GIA,
 	}
 
 
@@ -339,6 +455,11 @@ def _kiem(ra):
 		)
 	if not [d for d in ra if d["bat"]]:
 		frappe.throw("Phải còn ít nhất một điểm bán đang dùng.")
+	# v631: gia rieng chi ap cho bill quay (may chu tinh lai theo ma quay).
+	# Don online di qua san, Pancake, web voi gia rieng cua kenh do.
+	for d in online:
+		if d["bang_gia"]:
+			frappe.throw("Điểm %s nhận đơn online nên không dùng bảng giá riêng. Đơn online theo giá của từng kênh." % d["ten_ngan"])
 	trong = [d["ma"] for d in ra if d["bat"] and not d["nguon"]]
 	if trong:
 		frappe.throw(
@@ -388,6 +509,9 @@ def luu(diem=None):
 			)
 
 	_theo_kip_nguon(ds(), ra)
+	for d in ra:
+		if d["bang_gia"]:
+			_bao_dam_bang_gia(d["bang_gia"])
 	frappe.db.set_single_value(
 		"Vagabond Settings", TRUONG, json.dumps(ra, ensure_ascii=False, indent=1)
 	)
@@ -453,3 +577,262 @@ def _ghi_vet(viec):
 		).insert(ignore_permissions=True)
 	except Exception:
 		pass
+
+
+# ------------------------------------------------------------------ v631: nguoi dung diem va bang gia rieng
+
+
+def goi_y_nhan_vien(so_ngay=SO_NGAY_GOI_Y):
+	"""Goi y "Nhan vien dung diem nay": ai da tao bill o quay do trong 30 ngay
+	qua, nhieu bill truoc. {ma diem: [{user, ten, so}]}. Quan ly chi can bam
+	Luu; bo chip la bo nguoi do khoi diem."""
+	from frappe.utils import add_days, nowdate
+
+	ra = {}
+	try:
+		rows = frappe.db.sql(
+			"select vgb_quay, owner, count(*) so from `tabSales Invoice` "
+			"where docstatus = 1 and is_return = 0 and posting_date >= %s and ifnull(vgb_quay, '') != '' "
+			"group by vgb_quay, owner order by so desc",
+			(add_days(nowdate(), -int(so_ngay)),), as_dict=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "diem_ban: khong doc duoc goi y nhan vien")
+		return ra
+	ten = _ten_nguoi([r["owner"] for r in rows])
+	for r in rows:
+		ma = ma_theo_quay(r["vgb_quay"])
+		ra.setdefault(ma, []).append({"user": r["owner"], "ten": ten.get(r["owner"]) or r["owner"], "so": cint(r["so"])})
+	return ra
+
+
+def _ten_nguoi(users):
+	users = [u for u in dict.fromkeys(users or []) if u]
+	if not users:
+		return {}
+	return {u["name"]: u["full_name"] or u["name"] for u in frappe.get_all(
+		"User", filters={"name": ["in", users]}, fields=["name", "full_name"], limit_page_length=0)}
+
+
+def _nguoi_dung_he():
+	"""Tai khoan noi bo dang bat, de quan ly "+ Them nguoi" bang o tim."""
+	return [{"user": u["name"], "ten": u["full_name"] or u["name"]} for u in frappe.get_all(
+		"User", filters={"enabled": 1, "user_type": "System User", "name": ["not in", ["Administrator", "Guest"]]},
+		fields=["name", "full_name"], order_by="full_name asc", limit_page_length=500)]
+
+
+def _bao_dam_bang_gia(ten):
+	"""Tao Price List ban ra cho diem neu chua co. Chay lai bao nhieu lan cung duoc."""
+	if not ten or frappe.db.exists("Price List", ten):
+		return ten
+	frappe.get_doc({"doctype": "Price List", "price_list_name": ten, "selling": 1, "buying": 0,
+		"enabled": 1, "currency": "VND"}).insert(ignore_permissions=True)
+	return ten
+
+
+def _sua_gia_duoc():
+	return bool(QUYEN_SUA & set(frappe.get_roles()))
+
+
+def _diem_co_bang(ma):
+	d = theo_ma(ma)
+	if not d:
+		frappe.throw("Không có điểm bán %s." % (ma or "(trống)"))
+	if not d["bang_gia"]:
+		frappe.throw("Điểm %s đang bán giá chung. Bật Giá riêng ở Cài đặt, Điểm bán trước." % d["ten_ngan"])
+	return d
+
+
+@frappe.whitelist()
+def bang_gia_diem(ma):
+	"""Man Bang gia theo diem ban: moi mon ban, gia chung, gia rieng cua diem,
+	so da ban o diem trong 30 ngay."""
+	from vagabond.ban_hang import _kiem_quyen
+	from frappe.utils import add_days, nowdate
+
+	_kiem_quyen()
+	d = _diem_co_bang(ma)
+	gia = {}
+	for r in frappe.get_all("Item Price", filters={"price_list": d["bang_gia"], "selling": 1},
+			fields=["item_code", "price_list_rate"], order_by="modified asc", limit_page_length=0):
+		gia[r["item_code"]] = flt(r["price_list_rate"])
+	da_ban = {}
+	if d["quay"]:
+		for r in frappe.db.sql(
+				"select sii.item_code, sum(sii.qty) sl from `tabSales Invoice Item` sii "
+				"join `tabSales Invoice` si on si.name = sii.parent "
+				"where si.docstatus = 1 and si.is_return = 0 and si.vgb_quay = %s and si.posting_date >= %s "
+				"group by sii.item_code", (d["quay"], add_days(nowdate(), -SO_NGAY_GOI_Y)), as_dict=True):
+			da_ban[r["item_code"]] = flt(r["sl"])
+	mon = []
+	for it in frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0, "has_variants": 0},
+			fields=["name", "item_name", "item_group", "standard_rate"], order_by="item_name asc", limit_page_length=0):
+		mon.append({"ma": it["name"], "ten": it["item_name"], "nhom": it["item_group"] or "",
+			"gia_chung": flt(it["standard_rate"]), "gia_diem": flt(gia.get(it["name"])),
+			"da_ban": da_ban.get(it["name"], 0)})
+	return {"diem": {"ma": d["ma"], "ten": d["ten"], "ten_ngan": d["ten_ngan"], "bang_gia": d["bang_gia"]},
+		"mon": mon, "sua_duoc": 1 if _sua_gia_duoc() else 0, "so_ngay": SO_NGAY_GOI_Y}
+
+
+def chuan_thay_doi(thay_doi, ma_hop_le):
+	"""THUAN: [(ma mon, gia hoac None la xoa gia rieng)] tu danh sach may
+	khach gui. Ma la khong co trong danh muc thi bao ten, khong im lang bo."""
+	if isinstance(thay_doi, str):
+		thay_doi = json.loads(thay_doi or "[]")
+	ra, la = [], []
+	for x in thay_doi or []:
+		ma = str((x or {}).get("ma") or "").strip()
+		if not ma:
+			continue
+		if ma not in ma_hop_le:
+			la.append(ma)
+			continue
+		try:
+			ra.append((ma, doc_gia(x.get("gia"))))
+		except ValueError as e:
+			raise ValueError("%s: %s" % (ma, e))
+	if la:
+		raise ValueError("Không có món %s trong danh mục món bán. Tải lại bảng rồi sửa tiếp." % ", ".join(la[:5]))
+	return list(dict(ra).items())
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_gia(ma, thay_doi=None):
+	"""Luu cac o gia rieng da doi. Gia trong la xoa gia rieng (mon ve gia
+	chung). Moi lan doi ghi vet tren mon: ai doi, luc nao, gia cu, gia moi."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not _sua_gia_duoc():
+		frappe.throw("Chỉ quản lý cửa hàng, Sales quản lý hoặc kế toán mới sửa được giá bán.")
+	d = _diem_co_bang(ma)
+	_bao_dam_bang_gia(d["bang_gia"])
+	hop_le = set(frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0}, pluck="name", limit_page_length=0))
+	try:
+		ds_doi = chuan_thay_doi(thay_doi, hop_le)
+	except ValueError as e:
+		frappe.throw(str(e))
+	so = 0
+	for mon, gia in ds_doi:
+		so += 1 if dat_gia_diem(d, mon, gia) else 0
+	frappe.db.commit()
+	return {"so": so}
+
+
+def dat_gia_diem(d, mon, gia):
+	"""Dat (hoac xoa khi gia rong) gia rieng cua mot mon o mot diem, ghi vet.
+	Mot cho duy nhat cho ca man Bang gia lan man Tao mat hang. Tra True khi
+	gia that su doi."""
+	_bao_dam_bang_gia(d["bang_gia"])
+	cu = frappe.get_all("Item Price", filters={"price_list": d["bang_gia"], "item_code": mon},
+		fields=["name", "price_list_rate"], limit_page_length=0)
+	gia_cu = flt(cu[0]["price_list_rate"]) if cu else 0
+	if flt(gia or 0) == gia_cu:
+		return False
+	if gia:
+		if cu:
+			frappe.db.set_value("Item Price", cu[0]["name"], "price_list_rate", gia)
+			for thua in cu[1:]:
+				frappe.delete_doc("Item Price", thua["name"], ignore_permissions=True)
+		else:
+			frappe.get_doc({"doctype": "Item Price", "item_code": mon, "price_list": d["bang_gia"],
+				"price_list_rate": gia}).insert(ignore_permissions=True)
+	else:
+		for c in cu:
+			frappe.delete_doc("Item Price", c["name"], ignore_permissions=True)
+	_ghi_vet_gia(mon, d, gia_cu, gia)
+	return True
+
+
+def diem_co_gia_rieng():
+	"""Cac diem dang bat co bang gia rieng, cho man Tao mat hang hien o gia."""
+	return [{"ma": d["ma"], "ten": d["ten"], "ten_ngan": d["ten_ngan"]} for d in ds(chi_bat=True) if d["bang_gia"] and d["quay"]]
+
+
+def cau_vet_gia(ten_diem, cu, moi):
+	"""THUAN: dong ghi vet doi gia, vi du "Giá riêng NVHTN: 95.000 -> 70.000"."""
+	def t(x):
+		return "{:,.0f}".format(flt(x)).replace(",", ".") if flt(x) else "giá chung"
+	return "Giá riêng %s: %s -> %s" % (ten_diem, t(cu), t(moi))
+
+
+def _ghi_vet_gia(mon, d, cu, moi):
+	try:
+		frappe.get_doc({"doctype": "Comment", "comment_type": "Info", "reference_doctype": "Item",
+			"reference_name": mon, "content": "%s - %s" % (cau_vet_gia(d["ten_ngan"], cu, moi), frappe.session.user)}
+		).insert(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "diem_ban: ghi vet doi gia")
+
+
+COT_EXCEL = ("Mã món", "Tên món", "Nhóm món", "Giá chung", "Giá riêng")
+
+
+def doc_bang_excel(dong):
+	"""THUAN: tu cac dong Excel (dong dau la tieu de) ra [{ma, gia}].
+
+	Tim cot theo TEN tieu de (Ma mon, Gia rieng...) chu khong theo vi tri,
+	de nguoi dien chen them cot hay doi thu tu van doc dung. O gia trong
+	nghia la ve gia chung."""
+	dong = [list(r or []) for r in (dong or [])]
+	if not dong:
+		raise ValueError("Tệp Excel trống.")
+	dau = [str(x or "").strip().lower() for x in dong[0]]
+	def cot(*ten):
+		for i, x in enumerate(dau):
+			if any(x.startswith(t) for t in ten):
+				return i
+		return -1
+	c_ma, c_gia = cot("mã món", "ma mon"), cot("giá riêng", "gia rieng")
+	if c_ma < 0 or c_gia < 0:
+		raise ValueError("Không thấy cột \"Mã món\" và \"Giá riêng\" ở dòng đầu. Tải Excel mẫu từ màn này rồi điền vào đó.")
+	ra = []
+	for i, r in enumerate(dong[1:], start=2):
+		ma = str(r[c_ma] if c_ma < len(r) and r[c_ma] is not None else "").strip()
+		if not ma:
+			continue
+		v = r[c_gia] if c_gia < len(r) else None
+		try:
+			ra.append({"ma": ma, "gia": doc_gia(v)})
+		except ValueError as e:
+			raise ValueError("Dòng %d (%s): %s" % (i, ma, e))
+	return ra
+
+
+@frappe.whitelist()
+def xuat_excel_gia(ma):
+	"""Tai Excel bang gia cua diem: moi mon ban, de dien cot Gia rieng roi nap lai."""
+	import base64
+	from frappe.utils.xlsxutils import make_xlsx
+
+	kq = bang_gia_diem(ma)
+	dong = [list(COT_EXCEL[:4]) + [COT_EXCEL[4] + " " + kq["diem"]["ten_ngan"]]]
+	for m in kq["mon"]:
+		dong.append([m["ma"], m["ten"], m["nhom"], m["gia_chung"] or None, m["gia_diem"] or None])
+	tep = make_xlsx(dong, "Bang gia")
+	return {"ten_file": "bang-gia-%s.xlsx" % kq["diem"]["ma"].lower(), "b64": base64.b64encode(tep.getvalue()).decode()}
+
+
+@frappe.whitelist(methods=["POST"])
+def nap_excel_gia(ma, b64=None):
+	"""Doc tep Excel nguoi dung nap, tra cac o gia de man hien thanh "da doi"
+	cho nguoi dung xem lai roi moi bam Luu. KHONG luu o buoc nay."""
+	import base64
+	import io
+
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not _sua_gia_duoc():
+		frappe.throw("Chỉ quản lý cửa hàng, Sales quản lý hoặc kế toán mới sửa được giá bán.")
+	_diem_co_bang(ma)
+	try:
+		from openpyxl import load_workbook
+
+		wb = load_workbook(io.BytesIO(base64.b64decode(b64 or "")), read_only=True, data_only=True)
+		dong = [list(r) for r in wb.worksheets[0].iter_rows(values_only=True)]
+	except Exception:
+		frappe.throw("Không đọc được tệp. Chọn đúng tệp Excel (.xlsx) tải từ màn Bảng giá theo điểm bán.")
+	try:
+		return {"thay_doi": doc_bang_excel(dong)}
+	except ValueError as e:
+		frappe.throw(str(e))

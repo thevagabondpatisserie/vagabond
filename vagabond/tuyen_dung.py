@@ -28,6 +28,7 @@ thống kê theo kênh (QT-20: không xoá cứng dòng nghiệp vụ).
 import json
 import re
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
 VT = "Vagabond Vi Tri Tuyen"
 UV = "Vagabond Ung Vien"
@@ -49,7 +50,13 @@ CAN_HEN = (HEN_PV, LAM_THU)
 # nhận qua tong_quan (khoá "buoc"), không tự chia lại.
 BUOC = (("Liên hệ", (MOI, LIEN_HE)), ("Phỏng vấn", (HEN_PV,)), ("Làm thử", (LAM_THU,)),
 	("Nhận việc", (DE_NGHI, NHAN_VIEC)))
-LY_DO_DUNG = ("Không phù hợp", "Ứng viên rút", "Không liên lạc được", "Đã đủ người")
+# v631 (anh Việt 02/11/2026, duyệt mẫu "Loại ứng viên"): hồ sơ Dừng hiện trên app là
+# "Đã loại"; giá trị lưu vẫn là "Dừng" để hồ sơ cũ và báo cáo không đổi. Lý do bắt
+# buộc chọn một; "Khác" thì phải ghi thêm.
+TEN_DUNG = "Đã loại"
+LY_DO_DUNG = ("Thiếu kinh nghiệm", "Lương mong muốn cao", "Ca làm không khớp", "Ở xa",
+	"Không liên lạc được", "Ứng viên rút", "Không đạt làm thử", "Khác")
+LY_DO_KHAC = "Khác"
 VONG = ("Phỏng vấn", "Làm thử")
 KET_LUAN = ("Nên nhận", "Cân nhắc", "Không nên nhận")
 
@@ -90,7 +97,7 @@ KET_QUA_GOI = (
 	("Nghe máy", "Đã nói chuyện với ứng viên, hồ sơ chuyển sang Đã liên hệ."),
 	("Hẹn gọi lại", "Ứng viên bận, hẹn gọi lại sau, hồ sơ chuyển sang Đã liên hệ."),
 	("Không nghe máy", "Hồ sơ giữ Mới nhận, nhật ký ghi thêm một lần gọi."),
-	("Sai số", "Số không liên lạc được. Bấm Cập nhật, chọn Dừng nếu không tìm được số khác."),
+	("Sai số", "Số không liên lạc được. Không tìm được số khác thì bấm Loại, chọn Không liên lạc được."),
 )
 CHUYEN_SAU_GOI = ("Nghe máy", "Hẹn gọi lại")
 CHO_TRONG = ("ten", "vi_tri", "gio", "noi_lam", "cong", "hotline")
@@ -370,8 +377,29 @@ def kiem_chuyen(cu, moi, lich_hen=None, ly_do=None):
 	if moi in CAN_HEN and not lich_hen:
 		return "Chọn ngày giờ hẹn %s để ứng viên biết lúc nào tới." % ("phỏng vấn" if moi == HEN_PV else "làm thử")
 	if moi == DUNG and len(re.sub(r"\s+", " ", str(ly_do or "")).strip()) < 3:
-		return "Chọn lý do dừng để sau này còn biết vì sao."
+		return "Chọn lý do loại để sau này còn biết vì sao."
 	return ""
+
+
+def cau_ly_do_loai(ly_do, ghi_them=None):
+	"""THUẦN: (câu lý do lưu trên hồ sơ, câu lỗi) cho nút Loại.
+
+	Lý do phải là một trong LY_DO_DUNG. "Khác" thì phải ghi thêm ít nhất 3 chữ;
+	lý do khác mà có ghi thêm thì nối sau dấu chấm. Câu lưu tối đa 140 ký tự."""
+	ly_do = re.sub(r"\s+", " ", str(ly_do or "")).strip()
+	ghi = re.sub(r"\s+", " ", str(ghi_them or "")).strip()
+	if ly_do not in LY_DO_DUNG:
+		return "", "Chọn một lý do loại trong danh sách."
+	if ly_do == LY_DO_KHAC:
+		if len(ghi) < 3:
+			return "", "Lý do Khác: ghi thêm vài chữ để sau này còn biết vì sao."
+		return ghi[:140], ""
+	return (ly_do + (". " + ghi if ghi else ""))[:140], ""
+
+
+def link_ho_so(name):
+	"""THUẦN: đường mở thẳng trang chi tiết một hồ sơ trên app (tin Zalo, nút chia sẻ)."""
+	return "/tuyen-dung?mo=" + quote(str(name or ""), safe="")
 
 
 def so_buoc(trang_thai):
@@ -854,7 +882,7 @@ def bao_moi(doc, method=None):
 	except Exception:
 		frappe.log_error(title="Tuyển dụng: chưa soạn được tin Zalo", message="Hồ sơ %s." % doc.name)
 		return
-	kenh_zalo.bao_hoac_ghi_loi("viec", "tuyen_dung", tieu_de, dong, link=frappe.utils.get_url("/tuyen-dung"),
+	kenh_zalo.bao_hoac_ghi_loi("viec", "tuyen_dung", tieu_de, dong, link=frappe.utils.get_url(link_ho_so(doc.name)),
 		khoa="ung-vien:%s" % doc.name, kiem="ung_vien_moi", nguon=doc.name, ma_tin="ns_ung_vien_moi")
 
 
@@ -886,7 +914,7 @@ def nhac_qua_han():
 			if not qua_han_goi(r, bay_gio):
 				continue
 			tieu_de, dong = soan_tin_qua_han(r, bay_gio)
-			kenh_zalo.bao("viec", "tuyen_dung", tieu_de, dong, link=frappe.utils.get_url("/tuyen-dung"),
+			kenh_zalo.bao("viec", "tuyen_dung", tieu_de, dong, link=frappe.utils.get_url(link_ho_so(r["name"])),
 				khoa="ung-vien-qua-han:%s" % r["name"], kiem="ung_vien_moi", nguon=r["name"],
 				ma_tin="ns_ung_vien_qua_han")
 	except Exception:
@@ -1016,6 +1044,7 @@ def tong_quan():
 	kq = {
 		"vi_tri": vt, "rows": rows, "hom_nay": hn, "bay_gio": str(bay_gio)[:19],
 		"tom_tat": tom_tat(rows, hn, bay_gio), "nguon": list(NGUON), "ly_do_dung": list(LY_DO_DUNG),
+		"ten_dung": TEN_DUNG, "ly_do_khac": LY_DO_KHAC,
 		"hinh_thuc": list(HINH_THUC), "ca_ranh": list(CA_RANH), "noi_lam": _noi_lam_mau(),
 		"bo_phan": bo_phan, "tieu_chi_mac_dinh": list(TIEU_CHI_MAC_DINH), "cau_dong_y": CAU_DONG_Y,
 		"gio_goi_lai": GIO_GOI_LAI, "thang_luu": THANG_LUU, "link_ung_tuyen": _link_ung_tuyen(),
@@ -1263,6 +1292,21 @@ def cap_nhat(name, trang_thai, lich_hen=None, ly_do=None, ghi_chu=None):
 	doc.flags.ignore_permissions = True
 	doc.save()
 	return {"ok": 1, "trang_thai": doc.trang_thai}
+
+
+@frappe.whitelist(methods=["POST"])
+def loai(name, ly_do, ghi_them=None, cam_on=0):
+	"""Nút Loại (v631): chuyển hồ sơ sang Dừng (app hiện "Đã loại") với lý do bắt
+	buộc. cam_on=1 nghĩa là quản lý đã chép tin cảm ơn và mở Zalo ngay trong lượt
+	bấm (trình duyệt chỉ cho mở Zalo trong lượt bấm), máy ghi nhật ký lần nhắn đó.
+	Hồ sơ không bị xoá; Cập nhật trên trang chi tiết mở lại được."""
+	cau, loi = cau_ly_do_loai(ly_do, ghi_them)
+	if loi:
+		frappe.throw(loi)
+	kq = cap_nhat(name, DUNG, ly_do=cau)
+	if frappe.utils.cint(cam_on):
+		kq = ghi_lien_he(name, "Zalo", mau="cam_on")
+	return kq
 
 
 @frappe.whitelist(methods=["POST"])
