@@ -467,6 +467,12 @@ def duyet_kiem_quy(name=None, dong_y=0, ly_do=""):
 	"""Giám đốc duyệt phiếu kiểm quỹ lệch quá ngưỡng. Người duyệt khác người kiểm."""
 	if not _la_giam_doc():
 		frappe.throw("Chỉ Giám đốc duyệt được kiểm quỹ lệch.", frappe.PermissionError)
+	# Codex #527 vòng 4: lấy CÙNG khoá quỹ với kiem_quy và nop_ngan_hang TRƯỚC khoá phiếu.
+	# Chỉ khoá dòng phiếu thì kế toán kiểm lại chạy chen: đọc số máy chưa trừ khoản Giám
+	# đốc đang duyệt, lập thêm phiếu thiếu cùng số và quỹ bị trừ hai lần. Có khoá quỹ thì
+	# hai lượt nối nhau; _khoa_quy kết thúc giao dịch đọc trước đó nên trạng thái phiếu và
+	# lần kiểm sau đọc dưới đây là số đã commit mới nhất.
+	_khoa_quy()
 	frappe.db.sql("select name from `tab%s` where name=%%s for update" % DT, (name,))
 	doc = frappe.get_doc(DT, name)
 	if doc.loai != KIEM or doc.trang_thai != "Chờ duyệt":
@@ -550,6 +556,10 @@ def huy_phieu(name=None, ly_do=""):
 	_kiem_lam()
 	if len(str(ly_do or "").strip()) < 3:
 		frappe.throw("Ghi lý do huỷ.")
+	# Codex #527 vòng 4 (cùng loại với duyệt): huỷ bút toán là đổi số quỹ, phải giữ cùng
+	# khoá quỹ để lần kiểm quỹ chạy chen không đọc số quỹ cũ rồi ghi chênh lệch giả.
+	_khoa_quy()
+	frappe.db.sql("select name from `tab%s` where name=%%s for update" % DT, (name,))
 	doc = frappe.get_doc(DT, name)
 	if doc.trang_thai in ("Đã huỷ", "Trả lại", THAY):
 		frappe.throw("Phiếu %s đã %s." % (name, doc.trang_thai.lower()))
