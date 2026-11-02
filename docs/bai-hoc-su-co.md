@@ -2880,3 +2880,9 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 - `frappe.make_get_request` chỉ có trong System Console và Server Script (Frappe tiêm vào không gian tên đó). Mã của app gọi nó là AttributeError, bị khối bắt lỗi nuốt, màn báo "Chưa đọc được SePay" mãi. Bài học này đã gặp ngày 19/08 ở `sepay.py` mà vẫn lặp ở `tai_chinh.py`. Trong mã app luôn dùng `from frappe.integrations.utils import make_get_request`.
 - Mọi ca v626 thay `_sepay_so_bao` bằng bản giả nên hàm gọi mạng thật chưa chạy lần nào trong kiểm thử. Hàm chạm dịch vụ ngoài phải có ít nhất một ca chạy HÀM THẬT với frappe giả giống site thật (không có thứ chỉ Console mới có), chỉ thay tầng HTTP.
 - Đừng lưu bộ nhớ đệm kết quả rỗng của một lần gọi ngoài: lỗi tạm thời thành lỗi kéo dài suốt thời gian đệm.
+
+## 02/11/2026 (v630): thẻ "chỉ xem" lấy từ ERP vẫn phải chừa việc của người không vào được app
+
+- Tuyển dụng thành "ERP là nguồn duy nhất" (v622) thì thẻ Tuyển dụng của trình biên tập thành chỉ xem, nút "Mở Tuyển dụng trên app". Nhưng người làm ảnh là Marketing, không có vai Tuyển dụng nên không mở được màn sửa vị trí; màn đó lại chỉ cho chọn bốn ảnh có sẵn. Kết quả: không ai trong bộ phận Marketing đổi được ảnh thẻ (Minh Vũ báo 02/11). Khi chuyển một loại nội dung sang ERP, liệt kê từng ô theo NGƯỜI hay sửa nó; ô của người không có vai bên ERP (ảnh, chữ quảng bá) phải có cửa ghi hẹp đúng ô đó ở trình biên tập, chặn quyền ở máy chủ.
+- Bảng Nâng cao vẫn mở được khối Tuyển dụng, Ưu đãi gõ tay cũ với ô "Tải ảnh" và câu "ảnh có thể thay bất cứ lúc nào", trong khi máy chủ giữ nguyên các khối đó khi lưu. Ô sửa không có tác dụng còn tệ hơn không có ô: thay bằng câu chỉ đường tới đúng chỗ sửa.
+- Hai cửa tải ảnh công khai (trình biên tập, app) dùng chung một phép kiểm ảnh (`luu_anh_cong_khai`); mỗi cửa tự kiểm vai của mình TRƯỚC khi gọi. Ca kiểm vai nhớ: `System Manager` nằm trong cả hai nhóm vai, lấy nó làm "vai Tuyển dụng" thì ca chặn Marketing không bao giờ đỏ.
