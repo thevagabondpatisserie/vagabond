@@ -1759,6 +1759,10 @@ async function scrKkPost(name) {
   var luc = new Date();
   kkp.ngay = d.ngay_kiem || ymdOf(luc);
   kkp.gio = hmOf(luc);
+  /* Codex #527 vong 4: phieu dem hang ngay khong khoa nhap xuat, ghi so DUNG
+     moc bep chot dem (may chu tra moc_ghi_so) de phat sinh sau luc dem van con. */
+  kkp.mocDem = (d.moc_ghi_so || []).length === 2;
+  if (kkp.mocDem) { kkp.ngay = d.moc_ghi_so[0]; kkp.gio = d.moc_ghi_so[1]; }
   /* Codex #401 F3: tra gia loi thi CHAN ghi so, khong roi ve cach doc cu
      (Item.valuation_rate) vi chinh cach do lam sai gia o Kho D1. */
   try {
@@ -1813,6 +1817,8 @@ function kkpDraw() {
     '<div class="kv"><span>Nhóm hàng</span><b>' + h(d.pham_vi) + '</b></div>' +
     '<div class="kv"><span>Số món ghi sổ</span><b>' + kkp.rows.length + '</b></div>' +
     '<div class="kv"><span>Món quản lý theo lô</span><b>' + batchN + '</b></div>' +
+    (kkp.mocDem ? '<div class="kv"><span>Ghi sổ theo giờ bếp chốt đếm</span><b>' + h(String(kkp.gio).slice(0, 5) + ' ' + String(kkp.ngay).split('-').reverse().join('/')) + '</b></div>' +
+      '<div style="font-size:12.5px;color:#667085;margin-top:4px">Phiếu đếm hằng ngày không khoá nhập xuất. Hàng nhập, xuất sau giờ chốt vẫn giữ nguyên trong sổ.</div>' : '') +
     '</div>' +
     '<div class="card"><div class="fld" data-op><div class="fi">📘</div><div class="ft">' +
     '<div class="fl">Kiểu ghi sổ</div><div class="fv">' + (kkp.opening ? 'Tồn đầu kỳ (lần đầu đưa số lên máy)' : 'Điều chỉnh tồn (kiểm kê định kỳ)') + '</div></div>' +
