@@ -1,0 +1,289 @@
+{
+ "actions": [],
+ "creation": "2026-11-02 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Phieu Quy",
+ "modified": "2026-11-02 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Phiếu quỹ tiền mặt công ty: kiểm quỹ (đếm, lệch, lý do, bút toán chênh lệch) và nộp tiền mặt vào ngân hàng (v628). Lập từ màn Quỹ tiền mặt công ty, không sửa tay.",
+ "autoname": "format:PQ-{YY}-{MM}-{#####}",
+ "track_changes": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "field_order": [
+  "loai",
+  "trang_thai",
+  "ngay",
+  "cb1",
+  "luc",
+  "nguoi",
+  "ten_nguoi",
+  "sec_kiem",
+  "so_may",
+  "so_dem",
+  "lech",
+  "cb2",
+  "ly_do",
+  "ghi_chu",
+  "menh_gia",
+  "sec_nop",
+  "so_tien",
+  "bank_account",
+  "ten_tai_khoan",
+  "nguoi_nop",
+  "cb3",
+  "gd_sepay",
+  "khop_luc",
+  "sec_so",
+  "but_toan",
+  "anh",
+  "cb4",
+  "duyet_boi",
+  "duyet_luc",
+  "ly_do_tra",
+  "sec_huy",
+  "huy_boi",
+  "huy_luc",
+  "ly_do_huy"
+ ],
+ "fields": [
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "label": "Loại",
+   "read_only": 1,
+   "options": "Kiểm quỹ\nNộp ngân hàng",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "read_only": 1,
+   "options": "Khớp\nĐã ghi\nChờ duyệt\nTrả lại\nChờ tiền về\nĐã khớp\nĐã huỷ",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngày",
+   "read_only": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc ghi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "label": "Người ghi",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "ten_nguoi",
+   "fieldtype": "Data",
+   "label": "Tên người ghi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_kiem",
+   "fieldtype": "Section Break",
+   "label": "Kiểm quỹ"
+  },
+  {
+   "fieldname": "so_may",
+   "fieldtype": "Currency",
+   "label": "Máy tính quỹ đang có",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_dem",
+   "fieldtype": "Currency",
+   "label": "Đếm được",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lech",
+   "fieldtype": "Currency",
+   "label": "Lệch (đếm được trừ máy tính)",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Data",
+   "label": "Lý do lệch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú",
+   "read_only": 1
+  },
+  {
+   "fieldname": "menh_gia",
+   "fieldtype": "Long Text",
+   "label": "Bảng đếm mệnh giá",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_nop",
+   "fieldtype": "Section Break",
+   "label": "Nộp ngân hàng"
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Currency",
+   "label": "Số tiền nộp",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "bank_account",
+   "fieldtype": "Link",
+   "label": "Tài khoản nhận",
+   "read_only": 1,
+   "options": "Bank Account"
+  },
+  {
+   "fieldname": "ten_tai_khoan",
+   "fieldtype": "Data",
+   "label": "Tên tài khoản nhận",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_nop",
+   "fieldtype": "Data",
+   "label": "Người mang đi nộp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gd_sepay",
+   "fieldtype": "Data",
+   "label": "Giao dịch SePay đã khớp",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "khop_luc",
+   "fieldtype": "Datetime",
+   "label": "Khớp lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_so",
+   "fieldtype": "Section Break",
+   "label": "Sổ sách"
+  },
+  {
+   "fieldname": "but_toan",
+   "fieldtype": "Link",
+   "label": "Bút toán",
+   "read_only": 1,
+   "options": "Journal Entry",
+   "search_index": 1
+  },
+  {
+   "fieldname": "anh",
+   "fieldtype": "Small Text",
+   "label": "Ảnh chứng từ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "duyet_boi",
+   "fieldtype": "Link",
+   "label": "Giám đốc duyệt",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "duyet_luc",
+   "fieldtype": "Datetime",
+   "label": "Duyệt lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_tra",
+   "fieldtype": "Small Text",
+   "label": "Lý do trả lại",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_huy",
+   "fieldtype": "Section Break",
+   "label": "Huỷ"
+  },
+  {
+   "fieldname": "huy_boi",
+   "fieldtype": "Link",
+   "label": "Người huỷ",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "huy_luc",
+   "fieldtype": "Datetime",
+   "label": "Huỷ lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_huy",
+   "fieldtype": "Small Text",
+   "label": "Lý do huỷ",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "states": [],
+ "links": []
+}
