@@ -1179,3 +1179,14 @@ for _gio_v628, _ham_v628 in (
 del _gio_v628, _ham_v628
 # Quỹ tiền mặt (v628): mỗi giờ ghép phiếu nộp ngân hàng với giao dịch SePay vừa về.
 scheduler_events.setdefault("hourly", []).append("vagabond.quy_tien_mat.lich_khop")
+# v630 bánh thiết kế riêng (thiet_ke_rieng.py): mỗi 5 phút tìm tiền cọc về trên
+# sao kê SePay theo mã đơn TKR, chiếm dòng sao kê và lập phiếu thu nháp trỏ
+# đúng phiếu đặt. Khách hỏi trạng thái trên web cũng khớp ngay đơn của mình.
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.thiet_ke_rieng.quet")
+# v630 bánh sỉ (banh_si.py): trang khách /banh-si là bản Vue trong web_moi; mỗi
+# 5 phút tìm tiền về cho đơn sỉ trả trước theo mã BSI (bộ máy chung với thiết
+# kế riêng, ung_truoc_don.khop), khách hỏi trạng thái cũng khớp ngay đơn mình.
+website_route_rules = list(website_route_rules) + [
+	{"from_route": "/banh-si", "to_route": "web_moi/banh-si"},
+]
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.banh_si.quet")

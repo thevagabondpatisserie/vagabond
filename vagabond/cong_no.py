@@ -275,7 +275,20 @@ def _hd_da_gom():
 
 @frappe.whitelist()
 def ds_khach_no(tim=""):
-	"""Danh sach khach dang con no, kem so tien va so hoa don.
+	"""Danh sách khách đang còn nợ (màn Công nợ phải thu). Cổng quyền ở đây,
+	phép tính ở `bang_khach_no` (v630: trang Bánh sỉ gọi phép tính đó cho
+	MỘT khách trong phiên Guest, bài học Codex #517 vòng 8)."""
+	_kiem_quyen_cong_no()
+	return bang_khach_no(tim)
+
+
+def bang_khach_no(tim="", khach=None):
+	"""Danh sach khach dang con no, kem so tien va so hoa don. KHÔNG cổng quyền:
+	chỉ gọi từ cửa đã kiểm quyền (ds_khach_no) hoặc từ phiên khách sỉ đã xác
+	thực OTP (`no_cua_khach`, chỉ của chính khách đó).
+
+	`khach` (v630): chỉ đọc hoá đơn mà chủ nợ là khách này (customer, hoặc
+	vgb_khach_no khi kế toán gán lại), cùng một phép tính với màn Công nợ.
 
 	Chi tinh hoa don DA GHI SO - hoa don con o ban nhap thi chua phai no.
 
@@ -299,7 +312,6 @@ def ds_khach_no(tim=""):
 	Cong no. Duong thu hai bat duoc to tra hon hop ma phan da thu lon hon
 	phan no, vi khi do o phuong thuc chinh ghi ten phuong thuc kia.
 	"""
-	_kiem_quyen_cong_no()
 	from vagabond import thu_tien as tt
 
 	TRUONG = [
@@ -307,12 +319,16 @@ def ds_khach_no(tim=""):
 		"grand_total", "outstanding_amount", "vgb_pt_thanh_toan",
 		"custom_nguon", "vgb_quay", "vgb_ma_tham_chieu", "vgb_khach_no",
 	]
+	# v630: lọc một khách ở tầng truy vấn (hai đường chủ nợ), rồi lọc lại chắc
+	# chắn ở Python theo đúng luật chủ nợ (vgb_khach_no ưu tiên customer).
+	cua_khach = {"or_filters": {"customer": khach, "vgb_khach_no": khach}} if khach else {}
 	rows = frappe.get_all(
 		"Sales Invoice",
 		filters={"docstatus": 1, "vgb_pt_thanh_toan": "Công nợ"},
 		fields=TRUONG,
 		order_by="posting_date asc",
 		limit_page_length=0,
+		**cua_khach
 	)
 	da_co = {r["name"] for r in rows}
 	them = [x for x in tt.si_co_dong_cong_no() if x not in da_co]
@@ -321,7 +337,10 @@ def ds_khach_no(tim=""):
 			"Sales Invoice",
 			filters={"docstatus": 1, "name": ["in", them[i:i + 200]]},
 			fields=TRUONG, limit_page_length=0,
+			**cua_khach
 		)
+	if khach:
+		rows = [r for r in rows if (r.get("vgb_khach_no") or r.get("customer")) == khach]
 	rows.sort(key=lambda r: str(r.get("posting_date") or ""))
 	bang_dong = tt.bang_dong_cua([r["name"] for r in rows])
 	da_gom = _hd_da_gom()
@@ -577,9 +596,18 @@ def tao_phieu(khach=None, hoa_don=None, ghi_chu="", nhieu_khach=0):
 	v575: nhieu_khach=1 cho gom hoa don cua nhieu phap nhan (Loan Anh
 	05/10/2026, Oshima's va anh Vu Oshima). `khach` la khach dung ten phieu,
 	phai co it nhat mot hoa don trong phieu. Xem gom_phap_nhan.py."""
+	_kiem_quyen_cong_no()
+	doc = lap_phieu_doi_no(khach, hoa_don, ghi_chu, nhieu_khach)
+	frappe.db.commit()
+	return xem_phieu(doc.name)
+
+
+def lap_phieu_doi_no(khach=None, hoa_don=None, ghi_chu="", nhieu_khach=0, nguoi_tao=None):
+	"""Lập một phiếu đòi nợ từ các hoá đơn công nợ. KHÔNG cổng quyền, KHÔNG
+	commit: cửa gọi (tao_phieu của Sales, hoặc v630 trang Bánh sỉ cho chính
+	khách đã xác thực) tự kiểm quyền và tự commit."""
 	from vagabond import gom_phap_nhan as gpn
 
-	_kiem_quyen_cong_no()
 	khach = (khach or "").strip()
 	nhieu_khach = bool(frappe.utils.cint(nhieu_khach))
 	if not khach:
@@ -631,12 +659,11 @@ def tao_phieu(khach=None, hoa_don=None, ghi_chu="", nhieu_khach=0):
 	doc.han_qr = add_days(nowdate(), QR_SO_NGAY)
 	doc.trang_thai = "Cho thu"
 	doc.ghi_chu = (ghi_chu or "").strip()
-	doc.nguoi_tao = frappe.session.user
+	doc.nguoi_tao = nguoi_tao or frappe.session.user
 	for d in dong:
 		doc.append("dong", d)
 	doc.insert(ignore_permissions=True)
-	frappe.db.commit()
-	return xem_phieu(doc.name)
+	return doc
 
 
 def tong_da_nhan(tong_phieu, da_thu, tien_cho):
@@ -810,6 +837,77 @@ def xem_phieu(name):
 			for d in doc.dong
 		],
 	}
+
+
+# ------------------------------------------------- v630 trang Bánh sỉ (khách)
+#
+# Trang /banh-si chạy với phiên Guest: khách sỉ đăng nhập OTP chỉ có cookie
+# riêng. Hai hàm dưới đây KHÔNG có cổng quyền nhân viên (bài học Codex #517
+# vòng 8) và KHÔNG whitelist: chỉ banh_si gọi, với đúng mã khách của phiên đã
+# xác thực. Phép tính nợ là CHUNG với màn Công nợ (bang_khach_no), QR là
+# CHUNG với phiếu đòi nợ (tk_phieu_no, mã DNTT, SePay tự khớp như hiện nay).
+
+
+def _phieu_mo_cua(khach, khoa=False):
+	"""Phiếu đòi nợ còn mở của một khách. `khoa`: đọc hiện tại có khoá."""
+	ds = frappe.db.sql(
+		"""select name from `tabVagabond Cong No` where khach=%s and trang_thai in %s
+		order by creation asc limit 20""" + (" for update" if khoa else ""),
+		(khach, tuple(TRANG_THAI_CON_NO)), as_dict=True)
+	return [r["name"] for r in ds]
+
+
+def no_cua_khach(khach):
+	"""Công nợ của MỘT khách: tờ chưa gom phiếu và phiếu đòi nợ còn mở, kèm
+	hạn từng tờ. CHỈ ĐỌC, không cổng quyền nhân viên (xem đầu mục)."""
+	kq = bang_khach_no(khach=khach)
+	o = next((x for x in kq.get("khach") or [] if x.get("khach") == khach), None) or {}
+	hd = [{"name": h["name"], "ngay": h["ngay"], "tien": flt(h["tien"])} for h in o.get("hd") or []]
+	phieu = []
+	for ten in _phieu_mo_cua(khach):
+		doc = frappe.get_doc("Vagabond Cong No", ten)
+		da = _da_nhan_phieu(doc, _sepay_cn(doc.ma_phieu))
+		con = max(0.0, flt(doc.tong_tien) - da)
+		if con <= 0.5:
+			continue
+		phieu.append({"ma_phieu": doc.ma_phieu, "con_thieu": con, "tong_tien": flt(doc.tong_tien), "da_nhan": da,
+			"han_qr": str(doc.han_qr or ""), "hoa_don": [d.hoa_don for d in doc.dong]})
+	ten_hd = [h["name"] for h in hd] + [x for p in phieu for x in p["hoa_don"]]
+	han = {}
+	if ten_hd:
+		han = {r.name: str(r.due_date or "") for r in frappe.get_all("Sales Invoice",
+			filters={"name": ["in", ten_hd]}, fields=["name", "due_date"], limit_page_length=0)}
+	return {"hd": hd, "phieu": phieu, "han": han}
+
+
+def qr_no_cua_khach(khach):
+	"""Khách sỉ bấm "Thanh toán qua QR": tờ công nợ chưa nằm trong phiếu nào
+	thì gom thành MỘT phiếu đòi nợ (như Sales bấm ở màn Công nợ), rồi trả QR
+	của mọi phiếu còn mở. Khoá hàng khách trước, đọc hiện tại các tờ đã gom,
+	nên hai lần bấm cùng lúc không lập hai phiếu cho cùng tờ. Không commit."""
+	from vagabond.qr_chuyen_khoan import anh_qr
+
+	frappe.db.sql("select name from `tabCustomer` where name=%s for update", (khach,))
+	da_gom = set()
+	mo = _phieu_mo_cua(khach, khoa=True)
+	if mo:
+		da_gom = {r[0] for r in frappe.db.sql(
+			"select hoa_don from `tabVagabond Cong No Dong` where parent in %s for update", (tuple(mo),))}
+	n = no_cua_khach(khach)
+	chua = [h["name"] for h in n["hd"] if h["name"] not in da_gom]
+	if chua:
+		# Chỉ tờ mang phương thức chính Công nợ gom được (luật lap_phieu_doi_no);
+		# tờ trả hỗn hợp có dòng công nợ để Sales gom tay ở màn Công nợ.
+		gom = frappe.get_all("Sales Invoice", filters={"name": ["in", chua], "vgb_pt_thanh_toan": "Công nợ",
+			"docstatus": 1}, pluck="name", limit_page_length=0)
+		if gom:
+			lap_phieu_doi_no(khach, gom, "Khách sỉ tự lập trên trang Bánh sỉ để thanh toán qua QR.", 0, "Guest")
+			n = no_cua_khach(khach)
+	tk = tai_khoan.tk_phieu_no()
+	for p in n["phieu"]:
+		p["qr"] = {"ngan_hang": tk.get("bank") or "", "stk": tk.get("stk") or "", "ten_tk": tk.get("ten") or "",
+			"so_tien": round(p["con_thieu"]), "noi_dung": p["ma_phieu"], "anh": anh_qr(tk, round(p["con_thieu"]), p["ma_phieu"])}
+	return n
 
 
 def _la_ke_toan():
@@ -1225,15 +1323,10 @@ TEN_NGAN_HANG_DAY_DU = {
 
 
 def _qr_data_uri(qr, so_tien, noi_dung):
-	"""Dựng ảnh tại máy chủ, không gọi dịch vụ QR bên ngoài."""
-	from vagabond.qr_chuyen_khoan import chuoi, anh
-	from vagabond.tai_khoan import bin_cho
-	qr = qr or {}
-	try:
-		return anh(chuoi(qr.get("bin") or bin_cho(qr.get("bank")), qr.get("stk"), so_tien, noi_dung, qr.get("qr_text")))
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "cong_no: ve QR tai may loi")
-		return ""
+	"""Dựng ảnh tại máy chủ. v630: chỉ còn là tên cũ của phép dùng chung
+	`qr_chuyen_khoan.anh_qr` (giữ tên cho bench qr_474 và các chỗ gọi cũ)."""
+	from vagabond.qr_chuyen_khoan import anh_qr
+	return anh_qr(qr, so_tien, noi_dung)
 
 
 def _ngay_vn(v):
@@ -1382,12 +1475,8 @@ def _phieu_html(name):
 	anh_qr = _qr_data_uri(qr, tien_ck, d.get("ma_phieu") or "")
 	loi_qr = "Không vẽ được mã QR. Vui lòng nhờ nhân viên kiểm tra thư viện tạo ảnh."
 	if not anh_qr:
-		from vagabond.qr_chuyen_khoan import chuoi
-		from vagabond.tai_khoan import bin_cho
-		try:
-			chuoi(qr.get("bin") or bin_cho(qr.get("bank")), qr.get("stk"), tien_ck, d.get("ma_phieu") or "")
-		except ValueError as e:
-			loi_qr = str(e)
+		from vagabond.qr_chuyen_khoan import cau_loi_qr
+		loi_qr = cau_loi_qr(qr, tien_ck, d.get("ma_phieu") or "")
 	o_qr = (
 		'<td style="border:none;width:170px;text-align:center;vertical-align:top;'
 		'padding-left:12px">'

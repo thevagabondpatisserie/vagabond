@@ -354,7 +354,7 @@ def chuan_vi_tri(du_lieu):
 def _anh_web(u):
 	u = str(u or "").strip()
 	if u and not anh_web_hop_le(u):
-		raise LoiNhap("Ảnh trên web phải là ảnh công khai của website. Chọn một ảnh có sẵn hoặc để trống.")
+		raise LoiNhap("Ảnh trên web phải là ảnh công khai của website. Chọn một ảnh có sẵn, tải ảnh lên hoặc để trống.")
 	return u
 
 
@@ -663,7 +663,9 @@ def ds_web_bien_tap():
 		the = the_web(dict(r, dang_tuyen=1, ket_thuc=""), hn)
 		the["ket_thuc"] = r.get("ket_thuc") or ""
 		thay = the_web(r, hn) is not None
-		ra.append(dict(the, ma_vi_tri=r["name"], khach_thay=1 if thay else 0, trang_thai_erp=trang_thai_web(r, hn)))
+		# v630: anh_web là ảnh đã chọn (trống: web tự chọn theo bộ phận), anh_the là ảnh khách thấy.
+		ra.append(dict(the, ma_vi_tri=r["name"], khach_thay=1 if thay else 0, trang_thai_erp=trang_thai_web(r, hn),
+			anh_web=str(r.get("anh_web") or "").strip()))
 	return ra
 
 
@@ -1161,6 +1163,32 @@ def luu_vi_tri(du_lieu, name=None):
 	doc.flags.ignore_permissions = True
 	doc.save() if name else doc.insert()
 	return {"ok": 1, "name": doc.name}
+
+
+def dat_anh_web(name, anh):
+	"""v630: chỉ đổi ô ảnh trên web của một vị trí (trình biên tập web gọi sau
+	khi đã kiểm quyền Marketing). Cùng luật ảnh với form sửa vị trí."""
+	try:
+		anh = _anh_web(anh)
+	except LoiNhap as e:
+		frappe.throw(str(e))
+	if not name or not frappe.db.exists(VT, name):
+		frappe.throw("Không tìm thấy vị trí này. Tải lại trang rồi thử lại.")
+	doc = frappe.get_doc(VT, name, for_update=True)
+	if (doc.anh_web or "") != anh:
+		doc.anh_web = anh
+		doc.flags.ignore_permissions = True
+		doc.save()
+	return anh
+
+
+@frappe.whitelist(methods=["POST"])
+def tai_anh_web():
+	"""v630: tải ảnh thẻ web ngay ở màn sửa vị trí. Cùng một cửa kiểm ảnh với
+	trình biên tập web (noi_dung_web.luu_anh_cong_khai)."""
+	_kiem_quyen()
+	from vagabond import noi_dung_web
+	return noi_dung_web.luu_anh_cong_khai()
 
 
 @frappe.whitelist(methods=["POST"])

@@ -129,7 +129,8 @@ _SO = {}
 _DANG_NAP = False
 
 # Cac mo dun nghiep vu tu khai luong cua minh ngay luc duoc nap.
-MO_DUN_KHAI = ("cong_no", "de_nghi_chi", "hoan_tien")
+# v630: "thiet_ke_rieng" giữ dòng sao kê trên phiếu thu cọc bánh thiết kế riêng.
+MO_DUN_KHAI = ("cong_no", "de_nghi_chi", "hoan_tien", "thiet_ke_rieng")
 
 
 class LoiSauKhop(Exception):

@@ -460,8 +460,9 @@ def _phieu_html(name):
 	tiền, ngày và số tiền bằng chữ chỉ có MỘT cách viết trong cả hệ.
 	"""
 	from vagabond.cong_no import (
-		TEN_NGAN_HANG_DAY_DU, _chu_so_tien, _ngay_vn, _qr_data_uri, _tien_vn,
+		TEN_NGAN_HANG_DAY_DU, _chu_so_tien, _ngay_vn, _tien_vn,
 	)
+	from vagabond.qr_chuyen_khoan import anh_qr as _qr_data_uri
 
 	d = xem_phieu(name)
 	qr = d.get("qr") or {}
