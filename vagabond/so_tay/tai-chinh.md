@@ -67,6 +67,78 @@ Từ khoá: chốt số dư, số dư đầu, số dư ban đầu, chốt lại,
 - Ngân hàng: lấy số dư cuối ngày trên sao kê của chính ngày chốt.
 - Chốt lại là thêm mốc mới, mốc cũ vẫn giữ ở mục Các mốc trước.
 
+## Xem quỹ tiền mặt công ty
+Từ khoá: quỹ tiền mặt, quỹ công ty, tiền trong quỹ, lịch sử quỹ, két công ty, cash fund, petty cash
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, Giám đốc, người Giám đốc chọn | Quỹ tiền mặt công ty (/quy-tien-mat-cong-ty) | [[Kiểm quỹ]], [[Nộp vào ngân hàng]] |
+
+Quỹ cộng biên nhận nộp tiền mặt đã ký nhận, cộng trừ phiếu thu chi và bút toán tiền mặt. Không có ô nào gõ tay số dư.
+
+**Các bước**
+1. Trang chủ, khối Kế toán, ô Quỹ tiền mặt công ty. Hoặc màn Tiền hiện có, bấm dòng Quỹ công ty.
+2. Đọc số tiền đang có và chip lần kiểm quỹ gần nhất.
+3. Mục Gần đây: từng khoản vào, ra kèm người, giờ; khoản nộp ngân hàng có chip Chờ tiền về hoặc Đã khớp SePay.
+
+**Lưu ý**
+- Quỹ chưa chốt số dư đầu thì chốt ở Cài đặt tài chính trước.
+- Ba tài khoản hạch toán (quỹ 111x, tiền thiếu chờ xử lý, tiền thừa chờ giải quyết) chọn một lần ở mục Tài khoản hạch toán quỹ cuối màn; để trống thì máy dùng 1111, 1381, 3381.
+
+## Kiểm quỹ tiền mặt công ty
+Từ khoá: kiểm quỹ, đếm quỹ, sửa số quỹ, lệch quỹ, thiếu quỹ, thừa quỹ, bảng kê mệnh giá, chênh lệch quỹ, cash count
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, Giám đốc | Quỹ tiền mặt công ty (/quy-tien-mat-cong-ty) | [[Kiểm quỹ]], [[Lưu kiểm quỹ]] |
+
+Muốn sửa số quỹ thì đếm tiền thật. Lệch thì máy ghi bút toán chênh lệch, kèm người, giờ, lý do.
+
+**Các bước**
+1. Bấm [[Kiểm quỹ]], gõ số tờ từng mệnh giá.
+2. Đọc Máy tính quỹ đang có, Đếm được, Thiếu hoặc Thừa.
+3. Lệch thì chọn lý do: [[Chi chưa nhập app]], [[Thu chưa nhập app]], [[Lần trước đếm sai]] hoặc [[Chưa rõ]]; ghi thêm, đính ảnh nếu có.
+4. Bấm [[Lưu kiểm quỹ]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Quỹ lệch ...: chọn lý do lệch. | Chọn một lý do |
+| Lý do Chưa rõ: ghi thêm vài chữ để Giám đốc biết đã kiểm những gì. | Ghi thêm |
+| Hôm nay vừa chốt số dư quỹ, số chốt đã là số đếm. Kiểm quỹ từ ngày mai. | Kiểm quỹ ngày mai |
+| Chưa chọn tài khoản thiếu chờ xử lý. / thừa chờ giải quyết. | Chọn ở mục Tài khoản hạch toán quỹ |
+
+**Lưu ý**
+- Lệch từ 2.000.000 đ trở xuống: máy ghi ngay, Ban giám đốc thấy trong tin Tiền cuối ngày.
+- Lệch quá 2.000.000 đ: chờ Giám đốc duyệt, quỹ giữ số cũ tới khi duyệt. Giám đốc bấm [[Duyệt, ghi nhận chênh lệch]] hoặc [[Trả lại, nhờ đếm lại]]. Người kiểm không tự duyệt.
+- Ghi xong không sửa, không xoá. Ngưỡng duyệt: việc này do anh Việt quyết.
+
+## Nộp tiền mặt vào ngân hàng
+Từ khoá: nộp tiền mặt vào ngân hàng, nộp tiền vào tài khoản, gửi tiền ngân hàng, giấy nộp tiền, chuyển quỹ vào tài khoản, cash deposit
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, Giám đốc | Quỹ tiền mặt công ty (/quy-tien-mat-cong-ty) | [[Nộp vào ngân hàng]], [[Lưu và trừ quỹ]] |
+
+Quỹ trừ ngay lúc lưu. Tiền về tài khoản thì máy tự ghép giao dịch SePay cùng số tiền.
+
+**Các bước**
+1. Bấm [[Nộp vào ngân hàng]].
+2. Gõ Số tiền, chọn tài khoản nhận, chọn Ngày nộp.
+3. Chụp ảnh giấy nộp tiền của ngân hàng (bắt buộc), ghi người mang đi nộp nếu không phải mình.
+4. Bấm [[Lưu và trừ quỹ]], đọc lại hộp hỏi rồi đồng ý.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Quỹ chỉ còn ..., không nộp được .... Kiểm quỹ trước nếu tiền thật nhiều hơn. | Sửa số tiền hoặc kiểm quỹ |
+| Đính ảnh giấy nộp tiền của ngân hàng. | Chụp ảnh |
+| Ngày nộp ... không sau mốc chốt quỹ .... | Chọn ngày sau mốc |
+
+**Lưu ý**
+- Máy ghép khoản cùng tài khoản, cùng số tiền, trong 3 ngày kể từ ngày nộp. Khoản đã ghép không bị báo là tiền chưa gắn chứng từ.
+- Quá 2 ngày chưa thấy tiền về thì nhóm Zalo Kế toán nhận tin lúc 08:10.
+
 ## Xem dòng tiền vào ra từng ngày
 Từ khoá: dòng tiền, tiền vào, tiền ra, thu chi, chuyển nội bộ, khoản lớn nhất, cash flow
 
@@ -165,6 +237,8 @@ Từ khoá: tin tài chính, tiền cuối ngày, két lệch, tiền ra chưa c
 | Két lệch tiền mặt khi chốt ca | Ngay khi chốt ca | Ban giám đốc, Kế toán |
 | Bản tin tiền tuần | Thứ Hai 08:00 | Ban giám đốc |
 | Lãi lỗ tháng | Ngày 05, 08:00 | Ban giám đốc |
+| Kiểm quỹ lệch quá 2 triệu, chờ giám đốc duyệt | Ngay khi kế toán kiểm quỹ | Ban giám đốc |
+| Tiền mặt đã nộp ngân hàng chưa thấy về | 08:10 mỗi sáng | Kế toán |
 
 **Lưu ý**
 - Két lệch: báo khi tiền mặt lệch từ 50.000 đ (dư hay thiếu), hoặc ca mở quá 24 giờ mới chốt.
