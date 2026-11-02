@@ -64950,21 +64950,21 @@ async function scrTdViTri(name) {
     '<div><div style="font-size:15px;font-weight:700">Tuyển gấp</div><div style="font-size:12.5px;color:#475467">Thẻ vị trí trên web có nhãn cam Tuyển gấp.</div></div>' +
     tdCongTac('data-tdgap="1" aria-label="Tuyển gấp"', +s.tuyen_gap) + '</div>' +
     '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:14px 0 5px">Ảnh trên web</div>' +
-    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">' +
     tdDsAnhWeb(s.anh_web, tdKq.anh_web_chon).map(function (a) {
       var on = (s.anh_web || '') === a.url;
       return '<button type="button" data-tdanhweb="' + h(a.url) + '" aria-pressed="' + on + '" style="margin:0;padding:0;text-align:left;border-radius:12px;overflow:hidden;cursor:pointer;background:#fff;' +
         'border:' + (on ? '2.5px solid #0d9488' : '1.5px solid #d0d5dd') + '">' +
         (a.url ? '<img src="' + h(a.url) + '" alt="" loading="lazy" style="display:block;width:100%;height:70px;object-fit:cover">' :
           '<span style="display:flex;height:70px;align-items:center;justify-content:center;background:#f2f4f7;font-size:22px">✨</span>') +
-        '<span style="display:block;padding:6px 8px;font-size:12.5px;font-weight:700;color:#101828">' + h(a.ten) + '</span>' +
-        '<span style="display:block;padding:0 8px 7px;font-size:11.5px;color:#475467;line-height:1.35">' + h(a.mo) + '</span></button>';
+        '<span style="display:block;padding:6px 8px;font-size:14px;font-weight:700;color:#101828">' + h(a.ten) + '</span>' +
+        '<span style="display:block;padding:0 8px 7px;font-size:13px;color:#475467;line-height:1.35">' + h(a.mo) + '</span></button>';
     }).join('') +
     /* v630 (Minh Vũ 02/11/2026): tải ảnh riêng cho vị trí, không chỉ chọn ảnh có sẵn. */
     '<button type="button" data-tdtaianhweb="1" style="margin:0;padding:0;text-align:left;border-radius:12px;overflow:hidden;cursor:pointer;background:#fff;border:1.5px dashed #0d9488">' +
     '<span style="display:flex;height:70px;align-items:center;justify-content:center;background:#f0fdfa;font-size:22px;color:#0d9488">⬆</span>' +
-    '<span style="display:block;padding:6px 8px;font-size:12.5px;font-weight:700;color:#0f766e">' + (tdAnhRieng(s.anh_web, tdKq.anh_web_chon) ? 'Tải ảnh khác' : 'Tải ảnh lên') + '</span>' +
-    '<span style="display:block;padding:0 8px 7px;font-size:11.5px;color:#475467;line-height:1.35">PNG, JPG hoặc WebP dưới 10 MB. Ảnh ngang hiện đẹp nhất.</span></button>' +
+    '<span style="display:block;padding:6px 8px;font-size:14px;font-weight:700;color:#0f766e">' + (tdAnhRieng(s.anh_web, tdKq.anh_web_chon) ? 'Tải ảnh khác' : 'Tải ảnh lên') + '</span>' +
+    '<span style="display:block;padding:0 8px 7px;font-size:13px;color:#475467;line-height:1.35">PNG, JPG hoặc WebP dưới 10 MB. Ảnh ngang hiện đẹp nhất.</span></button>' +
     '</div></div>' +
     '<div class="card" style="padding:12px 13px"><div style="font-size:15px;font-weight:800">Phỏng vấn và làm thử</div>' +
     o('Tiêu chí chấm', 'tdTieuChi', s.tieu_chi, 'nhieu', 'Mỗi dòng một tiêu chí, tối đa 8. Để trống thì dùng: ' + h((tdKq.tieu_chi_mac_dinh || []).join(', ')) + '.') +
