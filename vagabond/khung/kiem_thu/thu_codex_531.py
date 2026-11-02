@@ -1052,3 +1052,52 @@ def _v5_qr_dong_thoi():
 	la("lượt chờ khoá cũng có QR của đúng phiếu đó", [(p["ma_phieu"], p["qr"]["so_tien"]) for p in b.kq["phieu"]],
 		[(p["ma_phieu"], p["qr"]["so_tien"]) for p in a.kq["phieu"]])
 	la("lượt chờ khoá: tổng công nợ không đếm hai lần", b.kq["no"]["tong"], 900000.0)
+
+
+# ------------------------------------------------- bench #531: cột bộ sao kê
+
+@ca("Bench #531 v631: hỏi chủ dòng sao kê cho bộ sao kê không lọc cột bộ sao kê trên loại chứng từ không có cột đó (phiếu thu cọc thiết kế riêng)")
+def _bench_cot_bo_sao_ke():
+	# Bench thật (do_khoa_476) trên 4934852 đổ: dc.gan → _chu_khac(bo=True)
+	# duyệt sổ đối soát, gặp luồng thiết kế riêng khai Payment Entry và thêm
+	# điều kiện vgb_bo_sao_ke; MariaDB báo (1054, "Unknown column
+	# 'vgb_bo_sao_ke' in 'WHERE'"). Ca này chạy THẬT nap_so với đủ mô đun đã
+	# khai và một get_value giả bắt chước MariaDB: cột không có là ném lỗi.
+	import frappe
+	from vagabond import bo_sao_ke_db as bsdb, doi_chieu_app as dc, doi_soat_sepay as dss
+	from vagabond import thiet_ke_rieng as tkr
+
+	hoi = []
+
+	class LoiCot(Exception):
+		pass
+
+	def get_value(dt, loc, field, **kw):
+		hoi.append((dt, dict(loc)))
+		if "vgb_bo_sao_ke" in loc and dt not in bsdb.PHIEU:
+			raise LoiCot("(1054, \"Unknown column 'vgb_bo_sao_ke' in 'WHERE'\") trên " + dt)
+		if dt == tkr.PE and "vgb_gd_tkr" in loc:
+			return "PE-TKR-1"
+		return None
+
+	g = frappe._dict(name="BT-1", reference_number="FT1", flags=frappe._dict())
+	d = frappe._dict(name="TTNB-1", doctype="Vagabond De Nghi Chi")
+	with mock.patch.object(frappe.db, "sql", return_value=[]), \
+			mock.patch.object(frappe.db, "get_value", side_effect=get_value):
+		for bo in (True, False):
+			hoi.clear()
+			try:
+				chu = dc._chu_khac(g, d, bo=bo)
+			except LoiCot as e:
+				chu = "LOI: %s" % e
+			la("bo=%s: phiếu thu cọc vẫn là chủ dòng, không lỗi cột" % bo, chu, "PE-TKR-1")
+			dung("bo=%s: sổ có luồng thiết kế riêng" % bo, any(dt == tkr.PE for dt, _ in hoi))
+	# Loại có cột bộ sao kê vẫn giữ điều kiện loại phiếu đã vào bộ.
+	hoi.clear()
+	with mock.patch.object(frappe.db, "sql", return_value=[]), \
+			mock.patch.object(frappe.db, "get_value", side_effect=lambda dt, loc, f, **k: hoi.append((dt, dict(loc)))):
+		la("không chủ", dc._chu_khac(g, d, bo=True), "")
+	co_cot = [dt for dt, loc in hoi if dt in bsdb.PHIEU]
+	dung("có loại chứng từ mang cột bộ sao kê trong sổ: %r" % co_cot, bool(co_cot))
+	dung("các loại đó vẫn lọc phiếu đã vào bộ", all("vgb_bo_sao_ke" in loc for dt, loc in hoi if dt in bsdb.PHIEU))
+	dung("loại không có cột thì không lọc", all("vgb_bo_sao_ke" not in loc for dt, loc in hoi if dt not in bsdb.PHIEU))
