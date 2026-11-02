@@ -5126,6 +5126,36 @@
     "nhom": "banh_si",
     "mac_dinh": "Chưa tạo được mã QR. Gọi Sales để nhận phiếu thanh toán."
   },
+  "bsi_cho_ck": {
+    "ten": "Bánh sỉ: Đơn chờ chuyển khoản",
+    "nhom": "banh_si",
+    "mac_dinh": "Đơn chờ chuyển khoản"
+  },
+  "bsi_dong_cho_ck": {
+    "ten": "Bánh sỉ: {so} cái, cần chuyển {tien}",
+    "nhom": "banh_si",
+    "mac_dinh": "{so} cái, cần chuyển {tien}"
+  },
+  "bsi_qr_don_loi": {
+    "ten": "Bánh sỉ: Chưa mở được mã QR của đơn. Tải lại trang rồi thử lại.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa mở được mã QR của đơn. Tải lại trang rồi thử lại."
+  },
+  "bsi_nhac_cho_ck": {
+    "ten": "Bánh sỉ: Đơn {ma} đang chờ chuyển khoản.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đơn {ma} đang chờ chuyển khoản."
+  },
+  "bsi_nhac_cho_ck_n": {
+    "ten": "Bánh sỉ: {so} đơn đang chờ chuyển khoản.",
+    "nhom": "banh_si",
+    "mac_dinh": "{so} đơn đang chờ chuyển khoản."
+  },
+  "bsi_xem_ma_qr": {
+    "ten": "Bánh sỉ: Xem mã QR",
+    "nhom": "banh_si",
+    "mac_dinh": "Xem mã QR"
+  },
   "bsi_dk_loi_ten": {
     "ten": "Bánh sỉ: Điền tên quán hoặc tên công ty.",
     "nhom": "banh_si",
