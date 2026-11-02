@@ -1380,3 +1380,76 @@ def _v6_giao_bsi_co_phieu_giao():
 		a, b = _chay_dua(may, desk_lap_phieu_giao, lambda: bs.giao_hang("SO-3", "Kho Sỉ - VGB"))
 	la("không tới bước lập phiếu giao", vet.get("lap"), None)
 	dung("câu chặn nói đã có phiếu giao: %s" % b.loi, b.loi is not None and "đã có phiếu giao hàng" in str(b.loi))
+
+
+# ================================================== vòng 7: ảnh tác phẩm trên màn Đơn đặt trước
+
+@ca("Codex #531 v7: tom_tat trả ảnh tác phẩm từ danh mục thiết kế riêng (kể cả tác phẩm đang ẩn); đơn không tìm ra tác phẩm thì ảnh rỗng; ds_don đọc danh mục một lần")
+def _v7_anh_tac_pham():
+	nd = copy.deepcopy(nw.MAC_DINH)
+	nd["khoi"].append(dict(TP, anh="/files/croquembouche.jpg"))
+	nd["khoi"].append(dict(TP, id="tkr-an", tieu_de="Tác phẩm đã ẩn", hien=False, anh="/files/an.jpg"))
+	may = _MayChu(so=[dict(SO_TKR, vgb_tkr_du_lieu=json.dumps({"tac_pham_id": TP["id"]})),
+		dict(SO_TKR, name="SO-2", vgb_tkr_ma="TKR26110002", vgb_tkr_du_lieu=json.dumps({"tac_pham_id": "tkr-an"})),
+		dict(SO_TKR, name="SO-3", vgb_tkr_ma="TKR26110003", vgb_tkr_du_lieu="{}")])
+	doc = []
+
+	def ban():
+		doc.append(1)
+		return copy.deepcopy(nd)
+
+	def get_all(dt, filters=None, fields=None, **k):
+		if dt == "Sales Order":
+			return ["SO-1", "SO-2", "SO-3"]
+		return may.get_all(dt, filters, fields, **k)
+	ps = [mock.patch.object(_fr.db, "sql", may.sql), mock.patch.object(_fr, "get_all", get_all),
+		mock.patch.object(_fr.db, "get_value", may.get_value), mock.patch.object(tkr, "_ban", ban),
+		mock.patch.object(tkr, "_hom_nay", lambda: "2026-11-02"), mock.patch.object(tkr, "_ds_diem", lambda: []),
+		mock.patch.object(tkr, "_la_ke_toan", lambda: 0),
+		mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Sales Manager"])]
+	with _gan(ps):
+		kq = may.doc_lai(lambda: tkr.ds_don())
+		mot = may.doc_lai(lambda: tkr.tom_tat("SO-1"))
+	la("ảnh theo đơn", [r["anh"] for r in kq["rows"]], ["/files/croquembouche.jpg", "/files/an.jpg", ""])
+	la("ds_don đọc danh mục một lần (cộng một lần của tom_tat lẻ)", len(doc), 2)
+	la("tom_tat một đơn tự đọc danh mục", mot["anh"], "/files/croquembouche.jpg")
+
+
+@ca("Codex #531 v7: logo khách (Customer.image) chỉ nhận ảnh /files/ công khai; ds_don đọc logo MỘT lượt cho cả danh sách; ds_khach, bang_gia, tim_khach, xem_don trả ô logo")
+def _v7_logo_khach():
+	la("lọc logo", [bs.logo_khach(u) for u in ("/files/la-me.png", "/private/files/a.png", "https://x/a.png",
+		"/files/../a", "/files/a b.png", "/files/a\"x.png", "", None)], ["/files/la-me.png", "", "", "", "", "", "", ""])
+	hoi = []
+	anh = {"SI00012": "/files/la-me.png", "SI00013": "/private/files/x.png", "SI00014": None}
+
+	def get_all(dt, filters=None, fields=None, **k):
+		if dt == "Sales Order":
+			return ["SO-1", "SO-2", "SO-3", "SO-4"]
+		if dt == "Customer":
+			hoi.append(filters)
+			f = filters if isinstance(filters, dict) else {}
+			ten = f["name"][1] if isinstance(f.get("name"), list) else list(anh)
+			return [_fr._dict(name=t, customer_name=t, image=anh.get(t), tax_id="", vgb_si_sdt="", vgb_si_cuoi_ky=0,
+				disabled=0, customer_group="", mobile_no="", vgb_si_web=1) for t in ten]
+		return []
+	khach_don = {"SO-1": "SI00012", "SO-2": "SI00013", "SO-3": "SI00012", "SO-4": "SI00014"}
+	ps = [mock.patch.object(_fr, "get_all", get_all), mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Sales Manager"]),
+		mock.patch.object(bs, "tom_tat", lambda t, khoa=False: {"name": t, "ma_khach": khach_don[t], "trang_thai": "cho_giao",
+			"tra_truoc": 0, "con_lai": 0, "phieu": [], "ma": t}),
+		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-05"), mock.patch.object(bs, "_cong_ty", lambda: "Vagabond"),
+		mock.patch.object(bs, "_la_ke_toan", lambda: 0), mock.patch.object(bs, "_dong_gia", lambda k: []),
+		mock.patch("vagabond.xuat_kho._kho_that", lambda ct: []),
+		mock.patch.object(_fr.db, "get_value", lambda dt, ten, f=None, **k: _fr._dict(name=ten, customer_name="Lá Me",
+			image="/files/la-me.png") if dt == "Customer" else None),
+		mock.patch.object(bs, "gia_cua_khach", lambda k, n=None: {}), mock.patch.object(bs, "_lich_su_gia", lambda k: []),
+		mock.patch.object(bs, "_anh_xa_si", lambda: {})]
+	with _gan(ps):
+		kq = bs.ds_don()
+		la("logo theo đơn", [r["logo"] for r in kq["rows"]], ["/files/la-me.png", "", "/files/la-me.png", ""])
+		la("một lượt đọc khách cho cả danh sách", len(hoi), 1)
+		la("xem_don có logo", bs.xem_don("SO-1")["logo"], "/files/la-me.png")
+		la("ds_khach có logo, ảnh riêng tư bị bỏ", [(r["name"], r["logo"]) for r in bs.ds_khach()["rows"]],
+			[("SI00012", "/files/la-me.png"), ("SI00013", ""), ("SI00014", "")])
+		dung("ds_khach không lộ ô image thô", all("image" not in r for r in bs.ds_khach()["rows"]))
+		la("bang_gia có logo", bs.bang_gia("SI00012")["khach"]["logo"], "/files/la-me.png")
+		la("tim_khach có logo", [r["logo"] for r in bs.tim_khach("Lá")], ["/files/la-me.png", "", ""])
