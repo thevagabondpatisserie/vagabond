@@ -686,3 +686,29 @@ def _codex_huy_chen_kiem():
 	la("kế toán đọc quỹ sau khi huỷ nên khớp", [k.get("trang_thai") for k in ket], ["Khớp"])
 	la("không bút toán thừa 2 triệu", db.je, [])
 	la("quỹ 10.000.000 đúng số két", db.so_du, 10000000.0)
+
+
+# ------------------------------------------------ Codex #527 vòng 6 (SHA 6a506a9b7)
+
+
+@ca("v628 Codex #527 vòng 6: lịch sử quỹ đánh dấu phiếu huỷ được (nộp còn hiệu lực, kiểm đã ghi), bỏ phiếu đã huỷ, bị thay, khoản ngoài quỹ")
+def _codex_huy_tu_lich_su():
+	la("bảng luật", [q.cach_huy(q.NOP, "Chờ tiền về"), q.cach_huy(q.NOP, "Đã khớp"), q.cach_huy(q.NOP, "Đã huỷ"),
+		q.cach_huy(q.KIEM, "Đã ghi"), q.cach_huy(q.KIEM, "Khớp"), q.cach_huy(q.KIEM, q.THAY), q.cach_huy(q.KIEM, "Trả lại")],
+		["nop", "nop", "", "kiem", "", "", ""])
+	gl = [NS(voucher_type="Journal Entry", voucher_no="JV-1", posting_date="2026-11-01", luc="2026-11-01 10:00:00", no=0, co=20000000, dien_giai=""),
+		NS(voucher_type="Journal Entry", voucher_no="JV-2", posting_date="2026-11-01", luc="2026-11-01 11:00:00", no=0, co=150000, dien_giai=""),
+		NS(voucher_type="Payment Entry", voucher_no="ACC-PAY-1", posting_date="2026-11-01", luc="2026-11-01 12:00:00", no=0, co=500000, dien_giai="chi")]
+	phieu = [NS(name="PQ-2", but_toan="JV-1", loai=q.NOP, ly_do="", ten_tai_khoan="MB", ten_nguoi="Dung", trang_thai="Chờ tiền về", gd_sepay=""),
+		NS(name="PQ-1", but_toan="JV-2", loai=q.KIEM, ly_do="chua_ro", ten_tai_khoan="", ten_nguoi="Dung", trang_thai="Đã ghi", gd_sepay="")]
+
+	def get_all(dt_, filters=None, **k):
+		if dt_ != q.DT or (filters or {}).get("trang_thai") == "Chờ duyệt":
+			return []
+		return phieu
+	from vagabond import tai_chinh as tc_
+	vat = [um.patch.object(_fr.db, "sql", lambda *a, **k: gl), um.patch.object(_fr, "get_all", get_all),
+		um.patch.object(tc_, "DK_QUY_CONG_TY", "1=1", create=True)]
+	ra = _chay(vat, lambda: q._lich_su({"ngay_chot": "2026-10-31"}))
+	la("dòng có nút huỷ đúng loại", sorted((x["ma"], x["huy"]) for x in ra if x["loai"] == "so_cai"),
+		[("ACC-PAY-1", ""), ("PQ-1", "kiem"), ("PQ-2", "nop")])
