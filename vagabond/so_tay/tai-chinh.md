@@ -150,3 +150,24 @@ Từ khoá: quyền tài chính, ai xem được, kế toán trưởng, người
 - Giám đốc luôn xem được. Không tích ai thì chỉ Giám đốc xem.
 - Người được chọn cũng chốt được số dư, nhưng không chọn thêm người khác được.
 - Ai được xem: việc này do anh Việt quyết.
+
+## Tin Zalo của phân hệ Tài chính
+Từ khoá: tin tài chính, tiền cuối ngày, két lệch, tiền ra chưa có chứng từ, bản tin tuần, lãi lỗ tháng, zalo bot
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Giám đốc, kế toán | Nhóm Zalo; chọn nhóm nhận ở Cài đặt lõi, mục Thông báo | Tin nhận |
+
+| Tin | Lúc gửi | Nhóm nhận |
+|---|---|---|
+| Tiền cuối ngày | 23:35 mỗi tối | Ban giám đốc |
+| Tiền ra khỏi tài khoản công ty chưa có chứng từ | 08:00 mỗi sáng | Kế toán, Ban giám đốc |
+| Két lệch tiền mặt khi chốt ca | Ngay khi chốt ca | Ban giám đốc, Kế toán |
+| Bản tin tiền tuần | Thứ Hai 08:00 | Ban giám đốc |
+| Lãi lỗ tháng | Ngày 05, 08:00 | Ban giám đốc |
+
+**Lưu ý**
+- Két lệch: báo khi tiền mặt lệch từ 50.000 đ (dư hay thiếu), hoặc ca mở quá 24 giờ mới chốt.
+- Tiền ra chưa có chứng từ: khoản đã đi qua phiếu chi, bút toán trên app thì không báo. Lập phiếu chi hoặc bút toán cho từng khoản trong tin.
+- Nhóm nào nhận tin nào: Cài đặt lõi, mục Thông báo, tích ở phần Tin nhận.
+- Nhóm cửa hàng không nhận tin có số tiền.

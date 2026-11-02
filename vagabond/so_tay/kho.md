@@ -455,6 +455,25 @@ Mỗi phiếu kiểm kê là một kho, một nhóm hàng. Phiếu tự lưu nê
 - Kho tổng 307 chỉ bộ phận Kho tổng 307 chốt số.
 - Chốt rồi vẫn bấm [[Mở lại để sửa]] được. Lập nhầm thì bấm [[Huỷ phiếu kiểm kê này]].
 
+## Bếp đếm 10 món mỗi sáng: Đếm hôm nay
+Từ khoá: đếm hôm nay, kiểm kê sáng, kiểm kê bếp, 10 món, lịch xoay vòng, tin kiểm kê 7:30, bếp Pastry, bếp Baker, bếp Lab
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp Pastry, Baker, Lab | Kiểm kê (/kiem-ke) | Thẻ Đếm hôm nay của bếp mình |
+
+Mỗi sáng 07:30 bot gửi vào nhóm Zalo bếp tên 10 món cần đếm. Máy tự chọn món: món đắt đếm mỗi tuần, món rẻ mỗi tháng, món chưa đếm bao giờ lên trước.
+
+**Các bước**
+1. Mở Kiểm kê. Ở mục Đếm hôm nay, bấm thẻ bếp mình.
+2. Phiếu đã điền sẵn 10 món. Cân từng món, nhập số.
+3. Bấm [[Chốt phiếu]]. Hạn 11:00.
+
+**Lưu ý**
+- Bấm lại thẻ trong ngày là mở đúng phiếu đang đếm, không tạo phiếu mới.
+- Thẻ ghi Đã đếm x/10 để biết còn bao nhiêu.
+- Chỉ kho nguyên liệu của ba bếp có thẻ này. Kho khác vẫn lập phiếu bằng dấu +.
+
 ## Ghi sổ phiếu kiểm kê và chọn lý do chênh lệch
 Từ khoá: ghi sổ kiểm kê, chốt kiểm kê, điều chỉnh tồn, lý do chênh lệch, lệch tồn, hao hụt, stock reconciliation, PKK, giá vốn kiểm kê, tồn đầu kỳ, opening stock
 
