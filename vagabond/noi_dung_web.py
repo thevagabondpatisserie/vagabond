@@ -917,6 +917,12 @@ def _uu_dai_erp_bien_tap():
 def tai_anh():
     """Ảnh marketing là tài nguyên công khai, chỉ nhận bitmap đã giải mã được."""
     kiem_quyen()
+    return luu_anh_cong_khai()
+
+
+def luu_anh_cong_khai():
+    """v630: MỘT nguồn kiểm và lưu ảnh công khai cho web (trình biên tập và màn
+    sửa vị trí tuyển dụng trên app cùng gọi). Nơi gọi tự kiểm quyền trước."""
     from io import BytesIO
     from PIL import Image
     from frappe.utils.file_manager import save_file
@@ -938,6 +944,18 @@ def tai_anh():
     # Tên tạo ở máy chủ để tên người dùng không trở thành đường dẫn.
     f = save_file("web-" + frappe.generate_hash(length=12) + "." + duoi, noi_dung, None, None, is_private=0)
     return {"url": f.file_url}
+
+
+@frappe.whitelist(methods=["POST"])
+def doi_anh_tuyen_dung(ma_vi_tri, anh=""):
+    """v630 (Minh Vũ 02/11/2026): marketing đổi ảnh thẻ của một vị trí tuyển dụng
+    ngay ở thẻ Tuyển dụng của trình biên tập. Chỉ ghi ô ảnh, mọi ô khác của vị
+    trí vẫn sửa ở app. Để trống là web tự chọn ảnh theo bộ phận."""
+    kiem_quyen()
+    from vagabond import tuyen_dung
+    tuyen_dung.dat_anh_web(ma_vi_tri, anh)
+    # Trả cả bảng như các hàm lưu khác của trình biên tập (bản khách đang thấy).
+    return bang_moi()
 
 
 @frappe.whitelist(methods=["POST"])
