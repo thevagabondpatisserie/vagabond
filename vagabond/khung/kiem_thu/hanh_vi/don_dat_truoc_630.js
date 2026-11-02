@@ -33,7 +33,7 @@ function layHam(src, ten) {
 }
 var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop'].map(function (t) { return layHam(NEN, t); })
   .concat([layHam(POS, 'posChipNut')])
-  .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi'].map(function (t) { return layHam(KHUON, t); }))
+  .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi', 'dsKhoangToi', 'dsTrongKhoangToi', 'dsDemTheo', 'dsDemKhoangToi', 'dsNhanGon'].map(function (t) { return layHam(KHUON, t); }))
   .concat(['var scanBarcode = function () { return Promise.resolve(null); };'])
   .concat([layHam(KM, 'kmHangChip'), layHam(KHO, 'errMsg')]).join('\n');
 
@@ -114,7 +114,7 @@ function goiTen(m, t) { return m.goi.filter(function (x) { return x.duong === 'v
 
 async function moDs(vai) {
   var m = dungMoi(vai || ['Sales User']);
-  vm.runInNewContext('ddtTt = ""; ddtTim = ""; ddtMo = "";', m.g);
+  vm.runInNewContext('ddtTt = ""; ddtTim = ""; ddtMo = ""; if (typeof ddtDiem !== "undefined") { ddtDiem = ""; ddtNgay = ""; }', m.g);
   await m.g.scrDonDatTruoc();
   await tick();
   return m;
@@ -155,6 +155,39 @@ async function moCt(ten, vai) {
     var o = m.g.document.getElementById('ddtDsTim');
     o.value = '0909'; o.dispatchEvent(dg.suKien('input', {}, o));
     bang('tìm theo số', m.khung.querySelectorAll('[data-ddtthe]').length, 5);
+  });
+
+  /* Codex #531 vòng 3 (AGENTS 2b.3): ba hàng chip trạng thái, điểm nhận, khoảng
+     ngày nhận; lọc áp cả danh sách lẫn thẻ tóm tắt; "Mọi ngày" mở rộng lại. */
+  function chipLoc(m, ho, k) {
+    return m.khung.querySelectorAll('[data-dscc]').filter(function (x) { return x.getAttribute('data-dscc') === ho + '|' + k; })[0];
+  }
+  function theDs(m) { return m.khung.querySelectorAll('[data-ddtthe]').map(function (x) { return x.getAttribute('data-ddtthe'); }); }
+  await ca('Codex #531 v3: hàng chip điểm nhận và khoảng ngày nhận, bấm lọc thật áp cả danh sách lẫn thẻ tóm tắt; Mọi ngày mở rộng lại', async function () {
+    var cu = DON['SO-1'].diem_nhan;
+    DON['SO-1'].diem_nhan = 'Nguyễn Văn Hưởng';
+    try {
+      var m = await moDs();
+      dung('có chip điểm nhận', chipLoc(m, 'diem', 'Nguyễn Văn Hưởng') && chipLoc(m, 'diem', 'The Vagabond District 1'));
+      dung('có chip mở rộng Mọi ngày', chipLoc(m, 'ngay', '') && chu(chipLoc(m, 'ngay', '')).indexOf('Mọi ngày') >= 0);
+      bam(chipLoc(m, 'ngay', 'hom_nay')); await tick();
+      bang('ngày nhận hôm nay', theDs(m), ['SO-2', 'SO-3', 'SO-4']);
+      var tom = chu(q(m.khung, '[data-ddttom]'));
+      dung('tóm tắt theo bộ lọc: ' + tom, tom.indexOf('3 đơn · còn phải thu 3.780.000đ') >= 0);
+      dung('ô Đã thu đủ đếm theo bộ lọc', chu(q(m.khung, '[data-ddtso="du_tien"]')).indexOf('2 đơn') >= 0);
+      dung('thanh đang lọc', chu(q(m.khung, '[data-ddtloc]')).indexOf('3 đơn') >= 0);
+      bam(chipLoc(m, 'ngay', '')); await tick();
+      bang('Mọi ngày mở rộng lại', theDs(m).length, 5);
+      bam(chipLoc(m, 'diem', 'Nguyễn Văn Hưởng')); await tick();
+      bang('lọc điểm nhận', theDs(m), ['SO-1']);
+      dung('tóm tắt điểm nhận', chu(q(m.khung, '[data-ddttom]')).indexOf('1 đơn · còn phải thu 7.560.000đ') >= 0);
+      dung('chip Hôm nay ẩn vì điểm này không có đơn nhận hôm nay', !chipLoc(m, 'ngay', 'hom_nay'));
+      bam(chipLoc(m, 'ngay', '7_ngay')); await tick();
+      bang('điểm nhận và 7 ngày tới cùng áp', theDs(m), ['SO-1']);
+      dung('chip 7 ngày tới đếm đúng', chu(chipLoc(m, 'ngay', '7_ngay')).indexOf('1') >= 0);
+      bam(chipLoc(m, 'diem', '')); await tick();
+      bang('Mọi điểm nhận, 7 ngày tới không gồm đơn ngày đã qua', theDs(m).slice().sort(), ['SO-1', 'SO-2', 'SO-3', 'SO-4']);
+    } finally { DON['SO-1'].diem_nhan = cu; }
   });
 
   await ca('bấm thẻ mở chi tiết đúng đơn', async function () {

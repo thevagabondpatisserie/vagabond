@@ -34,7 +34,7 @@ function layHam(src, ten) {
 }
 var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop', 'anhMon', 'sheet', 'confirmSheet', 'promptSheet'].map(function (t) { return layHam(NEN, t); })
   .concat([layHam(POS, 'posChipNut')])
-  .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi'].map(function (t) { return layHam(KHUON, t); }))
+  .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi', 'dsKhoangToi', 'dsTrongKhoangToi', 'dsDemTheo', 'dsDemKhoangToi', 'dsNhanGon'].map(function (t) { return layHam(KHUON, t); }))
   .concat(['var scanBarcode = function () { return Promise.resolve(null); };'])
   .concat([layHam(KM, 'kmHangChip'), layHam(KHO, 'errMsg')]).join('\n');
 
@@ -134,7 +134,7 @@ function goiTen(m, t) { return m.goi.filter(function (x) { return x.duong === 'v
 
 async function moDs(vai) {
   var m = dungMoi(vai || ['Sales User']);
-  vm.runInNewContext('bsiTt = ""; bsiTim = ""; bsiMo = "";', m.g);
+  vm.runInNewContext('bsiTt = ""; bsiTim = ""; bsiMo = ""; if (typeof bsiKhach !== "undefined") { bsiKhach = ""; bsiNgay = ""; }', m.g);
   await m.g.scrDonSiWeb(); await tick();
   return m;
 }
@@ -177,6 +177,34 @@ async function moGia() {
     dung('thẻ có phiếu nháp nhắc kế toán', chu(q(m.khung, '[data-bsithe="SO-3"]')).indexOf('1 phiếu chuyển khoản chờ kế toán ghi sổ') >= 0);
     bam(q(m.khung, '[data-bsiso="cho_tt"]')); await tick();
     bang('lọc', m.khung.querySelectorAll('[data-bsithe]').map(function (x) { return x.getAttribute('data-bsithe'); }), ['SO-2']);
+  });
+
+  /* Codex #531 vòng 3 (AGENTS 2b.3): ba hàng chip trạng thái, khách, khoảng ngày
+     giao; lọc áp cả danh sách lẫn thẻ tóm tắt; "Mọi ngày" mở rộng lại. */
+  function chipLoc(m, ho, k) {
+    return m.khung.querySelectorAll('[data-dscc]').filter(function (x) { return x.getAttribute('data-dscc') === ho + '|' + k; })[0];
+  }
+  function theDs(m) { return m.khung.querySelectorAll('[data-bsithe]').map(function (x) { return x.getAttribute('data-bsithe'); }); }
+  await ca('Codex #531 v3: hàng chip khách và khoảng ngày giao, bấm lọc thật áp cả danh sách lẫn thẻ tóm tắt; Mọi ngày mở rộng lại', async function () {
+    var cu = DON['SO-2'].khach;
+    DON['SO-2'].khach = 'Khách sạn Sông Sài Gòn';
+    try {
+      var m = await moDs();
+      dung('có chip khách', chipLoc(m, 'khach', 'Khách sạn Sông Sài Gòn') && chipLoc(m, 'khach', 'Café Lá Me'));
+      dung('có chip mở rộng Mọi ngày', chipLoc(m, 'ngay', '') && chu(chipLoc(m, 'ngay', '')).indexOf('Mọi ngày') >= 0);
+      bam(chipLoc(m, 'ngay', 'ngay_mai')); await tick();
+      bang('giao ngày mai', theDs(m), ['SO-2', 'SO-3']);
+      dung('tóm tắt theo bộ lọc', chu(q(m.khung, '[data-bsitom]')).indexOf('2 đơn · 100 cái') >= 0);
+      dung('ô Chờ giao đếm theo bộ lọc', chu(q(m.khung, '[data-bsiso="cho_giao"]')).indexOf('1 đơn') >= 0);
+      bam(chipLoc(m, 'khach', 'Khách sạn Sông Sài Gòn')); await tick();
+      bang('khách và ngày cùng áp', theDs(m), ['SO-2']);
+      dung('tóm tắt khách', chu(q(m.khung, '[data-bsitom]')).indexOf('1 đơn · 50 cái') >= 0);
+      bam(chipLoc(m, 'ngay', '')); await tick();
+      bam(chipLoc(m, 'khach', '')); await tick();
+      bang('Mọi ngày, Mọi khách mở rộng lại', theDs(m).length, 4);
+      bam(chipLoc(m, 'ngay', 'da_qua')); await tick();
+      bang('đã qua', theDs(m), ['SO-4']);
+    } finally { DON['SO-2'].khach = cu; }
   });
 
   await ca('bếp: thấy món và số lượng theo ngày giao, không thấy tiền, không có nút giao', async function () {
