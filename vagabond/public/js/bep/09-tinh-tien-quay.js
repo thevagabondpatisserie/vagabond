@@ -232,6 +232,46 @@ function posDiemTheoQuay(quay) {
   (((CFGBH || {}).diem) || []).forEach(function (q) { if (quay && q.quay === quay) r = q; });
   return r;
 }
+/* Codex PR #532: posQuay là MỘT đối tượng lấy từ CFGBH lúc chọn điểm. Quản lý
+   đổi bảng giá rồi cấu hình đọc lại thì CFGBH là đối tượng mới, còn posQuay
+   vẫn giữ giá cũ, nên giỏ và mã QR thu theo giá cũ trong khi máy chủ lưu giá
+   mới. Hàm này thay posQuay bằng bản mới của CÙNG điểm và đặt lại giá các món
+   trong giỏ (trừ món combo, combo có giá riêng). Món vừa bị bỏ giá riêng thì
+   về giá chung trong danh mục. Trả số món đã đổi giá. */
+function posDongBoQuay() {
+  if (!posQuay) return 0;
+  var moi = null;
+  (((CFGBH || {}).diem) || []).forEach(function (q) { if (q.ma === posQuay.ma) moi = q; });
+  if (!moi) return 0;
+  var cu = posQuay, co = Object.prototype.hasOwnProperty;
+  posQuay = moi;
+  if (!posDon || !posDon.mon) return 0;
+  var gMoi = moi.gia_rieng || {}, gCu = cu.gia_rieng || {}, doi = 0;
+  posDon.mon.forEach(function (m) {
+    if (m.combo || m.combo_ma) return;
+    var g = null;
+    if (co.call(gMoi, m.item_code)) g = +gMoi[m.item_code] || 0;
+    else if (co.call(gCu, m.item_code)) {
+      var x = (dsItemsCache || []).filter(function (y) { return y.name === m.item_code; })[0];
+      if (x) g = +x.standard_rate || 0;
+    }
+    if (g && g !== +m.rate) { m.rate = g; doi++; }
+  });
+  if (doi) posDon.kmKq = null;
+  return doi;
+}
+/* Máy chủ chặn lưu khi giá trên máy lệch bảng giá điểm (gia_theo_diem=1). Đọc
+   lại cấu hình, đặt lại giá giỏ rồi về màn quầy để thu ngân xem tổng mới. */
+async function posGiaVuaDoi(e) {
+  var cau = String((e && e.message) || '');
+  if (cau.indexOf('Bảng giá của điểm vừa đổi') < 0) return false;
+  CFGBH = null;
+  try { await cfgBanHang(); } catch (eC) { /* đọc lại lỗi: lần lưu sau máy chủ vẫn chặn */ }
+  posDongBoQuay();
+  toast(cau, 6500);
+  go(scrPosQuay, true);
+  return true;
+}
 function posDiemVua() { try { return localStorage.getItem('vgb_diem_vua') || ''; } catch (e) { return ''; } }
 
 async function scrPosChonQuay() {
@@ -577,6 +617,8 @@ async function scrPosQuay() {
      la mat nhip user gesture va bi chan popup - xem ghi chu hai nhip o
      27-in-ngam.js. Khong await: do xong hay chua thi man van ve. */
   if (!posQuay) return go(scrPosChonQuay, true);
+  var nGiaDoi = posDongBoQuay();
+  if (nGiaDoi) toast('Bảng giá ' + (posQuay.ten_ngan || posQuay.ma) + ' vừa đổi: ' + nGiaDoi + ' món trong giỏ đã sang giá mới.', 5000);
   /* Dò máy in SAU khi đã biết đứng ở điểm bán nào, và dò lại khi đổi điểm.
      Trước đây dò ngay dòng đầu, tức là trước cả bước chọn quầy, nên mọi máy
      đều nhận về hộp chung mảnh tên máy in của cả ba điểm. */
@@ -1029,6 +1071,8 @@ async function posDemHomNay() {
 }
 async function posThemMon() {
   posDoc();
+  await cfgBanHang();
+  posDongBoQuay();
   if (!dsItemsCache) {
     busy(true);
     try {
@@ -2094,6 +2138,7 @@ async function posLuuDon() {
          thi phai gui, khong thi lua chon cua thu ngan roi mat. */
       pt: posDon.pt || '', ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
+      gia_theo_diem: 1,
       giam_gia: giamTay, phi_ship: ship, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -2112,7 +2157,11 @@ async function posLuuDon() {
       xhd_dia_chi: posDon.xhd_mo ? (posDon.xh.dc || '') : '',
       xhd_email: posDon.xhd_mo ? (posDon.xh.email || '') : ''
     });
-  } catch (e) { posDangLuu = false; busy(false); return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000); }
+  } catch (e) {
+    posDangLuu = false; busy(false);
+    if (await posGiaVuaDoi(e)) return;
+    return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000);
+  }
   posDangLuu = false;
   busy(false);
   posChoCkXoa(posDon.bill);

@@ -87,6 +87,11 @@ function tdCachDay(s, bayGio) {
 /* Lọc danh sách theo ô tìm, thẻ số đầu màn, chip trạng thái, chip vị trí. PHÉP THUẦN. */
 function tdLocHs(rows, loc, homNay) {
   loc = loc || {};
+  /* Ngày hôm nay của máy chủ đi CÙNG bộ lọc (loc.hom_nay), để mọi chỗ đếm chép
+     lại bộ lọc (chip Lọc thêm, số theo vị trí) đều so được lịch hẹn. Trước đây
+     chỉ danh sách chính truyền ngày, nên khi chọn Hẹn hôm nay các số đếm về 0
+     và chip nguồn biến mất (Codex PR #532). */
+  homNay = homNay || loc.hom_nay || '';
   return (rows || []).filter(function (r) {
     /* Ô tìm LỌC THÊM cùng các chip đang chọn, không thay chúng (Codex #518). */
     if (loc.tim) {
@@ -97,7 +102,7 @@ function tdLocHs(rows, loc, homNay) {
     }
     if (loc.the === 'moi' && (r.trang_thai !== 'Mới nhận' || r.lien_he_luc)) return false;
     if (loc.the === 'qua_han' && !+r.qua_han) return false;
-    if (loc.the === 'hen' && !(TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && String(r.lich_hen || '').slice(0, 10) === homNay)) return false;
+    if (loc.the === 'hen' && !(homNay && TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && String(r.lich_hen || '').slice(0, 10) === homNay)) return false;
     if (loc.the === 'cong' && !(+r.tien_cong_thu > 0 && !+r.da_tra_cong)) return false;
     /* v631: không chọn chip trạng thái là "Đang xử lý": ẩn hồ sơ Đã loại và Đã
        nhận việc. Đang bấm một số đầu màn (Chưa gọi, Hẹn hôm nay, Công chưa trả)
@@ -768,7 +773,7 @@ async function scrTuyenDung() {
     than = frame(tieuDe, html);
   } else {
     var bayGio = kq.bay_gio || '';
-    var loc = { tim: tdTim, the: tdLoc, tt: tdTt, vt: tdVt, ai65: tdThem.ai65, qua24: tdThem.qua24, nguon: tdThem.nguon };
+    var loc = { tim: tdTim, the: tdLoc, tt: tdTt, vt: tdVt, ai65: tdThem.ai65, qua24: tdThem.qua24, nguon: tdThem.nguon, hom_nay: kq.hom_nay || '' };
     var demVt = {};
     tdLocHs(rows, Object.assign({}, loc, { vt: '' })).forEach(function (r) { demVt[r.vi_tri] = (demVt[r.vi_tri] || 0) + 1; });
     var cc = {
@@ -783,7 +788,7 @@ async function scrTuyenDung() {
     html += tdChipLoc(rows, loc);
     html += dsCongCu(cc);
     html += '<div style="display:flex;flex-direction:row;gap:7px;margin:0 14px 8px">' + tdNut('data-tdthemhs="1"', '+ Thêm hồ sơ (TopCV, người quen...)', 'goi') + '</div>';
-    var ds = tdLocHs(rows, loc, kq.hom_nay);
+    var ds = tdLocHs(rows, loc);
     var coAi = rows.some(function (r) { return r.ai_trang_thai === 'Đã đọc'; });
     if (coAi) {
       html += '<div style="margin:0 14px 8px">' + kmHangChip(posChipNut('data-tdxepai="1"', '✦ Xếp theo điểm AI', tdXepAi, false, '#6d28d9')) +

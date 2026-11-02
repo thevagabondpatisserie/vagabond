@@ -9,7 +9,19 @@
    tự tính lại giá theo điểm khi lưu bill quầy, nên giá ở đây là giá thật quầy
    thu, không ai sửa tay trên màn Tính tiền được. Mỗi lần đổi giá máy ghi vết
    trên món: ai đổi, lúc nào, giá cũ, giá mới. */
-var BGD = { ma: '', kq: null, chip: 'da_ban', tim: '', sua: {} };
+var BGD = { ma: '', kq: null, chip: 'da_ban', tim: '', sua: {}, nhap: {} };
+
+/* Đổi điểm đang xem. Giá gõ dở (chưa lưu) giữ RIÊNG cho từng điểm: rời điểm A
+   thì cất nháp của A, sang B thì lấy nháp của B (hoặc trống). Mọi đường vào
+   (chip điểm, nút Bảng giá ở Cài đặt, trang chủ) đều đi qua đây, nên giá gõ
+   cho A không bao giờ thành giá lưu của B (Codex PR #532). */
+function bgdDoiDiem(ma) {
+  if (!ma || ma === BGD.ma) return;
+  if (!BGD.nhap) BGD.nhap = {};
+  if (BGD.ma) BGD.nhap[BGD.ma] = BGD.sua;
+  BGD.ma = ma;
+  BGD.sua = BGD.nhap[ma] || {};
+}
 
 /* Lọc món theo chip. PHÉP THUẦN. chip: da_ban (đã bán ở điểm trong 30 ngày),
    chua_gia (đã bán mà chưa có giá riêng), tat_ca, hoặc "nhom:<nhóm món>". */
@@ -40,11 +52,11 @@ function bgdDsDoi() {
 
 async function scrBangGiaDiem(ma) {
   var tieuDe = 'Bảng giá theo điểm bán';
-  if (ma) BGD.ma = ma;
+  if (ma) bgdDoiDiem(ma);
   await cfgBanHang();
   /* Chưa chọn điểm (mở từ trang chủ): lấy điểm đầu tiên có giá riêng. */
   var coGia = ((CFGBH && CFGBH.diem) || []).filter(function (d) { return d.co_quay && d.co_bang_gia; });
-  if (!BGD.ma && coGia.length) BGD.ma = coGia[0].ma;
+  if (!BGD.ma && coGia.length) bgdDoiDiem(coGia[0].ma);
   if (!BGD.ma) {
     frame(tieuDe, '<div class="emp"><div class="e1">💲</div><div>Chưa điểm bán nào dùng giá riêng. Vào Cài đặt, Điểm bán, chọn điểm rồi bật Giá riêng ở mục Bảng giá của điểm.</div>' +
       '<button type="button" class="btn gh" data-bgdcd="1" style="margin:14px auto 0;width:auto;padding:0 18px">Mở Cài đặt Điểm bán</button></div>')
@@ -89,6 +101,7 @@ function bgdVe() {
     (ds.length ? ds.map(function (m) {
       var o = bgdGiaO(m), doi = Object.prototype.hasOwnProperty.call(BGD.sua, m.ma) && (+String(o).replace(/[^0-9]/g, '') || 0) !== (+m.gia_diem || 0);
       return '<div data-bgdmon="' + h(m.ma) + '" style="display:flex;flex-direction:row;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #f2f4f7">' +
+        anhMon(m.anh) +
         '<div style="flex:1;min-width:0"><div style="font-size:14px;color:#101828;overflow-wrap:anywhere">' + h(m.ten) + '</div>' +
         '<div style="font-size:12.5px;color:#667085">' + h(m.ma) + (+m.da_ban > 0 ? ' · đã bán ' + money(m.da_ban) : '') + '</div></div>' +
         '<div style="flex:0 0 auto;font-size:13px;color:#667085;min-width:58px;text-align:right">' + (+m.gia_chung ? money(m.gia_chung) : 'chưa có') + '</div>' +
@@ -126,7 +139,7 @@ function bgdVe() {
     t = e.target.closest('[data-bgddiem]');
     if (t) {
       if (bgdDsDoi().length) return toast('Lưu hoặc bỏ các giá đã đổi trước khi sang điểm khác.', 3600);
-      BGD.ma = t.getAttribute('data-bgddiem'); BGD.sua = {};
+      bgdDoiDiem(t.getAttribute('data-bgddiem'));
       return go(function () { return scrBangGiaDiem(BGD.ma); }, true);
     }
   });
