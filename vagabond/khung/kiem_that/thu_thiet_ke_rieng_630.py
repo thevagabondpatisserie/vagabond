@@ -58,6 +58,14 @@ def _tien_mat(cty):
 	return tien
 
 
+def _loi_tao_khach():
+	"""Khách mới tạo hỏng thì nhap_khach nuốt lỗi vào Error Log: đọc ra để ca
+	kiểm đỏ nói được nguyên nhân thật (bench #531 chỉ thấy câu chung chung)."""
+	r = frappe.get_all("Error Log", filters={"method": "nhap_khach: gan khach cho don"}, fields=["error"],
+		order_by="creation desc", limit_page_length=1)
+	return (r[0].error or "")[-1500:] if r else "(không có Error Log)"
+
+
 def _sao_ke(ba, tien, noi_dung):
 	from vagabond import sepay
 	sepay.them_tai_khoan(frappe.db.get_value("Bank Account", ba, "bank_account_no"), ba)
@@ -86,6 +94,7 @@ def _vong_doi():
 	la("giá máy chủ", (don["tong"], don["coc"]), (7560000, 3780000))
 	so = khong_nem("lập phiếu đặt", lambda: tkr._lap_phieu_dat(don, "kt630" + frappe.generate_hash(length=20)))
 	if not so:
+		dung("lỗi tạo khách (Error Log): " + _loi_tao_khach(), False)
 		return
 	_DA_TAO.append(("Sales Order", so.name))
 	so.reload()
@@ -183,6 +192,7 @@ def _huy():
 		"ten": "Khách huỷ 630", "sdt": "0912000630", "diem_nhan": "tcv"}, tp, today(), diem)
 	so = khong_nem("lập phiếu đặt", lambda: tkr._lap_phieu_dat(don, "kt630h" + frappe.generate_hash(length=20)))
 	if not so:
+		dung("lỗi tạo khách (Error Log): " + _loi_tao_khach(), False)
 		return
 	_DA_TAO.append(("Sales Order", so.name))
 	khong_nem("huỷ đơn chưa cọc", lambda: tkr.huy(so.name, "Khách đổi ý, kiểm 630"))
