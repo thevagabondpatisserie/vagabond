@@ -8,7 +8,7 @@ import {createApp, h} from '../lib/vue.esm-browser.prod.js';
 import {t, napNoiDung, telSo, telChu} from '../kho/chu.js';
 import {LOGO} from '../banh/anh.js';
 import {SI, LOAI_HINH, LUONG, khoiDong as khoiDongKho, dsNgay, dm, thu, tienVN, tamTinh, chonNgay, datSl, cong,
-  datLai, guiDon, moQrNo, guiDangKy, guiMa, xacThuc, thoat, sangMan} from './kho-si.js';
+  datLai, guiDon, moQrNo, moQrDon, donChoChuyen, guiDangKy, guiMa, xacThuc, thoat, sangMan} from './kho-si.js';
 
 const anToan = u => typeof u === 'string' && !/[\s\\]/.test(u) && !u.startsWith('/private/') && ((u[0] === '/' && u[1] !== '/') || /^https:\/\/[^/@]+(?:\/|$)/.test(u));
 const nut = (lop, chu, bam, them) => h('button', Object.assign({class: lop, type: 'button', onClick: bam}, them || {}), chu);
@@ -89,9 +89,12 @@ function veDat() {
   if (!mon.length) return h('main', {class: 'wrap si-main', id: 'siDat'}, [
     h('h1', {class: 'h1 si-h1'}, [toi.ten, h('em', null, t('bsi_khach_si', 'Khách sỉ'))]),
     h('p', {class: 'si-the', 'data-si-rong': '1'}, t('bsi_chua_gia', 'Sales chưa mở giá món nào cho quý khách. Gọi {so} để Sales gửi bảng giá.', {so: telChu()}))]);
-  const dt = toi.don_truoc;
+  const dt = toi.don_truoc, choCk = donChoChuyen();
   return h('main', {class: 'wrap si-main', id: 'siDat'}, [
     h('h1', {class: 'h1 si-h1 si-h1-nho'}, [toi.ten, h('em', null, toi.cuoi_ky ? t('bsi_cuoi_ky', 'Khách sỉ, trả cuối kỳ {so} ngày', {so: toi.ky_no}) : t('bsi_tra_truoc', 'Khách sỉ, chuyển khoản trước khi giao'))]),
+    choCk.length ? h('p', {class: 'si-note si-bao', role: 'status', 'data-si-nhac-cho-tt': '1'}, [
+      choCk.length > 1 ? t('bsi_nhac_cho_ck_n', '{so} đơn đang chờ chuyển khoản.', {so: choCk.length}) : t('bsi_nhac_cho_ck', 'Đơn {ma} đang chờ chuyển khoản.', {ma: choCk[0].ma}),
+      ' ', h('a', {href: '#', onClick: e => { e.preventDefault(); sangMan('tai_khoan'); }}, t('bsi_xem_ma_qr', 'Xem mã QR'))]) : null,
     h('p', {class: 'si-lbl'}, t('bsi_ngay_giao', 'Ngày giao')),
     h('div', {class: 'si-chips', role: 'radiogroup'}, ngay.map(n => chip(SI.ngay === n, thu(n) + ' ' + dm(n), () => chonNgay(n), {'data-si-ngay': n}))),
     h('label', {class: 'si-o si-o-ngay'}, [h('small', null, t('bsi_ngay_khac', 'Ngày khác')), h('input', {type: 'date', min: toi.ngay_som, value: SI.ngay, name: 'si_ngay',
@@ -148,6 +151,13 @@ function veXong() {
 }
 
 /* ---------------- (3) tài khoản ---------------- */
+/* Codex #531 f4: đơn trả trước chưa chuyển tiền, mỗi đơn một nút mở lại QR. */
+function dongChoChuyen(d) {
+  return h('tr', {'data-si-cho-tt': d.ma}, [h('td', {class: 'n'}, [thu(d.ngay) + ' ' + dm(d.ngay) + ' · ' + d.ma,
+    h('small', null, t('bsi_dong_cho_ck', '{so} cái, cần chuyển {tien}', {so: d.so_cai, tien: tienVN(d.con_lai)}))]),
+  h('td', {class: 'p'}, [h('button', {class: 'si-btn2', type: 'button', disabled: !!SI.dangQrDon, 'data-si-qr-don': d.ma,
+    onClick: () => moQrDon(d.ma)}, SI.dangQrDon === d.ma ? t('bsi_dang_tao', 'Đang tạo mã...') : t('bsi_tt_qr', 'Thanh toán qua QR'))])]);
+}
 function dongDon(d) {
   return h('tr', {'data-si-don': d.ma}, [h('td', {class: 'n'}, [thu(d.ngay) + ' ' + dm(d.ngay) + ' · ' + d.ma,
     h('small', null, t('bsi_dong_don', '{so} cái, {tt}', {so: d.so_cai, tt: d.nhan}))]), h('td', {class: 'p'}, tienVN(d.tong))]);
@@ -169,8 +179,12 @@ function veTaiKhoan() {
     (no.dong || []).length ? h('table', {class: 'si-tbl'}, [h('tbody', null, no.dong.slice(0, 30).map(d => h('tr', {'data-si-hd': d.hoa_don}, [
       h('td', {class: 'n'}, [d.hoa_don, h('small', {class: d.han && d.han < toi.hom_nay ? 'amber' : ''}, d.han ? t('bsi_han', 'Hạn {ngay}', {ngay: dm(d.han)}) : '')]),
       h('td', {class: 'p'}, d.phieu ? t('bsi_trong_phieu', 'trong phiếu {ma}', {ma: d.phieu}) : tienVN(d.tien))])))]) : null] : [];
+  const choCk = donChoChuyen();
   return h('main', {class: 'wrap si-main', id: 'siTaiKhoan'}, [
     h('h1', {class: 'h1 si-h1 si-h1-nho'}, [toi.ten, h('em', null, t('bsi_tai_khoan', 'Tài khoản khách sỉ'))]),
+    choCk.length ? h('p', {class: 'si-lbl'}, t('bsi_cho_ck', 'Đơn chờ chuyển khoản')) : null,
+    choCk.length ? h('table', {class: 'si-tbl'}, [h('tbody', null, choCk.map(dongChoChuyen))]) : null,
+    SI.loiQrDon ? h('p', {class: 'si-loi', role: 'alert', 'data-si-loi-qr-don': '1'}, SI.loiQrDon) : null,
     ...khoiNo,
     h('p', {class: 'si-lbl'}, t('bsi_sap_giao', 'Đơn sắp giao')),
     (toi.sap_giao || []).length ? h('table', {class: 'si-tbl'}, [h('tbody', null, toi.sap_giao.map(dongDon))]) : h('p', {class: 'si-note'}, t('bsi_chua_don', 'Chưa có đơn nào sắp giao.')),

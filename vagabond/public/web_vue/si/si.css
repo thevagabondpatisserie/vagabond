@@ -65,3 +65,5 @@
 .si-chan{font-family:var(--sans);font-size:12.5px;color:var(--fog-2);padding:18px 20px 28px;border-top:1px solid var(--line-2)}
 .si-chan a{color:var(--fog)}
 @media(min-width:900px){.si-main{padding-top:30px}}
+/* Codex #531 f4: nút mở lại QR trong dòng đơn chờ chuyển khoản, không kéo giãn cả hàng. */
+.si-tbl .si-btn2{display:inline-block;width:auto;margin:0;padding:8px 10px;min-height:44px;white-space:nowrap}

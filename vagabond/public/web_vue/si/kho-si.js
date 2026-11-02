@@ -35,7 +35,8 @@ export const SI = reactive({
   toi: null,
   ngay: '', sl: {}, ghiChu: '', dangGui: false, loi: '', maLan: '', bao: '',
   kq: null, trangThai: '', lanHoi: 0, henHoi: null,
-  qrNo: null, dangQr: false, loiQr: ''
+  qrNo: null, dangQr: false, loiQr: '',
+  dangQrDon: '', loiQrDon: ''
 });
 
 /* ---------------- phép thuần (ca kiểm gọi thẳng) ---------------- */
@@ -147,6 +148,26 @@ export async function moQrNo() {
   finally { SI.dangQr = false; }
 }
 
+/* Codex #531 f4: mở lại QR của MỘT đơn trả trước chưa chuyển tiền (khách đã
+   tải lại trang hoặc sang Tài khoản nên SI.kq rỗng). Chỉ gửi mã đơn; máy chủ
+   kiểm đơn thuộc khách phiên này và tự tính số tiền, trả đúng hình dạng của
+   banh_si.dat nên dùng lại màn kết quả và nhịp hỏi trạng thái. */
+export function donChoChuyen() {
+  return ((SI.toi && SI.toi.sap_giao) || []).filter(d => d.tra_truoc && d.trang_thai === 'cho_tt' && Number(d.con_lai) > 0);
+}
+export async function moQrDon(ma) {
+  if (SI.dangQrDon) return;
+  SI.dangQrDon = ma; SI.loiQrDon = '';
+  try {
+    const r = await MT.ghi('vagabond.banh_si.qr_don', {ma});
+    if (!r || !r.ma) throw new Error(docLoi(r) || t('bsi_qr_don_loi', 'Chưa mở được mã QR của đơn. Tải lại trang rồi thử lại.'));
+    dungHoi();
+    SI.kq = r; SI.trangThai = r.trang_thai; SI.lanHoi = 0; SI.man = 'xong';
+    if (r.trang_thai === 'cho_tt') henHoi();
+  } catch (e) { SI.loiQrDon = e.message || t('bsi_qr_don_loi', 'Chưa mở được mã QR của đơn. Tải lại trang rồi thử lại.'); }
+  finally { SI.dangQrDon = ''; }
+}
+
 /* Đăng ký hợp tác (người ngoài). */
 export function loiDangKy() {
   const d = SI.dk;
@@ -212,6 +233,6 @@ export async function xacThuc() {
 export async function thoat() {
   try { await MT.ghi('vagabond.banh_si.thoat', {}); } catch (e) { /* vẫn đưa về trang ngoài */ }
   dungHoi();
-  Object.assign(SI, {toi: null, man: 'ngoai', sl: {}, kq: null, qrNo: null, ngay: ''});
+  Object.assign(SI, {toi: null, man: 'ngoai', sl: {}, kq: null, qrNo: null, ngay: '', loiQrDon: ''});
 }
-export function sangMan(m) { SI.man = m; SI.loi = ''; if (m !== 'xong') dungHoi(); }
+export function sangMan(m) { SI.man = m; SI.loi = ''; SI.loiQrDon = ''; if (m !== 'xong') dungHoi(); }
