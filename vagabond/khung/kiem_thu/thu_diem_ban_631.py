@@ -1,0 +1,197 @@
+# -*- coding: utf-8 -*-
+"""v631: điểm bán tự nhận theo tài khoản và bảng giá riêng NVH (anh Việt 02/11/2026).
+
+Anh duyệt mẫu bốn màn:
+  1. Cài đặt Điểm bán: "Nhân viên đứng điểm này" (gợi ý từ bill 30 ngày) và
+     "Bảng giá của điểm" (Giá chung hay Giá riêng) (_chuan_cau_hinh, _kiem).
+  2. Tạo mặt hàng: ô giá riêng theo điểm (_doc_gia, _tao_mon).
+  3. Bảng giá theo điểm bán: sửa một lượt, Tải/Nạp Excel (_thay_doi, _excel).
+  4. Quầy: tài khoản đứng một điểm là vào thẳng điểm đó; MÁY CHỦ tính lại giá
+     theo điểm khi lưu bill, không ai sửa tay được (_ap_gia, _thu_tu_may_chu).
+
+Phép thuần chạy thật. Riêng ban_hang (nạp requests, không chạy được ở CI tay
+không) thì đọc cây hàm để chốt CHỖ gọi: giá phải đặt lại TRƯỚC khi tính khuyến
+mãi và trước khi xét OTP sửa bill; hành vi của phép gọi thì ca _ap_gia chạy thật.
+"""
+
+import ast
+import io
+import os
+
+from vagabond.khung.kiem_thu.nen import ca, dung, gia_lap, la
+
+gia_lap()
+
+from vagabond import diem_ban as db  # noqa: E402
+
+GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _doc(*p):
+	return io.open(os.path.join(GOI, *p), encoding="utf-8").read()
+
+
+def _loi(ham):
+	try:
+		ham()
+	except Exception as e:
+		return str(e)
+	return ""
+
+
+@ca("v631 cấu hình điểm bán: người đứng điểm bỏ trùng, bỏ rỗng; bật Giá riêng thì gắn bảng theo MÃ điểm; tắt thì về giá chung; cấu hình cũ giữ bảng đã lưu")
+def _chuan_cau_hinh():
+	d = db._chuan({"ma": "nvhtn", "ten": "Nhà Văn Hóa Thanh Niên", "ten_ngan": "NVHTN", "co_quay": 1, "nguon": ["Tại chỗ"],
+		"nhan_vien": ["truc@vgb.vn", " ", "truc@vgb.vn", "uyen@vgb.vn"], "gia_rieng": 1})
+	la("người đứng điểm", d["nhan_vien"], ["truc@vgb.vn", "uyen@vgb.vn"])
+	la("bảng giá theo mã điểm", d["bang_gia"], "Giá riêng NVHTN")
+	la("tắt giá riêng", db._chuan({"ma": "NVHTN", "co_quay": 1, "gia_rieng": 0, "bang_gia": "Giá riêng NVHTN"})["bang_gia"], "")
+	la("cấu hình đã lưu giữ bảng", db._chuan({"ma": "NVHTN", "co_quay": 1, "bang_gia": "Giá riêng NVHTN"})["bang_gia"], "Giá riêng NVHTN")
+	la("điểm cũ chưa khai gì: rỗng, giá chung", (db._chuan(db.MAC_DINH[1])["nhan_vien"], db._chuan(db.MAC_DINH[1])["bang_gia"]), ([], ""))
+	la("người gõ thành chuỗi vẫn đọc được", db._chuan({"ma": "TCV", "nhan_vien": "a@x.vn, b@x.vn;a@x.vn"})["nhan_vien"], ["a@x.vn", "b@x.vn"])
+
+
+@ca("v631 điểm của tài khoản: chỉ điểm đang bật có tên người đó; Gia Bảo đứng District 1 không thấy Sales Online; quản lý đứng hai điểm")
+def _diem_cua_nguoi():
+	ds = [db._chuan(dict(x, nhan_vien=nv)) for x, nv in zip(db.MAC_DINH, [[], ["bao@vgb.vn", "de@vgb.vn"], ["truc@vgb.vn", "de@vgb.vn"]])]
+	la("thu ngân một điểm", db.diem_cua_nguoi(ds, "bao@vgb.vn"), ["TCV"])
+	la("quản lý hai điểm", db.diem_cua_nguoi(ds, "de@vgb.vn"), ["TCV", "NVHTN"])
+	la("chưa khai", db.diem_cua_nguoi(ds, "moi@vgb.vn"), [])
+	ds[2]["bat"] = 0
+	la("điểm tắt không tính", db.diem_cua_nguoi(ds, "truc@vgb.vn"), [])
+	la("tài khoản rỗng không khớp", db.diem_cua_nguoi(ds, ""), [])
+
+
+@ca("v631 đọc ô giá gõ tay hay từ Excel: 70000, 70.000, 70,000, '70 000 đ', 70000.0; trống là giá chung; chữ, số lẻ, quá 100 triệu bị chặn")
+def _doc_gia():
+	la("các cách gõ", [db.doc_gia(x) for x in (70000, "70.000", "70,000", " 70 000 đ", 70000.0, "70000 VND")], [70000] * 6)
+	la("trống là giá chung", [db.doc_gia(x) for x in (None, "", "  ", "trống", 0, "0")], [None] * 6)
+	for x in ("bảy chục", "70k", 70000.5, 100000000):
+		dung("chặn %r" % (x,), _loi(lambda: db.doc_gia(x)) != "")
+
+
+@ca("v631 máy chủ đặt giá theo điểm: món có giá riêng đổi cả dòng khuyến mãi lẫn dòng hoá đơn; combo và món chưa khai giữ nguyên; điểm giá chung không đụng")
+def _ap_gia():
+	gia = {"TRA-HL-M": 70000, "KOMB": 80000}
+	items = [{"item_code": "TRA-HL-M", "qty": 2, "rate": 95000}, {"item_code": "BANH-MI", "qty": 1, "rate": 30000},
+		{"item_code": "KOMB", "qty": 1, "rate": 80000}, {"item_code": "TRA-HL-M", "qty": 1, "rate": 50000, "combo_ma": "CB-1"}]
+	rows = [{"item_code": x["item_code"], "rate": x["rate"]} for x in items]
+	la("số dòng đổi giá", db.ap_gia_diem(items, rows, gia), 1)
+	la("dòng khuyến mãi tính trên giá điểm", [x["rate"] for x in items], [70000, 30000, 80000, 50000])
+	la("dòng hoá đơn đúng giá điểm", [x["rate"] for x in rows], [70000, 30000, 80000, 50000])
+	sua = [{"item_code": "TRA-HL-M", "qty": 1, "rate": 1}]
+	db.ap_gia_diem(sua, None, gia)
+	la("thu ngân gửi giá tay vẫn về giá điểm", sua[0]["rate"], 70000)
+	goc = [{"item_code": "TRA-HL-M", "rate": 95000}]
+	la("điểm giá chung: không đổi gì", (db.ap_gia_diem(goc, None, {}), goc[0]["rate"]), (0, 95000))
+
+
+@ca("v631 lưu Bảng giá: đọc từng ô đã đổi, ô trống là xoá giá riêng; mã lạ hay giá sai báo rõ món nào")
+def _thay_doi():
+	hop = {"A", "B", "C"}
+	la("đọc", db.chuan_thay_doi('[{"ma":"A","gia":"70.000"},{"ma":"B","gia":""},{"ma":" ","gia":"1"}]', hop), [("A", 70000), ("B", None)])
+	la("một món sửa hai lần: lấy lần sau", db.chuan_thay_doi([{"ma": "A", "gia": 1000}, {"ma": "A", "gia": 2000}], hop), [("A", 2000)])
+	dung("mã lạ", "Không có món X" in _loi(lambda: db.chuan_thay_doi([{"ma": "X", "gia": 1}], hop)))
+	dung("giá sai nói món", _loi(lambda: db.chuan_thay_doi([{"ma": "C", "gia": "abc"}], hop)).startswith("C:"))
+	la("vết đổi giá", [db.cau_vet_gia("NVHTN", 95000, 70000), db.cau_vet_gia("NVHTN", 0, 70000), db.cau_vet_gia("NVHTN", 70000, None)],
+		["Giá riêng NVHTN: 95.000 -> 70.000", "Giá riêng NVHTN: giá chung -> 70.000", "Giá riêng NVHTN: 70.000 -> giá chung"])
+
+
+@ca("v631 Nạp Excel: tìm cột theo TÊN (chèn cột, đổi thứ tự vẫn đọc đúng), ô trống là giá chung, thiếu cột hay giá sai báo đúng dòng")
+def _excel():
+	dau = ["Mã món", "Tên món", "Nhóm món", "Giá chung", "Giá riêng NVHTN"]
+	la("tệp tải từ màn", db.doc_bang_excel([dau, ["A", "Trà", "Nước", 95000, 70000], ["B", "Bánh", "Bánh", 30000, None], [None, "", "", None, None]]),
+		[{"ma": "A", "gia": 70000}, {"ma": "B", "gia": None}])
+	la("chèn cột, đổi thứ tự", db.doc_bang_excel([["Ghi chú", "Giá riêng NVHTN", "Mã món"], ["x", "80.000", "C"]]), [{"ma": "C", "gia": 80000}])
+	dung("thiếu cột", "Mã món" in _loi(lambda: db.doc_bang_excel([["Tên", "Giá"], ["A", 1]])))
+	dung("giá sai báo dòng", "Dòng 3 (B)" in _loi(lambda: db.doc_bang_excel([dau, ["A", "", "", 1, 1000], ["B", "", "", 1, "abc"]])))
+	dung("tệp trống", _loi(lambda: db.doc_bang_excel([])) != "")
+
+
+@ca("v631 lưu điểm bán: điểm nhận đơn online không bật được giá riêng (máy chủ chỉ tính lại giá bill quầy)")
+def _kiem():
+	ds = [db._chuan(x) for x in db.MAC_DINH]
+	ds[0]["bang_gia"] = "Giá riêng SALES"
+	dung("chặn online", "nhận đơn online" in _loi(lambda: db._kiem(ds)))
+	ds[0]["bang_gia"] = ""
+	ds[2]["bang_gia"] = "Giá riêng NVHTN"
+	la("điểm quầy bật được", _loi(lambda: db._kiem(ds)), "")
+
+
+def _ham(src, ten):
+	cay = ast.parse(src)
+	return next(n for n in cay.body if isinstance(n, ast.FunctionDef) and n.name == ten)
+
+
+def _dong(ham, mau):
+	return [n.lineno for n in ast.walk(ham) if isinstance(n, ast.stmt) and mau in ast.unparse(n).split("\n")[0]]
+
+
+@ca("v631 thứ tự trong máy chủ: lưu bill đặt giá điểm SAU khi chốt quầy và TRƯỚC khi tính khuyến mãi; sửa bill đặt giá TRƯỚC khi xét OTP")
+def _thu_tu_may_chu():
+	src = _doc("ban_hang.py")
+	tao = _ham(src, "tao_don_tay")
+	ap = _dong(tao, "diem_ban.ap_gia_diem(items, rows, diem_ban.gia_rieng_cua_quay(quay))")
+	la("một chỗ đặt giá khi lưu bill", len(ap), 1)
+	dung("sau khi chốt quầy", _dong(tao, "quay = _quay_cua_nguon(nguon, quay)")[0] < ap[0])
+	dung("trước khi tính khuyến mãi", ap[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
+	sua = _ham(src, "pos_sua_don")
+	ap2 = _dong(sua, "diem_ban.ap_gia_diem(items, None, diem_ban.gia_rieng_cua_quay(si.get('vgb_quay')))")
+	la("một chỗ đặt giá khi sửa bill", len(ap2), 1)
+	dung("trước khi xét OTP", ap2[0] < _dong(sua, "can_otp, vi_sao = quyen_quay.can_otp(si, items, giam_gia)")[0])
+	cfg = _ham(src, "cau_hinh_ban_hang")
+	dung("màn quầy nhận điểm của tài khoản và giá riêng", "diem_cua_toi" in ast.unparse(cfg) and "'gia_rieng': diem_ban.gia_rieng(" in ast.unparse(cfg))
+
+
+@ca("v631 Tạo mặt hàng: ô giá riêng NVH lưu vào bảng giá của điểm sau khi mở mã; gõ sai, điểm giá chung, loại không bán thì chặn TRƯỚC khi mở mã")
+def _tao_mon():
+	import sys
+	import types
+	import unittest.mock as um
+
+	# Cùng cách thu_v524: Frappe giả không có frappe.model.naming.
+	if "vagabond.danh_muc" not in sys.modules and "frappe.model.naming" not in sys.modules:
+		sys.modules["frappe.model.naming"] = types.SimpleNamespace(getseries=lambda *a: "00001")
+	from vagabond import danh_muc as dm
+
+	dat, tao = [], []
+	nvh = db._chuan(dict(db.MAC_DINH[2], bang_gia="Giá riêng NVHTN"))
+	tcv = db._chuan(db.MAC_DINH[1])
+
+	class Doc(types.SimpleNamespace):
+		def set(self, k, v):
+			setattr(self, k, v)
+
+		def insert(self):
+			self.name = self.item_code
+			tao.append(self.name)
+
+	fr = dm.frappe
+	vas = [
+		um.patch.object(dm, "_kiem_quyen", lambda: None), um.patch.object(dm, "_duoc_tao", lambda: True),
+		um.patch.object(dm, "_ma_moi", lambda tt: tt + "0001"), um.patch.object(dm, "_dvt_quen", lambda n: "Ly"),
+		um.patch.object(dm, "_co_truong", lambda *a: False),
+		um.patch.object(fr.db, "exists", lambda *a, **k: True, create=True),
+		um.patch.object(fr.db, "get_value", lambda *a, **k: 0, create=True),
+		um.patch.object(fr.db, "get_default", lambda *a, **k: "", create=True),
+		um.patch.object(fr.db, "commit", lambda *a, **k: None, create=True),
+		um.patch.object(fr, "new_doc", lambda dt: Doc(flags=types.SimpleNamespace()), create=True),
+		um.patch.object(db, "theo_ma", lambda ma: {"NVHTN": nvh, "TCV": tcv}.get(str(ma).upper())),
+		um.patch.object(db, "dat_gia_diem", lambda d, mon, gia: dat.append((d["ma"], mon, gia)) or True),
+	]
+	for v in vas:
+		v.start()
+	try:
+		kq = dm.tao(nhom="Nước", loai="thanh_pham", ten="Trà Hoa Lài", gia_ban="95000", tien_to="TRA", bo_qua_trung=1,
+			gia_diem='{"NVHTN": "70.000", "TCV": ""}')
+		la("mở mã rồi lưu giá NVH", (tao, dat, kq["gia_diem"]), (["TRA0001"], [("NVHTN", "TRA0001", 70000)], {"NVHTN": 70000}))
+		for gd, mo in (('{"NVHTN": "bảy chục"}', "không phải số"), ('{"TCV": "70000"}', "đang bán giá chung")):
+			del tao[:], dat[:]
+			loi = _loi(lambda: dm.tao(nhom="Nước", loai="thanh_pham", ten="Trà Hoa Lài", tien_to="TRA", bo_qua_trung=1, gia_diem=gd))
+			dung("%s: %s" % (mo, loi), mo in loi)
+			la("chặn trước khi mở mã", (tao, dat), ([], []))
+		loi = _loi(lambda: dm.tao(nhom="Bột", loai="nvl", ten="Bột mì số 13", tien_to="BOT", bo_qua_trung=1, gia_diem='{"NVHTN": 1000}'))
+		dung("loại không bán: " + loi, "không bán" in loi and not tao)
+	finally:
+		for v in reversed(vas):
+			v.stop()

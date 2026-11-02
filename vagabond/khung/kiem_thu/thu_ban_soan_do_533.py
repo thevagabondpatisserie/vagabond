@@ -203,7 +203,9 @@ def _thu_tu():
 		# v626: phân hệ Tài chính, chỉ xem số và chốt số dư, không có màn lập phiếu.
 		"61-tai-chinh.js",
 		# v628: Quỹ tiền mặt công ty, dùng hàm nền của 61-tai-chinh.js.
-		"62-quy-tien-mat.js"])
+		"62-quy-tien-mat.js",
+		# v631: Bảng giá theo điểm bán, sửa giá có sẵn của món, không lập phiếu nháp.
+		"63-bang-gia-diem.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:
