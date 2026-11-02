@@ -16385,6 +16385,46 @@ function posDiemTheoQuay(quay) {
   (((CFGBH || {}).diem) || []).forEach(function (q) { if (quay && q.quay === quay) r = q; });
   return r;
 }
+/* Codex PR #532: posQuay là MỘT đối tượng lấy từ CFGBH lúc chọn điểm. Quản lý
+   đổi bảng giá rồi cấu hình đọc lại thì CFGBH là đối tượng mới, còn posQuay
+   vẫn giữ giá cũ, nên giỏ và mã QR thu theo giá cũ trong khi máy chủ lưu giá
+   mới. Hàm này thay posQuay bằng bản mới của CÙNG điểm và đặt lại giá các món
+   trong giỏ (trừ món combo, combo có giá riêng). Món vừa bị bỏ giá riêng thì
+   về giá chung trong danh mục. Trả số món đã đổi giá. */
+function posDongBoQuay() {
+  if (!posQuay) return 0;
+  var moi = null;
+  (((CFGBH || {}).diem) || []).forEach(function (q) { if (q.ma === posQuay.ma) moi = q; });
+  if (!moi) return 0;
+  var cu = posQuay, co = Object.prototype.hasOwnProperty;
+  posQuay = moi;
+  if (!posDon || !posDon.mon) return 0;
+  var gMoi = moi.gia_rieng || {}, gCu = cu.gia_rieng || {}, doi = 0;
+  posDon.mon.forEach(function (m) {
+    if (m.combo || m.combo_ma) return;
+    var g = null;
+    if (co.call(gMoi, m.item_code)) g = +gMoi[m.item_code] || 0;
+    else if (co.call(gCu, m.item_code)) {
+      var x = (dsItemsCache || []).filter(function (y) { return y.name === m.item_code; })[0];
+      if (x) g = +x.standard_rate || 0;
+    }
+    if (g && g !== +m.rate) { m.rate = g; doi++; }
+  });
+  if (doi) posDon.kmKq = null;
+  return doi;
+}
+/* Máy chủ chặn lưu khi giá trên máy lệch bảng giá điểm (gia_theo_diem=1). Đọc
+   lại cấu hình, đặt lại giá giỏ rồi về màn quầy để thu ngân xem tổng mới. */
+async function posGiaVuaDoi(e) {
+  var cau = String((e && e.message) || '');
+  if (cau.indexOf('Bảng giá của điểm vừa đổi') < 0) return false;
+  CFGBH = null;
+  try { await cfgBanHang(); } catch (eC) { /* đọc lại lỗi: lần lưu sau máy chủ vẫn chặn */ }
+  posDongBoQuay();
+  toast(cau, 6500);
+  go(scrPosQuay, true);
+  return true;
+}
 function posDiemVua() { try { return localStorage.getItem('vgb_diem_vua') || ''; } catch (e) { return ''; } }
 
 async function scrPosChonQuay() {
@@ -16730,6 +16770,8 @@ async function scrPosQuay() {
      la mat nhip user gesture va bi chan popup - xem ghi chu hai nhip o
      27-in-ngam.js. Khong await: do xong hay chua thi man van ve. */
   if (!posQuay) return go(scrPosChonQuay, true);
+  var nGiaDoi = posDongBoQuay();
+  if (nGiaDoi) toast('Bảng giá ' + (posQuay.ten_ngan || posQuay.ma) + ' vừa đổi: ' + nGiaDoi + ' món trong giỏ đã sang giá mới.', 5000);
   /* Dò máy in SAU khi đã biết đứng ở điểm bán nào, và dò lại khi đổi điểm.
      Trước đây dò ngay dòng đầu, tức là trước cả bước chọn quầy, nên mọi máy
      đều nhận về hộp chung mảnh tên máy in của cả ba điểm. */
@@ -17182,6 +17224,8 @@ async function posDemHomNay() {
 }
 async function posThemMon() {
   posDoc();
+  await cfgBanHang();
+  posDongBoQuay();
   if (!dsItemsCache) {
     busy(true);
     try {
@@ -18247,6 +18291,7 @@ async function posLuuDon() {
          thi phai gui, khong thi lua chon cua thu ngan roi mat. */
       pt: posDon.pt || '', ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
+      gia_theo_diem: 1,
       giam_gia: giamTay, phi_ship: ship, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -18265,7 +18310,11 @@ async function posLuuDon() {
       xhd_dia_chi: posDon.xhd_mo ? (posDon.xh.dc || '') : '',
       xhd_email: posDon.xhd_mo ? (posDon.xh.email || '') : ''
     });
-  } catch (e) { posDangLuu = false; busy(false); return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000); }
+  } catch (e) {
+    posDangLuu = false; busy(false);
+    if (await posGiaVuaDoi(e)) return;
+    return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000);
+  }
   posDangLuu = false;
   busy(false);
   posChoCkXoa(posDon.bill);
@@ -18628,6 +18677,7 @@ async function posInTamTinh() {
       ngay: today(), nguon: posNguonThuc(), ma_don: posDon.bill,
       ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
+      gia_theo_diem: 1,
       giam_gia: giamTay, phi_ship: 0, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -18636,7 +18686,11 @@ async function posInTamTinh() {
       ma_voucher: posDon.maVc || '',
       ghi_chu: (posDon.km ? 'KM: ' + posDon.km.ten + (posDon.ghi_chu ? '. ' : '') : '') + (posDon.ghi_chu || ''), tam_tinh: 1
     });
-  } catch (e) { busy(false); return toast((e && e.message) || 'Lưu lỗi, thử lại.', 4000); }
+  } catch (e) {
+    busy(false);
+    if (await posGiaVuaDoi(e)) return;
+    return toast((e && e.message) || 'Lưu lỗi, thử lại.', 4000);
+  }
   busy(false);
   posBillVua = { name: (r && r.name) || '', bill: posDon.bill, mon: posDon.mon.slice(), tong: tong, giam: giam, giamTay: giamTay, kmAp: ((posDon.kmKq && posDon.kmKq.ap) || []).slice(), thu: thu, pt: '', quay: (posQuay && posQuay.ma) || '', nguon: posNguonThuc(), ghi_chu: posDon.ghi_chu || '', ten: posDon.ten || '', so_ban: posDon.so_ban || '', tam_tinh: 1 };
   posInBill(posBillVua);
@@ -64718,6 +64772,11 @@ function tdCachDay(s, bayGio) {
 /* Lọc danh sách theo ô tìm, thẻ số đầu màn, chip trạng thái, chip vị trí. PHÉP THUẦN. */
 function tdLocHs(rows, loc, homNay) {
   loc = loc || {};
+  /* Ngày hôm nay của máy chủ đi CÙNG bộ lọc (loc.hom_nay), để mọi chỗ đếm chép
+     lại bộ lọc (chip Lọc thêm, số theo vị trí) đều so được lịch hẹn. Trước đây
+     chỉ danh sách chính truyền ngày, nên khi chọn Hẹn hôm nay các số đếm về 0
+     và chip nguồn biến mất (Codex PR #532). */
+  homNay = homNay || loc.hom_nay || '';
   return (rows || []).filter(function (r) {
     /* Ô tìm LỌC THÊM cùng các chip đang chọn, không thay chúng (Codex #518). */
     if (loc.tim) {
@@ -64728,7 +64787,7 @@ function tdLocHs(rows, loc, homNay) {
     }
     if (loc.the === 'moi' && (r.trang_thai !== 'Mới nhận' || r.lien_he_luc)) return false;
     if (loc.the === 'qua_han' && !+r.qua_han) return false;
-    if (loc.the === 'hen' && !(TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && String(r.lich_hen || '').slice(0, 10) === homNay)) return false;
+    if (loc.the === 'hen' && !(homNay && TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && String(r.lich_hen || '').slice(0, 10) === homNay)) return false;
     if (loc.the === 'cong' && !(+r.tien_cong_thu > 0 && !+r.da_tra_cong)) return false;
     /* v631: không chọn chip trạng thái là "Đang xử lý": ẩn hồ sơ Đã loại và Đã
        nhận việc. Đang bấm một số đầu màn (Chưa gọi, Hẹn hôm nay, Công chưa trả)
@@ -65399,7 +65458,7 @@ async function scrTuyenDung() {
     than = frame(tieuDe, html);
   } else {
     var bayGio = kq.bay_gio || '';
-    var loc = { tim: tdTim, the: tdLoc, tt: tdTt, vt: tdVt, ai65: tdThem.ai65, qua24: tdThem.qua24, nguon: tdThem.nguon };
+    var loc = { tim: tdTim, the: tdLoc, tt: tdTt, vt: tdVt, ai65: tdThem.ai65, qua24: tdThem.qua24, nguon: tdThem.nguon, hom_nay: kq.hom_nay || '' };
     var demVt = {};
     tdLocHs(rows, Object.assign({}, loc, { vt: '' })).forEach(function (r) { demVt[r.vi_tri] = (demVt[r.vi_tri] || 0) + 1; });
     var cc = {
@@ -65414,7 +65473,7 @@ async function scrTuyenDung() {
     html += tdChipLoc(rows, loc);
     html += dsCongCu(cc);
     html += '<div style="display:flex;flex-direction:row;gap:7px;margin:0 14px 8px">' + tdNut('data-tdthemhs="1"', '+ Thêm hồ sơ (TopCV, người quen...)', 'goi') + '</div>';
-    var ds = tdLocHs(rows, loc, kq.hom_nay);
+    var ds = tdLocHs(rows, loc);
     var coAi = rows.some(function (r) { return r.ai_trang_thai === 'Đã đọc'; });
     if (coAi) {
       html += '<div style="margin:0 14px 8px">' + kmHangChip(posChipNut('data-tdxepai="1"', '✦ Xếp theo điểm AI', tdXepAi, false, '#6d28d9')) +
@@ -66631,7 +66690,19 @@ async function scrQuyNop() {
    tự tính lại giá theo điểm khi lưu bill quầy, nên giá ở đây là giá thật quầy
    thu, không ai sửa tay trên màn Tính tiền được. Mỗi lần đổi giá máy ghi vết
    trên món: ai đổi, lúc nào, giá cũ, giá mới. */
-var BGD = { ma: '', kq: null, chip: 'da_ban', tim: '', sua: {} };
+var BGD = { ma: '', kq: null, chip: 'da_ban', tim: '', sua: {}, nhap: {} };
+
+/* Đổi điểm đang xem. Giá gõ dở (chưa lưu) giữ RIÊNG cho từng điểm: rời điểm A
+   thì cất nháp của A, sang B thì lấy nháp của B (hoặc trống). Mọi đường vào
+   (chip điểm, nút Bảng giá ở Cài đặt, trang chủ) đều đi qua đây, nên giá gõ
+   cho A không bao giờ thành giá lưu của B (Codex PR #532). */
+function bgdDoiDiem(ma) {
+  if (!ma || ma === BGD.ma) return;
+  if (!BGD.nhap) BGD.nhap = {};
+  if (BGD.ma) BGD.nhap[BGD.ma] = BGD.sua;
+  BGD.ma = ma;
+  BGD.sua = BGD.nhap[ma] || {};
+}
 
 /* Lọc món theo chip. PHÉP THUẦN. chip: da_ban (đã bán ở điểm trong 30 ngày),
    chua_gia (đã bán mà chưa có giá riêng), tat_ca, hoặc "nhom:<nhóm món>". */
@@ -66662,11 +66733,11 @@ function bgdDsDoi() {
 
 async function scrBangGiaDiem(ma) {
   var tieuDe = 'Bảng giá theo điểm bán';
-  if (ma) BGD.ma = ma;
+  if (ma) bgdDoiDiem(ma);
   await cfgBanHang();
   /* Chưa chọn điểm (mở từ trang chủ): lấy điểm đầu tiên có giá riêng. */
   var coGia = ((CFGBH && CFGBH.diem) || []).filter(function (d) { return d.co_quay && d.co_bang_gia; });
-  if (!BGD.ma && coGia.length) BGD.ma = coGia[0].ma;
+  if (!BGD.ma && coGia.length) bgdDoiDiem(coGia[0].ma);
   if (!BGD.ma) {
     frame(tieuDe, '<div class="emp"><div class="e1">💲</div><div>Chưa điểm bán nào dùng giá riêng. Vào Cài đặt, Điểm bán, chọn điểm rồi bật Giá riêng ở mục Bảng giá của điểm.</div>' +
       '<button type="button" class="btn gh" data-bgdcd="1" style="margin:14px auto 0;width:auto;padding:0 18px">Mở Cài đặt Điểm bán</button></div>')
@@ -66711,6 +66782,7 @@ function bgdVe() {
     (ds.length ? ds.map(function (m) {
       var o = bgdGiaO(m), doi = Object.prototype.hasOwnProperty.call(BGD.sua, m.ma) && (+String(o).replace(/[^0-9]/g, '') || 0) !== (+m.gia_diem || 0);
       return '<div data-bgdmon="' + h(m.ma) + '" style="display:flex;flex-direction:row;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #f2f4f7">' +
+        anhMon(m.anh) +
         '<div style="flex:1;min-width:0"><div style="font-size:14px;color:#101828;overflow-wrap:anywhere">' + h(m.ten) + '</div>' +
         '<div style="font-size:12.5px;color:#667085">' + h(m.ma) + (+m.da_ban > 0 ? ' · đã bán ' + money(m.da_ban) : '') + '</div></div>' +
         '<div style="flex:0 0 auto;font-size:13px;color:#667085;min-width:58px;text-align:right">' + (+m.gia_chung ? money(m.gia_chung) : 'chưa có') + '</div>' +
@@ -66748,7 +66820,7 @@ function bgdVe() {
     t = e.target.closest('[data-bgddiem]');
     if (t) {
       if (bgdDsDoi().length) return toast('Lưu hoặc bỏ các giá đã đổi trước khi sang điểm khác.', 3600);
-      BGD.ma = t.getAttribute('data-bgddiem'); BGD.sua = {};
+      bgdDoiDiem(t.getAttribute('data-bgddiem'));
       return go(function () { return scrBangGiaDiem(BGD.ma); }, true);
     }
   });
