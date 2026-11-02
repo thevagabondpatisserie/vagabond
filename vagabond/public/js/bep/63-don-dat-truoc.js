@@ -18,6 +18,10 @@ function coQuyenDdt() {
 
 var ddtTt = '';
 var ddtTim = '';
+/* Codex #531 vòng 3 (AGENTS 2b.3): hàng nhóm là điểm nhận, hàng ngày theo ngày
+   nhận bánh. Mặc định "Mọi" để không giấu đơn nào khi mới mở màn. */
+var ddtDiem = '';
+var ddtNgay = '';
 var ddtMo = '';
 /* Màu chip trạng thái theo bảng chung: vàng chờ, xanh dương đang, xanh xong, xám huỷ. */
 var DDT_MAU = {
@@ -83,14 +87,14 @@ function ddtVeDs(kq) {
   var tatCa = kq.rows || [];
   var ds = tatCa.filter(function (r) { return ddtTim ? ddtKhop(r, ddtTim) : (!ddtTt || r.trang_thai === ddtTt); });
   var html = '';
-  if (ddtTim || ddtTt) {
+  if (ddtTim || ddtTt || ddtDiem || ddtNgay) {
     html += '<div data-ddtloc="1" style="display:flex;justify-content:space-between;gap:8px;margin:0 14px 4px;padding:8px 10px;border-radius:8px;background:#fffaeb;font-size:13px">' +
       '<span>Đang lọc' + (ddtTim ? ' "' + h(ddtTim) + '"' : '') + '</span><b>' + ds.length + ' đơn · còn ' +
       money(ds.reduce(function (a, r) { return a + (r.con_lai || 0); }, 0)) + 'đ</b></div>';
   }
   if (!ds.length) {
     return html + '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🎂</div><div>' +
-      (tatCa.length ? 'Không có đơn nào khớp bộ lọc. Bấm lại chip để xem tất cả.' :
+      (tatCa.length || kq.tong_goc ? 'Không có đơn nào khớp bộ lọc. Bấm Tất cả, Mọi điểm nhận hoặc Mọi ngày để xem hết.' :
         'Chưa có đơn bánh thiết kế riêng. Khách đặt ở tab Thiết kế riêng trên web, đơn hiện ở đây.') + '</div></div></div>';
   }
   var ngayCu = '';
@@ -114,17 +118,31 @@ async function scrDonDatTruoc() {
   var kq;
   try { kq = await api('vagabond.thiet_ke_rieng.ds_don', {}); }
   catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  /* Lọc điểm nhận và ngày nhận áp cả thẻ tóm tắt lẫn danh sách; mỗi hàng chip
+     đếm theo các hàng còn lại để số trên chip khớp số thẻ hiện ra. */
+  var goc = kq.rows || [], homNay = kq.hom_nay;
+  var theoNgay = goc.filter(function (r) { return dsTrongKhoangToi(r.ngay, ddtNgay, homNay); });
+  var theoDiem = goc.filter(function (r) { return !ddtDiem || r.diem_nhan === ddtDiem; });
+  var loc = theoNgay.filter(function (r) { return !ddtDiem || r.diem_nhan === ddtDiem; });
+  var kqLoc = Object.assign({}, kq, { rows: loc, dem: dsDemTheo(loc, function (r) { return r.trang_thai; }), tong_goc: goc.length });
+  var cacDiem = [];
+  goc.forEach(function (r) { if (r.diem_nhan && cacDiem.indexOf(r.diem_nhan) < 0) cacDiem.push(r.diem_nhan); });
   var cc = {
     ma: 'ddt',
-    ho: [{ k: 'tt', chon: ddtTt, mau: '#0d9488', tatCa: 'Tất cả', dem: Object.assign({ tat_ca: (kq.rows || []).length }, kq.dem || {}),
-      ds: (kq.trang_thai || []).map(function (t) { return { k: t.k, ten: t.ten, ic: (DDT_MAU[t.k] || {}).ic }; }) }],
+    ho: [{ k: 'tt', chon: ddtTt, mau: '#0d9488', tatCa: 'Tất cả', dem: kqLoc.dem,
+      ds: (kq.trang_thai || []).map(function (t) { return { k: t.k, ten: t.ten, ic: (DDT_MAU[t.k] || {}).ic }; }) },
+      { k: 'diem', chon: ddtDiem, tatCa: 'Mọi điểm nhận', dem: dsDemTheo(theoNgay, function (r) { return r.diem_nhan; }),
+        ds: cacDiem.sort().map(function (d) { return { k: d, ten: dsNhanGon(d), ic: '📍' }; }) },
+      { k: 'ngay', chon: ddtNgay, mau: '#b45309', tatCa: 'Mọi ngày', dem: dsDemKhoangToi(theoDiem, homNay), ds: dsKhoangToi() }],
     tim: { gt: ddtTim, goiY: '🔎 Tìm mã đơn, tên khách, số điện thoại' },
   };
-  var html = dsCongCu(cc) + ddtTomTat(kq) + '<div id="ddtDs">' + ddtVeDs(kq) + '</div>' +
+  var html = dsCongCu(cc) + ddtTomTat(kqLoc) + '<div id="ddtDs">' + ddtVeDs(kqLoc) + '</div>' +
     '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Khách đặt và cọc 50% trên web. Tiền cọc về thì máy lập phiếu thu chờ kế toán ghi sổ. Ngày nhận: thu phần còn lại, rồi giao bánh và xuất hoá đơn ở đây.</div>';
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') { ddtTt = k || ''; ddtTim = ''; }
+    else if (ho === 'diem') ddtDiem = k || '';
+    else if (ho === 'ngay') ddtNgay = k || '';
     else if (ho === 'tim') ddtTim = k;
     go(scrDonDatTruoc, true);
   });
@@ -135,7 +153,7 @@ async function scrDonDatTruoc() {
     if (t) { ddtMo = t.getAttribute('data-ddtthe'); go(scrDonDatTruocCt); }
   });
   var o = document.getElementById('ddtDsTim');
-  if (o) o.addEventListener('input', function () { ddtTim = o.value.trim(); var d = document.getElementById('ddtDs'); if (d) d.innerHTML = ddtVeDs(kq); });
+  if (o) o.addEventListener('input', function () { ddtTim = o.value.trim(); var d = document.getElementById('ddtDs'); if (d) d.innerHTML = ddtVeDs(kqLoc); });
 }
 
 /* Quầy nhớ theo máy, lần chọn gần nhất (AGENTS 2b.9). */

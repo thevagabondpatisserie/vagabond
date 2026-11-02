@@ -629,6 +629,44 @@ function dsCongCu(c) {
     hang.join('') + '</div>';
 }
 
+/* v631 (Codex #531 vòng 3, AGENTS 2b.3): màn danh sách theo NGÀY GIAO hay
+   ngày nhận (Đơn đặt trước, Đơn sỉ web) cần hàng khoảng ngày nhìn về phía
+   tới, không phải DS_KY (khoảng đã qua của ngày lập). Chip mở rộng "Mọi
+   ngày" là chip tatCa của hàng, luôn có. Ba hàm THUẦN để ca kiểm gọi thẳng. */
+function dsKhoangToi() {
+  return [{ k: 'hom_nay', ten: 'Hôm nay' }, { k: 'ngay_mai', ten: 'Ngày mai' },
+    { k: '7_ngay', ten: '7 ngày tới' }, { k: 'da_qua', ten: 'Đã qua' }];
+}
+function dsTrongKhoangToi(ngay, k, homNay) {
+  if (!k) return true;
+  var d = String(ngay || '').slice(0, 10).split('-'), n = String(homNay || '').slice(0, 10).split('-');
+  var lech = Math.round((Date.UTC(+d[0], (+d[1] || 1) - 1, +d[2] || 1) - Date.UTC(+n[0], (+n[1] || 1) - 1, +n[2] || 1)) / 86400000);
+  if (k === 'hom_nay') return lech === 0;
+  if (k === 'ngay_mai') return lech === 1;
+  if (k === '7_ngay') return lech >= 0 && lech <= 6;
+  if (k === 'da_qua') return lech < 0;
+  return true;
+}
+/* Đếm dòng rơi vào từng chip khoảng ngày tới, cho ô dem của dsccHang. */
+function dsDemKhoangToi(rows, homNay) {
+  var dem = { tat_ca: (rows || []).length };
+  dsKhoangToi().forEach(function (x) {
+    dem[x.k] = (rows || []).filter(function (r) { return dsTrongKhoangToi(r.ngay, x.k, homNay); }).length;
+  });
+  return dem;
+}
+/* Nhãn chip gọn (AGENTS 2b.18): bỏ tiền tố tên tiệm, quá 16 ký tự thì cắt. */
+function dsNhanGon(s) {
+  s = String(s || '').replace(/^The Vagabond\s+/i, '').trim();
+  return s.length > 16 ? s.slice(0, 15) + '…' : s;
+}
+/* Đếm dòng theo một hàm lấy khoá, cho ô dem của dsccHang (có tat_ca). */
+function dsDemTheo(rows, lay) {
+  var dem = { tat_ca: (rows || []).length };
+  (rows || []).forEach(function (r) { var k = lay(r); if (k) dem[k] = (dem[k] || 0) + 1; });
+  return dem;
+}
+
 async function dsXuatExcel(man, loc) {
   busy(true);
   try {

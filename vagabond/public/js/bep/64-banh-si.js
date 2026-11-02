@@ -24,6 +24,10 @@ function coQuyenBsiXem() { return QUYEN_BSI_XEM.some(function (v) { return hasRo
 
 var bsiTt = '';
 var bsiTim = '';
+/* Codex #531 vòng 3 (AGENTS 2b.3): hàng nhóm là khách, hàng ngày theo ngày
+   giao. Mặc định "Mọi" để không giấu đơn nào khi mới mở màn. */
+var bsiKhach = '';
+var bsiNgay = '';
 var bsiMo = '';
 var BSI_MAU = {
   cho_tt: { ic: '⏳', nen: '#fef3c7', chu: '#92400e', mau: '#b45309' },
@@ -84,14 +88,14 @@ function bsiVeDs(kq) {
   var tatCa = kq.rows || [];
   var ds = tatCa.filter(function (r) { return bsiTim ? bsiKhop(r, bsiTim) : (!bsiTt || r.trang_thai === bsiTt); });
   var html = '';
-  if (bsiTim || bsiTt) {
+  if (bsiTim || bsiTt || bsiKhach || bsiNgay) {
     html += '<div data-bsiloc="1" style="display:flex;justify-content:space-between;gap:8px;margin:0 14px 4px;padding:8px 10px;border-radius:8px;background:#fffaeb;font-size:13px">' +
       '<span>Đang lọc' + (bsiTim ? ' "' + h(bsiTim) + '"' : '') + '</span><b>' + ds.length + ' đơn · ' +
       money(ds.reduce(function (a, r) { return a + (r.so_cai || 0); }, 0)) + ' cái</b></div>';
   }
   if (!ds.length) {
     return html + '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🏢</div><div>' +
-      (tatCa.length ? 'Không có đơn nào khớp bộ lọc. Bấm lại chip để xem tất cả.' :
+      (tatCa.length || kq.tong_goc ? 'Không có đơn nào khớp bộ lọc. Bấm Tất cả, Mọi khách hoặc Mọi ngày để xem hết.' :
         'Chưa có đơn sỉ trên web. Khách sỉ đã duyệt đặt ở trang Bánh sỉ, đơn hiện ở đây theo ngày giao.') + '</div></div></div>';
   }
   var ngayCu = '';
@@ -115,17 +119,31 @@ async function scrDonSiWeb() {
   var kq;
   try { kq = await api('vagabond.banh_si.ds_don', {}); }
   catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  /* Lọc khách và ngày giao áp cả thẻ tóm tắt lẫn danh sách; mỗi hàng chip đếm
+     theo các hàng còn lại để số trên chip khớp số thẻ hiện ra. */
+  var goc = kq.rows || [], homNay = kq.hom_nay;
+  var theoNgay = goc.filter(function (r) { return dsTrongKhoangToi(r.ngay, bsiNgay, homNay); });
+  var theoKhach = goc.filter(function (r) { return !bsiKhach || r.khach === bsiKhach; });
+  var loc = theoNgay.filter(function (r) { return !bsiKhach || r.khach === bsiKhach; });
+  var kqLoc = Object.assign({}, kq, { rows: loc, dem: dsDemTheo(loc, function (r) { return r.trang_thai; }), tong_goc: goc.length });
+  var cacKhach = [];
+  goc.forEach(function (r) { if (r.khach && cacKhach.indexOf(r.khach) < 0) cacKhach.push(r.khach); });
   var cc = {
     ma: 'bsi',
-    ho: [{ k: 'tt', chon: bsiTt, mau: '#0d9488', tatCa: 'Tất cả', dem: Object.assign({ tat_ca: (kq.rows || []).length }, kq.dem || {}),
-      ds: (kq.trang_thai || []).map(function (t) { return { k: t.k, ten: t.ten, ic: (BSI_MAU[t.k] || {}).ic }; }) }],
+    ho: [{ k: 'tt', chon: bsiTt, mau: '#0d9488', tatCa: 'Tất cả', dem: kqLoc.dem,
+      ds: (kq.trang_thai || []).map(function (t) { return { k: t.k, ten: t.ten, ic: (BSI_MAU[t.k] || {}).ic }; }) },
+      { k: 'khach', chon: bsiKhach, tatCa: 'Mọi khách', dem: dsDemTheo(theoNgay, function (r) { return r.khach; }),
+        ds: cacKhach.sort().map(function (d) { return { k: d, ten: dsNhanGon(d), ic: '🏢' }; }) },
+      { k: 'ngay', chon: bsiNgay, mau: '#b45309', tatCa: 'Mọi ngày', dem: dsDemKhoangToi(theoKhach, homNay), ds: dsKhoangToi() }],
     tim: { gt: bsiTim, goiY: '🔎 Tìm mã đơn, tên khách, tên món' },
   };
-  var html = dsCongCu(cc) + bsiTomTat(kq) + '<div id="bsiDs">' + bsiVeDs(kq) + '</div>' +
+  var html = dsCongCu(cc) + bsiTomTat(kqLoc) + '<div id="bsiDs">' + bsiVeDs(kqLoc) + '</div>' +
     '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Ngày giao sớm nhất là ngày đặt + 3. Khách trả cuối kỳ: giao được ngay, hoá đơn ghi công nợ hạn 15 ngày. Khách trả trước: tiền về và kế toán ghi sổ phiếu thu rồi mới giao.</div>';
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') { bsiTt = k || ''; bsiTim = ''; }
+    else if (ho === 'khach') bsiKhach = k || '';
+    else if (ho === 'ngay') bsiNgay = k || '';
     else if (ho === 'tim') bsiTim = k;
     go(scrDonSiWeb, true);
   });
@@ -136,7 +154,7 @@ async function scrDonSiWeb() {
     if (t) { bsiMo = t.getAttribute('data-bsithe'); go(scrDonSiWebCt); }
   });
   var o = document.getElementById('bsiDsTim');
-  if (o) o.addEventListener('input', function () { bsiTim = o.value.trim(); var d = document.getElementById('bsiDs'); if (d) d.innerHTML = bsiVeDs(kq); });
+  if (o) o.addEventListener('input', function () { bsiTim = o.value.trim(); var d = document.getElementById('bsiDs'); if (d) d.innerHTML = bsiVeDs(kqLoc); });
 }
 
 function bsiMoSheet(html) {
