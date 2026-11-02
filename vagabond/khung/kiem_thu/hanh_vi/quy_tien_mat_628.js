@@ -38,7 +38,8 @@ function manQuy(o) {
     cho_duyet: o.cho || [], ba_lan: [{ ngay: '2026-10-31', lech: -150000 }],
     lich_su: [
       { luc: '2026-11-02 09:12', loai: 'nop_quy', ma: 'NQ-1', tien: 8350000, ten: 'Biên nhận nộp tiền mặt', phu: 'Trần Cao Vân · Dung ký nhận' },
-      { luc: '2026-11-01 10:00', loai: 'so_cai', ma: 'PQ-2', tien: -20000000, ten: 'Nộp vào MB Bank ···1568', phu: 'Dung', chip: 'Đã khớp SePay' },
+      { luc: '2026-11-01 10:00', loai: 'so_cai', ma: 'PQ-2', tien: -20000000, ten: 'Nộp vào MB Bank ···1568', phu: 'Dung', chip: 'Đã khớp SePay', huy: 'nop' },
+      { luc: '2026-10-31 16:30', loai: 'so_cai', ma: 'PQ-1', tien: -150000, ten: 'Kiểm quỹ: thiếu', phu: 'Lý do: Chưa rõ', huy: 'kiem' },
     ],
     tai_khoan_nh: [{ ma: 'MB-CTY', ten: 'MB Bank ···1568', tk: '1121 - MB' }, { ma: 'SHB', ten: 'Shinhan ···9585', tk: '1121 - SHB' }],
     menh_gia: [500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000, 500],
@@ -181,6 +182,20 @@ function goiDuong(m) { return m.goi.map(function (x) { return x.duong; }); }
     await mot(m2, '[data-qtmluu]').onclick(); await tick();
     dung('xoá trắng thì không gửi', goiDuong(m2).indexOf('vagabond.quy_tien_mat.kiem_quy') < 0);
     dung('báo gõ số tờ', m2.toast.some(function (t) { return t.indexOf('Gõ số tờ đã đếm được') === 0; }));
+  });
+
+  await ca('Codex #527 vòng 6: kế toán huỷ phiếu nộp ghi nhầm ngay từ lịch sử quỹ, ghi lý do rồi máy gọi cửa huỷ; phiếu kiểm quỹ chỉ Giám đốc huỷ', async function () {
+    var m = dungMoi(manQuy());
+    await m.g.scrQuyTm(); await tick();
+    var nut = ds(m, '[data-qtmhuy]').map(function (x) { return x.getAttribute('data-qtmhuy'); });
+    bang('kế toán thấy nút huỷ phiếu nộp, không thấy nút huỷ phiếu kiểm', nut, ['PQ-2']);
+    await mot(m, '[data-qtmhuy]').onclick(); await tick();
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.quy_tien_mat.huy_phieu'; });
+    bang('gọi cửa huỷ đúng phiếu, đúng lý do', g.map(function (x) { return [x.ts.name, x.ts.ly_do]; }), [['PQ-2', 'Đếm lại tờ 500.000']]);
+    dung('huỷ xong mở lại màn quỹ', m.dieuHuong.indexOf('scrQuyTm') >= 0 && m.toast.some(function (t) { return t.indexOf('Đã huỷ phiếu PQ-2') === 0; }));
+    var gd = dungMoi(manQuy({ duyet: 1, lam: 0 }));
+    await gd.g.scrQuyTm(); await tick();
+    bang('Giám đốc thấy nút huỷ phiếu kiểm', ds(gd, '[data-qtmhuy]').map(function (x) { return x.getAttribute('data-qtmhuy'); }), ['PQ-1']);
   });
 
   await ca('nộp ngân hàng: thiếu ảnh giấy nộp thì không gửi; đủ thì hỏi lại rồi gửi đúng tài khoản đã chọn', async function () {
