@@ -5136,6 +5136,11 @@
     "nhom": "banh_si",
     "mac_dinh": "{so} cái, cần chuyển {tien}"
   },
+  "bsi_hd_con": {
+    "ten": "Bánh sỉ: Còn {so} hoá đơn nữa không hiện ở đây, đã tính trong tổng và mã QR.",
+    "nhom": "banh_si",
+    "mac_dinh": "Còn {so} hoá đơn nữa không hiện ở đây, đã tính trong tổng và mã QR."
+  },
   "bsi_qr_don_loi": {
     "ten": "Bánh sỉ: Chưa mở được mã QR của đơn. Tải lại trang rồi thử lại.",
     "nhom": "banh_si",
