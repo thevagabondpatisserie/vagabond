@@ -97,12 +97,37 @@ Chọn Chuyển khoản thì máy hiện mã QR điền sẵn số tiền và n�
 |---|---|
 | Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR | Nhờ quản lý khai tài khoản nhận tiền của điểm bán |
 | Khoản này đã gắn cho hoá đơn ... | Một khoản tiền chỉ thuộc một hoá đơn, chọn khoản khác |
+| Bill mang mã ... (đang chờ lưu, sau 15 phút chưa ai lưu thì gắn được) | Có thể bill đó đang hiện mã QR ở máy khác. Chờ đủ 15 phút rồi dò lại |
 
 **Lưu ý**
 - Hoá đơn chưa lưu thì dò chỉ để xem tiền về chưa; lưu xong mới gắn được.
 - Đơn Pancake đã có tài khoản riêng của đơn, đừng gửi thêm mã QR khác cho khách, tiền sẽ mất đường đối soát tự động.
 - Bill chuyển khoản chưa về đủ tiền thì máy chưa tự ghi sổ.
 - Quản lý cửa hàng xem mọi bill chuyển khoản trong ngày ở màn Đối soát chuyển khoản: xem mục "Đối soát bill quầy trả chuyển khoản" (chương Kế toán).
+
+
+## Bill chuyển khoản bị mất, huỷ nhầm hoặc bớt giá
+Từ khoá: app tải lại, mất bill, mở lại bill, chọn nhầm điểm bán, huỷ bill đã nhận tiền, lập lại bill, tiền dính bill cũ, bớt giá, khách trả thừa, chuyển lại tiền dư
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu ngân, Quản lý cửa hàng | Bán tại quầy (/ban-tai-quay) | [[Mở lại bill]], [[Huỷ bill]], [[Chuyển lại tiền dư]] |
+
+**App tải lại khi khách đang quét mã QR**
+1. Mở lại Bán tại quầy. Giỏ trống thì thấy thẻ Bill đang chờ khách chuyển khoản.
+2. Bấm [[Mở lại bill]]: giỏ và mã bill cũ quay lại, tiền tự khớp.
+3. Lỡ lập bill mới: lưu xong bấm [[Dò tiền chuyển khoản]], chọn khoản ghi "Chưa có bill nào lưu mã ...".
+
+**Huỷ bill đã nhận tiền** (cần mã OTP quản lý ca)
+- Chọn nhầm điểm bán: chọn điểm đúng, máy chép món sang bill mới, lưu xong tự chuyển tiền.
+- Khách không mua nữa: mở phiếu Huỷ đơn và hoàn tiền.
+- Huỷ, lập lại bill sau: bill mới bấm [[Dò tiền chuyển khoản]], khoản của bill đã huỷ hiện kèm câu giải thích.
+- Bill đã huỷ mà đã có phiếu hoàn tiền thì khoản đó không gắn sang bill khác.
+
+**Bớt giá khi khách đã chuyển khoản**
+1. Bill chưa ghi sổ: Sửa hoá đơn, thêm giảm giá. Máy báo khách thừa bao nhiêu.
+2. Ghi sổ xong mở lại bill, bấm [[Chuyển lại tiền dư]]; nhóm Zalo Kế toán nhận tin.
+3. Đã xuất hoá đơn điện tử rồi mới bớt giá: kế toán trưởng lập hoá đơn điều chỉnh bên m-invoice.
 
 ## Áp khuyến mãi, combo, mã voucher và trừ điểm thành viên
 Từ khoá: khuyến mãi, KM, giảm giá, ưu đãi, combo, voucher, mã giảm giá, coupon, promotion, trừ điểm, dùng điểm, điểm thành viên, loyalty, tặng món, OTP khuyến mãi
