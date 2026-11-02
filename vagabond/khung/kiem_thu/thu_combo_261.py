@@ -63,6 +63,14 @@ def _nhom():
         la('món lẻ cùng mã dùng giá danh mục',cb.giu_dong_sua(si,{},dict(item_code='M1',qty=1,rate=45000))['rate'],45000)
     nem('giả dòng gốc', lambda: cb.giu_dong_sua(si, {'dong_goc':'X'}, dict(item_code='M1',qty=3,rate=35769)))
     la('món lẻ mới vẫn thêm', cb.giu_dong_sua(si, {}, dict(item_code='M3',qty=1,rate=10000))['rate'],10000)
+    # v631 Codex PR #532: điểm có giá riêng 35.000 cho M1 (danh mục 45.000):
+    # món lẻ thêm mới cùng mã thành phần combo lưu được ở giá điểm; giá danh mục
+    # hay giá khác thì chặn; món không có giá điểm vẫn theo giá danh mục.
+    with patch.object(cb.frappe.db,'get_value',return_value=45000):
+        la('món lẻ giá điểm', cb.giu_dong_sua(si, {}, dict(item_code='M1',qty=1,rate=35000), {'M1': 35000})['rate'], 35000)
+        nem('món lẻ giá danh mục ở điểm giá riêng', lambda: cb.giu_dong_sua(si, {}, dict(item_code='M1',qty=1,rate=45000), {'M1': 35000}), cb.frappe.ValidationError)
+        nem('món lẻ giá tự gõ', lambda: cb.giu_dong_sua(si, {}, dict(item_code='M1',qty=1,rate=1), {'M1': 35000}), cb.frappe.ValidationError)
+        la('món không có giá điểm theo danh mục', cb.giu_dong_sua(si, {}, dict(item_code='M2',qty=1,rate=45000), {'M1': 35000})['rate'], 45000)
 
 
 @ca('#261 cửa lưu gọi kiểm đủ nhóm từ các dòng đã lưu trong DB')

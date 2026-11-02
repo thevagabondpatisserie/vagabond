@@ -66,7 +66,7 @@ def _khong_phi():
 def _mot_nguon():
 	s = _doc("vagabond", "ban_hang.py")
 	dung("tao_don_tay gom", re.search(r"def tao_don_tay\(.*?_pg\.gom\(rows, phi_ship\)", s, re.S) is not None)
-	dung("pos_sua gom", re.search(r"giu_dong_sua\(si, r, d\)\)\n\s*# Phi giao gom.*?_pg\.gom\(rows, 0\)", s, re.S) is not None)
+	dung("pos_sua gom", re.search(r"giu_dong_sua\(si, r, d, gia_diem_sua\)\)\n\s*# Phi giao gom.*?_pg\.gom\(rows, 0\)", s, re.S) is not None)
 	dung("không còn chỗ tự append dòng phí giao qty 1 từ phi_ship", "rows.append({\"item_code\": _item_phi_giao(), \"qty\": 1, \"rate\": flt(phi_ship)})" not in s)
 	dung("phi_giao.py không import frappe", "frappe" not in _doc("vagabond", "phi_giao.py"))
 	la("mã item khớp ban_hang", phi_giao.MA_PHI_GIAO, re.search(r'MA_PHI_GIAO = "([^"]+)"', s).group(1))

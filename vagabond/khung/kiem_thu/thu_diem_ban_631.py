@@ -178,7 +178,10 @@ def _thu_tu_may_chu():
 	dung("chặn ngay sau khi đặt giá, trước khuyến mãi", ap[0] < chan[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
 	dung("tham số mặc định tắt cho màn cũ", any(a.arg == "gia_theo_diem" for a in tao.args.args))
 	sua = _ham(src, "pos_sua_don")
-	ap2 = _dong(sua, "diem_ban.ap_gia_diem(items, None, diem_ban.gia_rieng_cua_quay(si.get('vgb_quay')), diem_ban.dong_combo_sua(items, dong_cu, DAU_COMBO))")
+	ap2 = _dong(sua, "diem_ban.ap_gia_diem(items, None, gia_diem_sua, diem_ban.dong_combo_sua(items, dong_cu, DAU_COMBO))")
+	la("giá điểm khi sửa bill đọc một lần từ quầy của bill", len(_dong(sua, "gia_diem_sua = diem_ban.gia_rieng_cua_quay(si.get('vgb_quay'))")), 1)
+	# Codex PR #532 vòng 3: món lẻ thêm mới trùng thành phần combo được kiểm theo CÙNG bảng giá điểm.
+	la("kiểm dòng combo dùng giá điểm", len(_dong(sua, "rows.append(giu_dong_sua(si, r, d, gia_diem_sua))")), 1)
 	la("một chỗ đặt giá khi sửa bill", len(ap2), 1)
 	dung("trước khi xét OTP", ap2[0] < _dong(sua, "can_otp, vi_sao = quyen_quay.can_otp(si, items, giam_gia)")[0])
 	cfg = _ham(src, "cau_hinh_ban_hang")
