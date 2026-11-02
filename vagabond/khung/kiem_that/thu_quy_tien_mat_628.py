@@ -14,7 +14,7 @@ from unittest.mock import patch
 import frappe
 from frappe.utils import add_days, flt, getdate, today
 
-from vagabond import but_toan, kenh_zalo, tep_dinh_kem
+from vagabond import but_toan, kenh_zalo, tai_chinh, tep_dinh_kem
 from vagabond import quy_tien_mat as q
 from vagabond.khung.kiem_that import nen
 from vagabond.khung.kiem_that.nen import ca, cong_ty, dung, khong_nem, la
@@ -56,6 +56,9 @@ def _quy_that():
 		patch.object(q, "_kiem_lam", lambda: None),
 		patch.object(q, "_tk_dung", lambda k: tk[k]),
 		patch.object(q, "_so_quy", lambda: (10000000.0, {"ngay_chot": str(qua), "so_du": 10000000.0})),
+		# Duyệt đọc mốc chốt quỹ (Codex #527 vòng 3): cùng mốc hôm qua với số quỹ ở trên,
+		# để ca không phụ thuộc mốc thật đang có trên site chạy bench.
+		patch.object(tai_chinh, "moc_quy", lambda: {"ngay_chot": str(qua), "so_du": 10000000.0}),
 		patch.object(q, "_tai_khoan_nh", lambda: [{"ma": ba.name, "ten": "MB kiểm 628", "tk": ba.account}]),
 		patch.object(kenh_zalo, "bao_hoac_ghi_loi", lambda *a, **k: None),
 		patch.object(tep_dinh_kem, "gan_vao", lambda *a, **k: []),
@@ -83,8 +86,11 @@ def _quy_that():
 		la("lần hai chờ duyệt, chưa bút toán", (b2["trang_thai"], frappe.db.get_value(q.DT, b2["name"], "but_toan") or ""),
 			("Chờ duyệt", ""))
 		la("lần một bị thay", frappe.db.get_value(q.DT, b1["name"], "trang_thai"), q.THAY)
+		# Người kiểm phải khác người duyệt. "nguoi" là Link -> User nên phải là User
+		# CÓ THẬT (Codex #527 vòng 3: email giả làm doc.save() trong duyệt ném lỗi
+		# liên kết). Guest luôn có trên mọi site và khác Administrator đang chạy ca.
 		for p in (b1, b2):
-			frappe.db.set_value(q.DT, p["name"], "nguoi", "nguoi-kiem-khac@vagabond.test")
+			frappe.db.set_value(q.DT, p["name"], "nguoi", "Guest")
 		with patch.object(q, "_la_giam_doc", lambda: True):
 			try:
 				q.duyet_kiem_quy(b1["name"], 1)
