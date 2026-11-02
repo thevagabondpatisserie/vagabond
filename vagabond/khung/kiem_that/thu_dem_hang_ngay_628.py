@@ -26,11 +26,20 @@ def _ton_so(ma, kho):
 	return flt(r[0][0]) if r else 0.0
 
 
-def _chay_hang_doi_dang_lai():
+def _chay_hang_doi_dang_lai(sr):
+	"""Chỉ chạy công việc đăng lại sinh từ ĐÚNG phiếu điều chỉnh của ca này (Codex #527
+	vòng 7: lọc rộng thì gọi lên công việc thật đang chờ trên site, tính lại dữ liệu quá
+	khứ). Cùng cách `_chay_repost` của quy_cach_252."""
 	from erpnext.stock.doctype.repost_item_valuation.repost_item_valuation import repost
-	for ten in frappe.get_all("Repost Item Valuation", filters={"docstatus": 1, "status": ["in", ["Queued", "In Progress"]]},
-			pluck="name"):
-		repost(frappe.get_doc("Repost Item Valuation", ten))
+	gioi_han = frappe.db.MAX_WRITES_PER_TRANSACTION
+	co = frappe.flags.get("through_repost_item_valuation")
+	try:
+		for ten in frappe.get_all("Repost Item Valuation", filters={"voucher_type": "Stock Reconciliation", "voucher_no": sr,
+				"docstatus": 1, "status": ["!=", "Completed"]}, pluck="name"):
+			repost(frappe.get_doc("Repost Item Valuation", ten))
+	finally:
+		frappe.db.MAX_WRITES_PER_TRANSACTION = gioi_han
+		frappe.flags.through_repost_item_valuation = co
 
 
 @ca("v628 Codex #527 vòng 5 thật: đếm hằng ngày 10, chốt, xuất 3, quản lý ghi sổ sau đó thì tồn còn 7")
@@ -68,6 +77,7 @@ def _ghi_dung_moc():
 		sr = frappe.get_doc("Stock Reconciliation", kq["name"])
 		la("phiếu điều chỉnh đặt đúng mốc chốt", (str(sr.posting_date), str(get_datetime("%s %s" % (sr.posting_date, sr.posting_time)).time())[:8]),
 			(moc[0], moc[1]))
-	khong_nem("chạy hàng đợi đăng lại giá trị tồn", _chay_hang_doi_dang_lai)
+	if kq.get("name"):
+		khong_nem("chạy hàng đợi đăng lại của phiếu điều chỉnh này", lambda: _chay_hang_doi_dang_lai(kq["name"]))
 	la("tồn cuối theo sổ kho giữ khoản xuất 3", _ton_so(ma, kho), 7)
 	la("tồn cuối trong Bin", _ton(ma, kho), 7)
