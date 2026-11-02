@@ -65979,8 +65979,19 @@ function qtmTinhDem(dem, soMay) {
   return { dem: tong, lech: tong - (Number(soMay) || 0) };
 }
 
-function scrQuyKiem() {
+/* Màn lập phiếu mở thẳng (thẻ bản nháp trên trang chủ sau khi tải lại app) thì
+   QTM còn null: hỏi lại máy chủ trước khi xét quyền, không thì rơi vào màn khoá
+   (Codex #527 vòng 3). Trả về false khi lỗi đã hiện. */
+async function qtmNap(td) {
+  if (QTM) return true;
+  tcDoi(td, 'Đang tính tiền trong quỹ...');
+  try { QTM = await api('vagabond.quy_tien_mat.man_quy', {}); } catch (e) { tcLoi(td, e); return false; }
+  return true;
+}
+
+async function scrQuyKiem() {
   var td = 'Kiểm quỹ';
+  if (!(await qtmNap(td))) return;
   if (!qtmLaiQuyen()) return tcKhoa(td);
   var q = QTM;
   var html = '<div class="card" style="padding:12px 13px"><b>Đếm theo mệnh giá</b>' +
@@ -66061,8 +66072,9 @@ function scrQuyKiem() {
   };
 }
 
-function scrQuyNop() {
+async function scrQuyNop() {
   var td = 'Nộp tiền mặt vào ngân hàng';
+  if (!(await qtmNap(td))) return;
   if (!qtmLaiQuyen()) return tcKhoa(td);
   var q = QTM;
   var html = '<div class="card" style="padding:12px 13px">' +
