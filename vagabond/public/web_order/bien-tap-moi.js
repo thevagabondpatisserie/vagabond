@@ -22,7 +22,7 @@
   const THE = [
     {k: 'uu_dai', ten: 'Ưu đãi', mo: 'Lấy từ ERP, chỉ xem ở đây', them: '+ Thêm ưu đãi', luu: 'Lưu ưu đãi', ten_muc: 'ưu đãi', dau: 'Danh sách ưu đãi'},
     {k: 'tiec', ten: 'Tiệc', mo: 'Tạo tiệc, đặt giá vé, số vé, hạn đăng ký', them: '+ Thêm tiệc', luu: 'Lưu tiệc', ten_muc: 'tiệc', dau: 'Danh sách tiệc'},
-    {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Lấy từ app ERP, chỉ xem ở đây', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
+    {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Lấy từ app ERP, đổi ảnh từng vị trí ở đây', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
     {k: 'cau_hoi', ten: 'Câu hỏi ứng tuyển', mo: 'Câu hỏi trong form ứng tuyển, phúc lợi chung'},
     {k: 'cua_hang', ten: 'Cửa hàng', mo: 'Địa chỉ, giờ mở cửa, hotline, chỉ đường', them: '+ Thêm cửa hàng', luu: 'Lưu cửa hàng', ten_muc: 'cửa hàng', dau: 'Danh sách cửa hàng'},
     {k: 'chu', ten: 'Trang và chữ', mo: 'Tiêu đề từng trang, khẩu hiệu, chân trang, câu nhắc'},
@@ -237,6 +237,21 @@
     return l;
   }
   function muc(so, ten) { const h = tao('h3', 'bt-muc'); h.append(tao('span', 'bt-so', String(so)), tao('span', '', ten)); return h; }
+  /* v630: MỘT chỗ tải ảnh công khai (form mục và ảnh thẻ tuyển dụng cùng gọi). */
+  async function taiAnhLen(f) {
+    if (f.size > 10 * 1024 * 1024) throw new Error('Chọn ảnh dưới 10 MB.');
+    const form = new FormData(); form.append('file', f);
+    const m2 = document.querySelector('meta[name=csrf-token]');
+    const r = await fetch('/api/method/vagabond.noi_dung_web.tai_anh', {method: 'POST', credentials: 'same-origin', headers: m2 ? {'X-Frappe-CSRF-Token': m2.content} : {}, body: form});
+    let d = {};
+    try { d = await r.json(); } catch (_) { /* phản hồi không phải JSON: dùng câu chung */ }
+    if (!r.ok || !d.message || !d.message.url) {
+      let chu = 'Không tải được ảnh. Chọn PNG, JPG hoặc WebP dưới 10 MB.';
+      try { const tb = JSON.parse(d._server_messages || '[]').map(x => JSON.parse(x).message); if (tb.length) chu = tb.join(' '); } catch (_) { /* giữ câu chung */ }
+      throw new Error(chu);
+    }
+    return d.message.url;
+  }
   function oAnh(m, xem) {
     const g = tao('div', 'bt-o'); g.append(tao('span', 'bt-nhan', 'Ảnh (không bắt buộc)'));
     const hang = tao('div', 'bt-hang-anh');
@@ -246,15 +261,9 @@
     bo.onclick = () => { m.anh = ''; anh.hidden = true; bo.hidden = true; xem(); };
     tep.onchange = async () => {
       const f = tep.files && tep.files[0]; if (!f) return;
-      if (f.size > 10 * 1024 * 1024) { bao('Chọn ảnh dưới 10 MB.', true); return; }
       khoa(true); bao('Đang tải ảnh...');
       try {
-        const form = new FormData(); form.append('file', f);
-        const m2 = document.querySelector('meta[name=csrf-token]');
-        const r = await fetch('/api/method/vagabond.noi_dung_web.tai_anh', {method: 'POST', credentials: 'same-origin', headers: m2 ? {'X-Frappe-CSRF-Token': m2.content} : {}, body: form});
-        const d = await r.json();
-        if (!r.ok || !d.message || !d.message.url) throw new Error('Không tải được ảnh. Chọn PNG, JPG hoặc WebP dưới 10 MB.');
-        m.anh = d.message.url; anh.src = m.anh; anh.hidden = false; bo.hidden = false; xem();
+        m.anh = await taiAnhLen(f); anh.src = m.anh; anh.hidden = false; bo.hidden = false; xem();
         bao('Đã tải ảnh. Bấm lưu để gắn ảnh vào trang.');
       } catch (e) { bao(e.message, true); } finally { khoa(false); }
     };
@@ -301,7 +310,7 @@
     const mo = tao('a', 'bt-nut chinh', 'Mở Tuyển dụng trên app'); mo.setAttribute('href', '/tuyen-dung'); mo.setAttribute('target', '_blank'); mo.setAttribute('rel', 'noopener');
     dau.append(mo);
     g.append(dau);
-    g.append(tao('p', 'bt-rong', 'Vị trí tuyển dụng trên web lấy thẳng từ app. Thêm, sửa hoặc bật tắt vị trí ở app: Nhân sự, Tuyển dụng. Ứng viên bấm Ứng tuyển là mở form, hồ sơ về thẳng app, không qua email.'));
+    g.append(tao('p', 'bt-rong', 'Vị trí tuyển dụng trên web lấy thẳng từ app. Thêm, sửa nội dung hoặc bật tắt vị trí ở app: Nhân sự, Tuyển dụng. Ảnh thẻ của từng vị trí đổi ngay ở đây, khách thấy liền. Ứng viên bấm Ứng tuyển là mở form, hồ sơ về thẳng app, không qua email.'));
     const hang = tao('div', 'bt-hang');
     const ds = B.tuyen_dung_erp || [];
     if (!ds.length) hang.append(tao('p', 'bt-rong', 'Chưa có vị trí nào trên app.'));
@@ -311,11 +320,42 @@
       const nhan = tao('div', 'bt-nhan-hang');
       nhan.append(tao('span', 'bt-tt ' + (k.khach_thay ? 'dang' : 'het'), k.trang_thai_erp || ''));
       trai.append(nhan, tao('h3', 'bt-ten', k.tieu_de || '(chưa đặt tên)'), tao('p', 'bt-meta', moTa(k)));
-      d.append(trai);
+      d.append(trai, anhTuyenDung(k));
       hang.append(d);
     });
     g.append(hang);
     return g;
+  }
+
+  /* v630 (Minh Vũ 02/11/2026): ảnh thẻ của từng vị trí, đổi ngay ở đây. Ảnh
+     lưu thẳng vào vị trí trên app (nguồn duy nhất), khách thấy liền. */
+  function anhTuyenDung(k) {
+    const ma = k.ma_vi_tri || k.ma;
+    const phai = tao('div', 'bt-dong-phai bt-anh-vi-tri');
+    const anh = tao('img', 'bt-anh-nho'); anh.alt = 'Ảnh thẻ ' + (k.tieu_de || ''); anh.hidden = !k.anh_the; if (k.anh_the) anh.src = k.anh_the;
+    const ghiChu = tao('span', 'bt-goi-y', k.anh_web ? 'Ảnh tải riêng cho vị trí này' : 'Ảnh tự chọn theo bộ phận');
+    ghiChu.dataset.nguonAnh = ma;
+    const tep = tao('input'); tep.type = 'file'; tep.accept = 'image/png,image/jpeg,image/webp'; tep.hidden = true; tep.dataset.tepAnh = ma;
+    const doi = tao('button', 'bt-nut nho', 'Đổi ảnh'); doi.type = 'button'; doi.dataset.doiAnh = ma;
+    doi.setAttribute('aria-label', 'Đổi ảnh thẻ của ' + (k.tieu_de || 'vị trí'));
+    doi.onclick = () => { if (!ban) tep.click(); };
+    tep.onchange = async () => {
+      const f = tep.files && tep.files[0]; if (!f || ban) return;
+      khoa(true); bao('Đang tải ảnh...');
+      let url = '';
+      try { url = await taiAnhLen(f); } catch (e) { bao(e.message, true); } finally { khoa(false); }
+      if (url && await ghi('doi_anh_tuyen_dung', {ma_vi_tri: ma, anh: url}, 'Đã đổi ảnh của ' + (k.tieu_de || 'vị trí') + '. Khách tải lại trang sẽ thấy ảnh mới.')) ve();
+    };
+    const nut = tao('div', 'bt-hang-nut'); nut.append(doi);
+    if (k.anh_web) {
+      const veTuChon = tao('button', 'bt-nut nho', 'Dùng ảnh tự chọn'); veTuChon.type = 'button'; veTuChon.dataset.anhTuChon = ma;
+      veTuChon.onclick = async () => {
+        if (await ghi('doi_anh_tuyen_dung', {ma_vi_tri: ma, anh: ''}, 'Đã trả ' + (k.tieu_de || 'vị trí') + ' về ảnh tự chọn theo bộ phận.')) ve();
+      };
+      nut.append(veTuChon);
+    }
+    phai.append(anh, ghiChu, nut, tep);
+    return phai;
   }
 
   function dsMuc(loai) {
@@ -893,7 +933,9 @@
     if (window.addEventListener) window.addEventListener('beforeunload', e => { if (dangDoi()) { e.preventDefault(); e.returnValue = ''; } });
     tai();
   }
-  window.VgbBienTapMoi = {trangThai: trangThai, moTa: moTa, batDau: batDau};
+  /* v630: bảng Nâng cao mở thẳng một thẻ (khối Tuyển dụng cũ chỉ đường sang thẻ Tuyển dụng). */
+  function moThe(k) { if (THE.some(x => x.k === k)) the = k; moNangCao(false); }
+  window.VgbBienTapMoi = {trangThai: trangThai, moTa: moTa, batDau: batDau, moThe: moThe};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', batDau);
   else if ($('bt-moi')) batDau();
 }());

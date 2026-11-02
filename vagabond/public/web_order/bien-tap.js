@@ -2,6 +2,12 @@
 (function () {
   'use strict';
   const tim = id => document.getElementById(id);
+  /* v630: loại khối lấy từ ERP, không còn thêm hay sửa ở bảng này. */
+  const LOAI_ERP = ['uu_dai', 'tuyen_dung'];
+  const LOAI_ERP_CHU = {
+    uu_dai: 'Khối Ưu đãi gõ tay này không còn ra trang khách. Ưu đãi trên web lấy thẳng từ ERP: tạo, sửa ở app, Bán hàng, Chương trình khuyến mãi, bật mục Website.',
+    tuyen_dung: 'Khối Tuyển dụng gõ tay này không còn ra trang khách. Vị trí trên web lấy thẳng từ app Nhân sự, Tuyển dụng. Ảnh thẻ của từng vị trí đổi ở thẻ Tuyển dụng của trình biên tập theo thẻ, bấm nút bên dưới.',
+  };
   const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo', hoi_dap: 'Câu hỏi thường gặp', uu_dai:'Ưu đãi', tuyen_dung:'Tuyển dụng', kenh_dat_hang:'Kênh đặt hàng', zalo_oa:'Zalo OA', nut_kenh:'Nút mở kênh đặt hàng'};
   let bang, nhap, chon = '', doi = false, ban = false, keo = '', mobile = false;
   let cacBuoc = [], buoc = -1, nhomChu = '', tuTim = '', locKhoi = '', timKhoi = '', locTrangThai = '';
@@ -228,6 +234,16 @@
       const o = tao('textarea'); o.maxLength=120; o.value=k.tieu_de; o.oninput=()=>{k.tieu_de=o.value;daDoi();}; o.onchange=danhSach;
       nhan.append(o);g.append(nhan);return;
     }
+    /* v630 (Minh Vũ 02/11/2026): khối Ưu đãi, Tuyển dụng gõ tay không còn ra trang
+       khách từ v589, v622 (ERP là nguồn duy nhất) và máy chủ giữ nguyên khi lưu.
+       Không mở ô sửa ở đây nữa, chỉ đường tới đúng chỗ sửa. */
+    if (LOAI_ERP.includes(k.loai)) {
+      g.append(tao('p', LOAI_ERP_CHU[k.loai], 'goi-y'));
+      const ve = tao('button', 'Mở thẻ ' + tenLoai[k.loai] + ' của trình biên tập theo thẻ'); ve.dataset.veThe = k.loai;
+      ve.onclick = () => { if (window.VgbBienTapMoi && window.VgbBienTapMoi.moThe) window.VgbBienTapMoi.moThe(k.loai); };
+      g.append(ve);
+      return;
+    }
     const sao = tao('button', 'Nhân bản khối'); sao.onclick = () => {
       if(k.loai==='nut_kenh'){bao('Chỉ có một nút mở kênh. Sửa logo của nút này.',true);return;}
       if (ban || nhap.khoi.length >= toiDaKhoi()) { bao('Tối đa ' + toiDaKhoi() + ' khối. Tái sử dụng một khối đang ẩn.', true); return; }
@@ -236,7 +252,7 @@
     }; g.append(sao);
     g.append(tao('p', 'Loại khối · có thể đổi để tái sử dụng khối cũ', 'goi-y'));
     const cacLoai = tao('div', '', 'them-khoi');
-    Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { if(ma==='nut_kenh'&&nhap.khoi.some(x=>x!==k&&x.loai===ma)){bao('Nút mở kênh đã có. Chọn nút đó trong danh sách để sửa.',true);return;} k.loai = ma; if(['uu_dai','tuyen_dung'].includes(ma))k.vi_tri=ma;else if(['uu_dai','tuyen_dung'].includes(k.vi_tri))k.vi_tri='cuoi_trang'; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
+    Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc' && !LOAI_ERP.includes(ma)).forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { if(ma==='nut_kenh'&&nhap.khoi.some(x=>x!==k&&x.loai===ma)){bao('Nút mở kênh đã có. Chọn nút đó trong danh sách để sửa.',true);return;} k.loai = ma; if(['uu_dai','tuyen_dung'].includes(ma))k.vi_tri=ma;else if(['uu_dai','tuyen_dung'].includes(k.vi_tri))k.vi_tri='cuoi_trang'; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
     g.append(cacLoai);
     if (['uu_dai','tuyen_dung'].includes(k.loai)) { g.append(tao('p', 'Hiển thị tại trang '+tenLoai[k.loai]+'. Ảnh bên dưới có thể thay bất cứ lúc nào. Ngày tính theo giờ Việt Nam.', 'goi-y')); }
     if(['kenh_dat_hang','zalo_oa','nut_kenh'].includes(k.loai))g.append(tao('p', k.loai==='nut_kenh'?'Logo trên nút nổi mở danh sách ứng dụng. Tên dùng cho trình đọc màn hình; tắt hiển thị để ẩn nút và danh sách.':k.loai==='zalo_oa'?'Nút Zalo riêng. Có thể thay logo, tên và đường dẫn OA.':'Thay logo, tên và đường dẫn ứng dụng. Dùng mũi tên ở danh sách khối để đổi thứ tự; tắt hiển thị để ẩn kênh.', 'goi-y'));
@@ -302,13 +318,13 @@
       try { sessionStorage.removeItem(khoaPhucHoi); } catch (_) {} tim('phuc-hoi').hidden = true; nhanBang(d); bao(hanhDong === 'xuat_ban' ? 'Đã xuất bản. Khách tải lại website sẽ thấy nội dung mới.' : 'Đã lưu nháp. Website đang giữ bản đã xuất bản.');
     } catch (e) { bao(e.message, true); } finally { khoa(false); }
   }
-  Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
+  Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc' && !LOAI_ERP.includes(ma)).forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
     if (!nhap || ban) return; if(ma==='nut_kenh'&&nhap.khoi.some(k=>k.loai===ma)){chon=nhap.khoi.find(k=>k.loai===ma).id;thuocTinh();bao('Đã chọn nút mở kênh hiện có.');return;} if (nhap.khoi.length >= toiDaKhoi()) { bao('Đã có ' + toiDaKhoi() + ' khối. Chọn khối cũ, đổi loại và nội dung để tái sử dụng.', true); return; }
     const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: !['uu_dai','tuyen_dung','kenh_dat_hang','zalo_oa','nut_kenh'].includes(ma), vi_tri: ['uu_dai','tuyen_dung'].includes(ma)?ma:'cuoi_trang', nhan: '', tieu_de: ten, noi_dung: '', anh: ma==='tuyen_dung'?'/assets/vagabond/web_order/tay-lam-banh-minh-hoa.jpg':'', mo_ta_anh: ma==='tuyen_dung'?'Ảnh minh hoạ tay làm bánh':'', nut: '', lien_ket: ''};
     nhap.khoi.push(k); chon = k.id; daDoi(); danhSach(); thuocTinh();
   }; tim('them-khoi').append(b); });
   const loc = tao('div','','them-khoi');
-  [['','Tất cả'],['uu_dai','Ưu đãi'],['tuyen_dung','Tuyển dụng']].forEach(([ma,ten])=>{const b=tao('button',ten);b.onclick=()=>{locKhoi=ma;locTrangThai='';loc.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));danhSach();};loc.append(b);});
+  [['','Tất cả'],['uu_dai','Ưu đãi cũ'],['tuyen_dung','Tuyển dụng cũ']].forEach(([ma,ten])=>{const b=tao('button',ten);b.onclick=()=>{locKhoi=ma;locTrangThai='';loc.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));danhSach();};loc.append(b);});
   const timK=tao('input');timK.placeholder='Tìm tiêu đề, mã ưu đãi, nơi làm';timK.setAttribute('aria-label',timK.placeholder);timK.oninput=()=>{timKhoi=timK.value.toLocaleLowerCase('vi');danhSach();};
   const locTT=tao('div','','loc-trang-thai');locTT.id='loc-trang-thai';tim('danh-sach').before(loc,timK,locTT);
   function kiemBanPhucHoi() {

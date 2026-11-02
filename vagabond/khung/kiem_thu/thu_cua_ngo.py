@@ -45,7 +45,9 @@ CUA_NGO = {
 	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap",
 		"bang_moi", "luu_muc", "xoa_muc_web", "luu_thong_tin", "luu_lien_he", "luu_nhan",
 		# v625: câu hỏi ứng tuyển (Marketing sửa, kiem_quyen như các hàm lưu khác).
-		"luu_form_tuyen_dung"],
+		"luu_form_tuyen_dung",
+		# v630: Marketing đổi ảnh thẻ một vị trí tuyển dụng (kiem_quyen Marketing).
+		"doi_anh_tuyen_dung"],
 	"tiec_web.py": ["dang_ky"],
 	# v611: đặt bàn web. cau_hinh và gửi yêu cầu mở cho khách; năm hàm của màn
 	# Thông tin đặt bàn chặn quyền ở máy chủ (QUYEN_DAT_BAN).
@@ -56,7 +58,9 @@ CUA_NGO = {
 		"them_ho_so", "cap_nhat", "cham", "ghi_cong_thu", "ghi_lien_he",
 		# v625: tai_cv mở cho khách vãng lai (tải CV trước khi gửi, có trần lượt);
 		# năm hàm AI và tệp CV chặn quyền QUYEN_TUYEN_DUNG ở máy chủ (_uv_xem).
-		"tai_cv", "xem_cv", "anh_ung_vien", "ho_so_ai", "cham_lai", "tai_cv_app"],
+		"tai_cv", "xem_cv", "anh_ung_vien", "ho_so_ai", "cham_lai", "tai_cv_app",
+		# v630: tải ảnh thẻ web ở màn sửa vị trí, chặn quyền QUYEN_TUYEN_DUNG.
+		"tai_anh_web"],
 	# v617 Zalo OA: nhan_su_kien là điểm nhận sự kiện của Zalo (allow_guest, tự xác
 	# thực bằng chữ ký X-ZEvent-Signature); hai hàm gửi chặn vai CRM_LAP ở máy chủ.
 	"zalo_oa.py": ["nhan_su_kien", "gui_thu_oa", "gui_chien_dich_oa"],

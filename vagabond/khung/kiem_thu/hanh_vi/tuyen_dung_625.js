@@ -38,7 +38,9 @@ var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop'].map(function (t) { retu
   .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi'].map(function (t) { return layHam(KHUON, t); }))
   .concat(['var scanBarcode = function () { return Promise.resolve(null); };',
     'var inQrAnh = function (s) { QR.push(s); return Promise.resolve("data:image/png;base64,AA"); };'])
-  .concat([layHam(KM, 'kmHangChip'), layHam(KHO, 'errMsg')]).join('\n');
+  .concat([layHam(KM, 'kmHangChip'), layHam(KHO, 'errMsg')])
+  /* v630: hộp tải ảnh dùng chung với màn khuyến mãi, nạp THẬT. */
+  .concat([layHam(KM, 'kmChonAnhWeb'), layHam(KM, 'vgbLoiTaiAnh')]).join('\n');
 
 var HOM = '2026-10-30';
 function duLieu() {
@@ -87,10 +89,12 @@ function duLieu() {
 }
 var THEM_HS = [];
 var SUA_DL = null;
+var SUA_DL0 = null;
 var QL = ['VGB - Quản lý cửa hàng'];
 var QUAY = ['Sales User'];
 var QR = [];
 var HO_SO_AI = null;
+var TAI_ANH = { ok: true, j: { message: { url: '/files/web-thu-ngan.png' } } };
 
 function dungMoi(vai, loi) {
   var tai = dg.taiLieuGia();
@@ -113,6 +117,13 @@ function dungMoi(vai, loi) {
     back: function () { dieuHuong.push('back'); },
     busy: function () {},
     toast: function (m) { toastDs.push(m); },
+    /* v630: máy chủ tải ảnh giả. TAI_ANH là phản hồi kế tiếp. */
+    baoTinDs: [], baoTin: function (m) { that.baoTinDs.push(m); },
+    frappe: { csrf_token: 'csrf' },
+    FormData: function () { this.ds = []; this.append = function (k, v) { this.ds.push(k); }; },
+    taiAnhGoi: [],
+    fetch: function (u, cau) { that.taiAnhGoi.push({ u: u, ds: cau.body.ds }); var t = TAI_ANH;
+      return Promise.resolve({ ok: t.ok, json: function () { return Promise.resolve(t.j); } }); },
     bangChon: [],
     sheet: function (t, ds, cur, chon, tim) { that.bangChon.push({ t: t, ds: ds, cur: cur, chon: chon, tim: tim }); },
     confirmSheet: function (t, m) { hoi.push(t + '|' + m); return Promise.resolve(true); },
@@ -286,6 +297,78 @@ function ai(r, k) { return Object.assign(r, k); }
     await luu.onclick(); await tick();
     var d = JSON.parse(goiTen(m, 'luu_vi_tri')[0].ts.du_lieu);
     bang('gửi hai ô mới', [d.tuyen_gap, d.anh_web], [1, '/assets/vagabond/images/quay-sales.jpg']);
+  });
+
+
+  /* v630 (Minh Vũ 02/11/2026): "trang up thông tin tuyển dụng cũng không có cho tải ảnh lên". */
+  function hopTep(m) { return m.tai.body.children.filter(function (x) { return x.type === 'file'; }).pop(); }
+  await ca('v630 Sửa vị trí: Tải ảnh lên qua cửa Tuyển dụng, ảnh vừa tải thành thẻ Ảnh đã tải lên đang chọn, Lưu gửi đúng ảnh', async function () {
+    var m = await mo();
+    vm.runInNewContext('tdKq = null;', m.g);
+    await m.g.scrTdViTri('VTT-0001'); await tick();
+    var tai = m.khung.querySelectorAll('[data-tdtaianhweb]');
+    bang('có ô Tải ảnh lên', [tai.length, chu(tai[0]).indexOf('Tải ảnh lên') >= 0], [1, true]);
+    bam(tai[0]); await tick();
+    var tep = hopTep(m);
+    dung('mở hộp chọn tệp ảnh', tep && tep.accept === 'image/png,image/jpeg,image/webp');
+    tep.files = [{ name: 'thu-ngan.png' }];
+    await tep.onchange(); await tick();
+    bang('tải qua cửa Tuyển dụng', m.g.taiAnhGoi.map(function (x) { return x.u; }), ['/api/method/vagabond.tuyen_dung.tai_anh_web']);
+    var anh = m.khung.querySelectorAll('[data-tdanhweb]');
+    bang('thêm thẻ ảnh vừa tải, đứng sau Tự chọn', anh.map(function (x) { return x.getAttribute('data-tdanhweb'); }).slice(0, 2), ['', '/files/web-thu-ngan.png']);
+    bang('ảnh vừa tải đang chọn', anh.map(function (x) { return x.getAttribute('aria-pressed'); }), ['false', 'true', 'false', 'false']);
+    dung('thẻ có tên và dòng giải thích', chu(anh[1]).indexOf('Ảnh đã tải lên') >= 0 && chu(anh[1]).indexOf('Ảnh riêng của vị trí này') >= 0);
+    dung('ô tải đổi chữ', chu(m.khung.querySelectorAll('[data-tdtaianhweb]')[0]).indexOf('Tải ảnh khác') >= 0);
+    dung('nhắc bấm Lưu vị trí: ' + m.toast.join('|'), m.toast.indexOf('Đã tải ảnh, bấm Lưu vị trí để web hiện ảnh này') >= 0);
+    /* Codex #528: chữ trong mọi ô ảnh (cả ô tải) ít nhất 13 điểm, AGENTS.md 2b.13. */
+    var o = m.khung.querySelectorAll('[data-tdanhweb]').concat(m.khung.querySelectorAll('[data-tdtaianhweb]'));
+    var nho = [];
+    o.forEach(function (x) { (x.children || []).forEach(function (c) { var mm = /font-size:([\d.]+)px/.exec(c.getAttribute('style') || ''); if (mm && +mm[1] < 13) nho.push(+mm[1]); }); });
+    bang('không chữ nào dưới 13 điểm trong ' + o.length + ' ô ảnh', nho, []);
+    dung('có đủ ô để đo', o.length === 5);
+    await m.khung.querySelectorAll('#tdLuuVt')[0].onclick(); await tick();
+    bang('lưu gửi ảnh vừa tải', JSON.parse(goiTen(m, 'luu_vi_tri')[0].ts.du_lieu).anh_web, '/files/web-thu-ngan.png');
+  });
+
+  await ca('v630 Sửa vị trí đã có ảnh tải riêng: thấy ảnh đó đang chọn (trước đây không ô nào sáng), bấm Tự chọn thì bỏ', async function () {
+    SUA_DL0 = SUA_DL;
+    SUA_DL = function (dl) { SUA_DL0(dl); dl.vi_tri[0].anh_web = '/files/web-cu.jpg'; };
+    try {
+      var m = await mo();
+      vm.runInNewContext('tdKq = null;', m.g);
+      await m.g.scrTdViTri('VTT-0001'); await tick();
+      var anh = m.khung.querySelectorAll('[data-tdanhweb]');
+      bang('ảnh riêng đang chọn', anh.map(function (x) { return [x.getAttribute('data-tdanhweb'), x.getAttribute('aria-pressed')]; }).filter(function (x) { return x[1] === 'true'; }), [['/files/web-cu.jpg', 'true']]);
+      bam(anh[0]); await tick();
+      await m.khung.querySelectorAll('#tdLuuVt')[0].onclick(); await tick();
+      bang('bỏ ảnh riêng', JSON.parse(goiTen(m, 'luu_vi_tri')[0].ts.du_lieu).anh_web, '');
+    } finally { SUA_DL = SUA_DL0; }
+  });
+
+  await ca('v630 Tải ảnh hỏng: báo đúng câu máy chủ, ảnh đang chọn giữ nguyên; màn khuyến mãi vẫn tải qua upload_file như cũ', async function () {
+    var m = await mo();
+    vm.runInNewContext('tdKq = null;', m.g);
+    await m.g.scrTdViTri('VTT-0001'); await tick();
+    TAI_ANH = { ok: false, j: { exc: 'x', _server_messages: JSON.stringify([JSON.stringify({ message: 'Ảnh lớn hơn 10 MB. Thu nhỏ ảnh rồi tải lại.' })]) } };
+    try {
+      bam(m.khung.querySelectorAll('[data-tdtaianhweb]')[0]); await tick();
+      var tep = hopTep(m); tep.files = [{ name: 'to.png' }];
+      await tep.onchange(); await tick();
+    } finally { TAI_ANH = { ok: true, j: { message: { url: '/files/web-thu-ngan.png' } } }; }
+    bang('báo câu máy chủ', m.g.baoTinDs, ['Ảnh lớn hơn 10 MB. Thu nhỏ ảnh rồi tải lại.']);
+    bang('vẫn chọn Tự chọn', m.khung.querySelectorAll('[data-tdanhweb]').map(function (x) { return x.getAttribute('aria-pressed'); })[0], 'true');
+    /* Màn khuyến mãi gọi không kèm tuỳ chọn: đi upload_file, đọc file_url, câu nhắc cũ. */
+    TAI_ANH = { ok: true, j: { message: { file_url: '/files/km.png' } } };
+    var duoc = [];
+    try {
+      m.g.kmChonAnhWeb(function (u) { duoc.push(u); });
+      var t2 = hopTep(m); t2.files = [{ name: 'km.png' }];
+      await t2.onchange(); await tick();
+    } finally { TAI_ANH = { ok: true, j: { message: { url: '/files/web-thu-ngan.png' } } }; }
+    bang('khuyến mãi qua upload_file', m.g.taiAnhGoi.slice(-1)[0].u, '/api/method/upload_file');
+    bang('khuyến mãi gửi is_private 0', m.g.taiAnhGoi.slice(-1)[0].ds.indexOf('is_private') >= 0, true);
+    bang('khuyến mãi nhận file_url', duoc, ['/files/km.png']);
+    dung('câu nhắc khuyến mãi giữ nguyên', m.toast.indexOf('Đã chọn ảnh, bấm Lưu chương trình để áp dụng') >= 0);
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');

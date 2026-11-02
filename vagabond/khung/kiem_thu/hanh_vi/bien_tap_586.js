@@ -63,8 +63,11 @@ function duLieu() {
     /* v622: vị trí tuyển dụng lấy từ app (tuyen_dung.ds_web_bien_tap). Hai mục
        td1, td2 gõ tay ở trên vẫn nằm trong dữ liệu cũ nhưng thẻ không còn hiện. */
     tuyen_dung_erp: [
-      { id: 'erp-td-VTT-0001', ma_vi_tri: 'VTT-0001', loai: 'tuyen_dung', tieu_de: 'Thu ngân ca tối', noi_lam: 'The Vagabond District 1', hinh_thuc: 'Bán thời gian', ket_thuc: '', khach_thay: 1, trang_thai_erp: 'Khách đang thấy' },
-      { id: 'erp-td-VTT-0002', ma_vi_tri: 'VTT-0002', loai: 'tuyen_dung', tieu_de: 'Phụ bếp Pastry', noi_lam: '', hinh_thuc: 'Toàn thời gian', ket_thuc: '2026-10-31', khach_thay: 0, trang_thai_erp: 'Đang tắt trên app, khách không thấy' },
+      /* v630: anh_the là ảnh khách thấy, anh_web là ảnh đã chọn (trống: tự chọn theo bộ phận). */
+      { id: 'erp-td-VTT-0001', ma_vi_tri: 'VTT-0001', loai: 'tuyen_dung', tieu_de: 'Thu ngân ca tối', noi_lam: 'The Vagabond District 1', hinh_thuc: 'Bán thời gian', ket_thuc: '', khach_thay: 1, trang_thai_erp: 'Khách đang thấy',
+        anh_the: '/assets/vagabond/images/quay-sales.jpg', anh_web: '' },
+      { id: 'erp-td-VTT-0002', ma_vi_tri: 'VTT-0002', loai: 'tuyen_dung', tieu_de: 'Phụ bếp Pastry', noi_lam: '', hinh_thuc: 'Toàn thời gian', ket_thuc: '2026-10-31', khach_thay: 0, trang_thai_erp: 'Đang tắt trên app, khách không thấy',
+        anh_the: '/files/web-pastry.jpg', anh_web: '/files/web-pastry.jpg' },
     ],
   };
   khoi.forEach(function (k) { B.dau[k.id] = dau(k); });
@@ -83,7 +86,8 @@ function appMoi(tuy) {
   function loi(chu) { return Promise.resolve({ ok: false, status: 417, json: function () { return Promise.resolve({ exc: 'x', _server_messages: JSON.stringify([JSON.stringify({ message: chu })]) }); } }); }
   function fetchGia(url, cau) {
     var ham = String(url).split('.').pop();
-    var a = cau && cau.body ? JSON.parse(cau.body) : null;
+    /* v630: ảnh gửi bằng FormData (tai_anh), các hàm lưu gửi JSON. */
+    var a = cau && cau.body ? (typeof cau.body === 'string' ? JSON.parse(cau.body) : cau.body) : null;
     goi.push({ ham: ham, a: a });
     if (tuy.loi && tuy.loi[ham]) return loi(tuy.loi[ham]);
     if (ham === 'bang_moi') return tra(JSON.parse(JSON.stringify(B)));
@@ -91,6 +95,11 @@ function appMoi(tuy) {
       var i = B.khoi.findIndex(function (k) { return k.id === a.muc.id; });
       if (i >= 0) B.khoi[i] = a.muc; else B.khoi.unshift(a.muc);
       B.dau[a.muc.id] = dau(a.muc);
+      return tra(JSON.parse(JSON.stringify(B)));
+    }
+    if (ham === 'tai_anh') return tra({ url: '/files/web-moi.png' });
+    if (ham === 'doi_anh_tuyen_dung') {
+      B.tuyen_dung_erp.forEach(function (v) { if (v.ma_vi_tri === a.ma_vi_tri) { v.anh_web = a.anh; v.anh_the = a.anh || '/assets/vagabond/images/quay-sales.jpg'; } });
       return tra(JSON.parse(JSON.stringify(B)));
     }
     if (ham === 'xoa_muc_web') { B.khoi = B.khoi.filter(function (k) { return k.id !== a.id_muc; }); return tra(JSON.parse(JSON.stringify(B))); }
@@ -107,7 +116,8 @@ function appMoi(tuy) {
     querySelectorAll: function (c) { return tl.querySelectorAll(c); },
   };
   var g = { console: console, JSON: JSON, Math: Math, Number: Number, String: String, Object: Object, Array: Array, Promise: Promise, Error: Error,
-    RegExp: RegExp, Date: Date, Intl: Intl, Set: Set, parseInt: parseInt, encodeURIComponent: encodeURIComponent, document: docu, fetch: fetchGia };
+    RegExp: RegExp, Date: Date, Intl: Intl, Set: Set, parseInt: parseInt, encodeURIComponent: encodeURIComponent, document: docu, fetch: fetchGia,
+    FormData: function () { this.tep = []; this.append = function (k, v) { this.tep.push([k, v && v.name]); }; } };
   g.window = g;
   vm.createContext(g);
   vm.runInContext(doc('chuyen-muc.js'), g, { filename: 'chuyen-muc.js' });
@@ -414,7 +424,7 @@ function appMoi(tuy) {
   });
 
   /* ---------------- Nang cao (bien-tap.js): tran so khoi do may chu quyet (Codex #454) ---------------- */
-  function nangCao(soKhoi, toiDa) {
+  function nangCao(soKhoi, toiDa, themKhoi) {
     // DOM gia thieu vai API ma bien-tap.js dung luc dung bang; bu toi thieu.
     var EP = dg.ElementGia.prototype;
     if (!EP.before) EP.before = function () { var p = this.parentNode, me = this; [].slice.call(arguments).forEach(function (n) { p.insertBefore(n, me); }); };
@@ -430,6 +440,7 @@ function appMoi(tuy) {
     tl.getElementById('preview').contentWindow = { postMessage: function () {} };
     var khoi = [];
     for (var i = 0; i < soKhoi; i++) khoi.push({ id: 'k' + i, loai: 'thong_bao', hien: true, vi_tri: 'cuoi_trang', tieu_de: 'K' + i, noi_dung: '', nhan: '', anh: '', mo_ta_anh: '', nut: '', lien_ket: '' });
+    (themKhoi || []).forEach(function (k) { khoi.push(k); });
     var nd = { khoi: khoi, nhan: {}, chinh_sach: {} };
     var B = { nhap: nd, cong_khai: nd, phien_ban: 1, lich_su: [], nhan_mau: {}, so_khoi_toi_da: toiDa };
     var g = { console: console, JSON: JSON, Math: Math, Number: Number, String: String, Object: Object, Array: Array, Promise: Promise, Error: Error,
@@ -446,7 +457,7 @@ function appMoi(tuy) {
     vm.createContext(g);
     vm.runInContext(doc('khoi.js'), g, { filename: 'khoi.js' });
     vm.runInContext(doc('bien-tap.js'), g, { filename: 'bien-tap.js' });
-    return { tl: tl,
+    return { tl: tl, g: g,
       them: async function (ten) { await nghi(); var b = [].slice.call(tl.getElementById('them-khoi').children).filter(function (x) { return String(x.textContent).indexOf(ten) >= 0; })[0]; b.onclick(); await nghi(); },
       so: function () { return String(tl.getElementById('so-khoi').textContent); },
       bao: function () { return String(tl.getElementById('trang-thai').textContent); } };
@@ -463,6 +474,90 @@ function appMoi(tuy) {
     await n.them('Thông báo');
     bang('khong them', n.so(), '12');
     dung('cau bao dung tran', n.bao().indexOf('Đã có 12 khối') >= 0);
+  });
+
+
+  /* v630 (Minh Vũ 02/11/2026): thẻ Tuyển dụng không còn chỉ xem, đổi được ảnh
+     từng vị trí. Bấm đúng chuỗi của Minh Vũ: Đổi ảnh, chọn tệp, máy tải rồi ghi. */
+  await ca('v630 the Tuyen dung: moi vi tri co anh khach dang thay, ghi chu nguon anh, nut Doi anh; Dung anh tu chon chi hien khi da tai rieng', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('tuyen_dung');
+    var v1 = app.mot('[data-muc-erp="VTT-0001"]'), v2 = app.mot('[data-muc-erp="VTT-0002"]');
+    bang('anh dang dung', [v1.querySelector('img').src, v2.querySelector('img').src], ['/assets/vagabond/images/quay-sales.jpg', '/files/web-pastry.jpg']);
+    bang('ghi chu nguon anh', [String(app.mot('[data-nguon-anh="VTT-0001"]').textContent), String(app.mot('[data-nguon-anh="VTT-0002"]').textContent)],
+      ['Ảnh tự chọn theo bộ phận', 'Ảnh tải riêng cho vị trí này']);
+    bang('nut Doi anh moi vi tri', app.tim('[data-doi-anh]').length, 2);
+    bang('Dung anh tu chon chi o vi tri da tai rieng', app.tim('[data-anh-tu-chon]').map(function (b) { return b.dataset.anhTuChon; }), ['VTT-0002']);
+    bang('van khong co them, sua noi dung, xoa', [app.tim('[data-them="tuyen_dung"]').length, app.tim('[data-sua]').length, app.tim('[data-xoa]').length], [0, 0, 0]);
+  });
+
+  await ca('v630 Doi anh: bam nut mo chon tep, chon xong tai anh roi ghi vao dung vi tri, the ve lai anh moi', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('tuyen_dung');
+    var tep = app.mot('[data-tep-anh="VTT-0001"]'), mo = 0;
+    tep.click = function () { mo++; };
+    await app.bam(app.mot('[data-doi-anh="VTT-0001"]'));
+    bang('mo hop chon tep', mo, 1);
+    tep.files = [{ name: 'quay-moi.png', size: 300000 }];
+    await tep.onchange(); await nghi();
+    bang('tai roi ghi, dung thu tu', app.goi.map(function (x) { return x.ham; }).slice(-2), ['tai_anh', 'doi_anh_tuyen_dung']);
+    bang('ghi dung vi tri va anh vua tai', app.cuoi('doi_anh_tuyen_dung'), { ma_vi_tri: 'VTT-0001', anh: '/files/web-moi.png' });
+    bang('the ve lai anh moi', app.mot('[data-muc-erp="VTT-0001"]').querySelector('img').src, '/files/web-moi.png');
+    bang('ghi chu doi theo', String(app.mot('[data-nguon-anh="VTT-0001"]').textContent), 'Ảnh tải riêng cho vị trí này');
+    dung('bao da doi: ' + app.bao(), app.bao().indexOf('Đã đổi ảnh của Thu ngân ca tối') === 0);
+  });
+
+  await ca('v630 Doi anh: tai anh hong thi khong ghi vi tri, bao loi may chu; anh qua 10 MB chan ngay tai may', async function () {
+    var app = appMoi({ loi: { tai_anh: 'Không đọc được ảnh. Chọn ảnh PNG, JPG hoặc WebP dưới 25 triệu điểm ảnh.' } }); await nghi();
+    await app.the('tuyen_dung');
+    var tep = app.mot('[data-tep-anh="VTT-0001"]');
+    tep.files = [{ name: 'x.png', size: 1000 }];
+    await tep.onchange(); await nghi();
+    bang('khong ghi vi tri', app.dem('doi_anh_tuyen_dung'), 0);
+    dung('cau loi may chu: ' + app.bao(), app.bao().indexOf('Không đọc được ảnh') === 0);
+    var truoc = app.dem('tai_anh');
+    tep = app.mot('[data-tep-anh="VTT-0001"]');
+    tep.files = [{ name: 'to.png', size: 11 * 1024 * 1024 }];
+    await tep.onchange(); await nghi();
+    bang('qua 10 MB khong gui', [app.dem('tai_anh') - truoc, app.dem('doi_anh_tuyen_dung')], [0, 0]);
+    dung('bao chon anh nho hon', app.bao().indexOf('Chọn ảnh dưới 10 MB') === 0);
+  });
+
+  await ca('v630 Dung anh tu chon: ghi anh trong, the ve ve anh theo bo phan; may chu tu choi thi giu nguyen va bao', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('tuyen_dung');
+    await app.bam(app.mot('[data-anh-tu-chon="VTT-0002"]'));
+    bang('ghi anh trong', app.cuoi('doi_anh_tuyen_dung'), { ma_vi_tri: 'VTT-0002', anh: '' });
+    bang('het nut Dung anh tu chon', app.tim('[data-anh-tu-chon]').length, 0);
+    bang('ghi chu ve tu chon', String(app.mot('[data-nguon-anh="VTT-0002"]').textContent), 'Ảnh tự chọn theo bộ phận');
+    var app2 = appMoi({ loi: { doi_anh_tuyen_dung: 'Bạn cần quyền Marketing để chỉnh nội dung website.' } }); await nghi();
+    await app2.the('tuyen_dung');
+    await app2.bam(app2.mot('[data-anh-tu-chon="VTT-0002"]'));
+    dung('bao loi quyen', app2.bao().indexOf('quyền Marketing') >= 0);
+    bang('giu anh cu', app2.mot('[data-muc-erp="VTT-0002"]').querySelector('img').src, '/files/web-pastry.jpg');
+  });
+
+  await ca('v630 Nang cao: khoi Tuyen dung, Uu dai go tay chi con cau chi duong, khong o sua; khong them moi duoc; nut mo dung the', async function () {
+    var n = nangCao(1, 80, [
+      { id: 'td-cu', loai: 'tuyen_dung', vi_tri: 'tuyen_dung', hien: true, tieu_de: 'Thợ bánh cũ', noi_dung: '', nhan: '', anh: '/files/cu.jpg', mo_ta_anh: '', nut: '', lien_ket: '' },
+      { id: 'ud-cu', loai: 'uu_dai', vi_tri: 'uu_dai', hien: true, tieu_de: 'Giảm cũ', noi_dung: '', nhan: '', anh: '', mo_ta_anh: '', nut: '', lien_ket: '' }]);
+    await nghi();
+    var moThe = [];
+    n.g.VgbBienTapMoi = { moThe: function (k) { moThe.push(k); } };
+    var chonKhoi = function (ten) { return n.tl.getElementById('danh-sach').querySelectorAll('.chon-khoi').filter(function (b) { return String(b.textContent).indexOf(ten) >= 0; })[0]; };
+    chonKhoi('Thợ bánh cũ').onclick(); await nghi();
+    var tt = n.tl.getElementById('thuoc-tinh');
+    dung('cau chi duong tuyen dung', String(tt.textContent).indexOf('không còn ra trang khách') >= 0 && String(tt.textContent).indexOf('thẻ Tuyển dụng') >= 0);
+    bang('khong con o sua nao', [tt.querySelectorAll('input').length, tt.querySelectorAll('textarea').length], [0, 0]);
+    tt.querySelectorAll('[data-ve-the]')[0].onclick();
+    bang('mo dung the Tuyen dung', moThe, ['tuyen_dung']);
+    chonKhoi('Giảm cũ').onclick(); await nghi();
+    tt = n.tl.getElementById('thuoc-tinh');
+    dung('cau chi duong uu dai', String(tt.textContent).indexOf('Chương trình khuyến mãi') >= 0);
+    bang('khong o sua uu dai', tt.querySelectorAll('input').length, 0);
+    var them = [].slice.call(n.tl.getElementById('them-khoi').children).map(function (b) { return String(b.textContent); });
+    bang('khong con nut them Uu dai, Tuyen dung', them.filter(function (t) { return t === '+ Ưu đãi' || t === '+ Tuyển dụng'; }), []);
+    dung('van them duoc Thong bao', them.indexOf('+ Thông báo') >= 0);
   });
 
   console.log('Bo ca kiem HANH VI v586: trinh bien tap theo the va the Tiec');

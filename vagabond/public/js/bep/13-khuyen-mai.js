@@ -1148,7 +1148,19 @@ function kmHtmlVi(k) {
     'Ai nhận: theo mục Đối tượng khách ở trên. Mã chỉ dùng cho chính người nhận, thu ngân áp như mã quà chào mừng. ' +
     'Tin Zalo cùng chương trình gửi lại đúng mã trong ví, không phát mã thứ hai.</div>';
 }
-function kmChonAnhWeb(xong) {
+/* v630: câu lỗi máy chủ gửi kèm (ảnh quá lớn, sai định dạng) thay cho câu chung. */
+function vgbLoiTaiAnh(j) {
+  try {
+    var ds = JSON.parse((j && j._server_messages) || '[]');
+    var m = ds.length ? JSON.parse(ds[0]).message : '';
+    if (m) return String(m).replace(/<[^>]*>/g, '');
+  } catch (e) { /* bỏ qua, dùng câu chung */ }
+  return 'Không tải được ảnh lên. Chọn ảnh PNG, JPG hoặc WebP dưới 10 MB.';
+}
+/* v630: dùng chung cho ảnh ưu đãi và ảnh thẻ tuyển dụng. tuy.duong là cửa tải
+   riêng (mặc định upload_file của Frappe), tuy.bao là câu báo sau khi tải. */
+function kmChonAnhWeb(xong, tuy) {
+  tuy = tuy || {};
   var inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/png,image/jpeg,image/webp';
   inp.onchange = async function () {
@@ -1164,12 +1176,13 @@ function kmChonAnhWeb(xong) {
       fd.append('folder', 'Home');
       var hd = {};
       hd['X-Frappe-' + 'CSRF-' + 'Token'] = frappe.csrf_token;
-      var r = await fetch('/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
+      var r = await fetch(tuy.duong || '/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
       var j = await r.json();
-      if (!r.ok || !j.message || !j.message.file_url) throw new Error('Không tải được ảnh lên');
+      var url = j && j.message ? (j.message.file_url || j.message.url) : '';
+      if (!r.ok || !url) throw new Error(vgbLoiTaiAnh(j));
       busy(false);
-      xong(j.message.file_url);
-      toast('Đã chọn ảnh, bấm Lưu chương trình để áp dụng');
+      xong(url);
+      toast(tuy.bao || 'Đã chọn ảnh, bấm Lưu chương trình để áp dụng');
     } catch (e) {
       busy(false);
       baoTin((e && e.message) || 'Không tải được ảnh lên');
