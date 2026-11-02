@@ -520,13 +520,14 @@ def _mo_phieu_that():
 		vet.append(q.split()[0] + (" for update" if "for update" in q else ""))
 		return []
 	co = {"p": {"name": "PKK-9", "so_mon": 10}}
-	g = dict(frappe=NS(db=NS(sql=sql), throw=_fr.throw), _duoc_dem=lambda: None, la_kho_bep_dem=kk.la_kho_bep_dem,
+	g = dict(frappe=NS(db=NS(sql=sql, commit=lambda: vet.append("commit")), throw=_fr.throw), _duoc_dem=lambda: None,
+		la_kho_bep_dem=kk.la_kho_bep_dem,
 		kho_bep=lambda: ["Pastry - Nguyên liệu - TV"], nowdate=lambda: "2026-11-02", cint=lambda x: int(x or 0),
 		_phieu_hom_nay=lambda k, n: co["p"], tao_phieu_hom_nay=lambda k, n: {"ok": 1, "name": "MOI", "so_mon": n},
 		MOI_NGAY_BEP=10)
 	mo = nap("kiem_ke.py", "mo_phieu_hom_nay", g)
 	la("mở lại phiếu có sẵn", mo("Pastry - Nguyên liệu - TV")["name"], "PKK-9")
-	la("khoá trước khi đọc", vet, ["select for update"])
+	la("kết thúc giao dịch đọc, khoá rồi mới đọc phiếu", vet, ["commit", "select for update"])
 	co["p"] = None
 	la("chưa có thì tạo 10 món", mo("Pastry - Nguyên liệu - TV"), {"ok": 1, "name": "MOI", "so_mon": 10})
 	nem("kho thành phẩm bị từ chối", lambda: mo("Pastry - Thành phẩm - TV"))
@@ -555,3 +556,159 @@ def _hanh_vi():
 	r = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60, cwd=str(GOI.parent))
 	la(r.stdout + r.stderr, r.returncode, 0)
 	dung("đủ 7 ca", "PASS 7 ca" in r.stdout)
+
+
+# ------------------------------------------------ Codex #527 vòng 5 (SHA 0f62fd946)
+
+
+class _PhieuKK(NS):
+	def get(self, k, d=None):
+		return getattr(self, k, d)
+
+	def get_doc_before_save(self):
+		return getattr(self, "cu", None)
+
+
+def _so_kho(phat_sinh):
+	"""Mô hình sổ kho tối thiểu theo luật ERPNext: chứng từ xếp theo mốc ghi sổ;
+	nhập cộng, xuất trừ, kiểm kê ĐẶT tồn tuyệt đối tại mốc của nó."""
+	ton = 0.0
+	for _luc, loai, so in sorted(phat_sinh, key=lambda x: x[0]):
+		ton = so if loai == "kiem" else ton + (so if loai == "nhap" else -so)
+	return ton
+
+
+def _ghi_so_gia(doc, gio_duyet):
+	import types
+	core = types.ModuleType("erpnext.stock.doctype.stock_reconciliation.stock_reconciliation")
+	core.EmptyStockReconciliationItemsError = type("KhongDoi", (Exception,), {})
+	sr = _PhieuKK(name="PKK-9", items=[])
+	sr.append = lambda k, r: sr.items.append(r)
+	sr.insert = lambda: None
+	sr.submit = lambda: None
+	vat = [um.patch.dict(sys.modules, {core.__name__: core}), um.patch.object(kk, "duoc_duyet", lambda: True),
+		um.patch.object(_fr, "get_doc", lambda *a, **k: doc), um.patch.object(_fr, "new_doc", lambda dt: sr, create=True),
+		um.patch.object(_fr, "parse_json", lambda x: x, create=True), um.patch.object(_fr, "message_log", [], create=True),
+		um.patch.object(_fr, "db", NS(savepoint=lambda *a: None, get_value=lambda *a, **k: "CTY", rollback=lambda **k: None))]
+	from vagabond import tin_kho
+	vat += [um.patch.object(tin_kho, "bao_kiem_ke_da_ghi_so", lambda *a: None),
+		um.patch.object(tin_kho, "bao_ke_toan_kiem_ke_lech", lambda *a: None)]
+	for v in vat:
+		v.start()
+	try:
+		kk.ghi_so(doc.name, {"purpose": "Stock Reconciliation", "posting_time": gio_duyet, "items": []})
+	finally:
+		for v in vat:
+			v.stop()
+	return sr
+
+
+@ca("v628 Codex #527 vòng 5: phiếu đếm hằng ngày đếm 10 kg lúc 09:00, xuất 3 kg lúc 10:00, duyệt 11:00 thì tồn còn 7 kg")
+def _dem_hang_ngay_ghi_dung_moc():
+	ngay = "2026-11-02"
+
+	def phieu(ten, ghi_chu):
+		return _PhieuKK(name=ten, trang_thai="Chờ duyệt", kho="Pastry - Nguyên liệu - TV", ngay_kiem=ngay,
+			ghi_chu=ghi_chu, vgb_chup_luc=ngay + " 09:00:00.123456",
+			check_permission=lambda *a: None, save=lambda: None,
+			items=[_PhieuKK(item_code="NVL-BO", da_dem=1, so_luong=10, ton_he_thong=10)])
+	sr = _ghi_so_gia(phieu("PKK-D", kk.GHI_CHU_LICH % ngay), "11:00")
+	la("ghi sổ đúng mốc bếp chốt, không theo giờ duyệt", (str(sr.posting_date), sr.posting_time), (ngay, "09:00:00"))
+	ton = _so_kho([(ngay + " 08:00:00", "nhap", 10), (ngay + " 10:00:00", "xuat", 3),
+		("%s %s" % (sr.posting_date, sr.posting_time), "kiem", 10)])
+	la("tồn sau duyệt giữ khoản xuất 3 kg", ton, 7)
+	# Phiếu kiểm kê thường đã khoá mã từ lúc lập: giữ giờ màn Ghi sổ gửi lên như cũ.
+	sr2 = _ghi_so_gia(phieu("PKK-T", "Kiểm kê cuối tháng"), "11:00")
+	la("phiếu thường giữ giờ màn gửi", (str(sr2.posting_date), sr2.posting_time), (ngay, "11:00"))
+
+
+@ca("v628 Codex #527 vòng 5: bếp chốt phiếu đếm hằng ngày thì chụp lại tồn sổ và mốc; phiếu thường và lần quản lý chốt không chụp lại")
+def _chup_lai_khi_chot():
+	bin_ = {"NVL-BO": 12.0}
+
+	def get_value(dt, f, field=None, *a, **k):
+		return bin_.get(f.get("item_code"))
+	vat = [um.patch.object(_fr, "db", NS(get_value=get_value)),
+		um.patch.object(_fr.utils, "now", lambda: "2026-11-02 09:15:00.000001", create=True)]
+
+	def phieu(ghi_chu, truoc, sau):
+		return _PhieuKK(trang_thai=sau, kho="K", ghi_chu=ghi_chu, vgb_chup_luc="2026-11-02 07:30:00",
+			cu=_PhieuKK(trang_thai=truoc), items=[_PhieuKK(item_code="NVL-BO", so_luong=10, ton_he_thong=15, lech=-5)])
+	hn = kk.GHI_CHU_LICH % "2026-11-02"
+	a, b, c = phieu(hn, "Đang kiểm", "Chờ duyệt"), phieu("Kiểm kê cuối tháng", "Đang kiểm", "Chờ duyệt"), phieu(hn, "Chờ duyệt", "Đã chốt")
+	for v in vat:
+		v.start()
+	try:
+		for p in (a, b, c):
+			kk.chup_lai_khi_chot(p)
+	finally:
+		for v in vat:
+			v.stop()
+	la("hằng ngày: mốc mới, tồn và lệch tại lúc chốt", (a.vgb_chup_luc, a.items[0].ton_he_thong, a.items[0].lech),
+		("2026-11-02 09:15:00.000001", 12.0, -2.0))
+	la("phiếu thường giữ ảnh chụp lúc lập", (b.vgb_chup_luc, b.items[0].ton_he_thong), ("2026-11-02 07:30:00", 15))
+	la("quản lý chốt tiếp không chụp lại", (c.vgb_chup_luc, c.items[0].ton_he_thong), ("2026-11-02 07:30:00", 15))
+	la("mốc đọc được cả chuỗi có phần lẻ giây", kk.moc_dem("2026-11-02 09:15:00.000001"), ("2026-11-02", "09:15:00"))
+	la("không có mốc", kk.moc_dem(_PhieuKK(vgb_chup_luc=None)), None)
+	from vagabond import hooks
+	la("móc chạy khi lưu phiếu, sau bước giữ ảnh chụp cũ", hooks.doc_events["Phieu Kiem Ke"]["before_validate"],
+		["vagabond.kiem_ke.giu_anh_chup_ton", "vagabond.kiem_ke.chup_lai_khi_chot"])
+
+
+@ca("v628 Codex #527 vòng 5: hai người cùng bấm Đếm hôm nay khi chưa có phiếu (REPEATABLE READ) thì người sau mở lại phiếu người trước, không tạo phiếu thứ hai")
+def _mo_phieu_hai_luot():
+	class Db:
+		da_commit = None
+		anh = None
+		chen = None
+	db = Db()
+	tao = []
+
+	def doc_phieu():
+		# Lần đọc thường đầu tiên của giao dịch chụp ảnh số liệu đã commit.
+		if db.anh is None:
+			db.anh = {"p": db.da_commit}
+		return db.anh["p"]
+
+	def sql(q, a=None, **kw):
+		if "for update" in q and db.chen:
+			f, db.chen = db.chen, None
+			f()
+		return []
+
+	def commit():
+		db.anh = None
+
+	def tao_phieu(k, n):
+		tao.append(k)
+		ten = "PKK-%d" % len(tao)
+		db.da_commit = {"name": ten, "so_mon": n}
+		return {"ok": 1, "name": ten, "so_mon": n}
+	g = dict(frappe=NS(db=NS(sql=sql, commit=commit), throw=_fr.throw), _duoc_dem=lambda: None,
+		la_kho_bep_dem=kk.la_kho_bep_dem, kho_bep=lambda: (doc_phieu(), ["Pastry - Nguyên liệu - TV"])[1],
+		nowdate=lambda: "2026-11-02", cint=lambda x: int(x or 0), _phieu_hom_nay=lambda k, n: doc_phieu(),
+		tao_phieu_hom_nay=tao_phieu, MOI_NGAY_BEP=10)
+	mo = nap("kiem_ke.py", "mo_phieu_hom_nay", g)
+
+	def nguoi_truoc():
+		# Giao dịch riêng của người bấm trước: ảnh chụp riêng, tạo phiếu, commit.
+		anh_sau, db.anh = db.anh, None
+		tao_phieu("Pastry - Nguyên liệu - TV", 10)
+		db.anh = anh_sau
+	db.chen = nguoi_truoc
+	kq = mo("Pastry - Nguyên liệu - TV")
+	la("chỉ MỘT phiếu được tạo", len(tao), 1)
+	la("người sau mở lại phiếu người trước", (kq["name"], kq.get("co_san")), ("PKK-1", 1))
+
+
+@ca("v628 Codex #527 vòng 5: mở phiếu cho màn Ghi sổ trả mốc bếp chốt với phiếu hằng ngày, phiếu thường không có mốc")
+def _mo_phieu_tra_moc():
+	def phieu(ghi_chu):
+		d = {"name": "PKK", "trang_thai": "Chờ duyệt", "ghi_chu": ghi_chu, "vgb_chup_luc": "2026-11-02 09:15:07", "items": []}
+		return _PhieuKK(as_dict=lambda: dict(d), **d)
+	ra = []
+	for ghi_chu in (kk.GHI_CHU_LICH % "2026-11-02", "Kiểm kê cuối tháng"):
+		with um.patch.object(kk, "_duoc_dem", lambda: None), um.patch.object(kk, "_la_quan_ly", lambda: True), \
+				um.patch.object(_fr, "get_doc", lambda *a, **k: phieu(ghi_chu)):
+			ra.append(kk.mo_phieu("PKK")["moc_ghi_so"])
+	la("hằng ngày có mốc, phiếu thường không", ra, [["2026-11-02", "09:15:07"], []])
