@@ -76,7 +76,7 @@ def _ap_gia():
 	items = [{"item_code": "TRA-HL-M", "qty": 2, "rate": 95000}, {"item_code": "BANH-MI", "qty": 1, "rate": 30000},
 		{"item_code": "KOMB", "qty": 1, "rate": 80000}, {"item_code": "TRA-HL-M", "qty": 1, "rate": 50000, "combo_ma": "CB-1"}]
 	rows = [{"item_code": x["item_code"], "rate": x["rate"]} for x in items]
-	la("số dòng đổi giá", db.ap_gia_diem(items, rows, gia), 1)
+	la("số dòng đổi giá", db.ap_gia_diem(items, rows, gia, db.dong_combo_tao(items)), 1)
 	la("dòng khuyến mãi tính trên giá điểm", [x["rate"] for x in items], [70000, 30000, 80000, 50000])
 	la("dòng hoá đơn đúng giá điểm", [x["rate"] for x in rows], [70000, 30000, 80000, 50000])
 	sua = [{"item_code": "TRA-HL-M", "qty": 1, "rate": 1}]
@@ -84,6 +84,32 @@ def _ap_gia():
 	la("thu ngân gửi giá tay vẫn về giá điểm", sua[0]["rate"], 70000)
 	goc = [{"item_code": "TRA-HL-M", "rate": 95000}]
 	la("điểm giá chung: không đổi gì", (db.ap_gia_diem(goc, None, {}), goc[0]["rate"]), (0, 95000))
+
+
+@ca("v631 Codex PR #532: nhãn combo do máy khách tự gửi (không mã combo) KHÔNG lọt giá điểm; chỉ dòng combo máy chủ xác nhận mới giữ giá")
+def _combo_tu_gui():
+	gia = {"TEA": 70000}
+	# Đúng ca Codex: {item_code: TEA, rate: 1, combo: "anything"} trên điểm giá 70.000.
+	items = [{"item_code": "TEA", "qty": 1, "rate": 1, "combo": "anything"}]
+	rows = [{"item_code": "TEA", "rate": 1}]
+	la("lưu bill: nhãn tự gửi về giá điểm", (db.ap_gia_diem(items, rows, gia, db.dong_combo_tao(items)), items[0]["rate"], rows[0]["rate"]), (1, 70000, 70000))
+	la("lưu bill: chỉ dòng có mã combo được miễn", db.dong_combo_tao([{"combo": "x"}, {"combo_ma": "CB-1"}, {"combo_ma": ""}, {}]), {1})
+	cu = {
+		"D1": {"item_code": "TEA", "vgb_combo_luong": 1, "vgb_combo_ma": "KMCB01"},
+		"D2": {"item_code": "TEA", "description": "Trà\n\u25c8 KMCB02 - Combo cũ"},
+		"D3": {"item_code": "TEA", "description": "Trà"},
+	}
+	sua = [{"item_code": "TEA", "rate": 40000, "dong_goc": "D1", "combo": "KMCB01 - Combo"},
+		{"item_code": "TEA", "rate": 45000, "dong_goc": "D2", "combo": "KMCB02 - Combo cũ"},
+		{"item_code": "TEA", "rate": 1, "dong_goc": "D3", "combo": "anything"},
+		{"item_code": "TEA", "rate": 1, "combo": "anything"},
+		{"item_code": "TEA", "rate": 1, "dong_goc": "KHONG-CO", "combo": "anything"},
+		{"item_code": "TEA", "rate": 40000, "combo_ma": "CB-1", "combo": "KMCB01 - Combo"}]
+	mien = db.dong_combo_sua(sua, cu)
+	# Dòng 5 có mã combo: vòng dựng dòng của pos_sua_don kiểm thành phần rồi mới lưu.
+	la("sửa bill: dòng gốc combo trên hoá đơn và dòng có mã combo được miễn", mien, {0, 1, 5})
+	db.ap_gia_diem(sua, None, gia, mien)
+	la("sửa bill: dòng thường gắn nhãn tự gửi về giá điểm", [x["rate"] for x in sua], [40000, 45000, 70000, 70000, 70000, 40000])
 
 
 @ca("v631 lưu Bảng giá: đọc từng ô đã đổi, ô trống là xoá giá riêng; mã lạ hay giá sai báo rõ món nào")
@@ -118,6 +144,17 @@ def _kiem():
 	la("điểm quầy bật được", _loi(lambda: db._kiem(ds)), "")
 
 
+@ca("v631 Codex PR #532: câu máy chủ báo giá vừa đổi khớp đúng câu màn quầy dò, và hai đường lưu bill quầy đều gửi cờ gia_theo_diem")
+def _cau_gia_doi():
+	cau = db.cau_gia_vua_doi(2)
+	dung("câu bắt đầu bằng mốc", cau.startswith(db.GIA_VUA_DOI) and "2 món" in cau)
+	pos = _doc("public", "js", "bep", "09-tinh-tien-quay.js")
+	dung("màn quầy dò đúng mốc", "cau.indexOf('%s')" % db.GIA_VUA_DOI in pos)
+	for tep in ("09-tinh-tien-quay.js", "10-bill-quay.js"):
+		src = _doc("public", "js", "bep", tep)
+		la("%s: mỗi lần gọi tao_don_tay gửi cờ" % tep, src.count("gia_theo_diem: 1"), src.count("'vagabond.ban_hang.tao_don_tay'"))
+
+
 def _ham(src, ten):
 	cay = ast.parse(src)
 	return next(n for n in cay.body if isinstance(n, ast.FunctionDef) and n.name == ten)
@@ -131,16 +168,47 @@ def _dong(ham, mau):
 def _thu_tu_may_chu():
 	src = _doc("ban_hang.py")
 	tao = _ham(src, "tao_don_tay")
-	ap = _dong(tao, "diem_ban.ap_gia_diem(items, rows, diem_ban.gia_rieng_cua_quay(quay))")
+	ap = _dong(tao, "doi_gia = diem_ban.ap_gia_diem(items, rows, diem_ban.gia_rieng_cua_quay(quay), diem_ban.dong_combo_tao(items))")
 	la("một chỗ đặt giá khi lưu bill", len(ap), 1)
 	dung("sau khi chốt quầy", _dong(tao, "quay = _quay_cua_nguon(nguon, quay)")[0] < ap[0])
 	dung("trước khi tính khuyến mãi", ap[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
+	dung("sau vòng kiểm thành phần combo", _dong(tao, "if ma not in [x.item_code for x in cb.dong]:")[0] < ap[0])
+	chan = _dong(tao, "if doi_gia and cint(gia_theo_diem):")
+	la("chặn khi màn quầy gửi giá cũ", len(chan), 1)
+	dung("chặn ngay sau khi đặt giá, trước khuyến mãi", ap[0] < chan[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
+	dung("tham số mặc định tắt cho màn cũ", any(a.arg == "gia_theo_diem" for a in tao.args.args))
 	sua = _ham(src, "pos_sua_don")
-	ap2 = _dong(sua, "diem_ban.ap_gia_diem(items, None, diem_ban.gia_rieng_cua_quay(si.get('vgb_quay')))")
+	ap2 = _dong(sua, "diem_ban.ap_gia_diem(items, None, diem_ban.gia_rieng_cua_quay(si.get('vgb_quay')), diem_ban.dong_combo_sua(items, dong_cu, DAU_COMBO))")
 	la("một chỗ đặt giá khi sửa bill", len(ap2), 1)
 	dung("trước khi xét OTP", ap2[0] < _dong(sua, "can_otp, vi_sao = quyen_quay.can_otp(si, items, giam_gia)")[0])
 	cfg = _ham(src, "cau_hinh_ban_hang")
 	dung("màn quầy nhận điểm của tài khoản và giá riêng", "diem_cua_toi" in ast.unparse(cfg) and "'gia_rieng': diem_ban.gia_rieng(" in ast.unparse(cfg))
+
+
+@ca("v631 Codex PR #532: Bảng giá theo điểm trả ảnh món từ danh mục (món chưa có ảnh trả rỗng để màn hiện ô giữ chỗ)")
+def _bang_gia_anh():
+	import sys
+	import types
+	import unittest.mock as um
+
+	fr = db.frappe
+	hoi = []
+
+	def get_all(dt, **kw):
+		hoi.append((dt, kw.get("fields")))
+		if dt == "Item Price":
+			return [{"item_code": "TRA", "price_list_rate": 70000}]
+		return [{"name": "TRA", "item_name": "Trà", "item_group": "Nước", "standard_rate": 95000, "image": "/files/tra.jpg"},
+			{"name": "BANH", "item_name": "Bánh", "item_group": "Bánh", "standard_rate": 30000, "image": None}]
+
+	nvh = db._chuan(dict(db.MAC_DINH[2], bang_gia="Giá riêng NVHTN"))
+	with um.patch.dict(sys.modules, {"vagabond.ban_hang": types.SimpleNamespace(_kiem_quyen=lambda: None)}), \
+			um.patch.object(db, "_diem_co_bang", lambda ma: nvh), um.patch.object(db, "_sua_gia_duoc", lambda: True), \
+			um.patch.object(fr, "get_all", get_all, create=True), \
+			um.patch.object(fr, "db", types.SimpleNamespace(sql=lambda *a, **k: []), create=True):
+		kq = db.bang_gia_diem("NVHTN")
+	la("ảnh từng món", [(m["ma"], m["anh"], m["gia_diem"]) for m in kq["mon"]], [("TRA", "/files/tra.jpg", 70000), ("BANH", "", 0)])
+	dung("đọc cột ảnh của Item", "image" in [f for dt, f in hoi if dt == "Item"][0])
 
 
 @ca("v631 Tạo mặt hàng: ô giá riêng NVH lưu vào bảng giá của điểm sau khi mở mã; gõ sai, điểm giá chung, loại không bán thì chặn TRƯỚC khi mở mã")
