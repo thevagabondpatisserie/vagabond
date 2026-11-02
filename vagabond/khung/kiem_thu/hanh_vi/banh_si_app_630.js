@@ -58,6 +58,8 @@ var KHO_DS = [{ ma: 'Kho Sỉ - VGB', ten: 'Kho Sỉ' }, { ma: 'Kho TCV - VGB', 
 var DK = [{ name: 'dk1', ten_quan: 'Café Lá Me', mst: '0312345678', sdt: '0909123456', loai_hinh: 'Quán cà phê', luong_tuan: '50 - 200 cái',
   trang_thai: 'Chờ duyệt', khach: '', ten_khach: '', xu_ly: '', luc: '2026-11-02 08:00' }];
 var KE_TOAN = 0, CO_TIEN = 1, TRA = {}, LOI = {};
+/* Logo khách (Customer.image) máy chủ trả ở ô `logo`, chỉ ảnh /files/ công khai. */
+var LOGO = '/files/la-me-logo.png';
 
 function anTien(r) {
   r = JSON.parse(JSON.stringify(r));
@@ -102,10 +104,10 @@ function dungMoi(vai) {
         return Promise.resolve(r);
       }
       if (duong === 'vagabond.banh_si.ds_dang_ky') return Promise.resolve({ rows: DK, dem: { 'Chờ duyệt': 1, 'Đã duyệt': 3, 'Từ chối': 0 }, trang_thai: ['Chờ duyệt', 'Đã duyệt', 'Từ chối'] });
-      if (duong === 'vagabond.banh_si.ds_khach') return Promise.resolve({ rows: [{ name: 'SI00012', customer_name: 'Café Lá Me', vgb_si_sdt: '0909123456', vgb_si_cuoi_ky: 1, so_mon: 2 },
+      if (duong === 'vagabond.banh_si.ds_khach') return Promise.resolve({ rows: [{ name: 'SI00012', customer_name: 'Café Lá Me', vgb_si_sdt: '0909123456', vgb_si_cuoi_ky: 1, so_mon: 2, logo: LOGO },
         { name: 'SI00013', customer_name: 'Hotel Sen', vgb_si_sdt: '0911000111', vgb_si_cuoi_ky: 0, so_mon: 0 }] });
-      if (duong === 'vagabond.banh_si.tim_khach') return Promise.resolve([{ name: 'SI00020', customer_name: 'Công ty Lá Me', tax_id: '0312345678', customer_group: 'Khách sỉ B2B' }]);
-      if (duong === 'vagabond.banh_si.bang_gia') return Promise.resolve({ khach: { name: 'SI00012', customer_name: 'Café Lá Me', vgb_si_web: 1, vgb_si_cuoi_ky: 0, vgb_si_sdt: '0909123456' },
+      if (duong === 'vagabond.banh_si.tim_khach') return Promise.resolve([{ name: 'SI00020', customer_name: 'Công ty Lá Me', tax_id: '0312345678', customer_group: 'Khách sỉ B2B', logo: LOGO }, { name: 'SI00021', customer_name: 'Quán Mới', customer_group: 'Khách sỉ B2B', logo: '' }]);
+      if (duong === 'vagabond.banh_si.bang_gia') return Promise.resolve({ khach: { name: 'SI00012', customer_name: 'Café Lá Me', vgb_si_web: 1, vgb_si_cuoi_ky: 0, vgb_si_sdt: '0909123456', logo: LOGO },
         gia: [{ ma: 'BANU00001', ten: 'Croissant bơ', gia: 28000, anh: '', dvt: 'Cái' }],
         goi_y: [{ ma: 'BANU00002', ten: 'Pain au chocolat', gia: 31000, ngay: '2026-10-20', hoa_don: 'HD-5', tu_ma: 'BAWS00011', anh: '', dvt: 'Cái' }] });
       if (duong === 'vagabond.banh_si.tim_mon') return Promise.resolve([{ name: 'BANU00007', item_name: 'Tart trứng', image: '', stock_uom: 'Cái', item_group: 'Tart' }]);
@@ -253,6 +255,48 @@ async function moGia() {
       dung('bấm lại được', !ok.disabled);
       bang('kho nhớ dùng ngay', goiTen(m, 'giao_hang')[0].ts.kho, 'Kho TCV - VGB');
     } finally { delete LOI['vagabond.banh_si.giao_hang']; }
+  });
+
+  /* Codex #531 vòng 7 (AGENTS 2b.4): dòng món ở chi tiết đơn sỉ có ảnh món
+     (Item image) qua anhMon thật; món chưa có ảnh giữ ô 🍰. */
+  await ca('Codex #531 v7: chi tiết đơn sỉ, mỗi dòng món một ô ảnh; có ảnh thì ảnh danh mục, chưa có thì ô 🍰', async function () {
+    DON['SO-1'].dong[0].anh = '/files/croissant.jpg';
+    try {
+      var m = await moCt('SO-1');
+      var d1 = q(m.khung, '[data-bsidong="BANU00001"]'), d2 = q(m.khung, '[data-bsidong="BANU00002"]');
+      bang('ảnh món có ảnh', q(d1, 'img').getAttribute('src'), '/files/croissant.jpg');
+      dung('món chưa có ảnh giữ ô 🍰', !q(d2, 'img') && chu(q(d2, '.immp')) === '🍰');
+    } finally { DON['SO-1'].dong[0].anh = ''; }
+  });
+
+  /* AGENTS 2b.4 "khách có logo thì hiện logo, không thì biểu tượng nhóm": logo
+     qua anhMon thật, khách chưa có logo giữ ô 🏢. Đếm ảnh logo trên bốn chỗ. */
+  function soLogo(el) { return el.querySelectorAll('img').filter(function (x) { return x.getAttribute('src') === LOGO; }).length; }
+  function o13(el) { var o = q(el, '.immp'); return !q(el, 'img') && o && chu(o) === '🏢'; }
+  await ca('Codex #531 v7: logo khách trên thẻ đơn sỉ, chi tiết đơn, danh sách khách sỉ, màn giá riêng và sheet gắn khách; chưa có logo thì ô 🏢', async function () {
+    DON['SO-2'].logo = LOGO;
+    try {
+      var m = await moDs();
+      bang('thẻ đơn có logo', soLogo(q(m.khung, '[data-bsithe="SO-2"]')), 1);
+      dung('thẻ đơn chưa có logo giữ 🏢', o13(q(m.khung, '[data-bsithe="SO-1"]')));
+      var c = await moCt('SO-2');
+      bang('chi tiết đơn có logo', soLogo(q(c.khung, '[data-bsict]')), 1);
+      var k = await moKh(['Sales User'], 'kh');
+      bang('danh sách khách có logo', soLogo(q(k.khung, '[data-bsikh="SI00012"]')), 1);
+      dung('khách chưa có logo giữ 🏢', o13(q(k.khung, '[data-bsikh="SI00013"]')));
+      var g = await moGia();
+      bang('màn giá riêng có logo', soLogo(q(g.khung, '[data-bsigiakh]')), 1);
+      var d = await moKh();
+      bam(q(d.khung, '[data-bsidk="dk1"]'));
+      var s = sheet(d);
+      bam(q(s, '[data-bsicach="co"]'));
+      bam(q(s, '[data-bsichonkh]')); await tick();
+      var t = sheet(d);
+      bang('sheet gắn khách: khách có logo', soLogo(q(t, '[data-bsikhchon="SI00020"]')), 1);
+      dung('sheet gắn khách: khách chưa có logo giữ 🏢', o13(q(t, '[data-bsikhchon="SI00021"]')));
+      bam(q(t, '[data-bsikhchon="SI00020"]'));
+      bang('khách đã chọn hiện logo', soLogo(q(s, '[data-bsichonkh]')), 1);
+    } finally { delete DON['SO-2'].logo; }
   });
 
   await ca('trả trước chờ chuyển khoản: nút đáy mở QR mã đơn; kiểm tiền về chưa thấy thì nói chờ, thấy thì báo lập phiếu', async function () {

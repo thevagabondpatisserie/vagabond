@@ -31,7 +31,7 @@ function layHam(src, ten) {
   }
   throw new Error('Ham ' + ten + ' khong dong ngoac');
 }
-var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop'].map(function (t) { return layHam(NEN, t); })
+var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(NEN, t); })
   .concat([layHam(POS, 'posChipNut')])
   .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi', 'dsKhoangToi', 'dsTrongKhoangToi', 'dsDemTheo', 'dsDemKhoangToi', 'dsNhanGon'].map(function (t) { return layHam(KHUON, t); }))
   .concat(['var scanBarcode = function () { return Promise.resolve(null); };'])
@@ -188,6 +188,25 @@ async function moCt(ten, vai) {
       bam(chipLoc(m, 'diem', '')); await tick();
       bang('Mọi điểm nhận, 7 ngày tới không gồm đơn ngày đã qua', theDs(m).slice().sort(), ['SO-1', 'SO-2', 'SO-3', 'SO-4']);
     } finally { DON['SO-1'].diem_nhan = cu; }
+  });
+
+  /* Codex #531 vòng 7 (AGENTS 2b.4): chỗ nào có tên tác phẩm thì có ảnh qua
+     anhMon (00-nen.js thật); đơn chưa có ảnh giữ ô 🍰. */
+  await ca('Codex #531 v7: thẻ danh sách và màn chi tiết có ảnh tác phẩm, đơn chưa có ảnh giữ ô 🍰', async function () {
+    DON['SO-1'].anh = '/files/croquembouche.jpg';
+    try {
+      var m = await moDs();
+      var the = m.khung.querySelectorAll('[data-ddtthe]');
+      bang('mỗi thẻ một ô ảnh', the.map(function (x) { return x.querySelectorAll('.imm').length; }), [1, 1, 1, 1, 1]);
+      bang('ảnh thật của SO-1', q(q(m.khung, '[data-ddtthe="SO-1"]'), 'img').getAttribute('src'), '/files/croquembouche.jpg');
+      dung('ảnh tải chậm', q(q(m.khung, '[data-ddtthe="SO-1"]'), 'img').getAttribute('loading') === 'lazy');
+      var o = q(q(m.khung, '[data-ddtthe="SO-2"]'), '.immp');
+      dung('đơn chưa có ảnh giữ ô 🍰', o && chu(o) === '🍰' && !q(q(m.khung, '[data-ddtthe="SO-2"]'), 'img'));
+      var c = await moCt('SO-1');
+      bang('chi tiết có ảnh', q(q(c.khung, '[data-ddtct]'), 'img').getAttribute('src'), '/files/croquembouche.jpg');
+      var c2 = await moCt('SO-2');
+      dung('chi tiết chưa có ảnh giữ ô 🍰', chu(q(q(c2.khung, '[data-ddtct]'), '.immp')) === '🍰');
+    } finally { delete DON['SO-1'].anh; }
   });
 
   await ca('bấm thẻ mở chi tiết đúng đơn', async function () {
