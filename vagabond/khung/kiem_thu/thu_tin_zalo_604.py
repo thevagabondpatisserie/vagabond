@@ -129,6 +129,16 @@ NOI_PHAT = {
 	("tin_tai_chinh.py", "gui_tuan"): "bgd_tien_tuan",
 	("tin_tai_chinh.py", "gui_thang"): "bgd_lai_lo_thang",
 	("tin_tai_chinh.py", "nhac_kiem_ke_sang"): "bep_kiem_ke_sang",
+	# v630: bánh thiết kế riêng trên web (anh Việt chốt 02/11/2026). Tin Sales, bếp không mang tiền.
+	("thiet_ke_rieng.py", "_bao_moi"): "bh_tkr_moi",
+	("thiet_ke_rieng.py", "_bao_sales_coc"): "bh_tkr_da_coc",
+	("thiet_ke_rieng.py", "_bao_bep_coc"): "bep_tkr_da_coc",
+	("thiet_ke_rieng.py", "_bao_tu_van"): "bh_tkr_tu_van",
+	# v630: bánh sỉ trên web. Tin Sales, bếp không mang tiền.
+	("banh_si.py", "_bao_dang_ky"): "bh_si_dang_ky",
+	("banh_si.py", "_bao_don_moi"): "bh_si_don_moi",
+	("banh_si.py", "_bao_da_tt"): "bh_si_da_tt",
+	("banh_si.py", "_bao_bep"): "bep_si_don",
 }
 # Các hàm từng gửi thư nội bộ, nay chỉ được báo Zalo.
 DA_BO_THU = [
@@ -195,8 +205,9 @@ def _danh_muc():
 	# v611: thêm 11 tin đặt bàn, hoá đơn sai, tiền chưa gắn, sản xuất, điều chuyển (25/10/2026).
 	# v613: thêm 12 tin tồn kho, sản xuất, duyệt chi (27/10/2026).
 	# v619: thêm tin dữ liệu hao hụt cho kế toán và cho từng bếp (28/10/2026).
-	la("đủ 77 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628)", len(kz.TIN), 79)
+	# v630: thêm 4 tin bánh thiết kế riêng (3 Bán hàng, 1 Bếp) và 4 tin bánh sỉ (3 Bán hàng, 1 Bếp).
+	la("đủ 87 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630)", len(kz.TIN), 87)
 	la("tám bộ phận đúng thứ tự (v622 thêm Nhân sự)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -580,7 +591,11 @@ def _patch_map():
 		# v619: bản vá riêng v619_tin_hao_hut tích cho nhóm đã nhận tin kiểm kê lệch.
 		"kt_du_lieu_hao_hut",
 		# v628: bản vá riêng v628_tin_tai_chinh tích cho nhóm mốc.
-		"kt_tien_ra_chua_gan", "kt_nop_nh_chua_khop"}
+		"kt_tien_ra_chua_gan", "kt_nop_nh_chua_khop",
+		# v630: tin thiết kế riêng, chưa có bản vá; quản lý tích tay trong Cài đặt cho nhóm Sales.
+		"bh_tkr_moi", "bh_tkr_da_coc", "bh_tkr_tu_van",
+		# v630 bánh sỉ: chưa có bản vá; quản lý tích tay trong Cài đặt cho nhóm Sales.
+		"bh_si_dang_ky", "bh_si_don_moi", "bh_si_da_tt"}
 	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]
 	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng" and m not in v609] + ["ht_phat_hanh"]
 	la("nhóm văn phòng kế toán", p.tin_cho_nhom("ERP Văn Phòng - Kế Toán - Thu Mua"), kt)

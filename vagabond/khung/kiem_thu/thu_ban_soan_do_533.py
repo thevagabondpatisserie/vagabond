@@ -203,7 +203,13 @@ def _thu_tu():
 		# v626: phân hệ Tài chính, chỉ xem số và chốt số dư, không có màn lập phiếu.
 		"61-tai-chinh.js",
 		# v628: Quỹ tiền mặt công ty, dùng hàm nền của 61-tai-chinh.js.
-		"62-quy-tien-mat.js"])
+		"62-quy-tien-mat.js",
+		# v630: màn Đơn đặt trước, thao tác trên phiếu đặt có sẵn bằng bảng hỏi một bước
+		# (thu tiền mặt, giao bánh, huỷ), không có form lập phiếu nháp nhiều ô.
+		"63-don-dat-truoc.js",
+		# v630: Đơn sỉ web và Khách sỉ web: duyệt đăng ký, khai một giá, giao một
+		# đơn có sẵn bằng bảng hỏi một bước, không có form lập phiếu nháp nhiều ô.
+		"64-banh-si.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:
