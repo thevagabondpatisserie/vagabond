@@ -162,12 +162,13 @@ def _gia_chung():
 	la("giỏ đúng giá: không đổi gì", db.ap_gia_chung([{"item_code": "BANH", "rate": 30000}], None, {}, set(), gia_chung), 0)
 
 
-@ca("v631: giá món tặng của khuyến mãi không lấy nhầm bảng giá riêng của điểm")
+@ca("v631: giá món tặng của khuyến mãi và giá gốc thành phần combo không lấy nhầm bảng giá riêng của điểm (Codex PR #532 vòng 4)")
 def _gia_tang():
 	import types
 	import unittest.mock as um
 
 	from vagabond import khuyen_mai as km
+	from vagabond.vagabond.doctype.vagabond_combo import vagabond_combo as vc
 
 	hoi = []
 
@@ -176,8 +177,10 @@ def _gia_tang():
 		return 95000
 
 	with um.patch.object(km.frappe, "db", types.SimpleNamespace(get_value=get_value), create=True):
-		la("giá", km._gia_ban("TRA"), 95000)
-	la("loại bảng giá riêng", hoi[0][1].get("price_list"), ["not like", db.TIEN_TO_BANG_GIA + "%"])
+		la("giá món tặng", km._gia_ban("TRA"), 95000)
+		la("giá gốc combo", vc.gia_ban_mon("TRA"), 95000)
+	la("cả hai câu đọc loại bảng giá riêng", [h[1].get("price_list") for h in hoi], [["not like", db.TIEN_TO_BANG_GIA + "%"]] * 2)
+	la("điều kiện dùng chung", db.loc_bo_bang_rieng(), ["not like", "Giá riêng %"])
 
 
 @ca("v631 Codex PR #532: câu máy chủ báo giá vừa đổi khớp đúng câu màn quầy dò, và hai đường lưu bill quầy đều gửi cờ gia_theo_diem")
