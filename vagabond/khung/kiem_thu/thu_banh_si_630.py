@@ -349,7 +349,7 @@ def _chay_giao(tra_truoc, phieu):
 			return 1 if ten == "BANU00001" else 0
 		return None
 	ps = [mock.patch.dict(sys.modules, mods), mock.patch.object(bs, "tom_tat", lambda n, khoa=False: dict(t)),
-		mock.patch.object(bs, "_khoa_don", lambda n: None), mock.patch.object(bs, "_phieu_giao_cua", lambda n: ()),
+		mock.patch.object(bs, "_khoa_don", lambda n: None), mock.patch.object(bs, "_phieu_giao_cua", lambda n, khoa=False: ()),
 		mock.patch.object(bs, "_cong_ty", lambda: "Vagabond"), mock.patch.object(bs, "_hom_nay", lambda: "2026-11-05"),
 		mock.patch.object(bs, "_quay", lambda: "SALES"), mock.patch.object(bs, "_kiem_quyen_giao", lambda: None),
 		mock.patch.object(bs, "_nguoi_mua", lambda k: {"vgb_xhd_ten": "CÔNG TY LÁ ME", "vgb_xhd_mst": "0312345678"}),
@@ -410,7 +410,7 @@ def _giao_chan():
 			("đã giao", dict(t0, trang_thai="da_giao", hoa_don="SI-9"), "Kho Sỉ - VGB"),
 			("kho lạ", dict(t0, tra_truoc=0, phieu=[]), "Kho Bếp")):
 		with mock.patch.object(bs, "tom_tat", lambda n, t=t, khoa=False: dict(t)), mock.patch.object(bs, "_khoa_don", lambda n: None), \
-				mock.patch.object(bs, "_kiem_quyen_giao", lambda: None), mock.patch.object(bs, "_phieu_giao_cua", lambda n: ()), \
+				mock.patch.object(bs, "_kiem_quyen_giao", lambda: None), mock.patch.object(bs, "_phieu_giao_cua", lambda n, khoa=False: ()), \
 				mock.patch.object(bs, "_cong_ty", lambda: "Vagabond"), \
 				mock.patch.object(xuat_kho, "_kho_that", lambda ct: [_fr._dict(name="Kho Sỉ - VGB")]), \
 				mock.patch.object(_fr, "get_doc", lambda *a, **k: lap.append(1)):

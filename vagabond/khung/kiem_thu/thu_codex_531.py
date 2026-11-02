@@ -80,6 +80,8 @@ class _MayChu(object):
 		self.ndw = ndw
 		self.so_moi = []
 		self.thu_ghi_so = 0
+		self.si = []   # hoá đơn đã commit (vòng 6)
+		self.dn = []   # phiếu giao đã commit (vòng 6)
 		self.dem_pe = 0
 		self.dem_so = 0
 		self.cv = threading.Condition()
@@ -96,8 +98,30 @@ class _MayChu(object):
 		kn = self.kn()
 		if kn.anh is None:
 			with self.cv:
-				kn.anh = {"pe": copy.deepcopy(self.pe), "bt": copy.deepcopy(self.bt), "so": copy.deepcopy(self.so_moi)}
+				kn.anh = {"pe": copy.deepcopy(self.pe), "bt": copy.deepcopy(self.bt), "so": copy.deepcopy(self.so_moi),
+					"sodon": copy.deepcopy(self.so), "si": copy.deepcopy(self.si), "dn": copy.deepcopy(self.dn)}
 		return kn.anh
+
+	def _bang_xem(self, bang, hien_tai):
+		if hien_tai:
+			with self.cv:
+				goc = copy.deepcopy(getattr(self, bang))
+		else:
+			goc = copy.deepcopy(self._anh().get(bang, []))
+		return goc + [r for r in self.kn().cho if r["_bang"] == bang]
+
+	def _so_xem(self, hien_tai):
+		"""Phiếu đặt có sẵn (vòng 6: huỷ được): đọc thường thấy ảnh chụp, đọc có
+		khoá thấy bản đã commit, cộng phần chính kết nối này vừa đổi."""
+		if hien_tai:
+			with self.cv:
+				d = copy.deepcopy(self.so)
+		else:
+			d = copy.deepcopy(self._anh().get("sodon", self.so))
+		for r in self.kn().cho:
+			if r["_bang"] == "so_doi" and r["name"] in d:
+				d[r["name"]].update(r["doi"])
+		return d
 
 	def _dung(self, diem):
 		kn = self.kn()
@@ -132,6 +156,12 @@ class _MayChu(object):
 		kn = self.kn()
 		with self.cv:
 			for r in kn.cho:
+				if r["_bang"] == "so_doi":
+					self.so[r["name"]].update(r["doi"])
+					continue
+				if r["_bang"] in ("si", "dn"):
+					getattr(self, r["_bang"]).append(r)
+					continue
 				(self.pe if r["_bang"] == "pe" else self.so_moi).append(r)
 			kn.cho, kn.moc, kn.anh = [], {}, None
 			for k2 in [x for x, v in self.khoa.items() if v is kn]:
@@ -190,9 +220,7 @@ class _MayChu(object):
 		if "from `tabSales Order`" in q:
 			if khoa:
 				self._khoa(("SO", a[0]))
-			else:
-				self._anh()
-			r = self.so.get(a[0])
+			r = self._so_xem(khoa).get(a[0])
 			return [_fr._dict(r)] if r else []
 		if "`tabBank Transaction`" in q:
 			if khoa:
@@ -203,6 +231,8 @@ class _MayChu(object):
 			m = a["m"].strip("%")
 			return [_fr._dict(g) for g in self._anh()["bt"]
 				if m in ("%s %s" % (g.get("description") or "", g.get("reference_number") or "")).upper()]
+		if "`tabDelivery Note`" in q:
+			return [(r["name"],) for r in self._bang_xem("dn", khoa) if r["against_sales_order"] == a[0] and r["docstatus"] == 1]
 		if "`tabPayment Entry`" in q:
 			ds = self._pe(khoa)
 			ds = [p for p in ds if int(p["docstatus"]) < 2]
@@ -230,6 +260,12 @@ class _MayChu(object):
 	def get_value(self, dt, f=None, fields=None, as_dict=False, for_update=False, **k):
 		if dt == "Bank Account":
 			return "1121 - MB"
+		if dt == "Sales Invoice" and isinstance(f, dict):
+			ds = [r for r in self._bang_xem("si", for_update) if r["custom_pancake_id"] == f.get("custom_pancake_id")
+				and r["docstatus"] < 2]
+			if not ds:
+				return None
+			return _fr._dict({x: ds[0].get(x) for x in fields}) if isinstance(fields, (list, tuple)) else ds[0].get(fields)
 		if dt != "Sales Order":
 			return None
 		if isinstance(f, dict) and ("vgb_tkr_lan" in f or "vgb_si_lan" in f):
@@ -252,7 +288,7 @@ class _MayChu(object):
 			if isinstance(fields, (list, tuple)):
 				return _fr._dict({x: r.get(x) for x in fields})
 			return r.get(fields)
-		r = self.so.get(f) or {}
+		r = self._so_xem(for_update).get(f) or {}
 		if isinstance(fields, (list, tuple)):
 			return _fr._dict({x: r.get(x) for x in fields})
 		if fields in ("vgb_tkr_du_lieu", "vgb_si_du_lieu"):
@@ -262,6 +298,18 @@ class _MayChu(object):
 	# ---------- frappe.get_doc(dict) cho phiếu thu
 	def get_doc(self, d, *a, **k):
 		may = self
+		if d == "Sales Order":
+			ten = a[0] if a else k.get("name")
+
+			class DonDat(_fr._dict):
+				def add_comment(self, *a2, **k2):
+					pass
+
+				def cancel(self):
+					may.kn().cho.append({"_bang": "so_doi", "name": ten, "doi": {"docstatus": 2, "status": "Cancelled"}})
+			o = DonDat(may._so_xem(bool(k.get("for_update"))).get(ten) or {})
+			o.flags = _fr._dict()
+			return o
 
 		class Doc(_fr._dict):
 			def setup_party_account_field(self):
@@ -280,6 +328,12 @@ class _MayChu(object):
 					"vgb_gd_tkr": self.vgb_gd_tkr, "vgb_phieu_dat": self.vgb_phieu_dat,
 					"mode_of_payment": self.mode_of_payment, "vgb_quay": self.vgb_quay,
 					"posting_date": self.posting_date, "creation": "2026-11-03 10:00:%02d" % may.dem_pe})
+
+			def submit(self):
+				for r in may.kn().cho:
+					if r.get("name") == self.name:
+						r["docstatus"] = 1
+				self.docstatus = 1
 		doc = Doc(d)
 		doc.flags = _fr._dict()
 		return doc
@@ -1121,3 +1175,208 @@ def _bench_mot_phep_sdt():
 	la("nk.sdt_chuan là lib.sdt", nk.sdt_chuan is lib.sdt, True)
 	nem("form thiết kế riêng chặn số 095 ngay khi nhận", lambda: tkr_.chuan_don({"tac_pham": "x", "kich_co": "M",
 		"ngay": "2026-12-01", "ten": "An", "sdt": "0951234567", "diem_nhan": "tcv"}, None, "2026-11-02", []), ValueError)
+
+
+# ================================================== vòng 6: khoá phiếu đặt rồi quyết định tiền bằng đọc hiện tại
+
+def _pe_co(ten, so, tien, ds, pt="Chuyển khoản", gd=""):
+	return {"_bang": "pe", "name": ten, "docstatus": ds, "payment_type": "Receive", "paid_amount": tien, "received_amount": tien,
+		"vgb_gd_tkr": gd, "vgb_phieu_dat": so, "mode_of_payment": pt, "vgb_quay": "SALES" if pt != "Tiền mặt" else "TCV",
+		"posting_date": "2026-11-03", "creation": "2026-11-03 09:00:00"}
+
+
+def _sinh_giao(vet):
+	"""Mô đun erpnext giả cho giao_banh / giao_hang: ghi lại lúc tới bước lập
+	chứng từ rồi ném lỗi có dấu, để ca kiểm biết các phép chặn trước đó đã qua."""
+	class Ct(_fr._dict):
+		def set(self, k, v):
+			self[k] = v
+
+		def append(self, k, v):
+			self.setdefault(k, []).append(v)
+
+		def run_method(self, *a):
+			pass
+
+	def lap(ten, **k):
+		vet["lap"] = ten
+		c = Ct(items=[])
+		c.flags = _fr._dict()
+		may = vet.get("may")
+
+		def insert(**k2):
+			c.name = c.get("name") or "SI-%d" % (len(may.si) + 1)
+
+		def submit():
+			# Ô gán bằng thuộc tính (si.custom_pancake_id = ...) như mã thật.
+			may.kn().cho.append({"_bang": "si", "name": c.name, "custom_pancake_id": getattr(c, "custom_pancake_id", None),
+				"docstatus": 1})
+		c.insert, c.submit = insert, submit
+		return c
+	sel = types.ModuleType("erpnext.selling.doctype.sales_order.sales_order")
+	sel.make_sales_invoice = lap
+	sel.make_delivery_note = lap
+	dnm = types.ModuleType("erpnext.stock.doctype.delivery_note.delivery_note")
+	dnm.make_sales_invoice = lap
+	mods = {}
+	if "vagabond.ban_hang" not in sys.modules:
+		# ban_hang kéo requests ở đầu tệp, máy CI không có; giao_banh chỉ lấy
+		# một hằng chữ từ đó nên ca kiểm không nạp mô đun thật.
+		bh = types.ModuleType("vagabond.ban_hang")
+		bh.XHD_MAC_DINH = "Bán cho người tiêu dùng"
+		mods["vagabond.ban_hang"] = bh
+	return dict(mods, **{"erpnext": types.ModuleType("erpnext"), "erpnext.selling": types.ModuleType("x"),
+		"erpnext.selling.doctype": types.ModuleType("x"), "erpnext.selling.doctype.sales_order": types.ModuleType("x"),
+		"erpnext.selling.doctype.sales_order.sales_order": sel, "erpnext.stock": types.ModuleType("x"),
+		"erpnext.stock.doctype": types.ModuleType("x"), "erpnext.stock.doctype.delivery_note": types.ModuleType("x"),
+		"erpnext.stock.doctype.delivery_note.delivery_note": dnm})
+
+
+def _vao6(may, vet):
+	"""Như _vao, thêm phần thu tiền mặt, giao, huỷ. Điểm bán đọc bằng phép
+	thường (cấu hình), nên lượt thu tiền mặt đã có ảnh chụp TRƯỚC khi khoá đơn,
+	đúng như diem_ban.ds thật."""
+	from vagabond import thu_tien, xuat_kho
+	diem = [{"ma": "SALES", "quay": "", "bat": 1, "ten": "Sales Online"}, {"ma": "TCV", "quay": "TCV", "bat": 1, "ten": "TCV"}]
+
+	def ds_diem():
+		may.get_all("Vagabond Diem Ban")
+		return diem
+
+	vet["may"] = may
+
+	def cap(si, ds):
+		vet.setdefault("lan_cap", []).append(sorted(ds))
+		vet["cap"] = sorted(ds)
+		if vet.get("cho_qua"):
+			return si
+		raise RuntimeError("toi_buoc_can")
+	def vai(*a, **k):
+		# frappe.get_roles hụt cache thì đọc bảng Has Role (đọc thường): yêu cầu
+		# đã có ảnh chụp trước lúc khoá đơn, như mọi màn kiểm vai rồi mới khoá.
+		may.get_all("Has Role")
+		return ["Sales Manager", "System Manager"]
+	them = [mock.patch.object(_fr, "get_roles", vai),
+		mock.patch.object(_fr, "generate_hash", lambda *a, **k: "moc", create=True),
+		mock.patch.object(thu_tien, "tk_tien_thu", lambda cty, pt: ("1111 - TM", None)),
+		mock.patch.object(thu_tien, "_giu_chu", lambda *a, **k: None),
+		mock.patch.object(utd, "cap_ung_truoc", cap),
+		mock.patch.object(xuat_kho, "_kho_that", lambda ct: [_fr._dict(name="Kho Sỉ - VGB", warehouse_name="Kho Sỉ")]),
+		mock.patch.object(xuat_kho, "_chan_qua_ton", lambda *a: None),
+		mock.patch.object(bs, "_hom_nay", lambda: "2026-11-05"),
+		mock.patch.dict(sys.modules, _sinh_giao(vet))]
+	ps = _vao(may, them)
+	ps = [p for p in ps if getattr(p, "attribute", None) != "_ds_diem"]
+	ps += [mock.patch.object(tkr, "_ds_diem", ds_diem), mock.patch.object(bs, "_ds_diem", ds_diem)]
+	return ps
+
+
+def _chay_dua(may, truoc, sau, diem="truoc_khoa:SO"):
+	"""`sau` đọc thường trước (ảnh chụp), chờ khoá phiếu đặt đang ở `truoc`;
+	`truoc` xong và commit thì `sau` được khoá và chạy tiếp."""
+	b = may.chay("B", sau, (diem,))
+	may.cho_toi(lambda: b.dang_dung == diem, "B tới " + diem)
+	a = may.chay("A", truoc)
+	may.cho_toi(lambda: a.xong, "A xong")
+	may.tha(b, diem)
+	may.cho_toi(lambda: b.xong, "B xong")
+	if a.loi:
+		raise a.loi
+	return a, b
+
+
+@ca("Codex #531 v6: thu tiền mặt chờ khoá trong lúc lượt khớp chuyển khoản lập phiếu cọc 3.780.000: chỉ thu phần còn lại 3.780.000, không lập phiếu 7.560.000")
+def _v6_thu_tien_mat():
+	may = _MayChu(so=[SO_TKR], bt=[_bt("BT-7", 3780000, "TKR26110001 coc")])
+	vet = {}
+	with _gan(_vao6(may, vet)):
+		a, b = _chay_dua(may, _hoi_tkr, lambda: tkr.thu_tien_mat("SO-1", "TCV"))
+	la("lỗi lượt thu tiền mặt", str(b.loi or ""), "")
+	la("phiếu thu của đơn", _phieu_cua(may, "SO-1"), [("", 3780000.0), ("BT-7", 3780000.0)])
+	la("tổng phiếu thu bằng tổng đơn", sum(x[1] for x in _phieu_cua(may, "SO-1")), 7560000.0)
+
+
+@ca("Codex #531 v6: huỷ đơn thiết kế riêng chờ khoá trong lúc tiền cọc vừa về và được lập phiếu: huỷ bị chặn, phiếu đặt không bị huỷ còn tiền treo")
+def _v6_huy_tkr():
+	may = _MayChu(so=[SO_TKR], bt=[_bt("BT-7", 3780000, "TKR26110001 coc")])
+	vet = {}
+	with _gan(_vao6(may, vet)):
+		a, b = _chay_dua(may, _hoi_tkr, lambda: tkr.huy("SO-1", "khách đổi ý không đặt nữa"))
+	la("phiếu đặt còn hiệu lực", may.so["SO-1"]["docstatus"], 1)
+	dung("câu chặn nói đã nhận tiền: %s" % b.loi, b.loi is not None and "đã nhận tiền" in str(b.loi))
+	la("phiếu cọc", _phieu_cua(may, "SO-1"), [("BT-7", 3780000.0)])
+
+
+@ca("Codex #531 v6: giao bánh chờ khoá trong lúc quầy thu nốt tiền mặt: giao đi tiếp và cấn ĐỦ hai phiếu đã ghi sổ (không chặn nhầm 'còn phải thu')")
+def _v6_giao_tkr():
+	may = _MayChu(so=[SO_TKR])
+	may.pe.append(_pe_co("PE-CK", "SO-1", 3780000, 1, gd="BT-1"))
+	vet = {}
+	with _gan(_vao6(may, vet)):
+		a, b = _chay_dua(may, lambda: tkr.thu_tien_mat("SO-1", "TCV"), lambda: tkr.giao_banh("SO-1", "TCV"))
+	dung("tới bước cấn ứng trước: %s" % b.loi, "toi_buoc_can" in str(b.loi or ""))
+	la("cấn đúng hai phiếu đã ghi sổ", vet.get("cap"), ["PE-1", "PE-CK"])
+
+
+@ca("Codex #531 v6: huỷ đơn sỉ trả trước chờ khoá trong lúc tiền về và được lập phiếu thu: huỷ bị chặn, phiếu đặt không bị huỷ")
+def _v6_huy_bsi():
+	may = _MayChu(so=[SO_BSI], bt=[_bt("BT-9", 3780000, "BSI26110002 chuyen tien")])
+	vet = {}
+	with _gan(_vao6(may, vet)):
+		a, b = _chay_dua(may, _hoi_bsi, lambda: bs.huy_don("SO-2", "khách đổi ý không lấy nữa"))
+	la("phiếu đặt còn hiệu lực", may.so["SO-2"]["docstatus"], 1)
+	dung("câu chặn nói đã có tiền: %s" % b.loi, b.loi is not None and "đã có tiền" in str(b.loi))
+
+
+@ca("Codex #531 v6: giao hàng sỉ chờ khoá trong lúc đơn vừa bị huỷ: không lập phiếu giao từ phiếu đặt đã huỷ")
+def _v6_giao_bsi_da_huy():
+	so3 = dict(SO_BSI, name="SO-3", vgb_si_ma="BSI26110003", vgb_si_tt="Công nợ")
+	may = _MayChu(so=[so3])
+	vet = {}
+	with _gan(_vao6(may, vet)):
+		a, b = _chay_dua(may, lambda: bs.huy_don("SO-3", "khách đổi ý không lấy nữa"), lambda: bs.giao_hang("SO-3", "Kho Sỉ - VGB"))
+	la("lượt huỷ xong", (a.kq or {}).get("ok"), 1)
+	la("không tới bước lập phiếu giao", vet.get("lap"), None)
+	dung("câu chặn nói đã huỷ: %s" % b.loi, b.loi is not None and "huỷ" in str(b.loi))
+
+
+@ca("Codex #531 v6: hai người cùng bấm huỷ một đơn thiết kế riêng chưa cọc: lượt chờ khoá thấy đơn đã huỷ (đọc hiện tại phiếu đặt), báo 'đã huỷ', không huỷ lần hai")
+def _v6_huy_hai_lan():
+	may = _MayChu(so=[SO_TKR])
+	vet = {}
+	huy = lambda: tkr.huy("SO-1", "khách đổi ý không đặt nữa")  # noqa: E731
+	with _gan(_vao6(may, vet)):
+		a, b = _chay_dua(may, huy, huy)
+	la("lượt đầu huỷ được", (a.kq or {}).get("ok"), 1)
+	la("câu lượt sau", str(b.loi or ""), "Đơn TKR26110001 đã huỷ.")
+
+
+@ca("Codex #531 v6: hai người cùng bấm Giao bánh và xuất hoá đơn: lượt chờ khoá thấy hoá đơn lượt trước vừa xuất (đọc hiện tại hoá đơn), báo 'đã giao', không xuất hoá đơn thứ hai")
+def _v6_giao_hai_lan():
+	may = _MayChu(so=[SO_TKR])
+	may.pe += [_pe_co("PE-CK", "SO-1", 3780000, 1, gd="BT-1"), _pe_co("PE-TM", "SO-1", 3780000, 1, pt="Tiền mặt")]
+	vet = {"cho_qua": True}
+	giao = lambda: tkr.giao_banh("SO-1", "TCV")  # noqa: E731
+	with _gan(_vao6(may, vet)):
+		a, b = _chay_dua(may, giao, giao)
+	la("lượt đầu xuất hoá đơn", (a.kq or {}).get("hoa_don"), "SI-1")
+	la("số hoá đơn của đơn", len(may.si), 1)
+	dung("lượt sau báo đã giao: %s" % b.loi, b.loi is not None and "đã giao" in str(b.loi))
+
+
+@ca("Codex #531 v6: giao hàng sỉ chờ khoá trong lúc phiếu giao được lập ở Desk (ghi sổ phiếu giao cập nhật phiếu đặt nên giữ khoá hàng phiếu đặt): đọc hiện tại phiếu giao, không lập phiếu giao thứ hai")
+def _v6_giao_bsi_co_phieu_giao():
+	so3 = dict(SO_BSI, name="SO-3", vgb_si_ma="BSI26110003", vgb_si_tt="Công nợ")
+	may = _MayChu(so=[so3])
+	vet = {}
+
+	def desk_lap_phieu_giao():
+		# Mô hình lõi ERPNext: ghi sổ Delivery Note cập nhật per_delivered trên
+		# Sales Order, tức là giữ khoá hàng phiếu đặt tới khi commit.
+		may.sql("select name from `tabSales Order` where name=%s for update", ("SO-3",))
+		may.kn().cho.append({"_bang": "dn", "name": "DN-DESK", "against_sales_order": "SO-3", "docstatus": 1})
+		return {"ok": 1}
+	with _gan(_vao6(may, vet)):
+		a, b = _chay_dua(may, desk_lap_phieu_giao, lambda: bs.giao_hang("SO-3", "Kho Sỉ - VGB"))
+	la("không tới bước lập phiếu giao", vet.get("lap"), None)
+	dung("câu chặn nói đã có phiếu giao: %s" % b.loi, b.loi is not None and "đã có phiếu giao hàng" in str(b.loi))
