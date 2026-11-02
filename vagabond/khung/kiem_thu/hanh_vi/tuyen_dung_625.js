@@ -320,6 +320,12 @@ function ai(r, k) { return Object.assign(r, k); }
     dung('thẻ có tên và dòng giải thích', chu(anh[1]).indexOf('Ảnh đã tải lên') >= 0 && chu(anh[1]).indexOf('Ảnh riêng của vị trí này') >= 0);
     dung('ô tải đổi chữ', chu(m.khung.querySelectorAll('[data-tdtaianhweb]')[0]).indexOf('Tải ảnh khác') >= 0);
     dung('nhắc bấm Lưu vị trí: ' + m.toast.join('|'), m.toast.indexOf('Đã tải ảnh, bấm Lưu vị trí để web hiện ảnh này') >= 0);
+    /* Codex #528: chữ trong mọi ô ảnh (cả ô tải) ít nhất 13 điểm, AGENTS.md 2b.13. */
+    var o = m.khung.querySelectorAll('[data-tdanhweb]').concat(m.khung.querySelectorAll('[data-tdtaianhweb]'));
+    var nho = [];
+    o.forEach(function (x) { (x.children || []).forEach(function (c) { var mm = /font-size:([\d.]+)px/.exec(c.getAttribute('style') || ''); if (mm && +mm[1] < 13) nho.push(+mm[1]); }); });
+    bang('không chữ nào dưới 13 điểm trong ' + o.length + ' ô ảnh', nho, []);
+    dung('có đủ ô để đo', o.length === 5);
     await m.khung.querySelectorAll('#tdLuuVt')[0].onclick(); await tick();
     bang('lưu gửi ảnh vừa tải', JSON.parse(goiTen(m, 'luu_vi_tri')[0].ts.du_lieu).anh_web, '/files/web-thu-ngan.png');
   });
