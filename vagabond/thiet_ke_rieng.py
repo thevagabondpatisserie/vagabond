@@ -167,6 +167,14 @@ def chuan_sdt(s):
 	return sdt(s)
 
 
+def anh_cac_tac_pham(nd):
+	"""{mã tác phẩm: ảnh} của mọi khối thiết kế riêng, kể cả đang ẩn (đơn cũ
+	của tác phẩm đã ẩn vẫn cần ảnh để nhận diện). THUẦN. Codex #531 vòng 7,
+	AGENTS 2b.4: ảnh lấy từ danh mục tác phẩm Marketing khai, một nguồn."""
+	return {k.get("id"): str(k.get("anh") or "") for k in (nd or {}).get("khoi") or []
+		if k.get("loai") == LOAI and k.get("id")}
+
+
 def tac_pham_hien(nd, id_tac_pham):
 	"""Khối tác phẩm đang hiện trên web theo mã. THUẦN."""
 	for k in (nd or {}).get("khoi") or []:
@@ -840,14 +848,17 @@ def _hoa_don_cua(so, khoa=False):
 		"docstatus": ["<", 2]}, ["name", "docstatus"], as_dict=True, for_update=khoa)
 
 
-def tom_tat(so_name, khoa=False):
+def tom_tat(so_name, khoa=False, anh_tp=None):
 	"""Một đơn thiết kế riêng cho màn app và trang khách. Mọi con số tính ở đây.
 
 	khoa=True (Codex #531 vòng 6): dùng NGAY SAU `_khoa_don` ở các cửa quyết
 	định tiền hay trạng thái (thu tiền mặt, giao bánh, huỷ). Phiếu đặt, phiếu
 	thu và hoá đơn đều đọc hiện tại (for update). Đọc thường lúc đó là ảnh chụp
 	từ trước lúc chờ khoá: lượt thu tiền mặt không thấy phiếu cọc lượt khớp vừa
-	lập và thu cả 7.560.000 trên đơn đã cọc 3.780.000."""
+	lập và thu cả 7.560.000 trên đơn đã cọc 3.780.000.
+
+	`anh_tp`: {mã tác phẩm: ảnh} đọc sẵn (ds_don đọc một lần cho cả danh sách);
+	để trống thì tự đọc danh mục. Không tìm ra tác phẩm thì ảnh rỗng, màn hiện 🍰."""
 	so = frappe.db.get_value(SO, so_name, ["name", "docstatus", "status", "customer", "customer_name",
 		"delivery_date", "transaction_date", "grand_total", "rounded_total", "vgb_tkr_ma", "vgb_tkr_coc",
 		"vgb_tkr_bang_ke", "vgb_tkr_du_lieu", "per_billed", "creation"], as_dict=True, for_update=khoa)
@@ -858,8 +869,10 @@ def tom_tat(so_name, khoa=False):
 	hd = _hoa_don_cua(so, khoa)
 	ma, nhan = trang_thai(tong, ds_phieu, bool(hd and int(hd.docstatus) == 1), int(so.docstatus) == 2)
 	don = json.loads(so.vgb_tkr_du_lieu or "{}")
+	if anh_tp is None:
+		anh_tp = anh_cac_tac_pham(_ban())
 	return {
-		"name": so.name, "ma": so.vgb_tkr_ma, "trang_thai": ma, "nhan": nhan, "khach": so.customer_name or so.customer,
+		"name": so.name, "ma": so.vgb_tkr_ma, "anh": anh_tp.get(don.get("tac_pham_id")) or "", "trang_thai": ma, "nhan": nhan, "khach": so.customer_name or so.customer,
 		"sdt": don.get("sdt", ""), "tac_pham": don.get("tac_pham", ""), "kich_co": don.get("kich_co", ""),
 		"ngay": str(so.delivery_date or ""), "gio": don.get("gio", ""), "diem_nhan": don.get("ten_diem_nhan", ""),
 		"tong": tron(tong), "coc": tron(so.vgb_tkr_coc), "con_lai": con_phai_thu(tong, ds_phieu),
@@ -878,7 +891,8 @@ def ds_don(trang_thai_loc="", tim=""):
 	tu = str(frappe.utils.add_days(_hom_nay(), -60))
 	ten = frappe.get_all(SO, filters={"vgb_tkr_ma": ["is", "set"], "docstatus": ["in", [1, 2]],
 		"delivery_date": [">=", tu]}, pluck="name", order_by="delivery_date asc, creation asc", limit_page_length=400)
-	rows = [tom_tat(t) for t in ten]
+	anh_tp = anh_cac_tac_pham(_ban())
+	rows = [tom_tat(t, anh_tp=anh_tp) for t in ten]
 	dem = {k: 0 for k, _ in TRANG_THAI}
 	for r in rows:
 		dem[r["trang_thai"]] = dem.get(r["trang_thai"], 0) + 1

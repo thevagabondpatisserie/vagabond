@@ -148,6 +148,18 @@ def chuan_sdt(s):
 	return sdt(s)
 
 
+def logo_khach(u):
+	"""Logo khách (Customer.image) được hiện trên màn app. THUẦN.
+
+	AGENTS 2b.4: khách có logo thì hiện logo. Chỉ nhận ảnh CÔNG KHAI dạng
+	/files/... : ảnh /private cần đăng nhập, đường ngoài hay có ký tự lạ thì
+	bỏ, màn hiện ô biểu tượng nhóm 🏢."""
+	u = str(u or "").strip()
+	if not u.startswith("/files/") or ".." in u or re.search(r"[\s\\\"'<>]", u):
+		return ""
+	return u
+
+
 def chuan_mst(s):
 	"""Mã số thuế: rỗng, 10 số, 12 số (hộ kinh doanh theo CCCD) hoặc 10 số
 	kèm mã chi nhánh 3 số. THUẦN. Sai dạng thì ValueError."""
@@ -1053,8 +1065,11 @@ def tim_khach(tu_khoa=""):
 		from vagabond import tim_kiem
 
 		loc = tim_kiem.them_loc(loc, "Customer", tu, ["name", "customer_name", "mobile_no", "tax_id"])
-	return frappe.get_all("Customer", filters=loc, fields=["name", "customer_name", "customer_group", "mobile_no",
-		"tax_id", "vgb_si_web", "vgb_si_cuoi_ky", "vgb_si_sdt"], order_by="modified desc", limit_page_length=30)
+	ds = frappe.get_all("Customer", filters=loc, fields=["name", "customer_name", "customer_group", "mobile_no",
+		"tax_id", "vgb_si_web", "vgb_si_cuoi_ky", "vgb_si_sdt", "image"], order_by="modified desc", limit_page_length=30)
+	for r in ds:
+		r["logo"] = logo_khach(r.pop("image", None))
+	return ds
 
 
 def _chan_trung_sdt(sdt, khach):
@@ -1134,10 +1149,11 @@ def ds_khach(tim=""):
 
 		loc = tim_kiem.them_loc(loc, "Customer", tu, ["name", "customer_name", "vgb_si_sdt", "tax_id"])
 	rows = frappe.get_all("Customer", filters=loc, fields=["name", "customer_name", "tax_id", "vgb_si_sdt",
-		"vgb_si_cuoi_ky", "disabled"], order_by="customer_name asc", limit_page_length=300)
+		"vgb_si_cuoi_ky", "disabled", "image"], order_by="customer_name asc", limit_page_length=300)
 	hn = _hom_nay()
 	for r in rows:
 		r["so_mon"] = len(chon_gia(_dong_gia(r.name), hn))
+		r["logo"] = logo_khach(r.pop("image", None))
 	return {"rows": rows}
 
 
@@ -1189,9 +1205,10 @@ def bang_gia(khach):
 	(hoá đơn 180 ngày, mã sỉ BAWS gộp về mã gốc qua Anh Xa Ma Si)."""
 	_kiem_quyen_sales()
 	kh = frappe.db.get_value("Customer", khach, ["name", "customer_name", "vgb_si_web", "vgb_si_cuoi_ky",
-		"vgb_si_sdt", "tax_id"], as_dict=True)
+		"vgb_si_sdt", "tax_id", "image"], as_dict=True)
 	if not kh:
 		frappe.throw("Không tìm thấy khách %s." % khach)
+	kh["logo"] = logo_khach(kh.pop("image", None))
 	gia = gia_cua_khach(khach)
 	goi_y = goi_y_gia(_lich_su_gia(khach), _anh_xa_si(), set(gia))
 	ten = {r.name: r for r in frappe.get_all("Item", filters={"name": ["in", [g["ma"] for g in goi_y] or ["__"]],
@@ -1361,6 +1378,15 @@ def _an_tien(t):
 	return t
 
 
+def _logo_cac_khach(ds_khach):
+	"""{mã khách: logo} đọc MỘT lượt cho cả danh sách, không đọc từng khách."""
+	ten = sorted({str(x) for x in ds_khach or [] if x})
+	if not ten:
+		return {}
+	return {r.name: logo_khach(r.image) for r in frappe.get_all("Customer", filters={"name": ["in", ten]},
+		fields=["name", "image"], limit_page_length=0)}
+
+
 @frappe.whitelist()
 def ds_don(trang_thai_loc="", tim=""):
 	"""Đơn sỉ web theo ngày giao (30 ngày qua tới mọi ngày tới)."""
@@ -1370,6 +1396,9 @@ def ds_don(trang_thai_loc="", tim=""):
 		"delivery_date": [">=", tu]}, pluck="name", order_by="delivery_date asc, creation asc", limit_page_length=400)
 	co_tien = _co_tien()
 	rows = [tom_tat(t) if co_tien else _an_tien(tom_tat(t)) for t in ten]
+	logo = _logo_cac_khach([r.get("ma_khach") for r in rows])
+	for r in rows:
+		r["logo"] = logo.get(r.get("ma_khach"), "")
 	dem = {k: 0 for k, _ in TRANG_THAI}
 	for r in rows:
 		dem[r["trang_thai"]] = dem.get(r["trang_thai"], 0) + 1
@@ -1391,6 +1420,7 @@ def _la_ke_toan():
 def xem_don(name):
 	_kiem_quyen_xem()
 	t = tom_tat(name)
+	t["logo"] = _logo_cac_khach([t.get("ma_khach")]).get(t.get("ma_khach"), "")
 	if not _co_tien():
 		return _an_tien(t)
 	if t["tra_truoc"] and t["con_lai"] > 0 and t["trang_thai"] == "cho_tt":
