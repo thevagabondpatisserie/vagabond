@@ -22,19 +22,22 @@ Bản đề xuất để Codex góp ý TRƯỚC khi viết code. Chưa có dòng
 - Giá là đầu vào người gõ tay: `chuan_hoa` kiểm số nguyên dương, có trần, size không trùng tên.
 - Tab Vue "Thiết kế riêng" đọc khối này qua `cong_khai()` như Ưu đãi, Tiệc.
 
-### Đặt và cọc
-- Cửa mới `thiet_ke_rieng.dat(du_lieu)` (allow_guest, POST, có giới hạn lượt như `tiec_web.dang_ky`). Máy chủ tự tính lại giá từ khối đã xuất bản theo mã tác phẩm, mã size, mã trang trí; KHÔNG nhận giá từ máy khách.
-- Chặn ở cửa nhập: ngày cần bánh phải từ hôm nay + số ngày đặt trước của tác phẩm (giờ Việt Nam); số điện thoại hợp lệ; tác phẩm còn hiện.
-- Ghi doctype mới `Vagabond Dat Thiet Ke` (tối thiểu): mã (TKR-YY-MM-###), tác phẩm, size, trang trí, ngày giờ cần bánh, giao hoặc nhận tại cửa hàng (dùng lại phần địa chỉ, phí giao của đơn web), ghi chú bếp, ảnh tham khảo (tệp riêng tư), khách, tổng (gồm VAT), tiền cọc = làm tròn lên 50% tổng, trạng thái: Chờ cọc, Đã cọc, Đã tạo đơn, Đã huỷ.
-- QR cọc: sinh VietQR với nội dung chuyển khoản không dấu chứa mã TKR, theo đúng cách `cong_no` và `thu_hop_dong` (gom thành MỘT phép dùng chung, không chép thứ ba). Máy dò SePay khớp theo mã, đổi trạng thái Đã cọc.
-- Khi Đã cọc: tạo đơn Pancake qua đúng đường `don_hang` hiện có (một dòng BAEV00001 giá = tổng, ghi chú in và ghi chú nội bộ là bảng kê: tác phẩm, size, trang trí, ngày tiệc), gắn thẻ "Thiết kế riêng"; tin Zalo nhóm Sales và nhóm bếp kèm mã TKR.
-- Phần còn lại 50% trả khi nhận bánh tại quầy, như đơn hiện nay.
+### Đặt và cọc (bản 2, anh Việt chốt 02/11 sau góp ý Codex)
+
+Codex vòng 1 chỉ ra: đẩy đơn cọc qua Pancake thì Pancake vẫn đòi đủ tiền, `_soat_sepay` so tiền theo mã Pancake với toàn bộ hoá đơn nên đơn trả hai lần bị chặn ghi sổ, và đường `don_hang` không giữ được giá máy chủ cho BAEV00001 (giá chuẩn 0). Anh Việt chọn: đơn Thiết kế riêng đi LUỒNG ĐẶT BÁNH CỦA APP (`dat_banh.py`, issue #195), mở thêm cọc 50%, KHÔNG qua Pancake.
+
+- Cửa mới `thiet_ke_rieng.dat(du_lieu)` (allow_guest, POST, giới hạn lượt như `tiec_web.dang_ky`). Máy chủ tự tính giá từ khối đã xuất bản theo mã tác phẩm, size, trang trí; không nhận giá từ trình duyệt.
+- Chặn ở cửa nhập: ngày nhận từ hôm nay + số ngày đặt trước của tác phẩm (giờ Việt Nam), số điện thoại hợp lệ, tác phẩm còn hiện.
+- Tạo phiếu đặt đúng kiểu `dat_banh` (Sales Order), một dòng BAEV00001 giá = giá đã xác nhận ở máy chủ (gồm VAT), mô tả dòng và ghi chú là bảng kê: tác phẩm, size, trang trí, ngày tiệc. Ngày nhận = ngày giao, điểm nhận chọn trên web. Trạng thái chờ cọc.
+- QR cọc: VietQR nội dung không dấu chứa mã phiếu đặt, số = làm tròn lên 50% tổng. Gom phép dựng QR của `cong_no` và `thu_hop_dong` thành MỘT phép dùng chung.
+- Tiền về: máy dò SePay khớp theo mã, tạo chứng từ thu ứng trước trỏ ĐÚNG phiếu đặt (qua đủ bốn hàng rào `loi_phieu_dat_banh`), đánh dấu chiếm giao dịch với `doi_soat_sepay` để giao dịch không bị dùng lại. Tin Zalo nhóm Sales và nhóm bếp.
+- Ngày giao: thu phần còn lại tại quầy trên màn nhận bánh (tiền mặt, chuyển khoản, QR) thành chứng từ thu thứ hai cùng phiếu đặt; hoá đơn VAT xuất ngày giao, cấn cả hai khoản ứng trước như luồng đặt bánh hiện nay. Bất biến: mỗi đồng vào két hoặc tài khoản đúng một lần.
 - Nút "Nhờ Sales tư vấn trước": gửi tên, số, tác phẩm quan tâm vào nhóm Zalo Sales, không tạo đơn.
 
-### Câu hỏi cho Codex (phần 1)
-1. Pancake: tạo đơn với số đã cọc thế nào để QR và COD của Pancake chỉ còn phần còn lại? Có trường trả trước nào đã dùng trong repo, hay phải giảm qua dòng giảm giá (sai về thuế)? Nếu Pancake không có cách đúng, đề xuất: chưa đẩy Pancake lúc cọc, Sales bấm "Tạo đơn" ở màn app khi đã chốt.
-2. Tiền cọc vào sổ: SePay khớp mã TKR thì ghi Payment Entry tạm ứng của khách (tài khoản người mua trả trước) hay chỉ đánh dấu, để hoá đơn Pancake về sau gom cả hai? Cần đi đúng cách `_soat_sepay` đang chặn ghi sổ khi tiền chưa về, không làm lệch đối soát của chị Dung.
-3. Có nên dùng lại `Hop Dong Ban Hang` + phiếu `PTHD` (đã có cọc theo %, QR, SePay khớp) thay vì doctype mới không? Hợp đồng nặng hơn nhưng có sẵn quy trình.
+### Câu hỏi cho Codex (phần 1, vòng 2)
+1. `dat_banh` hiện chốt "trả trước toàn bộ". Mở cọc một phần thì những chỗ nào đang giả định đã trả đủ (màn nhận bánh, `con_giu_cho`, phương thức "Trả trước" trên hoá đơn ngày giao, `tong_ung_truoc`)?
+2. Cọc vào bằng chuyển khoản trên web nên không có quầy thu; hàng rào 1 của `loi_phieu_dat_banh` bắt có quầy. Gán quầy = điểm nhận bánh có đúng với `thu_ung_truoc` và đối soát két không, hay cần một nhánh "ứng trước qua ngân hàng" ngoài két?
+3. Khi Sales đã có phiếu đặt tay cho khách, tránh trùng với phiếu web thế nào?
 
 ## Phần 2: Bánh sỉ (PR sau)
 
@@ -45,9 +48,13 @@ Bản đề xuất để Codex góp ý TRƯỚC khi viết code. Chưa có dòng
 - Đặt: ngày giao sớm nhất = ngày đặt + 3; "Đặt lại như đơn trước".
 - Thanh toán: khách chưa bật công nợ thì QR trả trước; khách đã bật thì ghi công nợ hạn 15 ngày, trả qua QR gộp của `cong_no.py`.
 
-### Câu hỏi cho Codex (phần 2)
-4. Bảng giá riêng từng khách: dùng `Item Price` với `customer` (ERPNext hỗ trợ giá theo khách trên một Price List) hay doctype riêng? Ưu tiên cái mà hoá đơn, Pancake đồng bộ về đọc đúng.
-5. Đơn sỉ đi Pancake như đơn web, hay tạo Sales Order hoặc Delivery Note thẳng trong app (`xuat_ban.py`)?
+### Hướng sau góp ý Codex vòng 1 (câu 4, 5)
+- Codex: đường đơn web không đọc Item Price, và `xuat_ban.luu` submit Delivery Note trừ kho ngay, nên không dùng lúc đặt trước ba ngày.
+- Hướng: đơn sỉ trên web là Sales Order trong app (bước nhận đơn), giao hàng là bước riêng ở ngày giao (Delivery Note, hoá đơn như khách sỉ hiện nay). Giá theo khách đọc qua MỘT hàm máy chủ (Item Price có `customer` trên bảng giá bán) cho cả web lẫn màn nhận đơn; không nhận giá từ trình duyệt.
+
+### Câu hỏi cho Codex (phần 2, vòng 2)
+4. Sales Order sỉ có cần giữ chỗ bảng kiểm bánh như phiếu đặt `dat_banh` không, hay bếp lên kế hoạch từ danh sách đơn sỉ theo ngày giao?
+5. Công nợ 15 ngày: đặt `payment_terms` trên hoá đơn hay chỉ tính hạn ở `cong_no.py` cho khớp màn Công nợ hiện có?
 
 ## Ngoài phạm vi
 - Không sửa dữ liệu, chứng từ quá khứ.
