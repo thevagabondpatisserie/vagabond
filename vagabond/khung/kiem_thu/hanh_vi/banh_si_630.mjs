@@ -288,6 +288,22 @@ await ca('Codex #531 f4: máy chủ từ chối (đơn không còn chờ chuyể
   la('màn đặt không nhắc', tim((SI.man = 'dat', ve()), co('data-si-nhac-cho-tt')).length, 0);
 });
 
+/* Codex #531 v8: bảng hoá đơn chưa trả chỉ vẽ 30 dòng đầu; tổng và QR tính đủ,
+   nên phải nói rõ còn bao nhiêu tờ không hiện, không để khách tưởng chỉ có 30. */
+await ca('Codex #531 v8: công nợ 35 hoá đơn: bảng vẽ 30 dòng, câu nói còn 5 hoá đơn đã tính trong tổng', async () => {
+  const toi = TOI();
+  toi.no.dong = Array.from({length: 35}, (_, i) => ({hoa_don: 'HDB-' + i, ngay: '2026-10-01', tien: 100000, han: '2026-11-20'}));
+  toi.no.tong = 3500000;
+  await moi(toi);
+  mot(ve(), co('data-si-tab', 'tai_khoan'), 'tab').props.onClick();
+  la('30 dòng', tim(ve(), co('data-si-hd')).length, 30);
+  dung('câu còn 5', chu(mot(ve(), co('data-si-hd-con'), 'câu còn')).includes('5'));
+  toi.no.dong = toi.no.dong.slice(0, 3);
+  await moi(toi);
+  mot(ve(), co('data-si-tab', 'tai_khoan'), 'tab').props.onClick();
+  la('ít hơn 30 thì không có câu', tim(ve(), co('data-si-hd-con')).length, 0);
+});
+
 await ca('mọi khoá chữ của trang gọi khi vẽ có trong sổ nhãn, chữ mặc định trùng, không đại từ cũ, không markup', async () => {
   const so = JSON.parse(readFileSync(path.join(GOC, 'vagabond/public/web_order/chu-mac-dinh.json'), 'utf8'));
   const doc = new Set();
