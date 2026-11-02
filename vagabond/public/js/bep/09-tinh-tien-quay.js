@@ -237,8 +237,11 @@ function posDiemTheoQuay(quay) {
    vẫn giữ giá cũ, nên giỏ và mã QR thu theo giá cũ trong khi máy chủ lưu giá
    mới. Hàm này thay posQuay bằng bản mới của CÙNG điểm và đặt lại giá các món
    trong giỏ (trừ món combo, combo có giá riêng). Món vừa bị bỏ giá riêng thì
-   về giá chung trong danh mục. Trả số món đã đổi giá. */
-function posDongBoQuay() {
+   về giá chung trong danh mục. Trả số món đã đổi giá.
+   giaChung ({mã: giá chung}, đọc từ máy chủ) có khi máy chủ vừa chặn vì giá
+   lệch: khi đó MỌI món không có giá riêng về đúng giá chung đó (Codex PR #532
+   vòng 3), không chỉ món vừa bị bỏ giá riêng. */
+function posDongBoQuay(giaChung) {
   if (!posQuay) return 0;
   var moi = null;
   (((CFGBH || {}).diem) || []).forEach(function (q) { if (q.ma === posQuay.ma) moi = q; });
@@ -248,9 +251,10 @@ function posDongBoQuay() {
   if (!posDon || !posDon.mon) return 0;
   var gMoi = moi.gia_rieng || {}, gCu = cu.gia_rieng || {}, doi = 0;
   posDon.mon.forEach(function (m) {
-    if (m.combo || m.combo_ma) return;
+    if (m.combo || m.combo_ma || m.item_code === POS_MA_PHI_GIAO) return;
     var g = null;
     if (co.call(gMoi, m.item_code)) g = +gMoi[m.item_code] || 0;
+    else if (giaChung && co.call(giaChung, m.item_code)) g = +giaChung[m.item_code] || 0;
     else if (co.call(gCu, m.item_code)) {
       var x = (dsItemsCache || []).filter(function (y) { return y.name === m.item_code; })[0];
       if (x) g = +x.standard_rate || 0;
@@ -267,7 +271,17 @@ async function posGiaVuaDoi(e) {
   if (cau.indexOf('Bảng giá của điểm vừa đổi') < 0) return false;
   CFGBH = null;
   try { await cfgBanHang(); } catch (eC) { /* đọc lại lỗi: lần lưu sau máy chủ vẫn chặn */ }
-  posDongBoQuay();
+  /* Giá chung của các món trong giỏ, đọc lại từ danh mục: máy chủ đối chiếu cả
+     giá chung, nên giỏ phải về đúng số đó dù máy chưa nạp bảng món. */
+  var giaChung = {};
+  try {
+    var maGio = (posDon && posDon.mon || []).filter(function (m) { return !m.combo && !m.combo_ma; }).map(function (m) { return m.item_code; });
+    if (maGio.length) {
+      ((await getList('Item', { filters: { name: ['in', maGio] }, fields: ['name', 'standard_rate'], limit_page_length: 0 })) || [])
+        .forEach(function (x) { if (+x.standard_rate) giaChung[x.name] = +x.standard_rate; });
+    }
+  } catch (eG) { giaChung = {}; }
+  posDongBoQuay(giaChung);
   toast(cau, 6500);
   go(scrPosQuay, true);
   return true;

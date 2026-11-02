@@ -91,6 +91,14 @@ function posKhoiKm() {
   return html;
 }
 
+/* Giá món tặng thêm vào giỏ: giá quầy đang bán của món đó (posGiaMon) nếu máy
+   đã nạp bảng món, không thì giá điểm nếu có, cuối cùng mới tới giá máy chủ gợi ý. */
+function posGiaTang(t) {
+  var x = (typeof dsItemsCache !== 'undefined' && dsItemsCache || []).filter(function (y) { return y.name === t.item_code; })[0];
+  if (x && typeof posGiaMon === 'function') return posGiaMon(x, posQuay) || t.rate;
+  var g = posQuay && posQuay.gia_rieng;
+  return (g && Object.prototype.hasOwnProperty.call(g, t.item_code)) ? (+g[t.item_code] || t.rate) : t.rate;
+}
 function posNoiKm() {
   var n = document.getElementById('posKmChon');
   if (n) n.onclick = function () { posDoc(); posSheetChonKm(); };
@@ -103,7 +111,9 @@ function posNoiKm() {
       var i = -1;
       posDon.mon.forEach(function (m, k) { if (m.item_code === t.item_code) i = k; });
       if (i >= 0) posDon.mon[i].qty += t.qty;
-      else posDon.mon.push({ item_code: t.item_code, ten: t.item_code, qty: t.qty, rate: t.rate, anh: '', nhom: '', tc: [], gc: '' });
+      /* Món tặng tính theo giá quầy đang bán (giá điểm, không có thì giá chung)
+         như mọi món khác, vì máy chủ đối chiếu đúng hai giá đó (v631). */
+      else posDon.mon.push({ item_code: t.item_code, ten: t.item_code, qty: t.qty, rate: posGiaTang(t), anh: '', nhom: '', tc: [], gc: '' });
     });
     posDon.kmKq = null;
     go(scrPosQuay, true);
