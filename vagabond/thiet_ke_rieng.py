@@ -790,12 +790,6 @@ def _phieu_cua(so_name):
 	return phieu_cua(so_name)
 
 
-def _ds_phieu(so_name):
-	from vagabond.ung_truoc_don import ds_phieu
-
-	return ds_phieu(so_name)
-
-
 def _gd_mang_ma(ma):
 	from vagabond.ung_truoc_don import gd_mang_ma
 
@@ -840,18 +834,28 @@ def quet():
 # ------------------------------------------------------------ màn app
 
 
-def _hoa_don_cua(so):
+def _hoa_don_cua(so, khoa=False):
+	# custom_pancake_id có khoá duy nhất (khoa_ma_pancake) nên đọc có khoá chỉ khoá đúng một chỉ mục.
 	return frappe.db.get_value(SI, {"custom_pancake_id": "TKR-" + str(so.get("vgb_tkr_ma") or ""),
-		"docstatus": ["<", 2]}, ["name", "docstatus"], as_dict=True)
+		"docstatus": ["<", 2]}, ["name", "docstatus"], as_dict=True, for_update=khoa)
 
 
-def tom_tat(so_name):
+def tom_tat(so_name, khoa=False):
+	"""Một đơn thiết kế riêng cho màn app và trang khách. Mọi con số tính ở đây.
+
+	khoa=True (Codex #531 vòng 6): dùng NGAY SAU `_khoa_don` ở các cửa quyết
+	định tiền hay trạng thái (thu tiền mặt, giao bánh, huỷ). Phiếu đặt, phiếu
+	thu và hoá đơn đều đọc hiện tại (for update). Đọc thường lúc đó là ảnh chụp
+	từ trước lúc chờ khoá: lượt thu tiền mặt không thấy phiếu cọc lượt khớp vừa
+	lập và thu cả 7.560.000 trên đơn đã cọc 3.780.000."""
 	so = frappe.db.get_value(SO, so_name, ["name", "docstatus", "status", "customer", "customer_name",
 		"delivery_date", "transaction_date", "grand_total", "rounded_total", "vgb_tkr_ma", "vgb_tkr_coc",
-		"vgb_tkr_bang_ke", "vgb_tkr_du_lieu", "per_billed", "creation"], as_dict=True)
+		"vgb_tkr_bang_ke", "vgb_tkr_du_lieu", "per_billed", "creation"], as_dict=True, for_update=khoa)
 	tong = flt(so.rounded_total) or flt(so.grand_total)
-	ds_phieu = _ds_phieu(so_name)
-	hd = _hoa_don_cua(so)
+	from vagabond.ung_truoc_don import ds_phieu as _ds
+
+	ds_phieu = _ds(so_name, khoa)
+	hd = _hoa_don_cua(so, khoa)
 	ma, nhan = trang_thai(tong, ds_phieu, bool(hd and int(hd.docstatus) == 1), int(so.docstatus) == 2)
 	don = json.loads(so.vgb_tkr_du_lieu or "{}")
 	return {
@@ -921,7 +925,7 @@ def thu_tien_mat(name, quay):
 
 	q = _quay_hop_le(quay)
 	_khoa_don(name)
-	t = tom_tat(name)
+	t = tom_tat(name, khoa=True)
 	if t["trang_thai"] in ("da_huy", "da_giao"):
 		frappe.throw("Đơn %s đã %s." % (t["ma"], t["nhan"].lower()))
 	if t["con_lai"] <= 0:
@@ -990,7 +994,7 @@ def giao_banh(name, quay):
 
 	q = _quay_hop_le(quay)
 	_khoa_don(name)
-	t = tom_tat(name)
+	t = tom_tat(name, khoa=True)
 	if t["trang_thai"] == "da_giao":
 		frappe.throw("Đơn %s đã giao, hoá đơn %s." % (t["ma"], t["hoa_don"]))
 	if t["trang_thai"] == "da_huy":
@@ -1053,7 +1057,9 @@ def huy(name, ly_do=""):
 	if len(ly_do) < 5:
 		frappe.throw("Ghi lý do huỷ.")
 	_khoa_don(name)
-	t = tom_tat(name)
+	t = tom_tat(name, khoa=True)
+	if t["trang_thai"] == "da_huy":
+		frappe.throw("Đơn %s đã huỷ." % t["ma"])
 	if t["trang_thai"] != "cho_coc":
 		frappe.throw("Đơn %s đã nhận tiền (%s). Huỷ đơn có tiền phải lập phiếu hoàn tiền cho khách ở màn Hoàn tiền; "
 			"màn này chỉ huỷ đơn chưa cọc." % (t["ma"], t["nhan"]))

@@ -1310,7 +1310,13 @@ def _hoa_don_cua(ma, khoa=False):
 		["name", "docstatus", "due_date", "outstanding_amount"], as_dict=True, for_update=khoa)
 
 
-def _phieu_giao_cua(so_name):
+def _phieu_giao_cua(so_name, khoa=False):
+	"""Phiếu giao đã ghi sổ của phiếu đặt. khoa=True: đọc hiện tại sau khoá
+	(against_sales_order có chỉ mục trong ERPNext nên chỉ khoá đúng các dòng đó)."""
+	if khoa:
+		ds = frappe.db.sql("""select p.name from `tabDelivery Note` p join `tabDelivery Note Item` i
+			on i.parent = p.name where i.against_sales_order = %s and p.docstatus = 1 for update""", (so_name,))
+		return tuple({r[0]: r for r in ds}.values())
 	return frappe.db.sql("""select distinct p.name from `tabDelivery Note` p join `tabDelivery Note Item` i
 		on i.parent = p.name where i.against_sales_order = %s and p.docstatus = 1""", (so_name,))
 
@@ -1459,8 +1465,9 @@ def giao_hang(name, kho, nguoi_nhan=""):
 	from vagabond.thu_tien import _giu_chu, nang_quyen_lap_phieu
 	from vagabond.ung_truoc_don import cap_ung_truoc
 
+	# Codex #531 vòng 6: sau khoá, quyết định bằng đọc hiện tại.
 	_khoa_don(name)
-	t = tom_tat(name)
+	t = tom_tat(name, khoa=True)
 	if t["trang_thai"] == "da_giao":
 		frappe.throw("Đơn %s đã giao, hoá đơn %s." % (t["ma"], t["hoa_don"]))
 	if t["trang_thai"] == "da_huy":
@@ -1468,7 +1475,7 @@ def giao_hang(name, kho, nguoi_nhan=""):
 	loi = loi_giao(t["tra_truoc"], t["con_lai"], t["phieu"])
 	if loi:
 		frappe.throw(loi)
-	if _phieu_giao_cua(name):
+	if _phieu_giao_cua(name, khoa=True):
 		frappe.throw("Đơn %s đã có phiếu giao hàng nhưng chưa có hoá đơn. Nhờ kế toán lập hoá đơn từ phiếu giao đó."
 			% t["ma"])
 	cty = _cong_ty()
@@ -1545,13 +1552,14 @@ def huy_don(name, ly_do=""):
 	ly_do = re.sub(r"\s+", " ", str(ly_do or "")).strip()
 	if len(ly_do) < 5:
 		frappe.throw("Ghi lý do huỷ.")
+	# Codex #531 vòng 6: sau khoá, quyết định bằng đọc hiện tại.
 	_khoa_don(name)
-	t = tom_tat(name)
+	t = tom_tat(name, khoa=True)
 	if t["trang_thai"] in ("da_giao", "da_huy"):
 		frappe.throw("Đơn %s đã %s." % (t["ma"], t["nhan"].lower()))
 	if t["phieu"]:
 		frappe.throw("Đơn %s đã có tiền chuyển về. Huỷ đơn có tiền phải lập phiếu hoàn tiền ở màn Hoàn tiền." % t["ma"])
-	if _phieu_giao_cua(name):
+	if _phieu_giao_cua(name, khoa=True):
 		frappe.throw("Đơn %s đã có phiếu giao hàng, không huỷ ở đây." % t["ma"])
 	so = frappe.get_doc(SO, name)
 	with nang_quyen_lap_phieu():
