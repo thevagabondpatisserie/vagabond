@@ -745,6 +745,17 @@ function tdVtMoi(v) {
     tuyen_gap: v.name ? +v.tuyen_gap || 0 : 0, anh_web: v.anh_web || ''
   };
 }
+/* v630: THUẦN. Danh sách thẻ ảnh của màn sửa vị trí: tự chọn, ảnh đã tải lên
+   riêng cho vị trí (nếu có, để thấy đang chọn ảnh nào), rồi các ảnh có sẵn. */
+function tdAnhRieng(anh, chon) {
+  anh = String(anh || '');
+  return !!anh && !(chon || []).some(function (a) { return a.url === anh; });
+}
+function tdDsAnhWeb(anh, chon) {
+  var ds = [{ url: '', ten: 'Tự chọn theo bộ phận', mo: 'Bếp ra ảnh bếp, sales ra ảnh quầy' }];
+  if (tdAnhRieng(anh, chon)) ds.push({ url: String(anh), ten: 'Ảnh đã tải lên', mo: 'Ảnh riêng của vị trí này' });
+  return ds.concat(chon || []);
+}
 async function scrTdViTri(name) {
   var tieuDe = name ? 'Sửa vị trí' : 'Thêm vị trí';
   if (!tdKq) { try { tdKq = await api('vagabond.tuyen_dung.tong_quan', {}); } catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>'); return; } }
@@ -785,7 +796,7 @@ async function scrTdViTri(name) {
     tdCongTac('data-tdgap="1" aria-label="Tuyển gấp"', +s.tuyen_gap) + '</div>' +
     '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:14px 0 5px">Ảnh trên web</div>' +
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">' +
-    [{ url: '', ten: 'Tự chọn theo bộ phận', mo: 'Bếp ra ảnh bếp, sales ra ảnh quầy' }].concat(tdKq.anh_web_chon || []).map(function (a) {
+    tdDsAnhWeb(s.anh_web, tdKq.anh_web_chon).map(function (a) {
       var on = (s.anh_web || '') === a.url;
       return '<button type="button" data-tdanhweb="' + h(a.url) + '" aria-pressed="' + on + '" style="margin:0;padding:0;text-align:left;border-radius:12px;overflow:hidden;cursor:pointer;background:#fff;' +
         'border:' + (on ? '2.5px solid #0d9488' : '1.5px solid #d0d5dd') + '">' +
@@ -793,7 +804,13 @@ async function scrTdViTri(name) {
           '<span style="display:flex;height:70px;align-items:center;justify-content:center;background:#f2f4f7;font-size:22px">✨</span>') +
         '<span style="display:block;padding:6px 8px;font-size:12.5px;font-weight:700;color:#101828">' + h(a.ten) + '</span>' +
         '<span style="display:block;padding:0 8px 7px;font-size:11.5px;color:#475467;line-height:1.35">' + h(a.mo) + '</span></button>';
-    }).join('') + '</div></div>' +
+    }).join('') +
+    /* v630 (Minh Vũ 02/11/2026): tải ảnh riêng cho vị trí, không chỉ chọn ảnh có sẵn. */
+    '<button type="button" data-tdtaianhweb="1" style="margin:0;padding:0;text-align:left;border-radius:12px;overflow:hidden;cursor:pointer;background:#fff;border:1.5px dashed #0d9488">' +
+    '<span style="display:flex;height:70px;align-items:center;justify-content:center;background:#f0fdfa;font-size:22px;color:#0d9488">⬆</span>' +
+    '<span style="display:block;padding:6px 8px;font-size:12.5px;font-weight:700;color:#0f766e">' + (tdAnhRieng(s.anh_web, tdKq.anh_web_chon) ? 'Tải ảnh khác' : 'Tải ảnh lên') + '</span>' +
+    '<span style="display:block;padding:0 8px 7px;font-size:11.5px;color:#475467;line-height:1.35">PNG, JPG hoặc WebP dưới 10 MB. Ảnh ngang hiện đẹp nhất.</span></button>' +
+    '</div></div>' +
     '<div class="card" style="padding:12px 13px"><div style="font-size:15px;font-weight:800">Phỏng vấn và làm thử</div>' +
     o('Tiêu chí chấm', 'tdTieuChi', s.tieu_chi, 'nhieu', 'Mỗi dòng một tiêu chí, tối đa 8. Để trống thì dùng: ' + h((tdKq.tieu_chi_mac_dinh || []).join(', ')) + '.') +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
@@ -813,6 +830,11 @@ async function scrTdViTri(name) {
     t = e.target.closest('[data-tdnl]');
     if (t) { s.noi_lam = t.getAttribute('data-tdnl'); var nl = document.getElementById('tdNoiLam'); if (nl) nl.value = s.noi_lam; go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); return; }
     if (e.target.closest('[data-tdgap]')) { s.tuyen_gap = +s.tuyen_gap ? 0 : 1; go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); return; }
+    if (e.target.closest('[data-tdtaianhweb]')) {
+      kmChonAnhWeb(function (u) { s.anh_web = u; go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); },
+        { duong: '/api/method/vagabond.tuyen_dung.tai_anh_web', bao: 'Đã tải ảnh, bấm ' + (name ? 'Lưu vị trí' : 'Tạo vị trí') + ' để web hiện ảnh này' });
+      return;
+    }
     t = e.target.closest('[data-tdanhweb]');
     if (t) { s.anh_web = t.getAttribute('data-tdanhweb'); go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); return; }
     if (e.target.closest('[data-tdvtbat]')) { s.dang_tuyen = +s.dang_tuyen ? 0 : 1; go(function () { tdVtKhoiPhuc = s; return scrTdViTri(name); }, true); return; }
