@@ -30,6 +30,9 @@ THEO_MOC = (
 	("hd_dau_vao", "kt_tien_chua_gan"),
 	("hd_dau_vao", "bgd_ket_lech"),
 	("bep_du_lieu_hao_hut", "bep_kiem_ke_sang"),
+	# Quỹ tiền mặt công ty: lệch quá 2 triệu tới Ban giám đốc, nộp ngân hàng chưa về tới kế toán.
+	("bgd_bao_cao_ngay", "bgd_kiem_quy_lech"),
+	("hd_dau_vao", "kt_nop_nh_chua_khop"),
 )
 
 
