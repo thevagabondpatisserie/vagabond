@@ -173,6 +173,19 @@ def soan_lech_cho_duyet(p, ten_nguoi):
 	return td, dong
 
 
+def cach_huy(loai, trang_thai):
+	"""THUẦN. Dòng lịch sử quỹ có nút Huỷ phiếu không (Codex #527 vòng 6): "nop" cho phiếu
+	nộp còn hiệu lực (người làm quỹ huỷ), "kiem" cho phiếu kiểm đã ghi sổ (chỉ Giám đốc),
+	"" khi phiếu đã huỷ, trả lại, bị thay hoặc chưa có bút toán."""
+	if trang_thai in ("Đã huỷ", "Trả lại", THAY):
+		return ""
+	if loai == NOP:
+		return "nop"
+	if loai == KIEM and trang_thai == "Đã ghi":
+		return "kiem"
+	return ""
+
+
 def soan_nop_chua_khop(ds):
 	"""THUẦN: (tiêu đề, dòng) tin nhắc kế toán các phiếu nộp ngân hàng chưa thấy tiền về."""
 	td = "Tiền mặt đã nộp ngân hàng chưa thấy về tài khoản"
@@ -357,7 +370,8 @@ def _lich_su(m, gioi_han=40):
 			ten = "Phiếu chi" if x.voucher_type == "Payment Entry" and tien_ < 0 else "Phiếu thu" if x.voucher_type == "Payment Entry" else "Bút toán"
 			phu, chip = (x.dien_giai or "")[:90], ""
 		ra.append({"luc": str(x.luc)[:16] if x.luc else str(x.posting_date), "ngay": str(x.posting_date), "loai": "so_cai",
-			"ma": (p.name if p else x.voucher_no), "tien": tien_, "ten": ten, "phu": phu, "chip": chip})
+			"ma": (p.name if p else x.voucher_no), "tien": tien_, "ten": ten, "phu": phu, "chip": chip,
+			"huy": cach_huy(p.loai, p.trang_thai) if p else ""})
 	for p in frappe.get_all(DT, filters={"trang_thai": "Chờ duyệt"}, fields=["name", "luc", "lech", "ly_do", "ten_nguoi"],
 			order_by="luc desc", limit_page_length=20):
 		ra.append({"luc": str(p.luc)[:16], "loai": "cho_duyet", "ma": p.name, "tien": _f(p.lech),
