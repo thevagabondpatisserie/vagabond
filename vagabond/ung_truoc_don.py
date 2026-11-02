@@ -81,9 +81,54 @@ def xet_giao_dich(tien_gd, toi_thieu, tong, da_nhan, ten_toi_thieu="tiền cọc
 	return (True, min(t, con), "")
 
 
+def ly_do_loai_dong(g, ly_do_tai_khoan, tk_so_cai):
+	"""Lý do một dòng sao kê KHÔNG được đưa vào phép chọn. Rỗng là dùng được. THUẦN.
+
+	`ly_do_tai_khoan`: hàm(tài khoản ngân hàng) -> lý do chưa được khớp (rỗng là được);
+	`tk_so_cai`: {tài khoản ngân hàng: tài khoản sổ cái}.
+	"""
+	tien = so_tien(g.get("deposit"))
+	if tien <= 0 or so_tien(g.get("withdrawal")) > 0:
+		return "Dòng sao kê không phải tiền vào."
+	if so_tien(g.get("docstatus")) != 1:
+		return "Dòng sao kê chưa ghi sổ hoặc đã huỷ."
+	if str(g.get("currency") or "VND").strip().upper() != "VND":
+		return "Dòng sao kê không phải tiền đồng."
+	tk = g.get("bank_account")
+	ly_do = ly_do_tai_khoan(tk)
+	if ly_do:
+		return ly_do
+	if not (tk_so_cai or {}).get(tk):
+		return "Tài khoản ngân hàng %s chưa gắn tài khoản sổ cái." % (tk or "")
+	con = g.get("unallocated_amount")
+	if con is not None and so_tien(con) + LECH < tien:
+		return "Dòng sao kê đã đối chiếu một phần hoặc toàn bộ ở nơi khác."
+	return ""
+
+
+def loc_dong_sao_ke(ds_gd, ly_do_tai_khoan, tk_so_cai):
+	"""Phép lọc DUY NHẤT của bộ khớp, chạy TRƯỚC phép chọn và phép cộng dồn. THUẦN.
+
+	Codex #531 vòng 9: lọc tài khoản sau phép chọn thì dòng ở tài khoản không
+	được khớp đã kịp cộng vào số đã nhận, chiếm hết phần còn thu; dòng đúng
+	đến sau bị loại vì "thừa", rồi dòng sai bị bỏ ở vòng lập phiếu: 0 phiếu.
+	Mọi điều kiện loại một dòng phải nằm ở đây. Trả (dùng được, bị loại).
+	"""
+	dung, loai = [], []
+	for g in ds_gd or []:
+		ly_do = ly_do_loai_dong(g, ly_do_tai_khoan, tk_so_cai)
+		if ly_do:
+			loai.append({"gd": g.get("name"), "ly_do": ly_do})
+		else:
+			dung.append(g)
+	return dung, loai
+
+
 def chon_giao_dich(ds_gd, ma, re_ma, chu, toi_thieu, tong, da_nhan, ten_toi_thieu="tiền cọc"):
 	"""Từ các dòng sao kê, chọn dòng được lập phiếu thu cho đơn mang mã `ma`. THUẦN.
 
+	`ds_gd` phải đã qua `loc_dong_sao_ke`: hàm này cộng dồn số đã nhận theo
+	từng dòng nhận, dòng nào lẽ ra bị loại mà lọt vào đây sẽ chiếm phần còn thu.
 	`ds_gd`: {name, mo_ta, tien, date}; `re_ma`: mẫu mã của luồng (TKR..., BSI...);
 	`chu`: {tên dòng: chứng từ đang giữ}. Bỏ dòng đã có chủ, dòng mang hai mã
 	khác nhau CÙNG luồng (không biết chia cho ai), dòng không mang đúng mã.
@@ -313,12 +358,16 @@ def khoa_dong_sao_ke(ds_gd):
 	(hiện tại) và thấy chủ. Khoá trước rồi mới đọc chủ, không đọc chủ rồi mới
 	khoá, để hai lượt cùng một dòng sao kê không cùng giữ khoá khoảng trống chỉ
 	mục rồi chờ nhau.
-	Thứ tự: hàng phiếu đặt, rồi dòng sao kê theo tên, rồi phiếu thu."""
+	Thứ tự: hàng phiếu đặt, rồi dòng sao kê theo tên, rồi phiếu thu.
+
+	Trả {tên: các ô đọc HIỆN TẠI trong khoá} để phép lọc quyết trên số mới
+	nhất (đã huỷ, đã đối chiếu ở nơi khác giữa lúc tìm và lúc khoá)."""
 	ds = sorted({str(x or "").strip() for x in ds_gd or [] if str(x or "").strip()})
-	if ds:
-		frappe.db.sql("select name from `tabBank Transaction` where name in %(ds)s order by name for update",
-			{"ds": tuple(ds)})
-	return ds
+	if not ds:
+		return {}
+	hang = frappe.db.sql("""select name, docstatus, deposit, withdrawal, currency, unallocated_amount, bank_account
+		from `tabBank Transaction` where name in %(ds)s order by name for update""", {"ds": tuple(ds)}, as_dict=True)
+	return {h["name"]: h for h in hang or [] if isinstance(h, dict)}
 
 
 def phieu_chiem(ds_gd):
@@ -345,17 +394,23 @@ def chu_hien_tai(ds_gd):
 	return {p["vgb_gd_tkr"]: "phiếu thu đơn đặt trước " + p["name"] for p in phieu_chiem(ds_gd)}
 
 
+def dien_dong(g):
+	g["mo_ta"] = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
+	g["tien"] = flt(g.get("deposit"))
+	g["ma_tham_chieu"] = g.get("reference_number") or g.get("transaction_id") or g.get("name")
+	return g
+
+
 def gd_mang_ma(ma):
+	"""Các dòng sao kê có thể mang mã, đọc ảnh chụp để TÌM. Quyết ở `loc_dong_sao_ke`
+	trên bản đọc hiện tại trong khoá; điều kiện SQL ở đây chỉ để bớt dòng đọc."""
 	ds = frappe.db.sql(
-		"""select name, date, deposit, withdrawal, description, reference_number, bank_account, transaction_id
+		"""select name, date, deposit, withdrawal, description, reference_number, bank_account, transaction_id,
+		docstatus, currency, unallocated_amount
 		from `tabBank Transaction` where docstatus = 1 and deposit > 0
 		and (upper(description) like %(m)s or upper(reference_number) like %(m)s)""",
 		{"m": "%" + ma + "%"}, as_dict=True)
-	for g in ds:
-		g["mo_ta"] = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
-		g["tien"] = flt(g.get("deposit"))
-		g["ma_tham_chieu"] = g.get("reference_number") or g.get("transaction_id") or g.get("name")
-	return ds
+	return [dien_dong(g) for g in ds]
 
 
 def khop(so_name, truong_ma, re_ma, toi_thieu_cua, quay, cong_ty, ghi_chu_cua, khi_lap_dau=None,
@@ -395,21 +450,25 @@ def khop(so_name, truong_ma, re_ma, toi_thieu_cua, quay, cong_ty, ghi_chu_cua, k
 	gds = gd_mang_ma(ma)
 	if not gds:
 		return 0
-	ten_gd = khoa_dong_sao_ke([g["name"] for g in gds])
+	hien = khoa_dong_sao_ke([g["name"] for g in gds])
+	gds = [dien_dong(dict(g, **hien[g["name"]])) for g in gds if g["name"] in hien]
+	# Codex #531 vòng 9: LỌC TRƯỚC, rồi mới chọn và cộng dồn. Một phép lọc duy nhất.
+	cho_phep = dss.tai_khoan_duoc_khop()
+	tk_so_cai = {tk: frappe.db.get_value("Bank Account", tk, "account")
+		for tk in sorted({g.get("bank_account") for g in gds if g.get("bank_account") in cho_phep})}
+	gds = loc_dong_sao_ke(gds, lambda tk: dss.ly_do_tai_khoan_sepay(tk, cho_phep), tk_so_cai)[0]
+	if not gds:
+		return 0
+	ten_gd = [g["name"] for g in gds]
 	chu = dss.chu_cua_giao_dich(ten_gd)
 	chu.update(chu_hien_tai(ten_gd))
 	nhan, xem = chon_giao_dich(gds, ma, re_ma, chu, toi_thieu_cua(so, tong), tong, da, ten_toi_thieu)
 	if xem:
 		frappe.log_error(json.dumps(xem, ensure_ascii=False), "%s: sao kê cần xem lại %s" % (tieu_de_loi, ma))
-	cho_phep = dss.tai_khoan_duoc_khop()
 	lap = 0
 	for x in nhan:
 		g = x["gd"]
-		if dss.ly_do_tai_khoan_sepay(g.get("bank_account"), cho_phep):
-			continue
-		tk = frappe.db.get_value("Bank Account", g.get("bank_account"), "account")
-		if not tk:
-			continue
+		tk = tk_so_cai[g["bank_account"]]
 		p = phieu_thu(so_name, so.customer, tong, x["so_tien"], quay(), PT_CK, g.get("date"), g,
 			ghi_chu_cua(ma, g), tien_to)
 		loi = loi_phieu(p)
