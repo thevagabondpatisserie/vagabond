@@ -226,6 +226,27 @@ nhau cho cung mot diem. Mo chi nhanh thu tu la sua code roi deploy. Nay
 khai o day, ca he doc chung mot noi. */
 
 var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0, dbNguonCoSan = [], dbKhoTang = [];
+/* v631: gợi ý người đứng điểm (bill 30 ngày theo quầy) và tài khoản nội bộ. */
+var dbGoiY = {}, dbNguoiDung = [];
+function dbTenNguoi(u) {
+  var ten = '';
+  dbNguoiDung.forEach(function (x) { if (x.user === u) ten = x.ten; });
+  Object.keys(dbGoiY).forEach(function (k) { (dbGoiY[k] || []).forEach(function (x) { if (x.user === u && !ten) ten = x.ten; }); });
+  return ten || u;
+}
+/* Chip người đứng điểm. PHÉP THUẦN: người đã khai (bấm là bỏ) kèm số bill 30
+   ngày, rồi người gợi ý chưa khai (bấm là thêm). */
+function dbChipNguoi(d) {
+  var goiY = dbGoiY[d.ma] || [], so = {};
+  goiY.forEach(function (x) { so[x.user] = x.so; });
+  var co = (d.nhan_vien || []).map(function (u) {
+    return posChipNut('data-dbnvbo="' + h(u) + '"', h(dbTenNguoi(u)) + (so[u] ? ' · ' + money(so[u]) + ' bill' : '') + ' ✕', true, false, '#0d9488');
+  });
+  var them = goiY.filter(function (x) { return (d.nhan_vien || []).indexOf(x.user) < 0; }).map(function (x) {
+    return posChipNut('data-dbnvthem="' + h(x.user) + '"', '+ ' + h(x.ten) + ' · ' + money(x.so) + ' bill', false, false, '#0d9488');
+  });
+  return kmHangChip(co.concat(them).concat([posChipNut('data-dbnvmoi="1"', '+ Thêm người', false, false, '#475467')]).join(''));
+}
 
 async function scrDiemBan() {
   frame('Điểm bán', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
@@ -233,6 +254,7 @@ async function scrDiemBan() {
     var kq = await api('vagabond.diem_ban.danh_sach', {});
     dbDs = kq.diem || []; dbSuaDuoc = kq.sua_duoc ? 1 : 0; dbNguonCoSan = kq.nguon_co_san || dbNguonCoSan;
     dbKhoTang = kq.kho_tang || [];
+    dbGoiY = kq.goi_y || {}; dbNguoiDung = kq.nguoi_dung || [];
   } catch (e) {
     frame('Điểm bán', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
@@ -288,6 +310,14 @@ function scrDiemBanSua() {
   var d = (dbDs || [])[dbMo];
   if (!d) return go(scrDiemBan, true);
   var moi = !d.ma;
+  if (d.gia_rieng == null) d.gia_rieng = d.bang_gia ? 1 : 0;
+  /* v631: điểm quầy chưa khai ai đứng thì gợi sẵn theo bill 30 ngày qua;
+     quản lý chỉ cần bấm Lưu, bỏ chip là bỏ người đó. */
+  if (d.co_quay && !(d.nhan_vien || []).length && !d._daGoiY && (dbGoiY[d.ma] || []).length) {
+    d.nhan_vien = dbGoiY[d.ma].map(function (x) { return x.user; });
+    d._laGoiY = 1;
+  }
+  d._daGoiY = 1;
   var o = function (nhan, id, gt, mo, kieu) {
     return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
       '<div style="font-size:12px;color:#6b7280;margin-bottom:4px">' + nhan + '</div>' +
@@ -322,6 +352,27 @@ function scrDiemBanSua() {
       : 'Đơn online không mang mã quầy. Cả hệ chỉ có <b>một</b> điểm nhận đơn online.') +
     '</div></div>';
 
+  if (d.co_quay) {
+    html += '<div class="sec">Nhân viên đứng điểm này</div><div class="card" data-dbnv="1" style="padding:12px">' +
+      '<div style="font-size:13px;color:#475467;line-height:1.5;margin-bottom:9px">Người có tên ở đây mở Tính tiền là vào thẳng điểm này, không phải chọn. ' +
+      'Người đứng nhiều điểm (quản lý) thì có tên ở nhiều điểm và chỉ chọn trong các điểm đó.</div>' +
+      dbChipNguoi(d) +
+      (d._laGoiY ? '<div data-dbgoiy="1" style="font-size:13px;color:#166534;background:#ecfdf3;border-radius:9px;padding:8px 10px;margin-top:10px;line-height:1.5">' +
+        'Gợi ý từ bill 30 ngày qua. Bấm Lưu để dùng; bỏ chip là bỏ người đó khỏi điểm.</div>' : '') + '</div>';
+    var tenGia = 'Giá riêng ' + (d.ten_ngan || d.ma || '');
+    var oGia = function (v, ten, mo) {
+      var dang = (+d.gia_rieng ? 1 : 0) === v;
+      return '<button type="button" data-dbgia="' + v + '" aria-pressed="' + (dang ? 'true' : 'false') + '" style="display:block;width:100%;text-align:left;min-height:44px;margin:0 0 7px;' +
+        'padding:9px 12px;border-radius:11px;cursor:pointer;font-family:inherit;border:' + (dang ? '2px solid #0d9488;background:#f0fdfa' : '1.5px solid #e4e7ec;background:#fff') + '">' +
+        '<div style="font-size:14.5px;font-weight:700;color:#101828">' + h(ten) + '</div><div style="font-size:12.5px;color:#475467">' + h(mo) + '</div></button>';
+    };
+    html += '<div class="sec">Bảng giá của điểm</div><div class="card" style="padding:12px 12px 5px">' +
+      oGia(0, 'Giá chung', 'Bán đúng giá đang khai trên từng món, như các điểm khác.') +
+      oGia(1, tenGia, 'Món nào có giá ở bảng riêng thì quầy này bán giá đó; món chưa khai giá thì bán giá chung.') +
+      (+d.gia_rieng && d.bang_gia ? '<button type="button" class="btn gh" data-dbbanggia="1" style="margin:4px 0 9px">💲 Mở Bảng giá theo điểm bán ›</button>' :
+        +d.gia_rieng ? '<div style="font-size:12.5px;color:#667085;margin:2px 0 9px">Bấm Lưu để tạo bảng giá riêng, rồi khai giá ở màn Bảng giá theo điểm bán.</div>' : '') + '</div>';
+  }
+
   html += '<div class="sec">Nguồn đơn thuộc điểm bán này</div><div class="card" style="padding:12px">' +
     dbChipNguon(d) +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:10px;line-height:1.6">' +
@@ -348,6 +399,20 @@ function scrDiemBanSua() {
       return;
     }
     if (e.target.closest('[data-dbbat]')) { dbDoc(); d.bat = d.bat ? 0 : 1; return go(scrDiemBanSua, true); }
+    var tn = e.target.closest('[data-dbnvbo]');
+    if (tn) { dbDoc(); var ub = tn.getAttribute('data-dbnvbo'); d.nhan_vien = (d.nhan_vien || []).filter(function (u) { return u !== ub; }); return go(scrDiemBanSua, true); }
+    tn = e.target.closest('[data-dbnvthem]');
+    if (tn) { dbDoc(); d.nhan_vien = (d.nhan_vien || []).concat([tn.getAttribute('data-dbnvthem')]); return go(scrDiemBanSua, true); }
+    if (e.target.closest('[data-dbnvmoi]')) {
+      dbDoc();
+      sheet('Thêm người đứng điểm ' + (d.ten_ngan || d.ma), dbNguoiDung.filter(function (x) { return (d.nhan_vien || []).indexOf(x.user) < 0; }).map(function (x) {
+        return { value: x.user, label: x.ten, sub: x.user, icon: '🙋' };
+      }), '', function (x) { d.nhan_vien = (d.nhan_vien || []).concat([x.value]); go(scrDiemBanSua, true); }, true);
+      return;
+    }
+    tn = e.target.closest('[data-dbgia]');
+    if (tn) { dbDoc(); d.gia_rieng = +tn.getAttribute('data-dbgia'); return go(scrDiemBanSua, true); }
+    if (e.target.closest('[data-dbbanggia]')) { var maBg = d.ma; return go(function () { return scrBangGiaDiem(maBg); }); }
     var t = e.target.closest('[data-dbloai]');
     if (t) { dbDoc(); d.co_quay = t.getAttribute('data-dbloai') === '1' ? 1 : 0; return go(scrDiemBanSua, true); }
     t = e.target.closest('[data-dbng]');
@@ -401,7 +466,10 @@ async function dbLuu(daBo) {
   if (!daBo) dbDoc();
   busy(true);
   try {
-    var kq = await api('vagabond.diem_ban.luu', { diem: JSON.stringify(dbDs) });
+    var kq = await api('vagabond.diem_ban.luu', { diem: JSON.stringify((dbDs || []).map(function (x) {
+      var y = Object.assign({}, x); delete y._daGoiY; delete y._laGoiY; return y;
+    })) });
+    CFGBH = null;
     dbDs = kq.diem || []; dbSuaDuoc = kq.sua_duoc ? 1 : 0; dbNguonCoSan = kq.nguon_co_san || dbNguonCoSan;
     busy(false);
     toast('Đã lưu danh sách điểm bán.', 3000);
@@ -1829,6 +1897,21 @@ function dmDraw(giuCuon) {
 
   html += nhan('5. GIÁ BÁN (đ)', l.ban ? '' : '(loại này không bán, để trống)');
   html += '<input id="dmGia" inputmode="numeric" value="' + h(s.gia) + '" placeholder="0" style="' + xin + '">';
+  /* v631 (anh Việt 02/11/2026): điểm có bảng giá riêng (NVH) thì khai giá
+     điểm đó ngay lúc tạo món. Để trống là điểm đó bán giá chung ở trên. */
+  var dsGiaDiem = (dmCai && dmCai.diem_gia) || [];
+  if (l.ban && dsGiaDiem.length) {
+    s.gia_diem = s.gia_diem || {};
+    html += '<div data-dmgiadiem="1" style="margin-top:12px;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:11px">' +
+      '<div style="font-size:13.5px;font-weight:700;color:#344054">Giá riêng theo điểm bán</div>' +
+      dsGiaDiem.map(function (d) {
+        return '<div style="display:flex;flex-direction:row;align-items:center;gap:10px;margin-top:8px"><div style="flex:1;min-width:0">' +
+          '<div style="font-size:14px;color:#101828">' + h(d.ten) + '</div><div style="font-size:12.5px;color:#667085">Bảng giá ' + h(d.ten_ngan) + '</div></div>' +
+          '<input id="dmGiaDiem_' + h(d.ma) + '" data-dmgd="' + h(d.ma) + '" inputmode="numeric" value="' + h(s.gia_diem[d.ma] || '') + '" placeholder="trống" ' +
+          'style="flex:0 0 120px;width:120px;text-align:right;' + xin + '"></div>';
+      }).join('') +
+      '<div style="font-size:12.5px;color:#667085;margin-top:8px;line-height:1.5">Để trống thì điểm đó bán đúng giá bán chung ở trên.</div></div>';
+  }
 
   if (dmCai && dmCai.co_bep) {
     html += nhan('6. BẾP HOẶC VỊ TRÍ', '(nếu khác mặc định của nhóm)');
@@ -1887,6 +1970,10 @@ function dmDoc() {
   if ((g = v('dmMoTa')) !== null) dmVe.mo_ta = g;
   if ((g = v('dmDvt')) !== null) dmVe.dvt = g;
   if ((g = v('dmTt')) !== null) dmVe.tien_to = String(g || '').toUpperCase();
+  document.querySelectorAll('[data-dmgd]').forEach(function (o) {
+    dmVe.gia_diem = dmVe.gia_diem || {};
+    dmVe.gia_diem[o.getAttribute('data-dmgd')] = o.value;
+  });
 }
 
 var dmKq = null;
@@ -2115,7 +2202,8 @@ async function dmTao(boQuaTrung) {
       nhom: s.nhom, loai: s.loai, ten: s.ten, quy_cach: s.quy_cach,
       gia_ban: String(s.gia || '').replace(/[^0-9]/g, ''),
       bep: s.bep, mo_ta: s.mo_ta, dvt: s.dvt, tien_to: s.tien_to,
-      bo_qua_trung: boQuaTrung ? 1 : 0
+      bo_qua_trung: boQuaTrung ? 1 : 0,
+      gia_diem: JSON.stringify(dmLoai(s.loai).ban ? (s.gia_diem || {}) : {})
     });
   } catch (e) {
     busy(false);
@@ -2132,7 +2220,7 @@ async function dmTao(boQuaTrung) {
   dmVuaTao = r;
   /* Xoa o nhap de go tiep mon sau, giu lai nhom va loai hang: nguoi ta hay
      mo mot loat ma cung nhom trong mot luot. */
-  dmVe.ten = ''; dmVe.quy_cach = ''; dmVe.gia = ''; dmVe.mo_ta = '';
+  dmVe.ten = ''; dmVe.quy_cach = ''; dmVe.gia = ''; dmVe.mo_ta = ''; dmVe.gia_diem = {};
   dmKq = null;
   toast('Đã mở mã ' + r.ma);
   dmDraw();

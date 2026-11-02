@@ -207,6 +207,33 @@ function posDoc() {
   v = g('posDiemNhap'); if (v !== null) posDon.diemNhap = v;
 }
 /* Buoc chon quay: vao card la hoi, khong nho lua chon cu (anh Viet 08/08). */
+/* v631 (anh Việt 02/11/2026, duyệt mẫu "Điểm bán tự nhận theo tài khoản"):
+   số liệu tháng 10 cho thấy mỗi thu ngân gần như chỉ đứng một quầy, và ca
+   TH3 là Gia Bảo bấm nhầm thẻ Sales Online khi đang đứng District 1. Từ nay:
+   tài khoản được khai đứng đúng một điểm thì mở Tính tiền là vào thẳng điểm
+   đó; khai nhiều điểm (quản lý) thì chỉ chọn trong các điểm đó, điểm vừa
+   đứng xếp đầu; chưa khai thì chọn như cũ, kèm dòng nhắc quản lý khai. */
+function posDiemCuaToi() { return ((CFGBH || {}).diem_cua_toi) || []; }
+/* PHÉP THUẦN: các điểm được hiện ở màn chọn điểm. */
+function posDsDiemChon(dsAll, cua, vua) {
+  var ds = (cua && cua.length) ? dsAll.filter(function (q) { return cua.indexOf(q.ma) >= 0; }) : dsAll.slice();
+  if (!ds.length) ds = dsAll.slice();
+  if (vua) ds.sort(function (a, b) { return (b.ma === vua ? 1 : 0) - (a.ma === vua ? 1 : 0); });
+  return ds;
+}
+/* Giá một món ở một điểm: giá riêng của điểm (NVH) nếu có, không thì giá chung.
+   Máy chủ tính lại đúng như vậy khi lưu bill (diem_ban.ap_gia_diem). */
+function posGiaMon(x, q) {
+  var g = q && q.gia_rieng;
+  return (g && Object.prototype.hasOwnProperty.call(g, x.name)) ? (+g[x.name] || 0) : (+x.standard_rate || 0);
+}
+function posDiemTheoQuay(quay) {
+  var r = null;
+  (((CFGBH || {}).diem) || []).forEach(function (q) { if (quay && q.quay === quay) r = q; });
+  return r;
+}
+function posDiemVua() { try { return localStorage.getItem('vgb_diem_vua') || ''; } catch (e) { return ''; } }
+
 async function scrPosChonQuay() {
   await cfgBanHang();
   /* Thumbnail la anh cua hang that (anh Viet gui 09/08), nhin phat biet
@@ -223,9 +250,20 @@ async function scrPosChonQuay() {
 
      Nay cả ba đọc chung từ `diem`, tức từ đúng bảng Điểm bán mà màn Cài đặt
      sửa. Mở điểm thứ tư là khai trong Cài đặt, không phải sửa mã rồi deploy. */
-  var dsAll = ((CFGBH || {}).diem) || ((CFGBH || {}).quay) || [];
+  var dsGoc = ((CFGBH || {}).diem) || ((CFGBH || {}).quay) || [];
+  var cua = posDiemCuaToi(), vua = posDiemVua();
+  var dsAll = posDsDiemChon(dsGoc, cua, cua.length > 1 ? vua : '');
+  if (cua.length === 1 && dsAll.length === 1) {
+    posQuay = dsAll[0];
+    posHomNayTxt = null;
+    return go(scrPosQuay, true);
+  }
   var suaAnh = typeof isSales === 'function' ? isSales() : false;
   var html = '<div class="sec">Chọn điểm bán</div>';
+  if (!cua.length) {
+    html += '<div data-posnhackhai="1" style="font-size:13px;color:#92400e;background:#fffaeb;border-radius:10px;padding:9px 12px;margin:0 0 10px;line-height:1.5">' +
+      'Tài khoản này chưa được khai đứng điểm nào. Nhờ quản lý khai ở Cài đặt, Điểm bán, mục Nhân viên đứng điểm này, để lần sau vào thẳng đúng điểm.</div>';
+  }
   dsAll.forEach(function (q, i) {
     html += '<div class="card" style="margin-bottom:12px;overflow:hidden;padding:0;position:relative">' +
       '<div data-q="' + i + '" style="cursor:pointer">' +
@@ -233,7 +271,8 @@ async function scrPosChonQuay() {
         ? '<img src="' + h(q.anh) + '" alt="" style="width:100%;height:150px;object-fit:cover;display:block" onerror="this.style.display=\'none\'">'
         : '<div style="height:96px;display:flex;align-items:center;justify-content:center;background:#f6f7f9;color:#c3c8d4;font-size:34px">🏬</div>') +
       '<div style="display:flex;align-items:center;gap:10px;padding:13px 14px">' +
-      '<div style="flex:1"><div class="h1" style="font-size:17px;font-weight:700">' + h(q.ten) + '</div>' +
+      '<div style="flex:1"><div class="h1" style="font-size:17px;font-weight:700">' + h(q.ten) +
+      (cua.length > 1 && q.ma === vua ? ' <span style="font-size:12px;font-weight:700;color:#0f766e;background:#ccfbf1;border-radius:999px;padding:2px 8px">Vừa đứng</span>' : '') + '</div>' +
       '<div class="h2" style="color:#98a2b3;font-size:13px">' + h(q.phu || '') + '</div></div>' +
       '<span style="color:#c3c8d4;font-size:22px">&#8250;</span></div></div>' +
       (suaAnh
@@ -255,6 +294,7 @@ async function scrPosChonQuay() {
     if (posQuay && posQuay.ma !== q.ma) posDon = null;
     posQuay = q;
     posHomNayTxt = null;
+    try { localStorage.setItem('vgb_diem_vua', q.ma); } catch (eV) { /* máy chặn lưu: không sao */ }
     go(scrPosQuay);
   };
 }
@@ -605,9 +645,12 @@ async function scrPosQuay() {
   else if (!posDon.mon.length) posChoCkXoa(posDon.bill);
   var qApp = laApp ? (quyPt(posDon.pt) || {}) : {};
   var html = '<div class="card" style="padding:8px 14px">' +
-    '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">Quầy đang bán · bấm để đổi</div><div class="h1">' + h(posQuay.ten) + '</div></div>' +
+    '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">' + (posDiemCuaToi().length === 1 ? 'Điểm bán của bạn' : 'Quầy đang bán · bấm để đổi') + '</div><div class="h1">' + h(posQuay.ten) + '</div></div>' +
     '<div style="text-align:right;flex:none"><div class="h2" style="color:#6b7280">Ngày bán</div><div style="font-weight:700;font-size:14px">' + posNgayVn(today()) + '</div></div>' +
-    '<span style="color:#c3c8d4;margin-left:4px">&#8250;</span></div></div>';
+    '<span style="color:#c3c8d4;margin-left:4px">&#8250;</span></div>' +
+    (posQuay.gia_rieng && Object.keys(posQuay.gia_rieng).length ? '<div data-posgiarieng="1" style="font-size:13px;color:#166534;padding:0 0 6px">' +
+      '<span style="background:#dcfce7;border-radius:999px;padding:2px 9px;font-weight:700">Giá ' + h(posQuay.ten_ngan || posQuay.ma) + '</span> Món có giá riêng tính theo giá điểm này.</div>' : '') +
+    '</div>';
   if (!posDon.mon.length) html += posChoCkKhoi(posChoCkCua(posQuay.ma, posDon.bill));
   if (posDon.chuyen_tu) {
     html += '<div class="card" style="padding:11px 14px;background:#f0fdf4;border:1.5px solid #bbf7d0;font-size:13px;color:#166534;line-height:1.55">' +
@@ -844,7 +887,11 @@ async function scrPosQuay() {
      sau khi bam. */
   posGanTruDiem(function () { posDoc(); go(scrPosQuay, true); });
   b.addEventListener('click', function (e) {
-    if (e.target.closest('[data-t="posDoiQuay"]')) { posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true); }
+    if (e.target.closest('[data-t="posDoiQuay"]')) {
+      /* v631: tài khoản chỉ đứng một điểm thì không có điểm nào khác để đổi. */
+      if (posDiemCuaToi().length === 1) return toast('Tài khoản của bạn đứng điểm ' + posQuay.ten + '. Cần đứng điểm khác thì nhờ quản lý khai ở Cài đặt, Điểm bán.', 4200);
+      posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true);
+    }
     if (e.target.closest('[data-t="posDsBill"]')) { posDoc(); posDsNgay = null; return go(scrPosDs); }
     var t;
     t = e.target.closest('[data-ckmo]');
@@ -1022,7 +1069,8 @@ async function posThemMon() {
     };
   });
   posSheetMon(oCombo.concat(dsItemsCache.map(function (x) {
-    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
+    var giaQ = posGiaMon(x, posQuay), rieng = giaQ !== (+x.standard_rate || 0);
+    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: giaQ, nhom: x.item_group || '', phu: (giaQ ? money(giaQ) + ' đ' + (rieng ? ' (giá ' + (posQuay.ten_ngan || posQuay.ma) + ')' : '') : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
   })), function (o) {
     if (o.combo) { return posBamCombo(o.combo); }
     if (/^KMCB/i.test(o.value || '')) {

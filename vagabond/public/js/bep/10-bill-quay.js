@@ -1341,8 +1341,11 @@ async function scrPosBill(name) {
       } catch (er) { busy(false); return toast('Không tải được danh mục món'); }
       busy(false);
     }
+    /* v631: bill ở điểm có giá riêng (NVH) thêm món theo giá điểm đó; máy chủ tính lại y như vậy. */
+    var qBill = posDiemTheoQuay(d.vgb_quay);
     posSheetMon(dsItemsCache.map(function (x) {
-      return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
+      var giaQ = posGiaMon(x, qBill);
+      return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: giaQ, nhom: x.item_group || '', phu: (giaQ ? money(giaQ) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
     }), function (o) {
       /* Phi giao: hoi SO TIEN, mot dong qty 1 (Loan Anh 18/09/2026). Co san
          thi cong them tien vao dong do. May chu gom lai lan nua (phi_giao.gom). */
