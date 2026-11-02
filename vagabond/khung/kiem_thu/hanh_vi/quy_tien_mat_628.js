@@ -160,6 +160,29 @@ function goiDuong(m) { return m.goi.map(function (x) { return x.duong; }); }
     bang('ô số tờ bỏ chữ', ds(m, '[data-qtmmg]')[0].value, '9');
   });
 
+  await ca('Codex #527 vòng 4: quỹ hết tiền, gõ 0 tờ là đã đếm; hỏi lại rồi gửi phiếu thiếu toàn bộ quỹ máy', async function () {
+    var m = dungMoi(manQuy());
+    await m.g.scrQuyTm(); await tick();
+    mot(m, '[data-qtmkiem]').onclick(); await tick();
+    go_(m, 500000, 0);
+    bang('lệch thiếu toàn bộ quỹ máy', mot(m, '[data-qtmlech]').getAttribute('data-qtmlech'), '-45200000');
+    ds(m, '[data-qtmly]').filter(function (x) { return x.getAttribute('data-qtmly') === 'chua_ro'; })[0].onclick();
+    m.g.document.getElementById('qtmGhiChu').value = 'Két trống khi mở ca';
+    await mot(m, '[data-qtmluu]').onclick(); await tick();
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.quy_tien_mat.kiem_quy'; })[0];
+    dung('đã gửi lần kiểm quỹ rỗng', !!g);
+    bang('bảng đếm gửi đúng số 0 đã gõ', JSON.parse(g.ts.bang), { '500000': '0' });
+    dung('hỏi lại trước khi gửi quỹ đếm được 0 đồng', m.hoi.indexOf('Quỹ đếm được 0 đồng') >= 0);
+    /* Gõ rồi xoá trắng là CHƯA đếm: vẫn chặn như cũ. */
+    var m2 = dungMoi(manQuy());
+    await m2.g.scrQuyTm(); await tick();
+    mot(m2, '[data-qtmkiem]').onclick(); await tick();
+    go_(m2, 500000, 3); go_(m2, 500000, '');
+    await mot(m2, '[data-qtmluu]').onclick(); await tick();
+    dung('xoá trắng thì không gửi', goiDuong(m2).indexOf('vagabond.quy_tien_mat.kiem_quy') < 0);
+    dung('báo gõ số tờ', m2.toast.some(function (t) { return t.indexOf('Gõ số tờ đã đếm được') === 0; }));
+  });
+
   await ca('nộp ngân hàng: thiếu ảnh giấy nộp thì không gửi; đủ thì hỏi lại rồi gửi đúng tài khoản đã chọn', async function () {
     var m = dungMoi(manQuy());
     await m.g.scrQuyTm(); await tick();
