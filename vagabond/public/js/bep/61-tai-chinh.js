@@ -152,11 +152,13 @@ function tcDongTien(d) {
   var so = d.so_du === null || d.so_du === undefined
     ? (d.loi ? '<span data-tcdongloi="1" style="color:#b42318">Chưa tính được</span>' : '<span style="color:#b54708">Chưa chốt</span>')
     : money(d.so_du);
-  return '<div data-tcnguon="' + h(d.nguon) + '" style="display:flex;gap:10px;align-items:flex-start;padding:10px 13px;border-top:1px solid #f1f5f9;min-height:44px">' +
+  /* v628: dòng Quỹ công ty bấm được, mở màn Quỹ tiền mặt (kiểm quỹ, nộp ngân hàng). */
+  var moQuy = d.nguon === 'tm:QUY';
+  return '<div data-tcnguon="' + h(d.nguon) + '"' + (moQuy ? ' data-tcgo="TCQUY"' : '') + ' style="' + (moQuy ? 'cursor:pointer;' : '') + 'display:flex;gap:10px;align-items:flex-start;padding:10px 13px;border-top:1px solid #f1f5f9;min-height:44px">' +
     '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(d.ten) + '</b>' +
     (dong2.length ? '<div style="font-size:12.5px;color:#667085;margin-top:1px">' + h(dong2.join(' · ')) + '</div>' : '') +
     (chip ? '<div>' + chip + '</div>' : '') + '</div>' +
-    '<div style="flex:0 0 auto;text-align:right;font-weight:800;white-space:nowrap">' + so + '</div></div>';
+    '<div style="flex:0 0 auto;text-align:right;font-weight:800;white-space:nowrap">' + so + (moQuy ? ' ›' : '') + '</div></div>';
 }
 async function scrTcTien(lamMoi) {
   var td = 'Tiền hiện có';

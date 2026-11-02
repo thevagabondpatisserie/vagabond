@@ -1599,8 +1599,13 @@ function hoanVeForm() {
       : '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px;line-height:1.6">' +
         'Đơn <b>' + h(f.don) + '</b> · tổng <b>' + money(f.tong) + ' đ</b><br>' +
         'Yêu cầu này gửi kế toán duyệt. Tiền chỉ ra sau khi kế toán chuyển khoản thật.</div>') +
-    (f.hddt && !du ? '<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
-      'Đơn này <b>đã xuất hoá đơn điện tử số ' + h(f.hddt) + '</b>. Hoàn tiền xong thì tờ đó phải xử lý riêng bên m-invoice, máy không tự làm.</div>' : '') +
+    /* v628 (Dễ báo TH2, chị Dung hỏi): bớt giá cho khách SAU khi đã xuất hoá
+       đơn điện tử thì tờ hoá đơn vẫn mang số cũ. Nói thẳng ở đây cho người
+       lập phiếu biết việc tiếp theo thuộc về kế toán trưởng. */
+    (f.hddt ? '<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
+      'Đơn này <b>đã xuất hoá đơn điện tử số ' + h(f.hddt) + '</b>. ' +
+      (du ? 'Chuyển lại tiền dư không đổi tờ hoá đơn đó.' : 'Hoàn tiền xong thì tờ đó phải xử lý riêng bên m-invoice, máy không tự làm.') +
+      ' Nếu đây là bớt giá cho khách sau khi đã xuất thì hoá đơn vẫn mang số cũ: kế toán trưởng lập hoá đơn điều chỉnh bên m-invoice.</div>' : '') +
 
     rndLbl(du ? 'Số tiền chuyển lại' : huy ? 'Số tiền trả lại khách' : 'Mức hoàn tiền') +
     '<div style="display:flex;gap:7px;margin-bottom:9px">' +

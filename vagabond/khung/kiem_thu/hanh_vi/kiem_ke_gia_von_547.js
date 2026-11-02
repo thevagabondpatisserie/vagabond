@@ -4,7 +4,7 @@
    Vòng 3: tra giá và ghi sổ dùng CÙNG một mốc ngày giờ. */
 const fs=require('fs'), vm=require('vm'), assert=require('assert');
 const {taiLieuGia,ElementGia}=require('./dom_gia.js');
-async function canh(loiGia, demKhong=false, khongDoi=false){
+async function canh(loiGia, demKhong=false, khongDoi=false, moc=null){
  const document=taiLieuGia(),goi=[],toast=[],xacNhan=[];
  /* Codex #401 vong 3: moi lan goi hmOf ra mot gio KHAC, nen code nao goi hmOf
     hai lan (mot lan tra gia, mot lan ghi so) se lo ra gio lech. */
@@ -21,7 +21,7 @@ async function canh(loiGia, demKhong=false, khongDoi=false){
   frame:(t,html,o={})=>{document.body.innerHTML='';const b=new ElementGia('div');b.setAttribute('id','vgbBody');b.innerHTML=html+(o.footer||'');b.parentNode=document.body;document.body.children.push(b);return b;},
   api:async(url,args)=>{
    goi.push({url,args});
-   if(url==='vagabond.kiem_ke.mo_phieu')return {name:'KK-1',kho:'Kho D1',pham_vi:'Tất cả',ngay_kiem:'2026-09-30',trang_thai:'Chờ duyệt',ly_do_lech:[],
+   if(url==='vagabond.kiem_ke.mo_phieu')return {name:'KK-1',kho:'Kho D1',pham_vi:'Tất cả',ngay_kiem:'2026-09-30',trang_thai:'Chờ duyệt',ly_do_lech:[],moc_ghi_so:moc||[],
      items:[{name:'R1',item_code:'M',item_name:'Món',dvt:'Gram',da_dem:1,so_luong:demKhong?0:5,ton_he_thong:demKhong?0:5},{name:'R2',item_code:'CHUA',item_name:'Chưa đếm',dvt:'Gram',da_dem:0,so_luong:0,ton_he_thong:11}]};
    if(url==='frappe.client.get_value')return {stock_adjustment_account:'632',cost_center:'CC'};
    if(url==='vagabond.gia_von_kiem_ke.goi_y_gia'){if(loiGia)throw Error('hết giờ');return {M:{gia:400,nguon:'so_kho'}};}
@@ -66,6 +66,7 @@ async function canh(loiGia, demKhong=false, khongDoi=false){
   await document.getElementById('kkpthulai').onclick();
   gy=goi.filter(x=>x.url==='vagabond.gia_von_kiem_ke.goi_y_gia').slice(-1)[0];
  }
+ const xemLai=document.getElementById('vgbBody').innerHTML;
  await document.getElementById('kkpgo').onclick();
  const gui=goi.find(x=>x.url==='vagabond.kiem_ke.ghi_so');
  const ins=gui&&{args:{doc:JSON.parse(gui.args.phieu)}};
@@ -81,5 +82,12 @@ async function canh(loiGia, demKhong=false, khongDoi=false){
   assert.strictEqual(gy.args.ngay,'2026-09-30','ngày ghi sổ là ngày kiểm');
   assert.strictEqual(gy.args.gio,ins.args.doc.posting_time,'tra giá đúng giờ ghi sổ (Codex #401 vòng 3)');
  }
+ /* Codex #527 vòng 5: phiếu đếm hằng ngày tra giá và ghi sổ theo mốc bếp chốt máy chủ trả về,
+    không theo giờ bấm Ghi sổ; màn nói rõ giờ đó. */
+ if(moc){
+  assert.strictEqual(gy.args.gio,'07:45:12','tra giá theo giờ bếp chốt');
+  assert.strictEqual(ins.args.doc.posting_time,'07:45:12','gửi ghi sổ theo giờ bếp chốt');
+  assert(xemLai.includes('Ghi sổ theo giờ bếp chốt đếm')&&xemLai.includes('07:45 30/09/2026'),'màn nói giờ ghi sổ');
+ }
 }
-(async()=>{await canh(false);await canh(true);await canh(false,true);await canh(false,true,true);console.log('PASS 547: gia von tu goi_y_gia, mac dinh dieu chinh ton, tra gia loi thi chan');})().catch(e=>{console.error(e);process.exit(1);});
+(async()=>{await canh(false);await canh(true);await canh(false,true);await canh(false,true,true);await canh(false,false,false,['2026-09-30','07:45:12']);console.log('PASS 547: gia von tu goi_y_gia, mac dinh dieu chinh ton, tra gia loi thi chan');})().catch(e=>{console.error(e);process.exit(1);});

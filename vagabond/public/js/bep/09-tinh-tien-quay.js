@@ -469,6 +469,67 @@ function scrDoiSoatCa(k) {
   document.getElementById('caVeQuay').onclick = function () { go(scrPosQuay, true); };
 }
 
+/* ---------------- Bill chờ chuyển khoản giữ trên máy (v628 TH1) ----------
+
+   Dễ báo 02/11/2026: khách đang quét mã QR ở NVH thì app tải lại, bill chưa
+   lưu nên mất sạch giỏ hàng. Thu ngân lập bill mới với MÃ MỚI, tiền khách đã
+   chuyển mang mã cũ nên không tự khớp được.
+
+   Nay từ lúc bill hiện mã QR chuyển khoản tới lúc lưu xong, giỏ hàng và mã
+   bill được giữ trên máy theo từng mã bill. Mở lại màn tính tiền mà giỏ
+   trống là thấy thẻ "Bill đang chờ khách chuyển khoản" với hai nút Mở lại
+   bill / Bỏ bill này. Mở lại giữ ĐÚNG mã cũ, nên tiền về là tự khớp.
+   Bill lưu xong, hoặc sang ngày khác, thì tự xoá khỏi máy. */
+var POS_CHO_CK = 'vgb_pos_cho_ck';
+function posChoCkDoc() {
+  try {
+    var o = JSON.parse(localStorage.getItem(POS_CHO_CK) || '{}');
+    return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+  } catch (e) { return {}; }
+}
+function posChoCkLuu(o) {
+  try { localStorage.setItem(POS_CHO_CK, JSON.stringify(o || {})); } catch (e) { /* máy chặn bộ nhớ thì thôi */ }
+}
+function posChoCkGhi(don, quay, tien) {
+  if (!don || !don.bill || !quay || !(don.mon || []).length) return;
+  var o = posChoCkDoc();
+  var cu = o[don.bill] || {};
+  o[don.bill] = {
+    bill: don.bill, quay: quay.ma, ten_quay: quay.ten || quay.ma, ngay: today(),
+    luc: cu.luc || Date.now(), tien: tien,
+    so_mon: don.mon.reduce(function (t, m) { return t + (Number(m.qty) || 0); }, 0),
+    don: JSON.parse(JSON.stringify(don))
+  };
+  posChoCkLuu(o);
+}
+function posChoCkXoa(bill) {
+  if (!bill) return;
+  var o = posChoCkDoc();
+  if (o[bill]) { delete o[bill]; posChoCkLuu(o); }
+}
+function posChoCkCua(quayMa, boBill) {
+  var o = posChoCkDoc(), hn = today(), doi = false;
+  Object.keys(o).forEach(function (k) { if (!o[k] || o[k].ngay !== hn) { delete o[k]; doi = true; } });
+  if (doi) posChoCkLuu(o);
+  return Object.keys(o).map(function (k) { return o[k]; })
+    .filter(function (x) { return x.quay === quayMa && x.bill !== boBill; })
+    .sort(function (a, b) { return (a.luc || 0) - (b.luc || 0); });
+}
+function posChoCkKhoi(ds) {
+  if (!ds || !ds.length) return '';
+  return ds.map(function (x) {
+    var t = new Date(x.luc || Date.now());
+    var gio = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2);
+    return '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
+      '<div style="font-weight:800;font-size:14.5px;color:#92400e">Bill đang chờ khách chuyển khoản</div>' +
+      '<div style="font-size:14px;margin:4px 0 2px"><b>' + h(x.bill) + '</b> · ' + money(x.so_mon || 0) + ' món · <b>' + money(x.tien || 0) + ' đ</b></div>' +
+      '<div style="font-size:12.5px;color:#6b7280">Hiện mã QR lúc ' + gio + ', chưa lưu. Khách đã chuyển thì bấm Mở lại bill để lưu cho khớp tiền.</div>' +
+      '<div style="display:flex;gap:8px;margin-top:9px">' +
+      '<button class="btn" data-ckmo="' + h(x.bill) + '" style="flex:1;margin:0">Mở lại bill</button>' +
+      '<button class="btn gh" data-ckbo="' + h(x.bill) + '" style="flex:1;margin:0">Bỏ bill này</button></div></div>';
+  }).join('');
+}
+
 async function scrPosQuay() {
   await cfgBanHang();
   posPollTat();
@@ -537,11 +598,22 @@ async function scrPosQuay() {
   await posTaiThe(tong - giam);
   var giamDiem = (posDon.diemVe && posDon.diemVe.so_tien) || 0;
   var phaiThu = Math.max(0, tong - giam - giamDiem) + ship;
+  /* v628 TH1: bill đang hiện mã QR chuyển khoản được giữ trên máy, app tải
+     lại thì vẫn mở lại được đúng giỏ và đúng mã bill. Giỏ trống là bỏ dấu
+     của mã bill đang mở (thu ngân đã xoá hết món). */
+  if (!laApp && posDon.pt === 'Chuyển khoản' && phaiThu > 0 && posDon.mon.length) posChoCkGhi(posDon, posQuay, phaiThu);
+  else if (!posDon.mon.length) posChoCkXoa(posDon.bill);
   var qApp = laApp ? (quyPt(posDon.pt) || {}) : {};
   var html = '<div class="card" style="padding:8px 14px">' +
     '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">Quầy đang bán · bấm để đổi</div><div class="h1">' + h(posQuay.ten) + '</div></div>' +
     '<div style="text-align:right;flex:none"><div class="h2" style="color:#6b7280">Ngày bán</div><div style="font-weight:700;font-size:14px">' + posNgayVn(today()) + '</div></div>' +
     '<span style="color:#c3c8d4;margin-left:4px">&#8250;</span></div></div>';
+  if (!posDon.mon.length) html += posChoCkKhoi(posChoCkCua(posQuay.ma, posDon.bill));
+  if (posDon.chuyen_tu) {
+    html += '<div class="card" style="padding:11px 14px;background:#f0fdf4;border:1.5px solid #bbf7d0;font-size:13px;color:#166534;line-height:1.55">' +
+      '<b>Bill lập lại từ ' + h(posDon.chuyen_tu.ma || posDon.chuyen_tu.name) + ' (đã huỷ)</b><br>' +
+      'Lưu xong, máy tự chuyển khoản ' + money(posDon.chuyen_tu.tien || 0) + ' đ khách đã trả sang bill này.</div>';
+  }
   /* O TO mo danh sach hoa don trong ngay (anh Viet 09/08) - cashier va
      quan ly bam phat vao ngay, khoi phai mo dong chu nho. */
   html += '<div class="card" data-t="posDsBill" style="padding:13px 14px;cursor:pointer;border:1.5px solid #7fe5f6;background:#f4feff">' +
@@ -775,6 +847,20 @@ async function scrPosQuay() {
     if (e.target.closest('[data-t="posDoiQuay"]')) { posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true); }
     if (e.target.closest('[data-t="posDsBill"]')) { posDoc(); posDsNgay = null; return go(scrPosDs); }
     var t;
+    t = e.target.closest('[data-ckmo]');
+    if (t) {
+      var x = posChoCkDoc()[t.getAttribute('data-ckmo')];
+      if (!x || !x.don) return toast('Bill này không còn trên máy.');
+      posDon = x.don;
+      return go(scrPosQuay, true);
+    }
+    t = e.target.closest('[data-ckbo]');
+    if (t) {
+      var maBo = t.getAttribute('data-ckbo');
+      return confirmSheet('Bỏ bill ' + maBo + '?',
+        'Khách đã chuyển khoản rồi thì đừng bỏ: bấm Mở lại bill để lưu cho khớp tiền. Bỏ rồi thì khoản tiền này chỉ còn gắn được bằng nút Dò tiền.',
+        'Bỏ bill này', true).then(function (ok) { if (ok) { posChoCkXoa(maBo); go(scrPosQuay, true); } });
+    }
     t = e.target.closest('[data-nd]');
     if (t) { posDoc(); posDon.che_do = t.getAttribute('data-nd'); return go(scrPosQuay, true); }
     t = e.target.closest('[data-cong]');
@@ -1728,7 +1814,11 @@ async function posSheetDoTien(tien, siName, sauKhiGan, tuyChon) {
       '</div>' +
       (trang.nguon !== 'diem' && g.tk_nhan ? '<div style="font-size:12px;color:#475467;margin-top:2px">🏦 ' + h(g.tk_nhan) + '</div>' : '') +
       '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-      (g.cua_bill ? '⛔ Đã thuộc về ' + h(g.cua_bill) : h(g.mo_ta || '')) + '</div></div>' +
+      (g.cua_bill ? '⛔ Đã thuộc về ' + h(g.cua_bill) : h(g.mo_ta || '')) + '</div>' +
+      /* v628: khoản của bill đã huỷ, hoặc của bill mất trước khi lưu, nói rõ
+         vì sao gắn được ngay trên dòng. */
+      (g.ghi_chu && !g.cua_bill ? '<div style="font-size:12px;color:#067a5f;margin-top:3px;line-height:1.45">ℹ ' + h(g.ghi_chu) + '</div>' : '') +
+      '</div>' +
       (siName && !g.cua_bill ? (khoa
         ? '<span style="flex:none;font-size:12px;font-weight:700;color:#92400e">🔒 Quản lý gắn</span>'
         : '<span style="flex:none;font-size:12.5px;font-weight:700;color:#0d9488">Chọn &#8250;</span>') : '') +
@@ -1805,6 +1895,7 @@ async function posSheetDoTien(tien, siName, sauKhiGan, tuyChon) {
       'Gắn khoản này vào hoá đơn?',
       money(g.tien) + ' đ về lúc ' + (g.gio || '') + (g.tk_nhan ? ' (' + g.tk_nhan + ')' : '') + '.\nHoá đơn ' + siName + ', cần thu ' + money(tien || 0) + ' đ.' +
       (Math.abs(lech) > 1 ? '\n\n⚠ LỆCH ' + money(Math.abs(lech)) + ' đ ' + (lech > 0 ? 'THỪA' : 'THIẾU') + '. Máy vẫn gắn và ghi rõ số lệch vào ghi chú đối soát.' : '') +
+      (g.ghi_chu ? '\n\n' + g.ghi_chu : '') +
       '\n\nMáy ghi số tham chiếu ngân hàng vào hoá đơn.',
       'Gắn vào hoá đơn', Math.abs(lech) > 1);
     if (!dong_y) return;
@@ -1976,6 +2067,8 @@ async function posLuuDon() {
   } catch (e) { posDangLuu = false; busy(false); return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000); }
   posDangLuu = false;
   busy(false);
+  posChoCkXoa(posDon.bill);
+  var chuyenTu = posDon.chuyen_tu || null;
   var thu = (r && r.grand_total) || phaiThu;
   /* So diem VUA CONG cua chinh hoa don nay. Khong bay so du con lai: so du
      la thu chi chu the moi can biet, con so vua cong thi ai nhin cung chi
@@ -2006,6 +2099,21 @@ async function posLuuDon() {
   };
   posDon = posMoi();
   posHomNayTxt = null;
+  /* v628 TH3: bill lập lại sau khi huỷ bill chọn nhầm điểm. Máy chuyển ngay
+     khoản tiền của bill cũ sang bill này, không bắt thu ngân dò tay. */
+  if (chuyenTu && r && r.name) {
+    busy(true);
+    var kqChuyen = null;
+    try { kqChuyen = await api('vagabond.ban_hang.pos_chuyen_tien', { tu: chuyenTu.name, den: r.name }); }
+    catch (eC) { kqChuyen = { chuyen: 0, ly_do: (eC && eC.message) || 'Chưa chuyển được tiền.' }; }
+    busy(false);
+    if (kqChuyen && kqChuyen.chuyen) {
+      toast('Đã chuyển ' + money(kqChuyen.nhan || 0) + ' đ từ bill ' + (chuyenTu.ma || chuyenTu.name) + ' sang ' + r.name + '.', 5000);
+      return go(scrPosDs, true);
+    }
+    baoTin(((kqChuyen && kqChuyen.ly_do) || 'Chưa chuyển được tiền.') + '\n\nMở bill ' + r.name + ' trong danh sách, bấm Dò tiền chuyển khoản để gắn khoản của bill cũ.', 'Bill đã lưu, tiền chưa chuyển');
+    return go(scrPosDs, true);
+  }
   /* Van la ma QR khach da quet luc nay, khong doi sang so phieu - de neu
      khach chua chuyen kip thi quet lai van ra dung noi dung. */
   if (laCK) return posQrSheet(maCk, thu, (r && r.name) || '', nguonCk);

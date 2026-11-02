@@ -496,7 +496,9 @@ doc_events = {
 		"on_cancel": "vagabond.giao_viec.khi_xong",
 	},
 	"Phieu Kiem Ke": {
-		"before_validate": "vagabond.kiem_ke.giu_anh_chup_ton",
+		# Codex #527 vòng 4: giữ ảnh chụp cũ trước, rồi phiếu đếm hằng ngày chụp
+		# lại tồn sổ đúng lúc bếp chốt (phiếu đó không khoá nhập xuất).
+		"before_validate": ["vagabond.kiem_ke.giu_anh_chup_ton", "vagabond.kiem_ke.chup_lai_khi_chot"],
 		"after_insert": [
 			"vagabond.giao_viec.khi_sinh_phieu",
 			# Ghi lai thoi diem chup ton so: chenh lech dem ra la chenh lech so
@@ -1162,3 +1164,18 @@ doc_events["Vagabond Ung Vien"]["after_insert"] = [doc_events["Vagabond Ung Vien
 	"vagabond.tuyen_dung_ai.xep_doc"]
 scheduler_events.setdefault("hourly", []).append("vagabond.tuyen_dung.nhac_qua_han")
 scheduler_events.setdefault("cron", {}).setdefault("40 3 * * *", []).append("vagabond.tuyen_dung.xoa_het_han")
+# v628 (anh Việt duyệt mẫu 02/11/2026): tin Zalo Tài chính cho Ban giám đốc, kế toán, và
+# tin kiểm kê sáng cho bếp (tin_tai_chinh.py). Tin két lệch gọi thẳng từ ca_quay.chot_ca.
+for _gio_v628, _ham_v628 in (
+	("30 7 * * *", "vagabond.tin_tai_chinh.nhac_kiem_ke_sang"),
+	("0 8 * * *", "vagabond.tin_tai_chinh.nhac_tien_ra"),
+	("0 8 * * 1", "vagabond.tin_tai_chinh.gui_tuan"),
+	("0 8 5 * *", "vagabond.tin_tai_chinh.gui_thang"),
+	("35 23 * * *", "vagabond.tin_tai_chinh.gui_cuoi_ngay"),
+	# Quỹ tiền mặt: nhắc kế toán phiếu nộp ngân hàng quá 2 ngày chưa thấy tiền về.
+	("10 8 * * *", "vagabond.quy_tien_mat.nhac_nop_chua_khop"),
+):
+	scheduler_events.setdefault("cron", {}).setdefault(_gio_v628, []).append(_ham_v628)
+del _gio_v628, _ham_v628
+# Quỹ tiền mặt (v628): mỗi giờ ghép phiếu nộp ngân hàng với giao dịch SePay vừa về.
+scheduler_events.setdefault("hourly", []).append("vagabond.quy_tien_mat.lich_khop")

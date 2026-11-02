@@ -872,6 +872,8 @@ async function scrPosBill(name) {
   var PB_DOI_PT = suaMo && posSua.doiPt ? 1 : 0;
   html += '<div class="sec">' + (nhap && !suaMo && (tamTinh || chuaCoPt)
     ? 'Khách thanh toán bằng gì?' : 'Thanh toán') + '</div>';
+  /* v628 TH2: chỗ báo khách đã chuyển thừa (vẽ sau khi hỏi máy chủ). */
+  html += '<div id="pbThua"></div>';
   /* Noi thang la con thieu gi, dung de thu ngan tu doan. Cau nay chi hien
      dung ca don nhap chua co phuong thuc. */
   if (chuaCoPt && !suaMo) {
@@ -1125,6 +1127,45 @@ async function scrPosBill(name) {
   }
   pbAnNutTang();
   veQr();
+  /* ----- v628 TH2: khách đã chuyển nhiều hơn số phải thu -----
+     Dễ báo 02/11/2026: bill NVH 405.000 phải bớt 115.000 sau khi khách đã
+     chuyển đủ 405.000. Bill chưa ghi sổ thì Sửa hoá đơn thêm giảm giá, hoá
+     đơn điện tử ra đúng số sau giảm; khối này nói ngay khách thừa bao nhiêu.
+     Ghi sổ xong thì có nút Chuyển lại tiền dư (phiếu tiền nộp thừa có sẵn,
+     nhóm Zalo Kế toán nhận tin ngay). */
+  var pbTien = null;
+  function pbPhaiThuHien() {
+    if (!suaMo) return Number(d.grand_total) || 0;
+    var og = document.getElementById('pbGiam');
+    return Math.max(0, tongMon - (og ? posSoTien(og.value) : giam));
+  }
+  function pbVeThua() {
+    var o = document.getElementById('pbThua');
+    if (!o) return;
+    var nhanTien = pbTien ? Number(pbTien.nhan) || 0 : 0;
+    var phai = pbPhaiThuHien();
+    var thua = Math.round(nhanTien - phai);
+    if (!(nhanTien > 0) || thua <= 1) { o.innerHTML = ''; return; }
+    var ph = pbTien.phieu_hoan;
+    var ghiSo = d.docstatus === 1;
+    o.innerHTML = '<div style="margin:0 0 10px;padding:10px 12px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:13px;color:#92400e;line-height:1.55">' +
+      '<b>Khách đã chuyển ' + money(nhanTien) + ' đ, thừa ' + money(thua) + ' đ</b><br>' +
+      (ghiSo
+        ? (ph ? 'Đã có phiếu ' + h(ph.name) + ' cho bill này, xem ở màn Hoàn tiền.'
+          : 'Bấm Chuyển lại tiền dư để kế toán chuyển trả khách phần thừa. Nhóm Zalo Kế toán nhận tin ngay.')
+        : 'Hoá đơn điện tử xuất theo số phải thu ' + money(phai) + ' đ. Ghi sổ xong mở lại bill này, bấm Chuyển lại tiền dư để trả khách phần thừa.') +
+      (ghiSo && !ph ? '<button class="btn" id="pbTraDu" style="width:100%;margin:8px 0 0">Chuyển lại tiền dư ' + money(thua) + ' đ</button>' : '') +
+      '</div>';
+    var nb = document.getElementById('pbTraDu');
+    if (nb) nb.onclick = function () { hoanMoFormDu(d); };
+  }
+  if (!tamTinh && !d.vgb_huy && d.name && (d.vgb_pt_thanh_toan === 'Chuyển khoản' || PB_PT === 'Chuyển khoản')) {
+    api('vagabond.ban_hang.pos_tien_bill', { name: d.name })
+      .then(function (t) { pbTien = t || null; pbVeThua(); })
+      .catch(function () { pbTien = null; });
+  }
+  var ogThua = document.getElementById('pbGiam');
+  if (ogThua) ogThua.addEventListener('input', pbVeThua);
   function docO(id) { var o = document.getElementById(id); return o ? o.value : ''; }
   function hutSua() {
     if (!posSua) return;
@@ -1202,6 +1243,13 @@ async function scrPosBill(name) {
      khoi doanh thu - xem lai duoc bat cu luc nao. */
   var nx = document.getElementById('pbXoa');
   if (nx) nx.onclick = async function () {
+    /* v628 TH3: bill đã nhận tiền chuyển khoản thì không cho huỷ trơn, hỏi
+       cách xử lý tiền trước (Dễ báo 02/11/2026, bill SOL3D4A9). */
+    var tienBill = null;
+    busy(true);
+    try { tienBill = await api('vagabond.ban_hang.pos_tien_bill', { name: d.name }); } catch (eT) { tienBill = null; }
+    busy(false);
+    if (tienBill && Number(tienBill.nhan) > 0) return posHuyCoTien(d, maBill, monTuDoc(), tienBill);
     var ok = await confirmSheet('Huỷ bill ' + (maBill || d.name) + '?',
       'Bill ' + money(d.grand_total) + ' đ sẽ được đánh dấu đã huỷ và không tính vào doanh thu nữa. ' +
       'Bill vẫn nằm nguyên trong hệ thống để đối chiếu - không ai xoá được chứng từ. ' +
@@ -1773,4 +1821,95 @@ async function posInTemThu() {
     '</div>';
   await inTo('tem', 'In thử căn tem', temKhung('In thử căn tem', mot + mot, 1),
     inKho('tem').rong, 900, inW);
+}
+
+
+/* ---------------- Huỷ bill đã nhận tiền chuyển khoản (v628 TH3) ----------
+
+   Dễ báo 02/11/2026: Gia Bảo đứng District 1 nhưng bấm nhầm điểm Sales
+   Online, khách chuyển 1.130.000 vào bill SOL3D4A9. Bill bị huỷ trơn rồi
+   lập lại TCVURLV8 ở D1, tiền vẫn dính bill cũ nên bill mới không đối soát
+   được.
+
+   Nay huỷ bill đã nhận tiền phải chọn MỘT trong ba việc:
+     lai   chọn nhầm điểm: chép giỏ sang điểm đúng, lưu xong máy tự chuyển
+           tiền từ bill cũ sang bill mới
+     hoan  khách không mua nữa: mở đúng phiếu Huỷ đơn và hoàn tiền có sẵn
+     sau   huỷ, lập lại bill sau: tiền được nhả, bill mới bấm Dò tiền thấy
+           khoản này đầu tiên kèm câu giải thích
+   Cả ba vẫn cần mã OTP quản lý ca như huỷ bill thường. */
+async function posHuyCoTien(d, maBill, mon, tien) {
+  var ma = maBill || d.name;
+  var diemCu = String(d.vgb_quay || 'SALES').toUpperCase();
+  var dsDiem = (((CFGBH || {}).diem) || []).filter(function (q) { return String(q.ma || '').toUpperCase() !== diemCu; });
+  var tt = { cach: 'lai', diem: dsDiem.length === 1 ? dsDiem[0].ma : '', ghi: '' };
+  var ov = document.createElement('div'); ov.className = 'sh';
+  function op(k, tieuDe, giai, them) {
+    var on = tt.cach === k;
+    return '<div data-cach="' + k + '" style="cursor:pointer;border:1.5px solid ' + (on ? '#0d9488' : '#e5e7eb') + ';background:' + (on ? '#f0fdfa' : '#fff') +
+      ';border-radius:12px;padding:11px 13px;margin-bottom:9px;text-align:left">' +
+      '<div style="font-weight:700;font-size:15px">' + tieuDe + '</div>' +
+      '<div style="font-size:12.5px;color:#6b7280;line-height:1.45;margin-top:2px">' + giai + '</div>' + (on && them ? them : '') + '</div>';
+  }
+  function ve() {
+    var chip = dsDiem.map(function (q) {
+      return posChipNut('data-hdiem="' + h(q.ma) + '"', h(q.ten_ngan || q.ten || q.ma), tt.diem === q.ma, false, '#0f766e');
+    }).join('');
+    ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
+      '<div style="font-size:18px;font-weight:800;margin-bottom:8px">Huỷ bill ' + h(ma) + '</div>' +
+      '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 12px;margin-bottom:12px;color:#991b1b;font-size:13.5px;line-height:1.5">' +
+      '<b>Bill này đã nhận ' + money(tien.nhan) + ' đ chuyển khoản.</b> Chọn cách xử lý tiền trước khi huỷ.</div>' +
+      op('lai', 'Chọn nhầm điểm bán: lập lại ở điểm khác',
+        'Chọn điểm đúng. Máy chép món sang bill mới ở điểm đó; lưu xong máy tự chuyển ' + money(tien.nhan) + ' đ sang bill mới.',
+        '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:8px">' + chip + '</div>') +
+      op('hoan', 'Khách không mua nữa: huỷ và hoàn tiền', 'Mở phiếu Huỷ đơn và hoàn tiền như hiện nay, kế toán chuyển trả khách.') +
+      op('sau', 'Huỷ, lập lại bill sau', 'Khoản tiền được nhả ra. Lập bill mới xong bấm Dò tiền chuyển khoản, khoản này hiện đầu tiên.') +
+      (tt.cach !== 'hoan' ? '<textarea class="nt" id="hctGhi" rows="2" placeholder="Ghi thêm (không bắt buộc), ví dụ: khách mua tại D1" style="margin-top:4px">' + h(tt.ghi) + '</textarea>' : '') +
+      '<button class="btn dg" data-hct style="margin-top:12px">' + (tt.cach === 'hoan' ? 'Mở phiếu huỷ và hoàn tiền' : 'Tiếp tục (cần mã OTP quản lý ca)') + '</button>' +
+      '<button class="btn gh" data-hdong style="margin-top:9px">Đóng</button></div>';
+  }
+  ve();
+  document.body.appendChild(ov);
+  ov.onclick = async function (e) {
+    var og = ov.querySelector('#hctGhi'); if (og) tt.ghi = og.value;
+    if (e.target === ov || e.target.hasAttribute('data-hdong')) return ov.remove();
+    var c = e.target.closest('[data-hdiem]');
+    if (c) { tt.diem = c.getAttribute('data-hdiem'); tt.cach = 'lai'; return ve(); }
+    var k = e.target.closest('[data-cach]');
+    if (k && !e.target.closest('[data-hct]')) { tt.cach = k.getAttribute('data-cach'); return ve(); }
+    if (!e.target.hasAttribute('data-hct')) return;
+    if (tt.cach === 'hoan') { ov.remove(); return hoanMoFormHuy(d); }
+    var diem = null;
+    if (tt.cach === 'lai') {
+      diem = dsDiem.find(function (q) { return q.ma === tt.diem; });
+      if (!diem) return toast('Chọn điểm bán đúng trước đã.');
+    }
+    var ghi = String(tt.ghi || '').trim();
+    var lyDo = (tt.cach === 'lai' ? 'Chọn nhầm điểm bán, lập lại ở ' + (diem.ten_ngan || diem.ten || diem.ma)
+      : 'Huỷ, lập lại bill sau') + (ghi ? '. ' + ghi : '');
+    var otp = await posXinPhep('Huỷ bill ' + ma);
+    if (otp === null) return;
+    busy(true);
+    try { await api('vagabond.ban_hang.pos_xoa', { name: d.name, otp: otp, ly_do: lyDo }); }
+    catch (er) { busy(false); return toast((er && er.message) || 'Huỷ lỗi', 5000); }
+    busy(false);
+    ov.remove();
+    posHomNayTxt = null;
+    if (tt.cach === 'sau') {
+      toast('Đã huỷ bill ' + ma + '. Lập bill mới xong bấm Dò tiền, khoản ' + money(tien.nhan) + ' đ hiện đầu tiên.', 6000);
+      return go(scrPosDs, true);
+    }
+    /* Lập lại ở điểm đúng: đổi điểm, mở bill mới, chép món. Giá theo món
+       của bill cũ; khuyến mãi tự áp thì máy tính lại ở điểm mới. */
+    posQuay = diem;
+    posDon = posMoi();
+    posDon.pt = 'Chuyển khoản';
+    posDon.mon = (mon || []).map(function (m) {
+      return { item_code: m.item_code, ten: m.ten, qty: m.qty, rate: m.rate, anh: '', nhom: '', tc: m.tc || [], gc: m.gc || '' };
+    });
+    posDon.giam = d.discount_amount ? String(d.discount_amount) : '';
+    posDon.chuyen_tu = { name: d.name, ma: ma, tien: tien.nhan };
+    if ((mon || []).some(function (m) { return m.combo; })) toast('Bill cũ có món combo: kiểm lại giỏ và tổng tiền trước khi lưu.', 5000);
+    go(scrPosQuay, true);
+  };
 }
