@@ -150,3 +150,5 @@ body.bt-che-do-moi header a{color:#fff}
 .bt-form-cau{padding:16px 18px 20px;border:1px solid var(--bt-xanh);border-top:0;background:var(--bt-the);margin:-1px 0 8px}
 .bt-dem-cau{margin:14px 0 0;color:var(--bt-mo);font-size:13px;letter-spacing:.12em;text-transform:uppercase}
 @media(max-width:600px){.bt-dong-cau .bt-hang-nut{width:100%}}
+/* v630: ảnh thẻ vị trí tuyển dụng, đổi ngay trong danh sách. */
+.bt-anh-vi-tri{gap:8px}.bt-anh-vi-tri .bt-goi-y{font-size:13px}#bt-moi .bt-anh-vi-tri .bt-nut.nho{min-height:44px}
