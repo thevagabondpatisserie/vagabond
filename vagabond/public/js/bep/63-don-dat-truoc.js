@@ -61,8 +61,10 @@ function ddtThe(r) {
   return '<div class="card" data-ddtthe="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:15.5px;font-weight:800;color:#0b2a33">' + h(r.ma) + (r.gio ? ' · ' + h(r.gio) : '') + '</span>' + ddtChip(r) + '</div>' +
-    '<div style="font-weight:700;font-size:15px;margin-top:2px">' + h(r.tac_pham) + (r.kich_co ? ' · size ' + h(r.kich_co) : '') + '</div>' +
-    '<div style="font-size:13px;color:#475467;margin-top:2px">' + h(r.khach) + ' · ' + h(r.sdt) + (r.diem_nhan ? ' · ' + h(r.diem_nhan) : '') + '</div>' +
+    /* Codex #531 vòng 7 (AGENTS 2b.4): ảnh tác phẩm từ danh mục, chưa có thì ô 🍰. */
+    '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' + anhMon(r.anh) + '<div style="flex:1;min-width:0">' +
+    '<div style="font-weight:700;font-size:15px">' + h(r.tac_pham) + (r.kich_co ? ' · size ' + h(r.kich_co) : '') + '</div>' +
+    '<div style="font-size:13px;color:#475467;margin-top:2px">' + h(r.khach) + ' · ' + h(r.sdt) + (r.diem_nhan ? ' · ' + h(r.diem_nhan) : '') + '</div></div></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:13.5px;margin-top:6px"><span>Tổng ' + money(r.tong) + 'đ</span>' +
     '<b style="color:' + (r.con_lai > 0 ? '#b45309' : '#15803d') + '">' + (r.con_lai > 0 ? 'Còn ' + money(r.con_lai) + 'đ' : 'Đã thu đủ') + '</b></div>' +
     (nhap ? '<div style="font-size:12.5px;color:#0369a1;margin-top:4px">' + nhap + ' phiếu chuyển khoản chờ kế toán ghi sổ</div>' : '') +
@@ -310,7 +312,8 @@ async function scrDonDatTruocCt() {
   var dsQuay = r.quay || [], keToan = !!r.la_ke_toan;
   var html = '<div class="card" data-ddtct="' + h(r.name) + '" style="padding:12px 13px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:18px">' + h(r.ma) + '</b>' + ddtChip(r) + '</div>' +
-    '<div style="font-size:15px;font-weight:700;margin-top:4px">' + h(r.tac_pham) + (r.kich_co ? ' · size ' + h(r.kich_co) : '') + '</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-top:6px">' + anhMon(r.anh) +
+    '<div style="font-size:15px;font-weight:700;flex:1;min-width:0">' + h(r.tac_pham) + (r.kich_co ? ' · size ' + h(r.kich_co) : '') + '</div></div>' +
     '<div style="font-size:13.5px;color:#475467;margin-top:2px">' + h(ddtNhanNgay(r.ngay, today())) + (r.gio ? ' lúc ' + h(r.gio) : '') + ' · ' + h(r.diem_nhan || '') + '</div>' +
     '<div style="font-size:13.5px;margin-top:2px">' + h(r.khach) + ' · <a href="tel:' + h(String(r.sdt || '').replace(/[^0-9+]/g, '')) + '">' + h(r.sdt) + '</a></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;font-size:12.5px;color:#475467">' +
