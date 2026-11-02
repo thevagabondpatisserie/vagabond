@@ -1422,6 +1422,7 @@ async function scrPosBill(name) {
         return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: m.gc || '', combo: m.combo || '', dong_goc: m.dong_goc || '' };
       }));
       goi.giam_gia = posSoTien(posSua.giam);
+      goi.gia_theo_diem = 1;
       if (posSua.pt) { goi.pt = posSua.pt; goi.ma_tham_chieu = posSua.mtc || ''; goi.doi_pt = posSua.doiPt ? 1 : 0; }
     }
     var ok = await confirmSheet('Lưu thay đổi hoá đơn ' + (maBill || d.name) + '?',
@@ -1434,6 +1435,7 @@ async function scrPosBill(name) {
     } catch (e) {
       busy(false);
       var loi = (e && e.message) || 'Lưu thay đổi lỗi';
+      if (await posSuaGiaVuaDoi(e, d.vgb_quay)) return go(function () { scrPosBill(name); }, true);
       // May chu moi la noi quyet dinh co can OTP hay khong. App khong tu
       // doan: cu gui len, may chu doi ma thi luc do moi hoi quan ly.
       if (loi.indexOf('OTP') < 0) return toast(loi, 5000);

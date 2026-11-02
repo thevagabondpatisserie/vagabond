@@ -273,17 +273,40 @@ async function posGiaVuaDoi(e) {
   try { await cfgBanHang(); } catch (eC) { /* đọc lại lỗi: lần lưu sau máy chủ vẫn chặn */ }
   /* Giá chung của các món trong giỏ, đọc lại từ danh mục: máy chủ đối chiếu cả
      giá chung, nên giỏ phải về đúng số đó dù máy chưa nạp bảng món. */
+  posDongBoQuay(await posDocGiaChung(posDon && posDon.mon));
+  toast(cau, 6500);
+  go(scrPosQuay, true);
+  return true;
+}
+/* Giá chung (Item.standard_rate) của các món không thuộc combo trong một danh
+   sách dòng, đọc lại từ danh mục. Lỗi mạng thì trả rỗng. */
+async function posDocGiaChung(ds) {
   var giaChung = {};
   try {
-    var maGio = (posDon && posDon.mon || []).filter(function (m) { return !m.combo && !m.combo_ma; }).map(function (m) { return m.item_code; });
-    if (maGio.length) {
-      ((await getList('Item', { filters: { name: ['in', maGio] }, fields: ['name', 'standard_rate'], limit_page_length: 0 })) || [])
+    var ma = (ds || []).filter(function (m) { return !m.combo && !m.combo_ma; }).map(function (m) { return m.item_code; });
+    if (ma.length) {
+      ((await getList('Item', { filters: { name: ['in', ma] }, fields: ['name', 'standard_rate'], limit_page_length: 0 })) || [])
         .forEach(function (x) { if (+x.standard_rate) giaChung[x.name] = +x.standard_rate; });
     }
   } catch (eG) { giaChung = {}; }
-  posDongBoQuay(giaChung);
+  return giaChung;
+}
+/* Sửa bill (Codex PR #532 vòng 5): dòng đã lưu giữ giá đã chốt; máy chủ chặn
+   vì MÓN THÊM MỚI mang giá cũ thì đọc lại cấu hình, đặt lại giá các món thêm
+   mới (không dòng gốc, không combo, không phí giao) theo giá điểm của bill, không
+   có thì giá chung, rồi để màn vẽ lại cho thu ngân xem tổng mới. */
+async function posSuaGiaVuaDoi(e, quay) {
+  var cau = String((e && e.message) || '');
+  if (cau.indexOf('Bảng giá của điểm vừa đổi') < 0) return false;
+  CFGBH = null;
+  try { await cfgBanHang(); } catch (eC) { /* lần lưu sau máy chủ vẫn chặn */ }
+  var moi = ((posSua && posSua.mon) || []).filter(function (m) { return !m.dong_goc && !m.combo && !m.combo_ma && m.item_code !== POS_MA_PHI_GIAO; });
+  var giaChung = await posDocGiaChung(moi), q = posDiemTheoQuay(quay), g = (q && q.gia_rieng) || {}, co = Object.prototype.hasOwnProperty;
+  moi.forEach(function (m) {
+    var gia = co.call(g, m.item_code) ? +g[m.item_code] || 0 : (co.call(giaChung, m.item_code) ? giaChung[m.item_code] : 0);
+    if (gia) m.rate = gia;
+  });
   toast(cau, 6500);
-  go(scrPosQuay, true);
   return true;
 }
 function posDiemVua() { try { return localStorage.getItem('vgb_diem_vua') || ''; } catch (e) { return ''; } }
