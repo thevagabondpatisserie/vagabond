@@ -874,29 +874,45 @@ def xem_phieu(name):
 
 
 def _phieu_mo_cua(khach, khoa=False):
-	"""Phiếu đòi nợ còn mở của một khách. `khoa`: đọc hiện tại có khoá."""
+	"""MỌI phiếu đòi nợ còn mở của một khách. `khoa`: đọc hiện tại có khoá.
+
+	Codex #531 vòng 5: không cắt số phiếu. Đây là NGUỒN tính tổng công nợ và
+	danh sách QR; tờ trong phiếu đã bị loại khỏi phần chưa gom (_hd_da_gom),
+	nên phiếu bị cắt là tiền biến mất (21 phiếu 100.000 thành 2.000.000).
+	Muốn gọn màn thì cắt ở phần hiển thị, không cắt ở đây."""
 	ds = frappe.db.sql(
 		"""select name from `tabVagabond Cong No` where khach=%s and trang_thai in %s
-		order by creation asc limit 20""" + (" for update" if khoa else ""),
+		order by creation asc""" + (" for update" if khoa else ""),
 		(khach, tuple(TRANG_THAI_CON_NO)), as_dict=True)
 	return [r["name"] for r in ds]
 
 
-def no_cua_khach(khach):
+def no_cua_khach(khach, khoa=False):
 	"""Công nợ của MỘT khách: tờ chưa gom phiếu và phiếu đòi nợ còn mở, kèm
-	hạn từng tờ. CHỈ ĐỌC, không cổng quyền nhân viên (xem đầu mục)."""
+	hạn từng tờ. CHỈ ĐỌC, không cổng quyền nhân viên (xem đầu mục).
+
+	khoa=True (Codex #531 vòng 5): dùng sau khoá hàng khách. Danh sách phiếu,
+	nội dung phiếu và các dòng phiếu đọc HIỆN TẠI (for update); tờ đã nằm
+	trong phiếu đọc hiện tại thì bỏ khỏi phần chưa gom. Đọc thường lúc đó là
+	ảnh chụp từ trước lúc chờ khoá: không thấy phiếu lượt bấm trước vừa lập,
+	phản hồi báo thành công mà không có QR nào. Hoá đơn (số còn đòi, hạn)
+	vẫn đọc thường: lượt bấm QR không ghi gì vào hoá đơn."""
 	kq = bang_khach_no(khach=khach)
 	o = next((x for x in kq.get("khach") or [] if x.get("khach") == khach), None) or {}
 	hd = [{"name": h["name"], "ngay": h["ngay"], "tien": flt(h["tien"])} for h in o.get("hd") or []]
 	phieu = []
-	for ten in _phieu_mo_cua(khach):
-		doc = frappe.get_doc("Vagabond Cong No", ten)
+	gom = set()
+	for ten in _phieu_mo_cua(khach, khoa):
+		doc = frappe.get_doc("Vagabond Cong No", ten, for_update=True) if khoa else frappe.get_doc("Vagabond Cong No", ten)
+		gom.update(d.hoa_don for d in doc.dong)
 		da = _da_nhan_phieu(doc, _sepay_cn(doc.ma_phieu))
 		con = max(0.0, flt(doc.tong_tien) - da)
 		if con <= 0.5:
 			continue
 		phieu.append({"ma_phieu": doc.ma_phieu, "con_thieu": con, "tong_tien": flt(doc.tong_tien), "da_nhan": da,
 			"han_qr": str(doc.han_qr or ""), "hoa_don": [d.hoa_don for d in doc.dong]})
+	if khoa:
+		hd = [h for h in hd if h["name"] not in gom]
 	ten_hd = [h["name"] for h in hd] + [x for p in phieu for x in p["hoa_don"]]
 	han = {}
 	if ten_hd:
@@ -918,7 +934,8 @@ def qr_no_cua_khach(khach):
 	if mo:
 		da_gom = {r[0] for r in frappe.db.sql(
 			"select hoa_don from `tabVagabond Cong No Dong` where parent in %s for update", (tuple(mo),))}
-	n = no_cua_khach(khach)
+	# Sau khoá: dựng phản hồi bằng đọc hiện tại xuyên suốt (Codex #531 vòng 5).
+	n = no_cua_khach(khach, khoa=True)
 	chua = [h["name"] for h in n["hd"] if h["name"] not in da_gom]
 	if chua:
 		# Chỉ tờ mang phương thức chính Công nợ gom được (luật lap_phieu_doi_no);
@@ -927,7 +944,7 @@ def qr_no_cua_khach(khach):
 			"docstatus": 1}, pluck="name", limit_page_length=0)
 		if gom:
 			lap_phieu_doi_no(khach, gom, "Khách sỉ tự lập trên trang Bánh sỉ để thanh toán qua QR.", 0, "Guest")
-			n = no_cua_khach(khach)
+			n = no_cua_khach(khach, khoa=True)
 	tk = tai_khoan.tk_phieu_no()
 	for p in n["phieu"]:
 		p["qr"] = {"ngan_hang": tk.get("bank") or "", "stk": tk.get("stk") or "", "ten_tk": tk.get("ten") or "",
