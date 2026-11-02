@@ -266,6 +266,21 @@ def dung():
 	# 6. Những thứ các bộ kiểm khác cần: khách lẻ dùng chung, tài khoản ngân
 	#    hàng, tài khoản kho mặc định cho công ty, index của patch mua_hddt_v446
 	#    (install đánh dấu patch đã chạy mà không chạy, nên index không có).
+	# v631 (bench #531): site thật có nhóm "Khách lẻ", khu vực "Vietnam" (khách
+	# web mới tạo qua nhap_khach.khach_cho_don đi vào đó) và có món bán THEO TỒN
+	# KHO (đơn sỉ lập phiếu giao trừ kho). Bench thiếu thì khach_cho_don nuốt lỗi
+	# trả rỗng, đặt bánh thiết kế riêng báo "Chưa ghi nhận được thông tin khách",
+	# và ca bánh sỉ không có món để đặt.
+	from vagabond import nhap_khach as _nk
+	if not frappe.db.exists("Customer Group", _nk.NHOM_MAC_DINH):
+		frappe.get_doc({"doctype": "Customer Group", "customer_group_name": _nk.NHOM_MAC_DINH,
+			"parent_customer_group": "All Customer Groups", "is_group": 0}).insert(ignore_permissions=True)
+	if not frappe.db.exists("Territory", _nk.KHU_VUC):
+		frappe.get_doc({"doctype": "Territory", "territory_name": _nk.KHU_VUC,
+			"parent_territory": "All Territories", "is_group": 0}).insert(ignore_permissions=True)
+	if not frappe.db.exists("Item", "BANH-SI-KIEM"):
+		frappe.get_doc({"doctype": "Item", "item_code": "BANH-SI-KIEM", "item_name": "Bánh sỉ kiểm thử", "item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name"),
+			"stock_uom": "Nos", "is_stock_item": 1, "is_sales_item": 1, "is_purchase_item": 1, "valuation_rate": 10000}).insert(ignore_permissions=True)
 	if not frappe.db.exists("Customer", "Khách lẻ Online"):
 		frappe.get_doc({"doctype": "Customer", "customer_name": "Khách lẻ Online", "customer_group": frappe.db.get_value("Customer Group", {"is_group": 0}, "name"),
 			"territory": "All Territories"}).insert(ignore_permissions=True)
