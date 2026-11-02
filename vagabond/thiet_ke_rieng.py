@@ -393,12 +393,15 @@ TRUONG_MOI = {
 			"insert_after": "vgb_tkr_bang_ke", "read_only": 1, "hidden": 1, "no_copy": 1},
 		{"fieldname": "vgb_tkr_khoa", "label": "Khoá xem trạng thái", "fieldtype": "Data",
 			"insert_after": "vgb_tkr_du_lieu", "read_only": 1, "hidden": 1, "no_copy": 1},
+		# Ràng buộc DUY NHẤT (Codex #531 f2): hai lần gửi cùng mã lần gửi mà lọt
+		# qua khoá thì cơ sở dữ liệu chỉ nhận một phiếu đặt. Frappe đổi chuỗi rỗng
+		# của ô unique thành NULL, nên các phiếu đặt khác không đụng nhau.
 		{"fieldname": "vgb_tkr_lan", "label": "Mã lần gửi", "fieldtype": "Data",
-			"insert_after": "vgb_tkr_khoa", "read_only": 1, "hidden": 1, "no_copy": 1},
+			"insert_after": "vgb_tkr_khoa", "read_only": 1, "hidden": 1, "no_copy": 1, "unique": 1},
 	],
 	PE: [
 		{"fieldname": "vgb_gd_tkr", "label": "Dòng sao kê đã gạch (đơn đặt trước)", "fieldtype": "Data",
-			"insert_after": "vgb_phieu_dat", "read_only": 1, "no_copy": 1,
+			"insert_after": "vgb_phieu_dat", "read_only": 1, "no_copy": 1, "search_index": 1,
 			"description": "Dòng sao kê SePay mà máy đã chiếm cho phiếu thu này. Một dòng chỉ gạch một lần."},
 	],
 }
@@ -584,9 +587,13 @@ def _ma_moi():
 	frappe.throw("Chưa sinh được mã đơn. Bấm gửi lại.")
 
 
-def _da_gui(lan, dau):
+def _da_gui(lan, dau, khoa=False):
+	"""Đơn cùng mã lần gửi đã có thì trả đơn đó. khoa=True là đọc HIỆN TẠI
+	(for update), dùng sau khi chờ khoá: đọc thường lúc đó trả ảnh chụp
+	REPEATABLE READ từ lần tra đầu, không thấy đơn lần gửi trước vừa lập
+	(Codex #531 f2, cùng nếp tiec_web._da_nhan)."""
 	r = frappe.db.get_value(SO, {"vgb_tkr_lan": lan}, ["name", "vgb_tkr_ma", "vgb_tkr_khoa", "vgb_tkr_du_lieu"],
-		as_dict=True)
+		as_dict=True, for_update=khoa)
 	if not r:
 		return None
 	du = json.loads(r.vgb_tkr_du_lieu or "{}")
@@ -633,7 +640,7 @@ def dat(du_lieu, ma_lan_gui):
 	from vagabond.noi_dung_web import _ban_cong_khai
 
 	ban = _ban_cong_khai(khoa=True)
-	cu = _da_gui(lan, dau)
+	cu = _da_gui(lan, dau, khoa=True)
 	if cu:
 		return cu
 	try:
@@ -642,7 +649,23 @@ def dat(du_lieu, ma_lan_gui):
 		frappe.throw(str(e))
 	ten_anh = _anh_tam(raw.get("ma_anh"))
 	don["bam"] = dau
-	so = _lap_phieu_dat(don, lan)
+	# Phòng hờ khi khoá không xếp hàng được (chưa có hàng nội dung web): ô mã
+	# lần gửi là DUY NHẤT, lần sau đâm ràng buộc thì lùi điểm lưu và trả đơn
+	# lần trước, như tiec_web.dang_ky.
+	moc = "tkr_dat_" + frappe.generate_hash(length=10)
+	frappe.db.savepoint(moc)
+	so_tin = len(getattr(frappe.local, "message_log", None) or [])
+	try:
+		so = _lap_phieu_dat(don, lan)
+	except frappe.UniqueValidationError:
+		frappe.db.rollback(save_point=moc)
+		cu = _da_gui(lan, dau, khoa=True)
+		if not cu:
+			raise
+		# db_insert đã thêm thông báo "phải là duy nhất" trước khi ném lỗi.
+		if getattr(frappe.local, "message_log", None):
+			del frappe.local.message_log[so_tin:]
+		return cu
 	if ten_anh:
 		frappe.db.set_value("File", ten_anh, {"attached_to_doctype": SO, "attached_to_name": so.name},
 			update_modified=False)

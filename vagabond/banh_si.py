@@ -470,8 +470,11 @@ TRUONG_MOI = {
 			"read_only": 1, "no_copy": 1, "description": "Công nợ (trả cuối kỳ 15 ngày) hoặc Trả trước."},
 		{"fieldname": "vgb_si_du_lieu", "label": "Dữ liệu đơn sỉ web", "fieldtype": "Long Text", "insert_after": "vgb_si_tt",
 			"read_only": 1, "hidden": 1, "no_copy": 1},
+		# DUY NHẤT (Codex #531 f2): hàng rào cuối dưới khoá hàng khách và phép
+		# tra lại mã lần gửi có khoá trong `dat`. Chuỗi rỗng thành NULL nên các
+		# phiếu đặt không phải đơn sỉ web không đụng nhau.
 		{"fieldname": "vgb_si_lan", "label": "Mã lần gửi đơn sỉ", "fieldtype": "Data", "insert_after": "vgb_si_du_lieu",
-			"read_only": 1, "hidden": 1, "no_copy": 1},
+			"read_only": 1, "hidden": 1, "no_copy": 1, "unique": 1},
 	],
 }
 
@@ -770,8 +773,13 @@ def _ma_moi():
 	frappe.throw("Chưa sinh được mã đơn. Bấm gửi lại.")
 
 
-def _da_gui(khach, lan, dau):
-	r = frappe.db.get_value(SO, {"vgb_si_lan": lan}, ["name", "customer", "vgb_si_du_lieu"], as_dict=True)
+def _da_gui(khach, lan, dau, khoa=False):
+	"""Đơn cùng mã lần gửi đã có thì trả đơn đó. khoa=True: đọc HIỆN TẠI (for
+	update) sau khi đã chờ khoá hàng khách; đọc thường lúc đó vẫn là ảnh chụp
+	REPEATABLE READ từ lần đọc phiên khách, không thấy đơn lần bấm trước vừa
+	lập (Codex #531 f2)."""
+	r = frappe.db.get_value(SO, {"vgb_si_lan": lan}, ["name", "customer", "vgb_si_du_lieu"], as_dict=True,
+		for_update=khoa)
 	if not r:
 		return None
 	if r.customer != khach or json.loads(r.vgb_si_du_lieu or "{}").get("bam") != dau:
@@ -863,7 +871,7 @@ def dat(du_lieu, ma_lan_gui):
 	lan = hashlib.sha256(("bsi:" + ma_lan_gui).encode()).hexdigest()[:40]
 	# Khoá hàng khách: hai lần bấm gửi cùng lúc xếp hàng, lần sau thấy đơn lần trước.
 	frappe.db.sql("select name from `tabCustomer` where name=%s for update", (kh.name,))
-	cu = _da_gui(kh.name, lan, dau)
+	cu = _da_gui(kh.name, lan, dau, khoa=True)
 	if cu:
 		return cu
 	try:
@@ -916,6 +924,26 @@ def qr_no():
 	n = cong_no.qr_no_cua_khach(kh.name)
 	frappe.db.commit()
 	return {"ok": 1, "phieu": n["phieu"], "no": tom_tat_no(n["hd"], n["phieu"], n["han"], _hom_nay())}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=30, seconds=600)
+def qr_don(ma):
+	"""Khách sỉ trả trước mở lại QR của MỘT đơn chưa chuyển tiền (Codex #531 f4).
+
+	QR trước đây chỉ nằm trong bộ nhớ trang ngay sau lúc đặt: khách tải lại
+	trang hoặc sang Tài khoản là mất, không chuyển tiền được. Chỉ đơn CỦA khách
+	phiên này (khách lấy từ cookie, không nhận mã khách từ trình duyệt). Số
+	tiền là phần còn phải thu máy chủ tính (`tom_tat`); đơn đã nhận đủ tiền, đơn
+	công nợ, đơn huỷ không có QR (cùng luật `_ket_qua` lúc đặt)."""
+	_khong_cache()
+	kh, ly = _khach_phien()
+	if not kh or not (isinstance(ma, str) and RE_MA.fullmatch(ma)):
+		frappe.throw("Không tìm thấy đơn.")
+	ten = frappe.db.get_value(SO, {"vgb_si_ma": ma, "customer": kh.name, "docstatus": 1}, "name")
+	if not ten:
+		frappe.throw("Không tìm thấy đơn.")
+	return _ket_qua(ten)
 
 
 # ---------------------------------------------------- đăng ký (khách vãng lai)

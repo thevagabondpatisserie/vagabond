@@ -168,6 +168,37 @@ def chon_ung_truoc(ds_ung, phieu_hop_le, tong):
 	return ra, ""
 
 
+def loc_giay_bao_co(tep):
+	"""Các tệp giấy báo Có kế toán gửi lên, kiểm ở cửa nhập. THUẦN.
+
+	Codex #531 f3: trước đây đi qua `tra_truoc_khach._dinh_tep`, hàm đó chỉ
+	nhận ẢNH, nên PDF giấy báo Có (đúng thứ ngân hàng cấp) bị bỏ lặng lẽ, rồi
+	hook `chung_tu_tien.chan_thieu_dinh_kem` chặn ghi sổ và bánh không giao
+	được. Luật đuôi và trần dung lượng lấy từ cổng tệp chung `tep_dinh_kem`
+	(ảnh và PDF), không chép một bộ luật thứ hai.
+
+	`tep`: [{ten, noi_dung (base64, có thể kèm tiền tố data:)}].
+	Trả (danh sách (tên, base64), câu lỗi). Một tệp hỏng là dừng cả lô, vì
+	ghi sổ thiếu chứng từ thì không lùi lại được.
+	"""
+	from vagabond.tep_dinh_kem import loi_tu_choi
+
+	ra = []
+	for a in tep or []:
+		a = a if isinstance(a, dict) else {}
+		ten = str(a.get("ten") or "").strip()[:140]
+		noi = str(a.get("noi_dung") or "").strip()
+		if noi[:5].lower() == "data:" and "," in noi[:200]:
+			noi = noi.split(",", 1)[1]
+		loi = loi_tu_choi(ten, len(noi) * 3 // 4)
+		if loi:
+			return [], loi
+		if not noi:
+			return [], "Tệp %s rỗng. Chọn lại ảnh hoặc PDF giấy báo Có." % ten
+		ra.append((ten, noi))
+	return ra, ""
+
+
 def dong_advances(ds_ung, ngay):
 	"""Từ kết quả `chon_ung_truoc` ra các dòng Sales Invoice Advance. THUẦN."""
 	ra = []
@@ -191,16 +222,86 @@ import frappe  # noqa: E402
 from frappe.utils import flt  # noqa: E402
 
 
-def phieu_cua(so_name):
+def phieu_cua(so_name, khoa=False):
+	"""Phiếu thu chưa huỷ của phiếu đặt.
+
+	khoa=True là phép đọc HIỆN TẠI có khoá, dùng NGAY SAU khi đã khoá hàng phiếu
+	đặt (Codex #531 f1). MariaDB REPEATABLE READ: phép đọc thường sau khi chờ
+	khoá vẫn trả ẢNH CHỤP từ lần đọc thường đầu tiên của yêu cầu (lượt khách
+	hỏi trạng thái đọc phiếu đặt trước rồi mới khoá), nên lượt thứ hai không
+	thấy phiếu thu lượt thứ nhất vừa lập và lập thêm một phiếu cho CÙNG dòng
+	sao kê: cọc 50% thành "đã thu đủ".
+
+	Đọc qua bảng tham chiếu (reference_name có chỉ mục trong ERPNext) để `for
+	update` chỉ khoá đúng các dòng của phiếu đặt này; lọc `vgb_phieu_dat` thẳng
+	trên Payment Entry là quét và khoá cả bảng. Phiếu thu ứng trước của luồng
+	này luôn có đúng một dòng tham chiếu phiếu đặt (`loi_phieu` chặn).
+	"""
+	if khoa:
+		ds = frappe.db.sql("""select p.name, p.docstatus, p.paid_amount, p.received_amount, p.mode_of_payment,
+				p.vgb_quay, p.vgb_gd_tkr, p.posting_date, p.creation
+			from `tabPayment Entry Reference` r join `tabPayment Entry` p on p.name = r.parent
+			where r.parenttype = 'Payment Entry' and r.reference_doctype = 'Sales Order'
+				and r.reference_name = %(so)s and p.vgb_phieu_dat = %(so)s and p.docstatus < 2
+				and p.payment_type = 'Receive'
+			order by p.creation asc for update""", {"so": so_name}, as_dict=True)
+		da, ra = set(), []
+		for p in ds:
+			if p["name"] not in da:
+				da.add(p["name"])
+				ra.append(p)
+		return ra
 	return frappe.get_all(PE, filters={"vgb_phieu_dat": so_name, "docstatus": ["<", 2], "payment_type": "Receive"},
 		fields=["name", "docstatus", "paid_amount", "received_amount", "mode_of_payment", "vgb_quay",
 			"vgb_gd_tkr", "posting_date", "creation"], order_by="creation asc", limit_page_length=0)
 
 
-def ds_phieu(so_name):
+def ds_phieu(so_name, khoa=False):
 	from vagabond.dat_banh import tien_thuc_thu
 
-	return [dict(p, so_tien=tien_thuc_thu(p)) for p in phieu_cua(so_name)]
+	return [dict(p, so_tien=tien_thuc_thu(p)) for p in phieu_cua(so_name, khoa)]
+
+
+def khoa_dong_sao_ke(ds_gd):
+	"""Khoá các dòng sao kê sắp xét, theo thứ tự tên (Codex #531 f1).
+
+	Khoá phiếu đặt chỉ xếp hàng các lượt CÙNG đơn. Một dòng sao kê mang mã của
+	hai đơn (thiết kế riêng và sỉ) thì hai lượt khớp hai đơn khác nhau chạy
+	song song, cùng đọc "chưa có chủ" rồi cùng lập phiếu thu. Khoá dòng sao kê
+	TRƯỚC khi đọc chủ: lượt sau chờ tới khi lượt trước commit rồi mới đọc
+	(hiện tại) và thấy chủ. Khoá trước rồi mới đọc chủ, không đọc chủ rồi mới
+	khoá, để hai lượt cùng một dòng sao kê không cùng giữ khoá khoảng trống chỉ
+	mục rồi chờ nhau.
+	Thứ tự: hàng phiếu đặt, rồi dòng sao kê theo tên, rồi phiếu thu."""
+	ds = sorted({str(x or "").strip() for x in ds_gd or [] if str(x or "").strip()})
+	if ds:
+		frappe.db.sql("select name from `tabBank Transaction` where name in %(ds)s order by name for update",
+			{"ds": tuple(ds)})
+	return ds
+
+
+def phieu_chiem(ds_gd):
+	"""Phiếu thu chưa huỷ đang chiếm các dòng sao kê, đọc HIỆN TẠI có khoá.
+
+	Ô `vgb_gd_tkr` có chỉ mục (search_index) nên `for update` chỉ khoá đúng các
+	dòng mang mã đó. `doi_soat_sepay.chu_cua_giao_dich` đọc bằng get_all (ảnh
+	chụp), dùng cho các luồng khác; luồng này đọc lại chủ của chính nó ở đây.
+	Không dùng ràng buộc DUY NHẤT trên ô này: phiếu thu tiền mặt để trống ô, và
+	phiếu đã huỷ (docstatus 2) phải nhả dòng sao kê cho phiếu mới.
+
+	Đọc có khoá mà không ra dòng nào thì MariaDB giữ khoá khoảng trống chỉ mục;
+	hai lượt khớp HAI đơn khác nhau cùng lúc có thể đâm deadlock khi cùng ghi.
+	MariaDB huỷ một lượt; lỗi chết giao dịch không bị nuốt (`quet` lùi rồi làm
+	đơn sau, trang khách hỏi lại sau 8 giây), không sinh phiếu đôi."""
+	ds = sorted({str(x or "").strip() for x in ds_gd or [] if str(x or "").strip()})
+	if not ds:
+		return []
+	return frappe.db.sql("""select name, vgb_gd_tkr from `tabPayment Entry`
+		where vgb_gd_tkr in %(ds)s and docstatus < 2 order by name for update""", {"ds": tuple(ds)}, as_dict=True)
+
+
+def chu_hien_tai(ds_gd):
+	return {p["vgb_gd_tkr"]: "phiếu thu đơn đặt trước " + p["name"] for p in phieu_chiem(ds_gd)}
 
 
 def gd_mang_ma(ma):
@@ -222,6 +323,8 @@ def khop(so_name, truong_ma, re_ma, toi_thieu_cua, quay, cong_ty, ghi_chu_cua, k
 
 	Chạy trong khoá hàng của phiếu đặt: nhịp 5 phút và lượt khách hỏi trạng
 	thái cùng lúc thì lượt sau đọc lại phiếu thu của lượt trước, không lập đôi.
+	"Đọc lại" phải là đọc HIỆN TẠI (for update): phiếu thu của đơn và chủ của
+	dòng sao kê, sau khi đã khoá các dòng sao kê (Codex #531 f1).
 	  truong_ma      ô mã đơn trên phiếu đặt (vgb_tkr_ma, vgb_si_ma)
 	  toi_thieu_cua  hàm(hàng phiếu đặt, tổng) -> số tiền tối thiểu lần đầu
 	  quay, cong_ty  hàm không đối số, gọi lúc chạy (ca kiểm thay được)
@@ -243,14 +346,17 @@ def khop(so_name, truong_ma, re_ma, toi_thieu_cua, quay, cong_ty, ghi_chu_cua, k
 	if not ma:
 		return 0
 	tong = flt(so.rounded_total) or flt(so.grand_total)
-	cac_phieu = ds_phieu(so_name)
+	# Sau khoá: MỌI phép đọc dùng để QUYẾT là đọc hiện tại (Codex #531 f1).
+	cac_phieu = ds_phieu(so_name, khoa=True)
 	da = sum(p["so_tien"] for p in cac_phieu)
 	if con_phai_thu(tong, cac_phieu) <= 0:
 		return 0
 	gds = gd_mang_ma(ma)
 	if not gds:
 		return 0
-	chu = dss.chu_cua_giao_dich([g["name"] for g in gds])
+	ten_gd = khoa_dong_sao_ke([g["name"] for g in gds])
+	chu = dss.chu_cua_giao_dich(ten_gd)
+	chu.update(chu_hien_tai(ten_gd))
 	nhan, xem = chon_giao_dich(gds, ma, re_ma, chu, toi_thieu_cua(so, tong), tong, da, ten_toi_thieu)
 	if xem:
 		frappe.log_error(json.dumps(xem, ensure_ascii=False), "%s: sao kê cần xem lại %s" % (tieu_de_loi, ma))
@@ -286,21 +392,61 @@ def khop(so_name, truong_ma, re_ma, toi_thieu_cua, quay, cong_ty, ghi_chu_cua, k
 def ghi_so_nhap(so_name, phieu, anh=None):
 	"""Kế toán đính giấy báo Có hoặc UNC khách gửi rồi ghi sổ phiếu thu chuyển
 	khoản NHÁP do máy lập khi chiếm sao kê. Cổng quyền (vai màn, kế toán) do
-	mô đun gọi kiểm TRƯỚC khi vào đây."""
+	mô đun gọi kiểm TRƯỚC khi vào đây.
+
+	`anh`: [{ten, noi_dung}], ẢNH HOẶC PDF (Codex #531 f3). Không đính được
+	tệp nào và phiếu cũng chưa có tệp thì báo ngay, không gọi ghi sổ để hook
+	`chan_thieu_dinh_kem` trả câu Uỷ nhiệm chi khó hiểu cho kế toán."""
+	# Cùng thứ tự khoá với `khop`: phiếu đặt, dòng sao kê, phiếu thu.
+	frappe.db.sql("select name from `tabSales Order` where name=%s for update", (so_name,))
 	pe = frappe.get_doc(PE, phieu)
 	if pe.get("vgb_phieu_dat") != so_name or int(pe.docstatus) != 0 or not pe.get("vgb_gd_tkr"):
 		frappe.throw("Phiếu %s không phải phiếu thu nháp của đơn này." % phieu)
 	g = frappe.db.get_value(BT, pe.vgb_gd_tkr, ["docstatus", "deposit"], as_dict=True)
 	if not g or int(g.docstatus) != 1 or tron(g.deposit) + LECH < tron(pe.paid_amount):
 		frappe.throw("Dòng sao kê %s của phiếu không còn hợp lệ. Kế toán đối chiếu tay." % pe.vgb_gd_tkr)
+	# Hàng rào cuối: một dòng sao kê chỉ MỘT phiếu thu được ghi sổ. Nháp đôi
+	# lập trước bản sửa #531 (hoặc lọt bằng đường nào khác) dừng ở đây.
+	khoa_dong_sao_ke([pe.vgb_gd_tkr])
+	khac = [p["name"] for p in phieu_chiem([pe.vgb_gd_tkr]) if p["name"] != pe.name]
+	if khac:
+		frappe.throw("Dòng sao kê %s đã có phiếu thu %s chiếm. Không ghi sổ thêm phiếu %s; kế toán đối chiếu "
+			"rồi huỷ phiếu thừa." % (pe.vgb_gd_tkr, ", ".join(khac), pe.name))
 	if isinstance(anh, str):
 		anh = frappe.parse_json(anh or "[]") or []
-	from vagabond.tra_truoc_khach import _dinh_tep
-
-	_dinh_tep(PE, pe.name, anh)
+	ds, loi = loc_giay_bao_co(anh)
+	if loi:
+		frappe.throw(loi)
+	n = dinh_giay_bao_co(pe.name, ds)
+	if n <= 0 and not frappe.db.count("File", {"attached_to_doctype": PE, "attached_to_name": pe.name}):
+		frappe.throw("Phiếu %s chưa có giấy báo Có đính kèm. Chọn ảnh hoặc tệp PDF giấy báo Có rồi bấm "
+			"Đính và ghi sổ lại." % pe.name)
 	pe.flags.ignore_permissions = True
 	pe.submit()
 	return pe
+
+
+def dinh_giay_bao_co(pe_name, ds):
+	"""Đính các tệp đã qua `loc_giay_bao_co` vào phiếu thu. Trả số tệp đã đính.
+
+	Không nuốt lỗi từng tệp như `tra_truoc_khach._dinh_tep`: tệp không lưu được
+	thì nói ngay tên tệp, chưa ghi sổ gì."""
+	from vagabond.loi_csdl import chet_giao_dich
+
+	n = 0
+	for ten, noi in ds or []:
+		try:
+			f = frappe.get_doc({"doctype": "File", "file_name": ten, "attached_to_doctype": PE,
+				"attached_to_name": pe_name, "content": noi, "decode": True, "is_private": 1})
+			f.flags.ignore_permissions = True
+			f.insert(ignore_permissions=True)
+		except Exception as e:
+			if chet_giao_dich(e):
+				raise
+			frappe.log_error(frappe.get_traceback(), "ung_truoc_don: đính giấy báo Có")
+			frappe.throw("Chưa lưu được tệp %s vào phiếu %s. Chọn lại tệp rồi bấm Đính và ghi sổ lại." % (ten, pe_name))
+		n += 1
+	return n
 
 
 def cap_ung_truoc(si, phieu_da_ghi):
