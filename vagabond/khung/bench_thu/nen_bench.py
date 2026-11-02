@@ -199,7 +199,12 @@ def dung():
 		{"fieldname": "vgb_sinh_nhat", "fieldtype": "Date", "label": "Ngày sinh", "insert_after": "customer_name"},
 		# Ô điểm tổng hợp (Float trên site thật). Tin Zalo đọc; ca web 245 ghi
 		# 999999 vào đây để chứng minh trang đọc sổ điểm, không đọc ô này.
-		{"fieldname": "vgb_diem", "fieldtype": "Float", "label": "Điểm", "insert_after": "customer_name"}])
+		{"fieldname": "vgb_diem", "fieldtype": "Float", "label": "Điểm", "insert_after": "customer_name"},
+		# v630 bánh sỉ: ba ô khách sỉ web (banh_si.TRUONG_MOI); trang /banh-si và
+		# màn Sales đọc ba ô này, bench thiếu thì cửa toi, gui_ma trả 500.
+		{"fieldname": "vgb_si_web", "fieldtype": "Check", "label": "Đặt sỉ trên web", "insert_after": "customer_name"},
+		{"fieldname": "vgb_si_cuoi_ky", "fieldtype": "Check", "label": "Trả cuối kỳ 15 ngày", "insert_after": "customer_name"},
+		{"fieldname": "vgb_si_sdt", "fieldtype": "Data", "label": "Số Zalo đặt sỉ", "insert_after": "customer_name"}])
 	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}, {"fieldname": "email_cc", "fieldtype": "Small Text", "label": "Email phụ cần CC", "insert_after": "email_id"}])
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},
