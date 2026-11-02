@@ -229,18 +229,21 @@ def doc_gia(v):
 	return int(so)
 
 
-def ap_gia_diem(items, rows, gia):
+def ap_gia_diem(items, rows, gia, mien=()):
 	"""THUAN: dat lai gia cac dong theo bang gia rieng cua diem.
 
 	items la dong may khach gui (de khuyen mai tinh tren gia that), rows la
-	dong se ghi vao hoa don, cung thu tu. Dong thuoc combo giu nguyen: combo
-	co gia rieng cua no. Mon chua co gia o diem nay giu gia may khach gui
-	(gia chung). Tra so dong da doi."""
+	dong se ghi vao hoa don, cung thu tu. mien la chi so cac dong combo ma
+	MAY CHU da xac nhan (dong_combo_tao, dong_combo_sua): combo co gia rieng
+	cua no. Nhan combo do may khach tu gui KHONG duoc mien (Codex PR #532:
+	gui combo "bat ky" kem gia 1 dong la lot gia diem). Mon chua co gia o
+	diem nay giu gia may khach gui (gia chung). Tra so dong da doi."""
 	doi = 0
 	if not gia:
 		return 0
+	mien = set(mien or ())
 	for i, r in enumerate(items or []):
-		if r.get("combo_ma") or r.get("combo"):
+		if i in mien:
 			continue
 		ma = str(r.get("item_code") or "").strip()
 		if ma not in gia:
@@ -251,6 +254,41 @@ def ap_gia_diem(items, rows, gia):
 		if rows is not None and i < len(rows):
 			rows[i]["rate"] = gia[ma]
 	return doi
+
+
+def dong_combo_tao(items):
+	"""THUAN: dong combo duoc giu gia khi LUU bill moi. Chi dong co ma combo
+	(combo_ma): vong dung dong cua tao_don_tay da doc Vagabond Combo va chan
+	mon khong thuoc combo do truoc khi goi ham nay."""
+	return {i for i, r in enumerate(items or []) if r.get("combo_ma")}
+
+
+def dong_combo_sua(items, dong_cu, dau_combo="\u25c8"):
+	"""THUAN: dong combo duoc giu gia khi SUA bill. dong_cu la {ten dong tren
+	hoa don: dong} doc tu MAY CHU. Dong giu lai (dong_goc) la combo neu dong
+	goc tren hoa don mang dau combo (da chia tien, co ma combo, hoac mo ta co
+	dau combo). Dong gui kem combo_ma thi vong dung dong cua pos_sua_don kiem
+	thanh phan va chan truoc khi luu. Nhan combo tu gui khong tinh."""
+	ra = set()
+	for i, r in enumerate(items or []):
+		if r.get("combo_ma"):
+			ra.add(i)
+			continue
+		cu = (dong_cu or {}).get(r.get("dong_goc") or "")
+		if not cu:
+			continue
+		if cu.get("vgb_combo_luong") or cu.get("vgb_combo_ma") or dau_combo in str(cu.get("description") or ""):
+			ra.add(i)
+	return ra
+
+
+# Câu máy chủ trả khi bảng giá của điểm đổi sau lúc máy quầy đọc giá. Màn quầy
+# dò đúng câu đầu này để đọc lại giá rồi cho thu ngân xem tổng mới (Codex PR #532).
+GIA_VUA_DOI = "Bảng giá của điểm vừa đổi"
+
+
+def cau_gia_vua_doi(n):
+	return "%s: %d món đã sang giá mới. Màn đã cập nhật, kiểm lại tổng tiền với khách rồi bấm lưu lại." % (GIA_VUA_DOI, n)
 
 
 def gia_rieng(ma):
@@ -665,8 +703,9 @@ def bang_gia_diem(ma):
 			da_ban[r["item_code"]] = flt(r["sl"])
 	mon = []
 	for it in frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0, "has_variants": 0},
-			fields=["name", "item_name", "item_group", "standard_rate"], order_by="item_name asc", limit_page_length=0):
-		mon.append({"ma": it["name"], "ten": it["item_name"], "nhom": it["item_group"] or "",
+			fields=["name", "item_name", "item_group", "standard_rate", "image"], order_by="item_name asc", limit_page_length=0):
+		# Ảnh món để người sửa giá nhận ra món (AGENTS.md mục 2b.4, Codex PR #532).
+		mon.append({"ma": it["name"], "ten": it["item_name"], "nhom": it["item_group"] or "", "anh": it.get("image") or "",
 			"gia_chung": flt(it["standard_rate"]), "gia_diem": flt(gia.get(it["name"])),
 			"da_ban": da_ban.get(it["name"], 0)})
 	return {"diem": {"ma": d["ma"], "ten": d["ten"], "ten_ngan": d["ten_ngan"], "bang_gia": d["bang_gia"]},

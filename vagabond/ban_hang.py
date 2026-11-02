@@ -4537,6 +4537,7 @@ def tao_don_tay(
 	otp_km="",
 	khach_ma="",
 	ve_diem="",
+	gia_theo_diem=0,
 ):
 	"""Nhap tay doanh thu tu kenh khong co API.
 
@@ -4602,7 +4603,14 @@ def tao_don_tay(
 	# v631 (anh Việt 02/11/2026): điểm có bảng giá riêng (NVH) thì máy chủ đặt
 	# lại giá các món có giá ở điểm đó, TRƯỚC khi tính khuyến mãi, để không ai
 	# sửa tay giá trên máy khách. Món chưa khai giá riêng giữ giá chung.
-	diem_ban.ap_gia_diem(items, rows, diem_ban.gia_rieng_cua_quay(quay))
+	# Codex PR #532: chỉ dòng combo máy chủ đã xác nhận (có mã combo, vừa kiểm
+	# thành phần ở vòng trên) mới giữ giá; nhãn combo tự gửi không được miễn.
+	# Màn quầy mới gửi gia_theo_diem=1: giá trên máy lệch giá điểm (quản lý vừa
+	# đổi bảng giá) thì CHẶN để thu ngân không thu theo tổng cũ; màn cũ chưa tải
+	# lại vẫn được máy chủ tự sửa giá như trước.
+	doi_gia = diem_ban.ap_gia_diem(items, rows, diem_ban.gia_rieng_cua_quay(quay), diem_ban.dong_combo_tao(items))
+	if doi_gia and cint(gia_theo_diem):
+		frappe.throw(diem_ban.cau_gia_vua_doi(doi_gia), title="Giá vừa đổi")
 
 	# --- Khuyen mai: may chu tu tinh lai, khong tin so tu may khach ---
 	# Tinh trên gio hang GOC (chua co phi giao) - khong ai duoc giam gia
@@ -6728,7 +6736,11 @@ def pos_sua_don(
 	if items:
 		# v631: sửa bill ở điểm có bảng giá riêng cũng tính lại giá theo điểm,
 		# trước khi xét OTP để giá cũ trên máy khách không bị coi là sửa giá.
-		diem_ban.ap_gia_diem(items, None, diem_ban.gia_rieng_cua_quay(si.get("vgb_quay")))
+		# Dòng combo giữ giá theo dòng gốc trên hoá đơn ở máy chủ (Codex PR #532).
+		dong_cu = {x.name: x.as_dict() for x in si.items}
+		diem_ban.ap_gia_diem(
+			items, None, diem_ban.gia_rieng_cua_quay(si.get("vgb_quay")), diem_ban.dong_combo_sua(items, dong_cu, DAU_COMBO)
+		)
 	da_ghi = si.docstatus == 1
 	# Hoa don DA GHI SO thi luon phai co OTP, khong xet muc quyen: luc do
 	# tien da nam trong so sach, khong con la chuyen cua quay nua.
