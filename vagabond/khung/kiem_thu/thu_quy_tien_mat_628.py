@@ -452,3 +452,104 @@ def _codex_chen_nhau():
 	# nhưng câu đọc có khoá thấy PQ-1 đã giữ BT-1.
 	so2, ghi2, _n = _khop_gia(p2, gd, {}, khoa_phieu={"PQ-1": "BT-1"})
 	la("lượt hai không ghép lại BT-1", (so2, ghi2), (0, []))
+
+
+# ------------------------------------------------ Codex #527 vòng 3 (SHA 2ee032d24)
+
+
+class _MvccGia:
+	"""Mô hình MariaDB REPEATABLE READ tối thiểu: lần ĐỌC THƯỜNG đầu tiên của một giao
+	dịch chụp ảnh số liệu đã commit; câu có khoá (for update) không chụp; commit ghi phần
+	đang chờ và bỏ ảnh chụp. `chen` chạy ĐÚNG MỘT LẦN ngay khi giao dịch xin khoá quỹ,
+	mô phỏng người thứ nhất đang giữ khoá, ghi xong và commit trước khi người thứ hai có khoá."""
+
+	def __init__(self, so_du):
+		self.da_commit = {"so_du": so_du}
+		self.anh = None
+		self.cho = 0.0
+		self.chen = None
+
+	def doc(self, k):
+		if self.anh is None:
+			self.anh = dict(self.da_commit)
+		return self.anh[k]
+
+	def ghi_tru(self, so):
+		self.cho += so
+
+	def commit(self):
+		self.da_commit["so_du"] -= self.cho
+		self.cho = 0.0
+		self.anh = None
+
+	def sql(self, cau, *a, **k):
+		if "for update" in cau and self.chen:
+			f, self.chen = self.chen, None
+			f()
+		return []
+
+
+def _vat_nop_mvcc(db):
+	je = []
+
+	class _DocNop(_Doc):
+		def insert(self, **k):
+			return self
+	vat = [
+		um.patch.object(q, "_kiem_lam", lambda: None),
+		um.patch.object(q, "_tai_khoan_nh", lambda: db.doc("tk")),
+		um.patch.object(q, "_so_quy", lambda: (db.doc("so_du"), {"ngay_chot": "2026-10-31", "so_du": 1})),
+		um.patch.object(q, "_tk_dung", lambda k: {"tk_quy": "1111", "tk_thieu": "1381", "tk_thua": "3381"}[k]),
+		um.patch.object(q, "_ten", lambda u: "Dung"), um.patch.object(q, "nowdate", lambda: "2026-11-02"),
+		um.patch.object(q, "_lap_but_toan", lambda dong, ngay, dg: (db.ghi_tru(dong[1]["co"]), je.append(dong))[1] or "ACC-JV-9"),
+		um.patch.object(q, "khop_nop_ngan_hang", lambda chi=None: 0),
+		um.patch.object(_fr, "get_doc", lambda d, *a: _DocNop(d)),
+		um.patch.object(_fr, "session", NS(user="dung@x")),
+		um.patch.object(_fr.db, "sql", db.sql), um.patch.object(_fr.db, "commit", db.commit),
+		um.patch.object(_fr.db, "get_value", lambda *a, **k: "Chờ tiền về"),
+	]
+	from vagabond import tep_dinh_kem
+	vat += [um.patch.object(tep_dinh_kem, "doc_ds", lambda x: [1]), um.patch.object(tep_dinh_kem, "gan_vao", lambda *a, **k: []),
+		um.patch.object(tep_dinh_kem, "ghi_ds", lambda ds: "")]
+	return vat, je
+
+
+@ca("v628 Codex #527 vòng 3: hai kế toán cùng nộp 7 triệu từ quỹ 10 triệu thì người sau đọc số quỹ SAU khi có khoá, bị chặn")
+def _codex_nop_chen():
+	db = _MvccGia(10000000.0)
+	db.da_commit["tk"] = [{"ma": "MB", "ten": "MB", "tk": "1121"}]
+	vat, je = _vat_nop_mvcc(db)
+
+	def nop():
+		return q.nop_ngan_hang(so_tien="7.000.000", bank_account="MB", ngay="2026-11-02", anh="[1]")
+
+	def nguoi_mot():
+		# Giao dịch riêng của người thứ nhất: ảnh chụp riêng, ghi xong commit.
+		anh_hai, db.anh = db.anh, None
+		nop()
+		db.commit()
+		db.anh = anh_hai
+	db.chen = nguoi_mot
+	loi = None
+	try:
+		_chay(vat, nop)
+		db.commit()
+	except Exception as e:
+		loi = str(e)
+	dung("người sau bị chặn vì quỹ chỉ còn 3 triệu: %s" % loi, bool(loi) and "Quỹ chỉ còn 3.000.000" in loi)
+	la("chỉ một bút toán nộp", len(je), 1)
+	la("quỹ còn 3 triệu", db.da_commit["so_du"], 3000000.0)
+
+
+@ca("v628 Codex #527 vòng 3: phiếu chờ duyệt mà quỹ đã chốt số dư lại từ ngày kiểm trở đi thì không duyệt được")
+def _codex_duyet_sau_moc():
+	vat, kho, je = _vat_hai_lan()
+	a = _chay(vat, lambda: q.kiem_quy(bang='{"500000": "14"}', ly_do="chua_ro", ghi_chu="đếm thiếu"))
+	from vagabond import tai_chinh as tc_
+	duyet = [um.patch.object(q, "_la_giam_doc", lambda: True), um.patch.object(_fr, "session", NS(user="viet@x")),
+		um.patch.object(tc_, "moc_quy", lambda: {"ngay_chot": "2026-11-02", "so_du": 7000000})]
+	_chay(vat + duyet, lambda: nem("mốc chốt cùng ngày kiểm", lambda: q.duyet_kiem_quy(a["name"], 1)))
+	la("không bút toán", je, [])
+	duyet[-1] = um.patch.object(tc_, "moc_quy", lambda: {"ngay_chot": "2026-11-01", "so_du": 10000000})
+	kq = _chay(vat + duyet, lambda: q.duyet_kiem_quy(a["name"], 1))
+	la("mốc trước ngày kiểm thì duyệt được", kq["trang_thai"], "Đã ghi")

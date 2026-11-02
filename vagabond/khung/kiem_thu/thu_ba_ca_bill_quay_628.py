@@ -430,3 +430,19 @@ def _th2_tham_chieu():
 
 	duoc, tran, _nhac = hoan_tien.tran_tien_du(nhan, 290000)
 	la("phần thừa 115.000 chuyển lại được", (bool(duoc), tran), (True, 115000))
+
+
+@ca("v628 Codex #527 vòng 3: nội dung mang hai mã, mã đầu của bill đã huỷ hay mồ côi, mã sau của bill còn sống thì KHÔNG nhả")
+def _thuan_hai_ma():
+	from vagabond import doi_soat_ck as d
+	from vagabond import ma_bill
+
+	gds = [{"ten": "G1", "mo_ta": "CK SOL3D4A9 TCVURLV8"}, {"ten": "G2", "mo_ta": "CK NVHCXVC4 TCVURLV8"},
+		{"ten": "G3", "mo_ta": "CK SOL3D4A9 NVHCXVC4"}, {"ten": "G4", "mo_ta": "CK SOL3D4A9 NVHAAAAA"}]
+	gc = {}
+	ra = d.chu_theo_noi_dung(gds, [], ma_bill.RE_MA, {"TCVURLV8": "HDB-26-11-00295"},
+		{"SOL3D4A9": {"cau": "Bill SOL3D4A9 đã huỷ", "bill": "HDB-26-11-00292"}}, {"G2", "G3"}, gc)
+	la("G1 thuộc bill còn sống", ra.get("G1"), "bill HDB-26-11-00295 (mã TCVURLV8)")
+	la("G2 thuộc bill còn sống", ra.get("G2"), "bill HDB-26-11-00295 (mã TCVURLV8)")
+	dung("G3 cả hai mã đều nhả thì nhả", "G3" not in ra and bool(gc.get("G3")))
+	dung("G4 còn một mã mồ côi chưa quá hạn thì giữ", "15 phút" in ra.get("G4", ""))
