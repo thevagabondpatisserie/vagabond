@@ -659,6 +659,8 @@ CUA_NGO = {
 		"phieu_cho_duyet", "phieu_dang_khoa", "tao_phieu_hom_nay",
 		# v561: goi y va nho tai khoan chenh lech ke toan da chon.
 		"tk_goi_y", "nho_tk",
+		# v628: nut "Dem hom nay" cua bep (10 mon may chia moi sang).
+		"ds_dem_hom_nay", "mo_phieu_hom_nay",
 	],
 	# v547: goi y gia von cho man Ghi so kiem ke. `dien_gia` la HOOK, nam NGOAI.
 	"gia_von_kiem_ke.py": ["goi_y_gia"],
