@@ -59,6 +59,8 @@ DAU_APP = ("/bep", "/btp", "/kiem-banh", "/kho-moi", "/kho-v2", "/in-tem", "/cuo
 # v622: "/ung-tuyen" là form nộp hồ sơ của mục Tuyển dụng trên web.
 DAU_KHACH = ("/dat-ban", "/thanh-vien", "/banh", "/tt", "/xhd", "/ong-trang", "/suc-khoe", "/sop-san-xuat",
 	"/chinh-sach-bao-mat", "/dieu-khoan", "/giao-hang-doi-tra", "/ung-tuyen",
+	# v633: trang khách trả phiếu đề nghị thanh toán bằng thẻ OnePay.
+	"/tra-the",
 	# v630: trang Bánh sỉ cho quán (bản Vue web_moi/banh-si.html).
 	"/banh-si", "/web_moi/banh-si",
 	"/web_moi/banh", "/web_moi/chinh-sach-bao-mat", "/web_moi/dieu-khoan", "/web_moi/giao-hang-doi-tra")

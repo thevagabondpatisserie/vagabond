@@ -135,6 +135,9 @@ TIN = {
 	# v619 (anh Việt duyệt mẫu 28/10/2026): dữ liệu còn thiếu để tính hao hụt (tin_hao_hut.py).
 	"kt_du_lieu_hao_hut": ("Hoá đơn, kế toán", "Dữ liệu để tính hao hụt (thứ Hai 08:00)",
 		"Thứ Hai 08:00: bánh bán chưa có lệnh, lệnh không cân, kho bếp lâu chưa kiểm kê, giá lệch kho.", "ban_tin", "kho"),
+	# v633 (anh Việt 03/11/2026): khách trả phiếu đề nghị thanh toán bằng thẻ OnePay.
+	"kt_the_onepay": ("Hoá đơn, kế toán", "Khách trả thẻ OnePay cho phiếu đề nghị thanh toán",
+		"Khách quét mã trên phiếu và trả thẻ thành công; máy đã ghi sổ phiếu thu. Trả dư thì tin ghi số cần hoàn.", "thong_bao", "cong_no"),
 	"bh_don_web_treo": ("Bán hàng, cửa hàng", "Đơn web treo quá 30 phút chưa vào Pancake",
 		"Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.", "viec", "don_web"),
 	"bh_ton_web_loi": ("Bán hàng, cửa hàng", "Lỗi kiểm tồn khi khách đặt web",
