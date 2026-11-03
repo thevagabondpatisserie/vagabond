@@ -42,6 +42,14 @@ def _hanh_vi():
 	dung('đủ số ca', re.search(r'(\d+) ca dat, 0 ca hong', r.stdout) and int(re.search(r'(\d+) ca dat', r.stdout).group(1)) >= 16)
 
 
+@ca('v630 Web Vue: chân trang mount bằng Vue thật đều đạt (hanh_vi/chan_trang_630.mjs)')
+def _chan_trang_630():
+	r = subprocess.run(['node', 'vagabond/khung/kiem_thu/hanh_vi/chan_trang_630.mjs'], cwd=GOC, capture_output=True, text=True, timeout=60)
+	la(r.stdout[-1500:] + r.stderr[-1500:], r.returncode, 0)
+	m = re.search(r'(\d+) ca dat, 0 ca hong', r.stdout)
+	dung('đủ số ca', m and int(m.group(1)) >= 8)
+
+
 @ca('Web Vue: mã băm ?v= và import map khớp nội dung tệp')
 def _ma_bam():
 	r = subprocess.run(['python3', 'cong_cu/ma_bam_web_vue.py', '--kiem'], cwd=GOC, capture_output=True, text=True, timeout=60)

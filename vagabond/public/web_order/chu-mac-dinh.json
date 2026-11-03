@@ -4003,5 +4003,1302 @@
     "nhom": "thanh_vien",
     "mac_dinh": "Đã huỷ",
     "nhieu_dong": true
+  },
+  "db630_thu_ngan": {
+    "ten": "Đặt bàn: tên thứ viết tắt trên dải ngày (7 tên, cách nhau dấu phẩy, bắt đầu Chủ nhật)",
+    "nhom": "dat_ban",
+    "mac_dinh": "CN,T2,T3,T4,T5,T6,T7",
+    "nhieu_dong": true
+  },
+  "db630_thu_dai": {
+    "ten": "Đặt bàn: tên thứ đầy đủ ở dòng tóm tắt (7 tên, cách nhau dấu phẩy, bắt đầu Chủ nhật)",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chủ nhật,Thứ Hai,Thứ Ba,Thứ Tư,Thứ Năm,Thứ Sáu,Thứ Bảy",
+    "nhieu_dong": true
+  },
+  "db630_hom_nay": {
+    "ten": "Đặt bàn: chữ Hôm nay trên dải ngày",
+    "nhom": "dat_ban",
+    "mac_dinh": "Hôm nay",
+    "nhieu_dong": true
+  },
+  "db630_thang": {
+    "ten": "Đặt bàn: tháng dưới số ngày ({so} là tháng)",
+    "nhom": "dat_ban",
+    "mac_dinh": "Th{so}",
+    "nhieu_dong": true
+  },
+  "db630_het_gio": {
+    "ten": "Đặt bàn: ghi chú trên giờ đã qua hạn đặt",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đã hết giờ nhận đặt bàn",
+    "nhieu_dong": true
+  },
+  "db630_sang": {
+    "ten": "Đặt bàn: nhóm giờ buổi sáng",
+    "nhom": "dat_ban",
+    "mac_dinh": "Sáng",
+    "nhieu_dong": true
+  },
+  "db630_trua": {
+    "ten": "Đặt bàn: nhóm giờ buổi trưa",
+    "nhom": "dat_ban",
+    "mac_dinh": "Trưa",
+    "nhieu_dong": true
+  },
+  "db630_chieu": {
+    "ten": "Đặt bàn: nhóm giờ buổi chiều",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chiều",
+    "nhieu_dong": true
+  },
+  "db630_toi": {
+    "ten": "Đặt bàn: nhóm giờ buổi tối",
+    "nhom": "dat_ban",
+    "mac_dinh": "Tối",
+    "nhieu_dong": true
+  },
+  "db630_goi_tiec": {
+    "ten": "Đặt bàn: câu cạnh số khách ({so} là số khách tối đa)",
+    "nhom": "dat_ban",
+    "mac_dinh": "Trên {so} khách, gọi 0931 224 334 để đặt tiệc riêng.",
+    "nhieu_dong": true
+  },
+  "db630_khach": {
+    "ten": "Đặt bàn: số khách ở dòng tóm tắt ({so} là số khách)",
+    "nhom": "dat_ban",
+    "mac_dinh": "{so} khách",
+    "nhieu_dong": true
+  },
+  "db630_chua_gio": {
+    "ten": "Đặt bàn: dòng tóm tắt khi chưa chọn giờ",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chưa chọn giờ",
+    "nhieu_dong": true
+  },
+  "db630_dang_mo": {
+    "ten": "Đặt bàn: trạng thái đang mở cửa",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đang mở cửa",
+    "nhieu_dong": true
+  },
+  "db630_da_dong": {
+    "ten": "Đặt bàn: trạng thái đã đóng cửa",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đã đóng cửa",
+    "nhieu_dong": true
+  },
+  "db630_gio_hom_nay": {
+    "ten": "Đặt bàn: giờ mở cửa hôm nay ({gio} là khung giờ)",
+    "nhom": "dat_ban",
+    "mac_dinh": "Hôm nay {gio}",
+    "nhieu_dong": true
+  },
+  "db630_chi_duong": {
+    "ten": "Đặt bàn: nút Chỉ đường",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chỉ đường",
+    "nhieu_dong": true
+  },
+  "db630_goi": {
+    "ten": "Đặt bàn: nút Gọi ({so} là số điện thoại)",
+    "nhom": "dat_ban",
+    "mac_dinh": "Gọi {so}",
+    "nhieu_dong": true
+  },
+  "db630_zalo": {
+    "ten": "Đặt bàn: nút Nhắn Zalo",
+    "nhom": "dat_ban",
+    "mac_dinh": "Nhắn Zalo",
+    "nhieu_dong": true
+  },
+  "db630_buoc_1": {
+    "ten": "Đặt bàn: tiêu đề bước 1",
+    "nhom": "dat_ban",
+    "mac_dinh": "Ngày và số khách",
+    "nhieu_dong": true
+  },
+  "db630_buoc_2": {
+    "ten": "Đặt bàn: tiêu đề bước 2",
+    "nhom": "dat_ban",
+    "mac_dinh": "Giờ đến",
+    "nhieu_dong": true
+  },
+  "db630_buoc_3": {
+    "ten": "Đặt bàn: tiêu đề bước 3",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chỗ ngồi và dịp",
+    "nhieu_dong": true
+  },
+  "db630_buoc_4": {
+    "ten": "Đặt bàn: tiêu đề bước 4",
+    "nhom": "dat_ban",
+    "mac_dinh": "Liên hệ",
+    "nhieu_dong": true
+  },
+  "db630_them_tre": {
+    "ten": "Đặt bàn: nút mở ô số trẻ em",
+    "nhom": "dat_ban",
+    "mac_dinh": "+ Có trẻ em đi cùng",
+    "nhieu_dong": true
+  },
+  "db630_them_banh": {
+    "ten": "Đặt bàn: nút mở ô bánh đặt sẵn",
+    "nhom": "dat_ban",
+    "mac_dinh": "+ Đặt sẵn bánh",
+    "nhieu_dong": true
+  },
+  "db630_them_email": {
+    "ten": "Đặt bàn: nút mở ô email",
+    "nhom": "dat_ban",
+    "mac_dinh": "+ Nhận xác nhận qua email",
+    "nhieu_dong": true
+  },
+  "db630_chon_ngay": {
+    "ten": "Đặt bàn: nhãn đọc màn hình của dải ngày",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chọn ngày đến",
+    "nhieu_dong": true
+  },
+  "db630_bot_khach": {
+    "ten": "Đặt bàn: nhãn đọc màn hình nút bớt khách",
+    "nhom": "dat_ban",
+    "mac_dinh": "Bớt một khách",
+    "nhieu_dong": true
+  },
+  "db630_them_khach": {
+    "ten": "Đặt bàn: nhãn đọc màn hình nút thêm khách",
+    "nhom": "dat_ban",
+    "mac_dinh": "Thêm một khách",
+    "nhieu_dong": true
+  },
+  "db630_bot_tre": {
+    "ten": "Đặt bàn: nhãn đọc màn hình nút bớt trẻ em",
+    "nhom": "dat_ban",
+    "mac_dinh": "Bớt một trẻ em",
+    "nhieu_dong": true
+  },
+  "db630_them_tre_nut": {
+    "ten": "Đặt bàn: nhãn đọc màn hình nút thêm trẻ em",
+    "nhom": "dat_ban",
+    "mac_dinh": "Thêm một trẻ em",
+    "nhieu_dong": true
+  },
+  "ct630_moi_tieu_de": {
+    "ten": "Chân trang: dòng mời lớn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cùng ngồi lại",
+    "nhieu_dong": true
+  },
+  "ct630_moi_phu": {
+    "ten": "Chân trang: dòng nghiêng dưới dòng mời",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh mới mỗi sáng",
+    "nhieu_dong": true
+  },
+  "ct630_chon_banh": {
+    "ten": "Chân trang: nút về danh sách bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn bánh",
+    "nhieu_dong": true
+  },
+  "ct630_thuong_hieu": {
+    "ten": "Chân trang: câu giới thiệu dưới logo",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh Pháp thủ công ở Sài Gòn.",
+    "nhieu_dong": true
+  },
+  "ct630_mxh": {
+    "ten": "Chân trang: nhãn đọc màn hình của hàng mạng xã hội",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mạng xã hội",
+    "nhieu_dong": true
+  },
+  "ct630_cua_hang": {
+    "ten": "Chân trang: tên cột cửa hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cửa hàng",
+    "nhieu_dong": true
+  },
+  "ct630_lien_he": {
+    "ten": "Chân trang: tên cột liên hệ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Liên hệ",
+    "nhieu_dong": true
+  },
+  "ct630_mua_banh": {
+    "ten": "Chân trang: tên cột đi nhanh tới các mục",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mua bánh",
+    "nhieu_dong": true
+  },
+  "ct630_zalo": {
+    "ten": "Chân trang: chữ trên link Zalo",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhắn Zalo",
+    "nhieu_dong": true
+  },
+  "ct630_gtgt": {
+    "ten": "Chân trang: cam kết giá gồm thuế",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giá đã gồm thuế GTGT",
+    "nhieu_dong": true
+  },
+  "ct630_mien_phi": {
+    "ten": "Chân trang: ngưỡng miễn phí giao, {tien} là số tiền máy điền",
+    "nhom": "dat_banh",
+    "mac_dinh": "Miễn phí giao cho đơn từ {tien}",
+    "nhieu_dong": true
+  },
+  "ct630_hoa_don": {
+    "ten": "Chân trang: cam kết xuất hoá đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xuất hoá đơn điện tử theo yêu cầu",
+    "nhieu_dong": true
+  },
+  "tkr_anh_loi": {
+    "ten": "Thiết kế riêng: Chưa gửi được ảnh. Chọn ảnh JPG, PNG hoặc WebP dưới 8 MB.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chưa gửi được ảnh. Chọn ảnh JPG, PNG hoặc WebP dưới 8 MB."
+  },
+  "tkr_loi_ngay": {
+    "ten": "Thiết kế riêng: Chọn ngày cần bánh.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chọn ngày cần bánh."
+  },
+  "tkr_loi_ngay_som": {
+    "ten": "Thiết kế riêng: Ngày sớm nhất còn nhận là {ngay}.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ngày sớm nhất còn nhận là {ngay}."
+  },
+  "tkr_loi_noi_nhan": {
+    "ten": "Thiết kế riêng: Chọn nơi nhận bánh.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chọn nơi nhận bánh."
+  },
+  "tkr_loi_lien_he": {
+    "ten": "Thiết kế riêng: Điền họ tên và số điện thoại di động hợp lệ.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Điền họ tên và số điện thoại di động hợp lệ."
+  },
+  "tkr_xem_thu": {
+    "ten": "Thiết kế riêng: Đây là bản xem trước, không gửi đơn.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đây là bản xem trước, không gửi đơn."
+  },
+  "tkr_loi_gui": {
+    "ten": "Thiết kế riêng: Chưa gửi được đơn. Kiểm tra mạng rồi bấm lại, đơn không b...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chưa gửi được đơn. Kiểm tra mạng rồi bấm lại, đơn không bị gửi trùng."
+  },
+  "tkr_anh_lon": {
+    "ten": "Thiết kế riêng: Ảnh lớn hơn 8 MB, chọn ảnh nhỏ hơn.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ảnh lớn hơn 8 MB, chọn ảnh nhỏ hơn."
+  },
+  "tkr_tv_loi": {
+    "ten": "Thiết kế riêng: Chưa gửi được. Bấm gửi lại hoặc gọi cho chúng tôi.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chưa gửi được. Bấm gửi lại hoặc gọi cho chúng tôi."
+  },
+  "tkr_tu_gia": {
+    "ten": "Thiết kế riêng: Từ {gia}",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Từ {gia}"
+  },
+  "tkr_so_size": {
+    "ten": "Thiết kế riêng: {so} size",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "{so} size"
+  },
+  "tkr_dat_truoc_ngay": {
+    "ten": "Thiết kế riêng: Đặt trước {so} ngày",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đặt trước {so} ngày"
+  },
+  "tkr_meta": {
+    "ten": "Thiết kế riêng: 03 / Thiết kế riêng",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "03 / Thiết kế riêng"
+  },
+  "tkr_meta_phai": {
+    "ten": "Thiết kế riêng: Bếp làm riêng cho tiệc",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Bếp làm riêng cho tiệc"
+  },
+  "tkr_tieu_de": {
+    "ten": "Thiết kế riêng: Pièce montée",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Pièce montée"
+  },
+  "tkr_tieu_de_phu": {
+    "ten": "Thiết kế riêng: Tác phẩm cho tiệc cưới, tiệc lớn",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Tác phẩm cho tiệc cưới, tiệc lớn"
+  },
+  "tkr_loi_dau": {
+    "ten": "Thiết kế riêng: Mỗi chiếc làm riêng theo ngày tiệc của quý khách. Đặt cọc...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Mỗi chiếc làm riêng theo ngày tiệc của quý khách. Đặt cọc để giữ lịch bếp."
+  },
+  "tkr_loi_tai": {
+    "ten": "Thiết kế riêng: Chưa tải được danh sách tác phẩm. Tải lại trang hoặc gọi ...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chưa tải được danh sách tác phẩm. Tải lại trang hoặc gọi cho chúng tôi."
+  },
+  "tkr_dang_tai": {
+    "ten": "Thiết kế riêng: Đang tải các tác phẩm...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đang tải các tác phẩm..."
+  },
+  "tkr_rong": {
+    "ten": "Thiết kế riêng: Chưa có tác phẩm nào nhận đặt trên web. Gọi cho chúng tôi...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chưa có tác phẩm nào nhận đặt trên web. Gọi cho chúng tôi để được tư vấn."
+  },
+  "tkr_chon_size": {
+    "ten": "Thiết kế riêng: Chọn size",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chọn size"
+  },
+  "tkr_nho_tu_van": {
+    "ten": "Thiết kế riêng: Nhờ Sales tư vấn trước",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Nhờ Sales tư vấn trước"
+  },
+  "tkr_tv_xong": {
+    "ten": "Thiết kế riêng: Đã nhận. Sales sẽ gọi quý khách trong giờ làm việc.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đã nhận. Sales sẽ gọi quý khách trong giờ làm việc."
+  },
+  "tkr_tv_mo": {
+    "ten": "Thiết kế riêng: Để lại tên và số điện thoại, Sales gọi lại tư vấn {ten}.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Để lại tên và số điện thoại, Sales gọi lại tư vấn {ten}."
+  },
+  "tkr_ho_ten": {
+    "ten": "Thiết kế riêng: Họ tên",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Họ tên"
+  },
+  "tkr_sdt": {
+    "ten": "Thiết kế riêng: Số điện thoại",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Số điện thoại"
+  },
+  "tkr_dang_gui": {
+    "ten": "Thiết kế riêng: Đang gửi...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đang gửi..."
+  },
+  "tkr_tv_gui": {
+    "ten": "Thiết kế riêng: Gửi cho Sales",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Gửi cho Sales"
+  },
+  "tkr_ve_ds": {
+    "ten": "Thiết kế riêng: Về danh sách tác phẩm",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Về danh sách tác phẩm"
+  },
+  "tkr_ten_tab": {
+    "ten": "Thiết kế riêng: Thiết kế riêng",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Thiết kế riêng"
+  },
+  "tkr_gia_vat": {
+    "ten": "Thiết kế riêng: Giá đã gồm VAT.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Giá đã gồm VAT."
+  },
+  "tkr_gom_gi": {
+    "ten": "Thiết kế riêng: Bánh gồm gì",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Bánh gồm gì"
+  },
+  "tkr_thoi_gian": {
+    "ten": "Thiết kế riêng: Thời gian",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Thời gian"
+  },
+  "tkr_thoi_gian_chu": {
+    "ten": "Thiết kế riêng: Đặt trước ít nhất {so} ngày. Nhận tại cửa hàng.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đặt trước ít nhất {so} ngày. Nhận tại cửa hàng."
+  },
+  "tkr_chon_ngay_dat": {
+    "ten": "Thiết kế riêng: Chọn ngày và đặt cọc",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chọn ngày và đặt cọc"
+  },
+  "tkr_buoc_2": {
+    "ten": "Thiết kế riêng: Bước 2/3",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Bước 2/3"
+  },
+  "tkr_ngay_tiec": {
+    "ten": "Thiết kế riêng: Ngày cần bánh",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ngày cần bánh"
+  },
+  "tkr_ngay": {
+    "ten": "Thiết kế riêng: Ngày",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ngày"
+  },
+  "tkr_gio": {
+    "ten": "Thiết kế riêng: Giờ (không bắt buộc)",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Giờ (không bắt buộc)"
+  },
+  "tkr_ngay_som": {
+    "ten": "Thiết kế riêng: Ngày sớm nhất còn nhận: {ngay}.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ngày sớm nhất còn nhận: {ngay}."
+  },
+  "tkr_trang_tri": {
+    "ten": "Thiết kế riêng: Trang trí",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Trang trí"
+  },
+  "tkr_ghi_chu_bep": {
+    "ten": "Thiết kế riêng: Ghi chú cho bếp (không bắt buộc)",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ghi chú cho bếp (không bắt buộc)"
+  },
+  "tkr_ghi_chu_goi_y": {
+    "ten": "Thiết kế riêng: Ví dụ: tiệc cưới, tông kem và vàng.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ví dụ: tiệc cưới, tông kem và vàng."
+  },
+  "tkr_dang_tai_anh": {
+    "ten": "Thiết kế riêng: Đang gửi ảnh...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đang gửi ảnh..."
+  },
+  "tkr_da_co_anh": {
+    "ten": "Thiết kế riêng: Đã gửi ảnh tham khảo: {ten}",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đã gửi ảnh tham khảo: {ten}"
+  },
+  "tkr_gui_anh": {
+    "ten": "Thiết kế riêng: + Gửi ảnh tham khảo",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "+ Gửi ảnh tham khảo"
+  },
+  "tkr_nhan_banh": {
+    "ten": "Thiết kế riêng: Nhận bánh",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Nhận bánh"
+  },
+  "tkr_chua_diem": {
+    "ten": "Thiết kế riêng: Chưa có điểm nhận bánh. Gọi cho chúng tôi để đặt.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Chưa có điểm nhận bánh. Gọi cho chúng tôi để đặt."
+  },
+  "tkr_chi_tu_lay": {
+    "ten": "Thiết kế riêng: Bánh thiết kế riêng nhận tại cửa hàng. Cần giao tận nơi t...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Bánh thiết kế riêng nhận tại cửa hàng. Cần giao tận nơi thì nhờ Sales tư vấn."
+  },
+  "tkr_lien_he": {
+    "ten": "Thiết kế riêng: Thông tin liên hệ",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Thông tin liên hệ"
+  },
+  "tkr_dong_size": {
+    "ten": "Thiết kế riêng: {ten} size {size} (gồm VAT)",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "{ten} size {size} (gồm VAT)"
+  },
+  "tkr_dong_trang_tri": {
+    "ten": "Thiết kế riêng: Trang trí thêm",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Trang trí thêm"
+  },
+  "tkr_coc_hom_nay": {
+    "ten": "Thiết kế riêng: Đặt cọc 50% hôm nay",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đặt cọc 50% hôm nay"
+  },
+  "tkr_tra_khi_nhan": {
+    "ten": "Thiết kế riêng: Trả khi nhận bánh",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Trả khi nhận bánh"
+  },
+  "tkr_coc_qr": {
+    "ten": "Thiết kế riêng: Đặt cọc qua QR",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đặt cọc qua QR"
+  },
+  "tkr_luu_y_coc": {
+    "ten": "Thiết kế riêng: Tiền cọc giữ lịch bếp cho ngày tiệc. Đổi ngày hoặc huỷ, q...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Tiền cọc giữ lịch bếp cho ngày tiệc. Đổi ngày hoặc huỷ, quý khách gọi Sales."
+  },
+  "tkr_ma_don": {
+    "ten": "Thiết kế riêng: Mã đơn {ma}",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Mã đơn {ma}"
+  },
+  "tkr_buoc_3": {
+    "ten": "Thiết kế riêng: Bước 3/3",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Bước 3/3"
+  },
+  "tkr_da_coc": {
+    "ten": "Thiết kế riêng: Đã nhận cọc. Sales sẽ gọi xác nhận đơn với quý khách.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đã nhận cọc. Sales sẽ gọi xác nhận đơn với quý khách."
+  },
+  "tkr_cho_coc": {
+    "ten": "Thiết kế riêng: Đang chờ tiền cọc về. Trang tự cập nhật sau khi chuyển kh...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Đang chờ tiền cọc về. Trang tự cập nhật sau khi chuyển khoản."
+  },
+  "tkr_qr_alt": {
+    "ten": "Thiết kế riêng: Mã QR chuyển khoản tiền cọc",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Mã QR chuyển khoản tiền cọc"
+  },
+  "tkr_so_tien_coc": {
+    "ten": "Thiết kế riêng: Số tiền cọc",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Số tiền cọc"
+  },
+  "tkr_noi_dung_ck": {
+    "ten": "Thiết kế riêng: Nội dung chuyển khoản",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Nội dung chuyển khoản"
+  },
+  "tkr_ngan_hang": {
+    "ten": "Thiết kế riêng: Ngân hàng",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ngân hàng"
+  },
+  "tkr_so_tk": {
+    "ten": "Thiết kế riêng: Số tài khoản",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Số tài khoản"
+  },
+  "tkr_ten_tk": {
+    "ten": "Thiết kế riêng: Tên tài khoản",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Tên tài khoản"
+  },
+  "tkr_tong_don": {
+    "ten": "Thiết kế riêng: Tổng đơn (gồm VAT)",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Tổng đơn (gồm VAT)"
+  },
+  "tkr_coc": {
+    "ten": "Thiết kế riêng: Cọc",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Cọc"
+  },
+  "tkr_giu_ma": {
+    "ten": "Thiết kế riêng: Ghi đúng nội dung {ma} để máy nhận ra tiền cọc. Cần hỗ tr...",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Ghi đúng nội dung {ma} để máy nhận ra tiền cọc. Cần hỗ trợ gọi {so}."
+  },
+  "tkr_het": {
+    "ten": "Thiết kế riêng: Tác phẩm này không còn nhận đặt trên web.",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Tác phẩm này không còn nhận đặt trên web."
+  },
+  "tkr_xem_khac": {
+    "ten": "Thiết kế riêng: Xem các tác phẩm khác",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Xem các tác phẩm khác"
+  },
+  "tab_thiet_ke_rieng": {
+    "ten": "Thiết kế riêng: Thiết kế riêng",
+    "nhom": "thiet_ke_rieng",
+    "mac_dinh": "Thiết kế riêng"
+  },
+  "bsi_tab_dat": {
+    "ten": "Bánh sỉ: Đặt hàng",
+    "nhom": "banh_si",
+    "mac_dinh": "Đặt hàng"
+  },
+  "bsi_tab_tk": {
+    "ten": "Bánh sỉ: Tài khoản",
+    "nhom": "banh_si",
+    "mac_dinh": "Tài khoản"
+  },
+  "bsi_dang_nhap": {
+    "ten": "Bánh sỉ: Đăng nhập sỉ",
+    "nhom": "banh_si",
+    "mac_dinh": "Đăng nhập sỉ"
+  },
+  "bsi_dn_tat": {
+    "ten": "Bánh sỉ: Đăng nhập bằng Zalo đang tạm tắt. Gọi Sales để đặt hàng.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đăng nhập bằng Zalo đang tạm tắt. Gọi Sales để đặt hàng."
+  },
+  "bsi_dn_tieu_de": {
+    "ten": "Bánh sỉ: Đăng nhập khách sỉ",
+    "nhom": "banh_si",
+    "mac_dinh": "Đăng nhập khách sỉ"
+  },
+  "bsi_dn_sdt": {
+    "ten": "Bánh sỉ: Số Zalo đã đăng ký",
+    "nhom": "banh_si",
+    "mac_dinh": "Số Zalo đã đăng ký"
+  },
+  "bsi_dang_gui": {
+    "ten": "Bánh sỉ: Đang gửi...",
+    "nhom": "banh_si",
+    "mac_dinh": "Đang gửi..."
+  },
+  "bsi_dn_gui_ma": {
+    "ten": "Bánh sỉ: Gửi mã qua Zalo",
+    "nhom": "banh_si",
+    "mac_dinh": "Gửi mã qua Zalo"
+  },
+  "bsi_dn_ma": {
+    "ten": "Bánh sỉ: Mã xác thực 6 số",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã xác thực 6 số"
+  },
+  "bsi_dn_xac_nhan": {
+    "ten": "Bánh sỉ: Xác nhận",
+    "nhom": "banh_si",
+    "mac_dinh": "Xác nhận"
+  },
+  "bsi_dn_doi_so": {
+    "ten": "Bánh sỉ: Đổi số khác",
+    "nhom": "banh_si",
+    "mac_dinh": "Đổi số khác"
+  },
+  "bsi_dn_chu": {
+    "ten": "Bánh sỉ: Chỉ số đã được Sales mở đặt sỉ mới nhận mã. Không cần mật khẩu.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chỉ số đã được Sales mở đặt sỉ mới nhận mã. Không cần mật khẩu."
+  },
+  "bsi_dk_da_nhan": {
+    "ten": "Bánh sỉ: Đã nhận đăng ký",
+    "nhom": "banh_si",
+    "mac_dinh": "Đã nhận đăng ký"
+  },
+  "bsi_dk_cam_on": {
+    "ten": "Bánh sỉ: Cảm ơn {ten}. Sales gọi lại trong một ngày làm việc để gửi bảng giá và mở tài khoản.",
+    "nhom": "banh_si",
+    "mac_dinh": "Cảm ơn {ten}. Sales gọi lại trong một ngày làm việc để gửi bảng giá và mở tài khoản."
+  },
+  "bsi_dk_tieu_de": {
+    "ten": "Bánh sỉ: Đăng ký hợp tác",
+    "nhom": "banh_si",
+    "mac_dinh": "Đăng ký hợp tác"
+  },
+  "bsi_dk_ten": {
+    "ten": "Bánh sỉ: Tên quán hoặc công ty",
+    "nhom": "banh_si",
+    "mac_dinh": "Tên quán hoặc công ty"
+  },
+  "bsi_dk_ten_vd": {
+    "ten": "Bánh sỉ: Ví dụ: Café Lá Me",
+    "nhom": "banh_si",
+    "mac_dinh": "Ví dụ: Café Lá Me"
+  },
+  "bsi_dk_mst": {
+    "ten": "Bánh sỉ: Mã số thuế (để xuất hoá đơn VAT, không bắt buộc)",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã số thuế (để xuất hoá đơn VAT, không bắt buộc)"
+  },
+  "bsi_dk_sdt": {
+    "ten": "Bánh sỉ: Số điện thoại Zalo (dùng để đăng nhập sau này)",
+    "nhom": "banh_si",
+    "mac_dinh": "Số điện thoại Zalo (dùng để đăng nhập sau này)"
+  },
+  "bsi_dk_loai": {
+    "ten": "Bánh sỉ: Loại hình",
+    "nhom": "banh_si",
+    "mac_dinh": "Loại hình"
+  },
+  "bsi_dk_luong": {
+    "ten": "Bánh sỉ: Dự kiến mỗi tuần",
+    "nhom": "banh_si",
+    "mac_dinh": "Dự kiến mỗi tuần"
+  },
+  "bsi_dk_ghi_chu": {
+    "ten": "Bánh sỉ: Ghi chú (không bắt buộc)",
+    "nhom": "banh_si",
+    "mac_dinh": "Ghi chú (không bắt buộc)"
+  },
+  "bsi_dk_gui": {
+    "ten": "Bánh sỉ: Gửi đăng ký",
+    "nhom": "banh_si",
+    "mac_dinh": "Gửi đăng ký"
+  },
+  "bsi_dk_note": {
+    "ten": "Bánh sỉ: Sales gọi lại trong một ngày làm việc, gửi bảng giá và mở tài khoản.",
+    "nhom": "banh_si",
+    "mac_dinh": "Sales gọi lại trong một ngày làm việc, gửi bảng giá và mở tài khoản."
+  },
+  "bsi_meta_trai": {
+    "ten": "Bánh sỉ: Hợp tác",
+    "nhom": "banh_si",
+    "mac_dinh": "Hợp tác"
+  },
+  "bsi_meta_phai": {
+    "ten": "Bánh sỉ: Bánh sỉ",
+    "nhom": "banh_si",
+    "mac_dinh": "Bánh sỉ"
+  },
+  "bsi_tieu_de": {
+    "ten": "Bánh sỉ: Bánh cho quán của bạn",
+    "nhom": "banh_si",
+    "mac_dinh": "Bánh cho quán của bạn"
+  },
+  "bsi_tieu_de_phu": {
+    "ten": "Bánh sỉ: Quán cà phê, khách sạn, nhà hàng",
+    "nhom": "banh_si",
+    "mac_dinh": "Quán cà phê, khách sạn, nhà hàng"
+  },
+  "bsi_vi_sao": {
+    "ten": "Bánh sỉ: Vì sao chọn Vagabond",
+    "nhom": "banh_si",
+    "mac_dinh": "Vì sao chọn Vagabond"
+  },
+  "bsi_ly_do_1": {
+    "ten": "Bánh sỉ: Bảng giá riêng cho từng quán, Sales gửi sau khi gọi lại",
+    "nhom": "banh_si",
+    "mac_dinh": "Bảng giá riêng cho từng quán, Sales gửi sau khi gọi lại"
+  },
+  "bsi_ly_do_2": {
+    "ten": "Bánh sỉ: Đặt trên web, giao từ ngày thứ ba kể từ ngày đặt",
+    "nhom": "banh_si",
+    "mac_dinh": "Đặt trên web, giao từ ngày thứ ba kể từ ngày đặt"
+  },
+  "bsi_ly_do_3": {
+    "ten": "Bánh sỉ: Xuất hoá đơn VAT theo mã số thuế",
+    "nhom": "banh_si",
+    "mac_dinh": "Xuất hoá đơn VAT theo mã số thuế"
+  },
+  "bsi_ly_do_4": {
+    "ten": "Bánh sỉ: Thanh toán cuối kỳ cho đối tác lâu năm",
+    "nhom": "banh_si",
+    "mac_dinh": "Thanh toán cuối kỳ cho đối tác lâu năm"
+  },
+  "bsi_goi": {
+    "ten": "Bánh sỉ: Cần hỏi thêm, gọi {so}.",
+    "nhom": "banh_si",
+    "mac_dinh": "Cần hỏi thêm, gọi {so}."
+  },
+  "bsi_khach_si": {
+    "ten": "Bánh sỉ: Khách sỉ",
+    "nhom": "banh_si",
+    "mac_dinh": "Khách sỉ"
+  },
+  "bsi_chua_gia": {
+    "ten": "Bánh sỉ: Sales chưa mở giá món nào cho quý khách. Gọi {so} để Sales gửi bảng giá.",
+    "nhom": "banh_si",
+    "mac_dinh": "Sales chưa mở giá món nào cho quý khách. Gọi {so} để Sales gửi bảng giá."
+  },
+  "bsi_cuoi_ky": {
+    "ten": "Bánh sỉ: Khách sỉ, trả cuối kỳ {so} ngày",
+    "nhom": "banh_si",
+    "mac_dinh": "Khách sỉ, trả cuối kỳ {so} ngày"
+  },
+  "bsi_tra_truoc": {
+    "ten": "Bánh sỉ: Khách sỉ, chuyển khoản trước khi giao",
+    "nhom": "banh_si",
+    "mac_dinh": "Khách sỉ, chuyển khoản trước khi giao"
+  },
+  "bsi_ngay_giao": {
+    "ten": "Bánh sỉ: Ngày giao",
+    "nhom": "banh_si",
+    "mac_dinh": "Ngày giao"
+  },
+  "bsi_ngay_khac": {
+    "ten": "Bánh sỉ: Ngày khác",
+    "nhom": "banh_si",
+    "mac_dinh": "Ngày khác"
+  },
+  "bsi_ngay_note": {
+    "ten": "Bánh sỉ: Giao sớm nhất sau {so} ngày kể từ ngày đặt.",
+    "nhom": "banh_si",
+    "mac_dinh": "Giao sớm nhất sau {so} ngày kể từ ngày đặt."
+  },
+  "bsi_dat_lai": {
+    "ten": "Bánh sỉ: Đặt lại như đơn {ngay}",
+    "nhom": "banh_si",
+    "mac_dinh": "Đặt lại như đơn {ngay}"
+  },
+  "bsi_bot": {
+    "ten": "Bánh sỉ: Bớt một",
+    "nhom": "banh_si",
+    "mac_dinh": "Bớt một"
+  },
+  "bsi_so_luong": {
+    "ten": "Bánh sỉ: Số lượng",
+    "nhom": "banh_si",
+    "mac_dinh": "Số lượng"
+  },
+  "bsi_them": {
+    "ten": "Bánh sỉ: Thêm một",
+    "nhom": "banh_si",
+    "mac_dinh": "Thêm một"
+  },
+  "bsi_ghi_chu": {
+    "ten": "Bánh sỉ: Ghi chú cho đơn (không bắt buộc)",
+    "nhom": "banh_si",
+    "mac_dinh": "Ghi chú cho đơn (không bắt buộc)"
+  },
+  "bsi_so_cai": {
+    "ten": "Bánh sỉ: {so} cái, {mon} món",
+    "nhom": "banh_si",
+    "mac_dinh": "{so} cái, {mon} món"
+  },
+  "bsi_giao": {
+    "ten": "Bánh sỉ: Giao theo ngày đã chọn",
+    "nhom": "banh_si",
+    "mac_dinh": "Giao theo ngày đã chọn"
+  },
+  "bsi_tong_tam": {
+    "ten": "Bánh sỉ: Tạm tính (đã gồm VAT)",
+    "nhom": "banh_si",
+    "mac_dinh": "Tạm tính (đã gồm VAT)"
+  },
+  "bsi_thanh_toan": {
+    "ten": "Bánh sỉ: Thanh toán",
+    "nhom": "banh_si",
+    "mac_dinh": "Thanh toán"
+  },
+  "bsi_tt_cuoi_ky": {
+    "ten": "Bánh sỉ: Cuối kỳ ({so} ngày)",
+    "nhom": "banh_si",
+    "mac_dinh": "Cuối kỳ ({so} ngày)"
+  },
+  "bsi_tt_truoc": {
+    "ten": "Bánh sỉ: Chuyển khoản qua QR sau khi đặt",
+    "nhom": "banh_si",
+    "mac_dinh": "Chuyển khoản qua QR sau khi đặt"
+  },
+  "bsi_dat_don": {
+    "ten": "Bánh sỉ: Đặt đơn giao {ngay}",
+    "nhom": "banh_si",
+    "mac_dinh": "Đặt đơn giao {ngay}"
+  },
+  "bsi_vat_note": {
+    "ten": "Bánh sỉ: Giá đã gồm VAT. Hoá đơn VAT tách thuế theo từng món, xuất theo mã số thuế của quán.",
+    "nhom": "banh_si",
+    "mac_dinh": "Giá đã gồm VAT. Hoá đơn VAT tách thuế theo từng món, xuất theo mã số thuế của quán."
+  },
+  "bsi_qr_khong_ve": {
+    "ten": "Bánh sỉ: Không vẽ được mã QR. Chuyển tay theo thông tin bên dưới.",
+    "nhom": "banh_si",
+    "mac_dinh": "Không vẽ được mã QR. Chuyển tay theo thông tin bên dưới."
+  },
+  "bsi_so_tien": {
+    "ten": "Bánh sỉ: Số tiền",
+    "nhom": "banh_si",
+    "mac_dinh": "Số tiền"
+  },
+  "bsi_noi_dung": {
+    "ten": "Bánh sỉ: Nội dung chuyển khoản",
+    "nhom": "banh_si",
+    "mac_dinh": "Nội dung chuyển khoản"
+  },
+  "bsi_ngan_hang": {
+    "ten": "Bánh sỉ: Ngân hàng",
+    "nhom": "banh_si",
+    "mac_dinh": "Ngân hàng"
+  },
+  "bsi_so_tk": {
+    "ten": "Bánh sỉ: Số tài khoản",
+    "nhom": "banh_si",
+    "mac_dinh": "Số tài khoản"
+  },
+  "bsi_ten_tk": {
+    "ten": "Bánh sỉ: Tên tài khoản",
+    "nhom": "banh_si",
+    "mac_dinh": "Tên tài khoản"
+  },
+  "bsi_ma_don": {
+    "ten": "Bánh sỉ: Mã đơn {ma}",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã đơn {ma}"
+  },
+  "bsi_giao_ngay": {
+    "ten": "Bánh sỉ: Giao {ngay}",
+    "nhom": "banh_si",
+    "mac_dinh": "Giao {ngay}"
+  },
+  "bsi_cho_tt": {
+    "ten": "Bánh sỉ: Đơn đã nhận. Chuyển khoản theo mã QR để giữ đơn, trang tự cập nhật khi tiền về.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đơn đã nhận. Chuyển khoản theo mã QR để giữ đơn, trang tự cập nhật khi tiền về."
+  },
+  "bsi_da_tt": {
+    "ten": "Bánh sỉ: Đã nhận tiền. Sales xác nhận ngày giao với quý khách.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đã nhận tiền. Sales xác nhận ngày giao với quý khách."
+  },
+  "bsi_da_nhan_no": {
+    "ten": "Bánh sỉ: Đơn đã nhận, thanh toán cuối kỳ. Sales xác nhận ngày giao với quý khách.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đơn đã nhận, thanh toán cuối kỳ. Sales xác nhận ngày giao với quý khách."
+  },
+  "bsi_qr_alt": {
+    "ten": "Bánh sỉ: Mã QR chuyển khoản đơn sỉ",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã QR chuyển khoản đơn sỉ"
+  },
+  "bsi_chua_vat": {
+    "ten": "Bánh sỉ: Tiền hàng chưa VAT",
+    "nhom": "banh_si",
+    "mac_dinh": "Tiền hàng chưa VAT"
+  },
+  "bsi_vat": {
+    "ten": "Bánh sỉ: VAT",
+    "nhom": "banh_si",
+    "mac_dinh": "VAT"
+  },
+  "bsi_tong_don": {
+    "ten": "Bánh sỉ: Tổng đơn (đã gồm VAT)",
+    "nhom": "banh_si",
+    "mac_dinh": "Tổng đơn (đã gồm VAT)"
+  },
+  "bsi_ve_dat": {
+    "ten": "Bánh sỉ: Đặt đơn khác",
+    "nhom": "banh_si",
+    "mac_dinh": "Đặt đơn khác"
+  },
+  "bsi_xem_tk": {
+    "ten": "Bánh sỉ: Xem tài khoản",
+    "nhom": "banh_si",
+    "mac_dinh": "Xem tài khoản"
+  },
+  "bsi_dong_don": {
+    "ten": "Bánh sỉ: {so} cái, {tt}",
+    "nhom": "banh_si",
+    "mac_dinh": "{so} cái, {tt}"
+  },
+  "bsi_cong_no": {
+    "ten": "Bánh sỉ: Công nợ",
+    "nhom": "banh_si",
+    "mac_dinh": "Công nợ"
+  },
+  "bsi_ky": {
+    "ten": "Bánh sỉ: Kỳ {so} ngày",
+    "nhom": "banh_si",
+    "mac_dinh": "Kỳ {so} ngày"
+  },
+  "bsi_han_gan": {
+    "ten": "Bánh sỉ: Còn phải trả, hạn gần nhất {ngay}",
+    "nhom": "banh_si",
+    "mac_dinh": "Còn phải trả, hạn gần nhất {ngay}"
+  },
+  "bsi_con_tra": {
+    "ten": "Bánh sỉ: Còn phải trả",
+    "nhom": "banh_si",
+    "mac_dinh": "Còn phải trả"
+  },
+  "bsi_het_no": {
+    "ten": "Bánh sỉ: Không còn hoá đơn chưa trả",
+    "nhom": "banh_si",
+    "mac_dinh": "Không còn hoá đơn chưa trả"
+  },
+  "bsi_qua_han": {
+    "ten": "Bánh sỉ: {so} hoá đơn đã quá hạn.",
+    "nhom": "banh_si",
+    "mac_dinh": "{so} hoá đơn đã quá hạn."
+  },
+  "bsi_dang_tao": {
+    "ten": "Bánh sỉ: Đang tạo mã...",
+    "nhom": "banh_si",
+    "mac_dinh": "Đang tạo mã..."
+  },
+  "bsi_tt_qr": {
+    "ten": "Bánh sỉ: Thanh toán qua QR",
+    "nhom": "banh_si",
+    "mac_dinh": "Thanh toán qua QR"
+  },
+  "bsi_phieu_no": {
+    "ten": "Bánh sỉ: Phiếu {ma}: {so} hoá đơn, còn {tien}",
+    "nhom": "banh_si",
+    "mac_dinh": "Phiếu {ma}: {so} hoá đơn, còn {tien}"
+  },
+  "bsi_qr_no_alt": {
+    "ten": "Bánh sỉ: Mã QR thanh toán công nợ",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã QR thanh toán công nợ"
+  },
+  "bsi_hd_chua_tra": {
+    "ten": "Bánh sỉ: Hoá đơn chưa trả",
+    "nhom": "banh_si",
+    "mac_dinh": "Hoá đơn chưa trả"
+  },
+  "bsi_han": {
+    "ten": "Bánh sỉ: Hạn {ngay}",
+    "nhom": "banh_si",
+    "mac_dinh": "Hạn {ngay}"
+  },
+  "bsi_trong_phieu": {
+    "ten": "Bánh sỉ: trong phiếu {ma}",
+    "nhom": "banh_si",
+    "mac_dinh": "trong phiếu {ma}"
+  },
+  "bsi_tai_khoan": {
+    "ten": "Bánh sỉ: Tài khoản khách sỉ",
+    "nhom": "banh_si",
+    "mac_dinh": "Tài khoản khách sỉ"
+  },
+  "bsi_sap_giao": {
+    "ten": "Bánh sỉ: Đơn sắp giao",
+    "nhom": "banh_si",
+    "mac_dinh": "Đơn sắp giao"
+  },
+  "bsi_chua_don": {
+    "ten": "Bánh sỉ: Chưa có đơn nào sắp giao.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa có đơn nào sắp giao."
+  },
+  "bsi_lich_su": {
+    "ten": "Bánh sỉ: Lịch sử đơn",
+    "nhom": "banh_si",
+    "mac_dinh": "Lịch sử đơn"
+  },
+  "bsi_chua_lich_su": {
+    "ten": "Bánh sỉ: Chưa có đơn đã giao.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa có đơn đã giao."
+  },
+  "bsi_thoat": {
+    "ten": "Bánh sỉ: Đăng xuất",
+    "nhom": "banh_si",
+    "mac_dinh": "Đăng xuất"
+  },
+  "bsi_hd_note": {
+    "ten": "Bánh sỉ: Hoá đơn VAT gửi qua email kế toán của quán. Cần bản in, gọi {so}.",
+    "nhom": "banh_si",
+    "mac_dinh": "Hoá đơn VAT gửi qua email kế toán của quán. Cần bản in, gọi {so}."
+  },
+  "bsi_dang_tai": {
+    "ten": "Bánh sỉ: Đang tải...",
+    "nhom": "banh_si",
+    "mac_dinh": "Đang tải..."
+  },
+  "bsi_ve_banh": {
+    "ten": "Bánh sỉ: Về trang đặt bánh",
+    "nhom": "banh_si",
+    "mac_dinh": "Về trang đặt bánh"
+  },
+  "bsi_title": {
+    "ten": "Bánh sỉ: tên thẻ trình duyệt của trang",
+    "nhom": "banh_si",
+    "mac_dinh": "Bánh sỉ cho quán - The Vagabond Pâtisserie"
+  },
+  "bsi_loi_ngay": {
+    "ten": "Bánh sỉ: Chọn ngày giao.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chọn ngày giao."
+  },
+  "bsi_loi_ngay_som": {
+    "ten": "Bánh sỉ: Ngày giao sớm nhất là {ngay}.",
+    "nhom": "banh_si",
+    "mac_dinh": "Ngày giao sớm nhất là {ngay}."
+  },
+  "bsi_loi_mon": {
+    "ten": "Bánh sỉ: Chọn ít nhất một món với số lượng lớn hơn 0.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chọn ít nhất một món với số lượng lớn hơn 0."
+  },
+  "bsi_dat_lai_bo": {
+    "ten": "Bánh sỉ: Đã chép đơn {ma}. {so} món thôi bán nên không chép.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đã chép đơn {ma}. {so} món thôi bán nên không chép."
+  },
+  "bsi_dat_lai_xong": {
+    "ten": "Bánh sỉ: Đã chép số lượng đơn {ma}, giá theo bảng giá hôm nay.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đã chép số lượng đơn {ma}, giá theo bảng giá hôm nay."
+  },
+  "bsi_loi_gui": {
+    "ten": "Bánh sỉ: Chưa gửi được đơn. Kiểm tra mạng rồi bấm lại, đơn không bị gửi trùng.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa gửi được đơn. Kiểm tra mạng rồi bấm lại, đơn không bị gửi trùng."
+  },
+  "bsi_qr_loi": {
+    "ten": "Bánh sỉ: Chưa tạo được mã QR. Gọi Sales để nhận phiếu thanh toán.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa tạo được mã QR. Gọi Sales để nhận phiếu thanh toán."
+  },
+  "bsi_cho_ck": {
+    "ten": "Bánh sỉ: Đơn chờ chuyển khoản",
+    "nhom": "banh_si",
+    "mac_dinh": "Đơn chờ chuyển khoản"
+  },
+  "bsi_dong_cho_ck": {
+    "ten": "Bánh sỉ: {so} cái, cần chuyển {tien}",
+    "nhom": "banh_si",
+    "mac_dinh": "{so} cái, cần chuyển {tien}"
+  },
+  "bsi_hd_con": {
+    "ten": "Bánh sỉ: Còn {so} hoá đơn nữa không hiện ở đây, đã tính trong tổng và mã QR.",
+    "nhom": "banh_si",
+    "mac_dinh": "Còn {so} hoá đơn nữa không hiện ở đây, đã tính trong tổng và mã QR."
+  },
+  "bsi_qr_don_loi": {
+    "ten": "Bánh sỉ: Chưa mở được mã QR của đơn. Tải lại trang rồi thử lại.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa mở được mã QR của đơn. Tải lại trang rồi thử lại."
+  },
+  "bsi_nhac_cho_ck": {
+    "ten": "Bánh sỉ: Đơn {ma} đang chờ chuyển khoản.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đơn {ma} đang chờ chuyển khoản."
+  },
+  "bsi_nhac_cho_ck_n": {
+    "ten": "Bánh sỉ: {so} đơn đang chờ chuyển khoản.",
+    "nhom": "banh_si",
+    "mac_dinh": "{so} đơn đang chờ chuyển khoản."
+  },
+  "bsi_xem_ma_qr": {
+    "ten": "Bánh sỉ: Xem mã QR",
+    "nhom": "banh_si",
+    "mac_dinh": "Xem mã QR"
+  },
+  "bsi_dk_loi_ten": {
+    "ten": "Bánh sỉ: Điền tên quán hoặc tên công ty.",
+    "nhom": "banh_si",
+    "mac_dinh": "Điền tên quán hoặc tên công ty."
+  },
+  "bsi_dk_loi_sdt": {
+    "ten": "Bánh sỉ: Điền số điện thoại di động có Zalo.",
+    "nhom": "banh_si",
+    "mac_dinh": "Điền số điện thoại di động có Zalo."
+  },
+  "bsi_dk_loi_mst": {
+    "ten": "Bánh sỉ: Mã số thuế gồm 10 số, để trống nếu chưa có.",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã số thuế gồm 10 số, để trống nếu chưa có."
+  },
+  "bsi_dk_loi_loai": {
+    "ten": "Bánh sỉ: Chọn loại hình.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chọn loại hình."
+  },
+  "bsi_dk_loi_luong": {
+    "ten": "Bánh sỉ: Chọn lượng bánh dự kiến mỗi tuần.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chọn lượng bánh dự kiến mỗi tuần."
+  },
+  "bsi_dk_loi_gui": {
+    "ten": "Bánh sỉ: Chưa gửi được. Bấm gửi lại hoặc gọi cho chúng tôi.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa gửi được. Bấm gửi lại hoặc gọi cho chúng tôi."
+  },
+  "bsi_dn_loi": {
+    "ten": "Bánh sỉ: Chưa đăng nhập được. Thử lại sau ít phút.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa đăng nhập được. Thử lại sau ít phút."
+  },
+  "bsi_dn_6so": {
+    "ten": "Bánh sỉ: Mã gồm 6 số.",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã gồm 6 số."
+  },
+  "tab_today": {
+    "ten": "Bánh sỉ: Có sẵn hôm nay",
+    "nhom": "banh_si",
+    "mac_dinh": "Có sẵn hôm nay"
+  },
+  "tab_order": {
+    "ten": "Bánh sỉ: Đặt bánh trước",
+    "nhom": "banh_si",
+    "mac_dinh": "Đặt bánh trước"
+  },
+  "tab_season": {
+    "ten": "Bánh sỉ: In season",
+    "nhom": "banh_si",
+    "mac_dinh": "In season"
+  },
+  "nut_thanh_vien": {
+    "ten": "Bánh sỉ: Thành viên",
+    "nhom": "banh_si",
+    "mac_dinh": "Thành viên"
+  },
+  "ct630_banh_si": {
+    "ten": "Chân trang: liên kết trang Bánh sỉ cho quán (mục Mua bánh)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh sỉ cho quán"
+  },
+  "nut_dat_ban": {
+    "ten": "Bánh sỉ: Đặt bàn",
+    "nhom": "banh_si",
+    "mac_dinh": "Đặt bàn"
+  },
+  "bsi_lh_cafe": {
+    "ten": "Bánh sỉ: Quán cà phê",
+    "nhom": "banh_si",
+    "mac_dinh": "Quán cà phê"
+  },
+  "bsi_lh_ks": {
+    "ten": "Bánh sỉ: Khách sạn",
+    "nhom": "banh_si",
+    "mac_dinh": "Khách sạn"
+  },
+  "bsi_lh_nh": {
+    "ten": "Bánh sỉ: Nhà hàng",
+    "nhom": "banh_si",
+    "mac_dinh": "Nhà hàng"
+  },
+  "bsi_lh_khac": {
+    "ten": "Bánh sỉ: Khác",
+    "nhom": "banh_si",
+    "mac_dinh": "Khác"
+  },
+  "bsi_luong_1": {
+    "ten": "Bánh sỉ: Dưới 50 cái",
+    "nhom": "banh_si",
+    "mac_dinh": "Dưới 50 cái"
+  },
+  "bsi_luong_2": {
+    "ten": "Bánh sỉ: 50 - 200 cái",
+    "nhom": "banh_si",
+    "mac_dinh": "50 - 200 cái"
+  },
+  "bsi_luong_3": {
+    "ten": "Bánh sỉ: Trên 200 cái",
+    "nhom": "banh_si",
+    "mac_dinh": "Trên 200 cái"
+  },
+  "bsi_dn_chua_mo": {
+    "ten": "Bánh sỉ: Số này chưa được mở đặt sỉ. Đăng ký hợp tác bên dưới, Sales sẽ gọi lại.",
+    "nhom": "banh_si",
+    "mac_dinh": "Số này chưa được mở đặt sỉ. Đăng ký hợp tác bên dưới, Sales sẽ gọi lại."
+  },
+  "bsi_dn_doi_chieu": {
+    "ten": "Bánh sỉ: Số này đang gắn với nhiều khách. Gọi Sales để đối chiếu.",
+    "nhom": "banh_si",
+    "mac_dinh": "Số này đang gắn với nhiều khách. Gọi Sales để đối chiếu."
+  },
+  "bsi_dn_qua_nhieu": {
+    "ten": "Bánh sỉ: Đã gửi nhiều mã. Chờ 30 phút rồi thử lại.",
+    "nhom": "banh_si",
+    "mac_dinh": "Đã gửi nhiều mã. Chờ 30 phút rồi thử lại."
+  },
+  "bsi_dn_khong_gui": {
+    "ten": "Bánh sỉ: Chưa gửi được mã qua Zalo. Kiểm tra số có dùng Zalo rồi thử lại.",
+    "nhom": "banh_si",
+    "mac_dinh": "Chưa gửi được mã qua Zalo. Kiểm tra số có dùng Zalo rồi thử lại."
+  },
+  "bsi_dn_sai_ma": {
+    "ten": "Bánh sỉ: Mã chưa đúng. Kiểm tra tin Zalo rồi gõ lại.",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã chưa đúng. Kiểm tra tin Zalo rồi gõ lại."
+  },
+  "bsi_dn_het_han": {
+    "ten": "Bánh sỉ: Mã đã hết hạn. Bấm gửi lại mã.",
+    "nhom": "banh_si",
+    "mac_dinh": "Mã đã hết hạn. Bấm gửi lại mã."
+  },
+  "bsi_dn_sai_nhieu": {
+    "ten": "Bánh sỉ: Gõ sai quá nhiều lần. Bấm gửi lại mã mới.",
+    "nhom": "banh_si",
+    "mac_dinh": "Gõ sai quá nhiều lần. Bấm gửi lại mã mới."
   }
 }

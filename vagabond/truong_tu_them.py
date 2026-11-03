@@ -241,6 +241,27 @@ def dung():
 	from vagabond import tra_truoc_khach
 
 	_dung_nhom(tra_truoc_khach.TRUONG_MOI, "tra_truoc_khach")
+	# v630: đơn thiết kế riêng trên web (mã đơn, cọc, bảng kê trên phiếu đặt;
+	# dòng sao kê đã chiếm trên phiếu thu). Sau dat_banh vì neo vào vgb_phieu_dat.
+	from vagabond import thiet_ke_rieng
+
+	_dung_nhom(thiet_ke_rieng.TRUONG_MOI, "thiet_ke_rieng")
+	try:
+		from vagabond import noi_dung_web
+
+		noi_dung_web.gieo_thiet_ke_rieng()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: gieo tác phẩm thiết kế riêng")
+	# v630 bánh sỉ: ba ô khách sỉ web trên Customer, mã đơn sỉ trên phiếu đặt
+	# (neo sau ô thiết kế riêng nên phải đứng sau nhóm đó), bảng giá riêng
+	# từng khách sỉ và nhóm Khách sỉ B2B nếu site chưa có.
+	from vagabond import banh_si
+
+	_dung_nhom(banh_si.TRUONG_MOI, "banh_si")
+	try:
+		banh_si.dam_bao()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: bảng giá sỉ theo khách")
 	# Nhet phuong thuc thanh toan moi cua ma nguon vao cau hinh DA LUU tren
 	# site. Khong co buoc nay thi them mot dong vao MAC_DINH chi co tac dung
 	# tren site trong - xem `pt_thanh_toan.bo_sung_mac_dinh`.

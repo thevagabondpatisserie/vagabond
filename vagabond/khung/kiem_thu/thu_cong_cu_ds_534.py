@@ -299,9 +299,15 @@ def _chia_con_no():
 	la("khách có tiền về", khach, {"K1"})
 	la("sổ cái vẫn đủ: đòi + đã về = nợ trên sổ", tong + the["tien"], 1000000.0 + 500000.0 + 700000.0 + 300000.0)
 	s = _doc("cong_no.py")
-	i = s.find("def ds_khach_no(")
+	i = s.find("def bang_khach_no(")  # v630: phép tính tách khỏi cửa whitelist ds_khach_no
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("ds_khach_no đi qua phép thuần", "rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)" in than)
+	# Codex #531 vòng 4: phép tính dời vào tinh_con_doi, dùng chung với lập phiếu đòi nợ.
+	dung("ds_khach_no đi qua phép thuần", "rows, the_ve, khach_cho = tinh_con_doi(rows)" in than
+		and "return tt.chia_no_hoa_don(rows, ve)" in s[s.find("def tinh_con_doi("):s.find("def ds_khach_no(")])
+	# v630: cửa ds_khach_no chỉ còn cổng quyền rồi gọi bang_khach_no (trang Bánh sỉ gọi phép tính không cổng).
+	j = s.find("def ds_khach_no(")
+	cua = s[j:s.find("\ndef ", j + 10)]
+	dung("ds_khach_no kiểm quyền trước khi tính", 0 < cua.find("_kiem_quyen_cong_no()") < cua.find("return bang_khach_no(tim)"))
 	dung("cộng khách theo số còn đòi", 'o["tien"] += flt(r["con_doi"])' in than)
 	dung("dòng hoá đơn: tiền là số còn đòi", '"tien": flt(r["con_doi"])' in than)
 	dung("dòng hoá đơn: có số đã về", '"da_ve": flt(r["da_ve"])' in than)
@@ -321,7 +327,7 @@ def _loc_khach_no():
 	la("không khớp ai", loc_khach_no(ds, "zzz"), ([], 0))
 	la("rỗng", loc_khach_no(None, "a"), ([], 0))
 	s = _doc("cong_no.py")
-	i = s.find("def ds_khach_no(")
+	i = s.find("def bang_khach_no(")  # v630: phép tính tách khỏi cửa whitelist ds_khach_no
 	than = s[i:s.find("\ndef ", i + 10)]
 	dung("ds_khach_no lọc qua phép thuần", "ra, tong_loc = tt.loc_khach_no(ra, tim)" in than)
 	dung("trả tổng phần lọc", '"tong_loc": tong_loc' in than)
@@ -472,9 +478,10 @@ def _truong():
 @ca("v534 công nợ: tách tiền đã về dựa trên phép xác minh, không đọc cờ nháp")
 def _cong_no_tach():
 	s = _doc("cong_no.py")
-	i = s.find("def ds_khach_no(")
+	i = s.find("def bang_khach_no(")  # v630: phép tính tách khỏi cửa whitelist ds_khach_no
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("gọi phép chia thuần", "tt.chia_no_hoa_don(rows, ve)" in than)
+	dung("gọi phép chia thuần", "tinh_con_doi(rows)" in than
+		and "tt.chia_no_hoa_don(rows, ve)" in s[s.find("def tinh_con_doi("):s.find("def ds_khach_no(")])
 	dung("tổng nợ tính trước ô tìm", 0 < than.find("tong = sum(") < than.find("tt.loc_khach_no(ra, tim)"))
 	i = s.find("def _tien_da_ve_theo_hd(")
 	than = s[i:s.find("\ndef ", i + 10) if s.find("\ndef ", i + 10) > 0 else len(s)]

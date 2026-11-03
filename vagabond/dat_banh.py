@@ -402,6 +402,18 @@ def tien_thuc_thu(phieu):
 	return so
 
 
+def la_hoa_don_tra_truoc(pt, ds_phieu_dat):
+	"""Tờ hoá đơn "Trả trước" lập TỪ phiếu đặt: mọi dòng đều trỏ phiếu đặt. THUẦN.
+
+	v630: phương thức này cố ý không hiện ở nguồn đơn nào (quay: 0, online: 0),
+	nên phép so phương thức với nguồn ở `ban_hang.kiem_truoc_khi_luu` luôn chặn
+	nhầm tờ ngày giao của phiếu đặt. Chỉ miễn khi MỌI dòng đều mang phiếu đặt:
+	tờ gõ tay mang "Trả trước" vẫn bị chặn như cũ.
+	"""
+	ds = list(ds_phieu_dat or [])
+	return str(pt or "").strip() == PT_TRA_TRUOC and bool(ds) and all(str(x or "").strip() for x in ds)
+
+
 def tong_ung_truoc(ds_thu):
 	"""Gom chứng từ thu ứng trước thành {phương thức: số tiền}. THUẦN.
 

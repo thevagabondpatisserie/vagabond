@@ -84,6 +84,9 @@ def _chay(**k):
 				return None
 			r = Doi(h)
 			r.setdefault("vgb_khach_no", None)
+			# Codex #531 vòng 4: số dòng phiếu là số còn đòi tính từ dư nợ sổ cái,
+			# nên hoá đơn giả phải mang outstanding_amount như hoá đơn thật (chưa trả).
+			r.setdefault("outstanding_amount", r.grand_total)
 			r.update(docstatus=1, vgb_pt_thanh_toan="Công nợ", custom_nguon="Pancake")
 			return r
 		if dt == "Customer":

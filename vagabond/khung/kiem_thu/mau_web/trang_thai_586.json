@@ -13,6 +13,8 @@
     [{"loai": "tiec", "bat_dau": "2026-10-20", "han_ban": "2026-10-06"}, "het", "Hết hạn đăng ký"],
     [{"loai": "tiec", "bat_dau": "2026-10-07"}, "dang", "Đang mở đăng ký"],
     [{"loai": "tiec", "bat_dau": "2026-10-06"}, "het", "Đã diễn ra"],
-    [{"loai": "tiec"}, "dang", "Đang mở đăng ký"]
+    [{"loai": "tiec"}, "dang", "Đang mở đăng ký"],
+    [{"loai": "thiet_ke_rieng"}, "dang", "Đang nhận đặt"],
+    [{"loai": "thiet_ke_rieng", "bat_dau": "2026-12-01", "ket_thuc": "2026-10-01"}, "dang", "Đang nhận đặt"]
   ]
 }

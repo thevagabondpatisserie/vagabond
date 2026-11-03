@@ -1,4 +1,5 @@
-/* #301: chạy form thật, giữ payload cả các chip mới khi mất phản hồi. */
+/* #301: chạy form thật, giữ payload cả các chip mới khi mất phản hồi.
+   v630: trẻ em, bánh đặt sẵn, email gấp vào nút "+"; khách bấm mở ô rồi mới điền. */
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const {taiLieuGia,ElementGia}=require('./dom_gia.js');
 Object.defineProperty(ElementGia.prototype,'classList',{get(){return {toggle:()=>{}};}});
@@ -21,7 +22,8 @@ ElementGia.prototype.querySelectorAll=function(sel){
  await vm.runInNewContext((fs.readFileSync('vagabond/public/web_order/chu.js','utf8').split('(function ()')[0] + '\n' + fs.readFileSync('vagabond/public/web_order/dat-ban.js','utf8')),{window:{},document,fetch,crypto:{randomUUID:()=> '11111111-1111-1111-1111-111111111111'}});
  assert.equal(tim('dat-ban').hidden,false);
  tim('gio').querySelector('button').onclick();tim('dip').querySelector('button').onclick();tim('khu-vuc').querySelector('button').onclick();
- tim('ten').value='Khách thử';tim('sdt').value='0912345678';tim('tre-em').value='1';tim('email').value='a@example.com';tim('banh-kem-theo').value='Bánh';
+ for(const o of ['o-tre-em','o-banh','o-email'])tim('dat-ban').querySelector('[data-mo="'+o+'"]').onclick();
+ tim('ten').value='Khách thử';tim('sdt').value='0912345678';tim('email').value='a@example.com';tim('banh-kem-theo').value='Bánh';
  await tim('dat-ban').onsubmit({preventDefault(){}});
  assert.match(tim('trang-thai').textContent,/Mất kết nối/);
  assert.equal(tim('dip').querySelector('button').disabled,true);

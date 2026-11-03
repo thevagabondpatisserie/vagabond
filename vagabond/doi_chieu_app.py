@@ -115,12 +115,18 @@ def _chu_khac(g, doc, bo=False):
 	for ten in dss.MO_DUN_KHAI:
 		importlib.import_module("vagabond." + ten)
 	dss.nap_so()
+	# Một nguồn: loại chứng từ có cột bộ sao kê do bo_sao_ke_db khai.
+	from vagabond.bo_sao_ke_db import PHIEU as BO_PHIEU
 	for b in dss._SO.values():
 		loc = dict(b.get("loc_chiem") or {})
 		if b["doctype"] == doc.doctype:
 			loc["name"] = ["!=",doc.name]
 		loc[b["truong_gd"]] = ["in", ma]
-		if bo:
+		if bo and b["doctype"] in BO_PHIEU:
+			# v631 (bench #531): chỉ loại phiếu đã vào bộ sao kê ở những loại
+			# chứng từ CÓ cột bộ sao kê. Luồng thiết kế riêng khai Payment Entry,
+			# không có cột này: lọc vào là MariaDB báo "Unknown column" và cả
+			# cửa gắn bộ sao kê hỏng. Loại không có cột thì không thể nằm trong bộ.
 			loc["vgb_bo_sao_ke"] = ["is", "not set"]
 		chu = frappe.db.get_value(b["doctype"], loc, "name")
 		if chu:

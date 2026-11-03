@@ -18,6 +18,8 @@ import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
 import {KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, dsMuc, TD} from './noi-dung.js';
 import {thuong} from './chu-giau.js';
 import {MAU} from './mau.js';
+import {ChanTrang, locChinhSach} from './chan-trang.js';
+import {ThietKeRieng, moTacPham, veDanhSach, dsTacPham} from './thiet-ke-rieng.js';
 
 function luuTruAnToan() {
   try { const s = window.sessionStorage; s.getItem('x'); return s; } catch (e) { return null; }
@@ -52,11 +54,13 @@ export function khoiDong(goc = '#app') {
 
   const app = createApp({
     template: MAU,
-    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc},
+    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng},
     setup() {
       const tab = computed(() => S.tab);
       const gioMo = computed(() => S.trang === 'gio');
       const coTiec = computed(() => dsMuc('tiec').length > 0);
+      /* v630: tab Thiết kế riêng chỉ hiện khi có tác phẩm đang nhận đặt. */
+      const coTkr = computed(() => dsTacPham().length > 0);
       const coQuay = computed(() => true);
       const quayHien = computed(() => {
         const quay = S.STORE.quay || [];
@@ -67,9 +71,8 @@ export function khoiDong(goc = '#app') {
         return {quay, chon, mon, tong: mon.reduce((a, m) => a + (m.con || 0), 0),
           nhom: ['', ...new Set(ds.map(m => m.nhom).filter(Boolean))].map(n => ({n, so: ds.filter(m => !n || m.nhom === n).length}))};
       });
-      const chinhSach = computed(() => ((S.cauHinh && S.cauHinh.chinh_sach) || []).filter(c => /^\/[a-z-]+$/.test(String(c.duong || ''))).map(c => ({...c, duong: location.pathname.startsWith('/web_moi/') ? '/web_moi' + c.duong : c.duong})));
+      const chinhSach = computed(() => locChinhSach(S.cauHinh && S.cauHinh.chinh_sach, location.pathname));
       const baoMat = computed(() => chinhSach.value.find(c => c.khoa === 'chinh_sach_bao_mat') || null);
-      const lienHe = computed(() => (S.cauHinh && S.cauHinh.lien_he) || {});
       const ngayBan = computed(() => { void S.nhip; const b = new Date(); return DAYS[b.getDay()] + ', ' + kho.T.dmy(b); });
       const theHomNay = computed(() => kho.banhHomNay.value.map(c => kho.theBanh(c, 'today')));
       const theDatTruoc = computed(() => kho.banhDatTruoc.value.map(c => kho.theBanh(c, 'order')));
@@ -113,8 +116,8 @@ export function khoiDong(goc = '#app') {
           tinh: m.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)};
       });
       const tienTom = n => kho.T.tienVN(n);
-      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coQuay, quayHien, chinhSach, baoMat,
-        lienHe, ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
+      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, quayHien, chinhSach, baoMat,
+        ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
         moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh};
     }
@@ -132,6 +135,7 @@ export function khoiDong(goc = '#app') {
   }
   function go(tab) {
     if (tab === 'uu_dai' || tab === 'tuyen_dung' || tab === 'tiec') { nav('#/' + tab.replace('_', '-')); window.scrollTo(0, 0); return; }
+    if (tab === 'thiet_ke_rieng') { nav('#/thiet-ke-rieng'); window.scrollTo(0, 0); return; }
     nav(tab === 'season' ? '#/in-season' : tab === 'store' ? '#/in-store' : tab === 'order' ? '#/dat-truoc' : '#/');
     window.scrollTo({top: 0, behavior: 'smooth'});
   }
@@ -145,6 +149,9 @@ export function khoiDong(goc = '#app') {
     const mTd = h.match(/^\/tuyen-dung\/(.+)$/);
     TD.mo = mTd ? decodeURIComponent(mTd[1]) : '';
     if (mTd) { dongHet(); S.tab = 'tuyen_dung'; return; }
+    /* v630: #/thiet-ke-rieng (danh sách) và #/thiet-ke-rieng/<mã tác phẩm>. */
+    const mTkr = h.match(/^\/thiet-ke-rieng(?:\/(.+))?$/);
+    if (mTkr) { dongHet(); S.tab = 'thiet_ke_rieng'; if (mTkr[1]) moTacPham(decodeURIComponent(mTkr[1])); else veDanhSach(); return; }
     if (h === '/uu-dai' || h === '/tuyen-dung' || h === '/tiec') { dongHet(); S.tab = h.slice(1).replace('-', '_'); return; }
     if (mBanh) {
       const c = S.CAKES.find(x => kho.T.slug(x.k) === mBanh[1]);
@@ -242,13 +249,15 @@ export function khoiDong(goc = '#app') {
   watch(() => S.CART.length > 0, co => document.body.classList.toggle('has-bar', co), {immediate: true});
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.trang !== 'danh_muc') navBack(); });
   /* Thanh tab cuộn ngang: tab đang mở phải lọt vào tầm mắt. */
-  watch(() => S.tab, tb => nextTick(() => { const n = document.querySelector('.tab[data-tab="' + tb + '"]'); if (n && n.scrollIntoView) try { n.scrollIntoView({block: 'nearest', inline: 'center'}); } catch (e) { /* bỏ qua */ } }), {immediate: true});
+  /* v630: tab Thiết kế riêng chỉ hiện sau khi nội dung về, nên theo dõi cả số tác phẩm để link mở thẳng vẫn cuộn tới tab. */
+  watch(() => [S.tab, dsTacPham().length], ([tb]) => nextTick(() => { const n = document.querySelector('.tab[data-tab="' + tb + '"]'); if (n && n.scrollIntoView) try { n.scrollIntoView({block: 'nearest', inline: 'center'}); } catch (e) { /* bỏ qua */ } }), {immediate: true});
   /* Điểm nhận bánh đến từ thẻ Cửa hàng của nội dung web (Codex #453). */
   watch(() => ND.diem_nhan, ds => kho.capNhatDiemNhan(ds));
   /* Trình biên tập chọn khối ưu đãi/tuyển dụng thì mở đúng chuyên mục. */
   window.addEventListener('vgb-xem-thu-chon', e => {
     const nd = e.detail && e.detail.noi_dung, chon = ((nd && nd.khoi) || []).find(k => k.id === e.detail.chon);
     if (chon && ['uu_dai', 'tuyen_dung', 'tiec'].includes(chon.loai) && location.hash !== '#/' + chon.loai.replace('_', '-')) go(chon.loai);
+    if (chon && chon.loai === 'thiet_ke_rieng' && location.hash !== '#/thiet-ke-rieng/' + encodeURIComponent(chon.id)) nav('#/thiet-ke-rieng/' + encodeURIComponent(chon.id));
   });
 
   const vm = app.mount(goc);
@@ -256,7 +265,11 @@ export function khoiDong(goc = '#app') {
   /* ---------------- nạp dữ liệu ---------------- */
   kho.phucHoiGio();
   apDuongDan();
-  napNoiDung().then(() => { if (ND.diem_nhan) kho.capNhatDiemNhan(ND.diem_nhan); });
+  napNoiDung().then(() => {
+    if (ND.diem_nhan) kho.capNhatDiemNhan(ND.diem_nhan);
+    /* Link chia sẻ #/thiet-ke-rieng/<mã> mở trước khi nội dung về: chọn sẵn size sau khi có tác phẩm. */
+    const m = (location.hash || '').match(/^#\/thiet-ke-rieng\/(.+)$/); if (m) moTacPham(decodeURIComponent(m[1]));
+  });
   kho.napTon().then(apDuongDanNeuBanh);
   setInterval(kho.napTon, 60000);
   kho.napMua().then(() => { if (/^#\/in-season\//.test(location.hash || '')) apDuongDan(); });

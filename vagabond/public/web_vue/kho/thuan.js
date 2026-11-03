@@ -250,3 +250,57 @@ export function linkHopLe(u) { u = String(u || ''); return (/^https:\/\/[^\s/@\\
 
 export function maskAddr(s) { return String(s || '').replace(/^\s*[0-9]+([\/\-][0-9A-Za-z]+)*/, '***'); }
 export function maskPhone(s) { return String(s || '').replace(/(\d{3})$/, '***'); }
+
+/* ---------- v630: bánh thiết kế riêng ----------
+   Bản JS của thiet_ke_rieng.tien_coc, tinh_gia, so_ngay_cua. Màn chỉ HIỆN tạm
+   trước khi gửi; máy chủ tính lại và số trên màn QR là số máy chủ trả về.
+   Ca thu_thiet_ke_rieng_630 chạy hai bản trên cùng một bảng ca. */
+export const TKR_NGAY_TOI_THIEU = 7;
+export function tkrCoc(tong) {
+  const t = Math.round(Number(tong) || 0);
+  return t > 0 ? Math.ceil(t / 2 / 1000) * 1000 : 0;
+}
+export function tkrSoNgay(tp) {
+  const n = parseInt(String((tp && tp.so_ngay) || TKR_NGAY_TOI_THIEU), 10);
+  return Math.max(TKR_NGAY_TOI_THIEU, isNaN(n) ? TKR_NGAY_TOI_THIEU : n);
+}
+export function tkrNgaySomNhat(homNayIso, tp) {
+  const p = String(homNayIso || '').slice(0, 10).split('-').map(Number);
+  const d = new Date(Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1));
+  d.setUTCDate(d.getUTCDate() + tkrSoNgay(tp));
+  return d.toISOString().slice(0, 10);
+}
+export function tkrTuGia(tp) {
+  const ds = ((tp && tp.kich_co) || []).map(x => parseInt(x.gia, 10) || 0).filter(x => x > 0);
+  return ds.length ? Math.min(...ds) : 0;
+}
+/* Trả {tong, coc, con_lai} hoặc {loi}. Cùng luật nhóm trang trí với máy chủ. */
+export function tkrTinh(tp, tenKichCo, dsTrangTri) {
+  const kc = ((tp && tp.kich_co) || []).find(x => x.ten === tenKichCo);
+  if (!kc) return {loi: 'Chọn một size của tác phẩm.'};
+  const co = {};
+  ((tp && tp.trang_tri) || []).forEach(x => { co[x.ten] = x; });
+  const chon = [], nhom = {};
+  for (const t of dsTrangTri || []) {
+    if (!co[t]) return {loi: 'Trang trí "' + String(t).slice(0, 60) + '" không còn trong danh sách. Tải lại trang.'};
+    if (!chon.includes(t)) chon.push(t);
+  }
+  for (const t of chon) {
+    const n = String(co[t].nhom || '');
+    if (n) { if (nhom[n]) return {loi: 'Nhóm ' + n + ' chỉ chọn một: ' + nhom[n] + ' hoặc ' + t + '.'}; nhom[n] = t; }
+  }
+  const giaKc = parseInt(kc.gia, 10) || 0;
+  const tong = giaKc + chon.reduce((a, t) => a + (parseInt(co[t].gia_them, 10) || 0), 0);
+  if (giaKc <= 0 || tong <= 0) return {loi: 'Tác phẩm này chưa có giá. Nhờ Sales tư vấn trước.'};
+  const coc = tkrCoc(tong);
+  return {tong, coc, con_lai: tong - coc};
+}
+/* Bấm một chip trang trí: cùng nhóm thì thay, khác nhóm (hoặc không nhóm) thì bật tắt. */
+export function tkrBatTrangTri(tp, dang, ten) {
+  const co = {};
+  ((tp && tp.trang_tri) || []).forEach(x => { co[x.ten] = x; });
+  if (!co[ten]) return (dang || []).slice();
+  if ((dang || []).includes(ten)) return dang.filter(x => x !== ten);
+  const n = String(co[ten].nhom || '');
+  return [...(dang || []).filter(x => !n || String((co[x] || {}).nhom || '') !== n), ten];
+}

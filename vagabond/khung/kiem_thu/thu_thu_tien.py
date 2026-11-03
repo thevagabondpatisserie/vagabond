@@ -245,7 +245,9 @@ def _man_cong_no():
 	# v534 vòng 8: cộng số CÒN PHẢI ĐÒI, tức con_no trừ phần tiền đã về đã
 	# xác minh (thu_tien.chia_no_hoa_don); con_no vẫn là gốc của phép đó.
 	dung("cong so con phai doi", 'o["tien"] += flt(r["con_doi"])' in CN)
-	dung("con phai doi tinh tu con_no", "rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)" in CN)
+	# Codex #531 vòng 4: chuỗi tính dời vào cong_no.tinh_con_doi (một nguồn cho màn và phiếu).
+	dung("con phai doi tinh tu con_no", "return tt.chia_no_hoa_don(rows, ve)" in CN
+		and "rows, the_ve, khach_cho = tinh_con_doi(rows)" in CN)
 	dung("khong cong ca to nua", 'o["tien"] += flt(r.grand_total)' not in CN)
 	# Man phai bay ca tong to va phan da tra, khong bat ai tru tay.
 	dung("bay tong to", '"tong_don": flt(r.grand_total)' in CN)

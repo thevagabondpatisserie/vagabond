@@ -69,6 +69,10 @@ def noi_dung():
 	nhan = {k: (v.get('mac_dinh', '') if isinstance(v, dict) else v) for k, v in nhan.items()}
 	_, _, the, form = _tuyen_dung()
 	khoi = [k for k in nd.get('khoi', []) if k.get('loai') != 'tuyen_dung'] + the
+	# v630: tác phẩm thiết kế riêng mẫu (đúng khối máy chủ gieo).
+	tkr = _hang('TKR_MAU')
+	if tkr:
+		khoi.append(tkr)
 	return {'khoi': khoi, 'tuyen_dung_chung': {'phuc_loi': form['phuc_loi'], 'gioi_thieu': form['gioi_thieu']}, 'nhan': nhan, 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334',
 		'messenger': 'https://m.me/thevagabond.saigon'}, 'thong_tin': nd.get('thong_tin', {}), 'san_pham': {},
 		'diem_nhan': [{'id': 'bep-tan-son-hoa', 'n': 'Bếp Tân Sơn Hoà', 'a': '307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà'},
@@ -136,7 +140,34 @@ def tra_loi_post(phuong, than):
 		return {'ok': True, 'ma': 'UV-THU-0001'}
 	if phuong == 'tao_don':
 		return {'ok': True, 'ma_yeu_cau': 'YC-THU-0001', 'duong_dan': '/banh/xong/thu0001'}
+	if phuong == 'dat':
+		# v630: đơn thiết kế riêng giả, QR dựng bằng ĐÚNG chuỗi VietQR của máy chủ.
+		return {'ok': 1, 'ma': 'TKR26110001', 'khoa': 'a' * 24, 'tong': 7560000, 'coc': 3780000, 'con_lai': 3780000,
+			'ngay': '2026-11-14', 'qr': {'ngan_hang': 'MB', 'stk': 'VQRQ00033k5p6', 'ten_tk': 'PATISSERIE VAGABOND COMPANY LIMITED',
+			'so_tien': 3780000, 'noi_dung': 'TKR26110001', 'anh': _anh_qr('TKR26110001', 3780000)}}
+	if phuong == 'trang_thai_don':
+		return {'trang_thai': 'cho_coc', 'nhan': 'Chờ cọc'}
+	if phuong == 'nho_tu_van':
+		return {'ok': 1}
 	return {}
+
+
+def _anh_qr(nd, tien):
+	"""Ảnh QR cho bản xem thử. Máy thật dựng bằng pyqrcode; ở đây dùng thư viện
+	qrcode nếu có, không thì trả rỗng (trang hiện số tài khoản để chuyển tay)."""
+	try:
+		import base64
+		import io
+		import qrcode
+		import qrcode.image.svg
+		if str(GOC) not in sys.path:
+			sys.path.insert(0, str(GOC))
+		from vagabond.qr_chuyen_khoan import chuoi
+		bo = io.BytesIO()
+		qrcode.make(chuoi('970422', 'VQRQ00033k5p6', tien, nd), image_factory=qrcode.image.svg.SvgPathImage).save(bo)
+		return 'data:image/svg+xml;base64,' + base64.b64encode(bo.getvalue()).decode()
+	except Exception:
+		return ''
 
 
 class Xu(BaseHTTPRequestHandler):

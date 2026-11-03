@@ -45,11 +45,19 @@ export const TieuDeMuc = {
 };
 
 /* ---------- ghé cửa hàng (cua-hang.js veCuaHang) ---------- */
+/* v630: MỘT nguồn cho danh sách cửa hàng khách thấy và link chỉ đường an
+   toàn, dùng chung cho khối Ghé cửa hàng và cột Cửa hàng ở chân trang. */
+export function cuaHangHien() {
+  const ds = Array.isArray((ND.thong_tin || {}).cua_hang) ? ND.thong_tin.cua_hang : [];
+  return ds.filter(c => c && c.hien && c.dia_chi);
+}
+export function chiDuongAnToan(u) {
+  return /^https:\/\/[^\s/@\\]+(\/|$)/.test(u || '') && !/\s/.test(u) ? u : '';
+}
 export const CuaHang = {
   name: 'CuaHang',
   render() {
-    const ds = Array.isArray((ND.thong_tin || {}).cua_hang) ? ND.thong_tin.cua_hang : [];
-    const hien = ds.filter(c => c.hien && c.dia_chi);
+    const hien = cuaHangHien();
     if (!hien.length) return null;
     const lh = ND.lien_he || {};
     return h('section', {class: 'wrap cw-khung', id: 'cuaHangWeb', 'aria-labelledby': 'cwTieuDe'}, [
@@ -58,7 +66,7 @@ export const CuaHang = {
         const dt = c.hotline || lh.dien_thoai || '', so = String(dt).replace(/[^0-9+]/g, '');
         const nut = [];
         if (so) nut.push(h('a', {href: 'tel:' + so}, t('cua_hang_goi', 'Gọi') + ' ' + dt));
-        if (/^https:\/\/[^\s/@\\]+(\/|$)/.test(c.chi_duong || '') && !/\s/.test(c.chi_duong)) nut.push(h('a', {href: c.chi_duong, target: '_blank', rel: 'noopener'}, t('cua_hang_chi_duong', 'Chỉ đường') + ' ↗'));
+        if (chiDuongAnToan(c.chi_duong)) nut.push(h('a', {href: c.chi_duong, target: '_blank', rel: 'noopener'}, t('cua_hang_chi_duong', 'Chỉ đường') + ' ↗'));
         return h('article', {class: 'cw-the'}, [h('h3', null, c.ten), h('p', {class: 'cw-dia-chi'}, c.dia_chi),
           c.gio_mo_cua ? h('p', {class: 'cw-gio'}, c.gio_mo_cua) : null, h('div', {class: 'cw-nut'}, nut)]);
       }))

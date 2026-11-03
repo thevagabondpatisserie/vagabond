@@ -49,6 +49,21 @@ CUA_NGO = {
 		# v630: Marketing đổi ảnh thẻ một vị trí tuyển dụng (kiem_quyen Marketing).
 		"doi_anh_tuyen_dung"],
 	"tiec_web.py": ["dang_ky"],
+	# v630 bánh sỉ: san_sang, gui_ma, xac_thuc, thoat, toi, dat, trang_thai_don,
+	# qr_no, dang_ky mở cho khách vãng lai (trần lượt; mọi hàm sau đăng nhập đọc
+	# khách từ số đã xác thực, không nhận mã khách từ trình duyệt). Các hàm màn
+	# app kiểm vai ở máy chủ: QUYEN_SALES_SI (duyệt, giá), QUYEN_GIAO_SI (giao,
+	# tiền về, huỷ), QUYEN_XEM_SI (danh sách, bếp không thấy tiền).
+	# Codex #531 f4: qr_don mở lại QR một đơn trả trước của chính khách phiên.
+	"banh_si.py": ["san_sang", "gui_ma", "xac_thuc", "thoat", "toi", "dat", "trang_thai_don", "qr_no", "qr_don", "dang_ky",
+		"ds_dang_ky", "tim_khach", "duyet", "tu_choi", "ds_khach", "luu_khach", "bang_gia", "tim_mon", "luu_gia",
+		"bo_gia", "ds_don", "xem_don", "kiem_tien_ve", "ghi_so_phieu", "giao_hang", "huy_don"],
+	# v630 bánh thiết kế riêng: dat, tai_anh_mau, trang_thai_don, nho_tu_van mở
+	# cho khách vãng lai (có trần lượt, trang_thai_don cần khoá riêng của đơn);
+	# sáu hàm màn Đơn đặt trước chặn vai QUYEN_TKR ở máy chủ, ghi_so_phieu
+	# thêm cổng kế toán.
+	"thiet_ke_rieng.py": ["tai_anh_mau", "dat", "trang_thai_don", "nho_tu_van", "ds_don", "xem",
+		"thu_tien_mat", "kiem_tien_ve", "ghi_so_phieu", "giao_banh", "huy"],
 	# v611: đặt bàn web. cau_hinh và gửi yêu cầu mở cho khách; năm hàm của màn
 	# Thông tin đặt bàn chặn quyền ở máy chủ (QUYEN_DAT_BAN).
 	"dat_ban.py": ["cau_hinh", "gui", "ds_dat_ban", "dem_cho_xac_nhan", "xac_nhan", "huy", "da_den"],
