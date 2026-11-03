@@ -302,10 +302,19 @@ def dong_giu_gia_sua(items, dong_cu):
 	sua ghi chu hay them mon khong lam doi gia dong cu. Dong gui kem combo_ma
 	thi vong dung dong cua pos_sua_don kiem thanh phan truoc khi luu. Chi dong
 	THEM MOI (khong dong_goc) moi theo gia diem hien hanh. Doi gia dong cu van
-	di qua luat OTP sua gia nhu truoc v631."""
+	di qua luat OTP sua gia nhu truoc v631.
+
+	Codex PR #532 vong 6: dong_goc chi la TEN dong do may khach gui. Dong gui
+	len phai cung MA MON voi dong goc tren may chu moi duoc giu gia; gui
+	dong_goc cua ly tra kem ma banh khac la mon THEM MOI, theo gia diem."""
 	ra = set()
 	for i, r in enumerate(items or []):
-		if r.get("combo_ma") or (r.get("dong_goc") and r.get("dong_goc") in (dong_cu or {})):
+		if r.get("combo_ma"):
+			ra.add(i)
+			continue
+		cu = (dong_cu or {}).get(r.get("dong_goc") or "")
+		ma = str(r.get("item_code") or "").strip()
+		if cu and ma == str(cu.get("item_code") or "").strip():
 			ra.add(i)
 	return ra
 
