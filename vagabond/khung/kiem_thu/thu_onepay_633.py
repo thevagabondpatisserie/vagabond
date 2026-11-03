@@ -408,3 +408,100 @@ def _het_no_cho_khac():
 			loi = str(e)
 	dung("lỗi lập phiếu thu vẫn ném", "Chưa lập được phiếu thu" in loi)
 	la("nhật ký vẫn chờ", json.loads(doc.onepay_gd)[0]["trang_thai"], "cho")
+
+
+@ca("Codex #534 vòng 3: tin Zalo báo kế toán được ghi TRƯỚC lần commit cuối của ghi_nhan_the (trang về là GET, không ai commit sau)")
+def _tin_truoc_commit():
+	import json
+	import sys
+	import types
+	from unittest.mock import patch
+
+	from vagabond import cong_no as cn
+
+	class _Phieu(dict):
+		__getattr__ = dict.get
+
+		def __setattr__(self, k, v):
+			self[k] = v
+
+		def save(self, **kw):
+			pass
+
+		def add_comment(self, loai, noi_dung):
+			pass
+
+	for con_no, ten_ca in ((400000, "ghi một phần"), (0, "dư toàn bộ")):
+		doc = _Phieu(name="CN1", ma_phieu="DNTT-26-11-00002", tong_tien=1000000, da_thu=0, trang_thai="Cho thu", ma_gd="",
+			ten_khach="ABC", khach="ABC", dong=[types.SimpleNamespace(hoa_don="HD1")], flags=types.SimpleNamespace(),
+			onepay_gd=json.dumps([{"ma": "DNTT261100002-1", "so_tien": 1000000, "tao_luc": "x", "trang_thai": "cho"}]))
+		kq = {"hop_le": True, "thanh_cong": True, "ma": "DNTT261100002-1", "so_tien": 1000000.0, "ma_onepay": "9"}
+		su = []
+		zalo = types.ModuleType("vagabond.kenh_zalo")
+		zalo.bao = lambda *a, **k: su.append(("bao", k.get("ma_tin")))
+
+		def get_all(dt, **kw):
+			return [{"name": "PE-1", "paid_amount": con_no}] if dt == "Payment Entry" and con_no else []
+
+		with patch.dict(sys.modules, {"vagabond.kenh_zalo": zalo}), \
+				patch.object(cn.frappe, "get_doc", lambda *a, **k: doc, create=True), \
+				patch.object(cn.frappe, "get_all", get_all, create=True), \
+				patch.object(cn.frappe.db, "commit", lambda: su.append(("commit",)), create=True), \
+				patch.object(cn, "_da_nhan_phieu", return_value=0.0), patch.object(cn, "_sepay_cn", return_value={}), \
+				patch.object(cn, "ghi_thu_cho_phieu", return_value=["PE-1"] if con_no else []), \
+				patch.object(cn, "_ham_dinh_bien_nhan", return_value=None):
+			cn.ghi_nhan_the("CN1", kq, "trang_ve")
+		vi_tri_bao = [i for i, x in enumerate(su) if x[0] == "bao"]
+		vi_tri_commit = [i for i, x in enumerate(su) if x[0] == "commit"]
+		la("%s: có đúng một tin kế toán" % ten_ca, [su[i] for i in vi_tri_bao], [("bao", "kt_the_onepay")])
+		dung("%s: tin nằm trước lần commit cuối" % ten_ca, bool(vi_tri_commit) and vi_tri_bao[0] < vi_tri_commit[-1])
+
+
+@ca("Codex #534 vòng 3: báo tin gặp giao dịch chết (deadlock) thì ném, không commit, IPN không xác nhận để OnePay gọi lại")
+def _tin_chet_giao_dich():
+	import json
+	import sys
+	import types
+	from unittest.mock import patch
+
+	from vagabond import cong_no as cn
+
+	class QueryDeadlockError(Exception):
+		pass
+
+	class _Phieu(dict):
+		__getattr__ = dict.get
+
+		def __setattr__(self, k, v):
+			self[k] = v
+
+		def save(self, **kw):
+			pass
+
+		def add_comment(self, loai, noi_dung):
+			pass
+
+	doc = _Phieu(name="CN1", ma_phieu="DNTT-26-11-00002", tong_tien=1000000, da_thu=0, trang_thai="Cho thu", ma_gd="",
+		ten_khach="ABC", khach="ABC", dong=[types.SimpleNamespace(hoa_don="HD1")], flags=types.SimpleNamespace(),
+		onepay_gd=json.dumps([{"ma": "DNTT261100002-1", "so_tien": 1000000, "tao_luc": "x", "trang_thai": "cho"}]))
+	kq = {"hop_le": True, "thanh_cong": True, "ma": "DNTT261100002-1", "so_tien": 1000000.0, "ma_onepay": "9"}
+	su = []
+	zalo = types.ModuleType("vagabond.kenh_zalo")
+
+	def bao(*a, **k):
+		raise QueryDeadlockError("Deadlock found")
+	zalo.bao = bao
+	loi = None
+	with patch.dict(sys.modules, {"vagabond.kenh_zalo": zalo}), \
+			patch.object(cn.frappe, "get_doc", lambda *a, **k: doc, create=True), \
+			patch.object(cn.frappe, "get_all", lambda dt, **k: [{"name": "PE-1", "paid_amount": 1000000}] if dt == "Payment Entry" else [], create=True), \
+			patch.object(cn.frappe.db, "commit", lambda: su.append("commit"), create=True), \
+			patch.object(cn, "_da_nhan_phieu", return_value=0.0), patch.object(cn, "_sepay_cn", return_value={}), \
+			patch.object(cn, "ghi_thu_cho_phieu", return_value=["PE-1"]), \
+			patch.object(cn, "_ham_dinh_bien_nhan", return_value=None):
+		try:
+			cn.ghi_nhan_the("CN1", kq, "ipn")
+		except QueryDeadlockError as e:
+			loi = e
+	dung("ném lỗi giao dịch chết lên", loi is not None)
+	la("không commit", su, [])
