@@ -57,6 +57,46 @@ def chuoi(bin_, stk, tien=0, noi_dung='', qr_text=''):
     return ra + crc16(ra)
 
 
+def ma_qr(tk, tien=0, noi_dung=''):
+    """v630: MỘT phép dựng chuỗi VietQR cho một tài khoản nhận tiền.
+
+    `tk` là dict của tai_khoan (bank hoặc bin, stk, qr_text). Phiếu công nợ,
+    phiếu thu hợp đồng, báo giá và cọc bánh thiết kế riêng đều gọi đây, không
+    mô đun nào tự ghép BIN rồi gọi `chuoi` (ca thu_thiet_ke_rieng_630 dò).
+    """
+    tk = tk or {}
+    bin_ = tk.get('bin')
+    if not bin_:
+        from vagabond.tai_khoan import bin_cho
+        bin_ = bin_cho(tk.get('bank'))
+    return chuoi(bin_, tk.get('stk'), tien, noi_dung, tk.get('qr_text'))
+
+
+def anh_qr(tk, tien=0, noi_dung=''):
+    """Ảnh VietQR (data URI SVG) dựng tại máy chủ, rỗng khi không dựng được.
+
+    Không gọi dịch vụ QR bên ngoài. Lỗi thì ghi nhật ký và trả rỗng để tờ in
+    vẫn ra, chỗ gọi hiện câu chỉ đường (cau_loi_qr)."""
+    try:
+        return anh(ma_qr(tk, tien, noi_dung))
+    except Exception:
+        try:
+            import frappe
+            frappe.log_error(frappe.get_traceback(), 'qr_chuyen_khoan: ve QR tai may loi')
+        except Exception:
+            pass
+        return ''
+
+
+def cau_loi_qr(tk, tien=0, noi_dung=''):
+    """Câu nói vì sao không dựng được QR (sai BIN, số tài khoản, nội dung)."""
+    try:
+        ma_qr(tk, tien, noi_dung)
+    except ValueError as e:
+        return str(e)
+    return 'Không vẽ được mã QR. Vui lòng nhờ nhân viên kiểm tra thư viện tạo ảnh.'
+
+
 def anh(chuoi_qr):
     """pyqrcode đã có trong Frappe; SVG không cần thêm gói PNG hay mạng."""
     import pyqrcode

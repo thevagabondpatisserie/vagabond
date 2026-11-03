@@ -1,0 +1,100 @@
+/* v630 (anh Việt duyệt mẫu 3, 02/11/2026): trang đặt bàn kiểu Rocca.
+   Máy tính hai cột: ảnh cửa hàng bên trái (dính khi cuộn), bốn bước bên phải.
+   Điện thoại (<= 700px): ảnh thành dải trên cùng, bốn bước xếp dọc, thanh tóm tắt
+   và nút gửi dính đáy.
+   thanh-vien.css dùng chung cho trang Thành viên (bài học v621): mọi quy tắc ở đây
+   nằm dưới main.db, không đổi quy tắc chung. Chữ tối thiểu 13px, vùng bấm 44px. */
+.trang-dich-vu main.db{max-width:1240px;margin:0 auto;padding:0;display:grid;grid-template-columns:minmax(320px,400px) minmax(0,1fr);min-height:calc(100vh - 64px)}
+.trang-dich-vu .db .db-anh{position:sticky;top:64px;height:calc(100vh - 64px);min-height:520px;display:flex;align-items:flex-end;background:#111 url("/assets/vagabond/images/quay-tcv.jpg") center/cover no-repeat}
+.trang-dich-vu .db .db-anh::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.55) 45%,rgba(0,0,0,.94) 78%)}
+.trang-dich-vu .db .db-anh-chu{position:relative;z-index:1;padding:28px 28px 32px;width:100%}
+.trang-dich-vu .db .nhan{font-size:13px;letter-spacing:.14em}
+.trang-dich-vu .db .h1{font-size:clamp(36px,4.2vw,52px);line-height:.98;margin:8px 0 6px}
+.trang-dich-vu .db .db-co-so{font:italic 20px var(--serif);color:var(--paper);opacity:.92;margin-bottom:10px}
+.trang-dich-vu .db .db-co-so:empty{display:none}
+.trang-dich-vu .db .db-mo{font:14px var(--sans);color:var(--fog);line-height:1.6;margin-top:6px}
+.trang-dich-vu .db .db-mo b{color:var(--paper);font-weight:500}
+.trang-dich-vu .db .db-cham{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--cyan-bright);box-shadow:0 0 10px var(--cyan-bright);margin-right:8px;vertical-align:1px}
+.trang-dich-vu .db .db-mo.db-dong .db-cham{background:var(--fog-2);box-shadow:none}
+.trang-dich-vu .db .db-dia-chi{font:14px var(--sans);color:var(--fog);line-height:1.6;margin-top:4px}
+.trang-dich-vu .db .db-lien{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.trang-dich-vu .db .db-lien a{min-height:44px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--line);font:13px var(--sans);color:var(--paper);background:rgba(0,0,0,.35)}
+.trang-dich-vu .db .db-lien a:hover{border-color:var(--cyan)}
+.trang-dich-vu .db .db-phai{padding:24px 40px 56px;min-width:0}
+.trang-dich-vu .db .thong-bao{padding:4px 0 12px;font-size:14px}
+.trang-dich-vu .db .db-form{display:block}
+/* Đầu bước: số cyan, tên bước chữ hoa giãn, đường kẻ. */
+.trang-dich-vu .db .db-buoc{display:flex;align-items:baseline;gap:12px;margin:30px 0 12px}
+.trang-dich-vu .db .db-form>.db-buoc:first-child{margin-top:6px}
+.trang-dich-vu .db .db-so{font:13px var(--sans);letter-spacing:.18em;color:var(--cyan)}
+.trang-dich-vu .db .db-buoc h2{font:500 13px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--paper);line-height:1.4}
+.trang-dich-vu .db .db-buoc i{flex:1;height:1px;background:var(--line-2)}
+/* Nút chung trong form: bỏ nền cyan của thanh-vien.css, chọn thì viền và chữ cyan. */
+.trang-dich-vu .db .db-form button{font-family:var(--sans);color:var(--fog);background:transparent;border:1px solid var(--line);min-height:44px;padding:0 14px;font-size:14px;line-height:1.3}
+.trang-dich-vu .db .db-form button[aria-pressed=true],.trang-dich-vu .db .db-form button[aria-expanded=true]{background:rgba(41,189,179,.08);color:var(--cyan-bright);border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+.trang-dich-vu .db .db-form button[data-het]{opacity:.32;cursor:not-allowed}
+.trang-dich-vu .db .db-form button:disabled{cursor:not-allowed}
+/* 01 Dải ngày cuộn ngang trong khung, trang không cuộn ngang. */
+.trang-dich-vu .db .db-ngay{display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 2px 6px;margin:0 -2px;scrollbar-width:thin}
+.trang-dich-vu .db .db-ngay button{flex:0 0 64px;min-height:72px;padding:6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;scroll-snap-align:start}
+.trang-dich-vu .db .db-ngay small{font-size:13px;color:var(--fog-2);line-height:1.3;white-space:nowrap}
+.trang-dich-vu .db .db-ngay b{font-size:20px;font-weight:600;color:var(--paper);line-height:1.2}
+.trang-dich-vu .db .db-ngay span{font-size:13px;color:var(--fog-2);line-height:1.3;min-height:17px}
+.trang-dich-vu .db .db-ngay button[aria-pressed=true] small,.trang-dich-vu .db .db-ngay button[aria-pressed=true] b,.trang-dich-vu .db .db-ngay button[aria-pressed=true] span{color:var(--cyan-bright)}
+.trang-dich-vu .db .db-khach{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin-top:14px}
+.trang-dich-vu .db .db-nhan{font:14px var(--sans);color:var(--fog)}
+.trang-dich-vu .db .db-dem{display:inline-flex;align-items:center;border:1px solid var(--line)}
+.trang-dich-vu .db .db-dem button{border:0;width:48px;min-height:48px;padding:0;font-size:20px;color:var(--paper)}
+.trang-dich-vu .db .db-dem input{width:56px;min-height:48px;margin:0;padding:0;border:0;background:transparent;text-align:center;font:600 18px var(--sans);-moz-appearance:textfield;appearance:textfield}
+.trang-dich-vu .db .db-dem input::-webkit-outer-spin-button,.trang-dich-vu .db .db-dem input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.trang-dich-vu .db .db-goi-tiec{font:13px var(--sans);color:var(--fog-2);line-height:1.45}
+.trang-dich-vu .db .db-goi-tiec.db-cham-tran{color:var(--amber)}
+/* 02 Giờ theo buổi. */
+.trang-dich-vu .db .db-gio-nhom{display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px;margin-top:8px;align-items:start}
+.trang-dich-vu .db .db-gio-ten{font:13px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--fog-2);padding-top:12px}
+.trang-dich-vu .db .db-gio-ds{display:flex;flex-wrap:wrap;gap:6px}
+.trang-dich-vu .db .db-gio-ds button{min-width:66px;padding:0 10px}
+.trang-dich-vu .db .db-gio-ds button[data-het]{text-decoration:line-through}
+/* 03 Khu vực là thẻ, dịp là chip. */
+.trang-dich-vu .db .db-khu{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.trang-dich-vu .db .db-khu button{min-height:64px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.trang-dich-vu .db .db-khu b{font-size:15px;font-weight:600;color:var(--paper)}
+.trang-dich-vu .db .db-khu span{font-size:13px;color:var(--fog);line-height:1.4}
+.trang-dich-vu .db .db-khu button[aria-pressed=true] b{color:var(--cyan-bright)}
+.trang-dich-vu .db .db-chip{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.trang-dich-vu .db .db-phu{font:13px var(--sans);color:var(--fog);line-height:1.55;margin-top:16px}
+/* 04 Liên hệ. */
+.trang-dich-vu .db .db-hai{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.trang-dich-vu .db label{margin:12px 0 4px;font:14px var(--sans);color:var(--fog)}
+.trang-dich-vu .db textarea{min-height:84px}
+.trang-dich-vu .db .db-them{margin-top:14px}
+.trang-dich-vu .db .db-mo-them{margin-top:4px}
+/* Tóm tắt và nút gửi. */
+.trang-dich-vu .db .db-chot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line-2)}
+.trang-dich-vu .db .db-tom{min-width:0;flex:1}
+.trang-dich-vu .db .db-tom-dai{font:600 16px var(--sans);color:var(--paper);line-height:1.45}
+.trang-dich-vu .db .db-tom-ngan{display:none}
+.trang-dich-vu .db .db-chot button#gui{flex:none;min-height:52px;padding:0 26px;background:var(--cyan);border:1px solid var(--cyan);color:#00201D;font:700 13px var(--sans);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;box-shadow:none}
+.trang-dich-vu .db .db-chot button#gui:hover{background:var(--cyan-bright)}
+.trang-dich-vu .db .db-ho-tro{font:14px var(--sans);color:var(--fog);margin-top:22px}
+.trang-dich-vu .db .db-ho-tro a{color:var(--paper);text-decoration:underline;text-underline-offset:3px;display:inline-flex;align-items:center;min-height:44px}
+@media(max-width:700px){
+  .trang-dich-vu main.db{display:block;min-height:0}
+  .trang-dich-vu .db .db-anh{position:relative;top:0;height:auto;min-height:230px;background-position:center 40%}
+  .trang-dich-vu .db .db-anh-chu{padding:84px 16px 16px}
+  .trang-dich-vu .db .h1{font-size:34px}
+  .trang-dich-vu .db .db-co-so{font-size:17px;margin-bottom:4px}
+  .trang-dich-vu .db .db-phai{padding:8px 16px 24px}
+  .trang-dich-vu .db .db-ngay button{flex-basis:56px}
+  .trang-dich-vu .db .db-gio-nhom{grid-template-columns:1fr;gap:4px}
+  .trang-dich-vu .db .db-gio-ten{padding-top:4px}
+  .trang-dich-vu .db .db-gio-ds button{flex:1 0 64px;max-width:96px}
+  .trang-dich-vu .db .db-khu{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .trang-dich-vu .db .db-hai{grid-template-columns:1fr}
+  .trang-dich-vu .db .db-chot{position:sticky;bottom:0;z-index:30;margin:20px -16px 0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(10,10,10,.96);border-top:1px solid var(--line);gap:12px}
+  .trang-dich-vu .db .db-tom-dai{display:none}
+  .trang-dich-vu .db .db-tom-ngan{display:block;font:13px var(--sans);color:var(--fog);line-height:1.4}
+  .trang-dich-vu .db .db-tom-ngan b{display:block;font-size:15px;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trang-dich-vu .db .db-tom-ngan span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trang-dich-vu .db .db-chot button#gui{padding:0 14px;letter-spacing:.06em;max-width:58%;overflow:hidden;text-overflow:ellipsis}
+}

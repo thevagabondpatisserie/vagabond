@@ -24,9 +24,9 @@ from vagabond.cong_no import (
 	TEN_NGAN_HANG_DAY_DU,
 	_chu_so_tien,
 	_ngay_vn,
-	_qr_data_uri,
 	_tien_vn,
 )
+from vagabond.qr_chuyen_khoan import anh_qr as _qr_data_uri
 
 DT = "Bao Gia Ban Hang"
 DT_TV = "Bao Gia Thu Vien"

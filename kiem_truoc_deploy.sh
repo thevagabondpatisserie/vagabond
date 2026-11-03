@@ -260,11 +260,23 @@ node vagabond/khung/kiem_thu/hanh_vi/gia_von_tam_482.js
 node vagabond/khung/kiem_thu/hanh_vi/doi_soat_ck_610.js
 # v611: man Thong tin dat ban (57-dat-ban.js that): loc, tim, Xac nhan, Huy, Khach da den.
 node vagabond/khung/kiem_thu/hanh_vi/dat_ban_611.js
+# v630: trang khach Dat ban kieu moi (www/dat-ban.html + dat-ban.js that): dai ngay, so khach, gio da qua, than gui.
+node vagabond/khung/kiem_thu/hanh_vi/dat_ban_630.js
 node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_622.js
 node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_625.js
 node vagabond/khung/kiem_thu/hanh_vi/ung_tuyen_625.js
 node vagabond/khung/kiem_thu/hanh_vi/bien_tap_cau_hoi_625.js
 node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_vue_625.mjs
+# v630: chan trang web dat banh ban Vue (chan-trang.js that, mount bang Vue that): mang xa hoi, cua hang, muc gap tren dien thoai, mien phi giao, chinh sach.
+node vagabond/khung/kiem_thu/hanh_vi/chan_trang_630.mjs
+# v630: banh thiet ke rieng. Tab Vue (thiet-ke-rieng.js that, Vue that): danh sach, size, dat coc, QR, hoi trang thai.
+node vagabond/khung/kiem_thu/hanh_vi/thiet_ke_rieng_630.mjs
+# v630: man Don dat truoc (63-don-dat-truoc.js that): thu tien mat, QR, ghi so, giao banh, huy.
+node vagabond/khung/kiem_thu/hanh_vi/don_dat_truoc_630.js
+# v630: banh si. Trang /banh-si Vue (si/app.js, si/kho-si.js that, Vue that): dang ky khong hien gia, dang nhap Zalo, dat, dat lai, QR, cong no.
+node vagabond/khung/kiem_thu/hanh_vi/banh_si_630.mjs
+# v630: man Don si web va Khach si web (64-banh-si.js that): giao hang, kiem tien, ghi so, huy, duyet, gia rieng, bep khong thay tien.
+node vagabond/khung/kiem_thu/hanh_vi/banh_si_app_630.js
 # v614: phan he Khach hang (58-crm.js that): hoi dong y o quay, danh sach goi, chien dich, hieu qua.
 node vagabond/khung/kiem_thu/hanh_vi/crm_614.js
 node vagabond/khung/kiem_thu/hanh_vi/goi_xe_greensm_612.js

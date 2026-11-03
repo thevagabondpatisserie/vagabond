@@ -152,3 +152,7 @@ body.bt-che-do-moi header a{color:#fff}
 @media(max-width:600px){.bt-dong-cau .bt-hang-nut{width:100%}}
 /* v630: ảnh thẻ vị trí tuyển dụng, đổi ngay trong danh sách. */
 .bt-anh-vi-tri{gap:8px}.bt-anh-vi-tri .bt-goi-y{font-size:13px}#bt-moi .bt-anh-vi-tri .bt-nut.nho{min-height:44px}
+/* v630: dòng size và trang trí của tác phẩm thiết kế riêng. */
+.bt-ds-dong{display:flex;flex-direction:column;gap:10px}
+.bt-dong-o{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;padding:10px;border:1px solid var(--bt-vien,#d0d5dd);border-radius:10px}
+.bt-dong-o .bt-nut{min-height:44px}

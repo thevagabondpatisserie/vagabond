@@ -22,13 +22,15 @@
   const THE = [
     {k: 'uu_dai', ten: 'Ưu đãi', mo: 'Lấy từ ERP, chỉ xem ở đây', them: '+ Thêm ưu đãi', luu: 'Lưu ưu đãi', ten_muc: 'ưu đãi', dau: 'Danh sách ưu đãi'},
     {k: 'tiec', ten: 'Tiệc', mo: 'Tạo tiệc, đặt giá vé, số vé, hạn đăng ký', them: '+ Thêm tiệc', luu: 'Lưu tiệc', ten_muc: 'tiệc', dau: 'Danh sách tiệc'},
+    /* v630 (anh Việt chốt 02/11/2026): bánh thiết kế riêng, khách cọc 50% trên web. */
+    {k: 'thiet_ke_rieng', ten: 'Thiết kế riêng', mo: 'Tác phẩm đặt riêng: size, giá gồm VAT, trang trí, số ngày đặt trước', them: '+ Thêm tác phẩm', luu: 'Lưu tác phẩm', ten_muc: 'tác phẩm', dau: 'Danh sách tác phẩm'},
     {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Lấy từ app ERP, đổi ảnh từng vị trí ở đây', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
     {k: 'cau_hoi', ten: 'Câu hỏi ứng tuyển', mo: 'Câu hỏi trong form ứng tuyển, phúc lợi chung'},
     {k: 'cua_hang', ten: 'Cửa hàng', mo: 'Địa chỉ, giờ mở cửa, hotline, chỉ đường', them: '+ Thêm cửa hàng', luu: 'Lưu cửa hàng', ten_muc: 'cửa hàng', dau: 'Danh sách cửa hàng'},
     {k: 'chu', ten: 'Trang và chữ', mo: 'Tiêu đề từng trang, khẩu hiệu, chân trang, câu nhắc'},
     {k: 'lien_he', ten: 'Liên hệ', mo: 'Điện thoại, email, mạng xã hội, công ty'},
   ];
-  const LOAI_MUC = ['uu_dai', 'tiec', 'tuyen_dung'];
+  const LOAI_MUC = ['uu_dai', 'tiec', 'tuyen_dung', 'thiet_ke_rieng'];
   const HINH_THUC = ['Toàn thời gian', 'Bán thời gian', 'Thời vụ'];
 
   let B = null;            // dữ liệu máy chủ (bang_moi): bản khách đang thấy
@@ -55,6 +57,7 @@
      chạy cùng một bảng mẫu cho hai bên). */
   function trangThai(k, hn) {
     const bd = k.bat_dau || '', kt = k.ket_thuc || '';
+    if (k.loai === 'thiet_ke_rieng') return ['dang', 'Đang nhận đặt'];
     if (k.loai === 'tiec') {
       if (bd && bd < hn) return ['het', 'Đã diễn ra'];
       const han = k.han_ban || bd;
@@ -76,6 +79,11 @@
       return [k.ma_uu_dai ? 'Mã ' + k.ma_uu_dai : '', +k.don_toi_thieu > 0 ? 'Đơn từ ' + tien(k.don_toi_thieu) : '',
         k.gio_bat_dau ? gio(k.gio_bat_dau) + ' - ' + gio(k.gio_ket_thuc) : '',
         k.bat_dau || k.ket_thuc ? [ngayVN(k.bat_dau), ngayVN(k.ket_thuc)].filter(Boolean).join(' - ') : 'không giới hạn ngày'].filter(Boolean).join(' · ');
+    }
+    if (k.loai === 'thiet_ke_rieng') {
+      const kc = k.kich_co || [];
+      return [kc.length ? kc.map(x => x.ten + ' ' + tien(x.gia)).join(', ') : 'Chưa có size', 'đặt trước ' + (k.so_ngay || 7) + ' ngày',
+        (k.trang_tri || []).length + ' trang trí'].join(' · ');
     }
     if (k.loai === 'tuyen_dung') {
       return [k.noi_lam || 'Chưa chọn nơi làm', k.hinh_thuc, k.ket_thuc ? 'hạn ' + ngayVN(k.ket_thuc) : 'tới khi đủ người'].filter(Boolean).join(' - ');
@@ -424,6 +432,8 @@
     const goc = {id: maMoi(loai), loai: loai, vi_tri: loai, hien: true, tieu_de: '', noi_dung: '', anh: '', mo_ta_anh: ''};
     if (loai === 'uu_dai') return Object.assign(goc, {nhom: '', ma_uu_dai: '', don_toi_thieu: '', bat_dau: homNay(), ket_thuc: '', gio_bat_dau: '', gio_ket_thuc: '', dieu_kien: ''});
     if (loai === 'tuyen_dung') return Object.assign(goc, {noi_lam: '', hinh_thuc: 'Toàn thời gian', ket_thuc: '', yeu_cau: '', email: (B.lien_he || {}).email || ''});
+    if (loai === 'thiet_ke_rieng') return Object.assign(goc, {nhan: '', yeu_cau: '', dieu_kien: 'Giá đã gồm VAT.', so_ngay: '7',
+      kich_co: [{ten: 'S', mo_ta: '', gia: ''}], trang_tri: []});
     return Object.assign(goc, {bat_dau: '', gio_bat_dau: '', gio_ket_thuc: '', dia_diem: '', gia_ve: '', so_ve: '', han_ban: '', yeu_cau: ''});
   }
   async function moForm(loai, k) {
@@ -457,6 +467,40 @@
     );
     return g;
   }
+  /* v630: danh sách dòng nhiều ô (size, trang trí của tác phẩm thiết kế riêng).
+     cot: [khoá, nhãn, gợi ý, là số]. Thêm, bỏ dòng tại chỗ, không mở hộp riêng. */
+  function dsDong(m, truong, cot, mau, nhanThem, toiDa, xem) {
+    const g = tao('div', 'bt-ds-dong'); g.dataset.dsDong = truong;
+    function ve() {
+      g.replaceChildren();
+      (m[truong] || []).forEach((d, i) => {
+        const hang = tao('div', 'bt-dong-o'); hang.dataset.dongO = truong + '-' + i;
+        cot.forEach(([k, nhan, goi, so]) => hang.append(o(nhan, d[k], v => { d[k] = v; xem(); }, {ten: truong + '_' + k + '_' + i, goi, so: !!so})));
+        const bo = tao('button', 'bt-nut chu-do nho', 'Bỏ dòng'); bo.type = 'button'; bo.dataset.boDong = truong + '-' + i;
+        bo.onclick = () => { m[truong].splice(i, 1); ve(); xem(); };
+        hang.append(bo); g.append(hang);
+      });
+      if ((m[truong] || []).length < toiDa) {
+        const them = tao('button', 'bt-nut vien', nhanThem); them.type = 'button'; them.dataset.themDong = truong;
+        them.onclick = () => { m[truong] = (m[truong] || []).concat([Object.assign({}, mau)]); ve(); xem(); };
+        g.append(them);
+      }
+    }
+    ve();
+    return g;
+  }
+  /* Kiểm sớm trên trình duyệt; máy chủ kiểm lại đủ (noi_dung_web.chuan_tkr). */
+  function loiTacPham(m) {
+    const kc = m.kich_co || [];
+    if (!kc.length) return 'Thêm ít nhất một size có giá.';
+    const ten = kc.map(x => String(x.ten || '').trim().toLowerCase());
+    if (ten.some(x => !x)) return 'Mỗi size cần có tên.';
+    if (new Set(ten).size !== ten.length) return 'Tên size bị trùng.';
+    if (kc.some(x => !(parseInt(String(x.gia).replace(/[^0-9]/g, ''), 10) > 0))) return 'Mỗi size cần giá gồm VAT lớn hơn 0.';
+    if (!(parseInt(m.so_ngay, 10) >= 7)) return 'Số ngày đặt trước tối thiểu là 7.';
+    if ((m.trang_tri || []).some(x => !String(x.ten || '').trim())) return 'Mỗi trang trí cần có tên.';
+    return '';
+  }
   function formMuc() {
     const loai = sua.loai, m = sua.muc, t = THE.find(x => x.k === loai);
     const khung = tao('section', 'bt-form-khung');
@@ -469,7 +513,8 @@
     let dkEl = null;
     const xem = () => {
       xemNoi.replaceChildren();
-      if (window.vgbTheMuc) xemNoi.append(window.vgbTheMuc(m, {homNay: homNay(), ve: B.ve, lienHe: B.lien_he, xemTruoc: true}));
+      if (m.loai === 'thiet_ke_rieng') xemNoi.append(tao('p', 'bt-tom-tat', m.tieu_de ? m.tieu_de + ': ' + moTa(m) : 'Điền tên và size để xem tóm tắt.'));
+      else if (window.vgbTheMuc) xemNoi.append(window.vgbTheMuc(m, {homNay: homNay(), ve: B.ve, lienHe: B.lien_he, xemTruoc: true}));
       if (dkEl) { const c = window.vgbDieuKienUuDai ? window.vgbDieuKienUuDai(m) : ''; dkEl.replaceChildren(tao('span', '', 'Khách sẽ thấy điều kiện: '), tao('b', '', c || 'Không có điều kiện, áp dụng cả ngày.')); }
     };
     const dat = truong => v => { m[truong] = v; xem(); };
@@ -484,6 +529,24 @@
         o('Yêu cầu và quyền lợi (không bắt buộc)', m.yeu_cau, dat('yeu_cau'), {nhieuDong: true, dong: 5, ten: 'yeu_cau', goi: 'Có kinh nghiệm làm bánh 1 năm trở lên\nĐược ăn bánh mỗi ngày', chu: 'Mỗi dòng một ý, web hiện thành danh sách.'}),
         o('Email nhận hồ sơ', m.email, dat('email'), {kieu: 'email', ten: 'email', goi: 'tuyendung@thevagabondpatisserie.com', chu: 'Ứng viên bấm Ứng tuyển là mở thư gửi về email này. Cần có email trước khi bật hiện.'}),
       );
+    } else if (loai === 'thiet_ke_rieng') {
+      f.append(
+        muc(1, 'Nội dung'),
+        o('Tên tác phẩm', m.tieu_de, dat('tieu_de'), {ten: 'tieu_de', goi: 'Croquembouche'}),
+        o('Mô tả ngắn trên thẻ', m.nhan, dat('nhan'), {ten: 'nhan', goi: 'Tháp choux caramel, hoa lan trắng.', chu: 'Một câu khách đọc ở danh sách tác phẩm.'}),
+        o('Câu chuyện', m.noi_dung, dat('noi_dung'), {nhieuDong: true, ten: 'noi_dung', chu: 'Vài câu về nguồn gốc, cách làm, dịp dùng.'}),
+        o('Bánh gồm gì (không bắt buộc)', m.yeu_cau, dat('yeu_cau'), {nhieuDong: true, dong: 4, ten: 'yeu_cau', goi: 'Hoa lan trắng tươi cắm trên tháp\nĐế nougatine caramel', chu: 'Mỗi dòng một ý, web hiện thành danh sách.'}),
+        muc(2, 'Size và giá đã gồm VAT'),
+        dsDong(m, 'kich_co', [['ten', 'Tên size', 'S'], ['mo_ta', 'Kích thước, số bánh', '35-40 cm, 110-120 bánh'], ['gia', 'Giá gồm VAT (đồng)', '5940000', true]],
+          {ten: '', mo_ta: '', gia: ''}, '+ Thêm size', 8, xem),
+        o('Ghi chú dưới size (không bắt buộc)', m.dieu_kien, dat('dieu_kien'), {ten: 'dieu_kien', goi: 'Chiều cao không tính bục trắng. Giá đã gồm VAT.'}),
+        muc(3, 'Trang trí'),
+        dsDong(m, 'trang_tri', [['ten', 'Tên trang trí', 'Hoa lan trắng'], ['gia_them', 'Giá cộng thêm (đồng)', '0', true], ['nhom', 'Nhóm (chọn một trong nhóm)', 'Hoa']],
+          {ten: '', gia_them: '0', nhom: ''}, '+ Thêm trang trí', 10, xem),
+        tao('p', 'bt-goi-y', 'Cùng nhóm thì khách chỉ chọn một, ví dụ nhóm Hoa: Hoa lan trắng, Hoa theo màu tiệc, Không hoa. Để trống nhóm là món thêm độc lập như Thêm bục trắng. Trang trí đầu mỗi nhóm được chọn sẵn.'),
+        muc(4, 'Đặt trước và cọc'),
+        o('Số ngày đặt trước tối thiểu', m.so_ngay, dat('so_ngay'), {so: true, ten: 'so_ngay', goi: '7', chu: 'Không dưới 7 ngày. Khách cọc 50% (làm tròn lên tới nghìn), trả phần còn lại khi nhận bánh.'}),
+        muc(5, 'Ảnh và hiển thị'), oAnh(m, xem));
     } else if (loai === 'uu_dai') {
       f.append(
         muc(1, 'Nội dung'),
@@ -540,6 +603,10 @@
       if (e && e.preventDefault) e.preventDefault();
       if (!m.tieu_de.trim()) { bao('Điền tên ' + t.ten_muc + ' trước khi lưu.', true); return; }
       if (loai === 'tiec' && m.hien && !m.bat_dau) { bao('Chọn ngày diễn ra tiệc trước khi bật hiện trên web.', true); return; }
+      if (loai === 'thiet_ke_rieng') {
+        const loiTkr = loiTacPham(m);
+        if (loiTkr) { bao(loiTkr, true); return; }
+      }
       if (Boolean(m.gio_bat_dau) !== Boolean(m.gio_ket_thuc)) { bao('Điền cả hai ô giờ, hoặc bỏ trống cả hai.', true); return; }
       const ok = await ghi('luu_muc', {muc: m, dau_cu: sua.dau}, 'Đã lưu ' + t.ten_muc + ' "' + m.tieu_de + '". ' + (m.hien ? (khachThay(m) ? 'Khách thấy ngay.' : 'Mục đã hết hạn nên khách chưa thấy.') : 'Đang ẩn, khách chưa thấy.'));
       if (ok) { sua = null; ve(); }
@@ -935,7 +1002,7 @@
   }
   /* v630: bảng Nâng cao mở thẳng một thẻ (khối Tuyển dụng cũ chỉ đường sang thẻ Tuyển dụng). */
   function moThe(k) { if (THE.some(x => x.k === k)) the = k; moNangCao(false); }
-  window.VgbBienTapMoi = {trangThai: trangThai, moTa: moTa, batDau: batDau, moThe: moThe};
+  window.VgbBienTapMoi = {trangThai: trangThai, moTa: moTa, batDau: batDau, moThe: moThe, loiTacPham: loiTacPham};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', batDau);
   else if ($('bt-moi')) batDau();
 }());

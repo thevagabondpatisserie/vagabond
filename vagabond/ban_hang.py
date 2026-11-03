@@ -2451,6 +2451,21 @@ def kiem_truoc_khi_luu(doc, method=None):
 		)
 
 	pt = (doc.get("vgb_pt_thanh_toan") or "").strip()
+	from vagabond.dat_banh import la_hoa_don_tra_truoc
+
+	if pt and la_hoa_don_tra_truoc(pt, [d.get("sales_order") for d in (doc.get("items") or [])]):
+		# v630: hoá đơn ngày giao của phiếu đặt (dat_banh, thiết kế riêng)
+		# mang "Trả trước" do MÁY đặt; phương thức này cố ý không hiện ở nguồn
+		# nào (quay: 0, online: 0) nên phép so nguồn luôn chặn nhầm nó.
+		return
+	if pt in ("Công nợ", "Trả trước") and str(doc.get("custom_pancake_id") or "").startswith("BSI-"):
+		from vagabond.banh_si import mien_so_nguon
+
+		if mien_so_nguon(doc):
+			# v630 bánh sỉ: hoá đơn ngày giao của đơn sỉ web (Công nợ hoặc Trả
+			# trước, nguồn "Khách sỉ") do MÁY lập từ phiếu giao của đúng phiếu
+			# đặt mang mã BSI; nguồn "Khách sỉ" ở quầy chỉ có Chuyển khoản, Tiền mặt.
+			return
 	if pt:
 		try:
 			hop_le = _pt_cho_nguon(nguon)

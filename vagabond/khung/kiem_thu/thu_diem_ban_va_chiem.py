@@ -336,8 +336,9 @@ def _():
 	import vagabond as goi
 	from vagabond import doi_soat_sepay as dss
 
-	la("sổ khai đủ ba mô đun", sorted(dss.MO_DUN_KHAI),
-		["cong_no", "de_nghi_chi", "hoan_tien"])
+	# v630: thêm luồng thiết kế riêng (phiếu thu cọc giữ dòng sao kê).
+	la("sổ khai đủ bốn mô đun", sorted(dss.MO_DUN_KHAI),
+		["cong_no", "de_nghi_chi", "hoan_tien", "thiet_ke_rieng"])
 
 	dss.nap_so()
 	giu_so = dict(dss._SO)

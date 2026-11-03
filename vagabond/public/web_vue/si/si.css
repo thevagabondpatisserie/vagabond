@@ -1,0 +1,69 @@
+/* v630 trang Bánh sỉ (/banh-si): cùng chữ, màu, đường kẻ của trang đặt bánh
+   (nen.css), bố cục theo mẫu m2 anh Việt duyệt 02/11/2026. */
+/* Hoạ tiết quỹ đạo làm nền cố định như trang đặt bánh (banh.css), nằm dưới nội dung. */
+.sky{position:fixed;inset:-10%;z-index:0;pointer-events:none;opacity:.6}
+.sky svg{width:100%;height:100%}
+.glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(56% 46% at 70% 26%,rgba(41,189,179,.11),transparent 66%)}
+.si{min-height:100vh;display:flex;flex-direction:column;position:relative;z-index:2}
+.si-hd{gap:12px}
+.si-nav{display:flex;gap:4px}
+.si-nav button,.si-dn-nut{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog);padding:12px 10px;min-height:44px}
+.si-nav button.on{color:var(--paper);box-shadow:inset 0 -1px 0 var(--cyan)}
+.si-dn-nut{border:1px solid var(--line);color:var(--paper)}
+.si-main{flex:1;padding-top:18px;padding-bottom:28px;max-width:720px}
+.meta{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--sans);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fog-2)}
+.si-h1{margin-top:10px;font-size:clamp(38px,10vw,64px);line-height:.98}
+.si-h1 em{display:block;font-family:var(--serif);font-style:italic;text-transform:none;color:var(--paper);font-size:clamp(18px,4.6vw,24px);opacity:.9;margin-top:6px;letter-spacing:0}
+.si-h1-nho{font-size:clamp(28px,7vw,44px)}
+.si-h1+.meta{margin-top:20px}
+.si-so{font-size:clamp(34px,9vw,52px)}
+.si-lbl{font-family:var(--sans);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--fog-2);margin-top:20px}
+.si-li{list-style:none;margin-top:6px}
+.si-li li{font-size:14px;color:var(--fog);margin-top:4px;padding-left:14px;position:relative}
+.si-li li::before{content:'·';position:absolute;left:2px;color:var(--cyan)}
+.si-the{border:1px solid var(--line-2);background:var(--card);padding:14px;margin-top:16px}
+.si-xong{border-color:var(--cyan)}
+.si-o{display:block;border:1px solid var(--line);padding:9px 12px;margin-top:8px;font-family:var(--sans)}
+.si-o small{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--fog-2);margin-bottom:3px}
+.si-o input,.si-o textarea{width:100%;background:transparent;border:none;color:var(--paper);font:inherit;font-size:16px;outline:none;min-height:28px;resize:vertical}
+.si-o:focus-within{border-color:var(--cyan)}
+.si-o-ngay{max-width:260px}
+.si-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.si-chip{border:1px solid var(--line);padding:9px 13px;min-height:44px;font-family:var(--sans);font-size:13px;color:var(--fog)}
+.si-chip.on{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+.si-btn{display:block;width:100%;text-align:center;background:var(--cyan);color:#00201D;padding:14px;min-height:48px;font-family:var(--sans);font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;margin-top:16px}
+.si-btn:disabled{opacity:.55}
+.si-btn2{display:block;width:100%;text-align:center;border:1px solid var(--line);color:var(--paper);padding:12px;min-height:46px;font-family:var(--sans);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:10px}
+.si-note{font-family:var(--sans);font-size:12.5px;color:var(--fog-2);margin-top:10px;line-height:1.55}
+.si-bao{color:var(--cyan)}
+.si-loi{font-family:var(--sans);font-size:13px;color:#ff9a8b;margin-top:10px}
+.si-tbl{width:100%;border-collapse:collapse;font-family:var(--sans);font-size:14px;margin-top:10px}
+.si-tbl td{padding:10px 4px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.si-tbl td.n{color:var(--paper)}
+.si-tbl td.n small{display:block;color:var(--fog-2);font-size:12px;margin-top:2px}
+.si-tbl td.n small.amber,.amber{color:var(--amber)}
+.si-tbl td.p{color:var(--cyan);text-align:right;white-space:nowrap}
+.si-tbl td.q{text-align:right;white-space:nowrap}
+.si-anh{width:52px}
+.si-anh img,.si-anh span{width:44px;height:44px;object-fit:cover;display:flex;align-items:center;justify-content:center;background:#141414}
+.si-qty{display:inline-flex;border:1px solid var(--line);align-items:center}
+.si-qty button{width:38px;height:44px;color:var(--fog);font-size:18px}
+.si-qty button:disabled{opacity:.35}
+.si-qty input{width:48px;height:44px;text-align:center;background:transparent;border:none;color:var(--paper);font:inherit;font-size:16px;font-weight:600}
+.si-sum{border-top:1px solid var(--line-2);margin-top:16px;padding-top:10px;font-family:var(--sans);font-size:13.5px}
+.si-sum div{display:flex;justify-content:space-between;gap:12px;margin-top:5px;color:var(--fog)}
+.si-sum .t{color:var(--paper)}
+.si-sum .t b{color:var(--cyan);font-size:17px}
+.si-tt{font-family:var(--sans);font-size:14px;padding:10px 12px;margin-top:14px;border:1px solid var(--line)}
+.si-tt.cho{border-color:var(--amber);color:var(--amber)}
+.si-tt.ok{border-color:var(--cyan);color:var(--cyan)}
+.si-qr{margin-top:14px}
+.si-qr img{background:#fff;padding:8px;margin:0 auto;width:220px;height:220px}
+.si-ck{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-family:var(--sans);font-size:13.5px;margin-top:10px}
+.si-ck dt{color:var(--fog-2)}
+.si-ck dd{color:var(--paper);word-break:break-word}
+.si-chan{font-family:var(--sans);font-size:12.5px;color:var(--fog-2);padding:18px 20px 28px;border-top:1px solid var(--line-2)}
+.si-chan a{color:var(--fog)}
+@media(min-width:900px){.si-main{padding-top:30px}}
+/* Codex #531 f4: nút mở lại QR trong dòng đơn chờ chuyển khoản, không kéo giãn cả hàng. */
+.si-tbl .si-btn2{display:inline-block;width:auto;margin:0;padding:8px 10px;min-height:44px;white-space:nowrap}

@@ -1,0 +1,138 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Dang Ky Si",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "modified": "2026-11-02 21:00:00.000000",
+ "field_order": [
+  "ten_quan",
+  "mst",
+  "sdt",
+  "loai_hinh",
+  "luong_tuan",
+  "ghi_chu",
+  "cb1",
+  "trang_thai",
+  "khach",
+  "nguoi_duyet",
+  "luc_duyet",
+  "xu_ly",
+  "bam_noi_dung"
+ ],
+ "fields": [
+  {
+   "fieldname": "ten_quan",
+   "fieldtype": "Data",
+   "label": "Tên quán hoặc công ty",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mst",
+   "fieldtype": "Data",
+   "label": "Mã số thuế",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "Số Zalo",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "loai_hinh",
+   "fieldtype": "Data",
+   "label": "Loại hình",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "luong_tuan",
+   "fieldtype": "Data",
+   "label": "Dự kiến mỗi tuần",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Khách ghi chú",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "options": "Chờ duyệt\nĐã duyệt\nTừ chối",
+   "default": "Chờ duyệt"
+  },
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "label": "Khách hàng đã gắn",
+   "options": "Customer",
+   "read_only": 1,
+   "description": "Sales duyệt ở app Bán hàng > Khách sỉ web: gắn khách có sẵn hoặc tạo khách mới nhóm Khách sỉ B2B."
+  },
+  {
+   "fieldname": "nguoi_duyet",
+   "fieldtype": "Link",
+   "label": "Người duyệt",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc_duyet",
+   "fieldtype": "Datetime",
+   "label": "Lúc duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xu_ly",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú xử lý"
+  },
+  {
+   "fieldname": "bam_noi_dung",
+   "fieldtype": "Data",
+   "label": "Dấu vết yêu cầu",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "report": 1
+  }
+ ],
+ "track_changes": 1,
+ "autoname": "prompt",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "title_field": "ten_quan",
+ "description": "Quán cà phê, khách sạn, nhà hàng đăng ký đặt bánh sỉ trên trang Bánh sỉ (v630). Sales gọi lại rồi duyệt ở app."
+}

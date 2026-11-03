@@ -115,6 +115,12 @@ MAN = (
 	("DSCK", "Đối soát chuyển khoản", "doi-soat-chuyen-khoan"),
 	# v611: đặt bàn khách gửi từ web (dat_ban.py, 57-dat-ban.js).
 	("DATBAN", "Thông tin đặt bàn", "thong-tin-dat-ban"),
+	# v630: bánh thiết kế riêng đặt và cọc trên web (thiet_ke_rieng.py, 63-don-dat-truoc.js).
+	("DDT", "Đơn đặt trước", None),
+	# v630: bánh sỉ trên web (banh_si.py, 64-banh-si.js): đơn sỉ theo ngày giao,
+	# và màn Sales duyệt đăng ký, bật công nợ, khai giá riêng từng khách.
+	("BSI", "Đơn sỉ web", None),
+	("BSIKH", "Khách sỉ web", None),
 	# v614 phân hệ Khách hàng (crm.py, 58-crm.js).
 	("CRMGOI", "Danh sách gọi của tôi", None),
 	("CRMNHOM", "Nhóm khách", None),
