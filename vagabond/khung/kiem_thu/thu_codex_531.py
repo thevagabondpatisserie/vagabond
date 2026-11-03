@@ -704,12 +704,23 @@ class _Ghi(object):
 			return [_fr._dict(name=x, vgb_gd_tkr=self.gd) for x in ["PE-9"] + self.khac]
 		if "`tabSales Order`" in q:
 			return [(a[0],)]
+		if "`tabBank Transaction`" in q and as_dict:
+			# Vòng 10: khoá dòng sao kê rồi đọc hiện tại chính dòng đó.
+			return [_fr._dict(dict(name=self.gd, docstatus=1, deposit=3780000, withdrawal=0, currency="VND",
+				unallocated_amount=3780000, bank_account="BA-MB", reference_number="FT" + self.gd), **getattr(self, "bt_hien", {}))]
 		return [(self.gd,)]
 
 
-def _ghi_so(mo_dun, so, anh, khac=()):
+def _ghi_so(mo_dun, so, anh, khac=(), chu=None, bt_hien=None):
+	from vagabond import doi_soat_sepay as dss
 	g = _Ghi(so, khac=khac)
-	ps = [mock.patch.object(_fr, "get_doc", g.get_doc), mock.patch.object(_fr.db, "count", g.count, create=True),
+	g.bt_hien = dict(bt_hien or {})  # bản đọc trong khoá khác ảnh chụp (get_value)
+	g.hoi_chu = []
+
+	def chu_gia(ds, **k):
+		g.hoi_chu.append((sorted(ds), k.get("bo_qua_phieu"), k.get("khoa")))
+		return {m: c for m, c in (chu or {}).items() if m in ds}
+	ps = [mock.patch.object(dss, "chu_cua_giao_dich", chu_gia), mock.patch.object(_fr, "get_doc", g.get_doc), mock.patch.object(_fr.db, "count", g.count, create=True),
 		mock.patch.object(_fr.db, "get_value", g.get_value), mock.patch.object(_fr.db, "sql", g.sql),
 		mock.patch.object(_fr, "get_roles", lambda *a, **k: ["Accounts User"]),
 		mock.patch.object(_fr, "parse_json", json.loads, create=True),
@@ -1761,3 +1772,249 @@ def _v9_loc_thuan():
 	dung_dc, loai = utd.loc_dong_sao_ke([dict(g, bank_account="BA-LA"), dict(g, name="BT-2")], ly_do_tk, so_cai)
 	la("lọc giữ dòng hợp lệ", [x["name"] for x in dung_dc], ["BT-2"])
 	la("lọc ghi lý do dòng bị loại", loai, [{"gd": "BT-1", "ly_do": "chưa được khớp"}])
+
+
+# ================================================== vòng 10: đọc HIỆN TẠI mọi nguồn chủ sau khoá dòng sao kê
+
+def _hop_loc(r, loc):
+	"""Điều kiện lọc kiểu Frappe trên một dòng (dict hoặc danh sách [ô, phép, giá trị])."""
+	ds = list(loc.items()) if isinstance(loc, dict) else [(x[-3], [x[-2], x[-1]]) for x in (loc or [])]
+	for o, v in ds:
+		x = r.get(o)
+		phep, gt = (v[0], v[1]) if isinstance(v, (list, tuple)) else ("=", v)
+		if phep == "in" and x not in gt:
+			return False
+		if phep == "not in" and x in gt:
+			return False
+		if phep == "is" and bool(x) != (gt == "set"):
+			return False
+		if phep == "!=" and x == gt:
+			return False
+		if phep == "<" and not (float(x or 0) < float(gt)):
+			return False
+		if phep == "=" and x != gt:
+			return False
+	return True
+
+
+class _MayChu10(_MayChu):
+	"""Thêm các bảng chủ (công nợ, đề nghị chi, hoàn tiền, phiếu nộp tiền, hồ sơ thanh toán)
+	với hai kiểu đọc: đọc thường thấy ảnh chụp, đọc có khoá thấy bản đã commit mới nhất."""
+
+	def __init__(self, bang=None, **k):
+		super(_MayChu10, self).__init__(**k)
+		self.bang = {dt: [dict(r) for r in ds] for dt, ds in (bang or {}).items()}
+
+	def _anh(self):
+		a = super(_MayChu10, self)._anh()
+		if "bang" not in a:
+			with self.cv:
+				a["bang"] = copy.deepcopy(self.bang)
+		return a
+
+	def _bang10(self, dt, hien_tai):
+		if dt == "Payment Entry":
+			return self._pe(hien_tai)
+		if dt == "Bank Transaction":
+			if hien_tai:
+				with self.cv:
+					return copy.deepcopy(self.bt)
+			return self._anh()["bt"]
+		if hien_tai:
+			with self.cv:
+				return copy.deepcopy(self.bang.get(dt, []))
+		return self._anh()["bang"].get(dt, [])
+
+	def _cua_chu(self, dt, loc):
+		return dt in self.bang or (dt == "Payment Entry" and isinstance(loc, dict) and "vgb_gd_tkr" in loc)
+
+	def get_all(self, dt, filters=None, fields=None, **k):
+		if not self._cua_chu(dt, filters):
+			return super(_MayChu10, self).get_all(dt, filters, fields, **k)
+		return [_fr._dict({f: r.get(f) for f in fields}) for r in self._bang10(dt, False) if _hop_loc(r, filters)]
+
+	def get_values(self, dt, filters=None, fieldname="name", ignore=False, as_dict=False, for_update=False, **k):
+		f = [fieldname] if isinstance(fieldname, str) else list(fieldname)
+		ra = [_fr._dict({x: r.get(x) for x in f}) for r in self._bang10(dt, for_update) if _hop_loc(r, filters)]
+		return ra if as_dict else [tuple(r[x] for x in f) for r in ra]
+
+	def get_value(self, dt, f=None, fields=None, as_dict=False, for_update=False, **k):
+		if dt == "Bank Transaction" and isinstance(f, str) and fields == "vgb_chu_bo_sao_ke":
+			if for_update:
+				self._khoa(("BT", f))
+			r = [g for g in self._bang10(dt, for_update) if g["name"] == f]
+			return r[0].get(fields) if r else None
+		return super(_MayChu10, self).get_value(dt, f, fields, as_dict, for_update, **k)
+
+	def sql(self, q, a=None, as_dict=False, **k):
+		if "`tabBank Transaction Payments`" in q:
+			ten = a[0] if isinstance(a, (list, tuple)) else a
+			return [_fr._dict(doctype=p["payment_document"], name=p["payment_entry"], tien=p["allocated_amount"])
+				for g in self._bang10("Bank Transaction", True) if g["name"] == ten for p in g.get("payment_entries") or []]
+		if "`tabVagabond Ho So TT Dong`" in q:
+			cha = {r["name"]: r for r in self._bang10("Vagabond Ho So TT", "for update" in q)}
+			return [_fr._dict(parent=d["parent"], ma_giao_dich=d["ma_giao_dich"])
+				for d in self._bang10("Vagabond Ho So TT Dong", "for update" in q)
+				if d["ma_giao_dich"] in a["ds"] and cha.get(d["parent"], {}).get("trang_thai") != "Tu choi"]
+		if "`tabVagabond Ho So TT`" in q:
+			return [_fr._dict(name=r["name"], ma_giao_dich=r["ma_giao_dich"])
+				for r in self._bang10("Vagabond Ho So TT", "for update" in q)
+				if r["ma_giao_dich"] in a["ds"] and r.get("trang_thai") != "Tu choi"]
+		return super(_MayChu10, self).sql(q, a, as_dict, **k)
+
+
+def _vao10(may):
+	"""Như `_vao` nhưng giữ THẬT `doi_soat_sepay.chu_cua_giao_dich` và sổ đối soát."""
+	ps = [p for p in _vao(may) if getattr(p, "attribute", "") != "chu_cua_giao_dich"]
+	return ps + [mock.patch.object(_fr.db, "get_values", may.get_values, create=True)]
+
+
+def _bo_giu(chu, ma, tien):
+	return json.dumps({chu: {"dong": [{"name": ma, "phan_bo": tien}], "chung_tu": []}})
+
+
+def _khop10(so, hoi, doi, bang=None, tien1=3780000):
+	"""BT-1 và BT-2 cùng mang mã đơn. Giữa lúc TÌM và lúc KHOÁ dòng sao kê, phiên
+	khác giữ BT-1 cho chứng từ của nó và commit (`doi(may)`)."""
+	ma = so.get("vgb_si_ma") or so.get("vgb_tkr_ma")
+	may = _MayChu10(so=[so], bt=[_bt9("BT-1", tien1, ma, ngay="2026-11-02"), _bt9("BT-2", 3780000, ma + " lan 2")],
+		bang=bang)
+	with _gan(_vao10(may)):
+		kn = may.chay("A", hoi, ("truoc_khoa:BT",))
+		may.cho_toi(lambda: kn.dang_dung == "truoc_khoa:BT" or kn.xong, "A sắp khoá dòng sao kê")
+		dung("A dừng trước khoá dòng sao kê", kn.dang_dung == "truoc_khoa:BT")
+		with may.cv:
+			doi(may)
+		may.tha(kn, "truoc_khoa:BT")
+		may.cho_toi(lambda: kn.xong, "khớp xong")
+	if kn.loi:
+		raise kn.loi
+	return _phieu_cua(may, so["name"])
+
+
+def _giu_bo(may):
+	may.bt[0]["vgb_chu_bo_sao_ke"] = _bo_giu("Vagabond Cong No/CN-0001", "BT-1", 3780000)
+
+
+def _giu_cn(may):
+	may.bang.setdefault("Vagabond Cong No", []).append({"name": "CN-0001", "ma_gd": "BT-1", "trang_thai": "Cho thu"})
+
+
+def _giu_cn_tham_chieu(may):
+	may.bang.setdefault("Vagabond Cong No", []).append({"name": "CN-0002", "ma_gd": "FT26 X\nFTBT-1", "trang_thai": "Thu thieu"})
+
+
+def _giu_ttnb(may):
+	may.bang.setdefault("Vagabond De Nghi Chi", []).append({"name": "TTNB-0001", "ma_gd": "BT-1", "trang_thai": "Hoan tat"})
+
+
+def _giu_hoan(may):
+	may.bang.setdefault("Vagabond Hoan Tien", []).append({"name": "HT-0001", "ma_gd": "BT-1", "trang_thai": "Cho chi"})
+
+
+def _giu_quy(may):
+	may.bang.setdefault("Vagabond Phieu Quy", []).append({"name": "PQ-0001", "gd_sepay": "BT-1", "trang_thai": "Đã nộp"})
+
+
+def _giu_app(may):
+	may.bang.setdefault("Vagabond Ho So TT", []).append({"name": "APP-0001", "ma_giao_dich": "BT-1", "trang_thai": "Cho ke toan"})
+
+
+def _giu_app_dong(may):
+	may.bang.setdefault("Vagabond Ho So TT", []).append({"name": "APP-0002", "ma_giao_dich": "", "trang_thai": "Da duyet"})
+	may.bang.setdefault("Vagabond Ho So TT Dong", []).append({"parent": "APP-0002", "ma_giao_dich": "BT-1"})
+
+
+def _giu_doi_chieu(may):
+	may.bt[0]["payment_entries"] = [{"payment_document": "Journal Entry", "payment_entry": "JV-0001",
+		"allocated_amount": 1000000}]
+
+
+def _giu_pe_khac(may):
+	may.pe.append({"_bang": "pe", "name": "PE-77", "docstatus": 0, "payment_type": "Receive", "paid_amount": 3780000.0,
+		"received_amount": 3780000.0, "vgb_gd_tkr": "BT-1", "vgb_phieu_dat": "SO-9", "mode_of_payment": "Chuyển khoản",
+		"vgb_quay": "SALES", "posting_date": "2026-11-02", "creation": "2026-11-02 10:00:00"})
+
+
+NGUON10 = (("bộ sao kê của phiếu công nợ", _giu_bo), ("phiếu công nợ (ô dòng sao kê)", _giu_cn),
+	("phiếu công nợ ghi mã tham chiếu", _giu_cn_tham_chieu), ("đề nghị chi, thanh toán nội bộ", _giu_ttnb),
+	("phiếu hoàn tiền", _giu_hoan), ("phiếu nộp tiền mặt vào ngân hàng", _giu_quy), ("hồ sơ thanh toán APP", _giu_app),
+	("dòng của hồ sơ thanh toán APP", _giu_app_dong), ("phần đã đối chiếu của dòng sao kê", _giu_doi_chieu),
+	("phiếu thu đơn đặt trước của đơn khác", _giu_pe_khac))
+
+
+@ca("Codex #531 v10: đơn sỉ, phiên khác giữ BT-1 cho chứng từ của nó giữa lúc tìm và lúc khoá: không lập phiếu cho BT-1, lập cho BT-2 (từng nguồn chủ)")
+def _v10_giu_giua_chung_bsi():
+	for ten, doi in NGUON10:
+		la(ten, _khop10(SO_BSI, _hoi_bsi, doi), [("BT-2", 3780000.0)])
+
+
+@ca("Codex #531 v10: đơn thiết kế riêng, phiên khác giữ dòng trả đủ 7.560.000 giữa lúc tìm và lúc khoá: lập phiếu cọc cho dòng còn lại (từng nguồn chủ)")
+def _v10_giu_giua_chung_tkr():
+	for ten, doi in NGUON10:
+		la(ten, _khop10(SO_TKR, _hoi_tkr, doi, tien1=7560000), [("BT-2", 3780000.0)])
+
+
+@ca("Codex #531 v10: chủ đã có từ trước (không đua) vẫn được thấy, dòng không chủ vẫn lập phiếu như cũ")
+def _v10_khong_dua():
+	for ten, doi in NGUON10:
+		la(ten, _khop10_san(SO_BSI, _hoi_bsi, doi), [("BT-2", 3780000.0)])
+	la("không ai giữ: dòng cũ nhất được lập", _khop10(SO_BSI, _hoi_bsi, lambda m: None), [("BT-1", 3780000.0)])
+
+
+def _khop10_san(so, hoi, doi):
+	ma = so.get("vgb_si_ma") or so.get("vgb_tkr_ma")
+	may = _MayChu10(so=[so], bt=[_bt9("BT-1", 3780000, ma, ngay="2026-11-02"), _bt9("BT-2", 3780000, ma + " lan 2")])
+	doi(may)
+	with _gan(_vao10(may)):
+		kn = may.chay("A", hoi)
+		may.cho_toi(lambda: kn.xong, "khớp xong")
+	if kn.loi:
+		raise kn.loi
+	return _phieu_cua(may, so["name"])
+
+
+@ca("Codex #531 v10: đọc chủ có khoá mà lỗi (khoá chờ quá hạn, deadlock) ở BẤT KỲ nguồn nào thì ném, không nuốt rồi lập phiếu cho dòng chưa rõ chủ")
+def _v10_loi_khong_nuot():
+	from vagabond import doi_soat_sepay as dss
+
+	class LoiKhoa(Exception):
+		pass
+
+	dss.nap_so()
+	nguon = sorted({b["doctype"] for b in dss._SO.values()}) + ["Vagabond Phieu Quy", "Sales Invoice"]
+	dung("sổ có đủ các luồng chủ", {"Vagabond Cong No", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Payment Entry"} <= set(nguon))
+	for dt in nguon:
+		def hong(dt_, *a, **k):
+			if dt_ == dt:
+				raise LoiKhoa("(1205, 'Lock wait timeout exceeded') " + dt)
+			return []
+		with mock.patch.object(_fr.db, "get_values", hong, create=True), \
+				mock.patch.object(_fr.db, "get_value", lambda *a, **k: None), \
+				mock.patch.object(_fr.db, "sql", lambda *a, **k: []), mock.patch.object(_fr, "get_all", hong), \
+				mock.patch.object(_fr, "log_error", lambda *a, **k: None):
+			try:
+				dss.chu_cua_giao_dich(["BT-1"], khoa=True)
+				loi = ""
+			except LoiKhoa as e:
+				loi = str(e)
+			la(dt + ", có khoá: ném lỗi", loi, "(1205, 'Lock wait timeout exceeded') " + dt)
+			la(dt + ", cửa cũ không khoá: giữ hành vi cũ (bỏ qua nguồn lỗi)", dss.chu_cua_giao_dich(["BT-1"]), {})
+
+
+@ca("Codex #531 v10: kế toán ghi sổ phiếu thu: hỏi chủ dòng sao kê có khoá, trừ chính phiếu; dòng đã thuộc chứng từ khác thì không ghi sổ")
+def _v10_ghi_so_hoi_chu():
+	g, loi = _ghi_so(tkr, "SO-1", [{"ten": "gbc.jpg", "noi_dung": PDF}], chu={"BT-7": "bộ sao kê CN-0001"})
+	dung("chặn và nêu chủ", loi is not None and "CN-0001" in str(loi))
+	la("không ghi sổ", g.da_ghi, [])
+	la("hỏi theo tên dòng và mã tham chiếu, trừ chính phiếu, có khoá", g.hoi_chu[-1], (["BT-7", "FTBT-7"], "PE-9", True))
+	g, loi = _ghi_so(bs, "SO-2", [{"ten": "gbc.jpg", "noi_dung": PDF}], chu={"FTBT-7": "phiếu công nợ CN-0002"})
+	dung("mã tham chiếu cũng chặn", loi is not None and "CN-0002" in str(loi))
+
+
+@ca("Codex #531 v10: dòng sao kê bị huỷ sau lúc đọc ảnh chụp: kế toán ghi sổ thì phép kiểm dùng bản đọc trong khoá, không ghi sổ")
+def _v10_ghi_so_doc_trong_khoa():
+	for mo_dun, so in ((tkr, "SO-1"), (bs, "SO-2")):
+		g, loi = _ghi_so(mo_dun, so, [{"ten": "gbc.jpg", "noi_dung": PDF}], bt_hien={"docstatus": 2})
+		dung(so + ": chặn vì dòng sao kê không còn hợp lệ", loi is not None and "không còn hợp lệ" in str(loi))
+		la(so + ": không ghi sổ", g.da_ghi, [])
