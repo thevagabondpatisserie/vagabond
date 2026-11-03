@@ -176,3 +176,42 @@ def _tra_bot_cho_khac():
 				fields=["content"], limit_page_length=0)))
 		la("gọi lại không đổi số", _goi_ipn(_ket_qua(ma, 800000)), op.DAP_IPN_OK)
 		la("vẫn 500.000", flt(frappe.db.get_value("Vagabond Cong No", p.name, "da_thu")), 500000.0)
+
+
+@ca("Codex #534 vòng 2: mọi hoá đơn đã được trả đủ ở chỗ khác rồi khách mới trả thẻ: IPN xác nhận, không lập phiếu thu OnePay, toàn bộ tiền thẻ báo dư")
+def _het_no_cho_khac():
+	cty, tk, _mau = _nen()
+	ba = _tai_khoan_cong_ty_moi(_tk_ngan_hang(cty)).name
+	acc = frappe.db.get_value("Bank Account", ba, "account")
+	_pt_onepay(cty, acc)
+	_bat_onepay()
+	kh = _khach("OnePay3")
+	ds = [_hd(tk, cty, 400000, kh) for _i in range(2)]
+	ma_phieu = "DNTT-99-12-%05d" % random.randint(0, 99999)
+	p = _phieu(ds, kh, ma_phieu=ma_phieu)
+	ma_ngan = ma_phieu.replace("-", "")
+
+	def _dinh(pe):
+		frappe.get_doc({"doctype": "File", "file_name": "kt534b-%s.txt" % pe.name, "content": "Giấy báo Có thử",
+			"is_private": 1, "attached_to_doctype": "Payment Entry", "attached_to_name": pe.name}).insert(ignore_permissions=True)
+
+	with patch.object(tt, "xep_gui_thu", lambda *a, **kw: None):
+		truoc = frappe.session.user
+		try:
+			frappe.set_user("Guest")
+			op.tao_gd(ma_ngan, op.khoa_phieu(ma_phieu))
+		finally:
+			frappe.set_user(truoc)
+		ma = op.doc_nhat_ky(frappe.db.get_value("Vagabond Cong No", p.name, "onepay_gd"))[0]["ma"]
+		ngoai = []
+		for s in ds:
+			ngoai += tt.ghi_thu_tien(s.name, [{"pt": op.PT, "so_tien": 400000}], nguon="kt534b-ngoai", dinh=_dinh)
+		for t in ngoai:
+			_DA_TAO.append(("Payment Entry", t))
+		la("IPN thành công vẫn được xác nhận", _goi_ipn(_ket_qua(ma, 800000)), op.DAP_IPN_OK)
+		la("không lập phiếu thu OnePay nào", [t for t in _pe_cua(ds, 1) if t not in ngoai], [])
+		g = op.doc_nhat_ky(frappe.db.get_value("Vagabond Cong No", p.name, "onepay_gd"))[0]
+		la("nhật ký: đã ghi 0 đ, dư 800.000", (g["trang_thai"], flt(g["so_ghi"]), flt(g["du"])), ("da_ghi", 0.0, 800000.0))
+		dung("ghi chú báo phần dư 800.000 đ", any("phần dư 800.000 đ" in (c.content or "") for c in
+			frappe.get_all("Comment", filters={"reference_doctype": "Vagabond Cong No", "reference_name": p.name},
+				fields=["content"], limit_page_length=0)))
