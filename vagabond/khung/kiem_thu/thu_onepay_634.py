@@ -157,3 +157,33 @@ def _ipn_chua_khoa():
 	dung("không phải câu xác nhận", op.DAP_IPN_CHUA_KHOA.startswith("responsecode=0"))
 	with patch.dict(sys.modules, {"werkzeug.wrappers": wz}), patch.object(op, "cau_hinh", return_value=C):
 		la("có khoá, chữ ký giả", op.ipn(vpc_MerchTxnRef="X-1", vpc_SecureHash="AA").chu, op.DAP_IPN_SAI)
+
+
+@ca("Codex #535: phản hồi lạ ghi Error Log không lộ trọn giá trị bí mật: JSON có dấu phẩy, khoảng trắng, HTML input, k=v có cách; giá trị bí mật đã biết bị xoá ở mọi chỗ")
+def _che_bi_mat():
+	bm = ("alpha,beta", "op01", "ABCD1234", KHOA)
+	ca_thu = [
+		('{"vpc_Password": "alpha,beta", "vpc_DRExists": ""}', "alpha"),
+		('{"vpc_Password":"a b c","vpc_User":"op01"}', "a b c"),
+		('<input name="vpc_Password" value="alpha-beta">', "alpha-beta"),
+		("<input type=hidden name='vpc_AccessCode' value='ABCD1234'>", "ABCD1234"),
+		("vpc_Password = alpha beta&x=1", "beta"),
+		("vpc_User=op01&vpc_Password=mk&vpc_SecureHash=AB12&ok=1", "AB12"),
+		("<p>Lỗi xác thực op01 / alpha,beta</p>", "alpha,beta"),
+	]
+	for chuoi, khong_duoc_con in ca_thu:
+		ra = op.tom_tat_phan_hoi(chuoi, bi_mat=bm)
+		dung("che hết '%s' trong %s" % (khong_duoc_con, chuoi[:40]), khong_duoc_con not in ra and "op01" not in ra)
+	la("phần không bí mật giữ nguyên để đọc lỗi", op.tom_tat_phan_hoi("vpc_DRExists=&loi=sai-tham-so"), "vpc_DRExists=&loi=sai-tham-so")
+
+	# Đi đúng đường thật: tra_cuu ném lỗi chứa phản hồi đã che.
+	rq = _Req(post=_Dap(200, '<form><input name="vpc_Password" value="mk-bi-mat"></form>'),
+		get=_Dap(200, '<p>Sai mật khẩu mk-bi-mat cho tài khoản op01</p>'))
+	loi = ""
+	with patch.object(op, "requests", rq), patch.object(op, "cau_hinh", return_value=C):
+		try:
+			op.tra_cuu("DNTT260900014-2")
+		except ValueError as e:
+			loi = str(e)
+	# Ca GET là chữ tự do: chỉ lớp xoá giá trị đã biết che được (lớp mẫu ô không bắt).
+	dung("lỗi thật không chứa mật khẩu, tài khoản", bool(loi) and "mk-bi-mat" not in loi and "op01" not in loi)
