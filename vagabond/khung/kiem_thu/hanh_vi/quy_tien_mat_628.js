@@ -227,7 +227,7 @@ function goiDuong(m) { return m.goi.map(function (x) { return x.duong; }); }
     var g = m.goi.filter(function (x) { return x.duong === 'vagabond.quy_tien_mat.chot_dau'; });
     bang('gửi một lần, đúng bảng và ghi chú', g.map(function (x) { return [JSON.parse(x.ts.bang), x.ts.ghi_chu]; }),
       [[{ '500000': '80', '50000': '2' }, 'đếm đầu ngày']]);
-    dung('báo ngày tính quỹ rồi quay lại', m.toast.some(function (t) { return t.indexOf('tính từ cuối ngày 01/11/2026') >= 0; }) && m.dieuHuong.indexOf('back') >= 0);
+    dung('báo đã chốt đúng số đếm rồi quay lại', m.toast.some(function (t) { return t.indexOf('Đã chốt quỹ 40') === 0; }) && m.dieuHuong.indexOf('back') >= 0);
   });
 
   await ca('v635 quỹ trống: gõ 0 tờ vẫn chốt được 0 đồng', async function () {
