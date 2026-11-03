@@ -1151,9 +1151,13 @@ def cai_dat():
 def luu_moc(nguon=None, ngay_chot=None, so_du=None, ghi_chu=""):
 	"""Thêm một mốc chốt số dư. Không sửa mốc cũ: chốt lại là thêm mốc mới."""
 	_kiem()
+	return {"ok": 1, "name": ghi_moc(nguon, doc_ngay(ngay_chot), doc_so_tien(so_du), ghi_chu)}
+
+
+def ghi_moc(nguon, ngay, so, ghi_chu=""):
+	"""Lưu một mốc chốt đã đọc sẵn ngày và số. MỘT cửa ghi mốc cho Cài đặt tài chính và
+	nút chốt số dư đầu trên màn Quỹ tiền mặt (v635); người gọi tự kiểm quyền."""
 	nguon_ds = {n["nguon"]: n for n in _cac_nguon({})}
-	ngay = doc_ngay(ngay_chot)
-	so = doc_so_tien(so_du)
 	loi = kiem_moc(nguon, ngay, so, nguon_ds, getdate(nowdate()))
 	if loi:
 		frappe.throw(loi)
@@ -1162,7 +1166,7 @@ def luu_moc(nguon=None, ngay_chot=None, so_du=None, ghi_chu=""):
 		"ngay_chot": str(ngay), "so_du": so, "ghi_chu": chuoi(ghi_chu)[:500],
 		"nguoi": frappe.session.user, "luc": now_datetime()})
 	doc.insert(ignore_permissions=True)
-	return {"ok": 1, "name": doc.name}
+	return doc.name
 
 
 @frappe.whitelist(methods=["POST"])
