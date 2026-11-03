@@ -253,10 +253,26 @@ def doc_tra_cuu(chuoi):
 	return dict(parse_qsl(s, keep_blank_values=True))
 
 
-def tom_tat_phan_hoi(chuoi, toi_da=300):
-	"""Cắt ngắn phản hồi lạ để ghi Error Log, che mọi ô mật khẩu, người dùng,
-	chữ ký. THUẦN."""
-	s = re.sub(r"(?i)(vpc_(?:password|user|securehash|accesscode)\W{0,3}[=:]\W{0,2})[^&\s\"',}]*", r"\1***", str(chuoi or ""))
+O_BI_MAT = ("vpc_password", "vpc_user", "vpc_securehash", "vpc_accesscode")
+
+
+def tom_tat_phan_hoi(chuoi, toi_da=300, bi_mat=()):
+	"""Cắt ngắn phản hồi lạ để ghi Error Log mà không lộ bí mật. THUẦN.
+
+	Hai lớp (Codex #535): (1) xoá NGUYÊN VĂN mọi giá trị bí mật đã biết
+	(mật khẩu, tài khoản, access code, hash code) ở bất cứ đâu trong chuỗi, kể
+	cả trong HTML; (2) che trọn giá trị của các ô bí mật dạng k=v, JSON có
+	ngoặc kép (kể cả có dấu phẩy, khoảng trắng), thuộc tính HTML value=."""
+	s = str(chuoi or "")
+	for v in sorted({str(x) for x in (bi_mat or ()) if x and len(str(x)) >= 3}, key=len, reverse=True):
+		s = s.replace(v, "***")
+	ten = "|".join(O_BI_MAT)
+	# JSON / thuộc tính có ngoặc: "vpc_Password": "a, b"  hoặc  vpc_Password='a b'
+	s = re.sub(r'(?i)(["\']?(?:%s)["\']?\s*[:=]\s*)("[^"]*"|\'[^\']*\')' % ten, r'\1"***"', s)
+	# k=v trần: tới & hoặc hết dòng
+	s = re.sub(r"(?i)((?:%s)\s*=\s*)(?![\"'])[^&\r\n]*" % ten, r"\1***", s)
+	# HTML: name="vpc_Password" ... value="..."
+	s = re.sub(r'(?is)(name\s*=\s*["\']?(?:%s)["\']?[^>]*?value\s*=\s*)("[^"]*"|\'[^\']*\'|[^\s>]*)' % ten, r'\1"***"', s)
 	return s[:toi_da]
 
 
@@ -569,7 +585,8 @@ def tra_cuu(ma):
 		kq = doc_tra_cuu(r.text)
 		if "vpc_DRExists" in kq:
 			return kq
-		vet.append("%s %s: %s" % (cach, r.status_code, tom_tat_phan_hoi(r.text)))
+		vet.append("%s %s: %s" % (cach, r.status_code, tom_tat_phan_hoi(r.text, bi_mat=(
+			c.get("query_password"), c.get("query_user"), c.get("access_code"), c.get("hash_code")))))
 	raise ValueError("Phản hồi tra cứu OnePay không đọc được (%s). %s" % (dia_chi, " | ".join(vet)))
 
 
