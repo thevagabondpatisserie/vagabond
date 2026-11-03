@@ -24,12 +24,15 @@ so tiep theo. Khong cai cung bang tien to trong ma nguon: danh muc that
 dang co 33 tien to, cai cung la vua sai vua phai deploy moi them duoc nhom.
 """
 
+import json
 import re
 import unicodedata
 
 import frappe
 from frappe.model.naming import getseries
 from frappe.utils import cint, flt
+
+from vagabond import diem_ban
 
 QUYEN_TAO = {
 	"System Manager",
@@ -242,6 +245,8 @@ def cai_dat():
 		"loai": LOAI_HANG,
 		"tao_duoc": 1 if _duoc_tao() else 0,
 		"co_bep": 1 if _co_truong("Item", "custom_bep_phu_trach") else 0,
+		# v631: điểm có bảng giá riêng (NVH): ô giá riêng ngay lúc tạo món.
+		"diem_gia": diem_ban.diem_co_gia_rieng(),
 	}
 
 
@@ -381,8 +386,12 @@ def tao(
 	dvt=None,
 	tien_to=None,
 	bo_qua_trung=0,
+	gia_diem=None,
 ):
-	"""Mo mot ma hang moi."""
+	"""Mo mot ma hang moi.
+
+	gia_diem (v631): {ma diem: gia} cho cac diem co bang gia rieng; o trong
+	nghia la diem do ban gia chung."""
 	_kiem_quyen()
 	if not _duoc_tao():
 		frappe.throw("Chỉ kế toán, thu mua hoặc giám đốc mới mở được mã hàng mới.")
@@ -430,6 +439,24 @@ def tao(
 			'Thiết lập kho đang để "Đặt tên hàng hoá theo" = Dãy số, nên ERPNext sẽ đè lên mã hệ thống vừa cấp. Nhờ anh chị đổi về Mã hàng trong Thiết lập kho rồi quay lại.'
 		)
 
+	# v631: đọc giá riêng TRƯỚC khi mở mã, gõ sai thì chặn khi chưa tạo gì.
+	if isinstance(gia_diem, str):
+		gia_diem = json.loads(gia_diem or "{}")
+	gia_rieng = {}
+	for ma_diem, v in (gia_diem or {}).items():
+		try:
+			g = diem_ban.doc_gia(v)
+		except ValueError as e:
+			frappe.throw(str(e))
+		if not g:
+			continue
+		d_diem = diem_ban.theo_ma(ma_diem)
+		if not d_diem or not d_diem.get("bang_gia"):
+			frappe.throw("Điểm %s đang bán giá chung, không khai giá riêng được. Tải lại màn rồi thử lại." % ma_diem)
+		if not l["ban"]:
+			frappe.throw("Loại hàng này không bán nên không có giá riêng theo điểm. Để trống các ô đó.")
+		gia_rieng[d_diem["ma"]] = (d_diem, g)
+
 	ma = _ma_moi(tt)
 	dv = str(dvt or "").strip() or _dvt_quen(nhom) or "Cái"
 	if not frappe.db.exists("UOM", dv):
@@ -454,6 +481,8 @@ def tao(
 		doc.set("custom_bep_phu_trach", bep)
 	doc.flags.ignore_permissions = True
 	doc.insert()
+	for d_diem, g in gia_rieng.values():
+		diem_ban.dat_gia_diem(d_diem, doc.name, g)
 	frappe.db.commit()
 	if doc.name != ma:
 		# Khong im lang: ma tren man hinh va ma trong kho phai la mot.
@@ -467,6 +496,7 @@ def tao(
 		"nhom": doc.item_group,
 		"dvt": doc.stock_uom,
 		"gia_ban": flt(doc.standard_rate),
+		"gia_diem": {k: g for k, (_d, g) in gia_rieng.items()},
 		"ban": cint(doc.is_sales_item),
 		"mua": cint(doc.is_purchase_item),
 		"ton": cint(doc.is_stock_item),

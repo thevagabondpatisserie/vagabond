@@ -129,6 +129,8 @@ node vagabond/khung/kiem_thu/hanh_vi/ttnb_317.js
 node vagabond/khung/kiem_thu/hanh_vi/kiem_ke_hom_nay_628.js
 node vagabond/khung/kiem_thu/hanh_vi/quy_tien_mat_628.js
 node vagabond/khung/kiem_thu/hanh_vi/ba_ca_bill_quay_628.js
+# v631: diem ban tu nhan theo tai khoan, bang gia rieng NVH (09, 17, 63 that).
+node vagabond/khung/kiem_thu/hanh_vi/diem_ban_631.js
 # v513: man Tra ton kho (chip loc, sap xep, chi tiet ma) chay that tren DOM gia.
 node vagabond/khung/kiem_thu/hanh_vi/tra_ton_513.js
 # v515: them tai khoan nhan tien NCC ngay tren man Thanh toan truoc.

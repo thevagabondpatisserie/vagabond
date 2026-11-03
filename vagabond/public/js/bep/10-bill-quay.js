@@ -278,6 +278,7 @@ async function posInTamTinh() {
       ngay: today(), nguon: posNguonThuc(), ma_don: posDon.bill,
       ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
+      gia_theo_diem: 1,
       giam_gia: giamTay, phi_ship: 0, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -286,7 +287,11 @@ async function posInTamTinh() {
       ma_voucher: posDon.maVc || '',
       ghi_chu: (posDon.km ? 'KM: ' + posDon.km.ten + (posDon.ghi_chu ? '. ' : '') : '') + (posDon.ghi_chu || ''), tam_tinh: 1
     });
-  } catch (e) { busy(false); return toast((e && e.message) || 'Lưu lỗi, thử lại.', 4000); }
+  } catch (e) {
+    busy(false);
+    if (await posGiaVuaDoi(e)) return;
+    return toast((e && e.message) || 'Lưu lỗi, thử lại.', 4000);
+  }
   busy(false);
   posBillVua = { name: (r && r.name) || '', bill: posDon.bill, mon: posDon.mon.slice(), tong: tong, giam: giam, giamTay: giamTay, kmAp: ((posDon.kmKq && posDon.kmKq.ap) || []).slice(), thu: thu, pt: '', quay: (posQuay && posQuay.ma) || '', nguon: posNguonThuc(), ghi_chu: posDon.ghi_chu || '', ten: posDon.ten || '', so_ban: posDon.so_ban || '', tam_tinh: 1 };
   posInBill(posBillVua);
@@ -1341,8 +1346,11 @@ async function scrPosBill(name) {
       } catch (er) { busy(false); return toast('Không tải được danh mục món'); }
       busy(false);
     }
+    /* v631: bill ở điểm có giá riêng (NVH) thêm món theo giá điểm đó; máy chủ tính lại y như vậy. */
+    var qBill = posDiemTheoQuay(d.vgb_quay);
     posSheetMon(dsItemsCache.map(function (x) {
-      return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
+      var giaQ = posGiaMon(x, qBill);
+      return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: giaQ, nhom: x.item_group || '', phu: (giaQ ? money(giaQ) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
     }), function (o) {
       /* Phi giao: hoi SO TIEN, mot dong qty 1 (Loan Anh 18/09/2026). Co san
          thi cong them tien vao dong do. May chu gom lai lan nua (phi_giao.gom). */
@@ -1414,6 +1422,7 @@ async function scrPosBill(name) {
         return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: m.gc || '', combo: m.combo || '', dong_goc: m.dong_goc || '' };
       }));
       goi.giam_gia = posSoTien(posSua.giam);
+      goi.gia_theo_diem = 1;
       if (posSua.pt) { goi.pt = posSua.pt; goi.ma_tham_chieu = posSua.mtc || ''; goi.doi_pt = posSua.doiPt ? 1 : 0; }
     }
     var ok = await confirmSheet('Lưu thay đổi hoá đơn ' + (maBill || d.name) + '?',
@@ -1426,6 +1435,7 @@ async function scrPosBill(name) {
     } catch (e) {
       busy(false);
       var loi = (e && e.message) || 'Lưu thay đổi lỗi';
+      if (await posSuaGiaVuaDoi(e, d.vgb_quay)) return go(function () { scrPosBill(name); }, true);
       // May chu moi la noi quyet dinh co can OTP hay khong. App khong tu
       // doan: cu gui len, may chu doi ma thi luc do moi hoi quan ly.
       if (loi.indexOf('OTP') < 0) return toast(loi, 5000);

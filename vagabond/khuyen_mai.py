@@ -576,10 +576,12 @@ def _ten_mon(ma):
 
 
 def _gia_ban(ma):
+	# v631: bảng giá riêng từng điểm ("Giá riêng NVHTN") cũng là Item Price bán
+	# ra; không loại thì món tặng ở District 1 có thể mang giá NVH vừa sửa.
 	return flt(
 		frappe.db.get_value(
 			"Item Price",
-			{"item_code": ma, "selling": 1},
+			{"item_code": ma, "selling": 1, "price_list": diem_ban.loc_bo_bang_rieng()},
 			"price_list_rate",
 			order_by="valid_from desc, modified desc",
 		)

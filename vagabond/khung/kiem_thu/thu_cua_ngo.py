@@ -70,7 +70,7 @@ CUA_NGO = {
 	# v622 phân hệ Tuyển dụng: vi_tri_cong_khai và ung_tuyen mở cho khách vãng lai
 	# (form /ung-tuyen); tám hàm của màn Tuyển dụng chặn quyền QUYEN_TUYEN_DUNG.
 	"tuyen_dung.py": ["vi_tri_cong_khai", "ung_tuyen", "tong_quan", "dem_cho_goi", "luu_vi_tri", "bat_tat_vi_tri",
-		"them_ho_so", "cap_nhat", "cham", "ghi_cong_thu", "ghi_lien_he",
+		"them_ho_so", "cap_nhat", "loai", "cham", "ghi_cong_thu", "ghi_lien_he",
 		# v625: tai_cv mở cho khách vãng lai (tải CV trước khi gửi, có trần lượt);
 		# năm hàm AI và tệp CV chặn quyền QUYEN_TUYEN_DUNG ở máy chủ (_uv_xem).
 		"tai_cv", "xem_cv", "anh_ung_vien", "ho_so_ai", "cham_lai", "tai_cv_app",
@@ -138,6 +138,8 @@ CUA_NGO = {
 	# Ba ham deu la cua man hinh. `het`, `theo_diem` va nhom ham thuan
 	# `chuan_*` la ham noi bo, khong duoc mo ra ngoai.
 	"mau_in_quay.py": ["danh_sach", "luu", "tra_mac_dinh"],
+	# v631: diem ban tu nhan theo tai khoan, bang gia rieng theo diem.
+	"diem_ban.py": ["danh_sach", "luu", "bang_gia_diem", "luu_gia", "xuat_excel_gia", "nap_excel_gia"],
 	# Them 27/08/2026: cong tac tam ngung ban mot ma tren web dat banh. Chi
 	# `dat` duoc mo ra ngoai; `bang` va `dang_tat` la ham noi bo, hai man kiem
 	# banh goi qua cua rieng cua chung.

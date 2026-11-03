@@ -12,18 +12,21 @@ Mọi hồ sơ từ trang Ứng tuyển trên web, mã QR ở quầy và hồ s�
 **Các bước**
 1. Trang chủ, mục Nhân sự, bấm ô Tuyển dụng. Số đỏ trên ô là hồ sơ mới chưa ai gọi.
 2. Ba ô đầu màn: [[Chưa gọi]], [[Hẹn hôm nay]], [[Công chưa trả]]. Bấm một ô để chỉ xem hồ sơ thuộc ô đó, bấm [[Bỏ lọc]] để xem lại hết.
-3. Dùng chip trạng thái, chip vị trí hoặc ô tìm tên, số điện thoại để lọc.
-4. Mỗi thẻ hồ sơ có thanh 4 bước: Liên hệ, Phỏng vấn, Làm thử, Nhận việc.
+3. Hàng chip Trạng thái có đủ 7 bước kèm số hồ sơ, kể cả bước đang 0. Mặc định là [[Đang xử lý]] (ẩn hồ sơ đã loại và đã nhận việc). Bấm [[Đã loại]] hoặc [[Tất cả]] để xem lại hồ sơ cũ.
+4. Hàng [[Lọc thêm]]: AI từ 65 điểm, Quá 24 giờ chưa gọi, nguồn (Web, QR quầy, TopCV...).
+5. Chạm vào thẻ hồ sơ để mở trang chi tiết. Trang có thanh 4 bước (Liên hệ, Phỏng vấn, Làm thử, Nhận việc) và bốn thẻ: Tóm tắt AI, Câu trả lời (mọi câu ứng viên điền trên web), CV, Nhật ký.
 
 | Thanh tiến độ | Nghĩa là |
 |---|---|
 | Tròn xanh có dấu tích | Bước đã qua |
 | Viền xanh, số đậm | Bước đang ở |
-| Tròn đỏ dấu X | Hồ sơ dừng ở bước này |
+| Tròn đỏ dấu X | Hồ sơ bị loại ở bước này |
 
 **Lưu ý**
 - Hồ sơ nộp quá 24 giờ mà chưa ai gọi hiện chữ đỏ "chưa ai gọi", và nhóm Zalo tuyển dụng nhận tin nhắc.
 - Ứng viên nộp nhiều lần hiện "nộp N lần".
+- Tìm người đã loại khi đang ở Đang xử lý: bấm [[Xem ở Tất cả]].
+- Tin Zalo hồ sơ mới mở thẳng trang chi tiết hồ sơ đó.
 
 ## Gọi, nhắn Zalo hoặc SMS cho ứng viên
 Từ khoá: gọi ứng viên, nhắn ứng viên, zalo ứng viên, sms, mẫu tin tuyển dụng, hẹn phỏng vấn, liên hệ
@@ -43,7 +46,7 @@ Gọi và nhắn bằng điện thoại của chính quản lý, app ghi lại v
 | Nghe máy | Chuyển sang Đã liên hệ |
 | Hẹn gọi lại | Chuyển sang Đã liên hệ |
 | Không nghe máy | Giữ Mới nhận, nhật ký ghi thêm một lần gọi |
-| Sai số | Bấm Cập nhật, chọn Dừng nếu không tìm được số khác |
+| Sai số | Không tìm được số khác thì bấm Loại, chọn Không liên lạc được |
 
 3. Chưa gọi thì bấm [[Chưa gọi, để sau]].
 
@@ -55,30 +58,54 @@ Gọi và nhắn bằng điện thoại của chính quản lý, app ghi lại v
 **Lưu ý**
 - Mẫu hẹn mà thiếu giờ hay nơi làm thì app nhắc điền, không để lại chỗ trống.
 
-## Cập nhật trạng thái hồ sơ: hẹn phỏng vấn, làm thử, nhận việc, dừng
-Từ khoá: cập nhật hồ sơ, hẹn phỏng vấn, làm thử, đề nghị nhận việc, nhận việc, dừng, loại ứng viên, trạng thái ứng viên
+## Cập nhật trạng thái hồ sơ: hẹn phỏng vấn, làm thử, nhận việc
+Từ khoá: cập nhật hồ sơ, hẹn phỏng vấn, làm thử, đề nghị nhận việc, nhận việc, trạng thái ứng viên
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Quản lý được xem Tuyển dụng | Tuyển dụng (/tuyen-dung), thẻ hồ sơ | [[Cập nhật]] |
+| Quản lý được xem Tuyển dụng | Trang chi tiết hồ sơ (chạm vào thẻ hồ sơ) | [[Cập nhật]] |
 
-Bảng Cập nhật xếp lựa chọn theo 4 bước của thanh tiến độ, Dừng nằm riêng cuối cùng.
+Bảng Cập nhật xếp lựa chọn theo 4 bước của thanh tiến độ. Loại ứng viên đi qua nút Loại riêng.
 
 **Các bước**
-1. Bấm [[Cập nhật]] trên thẻ hồ sơ.
-2. Chọn trạng thái mới: Đã liên hệ, Hẹn phỏng vấn, Làm thử, Đề nghị nhận việc, Đã nhận việc hoặc Dừng.
-3. Hẹn phỏng vấn, Làm thử: chọn ngày giờ hẹn. Dừng: bấm một lý do có sẵn hoặc tự ghi.
+1. Chạm vào thẻ hồ sơ để mở trang chi tiết, bấm [[Cập nhật]].
+2. Chọn trạng thái mới: Đã liên hệ, Hẹn phỏng vấn, Làm thử, Đề nghị nhận việc hoặc Đã nhận việc.
+3. Hẹn phỏng vấn, Làm thử: chọn ngày giờ hẹn.
 4. Ghi chú nếu cần, bấm [[Lưu cập nhật]].
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
 | Chọn ngày giờ hẹn để ứng viên biết lúc nào tới. | Chọn ngày giờ trong ô Ngày giờ hẹn |
-| Chọn lý do dừng. | Bấm một lý do hoặc ghi lý do |
 | Ứng viên đã nhận việc. Có thay đổi thì ghi chú, không đưa lại về vòng tuyển. | Không đổi được, ghi chú vào hồ sơ |
 
 **Lưu ý**
 - Người đã nhận việc không còn nút Cập nhật.
+
+## Loại ứng viên và mở lại hồ sơ đã loại
+Từ khoá: loại ứng viên, từ chối ứng viên, không nhận, dừng, đã loại, lý do loại, cảm ơn ứng viên, mở lại hồ sơ
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý được xem Tuyển dụng | Tuyển dụng (/tuyen-dung), thẻ hồ sơ hoặc trang chi tiết | [[Loại]] |
+
+Hồ sơ bị loại chuyển sang Đã loại, không bị xoá, và mở lại được.
+
+**Các bước**
+1. Bấm [[Loại]] trên thẻ hồ sơ hoặc trên trang chi tiết.
+2. Chọn một lý do: Thiếu kinh nghiệm, Lương mong muốn cao, Ca làm không khớp, Ở xa, Không liên lạc được, Ứng viên rút, Không đạt làm thử, Khác. Ghi thêm nếu cần.
+3. Công tắc [[Nhắn cảm ơn qua Zalo]] bật sẵn: bấm Loại là app chép tin cảm ơn lịch sự (không nêu lý do) và mở Zalo đúng số, dán tin vào khung chat rồi gửi. Không muốn nhắn thì tắt công tắc.
+4. Bấm [[Loại ứng viên]].
+5. Muốn mở lại: bấm chip [[Đã loại]], chạm vào hồ sơ, bấm [[Mở lại]], chọn bước để tiếp tục, bấm [[Lưu cập nhật]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chọn một lý do loại. | Bấm một lý do |
+| Lý do Khác: ghi thêm vài chữ để sau này còn biết vì sao. | Ghi lý do vào ô bên dưới |
+
+**Lưu ý**
+- Người đã nhận việc không loại được.
 - Nhận người hay không là việc của quản lý bộ phận; mức lương do anh Việt quyết.
 
 ## Chấm phiếu phỏng vấn và làm thử
@@ -86,12 +113,12 @@ Từ khoá: chấm điểm ứng viên, phiếu chấm, đánh giá phỏng vấ
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Người phỏng vấn, người kèm làm thử | Tuyển dụng (/tuyen-dung), thẻ hồ sơ | [[Chấm]] |
+| Người phỏng vấn, người kèm làm thử | Trang chi tiết hồ sơ (chạm vào thẻ hồ sơ) | [[Chấm phiếu]] |
 
 Mỗi người chấm một phiếu riêng, theo tiêu chí của vị trí.
 
 **Các bước**
-1. Bấm [[Chấm]] trên thẻ hồ sơ (hiện khi hồ sơ đã liên hệ, hẹn phỏng vấn, làm thử hoặc đề nghị nhận việc).
+1. Chạm vào thẻ hồ sơ, bấm [[Chấm phiếu]] trên trang chi tiết (hiện khi hồ sơ đã liên hệ, hẹn phỏng vấn, làm thử hoặc đề nghị nhận việc).
 2. Chọn vòng: Phỏng vấn hoặc Làm thử.
 3. Chấm từng tiêu chí từ 1 đến 4.
 4. Chọn kết luận: Nên nhận, Cân nhắc hoặc Không nên nhận. Ghi nhận xét nếu cần.
@@ -105,25 +132,25 @@ Mỗi người chấm một phiếu riêng, theo tiêu chí của vị trí.
 | Hồ sơ này đã xoá thông tin theo hạn lưu, không chấm thêm được. | Hồ sơ đã hết hạn lưu, không chấm nữa |
 
 **Lưu ý**
-- Điểm và kết luận hiện dưới thẻ hồ sơ để các quản lý khác cùng xem.
+- Điểm và kết luận hiện ở thẻ Nhật ký của trang chi tiết để các quản lý khác cùng xem.
 
 ## Ghi công làm thử và trả công
 Từ khoá: công làm thử, trả công làm thử, tiền làm thử, làm thử có trả công, công chưa trả
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Quản lý kèm làm thử | Tuyển dụng (/tuyen-dung), thẻ hồ sơ | [[Ghi công làm thử]] |
+| Quản lý kèm làm thử | Trang chi tiết hồ sơ (chạm vào thẻ hồ sơ) | [[Ghi công làm thử]] |
 
 Làm thử có trả công. App ghi số giờ, số tiền và ai đã trả để không sót.
 
 **Các bước**
-1. Trên thẻ hồ sơ đang Làm thử, bấm [[Ghi công làm thử]].
+1. Chạm vào thẻ hồ sơ đang Làm thử, bấm [[Ghi công làm thử]] trên trang chi tiết.
 2. Kiểm số giờ và số tiền. App gợi ý theo giờ và công làm thử đã khai ở vị trí.
 3. Trả ngay thì bấm [[Đã trả công]]. Trả sau thì bấm [[Ghi công, trả sau]].
-4. Trả sau: khi trả xong, bấm [[Ghi đã trả công làm thử]] trên thẻ hồ sơ.
+4. Trả sau: khi trả xong, mở trang chi tiết, bấm [[Ghi đã trả công]]. Thẻ hồ sơ ở danh sách hiện dòng "CHƯA trả" để nhắc.
 
 **Lưu ý**
-- Ô [[Công chưa trả]] đầu màn đếm mọi hồ sơ còn nợ công, kể cả hồ sơ cũ đã dừng.
+- Ô [[Công chưa trả]] đầu màn đếm mọi hồ sơ còn nợ công, kể cả hồ sơ cũ đã loại.
 - Tiền trả thật tại quầy hay chuyển khoản theo cách tiệm đang làm; mức công do anh Việt quyết.
 
 ## Tạo vị trí tuyển và bật tắt trên trang web

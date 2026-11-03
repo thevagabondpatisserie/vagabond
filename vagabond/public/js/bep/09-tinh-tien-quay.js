@@ -207,6 +207,110 @@ function posDoc() {
   v = g('posDiemNhap'); if (v !== null) posDon.diemNhap = v;
 }
 /* Buoc chon quay: vao card la hoi, khong nho lua chon cu (anh Viet 08/08). */
+/* v631 (anh Việt 02/11/2026, duyệt mẫu "Điểm bán tự nhận theo tài khoản"):
+   số liệu tháng 10 cho thấy mỗi thu ngân gần như chỉ đứng một quầy, và ca
+   TH3 là Gia Bảo bấm nhầm thẻ Sales Online khi đang đứng District 1. Từ nay:
+   tài khoản được khai đứng đúng một điểm thì mở Tính tiền là vào thẳng điểm
+   đó; khai nhiều điểm (quản lý) thì chỉ chọn trong các điểm đó, điểm vừa
+   đứng xếp đầu; chưa khai thì chọn như cũ, kèm dòng nhắc quản lý khai. */
+function posDiemCuaToi() { return ((CFGBH || {}).diem_cua_toi) || []; }
+/* PHÉP THUẦN: các điểm được hiện ở màn chọn điểm. */
+function posDsDiemChon(dsAll, cua, vua) {
+  var ds = (cua && cua.length) ? dsAll.filter(function (q) { return cua.indexOf(q.ma) >= 0; }) : dsAll.slice();
+  if (!ds.length) ds = dsAll.slice();
+  if (vua) ds.sort(function (a, b) { return (b.ma === vua ? 1 : 0) - (a.ma === vua ? 1 : 0); });
+  return ds;
+}
+/* Giá một món ở một điểm: giá riêng của điểm (NVH) nếu có, không thì giá chung.
+   Máy chủ tính lại đúng như vậy khi lưu bill (diem_ban.ap_gia_diem). */
+function posGiaMon(x, q) {
+  var g = q && q.gia_rieng;
+  return (g && Object.prototype.hasOwnProperty.call(g, x.name)) ? (+g[x.name] || 0) : (+x.standard_rate || 0);
+}
+function posDiemTheoQuay(quay) {
+  var r = null;
+  (((CFGBH || {}).diem) || []).forEach(function (q) { if (quay && q.quay === quay) r = q; });
+  return r;
+}
+/* Codex PR #532: posQuay là MỘT đối tượng lấy từ CFGBH lúc chọn điểm. Quản lý
+   đổi bảng giá rồi cấu hình đọc lại thì CFGBH là đối tượng mới, còn posQuay
+   vẫn giữ giá cũ, nên giỏ và mã QR thu theo giá cũ trong khi máy chủ lưu giá
+   mới. Hàm này thay posQuay bằng bản mới của CÙNG điểm và đặt lại giá các món
+   trong giỏ (trừ món combo, combo có giá riêng). Món vừa bị bỏ giá riêng thì
+   về giá chung trong danh mục. Trả số món đã đổi giá.
+   giaChung ({mã: giá chung}, đọc từ máy chủ) có khi máy chủ vừa chặn vì giá
+   lệch: khi đó MỌI món không có giá riêng về đúng giá chung đó (Codex PR #532
+   vòng 3), không chỉ món vừa bị bỏ giá riêng. */
+function posDongBoQuay(giaChung) {
+  if (!posQuay) return 0;
+  var moi = null;
+  (((CFGBH || {}).diem) || []).forEach(function (q) { if (q.ma === posQuay.ma) moi = q; });
+  if (!moi) return 0;
+  var cu = posQuay, co = Object.prototype.hasOwnProperty;
+  posQuay = moi;
+  if (!posDon || !posDon.mon) return 0;
+  var gMoi = moi.gia_rieng || {}, gCu = cu.gia_rieng || {}, doi = 0;
+  posDon.mon.forEach(function (m) {
+    if (m.combo || m.combo_ma || m.item_code === POS_MA_PHI_GIAO) return;
+    var g = null;
+    if (co.call(gMoi, m.item_code)) g = +gMoi[m.item_code] || 0;
+    else if (giaChung && co.call(giaChung, m.item_code)) g = +giaChung[m.item_code] || 0;
+    else if (co.call(gCu, m.item_code)) {
+      var x = (dsItemsCache || []).filter(function (y) { return y.name === m.item_code; })[0];
+      if (x) g = +x.standard_rate || 0;
+    }
+    if (g && g !== +m.rate) { m.rate = g; doi++; }
+  });
+  if (doi) posDon.kmKq = null;
+  return doi;
+}
+/* Máy chủ chặn lưu khi giá trên máy lệch bảng giá điểm (gia_theo_diem=1). Đọc
+   lại cấu hình, đặt lại giá giỏ rồi về màn quầy để thu ngân xem tổng mới. */
+async function posGiaVuaDoi(e) {
+  var cau = String((e && e.message) || '');
+  if (cau.indexOf('Bảng giá của điểm vừa đổi') < 0) return false;
+  CFGBH = null;
+  try { await cfgBanHang(); } catch (eC) { /* đọc lại lỗi: lần lưu sau máy chủ vẫn chặn */ }
+  /* Giá chung của các món trong giỏ, đọc lại từ danh mục: máy chủ đối chiếu cả
+     giá chung, nên giỏ phải về đúng số đó dù máy chưa nạp bảng món. */
+  posDongBoQuay(await posDocGiaChung(posDon && posDon.mon));
+  toast(cau, 6500);
+  go(scrPosQuay, true);
+  return true;
+}
+/* Giá chung (Item.standard_rate) của các món không thuộc combo trong một danh
+   sách dòng, đọc lại từ danh mục. Lỗi mạng thì trả rỗng. */
+async function posDocGiaChung(ds) {
+  var giaChung = {};
+  try {
+    var ma = (ds || []).filter(function (m) { return !m.combo && !m.combo_ma; }).map(function (m) { return m.item_code; });
+    if (ma.length) {
+      ((await getList('Item', { filters: { name: ['in', ma] }, fields: ['name', 'standard_rate'], limit_page_length: 0 })) || [])
+        .forEach(function (x) { if (+x.standard_rate) giaChung[x.name] = +x.standard_rate; });
+    }
+  } catch (eG) { giaChung = {}; }
+  return giaChung;
+}
+/* Sửa bill (Codex PR #532 vòng 5): dòng đã lưu giữ giá đã chốt; máy chủ chặn
+   vì MÓN THÊM MỚI mang giá cũ thì đọc lại cấu hình, đặt lại giá các món thêm
+   mới (không dòng gốc, không combo, không phí giao) theo giá điểm của bill, không
+   có thì giá chung, rồi để màn vẽ lại cho thu ngân xem tổng mới. */
+async function posSuaGiaVuaDoi(e, quay) {
+  var cau = String((e && e.message) || '');
+  if (cau.indexOf('Bảng giá của điểm vừa đổi') < 0) return false;
+  CFGBH = null;
+  try { await cfgBanHang(); } catch (eC) { /* lần lưu sau máy chủ vẫn chặn */ }
+  var moi = ((posSua && posSua.mon) || []).filter(function (m) { return !m.dong_goc && !m.combo && !m.combo_ma && m.item_code !== POS_MA_PHI_GIAO; });
+  var giaChung = await posDocGiaChung(moi), q = posDiemTheoQuay(quay), g = (q && q.gia_rieng) || {}, co = Object.prototype.hasOwnProperty;
+  moi.forEach(function (m) {
+    var gia = co.call(g, m.item_code) ? +g[m.item_code] || 0 : (co.call(giaChung, m.item_code) ? giaChung[m.item_code] : 0);
+    if (gia) m.rate = gia;
+  });
+  toast(cau, 6500);
+  return true;
+}
+function posDiemVua() { try { return localStorage.getItem('vgb_diem_vua') || ''; } catch (e) { return ''; } }
+
 async function scrPosChonQuay() {
   await cfgBanHang();
   /* Thumbnail la anh cua hang that (anh Viet gui 09/08), nhin phat biet
@@ -223,9 +327,20 @@ async function scrPosChonQuay() {
 
      Nay cả ba đọc chung từ `diem`, tức từ đúng bảng Điểm bán mà màn Cài đặt
      sửa. Mở điểm thứ tư là khai trong Cài đặt, không phải sửa mã rồi deploy. */
-  var dsAll = ((CFGBH || {}).diem) || ((CFGBH || {}).quay) || [];
+  var dsGoc = ((CFGBH || {}).diem) || ((CFGBH || {}).quay) || [];
+  var cua = posDiemCuaToi(), vua = posDiemVua();
+  var dsAll = posDsDiemChon(dsGoc, cua, cua.length > 1 ? vua : '');
+  if (cua.length === 1 && dsAll.length === 1) {
+    posQuay = dsAll[0];
+    posHomNayTxt = null;
+    return go(scrPosQuay, true);
+  }
   var suaAnh = typeof isSales === 'function' ? isSales() : false;
   var html = '<div class="sec">Chọn điểm bán</div>';
+  if (!cua.length) {
+    html += '<div data-posnhackhai="1" style="font-size:13px;color:#92400e;background:#fffaeb;border-radius:10px;padding:9px 12px;margin:0 0 10px;line-height:1.5">' +
+      'Tài khoản này chưa được khai đứng điểm nào. Nhờ quản lý khai ở Cài đặt, Điểm bán, mục Nhân viên đứng điểm này, để lần sau vào thẳng đúng điểm.</div>';
+  }
   dsAll.forEach(function (q, i) {
     html += '<div class="card" style="margin-bottom:12px;overflow:hidden;padding:0;position:relative">' +
       '<div data-q="' + i + '" style="cursor:pointer">' +
@@ -233,7 +348,8 @@ async function scrPosChonQuay() {
         ? '<img src="' + h(q.anh) + '" alt="" style="width:100%;height:150px;object-fit:cover;display:block" onerror="this.style.display=\'none\'">'
         : '<div style="height:96px;display:flex;align-items:center;justify-content:center;background:#f6f7f9;color:#c3c8d4;font-size:34px">🏬</div>') +
       '<div style="display:flex;align-items:center;gap:10px;padding:13px 14px">' +
-      '<div style="flex:1"><div class="h1" style="font-size:17px;font-weight:700">' + h(q.ten) + '</div>' +
+      '<div style="flex:1"><div class="h1" style="font-size:17px;font-weight:700">' + h(q.ten) +
+      (cua.length > 1 && q.ma === vua ? ' <span style="font-size:12px;font-weight:700;color:#0f766e;background:#ccfbf1;border-radius:999px;padding:2px 8px">Vừa đứng</span>' : '') + '</div>' +
       '<div class="h2" style="color:#98a2b3;font-size:13px">' + h(q.phu || '') + '</div></div>' +
       '<span style="color:#c3c8d4;font-size:22px">&#8250;</span></div></div>' +
       (suaAnh
@@ -255,6 +371,7 @@ async function scrPosChonQuay() {
     if (posQuay && posQuay.ma !== q.ma) posDon = null;
     posQuay = q;
     posHomNayTxt = null;
+    try { localStorage.setItem('vgb_diem_vua', q.ma); } catch (eV) { /* máy chặn lưu: không sao */ }
     go(scrPosQuay);
   };
 }
@@ -537,6 +654,8 @@ async function scrPosQuay() {
      la mat nhip user gesture va bi chan popup - xem ghi chu hai nhip o
      27-in-ngam.js. Khong await: do xong hay chua thi man van ve. */
   if (!posQuay) return go(scrPosChonQuay, true);
+  var nGiaDoi = posDongBoQuay();
+  if (nGiaDoi) toast('Bảng giá ' + (posQuay.ten_ngan || posQuay.ma) + ' vừa đổi: ' + nGiaDoi + ' món trong giỏ đã sang giá mới.', 5000);
   /* Dò máy in SAU khi đã biết đứng ở điểm bán nào, và dò lại khi đổi điểm.
      Trước đây dò ngay dòng đầu, tức là trước cả bước chọn quầy, nên mọi máy
      đều nhận về hộp chung mảnh tên máy in của cả ba điểm. */
@@ -605,9 +724,12 @@ async function scrPosQuay() {
   else if (!posDon.mon.length) posChoCkXoa(posDon.bill);
   var qApp = laApp ? (quyPt(posDon.pt) || {}) : {};
   var html = '<div class="card" style="padding:8px 14px">' +
-    '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">Quầy đang bán · bấm để đổi</div><div class="h1">' + h(posQuay.ten) + '</div></div>' +
+    '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">' + (posDiemCuaToi().length === 1 ? 'Điểm bán của bạn' : 'Quầy đang bán · bấm để đổi') + '</div><div class="h1">' + h(posQuay.ten) + '</div></div>' +
     '<div style="text-align:right;flex:none"><div class="h2" style="color:#6b7280">Ngày bán</div><div style="font-weight:700;font-size:14px">' + posNgayVn(today()) + '</div></div>' +
-    '<span style="color:#c3c8d4;margin-left:4px">&#8250;</span></div></div>';
+    '<span style="color:#c3c8d4;margin-left:4px">&#8250;</span></div>' +
+    (posQuay.gia_rieng && Object.keys(posQuay.gia_rieng).length ? '<div data-posgiarieng="1" style="font-size:13px;color:#166534;padding:0 0 6px">' +
+      '<span style="background:#dcfce7;border-radius:999px;padding:2px 9px;font-weight:700">Giá ' + h(posQuay.ten_ngan || posQuay.ma) + '</span> Món có giá riêng tính theo giá điểm này.</div>' : '') +
+    '</div>';
   if (!posDon.mon.length) html += posChoCkKhoi(posChoCkCua(posQuay.ma, posDon.bill));
   if (posDon.chuyen_tu) {
     html += '<div class="card" style="padding:11px 14px;background:#f0fdf4;border:1.5px solid #bbf7d0;font-size:13px;color:#166534;line-height:1.55">' +
@@ -844,7 +966,11 @@ async function scrPosQuay() {
      sau khi bam. */
   posGanTruDiem(function () { posDoc(); go(scrPosQuay, true); });
   b.addEventListener('click', function (e) {
-    if (e.target.closest('[data-t="posDoiQuay"]')) { posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true); }
+    if (e.target.closest('[data-t="posDoiQuay"]')) {
+      /* v631: tài khoản chỉ đứng một điểm thì không có điểm nào khác để đổi. */
+      if (posDiemCuaToi().length === 1) return toast('Tài khoản của bạn đứng điểm ' + posQuay.ten + '. Cần đứng điểm khác thì nhờ quản lý khai ở Cài đặt, Điểm bán.', 4200);
+      posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true);
+    }
     if (e.target.closest('[data-t="posDsBill"]')) { posDoc(); posDsNgay = null; return go(scrPosDs); }
     var t;
     t = e.target.closest('[data-ckmo]');
@@ -982,6 +1108,8 @@ async function posDemHomNay() {
 }
 async function posThemMon() {
   posDoc();
+  await cfgBanHang();
+  posDongBoQuay();
   if (!dsItemsCache) {
     busy(true);
     try {
@@ -1022,7 +1150,8 @@ async function posThemMon() {
     };
   });
   posSheetMon(oCombo.concat(dsItemsCache.map(function (x) {
-    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
+    var giaQ = posGiaMon(x, posQuay), rieng = giaQ !== (+x.standard_rate || 0);
+    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: giaQ, nhom: x.item_group || '', phu: (giaQ ? money(giaQ) + ' đ' + (rieng ? ' (giá ' + (posQuay.ten_ngan || posQuay.ma) + ')' : '') : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
   })), function (o) {
     if (o.combo) { return posBamCombo(o.combo); }
     if (/^KMCB/i.test(o.value || '')) {
@@ -2046,6 +2175,7 @@ async function posLuuDon() {
          thi phai gui, khong thi lua chon cua thu ngan roi mat. */
       pt: posDon.pt || '', ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
+      gia_theo_diem: 1,
       giam_gia: giamTay, phi_ship: ship, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -2064,7 +2194,11 @@ async function posLuuDon() {
       xhd_dia_chi: posDon.xhd_mo ? (posDon.xh.dc || '') : '',
       xhd_email: posDon.xhd_mo ? (posDon.xh.email || '') : ''
     });
-  } catch (e) { posDangLuu = false; busy(false); return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000); }
+  } catch (e) {
+    posDangLuu = false; busy(false);
+    if (await posGiaVuaDoi(e)) return;
+    return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000);
+  }
   posDangLuu = false;
   busy(false);
   posChoCkXoa(posDon.bill);

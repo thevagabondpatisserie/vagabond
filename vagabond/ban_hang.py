@@ -637,6 +637,18 @@ NGUON_CU = {
 }
 
 
+def _gia_combo_may_chu(r, ma):
+	"""Dòng giỏ có mã combo: kiểm món thuộc combo, rồi đặt giá thành phần theo
+	cấu hình combo trên máy chủ (diem_ban.dat_gia_dong_combo). Trả 1 nếu giá máy
+	khách gửi lệch. Dòng không có mã combo trả 0."""
+	if not r.get("combo_ma"):
+		return 0
+	cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
+	if ma not in [x.item_code for x in cb.dong]:
+		frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
+	return diem_ban.dat_gia_dong_combo(r, [x.as_dict() for x in cb.dong])
+
+
 def _quay_cua_nguon(nguon, quay):
 	"""Ma quay cho mot don nhap tay, suy tu nguon don.
 
@@ -915,10 +927,17 @@ def cau_hinh_ban_hang():
 			"tai_cho": d["tai_cho"],
 			"mang_ve": d["mang_ve"],
 			"nguon": d["nguon"],
+			# v631: bảng giá riêng của điểm (món -> giá) để màn tính tiền hiện
+			# đúng giá; máy chủ vẫn tự tính lại khi lưu bill.
+			"gia_rieng": diem_ban.gia_rieng(d["ma"]) if d.get("bang_gia") and d["quay"] else {},
+			"co_bang_gia": 1 if d.get("bang_gia") and d["quay"] else 0,
 		}
 		for d in diem_ban.ds(chi_bat=True)
 	]
 	return {
+		# v631: các điểm tài khoản này được khai đứng. Một điểm thì mở Tính
+		# tiền là vào thẳng điểm đó; nhiều điểm thì chỉ chọn trong số đó.
+		"diem_cua_toi": diem_ban.diem_cua_nguoi(diem_ban.ds(chi_bat=True), frappe.session.user),
 		"pt": pt,
 		"nguon": nguon,
 		"pt_pancake": pt_thanh_toan.ten_online(),
@@ -4545,6 +4564,7 @@ def tao_don_tay(
 	otp_km="",
 	khach_ma="",
 	ve_diem="",
+	gia_theo_diem=0,
 ):
 	"""Nhap tay doanh thu tu kenh khong co API.
 
@@ -4565,6 +4585,7 @@ def tao_don_tay(
 	if isinstance(items, str):
 		items = json.loads(items or "[]")
 	rows = []
+	doi_combo = 0
 	for r in items or []:
 		ma = (r.get("item_code") or "").strip()
 		if not ma or not frappe.db.exists("Item", ma):
@@ -4572,6 +4593,9 @@ def tao_don_tay(
 		sl = flt(r.get("qty") or 0)
 		if sl <= 0:
 			frappe.throw("Số lượng của %s phải lớn hơn 0." % ma)
+		# Codex PR #532 vòng 7: dòng combo lấy giá thành phần từ cấu hình combo
+		# trên máy chủ, không theo giá máy khách gửi.
+		doi_combo += _gia_combo_may_chu(r, ma)
 		d = {"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)}
 		# Tuy chon pha che kieu Fabi (it duong, it da, da rieng...) - chi la
 		# ghi chu 0 dong tren dong mon, khong doi tien (anh Viet 09/08/2026).
@@ -4607,6 +4631,28 @@ def tao_don_tay(
 	if nguon not in [n["v"] for n in _nguon_don()]:
 		frappe.throw("Nguồn đơn %s không có trong danh mục." % (nguon or "(trống)"))
 	quay = _quay_cua_nguon(nguon, quay)
+	# v631 (anh Việt 02/11/2026): điểm có bảng giá riêng (NVH) thì máy chủ đặt
+	# lại giá các món có giá ở điểm đó, TRƯỚC khi tính khuyến mãi, để không ai
+	# sửa tay giá trên máy khách. Món chưa khai giá riêng giữ giá chung.
+	# Codex PR #532: chỉ dòng combo máy chủ đã xác nhận (có mã combo, vừa kiểm
+	# thành phần ở vòng trên) mới giữ giá; nhãn combo tự gửi không được miễn.
+	# Màn quầy mới gửi gia_theo_diem=1: giá trên máy lệch giá điểm (quản lý vừa
+	# đổi bảng giá) thì CHẶN để thu ngân không thu theo tổng cũ; màn cũ chưa tải
+	# lại vẫn được máy chủ tự sửa giá như trước.
+	gia_diem_tao = diem_ban.gia_rieng_cua_quay(quay)
+	mien_tao = diem_ban.dong_combo_tao(items)
+	doi_gia = doi_combo + diem_ban.ap_gia_diem(items, rows, gia_diem_tao, mien_tao)
+	if cint(gia_theo_diem):
+		# Codex PR #532 vòng 3: màn quầy mới tính giá bằng đúng hai nguồn (giá
+		# điểm, không có thì giá chung danh mục), nên máy chủ đối chiếu cả giá
+		# chung: món vừa bị bỏ giá riêng mà giỏ còn giá cũ thì cũng chặn.
+		# Màn nhập đơn tay (08) không gửi cờ, giữ giá gõ tay như trước.
+		gia_chung = diem_ban.doc_gia_chung(items, gia_diem_tao)
+		from vagabond import phi_giao as _pg0
+
+		doi_gia += diem_ban.ap_gia_chung(items, rows, gia_diem_tao, mien_tao, gia_chung, (_pg0.MA_PHI_GIAO,))
+	if doi_gia and cint(gia_theo_diem):
+		frappe.throw(diem_ban.cau_gia_vua_doi(doi_gia), title="Giá vừa đổi")
 
 	# --- Khuyen mai: may chu tu tinh lai, khong tin so tu may khach ---
 	# Tinh trên gio hang GOC (chua co phi giao) - khong ai duoc giam gia
@@ -6713,6 +6759,7 @@ def pos_sua_don(
 	xhd_dia_chi=None,
 	xhd_email=None,
 	doi_pt=None,
+	gia_theo_diem=0,
 ):
 	"""Sua lai hoa don da tinh tien cho khach - phai co ma OTP quan ly.
 
@@ -6729,6 +6776,26 @@ def pos_sua_don(
 		)
 	if items is not None and isinstance(items, str):
 		items = json.loads(items or "[]")
+	gia_diem_sua = {}
+	if items:
+		# v631 (Codex PR #532 vòng 5): dòng đã lưu trên bill giữ giá đã chốt với
+		# khách lúc lập bill; chỉ món THÊM MỚI theo giá điểm hiện hành. Làm trước
+		# khi xét OTP. Màn sửa bill mới gửi gia_theo_diem=1: món thêm mới mang
+		# giá cũ (bảng giá vừa đổi) thì CHẶN để thu ngân xem tổng mới trước.
+		dong_cu = {x.name: x.as_dict() for x in si.items}
+		gia_diem_sua = diem_ban.gia_rieng_cua_quay(si.get("vgb_quay"))
+		doi_sua = sum(_gia_combo_may_chu(r, (r.get("item_code") or "").strip()) for r in items)
+		mien_sua = diem_ban.dong_giu_gia_sua(items, dong_cu)
+		doi_sua += diem_ban.ap_gia_diem(items, None, gia_diem_sua, mien_sua)
+		if cint(gia_theo_diem):
+			from vagabond import phi_giao as _pg1
+
+			moi = [r for i, r in enumerate(items) if i not in mien_sua]
+			doi_sua += diem_ban.ap_gia_chung(
+				items, None, gia_diem_sua, mien_sua, diem_ban.doc_gia_chung(moi, gia_diem_sua), (_pg1.MA_PHI_GIAO,)
+			)
+			if doi_sua:
+				frappe.throw(diem_ban.cau_gia_vua_doi(doi_sua), title="Giá vừa đổi")
 	da_ghi = si.docstatus == 1
 	# Hoa don DA GHI SO thi luon phai co OTP, khong xet muc quyen: luc do
 	# tien da nam trong so sach, khong con la chuyen cua quay nua.
@@ -6785,7 +6852,9 @@ def pos_sua_don(
 				if gcm:
 					d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
 			from vagabond.combo_mon import giu_dong_sua
-			rows.append(giu_dong_sua(si, r, d))
+			# Món lẻ thêm mới trùng thành phần combo: giá hợp lệ là giá ĐIỂM nếu
+			# điểm có giá riêng cho món đó (Codex PR #532), không thì giá danh mục.
+			rows.append(giu_dong_sua(si, r, d, gia_diem_sua))
 		# Phi giao gom ve mot dong qty 1 (xem phi_giao.py).
 		from vagabond import phi_giao as _pg
 

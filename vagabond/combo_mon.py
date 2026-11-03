@@ -341,15 +341,19 @@ def dat_thanh_tien(doc):
 
 
 
-def giu_dong_sua(si, gui, dong):
-    """Màn sửa bill gửi tên dòng; tiền combo lấy từ chứng từ gốc trên máy chủ."""
+def giu_dong_sua(si, gui, dong, gia_diem=None):
+    """Màn sửa bill gửi tên dòng; tiền combo lấy từ chứng từ gốc trên máy chủ.
+
+    gia_diem: bảng giá riêng của điểm bán ({mã món: giá}, máy chủ đọc). Món lẻ
+    thêm mới trùng thành phần combo phải đúng giá điểm nếu điểm có giá riêng
+    cho món đó, không thì đúng giá danh mục (v631, Codex PR #532)."""
     cu = next((x for x in si.items if x.name == gui.get('dong_goc')), None)
     if gui.get('dong_goc') and not cu:
         frappe.throw('Dòng bill gốc không còn tồn tại. Tải lại bill rồi sửa tiếp.')
     if not cu and any(x.item_code == dong['item_code'] and x.get('vgb_combo_luong') for x in si.items):
-        gia_le = frappe.db.get_value('Item',dong['item_code'],'standard_rate')
+        gia_le = (gia_diem or {}).get(dong['item_code']) or frappe.db.get_value('Item',dong['item_code'],'standard_rate')
         if not gia_le or Decimal(str(dong['rate'])) != Decimal(str(gia_le)):
-            frappe.throw('Món thuộc combo thiếu dòng gốc. Món lẻ thêm mới phải dùng giá bán trong danh mục.')
+            frappe.throw('Món thuộc combo thiếu dòng gốc. Món lẻ thêm mới phải dùng giá bán của điểm (giá riêng nếu có, không thì giá danh mục).')
     if not cu or not cu.get('vgb_combo_luong'):
         return dong
     if cu.item_code != dong['item_code'] or any(

@@ -77,6 +77,27 @@ Từ khoá: bán hàng, tính tiền, thu tiền, lên bill, tạo bill, hoá đ
 - Bill đã thu nằm yên 4 tiếng là máy tự ghi sổ và xuất hoá đơn điện tử, không chờ cuối ngày.
 - Mức giảm giá tay và cho khách nào nợ: việc này do anh Việt quyết.
 
+## Điểm bán tự nhận theo tài khoản và bảng giá riêng từng điểm
+Từ khoá: chọn nhầm điểm bán, chọn quầy, điểm bán của tôi, nhân viên đứng điểm, giá NVH, giá riêng, bảng giá theo điểm bán, giá Nhà Văn Hóa
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý cửa hàng, Sales quản lý, kế toán | Điểm bán (/diem-ban), Bảng giá theo điểm bán (/bang-gia-theo-diem-ban) | [[Lưu]] |
+
+Tài khoản đứng một điểm thì mở Tính tiền là vào thẳng điểm đó. Điểm bật giá riêng thì quầy bán đúng giá đó.
+
+**Các bước**
+1. Cài đặt, Điểm bán, chọn điểm. Mục Nhân viên đứng điểm này: máy gợi sẵn theo bill 30 ngày; bỏ chip người không đứng, [[+ Thêm người]] nếu thiếu.
+2. Mục Bảng giá của điểm: chọn Giá chung, hoặc Giá riêng của điểm đó. Bấm [[Lưu]].
+3. Mở Bảng giá theo điểm bán, gõ giá vào ô của từng món. Ô trống là bán giá chung. Bấm [[Lưu]] (số trên nút là số giá đã đổi).
+4. Nhiều món: bấm [[Tải Excel]], điền cột Giá riêng, bấm [[Nạp Excel]], xem lại rồi bấm Lưu.
+5. Món mới: lúc tạo mã ở Danh mục sản phẩm có ô Giá riêng theo điểm bán.
+
+**Lưu ý**
+- Quản lý đứng nhiều điểm chỉ thấy các điểm đó, điểm vừa đứng xếp đầu.
+- Máy tính lại giá theo điểm khi lưu bill, thu ngân không sửa tay được.
+- Mỗi lần đổi giá máy ghi trên món: ai đổi, lúc nào, giá cũ, giá mới.
+
 ## Thu chuyển khoản bằng mã QR và dò tiền về
 Từ khoá: chuyển khoản, CK, QR, VietQR, quét mã, SePay, tiền về chưa, dò tiền, khách đã chuyển, gắn giao dịch, mã tham chiếu, khách chuyển sai nội dung, bank transfer
 
