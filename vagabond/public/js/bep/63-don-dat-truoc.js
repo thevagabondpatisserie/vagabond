@@ -205,7 +205,10 @@ function ddtSheetThu(r, dsQuay) {
     '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:4px 0 6px">Khách trả bằng</div>' +
     '<div id="ddtCach"></div><div id="ddtThan" style="margin-top:12px"></div>');
   function veCach() {
-    ov.querySelector('#ddtCach').innerHTML = kmHangChip([['tien_mat', '💵 Tiền mặt'], ['qr', '🏦 Chuyển khoản qua QR']].map(function (c) {
+    /* v637 (anh Việt 03/11/2026): thêm Thẻ OnePay, bỏ cà máy POS cho đơn đặt trước. */
+    var cacCach = [['tien_mat', '💵 Tiền mặt'], ['qr', '🏦 Chuyển khoản qua QR']];
+    if (r.onepay) cacCach.push(['the', '💳 Thẻ OnePay']);
+    ov.querySelector('#ddtCach').innerHTML = kmHangChip(cacCach.map(function (c) {
       return posChipNut('data-ddtcach="' + c[0] + '"', c[1], cach === c[0], false, '#0d9488');
     }).join(''));
     var than = ov.querySelector('#ddtThan');
@@ -213,6 +216,9 @@ function ddtSheetThu(r, dsQuay) {
       than.innerHTML = '<div style="font-size:13.5px;font-weight:700;color:#344054;margin-bottom:6px">Quầy nhận tiền</div>' + ddtChonQuay(dsQuay, quay) +
         '<div style="font-size:12.5px;color:#475467;margin:8px 0 12px;line-height:1.5">Tiền mặt vào két quầy này, Chốt ca của quầy đếm khoản này.</div>' +
         '<button class="btn" data-ddtthutm="1" style="margin:0"' + (quay ? '' : ' disabled') + '>Đã thu tiền mặt ' + money(r.con_lai) + 'đ</button>';
+    } else if (cach === 'the') {
+      than.innerHTML = '<div data-ddtonepay="1" style="text-align:center;color:#475467;font-size:13.5px">Đang lấy mã thanh toán thẻ...</div>';
+      ddtMoThe(r, ov);
     } else {
       var q = r.qr || {};
       than.innerHTML = (q.anh ? '<div style="text-align:center"><img alt="Mã QR chuyển khoản" src="' + h(q.anh) + '" style="width:220px;height:220px;background:#fff"></div>' :
@@ -247,6 +253,42 @@ function ddtSheetThu(r, dsQuay) {
       } catch (er) { busy(false); toast(errMsg(er), 6000); t.disabled = false; }
     }
   });
+}
+
+/* v637: mã QR trang trả thẻ OnePay của đơn. Khách quét bằng điện thoại, nhập thẻ
+   trên trang OnePay; màn hỏi lại số còn phải thu mỗi 4 giây, tiền về thì tự báo
+   và đóng. Tiền thẻ ghi cho Sales (quầy không két), két quầy không cộng. */
+var DDT_HOI_THE = 4000;
+function ddtConMo(ov, lan) { return !!ov.parentNode && ov._theLan === lan && cachDangLaThe(ov); }
+function cachDangLaThe(ov) { return !!ov.querySelector('[data-ddtonepay]'); }
+async function ddtMoThe(r, ov) {
+  /* Mỗi lần mở cách Thẻ là một lượt; đổi cách, mở lại hay đóng sheet thì lượt cũ tự dừng hỏi. */
+  var lan = (ov._theLan || 0) + 1;
+  ov._theLan = lan;
+  var o = ov.querySelector('[data-ddtonepay]');
+  var kq;
+  try { kq = await api('vagabond.onepay_dat.ma_the', { name: r.name }); }
+  catch (e) { if (o && ddtConMo(ov, lan)) o.innerHTML = '<div style="color:#b3261e">' + h(errMsg(e)) + '</div>'; return; }
+  if (!o || !ddtConMo(ov, lan)) return;
+  o.innerHTML = '<img alt="Mã QR trả thẻ OnePay" data-ddttheqr="1" src="' + h(kq.anh) + '" style="width:220px;height:220px;background:#fff">' +
+    '<div style="font-size:13.5px;line-height:1.6;margin:8px 0;color:#344054">Mời khách quét mã bằng camera điện thoại, bấm <b>Thanh toán bằng thẻ</b> rồi nhập thẻ trên trang OnePay.</div>' +
+    '<div data-ddtthecho="1" style="font-size:13px;color:#b45309;font-weight:700">Đang chờ khách trả ' + money(r.con_lai) + 'đ...</div>' +
+    '<div style="font-size:12.5px;color:#475467;margin-top:8px;line-height:1.5;text-align:left">Trả xong máy tự ghi phiếu thu cho Sales, két quầy không cộng khoản này. Thu ngân không cần cà máy POS.</div>';
+  var dau = Number(r.con_lai) || 0;
+  async function hoi() {
+    if (!ddtConMo(ov, lan)) return;
+    var t;
+    try { t = await api('vagabond.onepay_dat.con_lai', { name: r.name }); } catch (e) { t = null; }
+    if (!ddtConMo(ov, lan)) return;
+    if (t && (Number(t.con_lai) || 0) < dau - 0.5) {
+      toast('Khách đã trả thẻ ' + money(dau - (Number(t.con_lai) || 0)) + 'đ cho ' + r.ma, 4200);
+      ov.remove();
+      go(scrDonDatTruocCt, true);
+      return;
+    }
+    setTimeout(hoi, DDT_HOI_THE);
+  }
+  setTimeout(hoi, DDT_HOI_THE);
 }
 
 function ddtSheetGiao(r, dsQuay) {
