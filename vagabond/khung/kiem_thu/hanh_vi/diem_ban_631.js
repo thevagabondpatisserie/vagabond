@@ -34,7 +34,7 @@ var HAM = ['h', 'money', 'vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { ret
   .concat([layHam(KM, 'kmHangChip'), layHam(KM, 'posGiaTang'), layHam(KM, 'posNoiKm'), layHam(KHO, 'errMsg'), "var POS_MA_PHI_GIAO = 'DVBH00001';"])
   .concat(['dbTenNguoi', 'dbChipNguoi', 'scrDiemBanSua', 'dbDoc', 'dbLuu', 'dbChipNguon', 'dbBamNguon', 'dbChuNguon'].map(function (t) { return layHam(CD, t); }))
   .concat(['var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0, dbNguonCoSan = [], dbKhoTang = [], dbGoiY = {}, dbNguoiDung = [], dsItemsCache = null, posSua = null;'])
-  .join('\n') + '\n' + doc('63-bang-gia-diem.js');
+  .join('\n') + '\n' + doc('65-bang-gia-diem.js');
 
 var DIEM = [
   { ma: 'SALES', ten: 'Sales Online', ten_ngan: 'Sales Online', co_quay: 0, quay: '', gia_rieng: {}, co_bang_gia: 0 },
