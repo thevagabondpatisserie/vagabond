@@ -102,6 +102,7 @@ function mayChu(canh) {
       /* Màn chính Quỹ: tải lại app thì QTM về null, màn lập phiếu phải tự hỏi lại (Codex #527 vòng 3). */
       if (m === 'vagabond.quy_tien_mat.man_quy') return JSON.parse(JSON.stringify((canh && canh.qtm) || { duoc_lam: 0 }));
       if (m === 'vagabond.quy_tien_mat.kiem_quy') return { ok: 1, name: 'PQ-26-11-00001', trang_thai: 'Chờ duyệt', lech: -3000000 };
+      if (m === 'vagabond.quy_tien_mat.chot_dau') return { ok: 1, name: 'MOC-1', ngay_chot: '2026-11-02', so_du: 7000000, so_moc: 7000000, co_phat_sinh: 0 };
       /* Giá vốn tạm tính, tab Món thử (Codex #486 P1). Số tính đơn giản:
          chỉ dòng giá tay, đủ để thấy màn đọc kết quả máy chủ. */
       if (m === 'vagabond.gia_von_tam.tinh') return { dong: [], nhom: [], sua_duoc: true, cap_nhat_luc: '09:00' };
@@ -385,6 +386,35 @@ async function chayHet() {
     await moTrangChu(c);
     await c.g.go(c.g.scrQuyNop); await c.cho(); await c.cho();
     dung('màn nộp ngân hàng không rơi vào màn khoá', !!c.el('qtmSoTien'));
+  });
+
+  await ca('v635 Codex #536 vòng 2: chốt số dư đầu quỹ gõ dở bảng đếm và ghi chú; máy sập nguồn mở lại từ thẻ còn đủ, Chốt xong hết bản nháp', async function () {
+    var QTM0 = { duoc_lam: 1, so_du: null, moc: null, nguong: 2000000, menh_gia: [500000, 200000], ly_do: [], tai_khoan_nh: [] };
+    var kho = khoMay();
+    var a = appMoi(kho, { qtm: QTM0 });
+    await moTrangChu(a);
+    await a.g.go(a.g.scrQuyChotDau); await a.cho(); await a.cho();
+    var o500 = a.tl.querySelector('[data-qtmmg="500000"]');
+    dung('màn chốt đã về', !!o500);
+    a.go(o500, '14');
+    a.go('qtmGhiChuChot', 'đếm cùng anh Việt');
+    await a.tua(700);
+    bang('đúng một bản nháp chốt quỹ', cacKhoa(kho), ['vgbSoanDo:loananh@vagabond.vn:chot_dau_quy:moi']);
+    /* Sập nguồn: app mới, QTM còn null như máy thật, không đặt sẵn. */
+    var b = appMoi(kho, { qtm: QTM0 });
+    await moTrangChu(b);
+    bang('app mới chưa có dữ liệu quỹ', b.g.QTM, null);
+    var dong = b.el('sdThe').querySelectorAll('[data-sdmo]');
+    bang('thẻ có đúng một dòng', dong.length, 1);
+    await b.bam(dong[0]);
+    await b.cho(); await b.cho(); await b.cho();
+    dung('mở lại đúng màn chốt', !!b.tl.querySelector('[data-qtmchotluu]'));
+    bang('bảng đếm điền lại', [b.g.QTM_DEM['500000'], b.tl.querySelector('[data-qtmmg="500000"]').value], ['14', '14']);
+    bang('ghi chú điền lại', b.el('qtmGhiChuChot').value, 'đếm cùng anh Việt');
+    await b.bam(b.tl.querySelector('[data-qtmchotluu]')); await b.cho(); await b.cho();
+    var luu = b.mc.goi.filter(function (x) { return x.m === 'vagabond.quy_tien_mat.chot_dau'; });
+    bang('chốt một lần đúng bảng', luu.map(function (x) { return [x.a.bang, x.a.ghi_chu]; }), [['{"500000":"14"}', 'đếm cùng anh Việt']]);
+    bang('chốt xong hết bản nháp', cacKhoa(kho), []);
   });
 
   await ca('Loan Anh: go bao gia moi, may sap nguon, mo lai app thi the Phieu dang soan do dua ve DUNG to dang go', async function () {
@@ -804,7 +834,7 @@ async function chayHet() {
     /* v607 Codex #493 vong 3: them phieu nap tra truoc (nap_tra_truoc). */
     /* v614 Codex #505: them chien_dich (lap chien dich CRM, 58-crm.js). */
     /* v622: them vi_tri_tuyen va ho_so_ung_vien (Tuyen dung, 60-tuyen-dung.js). */
-    bang('du 48 loai phieu (v628: them kiem_quy, nop_ngan_hang)', Object.keys(k.SD_MAN).length, 48);
+    bang('du 49 loai phieu (v628: them kiem_quy, nop_ngan_hang; v635: chot_dau_quy)', Object.keys(k.SD_MAN).length, 49);
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);
