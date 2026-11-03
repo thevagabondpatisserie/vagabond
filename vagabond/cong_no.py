@@ -2381,7 +2381,9 @@ def ghi_nhan_the(name, kq, nguon):
 			else " Khách trả dư %s đ, kế toán hoàn lại cho khách." % _tien_vn(du))
 	doc.add_comment("Comment", "Khách trả thẻ OnePay %s đ (mã giao dịch %s, mã OnePay %s). Phiếu thu đã ghi sổ: %s.%s"
 		% (_tien_vn(kq.get("so_tien")), kq["ma"], kq.get("ma_onepay") or "", ", ".join(pe) or "không có", cau_du))
-	frappe.db.commit()
+	# Codex #534 vòng 3: bao() ghi dòng chờ gửi TRONG giao dịch hiện tại và chỉ
+	# xếp hàng sau commit. Trang về là GET, không ai commit sau hàm này, nên tin
+	# phải được ghi TRƯỚC commit dưới đây, không thì mất cùng lượt rollback.
 	try:
 		from vagabond.kenh_zalo import bao
 
@@ -2392,8 +2394,15 @@ def ghi_nhan_the(name, kq, nguon):
 			"Đã ghi vào sổ: %s đ" % _tien_vn(dc["so_ghi"]),
 		] + ([cau_du.strip()] if du > 0.5 else []),
 			khoa="onepay:%s" % kq["ma"], ma_tin="kt_the_onepay")
-	except Exception:
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+
+		# Giao dịch chết (deadlock, chờ khoá) thì phiếu thu cũng đã mất: ném để
+		# IPN không xác nhận, OnePay gọi lại. Lỗi khác chỉ mất tin, tiền vẫn ghi.
+		if chet_giao_dich(e):
+			raise
 		frappe.log_error(frappe.get_traceback(), "cong_no: báo tin trả thẻ")
+	frappe.db.commit()
 	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
 		tt.xep_gui_thu([d.hoa_don for d in doc.dong if d.hoa_don])
 	return {"ok": 1, "ly_do": ly_do, "kq": kq, "phieu_thu": pe}
