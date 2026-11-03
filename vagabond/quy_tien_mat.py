@@ -143,23 +143,28 @@ def co_o_da_go(bang):
 	return any(str(v if v is not None else "").strip() != "" for v in cac)
 
 
-def ngay_chot_dau(hom_nay, co_phat_sinh_hom_nay):
-	"""THUẦN. Ngày ghi cho mốc chốt số dư đầu quỹ (v635).
+def so_du_cuoi_hom_qua(so_dem, vao_hom_nay, ra_hom_nay):
+	"""THUẦN. Quy số vừa đếm về số dư CUỐI HÔM QUA (v635, Codex #536 vòng 1).
 
-	Mốc là số dư CUỐI ngày chốt: khoản nào mang ngày SAU mốc mới cộng trừ vào quỹ
-	(tai_chinh.tinh_quy). Đếm lúc hôm nay chưa có khoản nào vào ra quỹ thì số đếm đúng
-	bằng quỹ cuối hôm qua: ghi mốc hôm qua, nên mọi khoản hôm nay, kể cả sau lúc đếm, vẫn
-	được tính, và Kiểm quỹ, Nộp ngân hàng làm được ngay hôm nay. Hôm nay đã có khoản thì
-	số đếm đã gồm chúng: ghi mốc hôm nay (ghi hôm qua là cộng các khoản đó hai lần)."""
-	return hom_nay if co_phat_sinh_hom_nay else hom_nay - timedelta(days=1)
+	Mốc là số dư cuối ngày chốt: chỉ khoản mang ngày SAU mốc mới cộng trừ vào quỹ
+	(tai_chinh.tinh_quy). Mốc ghi ngày hôm nay thì khoản ký nhận hay chi SAU lúc đếm mà
+	vẫn mang ngày hôm nay rơi mất mãi mãi (chốt 5 triệu lúc 10 giờ, chiều ký nhận thêm 1
+	triệu, app vẫn hiện 5 triệu). Nên mốc LUÔN là cuối hôm qua, số mốc = số đếm trừ phần
+	hôm nay đã ghi tới lúc đếm (vào trừ, ra cộng lại). Ngay lúc chốt quỹ hiện đúng số đếm;
+	khoản sau đó cộng trừ tiếp như thường. Số mốc có thể âm khi tiền đã ra khỏi quỹ hôm
+	nay nhiều hơn số đếm: đó chỉ là điểm tựa phép tính, quỹ hiện vẫn đúng số đếm."""
+	return float(round(_f(so_dem) - _f(vao_hom_nay) + _f(ra_hom_nay)))
 
 
-def ghi_chu_chot_dau(dong, ghi_chu=""):
-	"""THUẦN. Ghi chú lưu trên mốc: đủ bảng đếm để sau này đối chiếu được."""
+def ghi_chu_chot_dau(dong, ghi_chu="", so_dem=0, vao=0, ra=0):
+	"""THUẦN. Ghi chú lưu trên mốc: đủ bảng đếm và phần hôm nay đã trừ, để đối chiếu."""
 	dem = ", ".join("%s x %d" % (tien(d["menh_gia"]), d["so_to"]) for d in dong or []) or "quỹ trống"
-	ra = "Chốt số dư đầu trên màn Quỹ tiền mặt, đếm theo mệnh giá: " + dem
+	ra_ = "Chốt số dư đầu trên màn Quỹ tiền mặt, đếm theo mệnh giá: " + dem
+	if _f(vao) or _f(ra):
+		ra_ += ". Đếm được %s; hôm nay đã ghi vào %s, ra %s trước lúc đếm nên số cuối hôm qua là %s" % (
+			tien(so_dem), tien(vao), tien(ra), tien(so_du_cuoi_hom_qua(so_dem, vao, ra)))
 	g = str(ghi_chu or "").strip()
-	return (ra + ". " + g) if g else ra
+	return (ra_ + ". " + g) if g else ra_
 
 
 def _ngay(x):
@@ -531,12 +536,15 @@ def chot_dau(bang=None, ghi_chu=""):
 	if m:
 		frappe.throw("Quỹ đã chốt số dư đầu ngày %s (%s). Muốn sửa số quỹ thì bấm Kiểm quỹ." % (
 			getdate(m["ngay_chot"]).strftime("%d/%m/%Y"), tien(m.get("so_du"))))
-	hom = getdate(nowdate())
-	ps = tai_chinh.tinh_quy({"ngay_chot": str(hom - timedelta(days=1)), "so_du": 0})
-	co = abs(_f(ps.get("vao"))) >= 1 or abs(_f(ps.get("ra"))) >= 1
-	ngay = ngay_chot_dau(hom, co)
-	ten = tai_chinh.ghi_moc(tai_chinh.NGUON_QUY, ngay, so_dem, ghi_chu_chot_dau(dong, ghi_chu))
-	return {"ok": 1, "name": ten, "ngay_chot": str(ngay), "so_du": so_dem, "co_phat_sinh": 1 if co else 0}
+	# Mốc luôn là cuối hôm qua; phần hôm nay đã ghi tới lúc đếm đọc bằng CHÍNH phép tính
+	# quỹ (tinh_quy từ mốc 0 cuối hôm qua), không viết phép đọc thứ hai.
+	ngay = getdate(nowdate()) - timedelta(days=1)
+	ps = tai_chinh.tinh_quy({"ngay_chot": str(ngay), "so_du": 0})
+	vao, ra = _f(ps.get("vao")), _f(ps.get("ra"))
+	so_moc = so_du_cuoi_hom_qua(so_dem, vao, ra)
+	ten = tai_chinh.ghi_moc(tai_chinh.NGUON_QUY, ngay, so_moc, ghi_chu_chot_dau(dong, ghi_chu, so_dem, vao, ra))
+	return {"ok": 1, "name": ten, "ngay_chot": str(ngay), "so_du": so_dem, "so_moc": so_moc,
+		"co_phat_sinh": 1 if (abs(vao) >= 1 or abs(ra) >= 1) else 0}
 
 
 @frappe.whitelist(methods=["POST"])
