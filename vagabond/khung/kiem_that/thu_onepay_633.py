@@ -131,3 +131,48 @@ def _vong_doi():
 		la("OnePay gọi lại cùng giao dịch: vẫn xác nhận", _goi_ipn(_ket_qua(ma, tong)), op.DAP_IPN_OK)
 		la("không lập thêm phiếu thu", _pe_cua(ds, 1), da)
 		la("trang khách báo đã trả đủ", op.thong_tin_trang(ma_ngan, k)["con"], 0.0)
+
+
+@ca("Codex #534: hoá đơn bị trả bớt ở chỗ khác sau khi khách mở trang thẻ: chỉ ghi số phiếu thu thật, phần dư báo kế toán, phiếu không thành Đã thu đủ")
+def _tra_bot_cho_khac():
+	cty, tk, _mau = _nen()
+	ba = _tai_khoan_cong_ty_moi(_tk_ngan_hang(cty)).name
+	acc = frappe.db.get_value("Bank Account", ba, "account")
+	_pt_onepay(cty, acc)
+	_bat_onepay()
+	kh = _khach("OnePay2")
+	ds = [_hd(tk, cty, 400000, kh) for _i in range(2)]
+	ma_phieu = "DNTT-99-12-%05d" % random.randint(0, 99999)
+	p = _phieu(ds, kh, ma_phieu=ma_phieu)
+	ma_ngan = ma_phieu.replace("-", "")
+	k = op.khoa_phieu(ma_phieu)
+
+	def _dinh(pe):
+		frappe.get_doc({"doctype": "File", "file_name": "kt534-%s.txt" % pe.name, "content": "Giấy báo Có thử",
+			"is_private": 1, "attached_to_doctype": "Payment Entry", "attached_to_name": pe.name}).insert(ignore_permissions=True)
+
+	with patch.object(tt, "xep_gui_thu", lambda *a, **kw: None):
+		truoc = frappe.session.user
+		try:
+			frappe.set_user("Guest")
+			op.tao_gd(ma_ngan, k)
+		finally:
+			frappe.set_user(truoc)
+		ma = op.doc_nhat_ky(frappe.db.get_value("Vagabond Cong No", p.name, "onepay_gd"))[0]["ma"]
+		# Khách chuyển khoản trả bớt 300.000 cho hoá đơn đầu, kế toán ghi ở chỗ khác.
+		ngoai = tt.ghi_thu_tien(ds[0].name, [{"pt": op.PT, "so_tien": 300000}], nguon="kt534-ngoai", dinh=_dinh)
+		for t in ngoai:
+			_DA_TAO.append(("Payment Entry", t))
+		la("IPN thành công 800.000", _goi_ipn(_ket_qua(ma, 800000)), op.DAP_IPN_OK)
+		d = frappe.get_doc("Vagabond Cong No", p.name)
+		g = op.doc_nhat_ky(d.onepay_gd)[0]
+		la("nhật ký ghi đúng số đã ghi sổ và phần dư", (g["trang_thai"], flt(g["so_ghi"]), flt(g["du"])), ("da_ghi", 500000.0, 300000.0))
+		ten = [t for t in _pe_cua(ds, 1) if t not in ngoai]
+		la("phiếu thu OnePay của giao dịch cộng đúng 500.000",
+			sum(flt(frappe.db.get_value("Payment Entry", t, "paid_amount")) for t in ten), 500000.0)
+		la("phiếu ghi đã thu đúng số thật", (flt(d.da_thu), d.trang_thai), (500000.0, "Thu thieu"))
+		dung("ghi chú phiếu báo phần dư cho kế toán", any("phần dư 300.000 đ" in (c.content or "") for c in
+			frappe.get_all("Comment", filters={"reference_doctype": "Vagabond Cong No", "reference_name": p.name},
+				fields=["content"], limit_page_length=0)))
+		la("gọi lại không đổi số", _goi_ipn(_ket_qua(ma, 800000)), op.DAP_IPN_OK)
+		la("vẫn 500.000", flt(frappe.db.get_value("Vagabond Cong No", p.name, "da_thu")), 500000.0)
