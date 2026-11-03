@@ -288,6 +288,29 @@ def ap_gia_chung(items, rows, gia, mien, gia_chung, bo_qua=()):
 	return doi
 
 
+def gia_dong_combo(dong, ma):
+	"""THUAN: gia mot mon thanh phan trong combo, doc tu cau hinh combo tren
+	MAY CHU (cot gia_goc cua dong combo; man quay dat dung so nay khi bam
+	combo). Tien giam cua combo do khuyen mai tinh rieng (combo_ap). Tra 0 neu
+	combo khong khai gia cho mon do (Codex PR #532 vong 7)."""
+	ma = str(ma or "").strip()
+	return max([flt(x.get("gia_goc")) for x in (dong or []) if x.get("item_code") == ma] or [0])
+
+
+def dat_gia_dong_combo(r, dong):
+	"""THUAN: dong gio co ma combo da kiem thanh phan. Dat gia theo cau hinh
+	combo cua may chu; combo khong khai gia cho mon thi BO danh dau combo de
+	dong nay tinh nhu mon thuong (gia diem, gia chung). Tra 1 neu gia may khach
+	gui lech gia may chu."""
+	g = gia_dong_combo(dong, r.get("item_code"))
+	if not g:
+		r["combo_ma"] = ""
+		return 0
+	lech = 1 if flt(r.get("rate")) != g else 0
+	r["rate"] = g
+	return lech
+
+
 def dong_combo_tao(items):
 	"""THUAN: dong combo duoc giu gia khi LUU bill moi. Chi dong co ma combo
 	(combo_ma): vong dung dong cua tao_don_tay da doc Vagabond Combo va chan

@@ -637,6 +637,18 @@ NGUON_CU = {
 }
 
 
+def _gia_combo_may_chu(r, ma):
+	"""Dòng giỏ có mã combo: kiểm món thuộc combo, rồi đặt giá thành phần theo
+	cấu hình combo trên máy chủ (diem_ban.dat_gia_dong_combo). Trả 1 nếu giá máy
+	khách gửi lệch. Dòng không có mã combo trả 0."""
+	if not r.get("combo_ma"):
+		return 0
+	cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
+	if ma not in [x.item_code for x in cb.dong]:
+		frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
+	return diem_ban.dat_gia_dong_combo(r, [x.as_dict() for x in cb.dong])
+
+
 def _quay_cua_nguon(nguon, quay):
 	"""Ma quay cho mot don nhap tay, suy tu nguon don.
 
@@ -4573,6 +4585,7 @@ def tao_don_tay(
 	if isinstance(items, str):
 		items = json.loads(items or "[]")
 	rows = []
+	doi_combo = 0
 	for r in items or []:
 		ma = (r.get("item_code") or "").strip()
 		if not ma or not frappe.db.exists("Item", ma):
@@ -4580,6 +4593,9 @@ def tao_don_tay(
 		sl = flt(r.get("qty") or 0)
 		if sl <= 0:
 			frappe.throw("Số lượng của %s phải lớn hơn 0." % ma)
+		# Codex PR #532 vòng 7: dòng combo lấy giá thành phần từ cấu hình combo
+		# trên máy chủ, không theo giá máy khách gửi.
+		doi_combo += _gia_combo_may_chu(r, ma)
 		d = {"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)}
 		# Tuy chon pha che kieu Fabi (it duong, it da, da rieng...) - chi la
 		# ghi chu 0 dong tren dong mon, khong doi tien (anh Viet 09/08/2026).
@@ -4625,7 +4641,7 @@ def tao_don_tay(
 	# lại vẫn được máy chủ tự sửa giá như trước.
 	gia_diem_tao = diem_ban.gia_rieng_cua_quay(quay)
 	mien_tao = diem_ban.dong_combo_tao(items)
-	doi_gia = diem_ban.ap_gia_diem(items, rows, gia_diem_tao, mien_tao)
+	doi_gia = doi_combo + diem_ban.ap_gia_diem(items, rows, gia_diem_tao, mien_tao)
 	if cint(gia_theo_diem):
 		# Codex PR #532 vòng 3: màn quầy mới tính giá bằng đúng hai nguồn (giá
 		# điểm, không có thì giá chung danh mục), nên máy chủ đối chiếu cả giá
@@ -6768,8 +6784,9 @@ def pos_sua_don(
 		# giá cũ (bảng giá vừa đổi) thì CHẶN để thu ngân xem tổng mới trước.
 		dong_cu = {x.name: x.as_dict() for x in si.items}
 		gia_diem_sua = diem_ban.gia_rieng_cua_quay(si.get("vgb_quay"))
+		doi_sua = sum(_gia_combo_may_chu(r, (r.get("item_code") or "").strip()) for r in items)
 		mien_sua = diem_ban.dong_giu_gia_sua(items, dong_cu)
-		doi_sua = diem_ban.ap_gia_diem(items, None, gia_diem_sua, mien_sua)
+		doi_sua += diem_ban.ap_gia_diem(items, None, gia_diem_sua, mien_sua)
 		if cint(gia_theo_diem):
 			from vagabond import phi_giao as _pg1
 
