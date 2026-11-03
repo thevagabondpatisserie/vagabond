@@ -66,6 +66,14 @@ def cau_hoan(t, du):
 	return "Khách trả dư %s đ (đơn đã được trả ở chỗ khác): kế toán hoàn lại cho khách." % tien_vn(du)
 
 
+def the_da_ghi(nhat_ky):
+	"""Giao dịch thẻ ĐÃ GHI NHẬN (OnePay báo thành công, máy đã xử lý) trong nhật ký
+	một đơn. Màn quầy chỉ báo "khách đã trả thẻ" khi có mục mới ở đây, không suy từ
+	số còn phải thu (Codex #538 vòng 2: số đó còn giảm vì chuyển khoản, tiền mặt). THUẦN."""
+	return [{"ma": g.get("ma"), "so_tien": float(g.get("so_tien") or 0), "so_ghi": float(g.get("so_ghi") or 0),
+		"du": float(g.get("du") or 0)} for g in nhat_ky or [] if g.get("trang_thai") == "da_ghi"]
+
+
 def khoa_phieu_thu(ma_gd):
 	"""reference_no của phiếu thu một giao dịch: khoá chống ghi hai lần. THUẦN."""
 	return ("onepay:%s" % ma_gd)[:140]
@@ -298,7 +306,7 @@ def ma_the(name):
 		frappe.throw("Thanh toán thẻ OnePay đang tắt. Bật ở Cài đặt lõi và API, mục Thanh toán thẻ OnePay.")
 	link = link_don(t["ma"])
 	return {"ma": t["ma"], "link": link, "anh": anh_lien_ket(link), "con_lai": t["con_lai"],
-		"trang_thai": t["trang_thai"]}
+		"trang_thai": t["trang_thai"], "the": _the(name)}
 
 
 @frappe.whitelist()
@@ -308,4 +316,10 @@ def con_lai(name):
 
 	_kiem_quyen()
 	t = _tom_tat(name)
-	return {"con_lai": t["con_lai"], "trang_thai": t["trang_thai"]}
+	return {"con_lai": t["con_lai"], "trang_thai": t["trang_thai"], "the": _the(name)}
+
+
+def _the(name):
+	from vagabond import onepay as op
+
+	return the_da_ghi(op.doc_nhat_ky(frappe.db.get_value(SO, name, TRUONG_NK)))
