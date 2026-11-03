@@ -66677,7 +66677,8 @@ function qtmNoiBangDem(than, veTong) {
 }
 
 /* Chốt số dư đầu quỹ (v635): chỉ khi quỹ chưa có mốc. Đếm theo mệnh giá như Kiểm quỹ,
-   không có ô gõ tay số dư. Ngày mốc máy chủ tự chọn (quy_tien_mat.ngay_chot_dau). */
+   không có ô gõ tay số dư. Máy chủ quy số đếm về số cuối hôm qua (quy_tien_mat.so_du_cuoi_hom_qua) nên
+   khoản ghi sau lúc chốt trong ngày vẫn cộng trừ tiếp (Codex #536 vòng 1). */
 async function scrQuyChotDau() {
   var td = 'Chốt số dư đầu quỹ';
   if (!(await qtmNap(td))) return;
@@ -66693,8 +66694,7 @@ async function scrQuyChotDau() {
     '<div id="qtmTong" style="margin-top:10px"></div>' +
     '<input class="tin" id="qtmGhiChuChot" placeholder="Ghi thêm (nếu có), ví dụ: đếm cùng anh Việt" style="width:100%;height:44px;box-sizing:border-box;margin-top:10px"></div>' +
     '<div class="card" style="padding:11px 13px;font-size:13px;color:#475467;line-height:1.6">' +
-    '<div>Nên đếm đầu ngày, trước khi nhận biên nhận hay chi khoản nào: máy tính quỹ từ cuối hôm qua, mọi khoản từ hôm nay cộng trừ tiếp.</div>' +
-    '<div>Hôm nay đã có khoản vào ra quỹ thì máy tính từ cuối hôm nay, Kiểm quỹ và Nộp ngân hàng làm từ ngày mai.</div>' +
+    '<div>Đếm lúc nào trong ngày cũng được. Khoản đã ký nhận hay đã chi trước lúc đếm nằm sẵn trong số đếm; khoản ghi sau lúc chốt app cộng trừ tiếp.</div>' +
     '<div>Chỉ chốt một lần. Sau đó muốn sửa số quỹ thì Kiểm quỹ.</div></div>' +
     '<button class="btn" data-qtmchotluu="1" style="width:100%;min-height:48px">Chốt số dư đầu</button>';
   var than = frame(td, html);
@@ -66719,7 +66719,7 @@ async function scrQuyChotDau() {
         ghi_chu: (document.getElementById('qtmGhiChuChot') || {}).value || '' });
     } catch (e) { dangGui = false; toast(errMsg(e)); return; }
     QTM_DEM = {};
-    toast('Đã chốt quỹ ' + money(kq.so_du) + ' đ, tính từ cuối ngày ' + tcNgay(kq.ngay_chot));
+    toast('Đã chốt quỹ ' + money(kq.so_du) + ' đ');
     back();
   };
 }
