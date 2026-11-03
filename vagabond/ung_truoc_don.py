@@ -365,8 +365,8 @@ def khoa_dong_sao_ke(ds_gd):
 	ds = sorted({str(x or "").strip() for x in ds_gd or [] if str(x or "").strip()})
 	if not ds:
 		return {}
-	hang = frappe.db.sql("""select name, docstatus, deposit, withdrawal, currency, unallocated_amount, bank_account
-		from `tabBank Transaction` where name in %(ds)s order by name for update""", {"ds": tuple(ds)}, as_dict=True)
+	hang = frappe.db.sql("""select name, docstatus, deposit, withdrawal, currency, unallocated_amount, bank_account,
+		reference_number from `tabBank Transaction` where name in %(ds)s order by name for update""", {"ds": tuple(ds)}, as_dict=True)
 	return {h["name"]: h for h in hang or [] if isinstance(h, dict)}
 
 
@@ -390,8 +390,34 @@ def phieu_chiem(ds_gd):
 		where vgb_gd_tkr in %(ds)s and docstatus < 2 order by name for update""", {"ds": tuple(ds)}, as_dict=True)
 
 
-def chu_hien_tai(ds_gd):
-	return {p["vgb_gd_tkr"]: "phiếu thu đơn đặt trước " + p["name"] for p in phieu_chiem(ds_gd)}
+def chu_hien_tai(ds_gd, tru_phieu=None):
+	return {p["vgb_gd_tkr"]: "phiếu thu đơn đặt trước " + p["name"] for p in phieu_chiem(ds_gd)
+		if p["name"] != tru_phieu}
+
+
+def chu_trong_khoa(gds, tru_phieu=None):
+	"""Chủ của các dòng sao kê ĐÃ KHOÁ, đọc HIỆN TẠI mọi nguồn (Codex #531 vòng 10).
+
+	Gọi SAU `khoa_dong_sao_ke`, TRƯỚC phép chọn. Ảnh chụp lấy lúc tìm dòng
+	không thấy chủ mà phiên khác vừa ghi trong lúc mình chờ khoá (bộ sao kê
+	của phiếu công nợ, đề nghị chi, hồ sơ thanh toán...). Hỏi theo tên dòng
+	và cả mã tham chiếu ngân hàng: chứng từ cũ có thể ghi mã tham chiếu.
+	`tru_phieu`: phiếu thu đang ghi sổ, không tính là chủ khác."""
+	from vagabond import doi_soat_sepay as dss
+
+	ma_cua = {}
+	for g in gds or []:
+		for m in (g.get("name"), g.get("reference_number")):
+			m = str(m or "").strip()
+			if m:
+				ma_cua.setdefault(m, g["name"])
+	chu = {}
+	if ma_cua:
+		for m, c in dss.chu_cua_giao_dich(sorted(ma_cua), bo_qua_phieu=tru_phieu, khoa=True).items():
+			if m in ma_cua:
+				chu.setdefault(ma_cua[m], c)
+	chu.update(chu_hien_tai([g["name"] for g in gds or []], tru_phieu))
+	return chu
 
 
 def dien_dong(g):
@@ -459,9 +485,7 @@ def khop(so_name, truong_ma, re_ma, toi_thieu_cua, quay, cong_ty, ghi_chu_cua, k
 	gds = loc_dong_sao_ke(gds, lambda tk: dss.ly_do_tai_khoan_sepay(tk, cho_phep), tk_so_cai)[0]
 	if not gds:
 		return 0
-	ten_gd = [g["name"] for g in gds]
-	chu = dss.chu_cua_giao_dich(ten_gd)
-	chu.update(chu_hien_tai(ten_gd))
+	chu = chu_trong_khoa(gds)
 	nhan, xem = chon_giao_dich(gds, ma, re_ma, chu, toi_thieu_cua(so, tong), tong, da, ten_toi_thieu)
 	if xem:
 		frappe.log_error(json.dumps(xem, ensure_ascii=False), "%s: sao kê cần xem lại %s" % (tieu_de_loi, ma))
@@ -502,16 +526,20 @@ def ghi_so_nhap(so_name, phieu, anh=None):
 	pe = frappe.get_doc(PE, phieu)
 	if pe.get("vgb_phieu_dat") != so_name or int(pe.docstatus) != 0 or not pe.get("vgb_gd_tkr"):
 		frappe.throw("Phiếu %s không phải phiếu thu nháp của đơn này." % phieu)
-	g = frappe.db.get_value(BT, pe.vgb_gd_tkr, ["docstatus", "deposit"], as_dict=True)
-	if not g or int(g.docstatus) != 1 or tron(g.deposit) + LECH < tron(pe.paid_amount):
+	# Khoá dòng sao kê rồi mới đọc nó và đọc chủ, đều đọc hiện tại (Codex #531 vòng 10).
+	g = khoa_dong_sao_ke([pe.vgb_gd_tkr]).get(pe.vgb_gd_tkr)
+	if not g or int(g.get("docstatus") or 0) != 1 or tron(g.get("deposit")) + LECH < tron(pe.paid_amount):
 		frappe.throw("Dòng sao kê %s của phiếu không còn hợp lệ. Kế toán đối chiếu tay." % pe.vgb_gd_tkr)
 	# Hàng rào cuối: một dòng sao kê chỉ MỘT phiếu thu được ghi sổ. Nháp đôi
 	# lập trước bản sửa #531 (hoặc lọt bằng đường nào khác) dừng ở đây.
-	khoa_dong_sao_ke([pe.vgb_gd_tkr])
 	khac = [p["name"] for p in phieu_chiem([pe.vgb_gd_tkr]) if p["name"] != pe.name]
 	if khac:
 		frappe.throw("Dòng sao kê %s đã có phiếu thu %s chiếm. Không ghi sổ thêm phiếu %s; kế toán đối chiếu "
 			"rồi huỷ phiếu thừa." % (pe.vgb_gd_tkr, ", ".join(khac), pe.name))
+	chu = chu_trong_khoa([dict(g, name=pe.vgb_gd_tkr)], tru_phieu=pe.name).get(pe.vgb_gd_tkr)
+	if chu:
+		frappe.throw("Dòng sao kê %s đã thuộc %s. Không ghi sổ phiếu %s; kế toán đối chiếu rồi huỷ phiếu "
+			"thừa." % (pe.vgb_gd_tkr, chu, pe.name))
 	if isinstance(anh, str):
 		anh = frappe.parse_json(anh or "[]") or []
 	ds, loi = loc_giay_bao_co(anh)

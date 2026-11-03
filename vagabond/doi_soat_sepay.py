@@ -289,11 +289,51 @@ def da_chiem(loai, tru_phieu=None):
 HD_BAN = {"doctype": "Sales Invoice", "truong": "vgb_gd_sepay", "ten_man": "hoá đơn bán"}
 
 
-def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don=None, cho_bo=False):
+def _doc_bang_chu(dt, loc, fields, khoa=True):
+	"""Đọc một bảng chủ HIỆN TẠI có khoá (for update), không đọc ảnh chụp. Chỉ bộ khớp gọi."""
+	if khoa:
+		return frappe.db.get_values(dt, loc, fields, as_dict=True, for_update=True, order_by="name") or []
+	return frappe.get_all(dt, filters=loc, fields=fields, limit_page_length=0)
+
+
+def _chu_trong_khoa(muon, ra):
+	"""Nguồn chủ chỉ bộ khớp ung_truoc_don đọc, sau khi đã khoá các dòng sao kê.
+
+	Phần đã đối chiếu (Bank Transaction Payments, chỉ mục theo dòng sao kê) và
+	hồ sơ thanh toán APP (ô `ma_giao_dich` có chỉ mục, cùng điều kiện với
+	`doi_chieu_app._chu_khac`). Cửa cũ không gọi phần này để không đổi hành vi
+	của chúng (Codex #531 vòng 10)."""
+	from vagabond import bo_sao_ke_db as bs
+
+	ds = sorted(muon)
+	for ma in ds:
+		for r in bs._loi(ma):
+			ra.setdefault(ma, "chứng từ đã đối chiếu %s %s" % (r.get("doctype") or "", r.get("name") or ""))
+	for r in frappe.db.sql("""select name, ma_giao_dich from `tabVagabond Ho So TT`
+		where ma_giao_dich in %(ds)s and trang_thai != 'Tu choi' order by name for update""",
+			{"ds": tuple(ds)}, as_dict=True):
+		ra.setdefault(r["ma_giao_dich"], "hồ sơ thanh toán " + r["name"])
+	for r in frappe.db.sql("""select d.parent, d.ma_giao_dich from `tabVagabond Ho So TT Dong` d
+		join `tabVagabond Ho So TT` p on p.name = d.parent
+		where d.ma_giao_dich in %(ds)s and p.trang_thai != 'Tu choi' order by d.parent for update""",
+			{"ds": tuple(ds)}, as_dict=True):
+		ra.setdefault(r["ma_giao_dich"], "hồ sơ thanh toán " + r["parent"])
+
+
+def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don=None, cho_bo=False, khoa=False):
 	"""Mỗi mã giao dịch trong `ds_gd` hiện đang thuộc về chứng từ nào.
 
 	Trả về {mã giao dịch: "tên màn PHIEU-XXX"}. Không có chủ thì không có
 	khoá.
+
+	`khoa=True` CHỈ khi người gọi đã khoá các dòng sao kê `ds_gd` (bộ khớp
+	ung_truoc_don, Codex #531 vòng 10). Khi đó mọi nguồn chủ ghi theo giao thức
+	"khoá dòng sao kê rồi mới ghi" được đọc HIỆN TẠI (for update): bộ sao kê
+	trên chính dòng sao kê, các luồng trong sổ, phiếu nộp tiền mặt, phần đã đối
+	chiếu, hồ sơ thanh toán APP. Lỗi đọc thì ném, không nuốt: nuốt là bỏ sót
+	chủ và lập phiếu đôi. Hoá đơn bán vẫn đọc ảnh chụp: cửa ghi của nó không
+	khoá dòng sao kê nên đọc có khoá không đóng được cuộc đua, mà lại khoá cả
+	bảng hoá đơn (ô văn bản không có chỉ mục) và chặn quầy.
 
 	Vì sao phải hỏi TOÀN HỆ chứ không chỉ trong luồng của mình
 	----------------------------------------------------------
@@ -310,7 +350,8 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 	# giữ. Không suy quyền dùng từ mã đầu tiên còn lưu để tương thích.
 	from vagabond import bo_sao_ke_db as bs
 	for ma in ([] if cho_bo else sorted(muon)):
-		for bo in bs._cac_bo(ma):
+		# Cửa cũ gọi đúng như trước; chỉ bộ khớp (khoa) đọc có khoá.
+		for bo in (bs._cac_bo(ma, khoa=True) if khoa else bs._cac_bo(ma)):
 			dt, ten = bo["chu"].split("/", 1)
 			if ten != bo_qua_phieu:
 				ra.setdefault(ma, "bộ sao kê " + ten)
@@ -318,7 +359,7 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 		nap_so()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: nap so de hoi chu")
-		if cho_bo:raise
+		if cho_bo or khoa:raise
 	for loai, b in _SO.items():
 		if bo_qua_loai and loai == bo_qua_loai:
 			continue
@@ -332,11 +373,12 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 		if bo_qua_phieu:
 			loc["name"] = ["!=", bo_qua_phieu]
 		try:
-			ds = frappe.get_all(b["doctype"], filters=loc,
-				fields=["name", b["truong_gd"]] + ([bs.O_BO] if cho_bo and b["doctype"] in bs.PHIEU else []), limit_page_length=0)
+			cot = ["name", b["truong_gd"]] + ([bs.O_BO] if cho_bo and b["doctype"] in bs.PHIEU else [])
+			ds = _doc_bang_chu(b["doctype"], loc, cot, True) if khoa else frappe.get_all(
+				b["doctype"], filters=loc, fields=cot, limit_page_length=0)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu luong %s" % loai)
-			if cho_bo:raise
+			if cho_bo or khoa:raise
 			continue
 		for r in ds:
 			if cho_bo and r.get(bs.O_BO):continue
@@ -366,18 +408,21 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 					ra[ma] = "%s %s" % (HD_BAN["ten_man"], r["name"])
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu hoa don ban")
-		if cho_bo:raise
+		if cho_bo or khoa:raise
 	# v628 Quỹ tiền mặt: tiền mặt công ty mang đi nộp vào ngân hàng. Dòng sao kê tiền
 	# về đã ghép thì thuộc phiếu nộp, không để bill hay tin "tiền chưa gắn" nhận nhầm.
 	try:
-		for r in frappe.get_all("Vagabond Phieu Quy", filters=[["gd_sepay", "in", sorted(muon)],
-				["trang_thai", "!=", "Đã huỷ"]], fields=["name", "gd_sepay"], limit_page_length=0):
+		loc_q = [["gd_sepay", "in", sorted(muon)], ["trang_thai", "!=", "Đã huỷ"]]
+		for r in (_doc_bang_chu("Vagabond Phieu Quy", loc_q, ["name", "gd_sepay"], True) if khoa else
+				frappe.get_all("Vagabond Phieu Quy", filters=loc_q, fields=["name", "gd_sepay"], limit_page_length=0)):
 			ma = str(r.get("gd_sepay") or "").strip()
 			if ma in muon and ma not in ra:
 				ra[ma] = "phiếu nộp tiền mặt vào ngân hàng %s" % r["name"]
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu phieu quy")
-		if cho_bo:raise
+		if cho_bo or khoa:raise
+	if khoa:
+		_chu_trong_khoa(muon, ra)
 	return ra
 
 
