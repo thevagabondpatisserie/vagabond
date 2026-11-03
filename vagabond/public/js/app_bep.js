@@ -2373,6 +2373,13 @@ var CSS = `
 .navbar,.web-footer,footer,.footer-logo-extension,#navbar-collapse,.page-header,.breadcrumb-container{display:none!important}
 html,body{background:#eef0f5!important;margin:0!important;padding:0!important}
 body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#16181d}
+/* v636 (anh Việt 03/11/2026, màn Đơn đặt trước trên máy Mac): chữ trong NÚT
+   (chip lọc, ô đếm) vẽ ra một font khác hẳn chữ thường, đậm vỡ nét. Nút là
+   phần tử biểu mẫu, trình duyệt cho nó bộ chữ riêng; Frappe chỉ trả lại
+   font-family mà không trả font-variation-settings ("opsz" 24 đặt trên body).
+   Cho nút và ô nhập nhận TRỌN bộ chữ của trang. Lớp và inline style vẫn
+   đặt cỡ, độ đậm riêng như cũ vì thắng bộ chọn thẻ. */
+button,input,select,textarea{font-family:inherit;font-style:inherit;font-stretch:inherit;font-variation-settings:inherit;font-optical-sizing:inherit;font-feature-settings:inherit;-webkit-font-smoothing:inherit}
 .page_content,.container,main,section,article,#page-index{padding:0!important;margin:0!important;max-width:none!important;width:auto!important}
 #vgb *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 #vgb{position:fixed;inset:0;display:flex;flex-direction:column;background:#eef0f5;overflow:hidden;z-index:9}
@@ -26720,7 +26727,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '633';
+var APPVER = '636';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
