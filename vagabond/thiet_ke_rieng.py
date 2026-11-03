@@ -409,6 +409,10 @@ TRUONG_MOI = {
 		# của ô unique thành NULL, nên các phiếu đặt khác không đụng nhau.
 		{"fieldname": "vgb_tkr_lan", "label": "Mã lần gửi", "fieldtype": "Data",
 			"insert_after": "vgb_tkr_khoa", "read_only": 1, "hidden": 1, "no_copy": 1, "unique": 1},
+		# v637: nhật ký giao dịch thẻ OnePay của đơn (onepay_dat.py), cùng dạng ô
+		# onepay_gd của phiếu công nợ. Máy ghi, không ai sửa tay.
+		{"fieldname": "vgb_onepay_gd", "label": "Nhật ký thẻ OnePay", "fieldtype": "Long Text",
+			"insert_after": "vgb_tkr_lan", "read_only": 1, "hidden": 1, "no_copy": 1},
 	],
 	PE: [
 		{"fieldname": "vgb_gd_tkr", "label": "Dòng sao kê đã gạch (đơn đặt trước)", "fieldtype": "Data",
@@ -917,6 +921,10 @@ def xem(name):
 	t["qr"] = _qr(t["ma"], t["con_lai"]) if t["con_lai"] > 0 and t["trang_thai"] not in ("da_huy", "da_giao") else None
 	t["quay"] = [{"ma": d["ma"], "ten": d.get("ten_ngan") or d["ten"]} for d in _ds_diem() if d.get("quay")]
 	t["la_ke_toan"] = 1 if _la_ke_toan() else 0
+	# v637: cách "Thẻ OnePay" ở Thu phần còn lại chỉ hiện khi OnePay đang bật.
+	from vagabond.onepay import dung_duoc
+
+	t["onepay"] = 1 if dung_duoc() else 0
 	return t
 
 
