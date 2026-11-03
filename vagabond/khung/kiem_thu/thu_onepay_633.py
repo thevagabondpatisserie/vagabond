@@ -198,16 +198,67 @@ def _phieu_pdf():
 
 # ------------------------------------------------ Codex #534 vòng 1 (3 finding)
 
-def _trang(phieu, ck=True):
-	"""Dựng trang /tra-the thật bằng Jinja (cùng tệp mẫu lên site)."""
-	import jinja2
+def _gia_tri(ctx, duong):
+	v = ctx
+	for p in duong.split("."):
+		if not re.fullmatch(r"[a-z_]+", p):
+			raise ValueError("Điều kiện lạ trong mẫu: " + duong)
+		v = (v or {}).get(p) if isinstance(v, dict) else getattr(v, p, None)
+	return v
 
-	env = jinja2.Environment(autoescape=False)
+
+def _dk(ctx, cau):
+	"""Chỉ hiểu `a`, `a.b`, `not a`, `a and b`; dạng khác thì báo hỏng, không đoán."""
+	ket = True
+	for phan in cau.split(" and "):
+		phan = phan.strip()
+		phu = phan.startswith("not ")
+		v = bool(_gia_tri(ctx, phan[4:].strip() if phu else phan))
+		ket = ket and (not v if phu else v)
+	return ket
+
+
+def _ve(mau, ctx):
+	"""Bộ dựng khối if/elif/else/endif của tệp mẫu. Máy CI tay không, không có
+	jinja2 (như thu_trang_www_532b), nên ca kiểm dùng bộ này; biểu thức {{ }}
+	bỏ đi vì ca chỉ xét khối nào hiện. Thẻ khác if/elif/else/endif thì báo hỏng."""
+	mau = re.sub(r"\{\{.*?\}\}", "", mau, flags=re.S)
+	ra, ngan, bat = [], [], True
+	for t in re.split(r"(\{%.*?%\})", mau, flags=re.S):
+		m = re.fullmatch(r"\{%\s*(if|elif|else|endif)\s*(.*?)\s*%\}", t, re.S)
+		if not m:
+			if t.startswith("{%"):
+				raise ValueError("Thẻ mẫu lạ: " + t)
+			if bat:
+				ra.append(t)
+			continue
+		tu, cau = m.groups()
+		if tu == "if":
+			v = bat and _dk(ctx, cau)
+			ngan.append([bat, v])
+			bat = v
+		elif tu == "elif":
+			cha, da = ngan[-1]
+			bat = cha and not da and _dk(ctx, cau)
+			ngan[-1][1] = da or bat
+		elif tu == "else":
+			cha, da = ngan[-1]
+			bat = cha and not da
+			ngan[-1][1] = True
+		else:
+			bat = ngan.pop()[0]
+	if ngan:
+		raise ValueError("Mẫu thiếu endif")
+	return "".join(ra)
+
+
+def _trang(phieu, ck=True):
+	"""Dựng trang /tra-the từ ĐÚNG tệp mẫu lên site, cùng ngữ cảnh tra_the.py đặt."""
 	ctx = {"csrf_token": "x", "ket_qua": None, "phieu": phieu, "ma": "DNTT261100002", "k": "0" * 16,
 		"ck": {"ngan_hang": "MB", "stk": "123", "ten": "VAGABOND", "anh": ""} if ck else None}
 	if phieu:
 		ctx.update(op.cach_tra(phieu))
-	return env.from_string(_doc("www", "tra-the.html")).render(**ctx)
+	return _ve(_doc("www", "tra-the.html"), ctx)
 
 
 @ca("Codex #534: còn nợ dưới 10.000 đ không được báo 'đã thanh toán đủ', vẫn hiện chuyển khoản; chỉ ẩn nút thẻ")
