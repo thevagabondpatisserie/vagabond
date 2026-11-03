@@ -347,3 +347,16 @@ def _codex_quet_don_huy():
 		op.quet()
 	f = [f for d, f in loc if d == "Sales Order"][0]
 	la("lọc phiếu đặt gồm cả đã huỷ", f.get("docstatus"), ["in", [1, 2]])
+
+
+@ca("v637 Codex #538 vòng 2: màn quầy hỏi lại nhận DANH SÁCH giao dịch thẻ đã ghi nhận của đơn (không chỉ số còn phải thu); giao dịch chờ, thất bại, hết hạn không tính")
+def _codex_the_da_ghi():
+	nk = [{"ma": "TKR26110002-1", "so_tien": 3780000, "trang_thai": "that_bai"},
+		{"ma": "TKR26110002-2", "so_tien": 3780000, "trang_thai": "da_ghi", "so_ghi": 3780000, "du": 0},
+		{"ma": "TKR26110002-3", "so_tien": 3780000, "trang_thai": "cho"},
+		{"ma": "TKR26110002-4", "so_tien": 1, "trang_thai": "het_han"}]
+	la("chỉ giao dịch đã ghi", od.the_da_ghi(nk), [{"ma": "TKR26110002-2", "so_tien": 3780000.0, "so_ghi": 3780000.0, "du": 0.0}])
+	dbg = _Db(nk)
+	vat = _vat(dbg, []) + [patch.object(tkr, "_kiem_quyen", lambda: None)]
+	r = _chay(vat, lambda: od.con_lai("SO-2"))
+	la("cửa hỏi lại trả số còn phải thu và giao dịch đã ghi", (r["con_lai"], [g["ma"] for g in r["the"]]), (3780000, ["TKR26110002-2"]))
