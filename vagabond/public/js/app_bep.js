@@ -67050,6 +67050,12 @@ function ddtSheetThu(r, dsQuay) {
    trên trang OnePay; màn hỏi lại số còn phải thu mỗi 4 giây, tiền về thì tự báo
    và đóng. Tiền thẻ ghi cho Sales (quầy không két), két quầy không cộng. */
 var DDT_HOI_THE = 4000;
+/* Giao dịch thẻ đã ghi nhận chưa có trong `daCo` (đối tượng mã -> 1). `daCo` null thì
+   trả đối tượng các mã hiện có, làm mốc lúc mở. THUẦN. */
+function ddtTheDaGhi(ds, daCo) {
+  if (!daCo) { var m = {}; (ds || []).forEach(function (g) { if (g && g.ma) m[g.ma] = 1; }); return m; }
+  return (ds || []).filter(function (g) { return g && g.ma && !daCo[g.ma]; });
+}
 function ddtConMo(ov, lan) { return !!ov.parentNode && ov._theLan === lan && cachDangLaThe(ov); }
 function cachDangLaThe(ov) { return !!ov.querySelector('[data-ddtonepay]'); }
 async function ddtMoThe(r, ov) {
@@ -67061,18 +67067,35 @@ async function ddtMoThe(r, ov) {
   try { kq = await api('vagabond.onepay_dat.ma_the', { name: r.name }); }
   catch (e) { if (o && ddtConMo(ov, lan)) o.innerHTML = '<div style="color:#b3261e">' + h(errMsg(e)) + '</div>'; return; }
   if (!o || !ddtConMo(ov, lan)) return;
+  /* Codex #538 vòng 2: số còn phải thu lấy từ máy chủ lúc mở, không từ màn đã nạp
+     trước đó; đơn đã đủ thì không hiện QR. */
+  var dau = Number(kq.con_lai) || 0;
+  if (dau < 1) {
+    o.innerHTML = '<div style="color:#067647;font-weight:700">Đơn ' + h(r.ma) + ' đã thu đủ, khách không cần trả thẻ.</div>';
+    return;
+  }
   o.innerHTML = '<img alt="Mã QR trả thẻ OnePay" data-ddttheqr="1" src="' + h(kq.anh) + '" style="width:220px;height:220px;background:#fff">' +
     '<div style="font-size:13.5px;line-height:1.6;margin:8px 0;color:#344054">Mời khách quét mã bằng camera điện thoại, bấm <b>Thanh toán bằng thẻ</b> rồi nhập thẻ trên trang OnePay.</div>' +
-    '<div data-ddtthecho="1" style="font-size:13px;color:#b45309;font-weight:700">Đang chờ khách trả ' + money(r.con_lai) + 'đ...</div>' +
+    '<div data-ddtthecho="1" style="font-size:13px;color:#b45309;font-weight:700">Đang chờ khách trả ' + money(dau) + 'đ...</div>' +
     '<div style="font-size:12.5px;color:#475467;margin-top:8px;line-height:1.5;text-align:left">Trả xong máy tự ghi phiếu thu cho Sales, két quầy không cộng khoản này. Thu ngân không cần cà máy POS.</div>';
-  var dau = Number(r.con_lai) || 0;
+  /* Chỉ báo "đã trả thẻ" khi máy chủ có giao dịch thẻ MỚI đã ghi nhận (so với lúc mở),
+     không suy từ số còn phải thu: số đó còn giảm vì chuyển khoản, tiền mặt (Codex #538 vòng 2). */
+  var daCo = ddtTheDaGhi(kq.the, null);
   async function hoi() {
     if (!ddtConMo(ov, lan)) return;
     var t;
     try { t = await api('vagabond.onepay_dat.con_lai', { name: r.name }); } catch (e) { t = null; }
     if (!ddtConMo(ov, lan)) return;
-    if (t && (Number(t.con_lai) || 0) < dau - 0.5) {
-      toast('Khách đã trả thẻ ' + money(dau - (Number(t.con_lai) || 0)) + 'đ cho ' + r.ma, 4200);
+    var moi = t ? ddtTheDaGhi(t.the, daCo) : [];
+    if (moi.length) {
+      var so = moi.reduce(function (a, g) { return a + (Number(g.so_tien) || 0); }, 0);
+      toast('Khách đã trả thẻ ' + money(so) + 'đ cho ' + r.ma, 4200);
+      ov.remove();
+      go(scrDonDatTruocCt, true);
+      return;
+    }
+    if (t && (Number(t.con_lai) || 0) < 1) {
+      toast('Đơn ' + r.ma + ' đã thu đủ qua cách khác, khách không cần trả thẻ.', 4200);
       ov.remove();
       go(scrDonDatTruocCt, true);
       return;
