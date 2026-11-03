@@ -134,6 +134,19 @@ def _sua_giu_gia():
 		db.dong_giu_gia_sua([{"item_code": "TRA", "dong_goc": "D1"}], cu)), 0)
 
 
+@ca("v631 Codex PR #532 vòng 7: dòng combo lấy giá thành phần từ cấu hình combo trên máy chủ; gửi mã combo thật kèm giá 1 đồng không còn lọt; combo không khai giá cho món thì tính như món thường")
+def _gia_combo():
+	dong = [{"item_code": "TEA", "gia_goc": 45000, "nhom": ""}, {"item_code": "CAKE", "gia_goc": 0, "nhom": "Bánh"}]
+	la("giá thành phần", [db.gia_dong_combo(dong, "TEA"), db.gia_dong_combo(dong, " TEA "), db.gia_dong_combo(dong, "CAKE"), db.gia_dong_combo(dong, "X")], [45000, 45000, 0, 0])
+	r = {"item_code": "TEA", "qty": 1, "rate": 1, "combo_ma": "CB-1"}
+	la("ca Codex: TEA giá 1 đồng kèm mã combo thật", (db.dat_gia_dong_combo(r, dong), r["rate"], r["combo_ma"]), (1, 45000, "CB-1"))
+	dung("vẫn được miễn giá điểm như dòng combo", 0 in db.dong_combo_tao([r]))
+	dung("giá đúng thì không tính lệch", db.dat_gia_dong_combo({"item_code": "TEA", "rate": 45000, "combo_ma": "CB-1"}, dong) == 0)
+	c = {"item_code": "CAKE", "qty": 1, "rate": 1, "combo_ma": "CB-1"}
+	la("combo không khai giá: bỏ dấu combo", (db.dat_gia_dong_combo(c, dong), c["combo_ma"]), (0, ""))
+	la("rồi tính như món thường theo giá điểm", (db.dong_combo_tao([c]), db.ap_gia_diem([c], None, {"CAKE": 90000}, db.dong_combo_tao([c])), c["rate"]), (set(), 1, 90000))
+
+
 @ca("v631 lưu Bảng giá: đọc từng ô đã đổi, ô trống là xoá giá riêng; mã lạ hay giá sai báo rõ món nào")
 def _thay_doi():
 	hop = {"A", "B", "C"}
@@ -232,7 +245,12 @@ def _dong(ham, mau):
 def _thu_tu_may_chu():
 	src = _doc("ban_hang.py")
 	tao = _ham(src, "tao_don_tay")
-	ap = _dong(tao, "doi_gia = diem_ban.ap_gia_diem(items, rows, gia_diem_tao, mien_tao)")
+	ap = _dong(tao, "doi_gia = doi_combo + diem_ban.ap_gia_diem(items, rows, gia_diem_tao, mien_tao)")
+	# Codex PR #532 vòng 7: giá dòng combo đặt theo cấu hình combo của máy chủ
+	# TRONG vòng dựng dòng, trước khi dựng dòng hoá đơn, và tính vào số lệch.
+	cb_goi = _dong(tao, "doi_combo += _gia_combo_may_chu(r, ma)")
+	la("một chỗ đặt giá combo khi lưu bill", len(cb_goi), 1)
+	dung("đặt giá combo trước khi dựng dòng hoá đơn", cb_goi[0] < _dong(tao, "d = {'item_code': ma, 'qty': sl, 'rate': flt(r.get('rate') or 0)}")[0] < ap[0])
 	la("một chỗ đặt giá khi lưu bill", len(ap), 1)
 	dung("sau khi chốt quầy", _dong(tao, "quay = _quay_cua_nguon(nguon, quay)")[0] < ap[0])
 	dung("trước khi tính khuyến mãi", ap[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
@@ -247,7 +265,9 @@ def _thu_tu_may_chu():
 	dung("chặn ngay sau khi đặt giá, trước khuyến mãi", ap[0] < chan[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
 	dung("tham số mặc định tắt cho màn cũ", any(a.arg == "gia_theo_diem" for a in tao.args.args))
 	sua = _ham(src, "pos_sua_don")
-	ap2 = _dong(sua, "doi_sua = diem_ban.ap_gia_diem(items, None, gia_diem_sua, mien_sua)")
+	ap2 = _dong(sua, "doi_sua += diem_ban.ap_gia_diem(items, None, gia_diem_sua, mien_sua)")
+	cb2 = _dong(sua, "doi_sua = sum((_gia_combo_may_chu(r, (r.get('item_code') or '').strip()) for r in items))")
+	la("sửa bill: đặt giá combo theo máy chủ một chỗ, trước bước giữ giá", (len(cb2), cb2[0] < ap2[0]), (1, True))
 	la("dòng giữ giá khi sửa bill tính từ dòng gốc trên máy chủ", len(_dong(sua, "mien_sua = diem_ban.dong_giu_gia_sua(items, dong_cu)")), 1)
 	chan2 = _dong(sua, "frappe.throw(diem_ban.cau_gia_vua_doi(doi_sua), title='Giá vừa đổi')")
 	la("sửa bill: chặn món thêm mới mang giá cũ", len(chan2), 1)

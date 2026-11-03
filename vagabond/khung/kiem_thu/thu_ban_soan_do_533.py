@@ -209,7 +209,9 @@ def _thu_tu():
 		"63-don-dat-truoc.js",
 		# v630: Đơn sỉ web và Khách sỉ web: duyệt đăng ký, khai một giá, giao một
 		# đơn có sẵn bằng bảng hỏi một bước, không có form lập phiếu nháp nhiều ô.
-		"64-banh-si.js"])
+		"64-banh-si.js",
+		# v632: Bảng giá theo điểm bán, sửa giá có sẵn của món, không lập phiếu nháp.
+		"65-bang-gia-diem.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:
