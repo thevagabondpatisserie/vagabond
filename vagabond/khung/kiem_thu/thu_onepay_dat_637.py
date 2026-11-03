@@ -20,11 +20,14 @@ from vagabond.khung.kiem_thu.nen import ca, dung, gia_lap, la, nem
 
 gia_lap()
 _fr = sys.modules["frappe"]
+if not hasattr(_fr.utils, "get_url"):
+	_fr.utils.get_url = lambda *a, **k: "https://vagabond.test"
 if "frappe.rate_limiter" not in sys.modules:
 	sys.modules["frappe.rate_limiter"] = types.ModuleType("frappe.rate_limiter")
 	sys.modules["frappe.rate_limiter"].rate_limit = lambda **k: (lambda f: f)
 
 from vagabond import dat_banh as db  # noqa: E402
+from vagabond import kenh_zalo as kz  # noqa: E402
 from vagabond import onepay as op  # noqa: E402
 from vagabond import onepay_dat as od  # noqa: E402
 from vagabond import thiet_ke_rieng as tkr  # noqa: E402
@@ -68,12 +71,19 @@ def _quay():
 class _Db:
 	"""frappe.db giả: một phiếu đặt SO-2 với ô nhật ký thẻ."""
 
-	def __init__(self, nk=None):
+	def __init__(self, nk=None, docstatus=1):
 		self.o = {"vgb_onepay_gd": json.dumps(nk or [], ensure_ascii=False), "customer": "KH-1", "name": "SO-2"}
 		self.commit_n = 0
+		self.docstatus = docstatus
 
 	def get_value(self, dt, ten, o=None, for_update=False, **kw):
 		if isinstance(ten, dict):
+			# Như cơ sở dữ liệu thật: tôn trọng bộ lọc docstatus của câu hỏi.
+			ds = ten.get("docstatus")
+			if ds and ds[0] == "<" and not self.docstatus < ds[1]:
+				return None
+			if ds and ds[0] == "in" and self.docstatus not in ds[1]:
+				return None
 			return "SO-2" if ten.get("vgb_tkr_ma") == "TKR26110002" else None
 		return self.o.get(o)
 
@@ -104,7 +114,7 @@ def _vat(dbg, lap, tt=None, phieu=None):
 	return [patch.object(_fr, "db", dbg), patch.object(_fr, "get_doc", lambda *a, **k: so),
 		patch.object(op, "cau_hinh", return_value=dict(C)), patch.object(od, "_khoa", lambda ten: None),
 		patch.object(od, "_tom_tat", lambda ten, khoa=False: tt or _tt()), patch.object(od, "_lap_phieu", lap_gia),
-		patch.object(od, "_phieu_cua_gd", doc_so)]
+		patch.object(od, "_phieu_cua_gd", doc_so), patch.object(kz, "bao", lambda *a, **k: None)]
 
 
 def _chay(vat, ham):
@@ -307,3 +317,33 @@ def _noi():
 		("Long Text", "vgb_tkr_lan", 1, 1, 1))
 	from vagabond.khung.kiem_thu import thu_cua_ngo as cn
 	la("cửa ngõ", sorted(cn.CUA_NGO.get("onepay_dat.py", [])), ["con_lai", "ma_the"])
+
+
+# ------------------------------------------------ Codex #538 vòng 1 (SHA cd0dc1c17)
+
+
+@ca("v637 Codex #538: khách đang trả thẻ thì đơn bị huỷ, OnePay báo thành công sau: KHÔNG được coi là giao dịch lạ; nhật ký ghi đã nhận, toàn bộ tiền là tiền phải hoàn, báo kế toán (trước: gd_la, tiền mất dấu)")
+def _codex_huy_giua_chung():
+	dbg = _Db([{"ma": "TKR26110002-1", "so_tien": 3780000, "trang_thai": "cho"}], docstatus=2)
+	lap, tin = [], []
+	vat = _vat(dbg, lap, tt=_tt(con=7560000, trang_thai="da_huy")) + [patch.object(kz, "bao", lambda *a, **k: tin.append((a, k)))]
+	r = _chay(vat, lambda: op.ghi_nhan(_kq(), "ipn"))
+	la("không phải giao dịch lạ", r["ly_do"], "du")
+	la("không lập phiếu thu cho đơn đã huỷ", lap, [])
+	gd = json.loads(dbg.o["vgb_onepay_gd"])[0]
+	la("nhật ký: đã nhận, ghi 0, hoàn toàn bộ", (gd["trang_thai"], gd["so_ghi"], gd["du"]), ("da_ghi", 0.0, 3780000.0))
+	la("báo kế toán một tin", len(tin), 1)
+	dung("tin nói rõ phải hoàn", "hoàn" in json.dumps(tin[0][0], ensure_ascii=False) and "TKR26110002" in json.dumps(tin[0][0], ensure_ascii=False))
+	r2 = _chay(vat, lambda: op.ghi_nhan(_kq(), "ipn"))
+	la("IPN lặp không báo lại", (r2["ly_do"], len(tin)), ("da_ghi_roi", 1))
+
+
+@ca("v637 Codex #538: lượt quét 15 phút hỏi cả đơn đã huỷ còn giao dịch chờ (khách trả rồi mới huỷ)")
+def _codex_quet_don_huy():
+	loc = []
+	gia = types.SimpleNamespace(get_all=lambda dt, filters=None, **k: loc.append((dt, filters)) or [], db=types.SimpleNamespace(rollback=lambda: None),
+		log_error=lambda *a, **k: None, get_traceback=lambda: "", utils=types.SimpleNamespace(now_datetime=lambda: __import__("datetime").datetime(2026, 11, 14, 12)))
+	with patch.object(op, "frappe", gia), patch.object(op, "cau_hinh", return_value=dict(C)):
+		op.quet()
+	f = [f for d, f in loc if d == "Sales Order"][0]
+	la("lọc phiếu đặt gồm cả đã huỷ", f.get("docstatus"), ["in", [1, 2]])
