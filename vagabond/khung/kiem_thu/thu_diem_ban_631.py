@@ -297,7 +297,9 @@ def _bang_gia_anh():
 	def get_all(dt, **kw):
 		hoi.append((dt, kw.get("fields")))
 		if dt == "Item Price":
-			return [{"item_code": "TRA", "price_list_rate": 70000}]
+			# BANH có một dòng giá NVH đã khoá hạn (bỏ giá riêng): màn phải hiện giá chung.
+			return [{"item_code": "TRA", "price_list_rate": 70000},
+				{"item_code": "BANH", "price_list_rate": 50000, "valid_from": "1999-12-01", "valid_upto": "2000-01-01"}]
 		return [{"name": "TRA", "item_name": "Trà", "item_group": "Nước", "standard_rate": 95000, "image": "/files/tra.jpg"},
 			{"name": "BANH", "item_name": "Bánh", "item_group": "Bánh", "standard_rate": 30000, "image": None}]
 
@@ -309,6 +311,79 @@ def _bang_gia_anh():
 		kq = db.bang_gia_diem("NVHTN")
 	la("ảnh từng món", [(m["ma"], m["anh"], m["gia_diem"]) for m in kq["mon"]], [("TRA", "/files/tra.jpg", 70000), ("BANH", "", 0)])
 	dung("đọc cột ảnh của Item", "image" in [f for dt, f in hoi if dt == "Item"][0])
+
+
+@ca("v632 Codex PR #532: bỏ giá riêng hay dòng giá thừa thì KHOÁ HẠN tới hôm qua, không xoá dòng giá nào (QT-20); đặt lại giá thì thêm dòng mới")
+def _bo_gia_khong_xoa():
+	import sys
+	import types
+	import unittest.mock as um
+
+	hn = "2026-11-03"
+	cu = {"name": "IP-1", "item_code": "TRA", "price_list_rate": 70000, "valid_from": "2026-10-01", "valid_upto": None}
+	la("bỏ giá riêng: khoá hạn, không xoá", db.ke_hoach_gia([cu], None, hn),
+		(70000, None, [{"name": "IP-1", "valid_upto": "2026-11-02"}], False))
+	moi = dict(cu, name="IP-2", valid_from=hn)
+	la("dòng khai hôm nay rồi bỏ hôm nay: lùi ngày bắt đầu", db.ke_hoach_gia([moi], "", hn)[2],
+		[{"name": "IP-2", "valid_upto": "2026-11-02", "valid_from": "2026-11-02"}])
+	het = dict(cu, valid_upto="2026-11-02")
+	la("dòng đã khoá hạn không còn là giá điểm", db.gia_dang_ap([het], hn), {})
+	la("đặt lại giá sau khi đã bỏ: thêm dòng mới, dòng cũ giữ nguyên", db.ke_hoach_gia([het], 80000, hn), (0, None, [], True))
+	thua = dict(cu, name="IP-0", valid_from="2026-09-01", modified="2026-09-01")
+	gc, sua, khoa, them = db.ke_hoach_gia([thua, cu], 80000, hn)
+	la("hai dòng cùng hiệu lực: sửa dòng mới nhất, khoá hạn dòng thừa", (gc, sua, [k["name"] for k in khoa], them), (70000, ("IP-1", 80000), ["IP-0"], False))
+	la("giá không đổi thì không làm gì", db.ke_hoach_gia([cu], 70000, hn), (70000, None, [], False))
+
+	# Đúng chuỗi thao tác của quản lý: màn Bảng giá xoá trắng ô giá NVH của Trà rồi bấm Lưu.
+	fr = db.frappe
+	so = {"IP-1": dict(cu)}
+	goi = []
+
+	class Db(types.SimpleNamespace):
+		def set_value(self, dt, ten, k, v=None):
+			goi.append(("set_value", ten, k if isinstance(k, dict) else {k: v}))
+			so[ten].update(k if isinstance(k, dict) else {k: v})
+
+		def commit(self):
+			pass
+
+	def get_all(dt, filters=None, **kw):
+		if dt == "Item":
+			return ["TRA", "BANH"]
+		return [dict(r) for r in so.values() if r["item_code"] == (filters or {}).get("item_code", r["item_code"])]
+
+	def get_doc(d):
+		def insert(**k):
+			goi.append(("insert", d.get("item_code"), d.get("price_list_rate")))
+			so["IP-%d" % (len(so) + 1)] = dict(d, name="IP-%d" % (len(so) + 1))
+		return types.SimpleNamespace(insert=insert)
+
+	nvh = db._chuan(dict(db.MAC_DINH[2], bang_gia="Giá riêng NVHTN"))
+	with um.patch.dict(sys.modules, {"vagabond.ban_hang": types.SimpleNamespace(_kiem_quyen=lambda: None)}), \
+			um.patch.object(db, "_diem_co_bang", lambda ma: nvh), um.patch.object(db, "_sua_gia_duoc", lambda: True), \
+			um.patch.object(db, "_bao_dam_bang_gia", lambda b: None), um.patch.object(db, "_ghi_vet_gia", lambda *a: None), \
+			um.patch.object(db, "_hom_nay", lambda: hn), \
+			um.patch.object(fr, "get_all", get_all, create=True), um.patch.object(fr, "get_doc", get_doc, create=True), \
+			um.patch.object(fr, "delete_doc", lambda *a, **k: goi.append(("delete_doc",) + a), create=True), \
+			um.patch.object(fr, "db", Db(), create=True):
+		kq = db.luu_gia("NVHTN", '[{"ma":"TRA","gia":""}]')
+		la("lưu: 1 món đổi giá", kq, {"so": 1})
+		la("không gọi xoá dòng giá nào", [g for g in goi if g[0] == "delete_doc"], [])
+		la("dòng giá cũ còn nguyên giá, chỉ khoá hạn", (so["IP-1"]["price_list_rate"], so["IP-1"]["valid_upto"]), (70000, "2026-11-02"))
+		la("Trà về giá chung", db.gia_dang_ap(list(so.values()), hn), {})
+		db.luu_gia("NVHTN", '[{"ma":"TRA","gia":"80000"}]')
+		la("đặt lại giá: thêm dòng mới, dòng cũ vẫn còn", (len(so), db.gia_dang_ap(list(so.values()), hn)), (2, {"TRA": 80000}))
+		la("vẫn không xoá dòng nào", [g for g in goi if g[0] == "delete_doc"], [])
+	# Quầy đọc giá điểm qua gia_rieng: dòng đã khoá hạn không còn là giá NVH.
+	so2 = [het, dict(cu, name="IP-9", item_code="BANH", price_list_rate=30000)]
+	with um.patch.object(db, "theo_ma", lambda ma: nvh), um.patch.object(db, "_hom_nay", lambda: hn), \
+			um.patch.object(fr, "get_all", lambda dt, **kw: [dict(r) for r in so2], create=True):
+		la("quầy: món đã bỏ giá riêng về giá chung, món khác giữ giá NVH", db.gia_rieng("NVHTN"), {"BANH": 30000})
+	cay = ast.parse(_doc("diem_ban.py"))
+	goi_ham = [ast.unparse(x.func) for x in ast.walk(cay) if isinstance(x, ast.Call)]
+	la("diem_ban không còn lời gọi xoá nào", [g for g in goi_ham if "delete" in g], [])
+	la("một chỗ đọc dòng giá của bảng giá điểm", sum(1 for x in ast.walk(cay) if isinstance(x, ast.Call)
+		and ast.unparse(x.func) == "frappe.get_all" and x.args and getattr(x.args[0], "value", None) == "Item Price"), 1)
 
 
 @ca("v631 Tạo mặt hàng: ô giá riêng NVH lưu vào bảng giá của điểm sau khi mở mã; gõ sai, điểm giá chung, loại không bán thì chặn TRƯỚC khi mở mã")
