@@ -852,6 +852,15 @@ sdKhai('kiem_quy', 'scrQuyKiem', {
   dat: function (v) { QTM_DEM = (v && v.dem) || {}; QTM_LY_DO = (v && v.ly_do) || ''; },
   luu: ['vagabond.quy_tien_mat.kiem_quy']
 });
+/* v635 Codex #536 vòng 2: màn chốt số dư đầu quỹ đếm cả bảng mệnh giá, tải lại
+   trang giữa chừng là mất. Bảng đếm nằm ở biến QTM_DEM (đặt lại ở nút mở màn); ô ghi
+   chú đi theo số liệu ô. Chốt xong (chot_dau) thì xoá nháp. */
+sdKhai('chot_dau_quy', 'scrQuyChotDau', {
+  ten: 'Chốt số dư đầu quỹ', phat: 1,
+  lay: function () { return { dem: QTM_DEM }; },
+  dat: function (v) { QTM_DEM = (v && v.dem) || {}; },
+  luu: ['vagabond.quy_tien_mat.chot_dau']
+});
 sdKhai('nop_ngan_hang', 'scrQuyNop', {
   ten: 'Phiếu nộp tiền mặt vào ngân hàng', phat: 1,
   lay: function () { return { tk: QTM_NOP.tk || '' }; },
@@ -928,6 +937,7 @@ scrTdViTri = sdBoc('vi_tri_tuyen', 'scrTdViTri', scrTdViTri);
 scrTdThemHs = sdBoc('ho_so_ung_vien', 'scrTdThemHs', scrTdThemHs);
 scrQuyKiem = sdBoc('kiem_quy', 'scrQuyKiem', scrQuyKiem);
 scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
+scrQuyChotDau = sdBoc('chot_dau_quy', 'scrQuyChotDau', scrQuyChotDau);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
