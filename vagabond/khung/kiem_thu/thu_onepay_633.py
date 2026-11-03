@@ -194,3 +194,150 @@ def _phieu_pdf():
 	dung("đọc cài đặt hỏng: phiếu vẫn in, không ô thẻ", "OnePay" not in hong and "base64,CK" in hong)
 	for o in ("cong", "merchant", "access_code", "hash_code"):
 		dung("thiếu ô %s là không in ô thẻ" % o, not op.dung_duoc(dict(C, bat=1, **{o: ""})))
+
+
+# ------------------------------------------------ Codex #534 vòng 1 (3 finding)
+
+def _trang(phieu, ck=True):
+	"""Dựng trang /tra-the thật bằng Jinja (cùng tệp mẫu lên site)."""
+	import jinja2
+
+	env = jinja2.Environment(autoescape=False)
+	ctx = {"csrf_token": "x", "ket_qua": None, "phieu": phieu, "ma": "DNTT261100002", "k": "0" * 16,
+		"ck": {"ngan_hang": "MB", "stk": "123", "ten": "VAGABOND", "anh": ""} if ck else None}
+	if phieu:
+		ctx.update(op.cach_tra(phieu))
+	return env.from_string(_doc("www", "tra-the.html")).render(**ctx)
+
+
+@ca("Codex #534: còn nợ dưới 10.000 đ không được báo 'đã thanh toán đủ', vẫn hiện chuyển khoản; chỉ ẩn nút thẻ")
+def _con_nho():
+	p = {"ma_phieu": "DNTT-26-11-00002", "khach": "ABC", "huy": False, "dung_duoc": True}
+	nho = _trang(dict(p, con=5000.0))
+	dung("không báo đã trả đủ khi còn 5.000 đ", "đã được thanh toán đủ" not in nho)
+	dung("còn khối chuyển khoản", "Hoặc chuyển khoản ngân hàng" in nho or "Chuyển khoản ngân hàng" in nho)
+	dung("không có nút thẻ", 'id="nut-the"' not in nho)
+	dung("nói rõ vì sao không trả thẻ", "10.000" in nho)
+	du = _trang(dict(p, con=0.0))
+	dung("trả đủ thì báo đã trả đủ", "đã được thanh toán đủ" in du and "chuyển khoản" not in du.lower().split("cần hỗ trợ")[0].split("số tiền còn phải thanh toán")[-1])
+	lon = _trang(dict(p, con=500000.0))
+	dung("số lớn: có nút thẻ và chuyển khoản", 'id="nut-the"' in lon and "chuyển khoản ngân hàng" in lon.lower())
+	tat = _trang(dict(p, con=500000.0, dung_duoc=False))
+	dung("tắt OnePay: không nút thẻ, còn chuyển khoản", 'id="nut-the"' not in tat and "chuyển khoản ngân hàng" in tat.lower())
+	la("phép chọn", (op.cach_tra(dict(p, con=0.4))["da_du"], op.cach_tra(dict(p, con=1.0))["da_du"],
+		op.cach_tra(dict(p, con=9999.0))["tra_the"], op.cach_tra(dict(p, con=10000.0))["tra_the"]), (True, False, False, True))
+
+
+class _DbGia:
+	def __init__(self, kho):
+		self.kho = kho
+
+	def get_value(self, dt, ten, o, **kw):
+		return self.kho[ten]
+
+	def set_value(self, dt, ten, o, v, **kw):
+		self.kho[ten] = v
+
+	def commit(self):
+		pass
+
+	def rollback(self):
+		pass
+
+
+@ca("Codex #534: quét tra cứu đi hết mọi phiếu có giao dịch chờ (không dừng ở 200), giao dịch chờ quá 2 ngày được cho hết hạn")
+def _quet_het():
+	import json
+	import types
+	from datetime import datetime
+	from unittest.mock import patch
+
+	bay_gio = datetime(2026, 11, 10, 12, 0, 0)
+	cu = "2026-11-01 08:00:00"
+	moi = "2026-11-10 11:00:00"
+	kho = {}
+	for i in range(250):
+		kho["CN-%04d" % i] = json.dumps([{"ma": "DNTT26110%04d-1" % i, "so_tien": 100000, "tao_luc": cu, "trang_thai": "cho"}])
+	for i in range(250, 260):
+		kho["CN-%04d" % i] = json.dumps([{"ma": "DNTT26110%04d-1" % i, "so_tien": 100000, "tao_luc": moi, "trang_thai": "cho"}])
+
+	def get_all(dt, filters=None, pluck=None, limit_page_length=0, order_by=None, **kw):
+		ten = sorted(t for t, v in kho.items() if '"cho"' in v)
+		sau = (filters or {}).get("name")
+		if sau:
+			ten = [t for t in ten if t > sau[1]]
+		return ten[:limit_page_length] if limit_page_length else ten
+
+	gia = types.SimpleNamespace(get_all=get_all, db=_DbGia(kho), log_error=lambda *a, **k: None,
+		get_traceback=lambda: "", utils=types.SimpleNamespace(now_datetime=lambda: bay_gio))
+	hoi = []
+	with patch.object(op, "frappe", gia), patch.object(op, "cau_hinh", return_value=dict(C, bat=1)), \
+			patch.object(op, "tra_cuu", side_effect=lambda ma: hoi.append(ma) or {"vpc_DRExists": "N"}):
+		op.quet()
+	la("hỏi đủ 10 giao dịch mới nằm sau 250 phiếu cũ", sorted(hoi), ["DNTT26110%04d-1" % i for i in range(250, 260)])
+	la("giao dịch quá 2 ngày đã hết hạn, không còn chiếm lượt quét",
+		sum(1 for v in kho.values() if '"cho"' in v), 10)
+	la("phép phân loại", op.phan_loai_cho([{"ma": "A-1", "tao_luc": cu, "trang_thai": "cho"},
+		{"ma": "A-2", "tao_luc": moi, "trang_thai": "cho"}, {"ma": "A-3", "tao_luc": "2026-11-10 11:55:00", "trang_thai": "cho"},
+		{"ma": "A-4", "tao_luc": cu, "trang_thai": "da_ghi"}], "2026-11-08 12:00:00", "2026-11-10 11:45:00"), (["A-2"], ["A-1"]))
+
+
+@ca("Codex #534: số ghi nhận là số phiếu thu ĐÃ GHI SỔ thật; hoá đơn bị trả chỗ khác thì phần dư báo kế toán")
+def _doi_chieu():
+	la("ghi đủ", op.doi_chieu_ghi(1000000, 1000000, 1000000), {"so_ghi": 1000000.0, "du": 0.0, "lech": False})
+	la("hoá đơn đã trả bớt chỗ khác", op.doi_chieu_ghi(1000000, 1000000, 400000), {"so_ghi": 400000.0, "du": 600000.0, "lech": True})
+	la("khách trả trùng, phiếu đã đủ", op.doi_chieu_ghi(500000, 0, 0), {"so_ghi": 0.0, "du": 500000.0, "lech": False})
+	la("trả dư một phần", op.doi_chieu_ghi(500000, 200000, 200000), {"so_ghi": 200000.0, "du": 300000.0, "lech": False})
+	# Nguồn: cong_no.ghi_nhan_the phải lấy số từ phiếu thu đã ghi sổ, không lấy số dự kiến.
+	cn = _doc("cong_no.py")
+	i = cn.index("def ghi_nhan_the(")
+	than = cn[i:cn.index("\ndef ", i + 10)]
+	dung("đọc lại phiếu thu đã ghi sổ của giao dịch", "_da_ghi_cho_gd(" in than and "doi_chieu_ghi(" in than)
+	dung("không cộng số dự kiến vào đã thu", "flt(doc.da_thu) + so)" not in than)
+
+
+@ca("Codex #534: chạy thật ghi_nhan_the trên Frappe giả: OnePay báo 1.000.000, phiếu thu thật 400.000 thì phiếu ghi 400.000, báo dư 600.000")
+def _ghi_nhan_that():
+	import json
+	import types
+	from unittest.mock import patch
+
+	from vagabond import cong_no as cn
+
+	class _Phieu(dict):
+		__getattr__ = dict.get
+
+		def __setattr__(self, k, v):
+			self[k] = v
+
+		def save(self, **kw):
+			pass
+
+		def add_comment(self, loai, noi_dung):
+			self["ghi_chu"] = noi_dung
+
+	doc = _Phieu(name="CN1", ma_phieu="DNTT-26-11-00002", tong_tien=1000000, da_thu=0, trang_thai="Cho thu", ma_gd="",
+		ten_khach="ABC", khach="ABC", dong=[types.SimpleNamespace(hoa_don="HD1")], flags=types.SimpleNamespace(),
+		onepay_gd=json.dumps([{"ma": "DNTT261100002-1", "so_tien": 1000000, "tao_luc": "x", "trang_thai": "cho"}]))
+	kq = {"hop_le": True, "thanh_cong": True, "ma": "DNTT261100002-1", "so_tien": 1000000.0, "ma_onepay": "9"}
+	lap = []
+	so_lan_doc = []
+
+	def get_all(dt, **kw):
+		if dt == "Payment Entry":
+			so_lan_doc.append(kw.get("filters"))
+			return [{"name": "PE-1", "paid_amount": 400000}]
+		return []
+
+	with patch.object(cn.frappe, "get_doc", lambda *a, **k: doc, create=True), \
+			patch.object(cn.frappe, "get_all", get_all, create=True), \
+			patch.object(cn.frappe.db, "commit", lambda: None, create=True), \
+			patch.object(cn, "_da_nhan_phieu", return_value=0.0), patch.object(cn, "_sepay_cn", return_value={}), \
+			patch.object(cn, "ghi_thu_cho_phieu", side_effect=lambda *a, **k: lap.append(k.get("so_tien")) or ["PE-1"]), \
+			patch.object(cn, "_ham_dinh_bien_nhan", return_value=None):
+		cn.ghi_nhan_the("CN1", kq, "ipn")
+	la("lập phiếu thu cho số dự kiến", lap, [1000000.0])
+	dung("đọc lại phiếu thu đã ghi sổ theo khoá giao dịch", bool(so_lan_doc) and so_lan_doc[0]["docstatus"] == 1)
+	g = json.loads(doc.onepay_gd)[0]
+	la("phiếu và nhật ký ghi số thật", (doc.da_thu, doc.trang_thai, g["so_ghi"], g["du"]), (400000.0, "Thu thieu", 400000.0, 600000.0))
+	dung("ghi chú báo phần dư cho kế toán", "phần dư 600.000 đ" in (doc.get("ghi_chu") or ""))
