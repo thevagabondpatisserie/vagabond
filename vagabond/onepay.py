@@ -41,6 +41,7 @@ DAP_IPN_OK = "responsecode=1&desc=confirm-success"
 DAP_IPN_SAI = "responsecode=0&desc=confirm-fail"
 TIEN_TOI_THIEU = 10000
 SO_LAN_TOI_DA = 30
+TRANG_QUET = 200
 RE_MA_GD = re.compile(r"^(DNTT[0-9]{9}|CN[A-Z0-9]{6})-([0-9]{1,3})$")
 
 # Mã kết quả hay gặp của OnePay -> câu cho khách. Mã lạ thì câu chung.
@@ -303,6 +304,43 @@ def xet_ghi_nhan(gd, kq, con_phai_thu):
 	return (True, ghi, "du" if ghi + 0.5 < float(kq.get("so_tien") or 0) else "")
 
 
+def doi_chieu_ghi(so_onepay, so_du_kien, da_ghi_thuc):
+	"""Số ghi nhận cuối cùng là số phiếu thu ĐÃ GHI SỔ thật (Codex #534): hoá
+	đơn bị trả bớt ở chỗ khác sau khi tạo giao dịch thì phép lập phiếu thu chỉ
+	lập tới dư nợ còn lại. Phần OnePay đã thu mà chưa ghi được là tiền dư phải
+	báo kế toán. `lech` = ghi ít hơn dự kiến. THUẦN."""
+	so_onepay = float(so_onepay or 0)
+	ghi = max(0.0, float(da_ghi_thuc or 0))
+	du = so_onepay - ghi
+	return {"so_ghi": ghi, "du": du if du > 0.5 else 0.0, "lech": float(so_du_kien or 0) - ghi > 0.5}
+
+
+def phan_loai_cho(nhat_ky, tu, den):
+	"""Giao dịch "chờ" nào cần hỏi OnePay (tạo trong [tu, den]) và nào đã quá
+	hạn (tạo trước tu) để cho hết hạn, khỏi chiếm lượt quét mãi. THUẦN."""
+	hoi, het = [], []
+	for g in nhat_ky or []:
+		if g.get("trang_thai") != "cho":
+			continue
+		luc = str(g.get("tao_luc") or "")
+		if luc < tu:
+			het.append(g.get("ma"))
+		elif luc <= den:
+			hoi.append(g.get("ma"))
+	return hoi, het
+
+
+def cach_tra(phieu):
+	"""Trang /tra-the hiện gì (Codex #534). Chỉ báo "đã thanh toán đủ" khi hết
+	nợ thật; dưới mức tối thiểu của thẻ thì chỉ ẩn nút thẻ, vẫn hiện chuyển
+	khoản. THUẦN."""
+	con = float((phieu or {}).get("con") or 0)
+	huy = bool((phieu or {}).get("huy"))
+	da_du = not huy and con < 1
+	return {"da_du": da_du, "tra_the": bool(not huy and not da_du and (phieu or {}).get("dung_duoc") and con >= TIEN_TOI_THIEU),
+		"con_nho": not huy and not da_du and con < TIEN_TOI_THIEU}
+
+
 # ------------------------------------------------------------- chạm Frappe
 
 import frappe  # noqa: E402
@@ -414,8 +452,10 @@ def tao_gd(ma, k):
 	if doc.trang_thai == "Huy":
 		frappe.throw("Phiếu này đã huỷ. Quý khách liên hệ The Vagabond để nhận phiếu mới.")
 	con = con_phai_thu_phieu(ten)
-	if con < TIEN_TOI_THIEU:
+	if con < 1:
 		frappe.throw("Phiếu này đã được thanh toán đủ. Cảm ơn quý khách.")
+	if con < TIEN_TOI_THIEU:
+		frappe.throw("Số còn lại dưới 10.000 đ nên không trả bằng thẻ được. Quý khách vui lòng chuyển khoản theo phiếu.")
 	nk = doc_nhat_ky(doc.get("onepay_gd"))
 	lan = lan_tiep(nk)
 	if lan > SO_LAN_TOI_DA:
@@ -479,7 +519,9 @@ def tra_cuu(ma):
 
 def quet():
 	"""Mỗi 15 phút: giao dịch tạo quá 15 phút mà chưa có kết quả thì hỏi OnePay.
-	OnePay chỉ cho tra sau 15 phút; quá 2 ngày thì thôi hỏi."""
+	OnePay chỉ cho tra sau 15 phút; quá 2 ngày thì cho hết hạn (Codex #534:
+	trước đây chúng nằm "chờ" mãi, chiếm hết 200 lượt quét đầu nên giao dịch
+	mới phía sau không bao giờ được hỏi). Đi hết các phiếu theo trang."""
 	c = cau_hinh()
 	if not (dung_duoc(c) and c["query_user"] and c["query_password"]):
 		return
@@ -488,16 +530,42 @@ def quet():
 	bay_gio = frappe.utils.now_datetime()
 	tu = str(bay_gio - timedelta(days=2))[:19]
 	den = str(bay_gio - timedelta(minutes=15))[:19]
-	for ten in frappe.get_all(CN, filters={"onepay_gd": ["like", "%\"cho\"%"], "trang_thai": ["!=", "Huy"]},
-			pluck="name", limit_page_length=200):
-		for g in doc_nhat_ky(frappe.db.get_value(CN, ten, "onepay_gd")):
-			if g.get("trang_thai") != "cho" or not (tu <= str(g.get("tao_luc") or "") <= den):
-				continue
-			try:
-				ts = tra_cuu(g["ma"])
-				if str(ts.get("vpc_DRExists") or "").upper() == "Y":
-					ghi_nhan(ts, "tra_cuu")
-				frappe.db.commit()
-			except Exception:
-				frappe.db.rollback()
-				frappe.log_error(frappe.get_traceback(), "onepay: tra cứu %s" % g.get("ma"))
+	sau = ""
+	while True:
+		trang = frappe.get_all(CN, filters={"onepay_gd": ["like", "%\"cho\"%"], "trang_thai": ["!=", "Huy"],
+			"name": [">", sau]}, pluck="name", order_by="name asc", limit_page_length=TRANG_QUET)
+		for ten in trang:
+			hoi, het = phan_loai_cho(doc_nhat_ky(frappe.db.get_value(CN, ten, "onepay_gd")), tu, den)
+			if het:
+				_het_han(ten, het)
+			for ma in hoi:
+				try:
+					ts = tra_cuu(ma)
+					if str(ts.get("vpc_DRExists") or "").upper() == "Y":
+						ghi_nhan(ts, "tra_cuu")
+					frappe.db.commit()
+				except Exception:
+					frappe.db.rollback()
+					frappe.log_error(frappe.get_traceback(), "onepay: tra cứu %s" % ma)
+		if len(trang) < TRANG_QUET:
+			break
+		sau = trang[-1]
+
+
+def _het_han(ten, cac_ma):
+	"""Đổi giao dịch "chờ" quá hạn sang "het_han", đọc lại nhật ký trong khoá
+	hàng phiếu. Giao dịch hết hạn vẫn ghi được nếu OnePay báo thành công muộn
+	(xet_ghi_nhan chỉ chặn "da_ghi")."""
+	try:
+		nk = doc_nhat_ky(frappe.db.get_value(CN, ten, "onepay_gd", for_update=True))
+		doi = 0
+		for g in nk:
+			if g.get("ma") in cac_ma and g.get("trang_thai") == "cho":
+				g["trang_thai"] = "het_han"
+				doi += 1
+		if doi:
+			frappe.db.set_value(CN, ten, "onepay_gd", json.dumps(nk, ensure_ascii=False), update_modified=False)
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(frappe.get_traceback(), "onepay: cho hết hạn %s" % ten)

@@ -2353,22 +2353,31 @@ def ghi_nhan_the(name, kq, nguon):
 	if not ghi:
 		return {"ok": 1, "ly_do": ly_do, "kq": kq}
 	truoc = doc.trang_thai
-	pe = []
 	if so > 0.5:
-		pe = ghi_thu_cho_phieu(doc, op.PT, "Khách trả thẻ qua OnePay, mã giao dịch %s, mã OnePay %s." % (
+		ghi_thu_cho_phieu(doc, op.PT, "Khách trả thẻ qua OnePay, mã giao dịch %s, mã OnePay %s." % (
 			kq["ma"], kq.get("ma_onepay") or ""), so_tien=so, khoa="onepay:%s" % kq["ma"],
 			dinh=_ham_dinh_bien_nhan(doc.ma_phieu, kq, so), chat=True)
-		doc.da_thu = min(flt(doc.tong_tien), flt(doc.da_thu) + so)
+	# Codex #534: số ghi nhận là số phiếu thu ĐÃ GHI SỔ thật của giao dịch này
+	# (đọc lại sổ), không phải số dự kiến: hoá đơn bị trả bớt chỗ khác thì
+	# phép lập phiếu thu chỉ lập tới dư nợ còn lại, phần OnePay đã thu dư ra.
+	pe, da_ghi = _da_ghi_cho_gd(doc, kq["ma"])
+	dc = op.doi_chieu_ghi(kq.get("so_tien"), so, da_ghi)
+	du = dc["du"]
+	if dc["so_ghi"] > 0.5:
+		doc.da_thu = min(flt(doc.tong_tien), flt(doc.da_thu) + dc["so_ghi"])
 		doc.trang_thai = "Da thu du" if flt(doc.da_thu) >= flt(doc.tong_tien) - 1 else "Thu thieu"
-	gd.update(trang_thai="da_ghi", ma_onepay=kq.get("ma_onepay"), the=kq.get("the"), so_ghi=so,
+	gd.update(trang_thai="da_ghi", ma_onepay=kq.get("ma_onepay"), the=kq.get("the"), so_ghi=dc["so_ghi"], du=du,
 		ghi_luc=str(frappe.utils.now_datetime())[:19], nguon=nguon, phieu_thu=pe)
 	doc.onepay_gd = _json.dumps(nk, ensure_ascii=False)
 	doc.flags.ignore_permissions = True
 	doc.save(ignore_permissions=True)
-	du = flt(kq.get("so_tien")) - so
+	cau_du = ""
+	if du > 0.5:
+		cau_du = (" Hoá đơn trong phiếu đã được trả bớt ở chỗ khác nên máy chỉ ghi %s đ; phần dư %s đ khách đã trả qua thẻ,"
+			" kế toán hoàn lại hoặc cấn trừ cho khách." % (_tien_vn(dc["so_ghi"]), _tien_vn(du)) if dc["lech"]
+			else " Khách trả dư %s đ, kế toán hoàn lại cho khách." % _tien_vn(du))
 	doc.add_comment("Comment", "Khách trả thẻ OnePay %s đ (mã giao dịch %s, mã OnePay %s). Phiếu thu đã ghi sổ: %s.%s"
-		% (_tien_vn(kq.get("so_tien")), kq["ma"], kq.get("ma_onepay") or "", ", ".join(pe) or "không có",
-			" Khách trả dư %s đ, kế toán hoàn lại cho khách." % _tien_vn(du) if du > 0.5 else ""))
+		% (_tien_vn(kq.get("so_tien")), kq["ma"], kq.get("ma_onepay") or "", ", ".join(pe) or "không có", cau_du))
 	frappe.db.commit()
 	try:
 		from vagabond.kenh_zalo import bao
@@ -2377,13 +2386,30 @@ def ghi_nhan_the(name, kq, nguon):
 			"Khách: %s" % (doc.ten_khach or doc.khach),
 			"Số tiền: %s đ, mã OnePay %s" % (_tien_vn(kq.get("so_tien")), kq.get("ma_onepay") or ""),
 			"Phiếu thu đã ghi sổ: %s" % (", ".join(pe) or "không có"),
-		] + (["Khách trả dư %s đ: kế toán hoàn lại cho khách." % _tien_vn(du)] if du > 0.5 else []),
+			"Đã ghi vào sổ: %s đ" % _tien_vn(dc["so_ghi"]),
+		] + ([cau_du.strip()] if du > 0.5 else []),
 			khoa="onepay:%s" % kq["ma"], ma_tin="kt_the_onepay")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "cong_no: báo tin trả thẻ")
 	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
 		tt.xep_gui_thu([d.hoa_don for d in doc.dong if d.hoa_don])
 	return {"ok": 1, "ly_do": ly_do, "kq": kq, "phieu_thu": pe}
+
+
+def _da_ghi_cho_gd(doc, ma):
+	"""Phiếu thu ĐÃ GHI SỔ của một giao dịch OnePay trên phiếu, đọc theo khoá
+	chống trùng mà ghi_thu_cho_phieu -> thu_tien.ghi_thu_tien đặt vào
+	reference_no. Đọc lại sổ nên lượt gọi lại (IPN lặp) cũng ra đúng số."""
+	from vagabond import onepay as op
+	from vagabond import thu_tien as tt
+
+	nguon = "phieu:%s:onepay:%s" % (doc.name, ma)
+	khoa = [tt.khoa_chong_trung(d.hoa_don, "%s|%s" % (nguon, op.PT)) for d in (doc.get("dong") or []) if d.hoa_don]
+	if not khoa:
+		return [], 0.0
+	ds = frappe.get_all("Payment Entry", filters={"reference_no": ["in", khoa], "docstatus": 1},
+		fields=["name", "paid_amount"], order_by="name asc", limit_page_length=0)
+	return [r["name"] for r in ds], sum(flt(r["paid_amount"]) for r in ds)
 
 
 def _link_the(ma_phieu):
