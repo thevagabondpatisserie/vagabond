@@ -39,6 +39,7 @@ PT = "OnePay"
 DUONG_TRANG = "/tra-the"
 DAP_IPN_OK = "responsecode=1&desc=confirm-success"
 DAP_IPN_SAI = "responsecode=0&desc=confirm-fail"
+DAP_IPN_CHUA_KHOA = "responsecode=0&desc=chua-khai-khoa"
 TIEN_TOI_THIEU = 10000
 SO_LAN_TOI_DA = 30
 TRANG_QUET = 200
@@ -93,15 +94,19 @@ def chuan_cong(url):
 	return urlunsplit(("https", p.netloc.lower(), duong, "", ""))
 
 
+DUONG_TRA_CUU = "/msp/api/v1/vpc/invoices/queries"
+
+
 def cong_tra_cuu(cong):
-	"""Địa chỉ QueryDR: cùng thư mục với cổng thanh toán, tệp Vpcdps.op (tài
-	liệu OnePay: .../vpc.op thì tra cứu ở .../Vpcdps.op). THUẦN."""
+	"""Địa chỉ QueryDR: cùng máy chủ với cổng thanh toán, đường
+	/msp/api/v1/vpc/invoices/queries (OnePay cấp cho VAGABONDWEB, anh Việt
+	03/11/2026). Cổng thử mtf.onepay.vn thì tra cứu ở mtf.onepay.vn. THUẦN.
+	v633 đoán .../Vpcdps.op theo tài liệu nội địa cũ: sai với cổng paygate."""
 	c = chuan_cong(cong)
 	if not c:
 		return ""
 	p = urlsplit(c)
-	thu_muc = p.path.rsplit("/", 1)[0] if "/" in p.path else ""
-	return urlunsplit((p.scheme, p.netloc, thu_muc + "/Vpcdps.op", "", ""))
+	return urlunsplit((p.scheme, p.netloc, DUONG_TRA_CUU, "", ""))
 
 
 def khoa_byte(hash_code):
@@ -200,13 +205,20 @@ def url_tra(c, ts):
 	return chuan_cong(c.get("cong")) + "?" + urlencode(ts)
 
 
-def doc_ket_qua(tham_so, hash_code):
+def doc_ket_qua(tham_so, hash_code, tin_cay=False):
 	"""Đọc kết quả OnePay gửi về (trang về hay IPN). THUẦN.
 
 	Trả dict: hop_le (chữ ký đúng), thanh_cong (hợp lệ VÀ mã 0), ma (mã giao
-	dịch của tiệm), so_tien (đồng), ma_onepay, the, ma_kq, cau."""
+	dịch của tiệm), so_tien (đồng), ma_onepay, the, ma_kq, cau.
+
+	tin_cay=True chỉ dành cho phản hồi tra cứu do CHÍNH máy chủ tiệm gọi tới
+	OnePay qua HTTPS: tài liệu QueryDR không hứa phản hồi có chữ ký, nên không
+	có chữ ký thì tin kênh; CÓ chữ ký thì vẫn phải đúng."""
 	ts = dict(tham_so or {})
-	hop_le = dung_chu_ky(ts, hash_code)
+	if tin_cay and not str(ts.get("vpc_SecureHash") or "").strip():
+		hop_le = True
+	else:
+		hop_le = dung_chu_ky(ts, hash_code)
 	ma_kq = str(ts.get("vpc_TxnResponseCode", "")).strip()
 	return {
 		"hop_le": hop_le,
@@ -222,8 +234,30 @@ def doc_ket_qua(tham_so, hash_code):
 
 
 def doc_tra_cuu(chuoi):
-	"""Phản hồi QueryDR (chuỗi k=v&k=v) -> dict. THUẦN."""
-	return dict(parse_qsl(str(chuoi or "").strip(), keep_blank_values=True))
+	"""Phản hồi QueryDR -> dict. Chịu cả chuỗi k=v&k=v lẫn JSON (phẳng hoặc bọc
+	trong một khoá). Không đọc được thì dict rỗng. THUẦN."""
+	s = str(chuoi or "").strip()
+	if s.startswith("{"):
+		try:
+			d = json.loads(s)
+		except ValueError:
+			return {}
+		if isinstance(d, dict) and not any(str(k).startswith("vpc_") for k in d):
+			for v in d.values():
+				if isinstance(v, dict) and any(str(k).startswith("vpc_") for k in v):
+					d = v
+					break
+		return {str(k): "" if v is None else str(v) for k, v in d.items()} if isinstance(d, dict) else {}
+	if "=" not in s or s.startswith("<"):
+		return {}
+	return dict(parse_qsl(s, keep_blank_values=True))
+
+
+def tom_tat_phan_hoi(chuoi, toi_da=300):
+	"""Cắt ngắn phản hồi lạ để ghi Error Log, che mọi ô mật khẩu, người dùng,
+	chữ ký. THUẦN."""
+	s = re.sub(r"(?i)(vpc_(?:password|user|securehash|accesscode)\W{0,3}[=:]\W{0,2})[^&\s\"',}]*", r"\1***", str(chuoi or ""))
+	return s[:toi_da]
 
 
 def tham_so_tra_cuu(c, ma):
@@ -469,13 +503,14 @@ def tao_gd(ma, k):
 	return {"url": url_tra(c, ts)}
 
 
-def ghi_nhan(tham_so, nguon):
+def ghi_nhan(tham_so, nguon, tin_cay=False):
 	"""Một kết quả OnePay (trang về, IPN, tra cứu). Lặp lại bao nhiêu lần cũng
-	chỉ ghi tiền một lần. Trả dict kết quả cho người gọi."""
+	chỉ ghi tiền một lần. Trả dict kết quả cho người gọi. tin_cay: xem
+	doc_ket_qua, CHỈ quet() được truyền True."""
 	c = cau_hinh()
 	if not c["hash_code"]:
 		return {"ok": 0, "ly_do": "chua_khai_khoa"}
-	kq = doc_ket_qua(tham_so, c["hash_code"])
+	kq = doc_ket_qua(tham_so, c["hash_code"], tin_cay=tin_cay)
 	if not kq["hop_le"]:
 		return {"ok": 0, "ly_do": "chu_ky_sai", "kq": kq}
 	ma_ngan = ma_phieu_cua_gd(kq["ma"])
@@ -504,17 +539,38 @@ def ipn(**tham_so):
 		frappe.log_error(frappe.get_traceback(), "onepay: IPN lỗi")
 		# Không trả xác nhận: OnePay gọi lại sau, lần sau ghi tiếp.
 		return Response("responsecode=0&desc=loi-he-thong", mimetype="text/plain")
+	if r.get("ly_do") == "chua_khai_khoa":
+		# v634: chưa dán khoá thì KHÔNG xác nhận, OnePay gọi lại sau khi dán.
+		return Response(DAP_IPN_CHUA_KHOA, mimetype="text/plain")
 	return Response(DAP_IPN_OK if r.get("ly_do") != "chu_ky_sai" else DAP_IPN_SAI, mimetype="text/plain")
 
 
 def tra_cuu(ma):
-	"""Hỏi OnePay một giao dịch (QueryDR). Trả dict tham số OnePay trả về."""
+	"""Hỏi OnePay một giao dịch (QueryDR). Trả dict tham số OnePay trả về.
+
+	Gửi POST (biểu mẫu); phản hồi không có vpc_DRExists thì thử lại bằng GET.
+	Cả hai không đọc được thì NÉM kèm phản hồi đã che, để Error Log cho thấy
+	ngay địa chỉ hay cách gọi sai, không im lặng coi như "không có giao dịch"."""
 	c = cau_hinh()
 	if requests is None:
 		raise RuntimeError("Thiếu thư viện requests.")
-	r = requests.get(cong_tra_cuu(c["cong"]), params=tham_so_tra_cuu(c, ma), timeout=20)
-	r.raise_for_status()
-	return doc_tra_cuu(r.text)
+	dia_chi = cong_tra_cuu(c["cong"])
+	ts = tham_so_tra_cuu(c, ma)
+	vet = []
+	for cach in ("post", "get"):
+		try:
+			if cach == "post":
+				r = requests.post(dia_chi, data=ts, timeout=20)
+			else:
+				r = requests.get(dia_chi, params=ts, timeout=20)
+		except Exception as e:
+			vet.append("%s: %s" % (cach, type(e).__name__))
+			continue
+		kq = doc_tra_cuu(r.text)
+		if "vpc_DRExists" in kq:
+			return kq
+		vet.append("%s %s: %s" % (cach, r.status_code, tom_tat_phan_hoi(r.text)))
+	raise ValueError("Phản hồi tra cứu OnePay không đọc được (%s). %s" % (dia_chi, " | ".join(vet)))
 
 
 def quet():
@@ -542,7 +598,11 @@ def quet():
 				try:
 					ts = tra_cuu(ma)
 					if str(ts.get("vpc_DRExists") or "").upper() == "Y":
-						ghi_nhan(ts, "tra_cuu")
+						# Phản hồi phải nói đúng giao dịch mình hỏi.
+						if str(ts.get("vpc_MerchTxnRef") or ma).strip() != ma:
+							raise ValueError("OnePay trả kết quả của giao dịch khác: hỏi %s, nhận %s."
+								% (ma, ts.get("vpc_MerchTxnRef")))
+						ghi_nhan(dict(ts, vpc_MerchTxnRef=ma), "tra_cuu", tin_cay=True)
 					frappe.db.commit()
 				except Exception:
 					frappe.db.rollback()
