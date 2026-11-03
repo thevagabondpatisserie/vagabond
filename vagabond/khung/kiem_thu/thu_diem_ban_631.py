@@ -122,6 +122,14 @@ def _sua_giu_gia():
 	n = db.ap_gia_diem(sua, None, gia, mien)
 	la("một dòng (dòng thêm mới) đổi", n, 1)
 	la("giá", [x["rate"] for x in sua], [70000, 80000])
+	# Codex PR #532 vòng 6: dòng gốc D1 là ly TRA; gửi D1 kèm mã CAKE giá 1 đồng
+	# là món thay thế, KHÔNG được giữ giá, phải về giá điểm của CAKE.
+	thay = [{"item_code": "CAKE", "qty": 1, "rate": 1, "dong_goc": "D1"}, {"item_code": " TRA ", "qty": 2, "rate": 70000, "dong_goc": "D1"},
+		{"item_code": "", "qty": 1, "rate": 1, "dong_goc": "D1"}]
+	m_thay = db.dong_giu_gia_sua(thay, cu)
+	la("món thay thế và mã rỗng không được giữ giá; cùng mã (lệch khoảng trắng) vẫn giữ", m_thay, {1})
+	db.ap_gia_diem(thay, None, {"TRA": 80000, "CAKE": 90000}, m_thay)
+	la("món thay thế về giá điểm", [x["rate"] for x in thay], [90000, 70000, 1])
 	la("chỉ sửa ghi chú (gửi lại đủ dòng cũ): không đổi gì", db.ap_gia_diem([{"item_code": "TRA", "qty": 2, "rate": 70000, "dong_goc": "D1"}], None, gia,
 		db.dong_giu_gia_sua([{"item_code": "TRA", "dong_goc": "D1"}], cu)), 0)
 
