@@ -849,6 +849,8 @@ def xem_phieu(name):
 		# si hay chuyen theo noi dung cua ho chu khong theo noi dung minh dat
 		# (ca OSHIMA 11/08/2026), nen tach bang TAI KHOAN moi chac.
 		"qr": tai_khoan.tk_phieu_no(),
+		# v633: link trang trả thẻ OnePay (cùng link in trên phiếu), rỗng khi chưa bật.
+		"link_the": _link_the(doc.ma_phieu),
 		"cac_khach": _cac_khach_phieu(doc),
 		"dong": [
 			{
@@ -958,7 +960,7 @@ def _la_ke_toan():
 	return tt.la_ke_toan()
 
 
-def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu="", so_tien=None, khoa="", dinh=None, chat=False):
+def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu="", so_tien=None, khoa="", dinh=None, chat=False, rong_duoc=False):
 	"""Sinh chung tu thu tien cho cac hoa don trong mot phieu doi no.
 
 	VI SAO PHAI CO (anh Viet 04/09/2026)
@@ -1047,7 +1049,10 @@ def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu="", so_tien=None, khoa
 				"%s: %s" % (h["name"], frappe.utils.strip_html(str(e) or type(e).__name__)[:200])]
 			continue
 		con -= phan
-	if chat and not ra:
+	# v633 (Codex #534 vòng 2): tiền thẻ OnePay đã về thật thì "không còn hoá
+	# đơn nào để lập" không phải lỗi: người gọi ghi 0 đ và báo tiền dư. Lỗi lập
+	# chứng từ thật vẫn ném ở vòng lặp trên.
+	if chat and not ra and not rong_duoc:
 		frappe.throw("Các hoá đơn trong phiếu %s không còn phần nợ nào chưa có phiếu thu, "
 			"nên không lập phiếu thu nào. Phiếu chưa bị đổi gì." % (doc.ma_phieu or doc.name))
 	return ra
@@ -1550,6 +1555,14 @@ def _phieu_html(name):
 		"chuyển khoản để đối soát công nợ được thuận tiện.</div></div>"
 	)
 
+	# v633 (anh Việt duyệt mẫu 03/11/2026): bật thanh toán thẻ OnePay thì khối
+	# chuyển khoản đổi thành "CÁCH THANH TOÁN" hai ô cạnh nhau, khách tự chọn.
+	# Tắt hoặc chưa khai đủ thì giữ nguyên khối cũ.
+	from vagabond import onepay as op
+
+	if op.dung_duoc():
+		khoi_ck = _khoi_hai_cach(qr, tien_ck, d.get("ma_phieu") or "", anh_qr, loi_qr, op.link_phieu(d.get("ma_phieu") or ""))
+
 	ben_nhan = (
 		'<table style="width:100%;border:none;border-collapse:collapse">'
 		+ _o_tt("Kính gửi:", esc(d.get("ten_khach") or d.get("khach") or ""), to=True)
@@ -1627,6 +1640,65 @@ def _phieu_html(name):
 		_chu_so_tien(con_thieu if da_thu > 0 else tong),
 		khoi_ck, ghi_chu,
 		esc(frappe.db.get_value("User", d.get("nguoi_tao") or frappe.session.user, "full_name") or ""),
+	)
+
+
+def _khoi_hai_cach(qr, tien, ma_phieu, anh_qr_ck, loi_qr, link_the):
+	"""Khối "CÁCH THANH TOÁN" trên phiếu gửi khách: ô chuyển khoản (VietQR như
+	cũ) và ô thẻ qua OnePay (QR trỏ trang /tra-the của tiệm). Mẫu anh Việt
+	duyệt 03/11/2026, bỏ câu về phí thẻ."""
+	from vagabond.qr_chuyen_khoan import anh_lien_ket
+
+	esc = frappe.utils.escape_html
+	vien = "2px solid #1c1a17"
+
+	def _dong(nhan, gt, to=False):
+		return ('<tr><td style="border:none;padding:2px 0;font-size:10.5px;color:#555;width:40%%;vertical-align:top">%s</td>'
+			'<td style="border:none;padding:2px 0;font-size:%s;font-weight:bold;vertical-align:top">%s</td></tr>'
+			% (nhan, "13px" if to else "11px", gt))
+
+	try:
+		anh_the = anh_lien_ket(link_the)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "cong_no: vẽ QR trả thẻ")
+		anh_the = ""
+	o_qr_ck = ('<img src="%s" width="118" height="118" style="width:118px !important;height:118px !important">' % anh_qr_ck
+		if anh_qr_ck else '<div style="font-size:10px;color:#b42318">%s</div>' % esc(loi_qr))
+	o_qr_the = ('<img src="%s" width="118" height="118" style="width:118px !important;height:118px !important">' % anh_the
+		if anh_the else "")
+	the = "".join('<span style="display:inline-block;border:1px solid #c9c4bd;border-radius:3px;padding:1px 5px;'
+		'font-size:9px;font-weight:bold;margin:0 2px">%s</span>' % x for x in ("VISA", "Mastercard", "JCB", "AMEX", "ATM nội địa"))
+	# In đủ cả khoá ?k=: thiếu khoá thì trang báo không tìm thấy phiếu.
+	link_ngan = esc(link_the.split("://", 1)[-1])
+	return (
+		'<div style="margin-top:14px;font-size:11px;font-weight:bold;letter-spacing:.5px">CÁCH THANH TOÁN '
+		'<span style="font-weight:normal;color:#555;letter-spacing:0">(quý khách chọn một trong hai)</span></div>'
+		'<table style="width:100%;border:none;border-collapse:separate;border-spacing:0;margin-top:6px"><tr>'
+		'<td style="width:48%;vertical-align:top;border:' + vien + ';padding:10px 12px">'
+		'<div style="font-size:11.5px;font-weight:bold">1. CHUYỂN KHOẢN NGÂN HÀNG</div>'
+		'<div style="font-size:9.5px;color:#555;margin:2px 0 6px">Quét bằng ứng dụng ngân hàng bất kỳ.</div>'
+		'<div style="text-align:center">' + o_qr_ck + '</div>'
+		'<table style="width:100%;border:none;border-collapse:collapse;margin-top:6px">'
+		+ _dong("Ngân hàng:", esc(TEN_NGAN_HANG_DAY_DU.get(qr.get("bank") or "", qr.get("bank") or "...............")))
+		+ _dong("Số tài khoản:", esc(qr.get("stk") or "..............."), True)
+		+ _dong("Tên tài khoản:", esc(qr.get("ten") or "..............."))
+		+ _dong("Nội dung:", esc(ma_phieu), True)
+		+ '</table></td>'
+		'<td style="width:4%;border:none"></td>'
+		'<td style="width:48%;vertical-align:top;border:' + vien + ';padding:10px 12px">'
+		'<div style="font-size:11.5px;font-weight:bold">2. THẺ TÍN DỤNG, THẺ GHI NỢ</div>'
+		'<div style="font-size:9.5px;color:#555;margin:2px 0 6px">Qua cổng thanh toán OnePay.</div>'
+		'<div style="text-align:center">' + o_qr_the + '</div>'
+		'<div style="text-align:center;margin-top:5px">' + the + '</div>'
+		'<div style="font-size:10px;line-height:1.5;margin-top:6px">Quét mã bằng camera điện thoại, trang thanh toán '
+		'hiện đúng số tiền còn phải trả; nhập thông tin thẻ và xác nhận OTP.</div>'
+		'<div style="font-size:10px;margin-top:4px;word-break:break-all">Hoặc mở: <b>' + link_ngan + '</b></div>'
+		'</td></tr></table>'
+		'<table style="width:100%;border-collapse:collapse;margin-top:8px"><tr>'
+		'<td style="font-size:11px;padding:6px 10px;background:#f3f0ec;border:1px solid #c9c4bd">Số tiền cần thanh toán: '
+		'<b style="font-size:13px">' + _tien_vn(tien) + ' đ</b></td></tr></table>'
+		'<div style="font-size:9.5px;color:#555;margin-top:6px;line-height:1.5">Tiền về là phiếu tự chuyển "Đã thanh toán". '
+		'Quý khách cũng có thể trả tiền mặt tại cửa hàng 9 Trần Cao Vân.</div>'
 	)
 
 
@@ -2204,3 +2276,159 @@ def cau_bao_khop_tay(ma_phieu, so_tien, trang_thai, lap, loi):
 		return (dau + " Nhưng máy CHƯA lập được phiếu thu cho %d hoá đơn nên khách vẫn nằm ở "
 			"Đang nợ: %s. Báo kế toán xử lý." % (len(loi), "; ".join(loi)))
 	return dau + (" Công nợ đã sạch." if trang_thai == "Da thu du" else "")
+
+
+# ------------------------------------------------- v633 khách trả thẻ OnePay
+#
+# Anh Việt 03/11/2026: phiếu đề nghị thanh toán in thêm mã trả bằng thẻ qua
+# OnePay; OnePay báo thành công là GHI SỔ NGAY phiếu thu phương thức "OnePay"
+# (tài khoản phương thức đó đang khai, 11211 MB Bank). Phần gọi OnePay, chữ ký,
+# trang khách nằm ở onepay.py; ở đây chỉ phần ghi tiền vào phiếu.
+
+
+def con_phai_thu_phieu(name):
+	"""Số còn phải thu của một phiếu: cùng phép màn phiếu (xem_phieu.con_thieu)."""
+	doc = frappe.get_doc("Vagabond Cong No", name)
+	if doc.trang_thai == "Huy":
+		return 0.0
+	return max(0.0, flt(doc.tong_tien) - _da_nhan_phieu(doc, _sepay_cn(doc.ma_phieu)))
+
+
+def bien_nhan_the_html(ma_phieu, kq, so_ghi, luc):
+	"""Biên nhận giao dịch thẻ đính vào phiếu thu (chứng từ thay UNC). THUẦN."""
+	esc = frappe.utils.escape_html
+	dong = [
+		("Phiếu đề nghị thanh toán", ma_phieu),
+		("Mã giao dịch của The Vagabond", kq.get("ma")),
+		("Mã giao dịch OnePay", kq.get("ma_onepay")),
+		("Loại thẻ", kq.get("the")),
+		("Số thẻ", kq.get("so_the")),
+		("Số tiền khách trả", _tien_vn(kq.get("so_tien")) + " đ"),
+		("Số tiền ghi cho phiếu", _tien_vn(so_ghi) + " đ"),
+		("Kết quả", kq.get("cau")),
+		("Thời điểm máy nhận kết quả", luc),
+		("Chữ ký OnePay", "Đã kiểm, khớp Hash code của merchant"),
+	]
+	return ("<html><head><meta charset='utf-8'></head><body>"
+		"<h3>Biên nhận thanh toán thẻ qua OnePay</h3><table style='border-collapse:collapse'>"
+		+ "".join("<tr><td style='border:1px solid #ccc;padding:5px 8px;color:#555'>%s</td>"
+			"<td style='border:1px solid #ccc;padding:5px 8px'><b>%s</b></td></tr>" % (esc(a), esc(str(b or "")))
+			for a, b in dong)
+		+ "</table></body></html>")
+
+
+def _ham_dinh_bien_nhan(ma_phieu, kq, so_ghi):
+	"""Đính biên nhận OnePay vào từng phiếu thu trước khi ghi sổ (hook
+	chan_thieu_dinh_kem đòi chứng từ cho phiếu qua tài khoản ngân hàng)."""
+	luc = str(frappe.utils.now_datetime())[:19]
+
+	def dinh(pe):
+		frappe.get_doc({
+			"doctype": "File", "file_name": "onepay-%s.html" % kq.get("ma"), "is_private": 1,
+			"attached_to_doctype": "Payment Entry", "attached_to_name": pe.name,
+			"content": bien_nhan_the_html(ma_phieu, kq, so_ghi, luc),
+		}).insert(ignore_permissions=True)
+
+	return dinh
+
+
+def ghi_nhan_the(name, kq, nguon):
+	"""Ghi một kết quả OnePay (đã đọc, đã kiểm chữ ký) vào phiếu. Lặp lại được:
+	giao dịch đã ghi thì không ghi lần hai. Lỗi lập phiếu thu thì NÉM để người
+	gọi lùi lại (IPN không xác nhận, OnePay gọi lại sau)."""
+	import json as _json
+
+	from vagabond import onepay as op
+	from vagabond import thu_tien as tt
+
+	doc = frappe.get_doc("Vagabond Cong No", name, for_update=True)
+	nk = op.doc_nhat_ky(doc.get("onepay_gd"))
+	gd = op.tim_gd(nk, kq["ma"])
+	if gd and not kq["thanh_cong"]:
+		if gd.get("trang_thai") == "cho":
+			gd.update(trang_thai="that_bai", ma_kq=kq.get("ma_kq"))
+			frappe.db.set_value("Vagabond Cong No", name, "onepay_gd", _json.dumps(nk, ensure_ascii=False),
+				update_modified=False)
+			frappe.db.commit()
+		return {"ok": 1, "ly_do": "khong_thanh_cong", "kq": kq}
+	con = max(0.0, flt(doc.tong_tien) - _da_nhan_phieu(doc, _sepay_cn(doc.ma_phieu))) if doc.trang_thai != "Huy" else 0.0
+	ghi, so, ly_do = op.xet_ghi_nhan(gd, kq, con)
+	if not ghi:
+		return {"ok": 1, "ly_do": ly_do, "kq": kq}
+	truoc = doc.trang_thai
+	if so > 0.5:
+		ghi_thu_cho_phieu(doc, op.PT, "Khách trả thẻ qua OnePay, mã giao dịch %s, mã OnePay %s." % (
+			kq["ma"], kq.get("ma_onepay") or ""), so_tien=so, khoa="onepay:%s" % kq["ma"],
+			dinh=_ham_dinh_bien_nhan(doc.ma_phieu, kq, so), chat=True, rong_duoc=True)
+	# Codex #534: số ghi nhận là số phiếu thu ĐÃ GHI SỔ thật của giao dịch này
+	# (đọc lại sổ), không phải số dự kiến: hoá đơn bị trả bớt chỗ khác thì
+	# phép lập phiếu thu chỉ lập tới dư nợ còn lại, phần OnePay đã thu dư ra.
+	pe, da_ghi = _da_ghi_cho_gd(doc, kq["ma"])
+	dc = op.doi_chieu_ghi(kq.get("so_tien"), so, da_ghi)
+	du = dc["du"]
+	if dc["so_ghi"] > 0.5:
+		doc.da_thu = min(flt(doc.tong_tien), flt(doc.da_thu) + dc["so_ghi"])
+		doc.trang_thai = "Da thu du" if flt(doc.da_thu) >= flt(doc.tong_tien) - 1 else "Thu thieu"
+	gd.update(trang_thai="da_ghi", ma_onepay=kq.get("ma_onepay"), the=kq.get("the"), so_ghi=dc["so_ghi"], du=du,
+		ghi_luc=str(frappe.utils.now_datetime())[:19], nguon=nguon, phieu_thu=pe)
+	doc.onepay_gd = _json.dumps(nk, ensure_ascii=False)
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	cau_du = ""
+	if du > 0.5:
+		cau_du = (" Hoá đơn trong phiếu đã được trả bớt ở chỗ khác nên máy chỉ ghi %s đ; phần dư %s đ khách đã trả qua thẻ,"
+			" kế toán hoàn lại hoặc cấn trừ cho khách." % (_tien_vn(dc["so_ghi"]), _tien_vn(du)) if dc["lech"]
+			else " Khách trả dư %s đ, kế toán hoàn lại cho khách." % _tien_vn(du))
+	doc.add_comment("Comment", "Khách trả thẻ OnePay %s đ (mã giao dịch %s, mã OnePay %s). Phiếu thu đã ghi sổ: %s.%s"
+		% (_tien_vn(kq.get("so_tien")), kq["ma"], kq.get("ma_onepay") or "", ", ".join(pe) or "không có", cau_du))
+	# Codex #534 vòng 3: bao() ghi dòng chờ gửi TRONG giao dịch hiện tại và chỉ
+	# xếp hàng sau commit. Trang về là GET, không ai commit sau hàm này, nên tin
+	# phải được ghi TRƯỚC commit dưới đây, không thì mất cùng lượt rollback.
+	try:
+		from vagabond.kenh_zalo import bao
+
+		bao("thong_bao", "cong_no", "Khách trả thẻ OnePay cho phiếu %s" % doc.ma_phieu, [
+			"Khách: %s" % (doc.ten_khach or doc.khach),
+			"Số tiền: %s đ, mã OnePay %s" % (_tien_vn(kq.get("so_tien")), kq.get("ma_onepay") or ""),
+			"Phiếu thu đã ghi sổ: %s" % (", ".join(pe) or "không có"),
+			"Đã ghi vào sổ: %s đ" % _tien_vn(dc["so_ghi"]),
+		] + ([cau_du.strip()] if du > 0.5 else []),
+			khoa="onepay:%s" % kq["ma"], ma_tin="kt_the_onepay")
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+
+		# Giao dịch chết (deadlock, chờ khoá) thì phiếu thu cũng đã mất: ném để
+		# IPN không xác nhận, OnePay gọi lại. Lỗi khác chỉ mất tin, tiền vẫn ghi.
+		if chet_giao_dich(e):
+			raise
+		frappe.log_error(frappe.get_traceback(), "cong_no: báo tin trả thẻ")
+	frappe.db.commit()
+	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
+		tt.xep_gui_thu([d.hoa_don for d in doc.dong if d.hoa_don])
+	return {"ok": 1, "ly_do": ly_do, "kq": kq, "phieu_thu": pe}
+
+
+def _da_ghi_cho_gd(doc, ma):
+	"""Phiếu thu ĐÃ GHI SỔ của một giao dịch OnePay trên phiếu, đọc theo khoá
+	chống trùng mà ghi_thu_cho_phieu -> thu_tien.ghi_thu_tien đặt vào
+	reference_no. Đọc lại sổ nên lượt gọi lại (IPN lặp) cũng ra đúng số."""
+	from vagabond import onepay as op
+	from vagabond import thu_tien as tt
+
+	nguon = "phieu:%s:onepay:%s" % (doc.name, ma)
+	khoa = [tt.khoa_chong_trung(d.hoa_don, "%s|%s" % (nguon, op.PT)) for d in (doc.get("dong") or []) if d.hoa_don]
+	if not khoa:
+		return [], 0.0
+	ds = frappe.get_all("Payment Entry", filters={"reference_no": ["in", khoa], "docstatus": 1},
+		fields=["name", "paid_amount"], order_by="name asc", limit_page_length=0)
+	return [r["name"] for r in ds], sum(flt(r["paid_amount"]) for r in ds)
+
+
+def _link_the(ma_phieu):
+	from vagabond import onepay as op
+
+	try:
+		return op.link_phieu(ma_phieu) if op.dung_duoc() else ""
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "cong_no: link trả thẻ")
+		return ""

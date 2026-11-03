@@ -140,6 +140,10 @@ CUA_NGO = {
 	"mau_in_quay.py": ["danh_sach", "luu", "tra_mac_dinh"],
 	# v631: diem ban tu nhan theo tai khoan, bang gia rieng theo diem.
 	"diem_ban.py": ["danh_sach", "luu", "bang_gia_diem", "luu_gia", "xuat_excel_gia", "nap_excel_gia"],
+	# v633: thanh toán thẻ OnePay. `tao_gd` là cửa của trang khách /tra-the
+	# (allow_guest, đòi khoá riêng của phiếu); `ipn` là điểm OnePay gọi về
+	# (allow_guest, tự kiểm chữ ký HMAC). Còn lại là hàm nội bộ.
+	"onepay.py": ["tao_gd", "ipn"],
 	# Them 27/08/2026: cong tac tam ngung ban mot ma tren web dat banh. Chi
 	# `dat` duoc mo ra ngoai; `bang` va `dang_tat` la ham noi bo, hai man kiem
 	# banh goi qua cua rieng cua chung.

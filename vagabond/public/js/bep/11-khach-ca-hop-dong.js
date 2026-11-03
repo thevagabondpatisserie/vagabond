@@ -556,6 +556,17 @@ async function scrCnPhieu(name) {
           (x[1] ? '<span style="font-size:15px;color:#98a2b3">📋</span>' : '') + '</div>';
       }).join('') +
       '</div>';
+    /* v633: trả bằng thẻ qua OnePay. Cùng link in trên phiếu gửi khách; trang
+       đó luôn hiện số còn phải trả lúc khách mở, nên gửi lại bao nhiêu lần cũng đúng. */
+    if (d.link_the) {
+      html += '<div class="card" style="padding:12px 14px" data-cnthe="1">' +
+        '<div style="font-size:11.5px;font-weight:800;color:#0f766e;letter-spacing:.4px">TRẢ BẰNG THẺ (ONEPAY)</div>' +
+        '<div style="font-size:12px;color:#6b7280;margin-top:3px;line-height:1.5">Gửi link này cho khách muốn trả bằng thẻ Visa, Mastercard, JCB hoặc thẻ ATM. ' +
+        'OnePay báo thành công là phiếu tự ghi nhận tiền, không cần khớp tay.</div>' +
+        '<div data-cnck="the" data-cnv="' + h(d.link_the) + '" style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer">' +
+        '<b style="flex:1;min-width:0;font-size:13px;word-break:break-all">' + h(d.link_the) + '</b>' +
+        '<span style="font-size:15px;color:#98a2b3">📋</span></div></div>';
+    }
   }
 
   html += '<div class="sec">Hoá đơn trong phiếu</div><div class="card" style="padding:6px 14px">';

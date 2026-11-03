@@ -946,6 +946,8 @@ website_route_rules = list(website_route_rules) + [
 	{"from_route": "/chinh-sach-bao-mat", "to_route": "chinh-sach"},
 	{"from_route": "/dieu-khoan", "to_route": "chinh-sach"},
 	{"from_route": "/giao-hang-doi-tra", "to_route": "chinh-sach"},
+	# v633: trang khách trả phiếu đề nghị thanh toán bằng thẻ OnePay (mã QR trên phiếu).
+	{"from_route": "/tra-the/<ma>", "to_route": "tra-the"},
 ]
 # v530 (Codex #373 vòng 2): bút toán bù trừ hoá đơn đến sau chỉ huỷ qua nút Gỡ
 # trên hồ sơ. Huỷ thẳng trên Desk là công nợ tờ sống lại, chi phí hai lần,
@@ -1190,3 +1192,5 @@ website_route_rules = list(website_route_rules) + [
 	{"from_route": "/banh-si", "to_route": "web_moi/banh-si"},
 ]
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.banh_si.quet")
+# v633: giao dịch thẻ OnePay chưa có kết quả sau 15 phút thì hỏi lại OnePay (QueryDR).
+scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.onepay.quet")

@@ -103,3 +103,9 @@ def anh(chuoi_qr):
     bo = io.BytesIO()
     pyqrcode.create(chuoi_qr, error='M', mode='binary', encoding='utf-8').svg(bo, scale=5, quiet_zone=4)
     return 'data:image/svg+xml;base64,' + base64.b64encode(bo.getvalue()).decode('ascii')
+
+
+def anh_lien_ket(url):
+    """QR chỉ chứa một đường link (trang trả thẻ OnePay), KHÔNG phải VietQR: chuỗi
+    VietQR vẫn chỉ dựng ở anh_qr."""
+    return anh(url)

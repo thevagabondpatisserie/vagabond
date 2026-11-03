@@ -1,0 +1,83 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="csrf-token" content="{{ csrf_token }}"><title>Thanh toán phiếu · The Vagabond Pâtisserie</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f6f3ef;color:#1c1a17;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:15px;line-height:1.5}
+.dau{background:#1c1a17;padding:14px 16px;text-align:center}.dau img{height:30px}
+.khung{max-width:480px;margin:0 auto;padding:18px 16px 40px}
+.the{background:#fff;border:1px solid #e7e1d9;border-radius:14px;padding:16px;margin-bottom:12px}
+.nhan{font-size:12px;letter-spacing:.6px;color:#7a7168;text-transform:uppercase}
+.so{font-size:28px;font-weight:800;margin:4px 0}
+.nut{display:block;width:100%;border:0;border-radius:12px;background:#1c1a17;color:#fff;font-size:16px;font-weight:700;padding:15px;cursor:pointer}
+.nut[disabled]{opacity:.6}
+.phu{font-size:13px;color:#6b635b}
+.ok{background:#ecfdf3;border-color:#a6f4c5;color:#05603a}.loi{background:#fef3f2;border-color:#fecdca;color:#b42318}
+.cac-the span{display:inline-block;border:1px solid #d6cfc6;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;margin:2px}
+.dong{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #f1ece6;font-size:14px}.dong b{text-align:right}
+.qr{display:block;margin:8px auto;width:200px;height:200px}
+</style></head><body>
+<div class="dau"><img src="/assets/vagabond/web_order/logo-trang.png" alt="The Vagabond Pâtisserie"></div>
+<div class="khung">
+{% if ket_qua %}
+<div class="the {{ 'ok' if ket_qua.thanh_cong else 'loi' }}">
+{% if ket_qua.thanh_cong %}<b>Thanh toán thành công.</b> The Vagabond đã nhận {{ "{:,.0f}".format(ket_qua.so_tien).replace(",", ".") }} đ. Cảm ơn quý khách.{% else %}<b>Thanh toán chưa thành công.</b> {{ ket_qua.cau | e }}{% endif %}
+</div>
+{% endif %}
+{% if not phieu %}
+<div class="the"><b>Không tìm thấy phiếu thanh toán.</b><div class="phu">Quý khách kiểm tra lại đường dẫn trên phiếu, hoặc liên hệ The Vagabond: 0931 224 334.</div></div>
+{% else %}
+<div class="the">
+<div class="nhan">Phiếu đề nghị thanh toán</div>
+<div style="font-weight:700;font-size:17px">{{ phieu.ma_phieu | e }}</div>
+<div class="phu">Kính gửi: {{ phieu.khach | e }}</div>
+<div style="margin-top:12px" class="nhan">Số tiền còn phải thanh toán</div>
+<div class="so">{{ "{:,.0f}".format(phieu.con).replace(",", ".") }} đ</div>
+</div>
+{% if phieu.huy %}
+<div class="the loi">Phiếu này đã huỷ. Quý khách liên hệ The Vagabond để nhận phiếu mới.</div>
+{% elif da_du %}
+<div class="the ok"><b>Phiếu đã được thanh toán đủ.</b> Cảm ơn quý khách.</div>
+{% else %}
+{% if con_nho %}
+<div class="the"><div class="phu">Số còn lại dưới 10.000 đ nên không trả bằng thẻ được. Quý khách vui lòng chuyển khoản theo thông tin dưới đây hoặc trả tại cửa hàng.</div></div>
+{% elif tra_the %}
+<div class="the">
+<div style="font-weight:700;margin-bottom:4px">Thanh toán bằng thẻ</div>
+<div class="cac-the"><span>VISA</span><span>Mastercard</span><span>JCB</span><span>AMEX</span><span>ATM nội địa</span></div>
+<div class="phu" style="margin:8px 0 12px">Quý khách được chuyển sang trang bảo mật của OnePay để nhập thông tin thẻ và xác nhận OTP.</div>
+<button id="nut-the" class="nut" type="button">Thanh toán {{ "{:,.0f}".format(phieu.con).replace(",", ".") }} đ bằng thẻ</button>
+<p id="bao" class="phu" role="status"></p>
+</div>
+{% endif %}
+{% if ck %}
+<div class="the">
+<div style="font-weight:700;margin-bottom:4px">Hoặc chuyển khoản ngân hàng</div>
+{% if ck.anh %}<img class="qr" src="{{ ck.anh }}" alt="Mã QR chuyển khoản">{% endif %}
+<div class="dong"><span>Ngân hàng</span><b>{{ ck.ngan_hang | e }}</b></div>
+<div class="dong"><span>Số tài khoản</span><b>{{ ck.stk | e }}</b></div>
+<div class="dong"><span>Tên tài khoản</span><b>{{ ck.ten | e }}</b></div>
+<div class="dong"><span>Nội dung</span><b>{{ phieu.ma_phieu | e }}</b></div>
+</div>
+{% endif %}
+{% endif %}
+{% endif %}
+<p class="phu" style="text-align:center">Cần hỗ trợ: <a href="tel:0931224334">0931 224 334</a></p>
+</div>
+{% if phieu and tra_the %}
+<script>
+(function () {
+  var nut = document.getElementById('nut-the'), bao = document.getElementById('bao');
+  nut.onclick = function () {
+    nut.disabled = true; bao.textContent = 'Đang chuyển sang OnePay...';
+    var fd = new URLSearchParams(); fd.set('ma', {{ ma | tojson }}); fd.set('k', {{ k | tojson }});
+    fetch('/api/method/vagabond.onepay.tao_gd', {method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-Frappe-CSRF-Token': document.querySelector('meta[name=csrf-token]').content},
+      body: fd.toString()}).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.message && j.message.url) { location.href = j.message.url; return; }
+      var m = 'Chưa tạo được giao dịch. Quý khách thử lại sau ít phút hoặc chọn chuyển khoản.';
+      try { m = JSON.parse(JSON.parse(j._server_messages)[0]).message || m; } catch (e) {}
+      bao.textContent = m; nut.disabled = false;
+    }).catch(function () { bao.textContent = 'Mạng chập chờn, quý khách bấm lại.'; nut.disabled = false; });
+  };
+})();
+</script>
+{% endif %}
+</body></html>

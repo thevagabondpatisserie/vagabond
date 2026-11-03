@@ -20,7 +20,8 @@
   "ghi_chu",
   "nguoi_tao",
   "email_da_gui",
-  "email_gui_toi"
+  "email_gui_toi",
+  "onepay_gd"
  ],
  "fields": [
   {
@@ -121,10 +122,19 @@
    "fieldtype": "Data",
    "label": "Thư báo gửi tới",
    "read_only": 1
+  },
+  {
+   "description": "Các lần khách trả thẻ qua OnePay (máy tự ghi): mã giao dịch, số tiền, kết quả, phiếu thu.",
+   "fieldname": "onepay_gd",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Giao dịch thẻ OnePay",
+   "no_copy": 1,
+   "read_only": 1
   }
  ],
  "links": [],
- "modified": "2026-08-11 03:00:00.000000",
+ "modified": "2026-11-03 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Cong No",

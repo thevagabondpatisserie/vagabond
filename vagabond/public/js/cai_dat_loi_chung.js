@@ -84,6 +84,7 @@ var VGB_ZALO_TIN = {
 	kt_app_da_chi: ['Hoá đơn, kế toán', 'Phiếu chi đã chuyển tiền và ghi sổ', 'Kế toán xác nhận đã chuyển tiền, phiếu chi đã ghi sổ.'],
 	kt_de_nghi_chi_da_chi: ['Hoá đơn, kế toán', 'Đề nghị chi đã chi xong', 'Khoản chi của đề nghị chi đã khớp sao kê ngân hàng, người lập biết tiền đã đi.'],
 	kt_du_lieu_hao_hut: ['Hoá đơn, kế toán', 'Dữ liệu để tính hao hụt (thứ Hai 08:00)', 'Thứ Hai 08:00: bánh bán chưa có lệnh, lệnh không cân, kho bếp lâu chưa kiểm kê, giá lệch kho.'],
+	kt_the_onepay: ['Hoá đơn, kế toán', 'Khách trả thẻ OnePay cho phiếu đề nghị thanh toán', 'Khách quét mã trên phiếu và trả thẻ thành công; máy đã ghi sổ phiếu thu. Trả dư thì tin ghi số cần hoàn.'],
 	bh_don_web_treo: ['Bán hàng, cửa hàng', 'Đơn web treo quá 30 phút chưa vào Pancake', 'Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.'],
 	bh_ton_web_loi: ['Bán hàng, cửa hàng', 'Lỗi kiểm tồn khi khách đặt web', 'Phép kiểm tồn bánh lỗi lúc khách đặt; Sales kiểm lại tồn trước khi xác nhận.'],
 	bh_ahamove_huy: ['Bán hàng, cửa hàng', 'Tài xế Ahamove huỷ hoặc giao thất bại', 'Tài xế huỷ hoặc giao không được, vận đơn về Chờ giao để phân công lại.'],
@@ -220,6 +221,8 @@ var VGB_CD = (function () {
 		// Codex #433: đủ mọi khe khoá mà sepay._cac_khoa() chấp nhận; webhook chạy được
 		// chỉ với khe thứ hai hay thứ ba thì vẫn là đã khai.
 		{ hau: 'Tiền chuyển khoản không tự về app, phải đối chiếu tay.', ten: 'SePay ngân hàng', canMot: [['sepay_khoa'], ['sepay_khoa_2'], ['sepay_hmac'], ['sepay_hmac_2'], ['sepay_hmac_3']], bat: 'sepay_bat', toi: 'sepay_bat', muc: 'sec_sepay' },
+		// v633 onepay.dung_duoc: bật và đủ cổng, Merchant ID, Access Code, Hash code.
+		{ hau: 'Phiếu đề nghị thanh toán chưa có mã trả bằng thẻ.', ten: 'Thẻ OnePay', can: ['onepay_cong', 'onepay_merchant', 'onepay_access_code', 'onepay_hash_code'], bat: 'onepay_bat', toi: 'onepay_bat', muc: 'sec_onepay' },
 		{ hau: 'Không kéo được đơn Pancake về doanh số.', ten: 'Pancake', can: ['pancake_api_key', 'pancake_shop_id'], toi: 'pancake_api_key', muc: 'sec_pancake' },
 		// Codex #433 vòng 3: "đã khai" phải đủ MỌI ô máy chủ đòi, không thì chip xanh
 		// cho một cấu hình chắc chắn hỏng. Mỗi dòng ghi chỗ máy chủ kiểm.

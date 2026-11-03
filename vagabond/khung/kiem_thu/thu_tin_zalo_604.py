@@ -206,8 +206,9 @@ def _danh_muc():
 	# v613: thêm 12 tin tồn kho, sản xuất, duyệt chi (27/10/2026).
 	# v619: thêm tin dữ liệu hao hụt cho kế toán và cho từng bếp (28/10/2026).
 	# v630: thêm 4 tin bánh thiết kế riêng (3 Bán hàng, 1 Bếp) và 4 tin bánh sỉ (3 Bán hàng, 1 Bếp).
-	la("đủ 87 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630)", len(kz.TIN), 87)
+	# v633: thêm tin kế toán khi khách trả thẻ OnePay cho phiếu đề nghị thanh toán.
+	la("đủ 88 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633)", len(kz.TIN), 88)
 	la("tám bộ phận đúng thứ tự (v622 thêm Nhân sự)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -595,7 +596,9 @@ def _patch_map():
 		# v630: tin thiết kế riêng, chưa có bản vá; quản lý tích tay trong Cài đặt cho nhóm Sales.
 		"bh_tkr_moi", "bh_tkr_da_coc", "bh_tkr_tu_van",
 		# v630 bánh sỉ: chưa có bản vá; quản lý tích tay trong Cài đặt cho nhóm Sales.
-		"bh_si_dang_ky", "bh_si_don_moi", "bh_si_da_tt"}
+		"bh_si_dang_ky", "bh_si_don_moi", "bh_si_da_tt",
+		# v633: tin khách trả thẻ OnePay, chưa có bản vá; anh Việt tích tay cho nhóm Kế toán.
+		"kt_the_onepay"}
 	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]
 	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng" and m not in v609] + ["ht_phat_hanh"]
 	la("nhóm văn phòng kế toán", p.tin_cho_nhom("ERP Văn Phòng - Kế Toán - Thu Mua"), kt)
