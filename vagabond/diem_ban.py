@@ -366,12 +366,100 @@ def gia_rieng(ma):
 	d = theo_ma(ma)
 	if not d or not d.get("bang_gia"):
 		return {}
+	return gia_dang_ap(_dong_gia_diem(d["bang_gia"]), _hom_nay())
+
+
+def _hom_nay():
+	from frappe.utils import nowdate
+
+	return str(nowdate())
+
+
+def _dong_gia_diem(bang, mon=None, chi_ban=True):
+	"""Moi dong Item Price cua bang gia diem, KE CA dong da khoa han. Mot cho
+	doc duy nhat; loc dong dang ap thi qua gia_dang_ap / ke_hoach_gia."""
+	loc = {"price_list": bang}
+	if chi_ban:
+		loc["selling"] = 1
+	if mon:
+		loc["item_code"] = mon
+	return frappe.get_all("Item Price", filters=loc,
+		fields=["name", "item_code", "price_list_rate", "valid_from", "valid_upto", "modified"],
+		order_by="modified asc", limit_page_length=0)
+
+
+def _ngay(x):
+	"""THUAN: chuoi hay date -> date, sai thi None."""
+	from datetime import date
+
+	if isinstance(x, date):
+		return x
+	t = str(x or "")
+	try:
+		return date.fromisoformat(t[:10]) if len(t) >= 10 else None
+	except ValueError:
+		return None
+
+
+def con_han(r, ngay):
+	"""THUAN: dong Item Price dang ap ngay `ngay` (chua toi han bat dau thi
+	chua ap, qua han ket thuc thi thoi ap) va gia duong."""
+	n = _ngay(ngay)
+	tu, den = _ngay(r.get("valid_from")), _ngay(r.get("valid_upto"))
+	return not (tu and tu > n) and not (den and den < n) and flt(r.get("price_list_rate")) > 0
+
+
+def chon_dong_dang_ap(rows, ngay):
+	"""THUAN: {ma mon: dong} dang ap. Nhieu dong cung hieu luc thi lay dong co
+	ngay bat dau muon nhat, roi dong sua sau cung (cung luat banh_si.chon_gia)."""
 	ra = {}
-	for r in frappe.get_all("Item Price", filters={"price_list": d["bang_gia"], "selling": 1},
-			fields=["item_code", "price_list_rate"], order_by="modified asc", limit_page_length=0):
-		if flt(r.get("price_list_rate")) > 0:
-			ra[r["item_code"]] = flt(r["price_list_rate"])
+	for r in rows or []:
+		if not con_han(r, ngay):
+			continue
+		khoa = (str(_ngay(r.get("valid_from")) or ""), str(r.get("modified") or ""))
+		cu = ra.get(r.get("item_code"))
+		if not cu or khoa > (str(_ngay(cu.get("valid_from")) or ""), str(cu.get("modified") or "")):
+			ra[r.get("item_code")] = r
 	return ra
+
+
+def gia_dang_ap(rows, ngay):
+	"""THUAN: {ma mon: gia} dang ap ngay `ngay`. Dong da khoa han (bo gia
+	rieng) khong tinh nhung van nam trong so de tra lai (QT-20)."""
+	return {ma: flt(r.get("price_list_rate")) for ma, r in chon_dong_dang_ap(rows, ngay).items()}
+
+
+def ke_hoach_gia(rows, gia, ngay):
+	"""THUAN: tu cac dong gia cua MOT mon o mot diem ra viec can lam, KHONG
+	BAO GIO XOA dong nao (QT-20, Codex #532). Tra (gia_cu, sua, khoa, them):
+	  sua  = (ten dong, gia moi) dat lai gia dong dang ap, hoac None;
+	  khoa = [{name, valid_upto, valid_from?}] khoa han toi hom qua: bo gia
+	         rieng, hoac dong dang ap thua;
+	  them = True khi phai them dong moi (chua co dong dang ap).
+	Gia trong la bo gia rieng: khoa han dong dang ap, mon ve gia chung."""
+	from datetime import timedelta
+
+	n = _ngay(ngay)
+	r0 = next(iter(chon_dong_dang_ap(rows, n).values()), None)
+	gia_cu = flt(r0.get("price_list_rate")) if r0 else 0
+	if flt(gia or 0) == gia_cu:
+		return gia_cu, None, [], False
+	hom_qua = str(n - timedelta(days=1))
+
+	def khoa(r):
+		k = {"name": r["name"], "valid_upto": hom_qua}
+		tu = _ngay(r.get("valid_from"))
+		if not tu or str(tu) > hom_qua:
+			# Dong khai hom nay roi bo hom nay: lui ngay bat dau de han hop le.
+			k["valid_from"] = hom_qua
+		return k
+
+	thua = [khoa(r) for r in rows or [] if r is not r0 and con_han(r, n)]
+	if gia:
+		if r0:
+			return gia_cu, (r0["name"], flt(gia)), thua, False
+		return gia_cu, None, thua, True
+	return gia_cu, None, ([khoa(r0)] if r0 else []) + thua, False
 
 
 def gia_rieng_cua_quay(quay):
@@ -758,10 +846,7 @@ def bang_gia_diem(ma):
 
 	_kiem_quyen()
 	d = _diem_co_bang(ma)
-	gia = {}
-	for r in frappe.get_all("Item Price", filters={"price_list": d["bang_gia"], "selling": 1},
-			fields=["item_code", "price_list_rate"], order_by="modified asc", limit_page_length=0):
-		gia[r["item_code"]] = flt(r["price_list_rate"])
+	gia = gia_dang_ap(_dong_gia_diem(d["bang_gia"]), _hom_nay())
 	da_ban = {}
 	if d["quay"]:
 		for r in frappe.db.sql(
@@ -782,7 +867,7 @@ def bang_gia_diem(ma):
 
 
 def chuan_thay_doi(thay_doi, ma_hop_le):
-	"""THUAN: [(ma mon, gia hoac None la xoa gia rieng)] tu danh sach may
+	"""THUAN: [(ma mon, gia hoac None la bo gia rieng)] tu danh sach may
 	khach gui. Ma la khong co trong danh muc thi bao ten, khong im lang bo."""
 	if isinstance(thay_doi, str):
 		thay_doi = json.loads(thay_doi or "[]")
@@ -805,7 +890,7 @@ def chuan_thay_doi(thay_doi, ma_hop_le):
 
 @frappe.whitelist(methods=["POST"])
 def luu_gia(ma, thay_doi=None):
-	"""Luu cac o gia rieng da doi. Gia trong la xoa gia rieng (mon ve gia
+	"""Luu cac o gia rieng da doi. Gia trong la bo gia rieng (khoa han, khong xoa dong) (mon ve gia
 	chung). Moi lan doi ghi vet tren mon: ai doi, luc nao, gia cu, gia moi."""
 	from vagabond.ban_hang import _kiem_quyen
 
@@ -827,26 +912,23 @@ def luu_gia(ma, thay_doi=None):
 
 
 def dat_gia_diem(d, mon, gia):
-	"""Dat (hoac xoa khi gia rong) gia rieng cua mot mon o mot diem, ghi vet.
+	"""Dat (hoac bo, khoa han khi gia rong) gia rieng cua mot mon o mot diem, ghi vet.
 	Mot cho duy nhat cho ca man Bang gia lan man Tao mat hang. Tra True khi
 	gia that su doi."""
 	_bao_dam_bang_gia(d["bang_gia"])
-	cu = frappe.get_all("Item Price", filters={"price_list": d["bang_gia"], "item_code": mon},
-		fields=["name", "price_list_rate"], limit_page_length=0)
-	gia_cu = flt(cu[0]["price_list_rate"]) if cu else 0
-	if flt(gia or 0) == gia_cu:
+	hn = _hom_nay()
+	gia_cu, sua, khoa, them = ke_hoach_gia(_dong_gia_diem(d["bang_gia"], mon, chi_ban=False), gia, hn)
+	if not (sua or khoa or them):
 		return False
-	if gia:
-		if cu:
-			frappe.db.set_value("Item Price", cu[0]["name"], "price_list_rate", gia)
-			for thua in cu[1:]:
-				frappe.delete_doc("Item Price", thua["name"], ignore_permissions=True)
-		else:
-			frappe.get_doc({"doctype": "Item Price", "item_code": mon, "price_list": d["bang_gia"],
-				"price_list_rate": gia}).insert(ignore_permissions=True)
-	else:
-		for c in cu:
-			frappe.delete_doc("Item Price", c["name"], ignore_permissions=True)
+	# Khong xoa dong gia nao (QT-20): bo gia rieng hay dong thua thi khoa han
+	# toi hom qua, dong van con de tra lai ai dat gia bao nhieu, tu ngay nao.
+	for k in khoa:
+		frappe.db.set_value("Item Price", k["name"], {x: v for x, v in k.items() if x != "name"})
+	if sua:
+		frappe.db.set_value("Item Price", sua[0], "price_list_rate", sua[1])
+	if them:
+		frappe.get_doc({"doctype": "Item Price", "item_code": mon, "price_list": d["bang_gia"],
+			"price_list_rate": gia}).insert(ignore_permissions=True)
 	_ghi_vet_gia(mon, d, gia_cu, gia)
 	return True
 
