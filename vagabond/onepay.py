@@ -617,10 +617,11 @@ def quet():
 	tu = str(bay_gio - timedelta(days=2))[:19]
 	den = str(bay_gio - timedelta(minutes=15))[:19]
 	# v637: hai nơi cất nhật ký giao dịch: phiếu công nợ và phiếu đặt (đơn đặt trước).
+	# Phiếu đặt đã huỷ vẫn hỏi (Codex #538): khách có thể đã trả thẻ ngay trước khi huỷ.
 	from vagabond import onepay_dat
 
 	for dt, o, loc in ((CN, "onepay_gd", {"trang_thai": ["!=", "Huy"]}),
-			(onepay_dat.SO, onepay_dat.TRUONG_NK, {"docstatus": 1})):
+			(onepay_dat.SO, onepay_dat.TRUONG_NK, {"docstatus": ["in", [1, 2]]})):
 		# Một loại đọc hỏng (vd ô nhật ký chưa có vì chưa migrate) không được
 		# chặn loại kia: tiền thẻ công nợ vẫn phải được tra cứu.
 		try:

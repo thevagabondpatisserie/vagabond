@@ -57,6 +57,15 @@ def tien_vn(x):
 		return "0"
 
 
+def cau_hoan(t, du):
+	"""Câu báo phần tiền thẻ phải hoàn cho khách. Rỗng khi không dư. THUẦN."""
+	if float(du or 0) <= 0.5:
+		return ""
+	if (t or {}).get("trang_thai") == "da_huy":
+		return "Đơn %s đã huỷ trước khi tiền thẻ về: kế toán hoàn %s đ cho khách." % (t.get("ma") or "", tien_vn(du))
+	return "Khách trả dư %s đ (đơn đã được trả ở chỗ khác): kế toán hoàn lại cho khách." % tien_vn(du)
+
+
 def khoa_phieu_thu(ma_gd):
 	"""reference_no của phiếu thu một giao dịch: khoá chống ghi hai lần. THUẦN."""
 	return ("onepay:%s" % ma_gd)[:140]
@@ -79,11 +88,14 @@ SO = "Sales Order"
 PE = "Payment Entry"
 
 
-def _ten_don(ma):
+def _ten_don(ma, ca_da_huy=False):
+	"""Tên phiếu đặt của một mã đơn. `ca_da_huy`: cả phiếu đặt đã huỷ (Codex #538:
+	khách đang trả thẻ thì đơn bị huỷ, kết quả OnePay về sau vẫn phải ghi được
+	vào nhật ký và báo hoàn, không được coi là giao dịch lạ)."""
 	o = truong_ma(ma)
 	if not o:
 		return None
-	return frappe.db.get_value(SO, {o: str(ma).strip().upper(), "docstatus": ["<", 2]}, "name")
+	return frappe.db.get_value(SO, {o: str(ma).strip().upper(), "docstatus": ["in", [0, 1, 2]] if ca_da_huy else ["<", 2]}, "name")
 
 
 def tim_don(ma, k):
@@ -214,7 +226,7 @@ def ghi_nhan_the(ma_don, kq, nguon):
 	người gọi lùi lại (IPN không xác nhận, OnePay gọi lại sau)."""
 	from vagabond import onepay as op
 
-	ten = _ten_don(ma_don)
+	ten = _ten_don(ma_don, ca_da_huy=True)
 	if not ten:
 		return {"ok": 1, "ly_do": "gd_la", "kq": kq}
 	_khoa(ten)
@@ -245,11 +257,29 @@ def ghi_nhan_the(ma_don, kq, nguon):
 	gd.update(trang_thai="da_ghi", ma_onepay=kq.get("ma_onepay"), the=kq.get("the"), so_ghi=dc["so_ghi"],
 		du=dc["du"], ghi_luc=str(frappe.utils.now_datetime())[:19], nguon=nguon, phieu_thu=pe)
 	_luu()
-	cau_du = (" Khách trả dư %s đ (đơn đã được trả ở chỗ khác), Sales hoàn lại cho khách."
-		% tien_vn(dc["du"])) if dc["du"] > 0.5 else ""
+	cau_du = cau_hoan(t, dc["du"])
 	frappe.get_doc(SO, ten).add_comment("Comment", "Khách trả thẻ OnePay %s đ (mã giao dịch %s, mã OnePay %s). "
 		"Phiếu thu đã ghi sổ: %s.%s" % (tien_vn(kq.get("so_tien")), kq["ma"], kq.get("ma_onepay") or "",
-			", ".join(pe) or "không có", cau_du))
+			", ".join(pe) or "không có", (" " + cau_du) if cau_du else ""))
+	if cau_du:
+		# Tiền thẻ đã về mà không ghi được cho đơn (đơn huỷ giữa chừng, hoặc đã được
+		# trả ở chỗ khác): kế toán phải hoàn cho khách. Ghi tin TRƯỚC commit (Codex
+		# #534 vòng 3: trang về là GET, không ai commit sau hàm này).
+		try:
+			from vagabond.kenh_zalo import bao
+
+			bao("thong_bao", "cong_no", "Khách trả thẻ OnePay cho đơn %s, cần hoàn %s đ" % (t["ma"], tien_vn(dc["du"])), [
+				"Khách: %s" % (t.get("khach") or ""),
+				"Số tiền khách trả: %s đ, mã OnePay %s" % (tien_vn(kq.get("so_tien")), kq.get("ma_onepay") or ""),
+				"Đã ghi cho đơn: %s đ" % tien_vn(dc["so_ghi"]),
+				cau_du,
+			], khoa="onepay:%s" % kq["ma"], ma_tin="kt_the_onepay")
+		except Exception as e:
+			from vagabond.loi_csdl import chet_giao_dich
+
+			if chet_giao_dich(e):
+				raise
+			frappe.log_error(frappe.get_traceback(), "onepay_dat: báo tin hoàn tiền thẻ")
 	frappe.db.commit()
 	return {"ok": 1, "ly_do": ly_do, "kq": kq, "phieu_thu": pe}
 
