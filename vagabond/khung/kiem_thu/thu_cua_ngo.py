@@ -144,6 +144,8 @@ CUA_NGO = {
 	# (allow_guest, đòi khoá riêng của phiếu); `ipn` là điểm OnePay gọi về
 	# (allow_guest, tự kiểm chữ ký HMAC). Còn lại là hàm nội bộ.
 	"onepay.py": ["tao_gd", "ipn"],
+	# v637: màn quầy, Thu phần còn lại cách Thẻ OnePay (quyền kiểm trong hàm).
+	"onepay_dat.py": ["con_lai", "ma_the"],
 	# Them 27/08/2026: cong tac tam ngung ban mot ma tren web dat banh. Chi
 	# `dat` duoc mo ra ngoai; `bang` va `dang_tat` la ham noi bo, hai man kiem
 	# banh goi qua cua rieng cua chung.
