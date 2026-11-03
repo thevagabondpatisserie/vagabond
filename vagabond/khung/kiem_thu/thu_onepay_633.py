@@ -341,3 +341,70 @@ def _ghi_nhan_that():
 	g = json.loads(doc.onepay_gd)[0]
 	la("phiếu và nhật ký ghi số thật", (doc.da_thu, doc.trang_thai, g["so_ghi"], g["du"]), (400000.0, "Thu thieu", 400000.0, 600000.0))
 	dung("ghi chú báo phần dư cho kế toán", "phần dư 600.000 đ" in (doc.get("ghi_chu") or ""))
+
+
+@ca("Codex #534 vòng 2: mọi hoá đơn đã được trả ở chỗ khác: IPN vẫn đi tiếp, ghi 0 đ, toàn bộ tiền thẻ là tiền dư báo kế toán; lỗi lập chứng từ thật vẫn ném")
+def _het_no_cho_khac():
+	import json
+	import types
+	from unittest.mock import patch
+
+	from vagabond import cong_no as cn
+	from vagabond import thu_tien as tt
+
+	class _Phieu(dict):
+		__getattr__ = dict.get
+
+		def __setattr__(self, k, v):
+			self[k] = v
+
+		def save(self, **kw):
+			pass
+
+		def add_comment(self, loai, noi_dung):
+			self["ghi_chu"] = noi_dung
+
+	def _dung(con_no):
+		doc = _Phieu(name="CN1", ma_phieu="DNTT-26-11-00002", tong_tien=1000000, da_thu=0, trang_thai="Cho thu", ma_gd="",
+			ten_khach="ABC", khach="ABC", dong=[types.SimpleNamespace(hoa_don="HD1")], flags=types.SimpleNamespace(loi_thu=None),
+			onepay_gd=json.dumps([{"ma": "DNTT261100002-1", "so_tien": 1000000, "tao_luc": "x", "trang_thai": "cho"}]))
+
+		def get_all(dt, **kw):
+			if dt == "Vagabond Cong No Dong":
+				return [{"hoa_don": "HD1"}]
+			if dt == "Sales Invoice":
+				return [{"name": "HD1", "outstanding_amount": con_no, "posting_date": "2026-11-01"}] if con_no else []
+			return []
+		return doc, get_all
+
+	kq = {"hop_le": True, "thanh_cong": True, "ma": "DNTT261100002-1", "so_tien": 1000000.0, "ma_onepay": "9"}
+	doc, get_all = _dung(0)
+	# ghi_thu_cho_phieu THẬT: không còn hoá đơn nào nợ.
+	with patch.object(cn.frappe, "get_doc", lambda *a, **k: doc, create=True), \
+			patch.object(cn.frappe, "get_all", get_all, create=True), \
+			patch.object(cn.frappe.db, "commit", lambda: None, create=True), \
+			patch.object(cn, "_da_nhan_phieu", return_value=0.0), patch.object(cn, "_sepay_cn", return_value={}), \
+			patch.object(cn, "_ham_dinh_bien_nhan", return_value=None), \
+			patch.object(tt, "phan_bo_nhap_theo_hd", return_value={}, create=True):
+		ra = cn.ghi_nhan_the("CN1", kq, "ipn")
+	g = json.loads(doc.onepay_gd)[0]
+	la("đi tiếp, ghi 0 đ, dư toàn bộ", (ra.get("ok"), g["trang_thai"], g["so_ghi"], g["du"]), (1, "da_ghi", 0.0, 1000000.0))
+	la("phiếu không đổi số đã thu", (doc.da_thu, doc.trang_thai), (0, "Cho thu"))
+	dung("ghi chú báo phần dư 1.000.000 đ", "phần dư 1.000.000 đ" in (doc.get("ghi_chu") or ""))
+
+	# Lập chứng từ hỏng thật thì vẫn ném, nhật ký giữ "chờ" để OnePay gọi lại.
+	doc, get_all = _dung(400000)
+	loi = ""
+	with patch.object(cn.frappe, "get_doc", lambda *a, **k: doc, create=True), \
+			patch.object(cn.frappe, "get_all", get_all, create=True), \
+			patch.object(cn.frappe.db, "commit", lambda: None, create=True), \
+			patch.object(cn, "_da_nhan_phieu", return_value=0.0), patch.object(cn, "_sepay_cn", return_value={}), \
+			patch.object(cn, "_ham_dinh_bien_nhan", return_value=None), \
+			patch.object(tt, "phan_bo_nhap_theo_hd", return_value={}, create=True), \
+			patch.object(tt, "ghi_thu_tien", side_effect=RuntimeError("sổ khoá"), create=True):
+		try:
+			cn.ghi_nhan_the("CN1", kq, "ipn")
+		except Exception as e:
+			loi = str(e)
+	dung("lỗi lập phiếu thu vẫn ném", "Chưa lập được phiếu thu" in loi)
+	la("nhật ký vẫn chờ", json.loads(doc.onepay_gd)[0]["trang_thai"], "cho")
