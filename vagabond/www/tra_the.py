@@ -38,6 +38,8 @@ def get_context(context):
 			context.ket_qua = {"thanh_cong": False, "cau": "Chưa ghi nhận được kết quả. Nếu thẻ đã bị trừ tiền, "
 				"The Vagabond sẽ tự đối chiếu với OnePay; quý khách không cần trả lại.", "so_tien": 0}
 	context.phieu = op.thong_tin_trang(ma, k)
+	# Codex #534: hiện gì do một phép thuần quyết (đã trả đủ, nút thẻ, số nhỏ).
+	context.update(op.cach_tra(context.phieu) if context.phieu else {"da_du": False, "tra_the": False, "con_nho": False})
 	context.ma = ma
 	context.k = k
 	if context.phieu:
