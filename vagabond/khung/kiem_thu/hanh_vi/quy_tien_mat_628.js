@@ -32,9 +32,10 @@ var HAM = ['h', 'money', 'today'].map(function (t) { return layHam(NEN, t); }).c
 
 function manQuy(o) {
   o = o || {};
+  var chua = !!o.chua_chot;
   return {
-    so_du: 45200000, moc: { ngay_chot: '2026-10-31', so_du: 40000000 },
-    lan_kiem: { name: 'PQ-1', luc: '2026-10-31 16:30:00', lech: -150000, ten_nguoi: 'Dung', trang_thai: 'Đã ghi' },
+    so_du: chua ? null : 45200000, moc: chua ? null : { ngay_chot: '2026-10-31', so_du: 40000000 },
+    lan_kiem: chua ? null : { name: 'PQ-1', luc: '2026-10-31 16:30:00', lech: -150000, ten_nguoi: 'Dung', trang_thai: 'Đã ghi' },
     cho_duyet: o.cho || [], ba_lan: [{ ngay: '2026-10-31', lech: -150000 }],
     lich_su: [
       { luc: '2026-11-02 09:12', loai: 'nop_quy', ma: 'NQ-1', tien: 8350000, ten: 'Biên nhận nộp tiền mặt', phu: 'Trần Cao Vân · Dung ký nhận' },
@@ -78,6 +79,7 @@ function dungMoi(duLieu, anh) {
       goi.push({ duong: duong, ts: ts });
       if (duong === 'vagabond.quy_tien_mat.man_quy') return Promise.resolve(JSON.parse(JSON.stringify(duLieu)));
       if (duong === 'vagabond.quy_tien_mat.kiem_quy') return Promise.resolve({ ok: 1, trang_thai: 'Chờ duyệt', lech: -2500000 });
+      if (duong === 'vagabond.quy_tien_mat.chot_dau') return Promise.resolve({ ok: 1, name: 'MOC-1', ngay_chot: '2026-11-01', so_du: 40100000, co_phat_sinh: 0 });
       if (duong === 'vagabond.quy_tien_mat.nop_ngan_hang') return Promise.resolve({ ok: 1, trang_thai: 'Chờ tiền về' });
       return Promise.resolve({ ok: 1 });
     },
@@ -196,6 +198,46 @@ function goiDuong(m) { return m.goi.map(function (x) { return x.duong; }); }
     var gd = dungMoi(manQuy({ duyet: 1, lam: 0 }));
     await gd.g.scrQuyTm(); await tick();
     bang('Giám đốc thấy nút huỷ phiếu kiểm', ds(gd, '[data-qtmhuy]').map(function (x) { return x.getAttribute('data-qtmhuy'); }), ['PQ-1']);
+  });
+
+  await ca('v635 chị Dung: quỹ chưa chốt thì có nút Chốt số dư đầu ngay trên màn, không còn chỉ sang Cài đặt tài chính; chưa có nút Kiểm quỹ, Nộp', async function () {
+    var m = dungMoi(manQuy({ chua_chot: 1 }));
+    await m.g.scrQuyTm(); await tick();
+    dung('có nút chốt', !!mot(m, '[data-qtmchot]'));
+    dung('không còn chỉ sang Cài đặt tài chính', chu(m.khung).indexOf('chốt ở Cài đặt tài chính') < 0);
+    dung('chưa có Kiểm quỹ, Nộp', !mot(m, '[data-qtmkiem]') && !mot(m, '[data-qtmnop]'));
+    var xem = dungMoi(manQuy({ chua_chot: 1, lam: 0 }));
+    await xem.g.scrQuyTm(); await tick();
+    dung('người chỉ xem: không nút, có câu nhờ kế toán', !mot(xem, '[data-qtmchot]') && chu(xem.khung).indexOf('Nhờ kế toán hoặc Giám đốc') >= 0);
+  });
+
+  await ca('v635 chốt số dư đầu: đếm theo mệnh giá ra tổng, chưa gõ thì không gửi, hỏi lại rồi gửi đúng bảng đếm và ghi chú', async function () {
+    var m = dungMoi(manQuy({ chua_chot: 1 }));
+    await m.g.scrQuyTm(); await tick();
+    mot(m, '[data-qtmchot]').onclick(); await tick();
+    bang('mở màn chốt', m.g._t, 'Chốt số dư đầu quỹ');
+    bang('không ô gõ tay số dư: chỉ ô số tờ và ô ghi chú', ds(m, 'input').length, 11);
+    await mot(m, '[data-qtmchotluu]').onclick(); await tick();
+    dung('chưa gõ: không gửi', goiDuong(m).indexOf('vagabond.quy_tien_mat.chot_dau') < 0 && m.toast.indexOf('Gõ số tờ đã đếm được. Quỹ trống thì gõ 0.') >= 0);
+    go_(m, 500000, 80); go_(m, 50000, 2);
+    bang('tổng đếm', mot(m, '[data-qtmdem]').getAttribute('data-qtmdem'), '40100000');
+    m.g.document.getElementById('qtmGhiChuChot').value = 'đếm đầu ngày';
+    await mot(m, '[data-qtmchotluu]').onclick(); await tick();
+    dung('hỏi lại đúng số', m.hoi.length === 1 && (m.hoi[0].indexOf('40.100.000') >= 0 || m.hoi[0].indexOf('40,100,000') >= 0));
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.quy_tien_mat.chot_dau'; });
+    bang('gửi một lần, đúng bảng và ghi chú', g.map(function (x) { return [JSON.parse(x.ts.bang), x.ts.ghi_chu]; }),
+      [[{ '500000': '80', '50000': '2' }, 'đếm đầu ngày']]);
+    dung('báo ngày tính quỹ rồi quay lại', m.toast.some(function (t) { return t.indexOf('tính từ cuối ngày 01/11/2026') >= 0; }) && m.dieuHuong.indexOf('back') >= 0);
+  });
+
+  await ca('v635 quỹ trống: gõ 0 tờ vẫn chốt được 0 đồng', async function () {
+    var m = dungMoi(manQuy({ chua_chot: 1 }));
+    await m.g.scrQuyTm(); await tick();
+    mot(m, '[data-qtmchot]').onclick(); await tick();
+    go_(m, 500000, 0);
+    await mot(m, '[data-qtmchotluu]').onclick(); await tick();
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.quy_tien_mat.chot_dau'; })[0];
+    bang('gửi bảng 0', JSON.parse(g.ts.bang), { '500000': '0' });
   });
 
   await ca('nộp ngân hàng: thiếu ảnh giấy nộp thì không gửi; đủ thì hỏi lại rồi gửi đúng tài khoản đã chọn', async function () {
