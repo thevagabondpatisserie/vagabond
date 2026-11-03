@@ -205,6 +205,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_thiet_ke_rieng_630,
 	thu_banh_si_630,
 	thu_codex_531,
+	thu_dau_trang_636,
 )
 
 
