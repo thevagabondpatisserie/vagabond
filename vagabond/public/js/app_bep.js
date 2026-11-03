@@ -4483,6 +4483,7 @@ async function scrHome() {
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
       ? card('🏪', 'Điểm bán', 'Chi nhánh, mã quầy, nguồn đơn - khai một nơi dùng cho cả hệ', 0, 'CDDB') +
+        card('💲', 'Bảng giá theo điểm bán', 'Giá riêng của từng điểm như NVH, sửa một lượt hoặc qua Excel', 0, 'BGDB') +
         card('🔒', 'Khoá sổ', 'Chốt số liệu kỳ cũ, không ai sửa hay huỷ được nữa', 0, 'CDKS') +
         card('💳', 'Phương thức thanh toán', 'Máy cà thẻ, ví, công nợ - và mã gửi cơ quan thuế', 0, 'CDPT') +
         card('🏦', 'Tài khoản nhận tiền', 'Số tài khoản sinh mã QR, khai riêng được cho từng nguồn đơn', 0, 'CDTK') +
@@ -4824,10 +4825,10 @@ var VGB_NHOM = [
   },
   {
     k: 'KHAC', ten: 'Cài đặt', icon: '⚙️',
-    keys: ['CDLOI', 'CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
+    keys: ['CDLOI', 'CDDB', 'BGDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
     nhom: [
       { t: 'Lõi hệ thống', p: '', keys: ['CDLOI'] },
-      { t: 'Cửa hàng và bán hàng', p: '', keys: ['CDDB', 'CDPT', 'CDQQ', 'CDHT', 'CDCN', 'CDWEB'] },
+      { t: 'Cửa hàng và bán hàng', p: '', keys: ['CDDB', 'BGDB', 'CDPT', 'CDQQ', 'CDHT', 'CDCN', 'CDWEB'] },
       { t: 'Kho và sản phẩm', p: '', keys: ['CDSP', 'CDKHO', 'STOCK', 'TONCHANG', 'PTCH'] },
       { t: 'Kế toán và ngân hàng', p: '', keys: ['CDKS', 'CDTK', 'CDSE', 'NHAPSK', 'PTDON'] },
       { t: 'In ấn và nhắc việc', p: '', keys: ['CDMI', 'CDMU', 'CDTB', 'CDTL'] },
@@ -5977,6 +5978,7 @@ var VGB_DUONG = {
   'ban-tai-quay': 'POS',
   'bang-bep-hom-nay': 'KIT',
   'bang-gia': 'BGIA',
+  'bang-gia-theo-diem-ban': 'BGDB',
   'bao-cao': 'BCHUB',
   'bien-nhan-nop-tien-mat': 'BNTM',
   'but-toan': 'BT',
@@ -6340,6 +6342,7 @@ function vgbGo(k) {
   if (k === 'KPICD') return go(scrKPICau);
   if (k === 'KPITOI') return go(scrKPIToi);
   if (k === 'CDDB') return go(scrDiemBan);
+  if (k === 'BGDB') return go(function () { return scrBangGiaDiem(''); });
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);
   if (k === 'CDTK') return go(scrTaiKhoan);
@@ -16369,6 +16372,110 @@ function posDoc() {
   v = g('posDiemNhap'); if (v !== null) posDon.diemNhap = v;
 }
 /* Buoc chon quay: vao card la hoi, khong nho lua chon cu (anh Viet 08/08). */
+/* v631 (anh Việt 02/11/2026, duyệt mẫu "Điểm bán tự nhận theo tài khoản"):
+   số liệu tháng 10 cho thấy mỗi thu ngân gần như chỉ đứng một quầy, và ca
+   TH3 là Gia Bảo bấm nhầm thẻ Sales Online khi đang đứng District 1. Từ nay:
+   tài khoản được khai đứng đúng một điểm thì mở Tính tiền là vào thẳng điểm
+   đó; khai nhiều điểm (quản lý) thì chỉ chọn trong các điểm đó, điểm vừa
+   đứng xếp đầu; chưa khai thì chọn như cũ, kèm dòng nhắc quản lý khai. */
+function posDiemCuaToi() { return ((CFGBH || {}).diem_cua_toi) || []; }
+/* PHÉP THUẦN: các điểm được hiện ở màn chọn điểm. */
+function posDsDiemChon(dsAll, cua, vua) {
+  var ds = (cua && cua.length) ? dsAll.filter(function (q) { return cua.indexOf(q.ma) >= 0; }) : dsAll.slice();
+  if (!ds.length) ds = dsAll.slice();
+  if (vua) ds.sort(function (a, b) { return (b.ma === vua ? 1 : 0) - (a.ma === vua ? 1 : 0); });
+  return ds;
+}
+/* Giá một món ở một điểm: giá riêng của điểm (NVH) nếu có, không thì giá chung.
+   Máy chủ tính lại đúng như vậy khi lưu bill (diem_ban.ap_gia_diem). */
+function posGiaMon(x, q) {
+  var g = q && q.gia_rieng;
+  return (g && Object.prototype.hasOwnProperty.call(g, x.name)) ? (+g[x.name] || 0) : (+x.standard_rate || 0);
+}
+function posDiemTheoQuay(quay) {
+  var r = null;
+  (((CFGBH || {}).diem) || []).forEach(function (q) { if (quay && q.quay === quay) r = q; });
+  return r;
+}
+/* Codex PR #532: posQuay là MỘT đối tượng lấy từ CFGBH lúc chọn điểm. Quản lý
+   đổi bảng giá rồi cấu hình đọc lại thì CFGBH là đối tượng mới, còn posQuay
+   vẫn giữ giá cũ, nên giỏ và mã QR thu theo giá cũ trong khi máy chủ lưu giá
+   mới. Hàm này thay posQuay bằng bản mới của CÙNG điểm và đặt lại giá các món
+   trong giỏ (trừ món combo, combo có giá riêng). Món vừa bị bỏ giá riêng thì
+   về giá chung trong danh mục. Trả số món đã đổi giá.
+   giaChung ({mã: giá chung}, đọc từ máy chủ) có khi máy chủ vừa chặn vì giá
+   lệch: khi đó MỌI món không có giá riêng về đúng giá chung đó (Codex PR #532
+   vòng 3), không chỉ món vừa bị bỏ giá riêng. */
+function posDongBoQuay(giaChung) {
+  if (!posQuay) return 0;
+  var moi = null;
+  (((CFGBH || {}).diem) || []).forEach(function (q) { if (q.ma === posQuay.ma) moi = q; });
+  if (!moi) return 0;
+  var cu = posQuay, co = Object.prototype.hasOwnProperty;
+  posQuay = moi;
+  if (!posDon || !posDon.mon) return 0;
+  var gMoi = moi.gia_rieng || {}, gCu = cu.gia_rieng || {}, doi = 0;
+  posDon.mon.forEach(function (m) {
+    if (m.combo || m.combo_ma || m.item_code === POS_MA_PHI_GIAO) return;
+    var g = null;
+    if (co.call(gMoi, m.item_code)) g = +gMoi[m.item_code] || 0;
+    else if (giaChung && co.call(giaChung, m.item_code)) g = +giaChung[m.item_code] || 0;
+    else if (co.call(gCu, m.item_code)) {
+      var x = (dsItemsCache || []).filter(function (y) { return y.name === m.item_code; })[0];
+      if (x) g = +x.standard_rate || 0;
+    }
+    if (g && g !== +m.rate) { m.rate = g; doi++; }
+  });
+  if (doi) posDon.kmKq = null;
+  return doi;
+}
+/* Máy chủ chặn lưu khi giá trên máy lệch bảng giá điểm (gia_theo_diem=1). Đọc
+   lại cấu hình, đặt lại giá giỏ rồi về màn quầy để thu ngân xem tổng mới. */
+async function posGiaVuaDoi(e) {
+  var cau = String((e && e.message) || '');
+  if (cau.indexOf('Bảng giá của điểm vừa đổi') < 0) return false;
+  CFGBH = null;
+  try { await cfgBanHang(); } catch (eC) { /* đọc lại lỗi: lần lưu sau máy chủ vẫn chặn */ }
+  /* Giá chung của các món trong giỏ, đọc lại từ danh mục: máy chủ đối chiếu cả
+     giá chung, nên giỏ phải về đúng số đó dù máy chưa nạp bảng món. */
+  posDongBoQuay(await posDocGiaChung(posDon && posDon.mon));
+  toast(cau, 6500);
+  go(scrPosQuay, true);
+  return true;
+}
+/* Giá chung (Item.standard_rate) của các món không thuộc combo trong một danh
+   sách dòng, đọc lại từ danh mục. Lỗi mạng thì trả rỗng. */
+async function posDocGiaChung(ds) {
+  var giaChung = {};
+  try {
+    var ma = (ds || []).filter(function (m) { return !m.combo && !m.combo_ma; }).map(function (m) { return m.item_code; });
+    if (ma.length) {
+      ((await getList('Item', { filters: { name: ['in', ma] }, fields: ['name', 'standard_rate'], limit_page_length: 0 })) || [])
+        .forEach(function (x) { if (+x.standard_rate) giaChung[x.name] = +x.standard_rate; });
+    }
+  } catch (eG) { giaChung = {}; }
+  return giaChung;
+}
+/* Sửa bill (Codex PR #532 vòng 5): dòng đã lưu giữ giá đã chốt; máy chủ chặn
+   vì MÓN THÊM MỚI mang giá cũ thì đọc lại cấu hình, đặt lại giá các món thêm
+   mới (không dòng gốc, không combo, không phí giao) theo giá điểm của bill, không
+   có thì giá chung, rồi để màn vẽ lại cho thu ngân xem tổng mới. */
+async function posSuaGiaVuaDoi(e, quay) {
+  var cau = String((e && e.message) || '');
+  if (cau.indexOf('Bảng giá của điểm vừa đổi') < 0) return false;
+  CFGBH = null;
+  try { await cfgBanHang(); } catch (eC) { /* lần lưu sau máy chủ vẫn chặn */ }
+  var moi = ((posSua && posSua.mon) || []).filter(function (m) { return !m.dong_goc && !m.combo && !m.combo_ma && m.item_code !== POS_MA_PHI_GIAO; });
+  var giaChung = await posDocGiaChung(moi), q = posDiemTheoQuay(quay), g = (q && q.gia_rieng) || {}, co = Object.prototype.hasOwnProperty;
+  moi.forEach(function (m) {
+    var gia = co.call(g, m.item_code) ? +g[m.item_code] || 0 : (co.call(giaChung, m.item_code) ? giaChung[m.item_code] : 0);
+    if (gia) m.rate = gia;
+  });
+  toast(cau, 6500);
+  return true;
+}
+function posDiemVua() { try { return localStorage.getItem('vgb_diem_vua') || ''; } catch (e) { return ''; } }
+
 async function scrPosChonQuay() {
   await cfgBanHang();
   /* Thumbnail la anh cua hang that (anh Viet gui 09/08), nhin phat biet
@@ -16385,9 +16492,20 @@ async function scrPosChonQuay() {
 
      Nay cả ba đọc chung từ `diem`, tức từ đúng bảng Điểm bán mà màn Cài đặt
      sửa. Mở điểm thứ tư là khai trong Cài đặt, không phải sửa mã rồi deploy. */
-  var dsAll = ((CFGBH || {}).diem) || ((CFGBH || {}).quay) || [];
+  var dsGoc = ((CFGBH || {}).diem) || ((CFGBH || {}).quay) || [];
+  var cua = posDiemCuaToi(), vua = posDiemVua();
+  var dsAll = posDsDiemChon(dsGoc, cua, cua.length > 1 ? vua : '');
+  if (cua.length === 1 && dsAll.length === 1) {
+    posQuay = dsAll[0];
+    posHomNayTxt = null;
+    return go(scrPosQuay, true);
+  }
   var suaAnh = typeof isSales === 'function' ? isSales() : false;
   var html = '<div class="sec">Chọn điểm bán</div>';
+  if (!cua.length) {
+    html += '<div data-posnhackhai="1" style="font-size:13px;color:#92400e;background:#fffaeb;border-radius:10px;padding:9px 12px;margin:0 0 10px;line-height:1.5">' +
+      'Tài khoản này chưa được khai đứng điểm nào. Nhờ quản lý khai ở Cài đặt, Điểm bán, mục Nhân viên đứng điểm này, để lần sau vào thẳng đúng điểm.</div>';
+  }
   dsAll.forEach(function (q, i) {
     html += '<div class="card" style="margin-bottom:12px;overflow:hidden;padding:0;position:relative">' +
       '<div data-q="' + i + '" style="cursor:pointer">' +
@@ -16395,7 +16513,8 @@ async function scrPosChonQuay() {
         ? '<img src="' + h(q.anh) + '" alt="" style="width:100%;height:150px;object-fit:cover;display:block" onerror="this.style.display=\'none\'">'
         : '<div style="height:96px;display:flex;align-items:center;justify-content:center;background:#f6f7f9;color:#c3c8d4;font-size:34px">🏬</div>') +
       '<div style="display:flex;align-items:center;gap:10px;padding:13px 14px">' +
-      '<div style="flex:1"><div class="h1" style="font-size:17px;font-weight:700">' + h(q.ten) + '</div>' +
+      '<div style="flex:1"><div class="h1" style="font-size:17px;font-weight:700">' + h(q.ten) +
+      (cua.length > 1 && q.ma === vua ? ' <span style="font-size:12px;font-weight:700;color:#0f766e;background:#ccfbf1;border-radius:999px;padding:2px 8px">Vừa đứng</span>' : '') + '</div>' +
       '<div class="h2" style="color:#98a2b3;font-size:13px">' + h(q.phu || '') + '</div></div>' +
       '<span style="color:#c3c8d4;font-size:22px">&#8250;</span></div></div>' +
       (suaAnh
@@ -16417,6 +16536,7 @@ async function scrPosChonQuay() {
     if (posQuay && posQuay.ma !== q.ma) posDon = null;
     posQuay = q;
     posHomNayTxt = null;
+    try { localStorage.setItem('vgb_diem_vua', q.ma); } catch (eV) { /* máy chặn lưu: không sao */ }
     go(scrPosQuay);
   };
 }
@@ -16699,6 +16819,8 @@ async function scrPosQuay() {
      la mat nhip user gesture va bi chan popup - xem ghi chu hai nhip o
      27-in-ngam.js. Khong await: do xong hay chua thi man van ve. */
   if (!posQuay) return go(scrPosChonQuay, true);
+  var nGiaDoi = posDongBoQuay();
+  if (nGiaDoi) toast('Bảng giá ' + (posQuay.ten_ngan || posQuay.ma) + ' vừa đổi: ' + nGiaDoi + ' món trong giỏ đã sang giá mới.', 5000);
   /* Dò máy in SAU khi đã biết đứng ở điểm bán nào, và dò lại khi đổi điểm.
      Trước đây dò ngay dòng đầu, tức là trước cả bước chọn quầy, nên mọi máy
      đều nhận về hộp chung mảnh tên máy in của cả ba điểm. */
@@ -16767,9 +16889,12 @@ async function scrPosQuay() {
   else if (!posDon.mon.length) posChoCkXoa(posDon.bill);
   var qApp = laApp ? (quyPt(posDon.pt) || {}) : {};
   var html = '<div class="card" style="padding:8px 14px">' +
-    '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">Quầy đang bán · bấm để đổi</div><div class="h1">' + h(posQuay.ten) + '</div></div>' +
+    '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">' + (posDiemCuaToi().length === 1 ? 'Điểm bán của bạn' : 'Quầy đang bán · bấm để đổi') + '</div><div class="h1">' + h(posQuay.ten) + '</div></div>' +
     '<div style="text-align:right;flex:none"><div class="h2" style="color:#6b7280">Ngày bán</div><div style="font-weight:700;font-size:14px">' + posNgayVn(today()) + '</div></div>' +
-    '<span style="color:#c3c8d4;margin-left:4px">&#8250;</span></div></div>';
+    '<span style="color:#c3c8d4;margin-left:4px">&#8250;</span></div>' +
+    (posQuay.gia_rieng && Object.keys(posQuay.gia_rieng).length ? '<div data-posgiarieng="1" style="font-size:13px;color:#166534;padding:0 0 6px">' +
+      '<span style="background:#dcfce7;border-radius:999px;padding:2px 9px;font-weight:700">Giá ' + h(posQuay.ten_ngan || posQuay.ma) + '</span> Món có giá riêng tính theo giá điểm này.</div>' : '') +
+    '</div>';
   if (!posDon.mon.length) html += posChoCkKhoi(posChoCkCua(posQuay.ma, posDon.bill));
   if (posDon.chuyen_tu) {
     html += '<div class="card" style="padding:11px 14px;background:#f0fdf4;border:1.5px solid #bbf7d0;font-size:13px;color:#166534;line-height:1.55">' +
@@ -17006,7 +17131,11 @@ async function scrPosQuay() {
      sau khi bam. */
   posGanTruDiem(function () { posDoc(); go(scrPosQuay, true); });
   b.addEventListener('click', function (e) {
-    if (e.target.closest('[data-t="posDoiQuay"]')) { posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true); }
+    if (e.target.closest('[data-t="posDoiQuay"]')) {
+      /* v631: tài khoản chỉ đứng một điểm thì không có điểm nào khác để đổi. */
+      if (posDiemCuaToi().length === 1) return toast('Tài khoản của bạn đứng điểm ' + posQuay.ten + '. Cần đứng điểm khác thì nhờ quản lý khai ở Cài đặt, Điểm bán.', 4200);
+      posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true);
+    }
     if (e.target.closest('[data-t="posDsBill"]')) { posDoc(); posDsNgay = null; return go(scrPosDs); }
     var t;
     t = e.target.closest('[data-ckmo]');
@@ -17144,6 +17273,8 @@ async function posDemHomNay() {
 }
 async function posThemMon() {
   posDoc();
+  await cfgBanHang();
+  posDongBoQuay();
   if (!dsItemsCache) {
     busy(true);
     try {
@@ -17184,7 +17315,8 @@ async function posThemMon() {
     };
   });
   posSheetMon(oCombo.concat(dsItemsCache.map(function (x) {
-    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
+    var giaQ = posGiaMon(x, posQuay), rieng = giaQ !== (+x.standard_rate || 0);
+    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: giaQ, nhom: x.item_group || '', phu: (giaQ ? money(giaQ) + ' đ' + (rieng ? ' (giá ' + (posQuay.ten_ngan || posQuay.ma) + ')' : '') : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
   })), function (o) {
     if (o.combo) { return posBamCombo(o.combo); }
     if (/^KMCB/i.test(o.value || '')) {
@@ -18208,6 +18340,7 @@ async function posLuuDon() {
          thi phai gui, khong thi lua chon cua thu ngan roi mat. */
       pt: posDon.pt || '', ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
+      gia_theo_diem: 1,
       giam_gia: giamTay, phi_ship: ship, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -18226,7 +18359,11 @@ async function posLuuDon() {
       xhd_dia_chi: posDon.xhd_mo ? (posDon.xh.dc || '') : '',
       xhd_email: posDon.xhd_mo ? (posDon.xh.email || '') : ''
     });
-  } catch (e) { posDangLuu = false; busy(false); return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000); }
+  } catch (e) {
+    posDangLuu = false; busy(false);
+    if (await posGiaVuaDoi(e)) return;
+    return toast((e && e.message) || 'Lưu hoá đơn lỗi, thử lại.', 4000);
+  }
   posDangLuu = false;
   busy(false);
   posChoCkXoa(posDon.bill);
@@ -18589,6 +18726,7 @@ async function posInTamTinh() {
       ngay: today(), nguon: posNguonThuc(), ma_don: posDon.bill,
       ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
+      gia_theo_diem: 1,
       giam_gia: giamTay, phi_ship: 0, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -18597,7 +18735,11 @@ async function posInTamTinh() {
       ma_voucher: posDon.maVc || '',
       ghi_chu: (posDon.km ? 'KM: ' + posDon.km.ten + (posDon.ghi_chu ? '. ' : '') : '') + (posDon.ghi_chu || ''), tam_tinh: 1
     });
-  } catch (e) { busy(false); return toast((e && e.message) || 'Lưu lỗi, thử lại.', 4000); }
+  } catch (e) {
+    busy(false);
+    if (await posGiaVuaDoi(e)) return;
+    return toast((e && e.message) || 'Lưu lỗi, thử lại.', 4000);
+  }
   busy(false);
   posBillVua = { name: (r && r.name) || '', bill: posDon.bill, mon: posDon.mon.slice(), tong: tong, giam: giam, giamTay: giamTay, kmAp: ((posDon.kmKq && posDon.kmKq.ap) || []).slice(), thu: thu, pt: '', quay: (posQuay && posQuay.ma) || '', nguon: posNguonThuc(), ghi_chu: posDon.ghi_chu || '', ten: posDon.ten || '', so_ban: posDon.so_ban || '', tam_tinh: 1 };
   posInBill(posBillVua);
@@ -19652,8 +19794,11 @@ async function scrPosBill(name) {
       } catch (er) { busy(false); return toast('Không tải được danh mục món'); }
       busy(false);
     }
+    /* v631: bill ở điểm có giá riêng (NVH) thêm món theo giá điểm đó; máy chủ tính lại y như vậy. */
+    var qBill = posDiemTheoQuay(d.vgb_quay);
     posSheetMon(dsItemsCache.map(function (x) {
-      return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
+      var giaQ = posGiaMon(x, qBill);
+      return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: giaQ, nhom: x.item_group || '', phu: (giaQ ? money(giaQ) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
     }), function (o) {
       /* Phi giao: hoi SO TIEN, mot dong qty 1 (Loan Anh 18/09/2026). Co san
          thi cong them tien vao dong do. May chu gom lai lan nua (phi_giao.gom). */
@@ -19725,6 +19870,7 @@ async function scrPosBill(name) {
         return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: m.gc || '', combo: m.combo || '', dong_goc: m.dong_goc || '' };
       }));
       goi.giam_gia = posSoTien(posSua.giam);
+      goi.gia_theo_diem = 1;
       if (posSua.pt) { goi.pt = posSua.pt; goi.ma_tham_chieu = posSua.mtc || ''; goi.doi_pt = posSua.doiPt ? 1 : 0; }
     }
     var ok = await confirmSheet('Lưu thay đổi hoá đơn ' + (maBill || d.name) + '?',
@@ -19737,6 +19883,7 @@ async function scrPosBill(name) {
     } catch (e) {
       busy(false);
       var loi = (e && e.message) || 'Lưu thay đổi lỗi';
+      if (await posSuaGiaVuaDoi(e, d.vgb_quay)) return go(function () { scrPosBill(name); }, true);
       // May chu moi la noi quyet dinh co can OTP hay khong. App khong tu
       // doan: cu gui len, may chu doi ma thi luc do moi hoi quan ly.
       if (loi.indexOf('OTP') < 0) return toast(loi, 5000);
@@ -26562,7 +26709,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '631';
+var APPVER = '632';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27922,6 +28069,14 @@ function posKhoiKm() {
   return html;
 }
 
+/* Giá món tặng thêm vào giỏ: giá quầy đang bán của món đó (posGiaMon) nếu máy
+   đã nạp bảng món, không thì giá điểm nếu có, cuối cùng mới tới giá máy chủ gợi ý. */
+function posGiaTang(t) {
+  var x = (typeof dsItemsCache !== 'undefined' && dsItemsCache || []).filter(function (y) { return y.name === t.item_code; })[0];
+  if (x && typeof posGiaMon === 'function') return posGiaMon(x, posQuay) || t.rate;
+  var g = posQuay && posQuay.gia_rieng;
+  return (g && Object.prototype.hasOwnProperty.call(g, t.item_code)) ? (+g[t.item_code] || t.rate) : t.rate;
+}
 function posNoiKm() {
   var n = document.getElementById('posKmChon');
   if (n) n.onclick = function () { posDoc(); posSheetChonKm(); };
@@ -27934,7 +28089,9 @@ function posNoiKm() {
       var i = -1;
       posDon.mon.forEach(function (m, k) { if (m.item_code === t.item_code) i = k; });
       if (i >= 0) posDon.mon[i].qty += t.qty;
-      else posDon.mon.push({ item_code: t.item_code, ten: t.item_code, qty: t.qty, rate: t.rate, anh: '', nhom: '', tc: [], gc: '' });
+      /* Món tặng tính theo giá quầy đang bán (giá điểm, không có thì giá chung)
+         như mọi món khác, vì máy chủ đối chiếu đúng hai giá đó (v631). */
+      else posDon.mon.push({ item_code: t.item_code, ten: t.item_code, qty: t.qty, rate: posGiaTang(t), anh: '', nhom: '', tc: [], gc: '' });
     });
     posDon.kmKq = null;
     go(scrPosQuay, true);
@@ -33370,6 +33527,27 @@ nhau cho cung mot diem. Mo chi nhanh thu tu la sua code roi deploy. Nay
 khai o day, ca he doc chung mot noi. */
 
 var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0, dbNguonCoSan = [], dbKhoTang = [];
+/* v631: gợi ý người đứng điểm (bill 30 ngày theo quầy) và tài khoản nội bộ. */
+var dbGoiY = {}, dbNguoiDung = [];
+function dbTenNguoi(u) {
+  var ten = '';
+  dbNguoiDung.forEach(function (x) { if (x.user === u) ten = x.ten; });
+  Object.keys(dbGoiY).forEach(function (k) { (dbGoiY[k] || []).forEach(function (x) { if (x.user === u && !ten) ten = x.ten; }); });
+  return ten || u;
+}
+/* Chip người đứng điểm. PHÉP THUẦN: người đã khai (bấm là bỏ) kèm số bill 30
+   ngày, rồi người gợi ý chưa khai (bấm là thêm). */
+function dbChipNguoi(d) {
+  var goiY = dbGoiY[d.ma] || [], so = {};
+  goiY.forEach(function (x) { so[x.user] = x.so; });
+  var co = (d.nhan_vien || []).map(function (u) {
+    return posChipNut('data-dbnvbo="' + h(u) + '"', h(dbTenNguoi(u)) + (so[u] ? ' · ' + money(so[u]) + ' bill' : '') + ' ✕', true, false, '#0d9488');
+  });
+  var them = goiY.filter(function (x) { return (d.nhan_vien || []).indexOf(x.user) < 0; }).map(function (x) {
+    return posChipNut('data-dbnvthem="' + h(x.user) + '"', '+ ' + h(x.ten) + ' · ' + money(x.so) + ' bill', false, false, '#0d9488');
+  });
+  return kmHangChip(co.concat(them).concat([posChipNut('data-dbnvmoi="1"', '+ Thêm người', false, false, '#475467')]).join(''));
+}
 
 async function scrDiemBan() {
   frame('Điểm bán', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
@@ -33377,6 +33555,7 @@ async function scrDiemBan() {
     var kq = await api('vagabond.diem_ban.danh_sach', {});
     dbDs = kq.diem || []; dbSuaDuoc = kq.sua_duoc ? 1 : 0; dbNguonCoSan = kq.nguon_co_san || dbNguonCoSan;
     dbKhoTang = kq.kho_tang || [];
+    dbGoiY = kq.goi_y || {}; dbNguoiDung = kq.nguoi_dung || [];
   } catch (e) {
     frame('Điểm bán', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
@@ -33432,6 +33611,14 @@ function scrDiemBanSua() {
   var d = (dbDs || [])[dbMo];
   if (!d) return go(scrDiemBan, true);
   var moi = !d.ma;
+  if (d.gia_rieng == null) d.gia_rieng = d.bang_gia ? 1 : 0;
+  /* v631: điểm quầy chưa khai ai đứng thì gợi sẵn theo bill 30 ngày qua;
+     quản lý chỉ cần bấm Lưu, bỏ chip là bỏ người đó. */
+  if (d.co_quay && !(d.nhan_vien || []).length && !d._daGoiY && (dbGoiY[d.ma] || []).length) {
+    d.nhan_vien = dbGoiY[d.ma].map(function (x) { return x.user; });
+    d._laGoiY = 1;
+  }
+  d._daGoiY = 1;
   var o = function (nhan, id, gt, mo, kieu) {
     return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
       '<div style="font-size:12px;color:#6b7280;margin-bottom:4px">' + nhan + '</div>' +
@@ -33466,6 +33653,27 @@ function scrDiemBanSua() {
       : 'Đơn online không mang mã quầy. Cả hệ chỉ có <b>một</b> điểm nhận đơn online.') +
     '</div></div>';
 
+  if (d.co_quay) {
+    html += '<div class="sec">Nhân viên đứng điểm này</div><div class="card" data-dbnv="1" style="padding:12px">' +
+      '<div style="font-size:13px;color:#475467;line-height:1.5;margin-bottom:9px">Người có tên ở đây mở Tính tiền là vào thẳng điểm này, không phải chọn. ' +
+      'Người đứng nhiều điểm (quản lý) thì có tên ở nhiều điểm và chỉ chọn trong các điểm đó.</div>' +
+      dbChipNguoi(d) +
+      (d._laGoiY ? '<div data-dbgoiy="1" style="font-size:13px;color:#166534;background:#ecfdf3;border-radius:9px;padding:8px 10px;margin-top:10px;line-height:1.5">' +
+        'Gợi ý từ bill 30 ngày qua. Bấm Lưu để dùng; bỏ chip là bỏ người đó khỏi điểm.</div>' : '') + '</div>';
+    var tenGia = 'Giá riêng ' + (d.ten_ngan || d.ma || '');
+    var oGia = function (v, ten, mo) {
+      var dang = (+d.gia_rieng ? 1 : 0) === v;
+      return '<button type="button" data-dbgia="' + v + '" aria-pressed="' + (dang ? 'true' : 'false') + '" style="display:block;width:100%;text-align:left;min-height:44px;margin:0 0 7px;' +
+        'padding:9px 12px;border-radius:11px;cursor:pointer;font-family:inherit;border:' + (dang ? '2px solid #0d9488;background:#f0fdfa' : '1.5px solid #e4e7ec;background:#fff') + '">' +
+        '<div style="font-size:14.5px;font-weight:700;color:#101828">' + h(ten) + '</div><div style="font-size:12.5px;color:#475467">' + h(mo) + '</div></button>';
+    };
+    html += '<div class="sec">Bảng giá của điểm</div><div class="card" style="padding:12px 12px 5px">' +
+      oGia(0, 'Giá chung', 'Bán đúng giá đang khai trên từng món, như các điểm khác.') +
+      oGia(1, tenGia, 'Món nào có giá ở bảng riêng thì quầy này bán giá đó; món chưa khai giá thì bán giá chung.') +
+      (+d.gia_rieng && d.bang_gia ? '<button type="button" class="btn gh" data-dbbanggia="1" style="margin:4px 0 9px">💲 Mở Bảng giá theo điểm bán ›</button>' :
+        +d.gia_rieng ? '<div style="font-size:12.5px;color:#667085;margin:2px 0 9px">Bấm Lưu để tạo bảng giá riêng, rồi khai giá ở màn Bảng giá theo điểm bán.</div>' : '') + '</div>';
+  }
+
   html += '<div class="sec">Nguồn đơn thuộc điểm bán này</div><div class="card" style="padding:12px">' +
     dbChipNguon(d) +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:10px;line-height:1.6">' +
@@ -33492,6 +33700,20 @@ function scrDiemBanSua() {
       return;
     }
     if (e.target.closest('[data-dbbat]')) { dbDoc(); d.bat = d.bat ? 0 : 1; return go(scrDiemBanSua, true); }
+    var tn = e.target.closest('[data-dbnvbo]');
+    if (tn) { dbDoc(); var ub = tn.getAttribute('data-dbnvbo'); d.nhan_vien = (d.nhan_vien || []).filter(function (u) { return u !== ub; }); return go(scrDiemBanSua, true); }
+    tn = e.target.closest('[data-dbnvthem]');
+    if (tn) { dbDoc(); d.nhan_vien = (d.nhan_vien || []).concat([tn.getAttribute('data-dbnvthem')]); return go(scrDiemBanSua, true); }
+    if (e.target.closest('[data-dbnvmoi]')) {
+      dbDoc();
+      sheet('Thêm người đứng điểm ' + (d.ten_ngan || d.ma), dbNguoiDung.filter(function (x) { return (d.nhan_vien || []).indexOf(x.user) < 0; }).map(function (x) {
+        return { value: x.user, label: x.ten, sub: x.user, icon: '🙋' };
+      }), '', function (x) { d.nhan_vien = (d.nhan_vien || []).concat([x.value]); go(scrDiemBanSua, true); }, true);
+      return;
+    }
+    tn = e.target.closest('[data-dbgia]');
+    if (tn) { dbDoc(); d.gia_rieng = +tn.getAttribute('data-dbgia'); return go(scrDiemBanSua, true); }
+    if (e.target.closest('[data-dbbanggia]')) { var maBg = d.ma; return go(function () { return scrBangGiaDiem(maBg); }); }
     var t = e.target.closest('[data-dbloai]');
     if (t) { dbDoc(); d.co_quay = t.getAttribute('data-dbloai') === '1' ? 1 : 0; return go(scrDiemBanSua, true); }
     t = e.target.closest('[data-dbng]');
@@ -33545,7 +33767,10 @@ async function dbLuu(daBo) {
   if (!daBo) dbDoc();
   busy(true);
   try {
-    var kq = await api('vagabond.diem_ban.luu', { diem: JSON.stringify(dbDs) });
+    var kq = await api('vagabond.diem_ban.luu', { diem: JSON.stringify((dbDs || []).map(function (x) {
+      var y = Object.assign({}, x); delete y._daGoiY; delete y._laGoiY; return y;
+    })) });
+    CFGBH = null;
     dbDs = kq.diem || []; dbSuaDuoc = kq.sua_duoc ? 1 : 0; dbNguonCoSan = kq.nguon_co_san || dbNguonCoSan;
     busy(false);
     toast('Đã lưu danh sách điểm bán.', 3000);
@@ -34973,6 +35198,21 @@ function dmDraw(giuCuon) {
 
   html += nhan('5. GIÁ BÁN (đ)', l.ban ? '' : '(loại này không bán, để trống)');
   html += '<input id="dmGia" inputmode="numeric" value="' + h(s.gia) + '" placeholder="0" style="' + xin + '">';
+  /* v631 (anh Việt 02/11/2026): điểm có bảng giá riêng (NVH) thì khai giá
+     điểm đó ngay lúc tạo món. Để trống là điểm đó bán giá chung ở trên. */
+  var dsGiaDiem = (dmCai && dmCai.diem_gia) || [];
+  if (l.ban && dsGiaDiem.length) {
+    s.gia_diem = s.gia_diem || {};
+    html += '<div data-dmgiadiem="1" style="margin-top:12px;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:11px">' +
+      '<div style="font-size:13.5px;font-weight:700;color:#344054">Giá riêng theo điểm bán</div>' +
+      dsGiaDiem.map(function (d) {
+        return '<div style="display:flex;flex-direction:row;align-items:center;gap:10px;margin-top:8px"><div style="flex:1;min-width:0">' +
+          '<div style="font-size:14px;color:#101828">' + h(d.ten) + '</div><div style="font-size:12.5px;color:#667085">Bảng giá ' + h(d.ten_ngan) + '</div></div>' +
+          '<input id="dmGiaDiem_' + h(d.ma) + '" data-dmgd="' + h(d.ma) + '" inputmode="numeric" value="' + h(s.gia_diem[d.ma] || '') + '" placeholder="trống" ' +
+          'style="flex:0 0 120px;width:120px;text-align:right;' + xin + '"></div>';
+      }).join('') +
+      '<div style="font-size:12.5px;color:#667085;margin-top:8px;line-height:1.5">Để trống thì điểm đó bán đúng giá bán chung ở trên.</div></div>';
+  }
 
   if (dmCai && dmCai.co_bep) {
     html += nhan('6. BẾP HOẶC VỊ TRÍ', '(nếu khác mặc định của nhóm)');
@@ -35031,6 +35271,10 @@ function dmDoc() {
   if ((g = v('dmMoTa')) !== null) dmVe.mo_ta = g;
   if ((g = v('dmDvt')) !== null) dmVe.dvt = g;
   if ((g = v('dmTt')) !== null) dmVe.tien_to = String(g || '').toUpperCase();
+  document.querySelectorAll('[data-dmgd]').forEach(function (o) {
+    dmVe.gia_diem = dmVe.gia_diem || {};
+    dmVe.gia_diem[o.getAttribute('data-dmgd')] = o.value;
+  });
 }
 
 var dmKq = null;
@@ -35259,7 +35503,8 @@ async function dmTao(boQuaTrung) {
       nhom: s.nhom, loai: s.loai, ten: s.ten, quy_cach: s.quy_cach,
       gia_ban: String(s.gia || '').replace(/[^0-9]/g, ''),
       bep: s.bep, mo_ta: s.mo_ta, dvt: s.dvt, tien_to: s.tien_to,
-      bo_qua_trung: boQuaTrung ? 1 : 0
+      bo_qua_trung: boQuaTrung ? 1 : 0,
+      gia_diem: JSON.stringify(dmLoai(s.loai).ban ? (s.gia_diem || {}) : {})
     });
   } catch (e) {
     busy(false);
@@ -35276,7 +35521,7 @@ async function dmTao(boQuaTrung) {
   dmVuaTao = r;
   /* Xoa o nhap de go tiep mon sau, giu lai nhom va loai hang: nguoi ta hay
      mo mot loat ma cung nhom trong mot luot. */
-  dmVe.ten = ''; dmVe.quy_cach = ''; dmVe.gia = ''; dmVe.mo_ta = '';
+  dmVe.ten = ''; dmVe.quy_cach = ''; dmVe.gia = ''; dmVe.mo_ta = ''; dmVe.gia_diem = {};
   dmKq = null;
   toast('Đã mở mã ' + r.ma);
   dmDraw();
@@ -64565,6 +64810,28 @@ var tdTim = '';
 var tdLoc = '';
 var tdKq = null;
 var tdXepAi = false;
+/* v631 (anh Việt 02/11/2026, duyệt mẫu "Tuyển dụng: lọc, loại ứng viên, trang
+   chi tiết"). tdTt rỗng là chip mặc định "Đang xử lý" (bỏ Đã loại và Đã nhận
+   việc); "tat_ca" là mọi hồ sơ; còn lại là đúng một trạng thái. tdThem là các
+   chip Lọc thêm (AI từ 65 điểm, quá 24 giờ chưa gọi, nguồn). tdCt là mã hồ sơ
+   đang mở ở trang chi tiết (rỗng khi đang ở danh sách); tdCtTab là thẻ đang
+   mở trong trang đó. */
+var tdThem = { ai65: 0, qua24: 0, nguon: '' };
+var tdCt = '';
+var tdCtTab = 'ai';
+var TD_TAT_CA = 'tat_ca';
+var TD_XONG = ['Dừng', 'Đã nhận việc'];
+/* Hồ sơ mở thẳng từ tin Zalo: /tuyen-dung?mo=<mã hồ sơ>. Chỉ nhận khi đúng
+   đường của màn này, mã chỉ gồm chữ, số, gạch nối (cùng cách 03 hvkTuDiaChi). */
+function tdMoTuDiaChi(tim, duong) {
+  if (String(duong || '').replace(/\/+$/, '') !== '/tuyen-dung') return '';
+  var mo = '';
+  try { mo = new URLSearchParams(String(tim || '')).get('mo') || ''; } catch (e) { return ''; }
+  mo = String(mo).trim();
+  return /^[A-Za-z0-9-]{3,40}$/.test(mo) ? mo : '';
+}
+var TD_MO = '';
+try { TD_MO = tdMoTuDiaChi(location.search, location.pathname); } catch (eTdMo) { TD_MO = ''; }
 /* Trạng thái một lượt ứng tuyển, giá trị là đúng chữ lưu trên hồ sơ. */
 var TD_TT = [
   { k: 'Mới nhận', ic: '🆕', nen: '#fee4e2', chu: '#b42318', p: 'Hồ sơ vừa về, chưa ai liên hệ' },
@@ -64573,7 +64840,8 @@ var TD_TT = [
   { k: 'Làm thử', ic: '🧑‍🍳', nen: '#ede9fe', chu: '#5b21b6', p: 'Đang làm thử ca tại bếp hoặc quầy, có trả công' },
   { k: 'Đề nghị nhận việc', ic: '🤝', nen: '#ccfbf1', chu: '#115e59', p: 'Đã đề nghị, chờ ứng viên trả lời' },
   { k: 'Đã nhận việc', ic: '✅', nen: '#dcfce7', chu: '#166534', p: 'Đã nhận, chuyển sang nhận việc và thử việc' },
-  { k: 'Dừng', ic: '✕', nen: '#f2f4f7', chu: '#475467', p: 'Không tiếp tục, bắt buộc ghi lý do' },
+  /* Giá trị lưu vẫn là "Dừng" (hồ sơ cũ, báo cáo không đổi); app hiện "Đã loại". */
+  { k: 'Dừng', ten: 'Đã loại', ic: '✕', nen: '#fee4e2', chu: '#b42318', p: 'Không tiếp tục, có lý do; hồ sơ giữ lại, mở lại được' },
 ];
 var TD_CAN_HEN = ['Hẹn phỏng vấn', 'Làm thử'];
 
@@ -64581,6 +64849,7 @@ function tdTtCua(k) {
   for (var i = 0; i < TD_TT.length; i++) if (TD_TT[i].k === k) return TD_TT[i];
   return TD_TT[0];
 }
+function tdTen(k) { var t = tdTtCua(k); return t.k === k ? (t.ten || t.k) : k; }
 function tdLuc(s) {
   var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
   return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
@@ -64602,6 +64871,11 @@ function tdCachDay(s, bayGio) {
 /* Lọc danh sách theo ô tìm, thẻ số đầu màn, chip trạng thái, chip vị trí. PHÉP THUẦN. */
 function tdLocHs(rows, loc, homNay) {
   loc = loc || {};
+  /* Ngày hôm nay của máy chủ đi CÙNG bộ lọc (loc.hom_nay), để mọi chỗ đếm chép
+     lại bộ lọc (chip Lọc thêm, số theo vị trí) đều so được lịch hẹn. Trước đây
+     chỉ danh sách chính truyền ngày, nên khi chọn Hẹn hôm nay các số đếm về 0
+     và chip nguồn biến mất (Codex PR #532). */
+  homNay = homNay || loc.hom_nay || '';
   return (rows || []).filter(function (r) {
     /* Ô tìm LỌC THÊM cùng các chip đang chọn, không thay chúng (Codex #518). */
     if (loc.tim) {
@@ -64612,12 +64886,64 @@ function tdLocHs(rows, loc, homNay) {
     }
     if (loc.the === 'moi' && (r.trang_thai !== 'Mới nhận' || r.lien_he_luc)) return false;
     if (loc.the === 'qua_han' && !+r.qua_han) return false;
-    if (loc.the === 'hen' && !(TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && String(r.lich_hen || '').slice(0, 10) === homNay)) return false;
+    if (loc.the === 'hen' && !(homNay && TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && String(r.lich_hen || '').slice(0, 10) === homNay)) return false;
     if (loc.the === 'cong' && !(+r.tien_cong_thu > 0 && !+r.da_tra_cong)) return false;
-    if (loc.tt && r.trang_thai !== loc.tt) return false;
+    /* v631: không chọn chip trạng thái là "Đang xử lý": ẩn hồ sơ Đã loại và Đã
+       nhận việc. Đang bấm một số đầu màn (Chưa gọi, Hẹn hôm nay, Công chưa trả)
+       thì số đó quyết, không ẩn thêm: công làm thử còn nợ của hồ sơ đã loại vẫn
+       phải thấy (Codex #518 vòng 4). */
+    if (!loc.tt && !loc.the && TD_XONG.indexOf(r.trang_thai) >= 0) return false;
+    if (loc.tt && loc.tt !== TD_TAT_CA && r.trang_thai !== loc.tt) return false;
     if (loc.vt && r.vi_tri !== loc.vt) return false;
+    if (loc.ai65 && tdDiemXep(r) < 65) return false;
+    if (loc.qua24 && !+r.qua_han) return false;
+    if (loc.nguon && r.nguon !== loc.nguon) return false;
     return true;
   });
+}
+/* Tên ngắn của nguồn trên chip Lọc thêm; nguồn lạ giữ nguyên chữ. */
+var TD_NGUON_NGAN = { 'Web Vagabond': '🌐 Web', 'QR tại cửa hàng': '🔳 QR quầy', 'TopCV': 'TopCV', 'Trang việc làm khác': 'Trang việc làm',
+  'Facebook, Zalo': 'Facebook, Zalo', 'Người quen giới thiệu': 'Người quen', 'Đến trực tiếp': 'Đến trực tiếp' };
+/* Số trên chip trạng thái: đủ 7 bước kể cả bước đang 0 (anh Việt 02/11/2026),
+   cộng Đang xử lý và Tất cả. Đếm trên danh sách đã qua ô tìm, vị trí và Lọc
+   thêm, để số khớp đúng số thẻ hiện ra khi bấm chip. PHÉP THUẦN. */
+function tdDemTt(rows, loc) {
+  var goc = Object.assign({}, loc || {}, { tt: TD_TAT_CA, the: '' });
+  var ds = tdLocHs(rows, goc), dem = { '': 0 };
+  dem[TD_TAT_CA] = ds.length;
+  TD_TT.forEach(function (t) { dem[t.k] = 0; });
+  ds.forEach(function (r) {
+    dem[r.trang_thai] = (dem[r.trang_thai] || 0) + 1;
+    if (TD_XONG.indexOf(r.trang_thai) < 0) dem['']++;
+  });
+  return dem;
+}
+/* Hàng chip Trạng thái và Lọc thêm (mẫu 1). */
+function tdChipLoc(rows, loc) {
+  var dem = tdDemTt(rows, loc);
+  var chip = function (attr, chu, so, dang, mau) {
+    return posChipNut(attr, chu + ' <b>' + money(so || 0) + '</b>', dang, false, mau);
+  };
+  var tt = [chip('data-tdtt=""', 'Đang xử lý', dem[''], !tdTt && !tdLoc, '#0d9488')].concat(TD_TT.map(function (t) {
+    return chip('data-tdtt="' + h(t.k) + '"', t.ic + ' ' + h(t.ten || t.k), dem[t.k], tdTt === t.k, t.k === 'Dừng' ? '#b42318' : '#0d9488');
+  })).concat([chip('data-tdtt="' + TD_TAT_CA + '"', 'Tất cả', dem[TD_TAT_CA], tdTt === TD_TAT_CA, '#475467')]);
+  /* Lọc thêm đếm trên các hồ sơ đang khớp chip trạng thái, bỏ chính chip đó. */
+  var dang = function (bo) { var l = Object.assign({}, loc); l[bo] = bo === 'nguon' ? '' : 0; return tdLocHs(rows, l); };
+  var dsAi = dang('ai65'), dsQh = dang('qua24'), dsNg = dang('nguon');
+  var demNg = {};
+  dsNg.forEach(function (r) { if (r.nguon) demNg[r.nguon] = (demNg[r.nguon] || 0) + 1; });
+  var them = [];
+  if (rows.some(function (r) { return r.ai_trang_thai === 'Đã đọc'; })) {
+    them.push(chip('data-tdthem="ai65"', '✦ AI từ 65 điểm', dsAi.filter(function (r) { return tdDiemXep(r) >= 65; }).length, !!tdThem.ai65, '#6d28d9'));
+  }
+  them.push(chip('data-tdthem="qua24"', '⏰ Quá 24 giờ chưa gọi', dsQh.filter(function (r) { return +r.qua_han; }).length, !!tdThem.qua24, '#b42318'));
+  ((tdKq && tdKq.nguon) || []).forEach(function (n) {
+    if (!demNg[n] && tdThem.nguon !== n) return;
+    them.push(chip('data-tdnguon="' + h(n) + '"', h(TD_NGUON_NGAN[n] || n), demNg[n], tdThem.nguon === n, '#4338ca'));
+  });
+  var nhan = function (c) { return '<div style="font-size:12.5px;font-weight:700;color:#667085;margin:0 0 -3px">' + c + '</div>'; };
+  return '<div class="card" data-tdchiploc="1" style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">' +
+    nhan('Trạng thái') + kmHangChip(tt.join('')) + nhan('Lọc thêm') + kmHangChip(them.join('')) + '</div>';
 }
 
 function tdTomTatHtml(t) {
@@ -64647,7 +64973,7 @@ function tdNut(attr, chu, kieu) {
 function tdChipTt(k) {
   var t = tdTtCua(k);
   return '<span style="background:' + t.nen + ';color:' + t.chu + ';border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap">' +
-    t.ic + ' ' + h(t.k) + '</span>';
+    t.ic + ' ' + h(t.ten || t.k) + '</span>';
 }
 /* Thanh tiến độ 1-2-3-4 (anh Việt 30/10/2026: tuyển dụng là một quá trình).
    Bốn bước và trạng thái thuộc bước nào lấy từ máy chủ (tuyen_dung.BUOC qua
@@ -64677,10 +65003,25 @@ function tdThanhBuoc(r) {
       '<div style="font-size:11.5px;color:' + mauTen + ';font-weight:' + dam + ';margin-top:3px;text-align:center;white-space:nowrap">' + h(x.ten) + '</div></div>');
   });
   var cuoi = ds[ds.length - 1] || {}, cua = ds[(b.so || 1) - 1] || {};
-  var nhan = b.xong ? 'Đã xong cả ' + ds.length + ' bước: ' + cuoi.ten : b.dung ? 'Dừng ở bước ' + b.so + ': ' + cua.ten :
+  var nhan = b.xong ? 'Đã xong cả ' + ds.length + ' bước: ' + cuoi.ten : b.dung ? 'Loại ở bước ' + b.so + ': ' + cua.ten :
     'Bước ' + b.so + ' trên ' + ds.length + ': ' + cua.ten;
   return '<div data-tdthanh="1" role="img" aria-label="' + h(nhan) + '" style="display:flex;flex-direction:row;align-items:flex-start;' +
     'margin:9px -4px 2px">' + o.join('') + '</div>';
+}
+/* v631: thẻ danh sách gọn (mẫu 1): đầu thẻ, dòng AI, giờ hẹn, việc còn nợ, ba
+   nút Gọi, Nhắn, Loại. Chạm vào thẻ (ngoài nút) mở trang chi tiết, nơi có
+   Cập nhật, Chấm, CV, câu trả lời và nhật ký. */
+function tdNutGoi(r, i) {
+  var tel = String(r.sdt || '').replace(/[^0-9]/g, '');
+  if (!tel) return '';
+  return '<a href="tel:' + h(tel) + '" data-tdgoi="' + i + '" style="flex:1 1 0;min-width:0;min-height:44px;border-radius:11px;border:1.5px solid #0d9488;' +
+    'color:#0d9488;background:#fff;font-size:14px;font-weight:700;display:flex;flex-direction:row;align-items:center;justify-content:center;text-decoration:none">📞 Gọi</a>';
+}
+function tdNutLoai(r, i) {
+  if (r.trang_thai === 'Đã nhận việc') return '';
+  if (r.trang_thai === 'Dừng') return tdNut('data-tdcn="' + i + '"', '↺ Mở lại');
+  return '<button type="button" data-tdloai="' + i + '" style="flex:1 1 0;width:auto;min-width:0;min-height:44px;border-radius:11px;border:1.5px solid #fda29b;' +
+    'color:#b42318;background:#fff;font-size:14px;font-weight:700;cursor:pointer;margin:0;padding:0 6px;white-space:nowrap">✕ Loại</button>';
 }
 function tdTheHs(r, i, bayGio) {
   var phu = [h(r.ten_vi_tri || r.vi_tri), h(r.nguon || '')];
@@ -64692,52 +65033,23 @@ function tdTheHs(r, i, bayGio) {
   if (r.khu_vuc) dong2.push('Ở ' + h(r.khu_vuc));
   var hen = (TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && r.lich_hen) ?
     '<div style="font-size:13.5px;color:#075985;font-weight:700;margin-top:4px">📅 ' + h(r.trang_thai === 'Làm thử' ? 'Làm thử' : 'Phỏng vấn') + ' lúc ' + h(tdGioNgay(r.lich_hen)) + '</div>' : '';
-  var tel = String(r.sdt || '').replace(/[^0-9]/g, '');
-  var nut = [];
-  if (tel) {
-    nut.push('<a href="tel:' + h(tel) + '" data-tdgoi="' + i + '" style="flex:1 1 0;min-width:0;min-height:44px;border-radius:11px;border:1.5px solid #0d9488;' +
-      'color:#0d9488;background:#fff;font-size:14px;font-weight:700;display:flex;flex-direction:row;align-items:center;justify-content:center;text-decoration:none">📞 Gọi</a>');
-    nut.push(tdNut('data-tdnhan="' + i + '"', '💬 Nhắn', 'zalo'));
-  }
-  if (r.trang_thai !== 'Đã nhận việc') nut.push(tdNut('data-tdcn="' + i + '"', 'Cập nhật', 'chinh'));
-  if (['Hẹn phỏng vấn', 'Làm thử', 'Đề nghị nhận việc', 'Đã liên hệ'].indexOf(r.trang_thai) >= 0) nut.push(tdNut('data-tdcham="' + i + '"', '📝 Chấm'));
-  var ghi = [];
-  if (+r.tien_cong_thu > 0) {
-    ghi.push('💵 Công làm thử ' + money(r.tien_cong_thu) + (+r.da_tra_cong ? ', đã trả' + (r.tra_cong_boi ? ' (' + r.tra_cong_boi + ')' : '') : ', CHƯA trả'));
-  }
-  (r.cham || []).forEach(function (c) {
-    ghi.push('📝 ' + c.vong + ' · ' + c.nguoi + ': ' + c.ket_luan + ', điểm ' + c.diem_tb + (c.nhan_xet ? '. ' + c.nhan_xet : ''));
-  });
-  if (+r.luong_mong_muon > 0) ghi.push('Lương mong muốn: ' + money(r.luong_mong_muon) + ' đ/tháng');
-  if (r.kinh_nghiem) ghi.push('Kinh nghiệm: ' + r.kinh_nghiem);
-  if (r.gioi_thieu) ghi.push('Ứng viên nhắn: ' + r.gioi_thieu);
-  if (r.nguoi_gioi_thieu) ghi.push('Giới thiệu bởi: ' + r.nguoi_gioi_thieu);
-  if (r.email) ghi.push('Email: ' + r.email);
-  /* v625: câu trả lời form web, bỏ các câu đã có ô riêng ở trên. */
-  (r.tra_loi || []).forEach(function (t) {
-    if (TD_TL_DA_HIEN.indexOf(t.ma) < 0 && String(t.tra_loi || '').trim()) ghi.push(t.cau_hoi + ': ' + t.tra_loi);
-  });
-  if (r.trang_thai === 'Dừng' && r.ly_do_dung) ghi.push('Lý do dừng: ' + r.ly_do_dung);
-  if (r.nhat_ky) ghi.push('Nhật ký: ' + String(r.nhat_ky).split('\n').slice(-3).join(' | '));
-  var congNut = (r.trang_thai === 'Làm thử' || (+r.tien_cong_thu > 0 && !+r.da_tra_cong)) ?
-    '<button type="button" class="btn gh" data-tdcong="' + i + '" style="margin:8px 0 0;min-height:44px;width:100%">💵 ' +
-    (+r.tien_cong_thu > 0 ? 'Ghi đã trả công làm thử' : 'Ghi công làm thử') + '</button>' : '';
-  /* v625: CV tải lên mở qua cửa riêng tư (chỉ quyền Tuyển dụng); hồ sơ thêm tay còn đường dẫn ngoài. */
-  var lk = [];
-  if (+r.co_cv) lk.push('<a href="/api/method/vagabond.tuyen_dung.xem_cv?name=' + encodeURIComponent(r.name) + '" target="_blank" rel="noopener" data-tdmocv="' + i + '" style="' + TD_LK + '">📄 Mở CV</a>');
-  if (r.lien_ket_cv) lk.push('<a href="' + h(r.lien_ket_cv) + '" target="_blank" rel="noopener" style="' + TD_LK + '">🔗 CV trên trang ngoài</a>');
-  if (!+r.co_cv) lk.push('<button type="button" data-tdtaicv="' + i + '" style="' + TD_LK + 'background:none;border:0;padding:0;margin-right:14px;cursor:pointer;font-weight:400">⇪ Tải CV lên</button>');
-  /* Codex #523: luôn có nút, kể cả Chưa bật AI hay hồ sơ cũ chưa đọc, để xem lý do và Chấm lại. */
-  lk.push('<button type="button" data-tdai="' + i + '" style="' + TD_LK + 'background:none;border:0;padding:0;cursor:pointer;font-weight:700;color:#6d28d9">✦ Hồ sơ AI</button>');
-  var cv = lk.length ? '<div style="display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;margin-top:4px">' + lk.join('') + '</div>' : '';
-  return '<div class="card" data-tdhs="' + h(r.name) + '" style="padding:12px 13px">' +
+  var no = [];
+  if (+r.tien_cong_thu > 0 && !+r.da_tra_cong) no.push('💵 Công làm thử ' + money(r.tien_cong_thu) + ' CHƯA trả');
+  if (r.trang_thai === 'Dừng' && r.ly_do_dung) no.push('Lý do loại: ' + r.ly_do_dung);
+  var dongNo = no.length ? '<div style="font-size:13px;color:#92400e;margin-top:5px;line-height:1.5">' + no.map(h).join('<br>') + '</div>' : '';
+  var nut = [tdNutGoi(r, i)];
+  if (String(r.sdt || '').replace(/[^0-9]/g, '')) nut.push(tdNut('data-tdnhan="' + i + '"', '💬 Nhắn', 'zalo'));
+  nut.push(tdNutLoai(r, i));
+  nut = nut.filter(Boolean);
+  return '<div class="card" data-tdhs="' + h(r.name) + '" data-tdct="' + i + '" style="padding:12px 13px;cursor:pointer">' +
     '<div style="display:flex;flex-direction:row;align-items:center;gap:10px">' + tdAnhDaiDien(r) +
     '<div style="flex:1;min-width:0"><div style="display:flex;flex-direction:row;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:16.5px;font-weight:800;color:#101828;min-width:0;overflow-wrap:anywhere">' + h(r.ho_ten) + '</span>' + tdChipTt(r.trang_thai) + '</div>' +
     '<div style="font-size:13px;color:#475467;margin-top:3px;line-height:1.5">' + phu.filter(Boolean).join(' · ') + '</div></div>' + tdVongAi(r) + '</div>' +
-    (dong2.length ? '<div style="font-size:13px;color:#475467;margin-top:2px">' + dong2.join(' · ') + '</div>' : '') + tdDongAi(r) + tdThanhBuoc(r) + hen + cv +
-    (nut.length ? '<div style="display:flex;flex-direction:row;gap:7px;margin-top:10px">' + nut.join('') + '</div>' : '') + congNut +
-    tdKhoiGhi(ghi, i) + '</div>';
+    (dong2.length ? '<div style="font-size:13px;color:#475467;margin-top:2px">' + dong2.join(' · ') + '</div>' : '') + tdDongAi(r) + hen + dongNo +
+    (nut.length ? '<div style="display:flex;flex-direction:row;gap:7px;margin-top:10px">' + nut.join('') + '</div>' : '') +
+    '<button type="button" data-tdctmo="' + i + '" style="display:block;width:100%;min-height:44px;margin:4px 0 -6px;border:0;background:none;' +
+    'text-align:right;font-size:13px;color:#667085;cursor:pointer;padding:0">Chạm vào thẻ để xem chi tiết ›</button></div>';
 }
 /* ---------- v625: AI đọc hồ sơ (anh Việt 31/10/2026, mẫu 4) ----------
    Avatar là ảnh chân dung AI cắt từ CV (không có thì chữ cái đầu tên). Vòng điểm
@@ -64773,52 +65085,47 @@ function tdDongAi(r) {
   if (r.ai_trang_thai === 'Chưa đọc được') return '<div data-tddongai="1" style="' + st + 'background:#fffaeb;color:#92400e">✦ AI chưa đọc được hồ sơ. Mở Hồ sơ AI để xem lý do và chấm lại.</div>';
   return '';
 }
-function tdSheetAi(r) {
-  var ov = tdMoSheet('<div style="font-size:17px;font-weight:800">✦ Hồ sơ AI · ' + h(r.ho_ten) + '</div><div data-tdaithan="1" style="margin-top:10px;font-size:14px;color:#475467">Đang đọc...</div>');
-  var than = ov.querySelector('[data-tdaithan]');
-  var ve = function (x) {
-    var kq = x.kq, html = '';
-    if (!kq) {
-      html = '<div style="padding:10px 0">' + (x.trang_thai === 'Đang đọc' ? 'AI đang đọc hồ sơ, khoảng 1 phút. Đóng bảng rồi mở lại sau.' :
-        !x.trang_thai ? 'AI chưa đọc hồ sơ này. Bấm Chấm lại để AI đọc.' :
-        'AI chưa đọc được hồ sơ này.' + (x.loi ? ' Lý do: ' + h(x.loi) : '')) + '</div>';
-    } else {
-      // Codex #523: lượt chấm mới đang chạy hay lỗi thì nói rõ, kết quả bên dưới là của lần trước.
-      if (x.trang_thai === 'Đang đọc') html += '<div data-tdailuot="1" style="padding:9px 11px;border-radius:10px;background:#eff8ff;color:#175cd3;font-size:13px;margin-bottom:10px">AI đang đọc lại hồ sơ, khoảng 1 phút. Bên dưới là kết quả lần trước.</div>';
-      else if (x.trang_thai && x.trang_thai !== 'Đã đọc') html += '<div data-tdailuot="1" style="padding:9px 11px;border-radius:10px;background:#fffaeb;color:#92400e;font-size:13px;margin-bottom:10px">Lần chấm lại chưa xong.' + (x.loi ? ' Lý do: ' + h(x.loi) + '.' : '') + ' Bên dưới là kết quả lần trước.</div>';
-      var m = tdMauDiem(kq.diem);
-      html += '<div style="display:flex;flex-direction:row;align-items:center;gap:12px;margin:4px 0 12px">' + tdVongAi({ ai_trang_thai: 'Đã đọc', ai_diem: kq.diem, ai_nhan: kq.nhan }) +
-        '<div><div style="font-size:16px;font-weight:800;color:' + m + '">' + h(kq.nhan || '') + '</div><div style="font-size:12.5px;color:#475467">Điểm trung bình ' + (kq.tieu_chi || []).length + ' tiêu chí, AI chấm lúc ' + h(tdGioNgay(x.luc)) + '</div></div></div>';
-      if (kq.tom_tat) html += '<div style="font-size:14px;color:#101828;line-height:1.5;margin-bottom:10px">' + h(kq.tom_tat) + '</div>';
-      html += (kq.tieu_chi || []).map(function (t) {
-        var mm = tdMauDiem(t.diem);
-        return '<div data-tdtc="1" style="margin:8px 0"><div style="display:flex;flex-direction:row;justify-content:space-between;font-size:13.5px;color:#344054"><span>' + h(t.ten) + '</span><b style="color:' + mm + '">' + (+t.diem || 0) + '</b></div>' +
-          '<div style="height:7px;border-radius:4px;background:#eaecf0;margin-top:4px"><div style="height:7px;border-radius:4px;width:' + Math.max(0, Math.min(100, +t.diem || 0)) + '%;background:' + mm + '"></div></div>' +
-          (t.ly_do ? '<div style="font-size:12.5px;color:#475467;margin-top:3px">' + h(t.ly_do) + '</div>' : '') + '</div>';
-      }).join('');
-      var muc = function (ten, noi) { return noi ? '<div style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#667085;margin:14px 0 5px">' + ten + '</div>' + noi : ''; };
-      var ds = function (a) { return (a || []).length ? '<ul style="margin:0;padding-left:18px;font-size:13.5px;color:#101828;line-height:1.55">' + a.map(function (v) { return '<li>' + h(v) + '</li>'; }).join('') + '</ul>' : ''; };
-      html += muc('KINH NGHIỆM RÚT TỪ CV', ds((kq.kinh_nghiem || []).map(function (k) { return [k.viec, k.noi, k.thoi_gian].filter(Boolean).join(' · '); })));
-      html += muc('HỌC VẤN', kq.hoc_van ? '<div style="font-size:13.5px;color:#101828">' + h(kq.hoc_van) + '</div>' : '');
-      html += muc('KỸ NĂNG', (kq.ky_nang || []).length ? kmHangChip(kq.ky_nang.map(function (v) { return '<span style="padding:5px 10px;border-radius:999px;background:#f2f4f7;font-size:13px">' + h(v) + '</span>'; }).join('')) : '');
-      html += muc('NGOẠI NGỮ', kq.ngoai_ngu ? '<div style="font-size:13.5px;color:#101828">' + h(kq.ngoai_ngu) + '</div>' : '');
-      html += muc('ĐIỂM MẠNH', ds(kq.diem_manh));
-      html += muc('NÊN HỎI KHI PHỎNG VẤN', ds(kq.can_hoi));
-      if (!+kq.co_cv) html += '<div style="font-size:12.5px;color:#92400e;margin-top:10px">Hồ sơ chưa có CV, AI chỉ đọc câu trả lời trong form.</div>';
-    }
-    html += '<div style="font-size:12px;color:#98a2b3;margin-top:14px;line-height:1.5">AI chỉ gợi ý để đọc nhanh. AI không dùng giới tính, tuổi, ngoại hình. Quyết định nhận người do quản lý đưa ra sau phỏng vấn.</div>' +
-      '<div style="display:flex;flex-direction:row;gap:8px;margin-top:12px">' +
-      (+x.co_cv ? '<a href="/api/method/vagabond.tuyen_dung.xem_cv?name=' + encodeURIComponent(r.name) + '" target="_blank" rel="noopener" class="btn gh" style="margin:0;flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;text-decoration:none">📄 Mở CV</a>' : '') +
-      '<button type="button" class="btn gh" data-tdchamlai="1" style="margin:0;flex:1">↻ Chấm lại</button></div>';
-    than.innerHTML = html;
-  };
-  api('vagabond.tuyen_dung.ho_so_ai', { name: r.name }).then(ve, function (e) { than.textContent = errMsg(e); });
-  ov.addEventListener('click', function (e) {
-    if (!e.target.closest('[data-tdchamlai]')) return;
-    ov.remove();
-    tdGoi('vagabond.tuyen_dung.cham_lai', { name: r.name }, 'Đã nhờ AI đọc lại hồ sơ ' + r.ho_ten + ', khoảng 1 phút.');
-  });
-  return ov;
+/* v631: thẻ Tóm tắt AI (phan 'ai': điểm, tiêu chí, điểm mạnh, câu nên hỏi,
+   Chấm lại) và phần thông tin AI rút từ CV ở thẻ CV (phan 'cv'). x là kết quả
+   tuyen_dung.ho_so_ai. Trước v631 đây là bảng Hồ sơ AI mở từ thẻ danh sách. */
+function tdTtcAiHtml(kq) {
+  var muc = function (ten, noi) { return noi ? '<div style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#667085;margin:14px 0 5px">' + ten + '</div>' + noi : ''; };
+  var ds = function (a) { return (a || []).length ? '<ul style="margin:0;padding-left:18px;font-size:13.5px;color:#101828;line-height:1.55">' + a.map(function (v) { return '<li>' + h(v) + '</li>'; }).join('') + '</ul>' : ''; };
+  var html = muc('KINH NGHIỆM RÚT TỪ CV', ds((kq.kinh_nghiem || []).map(function (k) { return [k.viec, k.noi, k.thoi_gian].filter(Boolean).join(' · '); })));
+  html += muc('HỌC VẤN', kq.hoc_van ? '<div style="font-size:13.5px;color:#101828">' + h(kq.hoc_van) + '</div>' : '');
+  html += muc('KỸ NĂNG', (kq.ky_nang || []).length ? kmHangChip(kq.ky_nang.map(function (v) { return '<span style="padding:5px 10px;border-radius:999px;background:#f2f4f7;font-size:13px">' + h(v) + '</span>'; }).join('')) : '');
+  html += muc('NGOẠI NGỮ', kq.ngoai_ngu ? '<div style="font-size:13.5px;color:#101828">' + h(kq.ngoai_ngu) + '</div>' : '');
+  return html;
+}
+function tdAiHtml(x, r) {
+  var kq = x.kq, html = '';
+  if (!kq) {
+    html = '<div style="padding:10px 0">' + (x.trang_thai === 'Đang đọc' ? 'AI đang đọc hồ sơ, khoảng 1 phút. Mở lại trang này sau ít phút.' :
+      !x.trang_thai ? 'AI chưa đọc hồ sơ này. Bấm Chấm lại để AI đọc.' :
+      'AI chưa đọc được hồ sơ này.' + (x.loi ? ' Lý do: ' + h(x.loi) : '')) + '</div>';
+  } else {
+    // Codex #523: lượt chấm mới đang chạy hay lỗi thì nói rõ, kết quả bên dưới là của lần trước.
+    if (x.trang_thai === 'Đang đọc') html += '<div data-tdailuot="1" style="padding:9px 11px;border-radius:10px;background:#eff8ff;color:#175cd3;font-size:13px;margin-bottom:10px">AI đang đọc lại hồ sơ, khoảng 1 phút. Bên dưới là kết quả lần trước.</div>';
+    else if (x.trang_thai && x.trang_thai !== 'Đã đọc') html += '<div data-tdailuot="1" style="padding:9px 11px;border-radius:10px;background:#fffaeb;color:#92400e;font-size:13px;margin-bottom:10px">Lần chấm lại chưa xong.' + (x.loi ? ' Lý do: ' + h(x.loi) + '.' : '') + ' Bên dưới là kết quả lần trước.</div>';
+    var m = tdMauDiem(kq.diem);
+    html += '<div style="display:flex;flex-direction:row;align-items:center;gap:12px;margin:4px 0 12px">' + tdVongAi({ ai_trang_thai: 'Đã đọc', ai_diem: kq.diem, ai_nhan: kq.nhan }) +
+      '<div><div style="font-size:16px;font-weight:800;color:' + m + '">' + h(kq.nhan || '') + '</div><div style="font-size:12.5px;color:#475467">Điểm trung bình ' + (kq.tieu_chi || []).length + ' tiêu chí, AI chấm lúc ' + h(tdGioNgay(x.luc)) + '</div></div></div>';
+    if (kq.tom_tat) html += '<div style="font-size:14px;color:#101828;line-height:1.5;margin-bottom:10px">' + h(kq.tom_tat) + '</div>';
+    html += (kq.tieu_chi || []).map(function (t) {
+      var mm = tdMauDiem(t.diem);
+      return '<div data-tdtc="1" style="margin:8px 0"><div style="display:flex;flex-direction:row;justify-content:space-between;font-size:13.5px;color:#344054"><span>' + h(t.ten) + '</span><b style="color:' + mm + '">' + (+t.diem || 0) + '</b></div>' +
+        '<div style="height:7px;border-radius:4px;background:#eaecf0;margin-top:4px"><div style="height:7px;border-radius:4px;width:' + Math.max(0, Math.min(100, +t.diem || 0)) + '%;background:' + mm + '"></div></div>' +
+        (t.ly_do ? '<div style="font-size:12.5px;color:#475467;margin-top:3px">' + h(t.ly_do) + '</div>' : '') + '</div>';
+    }).join('');
+    var muc = function (ten, noi) { return noi ? '<div style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#667085;margin:14px 0 5px">' + ten + '</div>' + noi : ''; };
+    var ds = function (a) { return (a || []).length ? '<ul style="margin:0;padding-left:18px;font-size:13.5px;color:#101828;line-height:1.55">' + a.map(function (v) { return '<li>' + h(v) + '</li>'; }).join('') + '</ul>' : ''; };
+    html += muc('ĐIỂM MẠNH', ds(kq.diem_manh));
+    html += muc('NÊN HỎI KHI PHỎNG VẤN', ds(kq.can_hoi));
+    if (!+kq.co_cv) html += '<div style="font-size:12.5px;color:#92400e;margin-top:10px">Hồ sơ chưa có CV, AI chỉ đọc câu trả lời trong form.</div>';
+  }
+  html += '<div style="font-size:12px;color:#98a2b3;margin-top:14px;line-height:1.5">AI chỉ gợi ý để đọc nhanh. AI không dùng giới tính, tuổi, ngoại hình. Quyết định nhận người do quản lý đưa ra sau phỏng vấn.</div>' +
+    '<button type="button" class="btn gh" data-tdchamlai="1" style="margin:12px 0 0">↻ Chấm lại</button>';
+  return html;
 }
 /* Tải CV cho hồ sơ thêm tay (TopCV, người quen gửi qua Zalo). Tải xong AI đọc lại. */
 function tdTaiCv(r) {
@@ -64835,24 +65142,12 @@ function tdTaiCv(r) {
       if (!rs.ok) throw srvErr(rs.status, txt);
       busy(false);
       toast('Đã tải CV cho ' + r.ho_ten + '. AI đang đọc, khoảng 1 phút.', 3600);
-      go(scrTuyenDung, true);
+      tdVeLai();
     } catch (e) { busy(false); toast(errMsg(e), 5000); }
   };
   inp.style.display = 'none'; document.body.appendChild(inp); inp.click();
 }
-/* AGENTS 2b.17: khối đọc nằm DƯỚI hàng nút; dài thì thu về một dòng đếm, bấm mới mở. */
 function tdDiemXep(r) { return r.ai_trang_thai === 'Đã đọc' && r.ai_diem !== '' && r.ai_diem != null ? +r.ai_diem : -1; }
-function tdKhoiGhi(ghi, i) {
-  if (!ghi.length) return '';
-  var khung = 'font-size:12.5px;color:#475467;background:#f8fafc;border-radius:9px;padding:7px 9px;margin-top:8px;line-height:1.5;';
-  var day = ghi.map(function (g) { return h(g); }).join('<br>');
-  if (ghi.length <= 2 && ghi.every(function (g) { return String(g).length <= 56; })) return '<div data-tdghi="' + i + '" style="' + khung + '">' + day + '</div>';
-  var dau = String(ghi[0]);
-  return '<button type="button" data-tdghimo="' + i + '" aria-expanded="false" style="' + khung +
-    'display:block;width:100%;min-height:44px;text-align:left;border:0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
-    '📋 ' + ghi.length + ' mục · ' + h(dau.length > 40 ? dau.slice(0, 40) + '…' : dau) + ' <b style="color:#0d9488">Xem</b></button>' +
-    '<div data-tdghi="' + i + '" hidden style="' + khung + 'display:none;white-space:pre-line;word-break:break-word">' + day + '</div>';
-}
 
 /* Công tắc: vệt màu 46x28 nhưng vùng bấm 52x44 (AGENTS 2b.13, Codex #518 vòng 3). */
 function tdCongTac(attr, bat) {
@@ -64887,13 +65182,19 @@ function tdMoSheet(html) {
   ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
   return ov;
 }
+/* Lưu xong thì vẽ lại đúng màn đang đứng: trang chi tiết nếu đang mở, không
+   thì danh sách. Trước v631 mọi bảng đều đưa về danh sách. */
+function tdVeLai() {
+  if (tdCt) { var ma = tdCt; return go(function scrTdChiTietLai() { return scrTdChiTiet(ma); }, true); }
+  return go(scrTuyenDung, true);
+}
 async function tdGoi(method, args, xong) {
   busy(true);
   try {
     await api(method, args);
     busy(false);
     toast(xong, 3200);
-    go(scrTuyenDung, true);
+    tdVeLai();
     return true;
   } catch (e) {
     busy(false);
@@ -64903,18 +65204,20 @@ async function tdGoi(method, args, xong) {
 }
 
 /* Bảng Cập nhật: chọn trạng thái tiếp theo (chip có dòng giải thích), giờ hẹn
-   khi hẹn phỏng vấn hay làm thử, lý do khi dừng, ghi chú. */
+   khi hẹn phỏng vấn hay làm thử, ghi chú. v631: loại ứng viên đi qua nút Loại
+   riêng (bắt lý do), nên bảng này không còn lựa chọn Dừng. Hồ sơ Đã loại mở
+   bảng này là Mở lại, chọn sẵn bước trước khi loại. */
 function tdSheetCapNhat(r) {
-  var chon = r.trang_thai === 'Mới nhận' ? 'Đã liên hệ' : r.trang_thai;
-  var ov = tdMoSheet('<div style="font-size:18px;font-weight:700;margin:4px 0 4px">Cập nhật hồ sơ</div>' +
+  var moLai = r.trang_thai === 'Dừng';
+  var chon = moLai ? (r.dung_tu && r.dung_tu !== 'Mới nhận' && r.dung_tu !== 'Dừng' ? r.dung_tu : 'Đã liên hệ') :
+    r.trang_thai === 'Mới nhận' ? 'Đã liên hệ' : r.trang_thai;
+  var ov = tdMoSheet('<div style="font-size:18px;font-weight:700;margin:4px 0 4px">' + (moLai ? 'Mở lại hồ sơ' : 'Cập nhật hồ sơ') + '</div>' +
+    (moLai ? '<div style="font-size:13px;color:#475467;margin-bottom:4px">Hồ sơ đang Đã loại' + (r.ly_do_dung ? ' (' + h(r.ly_do_dung) + ')' : '') + '. Chọn bước để tiếp tục.</div>' : '') +
     '<div style="font-size:13.5px;color:#475467;margin-bottom:4px"><b style="color:#101828">' + h(r.ho_ten) + '</b> · ' + h(r.ten_vi_tri || '') + '</div>' +
     tdThanhBuoc(r) + '<div style="height:8px"></div>' +
     '<div data-tdcntt="1" style="display:flex;flex-direction:column;gap:6px"></div>' +
     '<div data-tdhen="1" style="margin-top:12px"><div style="font-size:13.5px;font-weight:700;color:#344054;margin-bottom:6px">Ngày giờ hẹn</div>' +
     '<input class="nt" id="tdLichHen" type="datetime-local" style="height:46px" value="' + h(String(r.lich_hen || '').slice(0, 16).replace(' ', 'T')) + '"></div>' +
-    '<div data-tdly="1" style="margin-top:12px"><div style="font-size:13.5px;font-weight:700;color:#344054;margin-bottom:6px">Lý do dừng (bắt buộc)</div>' +
-    kmHangChip((tdKq.ly_do_dung || []).map(function (l, k) { return posChipNut('data-tdlymau="' + k + '"', h(l), false, false, '#475467'); }).join('')) +
-    '<input class="nt" id="tdLyDo" maxlength="140" style="height:46px;margin-top:8px" placeholder="Bấm một lý do ở trên hoặc tự ghi"></div>' +
     '<div style="font-size:13.5px;font-weight:700;color:#344054;margin:12px 0 6px">Ghi chú (không bắt buộc)</div>' +
     '<textarea class="nt" id="tdGhiChu" rows="2" maxlength="500" placeholder="Ví dụ: hẹn mang CMND, muốn làm ca tối"></textarea>' +
     '<button class="btn" data-tdok="1" style="margin:12px 0 0">Lưu cập nhật</button>' +
@@ -64924,44 +65227,93 @@ function tdSheetCapNhat(r) {
       var dang = t.k === chon;
       return '<button type="button" data-tdchon="' + h(t.k) + '" aria-pressed="' + (dang ? 'true' : 'false') + '" style="margin:0;min-height:44px;width:100%;text-align:left;' +
         'padding:8px 12px;border-radius:11px;cursor:pointer;border:' + (dang ? '2px solid #0d9488;background:#f0fdfa' : '1.5px solid #e4e7ec;background:#fff') + '">' +
-        '<div style="font-size:14.5px;font-weight:700;color:#101828">' + t.ic + ' ' + h(t.k) + '</div>' +
+        '<div style="font-size:14.5px;font-weight:700;color:#101828">' + t.ic + ' ' + h(t.ten || t.k) + '</div>' +
         '<div style="font-size:12.5px;color:#475467">' + h(t.p) + '</div></button>';
     }
     function dauMuc(chu) {
       return '<div style="font-size:12.5px;font-weight:800;color:#0f766e;margin:6px 0 0;text-transform:uppercase;letter-spacing:.3px">' + chu + '</div>';
     }
-    /* Xếp lựa chọn theo bốn bước của thanh tiến độ (máy chủ chia), Dừng để riêng
-       cuối cùng. Mới nhận không chọn được: đã mở Cập nhật là đã liên hệ. */
+    /* Xếp lựa chọn theo bốn bước của thanh tiến độ (máy chủ chia). Mới nhận
+       không chọn được: đã mở Cập nhật là đã liên hệ. Dừng đi qua nút Loại. */
     var daXep = {}, khoi = [];
     ((tdKq && tdKq.buoc) || []).forEach(function (b) {
       var tt = b.tt.filter(function (k) { return k !== 'Mới nhận'; });
       tt.forEach(function (k) { daXep[k] = 1; });
       if (tt.length) khoi.push(dauMuc('Bước ' + b.so + ' · ' + h(b.ten)) + tt.map(function (k) { return nutTt(tdTtCua(k)); }).join(''));
     });
-    var con = TD_TT.filter(function (t) { return t.k !== 'Mới nhận' && !daXep[t.k]; });
-    if (con.length) khoi.push(dauMuc(khoi.length ? 'Không tiếp tục' : 'Trạng thái') + con.map(nutTt).join(''));
+    var con = TD_TT.filter(function (t) { return t.k !== 'Mới nhận' && t.k !== 'Dừng' && !daXep[t.k]; });
+    if (con.length) khoi.push(dauMuc('Trạng thái') + con.map(nutTt).join(''));
     ov.querySelector('[data-tdcntt]').innerHTML = khoi.join('');
     ov.querySelector('[data-tdhen]').style.display = TD_CAN_HEN.indexOf(chon) >= 0 ? 'block' : 'none';
-    ov.querySelector('[data-tdly]').style.display = chon === 'Dừng' ? 'block' : 'none';
   }
   ve();
   ov.addEventListener('click', function (e) {
     var t = e.target.closest('[data-tdchon]');
     if (t) { chon = t.getAttribute('data-tdchon'); ve(); return; }
-    t = e.target.closest('[data-tdlymau]');
-    if (t) { ov.querySelector('#tdLyDo').value = tdKq.ly_do_dung[+t.getAttribute('data-tdlymau')]; return; }
     if (e.target.closest('[data-tddong]')) { ov.remove(); }
   });
   var ok = ov.querySelector('[data-tdok]');
   ok.onclick = async function () {
-    var hen = ov.querySelector('#tdLichHen').value, ly = ov.querySelector('#tdLyDo').value.trim();
+    var hen = ov.querySelector('#tdLichHen').value;
     if (TD_CAN_HEN.indexOf(chon) >= 0 && !hen) { toast('Chọn ngày giờ hẹn để ứng viên biết lúc nào tới.', 3500); return; }
-    if (chon === 'Dừng' && ly.length < 3) { toast('Chọn lý do dừng.', 3200); return; }
     ok.disabled = true;
-    var xong = await tdGoi('vagabond.tuyen_dung.cap_nhat', { name: r.name, trang_thai: chon, lich_hen: hen, ly_do: ly,
-      ghi_chu: ov.querySelector('#tdGhiChu').value.trim() }, 'Đã cập nhật hồ sơ ' + r.ho_ten);
+    var xong = await tdGoi('vagabond.tuyen_dung.cap_nhat', { name: r.name, trang_thai: chon, lich_hen: hen,
+      ghi_chu: ov.querySelector('#tdGhiChu').value.trim() }, (moLai ? 'Đã mở lại hồ sơ ' : 'Đã cập nhật hồ sơ ') + r.ho_ten);
     if (xong) ov.remove(); else ok.disabled = false;
   };
+}
+
+/* v631: bảng Loại ứng viên (mẫu 2). Lý do bắt buộc chọn một (máy chủ giữ danh
+   sách, tdKq.ly_do_dung); "Khác" thì bắt ghi thêm. Công tắc Nhắn cảm ơn qua
+   Zalo bật sẵn khi có số: bấm Loại là chép tin mẫu "Cảm ơn, chưa phù hợp" và mở
+   Zalo NGAY TRONG LƯỢT BẤM (trình duyệt chặn cửa sổ mở sau khi chờ máy chủ),
+   rồi mới gửi lệnh loại; máy chủ ghi nhật ký lần nhắn đó. Tin không nêu lý do. */
+function tdSheetLoai(r) {
+  var ds = (tdKq && tdKq.ly_do_dung) || [], khac = (tdKq && tdKq.ly_do_khac) || 'Khác';
+  var tel = String(r.sdt || '').replace(/[^0-9]/g, '');
+  var chon = '', camOn = !!tel;
+  var ov = tdMoSheet('<div style="font-size:18px;font-weight:800;margin:4px 0 4px">Loại ứng viên ' + h(r.ho_ten) + '?</div>' +
+    '<div style="font-size:13.5px;color:#475467;line-height:1.5;margin-bottom:10px">Hồ sơ chuyển sang Đã loại, không xoá. Mở lại được trong trang chi tiết.</div>' +
+    '<div style="font-size:13.5px;font-weight:700;color:#344054;margin-bottom:6px">Lý do (bắt buộc chọn một)</div>' +
+    '<div data-tdlyds="1"></div>' +
+    '<input class="nt" id="tdLoaiGhi" maxlength="120" style="height:46px;margin-top:10px">' +
+    (tel ? '<div style="display:flex;flex-direction:row;align-items:center;gap:10px;margin-top:12px"><div style="flex:1;min-width:0">' +
+      '<div style="font-size:14.5px;font-weight:700;color:#101828">Nhắn cảm ơn qua Zalo</div>' +
+      '<div style="font-size:12.5px;color:#475467">Mở Zalo với tin soạn sẵn, lịch sự, không nêu lý do</div></div>' +
+      '<span data-tdcamonvo="1"></span></div>' : '<div style="font-size:12.5px;color:#475467;margin-top:10px">Hồ sơ không có số điện thoại nên không nhắn cảm ơn được.</div>') +
+    '<button class="btn" data-tdloaiok="1" style="margin:14px 0 0;background:#d92d20;border-color:#d92d20;color:#fff">✕ Loại ứng viên</button>' +
+    '<button class="btn gh" data-tddong="1" style="margin-top:9px">Huỷ</button>');
+  var o = ov.querySelector('#tdLoaiGhi');
+  function ve() {
+    ov.querySelector('[data-tdlyds]').innerHTML = kmHangChip(ds.map(function (l, k) {
+      return posChipNut('data-tdlyloai="' + k + '"', h(l), chon === l, false, '#b42318');
+    }).join(''));
+    o.setAttribute('placeholder', chon === khac ? 'Ghi lý do (bắt buộc khi chọn Khác)' : 'Ghi thêm (không bắt buộc)');
+    var vo = ov.querySelector('[data-tdcamonvo]');
+    if (vo) vo.innerHTML = tdCongTac('data-tdcamon="1" aria-label="Nhắn cảm ơn qua Zalo"', camOn);
+  }
+  ve();
+  ov.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tdlyloai]');
+    if (t) { chon = ds[+t.getAttribute('data-tdlyloai')]; ve(); return; }
+    if (e.target.closest('[data-tdcamon]')) { camOn = !camOn; ve(); return; }
+    if (e.target.closest('[data-tddong]')) { ov.remove(); return; }
+    if (!e.target.closest('[data-tdloaiok]')) return;
+    var ghi = String(o.value || '').trim();
+    if (!chon) { toast('Chọn một lý do loại.', 3200); return; }
+    if (chon === khac && ghi.length < 3) { toast('Lý do Khác: ghi thêm vài chữ để sau này còn biết vì sao.', 3600); return; }
+    var guiCamOn = camOn && !!tel;
+    if (guiCamOn) {
+      var mau = ((tdKq && tdKq.mau_tin) || []).filter(function (m) { return m.k === 'cam_on'; })[0] || {};
+      var chu = tdDienMau(mau.noi_dung, r, tdVtCua(r), (tdKq && tdKq.hotline) || '');
+      try { if (window.navigator && navigator.clipboard) navigator.clipboard.writeText(chu); } catch (x) { /* máy không cho chép: vẫn mở Zalo */ }
+      window.open('https://zalo.me/' + tel, '_blank');
+    }
+    ov.remove();
+    tdGoi('vagabond.tuyen_dung.loai', { name: r.name, ly_do: chon, ghi_them: ghi, cam_on: guiCamOn ? 1 : 0 },
+      'Đã loại ' + r.ho_ten + (guiCamOn ? '. Tin cảm ơn đã chép, dán vào ô chat Zalo rồi gửi.' : '.'));
+  });
+  return ov;
 }
 
 /* Phiếu chấm: mỗi tiêu chí của vị trí chấm 1 đến 4, kết luận, nhận xét. */
@@ -65066,7 +65418,7 @@ async function tdGhiLienHe(r, kenh, ketQua, mau, xong) {
   try {
     await api('vagabond.tuyen_dung.ghi_lien_he', { name: r.name, kenh: kenh, ket_qua: ketQua || '', mau: mau || '' });
     toast(xong, 3200);
-    go(scrTuyenDung, true);
+    tdVeLai();
   } catch (e) { toast(errMsg(e), 5000); }
 }
 /* Sau khi bấm Gọi: máy mở trình gọi, quay lại app là thấy bảng ghi kết quả. */
@@ -65152,8 +65504,28 @@ async function tdSheetQr() {
     '<div style="font-size:13px;word-break:break-all;background:#f8fafc;border-radius:9px;padding:8px 10px">' + h(duong) + '</div>');
 }
 
+/* Nút trên thẻ danh sách và trang chi tiết dùng chung một chỗ bắt (mỗi nút
+   mang số thứ tự hồ sơ trong rows). Trả true khi đã xử lý. */
+function tdBamHs(e, rows) {
+  var t = e.target.closest('[data-tdloai]'); if (t) { tdSheetLoai(rows[+t.getAttribute('data-tdloai')]); return true; }
+  t = e.target.closest('[data-tdcn]'); if (t) { tdSheetCapNhat(rows[+t.getAttribute('data-tdcn')]); return true; }
+  t = e.target.closest('[data-tdcham]'); if (t) { tdSheetCham(rows[+t.getAttribute('data-tdcham')]); return true; }
+  t = e.target.closest('[data-tdcong]'); if (t) { tdSheetCong(rows[+t.getAttribute('data-tdcong')]); return true; }
+  t = e.target.closest('[data-tdnhan]'); if (t) { tdSheetNhan(rows[+t.getAttribute('data-tdnhan')]); return true; }
+  t = e.target.closest('[data-tdtaicv]'); if (t) { tdTaiCv(rows[+t.getAttribute('data-tdtaicv')]); return true; }
+  t = e.target.closest('[data-tdgoi]');
+  if (t) {
+    /* Không chặn đường tel: để máy mở trình gọi; bảng kết quả chờ sẵn khi quay lại app. */
+    var rg = rows[+t.getAttribute('data-tdgoi')];
+    setTimeout(function () { tdSheetGoi(rg); }, 700);
+    return true;
+  }
+  return false;
+}
+
 async function scrTuyenDung() {
   var tieuDe = 'Tuyển dụng';
+  tdCt = '';
   if (!coQuyenTuyenDung()) {
     frame(tieuDe, '<div class="emp"><div class="e1">🔒</div><div>Phân hệ Tuyển dụng chỉ mở cho quản lý các bộ phận và giám đốc.</div></div>');
     return;
@@ -65166,6 +65538,11 @@ async function scrTuyenDung() {
     return;
   }
   tdKq = kq;
+  /* Mở từ tin Zalo (/tuyen-dung?mo=...): vào thẳng trang chi tiết, một lần. */
+  if (TD_MO) {
+    var moNgay = TD_MO; TD_MO = '';
+    return go(function () { return scrTdChiTiet(moNgay); });
+  }
   var rows = kq.rows || [], vts = kq.vi_tri || [];
   var html = '<div class="card" style="padding:10px 12px">' + kmHangChip(
     posChipNut('data-tdtab="hs"', '👥 Hồ sơ ứng viên ' + rows.length, tdTab === 'hs', false, '#0d9488') +
@@ -65180,39 +65557,44 @@ async function scrTuyenDung() {
     than = frame(tieuDe, html);
   } else {
     var bayGio = kq.bay_gio || '';
-    var loc = { tim: tdTim, the: tdLoc, tt: tdTt, vt: tdVt };
-    var demTt = {}, demVt = {};
-    rows.forEach(function (r) { demTt[r.trang_thai] = (demTt[r.trang_thai] || 0) + 1; demVt[r.vi_tri] = (demVt[r.vi_tri] || 0) + 1; });
+    var loc = { tim: tdTim, the: tdLoc, tt: tdTt, vt: tdVt, ai65: tdThem.ai65, qua24: tdThem.qua24, nguon: tdThem.nguon, hom_nay: kq.hom_nay || '' };
+    var demVt = {};
+    tdLocHs(rows, Object.assign({}, loc, { vt: '' })).forEach(function (r) { demVt[r.vi_tri] = (demVt[r.vi_tri] || 0) + 1; });
     var cc = {
       ma: 'td',
       ho: [
-        { k: 'tt', chon: tdTt, tatCa: 'Mọi trạng thái', mau: '#0d9488', dem: Object.assign({ tat_ca: rows.length }, demTt),
-          ds: TD_TT.map(function (t) { return { k: t.k, ten: t.k, ic: t.ic }; }) },
-        { k: 'vt', chon: tdVt, tatCa: 'Mọi vị trí', mau: '#4338ca', dem: Object.assign({ tat_ca: rows.length }, demVt),
+        { k: 'vt', chon: tdVt, tatCa: 'Mọi vị trí', mau: '#4338ca', dem: Object.assign({ tat_ca: tdLocHs(rows, Object.assign({}, loc, { vt: '' })).length }, demVt),
           ds: vts.map(function (v) { return { k: v.name, ten: v.tieu_de }; }) },
       ],
       tim: { gt: tdTim, goiY: '🔎 Tìm tên, số điện thoại' },
     };
     html += tdTomTatHtml(kq.tom_tat || {});
+    html += tdChipLoc(rows, loc);
     html += dsCongCu(cc);
     html += '<div style="display:flex;flex-direction:row;gap:7px;margin:0 14px 8px">' + tdNut('data-tdthemhs="1"', '+ Thêm hồ sơ (TopCV, người quen...)', 'goi') + '</div>';
-    var ds = tdLocHs(rows, loc, kq.hom_nay);
+    var ds = tdLocHs(rows, loc);
     var coAi = rows.some(function (r) { return r.ai_trang_thai === 'Đã đọc'; });
     if (coAi) {
       html += '<div style="margin:0 14px 8px">' + kmHangChip(posChipNut('data-tdxepai="1"', '✦ Xếp theo điểm AI', tdXepAi, false, '#6d28d9')) +
         '<div style="font-size:12px;color:#667085;margin-top:4px">' + (tdXepAi ? 'Hồ sơ điểm cao lên trước; hồ sơ AI chưa đọc xếp cuối.' : 'Đang xếp hồ sơ mới nộp lên trước.') + '</div></div>';
     }
     if (tdXepAi) ds = ds.slice().sort(function (a, b) { return tdDiemXep(b) - tdDiemXep(a); });
-    if (tdTim || tdLoc || tdTt || tdVt) {
+    var dangLoc = tdTim || tdLoc || tdTt || tdVt || tdThem.ai65 || tdThem.qua24 || tdThem.nguon;
+    if (dangLoc) {
       html += '<div data-tdloc="1" style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 14px 6px;' +
         'padding:8px 10px;border-radius:8px;background:#fffaeb;font-size:13px;color:#101828"><span>Đang lọc: ' + ds.length + ' hồ sơ. Hồ sơ khác đang ẩn.</span>' +
         '<button type="button" data-tdbo="1" style="margin:0;min-height:36px;width:auto;padding:0 12px;border-radius:999px;border:1.5px solid #d0d5dd;background:#fff;cursor:pointer;font-weight:700">✕ Bỏ lọc</button></div>';
     }
     if (!ds.length) {
+      /* Đang ở Đang xử lý mà hồ sơ cần tìm đã loại hay đã nhận việc: chỉ đường sang Tất cả. */
+      var oTatCa = (tdTt !== TD_TAT_CA) ? tdLocHs(rows, Object.assign({}, loc, { tt: TD_TAT_CA, the: '' })).length : 0;
       html += '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🧑‍💼</div><div>' +
-        (rows.length ? 'Không có hồ sơ nào khớp bộ lọc. Bấm Bỏ lọc để xem hết.' :
+        (oTatCa ? 'Không có hồ sơ nào ở mục đang chọn. Có ' + oTatCa + ' hồ sơ khớp ở các mục khác.' :
+          rows.length ? 'Không có hồ sơ nào khớp bộ lọc. Bấm Bỏ lọc để xem hết.' :
           vts.some(function (v) { return +v.khach_thay; }) ? 'Chưa có hồ sơ nào. Hồ sơ nộp trên web hiện ở đây ngay.' :
-            'Chưa có hồ sơ nào. Mở thẻ Vị trí, thêm vị trí và bật Đang tuyển để web nhận hồ sơ.') + '</div></div></div>';
+            'Chưa có hồ sơ nào. Mở thẻ Vị trí, thêm vị trí và bật Đang tuyển để web nhận hồ sơ.') + '</div>' +
+        (oTatCa ? '<button type="button" class="btn gh" data-tdtt="' + TD_TAT_CA + '" style="margin:12px auto 0;width:auto;padding:0 18px">Xem ở Tất cả (' + oTatCa + ')</button>' : '') +
+        '</div></div>';
     } else {
       html += ds.map(function (r) { return tdTheHs(r, rows.indexOf(r), bayGio); }).join('');
     }
@@ -65220,8 +65602,7 @@ async function scrTuyenDung() {
       (+kq.thang_luu || 12) + ' tháng lưu mà ứng viên đã đồng ý.</div>';
     than = frame(tieuDe, html);
     dsCongCuNoi(than, cc, function (ho, k) {
-      if (ho === 'tt') { tdTt = k; tdLoc = ''; }
-      else if (ho === 'vt') tdVt = k;
+      if (ho === 'vt') tdVt = k;
       else if (ho === 'tim') tdTim = k;
       go(scrTuyenDung, true);
     });
@@ -65231,27 +65612,21 @@ async function scrTuyenDung() {
     if (t) { tdTab = t.getAttribute('data-tdtab'); go(scrTuyenDung, true); return; }
     t = e.target.closest('[data-tdthe]');
     if (t) { var k = t.getAttribute('data-tdthe'); tdLoc = tdLoc === k ? '' : k; tdTt = ''; tdTim = ''; go(scrTuyenDung, true); return; }
+    t = e.target.closest('[data-tdtt]');
+    if (t) { tdTt = t.getAttribute('data-tdtt'); tdLoc = ''; go(scrTuyenDung, true); return; }
+    t = e.target.closest('[data-tdthem]');
+    if (t) { var kt = t.getAttribute('data-tdthem'); tdThem[kt] = tdThem[kt] ? 0 : 1; go(scrTuyenDung, true); return; }
+    t = e.target.closest('[data-tdnguon]');
+    if (t) { var ng = t.getAttribute('data-tdnguon'); tdThem.nguon = tdThem.nguon === ng ? '' : ng; go(scrTuyenDung, true); return; }
     if (e.target.closest('[data-tdxepai]')) { tdXepAi = !tdXepAi; go(scrTuyenDung, true); return; }
-    t = e.target.closest('[data-tdai]'); if (t) { tdSheetAi(rows[+t.getAttribute('data-tdai')]); return; }
-    t = e.target.closest('[data-tdtaicv]'); if (t) { tdTaiCv(rows[+t.getAttribute('data-tdtaicv')]); return; }
-    if (e.target.closest('[data-tdbo]')) { tdLoc = ''; tdTt = ''; tdVt = ''; tdTim = ''; go(scrTuyenDung, true); return; }
-    t = e.target.closest('[data-tdghimo]');
-    if (t) {
-      var mo = t.getAttribute('aria-expanded') !== 'true';
-      var khoi = than.querySelectorAll('[data-tdghi="' + t.getAttribute('data-tdghimo') + '"]')[0];
-      t.setAttribute('aria-expanded', mo ? 'true' : 'false');
-      if (khoi) { khoi.style.display = mo ? 'block' : 'none'; if (mo) khoi.removeAttribute('hidden'); else khoi.setAttribute('hidden', ''); }
-      return;
-    }
-    t = e.target.closest('[data-tdcn]'); if (t) { tdSheetCapNhat(rows[+t.getAttribute('data-tdcn')]); return; }
-    t = e.target.closest('[data-tdcham]'); if (t) { tdSheetCham(rows[+t.getAttribute('data-tdcham')]); return; }
-    t = e.target.closest('[data-tdcong]'); if (t) { tdSheetCong(rows[+t.getAttribute('data-tdcong')]); return; }
-    t = e.target.closest('[data-tdnhan]'); if (t) { tdSheetNhan(rows[+t.getAttribute('data-tdnhan')]); return; }
-    t = e.target.closest('[data-tdgoi]');
-    if (t) {
-      /* Không chặn đường tel: để máy mở trình gọi; bảng kết quả chờ sẵn khi quay lại app. */
-      var rg = rows[+t.getAttribute('data-tdgoi')];
-      setTimeout(function () { tdSheetGoi(rg); }, 700);
+    if (e.target.closest('[data-tdbo]')) { tdLoc = ''; tdTt = ''; tdVt = ''; tdTim = ''; tdThem = { ai65: 0, qua24: 0, nguon: '' }; go(scrTuyenDung, true); return; }
+    if (tdBamHs(e, rows)) return;
+    t = e.target.closest('[data-tdct]');
+    /* Chạm vào thẻ (ngoài nút, ngoài đường dẫn) là mở trang chi tiết. */
+    if (t && (e.target.closest('[data-tdctmo]') || !e.target.closest('a,button'))) {
+      var rc = rows[+t.getAttribute('data-tdct')];
+      tdCtTab = 'ai';
+      go(function () { return scrTdChiTiet(rc.name); });
       return;
     }
     if (e.target.closest('[data-tdthemhs]')) { go(scrTdThemHs); return; }
@@ -65259,7 +65634,7 @@ async function scrTuyenDung() {
     if (e.target.closest('[data-tdqr]')) { tdSheetQr(); return; }
     t = e.target.closest('[data-tdsua]'); if (t) { var vs = vts[+t.getAttribute('data-tdsua')]; go(function () { return scrTdViTri(vs.name); }); return; }
     t = e.target.closest('[data-tdhsvt]');
-    if (t) { tdVt = vts[+t.getAttribute('data-tdhsvt')].name; tdTt = ''; tdLoc = ''; tdTim = ''; tdTab = 'hs'; go(scrTuyenDung, true); return; }
+    if (t) { tdVt = vts[+t.getAttribute('data-tdhsvt')].name; tdTt = TD_TAT_CA; tdLoc = ''; tdTim = ''; tdTab = 'hs'; go(scrTuyenDung, true); return; }
     t = e.target.closest('[data-tdbat]');
     if (t) {
       var v = vts[+t.getAttribute('data-tdbat')], bat = !+v.dang_tuyen;
@@ -65268,6 +65643,159 @@ async function scrTuyenDung() {
         if (dong) tdGoi('vagabond.tuyen_dung.bat_tat_vi_tri', { name: v.name, bat: bat ? 1 : 0 }, bat ? 'Đã bật, web đang hiện ' + v.tieu_de : 'Đã tắt, web đã ẩn ' + v.tieu_de);
       });
     }
+  });
+}
+
+/* ---------- v631: trang chi tiết hồ sơ ứng viên (mẫu 3 và 4) ----------
+   Mở khi chạm vào thẻ ở danh sách, hoặc thẳng từ tin Zalo (?mo=<mã>). Đầu
+   trang: ảnh, tên, vị trí, nguồn, giờ nộp, trạng thái, thanh 4 bước và các
+   nút Gọi, Nhắn, Cập nhật, Loại (hồ sơ Đã loại thì Mở lại). Bốn thẻ: Tóm tắt
+   AI, Câu trả lời (mọi câu ứng viên điền trên web), CV, Nhật ký. Mỗi lần mở
+   đọc lại tong_quan để số liệu và nhật ký luôn mới. */
+var TD_CT_TAB = [['ai', '✦ Tóm tắt AI'], ['tl', 'Câu trả lời'], ['cv', 'CV'], ['nk', 'Nhật ký']];
+/* Ô có sẵn trên hồ sơ, hiện ở thẻ Câu trả lời khi form web không có câu cùng
+   mã (hồ sơ thêm tay, hồ sơ cũ). [mã câu form, nhãn, cách lấy giá trị]. */
+var TD_CT_O = [
+  ['sdt', 'Số điện thoại', function (r) { return r.sdt; }],
+  ['email', 'Email', function (r) { return r.email; }],
+  ['ca_ranh', 'Ca rảnh', function (r) { return r.ca_ranh; }],
+  ['khu_vuc', 'Khu vực ở', function (r) { return r.khu_vuc; }],
+  ['kinh_nghiem', 'Kinh nghiệm', function (r) { return r.kinh_nghiem; }],
+  ['luong', 'Lương mong muốn', function (r) { return +r.luong_mong_muon > 0 ? money(r.luong_mong_muon) + ' đ/tháng' : ''; }],
+  ['nguoi_gioi_thieu', 'Người giới thiệu', function (r) { return r.nguoi_gioi_thieu; }],
+  ['nhan_them', 'Ứng viên nhắn', function (r) { return r.gioi_thieu; }],
+];
+/* Dòng của thẻ Câu trả lời. PHÉP THUẦN: câu form theo đúng thứ tự (trừ tệp CV,
+   đã ở thẻ CV), câu bỏ trống ghi "Không trả lời"; rồi các ô có sẵn mà form
+   không hỏi. */
+function tdCauTraLoi(r) {
+  var ra = [], daCo = {};
+  (r.tra_loi || []).forEach(function (t) {
+    daCo[t.ma] = 1;
+    if (t.ma === 'cv') return;
+    var v = String(t.tra_loi == null ? '' : t.tra_loi).trim();
+    ra.push({ hoi: t.cau_hoi || t.ma, tra: v, trong: !v });
+  });
+  TD_CT_O.forEach(function (o) {
+    if (daCo[o[0]]) return;
+    var v = String(o[2](r) || '').trim();
+    if (v) ra.push({ hoi: o[1], tra: v, trong: false });
+  });
+  return ra;
+}
+/* Nhật ký mới nhất lên đầu. Máy chủ ghi trạng thái theo giá trị lưu ("Dừng"),
+   màn đọc ra đúng chữ người dùng thấy ("Đã loại"), cả dòng cũ. PHÉP THUẦN. */
+function tdNhatKy(r) {
+  return String(r.nhat_ky || '').split('\n').map(function (x) { return x.trim().replace(/(-> |^|: )Dừng\b/g, '$1Đã loại'); }).filter(Boolean).reverse();
+}
+async function scrTdChiTiet(name) {
+  var tieuDe = 'Hồ sơ ứng viên';
+  tdCt = name;
+  if (!coQuyenTuyenDung()) {
+    frame(tieuDe, '<div class="emp"><div class="e1">🔒</div><div>Hồ sơ ứng viên chỉ mở cho quản lý các bộ phận và giám đốc.</div></div>');
+    return;
+  }
+  frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang mở hồ sơ...</div></div>');
+  var kq;
+  try { kq = await api('vagabond.tuyen_dung.tong_quan', {}); }
+  catch (e) {
+    frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Tải lại màn để thử lại.</div></div>');
+    return;
+  }
+  if (tdCt !== name) return;
+  tdKq = kq;
+  var rows = kq.rows || [], i = -1;
+  rows.forEach(function (x, k) { if (x.name === name) i = k; });
+  if (i < 0) {
+    frame(tieuDe, '<div class="emp"><div class="e1">🔎</div><div>Không thấy hồ sơ này trong danh sách. Hồ sơ đã loại hoặc đã nhận việc hơn 120 ngày không còn hiện; hồ sơ hết hạn lưu đã xoá thông tin.</div>' +
+      '<button type="button" class="btn gh" data-tdvedanhsach="1" style="margin:14px auto 0;width:auto;padding:0 18px">Về danh sách hồ sơ</button></div>')
+      .addEventListener('click', function (e) { if (e.target.closest('[data-tdvedanhsach]')) go(scrTuyenDung, true); });
+    return;
+  }
+  var r = rows[i], tel = String(r.sdt || '').replace(/[^0-9]/g, '');
+  var phu = [h(r.ten_vi_tri || r.vi_tri), h(r.nguon || ''), h(tdGioNgay(r.creation))].filter(Boolean).join(' · ');
+  var canh = [];
+  if (+r.qua_han) canh.push('<b style="color:#b42318">' + h(tdCachDay(r.creation, kq.bay_gio)) + ', chưa ai gọi</b>');
+  if (+r.lan_nop > 1) canh.push('<b style="color:#92400e">nộp ' + r.lan_nop + ' lần</b>');
+  var hen = (TD_CAN_HEN.indexOf(r.trang_thai) >= 0 && r.lich_hen) ?
+    '<div style="font-size:13.5px;color:#075985;font-weight:700;margin-top:8px">📅 ' + h(r.trang_thai === 'Làm thử' ? 'Làm thử' : 'Phỏng vấn') + ' lúc ' + h(tdGioNgay(r.lich_hen)) + '</div>' : '';
+  var nut = [tdNutGoi(r, i)];
+  if (tel) nut.push(tdNut('data-tdnhan="' + i + '"', '💬 Nhắn', 'zalo'));
+  if (r.trang_thai !== 'Đã nhận việc' && r.trang_thai !== 'Dừng') nut.push(tdNut('data-tdcn="' + i + '"', 'Cập nhật', 'chinh'));
+  nut.push(tdNutLoai(r, i));
+  nut = nut.filter(Boolean);
+  var nut2 = [];
+  if (['Hẹn phỏng vấn', 'Làm thử', 'Đề nghị nhận việc', 'Đã liên hệ'].indexOf(r.trang_thai) >= 0) nut2.push(tdNut('data-tdcham="' + i + '"', '📝 Chấm phiếu'));
+  if (r.trang_thai === 'Làm thử' || (+r.tien_cong_thu > 0 && !+r.da_tra_cong)) {
+    nut2.push(tdNut('data-tdcong="' + i + '"', '💵 ' + (+r.tien_cong_thu > 0 ? 'Ghi đã trả công' : 'Ghi công làm thử')));
+  }
+  var html = '<div class="card" data-tdctdau="' + h(r.name) + '" style="padding:13px 13px 12px">' +
+    '<div style="display:flex;flex-direction:row;align-items:center;gap:12px">' + tdAnhDaiDien(r) +
+    '<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:800;color:#101828;overflow-wrap:anywhere">' + h(r.ho_ten) + '</div>' +
+    '<div style="font-size:13px;color:#475467;margin-top:2px;line-height:1.5">' + phu + '</div>' +
+    '<div style="margin-top:4px">' + tdChipTt(r.trang_thai) + '</div></div></div>' +
+    (canh.length ? '<div style="font-size:13px;margin-top:6px">' + canh.join(' · ') + '</div>' : '') +
+    tdThanhBuoc(r) + hen +
+    (r.trang_thai === 'Dừng' && r.ly_do_dung ? '<div style="font-size:13px;color:#b42318;margin-top:6px">Lý do loại: ' + h(r.ly_do_dung) + '</div>' : '') +
+    (nut.length ? '<div style="display:flex;flex-direction:row;gap:7px;margin-top:10px">' + nut.join('') + '</div>' : '') +
+    (nut2.length ? '<div style="display:flex;flex-direction:row;gap:7px;margin-top:7px">' + nut2.join('') + '</div>' : '') + '</div>';
+  html += '<div class="card" style="padding:4px 6px"><div role="tablist" style="display:flex;flex-direction:row;gap:2px">' + TD_CT_TAB.map(function (t) {
+    var dang = tdCtTab === t[0];
+    return '<button type="button" role="tab" data-tdcttab="' + t[0] + '" aria-selected="' + (dang ? 'true' : 'false') + '" style="flex:1 1 0;min-width:0;min-height:44px;margin:0;padding:0 4px;' +
+      'border:0;border-bottom:3px solid ' + (dang ? '#0d9488' : 'transparent') + ';background:none;cursor:pointer;font-size:13.5px;font-weight:' + (dang ? '800' : '600') +
+      ';color:' + (dang ? '#0f766e' : '#475467') + ';white-space:nowrap">' + t[1] + '</button>';
+  }).join('') + '</div></div>';
+  var than = '';
+  if (tdCtTab === 'tl') {
+    var nop = (TD_NGUON_NGAN[r.nguon] && ['Web Vagabond', 'QR tại cửa hàng'].indexOf(r.nguon) >= 0) ?
+      'Nộp trên web lúc ' + tdGioNgay(r.creation) + ', đã đồng ý lưu hồ sơ ' + (+kq.thang_luu || 12) + ' tháng.' :
+      'Hồ sơ thêm tay lúc ' + tdGioNgay(r.creation) + ', nguồn ' + (r.nguon || 'khác') + '.';
+    var tl = tdCauTraLoi(r);
+    than = '<div style="font-size:13px;color:#475467;line-height:1.5;padding-bottom:6px">' + h(nop) + '</div>' + (tl.length ? tl.map(function (x) {
+      return '<div data-tdtl="1" style="padding:9px 0;border-top:1px solid #f2f4f7"><div style="font-size:12.5px;color:#667085">' + h(x.hoi) + '</div>' +
+        '<div style="font-size:14.5px;color:' + (x.trong ? '#98a2b3' : '#101828') + ';font-weight:' + (x.trong ? '400' : '600') + ';white-space:pre-line;overflow-wrap:anywhere">' +
+        h(x.trong ? 'Không trả lời' : x.tra) + '</div></div>';
+    }).join('') : '<div style="padding:10px 0;color:#667085">Hồ sơ này chưa có câu trả lời nào.</div>') +
+      '<div style="font-size:12px;color:#98a2b3;margin-top:8px;line-height:1.5">Các câu như giới tính, ngày sinh vẫn hiện ở đây để quản lý đọc, nhưng AI không dùng khi chấm.</div>';
+  } else if (tdCtTab === 'cv') {
+    var lk = [];
+    if (+r.co_cv) lk.push('<a href="/api/method/vagabond.tuyen_dung.xem_cv?name=' + encodeURIComponent(r.name) + '" target="_blank" rel="noopener" data-tdmocv="' + i + '" class="btn gh" style="margin:0;flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;text-decoration:none">📄 Mở CV</a>');
+    if (r.lien_ket_cv) lk.push('<a href="' + h(r.lien_ket_cv) + '" target="_blank" rel="noopener" class="btn gh" style="margin:0;flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;text-decoration:none">🔗 CV trang ngoài</a>');
+    lk.push('<button type="button" class="btn gh" data-tdtaicv="' + i + '" style="margin:0;flex:1">⇪ ' + (+r.co_cv ? 'Tải CV khác' : 'Tải CV lên') + '</button>');
+    than = (+r.co_anh ? '<div style="text-align:center;margin:4px 0 10px"><img data-tdctanh="1" alt="Ảnh chân dung trong CV" src="/api/method/vagabond.tuyen_dung.anh_ung_vien?name=' + encodeURIComponent(r.name) +
+      '&v=' + encodeURIComponent(r.ai_luc || '') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;background:#f2f4f7"></div>' : '') +
+      '<div style="display:flex;flex-direction:row;gap:8px;flex-wrap:wrap">' + lk.join('') + '</div>' +
+      (+r.co_cv || r.lien_ket_cv ? '' : '<div style="font-size:13px;color:#92400e;margin-top:10px">Hồ sơ chưa có CV. Bấm Tải CV lên khi ứng viên gửi qua Zalo hay email, AI sẽ đọc lại.</div>') +
+      '<div data-tdctai="cv" style="font-size:14px;color:#475467;margin-top:6px"></div>';
+  } else if (tdCtTab === 'nk') {
+    var nk = [];
+    (r.cham || []).forEach(function (c) {
+      nk.push('📝 Phiếu ' + c.vong + ' · ' + c.nguoi + ': ' + c.ket_luan + ', điểm ' + c.diem_tb + (c.nhan_xet ? '. ' + c.nhan_xet : ''));
+    });
+    if (+r.tien_cong_thu > 0) nk.push('💵 Công làm thử ' + money(r.tien_cong_thu) + (+r.da_tra_cong ? ', đã trả' + (r.tra_cong_boi ? ' (' + r.tra_cong_boi + ')' : '') : ', CHƯA trả'));
+    if (r.trang_thai === 'Dừng' && r.ly_do_dung) nk.push('✕ Lý do loại: ' + r.ly_do_dung);
+    var dong = tdNhatKy(r);
+    than = (nk.length ? '<div style="font-size:13.5px;color:#101828;line-height:1.55;padding-bottom:8px">' + nk.map(h).join('<br>') + '</div>' : '') +
+      (dong.length ? dong.map(function (x) { return '<div data-tdnk="1" style="font-size:13.5px;color:#344054;padding:8px 0;border-top:1px solid #f2f4f7;overflow-wrap:anywhere">' + h(x) + '</div>'; }).join('') :
+        '<div style="padding:10px 0;color:#667085">Chưa có lần gọi, nhắn hay cập nhật nào.</div>');
+  } else {
+    than = '<div data-tdctai="ai" style="font-size:14px;color:#475467">Đang đọc tóm tắt AI...</div>';
+  }
+  html += '<div class="card" data-tdctthan="' + h(tdCtTab) + '" style="padding:12px 14px">' + than + '</div><div style="height:16px"></div>';
+  var khung = frame(tieuDe, html);
+  var oAi = khung.querySelectorAll('[data-tdctai]')[0];
+  if (oAi) {
+    api('vagabond.tuyen_dung.ho_so_ai', { name: r.name }).then(function (x) {
+      if (tdCt !== name) return;
+      if (oAi.getAttribute('data-tdctai') === 'cv') oAi.innerHTML = x && x.kq ? tdTtcAiHtml(x.kq) : '';
+      else oAi.innerHTML = tdAiHtml(x || {}, r);
+    }, function (e) { oAi.textContent = errMsg(e); });
+  }
+  khung.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tdcttab]');
+    if (t) { tdCtTab = t.getAttribute('data-tdcttab'); tdVeLai(); return; }
+    if (e.target.closest('[data-tdchamlai]')) { tdGoi('vagabond.tuyen_dung.cham_lai', { name: r.name }, 'Đã nhờ AI đọc lại hồ sơ ' + r.ho_ten + ', khoảng 1 phút.'); return; }
+    if (tdBamHs(e, rows)) return;
   });
 }
 
@@ -67237,6 +67765,223 @@ async function scrGiaSi() {
     t = e.target.closest('[data-bsigoiy]');
     if (t) { var y = goiY.filter(function (x) { return x.ma === t.getAttribute('data-bsigoiy'); })[0]; if (y) bsiSheetGia(k.name, { ma: y.ma, ten: y.ten, anh: y.anh, dvt: y.dvt, goi_y: y }, y.gia, false); }
   });
+}
+/* ---------------- Bảng giá theo điểm bán (v631)
+
+   Anh Việt 02/11/2026, duyệt mẫu "Điểm bán tự nhận theo tài khoản và bảng giá
+   riêng NVH" (ảnh 3): NVH bán khoảng 36 món một tháng, giá khác District 1.
+   Khai một lượt trên một bảng, hoặc tải Excel về điền rồi nạp lại, không phải
+   mở từng món. Ô để trống là điểm đó bán giá chung.
+
+   Máy chủ giữ bảng giá (một Price List bán ra cho mỗi điểm bật Giá riêng) và
+   tự tính lại giá theo điểm khi lưu bill quầy, nên giá ở đây là giá thật quầy
+   thu, không ai sửa tay trên màn Tính tiền được. Mỗi lần đổi giá máy ghi vết
+   trên món: ai đổi, lúc nào, giá cũ, giá mới. */
+var BGD = { ma: '', kq: null, chip: 'da_ban', tim: '', sua: {}, nhap: {} };
+
+/* Đổi điểm đang xem. Giá gõ dở (chưa lưu) giữ RIÊNG cho từng điểm: rời điểm A
+   thì cất nháp của A, sang B thì lấy nháp của B (hoặc trống). Mọi đường vào
+   (chip điểm, nút Bảng giá ở Cài đặt, trang chủ) đều đi qua đây, nên giá gõ
+   cho A không bao giờ thành giá lưu của B (Codex PR #532). */
+function bgdDoiDiem(ma) {
+  if (!ma || ma === BGD.ma) return;
+  if (!BGD.nhap) BGD.nhap = {};
+  if (BGD.ma) BGD.nhap[BGD.ma] = BGD.sua;
+  BGD.ma = ma;
+  BGD.sua = BGD.nhap[ma] || {};
+}
+
+/* Lọc món theo chip. PHÉP THUẦN. chip: da_ban (đã bán ở điểm trong 30 ngày),
+   chua_gia (đã bán mà chưa có giá riêng), tat_ca, hoặc "nhom:<nhóm món>". */
+function bgdLoc(mon, chip, tim) {
+  return (mon || []).filter(function (m) {
+    if (chip === 'da_ban' && !(+m.da_ban > 0)) return false;
+    if (chip === 'chua_gia' && !(+m.da_ban > 0 && !(+m.gia_diem > 0))) return false;
+    if (String(chip || '').indexOf('nhom:') === 0 && m.nhom !== chip.slice(5)) return false;
+    if (tim && !vgbKhop([m.ten, m.ma, m.nhom], tim)) return false;
+    return true;
+  });
+}
+/* Giá đang hiện trong ô: giá đã sửa trên màn (chưa lưu) hoặc giá đang lưu. */
+function bgdGiaO(m) {
+  if (Object.prototype.hasOwnProperty.call(BGD.sua, m.ma)) return BGD.sua[m.ma];
+  return +m.gia_diem > 0 ? String(m.gia_diem) : '';
+}
+/* Các ô đã đổi so với giá đang lưu. PHÉP THUẦN trên BGD.kq. */
+function bgdDsDoi() {
+  var ra = [];
+  ((BGD.kq && BGD.kq.mon) || []).forEach(function (m) {
+    if (!Object.prototype.hasOwnProperty.call(BGD.sua, m.ma)) return;
+    var moi = +String(BGD.sua[m.ma] || '').replace(/[^0-9]/g, '') || 0;
+    if (moi !== (+m.gia_diem || 0)) ra.push({ ma: m.ma, gia: moi ? String(moi) : '' });
+  });
+  return ra;
+}
+
+async function scrBangGiaDiem(ma) {
+  var tieuDe = 'Bảng giá theo điểm bán';
+  if (ma) bgdDoiDiem(ma);
+  await cfgBanHang();
+  /* Chưa chọn điểm (mở từ trang chủ): lấy điểm đầu tiên có giá riêng. */
+  var coGia = ((CFGBH && CFGBH.diem) || []).filter(function (d) { return d.co_quay && d.co_bang_gia; });
+  if (!BGD.ma && coGia.length) bgdDoiDiem(coGia[0].ma);
+  if (!BGD.ma) {
+    frame(tieuDe, '<div class="emp"><div class="e1">💲</div><div>Chưa điểm bán nào dùng giá riêng. Vào Cài đặt, Điểm bán, chọn điểm rồi bật Giá riêng ở mục Bảng giá của điểm.</div>' +
+      '<button type="button" class="btn gh" data-bgdcd="1" style="margin:14px auto 0;width:auto;padding:0 18px">Mở Cài đặt Điểm bán</button></div>')
+      .addEventListener('click', function (e) { if (e.target.closest('[data-bgdcd]')) go(scrDiemBan); });
+    return;
+  }
+  frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc bảng giá...</div></div>');
+  try { BGD.kq = await api('vagabond.diem_ban.bang_gia_diem', { ma: BGD.ma }); }
+  catch (e) {
+    frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>');
+    return;
+  }
+  bgdVe();
+}
+
+function bgdVe() {
+  var kq = BGD.kq || {}, d = kq.diem || {}, mon = kq.mon || [], sua = !!kq.sua_duoc;
+  var tenNgan = d.ten_ngan || d.ma || '';
+  var daBan = mon.filter(function (m) { return +m.da_ban > 0; });
+  var chuaGia = daBan.filter(function (m) { return !(+m.gia_diem > 0); });
+  var nhom = {};
+  daBan.forEach(function (m) { if (m.nhom) nhom[m.nhom] = (nhom[m.nhom] || 0) + 1; });
+  var dsDiem = ((CFGBH && CFGBH.diem) || []).filter(function (x) { return x.co_quay && x.co_bang_gia; });
+  var html = '';
+  if (dsDiem.length > 1) {
+    html += '<div class="card" style="padding:10px 12px">' + kmHangChip(dsDiem.map(function (x) {
+      return posChipNut('data-bgddiem="' + h(x.ma) + '"', h(x.ten_ngan || x.ma), x.ma === BGD.ma, false, '#0d9488');
+    }).join('')) + '</div>';
+  }
+  var chip = function (k, chu, so) { return posChipNut('data-bgdchip="' + h(k) + '"', chu + (so != null ? ' · ' + money(so) : ''), BGD.chip === k, false, '#0d9488'); };
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">' +
+    '<div style="font-size:13.5px;color:#475467;line-height:1.5"><b style="color:#101828">' + h(d.ten || tenNgan) + '</b> · món có giá ở đây thì quầy bán giá này, ô trống là bán giá chung.</div>' +
+    kmHangChip(chip('da_ban', 'Đã bán ở ' + h(tenNgan) + ' ' + (kq.so_ngay || 30) + ' ngày', daBan.length) +
+      chip('chua_gia', 'Chưa có giá ' + h(tenNgan), chuaGia.length) +
+      Object.keys(nhom).sort().map(function (n) { return chip('nhom:' + n, h(n), nhom[n]); }).join('') +
+      chip('tat_ca', 'Tất cả món bán', mon.length)) +
+    '<input class="tin" id="bgdTim" type="search" placeholder="🔎 Tìm tên món, mã món" value="' + h(BGD.tim) + '" style="width:100%;margin:0;height:44px"></div>';
+  var ds = bgdLoc(mon, BGD.chip, BGD.tim);
+  html += '<div class="card" style="padding:4px 12px">' +
+    '<div style="display:flex;flex-direction:row;justify-content:space-between;font-size:12.5px;color:#667085;padding:8px 0 4px">' +
+    '<span>Món</span><span>Giá chung · Giá ' + h(tenNgan) + '</span></div>' +
+    (ds.length ? ds.map(function (m) {
+      var o = bgdGiaO(m), doi = Object.prototype.hasOwnProperty.call(BGD.sua, m.ma) && (+String(o).replace(/[^0-9]/g, '') || 0) !== (+m.gia_diem || 0);
+      return '<div data-bgdmon="' + h(m.ma) + '" style="display:flex;flex-direction:row;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #f2f4f7">' +
+        anhMon(m.anh) +
+        '<div style="flex:1;min-width:0"><div style="font-size:14px;color:#101828;overflow-wrap:anywhere">' + h(m.ten) + '</div>' +
+        '<div style="font-size:12.5px;color:#667085">' + h(m.ma) + (+m.da_ban > 0 ? ' · đã bán ' + money(m.da_ban) : '') + '</div></div>' +
+        '<div style="flex:0 0 auto;font-size:13px;color:#667085;min-width:58px;text-align:right">' + (+m.gia_chung ? money(m.gia_chung) : 'chưa có') + '</div>' +
+        '<input data-bgdgia="' + h(m.ma) + '" inputmode="numeric" placeholder="trống" value="' + h(o ? money(+String(o).replace(/[^0-9]/g, '') || 0) : '') + '"' + (sua ? '' : ' disabled') +
+        ' style="flex:0 0 96px;width:96px;height:44px;box-sizing:border-box;text-align:right;padding:0 9px;border-radius:9px;font-size:14px;font-family:inherit;border:1.5px solid ' +
+        (doi ? '#0d9488;background:#f0fdfa' : '#e4e7ec;background:#fff') + '"></div>';
+    }).join('') : '<div style="padding:18px 0;color:#667085;text-align:center">Không có món nào khớp. Bấm Tất cả món bán để thêm giá cho món mới.</div>') + '</div>';
+  if (!sua) html += '<div style="font-size:12.5px;color:#92400e;margin:4px 16px 0;line-height:1.5">Bạn xem được giá, chỉ quản lý cửa hàng, Sales quản lý hoặc kế toán mới sửa được.</div>';
+  html += '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Mỗi lần đổi giá, máy ghi trên món: ai đổi, lúc nào, giá cũ và giá mới. Bill quầy ' + h(tenNgan) + ' tự lấy giá này, thu ngân không sửa tay được.</div>';
+  var soDoi = bgdDsDoi().length;
+  var footer = sua ? '<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;flex-direction:row;gap:8px">' +
+    '<button class="btn gh" data-bgdxuat="1" style="margin:0;flex:1">Tải Excel</button>' +
+    '<button class="btn gh" data-bgdnap="1" style="margin:0;flex:1">Nạp Excel</button></div>' +
+    '<button class="btn" data-bgdluu="1" style="margin:0"' + (soDoi ? '' : ' disabled') + '>' + (soDoi ? 'Lưu ' + soDoi + ' giá đã đổi' : 'Chưa đổi giá nào') + '</button></div>' : '';
+  var b = frame('Bảng giá · ' + tenNgan, html, footer ? { footer: footer } : null);
+  var tim = document.getElementById('bgdTim');
+  if (tim) tim.oninput = function () { BGD.tim = tim.value; clearTimeout(BGD.tre); BGD.tre = setTimeout(function () { bgdVe(); var o = document.getElementById('bgdTim'); if (o) { o.focus(); try { o.setSelectionRange(o.value.length, o.value.length); } catch (x) { } } }, 350); };
+  /* Gõ giá thì cập nhật tại chỗ (viền ô, số trên nút Lưu), KHÔNG vẽ lại màn:
+     vẽ lại lúc chuyển sang ô kế tiếp là mất chỗ con trỏ vừa bấm. */
+  b.addEventListener('input', function (e) {
+    var o = e.target.closest('[data-bgdgia]');
+    if (!o) return;
+    var maMon = o.getAttribute('data-bgdgia');
+    BGD.sua[maMon] = String(o.value || '').replace(/[^0-9]/g, '');
+    var m = ((BGD.kq && BGD.kq.mon) || []).filter(function (x) { return x.ma === maMon; })[0] || {};
+    var doi = (+BGD.sua[maMon] || 0) !== (+m.gia_diem || 0);
+    o.style.borderColor = doi ? '#0d9488' : '#e4e7ec';
+    o.style.background = doi ? '#f0fdfa' : '#fff';
+    var n = bgdDsDoi().length, nl = document.querySelectorAll('[data-bgdluu]')[0];
+    if (nl) { nl.disabled = !n; nl.textContent = n ? 'Lưu ' + n + ' giá đã đổi' : 'Chưa đổi giá nào'; }
+  });
+  b.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-bgdchip]');
+    if (t) { BGD.chip = t.getAttribute('data-bgdchip'); return bgdVe(); }
+    t = e.target.closest('[data-bgddiem]');
+    if (t) {
+      if (bgdDsDoi().length) return toast('Lưu hoặc bỏ các giá đã đổi trước khi sang điểm khác.', 3600);
+      bgdDoiDiem(t.getAttribute('data-bgddiem'));
+      return go(function () { return scrBangGiaDiem(BGD.ma); }, true);
+    }
+  });
+  var bx = document.querySelectorAll('[data-bgdxuat]')[0];
+  if (bx) bx.onclick = bgdXuat;
+  var bn = document.querySelectorAll('[data-bgdnap]')[0];
+  if (bn) bn.onclick = bgdNap;
+  var bl = document.querySelectorAll('[data-bgdluu]')[0];
+  if (bl) bl.onclick = bgdLuu;
+}
+
+async function bgdLuu() {
+  var ds = bgdDsDoi();
+  if (!ds.length) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.diem_ban.luu_gia', { ma: BGD.ma, thay_doi: JSON.stringify(ds) });
+    busy(false);
+    BGD.sua = {};
+    CFGBH = null;
+    toast('Đã lưu ' + ((kq && kq.so) || ds.length) + ' giá. Quầy dùng giá mới từ bill kế tiếp.', 3600);
+    go(function () { return scrBangGiaDiem(BGD.ma); }, true);
+  } catch (e) { busy(false); baoTin(errMsg(e)); }
+}
+
+async function bgdXuat() {
+  busy(true);
+  try {
+    var f = await api('vagabond.diem_ban.xuat_excel_gia', { ma: BGD.ma });
+    busy(false);
+    bcTaiVe(f.ten_file, f.b64);
+  } catch (e) { busy(false); baoTin(errMsg(e)); }
+}
+
+function bgdNap() {
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  inp.style.display = 'none';
+  inp.onchange = function () {
+    var f = inp.files && inp.files[0];
+    inp.remove();
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = async function () {
+      var b64 = String(rd.result || '').split(',').pop();
+      busy(true);
+      try {
+        var kq = await api('vagabond.diem_ban.nap_excel_gia', { ma: BGD.ma, b64: b64 });
+        busy(false);
+        bgdApNap((kq && kq.thay_doi) || []);
+      } catch (e) { busy(false); baoTin(errMsg(e)); }
+    };
+    rd.readAsDataURL(f);
+  };
+  document.body.appendChild(inp);
+  inp.click();
+}
+/* Giá đọc từ Excel thành ô "đã đổi" để người dùng xem lại rồi mới bấm Lưu.
+   Món không có trên bảng thì bỏ, báo số. */
+function bgdApNap(ds) {
+  var co = {};
+  ((BGD.kq && BGD.kq.mon) || []).forEach(function (m) { co[m.ma] = m; });
+  var lay = 0, bo = 0;
+  ds.forEach(function (x) {
+    if (!co[x.ma]) { bo++; return; }
+    BGD.sua[x.ma] = x.gia ? String(x.gia) : '';
+    lay++;
+  });
+  BGD.chip = 'tat_ca';
+  bgdVe();
+  var doi = bgdDsDoi().length;
+  baoTin('Đã đọc ' + lay + ' dòng từ Excel, ' + doi + ' giá khác giá đang lưu.' + (bo ? ' Bỏ ' + bo + ' dòng có mã món không còn bán.' : '') +
+    (doi ? ' Xem lại rồi bấm Lưu ' + doi + ' giá đã đổi.' : ''));
 }
 })();
 
