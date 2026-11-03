@@ -19,6 +19,15 @@
   "zns_template_thanh_toan",
   "pancake_qr_provider",
   "pancake_qr_account_id",
+  "sec_onepay",
+  "onepay_bat",
+  "onepay_cong",
+  "onepay_merchant",
+  "onepay_access_code",
+  "col_cd_onepay",
+  "onepay_hash_code",
+  "onepay_query_user",
+  "onepay_query_password",
   "sec_pancake",
   "pancake_api_key",
   "pancake_shop_id",
@@ -275,6 +284,59 @@
    "fieldname": "pancake_qr_account_id",
    "fieldtype": "Data",
    "label": "Mã tài khoản nhận tiền trong Pancake"
+  },
+  {
+   "description": "Phiếu đề nghị thanh toán gửi khách in thêm mã QR trả bằng thẻ (Visa, Mastercard, JCB, thẻ ATM nội địa). Khách quét mã, trả trên trang OnePay; OnePay báo thành công là máy ghi sổ phiếu thu phương thức OnePay ngay. Địa chỉ nhận kết quả (IPN) để báo OnePay: https://vagabond.s.frappe.cloud/api/method/vagabond.onepay.ipn",
+   "fieldname": "sec_onepay",
+   "fieldtype": "Section Break",
+   "label": "Thanh toán thẻ OnePay"
+  },
+  {
+   "default": "0",
+   "description": "Bật thì phiếu đề nghị thanh toán in thêm mã trả bằng thẻ. Tắt thì phiếu chỉ có chuyển khoản như trước.",
+   "fieldname": "onepay_bat",
+   "fieldtype": "Check",
+   "label": "Bật thanh toán thẻ OnePay"
+  },
+  {
+   "description": "Dán nguyên địa chỉ cổng thanh toán trong tệp OnePay gửi (thường kết thúc bằng .op). Thiếu https:// hay thừa dấu cách máy tự sửa.",
+   "fieldname": "onepay_cong",
+   "fieldtype": "Data",
+   "label": "Địa chỉ cổng thanh toán OnePay"
+  },
+  {
+   "description": "Mã đơn vị OnePay cấp, ví dụ VAGABONDWEB.",
+   "fieldname": "onepay_merchant",
+   "fieldtype": "Data",
+   "label": "Merchant ID"
+  },
+  {
+   "description": "Trong tệp OnePay gửi, dòng vpc_AccessCode.",
+   "fieldname": "onepay_access_code",
+   "fieldtype": "Password",
+   "label": "Access Code"
+  },
+  {
+   "fieldname": "col_cd_onepay",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Trong tệp OnePay gửi, dòng SECURE_SECRET. Máy dùng khoá này để ký giao dịch và kiểm kết quả OnePay gửi về.",
+   "fieldname": "onepay_hash_code",
+   "fieldtype": "Password",
+   "label": "Hash code (SECURE_SECRET)"
+  },
+  {
+   "description": "OnePay gửi trong thư riêng. Dùng để hỏi lại giao dịch khi OnePay chưa báo kết quả sau 15 phút. Để trống thì máy chỉ chờ OnePay báo.",
+   "fieldname": "onepay_query_user",
+   "fieldtype": "Data",
+   "label": "Tài khoản tra cứu giao dịch"
+  },
+  {
+   "description": "Mật khẩu đi kèm tài khoản tra cứu, OnePay gửi ở thư sau.",
+   "fieldname": "onepay_query_password",
+   "fieldtype": "Password",
+   "label": "Mật khẩu tra cứu giao dịch"
   },
   {
    "description": "Kéo đơn từ Pancake về app.",
@@ -1228,7 +1290,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-28 12:00:00.000000",
+ "modified": "2026-11-03 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
