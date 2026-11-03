@@ -960,7 +960,7 @@ def _la_ke_toan():
 	return tt.la_ke_toan()
 
 
-def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu="", so_tien=None, khoa="", dinh=None, chat=False):
+def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu="", so_tien=None, khoa="", dinh=None, chat=False, rong_duoc=False):
 	"""Sinh chung tu thu tien cho cac hoa don trong mot phieu doi no.
 
 	VI SAO PHAI CO (anh Viet 04/09/2026)
@@ -1049,7 +1049,10 @@ def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu="", so_tien=None, khoa
 				"%s: %s" % (h["name"], frappe.utils.strip_html(str(e) or type(e).__name__)[:200])]
 			continue
 		con -= phan
-	if chat and not ra:
+	# v633 (Codex #534 vòng 2): tiền thẻ OnePay đã về thật thì "không còn hoá
+	# đơn nào để lập" không phải lỗi: người gọi ghi 0 đ và báo tiền dư. Lỗi lập
+	# chứng từ thật vẫn ném ở vòng lặp trên.
+	if chat and not ra and not rong_duoc:
 		frappe.throw("Các hoá đơn trong phiếu %s không còn phần nợ nào chưa có phiếu thu, "
 			"nên không lập phiếu thu nào. Phiếu chưa bị đổi gì." % (doc.ma_phieu or doc.name))
 	return ra
@@ -2356,7 +2359,7 @@ def ghi_nhan_the(name, kq, nguon):
 	if so > 0.5:
 		ghi_thu_cho_phieu(doc, op.PT, "Khách trả thẻ qua OnePay, mã giao dịch %s, mã OnePay %s." % (
 			kq["ma"], kq.get("ma_onepay") or ""), so_tien=so, khoa="onepay:%s" % kq["ma"],
-			dinh=_ham_dinh_bien_nhan(doc.ma_phieu, kq, so), chat=True)
+			dinh=_ham_dinh_bien_nhan(doc.ma_phieu, kq, so), chat=True, rong_duoc=True)
 	# Codex #534: số ghi nhận là số phiếu thu ĐÃ GHI SỔ thật của giao dịch này
 	# (đọc lại sổ), không phải số dự kiến: hoá đơn bị trả bớt chỗ khác thì
 	# phép lập phiếu thu chỉ lập tới dư nợ còn lại, phần OnePay đã thu dư ra.
