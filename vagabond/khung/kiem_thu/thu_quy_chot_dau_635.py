@@ -26,11 +26,12 @@ from vagabond import tai_chinh as tc  # noqa: E402
 D = dt.date
 
 
-@ca("v635 quỹ: ngày mốc chốt đầu là hôm qua khi hôm nay chưa có khoản vào ra quỹ, là hôm nay khi đã có")
-def _ngay_moc():
-	la("chưa phát sinh", q.ngay_chot_dau(D(2026, 11, 3), False), D(2026, 11, 2))
-	la("đã phát sinh", q.ngay_chot_dau(D(2026, 11, 3), True), D(2026, 11, 3))
-	la("qua đầu tháng", q.ngay_chot_dau(D(2026, 11, 1), False), D(2026, 10, 31))
+@ca("v635 quỹ: số đếm quy về số cuối hôm qua, trừ phần vào, cộng lại phần ra đã ghi hôm nay tới lúc đếm")
+def _so_moc():
+	la("chưa phát sinh", q.so_du_cuoi_hom_qua(5000000, 0, 0), 5000000.0)
+	la("đã ký nhận 2 triệu", q.so_du_cuoi_hom_qua(5000000, 2000000, 0), 3000000.0)
+	la("đã chi 300.000", q.so_du_cuoi_hom_qua(5000000, 0, 300000), 5300000.0)
+	la("ra nhiều hơn số đếm vẫn tính được", q.so_du_cuoi_hom_qua(0, 1000000, 0), -1000000.0)
 
 
 @ca("v635 quỹ: bảng rỗng là chưa đếm, gõ 0 là quỹ trống; ghi chú mốc giữ đủ bảng đếm")
@@ -97,7 +98,7 @@ def _chot_hom_qua():
 	_GHI.clear()
 	vat, doc_quy = _vat()
 	kq = _chay(vat, lambda: q.chot_dau(bang='{"500000": "80", "50000": "2", "1000": ""}', ghi_chu="đầu ngày"))
-	la("kết quả", (kq["ngay_chot"], kq["so_du"], kq["co_phat_sinh"]), ("2026-11-02", 40100000.0, 0))
+	la("kết quả", (kq["ngay_chot"], kq["so_du"], kq["so_moc"], kq["co_phat_sinh"]), ("2026-11-02", 40100000.0, 40100000.0, 0))
 	la("một mốc", len(_GHI), 1)
 	m = _GHI[0]
 	la("mốc quỹ", (m["doctype"], m["nguon"], m["ten_nguon"], m["ngay_chot"], m["so_du"], m["nguoi"]),
@@ -106,14 +107,15 @@ def _chot_hom_qua():
 	la("đọc phát sinh tính từ cuối hôm qua", [x["ngay_chot"] for x in doc_quy], ["2026-11-02"])
 
 
-@ca("v635 chốt đầu chạy thật: hôm nay đã có biên nhận vào quỹ (hoặc khoản chi) thì mốc ghi ngày hôm nay, không cộng hai lần")
+@ca("v635 chốt đầu chạy thật: hôm nay đã có biên nhận vào quỹ (hoặc khoản chi) thì mốc vẫn cuối hôm qua, số mốc trừ phần đã ghi, ghi chú nói rõ")
 def _chot_hom_nay():
-	for vao, ra in ((8350000, 0), (0, 500000)):
+	for vao, ra, moc in ((8350000, 0, -3350000.0), (0, 500000, 5500000.0)):
 		_GHI.clear()
 		vat, _d = _vat(vao=vao, ra=ra)
 		kq = _chay(vat, lambda: q.chot_dau(bang='{"500000": "10"}'))
-		la("mốc hôm nay (vào %s, ra %s)" % (vao, ra), (kq["ngay_chot"], _GHI[0]["ngay_chot"], kq["co_phat_sinh"]),
-			("2026-11-03", "2026-11-03", 1))
+		la("mốc cuối hôm qua (vào %s, ra %s)" % (vao, ra), (kq["ngay_chot"], _GHI[0]["ngay_chot"], _GHI[0]["so_du"], kq["so_du"], kq["co_phat_sinh"]),
+			("2026-11-02", "2026-11-02", moc, 5000000.0, 1))
+		dung("ghi chú có phần đã trừ", "Đếm được 5.000.000 đ; hôm nay đã ghi vào" in _GHI[0]["ghi_chu"])
 
 
 @ca("v635 chốt đầu chạy thật: quỹ trống gõ 0 thì chốt 0; chưa gõ ô nào thì chặn, không ghi mốc")
@@ -171,3 +173,50 @@ def _cau_bao():
 		dung("phải chặn", False)
 	except Exception as e:
 		dung("kiểm quỹ", "Chốt số dư đầu quỹ trên màn Quỹ tiền mặt" in str(e) and "Cài đặt tài chính" not in str(e))
+
+
+# ------------------------------------------------ Codex #536 vòng 1 (SHA 06e62f9c9)
+
+
+class _So:
+	"""Sổ quỹ giả: biên nhận ký nhận và sổ cái 111x theo NGÀY, để tai_chinh.tinh_quy THẬT
+	tính số quỹ đúng như trên site (chỉ cộng khoản có ngày SAU ngày mốc)."""
+
+	def __init__(self):
+		self.vao, self.ra = [], []
+
+	def nop_quy(self, diem=None, trang_thai=None, sau_ngay=None, theo="giao"):
+		ds = [t for d, t in self.vao if sau_ngay is None or d > str(sau_ngay)]
+		return float(sum(ds)), len(ds)
+
+	def so_cai(self, sau_ngay):
+		return 0.0, float(sum(t for d, t in self.ra if d > str(sau_ngay)))
+
+
+def _chot_va_tinh(truoc_vao, truoc_ra, dem, sau_vao, sau_ra):
+	"""Đúng chuỗi của kế toán: sáng đã có khoản, 10 giờ đếm và chốt, chiều thêm khoản.
+	Trả số quỹ app hiện sau đó (tinh_quy thật trên mốc vừa ghi)."""
+	_GHI.clear()
+	so = _So()
+	so.vao += [("2026-11-03", x) for x in truoc_vao]
+	so.ra += [("2026-11-03", x) for x in truoc_ra]
+	vat, _d = _vat()
+	vat = [v for v in vat if getattr(v, "attribute", "") != "tinh_quy"]
+	vat += [um.patch.object(tc, "_nop_quy", so.nop_quy), um.patch.object(tc, "_so_cai_quy", so.so_cai)]
+	kq = _chay(vat, lambda: q.chot_dau(bang='{"500000": "%d"}' % (dem // 500000)))
+	so.vao += [("2026-11-03", x) for x in sau_vao]
+	so.ra += [("2026-11-03", x) for x in sau_ra]
+	m = {"ngay_chot": _GHI[0]["ngay_chot"], "so_du": _GHI[0]["so_du"]}
+	vat2 = [um.patch.object(tc, "_nop_quy", so.nop_quy), um.patch.object(tc, "_so_cai_quy", so.so_cai)]
+	return kq, _chay(vat2, lambda: tc.tinh_quy(m)["so_du"])
+
+
+@ca("v635 Codex #536 vòng 1: sáng đã ký nhận 2 triệu, 10 giờ đếm chốt 5 triệu, chiều ký nhận thêm 1 triệu thì quỹ là 6 triệu (trước: 5 triệu)")
+def _codex_phat_sinh_sau_chot():
+	kq, so = _chot_va_tinh([2000000], [], 5000000, [1000000], [])
+	la("quỹ sau khoản chiều", so, 6000000.0)
+	la("quỹ ngay lúc chốt bằng số đếm", _chot_va_tinh([2000000], [], 5000000, [], [])[1], 5000000.0)
+	kq, so = _chot_va_tinh([], [300000], 5000000, [], [700000])
+	la("chi sáng 300.000, chi chiều 700.000: quỹ 4.300.000", so, 4300000.0)
+	kq, so = _chot_va_tinh([], [], 5000000, [1000000], [])
+	la("chưa có khoản nào trước lúc chốt", so, 6000000.0)
