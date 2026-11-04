@@ -76,7 +76,7 @@ async function ca(ten, ham) {
     bang('tab hom nay doi', m.chu('tab_today'), 'Bánh sinh nhật hôm nay');
     bang('nut dat ban doi', m.chu('nut_dat_ban'), 'Giữ bàn');
     bang('tab dat truoc giu nguyen', m.chu('tab_order'), 'Đặt bánh trước');
-    bang('tab store khong co trong nhan thi giu chu goc', m.chu('tab_store'), 'In store');
+    bang('tab store khong co trong nhan thi giu chu goc', m.chu('tab_store'), 'Tại quầy');
     dung('bo nhan ra window cho cac cau co so', m.win.vgbNhan && m.win.vgbNhan.tab_today === 'Bánh sinh nhật hôm nay');
     dung('ban su kien vgb-nhan de trang ve lai cau gio', m.suKien.some(function (s) { return s.loai === 'doc:vgb-nhan'; }));
   });
