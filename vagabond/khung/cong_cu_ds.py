@@ -53,6 +53,7 @@ MAN_XUAT = {
 	"cong_no": "vagabond.cong_no.xuat_no",
 	"tien_da_ve": "vagabond.cong_no.xuat_tien_da_ve",
 	"tru_kho": "vagabond.tru_kho_bu.xuat_ds",
+	"hoa_hong_gioi_thieu": "vagabond.gioi_thieu.xuat_ds",
 }
 
 KIEU_COT = ("chu", "tien", "so", "ngay")
