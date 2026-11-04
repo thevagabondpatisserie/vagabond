@@ -62,6 +62,11 @@ def _vong_doi():
 		if tra.meta.has_field(k):
 			tra.set(k, None)
 	tra.vgb_ma_tham_chieu = "KT638GT-TRA-" + frappe.generate_hash(length=8)
+	# Tờ trả thử nối bằng return_against, không giả làm lần nhập lại cùng mã
+	# bill (mapper lõi chép cả mã đơn của hoá đơn gốc; khoá một mã một hoá đơn
+	# chặn, như ca #265). Bench PR #541 vòng 1 đỏ vì thiếu hai dòng này.
+	tra.custom_pancake_id = None
+	tra.custom_pancake_display_id = None
 	la("tờ trả hàng không chép người giới thiệu", tra.get(gt.O_NGUOI) or "", "")
 	if not khong_nem("lập tờ trả hàng", lambda: tra.insert(ignore_permissions=True)):
 		return
