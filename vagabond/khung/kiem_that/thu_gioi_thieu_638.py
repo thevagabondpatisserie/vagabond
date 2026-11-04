@@ -67,6 +67,13 @@ def _vong_doi():
 	# chặn, như ca #265). Bench PR #541 vòng 1 đỏ vì thiếu hai dòng này.
 	tra.custom_pancake_id = None
 	tra.custom_pancake_display_id = None
+	# Bench PR #541 vòng 3: lượt chạy qua nửa đêm thì tờ trả mang ngày của tờ gốc
+	# (hôm trước) đứng sau phiếu kho mới hơn, ERPNext chặn "Posting timestamp must
+	# be after". Tờ trả lập lúc này thì mang thời điểm lúc này.
+	from frappe.utils import nowdate, nowtime
+	tra.set_posting_time = 1
+	tra.posting_date = nowdate()
+	tra.posting_time = nowtime()
 	la("tờ trả hàng không chép người giới thiệu", tra.get(gt.O_NGUOI) or "", "")
 	if not khong_nem("lập tờ trả hàng", lambda: tra.insert(ignore_permissions=True)):
 		return
