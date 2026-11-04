@@ -87,7 +87,7 @@ TRUONG_CHINH_SACH = {"hien", "vn", "en"}
 # tải xong hay lỗi tải vẫn hiện đúng câu cũ.
 NHAN = {
     "tab_season": {"ten": "Tab mùa vụ (chỉ hiện khi có mùa)", "mac_dinh": "In season"},
-    "tab_store": {"ten": "Tab bánh trên tủ tại quầy", "mac_dinh": "In store"},
+    "tab_store": {"ten": "Tab bánh trên tủ tại quầy", "mac_dinh": "Tại quầy"},
     "tab_today": {"ten": "Tab bánh có sẵn hôm nay", "mac_dinh": "Có sẵn hôm nay"},
     "tab_order": {"ten": "Tab đặt bánh trước", "mac_dinh": "Đặt bánh trước"},
     "nut_dat_ban": {"ten": "Nút Đặt bàn trên đầu trang", "mac_dinh": "Đặt bàn"},
@@ -314,6 +314,12 @@ def kiem_lien_he(lh):
         raise ValueError("Email không hợp lệ, ví dụ hello@thevagabondpatisserie.com.")
     for k in ("zalo", "messenger", "facebook", "instagram", "tiktok"):
         _https(ra[k], TEN_LIEN_HE[k])
+    from vagabond.don_web import la_zalo_so_dien_thoai
+    if la_zalo_so_dien_thoai(ra["zalo"]):
+        # Anh Việt 04/11/2026: zalo.me/0931224334 mở ra "Trang này không tìm thấy"
+        # vì số không cho người lạ tìm. Chặn ở cửa nhập, chỉ cách sửa ngay.
+        raise ValueError("Zalo: dùng link Zalo OA của tiệm, ví dụ https://zalo.me/thevagabondsaigon. "
+                         "Link theo số điện thoại thường mở ra trang lỗi vì số không cho người lạ tìm.")
     return ra
 
 

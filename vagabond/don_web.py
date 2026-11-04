@@ -43,6 +43,7 @@ import json
 import re
 import secrets
 import uuid
+from urllib.parse import urlsplit
 
 DOCTYPE = "Vagabond Don Web"
 
@@ -550,12 +551,63 @@ def nguong_mien_phi():
 		return 0
 
 
-def lien_he():
-	"""Số điện thoại, email, mạng xã hội cho chân trang. Anh Việt điền ở Settings."""
+RE_ZALO_SO_DIEN_THOAI = re.compile(r"/\+?[0-9]{8,12}/?")
+
+
+def la_zalo_so_dien_thoai(u):
+	"""Link zalo.me trỏ vào SỐ ĐIỆN THOẠI (zalo.me/0931224334). THUẦN.
+
+	Số cá nhân hay tắt "cho người lạ tìm qua số điện thoại": khách bấm là Zalo
+	báo "Trang này không tìm thấy" (anh Việt 04/11/2026, nút Nhắn Zalo trên biên
+	nhận đặt bánh). Link OA (zalo.me/thevagabondsaigon) luôn mở được."""
+	try:
+		x = urlsplit(str(u or "").strip())
+	except ValueError:
+		return False
+	return (x.hostname or "").lower() in ("zalo.me", "www.zalo.me") and bool(RE_ZALO_SO_DIEN_THOAI.fullmatch(x.path or ""))
+
+
+def chon_link_zalo(web_zalo, dien_thoai, link_oa):
+	"""Một nguồn cho nút "Nhắn Zalo" (biên nhận, chân trang, đặt bàn). THUẦN.
+
+	Ưu tiên: link Zalo trong Settings nếu KHÔNG phải link số điện thoại; rồi link
+	OA của khối "Zalo OA" đang hiện trên web; cuối cùng mới tới link số điện thoại
+	(không có gì khác thì còn hơn không có nút)."""
+	z = str(web_zalo or "").strip()
+	oa = str(link_oa or "").strip()
+	if z and not la_zalo_so_dien_thoai(z):
+		return z
+	if oa:
+		return oa
+	if z:
+		return z
+	so = _chu_so(dien_thoai)
+	return ("https://zalo.me/" + so) if so else ""
+
+
+def _link_zalo_oa(khoi=None):
+	"""Link của khối "Zalo OA" đang hiện trên bản web công khai, đã qua cùng phép
+	kiểm OA của Editor. Đọc lỗi thì trả rỗng: nút Zalo không được làm hỏng trang."""
+	try:
+		if khoi is None:
+			from vagabond import noi_dung_web
+			khoi = noi_dung_web._ban_cong_khai().get("khoi") or []
+		for k in khoi:
+			if isinstance(k, dict) and k.get("loai") == "zalo_oa" and k.get("hien"):
+				u = str(k.get("lien_ket") or "").strip()
+				x = urlsplit(u)
+				if x.scheme == "https" and (x.hostname or "").lower() == "zalo.me" and not la_zalo_so_dien_thoai(u):
+					return u
+	except Exception:
+		return ""
+	return ""
+
+
+def lien_he(khoi=None):
+	"""Số điện thoại, email, mạng xã hội cho chân trang. Anh Việt điền ở Settings.
+	`khoi`: các khối nội dung web công khai nếu bên gọi đã đọc sẵn (đỡ một lượt đọc)."""
 	dt = str(cfg_o("web_dien_thoai") or "").strip()
-	zalo = str(cfg_o("web_zalo") or "").strip()
-	if not zalo and _chu_so(dt):
-		zalo = "https://zalo.me/" + _chu_so(dt)
+	zalo = chon_link_zalo(cfg_o("web_zalo"), dt, _link_zalo_oa(khoi))
 	return {
 		"dien_thoai": dt,
 		"dien_thoai_so": _chu_so(dt),
