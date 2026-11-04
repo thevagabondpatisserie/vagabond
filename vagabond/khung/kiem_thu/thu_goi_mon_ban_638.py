@@ -522,6 +522,27 @@ def _hai_ban_dua():
 	dung("chờ khoá quá hạn: không ghi, mời gọi lại", r["ok"] == 0 and "lại sau vài giây" in r["cau"] and not kho2.dong)
 
 
+@ca("Codex PR #541 vòng 7: bàn khác gọi món đúng lúc quầy đang lập phiếu cho đơn vừa nhận (Đã nhận, chưa có phiếu): bánh của đơn đó vẫn được giữ")
+def _goi_luc_dang_lap_phieu():
+	kho = Kho()
+	with _he(kho):
+		r = _gui(ban=5, mon=[{"ma": "BAWC00115", "sl": 2}])
+	kq = {}
+	that = g._vao_phieu_tam
+
+	def xen_goi(rr):
+		# Đúng chuỗi Codex: một lượt goi() của bàn 9 chạy ngay đầu _vao_phieu_tam().
+		with _he(kho):
+			kq["ban9"] = _gui(nonce="U" * 32, ban=9, mon=[{"ma": "BAWC00115", "sl": 2}])
+		return that(rr)
+	with _quay(kho) as (tao, si), patch.object(g, "_vao_phieu_tam", side_effect=xen_goi), \
+			patch.object(_fr.db, "set_value", side_effect=lambda dt, *a, **k: kho.set_value(dt, *a, **k) if dt == g.DT else None):
+		g.nhan(r["ma"])
+	dung("bàn 9 không lấy được 2 bánh bàn 5 đang nhận", kq["ban9"]["ok"] == 0 and "vừa hết" in kq["ban9"]["cau"])
+	la("phép thuần: đã nhận, chưa có phiếu, hôm nay thì giữ", g.mon_dang_giu([], [{"mon": "m", "hoa_don": None, "nhan_luc": BAY}], set(), BAY.date()), ["m"])
+	la("phép thuần: đã nhận, chưa có phiếu, hôm trước thì thôi", g.mon_dang_giu([], [{"mon": "m", "hoa_don": "", "nhan_luc": "2026-11-03 21:00:00"}], set(), BAY.date()), [])
+
+
 class SI(_fr._dict):
 	def __init__(self, ten, items=None):
 		super().__init__(name=ten, docstatus=0, vgb_tam_tinh=1, vgb_huy=0, items=list(items or []), vgb_ghi_chu="")
