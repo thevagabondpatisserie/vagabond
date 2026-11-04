@@ -13,6 +13,10 @@ main,header,footer,.sheet,.co{position:relative;z-index:2}
 /* ---------- thanh tren ---------- */
 .hd-left{display:flex;align-items:center;gap:12px}
 .logo{height:26px;opacity:.95}
+/* v636: đầu trang có ba nút Đặt bàn, Khách sỉ, Thành viên. Logo không được co
+   lại khi màn hẹp; dưới 375px thu nhỏ đệm và chữ nút cho vừa 320px. */
+.hd-left{flex-shrink:0}
+@media(max-width:374px){body .hd{gap:6px;padding-left:16px;padding-right:16px}body .dich-vu{gap:4px}body .dich-vu a{padding:8px 6px;font-size:12px}body .hd .logo{height:24px}}
 .tagbox{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--fog-2);border:1px solid var(--line);padding:4px 7px}
 .hd-phone{font-size:12px;letter-spacing:.06em;color:var(--fog);display:flex;align-items:center;gap:7px}
 .hd-phone svg{width:13px;height:13px;stroke:var(--cyan);fill:none;stroke-width:1.7}
