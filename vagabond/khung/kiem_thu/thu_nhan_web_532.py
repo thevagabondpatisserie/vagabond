@@ -53,7 +53,7 @@ def _nhan_dung():
 	la("giữ nguyên nhãn", ra["nhan"], nd["nhan"])
 	day = nhan_day_du(ra)
 	la("chữ đã sửa", day["tab_today"], "Bánh sinh nhật hôm nay")
-	la("để trống thì mặc định", day["tab_store"], "In store")
+	la("để trống thì mặc định", day["tab_store"], "Tại quầy")
 	la("khoá không gửi cũng có mặc định", day["dat_ban_dong"], NHAN["dat_ban_dong"]["mac_dinh"])
 	la("đủ mọi khoá", set(day), set(NHAN))
 	la("bản cũ chưa có nhan vẫn đủ", set(nhan_day_du(MAC_DINH)), set(NHAN))

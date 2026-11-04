@@ -214,7 +214,13 @@ def _thu_tu():
 		# đơn có sẵn bằng bảng hỏi một bước, không có form lập phiếu nháp nhiều ô.
 		"64-banh-si.js",
 		# v632: Bảng giá theo điểm bán, sửa giá có sẵn của món, không lập phiếu nháp.
-		"65-bang-gia-diem.js"])
+		"65-bang-gia-diem.js",
+		# v638: Gọi món tại bàn (dải chờ trên màn Tính tiền, nhận hay từ chối đơn có
+		# sẵn) và màn In QR tại bàn: không có form lập phiếu nháp nhiều ô.
+		"66-goi-mon-tai-ban.js",
+		# v638: Hoa hồng giới thiệu, chỉ xem số, đưa vào phiếu KPI và đổi người
+		# bằng bảng chọn một bước, không có form lập phiếu nháp nhiều ô.
+		"67-hoa-hong-gioi-thieu.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

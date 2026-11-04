@@ -4283,6 +4283,8 @@ async function scrHome() {
       /* v614: ô Tặng quà khách VIP và Danh sách khách hàng chuyển sang phân
          hệ Khách hàng (CRM), anh Việt duyệt mẫu 27/10/2026. */
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
+      /* v638: mã QR dán bàn để khách tự gọi món (66-goi-mon-tai-ban.js). */
+      (coQuyenGmbQr() ? card('🔳', 'In QR tại bàn', 'Mỗi bàn một mã QR, khách quét để gọi món; in khổ A6', 0, 'GMBQR') : '') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       /* v582: chi Sales that, QLCH, ke toan, giam doc (coQuyenCongNo). */
       (coQuyenCongNo() ? card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') : '') +
@@ -4485,7 +4487,11 @@ async function scrHome() {
   }
   html += '<div class="sec">KPI của tôi</div><div class="card">' +
     card('🙋', 'Điểm KPI của tôi',
-      'Xem điểm từng tiêu chí của chính mình và nói lại nếu thấy chưa đúng', 0, 'KPITOI') + '</div>';
+      'Xem điểm từng tiêu chí của chính mình và nói lại nếu thấy chưa đúng', 0, 'KPITOI') +
+    /* v638: ai cũng xem được hoa hồng giới thiệu của mình; quản lý thấy thêm
+       bảng toàn tiệm ngay trong màn đó (máy chủ chặn bằng gioi_thieu.VAI_XEM). */
+    card('🤝', 'Hoa hồng giới thiệu',
+      'Đơn khách gõ số của bạn vào ô Mã giới thiệu: tiền hàng, hoa hồng đã ghi sổ và đang chờ', 0, 'HHGT') + '</div>';
 
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
@@ -4734,14 +4740,14 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM'],
+    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM', 'GMBQR'],
     nhom: [
       { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'DSCK', 'BNTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
       { t: 'Khách hàng', p: 'đặt bàn, đặt trước và công nợ', keys: ['DATBAN', 'DDT', 'CN', 'SOTANG', 'SODU'] },
       { t: 'Bánh sỉ', p: 'quán, khách sạn đặt trên web', keys: ['BSI', 'BSIKH'] },
       { t: 'Chương trình và hợp đồng', p: '', keys: ['KM', 'HDG'] },
-      { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY'] }
+      { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY', 'GMBQR'] }
     ]
   },
   /* v614 phân hệ Khách hàng (CRM). Đứng ngay sau Bán hàng, anh Việt duyệt
@@ -4816,7 +4822,7 @@ var VGB_NHOM = [
   /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
      toan va giam doc - dieu kien coQuyenHRM() dung o scrHome. O "KPI cua
      toi" thi nguoc lai, ai cung vao duoc, vi do la diem cua chinh ho. */
-  { k: 'NS', ten: 'Nhân sự', icon: '👥', keys: ['TD', 'KPI', 'KPICD', 'KPITOI'] },
+  { k: 'NS', ten: 'Nhân sự', icon: '👥', keys: ['TD', 'KPI', 'KPICD', 'KPITOI', 'HHGT'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
@@ -6029,9 +6035,11 @@ var VGB_DUONG = {
   'hoa-don-ban': 'HDBAN',
   'hoa-don-chua-tru-kho': 'TRUKHO',
   'hoa-don-mua': 'HDMUA',
+  'hoa-hong-gioi-thieu': 'HHGT',
   'hoan-tien': 'HT',
   'hop-dong': 'HDG',
   'huong-dan-che-bien': 'HDCB',
+  'in-qr-tai-ban': 'GMBQR',
   'khach-hang': 'KH',
   'khach-si-web': 'BSIKH',
   'khoa-so': 'CDKS',
@@ -6294,6 +6302,7 @@ function vgbGo(k) {
   if (k === 'DHUY') return go(scrDonHuy);
   if (k === 'PHHUY') return go(scrPhieuHoanHuy);
   if (k === 'POS') return go(scrPosChonQuay);
+  if (k === 'GMBQR') return go(scrGmbInQr);
   if (k === 'TQV') return go(scrTqDot);
   /* v614 phân hệ Khách hàng (58-crm.js). */
   if (k === 'CRMGOI') return go(scrCrmGoi);
@@ -6348,6 +6357,7 @@ function vgbGo(k) {
   if (k === 'KPI') return go(scrKPI);
   if (k === 'KPICD') return go(scrKPICau);
   if (k === 'KPITOI') return go(scrKPIToi);
+  if (k === 'HHGT') return go(scrHhgt);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'BGDB') return go(function () { return scrBangGiaDiem(''); });
   if (k === 'CDKS') return go(scrKhoaSo);
@@ -14465,7 +14475,10 @@ function nguonBH(v) {
 function ptTheoNguon(v) {
   var c = CFGBH || { pt: [], nguon: [] };
   var n = nguonBH(v);
-  var ds = n ? n.pt : (c.pt_pancake || []);
+  /* v638: phiếu tạm tính lập từ đơn gọi món tại bàn mang nguồn "QR tại bàn",
+     không phải nút nguồn trên màn; thu tiền như Tại chỗ (máy chủ đọc cùng
+     luật qua ban_hang.NGUON_CU), không rơi về danh sách đơn online. */
+  var ds = n ? n.pt : ((c.nguon_qr && v === c.nguon_qr) ? (c.pt_quay || []) : (c.pt_pancake || []));
   return (c.pt || []).filter(function (p) { return ds.indexOf(p.v) >= 0; });
 }
 function quyPt(v) {
@@ -16908,6 +16921,9 @@ async function scrPosQuay() {
       '<b>Bill lập lại từ ' + h(posDon.chuyen_tu.ma || posDon.chuyen_tu.name) + ' (đã huỷ)</b><br>' +
       'Lưu xong, máy tự chuyển khoản ' + money(posDon.chuyen_tu.tien || 0) + ' đ khách đã trả sang bill này.</div>';
   }
+  /* v638: dải "N đơn gọi món tại bàn đang chờ nhận" (66-goi-mon-tai-ban.js),
+     vẽ rỗng rồi tự đổ sau mỗi lượt hỏi 15 giây, không bắt màn chờ mạng. */
+  html += gmbKhoi();
   /* O TO mo danh sach hoa don trong ngay (anh Viet 09/08) - cashier va
      quan ly bam phat vao ngay, khoi phai mo dong chu nho. */
   html += '<div class="card" data-t="posDsBill" style="padding:13px 14px;cursor:pointer;border:1.5px solid #7fe5f6;background:#f4feff">' +
@@ -17133,6 +17149,7 @@ async function scrPosQuay() {
   posDemHomNay();
   posCaVe();
   cfdGan();
+  gmbBatDau(posCoQuay() ? posQuay.ma : '');
   /* Noi cac nut cua khoi diem. Truyen ham ve lai man de moi nhanh khoi
      phai tu goi go(scrPosQuay, true) - de quen mot cho la man hinh dung im
      sau khi bam. */
@@ -20105,7 +20122,10 @@ function posGopDongMon(mon) {
 
 function posLaNuoc(m) {
   if (String((m && m.item_code) || '').toUpperCase().indexOf('NU') === 0) return true;
-  return POS_NHOM_NUOC.indexOf((m && m.nhom) || '') >= 0;
+  /* v638: danh sách nhóm nước MỘT nguồn ở máy chủ (goi_mon_ban.NHOM_NUOC),
+     đọc qua cấu hình bán hàng; mảng trên chỉ là lưới đỡ khi chưa tải cấu hình. */
+  var ds = ((CFGBH || {}).nhom_nuoc && CFGBH.nhom_nuoc.length) ? CFGBH.nhom_nuoc : POS_NHOM_NUOC;
+  return ds.indexOf((m && m.nhom) || '') >= 0;
 }
 function posCoNuoc(mon) { return (mon || []).some(posLaNuoc); }
 function posMonNuoc(mon) { return (mon || []).filter(posLaNuoc); }
@@ -26727,7 +26747,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '637';
+var APPVER = '638';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -36176,7 +36196,7 @@ async function scrCaiDatWeb() {
   var html =
     '<div class="sec">Web đang lên gì</div><div class="card" style="padding:4px 15px 8px">' +
     hang('In season', so.mua_vu || 0, 'Hàng mùa vụ đang chạy') +
-    hang('In store', so.quay || 0, 'Bánh còn trên tủ hai quầy, lấy từ bảng kiểm kho') +
+    hang('Tại quầy', so.quay || 0, 'Bánh còn trên tủ hai quầy, lấy từ bảng kiểm kho') +
     hang('Có sẵn hôm nay', so.hom_nay || 0, 'Bảng kiểm bánh ngày của bếp') +
     hang('Đặt bánh trước', so.dat_truoc || 0, 'Bánh ổ còn đủ decor') +
     '</div>' +
@@ -55055,6 +55075,7 @@ async function scrKPI() {
           (r.phieu_chi ? ' · ' + h(r.phieu_chi) : '') + '</div></div>' +
           '<div style="text-align:right">' +
           '<div style="font-size:15px;font-weight:800">' + money(r.hoa_hong) + ' đ</div>' +
+          (+r.hh_gioi_thieu ? '<div style="font-size:11.5px;color:#0f766e">+ ' + money(r.hh_gioi_thieu) + ' đ giới thiệu</div>' : '') +
           '<div style="font-size:11.5px;color:#6b7280">' + (r.diem_tong || 0) + ' điểm</div></div></div>' +
           '<div style="margin-top:7px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
           kpiChipLoai(r.xep_loai) +
@@ -55195,6 +55216,12 @@ async function scrKPICt() {
     '<span style="color:#6b7280">Hoa hồng trước trần</span><span>' + money(d.hoa_hong_tho) + ' đ</span></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:15px;padding:6px 0;border-top:1px solid #e5e7eb">' +
     '<b style="color:#0f766e">Hoa hồng phải trả</b><b style="color:#0f766e">' + money(d.hoa_hong) + ' đ</b></div>' +
+    /* v638: hoa hồng giới thiệu là khoản CỘNG THÊM, không nhân hệ số, không
+       vào trần; đẩy chi chung một đề nghị chi, một dòng riêng. */
+    (+d.vgb_hh_gioi_thieu ? '<div data-kpigt="1" style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">' +
+      '<span style="color:#6b7280">Hoa hồng giới thiệu (cộng thêm)</span><span>' + money(d.vgb_hh_gioi_thieu) + ' đ</span></div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:15px;padding:6px 0;border-top:1px solid #e5e7eb">' +
+      '<b>Tổng chuyển khoản</b><b>' + money((+d.hoa_hong || 0) + (+d.vgb_hh_gioi_thieu || 0)) + ' đ</b></div>' : '') +
     (d.bi_tran ? '<div style="font-size:11.5px;color:#b45309;line-height:1.6;margin-top:4px">' +
       'Đã chạm trần một kỳ. Phần vượt trần không được cộng dồn sang kỳ sau.</div>' : '') +
     '</div>';
@@ -55535,6 +55562,7 @@ async function scrKPIToi() {
     '<div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
     kpiChipLoai(d.xep_loai) +
     (d.hoa_hong ? '<b style="font-size:15px;color:#0f766e">' + money(d.hoa_hong) + ' đ hoa hồng</b>' : '') +
+    (+d.vgb_hh_gioi_thieu ? '<span style="font-size:13px;color:#0f766e">+ ' + money(d.vgb_hh_gioi_thieu) + ' đ giới thiệu</span>' : '') +
     '</div>' +
     (d.ky_truoc ? '<div style="font-size:12.5px;color:#0f766e;margin-top:7px;padding-top:7px;' +
       'border-top:1px dashed #99f6e4">Kỳ trước: ' + (d.ky_truoc.diem_tong || 0) + ' điểm · ' +
@@ -68139,6 +68167,484 @@ function bgdApNap(ds) {
   var doi = bgdDsDoi().length;
   baoTin('Đã đọc ' + lay + ' dòng từ Excel, ' + doi + ' giá khác giá đang lưu.' + (bo ? ' Bỏ ' + bo + ' dòng có mã món không còn bán.' : '') +
     (doi ? ' Xem lại rồi bấm Lưu ' + doi + ' giá đã đổi.' : ''));
+}
+/* ---------------- Gọi món tại bàn qua QR (v638) ----------------
+
+   Anh Việt duyệt 04/11/2026: khách quét QR dán trên bàn, gọi món trên trang
+   đặt bánh (tab Tại quầy), quầy nhận trên màn Tính tiền. Hai phần ở đây:
+
+   1. Dải chờ trên màn Tính tiền của một quầy: hỏi máy chủ mỗi 15 giây
+      (goi_mon_ban.dem_cho), có đơn thì hiện "N đơn gọi món tại bàn đang chờ
+      nhận" kèm tiếng chuông ngắn (tắt được, nhớ theo máy). Bấm mở danh sách
+      thẻ; "Nhận đơn và in phiếu pha chế" gọi goi_mon_ban.nhan (máy chủ khoá
+      đơn, thêm món vào phiếu tạm tính của bàn hoặc lập phiếu mới), rồi in
+      phiếu bằng ĐÚNG posInPhieuMon của màn quầy và mở phiếu tạm tính của bàn.
+      Thu tiền, chốt, ghi sổ đi luồng tạm tính có sẵn, không có nút mới.
+   2. Màn "In QR tại bàn": chọn điểm có quầy, chọn khoảng bàn, in khổ A6 mỗi
+      tờ một bàn. Quyền: quản lý cửa hàng, Giám đốc (máy chủ chặn thật,
+      goi_mon_ban.QUYEN_IN_QR; danh sách dưới chỉ để ẩn ô menu, phải trùng). */
+var QUYEN_GMB_QR = ['System Manager', 'Giám đốc', 'VGB - Quản lý cửa hàng'];
+function coQuyenGmbQr() {
+  return QUYEN_GMB_QR.some(function (v) { return hasRole(v); });
+}
+
+var GMB_NHIP = null, GMB_DIEM = '', GMB_DS = [], GMB_LY_DO = [], GMB_DA_THAY = {}, GMB_LUC = 0;
+var GMB_HOI_MOI = 15000;
+var GMB_KHOA_CHUONG = 'vgb_gmb_chuong';
+
+function gmbChuongBat() {
+  try { return localStorage.getItem(GMB_KHOA_CHUONG) !== '0'; } catch (e) { return true; }
+}
+function gmbDatChuong(bat) {
+  try { localStorage.setItem(GMB_KHOA_CHUONG, bat ? '1' : '0'); } catch (e) { }
+}
+/* Chuông ngắn hai nốt bằng WebAudio, không cần tệp âm thanh. Trình duyệt chặn
+   âm thanh khi chưa có cú chạm nào thì im lặng, dải chờ vẫn hiện. */
+function gmbKeu() {
+  try {
+    var C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return;
+    var ac = new C();
+    [880, 1175].forEach(function (f, i) {
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.value = f; o.connect(g); g.connect(ac.destination);
+      var t0 = ac.currentTime + i * 0.18;
+      g.gain.setValueAtTime(0.2, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
+      o.start(t0); o.stop(t0 + 0.17);
+    });
+  } catch (e) { }
+}
+
+/* Chỗ trống trên màn Tính tiền; gmbVeDai đổ nội dung vào sau. */
+function gmbKhoi() { return '<div id="gmbDai"></div>'; }
+
+/* Gọi sau mỗi lần màn Tính tiền vẽ lại. Màn vẽ lại sau mỗi lần bấm món nên
+   KHÔNG hỏi máy chủ lại mỗi lần: cùng quầy và nhịp còn chạy thì chỉ vẽ lại
+   dải từ số đã có. */
+function gmbBatDau(diem) {
+  if (!diem) { gmbDung(); return; }
+  if (diem === GMB_DIEM && GMB_NHIP && Date.now() - GMB_LUC < GMB_HOI_MOI) { gmbVeDai(); return; }
+  gmbDung();
+  GMB_DIEM = diem;
+  GMB_NHIP = setInterval(gmbHoi, GMB_HOI_MOI);
+  gmbHoi();
+}
+function gmbDung() {
+  if (GMB_NHIP) clearInterval(GMB_NHIP);
+  GMB_NHIP = null;
+}
+
+async function gmbHoi() {
+  /* Rời màn Tính tiền thì tự tắt, khỏi gọi máy chủ vô ích. */
+  if (!document.getElementById('gmbDai')) return gmbDung();
+  var kq;
+  try { kq = await api('vagabond.goi_mon_ban.dem_cho', { diem: GMB_DIEM }); } catch (e) { return; }
+  GMB_LUC = Date.now();
+  GMB_DS = (kq && kq.ds) || [];
+  GMB_LY_DO = (kq && kq.ly_do) || [];
+  var moi = GMB_DS.some(function (x) { return !GMB_DA_THAY[x.ma]; });
+  GMB_DS.forEach(function (x) { GMB_DA_THAY[x.ma] = 1; });
+  gmbVeDai();
+  if (moi && gmbChuongBat()) gmbKeu();
+}
+
+function gmbVeDai() {
+  var dai = document.getElementById('gmbDai');
+  if (!dai) return;
+  if (!GMB_DS.length) { dai.innerHTML = ''; return; }
+  var ban = GMB_DS.map(function (x) { return 'Bàn ' + x.ban; });
+  var phu = ban.slice(0, 4).join(', ') + (ban.length > 4 ? ' và ' + (ban.length - 4) + ' bàn nữa' : '');
+  var bat = gmbChuongBat();
+  dai.innerHTML = '<div class="card" style="padding:11px 13px;background:#fff7ed;border:1.5px solid #fdba74;display:flex;flex-direction:row;align-items:center;gap:10px">' +
+    '<button data-gmbmo="1" style="flex:1;min-width:0;text-align:left;background:none;border:0;padding:4px 0;min-height:44px;cursor:pointer;color:#9a3412">' +
+    '<div style="font-weight:800;font-size:15px">🔔 ' + GMB_DS.length + ' đơn gọi món tại bàn đang chờ nhận</div>' +
+    '<div style="font-size:13px;margin-top:2px">' + h(phu) + ' · bấm để xem và nhận</div></button>' +
+    '<button data-gmbchuong="1" aria-label="' + (bat ? 'Tắt chuông' : 'Bật chuông') + '" style="flex:none;min-width:44px;min-height:44px;border:1px solid #fdba74;background:#fff;border-radius:10px;font-size:13px;color:#9a3412;cursor:pointer">' +
+    (bat ? '🔔 Tắt chuông' : '🔕 Bật chuông') + '</button></div>';
+  dai.onclick = function (e) {
+    if (e.target.closest('[data-gmbchuong]')) { gmbDatChuong(!gmbChuongBat()); gmbVeDai(); return; }
+    if (e.target.closest('[data-gmbmo]')) gmbMoDs();
+  };
+}
+
+function gmbCoNuoc(x) {
+  return (x.mon || []).some(function (m) { return posLaNuoc({ item_code: m.ma, nhom: m.nhom }); });
+}
+
+function gmbThe(x) {
+  var mon = (x.mon || []).map(function (m) {
+    return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #f1f3f5;font-size:14px">' +
+      anhMon(m.anh) + '<b style="flex:none;min-width:28px">' + m.sl + 'x</b><div style="flex:1;min-width:0">' + h(m.ten) +
+      ((m.tc || []).length ? '<div style="font-size:13px;color:#0f766e">⚙ ' + h(m.tc.join(', ')) + '</div>' : '') + '</div></div>';
+  }).join('');
+  return '<div class="card" data-gmbthe="' + h(x.ma) + '" style="padding:12px 13px;margin-bottom:10px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
+    '<span style="font-size:20px;font-weight:800">Bàn ' + h(x.ban) + '</span>' +
+    '<span style="background:#fef3c7;color:#92400e;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap">⏳ chờ ' + x.phut + ' phút</span></div>' +
+    '<div style="font-size:13.5px;color:#475467;margin:3px 0 6px">' + x.so_mon + ' món · tạm tính ' + money(x.tam_tinh) + ' đ' +
+    (x.ten_goi ? ' · gọi tên: <b>' + h(x.ten_goi) + '</b>' : '') + '</div>' + mon +
+    (x.ghi_chu ? '<div style="font-size:13.5px;margin-top:6px;background:#f8fafc;border-radius:8px;padding:7px 9px">📝 ' + h(x.ghi_chu) + '</div>' : '') +
+    (x.gioi_thieu ? '<div style="font-size:13px;color:#475467;margin-top:5px">Người giới thiệu: ' + h(x.gioi_thieu) + '</div>' : '') +
+    '<button class="btn" data-gmbnhan="' + h(x.ma) + '" style="margin-top:10px">Nhận đơn và in phiếu pha chế</button>' +
+    '<button class="btn gh" data-gmbtuchoi="' + h(x.ma) + '" style="margin-top:8px">Từ chối</button></div>';
+}
+
+function gmbMoDs() {
+  var cu = document.getElementById('gmbSheet');
+  if (cu) cu.remove();
+  var ov = document.createElement('div'); ov.className = 'sh'; ov.id = 'gmbSheet';
+  function ve() {
+    ov.innerHTML = '<div class="shb" style="padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:88vh;overflow:auto">' +
+      '<div class="shh" style="padding:0 0 10px"><b>Gọi món tại bàn · ' + h((posQuay && (posQuay.ten_ngan || posQuay.ten)) || GMB_DIEM) + '</b><div class="x" data-gmbdong="1">&times;</div></div>' +
+      (GMB_DS.length ? GMB_DS.map(gmbThe).join('')
+        : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên màn Tính tiền.</div></div>') +
+      '</div>';
+  }
+  ve();
+  document.body.appendChild(ov);
+  ov.onclick = async function (e) {
+    if (e.target === ov || e.target.closest('[data-gmbdong]')) return ov.remove();
+    var n = e.target.closest('[data-gmbnhan]');
+    if (n) return gmbNhan(n.getAttribute('data-gmbnhan'), ov);
+    var t = e.target.closest('[data-gmbtuchoi]');
+    if (t) return gmbTuChoi(t.getAttribute('data-gmbtuchoi'), ov, ve);
+  };
+}
+
+async function gmbNhan(ma, ov) {
+  var x = GMB_DS.filter(function (d) { return d.ma === ma; })[0];
+  if (!x) return toast('Đơn này vừa có người xử lý. Danh sách đã cập nhật.');
+  /* Cửa sổ in phải mở NGAY trong cú chạm (27-in-ngam.js): mở trước, đợi máy
+     chủ xong mới ghi phiếu vào. Đơn chỉ có bánh thì không in phiếu pha chế. */
+  var w = gmbCoNuoc(x) ? inMoCuaSoNeuCan('phieu_mon') : 'khong';
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.goi_mon_ban.nhan', { ma: ma }); }
+  catch (e) {
+    busy(false);
+    if (w && w !== 'chan' && w !== 'khong' && w.close) w.close();
+    toast((e && e.message) || 'Chưa nhận được đơn, thử lại.', 6000);
+    GMB_LUC = 0; await gmbHoi();
+    if (ov && ov.parentNode) gmbMoDs();
+    return;
+  }
+  busy(false);
+  GMB_DS = GMB_DS.filter(function (d) { return d.ma !== ma; });
+  gmbVeDai();
+  if (ov && ov.parentNode) ov.remove();
+  if (w !== 'khong' && w !== 'chan') await posInPhieuMon(kq.phieu, w, true);
+  else if (w === 'chan') toast('Chưa in được phiếu pha chế: trình duyệt chặn cửa sổ in. Mở phiếu tạm tính bàn ' + kq.ban + ' và bấm in phiếu món.', 6000);
+  toast((kq.them_vao ? 'Đã thêm món vào phiếu tạm tính bàn ' : 'Đã lập phiếu tạm tính bàn ') + kq.ban + ' (' + (kq.bill || '') + ').', 4000);
+  go(function () { scrPosBill(kq.hoa_don); });
+}
+
+function gmbTuChoi(ma, ov, veLai) {
+  var x = GMB_DS.filter(function (d) { return d.ma === ma; })[0];
+  if (!x) return toast('Đơn này vừa có người xử lý. Danh sách đã cập nhật.');
+  var chon = '';
+  var hop = document.createElement('div'); hop.className = 'sh';
+  function ve() {
+    hop.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
+      '<div style="font-size:17.5px;font-weight:700;margin-bottom:6px">Từ chối đơn bàn ' + h(x.ban) + '</div>' +
+      '<div style="font-size:13.5px;color:#5a6070;margin-bottom:10px">Khách thấy lý do này trên điện thoại. Không lập phiếu nào.</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">' +
+      (GMB_LY_DO.length ? GMB_LY_DO : ['Hết món', 'Quầy quá đông', 'Khác']).map(function (l) {
+        return posChipNut('data-gmblydo="' + h(l) + '"', h(l), chon === l, false, '#b91c1c');
+      }).join('') + '</div>' +
+      '<button class="btn dg" data-gmbtc="1"' + (chon ? '' : ' disabled style="opacity:.5"') + '>Từ chối đơn</button>' +
+      '<button class="btn gh" data-gmbhuy="1" style="margin-top:9px">Quay lại</button></div>';
+  }
+  ve();
+  document.body.appendChild(hop);
+  hop.onclick = async function (e) {
+    if (e.target === hop || e.target.closest('[data-gmbhuy]')) return hop.remove();
+    var l = e.target.closest('[data-gmblydo]');
+    if (l) { chon = l.getAttribute('data-gmblydo'); return ve(); }
+    if (!e.target.closest('[data-gmbtc]')) return;
+    if (!chon) return toast('Chọn một lý do để khách biết.');
+    busy(true);
+    try { await api('vagabond.goi_mon_ban.tu_choi', { ma: ma, ly_do: chon }); }
+    catch (er) { busy(false); return toast((er && er.message) || 'Chưa từ chối được, thử lại.', 5000); }
+    busy(false);
+    hop.remove();
+    GMB_DS = GMB_DS.filter(function (d) { return d.ma !== ma; });
+    gmbVeDai();
+    toast('Đã từ chối đơn bàn ' + x.ban + '.');
+    if (ov && ov.parentNode && veLai) veLai();
+  };
+}
+
+/* ---------------- Màn In QR tại bàn ---------------- */
+var gqDiem = '', gqTu = 1, gqDen = 20, gqTo = null;
+
+async function scrGmbInQr() {
+  frame('In QR tại bàn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải các điểm bán...</div></div>');
+  var ds;
+  try { ds = await api('vagabond.goi_mon_ban.diem_in_qr', {}); }
+  catch (e) { frame('In QR tại bàn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được điểm bán. Kéo xuống để thử lại.') + '</div></div>'); return; }
+  ds = ds || [];
+  if (!ds.length) { frame('In QR tại bàn', '<div class="emp"><div class="e1">🏬</div><div>Chưa có điểm bán nào có quầy. Bật quầy ở Cài đặt, Điểm bán.</div></div>'); return; }
+  if (!ds.some(function (d) { return d.ma === gqDiem; })) { gqDiem = ds[0].ma; gqTo = null; }
+  gmbVeInQr(ds);
+}
+
+function gmbVeInQr(ds) {
+  var d = ds.filter(function (x) { return x.ma === gqDiem; })[0] || ds[0];
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13.5px;color:#475467;line-height:1.5">Mỗi bàn một mã QR. Khách quét là gọi món của đúng quầy, đúng bàn; quầy nhận trên màn Tính tiền. Mã không có hạn, in một lần dán lâu dài.</div></div>' +
+    '<div class="sec">Điểm bán</div><div style="display:flex;gap:8px;overflow-x:auto;padding:0 2px 6px">' +
+    ds.map(function (x) { return posChipNut('data-gqdiem="' + h(x.ma) + '"', h(x.ten), x.ma === gqDiem); }).join('') + '</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin:0 4px 8px">' + h(d.phu || '') + '</div>' +
+    '<div class="sec">Bàn cần in</div><div class="card" style="padding:12px 14px;display:flex;flex-direction:row;gap:10px;align-items:flex-end">' +
+    '<label style="flex:1;font-size:13px;color:#475467">Từ bàn<input class="tin" id="gqTu" type="number" inputmode="numeric" min="1" max="99" value="' + gqTu + '" style="margin-top:4px;min-height:44px"></label>' +
+    '<label style="flex:1;font-size:13px;color:#475467">Đến bàn<input class="tin" id="gqDen" type="number" inputmode="numeric" min="1" max="99" value="' + gqDen + '" style="margin-top:4px;min-height:44px"></label></div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin:0 4px 10px">In một bàn thì gõ cùng một số ở hai ô. Mỗi lần in tối đa 60 tờ.</div>';
+  if (gqTo && gqTo.diem === gqDiem) {
+    html += '<div class="sec">Xem trước · ' + gqTo.to.length + ' tờ A6</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">' +
+      gqTo.to.map(function (t) {
+        return '<div class="card" data-gqto="' + t.ban + '" style="padding:10px;text-align:center;margin:0"><img src="' + t.anh + '" alt="" style="width:100%;max-width:140px">' +
+          '<div style="font-weight:800;font-size:14px;margin-top:4px">Bàn ' + t.ban + ' · ' + h(t.ten_diem) + '</div>' +
+          '<div style="font-size:12.5px;color:#6b7280">Quét để gọi món tại bàn</div></div>';
+      }).join('') + '</div>';
+  }
+  var coTo = gqTo && gqTo.diem === gqDiem && gqTo.to.length;
+  var b = frame('In QR tại bàn', html, { footer: coTo
+    ? '<button class="btn" id="gqIn">In ' + gqTo.to.length + ' tờ A6</button>'
+    : '<button class="btn" id="gqTao">Tạo mã QR</button>' });
+  b.addEventListener('click', function (e) {
+    var c = e.target.closest('[data-gqdiem]');
+    if (c) { gqDiem = c.getAttribute('data-gqdiem'); gqTo = null; return gmbVeInQr(ds); }
+  });
+  ['gqTu', 'gqDen'].forEach(function (id) {
+    var o = document.getElementById(id);
+    if (o) o.addEventListener('input', function () {
+      if (id === 'gqTu') gqTu = parseInt(o.value, 10) || ''; else gqDen = parseInt(o.value, 10) || '';
+      if (gqTo) { gqTo = null; gmbVeInQr(ds); }
+    });
+  });
+  var tao = document.getElementById('gqTao');
+  if (tao) tao.onclick = async function () {
+    var tu = parseInt(gqTu, 10), den = parseInt(gqDen, 10);
+    if (!(tu >= 1 && tu <= 99) || !(den >= 1 && den <= 99)) return toast('Số bàn từ 1 tới 99.');
+    busy(true);
+    try { gqTo = await api('vagabond.goi_mon_ban.to_qr', { diem: gqDiem, tu: tu, den: den }); }
+    catch (er) { busy(false); return toast((er && er.message) || 'Chưa tạo được mã QR, thử lại.', 5000); }
+    busy(false);
+    gmbVeInQr(ds);
+  };
+  var nutIn = document.getElementById('gqIn');
+  if (nutIn) nutIn.onclick = function () { gmbInA6(gqTo); };
+}
+
+/* Tờ in A6 dọc, mỗi bàn một trang. Mở cửa sổ ngay trong cú chạm. */
+function gmbToA6Html(kq) {
+  var trang = (kq.to || []).map(function (t) {
+    return '<section class="to"><div class="ten">THE VAGABOND PÂTISSERIE</div>' +
+      '<img src="' + t.anh + '" alt="">' +
+      '<div class="ban">Bàn ' + t.ban + ' · ' + h(t.ten_diem) + '</div>' +
+      '<div class="goi">Quét để gọi món tại bàn</div></section>';
+  }).join('');
+  return '<html><head><meta charset="utf-8"><title>QR tại bàn ' + h(kq.ten || '') + '</title><style>' +
+    '@page{size:A6 portrait;margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
+    'body{font-family:Arial,sans-serif;color:#000}' +
+    '.to{width:105mm;height:148mm;padding:10mm 8mm;display:flex;flex-direction:column;align-items:center;justify-content:center;page-break-after:always;text-align:center}' +
+    '.ten{font-size:11px;letter-spacing:.12em;margin-bottom:6mm}' +
+    '.to img{width:72mm;height:72mm}' +
+    '.ban{font-size:22px;font-weight:bold;margin-top:6mm}' +
+    '.goi{font-size:15px;margin-top:3mm}' +
+    '</style></head><body>' + trang + '</body></html>';
+}
+function gmbInA6(kq) {
+  if (!kq || !(kq.to || []).length) return toast('Bấm Tạo mã QR trước đã.');
+  var w = window.open('', '_blank');
+  if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
+  w.document.write(inThemLenhIn(gmbToA6Html(kq), 700));
+  w.document.close();
+}
+/* ---------------- Hoa hồng giới thiệu (v638)
+
+   Anh Việt duyệt 04/11/2026: khách gõ số điện thoại của nhân viên đã mời mình
+   vào ô Mã giới thiệu (đặt bánh web, gọi món tại bàn). Hoá đơn ghi sổ xong thì
+   nhân viên được hoa hồng, cuối tháng cộng vào phiếu KPI tháng.
+
+   Một màn, hai chế độ:
+   - Của tôi: ai cũng mở được, thấy từng đơn của mình trong tháng (mã đơn, loại,
+     tiền hàng, hoa hồng, trạng thái) và dòng tạm tính tháng.
+   - Toàn tiệm: quản lý, kế toán, giám đốc. Bảng theo nhân viên, nút "Đưa vào
+     phiếu KPI tháng" (bấm lại không cộng hai lần, máy chủ ghi đè), "Xuất Excel"
+     qua công cụ xuất dùng chung, và đổi người giới thiệu của một đơn (chỉ quản
+     lý, máy ghi ai đổi, lúc nào).
+   Mọi con số do máy chủ tính (gioi_thieu.py), màn chỉ lọc và bày ra. */
+var HHGT = { ky: '', che: 'toi', tt: '', tim: '', mo: '', kq: null, tiem: null };
+
+/* Ba tháng gần nhất cho hàng chip tháng. PHÉP THUẦN. homNay dạng YYYY-MM-DD. */
+function hhgtCacKy(homNay) {
+  var n = +String(homNay).slice(0, 4), t = +String(homNay).slice(5, 7), ra = [];
+  for (var i = 0; i < 3; i++) {
+    ra.push({ k: n + '-' + (t < 10 ? '0' : '') + t, ten: i === 0 ? 'Tháng này' : (i === 1 ? 'Tháng trước' : 'Tháng ' + t + '/' + n) });
+    t -= 1; if (t < 1) { t = 12; n -= 1; }
+  }
+  return ra;
+}
+/* Nhóm trạng thái cho chip: Đã hoàn tiền đứng chung với Đơn huỷ. PHÉP THUẦN. */
+function hhgtNhom(tt) { return tt === 'hoan' ? 'huy' : tt; }
+function hhgtLoc(rows, tt, tim, nguoi) {
+  return (rows || []).filter(function (r) {
+    if (tt && hhgtNhom(r.tt) !== tt) return false;
+    if (nguoi && r.nguoi !== nguoi) return false;
+    if (tim && !vgbKhop([r.hien, r.ten_nguoi, r.nhan_loai], tim)) return false;
+    return true;
+  });
+}
+function hhgtDem(rows) {
+  var d = { tat_ca: (rows || []).length, ghi_so: 0, cho: 0, huy: 0 };
+  (rows || []).forEach(function (r) { d[hhgtNhom(r.tt)] = (d[hhgtNhom(r.tt)] || 0) + 1; });
+  return d;
+}
+function hhgtNgay(s) { s = String(s || ''); return s.length >= 10 ? s.slice(8, 10) + '/' + s.slice(5, 7) : s; }
+var HHGT_MAU = { ghi_so: ['#ecfdf3', '#067647'], cho: ['#fffaeb', '#b54708'], huy: ['#f2f4f7', '#475467'], hoan: ['#f2f4f7', '#475467'] };
+function hhgtChipTt(r) {
+  var m = HHGT_MAU[r.tt] || HHGT_MAU.huy;
+  return '<span data-hhgttt="' + h(r.tt) + '" style="display:inline-block;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 9px;background:' +
+    m[0] + ';color:' + m[1] + '">' + h(r.nhan_tt || '') + '</span>';
+}
+
+async function scrHhgt() {
+  var td = 'Hoa hồng giới thiệu';
+  if (!HHGT.ky) HHGT.ky = hhgtCacKy(today())[0].k;
+  frame(td, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc hoa hồng giới thiệu...</div></div>');
+  try {
+    if (HHGT.che === 'tiem') HHGT.tiem = await api('vagabond.gioi_thieu.toan_tiem', { ky: HHGT.ky });
+    else HHGT.kq = await api('vagabond.gioi_thieu.cua_toi', { ky: HHGT.ky });
+  } catch (e) {
+    frame(td, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e) || 'Chưa đọc được hoa hồng. Kiểm mạng rồi mở lại màn này.') + '</div></div>');
+    return;
+  }
+  hhgtVe();
+}
+
+function hhgtDongDon(r, doiDuoc) {
+  return '<div data-hhgtdon="' + h(r.ma) + '" style="display:flex;flex-direction:row;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #f2f4f7;min-height:44px">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:#101828;overflow-wrap:anywhere">' + h(r.hien) + '</div>' +
+    '<div style="font-size:12.5px;color:#667085;line-height:1.5">' + h(r.nhan_loai) + ' · ' + hhgtNgay(r.ngay) + ' · tiền hàng ' + money(r.tien_hang) + ' đ · ' + (+r.pt || 0) + '%' +
+    (HHGT.che === 'tiem' && r.ten_nguoi ? ' · ' + h(r.ten_nguoi) : '') + '</div>' +
+    (r.ghi_chu ? '<div style="font-size:12.5px;color:#b54708">' + h(r.ghi_chu) + '</div>' : '') +
+    (r.doi_boi ? '<div style="font-size:12.5px;color:#98a2b3">Quản lý đổi người lúc ' + h(hhgtNgay(r.doi_luc) + String(r.doi_luc || '').slice(10)) + '</div>' : '') + '</div>' +
+    '<div style="flex:0 0 auto;text-align:right"><div style="font-size:14.5px;font-weight:800;color:#101828" data-hhgthh="' + (r.hoa_hong || 0) + '">' + money(r.hoa_hong) + ' đ</div>' + hhgtChipTt(r) + '</div>' +
+    (doiDuoc && r.tt !== 'huy' && r.tt !== 'hoan' ? '<button class="btn gh" data-hhgtdoi="' + h(r.ma) + '" style="flex:0 0 auto;width:auto;margin:0;min-height:44px;padding:0 12px">Đổi</button>' : '') +
+    '</div>';
+}
+
+function hhgtVe() {
+  var tiem = HHGT.che === 'tiem', kq = (tiem ? HHGT.tiem : HHGT.kq) || {};
+  var rows = kq.ds || [], tong = kq.tong || {}, html = '';
+  var xemTiem = tiem || +((HHGT.kq || {}).xem_toan_tiem) === 1;
+  var hang = [kmHangChip(hhgtCacKy(today()).map(function (x) {
+    return posChipNut('data-hhgtky="' + h(x.k) + '"', h(x.ten), HHGT.ky === x.k, false, '#b45309');
+  }).join(''))];
+  if (xemTiem) {
+    hang.unshift(kmHangChip(posChipNut('data-hhgtche="toi"', 'Của tôi', !tiem, false, '#0d9488') +
+      posChipNut('data-hhgtche="tiem"', 'Toàn tiệm', tiem, false, '#0d9488')));
+  }
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">' + hang.join('') + '</div>';
+  if (+kq.bat === 0) {
+    html += '<div style="font-size:12.5px;color:#92400e;margin:2px 16px 8px;line-height:1.5">Hoa hồng giới thiệu đang tắt trong Cài đặt: ô Mã giới thiệu đã ẩn khỏi web. Đơn nhận trước lúc tắt vẫn được tính.</div>';
+  }
+  var gs = tong.ghi_so || {}, ch = tong.cho || {}, hu = tong.huy || {};
+  html += '<div class="card" data-hhgttong="1" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
+    '<div style="font-size:12.5px;color:#0f766e;font-weight:700">TẠM TÍNH ' + h(String(HHGT.ky).slice(5, 7) + '/' + String(HHGT.ky).slice(0, 4)) + (tiem ? ' · TOÀN TIỆM' : '') + '</div>' +
+    '<div style="display:flex;flex-direction:row;justify-content:space-between;font-size:14px;padding:6px 0 2px"><span>Đã ghi sổ · ' + (gs.so_don || 0) + ' đơn</span>' +
+    '<b data-hhgtghiso="' + (gs.hoa_hong || 0) + '" style="color:#0f766e">' + money(gs.hoa_hong) + ' đ</b></div>' +
+    '<div style="display:flex;flex-direction:row;justify-content:space-between;font-size:13.5px;color:#b54708;padding:2px 0"><span>Đang chờ ghi sổ · ' + (ch.so_don || 0) + ' đơn</span>' +
+    '<span data-hhgtcho="' + (ch.hoa_hong || 0) + '">' + money(ch.hoa_hong) + ' đ</span></div>' +
+    (hu.so_don ? '<div style="font-size:12.5px;color:#667085;padding-top:2px">' + hu.so_don + ' đơn huỷ hoặc hoàn tiền, không tính hoa hồng.</div>' : '') +
+    '<div style="font-size:12.5px;color:#475467;line-height:1.5;margin-top:6px">Chỉ đơn đã ghi sổ mới thành tiền. Số đang chờ là tạm tính, đổi theo hoá đơn khi ghi sổ.</div></div>';
+
+  if (tiem) {
+    var bang = kq.bang || [];
+    html += '<div class="sec">Theo nhân viên · ' + bang.length + '</div><div class="card" style="padding:2px 12px">' +
+      (bang.length ? bang.map(function (o) {
+        var mo = HHGT.mo === o.nguoi;
+        return '<div data-hhgtnv="' + h(o.nguoi) + '" style="display:flex;flex-direction:row;align-items:center;gap:10px;padding:11px 0;border-top:1px solid #f2f4f7;min-height:44px;cursor:pointer">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700">' + h(o.ten_nguoi || o.nguoi) + '</div>' +
+          '<div style="font-size:12.5px;color:#667085">' + o.so_don + ' đơn đã ghi sổ · tiền hàng ' + money(o.tien_hang) + ' đ' + (o.so_cho ? ' · ' + o.so_cho + ' đơn chờ' : '') + '</div></div>' +
+          '<div style="text-align:right"><div style="font-size:15px;font-weight:800;color:#0f766e" data-hhgtnvhh="' + o.hoa_hong + '">' + money(o.hoa_hong) + ' đ</div>' +
+          (o.hoa_hong_cho ? '<div style="font-size:12.5px;color:#b54708">+ ' + money(o.hoa_hong_cho) + ' đ chờ</div>' : '') + '</div>' +
+          '<span style="color:#98a2b3">' + (mo ? '▾' : '›') + '</span></div>' +
+          (mo ? '<div data-hhgtmo="' + h(o.nguoi) + '" style="padding:0 0 6px 8px">' + hhgtLoc(rows, '', '', o.nguoi).map(function (r) { return hhgtDongDon(r, +kq.doi_duoc === 1); }).join('') + '</div>' : '');
+      }).join('') : '<div style="padding:18px 0;color:#667085;text-align:center">Tháng này chưa có đơn nào có người giới thiệu.</div>') + '</div>';
+  } else {
+    var dem = hhgtDem(rows), loc = hhgtLoc(rows, HHGT.tt, HHGT.tim);
+    var chip = function (k, chu) { return posChipNut('data-hhgttt-chon="' + k + '"', chu + (dem[k || 'tat_ca'] ? ' · ' + dem[k || 'tat_ca'] : ''), HHGT.tt === k, false, '#4338ca'); };
+    html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">' +
+      kmHangChip(chip('', 'Mọi đơn') + chip('ghi_so', 'Đã ghi sổ') + chip('cho', 'Chờ') + chip('huy', 'Đơn huỷ')) +
+      '<input class="tin" id="hhgtTim" type="search" placeholder="🔎 Tìm mã đơn" value="' + h(HHGT.tim) + '" style="width:100%;margin:0;height:44px"></div>';
+    html += '<div class="card" style="padding:2px 12px">' + (loc.length ? loc.map(function (r) { return hhgtDongDon(r, false); }).join('')
+      : '<div style="padding:18px 4px;color:#667085;text-align:center;line-height:1.6">' + (rows.length ? 'Không có đơn nào khớp bộ lọc. Bấm Mọi đơn để xem hết.'
+        : 'Tháng này chưa có đơn nào khách gõ số của bạn. Mời khách gõ số điện thoại của bạn vào ô Mã giới thiệu khi đặt bánh trên web hoặc gọi món tại bàn.') + '</div>') + '</div>';
+    html += '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Hoa hồng tính trên tiền hàng sau ưu đãi, không gồm phí giao. Đặt bánh web ' +
+      (+kq.pt_web || 0) + '%, tại bàn ' + (+kq.pt_tai_ban || 0) + '%, % chốt lúc khách đặt. Cuối tháng quản lý đưa vào phiếu KPI của bạn.</div>';
+  }
+  var footer = tiem ? '<div style="display:flex;flex-direction:row;gap:8px">' +
+    '<button class="btn gh" data-hhgtxuat="1" style="margin:0;flex:1">Xuất Excel</button>' +
+    '<button class="btn" data-hhgtkpi="1" style="margin:0;flex:2">Đưa vào phiếu KPI tháng</button></div>' : '';
+  var b = frame('Hoa hồng giới thiệu', html, footer ? { footer: footer } : null);
+  b.onclick = hhgtBam;
+  /* Hai nút ở thanh đáy nằm ngoài thân màn (frame trả thân), gắn riêng. */
+  var bx = document.querySelectorAll('[data-hhgtxuat]')[0];
+  if (bx) bx.onclick = function () { return dsXuatExcel('hoa_hong_gioi_thieu', { ky: HHGT.ky }); };
+  var bk = document.querySelectorAll('[data-hhgtkpi]')[0];
+  if (bk) bk.onclick = function () { return hhgtDuaKpi(); };
+  var tim = document.getElementById('hhgtTim');
+  if (tim) {
+    var cu = HHGT.tim;
+    var chay = function () { var v = String(tim.value || '').trim(); if (v === cu) return; cu = v; HHGT.tim = v; hhgtVe(); };
+    tim.addEventListener('change', chay);
+    tim.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); chay(); } });
+  }
+}
+
+async function hhgtBam(e) {
+  var t;
+  if ((t = e.target.closest('[data-hhgtky]'))) { HHGT.ky = t.getAttribute('data-hhgtky'); HHGT.mo = ''; return scrHhgt(); }
+  if ((t = e.target.closest('[data-hhgtche]'))) { HHGT.che = t.getAttribute('data-hhgtche'); HHGT.mo = ''; return scrHhgt(); }
+  if ((t = e.target.closest('[data-hhgttt-chon]'))) { HHGT.tt = t.getAttribute('data-hhgttt-chon'); return hhgtVe(); }
+  if ((t = e.target.closest('[data-hhgtdoi]'))) return hhgtDoi(t.getAttribute('data-hhgtdoi'));
+  if ((t = e.target.closest('[data-hhgtnv]'))) { var ng = t.getAttribute('data-hhgtnv'); HHGT.mo = HHGT.mo === ng ? '' : ng; return hhgtVe(); }
+}
+
+async function hhgtDuaKpi() {
+  var ok = await hoiCo('Đưa vào phiếu KPI tháng ' + String(HHGT.ky).slice(5, 7) + '/' + String(HHGT.ky).slice(0, 4),
+    'Máy ghi tổng hoa hồng giới thiệu đã ghi sổ của tháng vào phiếu KPI của từng nhân viên. Bấm lại lần nữa vẫn ra đúng một số, không cộng hai lần. Phiếu đã chốt thì để nguyên.',
+    'Đưa vào phiếu KPI');
+  if (!ok) return;
+  var kq;
+  try { kq = await api('vagabond.gioi_thieu.dua_vao_kpi', { ky: HHGT.ky }); }
+  catch (e) { return toast(errMsg(e) || 'Chưa đưa được vào phiếu KPI. Thử lại sau ít phút.', 4200); }
+  var cau = [];
+  if ((kq.tao || []).length) cau.push('lập ' + kq.tao.length + ' phiếu mới');
+  if ((kq.cap_nhat || []).length) cau.push('cập nhật ' + kq.cap_nhat.length + ' phiếu');
+  if ((kq.giu || []).length) cau.push(kq.giu.length + ' phiếu đã đúng số');
+  if ((kq.da_chot || []).length) cau.push(kq.da_chot.length + ' phiếu đã chốt, để nguyên');
+  toast('Đã đưa ' + money(kq.tong) + ' đ vào phiếu KPI: ' + (cau.join(', ') || 'không có phiếu nào cần ghi') + '.', 5200);
+}
+
+async function hhgtDoi(ma) {
+  var ds;
+  try { ds = (await api('vagabond.gioi_thieu.nhan_vien', {})).ds || []; }
+  catch (e) { return toast(errMsg(e) || 'Chưa đọc được danh sách nhân viên.', 4200); }
+  var muc = [{ value: '', label: 'Gỡ người giới thiệu', phu: 'Đơn này không tính hoa hồng giới thiệu cho ai' }].concat(ds.map(function (x) {
+    return { value: x.ma, label: x.ten, phu: x.duoi ? 'Số đuôi ' + x.duoi : '' };
+  }));
+  sheet('Người giới thiệu mới', muc, null, async function (it) {
+    var lyDo = await hoiChu('Lý do đổi', 'Máy ghi lại ai đổi, lúc nào và lý do này.', '', { bat_buoc: true, goi_y: 'Ví dụ: khách báo gõ nhầm số' });
+    if (!lyDo) return;
+    try {
+      await api('vagabond.gioi_thieu.doi_nguoi', { ma: ma, nguoi: it.value, ly_do: lyDo });
+    } catch (e) { return toast(errMsg(e) || 'Chưa đổi được người giới thiệu.', 4200); }
+    toast(it.value ? 'Đã đổi người giới thiệu thành ' + it.label + '.' : 'Đã gỡ người giới thiệu.', 3600);
+    scrHhgt();
+  }, true);
 }
 })();
 

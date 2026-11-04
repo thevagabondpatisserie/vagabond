@@ -250,11 +250,14 @@ def _thu_tu_may_chu():
 	# TRONG vòng dựng dòng, trước khi dựng dòng hoá đơn, và tính vào số lệch.
 	cb_goi = _dong(tao, "doi_combo += _gia_combo_may_chu(r, ma)")
 	la("một chỗ đặt giá combo khi lưu bill", len(cb_goi), 1)
-	dung("đặt giá combo trước khi dựng dòng hoá đơn", cb_goi[0] < _dong(tao, "d = {'item_code': ma, 'qty': sl, 'rate': flt(r.get('rate') or 0)}")[0] < ap[0])
+	# v638: dựng dòng hoá đơn gom về MỘT hàm ban_hang._dung_dong_mon (màn quầy,
+	# màn sửa bill, nhận đơn gọi món tại bàn), kể cả phép kiểm thành phần combo.
+	dung("đặt giá combo trước khi dựng dòng hoá đơn", cb_goi[0] < _dong(tao, "rows.append(_dung_dong_mon(r))")[0] < ap[0])
 	la("một chỗ đặt giá khi lưu bill", len(ap), 1)
 	dung("sau khi chốt quầy", _dong(tao, "quay = _quay_cua_nguon(nguon, quay)")[0] < ap[0])
 	dung("trước khi tính khuyến mãi", ap[0] < _dong(tao, "km_kq = _km.tinh_co_khoa(")[0])
-	dung("sau vòng kiểm thành phần combo", _dong(tao, "if ma not in [x.item_code for x in cb.dong]:")[0] < ap[0])
+	dung("sau vòng kiểm thành phần combo", _dong(tao, "rows.append(_dung_dong_mon(r))")[0] < ap[0])
+	dung("vòng dựng dòng kiểm thành phần combo", len(_dong(_ham(src, "_dung_dong_mon"), "if ma not in [x.item_code for x in cb.dong]:")) == 1)
 	chan = _dong(tao, "if doi_gia and cint(gia_theo_diem):")
 	chung = _dong(tao, "doi_gia += diem_ban.ap_gia_chung(items, rows, gia_diem_tao, mien_tao, gia_chung, (_pg0.MA_PHI_GIAO,))")
 	la("đối chiếu giá chung một chỗ", len(chung), 1)

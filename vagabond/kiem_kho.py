@@ -423,7 +423,47 @@ def bang(diem, ngay=None):
 		"so_dot": SO_DOT,
 		"ghi_chu": doc.ghi_chu or "",
 		"dong": dong,
+		"do_uong": _do_uong_bang(doc.diem, doc.ngay),
+		# Công tắc bán web của đồ uống chỉ cho ngày hôm nay (tắt tới hết ngày),
+		# không phụ thuộc bảng đã chốt hay chưa.
+		"sua_web": 1 if (_duoc_sua() and getdate(doc.ngay) == getdate()) else 0,
 	}
+
+
+def _do_uong_bang(diem, ngay):
+	"""Mục "Đồ uống" của bảng (v638, anh Việt 04/11/2026): TOÀN BỘ món nước đang
+	dùng, là hàng bán, có giá ở điểm này. Không đếm số, không thành dòng của
+	bảng (đồ uống pha theo ly); chỉ có công tắc Bán trên web của hôm đang xem.
+	Lỗi đọc thì mục rỗng, bảng bánh vẫn mở được."""
+	from vagabond import goi_mon_ban
+
+	try:
+		return [
+			{"ma_hang": x["ma"], "ten": x["ten"], "hinh": x["anh"], "gia": x["gia"], "nhom": x["nhom_goc"],
+				"ban_web": x["ban_web"], "den_ngay": x["den_ngay"]}
+			for x in goi_mon_ban.do_uong_cua_diem(diem, ngay)
+		]
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "kiem_kho: muc do uong loi")
+		return []
+
+
+@frappe.whitelist(methods=["POST"])
+def ban_web_do_uong(diem=None, ma_hang=None, bat=1, ngay=None):
+	"""Công tắc "Bán trên web" của một đồ uống trên bảng kiểm kho.
+
+	Tắt dùng ĐÚNG cơ chế tat_ban_web có sẵn (ô ngày trên mặt hàng): tắt tới hết
+	ngày đang xem, sáng hôm sau tự bán lại. Ô đó đặt trên mặt hàng nên tắt là
+	tắt ở mọi quầy, màn hình nói rõ điều này."""
+	from vagabond import goi_mon_ban, tat_ban_web
+
+	_chan_neu_khong_duoc_sua()
+	_kiem_diem(diem)
+	ma = str(ma_hang or "").strip()
+	nhom = frappe.db.get_value("Item", ma, "item_group") if ma else None
+	if not nhom or not goi_mon_ban.la_do_uong(nhom):
+		frappe.throw("Mã %s không phải đồ uống của quầy." % (ma or "(trống)"))
+	return tat_ban_web.ghi(ma, 0 if cint(bat) else 1, str(getdate(ngay)) if ngay else None)
 
 
 @frappe.whitelist()
@@ -690,6 +730,44 @@ def con_lai(diem, ngay=None):
 	return ra
 
 
+def banh_tren_quay(ma_diem, ngay=None):
+	"""Bánh trên tủ của MỘT quầy đang bày lên tab Tại quầy: [{ma, ten, con,
+	gia_chung, nhom, anh_goc}]. Một phép cho cả trang khách (con_tren_quay_web)
+	lẫn cửa gọi món tại bàn (goi_mon_ban), để số "còn" khách thấy và số máy
+	chủ chặn khi gọi là một (v638)."""
+	from vagabond import tat_ban_web
+
+	ngay = getdate(ngay) if ngay else getdate()
+	ma_phieu = ten_phieu(ma_diem, ngay)
+	if not frappe.db.exists(DT, ma_phieu):
+		return []
+	dong = frappe.get_all(
+		DT_DONG, filters={"parent": ma_phieu, "parenttype": DT},
+		fields=["ma_hang", "theo_doi", "ton_dau", "hong", "dieu_chinh"] + list(O_NHAP),
+		limit_page_length=0, ignore_permissions=True,
+	)
+	ban = da_ban(ma_diem, ngay)
+	tat = tat_ban_web.bang([r["ma_hang"] for r in dong], ngay)
+	con_theo_ma = dict(dong_len_web(dong, ban, tat))
+	if not con_theo_ma:
+		return []
+	ds = frappe.get_all(
+		"Item", filters={"item_code": ["in", list(con_theo_ma)]},
+		fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item", "item_group"],
+		limit_page_length=0, ignore_permissions=True,
+	)
+	ra = []
+	for x in sorted(ds, key=lambda x: str(x.get("item_name") or x["item_code"])):
+		if cint(x.get("disabled")) or not cint(x.get("is_sales_item", 1)):
+			continue
+		ra.append({
+			"ma": x["item_code"], "ten": x.get("item_name") or x["item_code"],
+			"con": int(con_theo_ma[x["item_code"]]), "gia_chung": x.get("standard_rate") or 0,
+			"nhom": x.get("item_group") or "", "anh_goc": x.get("image") or "",
+		})
+	return ra
+
+
 @frappe.whitelist(allow_guest=True)
 def con_tren_quay_web():
 	"""Tab "In store" cua trang dat banh: tung quay dang con gi, bao nhieu cai.
@@ -706,7 +784,7 @@ def con_tren_quay_web():
 	Chi tra ten, anh, gia, so con - khong tra ton dau, da ban, hong hay
 	ghi chu noi bo cua quay.
 	"""
-	from vagabond import kiem_banh, tat_ban_web
+	from vagabond import diem_ban, goi_mon_ban, kiem_banh
 	from vagabond.anh_web import anh_cong_khai, chon_anh, la_anh_pancake_da_chep
 	from vagabond.lib import cfg as _cfg, key as _key
 
@@ -724,50 +802,48 @@ def con_tren_quay_web():
 	for d in cac_diem:
 		q = {
 			"ma": d["ma"], "ten": d["ten"], "ten_ngan": d.get("ten_ngan") or d["ten"],
-			"dia_chi": d.get("dia_chi") or d.get("phu") or "", "mon": [],
+			"dia_chi": d.get("dia_chi") or d.get("phu") or "", "mon": [], "do_uong": [],
 		}
 		ra["quay"].append(q)
-		ma_phieu = ten_phieu(d["ma"], ngay)
-		if not frappe.db.exists(DT, ma_phieu):
-			continue
 		try:
-			dong = frappe.get_all(
-				DT_DONG, filters={"parent": ma_phieu, "parenttype": DT},
-				fields=["ma_hang", "theo_doi", "ton_dau", "hong", "dieu_chinh"] + list(O_NHAP),
-				limit_page_length=0, ignore_permissions=True,
-			)
+			cac_banh = banh_tren_quay(d["ma"], ngay)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "kiem_kho: in store loi")
-			continue
-		ban = da_ban(d["ma"], ngay)
-		tat = tat_ban_web.bang([r["ma_hang"] for r in dong], ngay)
-		con_theo_ma = dict(dong_len_web(dong, ban, tat))
-		if not con_theo_ma:
-			continue
-		ds = frappe.get_all(
-			"Item", filters={"item_code": ["in", list(con_theo_ma)]},
-			fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item", "item_group"],
-			limit_page_length=0, ignore_permissions=True,
-		)
-		for x in sorted(ds, key=lambda x: str(x.get("item_name") or x["item_code"])):
-			if cint(x.get("disabled")) or not cint(x.get("is_sales_item", 1)):
-				continue
+			cac_banh = []
+		# v638: giá theo bảng giá điểm bán (giá riêng của điểm, không có thì giá
+		# chung), cùng phép cửa gọi món tại bàn dùng để tính tiền.
+		gia_diem = diem_ban.gia_rieng(d["ma"]) if cac_banh else {}
+		for x in cac_banh:
 			# #367: anh ho so mon ERP truoc, Pancake sau, anh nen cuoi cung.
 			# Mot thu tu cho moi tab, xem vagabond/anh_web.py.
 			anhs = []
-			if co_pancake and (not anh_cong_khai(x.get("image"))
-					or la_anh_pancake_da_chep(x.get("image"), x["item_code"])):
+			if co_pancake and (not anh_cong_khai(x["anh_goc"])
+					or la_anh_pancake_da_chep(x["anh_goc"], x["ma"])):
 				try:
-					anhs = kiem_banh._anh_pancake(c, k, x["item_code"]) or []
+					anhs = kiem_banh._anh_pancake(c, k, x["ma"]) or []
 				except Exception:
 					anhs = []
-			anh = chon_anh(x.get("image"), anhs, ma_hang=x["item_code"])[0]
+			anh = chon_anh(x["anh_goc"], anhs, ma_hang=x["ma"])[0]
 			q["mon"].append({
-				"ma": x["item_code"],
-				"ten": x.get("item_name") or x["item_code"],
-				"gia": int(x.get("standard_rate") or 0),
+				"ma": x["ma"],
+				"ten": x["ten"],
+				"gia": goi_mon_ban.gia_mon(x["ma"], gia_diem, x["gia_chung"]),
 				"anh": anh,
-				"con": int(con_theo_ma[x["item_code"]]),
-				"nhom": x.get("item_group") or "",
+				"con": x["con"],
+				"nhom": x["nhom"],
 			})
+		# v638 (anh Việt 04/11/2026): đồ uống đang bật bán web của quầy, chỉ
+		# trong khoá RIÊNG `do_uong` để tab khác (trang cũ, editor) đọc `mon`
+		# không thấy đồ uống. Không có số "còn": đồ uống pha theo ly.
+		try:
+			ds_tc = goi_mon_ban.doc_tuy_chon()
+			for x in goi_mon_ban.do_uong_cua_diem(d["ma"], ngay):
+				if not x["ban_web"]:
+					continue
+				q["do_uong"].append({
+					"ma": x["ma"], "ten": x["ten"], "gia": x["gia"], "anh": chon_anh(x["anh"], [], ma_hang=x["ma"])[0],
+					"nhom": goi_mon_ban.NHAN_DO_UONG, "tc": goi_mon_ban.tuy_chon_cho(x["nhom_goc"], ds_tc),
+				})
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "kiem_kho: do uong tai quay loi")
 	return ra

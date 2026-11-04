@@ -139,6 +139,8 @@ NOI_PHAT = {
 	("banh_si.py", "_bao_don_moi"): "bh_si_don_moi",
 	("banh_si.py", "_bao_da_tt"): "bh_si_da_tt",
 	("banh_si.py", "_bao_bep"): "bep_si_don",
+	# v638: khách gọi món tại bàn qua QR, báo nhóm quầy (không mang tiền).
+	("goi_mon_ban.py", "_bao_quay"): "bh_goi_mon_tai_ban",
 }
 # Các hàm từng gửi thư nội bộ, nay chỉ được báo Zalo.
 DA_BO_THU = [
@@ -207,8 +209,10 @@ def _danh_muc():
 	# v619: thêm tin dữ liệu hao hụt cho kế toán và cho từng bếp (28/10/2026).
 	# v630: thêm 4 tin bánh thiết kế riêng (3 Bán hàng, 1 Bếp) và 4 tin bánh sỉ (3 Bán hàng, 1 Bếp).
 	# v633: thêm tin kế toán khi khách trả thẻ OnePay cho phiếu đề nghị thanh toán.
-	la("đủ 88 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633)", len(kz.TIN), 88)
+	# v638: thêm tin Sales khi khách trả online đơn đặt bánh trên web, và tin quầy
+	# khi khách gọi món tại bàn qua QR.
+	la("đủ 90 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638)", len(kz.TIN), 90)
 	la("tám bộ phận đúng thứ tự (v622 thêm Nhân sự)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -598,7 +602,11 @@ def _patch_map():
 		# v630 bánh sỉ: chưa có bản vá; quản lý tích tay trong Cài đặt cho nhóm Sales.
 		"bh_si_dang_ky", "bh_si_don_moi", "bh_si_da_tt",
 		# v633: tin khách trả thẻ OnePay, chưa có bản vá; anh Việt tích tay cho nhóm Kế toán.
-		"kt_the_onepay"}
+		"kt_the_onepay",
+		# v638: tin đơn web đã trả online, chưa có bản vá; tích tay cho nhóm Sales.
+		"bh_don_web_da_tra",
+		# v638: tin gọi món tại bàn, chưa có bản vá; tích tay cho nhóm quầy.
+		"bh_goi_mon_tai_ban"}
 	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]
 	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng" and m not in v609] + ["ht_phat_hanh"]
 	la("nhóm văn phòng kế toán", p.tin_cho_nhom("ERP Văn Phòng - Kế Toán - Thu Mua"), kt)

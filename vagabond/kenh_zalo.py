@@ -140,10 +140,16 @@ TIN = {
 		"Khách quét mã trên phiếu và trả thẻ thành công; máy đã ghi sổ phiếu thu. Trả dư thì tin ghi số cần hoàn.", "thong_bao", "cong_no"),
 	"bh_don_web_treo": ("Bán hàng, cửa hàng", "Đơn web treo quá 30 phút chưa vào Pancake",
 		"Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.", "viec", "don_web"),
+	# v638 (anh Việt 04/11/2026): khách trả ngay trên web; không mang số tiền (luật v613).
+	"bh_don_web_da_tra": ("Bán hàng, cửa hàng", "Đơn web khách đã thanh toán online",
+		"Khách trả web xong (chuyển khoản hoặc thẻ): mã đơn, cách trả, COD trên Pancake đã giảm chưa.", "thong_bao", "don_web"),
 	"bh_ton_web_loi": ("Bán hàng, cửa hàng", "Lỗi kiểm tồn khi khách đặt web",
 		"Phép kiểm tồn bánh lỗi lúc khách đặt; Sales kiểm lại tồn trước khi xác nhận.", "canh_bao", "don_web"),
 	"bh_ahamove_huy": ("Bán hàng, cửa hàng", "Tài xế Ahamove huỷ hoặc giao thất bại",
 		"Tài xế huỷ hoặc giao không được, vận đơn về Chờ giao để phân công lại.", "viec", "ban_hang"),
+	# v638 (anh Việt 04/11/2026): khách gọi món tại bàn qua QR (goi_mon_ban.py).
+	"bh_goi_mon_tai_ban": ("Bán hàng, cửa hàng", "Khách gọi món tại bàn qua QR",
+		"Khách quét QR trên bàn và gọi món; quầy nhận đơn trên màn Tính tiền trong 10 phút.", "viec", "ban_hang"),
 	"bh_dat_ban": ("Bán hàng, cửa hàng", "Đặt bàn mới",
 		"Khách vừa gửi yêu cầu đặt bàn, chờ cửa hàng xác nhận.", "viec", "dat_ban"),
 	"bh_dat_ban_xac_nhan": ("Bán hàng, cửa hàng", "Đặt bàn đã xác nhận",
@@ -272,6 +278,8 @@ DIEU_KIEN = {
 	"tiec_cho": "vagabond.tiec_web.con_cho_xac_nhan",
 	# v622: hồ sơ đã có người liên hệ thì không nhắc nữa.
 	"ung_vien_moi": "vagabond.tuyen_dung.con_moi_nhan",
+	# v638: đơn gọi món tại bàn đã có quầy nhận, từ chối hay hết hạn thì thôi.
+	"goi_mon_cho": "vagabond.goi_mon_ban.con_cho_nhan",
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
 CHO_GUI = "Chờ gửi"

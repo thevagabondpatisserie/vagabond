@@ -43,6 +43,9 @@ import json
 import re
 import secrets
 import uuid
+from urllib.parse import urlsplit
+
+from vagabond import thanh_toan_web_thuan as ttt
 
 DOCTYPE = "Vagabond Don Web"
 
@@ -106,7 +109,8 @@ QUAN = [
 	{"ma": "nha-be", "ten": "Nhà Bè", "lat": 10.6952, "lng": 106.7045},
 ]
 
-TEN_THANH_TOAN = {"bank": "Chuyển khoản (mã VietQR)", "card": "Thẻ qua cổng OnePay"}
+# v638: bốn cách thanh toán, chữ lấy từ MỘT nguồn (thanh_toan_web_thuan.NHAN_PT).
+TEN_THANH_TOAN = {k: v[0] for k, v in ttt.NHAN_PT.items()}
 THU = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
 
 
@@ -289,22 +293,20 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 	ban_ghi = ban_ghi or {}
 	snap = snapshot or {}
 	tt = ban_ghi.get("trang_thai") or "Dang gui"
-	phi = snap.get("phi") or {}
-	tien_banh = int(ban_ghi.get("tien_banh") or 0)
 	# v589: ưu đãi từ ERP đã trừ khi tạo đơn (khuyen_mai.ap_web).
 	uu = snap.get("uu_dai") or {}
-	giam = min(int(uu.get("giam") or 0), tien_banh)
-	sau_giam = tien_banh - giam
-	trang_thai_phi = phi.get("trang_thai") or ban_ghi.get("trang_thai_phi") or ""
-	phi_khach = phi.get("phi_khach")
+	# v638: MỘT phép tính tiền đơn web (cùng số thu online, cổng thẻ, đối soát).
+	tien = ttt.tien_ban_ghi(ban_ghi, snap)
+	tien_banh, giam, tong = tien["tien_banh"], tien["giam"], tien["tong"]
+	trang_thai_phi = tien["trang_thai_phi"]
 	if trang_thai_phi == "tu_lay":
-		nhan_phi, tong = "Tự lấy, không tính phí", sau_giam
+		nhan_phi = "Tự lấy, không tính phí"
 	elif trang_thai_phi == "mien_phi":
-		nhan_phi, tong = "Miễn phí giao", sau_giam
-	elif trang_thai_phi == "chinh_xac" and phi_khach:
-		nhan_phi, tong = dinh_tien(phi_khach), sau_giam + int(phi_khach)
+		nhan_phi = "Miễn phí giao"
+	elif tong is not None:
+		nhan_phi = dinh_tien(tien["phi_khach"])
 	else:
-		nhan_phi, tong = "Sales báo phí khi xác nhận", None
+		nhan_phi = "Sales báo phí khi xác nhận"
 	ngay, gio = khung_gio(snap.get("ngay_nhan"))
 	if snap.get("tu_lay"):
 		cach_nhan = "Tự lấy tại " + (snap.get("diem_lay_ten") or snap.get("dia_chi") or "cửa hàng")
@@ -321,7 +323,7 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 			if cho else (
 				"Đơn này đã được huỷ. Anh chị cần đặt lại thì nhắn tiệm qua Zalo hoặc Messenger bên dưới."
 				if tt == "Da huy" else
-				"Tiệm đã nhận đơn. Sales sẽ gọi xác nhận rồi gửi cách thanh toán trong ít phút."
+				"Tiệm đã nhận đơn. Sales sẽ gọi xác nhận trong ít phút."
 			)
 		),
 		"ten": viet_tat_ten((snap.get("nguoi_dat") or {}).get("ho_ten")),
@@ -338,7 +340,11 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 		"ngay_nhan": ngay,
 		"khung_gio": gio,
 		"cach_nhan": cach_nhan,
-		"thanh_toan": TEN_THANH_TOAN.get(snap.get("thanh_toan") or "bank", TEN_THANH_TOAN["bank"]),
+		"thanh_toan": ttt.nhan_pt(ban_ghi.get("thanh_toan") or snap.get("thanh_toan")),
+		# v638: khối thanh toán (phần thuần); bien_nhan_theo_token thêm tài khoản,
+		# mã QR, khoá trang thẻ.
+		"tt": ttt.khoi_bien_nhan(ban_ghi.get("thanh_toan") or snap.get("thanh_toan"), tien,
+			ban_ghi.get("vgb_tt_trang_thai"), ban_ghi.get("vgb_tt_da_thu"), ban_ghi.get("vgb_tt_cach"), tt == "Da huy"),
 	}
 
 
@@ -479,7 +485,10 @@ def soan_tin_sales(ban_ghi, url=""):
 # đổi token_hash là khoá trang biên nhận của khách, đổi snapshot hay tiền là
 # sửa lại lịch sử một đơn khách đã gửi.
 KHONG_DOI = ("token_hash", "muoi", "khoa_chong_trung", "event_id_gui_don", "event_id_mua_hang",
-	"snapshot", "tien_banh", "phi_khach", "phi_ahamove", "dien_thoai", "ho_ten", "ngay_nhan")
+	"snapshot", "tien_banh", "phi_khach", "phi_ahamove", "dien_thoai", "ho_ten", "ngay_nhan",
+	# v638: người giới thiệu và % chốt lúc khách gửi đơn. Đổi người chỉ qua cửa
+	# quản lý trên app (gioi_thieu.doi_nguoi), có ghi vết.
+	"vgb_nguoi_gioi_thieu", "vgb_pt_gioi_thieu")
 
 
 def gia_tri_giong(a, b):
@@ -550,12 +559,63 @@ def nguong_mien_phi():
 		return 0
 
 
-def lien_he():
-	"""Số điện thoại, email, mạng xã hội cho chân trang. Anh Việt điền ở Settings."""
+RE_ZALO_SO_DIEN_THOAI = re.compile(r"/\+?[0-9]{8,12}/?")
+
+
+def la_zalo_so_dien_thoai(u):
+	"""Link zalo.me trỏ vào SỐ ĐIỆN THOẠI (zalo.me/0931224334). THUẦN.
+
+	Số cá nhân hay tắt "cho người lạ tìm qua số điện thoại": khách bấm là Zalo
+	báo "Trang này không tìm thấy" (anh Việt 04/11/2026, nút Nhắn Zalo trên biên
+	nhận đặt bánh). Link OA (zalo.me/thevagabondsaigon) luôn mở được."""
+	try:
+		x = urlsplit(str(u or "").strip())
+	except ValueError:
+		return False
+	return (x.hostname or "").lower() in ("zalo.me", "www.zalo.me") and bool(RE_ZALO_SO_DIEN_THOAI.fullmatch(x.path or ""))
+
+
+def chon_link_zalo(web_zalo, dien_thoai, link_oa):
+	"""Một nguồn cho nút "Nhắn Zalo" (biên nhận, chân trang, đặt bàn). THUẦN.
+
+	Ưu tiên: link Zalo trong Settings nếu KHÔNG phải link số điện thoại; rồi link
+	OA của khối "Zalo OA" đang hiện trên web; cuối cùng mới tới link số điện thoại
+	(không có gì khác thì còn hơn không có nút)."""
+	z = str(web_zalo or "").strip()
+	oa = str(link_oa or "").strip()
+	if z and not la_zalo_so_dien_thoai(z):
+		return z
+	if oa:
+		return oa
+	if z:
+		return z
+	so = _chu_so(dien_thoai)
+	return ("https://zalo.me/" + so) if so else ""
+
+
+def _link_zalo_oa(khoi=None):
+	"""Link của khối "Zalo OA" đang hiện trên bản web công khai, đã qua cùng phép
+	kiểm OA của Editor. Đọc lỗi thì trả rỗng: nút Zalo không được làm hỏng trang."""
+	try:
+		if khoi is None:
+			from vagabond import noi_dung_web
+			khoi = noi_dung_web._ban_cong_khai().get("khoi") or []
+		for k in khoi:
+			if isinstance(k, dict) and k.get("loai") == "zalo_oa" and k.get("hien"):
+				u = str(k.get("lien_ket") or "").strip()
+				x = urlsplit(u)
+				if x.scheme == "https" and (x.hostname or "").lower() == "zalo.me" and not la_zalo_so_dien_thoai(u):
+					return u
+	except Exception:
+		return ""
+	return ""
+
+
+def lien_he(khoi=None):
+	"""Số điện thoại, email, mạng xã hội cho chân trang. Anh Việt điền ở Settings.
+	`khoi`: các khối nội dung web công khai nếu bên gọi đã đọc sẵn (đỡ một lượt đọc)."""
 	dt = str(cfg_o("web_dien_thoai") or "").strip()
-	zalo = str(cfg_o("web_zalo") or "").strip()
-	if not zalo and _chu_so(dt):
-		zalo = "https://zalo.me/" + _chu_so(dt)
+	zalo = chon_link_zalo(cfg_o("web_zalo"), dt, _link_zalo_oa(khoi))
 	return {
 		"dien_thoai": dt,
 		"dien_thoai_so": _chu_so(dt),
@@ -575,9 +635,14 @@ def pixel_id():
 @frappe.whitelist(allow_guest=True)
 def cau_hinh_web():
 	"""Cấu hình công khai cho trang đặt bánh. KHÔNG bao giờ có token CAPI."""
-	from vagabond import noi_dung_web
+	from vagabond import gioi_thieu, noi_dung_web
+	from vagabond.onepay import dung_duoc
 
 	return {
+		# v638: cổng thẻ tắt thì bước đặt bánh ẩn hai cách thẻ.
+		"onepay": 1 if dung_duoc() else 0,
+		# v638: công tắc Hoa hồng giới thiệu tắt thì trang đặt bánh ẩn ô Mã giới thiệu.
+		"gioi_thieu": 1 if gioi_thieu.bat() else 0,
 		"pixel_id": pixel_id(),
 		"mien_phi_tu": nguong_mien_phi(),
 		"lien_he": lien_he(),
@@ -619,6 +684,10 @@ def tao_ban_ghi(nonce, truong):
 	d.event_id_gui_don = sinh_event_id()
 	d.event_id_mua_hang = sinh_event_id()
 	d.token_hash = bam(sinh_token(_khoa_bi_mat(), d.muoi, nonce))
+	# v638: số khách gõ ở ô Mã giới thiệu (ảnh chụp gioi_thieu_sdt) ra người giới
+	# thiệu và % chốt lúc đặt. Hàm tự nuốt lỗi: không bao giờ chặn đơn khách.
+	from vagabond import gioi_thieu
+	gioi_thieu.gan_cho_don_web(d)
 	d.insert(ignore_permissions=True)
 	return d
 
@@ -867,7 +936,7 @@ def bien_nhan_theo_token(token):
 	if not token_hop_le(token):
 		return None
 	ds = frappe.get_all(DOCTYPE, filters={"token_hash": bam(token)},
-		fields=["name", "trang_thai", "tien_banh", "trang_thai_phi", "snapshot",
+		fields=["name", "trang_thai", "tien_banh", "trang_thai_phi", "snapshot", "thanh_toan",
 			"event_id_gui_don", "creation"],
 		limit_page_length=1, ignore_permissions=True)
 	if not ds:
@@ -875,6 +944,20 @@ def bien_nhan_theo_token(token):
 	b = ds[0]
 	snap = json.loads(b.get("snapshot") or "{}")
 	tt = tom_tat_bien_nhan(b, snap)
+	# v638: khối thanh toán đầy đủ (ô thu online, mã QR, khoá trang thẻ). Đọc
+	# riêng: ô mới chưa dựng (trước migrate) hay cấu hình hỏng không được làm
+	# mất biên nhận, chỉ mất khối thanh toán.
+	try:
+		from vagabond import thanh_toan_web
+
+		d = thanh_toan_web._doc(b["name"])
+		if d:
+			tt["tt"] = thanh_toan_web.khoi_thanh_toan(d, snap)
+	except Exception:
+		try:
+			frappe.log_error(frappe.get_traceback(), "don_web: khối thanh toán biên nhận")
+		except Exception:
+			pass
 	return {
 		"bien_nhan": tt,
 		"su_kien": {

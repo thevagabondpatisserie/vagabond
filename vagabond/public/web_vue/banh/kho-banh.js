@@ -11,10 +11,13 @@
 import {reactive, computed, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 import {CONFIG, SLOTS, cakesGoc, NUMS, ADDONS, PICKUPS_GOC, LY_DO, TEN_DIEM, NHAN_MAC_DINH,
-  THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS} from './du-lieu.js';
+  THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS} from './du-lieu.js';
 import {thuong, dam, mau, lienKet, cauCoSo, noi} from './chu-giau.js';
+import {taoGoiBan} from './kho-goi-ban.js';
 
 const KHOA_LUU = 'vgb-gio-v1';
+/* v638: bốn cách thanh toán khách chọn được. */
+const PT_HOP_LE = PAYS.map(p => p.k);
 
 export function taoKho(moiTruong) {
   const {t, tMon, doc, ghi, bayGio = () => new Date(), luuTru = null, suKien = () => {},
@@ -42,9 +45,9 @@ export function taoKho(moiTruong) {
     CO: {mode: 'ship', pickupId: 'bep-tan-son-hoa', pay: 'bank', other: false, gift: false, vat: false, dongy: false, uudai: false,
       ship: null, shipTrangThai: null, quan: '', nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
       ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null},
-    f: {phone: '', name: '', mail: '', addr: '', rname: '', rphone: '', note: '', mst: '', cname: '', cmail: '', caddr: '', ma: ''},
+    f: {phone: '', name: '', mail: '', addr: '', rname: '', rphone: '', note: '', mst: '', cname: '', cmail: '', caddr: '', ma: '', gt: ''},
     goiY: [],
-    goi: {phone: null, ship: null, mst: null, gui: null, phiThuLai: false},
+    goi: {phone: null, ship: null, mst: null, gui: null, phiThuLai: false, gt: null},
     dangGui: false, guiXong: false,
     PICKUPS: PICKUPS_GOC.slice(),
     cauHinh: null, mienPhiTu: 0,
@@ -431,6 +434,55 @@ export function taoKho(moiTruong) {
   });
   const dongMienPhi = computed(() => T.dongMienPhi(tienBanh.value, S.mienPhiTu, t));
 
+  /* ---------------- thanh toán (v638) ---------------- */
+  /* Cách thanh toán hiện cho khách: hai cách thẻ chỉ hiện khi máy chủ báo cổng
+     OnePay đang dùng được (cau_hinh_web.onepay). Chưa nạp cấu hình thì chưa hiện
+     thẻ, không hứa một cách trả có thể đang tắt. */
+  const paysHien = computed(() => PAYS.filter(p => !p.the || !!(S.cauHinh && Number(S.cauHinh.onepay) === 1)));
+  /* Cách đang chọn mà vừa bị ẩn (cổng tắt) thì về chuyển khoản. Chỉ xét khi đã
+     có cấu hình: giỏ phục hồi chọn thẻ không bị đổi trước lúc biết cổng. */
+  watch(() => [S.cauHinh, S.CO.pay], () => {
+    if (S.cauHinh && !paysHien.value.some(p => p.k === S.CO.pay)) S.CO.pay = 'bank';
+  }, {flush: 'sync'});
+  /* Câu dưới tổng tiền nói đúng điều sẽ xảy ra sau khi gửi đơn (trước v638 câu
+     này hứa link OnePay, mã 15 phút, tự huỷ mà máy chủ không làm gì). */
+  const cauThanhToan = computed(() => {
+    const p = S.CO.pay;
+    const cau = p === 'cash' ? t('dat_banh_tt_tien_mat', 'Quý khách thanh toán tiền mặt khi nhận bánh, tại quầy hoặc cho người giao.')
+      : (p === 'card' || p === 'atm') ? t('dat_banh_tt_the', 'Gửi đơn xong, quý khách bấm Thanh toán bằng thẻ trên trang biên nhận và nhập thẻ trên trang bảo mật OnePay.')
+      : t('dat_banh_tt_ck', 'Gửi đơn xong, trang biên nhận hiện mã VietQR đúng số tiền. Quý khách quét để chuyển khoản, hệ thống tự xác nhận khi tiền về.');
+    const ds = [cau];
+    if (p !== 'cash' && S.CO.mode !== 'pick' && !mienPhi.value && S.CO.shipTrangThai === 'chua_ro') {
+      ds.push(t('dat_banh_tt_phi_sau', 'Phí giao chưa tính được lúc này: số thu online là tiền bánh, phí giao quý khách trả khi nhận.'));
+    }
+    return ds;
+  });
+  /* Mã giới thiệu: số điện thoại nhân viên. Rời ô thì hỏi tên nhân viên (cửa
+     vagabond.gioi_thieu.kiem); cửa lỗi hay chưa có thì im lặng, không bao giờ
+     chặn đặt đơn. Máy chủ tự chuẩn hoá lại khi nhận đơn.
+     v638: công tắc Hoa hồng giới thiệu tắt (cau_hinh_web.gioi_thieu = 0) thì ô
+     ẩn và đơn không gửi mã. Chưa nạp cấu hình thì vẫn hiện: máy chủ tự bỏ mã
+     khi công tắc tắt. Cửa kiem chỉ nhận POST (giới hạn lượt theo IP). */
+  const coGioiThieu = computed(() => !(S.cauHinh && Number(S.cauHinh.gioi_thieu) === 0));
+  const soGioiThieu = () => {
+    if (!coGioiThieu.value) return '';
+    const so = String(S.f.gt || '').replace(/\D/g, '');
+    return so.length >= 8 && so.length <= 12 ? so : '';
+  };
+  let luotGt = 0;
+  async function kiemGioiThieu() {
+    const so = soGioiThieu(), luot = ++luotGt;
+    S.goi.gt = null;
+    if (!so) return;
+    let m = null;
+    try { m = await ghi('vagabond.gioi_thieu.kiem', {sdt: so}, {choXemThu: true}); } catch (e) { return; }
+    if (luot !== luotGt || so !== soGioiThieu() || !m || typeof m !== 'object' || !('ok' in m)) return;
+    if (Number(m.tat) === 1) return;
+    const ten = String(m.ten || '').trim();
+    S.goi.gt = ten ? [dam(t('dat_banh_ma_gt_co', 'Nhân viên giới thiệu: {ten}', {ten}), 'cyan')]
+      : [thuong(t('dat_banh_ma_gt_khong', 'Không tìm thấy nhân viên với số này. Quý khách vẫn đặt bánh bình thường.'))];
+  }
+
   /* ---------------- tra số điện thoại, địa chỉ, MST ---------------- */
   let phHen = null, gyHen = null, mstHen = null;
   function lookupPhone() {
@@ -599,7 +651,8 @@ export function taoKho(moiTruong) {
       lat: S.CO.pickedLoc ? S.CO.pickedLoc.lat : null, lng: S.CO.pickedLoc ? S.CO.pickedLoc.lng : null,
       items: T.hangGui(S.CART), tags, ngay_nhan: mocGioNhan(),
       note_print: lines.join('\n'), note, hoa_don: vat,
-      nonce: S.CO.nonce, dong_y: true, nhan_uu_dai: S.CO.uudai === true, thanh_toan: S.CO.pay,
+      nonce: S.CO.nonce, dong_y: true, nhan_uu_dai: S.CO.uudai === true,
+      thanh_toan: paysHien.value.some(p => p.k === S.CO.pay) ? S.CO.pay : 'bank', ma_gioi_thieu: soGioiThieu(),
       diem_lay_ten: tuLay ? diemNhanChon.value.n : '', diem_lay_id: tuLay ? diemNhanChon.value.id : '',
       ma_uu_dai: S.CO.uuMa || '', giam_da_xem: giam.value, fbp: fb.fbp, fbc: fb.fbc
     };
@@ -772,7 +825,7 @@ export function taoKho(moiTruong) {
       S.daChonGio = d.daChonGio === true && gioHopLe.value;
       const c = d.co || {};
       S.CO.mode = c.mode === 'pick' ? 'pick' : 'ship';
-      S.CO.pay = c.pay === 'card' ? 'card' : 'bank';
+      S.CO.pay = PT_HOP_LE.includes(c.pay) ? c.pay : 'bank';
       S.CO.pickupId = typeof c.pickupId === 'string' ? c.pickupId : '';
       if (S.CO.pickupId && !S.PICKUPS.some(x => x.id === S.CO.pickupId)) S.CO.pickupId = '';
       if (!S.PICKUPS.length) S.CO.mode = 'ship';
@@ -793,13 +846,18 @@ export function taoKho(moiTruong) {
   watch(() => [S.CART, S.f, S.CO.mode, S.CO.pickupId, S.CO.pay, S.CO.other, S.CO.gift, S.CO.vat, S.CO.quan, S.CO.nonce,
     S.ngayChon, S.pickedSlot, S.daChonNgay, S.daChonGio, S.gioCho], luuGio, {deep: true, flush: 'sync'});
 
-  return {S, T, picked, slotOk, firstOk, ngayDangChon, slotDangChon, gioHopLe, daChot, hienTomTat, nhanNgayDangChon,
+  /* v638: gọi món tại bàn qua QR, kho riêng (kho-goi-ban.js) dùng chung S. */
+  const goiBan = taoGoiBan({t, doc, ghi, luuTru, ngauNhien, hen, huyHen, toast, napQuay,
+    timKiem: moiTruong.timKiem || (() => '')}, S);
+
+  return {S, T, goiBan, picked, slotOk, firstOk, ngayDangChon, slotDangChon, gioHopLe, daChot, hienTomTat, nhanNgayDangChon,
     ngayRail, khungRail, pick, pickSlot, doiLich, mocGioNhan, ghiChuDatTruoc, ghiChuGio, fixSlot,
     coTruoc, banhHomNay, banhDatTruoc, tongTon, kichThuocDangBan, dongTrangThai, ghiChuHomNay, theBanh,
     curSize, moBanh, dongBanh, setSize, doiSoLuong, toggleNum, clearNums, toggleAdd, phuKienChon, tienNutThem,
     gioiHanNhan, addToCart, themNhanh, suaDongGio,
     soBanh, tienBanh, cartQty, cartRemove, dongGio, khoaUuDai, uuHienTai, giam, xemUuDai, apMaUuDai, goiYMa,
     mienPhi, quoteShip, apPhiGiao, chonQuan, setMode, diemNhanChon, setPickup, capNhatDiemNhan, tong, dongMienPhi,
+    paysHien, cauThanhToan, kiemGioiThieu, coGioiThieu,
     lookupPhone, diaChiLuu, selAddr, goiYDiaChi, chonGoiY, lookupMst,
     moGio, roiGio, submitOrder,
     napTon, napMua, napQuay, napCauHinh, coMua, timMonMua, themHangMua, hanMua,

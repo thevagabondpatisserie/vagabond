@@ -100,8 +100,9 @@ def _():
 	# Anh Viet duyet mockup 03/10/2026: ba man nay chi co ba o, gom vao chi
 	# them mot lop chu de doc chu khong giup tim nhanh hon.
 	# v622: Nhân sự thêm ô Tuyển dụng thành bốn ô, vẫn không gom (bốn ô một màn).
+	# v638: thêm ô Hoa hồng giới thiệu thành năm ô, vẫn vừa một màn, không gom.
 	m = {x["k"]: x for x in _bang_nhom()["nhom"]}
-	for k, so in (("NK", 3), ("KK", 3), ("NS", 4)):
+	for k, so in (("NK", 3), ("KK", 3), ("NS", 5)):
 		dung("phân hệ %s không khai nhóm" % k, not m[k].get("nhom"))
 		la("phân hệ %s vẫn đúng %d ô" % (k, so), len(m[k]["keys"]), so)
 

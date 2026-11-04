@@ -246,6 +246,21 @@ def dung():
 	from vagabond import thiet_ke_rieng
 
 	_dung_nhom(thiet_ke_rieng.TRUONG_MOI, "thiet_ke_rieng")
+	# v638: thanh toán ngay trên web cho đơn đặt bánh (ô thu online, nhật ký thẻ
+	# trên Vagabond Don Web; cờ tạm không ghi Pancake trong Cài đặt).
+	from vagabond import thanh_toan_web
+
+	_dung_nhom(thanh_toan_web.TRUONG_MOI, "thanh_toan_web")
+	# v638: mã giới thiệu và hoa hồng giới thiệu (ô trên Cài đặt, hoá đơn,
+	# Don Web, phiếu KPI). Sau thanh_toan_web vì ô Don Web neo vào vgb_onepay_gd.
+	# Gieo mặc định ba ô Cài đặt để lần Lưu đầu tiên không ghi 0 đè lên.
+	from vagabond import gioi_thieu
+
+	_dung_nhom(gioi_thieu.TRUONG_MOI, "gioi_thieu")
+	try:
+		gioi_thieu.gieo_mac_dinh()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: mặc định hoa hồng giới thiệu")
 	try:
 		from vagabond import noi_dung_web
 

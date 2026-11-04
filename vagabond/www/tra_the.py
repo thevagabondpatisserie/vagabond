@@ -47,7 +47,10 @@ def get_context(context):
 
 	# v637: trang của đơn đặt trước chỉ có nút thẻ (khách đang đứng ở quầy, mã
 	# chuyển khoản của đơn hiện trên màn quầy); khối chuyển khoản là của phiếu công nợ.
-	if context.phieu and not onepay_dat.la_ma_don(context.phieu.get("ma_phieu")):
+	# v638: đơn đặt bánh trên web cũng chỉ có nút thẻ: mã chuyển khoản của đơn nằm
+	# trên biên nhận (nội dung khớp đơn), không dùng tài khoản phiếu công nợ.
+	if context.phieu and not onepay_dat.la_ma_don(context.phieu.get("ma_phieu")) \
+			and context.phieu.get("loai") != "don_web":
 		try:
 			from vagabond import cong_no, qr_chuyen_khoan, tai_khoan
 

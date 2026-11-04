@@ -134,3 +134,6 @@ from vagabond.khung.kiem_that import thu_thiet_ke_rieng_630  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_banh_si_630  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_onepay_633  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_onepay_dat_637  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_thanh_toan_web_638  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_gioi_thieu_638  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_goi_mon_ban_638  # noqa: F401,E402

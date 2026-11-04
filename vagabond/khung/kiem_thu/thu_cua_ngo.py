@@ -146,6 +146,9 @@ CUA_NGO = {
 	"onepay.py": ["tao_gd", "ipn"],
 	# v637: màn quầy, Thu phần còn lại cách Thẻ OnePay (quyền kiểm trong hàm).
 	"onepay_dat.py": ["con_lai", "ma_the"],
+	# v638: biên nhận đặt bánh hỏi lại trạng thái thanh toán (allow_guest, đòi
+	# token biên nhận, rate_limit). Mọi hàm khác của tệp là nội bộ.
+	"thanh_toan_web.py": ["trang_thai"],
 	# Them 27/08/2026: cong tac tam ngung ban mot ma tren web dat banh. Chi
 	# `dat` duoc mo ra ngoai; `bang` va `dang_tat` la ham noi bo, hai man kiem
 	# banh goi qua cua rieng cua chung.
@@ -192,6 +195,11 @@ CUA_NGO = {
 	# to hoa don, tuyet doi khong duoc mo ra ngoai. `ai_ban` va `_dang_chay_nen`
 	# la ham thuan va ham noi bo.
 	"nguoi_ban.py": ["gan"],
+	# v638 mã giới thiệu: `kiem` mở cho khách vãng lai (POST, giới hạn lượt,
+	# chỉ trả tên gọi). Còn lại cho nhân viên và quản lý. `gan_cho_hoa_don`,
+	# `gan_cho_don_web`, `tinh_cho_hoa_don` và các hook CO Y không mở ra ngoài:
+	# mở là cho bất kỳ ai tự gắn mình vào đơn của người khác.
+	"gioi_thieu.py": ["cua_toi", "doi_nguoi", "dua_vao_kpi", "kiem", "nhan_vien", "toan_tiem"],
 	# Them 02/09/2026: dong bo ten mon luu san trong cong thuc. Mot cua ngo
 	# duy nhat la `soat`, va no CHI DOC - liet ke cho anh Viet xem cho nao
 	# lech roi quyet.
@@ -215,7 +223,15 @@ CUA_NGO = {
 	"kiem_kho.py": [
 		"bang", "chot", "con_lai", "diem_ds", "them_dong", "tim_mon",
 		"luu_o", "xoa_dong", "mo_lai", "con_tren_quay_web",
+		# v638: công tắc Bán trên web của mục Đồ uống (quyền sửa bảng).
+		"ban_web_do_uong",
 	],
+	# v638 gọi món tại bàn qua QR. Ba cửa khách (allow_guest, rate_limit):
+	# `mo_ban` kiểm link, `goi` gọi món, `trang_thai` hỏi đơn bằng khoá khách.
+	# Ba cửa quầy (_kiem_quyen_ban): `dem_cho`, `nhan`, `tu_choi`. Hai cửa màn In
+	# QR tại bàn (quản lý cửa hàng, Giám đốc): `diem_in_qr`, `to_qr`. Hàm còn
+	# lại (`quet_het_han` lịch, `con_cho_nhan` hỏi lại tin Zalo) là nội bộ.
+	"goi_mon_ban.py": ["mo_ban", "goi", "trang_thai", "dem_cho", "nhan", "tu_choi", "diem_in_qr", "to_qr"],
 	# Them 03/09/2026: man Cai dat trang dat banh web. `dong_bo` keo danh muc
 	# Pancake ve mot luot roi xoa dem va ghi lai anh; `tinh_hinh` chi doc. Cac
 	# ham `_ghi_lai_hinh`, `_gan_anh_mon_trong`, `_xoa_dem` la noi bo, KHONG mo.

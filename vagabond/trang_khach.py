@@ -14,6 +14,9 @@ Hàm THUẦN, không chạm Frappe.
 
 import html
 import json
+import re
+
+from vagabond import thanh_toan_web_thuan as ttt
 
 
 def _e(s):
@@ -85,6 +88,8 @@ GIA_TRI_BIEN_NHAN = {
     'Tự lấy, không tính phí':('bien_nhan_phi_tu_lay','Tự lấy, không tính phí'),
     'Miễn phí giao':('bien_nhan_phi_mien','Miễn phí giao'),
 }
+# v638: bốn cách thanh toán, chữ và khoá nhãn lấy từ MỘT nguồn với máy chủ.
+GIA_TRI_BIEN_NHAN.update({chu: (khoa, chu) for chu, khoa in ttt.NHAN_PT.values()})
 TIEN_TO_TU_LAY = ('Tự lấy tại ', 'bien_nhan_tu_lay_tai', 'Tự lấy tại')
 
 
@@ -135,10 +140,57 @@ def bien_nhan_html(tt, lien_he):
 		'<div><dt><span data-vgb-chu="bien_nhan_06a446f5c">Phí giao</span></dt><dd>%s</dd></div>' % _chu_bien_nhan(tt.get("phi_giao")),
 		'<div class="tong"><dt><span data-vgb-chu="bien_nhan_de995d836">Tổng</span></dt><dd>%s</dd></div>' % _chu_bien_nhan(tt.get("tong")),
 		'</dl>',
-		'<p class="bn-luu-y"><span data-vgb-chu="bien_nhan_0ea4a5a10">Chúng tôi chưa thu tiền ở bước này. Chúng tôi sẽ gọi xác nhận rồi gửi hướng dẫn thanh toán.</span></p>',
+		khoi_thanh_toan_html(tt.get("tt")),
+		('<p class="bn-luu-y">%s</p>' % _chu("bien_nhan_tt_ho_tro", "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:")) if nut else "",
 		'<div class="bn-nut">%s<a class="nut chinh" href="/banh"><span data-vgb-chu="bien_nhan_3f197d985">Đặt thêm bánh</span></a></div>' % "".join(nut),
 		'</div></main>',
 	])
+
+
+RE_ANH_QR = re.compile(r"^data:image/svg\+xml;base64,[A-Za-z0-9+/=]+$")
+
+
+def khoi_thanh_toan_html(k):
+	"""v638: khối thanh toán của biên nhận trang cũ, dựng từ CÙNG dữ liệu máy chủ
+	gửi biên nhận Vue (thanh_toan_web.khoi_thanh_toan). Chuyển khoản: mã VietQR,
+	tài khoản, nội dung; thẻ: nút sang trang thẻ của tiệm (/tra-the); tiền mặt:
+	một câu. Trang cũ không tự hỏi lại trạng thái: khách tải lại trang để xem."""
+	k = k or {}
+	tt = k.get("trang_thai")
+	if not tt or tt == "huy":
+		return ""
+	ra = ['<section class="bn-tt">', '<h2>%s</h2>' % _chu("bien_nhan_tt_tieu_de", "Thanh toán")]
+	if tt == "tien_mat":
+		ra.append('<p>%s</p>' % _chu("bien_nhan_tt_tien_mat", "Quý khách thanh toán tiền mặt khi nhận bánh."))
+	elif tt == "da_thu":
+		ra.append('<p class="bn-tt-ok"><b>%s</b> %s · %s</p>' % (_chu("bien_nhan_tt_da_nhan", "Đã nhận tiền"),
+			_e(k.get("da_thu_chu")), _e(k.get("cach_thu"))))
+	else:
+		if tt == "thieu":
+			ra.append('<p class="bn-tt-thieu">%s %s</p>' % (_chu("bien_nhan_tt_thieu", "Đã nhận một phần, còn thiếu"), _e(k.get("con_chu"))))
+		the = k.get("the") or {}
+		ck = k.get("ck") or {}
+		if the.get("duong") and _lien_ket_an_toan(the.get("duong")):
+			ra.append('<p class="bn-tt-so">%s <b>%s</b></p>' % (_chu("bien_nhan_tt_so_the", "Số tiền thanh toán"), _e(k.get("con_chu"))))
+			ra.append('<a class="nut chinh" href="%s">%s</a>' % (_e(the["duong"]), _chu("bien_nhan_tt_the_nut", "Thanh toán bằng thẻ")))
+			ra.append('<p class="bn-tt-phu">%s</p>' % _chu("bien_nhan_tt_the_mo", "Quý khách được chuyển sang trang bảo mật của OnePay để nhập thẻ và mã OTP."))
+		elif ck:
+			if k.get("the_tat"):
+				ra.append('<p class="bn-tt-phu">%s</p>' % _chu("bien_nhan_tt_the_tat", "Thanh toán thẻ đang tạm ngưng. Quý khách chuyển khoản theo mã dưới đây."))
+			ra.append('<p class="bn-tt-so">%s <b>%s</b></p>' % (_chu("bien_nhan_tt_so_ck", "Số tiền chuyển khoản"), _e(k.get("con_chu"))))
+			if RE_ANH_QR.match(str(ck.get("anh") or "")):
+				ra.append('<img class="bn-tt-qr" src="%s" alt="VietQR" width="220" height="220">' % ck["anh"])
+			ra.append('<dl class="bn-dong">')
+			for khoa, mac, gia in (("bien_nhan_tt_ngan_hang", "Ngân hàng", ck.get("ngan_hang")),
+					("bien_nhan_tt_stk", "Số tài khoản", ck.get("stk")), ("bien_nhan_tt_chu_tk", "Chủ tài khoản", ck.get("ten")),
+					("bien_nhan_tt_noi_dung", "Nội dung chuyển khoản", ck.get("noi_dung"))):
+				ra.append('<div><dt>%s</dt><dd>%s</dd></div>' % (_chu(khoa, mac), _e(gia)))
+			ra.append('</dl>')
+			ra.append('<p class="bn-tt-phu">%s</p>' % _chu("bien_nhan_tt_quet_cu", "Quét mã bằng ứng dụng ngân hàng, giữ nguyên nội dung. Hệ thống tự xác nhận khi tiền về; quý khách tải lại trang để xem."))
+		if k.get("phi_sau"):
+			ra.append('<p class="bn-tt-phu">%s</p>' % _chu("bien_nhan_tt_phi_sau", "Số này là tiền bánh. Phí giao quý khách trả khi nhận bánh."))
+	ra.append('</section>')
+	return "".join(ra)
 
 
 def json_trong_script(du_lieu):

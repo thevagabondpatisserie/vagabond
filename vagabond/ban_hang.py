@@ -634,6 +634,9 @@ NGUON_CU = {
 	"Mang về - Nguyễn Văn Trỗi": "Mang về",
 	"Tại chỗ - Sales Online": "Tại chỗ",
 	"Mang về - Sales Online": "Mang về",
+	# v638: phiếu tạm tính lập từ đơn gọi món tại bàn mang nguồn riêng để báo
+	# cáo tách được, còn phương thức thanh toán thì đi đúng như "Tại chỗ".
+	"QR tại bàn": "Tại chỗ",
 }
 
 
@@ -882,6 +885,12 @@ def pos_anh_quay_luu(ma=None, url=None):
 	return {"ma": ma, "url": url}
 
 
+def _goi_mon_ban():
+	from vagabond import goi_mon_ban
+
+	return goi_mon_ban
+
+
 @frappe.whitelist()
 def cau_hinh_ban_hang():
 	"""Nguon don, phuong thuc thanh toan, quy tac ma tham chieu cho app /bep.
@@ -959,6 +968,12 @@ def cau_hinh_ban_hang():
 		# vao dung tai khoan cua nguon do.
 		"qr_nguon": tai_khoan.bang_theo_nguon(nguon),
 		"thu_tu_nhom": THU_TU_NHOM,
+		# v638: nhóm món nước MỘT nguồn (goi_mon_ban.NHOM_NUOC); màn quầy đọc lại
+		# để in phiếu pha chế. Nguồn của phiếu lập từ QR tại bàn và phương thức
+		# của nó (như Tại chỗ) để màn bill không rơi về danh sách online.
+		"nhom_nuoc": list(_goi_mon_ban().NHOM_NUOC),
+		"nguon_qr": _goi_mon_ban().NGUON_QR,
+		"pt_quay": [t for t in _pt_cho_nguon(_goi_mon_ban().NGUON_QR)],
 		# Kho giay tung loai phieu, de app khong go cung 80mm nua. Doi may
 		# in khac kho thi khai o man Cai dat, khong phai sua ma roi deploy.
 		"kho_in": may_in.kho_theo_vai_tro(),
@@ -1726,12 +1741,21 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	# ra that, va cu 30 phut mot lan se de len lua chon tay cua sales neu
 	# khong chan. Cung mot luat voi ban dich Gemini khong de len chu nguoi go.
 	pt_tt, ghi_tt = _doan_thanh_toan(o)
+	ma_web = ""
+	if not pt_tt:
+		# v638: đơn đặt bánh trên web khách đã trả ĐỦ online (chuyển khoản SePay
+		# khớp, hoặc thẻ OnePay của tiệm) mà Pancake không nói được kênh: phương
+		# thức lấy từ bản ghi đơn web. Thẻ OnePay của tiệm không có trong
+		# payment_purchase_histories của Pancake nên không đoán được từ đơn.
+		pt_tt, ma_web = _pt_don_web(pid, did)
 	if pt_tt and frappe.db.exists("Mode of Payment", pt_tt):
 		cu = (si.get("vgb_pt_thanh_toan") or "").strip()
 		do_may = cint(si.get("vgb_pt_do_may") or 0)
 		if cu != "Hàng tặng" and (not cu or do_may):
 			si.vgb_pt_thanh_toan = pt_tt
 			si.vgb_pt_do_may = 1
+			if ma_web and not (si.get("vgb_ma_tham_chieu") or "").strip():
+				si.vgb_ma_tham_chieu = ma_web
 	elif not (si.get("vgb_pt_thanh_toan") or "").strip():
 		si.vgb_pt_do_may = 0
 	# Bang cac dong thanh toan cho don tra bang nhieu duong. Chi dien khi
@@ -2625,6 +2649,29 @@ def _tien(n):
 	return "{:,.0f}".format(flt(n)).replace(",", ".")
 
 
+def _pt_don_web(pid, did):
+	"""v638: (phương thức, mã tham chiếu) của đơn web đã trả đủ online. Hỏng
+	thì rỗng: phép phụ không được làm hỏng nhịp đồng bộ."""
+	try:
+		from vagabond import thanh_toan_web
+
+		return thanh_toan_web.pt_hoa_don(pid, did)
+	except Exception:
+		return "", ""
+
+
+def _ck_don_web(si):
+	"""v638: tiền chuyển khoản đã khớp cho đơn web của hoá đơn này, kể cả khi
+	khách chuyển theo nội dung mã Don Web (đơn chưa có mã Pancake lúc đặt) mà
+	`_sepay_theo_don` dò theo mã Pancake không thấy."""
+	try:
+		from vagabond import thanh_toan_web
+
+		return thanh_toan_web.ck_hoa_don(si.get("custom_pancake_id"), si.get("custom_pancake_display_id"))
+	except Exception:
+		return {}
+
+
 def _soat_sepay(si, sepay=None):
 	"""Don Chuyen khoan: ngan hang phai nhan du tien moi cho ghi so.
 
@@ -2643,6 +2690,12 @@ def _soat_sepay(si, sepay=None):
 		sepay = _sepay_theo_don(cfg().pancake_shop_id, [si.custom_pancake_display_id])
 	g = (sepay or {}).get(str(si.custom_pancake_display_id or "")) or {}
 	nhan = flt(g.get("nhan"))
+	if nhan < flt(si.grand_total) - 1:
+		# v638: đơn web trả chuyển khoản ngay trên web. Lấy số LỚN hơn, không
+		# cộng: hai đường có thể cùng thấy một dòng sao kê.
+		w = _ck_don_web(si) or {}
+		if flt(w.get("nhan")) > nhan:
+			g, nhan = w, flt(w.get("nhan"))
 	if nhan >= flt(si.grand_total) - 1:
 		if not (si.vgb_ma_tham_chieu or "").strip() and g.get("ma"):
 			si.vgb_ma_tham_chieu = g["ma"]
@@ -4537,6 +4590,46 @@ def _khach_chon(khach_ma):
 	return ma
 
 
+def mo_ta_dong(ten_mon, cbo="", tc="", gcm=""):
+	"""Mô tả dòng hoá đơn: tên món, rồi dòng combo (◈), tuỳ chọn pha chế trong
+	ngoặc vuông, ghi chú riêng của món (※). Màn bill quầy đọc ngược đúng ba dấu
+	này (10-bill-quay.js monTuDoc). Rỗng khi không có gì thêm. THUẦN."""
+	cbo, tc, gcm = (cbo or "").strip(), (tc or "").strip(), (gcm or "").strip()
+	if not (tc or gcm or cbo):
+		return ""
+	ra = ten_mon
+	if cbo:
+		ra += "\n%s %s" % (DAU_COMBO, cbo[:120])
+	if tc:
+		ra += "\n[%s]" % tc[:200]
+	if gcm:
+		ra += "\n%s %s" % (DAU_GC_MON, gcm[:200])
+	return ra
+
+
+def _dung_dong_mon(r):
+	"""Một dòng giỏ (item_code, qty, rate, tuy_chon, ghi_chu, combo, combo_ma)
+	-> một dòng hoá đơn. MỘT chỗ dựng dòng cho màn Tính tiền (tao_don_tay), màn
+	sửa bill (pos_sua_don) và cửa nhận đơn gọi món tại bàn (goi_mon_ban), v638.
+
+	Tuy chon pha che kieu Fabi (it duong, it da, da rieng...) - chi la ghi chu
+	0 dong tren dong mon, khong doi tien (anh Viet 09/08/2026). Ghi chu RIENG
+	cua tung mon (anh Viet 10/08/2026): voi don food app day chinh la cho mang
+	ma don, in len tem dan mon de shipper doc ma nhan dung tui."""
+	ma = (r.get("item_code") or "").strip()
+	d = {"item_code": ma, "qty": flt(r.get("qty") or 0), "rate": flt(r.get("rate") or 0)}
+	cbo = (r.get("combo") or "").strip()
+	if r.get("combo_ma"):
+		cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
+		if ma not in [x.item_code for x in cb.dong]:
+			frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
+		cbo = "%s - %s" % (cb.get("ma_hang") or cb.name, cb.ten)
+	tc, gcm = r.get("tuy_chon") or "", r.get("ghi_chu") or ""
+	if (tc or "").strip() or (gcm or "").strip() or cbo:
+		d["description"] = mo_ta_dong(frappe.db.get_value("Item", ma, "item_name") or ma, cbo, tc, gcm)
+	return d
+
+
 @frappe.whitelist()
 def tao_don_tay(
 	ngay=None,
@@ -4596,31 +4689,7 @@ def tao_don_tay(
 		# Codex PR #532 vòng 7: dòng combo lấy giá thành phần từ cấu hình combo
 		# trên máy chủ, không theo giá máy khách gửi.
 		doi_combo += _gia_combo_may_chu(r, ma)
-		d = {"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)}
-		# Tuy chon pha che kieu Fabi (it duong, it da, da rieng...) - chi la
-		# ghi chu 0 dong tren dong mon, khong doi tien (anh Viet 09/08/2026).
-		tc = (r.get("tuy_chon") or "").strip()
-		# Ghi chu RIENG cua tung mon (anh Viet 10/08/2026): truoc day chi co
-		# mot o ghi chu chung ca hoa don, bep khong biet loi dan la cho mon
-		# nao. Voi don food app thi day chinh la cho mang ma don, in len tem
-		# dan mon de shipper doc ma nhan dung tui.
-		gcm = (r.get("ghi_chu") or "").strip()
-		cbo = (r.get("combo") or "").strip()
-		if r.get("combo_ma"):
-			cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
-			if ma not in [x.item_code for x in cb.dong]:
-				frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
-			cbo = "%s - %s" % (cb.get("ma_hang") or cb.name, cb.ten)
-		if tc or gcm or cbo:
-			ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
-			d["description"] = ten_mon
-			if cbo:
-				d["description"] += "\n%s %s" % (DAU_COMBO, cbo[:120])
-			if tc:
-				d["description"] += "\n[%s]" % tc[:200]
-			if gcm:
-				d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
-		rows.append(d)
+		rows.append(_dung_dong_mon(r))
 	if not rows:
 		frappe.throw("Đơn chưa có món nào.")
 
@@ -6833,24 +6902,7 @@ def pos_sua_don(
 			sl = flt(r.get("qty") or 0)
 			if sl <= 0:
 				frappe.throw("Số lượng của %s phải lớn hơn 0." % ma)
-			d = {"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)}
-			tc = (r.get("tuy_chon") or "").strip()
-			gcm = (r.get("ghi_chu") or "").strip()
-			cbo = (r.get("combo") or "").strip()
-			if r.get("combo_ma"):
-				cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
-				if ma not in [x.item_code for x in cb.dong]:
-					frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
-				cbo = "%s - %s" % (cb.get("ma_hang") or cb.name, cb.ten)
-			if tc or gcm or cbo:
-				ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
-				d["description"] = ten_mon
-				if cbo:
-					d["description"] += "\n%s %s" % (DAU_COMBO, cbo[:120])
-				if tc:
-					d["description"] += "\n[%s]" % tc[:200]
-				if gcm:
-					d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
+			d = _dung_dong_mon(r)
 			from vagabond.combo_mon import giu_dong_sua
 			# Món lẻ thêm mới trùng thành phần combo: giá hợp lệ là giá ĐIỂM nếu
 			# điểm có giá riêng cho món đó (Codex PR #532), không thì giá danh mục.
@@ -7035,15 +7087,22 @@ def pos_ds_tuy_chon():
 	100% duong 100% da, khong ghi gi len bill.
 	"""
 	_kiem_quyen_ban()
+	return {"tc": doc_tuy_chon()}
+
+
+def doc_tuy_chon():
+	"""Danh mục tuỳ chọn pha chế đang bật, không kiểm quyền: MỘT nguồn cho màn
+	Tính tiền và trang khách gọi món tại bàn (v638). Lỗi đọc thì rỗng."""
 	try:
 		ds = frappe.get_all(
 			"Vagabond Tuy Chon Mon",
 			filters={"bat": 1},
 			fields=["nhom", "lua_chon", "nhom_mon"],
 			limit_page_length=0,
+			ignore_permissions=True,
 		)
 	except Exception:
-		return {"tc": []}
+		return []
 	ra = []
 	for r in ds:
 		ra.append(
@@ -7053,7 +7112,7 @@ def pos_ds_tuy_chon():
 				"nhom_mon": [x.strip() for x in str(r.nhom_mon or "").splitlines() if x.strip()],
 			}
 		)
-	return {"tc": ra}
+	return ra
 
 
 @frappe.whitelist()

@@ -753,6 +753,10 @@ doc_events = {
 			# May dong bo ve thi de trong chu khong dien bua, xem dau tep
 			# vagabond/nguoi_ban.py.
 			"vagabond.nguoi_ban.truoc_khi_luu",
+			# v638 người giới thiệu: tờ sửa lại mang người của tờ gốc, tờ đơn
+			# web lấy từ bản ghi Don Web; thu ngân đổi ô thì máy trả giá trị
+			# cũ. Xem dau tep vagabond/gioi_thieu.py.
+			"vagabond.gioi_thieu.truoc_khi_luu",
 		],
 		"before_save": ["vagabond.ban_hang.chan_trung_ma_pancake", "vagabond.bao_ve_hddt.chan_huy_mem"],
 		# Chan sai NGAY LUC LUU: thieu nguon don, thieu phuong thuc thanh
@@ -840,6 +844,10 @@ doc_events = {
 			# trong day on_submit: hai ham tren co the gat cong no sang chi
 			# phi bieu tang, chay truoc chung la ghi thu mot khoan roi bi
 			# gat di ngay sau. Xem dau tep vagabond/thu_tien.py.
+			# v638 hoa hồng giới thiệu: tính khi hoá đơn đã vào sổ, tờ trả hàng
+			# đưa hoa hồng tờ gốc về 0. Không chạm tiền, sổ cái hay công nợ,
+			# nuốt mọi lỗi; đứng trước dòng thanh_toan_nhieu để dòng đó vẫn cuối.
+			"vagabond.gioi_thieu.khi_ghi_so",
 			"vagabond.thanh_toan_nhieu.sau_khi_ghi_so",
 		],
 		# Huy hoa don kenh khac thi tra so lai cho bang kiem banh. Truoc day
@@ -862,8 +870,13 @@ doc_events = {
 			"vagabond.qua_tang_hoa_don.khi_huy",
 			# Huy don hang tang thi HUY (khong xoa) but toan gat cong no.
 			"vagabond.hang_tang.khi_huy",
+			# v638: huỷ hoá đơn thì hoa hồng giới thiệu về 0; huỷ tờ trả hàng
+			# thì tính lại hoa hồng tờ gốc.
+			"vagabond.gioi_thieu.khi_huy",
 		],
 	},
+	# v638: % hoa hồng giới thiệu trong Cài đặt phải từ 0 tới 100.
+	"Vagabond Settings": {"validate": "vagabond.gioi_thieu.kiem_cai_dat"},
 }
 
 # app.thevagabondpatisserie.com va order.thevagabondpatisserie.com tro chung
@@ -1194,3 +1207,8 @@ website_route_rules = list(website_route_rules) + [
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.banh_si.quet")
 # v633: giao dịch thẻ OnePay chưa có kết quả sau 15 phút thì hỏi lại OnePay (QueryDR).
 scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.onepay.quet")
+# v638: khách đặt bánh trên web trả ngay. Mỗi 5 phút khớp sao kê cho đơn chọn
+# chuyển khoản, làm nốt việc sau thu (ghi Pancake, báo Sales) nếu lượt trước hỏng.
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.thanh_toan_web.quet")
+# v638: đơn gọi món tại bàn chờ quá 10 phút không ai nhận thì chuyển Hết hạn.
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.goi_mon_ban.quet_het_han")

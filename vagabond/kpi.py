@@ -1076,7 +1076,10 @@ def day_chi(ma=None):
 		frappe.throw("Chỉ phiếu đã giám đốc duyệt mới đẩy sang đề nghị chi được.")
 	if (doc.get("phieu_chi") or "").strip():
 		frappe.throw("Phiếu này đã đẩy sang %s rồi." % doc.phieu_chi)
-	if flt(doc.hoa_hong) <= 0:
+	# v638: hoa hồng giới thiệu là khoản CỘNG THÊM nằm ô riêng (gioi_thieu.py),
+	# đi chung một đề nghị chi nhưng là một dòng riêng để kế toán thấy rõ.
+	hh_gt = flt(doc.get("vgb_hh_gioi_thieu"))
+	if flt(doc.hoa_hong) + hh_gt <= 0:
 		frappe.throw("Phiếu này không có hoa hồng nên không có gì để chi.")
 	duoc, vi_sao = duoc_bam(doc)
 	if not duoc:
@@ -1090,13 +1093,18 @@ def day_chi(ma=None):
 		"hinh_thuc": "Hoàn tiền cho nhân viên",
 		"phuong_thuc": "Chuyển khoản",
 		"ngay_can_tt": str(add_days(nowdate(), 7)),
-		"cac_khoan": [{
+		"cac_khoan": ([{
 			"noi_dung": "Hoa hồng kỳ %s - %s (điểm %s, %s)"
 			% (doc.ky, doc.ten_nguoi, doc.diem_tong, doc.xep_loai),
 			"so_tien": flt(doc.hoa_hong),
 			"phan_loai": "Chi phí nhân công",
 			"loai_chung_tu": "Bảng kê không hoá đơn",
-		}],
+		}] if flt(doc.hoa_hong) > 0 else []) + ([{
+			"noi_dung": "Hoa hồng giới thiệu kỳ %s - %s" % (doc.ky, doc.ten_nguoi),
+			"so_tien": hh_gt,
+			"phan_loai": "Chi phí nhân công",
+			"loai_chung_tu": "Bảng kê không hoá đơn",
+		}] if hh_gt > 0 else []),
 	}, gui_luon=0)
 
 	doc.phieu_chi = r.get("ma")
@@ -1133,11 +1141,18 @@ def danh_sach(ky=None, bo=None, trang_thai=None):
 	)
 	cf = cau_hinh()
 	sl = so_lieu_tu_dong(ky)
+	# v638: khoản hoa hồng giới thiệu cộng thêm của từng phiếu (ô riêng).
+	from vagabond import gioi_thieu
+
+	gt = gioi_thieu.hh_theo_phieu([r["name"] for r in ds])
+	for r in ds:
+		r["hh_gioi_thieu"] = gt.get(r["name"], 0)
 	return {
 		"ky": ky, "tu": str(tu), "den": str(den),
 		"ky_truoc": ky_truoc(ky),
 		"ds": ds,
 		"tong_hoa_hong": round(sum(flt(r["hoa_hong"]) for r in ds), 0),
+		"tong_hh_gioi_thieu": round(sum(flt(r["hh_gioi_thieu"]) for r in ds), 0),
 		"so_phieu": len(ds),
 		"bo": [{"k": k, "ten": v.get("ten"), "co_hoa_hong": cint(v.get("co_hoa_hong"))}
 		       for k, v in (cf.get("bo") or {}).items()],

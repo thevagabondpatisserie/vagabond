@@ -1422,9 +1422,9 @@
     "nhieu_dong": true
   },
   "dat_banh_289234b8c": {
-    "ten": "00 / In store",
+    "ten": "00 / Tại quầy",
     "nhom": "dat_banh",
-    "mac_dinh": "00 / In store",
+    "mac_dinh": "00 / Tại quầy",
     "nhieu_dong": true
   },
   "dat_banh_3e8df5af5": {
@@ -2274,9 +2274,9 @@
     "nhieu_dong": true
   },
   "bien_nhan_nhan": {
-    "ten": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận và hướng dẫn thanh toán.",
+    "ten": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận đơn.",
     "nhom": "bien_nhan",
-    "mac_dinh": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận và hướng dẫn thanh toán.",
+    "mac_dinh": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận đơn.",
     "nhieu_dong": true
   },
   "bien_nhan_tt_cho": {
@@ -5305,5 +5305,425 @@
     "ten": "Bánh sỉ: Gõ sai quá nhiều lần. Bấm gửi lại mã mới.",
     "nhom": "banh_si",
     "mac_dinh": "Gõ sai quá nhiều lần. Bấm gửi lại mã mới."
+  },
+  "bien_nhan_the_qt": {
+    "ten": "Thẻ tín dụng, ghi nợ quốc tế",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thẻ tín dụng, ghi nợ quốc tế",
+    "nhieu_dong": true
+  },
+  "bien_nhan_the_atm": {
+    "ten": "Thẻ ATM nội địa",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thẻ ATM nội địa",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tien_mat": {
+    "ten": "Tiền mặt khi nhận bánh",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Tiền mặt khi nhận bánh",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_tieu_de": {
+    "ten": "Thanh toán",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thanh toán",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_tien_mat": {
+    "ten": "Quý khách thanh toán tiền mặt khi nhận bánh.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Quý khách thanh toán tiền mặt khi nhận bánh.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_da_nhan": {
+    "ten": "Đã nhận tiền",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã nhận tiền",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_thieu": {
+    "ten": "Đã nhận một phần, còn thiếu",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã nhận một phần, còn thiếu",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_so_the": {
+    "ten": "Số tiền thanh toán",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Số tiền thanh toán",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_the_nut": {
+    "ten": "Thanh toán bằng thẻ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thanh toán bằng thẻ",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_the_mo": {
+    "ten": "Quý khách được chuyển sang trang bảo mật của OnePay để nhập thẻ và mã OTP.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Quý khách được chuyển sang trang bảo mật của OnePay để nhập thẻ và mã OTP.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_the_tat": {
+    "ten": "Thanh toán thẻ đang tạm ngưng. Quý khách chuyển khoản theo mã dưới đây.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thanh toán thẻ đang tạm ngưng. Quý khách chuyển khoản theo mã dưới đây.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_so_ck": {
+    "ten": "Số tiền chuyển khoản",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Số tiền chuyển khoản",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_ngan_hang": {
+    "ten": "Ngân hàng",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Ngân hàng",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_stk": {
+    "ten": "Số tài khoản",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Số tài khoản",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_chu_tk": {
+    "ten": "Chủ tài khoản",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chủ tài khoản",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_noi_dung": {
+    "ten": "Nội dung chuyển khoản",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Nội dung chuyển khoản",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_chep": {
+    "ten": "Chép nội dung",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chép nội dung",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_da_chep": {
+    "ten": "Đã chép nội dung",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã chép nội dung",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_quet": {
+    "ten": "Quét mã bằng ứng dụng ngân hàng, giữ nguyên nội dung. Hệ thống tự xác nhận khi tiền về, quý khách không cần nhắn lại.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Quét mã bằng ứng dụng ngân hàng, giữ nguyên nội dung. Hệ thống tự xác nhận khi tiền về, quý khách không cần nhắn lại.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_quet_cu": {
+    "ten": "Quét mã bằng ứng dụng ngân hàng, giữ nguyên nội dung. Hệ thống tự xác nhận khi tiền về; quý khách tải lại trang để xem.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Quét mã bằng ứng dụng ngân hàng, giữ nguyên nội dung. Hệ thống tự xác nhận khi tiền về; quý khách tải lại trang để xem.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_cho_tien": {
+    "ten": "Đang chờ tiền về...",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đang chờ tiền về...",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_phi_sau": {
+    "ten": "Số này là tiền bánh. Phí giao quý khách trả khi nhận bánh.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Số này là tiền bánh. Phí giao quý khách trả khi nhận bánh.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_ho_tro": {
+    "ten": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_dang_chuyen": {
+    "ten": "Đang chuyển sang OnePay...",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đang chuyển sang OnePay...",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_loi_the": {
+    "ten": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn chúng tôi.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn chúng tôi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_pt_the_qt": {
+    "ten": "Thẻ tín dụng, ghi nợ quốc tế",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thẻ tín dụng, ghi nợ quốc tế",
+    "nhieu_dong": true
+  },
+  "dat_banh_pt_the_qt_mo": {
+    "ten": "Visa, Mastercard, JCB. Trả ngay trên trang bảo mật OnePay sau khi gửi đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Visa, Mastercard, JCB. Trả ngay trên trang bảo mật OnePay sau khi gửi đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_pt_atm": {
+    "ten": "Thẻ ATM nội địa",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thẻ ATM nội địa",
+    "nhieu_dong": true
+  },
+  "dat_banh_pt_atm_mo": {
+    "ten": "Thẻ ngân hàng Việt Nam (Napas) đã mở thanh toán trực tuyến, qua cổng OnePay",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thẻ ngân hàng Việt Nam (Napas) đã mở thanh toán trực tuyến, qua cổng OnePay",
+    "nhieu_dong": true
+  },
+  "dat_banh_pt_tien_mat": {
+    "ten": "Tiền mặt khi nhận bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tiền mặt khi nhận bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_pt_tien_mat_mo": {
+    "ten": "Trả khi lấy bánh tại quầy hoặc trả cho người giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "Trả khi lấy bánh tại quầy hoặc trả cho người giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_tt_ck": {
+    "ten": "Gửi đơn xong, trang biên nhận hiện mã VietQR đúng số tiền. Quý khách quét để chuyển khoản, hệ thống tự xác nhận khi tiền về.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gửi đơn xong, trang biên nhận hiện mã VietQR đúng số tiền. Quý khách quét để chuyển khoản, hệ thống tự xác nhận khi tiền về.",
+    "nhieu_dong": true
+  },
+  "dat_banh_tt_the": {
+    "ten": "Gửi đơn xong, quý khách bấm Thanh toán bằng thẻ trên trang biên nhận và nhập thẻ trên trang bảo mật OnePay.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gửi đơn xong, quý khách bấm Thanh toán bằng thẻ trên trang biên nhận và nhập thẻ trên trang bảo mật OnePay.",
+    "nhieu_dong": true
+  },
+  "dat_banh_tt_tien_mat": {
+    "ten": "Quý khách thanh toán tiền mặt khi nhận bánh, tại quầy hoặc cho người giao.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách thanh toán tiền mặt khi nhận bánh, tại quầy hoặc cho người giao.",
+    "nhieu_dong": true
+  },
+  "dat_banh_tt_phi_sau": {
+    "ten": "Phí giao chưa tính được lúc này: số thu online là tiền bánh, phí giao quý khách trả khi nhận.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Phí giao chưa tính được lúc này: số thu online là tiền bánh, phí giao quý khách trả khi nhận.",
+    "nhieu_dong": true
+  },
+  "dat_banh_ma_gt": {
+    "ten": "Mã giới thiệu (không bắt buộc)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã giới thiệu (không bắt buộc)",
+    "nhieu_dong": true
+  },
+  "dat_banh_ma_gt_goi": {
+    "ten": "Số điện thoại nhân viên giới thiệu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số điện thoại nhân viên giới thiệu",
+    "nhieu_dong": true
+  },
+  "dat_banh_ma_gt_co": {
+    "ten": "Nhân viên giới thiệu: {ten}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhân viên giới thiệu: {ten}",
+    "nhieu_dong": true
+  },
+  "dat_banh_ma_gt_khong": {
+    "ten": "Không tìm thấy nhân viên với số này. Quý khách vẫn đặt bánh bình thường.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Không tìm thấy nhân viên với số này. Quý khách vẫn đặt bánh bình thường.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ban": {
+    "ten": "Chữ \"Bàn\" trước số bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bàn",
+    "nhieu_dong": true
+  },
+  "goi_ban_qua_nhieu": {
+    "ten": "Gọi món tại bàn: Mỗi lần gọi tối đa 20 ly một món.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi lần gọi tối đa 20 ly một món.",
+    "nhieu_dong": true
+  },
+  "goi_ban_het_con": {
+    "ten": "Gọi món tại bàn: Món này trên tủ chỉ còn {so}.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Món này trên tủ chỉ còn {so}.",
+    "nhieu_dong": true
+  },
+  "goi_ban_da_them": {
+    "ten": "Gọi món tại bàn: Đã thêm {ten}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã thêm {ten}",
+    "nhieu_dong": true
+  },
+  "goi_ban_gt_co": {
+    "ten": "Gọi món tại bàn: Nhân viên giới thiệu: {ten}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhân viên giới thiệu: {ten}",
+    "nhieu_dong": true
+  },
+  "goi_ban_loi": {
+    "ten": "Gọi món tại bàn: Chưa gửi được. Quý khách thử lại hoặc nhắn nhân viên gần nhấ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa gửi được. Quý khách thử lại hoặc nhắn nhân viên gần nhất.",
+    "nhieu_dong": true
+  },
+  "goi_ban_tt_nhan": {
+    "ten": "Gọi món tại bàn: Đã nhận lúc {gio}, đang pha chế",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã nhận lúc {gio}, đang pha chế",
+    "nhieu_dong": true
+  },
+  "goi_ban_tt_tu_choi": {
+    "ten": "Gọi món tại bàn: Quầy từ chối: {ly_do}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy từ chối: {ly_do}",
+    "nhieu_dong": true
+  },
+  "goi_ban_tt_het_han": {
+    "ten": "Gọi món tại bàn: Quầy đang bận, quý khách nhắn nhân viên gần nhất",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy đang bận, quý khách nhắn nhân viên gần nhất",
+    "nhieu_dong": true
+  },
+  "goi_ban_tt_cho": {
+    "ten": "Gọi món tại bàn: Chờ quầy nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chờ quầy nhận",
+    "nhieu_dong": true
+  },
+  "goi_ban_don_da_goi": {
+    "ten": "Gọi món tại bàn: Món đã gọi",
+    "nhom": "dat_banh",
+    "mac_dinh": "Món đã gọi",
+    "nhieu_dong": true
+  },
+  "goi_ban_goi_them": {
+    "ten": "Gọi món tại bàn: Gọi thêm món",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi thêm món",
+    "nhieu_dong": true
+  },
+  "goi_ban_728f6901b": {
+    "ten": "Gọi món tại bàn: {so} món · {tien}",
+    "nhom": "dat_banh",
+    "mac_dinh": "{so} món · {tien}",
+    "nhieu_dong": true
+  },
+  "goi_ban_dong": {
+    "ten": "Gọi món tại bàn: Đóng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đóng",
+    "nhieu_dong": true
+  },
+  "goi_ban_mac_dinh": {
+    "ten": "Gọi món tại bàn: Không chọn là pha chuẩn của quầy.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Không chọn là pha chuẩn của quầy.",
+    "nhieu_dong": true
+  },
+  "goi_ban_3de60aa70": {
+    "ten": "Gọi món tại bàn: Gọi món · {ban}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi món · {ban}",
+    "nhieu_dong": true
+  },
+  "goi_ban_bot": {
+    "ten": "Gọi món tại bàn: Bớt một",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bớt một",
+    "nhieu_dong": true
+  },
+  "goi_ban_them": {
+    "ten": "Gọi món tại bàn: Thêm một",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm một",
+    "nhieu_dong": true
+  },
+  "goi_ban_ghi_chu": {
+    "ten": "Gọi món tại bàn: Ghi chú cho quầy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ghi chú cho quầy",
+    "nhieu_dong": true
+  },
+  "goi_ban_ghi_chu_goi": {
+    "ten": "Gọi món tại bàn: Ví dụ: mang trà ra trước, bánh để sau",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ví dụ: mang trà ra trước, bánh để sau",
+    "nhieu_dong": true
+  },
+  "goi_ban_ten": {
+    "ten": "Gọi món tại bàn: Tên để quầy gọi (không bắt buộc)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tên để quầy gọi (không bắt buộc)",
+    "nhieu_dong": true
+  },
+  "goi_ban_ma_gt": {
+    "ten": "Gọi món tại bàn: Mã giới thiệu (không bắt buộc)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã giới thiệu (không bắt buộc)",
+    "nhieu_dong": true
+  },
+  "goi_ban_dang_gui": {
+    "ten": "Gọi món tại bàn: Đang gửi...",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đang gửi...",
+    "nhieu_dong": true
+  },
+  "goi_ban_6a9970661": {
+    "ten": "Gọi món tại bàn: Gọi món · {tien}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi món · {tien}",
+    "nhieu_dong": true
+  },
+  "goi_ban_thanh_toan": {
+    "ten": "Gọi món tại bàn: Thanh toán tại quầy khi dùng xong. Nhân viên mang món ra bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thanh toán tại quầy khi dùng xong. Nhân viên mang món ra bàn {ban}.",
+    "nhieu_dong": true
+  },
+  "goi_ban_huong_dan": {
+    "ten": "Gọi món tại bàn: Bấm + trên món để thêm vào giỏ, rồi bấm Gọi món. Thanh toán ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bấm + trên món để thêm vào giỏ, rồi bấm Gọi món. Thanh toán tại quầy khi dùng xong.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ngoai_gio": {
+    "ten": "Gọi món tại bàn: Quầy đang ngoài giờ mở cửa ({gio}). Quý khách xem món, quầy ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy đang ngoài giờ mở cửa ({gio}). Quý khách xem món, quầy mở cửa thì gọi được.",
+    "nhieu_dong": true
+  },
+  "quay_chip_nuoc": {
+    "ten": "Chip lọc đồ uống (tab Tại quầy)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đồ uống",
+    "nhieu_dong": true
+  },
+  "goi_ban_co_lua_chon": {
+    "ten": "Gọi món tại bàn: Chọn đá, đường",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn đá, đường",
+    "nhieu_dong": true
+  },
+  "goi_ban_them_mon": {
+    "ten": "Gọi món tại bàn: Thêm {ten} vào giỏ gọi món",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm {ten} vào giỏ gọi món",
+    "nhieu_dong": true
+  },
+  "quay_chip_banh": {
+    "ten": "Chip lọc bánh trên tủ (tab Tại quầy)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh trên tủ",
+    "nhieu_dong": true
   }
 }

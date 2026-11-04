@@ -282,7 +282,8 @@ def _quet():
 	with patch.object(op, "frappe", gia), patch.object(op, "cau_hinh", return_value=dict(C)), \
 			patch.object(op, "tra_cuu", side_effect=lambda ma: hoi.append(ma) or {"vpc_DRExists": "N"}):
 		op.quet()
-	la("đi cả hai loại", [x[0] for x in loc], ["Vagabond Cong No", "Sales Order"])
+	# v638: thêm loại thứ ba, đơn đặt bánh trên web (Vagabond Don Web).
+	la("đi cả ba loại", [x[0] for x in loc], ["Vagabond Cong No", "Sales Order", "Vagabond Don Web"])
 	la("lọc phiếu đặt theo ô nhật ký thẻ, đã ghi sổ", loc[1][1], ["docstatus", "name", "vgb_onepay_gd"])
 	la("hỏi giao dịch mới", hoi, ["TKR26110002-1"])
 	la("giao dịch quá hạn hết hạn trên phiếu đặt", [g["trang_thai"] for g in json.loads(kho[("Sales Order", "SO-2")])], ["cho", "het_han"])

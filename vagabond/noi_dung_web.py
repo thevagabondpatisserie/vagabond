@@ -49,7 +49,7 @@ MAC_DINH = {"khoi": [
 MAC_DINH["khoi"].extend([
     {"id":"ho-tro", "loai":"thong_bao", "hien":False, "vi_tri":"cuoi_trang", "nhan":"HỖ TRỢ ĐẶT BÁNH", "tieu_de":"Chúng tôi mong được phục vụ cho quý khách", "noi_dung":"Quý khách có thể chọn bánh, ngày nhận và điền lời chúc ngay trên website."},
     {"id":"hoi-lich-nhan", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Tôi muốn nhận bánh hôm nay?", "noi_dung":"Quý khách chọn mục Có sẵn hôm nay và một khung giờ còn nhận. Lịch trên website cập nhật theo thời gian chuẩn bị của bếp."},
-    {"id":"hoi-xac-nhan", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Gửi đơn xong đã thanh toán chưa?", "noi_dung":"Biên nhận xác nhận chúng tôi đã tiếp nhận yêu cầu. Nhân viên sẽ liên hệ xác nhận đơn và hướng dẫn thanh toán."},
+    {"id":"hoi-xac-nhan", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Gửi đơn xong đã thanh toán chưa?", "noi_dung":"Chuyển khoản hoặc trả thẻ thì quý khách thanh toán ngay trên trang biên nhận sau khi gửi đơn, hệ thống tự xác nhận khi tiền về. Chọn tiền mặt thì trả khi nhận bánh."},
     {"id":"hoi-loi-chuc", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Tôi có thể gửi lời chúc riêng?", "noi_dung":"Quý khách điền lời chúc trên trang từng bánh trước khi thêm vào giỏ. Mỗi bánh có thể có một lời chúc riêng."},
 ])
 
@@ -87,7 +87,7 @@ TRUONG_CHINH_SACH = {"hien", "vn", "en"}
 # tải xong hay lỗi tải vẫn hiện đúng câu cũ.
 NHAN = {
     "tab_season": {"ten": "Tab mùa vụ (chỉ hiện khi có mùa)", "mac_dinh": "In season"},
-    "tab_store": {"ten": "Tab bánh trên tủ tại quầy", "mac_dinh": "In store"},
+    "tab_store": {"ten": "Tab bánh trên tủ tại quầy", "mac_dinh": "Tại quầy"},
     "tab_today": {"ten": "Tab bánh có sẵn hôm nay", "mac_dinh": "Có sẵn hôm nay"},
     "tab_order": {"ten": "Tab đặt bánh trước", "mac_dinh": "Đặt bánh trước"},
     "nut_dat_ban": {"ten": "Nút Đặt bàn trên đầu trang", "mac_dinh": "Đặt bàn"},
@@ -314,6 +314,12 @@ def kiem_lien_he(lh):
         raise ValueError("Email không hợp lệ, ví dụ hello@thevagabondpatisserie.com.")
     for k in ("zalo", "messenger", "facebook", "instagram", "tiktok"):
         _https(ra[k], TEN_LIEN_HE[k])
+    from vagabond.don_web import la_zalo_so_dien_thoai
+    if la_zalo_so_dien_thoai(ra["zalo"]):
+        # Anh Việt 04/11/2026: zalo.me/0931224334 mở ra "Trang này không tìm thấy"
+        # vì số không cho người lạ tìm. Chặn ở cửa nhập, chỉ cách sửa ngay.
+        raise ValueError("Zalo: dùng link Zalo OA của tiệm, ví dụ https://zalo.me/thevagabondsaigon. "
+                         "Link theo số điện thoại thường mở ra trang lỗi vì số không cho người lạ tìm.")
     return ra
 
 

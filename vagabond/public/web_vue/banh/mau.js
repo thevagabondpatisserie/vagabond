@@ -15,7 +15,7 @@ export const MAU = `
 <p class="ngay-ban" id="ngayBan">{{ ngayBan }}</p>
 <nav class="tabs">
   <button class="tab mua" :class="{on: tab==='season'}" data-tab="season" id="tabMua" :hidden="!kho.coMua.value" @click="go('season')">{{ t('tab_season','In season') }}</button>
-  <button class="tab store" :class="{on: tab==='store'}" data-tab="store" id="tabStore" :hidden="!S.storeDaTai && !S.storeLoi" @click="go('store')">{{ t('tab_store','In store') }}</button>
+  <button class="tab store" :class="{on: tab==='store'}" data-tab="store" id="tabStore" :hidden="!S.storeDaTai && !S.storeLoi" @click="go('store')">{{ t('tab_store','Tại quầy') }}</button>
   <button class="tab" :class="{on: tab==='uu_dai'}" data-tab="uu_dai" @click="go('uu_dai')">{{ t('tab_uu_dai','Ưu đãi') }}</button>
   <button class="tab" :class="{on: tab==='tiec'}" data-tab="tiec" :hidden="!coTiec" @click="go('tiec')">{{ t('tab_tiec','Tiệc') }}</button>
   <button class="tab" :class="{on: tab==='tuyen_dung'}" data-tab="tuyen_dung" @click="go('tuyen_dung')">{{ t('tab_tuyen_dung','Tuyển dụng') }}</button>
@@ -59,28 +59,36 @@ export const MAU = `
   <div class="noi-dung-theo-tab" data-vgb-vi-tri="store"><khoi-noi-dung vi-tri="store"/></div>
   <section class="wrap">
     <div class="store-hd">
-      <div class="meta"><span class="num"><span>{{ t('dat_banh_289234b8c','00 / In store') }}</span></span><span id="storeLuc">{{ S.STORE.cap_nhat ? t('dat_banh_8f92d9663','Cập nhật') + ' ' + String(S.STORE.cap_nhat).slice(11,16) : '' }}</span></div>
+      <div class="meta"><span class="num"><span>{{ t('dat_banh_289234b8c','00 / Tại quầy') }}</span></span><span id="storeLuc">{{ S.STORE.cap_nhat ? t('dat_banh_8f92d9663','Cập nhật') + ' ' + String(S.STORE.cap_nhat).slice(11,16) : '' }}</span></div>
       <h1 class="h1"><tieu-de-muc vi-tri="store" :dong="['Bánh trên tủ','tại quầy']"/></h1>
     </div>
     <div id="storeBody">
+      <div class="gb-dau" id="gbDau" v-if="kho.goiBan.cheDo.value">
+        <b>{{ kho.goiBan.nhanBan.value }}</b>
+        <span v-if="kho.goiBan.cheDo.value==='goi'">{{ t('goi_ban_huong_dan','Bấm + trên món để thêm vào giỏ, rồi bấm Gọi món. Thanh toán tại quầy khi dùng xong.') }}</span>
+        <span v-else>{{ t('goi_ban_ngoai_gio','Quầy đang ngoài giờ mở cửa ({gio}). Quý khách xem món, quầy mở cửa thì gọi được.',{gio: kho.goiBan.G.ban.gio || ''}) }}</span>
+      </div>
       <template v-if="quayHien">
-        <div class="quay-chon"><button v-for="q in quayHien.quay" :key="q.ma" :aria-pressed="String(q.ma===quayHien.chon.ma)" @click="S.quayChon=q.ma; S.nhomQuay=''">
+        <div class="quay-chon" v-if="!kho.goiBan.cheDo.value"><button v-for="q in quayHien.quay" :key="q.ma" :aria-pressed="String(q.ma===quayHien.chon.ma)" @click="S.quayChon=q.ma; S.nhomQuay=''">
           <b>{{ q.ten }}</b><span>{{ q.dia_chi || '' }}</span><span>{{ (q.mon||[]).reduce((a,m)=>a+(m.con||0),0) }} {{ t('dat_banh_3556aabb5','bánh') }} · {{ (q.mon||[]).length }} {{ t('so_loai','loại') }}</span></button></div>
-        <div class="cm-chips"><button v-for="n in quayHien.nhom" :key="n.n" :aria-pressed="String(n.n===S.nhomQuay)" @click="S.nhomQuay=n.n">{{ (n.n || t('tat_ca_muc','Tất cả')) + ' · ' + n.so }}</button></div>
+        <div class="cm-chips" id="storeChip"><button v-for="n in quayHien.nhom" :key="n.n" :data-nhom="n.n" :aria-pressed="String(n.n===S.nhomQuay)" @click="S.nhomQuay=n.n">{{ n.ten + ' · ' + n.so }}</button></div>
         <div class="quay">
           <div class="q-ten">{{ quayHien.chon.ten }}</div>
           <div class="q-dc" v-if="quayHien.chon.dia_chi">{{ quayHien.chon.dia_chi }}</div>
           <div class="q-con">{{ quayHien.tong ? t('dat_banh_75f5cf26e','Còn') + ' ' + quayHien.tong + ' ' + t('dat_banh_9ce7e8d31','bánh ·') + ' ' + quayHien.mon.length + ' ' + t('dat_banh_97a16dfdf','loại') : t('dat_banh_71fb5d32e','Hiện đã hết bánh trên tủ') }}</div>
         </div>
         <div v-if="!quayHien.mon.length" class="store-empty">{{ t('dat_banh_a85783ffc','Quầy này đã bán hết bánh trong tủ. Bánh mới lên tủ theo từng đợt trong ngày.') }}</div>
-        <div v-else class="grid">
-          <div class="card" v-for="m in quayHien.mon" :key="m.ma">
-            <div class="ph"><i class="tagline">{{ quayHien.chon.ten_ngan || quayHien.chon.ten }}</i><anh-mon :src="m.anh"/></div>
+        <div v-else class="grid" id="storeLuoi">
+          <div class="card-o" v-for="m in quayHien.mon" :key="m.loai + m.ma" :data-ma="m.ma"><div class="card">
+            <div class="ph"><i class="tagline">{{ m.loai==='nuoc' ? t('quay_chip_nuoc','Đồ uống') : (quayHien.chon.ten_ngan || quayHien.chon.ten) }}</i><anh-mon :src="m.anh"/></div>
             <div class="c-body">
               <div class="c-name">{{ tMon(m.ma,'ten',m.ten) }}</div>
               <div class="c-price" v-if="m.gia"><b>{{ tienTom(m.gia) }}</b></div>
-              <div class="c-sizes"><i class="sz has">{{ t('dat_banh_75f5cf26e','Còn') }} {{ m.con }}</i></div>
+              <div class="c-sizes" v-if="m.loai!=='nuoc'"><i class="sz has">{{ t('dat_banh_75f5cf26e','Còn') }} {{ m.con }}</i></div>
+              <div class="c-sizes" v-else-if="(m.tc||[]).length"><i class="sz">{{ t('goi_ban_co_lua_chon','Chọn đá, đường') }}</i></div>
             </div>
+          </div>
+          <button v-if="kho.goiBan.cheDo.value==='goi'" class="c-them" :data-them="m.ma" @click="kho.goiBan.bamThem(m)" :aria-label="t('goi_ban_them_mon','Thêm {ten} vào giỏ gọi món',{ten: m.ten})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
           </div>
         </div>
       </template>
@@ -90,6 +98,7 @@ export const MAU = `
       <a v-if="mxh('messenger','https://m.me/thevagabond.saigon')" :href="mxh('messenger','https://m.me/thevagabond.saigon')" target="_blank">{{ t('dat_banh_68074b808','Messenger') }}</a> {{ t('dat_banh_bd0762c0f','hoặc gọi') }}
       <a :href="'tel:'+telSo()">{{ telChu() }}</a>{{ t('dat_banh_499d32a3f',', chúng tôi để riêng cho quý khách tới lấy.') }}</div>
   </section>
+  <goi-tai-ban v-if="kho.goiBan.cheDo.value" :kho="kho" :tab="tab"/>
 </main>
 
 <main id="today" :hidden="tab!=='today'">
@@ -258,12 +267,16 @@ export const MAU = `
     </div>
 
     <div class="sec"><span class="n">09</span><h3><span>{{ t('dat_banh_9d5a6614c','Thanh toán') }}</span></h3><i class="rule"></i></div>
-    <div id="payList"><button v-for="x in PAYS" :key="x.k" class="pick" :class="{on: S.CO.pay===x.k}" @click="S.CO.pay=x.k"><b>{{ t(x.kn, x.n) }}</b><span>{{ t(x.kd, x.d) }}</span></button></div>
+    <div id="payList"><button v-for="x in kho.paysHien.value" :key="x.k" class="pick" :class="{on: S.CO.pay===x.k}" :data-pt="x.k" @click="S.CO.pay=x.k"><b>{{ t(x.kn, x.n) }}</b><span>{{ t(x.kd, x.d) }}</span></button></div>
 
     <div class="fld"><label><span>{{ t('dat_banh_ma_uu_dai','Mã ưu đãi') }}</span></label>
       <div class="two"><input id="f-ma" autocomplete="off" autocapitalize="characters" maxlength="40" :placeholder="t('dat_banh_ma_uu_dai_goi','Ví dụ SINHNHAT10')" v-model="S.f.ma" @keydown.enter.prevent="kho.apMaUuDai()">
       <button class="btn btn-xs" id="btnMa" type="button" @click="kho.apMaUuDai()" style="min-height:44px"><span>{{ t('dat_banh_ap_ma','Áp dụng') }}</span></button></div>
       <div class="hint" id="maHint"><dong-chu :phan="kho.goiYMa.value"/></div>
+    </div>
+    <div class="fld" id="gtKhoi" v-if="kho.coGioiThieu.value"><label for="f-gt"><span>{{ t('dat_banh_ma_gt','Mã giới thiệu (không bắt buộc)') }}</span></label>
+      <input id="f-gt" inputmode="tel" autocomplete="off" maxlength="20" :placeholder="t('dat_banh_ma_gt_goi','Số điện thoại nhân viên giới thiệu')" v-model="S.f.gt" @blur="kho.kiemGioiThieu()" @keydown.enter.prevent="kho.kiemGioiThieu()">
+      <div class="hint" id="gtHint"><dong-chu v-if="S.goi.gt" :phan="S.goi.gt"/></div>
     </div>
 
     <div class="sum" id="sum">
@@ -275,12 +288,7 @@ export const MAU = `
       <div class="row"><span>{{ kho.tong.value.tt.nhan }}</span><b>{{ kho.tong.value.tt.gia_tri }}</b></div>
       <div class="row tot"><span>{{ kho.tong.value.tt.tong_nhan }}</span><b>{{ tienTom(kho.tong.value.total) }}</b></div>
     </div>
-    <div class="warn" id="warn">
-      <template v-if="S.CO.pay==='card'">{{ t('dat_banh_a3fb251a8','Sau khi xác nhận đơn, chúng tôi sẽ gửi quý khách') }} <b>{{ t('dat_banh_0a8b2618a','link thanh toán OnePay') }}</b> {{ t('dat_banh_96cfeea73','để nhập thẻ.') }}
-        <b style="color:var(--cyan)">{{ t('dat_banh_3f1b2677e','Link có hiệu lực 15 phút') }}</b>{{ t('dat_banh_03b6a741d',', quá hạn mà chưa thanh toán thì đơn tự huỷ\\n và bánh được mở lại cho khách khác, hệ thống sẽ nhắn báo quý khách.') }}</template>
-      <template v-else>{{ t('dat_banh_a3fb251a8','Sau khi xác nhận đơn, chúng tôi sẽ gửi quý khách') }} <b>{{ t('dat_banh_73816524a','mã VietQR') }}</b> {{ t('dat_banh_d0dc8fa4d','để chuyển khoản.') }}
-        <b style="color:var(--cyan)">{{ t('dat_banh_9b84e7f46','Mã có hiệu lực 15 phút') }}</b>{{ t('dat_banh_03b6a741d',', quá hạn mà chưa thanh toán thì đơn tự huỷ\\n và bánh được mở lại cho khách khác, hệ thống sẽ nhắn báo quý khách.') }}</template>
-    </div>
+    <div class="warn" id="warn"><p v-for="(c, i) in kho.cauThanhToan.value" :key="i" style="margin:0 0 4px">{{ c }}</p></div>
 
     <button class="chk dongy" id="c-dongy" :class="{on: S.CO.dongy}" @click="tgl('dongy')" role="checkbox" :aria-checked="S.CO.dongy ? 'true' : 'false'"><span class="bx">{{ S.CO.dongy ? '✓' : '' }}</span>
       <span class="tx"><span>{{ t('dat_banh_e12f05e93','Tôi đồng ý để The Vagabond Pâtisserie sử dụng họ tên, số điện thoại và địa chỉ để giao bánh và liên hệ về đơn này') }}</span><small><span v-if="baoMat || !S.cauHinh">{{ t('dat_banh_01f52284d','Theo chính sách bảo mật của chúng tôi.') }}</span><span v-else><a href="mailto:hello@thevagabondpatisserie.com?subject=Chinh%20sach%20bao%20mat">{{ t('chinh_sach_ho_tro','Quý khách liên hệ chúng tôi để được cung cấp thông tin bảo mật trước khi gửi.') }}</a></span></small></span></button>
