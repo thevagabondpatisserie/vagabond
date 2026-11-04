@@ -2373,6 +2373,13 @@ var CSS = `
 .navbar,.web-footer,footer,.footer-logo-extension,#navbar-collapse,.page-header,.breadcrumb-container{display:none!important}
 html,body{background:#eef0f5!important;margin:0!important;padding:0!important}
 body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#16181d}
+/* v636 (anh Việt 03/11/2026, màn Đơn đặt trước trên máy Mac): chữ trong NÚT
+   (chip lọc, ô đếm) vẽ ra một font khác hẳn chữ thường, đậm vỡ nét. Nút là
+   phần tử biểu mẫu, trình duyệt cho nó bộ chữ riêng; Frappe chỉ trả lại
+   font-family mà không trả font-variation-settings ("opsz" 24 đặt trên body).
+   Cho nút và ô nhập nhận TRỌN bộ chữ của trang. Lớp và inline style vẫn
+   đặt cỡ, độ đậm riêng như cũ vì thắng bộ chọn thẻ. */
+button,input,select,textarea{font-family:inherit;font-style:inherit;font-stretch:inherit;font-variation-settings:inherit;font-optical-sizing:inherit;font-feature-settings:inherit;-webkit-font-smoothing:inherit}
 .page_content,.container,main,section,article,#page-index{padding:0!important;margin:0!important;max-width:none!important;width:auto!important}
 #vgb *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 #vgb{position:fixed;inset:0;display:flex;flex-direction:column;background:#eef0f5;overflow:hidden;z-index:9}
@@ -26720,7 +26727,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '635';
+var APPVER = '636';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -58927,15 +58934,6 @@ sdKhai('kiem_quy', 'scrQuyKiem', {
   dat: function (v) { QTM_DEM = (v && v.dem) || {}; QTM_LY_DO = (v && v.ly_do) || ''; },
   luu: ['vagabond.quy_tien_mat.kiem_quy']
 });
-/* v635 Codex #536 vòng 2: màn chốt số dư đầu quỹ đếm cả bảng mệnh giá, tải lại
-   trang giữa chừng là mất. Bảng đếm nằm ở biến QTM_DEM (đặt lại ở nút mở màn); ô ghi
-   chú đi theo số liệu ô. Chốt xong (chot_dau) thì xoá nháp. */
-sdKhai('chot_dau_quy', 'scrQuyChotDau', {
-  ten: 'Chốt số dư đầu quỹ', phat: 1,
-  lay: function () { return { dem: QTM_DEM }; },
-  dat: function (v) { QTM_DEM = (v && v.dem) || {}; },
-  luu: ['vagabond.quy_tien_mat.chot_dau']
-});
 sdKhai('nop_ngan_hang', 'scrQuyNop', {
   ten: 'Phiếu nộp tiền mặt vào ngân hàng', phat: 1,
   lay: function () { return { tk: QTM_NOP.tk || '' }; },
@@ -59012,7 +59010,6 @@ scrTdViTri = sdBoc('vi_tri_tuyen', 'scrTdViTri', scrTdViTri);
 scrTdThemHs = sdBoc('ho_so_ung_vien', 'scrTdThemHs', scrTdThemHs);
 scrQuyKiem = sdBoc('kiem_quy', 'scrQuyKiem', scrQuyKiem);
 scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
-scrQuyChotDau = sdBoc('chot_dau_quy', 'scrQuyChotDau', scrQuyChotDau);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
@@ -66507,14 +66504,8 @@ async function scrQuyTm() {
   var q = QTM, html = '';
   html += '<div class="card" style="padding:14px"><div style="font-size:12.5px;color:#667085">Tiền đang có trong quỹ</div>';
   if (q.so_du === null || q.so_du === undefined) {
-    /* v635 (anh Việt 03/11/2026): chị Dung thấy dòng này mà không có chỗ bấm, vì nút
-       chốt nằm ở Cài đặt tài chính chỉ mở cho người Giám đốc chọn. Người làm quỹ chốt
-       ngay ở đây bằng bảng đếm mệnh giá, một lần duy nhất. */
     html += '<div style="font-size:15px;font-weight:700;color:#b54708;margin-top:4px">Quỹ chưa chốt số dư đầu</div>' +
-      '<div style="font-size:12.5px;color:#475467;margin-top:4px">' + (q.duoc_lam
-        ? 'Đếm toàn bộ tiền trong quỹ theo mệnh giá rồi bấm chốt. Từ đó app tự cộng biên nhận nộp tiền, trừ khoản chi.'
-        : 'Nhờ kế toán hoặc Giám đốc đếm quỹ và chốt số dư đầu trên màn này.') + '</div>' +
-      (q.duoc_lam ? '<button class="btn" data-qtmchot="1" style="width:100%;margin:10px 0 0;min-height:48px">Chốt số dư đầu quỹ</button>' : '');
+      '<div style="font-size:12.5px;color:#475467;margin-top:4px">Đếm quỹ rồi chốt ở Cài đặt tài chính. Từ hôm sau app tự cộng biên nhận nộp tiền, trừ khoản chi.</div>';
   } else {
     html += '<div data-qtmso="1" style="font-size:30px;font-weight:800;color:#0f7a6b;line-height:1.25">' + money(q.so_du) + '</div>';
     var l = q.lan_kiem;
@@ -66575,13 +66566,11 @@ async function scrQuyTm() {
       }).join('') + '</details>';
   }
   html += '<details class="card" style="padding:11px 13px;font-size:13px;color:#475467;line-height:1.6"><summary style="font-weight:700;color:#101828;min-height:32px">Cách tính</summary>' +
-    '<div>Số dư đầu đã chốt (đếm trên màn này hoặc ở Cài đặt tài chính), cộng biên nhận nộp tiền mặt đã ký nhận, cộng trừ phiếu thu chi và bút toán tiền mặt trên sổ cái (trừ tiền đã tính ở két quầy).</div>' +
+    '<div>Số chốt cuối ngày ở Cài đặt tài chính, cộng biên nhận nộp tiền mặt đã ký nhận, cộng trừ phiếu thu chi và bút toán tiền mặt trên sổ cái (trừ tiền đã tính ở két quầy).</div>' +
     '<div>Kiểm quỹ lệch thì máy lập bút toán chênh lệch, lệch quá ' + money(q.nguong) + ' đ chờ Giám đốc duyệt.</div>' +
     '<div>Nộp vào ngân hàng trừ quỹ ngay; tiền về tài khoản thì máy tự ghép giao dịch SePay cùng số tiền.</div></details>';
   var than = frame(td, html);
-  var b = than.querySelector('[data-qtmchot]');
-  if (b) b.onclick = function () { QTM_DEM = {}; go(scrQuyChotDau); };
-  b = than.querySelector('[data-qtmkiem]');
+  var b = than.querySelector('[data-qtmkiem]');
   if (b) b.onclick = function () { QTM_DEM = {}; QTM_LY_DO = ''; tdkXoaHet(); go(scrQuyKiem); };
   b = than.querySelector('[data-qtmnop]');
   if (b) b.onclick = function () { QTM_NOP = { tk: ((q.tai_khoan_nh || [])[0] || {}).ma || '' }; tdkXoaHet(); go(scrQuyNop); };
@@ -66663,77 +66652,6 @@ async function qtmNap(td) {
   return true;
 }
 
-/* Bảng gõ số tờ theo mệnh giá: dùng chung cho Kiểm quỹ và Chốt số dư đầu (v635). */
-function qtmBangDem(menhGia) {
-  return (menhGia || []).map(function (mg) {
-    return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-top:1px solid #f1f5f9">' +
-      '<span style="flex:1">' + money(mg) + '</span>' +
-      '<input class="tin" data-qtmmg="' + mg + '" inputmode="numeric" placeholder="0" value="' + h(QTM_DEM[mg] || '') + '" style="width:80px;height:44px;margin:0;text-align:center">' +
-      '<span data-qtmtt="' + mg + '" style="width:110px;text-align:right">' + money(mg * (parseInt(QTM_DEM[mg], 10) || 0)) + '</span></div>';
-  }).join('');
-}
-function qtmNoiBangDem(than, veTong) {
-  than.oninput = function (e) {
-    var o = e.target.closest('[data-qtmmg]');
-    if (!o) return;
-    var mg = o.getAttribute('data-qtmmg');
-    var v = String(o.value || '').replace(/[^0-9]/g, '');
-    if (v !== o.value) o.value = v;
-    QTM_DEM[mg] = v;
-    var tt = than.querySelector('[data-qtmtt="' + mg + '"]');
-    if (tt) tt.textContent = money((parseInt(mg, 10) || 0) * (parseInt(v, 10) || 0));
-    veTong();
-  };
-}
-
-/* Chốt số dư đầu quỹ (v635): chỉ khi quỹ chưa có mốc. Đếm theo mệnh giá như Kiểm quỹ,
-   không có ô gõ tay số dư. Máy chủ quy số đếm về số cuối hôm qua (quy_tien_mat.so_du_cuoi_hom_qua) nên
-   khoản ghi sau lúc chốt trong ngày vẫn cộng trừ tiếp (Codex #536 vòng 1). */
-async function scrQuyChotDau() {
-  var td = 'Chốt số dư đầu quỹ';
-  if (!(await qtmNap(td))) return;
-  if (!qtmLaiQuyen()) return tcKhoa(td);
-  var q = QTM;
-  if (q.so_du !== null && q.so_du !== undefined) {
-    frame(td, '<div class="card" style="padding:14px;font-size:13.5px;line-height:1.5">Quỹ đã chốt số dư đầu. Muốn sửa số quỹ thì quay lại bấm Kiểm quỹ.</div>');
-    return;
-  }
-  var html = '<div class="card" style="padding:12px 13px"><b>Đếm toàn bộ tiền trong quỹ</b>' +
-    '<div style="font-size:12.5px;color:#667085;margin:2px 0 8px">Gõ số tờ từng loại. Quỹ trống thì gõ 0.</div>' +
-    qtmBangDem(q.menh_gia) +
-    '<div id="qtmTong" style="margin-top:10px"></div>' +
-    '<input class="tin" id="qtmGhiChuChot" placeholder="Ghi thêm (nếu có), ví dụ: đếm cùng anh Việt" style="width:100%;height:44px;box-sizing:border-box;margin-top:10px"></div>' +
-    '<div class="card" style="padding:11px 13px;font-size:13px;color:#475467;line-height:1.6">' +
-    '<div>Đếm lúc nào trong ngày cũng được. Khoản đã ký nhận hay đã chi trước lúc đếm nằm sẵn trong số đếm; khoản ghi sau lúc chốt app cộng trừ tiếp.</div>' +
-    '<div>Chỉ chốt một lần. Sau đó muốn sửa số quỹ thì Kiểm quỹ.</div></div>' +
-    '<button class="btn" data-qtmchotluu="1" style="width:100%;min-height:48px">Chốt số dư đầu</button>';
-  var than = frame(td, html);
-  function veTong() {
-    var t = qtmTinhDem(QTM_DEM, 0);
-    document.getElementById('qtmTong').innerHTML =
-      '<div data-qtmdem="' + t.dem + '" style="display:flex;justify-content:space-between;font-size:15px;font-weight:800"><span>Đếm được</span><span>' + money(t.dem) + '</span></div>';
-  }
-  veTong();
-  qtmNoiBangDem(than, veTong);
-  var dangGui = false;
-  than.querySelector('[data-qtmchotluu]').onclick = async function () {
-    if (dangGui) return;
-    if (!qtmDaDem(QTM_DEM)) return toast('Gõ số tờ đã đếm được. Quỹ trống thì gõ 0.');
-    var t = qtmTinhDem(QTM_DEM, 0);
-    dangGui = true;
-    var ok = await hoiCo('Chốt quỹ ' + money(t.dem) + ' đ', 'Số này thành số dư đầu của quỹ, chỉ chốt một lần. Sau đó muốn sửa thì Kiểm quỹ.', 'Chốt số dư đầu');
-    if (!ok) { dangGui = false; return; }
-    var kq;
-    try {
-      kq = await api('vagabond.quy_tien_mat.chot_dau', { bang: JSON.stringify(QTM_DEM),
-        ghi_chu: (document.getElementById('qtmGhiChuChot') || {}).value || '' });
-    } catch (e) { dangGui = false; toast(errMsg(e)); return; }
-    QTM_DEM = {};
-    toast('Đã chốt quỹ ' + money(kq.so_du) + ' đ');
-    back();
-  };
-}
-
 async function scrQuyKiem() {
   var td = 'Kiểm quỹ';
   if (!(await qtmNap(td))) return;
@@ -66741,7 +66659,12 @@ async function scrQuyKiem() {
   var q = QTM;
   var html = '<div class="card" style="padding:12px 13px"><b>Đếm theo mệnh giá</b>' +
     '<div style="font-size:12.5px;color:#667085;margin:2px 0 8px">Gõ số tờ từng loại. Máy cộng và so với số quỹ máy đang tính.</div>' +
-    qtmBangDem(q.menh_gia) +
+    q.menh_gia.map(function (mg) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-top:1px solid #f1f5f9">' +
+        '<span style="flex:1">' + money(mg) + '</span>' +
+        '<input class="tin" data-qtmmg="' + mg + '" inputmode="numeric" placeholder="0" value="' + h(QTM_DEM[mg] || '') + '" style="width:80px;height:44px;margin:0;text-align:center">' +
+        '<span data-qtmtt="' + mg + '" style="width:110px;text-align:right">' + money(mg * (parseInt(QTM_DEM[mg], 10) || 0)) + '</span></div>';
+    }).join('') +
     '<div id="qtmTong" style="margin-top:10px"></div></div>' +
     '<div class="card" id="qtmLyDoKhoi" style="padding:12px 13px;display:none"><b>Lý do lệch</b><div style="margin-top:6px">' +
     q.ly_do.map(function (x) {
@@ -66773,7 +66696,17 @@ async function scrQuyKiem() {
     } else cb.style.display = 'none';
   }
   veTong();
-  qtmNoiBangDem(than, veTong);
+  than.oninput = function (e) {
+    var o = e.target.closest('[data-qtmmg]');
+    if (!o) return;
+    var mg = o.getAttribute('data-qtmmg');
+    var v = String(o.value || '').replace(/[^0-9]/g, '');
+    if (v !== o.value) o.value = v;
+    QTM_DEM[mg] = v;
+    var tt = than.querySelector('[data-qtmtt="' + mg + '"]');
+    if (tt) tt.textContent = money((parseInt(mg, 10) || 0) * (parseInt(v, 10) || 0));
+    veTong();
+  };
   than.querySelectorAll('[data-qtmly]').forEach(function (n) {
     n.onclick = function () {
       QTM_LY_DO = n.getAttribute('data-qtmly');
