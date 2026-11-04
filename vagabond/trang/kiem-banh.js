@@ -1066,8 +1066,33 @@ var KB_LOC = (function () {
 		ve();
 	}
 
+	/* v638 (anh Việt 04/11/2026): mục "Đồ uống". Máy tự đưa vào TOÀN BỘ món
+	   nước của quầy (Trà, Cà phê, Matcha, Cacao, Kem) đang bán và có giá; không
+	   đếm số, chỉ có công tắc Bán trên web. Tắt là tắt tới hết hôm nay ở mọi
+	   quầy (công tắc nằm trên mặt hàng, cùng nút Tắt web của bánh), sáng mai tự
+	   bán lại. Đồ uống đang bật mới hiện ở tab Tại quầy và gọi được tại bàn. */
+	function veNuoc() {
+		var g = document.getElementById("kk-nuoc");
+		if (!g) return;
+		var ds = (DL && DL.do_uong) || [];
+		if (!DL || !ds.length) { g.innerHTML = ""; return; }
+		var tat = ds.filter(function (x) { return !x.ban_web; }).length;
+		var sua = !!DL.sua_web;
+		g.innerHTML = '<div class="kk-nuoc-tieu">Đồ uống · ' + ds.length + " món" + (tat ? " · " + tat + " đang tắt web" : "") + "</div>"
+			+ '<div class="kk-nuoc-phu">Không đếm số. Tắt "Bán trên web" khi hết nguyên liệu: món ẩn khỏi tab Tại quầy và không gọi tại bàn được tới hết hôm nay, ở mọi quầy; sáng mai tự bán lại.'
+			+ (sua ? "" : " Chỉ đổi được ở ngày hôm nay.") + "</div>"
+			+ ds.map(function (x) {
+				var bat = !!x.ban_web;
+				return '<div class="kk-nuoc-dong">' + anhMon(x.hinh)
+					+ '<div class="t">' + h(x.ten) + "<small>" + h(x.nhom) + " · " + Number(x.gia || 0).toLocaleString("vi-VN") + " đ</small></div>"
+					+ '<button data-nuoc="' + h(x.ma_hang) + '" data-bat="' + (bat ? 1 : 0) + '"' + (bat ? "" : ' class="tat"')
+					+ (sua ? "" : " disabled") + ">" + (bat ? "Bán trên web" : "Đang tắt web") + "</button></div>";
+			}).join("");
+	}
+
 	function ve() {
 		var g = document.getElementById("kk-luoi");
+		veNuoc();
 		if (!DL) { g.innerHTML = ""; return; }
 		document.getElementById("kk-phu").textContent =
 			DL.tinh_trang === "Da chot" ? "Ngày này đã chốt sổ" : "Đang bán";
@@ -1207,6 +1232,16 @@ var KB_LOC = (function () {
 			if (!n || !DL || !DL.sua_duoc) return;
 			DANG_SUA = { ma: n.getAttribute("data-ma"), truong: n.getAttribute("data-truong") };
 			ve();
+		});
+		var nuoc = document.getElementById("kk-nuoc");
+		if (nuoc) nuoc.addEventListener("click", function (ev) {
+			var n = ev.target.closest("[data-nuoc]");
+			if (!n || n.disabled) return;
+			var ma = n.getAttribute("data-nuoc"), dangBat = n.getAttribute("data-bat") === "1";
+			n.disabled = true;
+			API("ban_web_do_uong", { diem: DIEM_CHON, ma_hang: ma, bat: dangBat ? 0 : 1, ngay: NGAY })
+				.then(function () { bao(dangBat ? "Đã tắt bán web tới hết hôm nay" : "Đã bật bán web"); return tai(); })
+				.catch(function (e) { n.disabled = false; bao(loiKK(e), true); });
 		});
 		document.getElementById("kk-them").onclick = function () {
 			var hop = document.getElementById("kk-them-hop");
