@@ -79,14 +79,18 @@ MA_PHI_GIAO = "DVBH00001"  # trùng phi_giao.MA_PHI_GIAO, ca kiểm chốt
 
 # Ai thấy bảng toàn tiệm và đưa vào phiếu KPI: đúng bộ vai mở phân hệ KPI
 # (kpi.VAI_XEM, ca kiểm chốt hai bên bằng nhau).
+# Codex PR #541 vòng 5: vai quản lý cửa hàng THẬT trên site là "VGB - Quản lý
+# cửa hàng" (vai_cua_hang.VAI_QLCH, đọc lại trên site 05/11/2026: không có vai
+# tên "Quản lý cửa hàng"). Ca kiểm chốt trùng hằng bên vai_cua_hang.
+VAI_QLCH = "VGB - Quản lý cửa hàng"
 VAI_XEM = {
 	"System Manager", "Giám đốc", "AP Giám đốc",
 	"Accounts Manager", "Accounts User", "Kế toán",
-	"Sales Manager", "Quản lý cửa hàng", "Bếp trưởng",
+	"Sales Manager", "Quản lý cửa hàng", "Bếp trưởng", VAI_QLCH,
 }
 # Ai đổi được người giới thiệu của một đơn: Giám đốc và quản lý bán hàng.
 # Không có thu ngân, không có kế toán: ô này quyết tiền rơi vào tay ai.
-VAI_DOI = {"System Manager", "Giám đốc", "AP Giám đốc", "Sales Manager", "Quản lý cửa hàng"}
+VAI_DOI = {"System Manager", "Giám đốc", "AP Giám đốc", "Sales Manager", VAI_QLCH}
 
 MAY = {"Administrator", "Guest", ""}
 
