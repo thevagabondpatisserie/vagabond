@@ -190,6 +190,12 @@ class _Db:
 
 	def sql(self, cau, tham=None, as_dict=False, **kw):
 		self.sql_goi.append((cau, tham))
+		if "for update" in cau:
+			self.khoa.append(tham[0])
+			return []
+		if "vgb_tt_ma_gd like" in cau:
+			can = tham[1].strip("%")
+			return [[ten] for ten, r in self.dw.items() if ten != tham[0] and can in (r.get("vgb_tt_ma_gd") or "")][:1]
 		if "Bank Transaction" in cau:
 			mau = re.compile(tham[1], re.I)
 			return [D(g) for g in self.sao_ke if g.get("deposit", 0) > 0 and mau.search(g.get("description") or "")]
@@ -261,6 +267,36 @@ def _khop_ck():
 	dung("đọc Don Web trong khoá hàng", TEN in dbg.khoa)
 	dung("KHÔNG đụng ô máy ghi lúc gửi đơn (KHONG_DOI)", not set(dbg.dw[TEN]) - set(_dw()) and
 		all(dbg.dw[TEN][o] == _dw()[o] for o in don_web.KHONG_DOI if o in _dw()))
+
+
+@ca("Codex PR #541: một giao dịch mang mã hai đơn web thì KHÔNG đơn nào tự thành đã thu, báo Sales đối soát tay một lần; giao dịch đơn khác đã ghi nhận thì không cộng lần hai")
+def _ck_nhieu_don():
+	ten2 = "DW-2611-00124"
+	# Đúng chuỗi Codex: một lần chuyển 936.000 đ nội dung "DW261100123 DW261100124", hai đơn cùng 936.000 đ.
+	sk = [{"name": "BT-50", "description": "DW261100123 DW261100124", "deposit": 936000}]
+	dbg = _Db([_dw(), _dw(name=ten2, pancake_id="91854", pancake_display_id="91854")], sk)
+	bao, pc = [], []
+	vat = _vat(dbg, bao, pancake=lambda d: pc.append(d["name"]) or "da_ghi")
+	r = (_chay(vat, lambda: tw.khop_ck(TEN)), _chay(vat, lambda: tw.khop_ck(ten2)))
+	la("không đơn nào ghi đã thu", (r, dbg.dw[TEN]["vgb_tt_trang_thai"], dbg.dw[ten2]["vgb_tt_trang_thai"]), (("", ""), None, None))
+	la("không giảm COD Pancake", pc, [])
+	_chay(vat, lambda: tw.khop_ck(TEN))
+	tin = [(a[0], a[2], k.get("ma_tin"), k.get("khoa")) for a, k in bao]
+	# Lượt quét lặp gửi lại cùng khoá; kenh_zalo.bao chống trùng theo khoá nên Sales nhận một lần.
+	la("báo Sales đối soát tay, mỗi đơn một khoá", sorted(set(x[3] for x in tin)),
+		sorted({"don-web-ck-nhieu-don:%s:BT-50" % TEN, "don-web-ck-nhieu-don:%s:BT-50" % ten2}))
+	dung("tin cảnh báo đúng mã tin, nêu mã đơn kia", all(x[0] == "canh_bao" and x[2] == "bh_don_web_da_tra" for x in tin)
+		and any("DW261100124" in " ".join(a[3]) for a, k in bao))
+	dung("tin không có số tiền", not any(kz.MAU_TIEN.search(x) for a, k in bao for x in [a[2]] + list(a[3])))
+	# Nội dung đúng của chính đơn (VietQR in cả S..O..T lẫn mã Don Web của nó) vẫn khớp như cũ.
+	la("nội dung VietQR của đơn không bị coi là nhiều đơn", ttt.ma_don_khac(ttt.noi_dung_ck("67355", TEN, "91853"), "67355", TEN, "91853"), [])
+	la("mạch S..O..T của đơn khác", ttt.ma_don_khac("S67355O91853T S67355O91854T", "67355", TEN, "91853"), ["S67355O91854T"])
+	# Giao dịch đã nằm trong Don Web khác: không cộng lần hai, có giữ khoá dòng sao kê.
+	dbg2 = _Db([_dw(vgb_tt_ma_gd=None), _dw(name=ten2, vgb_tt_trang_thai="Da thu",
+		vgb_tt_ma_gd=json.dumps([{"gd": "BT-60", "ma": "", "so": 936000, "loai": "ck"}]))],
+		[{"name": "BT-60", "description": "S67355O91853T", "deposit": 936000}])
+	la("giao dịch đơn khác đã giữ: không ghi đã thu", (_chay(_vat(dbg2), lambda: tw.khop_ck(TEN)), dbg2.dw[TEN]["vgb_tt_trang_thai"]), ("", None))
+	dung("khoá dòng sao kê trước khi đọc", "BT-60" in dbg2.khoa)
 
 
 @ca("v638 chuyển khoản thiếu tiền: ghi 'thu thiếu', KHÔNG báo đủ, không báo Sales; đơn khác không bị khớp; đơn tiền mặt không quét")

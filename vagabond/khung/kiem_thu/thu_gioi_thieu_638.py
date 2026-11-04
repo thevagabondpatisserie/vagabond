@@ -515,7 +515,11 @@ def _chan_thu_ngan():
 		la("doc vừa gắn rồi bị sửa tay: vẫn trả lại", si3[gt.O_NGUOI], "ngan@x")
 		sua = Doc(db, gt.DT_HD, __islocal=1, amended_from="SI-1")
 		gt.truoc_khi_luu(sua)
-		la("tờ sửa lại mang người tờ gốc", (sua.get(gt.O_NGUOI), sua.get(gt.O_PT)), ("ngan@x", 2))
+		la("tờ gốc chưa huỷ: tờ sửa lại không mang người", sua.get(gt.O_NGUOI), None)
+		db.bang[gt.DT_HD]["SI-1"]["docstatus"] = 2
+		sua = Doc(db, gt.DT_HD, __islocal=1, amended_from="SI-1", **{gt.O_PT: 100})
+		gt.truoc_khi_luu(sua)
+		la("tờ sửa lại mang người và % của tờ gốc đã huỷ (không lấy % gửi lên)", (sua.get(gt.O_NGUOI), sua.get(gt.O_PT)), ("ngan@x", 2))
 	from vagabond import hooks
 	si_ev = hooks.doc_events["Sales Invoice"]
 	dung("hook đúng chỗ", "vagabond.gioi_thieu.truoc_khi_luu" in si_ev["before_validate"]
@@ -524,6 +528,41 @@ def _chan_thu_ngan():
 	la("hook Cài đặt", hooks.doc_events["Vagabond Settings"]["validate"], "vagabond.gioi_thieu.kiem_cai_dat")
 	ten = {o["fieldname"]: o for o in gt.TRUONG_MOI[gt.DT_HD]}
 	dung("các ô trên hoá đơn chỉ đọc, không chép sang tờ mới", all(o.get("read_only") and o.get("no_copy") for o in ten.values()))
+
+
+@ca("Codex PR #541: tờ MỚI gửi lên kèm người giới thiệu tự chọn và % 100 (API): máy bỏ hết, ghi sổ ra 0; giá trị máy chủ gắn cho doc chưa lưu thì giữ; tờ trả hàng để trống")
+def _to_moi_khong_tin():
+	db = _db()
+	with moi_truong(db):
+		# Đúng chuỗi Codex mô tả: hook nhận doc mới đã mang sẵn các ô, rồi lưu, rồi ghi sổ.
+		gui = Doc(db, gt.DT_HD, __islocal=1, docstatus=0, customer="Khách lẻ", items=MON, discount_amount=0,
+			**{gt.O_NGUOI: "lan@x", gt.O_LOAI: "tai_ban", gt.O_PT: 100, gt.O_HH: 999999, gt.O_DOI_BOI: "lan@x"})
+		gt.truoc_khi_luu(gui)
+		la("ô gửi lên bị bỏ", tuple(gui.get(o) for o in (gt.O_NGUOI, gt.O_LOAI, gt.O_PT, gt.O_HH, gt.O_DOI_BOI)),
+			(None, None, None, None, None))
+		gui.insert()
+		for i, d in enumerate(MON):
+			db.bang.setdefault("Sales Invoice Item", {})["%s-%d" % (gui["name"], i)] = dict(d, parent=gui["name"], parenttype=gt.DT_HD)
+		gui["docstatus"] = 1
+		db.bang[gt.DT_HD][gui["name"]]["docstatus"] = 1
+		gt.khi_ghi_so(gui)
+		la("ghi sổ: không có hoa hồng", db.bang[gt.DT_HD][gui["name"]].get(gt.O_HH) or 0, 0)
+		# Máy chủ gắn trên doc chưa lưu (đường gọi món tại bàn) thì lần lưu đầu giữ đúng giá trị máy.
+		moi = Doc(db, gt.DT_HD, __islocal=1, docstatus=0, customer="Khách lẻ")
+		gt.gan_cho_hoa_don(moi, "0909123456", "tai_ban")
+		moi[gt.O_PT] = 100
+		gt.truoc_khi_luu(moi)
+		la("giá trị máy chủ giữ, % sửa tay bị trả về", (moi[gt.O_NGUOI], moi[gt.O_PT]), ("ngan@x", 2.0))
+		# Sổ tin dùng một lần: doc khác (kể cả lưu lại lần nữa) không ăn theo.
+		khac = Doc(db, gt.DT_HD, __islocal=1, **{gt.O_NGUOI: "ngan@x", gt.O_PT: 2})
+		gt.truoc_khi_luu(khac)
+		la("doc khác không được tin", khac.get(gt.O_NGUOI), None)
+		tra = Doc(db, gt.DT_HD, __islocal=1, is_return=1, return_against="SI-X", **{gt.O_NGUOI: "ngan@x", gt.O_PT: 2})
+		gt.truoc_khi_luu(tra)
+		la("tờ trả hàng để trống", (tra.get(gt.O_NGUOI), tra.get(gt.O_PT)), (None, None))
+	la("phép thuần: tin máy chủ thắng tờ gốc", gt.don_o_moi({gt.O_NGUOI: "a@x", gt.O_LOAI: "web", gt.O_PT: 3},
+		{gt.O_NGUOI: "b@x", gt.O_PT: 9})[gt.O_NGUOI], "a@x")
+	la("phép thuần: không nguồn nào thì rỗng", set(gt.don_o_moi(None).values()), {None})
 
 
 @ca("v638 quản lý đổi người giới thiệu: thu ngân bị chặn; quản lý đổi được, ghi ai đổi lúc nào, có dòng vết; hoá đơn đã ghi sổ tính lại theo người mới")

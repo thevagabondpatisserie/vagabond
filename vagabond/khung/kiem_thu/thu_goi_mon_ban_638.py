@@ -242,6 +242,8 @@ class Kho:
 
 	def __init__(self):
 		self.dong = {}
+		# Phiếu Sales Invoice giả cho câu hỏi "phiếu tạm tính còn mở không".
+		self.phieu = {}
 		self.khoa = {}
 		self.cua = threading.local()
 		self.so = 0
@@ -278,11 +280,15 @@ class Kho:
 
 	def get_all(self, dt, filters=None, fields=None, pluck=None, **k):
 		ra = []
-		for r in self.dong.values():
+		for r in (self.phieu if dt == "Sales Invoice" else self.dong).values():
 			ok = True
 			for a, b in (filters or {}).items():
 				if isinstance(b, list) and b[0] == "<=":
 					ok = ok and r.get(a) <= b[1]
+				elif isinstance(b, list) and b[0] == "in":
+					ok = ok and r.get(a) in b[1]
+				elif isinstance(b, list) and b[0] == "!=":
+					ok = ok and r.get(a) != b[1]
 				else:
 					ok = ok and r.get(a) == b
 			if ok:
@@ -546,6 +552,36 @@ def _bat_loi(f):
 def _qua(kho, f):
 	with _quay(kho):
 		return f()
+
+
+@ca("Codex PR #541: quầy NHẬN đơn rồi bánh vẫn giữ cho bàn đó tới khi phiếu tạm tính chốt; chốt rồi thì thôi giữ, không trừ hai lần")
+def _giu_sau_nhan():
+	kho = Kho()
+	with _he(kho):
+		# Đúng chuỗi Codex: tủ có 2 bánh, bàn 5 gọi hết 2.
+		r = _gui(ban=5, mon=[{"ma": "BAWC00115", "sl": 2}])
+		la("bàn 5 gọi 2 bánh", r["ok"], 1)
+	with _quay(kho) as (tao, si), \
+			patch.object(_fr.db, "set_value", side_effect=lambda dt, *a, **k: kho.set_value(dt, *a, **k) if dt == g.DT else None):
+		kq = g.nhan(r["ma"])
+	# tao_don_tay giả không ghi bảng: phiếu tạm tính vừa lập là nháp, còn mở.
+	kho.phieu[kq["hoa_don"]] = {"name": kq["hoa_don"], "docstatus": 0, "vgb_tam_tinh": 1, "vgb_huy": 0}
+	with _he(kho):
+		r2 = _gui(nonce="H" * 32, ban=9, mon=[{"ma": "BAWC00115", "sl": 1}])
+		dung("đã nhận, phiếu chưa chốt: bàn 9 không gọi được bánh đó", r2["ok"] == 0 and "vừa hết" in r2["cau"])
+		la("bảng món: còn 0", g.bang_mon(g._diem("TCV"))["BAWC00115"]["con"], 0)
+	# Thu ngân chốt phiếu (thành bill bán): bảng kiểm kho tính 2 cái đã bán, máy thôi giữ.
+	kho.phieu[kq["hoa_don"]]["vgb_tam_tinh"] = 0
+	ban_roi = [dict(x, con=0) for x in BANH]
+	with _he(kho), patch.object(kiem_kho, "banh_tren_quay", side_effect=lambda ma, ngay=None: [dict(x) for x in ban_roi]):
+		la("chốt rồi: không trừ hai lần (0, không phải -2)", g.bang_mon(g._diem("TCV"))["BAWC00115"]["con"], 0)
+	kho.phieu[kq["hoa_don"]].update(vgb_tam_tinh=1, vgb_huy=1)
+	with _he(kho):
+		la("phiếu tạm tính bị huỷ: thả bánh", g.bang_mon(g._diem("TCV"))["BAWC00115"]["con"], 2)
+	la("phép thuần: đơn nhận hôm trước không giữ", g.mon_dang_giu([], [{"mon": "[]", "hoa_don": "A", "nhan_luc": "2026-11-03 21:00:00"}],
+		{"A"}, BAY.date()), [])
+	la("phép thuần: đơn nhận hôm nay, phiếu mở thì giữ", g.mon_dang_giu(["x"], [{"mon": "y", "hoa_don": "A", "nhan_luc": BAY},
+		{"mon": "z", "hoa_don": "B", "nhan_luc": BAY}], {"A"}, BAY.date()), ["x", "y"])
 
 
 @ca("v638 hai thu ngân bấm Nhận cùng lúc: khoá hàng, chỉ MỘT phiếu được lập, lượt sau báo đã nhận")
