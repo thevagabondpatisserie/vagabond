@@ -666,6 +666,32 @@ def _kpi():
 		la("số trên phiếu sau hai lần", (moi[gt.O_KPI_HH], db.bang[gt.DT_KPI]["KPI-L"][gt.O_KPI_HH], db.bang[gt.DT_KPI]["KPI-A"][gt.O_KPI_HH]),
 			(28000, 20000, 5000))
 		la("tổng", (k1["tong"], k2["tong"]), (48000, 48000))
+	# Codex PR #541 vòng 6: giám đốc duyệt (đóng băng) phiếu ngay sau lúc máy đọc
+	# danh sách phiếu; lượt đưa vào KPI không được đổi số đã duyệt.
+	db2 = _db()
+	_thang(db2)
+	db2.bang[gt.DT_KPI] = {"KPI-A": {"name": "KPI-A", "ky": "2026-11", "nguoi": "lan@x", "trang_thai": "Cho quan ly",
+		"dong_bang": 0, gt.O_KPI_HH: 5000}}
+	that = gt._phieu_thang
+
+	def doc_roi_duyet(ky):
+		ra = that(ky)
+		db2.bang[gt.DT_KPI]["KPI-A"].update(dong_bang=1, trang_thai="Da duyet")
+		return ra
+	khoa = []
+	goc_gv = db2.get_value
+
+	def get_value(dt, ten, truong=None, as_dict=False, **k):
+		if k.get("for_update"):
+			khoa.append((dt, ten))
+		return goc_gv(dt, ten, truong, as_dict=as_dict)
+	db2.get_value = get_value
+	with moi_truong(db2, vai=("Giám đốc",), toi="gd@x"), patch.object(gt, "_phieu_thang", side_effect=doc_roi_duyet), \
+			patch.object(gt, "nowdate", lambda: "2026-11-15"):
+		k3 = gt.dua_vao_kpi("2026-11")
+	la("phiếu vừa duyệt: giữ số đã duyệt", (db2.bang[gt.DT_KPI]["KPI-A"][gt.O_KPI_HH], db2.bang[gt.DT_KPI]["KPI-A"]["trang_thai"]), (5000, "Da duyet"))
+	la("báo là đã chốt, không cập nhật", ([x["phieu"] for x in k3["da_chot"]], k3["cap_nhat"]), (["KPI-A"], []))
+	la("đọc lại trong khoá hàng", khoa, [(gt.DT_KPI, "KPI-A")])
 
 
 @ca("v638 phiếu KPI đẩy chi: hoa hồng giới thiệu là một dòng riêng trong đề nghị chi; phiếu chỉ có khoản giới thiệu vẫn đẩy được")
