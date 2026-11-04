@@ -651,6 +651,7 @@ def goi(diem=None, ban=None, k=None, nonce=None, mon=None, ghi_chu="", ten="", s
 
 
 TEN_KHOA_DIEM = "vgb_goi_mon_ban:%s"
+TEN_KHOA_BAN = "vgb_phieu_ban:%s:%s"
 
 
 def _lay_khoa(ten, giay=10):
@@ -860,21 +861,31 @@ def nhan(ma=None):
 		frappe.throw("Đơn bàn %s %s, không cần nhận lại." % (r["ban"], CAU_DA_XU_LY.get(tt, tt.lower())))
 	if not _diem(r["diem"]):
 		frappe.throw("Điểm bán %s đang tắt, không nhận đơn được." % r["diem"])
-	# Giành đơn TRƯỚC rồi commit để nhả khoá: thu ngân thứ hai đang chờ khoá vào
-	# sẽ thấy Đã nhận. tao_don_tay tự commit giữa chừng nên không giữ khoá được
-	# qua bước lập phiếu.
-	frappe.db.set_value(DT, ma, {"trang_thai": TT_NHAN, "nhan_luc": bay, "nhan_boi": frappe.session.user})
-	frappe.db.commit()
+	# Codex PR #541 vòng 3: hai đơn KHÁC nhau của cùng một bàn được hai thu ngân
+	# nhận cùng lúc thì cả hai cùng tìm không thấy phiếu tạm tính và cùng lập
+	# phiếu. Tìm hoặc lập phiếu của một bàn chạy tuần tự bằng khoá tên theo bàn
+	# (giữ qua các lần commit giữa chừng của tao_don_tay, nhả sau commit cuối).
+	khoa_ban = TEN_KHOA_BAN % (r["diem"], r["ban"])
+	if not _lay_khoa(khoa_ban, 15):
+		frappe.throw("Bàn %s đang được nhận một đơn khác. Bấm Nhận lại sau vài giây." % r["ban"])
 	try:
-		ten, da_co = _vao_phieu_tam(r)
-	except Exception:
-		frappe.db.rollback()
-		frappe.db.set_value(DT, ma, {"trang_thai": TT_CHO, "nhan_luc": None, "nhan_boi": None})
+		# Giành đơn TRƯỚC rồi commit để nhả khoá hàng: thu ngân thứ hai đang chờ khoá
+		# vào sẽ thấy Đã nhận. tao_don_tay tự commit giữa chừng nên khoá hàng không
+		# giữ được qua bước lập phiếu.
+		frappe.db.set_value(DT, ma, {"trang_thai": TT_NHAN, "nhan_luc": bay, "nhan_boi": frappe.session.user})
 		frappe.db.commit()
-		raise
-	frappe.db.set_value(DT, ma, "hoa_don", ten)
-	_gan_gioi_thieu(ten, r.get("sdt_gioi_thieu"))
-	frappe.db.commit()
+		try:
+			ten, da_co = _vao_phieu_tam(r)
+		except Exception:
+			frappe.db.rollback()
+			frappe.db.set_value(DT, ma, {"trang_thai": TT_CHO, "nhan_luc": None, "nhan_boi": None})
+			frappe.db.commit()
+			raise
+		frappe.db.set_value(DT, ma, "hoa_don", ten)
+		_gan_gioi_thieu(ten, r.get("sdt_gioi_thieu"))
+		frappe.db.commit()
+	finally:
+		_nha_khoa(khoa_ban)
 	ma_bill = frappe.db.get_value("Sales Invoice", ten, "custom_pancake_display_id") or ten
 	return {
 		"ok": 1, "hoa_don": ten, "bill": ma_bill, "them_vao": da_co, "ban": r["ban"],

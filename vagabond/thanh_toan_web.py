@@ -198,7 +198,7 @@ def khop_ck(ten):
 	d = _doc(ten, khoa=True)
 	if not d or d.trang_thai == "Da huy" or d.vgb_tt_trang_thai == ttt.TT_DA_THU:
 		return ""
-	if ttt.chuan_pt(d.thanh_toan) not in ("bank", "card", "atm"):
+	if ttt.chuan_pt(d.thanh_toan) not in QUET_CACH:
 		return ""
 	snap = _snap(d)
 	so_can = ttt.so_tien_online(d, snap)
@@ -330,6 +330,9 @@ def _ghi_pancake_sau(ten):
 	frappe.db.commit()
 
 
+QUET_CACH = ("bank", "card", "atm")
+
+
 def quet():
 	"""Nhịp 5 phút: khớp sao kê cho đơn chọn chuyển khoản chưa thu đủ (3 ngày
 	gần nhất), làm nốt việc sau thu cho đơn đã thu mà chưa báo, ghi Pancake cho
@@ -338,7 +341,9 @@ def quet():
 		return
 	tu = add_to_date(now_datetime(), days=-3)
 	try:
-		ds = frappe.get_all(DT, filters={"thanh_toan": "bank", "trang_thai": ["!=", "Da huy"],
+		# Codex PR #541 vòng 3: đơn chọn thẻ mà cổng OnePay tắt thì biên nhận hiện
+		# VietQR cho khách chuyển khoản thay; nhịp quét phải xét cả đơn thẻ.
+		ds = frappe.get_all(DT, filters={"thanh_toan": ["in", list(QUET_CACH)], "trang_thai": ["!=", "Da huy"],
 			"vgb_tt_trang_thai": ["!=", ttt.TT_DA_THU], "creation": [">=", tu]},
 			pluck="name", order_by="creation asc", limit_page_length=0, ignore_permissions=True)
 		bao = frappe.get_all(DT, filters={"vgb_tt_trang_thai": ttt.TT_DA_THU, "vgb_tt_bao_luc": ["is", "not set"],
