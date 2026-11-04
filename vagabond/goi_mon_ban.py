@@ -923,7 +923,11 @@ def quet_het_han():
 	moc = bay - timedelta(minutes=PHUT_HET_HAN)
 	ds = frappe.get_all(DT, filters={"trang_thai": TT_CHO, "luc": ["<=", moc]}, pluck="name", limit_page_length=500)
 	for ten in ds:
-		frappe.db.set_value(DT, ten, "trang_thai", TT_HET_HAN, update_modified=False)
+		# Codex PR #541 vòng 4: giữa lúc đọc danh sách và lúc ghi, thu ngân có thể
+		# vừa nhận đơn (nhận bắt đầu trước mốc 10 phút). Chỉ đổi khi bản ghi VẪN
+		# đang Chờ nhận, đúng trong một câu UPDATE, không ghi đè Đã nhận.
+		frappe.db.sql("update `tab%s` set trang_thai = %%s where name = %%s and trang_thai = %%s" % DT,
+			(TT_HET_HAN, ten, TT_CHO))
 	if ds:
 		frappe.db.commit()
 	return len(ds)
