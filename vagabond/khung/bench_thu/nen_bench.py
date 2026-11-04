@@ -167,6 +167,10 @@ def dung():
 		{"fieldname": "custom_pancake_display_id", "fieldtype": "Data", "label": "Pancake display", "insert_after": "customer"},
 		{"fieldname": "vgb_ma_tham_chieu", "fieldtype": "Data", "label": "Mã tham chiếu đối soát", "insert_after": "customer"},
 		{"fieldname": "vgb_quay", "fieldtype": "Data", "label": "Quay", "insert_after": "customer"},
+		# Số bàn của bill quầy: site thật có (Custom Field Data "Số bàn (quầy)",
+		# đọc lại 04/11/2026), app ghi từ v293. Gọi món tại bàn v638 tìm phiếu
+		# tạm tính theo ô này; bench thiếu thì nhận đơn nổ Unknown column.
+		{"fieldname": "vgb_so_ban", "fieldtype": "Data", "label": "Số bàn (quầy)", "insert_after": "vgb_quay"},
 		{"fieldname": "vgb_huy", "fieldtype": "Check", "label": "Đã huỷ", "read_only": 1, "insert_after": "customer"},
 		# Cấu trúc lịch sử trong staging/cau_truc_cu.json: API hủy ghi đủ dấu vết.
 		{'fieldname': 'vgb_huy_ly_do', 'fieldtype': 'Small Text', 'label': 'Lý do huỷ', 'read_only': 1, 'insert_after': 'vgb_huy'},
