@@ -43,7 +43,8 @@ DAP_IPN_CHUA_KHOA = "responsecode=0&desc=chua-khai-khoa"
 TIEN_TOI_THIEU = 10000
 SO_LAN_TOI_DA = 30
 TRANG_QUET = 200
-RE_MA_GD = re.compile(r"^(DNTT[0-9]{9}|CN[A-Z0-9]{6})-([0-9]{1,3})$")
+# v637: mã đơn đặt trước (TKR...) cũng nhận trả thẻ, xem onepay_dat.py.
+RE_MA_GD = re.compile(r"^(DNTT[0-9]{9}|CN[A-Z0-9]{6}|TKR[0-9]{8})-([0-9]{1,3})$")
 
 # Mã kết quả hay gặp của OnePay -> câu cho khách. Mã lạ thì câu chung.
 CAU_MA = {
@@ -474,6 +475,10 @@ def _tim_phieu(ma, k):
 
 def thong_tin_trang(ma, k):
 	"""Dữ liệu cho trang /tra-the. Không lộ gì khi khoá sai."""
+	from vagabond import onepay_dat
+
+	if onepay_dat.la_ma_don(re.sub(r"[^A-Z0-9]", "", str(ma or "").upper())):
+		return onepay_dat.thong_tin_trang(ma, k)
 	ten = _tim_phieu(ma, k)
 	if not ten:
 		return None
@@ -490,6 +495,10 @@ def thong_tin_trang(ma, k):
 def tao_gd(ma, k):
 	"""Khách bấm "Thanh toán bằng thẻ": tạo một giao dịch mới cho SỐ CÒN PHẢI
 	TRẢ đọc ở máy chủ, trả địa chỉ OnePay để trình duyệt chuyển sang."""
+	from vagabond import onepay_dat
+
+	if onepay_dat.la_ma_don(re.sub(r"[^A-Z0-9]", "", str(ma or "").upper())):
+		return onepay_dat.tao_gd(ma, k)
 	ten = _tim_phieu(ma, k)
 	if not ten:
 		frappe.throw("Không tìm thấy phiếu thanh toán.")
@@ -532,6 +541,10 @@ def ghi_nhan(tham_so, nguon, tin_cay=False):
 	ma_ngan = ma_phieu_cua_gd(kq["ma"])
 	if not ma_ngan:
 		return {"ok": 1, "ly_do": "gd_la", "kq": kq}
+	from vagabond import onepay_dat
+
+	if onepay_dat.la_ma_don(ma_ngan):
+		return onepay_dat.ghi_nhan_the(ma_ngan, kq, nguon)
 	m = re.fullmatch(r"DNTT(\d{2})(\d{2})(\d{5})", ma_ngan)
 	ma_day = "DNTT-%s-%s-%s" % m.groups() if m else ma_ngan
 	ten = frappe.db.get_value(CN, {"ma_phieu": ma_day}, "name")
@@ -603,14 +616,31 @@ def quet():
 	bay_gio = frappe.utils.now_datetime()
 	tu = str(bay_gio - timedelta(days=2))[:19]
 	den = str(bay_gio - timedelta(minutes=15))[:19]
+	# v637: hai nơi cất nhật ký giao dịch: phiếu công nợ và phiếu đặt (đơn đặt trước).
+	# Phiếu đặt đã huỷ vẫn hỏi (Codex #538): khách có thể đã trả thẻ ngay trước khi huỷ.
+	from vagabond import onepay_dat
+
+	for dt, o, loc in ((CN, "onepay_gd", {"trang_thai": ["!=", "Huy"]}),
+			(onepay_dat.SO, onepay_dat.TRUONG_NK, {"docstatus": ["in", [1, 2]]})):
+		# Một loại đọc hỏng (vd ô nhật ký chưa có vì chưa migrate) không được
+		# chặn loại kia: tiền thẻ công nợ vẫn phải được tra cứu.
+		try:
+			_quet_mot_loai(dt, o, loc, tu, den)
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(frappe.get_traceback(), "onepay: quét %s" % dt)
+
+
+def _quet_mot_loai(dt, o, loc, tu, den):
+	"""Đi hết các chứng từ một loại có giao dịch "chờ", theo trang."""
 	sau = ""
 	while True:
-		trang = frappe.get_all(CN, filters={"onepay_gd": ["like", "%\"cho\"%"], "trang_thai": ["!=", "Huy"],
-			"name": [">", sau]}, pluck="name", order_by="name asc", limit_page_length=TRANG_QUET)
+		trang = frappe.get_all(dt, filters=dict(loc, **{o: ["like", "%\"cho\"%"], "name": [">", sau]}),
+			pluck="name", order_by="name asc", limit_page_length=TRANG_QUET)
 		for ten in trang:
-			hoi, het = phan_loai_cho(doc_nhat_ky(frappe.db.get_value(CN, ten, "onepay_gd")), tu, den)
+			hoi, het = phan_loai_cho(doc_nhat_ky(frappe.db.get_value(dt, ten, o)), tu, den)
 			if het:
-				_het_han(ten, het)
+				_het_han(ten, het, dt, o)
 			for ma in hoi:
 				try:
 					ts = tra_cuu(ma)
@@ -629,19 +659,19 @@ def quet():
 		sau = trang[-1]
 
 
-def _het_han(ten, cac_ma):
+def _het_han(ten, cac_ma, dt=CN, o="onepay_gd"):
 	"""Đổi giao dịch "chờ" quá hạn sang "het_han", đọc lại nhật ký trong khoá
 	hàng phiếu. Giao dịch hết hạn vẫn ghi được nếu OnePay báo thành công muộn
 	(xet_ghi_nhan chỉ chặn "da_ghi")."""
 	try:
-		nk = doc_nhat_ky(frappe.db.get_value(CN, ten, "onepay_gd", for_update=True))
+		nk = doc_nhat_ky(frappe.db.get_value(dt, ten, o, for_update=True))
 		doi = 0
 		for g in nk:
 			if g.get("ma") in cac_ma and g.get("trang_thai") == "cho":
 				g["trang_thai"] = "het_han"
 				doi += 1
 		if doi:
-			frappe.db.set_value(CN, ten, "onepay_gd", json.dumps(nk, ensure_ascii=False), update_modified=False)
+			frappe.db.set_value(dt, ten, o, json.dumps(nk, ensure_ascii=False), update_modified=False)
 		frappe.db.commit()
 	except Exception:
 		frappe.db.rollback()

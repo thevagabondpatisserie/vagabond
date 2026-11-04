@@ -112,6 +112,9 @@ def _quet():
 	loi = []
 
 	def get_all(dt, filters=None, limit_page_length=0, **kw):
+		# v637: quét đi cả phiếu đặt (đơn đặt trước); ca này chỉ có phiếu công nợ.
+		if dt != op.CN:
+			return []
 		sau = (filters or {}).get("name")
 		return [t for t in sorted(kho) if not sau or t > sau[1]]
 

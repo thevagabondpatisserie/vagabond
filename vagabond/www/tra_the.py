@@ -42,7 +42,12 @@ def get_context(context):
 	context.update(op.cach_tra(context.phieu) if context.phieu else {"da_du": False, "tra_the": False, "con_nho": False})
 	context.ma = ma
 	context.k = k
-	if context.phieu:
+	context.ck = None
+	from vagabond import onepay_dat
+
+	# v637: trang của đơn đặt trước chỉ có nút thẻ (khách đang đứng ở quầy, mã
+	# chuyển khoản của đơn hiện trên màn quầy); khối chuyển khoản là của phiếu công nợ.
+	if context.phieu and not onepay_dat.la_ma_don(context.phieu.get("ma_phieu")):
 		try:
 			from vagabond import cong_no, qr_chuyen_khoan, tai_khoan
 

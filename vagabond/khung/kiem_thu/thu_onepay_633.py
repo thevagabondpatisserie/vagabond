@@ -314,6 +314,9 @@ def _quet_het():
 		kho["CN-%04d" % i] = json.dumps([{"ma": "DNTT26110%04d-1" % i, "so_tien": 100000, "tao_luc": moi, "trang_thai": "cho"}])
 
 	def get_all(dt, filters=None, pluck=None, limit_page_length=0, order_by=None, **kw):
+		# v637: quét đi cả phiếu đặt (đơn đặt trước); ca này chỉ có phiếu công nợ.
+		if dt != op.CN:
+			return []
 		ten = sorted(t for t, v in kho.items() if '"cho"' in v)
 		sau = (filters or {}).get("name")
 		if sau:

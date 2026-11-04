@@ -54,7 +54,7 @@ var DON = {
 };
 var QUAY = [{ ma: 'TCV', ten: 'District 1' }, { ma: 'NVHTN', ten: 'NVHTN' }];
 var TT = [{ k: 'cho_coc', ten: 'Chờ cọc' }, { k: 'da_coc', ten: 'Đã cọc' }, { k: 'du_tien', ten: 'Đã thu đủ' }, { k: 'da_giao', ten: 'Đã giao' }, { k: 'da_huy', ten: 'Đã huỷ' }];
-var KE_TOAN = 0, LOI = {}, TRA = {};
+var KE_TOAN = 0, LOI = {}, TRA = {}, ONEPAY = 0;
 
 function dungMoi(vai) {
   var tai = dg.taiLieuGia();
@@ -85,7 +85,7 @@ function dungMoi(vai) {
       }
       if (duong === 'vagabond.thiet_ke_rieng.xem') {
         var r = JSON.parse(JSON.stringify(DON[ts.name]));
-        r.quay = QUAY; r.la_ke_toan = KE_TOAN;
+        r.quay = QUAY; r.la_ke_toan = KE_TOAN; r.onepay = ONEPAY;
         r.qr = r.con_lai > 0 ? { anh: 'data:image/svg+xml;base64,QR', ngan_hang: 'MB', stk: '0931224334', noi_dung: r.ma } : null;
         return Promise.resolve(r);
       }
@@ -246,6 +246,79 @@ async function moCt(ten, vai) {
       dung('sheet còn', m.tai.body.children.indexOf(s) >= 0);
       dung('nút bấm lại được', !nut.disabled);
     } finally { delete LOI['vagabond.thiet_ke_rieng.thu_tien_mat']; }
+  });
+
+  /* v637 (anh Việt 03/11/2026): khách trả thẻ OnePay ở quầy, không cà máy POS. */
+  await ca('v637 Thẻ OnePay: tắt thì không có cách Thẻ; bật thì có, bấm ra mã QR trang trả thẻ của đúng đơn; chờ tới khi tiền về thì tự báo và đóng sheet', async function () {
+    ONEPAY = 0;
+    var m0 = await moCt('SO-2');
+    bam(m0.g.document.getElementById('ddtChinh'));
+    dung('tắt thì không có Thẻ', !q(sheet(m0), '[data-ddtcach="the"]'));
+    dung('không còn cà máy POS', chu(sheet(m0)).indexOf('POS') < 0);
+    ONEPAY = 1;
+    try {
+      var m = await moCt('SO-2');
+      vm.runInNewContext('DDT_HOI_THE = 5;', m.g);
+      TRA['vagabond.onepay_dat.ma_the'] = { ma: 'TKR26110002', link: 'https://vagabond.test/tra-the/TKR26110002?k=abc', anh: 'data:image/svg+xml;base64,THE', con_lai: 3780000 };
+      TRA['vagabond.onepay_dat.con_lai'] = { con_lai: 3780000, trang_thai: 'da_coc' };
+      bam(m.g.document.getElementById('ddtChinh'));
+      var s = sheet(m);
+      bam(q(s, '[data-ddtcach="the"]'));
+      await tick(); await tick();
+      bang('hỏi mã thẻ đúng đơn', m.goi.filter(function (x) { return x.duong === 'vagabond.onepay_dat.ma_the'; }).map(function (x) { return x.ts; }), [{ name: 'SO-2' }]);
+      dung('ảnh QR trang thẻ', q(s, '[data-ddttheqr]') && q(s, '[data-ddttheqr]').getAttribute('src') === 'data:image/svg+xml;base64,THE');
+      dung('nói rõ tiền của Sales, két không cộng', chu(s).indexOf('két quầy không cộng') >= 0 && chu(s).indexOf('Sales') >= 0);
+      await new Promise(function (r) { setTimeout(r, 40); });
+      dung('đang chờ: đã hỏi lại, sheet còn', m.goi.filter(function (x) { return x.duong === 'vagabond.onepay_dat.con_lai'; }).length >= 1 && m.tai.body.children.indexOf(s) >= 0);
+      TRA['vagabond.onepay_dat.con_lai'] = { con_lai: 0, trang_thai: 'du_tien', the: [{ ma: 'TKR26110002-1', so_tien: 3780000, so_ghi: 3780000, du: 0 }] };
+      await new Promise(function (r) { setTimeout(r, 40); });
+      dung('tiền về: báo đúng số', m.toast.join('|').indexOf('Khách đã trả thẻ 3.780.000đ cho TKR26110002') >= 0);
+      dung('đóng sheet, mở lại đơn', m.tai.body.children.indexOf(s) < 0 && m.dieuHuong.indexOf('scrDonDatTruocCt') >= 0);
+      var n = m.goi.filter(function (x) { return x.duong === 'vagabond.onepay_dat.con_lai'; }).length;
+      await new Promise(function (r) { setTimeout(r, 40); });
+      bang('đóng rồi thì thôi hỏi', m.goi.filter(function (x) { return x.duong === 'vagabond.onepay_dat.con_lai'; }).length, n);
+      /* Đổi sang tiền mặt giữa chừng thì lượt hỏi thẻ dừng. */
+      TRA['vagabond.onepay_dat.con_lai'] = { con_lai: 3780000, trang_thai: 'da_coc' };
+      var m2 = await moCt('SO-2');
+      vm.runInNewContext('DDT_HOI_THE = 5;', m2.g);
+      bam(m2.g.document.getElementById('ddtChinh'));
+      var s2 = sheet(m2);
+      bam(q(s2, '[data-ddtcach="the"]'));
+      await tick(); await tick();
+      bam(q(s2, '[data-ddtcach="tien_mat"]'));
+      var n2 = m2.goi.filter(function (x) { return x.duong === 'vagabond.onepay_dat.con_lai'; }).length;
+      await new Promise(function (r) { setTimeout(r, 40); });
+      bang('đổi cách thì thôi hỏi', m2.goi.filter(function (x) { return x.duong === 'vagabond.onepay_dat.con_lai'; }).length, n2);
+    } finally { ONEPAY = 0; delete TRA['vagabond.onepay_dat.ma_the']; delete TRA['vagabond.onepay_dat.con_lai']; }
+  });
+
+  /* Codex #538 vòng 2 (SHA d740afd3f): số còn phải thu giảm vì một khoản KHÁC (chuyển
+     khoản vừa khớp, tiền mặt) không được báo là khách đã trả thẻ. */
+  await ca('v637 Codex #538 vòng 2: đang chờ thẻ mà đơn được trả bằng chuyển khoản thì KHÔNG báo đã trả thẻ; ma_the báo đơn đã đủ thì không hiện QR', async function () {
+    ONEPAY = 1;
+    try {
+      var m = await moCt('SO-2');
+      vm.runInNewContext('DDT_HOI_THE = 5;', m.g);
+      TRA['vagabond.onepay_dat.ma_the'] = { ma: 'TKR26110002', link: 'https://x/tra-the', anh: 'data:image/svg+xml;base64,THE', con_lai: 3780000, trang_thai: 'da_coc', the: [] };
+      TRA['vagabond.onepay_dat.con_lai'] = { con_lai: 0, trang_thai: 'du_tien', the: [] };
+      bam(m.g.document.getElementById('ddtChinh'));
+      var s = sheet(m);
+      bam(q(s, '[data-ddtcach="the"]'));
+      await new Promise(function (r) { setTimeout(r, 40); });
+      dung('không báo đã trả thẻ: ' + m.toast.join('|'), m.toast.join('|').indexOf('Khách đã trả thẻ') < 0);
+      dung('báo đơn đã đủ qua cách khác', m.toast.join('|').indexOf('đã thu đủ qua cách khác') >= 0);
+      /* Màn mở từ dữ liệu cũ (r.con_lai 3.780.000) nhưng máy chủ nói đơn đã đủ: không hiện QR, không hỏi. */
+      TRA['vagabond.onepay_dat.ma_the'] = { ma: 'TKR26110002', link: 'https://x/tra-the', anh: 'data:image/svg+xml;base64,THE', con_lai: 0, trang_thai: 'du_tien', the: [] };
+      var m2 = await moCt('SO-2');
+      vm.runInNewContext('DDT_HOI_THE = 5;', m2.g);
+      bam(m2.g.document.getElementById('ddtChinh'));
+      var s2 = sheet(m2);
+      bam(q(s2, '[data-ddtcach="the"]'));
+      await new Promise(function (r) { setTimeout(r, 40); });
+      dung('không QR khi đã đủ', !q(s2, '[data-ddttheqr]'));
+      bang('không hỏi lại', m2.goi.filter(function (x) { return x.duong === 'vagabond.onepay_dat.con_lai'; }).length, 0);
+      dung('không báo đã trả thẻ', m2.toast.join('|').indexOf('Khách đã trả thẻ') < 0);
+    } finally { ONEPAY = 0; delete TRA['vagabond.onepay_dat.ma_the']; delete TRA['vagabond.onepay_dat.con_lai']; }
   });
 
   await ca('chuyển khoản qua QR: hiện mã QR và nội dung là mã đơn; chưa thấy tiền thì nói chờ, thấy thì báo lập phiếu', async function () {

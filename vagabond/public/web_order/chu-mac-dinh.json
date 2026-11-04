@@ -5231,6 +5231,11 @@
     "nhom": "banh_si",
     "mac_dinh": "Đặt bàn"
   },
+  "nut_khach_si": {
+    "ten": "Nút Khách sỉ trên đầu trang (mở trang Bánh sỉ cho quán đăng nhập, đặt sỉ)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Khách sỉ"
+  },
   "bsi_lh_cafe": {
     "ten": "Bánh sỉ: Quán cà phê",
     "nhom": "banh_si",

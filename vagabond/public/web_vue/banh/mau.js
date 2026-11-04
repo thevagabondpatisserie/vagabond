@@ -7,7 +7,7 @@ export const MAU = `
 <header><div class="wrap hd">
   <div class="hd-left"><a href="#/" @click.prevent="nav('#/')" :aria-label="t('dat_banh_86376d53a','Về trang chủ')"><img class="logo" :src="LOGO" :alt="t('dat_banh_913466c0d','The Vagabond Pâtisserie')"></a></div>
   <a class="hd-phone" :href="'tel:'+telSo()"><svg viewBox="0 0 24 24"><path d="${GOI}"/></svg>{{ telChu() }}</a>
-  <nav class="dich-vu" :aria-label="t('dat_banh_2c5093996','Dịch vụ')"><a href="/dat-ban">{{ t('nut_dat_ban','Đặt bàn') }}</a><a href="/thanh-vien">{{ t('nut_thanh_vien','Thành viên') }}</a></nav>
+  <nav class="dich-vu" :aria-label="t('dat_banh_2c5093996','Dịch vụ')"><a href="/dat-ban">{{ t('nut_dat_ban','Đặt bàn') }}</a><a href="/banh-si">{{ t('nut_khach_si','Khách sỉ') }}</a><a href="/thanh-vien">{{ t('nut_thanh_vien','Thành viên') }}</a></nav>
 </div></header>
 
 <div id="noi-dung-marketing" data-vgb-vi-tri="dau_trang" :aria-label="t('dat_banh_f4a541343','Lời chào từ chúng tôi')"><khoi-noi-dung vi-tri="dau_trang"/></div>
