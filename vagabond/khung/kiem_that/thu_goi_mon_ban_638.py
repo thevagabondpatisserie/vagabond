@@ -77,7 +77,8 @@ def _vong_doi():
 		la("phiếu tạm tính nháp của đúng bàn", (si.docstatus, si.vgb_tam_tinh, si.vgb_quay, si.vgb_so_ban, si.custom_nguon),
 			(0, 1, quay["quay"], str(ban), g.NGUON_QR))
 		la("đủ món đúng giá", [(x.item_code, flt(x.qty), flt(x.rate)) for x in si.items], [(ma, 2.0, float(gia))])
-		la("bản ghi đã nhận, trỏ phiếu", frappe.db.get_value(g.DT, r1["ma"], ["trang_thai", "hoa_don"]), [g.TT_NHAN, si.name])
+		# get_value nhiều ô trả tuple; ép list để so (bench PR #541 vòng 2 đỏ vì tuple khác list).
+		la("bản ghi đã nhận, trỏ phiếu", list(frappe.db.get_value(g.DT, r1["ma"], ["trang_thai", "hoa_don"]) or []), [g.TT_NHAN, si.name])
 
 		try:
 			frappe.set_user("Guest")
