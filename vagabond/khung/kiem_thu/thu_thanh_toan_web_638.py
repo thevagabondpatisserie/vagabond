@@ -460,6 +460,37 @@ def _ghi_the():
 	la("hoá đơn đồng bộ: OnePay, mã giao dịch của tiệm", _chay(vat, lambda: tw.pt_hoa_don("91853", "91853")), ("OnePay", MA + "-1"))
 
 
+@ca("Codex PR #541 vòng 2: đơn chọn thẻ đã khớp 300.000 đ chuyển khoản, trả nốt 636.000 đ qua OnePay: cách thu 'Nhiều cách', Pancake ghi riêng từng ô, hoá đơn để Sales chọn (không gán OnePay cho cả tổng)")
+def _ck_va_the():
+	nk = [{"ma": MA + "-1", "so_tien": 636000, "trang_thai": "cho"}]
+	dbg = _Db([_dw(thanh_toan="card", **{tw.O_NK: json.dumps(nk)})],
+		[{"name": "BT-1", "description": "S67355O91853T", "deposit": 300000, "reference_number": "FT1"}])
+	bao = []
+	vat = _vat(dbg, bao)
+	# Đúng chuỗi Codex: khớp chuyển khoản trước, rồi kết quả OnePay về.
+	la("chuyển khoản trước: thu thiếu", _chay(vat, lambda: tw.khop_ck(TEN)), ttt.TT_THIEU)
+	la("cách lúc đó là chuyển khoản", dbg.dw[TEN]["vgb_tt_cach"], "Chuyển khoản")
+	r = _chay(vat, lambda: op.ghi_nhan(_kq(tien=636000), "ipn"))
+	la("ghi thẻ", r["ly_do"], "")
+	d = dbg.dw[TEN]
+	la("Don Web: đủ, nhiều cách", (d["vgb_tt_trang_thai"], d["vgb_tt_da_thu"], d["vgb_tt_cach"]), ("Da thu", 936000.0, ttt.CACH_NHIEU))
+	ds = json.loads(d["vgb_tt_ma_gd"])
+	la("nhật ký giữ riêng từng loại", [(g["gd"], g["loai"], g["so"]) for g in ds], [("BT-1", "ck", 300000.0), (MA + "-1", "the", 636000.0)])
+	la("Pancake ghi riêng từng ô", ttt.than_pancake_ds(ds, d["vgb_tt_cach"], d["vgb_tt_da_thu"], {}),
+		{"transfer_money": 300000, "prepaid": 636000})
+	la("Pancake đã có ô chuyển khoản thì chỉ ghi ô thẻ", ttt.than_pancake_ds(ds, d["vgb_tt_cach"], d["vgb_tt_da_thu"], {"transfer_money": 300000}),
+		{"prepaid": 636000})
+	la("hoá đơn đồng bộ: để Sales chọn, không gán OnePay cho cả tổng", _chay(vat, lambda: tw.pt_hoa_don("91853", "91853")), ("", ""))
+	la("chốt chuyển khoản vẫn thấy đúng phần chuyển khoản", _chay(vat, lambda: tw.ck_hoa_don("91853", "91853"))["nhan"], 300000.0)
+	tieu, dong = ttt.tin_da_tra(TEN, "91853", d["vgb_tt_cach"], False, "da_ghi")
+	dung("tin Sales nói hai cách", any("chuyển khoản và thẻ qua OnePay" in x for x in dong))
+	# Bản ghi cũ OnePay mà nhật ký có cả chuyển khoản: cũng không gán OnePay.
+	la("cách ghi OnePay mà nhật ký hai loại", ttt.pt_cho_hoa_don({"vgb_tt_trang_thai": "Da thu", "vgb_tt_cach": "OnePay",
+		"vgb_tt_ma_gd": d["vgb_tt_ma_gd"]}), ("", ""))
+	la("mã OnePay lấy đúng dòng thẻ, không lấy dòng sao kê", ttt.pt_cho_hoa_don({"vgb_tt_trang_thai": "Da thu", "vgb_tt_cach": "OnePay",
+		"vgb_tt_ma_gd": json.dumps([{"gd": "BT-0", "loai": "ck", "so": 0}, {"gd": MA + "-2", "loai": "the", "so": 936000}])}), ("OnePay", MA + "-2"))
+
+
 @ca("v638 OnePay đơn web thất bại thì ghi thất bại, không đổi tiền; trả khi đơn đã huỷ thì báo kế toán hoàn toàn bộ")
 def _the_hong():
 	nk = [{"ma": MA + "-1", "so_tien": 936000, "trang_thai": "cho"}]

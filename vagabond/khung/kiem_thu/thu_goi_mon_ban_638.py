@@ -245,6 +245,8 @@ class Kho:
 		# Phiếu Sales Invoice giả cho câu hỏi "phiếu tạm tính còn mở không".
 		self.phieu = {}
 		self.khoa = {}
+		self.khoa_ten = {}
+		self.goi_khoa = []
 		self.cua = threading.local()
 		self.so = 0
 		self.mu = threading.Lock()
@@ -296,6 +298,19 @@ class Kho:
 		return ra
 
 	def sql(self, cau, ts=None, as_dict=False, **k):
+		# Khoá tên MariaDB (get_lock/release_lock): giữ theo LUỒNG như theo kết nối.
+		if "get_lock(" in cau:
+			with self.mu:
+				kt = self.khoa_ten.setdefault(ts[0], threading.Lock())
+			ok = kt.acquire(timeout=float(ts[1]))
+			self.goi_khoa.append(("lay", ts[0], ok, threading.get_ident()))
+			return [[1 if ok else 0]]
+		if "release_lock(" in cau:
+			kt = self.khoa_ten.get(ts[0])
+			if kt and kt.locked():
+				kt.release()
+			self.goi_khoa.append(("nha", ts[0], threading.get_ident()))
+			return [[1]]
 		if "for update" in cau:
 			ma = ts[0]
 			if ma not in self.khoa:
@@ -337,7 +352,7 @@ def _he(kho, bay=BAY, mo=True, gt=None):
 	tin = []
 	cu_db = (_fr.db.get_value, _fr.db.set_value, _fr.db.sql, _fr.db.commit, _fr.db.rollback)
 	_fr.db.get_value, _fr.db.set_value, _fr.db.sql = kho.get_value, kho.set_value, kho.sql
-	_fr.db.commit = lambda *a, **k: kho.nha()
+	_fr.db.commit = lambda *a, **k: (kho.goi_khoa.append(("commit", threading.get_ident())), kho.nha())
 	_fr.db.rollback = lambda *a, **k: kho.nha()
 	# `from vagabond import gioi_thieu` đọc THUỘC TÍNH của gói trước sys.modules: khi mô
 	# đun thật đã được nạp (ca thu_gioi_thieu_638 chạy trước) phải thay cả hai chỗ.
@@ -449,6 +464,55 @@ def _nonce_dua():
 		_fr.db.get_value = tre
 		r2 = _gui(nonce="Z" * 32)
 	la("một đơn", (len(kho.dong), r2["ma"], r2.get("lap_lai")), (1, r1["ma"], 1))
+
+
+@ca("Codex PR #541 vòng 2: hai bàn gọi cùng lúc (mã lần gửi khác nhau), cùng đọc bảng món trước khi đơn kia ghi: chỉ MỘT bàn lấy được 2 bánh cuối; khoá theo điểm luôn được nhả")
+def _hai_ban_dua():
+	kho = Kho()
+	cho = threading.Barrier(2)
+	that = g.bang_mon
+
+	def doc_roi_doi(*a, **k):
+		r = that(*a, **k)
+		# Đúng chuỗi Codex: hai luồng cùng dừng ngay sau khi đọc bảng món. Có khoá
+		# theo điểm thì luồng sau không tới được đây khi luồng trước chưa xong, rào hết giờ.
+		try:
+			cho.wait(timeout=1.5)
+		except threading.BrokenBarrierError:
+			pass
+		return r
+	kq = {}
+	with _he(kho), patch.object(g, "bang_mon", side_effect=doc_roi_doi):
+		def chay(ban, nonce):
+			kq[ban] = _gui(nonce=nonce, ban=ban, mon=[{"ma": "BAWC00115", "sl": 2}])
+		ts = [threading.Thread(target=chay, args=(5, "P" * 32)), threading.Thread(target=chay, args=(9, "Q" * 32))]
+		for x in ts:
+			x.start()
+		for x in ts:
+			x.join(20)
+	ok = sorted(b for b, r in kq.items() if r.get("ok"))
+	la("đúng một bàn gọi được", len(ok), 1)
+	la("tổng bánh đang giữ không vượt số trên tủ", sum(g.sl_dang_cho([r.get("mon") for r in kho.dong.values()]).values()), 2)
+	thua = [r for b, r in kq.items() if not r.get("ok")]
+	dung("bàn kia nghe câu hết bánh", len(thua) == 1 and "vừa hết" in thua[0]["cau"])
+	lay = [x for x in kho.goi_khoa if x[0] == "lay"]
+	nha = [x for x in kho.goi_khoa if x[0] == "nha"]
+	la("khoá đúng tên theo điểm, lấy bao nhiêu nhả bấy nhiêu", ({x[1] for x in lay}, len(lay), len(nha)), ({"vgb_goi_mon_ban:TCV"}, 2, 2))
+	dung("khoá không còn bị giữ", not any(k.locked() for k in kho.khoa_ten.values()))
+	# Đơn được ghi phải COMMIT trước khi nhả khoá, không thì luồng sau đọc tồn
+	# lúc đơn trước chưa hiện ra với nó (kho giả không mô phỏng cô lập giao dịch).
+	thu_tu = {}
+	for x in kho.goi_khoa:
+		if x[0] in ("commit", "nha"):
+			thu_tu.setdefault(x[-1], []).append(x[0])
+	dung("mỗi lượt gọi được: commit rồi mới nhả khoá", sum(1 for v in thu_tu.values() if "commit" in v and v.index("commit") < v.index("nha")) == 1)
+	# Khoá đang bị giữ quá lâu: không ghi đơn, câu mời gọi lại, không nhả khoá của người khác.
+	kho2 = Kho()
+	kho2.khoa_ten["vgb_goi_mon_ban:TCV"] = threading.Lock()
+	kho2.khoa_ten["vgb_goi_mon_ban:TCV"].acquire()
+	with _he(kho2), patch.object(g, "_lay_khoa", side_effect=lambda ten, giay=10: bool(kho2.sql("select get_lock(%s, %s)", (ten, 0.05))[0][0])):
+		r = _gui(nonce="R" * 32)
+	dung("chờ khoá quá hạn: không ghi, mời gọi lại", r["ok"] == 0 and "lại sau vài giây" in r["cau"] and not kho2.dong)
 
 
 class SI(_fr._dict):
@@ -672,6 +736,24 @@ def _the():
 	t = g.the_quay(r, BAY, "District 1")
 	la("thẻ", (t["ban"], t["so_mon"], t["tam_tinh"], t["phut"], t["mon"][0]["tc"], t["ghi_chu"], t["ten_goi"], t["gioi_thieu"]),
 		(5, 2, 90000, 7, ["Ít đá"], "ít ngọt", "Lan", "Chị Dễ"))
+	la("chưa có ảnh: rỗng (màn vẽ ô 🍰)", t["mon"][0]["anh"], "")
+	la("có ảnh danh mục: mang theo", g.the_quay(r, BAY, "District 1", {"NUTR00021": "/files/tra.jpg"})["mon"][0]["anh"], "/files/tra.jpg")
+	# Codex PR #541 vòng 2: đường thật dem_cho đọc ảnh danh mục (một câu cho mọi món) và đưa lên thẻ.
+	kho = Kho()
+	with _he(kho):
+		_gui()
+		doc_item = []
+		goc = _fr.get_all
+
+		def get_all(dt, *a, **k):
+			if dt == "Item":
+				doc_item.append(k.get("filters"))
+				return [{"name": "NUTR00021", "image": "/files/tra.jpg"}]
+			return goc(dt, *a, **k)
+		with patch.object(BH, "_kiem_quyen_ban"), patch.object(_fr, "get_all", side_effect=get_all):
+			ds = g.dem_cho("TCV")["ds"]
+	la("dem_cho: ảnh món trên thẻ", [(x["ma"], x["anh"]) for x in ds[0]["mon"]], [("NUTR00021", "/files/tra.jpg")])
+	la("một câu đọc ảnh cho mọi món", doc_item, [{"name": ["in", ["NUTR00021"]]}])
 
 
 @ca("v638 giờ mở cửa: đọc thẻ Cửa hàng của điểm (cùng nguồn Đặt bàn); chưa điền thì 7:00 - 22:00")
