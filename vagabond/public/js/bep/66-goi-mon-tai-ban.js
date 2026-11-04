@@ -103,8 +103,8 @@ function gmbCoNuoc(x) {
 
 function gmbThe(x) {
   var mon = (x.mon || []).map(function (m) {
-    return '<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #f1f3f5;font-size:14px">' +
-      '<b style="flex:none;min-width:28px">' + m.sl + 'x</b><div style="flex:1;min-width:0">' + h(m.ten) +
+    return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #f1f3f5;font-size:14px">' +
+      anhMon(m.anh) + '<b style="flex:none;min-width:28px">' + m.sl + 'x</b><div style="flex:1;min-width:0">' + h(m.ten) +
       ((m.tc || []).length ? '<div style="font-size:13px;color:#0f766e">⚙ ' + h(m.tc.join(', ')) + '</div>' : '') + '</div></div>';
   }).join('');
   return '<div class="card" data-gmbthe="' + h(x.ma) + '" style="padding:12px 13px;margin-bottom:10px">' +
