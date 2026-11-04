@@ -38,7 +38,7 @@ function layBien(src, ten) {
   return m[0];
 }
 
-var MA = ['h', 'money', 'today'].map(function (t) { return layHam(NEN, t); }).join('\n') + '\n' +
+var MA = ['h', 'money', 'today', 'anhMon'].map(function (t) { return layHam(NEN, t); }).join('\n') + '\n' +
   layHam(POS, 'posChipNut') + '\n' + layHam(SALES, 'nguonBH') + '\n' + layHam(SALES, 'ptTheoNguon') + '\n' +
   layBien(BILL, 'POS_NHOM_NUOC') + layBien(BILL, 'IN_MAU_MD') +
   ['posLaNuoc', 'posMonNuoc', 'inKho', 'inMau', 'posInPhieuMon'].map(function (t) { return layHam(BILL, t); }).join('\n') + '\n' +
@@ -58,8 +58,8 @@ async function ca(ten, ham) {
 function chu(el) { var s = el._chu || ''; (el.children || []).forEach(function (c) { s += chu(c); }); return s; }
 
 var THE = [{ ma: 'TQ-261104-0001', ban: 5, diem: 'TCV', ten_diem: 'District 1', so_mon: 3, tam_tinh: 185000, phut: 2,
-  mon: [{ ma: 'NUTR00021', ten: 'Trà Hoa Lài', sl: 2, tc: ['Ít đá'], nhom: 'Trà', gia: 45000 },
-    { ma: 'BAWC00115', ten: 'Mousse Chanh Dây', sl: 1, tc: [], nhom: 'Bánh lạnh', gia: 95000 }],
+  mon: [{ ma: 'NUTR00021', ten: 'Trà Hoa Lài', sl: 2, tc: ['Ít đá'], nhom: 'Trà', gia: 45000, anh: '/files/tra.jpg' },
+    { ma: 'BAWC00115', ten: 'Mousse Chanh Dây', sl: 1, tc: [], nhom: 'Bánh lạnh', gia: 95000, anh: '' }],
   ghi_chu: 'mang trà ra trước', ten_goi: 'Lan', gioi_thieu: 'Chị Dễ' }];
 
 function moApp(o) {
@@ -175,6 +175,10 @@ function bamTrong(goc, chon) { var el = goc.querySelector(chon); if (!el) throw 
     var c = chu(the);
     ['Bàn 5', '3 món', '185.000 đ', 'chờ 2 phút', 'Trà Hoa Lài', 'Ít đá', 'mang trà ra trước', 'Lan', 'Người giới thiệu: Chị Dễ',
       'Nhận đơn và in phiếu pha chế', 'Từ chối'].forEach(function (x) { dung('thẻ có "' + x + '"', c.indexOf(x) >= 0); });
+    // Codex PR #541 vòng 2 (AGENTS.md 2b.4): mỗi dòng món có ảnh qua anhMon; chưa có ảnh thì ô 🍰.
+    var anh = the.querySelectorAll('img');
+    bang('ảnh món có ảnh danh mục', anh.map(function (x) { return x.getAttribute('src'); }), ['/files/tra.jpg']);
+    bang('món chưa có ảnh giữ hàng bằng ô 🍰', the.querySelectorAll('.immp').map(function (x) { return chu(x); }), ['🍰']);
     bamTrong(sh, '[data-gmbnhan]');
     await choDen(function () { return m.di.length; });
     bang('gọi đúng cửa với mã đơn', m.goi.filter(function (x) { return x.duong === 'vagabond.goi_mon_ban.nhan'; }).map(function (x) { return x.ts; }),
