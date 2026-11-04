@@ -44,7 +44,11 @@ TIEN_TOI_THIEU = 10000
 SO_LAN_TOI_DA = 30
 TRANG_QUET = 200
 # v637: mã đơn đặt trước (TKR...) cũng nhận trả thẻ, xem onepay_dat.py.
-RE_MA_GD = re.compile(r"^(DNTT[0-9]{9}|CN[A-Z0-9]{6}|TKR[0-9]{8})-([0-9]{1,3})$")
+# v638: mã đơn đặt bánh trên web (DW + năm tháng + 5 số), xem thanh_toan_web.py.
+RE_MA_GD = re.compile(r"^(DNTT[0-9]{9}|CN[A-Z0-9]{6}|TKR[0-9]{8}|DW[0-9]{9})-([0-9]{1,3})$")
+# Loại thẻ cổng nhận (vpc_CardList): quốc tế hay ATM nội địa. Giá trị khác thì
+# không gửi, cổng hiện mọi loại thẻ như trước.
+CARD_LIST = ("INTERNATIONAL", "DOMESTIC")
 
 # Mã kết quả hay gặp của OnePay -> câu cho khách. Mã lạ thì câu chung.
 CAU_MA = {
@@ -177,9 +181,12 @@ def ma_phieu_cua_gd(ma):
 	return m.group(1) if m else ""
 
 
-def tham_so_tra(c, ma, so_tien, thong_tin, url_ve, ip, link_lai, tieu_de="The Vagabond Patisserie"):
+def tham_so_tra(c, ma, so_tien, thong_tin, url_ve, ip, link_lai, tieu_de="The Vagabond Patisserie", card_list=None):
 	"""Bộ tham số một lần trả, đã ký. `c` là dict cấu hình đã đọc
-	(cong, merchant, access_code, hash_code). THUẦN."""
+	(cong, merchant, access_code, hash_code). THUẦN.
+
+	card_list (v638): "INTERNATIONAL" (thẻ quốc tế) hay "DOMESTIC" (ATM nội địa)
+	theo cách khách chọn ở bước đặt bánh; nằm trong chữ ký vì bắt đầu bằng vpc_."""
 	if not (c.get("cong") and c.get("merchant") and c.get("access_code") and c.get("hash_code")):
 		raise ValueError("Chưa khai đủ cổng, Merchant ID, Access Code, Hash code của OnePay.")
 	ts = {
@@ -197,6 +204,8 @@ def tham_so_tra(c, ma, so_tien, thong_tin, url_ve, ip, link_lai, tieu_de="The Va
 		"AgainLink": link_lai,
 		"Title": tieu_de,
 	}
+	if card_list in CARD_LIST:
+		ts["vpc_CardList"] = card_list
 	ts["vpc_SecureHash"] = ky(ts, c["hash_code"])
 	return ts
 
@@ -475,10 +484,12 @@ def _tim_phieu(ma, k):
 
 def thong_tin_trang(ma, k):
 	"""Dữ liệu cho trang /tra-the. Không lộ gì khi khoá sai."""
-	from vagabond import onepay_dat
+	from vagabond import onepay_dat, thanh_toan_web
 
 	if onepay_dat.la_ma_don(re.sub(r"[^A-Z0-9]", "", str(ma or "").upper())):
 		return onepay_dat.thong_tin_trang(ma, k)
+	if thanh_toan_web.la_ma_don(re.sub(r"[^A-Z0-9]", "", str(ma or "").upper())):
+		return thanh_toan_web.thong_tin_trang(ma, k)
 	ten = _tim_phieu(ma, k)
 	if not ten:
 		return None
@@ -495,10 +506,12 @@ def thong_tin_trang(ma, k):
 def tao_gd(ma, k):
 	"""Khách bấm "Thanh toán bằng thẻ": tạo một giao dịch mới cho SỐ CÒN PHẢI
 	TRẢ đọc ở máy chủ, trả địa chỉ OnePay để trình duyệt chuyển sang."""
-	from vagabond import onepay_dat
+	from vagabond import onepay_dat, thanh_toan_web
 
 	if onepay_dat.la_ma_don(re.sub(r"[^A-Z0-9]", "", str(ma or "").upper())):
 		return onepay_dat.tao_gd(ma, k)
+	if thanh_toan_web.la_ma_don(re.sub(r"[^A-Z0-9]", "", str(ma or "").upper())):
+		return thanh_toan_web.tao_gd(ma, k)
 	ten = _tim_phieu(ma, k)
 	if not ten:
 		frappe.throw("Không tìm thấy phiếu thanh toán.")
@@ -541,10 +554,12 @@ def ghi_nhan(tham_so, nguon, tin_cay=False):
 	ma_ngan = ma_phieu_cua_gd(kq["ma"])
 	if not ma_ngan:
 		return {"ok": 1, "ly_do": "gd_la", "kq": kq}
-	from vagabond import onepay_dat
+	from vagabond import onepay_dat, thanh_toan_web
 
 	if onepay_dat.la_ma_don(ma_ngan):
 		return onepay_dat.ghi_nhan_the(ma_ngan, kq, nguon)
+	if thanh_toan_web.la_ma_don(ma_ngan):
+		return thanh_toan_web.ghi_nhan_the(ma_ngan, kq, nguon)
 	m = re.fullmatch(r"DNTT(\d{2})(\d{2})(\d{5})", ma_ngan)
 	ma_day = "DNTT-%s-%s-%s" % m.groups() if m else ma_ngan
 	ten = frappe.db.get_value(CN, {"ma_phieu": ma_day}, "name")
@@ -618,10 +633,12 @@ def quet():
 	den = str(bay_gio - timedelta(minutes=15))[:19]
 	# v637: hai nơi cất nhật ký giao dịch: phiếu công nợ và phiếu đặt (đơn đặt trước).
 	# Phiếu đặt đã huỷ vẫn hỏi (Codex #538): khách có thể đã trả thẻ ngay trước khi huỷ.
-	from vagabond import onepay_dat
+	# v638: nơi thứ ba là đơn đặt bánh trên web; đơn đã huỷ cũng hỏi, cùng lý do.
+	from vagabond import onepay_dat, thanh_toan_web
 
 	for dt, o, loc in ((CN, "onepay_gd", {"trang_thai": ["!=", "Huy"]}),
-			(onepay_dat.SO, onepay_dat.TRUONG_NK, {"docstatus": ["in", [1, 2]]})):
+			(onepay_dat.SO, onepay_dat.TRUONG_NK, {"docstatus": ["in", [1, 2]]}),
+			(thanh_toan_web.DT, thanh_toan_web.O_NK, {})):
 		# Một loại đọc hỏng (vd ô nhật ký chưa có vì chưa migrate) không được
 		# chặn loại kia: tiền thẻ công nợ vẫn phải được tra cứu.
 		try:

@@ -665,7 +665,13 @@ def tao_don(don=None):
 	if hd_pancake:
 		body["invoice_info_list"] = hd_pancake
 
-	thanh_toan = don.get("thanh_toan") if don.get("thanh_toan") in ("bank", "card") else "bank"
+	# v638: bốn cách (chuyển khoản, thẻ quốc tế, ATM nội địa, tiền mặt). Giá trị lạ,
+	# hoặc chọn thẻ khi cổng OnePay đang tắt (trang khách giữ danh sách cũ), về
+	# chuyển khoản: biên nhận vẫn có mã VietQR để khách trả ngay.
+	from vagabond import onepay as _op
+	from vagabond import thanh_toan_web_thuan as ttt
+
+	thanh_toan = ttt.chuan_pt(don.get("thanh_toan"), the_dung=_op.dung_duoc())
 	snapshot = {
 		"mon": [
 			{"ma": h["variation_id"], "ten": ten_mon.get(h["variation_id"]) or h["variation_id"],
@@ -687,6 +693,9 @@ def tao_don(don=None):
 			"address": (hd.get("address") or "").strip(), "email": (hd.get("email") or "").strip(),
 		} if hd_pancake else None,
 		"thanh_toan": thanh_toan,
+		# v638: mã giới thiệu (số điện thoại nhân viên), chỉ giữ chữ số 8 đến 12 số.
+		# Phần hoa hồng đọc khoá này; ở đây không làm gì thêm.
+		"gioi_thieu_sdt": ttt.chuan_gioi_thieu(don.get("ma_gioi_thieu")),
 		"phi": phi,
 		"thieu_gia": _thieu_gia,
 		"uu_dai": {"ma": ma_uu_dai, "giam": giam, "ap": uu.get("ap") or []} if giam else None,

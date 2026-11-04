@@ -102,6 +102,13 @@ def dat(ma_hang=None, tat=1, den_ngay=None):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
+	return ghi(ma_hang, tat, den_ngay)
+
+
+def ghi(ma_hang=None, tat=1, den_ngay=None):
+	"""Phần ghi của công tắc, không kiểm quyền: cửa gọi tự kiểm quyền của nó
+	(màn Kiểm bánh dùng `dat`, mục Đồ uống của bảng kiểm kho dùng
+	kiem_kho.ban_web_do_uong). Một phép ghi, một vết."""
 	ma = str(ma_hang or "").strip()
 	if not ma:
 		frappe.throw("Thiếu mã hàng.")

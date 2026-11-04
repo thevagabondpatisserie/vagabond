@@ -121,6 +121,8 @@ MAN = (
 	# và màn Sales duyệt đăng ký, bật công nợ, khai giá riêng từng khách.
 	("BSI", "Đơn sỉ web", None),
 	("BSIKH", "Khách sỉ web", None),
+	# v638: in mã QR dán bàn để khách gọi món (goi_mon_ban.py, 66-goi-mon-tai-ban.js).
+	("GMBQR", "In QR tại bàn", None),
 	# v614 phân hệ Khách hàng (crm.py, 58-crm.js).
 	("CRMGOI", "Danh sách gọi của tôi", None),
 	("CRMNHOM", "Nhóm khách", None),
@@ -135,6 +137,8 @@ MAN = (
 	("KPI", "KPI và hoa hồng", "kpi"),
 	("KPICD", "Bảng chỉ tiêu và bậc hoa hồng", "kpi-bang-chi-tieu"),
 	("KPITOI", "KPI của tôi", "kpi-cua-toi"),
+	# v638: hoa hồng giới thiệu (gioi_thieu.py, 67-hoa-hong-gioi-thieu.js).
+	("HHGT", "Hoa hồng giới thiệu", None),
 	# v622: phân hệ Tuyển dụng (tuyen_dung.py, 60-tuyen-dung.js).
 	("TD", "Tuyển dụng", None),
 	("VD", "Vận đơn", None),
