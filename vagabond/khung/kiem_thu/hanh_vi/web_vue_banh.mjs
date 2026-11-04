@@ -270,7 +270,8 @@ await ca('PR #462: nháp trang cũ khôi phục đủ ô và Vue vẫn ghi kiể
     gio: [{id: 'BAWC00139', qty: 1, cm: 12}], truong: truongCu}));
   const k = taoKho(a.mt);
   k.phucHoiGio();
-  la('mọi ô từ nháp cũ', k.S.f, giaTri);
+  /* v638: ô Mã giới thiệu mới, nháp trang cũ không có thì để trống. */
+  la('mọi ô từ nháp cũ', k.S.f, {...giaTri, gt: ''});
   k.S.f.note = 'Giữ lạnh';
   const luu = JSON.parse(a.kho.get('vgb-gio-v1'));
   dung('ghi id DOM cho trang cũ đọc lại', luu.truong['f-note'] === 'Giữ lạnh' && !('note' in luu.truong));
