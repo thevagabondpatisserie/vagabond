@@ -114,7 +114,7 @@ def kiem_nop(so_tien, quy_dang_co, ngay, ngay_moc, hom_nay):
 	if _f(so_tien) <= 0:
 		return "Gõ số tiền mang đi nộp."
 	if quy_dang_co is None:
-		return "Quỹ chưa chốt số dư đầu. Chốt ở Cài đặt tài chính trước, rồi mới ghi nộp tiền."
+		return "Quỹ chưa chốt số dư đầu. Bấm Chốt số dư đầu quỹ trên màn Quỹ tiền mặt trước, rồi mới ghi nộp tiền."
 	if _f(so_tien) > _f(quy_dang_co) + 1:
 		return "Quỹ chỉ còn %s, không nộp được %s. Kiểm quỹ trước nếu tiền thật nhiều hơn." % (
 			tien(quy_dang_co), tien(so_tien))
@@ -126,6 +126,45 @@ def kiem_nop(so_tien, quy_dang_co, ngay, ngay_moc, hom_nay):
 		return ("Ngày nộp %s không sau mốc chốt quỹ %s: số chốt đã gồm mọi khoản tới hết ngày đó. "
 			"Chọn ngày sau mốc, hoặc chốt lại quỹ." % (ngay.strftime("%d/%m/%Y"), ngay_moc.strftime("%d/%m/%Y")))
 	return ""
+
+
+def co_o_da_go(bang):
+	"""THUẦN. Người đã gõ ít nhất một ô số tờ chưa (gõ 0 cũng là đã đếm, quỹ trống).
+	Bảng rỗng là chưa đếm, khác quỹ trống."""
+	if isinstance(bang, str):
+		try:
+			bang = json.loads(bang or "{}")
+		except Exception:
+			return False
+	if isinstance(bang, dict):
+		cac = list(bang.values())
+	else:
+		cac = [(x or {}).get("so_to") for x in (bang or [])]
+	return any(str(v if v is not None else "").strip() != "" for v in cac)
+
+
+def so_du_cuoi_hom_qua(so_dem, vao_hom_nay, ra_hom_nay):
+	"""THUẦN. Quy số vừa đếm về số dư CUỐI HÔM QUA (v635, Codex #536 vòng 1).
+
+	Mốc là số dư cuối ngày chốt: chỉ khoản mang ngày SAU mốc mới cộng trừ vào quỹ
+	(tai_chinh.tinh_quy). Mốc ghi ngày hôm nay thì khoản ký nhận hay chi SAU lúc đếm mà
+	vẫn mang ngày hôm nay rơi mất mãi mãi (chốt 5 triệu lúc 10 giờ, chiều ký nhận thêm 1
+	triệu, app vẫn hiện 5 triệu). Nên mốc LUÔN là cuối hôm qua, số mốc = số đếm trừ phần
+	hôm nay đã ghi tới lúc đếm (vào trừ, ra cộng lại). Ngay lúc chốt quỹ hiện đúng số đếm;
+	khoản sau đó cộng trừ tiếp như thường. Số mốc có thể âm khi tiền đã ra khỏi quỹ hôm
+	nay nhiều hơn số đếm: đó chỉ là điểm tựa phép tính, quỹ hiện vẫn đúng số đếm."""
+	return float(round(_f(so_dem) - _f(vao_hom_nay) + _f(ra_hom_nay)))
+
+
+def ghi_chu_chot_dau(dong, ghi_chu="", so_dem=0, vao=0, ra=0):
+	"""THUẦN. Ghi chú lưu trên mốc: đủ bảng đếm và phần hôm nay đã trừ, để đối chiếu."""
+	dem = ", ".join("%s x %d" % (tien(d["menh_gia"]), d["so_to"]) for d in dong or []) or "quỹ trống"
+	ra_ = "Chốt số dư đầu trên màn Quỹ tiền mặt, đếm theo mệnh giá: " + dem
+	if _f(vao) or _f(ra):
+		ra_ += ". Đếm được %s; hôm nay đã ghi vào %s, ra %s trước lúc đếm nên số cuối hôm qua là %s" % (
+			tien(so_dem), tien(vao), tien(ra), tien(so_du_cuoi_hom_qua(so_dem, vao, ra)))
+	g = str(ghi_chu or "").strip()
+	return (ra_ + ". " + g) if g else ra_
 
 
 def _ngay(x):
@@ -433,7 +472,7 @@ def kiem_quy(bang=None, ly_do="", ghi_chu="", anh=None):
 	_khoa_quy()
 	so_may, m = _so_quy()
 	if so_may is None:
-		frappe.throw("Quỹ chưa chốt số dư đầu. Chốt ở Cài đặt tài chính trước, rồi mới kiểm quỹ.")
+		frappe.throw("Quỹ chưa chốt số dư đầu. Bấm Chốt số dư đầu quỹ trên màn Quỹ tiền mặt trước, rồi mới kiểm quỹ.")
 	hom = getdate(nowdate())
 	if getdate(m["ngay_chot"]) >= hom:
 		frappe.throw("Hôm nay vừa chốt số dư quỹ, số chốt đã là số đếm. Kiểm quỹ từ ngày mai.")
@@ -474,6 +513,38 @@ def kiem_quy(bang=None, ly_do="", ghi_chu="", anh=None):
 		kenh_zalo.bao_hoac_ghi_loi("viec", "cong_no", td, dl, link=_url("/quy-tien-mat-cong-ty"), nguoi="Giám đốc",
 			han="trong ngày", khoa="kiem-quy:%s" % doc.name, nguon=doc.name, ma_tin="bgd_kiem_quy_lech")
 	return {"ok": 1, "name": doc.name, "trang_thai": trang_thai, "lech": pl["lech"], "so_may": so_may, "so_dem": so_dem}
+
+
+@frappe.whitelist(methods=["POST"])
+def chot_dau(bang=None, ghi_chu=""):
+	"""Chốt số dư đầu quỹ ngay trên màn Quỹ (v635). Anh Việt 03/11/2026: chị Dung mở màn
+	Quỹ thấy "chưa chốt số dư đầu" mà không có chỗ bấm, vì nút chốt nằm ở Cài đặt tài
+	chính chỉ mở cho người Giám đốc chọn xem. Người làm quỹ chốt được ở đây, đếm theo
+	mệnh giá như Kiểm quỹ (không ô gõ tay số dư), và CHỈ KHI quỹ chưa có mốc nào. Có mốc
+	rồi thì mọi thay đổi đi qua Kiểm quỹ: có lý do, có bút toán, lệch lớn chờ duyệt."""
+	from vagabond import tai_chinh
+	_kiem_lam()
+	if not co_o_da_go(bang):
+		frappe.throw("Gõ số tờ đã đếm được. Quỹ trống thì gõ 0.")
+	dong, so_dem, loi = doc_bang_dem(bang)
+	if loi:
+		frappe.throw(loi)
+	# Cùng khoá với Kiểm quỹ, Nộp ngân hàng: hai người cùng bấm chốt thì người sau đọc
+	# thấy mốc của người trước và bị chặn, không ra hai mốc.
+	_khoa_quy()
+	_so, m = _so_quy()
+	if m:
+		frappe.throw("Quỹ đã chốt số dư đầu ngày %s (%s). Muốn sửa số quỹ thì bấm Kiểm quỹ." % (
+			getdate(m["ngay_chot"]).strftime("%d/%m/%Y"), tien(m.get("so_du"))))
+	# Mốc luôn là cuối hôm qua; phần hôm nay đã ghi tới lúc đếm đọc bằng CHÍNH phép tính
+	# quỹ (tinh_quy từ mốc 0 cuối hôm qua), không viết phép đọc thứ hai.
+	ngay = getdate(nowdate()) - timedelta(days=1)
+	ps = tai_chinh.tinh_quy({"ngay_chot": str(ngay), "so_du": 0})
+	vao, ra = _f(ps.get("vao")), _f(ps.get("ra"))
+	so_moc = so_du_cuoi_hom_qua(so_dem, vao, ra)
+	ten = tai_chinh.ghi_moc(tai_chinh.NGUON_QUY, ngay, so_moc, ghi_chu_chot_dau(dong, ghi_chu, so_dem, vao, ra))
+	return {"ok": 1, "name": ten, "ngay_chot": str(ngay), "so_du": so_dem, "so_moc": so_moc,
+		"co_phat_sinh": 1 if (abs(vao) >= 1 or abs(ra) >= 1) else 0}
 
 
 @frappe.whitelist(methods=["POST"])

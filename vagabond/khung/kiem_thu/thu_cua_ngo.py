@@ -519,7 +519,7 @@ CUA_NGO = {
 	"tai_chinh.py": ["cai_dat", "dong_tien", "du_bao_30", "lai_lo_thang", "luu_moc", "luu_nguoi_xem",
 		"ti_le_thang", "tien_hien_co", "tong_quan"],
 	# v628: Quỹ tiền mặt công ty (kế toán, Giám đốc; kiểm trong hàm).
-	"quy_tien_mat.py": ["duyet_kiem_quy", "huy_phieu", "kiem_quy", "luu_tai_khoan", "man_quy", "nop_ngan_hang",
+	"quy_tien_mat.py": ["chot_dau", "duyet_kiem_quy", "huy_phieu", "kiem_quy", "luu_tai_khoan", "man_quy", "nop_ngan_hang",
 		"tim_tai_khoan"],
 
 	"hoan_tien.py": [
