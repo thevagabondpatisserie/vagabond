@@ -311,6 +311,13 @@ class Kho:
 				kt.release()
 			self.goi_khoa.append(("nha", ts[0], threading.get_ident()))
 			return [[1]]
+		if cau.lstrip().lower().startswith("update") and "set trang_thai" in cau:
+			# update ... set trang_thai = moi where name = x and trang_thai = cu
+			moi, ten, cu = ts
+			r = self.dong.get(ten)
+			if r and r.get("trang_thai") == cu:
+				r["trang_thai"] = moi
+			return []
 		if "for update" in cau:
 			ma = ts[0]
 			if ma not in self.khoa:
@@ -766,6 +773,35 @@ def _het_han():
 		la("nhận đơn quá hạn: chặn", _bat_loi(lambda: g.nhan(r["ma"])), True)
 		la("không lập phiếu", tao, [])
 	la("bản ghi chuyển Hết hạn", kho2.dong[r["ma"]]["trang_thai"], "Hết hạn")
+
+
+@ca("Codex PR #541 vòng 4: lịch hết hạn đọc thấy đơn còn Chờ nhận, đúng lúc đó thu ngân nhận xong: bản ghi giữ Đã nhận và phiếu, khách không thấy Hết hạn, bánh vẫn được giữ")
+def _het_han_dua_nhan():
+	kho = Kho()
+	with _he(kho):
+		r = _gui(mon=[{"ma": "BAWC00115", "sl": 2}])
+	goc = kho.get_all
+
+	def doc_roi_nhan(dt, filters=None, **k):
+		ra = goc(dt, filters=filters, **k)
+		if (filters or {}).get("trang_thai") == g.TT_CHO and "luc" in (filters or {}):
+			# Đúng chuỗi Codex: nhan() commit Đã nhận ngay sau khi lịch đọc danh sách.
+			kho.dong[r["ma"]].update(trang_thai=g.TT_NHAN, hoa_don="SI-1", nhan_luc=BAY)
+		return ra
+	with _he(kho, bay=BAY + datetime.timedelta(minutes=10, seconds=5)), patch.object(_fr, "get_all", side_effect=doc_roi_nhan):
+		g.quet_het_han()
+	la("vẫn Đã nhận, vẫn trỏ phiếu", (kho.dong[r["ma"]]["trang_thai"], kho.dong[r["ma"]]["hoa_don"]), (g.TT_NHAN, "SI-1"))
+	kho.phieu["SI-1"] = {"name": "SI-1", "docstatus": 0, "vgb_tam_tinh": 1, "vgb_huy": 0}
+	with _he(kho, bay=BAY + datetime.timedelta(minutes=10, seconds=5)):
+		la("khách thấy Đã nhận", g.trang_thai(r["ma"], r["token"])["trang_thai"], g.TT_NHAN)
+		la("bánh vẫn được giữ cho bàn", g.bang_mon(g._diem("TCV"))["BAWC00115"]["con"], 0)
+	# Đơn vẫn chờ thật thì lịch vẫn chuyển Hết hạn.
+	kho2 = Kho()
+	with _he(kho2):
+		r2 = _gui()
+	with _he(kho2, bay=BAY + datetime.timedelta(minutes=11)):
+		g.quet_het_han()
+	la("đơn còn chờ thật: Hết hạn", kho2.dong[r2["ma"]]["trang_thai"], g.TT_HET_HAN)
 
 
 @ca("v638 thẻ quầy: bàn, số món, tạm tính, phút chờ, món kèm đá đường, ghi chú, tên gọi, người giới thiệu")
