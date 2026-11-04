@@ -297,11 +297,14 @@ def mon_dang_giu(dang_cho, da_nhan, phieu_mo, ngay):
 	Codex PR #541: đơn ĐÃ NHẬN nằm trên phiếu tạm tính, mà số đã bán của bảng
 	kiểm kho bỏ mọi phiếu tạm tính, nên nhận xong mà thôi giữ thì bàn khác gọi
 	lại được đúng mấy cái bánh đó. Giữ tiếp đơn đã nhận trong ngày khi phiếu của
-	nó còn là phiếu tạm tính nháp; phiếu đã chốt (thành bill bán hay ghi sổ) thì
-	số đã bán tính rồi, thôi giữ để không trừ hai lần."""
+	nó còn là phiếu tạm tính nháp, hoặc khi đơn đang được lập phiếu (chưa có
+	phiếu); phiếu đã chốt (thành bill bán hay ghi sổ) thì số đã bán tính rồi,
+	thôi giữ để không trừ hai lần."""
 	ds = list(dang_cho or [])
 	for r in da_nhan or []:
-		if not r.get("hoa_don") or r.get("hoa_don") not in phieu_mo:
+		# Codex PR #541 vòng 7: đơn vừa giành Đã nhận mà CHƯA có phiếu (thu ngân
+		# đang lập phiếu tạm tính) vẫn phải giữ; có phiếu thì giữ khi phiếu còn mở.
+		if r.get("hoa_don") and r.get("hoa_don") not in phieu_mo:
 			continue
 		luc = _dt(r.get("nhan_luc"))
 		if luc is not None and ngay is not None and luc.date() != ngay:
