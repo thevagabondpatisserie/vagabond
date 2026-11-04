@@ -418,6 +418,17 @@ def _don_web():
 	r = db.bang[gt.DT_HD]["SI-W"]
 	la("hoá đơn chép người, loại, % lúc đặt; tính trên 900.000", (r.get(gt.O_NGUOI), r.get(gt.O_LOAI), r.get(gt.O_PT), r.get(gt.O_HH)),
 		("ngan@x", "web", 3.0, 27000))
+	# Codex PR #541 vòng 8: hoá đơn nháp của đơn web, quản lý GỠ người giới thiệu,
+	# rồi thu ngân ghi sổ: máy không được chép lại người cũ từ Don Web.
+	with moi_truong(db, vai=("VGB - Quản lý cửa hàng",), toi="ql@x"):
+		_hd(db, "SI-W2", items=MON, custom_pancake_display_id="91428", **{gt.O_NGUOI: "ngan@x", gt.O_LOAI: "web", gt.O_PT: 3})
+		gt.doi_nguoi("SI-W2", "", "Khách tự tìm tới, không phải giới thiệu")
+		si2 = db.get_doc(gt.DT_HD, "SI-W2")
+		si2["docstatus"] = 1
+		db.bang[gt.DT_HD]["SI-W2"]["docstatus"] = 1
+		gt.khi_ghi_so(si2)
+	r2 = db.bang[gt.DT_HD]["SI-W2"]
+	la("đã gỡ: ghi sổ không chép lại người cũ, hoa hồng 0", (r2.get(gt.O_NGUOI), r2.get(gt.O_HH) or 0), (None, 0))
 
 
 @ca("v638 cấu hình web công khai mang cờ gioi_thieu theo công tắc (để trang đặt bánh ẩn ô Mã giới thiệu)")
