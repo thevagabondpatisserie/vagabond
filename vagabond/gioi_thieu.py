@@ -724,7 +724,10 @@ def khi_ghi_so(doc, method=None):
 				g = frappe.get_doc(DT_HD, goc)
 				tinh_cho_hoa_don(g)
 			return
-		if not doc.get(O_NGUOI) and _chep_tu_don_web(doc):
+		# Codex PR #541 vòng 8: quản lý đã gỡ người giới thiệu (doi_nguoi ghi ai
+		# đổi, lúc nào) thì ghi sổ KHÔNG chép lại người cũ từ Don Web.
+		da_quyet = doc.get(O_DOI_BOI) or (doc.get("name") and frappe.db.get_value(DT_HD, doc.name, O_DOI_BOI))
+		if not doc.get(O_NGUOI) and not da_quyet and _chep_tu_don_web(doc):
 			doc.db_set({o: doc.get(o) for o in O_HD}, update_modified=False)
 		if doc.get(O_NGUOI):
 			tinh_cho_hoa_don(doc)
