@@ -52,14 +52,15 @@ def _ky():
 	dung("thiếu chữ ký là sai", not op.dung_chu_ky(ts, KHOA))
 
 
-@ca("v633 OnePay: ô địa chỉ cổng người dán tay: thiếu https, khoảng trắng, dấu ngoặc, tham số thừa đều chịu; địa chỉ tra cứu cùng thư mục")
+@ca("v633 OnePay: ô địa chỉ cổng người dán tay: thiếu https, khoảng trắng, dấu ngoặc, tham số thừa đều chịu; địa chỉ tra cứu cùng máy chủ")
 def _cong():
 	la("chuẩn", op.chuan_cong("https://onepay.vn/paygate/vpcpay.op"), "https://onepay.vn/paygate/vpcpay.op")
 	la("thiếu https, thừa cách", op.chuan_cong("  onepay.vn/paygate/vpcpay.op "), "https://onepay.vn/paygate/vpcpay.op")
 	la("dán kèm dấu ? và tham số", op.chuan_cong("https://ONEPAY.vn/paygate/vpcpay.op?x=1"), "https://onepay.vn/paygate/vpcpay.op")
 	la("dán trong ngoặc kép", op.chuan_cong('"https://mtf.onepay.vn/paygate/vpcpay.op"'), "https://mtf.onepay.vn/paygate/vpcpay.op")
 	la("trống", op.chuan_cong("  "), "")
-	la("tra cứu", op.cong_tra_cuu("https://mtf.onepay.vn/onecomm-pay/vpc.op"), "https://mtf.onepay.vn/onecomm-pay/Vpcdps.op")
+	# v634: địa chỉ tra cứu OnePay cấp (anh Việt 03/11/2026), cùng máy chủ với cổng.
+	la("tra cứu", op.cong_tra_cuu("https://mtf.onepay.vn/paygate/vpcpay.op"), "https://mtf.onepay.vn/msp/api/v1/vpc/invoices/queries")
 
 
 @ca("v633 OnePay: tham số một lần trả đủ ô OnePay đòi, số tiền nhân 100, đã ký đúng; thiếu khoá thì báo")
