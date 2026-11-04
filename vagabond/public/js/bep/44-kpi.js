@@ -108,6 +108,7 @@ async function scrKPI() {
           (r.phieu_chi ? ' · ' + h(r.phieu_chi) : '') + '</div></div>' +
           '<div style="text-align:right">' +
           '<div style="font-size:15px;font-weight:800">' + money(r.hoa_hong) + ' đ</div>' +
+          (+r.hh_gioi_thieu ? '<div style="font-size:11.5px;color:#0f766e">+ ' + money(r.hh_gioi_thieu) + ' đ giới thiệu</div>' : '') +
           '<div style="font-size:11.5px;color:#6b7280">' + (r.diem_tong || 0) + ' điểm</div></div></div>' +
           '<div style="margin-top:7px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
           kpiChipLoai(r.xep_loai) +
@@ -248,6 +249,12 @@ async function scrKPICt() {
     '<span style="color:#6b7280">Hoa hồng trước trần</span><span>' + money(d.hoa_hong_tho) + ' đ</span></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:15px;padding:6px 0;border-top:1px solid #e5e7eb">' +
     '<b style="color:#0f766e">Hoa hồng phải trả</b><b style="color:#0f766e">' + money(d.hoa_hong) + ' đ</b></div>' +
+    /* v638: hoa hồng giới thiệu là khoản CỘNG THÊM, không nhân hệ số, không
+       vào trần; đẩy chi chung một đề nghị chi, một dòng riêng. */
+    (+d.vgb_hh_gioi_thieu ? '<div data-kpigt="1" style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">' +
+      '<span style="color:#6b7280">Hoa hồng giới thiệu (cộng thêm)</span><span>' + money(d.vgb_hh_gioi_thieu) + ' đ</span></div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:15px;padding:6px 0;border-top:1px solid #e5e7eb">' +
+      '<b>Tổng chuyển khoản</b><b>' + money((+d.hoa_hong || 0) + (+d.vgb_hh_gioi_thieu || 0)) + ' đ</b></div>' : '') +
     (d.bi_tran ? '<div style="font-size:11.5px;color:#b45309;line-height:1.6;margin-top:4px">' +
       'Đã chạm trần một kỳ. Phần vượt trần không được cộng dồn sang kỳ sau.</div>' : '') +
     '</div>';
@@ -588,6 +595,7 @@ async function scrKPIToi() {
     '<div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
     kpiChipLoai(d.xep_loai) +
     (d.hoa_hong ? '<b style="font-size:15px;color:#0f766e">' + money(d.hoa_hong) + ' đ hoa hồng</b>' : '') +
+    (+d.vgb_hh_gioi_thieu ? '<span style="font-size:13px;color:#0f766e">+ ' + money(d.vgb_hh_gioi_thieu) + ' đ giới thiệu</span>' : '') +
     '</div>' +
     (d.ky_truoc ? '<div style="font-size:12.5px;color:#0f766e;margin-top:7px;padding-top:7px;' +
       'border-top:1px dashed #99f6e4">Kỳ trước: ' + (d.ky_truoc.diem_tong || 0) + ' điểm · ' +

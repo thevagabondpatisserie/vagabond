@@ -736,6 +736,9 @@ async function scrPosQuay() {
       '<b>Bill lập lại từ ' + h(posDon.chuyen_tu.ma || posDon.chuyen_tu.name) + ' (đã huỷ)</b><br>' +
       'Lưu xong, máy tự chuyển khoản ' + money(posDon.chuyen_tu.tien || 0) + ' đ khách đã trả sang bill này.</div>';
   }
+  /* v638: dải "N đơn gọi món tại bàn đang chờ nhận" (66-goi-mon-tai-ban.js),
+     vẽ rỗng rồi tự đổ sau mỗi lượt hỏi 15 giây, không bắt màn chờ mạng. */
+  html += gmbKhoi();
   /* O TO mo danh sach hoa don trong ngay (anh Viet 09/08) - cashier va
      quan ly bam phat vao ngay, khoi phai mo dong chu nho. */
   html += '<div class="card" data-t="posDsBill" style="padding:13px 14px;cursor:pointer;border:1.5px solid #7fe5f6;background:#f4feff">' +
@@ -961,6 +964,7 @@ async function scrPosQuay() {
   posDemHomNay();
   posCaVe();
   cfdGan();
+  gmbBatDau(posCoQuay() ? posQuay.ma : '');
   /* Noi cac nut cua khoi diem. Truyen ham ve lai man de moi nhanh khoi
      phai tu goi go(scrPosQuay, true) - de quen mot cho la man hinh dung im
      sau khi bam. */

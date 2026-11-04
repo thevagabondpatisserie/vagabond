@@ -154,6 +154,8 @@ async function scrHome() {
       /* v614: ô Tặng quà khách VIP và Danh sách khách hàng chuyển sang phân
          hệ Khách hàng (CRM), anh Việt duyệt mẫu 27/10/2026. */
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
+      /* v638: mã QR dán bàn để khách tự gọi món (66-goi-mon-tai-ban.js). */
+      (coQuyenGmbQr() ? card('🔳', 'In QR tại bàn', 'Mỗi bàn một mã QR, khách quét để gọi món; in khổ A6', 0, 'GMBQR') : '') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       /* v582: chi Sales that, QLCH, ke toan, giam doc (coQuyenCongNo). */
       (coQuyenCongNo() ? card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') : '') +
@@ -356,7 +358,11 @@ async function scrHome() {
   }
   html += '<div class="sec">KPI của tôi</div><div class="card">' +
     card('🙋', 'Điểm KPI của tôi',
-      'Xem điểm từng tiêu chí của chính mình và nói lại nếu thấy chưa đúng', 0, 'KPITOI') + '</div>';
+      'Xem điểm từng tiêu chí của chính mình và nói lại nếu thấy chưa đúng', 0, 'KPITOI') +
+    /* v638: ai cũng xem được hoa hồng giới thiệu của mình; quản lý thấy thêm
+       bảng toàn tiệm ngay trong màn đó (máy chủ chặn bằng gioi_thieu.VAI_XEM). */
+    card('🤝', 'Hoa hồng giới thiệu',
+      'Đơn khách gõ số của bạn vào ô Mã giới thiệu: tiền hàng, hoa hồng đã ghi sổ và đang chờ', 0, 'HHGT') + '</div>';
 
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
@@ -605,14 +611,14 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM'],
+    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM', 'GMBQR'],
     nhom: [
       { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'DSCK', 'BNTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
       { t: 'Khách hàng', p: 'đặt bàn, đặt trước và công nợ', keys: ['DATBAN', 'DDT', 'CN', 'SOTANG', 'SODU'] },
       { t: 'Bánh sỉ', p: 'quán, khách sạn đặt trên web', keys: ['BSI', 'BSIKH'] },
       { t: 'Chương trình và hợp đồng', p: '', keys: ['KM', 'HDG'] },
-      { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY'] }
+      { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY', 'GMBQR'] }
     ]
   },
   /* v614 phân hệ Khách hàng (CRM). Đứng ngay sau Bán hàng, anh Việt duyệt
@@ -687,7 +693,7 @@ var VGB_NHOM = [
   /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
      toan va giam doc - dieu kien coQuyenHRM() dung o scrHome. O "KPI cua
      toi" thi nguoc lai, ai cung vao duoc, vi do la diem cua chinh ho. */
-  { k: 'NS', ten: 'Nhân sự', icon: '👥', keys: ['TD', 'KPI', 'KPICD', 'KPITOI'] },
+  { k: 'NS', ten: 'Nhân sự', icon: '👥', keys: ['TD', 'KPI', 'KPICD', 'KPITOI', 'HHGT'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
@@ -1900,9 +1906,11 @@ var VGB_DUONG = {
   'hoa-don-ban': 'HDBAN',
   'hoa-don-chua-tru-kho': 'TRUKHO',
   'hoa-don-mua': 'HDMUA',
+  'hoa-hong-gioi-thieu': 'HHGT',
   'hoan-tien': 'HT',
   'hop-dong': 'HDG',
   'huong-dan-che-bien': 'HDCB',
+  'in-qr-tai-ban': 'GMBQR',
   'khach-hang': 'KH',
   'khach-si-web': 'BSIKH',
   'khoa-so': 'CDKS',
@@ -2165,6 +2173,7 @@ function vgbGo(k) {
   if (k === 'DHUY') return go(scrDonHuy);
   if (k === 'PHHUY') return go(scrPhieuHoanHuy);
   if (k === 'POS') return go(scrPosChonQuay);
+  if (k === 'GMBQR') return go(scrGmbInQr);
   if (k === 'TQV') return go(scrTqDot);
   /* v614 phân hệ Khách hàng (58-crm.js). */
   if (k === 'CRMGOI') return go(scrCrmGoi);
@@ -2219,6 +2228,7 @@ function vgbGo(k) {
   if (k === 'KPI') return go(scrKPI);
   if (k === 'KPICD') return go(scrKPICau);
   if (k === 'KPITOI') return go(scrKPIToi);
+  if (k === 'HHGT') return go(scrHhgt);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'BGDB') return go(function () { return scrBangGiaDiem(''); });
   if (k === 'CDKS') return go(scrKhoaSo);

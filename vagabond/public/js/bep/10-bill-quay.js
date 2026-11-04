@@ -1650,7 +1650,10 @@ function posGopDongMon(mon) {
 
 function posLaNuoc(m) {
   if (String((m && m.item_code) || '').toUpperCase().indexOf('NU') === 0) return true;
-  return POS_NHOM_NUOC.indexOf((m && m.nhom) || '') >= 0;
+  /* v638: danh sách nhóm nước MỘT nguồn ở máy chủ (goi_mon_ban.NHOM_NUOC),
+     đọc qua cấu hình bán hàng; mảng trên chỉ là lưới đỡ khi chưa tải cấu hình. */
+  var ds = ((CFGBH || {}).nhom_nuoc && CFGBH.nhom_nuoc.length) ? CFGBH.nhom_nuoc : POS_NHOM_NUOC;
+  return ds.indexOf((m && m.nhom) || '') >= 0;
 }
 function posCoNuoc(mon) { return (mon || []).some(posLaNuoc); }
 function posMonNuoc(mon) { return (mon || []).filter(posLaNuoc); }

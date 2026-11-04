@@ -300,7 +300,10 @@ function nguonBH(v) {
 function ptTheoNguon(v) {
   var c = CFGBH || { pt: [], nguon: [] };
   var n = nguonBH(v);
-  var ds = n ? n.pt : (c.pt_pancake || []);
+  /* v638: phiếu tạm tính lập từ đơn gọi món tại bàn mang nguồn "QR tại bàn",
+     không phải nút nguồn trên màn; thu tiền như Tại chỗ (máy chủ đọc cùng
+     luật qua ban_hang.NGUON_CU), không rơi về danh sách đơn online. */
+  var ds = n ? n.pt : ((c.nguon_qr && v === c.nguon_qr) ? (c.pt_quay || []) : (c.pt_pancake || []));
   return (c.pt || []).filter(function (p) { return ds.indexOf(p.v) >= 0; });
 }
 function quyPt(v) {

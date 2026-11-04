@@ -2857,7 +2857,7 @@ async function scrCaiDatWeb() {
   var html =
     '<div class="sec">Web đang lên gì</div><div class="card" style="padding:4px 15px 8px">' +
     hang('In season', so.mua_vu || 0, 'Hàng mùa vụ đang chạy') +
-    hang('In store', so.quay || 0, 'Bánh còn trên tủ hai quầy, lấy từ bảng kiểm kho') +
+    hang('Tại quầy', so.quay || 0, 'Bánh còn trên tủ hai quầy, lấy từ bảng kiểm kho') +
     hang('Có sẵn hôm nay', so.hom_nay || 0, 'Bảng kiểm bánh ngày của bếp') +
     hang('Đặt bánh trước', so.dat_truoc || 0, 'Bánh ổ còn đủ decor') +
     '</div>' +
