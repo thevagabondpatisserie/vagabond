@@ -491,6 +491,25 @@ def _ck_va_the():
 		"vgb_tt_ma_gd": json.dumps([{"gd": "BT-0", "loai": "ck", "so": 0}, {"gd": MA + "-2", "loai": "the", "so": 936000}])}), ("OnePay", MA + "-2"))
 
 
+@ca("Codex PR #541 vòng 3: đơn chọn thẻ (cổng tắt, biên nhận hiện VietQR) mà khách chuyển khoản rồi đóng trang: nhịp quét 5 phút vẫn khớp và ghi đã thu")
+def _quet_don_the():
+	for cach in ("card", "atm"):
+		dbg = _Db([_dw(thanh_toan=cach)], [{"name": "BT-1", "description": "S67355O91853T DW261100123", "deposit": 936000}])
+		loc = []
+
+		def get_all(dt, filters=None, **k):
+			loc.append(dict(filters or {}))
+			f = (filters or {}).get("thanh_toan")
+			if dt == tw.DT and len(loc) == 1 and isinstance(f, list) and f[0] == "in" and cach in f[1]:
+				return [TEN]
+			return []
+		with patch.object(_fr, "get_all", side_effect=get_all), patch.object(_fr, "log_error", lambda *a, **k: None):
+			_chay(_vat(dbg), tw.quet)
+		la("đơn %s: quét được và ghi đã thu" % cach, dbg.dw[TEN]["vgb_tt_trang_thai"], ttt.TT_DA_THU)
+	la("lọc đủ ba cách online", loc[0]["thanh_toan"], ["in", ["bank", "card", "atm"]])
+	la("khop_ck và nhịp quét cùng một danh sách cách", tw.QUET_CACH, ("bank", "card", "atm"))
+
+
 @ca("v638 OnePay đơn web thất bại thì ghi thất bại, không đổi tiền; trả khi đơn đã huỷ thì báo kế toán hoàn toàn bộ")
 def _the_hong():
 	nk = [{"ma": MA + "-1", "so_tien": 936000, "trang_thai": "cho"}]

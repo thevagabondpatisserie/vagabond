@@ -680,6 +680,45 @@ def _hai_thu_ngan():
 	dung("câu báo đã có người nhận", loi and "đã được nhận" in loi[0])
 
 
+@ca("Codex PR #541 vòng 3: hai đơn KHÁC nhau của cùng một bàn được hai thu ngân nhận cùng lúc, bàn chưa có phiếu: chỉ MỘT phiếu tạm tính, đơn sau thêm vào phiếu đó; khoá theo bàn luôn nhả")
+def _hai_don_mot_ban():
+	kho = Kho()
+	with _he(kho):
+		r1 = _gui(nonce="S" * 32, ban=5)
+		r2 = _gui(nonce="T" * 32, ban=5, mon=[{"ma": "BAWC00115", "sl": 1}])
+	cho = threading.Barrier(2)
+	kq, loi = [], []
+	with _quay(kho) as (tao, si):
+		def tim(diem, ban, ngay):
+			# Đúng chuỗi Codex: hai luồng dừng ở bước tìm phiếu. Có khoá theo bàn thì
+			# luồng sau chưa tới được đây, rào hết giờ; nó tìm lại sau khi luồng trước lập xong.
+			try:
+				cho.wait(timeout=1.5)
+			except threading.BrokenBarrierError:
+				pass
+			return tao and "ACC-SINV-NEW%d" % len(tao) or ""
+		with patch.object(g, "_phieu_tam_cua_ban", side_effect=tim), \
+				patch.object(_fr.db, "set_value", side_effect=lambda dt, *a, **k: kho.set_value(dt, *a, **k) if dt == g.DT else None):
+			def chay(ma):
+				try:
+					kq.append(g.nhan(ma))
+				except _fr.ValidationError as e:
+					loi.append(str(e))
+				finally:
+					kho.nha()
+			ts = [threading.Thread(target=chay, args=(m,)) for m in (r1["ma"], r2["ma"])]
+			[x.start() for x in ts]
+			[x.join(20) for x in ts]
+	la("hai đơn đều nhận được", (len(kq), loi), (2, []))
+	la("chỉ một phiếu tạm tính được lập", len(tao), 1)
+	la("hai đơn trỏ cùng một phiếu", {kho.dong[r1["ma"]]["hoa_don"], kho.dong[r2["ma"]]["hoa_don"]}, {"ACC-SINV-NEW1"})
+	la("một lần thêm vào phiếu có sẵn", sorted(x["them_vao"] for x in kq), [0, 1])
+	lay = [x for x in kho.goi_khoa if x[0] == "lay" and x[1].startswith("vgb_phieu_ban:")]
+	nha = [x for x in kho.goi_khoa if x[0] == "nha" and x[1].startswith("vgb_phieu_ban:")]
+	la("khoá đúng tên theo bàn, lấy bao nhiêu nhả bấy nhiêu", ({x[1] for x in lay}, len(lay), len(nha)), ({"vgb_phieu_ban:TCV:5"}, 2, 2))
+	dung("khoá không còn bị giữ", not any(k.locked() for k in kho.khoa_ten.values()))
+
+
 @ca("v638 từ chối: bắt lý do, không lập phiếu; khách thấy Từ chối kèm lý do; token sai không đọc được gì")
 def _tu_choi():
 	kho = Kho()
