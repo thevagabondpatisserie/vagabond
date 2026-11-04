@@ -370,15 +370,18 @@ def _doc_mon(r):
 		return []
 
 
-def the_quay(r, bay_gio, ten_diem=""):
-	"""Một thẻ đơn chờ trên màn quầy. THUẦN."""
+def the_quay(r, bay_gio, ten_diem="", anh=None):
+	"""Một thẻ đơn chờ trên màn quầy. THUẦN. anh: {mã món: đường dẫn ảnh danh mục}
+	(Codex PR #541 vòng 2, AGENTS.md 2b.4: chỗ nào có tên món thì có ảnh món)."""
 	mon = _doc_mon(r)
+	anh = anh or {}
 	return {
 		"ma": r.get("name"), "ban": int(r.get("ban") or 0), "diem": r.get("diem") or "", "ten_diem": ten_diem,
 		"so_mon": sum(int(d.get("sl") or 0) for d in mon), "tam_tinh": int(r.get("tam_tinh") or 0),
 		"phut": phut_cho(r.get("luc"), bay_gio),
 		"mon": [{"ma": d.get("ma"), "ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": d.get("tc") or [],
-			"loai": d.get("loai") or "", "nhom": d.get("nhom") or "", "gia": int(d.get("gia") or 0)} for d in mon],
+			"loai": d.get("loai") or "", "nhom": d.get("nhom") or "", "gia": int(d.get("gia") or 0),
+			"anh": anh.get(d.get("ma")) or ""} for d in mon],
 		"ghi_chu": r.get("ghi_chu") or "", "ten_goi": r.get("ten_goi") or "",
 		"gioi_thieu": r.get("ten_gioi_thieu") or "",
 	}
@@ -617,8 +620,6 @@ def goi(diem=None, ban=None, k=None, nonce=None, mon=None, ghi_chu="", ten="", s
 
 	Kiểm theo thứ tự: link, mã lần gửi (bấm hai lần trả lại đơn cũ), giờ mở
 	cửa, số đơn chờ, món còn bán và còn số. Giá do máy chủ tính."""
-	from vagabond.thanh_toan_web_thuan import chuan_gioi_thieu
-
 	d, n = _kiem_link(diem, ban, k)
 	if not d:
 		return {"ok": 0, "cau": "Mã QR không hợp lệ. Quý khách nhờ nhân viên gần nhất gọi món giúp."}
@@ -634,6 +635,40 @@ def goi(diem=None, ban=None, k=None, nonce=None, mon=None, ghi_chu="", ten="", s
 	bay = now_datetime()
 	if not _gio_mo_cua(d, bay).get("dang_mo"):
 		return {"ok": 0, "cau": "Quầy đang ngoài giờ mở cửa nên chưa nhận gọi món tại bàn."}
+	# Codex PR #541 vòng 2: hai bàn gửi cùng lúc cùng đọc số bánh còn trước khi
+	# đơn kia được ghi, cả hai qua. Đọc tồn, kiểm số và ghi đơn chạy tuần tự
+	# theo điểm bán, khoá giữ tới khi đơn đã commit.
+	khoa = TEN_KHOA_DIEM % d["ma"]
+	if not _lay_khoa(khoa):
+		return {"ok": 0, "cau": "Quầy đang nhận nhiều đơn cùng lúc. Quý khách bấm Gọi món lại sau vài giây."}
+	try:
+		kq = _goi_trong_khoa(d, n, nonce, bi_mat, bay, mon, ghi_chu, ten, sdt_gioi_thieu)
+		if kq.get("ok"):
+			frappe.db.commit()
+		return kq
+	finally:
+		_nha_khoa(khoa)
+
+
+TEN_KHOA_DIEM = "vgb_goi_mon_ban:%s"
+
+
+def _lay_khoa(ten, giay=10):
+	"""Khoá tên của MariaDB (theo kết nối), chờ tối đa `giay` giây. True khi lấy được."""
+	r = frappe.db.sql("select get_lock(%s, %s)", (ten, giay))
+	return bool(r and r[0] and cint(r[0][0]) == 1)
+
+
+def _nha_khoa(ten):
+	try:
+		frappe.db.sql("select release_lock(%s)", (ten,))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "goi_mon_ban: nhả khoá %s" % ten)
+
+
+def _goi_trong_khoa(d, n, nonce, bi_mat, bay, mon, ghi_chu, ten, sdt_gioi_thieu):
+	from vagabond.thanh_toan_web_thuan import chuan_gioi_thieu
+
 	cho = [r for r in _cho_cua(d["ma"]) if not het_han(r.get("luc"), bay)]
 	if sum(1 for r in cho if cint(r.get("ban")) == n) >= CHO_TOI_DA_MOI_BAN:
 		return {"ok": 0, "cau": "Bàn này đang có %d đơn chờ quầy nhận. Quý khách đợi quầy nhận rồi gọi thêm." % CHO_TOI_DA_MOI_BAN}
@@ -724,8 +759,18 @@ def dem_cho(diem=None):
 		fields=["name", "diem", "ban", "mon", "tam_tinh", "luc", "ghi_chu", "ten_goi", "ten_gioi_thieu"],
 		order_by="luc asc", limit_page_length=0)
 	ten = d.get("ten_ngan") or d["ten"]
-	the = [the_quay(r, bay, ten) for r in ds if not het_han(r.get("luc"), bay)]
+	ds = [r for r in ds if not het_han(r.get("luc"), bay)]
+	the = [the_quay(r, bay, ten, _anh_mon([x.get("ma") for r in ds for x in _doc_mon(r)])) for r in ds]
 	return {"so": len(the), "ds": the, "ly_do": list(LY_DO_TU_CHOI)}
+
+
+def _anh_mon(ma):
+	"""{mã món: ảnh danh mục} cho các món trên thẻ quầy, một câu đọc."""
+	ma = sorted({str(x) for x in ma or [] if x})
+	if not ma:
+		return {}
+	return {r["name"]: r.get("image") or "" for r in frappe.get_all("Item", filters={"name": ["in", ma]},
+		fields=["name", "image"], limit_page_length=0, ignore_permissions=True)}
 
 
 def _khoa(ma):

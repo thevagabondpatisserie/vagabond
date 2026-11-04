@@ -36,7 +36,13 @@ NHAN_PT = {
 
 # Phương thức thanh toán (Mode of Payment) mà tiền online của đơn web đi vào.
 PT_SO = {"bank": "Chuyển khoản", "card": "OnePay", "atm": "OnePay"}
-NHAN_CACH_THU = {"Chuyển khoản": "Chuyển khoản", "OnePay": "Thẻ qua OnePay"}
+# Codex PR #541 vòng 2: khách trả một phần chuyển khoản, phần còn lại bằng thẻ
+# thì cách thu là "Nhiều cách"; hoá đơn để Sales chọn, Pancake ghi riêng từng ô.
+CACH_NHIEU = "Nhiều cách"
+NHAN_CACH_THU = {"Chuyển khoản": "Chuyển khoản", "OnePay": "Thẻ qua OnePay",
+	CACH_NHIEU: "chuyển khoản và thẻ qua OnePay"}
+# Loại dòng trong nhật ký giao dịch của đơn (vgb_tt_ma_gd) -> cách thu.
+LOAI_CACH = {"ck": "Chuyển khoản", "the": "OnePay"}
 
 TT_DA_THU = "Da thu"
 TT_THIEU = "Thu thieu"
@@ -306,6 +312,30 @@ def khoi_bien_nhan(pt, tien, tt_thu, da_thu, cach_thu, huy):
 	}
 
 
+def so_theo_cach(ds):
+	"""{cách thu: số tiền} cộng từ nhật ký giao dịch của đơn. THUẦN."""
+	ra = {}
+	for g in ds or []:
+		c = LOAI_CACH.get((g or {}).get("loai"))
+		if not c:
+			continue
+		try:
+			so = float(g.get("so") or 0)
+		except (TypeError, ValueError):
+			continue
+		ra[c] = ra.get(c, 0.0) + so
+	return ra
+
+
+def cach_tu_ds(ds, mac=""):
+	"""Cách thu của đơn theo nhật ký: một cách thì đúng cách đó, hai cách thì
+	CACH_NHIEU, chưa có dòng có loại thì `mac`. THUẦN."""
+	c = sorted(k for k, v in so_theo_cach(ds).items() if v > 0.5)
+	if len(c) > 1:
+		return CACH_NHIEU
+	return c[0] if c else mac
+
+
 def pt_cho_hoa_don(rec):
 	"""Phương thức và mã tham chiếu cho hoá đơn đồng bộ từ Pancake của một đơn web
 	đã trả online. Chỉ khi đã thu ĐỦ tổng đơn (phí giao đã rõ); trả một phần (phí
@@ -317,9 +347,13 @@ def pt_cho_hoa_don(rec):
 	if pt not in PT_SO.values():
 		return "", ""
 	ds = doc_ds_gd(r.get("vgb_tt_ma_gd"))
+	if cach_tu_ds(ds, pt) != pt:
+		# Nhật ký có cả chuyển khoản lẫn thẻ (hay khác cách ghi trên đơn): không
+		# gán một phương thức cho cả tổng, Sales chọn như đơn nhiều cách trả.
+		return "", ""
 	ma = ""
-	if pt == "OnePay" and ds:
-		ma = str(ds[0].get("gd") or "")
+	if pt == "OnePay":
+		ma = next((str(g.get("gd") or "") for g in ds if g.get("loai") in ("the", None, "")), "")
 	return pt, ma
 
 
@@ -345,6 +379,21 @@ def than_pancake(cach_thu, so, don):
 	if so <= 0 or cu >= so - 0.5:
 		return None
 	return {o: so}
+
+
+def than_pancake_ds(ds, cach_thu, so, don):
+	"""Thân PUT theo từng cách thu trong nhật ký: chuyển khoản vào transfer_money,
+	thẻ vào prepaid, mỗi ô đúng số của cách đó. Nhật ký chưa có loại (bản ghi cũ)
+	thì như than_pancake. THUẦN."""
+	theo = so_theo_cach(ds)
+	if not theo:
+		return than_pancake(cach_thu, so, don)
+	than = {}
+	for c in sorted(theo):
+		t = than_pancake(c, theo[c], don)
+		if t:
+			than.update(t)
+	return than or None
 
 
 def da_ghi_pancake(don_doc_lai, than):

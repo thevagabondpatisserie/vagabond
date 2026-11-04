@@ -219,8 +219,7 @@ def khop_ck(ten):
 		return ""
 	ds = the + [dict(g, loai="ck") for g in kq["gd"]]
 	gia_tri = {"vgb_tt_trang_thai": tt, "vgb_tt_da_thu": nhan, "vgb_tt_ma_gd": json.dumps(ds, ensure_ascii=False)}
-	if not the:
-		gia_tri["vgb_tt_cach"] = ttt.PT_SO["bank"]
+	gia_tri["vgb_tt_cach"] = ttt.cach_tu_ds(ds, ttt.PT_SO["bank"])
 	if tt == ttt.TT_DA_THU:
 		gia_tri["vgb_tt_luc"] = now_datetime()
 	frappe.db.set_value(DT, ten, gia_tri, update_modified=False)
@@ -274,7 +273,7 @@ def ghi_pancake(d):
 		if not (k and c.pancake_shop_id):
 			raise ValueError("Chưa điền khoá Pancake.")
 		don = _doc_don_pancake(c, k, pid)
-		than = ttt.than_pancake(d.get("vgb_tt_cach"), d.get("vgb_tt_da_thu"), don)
+		than = ttt.than_pancake_ds(ttt.doc_ds_gd(d.get("vgb_tt_ma_gd")), d.get("vgb_tt_cach"), d.get("vgb_tt_da_thu"), don)
 		if not than:
 			return "da_co"
 		_put_don_pancake(c, k, pid, than)
@@ -547,7 +546,7 @@ def ghi_nhan_the(ma, kq, nguon):
 		ds = ttt.doc_ds_gd(d.vgb_tt_ma_gd) + [{"gd": kq["ma"], "ma": kq.get("ma_onepay") or "", "so": so, "loai": "the"}]
 		da_thu = flt(d.vgb_tt_da_thu) + so
 		tt = ttt.xet_thu(ttt.so_tien_online(d, _snap(d)), da_thu)
-		gia_tri = {"vgb_tt_trang_thai": tt, "vgb_tt_da_thu": da_thu, "vgb_tt_cach": ttt.PT_SO["card"],
+		gia_tri = {"vgb_tt_trang_thai": tt, "vgb_tt_da_thu": da_thu, "vgb_tt_cach": ttt.cach_tu_ds(ds, ttt.PT_SO["card"]),
 			"vgb_tt_ma_gd": json.dumps(ds, ensure_ascii=False)}
 		if tt == ttt.TT_DA_THU:
 			gia_tri["vgb_tt_luc"] = now_datetime()
