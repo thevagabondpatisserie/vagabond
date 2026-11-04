@@ -361,6 +361,13 @@ def theo_nhan_vien(rows):
 	return sorted(gom.values(), key=lambda o: (-o["hoa_hong"], -o["hoa_hong_cho"], o["nguoi"]))
 
 
+def phieu_da_chot(p):
+	"""Phiếu KPI đã chốt (đóng băng, đã đẩy chi, đã huỷ): không ghi đè. THUẦN,
+	một phép cho cả bước lập kế hoạch lẫn bước ghi trong khoá."""
+	p = p or {}
+	return bool(int(_so(p.get("dong_bang")))) or p.get("trang_thai") in ("Da day chi", "Da huy")
+
+
 def ke_hoach_kpi(rows, phieu):
 	"""Đưa hoa hồng giới thiệu vào phiếu KPI: việc cần làm cho từng người. THUẦN.
 
@@ -385,7 +392,7 @@ def ke_hoach_kpi(rows, phieu):
 		if p is None:
 			viec.append({"nguoi": ng, "viec": "tao" if so > 0 else "bo_qua", "so": so, "don": don.get(ng, [])})
 			continue
-		if int(_so(p.get("dong_bang"))) or p.get("trang_thai") in ("Da day chi", "Da huy"):
+		if phieu_da_chot(p):
 			viec.append({"nguoi": ng, "viec": "da_chot", "so": so, "cu": int(round(_so(p.get("hh")))),
 				"phieu": p.get("name"), "don": don.get(ng, [])})
 			continue
@@ -952,8 +959,16 @@ def dua_vao_kpi(ky=None):
 			doc.insert(ignore_permissions=True)
 			ra["tao"].append({"nguoi": v["nguoi"], "ten": doc.ten_nguoi, "so": v["so"], "phieu": doc.name})
 			continue
+		# Codex PR #541 vòng 6: giám đốc có thể vừa duyệt (đóng băng) phiếu sau lúc
+		# đọc danh sách. Khoá hàng phiếu, đọc lại trạng thái hiện tại rồi mới ghi.
+		hien = frappe.db.get_value(DT_KPI, v["phieu"], ["dong_bang", "trang_thai", O_KPI_HH], as_dict=True, for_update=True)
+		if not hien or phieu_da_chot(hien):
+			ra["da_chot"].append({"nguoi": v["nguoi"], "ten": ten_nguoi.ten(v["nguoi"]), "so": v["so"],
+				"cu": int(round(_so((hien or {}).get(O_KPI_HH)))), "phieu": v["phieu"]})
+			v["viec"] = "da_chot"
+			continue
 		frappe.db.set_value(DT_KPI, v["phieu"], {O_KPI_HH: v["so"], O_KPI_DON: json.dumps(v["don"], ensure_ascii=False),
-			O_KPI_LUC: luc}, update_modified=False)
+			O_KPI_LUC: luc})
 		ra["cap_nhat"].append({"nguoi": v["nguoi"], "ten": ten_nguoi.ten(v["nguoi"]), "so": v["so"], "cu": v.get("cu"),
 			"phieu": v["phieu"]})
 	frappe.db.commit()
