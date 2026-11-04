@@ -25,6 +25,17 @@ body.trang-khach{font-family:var(--sans);font-size:16px;line-height:1.65;backgro
 .bn-mon li b{font-weight:400;color:var(--fog)}
 .bn-mon li .tien{grid-column:1/-1;color:var(--fog-2);font-size:14px}
 .bn-luu-y{margin-top:16px;font-size:14px;color:var(--fog)}
+/* v638: khối thanh toán ngay trên biên nhận (chuyển khoản VietQR, thẻ OnePay,
+   tiền mặt). Mã QR nền trắng để ứng dụng ngân hàng đọc được trên nền tối. */
+.bn-tt{margin-top:22px;padding:16px;border:1px solid var(--line);border-radius:16px}
+.bn-tt h2{font-size:17px;font-weight:600;margin-bottom:6px}
+.bn-tt-so{font-size:15px;color:var(--fog);margin-top:6px}.bn-tt-so b{display:block;font-size:24px;color:var(--cyan-bright)}
+.bn-tt-qr{display:block;width:220px;max-width:100%;height:auto;margin:12px auto;background:#fff;border-radius:10px;padding:6px}
+.bn-tt-phu{font-size:14px;color:var(--fog);margin-top:10px}
+.bn-tt-ok{color:var(--cyan-bright);font-size:16px}.bn-tt-ok b{display:block;font-size:20px}
+.bn-tt-thieu{color:#f0a55c;font-size:15px}
+.bn-tt .nut{width:100%;margin-top:12px;font-size:16px;cursor:pointer}
+.bn-tt .bn-dong{margin-top:10px}.bn-tt .bn-dong dd{word-break:break-all}
 .bn-nut{display:grid;gap:10px;margin-top:24px}
 @media(min-width:560px){.bn-nut{grid-template-columns:repeat(2,1fr)}}
 .nut{display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;border:1px solid var(--cyan);border-radius:26px;color:var(--cyan-bright);font-size:15px;text-align:center}

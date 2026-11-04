@@ -229,7 +229,7 @@
     const k = nhap.khoi.find(x => x.id === chon);
     if (!k) { g.append(tao('p', 'Chọn một khối để chỉnh nội dung.')); return; }
     if (k.loai === 'tieu_de_muc') {
-      g.append(tao('p', 'Tiêu đề trên mục ' + ({today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'In store'}[k.vi_tri]) + '. Ngày, giá và tồn tiếp tục lấy từ hệ thống.', 'goi-y'));
+      g.append(tao('p', 'Tiêu đề trên mục ' + ({today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'Tại quầy'}[k.vi_tri]) + '. Ngày, giá và tồn tiếp tục lấy từ hệ thống.', 'goi-y'));
       const nhan = tao('label','','truong'); nhan.append(tao('span','Tiêu đề mục'));
       const o = tao('textarea'); o.maxLength=120; o.value=k.tieu_de; o.oninput=()=>{k.tieu_de=o.value;daDoi();}; o.onchange=danhSach;
       nhan.append(o);g.append(nhan);return;
@@ -258,7 +258,7 @@
     if(['kenh_dat_hang','zalo_oa','nut_kenh'].includes(k.loai))g.append(tao('p', k.loai==='nut_kenh'?'Logo trên nút nổi mở danh sách ứng dụng. Tên dùng cho trình đọc màn hình; tắt hiển thị để ẩn nút và danh sách.':k.loai==='zalo_oa'?'Nút Zalo riêng. Có thể thay logo, tên và đường dẫn OA.':'Thay logo, tên và đường dẫn ứng dụng. Dùng mũi tên ở danh sách khối để đổi thứ tự; tắt hiển thị để ẩn kênh.', 'goi-y'));
     if(!['uu_dai','tuyen_dung','kenh_dat_hang','zalo_oa','nut_kenh'].includes(k.loai)){g.append(tao('p', 'Vị trí trên trang order', 'goi-y'));
     const viTri = tao('div', '', 'them-khoi');
-    Object.entries({dau_trang:'Dưới logo',today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'In store',season:'In season',cuoi_trang:'Cuối trang'}).forEach(([ma,ten]) => {
+    Object.entries({dau_trang:'Dưới logo',today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'Tại quầy',season:'In season',cuoi_trang:'Cuối trang'}).forEach(([ma,ten]) => {
       const b = tao('button', ten); b.setAttribute('aria-pressed', String((k.vi_tri || 'cuoi_trang') === ma));
       b.onclick = () => { k.vi_tri = ma; daDoi(); thuocTinh(); }; viTri.append(b);
     }); g.append(viTri);}
