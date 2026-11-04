@@ -59,9 +59,14 @@ def _truong_tu_them():
 	"""Mọi trường tự thêm của Vagabond Settings khai trong repo."""
 	from vagabond import hach_toan_kho, minvoice_tep, o_cai_dat, qua_tang_hoa_don, sepay, tai_khoan
 	from vagabond import tra_truoc_khach
+	# v638: cờ tạm không ghi tiền đơn web đã trả lên Pancake (mục OnePay).
+	from vagabond import thanh_toan_web
+	# v638: mục Hoa hồng giới thiệu (công tắc, hai %) ở tab Bán hàng & thanh toán.
+	from vagabond import gioi_thieu
 
 	ra = []
-	for m in (o_cai_dat, tai_khoan, hach_toan_kho, minvoice_tep, sepay, qua_tang_hoa_don, tra_truoc_khach):
+	for m in (o_cai_dat, tai_khoan, hach_toan_kho, minvoice_tep, sepay, qua_tang_hoa_don, tra_truoc_khach, thanh_toan_web,
+			gioi_thieu):
 		for f in m.TRUONG_MOI.get("Vagabond Settings", []):
 			ra.append(dict(f))
 	return ra
@@ -165,6 +170,10 @@ def _():
 		"tu_ghi_so_nhat_ky": ("tab_ban_hang", "sec_vgb_tu_dong"),
 		# Ô cũ từng bị mục Hạch toán kho chen ngang và kéo đi:
 		"hang_tang_xuat_kho_that": ("tab_ban_hang", "sec_vgb_tu_dong"),
+		# v638: mục riêng ngay sau Tự động hoá bán hàng, không trôi sang VietQR.
+		"vgb_gt_bat": ("tab_ban_hang", "vgb_sec_gioi_thieu"),
+		"vgb_gt_pt_tai_ban": ("tab_ban_hang", "vgb_sec_gioi_thieu"),
+		"ngan_hang_bin": ("tab_ban_hang", "sec_tt"),
 		"email_canh_bao": ("tab_tin_nhan", "sec_gui_thu"),
 		"minvoice_mau_lien_ket": ("tab_ke_toan", "sec_minvoice"),
 		"tk_hoan_tien": ("tab_ke_toan", "sec_hoan_tien"),
@@ -195,7 +204,7 @@ def _():
 			co.add(ten[:-3])
 	la("các module khai trường tự thêm", sorted(co),
 		sorted(["o_cai_dat", "tai_khoan", "hach_toan_kho", "minvoice_tep", "sepay", "qua_tang_hoa_don",
-			"tra_truoc_khach"]))
+			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu"]))
 
 
 @ca("cài đặt v568: mọi nhãn và mô tả là tiếng Việt có dấu, không còn số issue trong nhãn")

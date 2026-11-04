@@ -261,7 +261,10 @@ def _():
 	dung("da khai cua ngo", "con_tren_quay_web" in thu_cua_ngo.CUA_NGO.get("kiem_kho.py", []))
 	m = _doc("vagabond/kiem_kho.py")
 	dung("mo cho khach", "@frappe.whitelist(allow_guest=True)\ndef con_tren_quay_web(" in m)
-	than = _than(m, "def con_tren_quay_web(", None)
+	# v638: phần đọc bảng kiểm kho tách ra `banh_tren_quay` (một phép cho tab
+	# Tại quầy và cửa gọi món tại bàn), đứng ngay trên con_tren_quay_web; soi
+	# cả hai hàm.
+	than = _than(m, "def banh_tren_quay(", None)
 	for cam in ("set_value", ".save(", ".insert(", "_luu_may(", "_lay_hoac_tao("):
 		dung("khong %s" % cam, cam not in than)
 	tra = _than(than, 'q["mon"].append({', "})")
