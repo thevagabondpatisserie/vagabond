@@ -291,6 +291,25 @@ def sl_dang_cho(ds_mon_json):
 	return ra
 
 
+def mon_dang_giu(dang_cho, da_nhan, phieu_mo, ngay):
+	"""Các chuỗi món (json) còn phải giữ trên tủ. THUẦN.
+
+	Codex PR #541: đơn ĐÃ NHẬN nằm trên phiếu tạm tính, mà số đã bán của bảng
+	kiểm kho bỏ mọi phiếu tạm tính, nên nhận xong mà thôi giữ thì bàn khác gọi
+	lại được đúng mấy cái bánh đó. Giữ tiếp đơn đã nhận trong ngày khi phiếu của
+	nó còn là phiếu tạm tính nháp; phiếu đã chốt (thành bill bán hay ghi sổ) thì
+	số đã bán tính rồi, thôi giữ để không trừ hai lần."""
+	ds = list(dang_cho or [])
+	for r in da_nhan or []:
+		if not r.get("hoa_don") or r.get("hoa_don") not in phieu_mo:
+			continue
+		luc = _dt(r.get("nhan_luc"))
+		if luc is not None and ngay is not None and luc.date() != ngay:
+			continue
+		ds.append(r.get("mon"))
+	return ds
+
+
 def _dt(x):
 	if isinstance(x, datetime):
 		return x
@@ -506,9 +525,24 @@ def _cho_cua(diem, ban=None):
 	return frappe.get_all(DT, filters=loc, fields=["name", "ban", "mon", "luc"], limit_page_length=0, ignore_permissions=True)
 
 
+def _da_nhan_cua(diem):
+	return frappe.get_all(DT, filters={"diem": diem, "trang_thai": TT_NHAN},
+		fields=["name", "mon", "hoa_don", "nhan_luc"], limit_page_length=0, ignore_permissions=True)
+
+
+def _phieu_tam_mo(ten):
+	"""Trong các phiếu đã cho, phiếu nào còn là phiếu tạm tính nháp chưa huỷ."""
+	ten = sorted({str(t) for t in ten or [] if t})
+	if not ten:
+		return set()
+	return set(frappe.get_all("Sales Invoice", filters={"name": ["in", ten], "docstatus": 0, "vgb_tam_tinh": 1,
+		"vgb_huy": ["!=", 1]}, pluck="name", limit_page_length=0, ignore_permissions=True))
+
+
 def bang_mon(d, hom_nay=None):
 	"""Bảng món gọi được ở một điểm lúc này: {mã: {...}}. Bánh lấy từ bảng kiểm
-	kho (cùng phép tab Tại quầy), trừ số đang chờ quầy nhận; đồ uống đang bật."""
+	kho (cùng phép tab Tại quầy), trừ số đang chờ quầy nhận và số đã nhận mà
+	phiếu tạm tính của bàn chưa chốt; đồ uống đang bật."""
 	from vagabond import diem_ban, kiem_kho
 
 	bay = now_datetime()
@@ -519,7 +553,9 @@ def bang_mon(d, hom_nay=None):
 			continue
 		ra[x["ma"]] = {"ten": x["ten"], "gia": x["gia"], "loai": "nuoc", "nhom_goc": x["nhom_goc"],
 			"tc": tuy_chon_cho(x["nhom_goc"], ds_tc)}
-	cho = sl_dang_cho([r.get("mon") for r in _cho_cua(d["ma"]) if not het_han(r.get("luc"), bay)])
+	da_nhan = _da_nhan_cua(d["ma"])
+	cho = sl_dang_cho(mon_dang_giu([r.get("mon") for r in _cho_cua(d["ma"]) if not het_han(r.get("luc"), bay)],
+		da_nhan, _phieu_tam_mo([r.get("hoa_don") for r in da_nhan]), bay.date()))
 	gia_diem = diem_ban.gia_rieng(d["ma"])
 	for m in kiem_kho.banh_tren_quay(d["ma"], hom_nay):
 		con = int(m["con"]) - int(cho.get(m["ma"]) or 0)

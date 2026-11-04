@@ -193,10 +193,34 @@ def mo_ta_khop(mo_ta, shop_id, ten, did):
 	return any(re.search(r"(?<![0-9A-Za-z])%s(?![0-9A-Za-z])" % re.escape(m), s, re.I) for m in ma)
 
 
-def tong_khop(gds, shop_id, ten, did):
+RE_DW_TRONG = re.compile(r"(?<![0-9A-Za-z])(DW[0-9]{9})(?![0-9A-Za-z])", re.I)
+
+
+def ma_don_khac(mo_ta, shop_id, ten, did):
+	"""Mã của đơn KHÁC có trong nội dung chuyển khoản (mã Don Web, mạch
+	S<shop>O<mã>T). THUẦN. Nội dung đúng của chính đơn này (S..O<mã>T kèm mã
+	Don Web của nó) ra rỗng."""
+	s = str(mo_ta or "")
+	cua = ma_dw(ten)
+	ra = {m.upper() for m in RE_DW_TRONG.findall(s) if m.upper() != cua}
+	shop = str(shop_id or "").strip()
+	did = str(did or "").strip()
+	if shop.isdigit():
+		for x in re.findall(r"S%sO([0-9]+)T" % re.escape(shop), s, re.I):
+			if x != did:
+				ra.add("S%sO%sT" % (shop, x))
+	return sorted(ra)
+
+
+def tong_khop(gds, shop_id, ten, did, da_dung=None):
 	"""Cộng tiền các dòng sao kê khớp đơn. Mỗi dòng tính một lần (theo tên), chỉ
-	tiền vào. THUẦN. Trả {"nhan", "gd": [{"gd","ma","so"}]}."""
-	nhan, ds, da = 0.0, [], set()
+	tiền vào. THUẦN. Trả {"nhan", "gd": [{"gd","ma","so"}], "mo_ho", "da_dung"}.
+
+	Codex PR #541: một giao dịch mang mã của nhiều đơn thì KHÔNG tự cộng cho đơn
+	nào (đưa vào "mo_ho" để Sales đối soát tay); giao dịch đã được đơn khác ghi
+	nhận (da_dung: tên các dòng sao kê đơn khác đã giữ) cũng không cộng lần hai."""
+	nhan, ds, da, mo_ho, bo = 0.0, [], set(), [], []
+	da_dung = set(da_dung or [])
 	for g in gds or []:
 		ten_gd = str(g.get("name") or "")
 		if not ten_gd or ten_gd in da:
@@ -208,9 +232,26 @@ def tong_khop(gds, shop_id, ten, did):
 		if so <= 0 or not mo_ta_khop(g.get("description"), shop_id, ten, did):
 			continue
 		da.add(ten_gd)
+		khac = ma_don_khac(g.get("description"), shop_id, ten, did)
+		if khac:
+			mo_ho.append({"gd": ten_gd, "ma_khac": khac})
+			continue
+		if ten_gd in da_dung:
+			bo.append(ten_gd)
+			continue
 		nhan += so
 		ds.append({"gd": ten_gd, "ma": str(g.get("reference_number") or "").strip(), "so": so})
-	return {"nhan": nhan, "gd": ds}
+	return {"nhan": nhan, "gd": ds, "mo_ho": mo_ho, "da_dung": bo}
+
+
+def tin_ck_nhieu_don(ten, did, ma_khac):
+	"""(tiêu đề, dòng) tin cho Sales khi một giao dịch mang mã nhiều đơn. Không
+	ghi số tiền (luật tin bộ phận Bán hàng v613). THUẦN."""
+	ma = str(did or "").strip() or str(ten or "")
+	return ("Đơn web %s: một lần chuyển khoản ghi mã của nhiều đơn" % ma, [
+		"Nội dung chuyển khoản có cả mã %s." % ", ".join(ma_khac),
+		"Máy không tự ghi đơn nào đã thu. Sales kiểm sao kê, hỏi khách khoản này trả cho đơn nào rồi ghi tay trên Pancake.",
+	])
 
 
 def xet_thu(so_can, so_nhan):

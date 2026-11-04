@@ -516,6 +516,54 @@ def _ghi(si, gt):
 		moi = not ten
 	if ten and not moi:
 		frappe.db.set_value(DT_HD, ten, gt, update_modified=False)
+	elif moi:
+		_tin_cho_doc_moi(si, gt)
+
+
+# Codex PR #541: tờ MỚI không tin các ô giới thiệu gửi lên từ bên ngoài (API
+# tạo Sales Invoice gửi kèm người tự chọn và % 100 thì ghi sổ ra hoa hồng
+# 100%). Giá trị máy chủ đặt cho doc chưa lưu được ghi vào sổ riêng của lượt
+# gọi (frappe.flags, client không với tới được), giữ chính đối tượng doc để
+# không nhầm sang doc khác trùng id.
+_SO_TIN = "vgb_gioi_thieu_tin"
+
+
+def _tin_cho_doc_moi(doc, gt):
+	so = frappe.flags.get(_SO_TIN)
+	if not isinstance(so, dict):
+		so = {}
+		frappe.flags[_SO_TIN] = so
+	cu = so.get(id(doc))
+	gop = dict(cu[1]) if cu and cu[0] is doc else {}
+	gop.update(gt)
+	so[id(doc)] = (doc, gop)
+
+
+def _lay_tin(doc):
+	so = frappe.flags.get(_SO_TIN)
+	if not isinstance(so, dict):
+		return None
+	cu = so.pop(id(doc), None)
+	return cu[1] if cu and cu[0] is doc else None
+
+
+def don_o_moi(tin, amended=None, la_tra=False):
+	"""Các ô giới thiệu của tờ MỚI, chỉ từ nguồn máy chủ. THUẦN.
+
+	tin: giá trị chính máy chủ vừa gắn cho doc này (gan_cho_hoa_don);
+	amended: ô của tờ gốc đã huỷ khi tờ này là bản sửa lại. Mọi ô khác
+	(kể cả số hoa hồng, ai đổi, lúc nào) về rỗng, không lấy từ dữ liệu gửi lên."""
+	ra = {o: None for o in O_HD + (O_HH, O_GHI_CHU, O_DOI_BOI, O_DOI_LUC)}
+	if la_tra:
+		return ra
+	if tin:
+		for o in O_HD:
+			if o in tin:
+				ra[o] = tin[o]
+	elif amended:
+		for o in O_HD:
+			ra[o] = amended.get(o) or None
+	return ra
 
 
 def gan_cho_hoa_don(si, sdt, loai="tai_ban", sdt_khach=None):
@@ -596,20 +644,24 @@ def _chep_tu_don_web(si):
 def truoc_khi_luu(doc, method=None):
 	"""Hook before_validate Sales Invoice.
 
-	Tờ MỚI: tờ sửa lại (amended_from) mang người giới thiệu của tờ gốc; tờ của
-	đơn web lấy người giới thiệu từ bản ghi Don Web để nháp đã thấy được.
+	Tờ MỚI: không tin ô giới thiệu gửi lên (Codex PR #541). Chỉ nhận giá trị
+	máy chủ vừa gắn (gan_cho_hoa_don), tờ sửa lại mang người của tờ gốc ĐÃ HUỶ,
+	tờ của đơn web lấy từ bản ghi Don Web; tờ trả hàng để trống.
 	Tờ ĐÃ CÓ: thu ngân (hay bất kỳ đường lưu nào không qua cửa của tệp này)
 	đổi ô người giới thiệu thì máy trả lại giá trị cũ, không ném lỗi để không
 	chặn việc bán.
 	"""
 	try:
 		if doc.is_new():
-			if doc.get("amended_from") and not doc.get(O_NGUOI):
-				cu = frappe.db.get_value(DT_HD, doc.amended_from, list(O_HD), as_dict=True) or {}
-				for o in O_HD:
-					if cu.get(o):
-						doc.set(o, cu.get(o))
-			elif not doc.get(O_NGUOI):
+			tin = _lay_tin(doc)
+			goc = None
+			if not tin and doc.get("amended_from"):
+				goc = frappe.db.get_value(DT_HD, doc.amended_from, list(O_HD) + ["docstatus"], as_dict=True) or {}
+				if int(goc.get("docstatus") or 0) != 2:
+					goc = None
+			for o, v in don_o_moi(tin, goc, bool(doc.get("is_return"))).items():
+				doc.set(o, v)
+			if not tin and not goc and not doc.get("is_return") and not doc.get("amended_from"):
 				_chep_tu_don_web(doc)
 			return
 		if doc.flags.get("vgb_gioi_thieu_may"):

@@ -171,6 +171,26 @@ def _gd_sao_ke(d):
 		order by name""", (str(tu)[:10], mau), as_dict=True)
 
 
+def _gd_don_khac_da_dung(ten_gd, tru):
+	"""Trong các dòng sao kê đã cho, dòng nào đã được Don Web KHÁC ghi nhận."""
+	ra = set()
+	for g in ten_gd or []:
+		if frappe.db.sql("select name from `tab%s` where name != %%s and vgb_tt_ma_gd like %%s limit 1" % DT,
+				(tru, '%%"%s"%%' % g)):
+			ra.add(g)
+	return ra
+
+
+def _bao_ck_nhieu_don(d, mo_ho):
+	"""Báo Sales đối soát tay giao dịch mang mã nhiều đơn; mỗi giao dịch một lần."""
+	from vagabond.kenh_zalo import bao
+
+	for x in mo_ho:
+		tieu_de, dong = ttt.tin_ck_nhieu_don(d.name, d.pancake_display_id, x["ma_khac"])
+		bao("canh_bao", "don_web", tieu_de, dong, khoa="don-web-ck-nhieu-don:%s:%s" % (d.name, x["gd"]),
+			link=frappe.utils.get_url_to_form(DT, d.name), ma_tin="bh_don_web_da_tra")
+
+
 def khop_ck(ten):
 	"""Khớp sao kê cho một đơn chọn chuyển khoản, trong khoá hàng Don Web (nhịp
 	5 phút và lượt khách hỏi trạng thái có thể chạy cùng lúc). Trả trạng thái
@@ -182,7 +202,15 @@ def khop_ck(ten):
 		return ""
 	snap = _snap(d)
 	so_can = ttt.so_tien_online(d, snap)
-	kq = ttt.tong_khop(_gd_sao_ke(d), _shop(), d.name, d.pancake_display_id)
+	gds = _gd_sao_ke(d)
+	ten_gd = sorted({str(g.get("name")) for g in gds if g.get("name")})
+	# Codex PR #541: giữ khoá các dòng sao kê (thứ tự tên cố định, sau khoá Don
+	# Web) rồi mới đọc đơn nào đã dùng chúng, để hai đơn không cùng ăn một khoản.
+	for g in ten_gd:
+		frappe.db.sql("select name from `tabBank Transaction` where name = %s for update", (g,))
+	kq = ttt.tong_khop(gds, _shop(), d.name, d.pancake_display_id, _gd_don_khac_da_dung(ten_gd, d.name))
+	if kq["mo_ho"]:
+		_bao_ck_nhieu_don(d, kq["mo_ho"])
 	# Đơn chọn thẻ mà đã trả một phần bằng thẻ thì cộng phần thẻ với phần chuyển khoản.
 	the = [g for g in ttt.doc_ds_gd(d.vgb_tt_ma_gd) if g.get("loai") == "the"]
 	nhan = kq["nhan"] + sum(flt(g.get("so")) for g in the)
