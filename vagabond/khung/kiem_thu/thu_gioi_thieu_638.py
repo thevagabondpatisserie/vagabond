@@ -272,7 +272,10 @@ def _tien():
 	la("% kẹp 0..100", (gt.chuan_pt(150), gt.chuan_pt(-5), gt.chuan_pt(None), gt.chuan_pt("abc")), (100.0, 0.0, 2.0, 2.0))
 	la("mã phí giao một nguồn với phi_giao.py", gt.MA_PHI_GIAO, __import__("vagabond.phi_giao", fromlist=["x"]).MA_PHI_GIAO)
 	from vagabond import kpi
-	la("bộ vai xem trùng phân hệ KPI", gt.VAI_XEM, kpi.VAI_XEM)
+	dung("bộ vai xem phủ đủ phân hệ KPI", kpi.VAI_XEM <= gt.VAI_XEM)
+	from vagabond import vai_cua_hang
+	la("vai quản lý cửa hàng đúng tên vai thật trên site", gt.VAI_QLCH, vai_cua_hang.VAI_QLCH)
+	dung("quản lý cửa hàng (vai thật) xem được toàn tiệm và đổi được người", gt.VAI_QLCH in gt.VAI_XEM and gt.VAI_QLCH in gt.VAI_DOI)
 	dung("thu ngân không đổi được người giới thiệu", not ({"Sales User", "Accounts User", "Kế toán"} & gt.VAI_DOI))
 
 
@@ -572,7 +575,9 @@ def _doi():
 		_hd(db, "SI-1", docstatus=1, items=MON, **{gt.O_NGUOI: "ngan@x", gt.O_LOAI: "tai_ban", gt.O_PT: 2, gt.O_HH: 19280})
 		nem("thu ngân", lambda: gt.doi_nguoi("SI-1", "lan@x", "nhầm"), _fr.ValidationError)
 		la("không đổi", db.bang[gt.DT_HD]["SI-1"][gt.O_NGUOI], "ngan@x")
-	with moi_truong(db, vai=("Quản lý cửa hàng",), toi="ql@x"):
+	# Codex PR #541 vòng 5: tài khoản CHỈ mang vai thật "VGB - Quản lý cửa hàng".
+	with moi_truong(db, vai=("VGB - Quản lý cửa hàng",), toi="ql@x"):
+		la("thấy chế độ toàn tiệm, có quyền đổi", (gt.cua_toi()["xem_toan_tiem"], gt.toan_tiem()["doi_duoc"]), (1, 1))
 		nem("thiếu lý do", lambda: gt.doi_nguoi("SI-1", "lan@x", ""), _fr.ValidationError)
 		nem("tài khoản khoá", lambda: gt.doi_nguoi("SI-1", "khoa@x", "x"), _fr.ValidationError)
 		kq = gt.doi_nguoi("SI-1", "lan@x", "Khách báo gõ nhầm số")
