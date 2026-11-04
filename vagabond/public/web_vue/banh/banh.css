@@ -623,3 +623,32 @@ html body .ctr-h{font-family:var(--sans);font-size:13px;letter-spacing:.18em;tex
 .tkr-ck dt{color:var(--fog-2)}
 .tkr-ck dd{color:var(--paper);word-break:break-word}
 @media(max-width:600px){.tkr-tp{margin:0 -4px 48px}.tkr-the-anh{width:96px;height:128px}.tkr-sz{gap:6px}.tkr-sz button{padding:9px 7px}}
+
+/* ---------- v638 gọi món tại bàn (goi-tai-ban.js) ---------- */
+.gb-dau{border:1px solid var(--cyan-dim);background:rgba(41,189,179,.08);padding:12px 14px;margin:6px 0 14px;font-family:var(--sans)}
+.gb-dau b{display:block;color:var(--cyan);font-size:16px;font-weight:600;letter-spacing:.02em}
+.gb-dau span{display:block;color:var(--fog);font-size:13.5px;line-height:1.55;margin-top:4px}
+.gb-don{padding:6px 0 90px}
+.gb-tieu{font-family:var(--sans);font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--fog-2);font-weight:400;margin:0 0 10px}
+.gb-the{border:1px solid var(--line);padding:11px 13px;margin-bottom:8px;font-family:var(--sans)}
+.gb-the b{display:block;font-size:15px;font-weight:600;color:var(--paper)}
+.gb-the[data-tt="Đã nhận"] b{color:var(--cyan)}
+.gb-the[data-tt="Từ chối"] b,.gb-the[data-tt="Hết hạn"] b{color:#FF7A6B}
+.gb-the span{display:block;font-size:13px;color:var(--fog);margin-top:4px;line-height:1.5}
+.gb-them,.gb-nut{width:100%;min-height:48px;margin-top:12px}
+.gb-sheet .wrap{padding-top:18px;padding-bottom:max(28px,env(safe-area-inset-bottom))}
+.gb-sheet-dau{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.gb-sheet-dau h2{font-size:20px;font-weight:400;margin:0;line-height:1.3}
+.gb-sheet-dau .close{position:static;flex:none}
+.gb-gia{font-size:18px;margin-top:8px;color:var(--fog)}
+.gb-nhom h3{font-family:var(--sans);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);font-weight:400;margin:20px 0 2px}
+.gb-nhom .size{min-width:0;min-height:44px}
+.gb-phu{font-family:var(--sans);font-size:13px;color:var(--fog-2);line-height:1.55;margin:6px 0 0}
+.gb-dong{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2);font-family:var(--sans)}
+.gb-dong-ten{flex:1;min-width:0}
+.gb-dong-ten b{display:block;font-weight:400;font-size:15px}
+.gb-dong-ten small{display:block;font-size:13px;color:var(--fog-2);margin-top:2px}
+.gb-dong .qty{display:flex;align-items:center;border:1px solid var(--line)}
+.gb-dong .qty button{width:44px;height:44px;display:grid;place-items:center;font-size:18px;color:var(--fog)}
+.gb-dong .qty span{min-width:28px;text-align:center;font-size:14px}
+.gb-loi{color:#FF7A6B;font-family:var(--sans);font-size:13.5px;line-height:1.5;margin:12px 0 0}

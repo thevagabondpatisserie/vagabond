@@ -20,6 +20,8 @@ import {thuong} from './chu-giau.js';
 import {MAU} from './mau.js';
 import {ChanTrang, locChinhSach} from './chan-trang.js';
 import {ThietKeRieng, moTacPham, veDanhSach, dsTacPham} from './thiet-ke-rieng.js';
+import {GoiTaiBan} from './goi-tai-ban.js';
+import {dungQuayHien} from './kho-goi-ban.js';
 
 function luuTruAnToan() {
   try { const s = window.sessionStorage; s.getItem('x'); return s; } catch (e) { return null; }
@@ -54,7 +56,7 @@ export function khoiDong(goc = '#app') {
 
   const app = createApp({
     template: MAU,
-    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng},
+    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan},
     setup() {
       const tab = computed(() => S.tab);
       const gioMo = computed(() => S.trang === 'gio');
@@ -62,15 +64,9 @@ export function khoiDong(goc = '#app') {
       /* v630: tab Thiết kế riêng chỉ hiện khi có tác phẩm đang nhận đặt. */
       const coTkr = computed(() => dsTacPham().length > 0);
       const coQuay = computed(() => true);
-      const quayHien = computed(() => {
-        const quay = S.STORE.quay || [];
-        if (!quay.length) return null;
-        const chon = quay.find(q => q.ma === S.quayChon) || quay[0];
-        const mon = (chon.mon || []).filter(m => !S.nhomQuay || m.nhom === S.nhomQuay);
-        const ds = chon.mon || [];
-        return {quay, chon, mon, tong: mon.reduce((a, m) => a + (m.con || 0), 0),
-          nhom: ['', ...new Set(ds.map(m => m.nhom).filter(Boolean))].map(n => ({n, so: ds.filter(m => !n || m.nhom === n).length}))};
-      });
+      /* v638: tab Tại quầy có bánh trên tủ và đồ uống; chip Tất cả, Bánh trên tủ,
+         Đồ uống; mở từ QR một bàn thì chỉ còn quầy của bàn đó (kho-goi-ban.js). */
+      const quayHien = computed(() => dungQuayHien(S, kho.goiBan.G, t));
       const chinhSach = computed(() => locChinhSach(S.cauHinh && S.cauHinh.chinh_sach, location.pathname));
       const baoMat = computed(() => chinhSach.value.find(c => c.khoa === 'chinh_sach_bao_mat') || null);
       const ngayBan = computed(() => { void S.nhip; const b = new Date(); return DAYS[b.getDay()] + ', ' + kho.T.dmy(b); });
@@ -276,6 +272,11 @@ export function khoiDong(goc = '#app') {
   setInterval(kho.napMua, 300000);
   kho.napQuay();
   setInterval(kho.napQuay, 60000);
+  /* v638: link QR một bàn. Đúng thì mở thẳng tab Tại quầy ở chế độ gọi món;
+     mất phần #/in-store (vài app quét QR cắt) thì tự thêm lại. */
+  kho.goiBan.kiemLink().then(b => {
+    if (b && b.ok && !/^#\/in-store/.test(location.hash || '')) nav('#/in-store', true);
+  });
   kho.napCauHinh().then(ch => {
     const px = ch ? String(ch.pixel_id || '').replace(/\D/g, '') : '';
     if (px && !pixel.id && !ND.xemThu) { pixel.id = px; napPixel(px); }

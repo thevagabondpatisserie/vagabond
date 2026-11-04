@@ -94,9 +94,13 @@ export const PICKUPS_GOC = [
   {id: 'cua-hang-sai-gon', n: 'Cửa hàng Sài Gòn', a: '9 Trần Cao Vân, P. Sài Gòn'}
 ];
 
+/* v638 (anh Việt 04/11/2026): khách trả ngay trên web, bốn cách. `the`: đi qua
+   cổng OnePay (cổng tắt thì ẩn). Giá trị gửi máy chủ đúng như `k`. */
 export const PAYS = [
   {k: 'bank', kn: 'dat_banh_983bba817', n: 'Chuyển khoản', kd: 'dat_banh_d2684b2c6', d: 'Hiện mã VietQR, quét là xong, nội dung đã điền sẵn mã đơn'},
-  {k: 'card', kn: 'dat_banh_ca5ee988f', n: 'Thẻ tín dụng', kd: 'dat_banh_8483dcf77', d: 'Nhận link thanh toán OnePay, nhập thẻ trên trang bảo mật của ngân hàng'}
+  {k: 'card', the: true, kn: 'dat_banh_pt_the_qt', n: 'Thẻ tín dụng, ghi nợ quốc tế', kd: 'dat_banh_pt_the_qt_mo', d: 'Visa, Mastercard, JCB. Trả ngay trên trang bảo mật OnePay sau khi gửi đơn'},
+  {k: 'atm', the: true, kn: 'dat_banh_pt_atm', n: 'Thẻ ATM nội địa', kd: 'dat_banh_pt_atm_mo', d: 'Thẻ ngân hàng Việt Nam (Napas) đã mở thanh toán trực tuyến, qua cổng OnePay'},
+  {k: 'cash', kn: 'dat_banh_pt_tien_mat', n: 'Tiền mặt khi nhận bánh', kd: 'dat_banh_pt_tien_mat_mo', d: 'Trả khi lấy bánh tại quầy hoặc trả cho người giao'}
 ];
 
 /* Điểm lấy hàng máy chủ trả về (diem_lay) -> tên cho khách. */
