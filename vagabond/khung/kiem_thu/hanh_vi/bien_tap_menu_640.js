@@ -40,7 +40,8 @@ function layBien(src, ten) {
   return m[0];
 }
 var MA = ['h', 'money', 'vgbChuan', 'vgbKhop'].map(function (t) { return layHam(NEN, t); }).join('\n') + '\n' +
-  layBien(GMB, 'QUYEN_GMB_QR') + layHam(GMB, 'coQuyenGmbQr') + '\n' + layHam(POS, 'posNhomTc') + '\n' + layHam(POS, 'posChonTc') + '\n' + BTMJS;
+  layBien(GMB, 'QUYEN_GMB_QR') + layHam(GMB, 'coQuyenGmbQr') + '\n' + layHam(POS, 'posNhomTc') + '\n' + layHam(POS, 'posChonTc') + '\n' +
+  layBien(POS, 'POS_TC') + layBien(POS, 'POS_TC_HAN') + ['posBayGio', 'posCanTaiTc', 'posQuenTc', 'posMoTuyChon'].map(function (t) { return layHam(POS, t); }).join('\n') + '\n' + BTMJS;
 
 var ket = { dat: 0, hong: 0 };
 function dung(mo, dk) { if (!dk) throw new Error(mo); }
@@ -109,11 +110,14 @@ function moApp(o) {
       }
       if (duong === 'vagabond.bien_tap_menu.luu_nhap') {
         /* o.giuLuu: lần lưu treo tới khi ca kiểm gọi m.thaLuu() (mạng chậm). */
+        if (o.loiLuu) return Promise.reject(new Error('Mất kết nối, chưa lưu được.'));
         if (o.giuLuu) return new Promise(function (r) { treo.push(function () { may.nhap = JSON.parse(ts.noi_dung); r({ ok: 1, thay_doi: thayDoi() }); }); });
         may.nhap = JSON.parse(ts.noi_dung); return Promise.resolve({ ok: 1, thay_doi: thayDoi() });
       }
       if (duong === 'vagabond.bien_tap_menu.xuat_ban') { may.dang = JSON.parse(JSON.stringify(may.nhap)); may.phien++; return Promise.resolve({ ok: 1, phien: may.phien }); }
       if (duong === 'vagabond.bien_tap_menu.bo_nhap') { may.nhap = JSON.parse(JSON.stringify(may.dang)); return Promise.resolve({ ok: 1 }); }
+      if (duong === 'vagabond.ban_hang.pos_ds_tuy_chon' && may.posLoi) { may.posLoi = 0; return Promise.reject(new Error('Mất mạng')); }
+      if (duong === 'vagabond.ban_hang.pos_ds_tuy_chon') return Promise.resolve(JSON.parse(JSON.stringify(may.pos || { tc: [], mon: {} })));
       if (duong === 'vagabond.bien_tap_menu.khoi_phuc') { may.phien++; return Promise.resolve({ ok: 1, phien: may.phien }); }
       return Promise.reject(new Error('api la: ' + duong));
     }
@@ -239,8 +243,10 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     await cho(40);
     dung('liệt kê thay đổi', chu(m.tai.body).indexOf('1 thay đổi so với menu đang chạy') >= 0 && chu(m.tai.body).indexOf('Có thay đổi') >= 0);
     dung('xem trước có nhóm Trà, không còn Cà phê', chu(m.tai.body).indexOf('Trà · 2') >= 0 && chu(m.tai.body).indexOf('Cà phê · 1') < 0);
+    m.g.POS_TC = []; m.g.POS_TC_LUC = 1;
     m.tai.body.querySelector('#btmXuatBan').onclick();
     await cho(60);
+    bang('xuất bản xong: màn Tính tiền trên máy này tải lại tuỳ chọn (Codex #543 vòng 3)', m.g.POS_TC, null);
     bang('gọi xuất bản một lần', m.goi.filter(function (x) { return x.duong === 'vagabond.bien_tap_menu.xuat_ban'; }).length, 1);
     dung('báo phiên 2', m.tin.some(function (s) { return s.indexOf('Đã xuất bản menu phiên 2 cho District 1') >= 0; }));
     dung('về màn chính, đọc lại', m.goi[m.goi.length - 1].duong === 'vagabond.bien_tap_menu.mo' && chu(q(m, '#btmBang')).indexOf('Menu đang chạy') >= 0);
@@ -335,6 +341,58 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     ds.dispatchEvent(dg.suKien('pointerup', { clientY: 10 }, keo));
     await cho(60);
     bang('hết lọc: kéo được', luuCuoi(m).nhom[1].mon, ['NUTR00040', 'NUTR00090']);
+  });
+
+  /* Codex PR #543 vòng 3: lưu nháp hỏng rồi bấm sang điểm khác thì không được bỏ
+     thay đổi chưa lưu của điểm đang sửa. */
+  await ca('Lưu nháp hỏng rồi bấm đổi điểm: ở lại điểm đang sửa, giữ thay đổi, báo rõ; không tải điểm mới', async function () {
+    var m = await moMan({ loiLuu: true });
+    await bam(m, '[data-btmhien="n-ca-phe"]');
+    await cho(40);
+    await bam(m, '[data-btmdiem="NVHTN"]');
+    await cho(60);
+    bang('vẫn điểm cũ', m.g.BTM && m.g.BTM.d.diem, 'TCV');
+    bang('thay đổi chưa lưu còn nguyên', m.g.BTM.d.nhap.nhom.filter(function (x) { return x.ma === 'n-ca-phe'; })[0].hien, 0);
+    dung('không mở điểm NVHTN', !m.goi.some(function (x) { return x.duong === 'vagabond.bien_tap_menu.mo' && x.ts.diem === 'NVHTN'; }));
+    dung('báo chưa lưu được', m.tin.some(function (s) { return s.indexOf('chưa lưu được') >= 0 && s.indexOf('đổi điểm') >= 0; }));
+  });
+
+  /* Codex PR #543 vòng 3: quầy mở tuỳ chọn hai lần, giữa hai lần quản lý xuất bản
+     menu mới (tắt hết tuỳ chọn của món) ở máy khác. Quá 60 giây phải hỏi lại máy chủ. */
+  await ca('Màn Tính tiền: bảng tuỳ chọn giữ tối đa 60 giây rồi hỏi lại máy chủ; đổi quầy hỏi lại; lỗi mạng không giữ bảng rỗng', async function () {
+    var m = moApp();
+    var T = 1000;
+    m.g.posBayGio = function () { return T; };
+    m.g.posDon = { mon: [{ item_code: 'NUTR00090', ten: 'Kombucha Cherry', nhom: 'Trà', tc: [] }] };
+    m.g.posQuay = { ma: 'Q1' };
+    m.g.scrPosQuay = function () {};
+    var da = { nhom: 'Đá', lua_chon: ['Bình thường', 'Ít đá', 'Không đá'], mac_dinh: 'Bình thường' };
+    m.may.pos = { tc: [], mon: { NUTR00090: [da] } };
+    function soGoi() { return m.goi.filter(function (x) { return x.duong === 'vagabond.ban_hang.pos_ds_tuy_chon'; }).length; }
+    function soNut() { return m.tai.body.querySelectorAll('[data-tc]').length; }
+    await m.g.posMoTuyChon(0);
+    bang('lần đầu: hỏi máy chủ, hiện 3 mức Đá', [soGoi(), soNut()], [1, 3]);
+    m.tai.body.children = [];
+    m.may.pos = { tc: [], mon: { NUTR00090: [] } };
+    T += 30000;
+    await m.g.posMoTuyChon(0);
+    bang('trong 60 giây: dùng bảng đang giữ', soGoi(), 1);
+    m.tai.body.children = [];
+    T += 31000;
+    await m.g.posMoTuyChon(0);
+    bang('quá 60 giây: hỏi lại, menu mới tắt hết nên không hiện bảng', [soGoi(), soNut()], [2, 0]);
+    m.g.posQuay = { ma: 'Q2' };
+    await m.g.posMoTuyChon(0);
+    bang('đổi quầy: hỏi lại', soGoi(), 3);
+    m.tai.body.children = [];
+    m.may.pos = { tc: [], mon: { NUTR00090: [da] } };
+    m.g.posQuay = { ma: 'Q3' };
+    m.may.posLoi = 1;
+    await m.g.posMoTuyChon(0);
+    bang('lỗi mạng: không hiện bảng', [soGoi(), soNut()], [4, 0]);
+    T += 1000;
+    await m.g.posMoTuyChon(0);
+    bang('mở lại ngay: hỏi lại máy chủ, có bảng', [soGoi(), soNut()], [5, 3]);
   });
 
   await ca('Màn Tính tiền (phép thuần): mỗi nhóm một mức, bấm mức khác thì thay, bấm lại hoặc bấm mặc định thì bỏ; nhóm theo món trước, theo nhóm gốc sau', async function () {
