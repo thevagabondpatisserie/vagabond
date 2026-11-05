@@ -1,0 +1,106 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Menu",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "creation": "2026-11-05 20:00:00.000000",
+ "modified": "2026-11-05 20:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "autoname": "format:MENU-{diem}-{#####}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "diem",
+  "loai",
+  "phien",
+  "luc",
+  "boi",
+  "thay_doi",
+  "muc_ky_thuat",
+  "noi_dung"
+ ],
+ "fields": [
+  {
+   "fieldname": "diem",
+   "fieldtype": "Data",
+   "label": "Điểm bán",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "label": "Loại",
+   "options": "Nháp\nXuất bản",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "phien",
+   "fieldtype": "Int",
+   "label": "Phiên xuất bản",
+   "in_list_view": 1,
+   "read_only": 1,
+   "description": "Bản Xuất bản có phiên lớn nhất là menu đang chạy trên web và màn Tính tiền."
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "boi",
+   "fieldtype": "Data",
+   "label": "Người sửa",
+   "read_only": 1
+  },
+  {
+   "fieldname": "thay_doi",
+   "fieldtype": "Small Text",
+   "label": "Thay đổi so với bản trước",
+   "read_only": 1
+  },
+  {
+   "fieldname": "muc_ky_thuat",
+   "fieldtype": "Section Break",
+   "label": "Kỹ thuật",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "noi_dung",
+   "fieldtype": "Long Text",
+   "label": "Nội dung menu (máy đọc)",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "track_changes": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "diem",
+ "description": "Menu trang gọi món tại bàn và tuỳ chọn màn Tính tiền theo từng điểm bán (v640). Sửa trên app: Bán hàng > Biên tập menu."
+}

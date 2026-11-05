@@ -90,14 +90,15 @@ export function gomSize(ds) {
   const theoTen = new Map();
   for (const m of ds || []) {
     const {goc, size, nong} = tachSize(m.ten);
-    const k = chuanTim(goc) + (nong ? '|nong' : '');
+    /* v640: gộp size trong CÙNG một nhóm menu (quản lý có thể để M và L ở hai nhóm). */
+    const k = chuanTim(goc) + (nong ? '|nong' : '') + '|' + (m.nhom_hien || '');
     if (!theoTen.has(k)) theoTen.set(k, {goc, nong, ds: []});
     theoTen.get(k).ds.push({m, size});
   }
   const ra = [];
   for (const g of theoTen.values()) {
     g.ds.sort((a, b) => (THU_TU_SIZE[a.size] ?? 9) - (THU_TU_SIZE[b.size] ?? 9) || (Number(a.m.gia) || 0) - (Number(b.m.gia) || 0));
-    const bienThe = g.ds.map(x => ({ma: x.m.ma, size: x.size, gia: Number(x.m.gia) || 0, ten: x.m.ten}));
+    const bienThe = g.ds.map(x => ({ma: x.m.ma, size: x.size, gia: Number(x.m.gia) || 0, ten: x.m.ten, tp: x.m.tp, tc: x.m.tc}));
     const dau = g.ds[0].m;
     const gop = g.ds.length > 1;
     ra.push({...dau, ten: gop ? g.goc + (g.nong ? ' (nóng)' : '') : dau.ten, ma: dau.ma, gia: Math.min(...bienThe.map(b => b.gia)),
@@ -105,6 +106,27 @@ export function gomSize(ds) {
       mo_ta: g.ds.map(x => x.m.mo_ta).find(Boolean) || '', anh: g.ds.map(x => x.m.anh).find(Boolean) || ''});
   }
   return ra;
+}
+
+/* v640: menu đang chạy của điểm (Bán hàng > Biên tập menu) gửi kèm nhom_menu
+   [{ma, ten, loai}] theo thứ tự quản lý kéo thả; mỗi đồ uống mang nhom_hien.
+   Trả {nhom (chip), ds (món theo thứ tự nhóm rồi thứ tự món)}. THUẦN. */
+export function theoMenu(nhomMenu, banh, nuoc, t) {
+  const nhom = [{n: '', ten: t('tat_ca_muc', 'Tất cả'), so: 0}], ds = [];
+  for (const g of nhomMenu || []) {
+    if (g.loai === 'banh') {
+      if (!banh.length) continue;
+      nhom.push({n: 'banh', ten: g.ten || t('quay_chip_banh', 'Bánh trên tủ'), so: banh.length});
+      ds.push(...banh.map(m => ({...m, nhomTen: g.ten || ''})));
+      continue;
+    }
+    const cac = nuoc.filter(m => m.nhom_hien === g.ma);
+    if (!cac.length) continue;
+    nhom.push({n: 'g:' + g.ma, ten: g.ten, so: cac.length});
+    ds.push(...cac.map(m => ({...m, nhomTen: g.ten})));
+  }
+  nhom[0].so = ds.length;
+  return {nhom, ds};
 }
 
 /* Chip nhóm của tab Tại quầy: Tất cả, Bánh trên tủ, rồi từng nhóm đồ uống có
@@ -123,6 +145,7 @@ export function chipNhom(banh, nuoc, t) {
 function thuocChip(m, chip) {
   if (!chip) return true;
   if (chip === 'banh') return m.loai === 'banh';
+  if (chip.startsWith('g:')) return m.loai === 'nuoc' && m.nhom_hien === chip.slice(2);
   if (chip === 'nuoc') return m.loai === 'nuoc' && !NHOM_NUOC.some(([goc]) => goc === m.nhom_goc);
   if (chip.startsWith('nuoc:')) return m.loai === 'nuoc' && m.nhom_goc === chip.slice(5);
   return true;
@@ -138,14 +161,21 @@ export function dungQuayHien(S, G, t) {
   const chon = quay.find(q => q.ma === S.quayChon) || quay[0];
   const banh = (chon.mon || []).map(m => ({...m, loai: 'banh', bienThe: [{ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten}]}));
   const nuoc = gomSize((chon.do_uong || []).map(m => ({...m, loai: 'nuoc'})));
-  const ds = banh.concat(nuoc);
   const tim = (S.timQuay || '').trim();
-  const nhom = chipNhom(banh, nuoc, t);
+  let ds, nhom;
+  /* Có trường nhom_menu (kể cả mảng RỖNG: quản lý tắt hết nhóm) là đi theo menu;
+     chỉ khi máy chủ bản cũ không gửi trường này mới bày kiểu cũ (Codex PR #543:
+     coi mảng rỗng là bản cũ thì bánh đã tắt hiện lại cùng nút gọi món). */
+  const coMenu = Array.isArray(chon.nhom_menu);
+  if (coMenu) ({nhom, ds} = theoMenu(chon.nhom_menu, banh, nuoc, t));
+  else { ds = banh.concat(nuoc); nhom = chipNhom(banh, nuoc, t); }
+  /* Đầu mục "Còn N bánh" chỉ đếm bánh đang hiện theo menu. */
+  const banhHien = coMenu && !chon.nhom_menu.some(g => g.loai === 'banh') ? [] : banh;
   /* Chip đang chọn không còn món (đổi quầy, bán hết) thì coi như Tất cả. */
   const chip = nhom.some(n => n.n === S.nhomQuay) ? S.nhomQuay : '';
   const mon = ds.filter(m => thuocChip(m, chip) && khopTim(m.ten, m.mo_ta, tim));
   const rong = mon.length ? '' : (tim ? 'tim' : 'het');
-  return {quay, chon, mon, tong: banh.reduce((a, m) => a + (m.con || 0), 0), soBanh: banh.length, nhom, chip, tim, rong,
+  return {quay, chon, mon, tong: banhHien.reduce((a, m) => a + (m.con || 0), 0), soBanh: banhHien.length, nhom, chip, tim, rong,
     topping: chon.topping || []};
 }
 
@@ -210,8 +240,18 @@ export function taoGoiBan(moiTruong, S) {
   }
   /* Dòng món đã có trong giỏ (size nào cũng tính): nút + tô đặc. */
   const daChon = m => G.gio.some(x => (m.bienThe || [{ma: m.ma}]).some(b => b.ma === x.ma));
-  /* Đồ uống pha (không phải chai, lon) được kèm topping của quầy. */
-  const toppingCho = m => (m.loai === 'nuoc' && !m.khong_pha ? toppingQuay() : []);
+  /* Đồ uống pha (không phải chai, lon) được kèm topping của quầy; v640: chỉ
+     các topping menu của điểm khai cho món đó (mã trong "tp", theo size đang chọn). */
+  const toppingCho = (m, bt) => {
+    if (m.loai !== 'nuoc' || m.khong_pha) return [];
+    const cho = (bt && Array.isArray(bt.tp)) ? bt.tp : m.tp;
+    return Array.isArray(cho) ? toppingQuay().filter(x => cho.includes(x.ma)) : toppingQuay();
+  };
+  /* Nhóm tuỳ chọn của đúng size đang chọn: quản lý có thể tắt riêng cho size L mà
+     giữ cho size M (Codex PR #543). Món không gộp size dùng tc của chính món. */
+  const tcCho = (m, bt) => ((bt && Array.isArray(bt.tc)) ? bt.tc : (m.tc || []));
+  /* Mức mặc định của một nhóm tuỳ chọn ("Bình thường"): sáng sẵn, không ghi lên bill. */
+  const macDinh = (m, nhom, bt) => ((tcCho(m, bt).find(n => n.nhom === nhom) || {}).mac_dinh || '');
   const coBangChon = m => m.loai === 'nuoc' && ((m.bienThe || []).length > 1 || (m.tc || []).length > 0 || toppingCho(m).length > 0);
   /* Bấm "+" trên dòng: đồ uống có size, đá đường hay topping thì mở bảng chọn, còn lại thêm luôn. */
   function bamThem(m) {
@@ -227,12 +267,31 @@ export function taoGoiBan(moiTruong, S) {
   }
   function moBangChon(m) {
     const bt = (m.bienThe || [])[0] || {ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten};
-    G.chon = {m, bt, tc: {}, tp: {}, sl: 1, topping: toppingCho(m)};
+    const tc = {}, nhomTc = tcCho(m, bt);
+    nhomTc.forEach(n => { if (n.mac_dinh) tc[n.nhom] = n.mac_dinh; });
+    G.chon = {m, bt, tc, nhomTc, tp: {}, sl: 1, topping: toppingCho(m, bt)};
   }
-  function chonBienThe(bt) { if (G.chon) G.chon.bt = bt; }
+  function chonBienThe(bt) {
+    if (!G.chon) return;
+    G.chon.bt = bt;
+    /* Nhóm tuỳ chọn theo size mới: giữ mức đã chọn nếu size mới còn mức đó, nhóm
+       mới thì sáng mặc định, nhóm size mới không có thì bỏ hẳn. */
+    const nhomTc = tcCho(G.chon.m, bt), tc = {};
+    nhomTc.forEach(n => {
+      const cu = G.chon.tc[n.nhom];
+      if (cu && n.lua_chon.includes(cu)) tc[n.nhom] = cu;
+      else if (n.mac_dinh) tc[n.nhom] = n.mac_dinh;
+    });
+    G.chon.nhomTc = nhomTc;
+    G.chon.tc = tc;
+    G.chon.topping = toppingCho(G.chon.m, bt);
+    Object.keys(G.chon.tp).forEach(ma => { if (!G.chon.topping.some(x => x.ma === ma)) delete G.chon.tp[ma]; });
+  }
+  /* Mỗi nhóm chọn MỘT mức; bấm lại mức đang chọn thì về mặc định. */
   function chonTc(nhom, lc) {
     if (!G.chon) return;
-    G.chon.tc[nhom] = G.chon.tc[nhom] === lc ? '' : lc;
+    const md = macDinh(G.chon.m, nhom, G.chon.bt);
+    G.chon.tc[nhom] = G.chon.tc[nhom] === lc ? md : lc;
   }
   function chonTp(ma) {
     if (!G.chon) return;
@@ -256,17 +315,21 @@ export function taoGoiBan(moiTruong, S) {
     G.chon = null;
   }
   function them(m, tc, o = {}) {
-    const sach = {};
-    (m.tc || []).forEach(n => { if (tc && tc[n.nhom] && n.lua_chon.includes(tc[n.nhom])) sach[n.nhom] = tc[n.nhom]; });
     const bt = o.bt || (m.bienThe || [])[0] || {ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten};
-    const chuaCo = toppingCho(m);
+    /* Chỉ mang mức của nhóm mà ĐÚNG size này có (Codex PR #543). */
+    const nhomTc = tcCho(m, bt), sach = {};
+    nhomTc.forEach(n => {
+      if (tc && tc[n.nhom] && n.lua_chon.includes(tc[n.nhom]) && tc[n.nhom] !== (n.mac_dinh || '')) sach[n.nhom] = tc[n.nhom];
+    });
+    const chuaCo = toppingCho(m, bt);
     const tp = (o.tp || []).filter(x => chuaCo.some(y => y.ma === x.ma)).map(x => ({ma: x.ma, ten: x.ten, gia: Number(x.gia) || 0}));
     const sl = Math.max(1, Math.min(SL_TOI_DA, Number(o.sl) || 1));
     const k = khoaDong(bt.ma, sach, tp);
     const cu = G.gio.find(x => x.khoa === k);
     const tenHien = m.ten + (bt.size ? ' (' + bt.size + ')' : '');
     if (cu) cu.sl = Math.min(SL_TOI_DA, cu.sl + sl);
-    else G.gio.push({khoa: k, ma: bt.ma, ten: tenHien, gia: Number(bt.gia) || 0, sl, tc: sach, tp, nhom: m.tc || [], loai: m.loai, con: m.con});
+    else G.gio.push({khoa: k, ma: bt.ma, ten: tenHien, gia: Number(bt.gia) || 0, sl, tc: sach, tp, nhom: nhomTc, loai: m.loai, con: m.con,
+      anh: m.anh || ''});
     if (!G.nonce) G.nonce = T.taoNonce(ngauNhien);
     G.loi = '';
     toast(t('goi_ban_da_them', 'Đã thêm {ten}', {ten: tenHien}));
@@ -376,7 +439,7 @@ export function taoGoiBan(moiTruong, S) {
     return m;
   }
 
-  return {G, cheDo, nhanBan, soMon, tong, barMo, quayCua, toppingQuay, kiemLink, conThem, daChon, coBangChon, bamThem, moBangChon, chonBienThe,
+  return {G, cheDo, nhanBan, soMon, tong, barMo, quayCua, toppingQuay, macDinh, kiemLink, conThem, daChon, coBangChon, bamThem, moBangChon, chonBienThe,
     chonTc, chonTp, doiSlChon, giaChon, tongChon, xongChon, them, doiSl, kiemGt, goiMon, hoiTrangThai, cauDon, chuTuyChon,
     moChuong, dongChuong, goiNhanVien};
 }

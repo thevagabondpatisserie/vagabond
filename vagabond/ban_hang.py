@@ -7079,15 +7079,24 @@ def pos_ghi_so(name):
 # ------------------------------------------ khach tu nhap thong tin xuat HD
 
 @frappe.whitelist()
-def pos_ds_tuy_chon():
+def pos_ds_tuy_chon(quay=None):
 	"""Danh muc tuy chon pha che (it duong, it da...) kieu customization Fabi.
 
-	Cau hinh trong doctype "Vagabond Tuy Chon Mon": ten nhom, cac lua chon
-	(moi dong mot cai), nhom mon ap dung. Khach khong chon gi = mac dinh
-	100% duong 100% da, khong ghi gi len bill.
+	v640: lay tu menu dang chay cua diem (Ban hang > Bien tap menu), MOT nguon
+	voi trang goi mon tai ban. Moi nhom tuy chon chon MOT muc, muc mac dinh
+	("Binh thuong") khong ghi len bill. Tra hai cach tra:
+	- "mon": {ma mon: [nhom]} cho mon da xep trong menu;
+	- "tc": [nhom kem nhom_mon (nhom mon goc)] cho mon chua xep, va cho may
+	  quay ban cu chua biet doc "mon".
+	Khong truyen quay (ban app cu) thi tra nhu truoc v640.
 	"""
 	_kiem_quyen_ban()
-	return {"tc": doc_tuy_chon()}
+	quay = str(quay or "").strip()
+	if not quay:
+		return {"tc": doc_tuy_chon()}
+	from vagabond import bien_tap_menu
+
+	return bien_tap_menu.tc_theo_quay(quay)
 
 
 def doc_tuy_chon():

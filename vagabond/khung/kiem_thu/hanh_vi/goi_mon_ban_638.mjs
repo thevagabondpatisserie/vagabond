@@ -280,6 +280,7 @@ await ca('Đồ uống không có bảng chọn (kem) thêm thẳng; lựa chọ
 });
 
 /* ====================== v639 vòng 2 (anh Việt duyệt mẫu 05/11/2026) ====================== */
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
 const STORE2 = {ngay: '2026-11-05', cap_nhat: '2026-11-05 10:00', quay: [
   {ma: 'TCV', ten: 'The Vagabond District 1', ten_ngan: 'District 1', dia_chi: '9 Trần Cao Vân',
     mon: [{ma: 'BAWC00115', ten: 'Mousse Chanh Dây', gia: 95000, anh: '', con: 3, nhom: 'Bánh lạnh', mo_ta: 'Chanh dây Đà Lạt'}],
@@ -295,7 +296,7 @@ const STORE2 = {ngay: '2026-11-05', cap_nhat: '2026-11-05 10:00', quay: [
 
 async function moTrang2(o = {}) {
   const m = moiTruong(o);
-  m.mang['vagabond.kiem_kho.con_tren_quay_web'] = () => JSON.parse(JSON.stringify(STORE2));
+  m.mang['vagabond.kiem_kho.con_tren_quay_web'] = () => JSON.parse(JSON.stringify(o.store || STORE2));
   m.mang['vagabond.goi_mon_ban.goi_nhan_vien'] = th => (o.chuong ? o.chuong(th) : {ok: 1, ma: 'GNV-261105-0001', luc: '10:58'});
   const kho = taoKho(m.mt);
   await kho.napQuay();
@@ -367,7 +368,7 @@ await ca('v639 bảng chọn: size đổi giá, đá đường, topping có giá
   la('ô tích sáng', tim(goc, n => n.props['data-tp'] === 'TPNC00001')[0].props['aria-checked'], 'true');
   await bam(tim(goc, n => n.props['data-tp'] === 'TPNC00001')[0]);
   await bam(tim(goc, n => n.props['data-tp'] === 'TPNC00001')[0]);
-  const qty = tim(theoId(goc, 'gbChon'), n => n.props.class === 'qty gb-qty')[0];
+  const qty = tim(theoId(goc, 'gbChon'), n => n.props.class === 'gb-step')[0];
   await bam(tim(qty, n => n.the === 'button')[1]);
   la('số lượng 2, nút ghi tổng', [chu(theoId(goc, 'gbSlChon')), chu(theoId(goc, 'gbThemLy'))], ['2', 'Thêm · 190.000 đ']);
   await bam(theoId(goc, 'gbThemLy'));
@@ -383,7 +384,7 @@ await ca('v639 bảng chọn: size đổi giá, đá đường, topping có giá
   la('giỏ ba dòng', G.gio.map(x => [x.ma, x.tp.length]), [['NUTR00032', 1], ['NUCF00003', 0], ['NUTR00040', 0]]);
   await bam(theoId(goc, 'gbXemGio'));
   const d = tim(theoId(goc, 'gbGio'), n => n.props['data-dong'] === 'NUTR00032')[0];
-  dung('dòng giỏ ghi topping và thành tiền', chu(d).includes('+ Trân châu ô long (10.000 đ)') && chu(d).includes('190.000 đ'));
+  dung('dòng giỏ ghi topping và thành tiền', chu(d).includes('Ít đá · + Trân châu ô long') && chu(d).includes('190.000 đ'));
   await bam(theoId(goc, 'gbGoi'));
   const th = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.goi')[0][2];
   la('thân gửi có tp theo mã, dòng không topping không có khoá tp', JSON.parse(th.mon),
@@ -438,6 +439,10 @@ await ca('v639 nút nổi Gọi nhân viên nằm trong cụm kênh nối (dư�
   const con = (vn.children || []);
   const nut = con.find(c => c && c.props && c.props.id === 'kenhChuong');
   dung('có nút chuông', nut);
+  /* v640: icon chuông riêng (component BieuTuong), không còn emoji 🔔. */
+  const icon = nut.children[0];
+  dung('icon chuông riêng, không emoji', icon.props.class.includes('kenh-icon-chuong') && icon.children[0].props && icon.children[0].props.ten === 'chuong'
+    && !EMOJI.test(JSON.stringify(nut.children.map(c => c.children))));
   nut.props.onClick();
   la('bấm mở chuông', bam2, ['']);
   dung('nâng 82 + 16', String(vn.props.style).includes('calc(98px'));
@@ -466,6 +471,105 @@ await ca('Codex PR #542 vòng 1: gửi chuông mất phản hồi rồi khách �
   await m2.kho.goiBan.goiNhanVien();
   const g2 = m2.vet.filter(x => x[1] === 'vagabond.goi_mon_ban.goi_nhan_vien').map(x => x[2]);
   dung('cùng nội dung thì cùng nonce', g2.length === 2 && g2[0].nonce === g2[1].nonce);
+});
+
+/* v640: menu đang chạy của điểm (Biên tập menu) gửi nhom_menu theo thứ tự quản lý
+   kéo thả; đồ uống mang nhom_hien, tc có mac_dinh, tp là mã topping kèm được. */
+const STORE3 = JSON.parse(JSON.stringify(STORE2));
+{
+  const q = STORE3.quay[0];
+  const tcTs = [{nhom: 'Đá', lua_chon: ['Bình thường', 'Ít đá', 'Không đá'], mac_dinh: 'Bình thường'},
+    {nhom: 'Đường', lua_chon: ['Bình thường', '50% đường'], mac_dinh: 'Bình thường'}];
+  q.nhom_menu = [{ma: 'n-tra-sua', ten: 'Trà sữa', loai: 'nuoc'}, {ma: 'banh', ten: 'Bánh trên tủ', loai: 'banh'}, {ma: 'n-ca-phe', ten: 'Cà phê', loai: 'nuoc'}];
+  q.do_uong = [
+    {...q.do_uong[0], nhom_hien: 'n-tra-sua', tc: tcTs, tp: ['TPNC00001', 'TPNC00002']},
+    {...q.do_uong[1], nhom_hien: 'n-tra-sua', tc: tcTs, tp: ['TPNC00001']},
+    {...q.do_uong[2], nhom_hien: 'n-ca-phe', tc: [], tp: ['TPNC00002']}];
+}
+
+await ca('v640 trang bàn theo menu của điểm: chip và món theo thứ tự quản lý kéo thả; Đá, Đường mỗi nhóm chọn một, mặc định sáng sẵn và không gửi lên; topping theo món và theo size; giỏ có ảnh; icon riêng, không emoji; nút đóng nằm trong tiêu đề', async () => {
+  const {goc, kho, vet} = await moTrang2({store: STORE3});
+  const G = kho.goiBan.G;
+  la('chip theo thứ tự menu', tim(theoId(goc, 'storeChip'), n => n.the === 'button').map(n => n.props['data-nhom']), ['', 'g:n-tra-sua', 'banh', 'g:n-ca-phe']);
+  la('tên chip', tim(theoId(goc, 'storeChip'), n => n.the === 'button').map(n => chu(n)), ['Tất cả · 3', 'Trà sữa · 1', 'Bánh trên tủ · 1', 'Cà phê · 1']);
+  la('món theo thứ tự nhóm', nutThem(goc).map(n => n.props['data-them']), ['NUTR00031', 'BAWC00115', 'NUCF00003']);
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00031'));
+  const chon = theoId(goc, 'gbChon');
+  dung('tiêu đề bảng ghi nhóm', chu(tim(chon, n => n.the === 'small')[0]) === 'Trà sữa');
+  const dau = tim(chon, n => n.props.class === 'gb-dau-bang')[0];
+  dung('nút đóng nằm trong dòng tiêu đề', dau && tim(dau, n => n.props.class === 'gb-x').length === 1);
+  dung('không còn lớp close, qty dính luật chung thao-tac.css', !tim(chon, n => /\b(close|qty)\b/.test(String(n.props.class || ''))).length);
+  const nutTc = k => tim(goc, n => n.props['data-tc'] === k)[0];
+  la('mặc định sáng sẵn', [nutTc('Đá=Bình thường').props['aria-pressed'], nutTc('Đường=Bình thường').props['aria-pressed']], ['true', 'true']);
+  await bam(nutTc('Đá=Ít đá'));
+  la('chọn Ít đá thì Bình thường tắt', [nutTc('Đá=Ít đá').props['aria-pressed'], nutTc('Đá=Bình thường').props['aria-pressed']], ['true', 'false']);
+  await bam(nutTc('Đá=Ít đá'));
+  la('bấm lại Ít đá thì về mặc định', nutTc('Đá=Bình thường').props['aria-pressed'], 'true');
+  await bam(nutTc('Đường=50% đường'));
+  la('size M: hai topping', tim(theoId(goc, 'gbTopping'), n => n.props['data-tp']).map(n => n.props['data-tp']), ['TPNC00001', 'TPNC00002']);
+  await bam(tim(goc, n => n.props['data-tp'] === 'TPNC00002')[0]);
+  dung('ô tích có dấu tick SVG đặt trong ô', tim(tim(goc, n => n.props['data-tp'] === 'TPNC00002')[0], n => n.the === 'svg' && n.props['data-bt'] === 'tick').length === 1);
+  await bam(tim(goc, n => n.props['data-size'] === 'NUTR00032')[0]);
+  la('size L: topping riêng của L, topping không kèm được bị bỏ', [tim(theoId(goc, 'gbTopping'), n => n.props['data-tp']).map(n => n.props['data-tp']), Object.keys(G.chon.tp)], [['TPNC00001'], []]);
+  await bam(theoId(goc, 'gbThemLy'));
+  la('giỏ: chỉ gửi mức khác mặc định', G.gio.map(x => [x.ma, x.tc]), [['NUTR00032', {'Đường': '50% đường'}]]);
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUCF00003'));
+  la('cà phê: chỉ topping khai cho cà phê', tim(theoId(goc, 'gbTopping'), n => n.props['data-tp']).map(n => n.props['data-tp']), ['TPNC00002']);
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(theoId(goc, 'gbXemGio'));
+  const gio = theoId(goc, 'gbGio');
+  const dong = tim(gio, n => n.props['data-dong'] === 'NUTR00032')[0];
+  la('dòng giỏ có ảnh món', tim(dong, n => n.the === 'img')[0].props.src, '/files/tsl.jpg');
+  dung('dòng giỏ ghi mức đã chọn', chu(dong).includes('50% đường'));
+  la('hai nút cuối giỏ dùng icon riêng', ['gbGioChuong', 'gbGioTinhTien'].map(i => tim(theoId(goc, i), n => n.the === 'svg')[0].props['data-bt']), ['chuong', 'hoaDon']);
+  dung('không còn emoji trong giỏ', !EMOJI.test(chu(gio)));
+  await bam(theoId(goc, 'gbGioChuong'));
+  la('năm lý do, năm icon riêng', tim(theoId(goc, 'gbChuong'), n => n.props.class === 'gb-ly-ic').map(n => tim(n, x => x.the === 'svg')[0].props['data-bt']),
+    ['vayTay', 'hoaDon', 'lyDa', 'daoNia', 'chat']);
+  dung('không còn emoji trong bảng chuông', !EMOJI.test(chu(theoId(goc, 'gbChuong'))));
+  await bam(theoId(goc, 'gbChuong') && tim(theoId(goc, 'gbChuong'), n => n.props['data-lydo'] === 'Xin tính tiền')[0]);
+  dung('vết gửi chưa có gì', !vet.some(x => x[1] === 'vagabond.goi_mon_ban.goi'));
+});
+
+/* Codex PR #543: quản lý tắt riêng tuỳ chọn cho size L nhưng giữ cho size M. Đổi
+   size trong bảng phải đổi luôn nhóm tuỳ chọn, bỏ mức không còn hợp lệ; giỏ và
+   lần gửi chỉ mang tuỳ chọn của đúng size đã chọn (cửa gọi món từ chối nếu sai). */
+const STORE4 = JSON.parse(JSON.stringify(STORE3));
+STORE4.quay[0].do_uong[1].tc = [];
+await ca('v640 Codex #543: đổi size thì đổi nhóm tuỳ chọn theo size; size L không có tuỳ chọn thì không mang mức của M vào giỏ', async () => {
+  const {goc, kho} = await moTrang2({store: STORE4});
+  const G = kho.goiBan.G;
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00031'));
+  const nutTc = k => tim(goc, n => n.props['data-tc'] === k)[0];
+  await bam(nutTc('Đá=Ít đá'));
+  la('size M: có Đá, Đường', tim(theoId(goc, 'gbChon'), n => n.props['data-tc']).length, 5);
+  await bam(tim(goc, n => n.props['data-size'] === 'NUTR00032')[0]);
+  la('size L: không còn nhóm tuỳ chọn nào', tim(theoId(goc, 'gbChon'), n => n.props['data-tc']).length, 0);
+  await bam(theoId(goc, 'gbThemLy'));
+  la('giỏ: L không mang Ít đá của M', G.gio.map(x => [x.ma, x.tc]), [['NUTR00032', {}]]);
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00031'));
+  await bam(tim(goc, n => n.props['data-size'] === 'NUTR00032')[0]);
+  await bam(tim(goc, n => n.props['data-size'] === 'NUTR00031')[0]);
+  /* Lớp thứ hai: them() tự lọc theo nhóm của đúng size, kể cả khi lựa chọn cũ lọt
+     tới (gọi thẳng, không qua bảng chọn). */
+  const mGop = G.chon.m, btL = mGop.bienThe.find(b => b.ma === 'NUTR00032');
+  G.gio.splice(0);
+  kho.goiBan.them(mGop, {'Đá': 'Ít đá'}, {bt: btL});
+  la('them(): size L bỏ mức Đá không có', G.gio.map(x => [x.ma, x.tc]), [['NUTR00032', {}]]);
+  la('quay lại M: nhóm của M hiện lại, mặc định sáng sẵn', [nutTc('Đá=Bình thường') && nutTc('Đá=Bình thường').props['aria-pressed'], nutTc('Đường=Bình thường') && nutTc('Đường=Bình thường').props['aria-pressed']], ['true', 'true']);
+});
+
+/* Codex PR #543 vòng 2: menu có mặt nhưng RỖNG (quản lý tắt hết nhóm, kể cả Bánh
+   trên tủ) không được coi là máy chủ bản cũ; bánh đã tắt không hiện lại. */
+await ca('v640 Codex #543: menu rỗng thì không hiện món nào; menu không có nhóm Bánh thì bánh ẩn và đầu mục không đếm; máy chủ cũ không gửi menu thì như trước', async () => {
+  const quay = x => ({STORE: {quay: [Object.assign({ma: 'TCV', mon: [{ma: 'B1', ten: 'Canelé', gia: 65000, con: 5}],
+    do_uong: [{ma: 'N1', ten: 'Cà phê sữa', gia: 40000, nhom_hien: 'n-ca-phe', tc: [], tp: []}]}, x)]}, quayChon: 'TCV', timQuay: '', nhomQuay: ''});
+  const r0 = dungQuayHien(quay({nhom_menu: []}), null, t);
+  la('menu rỗng: không món, không đếm bánh', [r0.mon.map(m => m.ma), r0.tong, r0.soBanh], [[], 0, 0]);
+  const r1 = dungQuayHien(quay({nhom_menu: [{ma: 'n-ca-phe', ten: 'Cà phê', loai: 'nuoc'}]}), null, t);
+  la('tắt nhóm Bánh: chỉ cà phê', [r1.mon.map(m => m.ma), r1.tong, r1.nhom.map(n => n.n)], [['N1'], 0, ['', 'g:n-ca-phe']]);
+  const r2 = dungQuayHien(quay({}), null, t);
+  la('máy chủ cũ: bày như trước', [r2.mon.map(m => m.ma), r2.tong], [['B1', 'N1'], 5]);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');

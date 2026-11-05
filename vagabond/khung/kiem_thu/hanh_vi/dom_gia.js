@@ -198,7 +198,10 @@ ElementGia.prototype.querySelector = function (chon) {
 };
 
 Object.defineProperty(ElementGia.prototype, 'innerHTML', {
-  get: function () { return this._html == null ? '' : this._html; },
+  /* Thẻ dựng từ HTML của cha (không tự gán innerHTML) đọc ra từ các con,
+     như trình duyệt thật. Trước v640 trả rỗng nên `cu.innerHTML = moi.innerHTML`
+     xoá trắng thanh trạng thái màn Biên tập menu trong DOM giả. */
+  get: function () { return trongHTML(this); },
   set: function (v) {
     this._html = String(v == null ? '' : v);
     /* XOÁ CON CŨ TRƯỚC KHI ĐỌC BẢN MỚI. `doc()` đẩy thẻ mới vào thẳng

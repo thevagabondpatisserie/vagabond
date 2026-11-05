@@ -5606,6 +5606,30 @@
     "mac_dinh": "Gọi thêm món",
     "nhieu_dong": true
   },
+  "goi_ban_chon_mot": {
+    "ten": "Gọi món tại bàn: chọn một",
+    "nhom": "dat_banh",
+    "mac_dinh": "chọn một",
+    "nhieu_dong": true
+  },
+  "goi_ban_chon_nhieu": {
+    "ten": "Gọi món tại bàn: chọn nhiều",
+    "nhom": "dat_banh",
+    "mac_dinh": "chọn nhiều",
+    "nhieu_dong": true
+  },
+  "goi_ban_goi_mon": {
+    "ten": "Gọi món tại bàn: tiêu đề giỏ Gọi món",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi món",
+    "nhieu_dong": true
+  },
+  "goi_ban_so_mon": {
+    "ten": "Gọi món tại bàn: {so} món",
+    "nhom": "dat_banh",
+    "mac_dinh": "{so} món",
+    "nhieu_dong": true
+  },
   "goi_ban_da_goi_n": {
     "ten": "Gọi món tại bàn: Đã gọi {n} đơn",
     "nhom": "dat_banh",

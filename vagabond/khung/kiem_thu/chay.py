@@ -213,6 +213,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_thanh_toan_web_638,
 	thu_gioi_thieu_638,
 	thu_goi_mon_ban_638,
+	thu_bien_tap_menu_640,
 )
 
 
