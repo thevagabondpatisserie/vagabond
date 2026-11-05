@@ -141,6 +141,8 @@ NOI_PHAT = {
 	("banh_si.py", "_bao_bep"): "bep_si_don",
 	# v638: khách gọi món tại bàn qua QR, báo nhóm quầy (không mang tiền).
 	("goi_mon_ban.py", "_bao_quay"): "bh_goi_mon_tai_ban",
+	# v639: khách bấm chuông gọi nhân viên tại bàn, báo nhóm quầy (không mang tiền).
+	("goi_mon_ban.py", "_bao_tro_giup"): "bh_khach_can_tro_giup",
 }
 # Các hàm từng gửi thư nội bộ, nay chỉ được báo Zalo.
 DA_BO_THU = [
@@ -211,8 +213,8 @@ def _danh_muc():
 	# v633: thêm tin kế toán khi khách trả thẻ OnePay cho phiếu đề nghị thanh toán.
 	# v638: thêm tin Sales khi khách trả online đơn đặt bánh trên web, và tin quầy
 	# khi khách gọi món tại bàn qua QR.
-	la("đủ 90 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638)", len(kz.TIN), 90)
+	la("đủ 91 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 1 tin v639)", len(kz.TIN), 91)
 	la("tám bộ phận đúng thứ tự (v622 thêm Nhân sự)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -606,7 +608,9 @@ def _patch_map():
 		# v638: tin đơn web đã trả online, chưa có bản vá; tích tay cho nhóm Sales.
 		"bh_don_web_da_tra",
 		# v638: tin gọi món tại bàn, chưa có bản vá; tích tay cho nhóm quầy.
-		"bh_goi_mon_tai_ban"}
+		"bh_goi_mon_tai_ban",
+		# v639: tin khách bấm chuông gọi nhân viên, chưa có bản vá; tích tay cho nhóm quầy.
+		"bh_khach_can_tro_giup"}
 	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]
 	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng" and m not in v609] + ["ht_phat_hanh"]
 	la("nhóm văn phòng kế toán", p.tin_cho_nhom("ERP Văn Phòng - Kế Toán - Thu Mua"), kt)
