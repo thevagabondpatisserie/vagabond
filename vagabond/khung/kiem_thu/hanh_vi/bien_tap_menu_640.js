@@ -39,7 +39,7 @@ function layBien(src, ten) {
   if (!m) throw new Error('Khong thay bien ' + ten);
   return m[0];
 }
-var MA = ['h', 'money'].map(function (t) { return layHam(NEN, t); }).join('\n') + '\n' +
+var MA = ['h', 'money', 'vgbChuan', 'vgbKhop'].map(function (t) { return layHam(NEN, t); }).join('\n') + '\n' +
   layBien(GMB, 'QUYEN_GMB_QR') + layHam(GMB, 'coQuyenGmbQr') + '\n' + layHam(POS, 'posNhomTc') + '\n' + layHam(POS, 'posChonTc') + '\n' + BTMJS;
 
 var ket = { dat: 0, hong: 0 };
@@ -77,7 +77,7 @@ var TOP = [{ ma: 'TPNC00001', ten: 'Trân châu ô long', gia: 10000 }, { ma: 'T
 function moApp(o) {
   o = o || {};
   var tai = dg.taiLieuGia();
-  var goi = [], tin = [], stack = [], hoi = (o.hoi || []).slice();
+  var goi = [], tin = [], stack = [], hoi = (o.hoi || []).slice(), treo = [];
   var may = { dang: menuGoc(), nhap: menuGoc(), phien: 1 };
   function thayDoi() { return JSON.stringify(may.nhap) === JSON.stringify(may.dang) ? [] : ['Có thay đổi']; }
   var g = {
@@ -107,7 +107,11 @@ function moApp(o) {
           thay_doi: thayDoi(), mon: JSON.parse(JSON.stringify(MON)), topping: TOP, chua_xep: ['NUTR00099'],
           lich_su: [{ phien: may.phien, luc: '2026-11-05 20:00:00', boi: 'de@x', thay_doi: 'Đổi thứ tự nhóm' }, { phien: may.phien - 1, luc: '2026-11-04 09:00:00', boi: 'de@x', thay_doi: 'Bản đầu' }] });
       }
-      if (duong === 'vagabond.bien_tap_menu.luu_nhap') { may.nhap = JSON.parse(ts.noi_dung); return Promise.resolve({ ok: 1, thay_doi: thayDoi() }); }
+      if (duong === 'vagabond.bien_tap_menu.luu_nhap') {
+        /* o.giuLuu: lần lưu treo tới khi ca kiểm gọi m.thaLuu() (mạng chậm). */
+        if (o.giuLuu) return new Promise(function (r) { treo.push(function () { may.nhap = JSON.parse(ts.noi_dung); r({ ok: 1, thay_doi: thayDoi() }); }); });
+        may.nhap = JSON.parse(ts.noi_dung); return Promise.resolve({ ok: 1, thay_doi: thayDoi() });
+      }
       if (duong === 'vagabond.bien_tap_menu.xuat_ban') { may.dang = JSON.parse(JSON.stringify(may.nhap)); may.phien++; return Promise.resolve({ ok: 1, phien: may.phien }); }
       if (duong === 'vagabond.bien_tap_menu.bo_nhap') { may.nhap = JSON.parse(JSON.stringify(may.dang)); return Promise.resolve({ ok: 1 }); }
       if (duong === 'vagabond.bien_tap_menu.khoi_phuc') { may.phien++; return Promise.resolve({ ok: 1, phien: may.phien }); }
@@ -116,7 +120,7 @@ function moApp(o) {
   };
   g.window = g;
   vm.runInNewContext(MA, g, { filename: 'bien-tap-menu.js' });
-  return { g: g, tai: tai, goi: goi, tin: tin, may: may, stack: stack };
+  return { g: g, tai: tai, goi: goi, tin: tin, may: may, stack: stack, treo: treo, thaLuu: function () { while (treo.length) treo.shift()(); } };
 }
 function q(m, chon) { var el = m.tai.body.querySelector(chon); if (!el) throw new Error('khong thay ' + chon); return el; }
 function qs(m, chon) { return m.tai.body.querySelectorAll(chon); }
@@ -248,6 +252,68 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     bang('quay về phiên 1', m.goi.filter(function (x) { return x.duong === 'vagabond.bien_tap_menu.khoi_phuc'; }).map(function (x) { return x.ts; }), [{ diem: 'TCV', phien: 1 }]);
   });
 
+  /* Codex PR #543: bấm "Xem và xuất bản" đúng lúc lần lưu nháp đã gửi đi mà máy
+     chủ chưa trả lời. Màn xem phải chờ lần lưu đó xong, đọc đúng thay đổi mới và
+     cho bấm Xuất bản; không được dựng với số thay đổi cũ (nút tắt mãi) hay xuất
+     bản bản nháp cũ trên máy chủ. */
+  await ca('Lưu nháp đang chạy dở khi bấm Xem và xuất bản: màn xem chờ lưu xong, thấy thay đổi mới, Xuất bản bấm được và chỉ gọi sau khi lưu xong', async function () {
+    var m = await moMan({ giuLuu: true });
+    await bam(m, '[data-btmhien="n-ca-phe"]');
+    await cho(40);
+    bang('lần lưu đã gửi, máy chủ chưa trả lời', [m.goi.filter(function (x) { return x.duong === 'vagabond.bien_tap_menu.luu_nhap'; }).length, m.treo.length], [1, 1]);
+    q(m, '[data-btmxuat]').click();
+    await cho(40);
+    dung('chưa dựng màn xem với số cũ', chu(m.tai.body).indexOf('Không có thay đổi nào') < 0);
+    m.thaLuu();
+    await cho(60);
+    var xb = m.tai.body.querySelector('#btmXuatBan');
+    dung('màn xem thấy thay đổi mới', chu(m.tai.body).indexOf('1 thay đổi so với menu đang chạy') >= 0);
+    dung('Xuất bản bấm được', xb && !xb.hasAttribute('disabled'));
+    xb.onclick();
+    await cho(60);
+    var i = m.goi.map(function (x) { return x.duong; });
+    dung('xuất bản gọi sau lần lưu', i.lastIndexOf('vagabond.bien_tap_menu.luu_nhap') < i.indexOf('vagabond.bien_tap_menu.xuat_ban'));
+    bang('máy chủ xuất bản đúng bản nháp mới', m.may.dang.nhom.filter(function (x) { return x.ma === 'n-ca-phe'; })[0].hien, 0);
+  });
+
+  /* Codex PR #543 (AGENTS mục 2b.5): danh sách món trong nhóm phải có ô tìm nhanh. Gõ
+     là lọc cả món đã xếp lẫn món chưa xếp, bỏ dấu, theo tên hoặc mã; đang lọc thì
+     khoá kéo thả (thứ tự các dòng đang thấy không phải thứ tự thật của nhóm). */
+  await ca('Ô tìm món trong nhóm: gõ tên không dấu hoặc mã là lọc cả món đã xếp và chưa xếp; không khớp thì báo; đang lọc thì khoá kéo thả; xoá chữ thì kéo lại được', async function () {
+    var m = await moMan();
+    await bam(m, '[data-btmnhom="n-tra"]');
+    var o = q(m, '#btmTimMon');
+    function go(chu) { o.value = chu; o.dispatchEvent(dg.suKien('input', {}, o)); }
+    function thay() { return qs(m, '[data-btmtim]').filter(function (r) { return r.style.display !== 'none'; }).map(function (r) { return r.getAttribute('data-btmtim'); }); }
+    bang('chưa gõ: đủ món đã xếp và chưa xếp', thay().length, 3);
+    go('kombu');
+    bang('gõ không dấu "kombu"', thay(), ['Kombucha Cherry NUTR00090', 'Kombucha Chill, chai 300ml NUTR00040']);
+    go('o long dao');
+    bang('tìm được món chưa xếp', thay(), ['Trà Ô Long Đào NUTR00099']);
+    go('nutr00040');
+    bang('tìm theo mã', thay(), ['Kombucha Chill, chai 300ml NUTR00040']);
+    go('xyz');
+    dung('không khớp thì báo', q(m, '#btmTimTrong').style.display !== 'none' && !thay().length);
+    go('kombu');
+    dung('đang lọc: ghi rõ, ẩn tay cầm', chu(q(m, '#btmNhomGhi')).indexOf('đang lọc') >= 0 && qs(m, '#btmDsMon [data-keo]').every(function (k) { return k.style.visibility === 'hidden'; }));
+    var hang = qs(m, '[data-btmhang]');
+    hang.forEach(function (r, i) { r.getBoundingClientRect = function () { return { top: i * 60, height: 56 }; }; });
+    var ds = q(m, '#btmDsMon'), keo = hang[1].querySelector('[data-keo]');
+    var truoc = m.goi.length;
+    ds.dispatchEvent(dg.suKien('pointerdown', { clientY: 88, pointerId: 1 }, keo));
+    ds.dispatchEvent(dg.suKien('pointermove', { clientY: 10 }, keo));
+    ds.dispatchEvent(dg.suKien('pointerup', { clientY: 10 }, keo));
+    await cho(60);
+    bang('đang lọc: kéo không đổi gì', m.goi.length, truoc);
+    go('');
+    bang('xoá chữ: hiện lại đủ', thay().length, 3);
+    ds.dispatchEvent(dg.suKien('pointerdown', { clientY: 88, pointerId: 1 }, keo));
+    ds.dispatchEvent(dg.suKien('pointermove', { clientY: 10 }, keo));
+    ds.dispatchEvent(dg.suKien('pointerup', { clientY: 10 }, keo));
+    await cho(60);
+    bang('hết lọc: kéo được', luuCuoi(m).nhom[1].mon, ['NUTR00040', 'NUTR00090']);
+  });
+
   await ca('Màn Tính tiền (phép thuần): mỗi nhóm một mức, bấm mức khác thì thay, bấm lại hoặc bấm mặc định thì bỏ; nhóm theo món trước, theo nhóm gốc sau', async function () {
     var m = moApp();
     var da = { nhom: 'Đá', lua_chon: ['Bình thường', 'Ít đá', 'Không đá'], mac_dinh: 'Bình thường' };
@@ -260,6 +326,9 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     bang('bấm mặc định thì bỏ, không ghi lên bill', m.g.posChonTc(tc, da, 'Bình thường'), ['50% đường']);
     var theoMon = { NUTR00090: [da] };
     bang('theo món', m.g.posNhomTc({ item_code: 'NUTR00090', nhom: 'Trà' }, theoMon, [duong]).map(function (x) { return x.nhom; }), ['Đá']);
+    /* Codex PR #543: món có trong bảng theo món với danh sách RỖNG (chai, tắt hết tuỳ
+       chọn) không được rơi về nhóm gốc. */
+    bang('tắt hết tuỳ chọn: không hỏi gì', m.g.posNhomTc({ item_code: 'NUTR00040', nhom: 'Trà' }, { NUTR00040: [] }, [{ nhom: 'Đá', lua_chon: [], nhom_mon: ['Trà'] }]), []);
     bang('món lạ: theo nhóm gốc', m.g.posNhomTc({ item_code: 'X', nhom: 'Trà' }, theoMon, [{ nhom: 'Đường', lua_chon: [], nhom_mon: ['Trà'] }, { nhom: 'Kem', lua_chon: [], nhom_mon: ['Ice Cream - Kem'] }]).map(function (x) { return x.nhom; }), ['Đường']);
   });
 

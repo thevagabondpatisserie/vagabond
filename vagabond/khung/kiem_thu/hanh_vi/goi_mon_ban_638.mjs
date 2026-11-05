@@ -531,5 +531,33 @@ await ca('v640 trang bàn theo menu của điểm: chip và món theo thứ tự
   dung('vết gửi chưa có gì', !vet.some(x => x[1] === 'vagabond.goi_mon_ban.goi'));
 });
 
+/* Codex PR #543: quản lý tắt riêng tuỳ chọn cho size L nhưng giữ cho size M. Đổi
+   size trong bảng phải đổi luôn nhóm tuỳ chọn, bỏ mức không còn hợp lệ; giỏ và
+   lần gửi chỉ mang tuỳ chọn của đúng size đã chọn (cửa gọi món từ chối nếu sai). */
+const STORE4 = JSON.parse(JSON.stringify(STORE3));
+STORE4.quay[0].do_uong[1].tc = [];
+await ca('v640 Codex #543: đổi size thì đổi nhóm tuỳ chọn theo size; size L không có tuỳ chọn thì không mang mức của M vào giỏ', async () => {
+  const {goc, kho} = await moTrang2({store: STORE4});
+  const G = kho.goiBan.G;
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00031'));
+  const nutTc = k => tim(goc, n => n.props['data-tc'] === k)[0];
+  await bam(nutTc('Đá=Ít đá'));
+  la('size M: có Đá, Đường', tim(theoId(goc, 'gbChon'), n => n.props['data-tc']).length, 5);
+  await bam(tim(goc, n => n.props['data-size'] === 'NUTR00032')[0]);
+  la('size L: không còn nhóm tuỳ chọn nào', tim(theoId(goc, 'gbChon'), n => n.props['data-tc']).length, 0);
+  await bam(theoId(goc, 'gbThemLy'));
+  la('giỏ: L không mang Ít đá của M', G.gio.map(x => [x.ma, x.tc]), [['NUTR00032', {}]]);
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00031'));
+  await bam(tim(goc, n => n.props['data-size'] === 'NUTR00032')[0]);
+  await bam(tim(goc, n => n.props['data-size'] === 'NUTR00031')[0]);
+  /* Lớp thứ hai: them() tự lọc theo nhóm của đúng size, kể cả khi lựa chọn cũ lọt
+     tới (gọi thẳng, không qua bảng chọn). */
+  const mGop = G.chon.m, btL = mGop.bienThe.find(b => b.ma === 'NUTR00032');
+  G.gio.splice(0);
+  kho.goiBan.them(mGop, {'Đá': 'Ít đá'}, {bt: btL});
+  la('them(): size L bỏ mức Đá không có', G.gio.map(x => [x.ma, x.tc]), [['NUTR00032', {}]]);
+  la('quay lại M: nhóm của M hiện lại, mặc định sáng sẵn', [nutTc('Đá=Bình thường') && nutTc('Đá=Bình thường').props['aria-pressed'], nutTc('Đường=Bình thường') && nutTc('Đường=Bình thường').props['aria-pressed']], ['true', 'true']);
+});
+
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
 if (hong) { console.log(loi.join('\n')); process.exit(1); }
