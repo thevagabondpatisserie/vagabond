@@ -56967,6 +56967,7 @@ async function scrNhanDcXacNhan(phieu) {
       /* v639: phan thieu da tu tra ve kho di; tra hong thi noi ro la treo viec cho thu kho. */
       var cau = r.trang_thai + (r.cau_lech ? ': ' + r.cau_lech : '');
       if (r.phieu_tra) cau += '. ' + r.cau_tra + ', đã báo bên đó kiểm lại.';
+      if (r.phieu_tra && r.con_thua) cau += ' Phần thừa (' + r.con_thua + ') vẫn chờ thủ kho đối chiếu.';
       else if (r.loi_tra) cau += '. Chưa lập được phiếu trả phần thiếu (' + r.loi_tra + '), đã treo việc cho thủ kho đối chiếu.';
       toast(cau, r.phieu_tra || r.loi_tra ? 9000 : 5000);
       go(scrHangVeKho, true);
