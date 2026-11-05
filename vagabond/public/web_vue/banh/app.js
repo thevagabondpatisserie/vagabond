@@ -20,7 +20,7 @@ import {thuong} from './chu-giau.js';
 import {MAU} from './mau.js';
 import {ChanTrang, locChinhSach} from './chan-trang.js';
 import {ThietKeRieng, moTacPham, veDanhSach, dsTacPham} from './thiet-ke-rieng.js';
-import {GoiTaiBan} from './goi-tai-ban.js';
+import {GoiTaiBan, GoiTaiBanNoi} from './goi-tai-ban.js';
 import {dungQuayHien} from './kho-goi-ban.js';
 
 function luuTruAnToan() {
@@ -56,7 +56,7 @@ export function khoiDong(goc = '#app') {
 
   const app = createApp({
     template: MAU,
-    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan},
+    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan, GoiTaiBanNoi},
     setup() {
       const tab = computed(() => S.tab);
       const gioMo = computed(() => S.trang === 'gio');
@@ -67,6 +67,10 @@ export function khoiDong(goc = '#app') {
       /* v638: tab Tại quầy có bánh trên tủ và đồ uống; chip Tất cả, Bánh trên tủ,
          Đồ uống; mở từ QR một bàn thì chỉ còn quầy của bàn đó (kho-goi-ban.js). */
       const quayHien = computed(() => dungQuayHien(S, kho.goiBan.G, t));
+      /* v639: nút chuông nổi chỉ khi đang ở tab Tại quầy ở chế độ gọi món; banner
+         nhắc quét QR khi mở tab mà không có mã bàn (biểu thức && để ngoài khuôn). */
+      const chuongQuay = computed(() => (kho.goiBan.cheDo.value === 'goi' && S.tab === 'store') ? kho.goiBan.moChuong : null);
+      const nhacQr = computed(() => kho.goiBan.G.daKiem && !!quayHien.value);
       const chinhSach = computed(() => locChinhSach(S.cauHinh && S.cauHinh.chinh_sach, location.pathname));
       const baoMat = computed(() => chinhSach.value.find(c => c.khoa === 'chinh_sach_bao_mat') || null);
       const ngayBan = computed(() => { void S.nhip; const b = new Date(); return DAYS[b.getDay()] + ', ' + kho.T.dmy(b); });
@@ -112,7 +116,7 @@ export function khoiDong(goc = '#app') {
           tinh: m.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)};
       });
       const tienTom = n => kho.T.tienVN(n);
-      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, quayHien, chinhSach, baoMat,
+      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, quayHien, chuongQuay, nhacQr, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
         moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh};
