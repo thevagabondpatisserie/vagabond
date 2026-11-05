@@ -1107,6 +1107,43 @@ def _goi_nhan_vien():
 		la("tin Zalo mỗi lời một tin", len(tin), 4)
 
 
+@ca("Codex PR #542 vòng 1: hai khách cùng bàn bấm chuông cùng lúc (nonce khác), cùng đếm 2 lời đã có rồi cùng qua: phải khoá theo bàn, chỉ MỘT lời được ghi, khoá luôn nhả")
+def _chuong_dua():
+	kho = Kho()
+	with _he(kho):
+		_chuong(nonce="C" * 32)
+		_chuong(nonce="D" * 32, ly_do="Việc khác")
+	kho.goi_khoa.clear()
+	cho = threading.Barrier(2)
+	goc = kho.get_all
+
+	def dem_roi_doi(dt, filters=None, **k):
+		r = goc(dt, filters=filters, **k)
+		if dt == g.DT_TG and filters and "luc" in filters:
+			try:
+				cho.wait(timeout=1.5)
+			except threading.BrokenBarrierError:
+				pass
+		return r
+	kq = {}
+	with _he(kho), patch.object(_fr, "get_all", side_effect=dem_roi_doi):
+		def chay(nonce):
+			kq[nonce] = _chuong(nonce=nonce, ly_do="Xin thêm nước lọc, đá")
+		ts = [threading.Thread(target=chay, args=("E" * 32,)), threading.Thread(target=chay, args=("F" * 32,))]
+		for x in ts:
+			x.start()
+		for x in ts:
+			x.join(20)
+	ok = [n for n, r in kq.items() if r.get("ok")]
+	la("đúng một lời qua, bàn vẫn 3 lời", (len(ok), len(kho.tg)), (1, 3))
+	thua = [r for r in kq.values() if not r.get("ok")]
+	dung("lời kia nghe câu vừa gọi 3 lần", len(thua) == 1 and "vừa gọi 3 lần" in thua[0]["cau"])
+	lay = [x for x in kho.goi_khoa if x[0] == "lay" and x[1].startswith("vgb_chuong")]
+	nha = [x for x in kho.goi_khoa if x[0] == "nha" and x[1].startswith("vgb_chuong")]
+	la("khoá theo bàn, lấy bao nhiêu nhả bấy nhiêu", ({x[1] for x in lay}, len(lay), len(nha)), ({"vgb_chuong:TCV:5"}, 2, 2))
+	dung("khoá không còn bị giữ", not any(k.locked() for k in kho.khoa_ten.values()))
+
+
 @ca("v639 màn quầy nhận lời gọi: dem_cho trả tro_giup (xin tính tiền kèm bill của bàn, lời quá 30 phút ẩn); Đã tới bàn chuyển Đã xong, ghi người bấm; lịch 5 phút chuyển Hết hạn lời quá 30 phút")
 def _tro_giup_quay():
 	kho = Kho()
