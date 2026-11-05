@@ -348,12 +348,13 @@ def ap_menu(menu, do_uong):
 def tc_cho_quay(menu, do_uong):
 	"""Tuỳ chọn cho màn Tính tiền: {"mon": {mã: [nhóm]}, "tc": [nhóm + nhom_mon]}.
 	"mon" phủ mọi đồ uống của điểm (đã xếp hay chưa, kể cả món ẩn trên web: quầy
-	vẫn bán). "tc" theo nhóm món gốc cho món ngoài danh sách. THUẦN."""
+	vẫn bán), kể cả món không có tuỳ chọn nào (danh sách rỗng). "tc" theo nhóm món gốc cho món ngoài danh sách. THUẦN."""
 	mon = {}
 	for x in do_uong or []:
-		ds = tc_cua_mon(menu, str(x["ma"]), x.get("nhom_goc"), bool(x.get("khong_pha")))
-		if ds:
-			mon[str(x["ma"])] = ds
+		# Giữ cả danh sách RỖNG (món đóng chai, món quản lý tắt hết tuỳ chọn):
+		# rỗng nghĩa là "không hỏi gì", khác hẳn "chưa có trong bảng tra" (Codex
+		# PR #543: bỏ mục rỗng thì quầy rơi về tuỳ chọn theo nhóm gốc).
+		mon[str(x["ma"])] = tc_cua_mon(menu, str(x["ma"]), x.get("nhom_goc"), bool(x.get("khong_pha")))
 	goc_cua = {g["ma"]: g.get("goc") or "" for g in menu.get("nhom") or [] if g.get("loai") == "nuoc"}
 	tc = []
 	for t in menu.get("tuy_chon") or []:
