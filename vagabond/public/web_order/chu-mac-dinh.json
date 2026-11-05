@@ -5600,16 +5600,34 @@
     "mac_dinh": "Chờ quầy nhận",
     "nhieu_dong": true
   },
-  "goi_ban_don_da_goi": {
-    "ten": "Gọi món tại bàn: Món đã gọi",
-    "nhom": "dat_banh",
-    "mac_dinh": "Món đã gọi",
-    "nhieu_dong": true
-  },
   "goi_ban_goi_them": {
     "ten": "Gọi món tại bàn: Gọi thêm món",
     "nhom": "dat_banh",
     "mac_dinh": "Gọi thêm món",
+    "nhieu_dong": true
+  },
+  "goi_ban_da_goi_n": {
+    "ten": "Gọi món tại bàn: Đã gọi {n} đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã gọi {n} đơn",
+    "nhieu_dong": true
+  },
+  "goi_ban_xem_chi_tiet": {
+    "ten": "Gọi món tại bàn: Xem chi tiết",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xem chi tiết",
+    "nhieu_dong": true
+  },
+  "goi_ban_thu_gon": {
+    "ten": "Gọi món tại bàn: Thu gọn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thu gọn",
+    "nhieu_dong": true
+  },
+  "goi_ban_va_nua": {
+    "ten": "Gọi món tại bàn: và {n} nữa",
+    "nhom": "dat_banh",
+    "mac_dinh": "và {n} nữa",
     "nhieu_dong": true
   },
   "goi_ban_728f6901b": {
