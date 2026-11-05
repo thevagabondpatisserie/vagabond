@@ -291,6 +291,9 @@ def _tc_tu_gui(tc, cho_phep):
 			continue
 		if v not in n["lua_chon"]:
 			raise ValueError("Lựa chọn \"%s\" không có cho món này. Quý khách chọn lại." % str(v)[:40])
+		# v640: mức mặc định của nhóm ("Bình thường") là pha chuẩn, không ghi lên bill.
+		if v == (n.get("mac_dinh") or ""):
+			continue
 		ra.append(v)
 	la = set(gui) - {n["nhom"] for n in cho_phep}
 	if any(gui.get(k) not in (None, "") for k in la):
@@ -372,6 +375,9 @@ def _tp_tu_gui(tp, m, bang):
 		t = (bang or {}).get(ma)
 		if not t or t.get("loai") != "topping":
 			raise ValueError("Có topping vừa ngừng bán. Quý khách tải lại trang rồi chọn lại.")
+		# v640: menu của điểm khai topping nào đi với món nào (Biên tập menu).
+		if m.get("tp_cho") is not None and ma not in m["tp_cho"]:
+			raise ValueError("%s không kèm được %s. Quý khách tải lại trang rồi chọn lại." % (m["ten"], t["ten"]))
 		da.add(ma)
 		ra.append({"ma": ma, "ten": t["ten"], "gia": int(t["gia"])})
 	if len(ra) > TOPPING_TOI_DA_MOI_LY:
@@ -708,15 +714,22 @@ def bang_mon(d, hom_nay=None):
 	phiếu tạm tính của bàn chưa chốt; đồ uống đang bật."""
 	from vagabond import diem_ban, kiem_kho
 
+	from vagabond import bien_tap_menu
+
 	bay = now_datetime()
 	ra = {}
-	ds_tc = doc_tuy_chon()
-	for x in do_uong_cua_diem(d["ma"], hom_nay):
+	# v640: món nước, tuỳ chọn và topping theo menu đang chạy của điểm (Biên tập
+	# menu): món ẩn, nhóm tắt, món chưa xếp không gọi được; cùng một nguồn với
+	# trang khách (kiem_kho) và màn Tính tiền.
+	ds_uong = do_uong_cua_diem(d["ma"], hom_nay)
+	ds_tp = topping_cua_diem(d["ma"])
+	_, uong = bien_tap_menu.ap_menu(bien_tap_menu.menu_hien_hanh(d["ma"], ds_uong, ds_tp), ds_uong)
+	for x in uong:
 		if not x["ban_web"]:
 			continue
 		ra[x["ma"]] = {"ten": x["ten"], "gia": x["gia"], "loai": "nuoc", "nhom_goc": x["nhom_goc"],
-			"tc": tuy_chon_mon(x["ten"], x["nhom_goc"], ds_tc), "khong_pha": int(x.get("khong_pha") or 0)}
-	for t in topping_cua_diem(d["ma"]):
+			"tc": x["tc"], "khong_pha": int(x.get("khong_pha") or 0), "tp_cho": list(x["tp"])}
+	for t in ds_tp:
 		ra[t["ma"]] = {"ten": t["ten"], "gia": t["gia"], "loai": "topping", "nhom_goc": NHOM_TOPPING}
 	da_nhan = _da_nhan_cua(d["ma"])
 	cho = sl_dang_cho(mon_dang_giu([r.get("mon") for r in _cho_cua(d["ma"]) if not het_han(r.get("luc"), bay)],

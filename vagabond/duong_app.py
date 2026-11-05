@@ -123,6 +123,8 @@ MAN = (
 	("BSIKH", "Khách sỉ web", None),
 	# v638: in mã QR dán bàn để khách gọi món (goi_mon_ban.py, 66-goi-mon-tai-ban.js).
 	("GMBQR", "In QR tại bàn", None),
+	# v640: biên tập menu theo điểm bán (bien_tap_menu.py, 68-bien-tap-menu.js).
+	("BTM", "Biên tập menu", None),
 	# v614 phân hệ Khách hàng (crm.py, 58-crm.js).
 	("CRMGOI", "Danh sách gọi của tôi", None),
 	("CRMNHOM", "Nhóm khách", None),

@@ -841,18 +841,25 @@ def con_tren_quay_web():
 		# trong khoá RIÊNG `do_uong` để tab khác (trang cũ, editor) đọc `mon`
 		# không thấy đồ uống. Không có số "còn": đồ uống pha theo ly.
 		try:
-			ds_tc = goi_mon_ban.doc_tuy_chon()
-			for x in goi_mon_ban.do_uong_cua_diem(d["ma"], ngay):
+			from vagabond import bien_tap_menu
+
+			# v640: thứ tự nhóm và món, món ẩn, tuỳ chọn và topping theo menu đang
+			# chạy của điểm (Bán hàng > Biên tập menu), cùng nguồn cửa gọi món.
+			ds_uong = goi_mon_ban.do_uong_cua_diem(d["ma"], ngay)
+			ds_tp = goi_mon_ban.topping_cua_diem(d["ma"])
+			nhom_menu, uong = bien_tap_menu.ap_menu(bien_tap_menu.menu_hien_hanh(d["ma"], ds_uong, ds_tp), ds_uong)
+			for x in uong:
 				if not x["ban_web"]:
 					continue
 				q["do_uong"].append({
 					"ma": x["ma"], "ten": x["ten"], "gia": x["gia"], "anh": chon_anh(x["anh"], [], ma_hang=x["ma"])[0],
-					"nhom": goi_mon_ban.NHAN_DO_UONG, "tc": goi_mon_ban.tuy_chon_mon(x["ten"], x["nhom_goc"], ds_tc),
-					# v639: nhóm gốc để chia chip (Trà, Cà phê...), mô tả, cờ đóng sẵn.
+					"nhom": goi_mon_ban.NHAN_DO_UONG, "tc": x["tc"], "tp": x["tp"], "nhom_hien": x["nhom_hien"],
+					# v639: nhóm gốc, mô tả, cờ đóng sẵn.
 					"nhom_goc": x["nhom_goc"], "mo_ta": x.get("mo_ta") or "", "khong_pha": int(x.get("khong_pha") or 0),
 				})
-			# v639: topping kèm ly nước, khai một lần cho cả quầy.
-			q["topping"] = goi_mon_ban.topping_cua_diem(d["ma"]) if q["do_uong"] else []
+			q["nhom_menu"] = nhom_menu
+			# v639: topping kèm ly nước của quầy; món nào kèm được gì nằm ở "tp" từng món.
+			q["topping"] = ds_tp if q["do_uong"] else []
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "kiem_kho: do uong tai quay loi")
 	return ra
