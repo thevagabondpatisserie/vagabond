@@ -385,13 +385,22 @@ def _khong_dung_so_kho():
 	la("xac_nhan khong ghi so gi", ".submit()" in than, False)
 	la("khong sua qty phieu goc", '"qty"' in than, False)
 	la("khong goi doc.save", "doc.save(" in than, False)
-	dung("loi khai commit TRUOC khi tra phan thieu", than.index("frappe.db.commit()") < than.index("_tra_phan_thieu(doc, thieu)"))
+	dung("loi khai commit TRUOC khi tra phan thieu", than.index("frappe.db.commit()") < than.index("_tra_phan_thieu(doc, thieu, thua)"))
 	lap = m.split("def _lap_phieu_tra_thieu(")[1].split("\ndef _cong_ty_cua")[0]
 	dung("phieu tra di tu kho NHAN ve kho DI", "moi.from_warehouse = kho_nhan" in lap and "moi.to_warehouse = kho_di" in lap)
 	dung("phieu tra chan qua ton kho nhan", "_chan_qua_ton(kho_nhan, sach)" in lap)
 	dung("phieu tra noi ve phieu goc", "moi.vgb_tra_thieu_cua = doc.name" in lap)
 	tra = m.split("def _tra_phan_thieu(")[1].split("\ndef _lap_phieu_tra_thieu")[0]
 	dung("lap hong thi rollback va giu cach cu", "frappe.db.rollback()" in tra and "treo việc cho thủ kho" in tra)
+	# Codex PR #542 vong 2 (AGENTS.md muc 6): doi so kho that phai co ca tich hop
+	# chay tren bench, dang ky trong cua.py.
+	goc = os.path.join(_goc(), "vagabond", "khung", "kiem_that")
+	with io.open(os.path.join(goc, "cua.py"), encoding="utf-8") as f:
+		cua = f.read()
+	dung("ca tich hop phieu tra dang ky trong cua.py", "thu_tra_thieu_639" in cua and os.path.exists(os.path.join(goc, "thu_tra_thieu_639.py")))
+	with io.open(os.path.join(goc, "thu_tra_thieu_639.py"), encoding="utf-8") as f:
+		ti = f.read()
+	dung("ca tich hop goi dung cua xac_nhan, ghi so that, doc lai so kho", "ndc.xac_nhan(" in ti and ".submit()" in ti and "Stock Ledger Entry" in ti and ti.count("@ca(") >= 3)
 
 
 @ca("nhan dieu chuyen v639: phan thieu -> dong tra (thua khong tra), cau bao; chay that xac_nhan voi Frappe gia: phieu tra dung kho, dung so, noi hai chieu, danh dau da xu ly, bao bep; tra hong thi treo viec va noi ro")
@@ -456,17 +465,21 @@ def _tra_phan_thieu():
 		if dt == "Bin":
 			return ton.get(loc.get("item_code"), 0)
 		return None
+
+	def sql(cau, ts=None, **k):
+		# Khoá tên MariaDB giả: luôn lấy được (ca đua riêng ở _tra_thieu_dua).
+		return [[1]] if "lock(" in cau else []
 	with patch.object(xuat_kho, "LOAI", {"chuyen": "Material Transfer"}), \
 			patch.object(xuat_kho, "_duoc_xuat", lambda: True), patch.object(xuat_kho, "_kho_phu_trach", lambda *a, **k: ["Kho D1 - VGB"]), \
 			patch.object(xuat_kho, "_phieu_moi", lambda loai, ct: moi.append((loai, ct)) or ps), \
 			patch.object(xuat_kho, "_tk_chi_phi", lambda ct: "632 - VGB"), \
 			patch.object(_fr, "get_doc", lambda dt, ten=None, *a, **k: goc if dt == "Stock Entry" else Dong(insert=lambda **kk: None)), \
 			patch.object(_fr.db, "exists", lambda *a, **k: True), patch.object(_fr.db, "set_value", set_value), \
-			patch.object(_fr.db, "get_value", get_value), \
+			patch.object(_fr.db, "get_value", get_value), patch.object(_fr.db, "sql", sql), \
 			patch.object(tin_kho, "bao_da_nhan_chuyen", lambda *a, **k: None), \
 			patch.object(tin_kho.kenh_zalo, "bao", lambda *a, **k: tin.append((a, k))):
 		r = ndc.xac_nhan("MAT-STE-2026-00661", _json.dumps([{"ma": "BAWC00001", "nhan": 9}, {"ma": "BAWC00002", "nhan": 5}]), "thùng rách")
-	la("trang thai", (r["trang_thai"], r["phieu_tra"], r["loi_tra"]), ("Nhận thiếu", "MAT-STE-2026-00700", ""))
+	la("trang thai", (r["trang_thai"], r["phieu_tra"], r["loi_tra"], r["con_thua"]), ("Nhận thiếu", "MAT-STE-2026-00700", "", ""))
 	la("cau tra", r["cau_tra"], "Đã lập phiếu MAT-STE-2026-00700 trả 1 Shiopan về kho đi")
 	la("phieu tra: dieu chuyen, tu kho nhan ve kho di, dung dong thieu", (moi, ps.from_warehouse, ps.to_warehouse, ps.da_ghi_so, ps.vgb_tra_thieu_cua,
 		[(x["item_code"], x["qty"], x["s_warehouse"], x["t_warehouse"]) for x in ps.items]),
@@ -486,7 +499,7 @@ def _tra_phan_thieu():
 			patch.object(xuat_kho, "_phieu_moi", lambda loai, ct: PhieuMoi()), patch.object(xuat_kho, "_tk_chi_phi", lambda ct: "632 - VGB"), \
 			patch.object(_fr, "get_doc", lambda dt, ten=None, *a, **k: goc2 if dt == "Stock Entry" else Dong(insert=lambda **kk: None)), \
 			patch.object(_fr.db, "exists", lambda *a, **k: True), patch.object(_fr.db, "set_value", set_value), \
-			patch.object(_fr.db, "get_value", get_value), \
+			patch.object(_fr.db, "get_value", get_value), patch.object(_fr.db, "sql", sql), \
 			patch.object(tin_kho, "bao_da_nhan_chuyen", lambda *a, **k: None), \
 			patch.object(tin_kho.kenh_zalo, "bao", lambda *a, **k: tin.append((a, k))):
 		r = ndc.xac_nhan("MAT-STE-2026-00661", _json.dumps([{"ma": "BAWC00001", "nhan": 9}]), "")
@@ -500,10 +513,162 @@ def _tra_phan_thieu():
 			patch.object(xuat_kho, "_duoc_xuat", lambda: True), patch.object(xuat_kho, "_kho_phu_trach", lambda *a, **k: ["Kho D1 - VGB"]), \
 			patch.object(xuat_kho, "_phieu_moi", lambda loai, ct: moi.append(1) or PhieuMoi()), \
 			patch.object(_fr, "get_doc", lambda dt, ten=None, *a, **k: goc3 if dt == "Stock Entry" else Dong(insert=lambda **kk: None)), \
-			patch.object(_fr.db, "exists", lambda *a, **k: True), patch.object(_fr.db, "set_value", set_value), \
+			patch.object(_fr.db, "exists", lambda *a, **k: True), patch.object(_fr.db, "set_value", set_value), patch.object(_fr.db, "sql", sql), \
 			patch.object(tin_kho, "bao_da_nhan_chuyen", lambda *a, **k: None), patch.object(tin_kho.kenh_zalo, "bao", lambda *a, **k: None):
 		r = ndc.xac_nhan("MAT-STE-2026-00661", _json.dumps([{"ma": "BAWC00002", "nhan": 6}]), "")
 	la("thua: nhan thieu (lech) nhung khong lap phieu tra", (r["trang_thai"], r["phieu_tra"], moi), ("Nhận thiếu", "", []))
+	# Codex PR #542 vong 2: vua THIEU A vua THUA B: tra A nhung KHONG dong viec, vi
+	# phan thua B thu kho van phai doi chieu; man nguoi bam duoc bao con thua.
+	la("dong con thua (thuan)", ndc.dong_con_thua(lech), [{"ma": "BAWC00002", "ten": "Croissant", "giao": 5, "nhan": 6, "lech": -1.0}])
+	goc4 = Goc(**goc.__dict__); goc4.vgb_nhan_tt = ""
+	ghi.clear(); moi.clear(); tin.clear(); ton["BAWC00001"] = 10
+	ps4 = PhieuMoi()
+	with patch.object(xuat_kho, "LOAI", {"chuyen": "Material Transfer"}), \
+			patch.object(xuat_kho, "_duoc_xuat", lambda: True), patch.object(xuat_kho, "_kho_phu_trach", lambda *a, **k: ["Kho D1 - VGB"]), \
+			patch.object(xuat_kho, "_phieu_moi", lambda loai, ct: moi.append(1) or ps4), patch.object(xuat_kho, "_tk_chi_phi", lambda ct: "632 - VGB"), \
+			patch.object(_fr, "get_doc", lambda dt, ten=None, *a, **k: goc4 if dt == "Stock Entry" else Dong(insert=lambda **kk: None)), \
+			patch.object(_fr.db, "exists", lambda *a, **k: True), patch.object(_fr.db, "set_value", set_value), \
+			patch.object(_fr.db, "get_value", get_value), patch.object(_fr.db, "sql", sql), \
+			patch.object(tin_kho, "bao_da_nhan_chuyen", lambda *a, **k: None), patch.object(tin_kho.kenh_zalo, "bao", lambda *a, **k: tin.append((a, k))):
+		r = ndc.xac_nhan("MAT-STE-2026-00661", _json.dumps([{"ma": "BAWC00001", "nhan": 9}, {"ma": "BAWC00002", "nhan": 6}]), "")
+	la("thieu A thua B: tra A", (r["phieu_tra"], ps4.da_ghi_so, [(x["item_code"], x["qty"]) for x in ps4.items], r["con_thua"]),
+		("MAT-STE-2026-00700", 1, [("BAWC00001", 1.0)], "thừa 1 BAWC00002"))
+	goc4_ghi = [g for g in ghi if g[0] == "Stock Entry" and g[1] == "MAT-STE-2026-00661"]
+	dung("noi phieu tra nhung KHONG danh dau da xu ly (con phan thua)", any(g[2].get("vgb_phieu_tra_thieu") == "MAT-STE-2026-00700" for g in goc4_ghi)
+		and not any(g[2].get("vgb_nhan_da_xu_ly") == 1 for g in goc4_ghi))
+	la("van bao bep", len(tin), 1)
+
+
+@ca("nhan dieu chuyen v639 Codex PR #542 vong 2: hai nguoi cung xac nhan mot phieu cung luc: khoa theo phieu, doc lai trang thai trong khoa, chi MOT phieu tra, nguoi sau nghe 'da duoc xac nhan roi'")
+def _tra_thieu_dua():
+	import json as _json
+	import threading
+	from unittest.mock import patch
+
+	import frappe as _fr
+
+	from vagabond import tin_kho, xuat_kho
+
+	class Dong(dict):
+		def __getattr__(self, k):
+			return self.get(k)
+
+	class Goc:
+		def __init__(self, **o):
+			self.__dict__.update(o)
+
+		def get(self, k, mac_dinh=None):
+			return self.__dict__.get(k, mac_dinh)
+
+		def __getattr__(self, k):
+			return self.__dict__.get(k)
+
+	class PhieuMoi:
+		def __init__(self, ten):
+			self.items, self.flags, self.name, self.da_ghi_so = [], __import__("types").SimpleNamespace(), ten, 0
+
+		def append(self, bang, d):
+			self.items.append(d)
+
+		def insert(self, **k):
+			pass
+
+		def submit(self):
+			self.da_ghi_so = 1
+
+	# Co so du lieu gia: cac o ghi vet cua phieu goc. get_doc tra ANH CHUP CU (vgb_nhan_tt
+	# trong) cho ca hai luot, nhu doc duoc doc truoc khi luot kia commit; chi
+	# get_value(for_update) moi thay so moi.
+	db = {"vgb_nhan_tt": "", "vgb_nhan_boi": "", "vgb_phieu_tra_thieu": ""}
+	mu = threading.Lock()
+	khoa_ten = {}
+	goi_khoa = []
+	moi = []
+	cho = threading.Barrier(2)
+	da_cho = set()
+
+	def goc():
+		return Goc(name="MAT-STE-2026-00661", purpose="Material Transfer", docstatus=1, company="Vagabond",
+			from_warehouse="Kho Baker - VGB", to_warehouse="Kho D1 - VGB", vgb_nhan_tt="",
+			items=[Dong(name="r1", item_code="BAWC00001", item_name="Shiopan", uom="Cái", qty=10)])
+
+	def set_value(dt, ten, truong, gt=None, **k):
+		if dt == "Stock Entry":
+			with mu:
+				db.update(truong if isinstance(truong, dict) else {truong: gt})
+
+	def get_value(dt, loc, truong=None, **k):
+		if dt == "Bin":
+			return 10
+		if dt == "Stock Entry" and k.get("for_update"):
+			# Hai luot cung toi day thi cho nhau (khong khoa thi ca hai cung doc trong).
+			t = threading.get_ident()
+			if t not in da_cho:
+				da_cho.add(t)
+				try:
+					cho.wait(timeout=1.0)
+				except threading.BrokenBarrierError:
+					pass
+			with mu:
+				return _fr._dict(db)
+		return None
+
+	def sql(cau, ts=None, **k):
+		if "get_lock(" in cau:
+			with mu:
+				kt = khoa_ten.setdefault(ts[0], threading.Lock())
+			ok = kt.acquire(timeout=float(ts[1]))
+			goi_khoa.append(("lay", ts[0], ok))
+			return [[1 if ok else 0]]
+		if "release_lock(" in cau:
+			kt = khoa_ten.get(ts[0])
+			if kt and kt.locked():
+				kt.release()
+			goi_khoa.append(("nha", ts[0]))
+			return [[1]]
+		return []
+
+	def phieu_moi(loai, ct):
+		with mu:
+			p = PhieuMoi("MAT-STE-2026-0070%d" % (len(moi) + 1))
+			moi.append(p)
+		return p
+
+	kq = {}
+
+	def chay(ai):
+		try:
+			kq[ai] = ndc.xac_nhan("MAT-STE-2026-00661", _json.dumps([{"ma": "BAWC00001", "nhan": 9}]), "")
+		except Exception as e:
+			kq[ai] = {"loi": str(e)}
+	with patch.object(xuat_kho, "LOAI", {"chuyen": "Material Transfer"}), \
+			patch.object(xuat_kho, "_duoc_xuat", lambda: True), patch.object(xuat_kho, "_kho_phu_trach", lambda *a, **k: ["Kho D1 - VGB"]), \
+			patch.object(xuat_kho, "_phieu_moi", phieu_moi), patch.object(xuat_kho, "_tk_chi_phi", lambda ct: "632 - VGB"), \
+			patch.object(_fr, "get_doc", lambda dt, ten=None, *a, **k: goc() if dt == "Stock Entry" else Dong(insert=lambda **kk: None)), \
+			patch.object(_fr.db, "exists", lambda *a, **k: True), patch.object(_fr.db, "set_value", set_value), \
+			patch.object(_fr.db, "get_value", get_value), patch.object(_fr.db, "sql", sql), \
+			patch.object(_fr.db, "commit", lambda *a, **k: None), patch.object(_fr.db, "rollback", lambda *a, **k: None), \
+			patch.object(tin_kho, "bao_da_nhan_chuyen", lambda *a, **k: None), patch.object(tin_kho.kenh_zalo, "bao", lambda *a, **k: None):
+		ts = [threading.Thread(target=chay, args=("A",)), threading.Thread(target=chay, args=("B",))]
+		for x in ts:
+			x.start()
+		for x in ts:
+			x.join(20)
+	ok = [r for r in kq.values() if r.get("ok")]
+	loi = [r for r in kq.values() if r.get("loi")]
+	la("dung MOT luot qua, MOT phieu tra ghi so", (len(ok), len(moi), sum(p.da_ghi_so for p in moi)), (1, 1, 1))
+	dung("luot kia nghe 'da duoc ... xac nhan roi'", len(loi) == 1 and "xác nhận rồi" in loi[0]["loi"])
+	la("phieu goc noi dung mot phieu tra, loi khai ghi mot lan", (db["vgb_phieu_tra_thieu"], db["vgb_nhan_tt"]), ("MAT-STE-2026-00701", "Nhận thiếu"))
+	lay = [x for x in goi_khoa if x[0] == "lay"]
+	nha = [x for x in goi_khoa if x[0] == "nha"]
+	la("khoa theo phieu, lay 2 nha 2", ({x[1] for x in lay}, len(lay), len(nha)), ({"vgb_nhan_dc:MAT-STE-2026-00661"}, 2, 2))
+	dung("khoa khong con bi giu", not any(k.locked() for k in khoa_ten.values()))
+	# Lop bao ve thu hai: phieu goc da co phieu tra thi _tra_phan_thieu khong lap them.
+	with patch.object(xuat_kho, "_phieu_moi", phieu_moi), patch.object(xuat_kho, "_tk_chi_phi", lambda ct: "632 - VGB"), \
+			patch.object(_fr.db, "get_value", get_value), patch.object(_fr.db, "set_value", set_value), patch.object(_fr.db, "commit", lambda *a, **k: None), \
+			patch.object(tin_kho.kenh_zalo, "bao", lambda *a, **k: None):
+		ten, loi_tra = ndc._tra_phan_thieu(goc(), [{"ma": "BAWC00001", "ten": "Shiopan", "sl": 1.0}])
+	la("da co phieu tra thi tra lai phieu cu, khong lap phieu thu hai", (ten, loi_tra, len(moi)), ("MAT-STE-2026-00701", "", 1))
 
 
 @ca("nhan dieu chuyen: chi kho NHAN moi xac nhan duoc, va chi mot lan")
@@ -514,7 +679,10 @@ def _chan_nguoi_la():
 	dung("chan phieu chua ghi so", "cint(doc.docstatus) != 1" in chan)
 	dung("chan kho khong phai cua minh", "doc.to_warehouse not in cua_toi" in chan)
 	than = m.split("def xac_nhan(")[1].split("\ndef _ghi_vet")[0]
-	dung("chan xac nhan de len", 'doc.get("vgb_nhan_tt") or ""' in than)
+	# Codex PR #542 vong 2: doc trang thai bang locking read trong khoa, khong
+	# tin anh chup cua doc.
+	dung("chan xac nhan de len bang trang thai hien hanh", "_trang_thai_hien_hanh(phieu)" in than and "if tt_cu:" in than)
+	dung("doc lai bang for_update", "for_update=True" in m.split("def _trang_thai_hien_hanh(")[1].split("\ndef ")[0])
 
 
 @ca("nhan dieu chuyen: man hinh noi ro la khong sua ton kho")

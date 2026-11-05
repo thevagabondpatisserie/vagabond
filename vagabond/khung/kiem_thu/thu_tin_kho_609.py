@@ -429,7 +429,8 @@ def _noi_day():
 	ins = [n.lineno for n in ast.walk(nh) if isinstance(n, ast.Call) and ast.unparse(n.func) == "pr.insert"]
 	dung("cờ vgb_nhap_ngay đặt trước pr.insert", len(dong) == 1 and len(ins) == 1 and dong[0] < ins[0])
 	# Ba chỗ gọi tay.
-	xn = _ham(ast.parse(open(os.path.join(GOI, "nhan_dieu_chuyen.py"), encoding="utf-8").read()), "xac_nhan")
+	# v639 Codex PR #542 vòng 2: thân cửa xac_nhan chuyển vào _xac_nhan_trong_khoa (khoá theo phiếu).
+	xn = _ham(ast.parse(open(os.path.join(GOI, "nhan_dieu_chuyen.py"), encoding="utf-8").read()), "_xac_nhan_trong_khoa")
 	la("xac_nhan gọi bao_da_nhan_chuyen một lần", len(_goi_trong(xn, "bao_da_nhan_chuyen")), 1)
 	gs = _ham(ast.parse(open(os.path.join(GOI, "kiem_ke.py"), encoding="utf-8").read()), "ghi_so")
 	la("ghi_so gọi hai tin", (len(_goi_trong(gs, "bao_kiem_ke_da_ghi_so")), len(_goi_trong(gs, "bao_ke_toan_kiem_ke_lech"))), (1, 1))
