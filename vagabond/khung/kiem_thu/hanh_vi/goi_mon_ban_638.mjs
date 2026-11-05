@@ -14,7 +14,9 @@ import {createRenderer, nextTick, computed} from '../../../public/web_vue/lib/vu
 import {MAU} from '../../../public/web_vue/banh/mau.js';
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
 import {dungQuayHien} from '../../../public/web_vue/banh/kho-goi-ban.js';
-import {GoiTaiBan} from '../../../public/web_vue/banh/goi-tai-ban.js';
+import {GoiTaiBan, GoiTaiBanNoi} from '../../../public/web_vue/banh/goi-tai-ban.js';
+import {KenhNoi} from '../../../public/web_vue/banh/noi-dung.js';
+import {gomSize, tachSize, khopTim, chipNhom, LY_DO_GOI} from '../../../public/web_vue/banh/kho-goi-ban.js';
 import {AnhMon} from '../../../public/web_vue/banh/thanh-phan.js';
 import {t, tMon} from '../../../public/web_vue/kho/chu.js';
 import * as T from '../../../public/web_vue/kho/thuan.js';
@@ -59,8 +61,10 @@ const bam = async n => { dung('có nút để bấm', n); n.props.onClick(); awa
    cũng có, node thì không. Chỉ cấp đúng ô đó, không dựng DOM giả. */
 globalThis.document = globalThis.document || {activeElement: null};
 
-const KHOI = MAU.match(/<main id="store"[\s\S]*?<\/main>/)[0];
-dung('cắt được khối Tại quầy', KHOI.includes('storeBody') && KHOI.includes('goi-tai-ban'));
+/* v639: phần nổi (thanh giỏ, bảng chọn, giỏ, chuông) nằm NGOÀI main để không bị
+   dải tab đè; cắt cả hai khối của khuôn thật. */
+const KHOI = MAU.match(/<main id="store"[\s\S]*?<\/main>/)[0] + MAU.match(/<goi-tai-ban-noi[^>]*>/)[0];
+dung('cắt được khối Tại quầy', KHOI.includes('storeBody') && KHOI.includes('<goi-tai-ban ') && KHOI.includes('<goi-tai-ban-noi'));
 const Rong = {template: '<span></span>', props: ['viTri', 'dong']};
 
 const K = 'c14c0648854b57a1';
@@ -92,7 +96,7 @@ function moiTruong({tim: timKiem = '?diem=TCV&ban=5&k=' + K, mo = {ok: 1, diem: 
     ngauNhien: n => Array.from({length: n}, () => Math.floor(Math.random() * 256))
   };
   const chayHen = async () => { await nextTick(); const ds = hen.splice(0); for (const x of ds) await x.f(); await cho(); };
-  return {mt, vet, chayHen};
+  return {mt, vet, chayHen, mang};
 }
 
 async function moTrang(o = {}) {
@@ -103,9 +107,12 @@ async function moTrang(o = {}) {
   const goc = nut('goc');
   createApp({
     template: '<div>' + KHOI + '</div>',
-    components: {AnhMon, GoiTaiBan, KhoiNoiDung: Rong, TieuDeMuc: Rong},
-    setup: () => ({S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien: computed(() => dungQuayHien(kho.S, kho.goiBan.G, t)),
-      tienTom: n => T.tienVN(n), mxh: (k, d) => d, telSo: () => '0931224334', telChu: () => '0931 224 334'})
+    components: {AnhMon, GoiTaiBan, GoiTaiBanNoi, KhoiNoiDung: Rong, TieuDeMuc: Rong},
+    setup: () => {
+      const quayHien = computed(() => dungQuayHien(kho.S, kho.goiBan.G, t));
+      return {S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien, nhacQr: computed(() => kho.goiBan.G.daKiem && !!quayHien.value),
+        tienTom: n => T.tienVN(n), mxh: (k, d) => d, telSo: () => '0931224334', telChu: () => '0931 224 334'};
+    }
   }).mount(goc);
   await cho();
   return {...m, kho, goc};
@@ -231,6 +238,172 @@ await ca('Đồ uống không có bảng chọn (kem) thêm thẳng; lựa chọ
   la('kem thêm thẳng', kho.goiBan.G.gio.map(x => [x.ma, x.tc]), [['NUIC00002', {}]]);
   kho.goiBan.them(STORE.quay[0].do_uong[0], {'Đá': 'Nhiều đá', 'Size': 'L'});
   la('lựa chọn lạ bị bỏ', kho.goiBan.G.gio[1].tc, {});
+});
+
+/* ====================== v639 vòng 2 (anh Việt duyệt mẫu 05/11/2026) ====================== */
+const STORE2 = {ngay: '2026-11-05', cap_nhat: '2026-11-05 10:00', quay: [
+  {ma: 'TCV', ten: 'The Vagabond District 1', ten_ngan: 'District 1', dia_chi: '9 Trần Cao Vân',
+    mon: [{ma: 'BAWC00115', ten: 'Mousse Chanh Dây', gia: 95000, anh: '', con: 3, nhom: 'Bánh lạnh', mo_ta: 'Chanh dây Đà Lạt'}],
+    do_uong: [
+      {ma: 'NUTR00031', ten: 'Trà Sữa Lài Kem Phô Mai, Size M, Đá/Iced', gia: 75000, anh: '/files/tsl.jpg', nhom: 'Đồ uống', nhom_goc: 'Trà', mo_ta: 'Trà lài ủ lạnh', khong_pha: 0,
+        tc: [{nhom: 'Đá', lua_chon: ['Ít đá', 'Không đá']}]},
+      {ma: 'NUTR00032', ten: 'Trà Sữa Lài Kem Phô Mai, Size L, Đá/Iced', gia: 85000, anh: '', nhom: 'Đồ uống', nhom_goc: 'Trà', mo_ta: '', khong_pha: 0,
+        tc: [{nhom: 'Đá', lua_chon: ['Ít đá', 'Không đá']}]},
+      {ma: 'NUCF00003', ten: 'Cà phê sữa', gia: 40000, anh: '', nhom: 'Đồ uống', nhom_goc: 'Cà phê', mo_ta: '', khong_pha: 0, tc: []},
+      {ma: 'NUTR00040', ten: 'Kombucha Chill , Chai 300ml', gia: 100000, anh: '', nhom: 'Đồ uống', nhom_goc: 'Trà', mo_ta: '', khong_pha: 1, tc: []}],
+    topping: [{ma: 'TPNC00001', ten: 'Trân châu ô long', gia: 10000}, {ma: 'TPNC00002', ten: 'Thay sữa yến mạch', gia: 20000}]},
+  {ma: 'NVHTN', ten: 'Nhà Văn Hóa Thanh Niên', ten_ngan: 'NVHTN', dia_chi: '21 Phạm Ngọc Thạch', mon: [], do_uong: [], topping: []}]};
+
+async function moTrang2(o = {}) {
+  const m = moiTruong(o);
+  m.mang['vagabond.kiem_kho.con_tren_quay_web'] = () => JSON.parse(JSON.stringify(STORE2));
+  m.mang['vagabond.goi_mon_ban.goi_nhan_vien'] = th => (o.chuong ? o.chuong(th) : {ok: 1, ma: 'GNV-261105-0001', luc: '10:58'});
+  const kho = taoKho(m.mt);
+  await kho.napQuay();
+  await kho.goiBan.kiemLink();
+  const g = nut('goc');
+  createApp({
+    template: '<div>' + KHOI + '</div>',
+    components: {AnhMon, GoiTaiBan, GoiTaiBanNoi, KhoiNoiDung: Rong, TieuDeMuc: Rong},
+    setup: () => {
+      const quayHien = computed(() => dungQuayHien(kho.S, kho.goiBan.G, t));
+      return {S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien, nhacQr: computed(() => kho.goiBan.G.daKiem && !!quayHien.value),
+        tienTom: n => T.tienVN(n), mxh: (k, d) => d, telSo: () => '0931224334', telChu: () => '0931 224 334'};
+    }
+  }).mount(g);
+  await cho();
+  return {...m, kho, goc: g};
+}
+
+await ca('v639 phép thuần: tách size khỏi tên, gộp size cùng tên một dòng (M trước L, giá thấp nhất), tìm bỏ dấu, chip theo nhóm gốc', async () => {
+  /* Ảnh anh Việt chụp 05/11: bảng nằm trong <main> (z-index riêng) bị dải tab đè. Phần nổi phải đứng sau mọi </main>. */
+  dung('phần nổi (thanh giỏ, bảng chọn, giỏ, chuông) nằm ngoài mọi <main>', MAU.lastIndexOf('</main>') < MAU.indexOf('<goi-tai-ban-noi') && MAU.indexOf('<goi-tai-ban-noi') > 0);
+  dung('phần trong dòng (món đã gọi) nằm trước danh sách món của tab Tại quầy', MAU.indexOf('<goi-tai-ban ') < MAU.indexOf('id="gbTim"'));
+  la('tách size', tachSize('Hồng Trà Vải Thiều, Size L, Đá/Iced'), {goc: 'Hồng Trà Vải Thiều', size: 'L', nong: false});
+  la('set trà nóng', tachSize('Trà Earl Grey, Set trà 2 người, Nóng/Hot'), {goc: 'Trà Earl Grey, Set trà 2 người', size: '', nong: true});
+  la('không size', tachSize('Cà phê sữa'), {goc: 'Cà phê sữa', size: '', nong: false});
+  const ds = gomSize([{ma: 'B', ten: 'Trà Lài, Size L, Đá/Iced', gia: 85000, anh: ''}, {ma: 'A', ten: 'Trà Lài, Size M, Đá/Iced', gia: 75000, anh: '/x.jpg', mo_ta: 'mô tả'},
+    {ma: 'C', ten: 'Cà phê sữa', gia: 40000, anh: ''}, {ma: 'D', ten: 'Trà Lài, Size M, Nóng/Hot', gia: 70000, anh: ''}]);
+  la('ba dòng: lạnh gộp, nóng riêng, cà phê riêng', ds.map(x => [x.ma, x.ten, x.gia, x.gop, x.bienThe.map(b => b.size + ':' + b.ma)]),
+    [['A', 'Trà Lài', 75000, true, ['M:A', 'L:B']], ['C', 'Cà phê sữa', 40000, false, [':C']], ['D', 'Trà Lài, Size M, Nóng/Hot', 70000, false, ['M:D']]]);
+  la('ảnh, mô tả lấy từ size có', [ds[0].anh, ds[0].mo_ta], ['/x.jpg', 'mô tả']);
+  dung('tìm bỏ dấu, từng từ', khopTim('Trà Sữa Lài Kem Phô Mai', '', 'tra lai') && khopTim('Bánh Canelé', '', 'CANELE') && !khopTim('Cà phê sữa', '', 'trà'));
+  dung('tìm trong mô tả', khopTim('Mousse', 'Chanh dây Đà Lạt', 'chanh day'));
+  la('chip', chipNhom([{loai: 'banh'}], [{nhom_goc: 'Trà'}, {nhom_goc: 'Trà'}, {nhom_goc: 'Cacao'}, {nhom_goc: ''}], t).map(n => n.n + '=' + n.ten + '·' + n.so),
+    ['=Tất cả·5', 'banh=Bánh trên tủ·1', 'nuoc:Trà=Trà·2', 'nuoc:Cacao=Cacao·1', 'nuoc=Đồ uống·1']);
+});
+
+await ca('v639 thực đơn: chip theo nhóm (Bánh trên tủ, Trà, Cà phê), size M và L gộp một dòng ghi "Size M · L", ô tìm lọc bỏ dấu và báo khi không khớp', async () => {
+  const {goc, kho} = await moTrang2();
+  la('chip', chip(goc), ['Tất cả · 4', 'Bánh trên tủ · 1', 'Trà · 2', 'Cà phê · 1']);
+  la('bốn dòng, size gộp', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), ['BAWC00115', 'NUTR00031', 'NUCF00003', 'NUTR00040']);
+  const dong = tim(goc, n => n.props['data-ma'] === 'NUTR00031')[0];
+  dung('tên gộp không còn size, ghi Size M · L, có mô tả', chu(dong).includes('Trà Sữa Lài Kem Phô Mai') && !chu(dong).includes('Size M, Đá') && chu(dong).includes('Size M · L') && chu(dong).includes('Trà lài ủ lạnh'));
+  await bam(tim(theoId(goc, 'storeChip'), n => n.props['data-nhom'] === 'nuoc:Trà')[0]);
+  la('chip Trà', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), ['NUTR00031', 'NUTR00040']);
+  go(theoId(goc, 'gbTimO'), 'ca phe'); await cho();
+  la('tìm "ca phe" (đang ở chip Trà vẫn ra vì chip Trà không có, coi như không khớp)', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), []);
+  dung('báo không khớp', chu(theoId(goc, 'gbTimRong')).includes('"ca phe"'));
+  await bam(tim(theoId(goc, 'storeChip'), n => n.props['data-nhom'] === '')[0]);
+  la('tìm ở Tất cả', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), ['NUCF00003']);
+  go(theoId(goc, 'gbTimO'), 'chanh day'); await cho();
+  la('tìm theo mô tả bánh', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), ['BAWC00115']);
+  kho.S.timQuay = ''; await cho();
+  la('xoá chữ tìm', tim(goc, n => n.props['data-ma']).length, 4);
+});
+
+await ca('v639 bảng chọn: size đổi giá, đá đường, topping có giá cộng vào, số lượng; giỏ ghi size và topping; Gọi món gửi mã topping; thanh giỏ tính đủ', async () => {
+  const {goc, kho, vet} = await moTrang2();
+  const G = kho.goiBan.G;
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00031'));
+  dung('bảng chọn mở', String(theoId(goc, 'gbChon').props.class).includes('open'));
+  la('hai size', tim(theoId(goc, 'gbSize'), n => n.props['data-size']).map(n => n.props['data-size']), ['NUTR00031', 'NUTR00032']);
+  la('giá size M trước', chu(theoId(goc, 'gbGiaChon')), '75.000 đ');
+  await bam(tim(goc, n => n.props['data-size'] === 'NUTR00032')[0]);
+  la('chọn L', chu(theoId(goc, 'gbGiaChon')), '85.000 đ');
+  await bam(tim(goc, n => n.props['data-tc'] === 'Đá=Ít đá')[0]);
+  la('hai topping có giá', tim(theoId(goc, 'gbTopping'), n => n.props['data-tp']).map(n => chu(n)), ['Trân châu ô long+10.000 đ', 'Thay sữa yến mạch+20.000 đ']);
+  await bam(tim(goc, n => n.props['data-tp'] === 'TPNC00001')[0]);
+  la('topping cộng giá', chu(theoId(goc, 'gbGiaChon')), '95.000 đ');
+  la('ô tích sáng', tim(goc, n => n.props['data-tp'] === 'TPNC00001')[0].props['aria-checked'], 'true');
+  await bam(tim(goc, n => n.props['data-tp'] === 'TPNC00001')[0]);
+  await bam(tim(goc, n => n.props['data-tp'] === 'TPNC00001')[0]);
+  const qty = tim(theoId(goc, 'gbChon'), n => n.props.class === 'qty gb-qty')[0];
+  await bam(tim(qty, n => n.the === 'button')[1]);
+  la('số lượng 2, nút ghi tổng', [chu(theoId(goc, 'gbSlChon')), chu(theoId(goc, 'gbThemLy'))], ['2', 'Thêm · 190.000 đ']);
+  await bam(theoId(goc, 'gbThemLy'));
+  la('giỏ: mã size L, tên có (L), đá, topping, 2 ly', G.gio.map(x => [x.ma, x.ten, x.sl, x.tc, x.tp.map(y => y.ma), x.gia]),
+    [['NUTR00032', 'Trà Sữa Lài Kem Phô Mai (L)', 2, {'Đá': 'Ít đá'}, ['TPNC00001'], 85000]]);
+  la('thanh giỏ', chu(tim(theoId(goc, 'gbBar'), n => n.the === 'b')[0]), '2 món · 190.000 đ');
+  dung('nút + của dòng gộp tô đặc', String(tim(goc, n => n.props['data-them'] === 'NUTR00031')[0].props.class).includes('co'));
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUCF00003'));
+  dung('cà phê không đá đường nhưng có topping quầy: vẫn mở bảng', String(theoId(goc, 'gbChon').props.class).includes('open') && !theoId(goc, 'gbSize'));
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00040'));
+  dung('Kombucha chai: thêm thẳng, không hỏi gì', !String(theoId(goc, 'gbChon').props.class).includes('open'));
+  la('giỏ ba dòng', G.gio.map(x => [x.ma, x.tp.length]), [['NUTR00032', 1], ['NUCF00003', 0], ['NUTR00040', 0]]);
+  await bam(theoId(goc, 'gbXemGio'));
+  const d = tim(theoId(goc, 'gbGio'), n => n.props['data-dong'] === 'NUTR00032')[0];
+  dung('dòng giỏ ghi topping và thành tiền', chu(d).includes('+ Trân châu ô long (10.000 đ)') && chu(d).includes('190.000 đ'));
+  await bam(theoId(goc, 'gbGoi'));
+  const th = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.goi')[0][2];
+  la('thân gửi có tp theo mã, dòng không topping không có khoá tp', JSON.parse(th.mon),
+    [{ma: 'NUTR00032', sl: 2, tc: {'Đá': 'Ít đá'}, tp: ['TPNC00001']}, {ma: 'NUCF00003', sl: 1, tc: {}}, {ma: 'NUTR00040', sl: 1, tc: {}}]);
+  la('bảng thuần: tối đa 5 topping', (() => { kho.goiBan.moBangChon(dungQuayHien(kho.S, G, t).mon.find(m => m.ma === 'NUTR00031')); ['a', 'b', 'c', 'd', 'e', 'f'].forEach(x => kho.goiBan.chonTp(x)); return Object.keys(G.chon.tp).length; })(), 5);
+});
+
+await ca('v639 chuông gọi nhân viên: chọn lý do một chạm, Việc khác có ô chữ, gửi đúng điểm bàn khoá nonce lý do; xong hiện giờ báo; Xin tính tiền trong giỏ chọn sẵn lý do; máy chủ chặn thì nói lý do; ngoài giờ không mở', async () => {
+  const {goc, kho, vet} = await moTrang2();
+  dung('mở chuông', kho.goiBan.moChuong(''));
+  await cho();
+  dung('bảng chuông mở', String(theoId(goc, 'gbChuong').props.class).includes('open'));
+  la('năm lý do', tim(theoId(goc, 'gbChuong'), n => n.props['data-lydo']).map(n => n.props['data-lydo']), LY_DO_GOI);
+  dung('chưa chọn thì nút Báo quầy khoá', theoId(goc, 'gbChuongGui').props.disabled === true);
+  await bam(tim(goc, n => n.props['data-lydo'] === 'Việc khác')[0]);
+  dung('Việc khác có ô chữ', theoId(goc, 'gb-chuong-chi-tiet'));
+  go(theoId(goc, 'gb-chuong-chi-tiet'), 'xin thêm ghế em bé'); await cho();
+  await bam(theoId(goc, 'gbChuongGui'));
+  const gui = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.goi_nhan_vien');
+  la('gửi một lần', gui.length, 1);
+  la('thân gửi', [gui[0][2].diem, gui[0][2].ban, gui[0][2].k, gui[0][2].ly_do, gui[0][2].chi_tiet], ['TCV', 5, K, 'Việc khác', 'xin thêm ghế em bé']);
+  dung('nonce 32 ký tự', /^[A-Za-z0-9_-]{32}$/.test(gui[0][2].nonce));
+  dung('hiện đã báo', chu(theoId(goc, 'gbChuongXong')).includes('Đã báo quầy lúc 10:58. Nhân viên tới bàn 5'));
+  kho.goiBan.dongChuong(); await cho();
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00040'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGioTinhTien'));
+  la('giỏ đóng, chuông mở với lý do Xin tính tiền', [kho.goiBan.G.moGio, kho.goiBan.G.chuong.mo, kho.goiBan.G.chuong.lyDo], [false, true, 'Xin tính tiền']);
+});
+
+await ca('v639 chuông: máy chủ chặn thì giữ bảng và nói câu của máy chủ; ngoài giờ mở cửa không mở được chuông', async () => {
+  const {goc, kho} = await moTrang2({chuong: () => ({ok: 0, cau: 'Bàn này vừa gọi 3 lần. Nhân viên đang tới.'})});
+  kho.goiBan.moChuong('Xin thêm nước lọc, đá'); await cho();
+  await bam(theoId(goc, 'gbChuongGui'));
+  la('bị chặn, vẫn mở bảng, không "đã báo"', [kho.goiBan.G.chuong.mo, chu(theoId(goc, 'gbChuongLoi')), kho.goiBan.G.chuong.xong],
+    [true, 'Bàn này vừa gọi 3 lần. Nhân viên đang tới.', null]);
+  const {kho: k2} = await moTrang2({mo: {ok: 1, diem: 'TCV', ten: 'District 1', ban: 5, mo_cua: 0, gio: '7:00 - 22:00'}});
+  la('ngoài giờ', k2.goiBan.moChuong(''), false);
+});
+
+await ca('v639 không có mã QR: tab Tại quầy hiện banner nhắc quét mã, lưới thẻ như cũ; có mã thì không có banner', async () => {
+  const {goc} = await moTrang2({tim: ''});
+  dung('banner nhắc', chu(theoId(goc, 'gbNhacQr')).includes('Quét mã QR dán trên bàn'));
+  la('tên gộp size cả ở chế độ xem', chu(tim(goc, n => n.props['data-ma'] === 'NUTR00031')[0]).includes('Size M · L'), true);
+  const {goc: g2} = await moTrang2();
+  dung('có mã thì không banner', !theoId(g2, 'gbNhacQr'));
+});
+
+await ca('v639 nút nổi Gọi nhân viên nằm trong cụm kênh nối (dưới Nhắn Zalo), nâng theo thanh giỏ', async () => {
+  const bam2 = [];
+  const vn = KenhNoi.render.call({chuong: ly => bam2.push(ly), nang: 82, day: 0, mo: false, $refs: {}});
+  const con = (vn.children || []);
+  const nut = con.find(c => c && c.props && c.props.id === 'kenhChuong');
+  dung('có nút chuông', nut);
+  nut.props.onClick();
+  la('bấm mở chuông', bam2, ['']);
+  dung('nâng 82 + 16', String(vn.props.style).includes('calc(98px'));
+  const vn2 = KenhNoi.render.call({chuong: null, nang: 0, day: 0, mo: false, $refs: {}});
+  dung('không QR thì không nút', !(vn2.children || []).some(c => c && c.props && c.props.id === 'kenhChuong'));
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
