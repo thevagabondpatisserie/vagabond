@@ -926,6 +926,22 @@ def goi_nhan_vien(diem=None, ban=None, k=None, ly_do=None, chi_tiet="", nonce=No
 	bay = now_datetime()
 	if not _gio_mo_cua(d, bay).get("dang_mo"):
 		return {"ok": 0, "cau": "Quầy đang ngoài giờ mở cửa."}
+	# Codex PR #542 vòng 1: hai khách cùng bàn bấm cùng lúc cùng đếm "2 lời" rồi
+	# cùng qua trần 3. Đếm, kiểm, ghi và commit chạy tuần tự theo bàn bằng khoá
+	# tên MariaDB, cùng cách khoá của đơn gọi món.
+	khoa = TEN_KHOA_CHUONG % (d["ma"], n)
+	if not _lay_khoa(khoa, 5):
+		return {"ok": 0, "cau": "Bàn này vừa bấm chuông. Quý khách đợi một chút rồi bấm lại."}
+	try:
+		return _goi_nhan_vien_trong_khoa(d, n, ly, chi_tiet, nonce, bay)
+	finally:
+		_nha_khoa(khoa)
+
+
+TEN_KHOA_CHUONG = "vgb_chuong:%s:%s"
+
+
+def _goi_nhan_vien_trong_khoa(d, n, ly, chi_tiet, nonce, bay):
 	moc = bay - timedelta(minutes=PHUT_DEM_GOI)
 	gan_day = frappe.get_all(DT_TG, filters={"diem": d["ma"], "ban": n, "luc": [">=", moc]}, pluck="name", limit_page_length=0)
 	if len(gan_day) >= GOI_TOI_DA_MOI_BAN:
@@ -945,6 +961,7 @@ def goi_nhan_vien(diem=None, ban=None, k=None, ly_do=None, chi_tiet="", nonce=No
 			raise
 		return {"ok": 1, "ma": cu, "lap_lai": 1}
 	_bao_tro_giup(doc, d)
+	# Commit TRONG khoá: luồng sau vào đếm phải thấy lời này.
 	frappe.db.commit()
 	return {"ok": 1, "ma": doc.name, "luc": bay.strftime("%H:%M")}
 
