@@ -17914,7 +17914,9 @@ var POS_TC = null, POS_TC_MON = {}, POS_TC_QUAY = null;
    moi quay mot menu. Moi nhom chon MOT muc; muc mac dinh ("Binh thuong")
    khong ghi len bill. THUAN: nhom tuy chon cua mot mon. */
 function posNhomTc(m, theoMon, chung) {
-  if (theoMon && theoMon[m.item_code]) return theoMon[m.item_code];
+  /* Có trong bảng theo món (kể cả danh sách rỗng: món chai, món tắt hết tuỳ chọn) thì
+     dùng đúng nó; chỉ món lạ mới rơi về theo nhóm gốc (Codex PR #543). */
+  if (theoMon && Object.prototype.hasOwnProperty.call(theoMon, m.item_code)) return theoMon[m.item_code] || [];
   return (chung || []).filter(function (n) { return !(n.nhom_mon || []).length || n.nhom_mon.indexOf(m.nhom || '') >= 0; });
 }
 /* THUAN: bam muc lc cua nhom n tren danh sach m.tc -> danh sach moi. Moi nhom
@@ -68740,8 +68742,8 @@ async function hhgtDoi(ma) {
    Giá chỉ xem: sửa giá ở danh mục, Bảng giá điểm bán (anh Việt chốt).
    Máy chủ: vagabond/bien_tap_menu.py. */
 
-var BTM = null, BTM_DIEM = '', BTM_TAB = 'thu_tu', BTM_NHOM = '', BTM_MON = '';
-var BTM_HEN = null, BTM_CHO_LUU = 0;
+var BTM = null, BTM_DIEM = '', BTM_TAB = 'thu_tu', BTM_NHOM = '', BTM_MON = '', BTM_TIM = '';
+var BTM_HEN = null, BTM_CHO_LUU = 0, BTM_DANG_LUU = null;
 var BTM_TAB_DS = [['thu_tu', 'Thứ tự'], ['tuy_chon', 'Tuỳ chọn'], ['topping', 'Topping']];
 
 function coQuyenBtm() { return coQuyenGmbQr(); }
@@ -68803,18 +68805,35 @@ function btmDoi(veLai) {
   btmBang();
   if (veLai !== false && BTM.ve) BTM.ve();
 }
-async function btmLuu() {
+function btmLuu() {
   BTM_HEN = null;
-  if (!BTM) return;
-  var dot = BTM_CHO_LUU;
-  try {
-    var kq = await api('vagabond.bien_tap_menu.luu_nhap', { diem: BTM.d.diem, noi_dung: JSON.stringify(BTM.d.nhap) });
-    if (dot === BTM_CHO_LUU) { BTM.d.thay_doi = kq.thay_doi || []; BTM.loi = ''; BTM_CHO_LUU = 0; }
-  } catch (e) {
-    BTM.loi = (e && e.message) || 'Chưa lưu được bản nháp. Kiểm tra mạng rồi sửa lại một chỗ bất kỳ.';
-    toast(BTM.loi, 6000);
+  if (!BTM) return Promise.resolve();
+  var dot = BTM_CHO_LUU, bt = BTM;
+  var p = (async function () {
+    try {
+      var kq = await api('vagabond.bien_tap_menu.luu_nhap', { diem: bt.d.diem, noi_dung: JSON.stringify(bt.d.nhap) });
+      if (dot === BTM_CHO_LUU) { bt.d.thay_doi = kq.thay_doi || []; bt.loi = ''; BTM_CHO_LUU = 0; }
+    } catch (e) {
+      bt.loi = (e && e.message) || 'Chưa lưu được bản nháp. Kiểm tra mạng rồi sửa lại một chỗ bất kỳ.';
+      toast(bt.loi, 6000);
+    }
+    btmBang();
+  })();
+  BTM_DANG_LUU = p;
+  p.then(function () { if (BTM_DANG_LUU === p) BTM_DANG_LUU = null; });
+  return p;
+}
+/* Chờ mọi lần lưu nháp xong: lần đang hẹn giờ thì gửi ngay, lần đã gửi mà máy
+   chủ chưa trả lời thì đợi (Codex PR #543: trước đây màn Xem chỉ xét lần đang
+   hẹn giờ, nên dựng với số thay đổi cũ hoặc xuất bản bản nháp cũ). Trả true khi
+   bản nháp trên máy chủ đã khớp màn hình. */
+async function btmChoLuu() {
+  for (var i = 0; i < 6; i++) {
+    if (BTM_HEN) { clearTimeout(BTM_HEN); await btmLuu(); continue; }
+    if (BTM_DANG_LUU) { await BTM_DANG_LUU; continue; }
+    break;
   }
-  btmBang();
+  return !BTM_HEN && !BTM_DANG_LUU && !!BTM && !BTM.loi;
 }
 /* Thanh vàng "Bản nháp" vẽ lại tại chỗ, không vẽ lại cả màn (giữ con trỏ trong ô đang gõ). */
 function btmBangHtml() {
@@ -68839,6 +68858,9 @@ function btmBang() {
 /* ---------- kéo thả: giữ ≡ rồi kéo, dòng nổi lên, thả là đổi thứ tự ---------- */
 function btmGanKeo(goc, chonHang, xong) {
   goc.addEventListener('pointerdown', function (e) {
+    /* Đang lọc bằng ô tìm thì không kéo: thứ tự các dòng đang thấy không phải
+       thứ tự thật của nhóm (Codex PR #543). */
+    if (goc.getAttribute('data-dang-loc')) return;
     var hd = e.target && e.target.closest && e.target.closest('[data-keo]'); if (!hd) return;
     var hang = hd.closest(chonHang); if (!hang) return;
     var ds = Array.prototype.slice.call(goc.querySelectorAll(chonHang));
@@ -68891,7 +68913,7 @@ async function scrBienTapMenu() {
   btmVe();
 }
 async function btmDoiDiem(ma) {
-  if (BTM_HEN) { clearTimeout(BTM_HEN); await btmLuu(); }
+  await btmChoLuu();
   BTM_DIEM = ma; BTM = null;
   return scrBienTapMenu();
 }
@@ -68983,7 +69005,7 @@ async function btmBamChinh(e) {
   if ((x = t.closest('[data-btmdiem]'))) { if (x.getAttribute('data-btmdiem') !== d.diem) await btmDoiDiem(x.getAttribute('data-btmdiem')); return; }
   if ((x = t.closest('[data-btmtab]'))) { BTM_TAB = x.getAttribute('data-btmtab'); return btmVe(); }
   if ((x = t.closest('[data-btmhien]'))) { var g = btmNhom(x.getAttribute('data-btmhien')); if (g) { g.hien = g.hien ? 0 : 1; btmDoi(); } return; }
-  if ((x = t.closest('[data-btmnhom]'))) { BTM_NHOM = x.getAttribute('data-btmnhom'); return go(scrBtmNhom); }
+  if ((x = t.closest('[data-btmnhom]'))) { BTM_NHOM = x.getAttribute('data-btmnhom'); BTM_TIM = ''; return go(scrBtmNhom); }
   if (t.closest('[data-btmthemnhom]')) {
     var ten = await hoiChu('Thêm nhóm', 'Tên nhóm hiện trên web, ví dụ Trà sữa, Nước ép.', '', { bat_buoc: true });
     if (!ten) return;
@@ -69067,9 +69089,12 @@ function scrBtmNhom() {
   if (!g) { back(); return; }
   var an = BTM.d.nhap.an || (BTM.d.nhap.an = []);
   var html = btmBangHtml() + '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:10px">' +
-    '<div style="flex:1;font-size:13px;color:#6b7280;line-height:1.4">' + (g.mon || []).length + ' món · kéo ≡ để xếp thứ tự trên web</div>' +
+    '<div id="btmNhomGhi" style="flex:1;font-size:13px;color:#6b7280;line-height:1.4">' + (g.mon || []).length + ' món · kéo ≡ để xếp thứ tự trên web</div>' +
     '<button type="button" data-btmdoiten style="border:0;background:none;color:#0B7C93;font-weight:600;font-size:13.5px;min-height:44px;cursor:pointer">Đổi tên</button>' +
     ((g.mon || []).length ? '' : '<button type="button" data-btmxoanhom style="border:0;background:none;color:#b3261e;font-weight:600;font-size:13.5px;min-height:44px;cursor:pointer">Xoá nhóm</button>') + '</div>' +
+    /* Ô tìm nhanh đầu danh sách (AGENTS mục 2b.5): gõ tên hoặc mã, bỏ dấu. */
+    '<input class="tin" id="btmTimMon" type="search" autocomplete="off" enterkeyhint="search" placeholder="🔎 Tìm món theo tên hoặc mã" value="' + h(BTM_TIM) + '" style="margin:0 0 9px">' +
+    '<div id="btmTimTrong" style="display:none;font-size:12.5px;color:#b45309;padding:6px 2px 9px;line-height:1.55">Không có món nào khớp. Xoá bớt chữ rồi tìm lại.</div>' +
     '<div class="card" id="btmDsMon">';
   (g.mon || []).forEach(function (ma) {
     var m = btmMon(ma); if (!m) return;
@@ -69078,7 +69103,7 @@ function scrBtmNhom() {
     tc -= (rieng.tat_tc || []).length; tp -= (rieng.tat_tp || []).length;
     var tom = money(m.gia) + ' đ' + (m.khong_pha ? ' · đóng sẵn, không hỏi đá đường' : (' · ' + (tc > 0 ? tc + ' tuỳ chọn' : 'không tuỳ chọn') + ' · ' + (tp > 0 ? tp + ' topping' : 'không topping'))) +
       (m.ban_web ? '' : ' · tắt bán web hôm nay');
-    html += '<div data-btmhang data-ma="' + h(ma) + '" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f2f6;background:#fff">' + BTM_KEO +
+    html += '<div data-btmhang data-ma="' + h(ma) + '" data-btmtim="' + h(m.ten + ' ' + ma) + '" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f2f6;background:#fff">' + BTM_KEO +
       '<button type="button" data-btmmon="' + h(ma) + '" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;text-align:left;padding:4px 0;cursor:pointer">' +
       btmAnh(m.anh) + '<span style="flex:1;min-width:0"><b style="display:block;font-size:15px;color:#16181d">' + h(m.ten) + '</b><small style="display:block;font-size:12.5px;color:#8a8f9c;margin-top:2px;line-height:1.35">' + h(tom) + '</small></span></button>' +
       btmCongTac('data-btman="' + h(ma) + '"', an.indexOf(ma) < 0, 'Hiện ' + m.ten + ' trên web') + '</div>';
@@ -69088,7 +69113,7 @@ function scrBtmNhom() {
   if (cx.length) {
     html += '<div class="sec">Món mới chưa xếp · đang ẩn trên web</div><div class="card">' +
       cx.map(function (m) {
-        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #f0f2f6">' + btmAnh(m.anh) +
+        return '<div data-btmtim="' + h(m.ten + ' ' + m.ma) + '" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #f0f2f6">' + btmAnh(m.anh) +
           '<div style="flex:1;min-width:0"><b style="display:block;font-size:14.5px">' + h(m.ten) + '</b><small style="color:#8a8f9c;font-size:12.5px">' + money(m.gia) + ' đ' + (m.goc ? ' · ' + h(m.goc) : '') + '</small></div>' +
           '<button type="button" data-btmxep="' + h(m.ma) + '" style="flex:none;border:1.5px solid #7FE5F6;background:#E4F9FD;color:#0B7C93;font-weight:700;font-size:13px;border-radius:10px;padding:8px 10px;min-height:44px;cursor:pointer">Xếp vào ' + h(g.ten) + '</button></div>';
       }).join('') + '</div>';
@@ -69097,6 +69122,27 @@ function scrBtmNhom() {
   b.addEventListener('click', btmBamNhom);
   var ds = b.querySelector('#btmDsMon');
   if (ds) btmGanKeo(ds, '[data-btmhang]', function (tu, den) { g.mon = btmDoiCho(g.mon, tu, den); btmDoi(); });
+  var o = b.querySelector('#btmTimMon');
+  if (o) { o.addEventListener('input', function () { BTM_TIM = o.value; btmLocMon(b, g); }); btmLocMon(b, g); }
+}
+/* Lọc các dòng món (đã xếp và chưa xếp) theo ô tìm, không vẽ lại màn (giữ con
+   trỏ trong ô). Đang lọc thì ẩn tay cầm ≡ và khoá kéo thả. */
+function btmLocMon(b, g) {
+  var q = String(BTM_TIM || '').trim(), thay = 0;
+  [].slice.call(b.querySelectorAll('[data-btmtim]')).forEach(function (r) {
+    var hop = !q || vgbKhop(r.getAttribute('data-btmtim'), q);
+    r.style.display = hop ? 'flex' : 'none';
+    if (hop) thay++;
+  });
+  var ds = b.querySelector('#btmDsMon');
+  if (ds) {
+    if (q) ds.setAttribute('data-dang-loc', '1'); else ds.removeAttribute('data-dang-loc');
+    [].slice.call(ds.querySelectorAll('[data-keo]')).forEach(function (k) { k.style.visibility = q ? 'hidden' : ''; });
+  }
+  var ghi = b.querySelector('#btmNhomGhi');
+  if (ghi) ghi.textContent = (g.mon || []).length + ' món · ' + (q ? 'đang lọc, xoá ô tìm để kéo thả' : 'kéo ≡ để xếp thứ tự trên web');
+  var tr = b.querySelector('#btmTimTrong');
+  if (tr) tr.style.display = (q && !thay) ? '' : 'none';
 }
 async function btmBamNhom(e) {
   var t = e.target, g = btmNhom(BTM_NHOM), x;
@@ -69204,7 +69250,8 @@ function btmBamMon(e) {
 /* ---------- xem và xuất bản ---------- */
 async function scrBtmXuat() {
   if (!BTM) return scrBienTapMenu();
-  if (BTM_HEN) { clearTimeout(BTM_HEN); await btmLuu(); }
+  var daLuu = await btmChoLuu();
+  if (!BTM) return scrBienTapMenu();
   BTM.ve = scrBtmXuat;
   var d = BTM.d, nh = d.nhap, an = nh.an || [];
   var xem = nh.nhom.filter(function (g) { return g.hien; }).map(function (g) {
@@ -69216,7 +69263,10 @@ async function scrBtmXuat() {
       (mon.length > 3 ? '<div style="padding:2px 12px 8px;font-size:12px;color:rgba(255,255,255,.5)">và ' + (mon.length - 3) + ' món nữa</div>' : '<div style="height:6px"></div>');
   }).join('');
   var td = d.thay_doi || [];
-  var html = '<div class="sec">Trang bàn như khách sẽ thấy · ' + h(d.ten_diem) + '</div>' +
+  /* Bản nháp chưa lưu được lên máy chủ: không cho xuất bản (máy chủ chỉ có bản cũ). */
+  var choXuat = daLuu && td.length;
+  var html = (daLuu ? '' : '<div style="background:#fdecec;border:1px solid #f5c2c2;color:#9b1c1c;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13.5px;line-height:1.4">Bản nháp chưa lưu được nên chưa xuất bản được. Kiểm tra mạng, quay lại sửa một chỗ bất kỳ để lưu lại rồi mở màn này.</div>') +
+    '<div class="sec">Trang bàn như khách sẽ thấy · ' + h(d.ten_diem) + '</div>' +
     '<div style="background:#000;border-radius:16px;overflow:hidden;margin-bottom:12px;padding:4px 0">' + xem + '</div>' +
     '<div class="sec">' + (td.length ? td.length + ' thay đổi so với menu đang chạy' : 'Không có thay đổi nào') + '</div>' +
     '<div class="card">' + (td.length ? td.slice(0, 60).map(function (c) { return '<div style="padding:10px 12px;border-bottom:1px solid #f0f2f6;font-size:13.5px;line-height:1.4">' + h(c) + '</div>'; }).join('') +
@@ -69229,7 +69279,7 @@ async function scrBtmXuat() {
     }).join('') + '</div>';
   }
   var b = frame('Xem và xuất bản', html, { footer: '<div style="display:flex;gap:10px"><button class="btn gh" id="btmBoNhap" style="flex:1;margin:0"' + (td.length ? '' : ' disabled') + '>Bỏ bản nháp</button>' +
-    '<button class="btn" id="btmXuatBan" style="flex:2;margin:0"' + (td.length ? '' : ' disabled') + '>Xuất bản</button></div>' });
+    '<button class="btn" id="btmXuatBan" style="flex:2;margin:0"' + (choXuat ? '' : ' disabled') + '>Xuất bản</button></div>' });
   b.addEventListener('click', async function (e) {
     var x = e.target.closest('[data-btmkhoiphuc]'); if (!x) return;
     var p = +x.getAttribute('data-btmkhoiphuc');
@@ -69250,6 +69300,7 @@ async function scrBtmXuat() {
   };
   var xb = document.getElementById('btmXuatBan');
   if (xb) xb.onclick = async function () {
+    if (!(await btmChoLuu())) return toast('Bản nháp chưa lưu được nên chưa xuất bản. Kiểm tra mạng rồi thử lại.', 5000);
     if (!(await confirmSheet('Xuất bản menu', 'Trang gọi món tại bàn và màn Tính tiền của ' + d.ten_diem + ' đổi ngay theo bản nháp (' + td.length + ' thay đổi).', 'Xuất bản'))) return;
     busy(true);
     var kq;
