@@ -195,6 +195,9 @@ TIN = {
 		"Đơn sỉ đã chắc chắn làm (khách trả cuối kỳ, hoặc trả trước đã xong): mã đơn, ngày giao, món và số lượng.", "thong_bao", "san_xuat"),
 	"bep_lenh_sx_xuat_nvl": ("Bếp", "Lệnh sản xuất đã xuất nguyên liệu",
 		"Phiếu sản xuất vừa ghi sổ: thành phẩm và nguyên liệu đã trừ kho.", "thong_bao", "san_xuat"),
+	# v639 (anh Việt chọn 05/11/2026): kho nhận khai thiếu thì máy trả phần thiếu về kho bếp.
+	"bep_hang_tra_thieu": ("Bếp", "Hàng chuyển đi bị nhận thiếu, đã trả lại kho bếp",
+		"Cửa hàng khai nhận thiếu, máy đã lập phiếu trả phần thiếu về kho bếp; bếp kiểm lại, hỏng thì lập phiếu huỷ.", "canh_bao", "san_xuat"),
 	"bep_ycsx_moi": ("Bếp", "Yêu cầu sản xuất mới",
 		"Bộ phận vừa gửi yêu cầu sản xuất cho bếp: món, số lượng, ngày cần; cần trong hôm nay thì ghi GẤP.", "viec", "san_xuat"),
 	"bep_ycsx_huy": ("Bếp", "Yêu cầu sản xuất bị huỷ",
