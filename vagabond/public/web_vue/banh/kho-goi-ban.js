@@ -162,7 +162,7 @@ export function taoGoiBan(moiTruong, S) {
     ghiChu: '', ten: '', gt: '', gtHien: '',
     nonce: '', dangGui: false, loi: '',
     don: [],             // [{ma, token, tt}]
-    chuong: {mo: false, lyDo: '', chiTiet: '', dangGui: false, loi: '', xong: null, nonce: ''},
+    chuong: {mo: false, lyDo: '', chiTiet: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
   });
 
   const khoaLuu = () => (G.link ? 'vgb-goi-ban-' + G.link.diem + '-' + G.link.ban : '');
@@ -345,18 +345,25 @@ export function taoGoiBan(moiTruong, S) {
     if (cheDo.value !== 'goi') return false;
     const c = G.chuong;
     c.mo = true; c.loi = ''; c.lyDo = lyDo; c.chiTiet = ''; c.xong = null;
-    if (!c.nonce) c.nonce = T.taoNonce(ngauNhien);
     return true;
   }
   function dongChuong() { G.chuong.mo = false; }
+  /* Nonce gắn với NỘI DUNG (lý do + chi tiết): thử lại cùng nội dung sau khi mất mạng
+     thì giữ nonce để máy chủ gộp; đổi lý do thì nonce mới, máy chủ không trả nhầm
+     lời cũ (Codex PR #542 vòng 1). */
+  function nonceChuong(c) {
+    const nd = c.lyDo + '|' + String(c.chiTiet || '').trim().slice(0, 120);
+    if (!c.nonce || c.nonceNd !== nd) { c.nonce = T.taoNonce(ngauNhien); c.nonceNd = nd; }
+    return c.nonce;
+  }
   async function goiNhanVien(lyDo) {
     const c = G.chuong;
     if (c.dangGui || cheDo.value !== 'goi') return null;
     if (lyDo) c.lyDo = lyDo;
     if (!LY_DO_GOI.includes(c.lyDo)) { c.loi = t('goi_ban_chuong_chon', 'Quý khách chọn một lý do.'); return null; }
-    if (!c.nonce) c.nonce = T.taoNonce(ngauNhien);
+    const nonce = nonceChuong(c);
     c.dangGui = true; c.loi = '';
-    const than = {diem: G.ban.diem, ban: G.ban.ban, k: G.link.k, nonce: c.nonce, ly_do: c.lyDo, chi_tiet: String(c.chiTiet || '').trim().slice(0, 120)};
+    const than = {diem: G.ban.diem, ban: G.ban.ban, k: G.link.k, nonce, ly_do: c.lyDo, chi_tiet: String(c.chiTiet || '').trim().slice(0, 120)};
     let m = null;
     try { m = await ghi('vagabond.goi_mon_ban.goi_nhan_vien', than); } catch (e) { m = null; }
     c.dangGui = false;
@@ -365,7 +372,7 @@ export function taoGoiBan(moiTruong, S) {
       return m;
     }
     c.xong = {ma: m.ma, lyDo: c.lyDo, luc: m.luc || ''};
-    c.nonce = ''; c.chiTiet = '';
+    c.nonce = ''; c.nonceNd = ''; c.chiTiet = '';
     return m;
   }
 

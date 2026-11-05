@@ -10,22 +10,46 @@
 
    Mọi số đọc từ kho-goi-ban.js; không v-html. */
 import {t} from '../kho/chu.js';
-import {computed} from '../lib/vue.esm-browser.prod.js';
+import {computed, ref, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 import {AnhMon} from './thanh-phan.js';
 import {giaDong, LY_DO_GOI} from './kho-goi-ban.js';
 
 const X = '<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg>';
 
+/* Khối "đã gọi" là khối CHỈ ĐỂ ĐỌC, không được lấn chỗ khối để bấm (AGENTS.md
+   2b.17, Codex PR #542 vòng 1): thu về MỘT dòng đếm số đơn kèm trạng thái đơn
+   mới nhất, bấm mới mở chi tiết; nút Gọi thêm món đứng cùng dòng, trong màn
+   đầu. Đơn bị từ chối hoặc hết hạn thì tự mở chi tiết vì khách phải xử lý.
+   Dòng món của một đơn: hai món đầu rồi "và N nữa", không nối cả danh sách. */
+export const MON_HIEN_TOI_DA = 2;
+
 export const MAU_GOI_BAN = `
 <section class="wrap gb-don" id="gbDon" v-if="hien">
-  <h2 class="gb-tieu">{{ t('goi_ban_don_da_goi','Món đã gọi') }}</h2>
-  <div class="gb-the" v-for="d in donHien" :key="d.ma" :data-don="d.ma" :data-tt="d.trangThai">
-    <b>{{ d.cau }}</b>
-    <span v-if="d.mon">{{ d.mon }}</span>
+  <div class="gb-tom">
+    <button type="button" class="gb-tom-chu" id="gbDonXem" :aria-expanded="hienChiTiet ? 'true' : 'false'" @click="bat()">
+      <b>{{ t('goi_ban_da_goi_n','Đã gọi {n} đơn', {n: G.don.length}) }}</b>
+      <small>{{ ttMoi }}</small>
+      <span class="gb-tom-mo">{{ hienChiTiet ? t('goi_ban_thu_gon','Thu gọn') : t('goi_ban_xem_chi_tiet','Xem chi tiết') }}</span>
+    </button>
+    <button class="btn gb-them" id="gbGoiThem" v-if="gb.cheDo.value==='goi'" @click="goiThem()">{{ t('goi_ban_goi_them','Gọi thêm món') }}</button>
   </div>
-  <button class="btn gb-them" id="gbGoiThem" v-if="gb.cheDo.value==='goi'" @click="goiThem()">{{ t('goi_ban_goi_them','Gọi thêm món') }}</button>
+  <div class="gb-chi-tiet" id="gbDonChiTiet" v-if="hienChiTiet">
+    <div class="gb-the" v-for="d in donHien" :key="d.ma" :data-don="d.ma" :data-tt="d.trangThai">
+      <b>{{ d.cau }}</b>
+      <span v-if="d.mon">{{ d.mon }}</span>
+    </div>
+  </div>
 </section>`;
+
+const TT_CAN_XU_LY = ['Từ chối', 'Hết hạn'];
+
+/* Phép thuần: dòng món của một đơn, tối đa MON_HIEN_TOI_DA món rồi "và N nữa". */
+export function dongMonNgan(mon, tVa) {
+  const ds = (mon || []).map(x => x.sl + ' ' + x.ten + ((x.tc || []).length ? ' (' + x.tc.join(', ') + ')' : ''));
+  if (ds.length <= MON_HIEN_TOI_DA) return ds.join(', ');
+  return ds.slice(0, MON_HIEN_TOI_DA).join(', ') + ' ' + tVa(ds.length - MON_HIEN_TOI_DA);
+}
 
 export const GoiTaiBan = {
   name: 'GoiTaiBan',
@@ -34,16 +58,23 @@ export const GoiTaiBan = {
   setup(props) {
     const gb = props.kho.goiBan;
     const G = gb.G;
+    const mo = ref(null); /* null: tự theo trạng thái; true/false: khách đã bấm */
     function goiThem() {
       try { const n = document.getElementById('gbTim'); if (n && n.scrollIntoView) n.scrollIntoView({block: 'start', behavior: 'smooth'}); } catch (e) { /* node */ }
     }
+    function bat() { mo.value = !hienChiTiet.value; }
     /* Biểu thức có && để ngoài khuôn: bộ dịch khuôn của Vue giải mã thực thể
        HTML khi gặp dấu & và cần DOM, bộ kiểm node không có. */
     const hien = computed(() => props.tab === 'store' && G.don.length > 0);
+    const canXuLy = computed(() => G.don.some(d => TT_CAN_XU_LY.includes((d.tt && d.tt.trang_thai) || '')));
+    const hienChiTiet = computed(() => (mo.value === null ? canXuLy.value : mo.value));
+    /* Có đơn mới bị từ chối hoặc hết hạn sau khi khách đã gập: mở lại cho khách thấy. */
+    watch(canXuLy, (moi, cu) => { if (moi && !cu) mo.value = null; });
+    const ttMoi = computed(() => (G.don.length ? gb.cauDon(G.don[G.don.length - 1]) : ''));
     const donHien = computed(() => G.don.slice().reverse().map(d => ({
       ma: d.ma, cau: gb.cauDon(d), trangThai: (d.tt && d.tt.trang_thai) || 'Chờ nhận',
-      mon: ((d.tt && d.tt.mon) || []).map(x => x.sl + ' ' + x.ten + ((x.tc || []).length ? ' (' + x.tc.join(', ') + ')' : '')).join(' · ')})));
-    return {gb, G, t, goiThem, donHien, hien};
+      mon: dongMonNgan((d.tt && d.tt.mon) || [], n => t('goi_ban_va_nua', 'và {n} nữa', {n}))})));
+    return {gb, G, t, goiThem, bat, donHien, hien, hienChiTiet, ttMoi};
   }
 };
 

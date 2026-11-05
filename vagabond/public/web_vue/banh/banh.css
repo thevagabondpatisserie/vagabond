@@ -629,7 +629,15 @@ html body .ctr-h{font-family:var(--sans);font-size:13px;letter-spacing:.18em;tex
 .gb-dau b{display:block;color:var(--cyan);font-size:16px;font-weight:600;letter-spacing:.02em}
 .gb-dau span{display:block;color:var(--fog);font-size:13.5px;line-height:1.55;margin-top:4px}
 .gb-don{padding:6px 0 10px}
-.gb-tieu{font-family:var(--sans);font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--fog-2);font-weight:400;margin:0 0 10px}
+/* Dòng tóm tắt đơn đã gọi (AGENTS.md 2b.17): chữ bên trái bấm mở chi tiết, nút
+   Gọi thêm món bên phải, cả hai cao ít nhất 44px, nằm trong màn đầu ở 390px. */
+.gb-tom{display:flex;align-items:stretch;gap:10px;font-family:var(--sans)}
+.gb-tom-chu{flex:1;min-width:0;min-height:48px;text-align:left;padding:6px 0;background:none;border:0;color:var(--paper);cursor:pointer}
+.gb-tom-chu b{display:block;font-size:15px;font-weight:600}
+.gb-tom-chu small{display:block;font-size:13px;color:var(--fog);margin-top:2px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gb-tom-mo{display:inline-block;font-size:12px;color:var(--cyan);margin-top:4px;text-decoration:underline;text-underline-offset:3px}
+.gb-tom .gb-them{width:auto;margin-top:0;min-height:48px;padding:0 16px;white-space:nowrap;align-self:center}
+.gb-chi-tiet{margin-top:10px}
 .gb-the{border:1px solid var(--line);padding:11px 13px;margin-bottom:8px;font-family:var(--sans)}
 .gb-the b{display:block;font-size:15px;font-weight:600;color:var(--paper)}
 .gb-the[data-tt="Đã nhận"] b{color:var(--cyan)}
@@ -668,7 +676,10 @@ html body .gb-sheet>.wrap:first-child{width:100%;max-width:560px;margin:0 auto;p
 .gb-dau.gb-nhac{border-color:rgba(219,126,42,.55);background:rgba(219,126,42,.08)}
 .gb-dau.gb-nhac b{color:var(--amber)}
 /* ô tìm món */
-.gb-tim{display:flex;align-items:center;gap:10px;margin:14px 0 4px;padding:0 14px;min-height:48px;border:1px solid var(--line);background:var(--bg-2)}
+/* scroll-margin-top: nút Gọi thêm món cuộn tới ô tìm; dải tab dính cao 49px
+   (đo Playwright 390x844 05/11/2026), không chừa thì ô tìm chui dưới dải tab. */
+.gb-tim{display:flex;align-items:center;gap:10px;margin:14px 0 4px;padding:0 14px;min-height:48px;border:1px solid var(--line);background:var(--bg-2);scroll-margin-top:64px}
+.gb-don{scroll-margin-top:64px}
 .gb-tim svg{width:18px;height:18px;flex:none;stroke:var(--fog);fill:none;stroke-width:2;stroke-linecap:round}
 .gb-tim input{flex:1;min-width:0;min-height:46px;background:none;border:0;color:var(--paper);font:15px var(--sans);outline:none}
 .gb-tim input::placeholder{color:var(--fog-2)}
