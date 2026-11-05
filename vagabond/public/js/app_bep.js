@@ -68808,8 +68808,13 @@ function btmDoi(veLai) {
 function btmLuu() {
   BTM_HEN = null;
   if (!BTM) return Promise.resolve();
-  var dot = BTM_CHO_LUU, bt = BTM;
-  var p = (async function () {
+  var bt = BTM;
+  /* TUẦN TỰ: lần lưu sau chỉ gửi khi lần trước đã xong, và gửi nội dung MỚI NHẤT lúc
+     đó. Máy chủ ghi nguyên bản nháp không kiểm phiên, nên hai lần chạy song song có
+     thể để lần cũ về sau ghi đè bản mới (Codex PR #543 vòng 2). */
+  var truoc = BTM_DANG_LUU || Promise.resolve();
+  var p = truoc.then(async function () {
+    var dot = BTM_CHO_LUU;
     try {
       var kq = await api('vagabond.bien_tap_menu.luu_nhap', { diem: bt.d.diem, noi_dung: JSON.stringify(bt.d.nhap) });
       if (dot === BTM_CHO_LUU) { bt.d.thay_doi = kq.thay_doi || []; bt.loi = ''; BTM_CHO_LUU = 0; }
@@ -68818,7 +68823,7 @@ function btmLuu() {
       toast(bt.loi, 6000);
     }
     btmBang();
-  })();
+  });
   BTM_DANG_LUU = p;
   p.then(function () { if (BTM_DANG_LUU === p) BTM_DANG_LUU = null; });
   return p;
