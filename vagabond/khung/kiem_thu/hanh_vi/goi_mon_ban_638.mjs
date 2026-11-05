@@ -205,8 +205,47 @@ await ca('Giỏ và gọi món: ghi chú, tên, mã giới thiệu (rời ô h�
   await chayHen();
   la('hỏi trạng thái bằng mã và khoá khách', vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').map(x => x[2]).slice(-1),
     [{ma: 'TQ-261104-0001', token: 'a'.repeat(32)}]);
-  dung('đã nhận lúc ... đang pha chế', chu(theoId(goc, 'gbDon')).includes('Đã nhận lúc 10:02, đang pha chế'));
-  dung('dòng món của đơn', chu(theoId(goc, 'gbDon')).includes('2 Trà Hoa Lài (Ít đá)'));
+  dung('đã nhận lúc ... đang pha chế (ngay trên dòng tóm tắt)', chu(theoId(goc, 'gbDon')).includes('Đã nhận lúc 10:02, đang pha chế'));
+  dung('đơn đã nhận: chi tiết còn gập', !theoId(goc, 'gbDonChiTiet'));
+  await bam(theoId(goc, 'gbDonXem'));
+  dung('dòng món của đơn sau khi mở', chu(theoId(goc, 'gbDon')).includes('2 Trà Hoa Lài (Ít đá)'));
+});
+
+await ca('Codex PR #542 vòng 1 (AGENTS.md 2b.17): khối đã gọi thu thành một dòng đếm số kèm trạng thái đơn mới nhất, nút Gọi thêm đứng trước chi tiết; đơn bị từ chối tự mở; dòng món hai món đầu rồi "và N nữa"', async () => {
+  let lan = 0;
+  const TT = {};
+  const {goc, kho, chayHen} = await moTrang({
+    goi: () => ({ok: 1, ma: 'TQ-' + (++lan), token: String(lan).repeat(32)}),
+    tt: th => TT[th.ma] || {ok: 1, trang_thai: 'Chờ nhận', mon: []}});
+  for (let i = 0; i < 3; i++) {
+    await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUIC00002'));
+    await bam(theoId(goc, 'gbXemGio'));
+    await bam(theoId(goc, 'gbGoi'));
+  }
+  la('ba đơn', kho.goiBan.G.don.length, 3);
+  const don = theoId(goc, 'gbDon');
+  dung('một dòng đếm số', chu(theoId(goc, 'gbDonXem')).includes('Đã gọi 3 đơn'));
+  dung('kèm trạng thái đơn mới nhất', chu(theoId(goc, 'gbDonXem')).includes('Chờ quầy nhận'));
+  dung('chưa có thẻ đơn nào khi gập', !theoId(goc, 'gbDonChiTiet') && tim(don, n => n.props && n.props['data-don']).length === 0);
+  dung('nhãn mở là Xem chi tiết', chu(theoId(goc, 'gbDonXem')).includes('Xem chi tiết'));
+  /* nút Gọi thêm nằm TRƯỚC chi tiết trong cây, cùng dòng tóm tắt */
+  const tom = tim(don, n => n.props && n.props.class === 'gb-tom')[0];
+  dung('Gọi thêm nằm trong dòng tóm tắt', tom && tim(tom, n => n.props && n.props.id === 'gbGoiThem').length === 1);
+  await bam(theoId(goc, 'gbDonXem'));
+  la('mở ra đủ ba thẻ, mới nhất trước', tim(theoId(goc, 'gbDonChiTiet'), n => n.props && n.props['data-don']).map(n => n.props['data-don']), ['TQ-3', 'TQ-2', 'TQ-1']);
+  dung('nhãn đổi thành Thu gọn', chu(theoId(goc, 'gbDonXem')).includes('Thu gọn'));
+  await bam(theoId(goc, 'gbDonXem'));
+  dung('gập lại được', !theoId(goc, 'gbDonChiTiet'));
+  /* đơn giữa bị từ chối: khách phải xử lý nên tự mở, dù đơn mới nhất vẫn chờ */
+  TT['TQ-2'] = {ok: 1, trang_thai: 'Từ chối', ly_do: 'Hết Trà Hoa Lài', mon: []};
+  TT['TQ-3'] = {ok: 1, trang_thai: 'Đã nhận', nhan_luc: '10:05', mon: [
+    {ten: 'Trà Hoa Lài', sl: 2, tc: ['Ít đá']}, {ten: 'Cà Phê Sữa', sl: 1, tc: []}, {ten: 'Matcha Latte', sl: 1, tc: ['Ít ngọt']}, {ten: 'Bánh Mì', sl: 3, tc: []}]};
+  await chayHen();
+  dung('tự mở khi có đơn từ chối', !!theoId(goc, 'gbDonChiTiet'));
+  dung('thẻ từ chối ghi lý do', chu(theoId(goc, 'gbDon')).includes('Quầy từ chối: Hết Trà Hoa Lài'));
+  const the3 = tim(theoId(goc, 'gbDonChiTiet'), n => n.props && n.props['data-don'] === 'TQ-3')[0];
+  la('dòng món: hai món đầu rồi và N nữa', chu(tim(the3, n => n.the === 'span')[0]), '2 Trà Hoa Lài (Ít đá), 1 Cà Phê Sữa và 2 nữa');
+  dung('không nối cả bốn món', !chu(the3).includes('Matcha'));
 });
 
 await ca('Gọi thêm món: đơn mới là lần gửi mới (nonce khác); quầy bận hết hạn thì báo nhắn nhân viên; máy chủ chặn thì giữ giỏ và nói lý do', async () => {
@@ -404,6 +443,29 @@ await ca('v639 nút nổi Gọi nhân viên nằm trong cụm kênh nối (dư�
   dung('nâng 82 + 16', String(vn.props.style).includes('calc(98px'));
   const vn2 = KenhNoi.render.call({chuong: null, nang: 0, day: 0, mo: false, $refs: {}});
   dung('không QR thì không nút', !(vn2.children || []).some(c => c && c.props && c.props.id === 'kenhChuong'));
+});
+
+await ca('Codex PR #542 vòng 1: gửi chuông mất phản hồi rồi khách đổi lý do: lần gửi mới phải mang nonce MỚI (máy chủ không trả nhầm lời cũ); thử lại cùng nội dung thì giữ nonce', async () => {
+  let lan = 0;
+  const {kho, vet} = await moTrang2({chuong: th => (++lan === 1 ? (() => { throw new Error('mất mạng'); })() : {ok: 1, ma: 'GNV-' + lan, luc: '10:5' + lan})});
+  kho.goiBan.moChuong('Gọi nhân viên tới bàn');
+  await kho.goiBan.goiNhanVien();
+  dung('lần đầu lỗi, chưa đã báo', !!kho.goiBan.G.chuong.loi && !kho.goiBan.G.chuong.xong);
+  kho.goiBan.dongChuong();
+  kho.goiBan.moChuong('Xin tính tiền');
+  await kho.goiBan.goiNhanVien();
+  const gui = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.goi_nhan_vien').map(x => x[2]);
+  la('hai lần gửi, hai lý do', gui.map(x => x.ly_do), ['Gọi nhân viên tới bàn', 'Xin tính tiền']);
+  dung('đổi lý do thì nonce khác', gui[0].nonce !== gui[1].nonce);
+  la('đã báo với đúng lý do', kho.goiBan.G.chuong.xong.lyDo, 'Xin tính tiền');
+  /* thử lại cùng nội dung sau khi lỗi: giữ nonce để máy chủ gộp */
+  lan = 0;
+  const m2 = await moTrang2({chuong: th => (++lan === 1 ? (() => { throw new Error('mất mạng'); })() : {ok: 1, ma: 'GNV-9', luc: '11:00'})});
+  m2.kho.goiBan.moChuong('Xin thêm nước lọc, đá');
+  await m2.kho.goiBan.goiNhanVien();
+  await m2.kho.goiBan.goiNhanVien();
+  const g2 = m2.vet.filter(x => x[1] === 'vagabond.goi_mon_ban.goi_nhan_vien').map(x => x[2]);
+  dung('cùng nội dung thì cùng nonce', g2.length === 2 && g2[0].nonce === g2[1].nonce);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
