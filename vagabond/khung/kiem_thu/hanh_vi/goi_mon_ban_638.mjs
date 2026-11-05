@@ -559,5 +559,18 @@ await ca('v640 Codex #543: đổi size thì đổi nhóm tuỳ chọn theo size;
   la('quay lại M: nhóm của M hiện lại, mặc định sáng sẵn', [nutTc('Đá=Bình thường') && nutTc('Đá=Bình thường').props['aria-pressed'], nutTc('Đường=Bình thường') && nutTc('Đường=Bình thường').props['aria-pressed']], ['true', 'true']);
 });
 
+/* Codex PR #543 vòng 2: menu có mặt nhưng RỖNG (quản lý tắt hết nhóm, kể cả Bánh
+   trên tủ) không được coi là máy chủ bản cũ; bánh đã tắt không hiện lại. */
+await ca('v640 Codex #543: menu rỗng thì không hiện món nào; menu không có nhóm Bánh thì bánh ẩn và đầu mục không đếm; máy chủ cũ không gửi menu thì như trước', async () => {
+  const quay = x => ({STORE: {quay: [Object.assign({ma: 'TCV', mon: [{ma: 'B1', ten: 'Canelé', gia: 65000, con: 5}],
+    do_uong: [{ma: 'N1', ten: 'Cà phê sữa', gia: 40000, nhom_hien: 'n-ca-phe', tc: [], tp: []}]}, x)]}, quayChon: 'TCV', timQuay: '', nhomQuay: ''});
+  const r0 = dungQuayHien(quay({nhom_menu: []}), null, t);
+  la('menu rỗng: không món, không đếm bánh', [r0.mon.map(m => m.ma), r0.tong, r0.soBanh], [[], 0, 0]);
+  const r1 = dungQuayHien(quay({nhom_menu: [{ma: 'n-ca-phe', ten: 'Cà phê', loai: 'nuoc'}]}), null, t);
+  la('tắt nhóm Bánh: chỉ cà phê', [r1.mon.map(m => m.ma), r1.tong, r1.nhom.map(n => n.n)], [['N1'], 0, ['', 'g:n-ca-phe']]);
+  const r2 = dungQuayHien(quay({}), null, t);
+  la('máy chủ cũ: bày như trước', [r2.mon.map(m => m.ma), r2.tong], [['B1', 'N1'], 5]);
+});
+
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
 if (hong) { console.log(loi.join('\n')); process.exit(1); }

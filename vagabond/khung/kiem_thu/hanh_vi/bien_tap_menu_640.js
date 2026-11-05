@@ -279,6 +279,29 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
   /* Codex PR #543 (AGENTS mục 2b.5): danh sách món trong nhóm phải có ô tìm nhanh. Gõ
      là lọc cả món đã xếp lẫn món chưa xếp, bỏ dấu, theo tên hoặc mã; đang lọc thì
      khoá kéo thả (thứ tự các dòng đang thấy không phải thứ tự thật của nhóm). */
+  /* Codex PR #543 vòng 2: hai lần lưu nối nhau, lần đầu chưa xong mà lần sau đã gửi;
+     máy chủ trả lần SAU trước. Không được báo "đã lưu" khi còn lần nào treo, và lần
+     cũ về sau không được ghi đè bản mới. Ca này nhả các lần treo theo thứ tự NGƯỢC. */
+  await ca('Hai lần lưu nháp nối nhau, máy chủ trả lần sau trước: chỉ báo đã lưu khi mọi lần xong, bản trên máy chủ là bản mới nhất, không bao giờ hai lần lưu cùng treo', async function () {
+    var m = await moMan({ giuLuu: true });
+    await bam(m, '[data-btmhien="n-ca-phe"]');
+    await cho(40);
+    await bam(m, '[data-btmhien="n-tra"]');
+    await cho(40);
+    var xong = null, toiDa = m.treo.length;
+    m.g.btmChoLuu().then(function (v) { xong = v; });
+    for (var i = 0; i < 6 && m.treo.length; i++) {
+      toiDa = Math.max(toiDa, m.treo.length);
+      m.treo.pop()();
+      await cho(40);
+      if (m.treo.length) dung('còn lần lưu treo mà đã báo xong', xong === null);
+    }
+    await cho(40);
+    bang('không bao giờ hai lần lưu cùng treo', toiDa, 1);
+    bang('báo đã lưu sau cùng', xong, true);
+    bang('máy chủ giữ bản mới nhất', m.may.nhap.nhom.filter(function (x) { return x.loai === 'nuoc'; }).map(function (x) { return [x.ma, x.hien]; }), [['n-tra', 0], ['n-ca-phe', 0]]);
+  });
+
   await ca('Ô tìm món trong nhóm: gõ tên không dấu hoặc mã là lọc cả món đã xếp và chưa xếp; không khớp thì báo; đang lọc thì khoá kéo thả; xoá chữ thì kéo lại được', async function () {
     var m = await moMan();
     await bam(m, '[data-btmnhom="n-tra"]');
