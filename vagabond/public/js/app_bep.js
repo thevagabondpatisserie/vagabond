@@ -56916,8 +56916,9 @@ async function scrNhanDcXacNhan(phieu) {
        bam vao day thi ton kho tu nan lai, va se khong bao ai nua. */
     '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;' +
     'padding:11px 13px;margin:12px 0;font-size:12.5px;color:#1e40af;line-height:1.6">' +
-    'ℹ️ Màn này <b>không sửa tồn kho</b>. Nó ghi lại số bạn đếm được thật, để ' +
-    'thủ kho đối chiếu xem hàng thiếu đi đâu. Sổ kho vẫn giữ nguyên số kho giao.</div>' +
+    'ℹ️ Số kho giao đã vào sổ kho của bạn. Gõ số bạn đếm được thật: nếu <b>thiếu</b>, máy ' +
+    'tự lập phiếu trả phần thiếu về lại kho đi và báo nhóm Zalo bên đó kiểm lại; bạn không phải ' +
+    'làm gì thêm. Thừa thì chỉ ghi lại để thủ kho đối chiếu.</div>' +
 
     '<div class="vxl">Số bạn đếm được (máy điền sẵn theo số kho giao)</div>' +
     '<div id="ndcDong">' + rowsHtml() + '</div>' +
@@ -56953,8 +56954,8 @@ async function scrNhanDcXacNhan(phieu) {
       return Math.abs(Number(x.giao) - Number(x.nhan)) > 0.0001;
     });
     var cau = lech.length
-      ? 'Bạn khai NHẬN THIẾU ở ' + lech.length + ' món.\n\nPhần thiếu sẽ treo thành ' +
-        'việc cần làm cho thủ kho đối chiếu. Tồn kho không đổi.'
+      ? 'Bạn khai NHẬN THIẾU ở ' + lech.length + ' món.\n\nMáy sẽ lập phiếu trả phần thiếu ' +
+        'về lại kho đi và báo bên đó kiểm lại. Phần thừa (nếu có) chỉ ghi lại cho thủ kho.'
       : 'Bạn khai ĐÃ NHẬN ĐỦ toàn bộ phiếu này.';
     if (!await xacNhan(cau, 'Xác nhận nhận hàng', 'Xác nhận')) return;
     this.disabled = true;
@@ -56963,7 +56964,11 @@ async function scrNhanDcXacNhan(phieu) {
         phieu: NDC.phieu, ghi_chu: NDC.ghiChu,
         dong: JSON.stringify(NDC.dong.map(function (x) { return { ma: x.ma, nhan: x.nhan }; }))
       });
-      toast(r.trang_thai + (r.cau_lech ? ': ' + r.cau_lech : ''), 5000);
+      /* v639: phan thieu da tu tra ve kho di; tra hong thi noi ro la treo viec cho thu kho. */
+      var cau = r.trang_thai + (r.cau_lech ? ': ' + r.cau_lech : '');
+      if (r.phieu_tra) cau += '. ' + r.cau_tra + ', đã báo bên đó kiểm lại.';
+      else if (r.loi_tra) cau += '. Chưa lập được phiếu trả phần thiếu (' + r.loi_tra + '), đã treo việc cho thủ kho đối chiếu.';
+      toast(cau, r.phieu_tra || r.loi_tra ? 9000 : 5000);
       go(scrHangVeKho, true);
     } catch (e) {
       this.disabled = false;

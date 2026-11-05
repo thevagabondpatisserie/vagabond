@@ -111,6 +111,7 @@ var VGB_ZALO_TIN = {
 	bep_tkr_da_coc: ['Bếp', 'Đơn thiết kế riêng đã cọc, lên lịch bếp', 'Khách đã cọc bánh thiết kế riêng: tác phẩm, size, trang trí, ngày giờ cần bánh, ghi chú cho bếp.'],
 	bep_si_don: ['Bếp', 'Đơn sỉ web cần làm', 'Đơn sỉ đã chắc chắn làm (khách trả cuối kỳ, hoặc trả trước đã xong): mã đơn, ngày giao, món và số lượng.'],
 	bep_lenh_sx_xuat_nvl: ['Bếp', 'Lệnh sản xuất đã xuất nguyên liệu', 'Phiếu sản xuất vừa ghi sổ: thành phẩm và nguyên liệu đã trừ kho.'],
+	bep_hang_tra_thieu: ['Bếp', 'Hàng chuyển đi bị nhận thiếu, đã trả lại kho bếp', 'Cửa hàng khai nhận thiếu, máy đã lập phiếu trả phần thiếu về kho bếp; bếp kiểm lại, hỏng thì lập phiếu huỷ.'],
 	bep_ycsx_moi: ['Bếp', 'Yêu cầu sản xuất mới', 'Bộ phận vừa gửi yêu cầu sản xuất cho bếp: món, số lượng, ngày cần; cần trong hôm nay thì ghi GẤP.'],
 	bep_ycsx_huy: ['Bếp', 'Yêu cầu sản xuất bị huỷ', 'Yêu cầu sản xuất đã gửi bếp vừa bị huỷ, bếp bỏ khỏi kế hoạch.'],
 	bep_ycsx_ngay_mai: ['Bếp', 'Tổng yêu cầu sản xuất cho ngày mai (20:30)', '20:30 mỗi tối, một tin mỗi bếp: cộng món và số lượng của các yêu cầu cần ngày mai.'],
