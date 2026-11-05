@@ -335,4 +335,4 @@ def _feed():
 def _node():
 	r = subprocess.run(["node", str(GOC / "vagabond/khung/kiem_thu/hanh_vi/bien_tap_menu_640.js")], capture_output=True, text=True, timeout=120)
 	dung("node chạy được: " + (r.stdout[-1500:] + r.stderr[-800:]), r.returncode == 0)
-	dung("đủ số ca", "11 ca dat, 0 ca hong" in r.stdout)
+	dung("đủ số ca", "13 ca dat, 0 ca hong" in r.stdout)
