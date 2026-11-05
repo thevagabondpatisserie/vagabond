@@ -90,6 +90,7 @@ var VGB_ZALO_TIN = {
 	bh_ton_web_loi: ['Bán hàng, cửa hàng', 'Lỗi kiểm tồn khi khách đặt web', 'Phép kiểm tồn bánh lỗi lúc khách đặt; Sales kiểm lại tồn trước khi xác nhận.'],
 	bh_ahamove_huy: ['Bán hàng, cửa hàng', 'Tài xế Ahamove huỷ hoặc giao thất bại', 'Tài xế huỷ hoặc giao không được, vận đơn về Chờ giao để phân công lại.'],
 	bh_goi_mon_tai_ban: ['Bán hàng, cửa hàng', 'Khách gọi món tại bàn qua QR', 'Khách quét QR trên bàn và gọi món; quầy nhận đơn trên màn Tính tiền trong 10 phút.'],
+	bh_khach_can_tro_giup: ['Bán hàng, cửa hàng', 'Khách cần trợ giúp tại bàn', 'Khách bấm chuông trên trang bàn: gọi nhân viên, xin tính tiền, xin nước đá; quầy tới bàn rồi bấm Đã tới bàn.'],
 	bh_dat_ban: ['Bán hàng, cửa hàng', 'Đặt bàn mới', 'Khách vừa gửi yêu cầu đặt bàn, chờ cửa hàng xác nhận.'],
 	bh_dat_ban_xac_nhan: ['Bán hàng, cửa hàng', 'Đặt bàn đã xác nhận', 'Quản lý vừa xác nhận một đặt bàn: ngày giờ, tên, số điện thoại, số khách.'],
 	bh_dat_ban_huy: ['Bán hàng, cửa hàng', 'Đặt bàn đã huỷ', 'Quản lý vừa huỷ một đặt bàn, kèm lý do đã báo khách.'],
