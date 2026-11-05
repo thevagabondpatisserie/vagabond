@@ -163,13 +163,19 @@ export function dungQuayHien(S, G, t) {
   const nuoc = gomSize((chon.do_uong || []).map(m => ({...m, loai: 'nuoc'})));
   const tim = (S.timQuay || '').trim();
   let ds, nhom;
-  if (Array.isArray(chon.nhom_menu) && chon.nhom_menu.length) ({nhom, ds} = theoMenu(chon.nhom_menu, banh, nuoc, t));
+  /* Có trường nhom_menu (kể cả mảng RỖNG: quản lý tắt hết nhóm) là đi theo menu;
+     chỉ khi máy chủ bản cũ không gửi trường này mới bày kiểu cũ (Codex PR #543:
+     coi mảng rỗng là bản cũ thì bánh đã tắt hiện lại cùng nút gọi món). */
+  const coMenu = Array.isArray(chon.nhom_menu);
+  if (coMenu) ({nhom, ds} = theoMenu(chon.nhom_menu, banh, nuoc, t));
   else { ds = banh.concat(nuoc); nhom = chipNhom(banh, nuoc, t); }
+  /* Đầu mục "Còn N bánh" chỉ đếm bánh đang hiện theo menu. */
+  const banhHien = coMenu && !chon.nhom_menu.some(g => g.loai === 'banh') ? [] : banh;
   /* Chip đang chọn không còn món (đổi quầy, bán hết) thì coi như Tất cả. */
   const chip = nhom.some(n => n.n === S.nhomQuay) ? S.nhomQuay : '';
   const mon = ds.filter(m => thuocChip(m, chip) && khopTim(m.ten, m.mo_ta, tim));
   const rong = mon.length ? '' : (tim ? 'tim' : 'het');
-  return {quay, chon, mon, tong: banh.reduce((a, m) => a + (m.con || 0), 0), soBanh: banh.length, nhom, chip, tim, rong,
+  return {quay, chon, mon, tong: banhHien.reduce((a, m) => a + (m.con || 0), 0), soBanh: banhHien.length, nhom, chip, tim, rong,
     topping: chon.topping || []};
 }
 
