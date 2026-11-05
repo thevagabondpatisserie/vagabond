@@ -12,13 +12,17 @@
       Thu tiền, chốt, ghi sổ đi luồng tạm tính có sẵn, không có nút mới.
    2. Màn "In QR tại bàn": chọn điểm có quầy, chọn khoảng bàn, in khổ A6 mỗi
       tờ một bàn. Quyền: quản lý cửa hàng, Giám đốc (máy chủ chặn thật,
-      goi_mon_ban.QUYEN_IN_QR; danh sách dưới chỉ để ẩn ô menu, phải trùng). */
+      goi_mon_ban.QUYEN_IN_QR; danh sách dưới chỉ để ẩn ô menu, phải trùng).
+   3. v639 (anh Việt duyệt mẫu 05/11/2026): khách bấm chuông Gọi nhân viên trên
+      trang bàn thì dem_cho trả thêm `tro_giup`; dải chờ ghi "M bàn cần trợ
+      giúp", thẻ đỏ đứng trước các đơn, nút "Đã tới bàn" gọi
+      goi_mon_ban.xong_tro_giup; khách xin tính tiền thì có nút mở bill của bàn. */
 var QUYEN_GMB_QR = ['System Manager', 'Giám đốc', 'VGB - Quản lý cửa hàng'];
 function coQuyenGmbQr() {
   return QUYEN_GMB_QR.some(function (v) { return hasRole(v); });
 }
 
-var GMB_NHIP = null, GMB_DIEM = '', GMB_DS = [], GMB_LY_DO = [], GMB_DA_THAY = {}, GMB_LUC = 0;
+var GMB_NHIP = null, GMB_DIEM = '', GMB_DS = [], GMB_TG = [], GMB_LY_DO = [], GMB_DA_THAY = {}, GMB_LUC = 0;
 var GMB_HOI_MOI = 15000;
 var GMB_KHOA_CHUONG = 'vgb_gmb_chuong';
 
@@ -71,9 +75,10 @@ async function gmbHoi() {
   try { kq = await api('vagabond.goi_mon_ban.dem_cho', { diem: GMB_DIEM }); } catch (e) { return; }
   GMB_LUC = Date.now();
   GMB_DS = (kq && kq.ds) || [];
+  GMB_TG = (kq && kq.tro_giup) || [];
   GMB_LY_DO = (kq && kq.ly_do) || [];
-  var moi = GMB_DS.some(function (x) { return !GMB_DA_THAY[x.ma]; });
-  GMB_DS.forEach(function (x) { GMB_DA_THAY[x.ma] = 1; });
+  var moi = GMB_DS.concat(GMB_TG).some(function (x) { return !GMB_DA_THAY[x.ma]; });
+  GMB_DS.concat(GMB_TG).forEach(function (x) { GMB_DA_THAY[x.ma] = 1; });
   gmbVeDai();
   if (moi && gmbChuongBat()) gmbKeu();
 }
@@ -81,20 +86,60 @@ async function gmbHoi() {
 function gmbVeDai() {
   var dai = document.getElementById('gmbDai');
   if (!dai) return;
-  if (!GMB_DS.length) { dai.innerHTML = ''; return; }
+  if (!GMB_DS.length && !GMB_TG.length) { dai.innerHTML = ''; return; }
   var ban = GMB_DS.map(function (x) { return 'Bàn ' + x.ban; });
   var phu = ban.slice(0, 4).join(', ') + (ban.length > 4 ? ' và ' + (ban.length - 4) + ' bàn nữa' : '');
+  var tg = GMB_TG.map(function (x) { return 'Bàn ' + x.ban + ' ' + gmbLyDoNgan(x.ly_do); });
+  var dong1 = (GMB_DS.length ? GMB_DS.length + ' đơn gọi món tại bàn đang chờ nhận' : '') +
+    (GMB_DS.length && GMB_TG.length ? ' · ' : '') + (GMB_TG.length ? GMB_TG.length + ' bàn cần trợ giúp' : '');
+  var dong2 = (GMB_DS.length ? phu : '') + (GMB_DS.length && GMB_TG.length ? ' · ' : '') + tg.slice(0, 3).join(', ') +
+    (tg.length > 3 ? ' và ' + (tg.length - 3) + ' bàn nữa' : '');
   var bat = gmbChuongBat();
-  dai.innerHTML = '<div class="card" style="padding:11px 13px;background:#fff7ed;border:1.5px solid #fdba74;display:flex;flex-direction:row;align-items:center;gap:10px">' +
-    '<button data-gmbmo="1" style="flex:1;min-width:0;text-align:left;background:none;border:0;padding:4px 0;min-height:44px;cursor:pointer;color:#9a3412">' +
-    '<div style="font-weight:800;font-size:15px">🔔 ' + GMB_DS.length + ' đơn gọi món tại bàn đang chờ nhận</div>' +
-    '<div style="font-size:13px;margin-top:2px">' + h(phu) + ' · bấm để xem và nhận</div></button>' +
+  var mau = GMB_TG.length ? 'background:#fef2f2;border:1.5px solid #fca5a5' : 'background:#fff7ed;border:1.5px solid #fdba74';
+  var chu = GMB_TG.length ? '#991b1b' : '#9a3412';
+  dai.innerHTML = '<div class="card" style="padding:11px 13px;' + mau + ';display:flex;flex-direction:row;align-items:center;gap:10px">' +
+    '<button data-gmbmo="1" style="flex:1;min-width:0;text-align:left;background:none;border:0;padding:4px 0;min-height:44px;cursor:pointer;color:' + chu + '">' +
+    '<div style="font-weight:800;font-size:15px">🔔 ' + h(dong1) + '</div>' +
+    '<div style="font-size:13px;margin-top:2px">' + h(dong2) + ' · bấm để xem</div></button>' +
     '<button data-gmbchuong="1" aria-label="' + (bat ? 'Tắt chuông' : 'Bật chuông') + '" style="flex:none;min-width:44px;min-height:44px;border:1px solid #fdba74;background:#fff;border-radius:10px;font-size:13px;color:#9a3412;cursor:pointer">' +
     (bat ? '🔔 Tắt chuông' : '🔕 Bật chuông') + '</button></div>';
   dai.onclick = function (e) {
     if (e.target.closest('[data-gmbchuong]')) { gmbDatChuong(!gmbChuongBat()); gmbVeDai(); return; }
     if (e.target.closest('[data-gmbmo]')) gmbMoDs();
   };
+}
+
+/* Lý do khách bấm chuông, rút gọn cho dải. */
+function gmbLyDoNgan(ly) {
+  return { 'Gọi nhân viên tới bàn': 'gọi nhân viên', 'Xin tính tiền': 'xin tính tiền', 'Xin thêm nước lọc, đá': 'xin nước, đá',
+    'Xin thêm dao, nĩa, khăn giấy': 'xin dao nĩa', 'Việc khác': 'cần hỗ trợ' }[ly] || 'cần hỗ trợ';
+}
+
+/* Thẻ "bàn cần trợ giúp" (v639): lý do, chữ khách nhắn, bill tạm tính nếu xin tính tiền. */
+function gmbTheTroGiup(x) {
+  return '<div class="card" data-gmbtg="' + h(x.ma) + '" style="padding:12px 13px;margin-bottom:10px;border:1.5px solid #fca5a5;background:#fff">' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
+    '<span style="background:#fee2e2;color:#991b1b;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:800;white-space:nowrap">BÀN ' + h(x.ban) + ' CẦN TRỢ GIÚP</span>' +
+    '<span style="font-size:12.5px;color:#6b7280;white-space:nowrap">' + (x.phut ? x.phut + ' phút trước' : 'vừa xong') + '</span></div>' +
+    '<div style="font-size:15px;font-weight:700;margin:8px 0 2px">' + h(x.ly_do) + '</div>' +
+    (x.chi_tiet ? '<div style="font-size:13.5px;background:#f8fafc;border-radius:8px;padding:7px 9px;margin-top:4px">💬 ' + h(x.chi_tiet) + '</div>' : '') +
+    (x.bill ? '<div style="font-size:13.5px;color:#475467;margin-top:6px">Bill tạm tính ' + h(x.bill) + (x.tam_tinh ? ' · ' + money(x.tam_tinh) + ' đ' : '') + '</div>'
+      : (x.ly_do === 'Xin tính tiền' ? '<div style="font-size:13.5px;color:#475467;margin-top:6px">Bàn này chưa có phiếu tạm tính hôm nay.</div>' : '')) +
+    '<div style="display:flex;gap:8px;margin-top:10px">' +
+    '<button class="btn" data-gmbxong="' + h(x.ma) + '" style="flex:1;margin-top:0;background:#1570ef">Đã tới bàn</button>' +
+    (x.hoa_don ? '<button class="btn gh" data-gmbbill="' + h(x.hoa_don) + '" style="flex:1;margin-top:0">Mở bill bàn ' + h(x.ban) + '</button>' : '') +
+    '</div></div>';
+}
+
+async function gmbXongTroGiup(ma, veLai) {
+  busy(true);
+  try { await api('vagabond.goi_mon_ban.xong_tro_giup', { ma: ma }); }
+  catch (e) { busy(false); return toast((e && e.message) || 'Chưa ghi được, thử lại.', 5000); }
+  busy(false);
+  GMB_TG = GMB_TG.filter(function (d) { return d.ma !== ma; });
+  gmbVeDai();
+  toast('Đã ghi: nhân viên đã tới bàn.');
+  if (veLai) veLai();
 }
 
 function gmbCoNuoc(x) {
@@ -126,8 +171,9 @@ function gmbMoDs() {
   function ve() {
     ov.innerHTML = '<div class="shb" style="padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:88vh;overflow:auto">' +
       '<div class="shh" style="padding:0 0 10px"><b>Gọi món tại bàn · ' + h((posQuay && (posQuay.ten_ngan || posQuay.ten)) || GMB_DIEM) + '</b><div class="x" data-gmbdong="1">&times;</div></div>' +
+      GMB_TG.map(gmbTheTroGiup).join('') +
       (GMB_DS.length ? GMB_DS.map(gmbThe).join('')
-        : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên màn Tính tiền.</div></div>') +
+        : (GMB_TG.length ? '' : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên màn Tính tiền.</div></div>')) +
       '</div>';
   }
   ve();
@@ -138,6 +184,10 @@ function gmbMoDs() {
     if (n) return gmbNhan(n.getAttribute('data-gmbnhan'), ov);
     var t = e.target.closest('[data-gmbtuchoi]');
     if (t) return gmbTuChoi(t.getAttribute('data-gmbtuchoi'), ov, ve);
+    var x = e.target.closest('[data-gmbxong]');
+    if (x) return gmbXongTroGiup(x.getAttribute('data-gmbxong'), ve);
+    var b = e.target.closest('[data-gmbbill]');
+    if (b) { ov.remove(); return go(function () { scrPosBill(b.getAttribute('data-gmbbill')); }); }
   };
 }
 
