@@ -97,7 +97,7 @@ export const MAU_GOI_BAN_NOI = `
           <div class="gb-nhom-dau"><h3>{{ t('goi_ban_size','Size') }}</h3><i>{{ t('goi_ban_chon_mot','chọn một') }}</i></div>
           <div class="gb-vien-ds"><button v-for="bt in G.chon.m.bienThe" :key="bt.ma" type="button" class="gb-vien" :class="{on: G.chon.bt.ma===bt.ma}" :data-size="bt.ma" :aria-pressed="String(G.chon.bt.ma===bt.ma)" @click="gb.chonBienThe(bt)">{{ bt.size || bt.ten }}<small>{{ tien(bt.gia) }}</small></button></div>
         </div>
-        <div class="gb-nhom" v-for="n in G.chon.m.tc" :key="n.nhom">
+        <div class="gb-nhom" v-for="n in G.chon.nhomTc" :key="n.nhom">
           <div class="gb-nhom-dau"><h3>{{ n.nhom }}</h3><i>{{ t('goi_ban_chon_mot','chọn một') }}</i></div>
           <div class="gb-vien-ds"><button v-for="lc in n.lua_chon" :key="lc" type="button" class="gb-vien" :class="{on: G.chon.tc[n.nhom]===lc}" :data-tc="n.nhom + '=' + lc" :aria-pressed="String(G.chon.tc[n.nhom]===lc)" @click="gb.chonTc(n.nhom, lc)">{{ lc }}</button></div>
         </div>

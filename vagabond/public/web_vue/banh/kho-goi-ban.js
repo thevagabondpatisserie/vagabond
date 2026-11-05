@@ -98,7 +98,7 @@ export function gomSize(ds) {
   const ra = [];
   for (const g of theoTen.values()) {
     g.ds.sort((a, b) => (THU_TU_SIZE[a.size] ?? 9) - (THU_TU_SIZE[b.size] ?? 9) || (Number(a.m.gia) || 0) - (Number(b.m.gia) || 0));
-    const bienThe = g.ds.map(x => ({ma: x.m.ma, size: x.size, gia: Number(x.m.gia) || 0, ten: x.m.ten, tp: x.m.tp}));
+    const bienThe = g.ds.map(x => ({ma: x.m.ma, size: x.size, gia: Number(x.m.gia) || 0, ten: x.m.ten, tp: x.m.tp, tc: x.m.tc}));
     const dau = g.ds[0].m;
     const gop = g.ds.length > 1;
     ra.push({...dau, ten: gop ? g.goc + (g.nong ? ' (nóng)' : '') : dau.ten, ma: dau.ma, gia: Math.min(...bienThe.map(b => b.gia)),
@@ -241,8 +241,11 @@ export function taoGoiBan(moiTruong, S) {
     const cho = (bt && Array.isArray(bt.tp)) ? bt.tp : m.tp;
     return Array.isArray(cho) ? toppingQuay().filter(x => cho.includes(x.ma)) : toppingQuay();
   };
+  /* Nhóm tuỳ chọn của đúng size đang chọn: quản lý có thể tắt riêng cho size L mà
+     giữ cho size M (Codex PR #543). Món không gộp size dùng tc của chính món. */
+  const tcCho = (m, bt) => ((bt && Array.isArray(bt.tc)) ? bt.tc : (m.tc || []));
   /* Mức mặc định của một nhóm tuỳ chọn ("Bình thường"): sáng sẵn, không ghi lên bill. */
-  const macDinh = (m, nhom) => (((m.tc || []).find(n => n.nhom === nhom) || {}).mac_dinh || '');
+  const macDinh = (m, nhom, bt) => ((tcCho(m, bt).find(n => n.nhom === nhom) || {}).mac_dinh || '');
   const coBangChon = m => m.loai === 'nuoc' && ((m.bienThe || []).length > 1 || (m.tc || []).length > 0 || toppingCho(m).length > 0);
   /* Bấm "+" trên dòng: đồ uống có size, đá đường hay topping thì mở bảng chọn, còn lại thêm luôn. */
   function bamThem(m) {
@@ -258,20 +261,30 @@ export function taoGoiBan(moiTruong, S) {
   }
   function moBangChon(m) {
     const bt = (m.bienThe || [])[0] || {ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten};
-    const tc = {};
-    (m.tc || []).forEach(n => { if (n.mac_dinh) tc[n.nhom] = n.mac_dinh; });
-    G.chon = {m, bt, tc, tp: {}, sl: 1, topping: toppingCho(m, bt)};
+    const tc = {}, nhomTc = tcCho(m, bt);
+    nhomTc.forEach(n => { if (n.mac_dinh) tc[n.nhom] = n.mac_dinh; });
+    G.chon = {m, bt, tc, nhomTc, tp: {}, sl: 1, topping: toppingCho(m, bt)};
   }
   function chonBienThe(bt) {
     if (!G.chon) return;
     G.chon.bt = bt;
+    /* Nhóm tuỳ chọn theo size mới: giữ mức đã chọn nếu size mới còn mức đó, nhóm
+       mới thì sáng mặc định, nhóm size mới không có thì bỏ hẳn. */
+    const nhomTc = tcCho(G.chon.m, bt), tc = {};
+    nhomTc.forEach(n => {
+      const cu = G.chon.tc[n.nhom];
+      if (cu && n.lua_chon.includes(cu)) tc[n.nhom] = cu;
+      else if (n.mac_dinh) tc[n.nhom] = n.mac_dinh;
+    });
+    G.chon.nhomTc = nhomTc;
+    G.chon.tc = tc;
     G.chon.topping = toppingCho(G.chon.m, bt);
     Object.keys(G.chon.tp).forEach(ma => { if (!G.chon.topping.some(x => x.ma === ma)) delete G.chon.tp[ma]; });
   }
   /* Mỗi nhóm chọn MỘT mức; bấm lại mức đang chọn thì về mặc định. */
   function chonTc(nhom, lc) {
     if (!G.chon) return;
-    const md = macDinh(G.chon.m, nhom);
+    const md = macDinh(G.chon.m, nhom, G.chon.bt);
     G.chon.tc[nhom] = G.chon.tc[nhom] === lc ? md : lc;
   }
   function chonTp(ma) {
@@ -296,11 +309,12 @@ export function taoGoiBan(moiTruong, S) {
     G.chon = null;
   }
   function them(m, tc, o = {}) {
-    const sach = {};
-    (m.tc || []).forEach(n => {
+    const bt = o.bt || (m.bienThe || [])[0] || {ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten};
+    /* Chỉ mang mức của nhóm mà ĐÚNG size này có (Codex PR #543). */
+    const nhomTc = tcCho(m, bt), sach = {};
+    nhomTc.forEach(n => {
       if (tc && tc[n.nhom] && n.lua_chon.includes(tc[n.nhom]) && tc[n.nhom] !== (n.mac_dinh || '')) sach[n.nhom] = tc[n.nhom];
     });
-    const bt = o.bt || (m.bienThe || [])[0] || {ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten};
     const chuaCo = toppingCho(m, bt);
     const tp = (o.tp || []).filter(x => chuaCo.some(y => y.ma === x.ma)).map(x => ({ma: x.ma, ten: x.ten, gia: Number(x.gia) || 0}));
     const sl = Math.max(1, Math.min(SL_TOI_DA, Number(o.sl) || 1));
@@ -308,7 +322,7 @@ export function taoGoiBan(moiTruong, S) {
     const cu = G.gio.find(x => x.khoa === k);
     const tenHien = m.ten + (bt.size ? ' (' + bt.size + ')' : '');
     if (cu) cu.sl = Math.min(SL_TOI_DA, cu.sl + sl);
-    else G.gio.push({khoa: k, ma: bt.ma, ten: tenHien, gia: Number(bt.gia) || 0, sl, tc: sach, tp, nhom: m.tc || [], loai: m.loai, con: m.con,
+    else G.gio.push({khoa: k, ma: bt.ma, ten: tenHien, gia: Number(bt.gia) || 0, sl, tc: sach, tp, nhom: nhomTc, loai: m.loai, con: m.con,
       anh: m.anh || ''});
     if (!G.nonce) G.nonce = T.taoNonce(ngauNhien);
     G.loi = '';
