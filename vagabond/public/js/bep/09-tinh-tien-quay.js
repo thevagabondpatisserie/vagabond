@@ -1724,7 +1724,9 @@ var POS_TC = null, POS_TC_MON = {}, POS_TC_QUAY = null;
    moi quay mot menu. Moi nhom chon MOT muc; muc mac dinh ("Binh thuong")
    khong ghi len bill. THUAN: nhom tuy chon cua mot mon. */
 function posNhomTc(m, theoMon, chung) {
-  if (theoMon && theoMon[m.item_code]) return theoMon[m.item_code];
+  /* Có trong bảng theo món (kể cả danh sách rỗng: món chai, món tắt hết tuỳ chọn) thì
+     dùng đúng nó; chỉ món lạ mới rơi về theo nhóm gốc (Codex PR #543). */
+  if (theoMon && Object.prototype.hasOwnProperty.call(theoMon, m.item_code)) return theoMon[m.item_code] || [];
   return (chung || []).filter(function (n) { return !(n.nhom_mon || []).length || n.nhom_mon.indexOf(m.nhom || '') >= 0; });
 }
 /* THUAN: bam muc lc cua nhom n tren danh sach m.tc -> danh sach moi. Moi nhom
