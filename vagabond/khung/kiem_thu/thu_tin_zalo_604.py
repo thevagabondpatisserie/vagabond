@@ -82,6 +82,8 @@ NOI_PHAT = {
 	("tin_kho.py", "_bao_ke_toan_gia_von_huy"): "kt_xuat_huy_gia_von",
 	("tin_kho.py", "_bao_xuat_noi_bo"): "kho_xuat_noi_bo",
 	("tin_kho.py", "_bao_bep_xuat_nvl"): "bep_lenh_sx_xuat_nvl",
+	# v639: kho nhận khai thiếu, máy trả phần thiếu về kho bếp.
+	("tin_kho.py", "bao_bep_tra_thieu"): "bep_hang_tra_thieu",
 	("tin_kho.py", "bao_da_nhan_chuyen"): "kho_da_nhan_chuyen",
 	("tin_kho.py", "nhac_chuyen_chua_nhan"): "kho_chuyen_chua_nhan",
 	("tin_kho.py", "khi_ghi_so_giao_si"): "kho_giao_si",
@@ -213,8 +215,8 @@ def _danh_muc():
 	# v633: thêm tin kế toán khi khách trả thẻ OnePay cho phiếu đề nghị thanh toán.
 	# v638: thêm tin Sales khi khách trả online đơn đặt bánh trên web, và tin quầy
 	# khi khách gọi món tại bàn qua QR.
-	la("đủ 91 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 1 tin v639)", len(kz.TIN), 91)
+	la("đủ 92 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639)", len(kz.TIN), 92)
 	la("tám bộ phận đúng thứ tự (v622 thêm Nhân sự)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
