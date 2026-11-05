@@ -99,6 +99,10 @@ const LogoKenh = {
 };
 export const KenhNoi = {
   name: 'KenhNoi',
+  /* v639: chuong là hàm mở bảng Gọi nhân viên khi trang mở từ QR bàn (nút
+     dưới Nhắn Zalo, anh Việt 05/11/2026); nang là số px nâng thêm khi thanh
+     giỏ gọi món đang hiện (thanh đó nằm ngoài #bar nên không đo được). */
+  props: {chuong: {type: Function, default: null}, nang: {type: Number, default: 0}},
   data() { return {mo: false, day: 0}; },
   mounted() {
     /* Nút nổi đứng trên thanh giỏ: đo chiều cao thật của thanh (leDay cũ). */
@@ -144,8 +148,10 @@ export const KenhNoi = {
     }
     if (zalo) con.push(h('a', {class: 'kenh-bong kenh-zalo', href: linkAnToan(zalo.lien_ket, true), target: '_blank', rel: 'noopener noreferrer', 'data-khoi': zalo.id},
       [h(LogoKenh, {k: zalo, lop: 'kenh-logo-zalo', duPhong: zalo.nut || 'Zalo'}), h('span', null, zalo.tieu_de)]));
-    return h('aside', {class: 'kenh-noi', hidden: !coApp && !zalo, 'aria-label': t('kenh_noi_nhan', 'Kênh đặt hàng và hỗ trợ'),
-      style: 'bottom:calc(' + (this.day + 16) + 'px + env(safe-area-inset-bottom))'}, con);
+    if (this.chuong) con.push(h('button', {class: 'kenh-bong kenh-chuong', type: 'button', id: 'kenhChuong', onClick: () => this.chuong('')},
+      [h('span', {class: 'kenh-icon', 'aria-hidden': 'true'}, '🔔'), h('span', null, t('goi_ban_chuong_nut', 'Gọi nhân viên'))]));
+    return h('aside', {class: 'kenh-noi', hidden: !coApp && !zalo && !this.chuong, 'aria-label': t('kenh_noi_nhan', 'Kênh đặt hàng và hỗ trợ'),
+      style: 'bottom:calc(' + (this.day + (this.nang || 0) + 16) + 'px + env(safe-area-inset-bottom))'}, con);
   }
 };
 

@@ -150,6 +150,9 @@ TIN = {
 	# v638 (anh Việt 04/11/2026): khách gọi món tại bàn qua QR (goi_mon_ban.py).
 	"bh_goi_mon_tai_ban": ("Bán hàng, cửa hàng", "Khách gọi món tại bàn qua QR",
 		"Khách quét QR trên bàn và gọi món; quầy nhận đơn trên màn Tính tiền trong 10 phút.", "viec", "ban_hang"),
+	# v639 (anh Việt duyệt mẫu 05/11/2026): khách bấm chuông Gọi nhân viên trên trang bàn.
+	"bh_khach_can_tro_giup": ("Bán hàng, cửa hàng", "Khách cần trợ giúp tại bàn",
+		"Khách bấm chuông trên trang bàn: gọi nhân viên, xin tính tiền, xin nước đá; quầy tới bàn rồi bấm Đã tới bàn.", "viec", "ban_hang"),
 	"bh_dat_ban": ("Bán hàng, cửa hàng", "Đặt bàn mới",
 		"Khách vừa gửi yêu cầu đặt bàn, chờ cửa hàng xác nhận.", "viec", "dat_ban"),
 	"bh_dat_ban_xac_nhan": ("Bán hàng, cửa hàng", "Đặt bàn đã xác nhận",
@@ -192,6 +195,9 @@ TIN = {
 		"Đơn sỉ đã chắc chắn làm (khách trả cuối kỳ, hoặc trả trước đã xong): mã đơn, ngày giao, món và số lượng.", "thong_bao", "san_xuat"),
 	"bep_lenh_sx_xuat_nvl": ("Bếp", "Lệnh sản xuất đã xuất nguyên liệu",
 		"Phiếu sản xuất vừa ghi sổ: thành phẩm và nguyên liệu đã trừ kho.", "thong_bao", "san_xuat"),
+	# v639 (anh Việt chọn 05/11/2026): kho nhận khai thiếu thì máy trả phần thiếu về kho bếp.
+	"bep_hang_tra_thieu": ("Bếp", "Hàng chuyển đi bị nhận thiếu, đã trả lại kho bếp",
+		"Cửa hàng khai nhận thiếu, máy đã lập phiếu trả phần thiếu về kho bếp; bếp kiểm lại, hỏng thì lập phiếu huỷ.", "canh_bao", "san_xuat"),
 	"bep_ycsx_moi": ("Bếp", "Yêu cầu sản xuất mới",
 		"Bộ phận vừa gửi yêu cầu sản xuất cho bếp: món, số lượng, ngày cần; cần trong hôm nay thì ghi GẤP.", "viec", "san_xuat"),
 	"bep_ycsx_huy": ("Bếp", "Yêu cầu sản xuất bị huỷ",
@@ -280,6 +286,8 @@ DIEU_KIEN = {
 	"ung_vien_moi": "vagabond.tuyen_dung.con_moi_nhan",
 	# v638: đơn gọi món tại bàn đã có quầy nhận, từ chối hay hết hạn thì thôi.
 	"goi_mon_cho": "vagabond.goi_mon_ban.con_cho_nhan",
+	# v639: lời gọi nhân viên đã có người tới bàn hay quá 30 phút thì thôi.
+	"tro_giup_cho": "vagabond.goi_mon_ban.con_tro_giup",
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
 CHO_GUI = "Chờ gửi"

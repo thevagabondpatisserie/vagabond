@@ -502,6 +502,22 @@ def bao_da_nhan_chuyen(doc, tt, cac_dong):
 		_ghi_loi("nhận điều chuyển")
 
 
+def bao_bep_tra_thieu(doc, phieu_tra, thieu):
+	"""v639: kho nhận khai thiếu, máy đã trả phần thiếu về kho đi; nhóm bếp (kho đi)
+	kiểm lại: còn bánh thì sổ đã đúng, hỏng hay mất thì bếp lập phiếu huỷ."""
+	try:
+		dong = ["Phiếu %s: %s sang %s, %s khai thiếu" % (doc.name, ten_kho(doc.get("from_warehouse")),
+			ten_kho(doc.get("to_warehouse")), _ten_nguoi(frappe.session.user))]
+		dong += dong_hang([{"ten": d.get("ten") or d.get("ma"), "sl": d.get("sl"), "dvt": ""} for d in thieu or []])
+		dong.append("Máy đã lập phiếu %s trả phần thiếu về %s. Bếp kiểm lại: còn hàng thì sổ đã đúng; hỏng hay mất thì lập phiếu xuất huỷ." % (phieu_tra, ten_kho(doc.get("from_warehouse"))))
+		kenh_zalo.bao("canh_bao", "san_xuat", "Hàng chuyển đi bị nhận thiếu, đã trả lại kho bếp", dong,
+			link=_url("/app/stock-entry/%s" % phieu_tra), khoa="dc-tra-thieu:%s" % doc.name, ma_tin="bep_hang_tra_thieu")
+	except Exception as e:
+		if kenh_zalo.chet_giao_dich(e):
+			raise
+		_ghi_loi("trả phần nhận thiếu")
+
+
 MOC_GHI_SO = "modified"
 
 

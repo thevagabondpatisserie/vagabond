@@ -753,9 +753,11 @@ def banh_tren_quay(ma_diem, ngay=None):
 		return []
 	ds = frappe.get_all(
 		"Item", filters={"item_code": ["in", list(con_theo_ma)]},
-		fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item", "item_group"],
+		fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item", "item_group", "description"],
 		limit_page_length=0, ignore_permissions=True,
 	)
+	from vagabond.goi_mon_ban import mo_ta_ngan
+
 	ra = []
 	for x in sorted(ds, key=lambda x: str(x.get("item_name") or x["item_code"])):
 		if cint(x.get("disabled")) or not cint(x.get("is_sales_item", 1)):
@@ -764,6 +766,8 @@ def banh_tren_quay(ma_diem, ngay=None):
 			"ma": x["item_code"], "ten": x.get("item_name") or x["item_code"],
 			"con": int(con_theo_ma[x["item_code"]]), "gia_chung": x.get("standard_rate") or 0,
 			"nhom": x.get("item_group") or "", "anh_goc": x.get("image") or "",
+			# v639: một dòng mô tả cho dòng món trên trang bàn.
+			"mo_ta": mo_ta_ngan(x.get("description")),
 		})
 	return ra
 
@@ -802,7 +806,7 @@ def con_tren_quay_web():
 	for d in cac_diem:
 		q = {
 			"ma": d["ma"], "ten": d["ten"], "ten_ngan": d.get("ten_ngan") or d["ten"],
-			"dia_chi": d.get("dia_chi") or d.get("phu") or "", "mon": [], "do_uong": [],
+			"dia_chi": d.get("dia_chi") or d.get("phu") or "", "mon": [], "do_uong": [], "topping": [],
 		}
 		ra["quay"].append(q)
 		try:
@@ -831,6 +835,7 @@ def con_tren_quay_web():
 				"anh": anh,
 				"con": x["con"],
 				"nhom": x["nhom"],
+				"mo_ta": x.get("mo_ta") or "",
 			})
 		# v638 (anh Việt 04/11/2026): đồ uống đang bật bán web của quầy, chỉ
 		# trong khoá RIÊNG `do_uong` để tab khác (trang cũ, editor) đọc `mon`
@@ -842,8 +847,12 @@ def con_tren_quay_web():
 					continue
 				q["do_uong"].append({
 					"ma": x["ma"], "ten": x["ten"], "gia": x["gia"], "anh": chon_anh(x["anh"], [], ma_hang=x["ma"])[0],
-					"nhom": goi_mon_ban.NHAN_DO_UONG, "tc": goi_mon_ban.tuy_chon_cho(x["nhom_goc"], ds_tc),
+					"nhom": goi_mon_ban.NHAN_DO_UONG, "tc": goi_mon_ban.tuy_chon_mon(x["ten"], x["nhom_goc"], ds_tc),
+					# v639: nhóm gốc để chia chip (Trà, Cà phê...), mô tả, cờ đóng sẵn.
+					"nhom_goc": x["nhom_goc"], "mo_ta": x.get("mo_ta") or "", "khong_pha": int(x.get("khong_pha") or 0),
 				})
+			# v639: topping kèm ly nước, khai một lần cho cả quầy.
+			q["topping"] = goi_mon_ban.topping_cua_diem(d["ma"]) if q["do_uong"] else []
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "kiem_kho: do uong tai quay loi")
 	return ra

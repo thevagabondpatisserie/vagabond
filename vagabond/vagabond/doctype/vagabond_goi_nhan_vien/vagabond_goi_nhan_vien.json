@@ -1,0 +1,134 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Goi Nhan Vien",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "creation": "2026-11-05 12:00:00.000000",
+ "modified": "2026-11-05 12:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "autoname": "format:GNV-{YY}{MM}{DD}-{####}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "diem",
+  "ban",
+  "ly_do",
+  "chi_tiet",
+  "trang_thai",
+  "luc",
+  "muc_xu_ly",
+  "xong_luc",
+  "xong_boi",
+  "muc_ky_thuat",
+  "nonce"
+ ],
+ "fields": [
+  {
+   "fieldname": "diem",
+   "fieldtype": "Data",
+   "label": "Điểm bán",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ban",
+   "fieldtype": "Int",
+   "label": "Bàn",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Data",
+   "label": "Khách cần",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "chi_tiet",
+   "fieldtype": "Small Text",
+   "label": "Khách nhắn thêm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Chờ xử lý\nĐã xong\nHết hạn",
+   "default": "Chờ xử lý",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "label": "Bấm chuông lúc",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "muc_xu_ly",
+   "fieldtype": "Section Break",
+   "label": "Xử lý"
+  },
+  {
+   "fieldname": "xong_luc",
+   "fieldtype": "Datetime",
+   "label": "Nhân viên tới lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xong_boi",
+   "fieldtype": "Data",
+   "label": "Người bấm Đã tới bàn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "muc_ky_thuat",
+   "fieldtype": "Section Break",
+   "label": "Kỹ thuật",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "nonce",
+   "fieldtype": "Data",
+   "label": "Mã lần bấm",
+   "unique": 1,
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "track_changes": 1,
+ "sort_field": "luc",
+ "sort_order": "DESC",
+ "title_field": "diem",
+ "description": "Khách bấm chuông Gọi nhân viên trên trang bàn (v639): bàn nào cần gì, quầy bấm Đã tới bàn trên màn Tính tiền."
+}

@@ -31,7 +31,7 @@ export function taoKho(moiTruong) {
     CAKES: cakesGoc(),
     TODAY: {}, TRUOC: {}, tonNapXong: false, tonLoi: false, tonDaThu: false, gioTon: null,
     MUA: {co: 0, mon: []},
-    STORE: {quay: []}, storeLoi: false, storeDaTai: false, quayChon: '', nhomQuay: '',
+    STORE: {quay: []}, storeLoi: false, storeDaTai: false, quayChon: '', nhomQuay: '', timQuay: '',
     tab: 'today',
     /* lịch: ngày THẬT đã chọn (yyyy-mm-dd) là nguồn; độ lệch suy ra từ đó. */
     ngayChon: null, lechMacDinh: 2,

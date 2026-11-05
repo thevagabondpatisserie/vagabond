@@ -628,8 +628,16 @@ html body .ctr-h{font-family:var(--sans);font-size:13px;letter-spacing:.18em;tex
 .gb-dau{border:1px solid var(--cyan-dim);background:rgba(41,189,179,.08);padding:12px 14px;margin:6px 0 14px;font-family:var(--sans)}
 .gb-dau b{display:block;color:var(--cyan);font-size:16px;font-weight:600;letter-spacing:.02em}
 .gb-dau span{display:block;color:var(--fog);font-size:13.5px;line-height:1.55;margin-top:4px}
-.gb-don{padding:6px 0 90px}
-.gb-tieu{font-family:var(--sans);font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--fog-2);font-weight:400;margin:0 0 10px}
+.gb-don{padding:6px 0 10px}
+/* Dòng tóm tắt đơn đã gọi (AGENTS.md 2b.17): chữ bên trái bấm mở chi tiết, nút
+   Gọi thêm món bên phải, cả hai cao ít nhất 44px, nằm trong màn đầu ở 390px. */
+.gb-tom{display:flex;align-items:stretch;gap:10px;font-family:var(--sans)}
+.gb-tom-chu{flex:1;min-width:0;min-height:48px;text-align:left;padding:6px 0;background:none;border:0;color:var(--paper);cursor:pointer}
+.gb-tom-chu b{display:block;font-size:15px;font-weight:600}
+.gb-tom-chu small{display:block;font-size:13px;color:var(--fog);margin-top:2px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gb-tom-mo{display:inline-block;font-size:12px;color:var(--cyan);margin-top:4px;text-decoration:underline;text-underline-offset:3px}
+.gb-tom .gb-them{width:auto;margin-top:0;min-height:48px;padding:0 16px;white-space:nowrap;align-self:center}
+.gb-chi-tiet{margin-top:10px}
 .gb-the{border:1px solid var(--line);padding:11px 13px;margin-bottom:8px;font-family:var(--sans)}
 .gb-the b{display:block;font-size:15px;font-weight:600;color:var(--paper)}
 .gb-the[data-tt="Đã nhận"] b{color:var(--cyan)}
@@ -652,3 +660,87 @@ html body .ctr-h{font-family:var(--sans);font-size:13px;letter-spacing:.18em;tex
 .gb-dong .qty button{width:44px;height:44px;display:grid;place-items:center;font-size:18px;color:var(--fog)}
 .gb-dong .qty span{min-width:28px;text-align:center;font-size:14px}
 .gb-loi{color:#FF7A6B;font-family:var(--sans);font-size:13.5px;line-height:1.5;margin:12px 0 0}
+/* ---------- v639 gọi món tại bàn vòng 2 (anh Việt duyệt mẫu 05/11/2026) ----------
+   Hai lỗi anh chụp 05/11: (1) dải tab dính ở top:64px theo một header đã KHÔNG
+   còn sticky (dòng `main,header,...{position:relative}` ở đầu tệp đè lên
+   nen.css), nên tab lơ lửng giữa màn và nội dung chui lên trên nó; dính ở
+   top:0. (2) bảng chọn, giỏ nằm trong <main> (z-index 2) nên bị tab và nút
+   nổi đè: các bảng nay nằm ngoài main (goi-tai-ban.js, GoiTaiBanNoi). */
+html body .tabs{top:0}
+/* Bảng gọi món dùng khung .sheet nhưng không có ảnh hero: thao-tac.css bỏ lề
+   của .wrap đầu tiên và chia hai cột trên màn rộng cho bảng bánh; bảng gọi món
+   một cột, có lề. Nút đóng của thao-tac.css ghim góc phải nên tiêu đề chừa chỗ. */
+html body .gb-sheet{display:block;padding:0!important}
+html body .gb-sheet>.wrap:first-child{width:100%;max-width:560px;margin:0 auto;padding:18px 20px max(28px,env(safe-area-inset-bottom));position:static}
+.gb-sheet-dau h2{padding-right:52px}
+.gb-dau.gb-nhac{border-color:rgba(219,126,42,.55);background:rgba(219,126,42,.08)}
+.gb-dau.gb-nhac b{color:var(--amber)}
+/* ô tìm món */
+/* scroll-margin-top: nút Gọi thêm món cuộn tới ô tìm; dải tab dính cao 49px
+   (đo Playwright 390x844 05/11/2026), không chừa thì ô tìm chui dưới dải tab. */
+.gb-tim{display:flex;align-items:center;gap:10px;margin:14px 0 4px;padding:0 14px;min-height:48px;border:1px solid var(--line);background:var(--bg-2);scroll-margin-top:64px}
+.gb-don{scroll-margin-top:64px}
+.gb-tim svg{width:18px;height:18px;flex:none;stroke:var(--fog);fill:none;stroke-width:2;stroke-linecap:round}
+.gb-tim input{flex:1;min-width:0;min-height:46px;background:none;border:0;color:var(--paper);font:15px var(--sans);outline:none}
+.gb-tim input::placeholder{color:var(--fog-2)}
+.gb-tim input::-webkit-search-cancel-button{-webkit-appearance:none}
+.gb-tim-xoa{flex:none;width:44px;height:44px;margin-right:-10px;background:none;border:0;color:var(--fog);font-size:24px;cursor:pointer}
+/* dải chip nhóm cuộn ngang, không bọc xuống nhiều dòng */
+html body .gb-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin-top:12px}
+.gb-chips::-webkit-scrollbar{display:none}
+html body .gb-chips button{flex:none;white-space:nowrap;font-family:var(--sans);font-size:13.5px}
+/* danh sách dòng món (chế độ gọi món) */
+.gb-ds{display:flex;flex-direction:column;margin-top:4px}
+.gb-mon{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2);font-family:var(--sans)}
+.gb-mon-anh{flex:none;width:76px;height:76px;overflow:hidden;background:var(--card);border:1px solid var(--line-2)}
+.gb-mon-anh img{width:100%;height:100%;object-fit:cover;display:block}
+.gb-mon-chu{flex:1;min-width:0}
+.gb-mon-chu>b{display:block;font-size:15px;font-weight:600;line-height:1.3;color:var(--paper)}
+.gb-mon-mo{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12.5px;line-height:1.45;color:var(--fog);margin-top:3px}
+.gb-mon-gia{display:flex;align-items:baseline;gap:8px;margin-top:5px;font-size:14px}
+.gb-mon-gia b{color:var(--cyan);font-weight:600}
+.gb-mon-gia i{font-style:normal;font-size:12px;color:var(--fog-2)}
+.gb-cong{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--cyan);background:rgba(41,189,179,.10);color:var(--cyan);display:grid;place-items:center;padding:0;cursor:pointer;transition:background .2s}
+.gb-cong svg{width:20px;height:20px}
+.gb-cong.co{background:var(--cyan);color:#00201D}
+.gb-cong:active{transform:scale(.94)}
+/* bảng chọn một món */
+.gb-sheet .wrap{max-width:560px}
+.gb-anh{margin:14px 0 0;max-height:46vh;overflow:hidden;background:var(--card)}
+.gb-anh img{width:100%;height:100%;max-height:46vh;object-fit:cover;display:block}
+.gb-mo-ta{font-family:var(--sans);font-size:13.5px;line-height:1.55;color:var(--fog);margin:8px 0 0}
+.gb-nhom .size small{display:block;font-family:var(--sans);font-size:12px;color:var(--fog);margin-top:2px}
+.gb-nhom .size{min-width:0;padding:11px 14px}
+.gb-tp{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:8px 0;border:0;border-bottom:1px solid var(--line-2);background:none;color:var(--paper);font-family:var(--sans);font-size:14.5px;text-align:left;cursor:pointer}
+.gb-tp span{flex:1;min-width:0}
+.gb-tp b{color:var(--cyan);font-weight:600;font-size:13.5px;white-space:nowrap}
+.gb-cb{flex:none;width:22px;height:22px;border:1.5px solid var(--cyan);border-radius:5px;position:relative}
+.gb-tp.on .gb-cb{background:var(--cyan)}
+.gb-tp.on .gb-cb::after{content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid #00201D;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.gb-chan{position:sticky;bottom:0;display:flex;gap:10px;align-items:center;margin-top:18px;padding:12px 0 max(16px,env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(0,0,0,0),var(--bg) 30%)}
+.gb-chan .gb-nut{flex:1;margin-top:0}
+.gb-qty{display:flex;align-items:center;border:1px solid var(--line);flex:none}
+.gb-qty button{width:44px;height:48px;display:grid;place-items:center;font-size:20px;color:var(--fog);background:none;border:0;cursor:pointer}
+.gb-qty span{min-width:30px;text-align:center;font-family:var(--sans);font-size:15px}
+.gb-nut:not(.btn-md):not(.btn-lg):not(.btn-xs){display:flex;align-items:center;justify-content:center;padding:14px 12px;font-size:12px}
+.gb-nut[disabled]{background:transparent;border:1px solid var(--line);color:var(--fog-2);cursor:not-allowed}
+.gb-hai{display:flex;gap:10px;margin-top:14px}
+.gb-hai .btn{flex:1;margin-top:0}
+.gb-ghost:not(.btn-md):not(.btn-lg):not(.btn-xs){background:transparent;border:1px solid var(--cyan);color:var(--cyan);padding:12px 8px;font-size:11px;display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px}
+.gb-ghost:hover{background:rgba(41,189,179,.10)}
+/* chuông gọi nhân viên */
+.gb-chuong-dau{font-size:14.5px;color:var(--paper);margin:16px 0 10px}
+.gb-ly{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;margin-top:8px;padding:10px 14px;border:1px solid var(--line);background:var(--bg-2);color:var(--paper);text-align:left;font-family:var(--sans);cursor:pointer}
+.gb-ly i{flex:none;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line-2);background:var(--card);font-style:normal;font-size:19px}
+.gb-ly span{flex:1;min-width:0}
+.gb-ly b{display:block;font-size:15px;font-weight:600}
+.gb-ly small{display:block;font-size:12.5px;color:var(--fog);margin-top:2px}
+.gb-ly.on{border-color:var(--cyan);background:rgba(41,189,179,.10)}
+.gb-ly.on b{color:var(--cyan)}
+.gb-xong{margin-top:16px;padding:14px;border:1px solid var(--cyan-dim);background:rgba(41,189,179,.08);font-family:var(--sans)}
+.gb-xong b{display:block;color:var(--cyan);font-size:15px;font-weight:600;line-height:1.45}
+.gb-xong span{display:block;color:var(--fog);font-size:13.5px;margin-top:6px;line-height:1.5}
+/* nút chuông nổi dưới nút Nhắn Zalo (kenh-noi.js) */
+.kenh-bong.kenh-chuong{background:var(--amber);color:#140b03;border-color:var(--amber);font-weight:600;cursor:pointer}
+.kenh-bong.kenh-chuong:hover{background:#E8913F}
+.kenh-bong.kenh-chuong .kenh-icon{color:#140b03}

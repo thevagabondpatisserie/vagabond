@@ -35,6 +35,19 @@ phai lap phieu gi.
 
 Chay mot thang la co so that de biet chuyen nhan thieu co that khong va
 thuong xuyen toi dau, roi moi quyet co len phuong an B hay khong.
+
+v639 (anh Viet chon 05/11/2026): TU TRA PHAN THIEU
+---------------------------------------------------
+Chay A mot thang thay dung loi: CH khai thieu 1 Shiopan roi tuong xong,
+nhung so kho CH van du 10, chi sinh mot viec treo cho thu kho ma khong ai
+di doi chieu. Anh Viet chon cach 1 trong hai cach de xuat (phien
+cse_01PKkwNnN8CmWPvQw5Y3yCRa): CH van bam nhu cu; khai THIEU thi may tu lap
+mot phieu dieu chuyen TRA phan thieu tu kho CH ve lai kho bep (phieu moi,
+ghi so ngay, khong sua phieu goc), ghi lien ket hai chieu va bao nhom Zalo
+bep. Bep kiem lai: con banh thi so da dung, hong hay mat thi bep lap phieu
+huy nhu cach van lam. Nhan THUA van chi ghi loi khai nhu A. Lap phieu tra
+hong (vi du CH da ban mat phan do) thi giu nguyen cach A: ghi loi khai, treo
+viec cho thu kho, va noi ro trong ket qua.
 """
 
 import json
@@ -95,6 +108,25 @@ TRUONG_MOI = {
 				"Bật lên khi thủ kho đã tìm ra phần thiếu đi đâu. Phiếu nào "
 				"chưa bật thì còn treo trong màn Việc cần làm."
 			),
+		},
+		# v639: phần thiếu tự trả về kho đi bằng một phiếu mới, nối hai chiều.
+		{
+			"fieldname": "vgb_phieu_tra_thieu",
+			"label": "Phiếu trả phần nhận thiếu",
+			"fieldtype": "Link",
+			"options": "Stock Entry",
+			"read_only": 1,
+			"insert_after": "vgb_nhan_da_xu_ly",
+			"description": "Máy tự lập khi kho nhận khai thiếu: chuyển phần thiếu từ kho nhận về lại kho đi.",
+		},
+		{
+			"fieldname": "vgb_tra_thieu_cua",
+			"label": "Trả phần thiếu của phiếu",
+			"fieldtype": "Link",
+			"options": "Stock Entry",
+			"read_only": 1,
+			"insert_after": "vgb_phieu_tra_thieu",
+			"description": "Phiếu này do máy lập để trả phần kho nhận khai thiếu của phiếu điều chuyển ghi ở đây.",
 		},
 	],
 	"Stock Entry Detail": [
@@ -217,6 +249,33 @@ def cau_bao_lech(cac_lech):
 	return cau
 
 
+def dong_tra_thieu(cac_lech):
+	"""Cac dong THIEU (lech duong) de lap phieu tra ve kho di: [{ma, ten, sl}].
+	Nhan thua khong tra gi. Ham THUAN (v639)."""
+	ra = []
+	for d in cac_lech or []:
+		l = flt(d.get("lech"))
+		if l > EPS:
+			ra.append({"ma": d.get("ma") or "", "ten": d.get("ten") or "", "sl": l})
+	return ra
+
+
+def dong_con_thua(cac_lech):
+	"""Cac dong THUA (lech am) - phan ma phieu tra khong giai quyet duoc, thu kho
+	van phai doi chieu. Ham THUAN (Codex PR #542 vong 2)."""
+	return [d for d in cac_lech or [] if flt(d.get("lech")) < -EPS]
+
+
+def cau_tra_thieu(phieu_tra, dong):
+	"""Cau bao cho nguoi bam: "Đã lập phiếu X trả 1 Shiopan về kho bếp". Ham THUAN."""
+	if not phieu_tra or not dong:
+		return ""
+	phan = ["%s %s" % (_so(d["sl"]), d.get("ten") or d.get("ma")) for d in dong[:3]]
+	if len(dong) > 3:
+		phan.append("%d món nữa" % (len(dong) - 3))
+	return "Đã lập phiếu %s trả %s về kho đi" % (phieu_tra, ", ".join(phan))
+
+
 def _so(v):
 	"""So luong in ra cho nguoi doc: bo duoi .0 thua. Ham THUAN."""
 	v = flt(v)
@@ -285,21 +344,70 @@ def _chan_khong_phai_kho_nhan(doc):
 		)
 
 
+TEN_KHOA_NHAN = "vgb_nhan_dc:%s"
+
+
 @frappe.whitelist()
 def xac_nhan(phieu=None, dong=None, ghi_chu=None):
 	"""Nguoi nhan khai so thuc nhan.
 
-	KHONG dung toi so kho. Xem doan dai o dau tep de biet vi sao.
+	KHONG dung toi so kho phieu goc. Xem doan dai o dau tep de biet vi sao.
+
+	Codex PR #542 vong 2: hai nguoi cung bam xac nhan mot phieu truoc khi luot
+	dau commit thi ca hai cung doc vgb_nhan_tt trong, cung qua va cung lap phieu
+	tra. Ca luot (kiem, ghi loi khai, commit, lap phieu tra) chay tuan tu theo
+	phieu bang khoa ten MariaDB; trong khoa doc lai trang thai bang locking read
+	(for_update) de khong doc anh chup cu cua giao dich.
 	"""
 	xuat_kho._duoc_xuat()
 	if not phieu or not frappe.db.exists("Stock Entry", phieu):
 		frappe.throw("Không tìm thấy phiếu %s." % (phieu or "(trống)"))
+	khoa = TEN_KHOA_NHAN % phieu
+	if not _lay_khoa(khoa, 10):
+		frappe.throw(
+			"Phiếu %s đang được người khác xác nhận. Đợi vài giây rồi mở lại phiếu." % phieu
+		)
+	try:
+		return _xac_nhan_trong_khoa(phieu, dong, ghi_chu)
+	finally:
+		_nha_khoa(khoa)
+
+
+def _lay_khoa(ten, giay=10):
+	"""Khoá tên của MariaDB (theo kết nối, giữ qua commit), chờ tối đa `giay` giây."""
+	r = frappe.db.sql("select get_lock(%s, %s)", (ten, giay))
+	return bool(r and r[0] and cint(r[0][0]) == 1)
+
+
+def _nha_khoa(ten):
+	try:
+		frappe.db.sql("select release_lock(%s)", (ten,))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "nhan_dieu_chuyen: nhả khoá %s" % ten)
+
+
+def _trang_thai_hien_hanh(phieu):
+	"""Doc MOI NHAT tu co so du lieu (locking read), khong qua cache va khong qua
+	anh chup cua giao dich: (vgb_nhan_tt, vgb_nhan_boi, vgb_phieu_tra_thieu)."""
+	r = frappe.db.get_value(
+		"Stock Entry", phieu, ["vgb_nhan_tt", "vgb_nhan_boi", "vgb_phieu_tra_thieu"],
+		as_dict=True, for_update=True,
+	) or {}
+	return (
+		(r.get("vgb_nhan_tt") or "").strip(),
+		r.get("vgb_nhan_boi") or "",
+		(r.get("vgb_phieu_tra_thieu") or "").strip(),
+	)
+
+
+def _xac_nhan_trong_khoa(phieu, dong, ghi_chu):
 	doc = frappe.get_doc("Stock Entry", phieu)
 	_chan_khong_phai_kho_nhan(doc)
-	if (doc.get("vgb_nhan_tt") or "").strip():
+	tt_cu, boi_cu, _ = _trang_thai_hien_hanh(phieu)
+	if tt_cu:
 		frappe.throw(
 			"Phiếu %s đã được %s xác nhận rồi. Khai sai thì báo thủ kho, đừng "
-			"xác nhận đè lên." % (doc.name, doc.get("vgb_nhan_boi") or "người khác")
+			"xác nhận đè lên." % (doc.name, boi_cu or "người khác")
 		)
 
 	giao_theo_ma = {d.item_code: flt(d.qty) for d in doc.items}
@@ -344,13 +452,89 @@ def xac_nhan(phieu=None, dong=None, ghi_chu=None):
 	from vagabond import tin_kho
 	tin_kho.bao_da_nhan_chuyen(doc, tt, cac_dong)
 	frappe.db.commit()
+	# v639: phần thiếu tự trả về kho đi bằng một phiếu MỚI, sau khi lời khai đã
+	# commit, để phiếu trả hỏng không kéo mất lời khai.
+	phieu_tra, loi_tra = "", ""
+	thieu = dong_tra_thieu(lech)
+	thua = dong_con_thua(lech)
+	if thieu:
+		phieu_tra, loi_tra = _tra_phan_thieu(doc, thieu, thua)
 	return {
 		"ok": 1,
 		"name": doc.name,
 		"trang_thai": tt,
 		"lech": lech,
 		"cau_lech": cau_bao_lech(lech),
+		"phieu_tra": phieu_tra,
+		"cau_tra": cau_tra_thieu(phieu_tra, thieu),
+		"loi_tra": loi_tra,
+		"con_thua": cau_bao_lech(thua) if (phieu_tra and thua) else "",
 	}
+
+
+def _tra_phan_thieu(doc, thieu, thua=None):
+	"""Lap va ghi so phieu tra phan thieu tu kho nhan ve kho di; noi hai chieu, bao
+	bep. Chi danh dau da xu ly khi phieu KHONG con dong thua: phan thua phieu tra
+	khong giai quyet duoc, thu kho van phai doi chieu (Codex PR #542 vong 2). Hong
+	thi rollback phieu tra, giu cach cu (treo viec cho thu kho) va tra cau loi.
+	Tra (ten phieu tra, cau loi)."""
+	from vagabond import tin_kho
+
+	try:
+		_, _, da_tra = _trang_thai_hien_hanh(doc.name)
+		if da_tra:
+			# Da co phieu tra (luot truoc lap xong): khong lap phieu thu hai.
+			return da_tra, ""
+		ten = _lap_phieu_tra_thieu(doc, thieu)
+		ghi = {"vgb_phieu_tra_thieu": ten}
+		if not thua:
+			ghi["vgb_nhan_da_xu_ly"] = 1
+		frappe.db.set_value("Stock Entry", doc.name, ghi, update_modified=False)
+		vet = "Máy đã lập phiếu %s trả phần thiếu về %s" % (ten, doc.from_warehouse)
+		if thua:
+			vet += ". Phần thừa (%s) vẫn chờ thủ kho đối chiếu" % cau_bao_lech(thua)
+		_ghi_vet(doc.name, vet, [], None)
+		tin_kho.bao_bep_tra_thieu(doc, ten, thieu)
+		frappe.db.commit()
+		return ten, ""
+	except Exception as e:
+		frappe.db.rollback()
+		frappe.log_error(frappe.get_traceback(), "nhan_dieu_chuyen: trả phần thiếu %s" % doc.name)
+		cau = str(e).strip() or "lỗi không rõ"
+		_ghi_vet(doc.name, "Chưa lập được phiếu trả phần thiếu (%s), treo việc cho thủ kho" % cau[:200], [], None)
+		frappe.db.commit()
+		return "", cau
+
+
+def _lap_phieu_tra_thieu(doc, thieu):
+	"""Phieu dieu chuyen noi bo: tu kho NHAN (doc.to_warehouse) ve kho DI
+	(doc.from_warehouse) dung so thieu tung dong; cung khuon xuat_kho.luu_dieu_chuyen
+	(tai khoan chi phi, chan qua ton). Tra ten phieu da ghi so."""
+	kho_nhan, kho_di = doc.to_warehouse, doc.from_warehouse
+	if not kho_nhan or not kho_di or kho_nhan == kho_di:
+		raise ValueError("phiếu gốc thiếu kho đi hoặc kho nhận")
+	sach = [{"ma": d["ma"], "sl": flt(d["sl"]), "ghi_chu": ""} for d in thieu if flt(d.get("sl")) > EPS]
+	if not sach:
+		raise ValueError("không có dòng thiếu")
+	xuat_kho._chan_qua_ton(kho_nhan, sach)
+	ct = _cong_ty_cua(doc)
+	moi = xuat_kho._phieu_moi("chuyen", ct)
+	moi.from_warehouse = kho_nhan
+	moi.to_warehouse = kho_di
+	moi.remarks = "Trả phần nhận thiếu của phiếu %s (máy lập khi kho nhận xác nhận)" % doc.name
+	moi.vgb_tra_thieu_cua = doc.name
+	tk = xuat_kho._tk_chi_phi(ct)
+	for d in sach:
+		moi.append("items", {"item_code": d["ma"], "qty": d["sl"], "s_warehouse": kho_nhan,
+			"t_warehouse": kho_di, "expense_account": tk})
+	moi.flags.ignore_permissions = True
+	moi.insert(ignore_permissions=True)
+	moi.submit()
+	return moi.name
+
+
+def _cong_ty_cua(doc):
+	return doc.get("company") or xuat_kho._cong_ty()
 
 
 def _ghi_vet(name, tt, lech, ghi_chu):

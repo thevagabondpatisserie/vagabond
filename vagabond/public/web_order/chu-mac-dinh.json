@@ -5600,16 +5600,34 @@
     "mac_dinh": "Chờ quầy nhận",
     "nhieu_dong": true
   },
-  "goi_ban_don_da_goi": {
-    "ten": "Gọi món tại bàn: Món đã gọi",
-    "nhom": "dat_banh",
-    "mac_dinh": "Món đã gọi",
-    "nhieu_dong": true
-  },
   "goi_ban_goi_them": {
     "ten": "Gọi món tại bàn: Gọi thêm món",
     "nhom": "dat_banh",
     "mac_dinh": "Gọi thêm món",
+    "nhieu_dong": true
+  },
+  "goi_ban_da_goi_n": {
+    "ten": "Gọi món tại bàn: Đã gọi {n} đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã gọi {n} đơn",
+    "nhieu_dong": true
+  },
+  "goi_ban_xem_chi_tiet": {
+    "ten": "Gọi món tại bàn: Xem chi tiết",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xem chi tiết",
+    "nhieu_dong": true
+  },
+  "goi_ban_thu_gon": {
+    "ten": "Gọi món tại bàn: Thu gọn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thu gọn",
+    "nhieu_dong": true
+  },
+  "goi_ban_va_nua": {
+    "ten": "Gọi món tại bàn: và {n} nữa",
+    "nhom": "dat_banh",
+    "mac_dinh": "và {n} nữa",
     "nhieu_dong": true
   },
   "goi_ban_728f6901b": {
@@ -5724,6 +5742,168 @@
     "ten": "Chip lọc bánh trên tủ (tab Tại quầy)",
     "nhom": "dat_banh",
     "mac_dinh": "Bánh trên tủ",
+    "nhieu_dong": true
+  },
+  "goi_ban_size": {
+    "ten": "Gọi món tại bàn: Size",
+    "nhom": "dat_banh",
+    "mac_dinh": "Size",
+    "nhieu_dong": true
+  },
+  "goi_ban_topping": {
+    "ten": "Gọi món tại bàn: Thêm topping",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm topping",
+    "nhieu_dong": true
+  },
+  "goi_ban_topping_phu": {
+    "ten": "Gọi món tại bàn: Chọn được nhiều, tính thêm tiền theo từng ly.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn được nhiều, tính thêm tiền theo từng ly.",
+    "nhieu_dong": true
+  },
+  "goi_ban_c7d1e2f3a": {
+    "ten": "Gọi món tại bàn: Thêm · {tien}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm · {tien}",
+    "nhieu_dong": true
+  },
+  "goi_ban_d8e2f3a4b": {
+    "ten": "Gọi món tại bàn: Gọi thêm · {tien}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi thêm · {tien}",
+    "nhieu_dong": true
+  },
+  "goi_ban_cung_bill": {
+    "ten": "Gọi món tại bàn: Gọi thêm sẽ cộng vào cùng bill của bàn {ban}. Thanh toán tại qu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi thêm sẽ cộng vào cùng bill của bàn {ban}. Thanh toán tại quầy khi dùng xong, hoặc bấm Xin tính tiền để nhân viên mang bill ra bàn.",
+    "nhieu_dong": true
+  },
+  "goi_ban_chuong_nut": {
+    "ten": "Gọi món tại bàn: Gọi nhân viên",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi nhân viên",
+    "nhieu_dong": true
+  },
+  "goi_ban_xin_tinh_tien": {
+    "ten": "Gọi món tại bàn: Xin tính tiền",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xin tính tiền",
+    "nhieu_dong": true
+  },
+  "goi_ban_e9f3a4b5c": {
+    "ten": "Gọi món tại bàn: Gọi nhân viên · {ban}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi nhân viên · {ban}",
+    "nhieu_dong": true
+  },
+  "goi_ban_chuong_da_bao": {
+    "ten": "Gọi món tại bàn: Đã báo quầy lúc {gio}. Nhân viên tới bàn {ban} trong giây lát.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã báo quầy lúc {gio}. Nhân viên tới bàn {ban} trong giây lát.",
+    "nhieu_dong": true
+  },
+  "goi_ban_chuong_qua_lau": {
+    "ten": "Gọi món tại bàn: Quá 3 phút chưa thấy, quý khách bấm lại hoặc nhắn Zalo.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quá 3 phút chưa thấy, quý khách bấm lại hoặc nhắn Zalo.",
+    "nhieu_dong": true
+  },
+  "goi_ban_chuong_hoi": {
+    "ten": "Gọi món tại bàn: Quý khách cần gì? Nhân viên tới ngay.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách cần gì? Nhân viên tới ngay.",
+    "nhieu_dong": true
+  },
+  "goi_ban_chuong_chi_tiet": {
+    "ten": "Gọi món tại bàn: Gõ vài chữ cho quầy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gõ vài chữ cho quầy",
+    "nhieu_dong": true
+  },
+  "goi_ban_chuong_gui": {
+    "ten": "Gọi món tại bàn: Báo quầy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Báo quầy",
+    "nhieu_dong": true
+  },
+  "goi_ban_chuong_gioi_han": {
+    "ten": "Gọi món tại bàn: Mỗi bàn bấm được tối đa 3 lần trong 10 phút để tránh bấm nhầm.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi bàn bấm được tối đa 3 lần trong 10 phút để tránh bấm nhầm.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ly_1": {
+    "ten": "Gọi món tại bàn: Có việc cần hỏi, cần hỗ trợ tại bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Có việc cần hỏi, cần hỗ trợ tại bàn",
+    "nhieu_dong": true
+  },
+  "goi_ban_ly_2": {
+    "ten": "Gọi món tại bàn: Nhân viên mang bill ra, trả tại bàn hoặc tại quầy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhân viên mang bill ra, trả tại bàn hoặc tại quầy",
+    "nhieu_dong": true
+  },
+  "goi_ban_ly_3": {
+    "ten": "Gọi món tại bàn: Miễn phí",
+    "nhom": "dat_banh",
+    "mac_dinh": "Miễn phí",
+    "nhieu_dong": true
+  },
+  "goi_ban_ly_4": {
+    "ten": "Gọi món tại bàn: Nhân viên mang ra bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhân viên mang ra bàn",
+    "nhieu_dong": true
+  },
+  "goi_ban_ly_5": {
+    "ten": "Gọi món tại bàn: Gõ vài chữ cho quầy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gõ vài chữ cho quầy",
+    "nhieu_dong": true
+  },
+  "goi_ban_tp_toi_da": {
+    "ten": "Gọi món tại bàn: Mỗi ly tối đa 5 topping.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi ly tối đa 5 topping.",
+    "nhieu_dong": true
+  },
+  "goi_ban_chuong_chon": {
+    "ten": "Gọi món tại bàn: Quý khách chọn một lý do.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách chọn một lý do.",
+    "nhieu_dong": true
+  },
+  "goi_ban_nhac_qr": {
+    "ten": "Gọi món tại bàn: Đang ngồi tại quầy? Quét mã QR dán trên bàn để gọi món",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đang ngồi tại quầy? Quét mã QR dán trên bàn để gọi món",
+    "nhieu_dong": true
+  },
+  "goi_ban_nhac_qr_phu": {
+    "ten": "Gọi món tại bàn: Trang này chỉ xem bánh còn trên tủ. Gọi món cần mã của đúng bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Trang này chỉ xem bánh còn trên tủ. Gọi món cần mã của đúng bàn để quầy mang ra đúng chỗ. Chưa có mã trên bàn thì nhắn nhân viên gần nhất.",
+    "nhieu_dong": true
+  },
+  "goi_ban_tim": {
+    "ten": "Gọi món tại bàn: Tìm món, ví dụ trà lài, canelé",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tìm món, ví dụ trà lài, canelé",
+    "nhieu_dong": true
+  },
+  "goi_ban_tim_xoa": {
+    "ten": "Gọi món tại bàn: Xoá chữ tìm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xoá chữ tìm",
+    "nhieu_dong": true
+  },
+  "goi_ban_tim_rong": {
+    "ten": "Gọi món tại bàn: Không có món nào khớp \"{tim}\". Quý khách thử chữ khác hoặc chọn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Không có món nào khớp \"{tim}\". Quý khách thử chữ khác hoặc chọn nhóm.",
     "nhieu_dong": true
   }
 }

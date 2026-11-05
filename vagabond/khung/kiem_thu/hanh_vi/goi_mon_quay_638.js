@@ -96,7 +96,9 @@ function moApp(o) {
     },
     api: function (duong, ts) {
       goi.push({ duong: duong, ts: ts });
-      if (duong === 'vagabond.goi_mon_ban.dem_cho') return Promise.resolve({ so: cho.length, ds: JSON.parse(JSON.stringify(cho)), ly_do: ['Hết món', 'Quầy quá đông', 'Khác'] });
+      if (duong === 'vagabond.goi_mon_ban.dem_cho') return Promise.resolve({ so: cho.length, ds: JSON.parse(JSON.stringify(cho)), ly_do: ['Hết món', 'Quầy quá đông', 'Khác'],
+        tro_giup: JSON.parse(JSON.stringify(o.troGiup || [])) });
+      if (duong === 'vagabond.goi_mon_ban.xong_tro_giup') return Promise.resolve({ ok: 1, ban: 5 });
       if (duong === 'vagabond.goi_mon_ban.nhan') {
         if (o.nhanLoi) return Promise.reject(new Error(o.nhanLoi));
         return Promise.resolve({ ok: 1, hoa_don: 'ACC-SINV-0099', bill: 'TCVABCDE', them_vao: 0, ban: 5,
@@ -149,6 +151,37 @@ function bamTrong(goc, chon) { var el = goc.querySelector(chon); if (!el) throw 
     bamTrong(dai, '[data-gmbchuong]');
     bang('tắt chuông nhớ theo máy', m.ls.vgb_gmb_chuong, '0');
     dung('nút đổi chữ', chu(dai).indexOf('Bật chuông') >= 0);
+  });
+
+  await ca('v639 bàn cần trợ giúp: dải đỏ ghi "1 bàn cần trợ giúp", chuông kêu; thẻ đỏ đứng trước đơn, có bill tạm tính; Đã tới bàn gọi đúng cửa; Mở bill mở phiếu', async function () {
+    var m = moApp({ troGiup: [{ ma: 'GNV-261105-0001', ban: 5, diem: 'TCV', ten_diem: 'District 1', ly_do: 'Xin tính tiền', chi_tiet: '', phut: 1,
+      bill: 'TCVABCDE', tam_tinh: 335000, hoa_don: 'ACC-SINV-0099' },
+      { ma: 'GNV-261105-0002', ban: 9, diem: 'TCV', ten_diem: 'District 1', ly_do: 'Việc khác', chi_tiet: 'xin thêm ghế em bé', phut: 0, bill: '', tam_tinh: 0, hoa_don: '' }] });
+    manQuay(m);
+    m.g.gmbBatDau('TCV');
+    await choDen(function () { return chu(m.tai.getElementById('gmbDai')).indexOf('cần trợ giúp') >= 0; });
+    var dai = m.tai.getElementById('gmbDai');
+    dung('dải ghi cả hai', chu(dai).indexOf('1 đơn gọi món tại bàn đang chờ nhận · 2 bàn cần trợ giúp') >= 0 && chu(dai).indexOf('Bàn 5 xin tính tiền') >= 0 && chu(dai).indexOf('Bàn 9 cần hỗ trợ') >= 0);
+    bang('chuông kêu', m.keu.length, 2);
+    bamTrong(dai, '[data-gmbmo]');
+    var sh = sheetCuoi(m);
+    var the = sh.querySelectorAll('[data-gmbtg]');
+    bang('hai thẻ trợ giúp', the.length, 2);
+    dung('thẻ trợ giúp đứng trước thẻ đơn', chu(sh).indexOf('CẦN TRỢ GIÚP') < chu(sh).indexOf('Nhận đơn và in phiếu'));
+    dung('thẻ xin tính tiền có bill', chu(the[0]).indexOf('Bill tạm tính TCVABCDE · 335.000 đ') >= 0 && the[0].querySelector('[data-gmbbill]'));
+    dung('thẻ việc khác có chữ khách nhắn, không nút bill', chu(the[1]).indexOf('xin thêm ghế em bé') >= 0 && !the[1].querySelector('[data-gmbbill]'));
+    bamTrong(sh, '[data-gmbxong="GNV-261105-0001"]');
+    await choDen(function () { return m.goi.some(function (x) { return x.duong === 'vagabond.goi_mon_ban.xong_tro_giup'; }); });
+    bang('gọi đúng cửa', m.goi.filter(function (x) { return x.duong === 'vagabond.goi_mon_ban.xong_tro_giup'; }).map(function (x) { return x.ts; }), [{ ma: 'GNV-261105-0001' }]);
+    await new Promise(function (r) { setTimeout(r, 20); });
+    bang('thẻ đó biến mất, còn một', sheetCuoi(m).querySelectorAll('[data-gmbtg]').length, 1);
+    dung('dải còn 1 bàn', chu(m.tai.getElementById('gmbDai')).indexOf('1 bàn cần trợ giúp') >= 0);
+    var m2 = moApp({ troGiup: [{ ma: 'GNV-261105-0003', ban: 5, diem: 'TCV', ten_diem: 'District 1', ly_do: 'Xin tính tiền', chi_tiet: '', phut: 1, bill: 'TCVABCDE', tam_tinh: 1000, hoa_don: 'ACC-SINV-0099' }] });
+    manQuay(m2); m2.g.gmbBatDau('TCV');
+    await choDen(function () { return chu(m2.tai.getElementById('gmbDai')).indexOf('cần trợ giúp') >= 0; });
+    bamTrong(m2.tai.getElementById('gmbDai'), '[data-gmbmo]');
+    bamTrong(sheetCuoi(m2), '[data-gmbbill]');
+    bang('mở phiếu tạm tính của bàn', m2.di, ['bill:ACC-SINV-0099']);
   });
 
   await ca('Không có đơn: dải trống; rời màn Tính tiền thì nhịp tự dừng, không gọi máy chủ', async function () {

@@ -242,6 +242,9 @@ class Kho:
 
 	def __init__(self):
 		self.dong = {}
+		# v639: bảng Vagabond Goi Nhan Vien giả (lời bấm chuông).
+		self.tg = {}
+		self.so_tg = 0
 		# Phiếu Sales Invoice giả cho câu hỏi "phiếu tạm tính còn mở không".
 		self.phieu = {}
 		self.khoa = {}
@@ -261,13 +264,17 @@ class Kho:
 			self.khoa[k].release()
 		self.cua.giu = []
 
+	def _bang(self, dt):
+		return self.dong if dt == g.DT else (self.tg if dt == g.DT_TG else (self.phieu if dt == "Sales Invoice" else None))
+
 	def get_value(self, dt, ten, truong=None, as_dict=False, **k):
-		if dt != g.DT:
+		bang = self._bang(dt)
+		if bang is None:
 			return None
 		if isinstance(ten, dict):
-			r = next((r for r in self.dong.values() if all(r.get(a) == b for a, b in ten.items())), None)
+			r = next((r for r in bang.values() if all(r.get(a) == b for a, b in ten.items())), None)
 		else:
-			r = self.dong.get(ten)
+			r = bang.get(ten)
 		if not r:
 			return None
 		if isinstance(truong, (list, tuple)):
@@ -276,17 +283,20 @@ class Kho:
 		return r.get(truong or "name")
 
 	def set_value(self, dt, ten, truong, gt=None, **k):
-		if dt != g.DT:
+		bang = self._bang(dt)
+		if bang is None or ten not in bang:
 			return
-		self.dong[ten].update(truong if isinstance(truong, dict) else {truong: gt})
+		bang[ten].update(truong if isinstance(truong, dict) else {truong: gt})
 
 	def get_all(self, dt, filters=None, fields=None, pluck=None, **k):
 		ra = []
-		for r in (self.phieu if dt == "Sales Invoice" else self.dong).values():
+		for r in (self._bang(dt) or {}).values():
 			ok = True
 			for a, b in (filters or {}).items():
 				if isinstance(b, list) and b[0] == "<=":
 					ok = ok and r.get(a) <= b[1]
+				elif isinstance(b, list) and b[0] == ">=":
+					ok = ok and r.get(a) >= b[1]
 				elif isinstance(b, list) and b[0] == "in":
 					ok = ok and r.get(a) in b[1]
 				elif isinstance(b, list) and b[0] == "!=":
@@ -314,7 +324,7 @@ class Kho:
 		if cau.lstrip().lower().startswith("update") and "set trang_thai" in cau:
 			# update ... set trang_thai = moi where name = x and trang_thai = cu
 			moi, ten, cu = ts
-			r = self.dong.get(ten)
+			r = (self.tg if g.DT_TG in cau else self.dong).get(ten)
 			if r and r.get("trang_thai") == cu:
 				r["trang_thai"] = moi
 			return []
@@ -330,13 +340,18 @@ class Kho:
 		return []
 
 	def them(self, d):
+		bang = self.tg if d.get("doctype") == g.DT_TG else self.dong
 		with self.mu:
-			if any(r.get("nonce") == d.get("nonce") for r in self.dong.values()):
+			if any(r.get("nonce") == d.get("nonce") for r in bang.values()):
 				raise Exception("DuplicateEntryError nonce")
-			self.so += 1
-			ten = "TQ-261104-%04d" % self.so
+			if bang is self.tg:
+				self.so_tg += 1
+				ten = "GNV-261105-%04d" % self.so_tg
+			else:
+				self.so += 1
+				ten = "TQ-261104-%04d" % self.so
 		d = dict(d, name=ten)
-		self.dong[ten] = d
+		bang[ten] = d
 		return ten
 
 
@@ -935,6 +950,241 @@ def _doctype():
 	dung("tên TQ-", d["autoname"].startswith("format:TQ-"))
 
 
+# ============================== v639 vòng 2 (anh Việt duyệt mẫu 05/11/2026) ==============================
+
+KOM = {"item_code": "NUTR00040", "item_name": "Kombucha Chill , Chai 300ml", "image": "", "standard_rate": 100000,
+	"item_group": "Trà", "disabled": 0, "is_sales_item": 1, "has_variants": 0, "description": "<p>Lên men <b>tại tiệm</b></p>"}
+TOP = [{"item_code": "TPNC00001", "item_name": "Trân châu ô long", "standard_rate": 10000, "item_group": "Topping cho món nước", "disabled": 0, "is_sales_item": 1, "has_variants": 0},
+	{"item_code": "TPNC00002", "item_name": "Thay sữa yến mạch", "standard_rate": 20000, "item_group": "Topping cho món nước", "disabled": 0, "is_sales_item": 1, "has_variants": 0},
+	{"item_code": "TPBA00001", "item_name": "Nến số", "standard_rate": 5000, "item_group": "Topping cho món bánh", "disabled": 0, "is_sales_item": 1, "has_variants": 0},
+	{"item_code": "TPNC00009", "item_name": "Tắt", "standard_rate": 10000, "item_group": "Topping cho món nước", "disabled": 1, "is_sales_item": 1, "has_variants": 0},
+	{"item_code": "TPNC00010", "item_name": "Không giá", "standard_rate": 0, "item_group": "Topping cho món nước", "disabled": 0, "is_sales_item": 1, "has_variants": 0}]
+
+
+@ca("v639 phép thuần: món đóng sẵn theo tên không hỏi đá đường; mô tả HTML thành một dòng; topping đúng nhóm, có giá; đơn giá dòng kể cả topping")
+def _thuan_639():
+	for ten in ("Kombucha Chill , Chai 300ml", "Trà Earl Grey, Set trà 2 người, Nóng/Hot", "Nước suối lon 330", "Trà hoa cúc, hũ 100g", "Bánh quy, Hộp 12"):
+		dung("đóng sẵn: " + ten, g.khong_pha(ten))
+	for ten in ("Trà Sữa Lài Kem Phô Mai, Size M, Đá/Iced", "Cà phê sữa", "Chai Latte", "Hồng trà Thanh Trà", "Trà hoa cúc hộp"):
+		dung("pha: " + ten, not g.khong_pha(ten))
+	la("đóng sẵn thì không lựa chọn dù nhóm Trà có", g.tuy_chon_mon("Kombucha Chill , Chai 300ml", "Trà", TC), [])
+	la("pha thì theo nhóm", [n["nhom"] for n in g.tuy_chon_mon("Trà Lài", "Trà", TC)], ["Đá", "Đường"])
+	la("mô tả HTML", g.mo_ta_ngan("<p>Trà lài ủ lạnh,<br>lớp kem &amp; phô mai</p><div>uống lạnh</div>"), "Trà lài ủ lạnh, lớp kem & phô mai uống lạnh")
+	la("mô tả rỗng", g.mo_ta_ngan(None), "")
+	dai = g.mo_ta_ngan("x" * 50 + " " + "y" * 200)
+	dung("cắt ở 200 và thêm ...", dai.endswith("...") and len(dai) <= 204)
+	la("topping lọc", g.loc_topping(TOP, {"TPNC00002": 25000}), [{"ma": "TPNC00001", "ten": "Trân châu ô long", "gia": 10000}, {"ma": "TPNC00002", "ten": "Thay sữa yến mạch", "gia": 25000}])
+	d = {"ma": "NUTR00021", "ten": "Trà", "sl": 2, "gia": 45000, "tc": ["Ít đá"], "tp": [{"ma": "TPNC00001", "ten": "Trân châu ô long", "gia": 10000}]}
+	la("lựa chọn kèm topping để hiện", g.tc_hien(d), ["Ít đá", "+ Trân châu ô long"])
+	la("đơn giá dòng", g.gia_dong(d), 55000)
+	la("tạm tính", g.tinh_tam([d]), 110000)
+	la("dòng hoá đơn: ly rồi topping theo ly, mô tả Kèm", g.dong_hoa_don([d]),
+		[{"item_code": "NUTR00021", "qty": 2, "rate": 45000.0, "tuy_chon": "Ít đá, + Trân châu ô long"},
+			{"item_code": "TPNC00001", "qty": 2, "rate": 10000.0, "tuy_chon": "Kèm Trà"}])
+	la("lý do chuông", [g.chuan_ly_do(x) for x in ("Xin tính tiền", " Xin tính tiền ", "xin tiền", "", None)], ["Xin tính tiền", "Xin tính tiền", "", "", ""])
+
+
+def _bang2():
+	b = _bang()
+	b["NUTR00040"] = {"ten": "Kombucha Chill , Chai 300ml", "gia": 100000, "loai": "nuoc", "nhom_goc": "Trà", "tc": [], "khong_pha": 1}
+	for t in g.loc_topping(TOP, {}):
+		b[t["ma"]] = {"ten": t["ten"], "gia": t["gia"], "loai": "topping", "nhom_goc": g.NHOM_TOPPING}
+	return b
+
+
+@ca("v639 giỏ có topping: giá máy chủ, cùng ly cùng topping gộp, khác topping tách dòng, bỏ trùng; topping gọi riêng, topping cho bánh, cho chai, topping lạ, quá 5 đều chặn")
+def _gio_topping():
+	dong, tam = g.chuan_gio([
+		{"ma": "NUTR00021", "sl": 1, "tc": {"Đá": "Ít đá"}, "tp": ["TPNC00001", "TPNC00001"]},
+		{"ma": "NUTR00021", "sl": 2, "tc": {"Đá": "Ít đá"}, "tp": [{"ma": "TPNC00001", "gia": 1}]},
+		{"ma": "NUTR00021", "sl": 1, "tc": {"Đá": "Ít đá"}},
+		{"ma": "NUTR00040", "sl": 1}], _bang2())
+	la("dòng", [(d["ma"], d["sl"], d["tc"], [t["ma"] for t in d["tp"]], g.gia_dong(d)) for d in dong],
+		[("NUTR00021", 3, ["Ít đá"], ["TPNC00001"], 55000), ("NUTR00021", 1, ["Ít đá"], [], 45000), ("NUTR00040", 1, [], [], 100000)])
+	la("giá topping máy chủ, không theo 1 đồng", dong[0]["tp"], [{"ma": "TPNC00001", "ten": "Trân châu ô long", "gia": 10000}])
+	la("tạm tính", tam, 3 * 55000 + 45000 + 100000)
+	for gio, cau in (
+		([{"ma": "TPNC00001", "sl": 1}], "chọn kèm một ly nước"),
+		([{"ma": "BAWC00115", "sl": 1, "tp": ["TPNC00001"]}], "không thêm topping"),
+		([{"ma": "NUTR00040", "sl": 1, "tp": ["TPNC00001"]}], "không thêm topping"),
+		([{"ma": "NUTR00021", "sl": 1, "tp": ["TPBA00001"]}], "ngừng bán"),
+		([{"ma": "NUTR00021", "sl": 1, "tp": ["TPNC00009"]}], "ngừng bán"),
+		([{"ma": "NUTR00021", "sl": 1, "tp": "TPNC00001"}], "không đọc được"),
+		([{"ma": "NUTR00021", "sl": 1, "tp": ["a", "b", "c", "d", "e", "f"]}], "ngừng bán")):
+		try:
+			g.chuan_gio(gio, _bang2())
+			la("phải chặn %r" % (gio,), "không chặn", cau)
+		except ValueError as e:
+			dung("câu chặn %r có '%s' (được: %s)" % (gio, cau, e), cau in str(e))
+	b = _bang2()
+	for i in range(6):
+		b["TP%d" % i] = {"ten": "T%d" % i, "gia": 1000, "loai": "topping"}
+	try:
+		g.chuan_gio([{"ma": "NUTR00021", "sl": 1, "tp": ["TP%d" % i for i in range(6)]}], b)
+		dung("quá 5 topping phải chặn", False)
+	except ValueError as e:
+		dung("câu tối đa 5", "tối đa 5" in str(e))
+
+
+@ca("v639 bảng món và tab Tại quầy: topping của điểm vào bảng (loai topping) và vào khoá topping của quầy; đồ uống có nhom_goc, mo_ta, khong_pha; chai không có lựa chọn")
+def _feed_639():
+	diem = [dict(ma="TCV", ten="The Vagabond District 1", ten_ngan="District 1", dia_chi="9 TCV", quay="TCV")]
+	nuoc = g.loc_do_uong([TRA, KOM], {}, {})
+	for x in nuoc:
+		x["mo_ta"] = g.mo_ta_ngan(KOM["description"]) if x["ma"] == "NUTR00040" else ""
+		x["khong_pha"] = 1 if g.khong_pha(x["ten"]) else 0
+	lib = sys.modules.get("vagabond.lib")
+	with patch.object(kiem_kho, "_diem_co_quay", return_value=diem), \
+			patch.object(kiem_kho, "banh_tren_quay", side_effect=lambda ma, ngay=None: [dict(x, mo_ta="Chanh dây Đà Lạt") for x in BANH]), \
+			patch.object(g, "do_uong_cua_diem", side_effect=lambda ma, ngay=None: nuoc), \
+			patch.object(g, "topping_cua_diem", side_effect=lambda ma: g.loc_topping(TOP, {})), \
+			patch.object(g, "doc_tuy_chon", return_value=TC), \
+			patch.object(diem_ban, "gia_rieng", return_value={}), \
+			patch.object(lib, "cfg", return_value=_fr._dict(pancake_shop_id="")), patch.object(lib, "key", return_value=""):
+		ra = kiem_kho.con_tren_quay_web()
+		bm = g.bang_mon(diem[0])
+	q = ra["quay"][0]
+	la("bánh có mô tả", q["mon"][0]["mo_ta"], "Chanh dây Đà Lạt")
+	la("đồ uống: nhóm gốc, mô tả, đóng sẵn", [(m["ma"], m["nhom_goc"], m["mo_ta"], m["khong_pha"], [n["nhom"] for n in m["tc"]]) for m in q["do_uong"]],
+		[("NUTR00040", "Trà", "Lên men tại tiệm", 1, []), ("NUTR00021", "Trà", "", 0, ["Đá", "Đường"])])
+	la("topping của quầy", [t["ma"] for t in q["topping"]], ["TPNC00001", "TPNC00002"])
+	la("bảng món có topping loai topping, chai không lựa chọn", [(k, v["loai"]) for k, v in bm.items() if k.startswith("TP")] + [bm["NUTR00040"]["tc"], bm["NUTR00040"]["khong_pha"]],
+		[("TPNC00001", "topping"), ("TPNC00002", "topping"), [], 1])
+
+
+@ca("v639 gọi món có topping rồi quầy nhận: đơn lưu topping; phiếu tạm tính có dòng topping theo ly ghi Kèm; phiếu pha chế ghi + topping; tạm tính đủ")
+def _nhan_topping():
+	kho = Kho()
+	with _he(kho), patch.object(g, "topping_cua_diem", side_effect=lambda ma: g.loc_topping(TOP, {})):
+		r = _gui(mon=[{"ma": "NUTR00021", "sl": 2, "tc": {"Đá": "Ít đá"}, "tp": ["TPNC00002"]}])
+	la("ghi", r["ok"], 1)
+	d = kho.dong[r["ma"]]
+	la("tạm tính kể cả topping", d["tam_tinh"], 2 * (45000 + 20000))
+	la("đơn lưu topping", json.loads(d["mon"])[0]["tp"], [{"ma": "TPNC00002", "ten": "Thay sữa yến mạch", "gia": 20000}])
+	with _quay(kho, phieu_co="ACC-SINV-CO") as (tao, si), \
+			patch.object(_fr.db, "set_value", side_effect=lambda dt, *a, **k: kho.set_value(dt, *a, **k) if dt == g.DT else None):
+		kq = g.nhan(r["ma"])
+	dong = si["ACC-SINV-CO"]["items"]
+	la("phiếu: ly rồi topping theo ly", [(x["item_code"], x["qty"], x["rate"]) for x in dong[1:]], [("NUTR00021", 2.0, 45000.0), ("TPNC00002", 2.0, 20000.0)])
+	la("mô tả ly ghi topping", dong[1]["description"], "Trà Hoa Lài\n[Ít đá, + Thay sữa yến mạch]")
+	la("phiếu pha chế ghi + topping", kq["phieu"]["mon"][0]["tc"], ["Ít đá", "+ Thay sữa yến mạch"])
+	with _he(kho):
+		the = g.the_quay(kho.dong[r["ma"]], BAY, "District 1")
+	la("thẻ quầy: lựa chọn kèm topping, giá dòng kể cả topping", (the["mon"][0]["tc"], the["mon"][0]["gia"]), (["Ít đá", "+ Thay sữa yến mạch"], 65000))
+
+
+def _chuong(nonce="C" * 32, ban=5, ly_do="Xin tính tiền", **kw):
+	return g.goi_nhan_vien(diem="TCV", ban=ban, k=kw.pop("k", _k(ban)), ly_do=ly_do, nonce=nonce, **kw)
+
+
+@ca("v639 chuông gọi nhân viên: k sai, ngoài giờ, lý do lạ không ghi; ghi một lời kèm tin Zalo nhóm quầy (không tiền, có kiểm lại); cùng nonce không ghi thêm; bàn gọi 3 lần trong 10 phút thì chặn")
+def _goi_nhan_vien():
+	kho = Kho()
+	with _he(kho, mo=False):
+		la("ngoài giờ", (_chuong()["ok"], len(kho.tg)), (0, 0))
+	with _he(kho) as tin:
+		la("k sai", (_chuong(k="0" * 16)["ok"], len(kho.tg)), (0, 0))
+		r = _chuong(ly_do="xin tiền")
+		dung("lý do lạ", r["ok"] == 0 and "chọn một lý do" in r["cau"] and not kho.tg)
+		r = _chuong(chi_tiet=" xin thêm ghế em bé " + "x" * 200)
+		la("ghi một lời", (r["ok"], len(kho.tg), r["luc"]), (1, 1, "10:00"))
+		d = kho.tg[r["ma"]]
+		la("bản ghi", (d["diem"], d["ban"], d["ly_do"], d["trang_thai"], len(d["chi_tiet"])), ("TCV", 5, "Xin tính tiền", "Chờ xử lý", 120))
+		la("tin Zalo đúng mã", [k["ma_tin"] for a, k in tin], ["bh_khach_can_tro_giup"])
+		a, k = tin[0]
+		dung("tin nêu bàn, điểm, lý do, chữ khách, link app", "Bàn 5" in a[2] and "District 1" in a[2] and "Xin tính tiền" in a[2]
+			and any("xin thêm ghế em bé" in x for x in a[3]) and "https://app.vagabond.test/ban-tai-quay" in a[3][-1])
+		dung("không số tiền", not any(kenh_zalo.MAU_TIEN.search(x) for x in [a[2]] + list(a[3])))
+		la("hỏi lại trước khi gửi", (k["kiem"], kenh_zalo.DIEU_KIEN["tro_giup_cho"], k["khoa"]), ("tro_giup_cho", "vagabond.goi_mon_ban.con_tro_giup", "tro-giup:" + r["ma"]))
+		dung("còn chờ", g.con_tro_giup(r["ma"]))
+		r2 = _chuong()
+		la("cùng nonce: cùng lời, không thêm", (r2["ma"], r2.get("lap_lai"), len(kho.tg)), (r["ma"], 1, 1))
+		_chuong(nonce="D" * 32, ly_do="Việc khác")
+		_chuong(nonce="E" * 32, ly_do="Xin thêm nước lọc, đá")
+		r = _chuong(nonce="F" * 32)
+		dung("lần thứ tư trong 10 phút chặn", r["ok"] == 0 and "vừa gọi 3 lần" in r["cau"])
+		la("vẫn 3 lời, bàn khác vẫn gọi được", (len(kho.tg), _chuong(nonce="G" * 32, ban=7)["ok"]), (3, 1))
+		la("tin Zalo mỗi lời một tin", len(tin), 4)
+
+
+@ca("Codex PR #542 vòng 1: hai khách cùng bàn bấm chuông cùng lúc (nonce khác), cùng đếm 2 lời đã có rồi cùng qua: phải khoá theo bàn, chỉ MỘT lời được ghi, khoá luôn nhả")
+def _chuong_dua():
+	kho = Kho()
+	with _he(kho):
+		_chuong(nonce="C" * 32)
+		_chuong(nonce="D" * 32, ly_do="Việc khác")
+	kho.goi_khoa.clear()
+	cho = threading.Barrier(2)
+	goc = kho.get_all
+
+	def dem_roi_doi(dt, filters=None, **k):
+		r = goc(dt, filters=filters, **k)
+		if dt == g.DT_TG and filters and "luc" in filters:
+			try:
+				cho.wait(timeout=1.5)
+			except threading.BrokenBarrierError:
+				pass
+		return r
+	kq = {}
+	with _he(kho), patch.object(_fr, "get_all", side_effect=dem_roi_doi):
+		def chay(nonce):
+			kq[nonce] = _chuong(nonce=nonce, ly_do="Xin thêm nước lọc, đá")
+		ts = [threading.Thread(target=chay, args=("E" * 32,)), threading.Thread(target=chay, args=("F" * 32,))]
+		for x in ts:
+			x.start()
+		for x in ts:
+			x.join(20)
+	ok = [n for n, r in kq.items() if r.get("ok")]
+	la("đúng một lời qua, bàn vẫn 3 lời", (len(ok), len(kho.tg)), (1, 3))
+	thua = [r for r in kq.values() if not r.get("ok")]
+	dung("lời kia nghe câu vừa gọi 3 lần", len(thua) == 1 and "vừa gọi 3 lần" in thua[0]["cau"])
+	lay = [x for x in kho.goi_khoa if x[0] == "lay" and x[1].startswith("vgb_chuong")]
+	nha = [x for x in kho.goi_khoa if x[0] == "nha" and x[1].startswith("vgb_chuong")]
+	la("khoá theo bàn, lấy bao nhiêu nhả bấy nhiêu", ({x[1] for x in lay}, len(lay), len(nha)), ({"vgb_chuong:TCV:5"}, 2, 2))
+	dung("khoá không còn bị giữ", not any(k.locked() for k in kho.khoa_ten.values()))
+
+
+@ca("v639 màn quầy nhận lời gọi: dem_cho trả tro_giup (xin tính tiền kèm bill của bàn, lời quá 30 phút ẩn); Đã tới bàn chuyển Đã xong, ghi người bấm; lịch 5 phút chuyển Hết hạn lời quá 30 phút")
+def _tro_giup_quay():
+	kho = Kho()
+	with _he(kho):
+		r1 = _chuong(nonce="C" * 32, ly_do="Xin tính tiền")
+		r2 = _chuong(nonce="D" * 32, ban=9, ly_do="Việc khác", chi_tiet="xin ghế em bé")
+	kho.tg[r2["ma"]]["luc"] = BAY - datetime.timedelta(minutes=31)
+	with _he(kho), patch.object(BH, "_kiem_quyen_ban"), patch.object(g, "_phieu_tam_cua_ban", side_effect=lambda diem, ban, ngay: "ACC-SINV-CO" if ban == 5 else ""), \
+			patch.object(_fr.db, "get_value", side_effect=lambda dt, ten, f=None, **k: kho.get_value(dt, ten, f, **k) if dt in (g.DT, g.DT_TG)
+				else (_fr._dict(custom_pancake_display_id="TCVABCDE", grand_total=335000.0) if dt == "Sales Invoice" else None)):
+		kq = g.dem_cho("TCV")
+		la("một lời còn hạn, kèm bill", [(x["ma"], x["ban"], x["ly_do"], x["bill"], x["tam_tinh"], x["hoa_don"], x["phut"]) for x in kq["tro_giup"]],
+			[(r1["ma"], 5, "Xin tính tiền", "TCVABCDE", 335000, "ACC-SINV-CO", 0)])
+		_fr.session.user = "thu.ngan@vagabond.test"
+		la("đã tới bàn", g.xong_tro_giup(r1["ma"]), {"ok": 1, "ban": 5})
+		la("bản ghi", (kho.tg[r1["ma"]]["trang_thai"], kho.tg[r1["ma"]]["xong_boi"]), ("Đã xong", "thu.ngan@vagabond.test"))
+		la("bấm lần hai", g.xong_tro_giup(r1["ma"]), {"ok": 1, "da_xong": 1})
+		dung("tin Zalo hỏi lại: không còn chờ", not g.con_tro_giup(r1["ma"]) and not g.con_tro_giup(r2["ma"]))
+		la("không còn lời nào trên màn", g.dem_cho("TCV")["tro_giup"], [])
+		g.quet_het_han()
+		la("lời quá 30 phút Hết hạn, lời đã xong giữ nguyên", (kho.tg[r2["ma"]]["trang_thai"], kho.tg[r1["ma"]]["trang_thai"]), ("Hết hạn", "Đã xong"))
+
+
+@ca("v639 doctype lời gọi nhân viên: đủ trường, trạng thái trùng hằng máy chủ, nonce duy nhất, đặt tên GNV-; cửa mới có trong sổ cửa ngõ; tin Zalo có trong danh mục")
+def _doctype_tg():
+	d = json.loads((GOC / "vagabond/vagabond/doctype/vagabond_goi_nhan_vien/vagabond_goi_nhan_vien.json").read_text())
+	f = {x["fieldname"]: x for x in d["fields"]}
+	for k in ("diem", "ban", "ly_do", "chi_tiet", "trang_thai", "luc", "xong_luc", "xong_boi", "nonce"):
+		dung("có trường " + k, k in f)
+	la("trạng thái", tuple(f["trang_thai"]["options"].split("\n")), g.TRANG_THAI_TG)
+	la("nonce duy nhất", f["nonce"].get("unique"), 1)
+	dung("tên GNV-", d["autoname"].startswith("format:GNV-"))
+	la("tên doctype", d["name"], g.DT_TG)
+	dung("tin Zalo trong danh mục", "bh_khach_can_tro_giup" in kenh_zalo.TIN and kenh_zalo.TIN["bh_khach_can_tro_giup"][0] == "Bán hàng, cửa hàng")
+	s = (GOC / "vagabond/khung/kiem_thu/thu_cua_ngo.py").read_text()
+	dung("sổ cửa ngõ có hai cửa mới", '"goi_nhan_vien"' in s and '"xong_tro_giup"' in s)
+	js = (GOC / "vagabond/public/web_vue/banh/kho-goi-ban.js").read_text()
+	for ly in g.LY_DO_GOI:
+		dung("trang khách có đúng câu lý do: " + ly, "'" + ly + "'" in js)
+
+
 def _node(tep, so_toi_thieu):
 	r = subprocess.run(["node", "vagabond/khung/kiem_thu/hanh_vi/" + tep], cwd=GOC, capture_output=True, text=True, timeout=90)
 	la(tep + "\n" + r.stdout[-2500:] + r.stderr[-1500:], r.returncode, 0)
@@ -944,12 +1194,12 @@ def _node(tep, so_toi_thieu):
 
 @ca("v638 trang khách Vue (node, Vue thật): link có k hiện chế độ gọi món, thêm món, chọn đá đường, giỏ, gọi món gửi đúng dữ liệu, xem trạng thái")
 def _vue():
-	_node("goi_mon_ban_638.mjs", 7)
+	_node("goi_mon_ban_638.mjs", 14)
 
 
 @ca("v638 màn quầy và màn In QR (node, mã nguồn thật): dải chờ hiện khi có đơn, nhận đơn gọi đúng cửa và in phiếu, từ chối bắt lý do, in đủ tờ")
 def _quay_js():
-	_node("goi_mon_quay_638.js", 6)
+	_node("goi_mon_quay_638.js", 9)
 
 
 @ca("v638 bảng kiểm kho (node, trang thật): mục Đồ uống đủ món, công tắc Bán trên web gọi đúng cửa, ngày cũ không bấm được")
