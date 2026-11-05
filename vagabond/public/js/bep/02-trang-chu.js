@@ -156,6 +156,8 @@ async function scrHome() {
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       /* v638: mã QR dán bàn để khách tự gọi món (66-goi-mon-tai-ban.js). */
       (coQuyenGmbQr() ? card('🔳', 'In QR tại bàn', 'Mỗi bàn một mã QR, khách quét để gọi món; in khổ A6', 0, 'GMBQR') : '') +
+      /* v640: menu theo điểm bán cho trang bàn và màn Tính tiền (68-bien-tap-menu.js). */
+      (coQuyenGmbQr() ? card('📋', 'Biên tập menu', 'Thứ tự nhóm và món, đá đường, topping cho món nước, ẩn hiện trên web', 0, 'BTM') : '') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       /* v582: chi Sales that, QLCH, ke toan, giam doc (coQuyenCongNo). */
       (coQuyenCongNo() ? card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') : '') +
@@ -611,9 +613,10 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM', 'GMBQR'],
+    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM', 'GMBQR', 'BTM'],
     nhom: [
       { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'DSCK', 'BNTM'] },
+      { t: 'Menu', p: 'món, nhóm, tuỳ chọn trên web và quầy', keys: ['BTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
       { t: 'Khách hàng', p: 'đặt bàn, đặt trước và công nợ', keys: ['DATBAN', 'DDT', 'CN', 'SOTANG', 'SODU'] },
       { t: 'Bánh sỉ', p: 'quán, khách sạn đặt trên web', keys: ['BSI', 'BSIKH'] },
@@ -1865,6 +1868,7 @@ var VGB_DUONG = {
   'bang-gia-theo-diem-ban': 'BGDB',
   'bao-cao': 'BCHUB',
   'bien-nhan-nop-tien-mat': 'BNTM',
+  'bien-tap-menu': 'BTM',
   'but-toan': 'BT',
   'cai-dat-cuoi-ngay': 'CDCN',
   'cai-dat-loi-va-api': 'CDLOI',
@@ -2174,6 +2178,7 @@ function vgbGo(k) {
   if (k === 'PHHUY') return go(scrPhieuHoanHuy);
   if (k === 'POS') return go(scrPosChonQuay);
   if (k === 'GMBQR') return go(scrGmbInQr);
+  if (k === 'BTM') return go(scrBienTapMenu);
   if (k === 'TQV') return go(scrTqDot);
   /* v614 phân hệ Khách hàng (58-crm.js). */
   if (k === 'CRMGOI') return go(scrCrmGoi);

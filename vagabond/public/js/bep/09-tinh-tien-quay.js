@@ -1719,28 +1719,47 @@ function posGcGui(m, maApp) {
 /* Tuy chon pha che kieu customization Fabi: it duong, it da, da rieng...
    Khong chon gi = mac dinh 100% duong 100% da, khong ghi gi len bill.
    Cac lua chon deu 0 dong - chi la loi dan cho quay pha che. */
-var POS_TC = null;
+var POS_TC = null, POS_TC_MON = {}, POS_TC_QUAY = null;
+/* v640: tuy chon lay theo menu dang chay cua DIEM (Ban hang > Bien tap menu),
+   moi quay mot menu. Moi nhom chon MOT muc; muc mac dinh ("Binh thuong")
+   khong ghi len bill. THUAN: nhom tuy chon cua mot mon. */
+function posNhomTc(m, theoMon, chung) {
+  if (theoMon && theoMon[m.item_code]) return theoMon[m.item_code];
+  return (chung || []).filter(function (n) { return !(n.nhom_mon || []).length || n.nhom_mon.indexOf(m.nhom || '') >= 0; });
+}
+/* THUAN: bam muc lc cua nhom n tren danh sach m.tc -> danh sach moi. Moi nhom
+   mot muc: bam muc khac thi thay, bam lai muc dang chon hoac muc mac dinh thi
+   bo (ve pha chuan). */
+function posChonTc(ds, n, lc) {
+  var co = ds.indexOf(lc) >= 0;
+  var ra = ds.filter(function (x) { return n.lua_chon.indexOf(x) < 0; });
+  if (!co && lc !== (n.mac_dinh || '')) ra.push(lc);
+  return ra;
+}
 async function posMoTuyChon(i) {
   var m = posDon.mon[i];
   if (!m) return;
-  if (POS_TC === null) {
-    try { var kq = await api('vagabond.ban_hang.pos_ds_tuy_chon', {}); POS_TC = (kq && kq.tc) || []; }
-    catch (e) { POS_TC = []; }
+  var quay = (typeof posQuay !== 'undefined' && posQuay && posQuay.ma) || '';
+  if (POS_TC === null || POS_TC_QUAY !== quay) {
+    try { var kq = await api('vagabond.ban_hang.pos_ds_tuy_chon', { quay: quay }); POS_TC = (kq && kq.tc) || []; POS_TC_MON = (kq && kq.mon) || {}; }
+    catch (e) { POS_TC = []; POS_TC_MON = {}; }
+    POS_TC_QUAY = quay;
   }
-  var ds = POS_TC.filter(function (n) { return !n.nhom_mon.length || n.nhom_mon.indexOf(m.nhom || '') >= 0; });
+  var ds = posNhomTc(m, POS_TC_MON, POS_TC);
   if (!ds.length) return;
   m.tc = m.tc || [];
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
   var html = '<div class="shh"><b>' + h(m.ten) + '</b><div class="x">&times;</div></div>' +
     '<div style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 14px)">' +
-    '<div style="font-size:12px;color:#98a2b3;margin-bottom:6px">Không chọn gì = 100% đường, 100% đá như bình thường.</div>';
-  ds.forEach(function (n) {
+    '<div style="font-size:12px;color:#98a2b3;margin-bottom:6px">Mỗi nhóm chọn một. Không chọn gì là pha chuẩn, không ghi lên bill.</div>';
+  ds.forEach(function (n, k) {
+    var coChon = n.lua_chon.some(function (x) { return m.tc.indexOf(x) >= 0; });
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:10px 0 6px;text-transform:uppercase">' + h(n.nhom) + '</div>' +
       '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
       n.lua_chon.map(function (lc) {
-        var on = m.tc.indexOf(lc) >= 0;
-        return '<button data-tc="' + h(lc) + '" style="padding:9px 13px;border-radius:10px;font-size:14px;cursor:pointer;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e;font-weight:700' : '#e5e7eb;background:#fff;color:#374151') + '">' + h(lc) + '</button>';
+        var on = m.tc.indexOf(lc) >= 0 || (!coChon && lc === (n.mac_dinh || ''));
+        return '<button data-tc="' + h(lc) + '" data-tcn="' + k + '" style="padding:9px 13px;border-radius:10px;font-size:14px;cursor:pointer;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e;font-weight:700' : '#e5e7eb;background:#fff;color:#374151') + '">' + h(lc) + '</button>';
       }).join('') + '</div>';
   });
   html += '<button class="btn" id="tcXong" style="margin-top:16px">Xong</button></div>';
@@ -1752,14 +1771,17 @@ async function posMoTuyChon(i) {
   box.querySelector('#tcXong').onclick = dong;
   box.addEventListener('click', function (e) {
     var t = e.target.closest('[data-tc]'); if (!t) return;
-    var lc = t.getAttribute('data-tc');
-    var k = m.tc.indexOf(lc);
-    if (k >= 0) m.tc.splice(k, 1); else m.tc.push(lc);
-    var on = m.tc.indexOf(lc) >= 0;
-    t.style.border = '1.5px solid ' + (on ? '#0d9488' : '#e5e7eb');
-    t.style.background = on ? '#ccfbf1' : '#fff';
-    t.style.color = on ? '#0f766e' : '#374151';
-    t.style.fontWeight = on ? '700' : 'normal';
+    var n = ds[+t.getAttribute('data-tcn')]; if (!n) return;
+    m.tc = posChonTc(m.tc, n, t.getAttribute('data-tc'));
+    var coChon = n.lua_chon.some(function (x) { return m.tc.indexOf(x) >= 0; });
+    box.querySelectorAll('[data-tcn="' + t.getAttribute('data-tcn') + '"]').forEach(function (b) {
+      var lc = b.getAttribute('data-tc');
+      var on = m.tc.indexOf(lc) >= 0 || (!coChon && lc === (n.mac_dinh || ''));
+      b.style.border = '1.5px solid ' + (on ? '#0d9488' : '#e5e7eb');
+      b.style.background = on ? '#ccfbf1' : '#fff';
+      b.style.color = on ? '#0f766e' : '#374151';
+      b.style.fontWeight = on ? '700' : 'normal';
+    });
   });
 }
 /* Ma QR dong kieu bill Fabi: khach quet bang app ngan hang la so tien va
