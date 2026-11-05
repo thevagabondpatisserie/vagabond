@@ -45,6 +45,30 @@ NGUON_TAO = "Tại chỗ"
 # hàng (cau_hinh_ban_hang.nhom_nuoc), bảng kiểm kho và tab Tại quầy dùng thẳng.
 NHOM_NUOC = ("Trà", "Cà phê", "Matcha", "Cacao", "Ice Cream - Kem")
 NHAN_DO_UONG = "Đồ uống"
+# v639 (anh Việt duyệt mẫu 05/11/2026): topping chọn kèm ly nước (thạch, trân
+# châu, sữa yến mạch) là MÓN trong nhóm này của danh mục, có giá riêng; đi
+# vào hoá đơn thành dòng riêng ngay sau ly nước. Topping bánh không bán tại bàn.
+NHOM_TOPPING = "Topping cho món nước"
+TOPPING_TOI_DA_MOI_LY = 5
+# Món đóng sẵn (chai, lon, hũ, set trà, hộp) không pha nên không hỏi đá, đường,
+# cũng không thêm topping (Codex/anh Việt 05/11: Kombucha chai vẫn hỏi sữa yến
+# mạch). Đọc theo TÊN món vì danh mục không có cờ riêng; quản lý muốn khác thì
+# khai nhóm món cho từng nhóm lựa chọn ở Cài đặt bán hàng.
+# "Chai" đứng đầu tên là trà chai (Chai Latte), không phải cái chai: chỉ bắt
+# "chai", "lon", "hũ", "hộp" sau dấu phẩy hoặc đi kèm dung tích (lon 330).
+MAU_KHONG_PHA = re.compile(r"(?:,\s*(?:chai|lon|hũ|hu|hộp|hop)\b|\b(?:chai|lon)\s*\d|\bset\s+tr[àa]\b)", re.I)
+
+# v639: khách bấm chuông gọi nhân viên (nút dưới Nhắn Zalo khi mở từ QR bàn).
+DT_TG = "Vagabond Goi Nhan Vien"
+LY_DO_GOI = ("Gọi nhân viên tới bàn", "Xin tính tiền", "Xin thêm nước lọc, đá", "Xin thêm dao, nĩa, khăn giấy", "Việc khác")
+TG_CHO = "Chờ xử lý"
+TG_XONG = "Đã xong"
+TG_HET_HAN = "Hết hạn"
+TRANG_THAI_TG = (TG_CHO, TG_XONG, TG_HET_HAN)
+PHUT_TG_HET_HAN = 30
+GOI_TOI_DA_MOI_BAN = 3
+PHUT_DEM_GOI = 10
+DAI_CHI_TIET = 120
 
 TT_CHO = "Chờ nhận"
 TT_NHAN = "Đã nhận"
@@ -143,6 +167,61 @@ def tuy_chon_cho(nhom_mon, ds_tc):
 	return ra
 
 
+def khong_pha(ten):
+	"""Món đóng sẵn theo tên (chai, lon, hũ, set trà, hộp): không hỏi đá đường,
+	không topping. THUẦN."""
+	return bool(MAU_KHONG_PHA.search(str(ten or "")))
+
+
+def tuy_chon_mon(ten, nhom_mon, ds_tc):
+	"""Lựa chọn pha chế của MỘT món: theo nhóm món, trừ món đóng sẵn. THUẦN."""
+	return [] if khong_pha(ten) else tuy_chon_cho(nhom_mon, ds_tc)
+
+
+def mo_ta_ngan(html, dai=200):
+	"""Mô tả món trong danh mục (HTML của Item.description) -> một đoạn chữ
+	trơn ngắn cho dòng món trên trang khách. THUẦN."""
+	s = re.sub(r"<br\s*/?>|</p>|</div>|</li>", " ", str(html or ""), flags=re.I)
+	s = re.sub(r"<[^>]+>", "", s)
+	s = (s.replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", '"').replace("&#39;", "'")
+		.replace("&lt;", "<").replace("&gt;", ">"))
+	s = re.sub(r"\s+", " ", s).strip()
+	if len(s) > dai:
+		s = s[:dai].rsplit(" ", 1)[0].rstrip(",;:") + "..."
+	return s
+
+
+def loc_topping(rows, gia_diem):
+	"""Topping bán kèm ly nước của một điểm: món đang dùng, là hàng bán, đúng
+	nhóm Topping cho món nước, có giá (giá điểm thắng giá chung). THUẦN."""
+	ra = []
+	for r in rows or []:
+		ma = str(r.get("item_code") or "").strip()
+		if not ma or str(r.get("item_group") or "").strip() != NHOM_TOPPING:
+			continue
+		if int(r.get("disabled") or 0) or not int(r.get("is_sales_item") if r.get("is_sales_item") is not None else 1):
+			continue
+		if int(r.get("has_variants") or 0):
+			continue
+		gia = gia_mon(ma, gia_diem, r.get("standard_rate"))
+		if gia <= 0:
+			continue
+		ra.append({"ma": ma, "ten": r.get("item_name") or ma, "gia": gia})
+	ra.sort(key=lambda x: (x["gia"], x["ten"]))
+	return ra
+
+
+def tc_hien(d):
+	"""Lựa chọn kèm topping của một dòng, để hiện cho quầy, khách và phiếu pha
+	chế: ["Ít đá", "+ Trân châu ô long"]. THUẦN."""
+	return list(d.get("tc") or []) + ["+ " + str(t.get("ten") or "") for t in (d.get("tp") or [])]
+
+
+def gia_dong(d):
+	"""Đơn giá một dòng kể cả topping. THUẦN."""
+	return int(d.get("gia") or 0) + sum(int(t.get("gia") or 0) for t in (d.get("tp") or []))
+
+
 def gia_mon(ma, gia_diem, gia_chung):
 	"""Giá bán một món ở một điểm: giá riêng của điểm, không có thì giá chung
 	danh mục. Cùng hai nguồn với màn quầy (diem_ban.ap_gia_diem). THUẦN."""
@@ -222,11 +301,12 @@ def _tc_tu_gui(tc, cho_phep):
 def chuan_gio(gio, bang):
 	"""Giỏ khách gửi -> các dòng đã chuẩn hoá và tạm tính. THUẦN, máy chủ chốt số.
 
-	gio: [{"ma", "sl", "tc": {nhóm: lựa chọn}}]
-	bang: {ma: {"ten", "gia", "loai" ("nuoc"|"banh"), "con" (bánh), "tc": [...]}}
+	gio: [{"ma", "sl", "tc": {nhóm: lựa chọn}, "tp": [mã topping]}]
+	bang: {ma: {"ten", "gia", "loai" ("nuoc"|"banh"|"topping"), "con" (bánh), "tc": [...]}}
 	Giá, tên lấy từ bảng của máy chủ; "gia" khách gửi bị bỏ qua. Cùng món cùng
-	lựa chọn gộp một dòng. Bánh cộng mọi dòng của mã rồi so số còn. Sai thì
-	ValueError với câu khách đọc được."""
+	lựa chọn cùng topping gộp một dòng. Bánh cộng mọi dòng của mã rồi so số
+	còn. Topping (v639) chỉ đi kèm ly nước pha, mỗi ly tối đa 5 thứ, không gọi
+	riêng. Sai thì ValueError với câu khách đọc được."""
 	if isinstance(gio, str):
 		try:
 			gio = json.loads(gio or "[]")
@@ -244,6 +324,8 @@ def chuan_gio(gio, bang):
 		m = (bang or {}).get(ma)
 		if not m:
 			raise ValueError("Có món vừa ngừng bán. Quý khách tải lại trang rồi chọn lại.")
+		if m.get("loai") == "topping":
+			raise ValueError("%s là topping, chọn kèm một ly nước chứ không gọi riêng." % m["ten"])
 		try:
 			sl = int(x.get("sl"))
 		except (TypeError, ValueError):
@@ -251,12 +333,13 @@ def chuan_gio(gio, bang):
 		if sl < 1 or sl > SL_TOI_DA:
 			raise ValueError("Số lượng %s phải từ 1 tới %d." % (m["ten"], SL_TOI_DA))
 		tc = _tc_tu_gui(x.get("tc"), m.get("tc") or []) if m.get("loai") == "nuoc" else []
-		khoa = (ma, tuple(tc))
+		tp = _tp_tu_gui(x.get("tp"), m, bang)
+		khoa = (ma, tuple(tc), tuple(t["ma"] for t in tp))
 		if khoa in theo_khoa:
 			theo_khoa[khoa]["sl"] += sl
 		else:
 			d = {"ma": ma, "ten": m["ten"], "sl": sl, "gia": int(m["gia"]), "tc": tc, "loai": m.get("loai") or "banh",
-				"nhom": m.get("nhom_goc") or ""}
+				"nhom": m.get("nhom_goc") or "", "tp": tp}
 			theo_khoa[khoa] = d
 			dong.append(d)
 		sl_ma[ma] = sl_ma.get(ma, 0) + sl
@@ -272,9 +355,33 @@ def chuan_gio(gio, bang):
 	return dong, tinh_tam(dong)
 
 
+def _tp_tu_gui(tp, m, bang):
+	"""Topping khách chọn cho một ly -> [{ma, ten, gia}] đã kiểm theo bảng máy
+	chủ, bỏ trùng, giữ thứ tự khách chọn. Chỉ ly nước pha mới được kèm. THUẦN."""
+	if not tp:
+		return []
+	if not isinstance(tp, list):
+		raise ValueError("Topping của món không đọc được. Quý khách chọn lại.")
+	if m.get("loai") != "nuoc" or m.get("khong_pha"):
+		raise ValueError("%s không thêm topping được." % m["ten"])
+	ra, da = [], set()
+	for x in tp:
+		ma = str(x.get("ma") if isinstance(x, dict) else x or "").strip()
+		if not ma or ma in da:
+			continue
+		t = (bang or {}).get(ma)
+		if not t or t.get("loai") != "topping":
+			raise ValueError("Có topping vừa ngừng bán. Quý khách tải lại trang rồi chọn lại.")
+		da.add(ma)
+		ra.append({"ma": ma, "ten": t["ten"], "gia": int(t["gia"])})
+	if len(ra) > TOPPING_TOI_DA_MOI_LY:
+		raise ValueError("Mỗi ly tối đa %d topping." % TOPPING_TOI_DA_MOI_LY)
+	return ra
+
+
 def tinh_tam(dong):
-	"""Tạm tính của các dòng (giá x số lượng). THUẦN."""
-	return int(sum(int(d.get("gia") or 0) * int(d.get("sl") or 0) for d in dong or []))
+	"""Tạm tính của các dòng (giá kể cả topping x số lượng). THUẦN."""
+	return int(sum(gia_dong(d) * int(d.get("sl") or 0) for d in dong or []))
 
 
 def sl_dang_cho(ds_mon_json):
@@ -351,9 +458,15 @@ def mo_ta_tc(tc):
 
 
 def dong_hoa_don(dong):
-	"""Dòng đơn gọi món -> dòng giỏ của màn quầy (ban_hang._dung_dong_mon). THUẦN."""
-	return [{"item_code": d["ma"], "qty": int(d["sl"]), "rate": float(d["gia"]), "tuy_chon": mo_ta_tc(d.get("tc"))}
-		for d in dong or []]
+	"""Dòng đơn gọi món -> dòng giỏ của màn quầy (ban_hang._dung_dong_mon).
+	Topping (v639) thành dòng riêng ngay sau ly nước, số lượng theo ly, mô tả
+	"Kèm <tên ly>" để quầy biết của ly nào. THUẦN."""
+	ra = []
+	for d in dong or []:
+		ra.append({"item_code": d["ma"], "qty": int(d["sl"]), "rate": float(d["gia"]), "tuy_chon": mo_ta_tc(tc_hien(d))})
+		for t in d.get("tp") or []:
+			ra.append({"item_code": t["ma"], "qty": int(d["sl"]), "rate": float(t["gia"]), "tuy_chon": "Kèm " + str(d.get("ten") or "")})
+	return ra
 
 
 def chon_phieu_tam(ds):
@@ -382,8 +495,8 @@ def the_quay(r, bay_gio, ten_diem="", anh=None):
 		"ma": r.get("name"), "ban": int(r.get("ban") or 0), "diem": r.get("diem") or "", "ten_diem": ten_diem,
 		"so_mon": sum(int(d.get("sl") or 0) for d in mon), "tam_tinh": int(r.get("tam_tinh") or 0),
 		"phut": phut_cho(r.get("luc"), bay_gio),
-		"mon": [{"ma": d.get("ma"), "ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": d.get("tc") or [],
-			"loai": d.get("loai") or "", "nhom": d.get("nhom") or "", "gia": int(d.get("gia") or 0),
+		"mon": [{"ma": d.get("ma"), "ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": tc_hien(d),
+			"loai": d.get("loai") or "", "nhom": d.get("nhom") or "", "gia": gia_dong(d),
 			"anh": anh.get(d.get("ma")) or ""} for d in mon],
 		"ghi_chu": r.get("ghi_chu") or "", "ten_goi": r.get("ten_goi") or "",
 		"gioi_thieu": r.get("ten_gioi_thieu") or "",
@@ -401,7 +514,7 @@ def cho_khach(r, bay_gio):
 		"nhan_luc": nhan.strftime("%H:%M") if (nhan and tt == TT_NHAN) else "",
 		"ly_do": (r.get("ly_do") or "") if tt == TT_TU_CHOI else "",
 		"tam_tinh": int(r.get("tam_tinh") or 0),
-		"mon": [{"ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": d.get("tc") or []} for d in mon],
+		"mon": [{"ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": tc_hien(d)} for d in mon],
 	}
 
 
@@ -413,13 +526,39 @@ def soan_tin(r, ten_diem, link):
 	tieu_de = "Bàn %s · %s gọi món qua QR" % (r.get("ban"), ten_diem)
 	dong = ["Đơn %s, %d món:" % (r.get("name"), sum(int(d.get("sl") or 0) for d in mon))]
 	for d in mon[:12]:
-		dong.append("- %s x%d%s" % (d.get("ten"), int(d.get("sl") or 0), (" (%s)" % mo_ta_tc(d.get("tc"))) if d.get("tc") else ""))
+		dong.append("- %s x%d%s" % (d.get("ten"), int(d.get("sl") or 0), (" (%s)" % mo_ta_tc(tc_hien(d))) if tc_hien(d) else ""))
 	if len(mon) > 12:
 		dong.append("... và %d món nữa" % (len(mon) - 12))
 	if r.get("ghi_chu"):
 		dong.append("Ghi chú: %s" % str(r.get("ghi_chu"))[:120])
 	dong.append("Nhận đơn trong %d phút trên màn Tính tiền. Mở app: %s" % (PHUT_HET_HAN, link))
 	return tieu_de, dong
+
+
+def the_tro_giup(r, bay_gio, ten_diem="", bill=None):
+	"""Một thẻ "bàn cần trợ giúp" trên màn quầy (v639). bill: {"ma", "tam_tinh"}
+	của phiếu tạm tính hôm nay của bàn khi khách xin tính tiền. THUẦN."""
+	return {
+		"ma": r.get("name"), "ban": int(r.get("ban") or 0), "diem": r.get("diem") or "", "ten_diem": ten_diem,
+		"ly_do": r.get("ly_do") or "", "chi_tiet": r.get("chi_tiet") or "", "phut": phut_cho(r.get("luc"), bay_gio),
+		"bill": (bill or {}).get("ma") or "", "tam_tinh": int((bill or {}).get("tam_tinh") or 0), "hoa_don": (bill or {}).get("hoa_don") or "",
+	}
+
+
+def soan_tin_tro_giup(r, ten_diem, link):
+	"""Tin Zalo nhóm quầy khi khách bấm chuông (v639). Không số tiền. THUẦN."""
+	tieu_de = "Bàn %s · %s cần trợ giúp: %s" % (r.get("ban"), ten_diem, r.get("ly_do") or "")
+	dong = []
+	if r.get("chi_tiet"):
+		dong.append("Khách nhắn: %s" % str(r.get("chi_tiet"))[:DAI_CHI_TIET])
+	dong.append("Tới bàn rồi bấm \"Đã tới bàn\" trên màn Tính tiền. Mở app: %s" % link)
+	return tieu_de, dong
+
+
+def chuan_ly_do(v):
+	"""Lý do khách chọn phải nằm trong danh sách; khác thì rỗng. THUẦN."""
+	v = str(v or "").strip()
+	return v if v in LY_DO_GOI else ""
 
 
 def ma_bill_moi(diem, rand_chu):
@@ -517,11 +656,29 @@ def do_uong_cua_diem(ma_diem, hom_nay=None):
 
 	rows = frappe.get_all(
 		"Item", filters={"item_group": ["in", list(NHOM_NUOC)], "disabled": 0},
-		fields=["item_code", "item_name", "image", "standard_rate", "item_group", "disabled", "is_sales_item", "has_variants"],
+		fields=["item_code", "item_name", "image", "standard_rate", "item_group", "disabled", "is_sales_item", "has_variants",
+			"description"],
 		limit_page_length=0, ignore_permissions=True,
 	)
 	tat = tat_ban_web.bang([r.get("item_code") for r in rows], hom_nay)
-	return loc_do_uong(rows, diem_ban.gia_rieng(ma_diem), tat)
+	mo_ta = {str(r.get("item_code") or ""): mo_ta_ngan(r.get("description")) for r in rows}
+	ra = loc_do_uong(rows, diem_ban.gia_rieng(ma_diem), tat)
+	for x in ra:
+		x["mo_ta"] = mo_ta.get(x["ma"], "")
+		x["khong_pha"] = 1 if khong_pha(x["ten"]) else 0
+	return ra
+
+
+def topping_cua_diem(ma_diem):
+	"""Topping kèm ly nước của một điểm (v639): [{ma, ten, gia}], giá theo bảng giá điểm."""
+	from vagabond import diem_ban
+
+	rows = frappe.get_all(
+		"Item", filters={"item_group": NHOM_TOPPING, "disabled": 0},
+		fields=["item_code", "item_name", "standard_rate", "item_group", "disabled", "is_sales_item", "has_variants"],
+		limit_page_length=0, ignore_permissions=True,
+	)
+	return loc_topping(rows, diem_ban.gia_rieng(ma_diem))
 
 
 def _cho_cua(diem, ban=None):
@@ -558,7 +715,9 @@ def bang_mon(d, hom_nay=None):
 		if not x["ban_web"]:
 			continue
 		ra[x["ma"]] = {"ten": x["ten"], "gia": x["gia"], "loai": "nuoc", "nhom_goc": x["nhom_goc"],
-			"tc": tuy_chon_cho(x["nhom_goc"], ds_tc)}
+			"tc": tuy_chon_mon(x["ten"], x["nhom_goc"], ds_tc), "khong_pha": int(x.get("khong_pha") or 0)}
+	for t in topping_cua_diem(d["ma"]):
+		ra[t["ma"]] = {"ten": t["ten"], "gia": t["gia"], "loai": "topping", "nhom_goc": NHOM_TOPPING}
 	da_nhan = _da_nhan_cua(d["ma"])
 	cho = sl_dang_cho(mon_dang_giu([r.get("mon") for r in _cho_cua(d["ma"]) if not het_han(r.get("luc"), bay)],
 		da_nhan, _phieu_tam_mo([r.get("hoa_don") for r in da_nhan]), bay.date()))
@@ -742,6 +901,89 @@ def trang_thai(ma=None, token=None):
 	return dict(cho_khach(r, now_datetime()), ok=1)
 
 
+# ------------------------------------------------------- chuông gọi nhân viên
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=20, seconds=600)
+def goi_nhan_vien(diem=None, ban=None, k=None, ly_do=None, chi_tiet="", nonce=None):
+	"""Khách bấm chuông Gọi nhân viên trên trang bàn (v639). Trả {ok, ma} hoặc
+	{ok: 0, cau}. Mỗi bàn tối đa 3 lần trong 10 phút, chỉ trong giờ mở cửa."""
+	d, n = _kiem_link(diem, ban, k)
+	if not d:
+		return {"ok": 0, "cau": "Mã QR không hợp lệ. Quý khách nhắn nhân viên gần nhất."}
+	nonce = chuan_nonce(nonce)
+	if not nonce:
+		return {"ok": 0, "cau": "Quý khách tải lại trang rồi bấm lại."}
+	cu = frappe.db.get_value(DT_TG, {"nonce": nonce}, ["name", "diem", "ban"], as_dict=True)
+	if cu:
+		if cu.diem != d["ma"] or cint(cu.ban) != n:
+			return {"ok": 0, "cau": "Quý khách tải lại trang rồi bấm lại."}
+		return {"ok": 1, "ma": cu.name, "lap_lai": 1}
+	ly = chuan_ly_do(ly_do)
+	if not ly:
+		return {"ok": 0, "cau": "Quý khách chọn một lý do."}
+	bay = now_datetime()
+	if not _gio_mo_cua(d, bay).get("dang_mo"):
+		return {"ok": 0, "cau": "Quầy đang ngoài giờ mở cửa."}
+	moc = bay - timedelta(minutes=PHUT_DEM_GOI)
+	gan_day = frappe.get_all(DT_TG, filters={"diem": d["ma"], "ban": n, "luc": [">=", moc]}, pluck="name", limit_page_length=0)
+	if len(gan_day) >= GOI_TOI_DA_MOI_BAN:
+		return {"ok": 0, "cau": "Bàn này vừa gọi %d lần. Nhân viên đang tới, quý khách đợi một chút hoặc nhắn Zalo." % GOI_TOI_DA_MOI_BAN}
+	doc = frappe.get_doc({
+		"doctype": DT_TG, "diem": d["ma"], "ban": n, "ly_do": ly, "chi_tiet": str(chi_tiet or "").strip()[:DAI_CHI_TIET],
+		"trang_thai": TG_CHO, "luc": bay, "nonce": nonce,
+	})
+	try:
+		doc.insert(ignore_permissions=True)
+	except Exception as e:
+		if "Duplicate" not in type(e).__name__ and "Duplicate" not in str(e):
+			raise
+		frappe.db.rollback()
+		cu = frappe.db.get_value(DT_TG, {"nonce": nonce}, "name")
+		if not cu:
+			raise
+		return {"ok": 1, "ma": cu, "lap_lai": 1}
+	_bao_tro_giup(doc, d)
+	frappe.db.commit()
+	return {"ok": 1, "ma": doc.name, "luc": bay.strftime("%H:%M")}
+
+
+def _bao_tro_giup(doc, d):
+	"""Tin Zalo nhóm quầy: bàn nào cần gì. Không số tiền."""
+	from vagabond import kenh_zalo
+	from vagabond.lien_ket_app import goc_app
+
+	try:
+		tieu_de, dong = soan_tin_tro_giup(doc.as_dict(), d.get("ten_ngan") or d["ten"], goc_app() + "/ban-tai-quay")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "goi_mon_ban: soạn tin trợ giúp lỗi")
+		return
+	kenh_zalo.bao("viec", "ban_hang", tieu_de, dong, khoa="tro-giup:%s" % doc.name,
+		kiem="tro_giup_cho", nguon=doc.name, ma_tin="bh_khach_can_tro_giup")
+
+
+def con_tro_giup(ten):
+	"""Tin Zalo hỏi lại ngay trước khi gửi: lời gọi còn chờ không."""
+	r = frappe.db.get_value(DT_TG, ten, ["trang_thai", "luc"], as_dict=True)
+	return bool(r) and r.trang_thai == TG_CHO and not het_han(r.luc, now_datetime(), PHUT_TG_HET_HAN)
+
+
+@frappe.whitelist(methods=["POST"])
+def xong_tro_giup(ma=None):
+	"""Thu ngân bấm "Đã tới bàn": lời gọi chuyển Đã xong, ghi ai bấm."""
+	_kiem_quyen_quay()
+	ma = str(ma or "").strip()
+	r = frappe.db.get_value(DT_TG, ma, ["name", "ban", "trang_thai"], as_dict=True)
+	if not r:
+		frappe.throw("Không thấy lời gọi %s." % ma)
+	if r.trang_thai != TG_CHO:
+		return {"ok": 1, "da_xong": 1}
+	frappe.db.set_value(DT_TG, ma, {"trang_thai": TG_XONG, "xong_luc": now_datetime(), "xong_boi": frappe.session.user})
+	frappe.db.commit()
+	return {"ok": 1, "ban": r.ban}
+
+
 # ------------------------------------------------------------ màn quầy
 
 
@@ -765,7 +1007,36 @@ def dem_cho(diem=None):
 	ten = d.get("ten_ngan") or d["ten"]
 	ds = [r for r in ds if not het_han(r.get("luc"), bay)]
 	the = [the_quay(r, bay, ten, _anh_mon([x.get("ma") for r in ds for x in _doc_mon(r)])) for r in ds]
-	return {"so": len(the), "ds": the, "ly_do": list(LY_DO_TU_CHOI)}
+	return {"so": len(the), "ds": the, "ly_do": list(LY_DO_TU_CHOI), "tro_giup": _tro_giup_cho(d, bay)}
+
+
+def _tro_giup_cho(d, bay):
+	"""Các lời gọi nhân viên còn chờ của quầy, mới nhất trong 30 phút (v639)."""
+	ten = d.get("ten_ngan") or d["ten"]
+	ds = frappe.get_all(DT_TG, filters={"diem": d["ma"], "trang_thai": TG_CHO},
+		fields=["name", "diem", "ban", "ly_do", "chi_tiet", "luc"], order_by="luc asc", limit_page_length=0)
+	ra = []
+	for r in ds:
+		if het_han(r.get("luc"), bay, PHUT_TG_HET_HAN):
+			continue
+		bill = None
+		if r.get("ly_do") == LY_DO_GOI[1]:
+			bill = _bill_cua_ban(d["ma"], cint(r.get("ban")), bay.date())
+		ra.append(the_tro_giup(r, bay, ten, bill))
+	return ra
+
+
+def _bill_cua_ban(diem, ban, ngay):
+	"""Phiếu tạm tính hôm nay của bàn, để thu ngân mở ngay khi khách xin tính tiền."""
+	try:
+		hd = _phieu_tam_cua_ban(diem, ban, ngay)
+		if not hd:
+			return None
+		r = frappe.db.get_value("Sales Invoice", hd, ["custom_pancake_display_id", "grand_total"], as_dict=True) or {}
+		return {"hoa_don": hd, "ma": r.get("custom_pancake_display_id") or hd, "tam_tinh": int(flt(r.get("grand_total")))}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "goi_mon_ban: đọc bill của bàn lỗi")
+		return None
 
 
 def _anh_mon(ma):
@@ -894,7 +1165,7 @@ def nhan(ma=None):
 		"ok": 1, "hoa_don": ten, "bill": ma_bill, "them_vao": da_co, "ban": r["ban"],
 		# Phiếu pha chế in bằng đúng posInPhieuMon của màn quầy.
 		"phieu": {"name": ten, "bill": ma_bill, "so_ban": str(r["ban"]), "ghi_chu": r.get("ghi_chu") or "",
-			"mon": [{"item_code": x["ma"], "ten": x["ten"], "qty": x["sl"], "nhom": x.get("nhom") or "", "tc": x.get("tc") or [],
+			"mon": [{"item_code": x["ma"], "ten": x["ten"], "qty": x["sl"], "nhom": x.get("nhom") or "", "tc": tc_hien(x),
 				"gc": ""} for x in _doc_mon(r)]},
 	}
 
@@ -931,7 +1202,12 @@ def quet_het_han():
 		# đang Chờ nhận, đúng trong một câu UPDATE, không ghi đè Đã nhận.
 		frappe.db.sql("update `tab%s` set trang_thai = %%s where name = %%s and trang_thai = %%s" % DT,
 			(TT_HET_HAN, ten, TT_CHO))
-	if ds:
+	moc_tg = bay - timedelta(minutes=PHUT_TG_HET_HAN)
+	tg = frappe.get_all(DT_TG, filters={"trang_thai": TG_CHO, "luc": ["<=", moc_tg]}, pluck="name", limit_page_length=500)
+	for ten in tg:
+		frappe.db.sql("update `tab%s` set trang_thai = %%s where name = %%s and trang_thai = %%s" % DT_TG,
+			(TG_HET_HAN, ten, TG_CHO))
+	if ds or tg:
 		frappe.db.commit()
 	return len(ds)
 
