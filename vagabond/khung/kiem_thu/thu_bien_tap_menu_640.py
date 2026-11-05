@@ -108,7 +108,14 @@ def _quay():
 	r = btm.tc_cho_quay(m, UONG)
 	la("theo món", {k: [(t["nhom"], t["mac_dinh"]) for t in v] for k, v in r["mon"].items()},
 		{"NUTR00090": [("Đá", "Bình thường"), ("Đường", "Bình thường")], "NUTR00031": [("Đá", "Bình thường"), ("Đường", "Bình thường")],
-			"NUCF00003": [("Đá", "Bình thường"), ("Đường", "Bình thường")], "NUIC00002": [("Đá", "Bình thường"), ("Đường", "Bình thường")]})
+			"NUCF00003": [("Đá", "Bình thường"), ("Đường", "Bình thường")], "NUIC00002": [("Đá", "Bình thường"), ("Đường", "Bình thường")],
+			"NUTR00040": []})
+	# Codex PR #543: món quản lý tắt HẾT tuỳ chọn vẫn phải có mục rỗng trong "mon",
+	# không thì màn Tính tiền rơi về tuỳ chọn theo nhóm gốc và hiện lại thứ vừa tắt.
+	m2 = _menu()
+	m2["mon"] = {"NUTR00090": {"tat_tc": ["Đá", "Đường", "Tuỳ chọn khác"]}}
+	r3 = btm.tc_cho_quay(m2, UONG)
+	la("tắt hết tuỳ chọn: mục rỗng, không vắng", [r3["mon"].get("NUTR00090", "VẮNG"), r3["mon"].get("NUTR00040", "VẮNG")], [[], []])
 	la("theo nhóm gốc", [(t["nhom"], t["nhom_mon"]) for t in r["tc"]], [("Đá", ["Cà phê", "Ice Cream - Kem", "Trà"]), ("Đường", ["Cà phê", "Ice Cream - Kem", "Trà"])])
 	with patch.object(diem_ban, "ma_theo_quay", side_effect=lambda q: q), \
 			patch.object(g, "do_uong_cua_diem", side_effect=lambda ma, ngay=None: UONG), patch.object(g, "topping_cua_diem", side_effect=lambda ma: TOP), \
@@ -328,4 +335,4 @@ def _feed():
 def _node():
 	r = subprocess.run(["node", str(GOC / "vagabond/khung/kiem_thu/hanh_vi/bien_tap_menu_640.js")], capture_output=True, text=True, timeout=120)
 	dung("node chạy được: " + (r.stdout[-1500:] + r.stderr[-800:]), r.returncode == 0)
-	dung("đủ số ca", "8 ca dat, 0 ca hong" in r.stdout)
+	dung("đủ số ca", "10 ca dat, 0 ca hong" in r.stdout)
