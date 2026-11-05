@@ -232,6 +232,8 @@ CUA_NGO = {
 	# QR tại bàn (quản lý cửa hàng, Giám đốc): `diem_in_qr`, `to_qr`. Hàm còn
 	# lại (`quet_het_han` lịch, `con_cho_nhan` hỏi lại tin Zalo) là nội bộ.
 	"goi_mon_ban.py": ["mo_ban", "goi", "trang_thai", "goi_nhan_vien", "xong_tro_giup", "dem_cho", "nhan", "tu_choi", "diem_in_qr", "to_qr"],
+	# v640: Biên tập menu theo điểm bán (chỉ quản lý cửa hàng).
+	"bien_tap_menu.py": ["mo", "luu_nhap", "xuat_ban", "bo_nhap", "khoi_phuc"],
 	# Them 03/09/2026: man Cai dat trang dat banh web. `dong_bo` keo danh muc
 	# Pancake ve mot luot roi xoa dem va ghi lai anh; `tinh_hinh` chi doc. Cac
 	# ham `_ghi_lai_hinh`, `_gan_anh_mon_trong`, `_xoa_dem` la noi bo, KHONG mo.

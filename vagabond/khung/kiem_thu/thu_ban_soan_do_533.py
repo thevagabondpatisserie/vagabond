@@ -220,7 +220,10 @@ def _thu_tu():
 		"66-goi-mon-tai-ban.js",
 		# v638: Hoa hồng giới thiệu, chỉ xem số, đưa vào phiếu KPI và đổi người
 		# bằng bảng chọn một bước, không có form lập phiếu nháp nhiều ô.
-		"67-hoa-hong-gioi-thieu.js"])
+		"67-hoa-hong-gioi-thieu.js",
+		# v640: Biên tập menu, mọi thay đổi tự lưu vào bản nháp trên máy chủ
+		# (Vagabond Menu), không có form lập phiếu nháp nhiều ô.
+		"68-bien-tap-menu.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:
