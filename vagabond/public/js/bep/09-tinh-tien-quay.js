@@ -1719,7 +1719,14 @@ function posGcGui(m, maApp) {
 /* Tuy chon pha che kieu customization Fabi: it duong, it da, da rieng...
    Khong chon gi = mac dinh 100% duong 100% da, khong ghi gi len bill.
    Cac lua chon deu 0 dong - chi la loi dan cho quay pha che. */
-var POS_TC = null, POS_TC_MON = {}, POS_TC_QUAY = null;
+var POS_TC = null, POS_TC_MON = {}, POS_TC_QUAY = null, POS_TC_LUC = 0;
+/* Bảng tuỳ chọn của quầy chỉ giữ 60 giây: quản lý xuất bản menu ở máy khác thì quầy
+   thấy menu mới trong vòng một phút; xuất bản ngay trên máy này thì xoá luôn
+   (posQuenTc). Trước đây giữ vô thời hạn tới khi đổi quầy (Codex PR #543 vòng 3). */
+var POS_TC_HAN = 60000;
+function posBayGio() { return Date.now(); }
+function posCanTaiTc(quay, bay) { return POS_TC === null || POS_TC_QUAY !== quay || bay - POS_TC_LUC > POS_TC_HAN; }
+function posQuenTc() { POS_TC = null; POS_TC_MON = {}; POS_TC_LUC = 0; }
 /* v640: tuy chon lay theo menu dang chay cua DIEM (Ban hang > Bien tap menu),
    moi quay mot menu. Moi nhom chon MOT muc; muc mac dinh ("Binh thuong")
    khong ghi len bill. THUAN: nhom tuy chon cua mot mon. */
@@ -1742,9 +1749,13 @@ async function posMoTuyChon(i) {
   var m = posDon.mon[i];
   if (!m) return;
   var quay = (typeof posQuay !== 'undefined' && posQuay && posQuay.ma) || '';
-  if (POS_TC === null || POS_TC_QUAY !== quay) {
-    try { var kq = await api('vagabond.ban_hang.pos_ds_tuy_chon', { quay: quay }); POS_TC = (kq && kq.tc) || []; POS_TC_MON = (kq && kq.mon) || {}; }
-    catch (e) { POS_TC = []; POS_TC_MON = {}; }
+  if (posCanTaiTc(quay, posBayGio())) {
+    try {
+      var kq = await api('vagabond.ban_hang.pos_ds_tuy_chon', { quay: quay });
+      POS_TC = (kq && kq.tc) || []; POS_TC_MON = (kq && kq.mon) || {}; POS_TC_LUC = posBayGio();
+    }
+    /* Lỗi mạng: lần này không hỏi gì, lần mở sau tải lại (không giữ bảng rỗng 60 giây). */
+    catch (e) { POS_TC = []; POS_TC_MON = {}; POS_TC_LUC = 0; }
     POS_TC_QUAY = quay;
   }
   var ds = posNhomTc(m, POS_TC_MON, POS_TC);

@@ -185,7 +185,9 @@ async function scrBienTapMenu() {
   btmVe();
 }
 async function btmDoiDiem(ma) {
-  await btmChoLuu();
+  /* Lưu chưa được thì ở lại điểm đang sửa, giữ nguyên thay đổi để quản lý thử lại;
+     đổi điểm lúc này là mất thay đổi chưa lưu (Codex PR #543 vòng 3). */
+  if (!(await btmChoLuu())) return toast('Bản nháp của ' + ((BTM && BTM.d.ten_diem) || 'điểm này') + ' chưa lưu được. Kiểm tra mạng, sửa lại một chỗ bất kỳ để lưu rồi mới đổi điểm.', 6000);
   BTM_DIEM = ma; BTM = null;
   return scrBienTapMenu();
 }
@@ -557,7 +559,7 @@ async function scrBtmXuat() {
     var p = +x.getAttribute('data-btmkhoiphuc');
     if (!(await confirmSheet('Quay về phiên ' + p, 'Trang bàn và màn Tính tiền của ' + d.ten_diem + ' chạy lại menu phiên ' + p + '. Bản nháp đang sửa dở bị thay bằng bản đó.', 'Quay về bản này'))) return;
     busy(true);
-    try { await api('vagabond.bien_tap_menu.khoi_phuc', { diem: d.diem, phien: p }); }
+    try { await api('vagabond.bien_tap_menu.khoi_phuc', { diem: d.diem, phien: p }); if (typeof posQuenTc === 'function') posQuenTc(); }
     catch (er) { busy(false); return toast((er && er.message) || 'Chưa quay về được, thử lại.', 5000); }
     busy(false); toast('Đã quay về phiên ' + p + '.');
     BTM = null; back();
@@ -576,7 +578,7 @@ async function scrBtmXuat() {
     if (!(await confirmSheet('Xuất bản menu', 'Trang gọi món tại bàn và màn Tính tiền của ' + d.ten_diem + ' đổi ngay theo bản nháp (' + td.length + ' thay đổi).', 'Xuất bản'))) return;
     busy(true);
     var kq;
-    try { kq = await api('vagabond.bien_tap_menu.xuat_ban', { diem: d.diem }); }
+    try { kq = await api('vagabond.bien_tap_menu.xuat_ban', { diem: d.diem }); if (typeof posQuenTc === 'function') posQuenTc(); }
     catch (er) { busy(false); return toast((er && er.message) || 'Chưa xuất bản được, thử lại.', 5000); }
     busy(false);
     toast('Đã xuất bản menu phiên ' + kq.phien + ' cho ' + d.ten_diem + '.', 5000);
