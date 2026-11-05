@@ -14,8 +14,8 @@ import {computed, ref, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 import {AnhMon} from './thanh-phan.js';
 import {giaDong, LY_DO_GOI} from './kho-goi-ban.js';
+import {BieuTuong, ICON_LY_DO} from './bieu-tuong.js';
 
-const X = '<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg>';
 
 /* Khối "đã gọi" là khối CHỈ ĐỂ ĐỌC, không được lấn chỗ khối để bấm (AGENTS.md
    2b.17, Codex PR #542 vòng 1): thu về MỘT dòng đếm số đơn kèm trạng thái đơn
@@ -86,79 +86,91 @@ export const MAU_GOI_BAN_NOI = `
   </div></div>
 
   <section class="sheet gb-sheet" id="gbChon" :class="{open: !!G.chon}" role="dialog" aria-modal="true" aria-labelledby="gb-chon-ten">
-    <div class="wrap" v-if="G.chon">
-      <div class="gb-sheet-dau"><h2 id="gb-chon-ten">{{ G.chon.m.ten }}</h2>
-        <button class="close" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="G.chon=null">${X}</button></div>
-      <div class="gb-anh" v-if="G.chon.m.anh"><anh-mon :src="G.chon.m.anh"/></div>
-      <div class="gb-gia" id="gbGiaChon">{{ tien(gb.giaChon.value) }}</div>
-      <p class="gb-mo-ta" v-if="G.chon.m.mo_ta">{{ G.chon.m.mo_ta }}</p>
-      <div class="gb-nhom" id="gbSize" v-if="G.chon.m.bienThe.length > 1">
-        <h3>{{ t('goi_ban_size','Size') }}</h3>
-        <div class="sizes"><button v-for="bt in G.chon.m.bienThe" :key="bt.ma" class="size" :class="{on: G.chon.bt.ma===bt.ma}" :data-size="bt.ma" :aria-pressed="String(G.chon.bt.ma===bt.ma)" @click="gb.chonBienThe(bt)"><b>{{ bt.size || bt.ten }}</b><small>{{ tien(bt.gia) }}</small></button></div>
+    <div class="gb-khung" v-if="G.chon">
+      <header class="gb-dau-bang"><div class="gb-dau-chu"><small v-if="G.chon.m.nhomTen">{{ G.chon.m.nhomTen }}</small><h2 id="gb-chon-ten">{{ G.chon.m.ten }}</h2></div>
+        <button class="gb-x" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="G.chon=null"><bieu-tuong ten="dong"/></button></header>
+      <div class="gb-than">
+        <div class="gb-anh" v-if="G.chon.m.anh"><anh-mon :src="G.chon.m.anh"/></div>
+        <div class="gb-gia" id="gbGiaChon">{{ tien(gb.giaChon.value) }}</div>
+        <p class="gb-mo-ta" v-if="G.chon.m.mo_ta">{{ G.chon.m.mo_ta }}</p>
+        <div class="gb-nhom" id="gbSize" v-if="G.chon.m.bienThe.length > 1">
+          <div class="gb-nhom-dau"><h3>{{ t('goi_ban_size','Size') }}</h3><i>{{ t('goi_ban_chon_mot','chọn một') }}</i></div>
+          <div class="gb-vien-ds"><button v-for="bt in G.chon.m.bienThe" :key="bt.ma" type="button" class="gb-vien" :class="{on: G.chon.bt.ma===bt.ma}" :data-size="bt.ma" :aria-pressed="String(G.chon.bt.ma===bt.ma)" @click="gb.chonBienThe(bt)">{{ bt.size || bt.ten }}<small>{{ tien(bt.gia) }}</small></button></div>
+        </div>
+        <div class="gb-nhom" v-for="n in G.chon.m.tc" :key="n.nhom">
+          <div class="gb-nhom-dau"><h3>{{ n.nhom }}</h3><i>{{ t('goi_ban_chon_mot','chọn một') }}</i></div>
+          <div class="gb-vien-ds"><button v-for="lc in n.lua_chon" :key="lc" type="button" class="gb-vien" :class="{on: G.chon.tc[n.nhom]===lc}" :data-tc="n.nhom + '=' + lc" :aria-pressed="String(G.chon.tc[n.nhom]===lc)" @click="gb.chonTc(n.nhom, lc)">{{ lc }}</button></div>
+        </div>
+        <div class="gb-nhom" id="gbTopping" v-if="G.chon.topping.length">
+          <div class="gb-nhom-dau"><h3>{{ t('goi_ban_topping','Thêm topping') }}</h3><i>{{ t('goi_ban_chon_nhieu','chọn nhiều') }}</i></div>
+          <button v-for="x in G.chon.topping" :key="x.ma" type="button" class="gb-tp" :class="{on: !!G.chon.tp[x.ma]}" :data-tp="x.ma" role="checkbox" :aria-checked="String(!!G.chon.tp[x.ma])" @click="gb.chonTp(x.ma)">
+            <i class="gb-cb" aria-hidden="true"><bieu-tuong ten="tick"/></i><span>{{ x.ten }}</span><b>+{{ tien(x.gia) }}</b></button>
+        </div>
       </div>
-      <div class="gb-nhom" v-for="n in G.chon.m.tc" :key="n.nhom">
-        <h3>{{ n.nhom }}</h3>
-        <p class="gb-phu">{{ t('goi_ban_mac_dinh','Không chọn là pha chuẩn của quầy.') }}</p>
-        <div class="sizes"><button v-for="lc in n.lua_chon" :key="lc" class="size" :class="{on: G.chon.tc[n.nhom]===lc}" :data-tc="n.nhom + '=' + lc" :aria-pressed="String(G.chon.tc[n.nhom]===lc)" @click="gb.chonTc(n.nhom, lc)"><b>{{ lc }}</b></button></div>
-      </div>
-      <div class="gb-nhom" id="gbTopping" v-if="G.chon.topping.length">
-        <h3>{{ t('goi_ban_topping','Thêm topping') }}</h3>
-        <p class="gb-phu">{{ t('goi_ban_topping_phu','Chọn được nhiều, tính thêm tiền theo từng ly.') }}</p>
-        <button v-for="x in G.chon.topping" :key="x.ma" type="button" class="gb-tp" :class="{on: !!G.chon.tp[x.ma]}" :data-tp="x.ma" role="checkbox" :aria-checked="String(!!G.chon.tp[x.ma])" @click="gb.chonTp(x.ma)">
-          <i class="gb-cb" aria-hidden="true"></i><span>{{ x.ten }}</span><b>+{{ tien(x.gia) }}</b></button>
-      </div>
-      <div class="gb-chan">
-        <div class="qty gb-qty"><button type="button" :aria-label="t('goi_ban_bot','Bớt một')" @click="gb.doiSlChon(-1)">−</button><span id="gbSlChon">{{ G.chon.sl }}</span><button type="button" :aria-label="t('goi_ban_them','Thêm một')" @click="gb.doiSlChon(1)">+</button></div>
-        <button class="btn gb-nut" id="gbThemLy" @click="gb.xongChon()">{{ t('goi_ban_c7d1e2f3a','Thêm · {tien}',{tien: tien(gb.tongChon.value)}) }}</button>
-      </div>
+      <footer class="gb-day">
+        <div class="gb-step"><button type="button" :aria-label="t('goi_ban_bot','Bớt một')" @click="gb.doiSlChon(-1)"><bieu-tuong ten="tru"/></button><span id="gbSlChon">{{ G.chon.sl }}</span><button type="button" :aria-label="t('goi_ban_them','Thêm một')" @click="gb.doiSlChon(1)"><bieu-tuong ten="cong"/></button></div>
+        <button type="button" class="gb-cta" id="gbThemLy" @click="gb.xongChon()">{{ t('goi_ban_c7d1e2f3a','Thêm · {tien}',{tien: tien(gb.tongChon.value)}) }}</button>
+      </footer>
     </div>
   </section>
 
   <section class="sheet gb-sheet" id="gbGio" :class="{open: G.moGio}" role="dialog" aria-modal="true" aria-labelledby="gb-gio-tieu">
-    <div class="wrap">
-      <div class="gb-sheet-dau"><h2 id="gb-gio-tieu">{{ t('goi_ban_3de60aa70','Gọi món · {ban}',{ban: gb.nhanBan.value}) }}</h2>
-        <button class="close" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="G.moGio=false">${X}</button></div>
-      <div class="gb-dong" v-for="(x,i) in G.gio" :key="x.khoa" :data-dong="x.ma">
-        <div class="gb-dong-ten"><b>{{ x.ten }}</b><small v-if="gb.chuTuyChon(x.tc, x.nhom)">{{ gb.chuTuyChon(x.tc, x.nhom) }}</small><small v-for="tp in x.tp" :key="tp.ma">+ {{ tp.ten }} ({{ tien(tp.gia) }})</small><small>{{ tien(giaDong(x) * x.sl) }}</small></div>
-        <div class="qty"><button type="button" :aria-label="t('goi_ban_bot','Bớt một')" @click="gb.doiSl(i,-1)">−</button><span>{{ x.sl }}</span><button type="button" :aria-label="t('goi_ban_them','Thêm một')" @click="gb.doiSl(i,1)">+</button></div>
+    <div class="gb-khung">
+      <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ gb.nhanBan.value }}</small><h2 id="gb-gio-tieu">{{ G.don.length ? t('goi_ban_goi_them','Gọi thêm món') : t('goi_ban_goi_mon','Gọi món') }}</h2></div>
+        <button class="gb-x" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="G.moGio=false"><bieu-tuong ten="dong"/></button></header>
+      <div class="gb-than">
+        <div class="gb-dong" v-for="(x,i) in G.gio" :key="x.khoa" :data-dong="x.ma">
+          <span class="gb-dong-anh"><anh-mon :src="x.anh"/></span>
+          <div class="gb-dong-ten"><b>{{ x.ten }}</b><small v-if="chuDong(x)">{{ chuDong(x) }}</small>
+            <div class="gb-dong-duoi"><em>{{ tien(giaDong(x) * x.sl) }}</em>
+              <div class="gb-step gb-step-nho"><button type="button" :aria-label="t('goi_ban_bot','Bớt một')" @click="gb.doiSl(i,-1)"><bieu-tuong ten="tru"/></button><span>{{ x.sl }}</span><button type="button" :aria-label="t('goi_ban_them','Thêm một')" @click="gb.doiSl(i,1)"><bieu-tuong ten="cong"/></button></div></div>
+          </div>
+        </div>
+        <div class="fld"><label for="gb-ghi"><span>{{ t('goi_ban_ghi_chu','Ghi chú cho quầy') }}</span></label>
+          <textarea id="gb-ghi" rows="2" maxlength="300" :placeholder="t('goi_ban_ghi_chu_goi','Ví dụ: mang trà ra trước, bánh để sau')" v-model="G.ghiChu"></textarea></div>
+        <div class="fld"><label for="gb-ten"><span>{{ t('goi_ban_ten','Tên để quầy gọi (không bắt buộc)') }}</span></label>
+          <input id="gb-ten" maxlength="40" autocomplete="off" v-model="G.ten"></div>
+        <div class="fld" v-if="!G.ban || Number(G.ban.gioi_thieu) !== 0"><label for="gb-gt"><span>{{ t('goi_ban_ma_gt','Mã giới thiệu (không bắt buộc)') }}</span></label>
+          <input id="gb-gt" inputmode="tel" maxlength="20" autocomplete="off" :placeholder="t('dat_banh_ma_gt_goi','Số điện thoại nhân viên giới thiệu')" v-model="G.gt" @blur="gb.kiemGt()">
+          <div class="hint" id="gbGtHint">{{ G.gtHien }}</div></div>
+        <p class="gb-phu" id="gbCuoi">{{ G.don.length ? t('goi_ban_cung_bill','Gọi thêm sẽ cộng vào cùng bill của bàn {ban}. Thanh toán tại quầy khi dùng xong, hoặc bấm Xin tính tiền để nhân viên mang bill ra bàn.',{ban: soBan}) : t('goi_ban_thanh_toan','Thanh toán tại quầy khi dùng xong. Nhân viên mang món ra bàn {ban}.',{ban: soBan}) }}</p>
+        <div class="gb-hai">
+          <button class="gb-ghost" id="gbGioChuong" type="button" @click="moChuong('')"><bieu-tuong ten="chuong"/>{{ t('goi_ban_chuong_nut','Gọi nhân viên') }}</button>
+          <button class="gb-ghost" id="gbGioTinhTien" type="button" @click="moChuong(LY_DO_GOI[1])"><bieu-tuong ten="hoaDon"/>{{ t('goi_ban_xin_tinh_tien','Xin tính tiền') }}</button>
+        </div>
       </div>
-      <div class="fld"><label for="gb-ghi"><span>{{ t('goi_ban_ghi_chu','Ghi chú cho quầy') }}</span></label>
-        <textarea id="gb-ghi" rows="2" maxlength="300" :placeholder="t('goi_ban_ghi_chu_goi','Ví dụ: mang trà ra trước, bánh để sau')" v-model="G.ghiChu"></textarea></div>
-      <div class="fld"><label for="gb-ten"><span>{{ t('goi_ban_ten','Tên để quầy gọi (không bắt buộc)') }}</span></label>
-        <input id="gb-ten" maxlength="40" autocomplete="off" v-model="G.ten"></div>
-      <div class="fld" v-if="!G.ban || Number(G.ban.gioi_thieu) !== 0"><label for="gb-gt"><span>{{ t('goi_ban_ma_gt','Mã giới thiệu (không bắt buộc)') }}</span></label>
-        <input id="gb-gt" inputmode="tel" maxlength="20" autocomplete="off" :placeholder="t('dat_banh_ma_gt_goi','Số điện thoại nhân viên giới thiệu')" v-model="G.gt" @blur="gb.kiemGt()">
-        <div class="hint" id="gbGtHint">{{ G.gtHien }}</div></div>
-      <p class="gb-loi" id="gbLoi" role="status" v-if="G.loi">{{ G.loi }}</p>
-      <button class="btn gb-nut" id="gbGoi" :disabled="G.dangGui || !G.gio.length" @click="gb.goiMon()">{{ G.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : (G.don.length ? t('goi_ban_d8e2f3a4b','Gọi thêm · {tien}',{tien: tien(gb.tong.value)}) : t('goi_ban_6a9970661','Gọi món · {tien}',{tien: tien(gb.tong.value)})) }}</button>
-      <p class="gb-phu" id="gbCuoi">{{ G.don.length ? t('goi_ban_cung_bill','Gọi thêm sẽ cộng vào cùng bill của bàn {ban}. Thanh toán tại quầy khi dùng xong, hoặc bấm Xin tính tiền để nhân viên mang bill ra bàn.',{ban: soBan}) : t('goi_ban_thanh_toan','Thanh toán tại quầy khi dùng xong. Nhân viên mang món ra bàn {ban}.',{ban: soBan}) }}</p>
-      <div class="gb-hai">
-        <button class="btn gb-ghost" id="gbGioChuong" type="button" @click="moChuong('')">🔔 {{ t('goi_ban_chuong_nut','Gọi nhân viên') }}</button>
-        <button class="btn gb-ghost" id="gbGioTinhTien" type="button" @click="moChuong(LY_DO_GOI[1])">🧾 {{ t('goi_ban_xin_tinh_tien','Xin tính tiền') }}</button>
-      </div>
+      <footer class="gb-day gb-day-doc">
+        <p class="gb-loi" id="gbLoi" role="status" v-if="G.loi">{{ G.loi }}</p>
+        <div class="gb-tong"><span>{{ t('goi_ban_so_mon','{so} món',{so: gb.soMon.value}) }}</span><b>{{ tien(gb.tong.value) }}</b></div>
+        <button type="button" class="gb-cta" id="gbGoi" :disabled="G.dangGui || !G.gio.length" @click="gb.goiMon()">{{ G.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : (G.don.length ? t('goi_ban_d8e2f3a4b','Gọi thêm · {tien}',{tien: tien(gb.tong.value)}) : t('goi_ban_6a9970661','Gọi món · {tien}',{tien: tien(gb.tong.value)})) }}</button>
+      </footer>
     </div>
   </section>
 
   <section class="sheet gb-sheet" id="gbChuong" :class="{open: G.chuong.mo}" role="dialog" aria-modal="true" aria-labelledby="gb-chuong-tieu">
-    <div class="wrap">
-      <div class="gb-sheet-dau"><h2 id="gb-chuong-tieu">{{ t('goi_ban_e9f3a4b5c','Gọi nhân viên · {ban}',{ban: gb.nhanBan.value}) }}</h2>
-        <button class="close" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="gb.dongChuong()">${X}</button></div>
-      <template v-if="G.chuong.xong">
-        <div class="gb-xong" id="gbChuongXong"><b>{{ t('goi_ban_chuong_da_bao','Đã báo quầy lúc {gio}. Nhân viên tới bàn {ban} trong giây lát.',{gio: G.chuong.xong.luc, ban: soBan}) }}</b>
-          <span>{{ G.chuong.xong.lyDo }}</span>
-          <span>{{ t('goi_ban_chuong_qua_lau','Quá 3 phút chưa thấy, quý khách bấm lại hoặc nhắn Zalo.') }}</span></div>
-        <button class="btn gb-nut" type="button" @click="gb.dongChuong()">{{ t('goi_ban_dong','Đóng') }}</button>
-      </template>
-      <template v-else>
-        <p class="gb-phu gb-chuong-dau">{{ t('goi_ban_chuong_hoi','Quý khách cần gì? Nhân viên tới ngay.') }}</p>
-        <button v-for="(ly, i) in LY_DO_GOI" :key="ly" type="button" class="gb-ly" :class="{on: G.chuong.lyDo===ly}" :data-lydo="ly" :aria-pressed="String(G.chuong.lyDo===ly)" @click="G.chuong.lyDo=ly">
-          <i aria-hidden="true">{{ ['🙋','🧾','🧊','🍴','💬'][i] }}</i><span><b>{{ ly }}</b><small>{{ phuLyDo[i] }}</small></span></button>
-        <div class="fld" v-if="G.chuong.lyDo===LY_DO_GOI[4]"><label for="gb-chuong-chi-tiet"><span>{{ t('goi_ban_chuong_chi_tiet','Gõ vài chữ cho quầy') }}</span></label>
-          <input id="gb-chuong-chi-tiet" maxlength="120" autocomplete="off" v-model="G.chuong.chiTiet"></div>
+    <div class="gb-khung">
+      <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ gb.nhanBan.value }}</small><h2 id="gb-chuong-tieu">{{ t('goi_ban_chuong_nut','Gọi nhân viên') }}</h2></div>
+        <button class="gb-x" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="gb.dongChuong()"><bieu-tuong ten="dong"/></button></header>
+      <div class="gb-than">
+        <template v-if="G.chuong.xong">
+          <div class="gb-xong" id="gbChuongXong"><b>{{ t('goi_ban_chuong_da_bao','Đã báo quầy lúc {gio}. Nhân viên tới bàn {ban} trong giây lát.',{gio: G.chuong.xong.luc, ban: soBan}) }}</b>
+            <span>{{ G.chuong.xong.lyDo }}</span>
+            <span>{{ t('goi_ban_chuong_qua_lau','Quá 3 phút chưa thấy, quý khách bấm lại hoặc nhắn Zalo.') }}</span></div>
+        </template>
+        <template v-else>
+          <p class="gb-phu gb-chuong-dau">{{ t('goi_ban_chuong_hoi','Quý khách cần gì? Nhân viên tới ngay.') }}</p>
+          <button v-for="(ly, i) in LY_DO_GOI" :key="ly" type="button" class="gb-ly" :class="{on: G.chuong.lyDo===ly}" :data-lydo="ly" :aria-pressed="String(G.chuong.lyDo===ly)" @click="G.chuong.lyDo=ly">
+            <i class="gb-ly-ic" aria-hidden="true"><bieu-tuong :ten="ICON_LY_DO[i]"/></i><span><b>{{ ly }}</b><small>{{ phuLyDo[i] }}</small></span><i class="gb-ly-chon" aria-hidden="true"></i></button>
+          <div class="fld" v-if="G.chuong.lyDo===LY_DO_GOI[4]"><label for="gb-chuong-chi-tiet"><span>{{ t('goi_ban_chuong_chi_tiet','Gõ vài chữ cho quầy') }}</span></label>
+            <input id="gb-chuong-chi-tiet" maxlength="120" autocomplete="off" v-model="G.chuong.chiTiet"></div>
+          <p class="gb-phu">{{ t('goi_ban_chuong_gioi_han','Mỗi bàn bấm được tối đa 3 lần trong 10 phút để tránh bấm nhầm.') }}</p>
+        </template>
+      </div>
+      <footer class="gb-day gb-day-doc">
         <p class="gb-loi" id="gbChuongLoi" role="status" v-if="G.chuong.loi">{{ G.chuong.loi }}</p>
-        <button class="btn gb-nut" id="gbChuongGui" :disabled="G.chuong.dangGui || !G.chuong.lyDo" @click="gb.goiNhanVien()">{{ G.chuong.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : t('goi_ban_chuong_gui','Báo quầy') }}</button>
-        <p class="gb-phu">{{ t('goi_ban_chuong_gioi_han','Mỗi bàn bấm được tối đa 3 lần trong 10 phút để tránh bấm nhầm.') }}</p>
-      </template>
+        <button v-if="G.chuong.xong" type="button" class="gb-cta" @click="gb.dongChuong()">{{ t('goi_ban_dong','Đóng') }}</button>
+        <button v-else type="button" class="gb-cta" id="gbChuongGui" :disabled="G.chuong.dangGui || !G.chuong.lyDo" @click="gb.goiNhanVien()">{{ G.chuong.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : t('goi_ban_chuong_gui','Báo quầy') }}</button>
+      </footer>
     </div>
   </section>
 </div>`;
@@ -166,7 +178,7 @@ export const MAU_GOI_BAN_NOI = `
 export const GoiTaiBanNoi = {
   name: 'GoiTaiBanNoi',
   props: {kho: {type: Object, required: true}, tab: {type: String, default: ''}},
-  components: {AnhMon},
+  components: {AnhMon, BieuTuong},
   template: MAU_GOI_BAN_NOI,
   setup(props) {
     const gb = props.kho.goiBan;
@@ -180,6 +192,9 @@ export const GoiTaiBanNoi = {
       t('goi_ban_ly_4', 'Nhân viên mang ra bàn'),
       t('goi_ban_ly_5', 'Gõ vài chữ cho quầy')];
     function moChuong(lyDo) { G.moGio = false; gb.moChuong(lyDo); }
-    return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, phuLyDo, moChuong};
+    /* Dòng phụ của một món trong giỏ: tuỳ chọn rồi topping, gọn một dòng. */
+    const chuDong = x => [gb.chuTuyChon(x.tc, x.nhom), (x.tp || []).length ? '+ ' + x.tp.map(y => y.ten).join(', ') : '']
+      .filter(Boolean).join(' · ');
+    return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, ICON_LY_DO, phuLyDo, moChuong, chuDong};
   }
 };

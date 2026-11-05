@@ -5,6 +5,7 @@
 import {h, reactive} from '../lib/vue.esm-browser.prod.js';
 import {ND, t, chonKhoi, telChu, telSo} from '../kho/chu.js';
 import {ghi} from '../kho/api.js';
+import {BieuTuong} from './bieu-tuong.js';
 
 const LOAI_RIENG = ['tieu_de_muc', 'kenh_dat_hang', 'zalo_oa', 'nut_kenh', 'uu_dai', 'tuyen_dung', 'tiec'];
 const lopChon = k => (ND.xemThu && ND.khoiChon === k.id ? ' vgb-dang-chon' : '');
@@ -149,7 +150,7 @@ export const KenhNoi = {
     if (zalo) con.push(h('a', {class: 'kenh-bong kenh-zalo', href: linkAnToan(zalo.lien_ket, true), target: '_blank', rel: 'noopener noreferrer', 'data-khoi': zalo.id},
       [h(LogoKenh, {k: zalo, lop: 'kenh-logo-zalo', duPhong: zalo.nut || 'Zalo'}), h('span', null, zalo.tieu_de)]));
     if (this.chuong) con.push(h('button', {class: 'kenh-bong kenh-chuong', type: 'button', id: 'kenhChuong', onClick: () => this.chuong('')},
-      [h('span', {class: 'kenh-icon', 'aria-hidden': 'true'}, '🔔'), h('span', null, t('goi_ban_chuong_nut', 'Gọi nhân viên'))]));
+      [h('span', {class: 'kenh-icon kenh-icon-chuong', 'aria-hidden': 'true'}, [h(BieuTuong, {ten: 'chuong'})]), h('span', null, t('goi_ban_chuong_nut', 'Gọi nhân viên'))]));
     return h('aside', {class: 'kenh-noi', hidden: !coApp && !zalo && !this.chuong, 'aria-label': t('kenh_noi_nhan', 'Kênh đặt hàng và hỗ trợ'),
       style: 'bottom:calc(' + (this.day + (this.nang || 0) + 16) + 'px + env(safe-area-inset-bottom))'}, con);
   }
