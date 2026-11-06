@@ -5929,5 +5929,137 @@
     "nhom": "dat_banh",
     "mac_dinh": "Không có món nào khớp \"{tim}\". Quý khách thử chữ khác hoặc chọn nhóm.",
     "nhieu_dong": true
+  },
+  "goi_ban_bar_tam": {
+    "ten": "Gọi món tại bàn: Tạm tính {tien}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tạm tính {tien}",
+    "nhieu_dong": true
+  },
+  "goi_ban_bar_cho": {
+    "ten": "Gọi món tại bàn: {n} lượt chờ quầy nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "{n} lượt chờ quầy nhận",
+    "nhieu_dong": true
+  },
+  "goi_ban_xem_don": {
+    "ten": "Gọi món tại bàn: Xem đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xem đơn",
+    "nhieu_dong": true
+  },
+  "goi_ban_don_ban": {
+    "ten": "Gọi món tại bàn: Đơn của bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đơn của bàn",
+    "nhieu_dong": true
+  },
+  "goi_ban_tam_tinh_n": {
+    "ten": "Gọi món tại bàn: Tạm tính ({n} món)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tạm tính ({n} món)",
+    "nhieu_dong": true
+  },
+  "goi_ban_can_tra": {
+    "ten": "Gọi món tại bàn: Cần thanh toán",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cần thanh toán",
+    "nhieu_dong": true
+  },
+  "goi_ban_chot_khi_in": {
+    "ten": "Gọi món tại bàn: Số tiền chốt khi quầy in bill. Lượt chờ quầy nhận chưa tính chắc; lượt quầy từ chối không tính.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số tiền chốt khi quầy in bill. Lượt chờ quầy nhận chưa tính chắc; lượt quầy từ chối không tính.",
+    "nhieu_dong": true
+  },
+  "goi_ban_thanh_toan_tieu": {
+    "ten": "Gọi món tại bàn: Thanh toán",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thanh toán",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_xong_ban": {
+    "ten": "Gọi món tại bàn: Đã báo quầy lúc {gio}. Nhân viên mang bill ra bàn {ban} trong giây lát.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã báo quầy lúc {gio}. Nhân viên mang bill ra bàn {ban} trong giây lát.",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_xong_quay": {
+    "ten": "Gọi món tại bàn: Đã báo quầy lúc {gio}. Quý khách ra quầy, báo bàn {ban} với thu ngân.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã báo quầy lúc {gio}. Quý khách ra quầy, báo bàn {ban} với thu ngân.",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_bill_moi": {
+    "ten": "Gọi món tại bàn: Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_hd": {
+    "ten": "Gọi món tại bàn: Xuất hoá đơn điện tử (không bắt buộc)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xuất hoá đơn điện tử (không bắt buộc)",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_hd_goi": {
+    "ten": "Gọi món tại bàn: Mã số thuế hoặc email nhận hoá đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã số thuế hoặc email nhận hoá đơn",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_hd_phu": {
+    "ten": "Gọi món tại bàn: Có mã số thuế thì thu ngân hỏi thêm tên công ty khi in bill.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Có mã số thuế thì thu ngân hỏi thêm tên công ty khi in bill.",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_chua_online": {
+    "ten": "Gọi món tại bàn: Thanh toán online ngay tại bàn sẽ mở sau. Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thanh toán online ngay tại bàn sẽ mở sau. Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_gui": {
+    "ten": "Gọi món tại bàn: Báo quầy tính tiền",
+    "nhom": "dat_banh",
+    "mac_dinh": "Báo quầy tính tiền",
+    "nhieu_dong": true
+  },
+  "goi_ban_luot": {
+    "ten": "Gọi món tại bàn: Lượt {so}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lượt {so}",
+    "nhieu_dong": true
+  },
+  "goi_ban_tra_chon": {
+    "ten": "Gọi món tại bàn: Quý khách chọn cách thanh toán.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách chọn cách thanh toán.",
+    "nhieu_dong": true
+  },
+  "goi_ban_chip_combo": {
+    "ten": "Gọi món tại bàn: Combo",
+    "nhom": "dat_banh",
+    "mac_dinh": "Combo",
+    "nhieu_dong": true
+  },
+  "goi_ban_combo_het": {
+    "ten": "Gọi món tại bàn: Combo này hiện gọi được tối đa {so} bộ.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Combo này hiện gọi được tối đa {so} bộ.",
+    "nhieu_dong": true
+  },
+  "goi_ban_0dc232137": {
+    "ten": "Gọi món tại bàn: Bàn {ban} · Đã gọi {n} lượt",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bàn {ban} · Đã gọi {n} lượt",
+    "nhieu_dong": true
+  },
+  "goi_ban_cd6cd79ce": {
+    "ten": "Gọi món tại bàn: Thanh toán · {tien}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thanh toán · {tien}",
+    "nhieu_dong": true
   }
 }
