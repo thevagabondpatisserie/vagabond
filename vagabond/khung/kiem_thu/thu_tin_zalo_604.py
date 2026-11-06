@@ -215,8 +215,9 @@ def _danh_muc():
 	# v633: thêm tin kế toán khi khách trả thẻ OnePay cho phiếu đề nghị thanh toán.
 	# v638: thêm tin Sales khi khách trả online đơn đặt bánh trên web, và tin quầy
 	# khi khách gọi món tại bàn qua QR.
-	la("đủ 92 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639)", len(kz.TIN), 92)
+	# v641: thêm 9 tin đối soát qua hộp thư doisoat@ (1 Ban giám đốc, 7 Kế toán, 1 Hệ thống).
+	la("đủ 101 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641)", len(kz.TIN), 101)
 	la("tám bộ phận đúng thứ tự (v622 thêm Nhân sự)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -612,7 +613,10 @@ def _patch_map():
 		# v638: tin gọi món tại bàn, chưa có bản vá; tích tay cho nhóm quầy.
 		"bh_goi_mon_tai_ban",
 		# v639: tin khách bấm chuông gọi nhân viên, chưa có bản vá; tích tay cho nhóm quầy.
-		"bh_khach_can_tro_giup"}
+		"bh_khach_can_tro_giup",
+		# v641: tin đối soát qua hộp thư doisoat@, chưa có bản vá; anh Việt tích tay cho nhóm Kế toán.
+		"kt_ds_thu_gia_danh", "kt_ds_thieu_thu", "kt_ds_tep_loi", "kt_ds_lech_tien", "kt_ds_chua_thay_tien",
+		"kt_ds_phi_cao", "kt_ds_don_thieu_erp"}
 	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]
 	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng" and m not in v609] + ["ht_phat_hanh"]
 	la("nhóm văn phòng kế toán", p.tin_cho_nhom("ERP Văn Phòng - Kế Toán - Thu Mua"), kt)

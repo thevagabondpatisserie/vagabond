@@ -741,6 +741,9 @@ MIEN = {
 	# v628: màn Kiểm kê gọi thêm ds_dem_hom_nay (thẻ Đếm hôm nay) nên phép dò mới thấy;
 	# sổ phiếu kiểm kê vẫn thuộc đợt 3 như các màn kho khác.
 	"scrKkList": DOT3,
+	# v641: ba thẻ cố định (thư bị chặn 30 ngày, thư chưa về hôm nay, chờ giám
+	# đốc duyệt), danh sách ngắn đã giới hạn ở máy chủ, không phải sổ để tra.
+	"scrDsvnThu": KHONG_PHAI,
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 

@@ -424,7 +424,7 @@ def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False, hop_thu_ct=None, demo
 		sha = loc.get("sha256") if isinstance(loc, dict) else None
 		return NS(name=da_co[sha][0], trang_thai=da_co[sha][1], company="CT") if sha in da_co else None
 
-	def ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, comm, co_san=None):
+	def ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, comm, co_san=None, **_k):
 		ghi.append((t["ten"], co_san))
 		da_co[t["sha256"]] = ("N-" + t["ten"], xt["trang_thai"])
 		return dict(name="N-" + t["ten"], trang_thai=xt["trang_thai"], da_co=0, ten_tep=t["ten"])
@@ -1301,7 +1301,12 @@ class _LoiNhap(Exception):
 def _goi_tai_tay(ham, tham, duoc=("A", "B"), tep=None, nguon_cu=None, user="kt@x"):
 	"""Chạy xem_truoc / nhan THẬT với tầng chạm hệ thay bằng bảng nhỏ: bảng
 	File (name, file_url, owner), nguồn cũ theo mã băm. Trả (kết quả hoặc lỗi,
-	nhật ký: pháp nhân đọc tệp, pháp nhân ghi nguồn, tệp đã đọc)."""
+	nhật ký: pháp nhân đọc tệp, pháp nhân ghi nguồn, tệp đã đọc).
+
+	v641: nhận tải tay bắt buộc ghi lý do; ca cũ không xét lý do thì gửi kèm
+	một lý do hợp lệ (ca riêng thu_doi_soat_thu_641 xét thiếu lý do)."""
+	if ham == "nhan" and "ly_do" not in tham:
+		tham = dict(tham, ly_do="Đối tác không gửi thư")
 	from contextlib import nullcontext
 	from types import SimpleNamespace as NS
 	from unittest.mock import patch
@@ -1330,7 +1335,7 @@ def _goi_tai_tay(ham, tham, duoc=("A", "B"), tep=None, nguon_cu=None, user="kt@x
 		kq = dict(mau="grabfood", loi=[])
 		return [(dict(ten=ten, sha256="sha-1", loai="csv"), kq, dict(trang_thai="Đã nhận"))]
 
-	def ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, comm, co_san=None):
+	def ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, comm, co_san=None, **_k):
 		nk["ghi"].append((cong_ty, co_san))
 		return dict(name="N-MOI", trang_thai="Đã nhận", da_co=0, ten_tep=t["ten"])
 
@@ -1378,6 +1383,10 @@ def _():
 		la("%s: chỉ một pháp nhân B thì tự dùng B" % ham, nk["doc"], ["B"])
 	ra, nk = _goi_tai_tay("nhan", dict(file_url=url, cong_ty="B"))
 	la("nhận ghi nguồn vào B", nk["ghi"], [("B", None)])
+	# v641: tải tay phải ghi lý do; thiếu thì dừng trước khi đọc tệp.
+	for ly in (None, "", "  ab "):
+		ra, nk = _goi_tai_tay("nhan", dict(file_url=url, cong_ty="B", ly_do=ly))
+		dung("thiếu lý do (%r) thì dừng, không đọc tệp, không ghi" % (ly,), isinstance(ra, _LoiNhap) and nk["tep"] == [] and nk["ghi"] == [])
 
 
 @ca("Codex #450 vòng 16 F1: tệp đã nhận vào pháp nhân khác: không nhận lại, không đọc lại vào nguồn kia, không lộ tên")

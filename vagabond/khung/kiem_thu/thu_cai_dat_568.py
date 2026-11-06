@@ -263,10 +263,15 @@ def _():
 	# v612: ô chọn nguồn báo phí giao trên web (GreenSM hoặc Ahamove).
 	# v617: năm ô Zalo OA (tin Truyền thông theo chiến dịch), thêm mới, không đổi tên ô cũ.
 	# v633: bảy ô thanh toán thẻ OnePay (khoá dán tay), thêm mới, không đổi tên ô cũ.
-	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), ["html_du_lieu_app", "nguon_phi_giao_web",
+	# v641: mười lăm ô Hộp thư đối soát doisoat@ (địa chỉ, mật khẩu, máy chủ, hai bảng,
+	# biểu phí, ngưỡng báo Zalo), thêm mới, không đổi tên ô cũ.
+	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), sorted(["html_du_lieu_app", "nguon_phi_giao_web",
 		"onepay_access_code", "onepay_bat", "onepay_cong", "onepay_hash_code", "onepay_merchant", "onepay_query_password",
 		"onepay_query_user", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the",
-		"zalo_oa_anh", "zalo_oa_bat", "zalo_oa_id", "zalo_oa_khoa_webhook", "zalo_oa_uid_thu", "zalo_tac_vu"])
+		"zalo_oa_anh", "zalo_oa_bat", "zalo_oa_id", "zalo_oa_khoa_webhook", "zalo_oa_uid_thu", "zalo_tac_vu",
+		"ds_bieu_napas", "ds_bieu_noi_dia", "ds_bieu_quoc_te", "ds_lich_thu", "ds_mk_pdf_the", "ds_mk_zip_pos",
+		"ds_nguoi_gui", "ds_nguong_lech", "ds_nguong_phi", "ds_thu_bat", "ds_thu_cong", "ds_thu_dia_chi",
+		"ds_thu_mat_khau", "ds_thu_may_chu", "ds_thu_thu_muc"]))
 
 
 def _o_cu():
