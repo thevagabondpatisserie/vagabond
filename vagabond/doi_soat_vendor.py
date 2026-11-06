@@ -675,6 +675,10 @@ def dung_ban_sua(name=None, khoa=None, dau_cu=None):
 	_chan_cong_ty(n0.company)
 	with khoa_doi_chieu():
 		nguon = frappe.get_doc(DT_NGUON, name)
+		if getattr(nguon, "duong_vao", None) == "Từ chối":
+			# Codex #544 F3: tệp giám đốc đã từ chối không được thay sự kiện của
+			# nguồn khác. Kiểm TRONG khoá, trước mọi thay đổi.
+			frappe.throw("Nguồn này đã bị giám đốc từ chối, không dùng bản sửa của nó được. Tải lại màn hình.")
 		du_lieu = json.loads(nguon.du_lieu or "{}")
 		e = next((x for x in du_lieu.get("ban_sua") or [] if x["khoa"] == khoa and not x.get("da_dung")), None)
 		if not e:
@@ -1234,7 +1238,7 @@ def chi_tiet(name=None, loc=None, trang=0):
 		them=dict(loi=d.get("loi") or [], canh_bao=d.get("canh_bao") or [], dong_loi=(d.get("dong_loi") or [])[:100],
 			tien_ve=d.get("tien_ve") or "", ky_the=d.get("ky_the"), doi_bien_ban=d.get("doi_bien_ban"),
 			hoa_don_ky=d.get("hoa_don_ky_ghi_chu") or "", ghi_chu_don_vi=d.get("ghi_chu_don_vi") or "",
-			dau_tep=(d.get("them") or {}).get("dau_tep") or [], ban_sua=_ban_sua_cho(d),
+			dau_tep=(d.get("them") or {}).get("dau_tep") or [], ban_sua=_ban_sua_hien(n, d),
 			phi_vuot=_phi_vuot_ct(d)),
 		dong=dong[:100], con=len(dong) > 100)
 
@@ -1277,6 +1281,14 @@ def _phi_vuot_ct(d):
 	ch = dst.cau_hinh()
 	tong, ct = dst.phi_vuot(phi_the, ch["bieu"], ch["nguong_phi"])
 	return dict(tong=tong, ct=ct)
+
+
+def _ban_sua_hien(n, du_lieu):
+	"""Codex #544 F3: nguồn đã bị từ chối thì không bày bản sửa chờ chọn."""
+	lay = n.get if hasattr(n, "get") else (lambda k: getattr(n, k, None))
+	if lay("duong_vao") == "Từ chối":
+		return []
+	return _ban_sua_cho(du_lieu)
 
 
 def _ban_sua_cho(du_lieu):
@@ -1457,7 +1469,7 @@ def hop_thu():
 	_chan()
 	from vagabond import doi_soat_thu
 
-	return doi_soat_thu.hop_thu_tom_tat()
+	return doi_soat_thu.hop_thu_tom_tat(_cong_ty_xem())
 
 
 @frappe.whitelist()
@@ -1468,7 +1480,8 @@ def ds_thu(loai="chan"):
 
 	if loai not in ("chan", "chua_ve", "tai_tay"):
 		loai = "chan"
-	return doi_soat_thu.ds_thu(loai)
+	# Codex #544 F2: cùng phạm vi pháp nhân với danh sách nguồn.
+	return doi_soat_thu.ds_thu(loai, _cong_ty_xem())
 
 
 @frappe.whitelist()

@@ -41,6 +41,11 @@ KENH = "Hộp thư đối soát"
 KENH_TAY = ("Tải tay", "Email")
 DV_THU, DV_CHO, DV_DA, DV_TU_CHOI = "Từ thư", "Chờ duyệt", "Đã duyệt", "Từ chối"
 KQ_XAC_THUC, KQ_CHO, KQ_CHAN, KQ_KHONG_TEP = "Đã xác thực", "Chờ duyệt", "Bị chặn", "Không có tệp"
+KQ_LOI = "Lỗi xử lý"
+# Codex #544 F1: một thư xử lý lỗi thì giữ mốc ở trước nó để lượt sau thử lại;
+# lỗi tới lần thứ SO_THU_LAI thì ghi sổ thư "Lỗi xử lý" (giữ bản gốc) rồi đi tiếp,
+# để một thư hỏng không chặn mãi các thư sau.
+SO_THU_LAI = 3
 DUOI = (".csv", ".txt", ".xlsx", ".xlsm", ".xls", ".pdf", ".zip")
 TOI_DA_MOI_LUOT = 40
 TOI_DA_BYTE_THU = 30 * 1024 * 1024
@@ -86,6 +91,12 @@ DUONG = (
 
 
 # ------------------------------------------------------------ THUẦN: tên miền
+
+def xu_ly_loi(lan):
+	"""THUẦN. Thư xử lý lỗi lần thứ `lan`: "thu_lai" (giữ mốc, lượt sau đọc lại)
+	hay "ghi_loi" (ghi sổ thư lỗi, đi tiếp)."""
+	return "thu_lai" if int(lan or 0) < SO_THU_LAI else "ghi_loi"
+
 
 def mien_cua(dia_chi):
 	"""THUẦN. "OnePay <no-reply@OnePay.vn>" -> "onepay.vn"."""
@@ -686,6 +697,7 @@ def doc_hop_thu(ch=None):
 	if not r or r[0][0] != 1:
 		return dict(so_thu=0, dang_chay=1)
 	so = 0
+	loi_thu = ""
 	try:
 		tt = trang_thai()
 		try:
@@ -693,6 +705,7 @@ def doc_hop_thu(ch=None):
 			try:
 				uv = _chon_thu_muc(m, ch["thu_muc"])
 				cuoi = int(tt.get("uid") or 0) if int(tt.get("uidvalidity") or 0) == uv else 0
+				loi_uid = dict(tt.get("loi_uid") or {}) if int(tt.get("uidvalidity") or 0) == uv else {}
 				kq, du = m.uid("search", None, "UID %s:*" % (cuoi + 1))
 				uids = sorted(int(x) for x in (du[0] or b"").split() if int(x) > cuoi) if kq == "OK" else []
 				for uid in uids[:TOI_DA_MOI_LUOT]:
@@ -702,11 +715,22 @@ def doc_hop_thu(ch=None):
 						try:
 							_xu_ly(tho, uid, ch)
 							frappe.db.commit()
-						except Exception:
+						except Exception as e:
 							frappe.db.rollback()
 							frappe.log_error(title="Đối soát hộp thư: xử lý thư UID %s" % uid)
+							lan = int(loi_uid.get(str(uid)) or 0) + 1
+							if xu_ly_loi(lan) == "thu_lai":
+								# Codex #544 F1: KHÔNG vượt mốc; dừng lượt, lượt sau đọc lại thư này.
+								loi_uid[str(uid)] = lan
+								loi_thu = "Thư UID %s xử lý lỗi lần %s (%s), sẽ thử lại." % (uid, lan, str(e)[:120])
+								_ghi_trang_thai(uidvalidity=uv, loi_uid=loi_uid, loi=loi_thu)
+								frappe.db.commit()
+								break
+							_ghi_thu_loi(tho, uid, ch, str(e)[:500])
+							loi_uid.pop(str(uid), None)
 					so += 1
-					_ghi_trang_thai(uidvalidity=uv, uid=uid)
+					loi_uid.pop(str(uid), None)
+					_ghi_trang_thai(uidvalidity=uv, uid=uid, loi_uid=loi_uid)
 					frappe.db.commit()
 			finally:
 				try:
@@ -718,7 +742,8 @@ def doc_hop_thu(ch=None):
 			_loi_hop_thu(tt, e)
 			return dict(so_thu=so, loi=str(e) if isinstance(e, RuntimeError) else ly_do_imap(e))
 		bay = str(frappe.utils.now_datetime())[:19]
-		_ghi_trang_thai(doc_luc=bay, loi="", so_loi=0, loi_tu="", ngay_bat=tt.get("ngay_bat") or bay[:10])
+		con_loi = trang_thai().get("loi") if loi_thu else ""
+		_ghi_trang_thai(doc_luc=bay, loi=con_loi or "", so_loi=0, loi_tu="", ngay_bat=tt.get("ngay_bat") or bay[:10])
 		frappe.db.commit()
 		return dict(so_thu=so)
 	finally:
@@ -768,27 +793,68 @@ def _luu_tep_an_toan(ten, byte, thu):
 		return None
 
 
+def _ghi_thu_loi(tho, uid, ch, ly):
+	"""Codex #544 F1: thư lỗi SO_THU_LAI lần: ghi sổ thư "Lỗi xử lý" kèm bản gốc
+	để kỹ thuật đọc lại, rồi mới cho lượt đọc đi tiếp. Ghi hỏng nữa thì chỉ để
+	Error Log (không chặn mãi các thư sau)."""
+	frappe = _frappe()
+	try:
+		sha = hashlib.sha256(tho).hexdigest()
+		cu = frappe.db.get_value(DT_THU, {"sha256": sha}, "name")
+		if cu:
+			frappe.db.set_value(DT_THU, cu, {"ket_qua": KQ_LOI, "ly_do": ("Máy xử lý lỗi %s lần: %s" % (SO_THU_LAI, ly))[:1000]},
+				update_modified=False)
+		else:
+			try:
+				t = doc_thu(tho)
+			except Exception:
+				t = dict(nguoi_gui="", mien="", tieu_de="", message_id="")
+			from vagabond import doi_soat_vendor as dsv
+
+			thu = frappe.get_doc(dict(doctype=DT_THU, sha256=sha, uid=str(uid), message_id=t.get("message_id") or "",
+				nhan_luc=frappe.utils.now_datetime(), nguoi_gui=t.get("nguoi_gui") or "", ten_mien=(t.get("mien") or "")[:140],
+				tieu_de=t.get("tieu_de") or "", ket_qua=KQ_LOI, ly_do=("Máy xử lý lỗi %s lần: %s" % (SO_THU_LAI, ly))[:1000],
+				company=dsv._cong_ty()))
+			thu.insert(ignore_permissions=True)
+			if len(tho) <= TOI_DA_BYTE_THU:
+				thu.db_set("tep_goc", _luu_tep_an_toan("thu-%s.eml" % thu.name, tho, thu.name))
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Đối soát hộp thư: chưa ghi được sổ thư lỗi UID %s" % uid)
+
+
 def _xu_ly(tho, uid, ch):
-	"""Một thư: ghi sổ thư, lưu bản gốc, kiểm chữ ký, nhận tệp hợp lệ."""
+	"""Một thư: ghi sổ thư, lưu bản gốc, kiểm chữ ký, nhận tệp hợp lệ.
+
+	Codex #544 F1: lượt nhận tệp commit giữa chừng (khoá đối chiếu), nên thư lỗi
+	giữa chừng có thể đã có dòng sổ thư. Lượt thử lại dùng tiếp dòng đó (chưa
+	"xong") thay vì coi là đã xử lý; mọi bước nhận tệp chống trùng theo mã băm."""
 	frappe = _frappe()
 	from vagabond import doi_soat_dkim
 	from vagabond import doi_soat_vendor as dsv
 
 	sha = hashlib.sha256(tho).hexdigest()
-	if frappe.db.exists(DT_THU, {"sha256": sha}):
+	cu = frappe.db.get_value(DT_THU, {"sha256": sha}, ["name", "xong", "tep_goc"], as_dict=True)
+	if cu and cu.xong:
 		return None
 	t = doc_thu(tho)
 	dong = dong_cua(t["mien"], ch["nguoi_gui"])
 	chu_ky = doi_soat_dkim.kiem_thu(tho, doi_soat_dkim.lay_khoa_dns) if dong and t["so_from"] == 1 else []
 	qd = quyet_dinh(t["mien"], t["so_from"], chu_ky, ch["nguoi_gui"])
 	cong_ty = dsv._cong_ty()
-	thu = frappe.get_doc(dict(doctype=DT_THU, sha256=sha, uid=str(uid), message_id=t["message_id"],
-		nhan_luc=frappe.utils.now_datetime(), gui_luc=t["gui_luc"] or None, nguoi_gui=t["nguoi_gui"],
+	truong = dict(sha256=sha, uid=str(uid), message_id=t["message_id"],
+		gui_luc=t["gui_luc"] or None, nguoi_gui=t["nguoi_gui"],
 		ten_mien=t["mien"][:140], tieu_de=t["tieu_de"], doi_tac=qd["nguon"], ket_qua=qd["ket_qua"],
 		ly_do=qd["ly_do"][:1000], chu_ky=json.dumps(chu_ky, ensure_ascii=False)[:2000], ky_boi=qd["ky_boi"],
-		so_tep=len(t["tep"]), company=cong_ty))
-	thu.insert(ignore_permissions=True)
-	if len(tho) <= TOI_DA_BYTE_THU:
+		so_tep=len(t["tep"]), company=cong_ty)
+	if cu:
+		thu = frappe.get_doc(DT_THU, cu.name)
+		thu.db_set(truong)
+	else:
+		thu = frappe.get_doc(dict(doctype=DT_THU, nhan_luc=frappe.utils.now_datetime(), **truong))
+		thu.insert(ignore_permissions=True)
+	if len(tho) <= TOI_DA_BYTE_THU and not (cu and cu.tep_goc):
 		thu.db_set("tep_goc", _luu_tep_an_toan("thu-%s.eml" % thu.name, tho, thu.name))
 	if qd["ket_qua"] == KQ_CHAN:
 		if qd["bao_zalo"]:
@@ -798,6 +864,7 @@ def _xu_ly(tho, uid, ch):
 			kenh_zalo.bao_hoac_ghi_loi("canh_bao", "cong_no", tieu, d, link=_link(), khoa="ds_gia_danh:%s" % thu.name,
 				ma_tin="kt_ds_thu_gia_danh")
 			thu.db_set("bao_zalo", frappe.utils.now_datetime())
+		thu.db_set("xong", 1)
 		return thu.name
 	dv = DV_THU if qd["ket_qua"] == KQ_XAC_THUC else DV_CHO
 	them = dict(thu=thu.name, duong_vao=dv)
@@ -822,7 +889,7 @@ def _xu_ly(tho, uid, ch):
 	if not ten_nguon:
 		thu.db_set({"ket_qua": KQ_KHONG_TEP if qd["ket_qua"] == KQ_XAC_THUC else qd["ket_qua"],
 			"ly_do": (qd["ly_do"] + " Thư không có tệp báo cáo đọc được.")[:1000]})
-	thu.db_set("nguon", "\n".join(ten_nguon)[:1000])
+	thu.db_set({"nguon": "\n".join(ten_nguon)[:1000], "xong": 1})
 	return thu.name
 
 
@@ -1009,8 +1076,10 @@ def xac_nhan(name):
 def viec_duyet():
 	"""Việc cần làm của giám đốc: nguồn chờ duyệt (tải tay, thư không chữ ký)."""
 	frappe = _frappe()
+	from vagabond import doi_soat_vendor as dsv
+
 	ra = []
-	for x in frappe.get_all(DT_NGUON, filters={"duong_vao": DV_CHO}, fields=["name", "vendor", "tu_ngay", "den_ngay",
+	for x in frappe.get_all(DT_NGUON, filters=_pham_vi({"duong_vao": DV_CHO}, dsv._cong_ty_xem()), fields=["name", "vendor", "tu_ngay", "den_ngay",
 			"thuc_nhan", "kenh_nhan", "owner", "creation"], order_by="creation asc", limit_page_length=60):
 		cho = (frappe.utils.now_datetime() - x.creation).days if x.creation else 0
 		ra.append({"loai": "doi_soat_duyet", "ma": x.name, "nhom": "Chờ giám đốc duyệt",
@@ -1023,16 +1092,25 @@ def viec_duyet():
 
 # ------------------------------------------------------------ màn hình
 
-def hop_thu_tom_tat():
+def _pham_vi(loc, cong_ty):
+	"""Codex #544 F2: thêm lọc pháp nhân (danh sách pháp nhân người xem được).
+	cong_ty None là lịch chạy ngầm (mọi pháp nhân)."""
+	if cong_ty is not None:
+		loc = dict(loc, company=["in", list(cong_ty) or [""]])
+	return loc
+
+
+def hop_thu_tom_tat(cong_ty=None):
 	"""Khối Hộp thư trên màn chính: trạng thái và đếm hôm nay."""
 	frappe = _frappe()
 	ch = cau_hinh()
 	tt = trang_thai()
-	thieu = _thieu_hien()
+	thieu = _thieu_hien(cong_ty)
 	hom = frappe.utils.nowdate()
-	ve = frappe.db.count(DT_THU, {"nhan_luc": [">=", hom], "ket_qua": ["in", [KQ_XAC_THUC, KQ_CHO, "Đã duyệt"]]})
-	chan = frappe.db.count(DT_THU, {"nhan_luc": [">=", frappe.utils.add_days(hom, -7)], "ket_qua": KQ_CHAN})
-	cho = frappe.db.count(DT_NGUON, {"duong_vao": DV_CHO})
+	ve = frappe.db.count(DT_THU, _pham_vi({"nhan_luc": [">=", hom], "ket_qua": ["in", [KQ_XAC_THUC, KQ_CHO, "Đã duyệt"]]}, cong_ty))
+	chan = frappe.db.count(DT_THU, _pham_vi({"nhan_luc": [">=", frappe.utils.add_days(hom, -7)],
+		"ket_qua": ["in", [KQ_CHAN, KQ_LOI]]}, cong_ty))
+	cho = frappe.db.count(DT_NGUON, _pham_vi({"duong_vao": DV_CHO}, cong_ty))
 	if not ch["bat"]:
 		trang = "tat"
 	elif tt.get("loi"):
@@ -1046,34 +1124,34 @@ def hop_thu_tom_tat():
 		quan_tri=1 if "System Manager" in _vai() else 0, giam_doc=1 if la_giam_doc() else 0)
 
 
-def _nguon_gan_day(so_ngay=40):
+def _nguon_gan_day(so_ngay=40, cong_ty=None):
 	frappe = _frappe()
-	return frappe.get_all(DT_NGUON, filters={"den_ngay": [">=", frappe.utils.add_days(frappe.utils.nowdate(), -so_ngay)],
-		"duong_vao": ["!=", DV_TU_CHOI]}, fields=["vendor", "tai_khoan", "tu_ngay", "den_ngay", "kenh_nhan"],
+	return frappe.get_all(DT_NGUON, filters=_pham_vi({"den_ngay": [">=", frappe.utils.add_days(frappe.utils.nowdate(), -so_ngay)],
+		"duong_vao": ["!=", DV_TU_CHOI]}, cong_ty), fields=["vendor", "tai_khoan", "tu_ngay", "den_ngay", "kenh_nhan"],
 		limit_page_length=0)
 
 
-def _thieu_hien():
+def _thieu_hien(cong_ty=None):
 	frappe = _frappe()
 	ch = cau_hinh()
 	if not ch["bat"]:
 		return []
 	bay = frappe.utils.now_datetime()
-	return thu_thieu(ch["lich"], bay.date(), bay.hour, _nguon_gan_day(), trang_thai().get("ngay_bat"))
+	return thu_thieu(ch["lich"], bay.date(), bay.hour, _nguon_gan_day(cong_ty=cong_ty), trang_thai().get("ngay_bat"))
 
 
-def ds_thu(loai="chan"):
-	"""Ba thẻ của màn Thư bị chặn / Chưa về / Tải tay."""
+def ds_thu(loai="chan", cong_ty=None):
+	"""Ba thẻ của màn Thư bị chặn / Chưa về / Tải tay, trong phạm vi pháp nhân."""
 	frappe = _frappe()
 	if loai == "chua_ve":
-		return dict(ds=_thieu_hien())
+		return dict(ds=_thieu_hien(cong_ty))
 	if loai == "tai_tay":
-		return dict(ds=frappe.get_all(DT_NGUON, filters={"duong_vao": DV_CHO}, fields=["name", "vendor", "tu_ngay",
+		return dict(ds=frappe.get_all(DT_NGUON, filters=_pham_vi({"duong_vao": DV_CHO}, cong_ty), fields=["name", "vendor", "tu_ngay",
 			"den_ngay", "so_dong", "thuc_nhan", "kenh_nhan", "ly_do_tai_tay", "owner", "creation", "trang_thai",
 			"trang_thai_tien", "nhom", "so_chua_noi", "so_da_noi", "duong_vao"], order_by="creation desc", limit_page_length=100))
-	return dict(ds=frappe.get_all(DT_THU, filters={"ket_qua": KQ_CHAN, "nhan_luc": [">=", frappe.utils.add_days(
-		frappe.utils.nowdate(), -30)]}, fields=["name", "nguoi_gui", "ten_mien", "tieu_de", "nhan_luc", "gui_luc", "doi_tac",
-		"ly_do", "so_tep", "bao_zalo"], order_by="nhan_luc desc", limit_page_length=100))
+	return dict(ds=frappe.get_all(DT_THU, filters=_pham_vi({"ket_qua": ["in", [KQ_CHAN, KQ_LOI]], "nhan_luc": [">=", frappe.utils.add_days(
+		frappe.utils.nowdate(), -30)]}, cong_ty), fields=["name", "nguoi_gui", "ten_mien", "tieu_de", "nhan_luc", "gui_luc", "doi_tac",
+		"ly_do", "so_tep", "bao_zalo", "ket_qua"], order_by="nhan_luc desc", limit_page_length=100))
 
 
 def thu_goc(name):
