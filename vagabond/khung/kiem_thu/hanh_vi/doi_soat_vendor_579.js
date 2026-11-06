@@ -61,6 +61,8 @@ function mayChu(canh) {
       if (m === 'vagabond.doi_soat_vendor.tai_len') return { file_url: '/private/files/x.pdf', ten: a.ten };
       if (m === 'vagabond.doi_soat_vendor.xem_truoc') {
         if (canh.daCo) return [{ ten_tep: 'x.pdf', ten_mau: 'GrabFood: báo cáo ngày', da_co: 'DSN-1', mau: 'grabfood', loi: [], so: {} }];
+        if (canh.tuChoi) return [{ ten_tep: 'x.pdf', ten_mau: 'GrabFood: báo cáo ngày', da_co: 'DSN-1', doc_lai: '', tu_choi: 1,
+          mau: 'grabfood', trang_thai: 'Cần xử lý', loi: [], so: { moi: 4 } }];
         if (canh.khacPhap) return [{ ten_tep: 'x.pdf', ten_mau: 'GrabFood: báo cáo ngày', da_co: '', doc_lai: '', phap_nhan_khac: 1,
           mau: 'grabfood', loi: [], so: { moi: 4 } }];
         return [{ ten_tep: 'x.pdf', ten_mau: 'GrabFood: báo cáo ngày', mau: 'grabfood', nhom: 'Tiền bán', trang_thai: 'Cần xử lý',
@@ -263,6 +265,19 @@ async function moTrungTam(canh) {
     bang('không nhận lần hai', app.tim('#dsvnNhan').length, 0);
     await app.bam(app.mot('[data-dsvnct="DSN-1"]'));
     bang('mở nguồn cũ', app.mc.cuoi('vagabond.doi_soat_vendor.chi_tiet').a.name, 'DSN-1');
+  });
+
+  await ca('Codex #544 vòng 2: tệp giám đốc đã từ chối: nói rõ không nhận lại, không có nút Nhận, không mời đọc lại', async function () {
+    var app = await moTrungTam({ tuChoi: true });
+    await app.bam(app.mot('#dsvnTai'));
+    var inp = app.mot('#dsvnFile');
+    inp.files = [{ name: 'GrabFood-20260717.pdf' }];
+    inp.onchange(); await nghi(); await nghi(); await nghi();
+    var c = app.chu();
+    dung('chip từ chối', c.indexOf('Giám đốc từ chối') >= 0);
+    dung('lời giải thích', c.indexOf('Tệp này đã bị giám đốc từ chối, không nhận lại được.') >= 0);
+    dung('không mời đọc lại', c.indexOf('Bấm Nhận để đọc lại') < 0);
+    bang('không có nút Nhận', app.tim('#dsvnNhan').length, 0);
   });
 
   await ca('Chi tiết: sáu bước (v641), loại dòng tiếng Việt không lộ mã, chip Chưa nối lọc ở máy chủ, bấm hoá đơn mở đơn', async function () {

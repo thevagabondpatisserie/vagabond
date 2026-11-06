@@ -67,6 +67,9 @@ function mayChu(canh) {
         if (a.loai === 'chua_ve') return { ds: [{ vendor: 'Payoo', tai_khoan: '', ngay: '2026-11-05', han: '12:00', khoa: 'k' }] };
         if (a.loai === 'tai_tay') return { ds: [nguon('DSN-2', { vendor: 'ShopeeFood', kenh_nhan: 'Tải tay', duong_vao: 'Chờ duyệt',
           ly_do_tai_tay: 'ShopeeFood không gửi thư ngày 04/11' })] };
+        if (canh.thuLoi) return { ds: [{ name: 'DST-7', nguoi_gui: 'OnePay <no-reply@onepay.vn>', ten_mien: 'onepay.vn',
+          tieu_de: 'TB tam ung 06/11', nhan_luc: '2026-11-06 09:40:00', doi_tac: 'OnePay', ket_qua: 'Lỗi xử lý', so_tep: 1,
+          ly_do: 'Chưa kiểm được chữ ký số vì tra khoá lỗi suốt 24 giờ: Timeout. Bấm Đọc lại thư khi mạng ổn.' }] };
         return { ds: [{ name: 'DST-9', nguoi_gui: 'OnePay <payment@onepay.vn>', ten_mien: 'onepay.vn', tieu_de: 'TB tam ung 06/11',
           nhan_luc: '2026-11-06 09:40:00', doi_tac: 'OnePay', ly_do: 'Thư không có chữ ký số của onepay.vn.', so_tep: 1,
           bao_zalo: '2026-11-06 09:41:00' }] };
@@ -83,6 +86,10 @@ function mayChu(canh) {
       if (m === 'vagabond.doi_soat_vendor.tu_choi_nguon') return { ok: 1 };
       if (m === 'vagabond.doi_soat_vendor.xac_nhan_nguon') return { ok: 1 };
       if (m === 'vagabond.doi_soat_vendor.tai_thu_goc') return { ten: 'thu-DST-1.eml', noi_dung: 'RnJvbTog' };
+      if (m === 'vagabond.doi_soat_vendor.doc_lai_thu') {
+        if (canh.docLaiLoi) throw new Error('Vẫn chưa tra được khoá chữ ký số của đối tác (mạng hoặc DNS lỗi tạm). Thử lại sau ít phút.');
+        return { ket_qua: 'Đã xác thực', ly_do: '' };
+      }
       if (m === 'vagabond.doi_soat_vendor.thu_ket_noi') return { ok: 1, so_thu: 12 };
       if (m === 'vagabond.doi_soat_vendor.doc_hop_thu_ngay') return canh.docLoi ? { so_thu: 0, loi: 'sai mật khẩu hoặc tên đăng nhập hộp thư.' } : { so_thu: 3 };
       throw new Error('API ngoài dự kiến ' + m);
@@ -206,6 +213,27 @@ async function moChiTiet(canh) {
     await app.bam(app.mot('[data-dsvneml="DST-9"]'));
     bang('tải thư gốc', app.mc.cuoi('vagabond.doi_soat_vendor.tai_thu_goc').a.name, 'DST-9');
     bang('tệp thư', app.tai, ['message/rfc822']);
+  });
+
+  await ca('Codex #544 vòng 2: thư Lỗi xử lý có nút Đọc lại thư, gọi đúng thư, báo kết quả, tải lại danh sách', async function () {
+    var app = await moTrungTam({ thuLoi: true });
+    await app.bam(app.mot('[data-dsvnthu="chan"]'));
+    var c = app.chu();
+    dung('nói rõ máy chưa đọc xong', c.indexOf('Máy chưa đọc xong thư này') >= 0);
+    dung('không nói nhầm là thư bị chặn', c.indexOf('Không nhận số liệu nào từ thư này') < 0);
+    var truoc = app.mc.dem('vagabond.doi_soat_vendor.ds_thu');
+    await app.bam(app.mot('[data-dsvndoclai="DST-7"]'));
+    bang('gọi đúng thư', app.mc.cuoi('vagabond.doi_soat_vendor.doc_lai_thu').a.name, 'DST-7');
+    dung('báo kết quả', app.tin.some(function (x) { return x.indexOf('Đã đọc lại thư: Đã xác thực') >= 0; }));
+    dung('tải lại danh sách', app.mc.dem('vagabond.doi_soat_vendor.ds_thu') > truoc);
+    var app2 = await moTrungTam({ thuLoi: true, docLaiLoi: true });
+    await app2.bam(app2.mot('[data-dsvnthu="chan"]'));
+    await app2.bam(app2.mot('[data-dsvndoclai="DST-7"]'));
+    dung('lỗi tạm: báo lời máy chủ', app2.tin.some(function (x) { return x.indexOf('Thử lại sau ít phút') >= 0; }));
+    var app3 = await moTrungTam();
+    await app3.bam(app3.mot('[data-dsvnthu="chan"]'));
+    dung('đang ở thẻ chặn', app3.chu().indexOf('Thư tự xưng OnePay') >= 0);
+    bang('thư bị chặn thật không có nút đọc lại', app3.tim('[data-dsvndoclai]').length, 0);
   });
 
   await ca('Chip đường vào: gửi đúng khoá lên máy chủ; dòng mang thanh sáu bước và nhãn đường vào', async function () {
