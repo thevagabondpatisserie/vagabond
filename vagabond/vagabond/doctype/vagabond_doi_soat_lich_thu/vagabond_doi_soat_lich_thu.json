@@ -1,0 +1,68 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Doi Soat Lich Thu",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "istable": 1,
+ "editable_grid": 1,
+ "custom": 0,
+ "description": "v641: lịch thư đối soát dự kiến, để báo thư chưa về.",
+ "fields": [
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Data",
+   "label": "Nguồn báo cáo",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 3,
+   "description": "Tên nguồn như trên màn Đối soát nhà cung cấp, ví dụ OnePay, Shinhan POS, GrabFood."
+  },
+  {
+   "fieldname": "tan_suat",
+   "fieldtype": "Select",
+   "label": "Tần suất",
+   "options": "Hằng ngày\nHằng tháng\nKhông theo lịch",
+   "in_list_view": 1,
+   "default": "Hằng ngày",
+   "columns": 2
+  },
+  {
+   "fieldname": "han_gio",
+   "fieldtype": "Int",
+   "label": "Hạn giờ (thư hằng ngày)",
+   "in_list_view": 1,
+   "default": "12",
+   "columns": 1,
+   "description": "Giờ trong ngày mà thư của ngày hôm trước phải về, ví dụ 12 là trước 12:00."
+  },
+  {
+   "fieldname": "han_ngay",
+   "fieldtype": "Int",
+   "label": "Hạn ngày (thư hằng tháng)",
+   "in_list_view": 1,
+   "default": "5",
+   "columns": 1,
+   "description": "Ngày trong tháng mà thư của tháng trước phải về."
+  },
+  {
+   "fieldname": "ngay_lam_viec",
+   "fieldtype": "Check",
+   "label": "Chỉ ngày làm việc",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Bật cho đối tác không gửi thư thứ Bảy, Chủ nhật (báo cáo thứ Hai gộp cả cuối tuần)."
+  }
+ ],
+ "permissions": [],
+ "modified": "2026-11-06 12:00:00.000000",
+ "creation": "2026-11-06 12:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "field_order": [
+  "nguon",
+  "tan_suat",
+  "han_gio",
+  "han_ngay",
+  "ngay_lam_viec"
+ ]
+}
