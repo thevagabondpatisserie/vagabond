@@ -87,7 +87,7 @@ export const MAU_GOI_BAN_NOI = `
 
   <div class="bar gb-bar gb-bar-don" id="gbBarDon" :class="{on: gb.barDon.value}"><div class="wrap in">
     <button type="button" class="gb-bar-chu" id="gbBarDonChu" @click="gb.moDon()"><b>{{ t('goi_ban_0dc232137','Bàn {ban} · Đã gọi {n} lượt',{ban: soBan, n: G.don.length}) }}</b>
-      <small>{{ t('goi_ban_bar_tam','Tạm tính {tien}',{tien: tien(gb.tom.value.tamTinh)}) }}<template v-if="gb.tom.value.choNhan"> · {{ t('goi_ban_bar_cho','{n} lượt chờ quầy nhận',{n: gb.tom.value.choNhan}) }}</template></small></button>
+      <small>{{ t('goi_ban_bar_tam','Tạm tính {tien}',{tien: tien(gb.tom.value.canTra)}) }}<template v-if="gb.tom.value.choNhan"> · {{ t('goi_ban_bar_cho','{n} lượt chờ quầy nhận',{n: gb.tom.value.choNhan}) }}</template></small></button>
     <button class="go" id="gbXemDon" type="button" @click="gb.moDon()">{{ t('goi_ban_xem_don','Xem đơn') }}</button>
   </div></div>
 
@@ -163,9 +163,12 @@ export const MAU_GOI_BAN_NOI = `
           <div class="gb-luot-dong" v-for="(x, i) in l.mon" :key="i"><span>{{ x.sl }} × {{ x.ten }}<small v-if="(x.tc || []).length">{{ x.tc.join(' · ') }}</small></span><em>{{ tien(x.tien) }}</em></div>
         </div>
         <div class="gb-tong-ban" id="gbTongBan">
-          <div><span>{{ t('goi_ban_tam_tinh_n','Tạm tính ({n} món)',{n: gb.tom.value.soMon}) }}</span><span>{{ tien(gb.tom.value.tamTinh) }}</span></div>
-          <div class="lon"><span>{{ t('goi_ban_can_tra','Cần thanh toán') }}</span><b>{{ tien(gb.tom.value.tamTinh) }}</b></div>
-          <p class="gb-phu">{{ t('goi_ban_chot_khi_in','Số tiền chốt khi quầy in bill. Lượt chờ quầy nhận chưa tính chắc; lượt quầy từ chối không tính.') }}</p>
+          <div><span>{{ t('goi_ban_may_nay','Món gọi từ máy này ({n} món)',{n: gb.tom.value.soMon}) }}</span><span>{{ tien(gb.tom.value.tamTinh) }}</span></div>
+          <div v-if="gb.tom.value.coHoaDon" id="gbHoaDonBan"><span>{{ t('goi_ban_hd_ban','Hoá đơn của bàn') }}</span><span>{{ tien(gb.tom.value.hoaDon) }}</span></div>
+          <div v-if="gb.tom.value.coNgoai" id="gbChuaVaoHd"><span>{{ t('goi_ban_chua_vao_hd','Chưa vào hoá đơn') }}</span><span>{{ tien(gb.tom.value.ngoaiHoaDon) }}</span></div>
+          <div class="lon"><span>{{ t('goi_ban_can_tra','Cần thanh toán') }}</span><b>{{ tien(gb.tom.value.canTra) }}</b></div>
+          <p class="gb-phu" v-if="gb.tom.value.coHoaDon">{{ t('goi_ban_hd_gom','Hoá đơn của bàn gồm cả món gọi từ máy khác cùng bàn và món quầy thêm. Món chưa vào hoá đơn là lượt chờ quầy nhận. Số tiền chốt khi quầy in bill.') }}</p>
+          <p class="gb-phu" v-else>{{ t('goi_ban_chot_khi_in','Số tiền chốt khi quầy in bill. Lượt chờ quầy nhận chưa tính chắc; lượt quầy từ chối không tính.') }}</p>
         </div>
         <div class="gb-hai">
           <button class="gb-ghost" id="gbDonGoiThem" type="button" @click="goiThem()"><bieu-tuong ten="cong"/>{{ t('goi_ban_goi_them','Gọi thêm món') }}</button>
@@ -173,7 +176,7 @@ export const MAU_GOI_BAN_NOI = `
         </div>
       </div>
       <footer class="gb-day gb-day-doc">
-        <button type="button" class="gb-cta" id="gbDonTra" :disabled="!gb.tom.value.soLuot" @click="gb.moTra()">{{ t('goi_ban_cd6cd79ce','Thanh toán · {tien}',{tien: tien(gb.tom.value.tamTinh)}) }}</button>
+        <button type="button" class="gb-cta" id="gbDonTra" :disabled="!gb.tom.value.soLuot" @click="gb.moTra()">{{ t('goi_ban_cd6cd79ce','Thanh toán · {tien}',{tien: tien(gb.tom.value.canTra)}) }}</button>
       </footer>
     </div>
   </section>
@@ -188,7 +191,7 @@ export const MAU_GOI_BAN_NOI = `
             <span>{{ t('goi_ban_tra_bill_moi','Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.') }}</span></div>
         </template>
         <template v-else>
-          <div class="gb-tong-ban"><div class="lon"><span>{{ t('goi_ban_can_tra','Cần thanh toán') }}</span><b>{{ tien(gb.tom.value.tamTinh) }}</b></div></div>
+          <div class="gb-tong-ban"><div class="lon"><span>{{ t('goi_ban_can_tra','Cần thanh toán') }}</span><b>{{ tien(gb.tom.value.canTra) }}</b></div></div>
           <button v-for="c in CACH_TRA" :key="c.ma" type="button" class="gb-ly" :class="{on: G.tra.cach===c.ma}" :data-cach="c.ma" :aria-pressed="String(G.tra.cach===c.ma)" @click="G.tra.cach=c.ma">
             <i class="gb-ly-ic" aria-hidden="true"><bieu-tuong :ten="c.ma==='ban' ? 'hoaDon' : 'cuaHang'"/></i><span><b>{{ c.ten }}</b><small>{{ c.phu }}</small></span><i class="gb-ly-chon" aria-hidden="true"></i></button>
           <div class="fld"><label for="gb-tra-hd"><span>{{ t('goi_ban_tra_hd','Xuất hoá đơn điện tử (không bắt buộc)') }}</span></label>

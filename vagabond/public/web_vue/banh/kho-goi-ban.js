@@ -61,15 +61,32 @@ export function chiTietTra(cach, hd) {
 }
 
 /* Tổng hợp các lượt gọi của bàn cho thanh đơn và màn Đơn của bàn. THUẦN theo
-   G.don. Tạm tính lấy số máy chủ chốt lúc gọi; lượt bị từ chối, hết hạn
-   không tính. */
+   G.don. tamTinh: món gọi từ MÁY NÀY (số máy chủ chốt lúc gọi); lượt bị từ
+   chối, hết hạn không tính.
+
+   Codex PR #545 vòng 6: quầy nhận lượt nào thì nhập vào phiếu tạm tính CHUNG
+   của bàn, phiếu đó có cả món máy khác cùng bàn gọi và món thu ngân thêm. Cần
+   thanh toán vì vậy lấy tổng phiếu máy chủ báo kèm lượt đã nhận (tt.bill:
+   khoa, tong); hai lượt cùng phiếu tính một lần, lấy số của lượt hỏi sau
+   cùng. Lượt chưa vào phiếu (chờ quầy nhận, hoặc máy chủ chưa báo phiếu)
+   cộng thêm theo tạm tính của lượt. */
 export function tomDon(don) {
   const tinh = (don || []).filter(d => !TT_KHONG_TINH.includes((d.tt && d.tt.trang_thai) || 'Chờ nhận'));
+  const tien = d => Number(d.tt && d.tt.tam_tinh) || 0;
+  const bill = new Map();
+  let ngoai = 0;
+  for (const d of tinh) {
+    const b = d.tt && d.tt.trang_thai === 'Đã nhận' && d.tt.bill;
+    if (b && b.khoa) bill.set(String(b.khoa), Number(b.tong) || 0);
+    else ngoai += tien(d);
+  }
+  const hoaDon = [...bill.values()].reduce((a, x) => a + x, 0);
   return {
     soLuot: tinh.length,
     soMon: tinh.reduce((a, d) => a + ((d.tt && d.tt.mon) || []).reduce((b, x) => b + (Number(x.sl) || 0), 0), 0),
-    tamTinh: tinh.reduce((a, d) => a + (Number(d.tt && d.tt.tam_tinh) || 0), 0),
+    tamTinh: tinh.reduce((a, d) => a + tien(d), 0),
     choNhan: tinh.filter(d => ((d.tt && d.tt.trang_thai) || 'Chờ nhận') === 'Chờ nhận').length,
+    coHoaDon: bill.size > 0, hoaDon, ngoaiHoaDon: ngoai, coNgoai: bill.size > 0 && ngoai > 0, canTra: hoaDon + ngoai,
   };
 }
 
