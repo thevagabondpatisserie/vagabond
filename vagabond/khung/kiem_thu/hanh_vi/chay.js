@@ -1683,6 +1683,28 @@ async function chayHet() {
     dung('noi ro: ' + tin.join('|'), tin.some(function (t) { return t.indexOf('chưa gắn tài khoản') >= 0; }));
   });
 
+  await caAsync('v642 Codex #545 vong 3: mo lai ban nhap ho so hoan ung (co nguoi ung, chua co danh sach tai khoan trong bo nho): may nap lai tai khoan, giu tai khoan da chon va giao dich da noi, Noi sao ke van doc sao ke', async function () {
+    var m = dungMan(canhChi({ nccChon: NCC_NO,
+      tkHoan: { tk: [{ ma: 'MB-NHV', ngan_hang: 'MB', nguoi: 'NCC-9', nhan: 'MB · 123' }, { ma: 'ACB-NHV', ngan_hang: 'ACB', nguoi: 'NCC-9', nhan: 'ACB · 9' }], doan: 0 },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC A', con_no: 500000, co_the_chi: 500000 }], tong: 500000 },
+      sepay: function () { return { ngan_hang: 'MB', rows: [{ ma_giao_dich: 'FT2', ngay: '2026-11-01', so_tien: 500000 }] }; } }));
+    var tin = [], hop = [];
+    m.g.baoTin = function (t) { tin.push(String(t)); };
+    m.g.sheet = function (t, ds) { hop.push(ds); };
+    /* Dung dung trang thai ma dong khai ban nhap (48-ban-soan-do.js) dat lai: co nguoi ung, tkCua, tk da chon, giao dich da noi; hsTkDs la bo nho tam KHONG nam trong ban nhap. */
+    m.g.hsTaoLoai = 'Hoan ung HD'; m.g.hsTaoNguoiUng = 'NCC-9'; m.g.hsTkCua = 'NCC-9'; m.g.hsTkHoan = 'ACB-NHV'; m.g.hsTkDs = null;
+    m.g.hsTaoChon = { 'HD-1': { con_no: 500000, so_tien: 500000 } };
+    m.g.hsGdCua = { 'HD-1': { ma_giao_dich: 'FT2', ngay: '2026-11-01', so_tien: 500000, ngan_hang: 'MB' } };
+    await m.g.scrHoSoTTTao();
+    dung('nap lai danh sach tai khoan', m.goiApi.some(function (x) { return x.duong === 'vagabond.ho_so_tt.ds_tk_hoan_ung'; }));
+    bang('giu tai khoan da chon', m.g.hsTkHoan, 'ACB-NHV');
+    bang('giu giao dich da noi', (m.g.hsGdCua['HD-1'] || {}).ma_giao_dich, 'FT2');
+    m.tai.querySelector('[data-hsgd="HD-1"]').click();
+    for (var i = 0; i < 10; i++) await new Promise(function (r) { setTimeout(r, 0); });
+    dung('khong bao nham chua co tai khoan: ' + tin.join('|'), !tin.some(function (t) { return t.indexOf('chưa khai tài khoản') >= 0; }));
+    dung('doc sao ke tai khoan nguoi ung', m.goiApi.some(function (x) { return x.duong === 'vagabond.ho_so_tt.sepay_ocb'; }) && hop.length === 1);
+  });
+
   await caAsync('APP247: ke toan FIN van thay nut can coc o ca hai man', async function () {
     var m = dungMan(canhChi({ vai: ['Accounts User'], nccChon: NCC_NO,
       supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
