@@ -656,11 +656,13 @@ sdKhai('ho_so_tt', 'scrHoSoTTTao', {
   ten: 'Hồ sơ thanh toán',
   lay: function () {
     return { ncc: hsTaoNcc, chon: hsTaoChon, ghi: hsTaoGhiChu, loai: hsTaoLoai, ung: hsTaoNguoiUng,
-      tk: hsTkHoan, tkCua: hsTkCua, phieu: hsPhieuCua, hdTu: hsHdTu };
+      tk: hsTkHoan, tkCua: hsTkCua, phieu: hsPhieuCua, hdTu: hsHdTu, gd: hsGdCua };
   },
   dat: function (v) {
     hsTaoNcc = v.ncc || ''; hsTaoChon = v.chon || {}; hsTaoGhiChu = v.ghi || ''; hsTaoLoai = v.loai || hsTaoLoai;
     hsTaoNguoiUng = v.ung || ''; hsTkHoan = v.tk || ''; hsTkCua = v.tkCua || ''; hsPhieuCua = v.phieu || {}; hsHdTu = v.hdTu || '';
+    /* v642 Codex #545 vòng 2: giao dịch sao kê đã nối vào từng hoá đơn; bản nháp cũ không có thì rỗng. */
+    hsGdCua = (v.gd && typeof v.gd === 'object') ? v.gd : {};
   },
   tieuDe: sdTieuDe('ncc', 'ung', 'ghi'), luu: ['vagabond.ho_so_tt.tao']
 });
