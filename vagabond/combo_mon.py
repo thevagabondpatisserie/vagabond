@@ -61,19 +61,30 @@ def doc_cau_hinh(ma, quay='', nguon=''):
     if not ten:
         frappe.throw('Combo %s chưa khai món thành phần. Mở Khuyến mãi - combo, chọn mã hàng này và khai đủ món trước khi bán.' % ma)
     cb = km._doc_combo(ten)
+    loi = ly_do_khong_ban(cb, ma, quay, nguon)
+    if loi:
+        frappe.throw(loi)
+    return cb
+
+
+def ly_do_khong_ban(cb, ma, quay='', nguon=''):
+    """Vì sao một combo cố định (mã hàng KMCB) không bán được lúc này; rỗng là bán
+    được. MỘT nguồn cho cửa rã combo trên hoá đơn và trang gọi món tại bàn
+    (goi_mon_ban.doc_combo_ban, v642): trang bàn không bày combo mà hoá đơn sẽ chặn."""
+    from vagabond import khuyen_mai as km
     if not cint(cb.get('bat')):
-        frappe.throw('Combo %s đang tắt. Nhờ quản lý kiểm cấu hình trước khi bán.' % ma)
+        return 'Combo %s đang tắt. Nhờ quản lý kiểm cấu hình trước khi bán.' % ma
     for ok, ly_do in (km._hop_thoi_gian(cb), km._hop_kenh(cb, nguon, quay)):
         if not ok:
-            frappe.throw('Combo %s: %s.' % (ma, ly_do))
+            return 'Combo %s: %s.' % (ma, ly_do)
     # Combo có nhóm chọn phải đi qua màn chọn combo và bộ kiểm khuyến mãi.
     if any(d.get('nhom') for d in cb['dong']):
-        frappe.throw('Combo %s cần chọn món. Chọn trong nhóm Combo ở màn tính tiền.' % ma)
+        return 'Combo %s cần chọn món. Chọn trong nhóm Combo ở màn tính tiền.' % ma
     if any(str(d.get('item_code', '')).upper().startswith('KMCB') for d in cb['dong']):
-        frappe.throw('Combo %s có combo lồng bên trong. Khai trực tiếp từng món để đếm kho đúng.' % ma)
+        return 'Combo %s có combo lồng bên trong. Khai trực tiếp từng món để đếm kho đúng.' % ma
     if cb.get('can_otp') or cb.get('gioi_han_bill') or cb.get('lan_moi_ngay'):
-        frappe.throw('Combo %s có giới hạn khuyến mãi. Chọn trong nhóm Combo để kiểm điều kiện.' % ma)
-    return cb
+        return 'Combo %s có giới hạn khuyến mãi. Chọn trong nhóm Combo để kiểm điều kiện.' % ma
+    return ''
 
 
 def ra_dong(ma, so_bo, quay='', nguon=''):

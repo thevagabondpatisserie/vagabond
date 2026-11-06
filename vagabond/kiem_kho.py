@@ -869,4 +869,15 @@ def con_tren_quay_web():
 			q["topping"] = ds_tp if q["do_uong"] else []
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "kiem_kho: do uong tai quay loi")
+		# v642 (anh Việt 06/11/2026): combo cố định đang chạy của quầy, kiểm thành
+		# phần trên đúng bánh và nước đang bày ở đây, cùng phép cửa gọi món
+		# (goi_mon_ban.bang_mon) nên trang bày combo nào thì gọi được combo đó.
+		try:
+			bang = {m["ma"]: {"ten": m["ten"], "loai": "banh", "con": m["con"], "nhom_goc": m.get("nhom") or ""} for m in q["mon"]}
+			bang.update({m["ma"]: {"ten": m["ten"], "loai": "nuoc", "nhom_goc": m.get("nhom_goc") or ""} for m in q["do_uong"]})
+			q["combo"] = [dict(c, anh=chon_anh(c.get("anh") or "", [], ma_hang=c["ma"])[0] if c.get("anh") else "")
+				for c in goi_mon_ban.combo_ban_duoc(goi_mon_ban.doc_combo_ban(d["ma"]), bang)]
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "kiem_kho: combo tai quay loi")
+			q["combo"] = []
 	return ra
