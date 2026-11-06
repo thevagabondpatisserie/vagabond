@@ -130,6 +130,12 @@ def dang_theo_doi(o):
 TIEN_TO_KHONG_LEN_WEB = ("BAWS",)
 
 
+# v642 (anh Việt 06/11/2026): bánh còn ĐÚNG 1 cái thì không bày lên web (tab Tại
+# quầy, gọi món tại bàn): cái cuối cùng dễ bị bán cùng lúc ở quầy hay kênh khác
+# (Grab, Pancake), khách web đặt rồi mới biết hết. Còn từ 2 trở lên mới bày.
+TON_AN_WEB = 1
+
+
 def dong_len_web(cac_dong, ban, tat=None):
 	"""Nhung dong cua mot quay duoc bay len tab In store. THUAN.
 
@@ -137,7 +143,8 @@ def dong_len_web(cac_dong, ban, tat=None):
 	Tra [(ma, con)] chi cho dong DANG THEO DOI, con > 0, khong phai banh si,
 	khong bi cong tac tay tat. Ba hang rao nay phai giu:
 	  - dong chua ai khai thi khong bay (cung le voi man tinh tien),
-	  - con <= 0 thi khong bay - khach chi can biet cai gi CON,
+	  - con <= TON_AN_WEB (1) thi khong bay: khach chi can biet cai gi CON, va
+	    cai cuoi cung de quay ban, tranh hai kenh cung ban (v642),
 	  - cong tac tay bat len la an, du so con duong.
 	"""
 	ra = []
@@ -154,7 +161,7 @@ def dong_len_web(cac_dong, ban, tat=None):
 			lay(r, "ton_dau"), tong_nhap(r), (ban or {}).get(ma) or 0,
 			lay(r, "hong"), lay(r, "dieu_chinh"),
 		)
-		if con > 0:
+		if con > TON_AN_WEB:
 			ra.append((ma, con))
 	return ra
 
