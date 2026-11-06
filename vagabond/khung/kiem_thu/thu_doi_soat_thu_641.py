@@ -853,3 +853,109 @@ def _():
 			ra = str(e)
 	dung("chặn: %s" % ra, ra.startswith("Chưa xác nhận được"))
 	la("không ghi xác nhận", viec, [])
+
+
+# ------------------------------------------------------------ Codex #544 vòng 4
+
+def _db_xac_nhan():
+	"""Nguồn N1 năm bước xanh, một dòng nối hoá đơn SI-A; bảng giả đủ cho
+	xac_nhan, kiem_xac_nhan, buoc_nguon chạy THẬT."""
+	from contextlib import nullcontext
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+
+	class D(dict):
+		__getattr__ = dict.get
+	nguon = D(name="N1", company="A", owner="kt@x", kenh_nhan=T.KENH, duong_vao="Từ thư", trang_thai="Đã nhận", nhom="Tiền bán",
+		trang_thai_tien="Đã thấy tiền về", giao_dich_ngan_hang="GD1", so_chua_noi=0, so_da_noi=1, kiem_so_du="", phi_vuot=0,
+		thuc_nhan=100000.0, so_dong=1, xac_nhan_luc=None, xac_nhan_boi=None, xac_nhan_dau="", thu="T1")
+	dong = [D(name="R1", nguon="N1", trang_thai_khop="Đã nối", sales_invoice="SI-A", purchase_invoice=None, van_don=None,
+		thuc_nhan=100000, phi=0)]
+	nhan_xet = []
+
+	def get_value(dt, name, f=None, as_dict=False):
+		if isinstance(f, (list, tuple)):
+			return D({k: nguon.get(k) for k in f})
+		return nguon.get(f)
+
+	def set_value(dt, name, cap, *a, **k):
+		nguon.update(cap)
+	ghi = []
+	fr = _frappe_gia(ghi)
+	fr.db.get_value, fr.db.set_value = get_value, set_value
+	fr.get_all = lambda dt, filters=None, fields=None, **k: [D({x: d.get(x) for x in fields}) for d in dong]
+	fr.get_doc = lambda d: NS(insert=lambda **k: nhan_xet.append(d.get("content")))
+	fr.session = NS(user="kt@x")
+	fr.utils.now_datetime = lambda: "2026-11-06 10:00:00"
+	vong = [patch.object(T, "_frappe", lambda: fr), patch.object(V, "_chan", lambda *a, **k: None),
+		patch.object(V, "_chan_cong_ty", lambda c: None), patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()),
+		patch.object(T, "_vai", lambda: {"Accounts User"}), patch.object(T, "la_giam_doc", lambda: False)]
+	return nguon, dong, nhan_xet, vong
+
+
+@ca("Codex #544 vòng 4: hoá đơn nối bị huỷ rồi nối hoá đơn thay: xác nhận cũ hết hiệu lực, nguồn không tự về Đã khép, kế toán xác nhận lại")
+def _():
+	from contextlib import ExitStack
+	nguon, dong, nhan_xet, vong = _db_xac_nhan()
+	with ExitStack() as st:
+		for v in vong:
+			st.enter_context(v)
+		T.xac_nhan("N1")
+		dung("xác nhận ghi dấu số liệu", len(nguon.xac_nhan_dau or "") == 64)
+		la("đối chiếu lại ra cùng kết quả: giữ xác nhận", (T.kiem_xac_nhan("N1"), T.buoc_nguon(nguon)["hien"]), (False, 7))
+		# Hoá đơn SI-A bị huỷ: đối chiếu lại gỡ nối.
+		dong[0].update(sales_invoice=None, trang_thai_khop="Chưa nối")
+		nguon.update(so_chua_noi=1, so_da_noi=0)
+		la("gỡ xác nhận cũ", (T.kiem_xac_nhan("N1"), nguon.xac_nhan_luc, nguon.xac_nhan_boi), (True, None, None))
+		dung("ghi nhận xét để tra: " + str(nhan_xet), len(nhan_xet) == 1 and "hết hiệu lực" in nhan_xet[0])
+		# Nối hoá đơn thay SI-B: số dòng như cũ nhưng chứng từ khác.
+		dong[0].update(sales_invoice="SI-B", trang_thai_khop="Đã nối")
+		nguon.update(so_chua_noi=0, so_da_noi=1)
+		T.kiem_xac_nhan("N1")
+		b = T.buoc_nguon(nguon)
+		la("không tự về Đã khép, nút Xác nhận mở", (b["hien"], b["xac_nhan_duoc"], b["ghi"]), (6, 1, "Chờ kế toán xác nhận"))
+		T.xac_nhan("N1")
+		la("xác nhận lại thì khép", T.buoc_nguon(nguon)["hien"], 7)
+		# Chỉ đổi giao dịch tiền về (trạng thái tiền vẫn khớp) cũng phải xác nhận lại.
+		nguon.update(giao_dich_ngan_hang="GD2")
+		la("đổi giao dịch tiền về: gỡ xác nhận", T.kiem_xac_nhan("N1"), True)
+	a = T.dau_doi_chieu(dict(thuc_nhan=1.0), [dict(name="R2", sales_invoice="X"), dict(name="R1", sales_invoice="Y")])
+	b = T.dau_doi_chieu(dict(thuc_nhan=1), [dict(name="R1", sales_invoice="Y"), dict(name="R2", sales_invoice="X")])
+	la("THUẦN: dấu không phụ thuộc thứ tự dòng, 1.0 bằng 1", a, b)
+	la("THUẦN: đổi hoá đơn nối là dấu khác", a != T.dau_doi_chieu(dict(thuc_nhan=1), [dict(name="R1", sales_invoice="Z"),
+		dict(name="R2", sales_invoice="X")]), True)
+
+
+@ca("Codex #544 vòng 4: mọi lối đối chiếu lại và nối tay đều kiểm lại xác nhận của kế toán")
+def _():
+	from contextlib import nullcontext
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	viec = []
+	nguon = NS(name="N1", nhom="Tiền bán", trang_thai_tien="Đã thấy tiền về", get=lambda k, d=None: None,
+		db_set=lambda *a, **k: None)
+	with patch.object(V.frappe, "get_doc", lambda *a, **k: nguon, create=True), \
+			patch.object(V.frappe, "get_all", lambda *a, **k: [], create=True), \
+			patch.object(V, "_noi_hoa_don_ban", lambda n, d: viec.append("noi")), patch.object(V, "_tien_ve", lambda n: None), \
+			patch.object(V, "_dem_noi", lambda n: viec.append("dem")), \
+			patch.object(T, "sau_doi_chieu", lambda n, t: viec.append("sau")), \
+			patch.object(T, "kiem_xac_nhan", lambda n: viec.append(("kiem", n))):
+		V._doi_chieu("N1")
+	la("đối chiếu lại: kiểm xác nhận sau cùng", viec, ["noi", "dem", "sau", ("kiem", "N1")])
+	viec.clear()
+
+	def get_value(dt, name, f=None, as_dict=False):
+		return NS(name="R1", nguon="N1", company="A", trang_thai_khop="Nối theo tiền", sales_invoice="SI-A")
+	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_chan_cong_ty", lambda c: None), \
+			patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()), patch.object(V, "_goi_y_con_dung", lambda n: True), \
+			patch.object(V, "_kieu_nguon", lambda n: "grab"), \
+			patch.object(V.frappe.utils, "now", lambda: "2026-11-06 10:00:00", create=True), \
+			patch.object(V.frappe, "session", NS(user="kt@x"), create=True), \
+			patch.object(V.frappe.db, "get_value", get_value, create=True), \
+			patch.object(V.frappe.db, "set_value", lambda *a, **k: viec.append("ghi"), create=True), \
+			patch.object(V.frappe, "get_all", lambda *a, **k: [], create=True), \
+			patch.object(V.frappe, "get_doc", lambda *a, **k: nguon, create=True), \
+			patch.object(V, "_dem_noi", lambda n: viec.append("dem")), \
+			patch.object(T, "kiem_xac_nhan", lambda n: viec.append(("kiem", n))):
+		V.xac_nhan_noi("R1")
+	la("nối tay theo tiền: kiểm xác nhận sau khi đếm", viec, ["ghi", "dem", ("kiem", "N1")])
