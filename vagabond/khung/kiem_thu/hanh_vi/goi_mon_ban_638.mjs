@@ -790,5 +790,46 @@ await ca('v642 Codex #545 vòng 6 phép thuần: cần thanh toán = các hoá �
   la('hai hoá đơn mở khác nhau: cộng cả hai', r3.canTra, 170);
 });
 
+await ca('v642 Codex #545 vòng 7: quầy nhận lượt MỚI trước rồi lượt CŨ sau; nhịp tự động chỉ hỏi lượt còn chờ; thanh đơn phải theo số phiếu hỏi sau cùng (140.000 đ), không theo lượt đứng cuối danh sách (40.000 đ)', async () => {
+  const BILL = 'k-bill-ban-5';
+  const theoMa = {
+    'TQ-1': {ok: 1, trang_thai: 'Chờ nhận', luc: '10:00', tam_tinh: 100000, mon: [{ten: 'Trà Hoa Lài', sl: 2, tc: [], gia: 50000, tien: 100000}]},
+    'TQ-2': {ok: 1, trang_thai: 'Chờ nhận', luc: '10:05', tam_tinh: 40000, mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 40000, tien: 40000}]}};
+  let so = 0;
+  const {goc, kho, chayHen, vet} = await moTrang({tt: th => Object.assign({}, theoMa[th.ma]), goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so).repeat(32)})});
+  for (const ma of ['NUTR00021', 'NUIC00002']) {
+    await bam(nutThem(goc).find(n => n.props['data-them'] === ma));
+    if (ma === 'NUTR00021') await bam(theoId(goc, 'gbThemLy'));
+    await bam(theoId(goc, 'gbXemGio'));
+    await bam(theoId(goc, 'gbGoi'));
+  }
+  await chayHen();
+  /* Quầy nhận lượt 2 (40.000 đ) trước: phiếu của bàn 40.000 đ. */
+  theoMa['TQ-2'] = Object.assign({}, theoMa['TQ-2'], {trang_thai: 'Đã nhận', nhan_luc: '10:06', bill: {khoa: BILL, tong: 40000}});
+  await chayHen();
+  dung('nhận lượt 2: thanh đơn 40.000 đ + lượt 1 chờ 100.000 đ ' + chu(theoId(goc, 'gbBarDon')), chu(theoId(goc, 'gbBarDon')).includes('Tạm tính 140.000 đ'));
+  /* Rồi nhận lượt 1 vào CÙNG phiếu: phiếu 140.000 đ. Nhịp tự động không hỏi lại lượt 2 (đã xong). */
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {trang_thai: 'Đã nhận', nhan_luc: '10:07', bill: {khoa: BILL, tong: 140000}});
+  theoMa['TQ-2'] = Object.assign({}, theoMa['TQ-2'], {bill: {khoa: BILL, tong: 140000}});
+  const truoc = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').length;
+  await chayHen();
+  la('nhịp tự động chỉ hỏi lượt 1', vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').slice(truoc).map(x => x[2].ma), ['TQ-1']);
+  const bar = chu(theoId(goc, 'gbBarDon'));
+  dung('thanh đơn theo số phiếu mới nhất: ' + bar, bar.includes('Tạm tính 140.000 đ'));
+  la('kho', [kho.goiBan.tom.value.canTra, kho.goiBan.tom.value.hoaDon], [140000, 140000]);
+});
+
+await ca('v642 Codex #545 vòng 7: máy chủ đọc tổng phiếu lỗi ở một lượt vẫn báo khoá phiếu; lượt khác cùng phiếu đọc được tổng thì không cộng trùng (140.000 đ, không phải 240.000 đ); cả phiếu chưa đọc được thì tạm tính theo lượt', async () => {
+  const K2 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  const l1 = (bill, hoi) => ({tt: {trang_thai: 'Đã nhận', tam_tinh: 100000, mon: [{sl: 2}], bill, hoi}});
+  const l2 = (bill, hoi) => ({tt: {trang_thai: 'Đã nhận', tam_tinh: 40000, mon: [{sl: 1}], bill, hoi}});
+  la('lượt 1 đọc lỗi, lượt 2 đọc được', K2.tomDon([l1({khoa: 'b1', tong: null}, 1), l2({khoa: 'b1', tong: 140000}, 2)]).canTra, 140000);
+  la('lượt đọc lỗi hỏi sau cùng: giữ số đọc được', K2.tomDon([l2({khoa: 'b1', tong: 140000}, 1), l1({khoa: 'b1', tong: null}, 2)]).canTra, 140000);
+  const r = K2.tomDon([l1({khoa: 'b1', tong: null}, 1), l2({khoa: 'b1', tong: null}, 2), {tt: {trang_thai: 'Chờ nhận', tam_tinh: 30000}}]);
+  la('cả phiếu chưa đọc được: theo lượt, không ghi là hoá đơn của bàn', [r.coHoaDon, r.hoaDon, r.canTra], [false, 0, 170000]);
+  la('số hỏi sau cùng thắng dù lượt đứng trước', K2.tomDon([l1({khoa: 'b1', tong: 140000}, 5), l2({khoa: 'b1', tong: 40000}, 3)]).canTra, 140000);
+  la('tổng 0 đ (quầy giảm hết) vẫn là số đọc được', K2.tomDon([l1({khoa: 'b1', tong: 0}, 1)]).canTra, 0);
+});
+
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
 if (hong) { console.log(loi.join('\n')); process.exit(1); }

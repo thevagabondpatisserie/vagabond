@@ -260,6 +260,24 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     bang('chuyển nhóm', [n2.nhom[1].mon, n2.nhom[2].mon], [['NUTR00040', 'NUTR00099'], ['NUCF00003', 'NUTR00090']]);
   });
 
+  await ca('Codex PR #545 vòng 7 (AGENTS.md 2b.13): khối tuỳ chọn và topping riêng của món: mọi nút Theo nhóm / Có / Không, nút Về theo nhóm hết, Xem đủ cao ít nhất 44, mọi chữ ít nhất 13', async function () {
+    var m = await moMan();
+    await bam(m, '[data-btmnhom="n-tra"]');
+    await bam(m, '[data-btmmon="NUTR00090"]');
+    await bam(m, '[data-btmnacid="tc:Đường:khong"]');
+    await cho(40);
+    var html = m.tai.body.innerHTML;
+    var dau = html.indexOf('id="btmRiengMon"');
+    dung('có khối riêng món', dau >= 0);
+    var khoi = html.slice(dau, html.indexOf('id="btmMonXong"') > dau ? html.indexOf('id="btmMonXong"') : html.length);
+    var chu = (khoi.match(/font-size:\s*[0-9.]+px/g) || []).map(function (x) { return parseFloat(x.replace(/[^0-9.]/g, '')); });
+    dung('có đọc được cỡ chữ', chu.length >= 8);
+    bang('chữ nhỏ hơn 13', chu.filter(function (x) { return x < 13; }), []);
+    var nut = khoi.match(/<(?:button|summary)\b[^>]*>/g) || [];
+    dung('có nút', nut.length >= 18);
+    bang('nút thấp hơn 44', nut.filter(function (x) { var c = /min-height:\s*([0-9.]+)px/.exec(x); return !c || parseFloat(c[1]) < 44; }), []);
+  });
+
   await ca('Xem và xuất bản: thay đổi hiện đủ; Xuất bản gọi máy chủ một lần, báo phiên mới, về màn chính tải lại; Quay về bản trước gọi đúng phiên; không thay đổi thì Xuất bản tắt', async function () {
     var m = await moMan();
     await bam(m, '[data-btmhien="n-ca-phe"]');
