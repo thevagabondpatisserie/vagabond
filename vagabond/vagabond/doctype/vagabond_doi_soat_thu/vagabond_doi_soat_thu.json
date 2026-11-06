@@ -46,7 +46,7 @@
    "fieldname": "ket_qua",
    "fieldtype": "Select",
    "label": "Kết quả",
-   "options": "Đã xác thực\nChờ duyệt\nĐã duyệt\nTừ chối\nBị chặn\nKhông có tệp",
+   "options": "Đã xác thực\nChờ duyệt\nĐã duyệt\nTừ chối\nBị chặn\nKhông có tệp\nLỗi xử lý",
    "in_list_view": 1,
    "read_only": 1
   },
@@ -122,6 +122,14 @@
    "read_only": 1
   },
   {
+   "fieldname": "xong",
+   "fieldtype": "Check",
+   "label": "Đã xử lý xong",
+   "read_only": 1,
+   "hidden": 1,
+   "description": "Codex #544: thư xử lý lỗi giữa chừng thì lượt thử lại dùng tiếp dòng này."
+  },
+  {
    "fieldname": "company",
    "fieldtype": "Link",
    "label": "Công ty",
@@ -158,7 +166,7 @@
  "sort_field": "nhan_luc",
  "sort_order": "DESC",
  "title_field": "tieu_de",
- "modified": "2026-11-06 12:00:00.000000",
+ "modified": "2026-11-06 14:00:00.000000",
  "creation": "2026-11-06 12:00:00.000000",
  "owner": "Administrator",
  "modified_by": "Administrator",
@@ -181,6 +189,7 @@
   "nguon",
   "tep_goc",
   "bao_zalo",
+  "xong",
   "company"
  ]
 }
