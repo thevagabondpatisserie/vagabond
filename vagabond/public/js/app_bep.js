@@ -38741,8 +38741,14 @@ function hsXepGd(rows, soTien) {
 }
 
 async function hsNoiGdVaoHd(maHd) {
-  var dsTk = (hsTkDs && hsTkDs.tk) || [];
   if (!hsTaoNguoiUng) return baoTin('Chọn người được hoàn ứng trước, máy mới biết đọc sao kê tài khoản nào.', 'Nối sao kê');
+  /* Codex #545 vòng 1: danh sách tài khoản ĐOÁN (người này chưa gắn tài khoản
+     vào quỹ tạm ứng) là tài khoản của người khác, không làm chứng từ được. */
+  if (hsTkDs && hsTkDs.doan) {
+    return baoTin('Người này chưa gắn tài khoản ngân hàng nào vào quỹ tạm ứng nên chưa nối được sao kê. ' +
+      'Nhờ chị Dung gắn tài khoản của người này vào 1411 bên Next rồi quay lại.', 'Nối sao kê');
+  }
+  var dsTk = ((hsTkDs && hsTkDs.tk) || []).filter(function (x) { return !x.nguoi || x.nguoi === hsTaoNguoiUng; });
   if (!dsTk.length) return baoTin('Người này chưa khai tài khoản ngân hàng nào. Nhờ chị Dung tạo Bank Account cho họ bên Next.', 'Nối sao kê');
   busy(true);
   var rows = [], loi = [];
