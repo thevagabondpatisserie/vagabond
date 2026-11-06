@@ -375,3 +375,118 @@ def _():
 		r = subprocess.run(["node", str(goc / "vagabond/khung/kiem_thu/hanh_vi" / tep)], capture_output=True, text=True, timeout=120)
 		dung("%s chạy được: %s" % (tep, (r.stdout[-1500:] + r.stderr[-800:])), r.returncode == 0)
 		dung("%s đủ số ca" % tep, so in r.stdout)
+
+
+# ------------------------------------------------------------ Codex #544 vòng 1
+
+class _Nem(Exception):
+	pass
+
+
+def _frappe_gia(ghi):
+	from types import SimpleNamespace as NS
+
+	def sql(q, *a, **k):
+		return [[1]]
+	return NS(db=NS(sql=sql, commit=lambda: ghi.append("commit"), rollback=lambda: ghi.append("rollback")),
+		log_error=lambda *a, **k: ghi.append("log"), utils=NS(now_datetime=lambda: "2026-11-06 10:00:00"),
+		throw=lambda m, exc=None, *a, **k: (_ for _ in ()).throw((exc or _Nem)(m)), PermissionError=_Nem)
+
+
+class _ImapGia:
+	def __init__(self, uids):
+		self.uids = uids
+
+	def uid(self, lenh, *a):
+		if lenh == "search":
+			return "OK", [b" ".join(str(u).encode() for u in self.uids)]
+		return "OK", [(b"1 (BODY[] {3}", b"thu-%s" % a[0].encode())]
+
+	def logout(self):
+		pass
+
+
+def _chay_doc(lan, loi_uid, trang):
+	"""Chạy doc_hop_thu THẬT `lan` lượt với hộp thư giả có UID 5 và 6; _xu_ly
+	nổ cho các UID trong loi_uid (đếm số lần thử). Trả (nhật ký thử, trạng thái)."""
+	from unittest.mock import patch
+	thu, ghi = [], []
+
+	def xu_ly(tho, uid, ch):
+		thu.append(uid)
+		if uid in loi_uid:
+			raise RuntimeError("CSDL tạm lỗi")
+	luu = []
+	with patch.object(T, "_frappe", lambda: _frappe_gia(ghi)), patch.object(T, "_ket_noi", lambda ch: _ImapGia([5, 6])), \
+			patch.object(T, "_chon_thu_muc", lambda m, tm: 77), patch.object(T, "_xu_ly", xu_ly), \
+			patch.object(T, "trang_thai", lambda: dict(trang)), \
+			patch.object(T, "_ghi_trang_thai", lambda **k: trang.update(k) or dict(trang)), \
+			patch.object(T, "_ghi_thu_loi", lambda tho, uid, ch, ly: luu.append(uid), create=True):
+		for _ in range(lan):
+			T.doc_hop_thu(dict(thu_muc="INBOX"))
+	return thu, trang, luu
+
+
+@ca("Codex #544 F1: thư xử lý lỗi không bị bỏ qua: lượt sau thử lại, quá 3 lần mới ghi sổ lỗi rồi đi tiếp")
+def _():
+	thu, tt, luu = _chay_doc(2, {5}, {})
+	la("hai lượt đều thử lại UID 5, chưa đọc UID 6", thu, [5, 5])
+	la("mốc chưa vượt UID 5", int(tt.get("uid") or 0) < 5, True)
+	dung("hộp thư báo đang có thư lỗi", "UID 5" in (tt.get("loi") or ""))
+	thu, tt, luu = _chay_doc(4, {5}, {})
+	la("3 lần lỗi rồi ghi sổ lỗi, đọc tiếp UID 6", (thu, luu, tt.get("uid")), ([5, 5, 5, 6], [5], 6))
+	thu, tt, luu = _chay_doc(1, set(), {})
+	la("không lỗi: đọc hết, mốc 6, trạng thái lành", (thu, tt.get("uid"), tt.get("loi")), ([5, 6], 6, ""))
+
+
+@ca("Codex #544 F2: danh sách thư bị chặn, chờ duyệt, thư chưa về và số đếm hộp thư chỉ trong pháp nhân được xem")
+def _():
+	from unittest.mock import patch
+	from types import SimpleNamespace as NS
+	loc = []
+
+	def get_all(dt, filters=None, **k):
+		loc.append((dt, dict(filters or {})))
+		return []
+
+	def count(dt, filters=None):
+		loc.append((dt, dict(filters or {})))
+		return 0
+	fr = NS(get_all=get_all, db=NS(count=count), utils=NS(nowdate=lambda: "2026-11-06", add_days=lambda d, n: d,
+		now_datetime=lambda: __import__("datetime").datetime(2026, 11, 6, 13)), get_roles=lambda: ["Accounts User"])
+	with patch.object(T, "_frappe", lambda: fr), patch.object(V, "_chan", lambda *a, **k: None), \
+			patch.object(V, "_cong_ty_xem", lambda: ["A"]), \
+			patch.object(T, "cau_hinh", lambda: dict(bat=1, dia_chi="", lich=[], nguoi_gui=[])), \
+			patch.object(T, "trang_thai", lambda: {"ngay_bat": "2026-11-01"}), patch.object(T, "la_giam_doc", lambda: False):
+		for l in ("chan", "tai_tay", "chua_ve"):
+			V.ds_thu(l)
+		V.hop_thu()
+	thieu = [(dt, f) for dt, f in loc if f.get("company") != ["in", ["A"]]]
+	la("mọi truy vấn đều lọc pháp nhân A", thieu, [])
+	dung("có truy vấn", len(loc) >= 5)
+
+
+@ca("Codex #544 F3: nguồn đã bị giám đốc từ chối không dùng được bản sửa của vendor")
+def _():
+	from contextlib import nullcontext
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	viec = []
+	nguon = NS(name="N1", company="A", duong_vao="Từ chối", du_lieu=json.dumps(dict(ban_sua=[dict(khoa="K", vi_tri=1,
+		nhom="ban", vendor="Grab", tai_khoan="", dong=dict(dau_noi_dung="moi"))])))
+	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_chan_cong_ty", lambda c: None), \
+			patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()), \
+			patch.object(V.frappe.db, "get_value", lambda dt, f=None, *a, **k: NS(name="N1", company="A") if dt == V.DT_NGUON
+				else NS(name="D1", nguon="N0", dau_noi_dung="cu", thuc_nhan=1), create=True), \
+			patch.object(V.frappe, "get_doc", lambda *a, **k: nguon, create=True), \
+			patch.object(V.frappe, "throw", lambda m, *a, **k: (_ for _ in ()).throw(_Nem(m))), \
+			patch.object(V.frappe.db, "sql", lambda *a, **k: viec.append("sql"), create=True), \
+			patch.object(V, "_chen_dong", lambda *a, **k: viec.append("chen")):
+		try:
+			V.dung_ban_sua("N1", "K", "cu")
+			ra = "không chặn"
+		except _Nem as e:
+			ra = str(e)
+	dung("chặn và nói lý do: " + ra, "từ chối" in ra)
+	la("không đổi dòng nào", viec, [])
+	la("từ chối thì bản sửa chờ chọn không hiện nữa", V._ban_sua_hien(dict(duong_vao="Từ chối"), json.loads(nguon.du_lieu)), [])
