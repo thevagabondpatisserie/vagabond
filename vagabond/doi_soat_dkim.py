@@ -41,6 +41,13 @@ class LoiChuKy(Exception):
 	"""Chữ ký không hợp lệ hoặc không kiểm được; thông điệp viết cho kế toán."""
 
 
+class LoiDnsTam(Exception):
+	"""Codex #544 vòng 2: tra khoá công khai lỗi TẠM (hết giờ, máy chủ DNS lỗi,
+	mất mạng). Khác hẳn "không có khoá": thư phải được đọc lại sau, không được
+	kết luận là thư giả. Không kế thừa LoiChuKy hay ValueError để không bị các
+	nhánh bắt lỗi chữ ký nuốt mất."""
+
+
 # ------------------------------------------------------------ tách thư
 
 def tach_thu(tho):
@@ -218,7 +225,8 @@ def kiem_mot(tieu_de, than, chi_so, lay_khoa, bay_gio=None):
 	"""Kiểm chữ ký DKIM thứ chi_so (theo thứ tự xuất hiện). THUẦN với lay_khoa.
 
 	lay_khoa(ten_dns) trả chuỗi bản ghi TXT (bytes) hoặc None.
-	Trả dict(d=tên miền ký, s=selector, dat=True/False, ly_do=câu tiếng Việt)."""
+	Trả dict(d=tên miền ký, s=selector, dat=True/False, ly_do=câu tiếng Việt,
+	tam=True khi chưa kết luận được vì tra khoá lỗi tạm: lay_khoa ném LoiDnsTam)."""
 	sig = [x for x in tieu_de if x[0].lower() == b"dkim-signature"]
 	ten, gia_tri, khoang = sig[chi_so]
 	ra = dict(d="", s="", dat=False, ly_do="")
@@ -288,6 +296,10 @@ def kiem_mot(tieu_de, than, chi_so, lay_khoa, bay_gio=None):
 		ra["dat"] = True
 	except LoiChuKy as er:
 		ra["ly_do"] = str(er)
+	except LoiDnsTam as er:
+		ra["tam"] = True
+		ra["ly_do"] = "Chưa tra được khoá công khai của %s (mạng hoặc DNS lỗi tạm: %s), máy sẽ thử lại." % (
+			ra["d"] or "đối tác", str(er)[:120])
 	except (ValueError, TypeError, IndexError, UnicodeDecodeError):
 		ra["ly_do"] = "Chữ ký số viết sai cú pháp."
 	return ra
@@ -305,25 +317,49 @@ def kiem_thu(tho, lay_khoa, bay_gio=None):
 
 def lay_khoa_dns(ten):
 	"""Bản ghi TXT của khoá. Dùng dnspython nếu có, không thì DNS qua HTTPS.
-	Lỗi mạng trả None (chữ ký đó coi như chưa kiểm được, thư bị giữ lại)."""
-	try:
-		import dns.resolver  # noqa: F401
 
-		tra = dns.resolver.resolve(ten, "TXT", lifetime=8)
-		return b"".join(b"".join(r.strings) for r in tra[:1])
+	Codex #544 vòng 2: chỉ trả None khi DNS TRẢ LỜI CHẮC CHẮN là không có bản
+	ghi (NXDOMAIN, có tên mà không có TXT). Hết giờ, máy chủ lỗi (SERVFAIL),
+	mất mạng, trả lời hỏng thì ném LoiDnsTam để thư được đọc lại sau."""
+	try:
+		import dns.resolver
+		import dns.exception
 	except ImportError:
-		pass
-	except Exception:
-		return None
+		dns = None
+	if dns is not None:
+		try:
+			tra = dns.resolver.resolve(ten, "TXT", lifetime=8)
+			return b"".join(b"".join(r.strings) for r in tra[:1])
+		except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+			return None
+		except Exception as e:
+			raise LoiDnsTam("%s: %s" % (type(e).__name__, str(e)[:100])) from None
 	try:
 		import requests
-
+	except ImportError:
+		raise LoiDnsTam("máy chủ thiếu thư viện tra DNS") from None
+	try:
 		r = requests.get("https://cloudflare-dns.com/dns-query", params={"name": ten, "type": "TXT"},
 			headers={"accept": "application/dns-json"}, timeout=8)
-		for a in (r.json().get("Answer") or []):
-			if a.get("type") == 16:
-				v = a.get("data") or ""
-				return "".join(re.findall(r'"((?:[^"\\]|\\.)*)"', v) or [v]).encode("latin-1")
-	except Exception:
+		r.raise_for_status()
+		d = r.json()
+	except Exception as e:
+		raise LoiDnsTam("%s: %s" % (type(e).__name__, str(e)[:100])) from None
+	return txt_doh(d)
+
+
+def txt_doh(d):
+	"""THUẦN. Đọc trả lời DNS-qua-HTTPS (dạng JSON). Status 0 (NOERROR) mà không
+	có TXT, hoặc 3 (NXDOMAIN): chắc chắn không có khoá, trả None. Mọi mã khác
+	(2 SERVFAIL, 5 REFUSED...) hay trả lời hỏng: lỗi tạm, ném LoiDnsTam."""
+	if not isinstance(d, dict) or not isinstance(d.get("Status"), int):
+		raise LoiDnsTam("trả lời DNS không đọc được")
+	if d["Status"] == 3:
 		return None
+	if d["Status"] != 0:
+		raise LoiDnsTam("máy chủ DNS trả mã %s" % d["Status"])
+	for a in (d.get("Answer") or []):
+		if a.get("type") == 16:
+			v = a.get("data") or ""
+			return "".join(re.findall(r'"((?:[^"\\]|\\.)*)"', v) or [v]).encode("latin-1")
 	return None

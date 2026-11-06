@@ -46,6 +46,10 @@ KQ_LOI = "Lỗi xử lý"
 # lỗi tới lần thứ SO_THU_LAI thì ghi sổ thư "Lỗi xử lý" (giữ bản gốc) rồi đi tiếp,
 # để một thư hỏng không chặn mãi các thư sau.
 SO_THU_LAI = 3
+# Codex #544 vòng 2: tra khoá chữ ký lỗi tạm (DNS, mạng) thì thử lại tới ngần
+# này giờ tính từ lần lỗi đầu, không tính theo số lần (cả hộp thư cùng chờ vì
+# mọi thư đều cần tra khoá). Quá hạn mới ghi "Lỗi xử lý" (đọc lại được bằng tay).
+GIO_THU_LAI_DNS = 24
 DUOI = (".csv", ".txt", ".xlsx", ".xlsm", ".xls", ".pdf", ".zip")
 TOI_DA_MOI_LUOT = 40
 TOI_DA_BYTE_THU = 30 * 1024 * 1024
@@ -92,10 +96,39 @@ DUONG = (
 
 # ------------------------------------------------------------ THUẦN: tên miền
 
-def xu_ly_loi(lan):
+def xu_ly_loi(lan, dns_tu=None, bay=None):
 	"""THUẦN. Thư xử lý lỗi lần thứ `lan`: "thu_lai" (giữ mốc, lượt sau đọc lại)
-	hay "ghi_loi" (ghi sổ thư lỗi, đi tiếp)."""
+	hay "ghi_loi" (ghi sổ thư lỗi, đi tiếp).
+
+	dns_tu: lỗi là tra khoá chữ ký lỗi tạm, lỗi đầu tiên lúc dns_tu (chuỗi
+	"YYYY-MM-DD HH:MM:SS"); thử lại tới GIO_THU_LAI_DNS giờ, không tính số lần."""
+	if dns_tu:
+		try:
+			dau = datetime.strptime(str(dns_tu)[:19], "%Y-%m-%d %H:%M:%S")
+			nay = datetime.strptime(str(bay)[:19], "%Y-%m-%d %H:%M:%S")
+		except ValueError:
+			return "ghi_loi"
+		return "thu_lai" if nay - dau < timedelta(hours=GIO_THU_LAI_DNS) else "ghi_loi"
 	return "thu_lai" if int(lan or 0) < SO_THU_LAI else "ghi_loi"
+
+
+def phai_doc_lai_dns(ket_qua, chu_ky):
+	"""THUẦN. Codex #544 vòng 2: thư chưa được nhận là thư có chữ ký đúng mà có
+	chữ ký chưa kiểm được vì tra khoá lỗi TẠM thì chưa được kết luận (chặn hay
+	chờ duyệt): phải đọc lại khi mạng ổn."""
+	return ket_qua != KQ_XAC_THUC and any(c.get("tam") for c in (chu_ky or []))
+
+
+def moc_doc(tt, uv):
+	"""THUẦN. Mốc đọc (UID cuối, các thư đang thử lại) của thư mục có
+	UIDVALIDITY uv. Codex #544 vòng 2: UIDVALIDITY đổi (hộp thư làm lại, chuyển
+	máy chủ) thì UID cũ vô nghĩa: mốc về 0, bỏ mọi đếm lỗi cũ; trả thêm
+	doi=True để nơi gọi ghi ngay mốc mới TRƯỚC khi đọc thư nào."""
+	cung = int(tt.get("uidvalidity") or 0) == int(uv or 0)
+	if not cung:
+		return dict(uid=0, loi_uid={}, dns_tu={}, doi=True)
+	return dict(uid=int(tt.get("uid") or 0), loi_uid=dict(tt.get("loi_uid") or {}), dns_tu=dict(tt.get("dns_tu") or {}),
+		doi=False)
 
 
 def mien_cua(dia_chi):
@@ -704,33 +737,50 @@ def doc_hop_thu(ch=None):
 			m = _ket_noi(ch)
 			try:
 				uv = _chon_thu_muc(m, ch["thu_muc"])
-				cuoi = int(tt.get("uid") or 0) if int(tt.get("uidvalidity") or 0) == uv else 0
-				loi_uid = dict(tt.get("loi_uid") or {}) if int(tt.get("uidvalidity") or 0) == uv else {}
+				moc = moc_doc(tt, uv)
+				cuoi, loi_uid, dns_tu = moc["uid"], moc["loi_uid"], moc["dns_tu"]
+				if moc["doi"]:
+					# Codex #544 vòng 2: ghi mốc của thư mục mới NGAY, để lượt sau
+					# không lấy UID của thư mục cũ áp cho thư mục mới.
+					_ghi_trang_thai(uidvalidity=uv, uid=0, loi_uid={}, dns_tu={})
+					frappe.db.commit()
 				kq, du = m.uid("search", None, "UID %s:*" % (cuoi + 1))
 				uids = sorted(int(x) for x in (du[0] or b"").split() if int(x) > cuoi) if kq == "OK" else []
 				for uid in uids[:TOI_DA_MOI_LUOT]:
+					# Lỗi kết nối khi lấy thư đi ra nhánh lỗi cả lượt (không vượt mốc).
 					kq, du = m.uid("fetch", str(uid), "(BODY.PEEK[])")
 					tho = next((x[1] for x in (du or []) if isinstance(x, tuple) and len(x) > 1), None)
-					if tho:
-						try:
-							_xu_ly(tho, uid, ch)
+					try:
+						if not tho:
+							# Trước đây thư không lấy được nội dung bị vượt qua im lặng.
+							raise RuntimeError("Máy chủ thư không trả nội dung thư (%s)." % kq)
+						_xu_ly(tho, uid, ch)
+						frappe.db.commit()
+					except Exception as e:
+						frappe.db.rollback()
+						frappe.log_error(title="Đối soát hộp thư: xử lý thư UID %s" % uid)
+						from vagabond.doi_soat_dkim import LoiDnsTam
+
+						bay = str(frappe.utils.now_datetime())[:19]
+						lan = int(loi_uid.get(str(uid)) or 0) + 1
+						dns = isinstance(e, LoiDnsTam)
+						if dns:
+							dns_tu.setdefault(str(uid), bay)
+						if xu_ly_loi(lan, dns_tu.get(str(uid)) if dns else None, bay) == "thu_lai":
+							# Codex #544 F1: KHÔNG vượt mốc; dừng lượt, lượt sau đọc lại thư này.
+							loi_uid[str(uid)] = lan
+							loi_thu = ("Thư UID %s chưa kiểm được chữ ký vì tra khoá lỗi tạm (%s), sẽ thử lại." if dns else
+								"Thư UID %s xử lý lỗi lần %s (%s), sẽ thử lại.") % ((uid, str(e)[:120]) if dns else (uid, lan, str(e)[:120]))
+							_ghi_trang_thai(uidvalidity=uv, uid=cuoi, loi_uid=loi_uid, dns_tu=dns_tu, loi=loi_thu)
 							frappe.db.commit()
-						except Exception as e:
-							frappe.db.rollback()
-							frappe.log_error(title="Đối soát hộp thư: xử lý thư UID %s" % uid)
-							lan = int(loi_uid.get(str(uid)) or 0) + 1
-							if xu_ly_loi(lan) == "thu_lai":
-								# Codex #544 F1: KHÔNG vượt mốc; dừng lượt, lượt sau đọc lại thư này.
-								loi_uid[str(uid)] = lan
-								loi_thu = "Thư UID %s xử lý lỗi lần %s (%s), sẽ thử lại." % (uid, lan, str(e)[:120])
-								_ghi_trang_thai(uidvalidity=uv, loi_uid=loi_uid, loi=loi_thu)
-								frappe.db.commit()
-								break
-							_ghi_thu_loi(tho, uid, ch, str(e)[:500])
-							loi_uid.pop(str(uid), None)
+							break
+						_ghi_thu_loi(tho or ("X-Vagabond: thu UID %s UIDVALIDITY %s khong lay duoc noi dung\r\n\r\n" % (
+							uid, uv)).encode(), uid, ch, str(e)[:500], dns=dns)
 					so += 1
+					cuoi = uid
 					loi_uid.pop(str(uid), None)
-					_ghi_trang_thai(uidvalidity=uv, uid=uid, loi_uid=loi_uid)
+					dns_tu.pop(str(uid), None)
+					_ghi_trang_thai(uidvalidity=uv, uid=uid, loi_uid=loi_uid, dns_tu=dns_tu)
 					frappe.db.commit()
 			finally:
 				try:
@@ -793,7 +843,13 @@ def _luu_tep_an_toan(ten, byte, thu):
 		return None
 
 
-def _ghi_thu_loi(tho, uid, ch, ly):
+def _ly_do_loi(ly, dns=False):
+	if dns:
+		return "Chưa kiểm được chữ ký số vì tra khoá lỗi suốt %s giờ: %s. Bấm Đọc lại thư khi mạng ổn." % (GIO_THU_LAI_DNS, ly)
+	return "Máy xử lý lỗi %s lần: %s. Bấm Đọc lại thư sau khi kỹ thuật sửa." % (SO_THU_LAI, ly)
+
+
+def _ghi_thu_loi(tho, uid, ch, ly, dns=False):
 	"""Codex #544 F1: thư lỗi SO_THU_LAI lần: ghi sổ thư "Lỗi xử lý" kèm bản gốc
 	để kỹ thuật đọc lại, rồi mới cho lượt đọc đi tiếp. Ghi hỏng nữa thì chỉ để
 	Error Log (không chặn mãi các thư sau)."""
@@ -802,7 +858,7 @@ def _ghi_thu_loi(tho, uid, ch, ly):
 		sha = hashlib.sha256(tho).hexdigest()
 		cu = frappe.db.get_value(DT_THU, {"sha256": sha}, "name")
 		if cu:
-			frappe.db.set_value(DT_THU, cu, {"ket_qua": KQ_LOI, "ly_do": ("Máy xử lý lỗi %s lần: %s" % (SO_THU_LAI, ly))[:1000]},
+			frappe.db.set_value(DT_THU, cu, {"ket_qua": KQ_LOI, "ly_do": _ly_do_loi(ly, dns)[:1000], "xong": 0},
 				update_modified=False)
 		else:
 			try:
@@ -813,7 +869,7 @@ def _ghi_thu_loi(tho, uid, ch, ly):
 
 			thu = frappe.get_doc(dict(doctype=DT_THU, sha256=sha, uid=str(uid), message_id=t.get("message_id") or "",
 				nhan_luc=frappe.utils.now_datetime(), nguoi_gui=t.get("nguoi_gui") or "", ten_mien=(t.get("mien") or "")[:140],
-				tieu_de=t.get("tieu_de") or "", ket_qua=KQ_LOI, ly_do=("Máy xử lý lỗi %s lần: %s" % (SO_THU_LAI, ly))[:1000],
+				tieu_de=t.get("tieu_de") or "", ket_qua=KQ_LOI, ly_do=_ly_do_loi(ly, dns)[:1000],
 				company=dsv._cong_ty()))
 			thu.insert(ignore_permissions=True)
 			if len(tho) <= TOI_DA_BYTE_THU:
@@ -842,6 +898,10 @@ def _xu_ly(tho, uid, ch):
 	dong = dong_cua(t["mien"], ch["nguoi_gui"])
 	chu_ky = doi_soat_dkim.kiem_thu(tho, doi_soat_dkim.lay_khoa_dns) if dong and t["so_from"] == 1 else []
 	qd = quyet_dinh(t["mien"], t["so_from"], chu_ky, ch["nguoi_gui"])
+	if phai_doc_lai_dns(qd["ket_qua"], chu_ky):
+		# Codex #544 vòng 2: chưa kết luận khi tra khoá lỗi tạm; không ghi sổ
+		# thư, không đánh dấu xong, để lượt sau (hoặc nút Đọc lại thư) kiểm lại.
+		raise doi_soat_dkim.LoiDnsTam("; ".join(c["ly_do"] for c in chu_ky if c.get("tam"))[:300])
 	cong_ty = dsv._cong_ty()
 	truong = dict(sha256=sha, uid=str(uid), message_id=t["message_id"],
 		gui_luc=t["gui_luc"] or None, nguoi_gui=t["nguoi_gui"],
@@ -1163,6 +1223,47 @@ def thu_goc(name):
 	b = f.get_content()
 	b = b if isinstance(b, bytes) else b.encode("utf-8")
 	return dict(ten=f.file_name, noi_dung=base64.b64encode(b).decode())
+
+
+def doc_lai_thu(name):
+	"""Nút "Đọc lại thư" trên thư "Lỗi xử lý" (Codex #544 vòng 2): chạy lại đúng
+	đường của lượt đọc hộp thư trên bản gốc .eml đã cất (cùng mã băm nên dùng
+	tiếp dòng sổ thư, không tạo bản trùng; tệp đã nhận dừng ở mã băm). Quyền và
+	pháp nhân kiểm ở cổng gọi. Khoá chung với lượt đọc hộp thư."""
+	frappe = _frappe()
+	from vagabond.doi_soat_dkim import LoiDnsTam
+
+	t = frappe.db.get_value(DT_THU, name, ["name", "ket_qua", "xong", "tep_goc", "uid"], as_dict=True)
+	if not t:
+		frappe.throw("Không thấy thư này. Tải lại màn hình.")
+	if t.ket_qua != KQ_LOI or t.xong:
+		frappe.throw("Thư này đã xử lý xong, không cần đọc lại.")
+	if not t.tep_goc:
+		frappe.throw("Thư này không lưu được bản gốc nên không đọc lại được. Nhờ đối tác gửi lại thư.")
+	f = frappe.get_doc("File", {"file_url": t.tep_goc, "attached_to_doctype": DT_THU, "attached_to_name": name})
+	tho = f.get_content()
+	tho = tho if isinstance(tho, bytes) else tho.encode("utf-8")
+	if hashlib.sha256(tho).hexdigest() != frappe.db.get_value(DT_THU, name, "sha256"):
+		frappe.throw("Bản gốc của thư này không còn khớp, không đọc lại được. Nhờ đối tác gửi lại thư.")
+	r = frappe.db.sql("select get_lock('vgb_ds_hop_thu', 30)")
+	if not r or r[0][0] != 1:
+		frappe.throw("Máy đang đọc hộp thư. Đợi một phút rồi bấm lại.")
+	try:
+		try:
+			_xu_ly(tho, t.uid, cau_hinh())
+			frappe.db.commit()
+		except LoiDnsTam:
+			frappe.db.rollback()
+			frappe.throw("Vẫn chưa tra được khoá chữ ký số của đối tác (mạng hoặc DNS lỗi tạm). Thử lại sau ít phút.")
+		except Exception as e:
+			if isinstance(e, frappe.ValidationError):
+				raise
+			frappe.db.rollback()
+			frappe.log_error(title="Đối soát hộp thư: đọc lại thư %s" % name)
+			frappe.throw("Đọc lại vẫn lỗi: %s. Báo kỹ thuật kèm tên thư %s." % (str(e)[:200], name))
+	finally:
+		frappe.db.sql("select release_lock('vgb_ds_hop_thu')")
+	return frappe.db.get_value(DT_THU, name, ["ket_qua", "ly_do"], as_dict=True)
 
 
 def can_cu(n):

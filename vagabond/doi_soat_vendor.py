@@ -357,8 +357,13 @@ def xem_truoc(file_url=None, cong_ty=None):
 	for t, kq, xt in _doc_va_xem(ten, byte, cong_ty):
 		tt = tom_tat(kq, xt)
 		tt["ten_tep"] = t["ten"]
-		da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai", "company"], as_dict=True)
+		da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai", "company", "duong_vao",
+			"kenh_nhan"], as_dict=True)
 		kieu = tep_da_co(da, cong_ty)
+		if kieu != "phap_nhan_khac" and da_tu_choi_khoa(da, "Tải tay", {"duong_vao": "Chờ duyệt"}):
+			# Codex #544 vòng 2: nói trước là tệp đã bị từ chối, không mời Nhận.
+			kieu = "da_co"
+			tt["tu_choi"] = 1
 		tt["da_co"] = da.name if kieu == "da_co" else ""
 		tt["doc_lai"] = da.name if kieu == "doc_lai" else ""
 		tt["phap_nhan_khac"] = 1 if kieu == "phap_nhan_khac" else 0
@@ -431,6 +436,12 @@ def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=
 				"duong_vao"], as_dict=True)
 			kieu = tep_da_co(da, cong_ty, doc_lai)
 			nang = nang_cap_tu_thu(da, kenh, them) if kieu != "phap_nhan_khac" else ""
+			if kieu != "phap_nhan_khac" and da_tu_choi_khoa(da, kenh, them):
+				# Codex #544 vòng 2: nguồn giám đốc đã từ chối là kết luận cuối.
+				# Tải lại, thư kênh cũ hay thư không chữ ký cùng tệp đều dừng ở
+				# mã băm (kể cả nguồn đang Lỗi tệp, Cần xử lý), không về Chờ duyệt.
+				ket.append(dict(name=da.name, trang_thai=da.trang_thai, da_co=1, tu_choi=1, ten_tep=t["ten"]))
+				continue
 			if nang == "doc_lai":
 				# Tệp tải tay bị từ chối (dòng đã thôi tính) nay về đúng từ thư có
 				# chữ ký: đọc lại vào nguồn cũ để dòng tính lại.
@@ -449,6 +460,18 @@ def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=
 			ket.append(_ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=da.name if da else None,
 				**({"them": them} if them else {})))
 	return ket
+
+
+def da_tu_choi_khoa(da, kenh, them):
+	"""THUẦN (Codex #544 vòng 2). Nguồn đã có bị giám đốc từ chối thì KHÔNG được
+	đọc lại hay ghi đè, trừ đúng một lối: cùng tệp về qua hộp thư đối soát với
+	chữ ký số hợp lệ của đối tác (đường vào Từ thư). Trả True là phải dừng."""
+	if not da:
+		return False
+	lay = da.get if isinstance(da, dict) else (lambda k: getattr(da, k, None))
+	if lay("duong_vao") != "Từ chối":
+		return False
+	return nang_cap_tu_thu(da, kenh, them) != "doc_lai"
 
 
 def nang_cap_tu_thu(da, kenh, them):
@@ -489,6 +512,11 @@ def _bo_dong_cu(name):
 def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None, them=None):
 	lich_su = None
 	if co_san:
+		# Codex #544 vòng 2, lớp thứ hai: mọi lối ghi lại một nguồn đã từ chối
+		# (kể cả lối gọi mới sau này) dừng tại đây, trước khi gỡ dòng cũ.
+		cu = frappe.db.get_value(DT_NGUON, co_san, ["name", "duong_vao", "kenh_nhan"], as_dict=True)
+		if cu and da_tu_choi_khoa(cu, kenh, them):
+			frappe.throw("Tệp này đã bị giám đốc từ chối, không nhận lại được. Đối tác gửi lại qua hộp thư đối soát (có chữ ký số) thì máy tự nhận.")
 		# Gỡ dòng bản cũ TRƯỚC rồi mới xem trước lại: nếu không, dòng cũ cùng
 		# khoá bị tính là "đã có" và bản đọc mới không ghi được dòng đúng.
 		lich_su = _bo_dong_cu(co_san)
@@ -1514,6 +1542,19 @@ def tai_thu_goc(name=None):
 		frappe.throw("Không thấy thư này. Tải lại màn hình.")
 	_chan_cong_ty(ct)
 	return doi_soat_thu.thu_goc(name)
+
+
+@frappe.whitelist()
+def doc_lai_thu(name=None):
+	"""Nút "Đọc lại thư" trên thư Lỗi xử lý (Codex #544 vòng 2)."""
+	_chan(True)
+	from vagabond import doi_soat_thu
+
+	ct = frappe.db.get_value(doi_soat_thu.DT_THU, name, "company")
+	if ct is None:
+		frappe.throw("Không thấy thư này. Tải lại màn hình.")
+	_chan_cong_ty(ct)
+	return doi_soat_thu.doc_lai_thu(name)
 
 
 @frappe.whitelist()
