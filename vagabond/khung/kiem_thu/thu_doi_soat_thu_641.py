@@ -371,7 +371,7 @@ def _():
 @ca("v641 màn Đối soát nhà cung cấp chạy thật trong node: hộp thư, tiến độ, đường vào, duyệt, xác nhận")
 def _():
 	goc = Path(__file__).parents[3]
-	for tep, so in (("doi_soat_hop_thu_641.js", "14 dat, 0 hong"), ("doi_soat_vendor_579.js", "22 dat, 0 hong")):
+	for tep, so in (("doi_soat_hop_thu_641.js", "15 dat, 0 hong"), ("doi_soat_vendor_579.js", "23 dat, 0 hong")):
 		r = subprocess.run(["node", str(goc / "vagabond/khung/kiem_thu/hanh_vi" / tep)], capture_output=True, text=True, timeout=120)
 		dung("%s chạy được: %s" % (tep, (r.stdout[-1500:] + r.stderr[-800:])), r.returncode == 0)
 		dung("%s đủ số ca" % tep, so in r.stdout)
@@ -421,7 +421,7 @@ def _chay_doc(lan, loi_uid, trang):
 			patch.object(T, "_chon_thu_muc", lambda m, tm: 77), patch.object(T, "_xu_ly", xu_ly), \
 			patch.object(T, "trang_thai", lambda: dict(trang)), \
 			patch.object(T, "_ghi_trang_thai", lambda **k: trang.update(k) or dict(trang)), \
-			patch.object(T, "_ghi_thu_loi", lambda tho, uid, ch, ly: luu.append(uid), create=True):
+			patch.object(T, "_ghi_thu_loi", lambda tho, uid, ch, ly, dns=False: luu.append(uid), create=True):
 		for _ in range(lan):
 			T.doc_hop_thu(dict(thu_muc="INBOX"))
 	return thu, trang, luu
@@ -490,3 +490,267 @@ def _():
 	dung("chặn và nói lý do: " + ra, "từ chối" in ra)
 	la("không đổi dòng nào", viec, [])
 	la("từ chối thì bản sửa chờ chọn không hiện nữa", V._ban_sua_hien(dict(duong_vao="Từ chối"), json.loads(nguon.du_lieu)), [])
+
+
+# ------------------------------------------------------------ Codex #544 vòng 2
+
+def _chay_doc2(lan, trang, hong=None, uv=77, uids=(5, 6), gio=None, rong=()):
+	"""Chạy doc_hop_thu THẬT `lan` lượt. hong: {uid: số lần đầu nổ, hoặc
+	"dns" để luôn ném LoiDnsTam}. gio: danh sách giờ của từng lượt. rong: UID
+	mà máy chủ thư không trả nội dung. Trả (nhật ký thử, trạng thái, thư ghi lỗi)."""
+	from unittest.mock import patch
+	from types import SimpleNamespace as NS
+	hong = dict(hong or {})
+	thu, ghi, luu = [], [], []
+	dong_ho = list(gio or ["2026-11-06 10:00:00"] * lan)
+	bay = [dong_ho[0]]
+
+	def xu_ly(tho, uid, ch):
+		thu.append(uid)
+		h = hong.get(uid)
+		if h == "dns":
+			raise K.LoiDnsTam("Timeout")
+		if h:
+			hong[uid] = h - 1
+			raise RuntimeError("CSDL tạm lỗi")
+
+	class Imap(_ImapGia):
+		def uid(self, lenh, *a):
+			if lenh == "fetch" and int(a[0]) in rong:
+				return "OK", [b")"]
+			return _ImapGia.uid(self, lenh, *a)
+
+	fr = _frappe_gia(ghi)
+	fr.utils = NS(now_datetime=lambda: bay[0])
+	with patch.object(T, "_frappe", lambda: fr), patch.object(T, "_ket_noi", lambda ch: Imap(list(uids))), \
+			patch.object(T, "_chon_thu_muc", lambda m, tm: uv), patch.object(T, "_xu_ly", xu_ly), \
+			patch.object(T, "trang_thai", lambda: json.loads(json.dumps(trang))), \
+			patch.object(T, "_ghi_trang_thai", lambda **k: trang.update(json.loads(json.dumps(k))) or dict(trang)), \
+			patch.object(T, "_ghi_thu_loi", lambda tho, uid, ch, ly, dns=False: luu.append((uid, dns))):
+		for i in range(lan):
+			bay[0] = dong_ho[i]
+			T.doc_hop_thu(dict(thu_muc="INBOX"))
+	return thu, trang, luu
+
+
+@ca("Codex #544 vòng 2 F1: hộp thư đổi UIDVALIDITY mà thư đầu lỗi thì lượt sau vẫn đọc thư mới từ đầu, không lấy UID cũ")
+def _():
+	# Đúng chuỗi Codex: mốc cũ validity 66 / UID 100, hộp mới validity 77, UID 5 lỗi lần đầu.
+	thu, tt, luu = _chay_doc2(2, {"uidvalidity": 66, "uid": 100}, hong={5: 1})
+	la("lượt 2 đọc lại UID 5 rồi UID 6", thu, [5, 5, 6])
+	la("mốc theo hộp mới", (tt.get("uidvalidity"), tt.get("uid")), (77, 6))
+	# Lượt đầu chỉ ghi mốc mới, không thư nào lỗi: vẫn bỏ mốc cũ.
+	thu, tt, luu = _chay_doc2(1, {"uidvalidity": 66, "uid": 100, "loi_uid": {"5": 2}})
+	la("hộp mới đọc từ đầu, bỏ đếm lỗi cũ", (thu, tt.get("uid"), tt.get("loi_uid")), ([5, 6], 6, {}))
+	la("THUẦN: đổi validity thì mốc về 0", T.moc_doc({"uidvalidity": 66, "uid": 100, "loi_uid": {"5": 1}}, 77),
+		dict(uid=0, loi_uid={}, dns_tu={}, doi=True))
+	la("THUẦN: cùng validity giữ mốc", T.moc_doc({"uidvalidity": 77, "uid": 9, "loi_uid": {"10": 1}}, 77)["uid"], 9)
+
+
+@ca("Codex #544 vòng 2 (thêm): máy chủ thư không trả nội dung thư thì không vượt im lặng, thử lại rồi ghi sổ lỗi")
+def _():
+	thu, tt, luu = _chay_doc2(4, {"uidvalidity": 77, "uid": 4}, rong=(5,))
+	la("không gọi xử lý thư rỗng, 3 lần mới ghi sổ lỗi rồi đọc UID 6", (thu, luu, tt.get("uid")), ([6], [(5, False)], 6))
+	thu, tt, luu = _chay_doc2(1, {"uidvalidity": 77, "uid": 4}, rong=(5,))
+	la("lượt đầu dừng ở UID 5, chưa đọc UID 6", (thu, tt.get("uid")), ([], 4))
+	dung("báo lỗi thư trên hộp thư", "UID 5" in (tt.get("loi") or ""))
+
+
+@ca("Codex #544 vòng 2 F3: tra khoá DKIM lỗi tạm thì không chặn thư: thử lại tới 24 giờ, quá hạn mới ghi Lỗi xử lý")
+def _():
+	gio = ["2026-11-06 %02d:00:00" % h for h in range(10, 16)] + ["2026-11-07 09:59:00", "2026-11-07 10:00:00", "2026-11-07 10:15:00"]
+	thu, tt, luu = _chay_doc2(7, {"uidvalidity": 77, "uid": 4}, hong={5: "dns"}, gio=gio)
+	la("6 lượt trong ngày vẫn thử lại (quá 3 lần), chưa ghi lỗi, chưa đọc UID 6", (thu, luu, tt.get("uid")), ([5] * 7, [], 4))
+	dung("hộp thư nói rõ đang chờ tra khoá", "tra khoá" in (tt.get("loi") or ""))
+	thu, tt, luu = _chay_doc2(9, {"uidvalidity": 77, "uid": 4}, hong={5: "dns"}, gio=gio)
+	la("đủ 24 giờ mới ghi Lỗi xử lý (kiểu DNS) rồi đọc UID 6", (thu, luu, tt.get("uid")), ([5] * 8 + [6], [(5, True)], 6))
+	la("THUẦN: 23 giờ 59 thử lại, 24 giờ ghi lỗi",
+		(T.xu_ly_loi(9, "2026-11-06 10:00:00", "2026-11-07 09:59:00"), T.xu_ly_loi(1, "2026-11-06 10:00:00", "2026-11-07 10:00:00")),
+		("thu_lai", "ghi_loi"))
+
+
+@ca("Codex #544 vòng 2 F3: thư ký thật mà tra khoá lỗi tạm thì chưa kết luận; DNS trả lời không có khoá mới là chặn")
+def _():
+	def tam(ten):
+		raise K.LoiDnsTam("Timeout")
+	tho = _thu("relaxed.eml")
+	r = K.kiem_thu(tho, tam)
+	la("chữ ký chưa kiểm được, đánh dấu tạm", [(x["dat"], bool(x.get("tam"))) for x in r], [(False, True)])
+	t = T.doc_thu(tho)
+	qd = T.quyet_dinh(t["mien"], t["so_from"], r, NG)
+	la("phải đọc lại, không kết luận chặn", T.phai_doc_lai_dns(qd["ket_qua"], r), True)
+	r2 = K.kiem_thu(tho, lambda ten: None)
+	qd2 = T.quyet_dinh(t["mien"], t["so_from"], r2, NG)
+	la("DNS chắc chắn không có khoá: chặn, không đọc lại", (qd2["ket_qua"], T.phai_doc_lai_dns(qd2["ket_qua"], r2)), (T.KQ_CHAN, False))
+	qd3 = T.quyet_dinh(t["mien"], t["so_from"], _kiem(tho), NG)
+	la("DNS ổn: nhận", (qd3["ket_qua"], T.phai_doc_lai_dns(qd3["ket_qua"], _kiem(tho))), (T.KQ_XAC_THUC, False))
+
+
+@ca("Codex #544 vòng 2 F3: _xu_ly với DNS lỗi tạm không ghi sổ thư, không đánh dấu xong; lần sau tra khoá lại")
+def _():
+	from unittest.mock import patch
+	from types import SimpleNamespace as NS
+	tra, viec = [], []
+
+	def lay(ten):
+		tra.append(ten)
+		raise K.LoiDnsTam("Timeout")
+	fr = NS(db=NS(get_value=lambda *a, **k: None),
+		get_doc=lambda *a, **k: viec.append("ghi") or NS(insert=lambda **k: viec.append("insert"), db_set=lambda *a, **k: None))
+	tho = _thu("relaxed.eml")
+	with patch.object(T, "_frappe", lambda: fr), patch.object(K, "lay_khoa_dns", lay), patch.object(V, "_cong_ty", lambda: "A"):
+		for _ in range(2):
+			try:
+				T._xu_ly(tho, 5, dict(nguoi_gui=NG))
+				ra = "không ném"
+			except K.LoiDnsTam:
+				ra = "LoiDnsTam"
+			la("lượt xử lý ném lỗi tạm", ra, "LoiDnsTam")
+	la("hai lượt tra khoá hai lần", len(tra), 2)
+	la("không ghi sổ thư nào", viec, [])
+
+
+@ca("Codex #544 vòng 2 F3: bộ tra DNS: hết giờ, máy chủ lỗi, mất mạng là lỗi tạm; NXDOMAIN, không có TXT là không có khoá")
+def _():
+	import sys
+	import types
+	from unittest.mock import patch
+	la("DoH Status 3 (NXDOMAIN)", K.txt_doh({"Status": 3}), None)
+	la("DoH Status 0 không có TXT", K.txt_doh({"Status": 0, "Answer": [{"type": 5, "data": "x"}]}), None)
+	la("DoH Status 0 có TXT", K.txt_doh({"Status": 0, "Answer": [{"type": 16, "data": '"v=DKIM1; " "p=AB"'}]}), b"v=DKIM1; p=AB")
+	for d in ({"Status": 2}, {"Status": 5}, {}, "x", None):
+		try:
+			K.txt_doh(d)
+			ra = "trả"
+		except K.LoiDnsTam:
+			ra = "tạm"
+		la("DoH %r là lỗi tạm" % (d,), ra, "tạm")
+
+	class Timeout(Exception):
+		pass
+
+	class NXDOMAIN(Exception):
+		pass
+
+	class NoAnswer(Exception):
+		pass
+	for loi, mong in ((Timeout, "tạm"), (NXDOMAIN, None), (NoAnswer, None), (OSError, "tạm")):
+		res = types.ModuleType("dns.resolver")
+		res.NXDOMAIN, res.NoAnswer = NXDOMAIN, NoAnswer
+
+		def resolve(*a, _l=loi, **k):
+			raise _l("x")
+		res.resolve = resolve
+		goc = types.ModuleType("dns")
+		goc.resolver = res
+		goc.exception = types.ModuleType("dns.exception")
+		with patch.dict(sys.modules, {"dns": goc, "dns.resolver": res, "dns.exception": goc.exception}):
+			try:
+				ra = K.lay_khoa_dns("s._domainkey.onepay.vn")
+			except K.LoiDnsTam:
+				ra = "tạm"
+		la("dnspython %s" % loi.__name__, ra, mong)
+
+	class Req:
+		@staticmethod
+		def get(*a, **k):
+			raise OSError("mất mạng")
+	with patch.dict(sys.modules, {"dns": None, "requests": Req}):
+		try:
+			ra = K.lay_khoa_dns("s._domainkey.onepay.vn")
+		except K.LoiDnsTam:
+			ra = "tạm"
+	la("DoH mất mạng là lỗi tạm", ra, "tạm")
+
+
+def _nguon_tu_choi(tt="Cần xử lý"):
+	from types import SimpleNamespace as NS
+	return {"sha-1": NS(name="N9", trang_thai=tt, company="B", kenh_nhan="Tải tay", duong_vao="Từ chối")}
+
+
+@ca("Codex #544 vòng 2 F2: tệp đã bị giám đốc từ chối không quay về Chờ duyệt khi tải lại, thư kênh cũ hay thư không chữ ký")
+def _():
+	from vagabond.khung.kiem_thu.thu_doi_soat_khop_579 import _goi_tai_tay
+	url = "/private/files/bc.csv"
+	for tt in ("Cần xử lý", "Lỗi tệp", "Đã nhận"):
+		ra, nk = _goi_tai_tay("nhan", dict(file_url=url, cong_ty="B"), nguon_cu=_nguon_tu_choi(tt))
+		la("tải tay lại (nguồn %s): không ghi gì" % tt, nk["ghi"], [])
+		la("trả về đã có, bị từ chối", [(x.get("name"), x.get("tu_choi")) for x in ra], [("N9", 1)])
+		ra, nk = _goi_tai_tay("xem_truoc", dict(file_url=url, cong_ty="B"), nguon_cu=_nguon_tu_choi(tt))
+		la("xem trước nói rõ đã bị từ chối, không mời đọc lại (%s)" % tt, [(x["da_co"], x["doc_lai"], x.get("tu_choi")) for x in ra],
+			[("N9", "", 1)])
+	for kenh, them in (("Email", None), (T.KENH, {"duong_vao": "Chờ duyệt", "thu": "T1"})):
+		ra, nk = _goi_tai_tay("_nhan_byte", dict(ten="bc.csv", byte=b"x", kenh=kenh, cong_ty="B", them=them),
+			nguon_cu=_nguon_tu_choi())
+		la("%s: không ghi, không đổi đường vào" % kenh, nk["ghi"], [])
+	ra, nk = _goi_tai_tay("_nhan_byte", dict(ten="bc.csv", byte=b"x", kenh=T.KENH, cong_ty="B",
+		them={"duong_vao": "Từ thư", "thu": "T2"}), nguon_cu=_nguon_tu_choi())
+	la("đúng một lối mở lại: cùng tệp về qua thư có chữ ký", nk["ghi"], [("B", "N9")])
+
+
+@ca("Codex #544 vòng 2 F2: lớp thứ hai ở cửa ghi nguồn: ghi lại nguồn từ chối bị chặn trước khi gỡ dòng cũ")
+def _():
+	from unittest.mock import patch
+	from types import SimpleNamespace as NS
+	viec = []
+	cu = NS(name="N9", duong_vao="Từ chối", kenh_nhan="Tải tay")
+	with patch.object(V.frappe.db, "get_value", lambda *a, **k: cu, create=True), \
+			patch.object(V.frappe, "throw", lambda m, *a, **k: (_ for _ in ()).throw(_Nem(m))), \
+			patch.object(V, "_bo_dong_cu", lambda n: viec.append("go") or []):
+		for kenh, them in (("Tải tay", {"duong_vao": "Chờ duyệt"}), ("Email", None), (T.KENH, {"duong_vao": "Chờ duyệt"})):
+			try:
+				V._ghi_nguon("B", dict(ten="bc.csv", sha256="sha-1"), {}, {}, kenh, None, None, co_san="N9", them=them)
+				ra = "không chặn"
+			except _Nem as e:
+				ra = str(e)
+			dung("%s: chặn và nói lý do (%s)" % (kenh, ra), "từ chối" in ra)
+	la("không gỡ dòng cũ nào", viec, [])
+	la("THUẦN: chỉ thư có chữ ký mở lại được", [V.da_tu_choi_khoa(cu, k, t) for k, t in (
+		("Tải tay", None), (T.KENH, {"duong_vao": "Chờ duyệt"}), (T.KENH, {"duong_vao": "Từ thư"}))], [True, True, False])
+	la("THUẦN: nguồn không từ chối thì không chặn", V.da_tu_choi_khoa(NS(duong_vao="Chờ duyệt"), "Tải tay", None), False)
+
+
+@ca("Codex #544 vòng 2: nút Đọc lại thư chỉ cho thư Lỗi xử lý, chạy lại đúng đường đọc thư, DNS lỗi tạm thì báo thử lại")
+def _():
+	import hashlib
+	from unittest.mock import patch
+	from types import SimpleNamespace as NS
+	tho = _thu("relaxed.eml")
+	sha = hashlib.sha256(tho).hexdigest()
+	chay = []
+
+	def lam(thu, xu_ly):
+		ghi = []
+		fr = _frappe_gia(ghi)
+		fr.ValidationError = _Nem
+
+		def get_value(dt, name, f=None, as_dict=False):
+			if f == "sha256":
+				return thu.get("sha256", sha)
+			if isinstance(f, list) and "tep_goc" in f:
+				return NS(**thu) if thu else None
+			return NS(ket_qua=thu.get("ket_qua_sau", thu.get("ket_qua")), ly_do="")
+		fr.db.get_value = get_value
+		fr.get_doc = lambda *a, **k: NS(get_content=lambda: tho)
+		with patch.object(T, "_frappe", lambda: fr), patch.object(T, "_xu_ly", xu_ly), patch.object(T, "cau_hinh", lambda: {}):
+			try:
+				return T.doc_lai_thu("THU-1"), ghi
+			except _Nem as e:
+				return str(e), ghi
+
+	def ok(t, u, c):
+		chay.append(u)
+	ra, ghi = lam(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="/private/files/a.eml", uid="5",
+		ket_qua_sau=T.KQ_XAC_THUC), ok)
+	la("đọc lại chạy _xu_ly đúng UID, commit", (chay, "commit" in ghi, getattr(ra, "ket_qua", ra)), (["5"], True, T.KQ_XAC_THUC))
+	for thu, y in ((dict(name="THU-1", ket_qua=T.KQ_CHAN, xong=1, tep_goc="x", uid="5"), "đã xử lý xong"),
+			(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="", uid="5"), "không lưu được bản gốc"),
+			(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="x", uid="5", sha256="khac"), "không còn khớp")):
+		chay.clear()
+		ra, ghi = lam(thu, ok)
+		dung("chặn: %s (%s)" % (y, ra), y in str(ra) and chay == [])
+
+	def dns(t, u, c):
+		raise K.LoiDnsTam("Timeout")
+	ra, ghi = lam(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="x", uid="5"), dns)
+	dung("DNS lỗi tạm: báo thử lại sau, lùi giao dịch (%s)" % ra, "Thử lại sau" in str(ra) and "rollback" in ghi)
