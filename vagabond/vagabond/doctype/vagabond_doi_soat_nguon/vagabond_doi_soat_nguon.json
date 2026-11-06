@@ -41,7 +41,19 @@
   "cb3",
   "so_da_noi",
   "so_chua_noi",
-  "du_lieu"
+  "du_lieu",
+  "sec_duyet",
+  "duong_vao",
+  "thu",
+  "ly_do_tai_tay",
+  "cb4",
+  "duyet_boi",
+  "duyet_luc",
+  "ly_do_duyet",
+  "xac_nhan_boi",
+  "xac_nhan_luc",
+  "kiem_so_du",
+  "phi_vuot"
  ],
  "fields": [
   {
@@ -131,7 +143,7 @@
    "fieldname": "kenh_nhan",
    "label": "Kênh nhận",
    "fieldtype": "Select",
-   "options": "Tải tay\nEmail",
+   "options": "Tải tay\nEmail\nHộp thư đối soát",
    "reqd": 1
   },
   {
@@ -268,6 +280,81 @@
    "fieldtype": "Long Text",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "fieldname": "sec_duyet",
+   "fieldtype": "Section Break",
+   "label": "Đường vào và duyệt"
+  },
+  {
+   "fieldname": "duong_vao",
+   "fieldtype": "Select",
+   "label": "Đường vào",
+   "options": "\nTừ thư\nChờ duyệt\nĐã duyệt\nTừ chối",
+   "read_only": 1,
+   "description": "Từ thư: thư có chữ ký số của đối tác. Chờ duyệt: tải tay hoặc thư không chữ ký, chờ giám đốc. Trống: tải tay trước khi có duyệt (v641)."
+  },
+  {
+   "fieldname": "thu",
+   "fieldtype": "Link",
+   "label": "Thư gốc",
+   "options": "Vagabond Doi Soat Thu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_tai_tay",
+   "fieldtype": "Small Text",
+   "label": "Lý do tải tay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "duyet_boi",
+   "fieldtype": "Link",
+   "label": "Giám đốc duyệt",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duyet_luc",
+   "fieldtype": "Datetime",
+   "label": "Duyệt lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_duyet",
+   "fieldtype": "Small Text",
+   "label": "Lý do từ chối",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xac_nhan_boi",
+   "fieldtype": "Link",
+   "label": "Kế toán xác nhận",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xac_nhan_luc",
+   "fieldtype": "Datetime",
+   "label": "Xác nhận lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kiem_so_du",
+   "fieldtype": "Select",
+   "label": "Phương trình dư nợ thẻ",
+   "options": "\nKhớp\nLệch\nGõ tay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "phi_vuot",
+   "fieldtype": "Currency",
+   "label": "Phí thu cao hơn biểu phí",
+   "read_only": 1
   }
  ],
  "permissions": [
@@ -297,5 +384,5 @@
  "title_field": "vendor",
  "description": "#420 v579 đối soát vendor: một tệp báo cáo nhận vào",
  "creation": "2026-10-06 12:00:00.000000",
- "modified": "2026-10-07 09:00:00.000000"
+ "modified": "2026-11-06 12:00:00.000000"
 }
