@@ -690,6 +690,35 @@ await ca('v642 Codex #545 vòng 1: khách trả bill xong rồi gọi tiếp mà
   la('lượt đã tính tiền rời khỏi đơn của bàn', G.don.map(d => d.ma), ['TQ-2']);
 });
 
+await ca('v642 Codex #545 vòng 4: bàn gọi hơn mười lượt chưa trả, tải lại trang vẫn đủ mọi lượt, tổng cần thanh toán không hụt', async () => {
+  const kho = new Map();
+  const luuTru = {getItem: k => (kho.has(k) ? kho.get(k) : null), setItem: (k, v) => { kho.set(k, String(v)); }, removeItem: k => kho.delete(k)};
+  let so = 0;
+  const tt = () => ({ok: 1, trang_thai: 'Đã nhận', nhan_luc: '10:02', luc: '10:00', tam_tinh: 30000, mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 30000, tien: 30000}]});
+  const m1 = moiTruong({tt, goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so % 10).repeat(32)})});
+  m1.mt.luuTru = luuTru;
+  const k1 = taoKho(m1.mt);
+  await k1.napQuay();
+  await k1.goiBan.kiemLink();
+  const kem = dungQuayHien(k1.S, k1.goiBan.G, t).mon.find(x => x.ma === 'NUIC00002');
+  for (let i = 0; i < 12; i++) { k1.goiBan.bamThem(kem); await k1.goiBan.goiMon(); }
+  await m1.chayHen();
+  la('trước khi tải lại: 12 lượt, 360.000 đ', [k1.goiBan.G.don.length, k1.goiBan.tom.value.tamTinh], [12, 360000]);
+  const m2 = moiTruong({tt});
+  m2.mt.luuTru = luuTru;
+  const k2 = taoKho(m2.mt);
+  await k2.napQuay();
+  await k2.goiBan.kiemLink();
+  await m2.chayHen();
+  la('sau khi tải lại: vẫn 12 lượt, 360.000 đ', [k2.goiBan.G.don.length, k2.goiBan.tom.value.tamTinh], [12, 360000]);
+  const K3 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  const nhieu = Array.from({length: 205}, (_, i) => ({ma: 'TQ-' + i, tt: {trang_thai: i < 10 ? 'Từ chối' : 'Đã nhận'}}));
+  const giu = K3.donCanLuu(nhieu);
+  la('quá trần: chỉ bỏ lượt từ chối cũ, giữ mọi lượt còn tính tiền', [giu.length, giu.filter(d => d.tt.trang_thai === 'Đã nhận').length], [200, 195]);
+  const song = Array.from({length: 210}, (_, i) => ({ma: 'TQ-' + i, tt: {trang_thai: 'Đã nhận'}}));
+  la('toàn lượt còn tính tiền: không cắt lượt nào', K3.donCanLuu(song).length, 210);
+});
+
 await ca('v642 phép thuần thanh toán tại bàn: ô hoá đơn nhận mã số thuế 10, 12, 10-3 số hoặc email; chi tiết gửi quầy không quá 120 ký tự; tạm tính bỏ lượt từ chối, hết hạn', async () => {
   const K2 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
   la('rỗng là hợp lệ', K2.chuanHoaDon('  '), {ok: true, gt: ''});
