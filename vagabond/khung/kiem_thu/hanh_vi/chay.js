@@ -1640,6 +1640,12 @@ async function chayHet() {
     bang('noi vao hoa don', m.g.hsGdCua['HD-1'].ma_giao_dich, 'FT2');
     var nut2 = m.tai.querySelector('[data-hsgd="HD-1"]');
     dung('nut hien giao dich da noi: ' + nut2.textContent, nut2.textContent.indexOf('500') >= 0 && nut2.textContent.indexOf('MB') >= 0);
+    /* Codex PR #545 vòng 8 (AGENTS.md 2b.13): hai nút trên dòng hoá đơn (Nối phiếu nội bộ, Nối sao
+       kê), cả khi chưa nối lẫn đã nối, cao ít nhất 44 và chữ ít nhất 13. */
+    [nut, nut2, m.tai.querySelector('[data-hsphieu="HD-1"]')].forEach(function (x, i) {
+      var c = parseFloat(x.style.fontSize), cao = parseFloat(x.style.minHeight);
+      dung('nut ' + i + ' chu ' + x.style.fontSize + ', cao ' + x.style.minHeight, c >= 13 && cao >= 44);
+    });
     m.g.hsTaoChon['HD-2'] = { con_no: 300000, so_tien: 300000, ten_ncc: 'NCC B' };
     await m.g.scrHoSoTTTao();
     m.tai.querySelector('[data-hsgd="HD-2"]').click();
