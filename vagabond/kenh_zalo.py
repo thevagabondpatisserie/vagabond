@@ -89,6 +89,9 @@ TIN = {
 		"Thứ Hai 08:00: dòng tiền tuần trước, công nợ, phiếu chi chờ chuyển tiền, tiền khách gửi trước, dự báo 30 ngày.", "ban_tin", "cong_no"),
 	"bgd_lai_lo_thang": ("Ban giám đốc", "Lãi lỗ tháng (ngày 05, 08:00)",
 		"Ngày 05 hằng tháng: doanh thu, giá vốn, chi phí, lãi ròng tháng trước, so với tháng liền trước.", "ban_tin", "cong_no"),
+	# v641 (anh Việt duyệt 06/11/2026): đối soát qua hộp thư doisoat@ (doi_soat_thu.py).
+	"bgd_ds_tai_tay": ("Ban giám đốc", "Tệp đối soát tải tay chờ giám đốc duyệt",
+		"Ngay khi có người tải tay tệp đối soát, hoặc thư đối tác không chữ ký số đang chờ duyệt.", "viec", "cong_no"),
 	"hd_ket_ghi_so": ("Hoá đơn, kế toán", "Kẹt ghi sổ, kẹt hoá đơn cuối ngày",
 		"20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.", "canh_bao", "hoa_don"),
 	"hd_don_chua_ghi_so": ("Hoá đơn, kế toán", "Đơn chưa ghi sổ còn sót lúc 23:55",
@@ -138,6 +141,21 @@ TIN = {
 	# v633 (anh Việt 03/11/2026): khách trả phiếu đề nghị thanh toán bằng thẻ OnePay.
 	"kt_the_onepay": ("Hoá đơn, kế toán", "Khách trả thẻ OnePay cho phiếu đề nghị thanh toán",
 		"Khách quét mã trên phiếu và trả thẻ thành công; máy đã ghi sổ phiếu thu. Trả dư thì tin ghi số cần hoàn.", "thong_bao", "cong_no"),
+	# v641 (anh Việt duyệt 06/11/2026): đối soát qua hộp thư doisoat@ (doi_soat_thu.py).
+	"kt_ds_thu_gia_danh": ("Hoá đơn, kế toán", "Thư đối soát giả danh đối tác bị chặn",
+		"Ngay khi hộp thư doisoat@ nhận thư tự xưng đối tác mà không có chữ ký số đúng tên miền: không nhận số liệu.", "canh_bao", "cong_no"),
+	"kt_ds_thieu_thu": ("Hoá đơn, kế toán", "Thư đối soát chưa về (12:30, nhắc 17:00)",
+		"12:30 mỗi ngày: thư đối tác dự kiến đã quá hạn mà chưa về; 17:00 nhắc lại nếu vẫn chưa về.", "viec", "cong_no"),
+	"kt_ds_tep_loi": ("Hoá đơn, kế toán", "Tệp đối soát từ thư không đọc được",
+		"Ngay khi tệp trong thư đối tác đọc lỗi hoặc tổng tính lại khác tổng in trên tệp.", "viec", "cong_no"),
+	"kt_ds_lech_tien": ("Hoá đơn, kế toán", "Tiền về khác số đối tác báo chuyển",
+		"Ngay khi tiền về ngân hàng (SePay) khác số đối tác báo chuyển, từ ngưỡng khai trong Cài đặt.", "canh_bao", "cong_no"),
+	"kt_ds_chua_thay_tien": ("Hoá đơn, kế toán", "Chưa thấy tiền đối tác chuyển về (08:30)",
+		"08:30 mỗi sáng: đợt đối tác báo đã chuyển, quá ngày tiền về mà ngân hàng chưa thấy tiền.", "viec", "cong_no"),
+	"kt_ds_phi_cao": ("Hoá đơn, kế toán", "Đối tác thu phí cao hơn biểu phí hợp đồng",
+		"Ngay khi báo cáo Shinhan POS có giao dịch bị thu phí cao hơn biểu phí khai trong Cài đặt.", "canh_bao", "cong_no"),
+	"kt_ds_don_thieu_erp": ("Hoá đơn, kế toán", "Giao dịch đối tác đã thu mà ERP chưa có đơn (08:30)",
+		"08:30 mỗi sáng: giao dịch bán trong báo cáo đối tác ngày hôm qua chưa nối được với đơn hay bill nào.", "viec", "cong_no"),
 	"bh_don_web_treo": ("Bán hàng, cửa hàng", "Đơn web treo quá 30 phút chưa vào Pancake",
 		"Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.", "viec", "don_web"),
 	# v638 (anh Việt 04/11/2026): khách trả ngay trên web; không mang số tiền (luật v613).
@@ -272,6 +290,9 @@ TIN = {
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",
 		"App vừa lên bản mới: thêm gì, bộ phận cần làm gì.", "phat_hanh", "phat_hanh"),
+	# v641 (anh Việt duyệt 06/11/2026): đối soát qua hộp thư doisoat@ (doi_soat_thu.py).
+	"ht_ds_hop_thu_loi": ("Hệ thống", "Không đọc được hộp thư đối soát doisoat@",
+		"Đọc hộp thư đối soát lỗi 2 lần liên tiếp (sai mật khẩu, hộp thư đầy, mất kết nối).", "canh_bao", "he_thong"),
 }
 
 # Codex #413 P2: tin "việc cần làm" phải kiểm lại việc còn mở ngay trước khi
@@ -288,6 +309,8 @@ DIEU_KIEN = {
 	"goi_mon_cho": "vagabond.goi_mon_ban.con_cho_nhan",
 	# v639: lời gọi nhân viên đã có người tới bàn hay quá 30 phút thì thôi.
 	"tro_giup_cho": "vagabond.goi_mon_ban.con_tro_giup",
+	# v641: thư đối soát về muộn trong giờ im thì không nhắc nữa.
+	"ds_thieu_thu": "vagabond.doi_soat_thu.con_thieu_thu",
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
 CHO_GUI = "Chờ gửi"

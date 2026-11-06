@@ -10,9 +10,16 @@
  * file), màn 04 nhận file (chọn file, xem trước, nhận dòng hợp lệ), màn 02 chi
  * tiết (ba lớp đủ nguồn / tiền về / chứng từ, từng dòng), màn 01 vùng Đối soát
  * trên Chi tiết đơn. Mọi con số do máy chủ đếm (QT-19); màn chỉ hiện.
+ *
+ * v641 (anh Việt duyệt 8 ảnh 06/11/2026): đối soát tự động qua hộp thư
+ * doisoat@. Khối Hộp thư đầu màn, dải Tiến độ sáu bước (1 Nhận thư, 2 Xác thực,
+ * 3 Đọc tệp, 4 Khớp tiền, 5 Nối chứng từ, 6 Kế toán xác nhận), chip Đường vào,
+ * mỗi nguồn một thanh sáu bước; màn Thư bị chặn / Chưa về / Tải tay chờ duyệt;
+ * tải tay phải ghi lý do và chờ giám đốc duyệt; nút Xác nhận chỉ mở khi năm
+ * bước trước xanh. Máy chủ quyết mọi bước (doi_soat_thu.buoc_nguon).
  */
 var DSVN = { nhom: 'Tiền bán', tt: '', vendor: '', tim: '', ky: '', tu: '', den: '', cur: '', loc: '', xt: null, tep: null,
-  ct: '', ctNhan: null, ctNhanTen: {}, xtCt: '',
+  ct: '', ctNhan: null, ctNhanTen: {}, xtCt: '', duong: '', buoc: '', thuTab: 'chan', lyDo: '',
   trang: { nguon: { dau: '', so: 0 }, dong: { dau: '', so: 0 } } };
 
 /* Codex #450: một nguồn đủ quyền có tới 20.000 dòng, danh sách có thể quá
@@ -71,12 +78,84 @@ function dsvnNhan(nhom) {
   return nhom === 'Tiền bán' ? 'thực nhận' : 'phải trả';
 }
 
+/* v641: sáu bước. Mã bước (x, v, d, n) chỉ là giá trị máy chủ gửi; người dùng
+   chỉ thấy chấm màu và một dòng chữ. Xanh xong, vàng đang chờ, đỏ có sự cố,
+   xám chưa tới. */
+var DSVN_BUOC = ['Nhận thư', 'Xác thực', 'Đọc tệp', 'Khớp tiền', 'Nối chứng từ', 'Kế toán xác nhận'];
+var DSVN_MAU_BUOC = { x: ['#12a150', '#fff'], v: ['#f5b40b', '#fff'], d: ['#d93a2b', '#fff'], n: ['#edf0f5', '#8994a4'] };
+function dsvnThanhBuoc(tt, ghi) {
+  tt = String(tt || '');
+  var s = '<div style="display:flex;align-items:center;margin-top:7px" aria-label="Tiến độ: ' + h(ghi || '') + '">';
+  for (var i = 0; i < 6; i++) {
+    var c = tt.charAt(i) || 'n', m = DSVN_MAU_BUOC[c] || DSVN_MAU_BUOC.n;
+    if (i) s += '<span style="flex:1;max-width:12px;height:2px;background:#d6dbe3"></span>';
+    s += '<span title="' + h(DSVN_BUOC[i]) + '" style="flex:none;width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;' +
+      'font-size:11px;font-weight:700;background:' + m[0] + ';color:' + m[1] + '">' + (c === 'x' ? '✓' : c === 'd' ? '!' : (i + 1)) + '</span>';
+  }
+  return s + '<span style="margin-left:8px;font-size:12.5px;color:#475467;font-weight:600">' + h(ghi || '') + '</span></div>';
+}
+var DSVN_DUONG = [['thu', 'Từ thư ✓'], ['cho_duyet', 'Chờ duyệt'], ['da_duyet', 'Tải tay đã duyệt'], ['tu_choi', 'Bị từ chối'], ['cu', 'Trước khi có thư']];
+function dsvnDuongChip(k) {
+  var x = { thu: ['Từ thư ✓', '#ecfdf3', '#067647'], cho_duyet: ['Chờ giám đốc duyệt', '#fffaeb', '#b54708'],
+    da_duyet: ['Tải tay, giám đốc đã duyệt', '#eff8ff', '#175cd3'], tu_choi: ['Giám đốc từ chối', '#fef3f2', '#b42318'],
+    cu: ['Tải tay trước khi có thư', '#f2f4f7', '#475467'] }[k];
+  if (!x) return '';
+  return '<span style="display:inline-block;background:' + x[1] + ';color:' + x[2] +
+    ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(x[0]) + '</span>';
+}
+
+/* Khối Hộp thư đối soát đầu màn chính. */
+function dsvnKhoiHop(ht) {
+  if (!ht) return '';
+  var trang = { chay: ['Đang chạy', '#ecfdf3', '#067647'], tat: ['Đang tắt', '#fffaeb', '#b54708'],
+    loi: ['Lỗi đọc thư', '#fef3f2', '#b42318'], chua: ['Chưa đọc lần nào', '#f2f4f7', '#475467'] }[ht.trang] || ['', '#f2f4f7', '#475467'];
+  var o = function (tab, nhan, so, mau) {
+    return '<div data-dsvnthu="' + tab + '" style="background:#f9fafb;border-radius:12px;padding:10px 12px;cursor:pointer;min-height:44px">' +
+      '<div style="font-size:12.5px;color:#667085">' + h(nhan) + '</div><div style="font-size:20px;font-weight:800;color:' + (so ? mau : '#101828') + '">' +
+      money(so || 0) + '</div></div>';
+  };
+  var dong = ht.trang === 'tat' ? 'Máy chưa đọc hộp thư. Quản trị bật ở Cài đặt lõi, mục Hộp thư đối soát.' :
+    ht.trang === 'loi' ? 'Không đọc được hộp thư: ' + (ht.loi || '') :
+    (ht.doc_luc ? 'Đọc lần cuối ' + h(String(ht.doc_luc).slice(11, 16)) + ' ' + dmy(String(ht.doc_luc).slice(0, 10)).slice(0, 5) + ' · tự đọc mỗi 15 phút' :
+      'Chưa đọc lần nào.');
+  return '<div class="card" style="padding:13px 14px;border:1.5px solid #68d5e7">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:16px">Hộp thư ' +
+    h(ht.dia_chi || 'doisoat@') + '</b><span style="background:' + trang[1] + ';color:' + trang[2] +
+    ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(trang[0]) + '</span></div>' +
+    '<div style="font-size:13px;color:' + (ht.trang === 'loi' ? '#b42318' : '#667085') + ';margin-top:4px">' + h(dong) + '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
+    o('ve', 'Thư về hôm nay', ht.ve_hom_nay, '#067647') + o('chua_ve', 'Thư chưa về', ht.chua_ve, '#b42318') +
+    o('chan', 'Thư bị chặn (7 ngày)', ht.bi_chan, '#b42318') + o('tai_tay', 'Chờ giám đốc duyệt', ht.cho_duyet, '#b54708') + '</div>' +
+    (ht.quan_tri ? '<button class="btn gh" id="dsvnThuKetNoi" style="margin:8px 0 0;min-height:44px">Thử kết nối hộp thư</button>' : '') + '</div>';
+}
+
+/* Dải Tiến độ: số nguồn đang kẹt ở từng bước. Bước 1, 2 mở màn Thư; bước
+   3 tới 6 lọc danh sách (bấm lại để bỏ lọc). */
+function dsvnDaiTienDo(ht, dem) {
+  dem = dem || {};
+  var so = [ht ? ht.chua_ve || 0 : 0, ht ? ht.cho_duyet || 0 : 0, dem[3] || 0, dem[4] || 0, dem[5] || 0, dem[6] || 0];
+  var ten = ['Thư chưa về', 'Chờ duyệt', 'Tệp lỗi', 'Lệch tiền', 'Thiếu chứng từ', 'Chờ xác nhận'];
+  return '<div class="card" style="padding:11px 12px"><div style="font-size:12px;color:#98a2b3">TIẾN ĐỘ · BẤM MỘT BƯỚC ĐỂ XEM</div>' +
+    '<div style="display:flex;gap:6px;margin-top:8px">' + so.map(function (n, i) {
+      var mau = !n ? DSVN_MAU_BUOC.x : (i < 4 ? DSVN_MAU_BUOC.d : DSVN_MAU_BUOC.v);
+      var chon = String(DSVN.buoc) === String(i + 1);
+      return '<div data-dsvnbuoc="' + (i + 1) + '" style="flex:1;min-width:0;background:' + (chon ? '#e1f8fc' : '#f5f7fa') +
+        ';border-radius:10px;padding:7px 2px;text-align:center;cursor:pointer;min-height:44px;' + (chon ? 'outline:2px solid #08788e;' : '') + '">' +
+        '<span style="display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;background:' +
+        mau[0] + ';color:' + mau[1] + '">' + (n ? (i + 1) : '✓') + '</span>' +
+        '<div style="font-size:17px;font-weight:800">' + money(n) + '</div><div style="font-size:10.5px;color:#647080;line-height:1.2">' + ten[i] + '</div></div>';
+    }).join('') + '</div>' +
+    (DSVN.buoc ? '<div style="font-size:12.5px;color:#08788e;margin-top:6px">Đang xem nguồn kẹt ở bước ' + h(DSVN.buoc) + ': ' +
+      h(DSVN_BUOC[+DSVN.buoc - 1] || '') + '. Bấm lại ô đó để bỏ lọc.</div>' : '') + '</div>';
+}
+
 /* ---------- Màn 03: trung tâm Đối soát ---------- */
 async function scrDsvn() {
   frame('Đối soát nhà cung cấp', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc nguồn đối soát...</div></div>');
   var kq, sk = [];
   try {
-    var locDs = { nhom: DSVN.nhom, trang_thai: DSVN.tt, vendor: DSVN.vendor, tim: DSVN.tim, ky: DSVN.ky, tu: DSVN.tu, den: DSVN.den };
+    var locDs = { nhom: DSVN.nhom, trang_thai: DSVN.tt, vendor: DSVN.vendor, tim: DSVN.tim, ky: DSVN.ky, tu: DSVN.tu, den: DSVN.den,
+      duong: DSVN.duong, buoc: DSVN.buoc };
     locDs.trang = dsvnTrang('nguon', JSON.stringify(locDs));
     kq = await api('vagabond.doi_soat_vendor.ds', locDs);
     /* Codex #450 vòng 16: các pháp nhân được nhận tệp, màn Tải file dùng. */
@@ -87,8 +166,12 @@ async function scrDsvn() {
     frame('Đối soát nhà cung cấp', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được đối soát. Thử lại sau ít phút.') + '</div></div>');
     return;
   }
+  /* v641: khối hộp thư đọc riêng; hỏng thì màn vẫn mở, chỉ thiếu khối này. */
+  var ht = null;
+  try { ht = await api('vagabond.doi_soat_vendor.hop_thu', {}); } catch (e) { ht = null; }
+  DSVN.ht = ht;
   var dem = kq.dem || {};
-  var html = '<div class="card" style="padding:13px 14px">' +
+  var html = dsvnKhoiHop(ht) + dsvnDaiTienDo(ht, kq.dem_buoc) + '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">VIỆC CẦN LÀM</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
     dsvnO('Cần xử lý', dem['Cần xử lý'] || 0, 'nguồn', '#b42318') +
@@ -122,17 +205,18 @@ async function scrDsvn() {
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(n.vendor) +
         '</b><span>' + dsvnChip(n.trang_thai) + '</span></div>' +
         '<div style="font-size:13px;color:#667085;margin-top:3px">' + h(n.ten_mau || '') + ' · ' + dsvnKy(n) +
-        ' · ' + money(n.so_dong) + ' dòng' + (n.kenh_nhan === 'Email' ? ' · email' : '') + '</div>' +
+        ' · ' + money(n.so_dong) + ' dòng</div>' + dsvnThanhBuoc(n.buoc, n.buoc_ghi) +
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:6px">' +
         '<span style="font-size:13px">' + money(n.thuc_nhan) + ' đ ' + dsvnNhan(n.nhom) + '</span>' +
         '<span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">' +
         (n.nhom === 'Tiền bán' ? dsvnChip(n.trang_thai_tien || 'Chưa đối chiếu') : '') +
-        (n.so_chua_noi ? dsvnChip(n.so_chua_noi + ' chưa nối') : '') + '</span></div></div>';
+        (n.so_chua_noi ? dsvnChip(n.so_chua_noi + ' chưa nối') : '') + '</span></div>' +
+        '<div style="margin-top:6px">' + dsvnDuongChip(n.duong) + (n.xac_nhan_luc ? ' ' + dsvnChip('Đã khép') : '') + '</div></div>';
     }).join('') + '</div>';
   }
   html += dsvnPhanTrang('nguon', DSVN.trang.nguon.so, kq.con, 50, 'Nguồn');
-  var foot = '<div style="display:flex;gap:8px"><button class="btn gh" id="dsvnEmail" style="margin:0;flex:1">Nhận lại từ email</button>' +
-    '<button class="btn" id="dsvnTai" style="margin:0;flex:1">↑ Tải file</button></div>';
+  var foot = '<div style="display:flex;gap:8px"><button class="btn" id="dsvnDocThu" style="margin:0;flex:1">Đọc hộp thư ngay</button>' +
+    '<button class="btn gh" id="dsvnTai" style="margin:0;flex:1">↑ Tải file (cần duyệt)</button></div>';
   var b = frame('Đối soát nhà cung cấp', html, { footer: foot });
   dsCongCuNoi(b, cc, function (ho, k) {
     if (ho === 'tt') DSVN.tt = k;
@@ -141,6 +225,7 @@ async function scrDsvn() {
     else if (ho === 'tim') DSVN.tim = k;
     else if (ho === 'tu') DSVN.tu = k;
     else if (ho === 'den') DSVN.den = k;
+    else if (ho === 'duong') DSVN.duong = k;
     go(scrDsvn, true);
   });
   b.addEventListener('click', function (e) {
@@ -151,15 +236,42 @@ async function scrDsvn() {
     if (t) { DSVN.tt = t.getAttribute('data-dsvntt'); return go(scrDsvn, true); }
     t = e.target.closest('[data-dsvnct]');
     if (t) { DSVN.cur = t.getAttribute('data-dsvnct'); DSVN.loc = ''; return go(scrDsvnCt); }
+    t = e.target.closest('[data-dsvnthu]');
+    if (t) {
+      var tab = t.getAttribute('data-dsvnthu');
+      /* Ô "Thư về hôm nay" lọc chip Đường vào = Từ thư; ba ô kia mở màn Thư. */
+      if (tab === 've') { DSVN.duong = 'thu'; DSVN.buoc = ''; return go(scrDsvn, true); }
+      DSVN.thuTab = tab; return go(scrDsvnThu);
+    }
+    t = e.target.closest('[data-dsvnbuoc]');
+    if (t) {
+      var k = t.getAttribute('data-dsvnbuoc');
+      if (k === '1') { DSVN.thuTab = 'chua_ve'; return go(scrDsvnThu); }
+      if (k === '2') { DSVN.thuTab = 'tai_tay'; return go(scrDsvnThu); }
+      DSVN.buoc = DSVN.buoc === k ? '' : k;
+      return go(scrDsvn, true);
+    }
   });
-  document.getElementById('dsvnTai').onclick = function () { DSVN.xt = null; DSVN.tep = null; go(scrDsvnTai); };
-  document.getElementById('dsvnEmail').onclick = async function () {
+  document.getElementById('dsvnTai').onclick = function () { DSVN.xt = null; DSVN.tep = null; DSVN.lyDo = ''; go(scrDsvnTai); };
+  document.getElementById('dsvnDocThu').onclick = async function () {
     busy(true);
     try {
-      var r = await api('vagabond.doi_soat_vendor.quet_email', { so_ngay: 7 });
-      toast(r.so_tep ? 'Đã đọc ' + r.so_tep + ' tệp từ email 7 ngày qua.' : 'Không có tệp mới từ email 7 ngày qua.');
+      var r = await api('vagabond.doi_soat_vendor.doc_hop_thu_ngay', {});
+      if (r.loi) baoTin('Chưa đọc được hộp thư: ' + r.loi);
+      else toast(r.dang_chay ? 'Máy đang đọc hộp thư ở lượt khác, đợi ít phút rồi tải lại.' :
+        (r.so_thu ? 'Đã đọc ' + r.so_thu + ' thư mới.' : 'Không có thư mới.'));
       go(scrDsvn, true);
-    } catch (e) { baoTin((e && e.message) || 'Chưa đọc được email. Tải file thay thế.'); }
+    } catch (e) { baoTin((e && e.message) || 'Chưa đọc được hộp thư. Thử lại sau ít phút.'); }
+    finally { busy(false); }
+  };
+  var tk = document.getElementById('dsvnThuKetNoi');
+  if (tk) tk.onclick = async function () {
+    busy(true);
+    try {
+      var r = await api('vagabond.doi_soat_vendor.thu_ket_noi', {});
+      if (r.ok) toast('Kết nối được. Thư mục đang có ' + money(r.so_thu || 0) + ' thư.');
+      else baoTin('Chưa kết nối được: ' + (r.loi || ''));
+    } catch (e) { baoTin((e && e.message) || 'Chưa thử được kết nối.'); }
     finally { busy(false); }
   };
 }
@@ -171,7 +283,11 @@ function dsvnCongCu(kq) {
     ho: [
       { k: 'tt', tatCa: 'Mọi trạng thái', chon: DSVN.tt, dem: dem, mau: '#b42318',
         ds: [{ k: 'Cần xử lý', ten: 'Cần xử lý' }, { k: 'Chờ tiền về', ten: 'Chờ tiền về' }, { k: 'Chưa thấy tiền về', ten: 'Chưa thấy tiền' },
-          { k: 'Lệch tiền về', ten: 'Lệch tiền về' }, { k: 'Cần chọn tiền về', ten: 'Trùng số tiền' }, { k: 'Chưa nối đủ', ten: 'Chưa nối đủ' }] },
+          { k: 'Lệch tiền về', ten: 'Lệch tiền về' }, { k: 'Cần chọn tiền về', ten: 'Trùng số tiền' }, { k: 'Chưa nối đủ', ten: 'Chưa nối đủ' },
+          { k: 'Đã khép', ten: 'Đã khép' }] },
+      /* v641: đường vào của nguồn (thư có chữ ký hay tải tay). */
+      { k: 'duong', tatCa: 'Mọi đường vào', chon: DSVN.duong, dem: kq.dem_duong || {}, mau: '#175cd3',
+        ds: DSVN_DUONG.map(function (d) { return { k: d[0], ten: d[1] }; }) },
       { k: 'ven', tatCa: 'Mọi nguồn', chon: DSVN.vendor, dem: kq.dem_vendor || {}, mau: '#0d9488',
         ds: (kq.vendor || []).map(function (v) { return { k: v, ten: v.length > 16 ? v.slice(0, 15) + '…' : v }; }) }
     ],
@@ -200,6 +316,88 @@ function dsvnSucKhoe(sk) {
           (x.can_xu_ly ? ' · ' + x.can_xu_ly + ' cần xử lý' : '') + (x.chua_tien ? ' · ' + x.chua_tien + ' chờ tiền' : '')
           : 'Chưa có') + '</span></div>';
     }).join('') + '</div></details>';
+}
+
+/* ---------- v641 màn 05: thư bị chặn, thư chưa về, chờ giám đốc duyệt ---------- */
+var DSVN_THU_TAB = [['chan', 'Bị chặn', 'bi_chan'], ['chua_ve', 'Chưa về', 'chua_ve'], ['tai_tay', 'Chờ duyệt', 'cho_duyet']];
+async function scrDsvnThu() {
+  frame('Hộp thư đối soát', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc...</div></div>');
+  var kq, ht = DSVN.ht || {};
+  try {
+    kq = await api('vagabond.doi_soat_vendor.ds_thu', { loai: DSVN.thuTab });
+    try { ht = await api('vagabond.doi_soat_vendor.hop_thu', {}); DSVN.ht = ht; } catch (e) { ht = DSVN.ht || {}; }
+  } catch (e) {
+    frame('Hộp thư đối soát', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không mở được. Thử lại.') + '</div></div>');
+    return;
+  }
+  var html = '<div style="display:flex;gap:6px;margin:0 0 10px">' + DSVN_THU_TAB.map(function (t) {
+    var chon = DSVN.thuTab === t[0];
+    return '<div data-dsvntab="' + t[0] + '" style="flex:1;text-align:center;border-radius:10px;padding:10px 6px;font-size:13px;font-weight:650;cursor:pointer;min-height:44px;' +
+      (chon ? 'background:#05323c;color:#fff' : 'background:#fff') + '">' + t[1] + ' ' + money(ht[t[2]] || 0) + '</div>';
+  }).join('') + '</div>';
+  var ds = kq.ds || [];
+  if (!ds.length) {
+    html += '<div class="emp"><div class="e1">✓</div><div>' + ({ chan: 'Không có thư bị chặn trong 30 ngày.',
+      chua_ve: 'Thư dự kiến đã về đủ.', tai_tay: 'Không có tệp nào chờ giám đốc duyệt.' }[DSVN.thuTab] || '') + '</div></div>';
+  } else if (DSVN.thuTab === 'chan') {
+    html += ds.map(function (x) {
+      return '<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' +
+        h(x.doi_tac ? 'Thư tự xưng ' + x.doi_tac : 'Thư từ ' + (x.ten_mien || 'người gửi lạ')) + '</b>' + dsvnChip(x.ket_qua || 'Bị chặn') + '</div>' +
+        '<div style="font-size:13px;color:#667085;margin-top:3px">Người gửi ghi: ' + h(x.nguoi_gui || '') + ' · ' +
+        h(String(x.nhan_luc || '').slice(11, 16)) + ' ' + dmy(String(x.nhan_luc || '').slice(0, 10)).slice(0, 5) + '</div>' +
+        dsvnThanhBuoc('xd', x.ly_do) +
+        '<div style="font-size:13px;margin-top:6px">' + h(x.tieu_de || '') + (x.so_tep ? ' · ' + money(x.so_tep) + ' tệp kèm' : '') + '</div>' +
+        (x.ket_qua === 'Lỗi xử lý' ?
+          '<div style="font-size:12.5px;color:#7a2e0e;background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:6px">Máy chưa đọc xong thư này nên chưa nhận số liệu. Bấm Đọc lại thư để thử lần nữa; máy vẫn kiểm chữ ký số như thư mới.</div>' +
+          '<button class="btn" data-dsvndoclai="' + h(x.name) + '" style="margin:8px 0 0;min-height:44px">Đọc lại thư</button>' :
+          '<div style="font-size:12.5px;color:#7a2e0e;background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:6px">Không nhận số liệu nào từ thư này. Không có nút Nhận.</div>') +
+        (x.bao_zalo ? '<div style="margin-top:6px">' + dsvnChip('Đã báo Zalo ' + String(x.bao_zalo).slice(11, 16)) + '</div>' : '') +
+        '<button class="btn gh" data-dsvneml="' + h(x.name) + '" style="margin:8px 0 0;min-height:44px">Tải thư gốc (.eml) để xem →</button></div>';
+    }).join('');
+  } else if (DSVN.thuTab === 'chua_ve') {
+    html += ds.map(function (x) {
+      var ky = String(x.ngay || '').length > 7 ? 'ngày ' + dmy(x.ngay).slice(0, 5) : 'tháng ' + String(x.ngay || '').slice(5, 7) + '/' + String(x.ngay || '').slice(0, 4);
+      return '<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' +
+        h(x.vendor) + (x.tai_khoan ? ' · ' + h(x.tai_khoan) : '') + ' · ' + h(ky) + '</b>' + dsvnChip('Thiếu thư') + '</div>' +
+        '<div style="font-size:13px;color:#667085;margin-top:3px">Thư dự kiến trước ' + h(x.han) + '</div>' +
+        dsvnThanhBuoc('dnnnnn', 'Chưa nhận được thư') +
+        '<div style="font-size:12.5px;color:#475467;margin-top:6px">Thư về muộn thì máy tự nhận. Đối tác không gửi thì tải tay tệp gốc (chờ giám đốc duyệt).</div></div>';
+    }).join('');
+  } else {
+    html += '<div class="card" style="padding:0">' + ds.map(function (n) {
+      return '<div class="shi" data-dsvnct="' + h(n.name) + '" style="padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer;min-height:44px">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(n.vendor) + ' · ' + dsvnKy(n) + '</b>' +
+        dsvnDuongChip('cho_duyet') + '</div><div style="font-size:13px;color:#667085;margin-top:3px">' +
+        (n.kenh_nhan === 'Hộp thư đối soát' ? 'Thư không có chữ ký số' : 'Tải tay') + ' · ' + money(n.so_dong) + ' dòng · ' + money(n.thuc_nhan) + ' đ</div>' +
+        (n.ly_do_tai_tay ? '<div style="font-size:13px;margin-top:4px">Lý do: ' + h(n.ly_do_tai_tay) + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+  html += '<div style="font-size:12.5px;color:#196578;background:#e7f8fc;border-radius:10px;padding:8px 10px;margin:10px 0">' +
+    'Nguồn tải tay trước ngày bật hộp thư giữ nguyên, gắn nhãn "Trước khi có thư". Không xoá, không sửa.</div>';
+  var b = frame('Hộp thư đối soát', html);
+  b.onclick = async function (e) {
+    var t = e.target.closest('[data-dsvntab]');
+    if (t) { DSVN.thuTab = t.getAttribute('data-dsvntab'); return go(scrDsvnThu, true); }
+    t = e.target.closest('[data-dsvnct]');
+    if (t) { DSVN.cur = t.getAttribute('data-dsvnct'); DSVN.loc = ''; return go(scrDsvnCt); }
+    t = e.target.closest('[data-dsvndoclai]');
+    if (t) {
+      busy(true);
+      try {
+        var r = await api('vagabond.doi_soat_vendor.doc_lai_thu', { name: t.getAttribute('data-dsvndoclai') });
+        baoTin(r && r.ket_qua === 'Lỗi xử lý' ? 'Vẫn chưa đọc được thư.' : 'Đã đọc lại thư: ' + ((r && r.ket_qua) || 'xong') + '.');
+      } catch (er) { baoTin(errMsg(er)); }
+      finally { busy(false); }
+      return go(scrDsvnThu, true);
+    }
+    t = e.target.closest('[data-dsvneml]');
+    if (t) {
+      busy(true);
+      try { var f = await api('vagabond.doi_soat_vendor.tai_thu_goc', { name: t.getAttribute('data-dsvneml') }); dsvnTaiXuong(f.ten, f.noi_dung); }
+      catch (er) { baoTin(errMsg(er)); }
+      finally { busy(false); }
+    }
+  };
 }
 
 /* ---------- Màn 04: nhận file ---------- */
@@ -235,7 +433,13 @@ async function scrDsvnTai() {
     html += DSVN.xt.map(dsvnTheXemTruoc).join('');
     var co_nhan = DSVN.xt.some(function (x) { return !x.da_co && !x.phap_nhan_khac && (x.mau || x.loi.length); });
     if (co_nhan) {
-      foot = '<button class="btn" id="dsvnNhan">' + (tong_moi ? 'Nhận ' + money(tong_moi) + ' dòng hợp lệ' : 'Lưu nguồn để xử lý') + '</button>' +
+      /* v641: tải tay "có duyệt". Người tải ghi lý do; nguồn chờ giám đốc
+         duyệt mới tính là đã đối soát, người tải không tự duyệt được. */
+      html += '<div class="card" style="padding:12px 14px"><b>Lý do tải tay</b>' +
+        '<div style="font-size:13px;color:#667085;margin:2px 0 8px">Ưu tiên chờ thư đối tác về hộp doisoat@ (có chữ ký số). Tệp tải tay chờ giám đốc duyệt mới tính là đã đối soát.</div>' +
+        '<textarea class="tin" id="dsvnLyDo" rows="2" placeholder="Ví dụ: ShopeeFood không gửi thư ngày 04/11" style="width:100%;min-height:44px">' +
+        h(DSVN.lyDo || '') + '</textarea></div>';
+      foot = '<button class="btn" id="dsvnNhan">' + (tong_moi ? 'Nhận ' + money(tong_moi) + ' dòng, gửi giám đốc duyệt' : 'Lưu nguồn để xử lý') + '</button>' +
         '<div style="text-align:center;font-size:12.5px;color:#667085;margin-top:6px">Chưa ghi sổ hoặc thanh toán. Dòng lỗi giữ lại để xem.</div>';
     }
   } else {
@@ -250,6 +454,8 @@ async function scrDsvnTai() {
   inp.onchange = function () { if (inp.files && inp.files[0]) dsvnTaiLen(inp.files[0]); };
   var nb = document.getElementById('dsvnNhan');
   if (nb) nb.onclick = dsvnNhanTep;
+  var ld = document.getElementById('dsvnLyDo');
+  if (ld) ld.oninput = function () { DSVN.lyDo = ld.value; };
   b.onclick = function (e) {
     var p = e.target.closest('[data-dsvnphap]');
     if (p) return dsvnDoiPhap(p.getAttribute('data-dsvnphap'));
@@ -285,14 +491,16 @@ function dsvnDauTep(dau) {
 function dsvnTheXemTruoc(x) {
   var s = '<div class="card" style="padding:12px 14px">' +
     '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(x.ten_mau || 'Mẫu chưa nhận') + '</b>' +
-    (x.da_co || x.phap_nhan_khac ? dsvnChip('Đã nhận trước') : dsvnChip(x.trang_thai)) + '</div>' +
+    (x.tu_choi ? dsvnChip('Giám đốc từ chối') : x.da_co || x.phap_nhan_khac ? dsvnChip('Đã nhận trước') : dsvnChip(x.trang_thai)) + '</div>' +
     '<div style="font-size:13px;color:#667085;margin-top:2px">' + h(x.ten_tep || '') + '</div>' +
     (x.doc_lai ? '<div style="font-size:12.5px;color:#175cd3;margin-top:4px">Tệp này đã nhận trước nhưng còn lỗi. Bấm Nhận để đọc lại vào đúng nguồn cũ.</div>' : '');
   if (x.phap_nhan_khac) {
     return s + '<div style="font-size:13px;margin-top:8px">Tệp này đã nhận vào một pháp nhân khác. Mỗi tệp chỉ nhận vào một pháp nhân, nên không nhận lại ở đây.</div></div>';
   }
   if (x.da_co) {
-    s += '<div style="font-size:13px;margin-top:8px">Tệp này đã nhận rồi, không nhận lần hai.</div>' +
+    /* Codex #544 vòng 2: tệp giám đốc đã từ chối không nhận lại bằng tải tay. */
+    s += '<div style="font-size:13px;margin-top:8px">' + (x.tu_choi ? 'Tệp này đã bị giám đốc từ chối, không nhận lại được. Đối tác gửi lại qua hộp thư đối soát (có chữ ký số) thì máy tự nhận.' :
+      'Tệp này đã nhận rồi, không nhận lần hai.') + '</div>' +
       '<button class="btn gh" data-dsvnct="' + h(x.da_co) + '" style="margin:8px 0 0">Mở nguồn đã nhận →</button></div>';
     return s;
   }
@@ -336,12 +544,16 @@ function dsvnTaiLen(file) {
 
 async function dsvnNhanTep() {
   if (!DSVN.tep) return;
+  var ld = document.getElementById('dsvnLyDo');
+  var lyDo = String((ld ? ld.value : DSVN.lyDo) || '').trim();
+  if (lyDo.length < 5) { baoTin('Ghi lý do tải tay (ví dụ: đối tác không gửi thư ngày 04/11) để giám đốc duyệt.'); return; }
   busy(true);
   try {
     /* Nhận đúng pháp nhân đã xem trước, không lấy chip đang chọn nếu khác. */
-    var ra = await api('vagabond.doi_soat_vendor.nhan', { file_url: DSVN.tep.file_url, cong_ty: DSVN.xtCt });
+    var ra = await api('vagabond.doi_soat_vendor.nhan', { file_url: DSVN.tep.file_url, cong_ty: DSVN.xtCt, ly_do: lyDo });
     ra = ra.filter(function (r) { return r.name; });
-    toast('Đã lưu ' + ra.length + ' nguồn. Máy đang đối chiếu hoá đơn và tiền về.');
+    DSVN.lyDo = '';
+    toast('Đã lưu ' + ra.length + ' nguồn, chờ giám đốc duyệt. Máy đang đối chiếu hoá đơn và tiền về.');
     DSVN.xt = null; DSVN.tep = null;
     if (ra.length === 1) { DSVN.cur = ra[0].name; DSVN.loc = ''; return go(scrDsvnCt, true); }
     go(scrDsvn, true);
@@ -358,23 +570,25 @@ async function scrDsvnCt() {
     frame('Nguồn đối soát', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không mở được nguồn. Quay lại danh sách.') + '</div></div>');
     return;
   }
-  var n = kq.nguon, t = kq.them || {};
+  var n = kq.nguon, t = kq.them || {}, bc = kq.buoc || { tt: '', nhan: [], hien: 1 }, q = kq.quyen || {};
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">' + h(n.ten_mau || n.vendor) + ' · ' + dsvnKy(n) + '</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px">' +
     '<div style="font-size:24px;font-weight:800">' + money(n.thuc_nhan) + ' đ</div>' + dsvnChip(n.trang_thai) + '</div>' +
-    '<div style="font-size:13px;color:#667085">' + dsvnNhan(n.nhom) + ' · ' + money(n.so_dong) + ' dòng · ' +
-    (n.kenh_nhan === 'Email' ? 'nhận từ email' : 'tải tay') + '</div></div>';
-  html += '<div class="card" style="padding:12px 14px"><b>Từng lớp đối soát</b>' +
-    dsvnBuoc('1. Đủ nguồn', n.trang_thai === 'Đã nhận',
-      n.trang_thai === 'Đã nhận' ? 'Đọc đủ dòng' + (n.tong_tep != null && n.tong_tep !== 0 ? ', khớp tổng in trên tệp ' + money(n.tong_tep) + ' đ' : '') :
-        (n.ly_do || 'Còn dòng hoặc tổng cần xem.')) +
-    (n.nhom === 'Tiền bán' ? dsvnBuoc('2. Tiền về ngân hàng', n.trang_thai_tien === 'Đã thấy tiền về' || n.trang_thai_tien === 'Không áp dụng',
-      (n.trang_thai_tien || 'Chưa đối chiếu') + (t.tien_ve ? '. ' + t.tien_ve : '') + (n.giao_dich_ngan_hang ? ' (' + n.giao_dich_ngan_hang.split('\n').join(', ') + ')' : '')) : '') +
-    dsvnBuoc((n.nhom === 'Tiền bán' ? '3' : '2') + '. Chứng từ', !n.so_chua_noi,
-      money(n.so_da_noi) + ' dòng đã nối' + (n.so_chua_noi ? ', ' + money(n.so_chua_noi) + ' dòng chưa nối' : '') +
-      (t.hoa_don_ky ? '. ' + t.hoa_don_ky : '')) +
+    '<div style="font-size:13px;color:#667085">' + dsvnNhan(n.nhom) + ' · ' + money(n.so_dong) + ' dòng</div>' +
+    '<div style="margin-top:6px">' + dsvnDuongChip(kq.duong || dsvnDuongCua(n)) + '</div>' +
+    (typeof veBuoc === 'function' ? veBuoc(DSVN_BUOC.map(function (ten, i) { return { ten: ten, loi: bc.tt.charAt(i) === 'd' }; }),
+      bc.hien - 1, 'Tiến độ đối soát') : dsvnThanhBuoc(bc.tt, bc.ghi)) + '</div>';
+  /* v641: sáu bước, mỗi bước một dòng kết quả do máy chủ viết. */
+  var them = { 4: (t.tien_ve ? t.tien_ve : '') + (n.giao_dich_ngan_hang ? ' (' + n.giao_dich_ngan_hang.split('\n').join(', ') + ')' : ''),
+    5: t.hoa_don_ky || '', 3: n.trang_thai !== 'Đã nhận' ? (n.ly_do || '') :
+      (n.tong_tep != null && n.tong_tep !== 0 ? 'Tổng in trên tệp ' + money(n.tong_tep) + ' đ' : '') };
+  html += '<div class="card" style="padding:12px 14px"><b>Tiến độ</b>' + DSVN_BUOC.map(function (ten, i) {
+    return dsvnBuoc((i + 1) + ' · ' + ten, bc.tt.charAt(i) || 'n', (bc.nhan[i] || '') + (them[i + 1] ? '. ' + them[i + 1] : ''));
+  }).join('') +
     '<div style="font-size:12.5px;color:#475467;margin-top:6px">Khớp tiền chưa có nghĩa đã hạch toán. Máy chỉ lưu và đối chiếu, không lập phiếu.</div></div>';
+  html += dsvnKhoiDuyet(n, q) + dsvnCanCu(kq.can_cu, n);
+  if (t.phi_vuot && t.phi_vuot.tong > 0) html += dsvnPhiVuot(t.phi_vuot);
   if (t.ky_the) html += dsvnTheTD(t.ky_the);
   if (t.doi_bien_ban) {
     var bb = t.doi_bien_ban;
@@ -402,7 +616,12 @@ async function scrDsvnCt() {
     html += '<div class="card" style="padding:0">' + dong.map(dsvnDong).join('') + '</div>';
   }
   html += dsvnPhanTrang('dong', DSVN.trang.dong.so, kq.con, 100, 'Dòng');
-  var foot = '<button class="btn gh" id="dsvnLai" style="margin:0">Đối chiếu lại hoá đơn và tiền về</button>';
+  var xn = bc.xac_nhan_duoc && q.xac_nhan;
+  var foot = '<div style="display:flex;gap:8px"><button class="btn gh" id="dsvnLai" style="margin:0;flex:1">Đối chiếu lại</button>' +
+    (n.xac_nhan_luc ? '' : '<button class="btn' + (xn ? '' : ' gh') + '" id="dsvnXacNhan" style="margin:0;flex:1"' + (xn ? '' : ' disabled') + '>' +
+      (xn ? 'Xác nhận đã đối soát' : 'Xác nhận (chưa đủ bước)') + '</button>') + '</div>' +
+    (!xn && !n.xac_nhan_luc ? '<div style="text-align:center;font-size:12.5px;color:#667085;margin-top:6px">' +
+      h(q.xac_nhan ? 'Mở khi năm bước trước xanh: ' + (bc.ghi || '') : 'Chỉ kế toán xác nhận được.') + '</div>' : '');
   var b = frame('Nguồn đối soát', html, { footer: foot });
   b.onclick = async function (e) {
     if (dsvnBamTrang(e, scrDsvnCt)) return;
@@ -425,6 +644,38 @@ async function scrDsvnCt() {
       finally { busy(false); }
       return;
     }
+    var dy = e.target.closest('[data-dsvnduyet]');
+    if (dy) {
+      var co = dy.getAttribute('data-dsvnduyet') === '1';
+      var lyTc = '';
+      if (!co) {
+        var o = document.getElementById('dsvnLyTc');
+        lyTc = String(o ? o.value : '').trim();
+        if (lyTc.length < 3) { baoTin('Ghi lý do từ chối để người tải biết.'); return; }
+      }
+      var dongY = await confirmSheet(co ? 'Duyệt tệp đối soát này?' : 'Từ chối tệp đối soát này?', co ?
+        'Nguồn được tính là đã xác thực. Kế toán vẫn phải khớp tiền và nối chứng từ.' :
+        'Các dòng của tệp thôi tính (vẫn giữ để tra). Khi thư thật của đối tác về, máy đọc lại từ thư.', co ? 'Duyệt' : 'Từ chối', !co);
+      if (!dongY) return;
+      busy(true);
+      try {
+        await api(co ? 'vagabond.doi_soat_vendor.duyet_nguon' : 'vagabond.doi_soat_vendor.tu_choi_nguon',
+          co ? { name: n.name } : { name: n.name, ly_do: lyTc });
+        toast(co ? 'Đã duyệt.' : 'Đã từ chối.'); go(scrDsvnCt, true);
+      } catch (er) { baoTin(errMsg(er)); }
+      finally { busy(false); }
+      return;
+    }
+    var eml = e.target.closest('[data-dsvneml]');
+    if (eml) {
+      busy(true);
+      try {
+        var f = await api('vagabond.doi_soat_vendor.tai_thu_goc', { name: eml.getAttribute('data-dsvneml') });
+        dsvnTaiXuong(f.ten, f.noi_dung);
+      } catch (er) { baoTin(errMsg(er)); }
+      finally { busy(false); }
+      return;
+    }
     var xn = e.target.closest('[data-dsvnxn]');
     if (xn) {
       busy(true);
@@ -437,6 +688,13 @@ async function scrDsvnCt() {
     if (x) { DSVN.loc = x.getAttribute('data-dsvnloc'); return go(scrDsvnCt, true); }
     x = e.target.closest('[data-dsvnsi]');
     if (x && typeof scrDsView === 'function') return go(function () { return scrDsView(x.getAttribute('data-dsvnsi')); });
+  };
+  var nutXn = document.getElementById('dsvnXacNhan');
+  if (nutXn && xn) nutXn.onclick = async function () {
+    busy(true);
+    try { await api('vagabond.doi_soat_vendor.xac_nhan_nguon', { name: n.name }); toast('Đã xác nhận nguồn đối soát.'); go(scrDsvnCt, true); }
+    catch (er) { baoTin(errMsg(er)); }
+    finally { busy(false); }
   };
   document.getElementById('dsvnLai').onclick = async function () {
     busy(true);
@@ -465,11 +723,90 @@ function dsvnBanSua(ds) {
     }).join('') + '</div>';
 }
 
-function dsvnBuoc(ten, xong, mo_ta) {
+function dsvnBuoc(ten, tt, mo_ta) {
+  /* tt: x xong, v đang chờ, d có sự cố, n chưa tới (v641; true/false cũ vẫn hiểu). */
+  if (tt === true) tt = 'x';
+  if (tt === false) tt = 'v';
+  var m = { x: ['#ecfdf3', '#067647', '✓'], v: ['#fffaeb', '#b54708', '…'], d: ['#fef3f2', '#b42318', '!'], n: ['#f2f4f7', '#8994a4', '·'] }[tt] ||
+    ['#f2f4f7', '#8994a4', '·'];
   return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f2f4f7">' +
     '<span style="flex:0 0 22px;height:22px;border-radius:50%;text-align:center;line-height:22px;font-size:13px;font-weight:700;' +
-    (xong ? 'background:#ecfdf3;color:#067647">✓' : 'background:#fffaeb;color:#b54708">!') + '</span>' +
+    'background:' + m[0] + ';color:' + m[1] + '">' + m[2] + '</span>' +
     '<div><b style="font-size:14px">' + h(ten) + '</b><div style="font-size:13px;color:#667085">' + h(mo_ta) + '</div></div></div>';
+}
+
+/* Khoá đường vào tính ở máy khách chỉ để hiện chip khi máy chủ chưa gửi
+   (cùng luật doi_soat_thu.duong_vao). */
+function dsvnDuongCua(n) {
+  if (n.duong_vao === 'Chờ duyệt') return 'cho_duyet';
+  if (n.duong_vao === 'Từ chối') return 'tu_choi';
+  if (n.kenh_nhan === 'Hộp thư đối soát') return 'thu';
+  if (n.duong_vao === 'Đã duyệt') return 'da_duyet';
+  return 'cu';
+}
+
+/* Khối duyệt: tệp tải tay hay thư không chữ ký chờ giám đốc. */
+function dsvnKhoiDuyet(n, q) {
+  var cho = n.duong_vao === 'Chờ duyệt', cu = !n.duong_vao && n.kenh_nhan !== 'Hộp thư đối soát';
+  if (n.duong_vao === 'Từ chối') {
+    return '<div class="card" style="padding:12px 14px;border-left:4px solid #d93a2b"><b>Giám đốc đã từ chối</b>' +
+      '<div style="font-size:13px;color:#475467;margin-top:4px">Lý do: ' + h(n.ly_do_duyet || '') + '. Các dòng đã thôi tính.</div></div>';
+  }
+  if (n.duong_vao === 'Đã duyệt') {
+    return '<div class="card" style="padding:12px 14px"><b>Giám đốc đã duyệt</b><div style="font-size:13px;color:#475467;margin-top:4px">' +
+      (n.ly_do_tai_tay ? 'Lý do tải tay: ' + h(n.ly_do_tai_tay) : 'Thư đối tác không có chữ ký số.') + '</div></div>';
+  }
+  if (!cho && !cu) return '';
+  var s = '<div class="card" style="padding:12px 14px;border-left:4px solid #f5b40b"><b>' +
+    (cho ? (n.kenh_nhan === 'Hộp thư đối soát' ? 'Thư không có chữ ký số, chờ giám đốc duyệt' : 'Tải tay, chờ giám đốc duyệt') :
+      'Tải tay trước khi có hộp thư, chưa xác thực') + '</b>' +
+    '<div style="font-size:13px;color:#475467;margin-top:4px">' +
+    (n.ly_do_tai_tay ? 'Lý do tải tay: ' + h(n.ly_do_tai_tay) + '. ' : '') +
+    'Chưa tính là đã đối soát cho tới khi giám đốc duyệt. Thư thật của đối tác về sau thì máy tự xác thực bằng thư.</div>';
+  if (q.duyet) {
+    s += '<textarea class="tin" id="dsvnLyTc" rows="2" placeholder="Lý do nếu từ chối" style="width:100%;margin-top:8px;min-height:44px"></textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn gh" data-dsvnduyet="0" style="margin:0;flex:1;min-height:44px">Từ chối</button>' +
+      '<button class="btn" data-dsvnduyet="1" style="margin:0;flex:1;min-height:44px">Duyệt</button></div>';
+  } else if (q.cua_minh) {
+    s += '<div style="font-size:12.5px;color:#b54708;margin-top:6px">Bạn là người tải tệp này nên không tự duyệt được. Giám đốc còn lại duyệt.</div>';
+  }
+  return s + '</div>';
+}
+
+/* Khối Căn cứ thư gốc. */
+function dsvnCanCu(c, n) {
+  if (!c) return '';
+  var dong = function (a, b) { return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:4px 0"><span style="color:#667085">' +
+    a + '</span><b style="text-align:right;word-break:break-word">' + h(b) + '</b></div>'; };
+  return '<div class="card" style="padding:12px 14px;border:1.5px solid #68d5e7"><b>Căn cứ thư gốc</b>' +
+    dong('Người gửi', c.nguoi_gui || '') +
+    dong('Chữ ký số', c.ky_boi ? '✓ ' + c.ky_boi + ', hợp lệ' : (c.ly_do || 'Không có chữ ký số')) +
+    dong('Đường đi', 'Hộp thư công ty → doisoat@') +
+    dong('Nhận lúc', c.nhan_luc ? String(c.nhan_luc).slice(11, 16) + ' ' + dmy(String(c.nhan_luc).slice(0, 10)).slice(0, 5) : '') +
+    dong('Tệp đính kèm', n.ten_tep || '') + dong('Mã băm thư', c.sha256 || '') +
+    '<div style="font-size:12.5px;color:#196578;background:#e7f8fc;border-radius:10px;padding:8px 10px;margin-top:6px">Thư gốc và tệp lưu chỉ đọc. ' +
+    'Sửa tệp dù một ký tự là chữ ký hỏng, máy không nhận.</div>' +
+    '<button class="btn gh" data-dsvneml="' + h(c.name) + '" style="margin:8px 0 0;min-height:44px">Tải thư gốc (.eml) để kiểm →</button></div>';
+}
+
+function dsvnPhiVuot(p) {
+  return '<div class="card" style="padding:12px 14px;border-left:4px solid #d93a2b"><b>Phí thu cao hơn biểu phí hợp đồng</b>' +
+    (p.ct || []).map(function (x) {
+      return '<div style="font-size:13px;margin-top:6px">Thẻ ' + h(x.the) + ' ' + h(x.vung === 'DOMESTIC' ? 'nội địa' : x.vung === 'INTERNATIONAL' ? 'quốc tế' : x.vung) +
+        ': thu ' + h(String(x.mdr).replace('.', ',')) + '%, hợp đồng ' + h(String(x.bieu).replace('.', ',')) + '%, dư <b>' + money(x.du) + ' đ</b></div>';
+    }).join('') + '<div style="font-size:12.5px;color:#475467;margin-top:6px">Tổng thu dư: ' + money(p.tong) + ' đ. Biểu phí khai ở Cài đặt lõi.</div></div>';
+}
+
+/* Tải một tệp máy chủ gửi dạng base64 xuống máy người dùng. */
+function dsvnTaiXuong(ten, b64) {
+  try {
+    var bin = atob(b64), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([u], { type: 'message/rfc822' }));
+    a.download = ten || 'thu-goc.eml';
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { baoTin('Trình duyệt này chưa tải được tệp. Mở trên máy tính.'); }
 }
 
 function dsvnTheTD(k) {

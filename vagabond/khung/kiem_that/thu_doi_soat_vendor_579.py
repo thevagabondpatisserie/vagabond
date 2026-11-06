@@ -35,6 +35,12 @@ from vagabond.khung.kiem_that.thu_gom_phap_nhan_576 import _khach
 _THANG = {1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6", 7: "7", 8: "8", 9: "9", 10: "10", 11: "11", 12: "12"}
 
 
+
+# v641 (anh Việt 06/11/2026): tải tay bắt buộc ghi lý do để giám đốc duyệt, và
+# bộ đọc tệp nhận thêm mật khẩu PDF/ZIP. Ca bench viết trước v641 nên gọi nhận
+# không lý do và thay doc_tep bằng hàm hai tham số: bench đỏ ở PR #544.
+LY_DO_TAI_TAY = "Bench: đối tác không gửi thư kỳ này"
+
 def _bao_cao_grab(ngay, ma_so):
 	"""Chữ đã tách của một báo cáo ngày GrabFood (cùng hình dạng với tầng khung)."""
 	y, m, d = ngay.split("-")
@@ -162,12 +168,12 @@ def _():
 	ai = _ke_toan()
 	sha = "kt579-" + frappe.generate_hash(length=20)
 	url = _tai(ai, "5-C4E1NPWGG2WZFA-%s.pdf" % ngay.replace("-", ""))
-	with patch.object(tep_doc, "doc_tep", lambda ten, byte: _tep(ten, _bao_cao_grab(ngay, so), sha)), \
+	with patch.object(tep_doc, "doc_tep", lambda ten, byte, **_k: _tep(ten, _bao_cao_grab(ngay, so), sha)), \
 			patch.object(dv, "_cong_ty", return_value=cty):
 		xt = _goi(ai, lambda: dv.xem_truoc(file_url=url, cong_ty=cty))
 		la("xem trước: hai dòng mới, chưa ghi gì", (xt[0]["so"], frappe.db.count(dv.DT_NGUON, {"sha256": sha})),
 			(dict(moi=2, trung=0, loi=0), 0))
-		ra = _goi(ai, lambda: dv.nhan(file_url=url, cong_ty=cty))
+		ra = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty=cty))
 		_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
 		n = frappe.get_doc(dv.DT_NGUON, ra[0]["name"])
 		la("nguồn", (n.trang_thai, n.vendor, n.so_moi, int(n.thuc_nhan), n.kenh_nhan), ("Đã nhận", "GrabFood", 2, 355617, "Tải tay"))
@@ -181,14 +187,14 @@ def _():
 		dung("ghi chú nêu giao dịch ứng viên", g.name in (json.loads(n.du_lieu or "{}").get("tien_ve") or ""))
 		la("khối trên hoá đơn", [r.nguon for r in _goi(ai, lambda: dv.cua_hoa_don(si=si.name))], [n.name])
 		# Tải lại đúng tệp: dừng ở mã băm.
-		ra2 = _goi(ai, lambda: dv.nhan(file_url=url, cong_ty=cty))
+		ra2 = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty=cty))
 		la("tải lại", (ra2[0]["name"], ra2[0]["da_co"]), (n.name, 1))
 	# Báo cáo tháng chứa đúng các đơn đó, tệp khác (mã băm khác).
 	sha_t = "kt579-thang-" + frappe.generate_hash(length=16)
 	url_t = _tai(ai, "5-C4E1NPWGG2WZFA-thang.pdf")
-	with patch.object(tep_doc, "doc_tep", lambda ten, byte: _tep(ten, _bao_cao_grab(ngay, so), sha_t)), \
+	with patch.object(tep_doc, "doc_tep", lambda ten, byte, **_k: _tep(ten, _bao_cao_grab(ngay, so), sha_t)), \
 			patch.object(dv, "_cong_ty", return_value=cty):
-		ra3 = _goi(ai, lambda: dv.nhan(file_url=url_t, cong_ty=cty))
+		ra3 = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url_t, cong_ty=cty))
 	_DA_TAO.append((dv.DT_NGUON, ra3[0]["name"]))
 	n3 = frappe.get_doc(dv.DT_NGUON, ra3[0]["name"])
 	la("báo cáo tháng: đã có từ trước, không thêm dòng", (n3.so_moi, n3.so_trung, frappe.db.count(dv.DT_DONG, {"nguon": n3.name})), (0, 2, 0))
@@ -212,9 +218,9 @@ def _():
 	truoc = (frappe.db.count("Journal Entry"), frappe.db.count("Payment Entry"))
 	url = _tai(ai, "grab-kt579.pdf")
 	sha = "kt579-pe-" + frappe.generate_hash(length=16)
-	with patch.object(tep_doc, "doc_tep", lambda ten, byte: _tep(ten, _bao_cao_grab(ngay, so), sha)), \
+	with patch.object(tep_doc, "doc_tep", lambda ten, byte, **_k: _tep(ten, _bao_cao_grab(ngay, so), sha)), \
 			patch.object(dv, "_cong_ty", return_value=cty):
-		ra = _goi(ai, lambda: dv.nhan(file_url=url, cong_ty=cty))
+		ra = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty=cty))
 	_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
 	la("không thêm bút toán, phiếu", (frappe.db.count("Journal Entry"), frappe.db.count("Payment Entry")), truoc)
 
@@ -228,9 +234,9 @@ def _():
 	ai = _ke_toan()
 	sha = "kt450-doclai-" + frappe.generate_hash(length=16)
 	url = _tai(ai, "5-C4E1NPWGG2WZFA-doclai.pdf")
-	with patch.object(tep_doc, "doc_tep", lambda ten, byte: _tep(ten, _bao_cao_grab(ngay, so_cu), sha)), \
+	with patch.object(tep_doc, "doc_tep", lambda ten, byte, **_k: _tep(ten, _bao_cao_grab(ngay, so_cu), sha)), \
 			patch.object(dv, "_cong_ty", return_value=cty):
-		ra = _goi(ai, lambda: dv.nhan(file_url=url, cong_ty=cty))
+		ra = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty=cty))
 	_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
 	ten = ra[0]["name"]
 	cu = sorted(frappe.get_all(dv.DT_DONG, filters={"nguon": ten}, pluck="ma_don"))
@@ -238,9 +244,9 @@ def _():
 	la("bản cũ", cu, sorted(["GF-%s" % so_cu, "GF-%sF" % (so_cu + 1)]))
 	# Giả như bộ đọc cũ đọc sai và nguồn đang ở Cần xử lý; bộ đọc đã sửa ra mã khác.
 	frappe.db.set_value(dv.DT_NGUON, ten, "trang_thai", "Cần xử lý")
-	with patch.object(tep_doc, "doc_tep", lambda ten_, byte: _tep(ten_, _bao_cao_grab(ngay, so_moi), sha)), \
+	with patch.object(tep_doc, "doc_tep", lambda ten_, byte, **_k: _tep(ten_, _bao_cao_grab(ngay, so_moi), sha)), \
 			patch.object(dv, "_cong_ty", return_value=cty):
-		ra2 = _goi(ai, lambda: dv.nhan(file_url=url, cong_ty=cty))
+		ra2 = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty=cty))
 	la("đọc lại vào đúng nguồn cũ", ra2[0]["name"], ten)
 	moi_ = sorted(frappe.get_all(dv.DT_DONG, filters={"nguon": ten}, pluck="ma_don"))
 	la("chỉ còn dòng của bản đọc mới", moi_, sorted(["GF-%s" % so_moi, "GF-%sF" % (so_moi + 1)]))
@@ -252,6 +258,38 @@ def _():
 	dung("khoá của dòng đã thay không chặn khoá bản mới", all(d.khoa.startswith("thay:") for d in thay))
 	ls = json.loads(frappe.db.get_value(dv.DT_NGUON, ten, "du_lieu") or "{}").get("lan_doc_truoc") or []
 	la("lịch sử số dòng lần đọc trước", (len(ls), ls[0]["so_dong"] if ls else None), (1, 2))
+
+
+@ca("Codex #544 vòng 2 bench: tệp giám đốc đã từ chối không quay về Chờ duyệt khi tải lại hay về qua thư không chữ ký")
+def _():
+	from vagabond import doi_soat_thu as dst
+	cty, tk, _mau = _nen()
+	ngay = nowdate()
+	so = int(frappe.generate_hash(length=6), 16) % 9000000 + 1000000
+	ai = _ke_toan()
+	sha = "kt544-tuchoi-" + frappe.generate_hash(length=16)
+	url = _tai(ai, "5-C4E1NPWGG2WZFA-tuchoi.pdf")
+	doc = lambda ten, byte, **_k: _tep(ten, _bao_cao_grab(ngay, so), sha)
+	with patch.object(tep_doc, "doc_tep", doc), patch.object(dv, "_cong_ty", return_value=cty):
+		ra = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty=cty))
+	_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
+	ten = ra[0]["name"]
+	la("tải tay vào Chờ duyệt", frappe.db.get_value(dv.DT_NGUON, ten, "duong_vao"), "Chờ duyệt")
+	with patch.object(dst, "la_giam_doc", return_value=True):
+		dst.tu_choi(ten, "Bench: số liệu không đúng")
+	# Nguồn đang Cần xử lý là trạng thái mà lối đọc lại cũ mở cửa (Codex #544 vòng 2).
+	frappe.db.set_value(dv.DT_NGUON, ten, "trang_thai", "Cần xử lý")
+	dong_truoc = frappe.db.count(dv.DT_DONG, {"nguon": ten})
+	with patch.object(tep_doc, "doc_tep", doc), patch.object(dv, "_cong_ty", return_value=cty):
+		ra2 = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty=cty))
+		xt = _goi(ai, lambda: dv.xem_truoc(file_url=url, cong_ty=cty))
+		ra3 = dv._nhan_byte("tuchoi.pdf", b"x", dst.KENH, cong_ty=cty, them={"duong_vao": "Chờ duyệt"})
+		ra4 = dv._nhan_byte("tuchoi.pdf", b"x", "Email", cong_ty=cty)
+	la("tải lại: dừng ở nguồn cũ, báo bị từ chối", [(x.get("name"), x.get("tu_choi")) for x in ra2], [(ten, 1)])
+	la("xem trước: không mời đọc lại", [(x.get("da_co"), x.get("doc_lai"), x.get("tu_choi")) for x in xt], [(ten, "", 1)])
+	la("thư không chữ ký và thư kênh cũ: dừng", [x.get("tu_choi") for x in ra3 + ra4], [1, 1])
+	la("vẫn Từ chối", frappe.db.get_value(dv.DT_NGUON, ten, "duong_vao"), "Từ chối")
+	la("không dòng nào tính lại", frappe.db.count(dv.DT_DONG, {"nguon": ten}), dong_truoc)
 
 
 @ca("Codex #450 bench: PDF hỏng tải lên báo lời người dùng, không lộ lỗi thư viện đọc PDF")
@@ -282,14 +320,14 @@ def _():
 		loi = str(e)
 	dung("kế toán khác biết đường dẫn vẫn không đọc được tệp của A", "Không thấy tệp vừa tải" in loi)
 	try:
-		_goi(a, lambda: dv.nhan(file_url=url, cong_ty="KT450 pháp nhân không có " + frappe.generate_hash(length=6)))
+		_goi(a, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty="KT450 pháp nhân không có " + frappe.generate_hash(length=6)))
 		chan = False
 	except frappe.PermissionError:
 		chan = True
 	la("pháp nhân không được xem bị chặn quyền", chan, True)
 	sha = "kt450-v16-" + frappe.generate_hash(length=16)
 	so = int(frappe.generate_hash(length=6), 16) % 9000000 + 1000000
-	with patch.object(tep_doc, "doc_tep", lambda ten, byte: _tep(ten, _bao_cao_grab(ngay, so), sha)):
+	with patch.object(tep_doc, "doc_tep", lambda ten, byte, **_k: _tep(ten, _bao_cao_grab(ngay, so), sha)):
 		xt = _goi(a, lambda: dv.xem_truoc(file_url=url, cong_ty=cty))
 	la("chủ tệp xem trước được, đúng pháp nhân đã chọn", (xt[0]["cong_ty"], xt[0]["so"]["moi"]), (cty, 2))
 	la("không ghi nguồn nào", frappe.db.count(dv.DT_NGUON, {"sha256": sha}), 0)
@@ -385,9 +423,9 @@ def _():
 			("sua", [x.replace("Trả thẻ / Ví", "Tiền mặt   ") for x in _bao_cao_grab(ngay, so)])):
 		sha = "kt450-v14-%s-%s" % (nhan_, frappe.generate_hash(length=12))
 		url = _tai(ai, "grab-v14-%s.pdf" % nhan_)
-		with patch.object(tep_doc, "doc_tep", lambda ten, byte, dong=dong, sha=sha: _tep(ten, dong, sha)), \
+		with patch.object(tep_doc, "doc_tep", lambda ten, byte, dong=dong, sha=sha, **_k: _tep(ten, dong, sha)), \
 				patch.object(dv, "_cong_ty", return_value=cty):
-			ra = _goi(ai, lambda: dv.nhan(file_url=url, cong_ty=cty))
+			ra = _goi(ai, lambda: dv.nhan(ly_do=LY_DO_TAI_TAY, file_url=url, cong_ty=cty))
 		_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
 		nguon.append(ra[0]["name"])
 	n1, n2, n3 = nguon

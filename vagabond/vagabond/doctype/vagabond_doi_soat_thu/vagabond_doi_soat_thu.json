@@ -1,0 +1,195 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Doi Soat Thu",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "autoname": "format:DST-{YY}{MM}-{#####}",
+ "track_changes": 0,
+ "istable": 0,
+ "custom": 0,
+ "description": "v641: sổ thư hộp đối soát doisoat@. Máy ghi, không sửa tay.",
+ "fields": [
+  {
+   "fieldname": "nhan_luc",
+   "fieldtype": "Datetime",
+   "label": "Nhận lúc",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_gui",
+   "fieldtype": "Data",
+   "label": "Người gửi",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_mien",
+   "fieldtype": "Data",
+   "label": "Tên miền người gửi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tieu_de",
+   "fieldtype": "Data",
+   "label": "Tiêu đề",
+   "read_only": 1
+  },
+  {
+   "fieldname": "doi_tac",
+   "fieldtype": "Data",
+   "label": "Đối tác",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ket_qua",
+   "fieldtype": "Select",
+   "label": "Kết quả",
+   "options": "Đã xác thực\nChờ duyệt\nĐã duyệt\nTừ chối\nBị chặn\nKhông có tệp\nLỗi xử lý",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Small Text",
+   "label": "Lý do",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gui_luc",
+   "fieldtype": "Datetime",
+   "label": "Đối tác gửi lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "message_id",
+   "fieldtype": "Data",
+   "label": "Mã thư (Message-ID)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "uid",
+   "fieldtype": "Data",
+   "label": "UID trong hộp thư",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sha256",
+   "fieldtype": "Data",
+   "label": "Mã băm thư gốc",
+   "unique": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ky_boi",
+   "fieldtype": "Data",
+   "label": "Chữ ký hợp lệ của",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chu_ky",
+   "fieldtype": "Small Text",
+   "label": "Kết quả từng chữ ký",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_tep",
+   "fieldtype": "Int",
+   "label": "Số tệp đính kèm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Small Text",
+   "label": "Nguồn đối soát đã tạo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tep_goc",
+   "fieldtype": "Attach",
+   "label": "Thư gốc (.eml)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bao_zalo",
+   "fieldtype": "Datetime",
+   "label": "Đã báo Zalo lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xong",
+   "fieldtype": "Check",
+   "label": "Đã xử lý xong",
+   "read_only": 1,
+   "hidden": 1,
+   "description": "Codex #544: thư xử lý lỗi giữa chừng thì lượt thử lại dùng tiếp dòng này."
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Công ty",
+   "options": "Company",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "nhan_luc",
+ "sort_order": "DESC",
+ "title_field": "tieu_de",
+ "modified": "2026-11-06 14:00:00.000000",
+ "creation": "2026-11-06 12:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "field_order": [
+  "nhan_luc",
+  "nguoi_gui",
+  "ten_mien",
+  "tieu_de",
+  "doi_tac",
+  "ket_qua",
+  "ly_do",
+  "cb1",
+  "gui_luc",
+  "message_id",
+  "uid",
+  "sha256",
+  "ky_boi",
+  "chu_ky",
+  "so_tep",
+  "nguon",
+  "tep_goc",
+  "bao_zalo",
+  "xong",
+  "company"
+ ]
+}

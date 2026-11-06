@@ -177,6 +177,9 @@ node vagabond/khung/kiem_thu/gia_lap_trang.js --bo-sao-ke
 # v579 (#420): man Doi soat nha cung cap - loc, tai file xem truoc roi nhan,
 # chi tiet ba lop, khoi doi soat tren Chi tiet don (anh Viet 06/10/2026).
 node vagabond/khung/kiem_thu/hanh_vi/doi_soat_vendor_579.js
+# v641: doi soat tu dong qua hop thu doisoat@ - khoi hop thu, tien do sau buoc,
+# chip duong vao, tai tay cho giam doc duyet, xac nhan (anh Viet 06/11/2026).
+node vagabond/khung/kiem_thu/hanh_vi/doi_soat_hop_thu_641.js
 # v582: goi chuc vu theo phan he, mot nguoi giu nhieu goi (anh Viet 06/10/2026).
 node vagabond/khung/kiem_thu/hanh_vi/goi_nhieu_582.js
 # v583: mot phep tim cho moi o tim (anh Viet 07/10/2026, ca De chocolatine mini).

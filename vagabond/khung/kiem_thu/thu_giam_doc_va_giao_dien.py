@@ -58,8 +58,11 @@ def _():
 	for k in ("chuyen_kho", "san_xuat", "nhap_kho", "xuat_kho", "kiem_ke",
 			"ycmh", "don_mua", "tang_qua", "de_nghi_chi", "hoan_tien"):
 		dung("giám đốc KHÔNG còn thấy %s" % k, not vcl.thay_duoc(k, gd))
-	la("đúng ba việc hệ trọng", sorted(vcl.VIEC_HE_TRONG),
-		["hang_tang", "ho_so_tt", "nop_quy"])
+	# v641 (anh Việt 06/11/2026): thêm việc thứ tư, tệp đối soát tải tay chờ
+	# giám đốc duyệt ("đưa vào mục việc cần làm của giám đốc là được").
+	la("đúng bốn việc hệ trọng", sorted(vcl.VIEC_HE_TRONG),
+		["doi_soat_duyet", "hang_tang", "ho_so_tt", "nop_quy"])
+	dung("kế toán KHÔNG thấy việc duyệt tải tay", not vcl.thay_duoc("doi_soat_duyet", {"Accounts Manager"}))
 
 
 @ca("giám đốc: vai cộng dồn cũng không mở lại đường vòng")

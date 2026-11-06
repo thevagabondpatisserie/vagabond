@@ -1,0 +1,48 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Doi Soat Nguoi Gui",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "istable": 1,
+ "editable_grid": 1,
+ "custom": 0,
+ "description": "v641: đối tác được gửi thư đối soát vào doisoat@.",
+ "fields": [
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Đối tác",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "ten_mien",
+   "fieldtype": "Small Text",
+   "label": "Tên miền gửi thư",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 4,
+   "description": "Cách nhau bằng dấu phẩy, ví dụ: grab.com, grabtaxi.com. Tên miền con (merchant.grab.com) tự tính."
+  },
+  {
+   "fieldname": "bat_buoc_chu_ky",
+   "fieldtype": "Check",
+   "label": "Bắt buộc chữ ký số",
+   "in_list_view": 1,
+   "default": "1",
+   "columns": 2,
+   "description": "Bật: thư không có chữ ký số đúng tên miền bị chặn và báo Zalo. Tắt: vẫn nhận nhưng giám đốc phải duyệt từng thư."
+  }
+ ],
+ "permissions": [],
+ "modified": "2026-11-06 12:00:00.000000",
+ "creation": "2026-11-06 12:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "field_order": [
+  "ten",
+  "ten_mien",
+  "bat_buoc_chu_ky"
+ ]
+}

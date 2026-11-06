@@ -43,6 +43,26 @@
   "minvoice_series",
   "minvoice_ma_thue",
   "minvoice_mau_lien_ket",
+  "sec_ds_hop_thu",
+  "ds_thu_bat",
+  "ds_thu_dia_chi",
+  "ds_thu_mat_khau",
+  "col_ds_1",
+  "ds_thu_may_chu",
+  "ds_thu_cong",
+  "ds_thu_thu_muc",
+  "ds_mk_pdf_the",
+  "ds_mk_zip_pos",
+  "sec_ds_doi_tac",
+  "ds_nguoi_gui",
+  "ds_lich_thu",
+  "sec_ds_nguong",
+  "ds_bieu_noi_dia",
+  "ds_bieu_quoc_te",
+  "ds_bieu_napas",
+  "col_ds_2",
+  "ds_nguong_phi",
+  "ds_nguong_lech",
   "sec_khoa_so",
   "sec_hoan_tien",
   "kho_hang_huy",
@@ -418,6 +438,127 @@
    "fieldname": "minvoice_mau_lien_ket",
    "fieldtype": "Data",
    "label": "Mẫu đường dẫn tới một tờ hoá đơn"
+  },
+  {
+   "fieldname": "sec_ds_hop_thu",
+   "fieldtype": "Section Break",
+   "label": "Hộp thư đối soát (doisoat@)",
+   "description": "Máy chủ ERP tự đọc thư đối tác mỗi 15 phút và chỉ nhận số liệu từ thư có chữ ký số đúng tên miền đối tác. Không đánh dấu, không xoá thư trong hộp. Claude không đọc hộp thư này."
+  },
+  {
+   "fieldname": "ds_thu_bat",
+   "fieldtype": "Check",
+   "label": "Bật đọc hộp thư đối soát",
+   "description": "Tắt: máy không đọc thư, không báo thư chưa về. Bật sau khi đã khai địa chỉ và mật khẩu, bấm Thử kết nối trên màn Đối soát nhà cung cấp."
+  },
+  {
+   "fieldname": "ds_thu_dia_chi",
+   "fieldtype": "Data",
+   "label": "Địa chỉ hộp thư",
+   "options": "Email",
+   "default": "doisoat@thevagabondpatisserie.com",
+   "description": "Hộp thư chỉ để nhận bản sao thư đối soát từ bộ lọc Roundcube."
+  },
+  {
+   "fieldname": "ds_thu_mat_khau",
+   "fieldtype": "Password",
+   "label": "Mật khẩu hộp thư",
+   "description": "Anh tự dán. Sau khi lưu không ai xem lại được, kể cả Claude."
+  },
+  {
+   "fieldname": "col_ds_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ds_thu_may_chu",
+   "fieldtype": "Data",
+   "label": "Máy chủ IMAP",
+   "description": "Để trống là dùng máy chủ nhận thư của hộp erp@ đã khai (cùng tên miền thevagabondpatisserie.com)."
+  },
+  {
+   "fieldname": "ds_thu_cong",
+   "fieldtype": "Int",
+   "label": "Cổng IMAP",
+   "description": "Để trống là 993 (IMAP có mã hoá)."
+  },
+  {
+   "fieldname": "ds_thu_thu_muc",
+   "fieldtype": "Data",
+   "label": "Thư mục đọc",
+   "description": "Để trống là Hộp thư đến (INBOX)."
+  },
+  {
+   "fieldname": "ds_mk_pdf_the",
+   "fieldtype": "Password",
+   "label": "Mật khẩu mở PDF sao kê thẻ Shinhan",
+   "description": "Sao kê thẻ tín dụng gửi qua thư thường khoá mật khẩu. Khai ở đây để máy tự mở; để trống thì PDF có khoá báo lỗi."
+  },
+  {
+   "fieldname": "ds_mk_zip_pos",
+   "fieldtype": "Password",
+   "label": "Mật khẩu mở tệp nén Shinhan POS",
+   "description": "Chỉ khai khi báo cáo Shinhan POS gửi dạng ZIP có mật khẩu."
+  },
+  {
+   "fieldname": "sec_ds_doi_tac",
+   "fieldtype": "Section Break",
+   "label": "Đối tác gửi thư đối soát và lịch thư dự kiến"
+  },
+  {
+   "fieldname": "ds_nguoi_gui",
+   "fieldtype": "Table",
+   "label": "Người gửi tin cậy",
+   "options": "Vagabond Doi Soat Nguoi Gui",
+   "description": "Chỉ nhận thư từ các tên miền này. Thư người gửi khác bị chặn, giữ lại để tra. Để trống là dùng danh sách mặc định (OnePay, Payoo, Shinhan, Grab, ShopeeFood, GreenSM, Be, Meta)."
+  },
+  {
+   "fieldname": "ds_lich_thu",
+   "fieldtype": "Table",
+   "label": "Lịch thư dự kiến",
+   "options": "Vagabond Doi Soat Lich Thu",
+   "description": "Thư quá hạn chưa về thì báo Zalo lúc 12:30 và nhắc lại 17:00, không coi là ngày không có giao dịch. Để trống là dùng lịch mặc định."
+  },
+  {
+   "fieldname": "sec_ds_nguong",
+   "fieldtype": "Section Break",
+   "label": "Biểu phí và ngưỡng báo Zalo đối soát"
+  },
+  {
+   "fieldname": "ds_bieu_noi_dia",
+   "fieldtype": "Data",
+   "label": "Biểu phí thẻ nội địa Shinhan POS theo hợp đồng (%)",
+   "default": "1,44",
+   "description": "Ghi 1,44 nghĩa là 1,44%. Giao dịch bị thu cao hơn thì báo Zalo. Để trống là không kiểm."
+  },
+  {
+   "fieldname": "ds_bieu_quoc_te",
+   "fieldtype": "Data",
+   "label": "Biểu phí thẻ quốc tế Shinhan POS theo hợp đồng (%)",
+   "description": "Để trống là không kiểm thẻ quốc tế."
+  },
+  {
+   "fieldname": "ds_bieu_napas",
+   "fieldtype": "Data",
+   "label": "Biểu phí thẻ Napas Shinhan POS theo hợp đồng (%)",
+   "description": "Để trống là không kiểm thẻ Napas."
+  },
+  {
+   "fieldname": "col_ds_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ds_nguong_phi",
+   "fieldtype": "Data",
+   "label": "Báo phí cao hơn biểu từ (điểm %)",
+   "default": "0,1",
+   "description": "0,1 nghĩa là thu 1,54% so với biểu 1,44% thì báo. Để trống là 0,1."
+  },
+  {
+   "fieldname": "ds_nguong_lech",
+   "fieldtype": "Currency",
+   "label": "Báo lệch tiền về từ (đồng)",
+   "default": "1000",
+   "description": "Lệch dưới mức này vẫn hiện trên app, chỉ không gửi tin Zalo. Để trống là 1.000 đ."
   },
   {
    "description": "Chặn ghi, sửa, huỷ chứng từ trước mốc này.",
@@ -1290,7 +1431,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-03 12:00:00.000000",
+ "modified": "2026-11-06 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
