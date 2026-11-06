@@ -1228,10 +1228,19 @@ def _kiem_gd_hoan_ung(dong, nguoi_ung):
 	ma = [d["ma_giao_dich"] for d in dong if d.get("ma_giao_dich")]
 	if not ma:
 		return
-	kq = ds_tk_hoan_ung((nguoi_ung or "").strip())
-	# Người chưa gắn tài khoản nào vào quỹ tạm ứng thì danh sách là bản đoán
-	# (mọi tài khoản công ty): vẫn chỉ nhận giao dịch trên các tài khoản đó.
-	tk = {x["ma"] for x in kq.get("tk") or []}
+	nguoi = (nguoi_ung or "").strip()
+	kq = ds_tk_hoan_ung(nguoi)
+	# Codex #545 vòng 1: người chưa gắn tài khoản nào vào quỹ tạm ứng thì danh
+	# sách là bản ĐOÁN (tài khoản của người khác, hoặc mọi tài khoản công ty).
+	# Bản đoán chỉ để chọn tài khoản nhận tiền, không phải bằng chứng ai đã
+	# chi: nhận nó thì khoản chi của người khác thành chứng từ cho người này.
+	if cint(kq.get("doan")):
+		frappe.throw(
+			"Người được hoàn ứng chưa gắn tài khoản ngân hàng nào vào quỹ tạm ứng, nên chưa nối được "
+			"giao dịch sao kê. Nhờ chị Dung gắn tài khoản của người này vào 1411 bên Next, hoặc bỏ nối sao kê.",
+			title="Giao dịch sao kê chưa đúng")
+	# Chỉ tài khoản thật sự đứng tên người này (chủ là đúng mã nhà cung cấp).
+	tk = {x["ma"] for x in kq.get("tk") or [] if (x.get("nguoi") or "") == nguoi}
 	for m in ma:
 		loi = loi_gd_hoan_ung(giao_dich(m), tk, m)
 		if loi:

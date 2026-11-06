@@ -582,9 +582,13 @@ def the_quay(r, bay_gio, ten_diem="", anh=None):
 	}
 
 
-def cho_khach(r, bay_gio):
+def cho_khach(r, bay_gio, da_tra=False):
 	"""Trạng thái đơn trả cho trang khách: tối thiểu, không số điện thoại,
-	không tên đầy đủ, không mã hoá đơn nội bộ. THUẦN."""
+	không tên đầy đủ, không mã hoá đơn nội bộ. THUẦN.
+
+	da_tra (Codex PR #545 vòng 1): phiếu tạm tính của lượt đã nhận không còn
+	mở (thu ngân đã chốt bill, hoặc huỷ), để trang khách không cộng lượt của
+	bill cũ vào bill mới. Chỉ một cờ, không lộ mã hoá đơn."""
 	tt = trang_thai_that(r.get("trang_thai"), r.get("luc"), bay_gio)
 	nhan = _dt(r.get("nhan_luc"))
 	luc = _dt(r.get("luc"))
@@ -598,6 +602,7 @@ def cho_khach(r, bay_gio):
 		"nhan_luc": nhan.strftime("%H:%M") if (nhan and tt == TT_NHAN) else "",
 		"ly_do": (r.get("ly_do") or "") if tt == TT_TU_CHOI else "",
 		"tam_tinh": int(r.get("tam_tinh") or 0),
+		"da_tra": 1 if (da_tra and tt == TT_NHAN) else 0,
 		"mon": [{"ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": tc_hien(d), "gia": gia_dong(d),
 			"tien": gia_dong(d) * int(d.get("sl") or 0)} for d in mon],
 	}
@@ -1024,10 +1029,14 @@ def trang_thai(ma=None, token=None):
 	if not ma or not isinstance(token, str) or not re.fullmatch(r"[0-9a-f]{32}", token or ""):
 		return {"ok": 0}
 	r = frappe.db.get_value(DT, ma, ["name", "diem", "ban", "mon", "tam_tinh", "trang_thai", "luc", "nhan_luc",
-		"ly_do", "token_bam"], as_dict=True)
+		"ly_do", "token_bam", "hoa_don"], as_dict=True)
 	if not r or not hmac.compare_digest(str(r.get("token_bam") or ""), bam(token)):
 		return {"ok": 0}
-	return dict(cho_khach(r, now_datetime()), ok=1)
+	# Bill đã chốt: phiếu của lượt không còn là phiếu tạm tính mở (cùng phép
+	# _phieu_tam_mo mà bảng giữ bánh dùng). Lượt chưa có phiếu là đang lập.
+	hd = r.get("hoa_don")
+	da_tra = bool(hd) and r.get("trang_thai") == TT_NHAN and hd not in _phieu_tam_mo([hd])
+	return dict(cho_khach(r, now_datetime(), da_tra), ok=1)
 
 
 # ------------------------------------------------------- chuông gọi nhân viên
