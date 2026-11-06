@@ -1086,6 +1086,58 @@ def la_giam_doc():
 	return lg(_vai())
 
 
+TRUONG_DAU_NGUON = ("trang_thai", "duong_vao", "thuc_nhan", "so_dong", "trang_thai_tien", "giao_dich_ngan_hang",
+	"kiem_so_du", "phi_vuot")
+TRUONG_DAU_DONG = ("name", "trang_thai_khop", "sales_invoice", "purchase_invoice", "van_don", "thuc_nhan", "phi")
+
+
+def dau_doi_chieu(n, dong):
+	"""THUẦN. Codex #544 vòng 4: dấu của kết quả đối chiếu mà kế toán xác nhận:
+	trạng thái, tiền, tiền về của nguồn và từng dòng nối với chứng từ nào. Đối
+	chiếu lại ra kết quả khác (hoá đơn huỷ rồi nối hoá đơn thay, đổi giao dịch
+	tiền về) thì dấu khác, xác nhận cũ hết hiệu lực."""
+	lay = n.get if hasattr(n, "get") else (lambda k: getattr(n, k, None))
+
+	def chuan(v):
+		if isinstance(v, (int, float)):
+			return int(round(float(v)))
+		return "" if v is None else str(v)
+	nguon = [chuan(lay(k)) for k in TRUONG_DAU_NGUON]
+	ds = sorted([chuan((d.get if hasattr(d, "get") else (lambda k, d=d: getattr(d, k, None)))(k)) for k in TRUONG_DAU_DONG]
+		for d in (dong or []))
+	return hashlib.sha256(json.dumps([nguon, ds], ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def _dau_hien(name):
+	frappe = _frappe()
+	from vagabond import doi_soat_vendor as dsv
+
+	n = frappe.db.get_value(DT_NGUON, name, list(TRUONG_DAU_NGUON), as_dict=True) or {}
+	dong = frappe.get_all(dsv.DT_DONG, filters={"nguon": name}, fields=list(TRUONG_DAU_DONG), limit_page_length=0)
+	return dau_doi_chieu(n, dong)
+
+
+def kiem_xac_nhan(name):
+	"""Codex #544 vòng 4: sau mỗi lần đối chiếu hay nối tay, xác nhận của kế toán
+	chỉ còn hiệu lực khi kết quả đối chiếu đúng như lúc xác nhận. Khác thì gỡ
+	xác nhận (ghi lại một dòng nhận xét trên nguồn để tra), nút Xác nhận mở lại
+	khi năm bước xanh. Trả True khi đã gỡ."""
+	frappe = _frappe()
+	x = frappe.db.get_value(DT_NGUON, name, ["xac_nhan_luc", "xac_nhan_boi", "xac_nhan_dau"], as_dict=True)
+	if not x or not x.xac_nhan_luc:
+		return False
+	if x.xac_nhan_dau and x.xac_nhan_dau == _dau_hien(name):
+		return False
+	frappe.db.set_value(DT_NGUON, name, {"xac_nhan_luc": None, "xac_nhan_boi": None, "xac_nhan_dau": ""}, update_modified=False)
+	try:
+		frappe.get_doc(dict(doctype="Comment", comment_type="Info", reference_doctype=DT_NGUON, reference_name=name,
+			content="Xác nhận của %s lúc %s hết hiệu lực vì kết quả đối chiếu đã đổi. Kế toán xác nhận lại." % (
+				x.xac_nhan_boi or "", str(x.xac_nhan_luc)[:16]))).insert(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(title="Đối soát: chưa ghi được nhận xét gỡ xác nhận %s" % name)
+	return True
+
+
 def con_cho_duyet(n):
 	"""THUẦN. Nguồn còn ở trạng thái giám đốc duyệt hay từ chối được: Chờ duyệt,
 	hoặc nguồn cũ chưa có đường vào mà không phải từ hộp thư."""
@@ -1182,8 +1234,8 @@ def xac_nhan(name):
 		b = buoc_nguon(r)
 		if not b["xac_nhan_duoc"]:
 			frappe.throw("Chưa xác nhận được: %s." % b["ghi"])
-		frappe.db.set_value(DT_NGUON, name, {"xac_nhan_boi": frappe.session.user, "xac_nhan_luc": frappe.utils.now_datetime()},
-			update_modified=False)
+		frappe.db.set_value(DT_NGUON, name, {"xac_nhan_boi": frappe.session.user, "xac_nhan_luc": frappe.utils.now_datetime(),
+			"xac_nhan_dau": _dau_hien(name)}, update_modified=False)
 	return dict(ok=1)
 
 

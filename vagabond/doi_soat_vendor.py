@@ -683,6 +683,9 @@ def xac_nhan_noi(name=None):
 			"xac_nhan_luc": frappe.utils.now(), "ghi_chu_khop": "Kế toán xác nhận nối theo tiền với %s." % d.sales_invoice},
 			update_modified=False)
 		_dem_noi(frappe.get_doc(DT_NGUON, d.nguon))
+		from vagabond import doi_soat_thu
+
+		doi_soat_thu.kiem_xac_nhan(d.nguon)
 	return dict(ok=1, nguon=d.nguon)
 
 
@@ -776,6 +779,8 @@ def _doi_chieu(name):
 	from vagabond import doi_soat_thu
 
 	doi_soat_thu.sau_doi_chieu(name, tien_cu)
+	# Codex #544 vòng 4: kết quả đối chiếu đổi thì xác nhận cũ của kế toán hết hiệu lực.
+	doi_soat_thu.kiem_xac_nhan(name)
 
 
 def _dem_noi(nguon):
