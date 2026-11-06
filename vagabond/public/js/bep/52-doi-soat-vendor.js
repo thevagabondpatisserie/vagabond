@@ -347,7 +347,10 @@ async function scrDsvnThu() {
         h(String(x.nhan_luc || '').slice(11, 16)) + ' ' + dmy(String(x.nhan_luc || '').slice(0, 10)).slice(0, 5) + '</div>' +
         dsvnThanhBuoc('xd', x.ly_do) +
         '<div style="font-size:13px;margin-top:6px">' + h(x.tieu_de || '') + (x.so_tep ? ' · ' + money(x.so_tep) + ' tệp kèm' : '') + '</div>' +
-        '<div style="font-size:12.5px;color:#7a2e0e;background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:6px">Không nhận số liệu nào từ thư này. Không có nút Nhận.</div>' +
+        (x.ket_qua === 'Lỗi xử lý' ?
+          '<div style="font-size:12.5px;color:#7a2e0e;background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:6px">Máy chưa đọc xong thư này nên chưa nhận số liệu. Bấm Đọc lại thư để thử lần nữa; máy vẫn kiểm chữ ký số như thư mới.</div>' +
+          '<button class="btn" data-dsvndoclai="' + h(x.name) + '" style="margin:8px 0 0;min-height:44px">Đọc lại thư</button>' :
+          '<div style="font-size:12.5px;color:#7a2e0e;background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:6px">Không nhận số liệu nào từ thư này. Không có nút Nhận.</div>') +
         (x.bao_zalo ? '<div style="margin-top:6px">' + dsvnChip('Đã báo Zalo ' + String(x.bao_zalo).slice(11, 16)) + '</div>' : '') +
         '<button class="btn gh" data-dsvneml="' + h(x.name) + '" style="margin:8px 0 0;min-height:44px">Tải thư gốc (.eml) để xem →</button></div>';
     }).join('');
@@ -377,6 +380,16 @@ async function scrDsvnThu() {
     if (t) { DSVN.thuTab = t.getAttribute('data-dsvntab'); return go(scrDsvnThu, true); }
     t = e.target.closest('[data-dsvnct]');
     if (t) { DSVN.cur = t.getAttribute('data-dsvnct'); DSVN.loc = ''; return go(scrDsvnCt); }
+    t = e.target.closest('[data-dsvndoclai]');
+    if (t) {
+      busy(true);
+      try {
+        var r = await api('vagabond.doi_soat_vendor.doc_lai_thu', { name: t.getAttribute('data-dsvndoclai') });
+        baoTin(r && r.ket_qua === 'Lỗi xử lý' ? 'Vẫn chưa đọc được thư.' : 'Đã đọc lại thư: ' + ((r && r.ket_qua) || 'xong') + '.');
+      } catch (er) { baoTin(errMsg(er)); }
+      finally { busy(false); }
+      return go(scrDsvnThu, true);
+    }
     t = e.target.closest('[data-dsvneml]');
     if (t) {
       busy(true);
@@ -478,14 +491,16 @@ function dsvnDauTep(dau) {
 function dsvnTheXemTruoc(x) {
   var s = '<div class="card" style="padding:12px 14px">' +
     '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(x.ten_mau || 'Mẫu chưa nhận') + '</b>' +
-    (x.da_co || x.phap_nhan_khac ? dsvnChip('Đã nhận trước') : dsvnChip(x.trang_thai)) + '</div>' +
+    (x.tu_choi ? dsvnChip('Giám đốc từ chối') : x.da_co || x.phap_nhan_khac ? dsvnChip('Đã nhận trước') : dsvnChip(x.trang_thai)) + '</div>' +
     '<div style="font-size:13px;color:#667085;margin-top:2px">' + h(x.ten_tep || '') + '</div>' +
     (x.doc_lai ? '<div style="font-size:12.5px;color:#175cd3;margin-top:4px">Tệp này đã nhận trước nhưng còn lỗi. Bấm Nhận để đọc lại vào đúng nguồn cũ.</div>' : '');
   if (x.phap_nhan_khac) {
     return s + '<div style="font-size:13px;margin-top:8px">Tệp này đã nhận vào một pháp nhân khác. Mỗi tệp chỉ nhận vào một pháp nhân, nên không nhận lại ở đây.</div></div>';
   }
   if (x.da_co) {
-    s += '<div style="font-size:13px;margin-top:8px">Tệp này đã nhận rồi, không nhận lần hai.</div>' +
+    /* Codex #544 vòng 2: tệp giám đốc đã từ chối không nhận lại bằng tải tay. */
+    s += '<div style="font-size:13px;margin-top:8px">' + (x.tu_choi ? 'Tệp này đã bị giám đốc từ chối, không nhận lại được. Đối tác gửi lại qua hộp thư đối soát (có chữ ký số) thì máy tự nhận.' :
+      'Tệp này đã nhận rồi, không nhận lần hai.') + '</div>' +
       '<button class="btn gh" data-dsvnct="' + h(x.da_co) + '" style="margin:8px 0 0">Mở nguồn đã nhận →</button></div>';
     return s;
   }
