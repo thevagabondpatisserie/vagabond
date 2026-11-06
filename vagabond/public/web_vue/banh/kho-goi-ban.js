@@ -464,20 +464,37 @@ export function taoGoiBan(moiTruong, S) {
     if (!G.don.some(d => d.ma === m.ma)) G.don.push({ma: m.ma, token: m.token, tt: {trang_thai: 'Chờ nhận', mon: tam, ban: G.ban.ban, tam_tinh: tong.value, luc: ''}});
     luuDon();
     G.gio.splice(0); G.ghiChu = ''; G.nonce = ''; G.moGio = false;
-    hen(hoiTrangThai, 1500);
+    hen(() => hoiTrangThai(true), 1500);
     return m;
   }
 
   let henTt = null;
-  async function hoiTrangThai() {
+  /* tatCa: hỏi lại cả lượt đã xong (đã nhận), để biết bill của nó đã tính
+     tiền chưa. Nhịp tự động chỉ hỏi lượt còn chờ (trần 120 lần hỏi mỗi 10
+     phút của máy chủ); hỏi tất cả lúc vừa gọi thêm, mở Đơn của bàn, Thanh toán. */
+  async function hoiTrangThai(tatCa = false) {
     huyHen(henTt); henTt = null;
-    for (const d of G.don) {
-      if (d.tt && ['Đã nhận', 'Từ chối', 'Hết hạn'].includes(d.tt.trang_thai) && d.xong) continue;
+    for (const d of G.don.slice()) {
+      if (!tatCa && d.tt && ['Đã nhận', 'Từ chối', 'Hết hạn'].includes(d.tt.trang_thai) && d.xong) continue;
       let m = null;
       try { m = await doc('vagabond.goi_mon_ban.trang_thai', {ma: d.ma, token: d.token}); } catch (e) { m = null; }
       if (m && m.ok) { d.tt = m; d.xong = m.trang_thai !== 'Chờ nhận'; }
     }
-    if (G.don.some(d => !d.tt || d.tt.trang_thai === 'Chờ nhận')) henTt = hen(hoiTrangThai, NHIP_TRANG_THAI);
+    boLuotDaTra();
+    if (G.don.some(d => !d.tt || d.tt.trang_thai === 'Chờ nhận')) henTt = hen(() => hoiTrangThai(), NHIP_TRANG_THAI);
+  }
+  /* Codex PR #545 vòng 1: khách trả bill xong rồi gọi tiếp mà không tải lại
+     trang thì lượt của bill cũ không được cộng vào bill mới. Máy chủ báo
+     da_tra khi phiếu tạm tính của lượt đã chốt; bỏ các lượt tới lượt đã trả
+     cuối cùng (kể cả lượt bị từ chối, hết hạn đứng trước nó), lưu lại. */
+  function boLuotDaTra() {
+    const cuoi = G.don.map(d => !!(d.tt && d.tt.da_tra)).lastIndexOf(true);
+    if (cuoi < 0) return;
+    /* Lượt đứng trước lượt đã trả cuối cùng: giữ lượt còn sống (chờ nhận, đã
+       nhận mà bill chưa chốt), bỏ lượt đã trả và lượt từ chối, hết hạn cũ. */
+    const giu = G.don.filter((d, i) => i > cuoi || (!(d.tt && d.tt.da_tra) && !TT_KHONG_TINH.includes((d.tt && d.tt.trang_thai) || 'Chờ nhận')));
+    G.don.splice(0, G.don.length, ...giu);
+    luuDon();
   }
   /* Câu trạng thái một đơn cho khách. THUẦN theo đơn. */
   function cauDon(d) {
@@ -489,13 +506,14 @@ export function taoGoiBan(moiTruong, S) {
   }
 
   /* ---------------- đơn của bàn và thanh toán (v642) ---------------- */
-  function moDon() { if (cheDo.value !== 'goi' || !G.don.length) return false; G.moDon = true; void hoiTrangThai(); return true; }
+  function moDon() { if (cheDo.value !== 'goi' || !G.don.length) return false; G.moDon = true; void hoiTrangThai(true); return true; }
   function dongDon() { G.moDon = false; }
   function moTra() {
     if (cheDo.value !== 'goi' || !G.don.length) return false;
     const c = G.tra;
     G.moDon = false;
     c.mo = true; c.loi = ''; c.xong = null;
+    void hoiTrangThai(true);
     return true;
   }
   function dongTra() { G.tra.mo = false; }
