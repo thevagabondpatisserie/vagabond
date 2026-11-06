@@ -600,7 +600,7 @@ await ca('v642 gọi xong (anh Việt 06/11/2026: màn co lại, không xem đư
   const d1 = chu(theoId(goc, 'gbDonBan'));
   dung('lượt có giờ và trạng thái ' + d1, d1.includes('Lượt 1 · 10:00') && d1.includes('Chờ quầy nhận'));
   dung('dòng có tuỳ chọn và tiền ' + d1, d1.includes('1 × Trà Hoa Lài') && d1.includes('Ít đá') && d1.includes('45.000 đ'));
-  dung('tạm tính và cần thanh toán ' + d1, d1.includes('Tạm tính (1 món)') && d1.includes('Cần thanh toán'));
+  dung('tạm tính và cần thanh toán ' + d1, d1.includes('Món gọi từ máy này (1 món)') && d1.includes('Cần thanh toán'));
   dung('nút Thanh toán có số tiền', chu(theoId(goc, 'gbDonTra')) === 'Thanh toán · 45.000 đ');
   dung('có Gọi thêm món, Gọi nhân viên', theoId(goc, 'gbDonGoiThem') && theoId(goc, 'gbDonChuong'));
   await bam(theoId(goc, 'gbDonGoiThem'));
@@ -618,7 +618,7 @@ await ca('v642 gọi xong (anh Việt 06/11/2026: màn co lại, không xem đư
   dung('lượt bị từ chối hiện mờ, ghi lý do', String(l2.props.class).includes('tat') && chu(l2).includes('Quầy từ chối: Hết kem'));
   const d2 = chu(theoId(goc, 'gbDonBan'));
   dung('lượt đã nhận ghi giờ nhận ' + d2, d2.includes('Đã nhận lúc 10:02'));
-  dung('tạm tính bỏ lượt bị từ chối', chu(theoId(goc, 'gbTongBan')).includes('Tạm tính (1 món)') && chu(theoId(goc, 'gbDonTra')) === 'Thanh toán · 45.000 đ');
+  dung('tạm tính bỏ lượt bị từ chối', chu(theoId(goc, 'gbTongBan')).includes('Món gọi từ máy này (1 món)') && chu(theoId(goc, 'gbDonTra')) === 'Thanh toán · 45.000 đ');
   await bam(theoId(goc, 'gbDonTra'));
   dung('mở Thanh toán, đóng màn đơn', mo('gbTra') && !mo('gbDonBan'));
   la('hai cách trả, chưa mở trả online', tim(theoId(goc, 'gbTra'), n => n.props['data-cach']).map(n => n.props['data-cach']), ['ban', 'quay']);
@@ -731,7 +731,63 @@ await ca('v642 phép thuần thanh toán tại bàn: ô hoá đơn nhận mã s�
   la('cách lạ: rỗng', K2.chiTietTra('online', ''), '');
   dung('không quá 120 ký tự', K2.chiTietTra('ban', 'x'.repeat(200) + '@a.vn').length === 120);
   la('tạm tính', K2.tomDon([{tt: {trang_thai: 'Đã nhận', tam_tinh: 100, mon: [{sl: 2}]}}, {tt: {trang_thai: 'Hết hạn', tam_tinh: 50, mon: [{sl: 1}]}},
-    {tt: {trang_thai: 'Từ chối', tam_tinh: 70}}, {tt: null}]), {soLuot: 2, soMon: 2, tamTinh: 100, choNhan: 1});
+    {tt: {trang_thai: 'Từ chối', tam_tinh: 70}}, {tt: null}]), {soLuot: 2, soMon: 2, tamTinh: 100, choNhan: 1, coHoaDon: false, hoaDon: 0, ngoaiHoaDon: 100, coNgoai: false, canTra: 100});
+});
+
+await ca('v642 Codex #545 vòng 6: hai điện thoại cùng bàn, quầy thêm món: cần thanh toán lấy theo hoá đơn của bàn trên máy chủ, không chỉ món gọi từ máy này; lượt chờ quầy nhận cộng thêm, ghi rõ chưa vào hoá đơn', async () => {
+  /* Đúng chuỗi của khách: máy A gọi 1 lượt 100.000 đ, quầy nhận vào phiếu tạm
+     của bàn; máy B (hay thu ngân) thêm 40.000 đ vào CÙNG phiếu. Máy chủ trả
+     hoá đơn của bàn kèm lượt của máy A. */
+  const theoMa = {'TQ-1': {ok: 1, trang_thai: 'Đã nhận', nhan_luc: '10:02', luc: '10:00', tam_tinh: 100000,
+    mon: [{ten: 'Trà Hoa Lài', sl: 2, tc: [], gia: 50000, tien: 100000}], bill: {khoa: 'b1', tong: 140000}}};
+  let so = 0;
+  const {goc, kho, chayHen} = await moTrang({tt: th => theoMa[th.ma] || {ok: 1, trang_thai: 'Chờ nhận', luc: '10:20', tam_tinh: 30000,
+    mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 30000, tien: 30000}]}, goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so).repeat(32)})});
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00021'));
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  await bam(theoId(goc, 'gbXemDon'));
+  await cho();
+  const tb = chu(theoId(goc, 'gbTongBan'));
+  dung('màn Đơn của bàn: cần thanh toán theo hoá đơn của bàn ' + tb, tb.includes('Cần thanh toán140.000 đ'));
+  dung('ghi rõ món gọi từ máy này và hoá đơn của bàn ' + tb, tb.includes('Món gọi từ máy này (2 món)100.000 đ') && tb.includes('Hoá đơn của bàn140.000 đ'));
+  la('nút Thanh toán theo hoá đơn của bàn', chu(theoId(goc, 'gbDonTra')), 'Thanh toán · 140.000 đ');
+  await bam(theoId(goc, 'gbDonTra'));
+  dung('màn Thanh toán: 140.000 đ', chu(theoId(goc, 'gbTra')).includes('Cần thanh toán140.000 đ'));
+  await bam(tim(theoId(goc, 'gbTra'), n => n.the === 'button' && String(n.props.class).includes('gb-x'))[0]);
+  dung('thanh đơn: 140.000 đ ' + chu(theoId(goc, 'gbBarDon')), chu(theoId(goc, 'gbBarDon')).includes('Tạm tính 140.000 đ'));
+  /* Máy A gọi thêm một lượt, quầy chưa nhận: chưa vào hoá đơn, cộng thêm. */
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUIC00002'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  await bam(theoId(goc, 'gbXemDon'));
+  await cho();
+  const tb2 = chu(theoId(goc, 'gbTongBan'));
+  dung('lượt chờ nhận cộng thêm, ghi chưa vào hoá đơn ' + tb2, tb2.includes('Chưa vào hoá đơn30.000 đ') && tb2.includes('Cần thanh toán170.000 đ'));
+  /* Thu ngân thêm món nữa vào phiếu: mở lại màn đơn là thấy số mới. */
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {bill: {khoa: 'b1', tong: 185000}});
+  await bam(theoId(goc, 'gbDonGoiThem'));
+  await bam(theoId(goc, 'gbXemDon'));
+  await cho();
+  dung('mở lại màn đơn: hỏi lại hoá đơn của bàn ' + chu(theoId(goc, 'gbTongBan')), chu(theoId(goc, 'gbTongBan')).includes('Cần thanh toán215.000 đ'));
+  la('kho', kho.goiBan.tom.value.canTra, 215000);
+});
+
+await ca('v642 Codex #545 vòng 6 phép thuần: cần thanh toán = các hoá đơn mở của bàn (mỗi hoá đơn một lần) + lượt chưa vào hoá đơn; lượt đã nhận mà máy chủ không báo hoá đơn thì tính theo lượt; từ chối, hết hạn không tính', async () => {
+  const K2 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  const r = K2.tomDon([
+    {tt: {trang_thai: 'Đã nhận', tam_tinh: 100, mon: [{sl: 2}], bill: {khoa: 'b1', tong: 140}}},
+    {tt: {trang_thai: 'Đã nhận', tam_tinh: 20, mon: [{sl: 1}], bill: {khoa: 'b1', tong: 150}}},
+    {tt: {trang_thai: 'Chờ nhận', tam_tinh: 30, mon: [{sl: 1}], bill: {khoa: 'b9', tong: 999}}},
+    {tt: {trang_thai: 'Từ chối', tam_tinh: 70, mon: [{sl: 1}]}}]);
+  la('một hoá đơn tính một lần, số mới nhất; lượt chờ nhận cộng thêm', [r.tamTinh, r.hoaDon, r.coHoaDon, r.ngoaiHoaDon, r.canTra], [150, 150, true, 30, 180]);
+  const r2 = K2.tomDon([{tt: {trang_thai: 'Đã nhận', tam_tinh: 100, mon: [{sl: 2}]}}, {tt: {trang_thai: 'Chờ nhận', tam_tinh: 30, mon: [{sl: 1}]}}]);
+  la('máy chủ chưa báo hoá đơn: tính theo lượt', [r2.coHoaDon, r2.canTra], [false, 130]);
+  const r3 = K2.tomDon([{tt: {trang_thai: 'Đã nhận', tam_tinh: 50, bill: {khoa: 'b1', tong: 80}}}, {tt: {trang_thai: 'Đã nhận', tam_tinh: 60, bill: {khoa: 'b2', tong: 90}}}]);
+  la('hai hoá đơn mở khác nhau: cộng cả hai', r3.canTra, 170);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
