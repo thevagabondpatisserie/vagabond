@@ -73,6 +73,22 @@ export function tomDon(don) {
   };
 }
 
+/* Codex PR #545 vòng 4: trước đây chỉ lưu 10 lượt gần nhất, bàn gọi hơn mười
+   lượt chưa trả mà tải lại trang thì tổng cần thanh toán hụt. Lượt còn tính
+   tiền (chờ nhận, đã nhận mà bill chưa chốt) KHÔNG BAO GIỜ bị cắt; khi quá
+   trần chỉ bỏ lượt cũ bị từ chối, hết hạn. Lượt đã trả đã rời G.don từ trước
+   (boLuotDaTra). Trần chỉ để chặn bộ nhớ phình vô hạn. THUẦN. */
+export const LUOT_LUU_TOI_DA = 200;
+export function donCanLuu(don) {
+  const ds = (don || []).slice();
+  let thua = ds.length - LUOT_LUU_TOI_DA;
+  if (thua <= 0) return ds;
+  return ds.filter(d => {
+    if (thua > 0 && TT_KHONG_TINH.includes((d.tt && d.tt.trang_thai) || 'Chờ nhận')) { thua -= 1; return false; }
+    return true;
+  });
+}
+
 /* ?diem=TCV&ban=5&k=... -> {diem, ban, k} hoặc null. THUẦN. */
 export function docLinkBan(timKiem) {
   let q;
@@ -270,13 +286,13 @@ export function taoGoiBan(moiTruong, S) {
   const khoaLuu = () => (G.link ? 'vgb-goi-ban-' + G.link.diem + '-' + G.link.ban : '');
   function luuDon() {
     if (!luuTru || !khoaLuu()) return;
-    try { luuTru.setItem(khoaLuu(), JSON.stringify(G.don.slice(-10).map(d => ({ma: d.ma, token: d.token})))); } catch (e) { /* bỏ qua */ }
+    try { luuTru.setItem(khoaLuu(), JSON.stringify(donCanLuu(G.don).map(d => ({ma: d.ma, token: d.token})))); } catch (e) { /* bỏ qua */ }
   }
   function docDonLuu() {
     if (!luuTru || !khoaLuu()) return [];
     try {
       const v = JSON.parse(luuTru.getItem(khoaLuu()) || '[]');
-      return Array.isArray(v) ? v.filter(d => d && /^[A-Za-z0-9-]{3,40}$/.test(d.ma || '') && /^[0-9a-f]{32}$/.test(d.token || '')).slice(-10) : [];
+      return Array.isArray(v) ? v.filter(d => d && /^[A-Za-z0-9-]{3,40}$/.test(d.ma || '') && /^[0-9a-f]{32}$/.test(d.token || '')) : [];
     } catch (e) { return []; }
   }
 
