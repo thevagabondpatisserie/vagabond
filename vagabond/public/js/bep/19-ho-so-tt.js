@@ -383,7 +383,7 @@ function hsoKhoi(ten) {
    đóng vai CHỨNG TỪ, không đụng tới số tiền. Số tiền luôn lấy theo hoá đơn.
    Máy kéo ảnh chứng từ của phiếu sang dòng và khoá phiếu lại, để không ai
    nối nó lần nữa bên màn hoàn ứng không hoá đơn rồi đề nghị hoàn tiếp. */
-var hsPhieuCua = {};
+var hsPhieuCua = {}; hsGdCua = {};
 
 function hsODongPhieu(maHd) {
   var co = (hsPhieuCua[maHd] || '').trim();
@@ -434,6 +434,83 @@ async function hsNoiPhieuVaoHd(maHd) {
         'Mỗi phiếu chỉ nối được một lần.', 'Phiếu đã dùng rồi');
     }
     if (m) hsPhieuCua[maHd] = m; else delete hsPhieuCua[maHd];
+    go(scrHoSoTTTao, true);
+  }, true);
+}
+
+/* ---------- Nối giao dịch sao kê vào một dòng hoá đơn hoàn ứng ----------
+
+   v642, chị Dung 06/11/2026: "Hoàn ứng có hóa đơn cũng có thêm nút kết nối
+   với sao kê MB NHV giống hoàn ứng không hóa đơn thì rõ ràng hơn". Như phiếu
+   nội bộ ở trên, giao dịch chỉ là CHỨNG TỪ tiền đã chi ra từ tài khoản của
+   người ứng; số tiền vẫn theo hoá đơn. Một giao dịch chỉ nối một hoá đơn
+   (cửa lưu hồ sơ chặn trùng như màn không hoá đơn). */
+var hsGdCua = {};
+
+function hsODongGd(maHd) {
+  var g = hsGdCua[maHd];
+  return '<div data-hsgd="' + h(maHd) + '" style="cursor:pointer;margin-top:5px;margin-left:4px;' +
+    'display:inline-block;border:1.5px solid ' + (g ? '#99f6e4' : '#e5e7eb') +
+    ';background:' + (g ? '#f0fdfa' : '#fff') + ';border-radius:8px;padding:4px 8px;' +
+    'font-size:11.5px;font-weight:' + (g ? '700' : '500') + ';color:' +
+    (g ? '#0f766e' : '#6b7280') + '">' +
+    (g ? '🏦 ' + h(hsNgayVn(g.ngay)) + ' · ' + money(g.so_tien) + ' đ' + (g.ngan_hang ? ' · ' + h(g.ngan_hang) : '')
+       : '🏦 Nối sao kê') + '</div>';
+}
+
+/* Gợi ý giao dịch cho một hoá đơn: đúng số tiền lên đầu, rồi mới nhất. THUẦN. */
+function hsXepGd(rows, soTien) {
+  var t = Number(soTien) || 0;
+  return rows.slice().sort(function (a, b) {
+    var da = Math.abs(Number(a.so_tien) - t) <= 1 ? 0 : 1, db = Math.abs(Number(b.so_tien) - t) <= 1 ? 0 : 1;
+    if (da !== db) return da - db;
+    return String(b.ngay || '').localeCompare(String(a.ngay || ''));
+  });
+}
+
+async function hsNoiGdVaoHd(maHd) {
+  var dsTk = (hsTkDs && hsTkDs.tk) || [];
+  if (!hsTaoNguoiUng) return baoTin('Chọn người được hoàn ứng trước, máy mới biết đọc sao kê tài khoản nào.', 'Nối sao kê');
+  if (!dsTk.length) return baoTin('Người này chưa khai tài khoản ngân hàng nào. Nhờ chị Dung tạo Bank Account cho họ bên Next.', 'Nối sao kê');
+  busy(true);
+  var rows = [], loi = [];
+  for (var i = 0; i < dsTk.length; i++) {
+    try {
+      var kq = await api('vagabond.ho_so_tt.sepay_ocb', { so_ngay: 90, tai_khoan: dsTk[i].ma });
+      if (kq && kq.loi) loi.push(kq.loi);
+      ((kq && kq.rows) || []).forEach(function (r) { rows.push(Object.assign({ ngan_hang: kq.ngan_hang || dsTk[i].ngan_hang || '' }, r)); });
+    } catch (e) { loi.push(errMsg(e) || 'Chưa đọc được sao kê ' + (dsTk[i].nhan || dsTk[i].ma)); }
+  }
+  busy(false);
+  if (!rows.length) {
+    return baoTin(loi.length ? loi.join('\n') + '\n\nĐây là lỗi đọc dữ liệu, KHÔNG phải là không có giao dịch.'
+      : 'Không còn giao dịch chi nào trong 90 ngày từ tài khoản của người này mà chưa nằm trong hồ sơ nào.', 'Sao kê ngân hàng');
+  }
+  var daDung = {};
+  Object.keys(hsGdCua).forEach(function (k) { if (k !== maHd && hsGdCua[k]) daDung[hsGdCua[k].ma_giao_dich] = k; });
+  var soTien = (hsTaoChon[maHd] || {}).so_tien || 0;
+  var muc = hsXepGd(rows, soTien).map(function (r) {
+    var oHd = daDung[r.ma_giao_dich];
+    var dung = Math.abs(Number(r.so_tien) - Number(soTien)) <= 1;
+    return {
+      value: r.ma_giao_dich,
+      label: (oHd ? '⚠️ ' : '') + money(r.so_tien) + ' đ · ' + hsNgayVn(r.ngay) + (r.ngan_hang ? ' · ' + r.ngan_hang : ''),
+      phu: (dung ? 'Đúng số tiền · ' : '') + (oHd ? 'ĐÃ NỐI Ở HOÁ ĐƠN ' + oHd + ' · ' : '') + (r.noi_dung || '(không có nội dung)') + ' · ' + r.ma_giao_dich,
+      tim: r.ma_giao_dich + ' ' + (r.noi_dung || '') + ' ' + r.so_tien,
+      _r: r
+    };
+  });
+  muc.unshift({ value: '', label: '✖ Bỏ nối giao dịch khỏi hoá đơn này', phu: 'Gỡ liên kết, không đụng tới sao kê', tim: 'bo go' });
+  sheet('Giao dịch đã chi cho hoá đơn ' + maHd, muc, (hsGdCua[maHd] || {}).ma_giao_dich || '', function (it) {
+    var m = (it.value || '').trim();
+    if (m && daDung[m]) {
+      return baoTin('Giao dịch ' + m + ' đã nối vào hoá đơn ' + daDung[m] + ' trong hồ sơ này rồi.\n\n' +
+        'Mỗi giao dịch chỉ nối được một hoá đơn.', 'Giao dịch đã dùng rồi');
+    }
+    if (m) {
+      var r = (muc.filter(function (x) { return x.value === m; })[0] || {})._r || {};
+      hsGdCua[maHd] = { ma_giao_dich: m, ngay: r.ngay, so_tien: r.so_tien, ngan_hang: r.ngan_hang || '' };
+    } else delete hsGdCua[maHd];
     go(scrHoSoTTTao, true);
   }, true);
 }
@@ -942,6 +1019,8 @@ async function scrHoSoTTTao() {
      tien, nen cache neo vao `hsTkCua` va doi nguoi la nap lai. */
   if (laHU && hsTaoNguoiUng && hsTkCua !== hsTaoNguoiUng) {
     hsTkCua = hsTaoNguoiUng; hsTkHoan = '';
+    /* Đổi người ứng: giao dịch đã nối là của tài khoản người cũ, gỡ hết. */
+    hsGdCua = {};
     try { hsTkDs = await api('vagabond.ho_so_tt.ds_tk_hoan_ung', { nguoi: hsTaoNguoiUng }); }
     catch (e4) { hsTkDs = { tk: [], doan: 0 }; }
     /* Chi co dung MOT tai khoan thi chon san cho do mot nhip bam. Co tu HAI
@@ -1097,7 +1176,7 @@ async function scrHoSoTTTao() {
       /* Chi hien o luong HOAN UNG va chi khi dong da duoc tick. Luong cong
          no NCC thi tien di thang toi nha cung cap, khong co ai ung tien nen
          khong co phieu noi bo nao de noi. */
-      (laHU && da ? hsODongPhieu(r.hoa_don) : '') +
+      (laHU && da ? hsODongPhieu(r.hoa_don) + hsODongGd(r.hoa_don) : '') +
       (da ? '<div class="otd' + (lech ? ' lech' : '') + '">' +
         '<label class="lb" for="hstien-' + h(r.hoa_don) + '">Chi đợt này</label>' +
         '<div class="ow"><input class="tien" id="hstien-' + h(r.hoa_don) + '" type="text" inputmode="numeric" data-hstien="' + h(r.hoa_don) + '" value="' + money(soChi) + '"><span class="dv">đ</span></div>' +
@@ -1131,6 +1210,12 @@ async function scrHoSoTTTao() {
     '<button class="btn gh" id="hsLuuNhap" style="flex:1">💾 Lưu nháp</button></div>';
   var b = frame(tenMan, html, { footer: foot });
 
+  b.addEventListener('click', function (e) {
+    var n = e.target.closest('[data-hsgd]');
+    if (!n) return;
+    e.stopPropagation(); e.preventDefault();
+    hsNoiGdVaoHd(n.getAttribute('data-hsgd'));
+  }, true);
   b.addEventListener('click', function (e) {
     var n = e.target.closest('[data-hsphieu]');
     if (!n) return;
@@ -1167,7 +1252,7 @@ async function scrHoSoTTTao() {
          thi o rong o giua chung mot khoanh, va truoc ban nay man ve lai
          ngay tai do lam mat con tro lan phieu noi bo da noi. QT-09. */
       if (!ketThuc) return;
-      delete hsTaoChon[ma]; delete hsPhieuCua[ma];
+      delete hsTaoChon[ma]; delete hsPhieuCua[ma]; delete hsGdCua[ma];
       var gc0 = document.getElementById('hsGc'); if (gc0) hsTaoGhiChu = gc0.value;
       return go(scrHoSoTTTao, true);
     }
@@ -1196,10 +1281,10 @@ async function scrHoSoTTTao() {
 
   var coc = document.getElementById('hsCanCoc');
   if (coc) coc.onclick = function () {
-    if (hsCocLan) return hsThuLaiCanCoc(function () { hsTaoChon = {}; hsPhieuCua = {}; go(scrHoSoTTTao, true); });
+    if (hsCocLan) return hsThuLaiCanCoc(function () { hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; go(scrHoSoTTTao, true); });
     hsMoCanCoc(hsTaoNcc, Object.keys(hsTaoChon).map(function (m) {
       return { hoa_don: m, so_tien: hsTaoChon[m].so_tien };
-    }), function () { hsTaoChon = {}; hsPhieuCua = {}; go(scrHoSoTTTao, true); });
+    }), function () { hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; go(scrHoSoTTTao, true); });
   };
   var ghiChon = function (r) { hsTaoChon[r.hoa_don] = { con_no: Number(r.co_the_chi == null ? r.con_no : r.co_the_chi), so_tien: Number(r.co_the_chi == null ? r.con_no : r.co_the_chi), ten_ncc: r.ten_ncc || r.ncc || '' }; };
 
@@ -1208,7 +1293,7 @@ async function scrHoSoTTTao() {
     if (!n) return;
     e.stopPropagation(); e.preventDefault();
     var ma = n.getAttribute('data-hstick');
-    if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; }
+    if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; delete hsGdCua[ma]; }
     else {
       var d = rows.filter(function (x) { return x.hoa_don === ma; })[0];
       if (d) ghiChon(d);
@@ -1256,7 +1341,7 @@ async function scrHoSoTTTao() {
        (`laHU && da` cho `hsODongPhieu`) ma nhanh nay lai la `!laHU`. Giu
        lai de bat bien "xoa hsTaoChon la xoa ca hsPhieuCua" dung o MOI cho,
        phong ngay nao do luong cong no NCC cung noi duoc phieu. */
-    if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; }
+    if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; }
     go(scrHoSoTTTao, true);
   };
   var moNcc = document.getElementById('hsMoNcc');
@@ -1296,10 +1381,12 @@ async function scrHoSoTTTao() {
   vgbNoiOTim(b, 'hsHdTim', '[data-hsh]');
   b.addEventListener('click', function (e) {
     if (e.target.closest('[data-hstick]') || e.target.closest('[data-hshet]') ||
-        e.target.closest('[data-hsbth]') || e.target.closest('.otd')) return;
+        e.target.closest('[data-hsbth]') || e.target.closest('.otd') ||
+        /* Nút nối phiếu, nối sao kê nằm trong dòng: bấm nó không phải bấm bỏ tick dòng. */
+        e.target.closest('[data-hsphieu]') || e.target.closest('[data-hsgd]')) return;
     var r = e.target.closest('[data-hsh]'); if (!r) return;
     var ma = r.getAttribute('data-hsh');
-    if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; }
+    if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; delete hsGdCua[ma]; }
     /* Bo tick hoa don ma van giu phieu da noi thi phieu di theo mot dong
        khong con ton tai, va may chu se khoa nham mot phieu chang cua ai. */
     else {
@@ -1325,11 +1412,11 @@ async function scrHoSoTTTao() {
     go(scrHoSoTTTao, true);
   };
   var g2 = document.getElementById('hsChonQH');
-  if (g2) g2.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; dangHien().forEach(function (r) { if (r.tre_ngay > 0) ghiChon(r); }); go(scrHoSoTTTao, true); };
+  if (g2) g2.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; dangHien().forEach(function (r) { if (r.tre_ngay > 0) ghiChon(r); }); go(scrHoSoTTTao, true); };
   var gV = document.getElementById('hsViSao');
   if (gV) gV.onclick = function () { hsViSaoThieu(hsTaoNcc); };
   var g3 = document.getElementById('hsBoChon');
-  if (g3) g3.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; go(scrHoSoTTTao, true); };
+  if (g3) g3.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; go(scrHoSoTTTao, true); };
 
   var luu = async function (guiLuon) {
     var gc = document.getElementById('hsGc');
@@ -1339,6 +1426,7 @@ async function scrHoSoTTTao() {
     var ds = Object.keys(hsTaoChon).map(function (m) {
       var o = { hoa_don: m, so_tien: hsTaoChon[m].so_tien };
       if ((hsPhieuCua[m] || '').trim()) o.de_nghi_chi = hsPhieuCua[m].trim();
+      if (laHU && hsGdCua[m]) o.ma_giao_dich = hsGdCua[m].ma_giao_dich;
       return o;
     });
     if (!ds.length) return baoTin('Chưa chọn hoá đơn nào.');
@@ -1360,7 +1448,7 @@ async function scrHoSoTTTao() {
         gui_luon: guiLuon ? 1 : 0, loai: hsTaoLoai
       });
       busy(false);
-      hsTaoChon = {}; hsTaoGhiChu = ''; hsTaoNguoiUng = ''; hsPhieuCua = {};
+      hsTaoChon = {}; hsTaoGhiChu = ''; hsTaoNguoiUng = ''; hsPhieuCua = {}; hsGdCua = {};
       hsTkHoan = ''; hsTkDs = null; hsTkCua = '';
       toast('Đã lập hồ sơ ' + kq.ma + ' · ' + money(kq.tong_tien) + ' đ', 3500);
       go(function () { scrHoSoTTView(kq.ma); }, true);
@@ -1551,8 +1639,8 @@ async function hsChonLoaiMoi() {
        tep nay. Truoc v433 chi cho nay quen xoa: lap ho so hoan ung, noi phieu
        vao mot hoa don, bo giua chung khong luu, lap lai roi tick trung dung
        hoa don do thi phieu cu lang le dinh lai vao. */
-    if (c === 'hu_hd') { hsTaoNcc = ''; hsTaoChon = {}; hsPhieuCua = {}; hsTaoNguoiUng = ''; hsTaoDsUng = null; hsTkHoan = ''; hsTkDs = null; hsTkCua = ''; hsTaoLoai = 'Hoan ung HD'; return go(scrHoSoTTTao); }
-    hsTaoNcc = ''; hsTaoChon = {}; hsPhieuCua = {}; hsTaoLoai = 'NCC';
+    if (c === 'hu_hd') { hsTaoNcc = ''; hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; hsTaoNguoiUng = ''; hsTaoDsUng = null; hsTkHoan = ''; hsTkDs = null; hsTkCua = ''; hsTaoLoai = 'Hoan ung HD'; return go(scrHoSoTTTao); }
+    hsTaoNcc = ''; hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; hsTaoLoai = 'NCC';
     return go(scrHoSoTTTao);
   }
 }
@@ -2345,6 +2433,8 @@ async function scrHoSoTTView(name) {
         ? '<div class="h2">' + h(x.hoa_don) + (x.trang_thai_hd ? ' · ' + h(x.trang_thai_hd) : '') +
           ' · còn nợ ' + money(x.con_no_hien_tai) + ' đ</div>'
         : '<div class="h2" style="color:#92400e">Chưa sinh hoá đơn mua · máy lập khi giám đốc duyệt</div>') +
+      /* v642: hoá đơn hoàn ứng đã nối giao dịch sao kê thì kế toán thấy ngay khoản chi nào. */
+      (x.hoa_don && x.ma_giao_dich ? '<div class="h2" style="color:#0f766e">🏦 Đã chi theo sao kê: <b>' + h(x.ma_giao_dich) + '</b></div>' : '') +
       (soCT ? '<div class="h2" style="color:#0e7490">' + (mo ? '▾' : '▸') + ' ' + soCT + ' chứng từ kèm theo</div>' : '') +
       '</div><b style="white-space:nowrap">' + money(x.so_tien) + ' đ</b></div>';
 
