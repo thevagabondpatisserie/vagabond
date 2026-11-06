@@ -69261,6 +69261,23 @@ function btmDatNac(ma, loai, khoa, nac) {
   });
   if (nac === 'co' || nac === 'khong') { var k = (nac === 'co' ? 'bat_' : 'tat_') + loai; (r[k] = r[k] || []).push(khoa); }
 }
+/* Vài mục đầu rồi "và N nữa". THUẦN. */
+var BTM_THAY_TOI_DA = 3;
+function btmVaiMuc(ds) {
+  if (ds.length <= BTM_THAY_TOI_DA) return ds.join(', ');
+  return ds.slice(0, BTM_THAY_TOI_DA).join(', ') + ' và ' + (ds.length - BTM_THAY_TOI_DA) + ' nữa';
+}
+/* Khối "Khách sẽ thấy" của một món: một dòng đếm số có giới hạn, danh sách đủ thu gọn. */
+function btmKhoiKhachThay(thay, an) {
+  var tom = (thay.length ? 'Khách sẽ thấy ' + thay.length + ': ' + h(btmVaiMuc(thay)) + '.' : 'Khách sẽ thấy: không tuỳ chọn, không topping.') +
+    (an.length ? ' Không thấy ' + an.length + ' mục.' : '');
+  var du = thay.length > BTM_THAY_TOI_DA || an.length;
+  return '<div id="btmKhachThay" style="background:#E4F9FD;color:#0B7C93;border-radius:10px;padding:9px 11px;font-size:12.5px;line-height:1.45;margin-top:10px">' + tom +
+    (du ? '<details style="margin-top:4px"><summary style="cursor:pointer;font-weight:600">Xem đủ</summary>' +
+      (thay.length ? '<div>Thấy: ' + h(thay.join(', ')) + '</div>' : '') +
+      (an.length ? '<div>Không thấy: ' + h(an.join(', ')) + '</div>' : '') + '</details>' : '') + '</div>';
+}
+
 function btmSoRieng(r) { return ['tat_tc', 'tat_tp', 'bat_tc', 'bat_tp'].reduce(function (n, k) { return n + ((r || {})[k] || []).length; }, 0); }
 /* Tuỳ chọn, topping khách thật sự thấy của một món (sau khi áp nấc riêng). */
 function btmTcHieu(menu, m) {
@@ -69717,10 +69734,13 @@ function scrBtmMon() {
       ((nh.tuy_chon || []).length ? (nh.tuy_chon || []).map(function (t) { return hang('tc', t.ten, t.ten, theoTc.indexOf(t.ten) >= 0); }).join('') : '<div style="font-size:13px;color:#8a8f9c">Menu chưa có nhóm tuỳ chọn nào. Thêm ở tab Tuỳ chọn.</div>') +
       '<div style="font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:12px 0 2px">Topping · giá theo bảng giá điểm bán</div>' +
       (dsTp.length ? dsTp.map(function (x) { return hang('tp', x.ma, x.ten + ' +' + money(x.gia), theoTp.indexOf(x.ma) >= 0); }).join('') : '<div style="font-size:13px;color:#8a8f9c">Điểm này chưa có topping.</div>') +
-      '<div id="btmKhachThay" style="background:#E4F9FD;color:#0B7C93;border-radius:10px;padding:9px 11px;font-size:12.5px;line-height:1.45;margin-top:10px">Khách sẽ thấy: ' +
-      h([].concat(thayTc, thayTp.map(function (ma) { var x = btmTp(ma); return x ? x.ten : ma; })).join(', ') || 'không tuỳ chọn, không topping') + '.' +
-      (anTc.length + anTp.length ? ' Không thấy: ' + h([].concat(anTc, anTp).join(', ')) + '.' : '') + '</div>' +
+      /* Codex PR #545 vòng 5 (AGENTS.md 2b.17): nút để bấm đứng TRƯỚC khối chỉ để
+         đọc; khối đọc là một dòng đếm số, vài mục đầu rồi "và N nữa", danh sách
+         đủ nằm trong mục thu gọn bấm mới mở. Điểm nhiều topping không làm khối
+         dài vô hạn. */
       (btmSoRieng(rieng) ? '<button type="button" data-btmvenhom style="margin-top:8px;border:0;background:none;color:#0B7C93;font-weight:600;font-size:13.5px;min-height:44px;cursor:pointer;padding:0">Về theo nhóm hết</button>' : '') +
+      btmKhoiKhachThay([].concat(thayTc, thayTp.map(function (ma) { var x = btmTp(ma); return x ? x.ten : ma; })),
+        [].concat(anTc, anTp)) +
       '</div>';
   }
   var b = frame(m.ten, html, { footer: '<button class="btn" id="btmMonXong">Xong</button>' });
