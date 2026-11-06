@@ -91,10 +91,11 @@ export const MAU = `
           <div class="gb-mon" v-for="m in quayHien.mon" :key="m.loai + m.ma" :data-ma="m.ma">
             <div class="gb-mon-anh"><anh-mon :src="m.anh"/></div>
             <div class="gb-mon-chu">
-              <b>{{ m.loai==='nuoc' ? m.ten : tMon(m.ma,'ten',m.ten) }}</b>
+              <b>{{ m.loai==='banh' ? tMon(m.ma,'ten',m.ten) : m.ten }}</b>
               <small class="gb-mon-mo" v-if="m.mo_ta">{{ m.mo_ta }}</small>
-              <span class="gb-mon-gia"><b v-if="m.gia">{{ tienTom(m.gia) }}</b>
-                <i v-if="m.loai!=='nuoc'">{{ t('dat_banh_75f5cf26e','Còn') }} {{ m.con }}</i>
+              <span class="gb-mon-gia"><b v-if="m.gia">{{ tienTom(m.gia) }}</b><s v-if="m.gocHien">{{ tienTom(m.gocHien) }}</s>
+                <i v-if="m.loai==='combo'" class="gb-mon-combo">{{ t('goi_ban_chip_combo','Combo') }}</i>
+                <i v-else-if="m.loai!=='nuoc'">{{ t('dat_banh_75f5cf26e','Còn') }} {{ m.con }}</i>
                 <i v-else-if="m.bienThe.length > 1">{{ t('goi_ban_size','Size') }} {{ m.bienThe.map(b => b.size).join(' · ') }}</i>
                 <i v-else-if="(m.tc||[]).length">{{ t('goi_ban_co_lua_chon','Chọn đá, đường') }}</i></span>
             </div>
@@ -194,7 +195,7 @@ export const MAU = `
 </div></div>
 <div class="toast" id="toast" :class="{on: S.toast.on}">{{ S.toast.chu }}</div>
 <goi-tai-ban-noi v-if="kho.goiBan.cheDo.value" :kho="kho" :tab="tab"/>
-<kenh-noi :chuong="chuongQuay" :nang="kho.goiBan.barMo.value ? 82 : 0"/>
+<kenh-noi :chuong="chuongQuay" :nang="(kho.goiBan.barMo.value || kho.goiBan.barDon.value) ? 82 : 0"/>
 
 <section class="co" id="checkout" :class="{open: gioMo}" role="dialog" aria-modal="true" aria-labelledby="co-title">
   <div class="co-top"><div class="wrap in">

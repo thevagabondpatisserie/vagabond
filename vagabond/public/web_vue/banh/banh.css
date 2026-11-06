@@ -796,3 +796,27 @@ html body .sheet.gb-sheet{display:block!important;padding:0!important;overflow-y
    Xem giỏ bo tròn như nút Thêm, không dính mép phải màn hình. */
 html body .bar.gb-bar>.wrap.in{width:100%;max-width:none;margin:0;padding:10px 20px max(10px,env(safe-area-inset-bottom))}
 html body .bar.gb-bar .go{border-radius:999px;min-height:48px;padding:0 22px}
+
+/* v642 thanh đơn luôn hiện sau khi gọi, màn Đơn của bàn, màn Thanh toán
+   (mẫu 3, 4, 6 anh Việt duyệt 06/11/2026). */
+.gb-bar-don .gb-bar-chu{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0;color:var(--fog);font-family:var(--sans);font-size:12.5px;line-height:1.45;min-height:44px;cursor:pointer}
+.gb-bar-don .gb-bar-chu b{display:block;color:var(--paper);font-size:15px;letter-spacing:.02em}
+.gb-bar-don .gb-bar-chu small{display:block;font-size:12.5px;color:var(--fog);margin-top:1px}
+.gb-luot{border:1px solid var(--line);padding:11px 13px;margin-bottom:10px;font-family:var(--sans)}
+.gb-luot.tat{opacity:.62}
+.gb-luot-dau{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.gb-luot-dau b{font-size:14.5px;font-weight:600;color:var(--paper)}
+.gb-tt{font-size:12.5px;text-align:right;color:var(--fog)}
+.gb-tt.ok{color:var(--cyan)}
+.gb-tt.tat{color:#FF7A6B}
+.gb-tt.cho{color:#F4C26B}
+.gb-luot-dong{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:var(--paper);padding:5px 0;line-height:1.4}
+.gb-luot-dong span{flex:1;min-width:0}
+.gb-luot-dong small{display:block;font-size:12.5px;color:var(--fog);margin-top:1px}
+.gb-luot-dong em{font-style:normal;white-space:nowrap;color:var(--paper)}
+.gb-tong-ban{border-top:1px solid var(--line);margin:6px 0 12px;padding-top:10px;font-family:var(--sans)}
+.gb-tong-ban > div{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--fog);padding:3px 0}
+.gb-tong-ban > div.lon span{color:var(--paper);font-size:15px;font-weight:600}
+.gb-tong-ban > div.lon b{color:var(--cyan);font-size:19px;font-weight:600}
+.gb-mon-gia s{font-size:12.5px;color:var(--fog-2)}
+.gb-mon-gia i.gb-mon-combo{color:#F4C26B;border:1px solid rgba(244,194,107,.45);padding:1px 6px;letter-spacing:.04em}

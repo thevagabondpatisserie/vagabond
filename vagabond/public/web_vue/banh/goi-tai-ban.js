@@ -13,7 +13,7 @@ import {t} from '../kho/chu.js';
 import {computed, ref, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 import {AnhMon} from './thanh-phan.js';
-import {giaDong, LY_DO_GOI} from './kho-goi-ban.js';
+import {giaDong, LY_DO_GOI, CACH_TRA, TT_KHONG_TINH, moTaCombo} from './kho-goi-ban.js';
 import {BieuTuong, ICON_LY_DO} from './bieu-tuong.js';
 
 
@@ -85,6 +85,12 @@ export const MAU_GOI_BAN_NOI = `
     <button class="go" id="gbXemGio" @click="G.moGio=true">{{ t('dat_banh_fb62c648d','Xem giỏ') }}</button>
   </div></div>
 
+  <div class="bar gb-bar gb-bar-don" id="gbBarDon" :class="{on: gb.barDon.value}"><div class="wrap in">
+    <button type="button" class="gb-bar-chu" id="gbBarDonChu" @click="gb.moDon()"><b>{{ t('goi_ban_0dc232137','Bàn {ban} · Đã gọi {n} lượt',{ban: soBan, n: G.don.length}) }}</b>
+      <small>{{ t('goi_ban_bar_tam','Tạm tính {tien}',{tien: tien(gb.tom.value.tamTinh)}) }}<template v-if="gb.tom.value.choNhan"> · {{ t('goi_ban_bar_cho','{n} lượt chờ quầy nhận',{n: gb.tom.value.choNhan}) }}</template></small></button>
+    <button class="go" id="gbXemDon" type="button" @click="gb.moDon()">{{ t('goi_ban_xem_don','Xem đơn') }}</button>
+  </div></div>
+
   <section class="sheet gb-sheet" id="gbChon" :class="{open: !!G.chon}" role="dialog" aria-modal="true" aria-labelledby="gb-chon-ten">
     <div class="gb-khung" v-if="G.chon">
       <header class="gb-dau-bang"><div class="gb-dau-chu"><small v-if="G.chon.m.nhomTen">{{ G.chon.m.nhomTen }}</small><h2 id="gb-chon-ten">{{ G.chon.m.ten }}</h2></div>
@@ -147,6 +153,58 @@ export const MAU_GOI_BAN_NOI = `
     </div>
   </section>
 
+  <section class="sheet gb-sheet" id="gbDonBan" :class="{open: G.moDon}" role="dialog" aria-modal="true" aria-labelledby="gb-don-tieu">
+    <div class="gb-khung">
+      <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ gb.nhanBan.value }}</small><h2 id="gb-don-tieu">{{ t('goi_ban_don_ban','Đơn của bàn') }}</h2></div>
+        <button class="gb-x" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="gb.dongDon()"><bieu-tuong ten="dong"/></button></header>
+      <div class="gb-than">
+        <div class="gb-luot" v-for="l in luot" :key="l.ma" :data-luot="l.ma" :data-tt="l.trangThai" :class="{tat: l.khongTinh}">
+          <div class="gb-luot-dau"><b>{{ l.tieuDe }}</b><span class="gb-tt" :class="l.lop">{{ l.cau }}</span></div>
+          <div class="gb-luot-dong" v-for="(x, i) in l.mon" :key="i"><span>{{ x.sl }} × {{ x.ten }}<small v-if="(x.tc || []).length">{{ x.tc.join(' · ') }}</small></span><em>{{ tien(x.tien) }}</em></div>
+        </div>
+        <div class="gb-tong-ban" id="gbTongBan">
+          <div><span>{{ t('goi_ban_tam_tinh_n','Tạm tính ({n} món)',{n: gb.tom.value.soMon}) }}</span><span>{{ tien(gb.tom.value.tamTinh) }}</span></div>
+          <div class="lon"><span>{{ t('goi_ban_can_tra','Cần thanh toán') }}</span><b>{{ tien(gb.tom.value.tamTinh) }}</b></div>
+          <p class="gb-phu">{{ t('goi_ban_chot_khi_in','Số tiền chốt khi quầy in bill. Lượt chờ quầy nhận chưa tính chắc; lượt quầy từ chối không tính.') }}</p>
+        </div>
+        <div class="gb-hai">
+          <button class="gb-ghost" id="gbDonGoiThem" type="button" @click="goiThem()"><bieu-tuong ten="cong"/>{{ t('goi_ban_goi_them','Gọi thêm món') }}</button>
+          <button class="gb-ghost" id="gbDonChuong" type="button" @click="moChuong('')"><bieu-tuong ten="chuong"/>{{ t('goi_ban_chuong_nut','Gọi nhân viên') }}</button>
+        </div>
+      </div>
+      <footer class="gb-day gb-day-doc">
+        <button type="button" class="gb-cta" id="gbDonTra" :disabled="!gb.tom.value.soLuot" @click="gb.moTra()">{{ t('goi_ban_cd6cd79ce','Thanh toán · {tien}',{tien: tien(gb.tom.value.tamTinh)}) }}</button>
+      </footer>
+    </div>
+  </section>
+
+  <section class="sheet gb-sheet" id="gbTra" :class="{open: G.tra.mo}" role="dialog" aria-modal="true" aria-labelledby="gb-tra-tieu">
+    <div class="gb-khung">
+      <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ gb.nhanBan.value }}</small><h2 id="gb-tra-tieu">{{ t('goi_ban_thanh_toan_tieu','Thanh toán') }}</h2></div>
+        <button class="gb-x" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="gb.dongTra()"><bieu-tuong ten="dong"/></button></header>
+      <div class="gb-than">
+        <template v-if="G.tra.xong">
+          <div class="gb-xong" id="gbTraXong"><b>{{ G.tra.xong.cach==='ban' ? t('goi_ban_tra_xong_ban','Đã báo quầy lúc {gio}. Nhân viên mang bill ra bàn {ban} trong giây lát.',{gio: G.tra.xong.luc, ban: soBan}) : t('goi_ban_tra_xong_quay','Đã báo quầy lúc {gio}. Quý khách ra quầy, báo bàn {ban} với thu ngân.',{gio: G.tra.xong.luc, ban: soBan}) }}</b>
+            <span>{{ t('goi_ban_tra_bill_moi','Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.') }}</span></div>
+        </template>
+        <template v-else>
+          <div class="gb-tong-ban"><div class="lon"><span>{{ t('goi_ban_can_tra','Cần thanh toán') }}</span><b>{{ tien(gb.tom.value.tamTinh) }}</b></div></div>
+          <button v-for="c in CACH_TRA" :key="c.ma" type="button" class="gb-ly" :class="{on: G.tra.cach===c.ma}" :data-cach="c.ma" :aria-pressed="String(G.tra.cach===c.ma)" @click="G.tra.cach=c.ma">
+            <i class="gb-ly-ic" aria-hidden="true"><bieu-tuong :ten="c.ma==='ban' ? 'hoaDon' : 'cuaHang'"/></i><span><b>{{ c.ten }}</b><small>{{ c.phu }}</small></span><i class="gb-ly-chon" aria-hidden="true"></i></button>
+          <div class="fld"><label for="gb-tra-hd"><span>{{ t('goi_ban_tra_hd','Xuất hoá đơn điện tử (không bắt buộc)') }}</span></label>
+            <input id="gb-tra-hd" maxlength="80" autocomplete="off" :placeholder="t('goi_ban_tra_hd_goi','Mã số thuế hoặc email nhận hoá đơn')" v-model="G.tra.hd">
+            <div class="hint">{{ t('goi_ban_tra_hd_phu','Có mã số thuế thì thu ngân hỏi thêm tên công ty khi in bill.') }}</div></div>
+          <p class="gb-phu">{{ t('goi_ban_tra_chua_online','Thanh toán online ngay tại bàn sẽ mở sau. Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.') }}</p>
+        </template>
+      </div>
+      <footer class="gb-day gb-day-doc">
+        <p class="gb-loi" id="gbTraLoi" role="status" v-if="G.tra.loi">{{ G.tra.loi }}</p>
+        <button v-if="G.tra.xong" type="button" class="gb-cta" @click="gb.dongTra()">{{ t('goi_ban_dong','Đóng') }}</button>
+        <button v-else type="button" class="gb-cta" id="gbTraGui" :disabled="G.tra.dangGui || !G.tra.cach" @click="gb.guiTra()">{{ G.tra.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : t('goi_ban_tra_gui','Báo quầy tính tiền') }}</button>
+      </footer>
+    </div>
+  </section>
+
   <section class="sheet gb-sheet" id="gbChuong" :class="{open: G.chuong.mo}" role="dialog" aria-modal="true" aria-labelledby="gb-chuong-tieu">
     <div class="gb-khung">
       <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ gb.nhanBan.value }}</small><h2 id="gb-chuong-tieu">{{ t('goi_ban_chuong_nut','Gọi nhân viên') }}</h2></div>
@@ -192,9 +250,23 @@ export const GoiTaiBanNoi = {
       t('goi_ban_ly_4', 'Nhân viên mang ra bàn'),
       t('goi_ban_ly_5', 'Gõ vài chữ cho quầy')];
     function moChuong(lyDo) { G.moGio = false; gb.moChuong(lyDo); }
+    /* v642 màn Đơn của bàn: lượt mới nhất trên cùng; lượt bị từ chối, hết hạn
+       vẫn hiện (khách biết món nào không lên) nhưng mờ và không vào tổng. */
+    const luot = computed(() => G.don.map((d, i) => ({d, so: i + 1})).reverse().map(({d, so}) => {
+      const tt = (d.tt && d.tt.trang_thai) || 'Chờ nhận';
+      const luc = (d.tt && d.tt.luc) || '';
+      return {ma: d.ma, trangThai: tt, khongTinh: TT_KHONG_TINH.includes(tt), cau: gb.cauDon(d),
+        lop: tt === 'Đã nhận' ? 'ok' : (TT_KHONG_TINH.includes(tt) ? 'tat' : 'cho'),
+        tieuDe: t('goi_ban_luot','Lượt {so}',{so}) + (luc ? ' · ' + luc : ''), mon: (d.tt && d.tt.mon) || []};
+    }));
+    /* Gọi thêm từ màn Đơn của bàn: đóng màn, đưa khách về ô tìm món. */
+    function goiThem() {
+      gb.dongDon();
+      try { const n = document.getElementById('gbTim'); if (n && n.scrollIntoView) n.scrollIntoView({block: 'start', behavior: 'smooth'}); } catch (e) { /* node */ }
+    }
     /* Dòng phụ của một món trong giỏ: tuỳ chọn rồi topping, gọn một dòng. */
-    const chuDong = x => [gb.chuTuyChon(x.tc, x.nhom), (x.tp || []).length ? '+ ' + x.tp.map(y => y.ten).join(', ') : '']
+    const chuDong = x => [x.thanhPhan ? moTaCombo(x.thanhPhan) : gb.chuTuyChon(x.tc, x.nhom), (x.tp || []).length ? '+ ' + x.tp.map(y => y.ten).join(', ') : '']
       .filter(Boolean).join(' · ');
-    return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, ICON_LY_DO, phuLyDo, moChuong, chuDong};
+    return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, ICON_LY_DO, phuLyDo, moChuong, chuDong, luot, goiThem, CACH_TRA};
   }
 };
