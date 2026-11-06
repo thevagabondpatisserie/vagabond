@@ -80,7 +80,9 @@ function mayChu(canh) {
           trang_thai_khop: canh.daXacNhan ? 'Đã nối' : 'Nối theo tiền', sales_invoice: 'HDB-4', ghi_chu_khop: 'Chỉ khớp số tiền.' });
         if (a.loc === 'chua_noi') dong = dong.filter(function (d) { return d.trang_thai_khop !== 'Đã nối' && d.trang_thai_khop !== 'Không áp dụng'; });
         return { nguon: nguon(a.name, 'GrabFood', 'Đã nhận', { trang_thai_tien: 'Đã thấy tiền về', giao_dich_ngan_hang: 'BT-1', tong_tep: 668915,
-          so_chua_noi: 1, so_da_noi: 1 }), them: { tien_ve: '', ban_sua: canh.banSua && !canh.daDungSua ? [{ khoa: 'K-GF-101', vi_tri: 1,
+          so_chua_noi: 1, so_da_noi: 1 }), buoc: { tt: 'xnxxvn', hien: 5, ghi: '1/2 dòng đã nối', xac_nhan_duoc: 0,
+            nhan: ['Tải tay', 'Tải tay trước khi có duyệt, chưa xác thực', 'Đọc đủ dòng, khớp tổng trên tệp', 'Tiền về ngân hàng khớp',
+              '1/2 dòng đã nối', 'Mở khi năm bước trước xanh'] }, quyen: { xac_nhan: 1 }, them: { tien_ve: '', ban_sua: canh.banSua && !canh.daDungSua ? [{ khoa: 'K-GF-101', vi_tri: 1,
             ma: 'GF-101', ngay: '2026-07-17', dau_cu: 'dau-A', moi: { mo_ta: 'GrabFood tiền mặt', thuc_nhan: 210641 },
             cu: { nguon: 'DSN-0', mo_ta: 'GrabFood thẻ/ví', thuc_nhan: 210641 } }] : [] },
           dong: dong, con: canh.nhieu && (a.trang || 0) < 2 ? 1 : 0 };
@@ -89,6 +91,10 @@ function mayChu(canh) {
       if (m === 'vagabond.doi_soat_vendor.dung_ban_sua') { canh.daDungSua = true; return { ok: 1, nguon: a.name }; }
       if (m === 'vagabond.doi_soat_vendor.xac_nhan_noi') { canh.daXacNhan = true; return { ok: 1, nguon: 'DSN-1' }; }
       if (m === 'vagabond.doi_soat_vendor.quet_email') return { so_tep: 2 };
+      /* v641: khối hộp thư doisoat@ và nút Đọc hộp thư ngay. */
+      if (m === 'vagabond.doi_soat_vendor.hop_thu') return { trang: 'chay', dia_chi: 'doisoat@x.vn', doc_luc: '2026-11-06 12:15:00',
+        ve_hom_nay: 7, chua_ve: 1, bi_chan: 1, cho_duyet: 2, quan_tri: 0 };
+      if (m === 'vagabond.doi_soat_vendor.doc_hop_thu_ngay') return { so_thu: 2 };
       if (m === 'vagabond.doi_soat_vendor.cua_hoa_don') {
         return [{ vendor: 'GrabFood', ma_don: 'GF-101', trang_thai_khop: 'Đã nối', tien_hang: 260000, phi: 49359, thuc_nhan: 210641, nguon: 'DSN-1' }];
       }
@@ -211,11 +217,14 @@ async function moTrungTam(canh) {
     bang('không có nút tải', app.tim('#dsvnTai').length, 0);
   });
 
-  await ca('Nhận lại từ email: gọi quét 7 ngày rồi báo số tệp', async function () {
+  /* v641: nút "Nhận lại từ email" (chỉ nhận ra đối tác bằng ô người gửi, giả
+     được) thay bằng "Đọc hộp thư ngay" đọc hộp doisoat@ có kiểm chữ ký số. */
+  await ca('v641 Đọc hộp thư ngay: gọi máy chủ đọc hộp thư rồi báo số thư mới', async function () {
     var app = await moTrungTam();
-    await app.bam(app.mot('#dsvnEmail'));
-    bang('số ngày', app.mc.cuoi('vagabond.doi_soat_vendor.quet_email').a.so_ngay, 7);
-    dung('báo', app.tin.some(function (t) { return t.indexOf('Đã đọc 2 tệp') >= 0; }));
+    bang('không còn nút email cũ', app.tim('#dsvnEmail').length, 0);
+    await app.bam(app.mot('#dsvnDocThu'));
+    bang('gọi đọc hộp thư', app.mc.dem('vagabond.doi_soat_vendor.doc_hop_thu_ngay'), 1);
+    dung('báo', app.tin.some(function (t) { return t.indexOf('Đã đọc 2 thư mới') >= 0; }));
   });
 
   await ca('Tải file: chọn tệp, xem trước rồi mới nhận; dòng lỗi hiện kèm lý do; nhận một nguồn thì mở thẳng chi tiết', async function () {
@@ -232,9 +241,15 @@ async function moTrungTam(canh) {
     dung('lý do dòng lỗi', c.indexOf('Dòng 9: Dòng đơn không đọc được') >= 0);
     dung('nói rõ chưa ghi sổ', c.indexOf('Chưa ghi sổ hoặc thanh toán') >= 0);
     var nb = app.mot('#dsvnNhan');
-    dung('nhãn đếm dòng hợp lệ', nb.outerHTML.indexOf('Nhận 4 dòng hợp lệ') >= 0);
+    dung('nhãn đếm dòng hợp lệ, nói gửi giám đốc duyệt', nb.outerHTML.indexOf('Nhận 4 dòng, gửi giám đốc duyệt') >= 0);
+    /* v641: chưa ghi lý do tải tay thì không gửi lên máy chủ. */
+    await app.bam(nb); await nghi();
+    bang('thiếu lý do: chưa nhận', app.mc.dem('vagabond.doi_soat_vendor.nhan'), 0);
+    dung('nhắc ghi lý do', app.tin.some(function (t) { return t.indexOf('Ghi lý do tải tay') >= 0; }));
+    app.mot('#dsvnLyDo').value = 'GrabFood không gửi thư ngày 17/07';
     await app.bam(nb); await nghi();
     bang('nhận đúng tệp', app.mc.cuoi('vagabond.doi_soat_vendor.nhan').a.file_url, '/private/files/x.pdf');
+    bang('gửi lý do', app.mc.cuoi('vagabond.doi_soat_vendor.nhan').a.ly_do, 'GrabFood không gửi thư ngày 17/07');
     bang('mở chi tiết nguồn vừa nhận', app.mc.cuoi('vagabond.doi_soat_vendor.chi_tiet').a.name, 'DSN-9');
     bang('busy cân bằng', app.g.__ban, 0);
   });
@@ -250,12 +265,14 @@ async function moTrungTam(canh) {
     bang('mở nguồn cũ', app.mc.cuoi('vagabond.doi_soat_vendor.chi_tiet').a.name, 'DSN-1');
   });
 
-  await ca('Chi tiết: ba lớp, loại dòng tiếng Việt không lộ mã, chip Chưa nối lọc ở máy chủ, bấm hoá đơn mở đơn', async function () {
+  await ca('Chi tiết: sáu bước (v641), loại dòng tiếng Việt không lộ mã, chip Chưa nối lọc ở máy chủ, bấm hoá đơn mở đơn', async function () {
     var app = await moTrungTam();
     await app.bam(app.tim('[data-dsvnct="DSN-1"]')[0]);
     var c = app.chu();
-    dung('ba lớp', c.indexOf('1. Đủ nguồn') >= 0 && c.indexOf('2. Tiền về ngân hàng') >= 0 && c.indexOf('3. Chứng từ') >= 0);
-    dung('khớp tổng tệp', c.indexOf('khớp tổng in trên tệp 668915') >= 0);
+    dung('sáu bước', ['1 · Nhận thư', '2 · Xác thực', '3 · Đọc tệp', '4 · Khớp tiền', '5 · Nối chứng từ', '6 · Kế toán xác nhận']
+      .every(function (x) { return c.indexOf(x) >= 0; }));
+    dung('khớp tổng tệp', c.indexOf('Tổng in trên tệp 668915') >= 0);
+    dung('nguồn cũ chưa xác thực có khối báo', c.indexOf('Tải tay trước khi có hộp thư, chưa xác thực') >= 0);
     dung('không lộ mã phi_ky', c.indexOf('phi_ky') < 0 && c.indexOf('Phí trong kỳ') >= 0);
     dung('nói không lập phiếu', c.indexOf('không lập phiếu') >= 0);
     await app.bam(app.mot('[data-dsvnloc="chua_noi"]'));
@@ -387,8 +404,10 @@ async function moTrungTam(canh) {
     await app.bam(app.mot('[data-dsvnphap="Vagabond"]')); await nghi();
     bang('xem trước lại', [app.mc.dem('vagabond.doi_soat_vendor.xem_truoc'), app.mc.cuoi('vagabond.doi_soat_vendor.xem_truoc').a.cong_ty],
       [2, 'Vagabond']);
+    app.mot('#dsvnLyDo').value = 'Đối tác không gửi thư';
     await app.bam(app.mot('#dsvnNhan')); await nghi();
-    bang('nhận đúng pháp nhân đã xem trước', app.mc.cuoi('vagabond.doi_soat_vendor.nhan').a, { file_url: '/private/files/x.pdf', cong_ty: 'Vagabond' });
+    bang('nhận đúng pháp nhân đã xem trước', app.mc.cuoi('vagabond.doi_soat_vendor.nhan').a,
+      { file_url: '/private/files/x.pdf', cong_ty: 'Vagabond', ly_do: 'Đối tác không gửi thư' });
     bang('không tải lại tệp', app.mc.dem('vagabond.doi_soat_vendor.tai_len'), 1);
     bang('busy cân bằng', app.g.__ban, 0);
   });
@@ -415,6 +434,7 @@ async function moTrungTam(canh) {
     dung('ghi rõ nhận vào đâu', app.chu().indexOf('Nhận vào pháp nhân <b>Vagabond Bakery</b>') >= 0);
     await chonTep(app);
     bang('xem trước', app.mc.cuoi('vagabond.doi_soat_vendor.xem_truoc').a.cong_ty, 'Vagabond Bakery');
+    app.mot('#dsvnLyDo').value = 'Đối tác không gửi thư';
     await app.bam(app.mot('#dsvnNhan')); await nghi();
     bang('nhận', app.mc.cuoi('vagabond.doi_soat_vendor.nhan').a.cong_ty, 'Vagabond Bakery');
   });
