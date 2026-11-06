@@ -1303,3 +1303,19 @@ def _combo_cua():
 		r3 = _gui(mon=[{"ma": "KMCB00001", "sl": 1}])
 		la("combo bị chặn ở nguồn QR tại bàn: không gọi được", r3["ok"], 0)
 	del goc
+
+
+@ca("v642 Codex #545 vòng 1: trang khách biết lượt đã nhận thuộc bill đã chốt (phiếu tạm tính không còn mở) để không cộng vào bill mới; lượt chưa có phiếu, phiếu còn mở thì chưa trả; không lộ mã hoá đơn")
+def _da_tra_642():
+	r = {"name": "TQ-8", "ban": 1, "trang_thai": g.TT_NHAN, "luc": "2026-11-04 09:53:00", "nhan_luc": "2026-11-04 09:55:00",
+		"tam_tinh": 45000, "mon": json.dumps([{"ma": "NUTR00021", "ten": "Trà", "sl": 1, "gia": 45000}]), "hoa_don": "ACC-SINV-1"}
+	la("thuần: cờ đã trả", (g.cho_khach(r, BAY, True)["da_tra"], g.cho_khach(r, BAY)["da_tra"]), (1, 0))
+	la("đơn chưa nhận không bao giờ đã trả", g.cho_khach(dict(r, trang_thai=g.TT_CHO), BAY, True)["da_tra"], 0)
+	tk = g.token_khach(KHOA, "TQ-8")
+	for mo, hd, can in ((set(), "ACC-SINV-1", 1), ({"ACC-SINV-1"}, "ACC-SINV-1", 0), (set(), "", 0)):
+		dong = dict(r, hoa_don=hd, token_bam=g.bam(tk))
+		with patch.object(g, "_bi_mat", return_value=KHOA), patch.object(_fr.db, "get_value", return_value=_fr._dict(dong)), \
+				patch.object(g, "_phieu_tam_mo", return_value=mo):
+			kq = g.trang_thai("TQ-8", tk)
+		la("phiếu %s, phiếu mở %s: đã trả" % (hd or "(chưa có)", sorted(mo)), kq["da_tra"], can)
+		dung("không lộ mã hoá đơn", "ACC-SINV" not in json.dumps(kq))

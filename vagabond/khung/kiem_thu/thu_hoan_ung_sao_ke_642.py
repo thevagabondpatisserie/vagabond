@@ -40,7 +40,7 @@ def _kiem():
 
 	def tk(nguoi=None):
 		hoi.append(nguoi)
-		return {"tk": [{"ma": "MB-NHV"}], "doan": 0}
+		return {"tk": [{"ma": "MB-NHV", "nguoi": "NCC-9"}], "doan": 0}
 	with patch.object(hs, "ds_tk_hoan_ung", side_effect=tk), patch.object(hn, "giao_dich", side_effect=lambda m: GD.get(m)):
 		hs._kiem_gd_hoan_ung([{"ma_giao_dich": "FT2"}, {"ma_giao_dich": ""}], " NCC-9 ")
 		la("hỏi tài khoản của người được hoàn ứng", hoi, ["NCC-9"])
@@ -98,3 +98,20 @@ def _man():
 	dung("có ca v642", "v642 hoan ung CO hoa don" in (Path(goc) / "vagabond/khung/kiem_thu/hanh_vi/chay.js").read_text())
 	m = re.search(r"(\d+) ca dat, 0 ca hong", r.stdout)
 	dung("đủ số ca", m and int(m.group(1)) >= 67)
+
+
+@ca("v642 Codex #545 vòng 1: người được hoàn ứng chưa gắn tài khoản quỹ tạm ứng (danh sách tài khoản là bản đoán) thì KHÔNG nối sao kê được; giao dịch phải đi từ tài khoản của chính người đó")
+def _doan_khong_nhan():
+	gd = {"FTK": {"name": "BT-9", "reference_number": "FTK", "bank_account": "ACB-KHAC", "withdrawal": 500000, "docstatus": 1}}
+	doan = {"tk": [{"ma": "ACB-KHAC", "nguoi": "NCC-1"}], "doan": 1}
+	with patch.object(hs, "ds_tk_hoan_ung", return_value=doan), patch.object(hn, "giao_dich", side_effect=lambda m: gd.get(m)):
+		nem("danh sách đoán: chặn nối sao kê", lambda: hs._kiem_gd_hoan_ung([{"ma_giao_dich": "FTK"}], "NCC-9"), frappe.ValidationError)
+	# Chưa có tài khoản nào thuộc quỹ 141: danh sách đoán là MỌI tài khoản công ty có sổ cái, có thể
+	# có cả tài khoản đứng tên người này nhưng không phải tài khoản ứng tiền. Vẫn chặn.
+	gd["FTC"] = {"name": "BT-8", "reference_number": "FTC", "bank_account": "CTY-1121", "withdrawal": 500000, "docstatus": 1}
+	cty = {"tk": [{"ma": "CTY-1121", "nguoi": "NCC-9"}], "doan": 1}
+	with patch.object(hs, "ds_tk_hoan_ung", return_value=cty), patch.object(hn, "giao_dich", side_effect=lambda m: gd.get(m)):
+		nem("danh sách đoán có tài khoản đứng tên người này: vẫn chặn", lambda: hs._kiem_gd_hoan_ung([{"ma_giao_dich": "FTC"}], "NCC-9"), frappe.ValidationError)
+	rieng = {"tk": [{"ma": "MB-NHV", "nguoi": "NCC-9"}, {"ma": "ACB-KHAC", "nguoi": "NCC-1"}], "doan": 0}
+	with patch.object(hs, "ds_tk_hoan_ung", return_value=rieng), patch.object(hn, "giao_dich", side_effect=lambda m: gd.get(m)):
+		nem("tài khoản của người khác lọt danh sách: vẫn chặn", lambda: hs._kiem_gd_hoan_ung([{"ma_giao_dich": "FTK"}], "NCC-9"), frappe.ValidationError)
