@@ -1319,3 +1319,39 @@ def _da_tra_642():
 			kq = g.trang_thai("TQ-8", tk)
 		la("phiếu %s, phiếu mở %s: đã trả" % (hd or "(chưa có)", sorted(mo)), kq["da_tra"], can)
 		dung("không lộ mã hoá đơn", "ACC-SINV" not in json.dumps(kq))
+
+
+@ca("v642 Codex #545 vòng 6: trang khách hỏi trạng thái lượt đã nhận thì nhận kèm TỔNG hoá đơn của bàn đang mở (gồm món máy khác gọi, món quầy thêm), khoá hoá đơn là mã băm không lộ tên phiếu; lượt chờ nhận, đã trả thì không kèm; đọc hoá đơn lỗi vẫn trả trạng thái")
+def _bill_ban_642():
+	r = {"name": "TQ-8", "ban": 1, "trang_thai": g.TT_NHAN, "luc": "2026-11-04 09:53:00", "nhan_luc": "2026-11-04 09:55:00",
+		"tam_tinh": 100000, "mon": json.dumps([{"ma": "NUTR00021", "ten": "Trà", "sl": 2, "gia": 50000}]), "hoa_don": "ACC-SINV-1"}
+	tk = g.token_khach(KHOA, "TQ-8")
+	dong = dict(r, token_bam=g.bam(tk))
+
+	def doc(si=None, loi=False):
+		def gv(dt, ten, f=None, **k):
+			if dt == g.DT:
+				return _fr._dict(dong)
+			if loi:
+				raise RuntimeError("hỏng đọc")
+			return _fr._dict(si or {})
+		return gv
+
+	def hoi(mo, gv, dong_moi=None):
+		if dong_moi:
+			dong.update(dong_moi)
+		with patch.object(g, "_bi_mat", return_value=KHOA), patch.object(_fr.db, "get_value", side_effect=gv), \
+				patch.object(g, "_phieu_tam_mo", return_value=mo), patch.object(_fr, "log_error"):
+			return g.trang_thai("TQ-8", tk)
+
+	kq = hoi({"ACC-SINV-1"}, doc({"grand_total": 140000.0}))
+	la("lượt máy này 100.000 đ, hoá đơn của bàn 140.000 đ", (kq["tam_tinh"], (kq.get("bill") or {}).get("tong")), (100000, 140000))
+	dung("khoá hoá đơn không lộ tên phiếu", (kq.get("bill") or {}).get("khoa") and "SINV" not in json.dumps(kq))
+	la("cùng phiếu thì cùng khoá (hai máy cùng bàn gộp đúng một lần)", g.the_bill("ACC-SINV-1", 1)["khoa"], kq["bill"]["khoa"])
+	dung("phiếu khác thì khoá khác", g.the_bill("ACC-SINV-2", 1)["khoa"] != kq["bill"]["khoa"])
+	la("đã trả: không kèm hoá đơn", (hoi(set(), doc({"grand_total": 140000.0})).get("bill"), hoi(set(), doc({}))["da_tra"]), (None, 1))
+	la("chờ nhận: không kèm", hoi({"ACC-SINV-1"}, doc({"grand_total": 1.0}), {"trang_thai": g.TT_CHO}).get("bill"), None)
+	dong.update(trang_thai=g.TT_NHAN)
+	kq = hoi({"ACC-SINV-1"}, doc(loi=True))
+	la("đọc hoá đơn lỗi: vẫn trả trạng thái, không kèm hoá đơn", (kq["ok"], kq["trang_thai"], kq.get("bill")), (1, g.TT_NHAN, None))
+	la("thuần: tổng làm tròn đồng", g.the_bill("X", "140000.4"), {"khoa": g.the_bill("X", 0)["khoa"], "tong": 140000})
