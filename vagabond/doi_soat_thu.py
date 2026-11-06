@@ -119,12 +119,29 @@ def phai_doc_lai_dns(ket_qua, chu_ky):
 	return ket_qua != KQ_XAC_THUC and any(c.get("tam") for c in (chu_ky or []))
 
 
-def moc_doc(tt, uv):
+def danh_hop(may, cong, dia_chi, thu_muc):
+	"""THUẦN. Danh tính thư mục đang đọc: máy chủ, cổng, tài khoản, thư mục.
+	Codex #544 vòng 3: UIDVALIDITY chỉ có nghĩa TRONG một thư mục của một máy
+	chủ; hộp thư khác có thể trùng số. Tên máy chủ, tài khoản không phân biệt
+	hoa thường; tên thư mục giữ nguyên (IMAP phân biệt), trừ INBOX."""
+	tm = (thu_muc or "").strip() or "INBOX"
+	if tm.upper() == "INBOX":
+		tm = "INBOX"
+	return "%s:%s|%s|%s" % ((may or "").strip().lower().rstrip("."), int(cong or 0) or 993, (dia_chi or "").strip().lower(), tm)
+
+
+def moc_doc(tt, uv, danh=None):
 	"""THUẦN. Mốc đọc (UID cuối, các thư đang thử lại) của thư mục có
 	UIDVALIDITY uv. Codex #544 vòng 2: UIDVALIDITY đổi (hộp thư làm lại, chuyển
 	máy chủ) thì UID cũ vô nghĩa: mốc về 0, bỏ mọi đếm lỗi cũ; trả thêm
-	doi=True để nơi gọi ghi ngay mốc mới TRƯỚC khi đọc thư nào."""
+	doi=True để nơi gọi ghi ngay mốc mới TRƯỚC khi đọc thư nào.
+
+	Codex #544 vòng 3: mốc gắn với danh tính thư mục (danh_hop). Quản trị đổi
+	máy chủ, tài khoản hay thư mục thì mốc về 0 dù UIDVALIDITY trùng số. Mốc
+	cũ chưa ghi danh tính (chưa có) thì nhận danh tính hiện tại, không đọc lại."""
 	cung = int(tt.get("uidvalidity") or 0) == int(uv or 0)
+	if cung and danh is not None and tt.get("hop") and tt.get("hop") != danh:
+		cung = False
 	if not cung:
 		return dict(uid=0, loi_uid={}, dns_tu={}, doi=True)
 	return dict(uid=int(tt.get("uid") or 0), loi_uid=dict(tt.get("loi_uid") or {}), dns_tu=dict(tt.get("dns_tu") or {}),
@@ -697,6 +714,9 @@ def _ket_noi(ch):
 		raise RuntimeError("Chưa khai địa chỉ hoặc mật khẩu hộp thư đối soát.")
 	m = imaplib.IMAP4_SSL(may, cong, timeout=30)
 	m.login(ch["dia_chi"], mk)
+	# Codex #544 vòng 3: máy chủ thật đã dùng (kể cả khi lấy từ hộp erp@) làm
+	# danh tính của mốc đọc.
+	m.vgb_may, m.vgb_cong = may, cong
 	return m
 
 
@@ -737,12 +757,16 @@ def doc_hop_thu(ch=None):
 			m = _ket_noi(ch)
 			try:
 				uv = _chon_thu_muc(m, ch["thu_muc"])
-				moc = moc_doc(tt, uv)
+				danh = danh_hop(getattr(m, "vgb_may", ""), getattr(m, "vgb_cong", 0), ch.get("dia_chi"), ch["thu_muc"])
+				moc = moc_doc(tt, uv, danh)
 				cuoi, loi_uid, dns_tu = moc["uid"], moc["loi_uid"], moc["dns_tu"]
 				if moc["doi"]:
-					# Codex #544 vòng 2: ghi mốc của thư mục mới NGAY, để lượt sau
+					# Codex #544 vòng 2, 3: ghi mốc của thư mục mới NGAY, để lượt sau
 					# không lấy UID của thư mục cũ áp cho thư mục mới.
-					_ghi_trang_thai(uidvalidity=uv, uid=0, loi_uid={}, dns_tu={})
+					_ghi_trang_thai(uidvalidity=uv, hop=danh, uid=0, loi_uid={}, dns_tu={})
+					frappe.db.commit()
+				elif tt.get("hop") != danh:
+					_ghi_trang_thai(hop=danh)
 					frappe.db.commit()
 				kq, du = m.uid("search", None, "UID %s:*" % (cuoi + 1))
 				uids = sorted(int(x) for x in (du[0] or b"").split() if int(x) > cuoi) if kq == "OK" else []
@@ -1062,6 +1086,26 @@ def la_giam_doc():
 	return lg(_vai())
 
 
+def con_cho_duyet(n):
+	"""THUẦN. Nguồn còn ở trạng thái giám đốc duyệt hay từ chối được: Chờ duyệt,
+	hoặc nguồn cũ chưa có đường vào mà không phải từ hộp thư."""
+	lay = n.get if hasattr(n, "get") else (lambda k: getattr(n, k, None))
+	if lay("duong_vao") not in (DV_CHO, None, ""):
+		return False
+	return not (lay("kenh_nhan") == KENH and not lay("duong_vao"))
+
+
+def _doc_lai_trong_khoa(name):
+	"""Codex #544 vòng 3: đọc lại nguồn SAU khi giữ khoá đối chiếu. Lượt đọc
+	hộp thư có thể vừa nâng nguồn lên Từ thư (thư có chữ ký về đúng lúc giám
+	đốc bấm), nên kết luận đọc trước khi chờ khoá là cũ."""
+	frappe = _frappe()
+	n = frappe.db.get_value(DT_NGUON, name, ["name", "duong_vao", "kenh_nhan", "thu"], as_dict=True)
+	if not n or not con_cho_duyet(n):
+		frappe.throw("Nguồn này vừa đổi (có thể thư có chữ ký số của đối tác đã về), không còn chờ duyệt. Tải lại màn hình.")
+	return n
+
+
 def _nguon_cho(name):
 	frappe = _frappe()
 	from vagabond import doi_soat_vendor as dsv
@@ -1085,10 +1129,14 @@ def duyet(name):
 		frappe.throw("Nguồn này không còn chờ duyệt. Tải lại màn hình.")
 	if n.kenh_nhan == KENH and not n.duong_vao:
 		frappe.throw("Nguồn này đã có chữ ký số của đối tác, không cần duyệt.")
-	frappe.db.set_value(DT_NGUON, name, {"duong_vao": DV_DA, "duyet_boi": frappe.session.user,
-		"duyet_luc": frappe.utils.now_datetime(), "ly_do_duyet": ""}, update_modified=False)
-	if n.thu:
-		frappe.db.set_value(DT_THU, n.thu, "ket_qua", "Đã duyệt", update_modified=False)
+	from vagabond import doi_soat_vendor as dsv
+
+	with dsv.khoa_doi_chieu():
+		n = _doc_lai_trong_khoa(name)
+		frappe.db.set_value(DT_NGUON, name, {"duong_vao": DV_DA, "duyet_boi": frappe.session.user,
+			"duyet_luc": frappe.utils.now_datetime(), "ly_do_duyet": ""}, update_modified=False)
+		if n.thu:
+			frappe.db.set_value(DT_THU, n.thu, "ket_qua", "Đã duyệt", update_modified=False)
 	return dict(ok=1)
 
 
@@ -1105,6 +1153,7 @@ def tu_choi(name, ly_do=None):
 	if n.duong_vao not in (DV_CHO, None, "") or (n.kenh_nhan == KENH and not n.duong_vao):
 		frappe.throw("Nguồn này không còn chờ duyệt. Tải lại màn hình.")
 	with dsv.khoa_doi_chieu():
+		n = _doc_lai_trong_khoa(name)
 		# Dòng của nguồn bị từ chối thôi tính (giữ để tra), để thư thật về sau
 		# nhận được đúng các giao dịch đó.
 		dsv._bo_dong_cu(name)
@@ -1123,13 +1172,18 @@ def xac_nhan(name):
 	_nguon_cho(name)
 	if not (_vai() & VAI_KE_TOAN) and not la_giam_doc():
 		frappe.throw("Chỉ Kế toán xác nhận được nguồn đối soát.", frappe.PermissionError)
-	r = frappe.db.get_value(DT_NGUON, name, ["kenh_nhan", "duong_vao", "trang_thai", "nhom", "trang_thai_tien",
-		"so_chua_noi", "so_da_noi", "kiem_so_du", "phi_vuot", "xac_nhan_luc"], as_dict=True)
-	b = buoc_nguon(r)
-	if not b["xac_nhan_duoc"]:
-		frappe.throw("Chưa xác nhận được: %s." % b["ghi"])
-	frappe.db.set_value(DT_NGUON, name, {"xac_nhan_boi": frappe.session.user, "xac_nhan_luc": frappe.utils.now_datetime()},
-		update_modified=False)
+	from vagabond import doi_soat_vendor as dsv
+
+	with dsv.khoa_doi_chieu():
+		# Codex #544 vòng 3: đọc các bước TRONG khoá, để giám đốc vừa từ chối
+		# hay lượt đọc hộp thư vừa ghi lại thì không xác nhận trên số cũ.
+		r = frappe.db.get_value(DT_NGUON, name, ["kenh_nhan", "duong_vao", "trang_thai", "nhom", "trang_thai_tien",
+			"so_chua_noi", "so_da_noi", "kiem_so_du", "phi_vuot", "xac_nhan_luc"], as_dict=True)
+		b = buoc_nguon(r)
+		if not b["xac_nhan_duoc"]:
+			frappe.throw("Chưa xác nhận được: %s." % b["ghi"])
+		frappe.db.set_value(DT_NGUON, name, {"xac_nhan_boi": frappe.session.user, "xac_nhan_luc": frappe.utils.now_datetime()},
+			update_modified=False)
 	return dict(ok=1)
 
 
