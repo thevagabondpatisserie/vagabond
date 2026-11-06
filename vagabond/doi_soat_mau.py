@@ -707,6 +707,11 @@ def doc_shinhan(tep, mau):
 		raise LoiMau("Không thấy tab chi tiết giao dịch (Detail) của Shinhan; tải tệp gốc đủ hai tab.")
 	o = ct["o"]
 	r0, cot = tim_tieu_de(o, _SHINHAN_CT, 40)
+	# v641: loại thẻ và thẻ trong nước/nước ngoài để so biểu phí hợp đồng
+	# (doi_soat_thu.phi_vuot). Hai cột này không bắt buộc: thiếu thì vẫn đọc
+	# đủ dòng, chỉ không gom được phí theo loại thẻ.
+	c_the, c_vung = cot_shinhan_phu(o[r0])
+	gom_phi = {}
 	tong_tep = None
 	mids = set()
 	for r in range(r0 + 1, len(o)):
@@ -737,6 +742,7 @@ def doc_shinhan(tep, mau):
 			if chuan(o_tai(h, cot["hoan"])) == "y":
 				raise LoiDong("Giao dịch hoàn/huỷ (Y) chưa có mẫu thật; giữ để kế toán xem, không tự đoán dấu.")
 			the = chu(o_tai(h, cot["the"]))
+			gom_the_shinhan(gom_phi, o_tai(h, c_the), o_tai(h, c_vung), o_tai(h, cot["mdr"]), gop, phi)
 			kq["dong"].append(dong_moi(
 				ma_su_kien="%s|%s|%s %s|%s|%s|%s" % (mid, tid, ng, gio, chuan_chi, the, gop),
 				merchant=mid, diem_ban=SHINHAN_DIEM.get(mid, ""), ngay=ng, gio=gio,
@@ -754,7 +760,38 @@ def doc_shinhan(tep, mau):
 	if th is not None:
 		_shinhan_doi_tom_tat(th["o"], kq)
 	kq["them"]["mid"] = sorted(mids)
+	if gom_phi:
+		kq["them"]["phi_the"] = [dict(the=k[0], vung=k[1], mdr=k[2], **v) for k, v in sorted(gom_phi.items())]
 	return khep_ky(kq)
+
+
+def cot_shinhan_phu(hang):
+	"""THUẦN (v641). Chỉ số cột "Loại thẻ / Brand Card" và "Thẻ trong nước/ nước
+	ngoài" trên dòng tiêu đề Shinhan; không thấy thì None."""
+	c_the = c_vung = None
+	for c, v in enumerate(hang):
+		s = chuan(v)
+		if c_the is None and "brand card" in s:
+			c_the = c
+		elif c_vung is None and ("domestic/ international" in s or "domestic/international" in s):
+			c_vung = c
+	return c_the, c_vung
+
+
+def gom_the_shinhan(gom, the, vung, mdr, gop, phi):
+	"""THUẦN (v641). Cộng tiền giao dịch và phí MDF theo (loại thẻ, vùng, mức
+	phí). Mức phí đọc lỗi thì bỏ qua dòng đó trong phần gom (dòng vẫn nhận)."""
+	try:
+		ty = float(ti_le(mdr)) if not rong(mdr) else None
+	except LoiDong:
+		ty = None
+	if ty is None:
+		return
+	k = (chu(the).upper() or "KHÁC", chu(vung).upper() or "", round(ty, 3))
+	g = gom.setdefault(k, dict(gop=0, phi=0, so=0))
+	g["gop"] += int(gop)
+	g["phi"] += int(phi)
+	g["so"] += 1
 
 
 def _shinhan_doi_tom_tat(o, kq):

@@ -309,7 +309,7 @@ def _doc_file(file_url):
 def _doc_va_xem(ten, byte, cong_ty):
 	"""Trả [(tệp con, kq mẫu, xem trước)]. Lỗi đọc tệp thành kq rỗng có lý do."""
 	try:
-		ds = tep_doc.doc_tep(ten, byte)
+		ds = tep_doc.doc_tep(ten, byte, mat_khau=_mat_khau_tep())
 	except tep_doc.LoiTep as e:
 		kq = mau_bc.ket_qua("", "", "", "")
 		kq["loi"].append(str(e))
@@ -325,6 +325,16 @@ def _doc_va_xem(ten, byte, cong_ty):
 		da_nhan = _da_nhan(cong_ty, kq)
 		ra.append((t, kq, khop.xem_truoc(kq, cong_ty, da_nhan)))
 	return ra
+
+
+def _mat_khau_tep():
+	"""v641: mật khẩu mở tệp anh tự khai (PDF sao kê thẻ, ZIP Shinhan POS)."""
+	try:
+		s = frappe.get_doc("Vagabond Settings")
+		return tuple(m for m in (s.get_password("ds_mk_pdf_the", raise_exception=False),
+			s.get_password("ds_mk_zip_pos", raise_exception=False)) if m)
+	except Exception:
+		return ()
 
 
 def _da_nhan(cong_ty, kq):
@@ -358,13 +368,21 @@ def xem_truoc(file_url=None, cong_ty=None):
 
 
 @frappe.whitelist()
-def nhan(file_url=None, cong_ty=None):
+def nhan(file_url=None, cong_ty=None, ly_do=None):
 	"""Nhận tệp đã xem trước vào pháp nhân đã chọn: đọc lại ở máy chủ (không
-	tin số máy khách gửi)."""
+	tin số máy khách gửi).
+
+	v641 (anh Việt 06/11/2026): tải tay vẫn giữ nhưng "có duyệt": người tải ghi
+	lý do (đối tác không gửi thư...), nguồn mang nhãn Chờ duyệt và vào Việc cần
+	làm của giám đốc; người tải không tự duyệt được."""
 	_chan(True)
+	ly_do = (ly_do or "").strip()
+	if len(ly_do) < 5:
+		frappe.throw("Ghi lý do tải tay (ví dụ: đối tác không gửi thư ngày 04/11) để giám đốc duyệt.")
 	cong_ty = _cong_ty_nhan(cong_ty)
 	ten, byte = _doc_file(file_url)
-	return _nhan_byte(ten, byte, "Tải tay", file_url=file_url, cong_ty=cong_ty)
+	return _nhan_byte(ten, byte, "Tải tay", file_url=file_url, cong_ty=cong_ty,
+		them=dict(duong_vao="Chờ duyệt", ly_do_tai_tay=ly_do[:500]))
 
 
 KHOA_DOI_CHIEU = "vgb_doi_soat_vendor"
@@ -393,13 +411,14 @@ def khoa_doi_chieu(db=None, cho=60):
 
 
 def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=False, bo_qua=None, doc_lai=True,
-		cong_ty=None):
+		cong_ty=None, them=None):
 	"""bo_qua: nếu là list, ghi tên tệp con bị bỏ qua vì chưa nhận ra mẫu
 	hay đọc lỗi (chỉ khi chi_mau_quen), để xu_ly_thu quyết có ghi lại không.
 	doc_lai=False: nguồn đã có thì dừng ở mã băm kể cả khi đang lỗi (lượt
 	quét thư mỗi giờ không ghi lại mãi một tệp chưa có mẫu).
 	cong_ty: tải tay luôn gửi pháp nhân đã kiểm quyền; thư tự đến (không có
-	người dùng) mới lấy pháp nhân mặc định của site."""
+	người dùng) mới lấy pháp nhân mặc định của site.
+	them: trường ghi thêm lên nguồn (v641: đường vào, thư gốc, lý do tải tay)."""
 	with khoa_doi_chieu():
 		cong_ty = cong_ty or _cong_ty()
 		ket = []
@@ -408,8 +427,18 @@ def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=
 				if bo_qua is not None:
 					bo_qua.append(t["ten"])
 				continue
-			da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai", "company"], as_dict=True)
+			da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai", "company", "kenh_nhan",
+				"duong_vao"], as_dict=True)
 			kieu = tep_da_co(da, cong_ty, doc_lai)
+			nang = nang_cap_tu_thu(da, kenh, them) if kieu != "phap_nhan_khac" else ""
+			if nang == "doc_lai":
+				# Tệp tải tay bị từ chối (dòng đã thôi tính) nay về đúng từ thư có
+				# chữ ký: đọc lại vào nguồn cũ để dòng tính lại.
+				kieu = "doc_lai"
+			elif nang == "nang":
+				# v641: cùng một tệp (cùng mã băm) đã tải tay, nay về qua thư có
+				# chữ ký số: nguồn tải tay được xác thực bằng chính tệp gốc.
+				frappe.db.set_value(DT_NGUON, da.name, dict(them, kenh_nhan=kenh), update_modified=False)
 			if kieu == "phap_nhan_khac":
 				# Không lộ tên nguồn của pháp nhân kia, không ghi gì.
 				ket.append(dict(name="", trang_thai="", da_co=1, phap_nhan_khac=1, ten_tep=t["ten"]))
@@ -417,8 +446,21 @@ def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=
 			if kieu == "da_co":
 				ket.append(dict(name=da.name, trang_thai=da.trang_thai, da_co=1, ten_tep=t["ten"]))
 				continue
-			ket.append(_ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=da.name if da else None))
+			ket.append(_ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=da.name if da else None,
+				**({"them": them} if them else {})))
 	return ket
+
+
+def nang_cap_tu_thu(da, kenh, them):
+	"""THUẦN (v641). Tệp đã có trên máy (da) nay về qua hộp thư đối soát.
+	Trả "nang" (gắn thư, đổi sang Từ thư), "doc_lai" (nguồn đã bị từ chối nên
+	phải đọc lại) hoặc "" (không làm gì)."""
+	if not da or kenh != "Hộp thư đối soát" or not them or (them.get("duong_vao") != "Từ thư"):
+		return ""
+	lay = da.get if isinstance(da, dict) else (lambda k: getattr(da, k, None))
+	if lay("kenh_nhan") == "Hộp thư đối soát" and lay("duong_vao") not in ("Chờ duyệt", "Từ chối"):
+		return ""
+	return "doc_lai" if lay("duong_vao") == "Từ chối" else "nang"
 
 
 def _bo_dong_cu(name):
@@ -444,7 +486,7 @@ def _bo_dong_cu(name):
 	return lich_su[-50:]
 
 
-def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
+def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None, them=None):
 	lich_su = None
 	if co_san:
 		# Gỡ dòng bản cũ TRƯỚC rồi mới xem trước lại: nếu không, dòng cũ cùng
@@ -472,12 +514,16 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
 			ban_sua=khop.ban_sua(xt, kq["nhom"], kq["vendor"], kq["tai_khoan"]) or None),
 			ensure_ascii=False, default=str),
 	)
+	# v641: đường vào. Tải tay và lối email cũ (chỉ nhận ra đối tác bằng ô người
+	# gửi, giả được) đều chờ giám đốc duyệt; thư có chữ ký mang "Từ thư".
+	truong.update(them or ({"duong_vao": "Chờ duyệt"} if kenh in ("Tải tay", "Email") else {}))
 	if co_san:
 		# Codex #446 H4: nguồn lỗi hay cần xử lý được đọc lại bằng chính tệp
 		# đó (sau khi sửa mẫu hoặc cài thư viện). Cập nhật đúng bản ghi cũ,
 		# dòng đã có cùng nội dung thành "đã có", chỉ thêm dòng mới.
 		nguon = frappe.get_doc(DT_NGUON, co_san)
-		nguon.db_set({k: v for k, v in truong.items() if k not in ("sha256", "company")})
+		giu = giu_khi_doc_lai({k: getattr(nguon, k, None) for k in ("kenh_nhan", "duong_vao", "ly_do_tai_tay")}, kenh)
+		nguon.db_set({k: v for k, v in truong.items() if k not in ("sha256", "company") + giu})
 		nguon.reload()
 	else:
 		nguon = frappe.get_doc(dict(doctype=DT_NGUON, **truong))
@@ -509,7 +555,24 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
 	if trung_ve_sau:
 		nguon.db_set({"so_moi": so["moi"] - trung_ve_sau, "so_trung": so["trung"] + trung_ve_sau})
 	_doi_chieu(nguon.name)
+	from vagabond import doi_soat_thu
+
+	doi_soat_thu.sau_khi_ghi(nguon.name, moi=not co_san)
 	return dict(name=nguon.name, trang_thai=nguon.trang_thai, da_co=0, ten_tep=t["ten"])
+
+
+def giu_khi_doc_lai(cu, kenh):
+	"""THUẦN (v641). Trường KHÔNG được ghi đè khi đọc lại một nguồn đã có:
+	nguồn từ hộp thư (đã có chữ ký) đọc lại bằng tệp tải tay cùng mã băm thì
+	vẫn là nguồn từ thư; nguồn đã duyệt hay từ chối giữ nguyên kết luận duyệt."""
+	giu = ()
+	if cu.get("kenh_nhan") == "Hộp thư đối soát" and kenh != "Hộp thư đối soát":
+		giu += ("kenh_nhan", "duong_vao", "thu", "tep", "communication")
+	elif cu.get("duong_vao") in ("Đã duyệt",) and kenh != "Hộp thư đối soát":
+		giu += ("duong_vao",)
+	if cu.get("ly_do_tai_tay"):
+		giu += ("ly_do_tai_tay",)
+	return giu
 
 
 def _chen_dong(ten_nguon, cong_ty, nhom, vendor, tai_khoan, d):
@@ -659,6 +722,10 @@ def _goi_y_con_dung(name):
 
 def _doi_chieu(name):
 	nguon = frappe.get_doc(DT_NGUON, name)
+	tien_cu = nguon.trang_thai_tien
+	if nguon.get("duong_vao") == "Từ chối":
+		# v641: nguồn giám đốc đã từ chối không còn dòng tính, không đối chiếu lại.
+		return
 	dong = frappe.get_all(DT_DONG, filters={"nguon": name}, fields=["*"], order_by="ngay asc, gio asc",
 		limit_page_length=20000)
 	if nguon.nhom == "Tiền bán":
@@ -674,6 +741,9 @@ def _doi_chieu(name):
 		_tong_hop(nguon)
 		nguon.db_set("trang_thai_tien", "Không áp dụng")
 	_dem_noi(nguon)
+	from vagabond import doi_soat_thu
+
+	doi_soat_thu.sau_doi_chieu(name, tien_cu)
 
 
 def _dem_noi(nguon):
@@ -842,7 +912,10 @@ def _tien_ve(nguon):
 	# (trường này là danh sách giao dịch đã dùng cho mọi nguồn khác). Gợi ý của
 	# "Lệch tiền về" nằm trong ghi chú.
 	nguon.db_set({"trang_thai_tien": tt, "giao_dich_ngan_hang": "\n".join(ds) if tt == khop.GIU_GIAO_DICH else ""})
-	_ghi_them(nguon.name, tien_ve=ghi)
+	# v641: số của lần lệch (tin Zalo "Lệch tiền về" cần hai con số thật).
+	gan = next((g for g in gd if ds and g["name"] == ds[0]), None) if tt == "Lệch tiền về" else None
+	_ghi_them(nguon.name, tien_ve=ghi, lech_tien=dict(gd=gan["name"], nhan=gan["tien"], bao=int(round(nguon.thuc_nhan)))
+		if gan else None)
 
 
 def _ghi_them(name, **k):
@@ -953,8 +1026,11 @@ def _tong_hop(nguon):
 # ------------------------------------------------------------ đọc cho màn hình
 
 @frappe.whitelist()
-def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=None, trang=0):
+def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=None, trang=0, duong=None, buoc=None):
 	"""Danh sách nguồn + số cho thẻ tóm tắt và ba hàng chip (máy chủ đếm).
+
+	v641: thêm chip Đường vào (duong: từ thư, chờ duyệt...) và lọc theo bước
+	đang kẹt (buoc 3..6, dải Tiến độ). Mỗi dòng mang sáu bước (doi_soat_thu).
 
 	ky là khoá chip ngày dùng chung (khung/cong_cu_ds.khoang_ky), lọc theo
 	ngày cuối kỳ của báo cáo. Nguồn lỗi chưa đọc ra kỳ chỉ hiện ở "Mọi ngày".
@@ -975,6 +1051,8 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 	if tim:
 		t = "%%%s%%" % tim.strip()
 		or_loc = [["ten_tep", "like", t], ["vendor", "like", t], ["name", "like", t], ["tai_khoan", "like", t]]
+	from vagabond import doi_soat_thu as dst
+
 	loc = dict(loc_chung)
 	if nhom:
 		loc["nhom"] = nhom
@@ -982,23 +1060,58 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 		loc["vendor"] = vendor
 	loc.update(loc_trang_thai(trang_thai))
 	trang = int(trang or 0)
+	truong_tat_ca = ["name", "nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi", "thuc_nhan",
+		"kenh_nhan", "duong_vao", "so_da_noi", "kiem_so_du", "phi_vuot", "xac_nhan_luc"]
+	loc.update(dst.loc_duong(duong))
+	if buoc:
+		# Lọc theo bước đang kẹt: tính ở máy chủ trên đúng phạm vi đang xem
+		# (lượt đọc thêm này chỉ chạy khi đang lọc theo bước).
+		pv = frappe.get_all(DT_NGUON, filters=loc, or_filters=or_loc, fields=truong_tat_ca, limit_page_length=0)
+		chon = [r["name"] for r in pv if buoc_ket(r, buoc)]
+		loc["name"] = ["in", chon or [""]]
 	hang = frappe.get_all(DT_NGUON, filters=loc, or_filters=or_loc, fields=["name", "nhom", "vendor", "ten_mau",
 		"tu_ngay", "den_ngay", "ngay_tien_ve", "trang_thai", "trang_thai_tien", "thuc_nhan", "so_dong", "so_moi",
-		"so_trung", "so_loi", "so_da_noi", "so_chua_noi", "kenh_nhan", "ten_tep", "creation"],
+		"so_trung", "so_loi", "so_da_noi", "so_chua_noi", "kenh_nhan", "ten_tep", "creation", "duong_vao", "kiem_so_du",
+		"phi_vuot", "xac_nhan_luc"],
 		# v584: Frappe v16 chỉ nhận tên trường trong order_by của get_all, không
 		# nhận hàm (coalesce làm màn Đối soát lỗi 417 trên site thật). Nguồn
 		# chưa đọc ra kỳ (den_ngay trống) xếp cuối; chip Cần xử lý vẫn lọc ra.
 		order_by="den_ngay desc, creation desc", start=trang * 50, page_length=51)
-	tat_ca = frappe.get_all(DT_NGUON, filters=loc_chung, or_filters=or_loc,
-		fields=["name", "nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi", "thuc_nhan"], limit_page_length=0)
+	for r in hang:
+		b = dst.buoc_nguon(r)
+		r["buoc"], r["buoc_hien"], r["buoc_ghi"] = b["tt"], b["hien"], b["ghi"]
+		r["duong"] = dst.duong_vao(r)
+	tat_ca = frappe.get_all(DT_NGUON, filters=loc_chung, or_filters=or_loc, fields=truong_tat_ca, limit_page_length=0)
 	dem, dem_vendor = dem_nguon(tat_ca, nhom, vendor)
+	pham_vi = [r for r in tat_ca if khop_loc(r, {k: v for k, v in (("nhom", nhom), ("vendor", vendor)) if v})]
+	dem_duong = {}
+	for r in [r for r in pham_vi if khop_loc(r, loc_trang_thai(trang_thai))]:
+		k = dst.duong_vao(r)
+		dem_duong[k] = dem_duong.get(k, 0) + 1
+	dem_duong["tat_ca"] = sum(dem_duong.values())
+	dem_b = dst.dem_buoc([r for r in pham_vi if khop_loc(r, dst.loc_duong(duong))])
 	# Codex #450 vòng 16: các pháp nhân được nhận tệp tải tay (màn Tải file
 	# hiện chip chọn khi có từ hai pháp nhân trở lên).
 	return dict(hang=hang[:50], con=len(hang) > 50, dem=dem, vendor=sorted(dem_vendor.keys() - {"tat_ca"}),
+		dem_duong=dem_duong, dem_buoc=dem_b,
 		dem_vendor=dem_vendor, tong=tong_tien(tat_ca, nhom, vendor, trang_thai, _tong_duy_nhat),
 		cong_ty_nhan=[c for c in ct if c],
 		nhan_cong_ty=nhan_ngan_cong_ty([(c.name, c.abbr) for c in frappe.get_all("Company",
 			filters={"name": ["in", [c for c in ct if c] or [""]]}, fields=["name", "abbr"])]))
+
+
+def buoc_ket(r, buoc):
+	"""THUẦN (v641). Nguồn r đang kẹt (vàng hoặc đỏ) đúng ở bước buoc."""
+	from vagabond import doi_soat_thu as dst
+
+	try:
+		k = int(buoc)
+	except (TypeError, ValueError):
+		return False
+	if not 1 <= k <= 6:
+		return False
+	b = dst.buoc_nguon(r)
+	return b["hien"] == k and b["tt"][k - 1] in ("v", "d")
 
 
 def loc_trang_thai(trang_thai):
@@ -1013,6 +1126,8 @@ def loc_trang_thai(trang_thai):
 		return {"trang_thai_tien": trang_thai}
 	if trang_thai == "Chưa nối đủ":
 		return {"so_chua_noi": [">", 0]}
+	if trang_thai == "Đã khép":
+		return {"xac_nhan_luc": ["is", "set"]}
 	return {}
 
 
@@ -1024,6 +1139,8 @@ def khop_loc(r, loc):
 			if v[0] == "in" and x not in v[1]:
 				return False
 			if v[0] == ">" and not ((x or 0) > v[1]):
+				return False
+			if v[0] == "is" and bool(x) != (v[1] == "set"):
 				return False
 		elif x != v:
 			return False
@@ -1086,6 +1203,8 @@ def dem_nguon(rows, nhom=None, vendor=None):
 			dem[khop.NHOM_CHO_TIEN] = dem.get(khop.NHOM_CHO_TIEN, 0) + 1
 		if (r.get("so_chua_noi") or 0) > 0:
 			dem["Chưa nối đủ"] = dem.get("Chưa nối đủ", 0) + 1
+		if r.get("xac_nhan_luc"):
+			dem["Đã khép"] = dem.get("Đã khép", 0) + 1
 	dem_vendor["tat_ca"] = sum(dem_vendor.values())
 	return dem, dem_vendor
 
@@ -1109,12 +1228,55 @@ def chi_tiet(name=None, loc=None, trang=0):
 	return dict(nguon=dict((k, n.get(k)) for k in ("name", "nhom", "vendor", "ten_mau", "tai_khoan", "tu_ngay",
 		"den_ngay", "ngay_tien_ve", "trang_thai", "ly_do", "kenh_nhan", "ten_tep", "tep", "so_dong", "so_moi",
 		"so_trung", "so_loi", "tien_hang", "phi", "thuc_nhan", "tong_tep", "trang_thai_tien", "giao_dich_ngan_hang",
-		"so_da_noi", "so_chua_noi", "creation", "communication")),
+		"so_da_noi", "so_chua_noi", "creation", "communication", "duong_vao", "thu", "ly_do_tai_tay", "duyet_boi",
+		"duyet_luc", "ly_do_duyet", "xac_nhan_boi", "xac_nhan_luc", "kiem_so_du", "phi_vuot")),
+		buoc=_buoc_ct(n), can_cu=_can_cu(n), quyen=_quyen_ct(n),
 		them=dict(loi=d.get("loi") or [], canh_bao=d.get("canh_bao") or [], dong_loi=(d.get("dong_loi") or [])[:100],
 			tien_ve=d.get("tien_ve") or "", ky_the=d.get("ky_the"), doi_bien_ban=d.get("doi_bien_ban"),
 			hoa_don_ky=d.get("hoa_don_ky_ghi_chu") or "", ghi_chu_don_vi=d.get("ghi_chu_don_vi") or "",
-			dau_tep=(d.get("them") or {}).get("dau_tep") or [], ban_sua=_ban_sua_cho(d)),
+			dau_tep=(d.get("them") or {}).get("dau_tep") or [], ban_sua=_ban_sua_cho(d),
+			phi_vuot=_phi_vuot_ct(d)),
 		dong=dong[:100], con=len(dong) > 100)
+
+
+def _buoc_ct(n):
+	from vagabond import doi_soat_thu as dst
+
+	b = dst.buoc_nguon(n.as_dict())
+	b["ten"] = list(dst.TEN_BUOC)
+	return b
+
+
+def _can_cu(n):
+	from vagabond import doi_soat_thu as dst
+
+	r = dst.can_cu(n.as_dict())
+	if r:
+		r["sha256"] = (r.get("sha256") or "")[:4] + "…" + (r.get("sha256") or "")[-4:]
+	return r
+
+
+def _quyen_ct(n):
+	"""Nút trên màn chi tiết. Máy chủ vẫn chặn thật ở từng hàm."""
+	from vagabond import doi_soat_thu as dst
+	from vagabond.viec_can_lam import VAI_KE_TOAN
+
+	gd = dst.la_giam_doc()
+	cho = n.get("duong_vao") == "Chờ duyệt" or (n.kenh_nhan in ("Tải tay", "Email") and not n.get("duong_vao"))
+	return dict(duyet=1 if gd and cho and not (n.owner == frappe.session.user and n.kenh_nhan != "Hộp thư đối soát") else 0,
+		cua_minh=1 if (cho and n.owner == frappe.session.user and n.kenh_nhan != "Hộp thư đối soát") else 0,
+		xac_nhan=1 if (set(frappe.get_roles()) & VAI_KE_TOAN or gd) else 0)
+
+
+def _phi_vuot_ct(d):
+	from vagabond import doi_soat_thu as dst
+
+	phi_the = (d.get("them") or {}).get("phi_the")
+	if phi_the is None:
+		return None
+	ch = dst.cau_hinh()
+	tong, ct = dst.phi_vuot(phi_the, ch["bieu"], ch["nguong_phi"])
+	return dict(tong=tong, ct=ct)
 
 
 def _ban_sua_cho(du_lieu):
@@ -1285,3 +1447,78 @@ def quet_email(so_ngay=3):
 def quet_moi_gio():
 	frappe.set_user("Administrator")
 	quet_email(2)
+
+
+# ------------------------------------------------------------ v641: hộp thư doisoat@, duyệt, xác nhận
+
+@frappe.whitelist()
+def hop_thu():
+	"""Khối Hộp thư đối soát trên màn chính (trạng thái, đếm hôm nay)."""
+	_chan()
+	from vagabond import doi_soat_thu
+
+	return doi_soat_thu.hop_thu_tom_tat()
+
+
+@frappe.whitelist()
+def ds_thu(loai="chan"):
+	"""Ba thẻ: thư bị chặn, thư chưa về, nguồn chờ giám đốc duyệt."""
+	_chan()
+	from vagabond import doi_soat_thu
+
+	if loai not in ("chan", "chua_ve", "tai_tay"):
+		loai = "chan"
+	return doi_soat_thu.ds_thu(loai)
+
+
+@frappe.whitelist()
+def doc_hop_thu_ngay():
+	"""Nút "Đọc hộp thư ngay": đọc thư mới bây giờ, không chờ lịch 15 phút."""
+	_chan(True)
+	from vagabond import doi_soat_thu
+
+	ch = doi_soat_thu.cau_hinh()
+	if not ch["bat"]:
+		frappe.throw("Hộp thư đối soát đang tắt. Quản trị bật ở Cài đặt lõi, mục Hộp thư đối soát.")
+	return doi_soat_thu.doc_hop_thu(ch)
+
+
+@frappe.whitelist()
+def thu_ket_noi():
+	from vagabond import doi_soat_thu
+
+	return doi_soat_thu.thu_ket_noi()
+
+
+@frappe.whitelist()
+def tai_thu_goc(name=None):
+	"""Tải bản gốc .eml của một thư để tự kiểm (chỉ đọc)."""
+	_chan()
+	from vagabond import doi_soat_thu
+
+	ct = frappe.db.get_value(doi_soat_thu.DT_THU, name, "company")
+	if ct is None:
+		frappe.throw("Không thấy thư này. Tải lại màn hình.")
+	_chan_cong_ty(ct)
+	return doi_soat_thu.thu_goc(name)
+
+
+@frappe.whitelist()
+def duyet_nguon(name=None):
+	from vagabond import doi_soat_thu
+
+	return doi_soat_thu.duyet(name)
+
+
+@frappe.whitelist()
+def tu_choi_nguon(name=None, ly_do=None):
+	from vagabond import doi_soat_thu
+
+	return doi_soat_thu.tu_choi(name, ly_do)
+
+
+@frappe.whitelist()
+def xac_nhan_nguon(name=None):
+	from vagabond import doi_soat_thu
+
+	return doi_soat_thu.xac_nhan(name)

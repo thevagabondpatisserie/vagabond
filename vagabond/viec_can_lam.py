@@ -77,6 +77,7 @@ LOAI_PHIEU = (
 	("ho_so_tt", "Hồ sơ thanh toán", "🏦"),
 	("nop_quy", "Nộp quỹ tiền mặt", "💵"),
 	("hang_tang", "Đơn hàng tặng", "🎁"),
+	("doi_soat_duyet", "Tệp đối soát chờ duyệt", "📨"),
 	("don_mua", "Đơn mua quá hẹn", "⚠️"),
 	("goi_y", "Việc được giao", "📌"),
 )
@@ -101,7 +102,7 @@ VAI_GIAM_DOC_SIET = {"AP Giám đốc", "Giám đốc"}
 # Ba việc anh Việt nêu đích danh. Thêm loại thứ tư thì thêm đúng một dòng ở
 # đây, và phải là việc mà giám đốc THẬT SỰ là người quyết, không phải việc
 # chỉ để xem cho biết.
-VIEC_HE_TRONG = ("ho_so_tt", "nop_quy", "hang_tang")
+VIEC_HE_TRONG = ("ho_so_tt", "nop_quy", "hang_tang", "doi_soat_duyet")
 
 # Việc giao ĐÍCH DANH từ màn Việc hôm nay (#351). Không lọc theo vai mà theo
 # ToDo của chính người đang đăng nhập, nên ai được giao thì người đó thấy, kể
@@ -153,6 +154,10 @@ MA_TRAN = {
 	# Đơn hàng tặng: CHỈ giám đốc, vì cả hàng rào sinh ra để tách người tặng
 	# khỏi người duyệt. Xem vagabond/hang_tang.py.
 	"hang_tang": VAI_GIAM_DOC,
+	# v641 (anh Việt 06/11/2026): "tệp tải tay có duyệt, đưa vào mục việc cần
+	# làm của giám đốc". Tệp tải tay và thư đối tác không chữ ký số chờ giám
+	# đốc duyệt mới tính là đã đối soát (doi_soat_thu.viec_duyet).
+	"doi_soat_duyet": VAI_GIAM_DOC,
 }
 
 
@@ -756,6 +761,13 @@ def _viec_hang_tang(vai):
 	return ra
 
 
+def _viec_doi_soat_duyet():
+	"""Tệp đối soát tải tay hay thư không chữ ký chờ giám đốc duyệt (v641)."""
+	from vagabond import doi_soat_thu
+
+	return doi_soat_thu.viec_duyet()
+
+
 def _viec_goi_y(nguoi):
 	"""Việc từ màn Việc hôm nay đang giao cho đích danh người này."""
 	from vagabond import phan_tich
@@ -811,6 +823,7 @@ def danh_sach(loai="", trang_thai=""):
 		("ho_so_tt", lambda: _viec_ho_so_tt(vai)),
 		("nop_quy", lambda: _viec_nop_quy(vai)),
 		("hang_tang", lambda: _viec_hang_tang(vai)),
+		("doi_soat_duyet", lambda: _viec_doi_soat_duyet()),
 		("goi_y", lambda: _viec_goi_y(nguoi)),
 	]
 

@@ -176,10 +176,11 @@ def doc_xls(noi_dung):
 	return trang
 
 
-def doc_pdf(noi_dung):
+def doc_pdf(noi_dung, mat_khau=()):
 	"""PDF thành dòng chữ theo từng trang, giữ thứ tự đọc của PyMuPDF.
 
-	PDF bị khoá mật khẩu thì dừng ở đây, không thử đoán mật khẩu.
+	PDF bị khoá mật khẩu: v641 thử đúng các mật khẩu anh tự khai trong Cài đặt
+	(sao kê thẻ Shinhan gửi qua thư thường khoá); không thử đoán mật khẩu nào khác.
 	"""
 	try:
 		import pymupdf as fitz
@@ -192,8 +193,10 @@ def doc_pdf(noi_dung):
 		tl = fitz.open(stream=noi_dung, filetype="pdf")
 	except Exception:
 		raise LoiTep("Không mở được PDF; tải lại tệp gốc.") from None
-	if tl.needs_pass:
-		raise LoiTep("PDF có mật khẩu; mở bằng mật khẩu rồi in lại thành PDF không khoá.")
+	if tl.needs_pass and not any(m and tl.authenticate(m) for m in mat_khau or ()):
+		tl.close()
+		raise LoiTep("PDF có mật khẩu; khai mật khẩu mở PDF ở Cài đặt lõi (mục Hộp thư đối soát), hoặc mở bằng mật khẩu "
+			"rồi in lại thành PDF không khoá.")
 	if tl.page_count > TOI_DA_TRANG_PDF:
 		tl.close()
 		raise LoiTep("PDF quá %s trang; tải bản CSV hoặc Excel của báo cáo, hoặc chia theo kỳ." % TOI_DA_TRANG_PDF)
@@ -215,8 +218,9 @@ def doc_pdf(noi_dung):
 LOI_GIAI_NEN = (zipfile.BadZipFile, zlib.error, EOFError, NotImplementedError)
 
 
-def doc_zip(noi_dung, sau=0):
-	"""Trả [(tên, byte, lỗi, mã băm lỗi)]; tệp con hỏng có byte None và lý do."""
+def doc_zip(noi_dung, sau=0, mat_khau=()):
+	"""Trả [(tên, byte, lỗi, mã băm lỗi)]; tệp con hỏng có byte None và lý do.
+	Tệp con có mật khẩu (ZipCrypto) thì thử các mật khẩu anh tự khai (v641)."""
 	if sau > 0:
 		raise LoiTep("Tệp nén lồng trong tệp nén; giải nén rồi tải từng tệp.")
 	ra = []
@@ -226,15 +230,19 @@ def doc_zip(noi_dung, sau=0):
 		if len(ds) > TOI_DA_TEP_ZIP:
 			raise LoiTep("Tệp nén có quá %s tệp; tải từng tệp." % TOI_DA_TEP_ZIP)
 		for i in ds:
+			pwd = None
 			if i.flag_bits & 0x1:
-				raise LoiTep("Tệp nén có mật khẩu; giải nén bằng mật khẩu rồi tải tệp bên trong.")
+				pwd = _mat_khau_zip(z, i, mat_khau)
+				if pwd is None:
+					raise LoiTep("Tệp nén có mật khẩu; khai mật khẩu ở Cài đặt lõi (mục Hộp thư đối soát), hoặc giải nén "
+						"bằng mật khẩu rồi tải tệp bên trong.")
 			if i.file_size > TOI_DA_BYTE:
 				raise LoiTep("Tệp trong gói nén quá 20 MB; tải riêng tệp đó.")
 			ten_con = i.filename.rsplit("/", 1)[-1]
 			# Đọc từng khúc, dừng ngay khi vượt trần từng tệp hoặc trần cả gói.
 			khuc, da_doc = [], 0
 			try:
-				with z.open(i) as f:
+				with z.open(i, pwd=pwd) as f:
 					while True:
 						b = f.read(1024 * 1024)
 						if not b:
@@ -258,7 +266,22 @@ def doc_zip(noi_dung, sau=0):
 	return ra
 
 
-def doc_tep(ten, noi_dung, sau=0):
+def _mat_khau_zip(z, i, mat_khau):
+	"""Mật khẩu đúng của một tệp con trong ZIP (thử đọc vài byte), hoặc None."""
+	for m in mat_khau or ():
+		if not m:
+			continue
+		b = m.encode("utf-8") if isinstance(m, str) else m
+		try:
+			with z.open(i, pwd=b) as f:
+				f.read(1)
+			return b
+		except (RuntimeError, NotImplementedError, zipfile.BadZipFile, zlib.error):
+			continue
+	return None
+
+
+def doc_tep(ten, noi_dung, sau=0, mat_khau=()):
 	"""Trả danh sách tệp đã đọc: [{ten, loai, sha256, trang}].
 
 	Zip trả nhiều phần tử (mỗi tệp bên trong một bản), tệp đơn trả một.
@@ -271,7 +294,7 @@ def doc_tep(ten, noi_dung, sau=0):
 	loai = loai_tep(ten, noi_dung)
 	if loai == "zip":
 		ra = []
-		for ten_con, byte_con, loi_con, sha_con in doc_zip(noi_dung, sau):
+		for ten_con, byte_con, loi_con, sha_con in doc_zip(noi_dung, sau, mat_khau):
 			# Codex #446 H3: một tệp con hỏng không chặn các tệp con còn lại.
 			# Tệp con hỏng thành một phần tử loai="loi" mang lý do và mã băm
 			# riêng, để màn nhận hiện đúng tệp nào hỏng.
@@ -279,9 +302,11 @@ def doc_tep(ten, noi_dung, sau=0):
 				ra.append(dict(ten=ten_con, loai="loi", sha256=sha_con, trang=[], loi=loi_con))
 				continue
 			try:
-				ra.extend(doc_tep(ten_con, byte_con, sau + 1))
+				ra.extend(doc_tep(ten_con, byte_con, sau + 1, mat_khau))
 			except LoiTep as e:
 				ra.append(dict(ten=ten_con, loai="loi", sha256=bam(byte_con), trang=[], loi=str(e)))
 		return ra
-	doc = {"csv": doc_csv, "xlsx": doc_xlsx, "xls": doc_xls, "pdf": doc_pdf}[loai]
+	if loai == "pdf":
+		return [dict(ten=ten, loai=loai, sha256=bam(noi_dung), trang=doc_pdf(noi_dung, mat_khau))]
+	doc = {"csv": doc_csv, "xlsx": doc_xlsx, "xls": doc_xls}[loai]
 	return [dict(ten=ten, loai=loai, sha256=bam(noi_dung), trang=doc(noi_dung))]
