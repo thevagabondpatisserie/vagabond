@@ -387,10 +387,11 @@ var hsPhieuCua = {}; hsGdCua = {};
 
 function hsODongPhieu(maHd) {
   var co = (hsPhieuCua[maHd] || '').trim();
-  return '<div data-hsphieu="' + h(maHd) + '" style="cursor:pointer;margin-top:5px;' +
-    'display:inline-block;border:1.5px solid ' + (co ? '#c7d2fe' : '#e5e7eb') +
-    ';background:' + (co ? '#eef2ff' : '#fff') + ';border-radius:8px;padding:4px 8px;' +
-    'font-size:11.5px;font-weight:' + (co ? '700' : '500') + ';color:' +
+  /* Codex PR #545 vòng 8 (AGENTS.md 2b.13): nút trên dòng cao 44, chữ 13. */
+  return '<div data-hsphieu="' + h(maHd) + '" style="cursor:pointer;margin-top:6px;' +
+    'display:inline-flex;align-items:center;min-height:44px;max-width:100%;vertical-align:top;border:1.5px solid ' + (co ? '#c7d2fe' : '#e5e7eb') +
+    ';background:' + (co ? '#eef2ff' : '#fff') + ';border-radius:10px;padding:0 12px;' +
+    'font-size:13px;font-weight:' + (co ? '700' : '500') + ';color:' +
     (co ? '#4338ca' : '#6b7280') + '">' +
     (co ? '🔗 ' + h(co) : '🔗 Nối phiếu nội bộ') + '</div>';
 }
@@ -449,10 +450,10 @@ var hsGdCua = {};
 
 function hsODongGd(maHd) {
   var g = hsGdCua[maHd];
-  return '<div data-hsgd="' + h(maHd) + '" style="cursor:pointer;margin-top:5px;margin-left:4px;' +
-    'display:inline-block;border:1.5px solid ' + (g ? '#99f6e4' : '#e5e7eb') +
-    ';background:' + (g ? '#f0fdfa' : '#fff') + ';border-radius:8px;padding:4px 8px;' +
-    'font-size:11.5px;font-weight:' + (g ? '700' : '500') + ';color:' +
+  return '<div data-hsgd="' + h(maHd) + '" style="cursor:pointer;margin-top:6px;margin-left:6px;' +
+    'display:inline-flex;align-items:center;min-height:44px;max-width:100%;vertical-align:top;border:1.5px solid ' + (g ? '#99f6e4' : '#e5e7eb') +
+    ';background:' + (g ? '#f0fdfa' : '#fff') + ';border-radius:10px;padding:0 12px;' +
+    'font-size:13px;font-weight:' + (g ? '700' : '500') + ';color:' +
     (g ? '#0f766e' : '#6b7280') + '">' +
     (g ? '🏦 ' + h(hsNgayVn(g.ngay)) + ' · ' + money(g.so_tien) + ' đ' + (g.ngan_hang ? ' · ' + h(g.ngan_hang) : '')
        : '🏦 Nối sao kê') + '</div>';

@@ -428,7 +428,7 @@ function scrBtmNhom() {
     html += '<div data-btmhang data-ma="' + h(ma) + '" data-btmtim="' + h(m.ten + ' ' + ma) + '" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f2f6;background:#fff">' + BTM_KEO +
       '<button type="button" data-btmmon="' + h(ma) + '" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;text-align:left;padding:4px 0;cursor:pointer">' +
       btmAnh(m.anh) + '<span style="flex:1;min-width:0"><b style="display:block;font-size:15px;color:#16181d">' + h(m.ten) +
-      (soRieng ? ' <i style="font-style:normal;font-size:13px;font-weight:700;background:#fef0c7;color:#93370d;border-radius:10px;padding:2px 8px;vertical-align:2px">Riêng ' + soRieng + '</i>' : '') + '</b><small style="display:block;font-size:12.5px;color:#8a8f9c;margin-top:2px;line-height:1.35">' + h(tom) + '</small></span></button>' +
+      (soRieng ? ' <i style="font-style:normal;font-size:13px;font-weight:700;background:#fef0c7;color:#93370d;border-radius:10px;padding:2px 8px;vertical-align:2px">Riêng ' + soRieng + '</i>' : '') + '</b><small style="display:block;font-size:13px;color:#8a8f9c;margin-top:2px;line-height:1.35">' + h(tom) + '</small></span></button>' +
       btmCongTac('data-btman="' + h(ma) + '"', an.indexOf(ma) < 0, 'Hiện ' + m.ten + ' trên web') + '</div>';
   });
   html += '</div>';
