@@ -1023,17 +1023,26 @@ async function scrHoSoTTTao() {
   /* Danh sach tai khoan nhan tien phai di THEO nguoi ung dang chon. Doi
      nguoi ma van bay tai khoan cua nguoi cu chinh la duong chuyen nham
      tien, nen cache neo vao `hsTkCua` va doi nguoi la nap lai. */
-  if (laHU && hsTaoNguoiUng && hsTkCua !== hsTaoNguoiUng) {
-    hsTkCua = hsTaoNguoiUng; hsTkHoan = '';
-    /* Đổi người ứng: giao dịch đã nối là của tài khoản người cũ, gỡ hết. */
-    hsGdCua = {};
+  /* Codex #545 vòng 3: mở lại bản nháp thì người ứng và hsTkCua được đặt lại
+     nhưng danh sách tài khoản (bộ nhớ tạm, không nằm trong bản nháp) thì chưa:
+     nạp lại, GIỮ tài khoản đã chọn và giao dịch đã nối. Chỉ khi ĐỔI người ứng
+     mới bỏ chọn và gỡ giao dịch. */
+  var hsDoiNguoi = laHU && hsTaoNguoiUng && hsTkCua !== hsTaoNguoiUng;
+  if (laHU && hsTaoNguoiUng && (hsDoiNguoi || !hsTkDs)) {
+    if (hsDoiNguoi) {
+      hsTkCua = hsTaoNguoiUng; hsTkHoan = '';
+      /* Đổi người ứng: giao dịch đã nối là của tài khoản người cũ, gỡ hết. */
+      hsGdCua = {};
+    }
     try { hsTkDs = await api('vagabond.ho_so_tt.ds_tk_hoan_ung', { nguoi: hsTaoNguoiUng }); }
     catch (e4) { hsTkDs = { tk: [], doan: 0 }; }
     /* Chi co dung MOT tai khoan thi chon san cho do mot nhip bam. Co tu HAI
        tro len thi de trong va bat chon tay: ACB voi OCB nhin luot rat giong
        nhau, may chon ho la may chon sai ma khong ai hay. */
     var dtk = (hsTkDs && hsTkDs.tk) || [];
-    if (dtk.length === 1) hsTkHoan = dtk[0].ma;
+    /* Tài khoản bản nháp đã chọn mà nay không còn trong danh sách thì bỏ chọn. */
+    if (hsTkHoan && !dtk.some(function (x) { return x.ma === hsTkHoan; })) hsTkHoan = '';
+    if (dtk.length === 1 && !hsTkHoan) hsTkHoan = dtk[0].ma;
   }
   if (laHU && !hsTaoNguoiUng) { hsTkDs = null; hsTkCua = ''; hsTkHoan = ''; }
 
