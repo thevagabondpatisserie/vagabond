@@ -488,6 +488,7 @@ def _doi_ncc_xoa_tu_khoa():
 	# hơn: phải có rào `if (!laHU)`, và trong cả khối không được có lần xoá
 	# tick nào đứng ngoài rào đó.
 	dung("có rào luồng hoàn ứng trước khi xoá tick",
-		"if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; }" in than)
+		# v642: cùng nhánh xoá luôn giao dịch sao kê đã nối (hsGdCua).
+		"if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; }" in than)
 	dung("không có lần xoá tick nào đứng ngoài rào",
 		than.count("hsTaoChon = {}") == 1)

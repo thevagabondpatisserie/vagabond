@@ -622,8 +622,16 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 		# nguoi noi lai lan hai va de nghi hoan tiep - dung duong chi hai lan
 		# ma v413 vua bit ben kia.
 		ma_phieu = (x.get("de_nghi_chi") or "").strip() if isinstance(x, dict) else ""
+		# v642 (chị Dung 06/11/2026): hoàn ứng CÓ hoá đơn nối được giao dịch sao
+		# kê vào từng hoá đơn, như màn không hoá đơn. Giao dịch chỉ là chứng từ
+		# tiền đã chi; số tiền vẫn theo hoá đơn. Luồng trả thẳng nhà cung cấp
+		# không có người ứng nên không nhận ô này.
+		ma_gd = (x.get("ma_giao_dich") or "").strip() if isinstance(x, dict) else ""
+		if ma_gd and (loai or "") != LOAI_HU_HD:
+			frappe.throw("Chỉ hồ sơ hoàn ứng có hoá đơn mới nối giao dịch sao kê vào từng hoá đơn.")
 		dong.append({
 			"de_nghi_chi": ma_phieu or None,
+			"ma_giao_dich": ma_gd,
 			"hoa_don": hd.name,
 			"so_hd_ncc": hd.bill_no or "",
 			"ngay_hd": hd.bill_date or hd.posting_date,
@@ -658,6 +666,7 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 	# phieu, nen khong so hai so voi nhau. Van giu hai chot con lai: mot
 	# phieu khong duoc noi hai dong, va phieu phai da qua duyet.
 	_soi_phieu_noi_bo(dong, theo_tien=False)
+	_kiem_gd_hoan_ung(dong, nguoi_ung)
 
 	if (loai or "") == LOAI_TKCT:
 		# v531: hồ sơ TK công ty lập từ tờ đã tick mang sẵn nhãn "hợp lệ tính
@@ -1208,6 +1217,34 @@ def _bank_account_quy():
 		if str(b.get("account") or "").strip().startswith(TK_QUY_TAM_UNG):
 			return b["name"]
 	return dang[0]["name"]
+
+
+def _kiem_gd_hoan_ung(dong, nguoi_ung):
+	"""Giao dịch sao kê nối vào hoá đơn hoàn ứng phải là khoản CHI RA từ tài
+	khoản của chính người được hoàn ứng. Trùng giao dịch giữa các hồ sơ thì
+	cửa lưu hồ sơ (doctype validate, khoa_ma_giao_dich) chặn như mọi luồng."""
+	from vagabond.hoan_ung_noi_bo import giao_dich, loi_gd_hoan_ung
+
+	ma = [d["ma_giao_dich"] for d in dong if d.get("ma_giao_dich")]
+	if not ma:
+		return
+	nguoi = (nguoi_ung or "").strip()
+	kq = ds_tk_hoan_ung(nguoi)
+	# Codex #545 vòng 1: người chưa gắn tài khoản nào vào quỹ tạm ứng thì danh
+	# sách là bản ĐOÁN (tài khoản của người khác, hoặc mọi tài khoản công ty).
+	# Bản đoán chỉ để chọn tài khoản nhận tiền, không phải bằng chứng ai đã
+	# chi: nhận nó thì khoản chi của người khác thành chứng từ cho người này.
+	if cint(kq.get("doan")):
+		frappe.throw(
+			"Người được hoàn ứng chưa gắn tài khoản ngân hàng nào vào quỹ tạm ứng, nên chưa nối được "
+			"giao dịch sao kê. Nhờ chị Dung gắn tài khoản của người này vào 1411 bên Next, hoặc bỏ nối sao kê.",
+			title="Giao dịch sao kê chưa đúng")
+	# Chỉ tài khoản thật sự đứng tên người này (chủ là đúng mã nhà cung cấp).
+	tk = {x["ma"] for x in kq.get("tk") or [] if (x.get("nguoi") or "") == nguoi}
+	for m in ma:
+		loi = loi_gd_hoan_ung(giao_dich(m), tk, m)
+		if loi:
+			frappe.throw(loi, title="Giao dịch sao kê chưa đúng")
 
 
 def _gd_da_gom():

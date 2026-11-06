@@ -959,3 +959,30 @@ def _():
 			patch.object(T, "kiem_xac_nhan", lambda n: viec.append(("kiem", n))):
 		V.xac_nhan_noi("R1")
 	la("nối tay theo tiền: kiểm xác nhận sau khi đếm", viec, ["ghi", "dem", ("kiem", "N1")])
+
+
+# ------------------------------------------------------------ v642
+
+@ca("v642: gieo mặc định trên Cài đặt lõi (doctype Single, không có bảng riêng) không gọi has_column, gieo đủ dòng một lần")
+def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	viec, loi, toan_cuc = [], [], {}
+
+	def has_column(dt, col):
+		# Đúng hành vi ERPNext thật với doctype Single (site 06/11/2026).
+		raise RuntimeError("TableMissingError: DocType %s" % dt)
+	fr = NS(db=NS(has_column=has_column, table_exists=lambda dt: True, get_global=lambda k: toan_cuc.get(k),
+		set_global=lambda k, v: toan_cuc.__setitem__(k, v), count=lambda dt, f=None: 0),
+		get_meta=lambda dt: NS(has_field=lambda f: True),
+		get_doc=lambda d: NS(db_insert=lambda: viec.append((d["doctype"], d["parentfield"]))),
+		clear_document_cache=lambda *a: None, log_error=lambda *a, **k: loi.append(k.get("title") or a))
+	with patch.object(T, "_frappe", lambda: fr):
+		T.gieo_mac_dinh()
+		la("không ghi lỗi", loi, [])
+		la("gieo đủ người gửi và lịch thư", (sum(1 for x in viec if x[1] == "ds_nguoi_gui"), sum(1 for x in viec if x[1] == "ds_lich_thu")),
+			(len(T.NGUOI_GUI_MAC_DINH), len(T.LICH_MAC_DINH)))
+		la("đánh dấu đã gieo", toan_cuc.get("vgb_ds_thu_gieo"), "1")
+		viec.clear()
+		T.gieo_mac_dinh()
+		la("lượt migrate sau không gieo lại", viec, [])

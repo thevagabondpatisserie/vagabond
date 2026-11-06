@@ -572,5 +572,264 @@ await ca('v640 Codex #543: menu rỗng thì không hiện món nào; menu không
   la('máy chủ cũ: bày như trước', [r2.mon.map(m => m.ma), r2.tong], [['B1', 'N1'], 5]);
 });
 
+await ca('v642 gọi xong (anh Việt 06/11/2026: màn co lại, không xem được đơn, không có chỗ tính tiền): thanh đơn luôn hiện ở đáy; màn Đơn của bàn có từng lượt, giờ, trạng thái, tiền từng dòng, tạm tính bỏ lượt bị từ chối; Thanh toán chọn mang bill ra bàn hay trả tại quầy, ô mã số thuế hoặc email, báo quầy bằng chuông Xin tính tiền', async () => {
+  const theoMa = {
+    'TQ-1': {ok: 1, trang_thai: 'Chờ nhận', luc: '10:00', tam_tinh: 45000, mon: [{ten: 'Trà Hoa Lài', sl: 1, tc: ['Ít đá'], gia: 45000, tien: 45000}]},
+    'TQ-2': {ok: 1, trang_thai: 'Từ chối', luc: '10:05', ly_do: 'Hết kem', tam_tinh: 30000, mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 30000, tien: 30000}]}};
+  let so = 0;
+  const {goc, kho, vet, chayHen, mang} = await moTrang({tt: th => theoMa[th.ma], goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so).repeat(32)})});
+  let traLoi = {ok: 1, ma: 'TG-1', luc: '10:58'};
+  mang['vagabond.goi_mon_ban.goi_nhan_vien'] = () => traLoi;
+  const G = kho.goiBan.G;
+  const on = id => String(theoId(goc, id).props.class).split(/\s+/).includes('on');
+  const mo = id => String(theoId(goc, id).props.class).includes('open');
+  dung('chưa gọi: không có thanh đơn', !on('gbBarDon'));
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00021'));
+  await bam(tim(goc, n => n.props['data-tc'] === 'Đá=Ít đá')[0]);
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  la('giỏ trống sau khi gọi', G.gio.length, 0);
+  dung('thanh đơn hiện ngay, không co lại', on('gbBarDon'));
+  const bar = chu(theoId(goc, 'gbBarDon'));
+  dung('thanh đơn: bàn và số lượt ' + bar, bar.includes('Bàn 5 · Đã gọi 1 lượt'));
+  dung('thanh đơn: tạm tính và lượt chờ ' + bar, bar.includes('Tạm tính 45.000 đ') && bar.includes('1 lượt chờ quầy nhận'));
+  await bam(theoId(goc, 'gbXemDon'));
+  dung('mở màn Đơn của bàn', mo('gbDonBan'));
+  dung('màn đơn mở thì thanh đơn nhường chỗ', !on('gbBarDon'));
+  const d1 = chu(theoId(goc, 'gbDonBan'));
+  dung('lượt có giờ và trạng thái ' + d1, d1.includes('Lượt 1 · 10:00') && d1.includes('Chờ quầy nhận'));
+  dung('dòng có tuỳ chọn và tiền ' + d1, d1.includes('1 × Trà Hoa Lài') && d1.includes('Ít đá') && d1.includes('45.000 đ'));
+  dung('tạm tính và cần thanh toán ' + d1, d1.includes('Món gọi từ máy này (1 món)') && d1.includes('Cần thanh toán'));
+  dung('nút Thanh toán có số tiền', chu(theoId(goc, 'gbDonTra')) === 'Thanh toán · 45.000 đ');
+  dung('có Gọi thêm món, Gọi nhân viên', theoId(goc, 'gbDonGoiThem') && theoId(goc, 'gbDonChuong'));
+  await bam(theoId(goc, 'gbDonGoiThem'));
+  dung('Gọi thêm món: đóng màn đơn, về danh sách', !mo('gbDonBan') && on('gbBarDon'));
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {trang_thai: 'Đã nhận', nhan_luc: '10:02'});
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUIC00002'));
+  dung('giỏ có món: thanh giỏ đứng chỗ thanh đơn', on('gbBar') && !on('gbBarDon'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  await bam(theoId(goc, 'gbXemDon'));
+  await cho();
+  la('lượt mới nhất trên cùng', tim(theoId(goc, 'gbDonBan'), n => n.props && n.props['data-luot']).map(n => n.props['data-luot']), ['TQ-2', 'TQ-1']);
+  const l2 = tim(theoId(goc, 'gbDonBan'), n => n.props && n.props['data-luot'] === 'TQ-2')[0];
+  dung('lượt bị từ chối hiện mờ, ghi lý do', String(l2.props.class).includes('tat') && chu(l2).includes('Quầy từ chối: Hết kem'));
+  const d2 = chu(theoId(goc, 'gbDonBan'));
+  dung('lượt đã nhận ghi giờ nhận ' + d2, d2.includes('Đã nhận lúc 10:02'));
+  dung('tạm tính bỏ lượt bị từ chối', chu(theoId(goc, 'gbTongBan')).includes('Món gọi từ máy này (1 món)') && chu(theoId(goc, 'gbDonTra')) === 'Thanh toán · 45.000 đ');
+  await bam(theoId(goc, 'gbDonTra'));
+  dung('mở Thanh toán, đóng màn đơn', mo('gbTra') && !mo('gbDonBan'));
+  la('hai cách trả, chưa mở trả online', tim(theoId(goc, 'gbTra'), n => n.props['data-cach']).map(n => n.props['data-cach']), ['ban', 'quay']);
+  dung('chưa chọn cách thì khoá nút', theoId(goc, 'gbTraGui').props.disabled === true);
+  await bam(tim(goc, n => n.props['data-cach'] === 'ban')[0]);
+  go(theoId(goc, 'gb-tra-hd'), '12345'); await cho();
+  await bam(theoId(goc, 'gbTraGui'));
+  dung('mã số thuế sai dạng: nói rõ, không gửi', chu(theoId(goc, 'gbTraLoi')).includes('10 số') && !vet.some(x => x[1] === 'vagabond.goi_mon_ban.goi_nhan_vien'));
+  go(theoId(goc, 'gb-tra-hd'), '0311 638 525'); await cho();
+  traLoi = {ok: 0, cau: 'Bàn này vừa gọi 3 lần. Nhân viên đang tới, quý khách đợi một chút hoặc nhắn Zalo.'};
+  await bam(theoId(goc, 'gbTraGui'));
+  dung('máy chủ chặn: nói câu máy chủ, giữ bảng', chu(theoId(goc, 'gbTraLoi')).includes('vừa gọi 3 lần') && mo('gbTra'));
+  traLoi = {ok: 1, ma: 'TG-1', luc: '10:58'};
+  await bam(theoId(goc, 'gbTraGui'));
+  const gui = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.goi_nhan_vien').map(x => x[2]);
+  la('gửi đúng chuông Xin tính tiền kèm cách trả và mã số thuế', gui.map(x => [x.diem, x.ban, x.k, x.ly_do, x.chi_tiet]),
+    [['TCV', 5, K, 'Xin tính tiền', 'Mang bill ra bàn · Xuất hoá đơn: 0311638525'], ['TCV', 5, K, 'Xin tính tiền', 'Mang bill ra bàn · Xuất hoá đơn: 0311638525']]);
+  la('thử lại cùng nội dung: giữ nonce để máy chủ gộp', gui[0].nonce === gui[1].nonce && /^[A-Za-z0-9_-]{32}$/.test(gui[0].nonce), true);
+  dung('báo đã gửi, nói gọi thêm thành bill mới', chu(theoId(goc, 'gbTraXong')).includes('Nhân viên mang bill ra bàn 5') && chu(theoId(goc, 'gbTraXong')).includes('bill mới'));
+});
+
+await ca('v642 combo quán đang chạy (anh Việt 06/11/2026): chip Combo đứng sau Tất cả, combo đầu danh sách có giá bộ, giá gốc gạch, món thành phần; bấm + vào giỏ thẳng, giỏ ghi món thành phần; Gọi món gửi mã combo không kèm giá; không có QR thì không bày combo', async () => {
+  const CB = {ma: 'KMCB00001', ten: 'Trà chiều', gia: 120000, goc: 140000, mo_ta: '', anh: '', con: 2, loai: 'combo',
+    thanh_phan: [{ma: 'NUTR00021', ten: 'Trà Hoa Lài', sl: 1, loai: 'nuoc'}, {ma: 'BAWC00115', ten: 'Mousse Chanh Dây', sl: 2, loai: 'banh'}]};
+  const goc = JSON.parse(JSON.stringify(STORE));
+  goc.quay[0].combo = [CB, Object.assign({}, CB, {ma: 'KMCB00009', con: 0})];
+  const m = moiTruong();
+  m.mang['vagabond.kiem_kho.con_tren_quay_web'] = () => JSON.parse(JSON.stringify(goc));
+  const kho = taoKho(m.mt);
+  await kho.napQuay();
+  await kho.goiBan.kiemLink();
+  const q = dungQuayHien(kho.S, kho.goiBan.G, t);
+  la('chip Combo sau Tất cả, chỉ combo còn bộ', q.nhom.slice(0, 2).map(n => [n.n, n.so]), [['', q.mon.length], ['combo', 1]]);
+  la('combo đứng đầu', [q.mon[0].ma, q.mon[0].gia, q.mon[0].gocHien, q.mon[0].mo_ta], ['KMCB00001', 120000, 140000, 'Trà Hoa Lài, 2 Mousse Chanh Dây']);
+  kho.S.nhomQuay = 'combo';
+  la('chip Combo chỉ còn combo', dungQuayHien(kho.S, kho.goiBan.G, t).mon.map(x => x.ma), ['KMCB00001']);
+  kho.S.nhomQuay = '';
+  la('không có QR: không bày combo', dungQuayHien(kho.S, null, t).mon.some(x => x.loai === 'combo'), false);
+  la('bấm + combo: thêm thẳng', kho.goiBan.bamThem(q.mon[0]), true);
+  la('giỏ: giá bộ, ghi món thành phần', [kho.goiBan.G.gio[0].ma, kho.goiBan.G.gio[0].gia, kho.goiBan.G.gio[0].thanhPhan.length], ['KMCB00001', 120000, 2]);
+  kho.goiBan.bamThem(q.mon[0]);
+  la('tối đa 2 bộ theo bánh còn', kho.goiBan.bamThem(q.mon[0]), false);
+  await kho.goiBan.goiMon();
+  const gui = m.vet.filter(x => x[1] === 'vagabond.goi_mon_ban.goi');
+  la('gửi mã combo, không giá', JSON.parse(gui[0][2].mon), [{ma: 'KMCB00001', sl: 2, tc: {}}]);
+  la('đơn của bàn chép món thành phần', kho.goiBan.G.don[0].tt.mon[0].tc, ['Trà Hoa Lài, 2 Mousse Chanh Dây']);
+});
+
+await ca('v642 Codex #545 vòng 1: khách trả bill xong rồi gọi tiếp mà không tải lại trang: lượt đã tính tiền không cộng vào bill mới, thanh đơn và Đơn của bàn chỉ còn lượt của bill đang mở', async () => {
+  const theoMa = {
+    'TQ-1': {ok: 1, trang_thai: 'Đã nhận', nhan_luc: '10:02', luc: '10:00', tam_tinh: 90000, mon: [{ten: 'Trà Hoa Lài', sl: 2, tc: [], gia: 45000, tien: 90000}]},
+    'TQ-2': {ok: 1, trang_thai: 'Chờ nhận', luc: '11:00', tam_tinh: 30000, mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 30000, tien: 30000}]}};
+  let so = 0;
+  const {goc, kho, chayHen} = await moTrang({tt: th => theoMa[th.ma], goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so).repeat(32)})});
+  const G = kho.goiBan.G;
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00021'));
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  dung('bill đầu: tạm tính 90.000 đ', chu(theoId(goc, 'gbBarDon')).includes('Tạm tính 90.000 đ'));
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {da_tra: 1});
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUIC00002'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  const bar = chu(theoId(goc, 'gbBarDon'));
+  dung('bill mới chỉ tính lượt mới: ' + bar, bar.includes('Tạm tính 30.000 đ') && bar.includes('Đã gọi 1 lượt'));
+  la('lượt đã tính tiền rời khỏi đơn của bàn', G.don.map(d => d.ma), ['TQ-2']);
+});
+
+await ca('v642 Codex #545 vòng 4: bàn gọi hơn mười lượt chưa trả, tải lại trang vẫn đủ mọi lượt, tổng cần thanh toán không hụt', async () => {
+  const kho = new Map();
+  const luuTru = {getItem: k => (kho.has(k) ? kho.get(k) : null), setItem: (k, v) => { kho.set(k, String(v)); }, removeItem: k => kho.delete(k)};
+  let so = 0;
+  const tt = () => ({ok: 1, trang_thai: 'Đã nhận', nhan_luc: '10:02', luc: '10:00', tam_tinh: 30000, mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 30000, tien: 30000}]});
+  const m1 = moiTruong({tt, goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so % 10).repeat(32)})});
+  m1.mt.luuTru = luuTru;
+  const k1 = taoKho(m1.mt);
+  await k1.napQuay();
+  await k1.goiBan.kiemLink();
+  const kem = dungQuayHien(k1.S, k1.goiBan.G, t).mon.find(x => x.ma === 'NUIC00002');
+  for (let i = 0; i < 12; i++) { k1.goiBan.bamThem(kem); await k1.goiBan.goiMon(); }
+  await m1.chayHen();
+  la('trước khi tải lại: 12 lượt, 360.000 đ', [k1.goiBan.G.don.length, k1.goiBan.tom.value.tamTinh], [12, 360000]);
+  const m2 = moiTruong({tt});
+  m2.mt.luuTru = luuTru;
+  const k2 = taoKho(m2.mt);
+  await k2.napQuay();
+  await k2.goiBan.kiemLink();
+  await m2.chayHen();
+  la('sau khi tải lại: vẫn 12 lượt, 360.000 đ', [k2.goiBan.G.don.length, k2.goiBan.tom.value.tamTinh], [12, 360000]);
+  const K3 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  const nhieu = Array.from({length: 205}, (_, i) => ({ma: 'TQ-' + i, tt: {trang_thai: i < 10 ? 'Từ chối' : 'Đã nhận'}}));
+  const giu = K3.donCanLuu(nhieu);
+  la('quá trần: chỉ bỏ lượt từ chối cũ, giữ mọi lượt còn tính tiền', [giu.length, giu.filter(d => d.tt.trang_thai === 'Đã nhận').length], [200, 195]);
+  const song = Array.from({length: 210}, (_, i) => ({ma: 'TQ-' + i, tt: {trang_thai: 'Đã nhận'}}));
+  la('toàn lượt còn tính tiền: không cắt lượt nào', K3.donCanLuu(song).length, 210);
+});
+
+await ca('v642 phép thuần thanh toán tại bàn: ô hoá đơn nhận mã số thuế 10, 12, 10-3 số hoặc email; chi tiết gửi quầy không quá 120 ký tự; tạm tính bỏ lượt từ chối, hết hạn', async () => {
+  const K2 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  la('rỗng là hợp lệ', K2.chuanHoaDon('  '), {ok: true, gt: ''});
+  la('10 số có dấu cách', K2.chuanHoaDon('0311 638 525').gt, '0311638525');
+  la('12 số', K2.chuanHoaDon('079123456789').gt, '079123456789');
+  la('chi nhánh', [K2.chuanHoaDon('0311638525-027').gt, K2.chuanHoaDon('0311638525027').gt], ['0311638525-027', '0311638525-027']);
+  la('email chữ thường', K2.chuanHoaDon(' KeToan@CongTy.vn ').gt, 'ketoan@congty.vn');
+  la('sai dạng', [K2.chuanHoaDon('12345').ok, K2.chuanHoaDon('a@b').ok], [false, false]);
+  la('trả tại quầy', K2.chiTietTra('quay', ''), 'Khách ra quầy trả');
+  la('cách lạ: rỗng', K2.chiTietTra('online', ''), '');
+  dung('không quá 120 ký tự', K2.chiTietTra('ban', 'x'.repeat(200) + '@a.vn').length === 120);
+  la('tạm tính', K2.tomDon([{tt: {trang_thai: 'Đã nhận', tam_tinh: 100, mon: [{sl: 2}]}}, {tt: {trang_thai: 'Hết hạn', tam_tinh: 50, mon: [{sl: 1}]}},
+    {tt: {trang_thai: 'Từ chối', tam_tinh: 70}}, {tt: null}]), {soLuot: 2, soMon: 2, tamTinh: 100, choNhan: 1, coHoaDon: false, hoaDon: 0, ngoaiHoaDon: 100, coNgoai: false, canTra: 100});
+});
+
+await ca('v642 Codex #545 vòng 6: hai điện thoại cùng bàn, quầy thêm món: cần thanh toán lấy theo hoá đơn của bàn trên máy chủ, không chỉ món gọi từ máy này; lượt chờ quầy nhận cộng thêm, ghi rõ chưa vào hoá đơn', async () => {
+  /* Đúng chuỗi của khách: máy A gọi 1 lượt 100.000 đ, quầy nhận vào phiếu tạm
+     của bàn; máy B (hay thu ngân) thêm 40.000 đ vào CÙNG phiếu. Máy chủ trả
+     hoá đơn của bàn kèm lượt của máy A. */
+  const theoMa = {'TQ-1': {ok: 1, trang_thai: 'Đã nhận', nhan_luc: '10:02', luc: '10:00', tam_tinh: 100000,
+    mon: [{ten: 'Trà Hoa Lài', sl: 2, tc: [], gia: 50000, tien: 100000}], bill: {khoa: 'b1', tong: 140000}}};
+  let so = 0;
+  const {goc, kho, chayHen} = await moTrang({tt: th => theoMa[th.ma] || {ok: 1, trang_thai: 'Chờ nhận', luc: '10:20', tam_tinh: 30000,
+    mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 30000, tien: 30000}]}, goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so).repeat(32)})});
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00021'));
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  await bam(theoId(goc, 'gbXemDon'));
+  await cho();
+  const tb = chu(theoId(goc, 'gbTongBan'));
+  dung('màn Đơn của bàn: cần thanh toán theo hoá đơn của bàn ' + tb, tb.includes('Cần thanh toán140.000 đ'));
+  dung('ghi rõ món gọi từ máy này và hoá đơn của bàn ' + tb, tb.includes('Món gọi từ máy này (2 món)100.000 đ') && tb.includes('Hoá đơn của bàn140.000 đ'));
+  la('nút Thanh toán theo hoá đơn của bàn', chu(theoId(goc, 'gbDonTra')), 'Thanh toán · 140.000 đ');
+  await bam(theoId(goc, 'gbDonTra'));
+  dung('màn Thanh toán: 140.000 đ', chu(theoId(goc, 'gbTra')).includes('Cần thanh toán140.000 đ'));
+  await bam(tim(theoId(goc, 'gbTra'), n => n.the === 'button' && String(n.props.class).includes('gb-x'))[0]);
+  dung('thanh đơn: 140.000 đ ' + chu(theoId(goc, 'gbBarDon')), chu(theoId(goc, 'gbBarDon')).includes('Tạm tính 140.000 đ'));
+  /* Máy A gọi thêm một lượt, quầy chưa nhận: chưa vào hoá đơn, cộng thêm. */
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUIC00002'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  await bam(theoId(goc, 'gbXemDon'));
+  await cho();
+  const tb2 = chu(theoId(goc, 'gbTongBan'));
+  dung('lượt chờ nhận cộng thêm, ghi chưa vào hoá đơn ' + tb2, tb2.includes('Chưa vào hoá đơn30.000 đ') && tb2.includes('Cần thanh toán170.000 đ'));
+  /* Thu ngân thêm món nữa vào phiếu: mở lại màn đơn là thấy số mới. */
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {bill: {khoa: 'b1', tong: 185000}});
+  await bam(theoId(goc, 'gbDonGoiThem'));
+  await bam(theoId(goc, 'gbXemDon'));
+  await cho();
+  dung('mở lại màn đơn: hỏi lại hoá đơn của bàn ' + chu(theoId(goc, 'gbTongBan')), chu(theoId(goc, 'gbTongBan')).includes('Cần thanh toán215.000 đ'));
+  la('kho', kho.goiBan.tom.value.canTra, 215000);
+});
+
+await ca('v642 Codex #545 vòng 6 phép thuần: cần thanh toán = các hoá đơn mở của bàn (mỗi hoá đơn một lần) + lượt chưa vào hoá đơn; lượt đã nhận mà máy chủ không báo hoá đơn thì tính theo lượt; từ chối, hết hạn không tính', async () => {
+  const K2 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  const r = K2.tomDon([
+    {tt: {trang_thai: 'Đã nhận', tam_tinh: 100, mon: [{sl: 2}], bill: {khoa: 'b1', tong: 140}}},
+    {tt: {trang_thai: 'Đã nhận', tam_tinh: 20, mon: [{sl: 1}], bill: {khoa: 'b1', tong: 150}}},
+    {tt: {trang_thai: 'Chờ nhận', tam_tinh: 30, mon: [{sl: 1}], bill: {khoa: 'b9', tong: 999}}},
+    {tt: {trang_thai: 'Từ chối', tam_tinh: 70, mon: [{sl: 1}]}}]);
+  la('một hoá đơn tính một lần, số mới nhất; lượt chờ nhận cộng thêm', [r.tamTinh, r.hoaDon, r.coHoaDon, r.ngoaiHoaDon, r.canTra], [150, 150, true, 30, 180]);
+  const r2 = K2.tomDon([{tt: {trang_thai: 'Đã nhận', tam_tinh: 100, mon: [{sl: 2}]}}, {tt: {trang_thai: 'Chờ nhận', tam_tinh: 30, mon: [{sl: 1}]}}]);
+  la('máy chủ chưa báo hoá đơn: tính theo lượt', [r2.coHoaDon, r2.canTra], [false, 130]);
+  const r3 = K2.tomDon([{tt: {trang_thai: 'Đã nhận', tam_tinh: 50, bill: {khoa: 'b1', tong: 80}}}, {tt: {trang_thai: 'Đã nhận', tam_tinh: 60, bill: {khoa: 'b2', tong: 90}}}]);
+  la('hai hoá đơn mở khác nhau: cộng cả hai', r3.canTra, 170);
+});
+
+await ca('v642 Codex #545 vòng 7: quầy nhận lượt MỚI trước rồi lượt CŨ sau; nhịp tự động chỉ hỏi lượt còn chờ; thanh đơn phải theo số phiếu hỏi sau cùng (140.000 đ), không theo lượt đứng cuối danh sách (40.000 đ)', async () => {
+  const BILL = 'k-bill-ban-5';
+  const theoMa = {
+    'TQ-1': {ok: 1, trang_thai: 'Chờ nhận', luc: '10:00', tam_tinh: 100000, mon: [{ten: 'Trà Hoa Lài', sl: 2, tc: [], gia: 50000, tien: 100000}]},
+    'TQ-2': {ok: 1, trang_thai: 'Chờ nhận', luc: '10:05', tam_tinh: 40000, mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 40000, tien: 40000}]}};
+  let so = 0;
+  const {goc, kho, chayHen, vet} = await moTrang({tt: th => Object.assign({}, theoMa[th.ma]), goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so).repeat(32)})});
+  for (const ma of ['NUTR00021', 'NUIC00002']) {
+    await bam(nutThem(goc).find(n => n.props['data-them'] === ma));
+    if (ma === 'NUTR00021') await bam(theoId(goc, 'gbThemLy'));
+    await bam(theoId(goc, 'gbXemGio'));
+    await bam(theoId(goc, 'gbGoi'));
+  }
+  await chayHen();
+  /* Quầy nhận lượt 2 (40.000 đ) trước: phiếu của bàn 40.000 đ. */
+  theoMa['TQ-2'] = Object.assign({}, theoMa['TQ-2'], {trang_thai: 'Đã nhận', nhan_luc: '10:06', bill: {khoa: BILL, tong: 40000}});
+  await chayHen();
+  dung('nhận lượt 2: thanh đơn 40.000 đ + lượt 1 chờ 100.000 đ ' + chu(theoId(goc, 'gbBarDon')), chu(theoId(goc, 'gbBarDon')).includes('Tạm tính 140.000 đ'));
+  /* Rồi nhận lượt 1 vào CÙNG phiếu: phiếu 140.000 đ. Nhịp tự động không hỏi lại lượt 2 (đã xong). */
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {trang_thai: 'Đã nhận', nhan_luc: '10:07', bill: {khoa: BILL, tong: 140000}});
+  theoMa['TQ-2'] = Object.assign({}, theoMa['TQ-2'], {bill: {khoa: BILL, tong: 140000}});
+  const truoc = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').length;
+  await chayHen();
+  la('nhịp tự động chỉ hỏi lượt 1', vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').slice(truoc).map(x => x[2].ma), ['TQ-1']);
+  const bar = chu(theoId(goc, 'gbBarDon'));
+  dung('thanh đơn theo số phiếu mới nhất: ' + bar, bar.includes('Tạm tính 140.000 đ'));
+  la('kho', [kho.goiBan.tom.value.canTra, kho.goiBan.tom.value.hoaDon], [140000, 140000]);
+});
+
+await ca('v642 Codex #545 vòng 7: máy chủ đọc tổng phiếu lỗi ở một lượt vẫn báo khoá phiếu; lượt khác cùng phiếu đọc được tổng thì không cộng trùng (140.000 đ, không phải 240.000 đ); cả phiếu chưa đọc được thì tạm tính theo lượt', async () => {
+  const K2 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  const l1 = (bill, hoi) => ({tt: {trang_thai: 'Đã nhận', tam_tinh: 100000, mon: [{sl: 2}], bill, hoi}});
+  const l2 = (bill, hoi) => ({tt: {trang_thai: 'Đã nhận', tam_tinh: 40000, mon: [{sl: 1}], bill, hoi}});
+  la('lượt 1 đọc lỗi, lượt 2 đọc được', K2.tomDon([l1({khoa: 'b1', tong: null}, 1), l2({khoa: 'b1', tong: 140000}, 2)]).canTra, 140000);
+  la('lượt đọc lỗi hỏi sau cùng: giữ số đọc được', K2.tomDon([l2({khoa: 'b1', tong: 140000}, 1), l1({khoa: 'b1', tong: null}, 2)]).canTra, 140000);
+  const r = K2.tomDon([l1({khoa: 'b1', tong: null}, 1), l2({khoa: 'b1', tong: null}, 2), {tt: {trang_thai: 'Chờ nhận', tam_tinh: 30000}}]);
+  la('cả phiếu chưa đọc được: theo lượt, không ghi là hoá đơn của bàn', [r.coHoaDon, r.hoaDon, r.canTra], [false, 0, 170000]);
+  la('số hỏi sau cùng thắng dù lượt đứng trước', K2.tomDon([l1({khoa: 'b1', tong: 140000}, 5), l2({khoa: 'b1', tong: 40000}, 3)]).canTra, 140000);
+  la('tổng 0 đ (quầy giảm hết) vẫn là số đọc được', K2.tomDon([l1({khoa: 'b1', tong: 0}, 1)]).canTra, 0);
+});
+
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
 if (hong) { console.log(loi.join('\n')); process.exit(1); }

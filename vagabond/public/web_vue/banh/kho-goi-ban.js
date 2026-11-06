@@ -25,6 +25,103 @@ export const NHOM_NUOC = [['Trà', 'Trà'], ['Cà phê', 'Cà phê'], ['Matcha',
 /* Lý do bấm chuông, trùng goi_mon_ban.LY_DO_GOI (máy chủ chỉ nhận đúng các câu này). */
 export const LY_DO_GOI = ['Gọi nhân viên tới bàn', 'Xin tính tiền', 'Xin thêm nước lọc, đá', 'Xin thêm dao, nĩa, khăn giấy', 'Việc khác'];
 
+/* v642 (anh Việt 06/11/2026, mẫu 4 và 6 đã duyệt): hai cách thanh toán khi
+   chưa mở trả online tại bàn. Khách chọn một, máy báo quầy qua đúng chuông
+   "Xin tính tiền" (lý do LY_DO_GOI[1]); phần chi tiết nói cách trả và thông
+   tin xuất hoá đơn để thu ngân chuẩn bị bill. */
+export const CACH_TRA = [
+  {ma: 'ban', ten: 'Nhân viên mang bill ra bàn', phu: 'Tiền mặt, chuyển khoản hoặc quẹt thẻ ngay tại bàn', chi: 'Mang bill ra bàn'},
+  {ma: 'quay', ten: 'Trả tại quầy', phu: 'Quý khách ra quầy, báo số bàn với thu ngân', chi: 'Khách ra quầy trả'}];
+/* Đơn còn tính tiền: bỏ đơn quầy từ chối hoặc hết hạn (quầy chưa nhận nên
+   không vào bill). */
+export const TT_KHONG_TINH = ['Từ chối', 'Hết hạn'];
+
+/* Ô xuất hoá đơn điện tử (không bắt buộc): mã số thuế 10 số, 12 số, 10-3 số
+   chi nhánh, hoặc email. Trả {ok, gt (đã chuẩn), cau (lỗi)}. Rỗng là hợp lệ.
+   THUẦN. Cùng luật mã số thuế của màn quầy (ban_hang._chuan_mst). */
+export function chuanHoaDon(v) {
+  const s = String(v || '').trim();
+  if (!s) return {ok: true, gt: ''};
+  if (s.includes('@')) {
+    const e = s.toLowerCase().replace(/\s+/g, '');
+    return /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(e) && e.length <= 80 ? {ok: true, gt: e} : {ok: false, cau: 'Email chưa đúng dạng, ví dụ ketoan@congty.vn.'};
+  }
+  const so = s.replace(/[\s.]/g, '');
+  if (/^\d{10}$/.test(so) || /^\d{12}$/.test(so)) return {ok: true, gt: so};
+  if (/^\d{10}-?\d{3}$/.test(so)) return {ok: true, gt: so.slice(0, 10) + '-' + so.replace('-', '').slice(10)};
+  return {ok: false, cau: 'Mã số thuế gồm 10 số, 12 số, hoặc 10 số - 3 số cho chi nhánh.'};
+}
+
+/* Chi tiết gửi quầy khi khách bấm Thanh toán: cách trả, rồi thông tin hoá
+   đơn. Cắt đúng trần 120 ký tự của máy chủ (goi_mon_ban.DAI_CHI_TIET). THUẦN. */
+export function chiTietTra(cach, hd) {
+  const c = CACH_TRA.find(x => x.ma === cach);
+  if (!c) return '';
+  return (c.chi + (hd ? ' · Xuất hoá đơn: ' + hd : '')).slice(0, 120);
+}
+
+/* Tổng hợp các lượt gọi của bàn cho thanh đơn và màn Đơn của bàn. THUẦN theo
+   G.don. tamTinh: món gọi từ MÁY NÀY (số máy chủ chốt lúc gọi); lượt bị từ
+   chối, hết hạn không tính.
+
+   Codex PR #545 vòng 6: quầy nhận lượt nào thì nhập vào phiếu tạm tính CHUNG
+   của bàn, phiếu đó có cả món máy khác cùng bàn gọi và món thu ngân thêm. Cần
+   thanh toán vì vậy lấy tổng phiếu máy chủ báo kèm lượt đã nhận (tt.bill:
+   khoa, tong); nhiều lượt cùng phiếu tính một lần. Lượt chưa vào phiếu (chờ
+   quầy nhận, hoặc máy chủ chưa báo phiếu) cộng thêm theo tạm tính của lượt.
+
+   Codex PR #545 vòng 7: (1) nhịp tự động chỉ hỏi lượt còn chờ, nên số phiếu
+   của lượt hỏi SAU CÙNG mới đúng, không phải của lượt đứng cuối danh sách:
+   mỗi lần hỏi được đóng số thứ tự tt.hoi, chọn số phiếu có tt.hoi lớn nhất.
+   (2) Máy chủ đọc tổng phiếu lỗi vẫn báo khoá phiếu (tong rỗng): lượt đó vẫn
+   thuộc phiếu, có lượt khác cùng phiếu đọc được tổng thì lượt này không cộng
+   thêm; cả phiếu chưa đọc được tổng mới tạm tính theo các lượt của nó. */
+export function tomDon(don) {
+  const tinh = (don || []).filter(d => !TT_KHONG_TINH.includes((d.tt && d.tt.trang_thai) || 'Chờ nhận'));
+  const tien = d => Number(d.tt && d.tt.tam_tinh) || 0;
+  const coSo = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+  const bill = new Map();
+  let ngoai = 0;
+  for (const d of tinh) {
+    const b = d.tt && d.tt.trang_thai === 'Đã nhận' && d.tt.bill;
+    if (!(b && b.khoa)) { ngoai += tien(d); continue; }
+    const k = String(b.khoa);
+    const x = bill.get(k) || {tong: null, hoi: -1, theoLuot: 0};
+    x.theoLuot += tien(d);
+    const hoi = Number(d.tt.hoi) || 0;
+    if (coSo(b.tong) && hoi >= x.hoi) { x.tong = Number(b.tong); x.hoi = hoi; }
+    bill.set(k, x);
+  }
+  let hoaDon = 0, coHoaDon = false;
+  for (const x of bill.values()) {
+    if (x.tong === null) ngoai += x.theoLuot;
+    else { hoaDon += x.tong; coHoaDon = true; }
+  }
+  return {
+    soLuot: tinh.length,
+    soMon: tinh.reduce((a, d) => a + ((d.tt && d.tt.mon) || []).reduce((b, x) => b + (Number(x.sl) || 0), 0), 0),
+    tamTinh: tinh.reduce((a, d) => a + tien(d), 0),
+    choNhan: tinh.filter(d => ((d.tt && d.tt.trang_thai) || 'Chờ nhận') === 'Chờ nhận').length,
+    coHoaDon, hoaDon, ngoaiHoaDon: ngoai, coNgoai: coHoaDon && ngoai > 0, canTra: hoaDon + ngoai,
+  };
+}
+
+/* Codex PR #545 vòng 4: trước đây chỉ lưu 10 lượt gần nhất, bàn gọi hơn mười
+   lượt chưa trả mà tải lại trang thì tổng cần thanh toán hụt. Lượt còn tính
+   tiền (chờ nhận, đã nhận mà bill chưa chốt) KHÔNG BAO GIỜ bị cắt; khi quá
+   trần chỉ bỏ lượt cũ bị từ chối, hết hạn. Lượt đã trả đã rời G.don từ trước
+   (boLuotDaTra). Trần chỉ để chặn bộ nhớ phình vô hạn. THUẦN. */
+export const LUOT_LUU_TOI_DA = 200;
+export function donCanLuu(don) {
+  const ds = (don || []).slice();
+  let thua = ds.length - LUOT_LUU_TOI_DA;
+  if (thua <= 0) return ds;
+  return ds.filter(d => {
+    if (thua > 0 && TT_KHONG_TINH.includes((d.tt && d.tt.trang_thai) || 'Chờ nhận')) { thua -= 1; return false; }
+    return true;
+  });
+}
+
 /* ?diem=TCV&ban=5&k=... -> {diem, ban, k} hoặc null. THUẦN. */
 export function docLinkBan(timKiem) {
   let q;
@@ -142,8 +239,23 @@ export function chipNhom(banh, nuoc, t) {
   if (le) nhom.push({n: 'nuoc', ten: t('quay_chip_nuoc', 'Đồ uống'), so: le});
   return nhom;
 }
+/* v642: món thành phần của combo để hiện: "2 Trà Lài Đào (M), Canelé". THUẦN. */
+export function moTaCombo(tp) {
+  return (tp || []).map(x => ((Number(x.sl) || 0) > 1 ? x.sl + ' ' : '') + (x.ten || x.ma)).join(', ');
+}
+/* v642 (anh Việt 06/11/2026): combo cố định quầy đang chạy (máy chủ đã lọc theo
+   luật bán của hoá đơn và theo bánh, nước đang bày) đứng đầu danh sách, có chip
+   Combo riêng. Giá bộ do máy chủ tính, hoá đơn tự rã thành món. THUẦN. */
+export function dungCombo(ds) {
+  return (ds || []).filter(c => c && c.ma && Number(c.gia) > 0 && Number(c.con) > 0).map(c => ({
+    ...c, loai: 'combo', con: Number(c.con) || 0, gia: Number(c.gia) || 0,
+    gocHien: Number(c.goc) > Number(c.gia) ? Number(c.goc) : 0,
+    mo_ta: moTaCombo(c.thanh_phan) + (c.mo_ta ? ' · ' + c.mo_ta : ''),
+    bienThe: [{ma: c.ma, size: '', gia: Number(c.gia) || 0, ten: c.ten}]}));
+}
 function thuocChip(m, chip) {
   if (!chip) return true;
+  if (chip === 'combo') return m.loai === 'combo';
   if (chip === 'banh') return m.loai === 'banh';
   if (chip.startsWith('g:')) return m.loai === 'nuoc' && m.nhom_hien === chip.slice(2);
   if (chip === 'nuoc') return m.loai === 'nuoc' && !NHOM_NUOC.some(([goc]) => goc === m.nhom_goc);
@@ -169,6 +281,13 @@ export function dungQuayHien(S, G, t) {
   const coMenu = Array.isArray(chon.nhom_menu);
   if (coMenu) ({nhom, ds} = theoMenu(chon.nhom_menu, banh, nuoc, t));
   else { ds = banh.concat(nuoc); nhom = chipNhom(banh, nuoc, t); }
+  /* Combo chỉ bày ở chế độ gọi món tại bàn (khách xem tủ bánh không cần). */
+  const combo = (G && G.ban && G.ban.ok) ? dungCombo(chon.combo) : [];
+  if (combo.length) {
+    ds = combo.concat(ds);
+    nhom.splice(1, 0, {n: 'combo', ten: t('goi_ban_chip_combo', 'Combo'), so: combo.length});
+    nhom[0].so += combo.length;
+  }
   /* Đầu mục "Còn N bánh" chỉ đếm bánh đang hiện theo menu. */
   const banhHien = coMenu && !chon.nhom_menu.some(g => g.loai === 'banh') ? [] : banh;
   /* Chip đang chọn không còn món (đổi quầy, bán hết) thì coi như Tất cả. */
@@ -193,18 +312,20 @@ export function taoGoiBan(moiTruong, S) {
     nonce: '', dangGui: false, loi: '',
     don: [],             // [{ma, token, tt}]
     chuong: {mo: false, lyDo: '', chiTiet: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
+    moDon: false,        // v642: màn "Đơn của bàn"
+    tra: {mo: false, cach: '', hd: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
   });
 
   const khoaLuu = () => (G.link ? 'vgb-goi-ban-' + G.link.diem + '-' + G.link.ban : '');
   function luuDon() {
     if (!luuTru || !khoaLuu()) return;
-    try { luuTru.setItem(khoaLuu(), JSON.stringify(G.don.slice(-10).map(d => ({ma: d.ma, token: d.token})))); } catch (e) { /* bỏ qua */ }
+    try { luuTru.setItem(khoaLuu(), JSON.stringify(donCanLuu(G.don).map(d => ({ma: d.ma, token: d.token})))); } catch (e) { /* bỏ qua */ }
   }
   function docDonLuu() {
     if (!luuTru || !khoaLuu()) return [];
     try {
       const v = JSON.parse(luuTru.getItem(khoaLuu()) || '[]');
-      return Array.isArray(v) ? v.filter(d => d && /^[A-Za-z0-9-]{3,40}$/.test(d.ma || '') && /^[0-9a-f]{32}$/.test(d.token || '')).slice(-10) : [];
+      return Array.isArray(v) ? v.filter(d => d && /^[A-Za-z0-9-]{3,40}$/.test(d.ma || '') && /^[0-9a-f]{32}$/.test(d.token || '')) : [];
     } catch (e) { return []; }
   }
 
@@ -217,7 +338,14 @@ export function taoGoiBan(moiTruong, S) {
   const toppingQuay = () => ((quayCua() || {}).topping) || [];
   /* Thanh giỏ hiện khi có món và không bảng nào đang mở (nút nổi Zalo, Grab
      nâng lên theo, xem KenhNoi). */
-  const barMo = computed(() => cheDo.value === 'goi' && G.gio.length > 0 && !G.moGio && !G.chon && !G.chuong.mo);
+  const coBang = () => G.moGio || !!G.chon || G.chuong.mo || G.moDon || G.tra.mo;
+  const barMo = computed(() => cheDo.value === 'goi' && G.gio.length > 0 && !coBang());
+  /* v642 (anh Việt 06/11/2026: gọi xong màn co lại, không xem được đơn, không
+     có chỗ tính tiền): bàn đã gọi mà giỏ trống thì thanh đơn LUÔN hiện ở đáy
+     (Bàn 5 · Đã gọi n lượt · Tạm tính · Xem đơn). Giỏ có món thì thanh giỏ
+     đứng chỗ đó, vì việc trước mắt là gửi món. */
+  const tom = computed(() => tomDon(G.don));
+  const barDon = computed(() => cheDo.value === 'goi' && G.don.length > 0 && !G.gio.length && !coBang());
 
   async function kiemLink() {
     if (!G.link) { G.daKiem = true; return null; }
@@ -258,7 +386,8 @@ export function taoGoiBan(moiTruong, S) {
     if (cheDo.value !== 'goi') return false;
     if (conThem(m) <= 0) {
       toast(m.loai === 'nuoc' ? t('goi_ban_qua_nhieu', 'Mỗi lần gọi tối đa 20 ly một món.')
-        : t('goi_ban_het_con', 'Món này trên tủ chỉ còn {so}.', {so: Number(m.con) || 0}));
+        : (m.loai === 'combo' ? t('goi_ban_combo_het', 'Combo này hiện gọi được tối đa {so} bộ.', {so: Number(m.con) || 0})
+          : t('goi_ban_het_con', 'Món này trên tủ chỉ còn {so}.', {so: Number(m.con) || 0})));
       return false;
     }
     if (coBangChon(m)) { moBangChon(m); return 'chon'; }
@@ -329,7 +458,7 @@ export function taoGoiBan(moiTruong, S) {
     const tenHien = m.ten + (bt.size ? ' (' + bt.size + ')' : '');
     if (cu) cu.sl = Math.min(SL_TOI_DA, cu.sl + sl);
     else G.gio.push({khoa: k, ma: bt.ma, ten: tenHien, gia: Number(bt.gia) || 0, sl, tc: sach, tp, nhom: nhomTc, loai: m.loai, con: m.con,
-      anh: m.anh || ''});
+      anh: m.anh || '', thanhPhan: m.loai === 'combo' ? (m.thanh_phan || []) : null});
     if (!G.nonce) G.nonce = T.taoNonce(ngauNhien);
     G.loi = '';
     toast(t('goi_ban_da_them', 'Đã thêm {ten}', {ten: tenHien}));
@@ -376,23 +505,47 @@ export function taoGoiBan(moiTruong, S) {
       if (m && m.tai_lai && moiTruong.napQuay) void moiTruong.napQuay();
       return m;
     }
-    if (!G.don.some(d => d.ma === m.ma)) G.don.push({ma: m.ma, token: m.token, tt: {trang_thai: 'Chờ nhận', mon: [], ban: G.ban.ban}});
+    /* Chép dòng vừa gọi để màn Đơn của bàn có ngay, trước lượt hỏi trạng thái
+       đầu tiên; lượt hỏi thay bằng số máy chủ. */
+    const tam = G.gio.map(x => ({ten: x.ten, sl: x.sl, tc: (x.thanhPhan ? [moTaCombo(x.thanhPhan)] : [chuTuyChon(x.tc, x.nhom)]).filter(Boolean)
+      .concat((x.tp || []).map(y => '+ ' + y.ten)),
+      gia: giaDong(x), tien: giaDong(x) * x.sl}));
+    if (!G.don.some(d => d.ma === m.ma)) G.don.push({ma: m.ma, token: m.token, tt: {trang_thai: 'Chờ nhận', mon: tam, ban: G.ban.ban, tam_tinh: tong.value, luc: ''}});
     luuDon();
     G.gio.splice(0); G.ghiChu = ''; G.nonce = ''; G.moGio = false;
-    hen(hoiTrangThai, 1500);
+    hen(() => hoiTrangThai(true), 1500);
     return m;
   }
 
   let henTt = null;
-  async function hoiTrangThai() {
+  /* Số thứ tự lần hỏi (Codex PR #545 vòng 7): tomDon chọn số phiếu mới nhất. */
+  let soHoi = 0;
+  /* tatCa: hỏi lại cả lượt đã xong (đã nhận), để biết bill của nó đã tính
+     tiền chưa. Nhịp tự động chỉ hỏi lượt còn chờ (trần 120 lần hỏi mỗi 10
+     phút của máy chủ); hỏi tất cả lúc vừa gọi thêm, mở Đơn của bàn, Thanh toán. */
+  async function hoiTrangThai(tatCa = false) {
     huyHen(henTt); henTt = null;
-    for (const d of G.don) {
-      if (d.tt && ['Đã nhận', 'Từ chối', 'Hết hạn'].includes(d.tt.trang_thai) && d.xong) continue;
+    for (const d of G.don.slice()) {
+      if (!tatCa && d.tt && ['Đã nhận', 'Từ chối', 'Hết hạn'].includes(d.tt.trang_thai) && d.xong) continue;
       let m = null;
       try { m = await doc('vagabond.goi_mon_ban.trang_thai', {ma: d.ma, token: d.token}); } catch (e) { m = null; }
-      if (m && m.ok) { d.tt = m; d.xong = m.trang_thai !== 'Chờ nhận'; }
+      if (m && m.ok) { m.hoi = ++soHoi; d.tt = m; d.xong = m.trang_thai !== 'Chờ nhận'; }
     }
-    if (G.don.some(d => !d.tt || d.tt.trang_thai === 'Chờ nhận')) henTt = hen(hoiTrangThai, NHIP_TRANG_THAI);
+    boLuotDaTra();
+    if (G.don.some(d => !d.tt || d.tt.trang_thai === 'Chờ nhận')) henTt = hen(() => hoiTrangThai(), NHIP_TRANG_THAI);
+  }
+  /* Codex PR #545 vòng 1: khách trả bill xong rồi gọi tiếp mà không tải lại
+     trang thì lượt của bill cũ không được cộng vào bill mới. Máy chủ báo
+     da_tra khi phiếu tạm tính của lượt đã chốt; bỏ các lượt tới lượt đã trả
+     cuối cùng (kể cả lượt bị từ chối, hết hạn đứng trước nó), lưu lại. */
+  function boLuotDaTra() {
+    const cuoi = G.don.map(d => !!(d.tt && d.tt.da_tra)).lastIndexOf(true);
+    if (cuoi < 0) return;
+    /* Lượt đứng trước lượt đã trả cuối cùng: giữ lượt còn sống (chờ nhận, đã
+       nhận mà bill chưa chốt), bỏ lượt đã trả và lượt từ chối, hết hạn cũ. */
+    const giu = G.don.filter((d, i) => i > cuoi || (!(d.tt && d.tt.da_tra) && !TT_KHONG_TINH.includes((d.tt && d.tt.trang_thai) || 'Chờ nhận')));
+    G.don.splice(0, G.don.length, ...giu);
+    luuDon();
   }
   /* Câu trạng thái một đơn cho khách. THUẦN theo đơn. */
   function cauDon(d) {
@@ -403,9 +556,44 @@ export function taoGoiBan(moiTruong, S) {
     return t('goi_ban_tt_cho', 'Chờ quầy nhận');
   }
 
+  /* ---------------- đơn của bàn và thanh toán (v642) ---------------- */
+  function moDon() { if (cheDo.value !== 'goi' || !G.don.length) return false; G.moDon = true; void hoiTrangThai(true); return true; }
+  function dongDon() { G.moDon = false; }
+  function moTra() {
+    if (cheDo.value !== 'goi' || !G.don.length) return false;
+    const c = G.tra;
+    G.moDon = false;
+    c.mo = true; c.loi = ''; c.xong = null;
+    void hoiTrangThai(true);
+    return true;
+  }
+  function dongTra() { G.tra.mo = false; }
+  async function guiTra() {
+    const c = G.tra;
+    if (c.dangGui || cheDo.value !== 'goi') return null;
+    if (!CACH_TRA.some(x => x.ma === c.cach)) { c.loi = t('goi_ban_tra_chon', 'Quý khách chọn cách thanh toán.'); return null; }
+    const hd = chuanHoaDon(c.hd);
+    if (!hd.ok) { c.loi = hd.cau; return null; }
+    const chiTiet = chiTietTra(c.cach, hd.gt);
+    const nonce = nonceTheo(c, LY_DO_GOI[1] + '|' + chiTiet);
+    c.dangGui = true; c.loi = '';
+    const than = {diem: G.ban.diem, ban: G.ban.ban, k: G.link.k, nonce, ly_do: LY_DO_GOI[1], chi_tiet: chiTiet};
+    let m = null;
+    try { m = await ghi('vagabond.goi_mon_ban.goi_nhan_vien', than); } catch (e) { m = null; }
+    c.dangGui = false;
+    if (!m || !m.ok) {
+      c.loi = (m && m.cau) || t('goi_ban_loi', 'Chưa gửi được. Quý khách thử lại hoặc nhắn nhân viên gần nhất.');
+      return m;
+    }
+    c.xong = {ma: m.ma, cach: c.cach, luc: m.luc || ''};
+    c.nonce = ''; c.nonceNd = '';
+    return m;
+  }
+
   /* ---------------- chuông gọi nhân viên (v639) ---------------- */
   function moChuong(lyDo = '') {
     if (cheDo.value !== 'goi') return false;
+    G.moDon = false; G.tra.mo = false;
     const c = G.chuong;
     c.mo = true; c.loi = ''; c.lyDo = lyDo; c.chiTiet = ''; c.xong = null;
     return true;
@@ -414,11 +602,11 @@ export function taoGoiBan(moiTruong, S) {
   /* Nonce gắn với NỘI DUNG (lý do + chi tiết): thử lại cùng nội dung sau khi mất mạng
      thì giữ nonce để máy chủ gộp; đổi lý do thì nonce mới, máy chủ không trả nhầm
      lời cũ (Codex PR #542 vòng 1). */
-  function nonceChuong(c) {
-    const nd = c.lyDo + '|' + String(c.chiTiet || '').trim().slice(0, 120);
+  function nonceTheo(c, nd) {
     if (!c.nonce || c.nonceNd !== nd) { c.nonce = T.taoNonce(ngauNhien); c.nonceNd = nd; }
     return c.nonce;
   }
+  const nonceChuong = c => nonceTheo(c, c.lyDo + '|' + String(c.chiTiet || '').trim().slice(0, 120));
   async function goiNhanVien(lyDo) {
     const c = G.chuong;
     if (c.dangGui || cheDo.value !== 'goi') return null;
@@ -441,5 +629,5 @@ export function taoGoiBan(moiTruong, S) {
 
   return {G, cheDo, nhanBan, soMon, tong, barMo, quayCua, toppingQuay, macDinh, kiemLink, conThem, daChon, coBangChon, bamThem, moBangChon, chonBienThe,
     chonTc, chonTp, doiSlChon, giaChon, tongChon, xongChon, them, doiSl, kiemGt, goiMon, hoiTrangThai, cauDon, chuTuyChon,
-    moChuong, dongChuong, goiNhanVien};
+    moChuong, dongChuong, goiNhanVien, tom, barDon, moDon, dongDon, moTra, dongTra, guiTra};
 }

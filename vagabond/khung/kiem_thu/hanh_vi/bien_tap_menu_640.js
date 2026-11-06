@@ -63,7 +63,9 @@ function menuGoc() {
       { ma: 'n-ca-phe', ten: 'Cà phê', loai: 'nuoc', hien: 1, goc: 'Cà phê', mon: ['NUCF00003'] }],
     an: [],
     tuy_chon: [{ ten: 'Đá', muc: ['Bình thường', 'Ít đá', 'Không đá'], mac_dinh: 'Bình thường', ap: ['n-tra', 'n-ca-phe'] },
-      { ten: 'Đường', muc: ['Bình thường', '50% đường'], mac_dinh: 'Bình thường', ap: ['n-tra', 'n-ca-phe'] }],
+      { ten: 'Đường', muc: ['Bình thường', '50% đường'], mac_dinh: 'Bình thường', ap: ['n-tra', 'n-ca-phe'] },
+      /* v642: nhóm tuỳ chọn chưa áp nhóm món nào, để ca sửa riêng bật "Có" cho một món. */
+      { ten: 'Nhiệt độ', muc: ['Đá', 'Nóng'], mac_dinh: 'Đá', ap: [] }],
     topping: { TPNC00001: ['n-tra', 'n-ca-phe'], TPNC00005: ['n-tra', 'n-ca-phe'] },
     mon: {}
   };
@@ -73,7 +75,8 @@ var MON = [
   { ma: 'NUTR00040', ten: 'Kombucha Chill, chai 300ml', gia: 100000, anh: '', goc: 'Trà', khong_pha: 1, mo_ta: '', ban_web: 1 },
   { ma: 'NUCF00003', ten: 'Cà phê sữa', gia: 40000, anh: '', goc: 'Cà phê', khong_pha: 0, mo_ta: '', ban_web: 1 },
   { ma: 'NUTR00099', ten: 'Trà Ô Long Đào', gia: 65000, anh: '', goc: 'Trà', khong_pha: 0, mo_ta: '', ban_web: 1 }];
-var TOP = [{ ma: 'TPNC00001', ten: 'Trân châu ô long', gia: 10000 }, { ma: 'TPNC00005', ten: 'Thêm Cà Phê Phin', gia: 15000 }];
+var TOP = [{ ma: 'TPNC00001', ten: 'Trân châu ô long', gia: 10000 }, { ma: 'TPNC00005', ten: 'Thêm Cà Phê Phin', gia: 15000 },
+  { ma: 'TPNC00007', ten: 'Thạch cà phê', gia: 15000 }];
 
 function moApp(o) {
   o = o || {};
@@ -224,15 +227,55 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     var mt = q(m, '#btmMoTa');
     mt.value = 'Cherry chín mọng';
     mt.dispatchEvent(dg.suKien('input', {}, mt));
-    await bam(m, '[data-btmtattc="Đường"]');
-    await bam(m, '[data-btmtattp="TPNC00005"]');
+    /* v642 (ảnh 2 anh Việt duyệt 06/11): ba nấc Theo nhóm / Có / Không cho MỌI tuỳ chọn, topping. */
+    bang('đủ dòng: 3 tuỳ chọn, 3 topping', qs(m, '[data-nac="nhom"]').length, 6);
+    await bam(m, '[data-btmnacid="tc:Đường:khong"]');
+    await bam(m, '[data-btmnacid="tp:TPNC00005:khong"]');
+    await bam(m, '[data-btmnacid="tc:Nhiệt độ:co"]');
+    await bam(m, '[data-btmnacid="tp:TPNC00007:co"]');
     await cho(40);
-    bang('sửa riêng', luuCuoi(m).mon.NUTR00090, { mo_ta: 'Cherry chín mọng', tat_tc: ['Đường'], tat_tp: ['TPNC00005'] });
-    dung('màn ghi tắt riêng', chu(m.tai.body).indexOf('Món này tắt riêng: Đường, Thêm Cà Phê Phin') >= 0);
+    bang('sửa riêng', luuCuoi(m).mon.NUTR00090, { mo_ta: 'Cherry chín mọng', tat_tc: ['Đường'], tat_tp: ['TPNC00005'],
+      bat_tc: ['Nhiệt độ'], bat_tp: ['TPNC00007'] });
+    /* Codex PR #545 vòng 5: khối đọc có giới hạn (đếm số, ba mục đầu, "và N nữa"), danh sách đủ thu gọn. */
+    var kt = chu(q(m, '#btmKhachThay'));
+    dung('màn ghi khách sẽ thấy: ' + kt, kt.indexOf('Khách sẽ thấy 4: Đá, Nhiệt độ, Trân châu ô long và 1 nữa. Không thấy 2 mục.') >= 0);
+    dung('danh sách đủ nằm trong mục thu gọn', kt.indexOf('Thấy: Đá, Nhiệt độ, Trân châu ô long, Thạch cà phê') >= 0 && kt.indexOf('Không thấy: Đường, Thêm Cà Phê Phin') >= 0 && m.tai.body.innerHTML.indexOf('<details') >= 0 && kt.indexOf('Xem đủ') >= 0);
+    var vh = m.tai.body.innerHTML;
+    dung('nút Về theo nhóm hết đứng trước khối chỉ để đọc', vh.indexOf('data-btmvenhom') >= 0 && vh.indexOf('data-btmvenhom') < vh.indexOf('id="btmKhachThay"'));
+    bang('nấc đang chọn', q(m, '[data-btmnacid="tc:Nhiệt độ:co"]').getAttribute('aria-pressed'), 'true');
+    /* Bấm Theo nhóm thì bỏ cài riêng của đúng dòng đó. */
+    await bam(m, '[data-btmnacid="tp:TPNC00007:nhom"]');
+    await cho(40);
+    bang('về theo nhóm một dòng', luuCuoi(m).mon.NUTR00090.bat_tp, undefined);
+    m.tai.body.querySelector('#btmMonXong').onclick();
+    await cho(40);
+    dung('danh sách món ghi nhãn Riêng 3 (Đường, Thêm Cà Phê Phin, Nhiệt độ)', chu(q(m, '[data-ma="NUTR00090"]')).indexOf('Riêng 3') >= 0);
+    await bam(m, '[data-btmmon="NUTR00090"]');
     await bam(m, '[data-btmchuyen="n-ca-phe"]');
     await cho(40);
     var n2 = luuCuoi(m);
+    await bam(m, '[data-btmvenhom]');
+    await cho(40);
+    bang('Về theo nhóm hết: bỏ mọi nấc riêng, giữ mô tả', luuCuoi(m).mon.NUTR00090, { mo_ta: 'Cherry chín mọng' });
     bang('chuyển nhóm', [n2.nhom[1].mon, n2.nhom[2].mon], [['NUTR00040', 'NUTR00099'], ['NUCF00003', 'NUTR00090']]);
+  });
+
+  await ca('Codex PR #545 vòng 7 (AGENTS.md 2b.13): khối tuỳ chọn và topping riêng của món: mọi nút Theo nhóm / Có / Không, nút Về theo nhóm hết, Xem đủ cao ít nhất 44, mọi chữ ít nhất 13', async function () {
+    var m = await moMan();
+    await bam(m, '[data-btmnhom="n-tra"]');
+    await bam(m, '[data-btmmon="NUTR00090"]');
+    await bam(m, '[data-btmnacid="tc:Đường:khong"]');
+    await cho(40);
+    var html = m.tai.body.innerHTML;
+    var dau = html.indexOf('id="btmRiengMon"');
+    dung('có khối riêng món', dau >= 0);
+    var khoi = html.slice(dau, html.indexOf('id="btmMonXong"') > dau ? html.indexOf('id="btmMonXong"') : html.length);
+    var chu = (khoi.match(/font-size:\s*[0-9.]+px/g) || []).map(function (x) { return parseFloat(x.replace(/[^0-9.]/g, '')); });
+    dung('có đọc được cỡ chữ', chu.length >= 8);
+    bang('chữ nhỏ hơn 13', chu.filter(function (x) { return x < 13; }), []);
+    var nut = khoi.match(/<(?:button|summary)\b[^>]*>/g) || [];
+    dung('có nút', nut.length >= 18);
+    bang('nút thấp hơn 44', nut.filter(function (x) { var c = /min-height:\s*([0-9.]+)px/.exec(x); return !c || parseFloat(c[1]) < 44; }), []);
   });
 
   await ca('Xem và xuất bản: thay đổi hiện đủ; Xuất bản gọi máy chủ một lần, báo phiên mới, về màn chính tải lại; Quay về bản trước gọi đúng phiên; không thay đổi thì Xuất bản tắt', async function () {

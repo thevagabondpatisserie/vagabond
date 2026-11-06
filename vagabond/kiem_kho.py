@@ -130,6 +130,12 @@ def dang_theo_doi(o):
 TIEN_TO_KHONG_LEN_WEB = ("BAWS",)
 
 
+# v642 (anh Việt 06/11/2026): bánh còn ĐÚNG 1 cái thì không bày lên web (tab Tại
+# quầy, gọi món tại bàn): cái cuối cùng dễ bị bán cùng lúc ở quầy hay kênh khác
+# (Grab, Pancake), khách web đặt rồi mới biết hết. Còn từ 2 trở lên mới bày.
+TON_AN_WEB = 1
+
+
 def dong_len_web(cac_dong, ban, tat=None):
 	"""Nhung dong cua mot quay duoc bay len tab In store. THUAN.
 
@@ -137,7 +143,8 @@ def dong_len_web(cac_dong, ban, tat=None):
 	Tra [(ma, con)] chi cho dong DANG THEO DOI, con > 0, khong phai banh si,
 	khong bi cong tac tay tat. Ba hang rao nay phai giu:
 	  - dong chua ai khai thi khong bay (cung le voi man tinh tien),
-	  - con <= 0 thi khong bay - khach chi can biet cai gi CON,
+	  - con <= TON_AN_WEB (1) thi khong bay: khach chi can biet cai gi CON, va
+	    cai cuoi cung de quay ban, tranh hai kenh cung ban (v642),
 	  - cong tac tay bat len la an, du so con duong.
 	"""
 	ra = []
@@ -154,7 +161,7 @@ def dong_len_web(cac_dong, ban, tat=None):
 			lay(r, "ton_dau"), tong_nhap(r), (ban or {}).get(ma) or 0,
 			lay(r, "hong"), lay(r, "dieu_chinh"),
 		)
-		if con > 0:
+		if con > TON_AN_WEB:
 			ra.append((ma, con))
 	return ra
 
@@ -862,4 +869,15 @@ def con_tren_quay_web():
 			q["topping"] = ds_tp if q["do_uong"] else []
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "kiem_kho: do uong tai quay loi")
+		# v642 (anh Việt 06/11/2026): combo cố định đang chạy của quầy, kiểm thành
+		# phần trên đúng bánh và nước đang bày ở đây, cùng phép cửa gọi món
+		# (goi_mon_ban.bang_mon) nên trang bày combo nào thì gọi được combo đó.
+		try:
+			bang = {m["ma"]: {"ten": m["ten"], "loai": "banh", "con": m["con"], "nhom_goc": m.get("nhom") or ""} for m in q["mon"]}
+			bang.update({m["ma"]: {"ten": m["ten"], "loai": "nuoc", "nhom_goc": m.get("nhom_goc") or ""} for m in q["do_uong"]})
+			q["combo"] = [dict(c, anh=chon_anh(c.get("anh") or "", [], ma_hang=c["ma"])[0] if c.get("anh") else "")
+				for c in goi_mon_ban.combo_ban_duoc(goi_mon_ban.doc_combo_ban(d["ma"]), bang)]
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "kiem_kho: combo tai quay loi")
+			q["combo"] = []
 	return ra

@@ -33,8 +33,13 @@ Nội dung menu (JSON trong Vagabond Menu.noi_dung)
   "tuy_chon": [{"ten": "Đá", "muc": ["Bình thường", "50% đá"], "mac_dinh": "Bình thường",
                 "ap": ["n-tra", ...]}],
   "topping": {"TPNC00001": ["n-tra", ...]},
-  "mon": {"NUTR00021": {"mo_ta": "...", "tat_tc": ["Đường"], "tat_tp": ["TPNC00001"]}}
+  "mon": {"NUTR00021": {"mo_ta": "...", "tat_tc": ["Đường"], "tat_tp": ["TPNC00001"],
+                         "bat_tc": ["Nhiệt độ"], "bat_tp": ["TPNC00007"]}}
 }
+v642 (anh Việt 06/11/2026): mỗi tuỳ chọn, mỗi topping của một món có ba nấc:
+Theo nhóm (không ghi gì), Có (bat_tc / bat_tp: bật riêng dù nhóm không áp),
+Không (tat_tc / tat_tp). Một mục không nằm cả hai danh sách; mục có trong cả
+hai (dữ liệu sửa tay) thì Không thắng.
 Món nước chưa nằm trong nhóm nào ("Món mới chưa xếp") thì ẩn trên web; màn
 Tính tiền vẫn hỏi tuỳ chọn theo nhóm có cùng nhóm gốc.
 """
@@ -268,6 +273,12 @@ def chuan_menu(menu, ma_hop_le, tp_hop_le):
 		tat_tp = [str(x) for x in (o.get("tat_tp") or []) if str(x) in tp_hop_le]
 		if tat_tp:
 			r["tat_tp"] = sorted(set(tat_tp))
+		bat_tc = [x for x in (o.get("bat_tc") or []) if x in ten_tc_dung and x not in set(tat_tc)]
+		if bat_tc:
+			r["bat_tc"] = sorted(set(bat_tc))
+		bat_tp = [str(x) for x in (o.get("bat_tp") or []) if str(x) in tp_hop_le and str(x) not in set(tat_tp)]
+		if bat_tp:
+			r["bat_tp"] = sorted(set(bat_tp))
 		if r:
 			mon[ma] = r
 	return {"nhom": nhom, "an": an, "tuy_chon": tuy_chon, "topping": topping, "mon": mon}
@@ -293,11 +304,15 @@ def tc_cua_mon(menu, ma, goc="", khong_pha=False):
 	if khong_pha:
 		return []
 	g = nhom_cua_mon(menu, ma, goc)
-	if not g:
+	rieng = (menu.get("mon") or {}).get(ma) or {}
+	tat, bat = set(rieng.get("tat_tc") or []), set(rieng.get("bat_tc") or [])
+	if not g and not bat:
 		return []
-	tat = set(((menu.get("mon") or {}).get(ma) or {}).get("tat_tc") or [])
+	gm = g["ma"] if g else None
+	# Thứ tự theo bảng tuỳ chọn của menu; nhóm áp hoặc món bật riêng, trừ món tắt riêng.
 	return [{"nhom": t["ten"], "lua_chon": list(t["muc"]), "mac_dinh": t.get("mac_dinh") or ""}
-		for t in menu.get("tuy_chon") or [] if g["ma"] in (t.get("ap") or []) and t["ten"] not in tat]
+		for t in menu.get("tuy_chon") or []
+		if (gm in (t.get("ap") or []) or t["ten"] in bat) and t["ten"] not in tat]
 
 
 def tp_cua_mon(menu, ma, goc="", khong_pha=False):
@@ -305,10 +320,14 @@ def tp_cua_mon(menu, ma, goc="", khong_pha=False):
 	if khong_pha:
 		return []
 	g = nhom_cua_mon(menu, ma, goc)
-	if not g:
+	rieng = (menu.get("mon") or {}).get(ma) or {}
+	tat, bat = set(rieng.get("tat_tp") or []), [str(x) for x in rieng.get("bat_tp") or []]
+	if not g and not bat:
 		return []
-	tat = set(((menu.get("mon") or {}).get(ma) or {}).get("tat_tp") or [])
-	return [tp for tp, ap in (menu.get("topping") or {}).items() if g["ma"] in (ap or []) and tp not in tat]
+	gm = g["ma"] if g else None
+	ra = [tp for tp, ap in (menu.get("topping") or {}).items() if gm in (ap or []) and tp not in tat]
+	# Topping bật riêng mà bảng nhóm chưa có dòng nào (chưa áp nhóm nào) vẫn kèm được.
+	return ra + [tp for tp in bat if tp not in ra and tp not in tat]
 
 
 def ap_menu(menu, do_uong):
@@ -461,6 +480,14 @@ def khac_nhau(cu, moi, ten):
 			ra.append("%s: tắt topping %s" % (ten.get(m, m), ten.get(x, x)))
 		for x in sorted(set(a.get("tat_tp") or []) - set(b.get("tat_tp") or [])):
 			ra.append("%s: bật lại topping %s" % (ten.get(m, m), ten.get(x, x)))
+		for x in sorted(set(b.get("bat_tc") or []) - set(a.get("bat_tc") or [])):
+			ra.append("%s: thêm riêng tuỳ chọn %s" % (ten.get(m, m), x))
+		for x in sorted(set(a.get("bat_tc") or []) - set(b.get("bat_tc") or [])):
+			ra.append("%s: bỏ tuỳ chọn thêm riêng %s" % (ten.get(m, m), x))
+		for x in sorted(set(b.get("bat_tp") or []) - set(a.get("bat_tp") or [])):
+			ra.append("%s: thêm riêng topping %s" % (ten.get(m, m), ten.get(x, x)))
+		for x in sorted(set(a.get("bat_tp") or []) - set(b.get("bat_tp") or [])):
+			ra.append("%s: bỏ topping thêm riêng %s" % (ten.get(m, m), ten.get(x, x)))
 	return ra
 
 

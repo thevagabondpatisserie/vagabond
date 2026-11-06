@@ -3917,7 +3917,8 @@ la("to in ghi ten nha cung cap trong bang khi gom nhieu nha", "nhieu_nha = len({
 # `if (!laHU)` truoc lan xoa tick, va trong ca tep khong duoc co lan xoa nao
 # dung ngoai rao.
 la("doi chip nha cung cap KHONG xoa hoa don da tick",
-   "if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; }" in _js35, True)
+   # v642: cung nhanh xoa luon giao dich sao ke da noi (hsGdCua).
+   "if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; hsGdCua = {}; }" in _js35, True)
 _doi_ncc35 = _js35[_js35.index("var doiNcc = function (ma) {"):]
 _doi_ncc35 = _doi_ncc35[:_doi_ncc35.index("\n  };")]
 la("khong co lan xoa tick nao dung ngoai rao laHU",

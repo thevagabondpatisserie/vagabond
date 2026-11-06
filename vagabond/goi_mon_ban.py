@@ -214,7 +214,61 @@ def loc_topping(rows, gia_diem):
 def tc_hien(d):
 	"""Lựa chọn kèm topping của một dòng, để hiện cho quầy, khách và phiếu pha
 	chế: ["Ít đá", "+ Trân châu ô long"]. THUẦN."""
-	return list(d.get("tc") or []) + ["+ " + str(t.get("ten") or "") for t in (d.get("tp") or [])]
+	return (list(d.get("tc") or []) + [mo_ta_thanh_phan(x) for x in (d.get("thanh_phan") or [])]
+		+ ["+ " + str(t.get("ten") or "") for t in (d.get("tp") or [])])
+
+
+def mo_ta_thanh_phan(x):
+	"""Một món trong combo để hiện: "2 Trà Lài Đào (M)", món 1 cái thì bỏ số. THUẦN."""
+	sl = int(x.get("sl") or 0)
+	return (("%d " % sl) if sl > 1 else "") + str(x.get("ten") or x.get("ma") or "")
+
+
+def combo_ban_duoc(ds_combo, bang):
+	"""Combo cố định bày trên trang bàn (v642, anh Việt 06/11/2026: "trang gọi
+	món O2O phải đồng bộ được các combo quán đang chạy"). THUẦN.
+
+	ds_combo: [{ma (mã hàng KMCB), ten, gia, goc, mo_ta, anh, dong: [{ma, ten, sl}]}]
+	đã qua luật bán của hoá đơn (combo_mon.ly_do_khong_ban). bang: bảng món gọi
+	được của điểm (bang_mon) trước khi thêm combo. Món thành phần nào không gọi
+	được ở điểm (nước đang tắt, bánh không có trên tủ) thì combo không bày. "con"
+	là số bộ gọi được theo bánh còn trên tủ (đồ uống pha theo ly, không giới hạn
+	ngoài SL_TOI_DA); 0 bộ thì không bày."""
+	ra = []
+	for cb in ds_combo or []:
+		dong = [x for x in cb.get("dong") or [] if x.get("ma") and int(x.get("sl") or 0) > 0]
+		if not dong or int(cb.get("gia") or 0) <= 0:
+			continue
+		con, du = SL_TOI_DA, True
+		for x in dong:
+			m = (bang or {}).get(x["ma"])
+			if not m or m.get("loai") not in ("nuoc", "banh"):
+				du = False
+				break
+			if m.get("loai") == "banh":
+				con = min(con, max(0, int(m.get("con") or 0)) // int(x["sl"]))
+		if not du or con <= 0:
+			continue
+		ra.append({"ma": cb["ma"], "ten": cb.get("ten") or cb["ma"], "gia": int(cb["gia"]), "goc": int(cb.get("goc") or 0),
+			"mo_ta": cb.get("mo_ta") or "", "anh": cb.get("anh") or "", "loai": "combo", "con": con,
+			"thanh_phan": [{"ma": x["ma"], "ten": x.get("ten") or bang[x["ma"]]["ten"], "sl": int(x["sl"]),
+				"loai": bang[x["ma"]]["loai"], "nhom": bang[x["ma"]].get("nhom_goc") or ""} for x in dong]})
+	return ra
+
+
+def dong_phieu_pha(dong):
+	"""Dòng món của phiếu pha chế in khi quầy nhận đơn. Combo (v642) tách thành
+	từng món thành phần, số lượng nhân theo số bộ, ghi "Combo <tên>" để bếp và
+	pha chế làm đúng món, không phải đoán từ tên combo. THUẦN."""
+	ra = []
+	for x in dong or []:
+		if x.get("thanh_phan"):
+			for y in x["thanh_phan"]:
+				ra.append({"item_code": y["ma"], "ten": y.get("ten") or y["ma"], "qty": int(x["sl"]) * int(y.get("sl") or 0),
+					"nhom": y.get("nhom") or "", "tc": [], "gc": "Combo " + str(x.get("ten") or "")})
+			continue
+		ra.append({"item_code": x["ma"], "ten": x["ten"], "qty": x["sl"], "nhom": x.get("nhom") or "", "tc": tc_hien(x), "gc": ""})
+	return ra
 
 
 def gia_dong(d):
@@ -337,15 +391,27 @@ def chuan_gio(gio, bang):
 			raise ValueError("Số lượng %s phải từ 1 tới %d." % (m["ten"], SL_TOI_DA))
 		tc = _tc_tu_gui(x.get("tc"), m.get("tc") or []) if m.get("loai") == "nuoc" else []
 		tp = _tp_tu_gui(x.get("tp"), m, bang)
+		tp_combo = m.get("thanh_phan") if m.get("loai") == "combo" else None
 		khoa = (ma, tuple(tc), tuple(t["ma"] for t in tp))
 		if khoa in theo_khoa:
 			theo_khoa[khoa]["sl"] += sl
 		else:
 			d = {"ma": ma, "ten": m["ten"], "sl": sl, "gia": int(m["gia"]), "tc": tc, "loai": m.get("loai") or "banh",
 				"nhom": m.get("nhom_goc") or "", "tp": tp}
+			if tp_combo is not None:
+				# v642: combo mang theo món thành phần để quầy, phiếu pha chế thấy
+				# món gì và để giữ bánh trên tủ (sl_dang_cho tách theo thành phần).
+				d["thanh_phan"] = [{"ma": y["ma"], "ten": y["ten"], "sl": int(y["sl"]), "loai": y.get("loai") or "",
+					"nhom": y.get("nhom") or ""} for y in tp_combo]
 			theo_khoa[khoa] = d
 			dong.append(d)
-		sl_ma[ma] = sl_ma.get(ma, 0) + sl
+		if tp_combo is not None:
+			# Bánh trong combo cộng chung với bánh gọi lẻ rồi mới so số còn: một
+			# chiếc canelé cuối không nuôi được cả combo lẫn một dòng lẻ.
+			for y in tp_combo:
+				sl_ma[y["ma"]] = sl_ma.get(y["ma"], 0) + sl * int(y["sl"])
+		else:
+			sl_ma[ma] = sl_ma.get(ma, 0) + sl
 	for ma, sl in sl_ma.items():
 		m = bang[ma]
 		if m.get("loai") == "banh" and sl > int(m.get("con") or 0):
@@ -399,8 +465,15 @@ def sl_dang_cho(ds_mon_json):
 		except (TypeError, ValueError):
 			continue
 		for d in ds if isinstance(ds, list) else []:
-			if isinstance(d, dict) and d.get("ma"):
-				ra[d["ma"]] = ra.get(d["ma"], 0) + int(d.get("sl") or 0)
+			if not isinstance(d, dict) or not d.get("ma"):
+				continue
+			if d.get("thanh_phan"):
+				# v642: combo giữ bánh theo từng món thành phần.
+				for y in d["thanh_phan"]:
+					if isinstance(y, dict) and y.get("ma"):
+						ra[y["ma"]] = ra.get(y["ma"], 0) + int(d.get("sl") or 0) * int(y.get("sl") or 0)
+				continue
+			ra[d["ma"]] = ra.get(d["ma"], 0) + int(d.get("sl") or 0)
 	return ra
 
 
@@ -509,19 +582,46 @@ def the_quay(r, bay_gio, ten_diem="", anh=None):
 	}
 
 
-def cho_khach(r, bay_gio):
+def cho_khach(r, bay_gio, da_tra=False):
 	"""Trạng thái đơn trả cho trang khách: tối thiểu, không số điện thoại,
-	không tên đầy đủ, không mã hoá đơn nội bộ. THUẦN."""
+	không tên đầy đủ, không mã hoá đơn nội bộ. THUẦN.
+
+	da_tra (Codex PR #545 vòng 1): phiếu tạm tính của lượt đã nhận không còn
+	mở (thu ngân đã chốt bill, hoặc huỷ), để trang khách không cộng lượt của
+	bill cũ vào bill mới. Chỉ một cờ, không lộ mã hoá đơn."""
 	tt = trang_thai_that(r.get("trang_thai"), r.get("luc"), bay_gio)
 	nhan = _dt(r.get("nhan_luc"))
+	luc = _dt(r.get("luc"))
 	mon = _doc_mon(r)
+	# v642 (anh Việt 06/11/2026): màn "Đơn của bàn" hiện giờ gọi từng lượt và
+	# tiền từng dòng. Tiền dòng là giá máy chủ đã chốt lúc gọi (chuan_gio),
+	# cùng nguồn với tạm tính, không phải giá trình duyệt gửi lên.
 	return {
 		"ma": r.get("name"), "trang_thai": tt, "ban": int(r.get("ban") or 0),
+		"luc": luc.strftime("%H:%M") if luc else "",
 		"nhan_luc": nhan.strftime("%H:%M") if (nhan and tt == TT_NHAN) else "",
 		"ly_do": (r.get("ly_do") or "") if tt == TT_TU_CHOI else "",
 		"tam_tinh": int(r.get("tam_tinh") or 0),
-		"mon": [{"ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": tc_hien(d)} for d in mon],
+		"da_tra": 1 if (da_tra and tt == TT_NHAN) else 0,
+		"mon": [{"ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": tc_hien(d), "gia": gia_dong(d),
+			"tien": gia_dong(d) * int(d.get("sl") or 0)} for d in mon],
 	}
+
+
+def the_bill(hd, tong):
+	"""Hoá đơn của bàn gửi trang khách (Codex PR #545 vòng 6). Lượt khách gọi
+	được nhập vào phiếu tạm tính chung của bàn (_vao_phieu_tam), nên tổng cần
+	thanh toán phải lấy từ phiếu đó: gồm cả món máy khác cùng bàn gọi và món
+	thu ngân thêm. Khoá là mã băm tên phiếu, để hai lượt cùng phiếu chỉ tính
+	một lần mà không lộ tên phiếu nội bộ. THUẦN.
+
+	tong None (Codex PR #545 vòng 7: đọc phiếu lỗi) vẫn trả khoá, tong None: lượt
+	đó vẫn thuộc phiếu, trang không cộng nó thêm lên tổng mà lượt khác đọc được."""
+	try:
+		so = None if tong is None else int(round(float(tong)))
+	except (TypeError, ValueError):
+		so = None
+	return {"khoa": hashlib.sha256(("vgb-bill|" + str(hd or "")).encode()).hexdigest()[:16], "tong": so}
 
 
 def soan_tin(r, ten_diem, link):
@@ -739,6 +839,43 @@ def bang_mon(d, hom_nay=None):
 		con = int(m["con"]) - int(cho.get(m["ma"]) or 0)
 		ra[m["ma"]] = {"ten": m["ten"], "gia": gia_mon(m["ma"], gia_diem, m["gia_chung"]), "loai": "banh", "con": con,
 			"nhom_goc": m.get("nhom") or ""}
+	# v642: combo cố định đang chạy, sau khi đã có đủ nước và bánh để kiểm thành phần.
+	for c in combo_ban_duoc(doc_combo_ban(d["ma"]), ra):
+		ra[c["ma"]] = c
+	return ra
+
+
+def doc_combo_ban(ma_diem):
+	"""Combo cố định của một điểm cho trang bàn: [{ma, ten, gia, goc, mo_ta, anh,
+	dong}]. Luật bán lấy đúng của hoá đơn (combo_mon.ly_do_khong_ban) và phải qua
+	cho CẢ HAI nguồn đơn bàn: phiếu tạm tính lập với nguồn Tại chỗ, các lượt gọi
+	sau thêm vào phiếu đã mang nguồn QR tại bàn, mà combo được rã lúc lưu phiếu.
+	Giá bộ tính như cửa rã combo (giá gốc trừ phần giảm của bộ)."""
+	from vagabond import combo_mon, khuyen_mai
+
+	try:
+		ds = frappe.get_all("Vagabond Combo", filters={"bat": 1, "ma_hang": ["like", "KMCB%"]},
+			fields=["name", "ma_hang"], order_by="uu_tien asc, ten asc", limit_page_length=0)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "goi_mon_ban: đọc combo lỗi")
+		return []
+	ra = []
+	for r in ds:
+		try:
+			cb = khuyen_mai._doc_combo(r["name"])
+			# Số lượng lẻ (0,5 phần) không bày ra bàn: khách gọi theo bộ nguyên.
+			if not cb["dong"] or any(flt(x.get("so_luong")) != int(flt(x.get("so_luong"))) for x in cb["dong"]):
+				continue
+			if any(combo_mon.ly_do_khong_ban(cb, r["ma_hang"], ma_diem, n) for n in (NGUON_TAO, NGUON_QR)):
+				continue
+			goc = sum(flt(x.get("so_luong")) * flt(x.get("gia_goc")) for x in cb["dong"])
+			gia = goc - khuyen_mai._tiet_kiem_bo(cb, goc)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "goi_mon_ban: combo %s lỗi" % r.get("ma_hang"))
+			continue
+		ra.append({"ma": r["ma_hang"], "ten": cb.get("ten") or r["ma_hang"], "gia": int(round(gia)), "goc": int(round(goc)),
+			"mo_ta": cb.get("mo_ta") or "", "anh": cb.get("anh") or "",
+			"dong": [{"ma": x.get("item_code"), "ten": x.get("ten_mon") or "", "sl": int(flt(x.get("so_luong")))} for x in cb["dong"]]})
 	return ra
 
 
@@ -908,10 +1045,30 @@ def trang_thai(ma=None, token=None):
 	if not ma or not isinstance(token, str) or not re.fullmatch(r"[0-9a-f]{32}", token or ""):
 		return {"ok": 0}
 	r = frappe.db.get_value(DT, ma, ["name", "diem", "ban", "mon", "tam_tinh", "trang_thai", "luc", "nhan_luc",
-		"ly_do", "token_bam"], as_dict=True)
+		"ly_do", "token_bam", "hoa_don"], as_dict=True)
 	if not r or not hmac.compare_digest(str(r.get("token_bam") or ""), bam(token)):
 		return {"ok": 0}
-	return dict(cho_khach(r, now_datetime()), ok=1)
+	# Bill đã chốt: phiếu của lượt không còn là phiếu tạm tính mở (cùng phép
+	# _phieu_tam_mo mà bảng giữ bánh dùng). Lượt chưa có phiếu là đang lập.
+	hd = r.get("hoa_don")
+	da_tra = bool(hd) and r.get("trang_thai") == TT_NHAN and hd not in _phieu_tam_mo([hd])
+	kq = dict(cho_khach(r, now_datetime(), da_tra), ok=1)
+	if hd and kq["trang_thai"] == TT_NHAN and not da_tra:
+		bill = _tong_bill(hd)
+		if bill:
+			kq["bill"] = bill
+	return kq
+
+
+def _tong_bill(hd):
+	"""Tổng hiện tại của phiếu tạm tính bàn (Codex PR #545 vòng 6). Đọc lỗi thì
+	vẫn trả khoá phiếu, tổng rỗng (vòng 7), không chặn trạng thái."""
+	try:
+		r = frappe.db.get_value("Sales Invoice", hd, ["grand_total"], as_dict=True)
+		return the_bill(hd, (r or {}).get("grand_total"))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "goi_mon_ban: đọc tổng hoá đơn của bàn lỗi")
+		return the_bill(hd, None)
 
 
 # ------------------------------------------------------- chuông gọi nhân viên
@@ -1195,8 +1352,7 @@ def nhan(ma=None):
 		"ok": 1, "hoa_don": ten, "bill": ma_bill, "them_vao": da_co, "ban": r["ban"],
 		# Phiếu pha chế in bằng đúng posInPhieuMon của màn quầy.
 		"phieu": {"name": ten, "bill": ma_bill, "so_ban": str(r["ban"]), "ghi_chu": r.get("ghi_chu") or "",
-			"mon": [{"item_code": x["ma"], "ten": x["ten"], "qty": x["sl"], "nhom": x.get("nhom") or "", "tc": tc_hien(x),
-				"gc": ""} for x in _doc_mon(r)]},
+			"mon": dong_phieu_pha(_doc_mon(r))},
 	}
 
 

@@ -792,7 +792,9 @@ async function chayHet() {
     var i = src.lastIndexOf('})();');
     var ten = SOAN_DO.match(/^(\w+) = sdBoc(?:Hop)?\(/gm).map(function (x) { return x.split(' ')[0]; });
     var xuat = '\nwindow.__sdKiem = { SD_MAN: SD_MAN, giong: {' +
-      ten.map(function (t) { return t + ': ' + t + ' === SD_BOC.' + t; }).join(', ') + '} };\n';
+      ten.map(function (t) { return t + ': ' + t + ' === SD_BOC.' + t; }).join(', ') + '},' +
+      /* v642: eval trực tiếp trong vỏ app để ca kiểm đọc, đặt biến cục bộ của màn (hsGdCua...). */
+      ' chay: function (c) { return eval(c); } };\n';
     src = src.slice(0, i) + xuat + src.slice(i);
     var tl = domGia.taiLieuGia();
     tl.head = tl.createElement('head'); tl.documentElement = tl.createElement('html');
@@ -835,6 +837,17 @@ async function chayHet() {
     /* v614 Codex #505: them chien_dich (lap chien dich CRM, 58-crm.js). */
     /* v622: them vi_tri_tuyen va ho_so_ung_vien (Tuyen dung, 60-tuyen-dung.js). */
     bang('du 49 loai phieu (v628: them kiem_quy, nop_ngan_hang; v635: chot_dau_quy)', Object.keys(k.SD_MAN).length, 49);
+    /* v642 Codex #545 vong 2: ban nhap ho so hoan ung co HD phai giu ca giao dich sao ke da noi (hsGdCua),
+       khong thi mo lai ban nhap roi Lap la mat chung tu ma khong ai hay. Ban nhap cu chua co o nay thi ve rong. */
+    var hs = k.SD_MAN.ho_so_tt;
+    k.chay("hsTaoLoai='Hoan ung HD';hsTaoNguoiUng='NCC-9';hsTaoChon={'HD-1':{con_no:5,so_tien:5}};hsGdCua={'HD-1':{ma_giao_dich:'FT2',ngay:'2026-11-01',so_tien:5,ngan_hang:'MB'}};");
+    var banLuu = JSON.parse(JSON.stringify(hs.lay()));
+    k.chay("hsTaoChon={};hsGdCua={};hsTaoNguoiUng='';");
+    hs.dat(banLuu, []);
+    bang('mo lai ban nhap: giao dich sao ke con nguyen', k.chay("JSON.stringify(hsGdCua)"), JSON.stringify({ 'HD-1': { ma_giao_dich: 'FT2', ngay: '2026-11-01', so_tien: 5, ngan_hang: 'MB' } }));
+    delete banLuu.gd;
+    hs.dat(banLuu, []);
+    bang('ban nhap cu khong co o giao dich: ve rong', k.chay("JSON.stringify(hsGdCua)"), '{}');
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);

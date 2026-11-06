@@ -1205,3 +1205,159 @@ def _quay_js():
 @ca("v638 bảng kiểm kho (node, trang thật): mục Đồ uống đủ món, công tắc Bán trên web gọi đúng cửa, ngày cũ không bấm được")
 def _kiem_kho_js():
 	_node("kiem_kho_nuoc_638.js", 3)
+
+
+@ca("v642 đơn của bàn: trang khách nhận giờ gọi từng lượt, đơn giá và tiền từng dòng (kể cả topping) do máy chủ chốt; không lộ tên gọi, số điện thoại")
+def _cho_khach_642():
+	r = {"name": "TQ-7", "ban": 1, "trang_thai": g.TT_NHAN, "luc": "2026-11-04 09:53:00", "nhan_luc": "2026-11-04 09:55:00",
+		"tam_tinh": 155000, "ten_goi": "Lan", "sdt_gioi_thieu": "0901234567",
+		"mon": json.dumps([
+			{"ma": "NUTR00021", "ten": "Trà Lài (M)", "sl": 2, "tc": ["Ít đá"], "gia": 45000, "tp": [{"ma": "TP1", "ten": "Trân châu", "gia": 10000}]},
+			{"ma": "BANH1", "ten": "Canelé", "sl": 1, "gia": 45000}])}
+	k = g.cho_khach(r, BAY)
+	la("giờ gọi", k["luc"], "09:53")
+	la("giờ nhận", k["nhan_luc"], "09:55")
+	la("dòng: đơn giá kể cả topping, tiền theo số lượng", [(x["ten"], x["sl"], x["gia"], x["tien"], x["tc"]) for x in k["mon"]],
+		[("Trà Lài (M)", 2, 55000, 110000, ["Ít đá", "+ Trân châu"]), ("Canelé", 1, 45000, 45000, [])])
+	la("tổng dòng bằng tạm tính máy chủ", sum(x["tien"] for x in k["mon"]), k["tam_tinh"])
+	dung("không lộ tên gọi, số giới thiệu", "Lan" not in json.dumps(k, ensure_ascii=False) and "0901234567" not in json.dumps(k))
+	la("thiếu giờ gọi: rỗng, không vỡ", g.cho_khach(dict(r, luc=None), BAY)["luc"], "")
+
+
+COMBO = {"ma": "KMCB00001", "ten": "Trà chiều", "gia": 120000, "goc": 140000, "mo_ta": "Mỗi ngày", "anh": "",
+	"dong": [{"ma": "NUTR00021", "ten": "Trà Hoa Lài", "sl": 1}, {"ma": "BAWC00115", "ten": "Mousse Chanh Dây", "sl": 1}]}
+
+
+@ca("v642 combo trên trang bàn (phép thuần): chỉ bày khi mọi món thành phần gọi được ở điểm; số bộ theo bánh còn trên tủ; giá bộ của máy chủ; thiếu món hay hết bánh thì không bày")
+def _combo_thuan():
+	ra = g.combo_ban_duoc([COMBO], _bang())
+	la("một combo, số bộ theo 2 bánh còn", [(c["ma"], c["gia"], c["goc"], c["con"], c["loai"]) for c in ra], [("KMCB00001", 120000, 140000, 2, "combo")])
+	la("thành phần kèm loại và nhóm", [(x["ma"], x["sl"], x["loai"], x["nhom"]) for x in ra[0]["thanh_phan"]],
+		[("NUTR00021", 1, "nuoc", "Trà"), ("BAWC00115", 1, "banh", "Bánh lạnh")])
+	hai = dict(COMBO, dong=[{"ma": "BAWC00115", "ten": "Mousse", "sl": 2}])
+	la("bộ cần 2 bánh, tủ còn 2: 1 bộ", g.combo_ban_duoc([hai], _bang())[0]["con"], 1)
+	la("nước đang tắt (không có trong bảng): không bày", g.combo_ban_duoc([dict(COMBO, dong=COMBO["dong"] + [{"ma": "NUCF00003", "sl": 1}])], _bang()), [])
+	het = _bang()
+	het["BAWC00115"]["con"] = 0
+	la("hết bánh: không bày", g.combo_ban_duoc([COMBO], het), [])
+	la("giá 0 hay không có món: không bày", g.combo_ban_duoc([dict(COMBO, gia=0), dict(COMBO, dong=[])], _bang()), [])
+	la("mô tả món thành phần", [g.mo_ta_thanh_phan({"ten": "Canelé", "sl": 1}), g.mo_ta_thanh_phan({"ten": "Trà", "sl": 2})], ["Canelé", "2 Trà"])
+
+
+@ca("v642 gọi combo: máy chủ chốt giá bộ, bỏ lựa chọn và chặn topping khách gửi; bánh trong combo cộng chung với bánh gọi lẻ khi so số còn; đơn chờ giữ bánh theo món thành phần; phiếu pha chế tách từng món")
+def _combo_gio():
+	bang = _bang()
+	for c in g.combo_ban_duoc([COMBO], bang):
+		bang[c["ma"]] = c
+	dong, tam = g.chuan_gio([{"ma": "KMCB00001", "sl": 1, "tc": {"Đá": "Ít đá"}, "gia": 1}], bang)
+	la("dòng combo: giá bộ, không lựa chọn", [(d["ma"], d["sl"], d["gia"], d["tc"], d["loai"]) for d in dong], [("KMCB00001", 1, 120000, [], "combo")])
+	la("tạm tính theo giá bộ", tam, 120000)
+	la("thành phần đi theo đơn", [(x["ma"], x["sl"]) for x in dong[0]["thanh_phan"]], [("NUTR00021", 1), ("BAWC00115", 1)])
+	la("khách và quầy thấy món trong combo", g.tc_hien(dong[0]), ["Trà Hoa Lài", "Mousse Chanh Dây"])
+	nem("combo không kèm topping", lambda: g.chuan_gio([{"ma": "KMCB00001", "sl": 1, "tp": ["TPNC00001"]}], bang), ValueError)
+	try:
+		g.chuan_gio([{"ma": "KMCB00001", "sl": 2}, {"ma": "BAWC00115", "sl": 1}], bang)
+		raise AssertionError("phải chặn: 2 bộ + 1 lẻ = 3 bánh, tủ còn 2")
+	except ValueError as e:
+		dung("câu nói số bánh còn: " + str(e), "chỉ còn 2" in str(e))
+	la("2 bộ vừa đủ 2 bánh", g.chuan_gio([{"ma": "KMCB00001", "sl": 2}], bang)[1], 240000)
+	giu = g.sl_dang_cho([json.dumps(dong), json.dumps([{"ma": "BAWC00115", "sl": 1}])])
+	la("đơn chờ giữ bánh theo thành phần, không giữ mã combo", giu, {"NUTR00021": 1, "BAWC00115": 2})
+	la("phiếu pha chế: combo tách món, ghi tên combo", [(x["item_code"], x["qty"], x["nhom"], x["gc"]) for x in g.dong_phieu_pha([dict(dong[0], sl=2)])],
+		[("NUTR00021", 2, "Trà", "Combo Trà chiều"), ("BAWC00115", 2, "Bánh lạnh", "Combo Trà chiều")])
+	la("dòng thường giữ nguyên", g.dong_phieu_pha([{"ma": "NUTR00021", "ten": "Trà", "sl": 1, "tc": ["Ít đá"], "nhom": "Trà"}]),
+		[{"item_code": "NUTR00021", "ten": "Trà", "qty": 1, "nhom": "Trà", "tc": ["Ít đá"], "gc": ""}])
+	la("dòng hoá đơn: mã combo, giá bộ (hoá đơn tự rã khi lưu)", g.dong_hoa_don(dong)[0]["item_code"], "KMCB00001")
+
+
+@ca("v642 cửa gọi món thật: combo đọc qua luật bán của hoá đơn cho CẢ HAI nguồn đơn bàn; bàn khác thấy bánh đã giữ cho combo; combo bị luật chặn ở một nguồn thì không gọi được")
+def _combo_cua():
+	from vagabond import combo_mon
+
+	cb = {"name": "CB-1", "ten": "Trà chiều", "bat": 1, "kieu": "Gia tron goi", "gia_combo": 120000, "mo_ta": "", "anh": "",
+		"dong": [{"item_code": "NUTR00021", "ten_mon": "Trà Hoa Lài", "so_luong": 1, "gia_goc": 45000, "nhom": ""},
+			{"item_code": "BAWC00115", "ten_mon": "Mousse Chanh Dây", "so_luong": 1, "gia_goc": 95000, "nhom": ""}]}
+	nguon_hoi = []
+
+	def luat(c, ma, quay, nguon):
+		nguon_hoi.append((ma, quay, nguon))
+		return ""
+	kho = Kho()
+	goc = _fr.get_all
+
+	def get_all(dt, *a, **k):
+		if dt == "Vagabond Combo":
+			return [{"name": "CB-1", "ma_hang": "KMCB00001"}]
+		return kho.get_all(dt, *a, **k)
+	with _he(kho), patch.object(_fr, "get_all", side_effect=get_all), patch("vagabond.khuyen_mai._doc_combo", return_value=cb), \
+			patch.object(combo_mon, "ly_do_khong_ban", side_effect=luat):
+		r = _gui(mon=[{"ma": "KMCB00001", "sl": 1}])
+		la("gọi combo được", r["ok"], 1)
+		la("luật bán hỏi cả hai nguồn", sorted({x[2] for x in nguon_hoi}), sorted([g.NGUON_TAO, g.NGUON_QR]))
+		la("tạm tính giá bộ", kho.dong[r["ma"]]["tam_tinh"], 120000)
+		la("bàn khác: bánh còn 1 sau khi combo giữ 1", g.bang_mon(g._diem("TCV"))["BAWC00115"]["con"], 1)
+		r2 = _gui(nonce="M" * 32, ban=6, mon=[{"ma": "BAWC00115", "sl": 2}])
+		la("bàn khác gọi 2 bánh bị chặn", (r2["ok"], "chỉ còn 1" in r2.get("cau", "")), (0, True))
+	with _he(Kho()), patch.object(_fr, "get_all", side_effect=get_all), patch("vagabond.khuyen_mai._doc_combo", return_value=cb), \
+			patch.object(combo_mon, "ly_do_khong_ban", side_effect=lambda c, ma, quay, nguon: "chặn" if nguon == g.NGUON_QR else ""):
+		r3 = _gui(mon=[{"ma": "KMCB00001", "sl": 1}])
+		la("combo bị chặn ở nguồn QR tại bàn: không gọi được", r3["ok"], 0)
+	del goc
+
+
+@ca("v642 Codex #545 vòng 1: trang khách biết lượt đã nhận thuộc bill đã chốt (phiếu tạm tính không còn mở) để không cộng vào bill mới; lượt chưa có phiếu, phiếu còn mở thì chưa trả; không lộ mã hoá đơn")
+def _da_tra_642():
+	r = {"name": "TQ-8", "ban": 1, "trang_thai": g.TT_NHAN, "luc": "2026-11-04 09:53:00", "nhan_luc": "2026-11-04 09:55:00",
+		"tam_tinh": 45000, "mon": json.dumps([{"ma": "NUTR00021", "ten": "Trà", "sl": 1, "gia": 45000}]), "hoa_don": "ACC-SINV-1"}
+	la("thuần: cờ đã trả", (g.cho_khach(r, BAY, True)["da_tra"], g.cho_khach(r, BAY)["da_tra"]), (1, 0))
+	la("đơn chưa nhận không bao giờ đã trả", g.cho_khach(dict(r, trang_thai=g.TT_CHO), BAY, True)["da_tra"], 0)
+	tk = g.token_khach(KHOA, "TQ-8")
+	for mo, hd, can in ((set(), "ACC-SINV-1", 1), ({"ACC-SINV-1"}, "ACC-SINV-1", 0), (set(), "", 0)):
+		dong = dict(r, hoa_don=hd, token_bam=g.bam(tk))
+		with patch.object(g, "_bi_mat", return_value=KHOA), patch.object(_fr.db, "get_value", return_value=_fr._dict(dong)), \
+				patch.object(g, "_phieu_tam_mo", return_value=mo):
+			kq = g.trang_thai("TQ-8", tk)
+		la("phiếu %s, phiếu mở %s: đã trả" % (hd or "(chưa có)", sorted(mo)), kq["da_tra"], can)
+		dung("không lộ mã hoá đơn", "ACC-SINV" not in json.dumps(kq))
+
+
+@ca("v642 Codex #545 vòng 6: trang khách hỏi trạng thái lượt đã nhận thì nhận kèm TỔNG hoá đơn của bàn đang mở (gồm món máy khác gọi, món quầy thêm), khoá hoá đơn là mã băm không lộ tên phiếu; lượt chờ nhận, đã trả thì không kèm; đọc hoá đơn lỗi vẫn trả trạng thái")
+def _bill_ban_642():
+	r = {"name": "TQ-8", "ban": 1, "trang_thai": g.TT_NHAN, "luc": "2026-11-04 09:53:00", "nhan_luc": "2026-11-04 09:55:00",
+		"tam_tinh": 100000, "mon": json.dumps([{"ma": "NUTR00021", "ten": "Trà", "sl": 2, "gia": 50000}]), "hoa_don": "ACC-SINV-1"}
+	tk = g.token_khach(KHOA, "TQ-8")
+	dong = dict(r, token_bam=g.bam(tk))
+
+	def doc(si=None, loi=False):
+		def gv(dt, ten, f=None, **k):
+			if dt == g.DT:
+				return _fr._dict(dong)
+			if loi:
+				raise RuntimeError("hỏng đọc")
+			return _fr._dict(si or {})
+		return gv
+
+	def hoi(mo, gv, dong_moi=None):
+		if dong_moi:
+			dong.update(dong_moi)
+		with patch.object(g, "_bi_mat", return_value=KHOA), patch.object(_fr.db, "get_value", side_effect=gv), \
+				patch.object(g, "_phieu_tam_mo", return_value=mo), patch.object(_fr, "log_error"):
+			return g.trang_thai("TQ-8", tk)
+
+	kq = hoi({"ACC-SINV-1"}, doc({"grand_total": 140000.0}))
+	la("lượt máy này 100.000 đ, hoá đơn của bàn 140.000 đ", (kq["tam_tinh"], (kq.get("bill") or {}).get("tong")), (100000, 140000))
+	dung("khoá hoá đơn không lộ tên phiếu", (kq.get("bill") or {}).get("khoa") and "SINV" not in json.dumps(kq))
+	la("cùng phiếu thì cùng khoá (hai máy cùng bàn gộp đúng một lần)", g.the_bill("ACC-SINV-1", 1)["khoa"], kq["bill"]["khoa"])
+	dung("phiếu khác thì khoá khác", g.the_bill("ACC-SINV-2", 1)["khoa"] != kq["bill"]["khoa"])
+	la("đã trả: không kèm hoá đơn", (hoi(set(), doc({"grand_total": 140000.0})).get("bill"), hoi(set(), doc({}))["da_tra"]), (None, 1))
+	la("chờ nhận: không kèm", hoi({"ACC-SINV-1"}, doc({"grand_total": 1.0}), {"trang_thai": g.TT_CHO}).get("bill"), None)
+	dong.update(trang_thai=g.TT_NHAN)
+	kq = hoi({"ACC-SINV-1"}, doc(loi=True))
+	# Codex PR #545 vòng 7: đọc lỗi vẫn báo khoá phiếu (tổng rỗng) để trang không cộng trùng lượt này.
+	la("đọc hoá đơn lỗi: vẫn trả trạng thái, kèm khoá phiếu, tổng rỗng", (kq["ok"], kq["trang_thai"], kq.get("bill")),
+		(1, g.TT_NHAN, {"khoa": g.the_bill("ACC-SINV-1", 1)["khoa"], "tong": None}))
+	la("phiếu không đọc ra dòng nào: khoá phiếu, tổng rỗng", hoi({"ACC-SINV-1"}, lambda dt, ten, f=None, **k: _fr._dict(dong) if dt == g.DT else None).get("bill"),
+		{"khoa": g.the_bill("ACC-SINV-1", 1)["khoa"], "tong": None})
+	la("thuần: tổng làm tròn đồng", g.the_bill("X", "140000.4"), {"khoa": g.the_bill("X", 0)["khoa"], "tong": 140000})
+	la("thuần: tổng 0 đ vẫn là số, không rỗng", g.the_bill("X", 0)["tong"], 0)
+	la("thuần: tổng lạ là rỗng", [g.the_bill("X", None)["tong"], g.the_bill("X", "abc")["tong"]], [None, None])

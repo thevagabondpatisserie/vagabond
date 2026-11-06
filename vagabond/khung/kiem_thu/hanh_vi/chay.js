@@ -98,6 +98,8 @@ function dungMan(canh) {
       if (duong === 'vagabond.ho_so_tt.ds_ncc_chon') return Promise.resolve({ ncc: canh.nccChon || [] });
       if (duong === 'vagabond.ho_so_tt.hoa_don_cho_tra') return Promise.resolve(canh.hoaDon || { rows: [], tong: 0, qua_han: 0 });
       if (duong === 'vagabond.ho_so_tt.ds_tk_hoan_ung') return Promise.resolve(canh.tkHoan || { tk: [], doan: 0 });
+      if (duong === 'vagabond.ho_so_tt.sepay_ocb' && canh.sepay) return Promise.resolve(canh.sepay(ts));
+      if (duong === 'vagabond.ho_so_tt.tao' && canh.taoTra) return Promise.resolve(canh.taoTra);
       if (duong === 'vagabond.ho_so_tt.ds_nguoi_ung') {
         /* Tra ve theo tu khoa de ca kiem chung minh duoc rang bam Enter la
            HOI THAT may chu, chu khong phai loc lai tren danh sach cu. Ham
@@ -1605,6 +1607,108 @@ async function chayHet() {
     await m.g.scrChiCongTyTao();
     dung('man chi cong ty khong bay nut khong bam duoc', !m.tai.getElementById('huCanCoc'));
     dung('man chi cong ty hiện lời nhắc kế toán', !!m.tai.getElementById('huCanCocNhac'));
+  });
+
+  await caAsync('v642 hoan ung CO hoa don (chi Dung 06/11/2026): moi hoa don da tick co nut Noi sao ke tai khoan nguoi ung; dung so tien len dau; mot giao dich chi noi mot hoa don; gui len may chu kem ma giao dich; bo tick thi go lien ket', async function () {
+    var m = dungMan(canhChi({ nccChon: NCC_NO,
+      tkHoan: { tk: [{ ma: 'MB-NHV', ten: 'MB NHV', ngan_hang: 'MB', so_tk: '123', nhan: 'MB · 123' }], doan: 0 },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC A', con_no: 500000, co_the_chi: 500000 },
+        { hoa_don: 'HD-2', ncc: 'NCC-2', ten_ncc: 'NCC B', con_no: 300000, co_the_chi: 300000 }], tong: 800000 },
+      sepay: function (ts) { return { ngan_hang: 'MB', rows: ts.tai_khoan === 'MB-NHV' ? [
+        { ma_giao_dich: 'FT1', ngay: '2026-11-04', so_tien: 300000, noi_dung: 'CK NCC B' },
+        { ma_giao_dich: 'FT2', ngay: '2026-11-01', so_tien: 500000, noi_dung: 'CK NCC A' }] : [] }; },
+      taoTra: { ma: 'APP-1', tong_tien: 500000 } }));
+    var hop = [], tin = [];
+    m.g.sheet = function (t, ds, cur, fn) { hop.push({ t: t, ds: ds, fn: fn }); };
+    m.g.baoTin = function (t) { tin.push(String(t)); };
+    m.g.hsTaoLoai = 'Hoan ung HD';
+    m.g.hsTaoNguoiUng = 'NCC-9';
+    m.g.hsTaoChon = { 'HD-1': { con_no: 500000, so_tien: 500000, ten_ncc: 'NCC A' } };
+    await m.g.scrHoSoTTTao();
+    var nut = m.tai.querySelector('[data-hsgd="HD-1"]');
+    dung('hoa don da tick co nut Noi sao ke', !!nut && nut.textContent.indexOf('Nối sao kê') >= 0);
+    dung('hoa don chua tick khong co nut', !m.tai.querySelector('[data-hsgd="HD-2"]'));
+    nut.click();
+    for (var i = 0; i < 10; i++) await new Promise(function (r) { setTimeout(r, 0); });
+    var hoi = m.goiApi.filter(function (x) { return x.duong === 'vagabond.ho_so_tt.sepay_ocb'; });
+    bang('doc sao ke dung tai khoan nguoi ung', hoi.map(function (x) { return x.ts.tai_khoan; }).join(','), 'MB-NHV');
+    bang('mo bang chon', hop.length, 1);
+    bang('dung so tien len dau (sau dong Bo noi)', hop[0].ds[1].value, 'FT2');
+    dung('ghi ro dung so tien: ' + hop[0].ds[1].phu, hop[0].ds[1].phu.indexOf('Đúng số tiền') === 0);
+    hop[0].fn({ value: 'FT2' });
+    await choVeLai(m);
+    bang('noi vao hoa don', m.g.hsGdCua['HD-1'].ma_giao_dich, 'FT2');
+    var nut2 = m.tai.querySelector('[data-hsgd="HD-1"]');
+    dung('nut hien giao dich da noi: ' + nut2.textContent, nut2.textContent.indexOf('500') >= 0 && nut2.textContent.indexOf('MB') >= 0);
+    /* Codex PR #545 vòng 8 (AGENTS.md 2b.13): hai nút trên dòng hoá đơn (Nối phiếu nội bộ, Nối sao
+       kê), cả khi chưa nối lẫn đã nối, cao ít nhất 44 và chữ ít nhất 13. */
+    [nut, nut2, m.tai.querySelector('[data-hsphieu="HD-1"]')].forEach(function (x, i) {
+      var c = parseFloat(x.style.fontSize), cao = parseFloat(x.style.minHeight);
+      dung('nut ' + i + ' chu ' + x.style.fontSize + ', cao ' + x.style.minHeight, c >= 13 && cao >= 44);
+    });
+    m.g.hsTaoChon['HD-2'] = { con_no: 300000, so_tien: 300000, ten_ncc: 'NCC B' };
+    await m.g.scrHoSoTTTao();
+    m.tai.querySelector('[data-hsgd="HD-2"]').click();
+    for (var j = 0; j < 10; j++) await new Promise(function (r) { setTimeout(r, 0); });
+    dung('giao dich da noi o hoa don khac co canh bao', hop[1].ds.filter(function (x) { return x.value === 'FT2'; })[0].phu.indexOf('ĐÃ NỐI Ở HOÁ ĐƠN HD-1') >= 0);
+    hop[1].fn({ value: 'FT2' });
+    dung('chan noi lan hai: ' + tin.join('|'), tin.some(function (t) { return t.indexOf('đã nối vào hoá đơn HD-1') >= 0; }));
+    dung('HD-2 khong bi noi', !m.g.hsGdCua['HD-2']);
+    m.g.scrHoSoTTView = async function () {};
+    m.tai.getElementById('hsLuu').click();
+    for (var k = 0; k < 10; k++) await new Promise(function (r) { setTimeout(r, 0); });
+    var tao = m.goiApi.filter(function (x) { return x.duong === 'vagabond.ho_so_tt.tao'; });
+    bang('goi lap ho so mot lan', tao.length, 1);
+    var ds = JSON.parse(tao[0].ts.hoa_don);
+    bang('HD-1 mang ma giao dich', ds.filter(function (x) { return x.hoa_don === 'HD-1'; })[0].ma_giao_dich, 'FT2');
+    bang('HD-2 khong mang', ds.filter(function (x) { return x.hoa_don === 'HD-2'; })[0].ma_giao_dich, undefined);
+    m.g.hsGdCua = { 'HD-1': { ma_giao_dich: 'FT2' } };
+    m.g.hsTaoChon = { 'HD-1': { con_no: 500000, so_tien: 500000 } };
+    await m.g.scrHoSoTTTao();
+    m.tai.querySelector('[data-hstick="HD-1"]').click();
+    await choVeLai(m);
+    dung('bo tick thi go lien ket', !m.g.hsGdCua['HD-1']);
+  });
+
+  await caAsync('v642 Codex #545 vong 1: nguoi ung chua gan tai khoan quy tam ung (danh sach doan) thi khong doc sao ke tai khoan nguoi khac, noi ro can lam gi', async function () {
+    var m = dungMan(canhChi({ nccChon: NCC_NO,
+      tkHoan: { tk: [{ ma: 'ACB-KHAC', ngan_hang: 'ACB', nguoi: 'NCC-1', nhan: 'ACB · 9' }], doan: 1 },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC A', con_no: 500000, co_the_chi: 500000 }], tong: 500000 },
+      sepay: function () { return { ngan_hang: 'ACB', rows: [{ ma_giao_dich: 'FTK', ngay: '2026-11-01', so_tien: 500000 }] }; } }));
+    var tin = [], hop = [];
+    m.g.baoTin = function (t) { tin.push(String(t)); };
+    m.g.sheet = function (t, ds) { hop.push(ds); };
+    m.g.hsTaoLoai = 'Hoan ung HD';
+    m.g.hsTaoNguoiUng = 'NCC-9';
+    m.g.hsTaoChon = { 'HD-1': { con_no: 500000, so_tien: 500000 } };
+    await m.g.scrHoSoTTTao();
+    m.tai.querySelector('[data-hsgd="HD-1"]').click();
+    for (var i = 0; i < 10; i++) await new Promise(function (r) { setTimeout(r, 0); });
+    bang('khong doc sao ke', m.goiApi.filter(function (x) { return x.duong === 'vagabond.ho_so_tt.sepay_ocb'; }).length, 0);
+    bang('khong mo bang chon', hop.length, 0);
+    dung('noi ro: ' + tin.join('|'), tin.some(function (t) { return t.indexOf('chưa gắn tài khoản') >= 0; }));
+  });
+
+  await caAsync('v642 Codex #545 vong 3: mo lai ban nhap ho so hoan ung (co nguoi ung, chua co danh sach tai khoan trong bo nho): may nap lai tai khoan, giu tai khoan da chon va giao dich da noi, Noi sao ke van doc sao ke', async function () {
+    var m = dungMan(canhChi({ nccChon: NCC_NO,
+      tkHoan: { tk: [{ ma: 'MB-NHV', ngan_hang: 'MB', nguoi: 'NCC-9', nhan: 'MB · 123' }, { ma: 'ACB-NHV', ngan_hang: 'ACB', nguoi: 'NCC-9', nhan: 'ACB · 9' }], doan: 0 },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC A', con_no: 500000, co_the_chi: 500000 }], tong: 500000 },
+      sepay: function () { return { ngan_hang: 'MB', rows: [{ ma_giao_dich: 'FT2', ngay: '2026-11-01', so_tien: 500000 }] }; } }));
+    var tin = [], hop = [];
+    m.g.baoTin = function (t) { tin.push(String(t)); };
+    m.g.sheet = function (t, ds) { hop.push(ds); };
+    /* Dung dung trang thai ma dong khai ban nhap (48-ban-soan-do.js) dat lai: co nguoi ung, tkCua, tk da chon, giao dich da noi; hsTkDs la bo nho tam KHONG nam trong ban nhap. */
+    m.g.hsTaoLoai = 'Hoan ung HD'; m.g.hsTaoNguoiUng = 'NCC-9'; m.g.hsTkCua = 'NCC-9'; m.g.hsTkHoan = 'ACB-NHV'; m.g.hsTkDs = null;
+    m.g.hsTaoChon = { 'HD-1': { con_no: 500000, so_tien: 500000 } };
+    m.g.hsGdCua = { 'HD-1': { ma_giao_dich: 'FT2', ngay: '2026-11-01', so_tien: 500000, ngan_hang: 'MB' } };
+    await m.g.scrHoSoTTTao();
+    dung('nap lai danh sach tai khoan', m.goiApi.some(function (x) { return x.duong === 'vagabond.ho_so_tt.ds_tk_hoan_ung'; }));
+    bang('giu tai khoan da chon', m.g.hsTkHoan, 'ACB-NHV');
+    bang('giu giao dich da noi', (m.g.hsGdCua['HD-1'] || {}).ma_giao_dich, 'FT2');
+    m.tai.querySelector('[data-hsgd="HD-1"]').click();
+    for (var i = 0; i < 10; i++) await new Promise(function (r) { setTimeout(r, 0); });
+    dung('khong bao nham chua co tai khoan: ' + tin.join('|'), !tin.some(function (t) { return t.indexOf('chưa khai tài khoản') >= 0; }));
+    dung('doc sao ke tai khoan nguoi ung', m.goiApi.some(function (x) { return x.duong === 'vagabond.ho_so_tt.sepay_ocb'; }) && hop.length === 1);
   });
 
   await caAsync('APP247: ke toan FIN van thay nut can coc o ca hai man', async function () {

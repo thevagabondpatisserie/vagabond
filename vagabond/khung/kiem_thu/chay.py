@@ -115,6 +115,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_tiec_b2b,
 	thu_tk_kho_va_ghi_so,
 	thu_tk_nhan_hoan_ung,
+	thu_hoan_ung_sao_ke_642,
 	thu_ton_chang,
 	thu_tra_truoc,
 	thu_tra_truoc_hien_tren_app,

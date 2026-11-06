@@ -260,6 +260,19 @@ def _():
 	la("lịch sử số dòng lần đọc trước", (len(ls), ls[0]["so_dong"] if ls else None), (1, 2))
 
 
+@ca("v642 bench: migrate gieo đủ người gửi tin cậy và lịch thư trên Cài đặt lõi thật (doctype Single), không ghi lỗi")
+def _():
+	from vagabond import doi_soat_thu as dst
+	# Bench đã migrate hai lượt trước khi chạy ca: after_migrate gieo_mac_dinh đã chạy THẬT.
+	la("người gửi tin cậy", frappe.db.count("Vagabond Doi Soat Nguoi Gui", {"parent": dst.CAI_DAT, "parentfield": "ds_nguoi_gui"})
+		>= len(dst.NGUOI_GUI_MAC_DINH), True)
+	la("lịch thư", frappe.db.count("Vagabond Doi Soat Lich Thu", {"parent": dst.CAI_DAT, "parentfield": "ds_lich_thu"})
+		>= len(dst.LICH_MAC_DINH), True)
+	la("không có lỗi gieo", frappe.db.count("Error Log", {"method": "Đối soát hộp thư: gieo cài đặt mặc định"}), 0)
+	st = frappe.get_doc(dst.CAI_DAT)
+	dung("trang Cài đặt đọc được bảng", len(st.get("ds_nguoi_gui") or []) >= len(dst.NGUOI_GUI_MAC_DINH))
+
+
 @ca("Codex #544 vòng 2 bench: tệp giám đốc đã từ chối không quay về Chờ duyệt khi tải lại hay về qua thư không chữ ký")
 def _():
 	from vagabond import doi_soat_thu as dst

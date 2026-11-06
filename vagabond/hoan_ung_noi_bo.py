@@ -35,6 +35,23 @@ def giao_dich(ma):
     return ds[0] if len(ds) == 1 else None
 
 
+def loi_gd_hoan_ung(gd, tk_hop_le, ma):
+    """Một dòng sao kê có làm chứng từ "tiền đã chi" cho một hoá đơn hoàn ứng
+    được không (v642, chị Dung 06/11/2026: màn hoàn ứng CÓ hoá đơn cũng nối sao
+    kê như màn không hoá đơn). Rỗng là được. THUẦN.
+
+    gd: bản ghi giao_dich(ma) hoặc None. tk_hop_le: các Bank Account của người
+    được hoàn ứng (ds_tk_hoan_ung), vì tiền hoàn chỉ chảy về người đã chi ra."""
+    if not gd or int(gd.get('docstatus') or 0) >= 2:
+        return 'Không tìm thấy giao dịch %s trên sao kê. Bấm lại "Nối sao kê" để chọn từ danh sách.' % ma
+    if flt(gd.get('withdrawal')) <= 0:
+        return 'Giao dịch %s là tiền vào, không phải khoản đã chi ra.' % ma
+    if tk_hop_le is not None and (gd.get('bank_account') or '') not in tk_hop_le:
+        return ('Giao dịch %s không đi ra từ tài khoản của người được hoàn ứng. '
+                'Chọn giao dịch trên đúng tài khoản người đó đã dùng để trả.' % ma)
+    return ''
+
+
 def xep_goi_y(ds, so_tien=0, noi_dung='', ma_gd=''):
     """Gợi ý có lý do, chưa bao giờ là quyết định khớp tự động."""
     from vagabond.khop_sao_ke import co_ma

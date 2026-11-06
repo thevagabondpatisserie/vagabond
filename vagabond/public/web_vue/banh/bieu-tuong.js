@@ -22,6 +22,8 @@ export const ICON = {
   chat: [['path', {d: 'M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.2V17H6.5A2.5 2.5 0 0 1 4 14.5z'}],
     ['circle', {cx: '8.6', cy: '10.5', r: '1', fill: 'currentColor', stroke: 'none'}], ['circle', {cx: '12', cy: '10.5', r: '1', fill: 'currentColor', stroke: 'none'}],
     ['circle', {cx: '15.4', cy: '10.5', r: '1', fill: 'currentColor', stroke: 'none'}]],
+  cuaHang: [['path', {d: 'M4 9.5L5.5 4h13L20 9.5'}], ['path', {d: 'M4 9.5h16v1a2.7 2.7 0 0 1-5.3 0 2.7 2.7 0 0 1-5.4 0A2.7 2.7 0 0 1 4 10.5z'}],
+    ['path', {d: 'M5.5 13v7h13v-7M10 20v-4.5h4V20'}]],
   cong: [['path', {d: 'M12 5v14M5 12h14'}]],
   tru: [['path', {d: 'M5 12h14'}]],
   dong: [['path', {d: 'M6 6l12 12M18 6L6 18'}]],

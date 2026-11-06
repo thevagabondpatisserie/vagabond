@@ -293,3 +293,12 @@ def _():
 	dung("co cach giu banh", "m.me/thevagabond.saigon" in _than(w, '<main id="store" hidden>', "</main>"))
 	dung("tab cuon ngang khi bon tab", ".tabs{overflow-x:auto" in w)
 	dung("nhip 60 giay", "setInterval(napTonQuay,60000)" in w)
+
+
+@ca("v642 (anh Việt 06/11/2026): bánh còn đúng 1 cái không bày lên web Tại quầy hay gọi món tại bàn; còn 2 bày bình thường")
+def _():
+	dong = [dict(ma_hang="BAWC00101", theo_doi=1, ton_dau=1), dict(ma_hang="BAWC00102", theo_doi=1, ton_dau=2),
+		dict(ma_hang="BAWC00103", theo_doi=1, ton_dau=3)]
+	la("ngưỡng ẩn", kiem_kho.TON_AN_WEB, 1)
+	la("còn 1 ẩn, còn 2 và 3 bày đúng số", kiem_kho.dong_len_web(dong, {}), [("BAWC00102", 2), ("BAWC00103", 3)])
+	la("bán bớt về còn 1 thì ẩn luôn", kiem_kho.dong_len_web(dong, {"BAWC00103": 2}), [("BAWC00102", 2)])
