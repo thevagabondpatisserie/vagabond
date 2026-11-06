@@ -173,7 +173,8 @@ def _app_gui_va_don():
 @ca("v416 nút nối phiếu chỉ hiện ở luồng hoàn ứng và trên dòng đã tick")
 def _nut_dung_cho():
 	src = _js("19-ho-so-tt.js")
-	dung("có điều kiện kép", "(laHU && da ? hsODongPhieu(r.hoa_don) : '')" in src)
+	# v642: cùng điều kiện kép mang thêm nút Nối sao kê (hsODongGd) cạnh nút nối phiếu.
+	dung("có điều kiện kép", "(laHU && da ? hsODongPhieu(r.hoa_don) + hsODongGd(r.hoa_don) : '')" in src)
 	# Bam nut khong duoc lam bo tick chinh hoa don do.
 	dung("chặn nổi lên", "e.stopPropagation(); e.preventDefault();" in src)
 

@@ -336,3 +336,40 @@ def _node():
 	r = subprocess.run(["node", str(GOC / "vagabond/khung/kiem_thu/hanh_vi/bien_tap_menu_640.js")], capture_output=True, text=True, timeout=120)
 	dung("node chạy được: " + (r.stdout[-1500:] + r.stderr[-800:]), r.returncode == 0)
 	dung("đủ số ca", "13 ca dat, 0 ca hong" in r.stdout)
+
+
+@ca("v642 (anh Việt 06/11/2026): tuỳ chọn, topping riêng từng món ba nấc: Có bật thêm dù nhóm không áp, Không tắt, Theo nhóm; trang bàn, cửa gọi món và màn Tính tiền cùng thấy")
+def _rieng_ba_nac():
+	m = _menu()
+	# Nhóm tuỳ chọn mới chưa áp nhóm món nào; một topping chưa áp nhóm nào.
+	m["tuy_chon"].append({"ten": "Nhiệt độ", "muc": ["Đá", "Nóng"], "mac_dinh": "Đá", "ap": []})
+	m["topping"]["TPNC00005"] = []
+	m["mon"] = {"NUTR00090": {"bat_tc": ["Nhiệt độ"], "tat_tc": ["Đường"], "bat_tp": ["TPNC00005"], "tat_tp": ["TPNC00001"]}}
+	ma_hop_le = {x["ma"] for x in UONG}
+	tp_hop_le = {x["ma"] for x in TOP}
+	c = btm.chuan_menu(json.loads(json.dumps(m)), ma_hop_le, tp_hop_le)
+	la("chuẩn hoá giữ bat_tc, bat_tp", c["mon"]["NUTR00090"],
+		{"bat_tc": ["Nhiệt độ"], "tat_tc": ["Đường"], "bat_tp": ["TPNC00005"], "tat_tp": ["TPNC00001"]})
+	la("tuỳ chọn của món: theo thứ tự bảng, có Nhiệt độ, không Đường",
+		[t["nhom"] for t in btm.tc_cua_mon(c, "NUTR00090", "Trà")], ["Đá", "Tuỳ chọn khác", "Nhiệt độ"])
+	la("topping của món: bật riêng Thêm Cà Phê Phin, tắt Trân châu", btm.tp_cua_mon(c, "NUTR00090", "Trà"), ["TPNC00005"])
+	la("món khác cùng nhóm không bị ảnh hưởng", ([t["nhom"] for t in btm.tc_cua_mon(c, "NUTR00031", "Trà")], btm.tp_cua_mon(c, "NUTR00031", "Trà")),
+		(["Đá", "Đường", "Tuỳ chọn khác"], ["TPNC00001"]))
+	la("món đóng sẵn vẫn không hỏi gì dù có bật riêng", btm.tc_cua_mon(c, "NUTR00040", "Trà", khong_pha=True), [])
+	_nhom, uong = btm.ap_menu(c, UONG)
+	kom = next(x for x in uong if x["ma"] == "NUTR00090")
+	la("trang bàn (ap_menu) dùng cùng phép", ([t["nhom"] for t in kom["tc"]], kom["tp"]), (["Đá", "Tuỳ chọn khác", "Nhiệt độ"], ["TPNC00005"]))
+	la("màn Tính tiền (tc_cho_quay) dùng cùng phép", [t["nhom"] for t in btm.tc_cho_quay(c, UONG)["mon"]["NUTR00090"]],
+		["Đá", "Tuỳ chọn khác", "Nhiệt độ"])
+	# Dữ liệu sửa tay ghi cùng mục ở cả hai nấc: Không thắng.
+	m2 = json.loads(json.dumps(m))
+	m2["mon"]["NUTR00090"] = {"bat_tc": ["Đá"], "tat_tc": ["Đá"], "bat_tp": ["TPNC00001"], "tat_tp": ["TPNC00001"]}
+	c2 = btm.chuan_menu(m2, ma_hop_le, tp_hop_le)
+	la("một mục hai nấc: Không thắng", c2["mon"]["NUTR00090"], {"tat_tc": ["Đá"], "tat_tp": ["TPNC00001"]})
+	# Tên tuỳ chọn, mã topping không còn thì bỏ lặng lẽ.
+	m3 = json.loads(json.dumps(m))
+	m3["mon"]["NUTR00090"] = {"bat_tc": ["Không có"], "bat_tp": ["TPNC09999"]}
+	la("mục không còn thì bỏ", btm.chuan_menu(m3, ma_hop_le, tp_hop_le)["mon"], {})
+	thay = btm.khac_nhau(btm.chuan_menu(_menu(), ma_hop_le, tp_hop_le), c, {"NUTR00090": "Kombucha Cherry", "TPNC00005": "Thêm Cà Phê Phin"})
+	dung("Xem và xuất bản ghi thêm riêng: " + "; ".join(thay), "Kombucha Cherry: thêm riêng tuỳ chọn Nhiệt độ" in thay
+		and "Kombucha Cherry: thêm riêng topping Thêm Cà Phê Phin" in thay)
