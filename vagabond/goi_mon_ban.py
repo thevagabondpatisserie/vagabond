@@ -608,6 +608,19 @@ def cho_khach(r, bay_gio, da_tra=False):
 	}
 
 
+def the_bill(hd, tong):
+	"""Hoá đơn của bàn gửi trang khách (Codex PR #545 vòng 6). Lượt khách gọi
+	được nhập vào phiếu tạm tính chung của bàn (_vao_phieu_tam), nên tổng cần
+	thanh toán phải lấy từ phiếu đó: gồm cả món máy khác cùng bàn gọi và món
+	thu ngân thêm. Khoá là mã băm tên phiếu, để hai lượt cùng phiếu chỉ tính
+	một lần mà không lộ tên phiếu nội bộ. THUẦN."""
+	try:
+		so = int(round(float(tong or 0)))
+	except (TypeError, ValueError):
+		so = 0
+	return {"khoa": hashlib.sha256(("vgb-bill|" + str(hd or "")).encode()).hexdigest()[:16], "tong": so}
+
+
 def soan_tin(r, ten_diem, link):
 	"""Tin Zalo báo nhóm quầy. KHÔNG có số tiền: tin bộ phận Bán hàng bị bỏ dòng
 	có tiền ở cửa ghi tin (kenh_zalo.bo_dong_tien, luật v613). Tạm tính xem trên
@@ -1036,7 +1049,25 @@ def trang_thai(ma=None, token=None):
 	# _phieu_tam_mo mà bảng giữ bánh dùng). Lượt chưa có phiếu là đang lập.
 	hd = r.get("hoa_don")
 	da_tra = bool(hd) and r.get("trang_thai") == TT_NHAN and hd not in _phieu_tam_mo([hd])
-	return dict(cho_khach(r, now_datetime(), da_tra), ok=1)
+	kq = dict(cho_khach(r, now_datetime(), da_tra), ok=1)
+	if hd and kq["trang_thai"] == TT_NHAN and not da_tra:
+		bill = _tong_bill(hd)
+		if bill:
+			kq["bill"] = bill
+	return kq
+
+
+def _tong_bill(hd):
+	"""Tổng hiện tại của phiếu tạm tính bàn (Codex PR #545 vòng 6). Đọc lỗi thì
+	trả None: trang khách tạm tính theo lượt, không chặn trạng thái."""
+	try:
+		r = frappe.db.get_value("Sales Invoice", hd, ["grand_total"], as_dict=True)
+		if not r:
+			return None
+		return the_bill(hd, r.get("grand_total"))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "goi_mon_ban: đọc tổng hoá đơn của bàn lỗi")
+		return None
 
 
 # ------------------------------------------------------- chuông gọi nhân viên
