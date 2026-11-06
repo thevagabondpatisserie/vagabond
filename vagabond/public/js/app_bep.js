@@ -60892,7 +60892,7 @@ async function scrDsvnThu() {
   } else if (DSVN.thuTab === 'chan') {
     html += ds.map(function (x) {
       return '<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' +
-        h(x.doi_tac ? 'Thư tự xưng ' + x.doi_tac : 'Thư từ ' + (x.ten_mien || 'người gửi lạ')) + '</b>' + dsvnChip('Bị chặn') + '</div>' +
+        h(x.doi_tac ? 'Thư tự xưng ' + x.doi_tac : 'Thư từ ' + (x.ten_mien || 'người gửi lạ')) + '</b>' + dsvnChip(x.ket_qua || 'Bị chặn') + '</div>' +
         '<div style="font-size:13px;color:#667085;margin-top:3px">Người gửi ghi: ' + h(x.nguoi_gui || '') + ' · ' +
         h(String(x.nhan_luc || '').slice(11, 16)) + ' ' + dmy(String(x.nhan_luc || '').slice(0, 10)).slice(0, 5) + '</div>' +
         dsvnThanhBuoc('xd', x.ly_do) +
