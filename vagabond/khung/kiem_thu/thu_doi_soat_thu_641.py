@@ -494,7 +494,7 @@ def _():
 
 # ------------------------------------------------------------ Codex #544 vòng 2
 
-def _chay_doc2(lan, trang, hong=None, uv=77, uids=(5, 6), gio=None, rong=()):
+def _chay_doc2(lan, trang, hong=None, uv=77, uids=(5, 6), gio=None, rong=(), may="mail.a.vn", tm="INBOX"):
 	"""Chạy doc_hop_thu THẬT `lan` lượt. hong: {uid: số lần đầu nổ, hoặc
 	"dns" để luôn ném LoiDnsTam}. gio: danh sách giờ của từng lượt. rong: UID
 	mà máy chủ thư không trả nội dung. Trả (nhật ký thử, trạng thái, thư ghi lỗi)."""
@@ -522,14 +522,18 @@ def _chay_doc2(lan, trang, hong=None, uv=77, uids=(5, 6), gio=None, rong=()):
 
 	fr = _frappe_gia(ghi)
 	fr.utils = NS(now_datetime=lambda: bay[0])
-	with patch.object(T, "_frappe", lambda: fr), patch.object(T, "_ket_noi", lambda ch: Imap(list(uids))), \
+	def ket_noi(ch):
+		m = Imap(list(uids))
+		m.vgb_may, m.vgb_cong = may, 993
+		return m
+	with patch.object(T, "_frappe", lambda: fr), patch.object(T, "_ket_noi", ket_noi), \
 			patch.object(T, "_chon_thu_muc", lambda m, tm: uv), patch.object(T, "_xu_ly", xu_ly), \
 			patch.object(T, "trang_thai", lambda: json.loads(json.dumps(trang))), \
 			patch.object(T, "_ghi_trang_thai", lambda **k: trang.update(json.loads(json.dumps(k))) or dict(trang)), \
 			patch.object(T, "_ghi_thu_loi", lambda tho, uid, ch, ly, dns=False: luu.append((uid, dns))):
 		for i in range(lan):
 			bay[0] = dong_ho[i]
-			T.doc_hop_thu(dict(thu_muc="INBOX"))
+			T.doc_hop_thu(dict(thu_muc=tm, dia_chi="doisoat@x.vn"))
 	return thu, trang, luu
 
 
@@ -754,3 +758,98 @@ def _():
 		raise K.LoiDnsTam("Timeout")
 	ra, ghi = lam(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="x", uid="5"), dns)
 	dung("DNS lỗi tạm: báo thử lại sau, lùi giao dịch (%s)" % ra, "Thử lại sau" in str(ra) and "rollback" in ghi)
+
+
+# ------------------------------------------------------------ Codex #544 vòng 3
+
+@ca("Codex #544 vòng 3 F1: đổi máy chủ, tài khoản hay thư mục mà UIDVALIDITY trùng số thì mốc vẫn về 0, đọc đủ thư mới")
+def _():
+	cu = T.danh_hop("mail.cu.vn", 993, "doisoat@x.vn", "INBOX")
+	# Đúng chuỗi Codex: mốc validity 1 / UID 100 của hộp cũ, hộp mới cũng validity 1, thư 5 và 6.
+	thu, tt, luu = _chay_doc2(2, {"uidvalidity": 1, "uid": 100, "hop": cu}, uv=1, may="mail.moi.vn")
+	la("đổi máy chủ: đọc 5 và 6, mốc của hộp mới", (thu, tt.get("uid"), tt.get("hop")),
+		([5, 6], 6, T.danh_hop("mail.moi.vn", 993, "doisoat@x.vn", "INBOX")))
+	thu, tt, luu = _chay_doc2(1, {"uidvalidity": 1, "uid": 100, "hop": cu}, uv=1, may="mail.cu.vn", tm="Doi soat")
+	la("đổi thư mục: đọc 5 và 6", thu, [5, 6])
+	thu, tt, luu = _chay_doc2(1, {"uidvalidity": 1, "uid": 4, "hop": cu}, uv=1, may="MAIL.CU.VN")
+	la("cùng hộp (máy chủ viết hoa khác): giữ mốc, chỉ đọc thư mới", (thu, tt.get("uid")), ([5, 6], 6))
+	thu, tt, luu = _chay_doc2(1, {"uidvalidity": 1, "uid": 5}, uv=1, may="mail.cu.vn")
+	la("mốc cũ chưa có danh tính: nhận danh tính, không đọc lại từ đầu", (thu, tt.get("hop")), ([6], cu))
+	la("THUẦN: danh tính khác tài khoản", T.danh_hop("m", 993, "a@x", "INBOX") != T.danh_hop("m", 993, "b@x", "INBOX"), True)
+	la("THUẦN: inbox viết thường là INBOX", T.danh_hop("M.", 0, "A@X", "inbox"), "m:993|a@x|INBOX")
+
+
+@ca("Codex #544 vòng 3 F2: thư có chữ ký về đúng lúc giám đốc bấm Từ chối hay Duyệt: đọc lại trong khoá, không đè nguồn Từ thư")
+def _():
+	from contextlib import contextmanager
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	viec = []
+	db = {"N1": dict(name="N1", company="A", owner="kt@x", duong_vao="Chờ duyệt", kenh_nhan="Tải tay", thu=None)}
+
+	@contextmanager
+	def khoa(*a, **k):
+		# Lượt đọc hộp thư giữ khoá trước và nâng nguồn lên Từ thư; giám đốc
+		# chờ khoá xong mới vào.
+		db["N1"].update(duong_vao="Từ thư", kenh_nhan=T.KENH, thu="THU-2")
+		viec.append("khoa")
+		yield
+
+	def get_value(dt, name, f=None, as_dict=False):
+		return NS(**db[name]) if dt == T.DT_NGUON else None
+	ghi = []
+	fr = _frappe_gia(ghi)
+	fr.db.get_value = get_value
+	fr.db.set_value = lambda *a, **k: viec.append(("ghi",) + a[:2])
+	fr.session = NS(user="gd@x")
+	fr.utils.now_datetime = lambda: "2026-11-06 10:00:00"
+	for ham, tham in ((T.tu_choi, ("N1", "Số liệu sai")), (T.duyet, ("N1",))):
+		db["N1"].update(duong_vao="Chờ duyệt", kenh_nhan="Tải tay", thu=None)
+		viec.clear()
+		with patch.object(T, "_frappe", lambda: fr), patch.object(V, "_chan", lambda *a, **k: None), \
+				patch.object(V, "_chan_cong_ty", lambda c: None), patch.object(V, "khoa_doi_chieu", khoa), \
+				patch.object(V, "_bo_dong_cu", lambda n: viec.append("go_dong")), patch.object(T, "la_giam_doc", lambda: True):
+			try:
+				ham(*tham)
+				ra = "không chặn"
+			except _Nem as e:
+				ra = str(e)
+		dung("%s: chặn vì nguồn vừa đổi (%s)" % (ham.__name__, ra), "vừa đổi" in ra)
+		la("%s: không gỡ dòng, không ghi gì" % ham.__name__, viec, ["khoa"])
+		la("%s: nguồn vẫn Từ thư" % ham.__name__, db["N1"]["duong_vao"], "Từ thư")
+	la("THUẦN: còn chờ duyệt", [T.con_cho_duyet(dict(duong_vao=d, kenh_nhan=k)) for d, k in (
+		("Chờ duyệt", "Tải tay"), ("", "Tải tay"), ("Từ thư", T.KENH), ("", T.KENH), ("Từ chối", "Tải tay"))],
+		[True, True, False, False, False])
+
+
+@ca("Codex #544 vòng 3 (thêm): kế toán bấm Xác nhận đúng lúc giám đốc từ chối: đọc các bước trong khoá, không xác nhận nguồn đã từ chối")
+def _():
+	from contextlib import contextmanager
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	viec = []
+	r = dict(name="N1", company="A", owner="kt@x", kenh_nhan=T.KENH, duong_vao="Từ thư", trang_thai="Đã nhận", nhom="Tiền bán",
+		trang_thai_tien="Đã thấy tiền về", so_chua_noi=0, so_da_noi=5, kiem_so_du=1, phi_vuot=0, xac_nhan_luc=None, thu="T1")
+	la("trước khi bị từ chối thì xác nhận được", T.buoc_nguon(r)["xac_nhan_duoc"], 1)
+
+	@contextmanager
+	def khoa(*a, **k):
+		r.update(duong_vao="Từ chối")
+		yield
+	ghi = []
+	fr = _frappe_gia(ghi)
+	class D(dict):
+		__getattr__ = dict.get
+	fr.db.get_value = lambda dt, name, f=None, as_dict=False: D(r)
+	fr.db.set_value = lambda *a, **k: viec.append("ghi")
+	fr.session = NS(user="kt@x")
+	with patch.object(T, "_frappe", lambda: fr), patch.object(V, "_chan", lambda *a, **k: None), \
+			patch.object(V, "_chan_cong_ty", lambda c: None), patch.object(V, "khoa_doi_chieu", khoa), \
+			patch.object(T, "_vai", lambda: {"Accounts User"}), patch.object(T, "la_giam_doc", lambda: False):
+		try:
+			T.xac_nhan("N1")
+			ra = "không chặn"
+		except _Nem as e:
+			ra = str(e)
+	dung("chặn: %s" % ra, ra.startswith("Chưa xác nhận được"))
+	la("không ghi xác nhận", viec, [])
