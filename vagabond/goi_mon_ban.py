@@ -613,11 +613,14 @@ def the_bill(hd, tong):
 	được nhập vào phiếu tạm tính chung của bàn (_vao_phieu_tam), nên tổng cần
 	thanh toán phải lấy từ phiếu đó: gồm cả món máy khác cùng bàn gọi và món
 	thu ngân thêm. Khoá là mã băm tên phiếu, để hai lượt cùng phiếu chỉ tính
-	một lần mà không lộ tên phiếu nội bộ. THUẦN."""
+	một lần mà không lộ tên phiếu nội bộ. THUẦN.
+
+	tong None (Codex PR #545 vòng 7: đọc phiếu lỗi) vẫn trả khoá, tong None: lượt
+	đó vẫn thuộc phiếu, trang không cộng nó thêm lên tổng mà lượt khác đọc được."""
 	try:
-		so = int(round(float(tong or 0)))
+		so = None if tong is None else int(round(float(tong)))
 	except (TypeError, ValueError):
-		so = 0
+		so = None
 	return {"khoa": hashlib.sha256(("vgb-bill|" + str(hd or "")).encode()).hexdigest()[:16], "tong": so}
 
 
@@ -1059,15 +1062,13 @@ def trang_thai(ma=None, token=None):
 
 def _tong_bill(hd):
 	"""Tổng hiện tại của phiếu tạm tính bàn (Codex PR #545 vòng 6). Đọc lỗi thì
-	trả None: trang khách tạm tính theo lượt, không chặn trạng thái."""
+	vẫn trả khoá phiếu, tổng rỗng (vòng 7), không chặn trạng thái."""
 	try:
 		r = frappe.db.get_value("Sales Invoice", hd, ["grand_total"], as_dict=True)
-		if not r:
-			return None
-		return the_bill(hd, r.get("grand_total"))
+		return the_bill(hd, (r or {}).get("grand_total"))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "goi_mon_ban: đọc tổng hoá đơn của bàn lỗi")
-		return None
+		return the_bill(hd, None)
 
 
 # ------------------------------------------------------- chuông gọi nhân viên
