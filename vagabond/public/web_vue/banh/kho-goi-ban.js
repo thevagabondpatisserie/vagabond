@@ -67,26 +67,42 @@ export function chiTietTra(cach, hd) {
    Codex PR #545 vòng 6: quầy nhận lượt nào thì nhập vào phiếu tạm tính CHUNG
    của bàn, phiếu đó có cả món máy khác cùng bàn gọi và món thu ngân thêm. Cần
    thanh toán vì vậy lấy tổng phiếu máy chủ báo kèm lượt đã nhận (tt.bill:
-   khoa, tong); hai lượt cùng phiếu tính một lần, lấy số của lượt hỏi sau
-   cùng. Lượt chưa vào phiếu (chờ quầy nhận, hoặc máy chủ chưa báo phiếu)
-   cộng thêm theo tạm tính của lượt. */
+   khoa, tong); nhiều lượt cùng phiếu tính một lần. Lượt chưa vào phiếu (chờ
+   quầy nhận, hoặc máy chủ chưa báo phiếu) cộng thêm theo tạm tính của lượt.
+
+   Codex PR #545 vòng 7: (1) nhịp tự động chỉ hỏi lượt còn chờ, nên số phiếu
+   của lượt hỏi SAU CÙNG mới đúng, không phải của lượt đứng cuối danh sách:
+   mỗi lần hỏi được đóng số thứ tự tt.hoi, chọn số phiếu có tt.hoi lớn nhất.
+   (2) Máy chủ đọc tổng phiếu lỗi vẫn báo khoá phiếu (tong rỗng): lượt đó vẫn
+   thuộc phiếu, có lượt khác cùng phiếu đọc được tổng thì lượt này không cộng
+   thêm; cả phiếu chưa đọc được tổng mới tạm tính theo các lượt của nó. */
 export function tomDon(don) {
   const tinh = (don || []).filter(d => !TT_KHONG_TINH.includes((d.tt && d.tt.trang_thai) || 'Chờ nhận'));
   const tien = d => Number(d.tt && d.tt.tam_tinh) || 0;
+  const coSo = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
   const bill = new Map();
   let ngoai = 0;
   for (const d of tinh) {
     const b = d.tt && d.tt.trang_thai === 'Đã nhận' && d.tt.bill;
-    if (b && b.khoa) bill.set(String(b.khoa), Number(b.tong) || 0);
-    else ngoai += tien(d);
+    if (!(b && b.khoa)) { ngoai += tien(d); continue; }
+    const k = String(b.khoa);
+    const x = bill.get(k) || {tong: null, hoi: -1, theoLuot: 0};
+    x.theoLuot += tien(d);
+    const hoi = Number(d.tt.hoi) || 0;
+    if (coSo(b.tong) && hoi >= x.hoi) { x.tong = Number(b.tong); x.hoi = hoi; }
+    bill.set(k, x);
   }
-  const hoaDon = [...bill.values()].reduce((a, x) => a + x, 0);
+  let hoaDon = 0, coHoaDon = false;
+  for (const x of bill.values()) {
+    if (x.tong === null) ngoai += x.theoLuot;
+    else { hoaDon += x.tong; coHoaDon = true; }
+  }
   return {
     soLuot: tinh.length,
     soMon: tinh.reduce((a, d) => a + ((d.tt && d.tt.mon) || []).reduce((b, x) => b + (Number(x.sl) || 0), 0), 0),
     tamTinh: tinh.reduce((a, d) => a + tien(d), 0),
     choNhan: tinh.filter(d => ((d.tt && d.tt.trang_thai) || 'Chờ nhận') === 'Chờ nhận').length,
-    coHoaDon: bill.size > 0, hoaDon, ngoaiHoaDon: ngoai, coNgoai: bill.size > 0 && ngoai > 0, canTra: hoaDon + ngoai,
+    coHoaDon, hoaDon, ngoaiHoaDon: ngoai, coNgoai: coHoaDon && ngoai > 0, canTra: hoaDon + ngoai,
   };
 }
 
@@ -502,6 +518,8 @@ export function taoGoiBan(moiTruong, S) {
   }
 
   let henTt = null;
+  /* Số thứ tự lần hỏi (Codex PR #545 vòng 7): tomDon chọn số phiếu mới nhất. */
+  let soHoi = 0;
   /* tatCa: hỏi lại cả lượt đã xong (đã nhận), để biết bill của nó đã tính
      tiền chưa. Nhịp tự động chỉ hỏi lượt còn chờ (trần 120 lần hỏi mỗi 10
      phút của máy chủ); hỏi tất cả lúc vừa gọi thêm, mở Đơn của bàn, Thanh toán. */
@@ -511,7 +529,7 @@ export function taoGoiBan(moiTruong, S) {
       if (!tatCa && d.tt && ['Đã nhận', 'Từ chối', 'Hết hạn'].includes(d.tt.trang_thai) && d.xong) continue;
       let m = null;
       try { m = await doc('vagabond.goi_mon_ban.trang_thai', {ma: d.ma, token: d.token}); } catch (e) { m = null; }
-      if (m && m.ok) { d.tt = m; d.xong = m.trang_thai !== 'Chờ nhận'; }
+      if (m && m.ok) { m.hoi = ++soHoi; d.tt = m; d.xong = m.trang_thai !== 'Chờ nhận'; }
     }
     boLuotDaTra();
     if (G.don.some(d => !d.tt || d.tt.trang_thai === 'Chờ nhận')) henTt = hen(() => hoiTrangThai(), NHIP_TRANG_THAI);
