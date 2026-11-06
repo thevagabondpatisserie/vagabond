@@ -236,7 +236,12 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     await cho(40);
     bang('sửa riêng', luuCuoi(m).mon.NUTR00090, { mo_ta: 'Cherry chín mọng', tat_tc: ['Đường'], tat_tp: ['TPNC00005'],
       bat_tc: ['Nhiệt độ'], bat_tp: ['TPNC00007'] });
-    dung('màn ghi khách sẽ thấy', chu(q(m, '#btmKhachThay')).indexOf('Khách sẽ thấy: Đá, Nhiệt độ, Trân châu ô long, Thạch cà phê. Không thấy: Đường, Thêm Cà Phê Phin.') >= 0);
+    /* Codex PR #545 vòng 5: khối đọc có giới hạn (đếm số, ba mục đầu, "và N nữa"), danh sách đủ thu gọn. */
+    var kt = chu(q(m, '#btmKhachThay'));
+    dung('màn ghi khách sẽ thấy: ' + kt, kt.indexOf('Khách sẽ thấy 4: Đá, Nhiệt độ, Trân châu ô long và 1 nữa. Không thấy 2 mục.') >= 0);
+    dung('danh sách đủ nằm trong mục thu gọn', kt.indexOf('Thấy: Đá, Nhiệt độ, Trân châu ô long, Thạch cà phê') >= 0 && kt.indexOf('Không thấy: Đường, Thêm Cà Phê Phin') >= 0 && m.tai.body.innerHTML.indexOf('<details') >= 0 && kt.indexOf('Xem đủ') >= 0);
+    var vh = m.tai.body.innerHTML;
+    dung('nút Về theo nhóm hết đứng trước khối chỉ để đọc', vh.indexOf('data-btmvenhom') >= 0 && vh.indexOf('data-btmvenhom') < vh.indexOf('id="btmKhachThay"'));
     bang('nấc đang chọn', q(m, '[data-btmnacid="tc:Nhiệt độ:co"]').getAttribute('aria-pressed'), 'true');
     /* Bấm Theo nhóm thì bỏ cài riêng của đúng dòng đó. */
     await bam(m, '[data-btmnacid="tp:TPNC00007:nhom"]');
