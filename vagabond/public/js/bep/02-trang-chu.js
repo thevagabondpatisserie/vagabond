@@ -1739,7 +1739,7 @@ function vclIcon(l) {
     chuyen_kho: '📦', san_xuat: '🎂', nhap_kho: '📥', xuat_kho: '📤',
     kiem_ke: '🧮', sai_kho: '⚠️', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
     ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
-    nop_quy: '💵', hang_tang: '🎁', goi_y: '📌'
+    nop_quy: '💵', hang_tang: '🎁', doi_soat_duyet: '📨', goi_y: '📌'
   }[l] || '';
 }
 
@@ -1797,6 +1797,9 @@ function vclMo(x) {
   if (l === 'hang_tang') return go(function () {
     dtgChang = ''; dtgKy = ''; dtgDiem = ''; dtgLoai = ''; dtgTim = x.ma; return scrDuyetTang();
   });
+  /* v641: tệp đối soát tải tay (hay thư không chữ ký) chờ giám đốc duyệt: mở
+     thẳng màn chi tiết nguồn, có nút Duyệt và Từ chối. */
+  if (l === 'doi_soat_duyet') return go(function () { DSVN.cur = x.ma; DSVN.loc = ''; return scrDsvnCt(); });
   /* Viec giao tu man Viec hom nay (#351): mo man chi tiet, co nut bao xong. */
   if (l === 'goi_y') return go(function () { return scrViecGoiY(x.ma); });
   toast('Phiếu ' + x.ma + ' cần xử lý trên máy tính.', 4200);
