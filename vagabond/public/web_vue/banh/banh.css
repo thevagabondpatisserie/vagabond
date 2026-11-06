@@ -667,6 +667,13 @@ html body .tabs{top:0}
 .gb-tim svg{width:18px;height:18px;flex:none;stroke:var(--fog);fill:none;stroke-width:2;stroke-linecap:round}
 .gb-tim input{flex:1;min-width:0;min-height:46px;background:none;border:0;color:var(--paper);font:15px var(--sans);outline:none}
 .gb-tim input::placeholder{color:var(--fog-2)}
+/* v642 (ảnh anh Việt 06/11/2026): vòng focus chung của thao-tac.css (outline cách 4px)
+   vẽ quanh riêng ô input bên trong nên lệch khỏi khung vuông của ô tìm. Ô tìm
+   sáng viền CẢ KHUNG khi đang gõ; ô nhập có viền riêng (.fld) chỉ đổi màu viền.
+   Bộ chọn html body ... nặng hơn luật chung nên không phụ thuộc thứ tự nạp. */
+html body .gb-tim input:focus-visible,html body .gb-tim input:focus,
+html body .fld :is(input,textarea):focus-visible{outline:none}
+.gb-tim:focus-within{border-color:var(--cyan);box-shadow:inset 0 0 0 1px var(--cyan)}
 .gb-tim input::-webkit-search-cancel-button{-webkit-appearance:none}
 .gb-tim-xoa{flex:none;width:44px;height:44px;margin-right:-10px;background:none;border:0;color:var(--fog);font-size:24px;cursor:pointer}
 /* dải chip nhóm cuộn ngang, không bọc xuống nhiều dòng */
