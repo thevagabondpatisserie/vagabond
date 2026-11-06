@@ -5972,6 +5972,30 @@
     "mac_dinh": "Số tiền chốt khi quầy in bill. Lượt chờ quầy nhận chưa tính chắc; lượt quầy từ chối không tính.",
     "nhieu_dong": true
   },
+  "goi_ban_may_nay": {
+    "ten": "Gọi món tại bàn: Món gọi từ máy này ({n} món)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Món gọi từ máy này ({n} món)",
+    "nhieu_dong": true
+  },
+  "goi_ban_hd_ban": {
+    "ten": "Gọi món tại bàn: Hoá đơn của bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hoá đơn của bàn",
+    "nhieu_dong": true
+  },
+  "goi_ban_chua_vao_hd": {
+    "ten": "Gọi món tại bàn: Chưa vào hoá đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa vào hoá đơn",
+    "nhieu_dong": true
+  },
+  "goi_ban_hd_gom": {
+    "ten": "Gọi món tại bàn: Hoá đơn của bàn gồm cả món gọi từ máy khác cùng bàn và món quầy thêm. Món chưa vào hoá đơn là lượt chờ quầy nhận. Số tiền chốt khi quầy in bill.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hoá đơn của bàn gồm cả món gọi từ máy khác cùng bàn và món quầy thêm. Món chưa vào hoá đơn là lượt chờ quầy nhận. Số tiền chốt khi quầy in bill.",
+    "nhieu_dong": true
+  },
   "goi_ban_thanh_toan_tieu": {
     "ten": "Gọi món tại bàn: Thanh toán",
     "nhom": "dat_banh",
