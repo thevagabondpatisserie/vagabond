@@ -672,7 +672,12 @@ def gieo_mac_dinh():
 	của các ô khác). Anh đã xoá hết dòng thì không gieo lại."""
 	frappe = _frappe()
 	try:
-		if not frappe.db.has_column(CAI_DAT, "ds_thu_bat") and not frappe.get_meta(CAI_DAT).has_field("ds_nguoi_gui"):
+		# v642: Cài đặt lõi là doctype Single, KHÔNG có bảng riêng: db.has_column
+		# trên nó ném TableMissingError trên ERPNext thật (site 06/11 không gieo
+		# được dòng nào). Chỉ hỏi meta và bảng của hai doctype con.
+		if not frappe.get_meta(CAI_DAT).has_field("ds_nguoi_gui"):
+			return
+		if not (frappe.db.table_exists("Vagabond Doi Soat Nguoi Gui") and frappe.db.table_exists("Vagabond Doi Soat Lich Thu")):
 			return
 		if frappe.db.get_global("vgb_ds_thu_gieo"):
 			return
