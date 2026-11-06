@@ -52,6 +52,7 @@
   "ly_do_duyet",
   "xac_nhan_boi",
   "xac_nhan_luc",
+  "xac_nhan_dau",
   "kiem_so_du",
   "phi_vuot"
  ],
@@ -344,6 +345,14 @@
    "read_only": 1
   },
   {
+   "fieldname": "xac_nhan_dau",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Dấu số liệu lúc xác nhận",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
    "fieldname": "kiem_so_du",
    "fieldtype": "Select",
    "label": "Phương trình dư nợ thẻ",
@@ -384,5 +393,5 @@
  "title_field": "vendor",
  "description": "#420 v579 đối soát vendor: một tệp báo cáo nhận vào",
  "creation": "2026-10-06 12:00:00.000000",
- "modified": "2026-11-06 12:00:00.000000"
+ "modified": "2026-11-06 16:00:00.000000"
 }
