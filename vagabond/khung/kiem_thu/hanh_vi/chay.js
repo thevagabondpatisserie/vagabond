@@ -1664,6 +1664,25 @@ async function chayHet() {
     dung('bo tick thi go lien ket', !m.g.hsGdCua['HD-1']);
   });
 
+  await caAsync('v642 Codex #545 vong 1: nguoi ung chua gan tai khoan quy tam ung (danh sach doan) thi khong doc sao ke tai khoan nguoi khac, noi ro can lam gi', async function () {
+    var m = dungMan(canhChi({ nccChon: NCC_NO,
+      tkHoan: { tk: [{ ma: 'ACB-KHAC', ngan_hang: 'ACB', nguoi: 'NCC-1', nhan: 'ACB · 9' }], doan: 1 },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC A', con_no: 500000, co_the_chi: 500000 }], tong: 500000 },
+      sepay: function () { return { ngan_hang: 'ACB', rows: [{ ma_giao_dich: 'FTK', ngay: '2026-11-01', so_tien: 500000 }] }; } }));
+    var tin = [], hop = [];
+    m.g.baoTin = function (t) { tin.push(String(t)); };
+    m.g.sheet = function (t, ds) { hop.push(ds); };
+    m.g.hsTaoLoai = 'Hoan ung HD';
+    m.g.hsTaoNguoiUng = 'NCC-9';
+    m.g.hsTaoChon = { 'HD-1': { con_no: 500000, so_tien: 500000 } };
+    await m.g.scrHoSoTTTao();
+    m.tai.querySelector('[data-hsgd="HD-1"]').click();
+    for (var i = 0; i < 10; i++) await new Promise(function (r) { setTimeout(r, 0); });
+    bang('khong doc sao ke', m.goiApi.filter(function (x) { return x.duong === 'vagabond.ho_so_tt.sepay_ocb'; }).length, 0);
+    bang('khong mo bang chon', hop.length, 0);
+    dung('noi ro: ' + tin.join('|'), tin.some(function (t) { return t.indexOf('chưa gắn tài khoản') >= 0; }));
+  });
+
   await caAsync('APP247: ke toan FIN van thay nut can coc o ca hai man', async function () {
     var m = dungMan(canhChi({ vai: ['Accounts User'], nccChon: NCC_NO,
       supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },

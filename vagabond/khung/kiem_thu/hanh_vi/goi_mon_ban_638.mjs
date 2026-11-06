@@ -667,6 +667,29 @@ await ca('v642 combo quán đang chạy (anh Việt 06/11/2026): chip Combo đ�
   la('đơn của bàn chép món thành phần', kho.goiBan.G.don[0].tt.mon[0].tc, ['Trà Hoa Lài, 2 Mousse Chanh Dây']);
 });
 
+await ca('v642 Codex #545 vòng 1: khách trả bill xong rồi gọi tiếp mà không tải lại trang: lượt đã tính tiền không cộng vào bill mới, thanh đơn và Đơn của bàn chỉ còn lượt của bill đang mở', async () => {
+  const theoMa = {
+    'TQ-1': {ok: 1, trang_thai: 'Đã nhận', nhan_luc: '10:02', luc: '10:00', tam_tinh: 90000, mon: [{ten: 'Trà Hoa Lài', sl: 2, tc: [], gia: 45000, tien: 90000}]},
+    'TQ-2': {ok: 1, trang_thai: 'Chờ nhận', luc: '11:00', tam_tinh: 30000, mon: [{ten: 'Kem Vani', sl: 1, tc: [], gia: 30000, tien: 30000}]}};
+  let so = 0;
+  const {goc, kho, chayHen} = await moTrang({tt: th => theoMa[th.ma], goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so).repeat(32)})});
+  const G = kho.goiBan.G;
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00021'));
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  dung('bill đầu: tạm tính 90.000 đ', chu(theoId(goc, 'gbBarDon')).includes('Tạm tính 90.000 đ'));
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {da_tra: 1});
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUIC00002'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  const bar = chu(theoId(goc, 'gbBarDon'));
+  dung('bill mới chỉ tính lượt mới: ' + bar, bar.includes('Tạm tính 30.000 đ') && bar.includes('Đã gọi 1 lượt'));
+  la('lượt đã tính tiền rời khỏi đơn của bàn', G.don.map(d => d.ma), ['TQ-2']);
+});
+
 await ca('v642 phép thuần thanh toán tại bàn: ô hoá đơn nhận mã số thuế 10, 12, 10-3 số hoặc email; chi tiết gửi quầy không quá 120 ký tự; tạm tính bỏ lượt từ chối, hết hạn', async () => {
   const K2 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
   la('rỗng là hợp lệ', K2.chuanHoaDon('  '), {ok: true, gt: ''});
