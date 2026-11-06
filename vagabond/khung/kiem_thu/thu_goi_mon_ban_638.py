@@ -1353,5 +1353,11 @@ def _bill_ban_642():
 	la("chờ nhận: không kèm", hoi({"ACC-SINV-1"}, doc({"grand_total": 1.0}), {"trang_thai": g.TT_CHO}).get("bill"), None)
 	dong.update(trang_thai=g.TT_NHAN)
 	kq = hoi({"ACC-SINV-1"}, doc(loi=True))
-	la("đọc hoá đơn lỗi: vẫn trả trạng thái, không kèm hoá đơn", (kq["ok"], kq["trang_thai"], kq.get("bill")), (1, g.TT_NHAN, None))
+	# Codex PR #545 vòng 7: đọc lỗi vẫn báo khoá phiếu (tổng rỗng) để trang không cộng trùng lượt này.
+	la("đọc hoá đơn lỗi: vẫn trả trạng thái, kèm khoá phiếu, tổng rỗng", (kq["ok"], kq["trang_thai"], kq.get("bill")),
+		(1, g.TT_NHAN, {"khoa": g.the_bill("ACC-SINV-1", 1)["khoa"], "tong": None}))
+	la("phiếu không đọc ra dòng nào: khoá phiếu, tổng rỗng", hoi({"ACC-SINV-1"}, lambda dt, ten, f=None, **k: _fr._dict(dong) if dt == g.DT else None).get("bill"),
+		{"khoa": g.the_bill("ACC-SINV-1", 1)["khoa"], "tong": None})
 	la("thuần: tổng làm tròn đồng", g.the_bill("X", "140000.4"), {"khoa": g.the_bill("X", 0)["khoa"], "tong": 140000})
+	la("thuần: tổng 0 đ vẫn là số, không rỗng", g.the_bill("X", 0)["tong"], 0)
+	la("thuần: tổng lạ là rỗng", [g.the_bill("X", None)["tong"], g.the_bill("X", "abc")["tong"]], [None, None])
