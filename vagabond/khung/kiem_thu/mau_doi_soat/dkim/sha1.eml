@@ -1,0 +1,31 @@
+DKIM-Signature: v=1; a=rsa-sha1; c=relaxed/relaxed; d=onepay.vn;
+ i=@onepay.vn; q=dns/txt; s=vgb1; t=1793938283; h=from : to : subject :
+ date : message-id : mime-version : content-type;
+ bh=5DH6QPIj4YtFxvrYVljMF4uE1jI=;
+ b=vLfATwE4/OvLscmNxH2drmkB05W3Zk7UaA8dHUARwHQ5JiDH9A4CDRsqhc/EB/Je6UZNT
+ AS6rdSu/LtPV54oN9JEfZtoXE+mEOgdOsH3b0rcW0ZB9kED8lCFKhn/koyOhhiHnuImBZU/
+ 9ro7gbJY0q2FEC+2r9pA2zH2kzn4E/tKQp4XD81wCNwBZ9QQ727ZCVaoV85LZzcF+XVV1Pe
+ HU8+tKXJLQk5zyNfvaHctyAWaP9RzdCSscUSFSyxuJ/ZPMeTeFepz5sbcMZ0fPZ5laQFDVe
+ cVbQTyV2HMiH4NHY4s9pAvgze8Ia2YXpn+3Ki/z2xEN2XSGttmNZuIwahn9Q==
+From: OnePay <no-reply@onepay.vn>
+To: ketoan@thevagabondpatisserie.com
+Subject:  Thong bao tam ung 05/11/2026 
+Date: Fri, 06 Nov 2026 08:02:11 +0700
+Message-ID: <tb0511@onepay.vn>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="XYZ"
+
+--XYZ
+Content-Type: text/plain; charset=utf-8
+
+Kinh gui Quy khach,   bao cao tam ung   dinh kem.  
+
+--XYZ
+Content-Type: text/csv; name="TB_TAMUNG_0511.csv"
+Content-Disposition: attachment; filename="TB_TAMUNG_0511.csv"
+Content-Transfer-Encoding: base64
+
+TmdheSxTbyB0aWVuDQowNS8xMS8yMDI2LDE4MDE0NzYwDQo=
+--XYZ--
+
+

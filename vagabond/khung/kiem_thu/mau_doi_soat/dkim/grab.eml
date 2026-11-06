@@ -1,0 +1,31 @@
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=grab.com;
+ i=@grab.com; q=dns/txt; s=g1; t=1793938283; h=from : to : subject :
+ date : message-id : mime-version : content-type;
+ bh=iInw6elJ/uHEuoop8BsFd+hcFyeLCxcsXrcd9PApiII=;
+ b=IE9DKmbGCHaQS+Z5XU4eem/QpVk331paDxYKtVM7blJT8O6GJ3iHGzHIkhJPeG0oJxGhv
+ LUECRDQtVM+VlnFX2rgo0ijlU0nnH+6Sc9aCpnW6MwB8nPtSdP8ASVa1cyleJfz7iQ+qM3d
+ 5ayop55qm2pnC2sc1BUE4+Efd7AjWfOJW21KUo2s7+1M3/lol4ULdtIiLnEoMLXGXAcJ+xM
+ MQIMrsThKBSDrVPyx1fhuEwjBC0OsqSYfyIhQOkvGMRAA0zXiCx+WfK9znKfxM3Fm10msQX
+ 2mpU1qIA3NTeIWeIYQyvbSVuPib2qItz2RVlVfY52fi3QZ4K7fEVd0CLP7Gw==
+From: GrabFood <no-reply@merchant.grab.com>
+To: ketoan@thevagabondpatisserie.com
+Subject:  Bao cao kinh doanh 
+Date: Fri, 06 Nov 2026 08:02:11 +0700
+Message-ID: <tb0511@onepay.vn>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="XYZ"
+
+--XYZ
+Content-Type: text/plain; charset=utf-8
+
+Kinh gui Quy khach,   bao cao tam ung   dinh kem.  
+
+--XYZ
+Content-Type: text/csv; name="TB_TAMUNG_0511.csv"
+Content-Disposition: attachment; filename="TB_TAMUNG_0511.csv"
+Content-Transfer-Encoding: base64
+
+TmdheSxTbyB0aWVuDQowNS8xMS8yMDI2LDE4MDE0NzYwDQo=
+--XYZ--
+
+
