@@ -94,12 +94,18 @@ def km_gia(items, ctkm=None, ma=None, khach=None, **k):
 			ap.append({"loai": "ctkm", "ma": "CTKM-10", "ten": ten, "giam": round(tong * 0.1), "voucher": ma or ""})
 		else:
 			bo.append({"ten": ten, "ly_do": "hoá đơn chưa đủ 150.000 đ"})
+	# Codex PR #546 vòng 1: VC-OTP là mã trong Ví quà của chương trình CẦN OTP
+	# quản lý (can_otp=1). tinh chỉ báo cờ can_otp, không tự chặn.
+	if ma == "VC-OTP":
+		ap.append({"loai": "ctkm", "ma": "CTKM-OTP", "ten": "Giảm sâu cần quản lý", "giam": round(tong * 0.3), "voucher": ma, "can_otp": 1})
 	if khach:
 		ap.append({"loai": "hang", "ma": "Voyager", "ten": "Ưu đãi hạng Voyager", "giam": round(tong * 0.05)})
-	return {"tong_hd": tong, "tong_giam": sum(a["giam"] for a in ap), "ap": ap, "bo": bo, "voucher": ma or ""}
+	return {"tong_hd": tong, "tong_giam": sum(a["giam"] for a in ap), "ap": ap, "bo": bo, "voucher": ma or "",
+		"can_otp": 1 if any(a.get("can_otp") for a in ap) else 0}
 
 
 VI = [{"ma": "VC-8K2Q", "uu_dai": "Giảm 10% hoá đơn", "han": "30/11", "dieu_kien": "đơn từ 150.000 đ", "trang_thai": "dung_duoc"}]
+VI_OTP = VI + [{"ma": "VC-OTP", "uu_dai": "Giảm 30% hoá đơn", "han": "30/11", "dieu_kien": "", "trang_thai": "dung_duoc"}]
 CTKM = [_fr._dict(name="CTKM-10", ten="Giảm 10% tại bàn", cach_ma="Khong can ma", cach_thuc="Giam tong hoa don", can_otp=0, kenh="", quay="", web_mo_ta=""),
 	_fr._dict(name="CTKM-GRAB", ten="Grab giảm 20%", cach_ma="Khong can ma", cach_thuc="Giam tong hoa don", can_otp=0, kenh="GrabFood", quay="", web_mo_ta=""),
 	_fr._dict(name="CTKM-OTP", ten="Giảm sâu cần quản lý", cach_ma="Khong can ma", cach_thuc="Giam tong hoa don", can_otp=1, kenh="", quay="", web_mo_ta=""),
@@ -427,3 +433,39 @@ def _tong_bill():
 	with patch.object(_fr.db, "get_value", side_effect=thieu_cot):
 		b = goi_mon_ban._tong_bill("ACC-SINV-0001")
 	la("thiếu cột vẫn có tổng", (b["tong"], "ud" in b), (185000, False))
+
+
+@ca("Codex PR #546 vòng 1: mã trong Ví quà của chương trình cần OTP quản lý không dùng được tại bàn (danh sách mờ kèm lý do, chọn bị chặn, đã chọn thì lúc chốt và lúc gọi thêm giảm 0)")
+def _codex546_otp():
+	si = _hd()
+	with _ban(si), patch.object(u, "_vi", side_effect=lambda kh: list(VI_OTP)):
+		r = u.ds("TCV", 5, "k")
+		x = next(y for y in r["ds"] if y["ma"] == "VC-OTP")
+		c = u.chon("TCV", 5, "k", "ma", "VC-OTP")
+	la("danh sách: không dùng được, có lý do", (x["dung_duoc"], x["giam"], "quản lý" in x["ly_do"]), (0, 0, True))
+	la("chọn bị chặn, hoá đơn không đổi", (c["ok"], si.luu, si.discount_amount), (0, 0, 0))
+	# Bàn đã mang ưu đãi đó từ trước (dữ liệu cũ): gọi thêm và lúc chốt đều về 0, không ghi lượt.
+	si2 = _hd(discount_amount=55500, vgb_giam_ud=55500, vgb_ud_ban=json.dumps({"loai": "ma", "ma": "VC-OTP", "sdt": SDT, "khach": KHACH, "giam": 55500}))
+	with _ban(si2):
+		u.tinh_lai(si2)
+	la("gọi thêm: về 0", si2.vgb_giam_ud, 0.0)
+	si3 = _hd(discount_amount=55500, vgb_giam_ud=55500, vgb_ud_ban=json.dumps({"loai": "ma", "ma": "VC-OTP", "sdt": SDT, "khach": KHACH, "giam": 55500}))
+	with _ban(si3), patch.object(_fr, "throw", side_effect=_nem_dung_lop):
+		nem("lúc chốt dừng, số về 0", lambda: u.truoc_chot(si3), u.UuDaiDoi)
+	la("đã lưu số 0", (si3.vgb_giam_ud, si3.discount_amount), (0.0, 0.0))
+
+
+@ca("Codex PR #546 vòng 1: phần giảm khác đã gần hết bill, ưu đãi bị kẹp còn 5.000 đ: chốt KHÔNG dừng mãi, ghi lượt theo số thật đã trừ")
+def _codex546_kep():
+	si = _hd(discount_amount=180000)
+	with _ban(si):
+		u.chon("TCV", 5, "k", "ma", "VC-8K2Q")
+	la("kẹp còn 5.000 đ", si.vgb_giam_ud, 5000.0)
+	with _ban(si), patch.object(_fr, "throw", side_effect=_nem_dung_lop):
+		try:
+			kq = u.truoc_chot(si)
+			dung_lai = False
+		except u.UuDaiDoi:
+			kq, dung_lai = None, True
+	la("không dừng chốt", dung_lai, False)
+	la("lượt ghi theo số thật đã trừ", [a["giam"] for a in (kq or {}).get("ap") or [] if a.get("loai") != "hang"], [5000])
