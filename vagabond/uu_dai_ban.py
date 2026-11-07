@@ -31,6 +31,7 @@ SI = "Sales Invoice"
 DT_CTKM = "Vagabond CTKM"
 CACH_DUYET = "Khách xác minh Zalo tại bàn"
 LOAI = ("ma", "ctkm")
+CAU_CAN_OTP = "ưu đãi này cần quản lý duyệt, quý khách nhờ thu ngân áp tại quầy"
 
 TRUONG_MOI = {
 	"Sales Invoice": [
@@ -101,6 +102,11 @@ def giam_tu_kq(kq):
 	if not ap:
 		bo = [b for b in kq.get("bo") or [] if not str(b.get("ten") or "").startswith("Ưu đãi hạng")]
 		return 0, (bo[0].get("ly_do") if bo else "không đủ điều kiện")
+	# Codex PR #546 vòng 1: khuyen_mai.tinh chỉ BÁO cờ can_otp, không chặn. Mã
+	# trong Ví quà của chương trình cần OTP quản lý đi qua đây được, nên mọi
+	# đường (danh sách, chọn, gọi thêm, chốt) đều về 0 ở đúng một chỗ này.
+	if any(cint(a.get("can_otp")) for a in ap):
+		return 0, CAU_CAN_OTP
 	giam = sum(flt(a.get("giam")) for a in ap)
 	if kq.get("tong_hd") is not None:
 		giam = min(giam, flt(kq.get("tong_hd")))
@@ -153,16 +159,35 @@ def _tinh(si, ud, co_khoa=False):
 		khach=ud.get("khach") or None, sdt=ud.get("sdt") or None, ngay=str(getdate(nowdate())))
 
 
+def giam_hieu_luc(si, giam):
+	"""Số ưu đãi THẬT sẽ trừ trên hoá đơn này sau khi kẹp (không đổi hoá đơn).
+	Trả (số thật, phần giảm khác). Một cửa cho dat_giam và truoc_chot (Codex PR
+	#546 vòng 1: truoc_chot so số chưa kẹp với số đã kẹp nên chốt dừng mãi)."""
+	goc = max(0.0, flt(si.get("discount_amount")) - giam_ud(si))
+	# Tổng trước giảm tính lại từ dòng món (grand_total còn là số cũ khi vừa
+	# thêm hay sửa món mà chưa lưu).
+	return kep_giam(giam, tong_dong(si.get("items")), goc), goc
+
+
+def kq_theo_so_that(kq, so_that):
+	"""THUẦN: kết quả tinh với tiền giảm các dòng ưu đãi chính chỉnh về số thật
+	đã trừ (bị kẹp thì chia theo tỉ lệ), để lượt dùng ghi đúng số khách nhận."""
+	ap = [dict(a) for a in (kq or {}).get("ap") or [] if a.get("loai") != "hang"]
+	tong = sum(flt(a.get("giam")) for a in ap)
+	if tong > 0 and so_that < tong - 0.5:
+		con = int(round(so_that))
+		for i, a in enumerate(ap):
+			g = con if i == len(ap) - 1 else int(round(flt(a.get("giam")) * so_that / tong))
+			a["giam"] = g
+			con -= g
+	return dict(kq or {}, ap=ap, tong_giam=sum(flt(a.get("giam")) for a in ap))
+
+
 def dat_giam(si, giam):
 	"""Đặt lại phần ưu đãi trên hoá đơn đang mở (KHÔNG lưu, bên gọi lưu).
 	Phần giảm khác (giảm tay, điểm, Pancake) giữ nguyên, không cộng dồn khi
 	gọi nhiều lần."""
-	cu = giam_ud(si)
-	goc = max(0.0, flt(si.get("discount_amount")) - cu)
-	# Tổng trước giảm tính lại từ dòng món (grand_total còn là số cũ khi vừa
-	# thêm hay sửa món mà chưa lưu).
-	truoc_giam = tong_dong(si.get("items"))
-	moi = kep_giam(giam, truoc_giam, goc)
+	moi, goc = giam_hieu_luc(si, giam)
 	si.vgb_giam_ud = moi
 	si.apply_discount_on = "Grand Total"
 	si.discount_amount = goc + moi
@@ -390,7 +415,8 @@ def truoc_chot(si):
 	kq = _tinh(si, ud, co_khoa=True)
 	giam, ly = giam_tu_kq(kq)
 	cu = giam_ud(si)
-	if abs(giam - cu) > 0.5:
+	that, _goc = giam_hieu_luc(si, giam)
+	if abs(that - cu) > 0.5:
 		moi = dat_giam(si, giam)
 		ud.update(giam=int(round(moi)), ly_do=ly)
 		si.vgb_ud_ban = json.dumps(ud, ensure_ascii=False)
@@ -402,7 +428,7 @@ def truoc_chot(si):
 			% (ud.get("ten") or ud.get("ma"), "{:,.0f}".format(cu).replace(",", "."), "{:,.0f}".format(moi).replace(",", "."),
 				(" (" + ly + ")") if ly else "", "{:,.0f}".format(flt(si.grand_total)).replace(",", ".")),
 			exc=UuDaiDoi, title="Ưu đãi của bàn đã đổi")
-	return kq if giam > 0 else None
+	return kq_theo_so_that(kq, that) if that > 0 else None
 
 
 def sau_chot(si, kq):
