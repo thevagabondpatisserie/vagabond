@@ -308,6 +308,36 @@ def ds(diem=None, ban=None, k=None):
 	return {"ok": 1, "dang_nhap": 1, "sdt": che_sdt(nd), "co_hoa_don": 1 if si else 0, "chon": chon, "ds": ra}
 
 
+class _luu_bang_quyen_he_thong(object):
+	"""Bench #546 (07/11/2026): khách là Guest. Lưu hoá đơn tạm tính (dù có
+	ignore_permissions) vẫn chạy set_missing_values của ERPNext, mà
+	get_party_account kiểm quyền đọc Tài khoản của NGƯỜI ĐANG ĐĂNG NHẬP nên
+	Guest nhận PermissionError "User don't have permissions to select/read
+	this account". Chỉ bước lưu chạy bằng quyền hệ thống, sau khi đã kiểm
+	link bàn ký, phiên Zalo và khoá hoá đơn; xong trả lại đúng người gọi
+	(cùng cách thu_tien.nang_quyen_lap_phieu). Trả lại hỏng thì ném lỗi, không
+	chạy tiếp bằng quyền Administrator."""
+
+	def __enter__(self):
+		self.goc = frappe.session.user
+		if self.goc != "Administrator":
+			frappe.set_user("Administrator")
+		return self.goc
+
+	def __exit__(self, *loi):
+		if frappe.session.user != self.goc:
+			frappe.set_user(self.goc)
+		if frappe.session.user != self.goc:
+			raise frappe.PermissionError("Không trả lại được người dùng sau khi lưu ưu đãi.")
+		return False
+
+
+def _luu_cho_khach(si):
+	si.flags.ignore_permissions = True
+	with _luu_bang_quyen_he_thong():
+		si.save(ignore_permissions=True)
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=20, seconds=600)
 def chon(diem=None, ban=None, k=None, loai=None, ma=None):
@@ -345,8 +375,7 @@ def chon(diem=None, ban=None, k=None, loai=None, ma=None):
 	ud.update(ten=ten, ly_do="")
 	ud["giam"] = int(round(dat_giam(si, giam)))
 	si.vgb_ud_ban = json.dumps(ud, ensure_ascii=False)
-	si.flags.ignore_permissions = True
-	si.save(ignore_permissions=True)
+	_luu_cho_khach(si)
 	frappe.db.commit()
 	return {"ok": 1, "chon": the_ud(ud), "tong": int(round(flt(si.grand_total)))}
 
@@ -368,8 +397,7 @@ def bo(diem=None, ban=None, k=None):
 	if re.sub(r"\D", "", str(cu.get("sdt"))) != re.sub(r"\D", "", nd or ""):
 		return {"ok": 0, "cau": "Chỉ số đã chọn ưu đãi mới bỏ được."}
 	_go(si)
-	si.flags.ignore_permissions = True
-	si.save(ignore_permissions=True)
+	_luu_cho_khach(si)
 	frappe.db.commit()
 	return {"ok": 1, "tong": int(round(flt(si.grand_total)))}
 
