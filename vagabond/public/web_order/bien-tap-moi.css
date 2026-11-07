@@ -21,7 +21,7 @@ body.bt-che-do-moi header a{color:#fff}
 #bt-moi .bt-trang-thai.ok{color:var(--bt-luc)}
 #bt-moi .bt-trang-thai.loi{color:var(--bt-do);background:none}
 /* Thanh thẻ: sáu ô ngang, ô đang mở có gạch xanh dưới chân như hình mẫu. */
-#bt-the{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--bt-vien-2);margin-bottom:28px}
+#bt-the{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--bt-vien-2);margin-bottom:28px}
 #bt-moi .bt-o-the{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:18px 20px 20px;min-height:44px;border-right:1px solid var(--bt-vien-2);background:var(--bt-the);color:var(--bt-chu);position:relative}
 #bt-moi .bt-o-the:last-child{border-right:0}
 #bt-moi .bt-o-the:hover{background:var(--bt-the-2)}
@@ -156,3 +156,31 @@ body.bt-che-do-moi header a{color:#fff}
 .bt-ds-dong{display:flex;flex-direction:column;gap:10px}
 .bt-dong-o{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;padding:10px;border:1px solid var(--bt-vien,#d0d5dd);border-radius:10px}
 .bt-dong-o .bt-nut{min-height:44px}
+/* v644: thẻ Bánh (ảnh, mô tả, tầng hương vị từng bánh). */
+.bt-banh .bt-chips{margin-bottom:16px}
+.bt-banh-khung{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:24px;align-items:start}
+.bt-banh-ds{display:flex;flex-direction:column;gap:8px;max-height:72vh;overflow:auto}
+#bt-moi .bt-banh-mon{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px;background:var(--bt-the);border:1px solid var(--bt-vien-2);color:var(--bt-chu)}
+#bt-moi .bt-banh-mon.dang{border-color:var(--bt-xanh);background:#0b1a1a}
+#bt-moi .bt-banh-mon:focus-visible{outline:2px solid var(--bt-xanh);outline-offset:2px}
+.bt-banh-mon img,.bt-banh-trong{width:48px;height:48px;flex:0 0 48px;object-fit:cover;background:var(--bt-the-2)}
+.bt-banh-trong{display:grid;place-items:center;border:1px dashed var(--bt-vien);color:var(--bt-mo);font-size:20px}
+.bt-banh-chu{flex:1;min-width:0;display:flex;flex-direction:column}
+.bt-banh-chu b{font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt-banh-chu small{color:var(--bt-mo);font-size:13px}
+.bt-banh-ct{display:flex;flex-direction:column;gap:14px;padding:20px 22px;background:var(--bt-the);border:1px solid var(--bt-vien-2)}
+.bt-banh-ct .bt-meta{margin-top:-8px}
+.bt-anh-luoi{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:12px}
+.bt-anh-o{display:flex;flex-direction:column;gap:6px}
+.bt-anh-hinh{position:relative;aspect-ratio:1/1;border:1px solid var(--bt-vien);overflow:hidden;background:#111}
+.bt-anh-hinh img{width:100%;height:100%;object-fit:cover;display:block}
+.bt-anh-bia{position:absolute;left:0;right:0;top:0;padding:4px 0;text-align:center;background:var(--bt-xanh-dam);color:var(--bt-xanh-chu);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.bt-anh-nut{display:flex;gap:6px;flex-wrap:wrap}
+#bt-moi .bt-anh-nut .bt-nut{min-height:44px;min-width:44px;padding:6px 10px}
+#bt-moi .bt-anh-them{aspect-ratio:1/1;align-items:center;justify-content:center;border:1px dashed var(--bt-vien);color:var(--bt-mo);cursor:pointer;position:relative;min-height:120px}
+#bt-moi .bt-anh-them b{font-size:30px;font-weight:400;color:var(--bt-xanh)}
+#bt-moi .bt-anh-them input{position:absolute;inset:0;opacity:0;cursor:pointer}
+#bt-moi .bt-anh-them:focus-within{outline:2px solid var(--bt-xanh);outline-offset:2px}
+.bt-canh-banh{margin:0;padding:10px 14px;border:1px solid rgba(219,126,42,.5);color:#f3a35c}
+@media(max-width:900px){.bt-banh-khung{grid-template-columns:1fr}.bt-banh-ds{max-height:none}}
+@media(max-width:700px){.bt-anh-luoi{grid-template-columns:repeat(2,minmax(0,1fr))}.bt-banh-ct{padding:16px}}
