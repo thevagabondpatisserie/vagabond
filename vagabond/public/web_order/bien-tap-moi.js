@@ -1011,9 +1011,10 @@
   const TT_BANH = {'Chờ ảnh': 'sap', 'Đang hiện': 'dang', 'Đã ẩn': 'an'};
   let BB = null, bTai = false, banhChon = '', banhLoc = '', banhTim = '', bSua = null, bGoc = '', bBao = '';
   function banhDangChon() { return BB && BB.banh.find(x => x.khoa === banhChon) || null; }
+  function banSua(x) { return x ? {anh: x.anh.map(a => ({url: a.url})), mo_ta: x.mo_ta || '', tang: x.tang || '', hien: x.trang_thai === DANG_HIEN} : null; }
   function moBanh(x) {
     banhChon = x ? x.khoa : ''; bBao = '';
-    bSua = x ? {anh: x.anh.map(a => ({url: a.url})), mo_ta: x.mo_ta || '', tang: x.tang || '', hien: x.trang_thai === DANG_HIEN} : null;
+    bSua = banSua(x);
     bGoc = bSua ? JSON.stringify(bSua) : '';
   }
   async function taiBanh() {
@@ -1128,18 +1129,20 @@
   }
   async function taiAnhBanh(khoaBanh, tep) {
     if (ban || !tep.length) return;
-    /* Codex PR #547: giữ đúng bản sửa của bánh lúc bấm tải. Người dùng chuyển
-       sang bánh khác trong lúc chờ thì ảnh vẫn vào bánh đã tải (máy chủ đã
-       lưu), bản sửa của bánh mới chọn không bị ghép. */
-    const sua = bSua;
+    /* Codex PR #547: ảnh vừa tải chỉ ghép vào bản sửa ĐANG MỞ của đúng bánh
+       đã tải (theo khoá bánh, kể cả khi người dùng sang bánh khác rồi quay
+       lại: bản sửa mới phải nhận ảnh, không thì Lưu bánh xoá ảnh đó). Đang mở
+       bánh khác thì ảnh vẫn vào bánh đã tải (máy chủ đã lưu), không ghép. */
+    const dangMo = () => (banhChon === khoaBanh ? bSua : null);
     for (const f of tep) {
-      if (!sua || sua.anh.length >= 5) { if (bSua === sua) bBao = 'Mỗi bánh tối đa 5 ảnh. Bỏ bớt một ảnh rồi tải tiếp.'; break; }
+      const d0 = dangMo();
+      if (d0 && d0.anh.length >= 5) { bBao = 'Mỗi bánh tối đa 5 ảnh. Bỏ bớt một ảnh rồi tải tiếp.'; break; }
       khoa(true); bao('Đang tải ảnh...');
       try {
         const u = await taiAnhLen(f);
         const r = await api('them_anh', {khoa: khoaBanh, url: u}, 'banh_web');
         BB = r;
-        if (bSua !== sua || banhChon !== khoaBanh) {
+        if (!dangMo()) {
           const t = (BB.banh.find(x => x.khoa === khoaBanh) || {}).ten || '';
           bao(r.trung ? 'Ảnh vừa tải giống một ảnh đã có của bánh ' + t + '.' : 'Đã thêm ảnh vào bánh ' + t + '.');
           continue;
@@ -1168,11 +1171,22 @@
     if (ban || !bSua) return;
     if (bSua.hien && !bSua.anh.length) { bBao = 'Thêm ít nhất một ảnh trước khi bật Hiện trên web.'; ve(); return; }
     khoa(true); bao('Đang lưu...');
+    /* Codex PR #547: người dùng gõ tiếp trong lúc chờ thì giữ chữ mới, chỉ dời
+       mốc "đã lưu" sang bản máy chủ vừa nhận; không thay cả bản sửa. */
+    const sua = bSua, gui = JSON.stringify(bSua);
     try {
-      BB = await api('luu', {khoa: khoaBanh, anh: bSua.anh, mo_ta: bSua.mo_ta, tang: bSua.tang, trang_thai: bSua.hien ? DANG_HIEN : DA_AN}, 'banh_web');
+      BB = await api('luu', {khoa: khoaBanh, anh: sua.anh, mo_ta: sua.mo_ta, tang: sua.tang, trang_thai: sua.hien ? DANG_HIEN : DA_AN}, 'banh_web');
       if (B) B.banh_cho_anh = (BB.dem || {})[CHO_ANH] || 0;
-      moBanh(banhDangChon());
-      bao(bSua && bSua.hien ? 'Đã lưu. Khách thấy ngay.' : 'Đã lưu. Bánh đang ẩn với khách.');
+      const x = BB.banh.find(y => y.khoa === khoaBanh) || null;
+      const hien = x && x.trang_thai === DANG_HIEN;
+      if (banhChon !== khoaBanh || bSua !== sua) bao('Đã lưu bánh ' + ((x && x.ten) || '') + '.');
+      else if (JSON.stringify(bSua) !== gui) {
+        bGoc = JSON.stringify(banSua(x));
+        bao('Đã lưu bản lúc bấm Lưu. Còn thay đổi gõ trong lúc lưu, bấm Lưu bánh lần nữa.');
+      } else {
+        moBanh(x);
+        bao(hien ? 'Đã lưu. Khách thấy ngay.' : 'Đã lưu. Bánh đang ẩn với khách.');
+      }
     } catch (e) { bao(e.message, true); }
     finally { khoa(false); }
     ve();
