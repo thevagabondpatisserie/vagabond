@@ -1038,7 +1038,7 @@ def _quyet(tho, t, ch):
 	return quyet_noi_bo(t["dia_chi"].lower(), t["so_from"], chu_ky, qua_may_chu_dang_nhap(td, t["dia_chi"])), chu_ky
 
 
-def _xu_ly(tho, uid, ch, kiem_lai=False):
+def _xu_ly(tho, uid, ch, kiem_lai=False, giu_xac_thuc=False):
 	"""Một thư: ghi sổ thư, lưu bản gốc, kiểm chữ ký, nhận tệp hợp lệ.
 
 	Codex #544 F1: lượt nhận tệp commit giữa chừng (khoá đối chiếu), nên thư lỗi
@@ -1060,6 +1060,13 @@ def _xu_ly(tho, uid, ch, kiem_lai=False):
 		# Codex #544 vòng 2: chưa kết luận khi tra khoá lỗi tạm; không ghi sổ
 		# thư, không đánh dấu xong, để lượt sau (hoặc nút Đọc lại thư) kiểm lại.
 		raise doi_soat_dkim.LoiDnsTam("; ".join(c["ly_do"] for c in chu_ky if c.get("tam"))[:300])
+	if giu_xac_thuc and qd["ket_qua"] != KQ_XAC_THUC:
+		# Đọc lại thư ĐÃ xác thực (để đọc lại tệp sau khi sửa mẫu): đối tác có thể
+		# đã đổi khoá DKIM từ đó, kiểm lại không đạt. Không hạ thư thật thành
+		# "Bị chặn" và không báo thư giả; dừng trước mọi lần ghi, giữ kết quả cũ.
+		frappe.throw("Chữ ký số của thư này nay không kiểm lại được (%s). Máy giữ nguyên kết quả cũ và không đọc lại "
+			"tệp; tải tay tệp gốc (chờ Giám đốc duyệt) nếu cần đọc lại." % (qd["ly_do"] or "đối tác có thể đã đổi khoá")[:300],
+			title="Không đọc lại được thư")
 	cong_ty = dsv._cong_ty()
 	truong = dict(sha256=sha, uid=str(uid), message_id=t["message_id"],
 		gui_luc=t["gui_luc"] or None, nguoi_gui=t["nguoi_gui"],
@@ -1507,7 +1514,7 @@ def doc_lai_thu(name):
 		frappe.throw("Máy đang đọc hộp thư. Đợi một phút rồi bấm lại.")
 	try:
 		try:
-			_xu_ly(tho, t.uid, cau_hinh(), kiem_lai=t.ket_qua != KQ_LOI)
+			_xu_ly(tho, t.uid, cau_hinh(), kiem_lai=t.ket_qua != KQ_LOI, giu_xac_thuc=t.ket_qua == KQ_XAC_THUC)
 			frappe.db.commit()
 		except LoiDnsTam:
 			frappe.db.rollback()

@@ -536,6 +536,16 @@ def dong_bo(ngay=None):
 	lần hai vẫn đụng thì trả bảng hiện có, nhịp 5 phút sau làm tiếp, không ghi
 	Error Log vì đây không phải hỏng.
 	"""
+	return _dong_bo_thu_lai(ngay)
+
+
+class DongBoBiChen(frappe.ValidationError):
+	"""Codex #546 vòng 4: hai lần đồng bộ đều bị người ghi khác chen. Nhịp nền
+	và màn hình thì trả bảng hiện có; CHỐT NGÀY thì phải dừng, không được chốt
+	trên số đã cũ."""
+
+
+def _dong_bo_thu_lai(ngay=None, chot=False):
 	for lan in range(2):
 		try:
 			return _dong_bo_mot_lan(ngay)
@@ -546,6 +556,10 @@ def dong_bo(ngay=None):
 			if hasattr(frappe, "clear_last_message"):
 				frappe.clear_last_message()
 			if lan:
+				if chot:
+					frappe.throw("Bảng kiểm bánh ngày %s đang có người khác cập nhật cùng lúc nên máy chưa lấy được số "
+						"bán mới nhất. Đợi vài giây rồi bấm Chốt lại." % ngay, exc=DongBoBiChen,
+						title="Chưa chốt được")
 				return bang(ngay)
 
 
@@ -1150,8 +1164,9 @@ def chot_ngay(ngay=None):
 	if doc.tinh_trang == "Da chot":
 		frappe.throw("Ngay %s da chot roi" % ngay)
 
-	# Dong bo lan cuoi cho so moi nhat truoc khi khoa.
-	dong_bo(ngay)
+	# Dong bo lan cuoi cho so moi nhat truoc khi khoa. Codex #546 vòng 4: hai
+	# lần đều bị chen thì DỪNG (DongBoBiChen), không chốt trên số cũ.
+	_dong_bo_thu_lai(ngay, chot=True)
 	doc.reload()
 
 	mai = _lay_hoac_tao(add_days(ngay, 1))
