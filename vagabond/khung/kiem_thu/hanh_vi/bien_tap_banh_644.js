@@ -218,19 +218,19 @@ function appMoi(tuy) {
     dung('bao da co san', app.chu().indexOf('đã có sẵn') >= 0);
   });
 
-  /* Codex PR #547 (5521e37b): đang chờ máy chủ nhận ảnh của Very Berry thì
-     chuyển sang Hannari; phản hồi về sau không được ghép vào bản sửa Hannari. */
-  await ca('Codex 547: chuyen banh khi anh dang tai thi anh vao dung banh da tai, banh moi chon khong bi ghep', async function () {
+  /* Codex PR #547 (5521e37b, 479a2c12, 3dd69503): đổi bánh giữa lúc chờ máy chủ
+     làm lệch bản sửa với máy chủ theo nhiều cách. Từ 3dd69503: đang tải ảnh hay
+     đang lưu thì không đổi được bánh; ảnh và bản lưu luôn về đúng bánh đang mở. */
+  await ca('Codex 547: dang tai anh thi khong doi duoc banh; anh vao ban sua dang mo', async function () {
     var app = appMoi({ giu: 'them_anh' }); await nghi(); await app.the('banh');
     await app.taiTep('vb-moi.jpg');
     await app.chon('hannari');
-    bang('da sang Hannari', app.anh(), ['/files/h.png']);
+    bang('van o Very Berry', app.anh(), ['/files/vb.png', 'https://p/can.jpg']);
+    dung('bao cho xong', app.bao().indexOf('Chờ xong rồi chọn bánh khác') >= 0);
     await app.tha();
-    bang('Hannari khong nhan anh cua Very Berry', app.anh(), ['/files/h.png']);
-    await app.bam(app.mot('[data-luu-banh]'));
-    bang('luu Hannari dung bo anh', [app.cuoi('luu').a.khoa, app.cuoi('luu').a.anh.map(function (x) { return x.url; })], ['hannari', ['/files/h.png']]);
-    await app.chon('very berry');
     bang('anh vao Very Berry', app.anh(), ['/files/vb.png', 'https://p/can.jpg', '/files/web-moi-1.jpg']);
+    await app.chon('hannari');
+    bang('xong thi doi duoc, khong hoi', [app.tim('[data-hop-thoi]').length, app.anh()], [0, ['/files/h.png']]);
   });
 
   /* Codex PR #547 (479a2c12): tải ảnh Very Berry, sang Hannari rồi QUAY LẠI
@@ -267,17 +267,20 @@ function appMoi(tuy) {
     bang('khong hoi, sang Hannari', [app.tim('[data-hop-thoi]').length, app.anh()], [0, ['/files/h.png']]);
   });
 
-  await ca('Codex 547: dang luu ma chuyen sang banh khac thi phan hoi khong keo nguoi dung ve banh cu', async function () {
+  await ca('Codex 547: dang luu thi bam banh khac roi bam lai banh cu: ban sua theo dung ban vua luu, Luu tiep khong de chu cu', async function () {
     var app = appMoi({ giu: 'luu' }); await nghi(); await app.the('banh');
     await app.go(app.oTen('mo_ta_banh'), 'Bản một.');
     await app.bam(app.mot('[data-luu-banh]'));
     await app.chon('hannari');
-    await app.bam(app.mot('[data-hop-co]'));
-    await app.tha();
-    bang('van o Hannari', app.anh(), ['/files/h.png']);
-    bang('Very Berry da luu', app.banh[0].mo_ta, 'Bản một.');
     await app.chon('very berry');
-    bang('Hannari khong bi tinh la dang sua, mo Very Berry ban da luu', [app.tim('[data-hop-thoi]').length, app.oTen('mo_ta_banh').value], [0, 'Bản một.']);
+    bang('khong doi banh, khong hoi', [app.tim('[data-hop-thoi]').length, app.oTen('mo_ta_banh').value], [0, 'Bản một.']);
+    await app.tha();
+    bang('may chu va o mo ta cung la ban mot', [app.banh[0].mo_ta, app.oTen('mo_ta_banh').value], ['Bản một.', 'Bản một.']);
+    await app.go(app.oTen('tang_banh'), 'Vỏ - shell\nKem - cream');
+    await app.bam(app.mot('[data-luu-banh]'));
+    bang('luu tiep giu mo ta vua luu', [app.cuoi('luu').a.mo_ta, app.cuoi('luu').a.tang], ['Bản một.', 'Vỏ - shell\nKem - cream']);
+    await app.chon('hannari');
+    bang('xong thi doi duoc, khong hoi', [app.tim('[data-hop-thoi]').length, app.anh()], [0, ['/files/h.png']]);
   });
 
   xongHet = true;
