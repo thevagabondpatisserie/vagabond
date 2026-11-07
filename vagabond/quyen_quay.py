@@ -152,6 +152,9 @@ def them_giam_gia(si, giam_gia):
 	# diem da co lop xac thuc rieng va manh hon - ma gui thang toi dien
 	# thoai cua khach.
 	diem = flt(si.get("vgb_giam_diem") or 0)
+	# v643: ưu đãi khách tự chọn tại bàn cũng là phần riêng (khách đã xác
+	# minh Zalo, máy tính theo chương trình), không phải giảm tay của quầy.
+	diem += flt(si.get("vgb_giam_ud") or 0)
 	return flt(giam_gia) > flt(si.get("discount_amount") or 0) - diem + 0.5
 
 

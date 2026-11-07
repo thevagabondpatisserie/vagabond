@@ -95,6 +95,49 @@ def gom_trang(lay, co=100, toi_da=10):
 	return ket
 
 
+# v643 (còn tồn v604): GitHub cho máy lạ 60 lượt đọc mỗi giờ theo IP, mà IP
+# của Frappe Cloud dùng chung nhiều site. Error Log ngày 01/11 có 10 dòng
+# "rate limit exceeded" chỉ trong 4 giờ, 07/11 thêm "Read timed out". Đó là
+# lỗi TẠM của phía GitHub, nhịp sau tự hết: nghỉ tới giờ GitHub hẹn, chỉ ghi
+# Error Log khi lỗi tạm kéo dài quá GIO_BAO_LOI giờ (mỗi ngày một dòng). Bản
+# tin của bản đang chạy đã đọc được rồi thì thôi gọi GitHub tới bản sau.
+GIO_BAO_LOI = 12
+NGHI_TOI_THIEU, NGHI_TOI_DA = 300, 3600
+
+
+def loi_tam(e):
+	"""THUẦN: lỗi mạng hay giới hạn lượt của GitHub, tự hết, không phải hỏng."""
+	ten = type(e).__name__
+	if ten in ("Timeout", "ReadTimeout", "ConnectTimeout", "ConnectionError"):
+		return True
+	r = getattr(e, "response", None)
+	ma = getattr(r, "status_code", None)
+	if ma == 429 or (isinstance(ma, int) and ma >= 500):
+		return True
+	return ma == 403 and "rate limit" in str(e).lower()
+
+
+def giay_nghi(headers, bay_gio):
+	"""THUẦN: số giây nghỉ trước khi gọi lại GitHub theo X-RateLimit-Reset (giờ
+	unix) hoặc Retry-After, kẹp trong [NGHI_TOI_THIEU, NGHI_TOI_DA]."""
+	h = {str(k).lower(): v for k, v in (headers or {}).items()}
+	try:
+		if h.get("retry-after"):
+			s = float(h["retry-after"])
+		elif h.get("x-ratelimit-reset"):
+			s = float(h["x-ratelimit-reset"]) - float(bay_gio)
+		else:
+			s = NGHI_TOI_THIEU
+	except (TypeError, ValueError):
+		s = NGHI_TOI_THIEU
+	return int(min(max(s, NGHI_TOI_THIEU), NGHI_TOI_DA))
+
+
+def nen_ghi_loi(loi_tu, bay_gio, gio=GIO_BAO_LOI):
+	"""THUẦN: lỗi tạm đã kéo dài đủ lâu để báo kỹ thuật chưa."""
+	return float(bay_gio) - float(loi_tu) >= gio * 3600
+
+
 # --------------------------------------------------------------- CHẠM HỆ
 
 def _ban_site():
@@ -148,16 +191,42 @@ def quet():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "zalo_phat_hanh: khong doc duoc so ban tren site")
 		return 0
+	import time
+
+	nho = frappe.cache()
+	if nho.get_value("zph_xong:%s" % ban):
+		return 0
+	bay = time.time()
+	nghi = nho.get_value("zph_nghi_den")
+	try:
+		if nghi and float(nghi) > bay:
+			return 0
+	except (TypeError, ValueError):
+		pass
 	try:
 		cac = _doc_comment()
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "zalo_phat_hanh: khong doc duoc ban tin tren GitHub")
+	except Exception as e:
+		if not loi_tam(e):
+			frappe.log_error(frappe.get_traceback(), "zalo_phat_hanh: khong doc duoc ban tin tren GitHub")
+			return 0
+		s = giay_nghi(getattr(getattr(e, "response", None), "headers", None), bay)
+		nho.set_value("zph_nghi_den", bay + s, expires_in_sec=s)
+		tu = nho.get_value("zph_loi_tu") or bay
+		nho.set_value("zph_loi_tu", tu, expires_in_sec=3 * 86400)
+		if nen_ghi_loi(tu, bay) and not nho.get_value("zph_da_bao"):
+			nho.set_value("zph_da_bao", "1", expires_in_sec=86400)
+			frappe.log_error(frappe.get_traceback(), "zalo_phat_hanh: GitHub tu choi hon %d gio" % GIO_BAO_LOI)
 		return 0
+	nho.set_value("zph_loi_tu", None, expires_in_sec=1)
 	gui = 0
-	for x in chon_ban(cac, ban):
+	ban_tin = chon_ban(cac, ban)
+	for x in ban_tin:
 		kenh_zalo.bao("phat_hanh", "phat_hanh", "Vagabond cập nhật %s, đã lên app" % x["version"],
 			dong=[d.strip() for d in x["features"]], khoa="phat_hanh:" + x["sha"], ma_tin="ht_phat_hanh")
 		gui += 1
 	if gui:
 		frappe.db.commit()
+	if ban_tin:
+		# Đã có bản tin của bản đang chạy: thôi gọi GitHub tới bản sau.
+		nho.set_value("zph_xong:%s" % ban, "1", expires_in_sec=7 * 86400)
 	return gui
