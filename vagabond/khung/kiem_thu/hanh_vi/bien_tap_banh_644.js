@@ -226,7 +226,7 @@ function appMoi(tuy) {
     await app.taiTep('vb-moi.jpg');
     await app.chon('hannari');
     bang('van o Very Berry', app.anh(), ['/files/vb.png', 'https://p/can.jpg']);
-    dung('bao cho xong', app.bao().indexOf('Chờ xong rồi chọn bánh khác') >= 0);
+    dung('bao cho xong', app.bao().indexOf('Chờ xong rồi chuyển') >= 0);
     await app.tha();
     bang('anh vao Very Berry', app.anh(), ['/files/vb.png', 'https://p/can.jpg', '/files/web-moi-1.jpg']);
     await app.chon('hannari');
@@ -281,6 +281,23 @@ function appMoi(tuy) {
     bang('luu tiep giu mo ta vua luu', [app.cuoi('luu').a.mo_ta, app.cuoi('luu').a.tang], ['Bản một.', 'Vỏ - shell\nKem - cream']);
     await app.chon('hannari');
     bang('xong thi doi duoc, khong hoi', [app.tim('[data-hop-thoi]').length, app.anh()], [0, ['/files/h.png']]);
+  });
+
+  /* Codex PR #547 (a209f633): đang lưu thì sang thẻ Tiệc, Bỏ thay đổi, quay lại
+     thẻ Bánh trước khi phản hồi về; bản sửa dựng lại từ dữ liệu cũ. */
+  await ca('Codex 547: dang luu thi khong doi duoc the; xong thi o mo ta la ban vua luu', async function () {
+    var app = appMoi({ giu: 'luu' }); await nghi(); await app.the('banh');
+    await app.go(app.oTen('mo_ta_banh'), 'Bản một.');
+    await app.bam(app.mot('[data-luu-banh]'));
+    await app.bam(app.mot('[data-the="tiec"]')); await nghi();
+    bang('khong hop thoai, van o the Banh', [app.tim('[data-hop-co]').length, app.tim('[data-luu-banh]').length], [0, 1]);
+    dung('bao cho xong', app.bao().indexOf('Chờ xong rồi chuyển') >= 0);
+    await app.bam(app.mot('.bt-nang-cao')); await nghi();
+    bang('Nang cao cung cho, khong hop thoai', [!app.mot('#bt-moi').hidden, app.tim('[data-hop-co]').length, app.tim('[data-luu-banh]').length], [true, 0, 1]);
+    await app.tha();
+    bang('o mo ta la ban vua luu', [app.banh[0].mo_ta, app.oTen('mo_ta_banh').value], ['Bản một.', 'Bản một.']);
+    await app.the('tiec');
+    bang('xong thi doi the duoc', app.tim('[data-luu-banh]').length, 0);
   });
 
   xongHet = true;
