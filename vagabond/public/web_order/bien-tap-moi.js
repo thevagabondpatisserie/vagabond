@@ -1135,11 +1135,19 @@
         const u = await taiAnhLen(f);
         const r = await api('them_anh', {khoa: khoaBanh, url: u}, 'banh_web');
         BB = r;
-        if (r.trung) bBao = 'Ảnh vừa tải giống một ảnh đã có của bánh này, máy không thêm lần nữa.';
-        else {
+        /* Codex PR #547: chỉ ghép ĐÚNG ảnh vừa tải. Máy chủ trả cả bộ đã lưu,
+           trong đó còn ảnh người dùng vừa bỏ ở bản đang sửa; ghép cả bộ là kéo
+           ảnh đã bỏ trở lại. */
+        if (r.trung) {
+          if (bSua.anh.some(b => b.url === r.trung)) bBao = 'Ảnh vừa tải giống một ảnh đã có của bánh này, máy không thêm lần nữa.';
+          else { bSua.anh.push({url: r.trung}); bBao = 'Ảnh vừa tải giống một ảnh đã có sẵn của bánh này, máy đưa ảnh đó trở lại. Bấm Lưu bánh để giữ.'; }
+        } else {
           bBao = '';
-          const moi = (banhDangChon() || {anh: []}).anh.filter(a => !bSua.anh.some(b => b.url === a.url));
-          moi.forEach(a => { bSua.anh.push({url: a.url}); const g0 = JSON.parse(bGoc); g0.anh.push({url: a.url}); bGoc = JSON.stringify(g0); });
+          const uMoi = r.them || u;
+          if (!bSua.anh.some(b => b.url === uMoi)) {
+            bSua.anh.push({url: uMoi});
+            const g0 = JSON.parse(bGoc); g0.anh.push({url: uMoi}); bGoc = JSON.stringify(g0);
+          }
         }
         bao(r.trung ? '' : 'Đã thêm ảnh. Bấm Lưu bánh nếu vừa đổi thứ tự, mô tả hay bật hiện.');
       } catch (e) { bao(e.message, true); break; }
