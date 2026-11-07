@@ -469,3 +469,50 @@ def _codex546_kep():
 			kq, dung_lai = None, True
 	la("không dừng chốt", dung_lai, False)
 	la("lượt ghi theo số thật đã trừ", [a["giam"] for a in (kq or {}).get("ap") or [] if a.get("loai") != "hang"], [5000])
+
+
+@ca("Codex PR #546 vòng 2: thu ngân chốt kèm giảm tay mới (180.000 đ về 0): ưu đãi tính theo giảm tay MỚI (18.500 đ, thu 166.500 đ), lượt ghi 18.500 đ, không dừng chốt")
+def _codex546_giam_tay_moi():
+	from vagabond import khuyen_mai
+
+	bh = _nap_pos_chot()
+	si = _hd(discount_amount=180000)
+	with _ban(si):
+		u.chon("TCV", 5, "k", "ma", "VC-8K2Q")
+	la("trước chốt: kẹp 5.000 đ", si.vgb_giam_ud, 5000.0)
+	ghi = []
+	with _ban(si), patch.object(bh, "_pos_lay", return_value=si), \
+			patch.object(khuyen_mai, "ghi_su_dung", side_effect=lambda kq, ten, **k: ghi.append(kq)), \
+			patch.object(_fr.db, "set_value", side_effect=lambda dt, ten, f, v, **k: si.__setitem__(f, v)), \
+			patch.object(quyen_quay, "muc", return_value="duyet"), patch.object(_fr, "throw", side_effect=_nem_dung_lop):
+		r = bh.pos_chot(si.name, giam_gia=0)
+	la("thu 166.500 đ, ưu đãi 18.500 đ", (r["grand_total"], si.vgb_giam_ud, si.discount_amount), (166500.0, 18500.0, 18500.0))
+	la("lượt ghi theo 18.500 đ", [a["giam"] for a in ghi[0]["ap"]], [18500])
+
+
+@ca("Codex PR #546 vòng 2: mã Ví quà bị huỷ, hết hạn, dùng nơi khác lúc chốt (khuyen_mai ném lỗi): lần đầu lưu 0 kèm lý do và dừng báo thu ngân, lần sau chốt được, không ghi lượt")
+def _codex546_ma_huy():
+	from vagabond import khuyen_mai
+
+	bh = _nap_pos_chot()
+	si = _hd()
+	with _ban(si):
+		u.chon("TCV", 5, "k", "ma", "VC-8K2Q")
+	la("trước: 18.500 đ", si.vgb_giam_ud, 18500.0)
+
+	def huy(items, **k):
+		raise _fr.ValidationError("Mã VC-8K2Q đã huỷ.")
+	ghi = []
+	with _ban(si), patch.object(bh, "_pos_lay", return_value=si), patch.object(khuyen_mai, "tinh_co_khoa", side_effect=huy), \
+			patch.object(khuyen_mai, "ghi_su_dung", side_effect=lambda *a, **k: ghi.append(a)), \
+			patch.object(quyen_quay, "muc", return_value="duyet"), patch.object(_fr, "throw", side_effect=_nem_dung_lop):
+		nem("lần đầu dừng báo thu ngân", lambda: bh.pos_chot(si.name), u.UuDaiDoi)
+		la("đã lưu 0 kèm lý do", (si.vgb_giam_ud, si.discount_amount, "đã huỷ" in json.loads(si.vgb_ud_ban).get("ly_do", "")), (0.0, 0.0, True))
+		r = bh.pos_chot(si.name)
+	la("lần sau chốt được đủ tiền, không ghi lượt", (r["grand_total"], si.vgb_tam_tinh, ghi), (185000.0, 0, []))
+	# Đã ở 0 (chưa đủ điều kiện) mà mã bị huỷ: chốt không dừng, lý do trên bill đổi theo.
+	si2 = _hd(vgb_ud_ban=json.dumps({"loai": "ma", "ma": "VC-8K2Q", "sdt": SDT, "khach": KHACH, "giam": 0, "ly_do": "hoá đơn chưa đủ 150.000 đ"}))
+	with _ban(si2), patch.object(bh, "_pos_lay", return_value=si2), patch.object(khuyen_mai, "tinh_co_khoa", side_effect=huy), \
+			patch.object(quyen_quay, "muc", return_value="duyet"), patch.object(_fr, "throw", side_effect=_nem_dung_lop):
+		bh.pos_chot(si2.name)
+	la("lý do đổi theo, bill chốt", ("đã huỷ" in json.loads(si2.vgb_ud_ban)["ly_do"], si2.vgb_tam_tinh), (True, 0))
