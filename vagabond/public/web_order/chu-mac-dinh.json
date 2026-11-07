@@ -6085,5 +6085,263 @@
     "nhom": "dat_banh",
     "mac_dinh": "Thanh toán · {tien}",
     "nhieu_dong": true
+  },
+  "goi_ban_ud_dong": {
+    "ten": "Gọi món tại bàn: Ưu đãi (đã trừ)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ưu đãi (đã trừ)",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_dung_duoc": {
+    "ten": "Gọi món tại bàn: Ưu đãi dùng được",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ưu đãi dùng được",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_tv": {
+    "ten": "Gọi món tại bàn: Ưu đãi thành viên",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ưu đãi thành viên",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_dang": {
+    "ten": "Gọi món tại bàn: Đang tải ưu đãi...",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đang tải ưu đãi...",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_dn_mo": {
+    "ten": "Gọi món tại bàn: Mã 6 số gửi vào Zalo của số này, không mất phí. Đã là thành viên",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã 6 số gửi vào Zalo của số này, không mất phí. Đã là thành viên thì vào thẳng Ví quà.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_sdt": {
+    "ten": "Gọi món tại bàn: Số điện thoại có Zalo",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số điện thoại có Zalo",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_ma": {
+    "ten": "Gọi món tại bàn: Mã Zalo vừa gửi",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã Zalo vừa gửi",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_sua_so": {
+    "ten": "Gọi món tại bàn: Sửa số điện thoại",
+    "nhom": "dat_banh",
+    "mac_dinh": "Sửa số điện thoại",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_30_ngay": {
+    "ten": "Gọi món tại bàn: Đăng nhập một lần dùng được 30 ngày trên máy này, như trang Thàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đăng nhập một lần dùng được 30 ngày trên máy này, như trang Thành viên.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_rong": {
+    "ten": "Gọi món tại bàn: Chưa có ưu đãi nào dùng được tại bàn. Mã trong Ví quà hiện ở đây",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa có ưu đãi nào dùng được tại bàn. Mã trong Ví quà hiện ở đây khi còn hạn.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_chua_hd": {
+    "ten": "Gọi món tại bàn: Ưu đãi chọn được khi quầy đã nhận món của bàn.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ưu đãi chọn được khi quầy đã nhận món của bàn.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_mot": {
+    "ten": "Gọi món tại bàn: Mỗi hoá đơn một ưu đãi. Chọn xong máy trừ ngay vào hoá đơn của b",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi hoá đơn một ưu đãi. Chọn xong máy trừ ngay vào hoá đơn của bàn, mã được tính là đã dùng khi quầy chốt bill.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_bo": {
+    "ten": "Gọi món tại bàn: Bỏ ưu đãi đang dùng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bỏ ưu đãi đang dùng",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_gui_ma": {
+    "ten": "Gọi món tại bàn: Gửi mã qua Zalo",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gửi mã qua Zalo",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_xac_minh": {
+    "ten": "Gọi món tại bàn: Xác minh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xác minh",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_dung": {
+    "ten": "Gọi món tại bàn: Dùng ưu đãi này",
+    "nhom": "dat_banh",
+    "mac_dinh": "Dùng ưu đãi này",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_doi": {
+    "ten": "Gọi món tại bàn: Đổi",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đổi",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_da_tru": {
+    "ten": "Gọi món tại bàn: Đã trừ {tien} vào hoá đơn của bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã trừ {tien} vào hoá đơn của bàn",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_chua_tru": {
+    "ten": "Gọi món tại bàn: Chưa trừ: {ly_do}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa trừ: {ly_do}",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_chua_du": {
+    "ten": "Gọi món tại bàn: chưa đủ điều kiện",
+    "nhom": "dat_banh",
+    "mac_dinh": "chưa đủ điều kiện",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_chon": {
+    "ten": "Gọi món tại bàn: Chọn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_moi": {
+    "ten": "Gọi món tại bàn: Đăng nhập bằng Zalo để dùng mã trong Ví quà",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đăng nhập bằng Zalo để dùng mã trong Ví quà",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_so": {
+    "ten": "Gọi món tại bàn: Số {sdt}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số {sdt}",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_vi": {
+    "ten": "Gọi món tại bàn: Ví quà của bạn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ví quà của bạn",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_ct": {
+    "ten": "Gọi món tại bàn: Chương trình đang chạy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chương trình đang chạy",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_sau_nhan": {
+    "ten": "Gọi món tại bàn: Tính khi quầy nhận món",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tính khi quầy nhận món",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_giam": {
+    "ten": "Gọi món tại bàn: Giảm {tien}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giảm {tien}",
+    "nhieu_dong": true
+  },
+  "goi_ban_dn_chua_mo": {
+    "ten": "Gọi món tại bàn: Đăng nhập thành viên đang tạm đóng. Quý khách nhờ thu ngân áp ưu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đăng nhập thành viên đang tạm đóng. Quý khách nhờ thu ngân áp ưu đãi.",
+    "nhieu_dong": true
+  },
+  "goi_ban_dn_sdt": {
+    "ten": "Gọi món tại bàn: Kiểm tra lại số điện thoại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Kiểm tra lại số điện thoại.",
+    "nhieu_dong": true
+  },
+  "goi_ban_dn_gui_nhieu": {
+    "ten": "Gọi món tại bàn: Đã gửi nhiều mã. Chờ 30 phút rồi thử lại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã gửi nhiều mã. Chờ 30 phút rồi thử lại.",
+    "nhieu_dong": true
+  },
+  "goi_ban_dn_khong_gui": {
+    "ten": "Gọi món tại bàn: Chưa gửi được mã qua Zalo. Chờ một chút hoặc nhờ thu ngân hỗ trợ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa gửi được mã qua Zalo. Chờ một chút hoặc nhờ thu ngân hỗ trợ.",
+    "nhieu_dong": true
+  },
+  "goi_ban_dn_het_han": {
+    "ten": "Gọi món tại bàn: Mã đã hết hạn. Gửi mã mới để tiếp tục.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã đã hết hạn. Gửi mã mới để tiếp tục.",
+    "nhieu_dong": true
+  },
+  "goi_ban_dn_sai_ma": {
+    "ten": "Gọi món tại bàn: Mã chưa đúng. Kiểm tra tin nhắn Zalo.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã chưa đúng. Kiểm tra tin nhắn Zalo.",
+    "nhieu_dong": true
+  },
+  "goi_ban_dn_sai_nhieu": {
+    "ten": "Gọi món tại bàn: Đã nhập sai quá nhiều lần. Gửi mã mới để tiếp tục.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã nhập sai quá nhiều lần. Gửi mã mới để tiếp tục.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_loi_tai": {
+    "ten": "Gọi món tại bàn: Chưa tải được ưu đãi. Quý khách thử lại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa tải được ưu đãi. Quý khách thử lại.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_sdt_sai": {
+    "ten": "Gọi món tại bàn: Kiểm tra lại số điện thoại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Kiểm tra lại số điện thoại.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_chua_gui": {
+    "ten": "Gọi món tại bàn: Chưa gửi được mã. Quý khách thử lại sau.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa gửi được mã. Quý khách thử lại sau.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_da_gui": {
+    "ten": "Gọi món tại bàn: Đã gửi mã qua Zalo. Mã có hiệu lực 5 phút.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã gửi mã qua Zalo. Mã có hiệu lực 5 phút.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_ma_6": {
+    "ten": "Gọi món tại bàn: Mã gồm 6 số trong tin nhắn Zalo.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã gồm 6 số trong tin nhắn Zalo.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_chua_xac": {
+    "ten": "Gọi món tại bàn: Không xác minh được. Gửi mã mới.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Không xác minh được. Gửi mã mới.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_chua_ap": {
+    "ten": "Gọi món tại bàn: Chưa áp được ưu đãi. Quý khách thử lại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa áp được ưu đãi. Quý khách thử lại.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_da_ap": {
+    "ten": "Gọi món tại bàn: Đã trừ ưu đãi vào hoá đơn của bàn.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã trừ ưu đãi vào hoá đơn của bàn.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ud_chua_bo": {
+    "ten": "Gọi món tại bàn: Chưa bỏ được ưu đãi. Quý khách thử lại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa bỏ được ưu đãi. Quý khách thử lại.",
+    "nhieu_dong": true
   }
 }

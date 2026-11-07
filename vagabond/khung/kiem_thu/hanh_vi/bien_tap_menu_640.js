@@ -260,6 +260,25 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     bang('chuyển nhóm', [n2.nhom[1].mon, n2.nhom[2].mon], [['NUTR00040', 'NUTR00099'], ['NUCF00003', 'NUTR00090']]);
   });
 
+  await ca('v643 (anh Việt 07/11 không tìm ra chỗ chỉnh riêng từng món): tab Tuỳ chọn và tab Topping có khối Chỉnh riêng từng món với nút từng nhóm đồ uống; bấm nhóm ra danh sách món, bấm món tới khối Theo nhóm / Có / Không; tab Thứ tự có nút Món rõ chữ cao 44', async function () {
+    var m = await moMan();
+    var nut = qs(m, '[data-btmnhom]');
+    dung('tab Thứ tự: nút Món rõ chữ ' + nut.map(chu).join('|'), nut.length >= 2 && nut.every(function (x) { return chu(x).indexOf('Món') === 0 && parseFloat(x.style.minHeight) >= 44; }));
+    for (var tab of ['tuy_chon', 'topping']) {
+      await bam(m, '[data-btmtab="' + tab + '"]');
+      var khoi = q(m, '#btmLoiRieng');
+      dung(tab + ': có khối chỉnh riêng từng món: ' + chu(khoi), chu(khoi).indexOf('Chỉnh riêng từng món') >= 0);
+      var ds = khoi.querySelectorAll('[data-btmnhom]');
+      dung(tab + ': nút nhóm Trà ghi số món ' + ds.map(chu).join('|'), ds.some(function (x) { return x.getAttribute('data-btmnhom') === 'n-tra' && /Trà · \d+ món/.test(chu(x)); }));
+      dung(tab + ': nút cao 44', ds.every(function (x) { return parseFloat(x.style.minHeight) >= 44; }));
+    }
+    khoi.querySelectorAll('[data-btmnhom]').filter(function (x) { return x.getAttribute('data-btmnhom') === 'n-tra'; })[0].click();
+    await cho();
+    dung('mở nhóm Trà: thấy món', qs(m, '[data-btmmon="NUTR00090"]').length === 1);
+    await bam(m, '[data-btmmon="NUTR00090"]');
+    dung('tới khối riêng món', !!q(m, '#btmRiengMon') && qs(m, '[data-nac="nhom"]').length >= 1);
+  });
+
   await ca('Codex PR #545 vòng 7 (AGENTS.md 2b.13): khối tuỳ chọn và topping riêng của món: mọi nút Theo nhóm / Có / Không, nút Về theo nhóm hết, Xem đủ cao ít nhất 44, mọi chữ ít nhất 13', async function () {
     var m = await moMan();
     await bam(m, '[data-btmnhom="n-tra"]');

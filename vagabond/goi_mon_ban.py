@@ -608,7 +608,7 @@ def cho_khach(r, bay_gio, da_tra=False):
 	}
 
 
-def the_bill(hd, tong):
+def the_bill(hd, tong, ud=None):
 	"""Hoá đơn của bàn gửi trang khách (Codex PR #545 vòng 6). Lượt khách gọi
 	được nhập vào phiếu tạm tính chung của bàn (_vao_phieu_tam), nên tổng cần
 	thanh toán phải lấy từ phiếu đó: gồm cả món máy khác cùng bàn gọi và món
@@ -621,7 +621,16 @@ def the_bill(hd, tong):
 		so = None if tong is None else int(round(float(tong)))
 	except (TypeError, ValueError):
 		so = None
-	return {"khoa": hashlib.sha256(("vgb-bill|" + str(hd or "")).encode()).hexdigest()[:16], "tong": so}
+	ra = {"khoa": hashlib.sha256(("vgb-bill|" + str(hd or "")).encode()).hexdigest()[:16], "tong": so}
+	# v643: ưu đãi khách chọn tại bàn đã trừ vào tong; kèm tên và số giảm để
+	# trang khách hiện dòng "Ưu đãi".
+	if ud:
+		from vagabond.uu_dai_ban import the_ud
+
+		t = the_ud(ud)
+		if t:
+			ra["ud"] = t
+	return ra
 
 
 def soan_tin(r, ten_diem, link):
@@ -1065,7 +1074,11 @@ def _tong_bill(hd):
 	vẫn trả khoá phiếu, tổng rỗng (vòng 7), không chặn trạng thái."""
 	try:
 		r = frappe.db.get_value("Sales Invoice", hd, ["grand_total"], as_dict=True)
-		return the_bill(hd, (r or {}).get("grand_total"))
+		try:
+			ud = frappe.db.get_value("Sales Invoice", hd, "vgb_ud_ban")
+		except Exception:
+			ud = None  # cột chưa dựng (trước migrate): không có ưu đãi
+		return the_bill(hd, (r or {}).get("grand_total"), ud)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "goi_mon_ban: đọc tổng hoá đơn của bàn lỗi")
 		return the_bill(hd, None)
@@ -1276,6 +1289,10 @@ def _vao_phieu_tam(r):
 		cu = (si.get("vgb_ghi_chu") or "").strip()
 		if r.get("ghi_chu"):
 			si.vgb_ghi_chu = (cu + (" | " if cu else "") + gc)[:1000]
+		# v643: bàn đã chọn ưu đãi thì tính lại phần giảm trên giỏ mới.
+		from vagabond import uu_dai_ban
+
+		uu_dai_ban.tinh_lai(si)
 		si.flags.ignore_permissions = True
 		si.save()
 		return si.name, 1

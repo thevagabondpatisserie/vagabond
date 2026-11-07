@@ -37,7 +37,7 @@ import unicodedata
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
-PHIEN_BAN = "v579.1"
+PHIEN_BAN = "v643"
 
 
 class LoiDong(ValueError):
@@ -180,6 +180,59 @@ def tien_nghin(v, ten="Số tiền", cho_rong=False):
 		else:
 			raise LoiDong("%s sai dạng nghìn đồng (%s); không đoán." % (ten, s))
 	return _dong_nguyen((so * 1000).quantize(Decimal("0.001")), ten)
+
+
+def tien_dong_shopee(v, ten="Số tiền", cho_rong=False):
+	"""v643: ShopeeFood bản CSV gửi qua email từ 11/2026 ghi ĐỒNG có dấu phân
+	cách nghìn kiểu Anh ("1,095,000") hoặc kiểu Việt ("1.095.000"). Ô số giữ
+	nguyên. Một dấu phân cách phải tách đúng nhóm ba chữ số, không nhận số lẻ."""
+	so = _so(v)
+	if so is None:
+		s = chu(v).replace(" ", "")
+		if s in ("", "-"):
+			if cho_rong:
+				return 0
+			raise LoiDong("Thiếu %s." % ten)
+		if not re.fullmatch(r"-?(?:\d+|\d{1,3}(?:,\d{3})+|\d{1,3}(?:\.\d{3})+)", s):
+			raise LoiDong("%s sai dạng đồng (%s); không đoán." % (ten, s))
+		so = Decimal(s.replace(",", "").replace(".", ""))
+	return _dong_nguyen(so, ten)
+
+
+# Giá trị một đơn ShopeeFood của tiệm: dưới 1.000 đồng hay từ 20 triệu đồng là
+# không có thật. Dựa vào đó mà biết ô số đang ghi nghìn hay đồng.
+SHOPEE_DON_NHO = 1000
+SHOPEE_DON_LON = 20000
+
+
+def dau_don_vi_shopee(v):
+	"""THUẦN (v643). Một ô "Giá trị đơn hàng" cho biết tệp ghi theo đơn vị nào:
+	"dong", "nghin", hoặc "" khi hai cách đọc ra cùng một số hay không rõ.
+
+	- "1,095,000" hoặc "1.095.000" (từ hai nhóm nghìn): chỉ có thể là đồng.
+	- "72,48", "87,5" (một hai số lẻ): chỉ có thể là nghìn đồng.
+	- "160,000", "82.488": đọc nghìn hay đồng đều ra cùng số, không nói gì.
+	- số trơn (ô số Excel hay chữ không dấu): dưới 1.000 là nghìn, từ 20.000
+	  là đồng, khoảng giữa không rõ."""
+	so = _so(v)
+	if so is None:
+		s = chu(v).replace(" ", "")
+		if re.fullmatch(r"\d{1,3}(?:,\d{3}){2,}|\d{1,3}(?:\.\d{3}){2,}", s):
+			return "dong"
+		if re.fullmatch(r"\d+[.,]\d{1,2}", s):
+			return "nghin"
+		if not re.fullmatch(r"\d+", s):
+			return ""
+		so = Decimal(s)
+	if so <= 0:
+		return ""
+	if so != so.to_integral_value():
+		return "nghin"
+	if so < SHOPEE_DON_NHO:
+		return "nghin"
+	if so >= SHOPEE_DON_LON:
+		return "dong"
+	return ""
 
 
 def ti_le(v):
@@ -833,18 +886,9 @@ def nhan_shopee(tep):
 	return None
 
 
-def doc_shopee(tep, mau):
-	"""ShopeeFood: tiền theo NGHÌN đồng, ba số lẻ. Không có dòng tổng.
-
-	Phí = tiền hàng sau khuyến mại trừ thực thu (gồm chiết khấu, thuế khấu
-	trừ, phí dịch vụ, trừ phí ship trả quán). Lệch quá 1 đồng so với các cột
-	phí in ra là lỗi; 1 đồng là Shopee làm tròn từ số chưa làm tròn.
-	"""
-	o = next(t["o"] for t in _trang_luoi(tep) if tim_tieu_de(t["o"], _SHOPEE, 3)[0] is not None)
-	r0, cot = tim_tieu_de(o, _SHOPEE, 3)
-	c_thue = next((c for c, v in enumerate(o[r0]) if chuan(v) == "thue khau tru"), None)
-	kq = ket_qua(mau, "ban", "ShopeeFood", "SHOPEEFOOD")
-	kq["ghi_chu_don_vi"] = "ShopeeFood ghi tiền theo nghìn đồng; đã nhân 1.000."
+def _dong_shopee(o, r0, cot, c_thue, doc_tien):
+	"""Đọc các dòng ShopeeFood với một cách đọc tiền; trả (dòng, dòng lỗi)."""
+	dong, loi = [], []
 	for r in range(r0 + 1, len(o)):
 		h = o[r]
 		if dong_trong(h):
@@ -855,13 +899,13 @@ def doc_shopee(tep, mau):
 				raise LoiDong("Thiếu Mã đơn hàng.")
 			ch = chu(o_tai(h, cot["cua_hang"]))
 			ng, gio = ngay_gio(o_tai(h, cot["ngay"]), "Thời gian hoàn thành")
-			gop = tien_nghin(o_tai(h, cot["gop"]), "Giá trị đơn hàng")
-			km = tien_nghin(o_tai(h, cot["km"]), "Khuyến mại từ quán", cho_rong=True)
-			phi_dv = tien_nghin(o_tai(h, cot["phi_dv"]), "Phí dịch vụ", cho_rong=True)
-			ship = tien_nghin(o_tai(h, cot["ship"]), "Phí vận chuyển trả quán", cho_rong=True)
-			ck = tien_nghin(o_tai(h, cot["ck"]), "Chiết khấu", cho_rong=True)
-			thue = tien_nghin(o_tai(h, c_thue), "Thuế khấu trừ", cho_rong=True) if c_thue is not None else 0
-			nhan = tien_nghin(o_tai(h, cot["nhan"]), "Thực thu")
+			gop = doc_tien(o_tai(h, cot["gop"]), "Giá trị đơn hàng")
+			km = doc_tien(o_tai(h, cot["km"]), "Khuyến mại từ quán", cho_rong=True)
+			phi_dv = doc_tien(o_tai(h, cot["phi_dv"]), "Phí dịch vụ", cho_rong=True)
+			ship = doc_tien(o_tai(h, cot["ship"]), "Phí vận chuyển trả quán", cho_rong=True)
+			ck = doc_tien(o_tai(h, cot["ck"]), "Chiết khấu", cho_rong=True)
+			thue = doc_tien(o_tai(h, c_thue), "Thuế khấu trừ", cho_rong=True) if c_thue is not None else 0
+			nhan = doc_tien(o_tai(h, cot["nhan"]), "Thực thu")
 			if min(gop, km, phi_dv, ship, ck, thue) < 0 or nhan > gop:
 				raise LoiDong("Dòng có số âm hoặc thực thu lớn hơn giá trị đơn; chưa có mẫu hoàn/điều chỉnh, giữ để xem.")
 			tien_hang = gop - km
@@ -869,12 +913,66 @@ def doc_shopee(tep, mau):
 			in_ra = ck + thue + phi_dv - ship
 			if abs(phi - in_ra) > 1:
 				raise LoiDong("Giá trị trừ khuyến mại và các khoản phí khác thực thu quá 1 đồng; kiểm dòng gốc.")
-			kq["dong"].append(dong_moi(
+			dong.append(dong_moi(
 				ma_su_kien=ma, merchant=ch, diem_ban=SHOPEE_DIEM.get(ch, ""), ngay=ng, gio=gio, loai="ban",
 				ma_don=ma, ma_tham_chieu=ma, tien_hang=tien_hang, giam_gia=km, phi=phi, thuc_nhan=nhan,
 				thue=thue, mo_ta="ShopeeFood"))
 		except LoiDong as e:
-			them_loi(kq, r + 1, e, h)
+			loi.append((r + 1, e, h))
+	return dong, loi
+
+
+GHI_CHU_SHOPEE = dict(
+	nghin="ShopeeFood ghi tiền theo nghìn đồng; đã nhân 1.000.",
+	dong="ShopeeFood ghi tiền theo đồng (có dấu phân cách nghìn); đọc nguyên số.")
+
+
+def chon_don_vi_shopee(dau, kq_nghin, kq_dong):
+	"""THUẦN (v643). Chọn cách đọc tiền cho cả tệp ShopeeFood.
+
+	dau: tập dấu hiệu từ cột Giá trị đơn hàng (dau_don_vi_shopee). kq_*: (dòng,
+	dòng lỗi) của mỗi cách đọc. Trả (đơn vị, câu lỗi tệp hoặc "").
+	Tệp có dấu hiệu của cả hai đơn vị là lỗi tệp, không đoán. Không có dấu
+	hiệu nào: hai cách đọc ra cùng số thì dùng nghìn (mẫu cũ); khác số thì cách
+	nào ít dòng lỗi hơn được chọn, bằng nhau là lỗi tệp."""
+	dau = {x for x in dau if x}
+	if dau == {"nghin", "dong"}:
+		return "nghin", "Tệp ShopeeFood lẫn số ghi theo nghìn đồng và số ghi theo đồng; không đoán, kiểm tệp gốc."
+	if dau:
+		return dau.pop(), ""
+	if kq_nghin[0] == kq_dong[0] and len(kq_nghin[1]) == len(kq_dong[1]):
+		return "nghin", ""
+	if len(kq_nghin[1]) != len(kq_dong[1]):
+		return ("nghin", "") if len(kq_nghin[1]) < len(kq_dong[1]) else ("dong", "")
+	return "nghin", "Không rõ tệp ShopeeFood ghi tiền theo nghìn đồng hay theo đồng; không đoán, kiểm tệp gốc."
+
+
+def doc_shopee(tep, mau):
+	"""ShopeeFood: không có dòng tổng. Hai đơn vị tiền:
+	  - tệp tải trên cổng và bản CSV cũ: NGHÌN đồng, ba số lẻ (82.488);
+	  - bản CSV gửi qua email từ 11/2026: ĐỒNG có dấu phân cách (1,095,000).
+	Đơn vị chọn cho CẢ TỆP (chon_don_vi_shopee), không theo từng ô: trước v643
+	máy đọc "160,000" kiểu nghìn ra đúng số do trùng hợp, còn "1,095,000" thì
+	báo lỗi dòng.
+
+	Phí = tiền hàng sau khuyến mại trừ thực thu (gồm chiết khấu, thuế khấu
+	trừ, phí dịch vụ, trừ phí ship trả quán). Lệch quá 1 đồng so với các cột
+	phí in ra là lỗi; 1 đồng là Shopee làm tròn từ số chưa làm tròn.
+	"""
+	o = next(t["o"] for t in _trang_luoi(tep) if tim_tieu_de(t["o"], _SHOPEE, 3)[0] is not None)
+	r0, cot = tim_tieu_de(o, _SHOPEE, 3)
+	c_thue = next((c for c, v in enumerate(o[r0]) if chuan(v) == "thue khau tru"), None)
+	kq = ket_qua(mau, "ban", "ShopeeFood", "SHOPEEFOOD")
+	dau = {dau_don_vi_shopee(o_tai(o[r], cot["gop"])) for r in range(r0 + 1, len(o)) if not dong_trong(o[r])}
+	doc = dict(nghin=_dong_shopee(o, r0, cot, c_thue, tien_nghin), dong=_dong_shopee(o, r0, cot, c_thue, tien_dong_shopee))
+	dv, loi_tep = chon_don_vi_shopee(dau, doc["nghin"], doc["dong"])
+	kq["ghi_chu_don_vi"] = GHI_CHU_SHOPEE[dv]
+	dong, dong_loi = doc[dv]
+	kq["dong"].extend(dong)
+	for vi_tri, e, h in dong_loi:
+		them_loi(kq, vi_tri, e, h)
+	if loi_tep:
+		kq["loi"].append(loi_tep)
 	kq["canh_bao"].append("ShopeeFood không in dòng tổng; đủ hay thiếu được kiểm bằng tiền về ngân hàng.")
 	return khep_ky(kq)
 

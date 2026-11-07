@@ -59,6 +59,10 @@ NGUONG_LECH_MAC_DINH = 1000.0
 NGUONG_PHI_MAC_DINH = 0.1
 BIEU_NOI_DIA_MAC_DINH = 1.44
 SO_LOI_BAO = 2
+# v643: hộp thư nội bộ được chuyển tiếp mặc định (anh Việt 07/11/2026 "đồng ý luôn
+# thư forward tự động"). Gieo vào Cài đặt một lần; anh sửa trên trang Cài đặt.
+NOI_BO_MAC_DINH = ("account@thevagabondpatisserie.com", "thevagabondbakery@gmail.com")
+NGUON_NOI_BO = "Chuyển tiếp nội bộ"
 
 # Người gửi tin cậy mặc định (tên hiện, tên miền, bắt buộc chữ ký). Gieo vào bảng
 # Cài đặt một lần khi bảng còn trống; anh sửa trên app.
@@ -173,6 +177,84 @@ def dong_cua(mien, nguoi_gui):
 	return max(cap, key=lambda c: c[0])[1] if cap else None
 
 
+def tach_dia_chi(s):
+	"""THUẦN (v643). Ô Cài đặt nhiều địa chỉ (xuống dòng, dấu phẩy, chấm phẩy,
+	có thể kèm tên "Kế toán <a@b>") thành danh sách địa chỉ viết thường."""
+	ra = []
+	for x in re.split(r"[,;\n]+", s or ""):
+		x = x.strip()
+		if "<" in x and ">" in x:
+			x = x[x.rindex("<") + 1:x.rindex(">")]
+		x = x.strip().strip("<>").strip().lower().rstrip(".")
+		if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", x) and x not in ra:
+			ra.append(x)
+	return ra
+
+
+def _received(tieu_de):
+	return [(re.sub(r"\s+", " ", v.replace("\r\n", " ")).strip()) for t, v in tieu_de if t.lower() == "received"]
+
+
+def qua_may_chu_dang_nhap(tieu_de, dia_chi):
+	"""THUẦN (v643). Thư do chính hộp dia_chi gửi qua máy chủ thư của tiệm CÓ
+	đăng nhập (SMTP AUTH), như account@ gửi từ Outlook qua Mắt Bão.
+
+	tieu_de: [(tên, giá trị)] theo thứ tự trong thư (chữ thường hay hoa đều được).
+	Chỉ tin các ô Received do máy chủ của tiệm thêm: ô TRÊN CÙNG là của máy chủ
+	tiệm (người gửi không viết lên trên được), lấy tên máy ở "by". Đi xuống, bỏ
+	qua các chặng nội bộ (with LMTP, with local); chặng SMTP ĐẦU TIÊN gặp được
+	là lúc thư vào máy chủ tiệm, phải do đúng máy đó nhận và ghi "with esmtpa"
+	hoặc "esmtpsa" (có đăng nhập). Ô Received người gửi tự chèn nằm dưới chặng
+	đó nên không đổi được kết luận. Thêm: Return-Path phải đúng dia_chi."""
+	rec = _received(tieu_de)
+	if not rec:
+		return False
+	m = re.search(r"\bby ([^\s;()]+)", rec[0], re.I)
+	if not m:
+		return False
+	may = m.group(1).lower().rstrip(".")
+	rp = [v for t, v in tieu_de if t.lower() == "return-path"]
+	if not rp or tach_dia_chi(rp[0]) != [dia_chi.lower()]:
+		return False
+	for r in rec:
+		w = re.search(r"\bwith ([A-Za-z0-9]+)", r, re.I)
+		by = re.search(r"\bby ([^\s;()]+)", r, re.I)
+		giao = (w.group(1).lower() if w else "")
+		if giao in ("lmtp", "local"):
+			continue
+		return bool(by) and by.group(1).lower().rstrip(".") == may and giao in ("esmtpa", "esmtpsa")
+	return False
+
+
+def quyet_noi_bo(dia_chi, so_from, chu_ky, dang_nhap):
+	"""THUẦN (v643). Thư từ hộp thư nội bộ được chuyển tiếp (Cài đặt).
+
+	Nhận ngay (đường Từ thư, không chờ duyệt, anh Việt 07/11/2026) khi thư đúng
+	là của hộp đó: có chữ ký số hợp lệ của chính tên miền địa chỉ (Gmail ký
+	gmail.com), hoặc gửi qua máy chủ thư của tiệm có đăng nhập. Không có bằng
+	chứng nào thì là thư mạo danh hộp nội bộ: chặn và báo Zalo."""
+	ra = dict(ket_qua=KQ_CHAN, nguon=NGUON_NOI_BO, ly_do="", ky_boi="", bao_zalo=0, bat_buoc=1, noi_bo=1)
+	if so_from != 1:
+		ra["ly_do"] = "Thư có %s địa chỉ người gửi; thư hợp lệ chỉ có đúng một." % so_from
+		return ra
+	mien = mien_cua(dia_chi)
+	sau = (" Tệp chuyển tiếp không còn chữ ký gốc của đối tác; máy nhận vì địa chỉ này nằm trong "
+		"Hộp thư nội bộ được chuyển tiếp ở Cài đặt, và vẫn đối chiếu tiền về ngân hàng như thư đối tác.")
+	dat = [c for c in chu_ky or [] if c.get("dat") and thuoc(c.get("d"), [mien])]
+	if dat:
+		ra.update(ket_qua=KQ_XAC_THUC, ky_boi=dat[0]["d"],
+			ly_do="Thư chuyển tiếp từ hộp nội bộ %s, chữ ký số %s hợp lệ.%s" % (dia_chi, dat[0]["d"], sau))
+		return ra
+	if dang_nhap:
+		ra.update(ket_qua=KQ_XAC_THUC,
+			ly_do="Thư chuyển tiếp từ hộp nội bộ %s, không có chữ ký số nhưng gửi qua máy chủ thư của tiệm có "
+			"đăng nhập.%s" % (dia_chi, sau))
+		return ra
+	ra.update(bao_zalo=1, ly_do="Thư ghi người gửi là hộp nội bộ %s nhưng không có chữ ký số của %s và không gửi qua "
+		"máy chủ thư của tiệm có đăng nhập: có thể là thư mạo danh." % (dia_chi, mien))
+	return ra
+
+
 def quyet_dinh(mien, so_from, chu_ky, nguoi_gui):
 	"""THUẦN. Quyết một thư: nhận, chờ duyệt hay chặn.
 
@@ -192,6 +274,8 @@ def quyet_dinh(mien, so_from, chu_ky, nguoi_gui):
 	dat = [c for c in chu_ky or [] if c.get("dat") and thuoc(c.get("d"), d["mien"])]
 	if dat:
 		ra.update(ket_qua=KQ_XAC_THUC, ky_boi=dat[0]["d"], ly_do="Chữ ký số %s hợp lệ." % dat[0]["d"])
+		if dat[0].get("ghi_chu"):
+			ra["ly_do"] += " " + dat[0]["ghi_chu"]
 		return ra
 	cua_minh = [c for c in chu_ky or [] if thuoc(c.get("d"), d["mien"])]
 	if cua_minh:
@@ -210,19 +294,26 @@ def quyet_dinh(mien, so_from, chu_ky, nguoi_gui):
 
 # ------------------------------------------------------------ THUẦN: đọc thư
 
-def _phan_tep(msg):
+def _phan_tep(msg, vao_long=False):
 	"""Các phần lá của thư, KHÔNG đi vào thư lồng (message/rfc822): tệp nằm trong
-	thư được chuyển tiếp không còn chữ ký của đối tác."""
+	thư được chuyển tiếp không còn chữ ký của đối tác. v643: thư từ hộp nội bộ
+	được chuyển tiếp (vao_long) thì có đi vào, vì Outlook chuyển tiếp dạng đính
+	kèm cả thư gốc."""
 	if msg.get_content_maintype() == "message":
+		if not vao_long:
+			return
+		for p in (msg.get_payload() if isinstance(msg.get_payload(), list) else [msg.get_payload()]):
+			if hasattr(p, "get_content_maintype"):
+				yield from _phan_tep(p, vao_long)
 		return
 	if msg.is_multipart():
 		for p in msg.get_payload():
-			yield from _phan_tep(p)
+			yield from _phan_tep(p, vao_long)
 	else:
 		yield msg
 
 
-def doc_thu(tho):
+def doc_thu(tho, vao_long=False):
 	"""THUẦN. Tách những gì cần từ thư gốc (bytes)."""
 	import email
 	from email import policy
@@ -236,7 +327,7 @@ def doc_thu(tho):
 	except Exception:
 		gui = ""
 	tep, chu = [], ""
-	for p in _phan_tep(msg):
+	for p in _phan_tep(msg, vao_long):
 		ten = p.get_filename()
 		if ten and ten.lower().endswith(DUOI):
 			b = p.get_payload(decode=True) or b""
@@ -641,6 +732,7 @@ def cau_hinh():
 		bat=1 if s.get("ds_thu_bat") else 0, dia_chi=(s.get("ds_thu_dia_chi") or "").strip(),
 		may_chu=s.get("ds_thu_may_chu") or "", cong=s.get("ds_thu_cong") or 0,
 		thu_muc=(s.get("ds_thu_thu_muc") or "").strip() or "INBOX", nguoi_gui=ng, lich=lich,
+		noi_bo=tach_dia_chi(s.get("ds_thu_noi_bo")),
 		nguong_lech=float(s.get("ds_nguong_lech") or 0) or NGUONG_LECH_MAC_DINH,
 		nguong_phi=so_bieu(s.get("ds_nguong_phi")) or NGUONG_PHI_MAC_DINH,
 		bieu=dict(noi_dia=s.get("ds_bieu_noi_dia"), quoc_te=s.get("ds_bieu_quoc_te"), napas=s.get("ds_bieu_napas")),
@@ -671,6 +763,7 @@ def gieo_mac_dinh():
 	trống (ghi thẳng dòng con, không lưu cả trang Cài đặt để không chạy kiểm tra
 	của các ô khác). Anh đã xoá hết dòng thì không gieo lại."""
 	frappe = _frappe()
+	gieo_noi_bo()
 	try:
 		# v642: Cài đặt lõi là doctype Single, KHÔNG có bảng riêng: db.has_column
 		# trên nó ném TableMissingError trên ERPNext thật (site 06/11 không gieo
@@ -694,6 +787,21 @@ def gieo_mac_dinh():
 		frappe.clear_document_cache(CAI_DAT, CAI_DAT)
 	except Exception:
 		frappe.log_error(title="Đối soát hộp thư: gieo cài đặt mặc định")
+
+
+def gieo_noi_bo():
+	"""v643: gieo ô Hộp thư nội bộ được chuyển tiếp MỘT lần khi ô còn trống. Anh
+	xoá trắng sau đó thì không gieo lại (để trống là không nhận thư chuyển tiếp)."""
+	frappe = _frappe()
+	try:
+		if not frappe.get_meta(CAI_DAT).has_field("ds_thu_noi_bo") or frappe.db.get_global("vgb_ds_noi_bo_gieo"):
+			return
+		if not (frappe.db.get_single_value(CAI_DAT, "ds_thu_noi_bo") or "").strip():
+			frappe.db.set_single_value(CAI_DAT, "ds_thu_noi_bo", "\n".join(NOI_BO_MAC_DINH))
+		frappe.db.set_global("vgb_ds_noi_bo_gieo", "1")
+		frappe.clear_document_cache(CAI_DAT, CAI_DAT)
+	except Exception:
+		frappe.log_error(title="Đối soát hộp thư: gieo hộp thư nội bộ")
 
 
 # ------------------------------------------------------------ đọc hộp thư
@@ -909,7 +1017,28 @@ def _ghi_thu_loi(tho, uid, ch, ly, dns=False):
 		frappe.log_error(title="Đối soát hộp thư: chưa ghi được sổ thư lỗi UID %s" % uid)
 
 
-def _xu_ly(tho, uid, ch):
+def _quyet(tho, t, ch):
+	"""(quyết định, chữ ký) cho một thư: đối tác (theo tên miền) trước, rồi hộp
+	nội bộ được chuyển tiếp (theo đúng địa chỉ), còn lại là chặn.
+
+	v643: hạn x= của chữ ký so với giờ máy chủ tiệm nhận thư, không phải giờ
+	bấm Kiểm lại thư (doi_soat_dkim.luc_nhan)."""
+	import time as _time
+
+	from vagabond import doi_soat_dkim
+
+	bay = doi_soat_dkim.luc_nhan(tho)
+	bay = min(bay, int(_time.time())) if bay else None
+	dong = dong_cua(t["mien"], ch["nguoi_gui"])
+	noi_bo = (t.get("dia_chi") or "").lower() in (ch.get("noi_bo") or [])
+	chu_ky = doi_soat_dkim.kiem_thu(tho, doi_soat_dkim.lay_khoa_dns, bay) if (dong or noi_bo) and t["so_from"] == 1 else []
+	if dong or not noi_bo:
+		return quyet_dinh(t["mien"], t["so_from"], chu_ky, ch["nguoi_gui"]), chu_ky
+	td = [(a.decode("latin-1"), b.decode("latin-1")) for a, b, _k in doi_soat_dkim.tach_thu(tho)[0]]
+	return quyet_noi_bo(t["dia_chi"].lower(), t["so_from"], chu_ky, qua_may_chu_dang_nhap(td, t["dia_chi"])), chu_ky
+
+
+def _xu_ly(tho, uid, ch, kiem_lai=False, giu_xac_thuc=False):
 	"""Một thư: ghi sổ thư, lưu bản gốc, kiểm chữ ký, nhận tệp hợp lệ.
 
 	Codex #544 F1: lượt nhận tệp commit giữa chừng (khoá đối chiếu), nên thư lỗi
@@ -921,16 +1050,23 @@ def _xu_ly(tho, uid, ch):
 
 	sha = hashlib.sha256(tho).hexdigest()
 	cu = frappe.db.get_value(DT_THU, {"sha256": sha}, ["name", "xong", "tep_goc"], as_dict=True)
-	if cu and cu.xong:
+	if cu and cu.xong and not kiem_lai:
 		return None
 	t = doc_thu(tho)
-	dong = dong_cua(t["mien"], ch["nguoi_gui"])
-	chu_ky = doi_soat_dkim.kiem_thu(tho, doi_soat_dkim.lay_khoa_dns) if dong and t["so_from"] == 1 else []
-	qd = quyet_dinh(t["mien"], t["so_from"], chu_ky, ch["nguoi_gui"])
+	qd, chu_ky = _quyet(tho, t, ch)
+	if qd.get("noi_bo") and qd["ket_qua"] == KQ_XAC_THUC:
+		t = doc_thu(tho, vao_long=True)
 	if phai_doc_lai_dns(qd["ket_qua"], chu_ky):
 		# Codex #544 vòng 2: chưa kết luận khi tra khoá lỗi tạm; không ghi sổ
 		# thư, không đánh dấu xong, để lượt sau (hoặc nút Đọc lại thư) kiểm lại.
 		raise doi_soat_dkim.LoiDnsTam("; ".join(c["ly_do"] for c in chu_ky if c.get("tam"))[:300])
+	if giu_xac_thuc and qd["ket_qua"] != KQ_XAC_THUC:
+		# Đọc lại thư ĐÃ xác thực (để đọc lại tệp sau khi sửa mẫu): đối tác có thể
+		# đã đổi khoá DKIM từ đó, kiểm lại không đạt. Không hạ thư thật thành
+		# "Bị chặn" và không báo thư giả; dừng trước mọi lần ghi, giữ kết quả cũ.
+		frappe.throw("Chữ ký số của thư này nay không kiểm lại được (%s). Máy giữ nguyên kết quả cũ và không đọc lại "
+			"tệp; tải tay tệp gốc (chờ Giám đốc duyệt) nếu cần đọc lại." % (qd["ly_do"] or "đối tác có thể đã đổi khoá")[:300],
+			title="Không đọc lại được thư")
 	cong_ty = dsv._cong_ty()
 	truong = dict(sha256=sha, uid=str(uid), message_id=t["message_id"],
 		gui_luc=t["gui_luc"] or None, nguoi_gui=t["nguoi_gui"],
@@ -949,7 +1085,8 @@ def _xu_ly(tho, uid, ch):
 		if qd["bao_zalo"]:
 			from vagabond import kenh_zalo
 
-			tieu, d = tin_gia_danh(qd["nguon"], t["dia_chi"] or t["nguoi_gui"], t["gui_luc"] or thu.nhan_luc, qd["ly_do"])
+			ten_nguon = ("hộp thư nội bộ %s" % t["dia_chi"]) if qd.get("noi_bo") else qd["nguon"]
+			tieu, d = tin_gia_danh(ten_nguon, t["dia_chi"] or t["nguoi_gui"], t["gui_luc"] or thu.nhan_luc, qd["ly_do"])
 			kenh_zalo.bao_hoac_ghi_loi("canh_bao", "cong_no", tieu, d, link=_link(), khoa="ds_gia_danh:%s" % thu.name,
 				ma_tin="kt_ds_thu_gia_danh")
 			thu.db_set("bao_zalo", frappe.utils.now_datetime())
@@ -967,7 +1104,9 @@ def _xu_ly(tho, uid, ch):
 			sot.append((ten, byte, url, set(bo_qua)))
 	# Giống lối email cũ (Codex #450): thư đã chắc là thư báo cáo thì tệp con
 	# chưa có mẫu hay đọc lỗi vẫn hiện ở Cần xử lý; thư quảng cáo thì bỏ qua.
-	la_bao_cao = bool(ket) or dsv.thu_co_bao_cao(t["tieu_de"], t["than"])
+	# v643: thư nội bộ không có tệp đọc được thì không dựng nguồn "thư không tệp"
+	# (thư nội bộ không phải thư báo cáo của một đối tác cụ thể).
+	la_bao_cao = bool(ket) or (not qd.get("noi_bo") and dsv.thu_co_bao_cao(t["tieu_de"], t["than"]))
 	if sot and la_bao_cao:
 		for ten, byte, url, ten_bo in sot:
 			ket.extend(r for r in dsv._nhan_byte(ten, byte, KENH, file_url=url, doc_lai=False, cong_ty=cong_ty, them=them)
@@ -1336,18 +1475,32 @@ def thu_goc(name):
 	return dict(ten=f.file_name, noi_dung=base64.b64encode(b).decode())
 
 
+def khop_doc_lai(trang_thai):
+	from vagabond import doi_soat_khop
+
+	return doi_soat_khop.doc_lai_duoc(trang_thai)
+
+
 def doc_lai_thu(name):
 	"""Nút "Đọc lại thư" trên thư "Lỗi xử lý" (Codex #544 vòng 2): chạy lại đúng
 	đường của lượt đọc hộp thư trên bản gốc .eml đã cất (cùng mã băm nên dùng
 	tiếp dòng sổ thư, không tạo bản trùng; tệp đã nhận dừng ở mã băm). Quyền và
-	pháp nhân kiểm ở cổng gọi. Khoá chung với lượt đọc hộp thư."""
+	pháp nhân kiểm ở cổng gọi. Khoá chung với lượt đọc hộp thư.
+
+	v643: thư "Bị chặn" cũng kiểm lại được (nút Kiểm lại thư), vì chặn có thể do
+	Cài đặt lúc đó (chưa khai hộp nội bộ) hay do lỗi kiểm chữ ký đã sửa (GreenSM
+	06/11/2026). Kiểm lại chạy ĐÚNG đường của thư mới: chữ ký, người gửi theo
+	Cài đặt hiện tại; vẫn không đạt thì vẫn bị chặn. Thư đã xác thực mà còn
+	nguồn đang lỗi hay cần xử lý (mẫu đọc vừa sửa, như ShopeeFood 06/11/2026) thì
+	đọc lại được để đọc lại tệp; nguồn đã đúng dừng ở mã băm như cũ."""
 	frappe = _frappe()
 	from vagabond.doi_soat_dkim import LoiDnsTam
 
 	t = frappe.db.get_value(DT_THU, name, ["name", "ket_qua", "xong", "tep_goc", "uid"], as_dict=True)
 	if not t:
 		frappe.throw("Không thấy thư này. Tải lại màn hình.")
-	if t.ket_qua != KQ_LOI or t.xong:
+	if not ((t.ket_qua == KQ_LOI and not t.xong) or t.ket_qua == KQ_CHAN or (t.ket_qua == KQ_XAC_THUC
+			and any(khop_doc_lai(x) for x in frappe.get_all(DT_NGUON, filters={"thu": name}, pluck="trang_thai")))):
 		frappe.throw("Thư này đã xử lý xong, không cần đọc lại.")
 	if not t.tep_goc:
 		frappe.throw("Thư này không lưu được bản gốc nên không đọc lại được. Nhờ đối tác gửi lại thư.")
@@ -1361,7 +1514,7 @@ def doc_lai_thu(name):
 		frappe.throw("Máy đang đọc hộp thư. Đợi một phút rồi bấm lại.")
 	try:
 		try:
-			_xu_ly(tho, t.uid, cau_hinh())
+			_xu_ly(tho, t.uid, cau_hinh(), kiem_lai=t.ket_qua != KQ_LOI, giu_xac_thuc=t.ket_qua == KQ_XAC_THUC)
 			frappe.db.commit()
 		except LoiDnsTam:
 			frappe.db.rollback()

@@ -158,6 +158,11 @@ def _ma_bam():
 	ngoai = [x for x in luat if not all(c.strip().startswith(".trang-dich-vu .db") or c.strip().startswith(".trang-dich-vu main.db")
 		for c in x.split("{")[0].split(","))]
 	la("mọi quy tắc dưới main.db", ngoai, [])
+	# v643 (còn tồn v611, đo 07/11 trên site ở 360px: nút gửi bị cắt "GỬI YÊU CẦU ĐẶT B..."):
+	# trên điện thoại nút được xuống dòng, không cắt chữ bằng dấu ba chấm.
+	dt = css[css.index("@media(max-width:700px)"):]
+	nut = [x for x in re.sub(r"/\*.*?\*/", "", dt, flags=re.S).split("}") if "button#gui" in x]
+	dung("nút gửi trên điện thoại xuống dòng, không cắt chữ", nut and "white-space:normal" in nut[0] and "ellipsis" not in nut[0])
 	dung("thanh-vien.css không có lớp db-", "db-" not in (GOC / "vagabond/public/web_order/thanh-vien.css").read_text())
 
 

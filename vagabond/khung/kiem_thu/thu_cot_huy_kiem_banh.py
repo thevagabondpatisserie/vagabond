@@ -142,12 +142,15 @@ class CuaGia(object):
 			"exists": frappe.db.exists,
 			"get_single": getattr(frappe, "get_single", None),
 			"dong_bo": kiem_banh.dong_bo,
+			"dong_bo_thu_lai": kiem_banh._dong_bo_thu_lai,
 			"tat_bang": kiem_banh.tat_ban_web.bang,
 		}
 		frappe.get_doc = lambda dt, ten=None, *a, **k: self._lay(ten)
 		frappe.db.exists = lambda dt, ten=None, *a, **k: ten in self.bang
 		frappe.get_single = lambda dt: self.btp
 		kiem_banh.dong_bo = lambda ngay=None: None
+		# Codex #546 vòng 4: chốt ngày gọi thẳng lối đồng bộ có cờ chốt.
+		kiem_banh._dong_bo_thu_lai = lambda ngay=None, chot=False: None
 		kiem_banh.tat_ban_web.bang = lambda ds, ngay=None: {}
 		return self
 
@@ -157,6 +160,7 @@ class CuaGia(object):
 		if self.cu["get_single"] is not None:
 			frappe.get_single = self.cu["get_single"]
 		kiem_banh.dong_bo = self.cu["dong_bo"]
+		kiem_banh._dong_bo_thu_lai = self.cu["dong_bo_thu_lai"]
 		kiem_banh.tat_ban_web.bang = self.cu["tat_bang"]
 		return False
 

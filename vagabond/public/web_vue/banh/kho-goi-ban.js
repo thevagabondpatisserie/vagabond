@@ -18,6 +18,9 @@ import {reactive, computed} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 
 export const NHIP_TRANG_THAI = 10000;
+/* v643: không còn lượt chờ mà bàn còn hoá đơn mở thì vẫn hỏi lại tổng hoá đơn
+   (món máy khác gọi, món quầy thêm) theo nhịp thưa này. */
+export const NHIP_HOA_DON = 30000;
 export const SL_TOI_DA = 20;
 export const TOPPING_TOI_DA = 5;
 /* Thứ tự chip đồ uống, trùng goi_mon_ban.NHOM_NUOC; nhãn ngắn cho chip. */
@@ -86,23 +89,28 @@ export function tomDon(don) {
     const b = d.tt && d.tt.trang_thai === 'Đã nhận' && d.tt.bill;
     if (!(b && b.khoa)) { ngoai += tien(d); continue; }
     const k = String(b.khoa);
-    const x = bill.get(k) || {tong: null, hoi: -1, theoLuot: 0};
+    const x = bill.get(k) || {tong: null, hoi: -1, theoLuot: 0, ud: null};
     x.theoLuot += tien(d);
     const hoi = Number(d.tt.hoi) || 0;
-    if (coSo(b.tong) && hoi >= x.hoi) { x.tong = Number(b.tong); x.hoi = hoi; }
+    if (coSo(b.tong) && hoi >= x.hoi) { x.tong = Number(b.tong); x.hoi = hoi; x.ud = b.ud || null; }
     bill.set(k, x);
   }
-  let hoaDon = 0, coHoaDon = false;
+  /* v643: ưu đãi khách chọn đã trừ trong tong của hoá đơn (máy chủ trừ ngay);
+     "Hoá đơn của bàn" hiện số TRƯỚC ưu đãi, dòng "Ưu đãi" hiện phần đã trừ. */
+  let hoaDon = 0, coHoaDon = false, giamUd = 0, uuDai = null;
   for (const x of bill.values()) {
-    if (x.tong === null) ngoai += x.theoLuot;
-    else { hoaDon += x.tong; coHoaDon = true; }
+    if (x.tong === null) { ngoai += x.theoLuot; continue; }
+    const g = x.ud ? Math.max(0, Number(x.ud.giam) || 0) : 0;
+    hoaDon += x.tong + g; giamUd += g; coHoaDon = true;
+    if (x.ud && !uuDai) uuDai = {ten: String(x.ud.ten || ''), giam: g, lyDo: String(x.ud.ly_do || ''), sdt: String(x.ud.sdt || '')};
   }
   return {
     soLuot: tinh.length,
     soMon: tinh.reduce((a, d) => a + ((d.tt && d.tt.mon) || []).reduce((b, x) => b + (Number(x.sl) || 0), 0), 0),
     tamTinh: tinh.reduce((a, d) => a + tien(d), 0),
     choNhan: tinh.filter(d => ((d.tt && d.tt.trang_thai) || 'Chờ nhận') === 'Chờ nhận').length,
-    coHoaDon, hoaDon, ngoaiHoaDon: ngoai, coNgoai: coHoaDon && ngoai > 0, canTra: hoaDon + ngoai,
+    coHoaDon, hoaDon, ngoaiHoaDon: ngoai, coNgoai: coHoaDon && ngoai > 0, canTra: hoaDon - giamUd + ngoai,
+    giamUd, uuDai,
   };
 }
 
@@ -298,6 +306,34 @@ export function dungQuayHien(S, G, t) {
     topping: chon.topping || []};
 }
 
+/* v643 ưu đãi tại bàn (anh Việt duyệt mẫu 07/11/2026, "Máy tự trừ ngay").
+   Câu cho lý do đăng nhập máy chủ trả (dang_nhap.gui_ma, xac_thuc), cùng
+   câu trang Thành viên. */
+export const LY_DO_DN = ['chua_mo', 'so_dien_thoai_khong_dung', 'gui_qua_nhieu', 'khong_gui_duoc', 'ma_het_han', 'ma_khong_dung', 'sai_qua_nhieu'];
+export function cauDn(ly, t) {
+  switch (ly) {
+    case 'chua_mo': return t('goi_ban_dn_chua_mo', 'Đăng nhập thành viên đang tạm đóng. Quý khách nhờ thu ngân áp ưu đãi.');
+    case 'so_dien_thoai_khong_dung': return t('goi_ban_dn_sdt', 'Kiểm tra lại số điện thoại.');
+    case 'gui_qua_nhieu': return t('goi_ban_dn_gui_nhieu', 'Đã gửi nhiều mã. Chờ 30 phút rồi thử lại.');
+    case 'khong_gui_duoc': return t('goi_ban_dn_khong_gui', 'Chưa gửi được mã qua Zalo. Chờ một chút hoặc nhờ thu ngân hỗ trợ.');
+    case 'ma_het_han': return t('goi_ban_dn_het_han', 'Mã đã hết hạn. Gửi mã mới để tiếp tục.');
+    case 'ma_khong_dung': return t('goi_ban_dn_sai_ma', 'Mã chưa đúng. Kiểm tra tin nhắn Zalo.');
+    case 'sai_qua_nhieu': return t('goi_ban_dn_sai_nhieu', 'Đã nhập sai quá nhiều lần. Gửi mã mới để tiếp tục.');
+    default: return '';
+  }
+}
+/* Khoá một ưu đãi trong danh sách: loại + mã. THUẦN. */
+export const khoaUd = x => (x ? String(x.loai) + ':' + String(x.ma) : '');
+/* Số điện thoại khách gõ: chỉ giữ số, 9 tới 12 chữ số. THUẦN. */
+export function soDt(v) { const so = String(v || '').replace(/\D/g, ''); return so.length >= 9 && so.length <= 12 ? so : ''; }
+/* Ưu đãi chọn sẵn khi mở danh sách: đang dùng (nếu còn trong danh sách) rồi
+   cái giảm nhiều nhất dùng được. THUẦN. */
+export function chonSanUd(ds, hienTai) {
+  const dung = (ds || []).filter(x => Number(x.dung_duoc));
+  if (hienTai) { const k = (ds || []).find(x => x.ten === hienTai.ten && Number(x.dung_duoc)); if (k) return khoaUd(k); }
+  return dung.length ? khoaUd(dung.slice().sort((a, b) => (Number(b.giam) || 0) - (Number(a.giam) || 0))[0]) : '';
+}
+
 export function taoGoiBan(moiTruong, S) {
   const {t, doc, ghi, luuTru = null, ngauNhien = null, hen = (f, ms) => setTimeout(f, ms), huyHen = id => clearTimeout(id),
     timKiem = () => '', toast = () => {}} = moiTruong;
@@ -314,6 +350,8 @@ export function taoGoiBan(moiTruong, S) {
     chuong: {mo: false, lyDo: '', chiTiet: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
     moDon: false,        // v642: màn "Đơn của bàn"
     tra: {mo: false, cach: '', hd: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
+    /* v643 ưu đãi tại bàn: buoc '' | 'dang' | 'sdt' | 'ma' | 'ds'. */
+    ud: {mo: false, buoc: '', sdt: '', ma: '', ds: [], chon: '', hienTai: null, sdtCo: '', coHoaDon: 0, dangGui: false, loi: '', bao: ''},
   });
 
   const khoaLuu = () => (G.link ? 'vgb-goi-ban-' + G.link.diem + '-' + G.link.ban : '');
@@ -338,7 +376,7 @@ export function taoGoiBan(moiTruong, S) {
   const toppingQuay = () => ((quayCua() || {}).topping) || [];
   /* Thanh giỏ hiện khi có món và không bảng nào đang mở (nút nổi Zalo, Grab
      nâng lên theo, xem KenhNoi). */
-  const coBang = () => G.moGio || !!G.chon || G.chuong.mo || G.moDon || G.tra.mo;
+  const coBang = () => G.moGio || !!G.chon || G.chuong.mo || G.moDon || G.tra.mo || G.ud.mo;
   const barMo = computed(() => cheDo.value === 'goi' && G.gio.length > 0 && !coBang());
   /* v642 (anh Việt 06/11/2026: gọi xong màn co lại, không xem được đơn, không
      có chỗ tính tiền): bàn đã gọi mà giỏ trống thì thanh đơn LUÔN hiện ở đáy
@@ -523,16 +561,30 @@ export function taoGoiBan(moiTruong, S) {
   /* tatCa: hỏi lại cả lượt đã xong (đã nhận), để biết bill của nó đã tính
      tiền chưa. Nhịp tự động chỉ hỏi lượt còn chờ (trần 120 lần hỏi mỗi 10
      phút của máy chủ); hỏi tất cả lúc vừa gọi thêm, mở Đơn của bàn, Thanh toán. */
+  /* v643 (còn tồn v642): mỗi hoá đơn còn mở của bàn chọn MỘT lượt đại diện
+     (lượt đứng sau cùng trỏ phiếu đó) để nhịp tự động hỏi lại tổng hoá đơn,
+     không thì thanh đơn đứng yên ở số cũ khi máy khác gọi thêm hay quầy thêm
+     món mà máy này không còn lượt chờ. */
+  function luotDaiDien() {
+    const m = new Map();
+    for (const d of G.don) {
+      const b = d.tt && d.tt.trang_thai === 'Đã nhận' && !d.tt.da_tra && d.tt.bill;
+      if (b && b.khoa) m.set(String(b.khoa), d.ma);
+    }
+    return new Set(m.values());
+  }
   async function hoiTrangThai(tatCa = false) {
     huyHen(henTt); henTt = null;
+    const daiDien = luotDaiDien();
     for (const d of G.don.slice()) {
-      if (!tatCa && d.tt && ['Đã nhận', 'Từ chối', 'Hết hạn'].includes(d.tt.trang_thai) && d.xong) continue;
+      if (!tatCa && d.tt && ['Đã nhận', 'Từ chối', 'Hết hạn'].includes(d.tt.trang_thai) && d.xong && !daiDien.has(d.ma)) continue;
       let m = null;
       try { m = await doc('vagabond.goi_mon_ban.trang_thai', {ma: d.ma, token: d.token}); } catch (e) { m = null; }
       if (m && m.ok) { m.hoi = ++soHoi; d.tt = m; d.xong = m.trang_thai !== 'Chờ nhận'; }
     }
     boLuotDaTra();
     if (G.don.some(d => !d.tt || d.tt.trang_thai === 'Chờ nhận')) henTt = hen(() => hoiTrangThai(), NHIP_TRANG_THAI);
+    else if (luotDaiDien().size) henTt = hen(() => hoiTrangThai(), NHIP_HOA_DON);
   }
   /* Codex PR #545 vòng 1: khách trả bill xong rồi gọi tiếp mà không tải lại
      trang thì lượt của bill cũ không được cộng vào bill mới. Máy chủ báo
@@ -590,6 +642,99 @@ export function taoGoiBan(moiTruong, S) {
     return m;
   }
 
+  /* ---------------- ưu đãi khách tự chọn (v643) ----------------
+     Mở từ màn Đơn của bàn. Chưa đăng nhập thì hai bước mã Zalo của trang
+     Thành viên (cùng cửa thanh_vien.gui_ma, xac_thuc, cùng phiên 30 ngày);
+     đã đăng nhập thì danh sách Ví quà và chương trình dùng được, số giảm máy
+     chủ tính trên hoá đơn của bàn. Chọn là máy chủ trừ NGAY vào hoá đơn tạm
+     tính; trang hỏi lại hoá đơn để Cần thanh toán đổi theo. */
+  const thamBan = () => ({diem: G.ban.diem, ban: G.ban.ban, k: G.link.k});
+  const udHienTai = () => tom.value.uuDai;
+  async function napUd() {
+    const c = G.ud;
+    c.buoc = 'dang'; c.loi = '';
+    let m = null;
+    try { m = await doc('vagabond.uu_dai_ban.ds', thamBan()); } catch (e) { m = null; }
+    if (!m || !m.ok) { c.buoc = 'ds'; c.ds = []; c.loi = (m && m.cau) || t('goi_ban_ud_loi_tai', 'Chưa tải được ưu đãi. Quý khách thử lại.'); return m; }
+    if (!Number(m.dang_nhap)) { c.buoc = c.buoc === 'ma' ? 'ma' : 'sdt'; return m; }
+    c.buoc = 'ds';
+    c.ds = Array.isArray(m.ds) ? m.ds.map(x => ({...x, khoa: khoaUd(x)})) : [];
+    c.hienTai = m.chon || null; c.sdtCo = m.sdt || ''; c.coHoaDon = Number(m.co_hoa_don) || 0;
+    c.chon = chonSanUd(c.ds, c.hienTai);
+    return m;
+  }
+  function moUd() {
+    if (cheDo.value !== 'goi' || !G.don.length) return false;
+    G.moDon = false;
+    const c = G.ud;
+    c.mo = true; c.loi = ''; c.bao = ''; c.ma = '';
+    void napUd();
+    return true;
+  }
+  /* Đóng thì về lại màn Đơn của bàn, nơi khách mở ưu đãi. */
+  function dongUd() { G.ud.mo = false; G.moDon = true; }
+  async function guiMaUd() {
+    const c = G.ud;
+    if (c.dangGui) return null;
+    const so = soDt(c.sdt);
+    if (!so) { c.loi = t('goi_ban_ud_sdt_sai', 'Kiểm tra lại số điện thoại.'); return null; }
+    c.dangGui = true; c.loi = ''; c.bao = '';
+    let m = null;
+    try { m = await ghi('vagabond.thanh_vien.gui_ma', {sdt: so}); } catch (e) { m = null; }
+    c.dangGui = false;
+    if (!m || !m.ok) { c.loi = cauDn(m && m.ly_do, t) || t('goi_ban_ud_chua_gui', 'Chưa gửi được mã. Quý khách thử lại sau.'); return m; }
+    c.buoc = 'ma'; c.ma = '';
+    c.bao = t('goi_ban_ud_da_gui', 'Đã gửi mã qua Zalo. Mã có hiệu lực 5 phút.');
+    return m;
+  }
+  function suaSoUd() { const c = G.ud; c.buoc = 'sdt'; c.ma = ''; c.loi = ''; c.bao = ''; }
+  async function xacThucUd() {
+    const c = G.ud;
+    if (c.dangGui) return null;
+    const ma = String(c.ma || '').replace(/\D/g, '');
+    if (ma.length !== 6) { c.loi = t('goi_ban_ud_ma_6', 'Mã gồm 6 số trong tin nhắn Zalo.'); return null; }
+    c.dangGui = true; c.loi = '';
+    let m = null;
+    try { m = await ghi('vagabond.thanh_vien.xac_thuc', {sdt: soDt(c.sdt), ma}); } catch (e) { m = null; }
+    c.dangGui = false;
+    if (!m || !m.ok) { c.loi = cauDn(m && m.ly_do, t) || t('goi_ban_ud_chua_xac', 'Không xác minh được. Gửi mã mới.'); return m; }
+    c.ma = ''; c.bao = '';
+    await napUd();
+    return m;
+  }
+  async function dungUd() {
+    const c = G.ud;
+    const x = c.ds.find(y => y.khoa === c.chon);
+    if (c.dangGui || !x || !Number(x.dung_duoc)) return null;
+    c.dangGui = true; c.loi = '';
+    let m = null;
+    try { m = await ghi('vagabond.uu_dai_ban.chon', {...thamBan(), loai: x.loai, ma: x.ma}); } catch (e) { m = null; }
+    c.dangGui = false;
+    if (!m || !m.ok) {
+      c.loi = (m && m.cau) || t('goi_ban_ud_chua_ap', 'Chưa áp được ưu đãi. Quý khách thử lại.');
+      if (m && m.dang_nhap === 0) c.buoc = 'sdt';
+      return m;
+    }
+    c.hienTai = m.chon || null;
+    c.mo = false; G.moDon = true;
+    toast(t('goi_ban_ud_da_ap', 'Đã trừ ưu đãi vào hoá đơn của bàn.'));
+    await hoiTrangThai(true);
+    return m;
+  }
+  async function boUd() {
+    const c = G.ud;
+    if (c.dangGui) return null;
+    c.dangGui = true; c.loi = '';
+    let m = null;
+    try { m = await ghi('vagabond.uu_dai_ban.bo', thamBan()); } catch (e) { m = null; }
+    c.dangGui = false;
+    if (!m || !m.ok) { c.loi = (m && m.cau) || t('goi_ban_ud_chua_bo', 'Chưa bỏ được ưu đãi. Quý khách thử lại.'); return m; }
+    c.hienTai = null; c.chon = '';
+    c.mo = false; G.moDon = true;
+    await hoiTrangThai(true);
+    return m;
+  }
+
   /* ---------------- chuông gọi nhân viên (v639) ---------------- */
   function moChuong(lyDo = '') {
     if (cheDo.value !== 'goi') return false;
@@ -629,5 +774,6 @@ export function taoGoiBan(moiTruong, S) {
 
   return {G, cheDo, nhanBan, soMon, tong, barMo, quayCua, toppingQuay, macDinh, kiemLink, conThem, daChon, coBangChon, bamThem, moBangChon, chonBienThe,
     chonTc, chonTp, doiSlChon, giaChon, tongChon, xongChon, them, doiSl, kiemGt, goiMon, hoiTrangThai, cauDon, chuTuyChon,
-    moChuong, dongChuong, goiNhanVien, tom, barDon, moDon, dongDon, moTra, dongTra, guiTra};
+    moChuong, dongChuong, goiNhanVien, tom, barDon, moDon, dongDon, moTra, dongTra, guiTra,
+    moUd, dongUd, napUd, guiMaUd, suaSoUd, xacThucUd, dungUd, boUd, udHienTai};
 }

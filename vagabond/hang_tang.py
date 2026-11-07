@@ -640,7 +640,7 @@ def truoc_khi_luu(doc, method=None):
 	# Hàng tặng ghi ĐỦ giá bán và thuế suất, đúng luật hàng biếu tặng: giá
 	# tính thuế phải là giá bán của hàng cùng loại tại thời điểm tặng. Xoá
 	# mọi khoản giảm để không ai vô tình kéo căn cứ tính thuế xuống 0.
-	for o in ("additional_discount_percentage", "discount_amount", "vgb_giam_diem"):
+	for o in ("additional_discount_percentage", "discount_amount", "vgb_giam_diem", "vgb_giam_ud", "vgb_ud_ban"):
 		try:
 			doc.set(o, 0)
 		except Exception:

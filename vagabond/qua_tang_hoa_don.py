@@ -480,6 +480,11 @@ def truoc_khi_luu(doc, method=None):
 		doc.vgb_giam_diem = 0
 	except Exception:
 		pass
+	try:
+		doc.vgb_giam_ud = 0
+		doc.vgb_ud_ban = ""
+	except Exception:
+		pass
 
 
 def truoc_khi_ghi_so(doc, method=None):

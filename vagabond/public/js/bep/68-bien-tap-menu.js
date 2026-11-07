@@ -268,9 +268,9 @@ function btmTabThuTu() {
     var so = g.loai === 'banh' ? 'lấy theo tồn trên tủ trong ngày' : ((g.mon || []).length + ' món');
     html += '<div data-btmhang data-ma="' + h(g.ma) + '" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f2f6;background:#fff">' +
       BTM_KEO + '<div style="flex:1;min-width:0;padding:6px 0"><b style="display:block;font-size:15px">' + h(g.ten) + '</b>' +
-      '<small style="display:block;font-size:12.5px;color:#8a8f9c;margin-top:2px">' + h(so) + (g.hien ? '' : ' · đang ẩn trên web') + '</small></div>' +
+      '<small style="display:block;font-size:13px;color:#8a8f9c;margin-top:2px">' + h(so) + (g.hien ? '' : ' · đang ẩn trên web') + '</small></div>' +
       btmCongTac('data-btmhien="' + h(g.ma) + '"', !!g.hien, 'Hiện nhóm ' + g.ten + ' trên web') +
-      (g.loai === 'nuoc' ? '<button type="button" data-btmnhom="' + h(g.ma) + '" aria-label="Mở nhóm ' + h(g.ten) + '" style="flex:none;width:36px;min-height:44px;border:0;background:none;color:#c3c8d4;font-size:24px;cursor:pointer">&#8250;</button>' : '<span style="width:36px"></span>') +
+      (g.loai === 'nuoc' ? '<button type="button" data-btmnhom="' + h(g.ma) + '" aria-label="Mở nhóm ' + h(g.ten) + ' để chỉnh từng món" style="flex:none;min-width:64px;min-height:44px;padding:0 10px;border:1.5px solid #7FE5F6;border-radius:10px;background:#fff;color:#0B7C93;font-size:13px;font-weight:700;cursor:pointer">Món &#8250;</button>' : '<span style="min-width:64px"></span>') +
       '</div>';
   });
   html += '</div>' +
@@ -279,9 +279,23 @@ function btmTabThuTu() {
   if (cx) html += '<div style="font-size:13px;color:#c07800;margin:12px 4px">' + cx + ' món mới chưa xếp vào nhóm nào, đang ẩn trên web. Mở một nhóm để xếp.</div>';
   return html;
 }
+/* v643 (anh Việt 07/11/2026 không tìm ra chỗ chỉnh riêng từng món: lối vào
+   chỉ là dấu › nhạt ở tab Thứ tự). Đầu tab Tuỳ chọn và tab Topping có khối
+   "Chỉnh riêng từng món" với nút từng nhóm đồ uống, bấm là mở danh sách món
+   của nhóm; bấm món là tới khối Theo nhóm / Có / Không. */
+function btmKhoiRiengMon(nuoc) {
+  if (!nuoc.length) return '';
+  return '<div class="card" id="btmLoiRieng" style="padding:14px;margin-bottom:12px;background:#f6fbfc">' +
+    '<b style="display:block;font-size:15px">Chỉnh riêng từng món</b>' +
+    '<div style="font-size:13px;color:#6b7280;margin:4px 0 10px;line-height:1.45">Ở đây đặt chung cho cả nhóm. Món nào cần khác (ví dụ ly đóng chai không hỏi thay sữa): chọn nhóm, bấm món, rồi chọn Theo nhóm, Có hoặc Không cho từng tuỳ chọn, topping.</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px">' + nuoc.map(function (g) {
+      return '<button type="button" data-btmnhom="' + h(g.ma) + '" style="min-height:44px;padding:0 14px;border:1.5px solid #7FE5F6;background:#fff;color:#0B7C93;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer">' +
+        h(g.ten) + ' · ' + (g.mon || []).length + ' món ›</button>';
+    }).join('') + '</div></div>';
+}
 function btmTabTuyChon() {
   var d = BTM.d, nuoc = d.nhap.nhom.filter(function (g) { return g.loai === 'nuoc'; });
-  var html = '';
+  var html = btmKhoiRiengMon(nuoc);
   (d.nhap.tuy_chon || []).forEach(function (t, i) {
     html += '<div class="card" style="padding:14px;margin-bottom:12px">' +
       '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:16px;flex:1">' + h(t.ten) + '</b>' +
@@ -305,7 +319,7 @@ function btmTabTuyChon() {
 function btmTabTopping() {
   var d = BTM.d, nuoc = d.nhap.nhom.filter(function (g) { return g.loai === 'nuoc'; });
   if (!d.topping.length) return '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280;line-height:1.5">Điểm này chưa có topping nào. Topping là món trong nhóm "Topping cho món nước" của danh mục, có giá trong bảng giá điểm bán.</div>';
-  var html = '<div style="font-size:12.5px;color:#8a8f9c;line-height:1.45;padding:0 4px 10px">Topping là món trong nhóm "Topping cho món nước", giá lấy từ bảng giá điểm bán. Tích để topping hiện khi khách chọn món thuộc nhóm đó.</div>' +
+  var html = btmKhoiRiengMon(nuoc) + '<div style="font-size:13px;color:#8a8f9c;line-height:1.45;padding:0 4px 10px">Topping là món trong nhóm "Topping cho món nước", giá lấy từ bảng giá điểm bán. Tích để topping hiện khi khách chọn món thuộc nhóm đó.</div>' +
     '<div class="card" style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px;min-width:100%">' +
     '<tr><th style="text-align:left;padding:8px 12px;font-size:11.5px;color:#8a8f9c;position:sticky;left:0;background:#fff">Topping</th>' +
     nuoc.map(function (g) { return '<th style="padding:8px 4px;font-size:11.5px;color:#8a8f9c;white-space:nowrap">' + h(g.ten) + '</th>'; }).join('') + '</tr>';

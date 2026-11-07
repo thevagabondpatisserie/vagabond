@@ -162,9 +162,15 @@ export const MAU_GOI_BAN_NOI = `
           <div class="gb-luot-dau"><b>{{ l.tieuDe }}</b><span class="gb-tt" :class="l.lop">{{ l.cau }}</span></div>
           <div class="gb-luot-dong" v-for="(x, i) in l.mon" :key="i"><span>{{ x.sl }} × {{ x.ten }}<small v-if="(x.tc || []).length">{{ x.tc.join(' · ') }}</small></span><em>{{ tien(x.tien) }}</em></div>
         </div>
+        <button type="button" class="gb-ud" id="gbUdO" :class="{co: !!udO.co}" @click="gb.moUd()">
+          <i class="gb-ud-ic" aria-hidden="true">%</i>
+          <span><b>{{ udO.ten }}</b><small>{{ udO.phu }}</small></span>
+          <em>{{ udO.nut }}</em>
+        </button>
         <div class="gb-tong-ban" id="gbTongBan">
           <div><span>{{ t('goi_ban_may_nay','Món gọi từ máy này ({n} món)',{n: gb.tom.value.soMon}) }}</span><span>{{ tien(gb.tom.value.tamTinh) }}</span></div>
           <div v-if="gb.tom.value.coHoaDon" id="gbHoaDonBan"><span>{{ t('goi_ban_hd_ban','Hoá đơn của bàn') }}</span><span>{{ tien(gb.tom.value.hoaDon) }}</span></div>
+          <div v-if="gb.tom.value.giamUd" id="gbUdTru"><span>{{ t('goi_ban_ud_dong','Ưu đãi (đã trừ)') }}</span><span>- {{ tien(gb.tom.value.giamUd) }}</span></div>
           <div v-if="gb.tom.value.coNgoai" id="gbChuaVaoHd"><span>{{ t('goi_ban_chua_vao_hd','Chưa vào hoá đơn') }}</span><span>{{ tien(gb.tom.value.ngoaiHoaDon) }}</span></div>
           <div class="lon"><span>{{ t('goi_ban_can_tra','Cần thanh toán') }}</span><b>{{ tien(gb.tom.value.canTra) }}</b></div>
           <p class="gb-phu" v-if="gb.tom.value.coHoaDon">{{ t('goi_ban_hd_gom','Hoá đơn của bàn gồm cả món gọi từ máy khác cùng bàn và món quầy thêm. Món chưa vào hoá đơn là lượt chờ quầy nhận. Số tiền chốt khi quầy in bill.') }}</p>
@@ -177,6 +183,46 @@ export const MAU_GOI_BAN_NOI = `
       </div>
       <footer class="gb-day gb-day-doc">
         <button type="button" class="gb-cta" id="gbDonTra" :disabled="!gb.tom.value.soLuot" @click="gb.moTra()">{{ t('goi_ban_cd6cd79ce','Thanh toán · {tien}',{tien: tien(gb.tom.value.canTra)}) }}</button>
+      </footer>
+    </div>
+  </section>
+
+  <section class="sheet gb-sheet" id="gbUd" :class="{open: G.ud.mo}" role="dialog" aria-modal="true" aria-labelledby="gb-ud-tieu">
+    <div class="gb-khung">
+      <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ udDau }}</small><h2 id="gb-ud-tieu">{{ G.ud.buoc==='ds' ? t('goi_ban_ud_dung_duoc','Ưu đãi dùng được') : t('goi_ban_ud_tv','Ưu đãi thành viên') }}</h2></div>
+        <button class="gb-x" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="gb.dongUd()"><bieu-tuong ten="dong"/></button></header>
+      <div class="gb-than">
+        <p class="gb-phu" id="gbUdDang" v-if="G.ud.buoc==='dang'">{{ t('goi_ban_ud_dang','Đang tải ưu đãi...') }}</p>
+        <template v-if="udDangNhap">
+          <p class="gb-phu gb-chuong-dau">{{ t('goi_ban_ud_dn_mo','Mã 6 số gửi vào Zalo của số này, không mất phí. Đã là thành viên thì vào thẳng Ví quà.') }}</p>
+          <div class="fld"><label for="gb-ud-sdt"><span>{{ t('goi_ban_ud_sdt','Số điện thoại có Zalo') }}</span></label>
+            <input id="gb-ud-sdt" inputmode="tel" autocomplete="tel" maxlength="16" v-model="G.ud.sdt" :readonly="G.ud.buoc==='ma'"></div>
+          <template v-if="G.ud.buoc==='ma'">
+            <div class="fld"><label for="gb-ud-ma"><span>{{ t('goi_ban_ud_ma','Mã Zalo vừa gửi') }}</span></label>
+              <input id="gb-ud-ma" inputmode="numeric" autocomplete="one-time-code" maxlength="6" v-model="G.ud.ma"></div>
+            <button type="button" class="gb-lien" id="gbUdSuaSo" @click="gb.suaSoUd()">{{ t('goi_ban_ud_sua_so','Sửa số điện thoại') }}</button>
+          </template>
+          <p class="gb-phu" id="gbUdBao" v-if="G.ud.bao">{{ G.ud.bao }}</p>
+          <p class="gb-phu">{{ t('goi_ban_ud_30_ngay','Đăng nhập một lần dùng được 30 ngày trên máy này, như trang Thành viên.') }}</p>
+        </template>
+        <template v-if="G.ud.buoc==='ds'">
+          <div v-for="n in nhomUd" :key="n.ma" class="gb-ud-nhom">
+            <h3 class="gb-ud-sec">{{ n.ten }}</h3>
+            <button v-for="x in n.ds" :key="x.khoa" type="button" class="gb-ly gb-ud-k" :class="{on: G.ud.chon===x.khoa, tat: !x.dung}" :data-ud="x.khoa"
+              :aria-pressed="String(G.ud.chon===x.khoa)" :disabled="!x.dung" @click="G.ud.chon=x.khoa">
+              <span><b>{{ x.ten }}</b><small v-if="x.phu">{{ x.phu }}</small><i class="gb-ud-tag">{{ x.tag }}</i></span><i class="gb-ly-chon" aria-hidden="true"></i></button>
+          </div>
+          <p class="gb-phu" id="gbUdRong" v-if="!G.ud.ds.length">{{ t('goi_ban_ud_rong','Chưa có ưu đãi nào dùng được tại bàn. Mã trong Ví quà hiện ở đây khi còn hạn.') }}</p>
+          <p class="gb-phu" id="gbUdChuaHd" v-if="!G.ud.coHoaDon">{{ t('goi_ban_ud_chua_hd','Ưu đãi chọn được khi quầy đã nhận món của bàn.') }}</p>
+          <p class="gb-phu">{{ t('goi_ban_ud_mot','Mỗi hoá đơn một ưu đãi. Chọn xong máy trừ ngay vào hoá đơn của bàn, mã được tính là đã dùng khi quầy chốt bill.') }}</p>
+          <button type="button" class="gb-lien" id="gbUdBo" v-if="G.ud.hienTai" @click="gb.boUd()">{{ t('goi_ban_ud_bo','Bỏ ưu đãi đang dùng') }}</button>
+        </template>
+      </div>
+      <footer class="gb-day gb-day-doc">
+        <p class="gb-loi" id="gbUdLoi" role="status" v-if="G.ud.loi">{{ G.ud.loi }}</p>
+        <button v-if="G.ud.buoc==='sdt'" type="button" class="gb-cta" id="gbUdGuiMa" :disabled="G.ud.dangGui" @click="gb.guiMaUd()">{{ G.ud.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : t('goi_ban_ud_gui_ma','Gửi mã qua Zalo') }}</button>
+        <button v-else-if="G.ud.buoc==='ma'" type="button" class="gb-cta" id="gbUdXacMinh" :disabled="G.ud.dangGui" @click="gb.xacThucUd()">{{ G.ud.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : t('goi_ban_ud_xac_minh','Xác minh') }}</button>
+        <button v-else type="button" class="gb-cta" id="gbUdDung" :disabled="!udDungDuoc" @click="gb.dungUd()">{{ G.ud.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : t('goi_ban_ud_dung','Dùng ưu đãi này') }}</button>
       </footer>
     </div>
   </section>
@@ -270,6 +316,28 @@ export const GoiTaiBanNoi = {
     /* Dòng phụ của một món trong giỏ: tuỳ chọn rồi topping, gọn một dòng. */
     const chuDong = x => [x.thanhPhan ? moTaCombo(x.thanhPhan) : gb.chuTuyChon(x.tc, x.nhom), (x.tp || []).length ? '+ ' + x.tp.map(y => y.ten).join(', ') : '']
       .filter(Boolean).join(' · ');
-    return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, ICON_LY_DO, phuLyDo, moChuong, chuDong, luot, goiThem, CACH_TRA};
+    /* v643 ô Ưu đãi trong màn Đơn của bàn: đã chọn thì tên, số đã trừ (hoặc vì
+       sao chưa trừ) và nút Đổi; chưa chọn thì mời đăng nhập Zalo. */
+    const udO = computed(() => {
+      const u = gb.tom.value.uuDai;
+      if (u) {
+        return {co: 1, ten: u.ten || t('goi_ban_ud_tv', 'Ưu đãi thành viên'), nut: t('goi_ban_ud_doi', 'Đổi'),
+          phu: u.giam > 0 ? t('goi_ban_ud_da_tru', 'Đã trừ {tien} vào hoá đơn của bàn', {tien: tien(u.giam)})
+            : t('goi_ban_ud_chua_tru', 'Chưa trừ: {ly_do}', {ly_do: u.lyDo || t('goi_ban_ud_chua_du', 'chưa đủ điều kiện')})};
+      }
+      return {co: 0, ten: t('goi_ban_ud_tv', 'Ưu đãi thành viên'), nut: t('goi_ban_ud_chon', 'Chọn'),
+        phu: t('goi_ban_ud_moi', 'Đăng nhập bằng Zalo để dùng mã trong Ví quà')};
+    });
+    const udDangNhap = computed(() => G.ud.buoc === 'sdt' || G.ud.buoc === 'ma');
+    const udDau = computed(() => (G.ud.sdtCo ? t('goi_ban_ud_so', 'Số {sdt}', {sdt: G.ud.sdtCo}) : gb.nhanBan.value));
+    /* Ví quà trước, chương trình sau; dòng không dùng được mờ kèm lý do. */
+    const nhomUd = computed(() => [['vi', t('goi_ban_ud_vi', 'Ví quà của bạn')], ['ctkm', t('goi_ban_ud_ct', 'Chương trình đang chạy')]]
+      .map(([ma, ten]) => ({ma, ten, ds: G.ud.ds.filter(x => x.nhom === ma).map(x => ({...x, dung: !!Number(x.dung_duoc),
+        tag: x.giam == null ? t('goi_ban_ud_sau_nhan', 'Tính khi quầy nhận món')
+          : (Number(x.dung_duoc) ? t('goi_ban_ud_giam', 'Giảm {tien}', {tien: tien(x.giam)}) : (x.ly_do || t('goi_ban_ud_chua_du', 'chưa đủ điều kiện')))}))}))
+      .filter(n => n.ds.length));
+    const udDungDuoc = computed(() => !G.ud.dangGui && G.ud.ds.some(x => x.khoa === G.ud.chon && Number(x.dung_duoc)));
+    return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, ICON_LY_DO, phuLyDo, moChuong, chuDong, luot, goiThem, CACH_TRA,
+      udO, udDangNhap, udDau, nhomUd, udDungDuoc};
   }
 };

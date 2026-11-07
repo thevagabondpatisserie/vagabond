@@ -876,6 +876,54 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     bang('không có nút bỏ dòng hạng', html.indexOf('data-kmbo="AMBASSADOR"'), -1);
   });
 
+  /* ------------------------------------------- v643 ưu đãi khách tự chọn tại bàn
+     Màn Bill quầy THẬT (manBill). Bill tạm tính có ưu đãi khách chọn: thu
+     ngân thấy ưu đãi, số đã trừ, bỏ được kèm lý do; Sửa hoá đơn thì ô Giảm giá
+     chỉ là phần TAY (trước v643 ô nạp cả discount_amount nên lưu lại là phần
+     ưu đãi, phần điểm bị cộng hai lần ở máy chủ). */
+  var UD = JSON.stringify({ loai: 'ma', ma: 'VC-8K2Q', ten: 'Giảm 10% hoá đơn', giam: 18500, sdt: '0909123412', khach: 'KL1' });
+  function donUd(them) {
+    return donBill(Object.assign({ vgb_tam_tinh: 1, grand_total: 671500, discount_amount: 28500, vgb_giam_ud: 18500, vgb_ud_ban: UD }, them || {}));
+  }
+
+  await ca('v643 Bill quầy tạm tính có ưu đãi khách chọn tại bàn: thấy tên, mã, số che, số đã trừ; Bỏ ưu đãi hỏi lý do rồi gọi bo_quay', async function () {
+    var app = manBill(donUd());
+    app.g.promptSheet = function () { return Promise.resolve('khách đổi ý'); };
+    await app.g.scrPosBill('SI-95631'); await nghi();
+    var k = app.tl.getElementById('pbUdBan');
+    dung('có khối ưu đãi', !!k);
+    var c = k.textContent;
+    dung('tên, mã, số che: ' + c, c.indexOf('Giảm 10% hoá đơn') >= 0 && c.indexOf('Mã VC-8K2Q') >= 0 && c.indexOf('0909 *** 412') >= 0);
+    dung('máy đã trừ, không cần OTP', c.indexOf('Máy đã trừ 18500 đ') >= 0 && c.indexOf('không cần OTP') >= 0);
+    dung('không lộ số đầy đủ', c.indexOf('0909123412') < 0);
+    await app.bam(app.mot('#pbBoUd')); await nghi();
+    var b = app.mc.cac('vagabond.uu_dai_ban.bo_quay');
+    bang('gọi bỏ đúng bill, kèm lý do', b.map(function (x) { return [x.a.name, x.a.ly_do]; }), [['SI-95631', 'khách đổi ý']]);
+  });
+
+  await ca('v643 Bill quầy: ưu đãi đã ghi lượt (bill đã chốt) thì không còn nút Bỏ; chưa đủ điều kiện thì nói lý do', async function () {
+    var app = manBill(donUd({ vgb_tam_tinh: 0, vgb_ud_ban: JSON.stringify(Object.assign(JSON.parse(UD), { da_ghi: 1 })) }));
+    await app.g.scrPosBill('SI-95631'); await nghi();
+    dung('không có nút Bỏ', !app.tl.getElementById('pbBoUd'));
+    dung('đã ghi lượt', app.tl.getElementById('pbUdBan').textContent.indexOf('Đã ghi lượt dùng') >= 0);
+    var app2 = manBill(donUd({ discount_amount: 0, vgb_giam_ud: 0, grand_total: 700000,
+      vgb_ud_ban: JSON.stringify(Object.assign(JSON.parse(UD), { giam: 0, ly_do: 'hoá đơn chưa đủ 150.000 đ' })) }));
+    await app2.g.scrPosBill('SI-95631'); await nghi();
+    dung('chưa trừ kèm lý do', app2.tl.getElementById('pbUdBan').textContent.indexOf('Chưa trừ: hoá đơn chưa đủ 150.000 đ') >= 0);
+  });
+
+  await ca('v643 Bill quầy Sửa hoá đơn có ưu đãi khách chọn và giảm điểm: ô Giảm giá chỉ phần tay, Lưu gửi đúng phần tay, tổng xem trước không đổi', async function () {
+    var app = manBill(donUd({ discount_amount: 38500, vgb_giam_diem: 10000, grand_total: 661500 }));
+    await app.g.scrPosBill('SI-95631'); await nghi();
+    await app.bam(app.mot('#pbSua')); await nghi();
+    /* 38.500 = 10.000 tay + 10.000 điểm + 18.500 ưu đãi. */
+    bang('ô Giảm giá chỉ phần tay', app.mot('#pbGiam').value, '10000');
+    dung('tổng xem trước vẫn 661500', app.tl.getElementById('vgb').textContent.indexOf('661500 đ') >= 0);
+    await app.bam(app.mot('#pbLuuSua')); await nghi();
+    var sd = app.mc.cac('vagabond.ban_hang.pos_sua_don');
+    bang('gửi giảm tay 10.000 (máy chủ tự cộng phần riêng)', sd.map(function (x) { return x.a.giam_gia; }), [10000]);
+  });
+
   console.log('Bo ca kiem HANH VI v607 (ly do tang chon san, so du tra truoc)');
   ket.loi.forEach(function (l) { console.log('  HONG ' + l); });
   console.log(ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng, tổng ' + (ket.dat + ket.hong) + ' ca.');

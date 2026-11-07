@@ -232,6 +232,10 @@ CUA_NGO = {
 	# QR tại bàn (quản lý cửa hàng, Giám đốc): `diem_in_qr`, `to_qr`. Hàm còn
 	# lại (`quet_het_han` lịch, `con_cho_nhan` hỏi lại tin Zalo) là nội bộ.
 	"goi_mon_ban.py": ["mo_ban", "goi", "trang_thai", "goi_nhan_vien", "xong_tro_giup", "dem_cho", "nhan", "tu_choi", "diem_in_qr", "to_qr"],
+	# v643: ưu đãi khách tự chọn tại bàn. Ba cửa khách (allow_guest, rate_limit,
+	# kiểm link bàn + phiên Thành viên): `ds`, `chon`, `bo`. Một cửa quầy
+	# (_kiem_quyen_ban): `bo_quay`. truoc_chot, sau_chot, tinh_lai là nội bộ.
+	"uu_dai_ban.py": ["ds", "chon", "bo", "bo_quay"],
 	# v640: Biên tập menu theo điểm bán (chỉ quản lý cửa hàng).
 	"bien_tap_menu.py": ["mo", "luu_nhap", "xuat_ban", "bo_nhap", "khoi_phuc"],
 	# Them 03/09/2026: man Cai dat trang dat banh web. `dong_bo` keo danh muc

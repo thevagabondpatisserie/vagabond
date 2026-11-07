@@ -1223,3 +1223,9 @@ for _gio_v641, _ham_v641 in (
 	("30 8 * * *", "vagabond.doi_soat_thu.nhac_sang"),
 ):
 	scheduler_events.setdefault("cron", {}).setdefault(_gio_v641, []).append(_ham_v641)
+# v643 (còn tồn v605): /sitemap.xml mặc định của Frappe ghi địa chỉ nội bộ
+# vagabond.s.frappe.cloud và cả trang nhân viên. Trỏ về sơ đồ của tiệm, chỉ
+# trang khách trên tên miền chính (so_do_web.py).
+website_route_rules = list(website_route_rules) + [
+	{"from_route": "/sitemap.xml", "to_route": "vgb-sitemap.xml"},
+]

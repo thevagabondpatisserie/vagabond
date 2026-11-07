@@ -102,6 +102,11 @@ def ap_giam_noi_bo(si):
 		si.vgb_giam_diem = 0
 	except Exception:
 		pass
+	try:
+		si.vgb_giam_ud = 0
+		si.vgb_ud_ban = ""
+	except Exception:
+		pass
 	dat_co_noi_bo(si)
 	return True
 

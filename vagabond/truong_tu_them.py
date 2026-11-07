@@ -104,6 +104,10 @@ def dung():
 	_dung_nhom(ban_hang.TRUONG_MOI, "ban_hang")
 	_dung_nhom(diem_otp.TRUONG_MOI, "diem_otp")
 	_dung_nhom(noi_bo.TRUONG_MOI, "noi_bo")
+	# v643: ưu đãi khách chọn tại bàn, neo sau vgb_noi_bo nên dựng sau noi_bo.
+	from vagabond import uu_dai_ban
+
+	_dung_nhom(uu_dai_ban.TRUONG_MOI, "uu_dai_ban")
 	_dung_nhom(hoan_tien.TRUONG_MOI, "hoan_tien")
 	_dung_nhom(chung_tu_tien.TRUONG_MOI, "chung_tu_tien")
 	# O nghiep vu cua phieu thu chi. PHAI dung SAU chung_tu_tien vi no

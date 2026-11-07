@@ -718,6 +718,30 @@ function hdGanBind() {
   };
 }
 
+/* v643 ưu đãi khách tự chọn tại bàn (uu_dai_ban.py). THUẦN. */
+function posGiamRieng(d) { return (Number(d && d.vgb_giam_diem) || 0) + (Number(d && d.vgb_giam_ud) || 0); }
+function posUdBan(d) {
+  var v = d && d.vgb_ud_ban;
+  if (!v) return null;
+  try { v = typeof v === 'string' ? JSON.parse(v) : v; } catch (e) { return null; }
+  return v && v.ma ? v : null;
+}
+function posCheSo(so) {
+  var s = String(so || '').replace(/\D/g, '');
+  if (s.indexOf('84') === 0 && s.length >= 11) s = '0' + s.slice(2);
+  return s.length >= 9 ? s.slice(0, 4) + ' *** ' + s.slice(-3) : '';
+}
+function posKhoiUdBan(u, boDuoc) {
+  var giam = Number(u.giam) || 0;
+  return '<div id="pbUdBan" style="margin:4px 0 6px;padding:10px 12px;border:1.5px solid #6ce9a6;background:#ecfdf3;border-radius:12px;font-size:13.5px;line-height:1.5;color:#05603a">' +
+    '<b>🎟 Ưu đãi khách chọn tại bàn: ' + h(u.ten || u.ma) + '</b><br>' +
+    h((u.loai === 'ma' ? 'Mã ' + u.ma + ' · ' : '') + 'số ' + posCheSo(u.sdt) + ' (đã xác minh Zalo)') + '<br>' +
+    (giam > 0 ? 'Máy đã trừ ' + money(giam) + ' đ vào bill, không cần OTP quản lý.' : 'Chưa trừ: ' + h(u.ly_do || 'chưa đủ điều kiện') + '. Đủ điều kiện thì máy tự trừ.') +
+    (u.da_ghi ? '<br>Đã ghi lượt dùng lúc chốt bill.' : '<br>Mã được tính là đã dùng khi chốt bill.') +
+    (boDuoc ? '<button class="btn gh" id="pbBoUd" style="margin:8px 0 0;width:100%;min-height:44px;font-size:13.5px">Bỏ ưu đãi này</button>' : '') +
+    '</div>';
+}
+
 async function scrPosBill(name) {
   frame('Hoá đơn ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -730,6 +754,12 @@ async function scrPosBill(name) {
   var daKy = !!d.custom_hddt_so;
   if (posSua && posSua.name !== name) posSua = null;
   var suaMo = !!posSua;
+  /* v643: phần giảm RIÊNG (điểm thành viên, ưu đãi khách chọn tại bàn) không
+     phải giảm tay. Ô Giảm giá khi sửa chỉ là phần tay; máy chủ tự cộng phần
+     riêng (ban_hang._giam_rieng). Trước đây ô nạp cả discount_amount nên lưu
+     lại là phần riêng bị cộng hai lần. */
+  var giamRieng = posGiamRieng(d);
+  var udBan = posUdBan(d);
 
   function monTuDoc() {
     return (d.items || []).map(function (m) {
@@ -749,7 +779,8 @@ async function scrPosBill(name) {
     });
   }
   var mon = suaMo ? posSua.mon : monTuDoc();
-  var giam = suaMo ? posSoTien(posSua.giam) : (d.discount_amount || 0);
+  var giamTayO = suaMo ? posSoTien(posSua.giam) : 0;
+  var giam = suaMo ? giamTayO + giamRieng : (d.discount_amount || 0);
   var tongMon = mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0);
   var phaiThu = suaMo ? Math.max(0, tongMon - giam) : d.grand_total;
   var soBan = suaMo ? posSua.so_ban : (d.vgb_so_ban || '');
@@ -809,6 +840,7 @@ async function scrPosBill(name) {
   });
   if (suaMon) html += '<div style="padding:9px 0"><button class="btn gh" id="pbThemMon" style="width:100%;margin:0">➕ Thêm món</button></div>';
   if (giam) html += '<div style="display:flex;justify-content:space-between;padding:7px 0;color:#b45309"><span>Giảm giá</span><b>-' + money(giam) + '</b></div>';
+  if (udBan) html += posKhoiUdBan(udBan, nhap && !udBan.da_ghi);
   html += '<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:16px"><b>' + (tamTinh ? 'TẠM TÍNH' : 'PHẢI THU') + '</b><b>' + money(phaiThu) + ' đ</b></div></div>';
 
   /* ----- khoi thong tin xuat hoa don khach da dien ----- */
@@ -892,7 +924,7 @@ async function scrPosBill(name) {
       '<div id="pbPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, PB_PT) + '</div>' +
       '<div id="pbQr"></div>' +
       '<input class="tin" id="pbMtc" placeholder="Mã tham chiếu (biên lai thẻ, mã giao dịch...)" value="' + h((suaMo ? posSua.mtc : d.vgb_ma_tham_chieu) || '') + '">' +
-      (suaMo ? '<input class="tin" id="pbGiam" inputmode="numeric" placeholder="Giảm giá cả hoá đơn (đ)" value="' + (giam ? money(giam) : '') + '">' : '') +
+      (suaMo ? '<input class="tin" id="pbGiam" inputmode="numeric" placeholder="Giảm giá tay cả hoá đơn (đ)" value="' + (giamTayO ? money(giamTayO) : '') + '">' : '') +
       '<input class="tin" id="pbGhiChu" placeholder="Ghi chú hoá đơn" value="' + h((suaMo ? posSua.ghi_chu : d.vgb_ghi_chu) || '') + '">' +
       (suaMo && String(d.custom_nguon || '').indexOf('Tại chỗ') === 0
         ? '<input class="tin" id="pbBan" placeholder="Số bàn" value="' + h(soBan) + '">' : '') +
@@ -1142,7 +1174,7 @@ async function scrPosBill(name) {
   function pbPhaiThuHien() {
     if (!suaMo) return Number(d.grand_total) || 0;
     var og = document.getElementById('pbGiam');
-    return Math.max(0, tongMon - (og ? posSoTien(og.value) : giam));
+    return Math.max(0, tongMon - (og ? posSoTien(og.value) + giamRieng : giam));
   }
   function pbVeThua() {
     var o = document.getElementById('pbThua');
@@ -1288,7 +1320,7 @@ async function scrPosBill(name) {
     }
     posSua = {
       name: d.name, otp: otp, mon: monTuDoc(),
-      giam: String(d.discount_amount || ''), pt: d.vgb_pt_thanh_toan || '',
+      giam: String(Math.max(0, (Number(d.discount_amount) || 0) - posGiamRieng(d)) || ''), pt: d.vgb_pt_thanh_toan || '',
       mtc: d.vgb_ma_tham_chieu || '', ghi_chu: d.vgb_ghi_chu || '', so_ban: d.vgb_so_ban || '',
       /* O TEN co y bo trong khi ten dang la cau mac dinh, de nguoi sua khong
          phai xoa tay. Nhung truoc 05/09/2026 o DIA CHI van duoc giu nguyen,
@@ -1426,7 +1458,7 @@ async function scrPosBill(name) {
       if (posSua.pt) { goi.pt = posSua.pt; goi.ma_tham_chieu = posSua.mtc || ''; goi.doi_pt = posSua.doiPt ? 1 : 0; }
     }
     var ok = await confirmSheet('Lưu thay đổi hoá đơn ' + (maBill || d.name) + '?',
-      (nhap ? 'Tổng mới: ' + money(Math.max(0, posSua.mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0) - posSoTien(posSua.giam))) + ' đ.\n' : '') +
+      (nhap ? 'Tổng mới: ' + money(Math.max(0, posSua.mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0) - posSoTien(posSua.giam) - giamRieng)) + ' đ.\n' : '') +
       'Máy ghi lại tên người sửa vào lịch sử hoá đơn.', 'Lưu thay đổi');
     if (!ok) return;
     busy(true);
@@ -1449,6 +1481,18 @@ async function scrPosBill(name) {
     busy(false);
     posSua = null; posHomNayTxt = null;
     toast('Đã lưu thay đổi hoá đơn ' + (maBill || d.name));
+    go(function () { scrPosBill(name); }, true);
+  };
+
+  var nbu = document.getElementById('pbBoUd');
+  if (nbu) nbu.onclick = async function () {
+    var ly = await promptSheet('Bỏ ưu đãi khách chọn tại bàn?', 'Lý do (khách đổi ý, nhầm bàn...)');
+    if (ly === null) return;
+    busy(true);
+    try { await api('vagabond.uu_dai_ban.bo_quay', { name: d.name, ly_do: ly }); }
+    catch (e) { busy(false); return toast((e && e.message) || 'Chưa bỏ được, thử lại.', 5000); }
+    busy(false);
+    toast('Đã bỏ ưu đãi, bill về số trước ưu đãi.');
     go(function () { scrPosBill(name); }, true);
   };
 

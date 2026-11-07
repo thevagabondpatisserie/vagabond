@@ -1,0 +1,30 @@
+Return-Path: <account@thevagabondpatisserie.com>
+Delivered-To: doisoat@thevagabondpatisserie.com
+Received: from pro10.emailserver.vn
+	by pro10.emailserver.vn with LMTP
+	for <doisoat@thevagabondpatisserie.com>; Fri, 06 Nov 2026 18:30:00 +0700
+Received: from mail.ke-gian.example ([203.0.113.9])
+	by pro10.emailserver.vn with esmtps (TLS1.3)
+	id 1xGIA; Fri, 06 Nov 2026 18:30:00 +0700
+Received: from [40.99.68.165]
+	by pro10.emailserver.vn with esmtpsa (TLS1.3)
+	id 1xGIA2; Fri, 06 Nov 2026 18:29:00 +0700
+From: The Vagabond =?UTF-8?Q?P=C3=A2tisserie?= <account@thevagabondpatisserie.com>
+To: doisoat@thevagabondpatisserie.com
+Subject: Fwd: ShopeeFood 06-11-2026
+Date: Sat, 7 Nov 2026 10:56:02 +0700
+Message-ID: <nb643@mail.example>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="NB643"
+
+--NB643
+Content-Type: text/plain; charset=utf-8
+
+---------- Forwarded message ---------
+--NB643
+Content-Type: text/csv; name="Shopeefood_Income_Details_Merchant_06-11-2026.csv"
+Content-Disposition: attachment; filename="Shopeefood_Income_Details_Merchant_06-11-2026.csv"
+Content-Transfer-Encoding: base64
+
+U1RULE3DoyDEkMahbiBIw6BuZyxJRCBj4butYSBow6BuZyxUw6puIGPhu61hIGjDoG5nLFRo4budaSBnaWFuIGhvw6BuIHRow6BuaC8gaHXhu7cgxJHGoW4sR2nDoSB0cuG7iyDEkcahbiBow6BuZyxLaHV54bq/biBt4bqhaSB04burIHF1w6FuLFBow60gZOG7i2NoIHbhu6UsUGjDrSB24bqtbiBjaHV54buDbiB0cuG6oyBjaG8gcXXDoW4sQ2hp4bq/dCBraOG6pXUsVGh14bq/IGto4bqldSB0cuG7qyxUaOG7sWMgdGh1DQoxLDA2MTE2LTkwMDAwMDAwMSwxMDMyMjM2MixUQ1YsMDYvMTEvMjAyNiAwOToyMzo1OCwiMTYwLDAwMCIsIjI0LDAwMCIsMCwwLCIyMCwwMzMiLDAsIjExNSw5NjciDQoyLDA2MTE2LTkwMDAwMDAwNywxMDMyMjM2MixUQ1YsMDYvMTEvMjAyNiAxMDoxNzoxOSwiMSwwOTUsMDAwIiwiMjYxLDEyNSIsMCwwLCIxMjIsODMwIiwwLCI3MTEsMDQ1Ig0K
+--NB643--

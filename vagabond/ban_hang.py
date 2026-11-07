@@ -1046,6 +1046,18 @@ def _giam_tu_diem(si):
 		return 0.0
 
 
+def _giam_rieng(si):
+	"""Phần giảm của hoá đơn KHÔNG do thu ngân gõ tay: giảm từ điểm thành viên
+	cộng ưu đãi khách tự chọn trên trang gọi món tại bàn (v643, uu_dai_ban).
+
+	MỘT CỬA cho bốn chỗ dựng lại discount_amount trong ban_hang.py. Thêm loại
+	giảm riêng mới thì cộng ở đây, ca kiểm thu_uu_dai_ban_643 chốt không còn
+	chỗ nào tự cộng _giam_tu_diem."""
+	from vagabond.uu_dai_ban import giam_ud
+
+	return _giam_tu_diem(si) + giam_ud(si)
+
+
 # Truong tu them do ma nguon khai, dung lai moi lan deploy - xem
 # vagabond/truong_tu_them.py.
 TRUONG_MOI = {
@@ -1726,7 +1738,7 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 			#
 			# Cung mot luat voi phuong thuc thanh toan va ban dich Gemini:
 			# may khong de len chu nguoi that (anh Viet chot 15/08/2026).
-			"discount_amount": giam_don + _giam_tu_diem(si),
+			"discount_amount": giam_don + _giam_rieng(si),
 			# Chenh lech giua ban tinh cua minh va tong don ben Pancake. Bang
 			# 0 la khop. Khac 0 la co mot loai gia hoac giam gia ma minh chua
 			# hieu - man Doanh so ve dai bang do de ke toan dung ghi so.
@@ -4844,8 +4856,8 @@ def tao_don_tay(
 			"vgb_ghi_chu": (ghi_chu or "").strip(),
 			"vgb_xhd_ten": XHD_MAC_DINH,
 			"apply_discount_on": "Grand Total",
-			# Cong phan giam tu diem vao - xem _giam_tu_diem.
-			"discount_amount": flt(giam_gia) + km_giam + _giam_tu_diem(si),
+			# Cong phan giam rieng vao - xem _giam_rieng.
+			"discount_amount": flt(giam_gia) + km_giam + _giam_rieng(si),
 			"remarks": "%s #%s - %s%s%s"
 			% (
 				nguon,
@@ -6728,6 +6740,8 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 	si = _pos_lay(name)
 	if si.docstatus != 0:
 		frappe.throw("Hoá đơn này đã ghi sổ rồi, không sửa được nữa.")
+	from vagabond import uu_dai_ban
+
 	# Duong nay cung phai qua cua quyen bo mon, khong thi thu ngan chi can
 	# in tam tinh xong bam Chot kem giam gia la lach duoc chot chan ben
 	# pos_sua_don. Chon phuong thuc thanh toan van tu do - do la nghiep vu
@@ -6739,6 +6753,12 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 				"OTP của quản lý ca. Bấm xin mã rồi nhập vào."
 			)
 		_otp_kiem(otp, "thêm giảm giá khi chốt bill")
+	# v643: ưu đãi khách chọn tại bàn tính lại SAU cửa OTP giảm tay, TRƯỚC mọi
+	# thay đổi khác, trên giỏ cuối cùng có khoá chương trình và theo giảm tay
+	# MỚI thu ngân gửi lên (Codex PR #546 vòng 2). Số đổi mà thu ngân không
+	# đổi giảm tay thì uu_dai_ban lưu số mới và dừng chốt để báo khách; lượt
+	# dùng ghi sau khi lưu (sau_chot).
+	kq_ud = uu_dai_ban.truoc_chot(si, giam_tay=giam_gia) if cint(si.get("vgb_tam_tinh")) else None
 	if pt:
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
@@ -6755,11 +6775,12 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 		si.vgb_ghi_chu = (ghi_chu or "").strip()
 	if giam_gia is not None:
 		si.apply_discount_on = "Grand Total"
-		# Cong phan giam tu diem vao - xem _giam_tu_diem.
-		si.discount_amount = flt(giam_gia) + _giam_tu_diem(si)
+		# Cong phan giam rieng (diem, uu dai ban) vao - xem _giam_rieng.
+		si.discount_amount = flt(giam_gia) + _giam_rieng(si)
 	si.vgb_tam_tinh = 0
 	si.flags.ignore_permissions = True
 	si.save()
+	uu_dai_ban.sau_chot(si, kq_ud)
 	frappe.db.commit()
 	return {"ok": 1, "name": si.name, "grand_total": si.grand_total}
 
@@ -6919,9 +6940,14 @@ def pos_sua_don(
 		doi.append("món")
 	if giam_gia is not None:
 		si.apply_discount_on = "Grand Total"
-		# Cong phan giam tu diem vao - xem _giam_tu_diem.
-		si.discount_amount = flt(giam_gia) + _giam_tu_diem(si)
+		# Cong phan giam rieng (diem, uu dai ban) vao - xem _giam_rieng.
+		si.discount_amount = flt(giam_gia) + _giam_rieng(si)
 		doi.append("giảm giá")
+	if items and si.docstatus == 0:
+		# v643: giỏ đổi thì ưu đãi khách chọn tại bàn tính lại trên giỏ mới.
+		from vagabond import uu_dai_ban
+
+		uu_dai_ban.tinh_lai(si)
 	if pt:
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(

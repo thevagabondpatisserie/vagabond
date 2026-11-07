@@ -88,6 +88,7 @@ function mayChu(canh) {
       if (m === 'vagabond.doi_soat_vendor.tai_thu_goc') return { ten: 'thu-DST-1.eml', noi_dung: 'RnJvbTog' };
       if (m === 'vagabond.doi_soat_vendor.doc_lai_thu') {
         if (canh.docLaiLoi) throw new Error('Vẫn chưa tra được khoá chữ ký số của đối tác (mạng hoặc DNS lỗi tạm). Thử lại sau ít phút.');
+        if (canh.docLaiChan) return { ket_qua: 'Bị chặn', ly_do: 'Thư không có chữ ký số của onepay.vn.' };
         return { ket_qua: 'Đã xác thực', ly_do: '' };
       }
       if (m === 'vagabond.doi_soat_vendor.thu_ket_noi') return { ok: 1, so_thu: 12 };
@@ -233,7 +234,33 @@ async function moChiTiet(canh) {
     var app3 = await moTrungTam();
     await app3.bam(app3.mot('[data-dsvnthu="chan"]'));
     dung('đang ở thẻ chặn', app3.chu().indexOf('Thư tự xưng OnePay') >= 0);
-    bang('thư bị chặn thật không có nút đọc lại', app3.tim('[data-dsvndoclai]').length, 0);
+    // v643: thư Bị chặn có nút Kiểm lại thư (trước v643 không có nút nào).
+    bang('thư bị chặn có nút Kiểm lại thư', app3.tim('[data-dsvndoclai="DST-9"]').length, 1);
+    dung('nói rõ vẫn không nhận số liệu và kiểm lại từ đầu', app3.chu().indexOf('Không nhận số liệu nào từ thư này') >= 0 &&
+      app3.chu().indexOf('thư giả vẫn bị chặn') >= 0);
+  });
+
+  await ca('v643: thư Bị chặn bấm Kiểm lại thư gọi đúng thư; vẫn bị chặn thì báo lý do', async function () {
+    var app = await moTrungTam({ docLaiChan: true });
+    await app.bam(app.mot('[data-dsvnthu="chan"]'));
+    await app.bam(app.mot('[data-dsvndoclai="DST-9"]'));
+    bang('gọi đúng thư', app.mc.cuoi('vagabond.doi_soat_vendor.doc_lai_thu').a.name, 'DST-9');
+    dung('báo vẫn bị chặn kèm lý do', app.tin.some(function (x) { return x.indexOf('Thư vẫn bị chặn: Thư không có chữ ký số') >= 0; }));
+    var app2 = await moTrungTam();
+    await app2.bam(app2.mot('[data-dsvnthu="chan"]'));
+    await app2.bam(app2.mot('[data-dsvndoclai="DST-9"]'));
+    dung('đạt thì báo đã đọc lại', app2.tin.some(function (x) { return x.indexOf('Đã đọc lại thư: Đã xác thực') >= 0; }));
+  });
+
+  await ca('v643: nguồn từ thư còn Cần xử lý có nút Đọc lại thư gốc, gọi đúng thư; nguồn đã nhận thì không có nút', async function () {
+    var app = await moChiTiet({ ct: nguon('DSN-1', { trang_thai: 'Cần xử lý' }) });
+    var nut = app.tim('[data-dsvndoclaict="DST-1"]');
+    bang('có nút', nut.length, 1);
+    dung('nói rõ dòng đúng giữ nguyên', app.chu().indexOf('Dòng đã đúng giữ nguyên') >= 0);
+    await app.bam(nut[0]);
+    bang('gọi đúng thư gốc', app.mc.cuoi('vagabond.doi_soat_vendor.doc_lai_thu').a.name, 'DST-1');
+    var app2 = await moChiTiet();
+    bang('nguồn Đã nhận: không có nút', app2.tim('[data-dsvndoclaict]').length, 0);
   });
 
   await ca('Chip đường vào: gửi đúng khoá lên máy chủ; dòng mang thanh sáu bước và nhãn đường vào', async function () {
