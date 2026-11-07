@@ -1128,13 +1128,22 @@
   }
   async function taiAnhBanh(khoaBanh, tep) {
     if (ban || !tep.length) return;
+    /* Codex PR #547: giữ đúng bản sửa của bánh lúc bấm tải. Người dùng chuyển
+       sang bánh khác trong lúc chờ thì ảnh vẫn vào bánh đã tải (máy chủ đã
+       lưu), bản sửa của bánh mới chọn không bị ghép. */
+    const sua = bSua;
     for (const f of tep) {
-      if (!bSua || bSua.anh.length >= 5) { bBao = 'Mỗi bánh tối đa 5 ảnh. Bỏ bớt một ảnh rồi tải tiếp.'; break; }
+      if (!sua || sua.anh.length >= 5) { if (bSua === sua) bBao = 'Mỗi bánh tối đa 5 ảnh. Bỏ bớt một ảnh rồi tải tiếp.'; break; }
       khoa(true); bao('Đang tải ảnh...');
       try {
         const u = await taiAnhLen(f);
         const r = await api('them_anh', {khoa: khoaBanh, url: u}, 'banh_web');
         BB = r;
+        if (bSua !== sua || banhChon !== khoaBanh) {
+          const t = (BB.banh.find(x => x.khoa === khoaBanh) || {}).ten || '';
+          bao(r.trung ? 'Ảnh vừa tải giống một ảnh đã có của bánh ' + t + '.' : 'Đã thêm ảnh vào bánh ' + t + '.');
+          continue;
+        }
         /* Codex PR #547: chỉ ghép ĐÚNG ảnh vừa tải. Máy chủ trả cả bộ đã lưu,
            trong đó còn ảnh người dùng vừa bỏ ở bản đang sửa; ghép cả bộ là kéo
            ảnh đã bỏ trở lại. */
