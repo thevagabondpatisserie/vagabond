@@ -724,18 +724,22 @@ function gvtGiaDong(d, r) {
     ' · <b>' + money(r.thanh_tien) + 'đ</b>';
 }
 
+/* Codex PR #486 (treo tới v643): vai chỉ xem vẫn bấm × xoá dòng và gõ được số
+   lượng, giá tay trên phiếu thử. MỘT chỗ quyết quyền cho cả vẽ lẫn mọi trình
+   nghe: gvtSuaPhieu. */
+function gvtSuaPhieu() { return ((GVT.thu || {}).sua_duoc) !== false; }
 function gvtDongNhap(d, i) {
-  var r = (GVT.pkDong || [])[i];
+  var r = (GVT.pkDong || [])[i], sua = gvtSuaPhieu(), ro = sua ? '' : ' readonly';
   var canGiaTay = gvtCanGiaTay(d, r);
   return '<div class="hub" data-gvtpd="' + i + '" style="align-items:flex-start;cursor:default">' +
     '<div class="hub-t" style="flex:1;min-width:0">' +
       '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(d.ten || d.item_code) +
         (d.item_code ? '' : ' <span style="font-size:12px;color:#6b7280;font-weight:600">· chưa có mã</span>') + '</div>' +
-        '<button class="ic" data-gvtpxoa="' + i + '" aria-label="Bỏ dòng" style="min-width:44px;min-height:44px;color:#b3261e">&times;</button></div>' +
+        (sua ? '<button class="ic" data-gvtpxoa="' + i + '" aria-label="Bỏ dòng" style="min-width:44px;min-height:44px;color:#b3261e">&times;</button>' : '') + '</div>' +
       '<div style="display:flex;gap:8px;align-items:center;margin-top:6px">' +
-        '<input class="nt" data-gvtpsl="' + i + '" inputmode="decimal" placeholder="Số lượng" value="' + h(d.so_luong == null ? '' : String(d.so_luong).replace('.', ',')) +
+        '<input class="nt" data-gvtpsl="' + i + '"' + ro + ' inputmode="decimal" placeholder="Số lượng" value="' + h(d.so_luong == null ? '' : String(d.so_luong).replace('.', ',')) +
         '" style="width:110px;height:44px;text-align:right;padding:0 10px"><span style="font-size:14px">' + h(d.dvt || '') + '</span>' +
-        (canGiaTay ? '<input class="nt" data-gvtpgia="' + i + '" inputmode="numeric" placeholder="Giá tay/' + h(d.dvt || 'đv') + '" value="' +
+        (canGiaTay ? '<input class="nt" data-gvtpgia="' + i + '"' + ro + ' inputmode="numeric" placeholder="Giá tay/' + h(d.dvt || 'đv') + '" value="' +
           h(gvtSoVn(d.don_gia_tay) > 0 ? String(d.don_gia_tay) : '') + '" style="flex:1;min-width:0;height:44px;text-align:right;padding:0 10px">' : '') +
       '</div>' +
       '<div class="t2" data-gvtpgiadong="' + i + '" style="margin-top:4px">' + gvtGiaDong(d, r) + '</div>' +
@@ -755,25 +759,24 @@ function gvtManPhieu() {
       if (S.stack[S.stack.length - 1] === man && GVT.p === p) gvtManPhieu();
     }, function () { });
   }
-  var t = GVT.thu || {};
-  var sua = t.sua_duoc !== false;
+  var sua = gvtSuaPhieu(), ro = sua ? '' : ' readonly';
   var html = '<div class="card" style="padding:12px 14px" id="gvtpKq">' + gvtKhoiKetQua() + '</div>' +
     '<div class="card" style="padding:12px 14px">' +
       (p.vet ? gvtDauVet(p.vet, 'margin:0 0 8px') : '') +
       '<div class="t2" style="margin-bottom:4px">Tên món thử</div>' +
-      '<input class="tin" id="gvtpTen" placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
+      '<input class="tin" id="gvtpTen"' + ro + ' placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
       '<div class="t2" style="margin-bottom:6px">Nhóm bán dự kiến (để lấy hệ số mục tiêu)</div>' +
       gvtTheNhom(p.nhom, sua) +
       '<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">' +
-        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Một mẻ ra</div><input class="nt" id="gvtpRa" inputmode="decimal" value="' +
+        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Một mẻ ra</div><input class="nt" id="gvtpRa"' + ro + ' inputmode="decimal" value="' +
           h(String(p.so_ra).replace('.', ',')) + '" style="width:100%;height:44px;text-align:right;padding:0 10px"></div>' +
-        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Đơn vị</div><input class="nt" id="gvtpDvt" value="' + h(p.dvt_ra) +
+        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Đơn vị</div><input class="nt" id="gvtpDvt"' + ro + ' value="' + h(p.dvt_ra) +
           '" style="width:100%;height:44px;padding:0 10px"></div></div>' +
       '<div class="t2" style="margin-bottom:4px">Giá bán dự kiến (không bắt buộc)</div>' +
-      '<input class="nt" id="gvtpGb" inputmode="numeric" placeholder="Để trống nếu chưa có" value="' + h(gvtSoVn(p.gia_ban_du_kien) > 0 ? String(p.gia_ban_du_kien) : '') +
+      '<input class="nt" id="gvtpGb"' + ro + ' inputmode="numeric" placeholder="Để trống nếu chưa có" value="' + h(gvtSoVn(p.gia_ban_du_kien) > 0 ? String(p.gia_ban_du_kien) : '') +
         '" style="width:100%;height:44px;text-align:right;padding:0 10px;margin-bottom:10px">' +
       '<div class="t2" style="margin-bottom:4px">Ghi chú</div>' +
-      '<textarea class="tin" id="gvtpGc" rows="2" style="margin:0">' + h(p.ghi_chu) + '</textarea>' +
+      '<textarea class="tin" id="gvtpGc"' + ro + ' rows="2" style="margin:0">' + h(p.ghi_chu) + '</textarea>' +
     '</div>' +
     '<div class="sec">Nguyên liệu, số lượng theo đơn vị kho</div>' +
     '<div class="card" id="gvtpDs">' + (p.dong.length ? p.dong.map(gvtDongNhap).join('') :
@@ -783,17 +786,19 @@ function gvtManPhieu() {
   var b = frame(GVT_TIEU_DE_THU, html, sua ? { footer: '<button class="btn" id="gvtpLuu">Lưu phiếu</button>' } : {});
   var gan = function (id, k) {
     var o = document.getElementById(id);
-    if (o) o.oninput = function () { p[k] = o.value; gvtDanhDau(); if (k !== 'ten_mon' && k !== 'ghi_chu') gvtHenTinh(); };
+    if (o) o.oninput = function () { if (!gvtSuaPhieu()) return; p[k] = o.value; gvtDanhDau(); if (k !== 'ten_mon' && k !== 'ghi_chu') gvtHenTinh(); };
   };
   gan('gvtpTen', 'ten_mon'); gan('gvtpRa', 'so_ra'); gan('gvtpDvt', 'dvt_ra'); gan('gvtpGb', 'gia_ban_du_kien'); gan('gvtpGc', 'ghi_chu');
   b.oninput = function (e) {
     var o = e.target, i;
+    if (!gvtSuaPhieu()) return;
     if (o.getAttribute && (i = o.getAttribute('data-gvtpsl')) != null) { p.dong[+i].so_luong = o.value; gvtDanhDau(); gvtHenTinh(); }
     else if (o.getAttribute && (i = o.getAttribute('data-gvtpgia')) != null) { p.dong[+i].don_gia_tay = o.value; gvtDanhDau(); gvtHenTinh(); }
   };
   b.onclick = function (e) {
     var el;
-    if (sua && e.target.closest('[data-gvtpnhom]')) return gvtChonNhom();
+    if (!gvtSuaPhieu()) return;
+    if (e.target.closest('[data-gvtpnhom]')) return gvtChonNhom();
     if ((el = e.target.closest('[data-gvtpxoa]'))) {
       p.dong.splice(+el.getAttribute('data-gvtpxoa'), 1); gvtDanhDau(); gvtManPhieu(); return gvtTinhLai();
     }
