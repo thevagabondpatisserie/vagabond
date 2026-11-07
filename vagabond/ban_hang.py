@@ -6740,12 +6740,8 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 	si = _pos_lay(name)
 	if si.docstatus != 0:
 		frappe.throw("Hoá đơn này đã ghi sổ rồi, không sửa được nữa.")
-	# v643: ưu đãi khách chọn tại bàn tính lại TRƯỚC mọi thay đổi khác trên
-	# giỏ cuối cùng có khoá chương trình. Số đổi thì uu_dai_ban lưu số mới và
-	# dừng chốt để thu ngân báo khách; lượt dùng ghi sau khi lưu (sau_chot).
 	from vagabond import uu_dai_ban
 
-	kq_ud = uu_dai_ban.truoc_chot(si) if cint(si.get("vgb_tam_tinh")) else None
 	# Duong nay cung phai qua cua quyen bo mon, khong thi thu ngan chi can
 	# in tam tinh xong bam Chot kem giam gia la lach duoc chot chan ben
 	# pos_sua_don. Chon phuong thuc thanh toan van tu do - do la nghiep vu
@@ -6757,6 +6753,12 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 				"OTP của quản lý ca. Bấm xin mã rồi nhập vào."
 			)
 		_otp_kiem(otp, "thêm giảm giá khi chốt bill")
+	# v643: ưu đãi khách chọn tại bàn tính lại SAU cửa OTP giảm tay, TRƯỚC mọi
+	# thay đổi khác, trên giỏ cuối cùng có khoá chương trình và theo giảm tay
+	# MỚI thu ngân gửi lên (Codex PR #546 vòng 2). Số đổi mà thu ngân không
+	# đổi giảm tay thì uu_dai_ban lưu số mới và dừng chốt để báo khách; lượt
+	# dùng ghi sau khi lưu (sau_chot).
+	kq_ud = uu_dai_ban.truoc_chot(si, giam_tay=giam_gia) if cint(si.get("vgb_tam_tinh")) else None
 	if pt:
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(

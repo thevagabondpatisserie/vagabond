@@ -405,30 +405,47 @@ class UuDaiDoi(frappe.ValidationError):
 	pass
 
 
-def truoc_chot(si):
+def truoc_chot(si, giam_tay=None):
 	"""ban_hang.pos_chot gọi trước khi lưu: tính lại ưu đãi trên giỏ cuối cùng
-	có khoá chương trình. Số khác số khách đang thấy thì đặt số mới, lưu, rồi
-	DỪNG chốt để thu ngân báo khách số mới. Trả kết quả tinh để sau_chot ghi lượt."""
+	có khoá chương trình. Trả kết quả tinh (chỉnh theo số thật) để sau_chot
+	ghi lượt, hoặc None khi không có gì để ghi.
+
+	giam_tay: giảm tay MỚI thu ngân gửi kèm lúc chốt (Codex PR #546 vòng 2).
+	Có thì phần giảm khác tính theo số mới và KHÔNG dừng chốt (thu ngân đang
+	tự đổi tổng); không có thì số ưu đãi đổi so với số khách đang thấy là
+	lưu số mới rồi DỪNG chốt để thu ngân báo khách.
+
+	Mã Ví quà bị huỷ, hết hạn, dùng nơi khác thì khuyen_mai ném lỗi (Codex PR
+	#546 vòng 2): bắt lỗi đó, coi như giảm 0 kèm lý do, để lần chốt sau qua
+	được thay vì kẹt."""
 	ud = doc_ud(si.get("vgb_ud_ban"))
 	if not ud or ud.get("da_ghi"):
 		return None
-	kq = _tinh(si, ud, co_khoa=True)
-	giam, ly = giam_tu_kq(kq)
+	if giam_tay is not None:
+		si.apply_discount_on = "Grand Total"
+		si.discount_amount = flt(giam_tay) + flt(si.get("vgb_giam_diem") or 0) + giam_ud(si)
+	try:
+		kq = _tinh(si, ud, co_khoa=True)
+		giam, ly = giam_tu_kq(kq)
+	except frappe.ValidationError as e:
+		kq, giam = None, 0
+		ly = (str(getattr(e, "message", "") or e) or "ưu đãi không còn dùng được").strip()[:140]
 	cu = giam_ud(si)
 	that, _goc = giam_hieu_luc(si, giam)
-	if abs(that - cu) > 0.5:
+	if abs(that - cu) > 0.5 or (ly or "") != (ud.get("ly_do") or ""):
 		moi = dat_giam(si, giam)
 		ud.update(giam=int(round(moi)), ly_do=ly)
 		si.vgb_ud_ban = json.dumps(ud, ensure_ascii=False)
-		si.flags.ignore_permissions = True
-		si.save(ignore_permissions=True)
-		frappe.db.commit()
-		frappe.throw(
-			"Ưu đãi khách chọn (%s) đổi từ %s đ thành %s đ%s. Tổng mới %s đ: báo khách rồi bấm Chốt lại."
-			% (ud.get("ten") or ud.get("ma"), "{:,.0f}".format(cu).replace(",", "."), "{:,.0f}".format(moi).replace(",", "."),
-				(" (" + ly + ")") if ly else "", "{:,.0f}".format(flt(si.grand_total)).replace(",", ".")),
-			exc=UuDaiDoi, title="Ưu đãi của bàn đã đổi")
-	return kq_theo_so_that(kq, that) if that > 0 else None
+		if giam_tay is None and abs(moi - cu) > 0.5:
+			si.flags.ignore_permissions = True
+			si.save(ignore_permissions=True)
+			frappe.db.commit()
+			frappe.throw(
+				"Ưu đãi khách chọn (%s) đổi từ %s đ thành %s đ%s. Tổng mới %s đ: báo khách rồi bấm Chốt lại."
+				% (ud.get("ten") or ud.get("ma"), "{:,.0f}".format(cu).replace(",", "."), "{:,.0f}".format(moi).replace(",", "."),
+					(" (" + ly + ")") if ly else "", "{:,.0f}".format(flt(si.grand_total)).replace(",", ".")),
+				exc=UuDaiDoi, title="Ưu đãi của bàn đã đổi")
+	return kq_theo_so_that(kq, that) if (kq and that > 0) else None
 
 
 def sau_chot(si, kq):
