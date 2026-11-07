@@ -142,9 +142,9 @@ def _():
 		kq = _chay(kb.co_the_ban_hom_nay, kiem_hom_nay=[_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=2, hinh="")], decor=[])
 	la("đường cũ được gọi", goi[:1], [1])
 	la("bánh vẫn hiện", list(kq["banh"]), ["BAWC00089"])
-	f = types.SimpleNamespace(db=types.SimpleNamespace(table_exists=lambda dt: True), get_all=lambda *a, **k: [])
+	f = types.SimpleNamespace(db=types.SimpleNamespace(table_exists=lambda dt: True, get_default=lambda k: None), get_all=lambda *a, **k: [])
 	with patch.object(bw, "frappe", f):
-		la("bảng có mà rỗng thì coi như chưa dùng", bw.so_ghi(), None)
+		la("chưa gieo xong thì coi như chưa dùng", bw.so_ghi(), None)
 	f2 = types.SimpleNamespace(db=types.SimpleNamespace(table_exists=lambda dt: False))
 	with patch.object(bw, "frappe", f2):
 		la("chưa migrate", bw.so_ghi(), None)
@@ -275,3 +275,109 @@ def _():
 	for tep in ("dua_len_web_644.js", "bien_tap_banh_644.js"):
 		r = subprocess.run(["node", str(thu / tep)], capture_output=True, text=True, timeout=120)
 		la(tep + " mã trả về", (r.returncode, (r.stdout + r.stderr)[-600:] if r.returncode else ""), (0, ""))
+
+
+def _f_dau(dau, the=(), doc_loi=False, dau_loi=False):
+	"""Frappe giả cho dấu đã gieo và việc đọc bảng."""
+	nk = []
+
+	def get_default(k):
+		if dau_loi:
+			raise RuntimeError("db")
+		return dau.get(k)
+
+	def get_all(*a, **k):
+		if doc_loi:
+			raise RuntimeError("Lost connection")
+		return [dict(x) for x in the]
+	f = types.SimpleNamespace(db=types.SimpleNamespace(table_exists=lambda dt: True, get_default=get_default),
+		get_all=get_all, log_error=lambda **k: nk.append(k.get("title")), get_traceback=lambda: "")
+	return f, nk
+
+
+@ca("Codex PR #547 tái hiện: bấm Đưa lên web trước lúc việc gieo chạy, một thẻ không được coi là đã gieo; web vẫn đường cũ")
+def _():
+	# Trước bản sửa (1c8d221f): so_ghi coi bảng có 1 thẻ là đang dùng, Roman De
+	# La Rose biến mất, Very Berry Chờ ảnh: 0 trên 2 bánh còn hiện.
+	the = [_bg("Very Berry", bw.CHO_ANH)]
+	f, _nk = _f_dau({}, the)
+	with patch.object(bw, "frappe", f):
+		la("chưa có dấu đã gieo: đường cũ", bw.so_ghi(), None)
+	f, _nk = _f_dau({bw.CO_GIEO: "1"}, the)
+	with patch.object(bw, "frappe", f):
+		la("đã gieo xong: theo thẻ", list(bw.so_ghi()), ["very berry"])
+	f, _nk = _f_dau({bw.CO_GIEO: "1"}, [])
+	with patch.object(bw, "frappe", f):
+		la("đã gieo mà không thẻ nào: không bánh nào hiện, không quay về đường cũ", bw.so_ghi(), {})
+
+
+@ca("Codex PR #547 tái hiện: bảng đang dùng mà đọc lỗi thì khách không thấy bánh nào, không quay về đường cũ làm lộ bánh đã ẩn")
+def _():
+	# Trước bản sửa: so_ghi trả None, kiem_banh chạy đường cũ và hiện lại Hannari
+	# Marketing đã ẩn cùng ảnh Pancake.
+	f, nk = _f_dau({bw.CO_GIEO: "1"}, doc_loi=True)
+	goi = []
+	with patch.object(bw, "frappe", f), patch.object(kb, "_bo_anh_mo_ta", lambda ds: goi.append(1)):
+		ra = kb._anh_noi_dung_web([{"ten": "Hannari", "anh": "", "sizes": [{"ma": "BAWC00024", "cm": 0}]}])
+	la("không bánh nào, không gọi đường cũ", (ra, goi), ([], []))
+	la("ghi lỗi cho kỹ thuật", nk, ["Bánh trên web: không đọc được bảng"])
+	f, nk = _f_dau({}, [_bg("Hannari", bw.DA_AN, [("/files/h.png", B_CAN)])], dau_loi=True)
+	with patch.object(bw, "frappe", f):
+		la("không đọc được dấu: coi như đang dùng, Hannari vẫn ẩn", bw.ap_cho_web([{"ten": "Hannari", "sizes": [{"ma": "BAWC00024"}]}]), [])
+	la("ghi lỗi dấu", nk, ["Bánh trên web: không đọc được dấu đã gieo"])
+
+
+@ca("Codex PR #547: việc gieo gieo đủ khoá còn thiếu, giữ thẻ Marketing đã sửa, điền thẻ Chờ ảnh trống, đặt dấu một lần; migrate sau vẫn xếp việc khi chưa có dấu")
+def _():
+	kho = []
+	_Doc.kho = kho
+	dau, commit, xep = {}, [], []
+	sua = _Doc(_bg("Hannari", bw.DA_AN, [("/files/h-moi.png", B_CAN)], mo_ta="Chữ Marketing"), name="BW-1", ma_hang="BAWC00024")
+	cho = _Doc(_bg("Very Berry", bw.CHO_ANH), name="BW-2", ma_hang="BAWC00086")
+	kho += [sua, cho]
+	f = types.SimpleNamespace()
+	f.db = types.SimpleNamespace(
+		table_exists=lambda dt: True, get_default=lambda k: dau.get(k), set_default=lambda k, v: dau.__setitem__(k, v),
+		count=lambda dt: len(kho), commit=lambda: commit.append(1),
+		get_value=lambda dt, flt, fld: next((d["name"] for d in kho if d["khoa"] == flt["khoa"]), None))
+	f.get_doc = lambda x, ten=None: (next(d for d in kho if d["name"] == ten) if ten else _Doc(x, name="BW-%d" % (len(kho) + 1)))
+	f.utils = types.SimpleNamespace(now_datetime=lambda: "2026-11-07 23:00:00")
+	f.enqueue = lambda *a, **k: xep.append(a[0])
+	f.log_error = lambda *a, **k: None
+	nhom = [{"ten": "Hannari", "sizes": [{"ma": "BAWC00024"}], "anhs": ["/files/h.png"]},
+		{"ten": "Very Berry", "sizes": [{"ma": "BAWC00086"}, {"ma": "BAWC00087"}], "anhs": ["/files/vb.png", "/files/vb-2.png"], "mo_ta": "Vỏ sô cô la."},
+		{"ten": "Roman De La Rose", "sizes": [{"ma": "BAWC00001"}], "anhs": ["/files/r.png"]}]
+	bam = {"/files/h.png": B_CAN, "/files/vb.png": B_VB, "/files/vb-2.png": B_VB_PANCAKE, "/files/r.png": "1234567890abcdef"}
+	with patch.object(bw, "frappe", f), patch.object(bw, "_ma_ung_vien", lambda: []), patch.object(bw, "_chu_bien_tap", lambda: {}), \
+			patch.object(bw, "nhom_gieo", lambda *a: json.loads(json.dumps(nhom))), patch.object(kb, "_bo_anh_mo_ta", lambda ds: None), \
+			patch.object(bw, "bam_url", lambda u: bam[u]):
+		bw.gieo()
+		la("đã có thẻ mà chưa có dấu: migrate vẫn xếp việc gieo", xep, ["vagabond.banh_web.gieo_that"])
+		tao = bw.gieo_that()
+		la("tạo một thẻ mới (Roman)", (tao, [d["ten"] for d in kho]), (1, ["Hannari", "Very Berry", "Roman De La Rose"]))
+		la("thẻ Marketing đã sửa giữ nguyên", (sua["trang_thai"], sua["anh"], sua["mo_ta"], sua.get("_luu")),
+			(bw.DA_AN, _bg("x", bw.DA_AN, [("/files/h-moi.png", B_CAN)])["anh"], "Chữ Marketing", None))
+		la("thẻ Chờ ảnh trống nhận bộ ảnh đã gộp trùng, đủ mã, Đang hiện",
+			(cho["trang_thai"], [x["url"] for x in bw.doc_anh(cho["anh"])], cho["ma_hang"], cho["mo_ta"]),
+			(bw.DANG_HIEN, ["/files/vb.png"], "BAWC00086\nBAWC00087", "Vỏ sô cô la."))
+		la("dấu đã gieo và lưu", (dau, len(commit)), ({bw.CO_GIEO: "1"}, 1))
+		la("gieo lần hai không làm gì", bw.gieo_that(), 0)
+		xep.clear()
+		bw.gieo()
+		la("đã có dấu: không xếp việc nữa", xep, [])
+
+
+@ca("Codex PR #547: máy chủ báo trang Vue bảng Bánh trên web đang dùng (chi_hien), kể cả khi mọi bánh bị ẩn và khi chưa có phiếu kiểm hôm nay")
+def _():
+	sg = {x["khoa"]: x for x in (_bg("Very Berry", bw.CHO_ANH), _bg("Kankin", bw.DA_AN, [("/files/k2.png", B_CAN)]))}
+	decor = [_dong(ma_hang="BAWC00124X", ten_banh="Kankin", so_decor=2, hinh="")]
+	with patch.dict(ITEM, ITEM2, clear=False), patch.object(bw, "so_ghi", lambda: sg), patch.object(bw, "dang_dung", lambda: True):
+		kq = _chay(kb.co_the_ban_hom_nay, kiem_hom_nay=_vb_dong(), decor=decor)
+	la("đang dùng, hai danh sách rỗng", (kq["chi_hien"], kq["nhom"], kq["dat_truoc"]["nhom"], kq["banh"]), (1, [], [], {}))
+	with patch.dict(ITEM, ITEM2, clear=False), patch.object(bw, "so_ghi", lambda: None), patch.object(bw, "dang_dung", lambda: False), \
+			patch.object(kb, "_bo_anh_mo_ta", lambda ds: None):
+		kq = _chay(kb.co_the_ban_hom_nay, kiem_hom_nay=_vb_dong(), decor=[])
+	la("chưa dùng", kq["chi_hien"], 0)
+	with patch.object(bw, "so_ghi", lambda: sg), patch.object(bw, "dang_dung", lambda: True):
+		kq = _chay(kb.co_the_ban_hom_nay, kiem_hom_nay=None, decor=[])
+	la("chưa có phiếu kiểm hôm nay vẫn báo", kq["chi_hien"], 1)
