@@ -219,20 +219,38 @@ def _bang_co():
 		return False
 
 
+CO_GIEO = "vagabond_banh_web_da_gieo"
+
+
+def dang_dung():
+	"""Bảng Bánh trên web đã gieo xong lần đầu (Codex PR #547: dấu riêng, không
+	lấy "bảng có thẻ" làm dấu vì người bấm Đưa lên web trước khi việc gieo chạy
+	đã tạo một thẻ). Chưa xong thì web chạy đường cũ. Không đọc được dấu thì coi
+	như ĐANG dùng: thà ẩn bánh còn hơn hiện bánh Marketing đã ẩn."""
+	if not _bang_co():
+		return False
+	try:
+		return bool(frappe.db.get_default(CO_GIEO))
+	except Exception:
+		frappe.log_error(title="Bánh trên web: không đọc được dấu đã gieo", message=frappe.get_traceback())
+		return True
+
+
 def so_ghi():
 	"""{khoá: bản ghi} của mọi bánh, hoặc None khi chưa dùng (bảng chưa có hay
-	chưa gieo bản ghi nào): khi đó web chạy đường cũ, không ẩn bánh nào."""
-	if not _bang_co():
+	chưa gieo xong): khi đó web chạy đường cũ, không ẩn bánh nào.
+
+	Codex PR #547: bảng đang dùng mà đọc lỗi thì trả {} (khách không thấy bánh
+	nào) chứ không trả None, vì đường cũ bỏ qua mọi quyết định ẩn đã lưu."""
+	if not dang_dung():
 		return None
 	try:
 		ds = frappe.get_all(DT, fields=["name", "khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "ma_hang"],
 			limit_page_length=0, ignore_permissions=True)
 	except Exception:
 		frappe.log_error(title="Bánh trên web: không đọc được bảng", message=frappe.get_traceback())
-		return None
-	if not ds:
-		return None
-	return {x["khoa"]: x for x in ds}
+		return {}
+	return {x["khoa"]: x for x in ds or []}
 
 
 def ap_cho_web(ds_nhom):
@@ -420,12 +438,13 @@ def them_anh(khoa=None, url=None):
 	if cu:
 		return dict(ds_bien_tap(), khoa=khoa, trung=cu["url"])
 	if len(ds) >= SO_ANH_TOI_DA:
-		frappe.throw("Mỗi bánh tối đa %d ảnh. Xoá bớt một ảnh rồi tải lại." % SO_ANH_TOI_DA)
+		frappe.throw("Mỗi bánh tối đa %d ảnh. Bỏ bớt một ảnh, bấm Lưu bánh rồi tải lại." % SO_ANH_TOI_DA)
 	ds.append({"url": u, "bam": bam})
 	bg.anh = json.dumps(ds, ensure_ascii=False)
 	bg.flags.ignore_permissions = True
 	bg.save()
-	return dict(ds_bien_tap(), khoa=khoa, trung="")
+	# Codex PR #547: trả đúng ảnh vừa thêm để màn chỉ ghép ảnh đó vào bản đang sửa.
+	return dict(ds_bien_tap(), khoa=khoa, trung="", them=u)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -472,7 +491,7 @@ def gieo():
 	ảnh Pancake để băm, không làm chậm migrate). Trong lúc chờ, web chạy đường
 	cũ vì so_ghi trả None."""
 	try:
-		if not _bang_co() or frappe.db.count(DT):
+		if not _bang_co() or frappe.db.get_default(CO_GIEO):
 			return
 		frappe.enqueue("vagabond.banh_web.gieo_that", queue="long", timeout=3000, enqueue_after_commit=True,
 			job_id="vgb_gieo_banh_web", deduplicate=True)
@@ -520,26 +539,44 @@ def nhom_gieo(ds_item, chu_ma):
 
 def gieo_that():
 	"""Chép bộ ảnh và chữ ĐANG hiện của từng bánh vào bảng, gộp ảnh giống nhau.
-	Bánh có ảnh: Đang hiện (khách thấy như trước). Không ảnh: Chờ ảnh."""
+	Bánh có ảnh: Đang hiện (khách thấy như trước). Không ảnh: Chờ ảnh.
+
+	Codex PR #547: gieo đủ mọi khoá còn thiếu rồi mới đặt dấu đã gieo; thẻ có
+	sẵn (người bấm Đưa lên web trước lúc gieo) được giữ, chỉ thẻ còn Chờ ảnh
+	chưa có ảnh nào mới nhận bộ ảnh và chữ đang hiện của bánh đó."""
 	from vagabond import kiem_banh
 
-	if frappe.db.count(DT):
-		return
+	if frappe.db.get_default(CO_GIEO):
+		return 0
 	ds = nhom_gieo(_ma_ung_vien(), _chu_bien_tap())
 	kiem_banh._bo_anh_mo_ta(ds)
 	tao = 0
 	for g in ds:
 		k = khoa_banh(g["ten"])
-		if frappe.db.exists(DT, {"khoa": k}):
-			continue
 		anh = gop_trung([{"url": u, "bam": bam_url(u)} for u in (g.get("anhs") or []) if u != ANH_NEN])
 		chu = g.get("_chu") or {}
 		mo_ta = chu.get("mo_ta") or g.get("mo_ta") or ""
-		tang = chu.get("tang") or "\n".join(g.get("tang") or [])
+		tang = "\n".join(tach_dong(chu.get("tang") or "\n".join(g.get("tang") or []), SO_TANG_TOI_DA))
+		ma = [s["ma"] for s in g["sizes"]]
+		ten = frappe.db.get_value(DT, {"khoa": k}, "name")
+		if ten:
+			bg = frappe.get_doc(DT, ten)
+			if bg.trang_thai != CHO_ANH or doc_anh(bg.anh) or not anh:
+				continue
+			for m in ma:
+				bg.ma_hang = _them_ma(bg.ma_hang, m)
+			bg.anh = json.dumps(anh, ensure_ascii=False)
+			bg.trang_thai = DANG_HIEN
+			bg.mo_ta = bg.mo_ta or mo_ta
+			bg.tang = bg.tang or tang
+			bg.flags.ignore_permissions = True
+			bg.save()
+			continue
 		frappe.get_doc({"doctype": DT, "khoa": k, "ten": g["ten"], "trang_thai": DANG_HIEN if anh else CHO_ANH,
-			"ma_hang": "\n".join(s["ma"] for s in g["sizes"]), "anh": json.dumps(anh, ensure_ascii=False),
-			"mo_ta": mo_ta, "tang": "\n".join(tach_dong(tang, SO_TANG_TOI_DA)), "dua_boi": "Gieo lần đầu v644",
+			"ma_hang": "\n".join(ma), "anh": json.dumps(anh, ensure_ascii=False),
+			"mo_ta": mo_ta, "tang": tang, "dua_boi": "Gieo lần đầu v644",
 			"dua_luc": frappe.utils.now_datetime()}).insert(ignore_permissions=True)
 		tao += 1
+	frappe.db.set_default(CO_GIEO, "1")
 	frappe.db.commit()
 	return tao

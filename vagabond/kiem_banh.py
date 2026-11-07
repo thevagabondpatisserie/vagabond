@@ -1460,7 +1460,8 @@ def co_the_ban_hom_nay():
 	"""
 	ngay = getdate()
 	ma = "KB-%s" % ngay
-	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": [], "dat_truoc": _dat_truoc_theo_decor()}
+	chi_hien = _web_chi_hien()
+	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": [], "dat_truoc": _dat_truoc_theo_decor(), "chi_hien": chi_hien}
 	if not frappe.db.exists("Kiem Banh Ngay", ma):
 		return rong
 	doc = frappe.get_doc("Kiem Banh Ngay", ma)
@@ -1542,7 +1543,16 @@ def co_the_ban_hom_nay():
 		"mon": mon,
 		"nhom": ds_nhom,
 		"dat_truoc": _dat_truoc_theo_decor(),
+		"chi_hien": chi_hien,
 	}
+
+
+def _web_chi_hien():
+	"""v644, Codex PR #547: 1 khi bảng Bánh trên web đang dùng. Trang Vue khi
+	đó chỉ hiện bánh máy chủ trả về, kể cả khi danh sách rỗng."""
+	from vagabond import banh_web
+
+	return 1 if banh_web.dang_dung() else 0
 
 
 def _anh_noi_dung_web(ds_nhom):
