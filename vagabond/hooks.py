@@ -918,7 +918,8 @@ override_doctype_class = {
 # bam "Tao moi" thanh ra danh muc sinh trung. Xem vagabond/tim_don_vi.py.
 standard_queries = {"UOM": "vagabond.tim_don_vi.tim_uom"}
 
-after_migrate = ["vagabond.truong_tu_them.dung", "vagabond.quy_cach_ncc.dung", "vagabond.doi_soat_thu.gieo_mac_dinh"]
+after_migrate = ["vagabond.truong_tu_them.dung", "vagabond.quy_cach_ncc.dung", "vagabond.doi_soat_thu.gieo_mac_dinh",
+	"vagabond.banh_web.gieo"]
 
 # #262: nối vào chuỗi hiện có, không thay hook bảo vệ chứng từ trước đó.
 for _dt_ct, _su_kien_ct, _ham_ct in (
@@ -1229,3 +1230,6 @@ for _gio_v641, _ham_v641 in (
 website_route_rules = list(website_route_rules) + [
 	{"from_route": "/sitemap.xml", "to_route": "vgb-sitemap.xml"},
 ]
+
+# v644 (anh Việt duyệt 07/11/2026): nhắc Marketing bánh đã đưa lên web mà còn Chờ ảnh.
+scheduler_events.setdefault("cron", {}).setdefault("41 8 * * *", []).append("vagabond.banh_web.nhac_cho_anh")

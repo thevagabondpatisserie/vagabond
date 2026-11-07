@@ -149,7 +149,8 @@ function appMoi(tuy) {
     var app = appMoi(); await nghi();
     /* v625: thêm thẻ Câu hỏi ứng tuyển ngay sau Tuyển dụng. */
     /* v630: thêm thẻ Thiết kế riêng ngay sau Tiệc. */
-    bang('9 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'tiec', 'thiet_ke_rieng', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
+    /* v644: thêm thẻ Bánh ngay sau Ưu đãi (ảnh, mô tả, tầng hương vị từng bánh). */
+    bang('10 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'banh', 'tiec', 'thiet_ke_rieng', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
     dung('dem uu dai tu ERP', String(app.mot('[data-the="uu_dai"]').textContent).indexOf('Ưu đãi2') === 0);
     bang('khong hien uu dai go tay', app.tim('[data-muc]').length, 0);
     var u1 = String(app.mot('[data-muc-erp="SN10"]').textContent);

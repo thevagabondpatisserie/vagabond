@@ -1,0 +1,116 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Banh Web",
+ "module": "Vagabond",
+ "custom": 0,
+ "istable": 0,
+ "autoname": "field:khoa",
+ "naming_rule": "By fieldname",
+ "engine": "InnoDB",
+ "track_changes": 1,
+ "title_field": "ten",
+ "search_fields": "ten,ma_hang",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "modified": "2026-11-07 21:00:00.000000",
+ "description": "v644: ảnh, mô tả và tầng hương vị của MỘT bánh trên web (mọi size dùng chung). Sửa ở trình biên tập web, thẻ Bánh.",
+ "field_order": [
+  "khoa",
+  "ten",
+  "trang_thai",
+  "ma_hang",
+  "anh",
+  "mo_ta",
+  "tang",
+  "dua_boi",
+  "dua_luc",
+  "nhac_luc"
+ ],
+ "fields": [
+  {
+   "fieldname": "khoa",
+   "label": "Khoá bánh",
+   "fieldtype": "Data",
+   "reqd": 1,
+   "unique": 1,
+   "read_only": 1,
+   "description": "Tên bánh không có size, viết thường. Máy dùng để gom các size."
+  },
+  {
+   "fieldname": "ten",
+   "label": "Tên bánh",
+   "fieldtype": "Data",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "label": "Trạng thái trên web",
+   "fieldtype": "Select",
+   "options": "Chờ ảnh\nĐang hiện\nĐã ẩn",
+   "default": "Chờ ảnh",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Chờ ảnh: khách chưa thấy, chờ Marketing thêm ảnh. Đang hiện: khách thấy. Đã ẩn: Marketing tắt."
+  },
+  {
+   "fieldname": "ma_hang",
+   "label": "Các mã size",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "description": "Mỗi dòng một mã hàng ERP thuộc bánh này."
+  },
+  {
+   "fieldname": "anh",
+   "label": "Ảnh (JSON)",
+   "fieldtype": "Code",
+   "options": "JSON",
+   "read_only": 1,
+   "description": "Danh sách tối đa 5 ảnh, ảnh đầu là ảnh bìa. Sửa ở trình biên tập web."
+  },
+  {
+   "fieldname": "mo_ta",
+   "label": "Mô tả",
+   "fieldtype": "Small Text"
+  },
+  {
+   "fieldname": "tang",
+   "label": "Tầng hương vị",
+   "fieldtype": "Small Text",
+   "description": "Mỗi dòng một tầng."
+  },
+  {
+   "fieldname": "dua_boi",
+   "label": "Người đưa lên web",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dua_luc",
+   "label": "Lúc đưa lên web",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nhac_luc",
+   "label": "Lần nhắc Marketing gần nhất",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

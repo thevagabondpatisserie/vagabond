@@ -8,7 +8,7 @@
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
 import {bienNhan} from '../../../public/web_vue/trang/app.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
-import {t0, tienVN, hangGui} from '../../../public/web_vue/kho/thuan.js';
+import {t0, tienVN, hangGui, tronMon} from '../../../public/web_vue/kho/thuan.js';
 import {nextTick} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
 
 let dat = 0, hong = 0;
@@ -493,6 +493,16 @@ await ca('v598 port v597: thiệp nhỏ đi cùng dòng giỏ qua cộng dồn, 
   k.luuGio();
   const k2 = taoKho(a.mt); k2.phucHoiGio();
   la('tải lại trang giữ thiệp', k2.S.CART.map(o => o.dung_cu.thiep), [2, 3]);
+});
+
+await ca('v644 bánh có bộ nội dung web: mô tả, tầng chỉ lấy từ thẻ Bánh, kể cả khi để trống; bánh cũ giữ đường cũ', async () => {
+  const cakes = [{k: 'Very Berry', img: '/cu.png', desc: 'Mô tả tĩnh cũ', layers: [['Cũ', '']], sizes: [{cm: 12, p: 1, id: 'BAWC00086'}]},
+    {k: 'Kankin', img: '/k.png', desc: 'Kankin tĩnh', layers: [], sizes: [{cm: 16, p: 1, id: 'BAWC00124'}]}];
+  tronMon(cakes, [
+    {ten: 'Very Berry', anh: '/files/vb.png', anhs: ['/files/vb.png', '/files/can.jpg'], mo_ta: '', tang: [], tu_web: 1, sizes: [{cm: 12, ma: 'BAWC00086', gia: 620000}]},
+    {ten: 'Kankin', anh: '/files/k2.png', anhs: ['/files/k2.png'], mo_ta: '', tang: [], sizes: [{cm: 16, ma: 'BAWC00124', gia: 900000}]}]);
+  la('Very Berry theo thẻ Bánh', [cakes[0].tuWeb, cakes[0].desc, cakes[0].layers, cakes[0].anhs], [1, '', [], ['/files/vb.png', '/files/can.jpg']]);
+  la('Kankin (đường cũ) giữ chữ tĩnh khi máy chủ không gửi', [cakes[1].tuWeb, cakes[1].desc], [undefined, 'Kankin tĩnh']);
 });
 
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');

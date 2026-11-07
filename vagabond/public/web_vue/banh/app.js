@@ -84,9 +84,10 @@ export function khoiDong(goc = '#app') {
         const avail = c.sizes.filter(s => S.TODAY[s.id] > 0);
         const nhanMua = tMon(c.sizes[0].id, 'theo_mua', c.seasonal);
         const tangChu = tMon(ma, 'tang', '');
-        const tang = tangChu ? tangChu.split('\n').filter(x => x.trim()).map(x => [x, '']) : c.layers;
+        /* v644: bánh có bộ nội dung web thì chữ riêng từng mã ở mục Nội dung bánh (Nâng cao) không đè lên. */
+        const tang = !c.tuWeb && tangChu ? tangChu.split('\n').filter(x => x.trim()).map(x => [x, '']) : c.layers;
         const anhs = (c.anhs && c.anhs.length ? c.anhs : (c.img ? [c.img] : [])).slice(0, 5);
-        return {c, ten: tMon(ma, 'ten', c.k), vi: kho.T.laChuViet(c.k), moTa: tMon(ma, 'mo_ta', c.desc), tang, anhs,
+        return {c, ten: tMon(ma, 'ten', c.k), vi: kho.T.laChuViet(c.k), moTa: c.tuWeb ? c.desc : tMon(ma, 'mo_ta', c.desc), tang, anhs,
           tinhTrang: avail.length ? 'co' : (nhanMua ? 'mua' : 'truoc'), nhanMua,
           tonChu: avail.length ? kho.T.nhanTon(avail.reduce((a, s) => a + S.TODAY[s.id], 0), banh, t) : ''};
       });

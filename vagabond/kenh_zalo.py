@@ -70,7 +70,8 @@ TEN_CHU_DE = {"kho": "Kho", "san_xuat": "Sản xuất", "cong_no": "Công nợ",
 # nhóm chưa chọn Tin nhận (lọc kiểu cũ) và cho giờ im (chỉ Cảnh báo vượt giờ im).
 # v609: thêm "Thu mua" và "Kho" (anh Việt duyệt mẫu tin 22/10/2026).
 # v622: thêm "Nhân sự" (tin tuyển dụng, anh Việt 30/10/2026).
-BO_PHAN = ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống")
+# v644: thêm "Marketing" (bánh chờ ảnh trên web, banh_web.py).
+BO_PHAN = ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Marketing", "Hệ thống")
 TIN = {
 	"bgd_bao_cao_ngay": ("Ban giám đốc", "Báo cáo cuối ngày (23:30)",
 		"23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.", "ban_tin", "ban_hang"),
@@ -286,6 +287,9 @@ TIN = {
 		"Có người vừa nộp hồ sơ (web, mã QR hoặc quản lý thêm tay): tên, số điện thoại, vị trí, ca rảnh.", "viec", "tuyen_dung"),
 	"ns_ung_vien_qua_han": ("Nhân sự", "Hồ sơ quá 24 giờ chưa ai gọi",
 		"Mỗi giờ: hồ sơ còn Mới nhận đã nộp quá 24 giờ, mỗi hồ sơ nhắc một lần.", "viec", "tuyen_dung"),
+	# v644 (anh Việt duyệt 07/11/2026): bánh đưa lên web chờ Marketing thêm ảnh (banh_web.py).
+	"mkt_banh_cho_anh": ("Marketing", "Bánh mới chờ ảnh trên web",
+		"Ngay khi có người bấm Đưa lên web, và 08:41 mỗi sáng còn bánh chưa có ảnh: khách chưa thấy các bánh này.", "viec", "don_web"),
 	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",
@@ -311,6 +315,8 @@ DIEU_KIEN = {
 	"tro_giup_cho": "vagabond.goi_mon_ban.con_tro_giup",
 	# v641: thư đối soát về muộn trong giờ im thì không nhắc nữa.
 	"ds_thieu_thu": "vagabond.doi_soat_thu.con_thieu_thu",
+	# v644: Marketing đã thêm ảnh (hết Chờ ảnh) thì không nhắc nữa.
+	"banh_cho_anh": "vagabond.banh_web.con_cho_anh",
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
 CHO_GUI = "Chờ gửi"
