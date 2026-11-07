@@ -98,7 +98,8 @@ def _vong_doi():
 			(float(round(tong2 * 0.1)), float(tong2 - round(tong2 * 0.1))))
 
 		truoc = frappe.db.count("Vagabond CTKM Su Dung", {"hoa_don": si.name})
-		kq = khong_nem("thu ngân chốt bill", lambda: ban_hang.pos_chot(si.name))
+		# Bench #546: thu ngân chốt là chọn phương thức thanh toán, đúng như màn quầy.
+		kq = khong_nem("thu ngân chốt bill", lambda: ban_hang.pos_chot(si.name, pt="Tiền mặt"))
 		if not kq:
 			return
 		si.reload()
