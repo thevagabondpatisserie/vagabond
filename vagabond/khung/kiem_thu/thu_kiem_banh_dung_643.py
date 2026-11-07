@@ -54,3 +54,47 @@ def _dung():
 			except ValueError:
 				pass
 		la("lỗi thật không lùi, không làm lại", (len(lan), len(lui)), (1, 0))
+
+
+@ca("Codex #546 vòng 4: chốt ngày mà hai lần đồng bộ đều bị chen thì DỪNG, không chuyển tồn sang mai trên số cũ; một lần chen thì chốt bình thường")
+def _chot():
+	import frappe
+	from types import SimpleNamespace as NS
+	from vagabond import kiem_banh as kb
+
+	viec = []
+
+	class Dung(Exception):
+		pass
+
+	def lay_mai(ngay):
+		viec.append("mai")
+		raise Dung()
+
+	def chay(seq):
+		viec.clear()
+		doc = NS(tinh_trang="Dang mo", reload=lambda: viec.append("reload"), dong=[])
+
+		def mot(ngay=None):
+			x = seq.pop(0)
+			viec.append("dong_bo")
+			if isinstance(x, Exception):
+				raise x
+			return x
+		with patch.object(frappe, "get_doc", lambda *a, **k: doc, create=True), \
+				patch.object(frappe.db, "rollback", lambda *a, **k: viec.append("lui"), create=True), \
+				patch.object(kb, "bang", lambda ngay=None: {"bang": "cu"}), \
+				patch.object(kb, "_dong_bo_mot_lan", mot), patch.object(kb, "_lay_hoac_tao", lay_mai):
+			try:
+				kb.chot_ngay("2026-11-06")
+				return "chốt xong"
+			except Dung:
+				return "đi tiếp tới bước chuyển tồn"
+			except frappe.ValidationError as e:
+				return "dừng: " + str(e)
+	ra = chay([TimestampMismatchError("a"), TimestampMismatchError("b")])
+	dung("hai lần bị chen: dừng, báo chốt lại (%s)" % ra, ra.startswith("dừng:") and "bấm Chốt lại" in ra)
+	la("không đọc lại bảng, không chuyển tồn", [x for x in viec if x in ("reload", "mai")], [])
+	ra = chay([TimestampMismatchError("a"), {"bang": "moi"}])
+	la("một lần bị chen: làm lại được thì chốt tiếp", (ra, viec), ("đi tiếp tới bước chuyển tồn", ["dong_bo", "lui", "dong_bo", "reload", "mai"]))
+	la("THUẦN: lớp lỗi riêng là lỗi kiểm dữ liệu (ValidationError)", issubclass(kb.DongBoBiChen, frappe.ValidationError), True)

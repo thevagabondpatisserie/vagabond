@@ -743,7 +743,7 @@ def _():
 			except _Nem as e:
 				return str(e), ghi
 
-	def ok(t, u, c, kiem_lai=False):
+	def ok(t, u, c, kiem_lai=False, giu_xac_thuc=False):
 		chay.append(u)
 	ra, ghi = lam(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="/private/files/a.eml", uid="5",
 		ket_qua_sau=T.KQ_XAC_THUC), ok)
@@ -757,7 +757,7 @@ def _():
 		ra, ghi = lam(thu, ok)
 		dung("chặn: %s (%s)" % (y, ra), y in str(ra) and chay == [])
 
-	def dns(t, u, c, kiem_lai=False):
+	def dns(t, u, c, kiem_lai=False, giu_xac_thuc=False):
 		raise K.LoiDnsTam("Timeout")
 	ra, ghi = lam(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="x", uid="5"), dns)
 	dung("DNS lỗi tạm: báo thử lại sau, lùi giao dịch (%s)" % ra, "Thử lại sau" in str(ra) and "rollback" in ghi)

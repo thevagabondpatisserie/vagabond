@@ -303,14 +303,14 @@ def _():
 		get_all=lambda dt, filters=None, pluck=None: list(nguon) if filters == {"thu": "THU-1"} else [],
 		throw=lambda m, *a, **k: (_ for _ in ()).throw(Nem(m)), ValidationError=Nem, log_error=lambda *a, **k: None)
 	with patch.object(T, "_frappe", lambda: fr), patch.object(T, "cau_hinh", lambda: CH), \
-			patch.object(T, "_xu_ly", lambda t, u, c, kiem_lai=False: chay.append((u, kiem_lai))):
+			patch.object(T, "_xu_ly", lambda t, u, c, kiem_lai=False, giu_xac_thuc=False: chay.append((u, kiem_lai, giu_xac_thuc))):
 		ra = T.doc_lai_thu("THU-1")
-		la("Bị chặn: chạy lại với cờ kiểm lại, commit", (chay, "commit" in ghi, ra.ket_qua), ([("5", True)], True, T.KQ_XAC_THUC))
+		la("Bị chặn: chạy lại với cờ kiểm lại, commit", (chay, "commit" in ghi, ra.ket_qua), ([("5", True, False)], True, T.KQ_XAC_THUC))
 		chay.clear()
 		thu.update(ket_qua=T.KQ_XAC_THUC)
 		nguon[:] = ["Đã khớp", "Cần xử lý"]
 		ra = T.doc_lai_thu("THU-1")
-		la("Đã xác thực mà còn nguồn Cần xử lý: đọc lại tệp từ thư", chay, [("5", True)])
+		la("Đã xác thực mà còn nguồn Cần xử lý: đọc lại tệp, giữ kết quả xác thực", chay, [("5", True, True)])
 		for kq, ng in ((T.KQ_XAC_THUC, ["Đã khớp"]), (T.KQ_XAC_THUC, []), (T.KQ_KHONG_TEP, ["Cần xử lý"]), (T.KQ_CHO, [])):
 			chay.clear()
 			nguon[:] = ng
@@ -333,6 +333,39 @@ def _():
 		la("lượt thường: bỏ qua thư đã xong", T._xu_ly(_thu("greensm_qua_loc.eml"), 5, CH), None)
 		la("kiểm lại: xử lý lại", T._xu_ly(_thu("greensm_qua_loc.eml"), 5, CH, kiem_lai=True), "DST-9")
 	dung("đã ghi lại kết quả mới", any(isinstance(x, dict) and x.get("ket_qua") == T.KQ_XAC_THUC for x in viec))
+
+
+@ca("v643 Đọc lại thư gốc: thư ĐÃ xác thực mà nay kiểm lại không đạt (đối tác đổi khoá) thì dừng, không hạ thành Bị chặn, không báo thư giả")
+def _():
+	viec = []
+
+	class Nem(Exception):
+		pass
+	fr = NS(db=NS(get_value=lambda *a, **k: NS(name="DST-9", xong=1, tep_goc="x")),
+		get_doc=lambda *a, **k: NS(name="DST-9", nhan_luc="x", db_set=lambda *a, **k: viec.append(a[0] if a else k)),
+		throw=lambda m, *a, **k: (_ for _ in ()).throw(Nem(m)))
+	doi_khoa = dict(DNS, **{"smtp._domainkey.greensm.com": DNS["t643._domainkey.gmail.com"]})
+	with patch.object(T, "_frappe", lambda: fr), patch.object(K, "lay_khoa_dns", lambda ten: doi_khoa.get(ten, "").encode() or None), \
+			patch.object(V, "_cong_ty", lambda: "A"), patch.object(V, "_nhan_byte", lambda *a, **k: viec.append("nhan") or []):
+		try:
+			T._xu_ly(_thu("greensm_qua_loc.eml"), 5, CH, kiem_lai=True, giu_xac_thuc=True)
+			ra = "chạy"
+		except Nem as e:
+			ra = str(e)
+	dung("dừng và nói giữ kết quả cũ (%s)" % ra[:80], "giữ nguyên kết quả cũ" in ra)
+	la("không ghi gì, không đọc tệp", viec, [])
+
+	def tam(ten):
+		raise K.LoiDnsTam("Timeout")
+	with patch.object(T, "_frappe", lambda: fr), patch.object(K, "lay_khoa_dns", tam), patch.object(V, "_cong_ty", lambda: "A"):
+		try:
+			T._xu_ly(_thu("greensm_qua_loc.eml"), 5, CH, kiem_lai=True, giu_xac_thuc=True)
+			ra = "chạy"
+		except K.LoiDnsTam:
+			ra = "LoiDnsTam"
+		except Nem as e:
+			ra = str(e)
+	la("DNS lỗi tạm: vẫn báo thử lại sau, không nói đổi khoá", ra, "LoiDnsTam")
 
 
 @ca("v643 Cài đặt: ô Hộp thư nội bộ được chuyển tiếp gieo một lần khi trống, xoá trắng thì không gieo lại")
