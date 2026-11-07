@@ -1529,15 +1529,33 @@ def co_the_ban_hom_nay():
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
 
-	_bo_anh_mo_ta([nhom[k] for k in thu_tu])
+	ds_nhom = _anh_noi_dung_web([nhom[k] for k in thu_tu])
+	# v644: bánh khách chưa được thấy (chưa đưa lên web, Chờ ảnh, Đã ẩn) bỏ
+	# khỏi CẢ bảng số và danh sách món, không chỉ khỏi nhóm: trang Vue dựng
+	# thẻ từ danh mục sẵn có theo số tồn của từng mã.
+	con = {s["ma"]: g["anh"] for g in ds_nhom for s in g["sizes"]}
+	mon = [dict(m, anh=con[m["ma"]]) for m in mon if m["ma"] in con]
 
 	return {
 		"ngay": str(ngay),
-		"banh": {d.ma_hang: d.co_the_ban for d in dong},
+		"banh": {d.ma_hang: d.co_the_ban for d in dong if d.ma_hang in con},
 		"mon": mon,
-		"nhom": [nhom[k] for k in thu_tu],
+		"nhom": ds_nhom,
 		"dat_truoc": _dat_truoc_theo_decor(),
 	}
+
+
+def _anh_noi_dung_web(ds_nhom):
+	"""v644: ảnh, mô tả, tầng hương vị và việc hiện hay ẩn của từng bánh lấy
+	từ bảng Bánh trên web (banh_web.py, Marketing sửa ở trình biên tập). Bảng
+	chưa dùng (chưa gieo) thì chạy đường cũ _bo_anh_mo_ta, không ẩn bánh nào."""
+	from vagabond import banh_web
+
+	ra = banh_web.ap_cho_web(ds_nhom)
+	if ra is None:
+		_bo_anh_mo_ta(ds_nhom)
+		return ds_nhom
+	return ra
 
 
 def _bo_anh_mo_ta(ds_nhom):
@@ -1681,8 +1699,7 @@ def _dat_truoc_theo_decor():
 		)
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
-	ra = [nhom[k] for k in thu_tu]
-	_bo_anh_mo_ta(ra)
+	ra = _anh_noi_dung_web([nhom[k] for k in thu_tu])
 	return {
 		"cap_nhat_luc": str(kho.cap_nhat_luc or "") or None,
 		"nhom": ra,
