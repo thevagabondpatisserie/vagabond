@@ -371,7 +371,7 @@ def _():
 @ca("v641 màn Đối soát nhà cung cấp chạy thật trong node: hộp thư, tiến độ, đường vào, duyệt, xác nhận")
 def _():
 	goc = Path(__file__).parents[3]
-	for tep, so in (("doi_soat_hop_thu_641.js", "15 dat, 0 hong"), ("doi_soat_vendor_579.js", "23 dat, 0 hong")):
+	for tep, so in (("doi_soat_hop_thu_641.js", "17 dat, 0 hong"), ("doi_soat_vendor_579.js", "23 dat, 0 hong")):
 		r = subprocess.run(["node", str(goc / "vagabond/khung/kiem_thu/hanh_vi" / tep)], capture_output=True, text=True, timeout=120)
 		dung("%s chạy được: %s" % (tep, (r.stdout[-1500:] + r.stderr[-800:])), r.returncode == 0)
 		dung("%s đủ số ca" % tep, so in r.stdout)
@@ -736,25 +736,28 @@ def _():
 			return NS(ket_qua=thu.get("ket_qua_sau", thu.get("ket_qua")), ly_do="")
 		fr.db.get_value = get_value
 		fr.get_doc = lambda *a, **k: NS(get_content=lambda: tho)
+		fr.get_all = lambda *a, **k: []
 		with patch.object(T, "_frappe", lambda: fr), patch.object(T, "_xu_ly", xu_ly), patch.object(T, "cau_hinh", lambda: {}):
 			try:
 				return T.doc_lai_thu("THU-1"), ghi
 			except _Nem as e:
 				return str(e), ghi
 
-	def ok(t, u, c):
+	def ok(t, u, c, kiem_lai=False):
 		chay.append(u)
 	ra, ghi = lam(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="/private/files/a.eml", uid="5",
 		ket_qua_sau=T.KQ_XAC_THUC), ok)
 	la("đọc lại chạy _xu_ly đúng UID, commit", (chay, "commit" in ghi, getattr(ra, "ket_qua", ra)), (["5"], True, T.KQ_XAC_THUC))
-	for thu, y in ((dict(name="THU-1", ket_qua=T.KQ_CHAN, xong=1, tep_goc="x", uid="5"), "đã xử lý xong"),
+	# v643: thư Bị chặn nay kiểm lại được (ca riêng trong thu_doi_soat_643); thư
+	# Đã xác thực không còn nguồn cần đọc lại vẫn bị từ chối.
+	for thu, y in ((dict(name="THU-1", ket_qua=T.KQ_XAC_THUC, xong=1, tep_goc="x", uid="5"), "đã xử lý xong"),
 			(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="", uid="5"), "không lưu được bản gốc"),
 			(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="x", uid="5", sha256="khac"), "không còn khớp")):
 		chay.clear()
 		ra, ghi = lam(thu, ok)
 		dung("chặn: %s (%s)" % (y, ra), y in str(ra) and chay == [])
 
-	def dns(t, u, c):
+	def dns(t, u, c, kiem_lai=False):
 		raise K.LoiDnsTam("Timeout")
 	ra, ghi = lam(dict(name="THU-1", ket_qua=T.KQ_LOI, xong=0, tep_goc="x", uid="5"), dns)
 	dung("DNS lỗi tạm: báo thử lại sau, lùi giao dịch (%s)" % ra, "Thử lại sau" in str(ra) and "rollback" in ghi)
@@ -973,7 +976,8 @@ def _():
 		# Đúng hành vi ERPNext thật với doctype Single (site 06/11/2026).
 		raise RuntimeError("TableMissingError: DocType %s" % dt)
 	fr = NS(db=NS(has_column=has_column, table_exists=lambda dt: True, get_global=lambda k: toan_cuc.get(k),
-		set_global=lambda k, v: toan_cuc.__setitem__(k, v), count=lambda dt, f=None: 0),
+		set_global=lambda k, v: toan_cuc.__setitem__(k, v), count=lambda dt, f=None: 0,
+		get_single_value=lambda dt, f: None, set_single_value=lambda dt, f, v: None),
 		get_meta=lambda dt: NS(has_field=lambda f: True),
 		get_doc=lambda d: NS(db_insert=lambda: viec.append((d["doctype"], d["parentfield"]))),
 		clear_document_cache=lambda *a: None, log_error=lambda *a, **k: loi.append(k.get("title") or a))
