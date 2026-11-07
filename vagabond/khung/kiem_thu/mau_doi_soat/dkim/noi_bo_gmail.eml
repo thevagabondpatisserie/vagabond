@@ -1,0 +1,36 @@
+Return-Path: <thevagabondbakery@gmail.com>
+Delivered-To: doisoat@thevagabondpatisserie.com
+Received: from pro10.emailserver.vn
+	by pro10.emailserver.vn with LMTP
+	for <doisoat@thevagabondpatisserie.com>; Sat, 07 Nov 2026 12:26:17 +0700
+Received: from mail-yx1-f46.google.com ([74.125.224.46]:54510)
+	by pro10.emailserver.vn with esmtps (TLS1.3)
+	id 1xPYwR; Sat, 07 Nov 2026 12:26:17 +0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com;
+ i=@gmail.com; q=dns/txt; s=t643; t=1793995804; h=from : to : subject :
+ date : message-id : mime-version : content-type;
+ bh=Dfz24QGiLIhm/GGdi1dF6rStZkb7HUJRhuIzVN1vopw=;
+ b=I1tGV9eo8d6MlQW3DA5IAkrujl+0RxV5JtQrwyApz/p4P+M95LVo2AO9n59p6HWF5n1Ry
+ B7EPKBLbZUo3Mzt9DV7Tan/GsNmfb2lS6F0itB+gWBg810ifL8+gSexzcTKwBu6mD45L5Vr
+ YWhd4wPbulypAP7tULK5LmHJyePqiaMewXAqrIM5J7ZoFFQKyYg+RpBIdKdtckshjGGVIS9
+ hPw9Gc0ZN3tn3lXh92ithTcE653BvW45abSCr0PEPtzcPyBs0BjpxKECq/UJEy7vuS/16TH
+ y/ZgNW5ptbMMp1ptHr2Pp2done0M9Z0pyjaV7JZj783RuwMMnhSqEXvRiC+A==
+From: The Vagabond =?UTF-8?Q?P=C3=A2tisserie?= <thevagabondbakery@gmail.com>
+To: doisoat@thevagabondpatisserie.com
+Subject: Fwd: ShopeeFood 06-11-2026
+Date: Sat, 7 Nov 2026 10:56:02 +0700
+Message-ID: <nb643@mail.example>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="NB643"
+
+--NB643
+Content-Type: text/plain; charset=utf-8
+
+---------- Forwarded message ---------
+--NB643
+Content-Type: text/csv; name="Shopeefood_Income_Details_Merchant_06-11-2026.csv"
+Content-Disposition: attachment; filename="Shopeefood_Income_Details_Merchant_06-11-2026.csv"
+Content-Transfer-Encoding: base64
+
+U1RULE3DoyDEkMahbiBIw6BuZyxJRCBj4butYSBow6BuZyxUw6puIGPhu61hIGjDoG5nLFRo4budaSBnaWFuIGhvw6BuIHRow6BuaC8gaHXhu7cgxJHGoW4sR2nDoSB0cuG7iyDEkcahbiBow6BuZyxLaHV54bq/biBt4bqhaSB04burIHF1w6FuLFBow60gZOG7i2NoIHbhu6UsUGjDrSB24bqtbiBjaHV54buDbiB0cuG6oyBjaG8gcXXDoW4sQ2hp4bq/dCBraOG6pXUsVGh14bq/IGto4bqldSB0cuG7qyxUaOG7sWMgdGh1DQoxLDA2MTE2LTkwMDAwMDAwMSwxMDMyMjM2MixUQ1YsMDYvMTEvMjAyNiAwOToyMzo1OCwiMTYwLDAwMCIsIjI0LDAwMCIsMCwwLCIyMCwwMzMiLDAsIjExNSw5NjciDQoyLDA2MTE2LTkwMDAwMDAwNywxMDMyMjM2MixUQ1YsMDYvMTEvMjAyNiAxMDoxNzoxOSwiMSwwOTUsMDAwIiwiMjYxLDEyNSIsMCwwLCIxMjIsODMwIiwwLCI3MTEsMDQ1Ig0K
+--NB643--

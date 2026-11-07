@@ -1,0 +1,36 @@
+Return-Path: <bounce+b6003c.a2adc6-account=thevagabondpatisserie.com@greensm.com>
+Delivered-To: doisoat@thevagabondpatisserie.com
+Received: from pro10.emailserver.vn
+	by pro10.emailserver.vn with LMTP
+	id 97Yl
+	for <doisoat@thevagabondpatisserie.com>; Sat, 07 Nov 2026 03:10:10 +0700
+Received: from the75801 by pro10.emailserver.vn with local (Exim 4.100.1)
+	id 1xPQGI; Sat, 07 Nov 2026 03:10:10 +0700
+X-Sieve-Redirected-From: account@thevagabondpatisserie.com
+Received: from v55.send.mailgun.net ([143.55.232.5]:62850)
+	by pro10.emailserver.vn with esmtps (TLS1.2)
+	id 1xPQGE; Sat, 07 Nov 2026 03:10:10 +0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=greensm.com;
+ i=@greensm.com; q=dns/txt; s=smtp; t=1793995804; x=1794003004;
+ h=message-id : to : to : from : from : subject : subject :
+ content-type : mime-version : date : sender : sender;
+ bh=nP3I3FnpckJJ6cWeWf9mqAj4lhDanvj0JzulGQ45Gqk=;
+ b=PAYKex0hszqT1x5ZXIhYKgWVD+oU2LFeJthyjF+Q//99jcHUehXCxbdohnpC2ypn2bM+V
+ 6+tuuYsKrB5fX6+h70rNQHtg6U2ApHF2sB8wrJuF219pha7JhzD8RyKdrJgHIiu+oTMf3wI
+ 3QSFQBzFMG06Ma8bzXHmA9/P3YVGyH1FE3f1+zQXkKWGqYF2H2NDU97ush4FyjzeZggOMEZ
+ A81LLCOrWqxmQsfFPMt3KJuxvptZvf7lFFAh/utXlFDf8d+SEZV2r7zmvQjc1Uyis3zd/kc
+ L/zJ72pFFf5ejfXnzqe1sjdnN31AYbkW+HxxZoayLItgtCuORGPdxMeL0EDg==
+Date: Fri, 06 Nov 2026 20:10:04 +0000
+Mime-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="4c46fc10c46b"
+Subject: =?UTF-8?q?Ba=CC=81o_ca=CC=81o_doanh_thu_06/11/2026?=
+From: no-reply@greensm.com
+To: hoadon@thevagabondpatisserie.com, account@thevagabondpatisserie.com
+Message-Id: <20261106201004.abbbba16f15a72bb@greensm.com>
+
+--4c46fc10c46b
+Content-Type: text/html; charset=utf-8
+
+<p>Green SM Merchant Email</p>
+--4c46fc10c46b--
