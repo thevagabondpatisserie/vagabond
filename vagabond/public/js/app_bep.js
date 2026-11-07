@@ -35438,7 +35438,11 @@ function dmVeXem() {
       '<div style="font-size:12px;color:#6b7280;margin-top:3px">' + h(dmVuaTao.nhom) + ' · ' + h(dmVuaTao.dvt) +
       (dmVuaTao.gia_ban ? ' · ' + money(dmVuaTao.gia_ban) + ' đ' : ' · chưa có giá bán') + '</div>' +
       '<button class="btn gh" id="dmPan" style="margin-top:10px">🔄 Đồng bộ mã này sang Pancake</button>' +
-      '<div id="dmPanBao" style="font-size:12.5px;color:#374151;margin-top:7px;line-height:1.5"></div></div>';
+      '<div id="dmPanBao" style="font-size:12.5px;color:#374151;margin-top:7px;line-height:1.5"></div>' +
+      /* v644 (anh Việt duyệt 07/11/2026): ERP tạo mã, đồng bộ Pancake, rồi Đưa lên web. */
+      '<button class="btn gh" id="dmWeb" style="margin-top:10px">Đưa lên web</button>' +
+      '<div style="font-size:11.5px;color:#6b7280;margin-top:4px;line-height:1.5">Tạo thẻ bánh trên trình biên tập web và nhắn Marketing thêm ảnh. Khách chưa thấy tới khi Marketing bật. Giá, tồn vẫn lấy từ ERP.</div>' +
+      '<div id="dmWebBao" style="font-size:12.5px;color:#374151;margin-top:7px;line-height:1.5"></div></div>';
   }
 
   var k = dmKq;
@@ -35503,6 +35507,29 @@ function dmVeXem() {
 
   var np = document.getElementById('dmPan');
   if (np) np.onclick = function () { dmDayMot(dmVuaTao.ma, np, 0); };
+  var nw = document.getElementById('dmWeb');
+  if (nw) nw.onclick = function () { dmWebMot(dmVuaTao.ma, nw, 'dmWebBao'); };
+}
+
+/* v644: trạng thái web của bánh chứa mã (máy chủ banh_web.trang_thai_theo_ma). */
+function dmChuWeb(tt) {
+  if (tt === 'Đang hiện') return '<span style="color:#15803d">Web: Đang hiện</span>';
+  if (tt === 'Chờ ảnh') return '<span style="color:#b45309">Web: Chờ ảnh, khách chưa thấy</span>';
+  if (tt === 'Đã ẩn') return '<span style="color:#6b7280">Web: Đã ẩn</span>';
+  return '<span style="color:#98a2b3">Chưa đưa lên web</span>';
+}
+
+async function dmWebMot(ma, nut, idBao) {
+  var o = document.getElementById(idBao);
+  if (nut) { nut.disabled = true; nut.textContent = 'Đang đưa lên web...'; }
+  var r = null, loi = '';
+  try { r = await api('vagabond.banh_web.dua_len_web', { item_code: ma }); }
+  catch (e) { loi = (e && e.message) || 'Chưa đưa lên web được. Thử lại sau ít phút.'; }
+  if (o) {
+    o.textContent = loi || (r && r.thong_bao) || '';
+    o.style.color = loi ? '#b3261e' : (r && r.trang_thai === 'Đang hiện' ? '#15803d' : '#b45309');
+  }
+  if (nut) { nut.disabled = !loi; nut.textContent = loi ? (nut.id === 'dmWeb' ? 'Đưa lên web' : 'Lên web') : 'Đã đưa lên web'; }
 }
 
 /* Tim ma de day sang Pancake. May chu chot co `day_duoc`, man nay chi ve
@@ -35534,14 +35561,17 @@ async function dmTimChay(trang) {
   o.innerHTML = ds.map(function (x, i) {
     var nut = x.day_duoc
       ? '<button class="btn sm" data-dmday="' + h(x.name) + '">Đẩy</button>' +
-        '<button class="btn sm ghost" data-dmkiem="' + h(x.name) + '" style="margin-left:6px">Kiểm lại</button>'
+        '<button class="btn sm ghost" data-dmkiem="' + h(x.name) + '" style="margin-left:6px">Kiểm lại</button>' +
+        (x.web ? '' : '<button class="btn sm ghost" data-dmweb="' + h(x.name) + '" style="margin-left:6px">Lên web</button>')
       : '<span style="font-size:11.5px;color:#98a2b3">ngừng dùng hoặc không bán</span>';
     return '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-top:' +
       (i ? '1px solid #eef0f4' : 'none') + '">' + anhMon(x.image) +
       '<div style="flex:1;min-width:0">' +
       '<div style="font-weight:700;font-size:13px">' + h(x.name) + '</div>' +
       '<div style="font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(x.item_name || '') + '</div>' +
+      '<div style="font-size:11.5px;margin-top:2px">' + dmChuWeb(x.web) + '</div>' +
       '<div id="dmBao_' + h(x.name) + '" style="font-size:12px;color:#374151;margin-top:2px"></div>' +
+      '<div id="dmWebBao_' + h(x.name) + '" style="font-size:12px;color:#374151;margin-top:2px"></div>' +
       '</div><div style="flex:none">' + nut + '</div></div>';
   }).join('') +
     '<div style="display:flex;gap:8px;margin-top:8px">' +
@@ -35559,6 +35589,9 @@ async function dmTimChay(trang) {
   });
   Array.prototype.forEach.call(o.querySelectorAll('[data-dmkiem]'), function (b) {
     b.onclick = function () { dmKiemMot(b.getAttribute('data-dmkiem'), b); };
+  });
+  Array.prototype.forEach.call(o.querySelectorAll('[data-dmweb]'), function (b) {
+    b.onclick = function () { var ma = b.getAttribute('data-dmweb'); dmWebMot(ma, b, 'dmWebBao_' + ma); };
   });
 }
 
