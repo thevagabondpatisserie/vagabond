@@ -531,6 +531,21 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(loi,[]);
     await c.close();
   });
+  await test('F41 v644 ảnh lớn của trang bánh khít hai mép trên điện thoại và máy tính bảng, không lệch trái 20px',async()=>{
+    /* Anh Việt 07/11/2026 (Roman De La Rose, Very Berry trên iPhone): khung ảnh vừa rộng 100% vừa giữ lề âm -20px
+       của banh.css nên lệch trái 20px, hở dải đen bên phải. Đo đúng khung sau khi khách mở bánh. */
+    for (const width of [390,800]) {
+      const c=await browser.newContext({viewport:{width,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+      await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+      const p=await c.newPage();
+      await p.goto(url+'/web_moi/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
+      await p.waitForTimeout(600);
+      const h=await p.evaluate(()=>{const r=document.querySelector('#sheet .hero-img').getBoundingClientRect();return {l:r.left,r:r.right,vw:document.documentElement.clientWidth};});
+      assert.equal(Math.round(h.l),0,width+'px: ảnh lớn phải bắt đầu ở mép trái, đang '+h.l);
+      assert.equal(Math.round(h.r),h.vw,width+'px: ảnh lớn phải chạm mép phải, đang '+h.r+' trên '+h.vw);
+      await c.close();
+    }
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
