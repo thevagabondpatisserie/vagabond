@@ -223,7 +223,7 @@ def _g_ban_hang(d, ghi):
 		quyen_quay=NS(them_giam_gia=lambda *a: False),
 		luat_thanh_toan=NS(ma_can_ghi=lambda *a: ""),
 		_chuan_ma_tham_chieu=lambda *a, **k: "", _kiem_trung_ma=lambda *a, **k: None,
-		_nan_pt_tai_cho=lambda si: None, _giam_tu_diem=lambda si: 0,
+		_nan_pt_tai_cho=lambda si: None, _giam_tu_diem=lambda si: 0, _giam_rieng=lambda si: 0,
 		_chuan_bi_ghi_so=lambda *a, **k: None,
 		# Như frappe.utils.cint: None, chuỗi rỗng ra 0 (vòng 5 gọi cint(doi_pt)).
 		flt=float, cint=lambda x: int(float(x or 0)),

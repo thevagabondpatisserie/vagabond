@@ -81,7 +81,7 @@ def _dong_bo(d, don, tra_mst=None, portal=None, nguon=None):
 	g = dict(frappe=f, re=re, unicodedata=unicodedata, flt=lambda x: float(x or 0), cint=lambda x: int(x or 0),
 		hoa_don_vat=NS(sach_dia_chi_xhd=lambda s: (s or "").strip(), thieu_ten_rieng=lambda t: False),
 		_dong_hang=lambda *a: ([{"item_code": "BANH", "qty": 1, "rate": 100}], []), _lech_pancake=lambda *a: 0,
-		giu_khach_cua_don=lambda *a: True, _giam_tu_diem=lambda *a: 0, _doan_thanh_toan=lambda *a: ("", ""),
+		giu_khach_cua_don=lambda *a: True, _giam_tu_diem=lambda *a: 0, _giam_rieng=lambda *a: 0, _doan_thanh_toan=lambda *a: ("", ""),
 		_dien_dong_thanh_toan=lambda *a: None, nghi_cong_no=lambda *a: 0,
 		# v638: đơn web trả online; tờ của ca này không phải đơn web.
 		_pt_don_web=lambda *a: ("", ""))
