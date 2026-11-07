@@ -140,3 +140,4 @@ from vagabond.khung.kiem_that import thu_gioi_thieu_638  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_goi_mon_ban_638  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_so_do_web_643  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_uu_dai_ban_643  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_doi_soat_643  # noqa: F401,E402
