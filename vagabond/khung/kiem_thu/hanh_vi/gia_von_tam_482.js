@@ -704,6 +704,19 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
     dung('không Lưu', !m.tai.getElementById('gvtpLuu'));
     bang('không Thêm, Bỏ', [tim(m, '[data-gvtpthem]').length, tim(m, '[data-gvtpbo]').length], [0, 0]);
+    /* Codex PR #486 (còn sống tới v643): vai chỉ xem vẫn có nút × xoá dòng và
+       gõ được số lượng, giá tay. Dựng đúng thao tác: bấm × nếu có, gõ số lượng. */
+    var p0 = JSON.stringify(m.g.GVT.p.dong);
+    var xoa = tim(m, '[data-gvtpxoa]');
+    bang('không nút × xoá dòng', xoa.length, 0);
+    var sl = o(m, '[data-gvtpsl="0"]');
+    dung('ô số lượng chỉ đọc', sl && sl.getAttribute('readonly') != null);
+    var truocGoi = m.goi.length;
+    go(m, sl, '999');
+    if (xoa.length) bam(m, xoa[0]);
+    await cho(450);
+    bang('dòng nguyên liệu không đổi', JSON.stringify(m.g.GVT.p.dong), p0);
+    bang('không tính lại', m.goi.slice(truocGoi).map(function (x) { return x.duong; }).filter(function (d) { return d === 'vagabond.gia_von_tam.tinh_thu'; }), []);
   });
 
   /* Codex #486 vòng 6 (P2): phiếu thử thiếu giá vẫn có he_so từ máy chủ (tính

@@ -731,7 +731,8 @@ await ca('v642 phép thuần thanh toán tại bàn: ô hoá đơn nhận mã s�
   la('cách lạ: rỗng', K2.chiTietTra('online', ''), '');
   dung('không quá 120 ký tự', K2.chiTietTra('ban', 'x'.repeat(200) + '@a.vn').length === 120);
   la('tạm tính', K2.tomDon([{tt: {trang_thai: 'Đã nhận', tam_tinh: 100, mon: [{sl: 2}]}}, {tt: {trang_thai: 'Hết hạn', tam_tinh: 50, mon: [{sl: 1}]}},
-    {tt: {trang_thai: 'Từ chối', tam_tinh: 70}}, {tt: null}]), {soLuot: 2, soMon: 2, tamTinh: 100, choNhan: 1, coHoaDon: false, hoaDon: 0, ngoaiHoaDon: 100, coNgoai: false, canTra: 100});
+    {tt: {trang_thai: 'Từ chối', tam_tinh: 70}}, {tt: null}]), {soLuot: 2, soMon: 2, tamTinh: 100, choNhan: 1, coHoaDon: false, hoaDon: 0, ngoaiHoaDon: 100, coNgoai: false, canTra: 100,
+    giamUd: 0, uuDai: null}); /* v643: thêm hai khoá ưu đãi, không đổi số cũ. */
 });
 
 await ca('v642 Codex #545 vòng 6: hai điện thoại cùng bàn, quầy thêm món: cần thanh toán lấy theo hoá đơn của bàn trên máy chủ, không chỉ món gọi từ máy này; lượt chờ quầy nhận cộng thêm, ghi rõ chưa vào hoá đơn', async () => {
@@ -813,7 +814,9 @@ await ca('v642 Codex #545 vòng 7: quầy nhận lượt MỚI trước rồi l�
   theoMa['TQ-2'] = Object.assign({}, theoMa['TQ-2'], {bill: {khoa: BILL, tong: 140000}});
   const truoc = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').length;
   await chayHen();
-  la('nhịp tự động chỉ hỏi lượt 1', vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').slice(truoc).map(x => x[2].ma), ['TQ-1']);
+  /* v643: nhịp tự động hỏi lượt còn chờ (lượt 1) và lượt đại diện của hoá đơn còn mở (lượt 2), không hỏi lại mọi lượt. */
+  /* Bộ hẹn giờ giả không huỷ hẹn cũ nên có thể chạy lặp: so theo tập lượt được hỏi. */
+  la('nhịp tự động hỏi lượt chờ và lượt đại diện hoá đơn', [...new Set(vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').slice(truoc).map(x => x[2].ma))].sort(), ['TQ-1', 'TQ-2']);
   const bar = chu(theoId(goc, 'gbBarDon'));
   dung('thanh đơn theo số phiếu mới nhất: ' + bar, bar.includes('Tạm tính 140.000 đ'));
   la('kho', [kho.goiBan.tom.value.canTra, kho.goiBan.tom.value.hoaDon], [140000, 140000]);
@@ -829,6 +832,126 @@ await ca('v642 Codex #545 vòng 7: máy chủ đọc tổng phiếu lỗi ở m�
   la('cả phiếu chưa đọc được: theo lượt, không ghi là hoá đơn của bàn', [r.coHoaDon, r.hoaDon, r.canTra], [false, 0, 170000]);
   la('số hỏi sau cùng thắng dù lượt đứng trước', K2.tomDon([l1({khoa: 'b1', tong: 140000}, 5), l2({khoa: 'b1', tong: 40000}, 3)]).canTra, 140000);
   la('tổng 0 đ (quầy giảm hết) vẫn là số đọc được', K2.tomDon([l1({khoa: 'b1', tong: 0}, 1)]).canTra, 0);
+});
+
+await ca('v643 (còn tồn v642): không còn lượt chờ, bàn còn hoá đơn mở: thanh đơn vẫn tự hỏi lại tổng hoá đơn theo nhịp thưa, máy khác gọi thêm hay quầy thêm món là thanh đơn đổi số; hoá đơn đã chốt thì thôi hỏi', async () => {
+  const K3 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  const theoMa = {'TQ-1': {ok: 1, trang_thai: 'Chờ nhận', luc: '10:00', tam_tinh: 100000, mon: [{ten: 'Trà Hoa Lài', sl: 2, tc: [], gia: 50000, tien: 100000}]}};
+  let so = 0;
+  const {goc, chayHen, vet, kho} = await moTrang({tt: th => Object.assign({}, theoMa[th.ma]), goi: () => ({ok: 1, ma: 'TQ-' + (++so), token: String(so).repeat(32)})});
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00021'));
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {trang_thai: 'Đã nhận', nhan_luc: '10:02', bill: {khoa: 'b1', tong: 100000}});
+  await chayHen();
+  dung('quầy nhận: 100.000 đ', chu(theoId(goc, 'gbBarDon')).includes('Tạm tính 100.000 đ'));
+  /* Máy khác gọi thêm 40.000 đ vào cùng hoá đơn; máy này không còn lượt chờ. */
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {bill: {khoa: 'b1', tong: 140000}});
+  await chayHen();
+  const bar = chu(theoId(goc, 'gbBarDon'));
+  dung('thanh đơn tự đổi sang 140.000 đ: ' + bar, bar.includes('Tạm tính 140.000 đ'));
+  /* Thu ngân chốt bill: lượt rời đơn, thôi hỏi. */
+  theoMa['TQ-1'] = Object.assign({}, theoMa['TQ-1'], {da_tra: 1, bill: undefined});
+  await chayHen();
+  const truoc = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').length;
+  await chayHen();
+  la('bill đã chốt: không hỏi nữa', vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').length - truoc, 0);
+  la('nhịp hoá đơn thưa hơn nhịp lượt chờ', K3.NHIP_HOA_DON > K3.NHIP_TRANG_THAI, true);
+  la('kho không còn lượt', kho.goiBan.G.don.length, 0);
+});
+
+await ca('v643 ưu đãi tại bàn (mẫu anh Việt duyệt 07/11/2026, "Máy tự trừ ngay"): Đơn của bàn có ô Ưu đãi; chưa đăng nhập thì gửi mã Zalo, nhập sai báo lỗi, đúng thì ra Ví quà và chương trình; chọn là máy chủ trừ ngay, Cần thanh toán và thanh đơn đổi theo hoá đơn; bỏ thì về số cũ; máy chủ từ chối thì nói lý do, màn ở lại', async () => {
+  let bill = {khoa: 'b1', tong: 185000};
+  const tt = () => ({ok: 1, trang_thai: 'Đã nhận', nhan_luc: '10:02', luc: '10:00', tam_tinh: 185000, bill,
+    mon: [{ten: 'Trà Hoa Lài', sl: 2, tc: [], gia: 45000, tien: 90000}, {ten: 'Mousse Chanh Dây', sl: 1, tc: [], gia: 95000, tien: 95000}]});
+  const {goc, vet, mang, chayHen} = await moTrang({tt});
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'BAWC00115'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  let dangNhap = 0, chonCo = null;
+  const DS = [{loai: 'ma', ma: 'VC-8K2Q', nhom: 'vi', ten: 'Giảm 10% hoá đơn', phu: 'Mã VC-8K2Q · hạn 30/11', giam: 18500, ly_do: '', dung_duoc: 1},
+    {loai: 'ctkm', ma: 'CTKM-HH', nhom: 'ctkm', ten: 'Happy hour trà', phu: 'Giảm 20% đồ uống', giam: 0, ly_do: 'ngoài khung giờ 15:00 - 17:00', dung_duoc: 0}];
+  mang['vagabond.uu_dai_ban.ds'] = () => (dangNhap ? {ok: 1, dang_nhap: 1, sdt: '0909 *** 412', co_hoa_don: 1, chon: chonCo, ds: DS} : {ok: 1, dang_nhap: 0});
+  mang['vagabond.thanh_vien.gui_ma'] = () => ({ok: 1, song_giay: 300});
+  mang['vagabond.thanh_vien.xac_thuc'] = th => (th.ma === '482913' ? (dangNhap = 1, {ok: 1}) : {ok: 0, ly_do: 'ma_khong_dung'});
+  await bam(theoId(goc, 'gbBarDonChu'));
+  const o = chu(theoId(goc, 'gbUdO'));
+  dung('ô Ưu đãi mời đăng nhập: ' + o, o.includes('Ưu đãi thành viên') && o.includes('Đăng nhập bằng Zalo') && o.includes('Chọn'));
+  await bam(theoId(goc, 'gbUdO'));
+  dung('màn ưu đãi mở, Đơn của bàn đóng', String(theoId(goc, 'gbUd').props.class).includes('open') && !String(theoId(goc, 'gbDonBan').props.class).includes('open'));
+  dung('bước số điện thoại', theoId(goc, 'gb-ud-sdt') && theoId(goc, 'gbUdGuiMa') && !theoId(goc, 'gb-ud-ma'));
+  go(theoId(goc, 'gb-ud-sdt'), '0909 123 412');
+  await cho();
+  await bam(theoId(goc, 'gbUdGuiMa'));
+  la('gửi mã qua cửa Thành viên, số chỉ còn chữ số', vet.filter(x => x[1] === 'vagabond.thanh_vien.gui_ma').map(x => [x[0], x[2]]), [['POST', {sdt: '0909123412'}]]);
+  dung('bước nhập mã, có Sửa số', theoId(goc, 'gb-ud-ma') && theoId(goc, 'gbUdXacMinh') && theoId(goc, 'gbUdSuaSo'));
+  dung('báo đã gửi', chu(theoId(goc, 'gbUdBao')).includes('Đã gửi mã qua Zalo'));
+  go(theoId(goc, 'gb-ud-ma'), '482910');
+  await cho();
+  await bam(theoId(goc, 'gbUdXacMinh'));
+  dung('mã sai: ' + chu(theoId(goc, 'gbUdLoi')), chu(theoId(goc, 'gbUdLoi')).includes('Mã chưa đúng'));
+  go(theoId(goc, 'gb-ud-ma'), '482913');
+  await cho();
+  await bam(theoId(goc, 'gbUdXacMinh'));
+  la('xác minh đúng số đúng mã', vet.filter(x => x[1] === 'vagabond.thanh_vien.xac_thuc').map(x => x[2]).pop(), {sdt: '0909123412', ma: '482913'});
+  const k = tim(theoId(goc, 'gbUd'), n => n.props['data-ud']);
+  la('ví trước, chương trình sau', k.map(n => n.props['data-ud']), ['ma:VC-8K2Q', 'ctkm:CTKM-HH']);
+  la('chọn sẵn mã giảm nhiều nhất dùng được', k.map(n => n.props['aria-pressed']), ['true', 'false']);
+  dung('chương trình ngoài giờ mờ, không bấm được, có lý do', k[1].props.disabled && chu(k[1]).includes('ngoài khung giờ 15:00 - 17:00'));
+  dung('thẻ số giảm', chu(k[0]).includes('Giảm 18.500 đ'));
+  dung('đầu màn có số che', chu(theoId(goc, 'gbUd')).includes('Số 0909 *** 412'));
+  /* Máy chủ từ chối (số khác cùng bàn đã chọn): báo đúng câu, màn ở lại. */
+  mang['vagabond.uu_dai_ban.chon'] = () => ({ok: 0, cau: 'Bàn đã dùng ưu đãi của số 0912 *** 111. Mỗi hoá đơn một ưu đãi.'});
+  await bam(theoId(goc, 'gbUdDung'));
+  dung('từ chối có lý do', chu(theoId(goc, 'gbUdLoi')).includes('0912 *** 111') && String(theoId(goc, 'gbUd').props.class).includes('open'));
+  mang['vagabond.uu_dai_ban.chon'] = th => { bill = {khoa: 'b1', tong: 166500, ud: {ten: 'Giảm 10% hoá đơn', giam: 18500, ly_do: '', sdt: '0909 *** 412'}};
+    chonCo = {ten: 'Giảm 10% hoá đơn', giam: 18500}; return {ok: 1, chon: chonCo, tong: 166500}; };
+  await bam(theoId(goc, 'gbUdDung'));
+  la('gửi đúng bàn, đúng ưu đãi', vet.filter(x => x[1] === 'vagabond.uu_dai_ban.chon').map(x => [x[0], x[2]]).pop(),
+    ['POST', {diem: 'TCV', ban: 5, k: K, loai: 'ma', ma: 'VC-8K2Q'}]);
+  dung('về lại Đơn của bàn', String(theoId(goc, 'gbDonBan').props.class).includes('open') && !String(theoId(goc, 'gbUd').props.class).includes('open'));
+  dung('hoá đơn của bàn trước ưu đãi', chu(theoId(goc, 'gbHoaDonBan')).includes('185.000 đ'));
+  dung('dòng ưu đãi đã trừ', chu(theoId(goc, 'gbUdTru')).includes('- 18.500 đ'));
+  const tong = chu(theoId(goc, 'gbTongBan'));
+  dung('Cần thanh toán 166.500 đ: ' + tong, tong.includes('Cần thanh toán166.500 đ'));
+  dung('nút Thanh toán theo số mới', chu(theoId(goc, 'gbDonTra')).includes('166.500 đ'));
+  const o2 = chu(theoId(goc, 'gbUdO'));
+  dung('ô Ưu đãi đã chọn: ' + o2, o2.includes('Giảm 10% hoá đơn') && o2.includes('Đã trừ 18.500 đ') && o2.includes('Đổi'));
+  await bam(theoId(goc, 'gbUd').con[0] && tim(theoId(goc, 'gbUd'), n => n.props.class === 'gb-x')[0]);
+  await bam(tim(theoId(goc, 'gbDonBan'), n => n.props.class === 'gb-x')[0]);
+  dung('thanh đơn theo số mới', chu(theoId(goc, 'gbBarDon')).includes('Tạm tính 166.500 đ'));
+  /* Quầy bớt món dưới mức: máy chủ giữ lựa chọn, giảm 0 kèm lý do. */
+  bill = {khoa: 'b1', tong: 90000, ud: {ten: 'Giảm 10% hoá đơn', giam: 0, ly_do: 'hoá đơn chưa đủ 150.000 đ', sdt: '0909 *** 412'}};
+  await bam(theoId(goc, 'gbBarDonChu'));
+  dung('chưa trừ kèm lý do', chu(theoId(goc, 'gbUdO')).includes('Chưa trừ: hoá đơn chưa đủ 150.000 đ') && !theoId(goc, 'gbUdTru'));
+  /* Bỏ ưu đãi. */
+  bill = {khoa: 'b1', tong: 166500, ud: {ten: 'Giảm 10% hoá đơn', giam: 18500, ly_do: '', sdt: '0909 *** 412'}};
+  await chayHen();
+  mang['vagabond.uu_dai_ban.bo'] = () => { bill = {khoa: 'b1', tong: 185000}; chonCo = null; return {ok: 1, tong: 185000}; };
+  await bam(theoId(goc, 'gbUdO'));
+  await bam(theoId(goc, 'gbUdBo'));
+  la('bỏ qua đúng cửa', vet.filter(x => x[1] === 'vagabond.uu_dai_ban.bo').map(x => [x[0], x[2]]).pop(), ['POST', {diem: 'TCV', ban: 5, k: K}]);
+  dung('về 185.000 đ, không còn dòng ưu đãi', chu(theoId(goc, 'gbTongBan')).includes('Cần thanh toán185.000 đ') && !theoId(goc, 'gbUdTru'));
+  dung('ô Ưu đãi mời chọn lại', chu(theoId(goc, 'gbUdO')).includes('Chọn'));
+});
+
+await ca('v643 ưu đãi tại bàn phép thuần: Cần thanh toán = hoá đơn sau ưu đãi + lượt chưa vào hoá đơn; chọn sẵn; số điện thoại; câu lỗi đăng nhập', async () => {
+  const K4 = await import('../../../public/web_vue/banh/kho-goi-ban.js');
+  const d = (ma, tt, tam, bill, hoi) => ({ma, tt: {trang_thai: tt, tam_tinh: tam, bill, hoi, mon: []}});
+  const r = K4.tomDon([d('A', 'Đã nhận', 185000, {khoa: 'b1', tong: 166500, ud: {ten: 'X', giam: 18500}}, 2), d('B', 'Chờ nhận', 40000, null, 3)]);
+  la('hoá đơn trước ưu đãi, giảm, cần trả', [r.hoaDon, r.giamUd, r.ngoaiHoaDon, r.canTra, r.uuDai.ten], [185000, 18500, 40000, 206500, 'X']);
+  const r2 = K4.tomDon([d('A', 'Đã nhận', 185000, {khoa: 'b1', tong: 185000}, 2)]);
+  la('không ưu đãi thì như cũ', [r2.hoaDon, r2.giamUd, r2.canTra, r2.uuDai], [185000, 0, 185000, null]);
+  la('ưu đãi theo lần hỏi mới nhất', K4.tomDon([d('A', 'Đã nhận', 1, {khoa: 'b1', tong: 166500, ud: {giam: 18500}}, 5), d('B', 'Đã nhận', 1, {khoa: 'b1', tong: 185000}, 2)]).canTra, 166500);
+  la('chọn sẵn', [K4.chonSanUd([{loai: 'ma', ma: 'A', giam: 1, dung_duoc: 1}, {loai: 'ctkm', ma: 'B', giam: 5, dung_duoc: 1}, {loai: 'ma', ma: 'C', giam: 9, dung_duoc: 0}]),
+    K4.chonSanUd([{loai: 'ma', ma: 'A', ten: 'Đang dùng', giam: 1, dung_duoc: 1}, {loai: 'ctkm', ma: 'B', giam: 5, dung_duoc: 1}], {ten: 'Đang dùng'}), K4.chonSanUd([], null)],
+    ['ctkm:B', 'ma:A', '']);
+  la('số điện thoại', ['0909 123 412', '+84909123412', '12345', ''].map(K4.soDt), ['0909123412', '84909123412', '', '']);
+  la('mỗi lý do đăng nhập có câu', K4.LY_DO_DN.every(x => K4.cauDn(x, t).length > 5), true);
+  la('lý do lạ không câu', K4.cauDn('khac', t), '');
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
