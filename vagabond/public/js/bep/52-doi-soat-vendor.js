@@ -350,7 +350,8 @@ async function scrDsvnThu() {
         (x.ket_qua === 'Lỗi xử lý' ?
           '<div style="font-size:12.5px;color:#7a2e0e;background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:6px">Máy chưa đọc xong thư này nên chưa nhận số liệu. Bấm Đọc lại thư để thử lần nữa; máy vẫn kiểm chữ ký số như thư mới.</div>' +
           '<button class="btn" data-dsvndoclai="' + h(x.name) + '" style="margin:8px 0 0;min-height:44px">Đọc lại thư</button>' :
-          '<div style="font-size:12.5px;color:#7a2e0e;background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:6px">Không nhận số liệu nào từ thư này. Không có nút Nhận.</div>') +
+          '<div style="font-size:12.5px;color:#7a2e0e;background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:6px">Không nhận số liệu nào từ thư này. Không có nút Nhận. Đã thêm người gửi vào Cài đặt (đối tác tin cậy hay hộp thư nội bộ) thì bấm Kiểm lại thư: máy kiểm chữ ký số và người gửi lại từ đầu, thư giả vẫn bị chặn.</div>' +
+          '<button class="btn gh" data-dsvndoclai="' + h(x.name) + '" style="margin:8px 0 0;min-height:44px">Kiểm lại thư</button>') +
         (x.bao_zalo ? '<div style="margin-top:6px">' + dsvnChip('Đã báo Zalo ' + String(x.bao_zalo).slice(11, 16)) + '</div>' : '') +
         '<button class="btn gh" data-dsvneml="' + h(x.name) + '" style="margin:8px 0 0;min-height:44px">Tải thư gốc (.eml) để xem →</button></div>';
     }).join('');
@@ -385,7 +386,8 @@ async function scrDsvnThu() {
       busy(true);
       try {
         var r = await api('vagabond.doi_soat_vendor.doc_lai_thu', { name: t.getAttribute('data-dsvndoclai') });
-        baoTin(r && r.ket_qua === 'Lỗi xử lý' ? 'Vẫn chưa đọc được thư.' : 'Đã đọc lại thư: ' + ((r && r.ket_qua) || 'xong') + '.');
+        baoTin(r && r.ket_qua === 'Lỗi xử lý' ? 'Vẫn chưa đọc được thư.' : r && r.ket_qua === 'Bị chặn' ? 'Thư vẫn bị chặn: ' + (r.ly_do || '') :
+          'Đã đọc lại thư: ' + ((r && r.ket_qua) || 'xong') + '.');
       } catch (er) { baoTin(errMsg(er)); }
       finally { busy(false); }
       return go(scrDsvnThu, true);
@@ -676,6 +678,17 @@ async function scrDsvnCt() {
       finally { busy(false); }
       return;
     }
+    var dl = e.target.closest('[data-dsvndoclaict]');
+    if (dl) {
+      busy(true);
+      try {
+        var r = await api('vagabond.doi_soat_vendor.doc_lai_thu', { name: dl.getAttribute('data-dsvndoclaict') });
+        toast(r && r.ket_qua === 'Đã xác thực' ? 'Đã đọc lại thư gốc.' : 'Đọc lại: ' + ((r && r.ket_qua) || 'xong') + '.');
+        go(scrDsvnCt, true);
+      } catch (er) { baoTin(errMsg(er)); }
+      finally { busy(false); }
+      return;
+    }
     var xn = e.target.closest('[data-dsvnxn]');
     if (xn) {
       busy(true);
@@ -786,7 +799,11 @@ function dsvnCanCu(c, n) {
     dong('Tệp đính kèm', n.ten_tep || '') + dong('Mã băm thư', c.sha256 || '') +
     '<div style="font-size:12.5px;color:#196578;background:#e7f8fc;border-radius:10px;padding:8px 10px;margin-top:6px">Thư gốc và tệp lưu chỉ đọc. ' +
     'Sửa tệp dù một ký tự là chữ ký hỏng, máy không nhận.</div>' +
-    '<button class="btn gh" data-dsvneml="' + h(c.name) + '" style="margin:8px 0 0;min-height:44px">Tải thư gốc (.eml) để kiểm →</button></div>';
+    '<button class="btn gh" data-dsvneml="' + h(c.name) + '" style="margin:8px 0 0;min-height:44px">Tải thư gốc (.eml) để kiểm →</button>' +
+    (n.trang_thai === 'Cần xử lý' || n.trang_thai === 'Lỗi tệp' ?
+      '<div style="font-size:12.5px;color:#475467;margin-top:8px">Kỹ thuật đã sửa cách đọc mẫu này thì bấm Đọc lại thư gốc: máy kiểm lại chữ ký số rồi đọc lại tệp từ chính thư đó. Dòng đã đúng giữ nguyên.</div>' +
+      '<button class="btn" data-dsvndoclaict="' + h(c.name) + '" style="margin:8px 0 0;min-height:44px">Đọc lại thư gốc</button>' : '') +
+    '</div>';
 }
 
 function dsvnPhiVuot(p) {
