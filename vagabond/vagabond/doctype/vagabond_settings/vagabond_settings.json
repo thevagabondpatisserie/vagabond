@@ -55,6 +55,7 @@
   "ds_mk_zip_pos",
   "sec_ds_doi_tac",
   "ds_nguoi_gui",
+  "ds_thu_noi_bo",
   "ds_lich_thu",
   "sec_ds_nguong",
   "ds_bieu_noi_dia",
@@ -510,6 +511,12 @@
    "label": "Người gửi tin cậy",
    "options": "Vagabond Doi Soat Nguoi Gui",
    "description": "Chỉ nhận thư từ các tên miền này. Thư người gửi khác bị chặn, giữ lại để tra. Để trống là dùng danh sách mặc định (OnePay, Payoo, Shinhan, Grab, ShopeeFood, GreenSM, Be, Meta)."
+  },
+  {
+   "fieldname": "ds_thu_noi_bo",
+   "fieldtype": "Small Text",
+   "label": "Hộp thư nội bộ được chuyển tiếp",
+   "description": "Mỗi dòng một địa chỉ của tiệm. Thư chuyển tiếp (Fwd) hay gửi kèm tệp báo cáo từ các địa chỉ này được nhận ngay, không chờ duyệt, khi thư đúng là của địa chỉ đó: có chữ ký số của chính tên miền (Gmail ký gmail.com) hoặc gửi qua máy chủ thư của tiệm có đăng nhập. Thư mạo danh các địa chỉ này bị chặn và báo Zalo. Để trống là không nhận thư chuyển tiếp."
   },
   {
    "fieldname": "ds_lich_thu",
@@ -1431,7 +1438,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-06 12:00:00.000000",
+ "modified": "2026-11-07 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
