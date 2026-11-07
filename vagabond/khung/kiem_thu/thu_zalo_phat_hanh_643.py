@@ -49,7 +49,7 @@ class _Nho(dict):
 			s[k] = v
 
 
-def _chay(nho, doc, bay):
+def _chay(nho, doc, bay, bao_tra=lambda khoa: ["ZL-" + khoa[-6:]], da_co=lambda khoa: False):
 	from vagabond import kenh_zalo
 	log, goi, bao = [], [], []
 
@@ -61,7 +61,8 @@ def _chay(nho, doc, bay):
 		return x
 	with patch.object(kenh_zalo, "_bat", lambda: 1), patch.object(Z, "_ban_site", lambda: 585), \
 			patch.object(Z, "_doc_comment", d), patch.object(Z.frappe, "cache", lambda: nho, create=True), \
-			patch.object(kenh_zalo, "bao", lambda *a, **k: bao.append(k.get("khoa"))), \
+			patch.object(kenh_zalo, "bao", lambda *a, **k: bao.append(k.get("khoa")) or bao_tra(k.get("khoa"))), \
+			patch.object(Z, "_da_co_tin", da_co, create=True), \
 			patch.object(Z.frappe, "log_error", lambda *a, **k: log.append(a[1] if len(a) > 1 else k.get("title")), create=True), \
 			patch.object(Z.frappe, "get_traceback", lambda: "tb", create=True), \
 			patch.object(Z.frappe.db, "commit", lambda: None, create=True), \
@@ -102,3 +103,28 @@ def _():
 	nho3 = _Nho()
 	so, goi, log, bao = _chay(nho3, [[]], t0)
 	dung("chưa có bản tin của bản đang chạy: nhịp sau còn hỏi", "zph_xong:585" not in nho3)
+
+
+@ca("Codex PR #546 vòng 3: bản tin chưa ghi được vào hộp thư Zalo (lỗi ghi, không nhóm nào nhận) thì KHÔNG đánh dấu xong, nhịp sau đọc GitHub và ghi lại; đã có sẵn theo khoá chống trùng thì coi là xong")
+def _codex546_ben():
+	t0 = 1_800_000_000
+	nho = _Nho()
+	so, goi, log, bao = _chay(nho, [[_cmt()]], t0, bao_tra=lambda khoa: None)
+	dung("ghi hỏng: chưa đánh dấu xong", "zph_xong:585" not in nho)
+	so, goi, log, bao = _chay(nho, [[_cmt()]], t0 + 900, bao_tra=lambda khoa: [])
+	la("nhịp sau vẫn đọc GitHub và thử ghi lại", (goi, len(bao)), (1, 1))
+	dung("không nhóm nào nhận: chưa xong", "zph_xong:585" not in nho)
+	so, goi, log, bao = _chay(nho, [[_cmt()]], t0 + 1800)
+	dung("ghi được: xong", "zph_xong:585" in nho)
+	nho2 = _Nho()
+	_chay(nho2, [[_cmt()]], t0, bao_tra=lambda khoa: [], da_co=lambda khoa: khoa == "phat_hanh:" + "9" * 40)
+	dung("đã có sẵn theo khoá chống trùng: xong", "zph_xong:585" in nho2)
+	# _da_co_tin thật: hỏi đúng tên dòng chống trùng theo mã chat của nhóm nhận tin phát hành.
+	from vagabond import kenh_zalo
+	hoi = []
+	with patch.object(kenh_zalo, "_cac_nhom", lambda: ["N1"]), patch.object(kenh_zalo, "chon_nhom", lambda ds, *a: [{"chat_id": "123"}] if ds else []), \
+			patch.object(Z.frappe.db, "exists", lambda dt, f: hoi.append((dt, f)) or True, create=True):
+		la("có dòng trong hộp thư", Z._da_co_tin("phat_hanh:abc"), True)
+	la("hỏi đúng tên dòng", hoi, [("Vagabond Tin Kenh", {"name": ["in", [kenh_zalo.khoa_tin("phat_hanh:abc", "123")]]})])
+	with patch.object(kenh_zalo, "_cac_nhom", lambda: []), patch.object(kenh_zalo, "chon_nhom", lambda ds, *a: []):
+		la("không nhóm nào nhận: chưa có", Z._da_co_tin("phat_hanh:abc"), False)

@@ -43,6 +43,8 @@ def _():
 	la("bản chưa lên site thì chưa báo", Z.chon_ban([_cmt(ban="v586", sha="2" * 40)], 585), [])
 
 
+# v643 (Codex PR #546 vòng 3): bao() giả trả tên dòng như bao() thật khi ghi
+# được; quet() nay chỉ đánh dấu xong khi tin đã nằm trong hộp thư.
 def _quet(bat=1, cmt=None, loi=None, ban=585):
 	from unittest.mock import patch
 	from vagabond import kenh_zalo
@@ -54,7 +56,7 @@ def _quet(bat=1, cmt=None, loi=None, ban=585):
 		return cmt or []
 	with patch.object(kenh_zalo, "_bat", lambda: bat), patch.object(Z, "_ban_site", lambda: ban), \
 			patch.object(Z, "_doc_comment", doc), \
-			patch.object(kenh_zalo, "bao", lambda *a, **k: goi.append((a, k))), \
+			patch.object(kenh_zalo, "bao", lambda *a, **k: goi.append((a, k)) or ["ZL-1"]), \
 			patch.object(Z.frappe, "log_error", lambda *a, **k: goi.append(("LOG",)), create=True), \
 			patch.object(Z.frappe.db, "commit", lambda: None, create=True):
 		so = Z.quet()
@@ -91,7 +93,7 @@ def _():
 				patch.object(Z.frappe, "get_app_path", lay_duong, create=True), \
 				patch.object(Z.frappe, "log_error", lambda *a, **k: log.append(a), create=True), \
 				patch.object(Z, "_doc_comment", lambda: [_cmt()]), \
-				patch.object(kenh_zalo, "bao", lambda *a, **k: log.append(("BAO",))):
+				patch.object(kenh_zalo, "bao", lambda *a, **k: log.append(("BAO",)) or ["ZL-1"]):
 			return Z.quet(), log
 
 	def mat(*a):
