@@ -236,6 +236,8 @@ CUA_NGO = {
 	# kiểm link bàn + phiên Thành viên): `ds`, `chon`, `bo`. Một cửa quầy
 	# (_kiem_quyen_ban): `bo_quay`. truoc_chot, sau_chot, tinh_lai là nội bộ.
 	"uu_dai_ban.py": ["ds", "chon", "bo", "bo_quay"],
+	# v644: bánh trên web (nút Đưa lên web ở app, thẻ Bánh của trình biên tập).
+	"banh_web.py": ["dua_len_web", "ds_bien_tap", "them_anh", "luu"],
 	# v640: Biên tập menu theo điểm bán (chỉ quản lý cửa hàng).
 	"bien_tap_menu.py": ["mo", "luu_nhap", "xuat_ban", "bo_nhap", "khoi_phuc"],
 	# Them 03/09/2026: man Cai dat trang dat banh web. `dong_bo` keo danh muc
