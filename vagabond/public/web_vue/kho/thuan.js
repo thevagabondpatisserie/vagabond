@@ -221,7 +221,10 @@ export function tronMon(cakes, nhom) {
     c.sizes.sort((a, b) => (a.cm || 0) - (b.cm || 0));
     if (g.anh) c.img = g.anh;
     if (g.anhs && g.anhs.length) c.anhs = g.anhs;
-    if (g.mo_ta) c.desc = g.mo_ta;
+    /* v644: bánh có bộ nội dung web (Marketing sửa ở trình biên tập, thẻ Bánh)
+       thì mô tả, tầng hương vị chỉ lấy từ đó, kể cả khi để trống. */
+    if (g.tu_web) { c.tuWeb = 1; c.desc = g.mo_ta || ''; c.layers = []; }
+    else if (g.mo_ta) c.desc = g.mo_ta;
     if (g.tang && g.tang.length) {
       c.layers = g.tang.map(x => {
         const v = String(x).split(/\s*[:–—-]\s+/);
