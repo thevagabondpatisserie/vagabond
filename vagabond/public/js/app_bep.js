@@ -19233,6 +19233,30 @@ function hdGanBind() {
   };
 }
 
+/* v643 ưu đãi khách tự chọn tại bàn (uu_dai_ban.py). THUẦN. */
+function posGiamRieng(d) { return (Number(d && d.vgb_giam_diem) || 0) + (Number(d && d.vgb_giam_ud) || 0); }
+function posUdBan(d) {
+  var v = d && d.vgb_ud_ban;
+  if (!v) return null;
+  try { v = typeof v === 'string' ? JSON.parse(v) : v; } catch (e) { return null; }
+  return v && v.ma ? v : null;
+}
+function posCheSo(so) {
+  var s = String(so || '').replace(/\D/g, '');
+  if (s.indexOf('84') === 0 && s.length >= 11) s = '0' + s.slice(2);
+  return s.length >= 9 ? s.slice(0, 4) + ' *** ' + s.slice(-3) : '';
+}
+function posKhoiUdBan(u, boDuoc) {
+  var giam = Number(u.giam) || 0;
+  return '<div id="pbUdBan" style="margin:4px 0 6px;padding:10px 12px;border:1.5px solid #6ce9a6;background:#ecfdf3;border-radius:12px;font-size:13.5px;line-height:1.5;color:#05603a">' +
+    '<b>🎟 Ưu đãi khách chọn tại bàn: ' + h(u.ten || u.ma) + '</b><br>' +
+    h((u.loai === 'ma' ? 'Mã ' + u.ma + ' · ' : '') + 'số ' + posCheSo(u.sdt) + ' (đã xác minh Zalo)') + '<br>' +
+    (giam > 0 ? 'Máy đã trừ ' + money(giam) + ' đ vào bill, không cần OTP quản lý.' : 'Chưa trừ: ' + h(u.ly_do || 'chưa đủ điều kiện') + '. Đủ điều kiện thì máy tự trừ.') +
+    (u.da_ghi ? '<br>Đã ghi lượt dùng lúc chốt bill.' : '<br>Mã được tính là đã dùng khi chốt bill.') +
+    (boDuoc ? '<button class="btn gh" id="pbBoUd" style="margin:8px 0 0;width:100%;min-height:44px;font-size:13.5px">Bỏ ưu đãi này</button>' : '') +
+    '</div>';
+}
+
 async function scrPosBill(name) {
   frame('Hoá đơn ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -19245,6 +19269,12 @@ async function scrPosBill(name) {
   var daKy = !!d.custom_hddt_so;
   if (posSua && posSua.name !== name) posSua = null;
   var suaMo = !!posSua;
+  /* v643: phần giảm RIÊNG (điểm thành viên, ưu đãi khách chọn tại bàn) không
+     phải giảm tay. Ô Giảm giá khi sửa chỉ là phần tay; máy chủ tự cộng phần
+     riêng (ban_hang._giam_rieng). Trước đây ô nạp cả discount_amount nên lưu
+     lại là phần riêng bị cộng hai lần. */
+  var giamRieng = posGiamRieng(d);
+  var udBan = posUdBan(d);
 
   function monTuDoc() {
     return (d.items || []).map(function (m) {
@@ -19264,7 +19294,8 @@ async function scrPosBill(name) {
     });
   }
   var mon = suaMo ? posSua.mon : monTuDoc();
-  var giam = suaMo ? posSoTien(posSua.giam) : (d.discount_amount || 0);
+  var giamTayO = suaMo ? posSoTien(posSua.giam) : 0;
+  var giam = suaMo ? giamTayO + giamRieng : (d.discount_amount || 0);
   var tongMon = mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0);
   var phaiThu = suaMo ? Math.max(0, tongMon - giam) : d.grand_total;
   var soBan = suaMo ? posSua.so_ban : (d.vgb_so_ban || '');
@@ -19324,6 +19355,7 @@ async function scrPosBill(name) {
   });
   if (suaMon) html += '<div style="padding:9px 0"><button class="btn gh" id="pbThemMon" style="width:100%;margin:0">➕ Thêm món</button></div>';
   if (giam) html += '<div style="display:flex;justify-content:space-between;padding:7px 0;color:#b45309"><span>Giảm giá</span><b>-' + money(giam) + '</b></div>';
+  if (udBan) html += posKhoiUdBan(udBan, nhap && !udBan.da_ghi);
   html += '<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:16px"><b>' + (tamTinh ? 'TẠM TÍNH' : 'PHẢI THU') + '</b><b>' + money(phaiThu) + ' đ</b></div></div>';
 
   /* ----- khoi thong tin xuat hoa don khach da dien ----- */
@@ -19407,7 +19439,7 @@ async function scrPosBill(name) {
       '<div id="pbPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, PB_PT) + '</div>' +
       '<div id="pbQr"></div>' +
       '<input class="tin" id="pbMtc" placeholder="Mã tham chiếu (biên lai thẻ, mã giao dịch...)" value="' + h((suaMo ? posSua.mtc : d.vgb_ma_tham_chieu) || '') + '">' +
-      (suaMo ? '<input class="tin" id="pbGiam" inputmode="numeric" placeholder="Giảm giá cả hoá đơn (đ)" value="' + (giam ? money(giam) : '') + '">' : '') +
+      (suaMo ? '<input class="tin" id="pbGiam" inputmode="numeric" placeholder="Giảm giá tay cả hoá đơn (đ)" value="' + (giamTayO ? money(giamTayO) : '') + '">' : '') +
       '<input class="tin" id="pbGhiChu" placeholder="Ghi chú hoá đơn" value="' + h((suaMo ? posSua.ghi_chu : d.vgb_ghi_chu) || '') + '">' +
       (suaMo && String(d.custom_nguon || '').indexOf('Tại chỗ') === 0
         ? '<input class="tin" id="pbBan" placeholder="Số bàn" value="' + h(soBan) + '">' : '') +
@@ -19657,7 +19689,7 @@ async function scrPosBill(name) {
   function pbPhaiThuHien() {
     if (!suaMo) return Number(d.grand_total) || 0;
     var og = document.getElementById('pbGiam');
-    return Math.max(0, tongMon - (og ? posSoTien(og.value) : giam));
+    return Math.max(0, tongMon - (og ? posSoTien(og.value) + giamRieng : giam));
   }
   function pbVeThua() {
     var o = document.getElementById('pbThua');
@@ -19803,7 +19835,7 @@ async function scrPosBill(name) {
     }
     posSua = {
       name: d.name, otp: otp, mon: monTuDoc(),
-      giam: String(d.discount_amount || ''), pt: d.vgb_pt_thanh_toan || '',
+      giam: String(Math.max(0, (Number(d.discount_amount) || 0) - posGiamRieng(d)) || ''), pt: d.vgb_pt_thanh_toan || '',
       mtc: d.vgb_ma_tham_chieu || '', ghi_chu: d.vgb_ghi_chu || '', so_ban: d.vgb_so_ban || '',
       /* O TEN co y bo trong khi ten dang la cau mac dinh, de nguoi sua khong
          phai xoa tay. Nhung truoc 05/09/2026 o DIA CHI van duoc giu nguyen,
@@ -19941,7 +19973,7 @@ async function scrPosBill(name) {
       if (posSua.pt) { goi.pt = posSua.pt; goi.ma_tham_chieu = posSua.mtc || ''; goi.doi_pt = posSua.doiPt ? 1 : 0; }
     }
     var ok = await confirmSheet('Lưu thay đổi hoá đơn ' + (maBill || d.name) + '?',
-      (nhap ? 'Tổng mới: ' + money(Math.max(0, posSua.mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0) - posSoTien(posSua.giam))) + ' đ.\n' : '') +
+      (nhap ? 'Tổng mới: ' + money(Math.max(0, posSua.mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0) - posSoTien(posSua.giam) - giamRieng)) + ' đ.\n' : '') +
       'Máy ghi lại tên người sửa vào lịch sử hoá đơn.', 'Lưu thay đổi');
     if (!ok) return;
     busy(true);
@@ -19964,6 +19996,18 @@ async function scrPosBill(name) {
     busy(false);
     posSua = null; posHomNayTxt = null;
     toast('Đã lưu thay đổi hoá đơn ' + (maBill || d.name));
+    go(function () { scrPosBill(name); }, true);
+  };
+
+  var nbu = document.getElementById('pbBoUd');
+  if (nbu) nbu.onclick = async function () {
+    var ly = await promptSheet('Bỏ ưu đãi khách chọn tại bàn?', 'Lý do (khách đổi ý, nhầm bàn...)');
+    if (ly === null) return;
+    busy(true);
+    try { await api('vagabond.uu_dai_ban.bo_quay', { name: d.name, ly_do: ly }); }
+    catch (e) { busy(false); return toast((e && e.message) || 'Chưa bỏ được, thử lại.', 5000); }
+    busy(false);
+    toast('Đã bỏ ưu đãi, bill về số trước ưu đãi.');
     go(function () { scrPosBill(name); }, true);
   };
 
@@ -26790,7 +26834,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '642';
+var APPVER = '643';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -62248,18 +62292,22 @@ function gvtGiaDong(d, r) {
     ' · <b>' + money(r.thanh_tien) + 'đ</b>';
 }
 
+/* Codex PR #486 (treo tới v643): vai chỉ xem vẫn bấm × xoá dòng và gõ được số
+   lượng, giá tay trên phiếu thử. MỘT chỗ quyết quyền cho cả vẽ lẫn mọi trình
+   nghe: gvtSuaPhieu. */
+function gvtSuaPhieu() { return ((GVT.thu || {}).sua_duoc) !== false; }
 function gvtDongNhap(d, i) {
-  var r = (GVT.pkDong || [])[i];
+  var r = (GVT.pkDong || [])[i], sua = gvtSuaPhieu(), ro = sua ? '' : ' readonly';
   var canGiaTay = gvtCanGiaTay(d, r);
   return '<div class="hub" data-gvtpd="' + i + '" style="align-items:flex-start;cursor:default">' +
     '<div class="hub-t" style="flex:1;min-width:0">' +
       '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(d.ten || d.item_code) +
         (d.item_code ? '' : ' <span style="font-size:12px;color:#6b7280;font-weight:600">· chưa có mã</span>') + '</div>' +
-        '<button class="ic" data-gvtpxoa="' + i + '" aria-label="Bỏ dòng" style="min-width:44px;min-height:44px;color:#b3261e">&times;</button></div>' +
+        (sua ? '<button class="ic" data-gvtpxoa="' + i + '" aria-label="Bỏ dòng" style="min-width:44px;min-height:44px;color:#b3261e">&times;</button>' : '') + '</div>' +
       '<div style="display:flex;gap:8px;align-items:center;margin-top:6px">' +
-        '<input class="nt" data-gvtpsl="' + i + '" inputmode="decimal" placeholder="Số lượng" value="' + h(d.so_luong == null ? '' : String(d.so_luong).replace('.', ',')) +
+        '<input class="nt" data-gvtpsl="' + i + '"' + ro + ' inputmode="decimal" placeholder="Số lượng" value="' + h(d.so_luong == null ? '' : String(d.so_luong).replace('.', ',')) +
         '" style="width:110px;height:44px;text-align:right;padding:0 10px"><span style="font-size:14px">' + h(d.dvt || '') + '</span>' +
-        (canGiaTay ? '<input class="nt" data-gvtpgia="' + i + '" inputmode="numeric" placeholder="Giá tay/' + h(d.dvt || 'đv') + '" value="' +
+        (canGiaTay ? '<input class="nt" data-gvtpgia="' + i + '"' + ro + ' inputmode="numeric" placeholder="Giá tay/' + h(d.dvt || 'đv') + '" value="' +
           h(gvtSoVn(d.don_gia_tay) > 0 ? String(d.don_gia_tay) : '') + '" style="flex:1;min-width:0;height:44px;text-align:right;padding:0 10px">' : '') +
       '</div>' +
       '<div class="t2" data-gvtpgiadong="' + i + '" style="margin-top:4px">' + gvtGiaDong(d, r) + '</div>' +
@@ -62279,25 +62327,24 @@ function gvtManPhieu() {
       if (S.stack[S.stack.length - 1] === man && GVT.p === p) gvtManPhieu();
     }, function () { });
   }
-  var t = GVT.thu || {};
-  var sua = t.sua_duoc !== false;
+  var sua = gvtSuaPhieu(), ro = sua ? '' : ' readonly';
   var html = '<div class="card" style="padding:12px 14px" id="gvtpKq">' + gvtKhoiKetQua() + '</div>' +
     '<div class="card" style="padding:12px 14px">' +
       (p.vet ? gvtDauVet(p.vet, 'margin:0 0 8px') : '') +
       '<div class="t2" style="margin-bottom:4px">Tên món thử</div>' +
-      '<input class="tin" id="gvtpTen" placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
+      '<input class="tin" id="gvtpTen"' + ro + ' placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
       '<div class="t2" style="margin-bottom:6px">Nhóm bán dự kiến (để lấy hệ số mục tiêu)</div>' +
       gvtTheNhom(p.nhom, sua) +
       '<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">' +
-        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Một mẻ ra</div><input class="nt" id="gvtpRa" inputmode="decimal" value="' +
+        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Một mẻ ra</div><input class="nt" id="gvtpRa"' + ro + ' inputmode="decimal" value="' +
           h(String(p.so_ra).replace('.', ',')) + '" style="width:100%;height:44px;text-align:right;padding:0 10px"></div>' +
-        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Đơn vị</div><input class="nt" id="gvtpDvt" value="' + h(p.dvt_ra) +
+        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Đơn vị</div><input class="nt" id="gvtpDvt"' + ro + ' value="' + h(p.dvt_ra) +
           '" style="width:100%;height:44px;padding:0 10px"></div></div>' +
       '<div class="t2" style="margin-bottom:4px">Giá bán dự kiến (không bắt buộc)</div>' +
-      '<input class="nt" id="gvtpGb" inputmode="numeric" placeholder="Để trống nếu chưa có" value="' + h(gvtSoVn(p.gia_ban_du_kien) > 0 ? String(p.gia_ban_du_kien) : '') +
+      '<input class="nt" id="gvtpGb"' + ro + ' inputmode="numeric" placeholder="Để trống nếu chưa có" value="' + h(gvtSoVn(p.gia_ban_du_kien) > 0 ? String(p.gia_ban_du_kien) : '') +
         '" style="width:100%;height:44px;text-align:right;padding:0 10px;margin-bottom:10px">' +
       '<div class="t2" style="margin-bottom:4px">Ghi chú</div>' +
-      '<textarea class="tin" id="gvtpGc" rows="2" style="margin:0">' + h(p.ghi_chu) + '</textarea>' +
+      '<textarea class="tin" id="gvtpGc"' + ro + ' rows="2" style="margin:0">' + h(p.ghi_chu) + '</textarea>' +
     '</div>' +
     '<div class="sec">Nguyên liệu, số lượng theo đơn vị kho</div>' +
     '<div class="card" id="gvtpDs">' + (p.dong.length ? p.dong.map(gvtDongNhap).join('') :
@@ -62307,17 +62354,19 @@ function gvtManPhieu() {
   var b = frame(GVT_TIEU_DE_THU, html, sua ? { footer: '<button class="btn" id="gvtpLuu">Lưu phiếu</button>' } : {});
   var gan = function (id, k) {
     var o = document.getElementById(id);
-    if (o) o.oninput = function () { p[k] = o.value; gvtDanhDau(); if (k !== 'ten_mon' && k !== 'ghi_chu') gvtHenTinh(); };
+    if (o) o.oninput = function () { if (!gvtSuaPhieu()) return; p[k] = o.value; gvtDanhDau(); if (k !== 'ten_mon' && k !== 'ghi_chu') gvtHenTinh(); };
   };
   gan('gvtpTen', 'ten_mon'); gan('gvtpRa', 'so_ra'); gan('gvtpDvt', 'dvt_ra'); gan('gvtpGb', 'gia_ban_du_kien'); gan('gvtpGc', 'ghi_chu');
   b.oninput = function (e) {
     var o = e.target, i;
+    if (!gvtSuaPhieu()) return;
     if (o.getAttribute && (i = o.getAttribute('data-gvtpsl')) != null) { p.dong[+i].so_luong = o.value; gvtDanhDau(); gvtHenTinh(); }
     else if (o.getAttribute && (i = o.getAttribute('data-gvtpgia')) != null) { p.dong[+i].don_gia_tay = o.value; gvtDanhDau(); gvtHenTinh(); }
   };
   b.onclick = function (e) {
     var el;
-    if (sua && e.target.closest('[data-gvtpnhom]')) return gvtChonNhom();
+    if (!gvtSuaPhieu()) return;
+    if (e.target.closest('[data-gvtpnhom]')) return gvtChonNhom();
     if ((el = e.target.closest('[data-gvtpxoa]'))) {
       p.dong.splice(+el.getAttribute('data-gvtpxoa'), 1); gvtDanhDau(); gvtManPhieu(); return gvtTinhLai();
     }
@@ -69460,9 +69509,9 @@ function btmTabThuTu() {
     var so = g.loai === 'banh' ? 'lấy theo tồn trên tủ trong ngày' : ((g.mon || []).length + ' món');
     html += '<div data-btmhang data-ma="' + h(g.ma) + '" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f2f6;background:#fff">' +
       BTM_KEO + '<div style="flex:1;min-width:0;padding:6px 0"><b style="display:block;font-size:15px">' + h(g.ten) + '</b>' +
-      '<small style="display:block;font-size:12.5px;color:#8a8f9c;margin-top:2px">' + h(so) + (g.hien ? '' : ' · đang ẩn trên web') + '</small></div>' +
+      '<small style="display:block;font-size:13px;color:#8a8f9c;margin-top:2px">' + h(so) + (g.hien ? '' : ' · đang ẩn trên web') + '</small></div>' +
       btmCongTac('data-btmhien="' + h(g.ma) + '"', !!g.hien, 'Hiện nhóm ' + g.ten + ' trên web') +
-      (g.loai === 'nuoc' ? '<button type="button" data-btmnhom="' + h(g.ma) + '" aria-label="Mở nhóm ' + h(g.ten) + '" style="flex:none;width:36px;min-height:44px;border:0;background:none;color:#c3c8d4;font-size:24px;cursor:pointer">&#8250;</button>' : '<span style="width:36px"></span>') +
+      (g.loai === 'nuoc' ? '<button type="button" data-btmnhom="' + h(g.ma) + '" aria-label="Mở nhóm ' + h(g.ten) + ' để chỉnh từng món" style="flex:none;min-width:64px;min-height:44px;padding:0 10px;border:1.5px solid #7FE5F6;border-radius:10px;background:#fff;color:#0B7C93;font-size:13px;font-weight:700;cursor:pointer">Món &#8250;</button>' : '<span style="min-width:64px"></span>') +
       '</div>';
   });
   html += '</div>' +
@@ -69471,9 +69520,23 @@ function btmTabThuTu() {
   if (cx) html += '<div style="font-size:13px;color:#c07800;margin:12px 4px">' + cx + ' món mới chưa xếp vào nhóm nào, đang ẩn trên web. Mở một nhóm để xếp.</div>';
   return html;
 }
+/* v643 (anh Việt 07/11/2026 không tìm ra chỗ chỉnh riêng từng món: lối vào
+   chỉ là dấu › nhạt ở tab Thứ tự). Đầu tab Tuỳ chọn và tab Topping có khối
+   "Chỉnh riêng từng món" với nút từng nhóm đồ uống, bấm là mở danh sách món
+   của nhóm; bấm món là tới khối Theo nhóm / Có / Không. */
+function btmKhoiRiengMon(nuoc) {
+  if (!nuoc.length) return '';
+  return '<div class="card" id="btmLoiRieng" style="padding:14px;margin-bottom:12px;background:#f6fbfc">' +
+    '<b style="display:block;font-size:15px">Chỉnh riêng từng món</b>' +
+    '<div style="font-size:13px;color:#6b7280;margin:4px 0 10px;line-height:1.45">Ở đây đặt chung cho cả nhóm. Món nào cần khác (ví dụ ly đóng chai không hỏi thay sữa): chọn nhóm, bấm món, rồi chọn Theo nhóm, Có hoặc Không cho từng tuỳ chọn, topping.</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px">' + nuoc.map(function (g) {
+      return '<button type="button" data-btmnhom="' + h(g.ma) + '" style="min-height:44px;padding:0 14px;border:1.5px solid #7FE5F6;background:#fff;color:#0B7C93;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer">' +
+        h(g.ten) + ' · ' + (g.mon || []).length + ' món ›</button>';
+    }).join('') + '</div></div>';
+}
 function btmTabTuyChon() {
   var d = BTM.d, nuoc = d.nhap.nhom.filter(function (g) { return g.loai === 'nuoc'; });
-  var html = '';
+  var html = btmKhoiRiengMon(nuoc);
   (d.nhap.tuy_chon || []).forEach(function (t, i) {
     html += '<div class="card" style="padding:14px;margin-bottom:12px">' +
       '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:16px;flex:1">' + h(t.ten) + '</b>' +
@@ -69497,7 +69560,7 @@ function btmTabTuyChon() {
 function btmTabTopping() {
   var d = BTM.d, nuoc = d.nhap.nhom.filter(function (g) { return g.loai === 'nuoc'; });
   if (!d.topping.length) return '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280;line-height:1.5">Điểm này chưa có topping nào. Topping là món trong nhóm "Topping cho món nước" của danh mục, có giá trong bảng giá điểm bán.</div>';
-  var html = '<div style="font-size:12.5px;color:#8a8f9c;line-height:1.45;padding:0 4px 10px">Topping là món trong nhóm "Topping cho món nước", giá lấy từ bảng giá điểm bán. Tích để topping hiện khi khách chọn món thuộc nhóm đó.</div>' +
+  var html = btmKhoiRiengMon(nuoc) + '<div style="font-size:13px;color:#8a8f9c;line-height:1.45;padding:0 4px 10px">Topping là món trong nhóm "Topping cho món nước", giá lấy từ bảng giá điểm bán. Tích để topping hiện khi khách chọn món thuộc nhóm đó.</div>' +
     '<div class="card" style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px;min-width:100%">' +
     '<tr><th style="text-align:left;padding:8px 12px;font-size:11.5px;color:#8a8f9c;position:sticky;left:0;background:#fff">Topping</th>' +
     nuoc.map(function (g) { return '<th style="padding:8px 4px;font-size:11.5px;color:#8a8f9c;white-space:nowrap">' + h(g.ten) + '</th>'; }).join('') + '</tr>';
