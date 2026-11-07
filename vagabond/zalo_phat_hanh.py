@@ -219,14 +219,31 @@ def quet():
 		return 0
 	nho.set_value("zph_loi_tu", None, expires_in_sec=1)
 	gui = 0
+	ben = True
 	ban_tin = chon_ban(cac, ban)
 	for x in ban_tin:
-		kenh_zalo.bao("phat_hanh", "phat_hanh", "Vagabond cập nhật %s, đã lên app" % x["version"],
-			dong=[d.strip() for d in x["features"]], khoa="phat_hanh:" + x["sha"], ma_tin="ht_phat_hanh")
+		khoa = "phat_hanh:" + x["sha"]
+		ten = kenh_zalo.bao("phat_hanh", "phat_hanh", "Vagabond cập nhật %s, đã lên app" % x["version"],
+			dong=[d.strip() for d in x["features"]], khoa=khoa, ma_tin="ht_phat_hanh")
 		gui += 1
+		# Codex PR #546 vòng 3: bao() nuốt lỗi ghi và trả rỗng khi không nhóm nào
+		# nhận. Chỉ coi là xong khi tin đã nằm trong hộp thư (vừa ghi, hoặc đã có
+		# sẵn theo khoá chống trùng); không thì nhịp sau đọc GitHub và ghi lại.
+		if not ten and not _da_co_tin(khoa):
+			ben = False
 	if gui:
 		frappe.db.commit()
-	if ban_tin:
-		# Đã có bản tin của bản đang chạy: thôi gọi GitHub tới bản sau.
+	if ban_tin and ben:
+		# Đã có bản tin của bản đang chạy trong hộp thư: thôi gọi GitHub tới bản sau.
 		nho.set_value("zph_xong:%s" % ban, "1", expires_in_sec=7 * 86400)
 	return gui
+
+
+def _da_co_tin(khoa):
+	"""Tin của sự kiện khoa đã nằm trong hộp thư Zalo của ít nhất một nhóm nhận
+	tin phát hành (tên dòng = khoá chống trùng theo mã chat)."""
+	from vagabond import kenh_zalo
+
+	ten = [kenh_zalo.khoa_tin(khoa, n.get("chat_id"))
+		for n in kenh_zalo.chon_nhom(kenh_zalo._cac_nhom(), "phat_hanh", "phat_hanh", "ht_phat_hanh")]
+	return bool(ten) and bool(frappe.db.exists("Vagabond Tin Kenh", {"name": ["in", ten]}))
