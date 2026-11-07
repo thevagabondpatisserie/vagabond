@@ -62,7 +62,7 @@ function appMoi(tuy) {
     if (ham === 'bang_moi') return tra(JSON.parse(JSON.stringify(B)));
     if (ham === 'ds_bien_tap') return tra(goiDs());
     if (ham === 'tai_anh') { soTai++; return tra({ url: '/files/web-moi-' + soTai + '.jpg' }); }
-    if (ham === 'them_anh' && tuy.giu && !tuy.daTha) {
+    if (tuy.giu === ham && !tuy.daTha) {
       /* Giữ phản hồi tới khi ca gọi app.tha(): người dùng thao tác trong lúc chờ. */
       return new Promise(function (xong) { cho.push(function () { tuy.daTha = 1; xong(fetchGia(url, cau)); }); });
     }
@@ -221,7 +221,7 @@ function appMoi(tuy) {
   /* Codex PR #547 (5521e37b): đang chờ máy chủ nhận ảnh của Very Berry thì
      chuyển sang Hannari; phản hồi về sau không được ghép vào bản sửa Hannari. */
   await ca('Codex 547: chuyen banh khi anh dang tai thi anh vao dung banh da tai, banh moi chon khong bi ghep', async function () {
-    var app = appMoi({ giu: 1 }); await nghi(); await app.the('banh');
+    var app = appMoi({ giu: 'them_anh' }); await nghi(); await app.the('banh');
     await app.taiTep('vb-moi.jpg');
     await app.chon('hannari');
     bang('da sang Hannari', app.anh(), ['/files/h.png']);
@@ -231,6 +231,53 @@ function appMoi(tuy) {
     bang('luu Hannari dung bo anh', [app.cuoi('luu').a.khoa, app.cuoi('luu').a.anh.map(function (x) { return x.url; })], ['hannari', ['/files/h.png']]);
     await app.chon('very berry');
     bang('anh vao Very Berry', app.anh(), ['/files/vb.png', 'https://p/can.jpg', '/files/web-moi-1.jpg']);
+  });
+
+  /* Codex PR #547 (479a2c12): tải ảnh Very Berry, sang Hannari rồi QUAY LẠI
+     Very Berry trước khi phản hồi về; bản sửa mới phải nhận ảnh vừa tải, không
+     thì Lưu bánh xoá ảnh đó khỏi máy chủ. */
+  await ca('Codex 547: quay lai dung banh truoc khi anh tai xong thi ban sua dang mo nhan anh, Luu khong xoa anh', async function () {
+    var app = appMoi({ giu: 'them_anh' }); await nghi(); await app.the('banh');
+    await app.taiTep('vb-moi.jpg');
+    await app.chon('hannari');
+    await app.chon('very berry');
+    await app.tha();
+    bang('ban sua Very Berry co anh moi', app.anh(), ['/files/vb.png', 'https://p/can.jpg', '/files/web-moi-1.jpg']);
+    await app.bam(app.mot('[data-luu-banh]'));
+    bang('luu giu anh moi', app.cuoi('luu').a.anh.map(function (x) { return x.url; }), ['/files/vb.png', 'https://p/can.jpg', '/files/web-moi-1.jpg']);
+  });
+
+  /* Codex PR #547 (479a2c12): bấm Lưu bánh rồi gõ tiếp trong lúc chờ; phản hồi
+     không được thay bản sửa bằng bản vừa lưu. */
+  await ca('Codex 547: go them trong luc dang luu thi chu moi con nguyen va van tinh la chua luu', async function () {
+    var app = appMoi({ giu: 'luu' }); await nghi(); await app.the('banh');
+    await app.go(app.oTen('mo_ta_banh'), 'Bản một.');
+    await app.bam(app.mot('[data-luu-banh]'));
+    await app.go(app.oTen('mo_ta_banh'), 'Bản một. Thêm câu hai.');
+    await app.tha();
+    bang('may chu luu ban mot', app.banh[0].mo_ta, 'Bản một.');
+    bang('chu go them con', app.oTen('mo_ta_banh').value, 'Bản một. Thêm câu hai.');
+    dung('bao con thay doi chua luu', app.bao().indexOf('bấm Lưu bánh lần nữa') >= 0);
+    await app.chon('hannari');
+    dung('chuyen banh thi hoi bo thay doi', app.tim('[data-hop-thoi]').length === 1);
+    await app.bam(app.mot('[data-hop-thoi]'));
+    /* Mốc "đã lưu" là bản máy chủ vừa nhận: gõ trở lại đúng bản đó là hết thay đổi. */
+    await app.go(app.oTen('mo_ta_banh'), 'Bản một.');
+    await app.chon('hannari');
+    bang('khong hoi, sang Hannari', [app.tim('[data-hop-thoi]').length, app.anh()], [0, ['/files/h.png']]);
+  });
+
+  await ca('Codex 547: dang luu ma chuyen sang banh khac thi phan hoi khong keo nguoi dung ve banh cu', async function () {
+    var app = appMoi({ giu: 'luu' }); await nghi(); await app.the('banh');
+    await app.go(app.oTen('mo_ta_banh'), 'Bản một.');
+    await app.bam(app.mot('[data-luu-banh]'));
+    await app.chon('hannari');
+    await app.bam(app.mot('[data-hop-co]'));
+    await app.tha();
+    bang('van o Hannari', app.anh(), ['/files/h.png']);
+    bang('Very Berry da luu', app.banh[0].mo_ta, 'Bản một.');
+    await app.chon('very berry');
+    bang('Hannari khong bi tinh la dang sua, mo Very Berry ban da luu', [app.tim('[data-hop-thoi]').length, app.oTen('mo_ta_banh').value], [0, 'Bản một.']);
   });
 
   xongHet = true;
