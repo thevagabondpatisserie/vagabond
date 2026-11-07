@@ -122,6 +122,8 @@
   let monMau = null;
   async function suaSanPham(g) {
     g.append(tao('p', 'Nội dung riêng theo mã bánh. Để trống để dùng danh mục gốc. Giá, tồn và mã đặt hàng giữ theo hệ thống.', 'goi-y'));
+    /* v644: bánh đã có thẻ Bánh thì mô tả, tầng hương vị trên web lấy từ thẻ đó. */
+    g.append(tao('p', 'Ảnh, mô tả và tầng hương vị của bánh ổ nay sửa ở thẻ Bánh (trang biên tập chính). Hai ô Mô tả và Tầng ở đây không còn đổi bánh đã có thẻ Bánh.', 'goi-y'));
     const timMon = tao('input'); timMon.type = 'search'; timMon.placeholder = 'Tìm tên bánh hoặc mã'; timMon.setAttribute('aria-label','Tìm sản phẩm');
     const ds = tao('div'); g.append(timMon, ds);
     ds.textContent = 'Đang tải danh mục...';

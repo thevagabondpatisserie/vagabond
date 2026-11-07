@@ -8,7 +8,7 @@
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
 import {bienNhan} from '../../../public/web_vue/trang/app.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
-import {t0, tienVN, hangGui} from '../../../public/web_vue/kho/thuan.js';
+import {t0, tienVN, hangGui, tronMon} from '../../../public/web_vue/kho/thuan.js';
 import {nextTick} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
 
 let dat = 0, hong = 0;
@@ -493,6 +493,51 @@ await ca('v598 port v597: thiệp nhỏ đi cùng dòng giỏ qua cộng dồn, 
   k.luuGio();
   const k2 = taoKho(a.mt); k2.phucHoiGio();
   la('tải lại trang giữ thiệp', k2.S.CART.map(o => o.dung_cu.thiep), [2, 3]);
+});
+
+await ca('v644 bánh có bộ nội dung web: mô tả, tầng chỉ lấy từ thẻ Bánh, kể cả khi để trống; bánh cũ giữ đường cũ', async () => {
+  const cakes = [{k: 'Very Berry', img: '/cu.png', desc: 'Mô tả tĩnh cũ', layers: [['Cũ', '']], sizes: [{cm: 12, p: 1, id: 'BAWC00086'}]},
+    {k: 'Kankin', img: '/k.png', desc: 'Kankin tĩnh', layers: [], sizes: [{cm: 16, p: 1, id: 'BAWC00124'}]}];
+  tronMon(cakes, [
+    {ten: 'Very Berry', anh: '/files/vb.png', anhs: ['/files/vb.png', '/files/can.jpg'], mo_ta: '', tang: [], tu_web: 1, sizes: [{cm: 12, ma: 'BAWC00086', gia: 620000}]},
+    {ten: 'Kankin', anh: '/files/k2.png', anhs: ['/files/k2.png'], mo_ta: '', tang: [], sizes: [{cm: 16, ma: 'BAWC00124', gia: 900000}]}]);
+  la('Very Berry theo thẻ Bánh', [cakes[0].tuWeb, cakes[0].desc, cakes[0].layers, cakes[0].anhs], [1, '', [], ['/files/vb.png', '/files/can.jpg']]);
+  la('Kankin (đường cũ) giữ chữ tĩnh khi máy chủ không gửi', [cakes[1].tuWeb, cakes[1].desc], [undefined, 'Kankin tĩnh']);
+});
+
+/* Codex PR #547 (1c8d221f): máy chủ lọc hết bánh bị ẩn khỏi hai danh sách, kho
+   Vue cũ coi đặt trước rỗng là chưa có dữ liệu và đưa ra 8/8 bánh mặc định. */
+await ca('Codex 547: bảng Bánh trên web đang dùng, hai danh sách rỗng thì tab đặt trước không còn bánh mặc định nào', async () => {
+  const {mt} = moiTruong('2026-11-07T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: {nhom: []}, chi_hien: 1})});
+  const k = taoKho(mt);
+  const mac = k.S.CAKES.length;
+  await k.napTon();
+  dung('có bánh mặc định trước khi nạp', mac > 0);
+  la('đặt trước', k.banhDatTruoc.value.length, 0);
+  la('danh mục', k.S.CAKES.length, 0);
+  /* Bánh có sẵn hôm nay mà không nhận đặt trước: không được lọt sang tab đặt trước. */
+  const goc = taoKho(moiTruong('2026-11-07T08:00:00').mt).S.CAKES[0];
+  const m2 = moiTruong('2026-11-07T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {[goc.sizes[0].id]: 2},
+    nhom: [{ten: goc.k, anh: '/files/x.png', sizes: [{cm: goc.sizes[0].cm, ma: goc.sizes[0].id, gia: 700000}]}], dat_truoc: {nhom: []}, chi_hien: 1})});
+  const k2 = taoKho(m2.mt);
+  await k2.napTon();
+  la('hôm nay có một bánh', k2.banhHomNay.value.map(c => c.k), [goc.k]);
+  la('đặt trước vẫn rỗng', k2.banhDatTruoc.value.length, 0);
+});
+
+await ca('Codex 547: đang dùng thì chỉ bánh và cỡ máy chủ trả mới lên tab đặt trước; chưa dùng thì giữ danh mục mặc định như cũ', async () => {
+  const goc = taoKho(moiTruong('2026-11-07T08:00:00').mt).S.CAKES;
+  const c0 = goc[0], s0 = c0.sizes[0];
+  const tra = {banh: {}, nhom: [], dat_truoc: {nhom: [{ten: c0.k, anh: '/files/x.png', sizes: [{cm: s0.cm, ma: s0.id, gia: 700000, con: 2}]}]}, chi_hien: 1};
+  const {mt} = moiTruong('2026-11-07T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => tra});
+  const k = taoKho(mt);
+  await k.napTon();
+  la('một bánh', k.banhDatTruoc.value.map(c => c.k), [c0.k]);
+  la('đúng cỡ máy chủ trả', k.kichThuocDangBan(k.banhDatTruoc.value[0], 'order').map(z => z.id), [s0.id]);
+  const cu = moiTruong('2026-11-07T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: {nhom: []}})});
+  const k2 = taoKho(cu.mt);
+  await k2.napTon();
+  la('chưa dùng: danh mục mặc định', k2.banhDatTruoc.value.length, goc.length);
 });
 
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');

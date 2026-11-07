@@ -53,7 +53,7 @@ var VGB_ZALO_NHAN = {
 // tích đúng những tin cần nhận. Bản sao của kenh_zalo.TIN (mã -> [bộ phận, tên,
 // giải thích]); ca thu_tin_zalo_604 so từng chữ với bản Python, sửa một bên phải
 // sửa bên kia. Mã chỉ là giá trị lưu, người dùng chỉ thấy tên và giải thích.
-var VGB_ZALO_BO_PHAN = ['Ban giám đốc', 'Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Thu mua', 'Kho', 'Nhân sự', 'Hệ thống'];
+var VGB_ZALO_BO_PHAN = ['Ban giám đốc', 'Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Thu mua', 'Kho', 'Nhân sự', 'Marketing', 'Hệ thống'];
 var VGB_ZALO_TIN = {
 	bgd_bao_cao_ngay: ['Ban giám đốc', 'Báo cáo cuối ngày (23:30)', '23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.'],
 	bgd_app_cho_duyet: ['Ban giám đốc', 'Phiếu chi chờ giám đốc duyệt', 'Kế toán đã kiểm phiếu chi trả nhà cung cấp, chờ giám đốc duyệt.'],
@@ -153,6 +153,7 @@ var VGB_ZALO_TIN = {
 	kho_hang_nam_im: ['Kho', 'Hàng nằm im 30 ngày (Thứ Hai 08:05)', 'Thứ Hai hằng tuần: nguyên liệu, bao bì còn tồn mà 30 ngày không xuất lần nào.'],
 	ns_ung_vien_moi: ['Nhân sự', 'Hồ sơ ứng tuyển mới', 'Có người vừa nộp hồ sơ (web, mã QR hoặc quản lý thêm tay): tên, số điện thoại, vị trí, ca rảnh.'],
 	ns_ung_vien_qua_han: ['Nhân sự', 'Hồ sơ quá 24 giờ chưa ai gọi', 'Mỗi giờ: hồ sơ còn Mới nhận đã nộp quá 24 giờ, mỗi hồ sơ nhắc một lần.'],
+	mkt_banh_cho_anh: ['Marketing', 'Bánh mới chờ ảnh trên web', 'Ngay khi có người bấm Đưa lên web, và 08:41 mỗi sáng còn bánh chưa có ảnh: khách chưa thấy các bánh này.'],
 	ht_email_loi: ['Hệ thống', 'Email của tiệm không gửi được', 'Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.'],
 	ht_phat_hanh: ['Hệ thống', 'Bản tin cập nhật app sau mỗi deploy', 'App vừa lên bản mới: thêm gì, bộ phận cần làm gì.'],
 	ht_ds_hop_thu_loi: ['Hệ thống', 'Không đọc được hộp thư đối soát doisoat@', 'Đọc hộp thư đối soát lỗi 2 lần liên tiếp (sai mật khẩu, hộp thư đầy, mất kết nối).'],

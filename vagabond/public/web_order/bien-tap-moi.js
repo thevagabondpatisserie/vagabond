@@ -21,6 +21,8 @@
 
   const THE = [
     {k: 'uu_dai', ten: 'Ưu đãi', mo: 'Lấy từ ERP, chỉ xem ở đây', them: '+ Thêm ưu đãi', luu: 'Lưu ưu đãi', ten_muc: 'ưu đãi', dau: 'Danh sách ưu đãi'},
+    /* v644 (anh Việt duyệt 07/11/2026): ảnh, mô tả, tầng hương vị từng bánh quản ở đây. */
+    {k: 'banh', ten: 'Bánh', mo: 'Ảnh, mô tả, tầng hương vị từng bánh'},
     {k: 'tiec', ten: 'Tiệc', mo: 'Tạo tiệc, đặt giá vé, số vé, hạn đăng ký', them: '+ Thêm tiệc', luu: 'Lưu tiệc', ten_muc: 'tiệc', dau: 'Danh sách tiệc'},
     /* v630 (anh Việt chốt 02/11/2026): bánh thiết kế riêng, khách cọc 50% trên web. */
     {k: 'thiet_ke_rieng', ten: 'Thiết kế riêng', mo: 'Tác phẩm đặt riêng: size, giá gồm VAT, trang trí, số ngày đặt trước', them: '+ Thêm tác phẩm', luu: 'Lưu tác phẩm', ten_muc: 'tác phẩm', dau: 'Danh sách tác phẩm'},
@@ -96,14 +98,14 @@
 
   /* ------------------------------------------------------------ máy chủ */
   function bao(chu, loi) { const e = $('bt-trang-thai'); if (!e) return; e.textContent = chu || ''; e.className = 'bt-trang-thai' + (loi ? ' loi' : chu ? ' ok' : ''); }
-  async function api(ham, duLieu) {
+  async function api(ham, duLieu, moDun) {
     const cau = {credentials: 'same-origin', headers: {Accept: 'application/json'}};
     if (duLieu) {
       cau.method = 'POST'; cau.headers['Content-Type'] = 'application/json';
       const m = document.querySelector('meta[name=csrf-token]'); if (m) cau.headers['X-Frappe-CSRF-Token'] = m.content;
       cau.body = JSON.stringify(duLieu);
     }
-    const r = await fetch('/api/method/vagabond.noi_dung_web.' + ham, cau);
+    const r = await fetch('/api/method/vagabond.' + (moDun || 'noi_dung_web') + '.' + ham, cau);
     let d = {};
     try { d = await r.json(); } catch (_) { /* phản hồi không phải JSON: dùng câu chung */ }
     if (!r.ok || d.exc) {
@@ -147,6 +149,7 @@
   function dangDoi() {
     if (sua) return JSON.stringify(sua.muc) !== sua.goc;
     if (fSua && JSON.stringify(fSua) !== fGoc) return true;
+    if (bSua && JSON.stringify(bSua) !== bGoc) return true;
     return lhDoi || Object.keys(chuSua).length > 0;
   }
   async function roiDi() {
@@ -162,7 +165,16 @@
     if (LOAI_MUC.includes(k)) return String(B.khoi.filter(x => x.loai === k).length);
     if (k === 'cua_hang') return String((B.thong_tin.cua_hang || []).length);
     if (k === 'cau_hoi') return String(((B.tuyen_dung_form || {}).cau_hoi || []).length);
+    if (k === 'banh') return B.banh_cho_anh ? String(B.banh_cho_anh) : '';
     return '';
+  }
+  /* Codex PR #547: đang lưu hay đang tải ảnh thì không đổi thẻ, không đổi bánh.
+     Đổi giữa chừng là dựng lại bản sửa từ dữ liệu cũ trước khi máy chủ trả lời,
+     rồi lần Lưu sau ghi đè bản vừa lưu. */
+  function choXong() {
+    if (!ban) return false;
+    bao('Đang lưu hoặc tải ảnh. Chờ xong rồi chuyển.');
+    return true;
   }
   function veThe() {
     const g = $('bt-the'); if (!g) return;
@@ -172,12 +184,12 @@
       b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(t.k === the)); b.dataset.the = t.k;
       const dau = tao('span', 'bt-ten-the', t.ten); const so = demThe(t.k); if (so) dau.append(tao('span', 'bt-dem', so));
       b.append(dau, tao('span', 'bt-mo-the', t.mo));
-      b.onclick = async () => { if (t.k === the && !sua) return; if (!await roiDi()) return; the = t.k; sua = null; chuSua = {}; lhDoi = false; timMuc = ''; fSua = null; fMo = -1; ve(); };
+      b.onclick = async () => { if (t.k === the && !sua) return; if (choXong()) return; if (!await roiDi()) return; the = t.k; sua = null; chuSua = {}; lhDoi = false; timMuc = ''; fSua = null; fMo = -1; bSua = null; bGoc = ''; BB = null; bBao = ''; ve(); };
       g.append(b);
     });
     const nc = tao('button', 'bt-o-the bt-nang-cao'); nc.type = 'button'; nc.dataset.the = 'nang_cao';
     nc.append(tao('span', 'bt-ten-the', 'Nâng cao'), tao('span', 'bt-mo-the', 'Ảnh bìa, câu hỏi, kênh đặt hàng, nội dung bánh, chính sách, lịch sử'));
-    nc.onclick = async () => { if (!await roiDi()) return; moNangCao(true); };
+    nc.onclick = async () => { if (choXong()) return; if (!await roiDi()) return; moNangCao(true); };
     g.append(nc);
   }
   function ve() {
@@ -191,6 +203,7 @@
     else if (the === 'cua_hang') noi = dsCuaHang();
     else if (the === 'lien_he') noi = formLienHe();
     else if (the === 'cau_hoi') noi = theCauHoi();
+    else if (the === 'banh') noi = theBanh();
     else noi = theChu();
     g.append(noi);
     /* Việc cần phần tử đã nằm trong trang (khung xem trước) chạy sau khi gắn. */
@@ -995,6 +1008,205 @@
     else { sua = null; chuSua = {}; lhDoi = false; fSua = null; fMo = -1; tai(); }
   }
 
+
+  /* ------------------------------------------------------------ thẻ Bánh (v644)
+     Anh Việt 07/11/2026: Very Berry hiện 4 ảnh giống nhau vì ảnh ghép từ hồ sơ
+     món từng size và Pancake. Nay mỗi BÁNH (mọi size dùng chung) một bộ ảnh,
+     một mô tả, một bảng tầng hương vị, sửa ở đây (máy chủ: banh_web.py). Bánh
+     chỉ tới đây khi có người bấm Đưa lên web ở màn Danh mục sản phẩm; chưa có
+     ảnh thì khách chưa thấy. Lưu là khách thấy ngay. */
+  const CHO_ANH = 'Chờ ảnh', DANG_HIEN = 'Đang hiện', DA_AN = 'Đã ẩn';
+  const TT_BANH = {'Chờ ảnh': 'sap', 'Đang hiện': 'dang', 'Đã ẩn': 'an'};
+  let BB = null, bTai = false, banhChon = '', banhLoc = '', banhTim = '', bSua = null, bGoc = '', bBao = '';
+  function banhDangChon() { return BB && BB.banh.find(x => x.khoa === banhChon) || null; }
+  function banSua(x) { return x ? {anh: x.anh.map(a => ({url: a.url})), mo_ta: x.mo_ta || '', tang: x.tang || '', hien: x.trang_thai === DANG_HIEN} : null; }
+  function moBanh(x) {
+    banhChon = x ? x.khoa : ''; bBao = '';
+    bSua = banSua(x);
+    bGoc = bSua ? JSON.stringify(bSua) : '';
+  }
+  async function taiBanh() {
+    if (bTai) return;
+    bTai = true;
+    try {
+      BB = await api('ds_bien_tap', null, 'banh_web');
+      const dang = banhDangChon() || BB.banh[0] || null;
+      moBanh(dang);
+    } catch (e) { bao(e.message, true); BB = {banh: [], dem: {}}; }
+    finally { bTai = false; }
+    if (the === 'banh') ve();
+  }
+  function chuSize(x) {
+    const ds = (x.sizes || []).map(s => s.cm ? s.cm + ' cm' : 'một cỡ');
+    return ds.length ? 'Size ' + ds.join(', ') : (x.ma_hang || []).join(', ');
+  }
+  function theBanh() {
+    const g = tao('section', 'bt-banh'); g.setAttribute('aria-label', 'Bánh trên web');
+    if (!BB) { g.append(tao('p', 'bt-rong', 'Đang tải danh sách bánh...')); taiBanh(); return g; }
+    g.append(tao('p', 'bt-chu-phu', 'Mỗi bánh một bộ ảnh dùng chung cho mọi size. Giá, size, tồn lấy từ ERP. Bánh mới tới đây khi có người bấm Đưa lên web ở màn Danh mục sản phẩm trên app. Lưu là khách thấy ngay.'));
+    const dem = BB.dem || {};
+    const chips = tao('div', 'bt-chips');
+    [['', 'Tất cả', BB.banh.length], [CHO_ANH, CHO_ANH, dem[CHO_ANH] || 0], [DANG_HIEN, DANG_HIEN, dem[DANG_HIEN] || 0], [DA_AN, DA_AN, dem[DA_AN] || 0]].forEach(([k, ten, so]) => {
+      const b = tao('button', 'bt-chip' + (k === banhLoc ? ' dang' : ''), ten + ' · ' + so); b.type = 'button';
+      b.dataset.locBanh = k || 'tat_ca'; b.setAttribute('aria-pressed', String(k === banhLoc));
+      b.onclick = () => { banhLoc = k; ve(); };
+      chips.append(b);
+    });
+    const dau = tao('div', 'bt-dau-ds');
+    const tim = tao('input', 'bt-tim'); tim.type = 'search'; tim.placeholder = 'Tìm tên bánh hoặc mã'; tim.value = banhTim;
+    tim.setAttribute('aria-label', 'Tìm bánh'); tim.setAttribute('name', 'tim_banh');
+    dau.append(tim);
+    const khung = tao('div', 'bt-banh-khung');
+    const ds = tao('div', 'bt-banh-ds');
+    function veDs() {
+      ds.replaceChildren();
+      const q = banhTim.trim().toLocaleLowerCase('vi');
+      const loc = BB.banh.filter(x => (!banhLoc || x.trang_thai === banhLoc) && (!q || (x.ten + ' ' + (x.ma_hang || []).join(' ')).toLocaleLowerCase('vi').includes(q)));
+      if (!BB.banh.length) { ds.append(tao('p', 'bt-rong', 'Chưa có bánh nào. Bấm Đưa lên web ở màn Danh mục sản phẩm trên app để thêm bánh.')); return; }
+      if (!loc.length) { ds.append(tao('p', 'bt-rong', 'Không thấy bánh nào khớp.')); return; }
+      loc.forEach(x => {
+        const b = tao('button', 'bt-banh-mon' + (x.khoa === banhChon ? ' dang' : '')); b.type = 'button'; b.dataset.banh = x.khoa;
+        b.setAttribute('aria-pressed', String(x.khoa === banhChon));
+        if (x.anh.length) { const i = tao('img'); i.src = x.anh[0].url; i.alt = ''; b.append(i); }
+        else b.append(tao('span', 'bt-banh-trong', '+'));
+        const chu = tao('span', 'bt-banh-chu'); chu.append(tao('b', '', x.ten), tao('small', '', chuSize(x) + ' · ' + x.anh.length + ' ảnh'));
+        b.append(chu, tao('span', 'bt-tt ' + (TT_BANH[x.trang_thai] || 'an'), x.trang_thai));
+        /* Codex PR #547: đang lưu hay đang tải ảnh thì không cho đổi bánh, để
+           phản hồi máy chủ luôn về đúng bản sửa đang mở (ba vòng rà cho thấy
+           mọi cách đổi bánh giữa chừng đều làm lệch bản sửa với máy chủ). */
+        b.onclick = async () => {
+          if (x.khoa === banhChon) return;
+          if (choXong()) return;
+          if (!await roiDi()) return;
+          moBanh(x); ve();
+        };
+        ds.append(b);
+      });
+    }
+    tim.oninput = () => { banhTim = tim.value; veDs(); };
+    veDs();
+    khung.append(ds, chiTietBanh());
+    g.append(chips, dau, khung);
+    return g;
+  }
+  function chiTietBanh() {
+    const g = tao('div', 'bt-banh-ct');
+    const x = banhDangChon();
+    if (!x || !bSua) { g.append(tao('p', 'bt-rong', 'Chọn một bánh để thêm ảnh và mô tả.')); return g; }
+    g.append(tao('h3', 'bt-ten', x.ten), tao('p', 'bt-meta', chuSize(x) + ' · giá và tồn theo ERP'));
+    const nhanAnh = tao('span', 'bt-nhan', 'Ảnh của bánh (tối đa 5, ảnh đầu là ảnh bìa)');
+    const luoi = tao('div', 'bt-anh-luoi');
+    function nut(chu, nhan, lam, an) {
+      const b = tao('button', 'bt-nut nho', chu); b.type = 'button'; b.setAttribute('aria-label', nhan); b.title = nhan;
+      if (an) b.hidden = true;
+      b.onclick = () => { lam(); ve(); };
+      return b;
+    }
+    bSua.anh.forEach((a, i) => {
+      const o = tao('div', 'bt-anh-o'); o.dataset.anhI = String(i);
+      const hinh = tao('div', 'bt-anh-hinh'); const im = tao('img'); im.src = a.url; im.alt = 'Ảnh ' + (i + 1) + ' của ' + x.ten; hinh.append(im);
+      if (!i) hinh.append(tao('span', 'bt-anh-bia', 'Ảnh bìa'));
+      const hang = tao('div', 'bt-anh-nut');
+      hang.append(
+        nut('◀', 'Đưa ảnh ' + (i + 1) + ' lên trước', () => { const t = bSua.anh.splice(i, 1)[0]; bSua.anh.splice(i - 1, 0, t); }, i === 0),
+        nut('▶', 'Đưa ảnh ' + (i + 1) + ' ra sau', () => { const t = bSua.anh.splice(i, 1)[0]; bSua.anh.splice(i + 1, 0, t); }, i === bSua.anh.length - 1),
+        nut('Làm bìa', 'Đặt ảnh ' + (i + 1) + ' làm ảnh bìa', () => { const t = bSua.anh.splice(i, 1)[0]; bSua.anh.unshift(t); }, i === 0),
+        nut('✕', 'Bỏ ảnh ' + (i + 1), () => { bSua.anh.splice(i, 1); if (!bSua.anh.length) bSua.hien = false; }));
+      o.append(hinh, hang);
+      luoi.append(o);
+    });
+    if (bSua.anh.length < 5) {
+      const l = tao('label', 'bt-anh-o bt-anh-them');
+      const f = tao('input'); f.type = 'file'; f.accept = 'image/png,image/jpeg,image/webp'; f.multiple = true; f.setAttribute('name', 'anh_banh');
+      f.onchange = () => taiAnhBanh(x.khoa, Array.prototype.slice.call(f.files || []));
+      l.append(f, tao('b', '', '+'), tao('span', '', 'Tải ảnh'));
+      luoi.append(l);
+    }
+    g.append(nhanAnh, luoi);
+    if (bBao) { const c = tao('p', 'bt-canh-banh', bBao); c.setAttribute('role', 'status'); g.append(c); }
+    const hai = tao('div', 'bt-hai-cot');
+    hai.append(
+      o('Mô tả', bSua.mo_ta, v => { bSua.mo_ta = v; }, {nhieuDong: true, dong: 5, ten: 'mo_ta_banh', chu: 'Vài câu khách đọc khi mở bánh.'}),
+      o('Tầng hương vị', bSua.tang, v => { bSua.tang = v; }, {nhieuDong: true, dong: 5, ten: 'tang_banh', goi: 'Vỏ sô cô la đen - Dark chocolate shell', chu: 'Mỗi dòng một tầng: tên tầng - giải thích. Tối đa 12 dòng.'}));
+    g.append(hai);
+    const ct = congTac('Hiện trên web', bSua.hien, v => {
+      if (v && !bSua.anh.length) { bSua.hien = false; bBao = 'Thêm ít nhất một ảnh trước khi bật Hiện trên web.'; ve(); return; }
+      bSua.hien = v;
+    }, v => (v ? 'Khách thấy bánh này khi có tồn hoặc nhận đặt' : (bSua.anh.length ? 'Khách không thấy bánh này. ERP và Pancake không đổi' : 'Thêm ảnh rồi bật, khách mới thấy')));
+    ct.dataset.congTacBanh = '1';
+    g.append(ct);
+    const hang = tao('div', 'bt-hang-nut');
+    const luu = tao('button', 'bt-nut chinh', 'Lưu bánh'); luu.type = 'button'; luu.dataset.luuBanh = '1';
+    luu.onclick = () => luuBanh(x.khoa);
+    const xem = tao('a', 'bt-nut', 'Xem như khách'); xem.href = '/banh'; xem.target = '_blank'; xem.rel = 'noopener';
+    hang.append(luu, xem);
+    g.append(hang);
+    return g;
+  }
+  async function taiAnhBanh(khoaBanh, tep) {
+    if (ban || !tep.length) return;
+    /* Codex PR #547: ảnh vừa tải chỉ ghép vào bản sửa ĐANG MỞ của đúng bánh
+       đã tải (theo khoá bánh, kể cả khi người dùng sang bánh khác rồi quay
+       lại: bản sửa mới phải nhận ảnh, không thì Lưu bánh xoá ảnh đó). Đang mở
+       bánh khác thì ảnh vẫn vào bánh đã tải (máy chủ đã lưu), không ghép. */
+    const dangMo = () => (banhChon === khoaBanh ? bSua : null);
+    for (const f of tep) {
+      const d0 = dangMo();
+      if (d0 && d0.anh.length >= 5) { bBao = 'Mỗi bánh tối đa 5 ảnh. Bỏ bớt một ảnh rồi tải tiếp.'; break; }
+      khoa(true); bao('Đang tải ảnh...');
+      try {
+        const u = await taiAnhLen(f);
+        const r = await api('them_anh', {khoa: khoaBanh, url: u}, 'banh_web');
+        BB = r;
+        if (!dangMo()) {
+          const t = (BB.banh.find(x => x.khoa === khoaBanh) || {}).ten || '';
+          bao(r.trung ? 'Ảnh vừa tải giống một ảnh đã có của bánh ' + t + '.' : 'Đã thêm ảnh vào bánh ' + t + '.');
+          continue;
+        }
+        /* Codex PR #547: chỉ ghép ĐÚNG ảnh vừa tải. Máy chủ trả cả bộ đã lưu,
+           trong đó còn ảnh người dùng vừa bỏ ở bản đang sửa; ghép cả bộ là kéo
+           ảnh đã bỏ trở lại. */
+        if (r.trung) {
+          if (bSua.anh.some(b => b.url === r.trung)) bBao = 'Ảnh vừa tải giống một ảnh đã có của bánh này, máy không thêm lần nữa.';
+          else { bSua.anh.push({url: r.trung}); bBao = 'Ảnh vừa tải giống một ảnh đã có sẵn của bánh này, máy đưa ảnh đó trở lại. Bấm Lưu bánh để giữ.'; }
+        } else {
+          bBao = '';
+          const uMoi = r.them || u;
+          if (!bSua.anh.some(b => b.url === uMoi)) {
+            bSua.anh.push({url: uMoi});
+            const g0 = JSON.parse(bGoc); g0.anh.push({url: uMoi}); bGoc = JSON.stringify(g0);
+          }
+        }
+        bao(r.trung ? '' : 'Đã thêm ảnh. Bấm Lưu bánh nếu vừa đổi thứ tự, mô tả hay bật hiện.');
+      } catch (e) { bao(e.message, true); break; }
+      finally { khoa(false); }
+    }
+    ve();
+  }
+  async function luuBanh(khoaBanh) {
+    if (ban || !bSua) return;
+    if (bSua.hien && !bSua.anh.length) { bBao = 'Thêm ít nhất một ảnh trước khi bật Hiện trên web.'; ve(); return; }
+    khoa(true); bao('Đang lưu...');
+    /* Codex PR #547: người dùng gõ tiếp trong lúc chờ thì giữ chữ mới, chỉ dời
+       mốc "đã lưu" sang bản máy chủ vừa nhận; không thay cả bản sửa. */
+    const sua = bSua, gui = JSON.stringify(bSua);
+    try {
+      BB = await api('luu', {khoa: khoaBanh, anh: sua.anh, mo_ta: sua.mo_ta, tang: sua.tang, trang_thai: sua.hien ? DANG_HIEN : DA_AN}, 'banh_web');
+      if (B) B.banh_cho_anh = (BB.dem || {})[CHO_ANH] || 0;
+      const x = BB.banh.find(y => y.khoa === khoaBanh) || null;
+      const hien = x && x.trang_thai === DANG_HIEN;
+      if (banhChon !== khoaBanh || bSua !== sua) bao('Đã lưu bánh ' + ((x && x.ten) || '') + '.');
+      else if (JSON.stringify(bSua) !== gui) {
+        bGoc = JSON.stringify(banSua(x));
+        bao('Đã lưu bản lúc bấm Lưu. Còn thay đổi gõ trong lúc lưu, bấm Lưu bánh lần nữa.');
+      } else {
+        moBanh(x);
+        bao(hien ? 'Đã lưu. Khách thấy ngay.' : 'Đã lưu. Bánh đang ẩn với khách.');
+      }
+    } catch (e) { bao(e.message, true); }
+    finally { khoa(false); }
+    ve();
+  }
   function batDau() {
     const ve2 = $('bt-ve-moi'); if (ve2) ve2.onclick = () => moNangCao(false);
     if (window.addEventListener) window.addEventListener('beforeunload', e => { if (dangDoi()) { e.preventDefault(); e.returnValue = ''; } });

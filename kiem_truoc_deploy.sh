@@ -269,6 +269,9 @@ node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_622.js
 node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_625.js
 node vagabond/khung/kiem_thu/hanh_vi/ung_tuyen_625.js
 node vagabond/khung/kiem_thu/hanh_vi/bien_tap_cau_hoi_625.js
+# v644: thẻ Bánh của trình biên tập và nút Đưa lên web trên app.
+node vagabond/khung/kiem_thu/hanh_vi/bien_tap_banh_644.js
+node vagabond/khung/kiem_thu/hanh_vi/dua_len_web_644.js
 node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_vue_625.mjs
 # v630: chan trang web dat banh ban Vue (chan-trang.js that, mount bang Vue that): mang xa hoi, cua hang, muc gap tren dien thoai, mien phi giao, chinh sach.
 node vagabond/khung/kiem_thu/hanh_vi/chan_trang_630.mjs

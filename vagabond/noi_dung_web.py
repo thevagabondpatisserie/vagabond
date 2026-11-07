@@ -1218,7 +1218,14 @@ def bang_moi():
         "tuyen_dung_form": _form_bien_tap(cong),
         "dau_tuyen_dung_form": dau_van_tay(_form_bien_tap(cong)),
         "tuyen_dung_mau": _mau_form(),
+        # v644: số bánh đã đưa lên web còn Chờ ảnh (đếm trên thẻ Bánh).
+        "banh_cho_anh": _banh_cho_anh(),
     }
+
+
+def _banh_cho_anh():
+    from vagabond import banh_web
+    return banh_web.dem_cho_anh()
 
 
 def giu_form_da_luu(nd, nhap_cu):

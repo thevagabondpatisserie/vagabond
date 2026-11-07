@@ -509,6 +509,36 @@ def _bo_dong_cu(name):
 	return lich_su[-50:]
 
 
+_KIEU_SO = ("Int", "Float", "Currency", "Percent", "Check")
+_O_SO_NGUON = None
+
+
+def o_so_nguon():
+	"""Tên các ô số của Nguồn đối soát, đọc một lần từ JSON doctype trong app
+	(một nguồn duy nhất cho mọi lối ghi lại nguồn)."""
+	global _O_SO_NGUON
+	if _O_SO_NGUON is None:
+		import os
+
+		p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vagabond", "doctype",
+			"vagabond_doi_soat_nguon", "vagabond_doi_soat_nguon.json")
+		with open(p, encoding="utf-8") as f:
+			_O_SO_NGUON = frozenset(x["fieldname"] for x in json.load(f)["fields"] if x.get("fieldtype") in _KIEU_SO)
+	return _O_SO_NGUON
+
+
+def so_khong_rong(truong, o_so):
+	"""THUẦN: ô số mang None thì về 0, đúng như Frappe tự làm lúc insert.
+
+	Site thật 07/11/2026 (sau deploy v643): bấm Đọc lại thư gốc nguồn
+	ShopeeFood DSN-2611-06355 hỏng "Column 'tong_tep' cannot be null". Tệp
+	ShopeeFood không in dòng tổng nên tổng trên tệp là None; lần nhận đầu đi
+	qua insert (None thành 0) nên không lộ, còn đọc lại một nguồn có sẵn ghi
+	bằng db_set, tức câu UPDATE thẳng, mà cột số của MariaDB là NOT NULL.
+	Lỗi có từ v583 với mọi mẫu không in dòng tổng."""
+	return {k: (0 if v is None and k in o_so else v) for k, v in truong.items()}
+
+
 def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None, them=None):
 	lich_su = None
 	if co_san:
@@ -551,7 +581,7 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None, t
 		# dòng đã có cùng nội dung thành "đã có", chỉ thêm dòng mới.
 		nguon = frappe.get_doc(DT_NGUON, co_san)
 		giu = giu_khi_doc_lai({k: getattr(nguon, k, None) for k in ("kenh_nhan", "duong_vao", "ly_do_tai_tay")}, kenh)
-		nguon.db_set({k: v for k, v in truong.items() if k not in ("sha256", "company") + giu})
+		nguon.db_set(so_khong_rong({k: v for k, v in truong.items() if k not in ("sha256", "company") + giu}, o_so_nguon()))
 		nguon.reload()
 	else:
 		nguon = frappe.get_doc(dict(doctype=DT_NGUON, **truong))

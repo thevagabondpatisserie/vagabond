@@ -570,6 +570,13 @@ def gan_day(so_dong=30, tim="", trang=1):
 	duoc_day = _duoc_tao() and frappe.has_permission("Item", "write")
 	for r in rows:
 		r["day_duoc"] = 1 if duoc_day and pkq.duoc_xuat_ban(r.get("disabled"), r.get("is_sales_item")) else 0
+	# v644: trạng thái trên web của bánh chứa mã này (Chờ ảnh, Đang hiện, Đã ẩn, rỗng
+	# là chưa đưa lên web), để nút Đưa lên web biết mã nào còn thiếu.
+	from vagabond import banh_web
+
+	tt = banh_web.trang_thai_theo_ma(rows)
+	for r in rows:
+		r["web"] = tt.get(r["name"], "")
 
 	return {
 		"mon": rows,

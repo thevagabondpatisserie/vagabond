@@ -72,7 +72,8 @@ html body footer .f-phap-nhan{margin-top:16px;line-height:1.9}
   html body .sheet{padding-bottom:0!important}
   html body .sheet>.wrap{width:100%;padding-left:20px;padding-right:20px}
   html body .sheet>.wrap:first-child{padding:0}
-  html body .sheet .hero-img{max-height:42vh;width:100%;aspect-ratio:4/3}
+  /* v644: bỏ lề âm -20px của banh.css (khung đã rộng 100% từ mép), không thì ảnh lệch trái 20px, hở viền đen bên phải. */
+  html body .sheet .hero-img{max-height:42vh;width:100%;aspect-ratio:4/3;margin:0}
   html body .sheet .hero-img::after{display:none}
   html body .sheet .close{position:fixed;left:auto;right:12px;top:max(12px,env(safe-area-inset-top));z-index:5}
   html body .cart li:not(.cart-empty){display:grid;grid-template-columns:66px minmax(0,1fr);gap:12px}

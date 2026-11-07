@@ -531,6 +531,45 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(loi,[]);
     await c.close();
   });
+  await test('F41 v644 ảnh lớn của trang bánh khít hai mép trên điện thoại và máy tính bảng, không lệch trái 20px',async()=>{
+    /* Anh Việt 07/11/2026 (Roman De La Rose, Very Berry trên iPhone): khung ảnh vừa rộng 100% vừa giữ lề âm -20px
+       của banh.css nên lệch trái 20px, hở dải đen bên phải. Đo đúng khung sau khi khách mở bánh. */
+    for (const width of [390,800]) {
+      const c=await browser.newContext({viewport:{width,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+      await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+      const p=await c.newPage();
+      await p.goto(url+'/web_moi/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
+      await p.waitForTimeout(600);
+      const h=await p.evaluate(()=>{const r=document.querySelector('#sheet .hero-img').getBoundingClientRect();return {l:r.left,r:r.right,vw:document.documentElement.clientWidth};});
+      assert.equal(Math.round(h.l),0,width+'px: ảnh lớn phải bắt đầu ở mép trái, đang '+h.l);
+      assert.equal(Math.round(h.r),h.vw,width+'px: ảnh lớn phải chạm mép phải, đang '+h.r+' trên '+h.vw);
+      await c.close();
+    }
+  });
+  await test('F42 v644 bánh có bộ nội dung web: trang bánh hiện đúng bộ ảnh và mô tả thẻ Bánh, chữ riêng từng mã cũ không đè lên',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const p=await c.newPage();
+    await p.route('**/api/method/vagabond.kiem_banh.co_the_ban_hom_nay*',async r=>{
+      const d=await (await r.fetch()).json();
+      d.message.dat_truoc.nhom.forEach(g=>{ if(g.ten==='CANDLE') Object.assign(g,{anh:'/assets/vagabond/web_order/anh-bia.png',
+        anhs:['/assets/vagabond/web_order/anh-bia.png','/assets/vagabond/web_order/og-banh.jpg'],mo_ta:'Mô tả thẻ Bánh',tang:['Vỏ - shell'],tu_web:1}); });
+      return r.fulfill({json:d});
+    });
+    await p.route('**/api/method/vagabond.noi_dung_web.cong_khai*',async r=>{
+      const d=await (await r.fetch()).json();
+      d.message.san_pham=Object.assign(d.message.san_pham||{},{BAWC00139:{mo_ta:'Chữ riêng mã cũ',tang:'Tầng cũ'},BAWC00140:{mo_ta:'Chữ riêng mã cũ',tang:'Tầng cũ'}});
+      return r.fulfill({json:d});
+    });
+    await p.goto(url+'/web_moi/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
+    await p.waitForTimeout(500);
+    assert.equal((await p.locator('#s-desc').textContent()).trim(),'Mô tả thẻ Bánh');
+    const tang=await p.locator('#s-layers').textContent();
+    assert.ok(/Vỏ/.test(tang) && !/Tầng cũ/.test(tang),'tầng hương vị từ thẻ Bánh: '+tang);
+    const anh=await p.$$eval('#s-thumbs img',ds=>ds.map(i=>new URL(i.src).pathname));
+    assert.deepEqual(anh,['/assets/vagabond/web_order/anh-bia.png','/assets/vagabond/web_order/og-banh.jpg']);
+    await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
