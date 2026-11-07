@@ -96,5 +96,6 @@
   .trang-dich-vu .db .db-tom-ngan{display:block;font:13px var(--sans);color:var(--fog);line-height:1.4}
   .trang-dich-vu .db .db-tom-ngan b{display:block;font-size:15px;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .trang-dich-vu .db .db-tom-ngan span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .trang-dich-vu .db .db-chot button#gui{padding:0 14px;letter-spacing:.06em;max-width:58%;overflow:hidden;text-overflow:ellipsis}
+  /* v643 (còn tồn v611, đo 07/11 ở 360px): nút bị cắt thành "GỬI YÊU CẦU ĐẶT B...". Cho xuống hai dòng, không cắt chữ. */
+  .trang-dich-vu .db .db-chot button#gui{padding:6px 14px;letter-spacing:.06em;max-width:58%;white-space:normal;line-height:1.25;text-align:center}
 }
