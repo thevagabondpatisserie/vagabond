@@ -219,6 +219,64 @@ def kiem_rsa(n, e, chu_ky, du_lieu):
 	return em == mong
 
 
+# ------------------------------------------------------------ thư qua bộ lọc chuyển tiếp
+
+def o_sender_bu(tieu_de, h, kieu):
+	"""THUẦN (v643). Ô Sender dựng lại cho thư đã đi qua bộ lọc chuyển tiếp của
+	máy chủ thư của tiệm (Roundcube/Sieve chuyển account@ sang doisoat@).
+
+	Thư GreenSM 06/11/2026 gửi qua Mailgun có "Sender: no-reply@greensm.com" và
+	ký cả ô đó; khi bộ lọc chuyển thư sang hộp doisoat@, máy chủ (Exim, gửi lại
+	như thư nội bộ) gỡ ô Sender nên chữ ký không còn khớp, dù SpamAssassin lúc
+	thư vào account@ ghi DKIM_VALID. Cách bù hẹp nhất có thể:
+	  - chỉ khi h= có ký Sender mà thư KHÔNG còn ô Sender nào;
+	  - chỉ kiểu chuẩn hoá relaxed (kiểu simple cần đúng từng byte gốc);
+	  - chỉ thử đúng địa chỉ trong ô From (bản trơn và nguyên văn ô From).
+	Ô bù vẫn phải qua phép kiểm RSA với khoá của đối tác cùng mọi ô khác, nên
+	không ai dựng được thư giả bằng cách này: khớp nghĩa là đối tác đã ký đúng
+	thư này cùng ô Sender đó."""
+	if kieu != "relaxed" or b"sender" not in h or any(x[0].lower() == b"sender" for x in tieu_de):
+		return []
+	tu = [x for x in tieu_de if x[0].lower() == b"from"]
+	if len(tu) != 1:
+		return []
+	v = re.sub(rb"\r\n", b"", tu[0][1])
+	v = _WSP.sub(b" ", v).strip(b" ")
+	m = re.search(rb"<([^<>\s]+@[^<>\s]+)>", v)
+	dc = m.group(1) if m else (v if re.fullmatch(rb"[^<>\s]+@[^<>\s]+", v) else b"")
+	ung = []
+	for x in (dc, v):
+		if x and x not in ung:
+			ung.append(x)
+	return [(b"Sender", b" " + x + b"\r\n", b"") for x in ung]
+
+
+def luc_nhan(tho):
+	"""THUẦN (v643). Giờ máy chủ thư của tiệm nhận thư (epoch giây), đọc từ ô
+	Received TRÊN CÙNG: ô này do máy chủ của tiệm thêm sau cùng, người gửi không
+	viết được. Không đọc được thì None.
+
+	Dùng làm mốc kiểm hạn x= của chữ ký: Mailgun ký hạn 2 giờ, nên bấm Kiểm lại
+	thư sau đó mà so với giờ hiện tại là thư thật thành "hết hạn"."""
+	from email.utils import parsedate_to_datetime
+
+	try:
+		tieu_de, _than = tach_thu(tho)
+	except LoiChuKy:
+		return None
+	for ten, gia_tri, _k in tieu_de:
+		if ten.lower() != b"received":
+			continue
+		v = re.sub(rb"\r\n", b"", gia_tri).decode("latin-1")
+		if ";" not in v:
+			return None
+		try:
+			return int(parsedate_to_datetime(v.rsplit(";", 1)[1].strip()).timestamp())
+		except (TypeError, ValueError, IndexError):
+			return None
+	return None
+
+
 # ------------------------------------------------------------ kiểm một chữ ký
 
 def kiem_mot(tieu_de, than, chi_so, lay_khoa, bay_gio=None):
@@ -289,10 +347,18 @@ def kiem_mot(tieu_de, than, chi_so, lay_khoa, bay_gio=None):
 				raise LoiChuKy("Khoá chỉ cho phép ký đúng tên miền.")
 		n, e = khoa_rsa(_b64(k["p"]))
 		# Tiêu đề.
-		du_lieu = b"".join(chuan_tieu_de(a, b, kh, kk) for a, b, kk in chon_tieu_de(tieu_de, h))
-		du_lieu += chuan_tieu_de(ten, bo_gia_tri_b(gia_tri), kh, khoang).rstrip(b"\r\n")
-		if not kiem_rsa(n, e, _b64(t["b"]), du_lieu):
-			raise LoiChuKy("Chữ ký không khớp: tiêu đề thư đã bị sửa hoặc thư không phải do %s ký." % ra["d"])
+		chu_ky_b = _b64(t["b"])
+		dong_ky = chuan_tieu_de(ten, bo_gia_tri_b(gia_tri), kh, khoang).rstrip(b"\r\n")
+
+		def _khop(ds):
+			du_lieu = b"".join(chuan_tieu_de(a, b, kh, kk) for a, b, kk in chon_tieu_de(ds, h)) + dong_ky
+			return kiem_rsa(n, e, chu_ky_b, du_lieu)
+		if not _khop(tieu_de):
+			bu = [x for x in o_sender_bu(tieu_de, h, kh) if _khop(tieu_de + [x])]
+			if not bu:
+				raise LoiChuKy("Chữ ký không khớp: tiêu đề thư đã bị sửa hoặc thư không phải do %s ký." % ra["d"])
+			ra["ghi_chu"] = ("Máy chủ thư của tiệm đã gỡ ô Sender khi chuyển tiếp từ hộp khác sang; "
+				"thêm lại ô đó bằng đúng địa chỉ người gửi thì chữ ký khớp.")
 		ra["dat"] = True
 	except LoiChuKy as er:
 		ra["ly_do"] = str(er)
