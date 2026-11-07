@@ -15,6 +15,33 @@ kế toán, giám đốc và người làm kỹ thuật sau.
 
 Sáu bước trên app: 1 Nhận thư, 2 Xác thực, 3 Đọc tệp, 4 Khớp tiền, 5 Nối chứng từ, 6 Kế toán xác nhận.
 
+## Thư chuyển tiếp (v643, anh Việt 07/11/2026 "đồng ý luôn thư forward tự động")
+
+- Bộ lọc của máy chủ thư (account@ sang doisoat@) gửi lại thư như thư nội bộ và
+  GỠ ô Sender. Đối tác nào ký cả ô Sender (GreenSM qua Mailgun ký
+  "Sender: no-reply@greensm.com") thì chữ ký hỏng dù thư thật. Máy thử thêm lại
+  ô Sender bằng ĐÚNG địa chỉ From rồi kiểm chữ ký; khớp thì nhận và ghi rõ trong
+  lý do. Sender gốc khác From thì vẫn chặn: khi đó nhờ đối tác gửi thẳng tới
+  doisoat@, hoặc đổi bộ lọc sang "Chuyển tiếp" (forwarder) của máy chủ.
+- Hạn chữ ký (x=, Mailgun ký 2 giờ) so với giờ máy chủ tiệm NHẬN thư (ô
+  Received trên cùng), nên Kiểm lại thư sau đó vẫn đạt.
+- Ô "Hộp thư nội bộ được chuyển tiếp" (Cài đặt, ngay dưới Người gửi tin cậy,
+  gieo sẵn account@ và Gmail của tiệm): thư Fwd hay gửi kèm tệp từ các địa chỉ
+  này được nhận ngay vào đường Từ thư, không chờ duyệt, khi thư đúng là của địa
+  chỉ đó: chữ ký số của chính tên miền (Gmail ký gmail.com), hoặc gửi qua máy chủ
+  thư của tiệm có đăng nhập (chặng SMTP đầu tiên của máy chủ tiệm ghi esmtpa hay
+  esmtpsa, Return-Path đúng địa chỉ). Thư mạo danh các địa chỉ này bị chặn, báo
+  Zalo. Tệp chuyển tiếp không còn chữ ký gốc của đối tác: chỗ dựa còn lại là đối
+  chiếu tiền về ngân hàng như mọi nguồn.
+- Thư Bị chặn có nút "Kiểm lại thư": chạy lại đúng đường thư mới theo Cài đặt
+  hiện tại. Nguồn từ thư còn Cần xử lý có nút "Đọc lại thư gốc" (sau khi sửa
+  mẫu đọc).
+
+Giới hạn còn lại: máy chủ thư của tiệm là máy dùng chung (Mắt Bão). "Có đăng
+nhập" chứng minh thư do một tài khoản ĐÃ ĐĂNG NHẬP trên máy đó gửi, chưa chứng
+minh là chính account@. Muốn chắc tuyệt đối thì bật DKIM cho tên miền của tiệm
+trên Mắt Bão và để máy chỉ nhận thư account@ có chữ ký.
+
 ## Tải tay
 
 Vẫn giữ, nhưng "có duyệt": người tải ghi lý do, nguồn mang nhãn "Chờ duyệt" và
@@ -29,6 +56,7 @@ Nguồn tải tay trước v641 giữ nguyên, hiện là "Trước khi có thư
 - Địa chỉ, mật khẩu hộp thư (anh tự dán), máy chủ IMAP (để trống là dùng máy chủ của hộp erp@), cổng, thư mục.
 - Mật khẩu mở PDF sao kê thẻ Shinhan, mật khẩu ZIP Shinhan POS.
 - Bảng Người gửi tin cậy: đối tác, tên miền, bắt buộc chữ ký (tắt là vẫn nhận nhưng giám đốc duyệt từng thư).
+- Ô Hộp thư nội bộ được chuyển tiếp (v643): mỗi dòng một địa chỉ của tiệm; để trống là không nhận thư chuyển tiếp.
 - Bảng Lịch thư dự kiến: nguồn, hằng ngày hay hằng tháng, hạn giờ, hạn ngày, chỉ ngày làm việc.
 - Biểu phí thẻ Shinhan POS theo hợp đồng (nội địa mặc định 1,44%), ngưỡng báo phí, ngưỡng báo lệch tiền.
 
@@ -57,3 +85,4 @@ cho từng lần quẹt thẻ trước, nếu không tin nhắc mà không có c
 - `vagabond/doi_soat_dkim.py`: kiểm chữ ký DKIM tự viết (rsa-sha256, simple/relaxed), không phụ thuộc thư viện.
 - Doctype mới: `Vagabond Doi Soat Thu` (sổ thư), hai bảng con của Cài đặt.
 - Ca kiểm: `thu_doi_soat_thu_641.py` (thư mẫu dkimpy ký thật trong `mau_doi_soat/dkim/`), `hanh_vi/doi_soat_hop_thu_641.js`.
+- v643: `thu_doi_soat_643.py` (GreenSM qua bộ lọc, thư nội bộ, ShopeeFood ghi đồng), bench `kiem_that/thu_doi_soat_643.py`.
