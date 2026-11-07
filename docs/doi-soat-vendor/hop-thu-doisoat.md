@@ -36,6 +36,12 @@ Sáu bước trên app: 1 Nhận thư, 2 Xác thực, 3 Đọc tệp, 4 Khớp t
 - Thư Bị chặn có nút "Kiểm lại thư": chạy lại đúng đường thư mới theo Cài đặt
   hiện tại. Nguồn từ thư còn Cần xử lý có nút "Đọc lại thư gốc" (sau khi sửa
   mẫu đọc).
+  Đọc lại thư đã xác thực mà nay chữ ký không kiểm lại được (đối tác đổi khoá)
+  thì máy dừng, giữ kết quả cũ, không hạ thành Bị chặn.
+- Gmail tự chuyển tiếp (đã xác nhận 07/11/2026 cho thevagabondbakery@gmail.com):
+  nên chuyển tiếp bằng BỘ LỌC theo tên miền đối tác, không chuyển cả hộp, vì
+  mọi thư về doisoat@ đều được cất bản gốc .eml trên ERP. Thư Gmail tự chuyển
+  tiếp giữ nguyên chữ ký đối tác nên máy nhận như thư gửi thẳng.
 
 Giới hạn còn lại: máy chủ thư của tiệm là máy dùng chung (Mắt Bão). "Có đăng
 nhập" chứng minh thư do một tài khoản ĐÃ ĐĂNG NHẬP trên máy đó gửi, chưa chứng
