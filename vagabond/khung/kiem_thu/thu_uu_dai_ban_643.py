@@ -66,6 +66,9 @@ class HoaDon(_fr._dict):
 	def save(self, *a, **k):
 		self.tinh()
 		self.luu += 1
+		# Bench #546: ghi lại người đang đăng nhập lúc lưu (khách là Guest).
+		ss = getattr(_fr, "session", None)
+		self["luu_boi"] = getattr(ss, "user", None)
 		if self.get("nhat_ky") is not None:
 			self["nhat_ky"].append("luu")
 
@@ -126,7 +129,9 @@ def _ban(si, sdt=SDT, khach=KHACH, link=True):
 			patch.object(_fr, "get_all", side_effect=lambda dt, **k: list(CTKM) if dt == u.DT_CTKM else []), \
 			patch.object(khuyen_mai, "tinh", side_effect=km_gia), \
 			patch.object(khuyen_mai, "tinh_co_khoa", side_effect=km_gia), \
-			patch.object(_fr.local, "response_headers", {}, create=True):
+			patch.object(_fr.local, "response_headers", {}, create=True), \
+			patch.object(_fr, "session", _fr._dict(user="Guest"), create=True), \
+			patch.object(_fr, "set_user", lambda nd: setattr(_fr.session, "user", nd), create=True):
 		yield
 
 
@@ -198,6 +203,9 @@ def _chon():
 		r = u.chon("TCV", 5, "k", "ma", "vc-8k2q")
 	la("áp ngay", (r["ok"], r["chon"]["giam"], r["tong"]), (1, 18500, 185000 - 10000 - 18500))
 	la("đã lưu và giữ giảm tay", (si.luu, si.discount_amount, si.vgb_giam_ud), (1, 28500.0, 18500.0))
+	# Bench #546 (07/11/2026): lưu bằng phiên Guest thì ERPNext ném PermissionError
+	# ở get_party_account. Bước lưu phải chạy bằng quyền hệ thống rồi trả lại Guest.
+	la("lưu bằng quyền hệ thống", si.luu_boi, "Administrator")
 	ud = json.loads(si.vgb_ud_ban)
 	la("lưu lựa chọn", (ud["loai"], ud["ma"], ud["sdt"], ud["khach"], ud["giam"]), ("ma", "VC-8K2Q", SDT, KHACH, 18500))
 	with _ban(si):
@@ -225,6 +233,19 @@ def _chon():
 	with _ban(si):
 		r = u.bo("TCV", 5, "k")
 	la("chính số đó bỏ: về phần giảm tay", (r["ok"], si.discount_amount, si.vgb_giam_ud, si.vgb_ud_ban, r["tong"]), (1, 10000.0, 0.0, "", 175000))
+	la("bỏ cũng lưu bằng quyền hệ thống", si.luu_boi, "Administrator")
+	with _ban(si):
+		u.chon("TCV", 5, "k", "ma", "VC-8K2Q")
+		la("xong trả lại đúng Guest", _fr.session.user, "Guest")
+
+		def hong(*a, **k):
+			raise ValueError("ERPNext hỏng")
+		si.save = hong
+		try:
+			u.bo("TCV", 5, "k")
+		except ValueError:
+			pass
+		la("lưu hỏng vẫn trả lại Guest", _fr.session.user, "Guest")
 
 
 @ca("v643 bàn gọi thêm món: ưu đãi đã chọn tính lại trên giỏ mới; chưa đủ điều kiện thì giữ lựa chọn giảm 0, đủ lại thì tự áp")
