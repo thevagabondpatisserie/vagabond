@@ -66,7 +66,7 @@ function appMoi(tuy) {
       /* Ảnh thứ hai trở đi trong ca trùng: máy chủ báo giống ảnh đã có. */
       if (tuy.trung && x.anh.length) { var r = goiDs(); r.khoa = a.khoa; r.trung = x.anh[0].url; return tra(r); }
       x.anh.push({ url: a.url, bam: 'b' + soTai });
-      var r2 = goiDs(); r2.khoa = a.khoa; r2.trung = ''; return tra(r2);
+      var r2 = goiDs(); r2.khoa = a.khoa; r2.trung = ''; r2.them = a.url; return tra(r2);
     }
     if (ham === 'luu') {
       var y = banh.find(function (b) { return b.khoa === a.khoa; });
@@ -189,6 +189,27 @@ function appMoi(tuy) {
     await app.bam(app.mot('[data-luu-banh]'));
     dung('bao loi', app.bao().indexOf('tối đa 4.000 ký tự') >= 0);
     bang('giu chu', app.oTen('mo_ta_banh').value, 'Chữ mới');
+  });
+
+  /* Codex PR #547 (1c8d221f): bỏ một ảnh rồi tải ảnh thay trước khi Lưu, máy
+     chủ trả cả bộ đã lưu (còn ảnh vừa bỏ). Bản sửa chỉ ghép đúng ảnh vừa tải,
+     không kéo ảnh đã bỏ trở lại. */
+  await ca('Codex 547: bo anh roi tai anh thay truoc khi Luu thi anh da bo khong quay lai', async function () {
+    var app = appMoi(); await nghi(); await app.the('banh');
+    await app.bam(app.nutAnh(0, 'Bỏ ảnh 1'));
+    bang('da bo vb', app.anh(), ['https://p/can.jpg']);
+    await app.taiTep('moi.jpg');
+    bang('chi them anh vua tai', app.anh(), ['https://p/can.jpg', '/files/web-moi-1.jpg']);
+    await app.bam(app.mot('[data-luu-banh]'));
+    bang('luu khong con vb', app.cuoi('luu').a.anh.map(function (x) { return x.url; }), ['https://p/can.jpg', '/files/web-moi-1.jpg']);
+  });
+
+  await ca('Codex 547: bo anh roi tai lai dung tam do (may chu bao trung) thi anh do tro lai ban dang sua', async function () {
+    var app = appMoi({ trung: 1 }); await nghi(); await app.the('banh');
+    await app.bam(app.nutAnh(0, 'Bỏ ảnh 1'));
+    await app.taiTep('vb-nen-lai.jpg');
+    bang('anh nguoi dung muon giu tro lai', app.anh(), ['https://p/can.jpg', '/files/vb.png']);
+    dung('bao da co san', app.chu().indexOf('đã có sẵn') >= 0);
   });
 
   xongHet = true;

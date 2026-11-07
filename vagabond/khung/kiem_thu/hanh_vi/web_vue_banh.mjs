@@ -505,6 +505,41 @@ await ca('v644 bánh có bộ nội dung web: mô tả, tầng chỉ lấy từ 
   la('Kankin (đường cũ) giữ chữ tĩnh khi máy chủ không gửi', [cakes[1].tuWeb, cakes[1].desc], [undefined, 'Kankin tĩnh']);
 });
 
+/* Codex PR #547 (1c8d221f): máy chủ lọc hết bánh bị ẩn khỏi hai danh sách, kho
+   Vue cũ coi đặt trước rỗng là chưa có dữ liệu và đưa ra 8/8 bánh mặc định. */
+await ca('Codex 547: bảng Bánh trên web đang dùng, hai danh sách rỗng thì tab đặt trước không còn bánh mặc định nào', async () => {
+  const {mt} = moiTruong('2026-11-07T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: {nhom: []}, chi_hien: 1})});
+  const k = taoKho(mt);
+  const mac = k.S.CAKES.length;
+  await k.napTon();
+  dung('có bánh mặc định trước khi nạp', mac > 0);
+  la('đặt trước', k.banhDatTruoc.value.length, 0);
+  la('danh mục', k.S.CAKES.length, 0);
+  /* Bánh có sẵn hôm nay mà không nhận đặt trước: không được lọt sang tab đặt trước. */
+  const goc = taoKho(moiTruong('2026-11-07T08:00:00').mt).S.CAKES[0];
+  const m2 = moiTruong('2026-11-07T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {[goc.sizes[0].id]: 2},
+    nhom: [{ten: goc.k, anh: '/files/x.png', sizes: [{cm: goc.sizes[0].cm, ma: goc.sizes[0].id, gia: 700000}]}], dat_truoc: {nhom: []}, chi_hien: 1})});
+  const k2 = taoKho(m2.mt);
+  await k2.napTon();
+  la('hôm nay có một bánh', k2.banhHomNay.value.map(c => c.k), [goc.k]);
+  la('đặt trước vẫn rỗng', k2.banhDatTruoc.value.length, 0);
+});
+
+await ca('Codex 547: đang dùng thì chỉ bánh và cỡ máy chủ trả mới lên tab đặt trước; chưa dùng thì giữ danh mục mặc định như cũ', async () => {
+  const goc = taoKho(moiTruong('2026-11-07T08:00:00').mt).S.CAKES;
+  const c0 = goc[0], s0 = c0.sizes[0];
+  const tra = {banh: {}, nhom: [], dat_truoc: {nhom: [{ten: c0.k, anh: '/files/x.png', sizes: [{cm: s0.cm, ma: s0.id, gia: 700000, con: 2}]}]}, chi_hien: 1};
+  const {mt} = moiTruong('2026-11-07T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => tra});
+  const k = taoKho(mt);
+  await k.napTon();
+  la('một bánh', k.banhDatTruoc.value.map(c => c.k), [c0.k]);
+  la('đúng cỡ máy chủ trả', k.kichThuocDangBan(k.banhDatTruoc.value[0], 'order').map(z => z.id), [s0.id]);
+  const cu = moiTruong('2026-11-07T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: {nhom: []}})});
+  const k2 = taoKho(cu.mt);
+  await k2.napTon();
+  la('chưa dùng: danh mục mặc định', k2.banhDatTruoc.value.length, goc.length);
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');
