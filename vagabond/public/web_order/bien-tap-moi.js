@@ -1063,7 +1063,15 @@
         else b.append(tao('span', 'bt-banh-trong', '+'));
         const chu = tao('span', 'bt-banh-chu'); chu.append(tao('b', '', x.ten), tao('small', '', chuSize(x) + ' · ' + x.anh.length + ' ảnh'));
         b.append(chu, tao('span', 'bt-tt ' + (TT_BANH[x.trang_thai] || 'an'), x.trang_thai));
-        b.onclick = async () => { if (x.khoa === banhChon) return; if (!await roiDi()) return; moBanh(x); ve(); };
+        /* Codex PR #547: đang lưu hay đang tải ảnh thì không cho đổi bánh, để
+           phản hồi máy chủ luôn về đúng bản sửa đang mở (ba vòng rà cho thấy
+           mọi cách đổi bánh giữa chừng đều làm lệch bản sửa với máy chủ). */
+        b.onclick = async () => {
+          if (x.khoa === banhChon) return;
+          if (ban) { bao('Đang lưu hoặc tải ảnh. Chờ xong rồi chọn bánh khác.'); return; }
+          if (!await roiDi()) return;
+          moBanh(x); ve();
+        };
         ds.append(b);
       });
     }
