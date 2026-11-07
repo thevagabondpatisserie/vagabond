@@ -9,6 +9,7 @@ trên web thì nhóm lên lại mang đúng ảnh và mô tả của thẻ.
 """
 import io
 import json
+from unittest.mock import patch
 
 import frappe
 
@@ -63,6 +64,14 @@ def _anh(ten, co, kieu):
 
 @ca("v644 bench: Đưa lên web, ẩn khi Chờ ảnh, chặn ảnh trùng nội dung, bật hiện thì nhóm web mang đúng ảnh và mô tả")
 def _():
+	# Codex PR #547: web chỉ theo bảng sau khi việc gieo đặt dấu xong. Dấu thật
+	# nằm trong Default Value có bộ đệm; ca không ghi nó để bộ đệm khỏi lọt sang
+	# ca khác sau khi lùi điểm lưu. Bảng và tệp ảnh vẫn đọc thật.
+	with patch.object(bw, "dang_dung", lambda: True):
+		_luong()
+
+
+def _luong():
 	duoi = frappe.generate_hash(length=6)
 	m12, m16 = _mon(duoi, 12, 620000), _mon(duoi, 16, 900000)
 	r1 = bw.dua_len_web(m12)
