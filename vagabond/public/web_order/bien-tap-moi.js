@@ -168,6 +168,14 @@
     if (k === 'banh') return B.banh_cho_anh ? String(B.banh_cho_anh) : '';
     return '';
   }
+  /* Codex PR #547: đang lưu hay đang tải ảnh thì không đổi thẻ, không đổi bánh.
+     Đổi giữa chừng là dựng lại bản sửa từ dữ liệu cũ trước khi máy chủ trả lời,
+     rồi lần Lưu sau ghi đè bản vừa lưu. */
+  function choXong() {
+    if (!ban) return false;
+    bao('Đang lưu hoặc tải ảnh. Chờ xong rồi chuyển.');
+    return true;
+  }
   function veThe() {
     const g = $('bt-the'); if (!g) return;
     g.replaceChildren();
@@ -176,12 +184,12 @@
       b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(t.k === the)); b.dataset.the = t.k;
       const dau = tao('span', 'bt-ten-the', t.ten); const so = demThe(t.k); if (so) dau.append(tao('span', 'bt-dem', so));
       b.append(dau, tao('span', 'bt-mo-the', t.mo));
-      b.onclick = async () => { if (t.k === the && !sua) return; if (!await roiDi()) return; the = t.k; sua = null; chuSua = {}; lhDoi = false; timMuc = ''; fSua = null; fMo = -1; bSua = null; bGoc = ''; BB = null; bBao = ''; ve(); };
+      b.onclick = async () => { if (t.k === the && !sua) return; if (choXong()) return; if (!await roiDi()) return; the = t.k; sua = null; chuSua = {}; lhDoi = false; timMuc = ''; fSua = null; fMo = -1; bSua = null; bGoc = ''; BB = null; bBao = ''; ve(); };
       g.append(b);
     });
     const nc = tao('button', 'bt-o-the bt-nang-cao'); nc.type = 'button'; nc.dataset.the = 'nang_cao';
     nc.append(tao('span', 'bt-ten-the', 'Nâng cao'), tao('span', 'bt-mo-the', 'Ảnh bìa, câu hỏi, kênh đặt hàng, nội dung bánh, chính sách, lịch sử'));
-    nc.onclick = async () => { if (!await roiDi()) return; moNangCao(true); };
+    nc.onclick = async () => { if (choXong()) return; if (!await roiDi()) return; moNangCao(true); };
     g.append(nc);
   }
   function ve() {
@@ -1068,7 +1076,7 @@
            mọi cách đổi bánh giữa chừng đều làm lệch bản sửa với máy chủ). */
         b.onclick = async () => {
           if (x.khoa === banhChon) return;
-          if (ban) { bao('Đang lưu hoặc tải ảnh. Chờ xong rồi chọn bánh khác.'); return; }
+          if (choXong()) return;
           if (!await roiDi()) return;
           moBanh(x); ve();
         };
