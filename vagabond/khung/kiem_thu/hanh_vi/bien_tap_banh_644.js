@@ -48,6 +48,7 @@ function appMoi(tuy) {
   var B = { khoi: [], dau: {}, thong_tin: { cua_hang: [] }, dau_thong_tin: {}, lien_he: {}, dau_lien_he: '', nhan: {}, nhan_mau: {}, nhom_nhan: {},
     ve: {}, hom_nay: '2026-11-07', uu_dai_erp: [], tuyen_dung_erp: [], nhap_chua_xuat_ban: 0, phien_ban: 1, banh_cho_anh: 1 };
   var goi = [];
+  var cho = [];
   var soTai = 0;
   function tra(msg) { return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve({ message: msg }); } }); }
   function loi(chu) { return Promise.resolve({ ok: false, status: 417, json: function () { return Promise.resolve({ exc: 'x', _server_messages: JSON.stringify([JSON.stringify({ message: chu })]) }); } }); }
@@ -61,6 +62,10 @@ function appMoi(tuy) {
     if (ham === 'bang_moi') return tra(JSON.parse(JSON.stringify(B)));
     if (ham === 'ds_bien_tap') return tra(goiDs());
     if (ham === 'tai_anh') { soTai++; return tra({ url: '/files/web-moi-' + soTai + '.jpg' }); }
+    if (ham === 'them_anh' && tuy.giu && !tuy.daTha) {
+      /* Giữ phản hồi tới khi ca gọi app.tha(): người dùng thao tác trong lúc chờ. */
+      return new Promise(function (xong) { cho.push(function () { tuy.daTha = 1; xong(fetchGia(url, cau)); }); });
+    }
     if (ham === 'them_anh') {
       var x = banh.find(function (b) { return b.khoa === a.khoa; });
       /* Ảnh thứ hai trở đi trong ca trùng: máy chủ báo giống ảnh đã có. */
@@ -94,6 +99,7 @@ function appMoi(tuy) {
   vm.runInContext(doc('bien-tap-moi.js'), g, { filename: 'bien-tap-moi.js' });
   var app = {
     banh: banh, goi: goi,
+    tha: async function () { cho.splice(0).forEach(function (f) { f(); }); await nghi(); await nghi(); },
     tim: function (c) { return tl.body.querySelectorAll(c); },
     mot: function (c) { var r = tl.body.querySelectorAll(c); if (r.length !== 1) throw new Error('mong dung 1 ' + c + ', co ' + r.length); return r[0]; },
     bam: async function (el) { el.dispatchEvent(dg.suKien('click', {}, el)); await nghi(); },
@@ -210,6 +216,21 @@ function appMoi(tuy) {
     await app.taiTep('vb-nen-lai.jpg');
     bang('anh nguoi dung muon giu tro lai', app.anh(), ['https://p/can.jpg', '/files/vb.png']);
     dung('bao da co san', app.chu().indexOf('đã có sẵn') >= 0);
+  });
+
+  /* Codex PR #547 (5521e37b): đang chờ máy chủ nhận ảnh của Very Berry thì
+     chuyển sang Hannari; phản hồi về sau không được ghép vào bản sửa Hannari. */
+  await ca('Codex 547: chuyen banh khi anh dang tai thi anh vao dung banh da tai, banh moi chon khong bi ghep', async function () {
+    var app = appMoi({ giu: 1 }); await nghi(); await app.the('banh');
+    await app.taiTep('vb-moi.jpg');
+    await app.chon('hannari');
+    bang('da sang Hannari', app.anh(), ['/files/h.png']);
+    await app.tha();
+    bang('Hannari khong nhan anh cua Very Berry', app.anh(), ['/files/h.png']);
+    await app.bam(app.mot('[data-luu-banh]'));
+    bang('luu Hannari dung bo anh', [app.cuoi('luu').a.khoa, app.cuoi('luu').a.anh.map(function (x) { return x.url; })], ['hannari', ['/files/h.png']]);
+    await app.chon('very berry');
+    bang('anh vao Very Berry', app.anh(), ['/files/vb.png', 'https://p/can.jpg', '/files/web-moi-1.jpg']);
   });
 
   xongHet = true;
