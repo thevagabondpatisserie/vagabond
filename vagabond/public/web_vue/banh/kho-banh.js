@@ -29,7 +29,7 @@ export function taoKho(moiTruong) {
        giờ HIỆN TẠI (bài học #205: không dùng bản chụp giờ lúc tải trang). */
     nhip: 0,
     CAKES: cakesGoc(),
-    TODAY: {}, TRUOC: {}, tonNapXong: false, tonLoi: false, tonDaThu: false, gioTon: null,
+    TODAY: {}, TRUOC: {}, chiHien: false, tonNapXong: false, tonLoi: false, tonDaThu: false, gioTon: null,
     MUA: {co: 0, mon: []},
     STORE: {quay: []}, storeLoi: false, storeDaTai: false, quayChon: '', nhomQuay: '', timQuay: '',
     tab: 'today',
@@ -154,13 +154,17 @@ export function taoKho(moiTruong) {
   });
 
   /* ---------------- danh mục ---------------- */
-  const coTruoc = computed(() => Object.keys(S.TRUOC).length > 0);
+  /* Codex PR #547: máy chủ báo chi_hien (bảng Bánh trên web đang dùng) thì
+     danh sách đặt trước rỗng nghĩa là KHÔNG bánh nào được hiện, không được
+     quay về danh mục mặc định (làm lộ bánh Marketing đang ẩn). */
+  const coTruoc = computed(() => S.chiHien || Object.keys(S.TRUOC).length > 0);
   const banhHomNay = computed(() => S.CAKES.filter(c => c.sizes.some(s => S.TODAY[s.id] > 0)));
   const banhDatTruoc = computed(() => coTruoc.value ? S.CAKES.filter(c => c.sizes.some(s => S.TRUOC[s.id] > 0)) : S.CAKES);
   const tongTon = computed(() => Object.values(S.TODAY).reduce((a, b) => a + b, 0));
   function kichThuocDangBan(c, tab = S.tab) {
     const bang = tab === 'today' ? S.TODAY : S.TRUOC;
-    return Object.keys(bang).length ? c.sizes.filter(s => bang[s.id] > 0) : c.sizes;
+    const loc = tab === 'today' ? Object.keys(bang).length > 0 : coTruoc.value;
+    return loc ? c.sizes.filter(s => bang[s.id] > 0) : c.sizes;
   }
   const dongTrangThai = computed(() => {
     /* "13 bánh có sẵn · nhận từ 13h - 15h · cập nhật 09:59". */
@@ -710,6 +714,14 @@ export function taoKho(moiTruong) {
       const truoc = {};
       dt.forEach(g => (g.sizes || []).forEach(y => { if (y.con > 0) truoc[y.ma] = y.con; }));
       S.TRUOC = truoc;
+      S.chiHien = !!m.chi_hien;
+      if (S.chiHien) {
+        /* Bánh mặc định máy chủ không trả (chưa đưa lên web, Chờ ảnh, Đã ẩn)
+           bỏ khỏi danh mục: không thẻ, không link chia sẻ, không khôi phục giỏ. */
+        const duoc = new Set();
+        [...(m.nhom || []), ...dt].forEach(g => (g.sizes || []).forEach(y => duoc.add(y.ma)));
+        S.CAKES = S.CAKES.filter(c => c.sizes.some(z => duoc.has(z.id)));
+      }
       S.tonNapXong = true; S.tonLoi = false;
       const b = bayGio();
       S.gioTon = String(b.getHours()).padStart(2, '0') + ':' + String(b.getMinutes()).padStart(2, '0');
