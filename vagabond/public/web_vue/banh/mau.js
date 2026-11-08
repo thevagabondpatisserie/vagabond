@@ -292,7 +292,7 @@ export const MAU = `
     <div id="payList"><button v-for="x in kho.paysHien.value" :key="x.k" class="pick" :class="{on: S.CO.pay===x.k}" :data-pt="x.k" @click="S.CO.pay=x.k"><b>{{ t(x.kn, x.n) }}</b><span>{{ t(x.kd, x.d) }}</span></button></div>
 
     <div class="dd-the" id="donDau" v-if="kho.theDonDau.value" :class="'dd-' + kho.theDonDau.value.kieu" role="group" :aria-label="kho.theDonDau.value.tieu">
-      <div class="dd-dau"><span class="dd-ic" aria-hidden="true">{{ kho.theDonDau.value.kieu === 'da_ap' ? '✓' : '-50K' }}</span>
+      <div class="dd-dau"><span class="dd-ic" aria-hidden="true">{{ kho.theDonDau.value.kieu === 'da_ap' ? '✓' : kho.theDonDau.value.ic }}</span>
         <div><b class="dd-tieu">{{ kho.theDonDau.value.tieu }}</b><small class="dd-phu">{{ kho.theDonDau.value.phu }}</small></div></div>
       <template v-if="kho.theDonDau.value.kieu === 'xac_thuc'">
         <button v-if="S.CO.dd.buoc !== 'ma'" type="button" class="dd-nut" id="ddGuiMa" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ S.CO.dd.dangGui ? t('dat_banh_dd_dang_gui','Đang gửi...') : t('dat_banh_dd_gui_ma','Gửi mã xác thực qua Zalo') }}</button>

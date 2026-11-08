@@ -358,11 +358,22 @@ export function taoKho(moiTruong) {
      tự giảm 50.000 đ sau khi khách xác thực số qua mã Zalo (cùng phiên Thành
      viên: thanh_vien.gui_ma, xac_thuc). Không cộng với mã: máy chủ giữ cái
      lớn hơn. Số giảm luôn do máy chủ tính (xem_uu_dai, tao_don). */
+  /* Anh Việt 08/11 (bản 2): màn Khuyến mãi trong app chọn có hiện thẻ ở bước
+     thanh toán không (dd.hien) và có bắt mã Zalo không (dd.can_otp). Tắt thẻ
+     thì ưu đãi vẫn trừ vào tổng tiền như mọi ưu đãi khác, chỉ không có thẻ.
+     Thiếu hai cờ (máy chủ cũ) thì hiểu như bản duyệt mẫu: hiện, bắt mã. */
   const theDonDau = computed(() => {
     const u = uuHienTai.value;
     const dd = u && u.dd;
-    if (!dd || !sdtUuDai()) return null;
-    const tien = T.tienVN(Number(dd.giam) || 0);
+    if (!dd || !sdtUuDai() || dd.hien === 0 || dd.hien === '0') return null;
+    const giam = Number(dd.giam) || 0;
+    const tien = T.tienVN(giam);
+    const ic = '-' + (giam && giam % 1000 === 0 ? (giam / 1000) + 'K' : tien);
+    const coOtp = !(dd.can_otp === 0 || dd.can_otp === '0');
+    const kq = theDonDauTho(dd, tien, coOtp);
+    return kq ? Object.assign({ic}, kq) : null;
+  });
+  function theDonDauTho(dd, tien, coOtp) {
     switch (dd.trang_thai) {
       case 'chua_du_tien':
         return {kieu: 'goi_y', tieu: t('dat_banh_dd_tieu_goi_y', 'Đơn đầu tiên trên web được giảm {tien}', {tien}),
@@ -374,6 +385,11 @@ export function taoKho(moiTruong) {
             : t('dat_banh_dd_phu', 'Số {so} chưa từng đặt bánh trên web. Xác thực số điện thoại qua Zalo để nhận ưu đãi.', {so: sdtUuDai()})};
       case 'du':
         if (Number(dd.ap_dung)) {
+          if (!coOtp) {
+            return {kieu: 'da_ap', tieu: t('dat_banh_dd_da_giam', 'Đã giảm {tien} cho đơn đầu tiên', {tien}),
+              phu: Number(dd.bo_ma) ? t('dat_banh_dd_bo_ma_ko_otp', 'Mã ưu đãi quý khách nhập giảm ít hơn nên máy giữ ưu đãi đơn đầu tiên (không cộng chung).')
+                : t('dat_banh_dd_da_giam_ko_otp', 'Số {so} chưa từng đặt bánh trên web. Ưu đãi đã trừ vào tổng tiền bên dưới.', {so: sdtUuDai()})};
+          }
           return {kieu: 'da_ap', tieu: t('dat_banh_dd_da_giam', 'Đã giảm {tien} cho đơn đầu tiên', {tien}),
             phu: Number(dd.bo_ma) ? t('dat_banh_dd_bo_ma', 'Đã xác thực số {so}. Mã ưu đãi quý khách nhập giảm ít hơn nên máy giữ ưu đãi đơn đầu tiên (không cộng chung).', {so: sdtUuDai()})
               : t('dat_banh_dd_da_giam_phu', 'Đã xác thực số {so}. Ưu đãi đã trừ vào tổng tiền bên dưới.', {so: sdtUuDai()})};
@@ -383,7 +399,7 @@ export function taoKho(moiTruong) {
       default:
         return null;
     }
-  });
+  }
   /* Câu lỗi đăng nhập dùng chung với trang gọi món tại bàn (cauDn), trừ hai
      câu nhắc "nhờ thu ngân": khách web không đứng ở quầy. */
   const cauLoiDd = ly => (ly === 'khong_gui_duoc' || ly === 'chua_mo'
