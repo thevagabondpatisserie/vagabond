@@ -71,7 +71,7 @@ TRUONG_MOI = {
 			"description": "Dòng sao kê SePay hoặc mã giao dịch OnePay đã tính cho đơn này."},
 		{"fieldname": "vgb_tt_pancake", "label": "Ghi lên Pancake", "fieldtype": "Data",
 			"insert_after": "vgb_tt_ma_gd", "read_only": 1, "no_copy": 1,
-			"description": "da_ghi: COD trên Pancake đã giảm; loi hoặc tat: Sales ghi tay số đã trả."},
+			"description": "da_ghi: COD trên Pancake đã giảm; tien_mat: COD đã giảm nhưng Pancake xếp vào Tiền mặt, Sales đổi sang OnePay; loi hoặc tat: Sales ghi tay số đã trả."},
 		{"fieldname": "vgb_tt_bao_luc", "label": "Đã báo Sales lúc", "fieldtype": "Datetime",
 			"insert_after": "vgb_tt_pancake", "read_only": 1, "no_copy": 1},
 		{"fieldname": O_NK, "label": "Nhật ký thẻ OnePay", "fieldtype": "Long Text",
@@ -277,8 +277,12 @@ def ghi_pancake(d):
 		if not than:
 			return "da_co"
 		_put_don_pancake(c, k, pid, than)
-		if not ttt.da_ghi_pancake(_doc_don_pancake(c, k, pid), than):
+		sau = _doc_don_pancake(c, k, pid)
+		if not ttt.da_ghi_pancake(sau, than):
 			raise ValueError("Pancake nhận lệnh nhưng đơn %s chưa mang %s." % (pid, than))
+		if ttt.the_vao_tien_mat(don, sau, than):
+			# v645: COD đã đúng; chỉ hình thức sai, tin Sales nói đổi tay.
+			return "tien_mat"
 		return "da_ghi"
 	except Exception:
 		from vagabond.lib import giau_khoa

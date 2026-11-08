@@ -1753,13 +1753,20 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	# ra that, va cu 30 phut mot lan se de len lua chon tay cua sales neu
 	# khong chan. Cung mot luat voi ban dich Gemini khong de len chu nguoi go.
 	pt_tt, ghi_tt = _doan_thanh_toan(o)
-	ma_web = ""
-	if not pt_tt:
-		# v638: đơn đặt bánh trên web khách đã trả ĐỦ online (chuyển khoản SePay
-		# khớp, hoặc thẻ OnePay của tiệm) mà Pancake không nói được kênh: phương
-		# thức lấy từ bản ghi đơn web. Thẻ OnePay của tiệm không có trong
-		# payment_purchase_histories của Pancake nên không đoán được từ đơn.
-		pt_tt, ma_web = _pt_don_web(pid, did)
+	# v638: đơn đặt bánh trên web khách đã trả ĐỦ online (chuyển khoản SePay
+	# khớp, hoặc thẻ OnePay của tiệm): phương thức lấy từ bản ghi đơn web. Thẻ
+	# OnePay của tiệm không có trong payment_purchase_histories của Pancake nên
+	# không đoán được từ đơn.
+	# v645 (anh Việt 08/11/2026, HDB-26-11-01090, HDB-26-11-01108): bản ghi đơn
+	# web là nguồn gốc của tiền (IPN OnePay, sao kê SePay) nên đi TRƯỚC phép
+	# đoán từ ô tiền Pancake. Trước đây chỉ hỏi bản ghi khi phép đoán rỗng; nhưng
+	# Pancake đã tự xếp khoản thẻ vào ô cash nên phép đoán ra "Tiền mặt" và hoá
+	# đơn thẻ ghi sổ thành tiền mặt.
+	pt_web, ma_web = _pt_don_web(pid, did)
+	if pt_web:
+		if pt_web != pt_tt and ghi_tt:
+			ghi_tt = "Web đã thu online qua %s. %s" % (pt_web, ghi_tt)
+		pt_tt = pt_web
 	if pt_tt and frappe.db.exists("Mode of Payment", pt_tt):
 		cu = (si.get("vgb_pt_thanh_toan") or "").strip()
 		do_may = cint(si.get("vgb_pt_do_may") or 0)

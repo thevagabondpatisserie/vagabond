@@ -358,11 +358,24 @@ def pt_cho_hoa_don(rec):
 
 
 # Ô tiền trên đơn Pancake mà máy ghi số khách đã trả. Chuyển khoản ghi ô
-# transfer_money (Pancake trả về ô này, ban_hang.PT_KENH đọc được). Thẻ ghi ô
-# prepaid, KHÔNG phải charged_by_onepay: đo 400 đơn thật ngày 15/08/2026 thì
-# Pancake không bao giờ trả ô charged_by_onepay (pancake_admin.py), ghi vào ô
-# Pancake bỏ qua thì COD không giảm và người giao thu tiền khách lần nữa.
-O_PANCAKE = {"Chuyển khoản": "transfer_money", "OnePay": "prepaid"}
+# transfer_money (Pancake trả về ô này, ban_hang.PT_KENH đọc được).
+#
+# Thẻ: v645 (anh Việt 08/11/2026, đơn 97077, 97098, 97113). Trước đây ghi RIÊNG
+# ô prepaid thì Pancake tự xếp cả khoản vào Tiền mặt (lịch sử đơn: cash 0 thành
+# số đã trả, người sửa là khoá API), rồi hoá đơn đồng bộ về ERP đoán ra Tiền
+# mặt. Khi khách trả thẻ qua link thanh toán của chính Pancake, lịch sử đơn ghi
+# ô charged_by_onepay CÙNG prepaid (đơn 96844, 97059). Nay ghi đúng cặp đó. Ô
+# charged_by_onepay không có trong dữ liệu Pancake trả về khi đọc (đo 15/08 và
+# 08/11/2026), nên đọc lại chỉ soát được prepaid và cash: xem the_vao_tien_mat.
+O_THE = "charged_by_onepay"
+O_PANCAKE = {"Chuyển khoản": "transfer_money", "OnePay": O_THE}
+
+
+def _so_o(don, o):
+	try:
+		return float((don or {}).get(o) or 0)
+	except (TypeError, ValueError):
+		return 0.0
 
 
 def than_pancake(cach_thu, so, don):
@@ -372,18 +385,26 @@ def than_pancake(cach_thu, so, don):
 	if not o:
 		return None
 	try:
-		cu = float((don or {}).get(o) or 0)
+		so = int(round(float(so or 0)))
 	except (TypeError, ValueError):
-		cu = 0.0
-	so = int(round(float(so or 0)))
-	if so <= 0 or cu >= so - 0.5:
+		return None
+	if so <= 0:
+		return None
+	if o == O_THE:
+		# Đọc không thấy ô thẻ: đã đủ khi prepaid đã mang số và Pancake không
+		# xếp nó vào Tiền mặt (lượt trước ghi đúng, hay Sales đã chọn tay).
+		cu = _so_o(don, "prepaid")
+		if cu >= so - 0.5 and _so_o(don, "cash") < 0.5:
+			return None
+		return {O_THE: so, "prepaid": max(int(round(cu)), so)}
+	if _so_o(don, o) >= so - 0.5:
 		return None
 	return {o: so}
 
 
 def than_pancake_ds(ds, cach_thu, so, don):
 	"""Thân PUT theo từng cách thu trong nhật ký: chuyển khoản vào transfer_money,
-	thẻ vào prepaid, mỗi ô đúng số của cách đó. Nhật ký chưa có loại (bản ghi cũ)
+	thẻ vào charged_by_onepay kèm prepaid, mỗi ô đúng số của cách đó. Nhật ký chưa có loại (bản ghi cũ)
 	thì như than_pancake. THUẦN."""
 	theo = so_theo_cach(ds)
 	if not theo:
@@ -398,8 +419,11 @@ def than_pancake_ds(ds, cach_thu, so, don):
 
 def da_ghi_pancake(don_doc_lai, than):
 	"""Đọc lại đơn sau PUT: ô đã mang đúng số chưa (Pancake trả 200 mà bỏ qua ô
-	thì vẫn là chưa ghi). THUẦN."""
+	thì vẫn là chưa ghi). Ô thẻ không đọc lại được nên soát qua prepaid đi
+	cùng nó. THUẦN."""
 	for o, so in (than or {}).items():
+		if o == O_THE:
+			continue
 		try:
 			if float((don_doc_lai or {}).get(o) or 0) < float(so) - 0.5:
 				return False
@@ -408,8 +432,20 @@ def da_ghi_pancake(don_doc_lai, than):
 	return bool(than)
 
 
+def the_vao_tien_mat(truoc, sau, than):
+	"""Sau PUT có ô thẻ: Pancake vẫn xếp khoản thẻ vào Tiền mặt (cash tăng đúng
+	bằng số thẻ) thì COD đã giảm đúng nhưng hình thức sai, Sales phải đổi tay.
+	THUẦN."""
+	so = (than or {}).get(O_THE)
+	if not so:
+		return False
+	return _so_o(sau, "cash") - _so_o(truoc, "cash") >= float(so) - 0.5
+
+
 CAU_PANCAKE = {
 	"da_ghi": "Đã ghi số đã trả lên đơn Pancake, COD giảm tương ứng.",
+	"tien_mat": ("Đã ghi số đã trả lên đơn Pancake (COD giảm đúng) nhưng Pancake xếp vào Tiền mặt: "
+		"Sales đổi hình thức thanh toán của đơn sang OnePay trên Pancake."),
 	"da_co": "Đơn Pancake đã có sẵn số đã trả.",
 	"tat": "Cài đặt đang tắt ghi lên Pancake: Sales ghi tay số đã trả trên đơn Pancake.",
 	"cho_ma_don": "Đơn chưa vào Pancake: khi tạo hoặc ghép đơn, Sales ghi số đã trả để người giao không thu lại.",

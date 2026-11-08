@@ -18,6 +18,7 @@ bang cach ban don thu that:
   - received_at_shop   : true khi khach tu lay tai cua hang
 """
 
+import contextlib
 import json
 import re
 
@@ -25,7 +26,7 @@ import frappe
 import requests
 from frappe.rate_limiter import rate_limit
 
-from vagabond import don_web, khuyen_mai
+from vagabond import don_dau_web, don_web, khuyen_mai
 from vagabond.giao_hang import phi_giao
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
 
@@ -269,6 +270,16 @@ def _uu_dai_don(hang_goc, gia, ma, sdt, ngay):
 		return {"tong_giam": 0, "ap": [], "ly_do": ""}
 
 
+def _don_dau(sdt, tien_banh):
+	"""v645: trạng thái ưu đãi đơn đầu tiên trên web. Lỗi phụ không chặn đơn và
+	không bao giờ cho giảm oan: hỏng thì coi như không có ưu đãi."""
+	try:
+		return don_dau_web.xet(sdt, tien_banh)
+	except Exception:
+		frappe.log_error(title="Vagabond: ưu đãi đơn đầu tiên trên web", message=frappe.get_traceback())
+		return don_dau_web.KHONG
+
+
 def _giu_luot_uu_dai(uu, hang_goc, gia, ma, sdt, ngay):
 	"""Codex #460: giữ lượt TRƯỚC khi gửi Pancake. Khoá hàng các chương trình
 	sắp áp (FOR UPDATE) rồi tính lại: hai đơn tranh lượt cuối thì đơn sau phải
@@ -341,11 +352,16 @@ def xem_uu_dai(don=None):
 		return {"ok": 1, "giam": 0, "ap": []}
 	gia, _ten = _gia_va_ten([h["variation_id"] for h in hang])
 	ma = str(don.get("ma_uu_dai") or "").strip().upper()[:40]
-	uu = _uu_dai_don(hang, gia, ma, _so(don.get("dien_thoai")), _ngay_iso(don.get("ngay_nhan")))
+	sdt = _so(don.get("dien_thoai"))
+	uu = _uu_dai_don(hang, gia, ma, sdt, _ngay_iso(don.get("ngay_nhan")))
+	# v645: ưu đãi đơn đầu tiên trên web, không cộng với mã, giữ cái lớn hơn.
+	tt = _don_dau(sdt, don_web.tinh_tien_banh(hang, gia)[0])
+	uu, bo_ma = don_dau_web.tron(uu, tt, bool(ma))
+	dd = dict(don_dau_web.phan_hoi(tt), ap_dung=1 if uu.get("don_dau") else 0, bo_ma=1 if bo_ma else 0)
 	if ma and uu.get("ly_do"):
-		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"], "giam": 0, "ap": []}
+		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"], "giam": 0, "ap": [], "don_dau": dd}
 	return {"ok": 1, "giam": int(uu.get("tong_giam") or 0),
-		"ap": [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []]}
+		"ap": [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []], "don_dau": dd}
 
 
 def _gan_giam_pancake(hang, hang_goc, gia, giam):
@@ -549,6 +565,14 @@ def tao_don(don=None):
 	# (khuyen_mai.ap_web). Số giảm trình duyệt hiện chỉ để khách xem.
 	ma_uu_dai = str(don.get("ma_uu_dai") or "").strip().upper()[:40]
 	uu = _uu_dai_don(hang_goc, gia, ma_uu_dai, dien_thoai, ngay)
+	# v645: ưu đãi đơn đầu tiên trên web (số đã xác thực qua Zalo, chưa từng có
+	# đơn web, tiền bánh đủ ngưỡng). Không cộng với mã: giữ cái lớn hơn. Đơn
+	# dùng ưu đãi này thì KHÔNG giữ mã hay lượt chương trình nào.
+	uu_goc = uu
+	uu, _bo_ma = don_dau_web.tron(uu, _don_dau(dien_thoai, tien_banh), bool(ma_uu_dai))
+	dung_dau = bool(uu.get("don_dau"))
+	if dung_dau:
+		ma_uu_dai = ""
 	# Số máy chủ vẫn là số chốt. Số khách đã thấy chỉ là mốc xác nhận: nếu
 	# ưu đãi đổi trong lúc khách đọc giỏ, phải cho họ xem tổng mới rồi tự bấm
 	# lại, kể cả khi thay đổi đó có lợi hơn cho khách.
@@ -698,18 +722,29 @@ def tao_don(don=None):
 		"gioi_thieu_sdt": ttt.chuan_gioi_thieu(don.get("ma_gioi_thieu")),
 		"phi": phi,
 		"thieu_gia": _thieu_gia,
-		"uu_dai": {"ma": ma_uu_dai, "giam": giam, "ap": uu.get("ap") or []} if giam else None,
+		"uu_dai": dict({"ma": ma_uu_dai, "giam": giam, "ap": uu.get("ap") or []}, **({"don_dau": 1} if dung_dau else {})) if giam else None,
 	}
 
 	ip, ua = _ip_va_trinh_duyet()
 
 	# GHI BAN GHI TRUOC, COMMIT, roi moi goi Pancake. Khoa tep bao quanh phep
 	# tim trung va phep ghi, de hai lan bam cung luc khong cung lot qua.
-	with don_web.khoa_ghi(khoa):
+	# v645: đơn dùng ưu đãi đơn đầu tiên thì khoá thêm theo số, xét lại ngay
+	# dưới khoá: hai đơn cùng số gửi cùng lúc chỉ một đơn được giảm.
+	with don_web.khoa_ghi(khoa), (don_dau_web.khoa_so(dien_thoai) if dung_dau else contextlib.nullcontext()):
 		trung = don_web.tim_trung(khoa)
 		if trung:
 			return don_web.phan_hoi(trung, nonce, trung=True)
-		if giam:
+		if dung_dau:
+			# Kết thúc giao dịch đọc từ đầu yêu cầu để thấy đơn vừa commit.
+			frappe.db.commit()
+			if don_dau_web.da_dat_web(dien_thoai):
+				return {"ok": 0, "ly_do": "uu_dai_doi", "uu": {
+					"giam": int(uu_goc.get("tong_giam") or 0) if not uu_goc.get("ly_do") else 0,
+					"ap": [{"ten": a.get("ten"), "giam": a.get("giam")} for a in (uu_goc.get("ap") or [])
+						if not uu_goc.get("ly_do")],
+				}}
+		elif giam:
 			# Kết thúc giao dịch đọc từ đầu yêu cầu, để lần tính lại dưới khoá đọc
 			# ảnh chụp MỚI. Làm trước mọi khoá hàng khác (khoá điểm nhận #454
 			# phải giữ tới commit ghi bản ghi).
@@ -765,7 +800,7 @@ def tao_don(don=None):
 			"snapshot": json.dumps(snapshot, ensure_ascii=False),
 		})
 		giu_ma = bool(giam and ma_uu_dai and khuyen_mai.ma_dung_mot_lan(ma_uu_dai))
-		if giam:
+		if giam and not dung_dau:
 			# Giữ lượt TRONG khoá, theo ngày nhận (đúng ngày đã soát hạn mức), cùng
 			# giao dịch với bản ghi. Ghi chú "Đơn web <mã>" là sợi dây để trả lại
 			# khi Pancake từ chối hoặc việc định kỳ dọn đơn đã huỷ.
