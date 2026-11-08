@@ -22,6 +22,7 @@ from types import SimpleNamespace as NS
 from unittest.mock import patch
 
 from vagabond import thanh_toan_web as tw
+from vagabond import kenh_zalo as kz
 from vagabond import thanh_toan_web_thuan as ttt
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 from vagabond.khung.kiem_thu.thu_xhd_dong_bo_khong_de_595 import _nap, _to
@@ -126,3 +127,36 @@ def _():
 	la("Sales chọn tay giữ nguyên", d.vgb_pt_thanh_toan, "Chuyển khoản")
 	d, _ = _dong_bo_pt(_to(vgb_pt_thanh_toan="Hàng tặng", vgb_pt_do_may=1), DON, ("Tiền mặt", ""), ("OnePay", "DW-1"))
 	la("Hàng tặng giữ nguyên", d.vgb_pt_thanh_toan, "Hàng tặng")
+
+
+@ca("Codex PR #548 (1): lượt chạy lại sau khi lượt trước đã ghi mà Pancake xếp khoản thẻ vào Tiền mặt (cash đã bằng số thẻ TRƯỚC lúc ghi) vẫn phải ra tien_mat, không ra da_ghi")
+def _():
+	# Lượt trước PUT xong nhưng lưu dấu hoặc báo Sales lỗi, giao dịch lùi; nhịp
+	# quét chạy lại trên đơn Pancake đã mang prepaid = cash = số thẻ.
+	r, vet = _ghi([{"prepaid": 671000, "cash": 671000}, {"prepaid": 671000, "cash": 671000}])
+	la("gửi lại cặp ô OnePay", vet[1], ("put", {"charged_by_onepay": 671000, "prepaid": 671000}))
+	la("vẫn nằm ở Tiền mặt: báo Sales đổi tay", r, "tien_mat")
+	r, _vet = _ghi([{"prepaid": 671000, "cash": 671000}, {"prepaid": 671000, "cash": 0}])
+	la("lần này Pancake nhận ô thẻ, cash về 0: đã ghi", r, "da_ghi")
+	la("thuần: cash có sẵn ít hơn số thẻ không tính là thẻ rơi vào Tiền mặt",
+		ttt.the_vao_tien_mat({"prepaid": 0, "cash": 100000}, {"prepaid": 671000, "cash": 100000}, {"charged_by_onepay": 671000, "prepaid": 671000}), False)
+
+
+@ca("Codex PR #548 (2): đơn trả online lúc chưa có mã Pancake, ghép mã muộn mà Pancake xếp thẻ vào Tiền mặt thì Sales nhận tin đổi sang OnePay (một lần, khoá riêng)")
+def _():
+	import frappe
+
+	gui, ghi = [], []
+	d = D(name="DW-2611-06300", pancake_id="97200", pancake_display_id="97200", vgb_tt_pancake="cho_ma_don", vgb_tt_cach="OnePay")
+	db = types.SimpleNamespace(set_value=lambda dt, ten, o, v=None, **k: ghi.append((o, v)), commit=lambda: None)
+	with patch.object(tw, "_doc", lambda ten: d), patch.object(tw, "ghi_pancake", lambda x: "tien_mat"), \
+			patch.object(frappe, "db", db), patch.object(frappe.utils, "get_url_to_form", lambda *a: "https://x/f", create=True), \
+			patch.object(kz, "bao", lambda *a, **k: gui.append((a, k))):
+		tw._ghi_pancake_sau("DW-2611-06300")
+	la("lưu kết quả", ghi, [("vgb_tt_pancake", "tien_mat")])
+	la("một tin cho Sales", len(gui), 1)
+	a, k = gui[0]
+	dung("tin nói đổi sang OnePay trên Pancake", any("đổi hình thức thanh toán" in x and "OnePay" in x for x in a[3]))
+	dung("khoá riêng cho Tiền mặt, không trùng khoá lỗi", k.get("khoa") == "don-web-pancake-tien-mat:DW-2611-06300")
+	_sach, bo = kz.bo_dong_tien("\n".join([a[2]] + list(a[3])))
+	la("tin không mang số tiền (luật v613)", bo, 0)
