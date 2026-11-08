@@ -268,7 +268,7 @@ Máy tự gửi tin Zalo cho khách theo mẫu Zalo đã duyệt. Mỗi kịch b
 5. Bật công tắc, đọc hộp Bật kịch bản rồi bấm [[Bật]].
 
 **Lưu ý**
-- Tin Cảm ơn khi khách nhận đơn, báo điểm đã bật sẵn từ bản 645: bill tại quầy gửi lúc tính tiền xong, đơn giao gửi khi Pancake chuyển Đã nhận. Tin này là tin chăm sóc, không có ưu đãi.
+- Tin Cảm ơn khi khách nhận đơn, báo điểm đã bật sẵn từ bản 645: bill tại quầy gửi khi bill được ghi sổ (bill lưu nháp ghi sổ muộn vẫn được gửi, tính từ lúc ghi sổ), đơn giao gửi khi Pancake chuyển Đã nhận. Tin này là tin chăm sóc, không có ưu đãi.
 - Không gửi sau 20:00. Đơn nhận buổi tối thì sáng hôm sau 8:00 mới gửi.
 - Tin có ưu đãi chỉ gửi khách đã đồng ý nhận tin Zalo. Mỗi khách tối đa một tin ưu đãi mỗi 7 ngày (trừ đền bù).
 - Zalo chỉ cấp hạn mức tin ưu đãi bằng 1/6 số tin chăm sóc đã gửi hai tháng trước, nên phải bật tin cảm ơn trước.
@@ -287,7 +287,7 @@ Từ bản 645 có thêm các kịch bản dưới, mặc định TẮT. Mỗi k
 |---|---|
 | Đơn thứ hai: Hẹn gặp lại | Khách có đúng một đơn, nhận xong đủ số ngày đã đặt |
 | Nhắc dịp năm sau | Năm ngoái khách nhận đơn giao từ 300.000đ vào ngày đó, gửi trước số ngày đã đặt |
-| Cảm ơn khách giới thiệu bạn | Bạn mới gõ số của khách ở ô Mã giới thiệu trên web và đã nhận bánh. Tối đa 5 mã mỗi tháng |
+| Cảm ơn khách giới thiệu bạn | Bạn mới gõ số của khách ở ô Mã giới thiệu trên web và đã nhận bánh, đó là đơn đầu tiên của bạn mới. Khách mua lại gõ số thì không tính. Tối đa 5 mã mỗi tháng |
 | Mời khách vắng lâu, mốc hai | Khách chưa mua đủ số ngày (mặc định 90) |
 | Nhắc mã sắp hết hạn | Mã riêng của khách còn số ngày đã đặt mà chưa dùng, nhắc một lần |
 
@@ -309,7 +309,7 @@ Từ khoá: báo cáo ưu đãi, báo cáo tuần, hiệu quả voucher, mã đ�
 |---|---|
 | Tin đã gửi | Số tin từng kịch bản |
 | Mã ưu đãi | Mã đã phát, khách đã dùng, tiền giảm, doanh thu các đơn có mã |
-| Hiệu quả 30 ngày | Tỉ lệ khách quay lại mua: nhóm nhận tin so với nhóm đối chứng không nhận |
+| Hiệu quả 30 ngày | Tỉ lệ khách quay lại mua trong 30 ngày: nhóm nhận tin so với nhóm đối chứng không nhận. Chỉ tính khách nhận tin 30 tới 37 ngày trước, tức đã đủ 30 ngày để mua lại |
 | Lỗi gửi | Số tin lỗi, xem ở màn Tin Zalo tự động, nút [[Tin đã gửi]] |
 
 **Lưu ý**
