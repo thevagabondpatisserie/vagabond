@@ -245,12 +245,29 @@ function posSheetMaVc() {
     '<div style="font-size:12.5px;color:#6b7280;margin-bottom:12px;line-height:1.6">Khách đọc mã, thu ngân gõ vào đây. Máy tự kiểm mã còn hạn không, đã ai dùng chưa.</div>' +
     '<input class="nt" id="vcO" placeholder="Ví dụ K7M2QP" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:2px;font-size:18px;text-align:center" value="' + h(posDon.maVc || '') + '">' +
     '<div id="vcBao" style="font-size:12.5px;color:#b3261e;margin-top:8px;min-height:18px"></div>' +
+    /* v645: khách đang chọn có mã riêng còn hạn thì hiện sẵn, bấm là áp. */
+    '<div id="vcCua"></div>' +
     '<button class="btn" data-y style="margin-top:6px">Áp mã</button>' +
     (posDon.maVc ? '<button class="btn gh" data-x style="margin-top:9px">Bỏ mã đang dùng</button>' : '') +
     '<button class="btn gh" data-n style="margin-top:9px">Đóng</button></div>';
   document.body.appendChild(ov);
   var o = ov.querySelector('#vcO');
   setTimeout(function () { o.focus(); }, 120);
+  posDoc();
+  var khCua = posDon.khach_ma || (posDon.khach_no && posDon.khach_no.ma) || '';
+  if (khCua) {
+    api('vagabond.khuyen_mai.ma_cua_khach', { khach: khCua }).then(function (r) {
+      var ds = (r && r.ds) || [];
+      var hop = ov.querySelector('#vcCua');
+      if (!hop || !ds.length) return;
+      hop.innerHTML = '<div style="font-size:12.5px;color:#6b7280;font-weight:600;margin:4px 0 6px">MÃ CỦA KHÁCH NÀY, BẤM ĐỂ ÁP</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px">' + ds.map(function (v) {
+          return '<button type="button" data-vcma="' + h(v.ma) + '" style="display:flex;align-items:center;gap:8px;text-align:left;min-height:44px;border:1.5px solid #7FE5F6;background:#E4F9FD;border-radius:10px;padding:8px 12px;cursor:pointer">' +
+            '<b style="letter-spacing:1px;color:#0B7C93">' + h(v.ma) + '</b><span style="flex:1;min-width:0;font-size:13px;color:#344054">' + h(v.ten) + '</span>' +
+            '<span style="font-size:12px;color:#6b7280">hạn ' + h(String(v.han || '').split('-').reverse().join('/')) + '</span></button>';
+        }).join('') + '</div>';
+    }).catch(function () { /* Không đọc được danh sách thì thu ngân vẫn gõ mã như cũ. */ });
+  }
   async function ap() {
     var ma = (o.value || '').trim().toUpperCase();
     var bao = ov.querySelector('#vcBao');
@@ -292,6 +309,8 @@ function posSheetMaVc() {
     if (e.target === ov || e.target.hasAttribute('data-n')) return ov.remove();
     if (e.target.hasAttribute('data-x')) { posDon.maVc = ''; posDon.kmKq = null; ov.remove(); return go(scrPosQuay, true); }
     if (e.target.hasAttribute('data-y')) ap();
+    var vm = e.target.closest('[data-vcma]');
+    if (vm) { o.value = vm.getAttribute('data-vcma'); ap(); }
   };
 }
 
@@ -538,6 +557,7 @@ async function scrKhuyenMai() {
     '<div style="font-size:12px;color:#98a2b3">' + dsCb.length + ' combo đã phối</div></div></div>';
 
   html += kmHtmlDonDau(kmDonDau);
+  html += kmHtmlDenBu();
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
     kmTheChip('ct', '🎫 Tạo voucher') + kmTheChip('cb', '🧺 Combo') +
     kmTheChip('lo', '📮 Xuất danh sách mã voucher') + kmTheChip('bc', '📊 Báo cáo')) + '</div>';
@@ -562,6 +582,8 @@ async function scrKhuyenMai() {
     if (t) return kmDonDauBatTat();
     t = e.target.closest('[data-kmdd]');
     if (t) return kmSheetDonDau();
+    t = e.target.closest('[data-kmdenbu]');
+    if (t) return kmSheetDenBu();
     t = e.target.closest('[data-kmthe]');
     if (t) { kmThe = t.getAttribute('data-kmthe'); return go(scrKhuyenMai, true); }
     t = e.target.closest('[data-kmloc]');
@@ -647,6 +669,96 @@ async function kmDonDauBatTat() {
     go(scrKhuyenMai, true);
   } catch (e) { toast((e && e.message) || 'Không đổi được'); }
 }
+/* v645 (anh Việt 08/11/2026): khách gặp sự cố (giao trễ, sai trang trí, bánh hỏng)
+   thì quản lý cấp MỘT mã đền bù cho đơn đó. Ba mức, mỗi mức chọn chương trình ở
+   Chăm sóc khách, Tin Zalo tự động. Máy phát mã vào Ví quà của khách, khách đã
+   đồng ý thì gửi Zalo, không thì màn hiện mã để đọc cho khách. Máy chủ:
+   vagabond/den_bu.py. */
+function kmHtmlDenBu() {
+  return '<div class="card" id="kmDenBu" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:10px">' +
+    '<span style="width:38px;height:38px;flex:none;border-radius:10px;background:#fff7ed;display:flex;align-items:center;justify-content:center;font-size:18px">🤝</span>' +
+    '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700">Đền bù khách gặp sự cố</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;line-height:1.45;margin-top:2px">Giao trễ, sai trang trí, bánh hỏng: cấp một mã giảm cho đơn sau, mỗi đơn một mã.</div></div>' +
+    '<button type="button" class="btn gh" id="kmDbMo" data-kmdenbu style="margin:0;flex:none;width:auto;min-height:44px;padding:0 12px">Cấp mã đền bù</button></div>';
+}
+
+async function kmSheetDenBu() {
+  var dl = null, muc = '', lyDo = '', ketQua = null;
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  function nhan(chu) { return '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">' + chu + '</div>'; }
+  function lua(attr, on, tieu, giai, tat) {
+    return '<button type="button" ' + attr + (tat ? ' disabled' : '') + ' aria-pressed="' + (on ? 'true' : 'false') + '" style="display:block;width:100%;text-align:left;min-height:44px;border:1.5px solid ' + (on ? '#7FE5F6' : '#e4e7ec') +
+      ';background:' + (on ? '#E4F9FD' : '#fff') + ';border-radius:10px;padding:10px 12px;margin:0 0 7px;cursor:pointer;opacity:' + (tat ? '.55' : '1') + '">' +
+      '<b style="display:block;font-size:14px;color:' + (on ? '#0B7C93' : '#1f2937') + '">' + (on ? '✓ ' : '') + tieu + '</b>' +
+      '<span style="display:block;font-size:13px;color:#6b7280;line-height:1.45;margin-top:2px">' + giai + '</span></button>';
+  }
+  function ve() {
+    var q = (box.querySelector('#kmDbQ') || {}).value || (dl && dl.ma_don) || '';
+    var gc = (box.querySelector('#kmDbGc') || {}).value || '';
+    var html = '<div class="shh"><b>Cấp mã đền bù</b><div class="x">&times;</div></div>' +
+      '<div style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 90px);max-height:78vh;overflow:auto">';
+    if (ketQua) {
+      html += '<div style="text-align:center;margin:14px 0 6px;font-size:13px;color:#6b7280">Mã đền bù của khách</div>' +
+        '<div id="kmDbMa" style="text-align:center;font-size:26px;font-weight:800;letter-spacing:3px;color:#0B7C93">' + h(ketQua.ma) + '</div>' +
+        '<div style="text-align:center;font-size:14px;margin-top:6px">' + h(ketQua.uu_dai || '') + ' · dùng tới ' + h(ketQua.han) + '</div>' +
+        '<div style="font-size:13.5px;line-height:1.5;margin-top:12px;padding:10px 12px;border-radius:10px;background:' + (+ketQua.zalo ? '#ecfdf3;color:#067647' : '#fff7ed;color:#9a3412') + '">' +
+        (+ketQua.zalo ? 'Máy sẽ gửi mã qua Zalo cho khách trong giờ gửi (8:00 tới 20:00). Mã cũng đã vào Ví quà của khách.'
+          : 'Chưa gửi Zalo: ' + h(ketQua.ly_do || '') + ' Đọc mã này cho khách. Mã đã vào Ví quà của khách.') + '</div>' +
+        '<button type="button" class="btn" data-kmdbxong style="margin-top:14px">Xong</button></div>';
+      box.innerHTML = html; return;
+    }
+    html += nhan('ĐƠN GẶP SỰ CỐ') +
+      '<div style="display:flex;gap:8px"><input id="kmDbQ" class="tin" placeholder="Mã hoá đơn hoặc mã đơn Pancake" value="' + h(q) + '" style="flex:1;min-width:0;margin:0;box-sizing:border-box">' +
+      '<button type="button" class="btn gh" id="kmDbTim" style="margin:0;flex:none;width:auto;min-height:44px;padding:0 14px">Tìm đơn</button></div>';
+    if (dl && !+dl.ok && dl.ly_do) html += '<div style="font-size:13px;color:#b42318;margin-top:6px">' + h(dl.ly_do) + '</div>';
+    if (dl && +dl.ok) {
+      html += '<div id="kmDbDon" style="font-size:13.5px;line-height:1.5;margin-top:8px;padding:10px 12px;border-radius:10px;background:#f6f7f9">' +
+        '<b>' + h(dl.ma_don) + '</b> · ' + h(dl.ngay) + ' · ' + h(dl.tien) + '<br>' +
+        (+dl.khach_le ? '<span style="color:#b42318">Khách lẻ chưa có số điện thoại: gắn khách cho hoá đơn trước.</span>'
+          : h(dl.khach) + (dl.sdt ? ' · ' + h(dl.sdt) : '') + '<br>' + (+dl.dong_y ? 'Đã đồng ý nhận tin Zalo: máy gửi mã qua Zalo.' : 'Chưa đồng ý nhận tin Zalo: quản lý đọc mã cho khách.')) + '</div>';
+      if (dl.da_cap) html += '<div style="font-size:13.5px;color:#9a3412;margin-top:6px">Đơn này đã được cấp mã đền bù ' + h(dl.da_cap) + ' (mức ' + h(dl.da_cap_muc) + '). Mỗi đơn một mã.</div>';
+    }
+    html += nhan('MỨC ĐỀN BÙ') + ((dl && dl.muc) || []).map(function (m) {
+      return lua('data-kmdbmuc="' + h(m.ma) + '"', muc === m.ma, h(m.ten) + (m.uu_dai ? ': ' + h(m.uu_dai) : ''),
+        +m.chua_cai ? 'Chưa chọn chương trình cho mức này: vào Chăm sóc khách, Tin Zalo tự động, thẻ Đền bù.' : h(m.giai_thich), +m.chua_cai);
+    }).join('') +
+      nhan('LÝ DO') + '<div style="display:flex;flex-wrap:wrap;gap:7px">' + ((dl && dl.ds_ly_do) || []).map(function (x) {
+        return posChipNut('data-kmdbly="' + h(x) + '"', h(x), lyDo === x);
+      }).join('') + '</div>' +
+      '<input id="kmDbGc" class="tin" maxlength="200" placeholder="Ghi chú (bắt buộc khi chọn Khác)" value="' + h(gc) + '" style="margin:8px 0 0;width:100%;box-sizing:border-box">' +
+      '<button type="button" class="btn" id="kmDbCap" data-kmdbcap style="margin-top:14px"' + (dl && +dl.ok && !dl.da_cap && !+dl.khach_le ? '' : ' disabled') + '>Cấp mã đền bù</button></div>';
+    box.innerHTML = html;
+  }
+  async function tim() {
+    var q = ((box.querySelector('#kmDbQ') || {}).value || '').trim();
+    try { dl = await api('vagabond.den_bu.xem_don', { q: q }); } catch (e) { toast((e && e.message) || 'Chưa tra được đơn.', 4200); return; }
+    ve();
+  }
+  ov.appendChild(box); document.body.appendChild(ov);
+  box.innerHTML = '<div class="emp" style="padding:22px"><div class="e1">⏳</div><div>Đang đọc ba mức đền bù...</div></div>';
+  try { dl = await api('vagabond.den_bu.xem_don', { q: '' }); } catch (e) { ov.remove(); return toast((e && e.message) || 'Chưa mở được.', 4200); }
+  ve();
+  ov.onclick = async function (e) {
+    if (e.target === ov || e.target.closest('.x') || e.target.closest('[data-kmdbxong]')) return ov.remove();
+    if (e.target.closest('#kmDbTim')) return tim();
+    var t = e.target.closest('[data-kmdbmuc]');
+    if (t && !t.hasAttribute('disabled')) { muc = t.getAttribute('data-kmdbmuc'); return ve(); }
+    t = e.target.closest('[data-kmdbly]');
+    if (t) { lyDo = t.getAttribute('data-kmdbly'); return ve(); }
+    if (e.target.closest('[data-kmdbcap]')) {
+      if (!dl || !+dl.ok || dl.da_cap || +dl.khach_le) return;
+      if (!muc) return toast('Chọn mức đền bù.', 2600);
+      if (!lyDo) return toast('Chọn lý do.', 2600);
+      var gc = ((box.querySelector('#kmDbGc') || {}).value || '').trim();
+      busy(true);
+      try { ketQua = await api('vagabond.den_bu.cap_ma', { q: dl.hoa_don, muc: muc, ly_do: lyDo, ghi_chu: gc }); busy(false); return ve(); }
+      catch (er) { busy(false); return toast((er && er.message) || 'Chưa cấp được mã.', 5000); }
+    }
+  };
+  ov.onkeydown = function (e) { if (e.key === 'Enter' && e.target && e.target.id === 'kmDbQ') tim(); };
+}
+
 function kmSheetDonDau() {
   if (!kmDonDau || !kmDonDau.cai_dat) return;
   var sua = Object.assign({}, kmDonDau.cai_dat), otpMo = +kmDonDau.otp_mo;
