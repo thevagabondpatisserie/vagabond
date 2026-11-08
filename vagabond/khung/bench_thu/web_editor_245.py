@@ -17,10 +17,15 @@ DAN_XUAT = ("nhan", "thong_tin", "diem_nhan", "lien_he", "ve", "tuyen_dung_chung
 
 def _bo_nhan(x):
     """Nội dung công khai bỏ các phần dẫn xuất, chỉ còn phần đã lưu để so.
-    Các phần dẫn xuất kiểm riêng (bộ nhãn ở đây, phần v586 ở web_v586)."""
+    Các phần dẫn xuất kiểm riêng (bộ nhãn ở đây, phần v586 ở web_v586).
+    v645: thẻ ghép từ ERP mỗi lượt tải (nguon "erp": ưu đãi, tuyển dụng, ưu
+    đãi đơn đầu tiên trên web đang bật theo mặc định) cũng là phần dẫn xuất,
+    không nằm trong bản đã lưu; kiểm riêng ở dưới."""
     ra = dict(x or {})
     for k in DAN_XUAT:
         ra.pop(k, None)
+    if "khoi" in ra:
+        ra["khoi"] = [k for k in (ra.get("khoi") or []) if k.get("nguon") != "erp"]
     return ra
 
 
@@ -65,6 +70,8 @@ def chay():
         frappe.set_user("Guest")
         dat("Guest không đọc được nháp", _bo_nhan(web.cong_khai()) == web.MAC_DINH)
         dat("Guest nhận đủ bộ nhãn mặc định", web.cong_khai().get("nhan") == web.nhan_day_du({}))
+        dat("Guest thấy thẻ ưu đãi đơn đầu tiên từ ERP (mặc định bật, hiện ở trang Ưu đãi)",
+            [k.get("id") for k in web.cong_khai()["khoi"] if k.get("nguon") == "erp"][:1] == ["don-dau-web"])
         from vagabond import tuyen_dung_form
         dat("Guest nhận phúc lợi tuyển dụng mặc định, không nhận câu hỏi form",
             web.cong_khai().get("tuyen_dung_chung") == {"phuc_loi": tuyen_dung_form.mac_dinh()["phuc_loi"],
