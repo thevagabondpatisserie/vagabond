@@ -1103,3 +1103,52 @@ Hao hụt chỉ đo được khi bếp ghi đủ lệnh, cân thật, kiểm kê
 - Mỗi bếp có việc nhận riêng tin việc cần làm, hạn Chủ nhật.
 - Tin hao hụt quy ra tiền làm khi nào: việc này do anh Việt quyết.
 - Ô % hao hụt cho phép nằm trên Công thức ở Desk. <!-- kiểm: máy đếm ô Process Loss Percentage của BOM; chưa đối chiếu tên tiếng Việt site đang hiện, app chưa có ô này -->
+
+## Đối soát nhà cung cấp tự động qua hộp thư doisoat@
+Từ khoá: hộp thư đối soát, doisoat, email đối soát, ShopeeFood, GrabFood, GreenSM, chữ ký số, DKIM, tải tay, thư gốc, eml, đọc lại thư, sao kê đối tác
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, giám đốc duyệt | Đối soát nhà cung cấp | [[Đọc hộp thư ngay]], [[Duyệt]] |
+
+Đối tác gửi file đối soát vào hộp thư doisoat@. Máy 15 phút đọc một lần, kiểm chữ ký số của thư, đọc file và đối chiếu với đơn.
+
+**Các bước**
+1. Mở Đối soát nhà cung cấp. Khối Hộp thư đối soát đầu màn ghi lần đọc gần nhất.
+2. Cần ngay thì bấm [[Đọc hộp thư ngay]].
+3. Mở nguồn đã nhận để xem dòng, thực nhận, phần lệch theo sáu bước.
+4. Thư không có chữ ký số, hay file tải tay: chờ giám đốc bấm [[Duyệt]] hoặc [[Từ chối]].
+5. Sửa mẫu đọc file xong: bấm [[Đọc lại thư gốc]] để đọc lại từ thư đã cất.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Máy chưa đọc hộp thư. Quản trị bật ở Cài đặt lõi, mục Hộp thư đối soát. | Quản trị dán mật khẩu doisoat@, bật, bấm [[Thử kết nối hộp thư]] |
+| Thư không có chữ ký số | Chờ giám đốc duyệt, không tự nhận |
+
+**Lưu ý**
+- Chỉ đối chiếu, không sửa chứng từ quá khứ đã ghi sổ. Lệch thì liệt kê cho kế toán trưởng.
+- Cần xem tận mắt thư gốc: [[Tải thư gốc (.eml) để kiểm →]].
+
+## Khách trả công nợ hoặc phiếu đề nghị thanh toán bằng thẻ OnePay
+Từ khoá: OnePay, trả thẻ, Visa, Mastercard, JCB, thẻ ATM, link trả thẻ, công nợ khách, phiếu đề nghị thanh toán, cổng thanh toán
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán công nợ, Sales | Công nợ | Không có, gửi link cho khách |
+
+Phiếu đề nghị thanh toán có khối TRẢ BẰNG THẺ (ONEPAY): một link khách mở để trả thẻ.
+
+**Các bước**
+1. Mở phiếu đề nghị thanh toán của khách trên màn Công nợ.
+2. Bấm vào dòng link ở khối TRẢ BẰNG THẺ (ONEPAY) để chép, gửi cho khách.
+3. Khách trả xong: OnePay báo thành công là phiếu tự ghi nhận tiền, kế toán nhận tin Zalo, không cần khớp tay.
+
+**Vì sao bị chặn**
+| Hiện tượng | Cách gỡ |
+|---|---|
+| Phiếu không có khối trả thẻ | Quản trị chưa dán đủ khoá OnePay trong Cài đặt lõi, mục Thẻ OnePay |
+
+**Lưu ý**
+- Khách trả dư thì tin Zalo ghi số cần hoàn: làm phiếu hoàn tiền.
+- Link luôn hiện số còn phải trả lúc khách mở, gửi lại nhiều lần vẫn đúng.

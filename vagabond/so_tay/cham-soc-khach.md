@@ -252,33 +252,69 @@ So nhóm được liên hệ với nhóm đối chứng không được liên h�
 - Kết thúc chiến dịch thì Sales không còn thấy danh sách gọi, số liệu vẫn giữ.
 
 ## Bật tin Zalo tự động cho khách
-Từ khoá: tin Zalo tự động, kịch bản Zalo, cảm ơn sau mua hàng, báo điểm, chúc mừng sinh nhật, voucher sinh nhật, mời khách quay lại, khách lâu chưa mua, mẫu Zalo, ZNS, ZBS, hạn mức tin, gửi thử
+Từ khoá: tin Zalo tự động, kịch bản Zalo, cảm ơn sau mua hàng, cảm ơn khi nhận đơn, báo điểm, chúc mừng sinh nhật, voucher sinh nhật, mời khách quay lại, mẫu Zalo, ZNS, ZBS, hạn mức tin, gửi thử, giờ gửi
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Quản lý Sales, quản trị (người khác chỉ xem) | Tin Zalo tự động (/tin-zalo-tu-dong) | [[Cài đặt]], [[Gửi thử]] |
 
-Ba kịch bản theo mẫu Zalo đã duyệt: Cảm ơn sau mua, báo điểm; Chúc mừng sinh nhật kèm voucher; Mời khách lâu chưa quay lại.
+Máy tự gửi tin Zalo cho khách theo mẫu Zalo đã duyệt. Mỗi kịch bản một thẻ, có công tắc riêng.
 
 **Các bước**
 1. Phân hệ Khách hàng, bấm [[Tin Zalo tự động]].
-2. Thẻ kịch bản ghi mẫu đã duyệt chưa, giá một tin, số đã gửi.
-3. Bấm [[Cài đặt]]: số ngày, trần tin mỗi ngày, giờ gửi; kịch bản có voucher thì chọn CHƯƠNG TRÌNH PHÁT VOUCHER. Bấm [[Lưu cài đặt]].
-4. Bấm [[Gửi thử]], gõ số di động 10 số, bấm [[Gửi tin thử]].
-5. Bật công tắc của kịch bản, đọc hộp Bật kịch bản rồi bấm [[Bật]].
-
-**Vì sao bị chặn**
-| Máy báo | Cách gỡ |
-|---|---|
-| Mẫu tin chưa được Zalo duyệt nên chưa gửi thử được. | Chờ Zalo duyệt, bấm [[Kiểm lại mẫu]] |
-| Chưa có chương trình nào đang bật và để cách phát mã là Mã dùng một lần. ... | Tạo ở màn Khuyến mãi trước |
+2. Thẻ ghi mẫu đã duyệt chưa, giá một tin, số đã gửi hôm nay và 30 ngày.
+3. Bấm [[Cài đặt]]: mã mẫu, số ngày, trần tin mỗi ngày, giờ gửi; kịch bản có ưu đãi thì chọn CHƯƠNG TRÌNH PHÁT VOUCHER. Bấm [[Lưu cài đặt]].
+4. Bấm [[Gửi thử]], gõ số di động, bấm [[Gửi tin thử]].
+5. Bật công tắc, đọc hộp Bật kịch bản rồi bấm [[Bật]].
 
 **Lưu ý**
-- Cả ba kịch bản mặc định TẮT. Bật là tính từ lúc bật, không gửi bù.
-- Tin sinh nhật, mời quay lại chỉ gửi khách đã đồng ý nhận tin Zalo, không nằm trong Danh sách không quảng cáo.
-- Mỗi tin tốn phí, kể cả tin thử. Giờ gửi chỉ trong 6 giờ tới 22 giờ.
-- Zalo chưa cấp hạn mức tin khuyến mãi thì tin có voucher để chờ, máy chưa phát mã.
+- Tin Cảm ơn khi khách nhận đơn, báo điểm đã bật sẵn từ bản 645: bill tại quầy gửi lúc tính tiền xong, đơn giao gửi khi Pancake chuyển Đã nhận. Tin này là tin chăm sóc, không có ưu đãi.
+- Không gửi sau 20:00. Đơn nhận buổi tối thì sáng hôm sau 8:00 mới gửi.
+- Tin có ưu đãi chỉ gửi khách đã đồng ý nhận tin Zalo. Mỗi khách tối đa một tin ưu đãi mỗi 7 ngày (trừ đền bù).
+- Zalo chỉ cấp hạn mức tin ưu đãi bằng 1/6 số tin chăm sóc đã gửi hai tháng trước, nên phải bật tin cảm ơn trước.
 - Bật kịch bản nào, ưu đãi bao nhiêu: việc này do anh Việt quyết.
+
+## Các kịch bản ưu đãi tự động theo hành trình khách
+Từ khoá: đơn thứ hai, hẹn gặp lại, nhắc dịp, kỷ niệm, giới thiệu bạn, referral, mời quay lại mốc hai, khách vắng 90 ngày, nhắc mã sắp hết hạn, nhóm đối chứng, win-back
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý Sales, Marketing | Tin Zalo tự động (/tin-zalo-tu-dong) | [[Cài đặt]] |
+
+Từ bản 645 có thêm các kịch bản dưới, mặc định TẮT. Mỗi kịch bản cần Marketing đăng ký một mẫu Zalo và chọn chương trình khuyến mãi (Mã dùng một lần).
+
+| Kịch bản | Khi nào máy gửi |
+|---|---|
+| Đơn thứ hai: Hẹn gặp lại | Khách có đúng một đơn, nhận xong đủ số ngày đã đặt |
+| Nhắc dịp năm sau | Năm ngoái khách nhận đơn giao từ 300.000đ vào ngày đó, gửi trước số ngày đã đặt |
+| Cảm ơn khách giới thiệu bạn | Bạn mới gõ số của khách ở ô Mã giới thiệu trên web và đã nhận bánh. Tối đa 5 mã mỗi tháng |
+| Mời khách vắng lâu, mốc hai | Khách chưa mua đủ số ngày (mặc định 90) |
+| Nhắc mã sắp hết hạn | Mã riêng của khách còn số ngày đã đặt mà chưa dùng, nhắc một lần |
+
+**Lưu ý**
+- Ô NHÓM ĐỐI CHỨNG (%): bấy nhiêu phần trăm khách được giữ lại không gửi, để báo cáo thứ Hai so được tin có làm khách quay lại không.
+- Thứ tự ưu tiên khi hạn mức ít: đền bù, sinh nhật, nhắc dịp, đơn thứ hai, giới thiệu, mời quay lại, nhắc hạn.
+- Nội dung mẫu đề xuất ở tài liệu ưu đãi Zalo tự động. Mức ưu đãi: việc này do anh Việt quyết.
+
+## Đọc báo cáo ưu đãi Zalo thứ Hai
+Từ khoá: báo cáo ưu đãi, báo cáo tuần, hiệu quả voucher, mã đã dùng, doanh thu từ mã, nhóm đối chứng, Marketing
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, Ban giám đốc | Tin Zalo nhóm Marketing | Không có, máy tự gửi |
+
+09:07 sáng thứ Hai, nhóm Zalo đã tích tin Báo cáo ưu đãi Zalo nhận một tin tổng kết 7 ngày.
+
+| Dòng | Đọc thế nào |
+|---|---|
+| Tin đã gửi | Số tin từng kịch bản |
+| Mã ưu đãi | Mã đã phát, khách đã dùng, tiền giảm, doanh thu các đơn có mã |
+| Hiệu quả 30 ngày | Tỉ lệ khách quay lại mua: nhóm nhận tin so với nhóm đối chứng không nhận |
+| Lỗi gửi | Số tin lỗi, xem ở màn Tin Zalo tự động, nút [[Tin đã gửi]] |
+
+**Lưu ý**
+- Nhóm nhận tin quay lại cao hơn hẳn nhóm đối chứng thì kịch bản đáng giữ. Ngang nhau thì xem lại mức ưu đãi.
+- Muốn nhóm nào nhận tin: Cài đặt lõi, nhóm Zalo, ô Tin nhận, tích Báo cáo ưu đãi Zalo.
 
 ## Xem tin Zalo đã gửi cho khách và vì sao tin không đi
 Từ khoá: sổ tin Zalo, tin đã gửi, tin chờ gửi, tin lỗi, bỏ qua, khách không nhận được tin, Zalo báo lỗi, hết hạn mức, hết tiền Zalo, khách từ chối nhận tin
