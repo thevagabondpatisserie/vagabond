@@ -28623,6 +28623,9 @@ async function scrKhuyenMai() {
     frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
   }
+  /* v645: ưu đãi đơn đầu tiên trên web (không phải chương trình ERP). Đọc hỏng
+     thì màn vẫn chạy, chỉ thiếu thẻ này. */
+  try { kmDonDau = await api('vagabond.don_dau_web.doc_cai_dat', {}); } catch (e3) { kmDonDau = null; }
   kmData = { ct: (ct && ct.km) || [], cb: (cb && cb.combo) || [] };
   var dsCt = kmData.ct, dsCb = kmData.cb;
   var dangBat = dsCt.filter(function (x) { return x.bat; }).length;
@@ -28636,6 +28639,7 @@ async function scrKhuyenMai() {
     '<div style="font-size:19px;font-weight:800;color:#0f766e">' + cbBat + ' đang bán</div>' +
     '<div style="font-size:12px;color:#98a2b3">' + dsCb.length + ' combo đã phối</div></div></div>';
 
+  html += kmHtmlDonDau(kmDonDau);
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
     kmTheChip('ct', '🎫 Tạo voucher') + kmTheChip('cb', '🧺 Combo') +
     kmTheChip('lo', '📮 Xuất danh sách mã voucher') + kmTheChip('bc', '📊 Báo cáo')) + '</div>';
@@ -28654,7 +28658,11 @@ async function scrKhuyenMai() {
   if (kmThe === 'bc') kmVeBaoCao();
 
   b.onclick = function (e) {
-    var t = e.target.closest('[data-kmthe]');
+    var t = e.target.closest('[data-kmddbat]');
+    if (t) return kmDonDauBatTat();
+    t = e.target.closest('[data-kmdd]');
+    if (t) return kmSheetDonDau();
+    t = e.target.closest('[data-kmthe]');
     if (t) { kmThe = t.getAttribute('data-kmthe'); return go(scrKhuyenMai, true); }
     t = e.target.closest('[data-kmloc]');
     if (t) { kmLocCt = t.getAttribute('data-kmloc'); return go(scrKhuyenMai, true); }
@@ -28671,6 +28679,137 @@ async function scrKhuyenMai() {
     t = e.target.closest('[data-kmgui]');
     if (t) return kmGuiLai(t.getAttribute('data-kmgui'));
   };
+}
+
+/* ---------- v645: ưu đãi đơn đầu tiên trên web (anh Việt 08/11/2026) ----------
+   Không phải chương trình ERP: máy tự giảm cho đơn web đầu tiên của một số
+   điện thoại. Anh Việt: "phải thêm công tắc vào phần khuyến mãi", chọn chỗ hiển
+   thị và có bắt mã Zalo hay không. Cài đặt lưu ở máy chủ (don_dau_web). */
+var kmDonDau = null;
+var KM_DD_CHO = [
+  { k: 'hien_thanh_toan', nhan: '🧾 Bước thanh toán khi đặt bánh trên web',
+    giai: 'Thẻ ưu đãi nằm ngay trên ô mã ưu đãi. Tắt thì khách không thấy thẻ, đơn đủ điều kiện vẫn được trừ tiền.' },
+  { k: 'hien_uu_dai', nhan: '🏷 Trang Ưu đãi trên web',
+    giai: 'Thêm một thẻ "Ưu đãi đơn đầu tiên trên web" ở đầu trang Ưu đãi.' }
+];
+/* Ô số: chữ người đang gõ giữ nguyên, số máy chủ trả thì in có dấu chấm. */
+function kmSoGo(v) { return typeof v === 'string' ? v : kmTien(v).replace(' đ', ''); }
+function kmTien(n) { return String(parseInt(n, 10) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' đ'; }
+function kmCongTac(attr, bat, nhan) {
+  return '<button type="button" ' + attr + ' role="switch" aria-checked="' + (bat ? 'true' : 'false') + '" aria-label="' + h(nhan) + '" style="flex:none;width:52px;height:44px;border:0;background:none;padding:0;cursor:pointer">' +
+    '<span style="display:block;position:relative;width:44px;height:26px;border-radius:13px;margin:auto;background:' + (bat ? '#12a150' : '#cfd4de') + '">' +
+    '<span style="position:absolute;top:3px;' + (bat ? 'right:3px' : 'left:3px') + ';width:20px;height:20px;border-radius:50%;background:#fff"></span></span></button>';
+}
+/* THUẦN: một dòng tóm tắt cho thẻ trong màn Khuyến mãi. */
+function kmDonDauTom(c) {
+  var cho = KM_DD_CHO.filter(function (x) { return +c[x.k]; }).map(function (x) { return x.k === 'hien_thanh_toan' ? 'bước thanh toán' : 'trang Ưu đãi'; });
+  return 'Giảm ' + kmTien(c.giam) + ' cho đơn bánh từ ' + kmTien(c.toi_thieu) + ' · ' +
+    (+c.can_otp ? 'khách xác thực số bằng mã Zalo' : 'không cần mã Zalo') + ' · ' +
+    (cho.length ? 'hiện ở ' + cho.join(' và ') : 'không hiện thẻ nào, chỉ tự trừ tiền');
+}
+/* THUẦN: câu cảnh báo khi bật mà khách chưa thể nhận được ưu đãi. */
+function kmDonDauCanhBao(c, otpMo) {
+  if (+c.bat && +c.can_otp && !otpMo) return 'Chưa cài mẫu tin gửi mã Zalo nên khách chưa xác thực được, ưu đãi chưa áp cho ai. Chọn "Không cần mã Zalo" hoặc nhờ kỹ thuật cài mẫu tin.';
+  return '';
+}
+function kmHtmlDonDau(dd) {
+  if (!dd || !dd.cai_dat) return '';
+  var c = dd.cai_dat, cb = kmDonDauCanhBao(c, +dd.otp_mo);
+  return '<div class="card" id="kmDonDau" style="padding:12px 14px">' +
+    '<div style="display:flex;align-items:center;gap:10px">' +
+    '<span style="width:38px;height:38px;flex:none;border-radius:10px;background:' + (+c.bat ? '#f0fdfa' : '#f6f7f9') + ';display:flex;align-items:center;justify-content:center;font-size:18px">🎉</span>' +
+    '<div data-kmdd style="flex:1;min-width:0;cursor:pointer"><div style="font-size:14.5px;font-weight:700">Ưu đãi đơn đầu tiên trên web</div>' +
+    '<div style="font-size:13px;color:#6b7280;line-height:1.45;margin-top:2px">' + (+c.bat ? h(kmDonDauTom(c)) : 'Đang tắt: khách đặt web không được giảm, web không hiện thẻ.') + '</div></div>' +
+    kmCongTac('data-kmddbat', +c.bat, 'Bật ưu đãi đơn đầu tiên trên web') + '</div>' +
+    (cb ? '<div id="kmDdCanhBao" style="margin-top:8px;font-size:13px;line-height:1.5;color:#9a3412;background:#fff7ed;border-radius:9px;padding:9px 11px">' + h(cb) + '</div>' : '') +
+    '<button type="button" class="btn gh" id="kmDdMo" data-kmdd style="margin:10px 0 0;min-height:44px;width:100%">Chỉnh ưu đãi này</button></div>';
+}
+async function kmLuuDonDau(c) {
+  var r = await api('vagabond.don_dau_web.luu_cai_dat', { cai_dat: JSON.stringify(c) });
+  kmDonDau = { cai_dat: r.cai_dat, otp_mo: r.otp_mo };
+  return r;
+}
+async function kmDonDauBatTat() {
+  if (!kmDonDau) return;
+  var c = Object.assign({}, kmDonDau.cai_dat, { bat: +kmDonDau.cai_dat.bat ? 0 : 1 });
+  try {
+    await kmLuuDonDau(c);
+    toast(c.bat ? 'Đã bật ưu đãi đơn đầu tiên trên web' : 'Đã tắt ưu đãi đơn đầu tiên trên web');
+    go(scrKhuyenMai, true);
+  } catch (e) { toast((e && e.message) || 'Không đổi được'); }
+}
+function kmSheetDonDau() {
+  if (!kmDonDau) return;
+  var sua = Object.assign({}, kmDonDau.cai_dat), otpMo = +kmDonDau.otp_mo;
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  function nhan(chu) { return '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">' + chu + '</div>'; }
+  function lua(attr, on, tieu, giai) {
+    return '<button type="button" ' + attr + ' aria-pressed="' + (on ? 'true' : 'false') + '" style="display:block;width:100%;text-align:left;min-height:44px;border:1.5px solid ' + (on ? '#7FE5F6' : '#e4e7ec') +
+      ';background:' + (on ? '#E4F9FD' : '#fff') + ';border-radius:10px;padding:10px 12px;margin:0 0 7px;cursor:pointer">' +
+      '<b style="display:block;font-size:14px;color:' + (on ? '#0B7C93' : '#1f2937') + '">' + (on ? '✓ ' : '') + tieu + '</b>' +
+      '<span style="display:block;font-size:13px;color:#6b7280;line-height:1.45;margin-top:2px">' + giai + '</span></button>';
+  }
+  function ve() {
+    var cb = kmDonDauCanhBao(sua, otpMo);
+    var html = '<div class="shh"><b>Ưu đãi đơn đầu tiên trên web</b><div class="x">&times;</div></div>' +
+      '<div id="kmDdCuon" style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 90px);max-height:78vh;overflow:auto">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:6px"><div style="flex:1;font-size:14px;line-height:1.45">' +
+      (+sua.bat ? '<b>Đang chạy.</b> Máy tự giảm cho đơn web đầu tiên của mỗi số điện thoại.' : '<b>Đang tắt.</b> Không ai được giảm, web không hiện thẻ.') + '</div>' +
+      kmCongTac('data-dd="bat"', +sua.bat, 'Bật ưu đãi') + '</div>' +
+      nhan('MỨC GIẢM VÀ ĐIỀU KIỆN') +
+      '<div style="display:flex;gap:8px"><label style="flex:1;min-width:0;font-size:13px;color:#6b7280">Giảm (đ)<input id="kmDdGiam" class="tin" inputmode="numeric" value="' + h(kmSoGo(sua.giam)) + '" style="margin:4px 0 0;width:100%;box-sizing:border-box"></label>' +
+      '<label style="flex:1;min-width:0;font-size:13px;color:#6b7280">Tiền bánh từ (đ)<input id="kmDdToi" class="tin" inputmode="numeric" value="' + h(kmSoGo(sua.toi_thieu)) + '" style="margin:4px 0 0;width:100%;box-sizing:border-box"></label></div>' +
+      '<div style="font-size:13px;color:#6b7280;margin-top:4px;line-height:1.45">Mỗi số điện thoại được một lần, tính khi số đó chưa từng có đơn web (đơn đã huỷ không tính). Không cộng chung với mã ưu đãi khác: máy giữ mức giảm lớn hơn.</div>' +
+      nhan('XÁC THỰC SỐ ĐIỆN THOẠI') +
+      lua('data-dd="otp1"', +sua.can_otp, 'Bắt nhập mã Zalo (OTP)', 'Khách bấm Gửi mã, nhập 6 số Zalo gửi tới đúng số đó mới được giảm. Chặn người gõ số lạ để lấy ưu đãi.') +
+      lua('data-dd="otp0"', !+sua.can_otp, 'Không cần mã Zalo', 'Số khách gõ chưa có đơn web là được giảm ngay. Nhanh hơn cho khách, nhưng ai gõ số mới cũng lấy được một lần.') +
+      nhan('CHỖ HIỂN THỊ TRÊN WEB') +
+      KM_DD_CHO.map(function (x) {
+        var khoa = x.k === 'hien_thanh_toan' && +sua.can_otp;
+        return lua('data-dd="' + x.k + '"', !!+sua[x.k], x.nhan, khoa ? 'Luôn hiện khi bắt mã Zalo, vì khách xác thực ngay trong thẻ này.' : x.giai);
+      }).join('') +
+      (cb ? '<div style="margin-top:6px;font-size:13px;line-height:1.5;color:#9a3412;background:#fff7ed;border-radius:9px;padding:9px 11px">' + h(cb) + '</div>' : '') +
+      '</div><div style="position:sticky;bottom:0;background:#fff;border-top:1px solid #eef0f4;padding:11px 14px calc(env(safe-area-inset-bottom,0px) + 11px);display:flex;gap:8px">' +
+      '<button class="btn" id="kmDdLuu" style="flex:1">Lưu</button></div>';
+    box.innerHTML = html;
+    box.querySelector('.x').onclick = function () { ov.remove(); };
+    box.querySelectorAll('[data-dd]').forEach(function (o) {
+      o.onclick = function () {
+        doc();
+        var k = o.getAttribute('data-dd');
+        if (k === 'bat') sua.bat = +sua.bat ? 0 : 1;
+        else if (k === 'otp1') { sua.can_otp = 1; sua.hien_thanh_toan = 1; }
+        else if (k === 'otp0') sua.can_otp = 0;
+        else if (k === 'hien_thanh_toan' && +sua.can_otp) return toast('Đang bắt mã Zalo nên thẻ ở bước thanh toán luôn hiện.');
+        else sua[k] = +sua[k] ? 0 : 1;
+        ve();
+      };
+    });
+    box.querySelector('#kmDdLuu').onclick = async function () {
+      doc();
+      var nut = box.querySelector('#kmDdLuu'); nut.disabled = true; nut.textContent = 'Đang lưu...';
+      try {
+        await kmLuuDonDau(sua);
+        ov.remove();
+        toast('Đã lưu ưu đãi đơn đầu tiên trên web');
+        go(scrKhuyenMai, true);
+      } catch (e) {
+        nut.disabled = false; nut.textContent = 'Lưu';
+        toast((e && e.message) || 'Không lưu được');
+      }
+    };
+  }
+  /* Ô số giữ đúng chữ người gõ ("40.000"); máy chủ đọc và báo nếu sai. */
+  function doc() {
+    var g = box.querySelector('#kmDdGiam'), t2 = box.querySelector('#kmDdToi');
+    if (g) sua.giam = String(g.value || '').trim();
+    if (t2) sua.toi_thieu = String(t2.value || '').trim();
+  }
+  ve();
+  ov.appendChild(box);
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
 }
 
 /* --- the Chuong trinh --- */
