@@ -6398,6 +6398,18 @@
     "mac_dinh": "Đã xác thực số {so}. Ưu đãi đã trừ vào tổng tiền bên dưới.",
     "nhieu_dong": false
   },
+  "dat_banh_dd_da_giam_ko_otp": {
+    "ten": "Ưu đãi đơn đầu: dòng phụ đã giảm (không bắt mã Zalo)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số {so} chưa từng đặt bánh trên web. Ưu đãi đã trừ vào tổng tiền bên dưới.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_bo_ma_ko_otp": {
+    "ten": "Ưu đãi đơn đầu: giữ ưu đãi thay mã nhỏ hơn (không bắt mã Zalo)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã ưu đãi quý khách nhập giảm ít hơn nên máy giữ ưu đãi đơn đầu tiên (không cộng chung).",
+    "nhieu_dong": false
+  },
   "dat_banh_dd_ma_lon_hon": {
     "ten": "Ưu đãi đơn đầu: mã đang giảm nhiều hơn",
     "nhom": "gio_hang",
