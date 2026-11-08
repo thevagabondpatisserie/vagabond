@@ -1036,6 +1036,8 @@ scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("va
 scheduler_events.setdefault("cron", {}).setdefault("30 23 * * *", []).append("vagabond.bao_cao_chu.gui_cuoi_ngay")
 # v585: bản tin phát hành (cùng nguồn [ĐÃ DEPLOY] với Telegram) vào nhóm Zalo.
 scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.zalo_phat_hanh.quet")
+# v645: thứ Hai 09:07 báo cáo ưu đãi Zalo cho nhóm Marketing.
+scheduler_events.setdefault("cron", {}).setdefault("7 9 * * 1", []).append("vagabond.zalo_kich_ban.bao_cao_tuan")
 
 # v577 (Codex #444 vong 7): luoi an toan cho thu bao nhan tien khi viec nen
 # xep sau commit bi mat (Redis loi). Doc cong_no.quet_thu_bao_bo_lo.

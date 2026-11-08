@@ -6343,5 +6343,299 @@
     "nhom": "dat_banh",
     "mac_dinh": "Chưa bỏ được ưu đãi. Quý khách thử lại.",
     "nhieu_dong": true
+  },
+  "dat_banh_dd_tieu_goi_y": {
+    "ten": "Ưu đãi đơn đầu: tiêu đề khi tiền bánh chưa đủ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đơn đầu tiên trên web được giảm {tien}",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_chua_du": {
+    "ten": "Ưu đãi đơn đầu: còn thiếu tiền bánh",
+    "nhom": "gio_hang",
+    "mac_dinh": "Áp cho tiền bánh từ {toi_thieu}. Thêm bánh để nhận ưu đãi.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_tieu_nhap_ma": {
+    "ten": "Ưu đãi đơn đầu: tiêu đề bước nhập mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Nhập mã 6 số Zalo vừa gửi",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_tieu": {
+    "ten": "Ưu đãi đơn đầu: tiêu đề mời xác thực",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giảm {tien} cho đơn đầu tiên trên web",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_phu_ma": {
+    "ten": "Ưu đãi đơn đầu: dòng phụ bước nhập mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã gửi tới Zalo của số {so}, có hiệu lực 5 phút.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_phu": {
+    "ten": "Ưu đãi đơn đầu: dòng phụ mời xác thực",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số {so} chưa từng đặt bánh trên web. Xác thực số điện thoại qua Zalo để nhận ưu đãi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd_da_giam": {
+    "ten": "Ưu đãi đơn đầu: tiêu đề đã giảm",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã giảm {tien} cho đơn đầu tiên",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_bo_ma": {
+    "ten": "Ưu đãi đơn đầu: đã thay mã giảm ít hơn",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã xác thực số {so}. Mã ưu đãi quý khách nhập giảm ít hơn nên máy giữ ưu đãi đơn đầu tiên (không cộng chung).",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd_da_giam_phu": {
+    "ten": "Ưu đãi đơn đầu: dòng phụ đã giảm",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã xác thực số {so}. Ưu đãi đã trừ vào tổng tiền bên dưới.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_da_giam_ko_otp": {
+    "ten": "Ưu đãi đơn đầu: dòng phụ đã giảm (không bắt mã Zalo)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số {so} chưa từng đặt bánh trên web. Ưu đãi đã trừ vào tổng tiền bên dưới.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_bo_ma_ko_otp": {
+    "ten": "Ưu đãi đơn đầu: giữ ưu đãi thay mã nhỏ hơn (không bắt mã Zalo)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã ưu đãi quý khách nhập giảm ít hơn nên máy giữ ưu đãi đơn đầu tiên (không cộng chung).",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_ma_lon_hon": {
+    "ten": "Ưu đãi đơn đầu: mã đang giảm nhiều hơn",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã ưu đãi đang giảm nhiều hơn {tien}",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_ma_lon_hon_phu": {
+    "ten": "Ưu đãi đơn đầu: giải thích không cộng chung",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ưu đãi đơn đầu tiên không cộng chung với mã khác; máy giữ mức giảm lớn hơn cho quý khách.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd_khong_gui": {
+    "ten": "Ưu đãi đơn đầu: chưa gửi được mã Zalo",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa gửi được mã qua Zalo. Quý khách thử lại sau ít phút.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_chua_gui": {
+    "ten": "Ưu đãi đơn đầu: lỗi gửi mã chung",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa gửi được mã. Quý khách thử lại sau.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_da_gui": {
+    "ten": "Ưu đãi đơn đầu: đã gửi mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã gửi mã qua Zalo.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_ma_6": {
+    "ten": "Ưu đãi đơn đầu: mã phải đủ 6 số",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã gồm 6 số trong tin nhắn Zalo.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_chua_xac": {
+    "ten": "Ưu đãi đơn đầu: không xác thực được",
+    "nhom": "gio_hang",
+    "mac_dinh": "Không xác thực được. Gửi mã mới.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_dang_gui": {
+    "ten": "Ưu đãi đơn đầu: nút đang gửi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang gửi...",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_gui_ma": {
+    "ten": "Ưu đãi đơn đầu: nút gửi mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi mã xác thực qua Zalo",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_o_ma": {
+    "ten": "Ưu đãi đơn đầu: nhãn ô mã 6 số",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã 6 số trong tin nhắn Zalo",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_xac_nhan": {
+    "ten": "Ưu đãi đơn đầu: nút xác nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác nhận",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_gui_lai": {
+    "ten": "Ưu đãi đơn đầu: nút gửi lại mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi lại mã",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_mot_lan": {
+    "ten": "Ưu đãi đơn đầu: ghi chú mỗi số một lần",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mỗi số điện thoại dùng được một lần. Không cần nhập mã ưu đãi.",
+    "nhieu_dong": true
+  },
+  "ud_den": {
+    "ten": "Ưu đãi: chữ Đến trước ngày kết thúc",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Đến",
+    "nhieu_dong": false
+  },
+  "ud_tu": {
+    "ten": "Ưu đãi: chữ Từ trước ngày bắt đầu",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Từ",
+    "nhieu_dong": false
+  },
+  "ud_dang_dien_ra": {
+    "ten": "Ưu đãi: đang diễn ra",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Đang diễn ra",
+    "nhieu_dong": false
+  },
+  "ud_ngay_cuoi": {
+    "ten": "Ưu đãi: nhãn ngày cuối",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Ngày cuối",
+    "nhieu_dong": false
+  },
+  "ud_con_ngay": {
+    "ten": "Ưu đãi: nhãn còn {so} ngày",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Còn {so} ngày",
+    "nhieu_dong": false
+  },
+  "ud_tai_quay": {
+    "ten": "Ưu đãi: áp dụng tại cửa hàng",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Tại cửa hàng",
+    "nhieu_dong": false
+  },
+  "ud_dat_web": {
+    "ten": "Ưu đãi: dùng được khi đặt bánh trên web",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Đặt bánh trên web",
+    "nhieu_dong": false
+  },
+  "ud_xem_dk": {
+    "ten": "Ưu đãi: xem điều kiện bên dưới",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Xem điều kiện bên dưới",
+    "nhieu_dong": false
+  },
+  "ud_ma_rieng": {
+    "ten": "Ưu đãi: mã tiệm gửi riêng",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "The Vagabond gửi riêng từng khách",
+    "nhieu_dong": false
+  },
+  "ud_khong_ma": {
+    "ten": "Ưu đãi: không cần mã",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Không cần mã",
+    "nhieu_dong": false
+  },
+  "ud_o_uu_dai": {
+    "ten": "Ưu đãi: nhãn ô Ưu đãi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Ưu đãi",
+    "nhieu_dong": false
+  },
+  "ud_o_thoi_gian": {
+    "ten": "Ưu đãi: nhãn ô Thời gian",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Thời gian",
+    "nhieu_dong": false
+  },
+  "ud_o_ap_dung": {
+    "ten": "Ưu đãi: nhãn ô Áp dụng",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Áp dụng",
+    "nhieu_dong": false
+  },
+  "ud_o_ma": {
+    "ten": "Ưu đãi: nhãn ô Mã",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Mã",
+    "nhieu_dong": false
+  },
+  "ud_da_chep": {
+    "ten": "Ưu đãi: đã chép mã",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Đã chép mã",
+    "nhieu_dong": false
+  },
+  "ud_chep_loi": {
+    "ten": "Ưu đãi: chưa chép được mã",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Chưa chép được, quý khách giữ lâu vào mã để chép.",
+    "nhieu_dong": true
+  },
+  "ud_chep": {
+    "ten": "Ưu đãi: nút Chép mã",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Chép mã",
+    "nhieu_dong": false
+  },
+  "ud_ve_ds": {
+    "ten": "Ưu đãi: nút về danh sách",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Về danh sách ưu đãi",
+    "nhieu_dong": false
+  },
+  "ud_chi_tiet": {
+    "ten": "Ưu đãi: mục Chi tiết",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Chi tiết",
+    "nhieu_dong": false
+  },
+  "ud_dieu_kien": {
+    "ten": "Ưu đãi: mục Điều kiện",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Điều kiện",
+    "nhieu_dong": false
+  },
+  "ud_dat_banh": {
+    "ten": "Ưu đãi: nút Đặt bánh ngay",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Đặt bánh ngay",
+    "nhieu_dong": false
+  },
+  "ud_dang_tai": {
+    "ten": "Ưu đãi: đang tải",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Đang tải ưu đãi...",
+    "nhieu_dong": false
+  },
+  "ud_loi_tai": {
+    "ten": "Ưu đãi: chưa tải được nội dung",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Chưa tải được ưu đãi. Quý khách tải lại trang hoặc nhắn fanpage The Vagabond nhé.",
+    "nhieu_dong": false
+  },
+  "ud_het": {
+    "ten": "Ưu đãi: ưu đãi đã kết thúc",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Ưu đãi này đã kết thúc. Quý khách xem các ưu đãi khác nhé.",
+    "nhieu_dong": true
+  },
+  "ud_xem_khac": {
+    "ten": "Ưu đãi: nút xem ưu đãi khác",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Xem các ưu đãi đang có",
+    "nhieu_dong": false
   }
 }

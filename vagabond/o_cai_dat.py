@@ -37,6 +37,16 @@ TRUONG_MOI = {
 			"hidden": 1,
 		},
 		{
+			# v645: cài đặt ưu đãi đơn đầu tiên trên web (JSON), sửa ở app:
+			# Bán hàng, Khuyến mãi. Ẩn trên Desk vì là dữ liệu máy ghi.
+			"fieldname": "vgb_don_dau_web",
+			"insert_after": "vgb_hddt_xac_nhan_qua_han",
+			"label": "Ưu đãi đơn đầu tiên trên web",
+			"fieldtype": "Long Text",
+			"read_only": 1,
+			"hidden": 1,
+		},
+		{
 			"fieldname": "khoa_so_ngay",
 			"insert_after": "sec_khoa_so",
 			"label": "Khoá sổ trước bao nhiêu ngày",

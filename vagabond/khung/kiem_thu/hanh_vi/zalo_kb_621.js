@@ -54,9 +54,11 @@ function dlMau(them) {
         dem: { hom_nay: { 'Đã gửi': 3, 'Chờ gửi': 1 }, ba_muoi: { 'Đã gửi': 3 }, phi: 1200 } },
       { ma: 'sinh_nhat', ten: 'Chúc mừng sinh nhật kèm voucher', giai_thich: 'Gửi trước sinh nhật.', km: 1, bat: 0, san_sang: 0, ly_do: 'Kịch bản đang tắt.',
         ma_mau: '659377', mau_trang_thai: 'Đang chờ Zalo duyệt', mau_duyet: 0, mau_ly_do: '', mau_gia: '500', tham_so: [], so_ngay: 3, nhac_lai_ngay: 0, ctkm: '',
+        /* v645: chữ ô số ngày do máy chủ trả (zalo_kich_ban._the). */ nhan_ngay: 'GỬI TRƯỚC SINH NHẬT (NGÀY)', goi_y_ngay: 'Để 0 là gửi đúng ngày sinh nhật.',
         han_ngay: 14, ten_uu_dai: '', dieu_kien: '', tran_ngay: 300, gio_tu: 8, gio_den: 20, ket_qua_luot: '', dem: {} },
       { ma: 'quay_lai', ten: 'Mời khách lâu chưa quay lại', giai_thich: 'Khách quá số ngày chưa mua.', km: 1, bat: 0, san_sang: 0, ly_do: 'Kịch bản đang tắt.',
         ma_mau: '659378', mau_trang_thai: 'Bị từ chối', mau_duyet: 0, mau_ly_do: 'Nội dung chưa rõ ràng', mau_gia: '500', tham_so: [], so_ngay: 60, nhac_lai_ngay: 120,
+        nhan_ngay: 'KHÁCH CHƯA MUA BAO NHIÊU NGÀY THÌ GỬI', goi_y_ngay: 'Tính từ lần mua cuối, máy cập nhật mỗi đêm.', nhan_nhac: 'KHÔNG GỬI LẠI TRONG (NGÀY)',
         ctkm: 'KM-QL', han_ngay: 14, ten_uu_dai: '', dieu_kien: '', tran_ngay: 300, gio_tu: 8, gio_den: 20, ket_qua_luot: '', dem: {} }
     ]
   };

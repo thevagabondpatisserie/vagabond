@@ -13,7 +13,7 @@ import * as T from '../kho/thuan.js';
 import {CONFIG, SLOTS, cakesGoc, NUMS, ADDONS, PICKUPS_GOC, LY_DO, TEN_DIEM, NHAN_MAC_DINH,
   THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS} from './du-lieu.js';
 import {thuong, dam, mau, lienKet, cauCoSo, noi} from './chu-giau.js';
-import {taoGoiBan} from './kho-goi-ban.js';
+import {taoGoiBan, cauDn} from './kho-goi-ban.js';
 
 const KHOA_LUU = 'vgb-gio-v1';
 /* v638: bốn cách thanh toán khách chọn được. */
@@ -44,7 +44,9 @@ export function taoKho(moiTruong) {
     muaDangXem: null,
     CO: {mode: 'ship', pickupId: 'bep-tan-son-hoa', pay: 'bank', other: false, gift: false, vat: false, dongy: false, uudai: false,
       ship: null, shipTrangThai: null, quan: '', nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
-      ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null},
+      ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null,
+      /* v645 ưu đãi đơn đầu tiên trên web: bước xác thực số qua Zalo. */
+      dd: {buoc: 'nut', ma: '', loi: '', bao: '', dangGui: false, lan: 0}},
     f: {phone: '', name: '', mail: '', addr: '', rname: '', rphone: '', note: '', mst: '', cname: '', cmail: '', caddr: '', ma: '', gt: ''},
     goiY: [],
     goi: {phone: null, ship: null, mst: null, gui: null, phiThuLai: false, gt: null},
@@ -311,7 +313,8 @@ export function taoKho(moiTruong) {
   const ngayUuDai = () => { try { return mocGioNhan(); } catch (e) { return ''; } };
   /* Số giảm tuỳ giỏ, mã, số điện thoại (lượt mỗi khách) và ngày nhận (lượt
      mỗi ngày): bốn thứ nằm trong khoá, đổi là hỏi lại (Codex #460). */
-  const khoaUuDai = computed(() => JSON.stringify([T.hangGui(S.CART), S.CO.uuMa || '', sdtUuDai(), ngayUuDai()]));
+  /* v645: thêm lượt xác thực số (S.CO.dd.lan): xác thực xong thì hỏi lại để máy chủ thấy phiên. */
+  const khoaUuDai = computed(() => JSON.stringify([T.hangGui(S.CART), S.CO.uuMa || '', sdtUuDai(), ngayUuDai(), S.CO.dd.lan]));
   const uuHienTai = computed(() => (S.CO.uu && S.CO.uu.khoa === khoaUuDai.value ? S.CO.uu : null));
   const giam = computed(() => (uuHienTai.value ? (Number(uuHienTai.value.giam) || 0) : 0));
   async function xemUuDai() {
@@ -324,6 +327,7 @@ export function taoKho(moiTruong) {
     } catch (e) { m = null; }
     if (S.CO.uuDangHoi !== khoa) return; /* đã có lần hỏi mới hơn */
     S.CO.uu = {khoa, giam: (m && m.ok) ? (Number(m.giam) || 0) : 0, ap: (m && m.ok && m.ap) || [],
+      dd: (m && m.don_dau && typeof m.don_dau === 'object') ? m.don_dau : null,
       loi: (m && !m.ok && m.ly_do === 'ma_uu_dai') ? String(m.chi_tiet || '') : ((!m && S.CO.uuMa) ? t('dat_banh_ma_chua_kiem', 'Chưa kiểm được mã lúc này, quý khách thử lại sau ít phút.') : '')};
   }
   let uuHen = null;
@@ -348,6 +352,87 @@ export function taoKho(moiTruong) {
     if (u.giam > 0) return [dam(t('dat_banh_da_giam_con', 'Đã giảm {tien}, còn {tong}', {tien: T.tienVN(u.giam), tong: T.tienVN(tong.value.total)}), 'cyan'), thuong(' · ' + u.ap.map(a => a.ten).join(', '))];
     return S.CO.uuMa ? [thuong(t('dat_banh_ma_chua_giam', 'Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm.'))] : [];
   });
+
+  /* ---------------- ưu đãi đơn đầu tiên trên web (v645) ----------------
+     Anh Việt duyệt mẫu 08/11/2026. Số khách gõ chưa từng có đơn web thì máy
+     tự giảm 50.000 đ sau khi khách xác thực số qua mã Zalo (cùng phiên Thành
+     viên: thanh_vien.gui_ma, xac_thuc). Không cộng với mã: máy chủ giữ cái
+     lớn hơn. Số giảm luôn do máy chủ tính (xem_uu_dai, tao_don). */
+  /* Anh Việt 08/11 (bản 2): màn Khuyến mãi trong app chọn có hiện thẻ ở bước
+     thanh toán không (dd.hien) và có bắt mã Zalo không (dd.can_otp). Tắt thẻ
+     thì ưu đãi vẫn trừ vào tổng tiền như mọi ưu đãi khác, chỉ không có thẻ.
+     Thiếu hai cờ (máy chủ cũ) thì hiểu như bản duyệt mẫu: hiện, bắt mã. */
+  const theDonDau = computed(() => {
+    const u = uuHienTai.value;
+    const dd = u && u.dd;
+    if (!dd || !sdtUuDai() || dd.hien === 0 || dd.hien === '0') return null;
+    const giam = Number(dd.giam) || 0;
+    const tien = T.tienVN(giam);
+    const ic = '-' + (giam && giam % 1000 === 0 ? (giam / 1000) + 'K' : tien);
+    const coOtp = !(dd.can_otp === 0 || dd.can_otp === '0');
+    const kq = theDonDauTho(dd, tien, coOtp);
+    return kq ? Object.assign({ic}, kq) : null;
+  });
+  function theDonDauTho(dd, tien, coOtp) {
+    switch (dd.trang_thai) {
+      case 'chua_du_tien':
+        return {kieu: 'goi_y', tieu: t('dat_banh_dd_tieu_goi_y', 'Đơn đầu tiên trên web được giảm {tien}', {tien}),
+          phu: t('dat_banh_dd_chua_du', 'Áp cho tiền bánh từ {toi_thieu}. Thêm bánh để nhận ưu đãi.', {toi_thieu: T.tienVN(Number(dd.toi_thieu) || 0)})};
+      case 'can_xac_thuc':
+        return {kieu: 'xac_thuc', tieu: S.CO.dd.buoc === 'ma' ? t('dat_banh_dd_tieu_nhap_ma', 'Nhập mã 6 số Zalo vừa gửi')
+          : t('dat_banh_dd_tieu', 'Giảm {tien} cho đơn đầu tiên trên web', {tien}),
+          phu: S.CO.dd.buoc === 'ma' ? t('dat_banh_dd_phu_ma', 'Mã gửi tới Zalo của số {so}, có hiệu lực 5 phút.', {so: sdtUuDai()})
+            : t('dat_banh_dd_phu', 'Số {so} chưa từng đặt bánh trên web. Xác thực số điện thoại qua Zalo để nhận ưu đãi.', {so: sdtUuDai()})};
+      case 'du':
+        if (Number(dd.ap_dung)) {
+          if (!coOtp) {
+            return {kieu: 'da_ap', tieu: t('dat_banh_dd_da_giam', 'Đã giảm {tien} cho đơn đầu tiên', {tien}),
+              phu: Number(dd.bo_ma) ? t('dat_banh_dd_bo_ma_ko_otp', 'Mã ưu đãi quý khách nhập giảm ít hơn nên máy giữ ưu đãi đơn đầu tiên (không cộng chung).')
+                : t('dat_banh_dd_da_giam_ko_otp', 'Số {so} chưa từng đặt bánh trên web. Ưu đãi đã trừ vào tổng tiền bên dưới.', {so: sdtUuDai()})};
+          }
+          return {kieu: 'da_ap', tieu: t('dat_banh_dd_da_giam', 'Đã giảm {tien} cho đơn đầu tiên', {tien}),
+            phu: Number(dd.bo_ma) ? t('dat_banh_dd_bo_ma', 'Đã xác thực số {so}. Mã ưu đãi quý khách nhập giảm ít hơn nên máy giữ ưu đãi đơn đầu tiên (không cộng chung).', {so: sdtUuDai()})
+              : t('dat_banh_dd_da_giam_phu', 'Đã xác thực số {so}. Ưu đãi đã trừ vào tổng tiền bên dưới.', {so: sdtUuDai()})};
+        }
+        return {kieu: 'goi_y', tieu: t('dat_banh_dd_ma_lon_hon', 'Mã ưu đãi đang giảm nhiều hơn {tien}', {tien}),
+          phu: t('dat_banh_dd_ma_lon_hon_phu', 'Ưu đãi đơn đầu tiên không cộng chung với mã khác; máy giữ mức giảm lớn hơn cho quý khách.')};
+      default:
+        return null;
+    }
+  }
+  /* Câu lỗi đăng nhập dùng chung với trang gọi món tại bàn (cauDn), trừ hai
+     câu nhắc "nhờ thu ngân": khách web không đứng ở quầy. */
+  const cauLoiDd = ly => (ly === 'khong_gui_duoc' || ly === 'chua_mo'
+    ? t('dat_banh_dd_khong_gui', 'Chưa gửi được mã qua Zalo. Quý khách thử lại sau ít phút.') : cauDn(ly, t));
+  async function guiMaDonDau() {
+    const c = S.CO.dd;
+    const so = sdtUuDai();
+    if (c.dangGui || !so) return null;
+    c.dangGui = true; c.loi = ''; c.bao = '';
+    let m = null;
+    try { m = await ghi('vagabond.thanh_vien.gui_ma', {sdt: so}); } catch (e) { m = null; }
+    c.dangGui = false;
+    if (!m || !m.ok) { c.loi = cauLoiDd(m && m.ly_do) || t('dat_banh_dd_chua_gui', 'Chưa gửi được mã. Quý khách thử lại sau.'); return m; }
+    c.buoc = 'ma'; c.ma = '';
+    c.bao = t('dat_banh_dd_da_gui', 'Đã gửi mã qua Zalo.');
+    return m;
+  }
+  async function xacThucDonDau() {
+    const c = S.CO.dd;
+    if (c.dangGui) return null;
+    const ma = String(c.ma || '').replace(/\D/g, '');
+    if (ma.length !== 6) { c.loi = t('dat_banh_dd_ma_6', 'Mã gồm 6 số trong tin nhắn Zalo.'); return null; }
+    c.dangGui = true; c.loi = '';
+    let m = null;
+    try { m = await ghi('vagabond.thanh_vien.xac_thuc', {sdt: sdtUuDai(), ma}); } catch (e) { m = null; }
+    c.dangGui = false;
+    if (!m || !m.ok) { c.loi = cauLoiDd(m && m.ly_do) || t('dat_banh_dd_chua_xac', 'Không xác thực được. Gửi mã mới.'); return m; }
+    /* Hỏi lại ưu đãi: máy chủ đọc phiên vừa mở và trả số giảm. */
+    c.buoc = 'nut'; c.ma = ''; c.bao = ''; c.lan += 1;
+    return m;
+  }
+  /* Đổi số điện thoại thì quay về bước đầu (mã đã gửi là của số cũ). */
+  watch(sdtUuDai, () => { const c = S.CO.dd; c.buoc = 'nut'; c.ma = ''; c.loi = ''; c.bao = ''; });
 
   /* ---------------- phí giao ---------------- */
   const mienPhi = computed(() => T.laMienPhi(tienBanh.value - giam.value, S.mienPhiTu));
@@ -868,6 +953,7 @@ export function taoKho(moiTruong) {
     curSize, moBanh, dongBanh, setSize, doiSoLuong, toggleNum, clearNums, toggleAdd, phuKienChon, tienNutThem,
     gioiHanNhan, addToCart, themNhanh, suaDongGio,
     soBanh, tienBanh, cartQty, cartRemove, dongGio, khoaUuDai, uuHienTai, giam, xemUuDai, apMaUuDai, goiYMa,
+    theDonDau, guiMaDonDau, xacThucDonDau,
     mienPhi, quoteShip, apPhiGiao, chonQuan, setMode, diemNhanChon, setPickup, capNhatDiemNhan, tong, dongMienPhi,
     paysHien, cauThanhToan, kiemGioiThieu, coGioiThieu,
     lookupPhone, diaChiLuu, selAddr, goiYDiaChi, chonGoiY, lookupMst,

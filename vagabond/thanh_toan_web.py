@@ -71,7 +71,7 @@ TRUONG_MOI = {
 			"description": "Dòng sao kê SePay hoặc mã giao dịch OnePay đã tính cho đơn này."},
 		{"fieldname": "vgb_tt_pancake", "label": "Ghi lên Pancake", "fieldtype": "Data",
 			"insert_after": "vgb_tt_ma_gd", "read_only": 1, "no_copy": 1,
-			"description": "da_ghi: COD trên Pancake đã giảm; loi hoặc tat: Sales ghi tay số đã trả."},
+			"description": "da_ghi: COD trên Pancake đã giảm; tien_mat: COD đã giảm nhưng Pancake xếp vào Tiền mặt, Sales đổi sang OnePay; loi hoặc tat: Sales ghi tay số đã trả."},
 		{"fieldname": "vgb_tt_bao_luc", "label": "Đã báo Sales lúc", "fieldtype": "Datetime",
 			"insert_after": "vgb_tt_pancake", "read_only": 1, "no_copy": 1},
 		{"fieldname": O_NK, "label": "Nhật ký thẻ OnePay", "fieldtype": "Long Text",
@@ -277,8 +277,12 @@ def ghi_pancake(d):
 		if not than:
 			return "da_co"
 		_put_don_pancake(c, k, pid, than)
-		if not ttt.da_ghi_pancake(_doc_don_pancake(c, k, pid), than):
+		sau = _doc_don_pancake(c, k, pid)
+		if not ttt.da_ghi_pancake(sau, than):
 			raise ValueError("Pancake nhận lệnh nhưng đơn %s chưa mang %s." % (pid, than))
+		if ttt.the_vao_tien_mat(don, sau, than):
+			# v645: COD đã đúng; chỉ hình thức sai, tin Sales nói đổi tay.
+			return "tien_mat"
 		return "da_ghi"
 	except Exception:
 		from vagabond.lib import giau_khoa
@@ -321,11 +325,18 @@ def _ghi_pancake_sau(ten):
 		return
 	kq = ghi_pancake(d)
 	frappe.db.set_value(DT, ten, "vgb_tt_pancake", kq, update_modified=False)
-	if kq == "loi":
+	if kq in ("loi", "tien_mat"):
+		# Codex PR #548: đường ghép mã muộn cũng phải báo khi Pancake xếp khoản
+		# thẻ vào Tiền mặt; sau lượt này đơn không còn được quét lại.
 		from vagabond.kenh_zalo import bao
 
-		bao("canh_bao", "don_web", "Đơn web %s đã trả online, chưa ghi được lên Pancake" % (d.pancake_display_id or ten),
-			["Khách đã trả online qua %s." % ttt.NHAN_CACH_THU.get(d.vgb_tt_cach, d.vgb_tt_cach), ttt.CAU_PANCAKE["loi"]], khoa="don-web-pancake-loi:%s" % ten,
+		cach = ttt.NHAN_CACH_THU.get(d.vgb_tt_cach, d.vgb_tt_cach)
+		if kq == "loi":
+			muc, tieu, khoa = "canh_bao", "Đơn web %s đã trả online, chưa ghi được lên Pancake", "don-web-pancake-loi:%s"
+		else:
+			muc, tieu, khoa = "thong_bao", "Đơn web %s đã trả online, Pancake xếp vào Tiền mặt", "don-web-pancake-tien-mat:%s"
+		bao(muc, "don_web", tieu % (d.pancake_display_id or ten),
+			["Khách đã trả online qua %s." % cach, ttt.CAU_PANCAKE[kq]], khoa=khoa % ten,
 			link=frappe.utils.get_url_to_form(DT, ten), ma_tin="bh_don_web_da_tra")
 	frappe.db.commit()
 

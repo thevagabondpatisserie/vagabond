@@ -486,6 +486,18 @@ Deploy xong **phải kiểm trên site thật**, không chỉ tin trạng thái 
 Patch Log đã có số phiên bản mới chưa, và bấm thử đúng cái màn vừa sửa.
 Trạng thái Success không nói được rằng màn hình bấm được.
 
+**Mỗi bản deploy phải kèm hướng dẫn trong sổ tay** (anh Việt chốt 08/11/2026).
+Sổ tay đã từng đứng ở v631 trong khi app lên v644: nhân viên hỏi trợ lý về
+OnePay, gọi món tại bàn, Biên tập menu thì trợ lý không biết. Trong CÙNG PR:
+
+1. Thêm hoặc sửa mục trong `vagabond/so_tay/<chương>.md` theo khuôn
+   `vagabond/so_tay/_quy-uoc.md` (bảng Ai dùng, nút `[[...]]` đúng chữ trên app).
+2. Ghi bản vào `vagabond/so_tay/_phien-ban.md`: mục `## vNNN` liệt kê đúng tên
+   các mục vừa thêm hoặc sửa. Bản chỉ sửa lỗi ngầm thì ghi một dòng
+   `- Không đổi thao tác: <lý do>`.
+3. Ca `thu_so_tay_phien_ban_645` chặn bàn giao khi APPVER chưa có mục ở đó.
+4. Bản tin `[ĐÃ DEPLOY]` nêu tên mục sổ tay để nhân viên mở đọc.
+
 ---
 
 ## 8. Cách làm việc mong đợi

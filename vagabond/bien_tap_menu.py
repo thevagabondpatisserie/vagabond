@@ -33,7 +33,7 @@ Nội dung menu (JSON trong Vagabond Menu.noi_dung)
   "tuy_chon": [{"ten": "Đá", "muc": ["Bình thường", "50% đá"], "mac_dinh": "Bình thường",
                 "ap": ["n-tra", ...]}],
   "topping": {"TPNC00001": ["n-tra", ...]},
-  "mon": {"NUTR00021": {"mo_ta": "...", "tat_tc": ["Đường"], "tat_tp": ["TPNC00001"],
+  "mon": {"NUTR00021": {"mo_ta": "...", "anh": "/files/menu-nutr00021.jpg", "tat_tc": ["Đường"], "tat_tp": ["TPNC00001"],
                          "bat_tc": ["Nhiệt độ"], "bat_tp": ["TPNC00007"]}}
 }
 v642 (anh Việt 06/11/2026): mỗi tuỳ chọn, mỗi topping của một món có ba nấc:
@@ -70,6 +70,11 @@ LICH_SU = 10
 MAU_MA_NHOM = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 MAU_DA = re.compile(r"(?<!\w)đá(?!\w)", re.I)
 MAU_DUONG = re.compile(r"(?<!\w)đường(?!\w)", re.I)
+# v645 (anh Việt 08/11/2026): ảnh riêng cho web của một món, do màn Biên tập
+# menu cắt vuông và nén rồi tải lên tệp công khai. Chỉ nhận đúng dạng đường dẫn
+# tệp công khai của Frappe: không /private (khách không mở được), không link
+# ngoài, không ký tự lạ.
+MAU_ANH = re.compile(r"^/files/[A-Za-z0-9][A-Za-z0-9._-]{0,139}\.(?:jpe?g|png|webp)$", re.I)
 
 
 def bo_dau(s):
@@ -267,6 +272,9 @@ def chuan_menu(menu, ma_hop_le, tp_hop_le):
 		mo_ta = _str(o.get("mo_ta"), DAI_MO_TA)
 		if mo_ta:
 			r["mo_ta"] = mo_ta
+		anh = str(o.get("anh") or "").strip()
+		if MAU_ANH.match(anh):
+			r["anh"] = anh
 		tat_tc = [x for x in (o.get("tat_tc") or []) if x in ten_tc_dung]
 		if tat_tc:
 			r["tat_tc"] = sorted(set(tat_tc))
@@ -334,7 +342,7 @@ def ap_menu(menu, do_uong):
 	"""Menu + đồ uống đang bán của điểm -> (các nhóm hiện trên web theo thứ tự,
 	đồ uống theo thứ tự nhóm rồi thứ tự món). Nhóm tắt, món ẩn, món chưa xếp
 	không lên web; nhóm nước không còn món nào thì không hiện. Mỗi đồ uống có
-	thêm nhom_hien (mã nhóm), tc, tp (mã topping được kèm), mô tả sửa riêng. THUẦN."""
+	thêm nhom_hien (mã nhóm), tc, tp (mã topping được kèm), mô tả và ảnh sửa riêng. THUẦN."""
 	theo_ma = {str(x["ma"]): x for x in do_uong or []}
 	an = set(menu.get("an") or [])
 	nhom_ra, uong_ra = [], []
@@ -357,6 +365,10 @@ def ap_menu(menu, do_uong):
 			mo_ta = ((menu.get("mon") or {}).get(ma) or {}).get("mo_ta")
 			if mo_ta:
 				y["mo_ta"] = mo_ta
+			# v645: ảnh riêng cho web đứng trước ảnh danh mục; ảnh quầy (POS) không đổi.
+			anh = ((menu.get("mon") or {}).get(ma) or {}).get("anh")
+			if anh:
+				y["anh"] = anh
 			cac.append(y)
 		if cac:
 			nhom_ra.append({"ma": g["ma"], "ten": g["ten"], "loai": "nuoc"})
@@ -472,6 +484,8 @@ def khac_nhau(cu, moi, ten):
 		a, b = mc.get(m) or {}, mm.get(m) or {}
 		if (a.get("mo_ta") or "") != (b.get("mo_ta") or ""):
 			ra.append("%s: sửa mô tả trên web" % ten.get(m, m))
+		if (a.get("anh") or "") != (b.get("anh") or ""):
+			ra.append("%s: %s" % (ten.get(m, m), "đổi ảnh trên web" if b.get("anh") else "về ảnh trong danh mục món"))
 		for x in sorted(set(b.get("tat_tc") or []) - set(a.get("tat_tc") or [])):
 			ra.append("%s: tắt tuỳ chọn %s" % (ten.get(m, m), x))
 		for x in sorted(set(a.get("tat_tc") or []) - set(b.get("tat_tc") or [])):

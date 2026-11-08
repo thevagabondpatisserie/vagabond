@@ -476,10 +476,12 @@ def _ck_va_the():
 	la("Don Web: đủ, nhiều cách", (d["vgb_tt_trang_thai"], d["vgb_tt_da_thu"], d["vgb_tt_cach"]), ("Da thu", 936000.0, ttt.CACH_NHIEU))
 	ds = json.loads(d["vgb_tt_ma_gd"])
 	la("nhật ký giữ riêng từng loại", [(g["gd"], g["loai"], g["so"]) for g in ds], [("BT-1", "ck", 300000.0), (MA + "-1", "the", 636000.0)])
+	# v645: phần thẻ ghi ô charged_by_onepay kèm prepaid (trước đây chỉ prepaid,
+	# Pancake xếp vào Tiền mặt).
 	la("Pancake ghi riêng từng ô", ttt.than_pancake_ds(ds, d["vgb_tt_cach"], d["vgb_tt_da_thu"], {}),
-		{"transfer_money": 300000, "prepaid": 636000})
+		{"transfer_money": 300000, "charged_by_onepay": 636000, "prepaid": 636000})
 	la("Pancake đã có ô chuyển khoản thì chỉ ghi ô thẻ", ttt.than_pancake_ds(ds, d["vgb_tt_cach"], d["vgb_tt_da_thu"], {"transfer_money": 300000}),
-		{"prepaid": 636000})
+		{"charged_by_onepay": 636000, "prepaid": 636000})
 	la("hoá đơn đồng bộ: để Sales chọn, không gán OnePay cho cả tổng", _chay(vat, lambda: tw.pt_hoa_don("91853", "91853")), ("", ""))
 	la("chốt chuyển khoản vẫn thấy đúng phần chuyển khoản", _chay(vat, lambda: tw.ck_hoa_don("91853", "91853"))["nhan"], 300000.0)
 	tieu, dong = ttt.tin_da_tra(TEN, "91853", d["vgb_tt_cach"], False, "da_ghi")
@@ -548,10 +550,10 @@ class _Tra:
 		return self._d
 
 
-@ca("v638 ghi Pancake: chuyển khoản ô transfer_money, thẻ ô prepaid; đọc lại phải mang số; không hạ số đang có; cờ tắt; chưa có mã đơn; lỗi không ném")
+@ca("v638 ghi Pancake (v645: thẻ ô charged_by_onepay kèm prepaid): chuyển khoản ô transfer_money; đọc lại phải mang số; không hạ số đang có; cờ tắt; chưa có mã đơn; lỗi không ném")
 def _pancake():
 	la("thân chuyển khoản", ttt.than_pancake("Chuyển khoản", 936000, {}), {"transfer_money": 936000})
-	la("thân thẻ", ttt.than_pancake("OnePay", 936000, {"prepaid": 0}), {"prepaid": 936000})
+	la("thân thẻ", ttt.than_pancake("OnePay", 936000, {"prepaid": 0}), {"charged_by_onepay": 936000, "prepaid": 936000})
 	la("đã có đủ thì thôi", ttt.than_pancake("OnePay", 936000, {"prepaid": 936000}), None)
 	la("cách lạ thì thôi", ttt.than_pancake("Tiền mặt", 936000, {}), None)
 	from vagabond import lib

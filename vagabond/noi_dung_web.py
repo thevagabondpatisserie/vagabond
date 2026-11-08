@@ -793,12 +793,14 @@ def _the_tuyen_dung_erp():
 
 
 def _the_uu_dai_erp():
+    # v645: thẻ ưu đãi đơn đầu tiên đứng đầu khi Khuyến mãi chọn hiện ở trang Ưu đãi.
+    ra = _don_dau_rieng(lambda dd: [dd.the_uu_dai(dd.cau_hinh())])
     try:
         from vagabond import khuyen_mai
-        return khuyen_mai.the_web_dang_hien(_hom_nay_vn())
+        return ra + khuyen_mai.the_web_dang_hien(_hom_nay_vn())
     except Exception:
         frappe.log_error(title="Vagabond: ưu đãi web từ ERP", message=frappe.get_traceback())
-        return []
+        return ra
 
 
 def _hom_nay_vn():
@@ -1052,12 +1054,24 @@ def _tuyen_dung_erp_bien_tap():
 
 
 def _uu_dai_erp_bien_tap():
-    """v589: thẻ Ưu đãi của trình biên tập chỉ đọc, lấy từ ERP."""
+    """v589: thẻ Ưu đãi của trình biên tập chỉ đọc, lấy từ ERP. v645: kèm ưu
+    đãi đơn đầu tiên trên web (sửa ở app: Bán hàng, Khuyến mãi)."""
+    ra = _don_dau_rieng(lambda dd: [dd.dong_bien_tap(dd.cau_hinh())])
     try:
         from vagabond import khuyen_mai
-        return khuyen_mai.ds_web_bien_tap(_hom_nay_vn())
+        return ra + khuyen_mai.ds_web_bien_tap(_hom_nay_vn())
     except Exception:
         frappe.log_error(title="Vagabond: ưu đãi web cho biên tập", message=frappe.get_traceback())
+        return ra
+
+
+def _don_dau_rieng(ham):
+    """v645: phần ưu đãi đơn đầu tiên đọc riêng, hỏng không kéo theo ưu đãi ERP."""
+    try:
+        from vagabond import don_dau_web
+        return [x for x in ham(don_dau_web) if x]
+    except Exception:
+        frappe.log_error(title="Vagabond: ưu đãi đơn đầu tiên trên trang Ưu đãi", message=frappe.get_traceback())
         return []
 
 

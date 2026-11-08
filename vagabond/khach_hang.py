@@ -334,6 +334,30 @@ def _da_tich(hoa_don, loai="Tich tu hoa don"):
 		return None
 
 
+def diem_cua_don(hoa_don):
+	"""(điểm của đơn, đã vào sổ điểm chưa). v645 tin cảm ơn lúc khách NHẬN đơn.
+
+	Đơn giao nhận lúc trưa thì cuối ngày hoá đơn mới ghi sổ và mới cộng điểm,
+	nên tin gửi ngay phải báo điểm SẼ tích, tính bằng đúng phép của hook cộng
+	điểm (diem_cho_don theo hạng hiện tại). Đã vào sổ thì đọc sổ.
+	"""
+	try:
+		da = frappe.db.sql("select sum(diem) from `tab%s` where hoa_don = %%s and loai = %%s" % SO_DIEM,
+			(hoa_don, "Tich tu hoa don"))
+		d = flt((da or [[0]])[0][0])
+		if d > 0:
+			return d, True
+		si = frappe.db.get_value("Sales Invoice", hoa_don, ["customer", "grand_total"], as_dict=True) or {}
+		kh = _khach_that(si)
+		if not kh:
+			return 0, False
+		ty_le = flt((_hang_cua(kh) or {}).get("tich_diem"))
+		return diem_cho_don(si.get("grand_total"), ty_le), False
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "khach_hang: diem cua don")
+		return 0, False
+
+
 def cong_diem_hoa_don(doc, method=None):
 	"""Hook on_submit cua Hoa don ban hang: cong diem theo hang cua khach."""
 	try:

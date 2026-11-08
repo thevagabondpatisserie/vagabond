@@ -429,3 +429,5 @@ vagabond.patches.dong_bo_cau_truc #v641
 vagabond.patches.dong_bo_cau_truc #v642
 vagabond.patches.dong_bo_cau_truc #v643
 vagabond.patches.dong_bo_cau_truc #v644
+vagabond.patches.dong_bo_cau_truc #v645
+vagabond.patches.v645_tin_khach_zalo

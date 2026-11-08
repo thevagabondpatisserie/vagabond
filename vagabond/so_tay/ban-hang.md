@@ -189,7 +189,8 @@ Mã quà chào mừng, mã Ví quà thành viên và voucher gửi qua tin Zalo 
 
 **Các bước**
 1. Bấm [[Nhập mã]], gõ mã khách đưa, bấm [[Áp mã]].
-2. Hoá đơn chưa chọn khách thì máy tự gắn người nhận vào hoá đơn để tích điểm đúng người, báo "Đã áp mã ... · hoá đơn của ...".
+2. Hoá đơn đã chọn khách thì tấm mã hiện sẵn MÃ CỦA KHÁCH NÀY, BẤM ĐỂ ÁP: bấm đúng mã, khỏi gõ (từ bản 645).
+3. Hoá đơn chưa chọn khách thì máy tự gắn người nhận vào hoá đơn để tích điểm đúng người, báo "Đã áp mã ... · hoá đơn của ...".
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
@@ -1133,3 +1134,175 @@ Dành cho hàng làm một lô số lượng giới hạn, để không nhận �
 
 **Lưu ý**
 - Mùa đang bán thì máy tự kéo đơn Pancake mỗi phút, kể cả đơn khách sửa món hay số lượng.
+
+## Cấp mã đền bù cho khách gặp sự cố
+Từ khoá: đền bù, xin lỗi khách, giao trễ, sai trang trí, sai lời chúc, thiếu món, bánh hỏng, khiếu nại, voucher đền bù, service recovery
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý cửa hàng, quản lý Sales | Khuyến mãi | [[Cấp mã đền bù]] |
+
+Đơn gặp sự cố thì quản lý cấp MỘT mã giảm cho đơn sau của chính khách đó. Mỗi đơn chỉ một mã.
+
+**Các bước**
+1. Màn Khuyến mãi, thẻ Đền bù khách gặp sự cố, bấm [[Cấp mã đền bù]].
+2. Gõ mã hoá đơn hoặc mã đơn Pancake, bấm [[Tìm đơn]].
+3. Chọn mức: Nhẹ (giao trễ, thiếu nến, thiệp), Vừa (sai trang trí, lời chúc, thiếu món), Nặng (bánh hỏng).
+4. Chọn lý do, có ghi chú thì gõ thêm. Bấm [[Cấp mã đền bù]].
+5. Màn hiện mã và hạn. Khách đã đồng ý nhận tin Zalo thì máy gửi Zalo; chưa thì đọc mã cho khách.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Đơn này đã được cấp mã đền bù ... Mỗi đơn một mã. | Dùng mã cũ, đọc lại cho khách |
+| Mức ... chưa chọn chương trình khuyến mãi. | Quản lý Sales chọn ở Tin Zalo tự động, thẻ Đền bù |
+| Đơn này là khách lẻ chưa có số điện thoại | Gắn khách cho hoá đơn trước |
+
+**Lưu ý**
+- Bánh hỏng vẫn phải làm lại hoặc hoàn tiền trước, mã chỉ là phần thêm.
+- Mã vào Ví quà của khách, chỉ chính khách dùng, hạn mặc định 60 ngày. Máy ghi người cấp, lý do, đơn gốc.
+- Chương trình của mỗi mức nên dành cho mọi khách. Chương trình chỉ dành cho một hạng, nhóm hay danh sách khách thì máy báo không áp cho khách ngoài phạm vi và không cấp mã.
+- Mức giảm từng mức: việc này do anh Việt quyết.
+
+## Ưu đãi đơn đầu tiên trên web: bật, tắt, mức giảm, mã Zalo
+Từ khoá: đơn đầu tiên, khách mới web, giảm 50000, ưu đãi đơn đầu, first order, OTP Zalo, mã xác thực, công tắc ưu đãi
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý Sales, Marketing | Khuyến mãi | [[Chỉnh ưu đãi này]] |
+
+Số điện thoại chưa từng có đơn web được giảm một lần khi đặt bánh trên web.
+
+**Các bước**
+1. Màn Khuyến mãi, thẻ Ưu đãi đơn đầu tiên trên web: công tắc bật tắt ngay.
+2. Bấm [[Chỉnh ưu đãi này]]: số giảm, tiền bánh tối thiểu (phải lớn hơn số giảm).
+3. Chọn có bắt nhập mã Zalo (OTP) hay không.
+4. Chọn chỗ hiển thị: bước thanh toán, trang Ưu đãi. Bấm [[Lưu]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa tải được trạng thái ưu đãi này | Bấm [[Thử lại]], còn lỗi thì báo kỹ thuật |
+
+**Lưu ý**
+- Mặc định khi lên bản 645: BẬT, giảm 50.000đ cho tiền bánh từ 300.000đ, bắt mã Zalo.
+- Không cộng chung mã khác: máy giữ mức giảm lớn hơn. Bắt mã Zalo thì bước thanh toán luôn hiện.
+- Máy không đọc được cài đặt thì web tạm không giảm.
+- Mức giảm: việc này do anh Việt quyết.
+
+## Đơn web khách trả thẻ OnePay ghi lên Pancake
+Từ khoá: OnePay, thẻ, đơn web trả trước, charged by OnePay, tiền mặt sai, COD, thanh toán online, đã thanh toán
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales | Doanh số (đơn web), tin Zalo nhóm Bán hàng | Không có, máy tự ghi |
+
+Khách trả thẻ OnePay trên web thì máy ghi lên Pancake đúng ô OnePay và trả trước, COD giảm theo.
+
+**Các bước**
+1. Đọc tin Zalo Đơn web khách đã thanh toán online: mã đơn, cách trả.
+2. Mở đơn trên Pancake: hình thức phải là OnePay, không phải Tiền mặt.
+3. Tin báo Pancake vẫn ghi tiền mặt thì Sales sửa tay trên Pancake.
+
+**Lưu ý**
+- Hoá đơn ERP lấy hình thức theo đơn web (đã thu online) trước, không đoán theo Pancake.
+- Đơn cũ trước bản 645 đã ghi sai: không sửa chứng từ đã ghi sổ, liên hệ kế toán trưởng.
+
+## Nhận đơn khách gọi món tại bàn qua QR
+Từ khoá: gọi món tại bàn, QR bàn, order tại bàn, chuông gọi nhân viên, khách cần trợ giúp, xin tính tiền, in QR bàn, table order
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu ngân, phục vụ | Bán tại quầy (/ban-tai-quay) | [[Nhận đơn và in phiếu pha chế]], [[Đã tới bàn]] |
+
+Khách quét mã QR trên bàn, chọn món, gửi. Đơn hiện trên màn Tính tiền kèm tin Zalo nhóm Bán hàng.
+
+**Các bước**
+1. Thẻ đơn tại bàn hiện trên màn Tính tiền: xem bàn, món, tuỳ chọn.
+2. Bấm [[Nhận đơn và in phiếu pha chế]], hoặc [[Từ chối đơn]] kèm lý do.
+3. Khách bấm chuông thì thẻ đỏ hiện: tới bàn rồi bấm [[Đã tới bàn]].
+4. Tính tiền: bấm [[Mở bill bàn]].
+5. In mã QR: màn In QR tại bàn, bấm [[Tạo mã QR]] rồi [[In]].
+
+**Lưu ý**
+- Đơn không nhận trong 10 phút thì hết hạn, khách được báo.
+- Khách tự chọn ưu đãi tại bàn phải nhập mã Zalo gửi tới số của mình.
+- Món, tuỳ chọn, ảnh trên trang bàn sửa ở màn Biên tập menu.
+
+## Biên tập menu theo điểm bán và ảnh món
+Từ khoá: biên tập menu, thực đơn tại bàn, thứ tự món, tuỳ chọn, topping, đá đường, ảnh món, ảnh vuông, xuất bản menu, menu theo điểm
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý cửa hàng, Marketing | Biên tập menu | [[Xem và xuất bản]] |
+
+Menu của trang gọi món tại bàn, riêng từng điểm bán. Sửa trên bản nháp, xuất bản thì khách mới thấy.
+
+**Các bước**
+1. Mở Biên tập menu, chọn điểm bán. Ba thẻ: Thứ tự, Tuỳ chọn, Topping.
+2. Bấm một món: ẩn hiện, tuỳ chọn riêng, topping.
+3. Ảnh trên web: bấm [[Tải ảnh lên]] hoặc [[Đổi ảnh]]. Máy tự cắt vuông, nén dưới 500 KB. Bỏ ảnh riêng: bấm [[Dùng ảnh danh mục]].
+4. Bấm [[Xem và xuất bản]], xem lại rồi bấm [[Xuất bản]].
+5. Xuất bản nhầm: chọn bản cũ, bấm [[Quay về bản này]].
+
+**Lưu ý**
+- Chưa xuất bản thì trang bàn vẫn chạy bản cũ. Bỏ hết sửa: [[Bỏ bản nháp]].
+- Ảnh 1:1 hiện vuông trên trang gọi món tại bàn.
+
+## Xem hoa hồng giới thiệu của nhân viên
+Từ khoá: hoa hồng giới thiệu, mã giới thiệu, giới thiệu khách, referral nhân viên, KPI giới thiệu, người giới thiệu
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý, kế toán lương | Hoa hồng giới thiệu | [[Đưa vào phiếu KPI tháng]] |
+
+Khách gõ số điện thoại của nhân viên ở ô Mã giới thiệu (web hoặc gọi món tại bàn). Hoá đơn ghi sổ thì nhân viên được hoa hồng.
+
+**Các bước**
+1. Mở Hoa hồng giới thiệu, chọn tháng.
+2. Xem từng nhân viên: số đơn, tiền tính, hoa hồng.
+3. Gắn nhầm người: bấm [[Đổi]] ở dòng đơn (chỉ quản lý, máy ghi ai đổi).
+4. Cuối tháng bấm [[Đưa vào phiếu KPI tháng]]. Cần file thì bấm [[Xuất Excel]].
+
+**Lưu ý**
+- Tính trên tiền hàng sau ưu đãi, không gồm phí giao. Huỷ hoặc hoàn tiền thì hoa hồng về 0.
+- Số của khách thường (không phải nhân viên) ở ô Mã giới thiệu thì khách đó nhận mã cảm ơn qua Zalo (kịch bản Cảm ơn khách giới thiệu bạn), không có hoa hồng.
+- Tỉ lệ hoa hồng: việc này do anh Việt quyết.
+
+## Đơn đặt trước tại quầy và bánh thiết kế riêng: cọc, thẻ OnePay, giao bánh
+Từ khoá: đơn đặt trước, bánh thiết kế riêng, cọc 50%, thu phần còn lại, thẻ OnePay, giao bánh, xuất hoá đơn, custom cake
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu ngân, Sales | Đơn đặt trước | [[Thu phần còn lại]], [[Giao bánh và xuất hoá đơn]] |
+
+Theo dõi cọc, thu phần còn lại, giao bánh của đơn bánh thiết kế riêng và đơn đặt trước tại quầy.
+
+**Các bước**
+1. Mở Đơn đặt trước, bấm một đơn để xem Chi tiết đơn đặt trước.
+2. Bấm [[Thu phần còn lại]], chọn cách trả: tiền mặt, chuyển khoản QR hoặc Thẻ OnePay.
+3. Thẻ: khách quét mã bằng điện thoại, bấm Thanh toán bằng thẻ trên trang OnePay. OnePay báo thành công là tự ghi tiền.
+4. Khách chuyển khoản: bấm [[Khách đã chuyển, kiểm tiền về]].
+5. Giao bánh: bấm [[Giao bánh và xuất hoá đơn]].
+
+**Lưu ý**
+- Tiền thẻ OnePay của đơn đặt trước là tiền của Sales, không vào két quầy.
+- Huỷ đơn: [[Huỷ đơn]]. Đơn đã cọc huỷ thì làm hoàn tiền.
+
+## Đơn sỉ web: duyệt khách sỉ và giao đơn
+Từ khoá: bánh sỉ, khách sỉ web, quán cà phê đặt sỉ, khách sạn, giá sỉ riêng, đơn sỉ, wholesale
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales | Khách sỉ web, Đơn sỉ web | [[Duyệt và mở đặt sỉ]], [[Giao hàng và xuất hoá đơn]] |
+
+Quán, khách sạn đăng ký đặt sỉ trên web. Sales duyệt, đặt giá riêng, rồi giao đơn.
+
+**Các bước**
+1. Khách sỉ web: xem đăng ký, bấm [[Duyệt và mở đặt sỉ]] hoặc [[Từ chối đăng ký]].
+2. Giá riêng: sửa giá từng món, bấm [[Lưu giá]]. Thôi bán món: [[Thôi bán món này cho khách]].
+3. Đơn sỉ web: xem theo ngày giao, bấm một đơn.
+4. Khách chuyển khoản: [[Khách đã chuyển, kiểm tiền về]]. Giao: [[Giao hàng và xuất hoá đơn]].
+
+**Lưu ý**
+- Giá sỉ và ai được duyệt: việc này do anh Việt quyết.

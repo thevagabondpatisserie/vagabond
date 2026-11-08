@@ -10,6 +10,10 @@ import {bienNhan} from '../../../public/web_vue/trang/app.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
 import {t0, tienVN, hangGui, tronMon} from '../../../public/web_vue/kho/thuan.js';
 import {nextTick} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import pathMod from 'node:path';
+const GOC_REPO = pathMod.resolve(pathMod.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 
 let dat = 0, hong = 0;
 const loi = [];
@@ -538,6 +542,149 @@ await ca('Codex 547: đang dùng thì chỉ bánh và cỡ máy chủ trả mớ
   const k2 = taoKho(cu.mt);
   await k2.napTon();
   la('chưa dùng: danh mục mặc định', k2.banhDatTruoc.value.length, goc.length);
+});
+
+/* ---------------- v645 ưu đãi đơn đầu tiên trên web ----------------
+   Máy chủ giả giữ ĐÚNG luật của don_dau_web: chưa xác thực thì can_xac_thuc,
+   xác thực xong (phiên mở) thì du và giảm 50.000. Trang không tự tính số. */
+function mayChuDonDau({tien = 'du_tien', maGiam = 0} = {}) {
+  const v = {hoi: [], gui: [], xac: [], phien: ''};
+  const mang = {
+    'vagabond.don_hang.xem_uu_dai': th => {
+      const d = JSON.parse(th.don); v.hoi.push(d);
+      const so = String(d.dien_thoai || '').replace(/\D/g, '');
+      const base = {giam: 50000, toi_thieu: 300000};
+      if (tien === 'thieu') return {ok: 1, giam: 0, ap: [], don_dau: {...base, trang_thai: 'chua_du_tien', ap_dung: 0, bo_ma: 0}};
+      if (v.phien !== so) return {ok: 1, giam: d.ma_uu_dai ? maGiam : 0, ap: d.ma_uu_dai && maGiam ? [{ten: 'Mã', giam: maGiam}] : [],
+        don_dau: {...base, trang_thai: 'can_xac_thuc', ap_dung: 0, bo_ma: 0}};
+      if (d.ma_uu_dai && maGiam >= 50000) return {ok: 1, giam: maGiam, ap: [{ten: 'Mã', giam: maGiam}], don_dau: {...base, trang_thai: 'du', ap_dung: 0, bo_ma: 0}};
+      return {ok: 1, giam: 50000, ap: [{ten: 'Ưu đãi đơn đầu tiên trên web', giam: 50000}],
+        don_dau: {...base, trang_thai: 'du', ap_dung: 1, bo_ma: d.ma_uu_dai ? 1 : 0}};
+    },
+    'vagabond.thanh_vien.gui_ma': th => { v.gui.push(th); return v.loiGui ? {ok: 0, ly_do: v.loiGui} : {ok: 1, song_giay: 300}; },
+    'vagabond.thanh_vien.xac_thuc': th => { v.xac.push(th); if (th.ma !== '123456') return {ok: 0, ly_do: 'ma_khong_dung'}; v.phien = th.sdt; return {ok: 1}; },
+  };
+  return {v, mang};
+}
+
+await ca('v645 đơn đầu: số chưa xác thực hiện thẻ mời; gửi mã đúng số; mã 5 số không gọi máy; mã sai báo câu dễ hiểu; mã đúng thì hỏi lại và tổng trừ 50.000', async () => {
+  const {v, mang} = mayChuDonDau();
+  const {mt, chayHen} = moiTruong('2026-11-08T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.S.f.phone = '0931 224 334'; k.moGio(); await chayHen();
+  la('thẻ mời xác thực', k.theDonDau.value && k.theDonDau.value.kieu, 'xac_thuc');
+  dung('thẻ nói số và mức giảm', k.theDonDau.value.tieu.includes('50.000') && k.theDonDau.value.phu.includes('0931224334'));
+  la('chưa giảm', k.giam.value, 0);
+  await k.guiMaDonDau();
+  la('gửi mã đúng số', v.gui.map(x => x.sdt), ['0931224334']);
+  la('sang bước nhập mã', k.S.CO.dd.buoc, 'ma');
+  k.S.CO.dd.ma = '12345'; await k.xacThucDonDau();
+  la('mã 5 số: không gọi máy', v.xac.length, 0);
+  dung('báo cần 6 số', /6 số/.test(k.S.CO.dd.loi));
+  k.S.CO.dd.ma = '111111'; await k.xacThucDonDau();
+  la('mã sai: câu dùng chung đăng nhập', k.S.CO.dd.loi, 'Mã chưa đúng. Kiểm tra tin nhắn Zalo.');
+  la('vẫn ở bước nhập mã', k.S.CO.dd.buoc, 'ma');
+  const truoc = v.hoi.length;
+  k.S.CO.dd.ma = '123 456'; await k.xacThucDonDau(); await chayHen();
+  la('xác thực bằng số đã bỏ khoảng trắng', v.xac[v.xac.length - 1], {sdt: '0931224334', ma: '123456'});
+  la('xác thực xong thì hỏi lại ưu đãi một lần', v.hoi.length - truoc, 1);
+  la('thẻ Đã giảm', k.theDonDau.value.kieu, 'da_ap');
+  la('tổng trừ 50.000', k.giam.value, 50000);
+});
+
+await ca('v645 đơn đầu: đổi số giữa chừng thì về bước đầu, không giữ mã của số cũ; Zalo không gửi được thì báo câu cho khách web (không nhắc thu ngân)', async () => {
+  const {v, mang} = mayChuDonDau();
+  const {mt, chayHen} = moiTruong('2026-11-08T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.S.f.phone = '0931224334'; k.moGio(); await chayHen();
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123';
+  k.S.f.phone = '0901234567'; await chayHen();
+  la('về bước đầu, xoá ô mã', [k.S.CO.dd.buoc, k.S.CO.dd.ma], ['nut', '']);
+  v.loiGui = 'khong_gui_duoc';
+  await k.guiMaDonDau();
+  dung('câu web, không nhắc thu ngân', /thử lại sau ít phút/.test(k.S.CO.dd.loi) && !/thu ngân/.test(k.S.CO.dd.loi));
+  la('vẫn bước đầu', k.S.CO.dd.buoc, 'nut');
+  v.loiGui = 'gui_qua_nhieu';
+  await k.guiMaDonDau();
+  la('câu gửi quá nhiều', k.S.CO.dd.loi, 'Đã gửi nhiều mã. Chờ 30 phút rồi thử lại.');
+});
+
+await ca('v645 đơn đầu: tiền bánh dưới 300.000 nói còn thiếu; mã lớn hơn thì thẻ nói máy giữ mã; mã nhỏ hơn bị thay và nói rõ; máy chủ cũ không trả thẻ thì không hiện gì', async () => {
+  const a = mayChuDonDau({tien: 'thieu'});
+  const m1 = moiTruong('2026-11-08T08:00:00', a.mang);
+  const k1 = taoKho(m1.mt);
+  coThem(k1); k1.S.f.phone = '0931224334'; k1.moGio(); await m1.chayHen();
+  la('gợi ý', k1.theDonDau.value.kieu, 'goi_y');
+  dung('nêu ngưỡng 300.000', k1.theDonDau.value.phu.includes('300.000'));
+
+  const b = mayChuDonDau({maGiam: 90000}); b.v.phien = '0931224334';
+  const m2 = moiTruong('2026-11-08T08:00:00', b.mang);
+  const k2 = taoKho(m2.mt);
+  coThem(k2); k2.S.f.phone = '0931224334'; k2.moGio(); await m2.chayHen();
+  k2.S.f.ma = 'vip90'; k2.apMaUuDai(); await m2.chayHen();
+  la('mã 90.000 giữ', k2.giam.value, 90000);
+  la('thẻ nói mã đang lớn hơn', k2.theDonDau.value.kieu, 'goi_y');
+  dung('tiêu đề', /nhiều hơn/.test(k2.theDonDau.value.tieu));
+
+  const c = mayChuDonDau({maGiam: 30000}); c.v.phien = '0931224334';
+  const m3 = moiTruong('2026-11-08T08:00:00', c.mang);
+  const k3 = taoKho(m3.mt);
+  coThem(k3); k3.S.f.phone = '0931224334'; k3.moGio(); await m3.chayHen();
+  k3.S.f.ma = 'GIAM30'; k3.apMaUuDai(); await m3.chayHen();
+  la('đơn đầu thắng', k3.giam.value, 50000);
+  dung('nói rõ không cộng', k3.theDonDau.value.kieu === 'da_ap' && /không cộng/.test(k3.theDonDau.value.phu));
+
+  const m4 = moiTruong('2026-11-08T08:00:00', {'vagabond.don_hang.xem_uu_dai': () => ({ok: 1, giam: 0, ap: []})});
+  const k4 = taoKho(m4.mt);
+  coThem(k4); k4.S.f.phone = '0931224334'; k4.moGio(); await m4.chayHen();
+  la('không thẻ', k4.theDonDau.value, null);
+});
+
+/* Anh Việt 08/11 (bản 2): màn Khuyến mãi chọn không bắt mã Zalo, mức giảm
+   khác 50.000, và có hay không hiện thẻ ở bước thanh toán. Phần don_dau dựng
+   bằng ĐÚNG don_dau_web.phan_hoi của máy chủ (python), không chép tay. */
+const DD_MAY = JSON.parse(execFileSync('python3', ['-B', '-c', `
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from vagabond.khung.kiem_thu import nen
+nen.gia_lap()
+from vagabond import don_dau_web as dd
+ch = {"giam": 30000, "toi_thieu": 200000, "can_otp": 0}
+print(json.dumps({"hien": dd.phan_hoi(dd.DU, dict(ch, hien_thanh_toan=1)),
+  "an": dd.phan_hoi(dd.DU, dict(ch, hien_thanh_toan=0)),
+  "otp_an": dd.phan_hoi(dd.CAN_XAC_THUC, {"can_otp": 1, "hien_thanh_toan": 0})}))
+`, GOC_REPO]).toString());
+function mayChuKhongOtp(dd) {
+  const v = {hoi: [], gui: []};
+  return {v, mang: {
+    'vagabond.don_hang.xem_uu_dai': th => { v.hoi.push(JSON.parse(th.don));
+      return {ok: 1, giam: 30000, ap: [{ten: 'Ưu đãi đơn đầu tiên trên web', giam: 30000}], don_dau: {...dd, ap_dung: 1, bo_ma: 0}}; },
+    'vagabond.thanh_vien.gui_ma': th => { v.gui.push(th); return {ok: 1}; },
+  }};
+}
+await ca('v645 bản 2: không bắt mã Zalo thì thẻ Đã giảm ngay, không nút gửi mã, không nhắc xác thực; biểu tượng theo mức giảm (-30K)', async () => {
+  la('máy chủ gửi cờ', [DD_MAY.hien.can_otp, DD_MAY.hien.hien, DD_MAY.hien.giam], [0, 1, 30000]);
+  const {v, mang} = mayChuKhongOtp(DD_MAY.hien);
+  const {mt, chayHen} = moiTruong('2026-11-08T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.S.f.phone = '0931224334'; k.moGio(); await chayHen();
+  const th = k.theDonDau.value;
+  la('thẻ đã giảm', th && th.kieu, 'da_ap');
+  la('biểu tượng', th.ic, '-30K');
+  dung('nói số, không nhắc xác thực: ' + th.phu, th.phu.includes('0931224334') && !/xác thực/i.test(th.phu));
+  dung('tiêu đề theo mức giảm', th.tieu.includes('30.000'));
+  la('tổng trừ 30.000', k.giam.value, 30000);
+  la('không gửi mã nào', v.gui.length, 0);
+});
+await ca('v645 bản 2: Khuyến mãi tắt "hiện ở bước thanh toán" thì không có thẻ nhưng tổng vẫn trừ; bắt mã Zalo thì máy chủ luôn bật lại thẻ', async () => {
+  la('máy chủ: tắt thẻ', DD_MAY.an.hien, 0);
+  const {mang} = mayChuKhongOtp(DD_MAY.an);
+  const {mt, chayHen} = moiTruong('2026-11-08T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.S.f.phone = '0931224334'; k.moGio(); await chayHen();
+  la('không thẻ', k.theDonDau.value, null);
+  la('tổng vẫn trừ', k.giam.value, 30000);
+  la('bắt mã Zalo: thẻ luôn hiện', DD_MAY.otp_an.hien, 1);
 });
 
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');

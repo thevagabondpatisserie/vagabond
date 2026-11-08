@@ -38,10 +38,13 @@ class D(dict):
 
 # ------------------------------------------------------------ phần thuần
 
-@ca("v621 giờ gửi: kẹp vào 6h tới 22h, đảo chỗ khi gõ ngược, trong giờ tính nửa mở")
+@ca("v621 giờ gửi: kẹp vào 6h tới 20h (v645: anh Việt không gửi sau 8PM), đảo chỗ khi gõ ngược, trong giờ tính nửa mở")
 def _gio():
 	la("gõ ngược", zk.gio_hop_le(20, 8), (8, 20))
-	la("0 tới 24 bị kẹp", zk.gio_hop_le(0, 24), (6, 22))
+	# v645 (anh Việt 08/11/2026): trần đổi 22h -> 20h.
+	la("0 tới 24 bị kẹp", zk.gio_hop_le(0, 24), (6, 20))
+	la("gõ 22 cũng chỉ tới 20", zk.gio_hop_le(8, 22), (8, 20))
+	dung("20:30 ngoài giờ dù gõ 8-22", not zk.trong_gio(dt.datetime(2026, 10, 29, 20, 30), 8, 22))
 	la("chữ và rỗng về mặc định", zk.gio_hop_le("abc", ""), (8, 20))
 	la("bằng nhau về mặc định", zk.gio_hop_le(9, 9), (8, 20))
 	luc = dt.datetime(2026, 10, 29, 19, 59)
@@ -155,6 +158,12 @@ TS_VC = [{"name": n, "type": t, "maxLength": m, "require": True} for n, t, m in 
 	("ma_voucher", "STRING", 30))]
 
 
+def _gop(ma):
+	"""Bản giả của khach_hang.la_khach_gop cho bộ kiểm: cùng tập tên giỏ chung."""
+	m = (ma or "").strip()
+	return (not m) or m in ("Khách lẻ Online", "Khách bán lẻ")
+
+
 class Moi:
 	"""Lớp giả cơ sở dữ liệu tối thiểu cho việc gửi: dòng sổ, voucher, hoá đơn."""
 
@@ -169,6 +178,10 @@ class Moi:
 		self.dong_ho = lambda: BAY_GIO
 		# Kết quả câu sql thô (mặc định rỗng); ca mời quay lại đặt lần mua cuối.
 		self.sql_tra = []
+		# v645: trần một tin ưu đãi mỗi tuần, số đơn đã nhận, mua gần (kiểm riêng ở
+		# thu_zalo_uu_dai_645); điểm của đơn đọc qua khach_hang.diem_cua_don.
+		self.km_tuan, self.so_don, self.mua_gan = set(), {}, set()
+		self.diem = {}
 
 	def get_value(self, dt_, n, cot=None, as_dict=False, **k):
 		if dt_ == "Sales Invoice":
@@ -214,11 +227,19 @@ class Moi:
 				um.patch.object(zk, "_cfg", lambda: {}), \
 				um.patch.object(zk, "_gui_mau", self.gui_mau), \
 				um.patch.object(zk, "_sinh_ma", lambda: next(self.ma_sinh)), \
+				um.patch.object(zk, "_da_nhan_km_tuan", lambda kh: kh in self.km_tuan), \
+				um.patch.object(zk, "_so_don_da_nhan", lambda kh: self.so_don.get(kh, 1)), \
+				um.patch.object(zk, "_mua_gan", lambda kh, n: kh in self.mua_gan), \
 				um.patch.object(fr.db, "get_value", self.get_value), \
 				um.patch.object(fr.db, "get_all", self.get_all), \
 				um.patch.object(fr.db, "set_value", self.set_value), \
 				um.patch.object(fr.db, "sql", lambda *a, **k: list(self.sql_tra(*a) if callable(self.sql_tra) else self.sql_tra)), \
-				um.patch.object(fr, "get_doc", self.get_doc):
+				um.patch.object(fr, "get_doc", self.get_doc), \
+				um.patch.object(zk, "_la_khach_gop", _gop), \
+				um.patch.object(zk, "_diem_cua_don", lambda hd: self.diem.get(hd, (1, True))):
+			# Vá đúng hai cửa của zk, không nạp khach_hang: khach_hang kéo
+			# ban_hang và requests, CI chạy không có requests (giả lập CI tay
+			# không). Cửa thật được chốt riêng ở thu_zalo_uu_dai_645 _cua_khach.
 			return ham()
 
 	def tt(self):
@@ -274,7 +295,9 @@ class SoGia:
 
 
 def _cau(ma, **k):
-	c = {"ma": ma, "bat": 1, "ma_mau": "659376" if ma == "sau_mua" else "659377", "mau_trang_thai": "ENABLE",
+	# v645: doi_chung 0 để các ca cũ giữ nguyên nghĩa (không ai rơi vào nhóm đối chứng);
+	# nhóm đối chứng kiểm riêng ở thu_zalo_uu_dai_645.
+	c = {"ma": ma, "bat": 1, "doi_chung": 0, "ma_mau": "659376" if ma == "sau_mua" else "659377", "mau_trang_thai": "ENABLE",
 		"mau_tham_so": json.dumps(TS_SAU_MUA if ma == "sau_mua" else TS_VC), "mau_gia": "400", "ctkm": "" if ma == "sau_mua" else "KM-SN",
 		"tran_ngay": 300, "gio_tu": 8, "gio_den": 20, "han_ngay": 14, "mau_kiem_luc": BAY_GIO}
 	c.update(k)
@@ -292,6 +315,8 @@ def _gui_sau_mua():
 	rows = [D(name="T1", khach="K1", hoa_don="HDB-1", diem=9000, khoa="sau_mua:HDB-1", trang_thai="Chờ gửi"),
 		D(name="T2", khach="K2", hoa_don="HDB-2", diem=1800, khoa="sau_mua:HDB-2", trang_thai="Chờ gửi")]
 	m = Moi(_cau("sau_mua"), rows, {"K1": _hs(), "K2": _hs(ten="Bình")}, [], si=si)
+	# v645: điểm đọc qua khach_hang.diem_cua_don (đã vào sổ điểm: cộng như cũ).
+	m.diem = {"HDB-1": (9000, True)}
 	m.chay(zk.gui_hang_doi)
 	la("chỉ gọi Zalo cho hoá đơn còn hiệu lực", [g[3] for g in m.goi], ["sau_mua:HDB-1"])
 	la("tham số", m.goi[0][2], {"ten_khach": "Lan Anh", "ma_hoa_don": "HDB-1", "ngay_mua": "29/10/2026 15:30", "tong_tien": "450000",
@@ -529,7 +554,7 @@ def _ds_ctkm():
 		D(name="KM-VG", ten="Voyager", cach_ma="Ma dung mot lan", bat=1, doi_tuong="Theo hang khach", hang_khach="VOYAGER")]
 	cau = {"sau_mua": _cau("sau_mua"), "sinh_nhat": _cau("sinh_nhat", ctkm="KM-HET"), "quay_lai": _cau("quay_lai", ctkm="KM-CON")}
 	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(zk, "_dam_bao", lambda: None), \
-			um.patch.object(zk, "_cau_hinh", lambda ma: dict(cau[ma])), um.patch.object(zk, "_bay_gio", lambda: BAY_GIO), \
+			um.patch.object(zk, "_cau_hinh", lambda ma: dict(cau.get(ma) or {"ma": ma, "bat": 0})), um.patch.object(zk, "_bay_gio", lambda: BAY_GIO), \
 			um.patch.object(zk, "_han_muc", lambda: {}), um.patch.object(zk, "_co_lap", lambda: True), \
 			um.patch.object(zk, "_doc_ctkm", lambda ten: {d.name: d for d in ds_km}.get(ten)), \
 			um.patch.object(fr.db, "sql", lambda *a, **k: []), \
@@ -756,14 +781,18 @@ def _sinh_nhat_muon():
 		la("hồ sơ có ngày sinh", zk._ho_so("K1").get("sinh_nhat"), D8(1990, 10, 28))
 
 
-@ca("v621 quét sau mua: chỉ lượt tích điểm từ lúc bật (không gửi bù hoá đơn cũ), mỗi hoá đơn một dòng, quét lại không thêm")
+@ca("v621/v645 quét sau mua: chỉ đơn khách NHẬN từ lúc bật (không gửi bù), mỗi hoá đơn một dòng, quét lại không thêm; bỏ khách lẻ và hàng tặng")
 def _quet_sau_mua():
+	# v645 (anh Việt 08/11/2026): mốc là lúc khách nhận đơn (DK_DA_NHAN trên hoá
+	# đơn), không còn đọc sổ điểm. Điểm lấy qua khach_hang.diem_cua_don (cửa
+	# zk._diem_cua_don, vá ở đây để không nạp khach_hang và requests ở CI).
 	fr = zk.frappe
 	ts_sql, chen, co = [], [], set()
 
 	def sql(q, ts=None, *a, **k):
-		ts_sql.append(ts)
-		return [D(khach="K1", diem=9000, hoa_don="HDB-1"), D(khach="K2", diem=100, hoa_don="HDB-2")]
+		ts_sql.append((q, ts))
+		return [D(name="HDB-1", khach="K1", docstatus=1, pid=""), D(name="HDB-2", khach="K2", docstatus=0, pid="P2"),
+			D(name="HDB-3", khach="Khách bán lẻ", docstatus=1, pid=""), D(name="HDB-4", khach="K4", docstatus=1, pid="")]
 
 	class Doc(D):
 		def insert(self, **k):
@@ -773,12 +802,16 @@ def _quet_sau_mua():
 	bat_luc = BAY_GIO - dt.timedelta(hours=2)
 	with um.patch.object(zk, "_cau_hinh", lambda ma: {"ma": ma, "bat": 1, "bat_luc": bat_luc}), \
 			um.patch.object(zk, "_bay_gio", lambda: BAY_GIO), um.patch.object(zk, "get_datetime", _gd), \
+			um.patch.object(zk, "_la_qua_tang", lambda n: n == "HDB-4"), \
+			um.patch.object(zk, "_la_khach_gop", _gop), \
+			um.patch.object(zk, "_diem_cua_don", lambda hd: {"HDB-1": (9000, True), "HDB-2": (100, False)}.get(hd, (0, False))), \
 			um.patch.object(fr.db, "sql", sql), \
 			um.patch.object(fr.db, "exists", lambda dt_, f=None, *a, **k: (f or {}).get("khoa") in co), \
 			um.patch.object(fr, "get_doc", lambda d, *a, **k: Doc(d)):
 		n1 = zk.quet_sau_mua()
 		n2 = zk.quet_sau_mua()
-	la("mốc quét là lúc bật, không phải 48 giờ trước", ts_sql[0], (bat_luc,))
+	la("mốc quét là lúc bật, không phải 48 giờ trước", ts_sql[0][1]["tu"], bat_luc)
+	dung("câu hỏi gồm điều kiện đã nhận (nháp có mã Pancake)", "custom_pancake_id" in ts_sql[0][0] and "docstatus = 0" in ts_sql[0][0])
 	la("lượt đầu hai dòng, lượt sau không thêm", (n1, n2), (2, 0))
 	la("dòng chờ", [(x["khoa"], x["trang_thai"], x["diem"]) for x in chen], [("sau_mua:HDB-1", "Chờ gửi", 9000), ("sau_mua:HDB-2", "Chờ gửi", 100)])
 	with um.patch.object(zk, "_cau_hinh", lambda ma: {"ma": ma, "bat": 0}), um.patch.object(fr.db, "sql", sql):
@@ -825,7 +858,8 @@ def _luu():
 		nem("kịch bản lạ", lambda: zk.luu_kich_ban("thang_hang", {"bat": 1}))
 	v = sv[0]
 	la("bật và lúc bật", (v["bat"], v["bat_luc"]), (1, BAY_GIO))
-	la("giờ kẹp và đảo", (v["gio_tu"], v["gio_den"]), (6, 22))
+	# v645: trần giờ đóng 20h (anh Việt không gửi sau 8PM).
+	la("giờ kẹp và đảo", (v["gio_tu"], v["gio_den"]), (6, 20))
 	la("cắt 30", len(v["ten_uu_dai"]), 30)
 	la("ô số hỏng giữ số cũ", v["tran_ngay"], 300)
 
@@ -859,8 +893,10 @@ def _nhip():
 			return self
 	with um.patch.object(fr.db, "exists", lambda *a, **k: False), um.patch.object(fr, "get_doc", lambda d, *a, **k: Doc(d)):
 		zk._dam_bao()
-	la("ba dòng, đều tắt", [(x["ma"], x["bat"]) for x in chen], [("sau_mua", 0), ("sinh_nhat", 0), ("quay_lai", 0)])
-	la("gắn sẵn mẫu đã nộp", [x["ma_mau"] for x in chen], ["659376", "659377", "659378"])
+	# v645: thêm tám kịch bản (đền bù ba mức, nhắc dịp, đơn thứ hai, giới thiệu, mốc
+	# hai quay lại, nhắc hạn); dòng mới vẫn TẮT, mẫu mới để trống chờ Marketing nộp.
+	la("mọi dòng đều tắt", [(x["ma"], x["bat"]) for x in chen], [(k["ma"], 0) for k in zk.KICH_BAN])
+	la("gắn sẵn mẫu đã nộp", {x["ma"]: x["ma_mau"] for x in chen if x["ma_mau"]}, {"sau_mua": "659376", "sinh_nhat": "659377", "quay_lai": "659378"})
 
 
 @ca("v621 cửa gửi theo mẫu (zalo.gui_mau) và gui_tin đều đọc cờ kiểm thật: chạy bộ kiểm tích hợp không bắn tin ra máy khách")

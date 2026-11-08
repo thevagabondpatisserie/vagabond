@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Kich Ban Zalo",
- "modified": "2026-10-29 16:00:00.000000",
+ "modified": "2026-11-08 20:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Kịch bản tin Zalo tự động gửi khách: sau mua hàng, sinh nhật, lâu chưa quay lại.",
@@ -25,6 +25,7 @@
   "sb_vc",
   "ctkm",
   "han_ngay",
+  "doi_chung",
   "cb2",
   "ten_uu_dai",
   "dieu_kien",
@@ -126,6 +127,12 @@
    "fieldname": "han_ngay",
    "fieldtype": "Int",
    "label": "Voucher dùng được (ngày)"
+  },
+  {
+   "fieldname": "doi_chung",
+   "fieldtype": "Int",
+   "label": "Nhóm đối chứng (%)",
+   "description": "Phần trăm khách giữ lại không gửi để đo tin này có làm khách quay lại không. Để 0 là gửi tất cả."
   },
   {
    "fieldname": "cb2",

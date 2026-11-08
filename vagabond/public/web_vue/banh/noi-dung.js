@@ -412,6 +412,136 @@ function DanhSachTuyen(ds, homNay) {
   }
   return null;
 }
+/* ---------- v645: Ưu đãi theo kiểu Tuyển dụng (anh Việt 08/11/2026) ----------
+   Danh sách thẻ ảnh gọn: nhóm, hạn (Sắp diễn ra, Còn N ngày), tên, thời gian,
+   mức giảm. Bấm thẻ mở trang chi tiết #/uu-dai/<mã thẻ>: ảnh đầu trang, bốn ô
+   tóm tắt (ưu đãi, thời gian, áp dụng, mã), mã kèm nút chép, chi tiết, điều
+   kiện và nút Đặt bánh ở đáy màn. Chữ lấy từ thẻ máy chủ (khuyen_mai.the_web:
+   dòng đầu "điều kiện" là mức giảm) hay thẻ Marketing soạn trong trình biên tập. */
+export const UD = reactive({mo: ''});
+function diToi(duong, win = window) {
+  win.history.pushState({vgb: 1}, '', win.location.pathname + win.location.search + duong);
+  win.dispatchEvent(new win.PopStateEvent('popstate', {state: {vgb: 1}}));
+  if (win.scrollTo) win.scrollTo(0, 0);
+}
+export function moUuDai(id, win = window) { diToi(id ? '#/uu-dai/' + encodeURIComponent(id) : '#/uu-dai', win); }
+const MOT_LAN = /dùng một lần/i;
+/* THUẦN: thẻ ERP ghi mức giảm ở dòng đầu điều kiện; còn lại là điều kiện. */
+export function tachUuDai(k) {
+  const ds = dong(k.dieu_kien), erp = k.nguon === 'erp';
+  return {muc: erp ? (ds[0] || '') : '', dk: erp ? ds.slice(1) : ds};
+}
+/* THUẦN: thời gian chạy của ưu đãi, gọn một dòng. */
+export function thoiGianUuDai(k) {
+  if (k.bat_dau && k.ket_thuc) return k.bat_dau === k.ket_thuc ? ngay(k.bat_dau) : ngay(k.bat_dau) + ' - ' + ngay(k.ket_thuc);
+  if (k.ket_thuc) return t('ud_den', 'Đến') + ' ' + ngay(k.ket_thuc);
+  if (k.bat_dau) return t('ud_tu', 'Từ') + ' ' + ngay(k.bat_dau);
+  return t('ud_dang_dien_ra', 'Đang diễn ra');
+}
+/* THUẦN: nhãn hạn trên thẻ: Sắp diễn ra, Ngày cuối, Còn N ngày (7 ngày cuối). */
+export function hanUuDai(k, homNay) {
+  if (k.bat_dau && k.bat_dau > homNay) return t('sap_dien_ra', 'Sắp diễn ra');
+  const con = ngayCon(k.ket_thuc, homNay);
+  if (con === 0) return t('ud_ngay_cuoi', 'Ngày cuối');
+  if (con != null && con > 0 && con <= 7) return t('ud_con_ngay', 'Còn {so} ngày', {so: con});
+  return '';
+}
+/* THUẦN: bốn ô tóm tắt đầu trang chi tiết. */
+export function oUuDai(k) {
+  const {muc, dk} = tachUuDai(k);
+  /* dung_web 1 chỉ nói chắc được phần web (kênh có thể chỉ mở Website);
+     dung_web 0 chỉ ghi "Tại cửa hàng" khi chính máy chủ nói vậy. */
+  const ap = k.dung_web === 1 ? t('ud_dat_web', 'Đặt bánh trên web')
+    : (k.dung_web === 0 && dk.some(x => /cửa hàng|quầy/i.test(x)) ? t('ud_tai_quay', 'Tại cửa hàng')
+      : (dieuKien(k) || t('ud_xem_dk', 'Xem điều kiện bên dưới')));
+  const ma = k.ma_uu_dai || (dk.some(x => MOT_LAN.test(x)) ? t('ud_ma_rieng', 'The Vagabond gửi riêng từng khách') : t('ud_khong_ma', 'Không cần mã'));
+  return [
+    {nhan: t('ud_o_uu_dai', 'Ưu đãi'), chu: muc || k.nhan || k.nhom || t('ud_o_uu_dai', 'Ưu đãi'), lop: 'luong'},
+    {nhan: t('ud_o_thoi_gian', 'Thời gian'), chu: thoiGianUuDai(k)},
+    {nhan: t('ud_o_ap_dung', 'Áp dụng'), chu: ap},
+    {nhan: t('ud_o_ma', 'Mã'), chu: ma}
+  ];
+}
+const anhUuDai = k => (anToan(k.anh) ? k.anh : '');
+/* THUẦN: thẻ chưa có ảnh thì nền hiện mức giảm gọn (phần trước dấu phẩy), không lặp tên. */
+export function chuNen(k, muc) { return String(muc || '').split(',')[0].trim() || k.nhan || k.nhom || t('ud_o_uu_dai', 'Ưu đãi'); }
+export const TheUuDai = {
+  name: 'TheUuDai',
+  props: {k: Object, homNay: String},
+  render() {
+    const k = this.k, anh = anhUuDai(k), han = hanUuDai(k, this.homNay), {muc} = tachUuDai(k);
+    return h('a', {class: 'td-the ud-the' + lopChon(k), href: '#/uu-dai/' + encodeURIComponent(k.id), 'data-khoi': k.id, 'data-ud': k.id,
+      onClick: e => { e.preventDefault(); if (ND.xemThu) chonKhoi(k.id); else moUuDai(k.id); }}, [
+      h('div', {class: 'td-anh ud-anh' + (anh ? '' : ' ud-nen')}, [
+        anh ? h('img', {src: anh, alt: k.mo_ta_anh || '', loading: 'lazy'}) : h('span', {class: 'ud-nen-chu', 'aria-hidden': 'true'}, chuNen(k, muc)),
+        (k.nhan || k.nhom) ? h('span', {class: 'td-bp'}, k.nhan || k.nhom) : null,
+        han ? h('span', {class: 'td-gap'}, han) : null]),
+      h('div', {class: 'td-nd'}, [
+        h('h2', null, k.tieu_de),
+        h('p', {class: 'td-meta'}, thoiGianUuDai(k)),
+        h('div', {class: 'td-duoi'}, [
+          h('span', {class: 'td-luong ud-muc'}, muc || (k.ma_uu_dai ? t('ma_uu_dai', 'Mã ưu đãi') + ' ' + k.ma_uu_dai : t('xem_chi_tiet_muc', 'Xem chi tiết'))),
+          h('span', {class: 'td-mui', 'aria-hidden': 'true'}, '→')])])
+    ]);
+  }
+};
+export const ChepMa = {
+  props: {ma: String},
+  data() { return {bao: ''}; },
+  methods: {
+    async chep() {
+      try {
+        await navigator.clipboard.writeText(this.ma);
+        this.bao = t('ud_da_chep', 'Đã chép mã');
+      } catch (e) { this.bao = t('ud_chep_loi', 'Chưa chép được, quý khách giữ lâu vào mã để chép.'); }
+    }
+  },
+  render() {
+    return h('div', {class: 'ud-ma'}, [
+      h('div', {class: 'ud-ma-chu'}, [h('span', null, t('ma_uu_dai', 'Mã ưu đãi')), h('b', null, this.ma)]),
+      h('button', {class: 'ud-chep', type: 'button', onClick: this.chep}, t('ud_chep', 'Chép mã')),
+      h('p', {class: 'ud-ma-bao', role: 'status'}, this.bao)
+    ]);
+  }
+};
+export const ChiTietUuDai = {
+  name: 'ChiTietUuDai',
+  props: {k: Object, homNay: String},
+  render() {
+    const k = this.k, anh = anhUuDai(k), han = hanUuDai(k, this.homNay), {dk} = tachUuDai(k), them = dieuKien(k);
+    const dsDk = [...(them ? [them] : []), ...dk];
+    const rieng = anToan(k.lien_ket) ? k.lien_ket : '';
+    /* Ưu đãi chỉ dùng tại cửa hàng thì không mời đặt bánh trên web. */
+    const duong = rieng || (k.dung_web === 0 ? '' : '#/dat-truoc');
+    return h('article', {class: 'td-chi-tiet ud-chi-tiet' + lopChon(k), 'data-khoi': k.id, 'data-ud': k.id}, [
+      h('div', {class: 'td-hero' + (anh ? '' : ' ud-nen')}, [
+        anh ? h('img', {src: anh, alt: k.mo_ta_anh || '', loading: 'eager'}) : null,
+        h('a', {class: 'td-lui', href: '#/uu-dai', 'aria-label': t('ud_ve_ds', 'Về danh sách ưu đãi'), onClick: e => { e.preventDefault(); moUuDai(''); }}, '←'),
+        h('div', {class: 'td-h'}, [
+          h('p', {class: 'td-tren'}, [k.nhan || k.nhom, han || t('ud_dang_dien_ra', 'Đang diễn ra')].filter(Boolean).join(' · ')),
+          h('h1', null, k.tieu_de)])]),
+      h('div', {class: 'td-luoi'}, oUuDai(k).map(o => h('div', {class: 'td-o' + (o.lop ? ' td-o-' + o.lop : '')}, [h('span', null, o.nhan), h('b', null, o.chu)]))),
+      k.ma_uu_dai ? h(ChepMa, {ma: k.ma_uu_dai, key: k.ma_uu_dai}) : null,
+      k.noi_dung ? h('section', {class: 'td-muc'}, [h('h3', null, t('ud_chi_tiet', 'Chi tiết')), h(DoanGap, {chu: k.noi_dung})]) : null,
+      dsDk.length ? h('section', {class: 'td-muc'}, [h('h3', null, t('ud_dieu_kien', 'Điều kiện')), h('ul', null, dsDk.map(x => h('li', null, x)))]) : null,
+      duong ? h('div', {class: 'td-day'}, [h('a', {class: 'td-ung', href: duong,
+        onClick: rieng ? undefined : e => { e.preventDefault(); diToi(duong); }}, rieng ? (k.nut || t('xem_chi_tiet_muc', 'Xem chi tiết')) : t('ud_dat_banh', 'Đặt bánh ngay'))]) : null
+    ]);
+  }
+};
+/* Chưa có nội dung (đang tải hay tải lỗi) thì báo đúng trạng thái cho CẢ danh sách
+   lẫn link chi tiết, không báo "chưa có ưu đãi" (Codex PR #548: lỗi 503 kẹt Đang tải). */
+function ChiTietUuDaiNeuMo(ds, homNay) {
+  if (!ND.daTai && !ND.xemThu) {
+    if (ND.loiTai) return h('p', {class: 'cm-rong ud-loi-tai', role: 'status'}, t('ud_loi_tai', 'Chưa tải được ưu đãi. Quý khách tải lại trang hoặc nhắn fanpage The Vagabond nhé.'));
+    return h('p', {class: 'cm-rong ud-dang-tai', role: 'status'}, t('ud_dang_tai', 'Đang tải ưu đãi...'));
+  }
+  if (!UD.mo) return null;
+  const k = ds.find(x => x.id === UD.mo);
+  if (k) return h(ChiTietUuDai, {k, homNay, key: k.id});
+  return h('div', {class: 'td-het'}, [h('p', {class: 'cm-rong'}, t('ud_het', 'Ưu đãi này đã kết thúc. Quý khách xem các ưu đãi khác nhé.')),
+    h('a', {class: 'cm-nut', href: '#/uu-dai', onClick: e => { e.preventDefault(); moUuDai(''); }}, t('ud_xem_khac', 'Xem các ưu đãi đang có'))]);
+}
 const LOC = reactive({uu_dai: {tim: '', nhom: ''}, tuyen_dung: {tim: '', nhom: ''}, tiec: {tim: '', nhom: ''}});
 export function dsMuc(loai, homNay = ngayVN()) {
   return (ND.khoi || []).filter(k => k.loai === loai && (ND.xemThu || khachThay(k, homNay)));
@@ -423,13 +553,14 @@ export const ChuyenMuc = {
   render() {
     const loai = this.loai, homNay = ngayVN(), tt = LOC[loai], ds = dsMuc(loai, homNay);
     if (loai === 'tuyen_dung') { const rieng = DanhSachTuyen(ds, homNay); if (rieng) return h('div', {id: 'noi-' + loai}, [rieng]); }
+    if (loai === 'uu_dai') { const rieng = ChiTietUuDaiNeuMo(ds, homNay); if (rieng) return h('div', {id: 'noi-' + loai}, [rieng]); }
     const nhom = [...new Set(ds.map(k => k.nhom).filter(Boolean))];
     const loc = ds.filter(k => (!tt.nhom || k.nhom === tt.nhom) && [k.tieu_de, k.nhom, k.noi_lam, k.dia_diem, k.noi_dung].join(' ').toLocaleLowerCase('vi').includes(tt.tim.toLocaleLowerCase('vi')));
     const goiY = t('tim_muc', 'Tìm theo tên, nhóm hoặc nơi làm');
     return h('div', {id: 'noi-' + loai}, [
       h('div', {class: 'cm-loc'}, ds.length > 3 ? [h('input', {type: 'search', placeholder: goiY, 'aria-label': goiY, value: tt.tim, onInput: e => { tt.tim = e.target.value; }})] : []),
       h('div', {class: 'cm-chips'}, nhom.length ? ['', ...nhom].map(n => h('button', {'aria-pressed': String(n === tt.nhom), onClick: () => { tt.nhom = n; }}, n || t('tat_ca_muc', 'Tất cả'))) : []),
-      h('div', {class: 'cm-danh-sach' + (loai === 'tuyen_dung' ? ' td-ds' : '')}, loc.length ? loc.map(k => h(loai === 'tuyen_dung' && k.ma ? TheTuyen : TheMuc, {k, homNay, key: k.id})) : [h('p', {class: 'cm-rong'}, t(loai + '_rong', RONG[loai]))])
+      h('div', {class: 'cm-danh-sach' + (loai === 'tuyen_dung' || loai === 'uu_dai' ? ' td-ds' : '')}, loc.length ? loc.map(k => h(loai === 'tuyen_dung' && k.ma ? TheTuyen : (loai === 'uu_dai' ? TheUuDai : TheMuc), {k, homNay, key: k.id})) : [h('p', {class: 'cm-rong'}, t(loai + '_rong', RONG[loai]))])
     ]);
   }
 };

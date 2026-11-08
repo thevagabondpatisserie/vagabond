@@ -421,6 +421,54 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
 
   /* Codex PR #543 vòng 3: quầy mở tuỳ chọn hai lần, giữa hai lần quản lý xuất bản
      menu mới (tắt hết tuỳ chọn của món) ở máy khác. Quá 60 giây phải hỏi lại máy chủ. */
+  await ca('v645 ảnh trên web (Minh Vũ báo thiếu nút): mở món, bấm Tải ảnh lên, máy nén rồi gửi upload_file công khai, bản nháp ghi ảnh riêng, màn và danh sách hiện ảnh mới; Dùng ảnh danh mục bỏ ảnh riêng; tải lỗi thì báo, không ghi', async function () {
+    var m = await moMan();
+    var gui = [], tep = [];
+    m.g.frappe = { csrf_token: 'tk' };
+    m.g.FormData = function () { this.ds = []; this.append = function (k, v, ten) { this.ds.push([k, ten || (typeof v === 'string' ? v : '')]); }; };
+    /* Ca chạy ĐÚNG đường bấm của màn; chỉ thay ba chỗ chạm trình duyệt: hộp chọn tệp,
+       canvas (kiểm riêng bằng trình duyệt thật ở cong_cu/kiem_anh_menu_dom.cjs) và mạng. */
+    m.g.btmChonTep = function () { return Promise.resolve({ name: 'IMG_7295.HEIC', size: 6 * 1024 * 1024 }); };
+    m.g.btmNenVuong = function (f) { tep.push(f.name); return Promise.resolve({ blob: { size: 431000 }, canh: 1200, kb: 421 }); };
+    var traLoi = { ok: true, j: { message: { file_url: '/files/menu-nutr00090.jpg' } } };
+    m.g.fetch = function (u, o) { gui.push({ u: u, hd: o.headers, ds: o.body.ds }); return Promise.resolve({ ok: traLoi.ok, json: function () { return Promise.resolve(traLoi.j); } }); };
+    await bam(m, '[data-btmnhom="n-tra"]');
+    await bam(m, '[data-btmmon="NUTR00090"]');
+    dung('khối Ảnh trên web', chu(q(m, '#btmAnhWeb')).indexOf('Đang dùng ảnh trong danh mục món') >= 0 && chu(q(m, '#btmAnhWeb')).indexOf('tự cắt vuông 1:1') >= 0);
+    bang('chưa có nút bỏ', qs(m, '[data-btmanhbo]').length, 0);
+    await bam(m, '[data-btmanhtai]');
+    await cho(60);
+    bang('nén đúng tệp đã chọn', tep, ['IMG_7295.HEIC']);
+    bang('gửi upload_file một lần', gui.map(function (x) { return x.u; }), ['/api/method/upload_file']);
+    bang('tệp công khai, tên theo mã món', gui[0].ds, [['file', 'menu-nutr00090.jpg'], ['is_private', '0'], ['folder', 'Home']]);
+    bang('có khoá CSRF', gui[0].hd['X-Frappe-CSRF-Token'], 'tk');
+    await cho(40);
+    bang('bản nháp ghi ảnh riêng', luuCuoi(m).mon.NUTR00090, { anh: '/files/menu-nutr00090.jpg' });
+    dung('báo kích thước', m.tin.some(function (x) { return x.indexOf('1200px') >= 0 && x.indexOf('421 KB') >= 0 && x.indexOf('Xem và xuất bản') >= 0; }));
+    dung('màn hiện ảnh mới', m.tai.body.innerHTML.indexOf('/files/menu-nutr00090.jpg') >= 0);
+    bang('nút đổi tên', chu(q(m, '[data-btmanhtai]')), 'Đổi ảnh');
+    m.tai.body.querySelector('#btmMonXong').onclick();
+    await cho(40);
+    dung('danh sách món hiện ảnh web', q(m, '[data-ma="NUTR00090"]').innerHTML.indexOf('/files/menu-nutr00090.jpg') >= 0);
+    await bam(m, '[data-btmmon="NUTR00090"]');
+    await bam(m, '[data-btmanhbo]');
+    await cho(40);
+    bang('bỏ ảnh riêng (ô rỗng, máy chủ tự bỏ)', luuCuoi(m).mon.NUTR00090, {});
+    dung('về ảnh danh mục', m.tai.body.innerHTML.indexOf('/files/kom.jpg') >= 0 && m.tai.body.innerHTML.indexOf('menu-nutr00090') < 0);
+    traLoi = { ok: false, j: { _server_messages: JSON.stringify([JSON.stringify({ message: 'Tệp quá lớn' })]) } };
+    var truoc = m.goi.length;
+    await bam(m, '[data-btmanhtai]');
+    await cho(60);
+    dung('báo lỗi', m.tin[m.tin.length - 1].length > 0 && m.tin[m.tin.length - 1].indexOf('Đã cắt') < 0);
+    bang('không ghi nháp', m.goi.slice(truoc).filter(function (x) { return x.duong === 'vagabond.bien_tap_menu.luu_nhap'; }).length, 0);
+    m.g.btmChonTep = function () { return Promise.resolve(null); };
+    await bam(m, '[data-btmanhtai]');
+    await cho(30);
+    bang('bỏ chọn tệp: không gửi gì', gui.length, 2);
+    bang('cắt vuông chính giữa (thuần)', [m.g.btmCatVuong(4000, 3000), m.g.btmCatVuong(1080, 1920), m.g.btmCatVuong(600, 800)],
+      [{ sx: 500, sy: 0, s: 3000, d: 1200 }, { sx: 0, sy: 420, s: 1080, d: 1080 }, { sx: 0, sy: 100, s: 600, d: 600 }]);
+  });
+
   await ca('Màn Tính tiền: bảng tuỳ chọn giữ tối đa 60 giây rồi hỏi lại máy chủ; đổi quầy hỏi lại; lỗi mạng không giữ bảng rỗng', async function () {
     var m = moApp();
     var T = 1000;

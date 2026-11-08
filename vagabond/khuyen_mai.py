@@ -963,6 +963,34 @@ def tra_ma(ma, quay=None, nguon=None):
 	return tt
 
 
+@frappe.whitelist()
+def ma_cua_khach(khach=None):
+	"""v645: mã riêng còn hạn của khách đang chọn trên hoá đơn, để thu ngân bấm
+	áp ngay, khỏi bắt khách đọc mã. Chỉ mã chưa dùng, chưa hết hạn, chương
+	trình đang bật; mã gần hết hạn lên trước."""
+	_kiem_quyen()
+	khach = str(khach or "").strip()
+	if not khach:
+		return {"ds": []}
+	ds = frappe.get_all(
+		"Vagabond Voucher",
+		filters={"danh_cho": khach, "trang_thai": "Chua dung", "han_dung": [">=", nowdate()]},
+		fields=["ma", "ctkm", "ten_ctkm", "han_dung"],
+		order_by="han_dung asc",
+		limit_page_length=20,
+	)
+	ra = []
+	for v in ds:
+		try:
+			km = _doc_ctkm(v.ctkm) if v.ctkm else None
+		except Exception:
+			km = None
+		if not km or not cint(km.get("bat")):
+			continue
+		ra.append({"ma": v.ma, "ten": v.ten_ctkm or km.get("ten") or "", "han": str(v.han_dung or "")})
+	return {"ds": ra}
+
+
 def _tra_ma(ma, quay=None, nguon=None):
 	"""Than cua tra_ma, khong soi quyen nhan vien: trang dat banh (khach vang
 	lai) cung tra ma qua day, qua cua ap_web ben duoi (v589)."""
