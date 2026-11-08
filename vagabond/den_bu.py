@@ -155,6 +155,14 @@ def cap_ma(q=None, muc=None, ly_do=None, ghi_chu=None):
 	if not han:
 		frappe.throw(loi)
 	kh = zk._ho_so(hd.customer)
+	# Codex PR 548 c02f2be: chương trình của mức có thể chỉ dành cho một hạng,
+	# nhóm hay danh sách khách. Kiểm bằng đúng phép của quầy trước khi phát mã,
+	# không thì khách cầm mã đền bù mà quầy không giảm, và khoá một mã mỗi đơn
+	# chặn luôn việc cấp lại.
+	ok_dt, ly_dt = zk._hop_doi_tuong(km, hd.customer, kh["sdt84"])
+	if not ok_dt:
+		frappe.throw("Chương trình của mức %s không áp cho khách này (%s). Vào Chăm sóc khách, Tin Zalo tự động, thẻ Đền bù mức %s để chọn chương trình dành cho mọi khách."
+			% (ten_muc(muc), ly_dt, ten_muc(muc).lower()))
 	ma = zk._sinh_ma()
 	frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.get("name"), "ten_ctkm": zk.cat(km.get("ten"), 140),
 		"trang_thai": "Chua dung", "han_dung": han, "khach": zk.cat(kh["ten"], 140), "sdt": kh["sdt84"],

@@ -1214,6 +1214,19 @@ def _xong(row_name, tt, loi="", **v):
 	frappe.db.commit()
 
 
+def _la_doi_chung(c, kb, row):
+	"""v645: nhóm đối chứng cố định theo khách, để báo cáo so được ai nhận tin
+	quay lại bao nhiêu với ai không nhận. Gọi SAU mọi điều kiện loại chung
+	(Codex PR 548 c02f2be): khách không đủ điều kiện mà bị ghi đối chứng thì
+	nhóm đối chứng rộng hơn nhóm nhận tin, tỉ lệ so sánh lệch. Ghi Bỏ qua và
+	trả True khi khách thuộc nhóm đối chứng."""
+	pt = so_nguyen(c.get("doi_chung"), kb.get("doi_chung") or 0)
+	if pt and trong_doi_chung(row.khach, pt):
+		_xong(row.name, TT_BO, "%s: %d%% khách không nhận tin này để đo hiệu quả." % (LY_DO_DOI_CHUNG, pt))
+		return True
+	return False
+
+
 def _gui_mot(c, row):
 	"""Gửi một dòng chờ. Trả mã lỗi Zalo (0 là được, None là lỗi riêng dòng
 	đã ghi sổ không cần dừng lượt)."""
@@ -1242,16 +1255,12 @@ def _gui_mot(c, row):
 		if ma_kb == "nhac_dip" and _mua_gan(row.khach, DIP_DA_MUA_GAN):
 			_xong(row.name, TT_BO, "Khách vừa mua lại trong %d ngày, không nhắc dịp." % DIP_DA_MUA_GAN)
 			return None
-		# v645: nhóm đối chứng cố định theo khách, để báo cáo so được ai nhận tin
-		# quay lại bao nhiêu với ai không nhận.
-		pt = so_nguyen(c.get("doi_chung"), kb.get("doi_chung") or 0)
-		if pt and trong_doi_chung(row.khach, pt):
-			_xong(row.name, TT_BO, "%s: %d%% khách không nhận tin này để đo hiệu quả." % (LY_DO_DOI_CHUNG, pt))
-			return None
 		# v645 (anh Việt 08/11/2026): mỗi khách tối đa một tin ưu đãi mỗi 7 ngày.
 		if kb.get("tran_tuan") and _da_nhan_km_tuan(row.khach):
 			_xong(row.name, TT_BO, "Khách đã nhận một tin ưu đãi trong %d ngày qua (mỗi khách tối đa một tin mỗi tuần)." % TRAN_TUAN_NGAY)
 			return None
+		# Nhóm đối chứng KHÔNG chia ở đây: chia sau mọi điều kiện loại (đối
+		# tượng chương trình, Ví quà, mã có sẵn), ở _la_doi_chung bên dưới.
 	if kb["km"] and kb.get("kieu") == "co_san":
 		# v645: nhắc hạn và đền bù gửi một mã ĐÃ có của khách, không phát mã mới.
 		v, ly = _voucher_con_dung(row.get("voucher"))
@@ -1262,6 +1271,14 @@ def _gui_mot(c, row):
 		ly = ly_do_khong_gui_lai(km, _bay_gio().date())
 		if ly:
 			_xong(row.name, TT_BO, ly.replace("mã Ví quà", "mã"))
+			return None
+		# Codex PR 548 c02f2be: mã có sẵn cũng phải đúng đối tượng của chương
+		# trình, không thì quầy (khuyen_mai.tinh) từ chối mã đã hứa.
+		ok_dt, ly_dt = _hop_doi_tuong(km, row.khach, kh["sdt84"])
+		if not ok_dt:
+			_xong(row.name, TT_BO, "Khách không thuộc đối tượng của chương trình ưu đãi: %s." % ly_dt)
+			return None
+		if _la_doi_chung(c, kb, row):
 			return None
 		rieng = ma_kb != "nhac_han"
 		ten_ud, dk = mo_ta_uu_dai(km, c.get("ten_uu_dai") if rieng else "", c.get("dieu_kien") if rieng else "")
@@ -1303,6 +1320,8 @@ def _gui_mot(c, row):
 				if not han_vi:
 					_xong(row.name, TT_BO, "Khách chưa đủ điều kiện nhận mã Ví quà của chương trình: %s." % ly_vi)
 					return None
+		if _la_doi_chung(c, kb, row):
+			return None
 		if cu_vi:
 			ma_v, han = cu_vi.get("ma"), cu_vi.get("han_dung")
 		else:
