@@ -291,6 +291,19 @@ export const MAU = `
     <div class="sec"><span class="n">09</span><h3><span>{{ t('dat_banh_9d5a6614c','Thanh toán') }}</span></h3><i class="rule"></i></div>
     <div id="payList"><button v-for="x in kho.paysHien.value" :key="x.k" class="pick" :class="{on: S.CO.pay===x.k}" :data-pt="x.k" @click="S.CO.pay=x.k"><b>{{ t(x.kn, x.n) }}</b><span>{{ t(x.kd, x.d) }}</span></button></div>
 
+    <div class="dd-the" id="donDau" v-if="kho.theDonDau.value" :class="'dd-' + kho.theDonDau.value.kieu" role="group" :aria-label="kho.theDonDau.value.tieu">
+      <div class="dd-dau"><span class="dd-ic" aria-hidden="true">{{ kho.theDonDau.value.kieu === 'da_ap' ? '✓' : '-50K' }}</span>
+        <div><b class="dd-tieu">{{ kho.theDonDau.value.tieu }}</b><small class="dd-phu">{{ kho.theDonDau.value.phu }}</small></div></div>
+      <template v-if="kho.theDonDau.value.kieu === 'xac_thuc'">
+        <button v-if="S.CO.dd.buoc !== 'ma'" type="button" class="dd-nut" id="ddGuiMa" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ S.CO.dd.dangGui ? t('dat_banh_dd_dang_gui','Đang gửi...') : t('dat_banh_dd_gui_ma','Gửi mã xác thực qua Zalo') }}</button>
+        <div v-else class="dd-otp"><input id="ddMa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" :aria-label="t('dat_banh_dd_o_ma','Mã 6 số trong tin nhắn Zalo')" v-model="S.CO.dd.ma" @keydown.enter.prevent="kho.xacThucDonDau()">
+          <button type="button" class="dd-nut" id="ddXacNhan" :disabled="S.CO.dd.dangGui" @click="kho.xacThucDonDau()">{{ t('dat_banh_dd_xac_nhan','Xác nhận') }}</button></div>
+        <button v-if="S.CO.dd.buoc === 'ma'" type="button" class="dd-lai" id="ddGuiLai" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ t('dat_banh_dd_gui_lai','Gửi lại mã') }}</button>
+        <p class="dd-loi" v-if="S.CO.dd.loi" role="alert">{{ S.CO.dd.loi }}</p>
+        <p class="dd-ghi" v-else-if="S.CO.dd.bao">{{ S.CO.dd.bao }}</p>
+        <p class="dd-ghi" v-else-if="S.CO.dd.buoc !== 'ma'">{{ t('dat_banh_dd_mot_lan','Mỗi số điện thoại dùng được một lần. Không cần nhập mã ưu đãi.') }}</p>
+      </template>
+    </div>
     <div class="fld"><label><span>{{ t('dat_banh_ma_uu_dai','Mã ưu đãi') }}</span></label>
       <div class="two"><input id="f-ma" autocomplete="off" autocapitalize="characters" maxlength="40" :placeholder="t('dat_banh_ma_uu_dai_goi','Ví dụ SINHNHAT10')" v-model="S.f.ma" @keydown.enter.prevent="kho.apMaUuDai()">
       <button class="btn btn-xs" id="btnMa" type="button" @click="kho.apMaUuDai()" style="min-height:44px"><span>{{ t('dat_banh_ap_ma','Áp dụng') }}</span></button></div>
