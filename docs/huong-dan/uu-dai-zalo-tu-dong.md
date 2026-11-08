@@ -25,7 +25,7 @@ khách mỗi tuần, giờ gửi 8:00 tới 20:00; thu ngân chỉ hỏi số v�
 | sinh_nhat | Chúc mừng sinh nhật kèm voucher | Trước sinh nhật 3 ngày | Tắt |
 | nhac_dip | Nhắc dịp năm sau | Năm ngoái nhận đơn giao từ 300.000đ ngày D, gửi trước D 10 ngày | Tắt |
 | don_thu_hai | Đơn thứ hai: Hẹn gặp lại | Khách có đúng một đơn, nhận xong 3 ngày | Tắt, đối chứng 10% |
-| gioi_thieu | Cảm ơn khách giới thiệu bạn | Bạn mới gõ số khách ở ô Mã giới thiệu trên web và nhận bánh; tối đa 5 mã mỗi tháng | Tắt |
+| gioi_thieu | Cảm ơn khách giới thiệu bạn | Bạn mới gõ số khách ở ô Mã giới thiệu trên web và nhận bánh, đó là đơn đầu tiên của bạn mới; tối đa 5 mã mỗi tháng | Tắt |
 | quay_lai | Mời khách lâu chưa quay lại | Vắng 45 ngày (dòng cũ trên site giữ số đã đặt) | Tắt, đối chứng 10% |
 | quay_lai_2 | Mời khách vắng lâu, mốc hai | Vắng 90 ngày | Tắt, đối chứng 10% |
 | nhac_han | Nhắc mã sắp hết hạn | Mã riêng của khách còn 3 ngày chưa dùng | Tắt |
@@ -77,3 +77,6 @@ https://zalo.solutions/oa/pricing
 - Điều kiện "đặt trước ít nhất N ngày" cho chương trình khuyến mãi (cần đưa ngày
   nhận vào phép tính giá ở cả web, quầy, Sales).
 - Hạn mã sinh nhật dài hơn theo hạng: hiện cài bằng hai chương trình Ví quà theo hạng.
+- Bill quầy lưu nháp rồi ghi sổ muộn: mốc cảm ơn là dòng tích điểm lúc ghi sổ. Bill của
+  khách không tích điểm (hạng có tỉ lệ 0) mà ghi sổ quá 48 giờ sau khi tạo thì không có
+  mốc này và không được cảm ơn.
