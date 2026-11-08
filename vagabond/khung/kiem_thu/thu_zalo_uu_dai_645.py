@@ -217,6 +217,38 @@ def _doi_chung_gui():
 	la("0% thì gửi", m.tt(), {"T3": "Đã gửi"})
 
 
+@ca("v645 Codex 548 c02f2be: nhóm đối chứng chỉ chia SAU các điều kiện loại chung (đối tượng chương trình, trần tuần); khách không đủ điều kiện không bao giờ bị ghi là đối chứng")
+def _doi_chung_sau_dieu_kien():
+	# Tái hiện Codex: CTKM chỉ định riêng K-OK; hai khách ngoài danh sách, một
+	# rơi vào nhóm đối chứng, một không. Trước bản sửa người thứ nhất bị ghi
+	# "Nhóm đối chứng" (vào mẫu số đối chứng của báo cáo) còn người thứ hai bị
+	# loại vì đối tượng: hai nhóm không cùng phạm vi.
+	ds = ["KH-%05d" % i for i in range(400)]
+	trong = [k for k in ds if zk.trong_doi_chung(k, 10)]
+	ngoai = next(k for k in ds if not zk.trong_doi_chung(k, 10))
+	dc_sai, dc_tuan, dc_dung = trong[0], trong[1], trong[2]
+	km = D(name="KM-SN", ten="Quà đơn thứ hai", cach_ma="Ma dung mot lan", bat=1, kieu_giam="Phan tram", gia_tri=10,
+		hd_toi_thieu=0, doi_tuong="Khach chi dinh")
+	chi_dinh = {dc_tuan, dc_dung}
+	rows = [D(name="T%d" % i, khach=k, khoa="don_thu_hai:%s:" % k, trang_thai="Chờ gửi")
+		for i, k in enumerate([dc_sai, ngoai, dc_tuan, dc_dung], 1)]
+	m = MoiV(_cau("don_thu_hai", ctkm="KM-SN", doi_chung=10), rows, {k: _hs() for k in (dc_sai, ngoai, dc_tuan, dc_dung)}, [], ctkm=km)
+	m.km_tuan = {dc_tuan}
+
+	def co(dt_, dk=None, *a, **k):
+		return isinstance(dk, dict) and dt_ == "Vagabond CTKM Khach" and dk.get("khach") in chi_dinh
+	with um.patch.object(fr.db, "exists", co):
+		m.chay(zk.gui_hang_doi)
+	ly = {n: v.get("loi") for d, n, v in m.sv if v.get("trang_thai") == "Bỏ qua"}
+	dung("khách ngoài đối tượng trong nhóm đối chứng: bỏ vì đối tượng, KHÔNG ghi đối chứng",
+		"đối tượng" in ly.get("T1", "") and not ly.get("T1", "").startswith(zk.LY_DO_DOI_CHUNG))
+	dung("khách ngoài đối tượng ngoài nhóm đối chứng: bỏ vì đối tượng", "đối tượng" in ly.get("T2", ""))
+	dung("khách đã nhận tin tuần này trong nhóm đối chứng: bỏ vì trần tuần, KHÔNG ghi đối chứng",
+		"mỗi tuần" in ly.get("T3", "") and not ly.get("T3", "").startswith(zk.LY_DO_DOI_CHUNG))
+	dung("khách đủ điều kiện trong nhóm đối chứng: ghi đối chứng", ly.get("T4", "").startswith(zk.LY_DO_DOI_CHUNG))
+	la("không phát mã, không gọi Zalo", (m.voucher_moi(), m.goi), ([], []))
+
+
 @ca("v645 đơn thứ hai: khách đã mua đơn thứ hai trước giờ gửi thì bỏ; nhắc dịp: khách vừa mua lại thì bỏ")
 def _kiem_lai():
 	rows = [D(name="T1", khach="K1", khoa="don_thu_hai:K1:", trang_thai="Chờ gửi")]
@@ -423,6 +455,38 @@ def _db_chan():
 	chen, vas = _db_moi(ctkm="")
 	nem("mức chưa chọn chương trình", lambda: _voi(vas, lambda: db.cap_ma("97077", "vua", "Giao trễ")))
 	la("không phát mã khi bị chặn", [x for x in chen if x.get("doctype") == "Vagabond Voucher"], [])
+
+
+@ca("v645 Codex 548 c02f2be: cấp mã đền bù kiểm đối tượng của chương trình trước khi phát mã; gửi mã đền bù có sẵn cũng kiểm")
+def _db_doi_tuong():
+	# Tái hiện Codex: mức đền bù gắn chương trình chỉ cho hạng VOYAGER, khách
+	# hạng EXPLORER. Trước bản sửa cap_ma vẫn phát mã và zalo=1, quầy sẽ từ chối.
+	chen, vas = _db_moi()
+	km_vip = D(name="KM-DB", ten="Đền bù VIP", cach_ma="Ma dung mot lan", bat=1, kieu_giam="Phan tram", gia_tri=15,
+		doi_tuong="Theo hang khach", hang_khach="VOYAGER")
+	hang = {"K1": "EXPLORER"}
+
+	def gv(dt_, n=None, cot=None, *a, **k):
+		return hang.get(n) if dt_ == "Customer" and cot == "vgb_hang" else None
+	vas2 = vas + [um.patch.object(zk, "_doc_ctkm", lambda ten: km_vip if ten else None), um.patch.object(fr.db, "get_value", gv)]
+	nem("khách ngoài hạng của chương trình", lambda: _voi(vas2, lambda: db.cap_ma("97077", "vua", "Giao trễ")))
+	la("không phát mã, không xếp tin", [x.get("doctype") for x in chen], [])
+	hang["K1"] = "VOYAGER"
+	chen, vas = _db_moi()
+	vas2 = vas + [um.patch.object(zk, "_doc_ctkm", lambda ten: km_vip if ten else None), um.patch.object(fr.db, "get_value", gv)]
+	kq = _voi(vas2, lambda: db.cap_ma("97077", "vua", "Giao trễ"))
+	la("đúng hạng thì cấp", kq["ma"], "DB7788")
+	# Gửi mã có sẵn: chương trình của mã đổi đối tượng sau lúc cấp.
+	km = D(name="KM-SN", ten="Đền bù", cach_ma="Ma dung mot lan", bat=1, kieu_giam="Phan tram", gia_tri=15,
+		hd_toi_thieu=0, doi_tuong="Khach chi dinh")
+	rows = [D(name="T1", khach="K1", khoa="den_bu:HD9", trang_thai="Chờ gửi", voucher="DB1")]
+	m = MoiV(_cau("den_bu_vua", ctkm="KM-SN"), rows, {"K1": _hs()}, [], ctkm=km,
+		voucher={"DB1": D(ma="DB1", ctkm="KM-SN", trang_thai="Chua dung", han_dung=D8(2026, 12, 28), danh_cho="K1")})
+	with um.patch.object(fr.db, "exists", lambda *a, **k: False):
+		m.chay(zk.gui_hang_doi)
+	la("không gọi Zalo", m.goi, [])
+	ly = [v.get("loi") for d, n, v in m.sv if n == "T1" and v.get("trang_thai") == "Bỏ qua"]
+	dung("bỏ, lý do đối tượng", bool(ly) and "đối tượng" in ly[0])
 
 
 # ------------------------------------------------------------ điểm, mã của khách, bản vá
