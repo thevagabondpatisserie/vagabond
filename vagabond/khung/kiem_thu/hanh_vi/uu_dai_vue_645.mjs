@@ -12,7 +12,7 @@
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
-import {ND} from '../../../public/web_vue/kho/chu.js';
+import {ND, napNoiDung} from '../../../public/web_vue/kho/chu.js';
 import {ChuyenMuc, UD, ngayVN, tachUuDai, thoiGianUuDai, hanUuDai, oUuDai, moUuDai, ChepMa} from '../../../public/web_vue/banh/noi-dung.js';
 
 const GOC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
@@ -157,6 +157,32 @@ await ca('mở link ưu đãi đã kết thúc hay mã lạ: báo kết thúc, c
   ND.daTai = false;
   dung('đang tải', chu(ve()).includes('Đang tải ưu đãi'));
   ND.daTai = true; UD.mo = '';
+});
+
+/* Codex PR #548 (b4735c6c89): mở thẳng link chi tiết mà nội dung web lỗi 503 thì
+   trang kẹt "Đang tải ưu đãi..." mãi. Ca dựng ĐÚNG chuỗi: napNoiDung thật với
+   phản hồi 503 rồi vẽ mục Ưu đãi, không đặt tay ND.loiTai. */
+for (const [ten, mo] of [['link chi tiết', 'erp-SN10'], ['danh sách', '']]) {
+  await ca('Codex #548: nội dung web lỗi 503 khi mở ' + ten + ': báo chưa tải được và cách liên hệ, KHÔNG kẹt Đang tải, KHÔNG báo chưa có ưu đãi', async () => {
+    ND.khoi = []; ND.daTai = false; ND.loiTai = false; ND.xemThu = false; UD.mo = mo;
+    const vet = [];
+    const win = {parent: null, location: {search: '', origin: 'http://x'}, console: {error: m => vet.push(m)},
+      fetch: () => Promise.resolve({ok: false, status: 503, json: () => Promise.resolve({})})};
+    win.parent = win;
+    await napNoiDung(win);
+    la('đã ghi lỗi ra console', vet.length, 1);
+    const c = chu(ve());
+    dung('báo lỗi: ' + c, c.includes('Chưa tải được ưu đãi'));
+    dung('không kẹt đang tải', !c.includes('Đang tải'));
+    dung('không báo rỗng', !/chưa có ưu đãi|kết thúc/i.test(c));
+    UD.mo = '';
+  });
+}
+await ca('đang tải lần đầu ở danh sách: hiện Đang tải, KHÔNG báo chưa có ưu đãi', async () => {
+  ND.khoi = []; ND.daTai = false; ND.loiTai = false; ND.xemThu = false; UD.mo = '';
+  const c = chu(ve());
+  dung('đang tải: ' + c, c.includes('Đang tải ưu đãi') && !/chưa có ưu đãi/i.test(c));
+  la('không thẻ', tim(ve(), lop('ud-the')).length, 0);
 });
 
 await ca('nút Chép mã: chép đúng mã và báo; trình duyệt chặn thì báo cách chép tay', async () => {
