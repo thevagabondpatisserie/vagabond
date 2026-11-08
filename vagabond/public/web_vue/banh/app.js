@@ -15,7 +15,7 @@ import {taoKho} from './kho-banh.js';
 import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE} from './du-lieu.js';
 import {LOGO} from './anh.js';
 import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
-import {KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, dsMuc, TD} from './noi-dung.js';
+import {KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, dsMuc, TD, UD} from './noi-dung.js';
 import {thuong} from './chu-giau.js';
 import {MAU} from './mau.js';
 import {ChanTrang, locChinhSach} from './chan-trang.js';
@@ -150,6 +150,10 @@ export function khoiDong(goc = '#app') {
     const mTd = h.match(/^\/tuyen-dung\/(.+)$/);
     TD.mo = mTd ? decodeURIComponent(mTd[1]) : '';
     if (mTd) { dongHet(); S.tab = 'tuyen_dung'; return; }
+    /* v645: trang chi tiết một ưu đãi. */
+    const mUd = h.match(/^\/uu-dai\/(.+)$/);
+    UD.mo = mUd ? decodeURIComponent(mUd[1]) : '';
+    if (mUd) { dongHet(); S.tab = 'uu_dai'; return; }
     /* v630: #/thiet-ke-rieng (danh sách) và #/thiet-ke-rieng/<mã tác phẩm>. */
     const mTkr = h.match(/^\/thiet-ke-rieng(?:\/(.+))?$/);
     if (mTkr) { dongHet(); S.tab = 'thiet_ke_rieng'; if (mTkr[1]) moTacPham(decodeURIComponent(mTkr[1])); else veDanhSach(); return; }
