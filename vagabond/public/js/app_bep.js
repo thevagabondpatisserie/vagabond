@@ -69514,6 +69514,88 @@ function btmAnh(src, co) {
     (src ? '<img src="' + h(src) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">' : '') + '</span>';
 }
 
+/* ---------- v645: ảnh riêng cho web của một món (Minh Vũ báo thiếu nút, anh Việt 08/11/2026) ----------
+   Nhân viên chọn ảnh chụp điện thoại vài MB, máy TỰ cắt vuông 1:1 ở giữa, hạ
+   cạnh về tối đa 1200px và nén JPEG tới dưới 500 KB rồi mới tải lên, không ai
+   phải cắt tay. Ảnh nằm trong bản nháp, khách thấy sau khi Xuất bản; để trống
+   thì web dùng ảnh trong danh mục món. Ảnh ở màn Tính tiền không đổi. */
+var BTM_ANH_CANH = 1200;
+var BTM_ANH_TOI_DA = 500 * 1024;
+var BTM_ANH_CHAT = [0.86, 0.8, 0.74, 0.68, 0.62, 0.56];
+/* THUẦN: ô vuông lớn nhất chính giữa ảnh và cạnh đích (không phóng ảnh nhỏ). */
+function btmCatVuong(w, cao, canh) {
+  var s = Math.min(w, cao);
+  return { sx: Math.floor((w - s) / 2), sy: Math.floor((cao - s) / 2), s: s, d: Math.max(1, Math.min(s, canh || BTM_ANH_CANH)) };
+}
+/* Ảnh khách thấy trên web của món: ảnh riêng trong bản nháp, không có thì ảnh danh mục. */
+function btmAnhMon(m) { return (((BTM && BTM.d.nhap.mon) || {})[m.ma] || {}).anh || m.anh || ''; }
+/* Đọc ảnh, xoay đúng chiều chụp (iPhone ghi chiều trong EXIF), giống 43-tep-dinh-kem. */
+function btmDocAnh(f) {
+  return new Promise(function (ok, hong) {
+    var thuong = function () {
+      var img = new Image(), u = URL.createObjectURL(f);
+      img.onload = function () { URL.revokeObjectURL(u); ok({ img: img, w: img.naturalWidth || img.width, cao: img.naturalHeight || img.height }); };
+      img.onerror = function () { URL.revokeObjectURL(u); hong(new Error('Không đọc được ảnh này. Chọn ảnh JPG, PNG hoặc WebP.')); };
+      img.src = u;
+    };
+    if (window.createImageBitmap) {
+      createImageBitmap(f, { imageOrientation: 'from-image' }).then(function (bm) { ok({ img: bm, w: bm.width, cao: bm.height }); }).catch(thuong);
+    } else thuong();
+  });
+}
+/* Cắt vuông và nén: thử lần lượt các nấc chất lượng, chưa đủ nhẹ thì hạ cạnh 20% rồi thử lại. */
+async function btmNenVuong(f) {
+  var a = await btmDocAnh(f), o = btmCatVuong(a.w, a.cao), d = o.d;
+  for (var lan = 0; lan < 5; lan++) {
+    var cv = document.createElement('canvas');
+    cv.width = d; cv.height = d;
+    var cx = cv.getContext('2d');
+    cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, d, d);
+    cx.drawImage(a.img, o.sx, o.sy, o.s, o.s, 0, 0, d, d);
+    for (var i = 0; i < BTM_ANH_CHAT.length; i++) {
+      var b = await new Promise(function (r) { cv.toBlob(r, 'image/jpeg', BTM_ANH_CHAT[i]); });
+      if (b && b.size <= BTM_ANH_TOI_DA) return { blob: b, canh: d, kb: Math.ceil(b.size / 1024) };
+    }
+    d = Math.max(1, Math.round(d * 0.8));
+  }
+  throw new Error('Ảnh này nén chưa xuống dưới 500 KB. Chọn ảnh khác.');
+}
+function btmChonTep() {
+  return new Promise(function (ok) {
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = function () { var f = inp.files && inp.files[0]; inp.remove(); ok(f || null); };
+    inp.style.display = 'none'; document.body.appendChild(inp); inp.click();
+  });
+}
+async function btmTaiAnhMon(ma) {
+  var f = await btmChonTep();
+  if (!f) return;
+  busy(true);
+  try {
+    var n = await btmNenVuong(f);
+    var fd = new FormData();
+    fd.append('file', n.blob, 'menu-' + String(ma).toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.jpg');
+    /* Ảnh món trên web là tài nguyên công khai của trang khách. */
+    fd.append('is_private', '0');
+    fd.append('folder', 'Home');
+    var hd = {};
+    hd['X-Frappe-' + 'CSRF-' + 'Token'] = frappe.csrf_token;
+    var r = await fetch('/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
+    var j = await r.json();
+    var url = j && j.message ? (j.message.file_url || j.message.url) : '';
+    if (!r.ok || !url) throw new Error(typeof vgbLoiTaiAnh === 'function' ? vgbLoiTaiAnh(j) : 'Không tải được ảnh lên.');
+    busy(false);
+    if (!BTM) return;
+    btmRieng(ma).anh = url;
+    btmDoi();
+    toast('Đã cắt vuông ' + n.canh + 'px, nén còn ' + n.kb + ' KB. Bấm Xem và xuất bản để khách thấy.');
+  } catch (e) {
+    busy(false);
+    toast((e && e.message) || 'Không tải được ảnh lên.');
+  }
+}
+
 /* ---------- màn chính ---------- */
 async function scrBienTapMenu() {
   if (!coQuyenBtm()) { frame('Biên tập menu', '<div class="emp"><div class="e1">🔒</div><div>Chỉ quản lý cửa hàng mới biên tập menu được.</div></div>'); return; }
@@ -69732,7 +69814,7 @@ function scrBtmNhom() {
       (m.ban_web ? '' : ' · tắt bán web hôm nay');
     html += '<div data-btmhang data-ma="' + h(ma) + '" data-btmtim="' + h(m.ten + ' ' + ma) + '" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f2f6;background:#fff">' + BTM_KEO +
       '<button type="button" data-btmmon="' + h(ma) + '" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;text-align:left;padding:4px 0;cursor:pointer">' +
-      btmAnh(m.anh) + '<span style="flex:1;min-width:0"><b style="display:block;font-size:15px;color:#16181d">' + h(m.ten) +
+      btmAnh(btmAnhMon(m)) + '<span style="flex:1;min-width:0"><b style="display:block;font-size:15px;color:#16181d">' + h(m.ten) +
       (soRieng ? ' <i style="font-style:normal;font-size:13px;font-weight:700;background:#fef0c7;color:#93370d;border-radius:10px;padding:2px 8px;vertical-align:2px">Riêng ' + soRieng + '</i>' : '') + '</b><small style="display:block;font-size:13px;color:#8a8f9c;margin-top:2px;line-height:1.35">' + h(tom) + '</small></span></button>' +
       btmCongTac('data-btman="' + h(ma) + '"', an.indexOf(ma) < 0, 'Hiện ' + m.ten + ' trên web') + '</div>';
   });
@@ -69812,9 +69894,17 @@ function scrBtmMon() {
   var nh = BTM.d.nhap, g = btmNhomCua(nh, m.ma, ''), rieng = (nh.mon || {})[m.ma] || {};
   var an = (nh.an || []).indexOf(m.ma) >= 0;
   var html = btmBangHtml() + '<div class="card" style="padding:14px;margin-bottom:12px">' +
-    '<div style="display:flex;gap:12px;align-items:center">' + btmAnh(m.anh, 64) +
-    '<div style="flex:1;min-width:0;font-size:13px;color:#8a8f9c;line-height:1.45">Ảnh và tên lấy từ danh mục món.<br>' + (g ? 'Nhóm ' + h(g.ten) : 'Chưa xếp vào nhóm nào, đang ẩn trên web') + '</div>' +
+    '<div style="display:flex;gap:12px;align-items:center">' +
+    '<div style="flex:1;min-width:0;font-size:13px;color:#8a8f9c;line-height:1.45">Tên lấy từ danh mục món.<br>' + (g ? 'Nhóm ' + h(g.ten) : 'Chưa xếp vào nhóm nào, đang ẩn trên web') + '</div>' +
     btmCongTac('data-btman1', !an && !!g, 'Hiện món trên web') + '</div>' +
+    /* v645: ảnh riêng cho web, khung vuông 1:1 như trang gọi món tại bàn. */
+    '<div style="font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Ảnh trên web</div>' +
+    '<div id="btmAnhWeb" style="display:flex;gap:12px;align-items:center">' + btmAnh(btmAnhMon(m), 96) +
+    '<div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:6px">' +
+    '<button type="button" data-btmanhtai style="min-height:44px;border:1.5px solid #7FE5F6;background:#E4F9FD;color:#0B7C93;font-weight:700;font-size:14px;border-radius:10px;padding:0 14px;cursor:pointer">' + (rieng.anh ? 'Đổi ảnh' : 'Tải ảnh lên') + '</button>' +
+    (rieng.anh ? '<button type="button" data-btmanhbo style="min-height:44px;border:0;background:none;color:#4a5061;font-weight:600;font-size:13.5px;padding:0 6px;cursor:pointer">Dùng ảnh danh mục</button>' : '') + '</div>' +
+    '<div style="font-size:13px;color:#8a8f9c;margin-top:4px;line-height:1.45">' + (rieng.anh ? 'Đang dùng ảnh riêng cho web.' : (m.anh ? 'Đang dùng ảnh trong danh mục món.' : 'Món chưa có ảnh, web hiện ảnh nền.')) +
+    ' Chọn ảnh bất kỳ, máy tự cắt vuông 1:1 ở giữa và nén dưới 500 KB.</div></div></div>' +
     '<label for="btmMoTa" style="display:block;font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Mô tả ngắn trên web</label>' +
     '<textarea id="btmMoTa" class="tin" rows="3" maxlength="300" placeholder="' + h(m.mo_ta || 'Một câu giới thiệu món cho khách') + '" style="margin:0">' + h(rieng.mo_ta || '') + '</textarea>' +
     '<div style="font-size:12px;color:#8a8f9c;margin-top:4px">Để trống thì dùng mô tả trong danh mục món.</div>' +
@@ -69873,6 +69963,8 @@ function btmBamMon(e) {
   var t = e.target, m = btmMon(BTM_MON), nh = BTM.d.nhap, x;
   if (!m) return;
   if ((x = t.closest('[data-btmxuat]'))) return go(scrBtmXuat);
+  if (t.closest('[data-btmanhtai]')) return btmTaiAnhMon(m.ma);
+  if (t.closest('[data-btmanhbo]')) { delete btmRieng(m.ma).anh; return btmDoi(); }
   if (t.closest('[data-btman1]')) {
     if (!btmNhomCua(nh, m.ma, '')) return toast('Chọn nhóm cho món ở phần Nhóm trên web trước.');
     var an = nh.an || (nh.an = []), k = an.indexOf(m.ma);
