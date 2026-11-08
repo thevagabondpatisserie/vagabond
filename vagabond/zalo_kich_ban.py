@@ -106,7 +106,7 @@ KICH_BAN = (
 	{
 		"ma": "gioi_thieu",
 		"ten": "Cảm ơn khách giới thiệu bạn",
-		"giai_thich": "Bạn mới gõ số điện thoại của khách ở ô Mã giới thiệu khi đặt trên web. Bạn nhận bánh xong thì khách giới thiệu nhận mã. Tối đa 5 lượt mỗi tháng.",
+		"giai_thich": "Bạn mới gõ số điện thoại của khách ở ô Mã giới thiệu khi đặt đơn đầu tiên trên web. Bạn nhận bánh xong thì khách giới thiệu nhận mã. Khách mua lại gõ số thì không tính. Tối đa 5 lượt mỗi tháng.",
 		"km": 1, "kieu": "phat", "mau": "", "so_ngay": 0, "nhac_lai": 0, "han": 30, "doi_chung": 0, "tran_tuan": 1,
 	},
 	{
@@ -869,18 +869,35 @@ DK_DA_NHAN = """ifnull(si.is_return, 0) = 0 and ifnull(si.vgb_huy, 0) = 0
 
 
 def _don_da_nhan(tu, ma, them="", them_ts=None, gioi_han=1000):
-	"""Hoá đơn khách đã nhận, tạo từ `tu`, chưa có dòng tin của kịch bản `ma`."""
+	"""Hoá đơn khách NHẬN từ `tu`, chưa có dòng tin của kịch bản `ma`.
+
+	Mốc nhận: đơn giao Pancake là lúc dựng nháp (đồng bộ chỉ dựng nháp khi đơn
+	Đã nhận); bill quầy tạo và ghi sổ liền là lúc tạo. Bill quầy lưu nháp
+	(ban_hang.pos_chot) rồi ghi sổ sau, kể cả nháp tạo trước lúc bật kịch bản
+	hay quá CHO_TOI_DA_GIO: mốc là lúc GHI SỔ, đọc ở dòng tích điểm hook cộng
+	điểm ghi đúng lúc đó (Codex PR 548 b4b18d5). Bill không tích điểm mà ghi sổ
+	muộn thì không có mốc này (xem docs/huong-dan/uu-dai-zalo-tu-dong.md).
+	"""
 	from vagabond.khuyen_mai import NGUON_KHONG_GIAM_HANG
 
 	ts = {"tu": tu, "nguon_bo": tuple(NGUON_KHONG_GIAM_HANG), "tien_to": ma + ":"}
 	ts.update(them_ts or {})
-	return frappe.db.sql(
-		"""select si.name, si.customer khach, si.docstatus, ifnull(si.custom_pancake_id, '') pid,
-		ifnull(si.custom_pancake_display_id, '') pdid, si.grand_total
-		from `tabSales Invoice` si
-		where si.creation >= %(tu)s and """ + DK_DA_NHAN + them + """
-		and not exists (select 1 from `tabVagabond Tin Zalo Khach` t where t.khoa = concat(%(tien_to)s, si.name))
-		order by si.creation limit """ + str(int(gioi_han)), ts, as_dict=True)
+	cot = """select si.name, si.customer khach, si.docstatus, ifnull(si.custom_pancake_id, '') pid,
+		ifnull(si.custom_pancake_display_id, '') pdid, si.grand_total"""
+	chua = """ and not exists (select 1 from `tabVagabond Tin Zalo Khach` t where t.khoa = concat(%(tien_to)s, si.name))"""
+	gh = " limit " + str(int(gioi_han))
+	ra = list(frappe.db.sql(cot + """ from `tabSales Invoice` si
+		where si.creation >= %(tu)s and """ + DK_DA_NHAN + them + chua + " order by si.creation" + gh, ts, as_dict=True) or [])
+	muon = frappe.db.sql(cot + """ from `tabVagabond So Diem` d join `tabSales Invoice` si on si.name = d.hoa_don
+		where d.loai = 'Tich tu hoa don' and d.creation >= %(tu)s and si.creation < %(tu)s
+		and si.docstatus = 1 and ifnull(si.custom_pancake_id, '') = '' and """ + DK_DA_NHAN + them + chua
+		+ " order by d.creation" + gh, ts, as_dict=True) or []
+	co = {r.name for r in ra}
+	for r in muon:
+		if r.name not in co:
+			co.add(r.name)
+			ra.append(r)
+	return ra[:int(gioi_han)]
 
 
 def _la_qua_tang(si_name):
@@ -978,6 +995,11 @@ def quet_gioi_thieu():
 			continue
 		nguoi = nhap_khach.tim_theo_sdt(sdt)
 		if not nguoi or nguoi == r.khach or _la_khach_gop(nguoi):
+			continue
+		# Chỉ BẠN MỚI mới sinh quà: đơn này là đơn đã nhận đầu tiên của người
+		# mua (Codex PR 548 b4b18d5: khách mua lại gõ số người giới thiệu thì
+		# mỗi đơn đều sinh thêm quà).
+		if _so_don_da_nhan(r.khach) > 1:
 			continue
 		da = frappe.db.count(DT_TIN, {"kich_ban": "gioi_thieu", "khach": nguoi, "creation": [">=", dau_thang]})
 		trang_thai, loi = TT_CHO, ""
@@ -1476,8 +1498,9 @@ def soan_bao_cao_tuan(so, den_ngay):
 	nhan, dc = hq.get("nhan") or [0, 0], hq.get("dc") or [0, 0]
 	a, b = ty_le(nhan[0], nhan[1]), ty_le(dc[0], dc[1])
 	if a is not None and b is not None:
-		dong.append("Hiệu quả 30 ngày (đơn thứ hai, mời quay lại): khách nhận tin quay lại mua %d%% (%d/%d), "
-			"nhóm đối chứng không nhận tin %d%% (%d/%d)" % (a, nhan[0], nhan[1], b, dc[0], dc[1]))
+		dong.append("Hiệu quả 30 ngày (đơn thứ hai, mời quay lại; khách nhận tin 30 tới 37 ngày trước, đã đủ 30 ngày): "
+			"khách nhận tin quay lại mua %d%% (%d/%d), nhóm đối chứng không nhận tin %d%% (%d/%d)"
+			% (a, nhan[0], nhan[1], b, dc[0], dc[1]))
 	else:
 		dong.append("Hiệu quả 30 ngày: chưa đủ dữ liệu để so với nhóm đối chứng")
 	if so_nguyen(so.get("loi")):
@@ -1500,8 +1523,10 @@ def _so_bao_cao_tuan(luc):
 		from `tabVagabond Voucher` v left join `tabSales Invoice` si on si.name = v.hoa_don
 		where v.trang_thai = 'Da dung' and v.ngay_dung >= %s and """ + nguon.replace("gui_cho", "v.gui_cho"), (tu,), as_dict=True)
 	d = (dung or [{}])[0] or {}
-	# Dòng của kịch bản đo hiệu quả tạo 7 tới 37 ngày trước: ai đã gửi, ai là đối chứng,
-	# ai đã mua lại trong 30 ngày sau dòng.
+	# Dòng của kịch bản đo hiệu quả tạo 30 tới 37 ngày trước, tức đã đủ 30 ngày
+	# quan sát (Codex PR 548 b4b18d5: lấy 7 tới 37 ngày thì khách mới nhận tin
+	# tuần trước chưa kịp mua vẫn vào mẫu số): ai đã gửi, ai là đối chứng, ai
+	# đã mua lại trong 30 ngày sau dòng.
 	hq = {"nhan": [0, 0], "dc": [0, 0]}
 	if KB_DO_HIEU_QUA:
 		rows = frappe.db.sql("""select t.trang_thai, ifnull(t.loi, '') loi,
@@ -1510,7 +1535,7 @@ def _so_bao_cao_tuan(luc):
 					and si.creation > t.creation and si.creation < date_add(t.creation, interval 30 day)) mua
 			from `tabVagabond Tin Zalo Khach` t
 			where t.kich_ban in %s and t.creation >= %s and t.creation < %s""",
-			(KB_DO_HIEU_QUA, luc - timedelta(days=37), tu), as_dict=True)
+			(KB_DO_HIEU_QUA, luc - timedelta(days=37), luc - timedelta(days=30)), as_dict=True)
 		for r in rows:
 			if r.trang_thai == TT_GUI:
 				k = "nhan"
