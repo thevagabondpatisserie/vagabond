@@ -273,6 +273,8 @@ node vagabond/khung/kiem_thu/hanh_vi/bien_tap_cau_hoi_625.js
 node vagabond/khung/kiem_thu/hanh_vi/bien_tap_banh_644.js
 node vagabond/khung/kiem_thu/hanh_vi/dua_len_web_644.js
 node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_vue_625.mjs
+# v645: muc Uu dai ban Vue kieu Tuyen dung: the anh, trang chi tiet, chep ma, nut dat banh.
+node vagabond/khung/kiem_thu/hanh_vi/uu_dai_vue_645.mjs
 # v630: chan trang web dat banh ban Vue (chan-trang.js that, mount bang Vue that): mang xa hoi, cua hang, muc gap tren dien thoai, mien phi giao, chinh sach.
 node vagabond/khung/kiem_thu/hanh_vi/chan_trang_630.mjs
 # v630: banh thiet ke rieng. Tab Vue (thiet-ke-rieng.js that, Vue that): danh sach, size, dat coc, QR, hoi trang thai.
