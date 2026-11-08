@@ -205,6 +205,14 @@ chạy và ghi số liệu thật, sửa, rồi trả lời kèm số liệu TR�
 Chỉ khi tái hiện không ra mới được nói "không tái hiện được TRONG CÁC ĐIỀU KIỆN
 ĐÃ KIỂM", và phải liệt kê đã kiểm những điều kiện nào.
 
+## Mỗi bản deploy kèm sổ tay (anh Việt chốt 08/11/2026)
+
+Bản nào lên site cũng phải có hướng dẫn trong sổ tay của app, ngay trong PR đó:
+mục mới hoặc sửa trong `vagabond/so_tay/`, và tên mục ghi dưới `## vNNN` của
+`vagabond/so_tay/_phien-ban.md` (bản sửa lỗi ngầm: một dòng
+`- Không đổi thao tác: <lý do>`). Ca `thu_so_tay_phien_ban_645` chặn bàn giao
+nếu thiếu. Chi tiết ở AGENTS.md mục 7.
+
 ## Cổng kiểm bắt buộc trước khi bàn giao
 
 ```

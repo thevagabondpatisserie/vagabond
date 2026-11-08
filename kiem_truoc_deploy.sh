@@ -277,6 +277,8 @@ node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_vue_625.mjs
 node vagabond/khung/kiem_thu/hanh_vi/uu_dai_vue_645.mjs
 # v645 ban 2: cong tac uu dai don dau tien tren web trong man Khuyen mai (13-khuyen-mai.js that).
 node vagabond/khung/kiem_thu/hanh_vi/km_don_dau_645.js
+# v645 đợt 4: đền bù trên màn Khuyến mãi, mã của khách trên màn tính tiền.
+node vagabond/khung/kiem_thu/hanh_vi/km_den_bu_645.js
 # v630: chan trang web dat banh ban Vue (chan-trang.js that, mount bang Vue that): mang xa hoi, cua hang, muc gap tren dien thoai, mien phi giao, chinh sach.
 node vagabond/khung/kiem_thu/hanh_vi/chan_trang_630.mjs
 # v630: banh thiet ke rieng. Tab Vue (thiet-ke-rieng.js that, Vue that): danh sach, size, dat coc, QR, hoi trang thai.
