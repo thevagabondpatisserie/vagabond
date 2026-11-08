@@ -20,6 +20,17 @@ Luật Zalo (đọc kỹ trước khi đổi, kiểm 29/10/2026 trên tài liệ
     0 thì máy KHÔNG phát voucher, để dòng chờ và nói rõ vì sao.
   - Mẫu không gửi được 22h tới 6h (lỗi -133). Màn cho đặt giờ gửi trong
     khoảng 6h tới 22h.
+  - v645 (anh Việt 08/11/2026): tin cho khách KHÔNG gửi sau 20:00, giờ khách đi
+    ngủ (GIO_TOI_DA). Zalo nay cho nhận 24/24 nhưng tiệm tự giữ giờ này.
+
+v645 (anh Việt 08/11/2026) mở rộng thành bộ ưu đãi tự động theo hành trình
+khách, đọc ở `docs/huong-dan/uu-dai-zalo-tu-dong.md`:
+  - "Sau mua" là lúc khách NHẬN đơn: bill tại quầy lúc tính tiền xong, đơn giao
+    lúc Pancake chuyển Đã nhận (đồng bộ dựng hoá đơn nháp đúng lúc đó). Không
+    chờ hoá đơn ghi sổ cuối ngày.
+  - Thứ tự KICH_BAN là thứ tự ưu tiên khi hạn mức tin ưu đãi của Zalo ít.
+  - Mỗi khách tối đa một tin ưu đãi mỗi 7 ngày (TRAN_TUAN_NGAY), trừ đền bù.
+  - Kịch bản đo hiệu quả giữ một phần khách làm nhóm đối chứng (doi_chung %).
 
 Ba lớp chống gửi trùng: khoá duy nhất trên sổ tin (một hoá đơn một tin cảm ơn,
 một khách một tin sinh nhật mỗi năm, một lần vắng mặt một tin mời quay lại),
@@ -43,38 +54,104 @@ TT_TIN = (TT_CHO, TT_GUI, TT_LOI, TT_BO)
 # Ba kịch bản đợt 1. "ma" là khoá nội bộ, không hiện cho người dùng.
 # "km" = 1 là tin khuyến mãi (tag 3, có voucher): chỉ gửi khách đã đồng ý.
 KICH_BAN = (
+	# kieu: "" tin chăm sóc không mã; "phat" máy phát mã mới lúc gửi; "co_san"
+	# gửi một mã đã có (nhắc hạn, đền bù). tran_tuan: tính vào trần 1 tin ưu
+	# đãi mỗi tuần. doi_chung: % khách giữ lại không gửi để đo hiệu quả.
+	# nhan_ngay, goi_y_ngay, nhan_nhac: chữ của ô số ngày trên màn.
 	{
 		"ma": "sau_mua",
-		"ten": "Cảm ơn sau mua hàng, báo điểm",
-		"giai_thich": "Gửi một lần cho mỗi hoá đơn có tích điểm: mã hoá đơn, điểm vừa tích, tổng điểm, hạng.",
-		"km": 0,
-		"mau": "659376",
-		"so_ngay": 0,
-		"nhac_lai": 0,
+		"ten": "Cảm ơn khi khách nhận đơn, báo điểm",
+		"giai_thich": "Gửi một lần cho mỗi đơn lúc khách nhận: bill tại quầy khi tính tiền xong, đơn giao khi Pancake chuyển Đã nhận. Mã đơn, điểm của đơn, tổng điểm, hạng. Tin chăm sóc, không có ưu đãi.",
+		"km": 0, "kieu": "", "mau": "659376", "so_ngay": 0, "nhac_lai": 0, "han": 14, "doi_chung": 0, "tran_tuan": 0,
+	},
+	{
+		"ma": "den_bu_nhe",
+		"ten": "Đền bù sự cố mức nhẹ",
+		"giai_thich": "Quản lý bấm Cấp mã đền bù ở màn Khuyến mãi (giao trễ, thiếu nến hay thiệp). Máy phát mã ngay, khách đã đồng ý thì gửi Zalo.",
+		"km": 1, "kieu": "co_san", "mau": "", "so_ngay": 0, "nhac_lai": 0, "han": 60, "doi_chung": 0, "tran_tuan": 0,
+	},
+	{
+		"ma": "den_bu_vua",
+		"ten": "Đền bù sự cố mức vừa",
+		"giai_thich": "Sai trang trí, sai lời chúc, thiếu món (giao bù món thiếu trước). Quản lý cấp ở màn Khuyến mãi.",
+		"km": 1, "kieu": "co_san", "mau": "", "so_ngay": 0, "nhac_lai": 0, "han": 60, "doi_chung": 0, "tran_tuan": 0,
+	},
+	{
+		"ma": "den_bu_nang",
+		"ten": "Đền bù sự cố mức nặng",
+		"giai_thich": "Bánh hỏng không dùng được: làm lại hoặc hoàn tiền trước, mã này là phần thêm. Quản lý cấp ở màn Khuyến mãi.",
+		"km": 1, "kieu": "co_san", "mau": "", "so_ngay": 0, "nhac_lai": 0, "han": 60, "doi_chung": 0, "tran_tuan": 0,
 	},
 	{
 		"ma": "sinh_nhat",
 		"ten": "Chúc mừng sinh nhật kèm voucher",
 		"giai_thich": "Gửi trước sinh nhật khách số ngày đã đặt, kèm một mã voucher riêng dùng một lần.",
-		"km": 1,
-		"mau": "659377",
-		"so_ngay": 3,
-		"nhac_lai": 0,
+		"km": 1, "kieu": "phat", "mau": "659377", "so_ngay": 3, "nhac_lai": 0, "han": 14, "doi_chung": 0, "tran_tuan": 1,
+		"nhan_ngay": "GỬI TRƯỚC SINH NHẬT (NGÀY)", "goi_y_ngay": "Để 0 là gửi đúng ngày sinh nhật.",
+	},
+	{
+		"ma": "nhac_dip",
+		"ten": "Nhắc dịp năm sau",
+		"giai_thich": "Năm ngoái khách đặt bánh giao từ 300.000đ vào một ngày: trước ngày đó năm nay máy gửi lời nhắc đặt sớm kèm mã.",
+		"km": 1, "kieu": "phat", "mau": "", "so_ngay": 10, "nhac_lai": 0, "han": 12, "doi_chung": 0, "tran_tuan": 1,
+		"nhan_ngay": "GỬI TRƯỚC NGÀY DỊP (NGÀY)", "goi_y_ngay": "Tính tới đúng ngày khách nhận bánh năm ngoái.",
+	},
+	{
+		"ma": "don_thu_hai",
+		"ten": "Đơn thứ hai: Hẹn gặp lại",
+		"giai_thich": "Khách vừa nhận xong đơn đầu tiên: sau số ngày đã đặt, máy gửi mã mời quay lại lần hai.",
+		"km": 1, "kieu": "phat", "mau": "", "so_ngay": 3, "nhac_lai": 0, "han": 21, "doi_chung": 10, "tran_tuan": 1,
+		"nhan_ngay": "GỬI SAU ĐƠN ĐẦU (NGÀY)", "goi_y_ngay": "Tính từ ngày khách nhận đơn đầu tiên.",
+	},
+	{
+		"ma": "gioi_thieu",
+		"ten": "Cảm ơn khách giới thiệu bạn",
+		"giai_thich": "Bạn mới gõ số điện thoại của khách ở ô Mã giới thiệu khi đặt trên web. Bạn nhận bánh xong thì khách giới thiệu nhận mã. Tối đa 5 lượt mỗi tháng.",
+		"km": 1, "kieu": "phat", "mau": "", "so_ngay": 0, "nhac_lai": 0, "han": 30, "doi_chung": 0, "tran_tuan": 1,
 	},
 	{
 		"ma": "quay_lai",
 		"ten": "Mời khách lâu chưa quay lại",
 		"giai_thich": "Khách quá số ngày đã đặt chưa mua thì gửi lời mời kèm một mã voucher riêng.",
-		"km": 1,
-		"mau": "659378",
-		"so_ngay": 60,
-		"nhac_lai": 120,
+		"km": 1, "kieu": "phat", "mau": "659378", "so_ngay": 45, "nhac_lai": 120, "han": 14, "doi_chung": 10, "tran_tuan": 1,
+		"nhan_ngay": "KHÁCH CHƯA MUA BAO NHIÊU NGÀY THÌ GỬI", "goi_y_ngay": "Tính từ lần mua cuối, máy cập nhật mỗi đêm.",
+		"nhan_nhac": "KHÔNG GỬI LẠI TRONG (NGÀY)",
+	},
+	{
+		"ma": "quay_lai_2",
+		"ten": "Mời khách vắng lâu, mốc hai",
+		"giai_thich": "Mốc sau của lời mời quay lại, ưu đãi mạnh hơn và hạn ngắn hơn.",
+		"km": 1, "kieu": "phat", "mau": "", "so_ngay": 90, "nhac_lai": 180, "han": 10, "doi_chung": 10, "tran_tuan": 1,
+		"nhan_ngay": "KHÁCH CHƯA MUA BAO NHIÊU NGÀY THÌ GỬI", "goi_y_ngay": "Tính từ lần mua cuối, máy cập nhật mỗi đêm.",
+		"nhan_nhac": "KHÔNG GỬI LẠI TRONG (NGÀY)",
+	},
+	{
+		"ma": "nhac_han",
+		"ten": "Nhắc mã sắp hết hạn",
+		"giai_thich": "Mã riêng của khách (Ví quà, tin Zalo, đền bù) còn số ngày đã đặt mà chưa dùng: nhắc đúng một lần.",
+		"km": 1, "kieu": "co_san", "mau": "", "so_ngay": 3, "nhac_lai": 0, "han": 0, "doi_chung": 0, "tran_tuan": 1,
+		"nhan_ngay": "NHẮC KHI MÃ CÒN (NGÀY)", "goi_y_ngay": "Mã đã dùng thì không nhắc.",
 	},
 )
 MA_KB = tuple(k["ma"] for k in KICH_BAN)
 
 # Mặc định chung khi tạo dòng cấu hình lần đầu.
 MAC_DINH = {"tran_ngay": 300, "gio_tu": 8, "gio_den": 20, "han_ngay": 14}
+
+# v645: không gửi tin cho khách sau 20:00 (anh Việt 08/11/2026), kể cả khi người
+# cài gõ giờ đóng muộn hơn.
+GIO_TOI_DA = 20
+# v645: trần tin ưu đãi của một khách, tính trên mọi kịch bản tran_tuan.
+TRAN_TUAN_NGAY = 7
+# v645: khách giới thiệu bạn nhận tối đa ngần này mã mỗi tháng.
+GIOI_THIEU_TOI_DA_THANG = 5
+# v645: nhắc dịp chỉ cho đơn giao (Pancake) từ ngần này trở lên: đơn bánh cho
+# một dịp, không phải ly cà phê tại quầy.
+NGUONG_DIP = 300000
+# v645: khách mua lại trong ngần này ngày trước ngày gửi thì không nhắc dịp.
+DIP_DA_MUA_GAN = 14
+# Lý do Bỏ qua của nhóm đối chứng bắt đầu bằng chữ này (báo cáo đếm theo nó).
+LY_DO_DOI_CHUNG = "Nhóm đối chứng"
 
 # Dòng chờ quá ngần này giờ thì bỏ: tin cảm ơn tới trễ hai ngày là vô duyên,
 # tin sinh nhật tới sau sinh nhật là sai.
@@ -135,13 +212,14 @@ def so_nguyen(v, mac_dinh=0):
 
 
 def gio_hop_le(tu, den):
-	"""Khoảng giờ gửi đã kẹp vào 6h tới 22h (luật Zalo). THUẦN.
+	"""Khoảng giờ gửi đã kẹp vào 6h tới GIO_TOI_DA (20h, anh Việt 08/11/2026;
+	luật Zalo cũ là 22h). THUẦN.
 
 	Người điền tay có thể gõ 20 rồi 8, hay 0 tới 24: kẹp và đổi chỗ chứ không
 	ném lỗi, vì một ô sai không được làm tắt cả kịch bản.
 	"""
-	a = min(max(so_nguyen(tu, MAC_DINH["gio_tu"]), 6), 22)
-	b = min(max(so_nguyen(den, MAC_DINH["gio_den"]), 6), 22)
+	a = min(max(so_nguyen(tu, MAC_DINH["gio_tu"]), 6), GIO_TOI_DA)
+	b = min(max(so_nguyen(den, MAC_DINH["gio_den"]), 6), GIO_TOI_DA)
 	if a > b:
 		a, b = b, a
 	if a == b:
@@ -237,10 +315,60 @@ def khoa_tin(ma, khach="", hoa_don="", moc=""):
 
 	sau_mua: một hoá đơn một tin. sinh_nhat: một khách một tin mỗi năm (moc là
 	năm). quay_lai: một lần vắng mặt một tin (moc là ngày mua cuối).
+	v645: gioi_thieu một hoá đơn của bạn mới một tin; đền bù một đơn gốc một mã
+	cho MỌI mức (đổi mức không cấp thêm mã); nhắc hạn một mã một lần (moc là mã).
 	"""
-	if ma == "sau_mua":
-		return "sau_mua:%s" % hoa_don
+	if ma in ("sau_mua", "gioi_thieu"):
+		return "%s:%s" % (ma, hoa_don)
+	if str(ma or "").startswith("den_bu"):
+		return "den_bu:%s" % hoa_don
+	if ma == "nhac_han":
+		return "nhac_han:%s" % moc
 	return "%s:%s:%s" % (ma, khach, moc)
+
+
+def hoa_don_con_nhan(docstatus, ma_pancake="", huy=0, tra=0):
+	"""Hoá đơn còn là một đơn khách đã nhận không (cùng ý DK_DA_NHAN). THUẦN.
+
+	Bill tại quầy phải đã ghi sổ; đơn giao (có mã Pancake) nháp cũng tính vì
+	đồng bộ chỉ dựng nháp khi Pancake đã chuyển Đã nhận. Huỷ, trả hàng: không.
+	"""
+	if so_nguyen(huy) or so_nguyen(tra):
+		return False
+	ds = so_nguyen(docstatus, -1)
+	return ds == 1 or (ds == 0 and bool(str(ma_pancake or "").strip()))
+
+
+def trong_doi_chung(khach, phan_tram):
+	"""Khách có nằm trong nhóm đối chứng `phan_tram`% không. THUẦN.
+
+	Cố định theo mã khách (băm), không ngẫu nhiên mỗi lượt: một khách luôn ở
+	cùng một phía, nên so "nhận tin" với "không nhận tin" mới công bằng.
+	"""
+	import hashlib
+
+	pt = min(max(so_nguyen(phan_tram), 0), 50)
+	if not pt or not str(khach or "").strip():
+		return False
+	h = int(hashlib.sha1(("vgb-doi-chung:" + str(khach)).encode("utf-8")).hexdigest()[:8], 16)
+	return h % 100 < pt
+
+
+def ngay_dip_nam_truoc(dich):
+	"""Ngày năm ngoái tương ứng ngày `dich` năm nay. THUẦN. 29/02 lùi về 28/02."""
+	d = ngay_cua(dich)
+	if not d:
+		return None
+	try:
+		return d.replace(year=d.year - 1)
+	except ValueError:
+		return date(d.year - 1, 2, 28)
+
+
+def ma_don_cho_khach(ten_hoa_don, ma_pancake=""):
+	"""Mã đơn khách nhận ra trong tin: mã Pancake nếu là đơn giao, không thì mã
+	hoá đơn. THUẦN."""
+	return str(ma_pancake or "").strip() or str(ten_hoa_don or "").strip()
 
 
 def ten_goi(ten):
@@ -450,7 +578,7 @@ def mau_san_sang(cau_hinh):
 	if tt != "ENABLE":
 		return False, "Mẫu tin %s." % (TRANG_THAI_MAU.get(tt) or "chưa kiểm trạng thái").lower()
 	kb = kich_ban(c.get("ma")) or {}
-	if kb.get("km") and not str(c.get("ctkm") or "").strip():
+	if kb.get("km") and kb.get("kieu") != "co_san" and not str(c.get("ctkm") or "").strip():
 		return False, "Chưa chọn chương trình khuyến mãi để phát voucher."
 	return True, ""
 
@@ -602,11 +730,12 @@ def _dam_bao():
 		frappe.get_doc({
 			"doctype": DT_KB, "ma": kb["ma"], "ten": kb["ten"], "bat": 0, "ma_mau": kb["mau"],
 			"so_ngay": kb["so_ngay"], "nhac_lai_ngay": kb["nhac_lai"], "tran_ngay": MAC_DINH["tran_ngay"],
-			"gio_tu": MAC_DINH["gio_tu"], "gio_den": MAC_DINH["gio_den"], "han_ngay": MAC_DINH["han_ngay"],
+			"gio_tu": MAC_DINH["gio_tu"], "gio_den": MAC_DINH["gio_den"],
+			"han_ngay": kb.get("han") or MAC_DINH["han_ngay"], "doi_chung": kb.get("doi_chung") or 0,
 		}).insert(ignore_permissions=True)
 
 
-COT_KB = ("ma", "ten", "bat", "bat_luc", "ma_mau", "so_ngay", "nhac_lai_ngay", "ctkm", "han_ngay", "ten_uu_dai",
+COT_KB = ("ma", "ten", "bat", "bat_luc", "ma_mau", "so_ngay", "nhac_lai_ngay", "ctkm", "han_ngay", "ten_uu_dai", "doi_chung",
 	"dieu_kien", "tran_ngay", "gio_tu", "gio_den", "mau_trang_thai", "mau_ly_do", "mau_gia", "mau_tham_so",
 	"mau_kiem_luc", "quet_ngay", "ket_qua_luot")
 
@@ -658,6 +787,46 @@ def _lan_mua_cuoi(khach):
 	return r[0][0] if r and r[0] else None
 
 
+def _so_don_da_nhan(khach):
+	"""Số đơn khách đã nhận trên ERP (DK_DA_NHAN, gồm đơn giao chưa ghi sổ)."""
+	from vagabond.khuyen_mai import NGUON_KHONG_GIAM_HANG
+
+	r = frappe.db.sql("""select count(*) from `tabSales Invoice` si where si.customer = %(k)s and """ + DK_DA_NHAN,
+		{"k": khach, "nguon_bo": tuple(NGUON_KHONG_GIAM_HANG)})
+	return int(r[0][0] or 0) if r else 0
+
+
+def _mua_gan(khach, so_ngay):
+	"""Khách có đơn đã nhận trong `so_ngay` ngày qua không."""
+	from vagabond.khuyen_mai import NGUON_KHONG_GIAM_HANG
+
+	r = frappe.db.sql("""select count(*) from `tabSales Invoice` si where si.customer = %(k)s and si.creation >= %(tu)s and """ + DK_DA_NHAN,
+		{"k": khach, "tu": _bay_gio() - timedelta(days=so_nguyen(so_ngay)), "nguon_bo": tuple(NGUON_KHONG_GIAM_HANG)})
+	return bool(r and int(r[0][0] or 0))
+
+
+def _da_nhan_km_tuan(khach):
+	"""Khách đã nhận tin ưu đãi nào (kịch bản tính trần tuần) trong TRAN_TUAN_NGAY ngày qua."""
+	ds = [k["ma"] for k in KICH_BAN if k.get("tran_tuan")]
+	return frappe.db.count(DT_TIN, {"khach": khach, "trang_thai": TT_GUI, "kich_ban": ["in", ds],
+		"luc_gui": [">=", _bay_gio() - timedelta(days=TRAN_TUAN_NGAY)]}) > 0
+
+
+def _voucher_con_dung(ma):
+	"""Mã riêng còn dùng được không. Trả (bản ghi, lý do không gửi)."""
+	if not ma:
+		return None, "Dòng tin không gắn mã."
+	v = frappe.db.get_value("Vagabond Voucher", ma, ["ma", "ctkm", "trang_thai", "han_dung", "danh_cho"], as_dict=True)
+	if not v:
+		return None, "Không còn mã %s." % ma
+	if v.get("trang_thai") != "Chua dung":
+		return None, "Mã %s đã dùng hoặc đã huỷ." % ma
+	han = ngay_cua(v.get("han_dung"))
+	if han and han < _bay_gio().date():
+		return None, "Mã %s đã hết hạn." % ma
+	return v, ""
+
+
 def _ho_so(khach):
 	"""Thông tin khách cần để gửi: tên, số Zalo, đồng ý, điểm, hạng."""
 	from vagabond.lib import sdt84
@@ -679,37 +848,143 @@ def _da_gui_hom_nay(ma):
 	return frappe.db.count(DT_TIN, {"kich_ban": ma, "trang_thai": TT_GUI, "luc_gui": [">=", luc.replace(hour=0, minute=0, second=0, microsecond=0)]})
 
 
-def _ghi_cho(ma, khoa, khach, hoa_don=None, diem=0):
+def _ghi_cho(ma, khoa, khach, hoa_don=None, diem=0, voucher=None, trang_thai=TT_CHO, loi=""):
 	"""Ghi một dòng Chờ gửi. Khoá đã có thì thôi (chống trùng tầng sổ)."""
 	if frappe.db.exists(DT_TIN, {"khoa": khoa}):
 		return False
 	frappe.get_doc({"doctype": DT_TIN, "kich_ban": ma, "khoa": khoa, "khach": khach, "hoa_don": hoa_don,
-		"diem": diem, "trang_thai": TT_CHO}).insert(ignore_permissions=True)
+		"diem": diem, "voucher": voucher, "trang_thai": trang_thai, "loi": cat(loi, 500)}).insert(ignore_permissions=True)
 	return True
 
 
-def quet_sau_mua():
-	"""Mỗi lượt cộng điểm từ hoá đơn sau lúc bật kịch bản -> một dòng chờ."""
-	c = _cau_hinh("sau_mua") or {}
+# v645: điều kiện "khách đã NHẬN đơn" trên hoá đơn, dùng chung cho tin cảm ơn
+# và tin cảm ơn người giới thiệu. Bill tại quầy: ghi sổ là khách đã cầm bánh.
+# Đơn giao: đồng bộ chỉ dựng hoá đơn (nháp) khi Pancake đã chuyển Đã nhận
+# (ban_hang.TT_DOANH_SO), nên có hoá đơn có mã Pancake là đã nhận, không chờ ghi
+# sổ cuối ngày. Bỏ đơn sàn và khách sỉ (cùng danh sách khuyen_mai), hoá đơn trả
+# hàng, hoá đơn huỷ.
+DK_DA_NHAN = """ifnull(si.is_return, 0) = 0 and ifnull(si.vgb_huy, 0) = 0
+	and (si.docstatus = 1 or (si.docstatus = 0 and ifnull(si.custom_pancake_id, '') != ''))
+	and ifnull(si.custom_nguon, '') not in %(nguon_bo)s"""
+
+
+def _don_da_nhan(tu, ma, them="", them_ts=None, gioi_han=1000):
+	"""Hoá đơn khách đã nhận, tạo từ `tu`, chưa có dòng tin của kịch bản `ma`."""
+	from vagabond.khuyen_mai import NGUON_KHONG_GIAM_HANG
+
+	ts = {"tu": tu, "nguon_bo": tuple(NGUON_KHONG_GIAM_HANG), "tien_to": ma + ":"}
+	ts.update(them_ts or {})
+	return frappe.db.sql(
+		"""select si.name, si.customer khach, si.docstatus, ifnull(si.custom_pancake_id, '') pid,
+		ifnull(si.custom_pancake_display_id, '') pdid, si.grand_total
+		from `tabSales Invoice` si
+		where si.creation >= %(tu)s and """ + DK_DA_NHAN + them + """
+		and not exists (select 1 from `tabVagabond Tin Zalo Khach` t where t.khoa = concat(%(tien_to)s, si.name))
+		order by si.creation limit """ + str(int(gioi_han)), ts, as_dict=True)
+
+
+def _la_qua_tang(si_name):
+	"""Hoá đơn hàng tặng: không cảm ơn như đơn mua (cùng luật không tích điểm)."""
+	try:
+		r = frappe.db.get_value("Sales Invoice", si_name, ["vgb_qua_tang", "vgb_phieu_qua"], as_dict=True) or {}
+	except Exception:
+		return False
+	return bool(int(r.get("vgb_qua_tang") or 0) or str(r.get("vgb_phieu_qua") or "").strip())
+
+
+def _tu_luc(ma):
+	"""Mốc quét cho kịch bản quét theo hoá đơn: từ lúc bật, tối đa CHO_TOI_DA_GIO."""
+	c = _cau_hinh(ma) or {}
 	if not int(c.get("bat") or 0):
-		return 0
+		return None
 	luc = _bay_gio()
 	bat_luc = c.get("bat_luc")
 	if not bat_luc:
 		# Bật bằng đường nào đó không ghi lúc bật: tính từ bây giờ, không gửi bù.
-		frappe.db.set_value(DT_KB, "sau_mua", "bat_luc", luc, update_modified=False)
-		return 0
+		frappe.db.set_value(DT_KB, ma, "bat_luc", luc, update_modified=False)
+		return None
 	tu = luc - timedelta(hours=CHO_TOI_DA_GIO)
 	if get_datetime(bat_luc) > tu:
 		tu = get_datetime(bat_luc)
-	rows = frappe.db.sql(
-		"""select d.khach, d.diem, d.hoa_don from `tabVagabond So Diem` d
-		where d.loai = 'Tich tu hoa don' and d.diem > 0 and ifnull(d.hoa_don, '') != '' and d.creation >= %s
-		and not exists (select 1 from `tabVagabond Tin Zalo Khach` t where t.khoa = concat('sau_mua:', d.hoa_don))
-		order by d.creation limit 1000""", (tu,), as_dict=True)
+	return tu
+
+
+def _la_khach_gop(ma):
+	"""Cửa duy nhất tới khach_hang.la_khach_gop cho tệp này và den_bu.
+
+	khach_hang nạp ban_hang, mà ban_hang nạp requests ở đầu tệp; CI chạy không
+	có requests. Nạp trễ trong thân hàm để mô đun này vẫn nạp được ở CI, và để
+	bộ kiểm vá đúng một chỗ.
+	"""
+	from vagabond import khach_hang
+
+	return khach_hang.la_khach_gop(ma)
+
+
+def _diem_cua_don(hoa_don):
+	"""Cửa duy nhất tới khach_hang.diem_cua_don (cùng lý do với _la_khach_gop)."""
+	from vagabond import khach_hang
+
+	return khach_hang.diem_cua_don(hoa_don)
+
+
+def quet_sau_mua():
+	"""v645: mỗi đơn khách NHẬN sau lúc bật kịch bản -> một dòng chờ (DK_DA_NHAN).
+
+	Trước v645 máy đợi lúc cộng điểm, tức hoá đơn ghi sổ: đơn giao ghi sổ cuối
+	ngày nên khách nhận bánh buổi trưa mà sáng hôm sau mới có tin cảm ơn.
+	"""
+	tu = _tu_luc("sau_mua")
+	if not tu:
+		return 0
 	n = 0
-	for r in rows:
-		n += 1 if _ghi_cho("sau_mua", khoa_tin("sau_mua", hoa_don=r.hoa_don), r.khach, r.hoa_don, r.diem) else 0
+	for r in _don_da_nhan(tu, "sau_mua"):
+		if _la_khach_gop(r.khach) or _la_qua_tang(r.name):
+			continue
+		diem, _da = _diem_cua_don(r.name)
+		n += 1 if _ghi_cho("sau_mua", khoa_tin("sau_mua", hoa_don=r.name), r.khach, r.name, diem) else 0
+	return n
+
+
+def _so_dien_thoai_gioi_thieu(si_name):
+	"""Số khách gõ ở ô Mã giới thiệu của đơn web, khi số đó KHÔNG phải nhân
+	viên (đơn có nhân viên giới thiệu thì đi đường hoa hồng v638)."""
+	from vagabond import gioi_thieu
+
+	si = frappe.db.get_value("Sales Invoice", si_name, ["custom_pancake_id", "custom_pancake_display_id"], as_dict=True) or {}
+	dw = gioi_thieu._don_web_cua(si)
+	if not dw or dw.get(gioi_thieu.O_DW_NGUOI):
+		return ""
+	try:
+		snap = json.loads(frappe.db.get_value(gioi_thieu.DT_DW, dw.get("name"), "snapshot") or "{}")
+	except (TypeError, ValueError):
+		return ""
+	return str(snap.get("gioi_thieu_sdt") or "").strip()
+
+
+def quet_gioi_thieu():
+	"""v645: bạn mới nhận xong đơn web có gõ số của một khách ở ô Mã giới thiệu
+	-> dòng chờ phát mã cho khách giới thiệu (tối đa GIOI_THIEU_TOI_DA_THANG)."""
+	from vagabond import nhap_khach
+
+	tu = _tu_luc("gioi_thieu")
+	if not tu:
+		return 0
+	dau_thang = _bay_gio().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+	n = 0
+	for r in _don_da_nhan(tu, "gioi_thieu", " and ifnull(si.custom_pancake_id, '') != ''"):
+		sdt = _so_dien_thoai_gioi_thieu(r.name)
+		if not sdt:
+			continue
+		nguoi = nhap_khach.tim_theo_sdt(sdt)
+		if not nguoi or nguoi == r.khach or _la_khach_gop(nguoi):
+			continue
+		da = frappe.db.count(DT_TIN, {"kich_ban": "gioi_thieu", "khach": nguoi, "creation": [">=", dau_thang]})
+		trang_thai, loi = TT_CHO, ""
+		if da >= GIOI_THIEU_TOI_DA_THANG:
+			trang_thai, loi = TT_BO, "Khách đã nhận đủ %d mã giới thiệu trong tháng." % GIOI_THIEU_TOI_DA_THANG
+		n += 1 if _ghi_cho("gioi_thieu", khoa_tin("gioi_thieu", hoa_don=r.name), nguoi, r.name,
+			trang_thai=trang_thai, loi=loi) else 0
 	return n
 
 
@@ -734,42 +1009,115 @@ def quet_sinh_nhat(hom_nay):
 	return n
 
 
-def quet_quay_lai(hom_nay):
+def quet_quay_lai(hom_nay, ma="quay_lai"):
 	"""Khách đã đồng ý Zalo vừa vắng mặt đủ `so_ngay` -> dòng chờ, trừ khách
-	đã nhận tin mời quay lại trong `nhac_lai_ngay` ngày."""
-	c = _cau_hinh("quay_lai") or {}
+	đã nhận tin mời quay lại trong `nhac_lai_ngay` ngày. v645: dùng chung cho
+	mốc hai (quay_lai_2)."""
+	c = _cau_hinh(ma) or {}
 	if not int(c.get("bat") or 0):
 		return 0
-	n_ngay = so_nguyen(c.get("so_ngay"), 60)
+	kb = kich_ban(ma) or {}
+	n_ngay = so_nguyen(c.get("so_ngay"), kb.get("so_ngay") or 60)
 	if n_ngay <= 0:
 		return 0
-	nhac = so_nguyen(c.get("nhac_lai_ngay"), 120)
+	nhac = so_nguyen(c.get("nhac_lai_ngay"), kb.get("nhac_lai") or 120)
 	rows = frappe.db.sql(
 		"""select h.name khach, h.lan_cuoi from `tabVagabond Ho So CRM` h
 		where h.lan_cuoi between %s and %s
 		and ifnull(h.dy_zalo, '') = 'Đồng ý' and ifnull(h.khong_quang_cao, 0) = 0
 		and not exists (select 1 from `tabVagabond Tin Zalo Khach` t where t.khach = h.name
-			and t.kich_ban = 'quay_lai' and t.trang_thai = 'Đã gửi' and t.luc_gui >= %s)""",
-		(hom_nay - timedelta(days=n_ngay + 2), hom_nay - timedelta(days=n_ngay), hom_nay - timedelta(days=nhac)),
+			and t.kich_ban = %s and t.trang_thai = 'Đã gửi' and t.luc_gui >= %s)""",
+		(hom_nay - timedelta(days=n_ngay + 2), hom_nay - timedelta(days=n_ngay), ma, hom_nay - timedelta(days=nhac)),
 		as_dict=True)
 	n = 0
 	for r in rows:
 		if not vang_mat_du(r.lan_cuoi, hom_nay, n_ngay):
 			continue
-		n += 1 if _ghi_cho("quay_lai", khoa_tin("quay_lai", r.khach, moc=ngay_cua(r.lan_cuoi)), r.khach) else 0
+		n += 1 if _ghi_cho(ma, khoa_tin(ma, r.khach, moc=ngay_cua(r.lan_cuoi)), r.khach) else 0
 	return n
 
 
+def quet_quay_lai_2(hom_nay):
+	return quet_quay_lai(hom_nay, "quay_lai_2")
+
+
+def quet_don_thu_hai(hom_nay):
+	"""v645: khách mới có đúng một đơn (hồ sơ CRM, gồm cả lịch sử Fabi), nhận
+	đơn đó đúng `so_ngay` ngày trước -> dòng chờ mời đơn thứ hai."""
+	c = _cau_hinh("don_thu_hai") or {}
+	if not int(c.get("bat") or 0):
+		return 0
+	n_ngay = so_nguyen(c.get("so_ngay"), 3)
+	rows = frappe.db.sql(
+		"""select h.name khach, h.lan_cuoi from `tabVagabond Ho So CRM` h
+		where ifnull(h.so_don, 0) = 1 and h.lan_cuoi between %s and %s
+		and ifnull(h.dy_zalo, '') = 'Đồng ý' and ifnull(h.khong_quang_cao, 0) = 0""",
+		(hom_nay - timedelta(days=n_ngay + 2), hom_nay - timedelta(days=n_ngay)), as_dict=True)
+	n = 0
+	for r in rows:
+		n += 1 if _ghi_cho("don_thu_hai", khoa_tin("don_thu_hai", r.khach), r.khach) else 0
+	return n
+
+
+def quet_nhac_dip(hom_nay):
+	"""v645: năm ngoái khách nhận một đơn giao từ NGUONG_DIP vào ngày D -> trước
+	D năm nay `so_ngay` ngày, nếu khách chưa mua lại gần đây, dòng chờ nhắc."""
+	c = _cau_hinh("nhac_dip") or {}
+	if not int(c.get("bat") or 0):
+		return 0
+	dich = hom_nay + timedelta(days=so_nguyen(c.get("so_ngay"), 10))
+	cu = ngay_dip_nam_truoc(dich)
+	# Cùng điều kiện "hoá đơn mua" với hồ sơ CRM (crm.DK_HD_MUA), viết với bí danh.
+	rows = frappe.db.sql(
+		"""select distinct si.customer khach from `tabSales Invoice` si
+		join `tabVagabond Ho So CRM` h on h.name = si.customer
+		where si.docstatus = 1 and ifnull(si.vgb_huy, 0) = 0 and ifnull(si.is_return, 0) = 0
+		and ifnull(si.custom_pancake_id, '') != '' and si.posting_date = %s and si.grand_total >= %s
+		and ifnull(h.dy_zalo, '') = 'Đồng ý' and ifnull(h.khong_quang_cao, 0) = 0
+		and (h.lan_cuoi is null or h.lan_cuoi < %s)""",
+		(cu, NGUONG_DIP, hom_nay - timedelta(days=DIP_DA_MUA_GAN)), as_dict=True)
+	n = 0
+	for r in rows:
+		n += 1 if _ghi_cho("nhac_dip", khoa_tin("nhac_dip", r.khach, moc=dich.isoformat()), r.khach) else 0
+	return n
+
+
+def quet_nhac_han(hom_nay):
+	"""v645: mã riêng của khách chưa dùng, hết hạn đúng `so_ngay` ngày nữa ->
+	dòng chờ nhắc, mỗi mã một lần."""
+	c = _cau_hinh("nhac_han") or {}
+	if not int(c.get("bat") or 0):
+		return 0
+	han = hom_nay + timedelta(days=so_nguyen(c.get("so_ngay"), 3))
+	rows = frappe.get_all("Vagabond Voucher", filters={"trang_thai": "Chua dung", "han_dung": han, "danh_cho": ["is", "set"]},
+		fields=["name", "danh_cho"], limit_page_length=2000)
+	n = 0
+	for r in rows:
+		n += 1 if _ghi_cho("nhac_han", khoa_tin("nhac_han", moc=r.name), r.danh_cho, voucher=r.name) else 0
+	return n
+
+
+# Kịch bản quét một lần mỗi ngày (theo ngày), theo thứ tự ưu tiên của KICH_BAN.
+QUET_THEO_NGAY = {
+	"sinh_nhat": "quet_sinh_nhat", "nhac_dip": "quet_nhac_dip", "don_thu_hai": "quet_don_thu_hai",
+	"quay_lai": "quet_quay_lai", "quay_lai_2": "quet_quay_lai_2", "nhac_han": "quet_nhac_han",
+}
+
+
 def _gia_tri_sau_mua(row, kh):
-	si = frappe.db.get_value("Sales Invoice", row.get("hoa_don"), ["docstatus", "posting_date", "posting_time", "grand_total"], as_dict=True)
-	if not si or int(si.docstatus or 0) != 1:
+	si = frappe.db.get_value("Sales Invoice", row.get("hoa_don"), ["docstatus", "posting_date", "posting_time", "grand_total",
+		"vgb_huy", "is_return", "custom_pancake_id", "custom_pancake_display_id"], as_dict=True)
+	if not si or not hoa_don_con_nhan(si.docstatus, si.custom_pancake_id, si.vgb_huy, si.is_return):
 		return None, "Hoá đơn đã huỷ hoặc không còn."
+	diem, da_ghi = _diem_cua_don(row.get("hoa_don"))
 	gio = str(si.posting_time or "")[:5]
 	return {
-		"ten_khach": kh["ten"], "ma_hoa_don": row.get("hoa_don"),
+		"ten_khach": kh["ten"], "ma_hoa_don": ma_don_cho_khach(row.get("hoa_don"), si.custom_pancake_display_id),
 		"ngay_mua": (ngay_vn(si.posting_date) + (" " + gio if gio else "")).strip(),
-		"tong_tien": tien_vn(si.grand_total), "diem_tich": so_dep(row.get("diem")),
-		"tong_diem": so_dep(kh["diem"]), "hang": kh["hang"] or "Thành viên",
+		"tong_tien": tien_vn(si.grand_total), "diem_tich": so_dep(diem),
+		# Đơn giao nhận rồi mà chưa ghi sổ: điểm chưa vào số dư, cộng trước để
+		# tin không báo tổng điểm thiếu đúng phần của đơn này.
+		"tong_diem": so_dep(float(kh["diem"] or 0) + (0 if da_ghi else float(diem or 0))), "hang": kh["hang"] or "Thành viên",
 	}, ""
 
 
@@ -863,9 +1211,41 @@ def _gui_mot(c, row):
 		if ma_kb == "sinh_nhat" and qua_sinh_nhat(kh.get("sinh_nhat"), str(row.khoa or "").rsplit(":", 1)[-1], _bay_gio().date()):
 			_xong(row.name, TT_BO, "Khách đã qua sinh nhật, không gửi lời chúc muộn.")
 			return None
-		if ma_kb == "quay_lai" and not con_vang_mat(_lan_mua_cuoi(row.khach), _bay_gio().date(), c.get("so_ngay")):
+		if ma_kb in ("quay_lai", "quay_lai_2") and not con_vang_mat(_lan_mua_cuoi(row.khach), _bay_gio().date(), c.get("so_ngay")):
 			_xong(row.name, TT_BO, "Khách đã quay lại mua, không gửi lời mời.")
 			return None
+		if ma_kb == "don_thu_hai" and _so_don_da_nhan(row.khach) > 1:
+			_xong(row.name, TT_BO, "Khách đã mua đơn thứ hai, không gửi lời mời.")
+			return None
+		if ma_kb == "nhac_dip" and _mua_gan(row.khach, DIP_DA_MUA_GAN):
+			_xong(row.name, TT_BO, "Khách vừa mua lại trong %d ngày, không nhắc dịp." % DIP_DA_MUA_GAN)
+			return None
+		# v645: nhóm đối chứng cố định theo khách, để báo cáo so được ai nhận tin
+		# quay lại bao nhiêu với ai không nhận.
+		pt = so_nguyen(c.get("doi_chung"), kb.get("doi_chung") or 0)
+		if pt and trong_doi_chung(row.khach, pt):
+			_xong(row.name, TT_BO, "%s: %d%% khách không nhận tin này để đo hiệu quả." % (LY_DO_DOI_CHUNG, pt))
+			return None
+		# v645 (anh Việt 08/11/2026): mỗi khách tối đa một tin ưu đãi mỗi 7 ngày.
+		if kb.get("tran_tuan") and _da_nhan_km_tuan(row.khach):
+			_xong(row.name, TT_BO, "Khách đã nhận một tin ưu đãi trong %d ngày qua (mỗi khách tối đa một tin mỗi tuần)." % TRAN_TUAN_NGAY)
+			return None
+	if kb["km"] and kb.get("kieu") == "co_san":
+		# v645: nhắc hạn và đền bù gửi một mã ĐÃ có của khách, không phát mã mới.
+		v, ly = _voucher_con_dung(row.get("voucher"))
+		if not v:
+			_xong(row.name, TT_BO, ly)
+			return None
+		km = _doc_ctkm(v.get("ctkm")) or {}
+		ly = ly_do_khong_gui_lai(km, _bay_gio().date())
+		if ly:
+			_xong(row.name, TT_BO, ly.replace("mã Ví quà", "mã"))
+			return None
+		rieng = ma_kb != "nhac_han"
+		ten_ud, dk = mo_ta_uu_dai(km, c.get("ten_uu_dai") if rieng else "", c.get("dieu_kien") if rieng else "")
+		ma_v = v.get("ma")
+		gt = {"ten_khach": kh["ten"], "ten_uu_dai": ten_ud, "dieu_kien": dk, "han_dung": ngay_vn(v.get("han_dung")), "ma_voucher": ma_v}
+	elif kb["km"]:
 		# Codex PR #517 vòng 7: quầy chỉ nhận mã khi khách đúng đối tượng của
 		# chương trình (khuyen_mai.tinh gọi _hop_doi_tuong). Khách ngoài phạm
 		# vi thì bỏ qua, không phát mã khách không dùng được.
@@ -983,7 +1363,7 @@ def gui_hang_doi():
 		if not trong_gio(luc, c.get("gio_tu"), c.get("gio_den")):
 			tom[kb["ma"]] = "Ngoài giờ gửi."
 			continue
-		if kb["km"]:
+		if kb["km"] and kb.get("kieu") != "co_san":
 			# Chương trình hết hạn hay chưa bắt đầu: giữ dòng chờ, không phát mã
 			# (Codex PR #517). Sửa chương trình xong thì lượt sau gửi tiếp.
 			han, ly_do = ctkm_phat_duoc(_doc_ctkm(c.get("ctkm")), luc.date(), c.get("han_ngay"))
@@ -1000,7 +1380,7 @@ def gui_hang_doi():
 			tom[kb["ma"]] = "Đã đủ trần tin hôm nay."
 			continue
 		rows = frappe.db.get_all(DT_TIN, filters={"kich_ban": kb["ma"], "trang_thai": TT_CHO},
-			fields=["name", "khach", "hoa_don", "diem", "khoa"], order_by="creation asc", limit_page_length=con)
+			fields=["name", "khach", "hoa_don", "diem", "khoa", "voucher"], order_by="creation asc", limit_page_length=con)
 		gui = 0
 		dung = None
 		het_gio = False
@@ -1039,13 +1419,18 @@ def chay_tu_dong():
 		frappe.log_error(title="Vagabond: tin Zalo tự động, dựng cấu hình", message=frappe.get_traceback())
 		return
 	luc = _bay_gio()
-	try:
-		quet_sau_mua()
-		frappe.db.commit()
-	except Exception:
-		frappe.db.rollback()
-		frappe.log_error(title="Vagabond: tin Zalo tự động, quét sau mua", message=frappe.get_traceback())
-	for ma, ham in (("sinh_nhat", quet_sinh_nhat), ("quay_lai", quet_quay_lai)):
+	for ma, ham in (("sau_mua", quet_sau_mua), ("gioi_thieu", quet_gioi_thieu)):
+		try:
+			ham()
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(title="Vagabond: tin Zalo tự động, quét " + ma, message=frappe.get_traceback())
+	for kb in KICH_BAN:
+		ma = kb["ma"]
+		if ma not in QUET_THEO_NGAY:
+			continue
+		ham = globals()[QUET_THEO_NGAY[ma]]
 		c = _cau_hinh(ma) or {}
 		if not int(c.get("bat") or 0) or str(c.get("quet_ngay") or "") == str(luc.date()):
 			continue
@@ -1063,9 +1448,102 @@ def chay_tu_dong():
 		frappe.log_error(title="Vagabond: tin Zalo tự động, gửi", message=frappe.get_traceback())
 
 
+# ================================================================ báo cáo tuần
+
+# v645 (anh Việt 08/11/2026): thứ Hai Marketing nhận một tin tổng kết ưu đãi Zalo.
+KB_DO_HIEU_QUA = tuple(k["ma"] for k in KICH_BAN if k.get("doi_chung"))
+
+
+def ty_le(a, b):
+	"""Phần trăm làm tròn, chia 0 thì None. THUẦN."""
+	a, b = so_nguyen(a), so_nguyen(b)
+	return None if not b else int(round(100.0 * a / b))
+
+
+def soan_bao_cao_tuan(so, den_ngay):
+	"""Câu tin báo cáo tuần từ số đã đọc. THUẦN.
+
+	so: {"gui": {ma: n}, "loi": n, "ma_phat": n, "ma_dung": n, "giam": tiền, "doanh_thu": tiền,
+	     "hq": {"nhan": [quay_lai, tong], "dc": [quay_lai, tong]}}
+	"""
+	gui = so.get("gui") or {}
+	dong = ["Ưu đãi qua Zalo, 7 ngày tới %s" % ngay_vn(den_ngay)]
+	co = [(k["ten"], so_nguyen(gui.get(k["ma"]))) for k in KICH_BAN if so_nguyen(gui.get(k["ma"]))]
+	dong.append("Tin đã gửi: " + ("; ".join("%s %d" % x for x in co) if co else "chưa có tin nào"))
+	dong.append("Mã ưu đãi: phát %d, khách đã dùng %d, giảm %s, doanh thu các đơn có mã %s" % (
+		so_nguyen(so.get("ma_phat")), so_nguyen(so.get("ma_dung")), tien_vn(so.get("giam") or 0), tien_vn(so.get("doanh_thu") or 0)))
+	hq = so.get("hq") or {}
+	nhan, dc = hq.get("nhan") or [0, 0], hq.get("dc") or [0, 0]
+	a, b = ty_le(nhan[0], nhan[1]), ty_le(dc[0], dc[1])
+	if a is not None and b is not None:
+		dong.append("Hiệu quả 30 ngày (đơn thứ hai, mời quay lại): khách nhận tin quay lại mua %d%% (%d/%d), "
+			"nhóm đối chứng không nhận tin %d%% (%d/%d)" % (a, nhan[0], nhan[1], b, dc[0], dc[1]))
+	else:
+		dong.append("Hiệu quả 30 ngày: chưa đủ dữ liệu để so với nhóm đối chứng")
+	if so_nguyen(so.get("loi")):
+		dong.append("Lỗi gửi: %d tin. Xem Chăm sóc khách, Tin Zalo tự động." % so_nguyen(so.get("loi")))
+	return "\n".join(dong)
+
+
+def _so_bao_cao_tuan(luc):
+	tu = luc - timedelta(days=7)
+	gui, loi = {}, 0
+	for r in frappe.db.sql("""select kich_ban, trang_thai, count(*) n from `tabVagabond Tin Zalo Khach`
+			where ifnull(luc_gui, creation) >= %s group by kich_ban, trang_thai""", (tu,), as_dict=True):
+		if r.trang_thai == TT_GUI:
+			gui[r.kich_ban] = int(r.n or 0)
+		elif r.trang_thai == TT_LOI:
+			loi += int(r.n or 0)
+	nguon = "(gui_cho like 'Tin Zalo:%%' or gui_cho like 'Đền bù%%')"
+	ma_phat = frappe.db.sql("select count(*) from `tabVagabond Voucher` where creation >= %s and " + nguon, (tu,))[0][0]
+	dung = frappe.db.sql("""select count(*) n, sum(ifnull(v.tien_giam, 0)) giam, sum(ifnull(si.grand_total, 0)) dt
+		from `tabVagabond Voucher` v left join `tabSales Invoice` si on si.name = v.hoa_don
+		where v.trang_thai = 'Da dung' and v.ngay_dung >= %s and """ + nguon.replace("gui_cho", "v.gui_cho"), (tu,), as_dict=True)
+	d = (dung or [{}])[0] or {}
+	# Dòng của kịch bản đo hiệu quả tạo 7 tới 37 ngày trước: ai đã gửi, ai là đối chứng,
+	# ai đã mua lại trong 30 ngày sau dòng.
+	hq = {"nhan": [0, 0], "dc": [0, 0]}
+	if KB_DO_HIEU_QUA:
+		rows = frappe.db.sql("""select t.trang_thai, ifnull(t.loi, '') loi,
+				exists(select 1 from `tabSales Invoice` si where si.customer = t.khach and si.docstatus = 1
+					and ifnull(si.is_return, 0) = 0 and ifnull(si.vgb_huy, 0) = 0
+					and si.creation > t.creation and si.creation < date_add(t.creation, interval 30 day)) mua
+			from `tabVagabond Tin Zalo Khach` t
+			where t.kich_ban in %s and t.creation >= %s and t.creation < %s""",
+			(KB_DO_HIEU_QUA, luc - timedelta(days=37), tu), as_dict=True)
+		for r in rows:
+			if r.trang_thai == TT_GUI:
+				k = "nhan"
+			elif r.trang_thai == TT_BO and str(r.loi).startswith(LY_DO_DOI_CHUNG):
+				k = "dc"
+			else:
+				continue
+			hq[k][1] += 1
+			hq[k][0] += 1 if int(r.mua or 0) else 0
+	return {"gui": gui, "loi": loi, "ma_phat": int(ma_phat or 0), "ma_dung": int(d.get("n") or 0),
+		"giam": float(d.get("giam") or 0), "doanh_thu": float(d.get("dt") or 0), "hq": hq}
+
+
+def bao_cao_tuan():
+	"""Nhịp thứ Hai 09:07: gửi nhóm Marketing (mã tin mkt_bao_cao_uu_dai)."""
+	from vagabond import kenh_zalo
+
+	luc = _bay_gio()
+	try:
+		tin = soan_bao_cao_tuan(_so_bao_cao_tuan(luc), luc.date())
+	except Exception:
+		frappe.log_error(title="Vagabond: báo cáo ưu đãi Zalo tuần", message=frappe.get_traceback())
+		return None
+	kenh_zalo.bao_hoac_ghi_loi("ban_tin", "ban_hang", "Báo cáo ưu đãi Zalo tuần %s" % ngay_vn(luc.date()),
+		khoa="bao_cao_uu_dai:%s" % luc.date().isoformat(), ma_tin="mkt_bao_cao_uu_dai", noi_dung=tin)
+	frappe.db.commit()
+	return tin
+
+
 # ================================================================ màn hình
 
-DUOC_SUA = ("bat", "ma_mau", "so_ngay", "nhac_lai_ngay", "ctkm", "han_ngay", "ten_uu_dai", "dieu_kien", "tran_ngay", "gio_tu", "gio_den")
+DUOC_SUA = ("bat", "ma_mau", "so_ngay", "nhac_lai_ngay", "ctkm", "han_ngay", "ten_uu_dai", "dieu_kien", "tran_ngay", "gio_tu", "gio_den",
+	"doi_chung")
 
 
 def _quyen(xem=True):
@@ -1077,8 +1555,10 @@ def _quyen(xem=True):
 def _the(c, dem, hom_nay=None):
 	kb = kich_ban(c["ma"]) or {}
 	duoc, ly_do = mau_san_sang(c)
-	if duoc and kb.get("km") and hom_nay:
+	can_ctkm = kb.get("km") and (kb.get("kieu") != "co_san" or str(c["ma"]).startswith("den_bu"))
+	if duoc and can_ctkm and hom_nay:
 		# Thẻ nói luôn khi chương trình đã chọn hết hạn: máy sẽ giữ tin chờ.
+		# v645: đền bù cũng cần chương trình (mã phát lúc quản lý bấm cấp).
 		han, ly = ctkm_phat_duoc(_doc_ctkm(c.get("ctkm")), hom_nay, c.get("han_ngay"))
 		if not han:
 			duoc, ly_do = False, ly
@@ -1089,6 +1569,11 @@ def _the(c, dem, hom_nay=None):
 		"mau_duyet": 1 if c.get("mau_trang_thai") == "ENABLE" else 0, "mau_ly_do": c.get("mau_ly_do") or "",
 		"mau_gia": c.get("mau_gia") or "", "tham_so": [p.get("name") for p in doc_tham_so(c.get("mau_tham_so"))],
 		"so_ngay": c.get("so_ngay"), "nhac_lai_ngay": c.get("nhac_lai_ngay"), "ctkm": c.get("ctkm") or "",
+		# v645: chữ ô số ngày theo từng kịch bản (màn không tự đoán theo mã), mã
+		# có sẵn thì không chọn chương trình phát mã, và % nhóm đối chứng.
+		"kieu": kb.get("kieu") or "", "nhan_ngay": kb.get("nhan_ngay") or "", "goi_y_ngay": kb.get("goi_y_ngay") or "",
+		"nhan_nhac": kb.get("nhan_nhac") or "", "do_hieu_qua": 1 if kb.get("doi_chung") else 0,
+		"doi_chung": so_nguyen(c.get("doi_chung"), kb.get("doi_chung") or 0),
 		"han_ngay": c.get("han_ngay"), "ten_uu_dai": c.get("ten_uu_dai") or "", "dieu_kien": c.get("dieu_kien") or "",
 		"tran_ngay": c.get("tran_ngay"), "gio_tu": c.get("gio_tu"), "gio_den": c.get("gio_den"),
 		"ket_qua_luot": c.get("ket_qua_luot") or "", "dem": dem.get(c["ma"]) or {},
@@ -1155,6 +1640,8 @@ def luu_kich_ban(ma=None, dat=None):
 			v[k] = 1 if str(x).lower() in ("1", "true") else 0
 		elif k in ("so_ngay", "nhac_lai_ngay", "han_ngay", "tran_ngay", "gio_tu", "gio_den"):
 			v[k] = so_nguyen(x, cu.get(k) or 0)
+		elif k == "doi_chung":
+			v[k] = min(so_nguyen(x, cu.get(k) or 0), 50)
 		elif k == "ctkm":
 			x = str(x or "").strip()
 			if x and not frappe.db.exists("Vagabond CTKM", x):

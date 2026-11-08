@@ -290,6 +290,9 @@ TIN = {
 	# v644 (anh Việt duyệt 07/11/2026): bánh đưa lên web chờ Marketing thêm ảnh (banh_web.py).
 	"mkt_banh_cho_anh": ("Marketing", "Bánh mới chờ ảnh trên web",
 		"Ngay khi có người bấm Đưa lên web, và 08:41 mỗi sáng còn bánh chưa có ảnh: khách chưa thấy các bánh này.", "viec", "don_web"),
+	# v645 (anh Việt duyệt 08/11/2026): tổng kết ưu đãi gửi khách qua Zalo (zalo_kich_ban.bao_cao_tuan).
+	"mkt_bao_cao_uu_dai": ("Marketing", "Báo cáo ưu đãi Zalo (Thứ Hai 09:07)",
+		"Thứ Hai hằng tuần: tin đã gửi khách, mã đã phát và đã dùng, doanh thu từ mã, hiệu quả so với nhóm đối chứng.", "ban_tin", "ban_hang"),
 	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",
