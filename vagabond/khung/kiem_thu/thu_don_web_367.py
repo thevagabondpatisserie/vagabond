@@ -155,6 +155,34 @@ class _Vet:
 		self.su = []
 
 
+def _dau_gia(trang_thai="khong", da_dat=False, chuoi_da_dat=None, vet=None):
+	"""don_dau_web giả cho tao_don (v645): phép THUẦN dùng bản thật (tron,
+	chin_so, hằng số); phần chạm site (xet, da_dat_web, khoa_so) định sẵn và
+	ghi vết. `chuoi_da_dat`: kết quả cho từng lần gọi da_dat_web liên tiếp
+	(xét lại dưới khoá thấy đơn khác cùng số vừa ghi)."""
+	from vagabond import don_dau_web as that
+	v = vet if vet is not None else types.SimpleNamespace(xet=[], da_dat=[], khoa=[])
+
+	def da_dat_web(sdt):
+		v.da_dat.append(sdt)
+		if chuoi_da_dat:
+			return chuoi_da_dat[min(len(v.da_dat), len(chuoi_da_dat)) - 1]
+		return da_dat
+
+	@contextlib.contextmanager
+	def khoa_so(sdt):
+		v.khoa.append(sdt)
+		yield
+
+	ns = types.SimpleNamespace(
+		KHONG=that.KHONG, DU=that.DU, GIAM=that.GIAM, TOI_THIEU=that.TOI_THIEU, TEN=that.TEN,
+		tron=that.tron, chin_so=that.chin_so, phan_hoi=that.phan_hoi,
+		xet=lambda sdt, tien: (v.xet.append((sdt, tien)), trang_thai)[1],
+		da_dat_web=da_dat_web, khoa_so=khoa_so, vet=v,
+	)
+	return ns
+
+
 def _km_gia(giam=0, ly_do="", mot_lan=False, giu_duoc=True, chuoi=None, loi_giu=False):
 	"""khuyen_mai giả cho tao_don: ap_web trả số giảm định sẵn, ghi vết giữ,
 	trả mã và ghi lượt dùng (v589). `chuoi`: số giảm cho từng lần gọi ap_web
@@ -207,7 +235,7 @@ def _hang_so(tep, ten):
 	raise KeyError(ten)
 
 
-def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, tong_pancake=None, thieu_giam_pancake=False):
+def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, tong_pancake=None, thieu_giam_pancake=False, dau=None):
 	"""Dựng môi trường gọi tao_don THẬT, chặn mọi đường ra ngoài.
 
 	`pancake(vet)` là hàm thay requests.post: ghi 'post' vào vết rồi trả về
@@ -283,13 +311,16 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 		_gia_va_ten=lambda ds: ({m: 450000 for m in ds}, {m: "Bánh " + m for m in ds}),
 		_ip_va_trinh_duyet=lambda: ("203.0.113.9", "Trinh duyet thu"),
 		khuyen_mai=km or _km_gia(),
+		# v645: ưu đãi đơn đầu tiên trên web. Mặc định số đã có đơn web (không
+		# giảm) để các ca cũ giữ nguyên; ca v645 truyền `dau` riêng.
+		contextlib=contextlib, don_dau_web=dau or _dau_gia(),
 	)
 	vet.km = g["khuyen_mai"]
 	vet.km.vet.su = vet.su
 	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_ngay_pancake", "_hoa_don_pancake", "_diem_lay",
 			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm",
 			"_gan_giam_pancake", "_doc_lai_don_pancake", "_tong_pancake",
-			"_gui_pancake", "la_loi_the", "bot_the", "_them_dong", "cau_mien_phi"):
+			"_gui_pancake", "la_loi_the", "bot_the", "_them_dong", "cau_mien_phi", "_don_dau"):
 		nap("don_hang.py", ten, g)
 	g["TEN_THE"] = _hang_so("don_hang.py", "TEN_THE")
 	g["_bao_lech_tong_pancake"] = lambda *a: vet.su.append(("bao_lech", a))
