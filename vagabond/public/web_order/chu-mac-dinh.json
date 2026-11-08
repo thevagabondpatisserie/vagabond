@@ -6343,5 +6343,137 @@
     "nhom": "dat_banh",
     "mac_dinh": "Chưa bỏ được ưu đãi. Quý khách thử lại.",
     "nhieu_dong": true
+  },
+  "dat_banh_dd_tieu_goi_y": {
+    "ten": "Ưu đãi đơn đầu: tiêu đề khi tiền bánh chưa đủ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đơn đầu tiên trên web được giảm {tien}",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_chua_du": {
+    "ten": "Ưu đãi đơn đầu: còn thiếu tiền bánh",
+    "nhom": "gio_hang",
+    "mac_dinh": "Áp cho tiền bánh từ {toi_thieu}. Thêm bánh để nhận ưu đãi.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_tieu_nhap_ma": {
+    "ten": "Ưu đãi đơn đầu: tiêu đề bước nhập mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Nhập mã 6 số Zalo vừa gửi",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_tieu": {
+    "ten": "Ưu đãi đơn đầu: tiêu đề mời xác thực",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giảm {tien} cho đơn đầu tiên trên web",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_phu_ma": {
+    "ten": "Ưu đãi đơn đầu: dòng phụ bước nhập mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã gửi tới Zalo của số {so}, có hiệu lực 5 phút.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_phu": {
+    "ten": "Ưu đãi đơn đầu: dòng phụ mời xác thực",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số {so} chưa từng đặt bánh trên web. Xác thực số điện thoại qua Zalo để nhận ưu đãi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd_da_giam": {
+    "ten": "Ưu đãi đơn đầu: tiêu đề đã giảm",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã giảm {tien} cho đơn đầu tiên",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_bo_ma": {
+    "ten": "Ưu đãi đơn đầu: đã thay mã giảm ít hơn",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã xác thực số {so}. Mã ưu đãi quý khách nhập giảm ít hơn nên máy giữ ưu đãi đơn đầu tiên (không cộng chung).",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd_da_giam_phu": {
+    "ten": "Ưu đãi đơn đầu: dòng phụ đã giảm",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã xác thực số {so}. Ưu đãi đã trừ vào tổng tiền bên dưới.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_ma_lon_hon": {
+    "ten": "Ưu đãi đơn đầu: mã đang giảm nhiều hơn",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã ưu đãi đang giảm nhiều hơn {tien}",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_ma_lon_hon_phu": {
+    "ten": "Ưu đãi đơn đầu: giải thích không cộng chung",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ưu đãi đơn đầu tiên không cộng chung với mã khác; máy giữ mức giảm lớn hơn cho quý khách.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd_khong_gui": {
+    "ten": "Ưu đãi đơn đầu: chưa gửi được mã Zalo",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa gửi được mã qua Zalo. Quý khách thử lại sau ít phút.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_chua_gui": {
+    "ten": "Ưu đãi đơn đầu: lỗi gửi mã chung",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa gửi được mã. Quý khách thử lại sau.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_da_gui": {
+    "ten": "Ưu đãi đơn đầu: đã gửi mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã gửi mã qua Zalo.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_ma_6": {
+    "ten": "Ưu đãi đơn đầu: mã phải đủ 6 số",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã gồm 6 số trong tin nhắn Zalo.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_chua_xac": {
+    "ten": "Ưu đãi đơn đầu: không xác thực được",
+    "nhom": "gio_hang",
+    "mac_dinh": "Không xác thực được. Gửi mã mới.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_dang_gui": {
+    "ten": "Ưu đãi đơn đầu: nút đang gửi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang gửi...",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_gui_ma": {
+    "ten": "Ưu đãi đơn đầu: nút gửi mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi mã xác thực qua Zalo",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_o_ma": {
+    "ten": "Ưu đãi đơn đầu: nhãn ô mã 6 số",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã 6 số trong tin nhắn Zalo",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_xac_nhan": {
+    "ten": "Ưu đãi đơn đầu: nút xác nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác nhận",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_gui_lai": {
+    "ten": "Ưu đãi đơn đầu: nút gửi lại mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi lại mã",
+    "nhieu_dong": false
+  },
+  "dat_banh_dd_mot_lan": {
+    "ten": "Ưu đãi đơn đầu: ghi chú mỗi số một lần",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mỗi số điện thoại dùng được một lần. Không cần nhập mã ưu đãi.",
+    "nhieu_dong": true
   }
 }
