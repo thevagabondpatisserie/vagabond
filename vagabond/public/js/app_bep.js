@@ -28723,7 +28723,7 @@ function kmHtmlDonDau(dd) {
     return '<div class="card" id="kmDonDau" style="padding:12px 14px">' +
       '<div style="font-size:14.5px;font-weight:700">Ưu đãi đơn đầu tiên trên web</div>' +
       '<div style="margin-top:6px;font-size:13px;line-height:1.5;color:#9a3412;background:#fff7ed;border-radius:9px;padding:9px 11px">Chưa tải được trạng thái ưu đãi này (' + h(dd.loi || 'lỗi mạng') +
-      '). Web vẫn đang giảm hoặc không giảm theo cài đặt đã lưu. Bấm Thử lại để đọc lại rồi mới bật tắt.</div>' +
+      '). Web vẫn đang giảm hoặc không giảm theo cài đặt đã lưu; riêng khi máy chủ không đọc được cài đặt thì web tạm không giảm. Bấm Thử lại để đọc lại rồi mới bật tắt.</div>' +
       '<button type="button" class="btn gh" id="kmDdLai" data-kmddlai style="margin:10px 0 0;min-height:44px;width:100%">Thử lại</button></div>';
   }
   var c = dd.cai_dat, cb = kmDonDauCanhBao(c, +dd.otp_mo);
