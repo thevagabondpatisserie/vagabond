@@ -158,6 +158,38 @@ def _():
 	la("tắt, không giảm oan", (ch["bat"], len(log)), (0, 1))
 
 
+@ca("Codex #548 (d49ece60cf): cửa đọc cho quản lý doc_cai_dat gặp lỗi đọc Singles thì BÁO LỖI (app hiện thẻ Thử lại), không trả cấu hình dự phòng như đã lưu; đường tính tiền vẫn coi như tắt")
+def _():
+	from vagabond import khuyen_mai
+
+	class Loi(Exception):
+		pass
+
+	def nem_loi(m, *a, **k):
+		raise Loi(m)
+
+	def hong(*a, **k):
+		raise RuntimeError("lỗi đọc SQL")
+	log = []
+	with patch.object(khuyen_mai, "_kiem_quyen", lambda: None), patch.object(_fr.db, "sql", hong, create=True), \
+			patch.object(_fr, "throw", nem_loi), patch.object(dd, "otp_mo", lambda: True), \
+			patch.object(_fr, "log_error", lambda *a, **k: log.append(k.get("title"))):
+		try:
+			r = dd.doc_cai_dat()
+			dung("phải báo lỗi, không trả cấu hình dự phòng: " + json.dumps(r.get("cai_dat")), False)
+		except Loi as e:
+			dung("câu dễ hiểu: " + str(e), "chưa đọc được cài đặt" in str(e))
+		la("ghi Error Log", len(log), 1)
+		la("đường tính tiền vẫn tắt", dd.cau_hinh()["bat"], 0)
+	with patch.object(khuyen_mai, "_kiem_quyen", lambda: None), patch.object(dd, "otp_mo", lambda: False), \
+			patch.object(_fr.db, "sql", _sql_o(json.dumps({"giam": 30000, "can_otp": 0})), create=True):
+		r = dd.doc_cai_dat()
+	la("đọc được thì trả đúng ô đã lưu", (r["cai_dat"]["giam"], r["cai_dat"]["can_otp"], r["otp_mo"]), (30000, 0, 0))
+	with patch.object(khuyen_mai, "_kiem_quyen", lambda: None), patch.object(dd, "otp_mo", lambda: False), \
+			patch.object(_fr.db, "sql", _sql_o(None), create=True):
+		la("ô chưa lưu thì mặc định", dd.doc_cai_dat()["cai_dat"], dd.chuan(None))
+
+
 @ca("v645 bản 2 luu_cai_dat: kiểm quyền sửa khuyến mãi; số sai không lưu và báo câu; lưu đúng thì ghi JSON vào ô và đọc lại ra đúng")
 def _():
 	from vagabond import khuyen_mai
