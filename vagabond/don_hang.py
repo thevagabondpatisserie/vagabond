@@ -271,13 +271,16 @@ def _uu_dai_don(hang_goc, gia, ma, sdt, ngay):
 
 
 def _don_dau(sdt, tien_banh):
-	"""v645: trạng thái ưu đãi đơn đầu tiên trên web. Lỗi phụ không chặn đơn và
-	không bao giờ cho giảm oan: hỏng thì coi như không có ưu đãi."""
+	"""v645: (trạng thái, cài đặt) ưu đãi đơn đầu tiên trên web. Cài đặt đọc
+	MỘT lần cho cả lượt (công tắc, mức giảm, có bắt mã Zalo, chỗ hiển thị trong
+	màn Khuyến mãi). Lỗi phụ không chặn đơn và không bao giờ cho giảm oan: hỏng
+	thì coi như không có ưu đãi."""
 	try:
-		return don_dau_web.xet(sdt, tien_banh)
+		ch = don_dau_web.cau_hinh()
+		return don_dau_web.xet(sdt, tien_banh, ch), ch
 	except Exception:
 		frappe.log_error(title="Vagabond: ưu đãi đơn đầu tiên trên web", message=frappe.get_traceback())
-		return don_dau_web.KHONG
+		return don_dau_web.KHONG, don_dau_web.chuan({"bat": 0})
 
 
 def _giu_luot_uu_dai(uu, hang_goc, gia, ma, sdt, ngay):
@@ -355,9 +358,9 @@ def xem_uu_dai(don=None):
 	sdt = _so(don.get("dien_thoai"))
 	uu = _uu_dai_don(hang, gia, ma, sdt, _ngay_iso(don.get("ngay_nhan")))
 	# v645: ưu đãi đơn đầu tiên trên web, không cộng với mã, giữ cái lớn hơn.
-	tt = _don_dau(sdt, don_web.tinh_tien_banh(hang, gia)[0])
-	uu, bo_ma = don_dau_web.tron(uu, tt, bool(ma))
-	dd = dict(don_dau_web.phan_hoi(tt), ap_dung=1 if uu.get("don_dau") else 0, bo_ma=1 if bo_ma else 0)
+	tt, ch = _don_dau(sdt, don_web.tinh_tien_banh(hang, gia)[0])
+	uu, bo_ma = don_dau_web.tron(uu, tt, bool(ma), ch["giam"])
+	dd = dict(don_dau_web.phan_hoi(tt, ch), ap_dung=1 if uu.get("don_dau") else 0, bo_ma=1 if bo_ma else 0)
 	if ma and uu.get("ly_do"):
 		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"], "giam": 0, "ap": [], "don_dau": dd}
 	return {"ok": 1, "giam": int(uu.get("tong_giam") or 0),
@@ -569,7 +572,8 @@ def tao_don(don=None):
 	# đơn web, tiền bánh đủ ngưỡng). Không cộng với mã: giữ cái lớn hơn. Đơn
 	# dùng ưu đãi này thì KHÔNG giữ mã hay lượt chương trình nào.
 	uu_goc = uu
-	uu, _bo_ma = don_dau_web.tron(uu, _don_dau(dien_thoai, tien_banh), bool(ma_uu_dai))
+	tt_dau, ch_dau = _don_dau(dien_thoai, tien_banh)
+	uu, _bo_ma = don_dau_web.tron(uu, tt_dau, bool(ma_uu_dai), ch_dau["giam"])
 	dung_dau = bool(uu.get("don_dau"))
 	if dung_dau:
 		ma_uu_dai = ""
