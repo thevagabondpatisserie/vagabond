@@ -6608,6 +6608,12 @@
     "mac_dinh": "Đang tải ưu đãi...",
     "nhieu_dong": false
   },
+  "ud_loi_tai": {
+    "ten": "Ưu đãi: chưa tải được nội dung",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
+    "mac_dinh": "Chưa tải được ưu đãi. Quý khách tải lại trang hoặc nhắn fanpage The Vagabond nhé.",
+    "nhieu_dong": false
+  },
   "ud_het": {
     "ten": "Ưu đãi: ưu đãi đã kết thúc",
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
