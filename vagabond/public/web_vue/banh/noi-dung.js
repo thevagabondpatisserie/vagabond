@@ -529,9 +529,14 @@ export const ChiTietUuDai = {
     ]);
   }
 };
+/* Chưa có nội dung (đang tải hay tải lỗi) thì báo đúng trạng thái cho CẢ danh sách
+   lẫn link chi tiết, không báo "chưa có ưu đãi" (Codex PR #548: lỗi 503 kẹt Đang tải). */
 function ChiTietUuDaiNeuMo(ds, homNay) {
+  if (!ND.daTai && !ND.xemThu) {
+    if (ND.loiTai) return h('p', {class: 'cm-rong ud-loi-tai', role: 'status'}, t('ud_loi_tai', 'Chưa tải được ưu đãi. Quý khách tải lại trang hoặc nhắn fanpage The Vagabond nhé.'));
+    return h('p', {class: 'cm-rong ud-dang-tai', role: 'status'}, t('ud_dang_tai', 'Đang tải ưu đãi...'));
+  }
   if (!UD.mo) return null;
-  if (!ND.daTai && !ND.xemThu) return h('p', {class: 'cm-rong', role: 'status'}, t('ud_dang_tai', 'Đang tải ưu đãi...'));
   const k = ds.find(x => x.id === UD.mo);
   if (k) return h(ChiTietUuDai, {k, homNay, key: k.id});
   return h('div', {class: 'td-het'}, [h('p', {class: 'cm-rong'}, t('ud_het', 'Ưu đãi này đã kết thúc. Quý khách xem các ưu đãi khác nhé.')),
