@@ -10,6 +10,10 @@ import {bienNhan} from '../../../public/web_vue/trang/app.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
 import {t0, tienVN, hangGui, tronMon} from '../../../public/web_vue/kho/thuan.js';
 import {nextTick} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import pathMod from 'node:path';
+const GOC_REPO = pathMod.resolve(pathMod.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 
 let dat = 0, hong = 0;
 const loi = [];
@@ -634,6 +638,53 @@ await ca('v645 đơn đầu: tiền bánh dưới 300.000 nói còn thiếu; mã
   const k4 = taoKho(m4.mt);
   coThem(k4); k4.S.f.phone = '0931224334'; k4.moGio(); await m4.chayHen();
   la('không thẻ', k4.theDonDau.value, null);
+});
+
+/* Anh Việt 08/11 (bản 2): màn Khuyến mãi chọn không bắt mã Zalo, mức giảm
+   khác 50.000, và có hay không hiện thẻ ở bước thanh toán. Phần don_dau dựng
+   bằng ĐÚNG don_dau_web.phan_hoi của máy chủ (python), không chép tay. */
+const DD_MAY = JSON.parse(execFileSync('python3', ['-B', '-c', `
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from vagabond.khung.kiem_thu import nen
+nen.gia_lap()
+from vagabond import don_dau_web as dd
+ch = {"giam": 30000, "toi_thieu": 200000, "can_otp": 0}
+print(json.dumps({"hien": dd.phan_hoi(dd.DU, dict(ch, hien_thanh_toan=1)),
+  "an": dd.phan_hoi(dd.DU, dict(ch, hien_thanh_toan=0)),
+  "otp_an": dd.phan_hoi(dd.CAN_XAC_THUC, {"can_otp": 1, "hien_thanh_toan": 0})}))
+`, GOC_REPO]).toString());
+function mayChuKhongOtp(dd) {
+  const v = {hoi: [], gui: []};
+  return {v, mang: {
+    'vagabond.don_hang.xem_uu_dai': th => { v.hoi.push(JSON.parse(th.don));
+      return {ok: 1, giam: 30000, ap: [{ten: 'Ưu đãi đơn đầu tiên trên web', giam: 30000}], don_dau: {...dd, ap_dung: 1, bo_ma: 0}}; },
+    'vagabond.thanh_vien.gui_ma': th => { v.gui.push(th); return {ok: 1}; },
+  }};
+}
+await ca('v645 bản 2: không bắt mã Zalo thì thẻ Đã giảm ngay, không nút gửi mã, không nhắc xác thực; biểu tượng theo mức giảm (-30K)', async () => {
+  la('máy chủ gửi cờ', [DD_MAY.hien.can_otp, DD_MAY.hien.hien, DD_MAY.hien.giam], [0, 1, 30000]);
+  const {v, mang} = mayChuKhongOtp(DD_MAY.hien);
+  const {mt, chayHen} = moiTruong('2026-11-08T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.S.f.phone = '0931224334'; k.moGio(); await chayHen();
+  const th = k.theDonDau.value;
+  la('thẻ đã giảm', th && th.kieu, 'da_ap');
+  la('biểu tượng', th.ic, '-30K');
+  dung('nói số, không nhắc xác thực: ' + th.phu, th.phu.includes('0931224334') && !/xác thực/i.test(th.phu));
+  dung('tiêu đề theo mức giảm', th.tieu.includes('30.000'));
+  la('tổng trừ 30.000', k.giam.value, 30000);
+  la('không gửi mã nào', v.gui.length, 0);
+});
+await ca('v645 bản 2: Khuyến mãi tắt "hiện ở bước thanh toán" thì không có thẻ nhưng tổng vẫn trừ; bắt mã Zalo thì máy chủ luôn bật lại thẻ', async () => {
+  la('máy chủ: tắt thẻ', DD_MAY.an.hien, 0);
+  const {mang} = mayChuKhongOtp(DD_MAY.an);
+  const {mt, chayHen} = moiTruong('2026-11-08T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.S.f.phone = '0931224334'; k.moGio(); await chayHen();
+  la('không thẻ', k.theDonDau.value, null);
+  la('tổng vẫn trừ', k.giam.value, 30000);
+  la('bắt mã Zalo: thẻ luôn hiện', DD_MAY.otp_an.hien, 1);
 });
 
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');

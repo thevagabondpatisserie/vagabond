@@ -40,7 +40,9 @@ ma = km.the_web(ct(), str(hn))
 qua = km.the_web(ct(name="QUA-SINH-NHAT", ten="Quà sinh nhật thành viên", cach_thuc="Giam gia mon", gia_tri=100,
     giam_toi_da=185000, cach_ma="Ma dung mot lan", ma_co_dinh="", doi_tuong="Theo hang khach", hd_toi_thieu=0,
     tu_ngay=d(-7), den_ngay="", web_anh="", web_mo_ta="Tặng 1 bánh entremet trong tháng sinh nhật."), str(hn))
-print(json.dumps({"ma": ma, "qua": qua, "sap": d(12), "het": d(20)}, ensure_ascii=False))
+from vagabond import don_dau_web
+dau = don_dau_web.the_uu_dai({"can_otp": 1})
+print(json.dumps({"ma": ma, "qua": qua, "sap": d(12), "het": d(20), "dau": dau}, ensure_ascii=False))
 `, GOC, HOM_NAY]).toString());
 const TAY = {id: 'tay-tra-chieu', loai: 'uu_dai', hien: true, tieu_de: 'Tiệc trà chiều cuối tuần', nhom: 'Ưu đãi',
   noi_dung: 'Một bánh và một ly trà.', dieu_kien: 'Áp dụng thứ Bảy, Chủ nhật', bat_dau: MAY.sap, ket_thuc: MAY.het,
@@ -216,6 +218,21 @@ await ca('bấm thẻ: đổi đường dẫn bằng pushState rồi phát popst
   globalThis.window = {parent: {postMessage: m => vet.push(['chon', m.id])}, location: {origin: 'http://x'}};
   try { the.props.onClick({preventDefault: () => { chan++; }}); } finally { globalThis.window = goc; ND.xemThu = false; }
   la('xem thử chỉ chọn khối', [chan, vet[vet.length - 1]], [1, ['chon', 'erp-SN10']]);
+});
+
+await ca('v645 bản 2: thẻ ưu đãi đơn đầu tiên (máy chủ don_dau_web.the_uu_dai) hiện như thẻ ERP: mức giảm, không cần mã, đặt trên web, nút Đặt bánh ngay', async () => {
+  ND.khoi = [MAY.dau, MAY.ma]; ND.daTai = true; ND.xemThu = false; UD.mo = '';
+  const the = tim(ve(), lop('ud-the'));
+  la('đứng đầu', the.map(x => x.props.href), ['#/uu-dai/don-dau-web', '#/uu-dai/erp-SN10']);
+  la('mức giảm', chu(tim(the[0], lop('ud-muc'))), 'Giảm 50.000đ');
+  la('nền chữ khi không ảnh', chu(tim(the[0], lop('ud-nen-chu'))), 'Giảm 50.000đ');
+  UD.mo = 'don-dau-web';
+  const ct = tim(ve(), lop('ud-chi-tiet'))[0];
+  const o = tim(ct, n => String(n.props.class || '').startsWith('td-o')).map(chu);
+  la('ô', [o[0], o[2], o[3]], ['Ưu đãiGiảm 50.000đ', 'Áp dụngĐặt bánh trên web', 'MãKhông cần mã']);
+  dung('điều kiện nhắc mã Zalo', chu(tim(ct, lop('td-muc'))).includes('mã Zalo'));
+  la('nút', tim(ct, lop('td-ung'))[0].props.href, '#/dat-truoc');
+  UD.mo = '';
 });
 
 await ca('phép thuần: tách mức giảm, thời gian, hạn (biên 0, 7, 8 ngày), ô mã', async () => {
