@@ -292,7 +292,7 @@ Từ bản 645 có thêm các kịch bản dưới, mặc định TẮT. Mỗi k
 | Nhắc mã sắp hết hạn | Mã riêng của khách còn số ngày đã đặt mà chưa dùng, nhắc một lần |
 
 **Lưu ý**
-- Ô NHÓM ĐỐI CHỨNG (%): bấy nhiêu phần trăm khách được giữ lại không gửi, để báo cáo thứ Hai so được tin có làm khách quay lại không.
+- Ô NHÓM ĐỐI CHỨNG (%): bấy nhiêu phần trăm khách được giữ lại không gửi, để báo cáo thứ Hai so được tin có làm khách quay lại không. Máy chỉ chia nhóm trong số khách đủ điều kiện nhận tin (đúng đối tượng chương trình, chưa nhận tin ưu đãi tuần này).
 - Thứ tự ưu tiên khi hạn mức ít: đền bù, sinh nhật, nhắc dịp, đơn thứ hai, giới thiệu, mời quay lại, nhắc hạn.
 - Nội dung mẫu đề xuất ở tài liệu ưu đãi Zalo tự động. Mức ưu đãi: việc này do anh Việt quyết.
 

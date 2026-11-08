@@ -1161,6 +1161,7 @@ Từ khoá: đền bù, xin lỗi khách, giao trễ, sai trang trí, sai lời 
 **Lưu ý**
 - Bánh hỏng vẫn phải làm lại hoặc hoàn tiền trước, mã chỉ là phần thêm.
 - Mã vào Ví quà của khách, chỉ chính khách dùng, hạn mặc định 60 ngày. Máy ghi người cấp, lý do, đơn gốc.
+- Chương trình của mỗi mức nên dành cho mọi khách. Chương trình chỉ dành cho một hạng, nhóm hay danh sách khách thì máy báo không áp cho khách ngoài phạm vi và không cấp mã.
 - Mức giảm từng mức: việc này do anh Việt quyết.
 
 ## Ưu đãi đơn đầu tiên trên web: bật, tắt, mức giảm, mã Zalo
