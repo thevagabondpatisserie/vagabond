@@ -55,7 +55,7 @@ function khoi(o) {
     if (m === 'vagabond.khuyen_mai.ds_combo') return Promise.resolve({ combo: [] });
     if (m === 'vagabond.khuyen_mai.danh_muc') return Promise.resolve({});
     if (m === 'vagabond.don_dau_web.doc_cai_dat') {
-      if (o.docLoi) return Promise.reject(new Error('mất mạng'));
+      if (o.docLoi && g.__doLoi !== 0) return Promise.reject(new Error('mất mạng'));
       return Promise.resolve({ cai_dat: Object.assign({}, may.cai_dat), otp_mo: may.otp_mo });
     }
     if (m === 'vagabond.don_dau_web.luu_cai_dat') {
@@ -154,10 +154,23 @@ function luuCuoi(g) { var ds = g.__goi.filter(function (x) { return x.m === 'vag
     bang('máy chủ giữ nguyên', g.__may.cai_dat, MAC);
   });
 
-  await ca('đọc cài đặt lỗi: màn Khuyến mãi vẫn mở bình thường, chỉ không có thẻ đơn đầu', async function () {
+  /* Codex PR #548 (b238ff0bf8): trước đây đọc lỗi thì GIẤU hẳn thẻ, quản lý mất
+     chỗ bật tắt mà không biết máy chủ có thể vẫn đang giảm tiền cho khách. */
+  await ca('Codex #548: đọc cài đặt lỗi thì vẫn có thẻ báo chưa tải được kèm nút Thử lại; màn Khuyến mãi vẫn chạy; Thử lại đọc lại và hiện thẻ đầy đủ', async function () {
     var g = await moMan({ docLoi: 1 });
-    dung('không thẻ', !than(g).querySelector('#kmDonDau'));
+    var the = than(g).querySelector('#kmDonDau');
+    dung('vẫn có thẻ', !!the);
+    var t = chu(the);
+    dung('báo chưa tải được: ' + t, t.indexOf('Chưa tải được') >= 0 && t.indexOf('vẫn đang giảm') >= 0);
+    dung('không có công tắc khi chưa biết trạng thái', !the.querySelector('[data-kmddbat]'));
     dung('màn vẫn có hàng chip', !!than(g).querySelector('[data-kmthe]'));
+    var nut = the.querySelector('#kmDdLai');
+    dung('nút Thử lại cao 44', !!nut && /min-height:44px/.test(nut.getAttribute('style')));
+    var truoc = g.__goi.filter(function (x) { return x.m === 'vagabond.don_dau_web.doc_cai_dat'; }).length;
+    g.__doLoi = 0;
+    await bamMan(g, '#kmDdLai');
+    bang('đọc lại một lần', g.__goi.filter(function (x) { return x.m === 'vagabond.don_dau_web.doc_cai_dat'; }).length - truoc, 1);
+    dung('thẻ đầy đủ, có công tắc', !!than(g).querySelector('[data-kmddbat]'));
   });
 
   await ca('phép thuần: tóm tắt khi không chọn chỗ nào; cảnh báo chỉ khi đang bật, bắt mã và chưa cài mẫu tin', async function () {
