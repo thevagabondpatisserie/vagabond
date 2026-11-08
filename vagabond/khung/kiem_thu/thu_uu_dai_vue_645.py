@@ -19,7 +19,7 @@ def _vue():
 	r = subprocess.run(["node", "vagabond/khung/kiem_thu/hanh_vi/uu_dai_vue_645.mjs"], cwd=GOC, capture_output=True, text=True, timeout=60)
 	la(r.stdout[-1500:] + r.stderr[-1500:], r.returncode, 0)
 	m = re.search(r"(\d+) ca dat, 0 ca hong", r.stdout)
-	dung("đủ số ca", m and int(m.group(1)) >= 13)
+	dung("đủ số ca", m and int(m.group(1)) >= 14)
 
 
 @ca("v645 web Vue: mã băm ?v= của trang khớp nội dung tệp (vượt cache immutable)")

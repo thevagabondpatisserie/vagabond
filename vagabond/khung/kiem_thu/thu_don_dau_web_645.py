@@ -167,7 +167,7 @@ def _():
 	xem, dau, km, _log = _xem(ap_giam=30000, dau=_dau_gia(trang_thai=dd.DU))
 	r = xem({"items": [{"variation_id": "A", "quantity": 1}], "dien_thoai": SO, "ma_uu_dai": "sn10"})
 	la("giảm 50.000, một dòng tên dễ đọc", (r["ok"], r["giam"], r["ap"]), (1, 50000, [{"ten": dd.TEN, "giam": 50000}]))
-	la("phần thẻ cho trang", r["don_dau"], {"trang_thai": dd.DU, "giam": 50000, "toi_thieu": 300000, "ap_dung": 1, "bo_ma": 1})
+	la("phần thẻ cho trang", r["don_dau"], {"trang_thai": dd.DU, "giam": 50000, "toi_thieu": 300000, "can_otp": 1, "hien": 1, "ap_dung": 1, "bo_ma": 1})
 	la("xét theo số trên đơn và tiền bánh máy chủ tính", dau.vet.xet, [("0931224334", 450000)])
 
 

@@ -155,7 +155,7 @@ class _Vet:
 		self.su = []
 
 
-def _dau_gia(trang_thai="khong", da_dat=False, chuoi_da_dat=None, vet=None):
+def _dau_gia(trang_thai="khong", da_dat=False, chuoi_da_dat=None, vet=None, cai_dat=None):
 	"""don_dau_web giả cho tao_don (v645): phép THUẦN dùng bản thật (tron,
 	chin_so, hằng số); phần chạm site (xet, da_dat_web, khoa_so) định sẵn và
 	ghi vết. `chuoi_da_dat`: kết quả cho từng lần gọi da_dat_web liên tiếp
@@ -176,8 +176,10 @@ def _dau_gia(trang_thai="khong", da_dat=False, chuoi_da_dat=None, vet=None):
 
 	ns = types.SimpleNamespace(
 		KHONG=that.KHONG, DU=that.DU, GIAM=that.GIAM, TOI_THIEU=that.TOI_THIEU, TEN=that.TEN,
-		tron=that.tron, chin_so=that.chin_so, phan_hoi=that.phan_hoi,
-		xet=lambda sdt, tien: (v.xet.append((sdt, tien)), trang_thai)[1],
+		tron=that.tron, chin_so=that.chin_so, phan_hoi=that.phan_hoi, chuan=that.chuan,
+		# v645: cài đặt trong màn Khuyến mãi; mặc định đúng bản duyệt mẫu.
+		cau_hinh=lambda: that.chuan(cai_dat),
+		xet=lambda sdt, tien, ch=None: (v.xet.append((sdt, tien)), trang_thai)[1],
 		da_dat_web=da_dat_web, khoa_so=khoa_so, vet=v,
 	)
 	return ns

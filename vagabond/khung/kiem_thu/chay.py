@@ -227,6 +227,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_don_dau_web_645,
 	thu_uu_dai_vue_645,
 	thu_anh_menu_645,
+	thu_don_dau_cai_dat_645,
 )
 
 
