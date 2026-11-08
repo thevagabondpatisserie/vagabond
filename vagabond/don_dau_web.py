@@ -291,11 +291,19 @@ import frappe  # noqa: E402
 
 @frappe.whitelist()
 def doc_cai_dat():
-	"""Màn Khuyến mãi trong app: cài đặt hiện tại và gửi mã Zalo đã mở chưa."""
+	"""Màn Khuyến mãi trong app: cài đặt ĐÃ LƯU và gửi mã Zalo đã mở chưa.
+	Đọc Singles lỗi thì báo lỗi để app hiện thẻ Thử lại, KHÔNG trả cấu hình
+	dự phòng của cau_hinh như thể đã lưu (Codex #548 d49ece60cf): quản lý sẽ
+	thấy "Đang tắt" sai, bấm bật là ghi đè mức giảm, ngưỡng, OTP thật."""
 	from vagabond import khuyen_mai
 
 	khuyen_mai._kiem_quyen()
-	return {"cai_dat": cau_hinh(), "otp_mo": 1 if otp_mo() else 0, "mac_dinh": dict(MAC_DINH)}
+	try:
+		o = doc_o()
+	except Exception:
+		frappe.log_error(title="Vagabond: đọc cài đặt ưu đãi đơn đầu", message=frappe.get_traceback())
+		frappe.throw("máy chủ chưa đọc được cài đặt đã lưu")
+	return {"cai_dat": chuan(o), "otp_mo": 1 if otp_mo() else 0, "mac_dinh": dict(MAC_DINH)}
 
 
 @frappe.whitelist()
