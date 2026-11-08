@@ -120,25 +120,47 @@ def _():
 	la("tắt: không đọc gì", (b, v2), (dd.KHONG, []))
 
 
-@ca("v645 bản 2 cau_hinh: đọc thẳng ô Cài đặt; ô trống ra mặc định; đọc lỗi thì coi như TẮT và ghi Error Log")
-def _():
-	from vagabond import lib
-	log = []
-	with patch.object(lib, "cfg_o", lambda ten: json.dumps({"giam": 30000, "toi_thieu": 200000, "can_otp": 0}) if ten == dd.O_CAI_DAT else None):
-		la("đọc đúng ô", (dd.cau_hinh()["giam"], dd.cau_hinh()["can_otp"]), (30000, 0))
-	with patch.object(lib, "cfg_o", lambda ten: None):
-		la("ô trống", dd.cau_hinh(), dd.chuan(None))
+def _sql_o(gia_tri):
+	"""frappe.db.sql giả trả đúng dòng Singles của ô cài đặt (None: chưa lưu)."""
+	def sql(cau, ts=None, *a, **k):
+		la("hỏi đúng ô", tuple(ts or ()), ("Vagabond Settings", dd.O_CAI_DAT))
+		return [] if gia_tri is None else [(gia_tri,)]
+	return sql
 
-	def hong(ten):
+
+@ca("v645 bản 2 cau_hinh: đọc thẳng ô Cài đặt trong Singles; ô chưa lưu ra mặc định; đọc lỗi thì coi như TẮT và ghi Error Log")
+def _():
+	log = []
+	with patch.object(_fr.db, "sql", _sql_o(json.dumps({"giam": 30000, "toi_thieu": 200000, "can_otp": 0})), create=True):
+		la("đọc đúng ô", (dd.cau_hinh()["giam"], dd.cau_hinh()["can_otp"]), (30000, 0))
+	with patch.object(_fr.db, "sql", _sql_o(None), create=True):
+		la("ô chưa lưu", dd.cau_hinh(), dd.chuan(None))
+	with patch.object(_fr.db, "sql", _sql_o(""), create=True):
+		la("ô rỗng", dd.cau_hinh(), dd.chuan(None))
+
+	def hong(*a, **k):
 		raise RuntimeError("db")
-	with patch.object(lib, "cfg_o", hong), patch.object(_fr, "log_error", lambda *a, **k: log.append(k.get("title"))):
+	with patch.object(_fr.db, "sql", hong, create=True), patch.object(_fr, "log_error", lambda *a, **k: log.append(k.get("title"))):
 		la("lỗi: tắt", dd.cau_hinh()["bat"], 0)
 	la("có Error Log", len(log), 1)
 
 
+@ca("Codex #548 (b238ff0bf8): cơ sở dữ liệu lỗi khi đọc cài đặt (cả đường Singles lẫn đường dự phòng) thì coi như TẮT, không rơi về mặc định đang bật")
+def _():
+	from vagabond import lib
+
+	def hong(*a, **k):
+		raise RuntimeError("mất kết nối cơ sở dữ liệu")
+	log = []
+	with patch.object(_fr.db, "get_single_value", hong, create=True), patch.object(_fr.db, "sql", hong, create=True), \
+			patch.object(lib, "cfg", hong), patch.object(_fr, "log_error", lambda *a, **k: log.append(k.get("title"))):
+		ch = dd.cau_hinh()
+	la("tắt, không giảm oan", (ch["bat"], len(log)), (0, 1))
+
+
 @ca("v645 bản 2 luu_cai_dat: kiểm quyền sửa khuyến mãi; số sai không lưu và báo câu; lưu đúng thì ghi JSON vào ô và đọc lại ra đúng")
 def _():
-	from vagabond import khuyen_mai, lib
+	from vagabond import khuyen_mai
 	ghi, quyen = {}, []
 
 	class Loi(Exception):
@@ -160,7 +182,7 @@ def _():
 	la("đã kiểm quyền hai lần", len(quyen), 2)
 	la("trả cài đặt sạch", (r["cai_dat"]["giam"], r["cai_dat"]["hien_thanh_toan"], r["otp_mo"]), (30000, 0, 0))
 	o = ghi[("Vagabond Settings", dd.O_CAI_DAT)]
-	with patch.object(lib, "cfg_o", lambda ten: o):
+	with patch.object(_fr.db, "sql", _sql_o(o), create=True):
 		la("đọc lại ra đúng", dd.cau_hinh(), r["cai_dat"])
 
 
@@ -189,14 +211,14 @@ def _():
 
 @ca("v645 bản 2 trang Ưu đãi: thẻ đơn đầu đứng trước thẻ ERP; đơn đầu hỏng không kéo mất ưu đãi ERP; trình biên tập liệt kê cả đơn đầu")
 def _():
-	from vagabond import khuyen_mai, lib
+	from vagabond import khuyen_mai
 	from vagabond import noi_dung_web as nw
 	log = []
-	with patch.object(lib, "cfg_o", lambda ten: None), patch.object(khuyen_mai, "the_web_dang_hien", lambda *a: [{"id": "erp-SN10"}]), \
+	with patch.object(dd, "doc_o", lambda: ""), patch.object(khuyen_mai, "the_web_dang_hien", lambda *a: [{"id": "erp-SN10"}]), \
 			patch.object(khuyen_mai, "ds_web_bien_tap", lambda *a: [{"id": "erp-SN10"}]):
 		la("thứ tự", [x["id"] for x in nw._the_uu_dai_erp()], ["don-dau-web", "erp-SN10"])
 		la("biên tập", [x["id"] for x in nw._uu_dai_erp_bien_tap()], ["don-dau-web", "erp-SN10"])
-	with patch.object(lib, "cfg_o", lambda ten: json.dumps({"hien_uu_dai": 0})), patch.object(khuyen_mai, "the_web_dang_hien", lambda *a: [{"id": "erp-SN10"}]):
+	with patch.object(dd, "doc_o", lambda: json.dumps({"hien_uu_dai": 0})), patch.object(khuyen_mai, "the_web_dang_hien", lambda *a: [{"id": "erp-SN10"}]):
 		la("không chọn trang Ưu đãi", [x["id"] for x in nw._the_uu_dai_erp()], ["erp-SN10"])
 	with patch.object(dd, "the_uu_dai", lambda *a: 1 / 0), patch.object(khuyen_mai, "the_web_dang_hien", lambda *a: [{"id": "erp-SN10"}]), \
 			patch.object(_fr, "log_error", lambda *a, **k: log.append(k.get("title"))):
