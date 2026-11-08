@@ -610,6 +610,62 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(loi,[]);
     await c.close();
   });
+  await test('F44 v645 mục Ưu đãi kiểu Tuyển dụng: thẻ ảnh gọn, bấm mở chi tiết, chép mã, nút quay lại, mở thẳng link, ưu đãi đã hết',async()=>{
+    const hn=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const d=n=>{const x=new Date(hn+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10);};
+    const THE=[
+      {id:'erp-SN10',loai:'uu_dai',vi_tri:'uu_dai',hien:true,nguon:'erp',tieu_de:'Giảm 10% sinh nhật',noi_dung:'Mừng sinh nhật cùng Vagabond.',
+        anh:'/assets/vagabond/web_order/og-banh.jpg',mo_ta_anh:'Giảm 10% sinh nhật',nhom:'Mã giảm giá',ma_uu_dai:'SN10',don_toi_thieu:500000,
+        bat_dau:d(-7),ket_thuc:d(3),gio_bat_dau:'',gio_ket_thuc:'',dieu_kien:'Giảm 10%\nĐặt bánh trên web: nhập mã ở bước thanh toán.',dung_web:1},
+      {id:'erp-QUA-SINH-NHAT',loai:'uu_dai',vi_tri:'uu_dai',hien:true,nguon:'erp',tieu_de:'Quà sinh nhật thành viên',noi_dung:'Tặng 1 bánh entremet trong tháng sinh nhật.',
+        anh:'',mo_ta_anh:'',nhom:'Mã giảm giá',ma_uu_dai:'',don_toi_thieu:'',bat_dau:d(-7),ket_thuc:'',gio_bat_dau:'',gio_ket_thuc:'',
+        dieu_kien:'Giảm 100%, tối đa 185.000đ cho món áp dụng\nMã dùng một lần, tiệm gửi riêng cho từng khách.\nChương trình theo hạng hoặc nhóm khách chỉ dùng tại cửa hàng.',dung_web:0}];
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh',permissions:['clipboard-read','clipboard-write']});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
+    const p=await c.newPage();
+    await p.route('**/api/method/vagabond.noi_dung_web.cong_khai*',async r=>{
+      const x=await (await r.fetch()).json();
+      x.message.khoi=(x.message.khoi||[]).filter(k=>k.loai!=='uu_dai').concat(THE);
+      return r.fulfill({json:x});
+    });
+    await p.goto(url+'/web_moi/banh#/uu-dai');
+    await p.locator('.ud-the').first().waitFor({state:'visible',timeout:8000});
+    assert.equal(await p.locator('#noi-uu_dai .td-ds .ud-the').count(),2);
+    assert.match(await p.locator('.ud-the').first().innerText(),/Còn 3 ngày[\s\S]*Giảm 10% sinh nhật[\s\S]*Giảm 10%/i);
+    const ngang=await p.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+    assert.ok(ngang<=0,'không cuộn ngang ở 390px: '+ngang);
+    if(process.env.VGB_ANH_UD) {await p.evaluate(()=>window.scrollTo(0,document.querySelector('#noi-uu_dai').getBoundingClientRect().top+scrollY-120));await p.waitForTimeout(300);await p.screenshot({path:process.env.VGB_ANH_UD+'/ud-ds-390.png'});await p.evaluate(()=>window.scrollTo(0,0));}
+    await p.locator('.ud-the').first().click();
+    await p.waitForFunction(()=>location.hash==='#/uu-dai/erp-SN10' && document.querySelector('.ud-chi-tiet'));
+    assert.equal(await p.locator('.ud-the').count(),0,'chi tiết thay danh sách');
+    assert.equal(await p.evaluate(()=>window.scrollY),0,'cuộn về đầu');
+    assert.match(await p.locator('.ud-chi-tiet .td-luoi').innerText(),/Ưu đãi\s*Giảm 10%[\s\S]*Áp dụng\s*Đặt bánh trên web[\s\S]*Mã\s*SN10/);
+    await p.locator('.ud-chep').click();
+    await p.waitForFunction(()=>/Đã chép mã/.test(document.querySelector('.ud-ma-bao').textContent));
+    assert.equal(await p.evaluate(()=>navigator.clipboard.readText()),'SN10');
+    const nut=await p.locator('.ud-chep').boundingBox(); assert.ok(nut.height>=44,'nút chép cao '+nut.height);
+    if(process.env.VGB_ANH_UD) await p.screenshot({path:process.env.VGB_ANH_UD+'/ud-ct-390.png'});
+    await p.locator('.td-lui').click();
+    await p.waitForFunction(()=>location.hash==='#/uu-dai' && document.querySelectorAll('.ud-the').length===2);
+    await p.goBack(); await p.waitForFunction(()=>location.hash==='#/uu-dai/erp-SN10' && document.querySelector('.ud-chi-tiet'));
+    await p.goto(url+'/web_moi/banh#/uu-dai/erp-QUA-SINH-NHAT'); await p.reload();
+    await p.locator('.ud-chi-tiet').waitFor({state:'visible',timeout:8000});
+    assert.match(await p.locator('.ud-chi-tiet').innerText(),/Tại cửa hàng[\s\S]*The Vagabond gửi riêng từng khách/);
+    assert.equal(await p.locator('.ud-chi-tiet .td-ung').count(),0,'quà tại cửa hàng không mời đặt web');
+    await p.goto(url+'/web_moi/banh#/uu-dai/erp-CU-DA-HET');
+    await p.waitForFunction(()=>/Ưu đãi này đã kết thúc/.test(document.body.innerText));
+    await p.locator('.td-het a').click();
+    await p.waitForFunction(()=>location.hash==='#/uu-dai' && document.querySelectorAll('.ud-the').length===2);
+    if(process.env.VGB_ANH_UD){
+      await p.setViewportSize({width:1440,height:900});
+      await p.screenshot({path:process.env.VGB_ANH_UD+'/ud-ds-1440.png'});
+      await p.locator('.ud-the').first().click(); await p.locator('.ud-chi-tiet').waitFor();
+      await p.screenshot({path:process.env.VGB_ANH_UD+'/ud-ct-1440.png'});
+    }
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
