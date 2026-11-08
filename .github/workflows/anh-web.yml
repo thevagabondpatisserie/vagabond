@@ -12,6 +12,8 @@ on:
       - 'cong_cu/ra_nut_web.py'
       - 'cong_cu/kiem_web_vue_dom.cjs'
       - 'cong_cu/kiem_tuyen_dung_dom.cjs'
+      - 'cong_cu/kiem_anh_menu_dom.cjs'
+      - 'vagabond/public/js/bep/68-bien-tap-menu.js'
       - 'cong_cu/tuyen_dung_mau.json'
       - 'vagabond/tuyen_dung.py'
       - 'vagabond/tuyen_dung_form.py'
@@ -131,3 +133,5 @@ jobs:
           node cong_cu/kiem_web_vue_dom.cjs
           # v625: muc Tuyen dung phuong an A va form /ung-tuyen 3 buoc.
           node cong_cu/kiem_tuyen_dung_dom.cjs
+          # v645: anh mon Bien tap menu: cat vuong, nen duoi 500 KB tren Chromium that; khung anh trang goi mon 1:1.
+          node cong_cu/kiem_anh_menu_dom.cjs
