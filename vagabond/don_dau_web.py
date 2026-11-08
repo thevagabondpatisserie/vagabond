@@ -242,16 +242,25 @@ def otp_mo():
 	return bool((cfg().get("zns_template_otp") or "").strip())
 
 
+def doc_o():
+	"""Chuỗi đang lưu trong ô cài đặt, đọc thẳng bảng Singles (ô vừa ghi đọc
+	lại được ngay, kể cả trước khi migrate tạo ô). Chưa từng lưu thì rỗng.
+	KHÔNG nuốt lỗi như lib.cfg_o (Codex #548): đọc hỏng phải nổi lên để
+	cau_hinh coi như tắt, không lẫn với "chưa lưu" rồi chạy theo mặc định."""
+	import frappe
+
+	ds = frappe.db.sql("select value from `tabSingles` where doctype=%s and field=%s",
+		("Vagabond Settings", O_CAI_DAT))
+	return (ds[0][0] or "") if ds else ""
+
+
 def cau_hinh():
-	"""Cài đặt đang dùng, đọc thẳng bảng Singles (lib.cfg_o: ô vừa ghi đọc lại
-	được ngay, kể cả trước khi migrate tạo ô). Đọc lỗi thì coi như TẮT: không
-	bao giờ cho giảm oan."""
+	"""Cài đặt đang dùng. Ô chưa lưu thì mặc định bản duyệt mẫu; đọc lỗi thì
+	coi như TẮT: không bao giờ cho giảm oan."""
 	import frappe
 
 	try:
-		from vagabond.lib import cfg_o
-
-		return chuan(cfg_o(O_CAI_DAT))
+		return chuan(doc_o())
 	except Exception:
 		frappe.log_error(title="Vagabond: đọc cài đặt ưu đãi đơn đầu", message=frappe.get_traceback())
 		return chuan({"bat": 0})
