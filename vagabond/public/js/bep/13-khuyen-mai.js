@@ -521,8 +521,9 @@ async function scrKhuyenMai() {
     return;
   }
   /* v645: ưu đãi đơn đầu tiên trên web (không phải chương trình ERP). Đọc hỏng
-     thì màn vẫn chạy, chỉ thiếu thẻ này. */
-  try { kmDonDau = await api('vagabond.don_dau_web.doc_cai_dat', {}); } catch (e3) { kmDonDau = null; }
+     thì màn vẫn chạy và thẻ báo chưa tải được kèm nút Thử lại (Codex #548). */
+  try { kmDonDau = await api('vagabond.don_dau_web.doc_cai_dat', {}); }
+  catch (e3) { kmDonDau = { loi: (e3 && e3.message) || 'Không tải được' }; }
   kmData = { ct: (ct && ct.km) || [], cb: (cb && cb.combo) || [] };
   var dsCt = kmData.ct, dsCb = kmData.cb;
   var dangBat = dsCt.filter(function (x) { return x.bat; }).length;
@@ -555,7 +556,9 @@ async function scrKhuyenMai() {
   if (kmThe === 'bc') kmVeBaoCao();
 
   b.onclick = function (e) {
-    var t = e.target.closest('[data-kmddbat]');
+    var t = e.target.closest('[data-kmddlai]');
+    if (t) return go(scrKhuyenMai, true);
+    t = e.target.closest('[data-kmddbat]');
     if (t) return kmDonDauBatTat();
     t = e.target.closest('[data-kmdd]');
     if (t) return kmSheetDonDau();
@@ -610,7 +613,16 @@ function kmDonDauCanhBao(c, otpMo) {
   return '';
 }
 function kmHtmlDonDau(dd) {
-  if (!dd || !dd.cai_dat) return '';
+  if (!dd) return '';
+  /* Codex PR #548: đọc lỗi thì KHÔNG giấu thẻ. Quản lý phải biết trạng thái chưa
+     đọc được (máy chủ có thể vẫn đang giảm cho khách) và có nút đọc lại. */
+  if (!dd.cai_dat) {
+    return '<div class="card" id="kmDonDau" style="padding:12px 14px">' +
+      '<div style="font-size:14.5px;font-weight:700">Ưu đãi đơn đầu tiên trên web</div>' +
+      '<div style="margin-top:6px;font-size:13px;line-height:1.5;color:#9a3412;background:#fff7ed;border-radius:9px;padding:9px 11px">Chưa tải được trạng thái ưu đãi này (' + h(dd.loi || 'lỗi mạng') +
+      '). Web vẫn đang giảm hoặc không giảm theo cài đặt đã lưu. Bấm Thử lại để đọc lại rồi mới bật tắt.</div>' +
+      '<button type="button" class="btn gh" id="kmDdLai" data-kmddlai style="margin:10px 0 0;min-height:44px;width:100%">Thử lại</button></div>';
+  }
   var c = dd.cai_dat, cb = kmDonDauCanhBao(c, +dd.otp_mo);
   return '<div class="card" id="kmDonDau" style="padding:12px 14px">' +
     '<div style="display:flex;align-items:center;gap:10px">' +
@@ -627,7 +639,7 @@ async function kmLuuDonDau(c) {
   return r;
 }
 async function kmDonDauBatTat() {
-  if (!kmDonDau) return;
+  if (!kmDonDau || !kmDonDau.cai_dat) return;
   var c = Object.assign({}, kmDonDau.cai_dat, { bat: +kmDonDau.cai_dat.bat ? 0 : 1 });
   try {
     await kmLuuDonDau(c);
@@ -636,7 +648,7 @@ async function kmDonDauBatTat() {
   } catch (e) { toast((e && e.message) || 'Không đổi được'); }
 }
 function kmSheetDonDau() {
-  if (!kmDonDau) return;
+  if (!kmDonDau || !kmDonDau.cai_dat) return;
   var sua = Object.assign({}, kmDonDau.cai_dat), otpMo = +kmDonDau.otp_mo;
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
