@@ -325,11 +325,18 @@ def _ghi_pancake_sau(ten):
 		return
 	kq = ghi_pancake(d)
 	frappe.db.set_value(DT, ten, "vgb_tt_pancake", kq, update_modified=False)
-	if kq == "loi":
+	if kq in ("loi", "tien_mat"):
+		# Codex PR #548: đường ghép mã muộn cũng phải báo khi Pancake xếp khoản
+		# thẻ vào Tiền mặt; sau lượt này đơn không còn được quét lại.
 		from vagabond.kenh_zalo import bao
 
-		bao("canh_bao", "don_web", "Đơn web %s đã trả online, chưa ghi được lên Pancake" % (d.pancake_display_id or ten),
-			["Khách đã trả online qua %s." % ttt.NHAN_CACH_THU.get(d.vgb_tt_cach, d.vgb_tt_cach), ttt.CAU_PANCAKE["loi"]], khoa="don-web-pancake-loi:%s" % ten,
+		cach = ttt.NHAN_CACH_THU.get(d.vgb_tt_cach, d.vgb_tt_cach)
+		if kq == "loi":
+			muc, tieu, khoa = "canh_bao", "Đơn web %s đã trả online, chưa ghi được lên Pancake", "don-web-pancake-loi:%s"
+		else:
+			muc, tieu, khoa = "thong_bao", "Đơn web %s đã trả online, Pancake xếp vào Tiền mặt", "don-web-pancake-tien-mat:%s"
+		bao(muc, "don_web", tieu % (d.pancake_display_id or ten),
+			["Khách đã trả online qua %s." % cach, ttt.CAU_PANCAKE[kq]], khoa=khoa % ten,
 			link=frappe.utils.get_url_to_form(DT, ten), ma_tin="bh_don_web_da_tra")
 	frappe.db.commit()
 

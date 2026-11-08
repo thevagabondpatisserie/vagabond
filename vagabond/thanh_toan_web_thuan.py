@@ -433,13 +433,19 @@ def da_ghi_pancake(don_doc_lai, than):
 
 
 def the_vao_tien_mat(truoc, sau, than):
-	"""Sau PUT có ô thẻ: Pancake vẫn xếp khoản thẻ vào Tiền mặt (cash tăng đúng
-	bằng số thẻ) thì COD đã giảm đúng nhưng hình thức sai, Sales phải đổi tay.
-	THUẦN."""
+	"""Sau PUT có ô thẻ: Pancake vẫn xếp khoản thẻ vào Tiền mặt thì COD đã giảm
+	đúng nhưng hình thức sai, Sales phải đổi tay. Hai dấu hiệu: cash tăng đúng
+	bằng số thẻ trong lượt này; hoặc (Codex PR #548) lượt TRƯỚC đã ghi và rơi
+	vào Tiền mặt (trước PUT prepaid và cash đều đã mang số thẻ) mà sau PUT cash
+	vẫn còn nguyên. THUẦN."""
 	so = (than or {}).get(O_THE)
 	if not so:
 		return False
-	return _so_o(sau, "cash") - _so_o(truoc, "cash") >= float(so) - 0.5
+	nguong = float(so) - 0.5
+	c_truoc, c_sau = _so_o(truoc, "cash"), _so_o(sau, "cash")
+	if c_sau - c_truoc >= nguong:
+		return True
+	return _so_o(truoc, "prepaid") >= nguong and c_truoc >= nguong and c_sau >= nguong
 
 
 CAU_PANCAKE = {
