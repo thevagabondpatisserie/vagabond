@@ -228,6 +228,10 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_uu_dai_vue_645,
 	thu_anh_menu_645,
 	thu_don_dau_cai_dat_645,
+	# v645 đợt 4: ưu đãi tự động qua Zalo, đền bù, mã của khách tại quầy.
+	thu_zalo_uu_dai_645,
+	# Anh Việt 08/11/2026: mỗi bản deploy phải kèm mục sổ tay.
+	thu_so_tay_phien_ban_645,
 )
 
 

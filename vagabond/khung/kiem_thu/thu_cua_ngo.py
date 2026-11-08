@@ -676,6 +676,8 @@ CUA_NGO = {
 	"greensm.py": ["thu_ket_noi"],
 	# v645: công tắc ưu đãi đơn đầu tiên trên web trong màn Khuyến mãi.
 	"don_dau_web.py": ["doc_cai_dat", "luu_cai_dat"],
+	# v645: quản lý cấp mã đền bù cho đơn gặp sự cố (màn Khuyến mãi).
+	"den_bu.py": ["cap_ma", "xem_don"],
 	"van_don.py": [
 		"aha_bao_gia", "aha_dich_vu", "aha_webhook", "luu_phi_book",
 		# v612: màn gọi xe GreenSM (xem giá giữ ở máy chủ rồi mới gọi xe).
