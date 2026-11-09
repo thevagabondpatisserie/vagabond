@@ -811,3 +811,139 @@ def _hanh_vi_549():
 	for tep in ("chay_nhan_hang.js", "gom_mua_ban_nhap_646.js"):
 		r = subprocess.run(["node", os.path.join(GOC, "khung", "kiem_thu", "hanh_vi", tep)], capture_output=True, text=True, timeout=120)
 		la("%s chạy xanh" % tep, (r.returncode, (r.stderr or "")[-300:]), (0, ""))
+
+
+# ------------------------------------------- ĐỐI SOÁT CHUYỂN KHOẢN: đủ mọi điểm bán (v646)
+# Chị Dung báo 09/11/2026: màn Đối soát chuyển khoản chỉ có TCV và NVHTN, không
+# có Sales. Anh Việt: "có bao nhiêu điểm bán phải hiển thị hết". Gốc: máy chủ
+# lọc "có quầy" mà điểm Sales Online để trống ô quầy; màn chỉ vẽ chip cho điểm
+# có bill.
+
+def _diem_mac_dinh():
+	from vagabond import diem_ban as db
+
+	return [db._chuan(d, i) for i, d in enumerate(db.MAC_DINH)]
+
+
+@ca("v646 Đối soát CK: quy bill về đúng điểm bán, kể cả Sales Online không quầy")
+def _dsck_diem_cua_dong():
+	from vagabond import doi_soat_ck as d
+
+	dd = _diem_mac_dinh()
+	la("bill quầy TCV", d.diem_cua_dong("TCV", "Tại chỗ", "TCVAAAAA", dd), "TCV")
+	la("bill quầy NVHTN", d.diem_cua_dong("NVHTN", "Mang về", "NVHACDEF", dd), "NVHTN")
+	la("đơn Pancake (số đơn, quầy trống) về Sales", d.diem_cua_dong("", "Pancake", "97291", dd), "SALES")
+	la("bill quầy Sales mã SOL, nguồn Mang về (đúng 4 bill trên site 03-07/11)", d.diem_cua_dong("", "Mang về", "SOL3VDS4", dd), "SALES")
+	la("quầy lạ vẫn hiện mã quầy, không giấu", d.diem_cua_dong("Q9", "", "", dd), "Q9")
+	la("quầy viết thường vẫn khớp", d.diem_cua_dong(" tcv ", "", "", dd), "TCV")
+	hai = dd + [dict(dd[0], ma="WEB", quay="", nguon=["Web"])]
+	la("hai điểm không quầy: theo nguồn", d.diem_cua_dong("", "Web", "123", hai), "WEB")
+	la("hai điểm không quầy: mã SOL vẫn về Sales", d.diem_cua_dong("", "Lạ", "SOLACDEF", hai), "SALES")
+	la("hai điểm không quầy, nguồn lạ, mã lạ: chưa rõ điểm", d.diem_cua_dong("", "Lạ", "123", hai), "")
+
+
+@ca("v646 Đối soát CK: chip điểm bán có đủ mọi điểm đang bật, điểm 0 bill vẫn có")
+def _dsck_chip_diem():
+	from vagabond import doi_soat_ck as d
+
+	dd = _diem_mac_dinh()
+	la("ngày không bill nào vẫn đủ ba điểm, đúng thứ tự cài đặt, nhãn đọc được",
+		d.chip_diem(dd, []),
+		[{"ma": "SALES", "ten": "Sales Online"}, {"ma": "TCV", "ten": "TCV"}, {"ma": "NVHTN", "ten": "NVHTN"}])
+	tat = [dict(x, bat=0) if x["ma"] == "NVHTN" else x for x in dd]
+	la("điểm đã tắt không có bill thì không hiện", [x["ma"] for x in d.chip_diem(tat, ["TCV"])], ["SALES", "TCV"])
+	la("điểm đã tắt mà còn bill trong ngày thì vẫn hiện",
+		[x["ma"] for x in d.chip_diem(tat, ["NVHTN", "TCV"])], ["SALES", "TCV", "NVHTN"])
+	la("quầy lạ và bill chưa rõ điểm đều có chip",
+		d.chip_diem(dd, ["Q9", ""])[3:], [{"ma": "Q9", "ten": "Q9"}, {"ma": "", "ten": "Chưa rõ điểm"}])
+
+
+def _chay_ds_bill_ck(hd, theo_don=None, diem=""):
+	"""Chạy THẬT doi_soat_ck.ds_bill_ck trên bộ hoá đơn giả, bộ lọc get_all giả
+	hiểu đúng các toán tử máy chủ dùng. ban_hang thay bằng mô đun giả chỉ có
+	các phép đọc tiền (máy CI không có requests)."""
+	import sys
+	import types
+
+	from vagabond import doi_soat_ck as d
+	from vagabond import ma_bill
+
+	def hop(r, k, v):
+		x = r.get(k)
+		if isinstance(v, (list, tuple)):
+			op, gt = v
+			if op == "<":
+				return (x or 0) < gt
+			if op == "is":
+				return bool(x) if gt == "set" else not x
+		return x == v
+
+	class _R(dict):
+		def __getattr__(self, k):
+			return self.get(k)
+
+	def get_all(dt, filters=None, **k):
+		return [_R(r) for r in hd if all(hop(r, kk, vv) for kk, vv in (filters or {}).items())]
+
+	bh = types.ModuleType("vagabond.ban_hang")
+	bh.RE_MA_BILL = ma_bill.RE_MA
+	bh._sepay_theo_ma_bill = lambda ds: ({"SOLACDEF": {"nhan": 200000}}, [])
+	bh._sepay_theo_tham_chieu = lambda ma: {}
+	bh._sepay_theo_don = lambda shop, ds: {k: v for k, v in (theo_don or {}).items() if k in ds}
+	bh.cfg = lambda: types.SimpleNamespace(pancake_shop_id="S1")
+	import vagabond
+	with um.patch.dict(sys.modules, {"vagabond.ban_hang": bh}), \
+			um.patch.object(vagabond, "ban_hang", bh, create=True), \
+			um.patch.object(d, "co_quyen_ngoai", lambda: True), \
+			um.patch.object(d, "_diem_ds_he", _diem_mac_dinh), \
+			um.patch.object(d.frappe, "get_all", get_all, create=True):
+		return d.ds_bill_ck("2026-11-09", diem)
+
+
+_HD_0911 = [
+	dict(name="HDB-T1", posting_date="2026-11-09", docstatus=1, grand_total=100000, vgb_quay="TCV",
+		vgb_ma_tham_chieu="TCVAAAAA", custom_pancake_display_id="TCVAAAAA", custom_nguon="Tại chỗ",
+		vgb_pt_thanh_toan="Chuyển khoản", vgb_huy=0, vgb_tam_tinh=0, creation="2026-11-09 09:10:00"),
+	dict(name="HDB-26-11-01643", posting_date="2026-11-09", docstatus=1, grand_total=755000, vgb_quay=None,
+		vgb_ma_tham_chieu="ACC-BTN-2026-10144", custom_pancake_display_id="97291", custom_nguon="Pancake",
+		vgb_pt_thanh_toan="Chuyển khoản", vgb_huy=0, vgb_tam_tinh=0, creation="2026-11-09 10:20:00"),
+	dict(name="HDB-S2", posting_date="2026-11-09", docstatus=0, grand_total=300000, vgb_quay=None,
+		vgb_ma_tham_chieu="", custom_pancake_display_id="97400", custom_nguon="Pancake",
+		vgb_pt_thanh_toan="Chuyển khoản", vgb_huy=0, vgb_tam_tinh=0, creation="2026-11-09 11:00:00"),
+	dict(name="HDB-S3", posting_date="2026-11-09", docstatus=0, grand_total=200000, vgb_quay=None,
+		vgb_ma_tham_chieu="SOLACDEF", custom_pancake_display_id="SOLACDEF", custom_nguon="Mang về",
+		vgb_pt_thanh_toan="Chuyển khoản", vgb_huy=0, vgb_tam_tinh=0, creation="2026-11-09 12:00:00"),
+	dict(name="HDB-S4", posting_date="2026-11-09", docstatus=0, grand_total=500000, vgb_quay=None,
+		vgb_ma_tham_chieu="", custom_pancake_display_id="SOLCCCCC", custom_nguon="Mang về",
+		vgb_pt_thanh_toan="Chuyển khoản", vgb_huy=0, vgb_tam_tinh=0, creation="2026-11-09 13:00:00"),
+	# Không lên màn: tiền mặt, đơn huỷ, tạm tính.
+	dict(name="HDB-X1", posting_date="2026-11-09", docstatus=1, grand_total=90000, vgb_quay=None,
+		custom_pancake_display_id="97500", custom_nguon="Pancake", vgb_pt_thanh_toan="Tiền mặt", vgb_huy=0, vgb_tam_tinh=0),
+	dict(name="HDB-X2", posting_date="2026-11-09", docstatus=0, grand_total=90000, vgb_quay=None,
+		custom_pancake_display_id="SOLDDDDD", custom_nguon="Mang về", vgb_pt_thanh_toan="Chuyển khoản", vgb_huy=1, vgb_tam_tinh=0),
+]
+
+
+@ca("v646 Đối soát CK: chạy thật ds_bill_ck, bill Sales Online lên màn, chip đủ mọi điểm (trước: chỉ TCV, NVHTN)")
+def _dsck_ds_bill_sales():
+	kq = _chay_ds_bill_ck(_HD_0911, theo_don={"97400": {"nhan": 300000}})
+	rows = {r["name"]: r for r in kq["rows"]}
+	la("đủ 5 bill chuyển khoản, bỏ tiền mặt và đơn huỷ", sorted(rows), sorted(["HDB-T1", "HDB-26-11-01643", "HDB-S2", "HDB-S3", "HDB-S4"]))
+	la("điểm từng bill", {k: v["diem"] for k, v in rows.items()},
+		{"HDB-T1": "TCV", "HDB-26-11-01643": "SALES", "HDB-S2": "SALES", "HDB-S3": "SALES", "HDB-S4": "SALES"})
+	la("đơn Pancake đã ghi sổ là đủ tiền", rows["HDB-26-11-01643"]["tt"], "du")
+	la("đơn Pancake nháp: tiền khớp theo mạch S<shop>O<đơn>T", (rows["HDB-S2"]["nhan"], rows["HDB-S2"]["tt"]), (300000, "du"))
+	la("bill quầy Sales mã SOL khớp theo mã QR", (rows["HDB-S3"]["nhan"], rows["HDB-S3"]["tt"]), (200000, "du"))
+	la("bill Sales khách chuyển không theo mã QR: chưa khớp, nằm chờ dò tay", rows["HDB-S4"]["tt"], "chua")
+	la("chip đủ ba điểm dù NVHTN không có bill", [x["ma"] for x in kq["diem_ds"]], ["SALES", "TCV", "NVHTN"])
+	loc = _chay_ds_bill_ck(_HD_0911, diem="sales")
+	la("lọc theo điểm Sales (gõ thường) ra đúng 4 bill Sales", sorted(r["name"] for r in loc["rows"]),
+		sorted(["HDB-26-11-01643", "HDB-S2", "HDB-S3", "HDB-S4"]))
+	la("chip vẫn đủ khi đang lọc", [x["ma"] for x in loc["diem_ds"]], ["SALES", "TCV", "NVHTN"])
+
+
+@ca("v646 Đối soát CK: chạy thật màn trong node, có Sales Online và điểm 0 bill")
+def _dsck_hanh_vi_646():
+	r = subprocess.run(["node", os.path.join(GOC, "khung", "kiem_thu", "hanh_vi", "doi_soat_ck_610.js")],
+		capture_output=True, text=True, timeout=180)
+	la("doi_soat_ck_610.js chạy xanh", (r.returncode, (r.stderr or "")[-300:], "HONG" in (r.stdout or "")), (0, "", False))
