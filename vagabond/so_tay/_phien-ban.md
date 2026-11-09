@@ -11,6 +11,9 @@ bản đó chưa có mục ở đây, hay tên mục ghi ở đây không có tr
 Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi đúng một dòng
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
+## v646
+- Bếp đếm 10 món mỗi sáng: Đếm hôm nay
+
 ## v645
 - Cấp mã đền bù cho khách gặp sự cố
 - Ưu đãi đơn đầu tiên trên web: bật, tắt, mức giảm, mã Zalo
