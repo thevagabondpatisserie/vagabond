@@ -348,6 +348,82 @@ def dung_bang_do_tien(gds, bang, khoa_diem, rieng, tien, co_chu, vai, nguon, cun
 	}
 
 
+# v646 (chị Dung báo 09/11/2026, anh Việt: "có bao nhiêu điểm bán phải hiển
+# thị hết"): màn chỉ lấy bill có quầy nên điểm Sales Online (không quầy) biến
+# mất khỏi màn, bill Sales khách chuyển không theo mã QR không có chỗ để khớp.
+NHAN_CHUA_RO = "Chưa rõ điểm"
+
+
+def diem_cua_dong(quay, nguon, ma, diem_ds):
+	"""Mã điểm bán của một bill trên màn Đối soát. THUẦN.
+
+	quay     ô quầy của bill (rỗng với điểm không quầy như Sales Online)
+	nguon    nguồn đơn của bill (Pancake, Tại chỗ...)
+	ma       mã bill gốc (TCVxxxxx, SOLxxxxx, hoặc số đơn Pancake)
+	diem_ds  danh sách điểm bán (diem_ban.ds), có ma, quay, nguon
+
+	Có quầy: điểm của quầy đó (quầy lạ vẫn trả chính mã quầy, không giấu).
+	Không quầy: theo tiền tố mã bill (SOL là Sales), rồi theo nguồn đơn
+	của điểm không quầy, rồi điểm không quầy duy nhất (quy ước cũ
+	`diem_ban.ma_theo_quay`: quầy rỗng là Sales Online). Không đoán được thì
+	trả rỗng, màn hiện ở chip Chưa rõ điểm.
+	"""
+	from vagabond import ma_bill
+
+	diem_ds = [d for d in diem_ds or [] if d.get("ma")]
+	q = str(quay or "").strip().upper()
+	if q:
+		for d in diem_ds:
+			if str(d.get("quay") or "").strip().upper() == q:
+				return d["ma"]
+		return q
+	khong_quay = [d for d in diem_ds if not str(d.get("quay") or "").strip()]
+	m = str(ma or "").strip().upper()
+	if m and re.fullmatch(ma_bill.mau_do(), m):
+		for d in diem_ds:
+			tt = ma_bill.TIEN_TO_DIEM.get(d["ma"])
+			if tt and tt != ma_bill.TIEN_TO_CU and m.startswith(tt):
+				return d["ma"]
+	n = str(nguon or "").strip()
+	if n:
+		for d in khong_quay:
+			if n in (d.get("nguon") or []):
+				return d["ma"]
+	if len(khong_quay) == 1:
+		return khong_quay[0]["ma"]
+	return ""
+
+
+def nhan_diem(d):
+	"""Chữ trên chip của một điểm. THUẦN. Điểm có quầy giữ mã quầy như màn
+	đang hiện (TCV, NVHTN), điểm không quầy dùng tên ngắn (Sales Online)."""
+	q = str(d.get("quay") or "").strip()
+	return q or str(d.get("ten_ngan") or d.get("ten") or d.get("ma") or "")
+
+
+def chip_diem(diem_ds, ma_co_bill):
+	"""Danh sách chip điểm bán của màn. THUẦN.
+
+	Mọi điểm ĐANG BẬT luôn có chip, kể cả ngày không có bill nào (đếm 0), theo
+	thứ tự cài đặt. Điểm đã tắt hay quầy lạ mà vẫn có bill trong ngày thì
+	thêm vào sau. Bill không rõ điểm thì có chip Chưa rõ điểm ở cuối.
+	Trả [{"ma", "ten"}].
+	"""
+	ra, co = [], set()
+	theo_ma = {d["ma"]: d for d in diem_ds or [] if d.get("ma")}
+	for d in diem_ds or []:
+		if d.get("ma") and d.get("bat", 1) and d["ma"] not in co:
+			ra.append({"ma": d["ma"], "ten": nhan_diem(d)})
+			co.add(d["ma"])
+	for m in ma_co_bill or []:
+		if m and m not in co:
+			ra.append({"ma": m, "ten": nhan_diem(theo_ma[m]) if m in theo_ma else m})
+			co.add(m)
+	if "" in set(ma_co_bill or []):
+		ra.append({"ma": "", "ten": NHAN_CHUA_RO})
+	return ra
+
+
 # ------------------------------------------------------------- phần chạm hệ
 
 def _vai():
@@ -371,12 +447,26 @@ def bang_dau_he():
 	return bang_dau(tai_khoan.cai(), ten)
 
 
+def _diem_ds_he():
+	"""Mọi điểm bán (kể cả đã tắt, để bill cũ của điểm đã tắt vẫn có tên).
+	Chạm hệ."""
+	from vagabond import diem_ban
+
+	try:
+		return diem_ban.ds()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "doi_soat_ck: doc diem ban")
+		return []
+
+
 @frappe.whitelist()
 def ds_bill_ck(ngay=None, diem=""):
-	"""Bill quầy trả bằng chuyển khoản trong một ngày, kèm tiền đã khớp.
+	"""Bill trả bằng chuyển khoản trong một ngày của MỌI điểm bán, kèm tiền
+	đã khớp. Chỉ đọc, không ghi.
 
-	Chỉ đọc, không ghi. Bill Pancake (không có quầy) đối soát theo số đơn ở
-	màn Đơn còn treo, không nằm ở đây.
+	v646: gồm cả điểm không quầy (Sales Online: đơn Pancake và bill quầy
+	Sales mã SOL), để khoản khách chuyển không theo mã QR có chỗ khớp tay.
+	`diem_ds` là chip điểm bán: mọi điểm đang bật luôn có mặt.
 	"""
 	if not co_quyen_ngoai():
 		frappe.throw("Màn Đối soát chuyển khoản chỉ mở cho Quản lý cửa hàng và Kế toán.")
@@ -387,34 +477,52 @@ def ds_bill_ck(ngay=None, diem=""):
 		"posting_date": ngay,
 		"docstatus": ["<", 2],
 		"vgb_pt_thanh_toan": "Chuyển khoản",
-		"vgb_quay": ["is", "set"],
 		"vgb_huy": 0,
 		"vgb_tam_tinh": 0,
 	}
+	# v646: bỏ điều kiện "có quầy". Bill Sales Online (đơn Pancake, bill quầy
+	# Sales mã SOL) để trống ô quầy nên trước đây cả điểm Sales biến mất.
 	d = str(diem or "").strip().upper()
-	if d:
-		loc["vgb_quay"] = d
 	ds = frappe.get_all(
 		"Sales Invoice", filters=loc,
 		fields=["name", "creation", "docstatus", "grand_total", "vgb_quay",
 			"vgb_ma_tham_chieu", "custom_pancake_display_id", "customer_name",
-			"vgb_ghi_chu_doi_soat"],
+			"vgb_ghi_chu_doi_soat", "custom_nguon"],
 		order_by="creation desc", limit_page_length=0)
+	diem_ds = _diem_ds_he()
 	theo_ma, _bo = bh._sepay_theo_ma_bill(
 		[r.vgb_ma_tham_chieu for r in ds] + [r.custom_pancake_display_id for r in ds])
+	# Đơn Pancake còn nháp: tiền khớp theo mạch S<shop>O<đơn>T như cửa ghi sổ
+	# (`ban_hang._soat_sepay`). Đơn đã ghi sổ thì đã đủ tiền, khỏi hỏi.
+	theo_don = {}
+	so_don = [str(r.custom_pancake_display_id or "").strip() for r in ds
+		if cint(r.docstatus) == 0 and str(r.custom_pancake_display_id or "").strip()
+		and not bh.RE_MA_BILL.fullmatch(str(r.custom_pancake_display_id or "").strip().upper())]
+	if so_don:
+		try:
+			theo_don = bh._sepay_theo_don(bh.cfg().pancake_shop_id, so_don) or {}
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "doi_soat_ck: doc tien don Pancake")
+			theo_don = {}
 	rows, dem = [], {TT_DU: 0, TT_THIEU: 0, TT_CHUA: 0}
 	for r in ds:
 		ma_tc = str(r.vgb_ma_tham_chieu or "").strip().upper()
 		# Mã bill gốc nằm yên ở custom_pancake_display_id; ô tham chiếu đổi
 		# thành số ngân hàng sau khi gắn tay (Codex #497 v1).
 		ma = str(r.custom_pancake_display_id or "").strip().upper() or ma_tc
-		nhan = max(flt((theo_ma.get(ma) or {}).get("nhan")), flt((theo_ma.get(ma_tc) or {}).get("nhan")))
-		if ma_tc and not bh.RE_MA_BILL.fullmatch(ma_tc):
+		dm = diem_cua_dong(r.vgb_quay, r.custom_nguon, ma, diem_ds)
+		if d and dm != d:
+			continue
+		nhan = max(flt((theo_ma.get(ma) or {}).get("nhan")), flt((theo_ma.get(ma_tc) or {}).get("nhan")),
+			flt((theo_don.get(str(r.custom_pancake_display_id or "").strip()) or {}).get("nhan")))
+		# Bill đã ghi sổ là đủ tiền, khỏi hỏi sao kê theo số tham chiếu từng dòng
+		# (v646: điểm Sales có vài chục đơn mỗi ngày).
+		if cint(r.docstatus) == 0 and ma_tc and not bh.RE_MA_BILL.fullmatch(ma_tc):
 			nhan = max(nhan, flt((bh._sepay_theo_tham_chieu(ma_tc) or {}).get("nhan")))
 		tt = TT_DU if cint(r.docstatus) == 1 else trang_thai_tien(nhan, r.grand_total)
 		dem[tt] = dem.get(tt, 0) + 1
 		rows.append({
-			"name": r.name, "ma": ma, "ma_tc": ma_tc, "quay": r.vgb_quay or "",
+			"name": r.name, "ma": ma, "ma_tc": ma_tc, "quay": r.vgb_quay or "", "diem": dm,
 			"gio": str(r.creation or "")[11:16], "tong": flt(r.grand_total),
 			"nhan": nhan, "tt": tt, "ghi_so": cint(r.docstatus),
 			"khach": r.customer_name or "",
@@ -423,4 +531,5 @@ def ds_bill_ck(ngay=None, diem=""):
 	# Chưa khớp lên đầu, rồi thiếu, rồi đủ; trong nhóm thì mới nhất trước.
 	thu_tu = {TT_CHUA: 0, TT_THIEU: 1, TT_DU: 2}
 	rows.sort(key=lambda x: thu_tu.get(x["tt"], 3))
-	return {"ngay": ngay, "rows": rows, "dem": dem, "diem": d}
+	return {"ngay": ngay, "rows": rows, "dem": dem, "diem": d,
+		"diem_ds": chip_diem(diem_ds, [x["diem"] for x in rows])}
