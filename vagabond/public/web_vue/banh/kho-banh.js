@@ -237,10 +237,13 @@ export function taoKho(moiTruong) {
     return ra;
   });
   const tienNutThem = computed(() => curSize.value ? (curSize.value.p + phuKienChon.value.reduce((a, x) => a + x.p, 0)) * S.soLuong : 0);
-  function gioiHanNhan(id) {
+  function gioiHanNhan(id, nguon) {
     /* Số còn nhận theo ô Dư decor; mã ngoài danh mục decor thì không giới hạn.
        Codex 549 (1eefda8): bánh có mẻ refill thì ngày nhận đang chọn nằm trong
-       khoảng refill (hoặc bánh chỉ còn refill) lấy số còn của refill. */
+       khoảng refill (hoặc bánh chỉ còn refill) lấy số còn của refill.
+       Codex 549 (58ba797): dòng lấy từ tab Hôm nay giới hạn theo số có sẵn hôm
+       nay, không theo mẻ refill tương lai. */
+    if (nguon === 'today') return S.TODAY[id] || 0;
     if (!coTruoc.value) return 0;
     const r = S.TRUOC_RF[id];
     if (r) {
@@ -255,7 +258,7 @@ export function taoKho(moiTruong) {
     const c = S.cur, sz = curSize.value;
     if (!c || !sz) return false;
     if (!kichThuocDangBan(c).some(s => s.id === sz.id)) { toast(t('het_size', 'Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.')); return false; }
-    const gh = gioiHanNhan(sz.id);
+    const gh = gioiHanNhan(sz.id, S.tab === 'today' ? 'today' : 'order');
     const dangSua = S.dongDangSua >= 0 && S.CART[S.dongDangSua] && S.CART[S.dongDangSua].id === sz.id ? S.CART[S.dongDangSua].qty : 0;
     if (gh && daCo(sz.id) - dangSua + S.soLuong > gh) {
       toast(t('dat_banh_04267831d', 'Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới. Cần nhiều hơn quý khách gọi 0931 224 334', {gia_tri_a: gh}));
@@ -280,7 +283,7 @@ export function taoKho(moiTruong) {
        nhiều size thì mở chi tiết cho khách chọn (trả 'mo'). */
     const ds = cheDo === 'today' ? c.sizes.filter(s => S.TODAY[s.id] > 0) : (coTruoc.value ? c.sizes.filter(s => S.TRUOC[s.id] > 0) : c.sizes);
     if (ds.length !== 1) return 'mo';
-    const sz = ds[0], gh = gioiHanNhan(sz.id);
+    const sz = ds[0], gh = gioiHanNhan(sz.id, cheDo === 'today' ? 'today' : 'order');
     if (gh && daCo(sz.id) >= gh) {
       toast(t('dat_banh_04267831d', 'Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới. Cần nhiều hơn quý khách gọi 0931 224 334', {gia_tri_a: gh}));
       return 'chan';
@@ -311,7 +314,7 @@ export function taoKho(moiTruong) {
   function cartQty(i, d) {
     const o = S.CART[i]; if (!o) return;
     if (d > 0) {
-      const gh = o.cm === 0 ? 0 : gioiHanNhan(o.id);
+      const gh = o.cm === 0 ? 0 : gioiHanNhan(o.id, o.nguon);
       const m = o.cm === 0 ? (S.MUA.mon || []).find(x => x.ma === o.id) : null;
       if (gh && daCo(o.id) >= gh) { toast(t('dat_banh_abecb98cf', 'Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới.', {gia_tri_a: gh})); return; }
       if (m && daCo(o.id) >= m.con) { toast(t('dat_banh_3b1a7e8cc', 'Mùa này chỉ còn') + ' ' + m.con + ' ' + t('dat_banh_5faac70d7', 'phần. Cần nhiều hơn quý khách gọi 0931 224 334')); return; }
