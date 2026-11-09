@@ -155,6 +155,8 @@ var KB_LOC = (function () {
 	var NGHI_DEN = 0;   // moc thoi gian duoc phep goi dong bo lai
 	var BTP = {}; // ma -> {so_btp, con_nhan} tu bang BTP cua bep
 	var BTP_SUA = false; // chi bep duoc sua (server quyet qua quyen_btp)
+	/* v646 Refill (anh Việt duyệt 09/11): đơn đặt xa ngày theo mã, lịch refill sắp tới. */
+	var BTP_XA = {}, LICH_RF = [], RF_LOI = "";
 	var SO_NGAY = 4; // hom nay + 3 ngay ke
 
 	function ngayISO(d) {
@@ -288,7 +290,8 @@ var KB_LOC = (function () {
 		/* Dang go do trong o thi khong ve lai, ve lai la mat so dang go. */
 		var dangGo = document.getElementById("kb-inp");
 		if (DANG_SUA !== null && dangGo && document.activeElement === dangGo) return;
-		var khoa = JSON.stringify([NGAY_CHON, DL && DL.dong, DANG_SUA, BTP, BTP_SUA, LOC]);
+		veLichRefill();
+		var khoa = JSON.stringify([NGAY_CHON, DL && DL.dong, DANG_SUA, BTP, BTP_SUA, LOC, BTP_XA]);
 		if (khoa === VE_TRUOC && g.childElementCount) return;
 		VE_TRUOC = khoa;
 		if (!DL || !DL.dong.length) {
@@ -335,6 +338,9 @@ var KB_LOC = (function () {
 					+ oBTP(d.ma_hang, "so_decor", "Đủ decor")
 					+ oGiaoMai(d.ma_hang)
 					+ oNhan2(d.ma_hang)
+					+ oDatXa(d.ma_hang)
+					+ oRefill(d.ma_hang)
+					+ oConRefill(d.ma_hang)
 					+ "</div></div>";
 			});
 		});
@@ -568,6 +574,8 @@ var KB_LOC = (function () {
 				ve();
 				return;
 			}
+			var rfEl = ev.target.closest("[data-refill]");
+			if (rfEl) { moRefill(rfEl.getAttribute("data-refill")); return; }
 			var oEl = ev.target.closest(".kb-o.sua");
 			if (!oEl) return;
 			if (DL && DL.tinh_trang === "Da chot") { bao("Ngày này đã chốt sổ, không sửa nữa", true); return; }
@@ -826,6 +834,101 @@ var KB_LOC = (function () {
 		return '<div class="kb-o kb-nh2 ' + (cn > 0 ? "duong" : (cn < 0 ? "am" : "")) + '"><label>CÒN NHẬN 3 NGÀY</label><b>' + cn + "</b></div>";
 	}
 
+	/* ---------- v646 Refill ---------- */
+	var THU = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+	function ngayNgan(iso) { if (!iso) return ""; var d = new Date(iso + "T00:00:00"); return THU[d.getDay()] + " " + iso.slice(8, 10) + "/" + iso.slice(5, 7); }
+	function congNgay(iso, n) { var d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+
+	function oDatXa(ma) {
+		var x = BTP_XA[ma];
+		if (!x) return '<div class="kb-o kb-xa"><label>Đặt xa ngày</label><b>' + (RF_LOI ? "?" : 0) + '</b></div>';
+		var ds = (x.ds || []).map(function (p) { return p[0].slice(8, 10) + "/" + p[0].slice(5, 7) + ": " + p[1]; }).join(" · ");
+		return '<div class="kb-o kb-xa co"><label>Đặt xa ngày</label><b>' + x.tong + '</b><div class="kb-nguon">' + ds + '</div></div>';
+	}
+
+	function oRefill(ma) {
+		var r = (BTP[ma] || {}).refill;
+		var sua = BTP_SUA ? ' sua" data-refill="' + ma : '';
+		if (!r) return '<div class="kb-o kb-rf' + sua + '"><label>Refill</label><b>' + (BTP_SUA ? "+" : 0) + '</b></div>';
+		return '<div class="kb-o kb-rf co' + sua + '"><label>Refill</label><b>' + r.so + '</b><div class="kb-nguon">' + r.mo_ta + '</div></div>';
+	}
+
+	function oConRefill(ma) {
+		var r = (BTP[ma] || {}).refill;
+		if (!r) return '<div class="kb-o kb-nh2"><label>Còn nhận refill</label><b>0</b></div>';
+		if (r.con === null || r.con === undefined) return '<div class="kb-o kb-nh2"><label>Còn nhận refill</label><b>?</b><div class="kb-nguon xn">chưa đếm được đơn</div></div>';
+		return '<div class="kb-o kb-nh2 ' + (r.con > 0 ? "duong" : (r.con < 0 ? "am" : "")) + '"><label>Còn nhận refill</label><b>' + r.con + '</b><div class="kb-nguon">= ' + r.so + ' trừ ' + r.da_dat + ' đơn</div></div>';
+	}
+
+	function veLichRefill() {
+		var el = document.getElementById("kb-refill"); if (!el) return;
+		if (!LICH_RF.length && !RF_LOI) { el.style.display = "none"; return; }
+		el.style.display = "";
+		el.innerHTML = '<div class="kb-rf-tieu">LỊCH REFILL SẮP TỚI</div>'
+			+ LICH_RF.map(function (r) {
+				return '<div class="kb-rf-dong"><span>' + ngayNgan(r.tu) + ' tới ' + r.den.slice(8, 10) + "/" + r.den.slice(5, 7) + '</span><b>' + (r.ten || r.ma_hang)
+					+ '</b><span class="kb-rf-so">' + r.so + (r.con === null || r.con === undefined ? "" : " · còn " + r.con) + "</span></div>";
+			}).join("")
+			+ (RF_LOI ? '<div class="kb-rf-loi">' + RF_LOI + "</div>" : "");
+	}
+
+	function moRefill(ma) {
+		var r = (BTP[ma] || {}).refill || {};
+		var hn = homNay();
+		var tu = r.tu || congNgay(hn, 1), den = r.den || congNgay(tu, 6);
+		var ten = (BTP[ma] || {}).ten_banh || ma;
+		DANG_SUA = "refill";
+		var chips = "";
+		for (var i = 0; i < 7; i++) {
+			var iso = congNgay(hn, i);
+			chips += '<button type="button" class="kb-rf-chip' + (iso === tu ? " on" : "") + '" data-tu="' + iso + '">' + ngayNgan(iso) + "</button>";
+		}
+		var lop = document.createElement("div");
+		lop.id = "kb-rf-lop";
+		lop.innerHTML = '<div class="kb-rf-tam"><h3>Refill ' + ten + '</h3>'
+			+ '<div class="kb-rf-giai">Mẻ lớn làm sẵn BTP và đủ decor để nhận đơn giao những ngày sau. Số này để nhận đơn trước, không cộng vào tồn.</div>'
+			+ '<label>SỐ BÁNH REFILL</label><input id="kb-rf-so" type="number" min="0" inputmode="numeric" placeholder="Nhập số bánh làm được" value="">'
+			+ '<div class="kb-rf-giai">' + (r.so ? "Đang có " + r.so + " bánh. " : "") + 'Nhập 0 là bỏ refill.</div>'
+			+ '<label>CÓ BÁNH TỪ NGÀY</label><div class="kb-rf-chips">' + chips + '</div><input id="kb-rf-tu" type="date" value="' + tu + '" min="' + hn + '">'
+			+ '<div class="kb-rf-giai">Khách đặt trên web chọn được từ ngày này.</div>'
+			+ '<label>NHẬN ĐƠN TỚI NGÀY</label><input id="kb-rf-den" type="date" value="' + den + '">'
+			+ '<div class="kb-rf-giai">Máy điền sẵn có bánh cộng 6 ngày. Quá ngày này bánh tự rời tab Đặt trước trên web.</div>'
+			+ '<div id="kb-rf-bao" class="kb-rf-giai" style="color:#b91c1c;font-weight:600"></div>'
+			+ '<div class="kb-rf-nut"><button type="button" id="kb-rf-huy">Đóng</button><button type="button" id="kb-rf-luu">Lưu refill</button></div></div>';
+		document.body.appendChild(lop);
+		var oTu = document.getElementById("kb-rf-tu"), oDen = document.getElementById("kb-rf-den");
+		function datTu(v) {
+			oTu.value = v; oDen.value = congNgay(v, 6);
+			[].forEach.call(lop.querySelectorAll(".kb-rf-chip"), function (b) { b.classList.toggle("on", b.getAttribute("data-tu") === v); });
+		}
+		lop.addEventListener("click", function (ev) {
+			var c = ev.target.closest(".kb-rf-chip"); if (c) { datTu(c.getAttribute("data-tu")); return; }
+			if (ev.target.id === "kb-rf-lop" || ev.target.id === "kb-rf-huy") { dongRefill(); return; }
+			if (ev.target.id === "kb-rf-luu") luuRefill(ma);
+		});
+		oTu.addEventListener("change", function () { if (oTu.value) datTu(oTu.value); });
+		document.getElementById("kb-rf-so").focus();
+	}
+
+	function dongRefill() {
+		var l = document.getElementById("kb-rf-lop"); if (l) l.remove();
+		DANG_SUA = null; ve();
+	}
+
+	function luuRefill(ma) {
+		var so = document.getElementById("kb-rf-so").value;
+		var oBao = document.getElementById("kb-rf-bao");
+		if (String(so).trim() === "") { oBao.textContent = "Nhập số bánh refill trước đã. Muốn bỏ refill thì nhập 0."; return; }
+		var h = { "Content-Type": "application/json", "Accept": "application/json" };
+		var tk = window.csrf_token || (window.frappe && frappe.csrf_token);
+		if (tk && tk !== "None") h["X-Frappe-CSRF-Token"] = tk;
+		fetch("/api/method/vagabond.btp.luu_refill", { method: "POST", headers: h, credentials: "same-origin",
+			body: JSON.stringify({ ma_hang: ma, so_refill: so, refill_tu: document.getElementById("kb-rf-tu").value, refill_den: document.getElementById("kb-rf-den").value }) })
+			.then(function (r) { if (!r.ok) { return r.text().then(function (t) { throw new Error(loiMayChu(t)); }); } return r.json(); })
+			.then(function () { dongRefill(); bao("Đã lưu refill"); taiBTP(); })
+			.catch(function (e) { oBao.textContent = loiNguoiDoc(e.message); });
+	}
+
 	function loiMayChu(t) {
 		try {
 			var j = JSON.parse(t);
@@ -859,6 +962,7 @@ var KB_LOC = (function () {
 				var moi = {};
 				(m.dong || []).forEach(function (x) { moi[x.ma_hang] = x; });
 				BTP = moi;
+				BTP_XA = m.dat_xa || {}; LICH_RF = m.lich_refill || []; RF_LOI = m.refill_loi || "";
 				var el = document.getElementById("kb-btp-luc");
 				if (el) el.textContent = m.cap_nhat_luc
 					? "BTP bếp cập nhật " + m.cap_nhat_luc.slice(8, 10) + "/" + m.cap_nhat_luc.slice(5, 7) + " " + m.cap_nhat_luc.slice(11, 16)
