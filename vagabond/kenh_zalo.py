@@ -312,6 +312,9 @@ TIN = {
 	# v645 (anh Việt duyệt 08/11/2026): tổng kết ưu đãi gửi khách qua Zalo (zalo_kich_ban.bao_cao_tuan).
 	"mkt_bao_cao_uu_dai": ("Marketing", "Báo cáo ưu đãi Zalo (Thứ Hai 09:07)",
 		"Thứ Hai hằng tuần: tin đã gửi khách, mã đã phát và đã dùng, doanh thu từ mã, hiệu quả so với nhóm đối chứng.", "ban_tin", "ban_hang"),
+	# v646 (Minh Vũ báo 09/11/2026): Zalo từ chối tin cho khách vì dữ liệu không khớp mẫu.
+	"mkt_zalo_mau_loi": ("Marketing", "Tin Zalo cho khách đang dừng vì lệch mẫu",
+		"Zalo từ chối tin của một kịch bản vì dữ liệu lệch mẫu đã duyệt; tin để chờ, báo một lần mỗi ngày.", "canh_bao", "ban_hang"),
 	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",
