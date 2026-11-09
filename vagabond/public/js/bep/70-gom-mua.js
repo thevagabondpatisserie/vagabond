@@ -12,6 +12,27 @@
    Tiền tố gm = gom mua. */
 
 var GM = { d: null, sua: {}, mo: {} };
+/* Bản nháp tự lưu (Codex 549): số thu mua đã sửa nằm ở GM.sua và được phần 48
+   lưu trên máy. Mở lại từ bản nháp thì 48 đặt vào đây, màn ghép ngay sau khi
+   đọc danh sách (phần sau 48 không móc sdGhep). */
+var gmKhoiPhuc = null;
+
+/* THUẦN: giữ số đã sửa của những món còn trên màn. Món vừa chốt, vừa có người
+   duyệt hay ô gõ hỏng (null) thì bỏ. */
+function gmGiuSua(sua, d) {
+  var co = {}, ra = {};
+  ((d && d.nhom) || []).forEach(function (g) { (g.mon || []).forEach(function (m) { co[m.ma] = 1; }); });
+  Object.keys(sua || {}).forEach(function (k) { if (co[k] && sua[k] != null) ra[k] = sua[k]; });
+  return ra;
+}
+
+/* THUẦN: sau lần chốt `a` (tham số gửi máy chủ) còn bao nhiêu món đã sửa ở
+   nhóm khác. Còn thì bản nháp chưa xong, chốt một nhóm không được xoá nó. */
+function gmConSuaKhac(a) {
+  var chot = {};
+  try { JSON.parse((a && a.dong) || '[]').forEach(function (x) { chot[x.ma] = 1; }); } catch (e) { }
+  return Object.keys(gmGiuSua(GM.sua, GM.d)).filter(function (k) { return !chot[k]; }).length;
+}
 
 /* THUẦN: số mua đang hiện của một món (đã gõ thì theo số gõ, chưa thì số máy). */
 function gmSoMua(m) {
@@ -63,12 +84,14 @@ async function scrGomMua(giu) {
   }
   if (!giu || !GM.d) {
     frame('Gom yêu cầu mua', '<div class="emp"><div class="e1">⏳</div></div>');
-    try { GM.d = await api('vagabond.gom_mua.ds', {}); GM.sua = {}; }
+    /* Tải lại không xoá số đã sửa: chỉ bỏ số của món không còn trên màn. */
+    try { GM.d = await api('vagabond.gom_mua.ds', {}); GM.sua = gmGiuSua(GM.sua, GM.d); }
     catch (e) {
       frame('Gom yêu cầu mua', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' + h(errMsg(e)) + '</div></div>');
       return;
     }
   }
+  if (gmKhoiPhuc) { GM.sua = gmGiuSua(gmKhoiPhuc, GM.d); gmKhoiPhuc = null; }
   var d = GM.d, nhom = d.nhom || [];
   var html = '<div class="card" style="padding:12px 14px;font-size:13.5px;line-height:1.55;color:#374151">' +
     'Máy gom <b>' + d.so_dong + ' dòng</b> từ <b>' + d.so_phieu + ' phiếu</b> yêu cầu mua chưa duyệt, chia theo nhà cung cấp. ' +
@@ -92,18 +115,37 @@ async function scrGomMua(giu) {
   };
 }
 
+/* Nhóm chưa có nhà cung cấp: CHỌN từ danh mục có ô tìm nhanh (Codex 549,
+   AGENTS.md QT-31), không bắt thu mua gõ đúng mã. Trả { ncc, ten } hoặc null. */
+async function gmChonNcc() {
+  var r;
+  busy(1);
+  try { r = await api('vagabond.gom_mua.tim_ncc', {}); }
+  catch (e) { toast(errMsg(e), 6000); return null; }
+  finally { busy(0); }
+  var ds = (r && r.ds) || [];
+  if (!ds.length) { toast('Danh mục chưa có nhà cung cấp nào đang dùng. Thêm ở màn Nhà cung cấp rồi chốt lại.', 6000); return null; }
+  var k = await hoiChon('Chọn nhà cung cấp cho nhóm này',
+    'Đơn mua lập cho nhà được chọn. Gõ vài chữ tên hoặc mã số thuế để tìm nhanh.',
+    ds.map(function (x) { return { k: x.ncc, nhan: x.ten, mo_ta: x.mst ? 'MST ' + x.mst : '' }; }));
+  if (!k) return null;
+  var t = ds.filter(function (x) { return x.ncc === k; })[0];
+  return { ncc: k, ten: (t && t.ten) || k };
+}
+
 async function gmChot(g) {
   if (!g) return;
   var dong = gmDongChot(g);
   var hong = dong.filter(function (x) { return x.sl == null || isNaN(Number(x.sl)) || Number(x.sl) < 0; });
   if (hong.length) return toast('Còn ô số mua để trống hoặc gõ sai, gõ 0 nếu chưa mua đợt này', 5000);
-  var ncc = '';
+  var ncc = '', tenNcc = g.ten_ncc;
   if (!g.ncc) {
-    ncc = await promptSheet('Nhà cung cấp cho nhóm này', 'Gõ đúng mã nhà cung cấp trong danh mục');
-    if (!ncc) return;
+    var c = await gmChonNcc();
+    if (!c) return;
+    ncc = c.ncc; tenNcc = c.ten;
   }
   var so0 = dong.filter(function (x) { return Number(x.sl) === 0; }).length;
-  if (!await confirmSheet('Chốt đơn ' + (g.ncc ? g.ten_ncc : ncc) + '?',
+  if (!await confirmSheet('Chốt đơn ' + tenNcc + '?',
     'Máy duyệt ' + g.so_phieu + ' phiếu xin theo số đang hiện và lập đơn mua ' + (dong.length - so0) + ' món.' +
     (so0 ? '\n\n' + so0 + ' món gõ 0: các dòng xin đó bị từ chối, ghi lý do "chưa mua đợt này".' : '') +
     '\n\nĐơn mua chưa gửi nhà cung cấp; gửi ở màn Đơn mua hàng.', 'Chốt đơn')) return;

@@ -209,7 +209,9 @@ function sdChup(loai, goc) {
     try { s = cfg.lay(); } catch (e) { return null; }
     if (s == null) return null;
   } else if (!goc) return null;
-  var o = sdDocO(goc);
+  /* Man giu TOAN BO trang thai trong lay (khongO) thi khong chup o nhap: dien
+     lai so cu vao o se de len so moi cua may (v646 Codex 549, Gom yeu cau mua). */
+  var o = cfg.khongO ? {} : sdDocO(goc);
   /* Man dang ve tam dong ho cat (chua co o nao) thi giu so lieu o cua lan
      truoc, khong ghi de bang to rong. */
   if (!Object.keys(o).length && SD.oCu && loai === SD.loai) o = SD.oCu;
@@ -834,6 +836,16 @@ sdKhai('chien_dich', 'scrCrmCd', {
   ten: 'Chiến dịch', lay: function () { return crmCdNhap(); }, dat: function (v) { crmCdKhoiPhuc = v; },
   ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('ten'), luu: ['vagabond.crm.luu_chien_dich']
 });
+/* v646 Codex 549: màn Gom yêu cầu mua (70, sau 48), ghép bằng dat() vào
+   gmKhoiPhuc. Chỉ giữ số thu mua đã sửa (khongO): số máy điền sẵn đổi theo
+   phiếu xin mới, điền lại số cũ vào ô là sai. Chốt một nhóm chỉ tính là xong
+   bản nháp khi không còn món đã sửa ở nhóm khác. */
+sdKhai('gom_mua', 'scrGomMua', {
+  ten: 'Gom yêu cầu mua', khongO: 1, lay: function () { return GM.d ? { sua: gmGiuSua(GM.sua, GM.d) } : null; },
+  dat: function (v) { gmKhoiPhuc = (v && v.sua) || null; },
+  tieuDe: function (v) { var n = v && v.sua ? Object.keys(v.sua).length : 0; return n ? n + ' món đã sửa số mua' : ''; },
+  luu: [function (m, a) { return m === 'vagabond.gom_mua.chot' && !gmConSuaKhac(a); }]
+});
 /* v622: hai màn lập phiếu của Tuyển dụng (60-tuyen-dung.js, đứng sau 48 nên
    ghép bằng dat() vào biến khôi phục, màn tự ghép lúc dựng trạng thái). */
 sdKhai('vi_tri_tuyen', 'scrTdViTri', {
@@ -940,6 +952,7 @@ scrTdThemHs = sdBoc('ho_so_ung_vien', 'scrTdThemHs', scrTdThemHs);
 scrQuyKiem = sdBoc('kiem_quy', 'scrQuyKiem', scrQuyKiem);
 scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
 scrQuyChotDau = sdBoc('chot_dau_quy', 'scrQuyChotDau', scrQuyChotDau);
+scrGomMua = sdBoc('gom_mua', 'scrGomMua', scrGomMua);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
