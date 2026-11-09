@@ -575,3 +575,161 @@ def _man_gom():
 	la("tạm tính", r["ta"], 362000)
 	la("gõ rồi: theo số gõ, kể cả 0", r["b"], [{"ma": "BO", "sl": 6000}, {"ma": "SUA", "sl": 0}])
 	la("tạm tính theo số gõ", r["tb"], 1500)
+
+
+# ------------------------------------------------- Codex 549 vòng 43956a7 (bốn góp ý)
+
+
+def _khop(dong, loc):
+	"""Lọc giả theo đúng cú pháp bộ lọc Frappe: bằng, ["<", x], ["in", ds]."""
+	for k, v in loc.items():
+		g = dong.get(k)
+		if isinstance(v, (list, tuple)):
+			op, x = v[0], v[1]
+			if op == "<" and not (g is not None and str(g) < str(x)):
+				return False
+			if op == "in" and g not in x:
+				return False
+		elif g != v:
+			return False
+	return True
+
+
+# Kho giả: phiếu máy soạn, phiếu tay của Administrator, phiếu loại khác.
+NHAP_CU = [
+	{"name": "MAY-1", "material_request_type": "Purchase", "docstatus": 0, "owner": "Administrator",
+		"modified_by": "Administrator", "transaction_date": "2026-11-01", "vgb_may_soan": 1, "set_warehouse": "K1"},
+	{"name": "TAY-MUA", "material_request_type": "Purchase", "docstatus": 0, "owner": "Administrator",
+		"modified_by": "Administrator", "transaction_date": "2026-11-01", "vgb_may_soan": 0, "set_warehouse": "K1"},
+	{"name": "TAY-SX", "material_request_type": "Manufacture", "docstatus": 0, "owner": "Administrator",
+		"modified_by": "Administrator", "transaction_date": "2026-11-01", "vgb_may_soan": 0, "set_warehouse": "K1"},
+	{"name": "TAY-CHUYEN", "material_request_type": "Material Transfer", "docstatus": 0, "owner": "Administrator",
+		"modified_by": "Administrator", "transaction_date": "2026-11-01", "vgb_may_soan": 0, "set_warehouse": "K1"},
+	{"name": "MAY-DA-SUA", "material_request_type": "Purchase", "docstatus": 0, "owner": "Administrator",
+		"modified_by": "kho@vagabond", "transaction_date": "2026-11-01", "vgb_may_soan": 1, "set_warehouse": "K1"},
+	{"name": "MAY-MOI", "material_request_type": "Purchase", "docstatus": 0, "owner": "Administrator",
+		"modified_by": "Administrator", "transaction_date": "2026-11-09", "vgb_may_soan": 1, "set_warehouse": "K1"},
+]
+
+
+def _get_all_gia(kho):
+	def get_all(dt_, filters=None, fields=None, pluck=None, **k):
+		ra = [d for d in kho if _khop(d, filters or {})]
+		if pluck:
+			return [d[pluck] for d in ra]
+		return [dict(d) for d in ra]
+	return get_all
+
+
+@ca("v646 Codex 549 (1): dọn nháp quá 2 ngày chỉ xoá phiếu MÁY soạn chưa ai sửa, không đụng nháp tay của Administrator hay phiếu sản xuất, chuyển kho")
+def _don_nhap_chi_cua_may():
+	xoa = []
+	with um.patch.object(vtd.frappe, "get_all", _get_all_gia(NHAP_CU)), \
+			um.patch.object(vtd.frappe, "delete_doc", lambda dt_, ten, **k: xoa.append(ten), create=True), \
+			um.patch.object(vtd, "nowdate", lambda: "2026-11-09"):
+		n = vtd.don_nhap_may_soan(_gio(8))
+	la("chỉ xoá đúng phiếu máy soạn cũ chưa ai sửa", sorted(xoa), ["MAY-1"])
+	la("đếm đúng", n, 1)
+
+
+@ca("v646 Codex 549 (1): Việc cần làm, nhắc hạn và thẻ tình hình chỉ đếm phiếu máy soạn, không đếm nháp tay của Administrator")
+def _dem_chi_cua_may():
+	with um.patch.object(vtd.frappe, "get_all", _get_all_gia(NHAP_CU)), \
+			um.patch.object(vtd, "cau_hinh", lambda: {"ycmh_tu_dong": {"bat": 1, "han": "10:00"}}):
+		ten = sorted(x["ma"] for x in vtd.viec_ycmh_nhap(None, True))
+	la("chỉ phiếu máy soạn", ten, ["MAY-1", "MAY-DA-SUA", "MAY-MOI"])
+	dung("bộ lọc chung có dấu máy soạn và loại mua", vtd.loc_may_soan() == {"material_request_type": "Purchase", "vgb_may_soan": 1})
+	tao, loi = {}, []
+
+	class _Mr(dict):
+		def __init__(self):
+			self.items = []
+			self.flags = type("F", (), {})()
+
+		def append(self, k, v):
+			self.items.append(v)
+
+		def insert(self):
+			tao.update(vars(self))
+			self.name = "MAY-X"
+	with um.patch.object(vtd, "goi_y_mua", lambda a, b: {"K2": [("BO", "Bơ", "Gram", 5)]}), \
+			um.patch.object(vtd.frappe.db, "exists", lambda dt_, loc=None, **k: any(_khop(d, loc) for d in NHAP_CU)), \
+			um.patch.object(vtd.frappe.db, "get_value", lambda *a, **k: "TV", create=True), \
+			um.patch.object(vtd.frappe.db, "commit", lambda *a, **k: None, create=True), \
+			um.patch.object(vtd.frappe, "new_doc", lambda dt_: _Mr(), create=True), \
+			um.patch.object(vtd.frappe, "log_error", lambda *a, **k: loi.append(a), create=True), \
+			um.patch.object(vtd.frappe, "get_traceback", lambda: __import__("traceback").format_exc(), create=True), \
+			um.patch.object(vtd, "_lam_mot_lan", lambda k: False), \
+			um.patch.object(vtd, "_danh_dau", lambda k: None), \
+			um.patch.object(vtd, "_chua_bao", lambda k: False):
+		vtd.lam_ycmh_tu_dong({"gio": "06:00", "nguong": 3, "du": 7}, _gio(6, 5))
+	la("soạn không lỗi", [x[0][-300:] for x in loi], [])
+	la("phiếu mới mang dấu máy soạn", tao.get("vgb_may_soan"), 1)
+	f = vtd.TRUONG_MOI["Material Request"][0]
+	la("ô dấu có neo, chỉ đọc, không chép khi nhân bản", (f["fieldname"], bool(f.get("insert_after")), f.get("read_only"), f.get("no_copy")),
+		("vgb_may_soan", True, 1, 1))
+	dung("ô dấu được dựng lúc migrate", "_dung_nhom(viec_tu_dong.TRUONG_MOI" in open(os.path.join(GOC, "truong_tu_them.py"), encoding="utf-8").read())
+
+
+def _chay_gm_chot(ncc_nhom, chon="NCC-B"):
+	"""Chạy THẬT gmChot của 70-gom-mua.js trong node, hộp thoại và máy chủ giả.
+	Ghi lại hộp nào được mở và máy chủ nhận gì."""
+	tep = os.path.join(BEP, "70-gom-mua.js")
+	g = {"ncc": ncc_nhom, "ten_ncc": ncc_nhom or "Chưa có nhà cung cấp", "so_mon": 1, "so_phieu": 1,
+		"mon": [{"ma": "BO", "mua": 8000, "xin": 8000, "gia": 0.25}]}
+	ma = ("var vm=require('vm');var fs=require('fs');var ghi={hop:[],api:[]};var c={JSON:JSON,Object:Object,Array:Array,Number:Number,"
+		"String:String,Math:Math,isNaN:isNaN,Promise:Promise,"
+		"toast:function(t){ghi.hop.push(['toast',String(t)]);},busy:function(){},errMsg:function(e){return String(e);},"
+		"promptSheet:function(a,b){ghi.hop.push(['promptSheet',a]);return Promise.resolve('NCC-GO-TAY');},"
+		"hoiChu:function(a){ghi.hop.push(['hoiChu',a]);return Promise.resolve('NCC-GO-TAY');},"
+		"hoiChon:function(t,m,ds){ghi.hop.push(['hoiChon',t,ds.map(function(x){return x.k+'|'+x.nhan+'|'+(x.mo_ta||'')})]);return Promise.resolve(%s);},"
+		"confirmSheet:function(t){ghi.hop.push(['confirm',t]);return Promise.resolve(true);},"
+		"api:function(m,a){ghi.api.push([m,a]);if(m==='vagabond.gom_mua.tim_ncc')return Promise.resolve({ds:[{ncc:'NCC-A',ten:'Bơ sữa An Phú',mst:'0301'},{ncc:'NCC-B',ten:'Nguyễn Bảo',mst:''}]});"
+		"return Promise.resolve({ghi_chu:'ok',don:''});},go:function(){},scrGomMua:function(){return Promise.resolve();}};"
+		"vm.createContext(c);vm.runInContext(fs.readFileSync(%s,'utf8'),c);c.scrGomMua=function(){return Promise.resolve();};"
+		"c.gmChot(%s).then(function(){process.stdout.write(JSON.stringify(ghi));});") % (json.dumps(chon), json.dumps(tep), json.dumps(g))
+	return _node(ma)
+
+
+@ca("v646 Codex 549 (3): nhóm chưa có nhà cung cấp thì CHỌN từ danh mục có tìm nhanh, không bắt gõ mã")
+def _chon_ncc_danh_muc():
+	r = _chay_gm_chot("")
+	hop = [h[0] for h in r["hop"]]
+	dung("không còn ô gõ tự do", "promptSheet" not in hop and "hoiChu" not in hop)
+	chon = [h for h in r["hop"] if h[0] == "hoiChon"]
+	la("mở một ô chọn nhà cung cấp", len(chon), 1)
+	la("ô chọn hiện tên và mã số thuế, giá trị là mã danh mục", chon[0][2], ["NCC-A|Bơ sữa An Phú|MST 0301", "NCC-B|Nguyễn Bảo|"])
+	gui = [a for m, a in r["api"] if m == "vagabond.gom_mua.chot"]
+	la("chốt gửi đúng nhà vừa chọn", (len(gui), gui[0]["ncc_chon"] if gui else None), (1, "NCC-B"))
+	dung("hỏi xác nhận bằng TÊN, không bằng mã", any(h[0] == "confirm" and "Nguyễn Bảo" in h[1] for h in r["hop"]))
+	r = _chay_gm_chot("", chon=None)
+	la("bấm Thôi thì không chốt", [m for m, a in r["api"] if m == "vagabond.gom_mua.chot"], [])
+	r = _chay_gm_chot("NCC-A")
+	la("nhóm đã có nhà cung cấp thì không hỏi", [h[0] for h in r["hop"] if h[0] in ("hoiChon", "promptSheet")], [])
+
+
+@ca("v646 Codex 549 (3): danh mục nhà cung cấp cho ô chọn: bỏ dấu khi tìm, khớp cả mã số thuế, chỉ nhà đang dùng, chỉ thu mua mở được")
+def _tim_ncc_thuan():
+	ds = [{"name": "NCC-1", "supplier_name": "Nguyễn Bảo", "tax_id": "0312"},
+		{"name": "NCC-2", "supplier_name": "Bơ sữa An Phú", "tax_id": ""},
+		{"name": "NCC-3", "supplier_name": "", "tax_id": "0399"}]
+	la("rỗng là tất cả", [x["ncc"] for x in gm.loc_ncc(ds, "")], ["NCC-1", "NCC-2", "NCC-3"])
+	la("gõ không dấu vẫn ra", [x["ncc"] for x in gm.loc_ncc(ds, "nguyen bao")], ["NCC-1"])
+	la("gõ mã số thuế", [x["ncc"] for x in gm.loc_ncc(ds, "0399")], ["NCC-3"])
+	la("không tên thì hiện mã", gm.loc_ncc(ds, "0399")[0]["ten"], "NCC-3")
+	loc = {}
+	with um.patch.object(gm, "_kiem_quyen", lambda: None), \
+			um.patch.object(gm.frappe, "get_all", lambda dt_, filters=None, **k: loc.update(filters or {}) or ds):
+		la("đủ ba nhà", len(gm.tim_ncc()["ds"]), 3)
+	la("chỉ nhà đang dùng", loc.get("disabled"), 0)
+	goi = []
+	with um.patch.object(gm, "_kiem_quyen", lambda: goi.append(1)), um.patch.object(gm.frappe, "get_all", lambda *a, **k: []):
+		gm.tim_ncc("x")
+	la("có kiểm quyền thu mua", goi, [1])
+
+
+@ca("v646 Codex 549 (2)(4): chạy thật màn phiếu yêu cầu mua nháp và bản nháp màn Gom yêu cầu mua trong node")
+def _hanh_vi_549():
+	for tep in ("chay_nhan_hang.js", "gom_mua_ban_nhap_646.js"):
+		r = subprocess.run(["node", os.path.join(GOC, "khung", "kiem_thu", "hanh_vi", tep)], capture_output=True, text=True, timeout=120)
+		la("%s chạy xanh" % tep, (r.returncode, (r.stderr or "")[-300:]), (0, ""))

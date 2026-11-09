@@ -41,6 +41,7 @@ MAN_LAP_PHIEU = [
 	"scrTdViTri", "scrTdThemHs",  # v622: thêm, sửa vị trí tuyển dụng; thêm hồ sơ ứng viên tay
 	"scrQuyKiem", "scrQuyNop",  # v628 Codex #527 vòng 2: kiểm quỹ, nộp tiền mặt vào ngân hàng
 	"scrQuyChotDau",  # v635 Codex #536 vòng 2: chốt số dư đầu quỹ
+	"scrGomMua",  # v646 Codex 549: gom yêu cầu mua, số thu mua sửa trước khi chốt
 ]
 # Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
 # So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
@@ -63,7 +64,9 @@ SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	# lại ở nút mở màn chứ không trong hàm màn, nên dat() ghi thẳng vào biến màn.
 	"scrQuyKiem": "62-quy-tien-mat.js", "scrQuyNop": "62-quy-tien-mat.js",
 	# v635 Codex #536 vòng 2: màn chốt số dư đầu quỹ ở 62, cùng điều kiện như scrQuyKiem.
-	"scrQuyChotDau": "62-quy-tien-mat.js"}
+	"scrQuyChotDau": "62-quy-tien-mat.js",
+	# v646 Codex 549: màn Gom yêu cầu mua ở 70, ghép bằng dat() vào gmKhoiPhuc.
+	"scrGomMua": "70-gom-mua.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",
