@@ -45,6 +45,15 @@ def duoc_duyet():
 	return bool(VAI_DUYET & set(frappe.get_roles()))
 
 
+# Phieu da DEM xong (nguoi dem da chot). "Cho duyet" la bep da can, da chot,
+# chi con cho quan ly ghi so: mon do DA DEM. v646 (bep Pastry bao 09/11/2026):
+# thieu "Cho duyet" thi phieu cho duyet bao lau, 10 mon do bi coi la chua dem
+# va sang hom sau may chia lai dung 10 mon do (KK-26-00072 toi KK-26-00080,
+# 05/11 toi 09/11, cung 10 ma). Duyet hay khong la viec cua so ton, khong phai
+# cua lich dem.
+TRANG_THAI_DA_DEM = ("Chờ duyệt", "Đã chốt", "Đã ghi sổ")
+
+
 def _ngay_dem_gan_nhat(kho):
 	"""Ma hang -> ngay duoc dem gan nhat trong kho do."""
 	rows = frappe.db.sql(
@@ -53,11 +62,11 @@ def _ngay_dem_gan_nhat(kho):
 		from `tabChi Tiet Kiem Ke` ct
 		join `tabPhieu Kiem Ke` p on p.name = ct.parent
 		where p.kho = %s
-		  and p.trang_thai in ('Đã chốt', 'Đã ghi sổ')
+		  and p.trang_thai in %s
 		  and ct.da_dem = 1
 		group by ct.item_code
 		""",
-		(kho,),
+		(kho, TRANG_THAI_DA_DEM),
 		as_dict=True,
 	)
 	return {r["ma"]: getdate(r["ngay"]) for r in rows if r.get("ngay")}
