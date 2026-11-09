@@ -124,7 +124,7 @@ Chọn Chuyển khoản thì máy hiện mã QR điền sẵn số tiền và n�
 - Hoá đơn chưa lưu thì dò chỉ để xem tiền về chưa; lưu xong mới gắn được.
 - Đơn Pancake đã có tài khoản riêng của đơn, đừng gửi thêm mã QR khác cho khách, tiền sẽ mất đường đối soát tự động.
 - Bill chuyển khoản chưa về đủ tiền thì máy chưa tự ghi sổ.
-- Quản lý cửa hàng xem mọi bill chuyển khoản trong ngày ở màn Đối soát chuyển khoản: xem mục "Đối soát bill quầy trả chuyển khoản" (chương Kế toán).
+- Quản lý cửa hàng xem mọi bill chuyển khoản trong ngày ở màn Đối soát chuyển khoản: xem mục "Đối soát bill trả chuyển khoản mọi điểm bán" (chương Kế toán).
 
 
 ## Bill chuyển khoản bị mất, huỷ nhầm hoặc bớt giá
