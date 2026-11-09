@@ -196,6 +196,21 @@ def hieu_luc_tu_dong(dong, hom_nay):
 	return ra
 
 
+def ngay_bat_dau_dem(rf, hom_nay):
+	"""Ngày bắt đầu đếm đơn cho các mẻ refill đang nhận. THUẦN.
+
+	Codex 549 (1eefda8): mẻ đã chạy vài ngày thì đơn giao những ngày trước
+	trong khoảng đã ăn vào mẻ. Đếm từ hôm nay là mở bán lại mẻ đã hết (mẻ 20,
+	ngày 14 đặt đủ 20: ngày 14 còn 0 mà ngày 15 lại còn 20). Đếm từ ngày đầu
+	mẻ sớm nhất."""
+	return min([hom_nay] + [r["tu"] for r in (rf or {}).values() if r.get("tu")])
+
+
+def id_da_dem(dons):
+	"""Mã mọi đơn Pancake trong lần đếm (kể cả đơn huỷ: Pancake đã biết đơn đó). THUẦN."""
+	return sorted({str(o.get("id")) for o in dons or [] if o.get("id") not in (None, "")})
+
+
 def _refill_hieu_luc(hom_nay=None):
 	"""{mã: {so, tu, den, ten}} từ bảng BTP, chỉ refill còn nhận đơn."""
 	import frappe
@@ -204,11 +219,19 @@ def _refill_hieu_luc(hom_nay=None):
 	return hieu_luc_tu_dong(frappe.get_single("BTP Banh O").dong, hom_nay or getdate())
 
 
-def don_tuong_lai(hom_nay=None, moi=False):
-	"""{mã: {ngày: số}} đơn giao từ hôm nay tới 44 ngày sau (Pancake + phiếu đặt).
+def don_tuong_lai(hom_nay=None, moi=False, tu=None):
+	"""{mã: {ngày: số}} đơn giao từ `tu` (mặc định hôm nay) tới 44 ngày sau hôm nay."""
+	return dem_va_id(hom_nay, moi, tu)[0]
 
-	Giữ 5 phút. Gọi Pancake hỏng thì NÉM lỗi: bên gọi phải coi là chưa đếm
-	được, không được coi là 0 đơn (nhận lố).
+
+def dem_va_id(hom_nay=None, moi=False, tu=None):
+	"""({mã: {ngày: số}}, [mã đơn Pancake đã đếm]) cùng MỘT lần kéo Pancake.
+
+	Đếm từ `tu` (ngày đầu mẻ refill sớm nhất, xem ngay_bat_dau_dem) tới 44
+	ngày sau hôm nay, cộng giữ chỗ phiếu đặt. Danh sách mã đơn đi kèm để cửa
+	giữ suất biết đơn web nào Pancake chưa đếm (giu_ton_web). Giữ 5 phút.
+	Gọi Pancake hỏng thì NÉM lỗi: bên gọi phải coi là chưa đếm được, không
+	được coi là 0 đơn (nhận lố).
 	"""
 	import frappe
 	from frappe.utils import getdate
@@ -219,20 +242,22 @@ def don_tuong_lai(hom_nay=None, moi=False):
 	from vagabond.ngay_pancake import ngay_tu_iso
 
 	hn = hom_nay or getdate()
-	khoa = "vgb_refill_don:%s" % hn.isoformat()
+	bd = min(tu or hn, hn)
+	khoa = "vgb_refill_dem:%s:%s" % (hn.isoformat(), bd.isoformat())
 	nho = None if moi else frappe.cache().get_value(khoa)
 	if nho:
-		return nho
+		return nho["dem"], nho["ids"]
 	c = cfg()
 	k = key(c, "pancake_api_key")
-	dau, _ = kiem_banh._khoang_unix(hn)
+	dau, _ = kiem_banh._khoang_unix(bd)
 	_, cuoi = kiem_banh._khoang_unix(hn + timedelta(days=TOI_DA_TRUOC + TOI_DA_KHOANG + 1))
 	dons = kiem_banh._keo_don(c, k, "estimate_delivery_date", dau, cuoi)
 	dong = dong_phieu_dat()
 	giu = gom_giu_cho([dict(d, delivery_date=str(d.get("delivery_date") or "")) for d in dong], TIEN_TO_MA)
 	ra = dem_theo_ngay(dons, ngay_tu_iso, giu)
-	frappe.cache().set_value(khoa, ra, expires_in_sec=GIU_GIAY)
-	return ra
+	ids = id_da_dem(dons)
+	frappe.cache().set_value(khoa, {"dem": ra, "ids": ids}, expires_in_sec=GIU_GIAY)
+	return ra, ids
 
 
 def tinh(hom_nay=None, moi=False, dong=None):
@@ -243,6 +268,7 @@ def tinh(hom_nay=None, moi=False, dong=None):
 
 	hn = hom_nay or getdate()
 	rf = hieu_luc_tu_dong(dong, hn) if dong is not None else _refill_hieu_luc(hn)
+	ids = []
 	loi = "Chưa đếm được đơn đặt xa ngày từ Pancake, máy thử lại sau ít phút."
 	if not rf and moi:
 		return {"refill": {}, "dat_xa": {}, "loi": ""}
@@ -251,7 +277,7 @@ def tinh(hom_nay=None, moi=False, dong=None):
 		don = None
 	else:
 		try:
-			don = don_tuong_lai(hn, moi=moi)
+			don, ids = dem_va_id(hn, moi=moi, tu=ngay_bat_dau_dem(rf, hn))
 			loi = ""
 		except Exception:
 			frappe.cache().set_value("vgb_refill_loi", "1", expires_in_sec=60)
@@ -263,4 +289,5 @@ def tinh(hom_nay=None, moi=False, dong=None):
 		ra[ma] = dict(r, tu=r["tu"].isoformat(), den=r["den"].isoformat(), da_dat=dd,
 			con=(r["so"] - dd) if dd is not None else None, mo_ta=mo_ta(r))
 	xa = {ma: dat_xa(tn, hn) for ma, tn in (don or {}).items()} if don is not None else {}
-	return {"refill": ra, "dat_xa": {m: {"tong": v[0], "ds": v[1]} for m, v in xa.items() if v[0]}, "loi": loi}
+	return {"refill": ra, "dat_xa": {m: {"tong": v[0], "ds": v[1]} for m, v in xa.items() if v[0]}, "loi": loi,
+		"ids": ids}
