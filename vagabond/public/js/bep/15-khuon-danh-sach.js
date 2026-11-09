@@ -557,14 +557,16 @@ function ttnbTienTrinh(r) {
 var DS_KY = [['', 'Mọi ngày'], ['hom_nay', 'Hôm nay'], ['7_ngay', '7 ngày'],
   ['thang_nay', 'Tháng này'], ['thang_truoc', 'Tháng trước'], ['tuy_chon', 'Tuỳ chọn']];
 
-function dsccHang(ho, ds, dem, chon, tatCa, mau) {
-  var so = function (k) { var n = (dem || {})[k || 'tat_ca']; return n ? ' <b>' + money(n) + '</b>' : ''; };
+function dsccHang(ho, ds, dem, chon, tatCa, mau, hienDu) {
+  var so = function (k) { var n = (dem || {})[k || 'tat_ca']; return n ? ' <b>' + money(n) + '</b>' : (hienDu && k ? ' <b>0</b>' : ''); };
   var ra = [];
   if (tatCa) ra.push(posChipNut('data-dscc="' + h(ho) + '|"', h(tatCa) + so(''), !chon, false, mau));
   (ds || []).forEach(function (x) {
     /* Chip không có dòng nào thì ẩn, trừ chip đang chọn: bấm rồi mà chip
        biến mất thì người dùng không biết mình đang lọc theo gì. */
-    if (dem && !dem[x.k] && chon !== x.k) return;
+    /* v646: hàng nào cần thấy đủ danh mục (điểm bán ở màn Đối soát chuyển
+       khoản) thì truyền hienDu, chip 0 vẫn hiện kèm số 0. */
+    if (dem && !dem[x.k] && chon !== x.k && !hienDu) return;
     ra.push(posChipNut('data-dscc="' + h(ho) + '|' + h(x.k) + '"',
       (x.ic ? x.ic + ' ' : '') + h(x.ten) + so(x.k), chon === x.k, false, mau));
   });
@@ -598,7 +600,7 @@ function dsCongCu(c) {
   var hang = [];
   if (c.chang) hang.push(dsccHang('chang', c.chang.ds, c.chang.dem, c.chang.chon || '', c.chang.tatCa || 'Mọi chặng', '#0d9488'));
   (c.ho || []).forEach(function (f) {
-    hang.push(dsccHang(f.k, f.ds, f.dem, f.chon || '', f.tatCa, f.mau || '#4338ca'));
+    hang.push(dsccHang(f.k, f.ds, f.dem, f.chon || '', f.tatCa, f.mau || '#4338ca', f.hienDu));
   });
   if (c.ky) {
     var k = c.ky.chon || '';
