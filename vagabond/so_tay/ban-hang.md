@@ -1137,11 +1137,11 @@ Bếp làm một mẻ lớn (BTP sẵn và đủ decor) để nhận đơn giao 
 |---|---|
 | Đặt xa ngày | Đơn giao sau 3 ngày tới, kèm từng ngày |
 | Refill | Số bánh và khoảng ngày nhận đơn |
-| Còn nhận refill | Số refill trừ đơn giao trong khoảng đó |
+| Còn nhận refill | Số refill trừ mọi đơn giao trong khoảng, kể cả ngày đã qua |
 
 **Lưu ý**
 - Đơn giao trong khoảng refill trừ vào refill, không trừ Đủ decor.
-- Web tab Đặt trước hiện bánh kèm "Có từ" ngày có bánh; ngày ngoài khoảng bị mờ, đặt quá số thì máy chặn.
+- Web tab Đặt trước hiện bánh kèm "Có từ" ngày có bánh; ngày ngoài khoảng bị mờ, đặt quá số thì máy chặn, hai khách cùng đặt suất cuối thì chỉ một người được. Bánh lấy từ tab Hôm nay không bị khoá ngày.
 - Ô hiện "?" là chưa đếm được đơn từ Pancake; lúc đó web tạm ẩn bánh refill.
 
 ## Kiểm bánh theo mùa (Trung thu, Tết, panettone)
