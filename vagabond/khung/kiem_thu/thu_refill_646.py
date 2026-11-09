@@ -322,7 +322,7 @@ class _BoNho:
 		self.d[k] = v
 
 
-def _dem_that(don, nay, dong):
+def _dem_that(don, nay, dong, quay=()):
 	"""Chạy refill.tinh THẬT tới tận dem_va_id: Pancake giả trả đơn theo NGÀY GIAO VN
 	trong khoảng [đầu, cuối) mà máy hỏi, ghi lại ngày đầu đã hỏi."""
 	import frappe
@@ -336,7 +336,7 @@ def _dem_that(don, nay, dong):
 	bn = _BoNho()
 	with um.patch.object(kiem_banh, "_khoang_unix", lambda d: (d, d + dt.timedelta(days=1)), create=True), \
 			um.patch.object(kiem_banh, "_keo_don", keo, create=True), \
-			um.patch.object(dat_banh, "dong_phieu_dat", lambda: [], create=True), \
+			um.patch.object(dat_banh, "dong_tieu_thu", lambda tu, den: [x for x in quay if tu <= rf.ngay(x["delivery_date"]) < den], create=True), \
 			um.patch.object(lib, "cfg", lambda: {}, create=True), um.patch.object(lib, "key", lambda c, n: "k", create=True), \
 			um.patch.object(frappe, "cache", lambda: bn, create=True), \
 			um.patch.object(frappe, "log_error", lambda *a, **k: None, create=True):
@@ -437,3 +437,21 @@ def _bao_ve_suat():
 	moi = _j.loads(doc.snapshot)
 	la("suất refill giữ nguyên, phần khác theo bản mới", (moi.get(g.O_RF), moi.get("x")), (that[g.O_RF], 2))
 	la("ngày trên cột chỉ mục", getattr(doc, g.O_NGAY), "2026-11-15")
+
+
+@ca("v646 Codex 549 (58ba797) refill: phiếu đặt tại quầy đã giao xong vẫn ăn vào mẻ (mẻ 20, phiếu quầy 20 giao xong: còn 0, trước bản sửa còn 20)")
+def _quay_da_giao():
+	ro = dict(ROMAN, so_refill=20)
+	q = lambda tt, sl, giao, hd=0, ngay="2026-11-14": {"item_code": "BAWC00068", "delivery_date": ngay, "qty": sl,
+		"delivered_qty": giao, "billed_qty": hd, "trang_thai": tt}
+	kq, _ = _dem_that([], D8(2026, 11, 14), [ro], [q("To Deliver and Bill", 20, 0)])
+	la("phiếu quầy 20 còn chờ giao: còn 0", kq["refill"]["BAWC00068"]["con"], 0)
+	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("Completed", 20, 20, 20)])
+	la("phiếu quầy 20 đã giao xong: vẫn còn 0 (trước: 20)", kq["refill"]["BAWC00068"]["con"], 0)
+	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("Closed", 20, 5)])
+	la("phiếu đóng sau khi giao 5: ăn 5, còn 15", kq["refill"]["BAWC00068"]["con"], 15)
+	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("Closed", 20, 0, 8)])
+	la("phiếu đóng, giao qua hoá đơn 8 (chưa có phiếu giao): ăn 8, còn 12", kq["refill"]["BAWC00068"]["con"], 12)
+	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("To Bill", 20, 0, 12)])
+	la("đã xuất hoá đơn 12 nhưng phiếu còn mở: ăn đủ 20", kq["refill"]["BAWC00068"]["con"], 0)
+	la("thuần: mã không phải bánh ổ bị bỏ", rf.tieu_thu_phieu_dat([dict(q("Completed", 3, 3), item_code="NVL001")], ("BAWC",)), {})
