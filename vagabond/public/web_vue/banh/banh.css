@@ -156,6 +156,7 @@ body{padding-top:0!important}
 .day.on{border-color:var(--cyan);background:rgba(41,189,179,.10)}
 .day.on b{color:var(--cyan)}
 .day.best{position:relative}
+.day.off{opacity:.4;border-style:dashed}
 .day.best::after{content:'';position:absolute;top:-1px;right:-1px;width:6px;height:6px;background:var(--cyan)}
 .slot{flex:0 0 auto;min-height:44px;border:1px solid var(--line);padding:10px 15px;font-size:12.5px;letter-spacing:.04em;white-space:nowrap;color:var(--fog);transition:.25s}
 .slot.on{border-color:var(--cyan);color:var(--cyan);background:rgba(41,189,179,.10)}

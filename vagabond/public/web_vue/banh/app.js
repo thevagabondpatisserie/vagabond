@@ -96,7 +96,7 @@ export function khoiDong(goc = '#app') {
         const n = S.TODAY[s.id] || 0, tr = S.TRUOC[s.id] || 0, banh = t('dat_banh_3556aabb5', 'bánh');
         const kp = tMon(s.id, 'khau_phan', s.serve);
         return {s, gia: kho.T.tienVN(s.p), nhan: t('dat_banh_2540d6d0f', 'Ø {gia_tri_a}cm{gia_tri_b}', {gia_tri_a: s.cm, gia_tri_b: kp ? ' · ' + kp : ''}),
-          em: n ? kho.T.nhanTon(n, banh, t) : (tr ? t('san_pham_dat_truoc', 'Đặt trước') + ' · ' + kho.T.nhanTon(tr, banh, t) : '')};
+          em: n ? kho.T.nhanTon(n, banh, t) : (tr ? (kho.nhanRefill(s.id) || t('san_pham_dat_truoc', 'Đặt trước')) + ' · ' + kho.T.nhanTon(tr, banh, t) : '')};
       }));
       const tomTatLich = computed(() => { const nh = kho.nhanNgayDangChon(); return nh.ten + ', ' + nh.ngay + ' · ' + kho.slotDangChon.value.t; });
       const hangTomTat = computed(() => {
