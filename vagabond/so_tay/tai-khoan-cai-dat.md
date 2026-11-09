@@ -263,6 +263,7 @@ Gom mọi phiếu đang chờ đúng bạn xử lý theo vai của bạn. Số t
 - Dòng có nhãn GIAO BẠN là việc giao đích danh cho bạn, còn lại là việc chung của bộ phận.
 - Giám đốc chỉ thấy việc hệ trọng (duyệt hồ sơ thanh toán, nộp quỹ tiền mặt, hàng tặng...), không thấy phiếu kho thường ngày.
 - Không thấy phiếu mình nghĩ phải có: có thể phiếu đang ở bước của người khác.
+- Việc máy soạn sẵn (Chốt kế hoạch sản xuất, Ghi nhận sản lượng, Bánh thiếu ngày mai) hiện theo giờ trong Cài đặt tự động hoá. Bấm dòng là mở thẳng màn làm việc.
 
 ## Việc hôm nay: xem nhận định và giao việc
 Từ khoá: việc hôm nay, bảng sáng, giao việc, nhận định, gợi ý việc, việc trễ hạn, báo đã xong, bỏ qua nhận định, morning, daily brief
@@ -577,6 +578,57 @@ Màn này gom mọi khoá kết nối và cấu hình lõi của app. Đầu mà
 - Nhãn bên phải mỗi nhóm: Ổn, số chưa khai, số đang tắt, hoặc số lỗi. Nhóm không có kết nối nào thì không có nhãn.
 - Trang Cài đặt trên máy tính có cùng câu tóm tắt và cùng thẻ việc đỏ, vàng.
 - Ô của nhóm Giao hàng và phí giao trên web: xem mục kế tiếp.
+
+## Cài đặt tự động hoá: việc máy soạn sẵn
+Từ khoá: tự động hoá, việc máy soạn sẵn, luồng tự động, nhắc việc, quá hạn, leo thang, automation, workflow
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Giám đốc, quản trị sửa; quản lý bộ phận xem | Cài đặt tự động hoá (/cai-dat-tu-dong-hoa) | [[Sửa giờ, hạn]] |
+
+Mỗi thẻ là một việc máy soạn sẵn rồi đưa vào Việc cần làm của đúng người. Quá hạn mới nhắn nhóm Zalo.
+
+**Các bước**
+1. Trang chủ, ô [[Cài đặt]], bấm [[Cài đặt tự động hoá]].
+2. Lọc bộ phận bằng chip: [[Bếp]], [[Kho]], [[Thu mua]], [[Bán hàng]], [[Quầy]], [[Kế toán]].
+3. Bật tắt bằng công tắc bên phải tên việc.
+4. Đổi giờ: bấm [[Sửa giờ, hạn]], gõ kiểu 19:00 hoặc 19h, bấm [[Lưu]].
+5. Dòng Hôm nay: chấm xanh là ổn, vàng là còn việc, đỏ là quá hạn.
+6. Bấm [[Mở màn làm việc]] để sang màn người làm dùng.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Giờ chạy ... chưa đúng | Gõ kiểu 19:00 hoặc 19h |
+| Giờ chạy của việc này cố định | Lập kế hoạch 0:00 và đếm 7:30 chạy giờ cố định |
+| Bậc báo Ban giám đốc phải sau bậc báo nhóm Kho | Ô thứ hai phải lớn hơn ô thứ nhất |
+
+**Lưu ý**
+- Số đếm (kiểm kê, bánh làm ra, tiền két) máy để trống cho người nhập. Số đặt, số chuyển máy điền sẵn, người sửa.
+- Yêu cầu mua khi hàng sắp hết không cần khai hạn mức: máy đọc lượng dùng 14 ngày qua. Số ngày sửa ở [[Sửa giờ, hạn]].
+- Trên máy tính: Cài đặt lõi, tab Tự động hoá.
+
+## Các việc máy soạn sẵn và giờ quá hạn
+Từ khoá: danh sách việc tự động, giờ chạy, giờ quá hạn, leo thang
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Giám đốc, quản lý bộ phận | Cài đặt tự động hoá (/cai-dat-tu-dong-hoa) | [[Mở màn làm việc]] |
+
+Giờ trong bảng là mặc định, sửa ở [[Sửa giờ, hạn]].
+
+| Bộ phận | Việc | Máy soạn sẵn | Quá hạn thì |
+|---|---|---|---|
+| Bếp | Lệnh sản xuất từ kế hoạch | 0:00 lập kế hoạch, 5:00 việc Chốt kế hoạch cho bếp trưởng | 07:00 chưa ra lệnh nào: nhắn nhóm Bếp |
+| Bếp | Ghi nhận sản lượng cuối ca | 19:00 việc Ghi nhận sản lượng, mở thẳng lệnh hôm nay | 22:00 còn lệnh chưa ghi: nhắn nhóm Bếp |
+| Kho | Chuyển nguyên liệu cho kế hoạch | 00:15 gửi phiếu chuyển từ Kho tổng 307 sang kho bếp | 05:00 chưa chuyển: nhắn nhóm Kho |
+| Kho | Đếm hôm nay | 07:30 chia 10 món mỗi kho bếp | Như cũ |
+| Kho | Duyệt, ghi sổ phiếu kiểm kê | Việc Phiếu kiểm kê chờ chốt sổ cho quản lý kho | 24 giờ nhắn nhóm Kho, 48 giờ nhắn Ban giám đốc |
+| Kho | Yêu cầu mua khi hàng sắp hết | 06:00 soạn nháp yêu cầu mua cho món còn đủ dùng dưới 3 ngày | 10:00 còn nháp: nhắn nhóm Kho |
+| Thu mua | Gom yêu cầu mua thành đơn mua | 09:00 việc Gom yêu cầu mua cho thu mua | 15:00 còn yêu cầu: nhắn nhóm Thu mua |
+| Bán hàng | Yêu cầu sản xuất cho bánh đang thiếu | 17:00 việc Bánh thiếu ngày mai cho Sales | 21:00 còn thiếu: nhắn nhóm Bán hàng |
+| Quầy | Chốt ca | Luôn chạy | Lệch từ 50.000 đ nhắn Ban giám đốc |
+| Kế toán | Khớp tiền chuyển khoản với bill | Luôn chạy, xem Đối soát chuyển khoản | Như cũ |
 
 ## Cài đặt giao hàng: Ahamove, GreenSM và phí giao trên web
 Từ khoá: GreenSM, môi trường thử, sandbox, nguồn báo phí giao, miễn phí giao, tên miền chính, thử kết nối, Ahamove, địa chỉ API Ahamove, v3, Không phải máy chủ thật của Ahamove, freeship

@@ -41,7 +41,8 @@ Từ phiếu kế hoạch, bếp ra lệnh cho từng món hoặc nhiều món m
 2. Muốn làm khác số máy tính: gõ vào ô Cần trên thẻ.
 3. Bấm [[Hoàn thành, tạo lệnh sản xuất]].
 4. Nhiều món: tick ô vuông đầu các thẻ, bấm [[Tạo lệnh cho N món đã chọn]], rồi [[Tạo N lệnh]].
-5. Bấm [[Xem lệnh đã tạo]] để sang màn Sản xuất.
+5. Chốt cả kế hoạch: chưa tick món nào, bấm [[Chốt kế hoạch: tạo lệnh cho N món còn phải làm]], rồi [[Tạo N lệnh]].
+6. Bấm [[Xem lệnh đã tạo]] để sang màn Sản xuất.
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
@@ -177,7 +178,7 @@ Bấm Hoàn tất là lúc máy trừ nguyên liệu và nhập thành phẩm v�
 **Các bước**
 1. Bấm dấu ✓ cuối dòng lệnh, hoặc mở lệnh rồi bấm [[Hoàn tất]].
 2. Hộp Hoàn thành phiếu: gõ Số lượng làm theo lệnh (để trừ nguyên liệu).
-3. Gõ Thực tế cân được (để nhập kho). Đổi đơn vị ở ô cạnh số nếu cân theo kg hay gram.
+3. Gõ Thực tế cân được (để nhập kho). Ô để trống, bắt buộc nhập. Đổi đơn vị ở ô cạnh số nếu cân theo kg hay gram.
 4. Chip Lần trước gợi ý số hay gõ, bấm vào là điền.
 5. Bấm [[Hoàn thành]].
 6. Có bán thành phẩm làm tươi: hộp Máy làm luôn giúp bếp hiện danh sách, bấm [[Xác nhận tạo lệnh]].

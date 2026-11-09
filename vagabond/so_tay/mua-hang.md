@@ -104,6 +104,34 @@ Hàng đã có ở kho khác của tiệm thì xin kho đó soạn và chuyển 
 - Máy báo "Kho xuất đang soạn phiếu ..." khi bấm Đã nhận hàng: dừng lại. Nhận thêm ở đây là trừ kho hai lần, chờ kho xuất ghi sổ phiếu đó.
 - Cách nhận hàng chuyển về: xem chương Kho.
 
+## Gom yêu cầu mua thành đơn mua
+Từ khoá: gom yêu cầu mua, gom đơn, tổng hợp yêu cầu mua, lập đơn mua nhanh, chốt đơn mua, đơn mua theo nhà cung cấp, purchase order, consolidate
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua | Gom yêu cầu mua (/gom-yeu-cau-mua) | [[Chốt đơn]] |
+
+Máy gom mọi yêu cầu mua các bộ phận đã gửi mà chưa duyệt, chia theo nhà cung cấp, cộng các phiếu cùng món thành một dòng. Thu mua chỉ sửa số rồi chốt.
+
+**Các bước**
+1. Trang chủ, ô [[Thu mua]], bấm [[Gom yêu cầu mua]].
+2. Mỗi nhóm là một nhà cung cấp. Số mua điền sẵn bằng tổng số xin; cạnh tên món có tồn kho tổng và hàng chờ về.
+3. Bấm vào món để xem từng phiếu xin của bộ phận nào.
+4. Sửa ô số mua: mua chẵn thùng thì gõ nhiều hơn, chưa mua đợt này thì gõ 0.
+5. Bấm nút Chốt cuối nhóm, rồi [[Chốt đơn]]. Máy duyệt các phiếu xin và lập đơn mua, mở luôn đơn đó.
+6. Gửi đơn cho nhà cung cấp ở màn Đơn mua hàng như thường.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| ... vừa được người khác duyệt | Bấm tải lại góc trên rồi chốt lại |
+| Nhóm này chưa có nhà cung cấp | Gõ mã nhà cung cấp, hoặc gán nhà cung cấp cho món ở Danh mục nhà cung cấp |
+| Đã lập đơn mua ... ở dạng NHÁP | Thường do thiếu giá: mở đơn trên máy tính, điền giá rồi xác nhận |
+
+**Lưu ý**
+- Số xin của nhân viên giữ nguyên, phần thu mua quyết nằm ở số duyệt. Gõ 0 là từ chối, máy ghi lý do "chưa mua đợt này".
+- Mua ít hơn tổng xin: phiếu cần sớm nhất được trước.
+
 ## Duyệt yêu cầu mua hàng (thu mua duyệt từng dòng)
 Từ khoá: duyệt yêu cầu mua, duyệt YCMH, thu mua duyệt, duyệt đủ, duyệt một nửa, từ chối dòng, cắt bớt, duyệt vượt, gỡ duyệt, duyệt hết, approve purchase request
 

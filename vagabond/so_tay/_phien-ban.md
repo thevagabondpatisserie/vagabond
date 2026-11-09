@@ -13,6 +13,12 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 ## v646
 - Bếp đếm 10 món mỗi sáng: Đếm hôm nay
+- Cài đặt tự động hoá: việc máy soạn sẵn
+- Các việc máy soạn sẵn và giờ quá hạn
+- Gom yêu cầu mua thành đơn mua
+- Ra lệnh sản xuất từ kế hoạch
+- Hoàn tất lệnh sản xuất
+- Xem việc cần làm
 
 ## v645
 - Cấp mã đền bù cho khách gặp sự cố
