@@ -507,6 +507,10 @@ CUA_NGO = {
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
 	"viec_can_lam.py": ["danh_sach", "dem"],
+	# v646 Cài đặt tự động hoá: đọc danh sách việc, lưu bật tắt và giờ một việc.
+	"viec_tu_dong.py": ["ds", "luu"],
+	# v646 Thu mua: gom yêu cầu mua theo nhà cung cấp, chốt một nhóm thành đơn mua.
+	"gom_mua.py": ["ds", "chot"],
 	# v619: chuông thông báo trong app.
 	"chuong.py": ["da_xem", "dem", "thong_bao"],
 	# Gan Assignee that, them 21/08/2026. Chi mot duong DOC, va no chi doc

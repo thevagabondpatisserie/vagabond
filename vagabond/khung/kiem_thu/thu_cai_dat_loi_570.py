@@ -65,7 +65,7 @@ def _():
 	la("không ô nào hiện trên Desk mà thiếu trên app", thieu, [])
 	lech = [fn for fn in can if tren_app.get(fn) != vi_tri[fn]]
 	la("mỗi ô nằm đúng tab, đúng mục như Desk", lech, [])
-	la("app có đúng 8 tab như Desk", [t["fn"] for t in bc], [x[0] for x in t568.TAB])
+	la("app có đủ tab như Desk", [t["fn"] for t in bc], [x[0] for x in t568.TAB])
 	dung("không có tab 'Chung' (nghĩa là không ô nào lọt lên trên tab đầu)",
 		all(t["fn"] != "tab_chung" for t in bc))
 

@@ -236,6 +236,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_so_tay_phien_ban_645,
 	# v646 bếp Pastry: Đếm hôm nay chia lặp 10 món khi phiếu chờ duyệt.
 	thu_kiem_ke_xoay_646,
+	# v646 Cài đặt tự động hoá: việc máy soạn sẵn, nhịp 15 phút, quá hạn báo một lần.
+	thu_viec_tu_dong_646,
 )
 
 

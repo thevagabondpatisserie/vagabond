@@ -39,6 +39,8 @@ TAB = [
 	("tab_tin_nhan", "Tin nhắn & cảnh báo"),
 	("tab_web", "Web & quảng cáo"),
 	("tab_thiet_bi", "Thiết bị & trợ lý"),
+	# v646: tab Tự động hoá, bảng việc máy soạn sẵn (viec_tu_dong.py).
+	("tab_tu_dong_hoa", "Tự động hoá"),
 	("tab_du_lieu_app", "Dữ liệu app tự ghi"),
 ]
 
@@ -124,12 +126,12 @@ def _vi_tri():
 	return ra, thu_tu
 
 
-@ca("cài đặt v568: trang mở đầu bằng tab, đủ tám tab đúng thứ tự")
+@ca("cài đặt v568: trang mở đầu bằng tab, đủ chín tab đúng thứ tự")
 def _():
 	d = _json()
 	la("trường đầu là tab", d["fields"][0]["fieldtype"], "Tab Break")
 	tabs = [(f["fieldname"], f["label"]) for f in d["fields"] if f["fieldtype"] == "Tab Break"]
-	la("tám tab", tabs, TAB)
+	la("chín tab", tabs, TAB)
 	la("field_order khớp danh sách trường", d["field_order"], [f["fieldname"] for f in d["fields"]])
 	dung("mốc modified đã đẩy lên để site nạp lại bố cục", d["modified"] >= "2026-10-04")
 
@@ -266,13 +268,14 @@ def _():
 	# v641: mười lăm ô Hộp thư đối soát doisoat@ (địa chỉ, mật khẩu, máy chủ, hai bảng,
 	# biểu phí, ngưỡng báo Zalo), thêm mới, không đổi tên ô cũ.
 	# v643: ô Hộp thư nội bộ được chuyển tiếp, thêm mới.
+	# v646: bảng Việc tự động (tab Tự động hoá), thêm mới.
 	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), sorted(["html_du_lieu_app", "nguon_phi_giao_web",
 		"onepay_access_code", "onepay_bat", "onepay_cong", "onepay_hash_code", "onepay_merchant", "onepay_query_password",
 		"onepay_query_user", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the",
 		"zalo_oa_anh", "zalo_oa_bat", "zalo_oa_id", "zalo_oa_khoa_webhook", "zalo_oa_uid_thu", "zalo_tac_vu",
 		"ds_bieu_napas", "ds_bieu_noi_dia", "ds_bieu_quoc_te", "ds_lich_thu", "ds_mk_pdf_the", "ds_mk_zip_pos",
 		"ds_nguoi_gui", "ds_nguong_lech", "ds_nguong_phi", "ds_thu_bat", "ds_thu_cong", "ds_thu_dia_chi",
-		"ds_thu_mat_khau", "ds_thu_may_chu", "ds_thu_noi_bo", "ds_thu_thu_muc"]))
+		"ds_thu_mat_khau", "ds_thu_may_chu", "ds_thu_noi_bo", "ds_thu_thu_muc", "viec_tu_dong"]))
 
 
 def _o_cu():

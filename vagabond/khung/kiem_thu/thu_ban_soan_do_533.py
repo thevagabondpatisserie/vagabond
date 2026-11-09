@@ -223,7 +223,13 @@ def _thu_tu():
 		"67-hoa-hong-gioi-thieu.js",
 		# v640: Biên tập menu, mọi thay đổi tự lưu vào bản nháp trên máy chủ
 		# (Vagabond Menu), không có form lập phiếu nháp nhiều ô.
-		"68-bien-tap-menu.js"])
+		"68-bien-tap-menu.js",
+		# v646: Cài đặt tự động hoá, chỉ bật tắt và sửa giờ một việc bằng bảng hỏi
+		# một bước, không có form lập phiếu nháp nhiều ô.
+		"69-tu-dong-hoa.js",
+		# v646: Gom yêu cầu mua, sửa số rồi chốt một nhóm có sẵn, không có form lập
+		# phiếu nháp nhiều ô.
+		"70-gom-mua.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

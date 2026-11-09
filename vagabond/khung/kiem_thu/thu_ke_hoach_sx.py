@@ -406,10 +406,17 @@ def _():
 	dung("có ô tick chọn nhiều món", "data-tick=" in doan)
 
 
-@ca("màn kế hoạch KHÔNG còn nút chốt tổng")
+@ca("màn kế hoạch: nút Chốt kế hoạch chỉ hiện khi CHƯA tick món nào và hỏi lại trước khi tạo lệnh")
 def _():
+	# 29/08/2026 anh Việt bỏ nút chốt tổng (chốt phiếu xong không biết phiếu
+	# nằm đâu). 09/11/2026 (v646, Cài đặt tự động hoá) anh chốt lại: "Giữ mỗi
+	# lần bấm Chốt của bếp trưởng". Nút mới không ghi sổ phiếu kế hoạch theo
+	# kiểu cũ mà đi đúng đường ra lệnh hàng loạt đã có (khsxTaoLenhLo, có hộp
+	# hỏi lại), nên không lặp lại lỗi 21/08 "một chạm đẻ 38 lệnh".
 	m = _js("38-ke-hoach-sx.js")
-	la("không còn nút chốt", "khsxChot" in m, False)
+	dung("nút Chốt đi qua đường ra lệnh hàng loạt", "await khsxTaoLenhLo(ds.map(" in m)
+	dung("chỉ hiện khi chưa tick món nào", ": (conLam.length ? '<button class=\"btn gr\" id=\"khsxChot\"" in m)
+	dung("đường hàng loạt luôn hỏi lại", "confirmSheet('Tạo lệnh cho ' + ds.length + ' món?'" in m)
 	dung("có nút ra lệnh hàng loạt", "khsxLenhLo" in m)
 	dung("có đường mở danh sách lệnh đã tạo", "scrMfgList" in m)
 
@@ -1073,7 +1080,7 @@ def _():
 	# ma nhan lai; quen mot cho la ghi sai kho gap nghin lan.
 	m = _js("05-san-xuat.js")
 	dung("nhân hệ số khi trả về", "theo_lenh: r3(v(i1) * hs)" in m)
-	dung("cả ô cân thực tế", "thuc_te: r3((cham ? v(i2) : v(i1)) * hs)" in m)
+	dung("cả ô cân thực tế", "thuc_te: r3(v(i2) * hs)" in m)
 
 
 @ca("đổi đơn vị thì quy đổi luôn con số đang hiện")
