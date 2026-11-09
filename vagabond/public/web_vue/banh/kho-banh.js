@@ -94,8 +94,11 @@ export function taoKho(moiTruong) {
      tới nhận tới bị mờ (máy chủ vẫn chặn lại ở ton_don_web). */
   function isoNgayThu(i) { const d = new Date(bay()); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); return T.isoNgay(d); }
   function refillChan(i) {
+    /* Codex 549 (1eefda8): dòng thêm từ tab Hôm nay lấy bánh có sẵn, không
+       thuộc mẻ refill tương lai, nên không khoá ngày. */
     const iso = isoNgayThu(i);
-    return S.CART.map(o => S.TRUOC_RF[o.id]).find(r => r && r.chi_refill && (iso < r.tu || iso > r.den)) || null;
+    return S.CART.filter(o => o.nguon !== 'today').map(o => S.TRUOC_RF[o.id])
+      .find(r => r && r.chi_refill && (iso < r.tu || iso > r.den)) || null;
   }
   function ngayNgan(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : ''; }
   function nhanRefill(id) {
@@ -235,8 +238,15 @@ export function taoKho(moiTruong) {
   });
   const tienNutThem = computed(() => curSize.value ? (curSize.value.p + phuKienChon.value.reduce((a, x) => a + x.p, 0)) * S.soLuong : 0);
   function gioiHanNhan(id) {
-    /* Số còn nhận theo ô Dư decor; mã ngoài danh mục decor thì không giới hạn. */
+    /* Số còn nhận theo ô Dư decor; mã ngoài danh mục decor thì không giới hạn.
+       Codex 549 (1eefda8): bánh có mẻ refill thì ngày nhận đang chọn nằm trong
+       khoảng refill (hoặc bánh chỉ còn refill) lấy số còn của refill. */
     if (!coTruoc.value) return 0;
+    const r = S.TRUOC_RF[id];
+    if (r) {
+      const iso = isoNgayThu(picked.value);
+      if (r.chi_refill || (iso >= r.tu && iso <= r.den)) return r.con || 0;
+    }
     return S.TRUOC[id] || 0;
   }
   const daCo = id => T.daCoTrongGio(S.CART, id);
