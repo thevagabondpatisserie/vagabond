@@ -494,6 +494,21 @@ def dong_phieu_dat(ngay=None):
 	)
 
 
+def dong_tieu_thu(tu, den):
+	"""Dòng phiếu đặt bánh ổ giao trong [tu, den) kèm trạng thái phiếu, kể cả
+	phiếu đã giao xong hay đã đóng (bỏ phiếu huỷ, phiếu nháp).
+
+	v646 Codex 549 (58ba797): mẻ refill cần biết phiếu tại quầy ĐÃ ĂN bao
+	nhiêu bánh, không chỉ phần còn giữ chỗ (dong_phieu_dat bỏ phiếu đã đóng,
+	gom_giu_cho trừ phần đã giao). Một câu nối có lọc ngày giao, không kéo
+	mọi phiếu từ trước tới nay."""
+	return frappe.db.sql(
+		"""select i.item_code, i.delivery_date, i.qty, i.delivered_qty, i.billed_qty, s.status as trang_thai
+		from `tabSales Order Item` i join `tabSales Order` s on s.name = i.parent
+		where s.docstatus = 1 and s.status != 'Cancelled' and i.delivery_date >= %s and i.delivery_date < %s""",
+		(str(getdate(tu)), str(getdate(den))), as_dict=True)
+
+
 def dem_giu_cho(ngay):
 	"""Số bánh ổ đang được giữ chỗ cho MỘT ngày nhận. {mã hàng: số}.
 

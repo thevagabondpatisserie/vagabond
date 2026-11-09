@@ -206,6 +206,35 @@ def ngay_bat_dau_dem(rf, hom_nay):
 	return min([hom_nay] + [r["tu"] for r in (rf or {}).values() if r.get("tu")])
 
 
+def tieu_thu_phieu_dat(dong, tien_to):
+	"""{ngày iso: {mã: số}} bánh ổ phiếu đặt tại quầy ĐÃ ĂN vào mẻ. THUẦN.
+
+	Codex 549 (58ba797): phiếu còn mở tính cả số đặt (phần đã giao lẫn phần còn
+	giữ); phiếu đã đóng chỉ tính phần đã giao (lấy số lớn hơn giữa đã giao và
+	đã xuất hoá đơn, cùng luật dat_banh.con_giu_cho). Trước đây chỉ đếm phần
+	còn giữ chỗ, nên phiếu 20 bánh giao xong là mẻ lại "còn 20"."""
+	from vagabond.dat_banh import TT_NHA_CHO, la_banh_o
+
+	def so(x):
+		try:
+			return max(0, int(float(x or 0)))
+		except (TypeError, ValueError):
+			return 0
+
+	ra = {}
+	for d in dong or []:
+		ma = str(d.get("item_code") or "").strip().upper()
+		g = ngay(d.get("delivery_date"))
+		if not g or not la_banh_o(ma, tien_to):
+			continue
+		da = max(so(d.get("delivered_qty")), so(d.get("billed_qty")))
+		n = da if str(d.get("trang_thai") or "").strip() in TT_NHA_CHO else max(da, so(d.get("qty")))
+		if n > 0:
+			m = ra.setdefault(g.isoformat(), {})
+			m[ma] = m.get(ma, 0) + n
+	return ra
+
+
 def id_da_dem(dons):
 	"""Mã mọi đơn Pancake trong lần đếm (kể cả đơn huỷ: Pancake đã biết đơn đó). THUẦN."""
 	return sorted({str(o.get("id")) for o in dons or [] if o.get("id") not in (None, "")})
@@ -237,7 +266,8 @@ def dem_va_id(hom_nay=None, moi=False, tu=None):
 	from frappe.utils import getdate
 
 	from vagabond import kiem_banh
-	from vagabond.dat_banh import TIEN_TO_MA, dong_phieu_dat, gom_giu_cho
+	from vagabond import dat_banh
+	from vagabond.dat_banh import TIEN_TO_MA
 	from vagabond.lib import cfg, key
 	from vagabond.ngay_pancake import ngay_tu_iso
 
@@ -252,8 +282,7 @@ def dem_va_id(hom_nay=None, moi=False, tu=None):
 	dau, _ = kiem_banh._khoang_unix(bd)
 	_, cuoi = kiem_banh._khoang_unix(hn + timedelta(days=TOI_DA_TRUOC + TOI_DA_KHOANG + 1))
 	dons = kiem_banh._keo_don(c, k, "estimate_delivery_date", dau, cuoi)
-	dong = dong_phieu_dat()
-	giu = gom_giu_cho([dict(d, delivery_date=str(d.get("delivery_date") or "")) for d in dong], TIEN_TO_MA)
+	giu = tieu_thu_phieu_dat(dat_banh.dong_tieu_thu(bd, hn + timedelta(days=TOI_DA_TRUOC + TOI_DA_KHOANG + 1)), TIEN_TO_MA)
 	ra = dem_theo_ngay(dons, ngay_tu_iso, giu)
 	ids = id_da_dem(dons)
 	frappe.cache().set_value(khoa, {"dem": ra, "ids": ids}, expires_in_sec=GIU_GIAY)
