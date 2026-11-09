@@ -10615,7 +10615,12 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
         }
         return;
       }
-      function bum(inp, d) { inp.value = Math.max(0, r3(v(inp) + d)); }
+      /* v646 Codex 549 (43cd129): bấm trừ trên ô còn trống thì để trống. Thành 0 là
+         lách luật bắt buộc cân, máy chủ lại lấy số theo lệnh thay cho 0. */
+      function bum(inp, d) {
+        if (d < 0 && String(inp.value).trim() === '') return;
+        inp.value = Math.max(0, r3(v(inp) + d));
+      }
       if (t.hasAttribute && t.hasAttribute('data-m1')) return bum(i1, -1);
       if (t.hasAttribute && t.hasAttribute('data-p1')) return bum(i1, 1);
       if (t.hasAttribute && t.hasAttribute('data-m2')) return bum(i2, -1);
