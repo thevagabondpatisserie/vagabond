@@ -116,7 +116,7 @@ Máy gom mọi yêu cầu mua các bộ phận đã gửi mà chưa duyệt, chi
 **Các bước**
 1. Trang chủ, ô [[Thu mua]], bấm [[Gom yêu cầu mua]].
 2. Mỗi nhóm là một nhà cung cấp. Số mua điền sẵn bằng tổng số xin; cạnh tên món có tồn kho tổng và hàng chờ về.
-3. Bấm vào món để xem từng phiếu xin của bộ phận nào.
+3. Bấm vào món để xem từng phiếu xin. Danh sách dài thì gõ ô tìm để lọc theo món hoặc nhà cung cấp.
 4. Sửa ô số mua: mua chẵn thùng thì gõ nhiều hơn, chưa mua thì gõ 0. Số đã sửa máy tự lưu, thoát ra vẫn còn.
 5. Bấm nút Chốt cuối nhóm (nhóm chưa có nhà cung cấp thì chọn trong danh sách), rồi [[Chốt đơn]]. Máy duyệt các phiếu xin và lập đơn mua, mở luôn đơn đó.
 6. Gửi đơn cho nhà cung cấp ở màn Đơn mua hàng như thường.
