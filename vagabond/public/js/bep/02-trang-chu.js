@@ -38,7 +38,8 @@ async function scrHome() {
        khoi mo Desk (anh Viet 12/08/2026). Hai o nay chi hien voi ke toan,
        thu mua va giam doc - gia mua la thong tin nhay cam. */
     (coQuyenMua()
-      ? card('✅', 'Duyệt yêu cầu mua', 'Duyệt từng dòng, kèm tồn kho và số đang chờ về để quyết ngay', 0, 'DUYETYC') +
+      ? card('🧺', 'Gom yêu cầu mua', 'Máy gom yêu cầu các bộ phận theo nhà cung cấp: sửa số, bấm Chốt là có đơn mua', 0, 'GOMMUA') +
+        card('✅', 'Duyệt yêu cầu mua', 'Duyệt từng dòng, kèm tồn kho và số đang chờ về để quyết ngay', 0, 'DUYETYC') +
         card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
         card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
         card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC') +
@@ -397,6 +398,11 @@ async function scrHome() {
     (hasRole('System Manager')
       ? card('🔑', 'Cài đặt lõi và API', 'Khoá kết nối, hoá đơn điện tử, ngân hàng, giao hàng, Zalo: điền ngay trên app', 0, 'CDLOI')
       : '') +
+    /* v646: Cài đặt tự động hoá (69-tu-dong-hoa.js). Giám đốc, quản trị sửa;
+       quản lý bộ phận xem tình hình việc máy soạn sẵn của bộ phận mình. */
+    (coQuyenTdh()
+      ? card('⚡', 'Cài đặt tự động hoá', 'Việc máy soạn sẵn cho từng bộ phận: bật tắt, giờ chạy, quá hạn báo ai', 0, 'CDTDH')
+      : '') +
     (coQuyenMua() || hasRole('Sales User') || hasRole('Sales Manager') || hasRole('System Manager')
       ? card('🌐', 'Trang đặt bánh web', 'Đồng bộ ảnh và mô tả từ Pancake, xem tab nào đang lên bao nhiêu mã', 0, 'CDWEB')
       : '') +
@@ -664,9 +670,9 @@ var VGB_NHOM = [
      03/10/2026. Hai ô đó dựng để đối chiếu số với bản cũ, số đã khớp từ
      lâu, giữ lại chỉ làm nhân viên thu mua bấm nhầm vào bản đối chiếu. */
   {
-    k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA'],
+    k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['GOMMUA', 'DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA'],
     nhom: [
-      { t: 'Mua hàng', p: 'việc hàng ngày', keys: ['DUYETYC', 'PO'] },
+      { t: 'Mua hàng', p: 'việc hàng ngày', keys: ['GOMMUA', 'DUYETYC', 'PO'] },
       { t: 'Nhà cung cấp', p: '', keys: ['NCC', 'BGIA', 'CNPT'] }
     ]
   },
@@ -712,9 +718,9 @@ var VGB_NHOM = [
   },
   {
     k: 'KHAC', ten: 'Cài đặt', icon: '⚙️',
-    keys: ['CDLOI', 'CDDB', 'BGDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
+    keys: ['CDLOI', 'CDTDH', 'CDDB', 'BGDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
     nhom: [
-      { t: 'Lõi hệ thống', p: '', keys: ['CDLOI'] },
+      { t: 'Lõi hệ thống', p: '', keys: ['CDLOI', 'CDTDH'] },
       { t: 'Cửa hàng và bán hàng', p: '', keys: ['CDDB', 'BGDB', 'CDPT', 'CDQQ', 'CDHT', 'CDCN', 'CDWEB'] },
       { t: 'Kho và sản phẩm', p: '', keys: ['CDSP', 'CDKHO', 'STOCK', 'TONCHANG', 'PTCH'] },
       { t: 'Kế toán và ngân hàng', p: '', keys: ['CDKS', 'CDTK', 'CDSE', 'NHAPSK', 'PTDON'] },
@@ -1739,7 +1745,8 @@ function vclIcon(l) {
     chuyen_kho: '📦', san_xuat: '🎂', nhap_kho: '📥', xuat_kho: '📤',
     kiem_ke: '🧮', sai_kho: '⚠️', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
     ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
-    nop_quy: '💵', hang_tang: '🎁', doi_soat_duyet: '📨', goi_y: '📌'
+    nop_quy: '💵', hang_tang: '🎁', doi_soat_duyet: '📨', goi_y: '📌',
+    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒'
   }[l] || '';
 }
 
@@ -1802,6 +1809,18 @@ function vclMo(x) {
   if (l === 'doi_soat_duyet') return go(function () { DSVN.cur = x.ma; DSVN.loc = ''; return scrDsvnCt(); });
   /* Viec giao tu man Viec hom nay (#351): mo man chi tiet, co nut bao xong. */
   if (l === 'goi_y') return go(function () { return scrViecGoiY(x.ma); });
+  /* v646 Cài đặt tự động hoá: ba việc máy soạn sẵn mở thẳng màn làm việc có
+     sẵn. Chốt kế hoạch mở Kế hoạch sản xuất hôm nay; ghi nhận sản lượng mở
+     Lệnh sản xuất lọc lệnh cần hôm nay; bánh thiếu mở phiếu yêu cầu sản xuất
+     mới cho ngày mai, nút Gợi ý từ hệ thống nằm ở bước chọn món. */
+  if (l === 'ke_hoach_sx') return go(function () { khsx.ngay = x.ngay || today(); khsx.d = null; khsx.tab = 'tp'; return scrKeHoachSX(); });
+  if (l === 'ghi_nhan_sx') return go(function () { mfg.tab = 'open'; mfg.han = 'nay'; mfg.mon = ''; return scrMfgList(); });
+  if (l === 'gom_mua') return go(function () { GM.d = null; return scrGomMua(); });
+  if (l === 'ycmh_nhap') return go(function () { scrMRView(x.ma, typeOf('Purchase')); });
+  if (l === 'ycsx_thieu') {
+    toast('Ở bước chọn món, bấm Gợi ý từ hệ thống để lấy đúng số còn thiếu.', 5000);
+    return startDraft(typeOf('Manufacture'));
+  }
   toast('Phiếu ' + x.ma + ' cần xử lý trên máy tính.', 4200);
 }
 
@@ -1876,6 +1895,7 @@ var VGB_DUONG = {
   'cai-dat-cuoi-ngay': 'CDCN',
   'cai-dat-loi-va-api': 'CDLOI',
   'cai-dat-tai-chinh': 'TCCD',
+  'cai-dat-tu-dong-hoa': 'CDTDH',
   'canh-bao-thanh-toan': 'CBTT',
   'chi-phi-van-don': 'CPX',
   'chien-dich': 'CRMCD',
@@ -1906,6 +1926,7 @@ var VGB_DUONG = {
   'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
   'gia-von-tam-tinh': 'GVT',
+  'gom-yeu-cau-mua': 'GOMMUA',
   'hang-chuyen-ve-kho-toi': 'NHANDC',
   'hang-khach': 'CDHT',
   'hieu-qua-chien-dich': 'CRMHQ',
@@ -2196,6 +2217,7 @@ function vgbGo(k) {
   if (k === 'BCHUB') return go(scrBaoCao);
   if (k === 'BCSANG') return go(scrBangSang);
   if (k === 'DUYETYC') return go(scrDuyetYc);
+  if (k === 'GOMMUA') return go(function () { GM.d = null; return scrGomMua(); });
   if (k === 'PO') return go(scrDonMua);
   if (k === 'KHPO') return kgMo('PO');
   if (k === 'KHHDM') return kgMo('HDM');
@@ -2254,6 +2276,7 @@ function vgbGo(k) {
   if (k === 'CDTB') return go(scrThongBao);
   if (k === 'CDWEB') return go(scrCaiDatWeb);
   if (k === 'CDLOI') return go(scrCaiDatLoi);
+  if (k === 'CDTDH') return go(function () { TDH.d = null; return scrTuDongHoa(); });
   if (k === 'DSVN') return go(scrDsvn);
   if (k === 'PTDON') return go(scrDonChungTuThu);
   if (k === 'PTCH') return go(scrChuyenPhantom);

@@ -699,18 +699,18 @@ Dùng khi SePay sót giao dịch, nạp bù từ tệp ngân hàng gửi.
 - Máy chỉ thêm dòng còn thiếu, không ghi đè dòng đã có.
 - Ghi rồi muốn bỏ: liên hệ kế toán trưởng.
 
-## Đối soát bill quầy trả chuyển khoản
-Từ khoá: đối soát chuyển khoản, đối soát CK, bill chuyển khoản, chưa khớp tiền, chưa đối soát được, khớp đủ tiền, tổng theo bộ lọc, bank transfer reconcile, DSCK
+## Đối soát bill trả chuyển khoản mọi điểm bán
+Từ khoá: đối soát chuyển khoản, đối soát CK, Sales Online, không theo mã QR, bill chuyển khoản, chưa khớp tiền, chưa đối soát được, khớp đủ tiền, tổng theo bộ lọc, bank transfer reconcile, DSCK
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Quản lý cửa hàng, Kế toán, Giám đốc | Đối soát chuyển khoản (/doi-soat-chuyen-khoan) | [[Chưa khớp đủ tiền]] |
 
-Mọi bill quầy trả chuyển khoản của một ngày, ba điểm bán chung một chỗ, bill chưa khớp tiền lên đầu.
+Mọi bill trả chuyển khoản của một ngày, đủ mọi điểm bán (cả Sales Online: đơn Pancake, bill mã SOL), bill chưa khớp lên đầu.
 
 **Các bước**
 1. Mở Đối soát chuyển khoản ở phân hệ Bán hàng hoặc Kế toán. Đổi ngày bằng ‹ › hoặc ô ngày.
-2. Thẻ tóm tắt ghi tổng bill cả ngày, ô [[Chưa khớp đủ tiền]] kèm số còn thiếu, ô [[Đã khớp đủ]], chip từng điểm bán. Bấm ô nào là lọc đúng nhóm đó.
+2. Thẻ tóm tắt ghi tổng bill cả ngày, ô [[Chưa khớp đủ tiền]] kèm số còn thiếu, ô [[Đã khớp đủ]], chip từng điểm bán. Điểm chưa có bill trong ngày vẫn có chip, số 0. Bấm ô nào là lọc đúng nhóm đó.
 3. Đang lọc thì dòng Tổng theo bộ lọc cộng đúng các bill đang hiện.
 4. Gõ mã bill, số hoá đơn, tên khách vào ô tìm, hoặc quét mã.
 5. Bấm một bill có chữ Dò tiền để mở bảng Dò tiền chuyển khoản, xem mục kế tiếp.
@@ -723,6 +723,8 @@ Mọi bill quầy trả chuyển khoản của một ngày, ba điểm bán chun
 **Lưu ý**
 - Mỗi bill có chip tiền (Đã khớp đủ tiền, Mới nhận ..., Chưa khớp khoản nào) và chip Đã ghi sổ / Chưa ghi sổ.
 - Bill chuyển khoản chưa khớp đủ tiền thì máy chưa tự ghi sổ.
+- Khách Sales chuyển không theo mã QR: chip Sales Online, bấm bill chưa khớp, dò tiền rồi gắn.
+- Bill không rõ điểm nằm ở chip Chưa rõ điểm, gặp thì báo anh Việt.
 
 ## Gắn khoản khách chuyển thẳng vào tài khoản công ty
 Từ khoá: SePay không ghi nhận, khách chuyển vào tài khoản công ty, tài khoản chính, MB, vào thẳng TK công ty, dò tiền, gắn giao dịch, tiền chưa gắn chứng từ, chuyển sai tài khoản

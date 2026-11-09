@@ -1582,16 +1582,17 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
       '<div class="qr" style="margin-bottom:8px"><div class="stp"><button data-m1>&minus;</button>' +
       '<input type="number" inputmode="decimal" id="htLenh" value="' + r3(left / hs) + '"><button data-p1>+</button></div>' +
       sel + '</div>' + goi +
-      '<div style="font-size:12px;color:#8a8f9c;margin:12px 0 6px">Thực tế cân được</div>' +
+      /* v646 Cài đặt tự động hoá, luật ô số anh Việt duyệt 09/11/2026: số
+         làm ra là số ĐẾM, để trống cho người nhập. Điền sẵn số lệnh thì bếp
+         bấm Hoàn thành cho qua và kho thành phẩm mang số không ai cân. */
+      '<div style="font-size:12px;color:#8a8f9c;margin:12px 0 6px">Thực tế cân được (bắt buộc nhập, kể cả bằng số theo lệnh)</div>' +
       '<div class="qr"><div class="stp"><button data-m2>&minus;</button>' +
-      '<input type="number" inputmode="decimal" id="htCan" value="' + r3(left / hs) + '"><button data-p2>+</button></div>' +
+      '<input type="number" inputmode="decimal" id="htCan" value="" placeholder="Nhập số cân"><button data-p2>+</button></div>' +
       '<div class="uml" id="htU2">' + h(dvt) + '</div></div>' +
       '<button class="btn gr" data-y style="margin-top:14px">✅ Hoàn thành</button>' +
       '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
     document.body.appendChild(ov);
     var i1 = ov.querySelector('#htLenh'), i2 = ov.querySelector('#htCan');
-    var cham = 0;
-    i2.addEventListener('input', function () { cham = 1; });
     function v(x) { return Math.max(0, parseFloat(x.value) || 0); }
     var sl = ov.querySelector('#htDvt');
     if (sl) sl.onchange = function () {
@@ -1600,7 +1601,9 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
       /* Quy doi tai cho: con so dang hien la theo don vi CU, nhan he so cu
          de ve don vi kho roi chia he so moi. */
       i1.value = r3(v(i1) * hs / moi);
-      i2.value = r3(v(i2) * hs / moi);
+      /* v646 Codex 549 (4204048): ô cân còn trống thì để trống. Đổi thành 0 là
+         lách được luật bắt buộc nhập, rồi máy chủ lấy số theo lệnh thay cho 0. */
+      if (String(i2.value).trim() !== '') i2.value = r3(v(i2) * hs / moi);
       hs = moi; dvt = sl.value;
       ov.querySelector('#htU2').textContent = dvt;
       ov.querySelector('#htCon').textContent = num(r3(left / hs));
@@ -1620,22 +1623,30 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
             ov.querySelector('#htCon').textContent = num(r3(left / hs));
           }
           i1.value = x.so;
-          if (!cham) i2.value = x.so;
         }
         return;
       }
-      function bum(inp, d) { inp.value = Math.max(0, r3(v(inp) + d)); if (inp === i1 && !cham) i2.value = inp.value; }
+      /* v646 Codex 549 (43cd129): bấm trừ trên ô còn trống thì để trống. Thành 0 là
+         lách luật bắt buộc cân, máy chủ lại lấy số theo lệnh thay cho 0. */
+      function bum(inp, d) {
+        if (d < 0 && String(inp.value).trim() === '') return;
+        inp.value = Math.max(0, r3(v(inp) + d));
+      }
       if (t.hasAttribute && t.hasAttribute('data-m1')) return bum(i1, -1);
       if (t.hasAttribute && t.hasAttribute('data-p1')) return bum(i1, 1);
-      if (t.hasAttribute && t.hasAttribute('data-m2')) { cham = 1; return bum(i2, -1); }
-      if (t.hasAttribute && t.hasAttribute('data-p2')) { cham = 1; return bum(i2, 1); }
+      if (t.hasAttribute && t.hasAttribute('data-m2')) return bum(i2, -1);
+      if (t.hasAttribute && t.hasAttribute('data-p2')) return bum(i2, 1);
       if (t.hasAttribute && t.hasAttribute('data-y')) {
-        var r = { theo_lenh: r3(v(i1) * hs), thuc_te: r3((cham ? v(i2) : v(i1)) * hs), dvt: dvt, he_so: hs };
+        if (String(i2.value).trim() === '') {
+          toast('Nhập số cân được thật trước đã', 3500);
+          try { i2.focus(); } catch (e3) { }
+          return;
+        }
+        var r = { theo_lenh: r3(v(i1) * hs), thuc_te: r3(v(i2) * hs), dvt: dvt, he_so: hs };
         ov.remove(); return res(r);
       }
       if (t.hasAttribute && t.hasAttribute('data-n') || t === ov) { ov.remove(); return res(null); }
     };
-    i1.addEventListener('input', function () { if (!cham) i2.value = i1.value; });
   });
 }
 

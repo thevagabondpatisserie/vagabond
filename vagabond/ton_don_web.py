@@ -14,13 +14,44 @@ def hom_nay():
     return datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
 
 
+def _kiem_refill(hang, ng, nay):
+    """v646 Refill: (mã đã xét, câu nhắc). Mã có refill còn nhận đơn: ngày nhận
+    trong khoảng thì kiểm số còn (đếm MỚI, không dùng số giữ 5 phút); ngoài
+    khoảng mà không còn decor 3 ngày tới thì nhắc chọn ngày trong khoảng."""
+    from vagabond import refill
+
+    if ng <= nay:
+        return set(), []
+    dong_btp = frappe.get_single("BTP Banh O").dong
+    rf = refill.hieu_luc_tu_dong(dong_btp, nay)
+    ma_hang = {h["variation_id"] for h in hang}
+    if not (set(rf) & ma_hang):
+        return set(), []
+    so = refill.tinh(nay, moi=True, dong=dong_btp)
+    if so.get("loi"):
+        # Chưa đếm được: không chặn khách (web đã ẩn refill khi chưa đếm được),
+        # nhưng báo Sales đối chiếu như mọi lỗi kiểm tồn.
+        bao_loi(ng)
+        return set(rf) & ma_hang, []
+    con = {m: (r.get("con") or 0) for m, r in (so.get("refill") or {}).items()}
+    decor = {}
+    if ng <= nay + timedelta(days=3):
+        for d in dong_btp or []:
+            if int(d.so_decor or 0) > 0:
+                decor[d.ma_hang] = int(d.so_decor or 0)
+    xet = {m for m in set(rf) & ma_hang if refill.trong_khoang(ng, rf[m]["tu"], rf[m]["den"]) or m not in decor}
+    return xet, refill.kiem_don([h for h in hang if h["variation_id"] in xet], ng, rf, con, decor)
+
+
 def kiem(hang, ngay):
     if not ngay or not str(ngay).strip():
         return []
     ng = datetime.fromisoformat(str(ngay)).date()
     nay = hom_nay()
+    xet_rf, nhac_rf = _kiem_refill(hang, ng, nay)
+    hang = [h for h in hang if h["variation_id"] not in xet_rf]
     if ng != nay and not nay < ng <= nay + timedelta(days=3):
-        return []
+        return nhac_rf
     ma = {h["variation_id"] for h in hang}
     ton = {}
     if ng == nay:
@@ -33,16 +64,21 @@ def kiem(hang, ngay):
     else:
         kho = frappe.get_single("BTP Banh O")
         da_dat = {}
+        from vagabond import refill
+        rf = refill.hieu_luc_tu_dong(kho.dong, nay)
         for i in (1, 2, 3):
             ten = "KB-%s" % (nay + timedelta(days=i))
             if frappe.db.exists("Kiem Banh Ngay", ten):
                 for d in frappe.get_doc("Kiem Banh Ngay", ten).dong:
+                    # v646: đơn ngày nằm trong khoảng refill của mã trừ vào refill.
+                    if refill.ngay_cua_refill(rf, d.ma_hang, nay + timedelta(days=i)):
+                        continue
                     da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + int(d.da_dat or 0)
         for d in kho.dong or []:
             # Dòng giữ chỗ decor0 chưa phải nguồn tồn hữu hạn.
             if d.ma_hang in ma and int(d.so_decor or 0) > 0:
                 ton[d.ma_hang] = (max(0, int(d.so_decor or 0) - da_dat.get(d.ma_hang, 0)), d.ten_banh or d.ma_hang)
-    nhac = []
+    nhac = list(nhac_rf)
     for h in hang:
         if h["variation_id"] not in ton:
             continue

@@ -41,6 +41,7 @@ MAN_LAP_PHIEU = [
 	"scrTdViTri", "scrTdThemHs",  # v622: thêm, sửa vị trí tuyển dụng; thêm hồ sơ ứng viên tay
 	"scrQuyKiem", "scrQuyNop",  # v628 Codex #527 vòng 2: kiểm quỹ, nộp tiền mặt vào ngân hàng
 	"scrQuyChotDau",  # v635 Codex #536 vòng 2: chốt số dư đầu quỹ
+	"scrGomMua",  # v646 Codex 549: gom yêu cầu mua, số thu mua sửa trước khi chốt
 ]
 # Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
 # So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
@@ -63,7 +64,9 @@ SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	# lại ở nút mở màn chứ không trong hàm màn, nên dat() ghi thẳng vào biến màn.
 	"scrQuyKiem": "62-quy-tien-mat.js", "scrQuyNop": "62-quy-tien-mat.js",
 	# v635 Codex #536 vòng 2: màn chốt số dư đầu quỹ ở 62, cùng điều kiện như scrQuyKiem.
-	"scrQuyChotDau": "62-quy-tien-mat.js"}
+	"scrQuyChotDau": "62-quy-tien-mat.js",
+	# v646 Codex 549: màn Gom yêu cầu mua ở 70, ghép bằng dat() vào gmKhoiPhuc.
+	"scrGomMua": "70-gom-mua.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",
@@ -223,7 +226,13 @@ def _thu_tu():
 		"67-hoa-hong-gioi-thieu.js",
 		# v640: Biên tập menu, mọi thay đổi tự lưu vào bản nháp trên máy chủ
 		# (Vagabond Menu), không có form lập phiếu nháp nhiều ô.
-		"68-bien-tap-menu.js"])
+		"68-bien-tap-menu.js",
+		# v646: Cài đặt tự động hoá, chỉ bật tắt và sửa giờ một việc bằng bảng hỏi
+		# một bước, không có form lập phiếu nháp nhiều ô.
+		"69-tu-dong-hoa.js",
+		# v646: Gom yêu cầu mua, sửa số rồi chốt một nhóm có sẵn, không có form lập
+		# phiếu nháp nhiều ô.
+		"70-gom-mua.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

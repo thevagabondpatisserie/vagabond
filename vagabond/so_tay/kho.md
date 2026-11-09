@@ -471,6 +471,8 @@ Mỗi sáng 07:30 bot gửi vào nhóm Zalo bếp tên 10 món cần đếm. Má
 
 **Lưu ý**
 - Bấm lại thẻ trong ngày là mở đúng phiếu đang đếm, không tạo phiếu mới.
+- Chốt phiếu xong (Chờ duyệt) là đã đếm: sáng hôm sau máy chia 10 món khác, không phải chờ quản lý ghi sổ (từ bản 646).
+- Phiếu bị huỷ hay đếm dở chưa chốt thì món đó chưa tính là đã đếm, máy chia lại.
 - Thẻ ghi Đã đếm x/10 để biết còn bao nhiêu.
 - Chỉ kho nguyên liệu của ba bếp có thẻ này. Kho khác vẫn lập phiếu bằng dấu +.
 

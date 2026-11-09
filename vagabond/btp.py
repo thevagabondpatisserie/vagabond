@@ -45,20 +45,34 @@ def quyen_btp():
 	return {"sua": 1 if _duoc_sua_btp() else 0}
 
 
-def _giu_ngay_mai():
+def _refill_cua_bang(doc=None):
+	"""{mã: {so, tu, den}} refill còn hiệu lực trên bảng BTP (v646)."""
+	from vagabond import refill
+
+	doc = doc or frappe.get_single("BTP Banh O")
+	return refill.hieu_luc_tu_dong(doc.dong, getdate())
+
+
+def _giu_ngay_mai(rf=None):
 	"""Don giao NGAY MAI (da dat + phat sinh + cho chot) neu so chua chot.
 
 	Y Linh 01/08: sau 12h trua, do decor cho ngay mai khong kip chuan bi
 	them - nen don giao ngay mai chi nhan trong pham vi so "du decor".
+	v646: đơn của bánh giao trong khoảng refill trừ vào refill, không trừ decor.
 	"""
+	from vagabond import refill
+
 	giu = {}
-	ma_doc = "KB-%s" % add_days(getdate(), 1)
+	ngay = add_days(getdate(), 1)
+	ma_doc = "KB-%s" % ngay
 	if not frappe.db.exists("Kiem Banh Ngay", ma_doc):
 		return giu
 	kb = frappe.get_doc("Kiem Banh Ngay", ma_doc)
 	if kb.tinh_trang == "Da chot":
 		return giu
 	for d in kb.dong:
+		if refill.ngay_cua_refill(rf, d.ma_hang, ngay):
+			continue
 		giu[d.ma_hang] = (
 			giu.get(d.ma_hang, 0)
 			+ (d.da_dat or 0)
@@ -68,18 +82,24 @@ def _giu_ngay_mai():
 	return giu
 
 
-def _giu_theo_ma():
-	"""Tong (da dat + phat sinh + cho chot) cac ngay CHUA CHOT trong cua so."""
+def _giu_theo_ma(rf=None):
+	"""Tong (da dat + phat sinh + cho chot) cac ngay CHUA CHOT trong cua so.
+	v646: bỏ ngày nằm trong khoảng refill của chính mã đó (trừ vào refill)."""
+	from vagabond import refill
+
 	giu = {}
 	hom_nay = getdate()
 	for i in range(SO_NGAY_GIU):
-		ma_doc = "KB-%s" % add_days(hom_nay, i)
+		ngay = add_days(hom_nay, i)
+		ma_doc = "KB-%s" % ngay
 		if not frappe.db.exists("Kiem Banh Ngay", ma_doc):
 			continue
 		kb = frappe.get_doc("Kiem Banh Ngay", ma_doc)
 		if kb.tinh_trang == "Da chot":
 			continue
 		for d in kb.dong:
+			if refill.ngay_cua_refill(rf, d.ma_hang, ngay):
+				continue
 			giu[d.ma_hang] = (
 				giu.get(d.ma_hang, 0)
 				+ (d.da_dat or 0)
@@ -92,9 +112,14 @@ def _giu_theo_ma():
 @frappe.whitelist()
 def bang_btp():
 	"""Du lieu cho man hinh /btp va nhan BTP tren man kiem banh."""
+	from vagabond import refill
+
 	doc = frappe.get_single("BTP Banh O")
-	giu = _giu_theo_ma()
-	giu_mai = _giu_ngay_mai()
+	rf = _refill_cua_bang(doc)
+	giu = _giu_theo_ma(rf)
+	giu_mai = _giu_ngay_mai(rf)
+	# v646 Refill: số còn nhận refill và đơn đặt xa ngày (Pancake, phiếu đặt).
+	so_rf = refill.tinh(dong=doc.dong)
 	dong = []
 	for d in doc.dong:
 		decor = min(d.so_decor or 0, d.so_btp or 0)
@@ -108,9 +133,12 @@ def bang_btp():
 				"dang_giu": giu.get(d.ma_hang, 0),
 				"con_nhan": (d.so_btp or 0) - giu.get(d.ma_hang, 0),
 				"giao_mai": decor - giu_mai.get(d.ma_hang, 0),
+				"refill": (so_rf.get("refill") or {}).get(d.ma_hang),
 			}
 		)
-	return {"cap_nhat_luc": str(doc.cap_nhat_luc or ""), "dong": dong}
+	return {"cap_nhat_luc": str(doc.cap_nhat_luc or ""), "dong": dong,
+		"dat_xa": so_rf.get("dat_xa") or {}, "refill_loi": so_rf.get("loi") or "",
+		"lich_refill": sorted((dict(v, ma_hang=m) for m, v in (so_rf.get("refill") or {}).items()), key=lambda x: (x["tu"], x["ma_hang"]))}
 
 
 def _dong_cua_ma(doc, ma_hang):
@@ -174,6 +202,31 @@ def luu_decor(ma_hang, so_decor):
 
 
 @frappe.whitelist()
+def luu_refill(ma_hang, so_refill=None, refill_tu=None, refill_den=None):
+	"""v646: bếp nhập mẻ refill của một bánh. Số 0 là bỏ refill."""
+	from vagabond import refill
+
+	if not _duoc_sua_btp():
+		frappe.throw("Ô Refill chỉ bếp được nhập - bếp nhập thì bếp chịu trách nhiệm số")
+	try:
+		so, tu, den = refill.chuan_refill(so_refill, refill_tu, refill_den, getdate())
+	except refill.LoiRefill as e:
+		frappe.throw(str(e))
+	doc = frappe.get_single("BTP Banh O")
+	d = _dong_cua_ma(doc, ma_hang)
+	d.so_refill, d.refill_tu, d.refill_den = so, tu, den
+	doc.cap_nhat_luc = now_datetime()
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	try:
+		# Số refill mới phải lên bảng ngay, không chờ hết 5 phút giữ số đơn.
+		frappe.cache().delete_value("vgb_refill_don:%s" % getdate().isoformat())
+	except Exception:
+		pass
+	return bang_btp()
+
+
+@frappe.whitelist()
 def them_ma_btp(ma_hang):
 	if not _duoc_sua_btp():
 		frappe.throw("Bảng BTP chỉ bếp được thêm mã")
@@ -212,8 +265,8 @@ def xoa_ma_btp(ma_hang):
 	for d in doc.dong:
 		if d.ma_hang != ma_hang:
 			continue
-		if int(d.so_btp or 0) or int(d.so_decor or 0):
-			frappe.throw("Mã %s đang có số BTP hoặc số decor, xoá số về 0 trước đã." % ma_hang)
+		if int(d.so_btp or 0) or int(d.so_decor or 0) or int(getattr(d, "so_refill", 0) or 0):
+			frappe.throw("Mã %s đang có số BTP, số decor hoặc refill, xoá số về 0 trước đã." % ma_hang)
 		doc.remove(d)
 		doc.cap_nhat_luc = now_datetime()
 		doc.save(ignore_permissions=True)

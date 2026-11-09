@@ -442,7 +442,7 @@ CUA_NGO = {
 	# Ban thanh pham tren mon, chot 04/09/2026. Bay ham nay da chay tren app
 	# tu truoc ma chua ai chot danh sach, nen mot decorator bam nham la khong
 	# ai biet. `quyen_btp` chi DOC quyen, van phai co ten o day.
-	"btp.py": ["bang_btp", "gieo_tu_kiem_banh", "luu_btp", "luu_decor",
+	"btp.py": ["bang_btp", "gieo_tu_kiem_banh", "luu_btp", "luu_decor", "luu_refill",
 		"quyen_btp", "them_ma_btp", "xoa_ma_btp"],
 	# Ke hoach san xuat trong ngay, 28/08/2026. `tu_lap_nua_dem`,
 	# `nhac_bep_sang` va `dung_mau_in` la nhip lap lich va after_migrate,
@@ -507,6 +507,10 @@ CUA_NGO = {
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
 	"viec_can_lam.py": ["danh_sach", "dem"],
+	# v646 Cài đặt tự động hoá: đọc danh sách việc, lưu bật tắt và giờ một việc.
+	"viec_tu_dong.py": ["ds", "luu"],
+	# v646 Thu mua: gom yêu cầu mua theo nhà cung cấp, chốt một nhóm thành đơn mua.
+	"gom_mua.py": ["ds", "tim_ncc", "chot"],
 	# v619: chuông thông báo trong app.
 	"chuong.py": ["da_xem", "dem", "thong_bao"],
 	# Gan Assignee that, them 21/08/2026. Chi mot duong DOC, va no chi doc

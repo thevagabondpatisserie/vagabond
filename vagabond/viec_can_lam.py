@@ -80,6 +80,12 @@ LOAI_PHIEU = (
 	("doi_soat_duyet", "Tệp đối soát chờ duyệt", "📨"),
 	("don_mua", "Đơn mua quá hẹn", "⚠️"),
 	("goi_y", "Việc được giao", "📌"),
+	# v646 Cài đặt tự động hoá: việc máy soạn sẵn (viec_tu_dong.py).
+	("ke_hoach_sx", "Chốt kế hoạch sản xuất", "📋"),
+	("ghi_nhan_sx", "Ghi nhận sản lượng", "✅"),
+	("ycsx_thieu", "Bánh thiếu ngày mai", "🎂"),
+	("gom_mua", "Gom yêu cầu mua", "🧺"),
+	("ycmh_nhap", "Yêu cầu mua máy soạn", "🛒"),
 )
 
 # ====================================================== CHẾ ĐỘ GIÁM ĐỐC
@@ -158,6 +164,16 @@ MA_TRAN = {
 	# làm của giám đốc". Tệp tải tay và thư đối tác không chữ ký số chờ giám
 	# đốc duyệt mới tính là đã đối soát (doi_soat_thu.viec_duyet).
 	"doi_soat_duyet": VAI_GIAM_DOC,
+	# v646 Cài đặt tự động hoá (viec_tu_dong.py). Chốt kế hoạch là việc của
+	# người được ra lệnh (ke_hoach_sx.QUYEN_SUA không kể giám đốc, đã siết ở
+	# trên); ghi nhận sản lượng là việc của cả tổ bếp; bánh thiếu là của Sales.
+	"ke_hoach_sx": {"Manufacturing Manager"} | VAI_GIAM_DOC,
+	"ghi_nhan_sx": {"Manufacturing Manager", "Manufacturing User", "Bếp phó"} | VAI_GIAM_DOC,
+	"ycsx_thieu": VAI_SALES | VAI_GIAM_DOC,
+	# v646 Thu mua (anh Việt 09/11/2026): gom yêu cầu mua là việc của thu mua;
+	# phiếu yêu cầu máy soạn là việc của người giữ kho, thu mua thấy để đôn đốc.
+	"gom_mua": VAI_THU_MUA | VAI_GIAM_DOC,
+	"ycmh_nhap": VAI_KHO | VAI_THU_MUA | VAI_GIAM_DOC,
 }
 
 
@@ -768,6 +784,38 @@ def _viec_doi_soat_duyet():
 	return doi_soat_thu.viec_duyet()
 
 
+def _vtd():
+	"""v646: nguồn việc máy soạn sẵn nằm ở viec_tu_dong.py, nạp trong thân hàm."""
+	from vagabond import viec_tu_dong
+
+	return viec_tu_dong
+
+
+def _viec_ke_hoach_sx():
+	"""v646: kế hoạch hôm nay còn món chưa có lệnh, việc Chốt kế hoạch của bếp trưởng."""
+	return _vtd().viec_ke_hoach()
+
+
+def _viec_ghi_nhan_sx(bo_phan):
+	"""v646: từ giờ chạy, lệnh hôm nay chưa ghi số làm ra (lọc theo bếp của người xem)."""
+	return _vtd().viec_ghi_nhan(bo_phan)
+
+
+def _viec_ycsx_thieu():
+	"""v646: từ giờ chạy, món khách đặt ngày mai còn thiếu, việc của Sales."""
+	return _vtd().viec_ycsx_thieu()
+
+
+def _viec_gom_mua():
+	"""v646: từ giờ chạy, yêu cầu mua các bộ phận đã gửi mà thu mua chưa gom."""
+	return _vtd().viec_gom_mua()
+
+
+def _viec_ycmh_nhap(vai, kho):
+	"""v646: yêu cầu mua máy soạn còn nháp. Giữ kho thì thấy kho mình; thu mua thấy hết."""
+	return _vtd().viec_ycmh_nhap(kho, bool(set(vai or []) & VAI_THU_MUA))
+
+
 def _viec_goi_y(nguoi):
 	"""Việc từ màn Việc hôm nay đang giao cho đích danh người này."""
 	from vagabond import phan_tich
@@ -825,6 +873,11 @@ def danh_sach(loai="", trang_thai=""):
 		("hang_tang", lambda: _viec_hang_tang(vai)),
 		("doi_soat_duyet", lambda: _viec_doi_soat_duyet()),
 		("goi_y", lambda: _viec_goi_y(nguoi)),
+		("ke_hoach_sx", lambda: _viec_ke_hoach_sx()),
+		("ghi_nhan_sx", lambda: _viec_ghi_nhan_sx(bp)),
+		("ycsx_thieu", lambda: _viec_ycsx_thieu()),
+		("gom_mua", lambda: _viec_gom_mua()),
+		("ycmh_nhap", lambda: _viec_ycmh_nhap(vai, kho)),
 	]
 
 	if chi_viec_giao:

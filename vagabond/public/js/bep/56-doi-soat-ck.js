@@ -5,8 +5,8 @@
    nhưng nút Dò tiền chỉ soi tài khoản ảo của điểm nên bill nằm mãi ở "Chưa
    đối soát được", không ghi sổ được.
 
-   Màn này liệt kê mọi bill quầy trả chuyển khoản của một ngày, ba điểm bán
-   chung một chỗ, bill chưa khớp tiền lên đầu. Bấm một bill là mở đúng bảng
+   Màn này liệt kê mọi bill trả chuyển khoản của một ngày, MỌI điểm bán chung
+   một chỗ (v646: gồm cả Sales Online không có quầy), bill chưa khớp tiền lên đầu. Bấm một bill là mở đúng bảng
    Dò tiền chuyển khoản (09-tinh-tien-quay.js), có chip tài khoản chính công
    ty. Chỉ Quản lý cửa hàng và Kế toán mở được (doi_soat_ck.QUYEN_GAN_NGOAI,
    chặn thật ở máy chủ). */
@@ -65,16 +65,40 @@ function dsckTheTomTat(tatCa, diemDs) {
     dsckOSo('data-dscktt="chua_xong"', '⏳ Chưa khớp đủ tiền', chua, thieu ? 'Còn thiếu ' + money(thieu) + ' đ' : '', '#b45309',
       dsckTt === 'chua_xong' && !dsckDiem && !dsckTim) +
     dsckOSo('data-dscktt="du"', '✅ Đã khớp đủ', du, '', '#15803d', dsckTt === 'du' && !dsckDiem && !dsckTim) + '</div>';
+  /* v646 (chị Dung 09/11/2026): mọi điểm bán đang bật luôn có chip, kể cả
+     ngày chưa có bill (đếm 0). Trước chỉ hiện điểm có bill, mà máy chủ lại chỉ
+     lấy bill có quầy, nên điểm Sales Online biến mất khỏi màn. */
   if (diemDs.length > 1 || (diemDs.length === 1 && dsckDiem)) {
-    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">' + diemDs.map(function (m) {
-      var cua = tatCa.filter(function (r) { return r.quay === m; });
-      var chon = dsckDiem === m && !dsckTt && !dsckTim;
-      return '<button class="btn gh" data-dsckdiem="' + h(m) + '" style="flex:0 0 auto;width:auto;margin:0;min-height:44px;' +
-        'padding:4px 12px;font-size:13px;border-radius:999px;' + (chon ? 'border:2px solid #4338ca;' : '') + '">🏪 ' + h(m) +
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">' + diemDs.map(function (d) {
+      var cua = tatCa.filter(function (r) { return dsckDiemDong(r) === d.k; });
+      var chon = dsckDiem === d.k && !dsckTt && !dsckTim;
+      return '<button class="btn gh" data-dsckdiem="' + h(d.k) + '" style="flex:0 0 auto;width:auto;margin:0;min-height:44px;' +
+        'padding:4px 12px;font-size:13px;border-radius:999px;' + (chon ? 'border:2px solid #4338ca;' : '') + '">🏪 ' + h(d.ten) +
         ' <b>' + cua.length + '</b> · ' + money(dsckTien(cua)) + ' đ</button>';
     }).join('') + '</div>';
   }
   return html + '</div>';
+}
+
+/* v646: điểm của một dòng do máy chủ quy (r.diem). Máy chủ cũ chưa gửi thì
+   rơi về ô quầy như trước. Chưa rõ điểm mang khoá '?' để chip lọc được. */
+function dsckDiemDong(r) {
+  var d = r.diem !== undefined ? r.diem : r.quay;
+  return d ? String(d) : '?';
+}
+function dsckDsDiem(kq, tatCa) {
+  var ra = [], co = {};
+  (kq.diem_ds || []).forEach(function (d) {
+    var k = d.ma ? String(d.ma) : '?';
+    if (co[k]) return;
+    co[k] = 1; ra.push({ k: k, ten: d.ten || d.ma || 'Chưa rõ điểm' });
+  });
+  tatCa.forEach(function (r) {
+    var k = dsckDiemDong(r);
+    if (co[k]) return;
+    co[k] = 1; ra.push({ k: k, ten: k === '?' ? 'Chưa rõ điểm' : (r.quay || k) });
+  });
+  return ra;
 }
 
 function dsckChip(r) {
@@ -102,15 +126,17 @@ async function scrDoiSoatCk() {
   }
   var tatCa = kq.rows || [];
   var dem = { tat_ca: tatCa.length, chua_xong: 0, du: 0 };
-  var diemDs = [], demDiem = { tat_ca: tatCa.length };
+  var diemDs = dsckDsDiem(kq, tatCa), demDiem = { tat_ca: tatCa.length };
+  diemDs.forEach(function (d) { demDiem[d.k] = 0; });
+  var tenDiem = {};
+  diemDs.forEach(function (d) { tenDiem[d.k] = d.ten; });
   tatCa.forEach(function (r) {
     if (r.tt === 'du') dem.du++; else dem.chua_xong++;
-    if (r.quay && diemDs.indexOf(r.quay) < 0) diemDs.push(r.quay);
-    demDiem[r.quay] = (demDiem[r.quay] || 0) + 1;
+    demDiem[dsckDiemDong(r)] = (demDiem[dsckDiemDong(r)] || 0) + 1;
   });
   var ds = tatCa.filter(function (r) {
     if (dsckTim) return dsckKhopTim(r, dsckTim);
-    if (dsckDiem && r.quay !== dsckDiem) return false;
+    if (dsckDiem && dsckDiemDong(r) !== dsckDiem) return false;
     if (dsckTt === 'du') return r.tt === 'du';
     if (dsckTt === 'chua_xong') return r.tt !== 'du';
     return true;
@@ -119,7 +145,7 @@ async function scrDoiSoatCk() {
     ma: 'dsck',
     ho: [
       { k: 'tt', ds: DSCK_TT, dem: dem, chon: dsckTt, tatCa: 'Mọi bill', mau: '#0d9488' },
-      { k: 'diem', ds: diemDs.map(function (m) { return { k: m, ten: m, ic: '🏪' }; }), dem: demDiem, chon: dsckDiem, tatCa: 'Mọi điểm bán', mau: '#4338ca' },
+      { k: 'diem', ds: diemDs.map(function (d) { return { k: d.k, ten: d.ten, ic: '🏪' }; }), dem: demDiem, chon: dsckDiem, tatCa: 'Mọi điểm bán', mau: '#4338ca', hienDu: true },
     ],
     tim: { gt: dsckTim, goiY: 'Tìm mã bill, số hoá đơn, tên khách', quet: true },
   };
@@ -147,13 +173,13 @@ async function scrDoiSoatCk() {
   if (!ds.length) {
     html += '<div class="emp" style="padding:24px"><div class="e1">🏦</div><div>' +
       (dsckTim ? 'Không có bill nào khớp "' + h(dsckTim) + '" trong ngày này. Kiểm lại mã hoặc đổi ngày.' :
-        tatCa.length ? 'Không có bill nào trong nhóm này.' : 'Ngày này không có bill quầy nào trả bằng chuyển khoản.') + '</div></div>';
+        tatCa.length ? 'Không có bill nào trong nhóm này.' : 'Ngày này không có bill nào trả bằng chuyển khoản.') + '</div></div>';
   }
   ds.forEach(function (r, i) {
     html += '<div class="row" data-dsckmo="' + i + '" style="cursor:pointer;display:flex;gap:10px;align-items:center;' +
       'padding:11px 13px;border-top:1px solid #f1f5f9;min-height:44px">' +
       '<div style="flex:1;min-width:0"><b>' + h(r.ma || r.name) + '</b>' +
-      '<span style="color:#98a2b3;font-size:12px"> · ' + h(r.quay) + ' · ' + h(r.gio) + '</span>' +
+      '<span style="color:#98a2b3;font-size:12px"> · ' + h(tenDiem[dsckDiemDong(r)] || r.quay) + ' · ' + h(r.gio) + '</span>' +
       (r.khach ? '<div style="font-size:12.5px;color:#475467;margin-top:1px">👤 ' + h(r.khach) + '</div>' : '') +
       '<div>' + dsckChip(r) + '</div></div>' +
       '<div style="text-align:right"><b style="white-space:nowrap">' + money(r.tong) + '</b>' +
@@ -186,7 +212,10 @@ async function scrDoiSoatCk() {
     d.onclick = function () {
       var r = ds[+d.getAttribute('data-dsckmo')];
       if (!r) return;
-      posSheetDoTien(r.tong, r.name, function () { go(scrDoiSoatCk, true); }, { quay: r.quay, ngay: dsckNgay });
+      /* v646: gửi mã điểm (Sales Online không có quầy) để bảng Dò tiền soi đúng
+         tài khoản của điểm; chưa rõ điểm thì để máy chủ tự đoán theo bill. */
+      var dq = dsckDiemDong(r);
+      posSheetDoTien(r.tong, r.name, function () { go(scrDoiSoatCk, true); }, { quay: dq === '?' ? '' : dq, ngay: dsckNgay });
     };
   });
 }

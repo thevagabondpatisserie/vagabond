@@ -101,6 +101,10 @@ def dung():
 	)
 
 	_dung_nhom(duyet_ycmh.TRUONG_MOI, "duyet_ycmh")
+	# v646: dấu Máy soạn trên phiếu yêu cầu mua (Codex 549).
+	from vagabond import viec_tu_dong
+
+	_dung_nhom(viec_tu_dong.TRUONG_MOI, "viec_tu_dong")
 	_dung_nhom(ban_hang.TRUONG_MOI, "ban_hang")
 	_dung_nhom(diem_otp.TRUONG_MOI, "diem_otp")
 	_dung_nhom(noi_bo.TRUONG_MOI, "noi_bo")

@@ -340,6 +340,7 @@ Mỗi tin máy gửi cho khách có một dòng: khách, số, hoá đơn, mã v
 | Khách chưa có số điện thoại. | Bổ sung số ở hồ sơ khách |
 | Tài khoản gửi tin Zalo hết tiền. Nạp thêm trên Zalo Cloud Account. | Báo giám đốc |
 | OA đã dùng hết hạn mức tin khuyến mãi của tháng. | Tin để chờ, không cần làm gì |
+| Dữ liệu tin sai định dạng mẫu Zalo. | Lỗi của máy: tin để chờ, Marketing nhận báo. Báo kỹ thuật |
 
 **Lưu ý**
 - Dòng chờ quá 48 giờ thì máy bỏ, không gửi trễ.

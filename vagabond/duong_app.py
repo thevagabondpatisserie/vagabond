@@ -189,6 +189,8 @@ MAN = (
 	# --- Mua hàng và kho
 	("PO", "Đơn mua hàng", None),
 	("DUYETYC", "Duyệt yêu cầu", None),
+	# v646: gom yêu cầu mua các bộ phận thành đơn mua theo nhà cung cấp (gom_mua.py, 70-gom-mua.js).
+	("GOMMUA", "Gom yêu cầu mua", None),
 	("NCC", "Nhà cung cấp", None),
 	("NCCTAO", "Tạo nhà cung cấp", None),
 	("BGIA", "Bảng giá", None),
@@ -258,6 +260,8 @@ MAN = (
 	("CDWEB", "Trang đặt bánh web", None),
 	("DSVN", "Đối soát nhà cung cấp", None),
 	("CDLOI", "Cài đặt lõi và API", None),
+	# v646: việc máy soạn sẵn cho từng bộ phận (viec_tu_dong.py, 69-tu-dong-hoa.js).
+	("CDTDH", "Cài đặt tự động hoá", None),
 	("QLND", "Người dùng", None),
 	("QLQ", "Phân quyền", None),
 	("ACC", "Tài khoản của tôi", None),

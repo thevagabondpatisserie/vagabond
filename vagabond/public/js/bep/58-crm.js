@@ -1344,7 +1344,7 @@ function crmZlSheetCaiDat(k) {
         '<div style="font-size:12.5px;color:#667085;margin-top:3px;line-height:1.4">Mỗi khách nhận một mã riêng dùng một lần của chương trình này, dùng được ở quầy và trên web.</div>' +
         crmZlO('crmZlHan', 'VOUCHER DÙNG ĐƯỢC (NGÀY)', String(k.ma).indexOf('den_bu') === 0 ? 'Tính từ ngày quản lý cấp mã.' : 'Tính từ ngày gửi tin.', k.han_ngay, 'so') +
         crmZlO('crmZlTenUd', 'TÊN ƯU ĐÃI TRÊN TIN (TỐI ĐA 30 CHỮ)', 'Để trống thì máy tự viết từ chương trình, ví dụ Giảm 10%.', k.ten_uu_dai, 'chu', ' maxlength="30"') +
-        crmZlO('crmZlDk', 'ĐIỀU KIỆN TRÊN TIN (TỐI ĐA 40 CHỮ)', 'Để trống thì máy tự viết, ví dụ Hoá đơn từ 300.000đ.', k.dieu_kien, 'chu', ' maxlength="40"');
+        crmZlO('crmZlDk', 'ĐIỀU KIỆN TRÊN TIN (TỐI ĐA 30 CHỮ)', 'Để trống thì máy tự viết, ví dụ Hoá đơn từ 300.000đ.', k.dieu_kien, 'chu', ' maxlength="30"');
     }
     html += crmZlO('crmZlTran', 'TRẦN SỐ TIN MỖI NGÀY', 'Gửi đủ số này thì dừng tới hôm sau. Để 0 là không gửi tin nào.', k.tran_ngay, 'so') +
       '<div style="display:flex;gap:8px"><div style="flex:1">' + crmZlO('crmZlTu', 'GỬI TỪ (GIỜ)', 'Sớm nhất 6 giờ.', k.gio_tu, 'so') + '</div>' +

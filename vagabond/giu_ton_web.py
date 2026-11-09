@@ -10,6 +10,8 @@ import frappe
 from vagabond.ton_don_web import hom_nay
 
 O = "giu_ton_web"
+# v646 Codex 549 (1eefda8): suất refill đơn web đã giữ, ghi trong snapshot đơn.
+O_RF = "giu_refill"
 DT = "Vagabond Don Web"
 O_NGAY = "vgb_ngay_nguon_ton"
 
@@ -74,14 +76,23 @@ def kiem_va_giu(hang, ngay):
         for d in _dong(ng):
             ton[str(d.ma_hang)] = (max(0, int(d.co_the_ban or 0)), d.ten_banh or d.ma_hang)
     else:
+        # v646: mã có ngày nhận nằm trong khoảng refill do ton_don_web kiểm theo
+        # số refill, không giữ theo Đủ decor; đơn ngày refill không trừ decor.
+        from vagabond import refill
+        # Giữ đúng thứ tự khoá cũ: dòng kiểm bánh ba ngày trước, bảng BTP sau.
+        kb = [(nay + timedelta(days=i), _dong(nay + timedelta(days=i))) for i in (1,2,3)]
+        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,so_refill,refill_tu,refill_den from `tabBTP Banh O Dong`
+            where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
+        rf = refill.hieu_luc_tu_dong(btp, nay)
         dd = {}
-        for i in (1,2,3):
-            for d in _dong(nay + timedelta(days=i)):
+        for ngay_kb, dong_kb in kb:
+            for d in dong_kb:
                 ma = str(d.ma_hang)
+                if refill.ngay_cua_refill(rf, ma, ngay_kb):
+                    continue
                 dd[ma] = dd.get(ma,0) + int(d.da_dat or 0)
-        for d in frappe.db.sql("""select ma_hang,ten_banh,so_decor from `tabBTP Banh O Dong`
-            where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True):
-            if int(d.so_decor or 0) > 0:
+        for d in btp:
+            if int(d.so_decor or 0) > 0 and not refill.ngay_cua_refill(rf, str(d.ma_hang), ng):
                 ton[str(d.ma_hang)] = (max(0,int(d.so_decor)-dd.get(str(d.ma_hang),0)),d.ten_banh or d.ma_hang)
     giu = {}
     for d in _don():
@@ -98,6 +109,69 @@ def kiem_va_giu(hang, ngay):
     nhac = ['%s ngày %s chỉ còn %s cái, quý khách đang chọn %s cái.' %
         (ten,ng.strftime('%d/%m/%Y'),con,so) for ten,con,so in thieu]
     return nhac, {'dong':dong,'da_dem':False} if dong else None
+
+
+def giu_refill_cho(rows, ids, rf):
+    """{mã: số} suất refill đơn web đang giữ mà lần đếm Pancake chưa có. THUẦN.
+
+    Đơn đã lên Pancake (pancake_id nằm trong `ids` của CÙNG lần đếm) thì số
+    refill đã trừ nó rồi, không trừ lần hai. Đơn chưa lên, hoặc lên sau lần
+    đếm, thì trừ ở đây cho tới khi lần đếm sau có nó."""
+    from vagabond import refill
+    ids = {str(x) for x in ids or []}
+    ra = {}
+    for d in rows or []:
+        if d.get("pancake_id") and str(d.get("pancake_id")) in ids:
+            continue
+        b = json.loads(d.get("snapshot") or "{}").get(O_RF) or {}
+        for ma, so in (b.get("dong") or {}).items():
+            r = (rf or {}).get(ma)
+            if r and refill.trong_khoang(b.get("ngay"), r["tu"], r["den"]):
+                ra[ma] = ra.get(ma, 0) + int(so or 0)
+    return ra
+
+
+def kiem_va_giu_refill(hang, ngay):
+    """Kiểm và giữ suất refill trong CÙNG transaction tạo đơn (Codex 549, 1eefda8).
+
+    Trước: chỉ ton_don_web đếm từ xa trước transaction, nên hai khách đặt
+    cùng lúc suất cuối đều qua. Nay sau khoa() (tuần tự hoá mọi lượt giữ),
+    khoá bảng BTP, lấy số còn từ lần đếm Pancake (cửa ngoài vừa đếm mới), trừ
+    suất các đơn web đang giữ mà Pancake chưa có, rồi ghi suất của đơn này.
+    Chưa đếm được Pancake thì không chặn (như ton_don_web) nhưng vẫn ghi suất.
+    Trả (câu nhắc, dữ liệu giữ cho snapshot[O_RF]). Không commit ở đây."""
+    from vagabond import refill
+    if not ngay or not str(ngay).strip():
+        return [], None
+    ng = datetime.fromisoformat(str(ngay)).date()
+    nay = hom_nay()
+    if ng <= nay:
+        return [], None
+    khoa()
+    btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,so_refill,refill_tu,refill_den from `tabBTP Banh O Dong`
+        where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
+    rf = refill.hieu_luc_tu_dong(btp, nay)
+    can = {}
+    for h in hang or []:
+        ma = str(h["variation_id"])
+        if ma in rf and refill.trong_khoang(ng, rf[ma]["tu"], rf[ma]["den"]):
+            can[ma] = can.get(ma, 0) + int(h["quantity"])
+    if not can:
+        return [], None
+    giu = {"dong": can, "ngay": ng.isoformat()}
+    so = refill.tinh(nay, dong=btp)
+    if so.get("loi"):
+        return [], giu
+    tu = min(rf[m]["tu"] for m in can)
+    den = max(rf[m]["den"] for m in can)
+    rows = frappe.db.sql("select name,pancake_id,snapshot from `tabVagabond Don Web` "
+        "force index (vgb_ngay_nguon_ton) where trang_thai in ('Dang gui','Da nhan','Cho doi soat','Da ghi so')"
+        " and vgb_ngay_nguon_ton >= %s and vgb_ngay_nguon_ton <= %s for update",
+        (str(tu), str(den)), as_dict=True)
+    dang_giu = giu_refill_cho(rows, so.get("ids"), rf)
+    con = {m: (((so.get("refill") or {}).get(m) or {}).get("con") or 0) - dang_giu.get(m, 0) for m in can}
+    nhac = refill.kiem_don([{"variation_id": m, "quantity": n} for m, n in can.items()], ng, rf, con)
+    return nhac, giu
 
 
 def da_dem(ngay, cac_id):
@@ -129,7 +203,12 @@ def da_dem(ngay, cac_id):
 
 def ngay_nguon(snap, ngay):
     b = snap.get(O) or {}
-    return str(b.get('ngay_nguon') or ngay)[:10] if b.get('dong') and (b.get('ngay_nguon') or ngay) else None
+    if b.get('dong') and (b.get('ngay_nguon') or ngay):
+        return str(b.get('ngay_nguon') or ngay)[:10]
+    # v646: đơn chỉ giữ suất refill cũng cần ngày trên cột có chỉ mục để
+    # kiem_va_giu_refill tìm được mà không quét cả bảng.
+    r = snap.get(O_RF) or {}
+    return str(r.get('ngay') or ngay)[:10] if r.get('dong') and (r.get('ngay') or ngay) else None
 
 
 def bao_ve(doc):
@@ -141,10 +220,14 @@ def bao_ve(doc):
     that = json.loads(cu or '{}')
     setattr(doc,O_NGAY,ngay_nguon(that,doc.ngay_nhan))
     moi = json.loads(doc.snapshot or '{}')
-    if moi.get(O) == that.get(O) and (O in moi) == (O in that):
-        return
-    if O in that:
-        moi[O] = that[O]
-    else:
-        moi.pop(O,None)
-    doc.snapshot = json.dumps(moi,ensure_ascii=False)
+    doi = False
+    for k in (O, O_RF):
+        if moi.get(k) == that.get(k) and (k in moi) == (k in that):
+            continue
+        doi = True
+        if k in that:
+            moi[k] = that[k]
+        else:
+            moi.pop(k,None)
+    if doi:
+        doc.snapshot = json.dumps(moi,ensure_ascii=False)

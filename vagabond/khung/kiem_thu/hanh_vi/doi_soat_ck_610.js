@@ -76,6 +76,23 @@ var BILL = JSON.parse(cp.execFileSync('python3', ['-c', [
   'for r in b: r["tt"] = D.trang_thai_tien(r["nhan"], r["tong"])',
   'sys.stdout.write(json.dumps({"ngay": "2026-10-23", "rows": b}, ensure_ascii=False))'].join('\n'), GOC], { encoding: 'utf8' }));
 
+/* v646 (chị Dung 09/11/2026): ngày có bill Sales Online (không quầy) và
+   NVHTN không có bill nào. Điểm và chip do chính doi_soat_ck.diem_cua_dong và
+   chip_diem dựng trên bộ điểm bán mặc định (diem_ban.MAC_DINH). */
+var BILL_646 = JSON.parse(cp.execFileSync('python3', ['-c', [
+  'import json, sys', 'sys.path.insert(0, sys.argv[1])',
+  'from vagabond.khung.kiem_thu import nen', 'nen.gia_lap()',
+  'from vagabond import doi_soat_ck as D, diem_ban as DB',
+  'dd = [DB._chuan(d, i) for i, d in enumerate(DB.MAC_DINH)]',
+  'b = [dict(name="HDB-26-11-01001", ma="TCVAAAAA", ma_tc="TCVAAAAA", quay="TCV", nguon="Tại chỗ", gio="09:10", tong=100000, nhan=100000, ghi_so=1, khach=""),',
+  '     dict(name="HDB-26-11-01643", ma="97291", ma_tc="ACC-BTN-2026-10144", quay="", nguon="Pancake", gio="10:20", tong=755000, nhan=0, ghi_so=1, khach="Chị Hoa"),',
+  '     dict(name="HDB-26-11-00476", ma="SOL3VDS4", ma_tc="SOL3VDS4", quay="", nguon="Mang về", gio="15:40", tong=830000, nhan=0, ghi_so=0, khach="Anh Minh")]',
+  'for r in b:',
+  '    r["diem"] = D.diem_cua_dong(r.pop("quay") or "", r.pop("nguon"), r["ma"], dd)',
+  '    r["quay"] = "TCV" if r["diem"] == "TCV" else ""',
+  '    r["tt"] = D.TT_DU if r["ghi_so"] else D.trang_thai_tien(r["nhan"], r["tong"])',
+  'sys.stdout.write(json.dumps({"ngay": "2026-11-09", "rows": b, "diem_ds": D.chip_diem(dd, [r["diem"] for r in b])}, ensure_ascii=False))'].join('\n'), GOC], { encoding: 'utf8' }));
+
 var QUAY = ['VGB - Nhân viên bán hàng'];
 var QLCH = ['VGB - Nhân viên bán hàng', 'VGB - Quản lý cửa hàng'];
 
@@ -100,7 +117,7 @@ function dungMoi(vai) {
       goi.push({ duong: duong, ts: ts });
       if (duong === 'vagabond.ban_hang.pos_do_tien') return Promise.resolve(doTienPy(ts, vai));
       if (duong === 'vagabond.ban_hang.pos_gan_tien') return Promise.resolve({ ma_tham_chieu: 'FT26296028012585', nhan: 1875000, lech: 0 });
-      if (duong === 'vagabond.doi_soat_ck.ds_bill_ck') return Promise.resolve(JSON.parse(JSON.stringify(BILL)));
+      if (duong === 'vagabond.doi_soat_ck.ds_bill_ck') return Promise.resolve(JSON.parse(JSON.stringify(that.__bill || BILL)));
       return Promise.reject(new Error('api la: ' + duong));
     },
   };
@@ -323,6 +340,56 @@ async function moDoTien(vai, ten) {
     hang = m.khung.querySelectorAll('[data-dsckmo]');
     bang('bấm số Đã khớp đủ khi đang lọc điểm TCV vẫn ra đúng 1 bill', hang.length, 1);
     dung('đúng bill NVH', chu(hang[0]).indexOf('NVHACDEF') >= 0);
+  });
+
+  /* v646 (chị Dung 09/11/2026, anh Việt: "có bao nhiêu điểm bán phải hiển
+     thị hết"): màn phải có đủ mọi điểm bán, kể cả Sales Online không quầy và
+     điểm chưa có bill trong ngày; bill Sales dò tiền được theo đúng điểm. */
+  await ca('v646 màn Đối soát chuyển khoản: đủ mọi điểm bán, có Sales Online, điểm 0 bill vẫn hiện', async function () {
+    var m = dungMoi(QLCH);
+    m.g.__bill = BILL_646;
+    vm.runInNewContext('dsckNgay = "2026-11-09"; dsckTt = "chua_xong"; dsckTim = ""; dsckDiem = "";', m.g);
+    m.g.S.stack.push(m.g.scrDoiSoatCk);
+    await m.g.scrDoiSoatCk();
+    await tick();
+    var the = m.khung.querySelectorAll('[data-dscktom]')[0];
+    var nut = the.querySelectorAll('[data-dsckdiem]').map(function (b) {
+      var so = b.querySelectorAll('b')[0];
+      return [b.getAttribute('data-dsckdiem'), chu(b).replace(/\s+/g, ' ').trim(), so ? chu(so) : ''];
+    });
+    bang('thẻ tóm tắt: đủ ba điểm theo thứ tự cài đặt',
+      nut.map(function (x) { return x[0]; }), ['SALES', 'TCV', 'NVHTN']);
+    dung('chip Sales Online mang tên, không mang mã: ' + nut[0][1], nut[0][1].indexOf('Sales Online') >= 0 && nut[0][1].indexOf('SALES') < 0 && nut[0][1].indexOf(m.g.money(1585000)) >= 0);
+    bang('đếm bill trên chip: Sales 2, TCV 1, NVHTN chưa có bill vẫn hiện số 0', nut.map(function (x) { return x[2]; }), ['2', '1', '0']);
+    var loc = m.khung.querySelectorAll('[data-dscc]').map(function (b) { return b.getAttribute('data-dscc'); });
+    dung('hàng chip lọc cũng đủ ba điểm: ' + loc.join(','), ['diem|SALES', 'diem|TCV', 'diem|NVHTN'].every(function (k) { return loc.indexOf(k) >= 0; }));
+    var hang = m.khung.querySelectorAll('[data-dsckmo]');
+    bang('mặc định chỉ bill chưa khớp: bill quầy Sales mã SOL', hang.length, 1);
+    dung('dòng ghi tên điểm Sales Online: ' + chu(hang[0]), chu(hang[0]).indexOf('SOL3VDS4') >= 0 && chu(hang[0]).indexOf('Sales Online') >= 0);
+    hang[0].onclick();
+    await choDen(function () { return goiDo(m).length; });
+    var ts = goiDo(m)[0].ts;
+    bang('Dò tiền bill Sales: đúng bill, gửi mã điểm SALES để soi đúng tài khoản', [ts.name, ts.quay, ts.ngay], ['HDB-26-11-00476', 'SALES', '2026-11-09']);
+  });
+
+  await ca('v646 màn Đối soát chuyển khoản: bấm chip Sales Online ra đúng hai bill Sales', async function () {
+    var m = dungMoi(QLCH);
+    m.g.__bill = BILL_646;
+    vm.runInNewContext('dsckNgay = "2026-11-09"; dsckTt = "chua_xong"; dsckTim = ""; dsckDiem = "";', m.g);
+    m.g.S.stack.push(m.g.scrDoiSoatCk);
+    await m.g.scrDoiSoatCk();
+    await tick();
+    m.khung.dispatchEvent(dg.suKien('click', {}, m.khung.querySelectorAll('[data-dsckdiem="SALES"]')[0]));
+    await choDen(function () { return m.goi.filter(function (x) { return x.duong === 'vagabond.doi_soat_ck.ds_bill_ck'; }).length === 2; });
+    await tick();
+    var hang = m.khung.querySelectorAll('[data-dsckmo]');
+    bang('đúng 2 bill Sales', hang.length, 2);
+    dung('có đơn Pancake 97291', hang.some(function (x) { return chu(x).indexOf('97291') >= 0; }));
+    m.khung.dispatchEvent(dg.suKien('click', {}, m.khung.querySelectorAll('[data-dsckdiem="NVHTN"]')[0]));
+    await choDen(function () { return m.goi.filter(function (x) { return x.duong === 'vagabond.doi_soat_ck.ds_bill_ck'; }).length === 3; });
+    await tick();
+    bang('chip NVHTN 0 bill: không dòng nào', m.khung.querySelectorAll('[data-dsckmo]').length, 0);
+    dung('câu trống nói đúng nhóm', chu(m.khung).indexOf('Không có bill nào trong nhóm này') >= 0);
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');

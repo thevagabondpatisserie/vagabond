@@ -776,15 +776,21 @@ def tao_don(don=None):
 		frappe.db.savepoint("giu_ton_web")
 		try:
 			nhac_ton, giu_ton = giu_ton_web.kiem_va_giu(hang_goc, ngay)
+			# v646 Codex 549: suất refill kiểm và giữ cùng transaction, không để
+			# hai khách cùng lấy suất cuối (cửa ngoài chỉ đếm từ xa).
+			nhac_rf, giu_rf = giu_ton_web.kiem_va_giu_refill(hang_goc, ngay)
+			nhac_ton = list(nhac_ton or []) + list(nhac_rf or [])
 		except Exception:
 			frappe.db.rollback(save_point="giu_ton_web")
 			ton_don_web.bao_loi(ngay)
-			nhac_ton, giu_ton = [], None
+			nhac_ton, giu_ton, giu_rf = [], None, None
 		if nhac_ton:
 			frappe.db.rollback()
 			return {"ok": 0, "ly_do": "het_hang", "nhac": nhac_ton}
 		if giu_ton:
 			snapshot[giu_ton_web.O] = giu_ton
+		if giu_rf:
+			snapshot[giu_ton_web.O_RF] = giu_rf
 		ban_ghi = don_web.tao_ban_ghi(nonce, {
 			"ho_ten": ten,
 			"dien_thoai": dien_thoai,

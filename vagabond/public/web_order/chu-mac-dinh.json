@@ -6637,5 +6637,17 @@
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh",
     "mac_dinh": "Xem các ưu đãi đang có",
     "nhieu_dong": false
+  },
+  "refill_co_tu": {
+    "ten": "Bánh làm theo mẻ: có từ ngày",
+    "nhom": "dat_banh",
+    "mac_dinh": "Có từ {ngay}",
+    "nhieu_dong": true
+  },
+  "refill_ngoai_khoang": {
+    "ten": "Bánh làm theo mẻ: chọn ngày ngoài khoảng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh làm theo mẻ chỉ nhận giao từ {tu} tới {den}. Quý khách chọn ngày trong khoảng này.",
+    "nhieu_dong": true
   }
 }

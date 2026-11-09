@@ -1,0 +1,99 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Viec Tu Dong",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "istable": 1,
+ "editable_grid": 1,
+ "custom": 0,
+ "description": "v646: việc máy soạn sẵn cho từng bộ phận. Sửa dễ hơn ở app, Cài đặt, Cài đặt tự động hoá.",
+ "fields": [
+  {
+   "fieldname": "ma",
+   "fieldtype": "Data",
+   "label": "Mã việc",
+   "read_only": 1,
+   "columns": 2,
+   "description": "Máy tự ghi, khớp sổ đăng ký việc trong mã nguồn."
+  },
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Việc",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "bo_phan",
+   "fieldtype": "Data",
+   "label": "Bộ phận",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "bat",
+   "fieldtype": "Check",
+   "label": "Bật",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Tắt thì máy không soạn việc, không nhắc. Việc đã có màn riêng (Chốt ca, Khớp tiền) luôn chạy."
+  },
+  {
+   "fieldname": "gio",
+   "fieldtype": "Data",
+   "label": "Giờ chạy",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Kiểu 19:00 hoặc 19h. Để trống hay gõ sai thì dùng giờ mặc định. Một số việc có giờ cố định, sửa ở đây không có tác dụng."
+  },
+  {
+   "fieldname": "han",
+   "fieldtype": "Data",
+   "label": "Quá hạn",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Giờ trong ngày (22:00) hoặc số giờ chờ (24) tuỳ việc, xem màn app. Quá hạn thì máy nhắn nhóm Zalo của bộ phận."
+  },
+  {
+   "fieldname": "han2",
+   "fieldtype": "Data",
+   "label": "Báo Ban giám đốc sau (giờ)",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Chỉ dùng cho việc duyệt phiếu kiểm kê. Phải lớn hơn ô Quá hạn."
+  },
+  {
+   "fieldname": "so_ngay_con",
+   "fieldtype": "Int",
+   "label": "Còn đủ dùng dưới (ngày)",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Chỉ dùng cho việc Yêu cầu mua khi hàng sắp hết. Món còn đủ dùng ít hơn số ngày này thì máy soạn yêu cầu mua. Trống thì 3."
+  },
+  {
+   "fieldname": "so_ngay_du",
+   "fieldtype": "Int",
+   "label": "Mua đủ dùng (ngày)",
+   "columns": 1,
+   "description": "Chỉ dùng cho việc Yêu cầu mua khi hàng sắp hết. Máy xin đủ dùng số ngày này. Phải lớn hơn ô trên. Trống thì 7."
+  }
+ ],
+ "permissions": [],
+ "modified": "2026-11-09 14:00:00.000000",
+ "creation": "2026-11-09 12:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "field_order": [
+  "ma",
+  "ten",
+  "bo_phan",
+  "bat",
+  "gio",
+  "han",
+  "han2",
+  "so_ngay_con",
+  "so_ngay_du"
+ ]
+}

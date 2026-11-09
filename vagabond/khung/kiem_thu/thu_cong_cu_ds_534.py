@@ -744,6 +744,12 @@ MIEN = {
 	# v641: ba thẻ cố định (thư bị chặn 30 ngày, thư chưa về hôm nay, chờ giám
 	# đốc duyệt), danh sách ngắn đã giới hạn ở máy chủ, không phải sổ để tra.
 	"scrDsvnThu": KHONG_PHAI,
+	# v646: chín thẻ việc cố định theo sổ đăng ký (viec_tu_dong.VIEC), có chip
+	# lọc bộ phận; là trang cài đặt, không phải sổ để tra.
+	"scrTuDongHoa": KHONG_PHAI,
+	# v646: bảng nhập số mua để chốt theo nhóm nhà cung cấp, danh sách do máy gom
+	# và sẽ rỗng sau khi chốt; không phải sổ để tra (sổ là màn Đơn mua hàng).
+	"scrGomMua": KHONG_PHAI,
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 

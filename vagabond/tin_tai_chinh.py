@@ -544,10 +544,15 @@ def gui_thang():
 
 
 def nhac_kiem_ke_sang():
-	"""Lịch 07:30: mỗi kho bếp một tin "việc cần làm" với các món máy chia hôm nay."""
+	"""Lịch 07:30: mỗi kho bếp một tin "việc cần làm" với các món máy chia hôm nay.
+
+	v646: tắt việc "Đếm hôm nay" trong Cài đặt tự động hoá thì không nhắn."""
 	from frappe.utils import nowdate
 
-	from vagabond import kenh_zalo, kiem_ke
+	from vagabond import kenh_zalo, kiem_ke, viec_tu_dong
+
+	if not viec_tu_dong.bat("dem_hom_nay"):
+		return
 
 	hom = nowdate()
 	for kho in kiem_ke.kho_bep():

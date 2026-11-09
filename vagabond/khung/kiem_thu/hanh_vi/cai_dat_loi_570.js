@@ -156,13 +156,13 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
 (async function () {
   console.log('Cài đặt lõi và API v570: màn app');
 
-  await ca('mở màn: đọc máy chủ đúng một lần, hiện 8 tab như Desk, nút Lưu tắt', async function () {
+  await ca('mở màn: đọc máy chủ đúng một lần, hiện 9 tab như Desk (v646 thêm tab Tự động hoá), nút Lưu tắt', async function () {
     var m = await moMan();
     bang('gọi lay một lần', m.goi.map(function (x) { return x.duong; }), ['vagabond.cai_dat_loi.lay']);
     bang('tiêu đề', m.g._t, 'Cài đặt lõi và API');
     bang('tab trên app trùng tab máy chủ gửi', tim(m, '[data-cdltab]').map(function (e) { return e.getAttribute('data-cdltab'); }),
       LAY.bo_cuc.map(function (t) { return t.fn; }));
-    bang('đủ 8 tab', tim(m, '[data-cdltab]').length, 8);
+    bang('đủ 9 tab', tim(m, '[data-cdltab]').length, 9);
     dung('nút Lưu tắt khi chưa đổi gì', nut(m).hasAttribute('disabled'));
     dung('có chip tình trạng kết nối', tim(m, '[data-cdltoi]').length >= 10);
   });
@@ -487,7 +487,7 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
   await ca('v596 tổng quan: dòng nhóm không dùng lớp .card (lớp này làm vỡ thành ô to căn giữa)', async function () {
     var m = await moMan();
     var dong = tim(m, '[data-cdltab]');
-    bang('8 dòng nhóm', dong.length, 8);
+    bang('9 dòng nhóm (v646 thêm Tự động hoá)', dong.length, 9);
     dong.forEach(function (d) {
       var lop = String(d.getAttribute('class') || '').split(' ');
       dung(d.getAttribute('data-cdltab') + ' không mang lớp card', lop.indexOf('card') < 0 && lop.indexOf('cdl-nhom') >= 0);

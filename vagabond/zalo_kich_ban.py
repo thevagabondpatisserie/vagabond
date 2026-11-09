@@ -177,12 +177,20 @@ LOI_ZALO = {
 	-146: "Mẫu tin bị Zalo khoá vì chất lượng gửi thấp.",
 	-147: "Mẫu tin đã hết hạn mức gửi trong ngày.",
 	-1471: "Khách đã nhận đủ tin khuyến mãi trong tháng.",
+	# v646 (Minh Vũ báo 09/11/2026, gửi thử mẫu 659376): ba mã dưới là dữ liệu máy
+	# điền KHÔNG khớp mẫu, lỗi của máy chứ không của khách: khách nào cũng hỏng y hệt.
+	-1121: "Dữ liệu tin dài hơn ô của mẫu Zalo",
+	-1122: "Thiếu dữ liệu mẫu Zalo đòi",
+	-1124: "Dữ liệu tin sai định dạng mẫu Zalo",
 }
+# Lỗi dữ liệu không khớp mẫu: dừng lượt của kịch bản, để dòng chờ (sửa xong máy
+# gửi tiếp trong hạn chờ) và báo Marketing một lần mỗi ngày mỗi kịch bản.
+LOI_MAU_DU_LIEU = {-1121, -1122, -1124}
 # Lỗi của cả lượt (không phải của riêng khách): gặp là dừng lượt, để dòng chờ.
 # -1 là mã của chính máy (zalo.gui_mau: mất mạng, không lấy được khoá, phản
 # hồi không đọc được): loại vĩnh viễn từng dòng thì một lần mất mạng làm mất
 # cả hàng đợi, vì khoá chống trùng chặn quét lại (Codex PR #517 vòng 2).
-LOI_DUNG_LUOT = {-1, -115, -124, -131, -137, -144, -1441, -146, -147, -133}
+LOI_DUNG_LUOT = {-1, -115, -124, -131, -137, -144, -1441, -146, -147, -133} | LOI_MAU_DU_LIEU
 
 TRANG_THAI_MAU = {
 	"ENABLE": "Đã duyệt",
@@ -425,7 +433,9 @@ def chuan_tham_so(gia_tri, kieu, toi_da):
 	sai kiểu hay dài quá là Zalo từ chối CẢ tin (-1121, -1124).
 	"""
 	k = str(kieu or "STRING").upper()
-	if k == "NUMBER":
+	# v646: ô Tiền tệ (VNĐ) của mẫu báo kiểu CURRENCY, cũng chỉ nhận chữ số trơn
+	# (450000). Gửi "450.000đ" là Zalo từ chối CẢ tin (-1124, Minh Vũ 09/11/2026).
+	if k in ("NUMBER", "CURRENCY"):
 		return so_chuoi(gia_tri)
 	if k == "DATE":
 		return ngay_vn(gia_tri) or cat(gia_tri, 10)
@@ -471,14 +481,14 @@ def mo_ta_uu_dai(km, ten_dat="", dieu_kien_dat=""):
 			ten = "Giảm " + tien_vn(gt)
 		else:
 			ten = cat(km.get("ten") or "Ưu đãi thành viên", 30)
-	dk = cat(dieu_kien_dat, 40)
+	dk = cat(dieu_kien_dat, 30)
 	if not dk:
 		try:
 			tt = float(km.get("hd_toi_thieu") or 0)
 		except (TypeError, ValueError):
 			tt = 0
 		dk = ("Hoá đơn từ " + tien_vn(tt)) if tt > 0 else "Dùng 1 lần cho 1 hoá đơn"
-	return cat(ten, 30), cat(dk, 40)
+	return cat(ten, 30), cat(dk, 30)
 
 
 def y_nghia_loi(j):
@@ -491,6 +501,9 @@ def y_nghia_loi(j):
 	if ma == 0:
 		return 0, ""
 	cau = LOI_ZALO.get(ma) or (j.get("message") or "Zalo từ chối tin")
+	if ma in LOI_MAU_DU_LIEU and j.get("message"):
+		# Câu của Zalo nêu đúng tên ô hỏng ("tong_tien has invalid format"): giữ lại.
+		cau = "%s: %s" % (cau, cat(j.get("message"), 120))
 	return ma, ("%s (mã %s)" % (cau, ma))[:300]
 
 
@@ -1366,9 +1379,25 @@ def _gui_mot(c, row):
 		# Lỗi của cả lượt: để dòng chờ cho lượt sau, ghi lý do để màn hiện.
 		frappe.db.set_value(DT_TIN, row.name, {"loi": cau}, update_modified=False)
 		frappe.db.commit()
+		if ma in LOI_MAU_DU_LIEU:
+			_bao_mau_loi(kb, c, cau)
 		return ma
 	_xong(row.name, TT_LOI, cau, sdt=kh["sdt84"], ten_khach=cat(kh["ten"], 140), ma_mau=c["ma_mau"])
 	return None
+
+
+def _bao_mau_loi(kb, c, cau):
+	"""Báo Marketing: tin của kịch bản bị Zalo từ chối vì dữ liệu không khớp
+	mẫu. Một lần mỗi ngày mỗi kịch bản; lỗi gửi báo không làm hỏng lượt."""
+	from vagabond import kenh_zalo
+
+	try:
+		kenh_zalo.bao_hoac_ghi_loi("canh_bao", "ban_hang", "Tin Zalo cho khách đang dừng: " + cat(kb["ten"], 60),
+			["Mẫu %s: %s" % (c.get("ma_mau") or "", cau), "Tin để chờ, không mất. Báo kỹ thuật sửa, hoặc đổi mẫu đúng ở màn Tin Zalo tự động."],
+			khoa="zalo_mau_loi:%s:%s" % (kb["ma"], _bay_gio().date().isoformat()), ma_tin="mkt_zalo_mau_loi")
+		frappe.db.commit()
+	except Exception:
+		frappe.log_error(title="Vagabond: báo lỗi mẫu tin Zalo", message=frappe.get_traceback())
 
 
 def _han_muc_km():
@@ -1694,7 +1723,9 @@ def luu_kich_ban(ma=None, dat=None):
 		elif k == "ten_uu_dai":
 			v[k] = cat(x, 30)
 		elif k == "dieu_kien":
-			v[k] = cat(x, 40)
+			# v646: ô dieu_kien của mọi mẫu đã duyệt dài tối đa 30 (đọc trên site
+			# 09/11/2026); để 40 thì chữ người gõ bị cắt cụt lúc gửi mà không ai biết.
+			v[k] = cat(x, 30)
 		else:
 			v[k] = cat(x, 20)
 	if "gio_tu" in v or "gio_den" in v:

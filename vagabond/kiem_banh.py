@@ -1649,9 +1649,18 @@ def _dat_truoc_theo_decor():
 		return {"cap_nhat_luc": None, "nhom": []}
 	# Trang order ban LE: ma BAWS la banh si, khong duoc bay len (anh Viet
 	# 10/08/2026).
+	# v646 Refill (anh Việt duyệt 09/11): bánh có mẻ refill còn nhận đơn cũng lên
+	# tab này, kèm ngày có bánh và ngày nhận tới để web chỉ cho chọn đúng khoảng.
+	from vagabond import refill
+
+	rf = {}
+	if refill.hieu_luc_tu_dong(kho.dong, getdate()):
+		so_rf = refill.tinh(dong=kho.dong)
+		# Chưa đếm được đơn (Pancake lỗi) thì KHÔNG mở bán refill: thà ẩn còn hơn nhận lố.
+		rf = {m: r for m, r in (so_rf.get("refill") or {}).items() if r.get("con") is not None}
 	dong = [
 		b for b in (kho.dong or [])
-		if (b.so_decor or 0) > 0
+		if ((b.so_decor or 0) > 0 or ((rf.get(b.ma_hang) or {}).get("con") or 0) > 0)
 		and not str(b.ma_hang or "").upper().startswith("BAWS")
 	]
 	if not dong:
@@ -1666,6 +1675,9 @@ def _dat_truoc_theo_decor():
 		if not frappe.db.exists("Kiem Banh Ngay", ma_kb):
 			continue
 		for d in frappe.get_doc("Kiem Banh Ngay", ma_kb).dong:
+			# Ngày nằm trong khoảng refill của mã: đơn trừ vào refill, không trừ decor.
+			if refill.ngay_cua_refill(rf, d.ma_hang, add_days(ngay, i)):
+				continue
 			da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + int(d.da_dat or 0)
 
 	ds = frappe.get_all(
@@ -1686,8 +1698,10 @@ def _dat_truoc_theo_decor():
 			# khong gia (hien "tu 0 d"), ngung dung, hay dang tat ban web:
 			# khong dua len trang khach (v606, xem duoc_len_web).
 			continue
-		con = int(b.so_decor or 0) - int(da_dat.get(b.ma_hang, 0))
-		if con <= 0:
+		con = int(b.so_decor or 0) - int(da_dat.get(b.ma_hang, 0)) if (b.so_decor or 0) > 0 else 0
+		r = rf.get(b.ma_hang)
+		con_rf = int((r or {}).get("con") or 0)
+		if con <= 0 and con_rf <= 0:
 			continue
 		ten_day = x.get("item_name") or b.ten_banh or b.ma_hang
 		goc, cm = _tach_ten_size(ten_day)
@@ -1702,11 +1716,15 @@ def _dat_truoc_theo_decor():
 				"ma": b.ma_hang,
 				"cm": cm,
 				"gia": int(x.get("standard_rate") or 0),
-				"con": con,
+				"con": con if con > 0 else con_rf,
 				"_anh_erp": x.get("image") or "",
 				"_anh_dong": b.hinh or "",
 			}
 		)
+		if con_rf > 0:
+			# Khoảng ngày nhận của refill; chỉ còn refill (decor hết) thì web
+			# chỉ cho chọn ngày trong khoảng này.
+			g["sizes"][-1]["refill"] = {"tu": r["tu"], "den": r["den"], "con": con_rf, "chi_refill": 0 if con > 0 else 1}
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
 	ra = _anh_noi_dung_web([nhom[k] for k in thu_tu])

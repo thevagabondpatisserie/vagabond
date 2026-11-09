@@ -124,7 +124,7 @@ Chọn Chuyển khoản thì máy hiện mã QR điền sẵn số tiền và n�
 - Hoá đơn chưa lưu thì dò chỉ để xem tiền về chưa; lưu xong mới gắn được.
 - Đơn Pancake đã có tài khoản riêng của đơn, đừng gửi thêm mã QR khác cho khách, tiền sẽ mất đường đối soát tự động.
 - Bill chuyển khoản chưa về đủ tiền thì máy chưa tự ghi sổ.
-- Quản lý cửa hàng xem mọi bill chuyển khoản trong ngày ở màn Đối soát chuyển khoản: xem mục "Đối soát bill quầy trả chuyển khoản" (chương Kế toán).
+- Quản lý cửa hàng xem mọi bill chuyển khoản trong ngày ở màn Đối soát chuyển khoản: xem mục "Đối soát bill trả chuyển khoản mọi điểm bán" (chương Kế toán).
 
 
 ## Bill chuyển khoản bị mất, huỷ nhầm hoặc bớt giá
@@ -1116,6 +1116,33 @@ Thay bảng Excel gõ tay gửi nhóm Zalo mỗi sáng. Màn chưa có đường
 
 **Lưu ý**
 - Sổ này không trừ tồn kho và không sinh bút toán.
+
+## Nhập mẻ refill và xem đơn đặt xa ngày
+Từ khoá: refill, mẻ lớn, làm sẵn, đặt xa ngày, bánh đặt trước nhiều ngày, có bánh từ ngày, nhận đơn tới ngày, còn nhận refill, lịch refill, đặt bánh trước trên web
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp nhập; Sales, quản lý xem | Kiểm bánh hôm nay (/kiem-banh) | Ô [[Refill]] trên thẻ bánh |
+
+Bếp làm một mẻ lớn (BTP sẵn và đủ decor) để nhận đơn giao những ngày sau. Số refill để NHẬN ĐƠN trước, không cộng vào tồn.
+
+**Các bước**
+1. Bếp bấm ô [[Refill]] trên thẻ bánh.
+2. Gõ số bánh làm được (ô để trống, bắt buộc nhập).
+3. Chọn ngày có bánh. Ngày nhận đơn tới máy điền sẵn cộng 6 ngày, sửa được, tối đa 13 ngày.
+4. Bấm nút Lưu refill. Muốn bỏ refill thì nhập 0.
+
+**Đọc ba ô mới**
+| Ô | Nghĩa |
+|---|---|
+| Đặt xa ngày | Đơn giao sau 3 ngày tới, kèm từng ngày |
+| Refill | Số bánh và khoảng ngày nhận đơn |
+| Còn nhận refill | Số refill trừ mọi đơn giao trong khoảng, kể cả ngày đã qua và phiếu đặt tại quầy đã giao |
+
+**Lưu ý**
+- Đơn giao trong khoảng refill trừ vào refill, không trừ Đủ decor.
+- Web tab Đặt trước hiện bánh kèm "Có từ" ngày có bánh; ngày ngoài khoảng bị mờ, đặt quá số thì máy chặn, hai khách cùng đặt suất cuối thì chỉ một người được. Bánh lấy từ tab Hôm nay không bị khoá ngày.
+- Ô hiện "?" là chưa đếm được đơn từ Pancake; lúc đó web tạm ẩn bánh refill.
 
 ## Kiểm bánh theo mùa (Trung thu, Tết, panettone)
 Từ khoá: kiểm bánh theo mùa, bánh theo mùa, mùa vụ, trung thu, bánh Tết, panettone, bán lố, sắp hết, còn bán, hạn mức, ngưng nhận đơn, seasonal

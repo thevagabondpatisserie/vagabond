@@ -104,6 +104,53 @@ Hàng đã có ở kho khác của tiệm thì xin kho đó soạn và chuyển 
 - Máy báo "Kho xuất đang soạn phiếu ..." khi bấm Đã nhận hàng: dừng lại. Nhận thêm ở đây là trừ kho hai lần, chờ kho xuất ghi sổ phiếu đó.
 - Cách nhận hàng chuyển về: xem chương Kho.
 
+## Gom yêu cầu mua thành đơn mua
+Từ khoá: gom yêu cầu mua, gom đơn, tổng hợp yêu cầu mua, lập đơn mua nhanh, chốt đơn mua, đơn mua theo nhà cung cấp, purchase order, consolidate
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua | Gom yêu cầu mua (/gom-yeu-cau-mua) | [[Chốt đơn]] |
+
+Máy gom mọi yêu cầu mua các bộ phận đã gửi mà chưa duyệt, chia theo nhà cung cấp, cộng các phiếu cùng món thành một dòng. Thu mua chỉ sửa số rồi chốt.
+
+**Các bước**
+1. Trang chủ, ô [[Thu mua]], bấm [[Gom yêu cầu mua]].
+2. Mỗi nhóm là một nhà cung cấp. Số mua điền sẵn bằng tổng số xin; cạnh tên món có tồn kho tổng và hàng chờ về.
+3. Bấm vào món để xem từng phiếu xin. Danh sách dài thì gõ ô tìm để lọc theo món hoặc nhà cung cấp.
+4. Sửa ô số mua: mua chẵn thùng thì gõ nhiều hơn, chưa mua thì gõ 0. Số đã sửa máy tự lưu, thoát ra vẫn còn.
+5. Bấm nút Chốt cuối nhóm (nhóm chưa có nhà cung cấp thì chọn trong danh sách), rồi [[Chốt đơn]]. Máy duyệt các phiếu xin và lập đơn mua, mở luôn đơn đó.
+6. Gửi đơn cho nhà cung cấp ở màn Đơn mua hàng như thường.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| ... vừa được người khác duyệt | Bấm tải lại góc trên rồi chốt lại |
+| Nhóm này chưa có nhà cung cấp | Chọn nhà cung cấp trong danh sách, hoặc gán cho món ở Danh mục nhà cung cấp |
+| Đã lập đơn mua ... ở dạng NHÁP | Thường do thiếu giá: mở đơn trên máy tính, điền giá rồi xác nhận |
+
+**Lưu ý**
+- Số xin của nhân viên giữ nguyên, phần thu mua quyết nằm ở số duyệt. Gõ 0 là từ chối, máy ghi lý do "chưa mua đợt này".
+- Mua ít hơn tổng xin: phiếu cần sớm nhất được trước.
+
+## Sửa phiếu yêu cầu mua máy soạn rồi gửi duyệt
+Từ khoá: yêu cầu mua máy soạn, hàng sắp hết, phiếu nháp, sửa số lượng yêu cầu mua, gửi duyệt, lưu nháp
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Người giữ kho | Việc cần làm, dòng Yêu cầu mua máy soạn | [[Gửi duyệt]] |
+
+6 giờ sáng máy soạn nháp yêu cầu mua cho món còn đủ dùng dưới 3 ngày, mỗi kho một phiếu. Số máy điền theo lượng dùng 14 ngày qua, chỉ là gợi ý.
+
+**Các bước**
+1. Mở Việc cần làm, bấm dòng Yêu cầu mua máy soạn.
+2. Sửa ô số lượng từng dòng. Món chưa cần mua thì gõ 0, dòng đó bị bỏ khỏi phiếu.
+3. Chưa chắc thì bấm [[Lưu nháp]], làm tiếp sau.
+4. Bấm [[Gửi duyệt]]. Máy lưu số vừa sửa rồi mới gửi, thu mua thấy ngay ở Gom yêu cầu mua.
+
+**Lưu ý**
+- Phiếu máy soạn để nháp quá 2 ngày mà không ai sửa thì máy tự xoá. Đã bấm Lưu nháp là phiếu của mình, máy không xoá.
+- Máy chỉ xoá phiếu mang dấu Máy soạn. Phiếu tay của mọi người, kể cả phiếu sản xuất, chuyển kho, không bao giờ bị xoá.
+
 ## Duyệt yêu cầu mua hàng (thu mua duyệt từng dòng)
 Từ khoá: duyệt yêu cầu mua, duyệt YCMH, thu mua duyệt, duyệt đủ, duyệt một nửa, từ chối dòng, cắt bớt, duyệt vượt, gỡ duyệt, duyệt hết, approve purchase request
 

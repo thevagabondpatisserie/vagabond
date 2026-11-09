@@ -535,7 +535,7 @@ def _():
 	dung("dòng có số huỷ thì không xoá được", "d.huy ||" in js)
 
 
-def _nen_theo_o(css, so_o=17):
+def _nen_theo_o(css, so_o=20):
 	"""Giải cascade các luật nth-child của lưới, trả về nền từng ô.
 
 	Vì sao phải giải chứ không dò chuỗi: vòng một chỉ tìm chuỗi nhóm vàng nên
@@ -585,11 +585,11 @@ def _nen_theo_o(css, so_o=17):
 	return mau
 
 
-@ca("lưới đủ 17 cột và MỖI ô nhận đúng màu nhóm của nó")
+@ca("lưới đủ 20 cột (v646 thêm ba ô refill) và MỖI ô nhận đúng màu nhóm của nó")
 def _():
 	css = _doc("trang", "kiem-banh.html")
-	dung("lưới 17 cột", "grid-template-columns:repeat(17,1fr)" in css)
-	dung("không còn lưới 16 cột", "repeat(16,1fr)" not in css)
+	dung("lưới 20 cột", "grid-template-columns:repeat(20,1fr)" in css)
+	dung("không còn lưới 16, 17 cột", "repeat(16,1fr)" not in css and "repeat(17,1fr)" not in css)
 	mau = _nen_theo_o(css)
 	MONG = {
 		4: "#fefce8",                                    # Bếp làm
@@ -598,6 +598,7 @@ def _():
 		13: "#fff",                                      # BÁN ĐƯỢC
 		14: "#fefce8", 15: "#fefce8",                    # BTP sẵn, Đủ decor
 		16: "#effbf8", 17: "#effbf8",                    # hai ô CÒN NHẬN
+		18: "#fff7ed", 19: "#fff7ed", 20: "#fff7ed",     # v646 Đặt xa ngày, Refill, Còn nhận refill
 	}
 	for n, nen in sorted(MONG.items()):
 		la("ô %d đúng màu nhóm" % n, mau.get(n), nen)
