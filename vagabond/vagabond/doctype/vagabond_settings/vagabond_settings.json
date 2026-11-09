@@ -212,6 +212,9 @@
   "tro_ly_luot_thang",
   "sec_ai",
   "gemini_api_key",
+  "tab_tu_dong_hoa",
+  "sec_viec_tu_dong",
+  "viec_tu_dong",
   "tab_du_lieu_app",
   "sec_tom_tat_app",
   "html_du_lieu_app",
@@ -1412,6 +1415,23 @@
    "label": "Khoá API Gemini"
   },
   {
+   "fieldname": "tab_tu_dong_hoa",
+   "fieldtype": "Tab Break",
+   "label": "Tự động hoá"
+  },
+  {
+   "fieldname": "sec_viec_tu_dong",
+   "fieldtype": "Section Break",
+   "label": "Việc máy soạn sẵn cho từng bộ phận",
+   "description": "Mỗi dòng là một việc máy tự soạn sẵn rồi đưa vào Việc cần làm của đúng người; quá hạn thì nhắn nhóm Zalo. Xem mô tả đầy đủ và tình hình hôm nay ở app, Cài đặt, Cài đặt tự động hoá. Bảng tự thêm dòng còn thiếu sau tối đa 15 phút."
+  },
+  {
+   "fieldname": "viec_tu_dong",
+   "fieldtype": "Table",
+   "label": "Việc tự động",
+   "options": "Vagabond Viec Tu Dong"
+  },
+  {
    "fieldname": "tab_du_lieu_app",
    "fieldtype": "Tab Break",
    "label": "Dữ liệu app tự ghi"
@@ -1438,7 +1458,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-07 14:00:00.000000",
+ "modified": "2026-11-09 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
