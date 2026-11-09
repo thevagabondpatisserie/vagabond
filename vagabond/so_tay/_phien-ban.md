@@ -16,6 +16,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Cài đặt tự động hoá: việc máy soạn sẵn
 - Các việc máy soạn sẵn và giờ quá hạn
 - Gom yêu cầu mua thành đơn mua
+- Sửa phiếu yêu cầu mua máy soạn rồi gửi duyệt
 - Ra lệnh sản xuất từ kế hoạch
 - Hoàn tất lệnh sản xuất
 - Xem việc cần làm
