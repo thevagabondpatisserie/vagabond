@@ -240,11 +240,18 @@ async function scrKeHoachSX() {
        bep tick chon tung mon roi ra lenh; buoc ghi so phieu chay ngam ben
        server o lan ra lenh dau tien. */
     var daChon = Object.keys(khsx.chon).filter(function (k) { return khsx.chon[k]; });
+    /* v646 Cài đặt tự động hoá: anh Việt 09/11/2026 giữ MỘT lần bấm Chốt của
+       bếp trưởng mỗi sáng. Chưa tick món nào thì nút chính là "Chốt kế
+       hoạch": máy tạo lệnh cho mọi món còn phải làm (cả thành phẩm lẫn bán
+       thành phẩm, theo chip bếp đang chọn), đúng số và kho đang hiện trên thẻ.
+       Muốn làm khác số thì gõ trên thẻ trước, hoặc tick vài món như cũ. */
+    var conLam = khsxConLam(d, khsx.bep);
     var nut = '';
     if (khsxQuanLy()) {
       nut = daChon.length
         ? '<button class="btn gr" id="khsxLenhLo">⚙️ Tạo lệnh cho ' + daChon.length + ' món đã chọn</button>'
-        : '<div class="row2"><button class="btn gh" id="khsxXin">📦 Xin chuyển nguyên liệu</button>' +
+        : (conLam.length ? '<button class="btn gr" id="khsxChot" style="margin-bottom:9px">✅ Chốt kế hoạch: tạo lệnh cho ' + conLam.length + ' món còn phải làm</button>' : '') +
+          '<div class="row2"><button class="btn gh" id="khsxXin">📦 Xin chuyển nguyên liệu</button>' +
           '<button class="btn gh" id="khsxMoLenh">🏭 Xem lệnh đã tạo</button></div>';
     }
     var b = frame('Kế hoạch sản xuất', than, nut ? { footer: nut } : {});
@@ -256,6 +263,8 @@ async function scrKeHoachSX() {
     if (nm) nm.onclick = function () { go(scrMfgList); };
     var nlo = document.getElementById('khsxLenhLo');
     if (nlo) nlo.onclick = function () { khsxTaoLenhLo(daChon); };
+    var nch = document.getElementById('khsxChot');
+    if (nch) nch.onclick = function () { khsxChotKeHoach(conLam); };
 
     /* O "Can": go den dau nho den do, KHONG ve lai man giua chung keo
        mat con tro. Chi ghi vao khsx.sua, luc ra lenh moi dung toi. */
@@ -464,6 +473,27 @@ async function khsxTaoLenhLo(cacKhoa) {
     '. Bấm Xem lệnh đã tạo để mở danh sách.', 7000);
   khsx.d = null;
   await scrKeHoachSX();
+}
+
+/* THUẦN: các dòng còn phải ra lệnh của kế hoạch, bán thành phẩm trước (thành
+   phẩm cần nó), lọc theo chip bếp. Mỗi phần tử là đúng dạng khsx.chon cần. */
+function khsxConLam(d, bep) {
+  if (!d || !d.co_phieu) return [];
+  var ra = [];
+  [['btp', d.btp || []], ['tp', d.thanh_pham || []]].forEach(function (cap) {
+    cap[1].forEach(function (x) {
+      if (!(x.con_lam > 0)) return;
+      if (bep && x.bep !== bep) return;
+      ra.push({ khoa: x.khoa, loai: cap[0] });
+    });
+  });
+  return ra;
+}
+
+async function khsxChotKeHoach(ds) {
+  if (!ds || !ds.length) return toast('Kế hoạch này đã ra lệnh đủ rồi');
+  ds.forEach(function (x) { khsx.chon[x.khoa] = x; });
+  await khsxTaoLenhLo(ds.map(function (x) { return x.khoa; }));
 }
 
 async function khsxXinNvl() {
