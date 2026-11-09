@@ -234,6 +234,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_zalo_645_sql,
 	# Anh Việt 08/11/2026: mỗi bản deploy phải kèm mục sổ tay.
 	thu_so_tay_phien_ban_645,
+	# v646 bếp Pastry: Đếm hôm nay chia lặp 10 món khi phiếu chờ duyệt.
+	thu_kiem_ke_xoay_646,
 )
 
 
