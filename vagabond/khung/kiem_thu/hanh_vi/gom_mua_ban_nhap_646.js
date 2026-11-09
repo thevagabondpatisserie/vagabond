@@ -9,7 +9,9 @@
      3. số máy điền sẵn đổi theo phiếu xin mới thì món CHƯA sửa hiện số mới,
         không bị điền đè số cũ;
      4. chốt một nhóm khi nhóm khác còn số đã sửa: bản nháp còn, tải lại vẫn
-        còn số nhóm kia; chốt nốt thì bản nháp xoá. */
+        còn số nhóm kia; chốt nốt thì bản nháp xoá;
+     5. (Codex 549, 1eefda8) phiếu xin mới của món vừa chốt hiện số máy mới,
+        cả trong cùng phiên lẫn sau khi tải lại trang. */
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('assert');
 const dom = require('./dom_gia.js');
@@ -55,7 +57,8 @@ function appMoi(kho, may) {
     if (m === 'vagabond.gom_mua.chot') {
       const ma = JSON.parse(a.dong).map(x => x.ma);
       may.d.nhom = may.d.nhom.filter(n => !n.mon.some(x => ma.indexOf(x.ma) >= 0));
-      return { ghi_chu: 'Đã chốt', don: '' };
+      /* Chốt xong máy mở đơn mua vừa lập (rời màn, không tải lại danh sách). */
+      return { ghi_chu: 'Đã chốt', don: 'PUR-ORD-' + (++may.so) };
     }
     return {};
   };
@@ -97,7 +100,7 @@ const nhap = kho => Array.from(kho._m.keys()).filter(k => k.indexOf('vgbSoanDo:'
 
 (async () => {
   // 1. Sửa số, tải lại trang: còn số đã sửa.
-  const kho = khoMay(), may = { d: duLieu(8000) };
+  const kho = khoMay(), may = { d: duLieu(8000), so: 0 };
   const a = appMoi(kho, may);
   await a.moMan();
   assert(a.o('BO'), 'màn mở được');
@@ -110,9 +113,11 @@ const nhap = kho => Array.from(kho._m.keys()).filter(k => k.indexOf('vgbSoanDo:'
   assert.equal(String(b.o('KEM').value), '0', 'tải lại trang vẫn còn số 0 (từ chối) của Kem');
   assert.equal(String(b.o('SUA').value), '12', 'món chưa sửa giữ số máy');
 
-  // 2. Bấm làm mới trên màn: không mất số đã sửa.
+  // 2. Bấm nút làm mới (↻) ngay trên màn, rồi mở lại màn: không mất số đã sửa.
+  b.g.GM.d = null; await b.g.scrGomMua(); await nghi();
+  assert.equal(String(b.o('BO').value), '6000', 'nút làm mới trên màn không xoá số đã sửa');
   await b.lamMoi();
-  assert.equal(String(b.o('BO').value), '6000', 'làm mới không xoá số đã sửa');
+  assert.equal(String(b.o('BO').value), '6000', 'mở lại màn không xoá số đã sửa');
 
   // 3. Có phiếu xin mới: Bơ máy điền 9000, nhưng Bơ đã sửa nên giữ 6000; Sữa chưa sửa thì theo số mới.
   may.d.nhom[1].mon[0].mua = 20; may.d.nhom[1].mon[0].xin = 20;
@@ -132,6 +137,17 @@ const nhap = kho => Array.from(kho._m.keys()).filter(k => k.indexOf('vgbSoanDo:'
   await d.moMan();
   assert(!d.o('BO'), 'Bơ đã chốt không còn trên màn');
   assert.equal(String(d.o('KEM').value), '0', 'tải lại sau khi chốt một nhóm vẫn còn số Kem đã sửa');
+  // 5. Codex 549 (1eefda8): phiếu xin MỚI của món vừa chốt phải hiện số máy mới, không mang số cũ.
+  may.d.nhom.unshift({ ncc: 'NCC-A', ten_ncc: 'Bơ sữa An Phú', so_mon: 1, so_phieu: 1,
+    mon: [{ ma: 'BO', ten: 'Bơ lạt', mua: 9000, xin: 9000, dvt: 'Gram', ton: 0, cho_ve: 0, gia: 0.25, phieu: [{ phieu: 'YC-9', xin: 9000 }] }] });
+  await c.lamMoi();
+  assert.equal(String(c.o('BO').value), '9000', 'cùng phiên: Bơ mới hiện 9000, không phải 6000 đã chốt');
+  const e = appMoi(kho, may);
+  await e.moMan();
+  assert.equal(String(e.o('BO').value), '9000', 'tải lại trang: bản nháp không còn số Bơ đã chốt');
+  assert.equal(String(e.o('KEM').value), '0', 'số Kem đã sửa vẫn còn');
+  may.d.nhom.shift();
+  await d.lamMoi();
   await d.bamChot(0);
   await d.tua(1000);
   assert.equal(nhap(kho).length, 0, 'chốt nốt thì xoá bản nháp');

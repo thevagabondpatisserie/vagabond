@@ -718,6 +718,44 @@ await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; gi�
   la('chọn được 15/11', k.S.ngayChon, '2026-11-15');
 });
 
+/* Codex 549 (1eefda8): Kankin vừa còn decor 3 vừa có mẻ refill 15 (14/11 tới 20/11), dựng THẬT từ máy chủ. */
+const RF_HAI = JSON.parse(execFileSync('python3', ['-B', '-c', `
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from vagabond.khung.kiem_thu import nen
+nen.gia_lap()
+from vagabond.khung.kiem_thu import thu_refill_646 as t
+kk = dict(t.KANKIN, so_refill=15, refill_tu=t.D8(2026, 11, 14), refill_den=t.D8(2026, 11, 20))
+print(json.dumps(t.du_lieu_web(kankin=kk), ensure_ascii=False, default=str))
+`, GOC_REPO]).toString());
+
+await ca('Codex 549 (1eefda8): bánh vừa còn decor vừa có refill: ngày nhận trong khoảng refill thì giới hạn theo refill (15), ngoài khoảng theo decor (3)', async () => {
+  const {mt} = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: RF_HAI})});
+  const k = taoKho(mt);
+  await k.napTon();
+  k.S.tab = 'order';
+  la('máy chủ trả cả hai số', [k.S.TRUOC.BAWC00123, (k.S.TRUOC_RF.BAWC00123 || {}).con], [3, 15]);
+  k.pick(5);
+  la('chọn 15/11', k.S.ngayChon, '2026-11-15');
+  la('giới hạn ngày 15/11 theo refill', k.gioiHanNhan('BAWC00123'), 15);
+  k.moBanh(k.S.CAKES.find(c => c.k === 'Kankin')); k.S.soLuong = 5;
+  la('thêm 5 bánh ngày 15/11 được (trước: chặn ở 3)', k.addToCart(), 'them');
+  k.pick(1);
+  la('ngày 11/11 ngoài khoảng: giới hạn theo decor', k.gioiHanNhan('BAWC00123'), 3);
+});
+
+await ca('Codex 549 (1eefda8): bánh có sẵn hôm nay thêm từ tab Hôm nay không bị khoá ngày vì mẻ refill tương lai', async () => {
+  const {mt} = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {BAWC00068: 4}, nhom: [], dat_truoc: RF_MAY})});
+  const k = taoKho(mt);
+  await k.napTon();
+  k.S.tab = 'today';
+  la('thêm Roman từ tab Hôm nay', coThem(k, 'Roman de la Rose'), 'them');
+  la('dòng giỏ lấy bánh hôm nay', k.S.CART[0].nguon, 'today');
+  la('không ngày nào mờ (trước: mờ 10 tới 13/11)', k.ngayRail.value.filter(d => d.off).length, 0);
+  k.pick(0);
+  la('chọn được hôm nay 10/11', k.S.ngayChon, '2026-11-10');
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');
