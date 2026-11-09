@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Kich Ban Zalo",
- "modified": "2026-11-08 20:00:00.000000",
+ "modified": "2026-11-09 16:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Kịch bản tin Zalo tự động gửi khách: sau mua hàng, sinh nhật, lâu chưa quay lại.",
@@ -150,7 +150,7 @@
    "fieldtype": "Data",
    "label": "Điều kiện trên tin",
    "length": 40,
-   "description": "Tối đa 40 chữ. Để trống máy tự viết, ví dụ Hoá đơn từ 300.000đ."
+   "description": "Tối đa 30 chữ. Để trống máy tự viết, ví dụ Hoá đơn từ 300.000đ."
   },
   {
    "fieldname": "sb_mau",
