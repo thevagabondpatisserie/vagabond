@@ -219,8 +219,8 @@ def _danh_muc():
 	# v644: thêm bộ phận Marketing và tin bánh chờ ảnh trên web (anh Việt duyệt 07/11/2026).
 	# v645: thêm tin báo cáo ưu đãi Zalo tuần cho Marketing (anh Việt duyệt 08/11/2026).
 	# v646: thêm 9 tin Cài đặt tự động hoá và Thu mua (viec_tu_dong.py), anh Việt duyệt bản vẽ 09/11/2026.
-	la("đủ 112 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641, 1 tin v644, 1 tin v645, 9 tin v646)", len(kz.TIN), 112)
+	la("đủ 113 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641, 1 tin v644, 1 tin v645, 10 tin v646)", len(kz.TIN), 113)
 	la("chín bộ phận đúng thứ tự (v622 thêm Nhân sự, v644 thêm Marketing)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Marketing", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():

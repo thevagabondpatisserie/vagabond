@@ -110,7 +110,8 @@ def _uu_dai():
 	la("không giá trị: dùng tên chương trình", zk.mo_ta_uu_dai({"ten": "Quà sinh nhật thành viên"})[0], "Quà sinh nhật thành viên")
 	t, d = zk.mo_ta_uu_dai({}, "Một ly cà phê và bánh nhỏ cho bạn nhân dịp sinh nhật", "x" * 60)
 	la("cắt trong 30 chữ, không để khoảng trắng thừa", t, "Một ly cà phê và bánh nhỏ cho")
-	la("cắt 40", len(d), 40)
+	# v646: ô dieu_kien của mọi mẫu thật dài tối đa 30 (trước cắt 40, Zalo cắt cụt).
+	la("cắt 30", len(d), 30)
 
 
 @ca("v621 lỗi Zalo: câu tiếng Việt cho mã hay gặp; lỗi cả lượt gồm hết tiền, hết hạn mức, ngoài giờ")
@@ -150,6 +151,8 @@ def _gd(v):
 	return dt.datetime.fromisoformat(str(v)[:19])
 
 
+# Lưu ý v646: bộ này KHÁC mẫu thật 659376 (thật: ngay_mua DATE, tong_tien CURRENCY) và
+# đã che lỗi -1124 lên site. Kiểm theo tham số mẫu thật ở thu_zalo_mau_646.
 TS_SAU_MUA = [{"name": n, "type": t, "maxLength": m, "require": True} for n, t, m in (
 	("ten_khach", "STRING", 30), ("ma_hoa_don", "STRING", 30), ("ngay_mua", "STRING", 20), ("tong_tien", "NUMBER", 12),
 	("diem_tich", "NUMBER", 20), ("tong_diem", "NUMBER", 20), ("hang", "STRING", 30))]
