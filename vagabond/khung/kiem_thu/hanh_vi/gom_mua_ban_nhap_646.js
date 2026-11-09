@@ -18,6 +18,20 @@ const dom = require('./dom_gia.js');
 const BEP = path.resolve(__dirname, '../../../public/js/bep');
 const doc = n => fs.readFileSync(path.join(BEP, n), 'utf8');
 const KHUNG = doc('01-khung-app.js'), GOM = doc('70-gom-mua.js'), SOAN_DO = doc('48-ban-soan-do.js');
+/* Ô tìm nhanh dùng chung của app: lấy nguyên hàm thật từ 00-nen và 07-hop-thoai. */
+function layHam(src, ten) {
+  const dau = src.indexOf('function ' + ten + '(');
+  if (dau < 0) throw new Error('Không thấy hàm ' + ten);
+  let i = src.indexOf('{', dau), sau = 0;
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === '{') sau++;
+    else if (src[j] === '}') { sau--; if (!sau) return src.slice(dau, j + 1); }
+  }
+  throw new Error('Hàm ' + ten + ' không đóng ngoặc');
+}
+const NEN = doc('00-nen.js'), HOP = doc('07-hop-thoai.js');
+const TIM = [layHam(NEN, 'vgbChuan'), layHam(NEN, 'vgbKhop'), HOP.match(/^var VGB_NGUONG_TIM = \d+;$/m)[0],
+  layHam(HOP, 'vgbCanOTim'), layHam(HOP, 'vgbOTim')].join('\n');
 
 function khoMay() {
   const m = new Map();
@@ -77,6 +91,7 @@ function appMoi(kho, may) {
     'var poXem = ""; function scrDonMuaXem() {}',
   ].join('\n'), g);
   vm.runInContext(KHUNG, g);
+  vm.runInContext(TIM, g);
   vm.runInContext('S.user = "uyen@vagabond.vn"; S.roles = ["Purchase User"]; coQuyenMua = function () { return true; };', g);
   vm.runInContext(GOM, g);
   const boc = SOAN_DO.match(/^(\w+) = sdBoc(?:Hop)?\(/gm).map(x => x.split(' ')[0]);
@@ -98,7 +113,37 @@ function appMoi(kho, may) {
 
 const nhap = kho => Array.from(kho._m.keys()).filter(k => k.indexOf('vgbSoanDo:') === 0);
 
+/* Codex 549 (4204048): danh sách dài có ô tìm nhanh (AGENTS.md 2b.5). */
+function duLieuDai() {
+  const mon = (ma, ten) => ({ ma, ten, mua: 1, xin: 1, dvt: 'Cái', ton: 0, cho_ve: 0, gia: 0, phieu: [{ phieu: 'YC-' + ma, xin: 1 }] });
+  return { so_dong: 8, so_phieu: 8, nhom: [
+    { ncc: 'NCC-A', ten_ncc: 'Bơ sữa An Phú', so_mon: 4, so_phieu: 4, mon: [mon('BO', 'Bơ lạt'), mon('KEM', 'Kem tươi'), mon('PHO', 'Phô mai'), mon('SUA', 'Sữa tươi')] },
+    { ncc: 'NCC-B', ten_ncc: 'Bột Đông Á', so_mon: 4, so_phieu: 4, mon: [mon('BOT', 'Bột mì số 8'), mon('DUONG', 'Đường cát'), mon('MUOI', 'Muối'), mon('MEN', 'Men nở')] }] };
+}
+
 (async () => {
+  {
+    const kho = khoMay(), may = { d: duLieuDai(), so: 0 };
+    const a = appMoi(kho, may);
+    await a.moMan();
+    const o = a.tl.getElementById('gmTim');
+    assert(o, 'danh sách 8 món có ô tìm nhanh');
+    await a.go('BO', '5');
+    const tim = async chu => { o.value = chu; o.oninput(); await nghi(); };
+    const hien = sel => a.tl.querySelectorAll(sel).filter(x => x.style.display !== 'none').map(x => x.getAttribute(sel.slice(1, -1)));
+    await tim('duong');
+    assert.deepEqual(hien('[data-gmmon]'), ['DUONG'], 'gõ không dấu "duong" ra Đường cát');
+    assert.deepEqual(hien('[data-gmnhom]'), ['1'], 'nhóm không còn món khớp thì ẩn');
+    await tim('an phu');
+    assert.deepEqual(hien('[data-gmmon]'), ['BO', 'KEM', 'PHO', 'SUA'], 'gõ tên nhà cung cấp ra cả nhóm');
+    await tim('xyz');
+    assert.equal(a.tl.getElementById('gmTimTrong').style.display, '', 'không khớp gì thì có câu chỉ đường');
+    assert.equal(a.g.GM.sua.BO, 5, 'tìm không làm mất số đã sửa');
+    await tim('men no');
+    a.g.GM.d = null; await a.g.scrGomMua(); await nghi();
+    assert.equal(a.tl.getElementById('gmTim').value, 'men no', 'vẽ lại vẫn giữ chữ đang tìm');
+    assert.deepEqual(hien('[data-gmmon]'), ['MEN'], 'vẽ lại vẫn lọc');
+  }
   // 1. Sửa số, tải lại trang: còn số đã sửa.
   const kho = khoMay(), may = { d: duLieu(8000), so: 0 };
   const a = appMoi(kho, may);
