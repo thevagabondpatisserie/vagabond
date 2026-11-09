@@ -7307,6 +7307,43 @@ async function scrMRList(T) {
   mrFilter.q = ''; mrFilter.bep = 'Tất cả'; drawList();
 }
 
+/* So nguoi go tay vao o so luong: nhan ca dau phay thap phan (7,5). Rong
+   hay khong phai so thi tra NaN de man hinh bao dung dong. */
+function soGoTay(v) {
+  var s = String(v == null ? '' : v).replace(/\s+/g, '');
+  if (!s) return NaN;
+  if (s.indexOf(',') >= 0 && s.indexOf('.') >= 0) s = s.replace(/\./g, '');
+  s = s.replace(',', '.');
+  var n = Number(s);
+  return isFinite(n) ? n : NaN;
+}
+
+/* Ap so nguoi go len phieu yeu cau mua con nhap (Codex 549). `so` la mang
+   chuoi theo thu tu dong; dong khong co trong mang giu so cu. Go 0 la bo
+   dong. Tra { doc } de luu, hoac { loi } neu so hong hay bo het dong. */
+function mrApSo(d, so) {
+  var giu = [], loi = '';
+  (d.items || []).forEach(function (it, i) {
+    if (loi) return;
+    var n = so[i] === undefined ? (it.qty || 0) : soGoTay(so[i]);
+    if (isNaN(n) || n < 0) {
+      loi = 'Dòng ' + (i + 1) + ' (' + (it.item_name || it.item_code) + '): số lượng phải là số từ 0 trở lên';
+      return;
+    }
+    if (n === 0) return;
+    var x = Object.assign({}, it);
+    x.qty = n;
+    x.stock_qty = n * (it.conversion_factor || 1);
+    x.idx = giu.length + 1;
+    giu.push(x);
+  });
+  if (loi) return { loi: loi };
+  if (!giu.length) return { loi: 'Mọi dòng đều bằng 0. Đợt này không cần mua thì cứ để phiếu nháp, máy tự xoá sau 2 ngày.' };
+  var doc = Object.assign({}, d);
+  doc.items = giu;
+  return { doc: doc };
+}
+
 async function scrMRView(name, T) {
   frame(name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d = await api('frappe.client.get', { doctype: 'Material Request', name: name });
@@ -7331,12 +7368,18 @@ async function scrMRView(name, T) {
     return '<span style="display:inline-block;margin-top:5px;padding:2px 9px;border-radius:11px;font-size:12px;font-weight:600;color:#fff;background:' + (CU_MAU[v] || '#8a8f98') + '">' + h(v) + '</span>';
   }
   var laMua = d.material_request_type === 'Purchase';
+  /* Phieu mua con nhap: nguoi giu kho sua so tung dong roi Luu nhap hay Gui
+     duyet (Codex 549). Phieu may soan chi la goi y theo luong dung. */
+  var suaSo = laMua && d.docstatus === 0;
   var rows = (d.items || []).map(function (it, i) {
     return '<div class="ic1"><div class="ih"><div class="n">' + (i + 1) + '</div>' +
       '<div class="in">' + h(it.item_name || it.item_code) + '<div class="ig">Mã: ' + h(it.item_code) + '</div>' + (laMua ? chipCU(it.trang_thai_cung_ung) : '') + '</div></div>' +
-      '<div class="stk"><div><div class="s1">Số lượng</div><div class="s2">' + num(it.qty) + ' ' + h(it.uom) + '</div></div>' +
+      '<div class="stk">' + (suaSo ? '' : '<div><div class="s1">Số lượng</div><div class="s2">' + num(it.qty) + ' ' + h(it.uom) + '</div></div>') +
       (T.hasTime ? '<div><div class="s1">' + h(T.timeLabel) + '</div><div class="s2">' + h(it.gio_can_lay ? String(it.gio_can_lay).slice(0, 5) : '-') + '</div></div>' : '') +
       '<div><div class="s1">Ngày cần</div><div class="s2">' + dmy(it.schedule_date) + '</div></div>' + (laMua && it.ncc_dat_hang ? '<div><div class="s1">Nhà cung cấp</div><div class="s2">' + h(it.ncc_dat_hang) + '</div></div>' : '') + (laMua && it.ngay_hen_giao ? '<div><div class="s1">NCC hẹn giao</div><div class="s2">' + dmy(it.ngay_hen_giao) + '</div></div>' : '') + ((dlv[it.name] || 0) > 0.0001 ? '<div><div class="s1">Đã giao</div><div class="s2">' + num(dlv[it.name] / (it.conversion_factor || 1)) + ' ' + h(it.uom) + '</div></div>' : '') + '</div>' +
+      (suaSo ? '<div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số lượng cần mua (gõ 0 để bỏ dòng)</div>' +
+        '<div class="qr"><div class="stp"><input type="number" inputmode="decimal" min="0" step="any" data-q="' + i + '" value="' + (it.qty || 0) + '"></div>' +
+        '<div class="uom" style="display:flex;align-items:center;justify-content:center">' + h(it.uom) + '</div></div></div></div>' : '') +
       (it.description && it.description.replace(/<[^>]*>/g, '').trim() && it.description.indexOf(it.item_name) < 0 ?
         '<div style="padding:10px 14px;font-size:13.5px;color:#5a6070">' + h(it.description.replace(/<[^>]*>/g, '').trim()) + '</div>' : '') +
       '</div>';
@@ -7353,8 +7396,12 @@ async function scrMRView(name, T) {
     (T.key === 'Manufacture' ? '<div class="kv"><span>Trạng thái bếp</span><b>' + h(d.trang_thai_bep || 'Chưa làm') + (d.bep_nguoi_xong ? ' (' + h(d.bep_nguoi_xong) + ')' : '') + '</b></div>' : '') +
     '<div class="kv"><span>Trạng thái</span><b>' + h(vnSt(d.status)) + '</b></div>' +
     '<div class="kv"><span>Người lập</span><b>' + h(d.nguoi_lap_ten || d.owner) + '</b></div>' + (laMua && d.trang_thai_cung_ung ? '<div class="kv"><span>Cung ứng</span><b>' + chipCU(d.trang_thai_cung_ung) + (d.tom_tat_cung_ung ? '<div style="font-weight:400;font-size:12.5px;color:#5a6070;margin-top:3px">' + h(d.tom_tat_cung_ung) + '</div>' : '') + '</b></div>' : '') + '</div>' +
+    (suaSo ? '<div style="padding:2px 16px 0;font-size:12.5px;color:#8a8f9c;line-height:1.5">' +
+      (d.vgb_may_soan ? 'Máy soạn theo lượng dùng 14 ngày, số chỉ là gợi ý. ' : '') +
+      'Sửa số từng dòng, gõ 0 để bỏ dòng. Lưu nháp để làm tiếp sau; Gửi duyệt thì thu mua mới gom được, gửi rồi không sửa nữa.</div>' : '') +
     '<div class="sec">' + (d.items || []).length + ' hàng hoá</div>' + rows,
-    (d.docstatus === 0 ? { footer: '<button class="btn" id="vSub">Gửi duyệt</button>' }
+    (suaSo ? { footer: '<div style="display:flex;gap:10px"><button class="btn" id="vLuu" style="background:#fff;color:#101828;border:1px solid #d0d5dd">Lưu nháp</button><button class="btn" id="vSub">Gửi duyệt</button></div>' }
+      : d.docstatus === 0 ? { footer: '<button class="btn" id="vSub">Gửi duyệt</button>' }
       : (canReceive(d) ? { footer: '<div style="display:flex;gap:10px"><button class="btn" id="vSoan" style="background:#fff;color:#101828;border:1px solid #d0d5dd">🧺 Soạn hàng (kho xuất)</button><button class="btn" id="vRecv">📦 Đã nhận hàng</button></div>' }
       : (canGiaoBep(d, dlv) ? { footer: '<button class="btn" id="vGiao">🚚 Giao hàng sang ' + h(shortWh(d.set_warehouse)) + '</button>' } : {}))));
   var sn = document.getElementById('vSoan');
@@ -7389,11 +7436,32 @@ async function scrMRView(name, T) {
       });
     });
   };
+  function soDaGo() {
+    var so = [];
+    Array.prototype.forEach.call(b.querySelectorAll('[data-q]'), function (o) { so[+o.getAttribute('data-q')] = o.value; });
+    return so;
+  }
+  var lv = document.getElementById('vLuu');
+  if (lv) lv.onclick = async function () {
+    var r = mrApSo(d, soDaGo());
+    if (r.loi) return toast(r.loi);
+    busy(1);
+    try { await api('frappe.client.save', { doc: r.doc }); toast('Đã lưu nháp ' + name); }
+    catch (err) { toast(errMsg(err)); return; } finally { busy(0); }
+    scrMRView(name, T);
+  };
   var s = document.getElementById('vSub');
   if (s) s.onclick = async function () {
+    var r = suaSo ? mrApSo(d, soDaGo()) : { doc: d };
+    if (r.loi) return toast(r.loi);
     if (!await confirmSheet('Gửi duyệt phiếu?', 'Sau khi gửi sẽ không sửa được nội dung.', 'Gửi duyệt')) return;
     busy(1);
-    try { await api('frappe.client.submit', { doc: d }); toast('Đã gửi phiếu ' + name); back(); }
+    try {
+      /* Luu so da sua TRUOC roi moi gui: gui hong thi so vua go van con. */
+      var luu = suaSo ? await api('frappe.client.save', { doc: r.doc }) : r.doc;
+      await api('frappe.client.submit', { doc: luu || r.doc });
+      toast('Đã gửi phiếu ' + name); back();
+    }
     catch (err) { toast(errMsg(err)); } finally { busy(0); }
   };
 }
@@ -58871,7 +58939,9 @@ function sdChup(loai, goc) {
     try { s = cfg.lay(); } catch (e) { return null; }
     if (s == null) return null;
   } else if (!goc) return null;
-  var o = sdDocO(goc);
+  /* Man giu TOAN BO trang thai trong lay (khongO) thi khong chup o nhap: dien
+     lai so cu vao o se de len so moi cua may (v646 Codex 549, Gom yeu cau mua). */
+  var o = cfg.khongO ? {} : sdDocO(goc);
   /* Man dang ve tam dong ho cat (chua co o nao) thi giu so lieu o cua lan
      truoc, khong ghi de bang to rong. */
   if (!Object.keys(o).length && SD.oCu && loai === SD.loai) o = SD.oCu;
@@ -59496,6 +59566,16 @@ sdKhai('chien_dich', 'scrCrmCd', {
   ten: 'Chiến dịch', lay: function () { return crmCdNhap(); }, dat: function (v) { crmCdKhoiPhuc = v; },
   ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('ten'), luu: ['vagabond.crm.luu_chien_dich']
 });
+/* v646 Codex 549: màn Gom yêu cầu mua (70, sau 48), ghép bằng dat() vào
+   gmKhoiPhuc. Chỉ giữ số thu mua đã sửa (khongO): số máy điền sẵn đổi theo
+   phiếu xin mới, điền lại số cũ vào ô là sai. Chốt một nhóm chỉ tính là xong
+   bản nháp khi không còn món đã sửa ở nhóm khác. */
+sdKhai('gom_mua', 'scrGomMua', {
+  ten: 'Gom yêu cầu mua', khongO: 1, lay: function () { return GM.d ? { sua: gmGiuSua(GM.sua, GM.d) } : null; },
+  dat: function (v) { gmKhoiPhuc = (v && v.sua) || null; },
+  tieuDe: function (v) { var n = v && v.sua ? Object.keys(v.sua).length : 0; return n ? n + ' món đã sửa số mua' : ''; },
+  luu: [function (m, a) { return m === 'vagabond.gom_mua.chot' && !gmConSuaKhac(a); }]
+});
 /* v622: hai màn lập phiếu của Tuyển dụng (60-tuyen-dung.js, đứng sau 48 nên
    ghép bằng dat() vào biến khôi phục, màn tự ghép lúc dựng trạng thái). */
 sdKhai('vi_tri_tuyen', 'scrTdViTri', {
@@ -59602,6 +59682,7 @@ scrTdThemHs = sdBoc('ho_so_ung_vien', 'scrTdThemHs', scrTdThemHs);
 scrQuyKiem = sdBoc('kiem_quy', 'scrQuyKiem', scrQuyKiem);
 scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
 scrQuyChotDau = sdBoc('chot_dau_quy', 'scrQuyChotDau', scrQuyChotDau);
+scrGomMua = sdBoc('gom_mua', 'scrGomMua', scrGomMua);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
@@ -70577,6 +70658,27 @@ function tdhSua(x) {
    Tiền tố gm = gom mua. */
 
 var GM = { d: null, sua: {}, mo: {} };
+/* Bản nháp tự lưu (Codex 549): số thu mua đã sửa nằm ở GM.sua và được phần 48
+   lưu trên máy. Mở lại từ bản nháp thì 48 đặt vào đây, màn ghép ngay sau khi
+   đọc danh sách (phần sau 48 không móc sdGhep). */
+var gmKhoiPhuc = null;
+
+/* THUẦN: giữ số đã sửa của những món còn trên màn. Món vừa chốt, vừa có người
+   duyệt hay ô gõ hỏng (null) thì bỏ. */
+function gmGiuSua(sua, d) {
+  var co = {}, ra = {};
+  ((d && d.nhom) || []).forEach(function (g) { (g.mon || []).forEach(function (m) { co[m.ma] = 1; }); });
+  Object.keys(sua || {}).forEach(function (k) { if (co[k] && sua[k] != null) ra[k] = sua[k]; });
+  return ra;
+}
+
+/* THUẦN: sau lần chốt `a` (tham số gửi máy chủ) còn bao nhiêu món đã sửa ở
+   nhóm khác. Còn thì bản nháp chưa xong, chốt một nhóm không được xoá nó. */
+function gmConSuaKhac(a) {
+  var chot = {};
+  try { JSON.parse((a && a.dong) || '[]').forEach(function (x) { chot[x.ma] = 1; }); } catch (e) { }
+  return Object.keys(gmGiuSua(GM.sua, GM.d)).filter(function (k) { return !chot[k]; }).length;
+}
 
 /* THUẦN: số mua đang hiện của một món (đã gõ thì theo số gõ, chưa thì số máy). */
 function gmSoMua(m) {
@@ -70628,12 +70730,14 @@ async function scrGomMua(giu) {
   }
   if (!giu || !GM.d) {
     frame('Gom yêu cầu mua', '<div class="emp"><div class="e1">⏳</div></div>');
-    try { GM.d = await api('vagabond.gom_mua.ds', {}); GM.sua = {}; }
+    /* Tải lại không xoá số đã sửa: chỉ bỏ số của món không còn trên màn. */
+    try { GM.d = await api('vagabond.gom_mua.ds', {}); GM.sua = gmGiuSua(GM.sua, GM.d); }
     catch (e) {
       frame('Gom yêu cầu mua', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' + h(errMsg(e)) + '</div></div>');
       return;
     }
   }
+  if (gmKhoiPhuc) { GM.sua = gmGiuSua(gmKhoiPhuc, GM.d); gmKhoiPhuc = null; }
   var d = GM.d, nhom = d.nhom || [];
   var html = '<div class="card" style="padding:12px 14px;font-size:13.5px;line-height:1.55;color:#374151">' +
     'Máy gom <b>' + d.so_dong + ' dòng</b> từ <b>' + d.so_phieu + ' phiếu</b> yêu cầu mua chưa duyệt, chia theo nhà cung cấp. ' +
@@ -70657,18 +70761,37 @@ async function scrGomMua(giu) {
   };
 }
 
+/* Nhóm chưa có nhà cung cấp: CHỌN từ danh mục có ô tìm nhanh (Codex 549,
+   AGENTS.md QT-31), không bắt thu mua gõ đúng mã. Trả { ncc, ten } hoặc null. */
+async function gmChonNcc() {
+  var r;
+  busy(1);
+  try { r = await api('vagabond.gom_mua.tim_ncc', {}); }
+  catch (e) { toast(errMsg(e), 6000); return null; }
+  finally { busy(0); }
+  var ds = (r && r.ds) || [];
+  if (!ds.length) { toast('Danh mục chưa có nhà cung cấp nào đang dùng. Thêm ở màn Nhà cung cấp rồi chốt lại.', 6000); return null; }
+  var k = await hoiChon('Chọn nhà cung cấp cho nhóm này',
+    'Đơn mua lập cho nhà được chọn. Gõ vài chữ tên hoặc mã số thuế để tìm nhanh.',
+    ds.map(function (x) { return { k: x.ncc, nhan: x.ten, mo_ta: x.mst ? 'MST ' + x.mst : '' }; }));
+  if (!k) return null;
+  var t = ds.filter(function (x) { return x.ncc === k; })[0];
+  return { ncc: k, ten: (t && t.ten) || k };
+}
+
 async function gmChot(g) {
   if (!g) return;
   var dong = gmDongChot(g);
   var hong = dong.filter(function (x) { return x.sl == null || isNaN(Number(x.sl)) || Number(x.sl) < 0; });
   if (hong.length) return toast('Còn ô số mua để trống hoặc gõ sai, gõ 0 nếu chưa mua đợt này', 5000);
-  var ncc = '';
+  var ncc = '', tenNcc = g.ten_ncc;
   if (!g.ncc) {
-    ncc = await promptSheet('Nhà cung cấp cho nhóm này', 'Gõ đúng mã nhà cung cấp trong danh mục');
-    if (!ncc) return;
+    var c = await gmChonNcc();
+    if (!c) return;
+    ncc = c.ncc; tenNcc = c.ten;
   }
   var so0 = dong.filter(function (x) { return Number(x.sl) === 0; }).length;
-  if (!await confirmSheet('Chốt đơn ' + (g.ncc ? g.ten_ncc : ncc) + '?',
+  if (!await confirmSheet('Chốt đơn ' + tenNcc + '?',
     'Máy duyệt ' + g.so_phieu + ' phiếu xin theo số đang hiện và lập đơn mua ' + (dong.length - so0) + ' món.' +
     (so0 ? '\n\n' + so0 + ' món gõ 0: các dòng xin đó bị từ chối, ghi lý do "chưa mua đợt này".' : '') +
     '\n\nĐơn mua chưa gửi nhà cung cấp; gửi ở màn Đơn mua hàng.', 'Chốt đơn')) return;
