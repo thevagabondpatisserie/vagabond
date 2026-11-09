@@ -271,6 +271,32 @@ def _lap_don(ncc, dong, chia):
 	return po
 
 
+def loc_ncc(ds, tu_khoa=""):
+	"""THUẦN: lọc danh mục nhà cung cấp cho ô chọn (Codex 549, AGENTS.md QT-31).
+
+	Gõ không dấu vẫn ra ("nguyen bao" khớp "Nguyễn Bảo"), khớp cả mã danh mục
+	và mã số thuế. Nhà chưa có tên thì hiện mã để vẫn chọn được."""
+	from vagabond.duong_app import khong_dau
+
+	tu = khong_dau(tu_khoa or "").lower().split()
+	ra = []
+	for x in ds or []:
+		ten = (x.get("supplier_name") or "").strip() or x.get("name")
+		chu = khong_dau(" ".join([x.get("name") or "", ten, x.get("tax_id") or ""])).lower()
+		if all(t in chu for t in tu):
+			ra.append({"ncc": x.get("name"), "ten": ten, "mst": x.get("tax_id") or ""})
+	return ra
+
+
+@frappe.whitelist()
+def tim_ncc(tu_khoa=""):
+	"""Danh mục nhà cung cấp đang dùng cho ô chọn khi chốt nhóm chưa có nhà cung cấp."""
+	_kiem_quyen()
+	ds = frappe.get_all("Supplier", filters={"disabled": 0}, fields=["name", "supplier_name", "tax_id"],
+		order_by="supplier_name asc", limit_page_length=0)
+	return {"ds": loc_ncc(ds, tu_khoa)}
+
+
 @frappe.whitelist(methods=["POST"])
 def chot(ncc, dong, ncc_chon=None):
 	"""Chốt một nhóm: ghi phần duyệt lên phiếu xin rồi lập đơn mua cho nhà cung cấp.

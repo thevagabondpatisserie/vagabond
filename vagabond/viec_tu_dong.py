@@ -535,12 +535,38 @@ def viec_gom_mua():
 		nowdate(), da_qua(c.get("han"), bay))]
 
 
+# Dấu "máy soạn" trên phiếu yêu cầu mua (Codex 549): mọi chỗ đếm, nhắc và dọn
+# phiếu máy soạn đều lọc theo dấu này, không theo người tạo. Người tạo
+# Administrator còn khớp cả phiếu tay của quản trị và phiếu sản xuất, chuyển
+# kho của luồng khác; dọn theo người tạo là xoá nhầm chứng từ thật.
+TRUONG_MOI = {
+	"Material Request": [
+		{
+			"fieldname": "vgb_may_soan",
+			"label": "Máy soạn",
+			"fieldtype": "Check",
+			"insert_after": "material_request_type",
+			"read_only": 1,
+			"no_copy": 1,
+			"description": "Máy soạn theo lượng dùng 14 ngày. Để nháp quá 2 ngày mà không ai sửa thì máy tự xoá.",
+		},
+	],
+}
+
+
+def loc_may_soan(**them):
+	"""Bộ lọc DUY NHẤT cho phiếu yêu cầu mua máy soạn."""
+	loc = {"material_request_type": "Purchase", "vgb_may_soan": 1}
+	loc.update(them)
+	return loc
+
+
 def viec_ycmh_nhap(kho=None, xem_het=False):
 	"""Phiếu yêu cầu mua máy soạn còn nháp: người giữ kho đó gửi; thu mua thấy hết."""
 	c = cau_hinh().get("ycmh_tu_dong") or {}
 	if not c.get("bat") or not (kho or xem_het):
 		return []
-	loc = {"material_request_type": "Purchase", "docstatus": 0, "owner": "Administrator"}
+	loc = loc_may_soan(docstatus=0)
 	if kho:
 		loc["set_warehouse"] = ["in", list(kho)]
 	ra = []
@@ -811,12 +837,12 @@ def lam_ycmh_tu_dong(c, bay):
 			return
 		dong = []
 		for kho, cac in sorted(goi_y_mua(c.get("nguong"), c.get("du")).items()):
-			if frappe.db.exists("Material Request", {"material_request_type": "Purchase", "docstatus": 0,
-					"owner": "Administrator", "transaction_date": ngay, "set_warehouse": kho}):
+			if frappe.db.exists("Material Request", loc_may_soan(docstatus=0, transaction_date=ngay, set_warehouse=kho)):
 				continue
 			try:
 				mr = frappe.new_doc("Material Request")
 				mr.material_request_type = "Purchase"
+				mr.vgb_may_soan = 1
 				mr.company = frappe.db.get_value("Warehouse", kho, "company")
 				mr.transaction_date = ngay
 				mr.schedule_date = add_days(ngay, 1)
@@ -841,8 +867,7 @@ def lam_ycmh_tu_dong(c, bay):
 					link=_url("/app/material-request?docstatus=0"), khoa=khoa, ma_tin="kho_ycmh_may_soan")
 				_da_bao(khoa)
 	elif den_gio(c.get("han"), bay):
-		ds = frappe.get_all("Material Request", filters={"material_request_type": "Purchase", "docstatus": 0,
-			"owner": "Administrator", "transaction_date": ngay}, pluck="name")
+		ds = frappe.get_all("Material Request", filters=loc_may_soan(docstatus=0, transaction_date=ngay), pluck="name")
 		if ds:
 			khoa = "vtd-ycmh-han:%s" % ngay
 			if _chua_bao(khoa):
@@ -881,11 +906,13 @@ SO_NGAY_GIU_NHAP = 2
 def don_nhap_may_soan(bay):
 	"""Xoá phiếu nháp máy soạn mà không ai đụng tới sau 2 ngày.
 
-	Chỉ phiếu NHÁP (chưa gửi, không có bút toán nào), do máy tạo VÀ lần sửa
-	cuối vẫn là máy: ai đã mở ra sửa một chữ thì phiếu là của người đó, giữ."""
+	Chỉ phiếu yêu cầu mua mang dấu Máy soạn, còn NHÁP (chưa gửi, không có bút
+	toán nào), VÀ lần sửa cuối vẫn là máy: ai đã mở ra sửa một chữ thì phiếu
+	là của người đó, giữ. Không lọc theo người tạo (Codex 549): nháp tay của
+	Administrator, phiếu sản xuất, chuyển kho không bao giờ bị xoá ở đây."""
 	moc = add_days(getdate(nowdate()), -SO_NGAY_GIU_NHAP)
-	ds = frappe.get_all("Material Request", filters={"docstatus": 0, "owner": "Administrator",
-		"modified_by": "Administrator", "transaction_date": ["<", moc]}, pluck="name", limit_page_length=200)
+	ds = frappe.get_all("Material Request", filters=loc_may_soan(docstatus=0, owner="Administrator",
+		modified_by="Administrator", transaction_date=["<", moc]), pluck="name", limit_page_length=200)
 	for ten in ds:
 		frappe.delete_doc("Material Request", ten, ignore_permissions=True, force=True)
 	return len(ds)
@@ -1003,8 +1030,7 @@ def _tinh_hinh(c):
 		n = len(_banh_thieu_ngay_mai())
 		return ("%d món ngày mai còn thiếu" % n) if n else "Ngày mai đủ bánh", ("y" if n else "g")
 	if ma == "ycmh_tu_dong":
-		n = frappe.db.count("Material Request", {"material_request_type": "Purchase", "docstatus": 0,
-			"owner": "Administrator", "transaction_date": nowdate()})
+		n = frappe.db.count("Material Request", loc_may_soan(docstatus=0, transaction_date=nowdate()))
 		return ("Sáng nay %d phiếu nháp chờ gửi" % n) if n else "Không phiếu nháp nào chờ", ("y" if n else "g")
 	if ma == "gom_yeu_cau_mua":
 		from vagabond import gom_mua
