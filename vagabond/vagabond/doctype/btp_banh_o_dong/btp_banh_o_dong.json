@@ -9,7 +9,10 @@
   "ten_banh",
   "hinh",
   "so_btp",
-  "so_decor"
+  "so_decor",
+  "so_refill",
+  "refill_tu",
+  "refill_den"
  ],
  "fields": [
   {
@@ -48,11 +51,27 @@
    "in_list_view": 1,
    "columns": 2,
    "description": "Trong so BTP san, bao nhieu cai da chuan bi du do decor - quyet dinh nhan don giao ngay mai (y Linh 01/08)"
+  },
+  {
+   "fieldname": "so_refill",
+   "fieldtype": "Int",
+   "label": "Refill",
+   "description": "Mẻ lớn bếp làm sẵn (BTP và đủ decor) để nhận đơn giao từ ngày có bánh tới ngày nhận tới. 0 là không có refill."
+  },
+  {
+   "fieldname": "refill_tu",
+   "fieldtype": "Date",
+   "label": "Refill có bánh từ ngày"
+  },
+  {
+   "fieldname": "refill_den",
+   "fieldtype": "Date",
+   "label": "Refill nhận đơn tới ngày"
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-08-01 12:30:00.000000",
+ "modified": "2026-11-09 17:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "BTP Banh O Dong",
