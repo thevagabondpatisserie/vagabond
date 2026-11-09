@@ -687,6 +687,37 @@ await ca('v645 bản 2: Khuyến mãi tắt "hiện ở bước thanh toán" th�
   la('bắt mã Zalo: thẻ luôn hiện', DD_MAY.otp_an.hien, 1);
 });
 
+/* v646 Refill (anh Việt duyệt 09/11): tab Đặt trước dựng bằng kiem_banh._dat_truoc_theo_decor
+   THẬT (thu_refill_646.du_lieu_web, Frappe giả), không chép tay hình dạng. */
+const RF_MAY = JSON.parse(execFileSync('python3', ['-B', '-c', `
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from vagabond.khung.kiem_thu import nen
+nen.gia_lap()
+from vagabond.khung.kiem_thu import thu_refill_646 as t
+print(json.dumps(t.du_lieu_web(), ensure_ascii=False, default=str))
+`, GOC_REPO]).toString());
+
+await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; giỏ có bánh đó thì lịch mờ ngày ngoài 14/11 tới 20/11, bấm ngày mờ thì báo và không đổi ngày', async () => {
+  const {mt} = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: RF_MAY})});
+  const k = taoKho(mt);
+  await k.napTon();
+  k.S.tab = 'order';  /* khách bấm tab Đặt trước */
+  la('số còn nhận', [k.S.TRUOC.BAWC00068, k.S.TRUOC.BAWC00123], [13, 3]);
+  la('nhãn refill', [k.nhanRefill('BAWC00068'), k.nhanRefill('BAWC00123')], ['Có từ 14/11', '']);
+  la('giỏ trống: không ngày nào mờ', k.ngayRail.value.filter(d => d.off).length, 0);
+  coThem(k, 'Kankin');
+  la('giỏ chỉ có bánh decor: không mờ', k.ngayRail.value.filter(d => d.off).length, 0);
+  coThem(k, 'Roman de la Rose');
+  la('mờ 10 tới 13/11 và 21 tới 23/11', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 1, 2, 3, 11, 12, 13]);
+  const truoc = k.S.ngayChon;
+  k.pick(1);
+  la('không đổi ngày', k.S.ngayChon, truoc);
+  dung('báo khách khoảng ngày', /từ 14\/11 tới 20\/11/.test(k.S.toast.chu));
+  k.pick(5);
+  la('chọn được 15/11', k.S.ngayChon, '2026-11-15');
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');
