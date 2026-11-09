@@ -152,6 +152,11 @@ async function gmChot(g) {
   busy(1);
   try {
     var r = await api('vagabond.gom_mua.chot', { ncc: g.ncc, dong: JSON.stringify(dong), ncc_chon: ncc || null });
+    /* Codex 549 (1eefda8): món vừa chốt bỏ khỏi số đã sửa. Phiếu xin mới của
+       cùng món về sau phải hiện số máy mới, không mang số cũ (hay số 0) đi chốt lại. */
+    dong.forEach(function (x) { delete GM.sua[x.ma]; });
+    /* Ghi lại bản nháp ngay (phần 48), không để bản cũ còn số món vừa chốt. */
+    if (typeof sdLuuNgay === 'function') { try { sdLuuNgay(); } catch (e2) { } }
     toast(r.ghi_chu, 8000);
     GM.d = null;
     if (r.don) { poXem = r.don; return go(scrDonMuaXem); }
