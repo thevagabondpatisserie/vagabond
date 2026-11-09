@@ -1235,3 +1235,8 @@ website_route_rules = list(website_route_rules) + [
 
 # v644 (anh Việt duyệt 07/11/2026): nhắc Marketing bánh đã đưa lên web mà còn Chờ ảnh.
 scheduler_events.setdefault("cron", {}).setdefault("41 8 * * *", []).append("vagabond.banh_web.nhac_cho_anh")
+
+# v646 (anh Việt duyệt bản vẽ 09/11/2026): Cài đặt tự động hoá, việc máy soạn sẵn
+# (viec_tu_dong.py). Mỗi 15 phút đọc giờ chạy, giờ hạn anh đặt trong Cài đặt rồi
+# làm việc nào tới giờ; việc đang tắt thì bỏ qua.
+scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.viec_tu_dong.chay")

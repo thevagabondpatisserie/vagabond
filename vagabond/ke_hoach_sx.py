@@ -700,7 +700,14 @@ def tu_lap_nua_dem():
 	Chạy lúc 00:00 nên "ngày mai" theo cách nói của anh Việt chính là NGÀY
 	HÔM NAY theo đồng hồ máy. Đặt thẳng `nowdate()` chứ không cộng thêm một
 	ngày, không thì bếp 5h sáng mở ra thấy kế hoạch của ngày kia.
+
+	v646: anh tắt việc "Lệnh sản xuất từ kế hoạch" trong Cài đặt tự động hoá
+	thì nhịp này không lập phiếu nữa (đọc cài đặt hỏng thì vẫn lập như cũ).
 	"""
+	from vagabond import viec_tu_dong
+
+	if not viec_tu_dong.bat("lenh_tu_ke_hoach"):
+		return
 	try:
 		frappe.flags.vgb_ke_hoach_tu_dong = 1
 		frappe.set_user("Administrator")
