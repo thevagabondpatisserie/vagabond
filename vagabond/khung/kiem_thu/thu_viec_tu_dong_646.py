@@ -428,6 +428,48 @@ p.then(function(r){process.stdout.write(JSON.stringify({sau:sau,giu:giu,ra:r}));
 	la("nhập 0,95 kg thì trả 950 g", r["ra"], {"theo_lenh": 1000, "thuc_te": 950, "dvt": "Kg", "he_so": 1000})
 
 
+@ca("v646 Codex 549 (43cd129): bấm nút trừ cạnh ô cân khi ô còn trống thì ô vẫn trống, Hoàn thành vẫn bị giữ (trước: thành 0 rồi cho qua)")
+def _tru_o_can_trong():
+	m = open(os.path.join(BEP, "05-san-xuat.js"), encoding="utf-8").read()
+	doan = m.split("function mfgSheetHoanTat(")[1].split("\n}\n")[0]
+	ma = r"""
+var vm=require('vm');var c={};vm.createContext(c);
+function El(id,val){this.id=id;this.value=val;this.style={};this.textContent='';}
+El.prototype.focus=function(){};
+var dsEl={};
+c.toast=function(t){c._toast=t;};c.h=function(s){return String(s==null?'':s);};c.num=function(x){return String(x);};
+c.r3=function(x){return Math.round(x*1000)/1000;};c.mfgNhoCua=function(){return null;};
+c.document={createElement:function(){var ov={className:'',innerHTML:'',remove:function(){ov.da=1;},
+  querySelector:function(q){var id=q.replace('#','');if(!dsEl[id]){
+    if(id==='htDvt'){var o=[{getAttribute:function(){return '1';}}];
+      dsEl[id]={options:o,selectedIndex:0,value:'Cai'};}
+    else{var m=new RegExp('id="'+id+'" value="([^"]*)"').exec(ov.innerHTML);dsEl[id]=new El(id,m?m[1]:'');}}
+    return dsEl[id];},
+  addEventListener:function(){} };c._ov=ov;return ov;},body:{appendChild:function(){}}};
+vm.runInContext('function mfgSheetHoanTat('+%s+'\n}',c);
+var p=c.mfgSheetHoanTat(5,'Cai',[{dvt:'Cai',he_so:1}],'M');
+var ov=c._ov;
+function bam(attr){var t={hasAttribute:function(a){return a===attr;},closest:function(){return null;}};ov.onclick({target:t});}
+var can=ov.querySelector('#htCan');
+bam('data-m2');var sau1=can.value;bam('data-m2');var sau2=can.value;
+bam('data-y');
+var giu={toast:c._toast||'',dong:!!ov.da};
+can.value='3';bam('data-m2');var tru=can.value;
+can.value='0.4';bam('data-m2');var san=can.value;
+can.value='';bam('data-p2');var cong=can.value;
+can.value='4';bam('data-y');
+p.then(function(r){process.stdout.write(JSON.stringify({sau1:sau1,sau2:sau2,giu:giu,tru:tru,san:san,cong:cong,ra:r}));});
+""" % json.dumps(doan)
+	r = _node(ma)
+	la("bấm trừ một lần khi trống: ô vẫn trống (trước: 0)", r["sau1"], "")
+	la("bấm trừ lần nữa: ô vẫn trống", r["sau2"], "")
+	dung("bấm Hoàn thành sau khi trừ trên ô trống: nhắc nhập, chưa đóng", "Nhập số cân" in r["giu"]["toast"] and not r["giu"]["dong"])
+	la("ô có 3 thì trừ còn 2", str(r["tru"]), "2")
+	la("ô có 0,4 thì trừ chặn về 0 như cũ", str(r["san"]), "0")
+	la("bấm cộng trên ô trống là người chủ động nhập 1", str(r["cong"]), "1")
+	la("nhập 4 rồi Hoàn thành", r["ra"], {"theo_lenh": 5, "thuc_te": 4, "dvt": "Cai", "he_so": 1})
+
+
 # ------------------------------------------------- THU MUA: gom yêu cầu mua (v646)
 
 from vagabond import gom_mua as gm  # noqa: E402
