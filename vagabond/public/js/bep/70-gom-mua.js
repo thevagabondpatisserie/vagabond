@@ -11,7 +11,7 @@
 
    Tiền tố gm = gom mua. */
 
-var GM = { d: null, sua: {}, mo: {} };
+var GM = { d: null, sua: {}, mo: {}, tim: '' };
 /* Bản nháp tự lưu (Codex 549): số thu mua đã sửa nằm ở GM.sua và được phần 48
    lưu trên máy. Mở lại từ bản nháp thì 48 đặt vào đây, màn ghép ngay sau khi
    đọc danh sách (phần sau 48 không móc sdGhep). */
@@ -53,7 +53,7 @@ function gmTien(nhom) {
 function gmMon(m, i) {
   var mo = !!GM.mo[m.ma];
   var lech = Math.abs((Number(gmSoMua(m)) || 0) - m.xin) > 0.0001;
-  return '<div class="khsx-the"><div class="li" data-gmmo="' + h(m.ma) + '">' + anhMon(m.anh) +
+  return '<div class="khsx-the" data-gmmon="' + h(m.ma) + '" data-gmchu="' + h((m.ten || '') + ' ' + m.ma) + '"><div class="li" data-gmmo="' + h(m.ma) + '">' + anhMon(m.anh) +
     '<div class="lt"><div class="l1">' + h(m.ten) + '</div>' +
     '<div class="l2">Xin ' + kl(m.xin, m.dvt) + ' · ' + m.phieu.length + ' phiếu' +
     (m.ngay_can ? ' · cần ' + h(dmy(m.ngay_can)) : '') + '</div>' +
@@ -70,11 +70,31 @@ function gmMon(m, i) {
 }
 
 function gmNhom(g, i) {
-  return '<div class="sec">' + h(g.ten_ncc) + ' · ' + g.so_mon + ' món · ' + g.so_phieu + ' phiếu</div>' +
+  return '<div data-gmnhom="' + i + '" data-gmncc="' + h((g.ten_ncc || '') + ' ' + (g.ncc || '')) + '">' +
+    '<div class="sec">' + h(g.ten_ncc) + ' · ' + g.so_mon + ' món · ' + g.so_phieu + ' phiếu</div>' +
     '<div class="lst">' + g.mon.map(gmMon).join('') + '</div>' +
     '<div style="display:flex;align-items:center;gap:10px;margin:8px 0 16px">' +
     '<div style="flex:1;font-size:12.5px;color:#6b7280">' + (g.ncc ? 'Tạm tính ' + money(gmTien(g)) + ' đ' : 'Nhóm này chưa có nhà cung cấp, bấm Chốt để chọn') + '</div>' +
-    '<button class="btn gr" data-gmchot="' + i + '" style="flex:0 0 auto;width:auto;padding:0 16px;margin:0">Chốt ' + h(g.ncc ? g.ten_ncc : 'nhóm này') + '</button></div>';
+    '<button class="btn gr" data-gmchot="' + i + '" style="flex:0 0 auto;width:auto;padding:0 16px;margin:0">Chốt ' + h(g.ncc ? g.ten_ncc : 'nhóm này') + '</button></div></div>';
+}
+
+/* Ô tìm nhanh (Codex 549, 4204048; AGENTS.md 2b.5): lọc theo tên món, mã món
+   và tên nhà cung cấp, bỏ dấu. Chỉ ẩn hiện thẻ trên màn, số đã sửa giữ nguyên;
+   nhóm không còn món nào khớp thì ẩn cả nhóm. Chữ đang tìm giữ qua lần vẽ lại. */
+function gmLoc(b) {
+  var q = vgbChuan(GM.tim || ''), thay = 0;
+  Array.prototype.forEach.call(b.querySelectorAll('[data-gmnhom]'), function (g) {
+    var ncc = g.getAttribute('data-gmncc') || '', con = 0;
+    Array.prototype.forEach.call(g.querySelectorAll('[data-gmmon]'), function (m) {
+      var hop = !q || vgbKhop((m.getAttribute('data-gmchu') || '') + ' ' + ncc, q);
+      m.style.display = hop ? '' : 'none';
+      if (hop) con++;
+    });
+    g.style.display = con ? '' : 'none';
+    thay += con;
+  });
+  var tr = b.querySelector('#gmTimTrong');
+  if (tr) tr.style.display = (q && !thay) ? '' : 'none';
 }
 
 async function scrGomMua(giu) {
@@ -97,9 +117,16 @@ async function scrGomMua(giu) {
     'Máy gom <b>' + d.so_dong + ' dòng</b> từ <b>' + d.so_phieu + ' phiếu</b> yêu cầu mua chưa duyệt, chia theo nhà cung cấp. ' +
     'Số mua điền sẵn bằng tổng số xin: sửa nếu cần (gõ 0 là chưa mua đợt này), rồi bấm Chốt. ' +
     'Bấm vào món để xem từng phiếu xin.</div>' +
-    (nhom.length ? nhom.map(gmNhom).join('')
+    (nhom.length ? vgbOTim('gmTim', nhom.reduce(function (t, g) { return t + (g.mon || []).length; }, 0),
+      '🔎 Gõ tên món, mã món hoặc nhà cung cấp') + nhom.map(gmNhom).join('')
       : '<div class="emp"><div class="e1">🎉</div><div class="e2">Không còn yêu cầu mua nào chờ gom</div></div>');
   var b = frame('Gom yêu cầu mua', html, { action: '&#8635;', onAction: function () { GM.d = null; scrGomMua(); } });
+  var oTim = b.querySelector('#gmTim');
+  if (oTim) {
+    oTim.value = GM.tim || '';
+    oTim.oninput = function () { GM.tim = oTim.value; gmLoc(b); };
+    gmLoc(b);
+  }
   Array.prototype.forEach.call(b.querySelectorAll('[data-gmsl]'), function (o) {
     o.onclick = function (ev) { ev.stopPropagation(); };
     o.oninput = function () {

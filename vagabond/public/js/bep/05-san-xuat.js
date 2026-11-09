@@ -1601,7 +1601,9 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
       /* Quy doi tai cho: con so dang hien la theo don vi CU, nhan he so cu
          de ve don vi kho roi chia he so moi. */
       i1.value = r3(v(i1) * hs / moi);
-      i2.value = r3(v(i2) * hs / moi);
+      /* v646 Codex 549 (4204048): ô cân còn trống thì để trống. Đổi thành 0 là
+         lách được luật bắt buộc nhập, rồi máy chủ lấy số theo lệnh thay cho 0. */
+      if (String(i2.value).trim() !== '') i2.value = r3(v(i2) * hs / moi);
       hs = moi; dvt = sl.value;
       ov.querySelector('#htU2').textContent = dvt;
       ov.querySelector('#htCon').textContent = num(r3(left / hs));
