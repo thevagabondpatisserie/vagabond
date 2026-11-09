@@ -219,6 +219,8 @@ function dungMan(canh) {
     layHam(kho, 'canGiaoBep'),
     layHam(kho, 'canReceive'),
     layHam(kho, 'scrMRView'),
+    layNeuCo(kho, 'soGoTay'),
+    layNeuCo(kho, 'mrApSo'),
     /* Ba cai duoi day la thu ban 79d12b0 da xoa nham. Nap NEU CO. */
     kho.indexOf('var rcv = ') >= 0 ? layDong(kho, 'var rcv = ') : '',
     layNeuCo(kho, 'sinhMaLanNhan'),
@@ -636,6 +638,90 @@ ca('phiếu huỷ chỉ đóng pending sau khi xác nhận đã đối chiếu, 
     bang('chỉ một phiếu', soPhieu(m), 1);
     bang('nhận số đã sửa', tongNhan(m), 20);
   });
+});
+
+/* ---------- Codex 549 (vong 43956a7): phieu yeu cau mua MAY SOAN con nhap ----------
+   Viec "Yeu cau mua may soan" bao nguoi giu kho "sua so roi bam Gui duyet",
+   nhung man chi tiet cu chi hien so dang chu va nut Gui duyet gui NGUYEN phieu
+   cua may. Cac ca duoi day di dung chuoi cua nguoi giu kho: mo phieu tu man
+   chi tiet that, go so vao o, bam nut, roi soi dung payload gui may chu. */
+
+function phieuMuaNhap() {
+  return phieuMau({
+    name: 'MAT-MR-0001', docstatus: 0, material_request_type: 'Purchase', status: 'Draft',
+    set_from_warehouse: '', set_warehouse: 'Kho tong 307 - TV', owner: 'Administrator', vgb_may_soan: 1,
+    items: [
+      { name: 'd1', idx: 1, item_code: 'BO', item_name: 'Bo lat', qty: 5, uom: 'Kg', stock_uom: 'Gram', conversion_factor: 1000, stock_qty: 5000, schedule_date: '2026-09-07' },
+      { name: 'd2', idx: 2, item_code: 'SUA', item_name: 'Sua tuoi', qty: 12, uom: 'Hop', stock_uom: 'Hop', conversion_factor: 1, stock_qty: 12, schedule_date: '2026-09-07' },
+    ],
+  });
+}
+var T_MUA = { key: 'Purchase', title: 'Yeu cau mua hang' };
+
+function goiTheo(m, duong) { return m.goiApi.filter(function (x) { return x.duong === duong; }); }
+
+ca('Codex 549: phieu mua nhap may soan co o sua so tung dong', async function () {
+  var m = dungMan({ phieu: phieuMuaNhap() });
+  await m.g.scrMRView('MAT-MR-0001', T_MUA);
+  dung('co o so dong 1', !!m.tai.querySelector('[data-q="0"]'));
+  dung('co o so dong 2', !!m.tai.querySelector('[data-q="1"]'));
+  bang('o mang so cua may', String(m.tai.querySelector('[data-q="0"]').value), '5');
+  dung('co nut Luu nhap', !!m.tai.getElementById('vLuu'));
+  dung('co nut Gui duyet', !!m.tai.getElementById('vSub'));
+});
+
+ca('Codex 549: sua 5 thanh 3, go 0 bo dong sua, Gui duyet: LUU so da sua roi moi gui', async function () {
+  var m = dungMan({ phieu: phieuMuaNhap() });
+  await m.g.scrMRView('MAT-MR-0001', T_MUA);
+  goSo(m, 0, 3);
+  goSo(m, 1, 0);
+  var nut = m.tai.getElementById('vSub');
+  await nut.onclick(dg.suKien('click', {}, nut));
+  var luu = goiTheo(m, 'frappe.client.save'), gui = goiTheo(m, 'frappe.client.submit');
+  bang('luu mot lan', luu.length, 1);
+  bang('gui mot lan', gui.length, 1);
+  dung('luu truoc khi gui', m.goiApi.indexOf(luu[0]) < m.goiApi.indexOf(gui[0]));
+  var it = luu[0].ts.doc.items;
+  bang('bo dong go 0', it.length, 1);
+  bang('dung ma', it[0].item_code, 'BO');
+  bang('so da sua', it[0].qty, 3);
+  bang('so theo don vi kho', it[0].stock_qty, 3000);
+  bang('giu ten dong cu', it[0].name, 'd1');
+});
+
+ca('Codex 549: Luu nhap giu so da sua, khong gui duyet', async function () {
+  var m = dungMan({ phieu: phieuMuaNhap() });
+  await m.g.scrMRView('MAT-MR-0001', T_MUA);
+  goSo(m, 1, '7,5');
+  var nut = m.tai.getElementById('vLuu');
+  await nut.onclick(dg.suKien('click', {}, nut));
+  var luu = goiTheo(m, 'frappe.client.save');
+  bang('luu mot lan', luu.length, 1);
+  bang('khong gui', goiTheo(m, 'frappe.client.submit').length, 0);
+  bang('go 7,5 nhan la 7.5', luu[0].ts.doc.items[1].qty, 7.5);
+  bang('dong 1 giu so may', luu[0].ts.doc.items[0].qty, 5);
+});
+
+ca('Codex 549: go so hong hay 0 het thi bao ro, khong goi may chu', async function () {
+  var m = dungMan({ phieu: phieuMuaNhap() });
+  await m.g.scrMRView('MAT-MR-0001', T_MUA);
+  goSo(m, 0, 'abc');
+  var nut = m.tai.getElementById('vSub');
+  await nut.onclick(dg.suKien('click', {}, nut));
+  bang('khong luu', goiTheo(m, 'frappe.client.save').length, 0);
+  dung('bao dong 1', m.toast.join(' ').indexOf('Dòng 1') >= 0);
+  goSo(m, 0, 0); goSo(m, 1, 0);
+  await nut.onclick(dg.suKien('click', {}, nut));
+  bang('van khong luu', goiTheo(m, 'frappe.client.save').length, 0);
+  dung('bao het dong', m.toast.join(' ').indexOf('máy tự xoá') >= 0);
+});
+
+ca('Codex 549: phieu chuyen kho nhap van nhu cu (chi xem, Gui duyet nguyen phieu)', async function () {
+  var p = phieuMau({ docstatus: 0, status: 'Draft' });
+  var m = dungMan({ phieu: p });
+  await m.g.scrMRView('MAT-MR-0001', { key: 'Material Transfer', title: 'Dieu chuyen noi bo' });
+  dung('khong co o sua', !m.tai.querySelector('[data-q="0"]'));
+  dung('khong co Luu nhap', !m.tai.getElementById('vLuu'));
 });
 
 /* ---------- chay ---------- */
