@@ -1137,7 +1137,7 @@ Bếp làm một mẻ lớn (BTP sẵn và đủ decor) để nhận đơn giao 
 |---|---|
 | Đặt xa ngày | Đơn giao sau 3 ngày tới, kèm từng ngày |
 | Refill | Số bánh và khoảng ngày nhận đơn |
-| Còn nhận refill | Số refill trừ mọi đơn giao trong khoảng, kể cả ngày đã qua |
+| Còn nhận refill | Số refill trừ mọi đơn giao trong khoảng, kể cả ngày đã qua và phiếu đặt tại quầy đã giao |
 
 **Lưu ý**
 - Đơn giao trong khoảng refill trừ vào refill, không trừ Đủ decor.
