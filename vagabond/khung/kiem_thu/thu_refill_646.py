@@ -146,12 +146,12 @@ def _tinh_that(don=DON, loi=False):
 	goc = rf.tinh
 
 	def t(hom_nay=None, moi=False, dong=None):
-		def dtl(hn=None, moi=False):
+		def dtl(hn=None, moi=False, tu=None):
 			if loi:
 				raise Exception("Pancake 429")
-			return rf.dem_theo_ngay(don, _ngay_vn)
+			return rf.dem_theo_ngay(don, _ngay_vn), rf.id_da_dem(don)
 		import frappe
-		with um.patch.object(rf, "don_tuong_lai", dtl), um.patch.object(frappe, "log_error", lambda *a, **k: None, create=True):
+		with um.patch.object(rf, "dem_va_id", dtl), um.patch.object(frappe, "log_error", lambda *a, **k: None, create=True):
 			return goc(HN, moi, dong)
 	return t
 
@@ -306,3 +306,134 @@ def _giu_ton():
 		with um.patch.object(g, "frappe", moi(D8(2026, 10, 16))):
 			n, giu = g.kiem_va_giu(h, "2026-10-15")
 			la("15/10 ngoài refill: decor 3 chỉ trừ đơn 15/10 (2), còn 1, nhận", (n, giu["dong"]), ([], {"A": 1}))
+
+
+# ------------------------------------------------- Codex 549 vòng 1eefda8 (Refill)
+
+
+class _BoNho:
+	def __init__(self):
+		self.d = {}
+
+	def get_value(self, k, *a, **kw):
+		return self.d.get(k)
+
+	def set_value(self, k, v, *a, **kw):
+		self.d[k] = v
+
+
+def _dem_that(don, nay, dong):
+	"""Chạy refill.tinh THẬT tới tận dem_va_id: Pancake giả trả đơn theo NGÀY GIAO VN
+	trong khoảng [đầu, cuối) mà máy hỏi, ghi lại ngày đầu đã hỏi."""
+	import frappe
+	from vagabond import dat_banh, kiem_banh, lib
+
+	hoi = []
+
+	def keo(c, k, truong, dau, cuoi):
+		hoi.append(dau)
+		return [o for o in don if dau <= rf.ngay(_ngay_vn(o["estimate_delivery_date"])) < cuoi]
+	bn = _BoNho()
+	with um.patch.object(kiem_banh, "_khoang_unix", lambda d: (d, d + dt.timedelta(days=1)), create=True), \
+			um.patch.object(kiem_banh, "_keo_don", keo, create=True), \
+			um.patch.object(dat_banh, "dong_phieu_dat", lambda: [], create=True), \
+			um.patch.object(lib, "cfg", lambda: {}, create=True), um.patch.object(lib, "key", lambda c, n: "k", create=True), \
+			um.patch.object(frappe, "cache", lambda: bn, create=True), \
+			um.patch.object(frappe, "log_error", lambda *a, **k: None, create=True):
+		return rf.tinh(nay, moi=True, dong=[Doi(x) for x in dong]), hoi
+
+
+@ca("v646 Codex 549 (1eefda8) refill: đếm đơn từ NGÀY ĐẦU MẺ, không từ hôm nay (mẻ 20, ngày 14 đặt đủ 20: ngày 15 phải còn 0, trước bản sửa còn 20)")
+def _dem_tu_dau_me():
+	ro = dict(ROMAN, so_refill=20)
+	don = [dict(_don("BAWC00068", "2026-11-14T03:00:00", 20), id="P-1")]
+	kq, hoi = _dem_that(don, D8(2026, 11, 14), [ro])
+	la("ngày 14: còn 0", kq["refill"]["BAWC00068"]["con"], 0)
+	kq, hoi = _dem_that(don, D8(2026, 11, 15), [ro])
+	la("ngày 15: vẫn còn 0 (trước: 20)", kq["refill"]["BAWC00068"]["con"], 0)
+	la("Pancake được hỏi từ ngày đầu mẻ 14/11", hoi, [D8(2026, 11, 14)])
+	la("mã đơn đã đếm đi kèm cùng lần kéo", kq["ids"], ["P-1"])
+	la("thuần: ngày bắt đầu là ngày đầu mẻ sớm nhất", rf.ngay_bat_dau_dem({"A": {"tu": D8(2026, 11, 12)}, "B": {"tu": D8(2026, 11, 16)}},
+		D8(2026, 11, 15)), D8(2026, 11, 12))
+	la("thuần: mẻ chưa tới thì từ hôm nay", rf.ngay_bat_dau_dem({"A": {"tu": D8(2026, 11, 20)}}, D8(2026, 11, 15)), D8(2026, 11, 15))
+
+
+def _giu_rf(dong_web, so_con, ids, hang, ngay, nay=D8(2026, 11, 12), loi=""):
+	"""Chạy THẬT giu_ton_web.kiem_va_giu_refill với CSDL giả; ghi lại câu SQL và khoảng ngày hỏi đơn web."""
+	import json as _j
+	from types import SimpleNamespace as NS
+
+	from vagabond import giu_ton_web as g
+
+	hoi = []
+
+	def sql(q, ts=None, as_dict=False):
+		if "tabSingles" in q:
+			return [("pancake_shop_id",)]
+		if "tabBTP Banh O Dong" in q:
+			return [NS(**ROMAN)]
+		if "tabVagabond Don Web" in q:
+			hoi.append((q, ts))
+			return [dict(d, snapshot=_j.dumps(d["snapshot"])) for d in dong_web]
+		raise AssertionError(q)
+
+	def tinh(n, moi=False, dong=None):
+		return {"refill": {"BAWC00068": {"con": so_con}}, "ids": ids, "loi": loi}
+	with um.patch.object(g, "hom_nay", lambda: nay), um.patch.object(g, "frappe", NS(db=NS(sql=sql))), \
+			um.patch.object(rf, "tinh", tinh):
+		return g.kiem_va_giu_refill(hang, ngay), hoi
+
+
+@ca("v646 Codex 549 (1eefda8) refill: hai khách cùng lấy suất cuối thì người sau bị chặn trong transaction tạo đơn (trước: cả hai qua)")
+def _giu_suat_refill():
+	from vagabond import giu_ton_web as g
+
+	h = lambda n: [{"variation_id": "BAWC00068", "quantity": n}]
+	(n, giu), hoi = _giu_rf([], 1, ["P-1"], h(1), "2026-11-15")
+	la("khách A: còn 1, nhận, ghi suất", (n, giu), ([], {"dong": {"BAWC00068": 1}, "ngay": "2026-11-15"}))
+	dung("đơn web tìm theo cột có chỉ mục, có khoá", "force index (vgb_ngay_nguon_ton)" in hoi[0][0] and "for update" in hoi[0][0])
+	la("trong đúng khoảng mẻ", hoi[0][1], ("2026-11-14", "2026-11-20"))
+	don_a = {"name": "W-A", "pancake_id": None, "snapshot": {g.O_RF: giu}}
+	(n, giu2), _ = _giu_rf([don_a], 1, ["P-1"], h(1), "2026-11-16")
+	la("khách B cùng lúc (A chưa lên Pancake): bị chặn", n, ["Roman De La Rose 18 ngày 16/11/2026 chỉ còn 0 cái, quý khách đang chọn 1 cái."])
+	don_a["pancake_id"] = "P-9"
+	(n, _), _ = _giu_rf([don_a], 1, ["P-1"], h(1), "2026-11-16")
+	dung("A đã lên Pancake nhưng lần đếm chưa có A: vẫn trừ", bool(n))
+	(n, _), _ = _giu_rf([don_a], 0, ["P-1", "P-9"], h(1), "2026-11-16")
+	dung("lần đếm đã có A: Pancake trừ rồi, không trừ hai lần (còn 0 là do Pancake)", bool(n))
+	(n, _), _ = _giu_rf([don_a], 1, ["P-1", "P-9"], h(1), "2026-11-16")
+	la("lần đếm có A và còn 1: nhận", n, [])
+	(n, giu), _ = _giu_rf([], 0, [], h(1), "2026-11-25")
+	la("ngoài khoảng mẻ: không giữ refill (cửa ngoài đã nhắc chọn ngày)", (n, giu), ([], None))
+	(n, giu), _ = _giu_rf([don_a], 0, [], h(1), "2026-11-15", loi="Chưa đếm được")
+	la("chưa đếm được Pancake: không chặn nhưng vẫn ghi suất", (n, giu), ([], {"dong": {"BAWC00068": 1}, "ngay": "2026-11-15"}))
+	la("đơn chỉ giữ refill có ngày trên cột chỉ mục", g.ngay_nguon({g.O_RF: {"dong": {"A": 1}, "ngay": "2026-11-15"}}, "2026-11-15 10:00"), "2026-11-15")
+	la("đơn giữ decor vẫn theo ngày decor", g.ngay_nguon({g.O: {"dong": {"A": 1}, "ngay_nguon": "2026-11-13"}}, "2026-11-13"), "2026-11-13")
+
+
+@ca("v646 Codex 549 (1eefda8) refill: cửa tạo đơn web gọi giữ suất refill trong cùng transaction và ghi suất vào đơn")
+def _cua_tao_don():
+	import io
+	import os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	src = io.open(os.path.join(goc, "don_hang.py"), encoding="utf-8").read()
+	i, j = src.index("giu_ton_web.kiem_va_giu(hang_goc, ngay)"), src.index("giu_ton_web.kiem_va_giu_refill(hang_goc, ngay)")
+	dung("giữ refill ngay sau giữ decor, trong cùng savepoint", 0 < j - i < 400)
+	dung("ghi suất vào snapshot đơn", "snapshot[giu_ton_web.O_RF] = giu_rf" in src)
+	# Dò chuỗi chỉ chốt đường nối; hành vi giữ suất nằm ở ca _giu_suat_refill.
+
+
+@ca("v646 Codex 549 (1eefda8) refill: lưu lại đơn web bản đọc trước không xoá mất suất refill đã giữ")
+def _bao_ve_suat():
+	import json as _j
+	from types import SimpleNamespace as NS
+
+	from vagabond import giu_ton_web as g
+
+	that = {g.O_RF: {"dong": {"BAWC00068": 1}, "ngay": "2026-11-15"}, "x": 1}
+	doc = NS(name="W-A", ngay_nhan="2026-11-15 10:00", snapshot=_j.dumps({"x": 2}), is_new=lambda: False)
+	with um.patch.object(g, "frappe", NS(db=NS(get_value=lambda *a, **k: _j.dumps(that)))):
+		g.bao_ve(doc)
+	moi = _j.loads(doc.snapshot)
+	la("suất refill giữ nguyên, phần khác theo bản mới", (moi.get(g.O_RF), moi.get("x")), (that[g.O_RF], 2))
+	la("ngày trên cột chỉ mục", getattr(doc, g.O_NGAY), "2026-11-15")
