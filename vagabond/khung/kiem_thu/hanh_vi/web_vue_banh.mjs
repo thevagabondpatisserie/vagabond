@@ -754,6 +754,22 @@ await ca('Codex 549 (1eefda8): bánh có sẵn hôm nay thêm từ tab Hôm nay 
   la('không ngày nào mờ (trước: mờ 10 tới 13/11)', k.ngayRail.value.filter(d => d.off).length, 0);
   k.pick(0);
   la('chọn được hôm nay 10/11', k.S.ngayChon, '2026-11-10');
+  /* Codex 549 (58ba797): số lượng cũng theo bánh có sẵn hôm nay (4), không theo mẻ refill (13). */
+  la('giới hạn dòng hôm nay theo số có sẵn', k.gioiHanNhan('BAWC00068', 'today'), 4);
+  k.moBanh(k.S.CAKES.find(c => c.k === 'Roman de la Rose')); k.S.soLuong = 4;
+  la('đã có 1, thêm 4 nữa vượt 4 có sẵn thì chặn', k.addToCart(), false);
+});
+
+await ca('Codex 549 (58ba797): mẻ refill chỉ còn 1 không chặn khách mua 2 bánh có sẵn hôm nay', async () => {
+  const rf1 = JSON.parse(JSON.stringify(RF_MAY));
+  rf1.nhom.forEach(g => g.sizes.forEach(z => { if (z.refill) { z.refill.con = 1; z.con = 1; } }));
+  const {mt} = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {BAWC00068: 4}, nhom: [], dat_truoc: rf1})});
+  const k = taoKho(mt);
+  await k.napTon();
+  k.S.tab = 'today';
+  k.moBanh(k.S.CAKES.find(c => c.k === 'Roman de la Rose')); k.S.soLuong = 2;
+  la('thêm 2 bánh hôm nay được (trước: chặn ở 1)', k.addToCart(), 'them');
+  la('nút + trong giỏ còn tăng được tới 4', (k.cartQty(0, 1), k.S.CART[0].qty), 3);
 });
 
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
