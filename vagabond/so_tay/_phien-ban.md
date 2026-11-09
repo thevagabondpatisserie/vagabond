@@ -19,6 +19,8 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Ra lệnh sản xuất từ kế hoạch
 - Hoàn tất lệnh sản xuất
 - Xem việc cần làm
+- Xem tin Zalo đã gửi cho khách và vì sao tin không đi
+- Nhập mẻ refill và xem đơn đặt xa ngày
 
 ## v645
 - Cấp mã đền bù cho khách gặp sự cố

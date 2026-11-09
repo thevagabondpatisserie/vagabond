@@ -1117,6 +1117,33 @@ Thay bảng Excel gõ tay gửi nhóm Zalo mỗi sáng. Màn chưa có đường
 **Lưu ý**
 - Sổ này không trừ tồn kho và không sinh bút toán.
 
+## Nhập mẻ refill và xem đơn đặt xa ngày
+Từ khoá: refill, mẻ lớn, làm sẵn, đặt xa ngày, bánh đặt trước nhiều ngày, có bánh từ ngày, nhận đơn tới ngày, còn nhận refill, lịch refill, đặt bánh trước trên web
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp nhập; Sales, quản lý xem | Kiểm bánh hôm nay (/kiem-banh) | Ô [[Refill]] trên thẻ bánh |
+
+Bếp làm một mẻ lớn (BTP sẵn và đủ decor) để nhận đơn giao những ngày sau. Số refill để NHẬN ĐƠN trước, không cộng vào tồn.
+
+**Các bước**
+1. Bếp bấm ô [[Refill]] trên thẻ bánh.
+2. Gõ số bánh làm được (ô để trống, bắt buộc nhập).
+3. Chọn ngày có bánh. Ngày nhận đơn tới máy điền sẵn cộng 6 ngày, sửa được, tối đa 13 ngày.
+4. Bấm nút Lưu refill. Muốn bỏ refill thì nhập 0.
+
+**Đọc ba ô mới**
+| Ô | Nghĩa |
+|---|---|
+| Đặt xa ngày | Đơn giao sau 3 ngày tới, kèm từng ngày |
+| Refill | Số bánh và khoảng ngày nhận đơn |
+| Còn nhận refill | Số refill trừ đơn giao trong khoảng đó |
+
+**Lưu ý**
+- Đơn giao trong khoảng refill trừ vào refill, không trừ Đủ decor.
+- Web tab Đặt trước hiện bánh kèm "Có từ" ngày có bánh; ngày ngoài khoảng bị mờ, đặt quá số thì máy chặn.
+- Ô hiện "?" là chưa đếm được đơn từ Pancake; lúc đó web tạm ẩn bánh refill.
+
 ## Kiểm bánh theo mùa (Trung thu, Tết, panettone)
 Từ khoá: kiểm bánh theo mùa, bánh theo mùa, mùa vụ, trung thu, bánh Tết, panettone, bán lố, sắp hết, còn bán, hạn mức, ngưng nhận đơn, seasonal
 
