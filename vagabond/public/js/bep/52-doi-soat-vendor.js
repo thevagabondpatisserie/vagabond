@@ -20,7 +20,7 @@
  */
 var DSVN = { nhom: 'Tiền bán', tt: '', vendor: '', tim: '', ky: '', tu: '', den: '', cur: '', loc: '', xt: null, tep: null,
   ct: '', ctNhan: null, ctNhanTen: {}, xtCt: '', duong: '', buoc: '', thuTab: 'chan', lyDo: '',
-  trang: { nguon: { dau: '', so: 0 }, dong: { dau: '', so: 0 } } };
+  trang: { nguon: { dau: '', so: 0 }, dong: { dau: '', so: 0 }, bill: { dau: '', so: 0 } } };
 
 /* Codex #450: một nguồn đủ quyền có tới 20.000 dòng, danh sách có thể quá
    50 nguồn. Một chỗ giữ trang đang xem cho cả hai màn: bộ lọc đổi (dấu khác)
@@ -244,7 +244,7 @@ async function scrDsvn() {
     if (t) { DSVN.tt = t.getAttribute('data-dsvntt'); return go(scrDsvn, true); }
     t = e.target.closest('[data-dsvnct]');
     if (t) { DSVN.cur = t.getAttribute('data-dsvnct'); DSVN.loc = ''; return go(scrDsvnCt); }
-    if (e.target.closest('[data-dsvnbill]')) { DSVN.bill = { tt: '', diem: '', kieu: '' }; return go(scrDsvnBill); }
+    if (e.target.closest('[data-dsvnbill]')) { DSVN.bill = { tt: '', diem: '', kieu: '', ky: '', tu: '', den: '', tim: '' }; return go(scrDsvnBill); }
     t = e.target.closest('[data-dsvnthu]');
     if (t) {
       var tab = t.getAttribute('data-dsvnthu');
@@ -312,11 +312,15 @@ function dsvnChipBill(ho, k, ten, so, chon) {
 }
 
 async function scrDsvnBill() {
-  var L = DSVN.bill || (DSVN.bill = { tt: '', diem: '', kieu: '' });
+  var L = DSVN.bill || (DSVN.bill = { tt: '', diem: '', kieu: '', ky: '', tu: '', den: '', tim: '' });
   frame('Bill chưa khớp đối tác', '<div class="emp"><div class="e1">⏳</div><div>Đang đối chiếu bill với báo cáo đối tác...</div></div>');
   var kq;
+  /* Codex #550: chip ngày, ô tìm (mã bill hoặc mã chuẩn chi) và trang sau đều
+     hỏi máy chủ; đổi bộ lọc thì về trang đầu. */
+  var loc = { trang_thai: L.tt, diem: L.diem, kieu: L.kieu, ky: L.ky, tu: L.tu, den: L.den, tim: L.tim };
+  loc.trang = dsvnTrang('bill', JSON.stringify(loc));
   try {
-    kq = await api('vagabond.doi_soat_vendor.bill_doi_tac', { trang_thai: L.tt, diem: L.diem, kieu: L.kieu });
+    kq = await api('vagabond.doi_soat_vendor.bill_doi_tac', loc);
   } catch (e) {
     frame('Bill chưa khớp đối tác', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được. Thử lại sau ít phút.') + '</div></div>');
     return;
@@ -325,7 +329,11 @@ async function scrDsvnBill() {
   var chuThich = (DSVN_BILL_TT.filter(function (x) { return x[0] === L.tt; })[0] || DSVN_BILL_TT[0])[2];
   var html = '<div class="card" style="padding:12px 14px;font-size:13.5px;color:#475467">Từng bill thu ngân chọn Shinhan POS, Payoo, ' +
     'GrabFood, ShopeeFood, Xanh SM Ngon từ ' + h(dsvnNgay(kq.tu)) + ' đến ' + h(dsvnNgay(kq.den)) +
-    ' được dò trong báo cáo đối tác gửi về cho đúng ngày đó, theo mã chuẩn chi hoặc mã đơn và số tiền.</div>';
+    ' được dò trong báo cáo đối tác gửi về cho đúng ngày đó, theo mã chuẩn chi hoặc mã đơn và số tiền.' +
+    (L.ky ? '' : ' Mọi ngày là 14 ngày gần nhất, tới hôm qua.') +
+    (kq.cat ? ' Khoảng chọn dài quá 92 ngày nên máy chỉ xét 92 ngày cuối.' : '') + '</div>';
+  var cc = { ma: 'dsvnb', ho: [], ky: { chon: L.ky, tu: L.tu, den: L.den }, tim: { gt: L.tim, goiY: 'Tìm mã bill hoặc mã chuẩn chi...' } };
+  html += dsCongCu(cc);
   html += '<div class="chips" style="padding:0 2px">' + DSVN_BILL_TT.map(function (x) {
     return dsvnChipBill('tt', x[0], x[1], x[0] ? (dem[x[0]] || 0) : kq.can_xu_ly, L.tt);
   }).join('') + '</div>';
@@ -361,10 +369,18 @@ async function scrDsvnBill() {
         ((x.ma || []).filter(Boolean).length ? ' · mã ' + h(x.ma.filter(Boolean).join(', ')) : '') + '</div>' +
         (x.ghi_chu ? '<div style="font-size:12.5px;color:#475467;margin-top:4px">' + h(x.ghi_chu) + '</div>' : '') + '</div>';
     }).join('') + '</div>';
-    if (kq.con) html += '<div style="font-size:12.5px;color:#667085;padding:8px 4px">Còn ' + money(kq.con) + ' bill nữa; chọn điểm bán hoặc đối tác để thu hẹp.</div>';
   }
+  html += dsvnPhanTrang('bill', DSVN.trang.bill.so, kq.con, kq.moi_trang || 200, 'Bill');
   var b = frame('Bill chưa khớp đối tác', html);
+  dsCongCuNoi(b, cc, function (ho, k) {
+    if (ho === 'ky') L.ky = k;
+    else if (ho === 'tu') L.tu = k;
+    else if (ho === 'den') L.den = k;
+    else if (ho === 'tim') L.tim = k;
+    go(scrDsvnBill, true);
+  });
   b.addEventListener('click', function (e) {
+    if (dsvnBamTrang(e, scrDsvnBill)) return;
     var t = e.target.closest('[data-dsvnbchip]');
     if (t) {
       var v = t.getAttribute('data-dsvnbchip'), i = v.indexOf('|');
