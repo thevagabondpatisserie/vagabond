@@ -196,8 +196,7 @@ def khop_hoa_don(kieu, dong_ds, ung_vien):
 		if kieu == "onepay":
 			continue
 		tien = tien_so_sanh(kieu, d)
-		hop = [u for u in ung_vien if u["name"] not in da_dung and _lech_ngay(u["ngay"], d["ngay"]) <= cho_lech
-			and any(_ma_khop(kieu, d["ma_tham_chieu"], m) for m in u["ma"])]
+		hop = [u for u in ung_vien if u["name"] not in da_dung and _hop_ma(kieu, d, u, cho_lech)]
 		if len(hop) > 1:
 			dung_tien = [u for u in hop if u["tien"] == tien]
 			hop = dung_tien if len(dung_tien) == 1 else hop
@@ -215,9 +214,7 @@ def khop_hoa_don(kieu, dong_ds, ung_vien):
 	for i, d in ban:
 		if i in kq:
 			continue
-		tien = tien_so_sanh(kieu, d)
-		hop = [u for u in ung_vien if u["name"] not in da_dung and u["tien"] == tien
-			and _lech_ngay(u["ngay"], d["ngay"]) <= cho_lech and _cung_tien_to(d, u)]
+		hop = [u for u in ung_vien if u["name"] not in da_dung and _hop_tien(kieu, d, u, cho_lech)]
 		if len(hop) == 1:
 			da_dung.add(hop[0]["name"])
 			kq[i] = dict(trang_thai="Nối theo tiền", hoa_don=hop[0]["name"],
@@ -229,6 +226,23 @@ def khop_hoa_don(kieu, dong_ds, ung_vien):
 			kq[i] = dict(trang_thai="Không thấy chứng từ", hoa_don="",
 				ghi_chu="Không có hoá đơn bán cùng mã hoặc cùng tiền trong khoảng ngày.")
 	return kq
+
+
+def _hop_ma(kieu, d, u, cho_lech):
+	"""Bill u là ứng viên theo MÃ của dòng đối tác d (lượt 1 của khop_hoa_don)."""
+	return _lech_ngay(u["ngay"], d["ngay"]) <= cho_lech and any(_ma_khop(kieu, d["ma_tham_chieu"], m) for m in u["ma"])
+
+
+def _hop_tien(kieu, d, u, cho_lech):
+	"""Bill u là ứng viên theo TIỀN của dòng đối tác d (lượt 2 của khop_hoa_don)."""
+	return u["tien"] == tien_so_sanh(kieu, d) and _lech_ngay(u["ngay"], d["ngay"]) <= cho_lech and _cung_tien_to(d, u)
+
+
+def la_ung_vien(kieu, d, u):
+	"""Codex #550: bill u có thể là bill của dòng đối tác d chưa phân định
+	("Nhiều chứng từ") không. Cùng hai luật nối của chiều xuôi, một nguồn. THUẦN."""
+	cho = LECH_NGAY.get(kieu, 0)
+	return _hop_ma(kieu, d, u, cho) or _hop_tien(kieu, d, u, cho)
 
 
 def _cung_tien_to(d, u):
@@ -649,8 +663,10 @@ def doi_chieu_bill(bill, noi, phu, cho_chon=(), hom_nay=None):
 	"""Kết luận cho từng bill đã chọn phương thức thẻ/sàn. THUẦN.
 
 	bill: [{name, kieu, ngay, tien, ma, diem}]; noi: {(name, kieu): dòng đối tác đã
-	nối {trang_thai_khop, tien, ma, vendor}}; phu: xem phu_bill; cho_chon: tập
-	(kieu, ngày) còn dòng đối tác "Nhiều chứng từ" chưa ai chọn.
+	nối {trang_thai_khop, tien, ma, vendor}}; phu: xem phu_bill; cho_chon: các dòng
+	đối tác "Nhiều chứng từ" chưa ai chọn [{kieu, ngay, ma_tham_chieu, tien_hang,
+	giam_gia}]; Codex #550: chỉ bill là ứng viên của một dòng đó (la_ung_vien)
+	mới chờ chọn, bill khác trong ngày vẫn kết luận bình thường.
 	Trả cùng thứ tự, thêm trang_thai và ghi_chu."""
 	ra = []
 	hom_nay = hom_nay or date.today().isoformat()
@@ -668,7 +684,7 @@ def doi_chieu_bill(bill, noi, phu, cho_chon=(), hom_nay=None):
 				ten, d.get("ma") or "trống", (", ".join(m for m in b.get("ma") or [] if m)) or "trống"))
 		elif not phu_bill(b["kieu"], b["ngay"], b.get("diem") or "", phu, hom_nay):
 			x.update(trang_thai=TT_BILL_CHO_BC, ghi_chu="Chưa nhận đủ báo cáo %s của ngày này." % ten)
-		elif (b["kieu"], b["ngay"]) in cho_chon:
+		elif any(d2.get("kieu") == b["kieu"] and la_ung_vien(b["kieu"], d2, b) for d2 in cho_chon):
 			x.update(trang_thai=TT_BILL_CHO_CHON, ghi_chu="Báo cáo %s ngày này còn giao dịch trùng mã hoặc trùng tiền "
 				"chờ kế toán chọn bill." % ten)
 		else:

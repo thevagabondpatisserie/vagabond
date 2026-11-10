@@ -948,19 +948,26 @@ def mau_theo_kieu(kieu):
 
 def du_lieu_bill(tu, den, cong_ty_ds, hom_nay=None):
 	"""Đối chiếu ngược từng bill thẻ/sàn trong [tu, den] với báo cáo đối tác.
-	Đọc ba thứ rồi để khop.doi_chieu_bill kết luận (phần thuần):
+	Codex #550: mỗi pháp nhân một lượt riêng (báo cáo của pháp nhân A không phủ
+	bill của pháp nhân B). Đọc ba thứ rồi để khop.doi_chieu_bill kết luận:
 	  bill   _ung_vien_hd của từng kênh (cùng tập ứng viên chiều xuôi dùng)
 	  noi    dòng đối tác đã nối bill (Đã nối, Lệch tiền, Nối theo tiền)
 	  phu    ngày, điểm có báo cáo đã nhận (bỏ nguồn bị từ chối)."""
+	hom_nay = hom_nay or frappe.utils.nowdate()
+	ra = []
+	for ct in cong_ty_ds:
+		ra.extend(_du_lieu_bill_ct(tu, den, ct, hom_nay))
+	return ra
+
+
+def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 	from vagabond import diem_ban
 
-	hom_nay = hom_nay or frappe.utils.nowdate()
 	bill = []
-	for ct in cong_ty_ds:
-		for kieu in KIEU_BILL:
-			for u in _ung_vien_hd(kieu, tu, den, ct):
-				bill.append(dict(name=u["name"], kieu=kieu, ngay=u["ngay"], tien=u["tien"], ma=u["ma"],
-					diem=diem_ban.ma_theo_quay(u.get("quay") or ""), company=ct))
+	for kieu in KIEU_BILL:
+		for u in _ung_vien_hd(kieu, tu, den, ct):
+			bill.append(dict(name=u["name"], kieu=kieu, ngay=u["ngay"], tien=u["tien"], ma=u["ma"],
+				tien_to=u.get("tien_to") or "", diem=diem_ban.ma_theo_quay(u.get("quay") or ""), company=ct))
 	if not bill:
 		return []
 	ten = list({b["name"] for b in bill})
@@ -979,13 +986,13 @@ def du_lieu_bill(tu, den, cong_ty_ds, hom_nay=None):
 			if not cu or cu["trang_thai_khop"] != "Đã nối":
 				noi[(r.sales_invoice, kieu)] = dict(trang_thai_khop=r.trang_thai_khop, tien=tien,
 					ma=r.ma_tham_chieu or "", vendor=r.vendor)
-	phu, cho_chon = set(), set()
+	phu, cho_chon = set(), []
 	den_phu = frappe.utils.add_days(den, 3)
 	for kieu in KIEU_BILL:
 		maus = mau_theo_kieu(kieu)
 		if not maus:
 			continue
-		nguon = frappe.get_all(DT_NGUON, filters={"mau": ["in", maus], "trang_thai": "Đã nhận", "company": ["in", cong_ty_ds],
+		nguon = frappe.get_all(DT_NGUON, filters={"mau": ["in", maus], "trang_thai": "Đã nhận", "company": ct,
 			"tu_ngay": ["<=", den_phu], "den_ngay": [">=", tu]},
 			fields=["name", "tu_ngay", "den_ngay", "tai_khoan", "duong_vao"], limit_page_length=2000)
 		nguon = [n for n in nguon if n.duong_vao != "Từ chối" and n.tu_ngay and n.den_ngay]
@@ -1005,9 +1012,12 @@ def du_lieu_bill(tu, den, cong_ty_ds, hom_nay=None):
 				for x in ds_diem or {"*"}:
 					phu.add((kieu, d, x))
 				d = frappe.utils.add_days(d, 1)
+		# Codex #550: giữ chính các dòng chưa phân định để chỉ bill là ứng viên của chúng mới chờ chọn.
 		for r in frappe.get_all(DT_DONG, filters={"nguon": ["in", [n.name for n in nguon] or [""]],
-				"trang_thai_khop": ["in", [t for t in ("Nhiều chứng từ",) if t != khop.DA_THAY]], "ngay": ["between", [tu, den_phu]]}, fields=["ngay"], limit_page_length=5000):
-			cho_chon.add((kieu, str(r.ngay)))
+				"trang_thai_khop": ["in", [t for t in ("Nhiều chứng từ",) if t != khop.DA_THAY]], "ngay": ["between", [tu, den_phu]]},
+				fields=["ngay", "ma_tham_chieu", "tien_hang", "giam_gia"], limit_page_length=5000):
+			cho_chon.append(dict(kieu=kieu, ngay=str(r.ngay), ma_tham_chieu=r.ma_tham_chieu or "",
+				tien_hang=int(r.tien_hang or 0), giam_gia=int(r.giam_gia or 0)))
 	return khop.doi_chieu_bill(bill, noi, phu, cho_chon, hom_nay)
 
 
@@ -1017,15 +1027,27 @@ def _diem_grab(tai_khoan):
 	return GRAB_DIEM.get(str(tai_khoan or "").split(":", 1)[-1], "")
 
 
+BILL_MOI_TRANG = 200
+# Khoảng ngày dài nhất một lần đối chiếu (mỗi ngày đọc mọi bill thẻ/sàn).
+BILL_NGAY_TOI_DA = 92
+
+
 @frappe.whitelist()
-def bill_doi_tac(tu=None, den=None, diem=None, trang_thai=None, kieu=None, chi_dem=0):
+def bill_doi_tac(ky=None, tu=None, den=None, diem=None, trang_thai=None, kieu=None, tim=None, trang=0, chi_dem=0):
 	"""Màn "Bill chưa khớp đối tác": từng bill thu ngân chọn thẻ/sàn, đối chiếu
-	với báo cáo đối tác. Mặc định 14 ngày tới hôm qua. Trả hàng đã lọc và số
-	đếm theo trạng thái, điểm, kênh (đếm trên phạm vi ngày, bỏ đúng tầng chip)."""
+	với báo cáo đối tác. ky là chip ngày dùng chung (khung/cong_cu_ds.khoang_ky);
+	Mọi ngày là 14 ngày tới hôm qua. Codex #550: phân trang, ô tìm theo mã bill
+	hoặc mã chuẩn chi, khoảng ngày dài quá BILL_NGAY_TOI_DA thì cắt và báo lại."""
 	_chan()
+	from vagabond.khung.cong_cu_ds import khoang_ky
+
 	hom = frappe.utils.nowdate()
-	den = str(den or frappe.utils.add_days(hom, -1))[:10]
-	tu = str(tu or frappe.utils.add_days(den, -(NGAY_BILL - 1)))[:10]
+	a, b = khoang_ky(ky, hom, tu, den)
+	den = str(b or frappe.utils.add_days(hom, -1))[:10]
+	tu = str(a or frappe.utils.add_days(den, -(NGAY_BILL - 1)))[:10]
+	cat = 0
+	if tu < frappe.utils.add_days(den, -(BILL_NGAY_TOI_DA - 1)):
+		tu, cat = frappe.utils.add_days(den, -(BILL_NGAY_TOI_DA - 1)), 1
 	ds = du_lieu_bill(tu, den, _cong_ty_xem(), hom)
 	dem = {}
 	for x in ds:
@@ -1035,16 +1057,22 @@ def bill_doi_tac(tu=None, den=None, diem=None, trang_thai=None, kieu=None, chi_d
 		return dict(can_xu_ly=can, dem=dem, tu=tu, den=den)
 	hang = [x for x in ds if (not trang_thai and x["trang_thai"] in khop.TT_BILL_CAN_XU_LY) or x["trang_thai"] == trang_thai
 		or trang_thai == "tat_ca"]
+	t = (tim or "").strip().upper()
+	if t:
+		hang = [x for x in hang if t in x["name"].upper() or any(t in str(m).upper() for m in x.get("ma") or [])]
 	dem_diem, dem_kieu = {}, {}
 	for x in hang:
 		dem_diem[x["diem"]] = dem_diem.get(x["diem"], 0) + 1
 		dem_kieu[x["kieu"]] = dem_kieu.get(x["kieu"], 0) + 1
 	hang = [x for x in hang if (not diem or x["diem"] == diem) and (not kieu or x["kieu"] == kieu)]
 	hang.sort(key=lambda x: (x["ngay"], x["name"]), reverse=True)
+	so = max(0, frappe.utils.cint(trang))
+	dau = so * BILL_MOI_TRANG
 	from vagabond import diem_ban
 
-	return dict(hang=hang[:500], con=max(0, len(hang) - 500), dem=dem, can_xu_ly=can, dem_diem=dem_diem,
-		dem_kieu=dem_kieu, ten_diem=diem_ban.ten_diem(), ten_kieu=khop.TEN_KIEU, tu=tu, den=den)
+	return dict(hang=hang[dau:dau + BILL_MOI_TRANG], con=max(0, len(hang) - dau - BILL_MOI_TRANG), tong_hang=len(hang),
+		dem=dem, can_xu_ly=can, dem_diem=dem_diem, dem_kieu=dem_kieu, ten_diem=diem_ban.ten_diem(),
+		ten_kieu=khop.TEN_KIEU, tu=tu, den=den, cat=cat, moi_trang=BILL_MOI_TRANG)
 
 
 def _ma_dong_tt(si):
