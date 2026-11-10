@@ -9375,17 +9375,20 @@ function pad2(n) { return ('0' + n).slice(-2); }
 function hmOf(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':00'; }
 function ymdOf(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
 async function freshOf(codes) {
-  /* Mon "lam tuoi" ma may tu lam giup khi hoan tat mon cha. CHI mon con
-     theo ton kho. Tu 25/08/2026 ban thanh pham phantom (is_stock_item = 0)
-     tu no trong lenh cha, khong can lenh con; tao lenh con cho no thi
-     ERPNext cho tao nhung phieu kho chan "is not a stock Item", lenh con
-     nam lai thanh rac, moi lan bam them mot cai. Ra soat 03/09/2026. */
+  /* Mon may tu lam phan THIEU khi hoan tat mon cha. CHI mon giu ton co cong
+     thuc: tu 25/08/2026 ban thanh pham phantom (is_stock_item = 0) tu no trong
+     lenh cha, tao lenh con cho no thi phieu kho chan "is not a stock Item",
+     lenh con nam lai thanh rac (ra soat 03/09/2026).
+     v648 (anh Viet chot 11/11/2026, phuong an C): ngoai mon lam tuoi, may tu
+     lam ca ruot banh cap 1, banh khuon cap 2 con thieu ton, de bep chi bam
+     Hoan tat mon chinh. May chu quyet mon nao (kho_san_xuat.mon_tu_lam: mot
+     nguon voi luat chang), app khong tu suy. */
   var m = {};
   if (!codes || !codes.length) return m;
-  var rows = await inChunks(codes, 80, function (lot) {
-    return getList('Item', { fields: ['name', 'custom_lam_tuoi', 'is_stock_item'], filters: { name: ['in', lot] }, limit_page_length: 0 });
+  var ds = await inChunks(codes, 80, async function (lot) {
+    return (await api('vagabond.kho_san_xuat.mon_tu_lam', { ma: JSON.stringify(lot) })) || [];
   });
-  rows.forEach(function (r) { if (r.custom_lam_tuoi && r.is_stock_item) m[r.name] = 1; });
+  ds.forEach(function (c) { m[c] = 1; });
   return m;
 }
 /* Me nao cua lenh nay con dung duoc. THUAN.
@@ -10387,6 +10390,10 @@ async function scrMfgBtp(woNames, depth) {
     });
     var bm = await bomOf(order);
     var fr = await freshOf(order);
+    /* v648: mon may tu lam (lam tuoi, cap 1, cap 2) KHONG hien o day: bep chi
+       bam Hoan tat mon chinh, may lam phan thieu luc do. Lam san tu truoc thi
+       tao lenh rieng o man Tao lenh san xuat nhu mon ngoai phieu yeu cau. */
+    var tuLam = order.filter(function (c) { return !!bm[c] && !!fr[c]; }).length;
     var prod = order.filter(function (c) { return !!bm[c] && !fr[c]; });
     if (prod.length) {
       var tn = await stockOf(prod, mfg.src);
@@ -10409,7 +10416,7 @@ async function scrMfgBtp(woNames, depth) {
   } catch (e) { toast(errMsg(e), 5000); }
 
   if (!rows.length) {
-    toast('Không cần làm thêm bán thành phẩm nào', 4000);
+    toast(tuLam ? 'Ruột bánh, bánh khuôn còn thiếu máy sẽ tự làm khi bấm Hoàn tất món chính' : 'Không cần làm thêm bán thành phẩm nào', 5000);
     return go(scrMfgList, true);
   }
 
@@ -10656,8 +10663,8 @@ function mfgSheetKe(plan, nvl, src) {
     var html = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:82vh;overflow:auto">' +
       '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">Máy làm luôn giúp bếp</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">' +
-      'Các bán thành phẩm làm tươi chưa có tồn. Máy tự tạo lệnh và trừ nguyên liệu ngay trước khi hoàn tất món chính. Bút toán kho ghi xong không sửa lại được.</div>' +
-      '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:7px;letter-spacing:.4px">SẼ LÀM TƯƠI</div><div>' +
+      'Bán thành phẩm còn thiếu tồn (làm tươi, ruột bánh cấp 1, bánh khuôn cấp 2). Máy tự tạo lệnh, trừ nguyên liệu theo công thức ngay trước khi hoàn tất món chính; phần đã có tồn thì dùng tồn. Bút toán kho ghi xong không sửa lại được.</div>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:7px;letter-spacing:.4px">MÁY SẼ LÀM</div><div>' +
       (plan || []).map(function (f) { return chip(f.name, num(f.qty) + ' ' + (f.uom || ''), false); }).join('') + '</div>';
     if ((nvl || []).length) {
       html += '<div style="font-size:11.5px;color:#98a2b3;margin:10px 0 7px;letter-spacing:.4px">NGUYÊN LIỆU SẼ TRỪ · KHO ' +
@@ -26961,7 +26968,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '647';
+var APPVER = '648';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
