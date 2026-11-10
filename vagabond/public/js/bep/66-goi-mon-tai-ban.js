@@ -277,10 +277,36 @@ var GMB_KHUON_SVG = null, gmbKhuonNap = null;
 
 function gmbEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
-/* Kích thước hợp lệ của standee (mm). THUẦN. */
-function gmbKtHopLe(w, h) {
+/* Cạnh mã QR nhỏ nhất (mm) để điện thoại quét chắc ăn. */
+var GMB_QR_TOI_THIEU = 20;
+
+/* Lỗi kích thước standee (mm), rỗng là in được. Ngoài 40..200 x 40..287 mm,
+   hoặc khổ dẹt tới mức mã QR dưới 20 mm (Codex #550: 200 x 40 ra cạnh âm)
+   thì báo, kèm chiều cao cần. THUẦN. */
+function gmbLoiKt(w, h) {
   w = Number(w); h = Number(h);
-  return w >= 40 && h >= 40 && w <= 200 && h <= 287;
+  if (!(w >= 40 && h >= 40 && w <= 200 && h <= 287)) return 'Kích thước từ 40 x 40 mm tới 200 x 287 mm.';
+  if (gmbCanhQrMm(w, h) >= GMB_QR_TOI_THIEU) return '';
+  for (var c = Math.ceil(h) + 1; c <= 287; c++) if (gmbCanhQrMm(w, c) >= GMB_QR_TOI_THIEU) break;
+  return 'Khổ ' + w + ' x ' + h + ' mm quá dẹt, mã QR không đủ chỗ. Cần cao ít nhất ' + c + ' mm.';
+}
+function gmbKtHopLe(w, h) { return !gmbLoiKt(w, h); }
+
+/* Bố cục vuông (đơn vị khung 419,528 ngang): logo, chữ, ô QR, nhãn. Một nguồn
+   cho cả vẽ lẫn kiểm cạnh mã QR. THUẦN. */
+function gmbBoCucVuong(w, h) {
+  var M = GMB_MAU, VW = M.w, VH = VW * h / w;
+  var lw = 80, lh = lw * M.logo.h / M.logo.w, ly = VH * 0.04;
+  var cw = 170, ch = cw * M.chu.h / M.chu.w, cy = ly + lh + 6;
+  var top = cy + ch + 10, c = Math.min(VW * 0.6, VH - top - 62);
+  return { VH: VH, lw: lw, lh: lh, ly: ly, cw: cw, ch: ch, cy: cy, top: top, c: c };
+}
+
+/* Cạnh mã QR in ra (mm) của standee w x h. THUẦN. */
+function gmbCanhQrMm(w, h) {
+  var M = GMB_MAU;
+  if (gmbKieu(w, h) === 'vuong') return gmbBoCucVuong(w, h).c * w / M.w;
+  return M.o.c * Math.min(w / M.w, h / M.h);
 }
 
 /* Xếp standee w x h (mm) lên A4 dọc, lề 5 mm; thử cả xoay ngang. THUẦN. */
@@ -325,10 +351,7 @@ function gmbStandeeSvg(t, w, h, diaChi) {
   var M = GMB_MAU, VW = M.w, nhan = String(t.nhan || ('BÀN ' + (t.ban || ''))).toUpperCase();
   var dau = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:' + w + 'mm;height:' + h + 'mm;display:block;background:' + M.nen + '" ';
   if (gmbKieu(w, h) === 'vuong') {
-    var VH = VW * h / w;
-    var lw = 80, lh = lw * M.logo.h / M.logo.w, ly = VH * 0.04;
-    var cw = 170, ch = cw * M.chu.h / M.chu.w, cy = ly + lh + 6;
-    var top = cy + ch + 10, c = Math.min(VW * 0.6, VH - top - 62);
+    var b = gmbBoCucVuong(w, h), VH = b.VH, lw = b.lw, lh = b.lh, ly = b.ly, cw = b.cw, ch = b.ch, cy = b.cy, top = b.top, c = b.c;
     return dau + 'viewBox="0 0 ' + VW + ' ' + VH.toFixed(3) + '">' +
       '<svg x="0" y="0" width="' + VW + '" height="' + VH.toFixed(3) + '" viewBox="0 0 ' + M.w + ' ' + M.h + '" preserveAspectRatio="xMidYMid slice"><use href="#gmbNen" xlink:href="#gmbNen"/></svg>' +
       '<use href="#gmbLogo" xlink:href="#gmbLogo" x="' + ((VW - lw) / 2).toFixed(2) + '" y="' + ly.toFixed(2) + '" width="' + lw + '" height="' + lh.toFixed(2) + '"/>' +
@@ -575,7 +598,7 @@ function gmbVeInQr(ds) {
   if (tao) tao.onclick = async function () {
     var k = gmbKtDangChon(), dsBan = gmbDsChon(d);
     if (!dsBan.length) return toast('Chọn ít nhất một bàn để in.');
-    if (!gmbKtHopLe(k.w, k.h)) return toast('Kích thước standee từ 40 x 40 mm tới 200 x 287 mm.', 4000);
+    if (!gmbKtHopLe(k.w, k.h)) return toast(gmbLoiKt(k.w, k.h).replace(/^Kích thước /, 'Kích thước standee '), 4000);
     busy(true);
     try {
       var kq = await api('vagabond.goi_mon_ban.to_qr', { diem: gqDiem, ban: dsBan });
@@ -593,7 +616,7 @@ function gmbTenKt(kt) { return (kt.w / 10).toString().replace('.', ',') + ' x ' 
 
 /* Câu "Một trang A4 dàn được N miếng". THUẦN. */
 function gmbCauXep(kt, soBan) {
-  if (!gmbKtHopLe(kt.w, kt.h)) return 'Kích thước từ 40 x 40 mm tới 200 x 287 mm.';
+  if (!gmbKtHopLe(kt.w, kt.h)) return gmbLoiKt(kt.w, kt.h);
   var x = gmbXepA4(kt.w, kt.h);
   if (!x.n) return 'Khổ này không vừa trang A4.';
   return 'Một trang A4 dàn được ' + x.n + ' miếng ' + gmbTenKt(kt) + (soBan ? ', ' + soBan + ' bàn cần ' + Math.ceil(soBan / x.n) + ' trang.' : '.') +
@@ -621,7 +644,7 @@ async function gmbLuuSoDo(ds, d, dongY) {
 /* Mở cửa sổ in ngay trong cú chạm (khuôn và thư viện QR đã nạp lúc Tạo mã). */
 function gmbInStandee(kq, kt) {
   if (!kq || !(kq.to || []).length || !GMB_KHUON_SVG) return toast('Bấm Tạo mã QR trước đã.');
-  if (!gmbKtHopLe(kt.w, kt.h)) return toast('Kích thước standee từ 40 x 40 mm tới 200 x 287 mm.', 4000);
+  if (!gmbKtHopLe(kt.w, kt.h)) return toast(gmbLoiKt(kt.w, kt.h).replace(/^Kích thước /, 'Kích thước standee '), 4000);
   var w = window.open('', '_blank');
   if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
   w.document.write(gmbTepIn(kq, kt.w, kt.h, kq.dia_chi_qr));
