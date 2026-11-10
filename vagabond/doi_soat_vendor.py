@@ -1740,10 +1740,15 @@ def do_lai_tien_ve(hom_nay=None):
 		if r.get("duong_vao") == "Từ chối":
 			continue
 		try:
-			nguon = frappe.get_doc(DT_NGUON, r.name)
-			cu = nguon.trang_thai_tien
-			_tien_ve(nguon)
-			moi = frappe.db.get_value(DT_NGUON, r.name, "trang_thai_tien")
+			# Codex #550: cùng khoá với lượt nhận tệp và nút Đối chiếu lại; khoá
+			# commit để mở ảnh dữ liệu mới, nên đọc lại nguồn SAU khi có khoá.
+			with khoa_doi_chieu():
+				nguon = frappe.get_doc(DT_NGUON, r.name)
+				cu = nguon.trang_thai_tien
+				if cu not in khop.CHO_TIEN_VE or nguon.get("duong_vao") == "Từ chối":
+					continue
+				_tien_ve(nguon)
+				moi = frappe.db.get_value(DT_NGUON, r.name, "trang_thai_tien")
 			if moi != cu:
 				doi += 1
 				doi_soat_thu.bao_lech_tien(r.name, cu)
