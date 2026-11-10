@@ -259,6 +259,30 @@ MAU_TIEN_VE = {
 }
 
 
+# v647 (10/11/2026): nguồn ghi NGÀY CỦA KỲ trong nội dung chuyển khoản. ShopeeFood
+# "ShopeeFood thanh toan tu dong 08 11 2026" là tiền bán ngày 08/11, dù về ngân
+# hàng ngày 09/11. Nguồn khác (Grab, Payoo, OnePay, Xanh SM) chưa có mẫu ngày
+# chắc chắn trên sao kê thật nên chưa khai, giữ cách so cũ.
+MAU_NGAY_KY = {
+	"shopeefood": r"thanh toan tu dong\s+(\d{1,2})[ ./-]+(\d{1,2})[ ./-]+(\d{4})",
+}
+
+
+def ngay_ky_noi_dung(mau, mo_ta):
+	"""Ngày của kỳ ghi trong nội dung chuyển khoản ("YYYY-MM-DD"), hoặc None khi
+	nguồn không ghi ngày hay nội dung không theo mẫu. THUẦN."""
+	m = MAU_NGAY_KY.get(nhom_tien_ve(mau))
+	if not m:
+		return None
+	r = re.search(m, str(mo_ta or "").lower())
+	if not r:
+		return None
+	try:
+		return date(int(r.group(3)), int(r.group(2)), int(r.group(1))).isoformat()
+	except ValueError:
+		return None
+
+
 def nhom_tien_ve(mau):
 	if mau.startswith("onepay"):
 		return "onepay"
@@ -381,18 +405,34 @@ def tong_duy_nhat(dong, trung, ten):
 	return float(sum(co.values()) + sum(them.values()))
 
 
-def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_tay=""):
+def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_tay="", ky=None):
 	"""Tìm giao dịch tiền vào đúng số tiền vendor phải trả.
 
 	giao_dich: [{name, ngay, tien, mo_ta}] tiền VÀO trong khoảng ngày máy chủ
-	đã lọc. Chỉ đọc; không gạch, không giữ giao dịch (đối chiếu chứ không ghi
-	sổ). Trả (trạng thái, [tên giao dịch], ghi chú).
+	đã lọc. ky: (tu_ngay, den_ngay) của báo cáo. Chỉ đọc; không gạch, không giữ
+	giao dịch (đối chiếu chứ không ghi sổ). Trả (trạng thái, [tên giao dịch], ghi chú).
+
+	v647 (10/11/2026, ShopeeFood báo lệch sai): giao dịch ghi ngày kỳ trong nội
+	dung (ngay_ky_noi_dung) chỉ dùng cho đúng kỳ đó; giao dịch của kỳ khác không
+	là ứng viên, kể cả trùng số tiền. Chưa có tiền đúng kỳ là CHỜ, không phải lệch.
+	"Lệch tiền về" chỉ khi có đúng một ứng viên; nhiều ứng viên thì kế toán chọn.
 	"""
 	if can_ve <= 0:
 		return "Không áp dụng", [], "Không có tiền vendor phải trả trong tệp này."
 	mau_nd = MAU_TIEN_VE.get(nhom_tien_ve(mau), "")
 	cung = [g for g in giao_dich if g["name"] not in da_dung and ngay_tu <= g["ngay"] <= ngay_den
 		and (not mau_nd or re.search(mau_nd, (g["mo_ta"] or "").lower()))]
+	dung_ky, khong_ngay = [], []
+	for g in cung:
+		n = ngay_ky_noi_dung(mau, g["mo_ta"])
+		if n is None:
+			khong_ngay.append(g)
+		elif ky and ky[0] and ky[1] and str(ky[0]) <= n <= str(ky[1]):
+			dung_ky.append(g)
+		elif not (ky and ky[0] and ky[1]):
+			# Không biết kỳ của báo cáo thì không loại được theo ngày.
+			khong_ngay.append(g)
+	cung = dung_ky + khong_ngay
 	dung = [g for g in cung if g["tien"] == can_ve]
 	if len(dung) == 1:
 		if ly_do_tay:
@@ -405,11 +445,26 @@ def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_
 		# khác và chặn nguồn đúng dùng giao dịch đó về sau.
 		return "Cần chọn tiền về", [], "Có %s giao dịch cùng %s đồng (%s); máy không tự chọn. Xem sao kê để biết giao dịch nào của đợt này." % (
 			len(dung), _vn(can_ve), ", ".join(g["name"] for g in dung[:10]))
-	if cung and mau_nd:
-		gan = min(cung, key=lambda g: abs(g["tien"] - can_ve))
-		return "Lệch tiền về", [gan["name"]], "Gần nhất %s (%s), báo cáo %s (lệch %s)." % (
-			gan["name"], _vn(gan["tien"]), _vn(can_ve), _vn(gan["tien"] - can_ve))
-	return "Chưa thấy tiền về", [], "Chưa thấy giao dịch %s đồng từ %s đến %s." % (_vn(can_ve), ngay_tu, ngay_den)
+	uv = dung_ky or khong_ngay
+	if uv and mau_nd:
+		if len(uv) == 1:
+			gan = uv[0]
+			return "Lệch tiền về", [gan["name"]], "Gần nhất %s (%s), báo cáo %s (lệch %s)." % (
+				gan["name"], _vn(gan["tien"]), _vn(can_ve), _vn(gan["tien"] - can_ve))
+		return "Cần chọn tiền về", [], "Có %s giao dịch của %s khác số %s đồng (%s); máy không đoán khoản nào của đợt này." % (
+			len(uv), "đúng kỳ" if dung_ky else "nguồn này", _vn(can_ve), ", ".join(g["name"] for g in uv[:10]))
+	return "Chưa thấy tiền về", [], "Chưa thấy giao dịch %s đồng%s từ %s đến %s." % (
+		_vn(can_ve), (" ghi ngày %s" % _ky_chu(ky)) if ky and MAU_NGAY_KY.get(nhom_tien_ve(mau)) else "", ngay_tu, ngay_den)
+
+
+def _ky_chu(ky):
+	a, b = _ngay_chu(ky[0]), _ngay_chu(ky[1])
+	return a if a == b else "%s đến %s" % (a, b)
+
+
+def _ngay_chu(x):
+	x = str(x or "")
+	return "%s/%s" % (x[8:10], x[5:7]) if len(x) >= 10 else x
 
 
 # ------------------------------------------------------------ thẻ tín dụng

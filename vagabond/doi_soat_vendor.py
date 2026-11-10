@@ -974,7 +974,8 @@ def _tien_ve(nguon):
 	co_tien_mat = bool(frappe.db.count(DT_DONG, {"nguon": nguon.name, "mo_ta": ["like", "%tiền mặt"]}))
 	bi_thay = bool(frappe.db.count(DT_DONG, {"nguon_cu": nguon.name, "thay_bang": ["is", "set"]}))
 	tt, ds, ghi = khop.khop_ngan_hang(nguon.mau, int(round(nguon.thuc_nhan)), str(tu), str(den), gd, da_dung,
-		ly_do_tay=khop.ly_do_khong_tu_nhan(nguon.mau, co_tien_mat, bi_thay))
+		ly_do_tay=khop.ly_do_khong_tu_nhan(nguon.mau, co_tien_mat, bi_thay),
+		ky=(str(nguon.tu_ngay or ""), str(nguon.den_ngay or "")) if getattr(nguon, "tu_ngay", None) and nguon.den_ngay else None)
 	# Codex #450: chỉ khi khớp đúng một giao dịch mới ghi vào giao_dich_ngan_hang
 	# (trường này là danh sách giao dịch đã dùng cho mọi nguồn khác). Gợi ý của
 	# "Lệch tiền về" nằm trong ghi chú.
@@ -1522,6 +1523,42 @@ def quet_email(so_ngay=3):
 def quet_moi_gio():
 	frappe.set_user("Administrator")
 	quet_email(2)
+	do_lai_tien_ve()
+
+
+# v647 (10/11/2026): tiền về sau lúc đọc báo cáo (ShopeeFood về trưa hôm sau) thì
+# nguồn kẹt "Chưa thấy tiền về" vì _tien_ve chỉ chạy lúc đọc hay khi bấm đối
+# chiếu lại. Lượt mỗi giờ dò lại các nguồn còn chờ tiền trong 14 ngày gần đây.
+NGAY_DO_LAI = 14
+TOI_DA_DO_LAI = 300
+
+
+def do_lai_tien_ve(hom_nay=None):
+	"""Chạy lại _tien_ve cho nguồn Tiền bán còn chờ tiền về. Giữ nguyên mọi luật
+	của _tien_ve (giao dịch đã dùng, chỉ giữ khi khớp đúng một, lý do kế toán
+	phải tự chọn). Đổi sang "Đã thấy tiền về" thì chỉ đổi trạng thái, không gửi
+	tin; chỉ lệch thật mới qua tin "Lệch tiền về" một lần (doi_soat_thu)."""
+	from vagabond import doi_soat_thu
+
+	hom = hom_nay or frappe.utils.nowdate()
+	ds = frappe.get_all(DT_NGUON, filters={"nhom": "Tiền bán", "trang_thai": "Đã nhận",
+		"trang_thai_tien": ["in", list(khop.CHO_TIEN_VE)], "den_ngay": [">=", frappe.utils.add_days(hom, -NGAY_DO_LAI)]},
+		fields=["name", "duong_vao"], order_by="den_ngay asc, name asc", limit_page_length=TOI_DA_DO_LAI)
+	doi = 0
+	for r in ds:
+		if r.get("duong_vao") == "Từ chối":
+			continue
+		try:
+			nguon = frappe.get_doc(DT_NGUON, r.name)
+			cu = nguon.trang_thai_tien
+			_tien_ve(nguon)
+			moi = frappe.db.get_value(DT_NGUON, r.name, "trang_thai_tien")
+			if moi != cu:
+				doi += 1
+				doi_soat_thu.bao_lech_tien(r.name, cu)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Đối soát: dò lại tiền về %s" % r.name)
+	return dict(so_nguon=len(ds), doi=doi)
 
 
 # ------------------------------------------------------------ v641: hộp thư doisoat@, duyệt, xác nhận

@@ -32,6 +32,8 @@ import json
 import re
 from datetime import datetime, timedelta
 
+from vagabond import so_do_ban
+
 # ------------------------------------------------------------- phần thuần
 
 DT = "Vagabond Goi Mon Ban"
@@ -80,7 +82,7 @@ PHUT_HET_HAN = 10
 CHO_TOI_DA_MOI_BAN = 3
 CHO_TOI_DA_MOI_DIEM = 30
 BAN_TOI_DA = 99
-TO_QR_TOI_DA = 60
+TO_QR_TOI_DA = 99
 SL_TOI_DA = 20
 DONG_TOI_DA = 30
 DAI_GHI_CHU = 300
@@ -105,12 +107,12 @@ def chuan_diem(diem):
 
 
 def chuan_ban(ban):
-	"""Số bàn 1..99, sai thì None. Nhận "5", 5, " 05 ". THUẦN."""
-	s = str(ban if ban is not None else "").strip()
-	if not re.fullmatch(r"\d{1,3}", s):
-		return None
-	n = int(s)
-	return n if 1 <= n <= BAN_TOI_DA else None
+	"""Tên bàn chuẩn (chuỗi), sai thì None. Nhận "5", 5, " 05 " (ra "5") và tên
+	theo khu "a01", "VIP2" (ra "A1", "VIP2"). THUẦN.
+
+	v647 (anh Việt 10/11/2026): bàn đặt tên theo khu. Bàn chỉ có số giữ đúng
+	chuỗi cũ ("5"), nên khoá HMAC và link QR bàn số in trước v647 không đổi."""
+	return so_do_ban.chuan_ten_ban(ban)
 
 
 def khoa_ban(bi_mat, diem, ban):
@@ -121,7 +123,7 @@ def khoa_ban(bi_mat, diem, ban):
 	n = chuan_ban(ban)
 	if n is None:
 		raise ValueError("Số bàn không hợp lệ.")
-	chuoi = "goi-mon-ban:%s:%d" % (chuan_diem(diem), n)
+	chuoi = "goi-mon-ban:%s:%s" % (chuan_diem(diem), n)
 	return hmac.new(str(bi_mat).encode("utf-8"), chuoi.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
 
 
@@ -139,18 +141,37 @@ def dung_khoa(bi_mat, diem, ban, k):
 
 def duong_qr(diem, ban, k):
 	"""Đường tương đối in thành QR. Tab TẠI QUẦY mở thẳng. THUẦN."""
-	return "%s?diem=%s&ban=%d&k=%s#/in-store" % (DUONG_TRANG, chuan_diem(diem), chuan_ban(ban), k)
+	return "%s?diem=%s&ban=%s&k=%s#/in-store" % (DUONG_TRANG, chuan_diem(diem), chuan_ban(ban), k)
 
 
 def ds_ban(tu, den):
-	"""Danh sách số bàn cần in, từ tu tới den (đảo lại nếu gõ ngược). THUẦN.
+	"""Danh sách bàn số cần in, từ tu tới den (đảo lại nếu gõ ngược). THUẦN.
 	Trả [] khi số bàn sai; cắt ở TO_QR_TOI_DA tờ một lần in."""
 	a, b = chuan_ban(tu), chuan_ban(den)
-	if a is None or b is None:
+	if a is None or b is None or not (so_do_ban.la_so(a) and so_do_ban.la_so(b)):
 		return []
+	a, b = int(a), int(b)
 	if a > b:
 		a, b = b, a
-	return list(range(a, min(b, a + TO_QR_TOI_DA - 1) + 1))
+	return [str(n) for n in range(a, min(b, a + TO_QR_TOI_DA - 1) + 1)]
+
+
+def ds_ban_chon(ban, so_do):
+	"""v647: các bàn người quản lý tích để in, theo thứ tự sơ đồ, bỏ trùng.
+	Bàn theo khu phải có trong sơ đồ của điểm (co_ban). THUẦN.
+	Trả (danh sách, [tên sai])."""
+	if isinstance(ban, str):
+		ban = [x for x in re.split(r"[\s,;]+", ban) if x]
+	ra, sai = [], []
+	for x in ban or []:
+		t = chuan_ban(x)
+		if t is None or not so_do_ban.co_ban(so_do, t):
+			sai.append(str(x))
+		elif t not in ra:
+			ra.append(t)
+	thu_tu = {t: i for i, t in enumerate(so_do_ban.ten_ban(so_do))}
+	ra.sort(key=lambda t: (thu_tu.get(t, len(thu_tu)), int(re.sub(r"\D", "", t) or 0)))
+	return ra[:TO_QR_TOI_DA], sai
 
 
 def tuy_chon_cho(nhom_mon, ds_tc):
@@ -571,7 +592,7 @@ def the_quay(r, bay_gio, ten_diem="", anh=None):
 	mon = _doc_mon(r)
 	anh = anh or {}
 	return {
-		"ma": r.get("name"), "ban": int(r.get("ban") or 0), "diem": r.get("diem") or "", "ten_diem": ten_diem,
+		"ma": r.get("name"), "ban": chuan_ban(r.get("ban")) or "", "diem": r.get("diem") or "", "ten_diem": ten_diem,
 		"so_mon": sum(int(d.get("sl") or 0) for d in mon), "tam_tinh": int(r.get("tam_tinh") or 0),
 		"phut": phut_cho(r.get("luc"), bay_gio),
 		"mon": [{"ma": d.get("ma"), "ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": tc_hien(d),
@@ -597,7 +618,7 @@ def cho_khach(r, bay_gio, da_tra=False):
 	# tiền từng dòng. Tiền dòng là giá máy chủ đã chốt lúc gọi (chuan_gio),
 	# cùng nguồn với tạm tính, không phải giá trình duyệt gửi lên.
 	return {
-		"ma": r.get("name"), "trang_thai": tt, "ban": int(r.get("ban") or 0),
+		"ma": r.get("name"), "trang_thai": tt, "ban": chuan_ban(r.get("ban")) or "",
 		"luc": luc.strftime("%H:%M") if luc else "",
 		"nhan_luc": nhan.strftime("%H:%M") if (nhan and tt == TT_NHAN) else "",
 		"ly_do": (r.get("ly_do") or "") if tt == TT_TU_CHOI else "",
@@ -654,7 +675,7 @@ def the_tro_giup(r, bay_gio, ten_diem="", bill=None):
 	"""Một thẻ "bàn cần trợ giúp" trên màn quầy (v639). bill: {"ma", "tam_tinh"}
 	của phiếu tạm tính hôm nay của bàn khi khách xin tính tiền. THUẦN."""
 	return {
-		"ma": r.get("name"), "ban": int(r.get("ban") or 0), "diem": r.get("diem") or "", "ten_diem": ten_diem,
+		"ma": r.get("name"), "ban": chuan_ban(r.get("ban")) or "", "diem": r.get("diem") or "", "ten_diem": ten_diem,
 		"ly_do": r.get("ly_do") or "", "chi_tiet": r.get("chi_tiet") or "", "phut": phut_cho(r.get("luc"), bay_gio),
 		"bill": (bill or {}).get("ma") or "", "tam_tinh": int((bill or {}).get("tam_tinh") or 0), "hoa_don": (bill or {}).get("hoa_don") or "",
 	}
@@ -889,10 +910,13 @@ def doc_combo_ban(ma_diem):
 
 
 def _kiem_link(diem, ban, k):
-	"""(điểm, số bàn) khi link hợp lệ, không thì (None, None)."""
+	"""(điểm, tên bàn) khi link hợp lệ, không thì (None, None). v647: bàn theo
+	khu phải còn trong sơ đồ bàn của điểm (đổi tên khu là QR cũ hết dùng)."""
 	n = chuan_ban(ban)
 	d = _diem(diem)
 	if not d or n is None or not dung_khoa(_bi_mat(), d["ma"], n, k):
+		return None, None
+	if not so_do_ban.co_ban(d.get("so_do_ban"), n):
 		return None, None
 	return d, n
 
@@ -950,7 +974,7 @@ def goi(diem=None, ban=None, k=None, nonce=None, mon=None, ghi_chu="", ten="", s
 	bi_mat = _bi_mat()
 	cu = frappe.db.get_value(DT, {"nonce": nonce}, ["name", "diem", "ban"], as_dict=True)
 	if cu:
-		if cu.diem != d["ma"] or cint(cu.ban) != n:
+		if cu.diem != d["ma"] or chuan_ban(cu.ban) != n:
 			return {"ok": 0, "cau": "Quý khách tải lại trang rồi gọi món lại."}
 		return {"ok": 1, "ma": cu.name, "token": token_khach(bi_mat, cu.name), "lap_lai": 1}
 	bay = now_datetime()
@@ -992,7 +1016,7 @@ def _goi_trong_khoa(d, n, nonce, bi_mat, bay, mon, ghi_chu, ten, sdt_gioi_thieu)
 	from vagabond.thanh_toan_web_thuan import chuan_gioi_thieu
 
 	cho = [r for r in _cho_cua(d["ma"]) if not het_han(r.get("luc"), bay)]
-	if sum(1 for r in cho if cint(r.get("ban")) == n) >= CHO_TOI_DA_MOI_BAN:
+	if sum(1 for r in cho if chuan_ban(r.get("ban")) == n) >= CHO_TOI_DA_MOI_BAN:
 		return {"ok": 0, "cau": "Bàn này đang có %d đơn chờ quầy nhận. Quý khách đợi quầy nhận rồi gọi thêm." % CHO_TOI_DA_MOI_BAN}
 	if len(cho) >= CHO_TOI_DA_MOI_DIEM:
 		return {"ok": 0, "cau": "Quầy đang bận. Quý khách nhắn nhân viên gần nhất để gọi món."}
@@ -1100,7 +1124,7 @@ def goi_nhan_vien(diem=None, ban=None, k=None, ly_do=None, chi_tiet="", nonce=No
 		return {"ok": 0, "cau": "Quý khách tải lại trang rồi bấm lại."}
 	cu = frappe.db.get_value(DT_TG, {"nonce": nonce}, ["name", "diem", "ban"], as_dict=True)
 	if cu:
-		if cu.diem != d["ma"] or cint(cu.ban) != n:
+		if cu.diem != d["ma"] or chuan_ban(cu.ban) != n:
 			return {"ok": 0, "cau": "Quý khách tải lại trang rồi bấm lại."}
 		return {"ok": 1, "ma": cu.name, "lap_lai": 1}
 	ly = chuan_ly_do(ly_do)
@@ -1221,7 +1245,7 @@ def _tro_giup_cho(d, bay):
 			continue
 		bill = None
 		if r.get("ly_do") == LY_DO_GOI[1]:
-			bill = _bill_cua_ban(d["ma"], cint(r.get("ban")), bay.date())
+			bill = _bill_cua_ban(d["ma"], chuan_ban(r.get("ban")) or "", bay.date())
 		ra.append(the_tro_giup(r, bay, ten, bill))
 	return ra
 
@@ -1423,31 +1447,77 @@ def _kiem_quyen_in():
 		frappe.throw("Chỉ quản lý cửa hàng và Giám đốc in được mã QR tại bàn.")
 
 
+def the_diem_in(d):
+	"""Một điểm trên màn In QR tại bàn: sơ đồ đã khai (để sửa), nhóm bàn theo
+	khu (để tích chọn), địa chỉ in dưới standee. THUẦN."""
+	so_do = so_do_ban.chuan_so_do(d.get("so_do_ban"))
+	return {"ma": d["ma"], "ten": d.get("ten_ngan") or d["ten"], "phu": d.get("phu") or d.get("dia_chi") or "",
+		"so_do": so_do, "nhom": so_do_ban.nhom_ban(so_do), "da_khai": 1 if so_do else 0,
+		"dia_chi_qr": d.get("dia_chi_qr") or d.get("dia_chi") or ""}
+
+
 @frappe.whitelist()
 def diem_in_qr():
-	"""Các điểm có quầy để chọn khi in QR."""
+	"""Các điểm có quầy để chọn khi in QR, kèm sơ đồ bàn (v647)."""
 	_kiem_quyen_in()
 	from vagabond import diem_ban
 
-	return [{"ma": d["ma"], "ten": d.get("ten_ngan") or d["ten"], "phu": d.get("phu") or d.get("dia_chi") or ""}
-		for d in diem_ban.ds(chi_bat=True) if d["quay"]]
+	return [the_diem_in(d) for d in diem_ban.ds(chi_bat=True) if d["quay"]]
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_so_do_ban(diem=None, so_do=None, dia_chi_qr=None, dong_y_mat=0):
+	"""v647: lưu sơ đồ bàn theo khu của một điểm (màn In QR tại bàn). Màn Tính
+	tiền đọc chung sơ đồ này. Sơ đồ mới bỏ mất bàn theo khu đã có thì trả danh
+	sách để màn hỏi lại (QR đã in của các bàn đó sẽ hết dùng); bấm đồng ý mới lưu."""
+	_kiem_quyen_in()
+	from vagabond import diem_ban
+
+	d = _diem(diem)
+	if not d:
+		frappe.throw("Chọn một điểm bán có quầy.")
+	if isinstance(so_do, str):
+		so_do = json.loads(so_do or "[]")
+	moi, loi = so_do_ban.kiem_so_do(so_do)
+	if loi:
+		frappe.throw("<br>".join(loi[:6]))
+	mat = so_do_ban.mat_khi_doi(d.get("so_do_ban"), moi)
+	if mat and not cint(dong_y_mat):
+		return {"ok": 0, "mat": mat}
+	cap = {"so_do_ban": moi}
+	if dia_chi_qr is not None:
+		cap["dia_chi_qr"] = str(dia_chi_qr or "").strip()[:120]
+	diem_ban.dat_truong(d["ma"], cap, "Sửa sơ đồ bàn %s: %s" % (d["ma"], ", ".join(
+		so_do_ban.mo_ta_dong(x) for x in moi) or "Bàn 1 tới 20"))
+	return {"ok": 1, "diem": the_diem_in(_diem(d["ma"]))}
 
 
 @frappe.whitelist()
-def to_qr(diem=None, tu=1, den=20):
-	"""Các tờ QR A6 của một điểm, từ bàn tu tới bàn den."""
+def to_qr(diem=None, tu=1, den=20, ban=None):
+	"""Các tờ QR của một điểm. v647: ban là các bàn đã tích (theo sơ đồ);
+	không gửi ban thì in bàn số từ tu tới den như trước."""
 	_kiem_quyen_in()
 	from vagabond.qr_chuyen_khoan import anh_lien_ket
 
 	d = _diem(diem)
 	if not d:
 		frappe.throw("Chọn một điểm bán có quầy.")
-	ds = ds_ban(tu, den)
-	if not ds:
-		frappe.throw("Số bàn từ 1 tới %d." % BAN_TOI_DA)
+	if ban not in (None, "", "[]", []):
+		if isinstance(ban, str) and ban.strip().startswith("["):
+			ban = json.loads(ban)
+		ds, sai = ds_ban_chon(ban, d.get("so_do_ban"))
+		if sai:
+			frappe.throw("Bàn %s không có trong sơ đồ bàn của %s. Tải lại màn hình rồi chọn lại." % (
+				", ".join(sai[:5]), d.get("ten_ngan") or d["ten"]))
+		if not ds:
+			frappe.throw("Chọn ít nhất một bàn để in.")
+	else:
+		ds = ds_ban(tu, den)
+		if not ds:
+			frappe.throw("Số bàn từ 1 tới %d." % BAN_TOI_DA)
 	ten = d.get("ten_ngan") or d["ten"]
 	ra = []
 	for n in ds:
 		link = link_ban(d["ma"], n)
-		ra.append({"ban": n, "ten_diem": ten, "link": link, "anh": anh_lien_ket(link)})
-	return {"diem": d["ma"], "ten": ten, "to": ra}
+		ra.append({"ban": n, "nhan": so_do_ban.nhan_in(n), "ten_diem": ten, "link": link, "anh": anh_lien_ket(link)})
+	return {"diem": d["ma"], "ten": ten, "to": ra, "dia_chi_qr": d.get("dia_chi_qr") or d.get("dia_chi") or ""}

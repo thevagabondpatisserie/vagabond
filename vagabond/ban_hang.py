@@ -52,7 +52,7 @@ except Exception:  # pragma: no cover
 	def filelock(ten, timeout=30, **kw):
 		yield
 
-from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nhip, pt_thanh_toan, quyen_quay, tai_khoan
+from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nhip, pt_thanh_toan, quyen_quay, so_do_ban, tai_khoan
 from vagabond import ghi_so_dieu_kien, hddt_bu, hddt_cho_xuat, khop_tien, luat_thanh_toan, ma_bill
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
@@ -940,6 +940,8 @@ def cau_hinh_ban_hang():
 			# đúng giá; máy chủ vẫn tự tính lại khi lưu bill.
 			"gia_rieng": diem_ban.gia_rieng(d["ma"]) if d.get("bang_gia") and d["quay"] else {},
 			"co_bang_gia": 1 if d.get("bang_gia") and d["quay"] else 0,
+			# v647: chip Số bàn chia theo khu, cùng sơ đồ màn In QR tại bàn.
+			"nhom_ban": so_do_ban.nhom_ban(d.get("so_do_ban")),
 		}
 		for d in diem_ban.ds(chi_bat=True)
 	]

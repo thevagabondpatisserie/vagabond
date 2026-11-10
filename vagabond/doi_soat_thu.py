@@ -1200,14 +1200,39 @@ def sau_doi_chieu(name, tien_cu):
 					ma_tin="kt_ds_phi_cao")
 		if cap:
 			frappe.db.set_value(DT_NGUON, name, cap, update_modified=False)
-		if n.trang_thai_tien == "Lệch tiền về" and tien_cu != "Lệch tiền về":
-			l = d.get("lech_tien") or {}
-			if l and abs(int(l.get("nhan") or 0) - int(l.get("bao") or 0)) >= ch["nguong_lech"]:
-				t, dd = tin_lech_tien(n.vendor, ky_hien(n), l.get("bao"), l.get("nhan"))
-				kenh_zalo.bao_hoac_ghi_loi("canh_bao", "cong_no", t, dd, link=_link(),
-					khoa="ds_lech:%s:%s" % (name, l.get("nhan")), ma_tin="kt_ds_lech_tien")
+		_bao_lech(n, d, tien_cu, ch)
 	except Exception:
 		frappe.log_error(title="Đối soát hộp thư: sau đối chiếu %s" % name)
+
+
+def khoa_lech(name):
+	"""THUẦN. v647: một nguồn chỉ một tin "Lệch tiền về" (khoá theo nguồn, không
+	theo số giao dịch gần nhất), lượt dò lại mỗi giờ không gửi lặp."""
+	return "ds_lech:%s" % name
+
+
+def _bao_lech(n, d, tien_cu, ch):
+	if n.trang_thai_tien == "Lệch tiền về" and tien_cu != "Lệch tiền về":
+		l = d.get("lech_tien") or {}
+		if l and abs(int(l.get("nhan") or 0) - int(l.get("bao") or 0)) >= ch["nguong_lech"]:
+			from vagabond import kenh_zalo
+
+			t, dd = tin_lech_tien(n.vendor, ky_hien(n), l.get("bao"), l.get("nhan"))
+			kenh_zalo.bao_hoac_ghi_loi("canh_bao", "cong_no", t, dd, link=_link(),
+				khoa=khoa_lech(n.name), ma_tin="kt_ds_lech_tien")
+
+
+def bao_lech_tien(name, tien_cu):
+	"""Gọi từ doi_soat_vendor.do_lai_tien_ve: chỉ báo lệch tiền thật (không ghi
+	phí, không đổi số dư thẻ như sau_doi_chieu)."""
+	frappe = _frappe()
+	try:
+		n = frappe.db.get_value(DT_NGUON, name, ["name", "vendor", "mau", "nhom", "tu_ngay", "den_ngay", "thuc_nhan",
+			"trang_thai_tien", "du_lieu", "company"], as_dict=True)
+		if n:
+			_bao_lech(n, json.loads(n.du_lieu or "{}"), tien_cu, cau_hinh())
+	except Exception:
+		frappe.log_error(title="Đối soát hộp thư: báo lệch tiền %s" % name)
 
 
 def _phi_vuot_thang(n, them):
