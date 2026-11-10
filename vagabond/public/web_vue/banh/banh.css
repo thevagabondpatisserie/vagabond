@@ -854,3 +854,9 @@ html body .bar.gb-bar .go{border-radius:999px;min-height:48px;padding:0 22px}
 .gb-ud-k.tat{opacity:.6;cursor:not-allowed}
 .gb-ud-k.tat .gb-ud-tag{color:#F4C26B;border-color:#6b4a12}
 .gb-lien{display:inline-flex;align-items:center;min-height:44px;margin-top:8px;padding:0;border:0;background:none;color:var(--cyan-bright);font:600 14px var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+/* v647: banner ảnh Marketing (đầu trang, giỏ hàng, đặt xong). Ảnh hiện trọn, không cắt. */
+.web-banner{display:block;max-width:1200px;margin:16px auto;border-radius:12px;overflow:hidden;line-height:0;background:#f4f1ec}
+.web-banner picture,.web-banner-anh{display:block;width:100%;height:auto}
+a.web-banner:focus-visible{outline:3px solid #29bdb3;outline-offset:3px}
+#noi-dung-marketing .web-banner{margin:12px auto;width:calc(100% - 32px)}
+.noi-dung-gio .web-banner,.noi-dung-dat-xong .web-banner{margin:16px 0}
