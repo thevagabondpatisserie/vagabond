@@ -241,6 +241,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_banner_647,
 	# v647 đối soát ShopeeFood báo lệch sai: tiền đúng kỳ, dò lại mỗi giờ.
 	thu_tien_ve_dung_ky_647,
+	# v647 (anh Việt 10/11/2026): từng bill thẻ/sàn dò ngược trong báo cáo đối tác.
+	thu_bill_doi_tac_647,
 	# v647 tên bàn theo khu (A1, B1, VIP1), in QR bàn đúng branding.
 	thu_qr_ban_khu_647,
 	# v646 (Minh Vũ 09/11/2026): tham số mẫu Zalo thật, ô Tiền tệ -1124.

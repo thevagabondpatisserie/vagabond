@@ -220,7 +220,7 @@ def _danh_muc():
 	# v645: thêm tin báo cáo ưu đãi Zalo tuần cho Marketing (anh Việt duyệt 08/11/2026).
 	# v646: thêm 9 tin Cài đặt tự động hoá và Thu mua (viec_tu_dong.py), anh Việt duyệt bản vẽ 09/11/2026.
 	la("đủ 113 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641, 1 tin v644, 1 tin v645, 10 tin v646)", len(kz.TIN), 113)
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641, 1 tin v644, 1 tin v645, 10 tin v646, 1 tin v647)", len(kz.TIN), 114)
 	la("chín bộ phận đúng thứ tự (v622 thêm Nhân sự, v644 thêm Marketing)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Marketing", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -620,6 +620,8 @@ def _patch_map():
 		# v641: tin đối soát qua hộp thư doisoat@, chưa có bản vá; anh Việt tích tay cho nhóm Kế toán.
 		"kt_ds_thu_gia_danh", "kt_ds_thieu_thu", "kt_ds_tep_loi", "kt_ds_lech_tien", "kt_ds_chua_thay_tien",
 		"kt_ds_phi_cao", "kt_ds_don_thieu_erp",
+		# v647: bill thẻ, sàn không khớp báo cáo đối tác, chưa có bản vá; anh Việt tích tay cho nhóm Kế toán.
+		"kt_ds_bill_lech",
 		# v646: Cài đặt tự động hoá, chưa có bản vá; anh Việt tích tay cho nhóm Sales.
 		"bh_banh_thieu_ngay_mai"}
 	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]

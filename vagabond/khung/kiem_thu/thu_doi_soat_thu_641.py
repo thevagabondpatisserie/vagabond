@@ -362,8 +362,9 @@ def _():
 	cay = ast.parse((Path(__file__).parents[2] / "doi_soat_thu.py").read_text(encoding="utf-8"))
 	ma = sorted({k.value.value for n in ast.walk(cay) if isinstance(n, ast.Call) for k in n.keywords
 		if k.arg == "ma_tin" and isinstance(k.value, ast.Constant)})
-	la("chín mã", ma, sorted(["bgd_ds_tai_tay", "kt_ds_thu_gia_danh", "kt_ds_thieu_thu", "kt_ds_tep_loi", "kt_ds_lech_tien",
-		"kt_ds_chua_thay_tien", "kt_ds_phi_cao", "kt_ds_don_thieu_erp", "ht_ds_hop_thu_loi"]))
+	la("mười mã (v647 thêm bill không khớp đối tác)", ma, sorted(["bgd_ds_tai_tay", "kt_ds_thu_gia_danh", "kt_ds_thieu_thu",
+		"kt_ds_tep_loi", "kt_ds_lech_tien", "kt_ds_chua_thay_tien", "kt_ds_phi_cao", "kt_ds_don_thieu_erp", "ht_ds_hop_thu_loi",
+		"kt_ds_bill_lech"]))
 	dung("đều có trong danh mục", all(m in kz.TIN for m in ma))
 	la("điều kiện thư chưa về", kz.DIEU_KIEN.get("ds_thieu_thu"), "vagabond.doi_soat_thu.con_thieu_thu")
 
@@ -371,7 +372,7 @@ def _():
 @ca("v641 màn Đối soát nhà cung cấp chạy thật trong node: hộp thư, tiến độ, đường vào, duyệt, xác nhận")
 def _():
 	goc = Path(__file__).parents[3]
-	for tep, so in (("doi_soat_hop_thu_641.js", "17 dat, 0 hong"), ("doi_soat_vendor_579.js", "23 dat, 0 hong")):
+	for tep, so in (("doi_soat_hop_thu_641.js", "17 dat, 0 hong"), ("doi_soat_vendor_579.js", "25 dat, 0 hong")):
 		r = subprocess.run(["node", str(goc / "vagabond/khung/kiem_thu/hanh_vi" / tep)], capture_output=True, text=True, timeout=120)
 		dung("%s chạy được: %s" % (tep, (r.stdout[-1500:] + r.stderr[-800:])), r.returncode == 0)
 		dung("%s đủ số ca" % tep, so in r.stdout)
