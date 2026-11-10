@@ -232,6 +232,40 @@ function posDiemTheoQuay(quay) {
   (((CFGBH || {}).diem) || []).forEach(function (q) { if (quay && q.quay === quay) r = q; });
   return r;
 }
+/* v647: khối chip Số bàn, chia theo khu của sơ đồ bàn (màn In QR tại bàn
+   khai, dùng chung). Điểm chưa khai sơ đồ thì máy chủ trả Bàn 1 tới 20. */
+function posVeSoBan(q, soBan) {
+  return '<div class="sec">Số bàn</div><div class="card" style="padding:10px 14px">' +
+    '<div id="posBan">' +
+    posNhomBan(q, soBan).map(function (g) {
+      return (g.khu ? '<div style="font-size:12.5px;font-weight:700;color:#475467;margin:6px 0 6px">Khu ' + h(g.khu) + '</div>' : '') +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px">' +
+        g.ban.map(function (b) {
+          return posChipNut('data-ban="' + h(b) + '"', g.khu ? h(b) : 'Bàn ' + h(b), soBan === b);
+        }).join('') + '</div>';
+    }).join('') +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+    posChipNut('data-ban="Mang đi"', '🥡 Mang đi', soBan === 'Mang đi') +
+    (soBan ? posChipNut('data-ban=""', '✕ Bỏ chọn', false, 1) : '') +
+    '</div></div></div>';
+}
+
+/* v647: nhóm chip Số bàn của một điểm, THUẦN. Lấy q.nhom_ban (máy chủ dựng
+   từ sơ đồ bàn); thiếu thì Bàn 1 tới 20 như trước. Bàn đang chọn mà không có
+   trong sơ đồ (đơn quét QR bàn số in trước khi khai khu) vẫn hiện để bỏ chọn. */
+function posNhomBan(q, dangChon) {
+  var ds = ((q || {}).nhom_ban || []).filter(function (g) { return g && (g.ban || []).length; });
+  if (!ds.length) {
+    var mac = [];
+    for (var i = 1; i <= 20; i++) mac.push(String(i));
+    ds = [{ khu: '', ban: mac }];
+  }
+  var co = false;
+  ds.forEach(function (g) { if (g.ban.indexOf(dangChon) >= 0) co = true; });
+  if (dangChon && dangChon !== 'Mang đi' && !co) ds = ds.concat([{ khu: '', ban: [dangChon] }]);
+  return ds;
+}
+
 /* Codex PR #532: posQuay là MỘT đối tượng lấy từ CFGBH lúc chọn điểm. Quản lý
    đổi bảng giá rồi cấu hình đọc lại thì CFGBH là đối tượng mới, còn posQuay
    vẫn giữ giá cũ, nên giỏ và mã QR thu theo giá cũ trong khi máy chủ lưu giá
@@ -779,17 +813,8 @@ async function scrPosQuay() {
   /* So ban: don ngoi tai quan thi waiter nhin so ban tren phieu ma bung
      mon cho dung khach (anh Viet 09/08/2026). Chon xong in len hoa don. */
   if (posDon.che_do === 'Tại chỗ') {
-    var dsBan = [];
-    for (var sb = 1; sb <= 20; sb++) dsBan.push(String(sb));
-    html += '<div class="sec">Số bàn</div><div class="card" style="padding:10px 14px">' +
-      '<div id="posBan" style="display:flex;flex-wrap:wrap;gap:8px">' +
-      dsBan.map(function (b) {
-        var on = posDon.so_ban === b;
-        return posChipNut('data-ban="' + b + '"', 'Bàn ' + b, on);
-      }).join('') +
-      posChipNut('data-ban="Mang đi"', '🥡 Mang đi', posDon.so_ban === 'Mang đi') +
-      (posDon.so_ban ? posChipNut('data-ban=""', '✕ Bỏ chọn', false, 1) : '') +
-      '</div></div>';
+    /* v647: chip chia theo khu của sơ đồ bàn (posVeSoBan). */
+    html += posVeSoBan(posQuay, posDon.so_ban);
   }
   html += '<div class="sec">Món trong hoá đơn</div><div class="card" style="padding:6px 14px">';
   if (!posDon.mon.length) html += '<div style="padding:14px 0;color:#a0a6b4">Chưa có món nào. Bấm Thêm món: tìm theo tên, mã hoặc quét mã vạch.</div>';
