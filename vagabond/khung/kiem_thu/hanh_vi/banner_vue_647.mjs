@@ -146,12 +146,12 @@ const {createApp: taoApp} = createRenderer({
   setScopeId: () => {}, insertStaticContent: () => { throw new Error('không dùng'); }
 });
 const timR = (n, dk, ra = []) => { if (!n || !n.con) return ra; if (n.the && dk(n)) ra.push(n); n.con.forEach(x => timR(x, dk, ra)); return ra; };
-async function moBienNhan(banner) {
-  const kho = new Map();
-  const win = {location: {pathname: '/banh/xong/' + 'T'.repeat(43), replace() {}}, document: {title: ''},
+async function moBienNhan(banner, kho = new Map(), taiLai = false) {
+  const win = {location: {pathname: taiLai ? '/banh/xong' : '/banh/xong/' + 'T'.repeat(43), replace() {}}, document: {title: ''},
     history: {replaceState(a, b, p) { win.location.pathname = p; }},
     sessionStorage: {getItem: k => (kho.has(k) ? kho.get(k) : null), setItem: (k, v) => kho.set(k, v)}};
-  const D = {loai: 'bien_nhan', nhan: {}, bang: {gia_tri: {}, tien_to: []}, lien_he: [], banner,
+  const D = taiLai ? {loai: 'bien_nhan', khong_token: 1, nhan: {}, bang: {gia_tri: {}, tien_to: []}, lien_he: [], banner}
+    : {loai: 'bien_nhan', nhan: {}, bang: {gia_tri: {}, tien_to: []}, lien_he: [], banner,
     bien_nhan: {ma: 'DW-2611-00123', mon: [], tien_banh: '900.000 đ', phi_giao: '36.000 đ', tong: '936.000 đ', thanh_toan: 'Tiền mặt'}};
   const goc = nutR('goc');
   taoApp(taoTrang(D, {win, hen: () => {}, ghi: async () => ({}), dieuHuong: () => {}, chep: async () => {}})).mount(goc);
@@ -168,6 +168,20 @@ await ca('Biên nhận mount thật: banner Đặt xong máy chủ gửi hiện 
   const i = vo.con.indexOf(bn[0]), j = vo.con.findIndex(n => String(n.props && n.props.class || '') === 'bn-nut');
   dung('banner trước hàng nút', i >= 0 && j > i);
   la('rỗng thì không vẽ', timR(await moBienNhan([]), n => n.props['data-banner']).length, 0);
+});
+
+/* Codex PR #550: khách tải lại biên nhận. Lần đầu trang gỡ token khỏi đường dẫn
+   và lưu biên nhận vào phiên; lần tải lại máy chủ không biết biên nhận nào
+   (khong_token) nhưng vẫn gửi banner công khai, trang khôi phục biên nhận từ
+   phiên và vẽ banner. Không có biên nhận trong phiên thì không vẽ banner. */
+await ca('Tải lại biên nhận (không còn token): biên nhận khôi phục từ phiên vẫn có banner Đặt xong', async () => {
+  const kho = new Map();
+  await moBienNhan(MAY.xong, kho);
+  const lai = await moBienNhan(MAY.xong, kho, true);
+  dung('khôi phục đúng biên nhận', JSON.stringify(timR(lai, n => n.the === 'b').map(n => n.con.map(x => x.chu).join(''))).includes('DW-2611-00123'));
+  la('banner vẫn hiện', timR(lai, n => n.props['data-banner'] === 'dat_xong').map(n => n.props.href), ['/thanh-vien']);
+  const trong = await moBienNhan(MAY.xong, new Map(), true);
+  la('không có biên nhận trong phiên: không vẽ banner', timR(trong, n => n.props['data-banner']).length, 0);
 });
 
 console.log('Bộ ca kiểm HÀNH VI v647: banner trên trang đặt bánh và biên nhận');
