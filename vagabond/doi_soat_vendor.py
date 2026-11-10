@@ -771,6 +771,18 @@ def dung_ban_sua(name=None, khoa=None, dau_cu=None):
 	return dict(ok=1, nguon=name)
 
 
+# Ba con số tiền của một dòng đối tác mà khop.cung_tien cần. MỘT NGUỒN cho mọi
+# chỗ chuyển dòng đối tác thành dữ liệu so tiền (Codex #551: một chỗ thiếu thực
+# nhận là bill sàn chỉ khớp theo thực nhận bị kết luận sai).
+TRUONG_TIEN = ("tien_hang", "giam_gia", "thuc_nhan")
+
+
+def _tien_dong(r):
+	"""{tien_hang, giam_gia, thuc_nhan} số nguyên của dòng đối tác r (dict hoặc
+	bản ghi Frappe). Thiếu trường là lỗi của câu truy vấn, không âm thầm coi là 0."""
+	return {k: int((r[k] if isinstance(r, dict) else getattr(r, k)) or 0) for k in TRUONG_TIEN}
+
+
 def _goi_y_con_dung(name):
 	"""Codex #450: lúc kế toán bấm xác nhận, hoá đơn gợi ý phải CÒN là ứng viên
 	hợp lệ, cùng một phép kiểm với lượt đối chiếu (khop.xac_nhan_con_dung)."""
@@ -781,8 +793,7 @@ def _goi_y_con_dung(name):
 		return False
 	lech = khop.LECH_NGAY.get(kieu, 0)
 	uv = _ung_vien_hd(kieu, frappe.utils.add_days(d.ngay, -lech), frappe.utils.add_days(d.ngay, lech), n.company)
-	return khop.xac_nhan_con_dung(kieu, dict(tien_hang=int(d.tien_hang or 0), giam_gia=int(d.giam_gia or 0),
-		thuc_nhan=int(d.thuc_nhan or 0), sales_invoice=d.sales_invoice), uv)
+	return khop.xac_nhan_con_dung(kieu, dict(_tien_dong(d), sales_invoice=d.sales_invoice), uv)
 
 
 def _doi_chieu(name):
@@ -849,8 +860,7 @@ def _noi_hoa_don_ban(nguon, dong):
 	for d in dong:
 		if not d.get("xac_nhan_boi"):
 			continue
-		if khop.xac_nhan_con_dung(kieu, dict(tien_hang=int(d.tien_hang or 0), giam_gia=int(d.giam_gia or 0),
-				thuc_nhan=int(d.get("thuc_nhan") or 0), sales_invoice=d.sales_invoice), uv):
+		if khop.xac_nhan_con_dung(kieu, dict(_tien_dong(d), sales_invoice=d.sales_invoice), uv):
 			xac_nhan.add(d.name)
 			da_noi.add(d.sales_invoice)
 		else:
@@ -859,8 +869,7 @@ def _noi_hoa_don_ban(nguon, dong):
 	# Codex #450: dòng đã xác nhận còn đúng KHÔNG vào lượt khớp, để nó không
 	# "chiếm" một hoá đơn cùng tiền khác của dòng chưa nối.
 	can_khop = [d for d in dong if d.name not in xac_nhan]
-	dong_ds = [dict(loai=d.loai, ngay=str(d.ngay), ma_tham_chieu=d.ma_tham_chieu or "", tien_hang=int(d.tien_hang),
-		giam_gia=int(d.giam_gia), thuc_nhan=int(d.get("thuc_nhan") or 0)) for d in can_khop]
+	dong_ds = [dict(_tien_dong(d), loai=d.loai, ngay=str(d.ngay), ma_tham_chieu=d.ma_tham_chieu or "") for d in can_khop]
 	kq = khop.khop_hoa_don(kieu, dong_ds, uv)
 	for i, d in enumerate(can_khop):
 		r = kq.get(i)
@@ -982,13 +991,12 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 			kieu = _kieu_nguon(r.nguon)
 			if not kieu:
 				continue
-			tien = khop.tien_so_sanh(kieu, dict(tien_hang=int(r.tien_hang or 0), giam_gia=int(r.giam_gia or 0)))
+			tien = khop.tien_so_sanh(kieu, _tien_dong(r))
 			cu = noi.get((r.sales_invoice, kieu))
 			# Bill có nhiều dòng đối tác (hiếm): dòng Đã nối thắng.
 			if not cu or cu["trang_thai_khop"] != "Đã nối":
 				noi[(r.sales_invoice, kieu)] = dict(trang_thai_khop=r.trang_thai_khop, tien=tien,
-					ma=r.ma_tham_chieu or "", vendor=r.vendor, tien_hang=int(r.tien_hang or 0),
-					giam_gia=int(r.giam_gia or 0), thuc_nhan=int(getattr(r, "thuc_nhan", 0) or 0))
+					ma=r.ma_tham_chieu or "", vendor=r.vendor, **_tien_dong(r))
 	phu, cho_chon = set(), []
 	dm = diem_doi_tac()
 	den_phu = frappe.utils.add_days(den, 3)
@@ -1028,9 +1036,10 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 		# Codex #550: giữ chính các dòng chưa phân định để chỉ bill là ứng viên của chúng mới chờ chọn.
 		for r in frappe.get_all(DT_DONG, filters={"nguon": ["in", [n.name for n in nguon] or [""]],
 				"trang_thai_khop": ["in", [t for t in ("Nhiều chứng từ",) if t != khop.DA_THAY]], "ngay": ["between", [tu, den_phu]]},
-				fields=["ngay", "ma_tham_chieu", "tien_hang", "giam_gia"], limit_page_length=5000):
-			cho_chon.append(dict(kieu=kieu, ngay=str(r.ngay), ma_tham_chieu=r.ma_tham_chieu or "",
-				tien_hang=int(r.tien_hang or 0), giam_gia=int(r.giam_gia or 0)))
+				fields=["ngay", "ma_tham_chieu"] + list(TRUONG_TIEN), limit_page_length=5000):
+			# Codex #551: dòng chờ chọn mang đủ ba con số tiền như chiều xuôi, để bill
+			# sàn chỉ khớp theo thực nhận vẫn là ứng viên (không thành Không có).
+			cho_chon.append(dict(_tien_dong(r), kieu=kieu, ngay=str(r.ngay), ma_tham_chieu=r.ma_tham_chieu or ""))
 	return khop.doi_chieu_bill(bill, noi, phu, cho_chon, hom_nay, dm)
 
 
