@@ -6,6 +6,22 @@ export function veCay(cay) {
   return (cay || []).map(n => typeof n === 'string' ? n : h(n.tag, n.props || {}, veCay(n.con)));
 }
 const KHOA_BN = 'vgb_bien_nhan_vue', KHOA_TOKEN = 'vgb_bien_nhan_token';
+
+/* v647 (anh Việt 10/11/2026): banner chỗ "Đặt xong" trên biên nhận. Máy chủ
+   (noi_dung_web.banner_hien) đã lọc ngày và ảnh; ở đây chỉ vẽ, link và ảnh vẫn
+   qua phép an toàn: đường dẫn trong web hoặc HTTPS. Kiểu viết thẳng vào thẻ để
+   không đụng mã băm của trang-khach.css ở bốn trang. */
+const anToanBn = u => typeof u === 'string' && !/[\s\\]/.test(u) && ((u[0] === '/' && u[1] !== '/') || /^https:\/\/[^/@]+(?:\/|$)/.test(u));
+export function veBanner(ds) {
+  return (Array.isArray(ds) ? ds : []).filter(b => b && anToanBn(b.anh)).map(b => {
+    const nguon = [];
+    if (anToanBn(b.anh_dt)) nguon.push(h('source', {media: '(max-width: 640px)', srcset: b.anh_dt}));
+    nguon.push(h('img', {src: b.anh, alt: b.mo_ta_anh || b.tieu_de || '', loading: 'lazy', decoding: 'async',
+      style: {display: 'block', width: '100%', height: 'auto'}}));
+    const the = {class: 'bn-banner', 'data-banner': 'dat_xong', style: {display: 'block', margin: '20px 0', borderRadius: '12px', overflow: 'hidden', lineHeight: 0}};
+    return anToanBn(b.lien_ket) ? h('a', Object.assign(the, {href: b.lien_ket}), [h('picture', null, nguon)]) : h('div', the, [h('picture', null, nguon)]);
+  });
+}
 const RE_TOKEN = /\/xong\/([A-Za-z0-9_-]{43})$/;
 function phien(win) {
   return {
@@ -185,6 +201,7 @@ export function taoTrang(D, mt = {}) {
           bn.giam ? dong(chu('bien_nhan_uu_dai','Ưu đãi') + (bn.uu_dai ? ' ('+bn.uu_dai+')' : ''), bn.giam) : null,
           dong(chu('bien_nhan_06a446f5c','Phí giao'), giaTri(bn.phi_giao)), dong(chu('bien_nhan_de995d836','Tổng'), giaTri(bn.tong), 'tong')]),
         khoiThanhToan(),
+        ...veBanner(D.banner),
         /* Nút Nhắn Zalo, Messenger, Gọi giữ làm phụ (hỗ trợ), không còn là bước bắt buộc. */
         lienHe.length ? h('p', {class:'bn-luu-y'}, chu('bien_nhan_tt_ho_tro', 'Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:')) : null,
         h('div', {class:'bn-nut'}, [
