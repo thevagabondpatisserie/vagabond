@@ -36,3 +36,31 @@ Mục Ưu đãi trên web lấy từ ERP, không gõ tay ở trình biên tập 
 **Lưu ý**
 - Tắt chương trình là web tự ẩn thẻ.
 - Nội dung ưu đãi, ảnh: việc này do anh Việt và Marketing quyết.
+
+## Đặt banner ảnh trên trang đặt bánh
+Từ khoá: banner, ảnh quảng cáo, banner sinh nhật, đầu trang, giỏ hàng, đặt xong, biên nhận, thay ảnh banner, cập nhật ngày sinh, trang thành viên
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập website (/bien-tap-web), thẻ Banner | nút + Thêm banner |
+
+Ảnh Marketing tự thiết kế, đặt ở ba chỗ: Đầu trang, Giỏ hàng (trên phần tổng tiền), Đặt xong (biên nhận ngay sau khi khách gửi đơn).
+
+**Các bước**
+1. Mở Biên tập website, chọn thẻ Banner, bấm nút + Thêm banner.
+2. Đặt tên (chỉ để nhận ra, khách không thấy), chọn chỗ đặt.
+3. Tải ảnh máy tính 1600 x 500. Thêm ảnh điện thoại 1080 x 720 nếu có.
+4. Gõ mô tả ảnh là chữ chính trên banner.
+5. Ô Mở trang khi bấm để sẵn /thanh-vien: khách xác minh số qua Zalo rồi khai ngày sinh.
+6. Chọn ngày hiện nếu cần, bấm nút Lưu banner. Khách thấy ngay.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Tải ảnh máy tính trước khi bật hiện trên web. | Tải ảnh, hoặc tắt Hiện trên web để lưu trước |
+| Chọn chỗ đặt banner: Đầu trang, Giỏ hàng hoặc Đặt xong. | Bấm một chỗ |
+
+**Lưu ý**
+- Thay ảnh: bấm Sửa ở banner đó, tải ảnh mới, lưu. Tắt công tắc Hiện trên web là gỡ ngay.
+- Không có ảnh điện thoại thì điện thoại dùng ảnh máy tính, chữ nhỏ khó đọc.
+- Qua ngày kết thúc web tự gỡ. Nội dung quà sinh nhật: việc này do anh Việt quyết.
