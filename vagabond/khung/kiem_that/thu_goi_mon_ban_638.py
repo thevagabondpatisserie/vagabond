@@ -68,7 +68,8 @@ def _vong_doi():
 			return
 		_DA_TAO.append((g.DT, r1["ma"]))
 		b = frappe.db.get_value(g.DT, r1["ma"], ["trang_thai", "tam_tinh", "diem", "ban"], as_dict=True)
-		la("bản ghi chờ, tạm tính theo giá máy chủ", (b.trang_thai, flt(b.tam_tinh), b.diem, b.ban), (g.TT_CHO, float(2 * gia), quay["ma"], ban))
+		# v647: ô bàn đổi Int sang Data (tên bàn theo khu, như A1); số 87 lưu thành chữ "87".
+		la("bản ghi chờ, tạm tính theo giá máy chủ", (b.trang_thai, flt(b.tam_tinh), b.diem, b.ban), (g.TT_CHO, float(2 * gia), quay["ma"], str(ban)))
 		kq = khong_nem("thu ngân nhận đơn", lambda: g.nhan(r1["ma"]))
 		if not kq:
 			return
