@@ -1148,7 +1148,8 @@ Mỗi báo cáo đối tác có số "báo chuyển". Máy tìm giao dịch ti�
 4. Cần chọn tiền về: có nhiều giao dịch có thể là của đợt này. Xem sao kê rồi xác nhận giao dịch đúng.
 
 **Lưu ý**
-- ShopeeFood ghi ngày của đợt trong nội dung chuyển khoản. Máy chỉ so với giao dịch ghi đúng ngày đó, không lấy tiền của ngày khác để báo lệch.
+- Máy chỉ so với tiền của ĐÚNG đợt, nhận ra qua nội dung chuyển khoản: ShopeeFood ghi ngày của đợt, Payoo ghi ngày từ đến của kỳ, OnePay ghi mã đợt trả PVS và khung giờ kỳ, GrabFood ghi tên cửa hàng. Tiền của đợt khác hay cửa hàng khác không bao giờ được lấy để báo lệch, kể cả trùng số tiền.
+- Nội dung không ghi gì để nhận ra đợt (Xanh SM Ngon, hoặc khi ngân hàng cắt mất nội dung): máy chỉ báo Lệch tiền về khi có đúng một giao dịch của đối tác đó; nhiều giao dịch thì để kế toán chọn.
 - Tin Lệch tiền về chỉ gửi một lần cho mỗi đợt.
 
 ## Khách trả công nợ hoặc phiếu đề nghị thanh toán bằng thẻ OnePay
