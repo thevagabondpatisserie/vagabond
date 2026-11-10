@@ -110,9 +110,11 @@ def _ky():
 		dung("bàn %r không hợp lệ" % (b,), not g.dung_khoa(KHOA, "TCV", b, k))
 	nem("site chưa có khoá", lambda: g.khoa_ban("", "TCV", 5), ValueError)
 	la("đường QR", g.duong_qr("tcv", "5", k), "/banh?diem=TCV&ban=5&k=%s#/in-store" % k)
-	la("khoảng bàn, gõ ngược vẫn đúng", g.ds_ban(5, 2), [2, 3, 4, 5])
+	# v647: tên bàn là chuỗi (bàn theo khu A1, B1); bàn số giữ chuỗi "5" nên
+	# khoá và link QR bàn số in trước v647 không đổi (thu_qr_ban_khu_647).
+	la("khoảng bàn, gõ ngược vẫn đúng", g.ds_ban(5, 2), ["2", "3", "4", "5"])
 	la("bàn sai", g.ds_ban(0, 5), [])
-	la("trần 60 tờ", len(g.ds_ban(1, 99)), 60)
+	la("trần một lần in", len(g.ds_ban(1, 99)), g.TO_QR_TOI_DA)
 
 
 @ca("v638 nhóm nước MỘT nguồn: JS màn quầy (lưới đỡ) trùng goi_mon_ban.NHOM_NUOC; cấu hình bán hàng gửi danh sách xuống")
@@ -421,7 +423,7 @@ def _mo_ban():
 	kho = Kho()
 	with _he(kho):
 		r = g.mo_ban("TCV", "5", _k())
-		la("link đúng", (r["ok"], r["diem"], r["ten"], r["ban"], r["mo_cua"]), (1, "TCV", "District 1", 5, 1))
+		la("link đúng", (r["ok"], r["diem"], r["ten"], r["ban"], r["mo_cua"]), (1, "TCV", "District 1", "5", 1))
 		la("đổi bàn", g.mo_ban("TCV", "6", _k(5)), {"ok": 0})
 		la("điểm Sales Online không có quầy", g.mo_ban("SALES", "5", g.khoa_ban(KHOA, "SALES", 5)), {"ok": 0})
 		la("khoá rỗng", g.mo_ban("TCV", "5", ""), {"ok": 0})
@@ -846,7 +848,7 @@ def _the():
 		"ten_goi": "Lan", "ten_gioi_thieu": "Chị Dễ", "mon": json.dumps([{"ma": "NUTR00021", "ten": "Trà", "sl": 2, "tc": ["Ít đá"], "gia": 45000}])}
 	t = g.the_quay(r, BAY, "District 1")
 	la("thẻ", (t["ban"], t["so_mon"], t["tam_tinh"], t["phut"], t["mon"][0]["tc"], t["ghi_chu"], t["ten_goi"], t["gioi_thieu"]),
-		(5, 2, 90000, 7, ["Ít đá"], "ít ngọt", "Lan", "Chị Dễ"))
+		("5", 2, 90000, 7, ["Ít đá"], "ít ngọt", "Lan", "Chị Dễ"))
 	la("chưa có ảnh: rỗng (màn vẽ ô 🍰)", t["mon"][0]["anh"], "")
 	la("có ảnh danh mục: mang theo", g.the_quay(r, BAY, "District 1", {"NUTR00021": "/files/tra.jpg"})["mon"][0]["anh"], "/files/tra.jpg")
 	# Codex PR #541 vòng 2: đường thật dem_cho đọc ảnh danh mục (một câu cho mọi món) và đưa lên thẻ.
@@ -931,12 +933,12 @@ def _to_qr():
 			patch.object(diem_ban, "cfg_o", return_value=""), \
 			patch("vagabond.qr_chuyen_khoan.anh_lien_ket", side_effect=lambda u: ve.append(u) or "data:image/svg+xml;base64,QR"):
 		kq = g.to_qr("NVHTN", 3, 1)
-	la("ba tờ", [t["ban"] for t in kq["to"]], [1, 2, 3])
+	la("ba tờ", [t["ban"] for t in kq["to"]], ["1", "2", "3"])
 	la("tên điểm", kq["to"][0]["ten_diem"], "NVHTN")
 	for t, u in zip(kq["to"], ve):
 		m = re.match(r"https://order\.thevagabondpatisserie\.com/banh\?diem=NVHTN&ban=(\d+)&k=([0-9a-f]{16})#/in-store$", u)
 		dung("link tuyệt đối miền khách " + u, m)
-		dung("khoá đúng bàn", m and int(m.group(1)) == t["ban"] and g.dung_khoa(KHOA, "NVHTN", t["ban"], m.group(2)))
+		dung("khoá đúng bàn", m and m.group(1) == t["ban"] and g.dung_khoa(KHOA, "NVHTN", t["ban"], m.group(2)))
 
 
 @ca("v638 doctype mới: đủ trường, trạng thái trùng hằng máy chủ, nonce duy nhất, đặt tên TQ-")
@@ -1089,7 +1091,7 @@ def _goi_nhan_vien():
 		r = _chuong(chi_tiet=" xin thêm ghế em bé " + "x" * 200)
 		la("ghi một lời", (r["ok"], len(kho.tg), r["luc"]), (1, 1, "10:00"))
 		d = kho.tg[r["ma"]]
-		la("bản ghi", (d["diem"], d["ban"], d["ly_do"], d["trang_thai"], len(d["chi_tiet"])), ("TCV", 5, "Xin tính tiền", "Chờ xử lý", 120))
+		la("bản ghi", (d["diem"], d["ban"], d["ly_do"], d["trang_thai"], len(d["chi_tiet"])), ("TCV", "5", "Xin tính tiền", "Chờ xử lý", 120))
 		la("tin Zalo đúng mã", [k["ma_tin"] for a, k in tin], ["bh_khach_can_tro_giup"])
 		a, k = tin[0]
 		dung("tin nêu bàn, điểm, lý do, chữ khách, link app", "Bàn 5" in a[2] and "District 1" in a[2] and "Xin tính tiền" in a[2]
@@ -1151,14 +1153,14 @@ def _tro_giup_quay():
 		r1 = _chuong(nonce="C" * 32, ly_do="Xin tính tiền")
 		r2 = _chuong(nonce="D" * 32, ban=9, ly_do="Việc khác", chi_tiet="xin ghế em bé")
 	kho.tg[r2["ma"]]["luc"] = BAY - datetime.timedelta(minutes=31)
-	with _he(kho), patch.object(BH, "_kiem_quyen_ban"), patch.object(g, "_phieu_tam_cua_ban", side_effect=lambda diem, ban, ngay: "ACC-SINV-CO" if ban == 5 else ""), \
+	with _he(kho), patch.object(BH, "_kiem_quyen_ban"), patch.object(g, "_phieu_tam_cua_ban", side_effect=lambda diem, ban, ngay: "ACC-SINV-CO" if ban == "5" else ""), \
 			patch.object(_fr.db, "get_value", side_effect=lambda dt, ten, f=None, **k: kho.get_value(dt, ten, f, **k) if dt in (g.DT, g.DT_TG)
 				else (_fr._dict(custom_pancake_display_id="TCVABCDE", grand_total=335000.0) if dt == "Sales Invoice" else None)):
 		kq = g.dem_cho("TCV")
 		la("một lời còn hạn, kèm bill", [(x["ma"], x["ban"], x["ly_do"], x["bill"], x["tam_tinh"], x["hoa_don"], x["phut"]) for x in kq["tro_giup"]],
-			[(r1["ma"], 5, "Xin tính tiền", "TCVABCDE", 335000, "ACC-SINV-CO", 0)])
+			[(r1["ma"], "5", "Xin tính tiền", "TCVABCDE", 335000, "ACC-SINV-CO", 0)])
 		_fr.session.user = "thu.ngan@vagabond.test"
-		la("đã tới bàn", g.xong_tro_giup(r1["ma"]), {"ok": 1, "ban": 5})
+		la("đã tới bàn", g.xong_tro_giup(r1["ma"]), {"ok": 1, "ban": "5"})
 		la("bản ghi", (kho.tg[r1["ma"]]["trang_thai"], kho.tg[r1["ma"]]["xong_boi"]), ("Đã xong", "thu.ngan@vagabond.test"))
 		la("bấm lần hai", g.xong_tro_giup(r1["ma"]), {"ok": 1, "da_xong": 1})
 		dung("tin Zalo hỏi lại: không còn chờ", not g.con_tro_giup(r1["ma"]) and not g.con_tro_giup(r2["ma"]))
@@ -1199,7 +1201,8 @@ def _vue():
 
 @ca("v638 màn quầy và màn In QR (node, mã nguồn thật): dải chờ hiện khi có đơn, nhận đơn gọi đúng cửa và in phiếu, từ chối bắt lý do, in đủ tờ")
 def _quay_js():
-	_node("goi_mon_quay_638.js", 9)
+	# v647: ca In QR cũ chuyển sang hanh_vi/qr_ban_khu_647.js (thu_qr_ban_khu_647), còn 8 ca.
+	_node("goi_mon_quay_638.js", 8)
 
 
 @ca("v638 bảng kiểm kho (node, trang thật): mục Đồ uống đủ món, công tắc Bán trên web gọi đúng cửa, ngày cũ không bấm được")
