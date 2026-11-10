@@ -248,4 +248,6 @@ def _duong_cu():
 		loi = None
 	except Exception as e:
 		loi = nen.cau_loi(e)
-	dung("đường cũ bị ERPNext chặn (nếu ca này đỏ: đường cũ không hỏng, sửa lại mô tả Codex #551): %r" % loi, bool(loi))
+	# Chặn vì thiếu đúng bánh khuôn ở thời điểm phiếu món chính, không phải lỗi khác.
+	dung("đường cũ bị ERPNext chặn vì thiếu bánh khuôn (nếu ca này đỏ: sửa lại mô tả Codex #551): %r" % loi,
+		bool(loi) and w.c2 in loi)
