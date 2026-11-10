@@ -1270,7 +1270,7 @@ Mỗi điểm khai sơ đồ bàn một lần: khu và khoảng số, máy ghép
 1. Mở In QR tại bàn, chọn điểm bán.
 2. Bấm [[Sửa sơ đồ bàn]]: mỗi dòng gõ khu (A, B, VIP), từ số, đến số. Gõ địa chỉ in dưới standee. Bấm [[Lưu sơ đồ bàn]].
 3. Tích các bàn cần in, hoặc bấm [[Chọn cả khu]].
-4. Chọn kích thước: Mica 7 x 7 cm, A6, A5, hoặc Tự nhập rộng và cao (mm).
+4. Chọn kích thước: Mica 7 x 7 cm, A6, A5, hoặc Tự nhập rộng và cao (mm). Khổ quá dẹt (ví dụ 200 x 40 mm) không đủ chỗ cho mã QR từ 2 cm nên máy báo chiều cao cần và không cho in.
 5. Bấm nút Tạo mã QR (nút ghi số bàn đã chọn), xem trước, rồi bấm nút In. In đúng tỉ lệ 100% trên giấy A4, cắt theo dấu ở lề.
 
 **Lưu ý**
