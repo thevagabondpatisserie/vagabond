@@ -1132,6 +1132,25 @@ Từ khoá: hộp thư đối soát, doisoat, email đối soát, ShopeeFood, Gr
 - Chỉ đối chiếu, không sửa chứng từ quá khứ đã ghi sổ. Lệch thì liệt kê cho kế toán trưởng.
 - Cần xem tận mắt thư gốc: [[Tải thư gốc (.eml) để kiểm →]].
 
+## Đối chiếu tiền về của đối tác giao đồ ăn
+Từ khoá: tiền về, lệch tiền về, chưa thấy tiền về, cần chọn tiền về, ShopeeFood, GrabFood, Payoo, OnePay, sao kê, SePay, chờ tiền về
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán công nợ | Đối soát nhà cung cấp | Thẻ Chờ tiền về |
+
+Mỗi báo cáo đối tác có số "báo chuyển". Máy tìm giao dịch tiền vào ngân hàng cùng số đó và mỗi giờ dò lại các đợt còn chờ trong 14 ngày gần đây, nên tiền về muộn tự sang Đã thấy tiền về, không có tin Zalo đính chính.
+
+**Các bước**
+1. Mở Đối soát nhà cung cấp, bấm thẻ Chờ tiền về.
+2. Chưa thấy tiền về: đối tác chưa chuyển, hoặc tiền chưa lên sao kê. Chờ lượt dò sau, quá hạn thì hỏi đối tác.
+3. Lệch tiền về: đã có tiền đúng đợt nhưng khác số. Mở nguồn xem hai con số, hỏi đối tác phần chênh.
+4. Cần chọn tiền về: có nhiều giao dịch có thể là của đợt này. Xem sao kê rồi xác nhận giao dịch đúng.
+
+**Lưu ý**
+- ShopeeFood ghi ngày của đợt trong nội dung chuyển khoản. Máy chỉ so với giao dịch ghi đúng ngày đó, không lấy tiền của ngày khác để báo lệch.
+- Tin Lệch tiền về chỉ gửi một lần cho mỗi đợt.
+
 ## Khách trả công nợ hoặc phiếu đề nghị thanh toán bằng thẻ OnePay
 Từ khoá: OnePay, trả thẻ, Visa, Mastercard, JCB, thẻ ATM, link trả thẻ, công nợ khách, phiếu đề nghị thanh toán, cổng thanh toán
 

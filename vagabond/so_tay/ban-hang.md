@@ -1250,12 +1250,33 @@ Khách quét mã QR trên bàn, chọn món, gửi. Đơn hiện trên màn Tín
 2. Bấm [[Nhận đơn và in phiếu pha chế]], hoặc [[Từ chối đơn]] kèm lý do.
 3. Khách bấm chuông thì thẻ đỏ hiện: tới bàn rồi bấm [[Đã tới bàn]].
 4. Tính tiền: bấm [[Mở bill bàn]].
-5. In mã QR: màn In QR tại bàn, bấm [[Tạo mã QR]] rồi [[In]].
+5. In mã QR: xem mục In mã QR bàn theo khu.
 
 **Lưu ý**
 - Đơn không nhận trong 10 phút thì hết hạn, khách được báo.
 - Khách tự chọn ưu đãi tại bàn phải nhập mã Zalo gửi tới số của mình.
 - Món, tuỳ chọn, ảnh trên trang bàn sửa ở màn Biên tập menu.
+
+## In mã QR bàn theo khu
+Từ khoá: in QR bàn, sơ đồ bàn, tên bàn, khu A, bàn A1, VIP, standee, mica, kích thước, A4, dấu cắt, số bàn
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý cửa hàng, Giám đốc | In QR tại bàn | [[Lưu sơ đồ bàn]] |
+
+Mỗi điểm khai sơ đồ bàn một lần: khu và khoảng số, máy ghép tên bàn A1, B1, VIP1. Màn Tính tiền dùng chung sơ đồ này để chia chip Số bàn theo khu.
+
+**Các bước**
+1. Mở In QR tại bàn, chọn điểm bán.
+2. Bấm [[Sửa sơ đồ bàn]]: mỗi dòng gõ khu (A, B, VIP), từ số, đến số. Gõ địa chỉ in dưới standee. Bấm [[Lưu sơ đồ bàn]].
+3. Tích các bàn cần in, hoặc bấm [[Chọn cả khu]].
+4. Chọn kích thước: Mica 7 x 7 cm, A6, A5, hoặc Tự nhập rộng và cao (mm).
+5. Bấm nút Tạo mã QR (nút ghi số bàn đã chọn), xem trước, rồi bấm nút In. In đúng tỉ lệ 100% trên giấy A4, cắt theo dấu ở lề.
+
+**Lưu ý**
+- QR bàn số đã in trước đây vẫn quét được, không phải in lại.
+- Đổi tên khu hay bỏ bàn thì QR đã in của các bàn đó hết dùng; máy hỏi lại trước khi lưu.
+- Để trống tên khu thì bàn chỉ có số như cũ.
 
 ## Biên tập menu theo điểm bán và ảnh món
 Từ khoá: biên tập menu, thực đơn tại bàn, thứ tự món, tuỳ chọn, topping, đá đường, ảnh món, ảnh vuông, xuất bản menu, menu theo điểm

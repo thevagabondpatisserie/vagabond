@@ -14,6 +14,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 ## v647
 - Đặt banner ảnh trên trang đặt bánh
 - Chỉ khách nhận quà chào mừng và dùng mã thành viên
+- Đối chiếu tiền về của đối tác giao đồ ăn
+- In mã QR bàn theo khu
+- Nhận đơn khách gọi món tại bàn qua QR
 
 ## v646
 - Bếp đếm 10 món mỗi sáng: Đếm hôm nay
