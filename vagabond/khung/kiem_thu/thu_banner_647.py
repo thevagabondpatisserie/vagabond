@@ -113,7 +113,7 @@ def _luu_muc_that():
 		dung("câu chặn nói rõ: " + str(e), "Tải ảnh banner" in str(e))
 
 
-@ca("v647 banner: biên nhận Đặt xong nhận banner từ máy chủ; không token thì không có")
+@ca("v647 banner: biên nhận Đặt xong nhận banner từ máy chủ, kể cả khi khách tải lại trang (không còn token trên đường dẫn, Codex PR #550)")
 def _bien_nhan():
 	from vagabond.khung.kiem_thu.thu_su_co_290 import nap, D
 	from vagabond import trang_khach, web_vue
@@ -130,7 +130,12 @@ def _bien_nhan():
 		c = nap("www/web_moi/xong.py", "get_context", g)(D())
 		return json.loads(c.du_lieu.replace("\\u003c", "<"))
 	la("có token: đúng banner Đặt xong", [b["id"] for b in chay("T")["banner"]], ["a"])
-	la("không token: không banner", chay("")["banner"], [])
+	# Codex PR #550: biên nhận gỡ token khỏi đường dẫn ngay lần mở đầu, tải lại là
+	# vào nhánh không token và khôi phục biên nhận từ phiên. Trước bản sửa máy chủ
+	# trả [] nên banner biến mất. Banner là nội dung công khai như trang đặt bánh.
+	lai = chay("")
+	la("tải lại (không token): vẫn đúng banner Đặt xong", [b["id"] for b in lai["banner"]], ["a"])
+	la("tải lại: không lộ biên nhận nào từ máy chủ", [lai.get("khong_token"), lai.get("bien_nhan")], [1, None])
 
 
 @ca("v647 banner: chạy thật phần vẽ banner trên trang đặt bánh và biên nhận trong node")
