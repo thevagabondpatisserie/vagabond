@@ -317,6 +317,10 @@ class KhoShopee(Kho):
 		self.trung = []
 		truoc = None
 		for t, d, a, b in nguon_shopee:
+			# d dạng "SALES+trung": tệp có dòng mới của SALES VÀ giao dịch trùng của nguồn trước.
+			if d and d.endswith("+trung"):
+				self.trung.append(dict(nguon=t, khoa=truoc))
+				d = d[:-6]
 			if d:
 				truoc = "SPF-%s" % t
 				self.dong.append(dict(nguon=t, sales_invoice=None, trang_thai_khop="Chưa nối", tien_hang=80000, giam_gia=0,
@@ -364,3 +368,8 @@ def _():
 		"Không có trên báo cáo")
 	# Lớp 2 riêng: nguồn không dòng, không quan hệ trùng (không khôi phục được phạm vi) thì không phủ cửa hàng nào.
 	la("phạm vi không xác định: không phủ TCV", chay(KhoShopee([("DSN-SP-9", None)]))["HDS-TCV"], "Chờ báo cáo")
+	# Codex #550 (cc38b234b5): tệp 08 tới 09/11 có giao dịch TCV cũ (trùng tệp ngày 08/11) VÀ giao dịch SALES mới.
+	# Tệp nhiều cửa hàng là thật với ShopeeFood (dac-ta-10-nguon.md); phạm vi phải hợp cả dòng riêng lẫn dòng trùng.
+	la("tệp có dòng mới SALES và dòng trùng TCV phủ cả TCV",
+		chay(KhoShopee([("DSN-SP-10", "TCV", "2026-11-08", "2026-11-08"),
+			("DSN-SP-11", "SALES+trung", "2026-11-08", "2026-11-09")]))["HDS-TCV"], "Không có trên báo cáo")
