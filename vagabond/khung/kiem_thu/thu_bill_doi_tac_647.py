@@ -258,3 +258,42 @@ def _():
 	la("Mọi ngày: 14 ngày tới hôm qua", hoi, [("2026-10-27", "2026-11-09")])
 	r, hoi = _goi_bill(ky="tuy_chon", tu="2026-01-01", den="2026-11-09")
 	la("khoảng quá 92 ngày thì cắt, báo lại khoảng thật", (hoi, r["cat"]), ([("2026-08-10", "2026-11-09")], 1))
+
+
+# ------------------------------------------------------------ Codex PR #550 (a6af8eabd4): phạm vi cửa hàng
+
+class KhoGrab(Kho):
+	"""Thêm một bill GrabFood của TCV và các báo cáo GrabFood theo từng cửa hàng
+	(tài khoản nguồn là mã cửa hàng Grab thật trong danh mục ánh xạ)."""
+
+	def __init__(self, cua_hang_co_bao_cao):
+		from vagabond.doi_soat_mau import GRAB_DIEM
+		ma = {v: k for k, v in GRAB_DIEM.items()}
+		super().__init__(DONG_SHINHAN, BILL_SHINHAN, [_nguon_sh("2026-11-08"), _nguon_sh("2026-11-09")] + [
+			dict(name="DSN-GF-%s" % d, mau="grabfood", tu_ngay="2026-11-09", den_ngay="2026-11-09",
+				tai_khoan="grab:" + ma[d], duong_vao="Từ thư") for d in cua_hang_co_bao_cao])
+
+	def ung_vien(self, kieu, tu, den, ct):
+		if kieu == "grab":
+			return [dict(name="HDG-TCV", ngay="2026-11-09", tien=150000, ma=["GF-123"], quay="Q1")] if ct == "CT" else []
+		return super().ung_vien(kieu, tu, den, ct)
+
+
+@ca("Codex #550: báo cáo GrabFood của SALES không làm bill GrabFood của TCV thành Không có (cả màn lẫn tin Zalo)")
+def _():
+	from vagabond import doi_soat_vendor as V
+	from vagabond.doi_soat_mau import GRAB_DIEM
+	# Đúng chuỗi Codex mô tả: bill TCV ngày 09/11, chỉ có báo cáo SALES cùng ngày.
+	la("thuần, danh mục thật: chờ báo cáo TCV", K.doi_chieu_bill([_b("HDG", "grab", "2026-11-09", 150000, "GF-1")], {},
+		{("grab", "2026-11-09", "SALES")}, (), HOM, V.diem_doi_tac())[0]["trang_thai"], "Chờ báo cáo")
+	la("danh mục lấy từ ánh xạ cửa hàng Grab (một nguồn)", V.diem_doi_tac()["grab"], set(GRAB_DIEM.values()))
+	g = {("grab", "2026-11-09", "SALES")}
+	la("NVHTN có trong danh mục: báo cáo SALES không phủ", K.phu_bill("grab", "2026-11-09", "NVHTN", g, HOM, V.diem_doi_tac()), False)
+	la("điểm không có cửa hàng Grab riêng: báo cáo trong ngày vẫn đủ", K.phu_bill("grab", "2026-11-09", "KHO", g, HOM, V.diem_doi_tac()), True)
+	kq = {x["name"]: x["trang_thai"] for x in KhoGrab(["SALES"]).chay(
+		lambda: V.du_lieu_bill("2026-11-08", "2026-11-09", ["CT"], HOM))}
+	la("chuỗi thật, chỉ báo cáo SALES: bill TCV chờ", kq["HDG-TCV"], "Chờ báo cáo")
+	la("Shinhan vẫn kết luận như cũ", kq["HDB-4"], "Không có trên báo cáo")
+	kq = {x["name"]: x["trang_thai"] for x in KhoGrab(["SALES", "TCV"]).chay(
+		lambda: V.du_lieu_bill("2026-11-08", "2026-11-09", ["CT"], HOM))}
+	la("báo cáo TCV về mà không có giao dịch: Không có", kq["HDG-TCV"], "Không có trên báo cáo")
