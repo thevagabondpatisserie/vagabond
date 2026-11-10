@@ -987,6 +987,7 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 				noi[(r.sales_invoice, kieu)] = dict(trang_thai_khop=r.trang_thai_khop, tien=tien,
 					ma=r.ma_tham_chieu or "", vendor=r.vendor)
 	phu, cho_chon = set(), []
+	dm = diem_doi_tac()
 	den_phu = frappe.utils.add_days(den, 3)
 	for kieu in KIEU_BILL:
 		maus = mau_theo_kieu(kieu)
@@ -1002,14 +1003,22 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 					"trang_thai_khop": ["!=", khop.DA_THAY]},
 					fields=["nguon", "diem_ban"], group_by="nguon, diem_ban", limit_page_length=5000):
 				diem.setdefault(r.nguon, set()).add(r.diem_ban)
+			# Codex #550: nguồn toàn giao dịch đã nhận ở nguồn trước (tệp gửi lại)
+			# không có dòng riêng; phạm vi cửa hàng lấy từ chính giao dịch gốc.
+			for t, d in _diem_qua_trung([n.name for n in nguon if not diem.get(n.name)]).items():
+				diem.setdefault(t, set()).update(d)
 		for n in nguon:
 			ds_diem = {"*"} if kieu in khop.KIEU_PHU_MOI_DIEM else set(diem.get(n.name) or ())
 			if kieu == "grab":
 				ds_diem.add(_diem_grab(n.tai_khoan))
 			ds_diem.discard("")
+			if not ds_diem and not dm.get(kieu):
+				ds_diem = {"*"}
+			# Kênh có cửa hàng riêng mà chưa xác định được phạm vi: nguồn không phủ
+			# cửa hàng nào (bill chờ báo cáo), không coi là phủ mọi cửa hàng.
 			d = str(n.tu_ngay)
 			while d <= str(n.den_ngay):
-				for x in ds_diem or {"*"}:
+				for x in ds_diem:
 					phu.add((kieu, d, x))
 				d = frappe.utils.add_days(d, 1)
 		# Codex #550: giữ chính các dòng chưa phân định để chỉ bill là ứng viên của chúng mới chờ chọn.
@@ -1018,7 +1027,25 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 				fields=["ngay", "ma_tham_chieu", "tien_hang", "giam_gia"], limit_page_length=5000):
 			cho_chon.append(dict(kieu=kieu, ngay=str(r.ngay), ma_tham_chieu=r.ma_tham_chieu or "",
 				tien_hang=int(r.tien_hang or 0), giam_gia=int(r.giam_gia or 0)))
-	return khop.doi_chieu_bill(bill, noi, phu, cho_chon, hom_nay, diem_doi_tac())
+	return khop.doi_chieu_bill(bill, noi, phu, cho_chon, hom_nay, dm)
+
+
+def _diem_qua_trung(ten_nguon):
+	"""{nguồn: tập điểm bán} đọc qua bảng Trùng tới dòng gốc cùng khoá."""
+	if not ten_nguon:
+		return {}
+	khoa = {}
+	for r in frappe.get_all(DT_TRUNG, filters={"nguon": ["in", ten_nguon]}, fields=["nguon", "khoa"],
+			limit_page_length=20000):
+		if r.khoa:
+			khoa.setdefault(r.khoa, set()).add(r.nguon)
+	ra, ds = {}, list(khoa)
+	for i in range(0, len(ds), 500):
+		for r in frappe.get_all(DT_DONG, filters={"khoa": ["in", ds[i:i + 500]], "diem_ban": ["is", "set"]},
+				fields=["khoa", "diem_ban"], limit_page_length=5000):
+			for t in khoa.get(r.khoa, ()):
+				ra.setdefault(t, set()).add(r.diem_ban)
+	return ra
 
 
 def diem_doi_tac():
