@@ -58,7 +58,9 @@ function dsvnChip(tt) {
     'Chưa đối chiếu': ['#f2f4f7', '#475467'], 'Đã nối': ['#ecfdf3', '#067647'],
     'Nối theo tiền': ['#eff8ff', '#175cd3'], 'Lệch tiền': ['#fef3f2', '#b42318'],
     'Nhiều chứng từ': ['#fffaeb', '#b54708'], 'Không thấy chứng từ': ['#fffaeb', '#b54708'],
-    'Chưa nối': ['#f2f4f7', '#475467'], 'Đã thay': ['#f2f4f7', '#475467']
+    'Chưa nối': ['#f2f4f7', '#475467'], 'Đã thay': ['#f2f4f7', '#475467'],
+    'Khớp': ['#ecfdf3', '#067647'], 'Sai mã': ['#fef3f2', '#b42318'], 'Không có trên báo cáo': ['#fef3f2', '#b42318'],
+    'Chờ kế toán chọn': ['#fffaeb', '#b54708'], 'Chờ báo cáo': ['#f2f4f7', '#475467']
   }[tt] || ['#f2f4f7', '#475467'];
   return '<span style="display:inline-block;background:' + mau[0] + ';color:' + mau[1] +
     ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(tt) + '</span>';
@@ -179,7 +181,13 @@ async function scrDsvn() {
        và lọc đủ ba trạng thái chờ), không cộng ở máy khách rồi lọc một. */
     dsvnO('Chờ tiền về', dem['Chờ tiền về'] || 0, 'đợt', '#b54708') +
     dsvnO('Chưa nối đủ', dem['Chưa nối đủ'] || 0, 'nguồn', '#b54708') +
-    dsvnO('', dem.tat_ca || 0, 'nguồn đã nhận', '#101828') + '</div>' +
+    dsvnO('', dem.tat_ca || 0, 'nguồn đã nhận', '#101828') +
+    /* v647 (anh Việt 10/11/2026): chiều ngược, từng bill thu ngân chọn thẻ/sàn
+       đối chiếu với báo cáo đối tác. Số nạp sau, hỏng thì màn vẫn mở. */
+    '<div data-dsvnbill="1" style="grid-column:1 / -1;background:#fef3f2;border-radius:12px;padding:10px 12px;cursor:pointer;min-height:44px">' +
+      '<div style="font-size:12.5px;color:#667085">Bill chưa khớp đối tác (14 ngày)</div>' +
+      '<div style="font-size:20px;font-weight:800;color:#b42318"><span id="dsvnBillSo">…</span> <span style="font-size:13px;font-weight:500;color:#667085">bill</span></div></div>' +
+    '</div>' +
     /* Codex #450: tổng thực nhận trong nhóm/nguồn đang chọn; đang lọc trạng
        thái thì thêm thanh "Tổng theo bộ lọc" (máy chủ tính cùng bộ lọc). */
     '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;color:#475467">' +
@@ -236,6 +244,7 @@ async function scrDsvn() {
     if (t) { DSVN.tt = t.getAttribute('data-dsvntt'); return go(scrDsvn, true); }
     t = e.target.closest('[data-dsvnct]');
     if (t) { DSVN.cur = t.getAttribute('data-dsvnct'); DSVN.loc = ''; return go(scrDsvnCt); }
+    if (e.target.closest('[data-dsvnbill]')) { DSVN.bill = { tt: '', diem: '', kieu: '' }; return go(scrDsvnBill); }
     t = e.target.closest('[data-dsvnthu]');
     if (t) {
       var tab = t.getAttribute('data-dsvnthu');
@@ -253,6 +262,7 @@ async function scrDsvn() {
     }
   });
   document.getElementById('dsvnTai').onclick = function () { DSVN.xt = null; DSVN.tep = null; DSVN.lyDo = ''; go(scrDsvnTai); };
+  dsvnNapSoBill();
   document.getElementById('dsvnDocThu').onclick = async function () {
     busy(true);
     try {
@@ -274,6 +284,104 @@ async function scrDsvn() {
     } catch (e) { baoTin((e && e.message) || 'Chưa thử được kết nối.'); }
     finally { busy(false); }
   };
+}
+
+/* ---------- v647: bill thu ngân chọn thẻ/sàn -> báo cáo đối tác ---------- */
+async function dsvnNapSoBill() {
+  var o = document.getElementById('dsvnBillSo');
+  if (!o) return;
+  try {
+    var r = await api('vagabond.doi_soat_vendor.bill_doi_tac', { chi_dem: 1 });
+    o.textContent = money(r.can_xu_ly || 0);
+  } catch (e) { o.textContent = '?'; }
+}
+
+var DSVN_BILL_TT = [
+  ['', 'Cần xử lý', 'Ba loại dưới đây gộp lại: bill cần điểm bán hoặc kế toán sửa.'],
+  ['Không có trên báo cáo', 'Không có trên báo cáo', 'Báo cáo đối tác của ngày đó đã về mà không có giao dịch nào của bill: thường là chọn nhầm phương thức hoặc nhập sai mã.'],
+  ['Sai mã', 'Sai mã', 'Đối tác có giao dịch cùng tiền nhưng mã khác mã trên bill: sửa mã chuẩn chi trên bill cho đúng.'],
+  ['Lệch tiền', 'Lệch tiền', 'Cùng mã nhưng số tiền bill khác số đối tác ghi: kiểm lại tiền thu.'],
+  ['Chờ kế toán chọn', 'Chờ kế toán chọn', 'Báo cáo có giao dịch trùng mã hoặc trùng tiền, kế toán chọn bill đúng ở màn báo cáo.'],
+  ['Chờ báo cáo', 'Chờ báo cáo', 'Báo cáo đối tác của ngày đó chưa về đủ, máy chưa kết luận.'],
+  ['Khớp', 'Khớp', 'Bill đã có giao dịch đúng mã, đúng tiền trên báo cáo đối tác.']
+];
+
+function dsvnChipBill(ho, k, ten, so, chon) {
+  return '<div class="chip' + (chon === k ? ' on' : '') + '" data-dsvnbchip="' + ho + '|' + h(k) + '" style="min-height:44px">' +
+    h(ten) + (so != null ? ' ' + money(so) : '') + '</div>';
+}
+
+async function scrDsvnBill() {
+  var L = DSVN.bill || (DSVN.bill = { tt: '', diem: '', kieu: '' });
+  frame('Bill chưa khớp đối tác', '<div class="emp"><div class="e1">⏳</div><div>Đang đối chiếu bill với báo cáo đối tác...</div></div>');
+  var kq;
+  try {
+    kq = await api('vagabond.doi_soat_vendor.bill_doi_tac', { trang_thai: L.tt, diem: L.diem, kieu: L.kieu });
+  } catch (e) {
+    frame('Bill chưa khớp đối tác', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được. Thử lại sau ít phút.') + '</div></div>');
+    return;
+  }
+  var dem = kq.dem || {}, tenDiem = kq.ten_diem || {}, tenKieu = kq.ten_kieu || {};
+  var chuThich = (DSVN_BILL_TT.filter(function (x) { return x[0] === L.tt; })[0] || DSVN_BILL_TT[0])[2];
+  var html = '<div class="card" style="padding:12px 14px;font-size:13.5px;color:#475467">Từng bill thu ngân chọn Shinhan POS, Payoo, ' +
+    'GrabFood, ShopeeFood, Xanh SM Ngon từ ' + h(dsvnNgay(kq.tu)) + ' đến ' + h(dsvnNgay(kq.den)) +
+    ' được dò trong báo cáo đối tác gửi về cho đúng ngày đó, theo mã chuẩn chi hoặc mã đơn và số tiền.</div>';
+  html += '<div class="chips" style="padding:0 2px">' + DSVN_BILL_TT.map(function (x) {
+    return dsvnChipBill('tt', x[0], x[1], x[0] ? (dem[x[0]] || 0) : kq.can_xu_ly, L.tt);
+  }).join('') + '</div>';
+  html += '<div style="font-size:12.5px;color:#667085;padding:0 4px 6px">' + h(chuThich) + '</div>';
+  var diemDs = Object.keys(kq.dem_diem || {}).sort();
+  if (diemDs.length > 1 || L.diem) {
+    html += '<div class="chips" style="padding:0 2px">' + dsvnChipBill('diem', '', 'Mọi điểm bán', null, L.diem) + diemDs.map(function (d) {
+      return dsvnChipBill('diem', d, tenDiem[d] || d || 'Chưa rõ điểm', kq.dem_diem[d], L.diem);
+    }).join('') + '</div>';
+  }
+  var kieuDs = Object.keys(kq.dem_kieu || {}).sort();
+  if (kieuDs.length > 1 || L.kieu) {
+    html += '<div class="chips" style="padding:0 2px">' + dsvnChipBill('kieu', '', 'Mọi đối tác', null, L.kieu) + kieuDs.map(function (k) {
+      return dsvnChipBill('kieu', k, tenKieu[k] || k, kq.dem_kieu[k], L.kieu);
+    }).join('') + '</div>';
+  }
+  var hang = kq.hang || [];
+  if (!hang.length) {
+    html += '<div class="emp"><div class="e1">✅</div><div>Không có bill nào trong mục này.</div></div>';
+  } else {
+    var ngay = '';
+    html += '<div class="card" style="padding:0">' + hang.map(function (x) {
+      var dau = '';
+      if (x.ngay !== ngay) {
+        ngay = x.ngay;
+        dau = '<div style="padding:8px 14px;background:#f9fafb;font-size:12.5px;color:#667085;font-weight:600">' + h(dsvnNgay(x.ngay)) + '</div>';
+      }
+      return dau + '<div class="shi" data-dsvnbill-si="' + h(x.name) + '" style="padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer;min-height:44px">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(x.name) + '</b>' +
+        dsvnChip(x.trang_thai) + '</div>' +
+        '<div style="font-size:13px;color:#667085;margin-top:3px">' + h(tenDiem[x.diem] || x.diem || 'Chưa rõ điểm') + ' · ' +
+        h(tenKieu[x.kieu] || x.kieu) + ' · ' + money(x.tien) + ' đ' +
+        ((x.ma || []).filter(Boolean).length ? ' · mã ' + h(x.ma.filter(Boolean).join(', ')) : '') + '</div>' +
+        (x.ghi_chu ? '<div style="font-size:12.5px;color:#475467;margin-top:4px">' + h(x.ghi_chu) + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+    if (kq.con) html += '<div style="font-size:12.5px;color:#667085;padding:8px 4px">Còn ' + money(kq.con) + ' bill nữa; chọn điểm bán hoặc đối tác để thu hẹp.</div>';
+  }
+  var b = frame('Bill chưa khớp đối tác', html);
+  b.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-dsvnbchip]');
+    if (t) {
+      var v = t.getAttribute('data-dsvnbchip'), i = v.indexOf('|');
+      L[v.slice(0, i)] = v.slice(i + 1);
+      return go(scrDsvnBill, true);
+    }
+    t = e.target.closest('[data-dsvnbill-si]');
+    if (t) {
+      var ten = t.getAttribute('data-dsvnbill-si');
+      return go(function () { scrDsView(ten, 0); });
+    }
+  });
+}
+
+function dsvnNgay(d) {
+  d = String(d || '');
+  return d.length >= 10 ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : d;
 }
 
 function dsvnCongCu(kq) {
