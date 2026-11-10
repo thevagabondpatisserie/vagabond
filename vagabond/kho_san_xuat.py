@@ -320,6 +320,11 @@ def chang_cua_mon(ma, co_btp_con, khai_tay=None, ten=None):
 CHANG_TU_LAM = (BTP_SO_CAP, BTP_SAN_SANG)
 
 
+def la_btp_thanh_phan(khai_tay):
+	"""Ô "Chặng bán thành phẩm" khai đúng "BTP thành phần" không. THUẦN."""
+	return " ".join((khai_tay or "").split()).strip().lower() == NHAN_BTP_THANH_PHAN.lower()
+
+
 def duoc_tu_lam(theo_ton, lam_tuoi, chang, co_cong_thuc):
 	"""Máy được tự làm phần thiếu của món này khi hoàn tất món cha không. THUẦN.
 
@@ -340,14 +345,21 @@ def mon_tu_lam(ma=None):
 	if not ds:
 		return []
 	ra = []
-	cot = ["name", "item_name", "is_stock_item", "custom_lam_tuoi"]
-	if frappe.get_meta("Item").has_field("custom_chang_btp"):
-		cot.append("custom_chang_btp")
+	# Hai ô tự thêm của hồ sơ món: site nào chưa có ô thì không hỏi cột đó
+	# (bench CI thiếu custom_lam_tuoi, Codex #551 lượt bench 37c4961).
+	meta = frappe.get_meta("Item")
+	cot = ["name", "item_name", "is_stock_item"] + [o for o in ("custom_lam_tuoi", "custom_chang_btp") if meta.has_field(o)]
 	co_bom = set(frappe.get_all("BOM", filters={"item": ["in", ds], "is_active": 1, "docstatus": 1}, pluck="item"))
 	for it in frappe.get_all("Item", filters={"name": ["in", ds]}, fields=cot, limit_page_length=0):
 		if not cint(it.is_stock_item) or it.name not in co_bom:
 			continue
-		chang = chang_cua_mon(it.name, _co_btp_con(it.name), it.get("custom_chang_btp"), it.item_name)
+		khai = it.get("custom_chang_btp")
+		chang = chang_cua_mon(it.name, _co_btp_con(it.name), khai, it.item_name)
+		if la_btp_thanh_phan(khai):
+			# Ô khai "BTP thành phần" xếp về kho sơ cấp (ma_chang_khai_tay) nhưng
+			# KHÔNG phải ruột bánh cấp 1: phương án C chỉ tự làm cấp 1, cấp 2;
+			# thành phần chỉ tự làm khi bật Làm tươi như trước v648.
+			chang = None
 		if duoc_tu_lam(it.is_stock_item, it.get("custom_lam_tuoi"), chang, True):
 			ra.append(it.name)
 	return ra
