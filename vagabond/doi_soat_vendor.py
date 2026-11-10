@@ -1018,7 +1018,18 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 				fields=["ngay", "ma_tham_chieu", "tien_hang", "giam_gia"], limit_page_length=5000):
 			cho_chon.append(dict(kieu=kieu, ngay=str(r.ngay), ma_tham_chieu=r.ma_tham_chieu or "",
 				tien_hang=int(r.tien_hang or 0), giam_gia=int(r.giam_gia or 0)))
-	return khop.doi_chieu_bill(bill, noi, phu, cho_chon, hom_nay)
+	return khop.doi_chieu_bill(bill, noi, phu, cho_chon, hom_nay, diem_doi_tac())
+
+
+def diem_doi_tac():
+	"""Điểm bán có cửa hàng riêng bên từng đối tác, đọc từ danh mục ánh xạ cửa
+	hàng của bộ đọc báo cáo (một nguồn duy nhất, Codex #550)."""
+	from vagabond import doi_soat_mau as m
+
+	ra = {}
+	for kieu, bang in (("grab", m.GRAB_DIEM), ("shopee", m.SHOPEE_DIEM), ("greensm", m.GREENSM_DIEM)):
+		ra[kieu] = {v for v in bang.values() if v}
+	return ra
 
 
 def _diem_grab(tai_khoan):

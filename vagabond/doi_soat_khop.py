@@ -636,19 +636,24 @@ def _cong_ngay(d, n):
 	return date.fromordinal(date.fromisoformat(str(d)[:10]).toordinal() + n).isoformat()
 
 
-def phu_bill(kieu, ngay, diem, phu, hom_nay):
+def phu_bill(kieu, ngay, diem, phu, hom_nay, diem_doi_tac=None):
 	"""Báo cáo đối tác đã về đủ để kết luận về bill ngày `ngay` chưa. THUẦN.
 
 	phu: tập (kieu, ngày, điểm) có báo cáo đã nhận; điểm "*" là báo cáo phủ mọi
 	điểm. Đối tác có độ lệch ngày (LECH_NGAY: thẻ quẹt đêm vào lô hôm sau) cần
 	cả báo cáo các ngày sau đó, trừ khi đã quá 3 ngày (ngày không giao dịch thì
-	đối tác không gửi tệp)."""
+	đối tác không gửi tệp).
+	diem_doi_tac: {kieu: tập điểm có cửa hàng riêng bên đối tác}, lấy từ danh mục
+	ánh xạ cửa hàng (doi_soat_mau). Codex #550: điểm trong danh mục thì chỉ báo
+	cáo của chính cửa hàng đó mới đủ, không suy từ báo cáo tình cờ đã nhận."""
+	danh_muc = set((diem_doi_tac or {}).get(kieu) or ())
+
 	def co(d):
 		if (kieu, d, "*") in phu or (kieu, d, diem) in phu:
 			return True
-		# Bill mang điểm mà đối tác không biết (đơn sàn ghi điểm Sales...) thì
-		# có báo cáo của bất kỳ cửa hàng nào trong ngày là đủ.
-		biet = {x[2] for x in phu if x[0] == kieu}
+		# Bill mang điểm mà đối tác không có cửa hàng riêng (đơn sàn ghi điểm
+		# Sales...) thì có báo cáo của bất kỳ cửa hàng nào trong ngày là đủ.
+		biet = danh_muc | {x[2] for x in phu if x[0] == kieu}
 		return diem not in biet and any(x[0] == kieu and x[1] == d for x in phu)
 	if not co(ngay):
 		return False
@@ -659,7 +664,7 @@ def phu_bill(kieu, ngay, diem, phu, hom_nay):
 	return True
 
 
-def doi_chieu_bill(bill, noi, phu, cho_chon=(), hom_nay=None):
+def doi_chieu_bill(bill, noi, phu, cho_chon=(), hom_nay=None, diem_doi_tac=None):
 	"""Kết luận cho từng bill đã chọn phương thức thẻ/sàn. THUẦN.
 
 	bill: [{name, kieu, ngay, tien, ma, diem}]; noi: {(name, kieu): dòng đối tác đã
@@ -667,6 +672,7 @@ def doi_chieu_bill(bill, noi, phu, cho_chon=(), hom_nay=None):
 	đối tác "Nhiều chứng từ" chưa ai chọn [{kieu, ngay, ma_tham_chieu, tien_hang,
 	giam_gia}]; Codex #550: chỉ bill là ứng viên của một dòng đó (la_ung_vien)
 	mới chờ chọn, bill khác trong ngày vẫn kết luận bình thường.
+	diem_doi_tac: danh mục cửa hàng riêng của từng đối tác, xem phu_bill.
 	Trả cùng thứ tự, thêm trang_thai và ghi_chu."""
 	ra = []
 	hom_nay = hom_nay or date.today().isoformat()
@@ -682,7 +688,7 @@ def doi_chieu_bill(bill, noi, phu, cho_chon=(), hom_nay=None):
 		elif d and d.get("trang_thai_khop") == "Nối theo tiền":
 			x.update(trang_thai=TT_BILL_SAI_MA, ghi_chu="Báo cáo %s có giao dịch cùng tiền nhưng mã %s, bill ghi %s." % (
 				ten, d.get("ma") or "trống", (", ".join(m for m in b.get("ma") or [] if m)) or "trống"))
-		elif not phu_bill(b["kieu"], b["ngay"], b.get("diem") or "", phu, hom_nay):
+		elif not phu_bill(b["kieu"], b["ngay"], b.get("diem") or "", phu, hom_nay, diem_doi_tac):
 			x.update(trang_thai=TT_BILL_CHO_BC, ghi_chu="Chưa nhận đủ báo cáo %s của ngày này." % ten)
 		elif any(d2.get("kieu") == b["kieu"] and la_ung_vien(b["kieu"], d2, b) for d2 in cho_chon):
 			x.update(trang_thai=TT_BILL_CHO_CHON, ghi_chu="Báo cáo %s ngày này còn giao dịch trùng mã hoặc trùng tiền "
