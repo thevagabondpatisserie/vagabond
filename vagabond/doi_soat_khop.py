@@ -592,3 +592,88 @@ def ky_the(hien_tai, truoc):
 	return dict(du=cuoi == t.get("den_han"), dau_ky=dau_ky, da_tra=da_tra, phat_sinh=t.get("spend") or 0,
 		phi=(t.get("fees") or 0) + (t.get("phi_cham") or 0), cuoi_ky=t.get("den_han"),
 		ghi_chu="" if cuoi == t.get("den_han") else "Phương trình số dư thẻ lệch %s." % _vn(cuoi - (t.get("den_han") or 0)))
+
+
+# ------------------------------------------------------------ từng bill thu ngân bấm -> báo cáo đối tác
+# v647 (anh Việt 10/11/2026): "máy lôi từng giao dịch trong bảng của các bên ra
+# và tự đối soát với từng hoá đơn điểm bán bấm cho khách". Chiều xuôi (dòng báo
+# cáo đối tác tìm bill) là khop_hoa_don. Đây là chiều NGƯỢC: mỗi bill thu ngân
+# chọn Shinhan POS, Payoo, Grab... phải có dòng tương ứng trong báo cáo đối tác
+# của ngày đó. Không có, sai mã chuẩn chi, hay lệch tiền thì báo người sửa.
+# Một nguồn: kết quả nối của chiều xuôi (Vagabond Doi Soat Dong.sales_invoice)
+# là căn cứ duy nhất; ở đây không tự dò lại.
+
+TT_BILL_KHOP = "Khớp"
+TT_BILL_LECH = "Lệch tiền"
+TT_BILL_SAI_MA = "Sai mã"
+TT_BILL_KHONG_CO = "Không có trên báo cáo"
+TT_BILL_CHO_CHON = "Chờ kế toán chọn"
+TT_BILL_CHO_BC = "Chờ báo cáo"
+# Bill cần người xử lý (thẻ trên màn, tin Zalo 08:30).
+TT_BILL_CAN_XU_LY = (TT_BILL_LECH, TT_BILL_SAI_MA, TT_BILL_KHONG_CO)
+# Đối tác gửi MỘT báo cáo cho mọi điểm bán (tài khoản tổng): có báo cáo của
+# ngày là phủ mọi điểm. Đối tác còn lại gửi theo từng cửa hàng.
+KIEU_PHU_MOI_DIEM = ("payoo", "shinhan")
+TEN_KIEU = {"payoo": "Thẻ Payoo", "shinhan": "Thẻ Shinhan POS", "grab": "GrabFood", "shopee": "ShopeeFood",
+	"greensm": "Xanh SM Ngon"}
+
+
+def _cong_ngay(d, n):
+	return date.fromordinal(date.fromisoformat(str(d)[:10]).toordinal() + n).isoformat()
+
+
+def phu_bill(kieu, ngay, diem, phu, hom_nay):
+	"""Báo cáo đối tác đã về đủ để kết luận về bill ngày `ngay` chưa. THUẦN.
+
+	phu: tập (kieu, ngày, điểm) có báo cáo đã nhận; điểm "*" là báo cáo phủ mọi
+	điểm. Đối tác có độ lệch ngày (LECH_NGAY: thẻ quẹt đêm vào lô hôm sau) cần
+	cả báo cáo các ngày sau đó, trừ khi đã quá 3 ngày (ngày không giao dịch thì
+	đối tác không gửi tệp)."""
+	def co(d):
+		if (kieu, d, "*") in phu or (kieu, d, diem) in phu:
+			return True
+		# Bill mang điểm mà đối tác không biết (đơn sàn ghi điểm Sales...) thì
+		# có báo cáo của bất kỳ cửa hàng nào trong ngày là đủ.
+		biet = {x[2] for x in phu if x[0] == kieu}
+		return diem not in biet and any(x[0] == kieu and x[1] == d for x in phu)
+	if not co(ngay):
+		return False
+	for i in range(1, LECH_NGAY.get(kieu, 0) + 1):
+		d = _cong_ngay(ngay, i)
+		if not co(d) and d > _cong_ngay(hom_nay, -3):
+			return False
+	return True
+
+
+def doi_chieu_bill(bill, noi, phu, cho_chon=(), hom_nay=None):
+	"""Kết luận cho từng bill đã chọn phương thức thẻ/sàn. THUẦN.
+
+	bill: [{name, kieu, ngay, tien, ma, diem}]; noi: {(name, kieu): dòng đối tác đã
+	nối {trang_thai_khop, tien, ma, vendor}}; phu: xem phu_bill; cho_chon: tập
+	(kieu, ngày) còn dòng đối tác "Nhiều chứng từ" chưa ai chọn.
+	Trả cùng thứ tự, thêm trang_thai và ghi_chu."""
+	ra = []
+	hom_nay = hom_nay or date.today().isoformat()
+	for b in bill:
+		x = dict(b)
+		d = noi.get((b["name"], b["kieu"]))
+		ten = TEN_KIEU.get(b["kieu"], b["kieu"])
+		if d and d.get("trang_thai_khop") == "Đã nối":
+			x.update(trang_thai=TT_BILL_KHOP, ghi_chu="")
+		elif d and d.get("trang_thai_khop") == "Lệch tiền":
+			x.update(trang_thai=TT_BILL_LECH, ghi_chu="Bill %s, báo cáo %s ghi %s." % (
+				_vn(b["tien"]), ten, _vn(d.get("tien") or 0)))
+		elif d and d.get("trang_thai_khop") == "Nối theo tiền":
+			x.update(trang_thai=TT_BILL_SAI_MA, ghi_chu="Báo cáo %s có giao dịch cùng tiền nhưng mã %s, bill ghi %s." % (
+				ten, d.get("ma") or "trống", (", ".join(m for m in b.get("ma") or [] if m)) or "trống"))
+		elif not phu_bill(b["kieu"], b["ngay"], b.get("diem") or "", phu, hom_nay):
+			x.update(trang_thai=TT_BILL_CHO_BC, ghi_chu="Chưa nhận đủ báo cáo %s của ngày này." % ten)
+		elif (b["kieu"], b["ngay"]) in cho_chon:
+			x.update(trang_thai=TT_BILL_CHO_CHON, ghi_chu="Báo cáo %s ngày này còn giao dịch trùng mã hoặc trùng tiền "
+				"chờ kế toán chọn bill." % ten)
+		else:
+			x.update(trang_thai=TT_BILL_KHONG_CO, ghi_chu="Báo cáo %s không có giao dịch nào của bill này (mã %s, %s đ). "
+				"Thu ngân kiểm lại phương thức và mã đã nhập." % (
+				ten, (", ".join(m for m in b.get("ma") or [] if m)) or "trống", _vn(b["tien"])))
+		ra.append(x)
+	return ra

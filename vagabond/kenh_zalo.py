@@ -160,6 +160,9 @@ TIN = {
 		"Ngay khi báo cáo Shinhan POS có giao dịch bị thu phí cao hơn biểu phí khai trong Cài đặt.", "canh_bao", "cong_no"),
 	"kt_ds_don_thieu_erp": ("Hoá đơn, kế toán", "Giao dịch đối tác đã thu mà ERP chưa có đơn (08:30)",
 		"08:30 mỗi sáng: giao dịch bán trong báo cáo đối tác ngày hôm qua chưa nối được với đơn hay bill nào.", "viec", "cong_no"),
+	# v647 (anh Việt 10/11/2026): chiều ngược, bill thu ngân chọn thẻ/sàn mà báo cáo đối tác không khớp.
+	"kt_ds_bill_lech": ("Hoá đơn, kế toán", "Bill thẻ, sàn không khớp báo cáo đối tác (08:30)",
+		"08:30 mỗi sáng: bill chọn thẻ, sàn mà báo cáo đối tác không có, sai mã chuẩn chi hoặc lệch tiền.", "viec", "cong_no"),
 	"bh_don_web_treo": ("Bán hàng, cửa hàng", "Đơn web treo quá 30 phút chưa vào Pancake",
 		"Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.", "viec", "don_web"),
 	# v638 (anh Việt 04/11/2026): khách trả ngay trên web; không mang số tiền (luật v613).
