@@ -1003,9 +1003,10 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 					"trang_thai_khop": ["!=", khop.DA_THAY]},
 					fields=["nguon", "diem_ban"], group_by="nguon, diem_ban", limit_page_length=5000):
 				diem.setdefault(r.nguon, set()).add(r.diem_ban)
-			# Codex #550: nguồn toàn giao dịch đã nhận ở nguồn trước (tệp gửi lại)
-			# không có dòng riêng; phạm vi cửa hàng lấy từ chính giao dịch gốc.
-			for t, d in _diem_qua_trung([n.name for n in nguon if not diem.get(n.name)]).items():
+			# Codex #550: giao dịch đã nhận ở nguồn trước (tệp gửi lại, tệp gộp
+			# nhiều cửa hàng) không có dòng riêng; phạm vi của nguồn là hợp của
+			# dòng riêng và cửa hàng của giao dịch gốc qua bảng Trùng.
+			for t, d in _diem_qua_trung([n.name for n in nguon]).items():
 				diem.setdefault(t, set()).update(d)
 		for n in nguon:
 			ds_diem = {"*"} if kieu in khop.KIEU_PHU_MOI_DIEM else set(diem.get(n.name) or ())
