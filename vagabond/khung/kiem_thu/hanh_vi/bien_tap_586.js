@@ -79,6 +79,7 @@ function appMoi(tuy) {
   var tl = dg.taiLieuGia();
   dg.doc('<main id="bt-moi"><p id="bt-trang-thai"></p><nav id="bt-the"></nav><div id="bt-noi"></div></main><div id="bt-cu" hidden><button id="tai-lai"></button><button id="bt-ve-moi"></button></div>', tl.body);
   var B = duLieu();
+  (tuy.themKhoi || []).forEach(function (k) { B.khoi.unshift(k); B.dau[k.id] = dau(k); });
   var goi = [];
   var taiLai = 0;
   tl.getElementById('tai-lai').onclick = function () { taiLai++; };
@@ -150,7 +151,8 @@ function appMoi(tuy) {
     /* v625: thêm thẻ Câu hỏi ứng tuyển ngay sau Tuyển dụng. */
     /* v630: thêm thẻ Thiết kế riêng ngay sau Tiệc. */
     /* v644: thêm thẻ Bánh ngay sau Ưu đãi (ảnh, mô tả, tầng hương vị từng bánh). */
-    bang('10 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'banh', 'tiec', 'thiet_ke_rieng', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
+    /* v647: thêm thẻ Banner ngay sau Ưu đãi. */
+    bang('11 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'banner', 'banh', 'tiec', 'thiet_ke_rieng', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
     dung('dem uu dai tu ERP', String(app.mot('[data-the="uu_dai"]').textContent).indexOf('Ưu đãi2') === 0);
     bang('khong hien uu dai go tay', app.tim('[data-muc]').length, 0);
     var u1 = String(app.mot('[data-muc-erp="SN10"]').textContent);
@@ -604,6 +606,58 @@ function appMoi(tuy) {
     await app.luu();
     dung('bao so ngay', app.bao().indexOf('tối thiểu là 7') >= 0);
     bang('khong goi luu', app.dem('luu_muc'), 0);
+  });
+
+  /* v647 (anh Viet 10/11/2026): the Banner. Minh Vu tu thay anh banner o ba cho
+     da chot (Dau trang, Gio hang, Dat xong), mac dinh bam mo trang thanh vien. */
+  await ca('v647 Banner: them banner, chon cho Dat xong, tai anh may tinh va dien thoai, luu dung vi tri va link', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('banner');
+    bang('the Banner chua co banner nao', app.tim('[data-muc]').length, 0);
+    await app.bam(app.mot('[data-them="banner"]'));
+    await app.go(app.oTen('tieu_de'), 'Sinh nhật nhận quà');
+    bang('link mac dinh trang thanh vien', app.oTen('lien_ket').value, '/thanh-vien');
+    await app.bam(app.mot('[data-chip="Đặt xong"]'));
+    dung('mo ta cho dat doi theo: ' + app.mot('[data-mo-cho]').textContent, String(app.mot('[data-mo-cho]').textContent).indexOf('gửi đơn thành công') >= 0);
+    var tep = app.mot('[data-tep-anh="anh"]');
+    tep.files = [{ name: 'banner-pc.png', size: 400000 }];
+    await tep.onchange(); await nghi();
+    var tepDt = app.mot('[data-tep-anh="anh_dt"]');
+    tepDt.files = [{ name: 'banner-dt.png', size: 300000 }];
+    await tepDt.onchange(); await nghi();
+    bang('xem truoc hai khung', app.tim('.bt-xem-banner-o').map(function (f) { return f.querySelectorAll('img').length; }), [1, 1]);
+    await app.go(app.oTen('mo_ta_anh'), 'Cập nhật ngày sinh để nhận quà bánh');
+    await app.luu();
+    var m = app.cuoi('luu_muc').muc;
+    bang('luu dung banner', [m.loai, m.vi_tri, m.lien_ket, m.anh, m.anh_dt, m.hien, m.mo_ta_anh],
+      ['banner', 'dat_xong', '/thanh-vien', '/files/web-moi.png', '/files/web-moi.png', true, 'Cập nhật ngày sinh để nhận quà bánh']);
+    dung('bao khach thay ngay: ' + app.bao(), app.bao().indexOf('Khách thấy ngay') >= 0);
+    var dong = app.mot('[data-muc="' + m.id + '"]');
+    dung('dong co ten cho dat va link: ' + dong.textContent, String(dong.textContent).indexOf('Đặt xong') >= 0 && String(dong.textContent).indexOf('/thanh-vien') >= 0);
+    dung('dong co nhan Dang hien', String(dong.textContent).indexOf('Đang hiện') >= 0);
+  });
+
+  await ca('v647 Banner: bat hien ma chua co anh thi chan tai may, khong goi luu; bo chon cho cung chan', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('banner');
+    await app.bam(app.mot('[data-them="banner"]'));
+    await app.go(app.oTen('tieu_de'), 'Banner thử');
+    await app.luu();
+    dung('bao can anh: ' + app.bao(), app.bao().indexOf('Tải ảnh máy tính') === 0);
+    await app.bam(app.mot('[data-chip="Giỏ hàng"]'));
+    await app.luu();
+    dung('bo chon cho thi bao chon cho: ' + app.bao(), app.bao().indexOf('Chọn chỗ đặt banner') === 0);
+    bang('khong goi luu', app.dem('luu_muc'), 0);
+  });
+
+  await ca('v647 Banner: banner chua toi ngay hien thi nhan va cong tac noi ro khach chua thay', async function () {
+    var app = appMoi({ themKhoi: [{ id: 'banner-sn', loai: 'banner', vi_tri: 'gio_hang', hien: true, tieu_de: 'Sinh nhật', anh: '/files/b.png', anh_dt: '',
+      mo_ta_anh: '', lien_ket: '/thanh-vien', bat_dau: '2099-01-01', ket_thuc: '' }] }); await nghi();
+    await app.the('banner');
+    var dong = app.mot('[data-muc="banner-sn"]');
+    dung('nhan Chua toi ngay hien: ' + dong.textContent, String(dong.textContent).indexOf('Chưa tới ngày hiện') >= 0);
+    dung('cong tac noi ro: ' + dong.textContent, String(dong.textContent).indexOf('Chưa tới ngày, khách chưa thấy') >= 0);
+    dung('mo ta co Gio hang va dung chung anh: ' + dong.textContent, String(dong.textContent).indexOf('Giỏ hàng') >= 0 && String(dong.textContent).indexOf('dùng chung ảnh máy tính') >= 0);
   });
 
   console.log('Bo ca kiem HANH VI v586: trinh bien tap theo the va the Tiec');
