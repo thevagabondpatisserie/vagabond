@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "tiec", "kenh_dat_hang", "zalo_oa", "nut_kenh", "thiet_ke_rieng"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "tiec", "kenh_dat_hang", "zalo_oa", "nut_kenh", "thiet_ke_rieng", "banner"}
 # v586 (Minh Vũ đề xuất, anh Việt duyệt 07/10/2026): ưu đãi có điều kiện đơn
 # tối thiểu và khung giờ, tuyển dụng có yêu cầu và quyền lợi, thêm loại Tiệc
 # có giá vé, số vé, hạn đăng ký. Mọi trường vẫn là CHUỖI để giữ một phép kiểm
@@ -24,10 +24,15 @@ TRUONG_MOI_586 = {"don_toi_thieu", "gio_bat_dau", "gio_ket_thuc", "dieu_kien", "
 # đơn từ chính các số này (thiet_ke_rieng.tinh_gia), nên đây là cửa nhập duy
 # nhất phải chặn số sai.
 TRUONG_TKR_DS = {"kich_co", "trang_tri"}
-TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email", "so_ngay"} | TRUONG_MOI_586 | TRUONG_TKR_DS
-VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng"}
+TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "anh_dt", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email", "so_ngay"} | TRUONG_MOI_586 | TRUONG_TKR_DS
+VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "gio_hang", "dat_xong"}
+# v647 (anh Việt 10/11/2026): banner ảnh Marketing tự thiết kế, Minh Vũ thay ở
+# trình biên tập. Chỉ ba chỗ anh chọn: đầu trang, giỏ hàng (màn Thông tin đơn
+# hàng, trên phần tổng tiền) và đặt xong (ngay sau khi gửi đơn thành công).
+# Banner là mục theo thẻ như tiệc nhưng giữ vị trí riêng, không ép vi_tri = loai.
+VI_TRI_BANNER = ("dau_trang", "gio_hang", "dat_xong")
 # Các loại có thẻ riêng trong trình biên tập mới, mỗi mục một thẻ trên web.
-LOAI_MUC = ("uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng")
+LOAI_MUC = ("uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "banner")
 # Trần giá một size hoặc một trang trí (đồng, đã gồm VAT): chặn gõ thừa số 0.
 GIA_TKR_TOI_DA = 200000000
 SO_NGAY_TKR_TOI_THIEU = 7
@@ -439,6 +444,29 @@ def chuan_tkr(k):
     return k
 
 
+def _kiem_banner(k):
+    """v647: banner chỉ ở ba chỗ đã chốt; bật hiện thì phải có ảnh. THUẦN."""
+    if k.get("vi_tri") not in VI_TRI_BANNER:
+        raise ValueError("Chọn chỗ đặt banner: Đầu trang, Giỏ hàng hoặc Đặt xong.")
+    if k.get("hien") and not str(k.get("anh") or "").strip():
+        raise ValueError("Tải ảnh banner trước khi bật hiện trên web.")
+
+
+def banner_hien(nd, vi_tri, hom_nay):
+    """v647: banner khách thấy ở một chỗ, đúng thứ tự trong bản nội dung. THUẦN.
+
+    Cùng một luật với trang đặt bánh (noi-dung.js khachThay) và nhãn trên trình
+    biên tập (trang_thai_muc): đang bật, có ảnh, trong khoảng ngày. Chỉ trả các
+    ô trang cần vẽ, không lộ ghi chú nội bộ.
+    """
+    ra = []
+    for k in (nd or {}).get("khoi") or []:
+        if (k.get("loai") == "banner" and k.get("vi_tri") == vi_tri and k.get("hien") is True
+                and str(k.get("anh") or "").strip() and trang_thai_muc(k, hom_nay)[0] == "dang"):
+            ra.append({t: str(k.get(t) or "") for t in ("id", "tieu_de", "anh", "anh_dt", "mo_ta_anh", "lien_ket")})
+    return ra
+
+
 def chuan_hoa(du_lieu):
     """Giới hạn kích thước và cấu trúc trước khi lưu, dùng cả ở Document.save."""
     if isinstance(du_lieu, str):
@@ -488,8 +516,12 @@ def chuan_hoa(du_lieu):
         if k["id"] in da_co:
             raise ValueError("Mã khối bị trùng. Tải lại rồi thêm khối mới.")
         da_co.add(k["id"])
+        if k["loai"] == "banner":
+            _kiem_banner(k)
         if k.get("vi_tri", "cuoi_trang") not in VI_TRI:
             raise ValueError("Chọn vị trí khối trên trang đặt bánh.")
+        if k["loai"] != "banner" and (k.get("vi_tri") in ("gio_hang", "dat_xong") or k.get("anh_dt")):
+            raise ValueError("Vị trí Giỏ hàng, Đặt xong và ảnh điện thoại chỉ dùng cho banner.")
         if k['loai'] not in LOAI_MUC and k.get('vi_tri') in LOAI_MUC:
             raise ValueError('Khối nội dung thường cần chọn vị trí trên trang bán hàng.')
         if k['loai'] == 'tieu_de_muc':
@@ -524,7 +556,7 @@ def chuan_hoa(du_lieu):
                 raise ValueError('Dùng đường dẫn Zalo OA dạng https://zalo.me/tên-OA hoặc mã OA, không dùng số điện thoại cá nhân.')
         if k['loai'] in LOAI_MUC:
             if not k.get('tieu_de', '').strip():
-                raise ValueError('Ưu đãi, tiệc, tác phẩm và vị trí tuyển dụng cần có tên.')
+                raise ValueError('Ưu đãi, tiệc, tác phẩm, banner và vị trí tuyển dụng cần có tên.')
             from datetime import date
             for ten in ('bat_dau', 'ket_thuc'):
                 if k.get(ten):
@@ -538,7 +570,7 @@ def chuan_hoa(du_lieu):
                 raise ValueError('Điền email hoặc liên kết ứng tuyển trước khi bật vị trí.')
             if k['loai'] == 'tiec' and k['hien'] and not k.get('bat_dau'):
                 raise ValueError('Chọn ngày diễn ra tiệc trước khi bật hiện trên web.')
-        for ten in ("anh", "lien_ket"):
+        for ten in ("anh", "anh_dt", "lien_ket"):
             v = k.get(ten, "")
             if not v:
                 continue
@@ -549,7 +581,7 @@ def chuan_hoa(du_lieu):
             neo = ten == "lien_ket" and v.startswith("#")
             if not (noi_bo or neo or (u.scheme == "https" and u.hostname and not u.username and not u.password)):
                 raise ValueError("Chỉ dùng liên kết HTTPS hoặc đường dẫn trong website.")
-            if ten == "anh" and (v.startswith("/private/") or v.lower().split("?")[0].endswith(".svg")):
+            if ten in ("anh", "anh_dt") and (v.startswith("/private/") or v.lower().split("?")[0].endswith(".svg")):
                 raise ValueError("Chọn ảnh công khai PNG, JPG hoặc WebP.")
     return copy.deepcopy(du_lieu)
 
@@ -584,10 +616,11 @@ def ap_muc(nd, muc, dau_cu=None):
     Mục mới chèn lên ĐẦU nhóm cùng loại: ưu đãi vừa tạo phải đứng trên cùng.
     """
     if not isinstance(muc, dict) or muc.get("loai") not in LOAI_MUC:
-        raise ValueError("Chỉ lưu được ưu đãi, tiệc, tác phẩm thiết kế riêng và vị trí tuyển dụng ở đây.")
+        raise ValueError("Chỉ lưu được ưu đãi, tiệc, tác phẩm thiết kế riêng, banner và vị trí tuyển dụng ở đây.")
     nd = copy.deepcopy(nd)
     ds = nd.setdefault("khoi", [])
-    muc = dict(muc, vi_tri=muc["loai"])
+    if muc["loai"] != "banner":
+        muc = dict(muc, vi_tri=muc["loai"])
     i = _vi_tri_muc(nd, muc.get("id"))
     cu = ds[i] if i >= 0 else None
     if dau_cu is not None and dau_van_tay(cu) != dau_cu:
@@ -668,6 +701,12 @@ def trang_thai_muc(muc, hom_nay):
     bd, kt = muc.get("bat_dau") or "", muc.get("ket_thuc") or ""
     if loai == "thiet_ke_rieng":
         return ("dang", "Đang nhận đặt")
+    if loai == "banner":
+        if kt and kt < hom_nay:
+            return ("het", "Đã hết hạn")
+        if bd and bd > hom_nay:
+            return ("sap", "Chưa tới ngày hiện")
+        return ("dang", "Đang hiện")
     if loai == "tiec":
         if bd and bd < hom_nay:
             return ("het", "Đã diễn ra")
