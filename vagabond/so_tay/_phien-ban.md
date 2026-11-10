@@ -13,6 +13,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 ## v647
 - Đặt banner ảnh trên trang đặt bánh
+- Chỉ khách nhận quà chào mừng và dùng mã thành viên
 
 ## v646
 - Bếp đếm 10 món mỗi sáng: Đếm hôm nay

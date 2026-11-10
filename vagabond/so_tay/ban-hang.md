@@ -748,8 +748,8 @@ Thu ngân chỉ khách làm trên điện thoại, rồi áp mã khách đưa.
 
 **Các bước của khách**
 1. Quét mã QR trên bảng, nhập số điện thoại có Zalo, bấm nút Gửi mã qua Zalo.
-2. Nhập mã 6 số nhận qua Zalo (đủ 6 số là máy tự gửi, không cần bấm Xác nhận).
-3. Điền tên, ngày và tháng sinh (năm không bắt buộc), tích ô đồng ý nhận tin Zalo, bấm nút Nhận quà.
+2. Nhập mã 6 số nhận qua Zalo (đủ 6 số máy tự gửi).
+3. Điền tên, ngày và tháng sinh (năm không bắt buộc: bấm + Thêm năm sinh), tích ô đồng ý nhận tin Zalo, bấm nút Nhận quà.
 4. Màn hiện mã quà và hạn dùng. Thu ngân áp như mục Áp khuyến mãi.
 
 **Vì sao không nhận được**
@@ -762,8 +762,9 @@ Thu ngân chỉ khách làm trên điện thoại, rồi áp mã khách đưa.
 | Chưa gửi được mã qua Zalo. Chờ một chút hoặc gọi cho chúng tôi. | Kiểm số có Zalo không |
 
 **Lưu ý**
-- Khách đã là thành viên: mở trang thành viên, thẻ Ví quà có mã còn dùng được; khách đưa mã, thu ngân áp như mã quà.
-- Thẻ mã thành viên trên trang ghi "Thu ngân quét hoặc gõ mã này để tích điểm vào đúng hồ sơ". Thu ngân gõ mã đó vào ô tìm khách ở màn tính tiền. <!-- kiểm: ô tìm khách có nhận mã quét từ QR thành viên bằng máy quét không, mã thành viên là mã khách -->
+- Máy đã đăng nhập sẵn thì mở thẳng bước Hồ sơ, có số đã xác minh (che giữa); sai số thì bấm Đổi số.
+- Khách đã là thành viên: thẻ Ví quà có mã còn dùng được, thu ngân áp như mã quà.
+- Mã thành viên trên thẻ: thu ngân gõ vào ô tìm khách ở màn tính tiền để tích điểm đúng hồ sơ. <!-- kiểm: ô tìm khách có nhận mã quét từ QR thành viên bằng máy quét không, mã thành viên là mã khách -->
 
 ## Làm báo giá cho khách doanh nghiệp
 Từ khoá: báo giá, quotation, quote, chào giá, báo giá B2B, báo giá sự kiện, PDF báo giá, gửi báo giá, thư viện báo giá, mẫu báo giá, phiên bản báo giá, VGB-PQ
