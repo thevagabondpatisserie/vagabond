@@ -130,15 +130,25 @@ export function donCanLuu(don) {
   });
 }
 
-/* ?diem=TCV&ban=5&k=... -> {diem, ban, k} hoặc null. THUẦN. */
+/* Tên bàn chuẩn, cùng luật so_do_ban.chuan_ten_ban: "a01" -> "A1", "05" -> "5",
+   "VIP2"; sai thì ''. v647: bàn đặt tên theo khu (A1, B1, VIP1). THUẦN. */
+export function chuanTenBan(ban) {
+  const s = String(ban == null ? '' : ban).toUpperCase().trim();
+  const m = /^(?:([A-Z]{1,4})[ \-_.]?)?0*([0-9]{1,2})$/.exec(s);
+  if (!m) return '';
+  const n = Number(m[2]);
+  return (n >= 1 && n <= 99) ? (m[1] || '') + n : '';
+}
+
+/* ?diem=TCV&ban=A1&k=... -> {diem, ban, k} hoặc null. THUẦN. */
 export function docLinkBan(timKiem) {
   let q;
   try { q = new URLSearchParams(String(timKiem || '')); } catch (e) { return null; }
   const diem = String(q.get('diem') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
-  const ban = String(q.get('ban') || '').trim();
+  const ban = chuanTenBan(String(q.get('ban') || '').trim());
   const k = String(q.get('k') || '').trim().toLowerCase();
-  if (!diem || !/^\d{1,3}$/.test(ban) || !/^[0-9a-f]{16}$/.test(k)) return null;
-  return {diem, ban: Number(ban), k};
+  if (!diem || !ban || !/^[0-9a-f]{16}$/.test(k)) return null;
+  return {diem, ban, k};
 }
 
 /* Khoá một dòng giỏ: cùng món cùng lựa chọn cùng topping thì gộp. THUẦN. */
