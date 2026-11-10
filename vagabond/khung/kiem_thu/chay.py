@@ -238,6 +238,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_kiem_ke_xoay_646,
 	# v646 Cài đặt tự động hoá: việc máy soạn sẵn, nhịp 15 phút, quá hạn báo một lần.
 	thu_viec_tu_dong_646,
+	thu_banner_647,
 	# v646 (Minh Vũ 09/11/2026): tham số mẫu Zalo thật, ô Tiền tệ -1124.
 	thu_zalo_mau_646,
 	# v646 Refill (bếp báo sau vụ Roman 18 đặt xa ngày, anh Việt duyệt 09/11).
