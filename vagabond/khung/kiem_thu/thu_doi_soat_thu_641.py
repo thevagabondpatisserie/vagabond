@@ -372,7 +372,7 @@ def _():
 @ca("v641 màn Đối soát nhà cung cấp chạy thật trong node: hộp thư, tiến độ, đường vào, duyệt, xác nhận")
 def _():
 	goc = Path(__file__).parents[3]
-	for tep, so in (("doi_soat_hop_thu_641.js", "17 dat, 0 hong"), ("doi_soat_vendor_579.js", "25 dat, 0 hong")):
+	for tep, so in (("doi_soat_hop_thu_641.js", "17 dat, 0 hong"), ("doi_soat_vendor_579.js", "26 dat, 0 hong")):
 		r = subprocess.run(["node", str(goc / "vagabond/khung/kiem_thu/hanh_vi" / tep)], capture_output=True, text=True, timeout=120)
 		dung("%s chạy được: %s" % (tep, (r.stdout[-1500:] + r.stderr[-800:])), r.returncode == 0)
 		dung("%s đủ số ca" % tep, so in r.stdout)

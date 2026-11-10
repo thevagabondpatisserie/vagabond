@@ -47,7 +47,8 @@ def _():
 	noi = {("B1", "shinhan"): dict(trang_thai_khop="Đã nối", tien=450000, ma="A1B2C3"),
 		("B2", "shinhan"): dict(trang_thai_khop="Lệch tiền", tien=200000, ma="ZZ0001"),
 		("B3", "shinhan"): dict(trang_thai_khop="Nối theo tiền", tien=300000, ma="A1B2C3")}
-	kq = {x["name"]: x for x in K.doi_chieu_bill(bill, noi, phu, {("shinhan", "2026-11-07")}, HOM)}
+	cho = [dict(kieu="shinhan", ngay="2026-11-07", ma_tham_chieu="XX0001", tien_hang=100000, giam_gia=0)]
+	kq = {x["name"]: x for x in K.doi_chieu_bill(bill, noi, phu, cho, HOM)}
 	la("kết luận", {k: v["trang_thai"] for k, v in kq.items()}, {"B1": "Khớp", "B2": "Lệch tiền", "B3": "Sai mã",
 		"B4": "Không có trên báo cáo", "B5": "Chờ kế toán chọn", "B6": "Chờ báo cáo"})
 	dung("lệch có hai số", "210.000" in kq["B2"]["ghi_chu"] and "200.000" in kq["B2"]["ghi_chu"])
@@ -65,12 +66,16 @@ BILL_SHINHAN = [("HDB-1", 450000, "A1B2C3", "Q1"), ("HDB-2", 210000, "ZZ0001", "
 
 
 class Kho:
+	"""bill: (tên, tiền, mã, quầy[, pháp nhân]); nguồn mang company (mặc định CT).
+	Chiều xuôi chạy THẬT cho bill của pháp nhân CT, như _noi_hoa_don_ban (ứng
+	viên chỉ của pháp nhân nguồn)."""
+
 	def __init__(self, dong_bao_cao, bill, nguon):
-		self.bill = bill
-		self.nguon = nguon
+		self.bill = [tuple(b) + (("CT",) if len(b) == 4 else ()) for b in bill]
+		self.nguon = [dict(dict(company="CT"), **n) for n in nguon]
 		# Chiều xuôi THẬT: dòng báo cáo nối bill bằng khop_hoa_don.
 		dong = [dict(loai="ban", ngay="2026-11-08", ma_tham_chieu=m, tien_hang=t, giam_gia=0) for m, t in dong_bao_cao]
-		uv = [dict(name=n, ngay="2026-11-08", tien=t, ma=[m]) for n, t, m, q in bill]
+		uv = [dict(name=n, ngay="2026-11-08", tien=t, ma=[m]) for n, t, m, q, ct in self.bill if ct == "CT"]
 		kq = K.khop_hoa_don("shinhan", dong, uv)
 		self.dong = [dict(nguon="DSN-SH-0811", sales_invoice=kq[i]["hoa_don"] or None, trang_thai_khop=kq[i]["trang_thai"],
 			tien_hang=d["tien_hang"], giam_gia=0, ma_tham_chieu=d["ma_tham_chieu"], vendor="Shinhan", ngay="2026-11-08",
@@ -79,7 +84,7 @@ class Kho:
 	def ung_vien(self, kieu, tu, den, ct):
 		if kieu != "shinhan":
 			return []
-		return [dict(name=n, ngay="2026-11-08", tien=t, ma=[m], quay=q) for n, t, m, q in self.bill]
+		return [dict(name=n, ngay="2026-11-08", tien=t, ma=[m], quay=q) for n, t, m, q, c in self.bill if c == ct]
 
 	def get_all(self, dt, filters=None, fields=None, **k):
 		if dt == "Vagabond Doi Soat Dong":
@@ -94,7 +99,9 @@ class Kho:
 			return [NS(**d) for d in ra]
 		if dt == "Vagabond Doi Soat Nguon":
 			maus = filters["mau"][1]
-			return [NS(**n) for n in self.nguon if n["mau"] in maus]
+			ct = filters.get("company")
+			ct = ct[1] if isinstance(ct, list) else ([ct] if ct else None)
+			return [NS(**n) for n in self.nguon if n["mau"] in maus and (ct is None or n["company"] in ct)]
 		raise AssertionError(dt)
 
 	def chay(self, ham):
@@ -186,3 +193,68 @@ def _():
 		T.nhac_sang()
 	la("đã gọi đúng ngày", goi, [HOM])
 	la("chỉ một lỗi, đúng tên", loi, ["Đối soát: nhắc bill không khớp báo cáo đối tác"])
+
+
+# ------------------------------------------------------------ Codex PR #550 (4f0894ab21), ba góp ý
+
+@ca("Codex #550: báo cáo của pháp nhân A không làm bill của pháp nhân B thành Không có trên báo cáo")
+def _():
+	from vagabond import doi_soat_vendor as V
+	bill = BILL_SHINHAN + [("HDB-B1", 99000, "BB0001", "Q1", "CT-B")]
+	k = Kho(DONG_SHINHAN, bill, [_nguon_sh("2026-11-08"), _nguon_sh("2026-11-09")])
+	kq = {x["name"]: x["trang_thai"] for x in k.chay(lambda: V.du_lieu_bill("2026-11-08", "2026-11-08", ["CT", "CT-B"], HOM))}
+	la("bill pháp nhân B chưa có báo cáo nào: chờ", kq["HDB-B1"], "Chờ báo cáo")
+	la("bill pháp nhân A vẫn kết luận", kq["HDB-4"], "Không có trên báo cáo")
+
+
+@ca("Codex #550: dòng đối tác nhiều ứng viên chỉ giữ chờ chọn cho bill là ứng viên, bill khác vẫn Không có")
+def _():
+	from vagabond import doi_soat_vendor as V
+	# Đúng chuỗi Codex mô tả: báo cáo một giao dịch 100, ba bill 100, 100, 300 không có mã chung.
+	k = Kho([("", 100)], [("HDB-A", 100, "", "Q1"), ("HDB-B", 100, "", "Q1"), ("HDB-C", 300, "", "Q1")],
+		[_nguon_sh("2026-11-08"), _nguon_sh("2026-11-09")])
+	la("chiều xuôi thật: dòng 100 có nhiều chứng từ", [d["trang_thai_khop"] for d in k.dong], ["Nhiều chứng từ"])
+	kq = {x["name"]: x["trang_thai"] for x in k.chay(lambda: V.du_lieu_bill("2026-11-08", "2026-11-08", ["CT"], HOM))}
+	la("hai bill 100 chờ chọn, bill 300 không có", kq, {"HDB-A": "Chờ kế toán chọn", "HDB-B": "Chờ kế toán chọn",
+		"HDB-C": "Không có trên báo cáo"})
+
+
+def _bill_gia(n):
+	return [dict(name="HDB-%04d" % i, kieu="shinhan", ngay="2026-11-08", tien=1000, ma=["M%04d" % i], diem="TCV",
+		company="CT", trang_thai="Không có trên báo cáo", ghi_chu="") for i in range(1, n + 1)]
+
+
+def _goi_bill(**k):
+	from vagabond import diem_ban
+	from vagabond import doi_soat_vendor as V
+	hoi = []
+	with ExitStack() as st:
+		st.enter_context(patch.object(V, "_chan", lambda *a: None))
+		st.enter_context(patch.object(V, "_cong_ty_xem", lambda: ["CT"]))
+		st.enter_context(patch.object(V, "du_lieu_bill", lambda tu, den, ct, hom: hoi.append((tu, den)) or _bill_gia(501)))
+		st.enter_context(patch.object(V.frappe.utils, "nowdate", lambda: HOM, create=True))
+		st.enter_context(patch.object(V.frappe.utils, "add_days", lambda d, n: __import__("datetime").date.fromordinal(
+			__import__("datetime").date.fromisoformat(str(d)[:10]).toordinal() + n).isoformat(), create=True))
+		st.enter_context(patch.object(V.frappe.utils, "cint", lambda x: int(x or 0), create=True))
+		st.enter_context(patch.object(diem_ban, "ten_diem", lambda: {}))
+		return V.bill_doi_tac(**k), hoi
+
+
+@ca("Codex #550: hơn một trang bill vẫn mở được bill cuối (trang sau, ô tìm), có lọc khoảng ngày gửi xuống máy chủ")
+def _():
+	r, hoi = _goi_bill()
+	la("trang đầu 200 bill, còn 301", (len(r["hang"]), r["con"]), (200, 301))
+	r, hoi = _goi_bill(trang=2)
+	la("trang ba có bill 501 (mới trước, nên là HDB-0001)", (len(r["hang"]), r["hang"][-1]["name"], r["con"]), (101, "HDB-0001", 0))
+	r, hoi = _goi_bill(tim="hdb-0001")
+	la("ô tìm theo mã bill", [x["name"] for x in r["hang"]], ["HDB-0001"])
+	r, hoi = _goi_bill(tim="M0002")
+	la("ô tìm theo mã chuẩn chi", [x["name"] for x in r["hang"]], ["HDB-0002"])
+	r, hoi = _goi_bill(ky="tuy_chon", tu="2026-11-01", den="2026-11-05")
+	la("khoảng ngày tuỳ chọn tới máy chủ", hoi, [("2026-11-01", "2026-11-05")])
+	r, hoi = _goi_bill(ky="thang_truoc")
+	la("chip Tháng trước", hoi, [("2026-10-01", "2026-10-31")])
+	r, hoi = _goi_bill()
+	la("Mọi ngày: 14 ngày tới hôm qua", hoi, [("2026-10-27", "2026-11-09")])
+	r, hoi = _goi_bill(ky="tuy_chon", tu="2026-01-01", den="2026-11-09")
+	la("khoảng quá 92 ngày thì cắt, báo lại khoảng thật", (hoi, r["cat"]), ([("2026-08-10", "2026-11-09")], 1))
