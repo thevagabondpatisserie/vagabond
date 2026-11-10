@@ -45,7 +45,7 @@ function theGioi(ton, tuLam) {
     C1: { name: 'BOM-C1', qty: 1, dong: [{ item_code: 'NVL', item_name: 'Bột', stock_uom: 'Gram', so: 50 }] },
     AO: { name: 'BOM-AO', qty: 1, dong: [] }
   };
-  var nhat = { lenh: [], phieu: [], hoi: [] }, dem = 0, lenh = {};
+  var nhat = { lenh: [], phieu: [], hoi: [], giaoTho: [] }, dem = 0, lenh = {};
   var the = {
     console: console, Math: Math, JSON: JSON, Promise: Promise, Object: Object, String: String,
     r3: function (n) { return Math.round(n * 1000) / 1000; },
@@ -67,11 +67,16 @@ function theGioi(ton, tuLam) {
       if (m === 'erpnext.manufacturing.doctype.work_order.work_order.make_stock_entry') {
         return { work_order: a.work_order_id, qty: a.qty, items: [{ is_finished_item: 1 }] };
       }
-      if (m === 'frappe.client.insert') return a.doc;
-      if (m === 'frappe.client.submit') {
-        var w2 = lenh[a.doc.work_order];
-        nhat.phieu.push(w2.code + ' x' + a.doc.qty);
-        ton[w2.code] = (ton[w2.code] || 0) + a.doc.qty;
+      if (m === 'vagabond.kho_san_xuat.hoan_tat_phieu') {
+        /* Codex #551: lenh con ghi so qua cung cua voi mon chinh (gio may chu). */
+        var w2 = lenh[a.phieu.work_order];
+        if (a.q !== a.can || a.q !== a.phieu.qty) throw new Error('so lam lech: ' + JSON.stringify([a.q, a.can, a.phieu.qty]));
+        nhat.phieu.push(w2.code + ' x' + a.q);
+        ton[w2.code] = (ton[w2.code] || 0) + a.q;
+        return { name: 'SE-' + nhat.phieu.length };
+      }
+      if (m === 'frappe.client.insert' || m === 'frappe.client.submit') {
+        nhat.giaoTho.push(m);
         return a.doc;
       }
       throw new Error('api la: ' + m);
@@ -116,6 +121,7 @@ async function ca(ten, fn) {
     bang('lenh tao theo thu tu', t.nhat.lenh, ['C2 x2', 'C1 x2']);
     bang('phieu ghi so: C1 truoc C2', t.nhat.phieu, ['C1 x2', 'C2 x2']);
     bang('may chu duoc hoi dung cac ma cua lenh', t.nhat.hoi[0], ['C2', 'NVL', 'AO']);
+    bang('lenh con khong tu dat gio dien thoai, khong ghi so rieng', t.nhat.giaoTho, []);
   });
 
   await ca('2. ruot C1 lam san hom truoc con 1: may chi lam phan thieu (1), dung ton cho phan con lai', async function () {
