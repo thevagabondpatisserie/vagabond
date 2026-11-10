@@ -1169,7 +1169,8 @@ Mỗi bill chọn thẻ hay sàn được máy dò trong báo cáo đối tác c
 5. Sửa bill xong, mở báo cáo đối tác ngày đó, bấm Đối chiếu lại.
 
 **Lưu ý**
-- Chờ báo cáo: báo cáo ngày đó (hoặc hôm sau, thẻ quẹt đêm) chưa về, máy chưa kết luận.
+- Bill sàn ghi khuyến mại hay thực nhận vẫn là Khớp (từ v648): máy so cả tổng trước giảm, tiền sau giảm và thực nhận.
+- Chờ báo cáo: báo cáo ngày đó (hoặc hôm sau, thẻ quẹt đêm) chưa về, hoặc báo cáo còn dòng lỗi; máy chưa kết luận.
 - Nhóm Zalo muốn nhận thì tích tin Bill thẻ, sàn không khớp báo cáo đối tác.
 
 ## Khách trả công nợ hoặc phiếu đề nghị thanh toán bằng thẻ OnePay
