@@ -86,3 +86,85 @@ def _():
 		uv = V._ung_vien_hd("grab", "2026-11-09", "2026-11-09", "CT")
 	dung("câu hỏi có s.total", all("s.total" in q for q in hoi))
 	la("ứng viên mang tien_goc", [(u["name"], u["tien"], u.get("tien_goc")) for u in uv][:1], [("HDB-26-11-01815", 339500, 385000)])
+
+
+# ------------------------------------------------------------ Codex PR #551 (231aeef5bd)
+
+class KhoSan:
+	"""Kho trong bộ nhớ cho đúng chuỗi Codex #551: chiều xuôi THẬT (khop_hoa_don)
+	nối dòng ShopeeFood, rồi chiều ngược THẬT (du_lieu_bill). Truy vấn giả CHỈ trả
+	các trường được hỏi (fields), như frappe.get_all: câu truy vấn quên trường nào
+	thì dòng thiếu trường đó, không được kho giả che đi."""
+
+	def __init__(self, dong_bao_cao, bill):
+		self.bill = bill
+		uv = [dict(name=n, ngay="2026-11-09", tien=t, tien_goc=g, ma=[m], tien_to="") for n, t, g, m in bill]
+		kq = K.khop_hoa_don("shopee", dong_bao_cao, uv)
+		self.dong = [dict(d, nguon="DSN-SPF-0911", sales_invoice=kq[i]["hoa_don"] or None, trang_thai_khop=kq[i]["trang_thai"],
+			vendor="ShopeeFood", diem_ban="") for i, d in enumerate(dong_bao_cao)]
+
+	def get_all(self, dt, filters=None, fields=None, **k):
+		f = filters or {}
+		if dt == "Vagabond Doi Soat Dong":
+			if "sales_invoice" in f:
+				ra = [d for d in self.dong if d["sales_invoice"] in f["sales_invoice"][1] and d["trang_thai_khop"] in f["trang_thai_khop"][1]]
+			elif f.get("trang_thai_khop") == ["in", ["Nhiều chứng từ"]]:
+				ra = [d for d in self.dong if d["trang_thai_khop"] == "Nhiều chứng từ" and d["nguon"] in f["nguon"][1]]
+			else:
+				ra = []
+		elif dt == "Vagabond Doi Soat Nguon":
+			ra = [dict(name="DSN-SPF-0911", mau="shopeefood", tu_ngay="2026-11-09", den_ngay="2026-11-09",
+				tai_khoan="SPF", duong_vao="Từ thư", company="CT")] if "shopeefood" in f["mau"][1] else []
+		elif dt == "Vagabond Doi Soat Trung":
+			ra = []
+		else:
+			raise AssertionError(dt)
+		return [NS(**{t: d[t] for t in fields if t in d}) for d in ra]
+
+	def chay(self, ham):
+		import datetime
+
+		from vagabond import diem_ban
+		from vagabond import doi_soat_vendor as V
+		cong = lambda d, n: str(datetime.date.fromisoformat(str(d)[:10]) + datetime.timedelta(days=n))
+		uv = lambda kieu, tu, den, ct: [dict(name=n, ngay="2026-11-09", tien=t, tien_goc=g, ma=[m], quay="Q1")
+			for n, t, g, m in self.bill] if kieu == "shopee" else []
+		with patch.object(V, "_ung_vien_hd", uv), \
+				patch.object(V, "_kieu_nguon", lambda ten: "shopee"), \
+				patch.object(V, "diem_doi_tac", lambda: {}), \
+				patch.object(V.frappe, "get_all", self.get_all, create=True), \
+				patch.object(V.frappe.utils, "add_days", cong, create=True), \
+				patch.object(diem_ban, "ma_theo_quay", lambda q: "TCV"):
+			return ham()
+
+
+@ca("Codex #551: hai bill ShopeeFood chỉ khớp dòng báo cáo theo THỰC NHẬN: chiều xuôi Nhiều chứng từ, chiều ngược hai bill Chờ kế toán chọn (trước sửa: Không có trên báo cáo)")
+def _():
+	from vagabond import doi_soat_vendor as V
+	# Đúng số Codex dùng: bill 139.161 (tổng 250.000), báo cáo 163.200 + 76.800, thực nhận 139.161.
+	dong = [dict(SPF[0], ma_tham_chieu="", ngay="2026-11-09")]
+	k = KhoSan(dong, [("HDB-S1", 139161, 250000, ""), ("HDB-S2", 139161, 250000, ""), ("HDB-S3", 99000, 99000, "")])
+	la("chiều xuôi thật: dòng có nhiều chứng từ", [d["trang_thai_khop"] for d in k.dong], ["Nhiều chứng từ"])
+	kq = {x["name"]: x["trang_thai"] for x in k.chay(lambda: V.du_lieu_bill("2026-11-09", "2026-11-09", ["CT"], "2026-11-15"))}
+	la("hai bill chờ chọn, bill khác tiền không có", kq, {"HDB-S1": "Chờ kế toán chọn", "HDB-S2": "Chờ kế toán chọn",
+		"HDB-S3": "Không có trên báo cáo"})
+
+
+@ca("Codex #551: một nguồn cho ba con số tiền của dòng đối tác; thiếu trường là lỗi, không âm thầm thành 0")
+def _():
+	import re
+
+	from vagabond import doi_soat_vendor as V
+	la("đủ ba trường", V._tien_dong(dict(tien_hang=163200, giam_gia=76800, thuc_nhan=139161)),
+		dict(tien_hang=163200, giam_gia=76800, thuc_nhan=139161))
+	la("bản ghi dạng thuộc tính", V._tien_dong(NS(tien_hang=None, giam_gia=0, thuc_nhan=5)), dict(tien_hang=0, giam_gia=0, thuc_nhan=5))
+	try:
+		V._tien_dong(NS(tien_hang=1, giam_gia=0))
+		loi = None
+	except AttributeError as e:
+		loi = e
+	dung("thiếu thực nhận thì báo lỗi", loi is not None)
+	import inspect
+	src = inspect.getsource(V)
+	# Chốt một nguồn: không chỗ nào còn tự đọc tiền hàng của một dòng đối tác (r., d.) ngoài _tien_dong.
+	la("không còn chỗ nào tự dựng tiền của dòng đối tác", re.findall(r"tien_hang=int\((?:r|d)\.", src), [])
