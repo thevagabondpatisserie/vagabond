@@ -2149,12 +2149,15 @@ async function mfgRunFresh(list, depth) {
     var batch = await mfgMakeBatch(f.code, it, f.qty, wo);
     var se = await api('erpnext.manufacturing.doctype.work_order.work_order.make_stock_entry',
       { work_order_id: wo, purpose: 'Manufacture', qty: f.qty });
-    se.set_posting_time = 1; se.posting_date = today(); se.posting_time = nowStamp().slice(11);
     (se.items || []).forEach(function (r) {
       if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
     });
-    var ins = await api('frappe.client.insert', { doc: se });
-    await api('frappe.client.submit', { doc: ins });
+    /* v648 (Codex #551, ca tich hop): lenh con ghi so QUA CUNG CUA voi mon
+       chinh (hoan_tat_phieu: gio may chu, insert va submit mot yeu cau).
+       Truoc day lenh con lay gio dien thoai: dien thoai nhanh vai giay la
+       phieu mon chinh (gio may chu) dung TRUOC phieu nhap banh khuon, ERPNext
+       bao thieu ton. Tu v648 cap 1, cap 2 deu di duong nay nen phai chot. */
+    await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: f.qty, can: f.qty });
   }
 }
 
