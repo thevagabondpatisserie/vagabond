@@ -262,6 +262,48 @@ async function nutChan(m, id) { var el = m.tai.getElementById(id); if (!el) thro
     dung('báo chặn popup', c.tin.some(function (t) { return t.indexOf('chặn cửa sổ in') >= 0; }));
   });
 
+  /* Codex PR #550 (SHA c0c114ef5): Tự nhập 200 x 40 mm vẫn cho tạo và in,
+     ô mã QR ra cạnh âm (-95.94), miếng in không có mã quét được. */
+  await ca('Codex #550: khổ tự nhập quá dẹt (200 x 40) bị chặn, không gọi máy chủ, không mở cửa sổ in; mọi khổ cho qua đều có mã QR từ 20 mm', async function () {
+    var m = await moMan();
+    await bam(m, '[data-gqdiem="NVHTN"]');
+    await bam(m, '[data-gqkt="tu"]');
+    await go(m, '#gqW', '200');
+    await go(m, '#gqH', '40');
+    dung('câu báo khổ quá dẹt và chiều cao cần', /quá dẹt.*cao ít nhất \d+ mm/.test(chu(m.tai.getElementById('gqXep'))));
+    await nutChan(m, 'gqTao');
+    bang('không gọi máy chủ tạo mã', cuaGoi(m, 'vagabond.goi_mon_ban.to_qr').length, 0);
+    dung('báo trên màn', m.tin.some(function (t) { return t.indexOf('quá dẹt') >= 0; }));
+    var n = await moMan();
+    await bam(n, '[data-gqdiem="NVHTN"]');
+    await nutChan(n, 'gqTao');
+    await bam(n, '[data-gqkt="tu"]');
+    await go(n, '#gqW', '200');
+    await go(n, '#gqH', '40');
+    var soCua = n.cuaSo.length;
+    var nutIn = n.tai.getElementById('gqIn');
+    if (nutIn) nutIn.onclick();
+    bang('đã có mã rồi đổi sang khổ dẹt: không mở cửa sổ in', n.cuaSo.length, soCua);
+    var VW = 419.528, sai = [];
+    for (var w = 40; w <= 200; w += 5) for (var h = 40; h <= 287; h += 3) {
+      if (!n.g.gmbKtHopLe(w, h)) continue;
+      var s = n.g.gmbStandeeSvg({ link: 'https://x.vn/banh?ban=A1', nhan: 'BÀN A1' }, w, h, '9 Tran Cao Van');
+      var o = /<rect x="([-\d.]+)" y="([-\d.]+)" width="([-\d.]+)"[^>]*fill="#fff"/.exec(s);
+      var vb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(s), VH = Number(vb[2]);
+      var tl = Math.min(w / VW, h / VH), mm = Number(o[3]) * tl;
+      var nhan = /<text x="[^"]+" y="([-\d.]+)"/.exec(s);
+      if (!(mm >= 20) || Number(nhan[1]) > VH || s.indexOf('h--') >= 0) sai.push(w + 'x' + h + ':' + mm.toFixed(1));
+    }
+    bang('khổ cho qua mà mã QR dưới 20 mm hoặc nhãn tràn', sai.slice(0, 5), []);
+    dung('70 x 70 và A6 vẫn hợp lệ', n.g.gmbKtHopLe(70, 70) && n.g.gmbKtHopLe(105, 148) && n.g.gmbKtHopLe(40, 40));
+    /* Khổ dọc nhỏ (40 x 50): khuôn dọc thu theo chiều cao, mã chỉ còn 19,8 mm. */
+    var s4 = n.g.gmbStandeeSvg({ link: 'https://x.vn/banh?ban=A1', nhan: 'BÀN A1' }, 40, 50, '');
+    var r4 = /<rect x="[-\d.]+" y="[-\d.]+" width="([-\d.]+)"[^>]*fill="#fff"/.exec(s4);
+    dung('40 x 50 vẽ ra mã dưới 20 mm', Number(r4[1]) * Math.min(40 / VW, 50 / 595.276) < 20);
+    bang('40 x 50 bị chặn', n.g.gmbKtHopLe(40, 50), false);
+    dung('40 x 50 báo cần cao hơn', /cao ít nhất \d+ mm/.test(n.g.gmbLoiKt(40, 50)));
+  });
+
   await ca('không tải được khuôn in: báo lỗi, không hiện nút In; bỏ hết bàn thì không gọi máy chủ', async function () {
     var m = await moMan({ khuonHong: 1 });
     await bam(m, '[data-gqdiem="NVHTN"]');
