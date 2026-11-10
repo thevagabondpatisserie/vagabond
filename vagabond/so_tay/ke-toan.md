@@ -1152,6 +1152,26 @@ Mỗi báo cáo đối tác có số "báo chuyển". Máy tìm giao dịch ti�
 - Nội dung không ghi gì để nhận ra đợt (Xanh SM Ngon, hoặc khi ngân hàng cắt mất nội dung): máy chỉ báo Lệch tiền về khi có đúng một giao dịch của đối tác đó; nhiều giao dịch thì để kế toán chọn.
 - Tin Lệch tiền về chỉ gửi một lần cho mỗi đợt.
 
+## Bill chưa khớp đối tác
+Từ khoá: bill chưa khớp, mã chuẩn chi, Shinhan POS, Payoo, GrabFood, sai mã, không có trên báo cáo, lệch tiền
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán công nợ | Đối soát nhà cung cấp | Ô Bill chưa khớp đối tác |
+
+Mỗi bill chọn thẻ hay sàn được máy dò trong báo cáo đối tác của đúng ngày đó, theo mã chuẩn chi (hoặc mã đơn) và số tiền. 08:30 mỗi sáng máy gửi Zalo bill không khớp của từng đối tác, từng ngày.
+
+**Các bước**
+1. Mở Đối soát nhà cung cấp, bấm ô Bill chưa khớp đối tác (14 ngày tới hôm qua).
+2. Chọn chip trạng thái, điểm bán, đối tác; dưới chip có dòng giải thích.
+3. Bấm bill để mở, kiểm phương thức và mã chuẩn chi thu ngân đã nhập.
+4. Không có trên báo cáo: thường chọn nhầm phương thức hoặc nhập sai mã. Sai mã: sửa theo mã đối tác trong ghi chú. Lệch tiền: hỏi số đã quẹt.
+5. Sửa bill xong, mở báo cáo đối tác ngày đó, bấm Đối chiếu lại.
+
+**Lưu ý**
+- Chờ báo cáo: báo cáo ngày đó (hoặc hôm sau, thẻ quẹt đêm) chưa về, máy chưa kết luận.
+- Nhóm Zalo muốn nhận thì tích tin Bill thẻ, sàn không khớp báo cáo đối tác.
+
 ## Khách trả công nợ hoặc phiếu đề nghị thanh toán bằng thẻ OnePay
 Từ khoá: OnePay, trả thẻ, Visa, Mastercard, JCB, thẻ ATM, link trả thẻ, công nợ khách, phiếu đề nghị thanh toán, cổng thanh toán
 

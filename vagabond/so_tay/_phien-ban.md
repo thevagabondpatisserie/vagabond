@@ -15,6 +15,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Đặt banner ảnh trên trang đặt bánh
 - Chỉ khách nhận quà chào mừng và dùng mã thành viên
 - Đối chiếu tiền về của đối tác giao đồ ăn
+- Bill chưa khớp đối tác
 - In mã QR bàn theo khu
 - Nhận đơn khách gọi món tại bàn qua QR
 
