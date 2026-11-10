@@ -975,7 +975,8 @@ def _tien_ve(nguon):
 	bi_thay = bool(frappe.db.count(DT_DONG, {"nguon_cu": nguon.name, "thay_bang": ["is", "set"]}))
 	tt, ds, ghi = khop.khop_ngan_hang(nguon.mau, int(round(nguon.thuc_nhan)), str(tu), str(den), gd, da_dung,
 		ly_do_tay=khop.ly_do_khong_tu_nhan(nguon.mau, co_tien_mat, bi_thay),
-		ky=(str(nguon.tu_ngay or ""), str(nguon.den_ngay or "")) if getattr(nguon, "tu_ngay", None) and nguon.den_ngay else None)
+		ky=(str(nguon.tu_ngay or ""), str(nguon.den_ngay or "")) if getattr(nguon, "tu_ngay", None) and nguon.den_ngay else None,
+		ma_chuyen=_ma_chuyen(nguon), tai_khoan=getattr(nguon, "tai_khoan", "") or "")
 	# Codex #450: chỉ khi khớp đúng một giao dịch mới ghi vào giao_dich_ngan_hang
 	# (trường này là danh sách giao dịch đã dùng cho mọi nguồn khác). Gợi ý của
 	# "Lệch tiền về" nằm trong ghi chú.
@@ -984,6 +985,15 @@ def _tien_ve(nguon):
 	gan = next((g for g in gd if ds and g["name"] == ds[0]), None) if tt == "Lệch tiền về" else None
 	_ghi_them(nguon.name, tien_ve=ghi, lech_tien=dict(gd=gan["name"], nhan=gan["tien"], bao=int(round(nguon.thuc_nhan)))
 		if gan else None)
+
+
+def _ma_chuyen(nguon):
+	"""Mã đợt trả OnePay (PVS...) đọc từ tab Summary của thông báo tạm ứng, lưu
+	trong du_lieu.them.ma_chuyen lúc nhận tệp. Rỗng khi không có."""
+	try:
+		return str(((json.loads(getattr(nguon, "du_lieu", None) or "{}") or {}).get("them") or {}).get("ma_chuyen") or "")
+	except (ValueError, TypeError, AttributeError):
+		return ""
 
 
 def _ghi_them(name, **k):

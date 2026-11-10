@@ -259,28 +259,129 @@ MAU_TIEN_VE = {
 }
 
 
-# v647 (10/11/2026): nguồn ghi NGÀY CỦA KỲ trong nội dung chuyển khoản. ShopeeFood
-# "ShopeeFood thanh toan tu dong 08 11 2026" là tiền bán ngày 08/11, dù về ngân
-# hàng ngày 09/11. Nguồn khác (Grab, Payoo, OnePay, Xanh SM) chưa có mẫu ngày
-# chắc chắn trên sao kê thật nên chưa khai, giữ cách so cũ.
-MAU_NGAY_KY = {
-	"shopeefood": r"thanh toan tu dong\s+(\d{1,2})[ ./-]+(\d{1,2})[ ./-]+(\d{4})",
-}
+# v647 (10/11/2026): DẤU CỦA KỲ trong nội dung chuyển khoản. Nguyên lý chung cho
+# mọi nguồn: tiền về chỉ là ứng viên của báo cáo khi nội dung chuyển khoản không
+# mâu thuẫn với báo cáo; giao dịch mang dấu của kỳ khác (ngày khác, mã đợt trả
+# khác, cửa hàng khác) không bao giờ là ứng viên, kể cả trùng số tiền. Dấu rút
+# từ sao kê MB thật (06/10/2026) và đặc tả nguồn (docs/doi-soat-vendor/schema/
+# dac-ta-10-nguon.md):
+#   ShopeeFood "ShopeeFood thanh toan tu dong 08 11 2026"          ngày của kỳ
+#   Payoo      "Payoo TT TD ngay 02.10 04.10.2026.VAGABOND TONG"  kỳ từ, đến
+#   OnePay     "PVS1365757 OnePay tam ung VAGABOND QT 17h 28 07 26 den 17h 29 07 26"
+#              mã đợt trả PVS (thông báo tạm ứng in cùng mã) và khung giờ kỳ
+#   GrabFood   "Grab TT 118203316 Tran Cao Van"                   cửa hàng
+#   Xanh SM    chưa có mẫu, theo luật "không dấu" (chỉ lệch khi đúng một ứng viên).
+def _nam(y):
+	y = int(y)
+	return y + 2000 if y < 100 else y
+
+
+def _ngay_iso(y, m, d):
+	try:
+		return date(_nam(y), int(m), int(d)).isoformat()
+	except ValueError:
+		return None
+
+
+def _ky_shopee(nd):
+	r = re.search(r"thanh toan tu dong\s+(\d{1,2})[ ./-]+(\d{1,2})[ ./-]+(\d{4})", nd)
+	n = r and _ngay_iso(r.group(3), r.group(2), r.group(1))
+	return (n, n) if n else None
+
+
+def _ky_payoo(nd):
+	r = re.search(r"ngay\s*(\d{1,2})[./](\d{1,2})(?:[./]\d{2,4})?[\s./-]+(?:den\s*)?(\d{1,2})[./](\d{1,2})[./](\d{4})", nd)
+	if r:
+		den = _ngay_iso(r.group(5), r.group(4), r.group(3))
+		if not den:
+			return None
+		y = int(r.group(5)) - (1 if int(r.group(2)) > int(r.group(4)) else 0)
+		tu = _ngay_iso(y, r.group(2), r.group(1))
+		return (tu, den) if tu and tu <= den else None
+	r = re.search(r"ngay\s*(\d{1,2})[./](\d{1,2})[./](\d{4})", nd)
+	n = r and _ngay_iso(r.group(3), r.group(2), r.group(1))
+	return (n, n) if n else None
+
+
+# Một kỳ OnePay dài nhất (cuối tuần, nghỉ lễ) khi nội dung bị cắt mất phần "den".
+ONEPAY_KY_TOI_DA = 4
+
+
+def _ky_onepay(nd):
+	g = r"(\d{1,2})h\d{0,2}\s+(\d{1,2})[ ./-](\d{1,2})[ ./-](\d{2,4})"
+	r = re.search(g + r"(?:\s*den\s*" + g + ")?", nd)
+	if not r:
+		return None
+	tu = _ngay_iso(r.group(4), r.group(3), r.group(2))
+	if not tu:
+		return None
+	den = _ngay_iso(r.group(8), r.group(7), r.group(6)) if r.group(5) else None
+	if not den:
+		den = date.fromordinal(date.fromisoformat(tu).toordinal() + ONEPAY_KY_TOI_DA).isoformat()
+	return (tu, den) if tu <= den else None
+
+
+KY_NOI_DUNG = {"shopeefood": _ky_shopee, "payoo": _ky_payoo, "onepay": _ky_onepay}
+
+# Cửa hàng GrabFood: tài khoản nguồn "GRABFOOD:<mã cửa hàng>" và chữ tên cửa
+# hàng có thể hiện trong nội dung chuyển khoản (đã bỏ dấu, chữ thường).
+GRAB_CUA_HANG = {"5-C4E1NPWGG2WZFA": ("tran cao van",),
+	"5-C4E1NPWGMGBGNX": ("delivery kitchen", "nguyen van troi"),
+	"5-C8BKA3MZMEW1CA": ("nha van hoa", "thanh nien")}
+
+
+def _bo_dau(s):
+	import unicodedata
+	s = unicodedata.normalize("NFD", str(s or "").lower().replace("đ", "d"))
+	return re.sub(r"\s+", " ", "".join(c for c in s if unicodedata.category(c) != "Mn"))
+
+
+def khoang_ky_noi_dung(mau, mo_ta):
+	"""(từ, đến) của kỳ ghi trong nội dung chuyển khoản, hoặc None. THUẦN."""
+	f = KY_NOI_DUNG.get(nhom_tien_ve(mau))
+	return f(_bo_dau(mo_ta)) if f else None
 
 
 def ngay_ky_noi_dung(mau, mo_ta):
-	"""Ngày của kỳ ghi trong nội dung chuyển khoản ("YYYY-MM-DD"), hoặc None khi
-	nguồn không ghi ngày hay nội dung không theo mẫu. THUẦN."""
-	m = MAU_NGAY_KY.get(nhom_tien_ve(mau))
-	if not m:
+	"""Ngày đầu kỳ ghi trong nội dung chuyển khoản ("YYYY-MM-DD") hoặc None. THUẦN."""
+	k = khoang_ky_noi_dung(mau, mo_ta)
+	return k[0] if k else None
+
+
+def ma_chuyen_noi_dung(mo_ta):
+	"""Mã đợt trả OnePay (PVS + số) trong nội dung, hoặc "". THUẦN."""
+	r = re.search(r"pvs\d{5,10}", _bo_dau(mo_ta))
+	return r.group(0).upper() if r else ""
+
+
+def cua_hang_noi_dung(mo_ta):
+	"""Mã cửa hàng GrabFood mà nội dung chuyển khoản gọi tên, hoặc "". THUẦN."""
+	nd = _bo_dau(mo_ta)
+	thay = [ma for ma, chu in GRAB_CUA_HANG.items() if any(c in nd for c in chu)]
+	return thay[0] if len(thay) == 1 else ""
+
+
+def thuoc_ky(mau, mo_ta, ky=None, ma_chuyen="", tai_khoan=""):
+	"""Giao dịch có thuộc báo cáo này không, theo dấu trong nội dung. THUẦN.
+
+	True: dấu khớp (đúng mã đợt trả, hoặc khoảng ngày của nội dung và kỳ báo cáo
+	lồng nhau). False: dấu của kỳ khác, không bao giờ là ứng viên. None: nội dung
+	không có dấu đủ để biết (theo luật cũ: chỉ lệch khi đúng một ứng viên)."""
+	nhom = nhom_tien_ve(mau)
+	if nhom == "onepay" and ma_chuyen:
+		ma = ma_chuyen_noi_dung(mo_ta)
+		if ma:
+			return ma == str(ma_chuyen).upper()
+	if nhom == "grabfood":
+		ch = cua_hang_noi_dung(mo_ta)
+		cua_ta = str(tai_khoan or "").split(":", 1)[-1]
+		if ch and cua_ta in GRAB_CUA_HANG and ch != cua_ta:
+			return False
+	k = khoang_ky_noi_dung(mau, mo_ta)
+	if not k or not (ky and ky[0] and ky[1]):
 		return None
-	r = re.search(m, str(mo_ta or "").lower())
-	if not r:
-		return None
-	try:
-		return date(int(r.group(3)), int(r.group(2)), int(r.group(1))).isoformat()
-	except ValueError:
-		return None
+	a, b = str(ky[0])[:10], str(ky[1])[:10]
+	return (k[0] <= a and b <= k[1]) or (a <= k[0] and k[1] <= b)
 
 
 def nhom_tien_ve(mau):
@@ -405,16 +506,18 @@ def tong_duy_nhat(dong, trung, ten):
 	return float(sum(co.values()) + sum(them.values()))
 
 
-def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_tay="", ky=None):
+def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_tay="", ky=None,
+		ma_chuyen="", tai_khoan=""):
 	"""Tìm giao dịch tiền vào đúng số tiền vendor phải trả.
 
 	giao_dich: [{name, ngay, tien, mo_ta}] tiền VÀO trong khoảng ngày máy chủ
 	đã lọc. ky: (tu_ngay, den_ngay) của báo cáo. Chỉ đọc; không gạch, không giữ
 	giao dịch (đối chiếu chứ không ghi sổ). Trả (trạng thái, [tên giao dịch], ghi chú).
 
-	v647 (10/11/2026, ShopeeFood báo lệch sai): giao dịch ghi ngày kỳ trong nội
-	dung (ngay_ky_noi_dung) chỉ dùng cho đúng kỳ đó; giao dịch của kỳ khác không
-	là ứng viên, kể cả trùng số tiền. Chưa có tiền đúng kỳ là CHỜ, không phải lệch.
+	v647 (10/11/2026, ShopeeFood báo lệch sai): giao dịch mang dấu của kỳ khác
+	(thuoc_ky: ngày kỳ, mã đợt trả OnePay ma_chuyen, cửa hàng Grab theo
+	tai_khoan) không là ứng viên, kể cả trùng số tiền. Chưa có tiền đúng kỳ là
+	CHỜ, không phải lệch.
 	"Lệch tiền về" chỉ khi có đúng một ứng viên; nhiều ứng viên thì kế toán chọn.
 	"""
 	if can_ve <= 0:
@@ -424,13 +527,10 @@ def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_
 		and (not mau_nd or re.search(mau_nd, (g["mo_ta"] or "").lower()))]
 	dung_ky, khong_ngay = [], []
 	for g in cung:
-		n = ngay_ky_noi_dung(mau, g["mo_ta"])
-		if n is None:
-			khong_ngay.append(g)
-		elif ky and ky[0] and ky[1] and str(ky[0]) <= n <= str(ky[1]):
+		t = thuoc_ky(mau, g["mo_ta"], ky, ma_chuyen, tai_khoan)
+		if t is True:
 			dung_ky.append(g)
-		elif not (ky and ky[0] and ky[1]):
-			# Không biết kỳ của báo cáo thì không loại được theo ngày.
+		elif t is None:
 			khong_ngay.append(g)
 	cung = dung_ky + khong_ngay
 	dung = [g for g in cung if g["tien"] == can_ve]
@@ -454,7 +554,7 @@ def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_
 		return "Cần chọn tiền về", [], "Có %s giao dịch của %s khác số %s đồng (%s); máy không đoán khoản nào của đợt này." % (
 			len(uv), "đúng kỳ" if dung_ky else "nguồn này", _vn(can_ve), ", ".join(g["name"] for g in uv[:10]))
 	return "Chưa thấy tiền về", [], "Chưa thấy giao dịch %s đồng%s từ %s đến %s." % (
-		_vn(can_ve), (" ghi ngày %s" % _ky_chu(ky)) if ky and MAU_NGAY_KY.get(nhom_tien_ve(mau)) else "", ngay_tu, ngay_den)
+		_vn(can_ve), (" ghi ngày %s" % _ky_chu(ky)) if ky and KY_NOI_DUNG.get(nhom_tien_ve(mau)) else "", ngay_tu, ngay_den)
 
 
 def _ky_chu(ky):
