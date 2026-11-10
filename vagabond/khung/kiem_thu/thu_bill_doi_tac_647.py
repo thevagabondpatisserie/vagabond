@@ -102,6 +102,8 @@ class Kho:
 			ct = filters.get("company")
 			ct = ct[1] if isinstance(ct, list) else ([ct] if ct else None)
 			return [NS(**n) for n in self.nguon if n["mau"] in maus and (ct is None or n["company"] in ct)]
+		if dt == "Vagabond Doi Soat Trung":
+			return []
 		raise AssertionError(dt)
 
 	def chay(self, ham):
@@ -297,3 +299,68 @@ def _():
 	kq = {x["name"]: x["trang_thai"] for x in KhoGrab(["SALES", "TCV"]).chay(
 		lambda: V.du_lieu_bill("2026-11-08", "2026-11-09", ["CT"], HOM))}
 	la("báo cáo TCV về mà không có giao dịch: Không có", kq["HDG-TCV"], "Không có trên báo cáo")
+
+
+# ------------------------------------------------------------ Codex PR #550 (4704bb902d): nguồn toàn dòng trùng
+
+class KhoShopee(Kho):
+	"""Báo cáo ShopeeFood theo cửa hàng. Nguồn trùng (tệp gửi lại, mọi giao dịch
+	đã nhận ở nguồn trước) không có dòng riêng, chỉ có quan hệ ở bảng Trùng như
+	_ghi_nguon ghi thật (_ghi_trung)."""
+
+	def __init__(self, nguon_shopee):
+		# nguon_shopee: [(tên, điểm của dòng hoặc None nếu toàn trùng nguồn trước[, từ, đến])]
+		nguon_shopee = [tuple(x) + (("2026-11-09", "2026-11-09") if len(x) == 2 else ()) for x in nguon_shopee]
+		super().__init__(DONG_SHINHAN, BILL_SHINHAN, [_nguon_sh("2026-11-08"), _nguon_sh("2026-11-09")] + [
+			dict(name=t, mau="shopeefood", tu_ngay=a, den_ngay=b, tai_khoan="",
+				duong_vao="Từ thư") for t, d, a, b in nguon_shopee])
+		self.trung = []
+		truoc = None
+		for t, d, a, b in nguon_shopee:
+			if d:
+				truoc = "SPF-%s" % t
+				self.dong.append(dict(nguon=t, sales_invoice=None, trang_thai_khop="Chưa nối", tien_hang=80000, giam_gia=0,
+					ma_tham_chieu="SPF-X", vendor="ShopeeFood", ngay="2026-11-09", diem_ban=d, khoa=truoc))
+			else:
+				self.trung.append(dict(nguon=t, khoa=truoc))
+
+	def ung_vien(self, kieu, tu, den, ct):
+		if kieu == "shopee":
+			return [dict(name="HDS-TCV", ngay="2026-11-09", tien=120000, ma=["SPF-123"], quay="Q1")] if ct == "CT" else []
+		return super().ung_vien(kieu, tu, den, ct)
+
+	def get_all(self, dt, filters=None, fields=None, **k):
+		f = filters or {}
+		if dt == "Vagabond Doi Soat Trung":
+			return [NS(**x) for x in self.trung if x["nguon"] in f["nguon"][1]]
+		if dt == "Vagabond Doi Soat Dong" and "diem_ban" in f:
+			ra = self.dong
+			if "nguon" in f:
+				ra = [d for d in ra if d["nguon"] in f["nguon"][1]]
+			if "khoa" in f:
+				ra = [d for d in ra if d.get("khoa") in f["khoa"][1]]
+			ra = [d for d in ra if d.get("diem_ban") and d["trang_thai_khop"] != "Đã thay"]
+			return [NS(**{c: d.get(c) for c in ("nguon", "diem_ban", "khoa")}) for d in ra]
+		return super().get_all(dt, filters, fields, **k)
+
+
+@ca("Codex #550: tệp ShopeeFood gửi lại toàn giao dịch đã nhận không thành báo cáo phủ mọi cửa hàng")
+def _():
+	from vagabond import doi_soat_vendor as V
+	chay = lambda kho: {x["name"]: x["trang_thai"] for x in kho.chay(
+		lambda: V.du_lieu_bill("2026-11-08", "2026-11-09", ["CT"], HOM))}
+	# Đúng chuỗi Codex mô tả: nguồn SALES, rồi một tệp trùng của chính SALES.
+	la("chỉ nguồn SALES: bill TCV chờ", chay(KhoShopee([("DSN-SP-1", "SALES")]))["HDS-TCV"], "Chờ báo cáo")
+	la("thêm tệp trùng của SALES: vẫn chờ (phạm vi lấy từ giao dịch gốc)",
+		chay(KhoShopee([("DSN-SP-1", "SALES"), ("DSN-SP-2", None)]))["HDS-TCV"], "Chờ báo cáo")
+	la("báo cáo TCV về mà không có giao dịch của bill: Không có",
+		chay(KhoShopee([("DSN-SP-1", "SALES"), ("DSN-SP-3", "TCV")]))["HDS-TCV"], "Không có trên báo cáo")
+	la("tệp trùng của TCV cũng phủ TCV", chay(KhoShopee([("DSN-SP-3", "TCV"), ("DSN-SP-4", None)]))["HDS-TCV"],
+		"Không có trên báo cáo")
+	# Lớp 1 riêng: tệp tuần gửi lại (08 tới 09/11) toàn giao dịch đã nhận ở tệp ngày 08/11 của TCV. Chỉ tệp tuần
+	# phủ 09/11; phạm vi khôi phục từ giao dịch gốc là TCV nên bill TCV ngày 09/11 kết luận được.
+	la("tệp gửi lại phủ đúng cửa hàng của giao dịch gốc",
+		chay(KhoShopee([("DSN-SP-7", "TCV", "2026-11-08", "2026-11-08"), ("DSN-SP-8", None, "2026-11-08", "2026-11-09")]))["HDS-TCV"],
+		"Không có trên báo cáo")
+	# Lớp 2 riêng: nguồn không dòng, không quan hệ trùng (không khôi phục được phạm vi) thì không phủ cửa hàng nào.
+	la("phạm vi không xác định: không phủ TCV", chay(KhoShopee([("DSN-SP-9", None)]))["HDS-TCV"], "Chờ báo cáo")
