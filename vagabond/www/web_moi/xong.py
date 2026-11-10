@@ -24,7 +24,11 @@ def get_context(context):
     nd = noi_dung_web.cong_khai()
     d['nhan'] = (nd.get('nhan') or {})
     # v647: banner chỗ Đặt xong (Minh Vũ thay ở thẻ Banner của trình biên tập).
-    d['banner'] = noi_dung_web.banner_hien(nd, 'dat_xong', str(frappe.utils.nowdate())) if token else []
+    # Gửi cả khi không có token (Codex PR #550): biên nhận gỡ token khỏi đường
+    # dẫn ngay lần mở đầu, khách tải lại thì trang khôi phục biên nhận từ phiên
+    # và vẫn cần banner. Banner là nội dung công khai, không gắn với đơn nào;
+    # trang báo lỗi "chỉ mở được từ đường dẫn" không vẽ banner.
+    d['banner'] = noi_dung_web.banner_hien(nd, 'dat_xong', str(frappe.utils.nowdate()))
     lh = don_web.lien_he()
     d['lien_he'] = web_vue.nut_lien_he_bien_nhan(lh, d['nhan'])
     d['bang'] = web_vue.bang_bien_nhan()
