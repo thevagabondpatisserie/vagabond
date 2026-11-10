@@ -338,3 +338,103 @@ def _():
 		T.bao_lech_tien("DSN-1", "Lệch tiền về")
 	la("một tin", gui, ["ds_lech:DSN-1"])
 	la("không lỗi", loi, [])
+
+
+# ------------------------------------------------------------ v647 mở rộng: Payoo, OnePay, GrabFood
+# Anh Việt 10/11/2026: áp cùng nguyên lý "chỉ so với tiền đúng kỳ" cho mọi nguồn.
+# Nội dung chuyển khoản lấy nguyên văn từ sao kê MB thật (chú thích MAU_TIEN_VE) và
+# đặc tả nguồn docs/doi-soat-vendor/schema/dac-ta-10-nguon.md.
+
+PAYOO = "Payoo TT TD ngay %s.VAGABOND TONG"
+ONEPAY = "PVS%s OnePay tam ung VAGABOND QT 17h %s den 17h %s"
+VIETQR = "PVS%s OnePay tam ung VAGABOND VIETQR 0h %s den 23h59 %s"
+
+
+@ca("v647 dấu kỳ trong nội dung: Payoo nhiều ngày, một ngày, qua năm; OnePay QT, VietQR, bị cắt; mã PVS; cửa hàng Grab")
+def _():
+	la("Payoo cuối tuần", K.khoang_ky_noi_dung("payoo_the", PAYOO % "02.10 04.10.2026"), ("2026-10-02", "2026-10-04"))
+	la("Payoo một ngày", K.khoang_ky_noi_dung("payoo_qr", "PAYOO TT TD NGAY 05.10.2026.VAGABOND TONG"),
+		("2026-10-05", "2026-10-05"))
+	la("Payoo qua năm", K.khoang_ky_noi_dung("payoo_the", PAYOO % "30.12 02.01.2027"), ("2026-12-30", "2027-01-02"))
+	la("Payoo ngày sai", K.khoang_ky_noi_dung("payoo_the", PAYOO % "31.02.2026"), None)
+	la("OnePay QT", K.khoang_ky_noi_dung("onepay_ngay", ONEPAY % ("1365757", "28 07 26", "29 07 26")),
+		("2026-07-28", "2026-07-29"))
+	la("OnePay VietQR cuối tuần", K.khoang_ky_noi_dung("onepay_ngay", VIETQR % ("1", "10 07 26", "12 07 26")),
+		("2026-07-10", "2026-07-12"))
+	la("OnePay bị cắt sau 'den'", K.khoang_ky_noi_dung("onepay_ngay", "PVS1365757 OnePay tam ung VAGABOND QT 17h 28 07 26 den 17"),
+		("2026-07-28", "2026-08-01"))
+	la("mã PVS", K.ma_chuyen_noi_dung("pvs1365757 onepay tam ung"), "PVS1365757")
+	la("không mã", K.ma_chuyen_noi_dung("OnePay tam ung"), "")
+	la("Grab TCV", K.cua_hang_noi_dung("Grab TT 118203316 Tran Cao Van"), "5-C4E1NPWGG2WZFA")
+	la("Grab NVT", K.cua_hang_noi_dung("GRAB TT 118203317 THE VAGABOND DELIVERY KITCHEN"), "5-C4E1NPWGMGBGNX")
+	la("Grab không tên", K.cua_hang_noi_dung("Grab TT 118203316"), "")
+	la("Xanh SM chưa có dấu", K.khoang_ky_noi_dung("greensm_ngon", "XANH SM 08 11 2026"), None)
+
+
+@ca("v647 Payoo: báo cáo 05/10 không nhận tiền kỳ 02-04/10 dù trùng số; tiền đúng kỳ thì khớp; đúng kỳ khác số thì Lệch")
+def _():
+	ky = ("2026-10-05", "2026-10-05")
+	cu = [_gd("BT-0204", 1847750, PAYOO % "02.10 04.10.2026", ngay="2026-10-05")]
+	la("kỳ khác trùng số: chờ", K.khop_ngan_hang("payoo_the", 1847750, "2026-10-04", "2026-10-11", cu, ky=ky)[:2],
+		("Chưa thấy tiền về", []))
+	moi = cu + [_gd("BT-05", 786800, PAYOO % "05.10.2026", ngay="2026-10-06")]
+	la("đúng kỳ", K.khop_ngan_hang("payoo_the", 786800, "2026-10-04", "2026-10-11", moi, ky=ky)[:2],
+		("Đã thấy tiền về", ["BT-05"]))
+	la("đúng kỳ khác số", K.khop_ngan_hang("payoo_the", 790000, "2026-10-04", "2026-10-11", moi, ky=ky)[:2],
+		("Lệch tiền về", ["BT-05"]))
+	la("báo cáo cuối tuần nhận tiền cuối tuần", K.khop_ngan_hang("payoo_qr", 1847750, "2026-10-04", "2026-10-11", moi,
+		ky=("2026-10-02", "2026-10-04"))[:2], ("Đã thấy tiền về", ["BT-0204"]))
+
+
+@ca("v647 OnePay: mã PVS của thông báo quyết định; PVS khác không bao giờ là ứng viên; không có mã thì theo khung kỳ lồng nhau")
+def _():
+	ky = ("2026-07-29", "2026-07-29")
+	gd = [_gd("BT-A", 288800, ONEPAY % ("1365757", "28 07 26", "29 07 26"), ngay="2026-07-30"),
+		_gd("BT-B", 288800, ONEPAY % ("1365799", "29 07 26", "30 07 26"), ngay="2026-07-31")]
+	la("hai đợt trùng số, có mã: chọn đúng đợt", K.khop_ngan_hang("onepay_ngay", 288800, "2026-07-29", "2026-08-05", gd,
+		ky=ky, ma_chuyen="PVS1365799")[:2], ("Đã thấy tiền về", ["BT-B"]))
+	la("mã khác hẳn: chờ, không lệch", K.khop_ngan_hang("onepay_ngay", 300000, "2026-07-29", "2026-08-05", gd,
+		ky=ky, ma_chuyen="PVS1400000")[:2], ("Chưa thấy tiền về", []))
+	la("không mã, báo cáo một ngày nằm ở ranh hai kỳ: không tự chọn", K.khop_ngan_hang("onepay_ngay", 288800,
+		"2026-07-29", "2026-08-05", gd, ky=ky)[0], "Cần chọn tiền về")
+	la("không mã, báo cáo 28-29/07: chỉ kỳ 28-29", K.khop_ngan_hang("onepay_ngay", 288800, "2026-07-27", "2026-08-05",
+		gd, ky=("2026-07-28", "2026-07-29"))[:2], ("Đã thấy tiền về", ["BT-A"]))
+	vq = [_gd("BT-Q", 729818, VIETQR % ("5257571", "10 07 26", "12 07 26"), ngay="2026-07-13")]
+	la("VietQR thứ hai không nhận tiền cuối tuần trước", K.khop_ngan_hang("onepay_ngay", 729818, "2026-07-12",
+		"2026-07-19", vq, ky=("2026-07-13", "2026-07-13"))[:2], ("Chưa thấy tiền về", []))
+
+
+@ca("v647 GrabFood: tiền ghi tên cửa hàng khác không là ứng viên; đúng cửa hàng hoặc không ghi tên thì theo luật một ứng viên")
+def _():
+	tk = "GRABFOOD:5-C4E1NPWGMGBGNX"
+	gd = [_gd("BT-TCV", 668915, "Grab TT 118203316 Tran Cao Van")]
+	la("tiền của TCV trùng số không vào NVT", K.khop_ngan_hang("grabfood", 668915, "2026-11-08", "2026-11-15", gd,
+		tai_khoan=tk)[:2], ("Chưa thấy tiền về", []))
+	la("không báo lệch bằng tiền cửa hàng khác", K.khop_ngan_hang("grabfood", 600000, "2026-11-08", "2026-11-15", gd,
+		tai_khoan=tk)[:2], ("Chưa thấy tiền về", []))
+	gd.append(_gd("BT-NVT", 650000, "GRAB TT 118203317 THE VAGABOND DELIVERY KITCHEN"))
+	la("đúng cửa hàng khác số: Lệch", K.khop_ngan_hang("grabfood", 600000, "2026-11-08", "2026-11-15", gd,
+		tai_khoan=tk)[:2], ("Lệch tiền về", ["BT-NVT"]))
+	la("TCV vẫn nhận tiền TCV", K.khop_ngan_hang("grabfood", 668915, "2026-11-08", "2026-11-15", gd,
+		tai_khoan="GRABFOOD:5-C4E1NPWGG2WZFA")[:2], ("Đã thấy tiền về", ["BT-TCV"]))
+	la("nội dung không tên cửa hàng: như cũ", K.khop_ngan_hang("grabfood", 500000, "2026-11-08", "2026-11-15",
+		[_gd("BT-X", 500000, "Grab TT 118203318")], tai_khoan=tk)[:2], ("Đã thấy tiền về", ["BT-X"]))
+
+
+@ca("v647 _tien_ve thật: OnePay lấy mã PVS từ dữ liệu nguồn, Grab lấy cửa hàng từ tài khoản nguồn")
+def _():
+	import json
+	from vagabond import doi_soat_vendor as V
+	op = _nguon("DSN-OP", "2026-07-29", 288800, "Lệch tiền về", mau="onepay_ngay", ngay_tien_ve="2026-07-30",
+		du_lieu=json.dumps({"them": {"ma_chuyen": "PVS1365799", "but_toan": "5321728"}}))
+	gd = [("BT-A", "2026-07-30", 288800, ONEPAY % ("1365757", "28 07 26", "29 07 26")),
+		("BT-B", "2026-07-31", 288800, ONEPAY % ("1365799", "29 07 26", "30 07 26"))]
+	k = Kho([op], gd)
+	k.chay(lambda: V._tien_ve(k._doc("DSN-OP")))
+	la("OnePay đúng đợt", (k.nguon["DSN-OP"]["trang_thai_tien"], k.nguon["DSN-OP"]["giao_dich_ngan_hang"]),
+		("Đã thấy tiền về", "BT-B"))
+	gr = _nguon("DSN-GR", "2026-11-08", 600000, "Lệch tiền về", mau="grabfood", tai_khoan="GRABFOOD:5-C4E1NPWGMGBGNX")
+	k = Kho([gr], [("BT-TCV", "2026-11-09", 668915, "Grab TT 118203316 Tran Cao Van")])
+	k.chay(lambda: V._tien_ve(k._doc("DSN-GR")))
+	la("Grab NVT không lệch theo tiền TCV", k.nguon["DSN-GR"]["trang_thai_tien"], "Chưa thấy tiền về")
+	la("du_lieu hỏng thì coi như không mã", V._ma_chuyen(NS(du_lieu="{hong")), "")
