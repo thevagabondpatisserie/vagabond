@@ -144,6 +144,11 @@ class Kho:
 			if n["trang_thai_tien"] in cho and n["den_ngay"] >= moc and n["nhom"] == filters["nhom"]
 			and n["trang_thai"] == filters["trang_thai"]]
 
+	def _khoa(self, *a, **k):
+		from contextlib import nullcontext
+		self.__dict__.setdefault("lay_khoa", []).append(1)
+		return nullcontext()
+
 	def chay(self, ham, *a):
 		from vagabond import doi_soat_thu as T
 		from vagabond import doi_soat_vendor as V
@@ -159,6 +164,9 @@ class Kho:
 			st.enter_context(patch.object(V.frappe.db, "get_value",
 				lambda dt, name, f, **k: self.nguon[name][f], create=True))
 			st.enter_context(patch.object(V, "_ghi_them", lambda name, **k: self.nguon[name].update(_ghi=k)))
+			# Khoá đối soát thật cần get_lock của MariaDB; kho trong bộ nhớ chạy một
+			# luồng nên khoá là rỗng, ghi lại số lần lấy. KhoXenKe thay bằng khoá thật.
+			st.enter_context(patch.object(V, "khoa_doi_chieu", self._khoa))
 			st.enter_context(patch.object(T, "bao_lech_tien", lambda name, cu: self.tin.append(
 				(name, cu, self.nguon[name]["trang_thai_tien"]))))
 			return ham(*a)
@@ -438,3 +446,109 @@ def _():
 	k.chay(lambda: V._tien_ve(k._doc("DSN-GR")))
 	la("Grab NVT không lệch theo tiền TCV", k.nguon["DSN-GR"]["trang_thai_tien"], "Chưa thấy tiền về")
 	la("du_lieu hỏng thì coi như không mã", V._ma_chuyen(NS(du_lieu="{hong")), "")
+
+
+# ------------------------------------------------------------ Codex PR #550 (4331d0a91a): khoá đối soát
+
+class KhoXenKe(Kho):
+	"""Hai lượt chạy song song thật (hai luồng): lượt dò lại mỗi giờ và lượt nhận
+	tệp (giữ khoá đối soát rồi gọi _tien_ve như _doi_chieu). Ngay khi lượt dò lại
+	đọc danh sách giao dịch đã dùng lần đầu, lượt nhận tệp được thả chạy; nếu không
+	có khoá chung, nó đọc cùng danh sách cũ và hai nguồn nhận cùng một giao dịch.
+	khoa_doi_chieu giả là một khoá thật (threading.Lock), giữ đúng nghĩa của
+	get_lock trên MariaDB; nó không chữa gì hộ code."""
+
+	def __init__(self, nguon, gd, nguon_nhan_tep):
+		import threading
+		super().__init__(nguon, gd)
+		self.khoa = threading.Lock()
+		self.nhan = nguon_nhan_tep
+		self.luong = None
+		self.lay_khoa = []
+
+	def get_all(self, dt, filters=None, fields=None, pluck=None, **k):
+		import threading
+		import time
+		ra = super().get_all(dt, filters, fields, pluck, **k)
+		if pluck == "giao_dich_ngan_hang" and self.luong is None and threading.current_thread() is threading.main_thread():
+			from vagabond import doi_soat_vendor as V
+
+			def nhan_tep():
+				with V.khoa_doi_chieu():
+					V._tien_ve(self._doc(self.nhan))
+			self.luong = threading.Thread(target=nhan_tep)
+			self.luong.start()
+			time.sleep(0.4)
+		return ra
+
+	def _khoa(self, *x, **y):
+		from contextlib import contextmanager
+
+		@contextmanager
+		def khoa():
+			with self.khoa:
+				self.lay_khoa.append(1)
+				yield
+		return khoa()
+
+	def chay(self, ham, *a):
+		def ca_hai():
+			kq = ham(*a)
+			if self.luong:
+				self.luong.join(5)
+			return kq
+		return super().chay(ca_hai)
+
+
+@ca("Codex #550: lượt dò tiền về mỗi giờ giữ khoá đối soát chung; chạy cùng lượt nhận tệp không gắn một giao dịch cho hai nguồn")
+def _():
+	from vagabond import doi_soat_vendor as V
+	# Đúng chuỗi Codex mô tả: hai nguồn cùng kỳ, cùng số; một giao dịch ACC-BTN-2026-10232.
+	a = _nguon("DSN-A", "2026-11-09", 1613010, "Chưa thấy tiền về")
+	b = _nguon("DSN-B", "2026-11-09", 1613010, "Chưa đối chiếu")
+	k = KhoXenKe([a, b], [GD_10_11], "DSN-B")
+	k.chay(V.do_lai_tien_ve)
+	dung("lượt nhận tệp đã thật sự chạy song song", k.luong is not None and not k.luong.is_alive())
+	gan = [x for x, n in k.nguon.items() if n["giao_dich_ngan_hang"] == "ACC-BTN-2026-10232"]
+	la("một giao dịch chỉ thuộc một nguồn", gan, ["DSN-A"])
+	la("nguồn còn lại không thành Đã thấy", k.nguon["DSN-B"]["trang_thai_tien"] != "Đã thấy tiền về", True)
+	dung("lượt dò lại có lấy khoá", len(k.lay_khoa) >= 2)
+	la("không lỗi", k.loi, [])
+
+
+@ca("Codex #550: mọi nơi gọi _tien_ve đều chạy trong khoá đối soát (một nguồn)")
+def _():
+	import ast
+	import inspect
+	from vagabond import doi_soat_vendor as V
+	cay = ast.parse(inspect.getsource(V))
+	ham = {f.name: f for f in cay.body if isinstance(f, ast.FunctionDef)}
+
+	def goi(f, ten):
+		return any(isinstance(n, ast.Call) and getattr(n.func, "id", None) == ten for n in ast.walk(f))
+
+	def co_khoa(f):
+		return any(isinstance(n, ast.With) and any(getattr(getattr(i.context_expr, "func", None), "id", None) == "khoa_doi_chieu"
+			for i in n.items) for n in ast.walk(f))
+	la("ai gọi _tien_ve", sorted(x for x, f in ham.items() if goi(f, "_tien_ve")), ["_doi_chieu", "do_lai_tien_ve"])
+	dung("do_lai_tien_ve giữ khoá", co_khoa(ham["do_lai_tien_ve"]))
+
+
+class KhoDoiGiua(Kho):
+	"""Lượt dò lại phải chờ khoá vì kế toán đang chọn tay tiền về cho nguồn B;
+	lúc nó lấy được khoá thì B đã ghi xong (lượt kia ghi rồi mới nhả khoá)."""
+
+	def _khoa(self, *a, **k):
+		self.nguon["DSN-B"].update(trang_thai_tien="Đã thấy tiền về", giao_dich_ngan_hang="BT-TAY")
+		return super()._khoa(*a, **k)
+
+
+@ca("Codex #550: có khoá rồi mới đọc nguồn; nguồn đã được xử lý xong trong lúc chờ khoá thì lượt dò lại không đè")
+def _():
+	from vagabond import doi_soat_vendor as V
+	k = KhoDoiGiua([_nguon("DSN-B", "2026-11-09", 1613010, "Cần chọn tiền về")],
+		[GD_10_11, ("BT-TAY", "2026-11-10", 1613010, ND % "09 11")])
+	k.chay(V.do_lai_tien_ve)
+	la("giữ lựa chọn của kế toán", (k.nguon["DSN-B"]["trang_thai_tien"], k.nguon["DSN-B"]["giao_dich_ngan_hang"]),
+		("Đã thấy tiền về", "BT-TAY"))
+	la("không tin", k.tin, [])
