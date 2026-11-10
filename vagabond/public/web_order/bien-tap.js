@@ -3,12 +3,14 @@
   'use strict';
   const tim = id => document.getElementById(id);
   /* v630: loại khối lấy từ ERP, không còn thêm hay sửa ở bảng này. */
-  const LOAI_ERP = ['uu_dai', 'tuyen_dung'];
+  /* v647: banner cũng chỉ sửa ở thẻ riêng (có ảnh điện thoại, ba vị trí đã chốt). */
+  const LOAI_ERP = ['uu_dai', 'tuyen_dung', 'banner'];
   const LOAI_ERP_CHU = {
     uu_dai: 'Khối Ưu đãi gõ tay này không còn ra trang khách. Ưu đãi trên web lấy thẳng từ ERP: tạo, sửa ở app, Bán hàng, Chương trình khuyến mãi, bật mục Website.',
+    banner: 'Banner sửa ở thẻ Banner của trình biên tập theo thẻ: ảnh máy tính, ảnh điện thoại, chỗ đặt, link và ngày hiện.',
     tuyen_dung: 'Khối Tuyển dụng gõ tay này không còn ra trang khách. Vị trí trên web lấy thẳng từ app Nhân sự, Tuyển dụng. Ảnh thẻ của từng vị trí đổi ở thẻ Tuyển dụng của trình biên tập theo thẻ, bấm nút bên dưới.',
   };
-  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo', hoi_dap: 'Câu hỏi thường gặp', uu_dai:'Ưu đãi', tuyen_dung:'Tuyển dụng', kenh_dat_hang:'Kênh đặt hàng', zalo_oa:'Zalo OA', nut_kenh:'Nút mở kênh đặt hàng'};
+  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo', hoi_dap: 'Câu hỏi thường gặp', uu_dai:'Ưu đãi', tuyen_dung:'Tuyển dụng', kenh_dat_hang:'Kênh đặt hàng', zalo_oa:'Zalo OA', nut_kenh:'Nút mở kênh đặt hàng', banner:'Banner'};
   let bang, nhap, chon = '', doi = false, ban = false, keo = '', mobile = false;
   let cacBuoc = [], buoc = -1, nhomChu = '', tuTim = '', locKhoi = '', timKhoi = '', locTrangThai = '';
   const khoaPhucHoi = 'vgb-web-nhap:' + document.body.dataset.nguoi;

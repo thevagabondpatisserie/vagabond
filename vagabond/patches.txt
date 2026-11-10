@@ -433,3 +433,4 @@ vagabond.patches.dong_bo_cau_truc #v645
 vagabond.patches.v645_tin_khach_zalo
 vagabond.patches.dong_bo_cau_truc #v646
 vagabond.patches.v646_tin_zalo_mau_loi
+vagabond.patches.dong_bo_cau_truc #v647

@@ -21,6 +21,8 @@
 
   const THE = [
     {k: 'uu_dai', ten: 'Ưu đãi', mo: 'Lấy từ ERP, chỉ xem ở đây', them: '+ Thêm ưu đãi', luu: 'Lưu ưu đãi', ten_muc: 'ưu đãi', dau: 'Danh sách ưu đãi'},
+    /* v647 (anh Việt 10/11/2026): banner ảnh Marketing tự thiết kế, ba chỗ đã chốt. */
+    {k: 'banner', ten: 'Banner', mo: 'Ảnh quảng cáo ở đầu trang, giỏ hàng, sau khi đặt xong', them: '+ Thêm banner', luu: 'Lưu banner', ten_muc: 'banner', dau: 'Danh sách banner'},
     /* v644 (anh Việt duyệt 07/11/2026): ảnh, mô tả, tầng hương vị từng bánh quản ở đây. */
     {k: 'banh', ten: 'Bánh', mo: 'Ảnh, mô tả, tầng hương vị từng bánh'},
     {k: 'tiec', ten: 'Tiệc', mo: 'Tạo tiệc, đặt giá vé, số vé, hạn đăng ký', them: '+ Thêm tiệc', luu: 'Lưu tiệc', ten_muc: 'tiệc', dau: 'Danh sách tiệc'},
@@ -32,7 +34,15 @@
     {k: 'chu', ten: 'Trang và chữ', mo: 'Tiêu đề từng trang, khẩu hiệu, chân trang, câu nhắc'},
     {k: 'lien_he', ten: 'Liên hệ', mo: 'Điện thoại, email, mạng xã hội, công ty'},
   ];
-  const LOAI_MUC = ['uu_dai', 'tiec', 'tuyen_dung', 'thiet_ke_rieng'];
+  const LOAI_MUC = ['uu_dai', 'tiec', 'tuyen_dung', 'thiet_ke_rieng', 'banner'];
+  /* v647: chỗ đặt banner. Mã trùng noi_dung_web.VI_TRI_BANNER, chữ là tên khách
+     thấy trên trang để Minh Vũ nhận ra ngay. */
+  const CHO_BANNER = [
+    {ma: 'dau_trang', ten: 'Đầu trang', mo: 'Dưới thanh tiêu đề, trước các tab bánh. Ai vào trang cũng thấy.'},
+    {ma: 'gio_hang', ten: 'Giỏ hàng', mo: 'Màn Thông tin đơn hàng, ngay trên phần tổng tiền.'},
+    {ma: 'dat_xong', ten: 'Đặt xong', mo: 'Hiện ngay sau khi khách gửi đơn thành công.'},
+  ];
+  const tenCho = ma => (CHO_BANNER.find(c => c.ma === ma) || {}).ten || '';
   const HINH_THUC = ['Toàn thời gian', 'Bán thời gian', 'Thời vụ'];
 
   let B = null;            // dữ liệu máy chủ (bang_moi): bản khách đang thấy
@@ -60,6 +70,11 @@
   function trangThai(k, hn) {
     const bd = k.bat_dau || '', kt = k.ket_thuc || '';
     if (k.loai === 'thiet_ke_rieng') return ['dang', 'Đang nhận đặt'];
+    if (k.loai === 'banner') {
+      if (kt && kt < hn) return ['het', 'Đã hết hạn'];
+      if (bd && bd > hn) return ['sap', 'Chưa tới ngày hiện'];
+      return ['dang', 'Đang hiện'];
+    }
     if (k.loai === 'tiec') {
       if (bd && bd < hn) return ['het', 'Đã diễn ra'];
       const han = k.han_ban || bd;
@@ -70,13 +85,23 @@
     if (k.loai === 'uu_dai' && bd && bd > hn) return ['sap', 'Sắp diễn ra'];
     return ['dang', k.loai === 'uu_dai' ? 'Đang diễn ra' : 'Đang tuyển'];
   }
-  function khachThay(k) { return window.vgbKhachThayMuc ? window.vgbKhachThayMuc(k, homNay()) : !!k.hien; }
+  function khachThay(k) {
+    if (k.loai === 'banner') return !!k.hien && !!k.anh && trangThai(k, homNay())[0] === 'dang';
+    return window.vgbKhachThayMuc ? window.vgbKhachThayMuc(k, homNay()) : !!k.hien;
+  }
   function chuCongTac(k) {
     if (!k.hien) return 'Khách không thấy';
+    if (k.loai === 'banner' && !k.anh) return 'Chưa có ảnh, khách không thấy';
+    if (k.loai === 'banner' && trangThai(k, homNay())[0] === 'sap') return 'Chưa tới ngày, khách chưa thấy';
     if (!khachThay(k)) return 'Đã hết hạn, khách không thấy';
     return trangThai(k, homNay())[0] === 'sap' ? 'Khách thấy nhãn Sắp diễn ra' : 'Khách đang thấy';
   }
   function moTa(k) {
+    if (k.loai === 'banner') {
+      return [tenCho(k.vi_tri) || 'Chưa chọn chỗ đặt', k.lien_ket ? 'bấm mở ' + k.lien_ket : 'không có link',
+        k.bat_dau || k.ket_thuc ? [ngayVN(k.bat_dau), ngayVN(k.ket_thuc)].filter(Boolean).join(' - ') : 'không giới hạn ngày',
+        k.anh_dt ? 'có ảnh điện thoại' : 'dùng chung ảnh máy tính'].join(' · ');
+    }
     if (k.loai === 'uu_dai') {
       return [k.ma_uu_dai ? 'Mã ' + k.ma_uu_dai : '', +k.don_toi_thieu > 0 ? 'Đơn từ ' + tien(k.don_toi_thieu) : '',
         k.gio_bat_dau ? gio(k.gio_bat_dau) + ' - ' + gio(k.gio_ket_thuc) : '',
@@ -273,23 +298,26 @@
     }
     return d.message.url;
   }
-  function oAnh(m, xem) {
-    const g = tao('div', 'bt-o'); g.append(tao('span', 'bt-nhan', 'Ảnh (không bắt buộc)'));
+  /* v647: thêm `truong`, `nhan`, `goiY` để banner có hai ô ảnh (máy tính, điện thoại). */
+  function oAnh(m, xem, truong, nhan, goiY) {
+    truong = truong || 'anh';
+    const g = tao('div', 'bt-o'); g.append(tao('span', 'bt-nhan', nhan || 'Ảnh (không bắt buộc)'));
+    if (truong !== 'anh') g.dataset.oAnh = truong;
     const hang = tao('div', 'bt-hang-anh');
-    const anh = tao('img', 'bt-anh-nho'); anh.alt = ''; if (m.anh) anh.src = m.anh; anh.hidden = !m.anh;
-    const tep = tao('input'); tep.type = 'file'; tep.accept = 'image/png,image/jpeg,image/webp';
-    const bo = tao('button', 'bt-nut nho', 'Bỏ ảnh'); bo.type = 'button'; bo.hidden = !m.anh;
-    bo.onclick = () => { m.anh = ''; anh.hidden = true; bo.hidden = true; xem(); };
+    const anh = tao('img', 'bt-anh-nho'); anh.alt = ''; if (m[truong]) anh.src = m[truong]; anh.hidden = !m[truong];
+    const tep = tao('input'); tep.type = 'file'; tep.accept = 'image/png,image/jpeg,image/webp'; tep.dataset.tepAnh = truong;
+    const bo = tao('button', 'bt-nut nho', 'Bỏ ảnh'); bo.type = 'button'; bo.hidden = !m[truong];
+    bo.onclick = () => { m[truong] = ''; anh.hidden = true; bo.hidden = true; xem(); };
     tep.onchange = async () => {
       const f = tep.files && tep.files[0]; if (!f) return;
       khoa(true); bao('Đang tải ảnh...');
       try {
-        m.anh = await taiAnhLen(f); anh.src = m.anh; anh.hidden = false; bo.hidden = false; xem();
+        m[truong] = await taiAnhLen(f); anh.src = m[truong]; anh.hidden = false; bo.hidden = false; xem();
         bao('Đã tải ảnh. Bấm lưu để gắn ảnh vào trang.');
       } catch (e) { bao(e.message, true); } finally { khoa(false); }
     };
     hang.append(anh, tep, bo); g.append(hang);
-    g.append(tao('span', 'bt-goi-y', 'Ảnh ngang 1920 x 1080 (16:9) hiện trọn, không bị cắt. Để trống thì web tự dựng nền theo màu thương hiệu.'));
+    g.append(tao('span', 'bt-goi-y', goiY || 'Ảnh ngang 1920 x 1080 (16:9) hiện trọn, không bị cắt. Để trống thì web tự dựng nền theo màu thương hiệu.'));
     return g;
   }
 
@@ -445,6 +473,7 @@
     const goc = {id: maMoi(loai), loai: loai, vi_tri: loai, hien: true, tieu_de: '', noi_dung: '', anh: '', mo_ta_anh: ''};
     if (loai === 'uu_dai') return Object.assign(goc, {nhom: '', ma_uu_dai: '', don_toi_thieu: '', bat_dau: homNay(), ket_thuc: '', gio_bat_dau: '', gio_ket_thuc: '', dieu_kien: ''});
     if (loai === 'tuyen_dung') return Object.assign(goc, {noi_lam: '', hinh_thuc: 'Toàn thời gian', ket_thuc: '', yeu_cau: '', email: (B.lien_he || {}).email || ''});
+    if (loai === 'banner') return Object.assign(goc, {vi_tri: 'gio_hang', anh_dt: '', lien_ket: '/thanh-vien', bat_dau: homNay(), ket_thuc: ''});
     if (loai === 'thiet_ke_rieng') return Object.assign(goc, {nhan: '', yeu_cau: '', dieu_kien: 'Giá đã gồm VAT.', so_ngay: '7',
       kich_co: [{ten: 'S', mo_ta: '', gia: ''}], trang_tri: []});
     return Object.assign(goc, {bat_dau: '', gio_bat_dau: '', gio_ket_thuc: '', dia_diem: '', gia_ve: '', so_ve: '', han_ban: '', yeu_cau: ''});
@@ -527,12 +556,32 @@
     const xem = () => {
       xemNoi.replaceChildren();
       if (m.loai === 'thiet_ke_rieng') xemNoi.append(tao('p', 'bt-tom-tat', m.tieu_de ? m.tieu_de + ': ' + moTa(m) : 'Điền tên và size để xem tóm tắt.'));
+      else if (m.loai === 'banner') xemNoi.append(xemBanner(m));
       else if (window.vgbTheMuc) xemNoi.append(window.vgbTheMuc(m, {homNay: homNay(), ve: B.ve, lienHe: B.lien_he, xemTruoc: true}));
       if (dkEl) { const c = window.vgbDieuKienUuDai ? window.vgbDieuKienUuDai(m) : ''; dkEl.replaceChildren(tao('span', '', 'Khách sẽ thấy điều kiện: '), tao('b', '', c || 'Không có điều kiện, áp dụng cả ngày.')); }
     };
     const dat = truong => v => { m[truong] = v; xem(); };
 
-    if (loai === 'tuyen_dung') {
+    if (loai === 'banner') {
+      const cho = chip('Chỗ đặt banner', CHO_BANNER.map(c => c.ten), () => tenCho(m.vi_tri),
+        v => { const c = CHO_BANNER.find(x => x.ten === v); m.vi_tri = c ? c.ma : ''; const p = cho.querySelector('[data-mo-cho]'); if (p) p.textContent = c ? c.mo : ''; xem(); }, false);
+      const moCho = tao('span', 'bt-goi-y', (CHO_BANNER.find(c => c.ma === m.vi_tri) || {}).mo || 'Chọn một chỗ.'); moCho.dataset.moCho = '1';
+      cho.append(moCho);
+      const ngay = tao('div', 'bt-hai-cot');
+      ngay.append(o('Hiện từ ngày (không bắt buộc)', m.bat_dau, dat('bat_dau'), {kieu: 'date', ten: 'bat_dau', chu: 'Để trống là hiện ngay khi lưu.'}),
+        o('Đến hết ngày (không bắt buộc)', m.ket_thuc, dat('ket_thuc'), {kieu: 'date', ten: 'ket_thuc', chu: 'Qua ngày này web tự gỡ banner. Để trống là hiện tới khi tắt.'}));
+      f.append(
+        muc(1, 'Tên và chỗ đặt'),
+        o('Tên banner', m.tieu_de, dat('tieu_de'), {ten: 'tieu_de', goi: 'Cập nhật sinh nhật nhận quà', chu: 'Chỉ để nhận ra trong danh sách này, khách không thấy.'}),
+        cho,
+        muc(2, 'Ảnh'),
+        oAnh(m, xem, 'anh', 'Ảnh máy tính', 'Ảnh ngang 1600 x 500 (tỉ lệ 16:5), PNG, JPG hoặc WebP dưới 10 MB. Ảnh hiện trọn, không bị cắt. Bắt buộc trước khi bật hiện.'),
+        oAnh(m, xem, 'anh_dt', 'Ảnh điện thoại (không bắt buộc)', 'Ảnh 1080 x 720 (tỉ lệ 3:2) cho màn hình điện thoại, chữ to hơn để đọc được. Để trống thì điện thoại dùng ảnh máy tính.'),
+        o('Mô tả ảnh', m.mo_ta_anh, dat('mo_ta_anh'), {ten: 'mo_ta_anh', goi: 'Cập nhật ngày sinh để nhận quà bánh vào sinh nhật', chu: 'Chữ chính trên banner. Dùng cho người khiếm thị và hiện thay khi ảnh chưa tải được.'}),
+        muc(3, 'Khi khách bấm và ngày hiện'),
+        o('Mở trang khi bấm', m.lien_ket, dat('lien_ket'), {ten: 'lien_ket', goi: '/thanh-vien', chu: '/thanh-vien là trang thành viên: khách xác minh số qua Zalo rồi khai ngày sinh. Để trống thì banner không bấm được.'}),
+        ngay);
+    } else if (loai === 'tuyen_dung') {
       f.append(
         o('Tên vị trí', m.tieu_de, dat('tieu_de'), {ten: 'tieu_de', goi: 'Thợ làm bánh (Pâtissier)', chu: 'Ví dụ: Thợ làm bánh (Pâtissier)'}),
         noiChon('Nơi làm', 'noi_lam', m, xem, 'Hoặc gõ nơi làm khác'),
@@ -615,6 +664,10 @@
     f.onsubmit = async e => {
       if (e && e.preventDefault) e.preventDefault();
       if (!m.tieu_de.trim()) { bao('Điền tên ' + t.ten_muc + ' trước khi lưu.', true); return; }
+      if (loai === 'banner') {
+        const loiBn = loiBanner(m);
+        if (loiBn) { bao(loiBn, true); return; }
+      }
       if (loai === 'tiec' && m.hien && !m.bat_dau) { bao('Chọn ngày diễn ra tiệc trước khi bật hiện trên web.', true); return; }
       if (loai === 'thiet_ke_rieng') {
         const loiTkr = loiTacPham(m);
@@ -628,6 +681,26 @@
     khung.append(lui, tieu, luoi);
     khung._sauKhiGan = xem;
     return khung;
+  }
+
+  /* v647: kiểm banner trước khi gửi, trùng luật noi_dung_web._kiem_banner. */
+  function loiBanner(m) {
+    if (!CHO_BANNER.some(c => c.ma === m.vi_tri)) return 'Chọn chỗ đặt banner: Đầu trang, Giỏ hàng hoặc Đặt xong.';
+    if (m.hien && !m.anh) return 'Tải ảnh máy tính trước khi bật hiện trên web.';
+    if (m.bat_dau && m.ket_thuc && m.bat_dau > m.ket_thuc) return 'Ngày kết thúc không được trước ngày bắt đầu.';
+    return '';
+  }
+  /* Xem trước: hai khung máy tính và điện thoại, đúng ảnh khách sẽ thấy. */
+  function xemBanner(m) {
+    const g = tao('div', 'bt-xem-banner');
+    [['Máy tính', m.anh], ['Điện thoại', m.anh_dt || m.anh]].forEach(([ten, url]) => {
+      const o2 = tao('figure', 'bt-xem-banner-o'); o2.append(tao('figcaption', '', ten + (ten === 'Điện thoại' && !m.anh_dt && m.anh ? ' (dùng ảnh máy tính)' : '')));
+      if (url) { const i = tao('img', ''); i.src = url; i.alt = m.mo_ta_anh || ''; o2.append(i); }
+      else o2.append(tao('p', 'bt-rong', 'Chưa có ảnh.'));
+      g.append(o2);
+    });
+    g.append(tao('p', 'bt-tom-tat', 'Hiện ở: ' + (tenCho(m.vi_tri) || 'chưa chọn chỗ') + '. ' + (m.lien_ket ? 'Bấm mở ' + m.lien_ket + '.' : 'Không bấm được.')));
+    return g;
   }
 
   /* ------------------------------------------------------------ cửa hàng */
@@ -1214,7 +1287,7 @@
   }
   /* v630: bảng Nâng cao mở thẳng một thẻ (khối Tuyển dụng cũ chỉ đường sang thẻ Tuyển dụng). */
   function moThe(k) { if (THE.some(x => x.k === k)) the = k; moNangCao(false); }
-  window.VgbBienTapMoi = {trangThai: trangThai, moTa: moTa, batDau: batDau, moThe: moThe, loiTacPham: loiTacPham};
+  window.VgbBienTapMoi = {trangThai: trangThai, moTa: moTa, batDau: batDau, moThe: moThe, loiTacPham: loiTacPham, loiBanner: loiBanner};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', batDau);
   else if ($('bt-moi')) batDau();
 }());

@@ -273,30 +273,9 @@ function bamTrong(goc, chon) { var el = goc.querySelector(chon); if (!el) throw 
     dung('phiếu in nhận nhóm nước từ cấu hình', m.g.posLaNuoc({ item_code: 'X1', nhom: 'Trà' }) && !m.g.posLaNuoc({ item_code: 'X2', nhom: 'Topping cho món nước' }));
   });
 
-  await ca('Màn In QR tại bàn: chọn NVHTN, gõ bàn 1 tới 3, Tạo mã QR, xem trước 3 tờ, In 3 tờ A6 (QR, "Bàn N · điểm", "Quét để gọi món tại bàn")', async function () {
-    var m = moApp();
-    await m.g.scrGmbInQr();
-    var vb = m.tai.getElementById('vgbBody');
-    dung('có hai điểm để chọn', vb.querySelector('[data-gqdiem="TCV"]') && vb.querySelector('[data-gqdiem="NVHTN"]'));
-    var c = vb.querySelector('[data-gqdiem="NVHTN"]');
-    vb.dispatchEvent(dg.suKien('click', {}, c));
-    vb = m.tai.getElementById('vgbBody');
-    var tu = m.tai.getElementById('gqTu'), den = m.tai.getElementById('gqDen');
-    tu.value = '1'; tu.dispatchEvent(dg.suKien('input', {}, tu));
-    den.value = '3'; den.dispatchEvent(dg.suKien('input', {}, den));
-    m.tai.getElementById('gqTao').onclick();
-    await choDen(function () { return m.tai.getElementById('gqIn'); });
-    bang('gọi to_qr đúng điểm, đúng khoảng', m.goi.filter(function (x) { return x.duong === 'vagabond.goi_mon_ban.to_qr'; })[0].ts, { diem: 'NVHTN', tu: 1, den: 3 });
-    bang('xem trước 3 tờ', m.tai.getElementById('vgbBody').querySelectorAll('[data-gqto]').length, 3);
-    dung('nút In 3 tờ A6', chu(m.tai.getElementById('gqIn')).indexOf('In 3 tờ A6') >= 0);
-    m.tai.getElementById('gqIn').onclick();
-    var w = m.cuaSo[m.cuaSo.length - 1];
-    var so = (w.doc.match(/<section class="to">/g) || []).length;
-    bang('3 trang A6', so, 3);
-    dung('khổ A6', w.doc.indexOf('size:A6 portrait') >= 0);
-    dung('chữ trên tờ', w.doc.indexOf('Bàn 2 · NVHTN') >= 0 && w.doc.indexOf('Quét để gọi món tại bàn') >= 0 && w.doc.indexOf('data:image/svg+xml;base64,QR3') >= 0);
-    dung('có lệnh in', w.doc.indexOf('window.print') >= 0);
-  });
+  /* v647: màn In QR tại bàn làm lại (sơ đồ bàn theo khu, standee branding dàn
+     trên A4). Ca "gõ bàn 1 tới 3, In 3 tờ A6" cũ không còn đúng màn; chuỗi
+     thao tác mới kiểm ở hanh_vi/qr_ban_khu_647.js. */
 
   await ca('Menu: ô In QR tại bàn chỉ hiện cho quản lý cửa hàng, Giám đốc', async function () {
     bang('QLCH', moApp({ vai: ['VGB - Quản lý cửa hàng'] }).g.coQuyenGmbQr(), true);

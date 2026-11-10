@@ -100,6 +100,27 @@ function mayChu(canh) {
       if (m === 'vagabond.doi_soat_vendor.cua_hoa_don') {
         return [{ vendor: 'GrabFood', ma_don: 'GF-101', trang_thai_khop: 'Đã nối', tien_hang: 260000, phi: 49359, thuc_nhan: 210641, nguon: 'DSN-1' }];
       }
+      /* v647: bill thu ngân chọn thẻ/sàn đối chiếu ngược với báo cáo đối tác. */
+      if (m === 'vagabond.doi_soat_vendor.bill_doi_tac') {
+        if (canh.billLoi) throw new Error('Đối soát nhà cung cấp chỉ mở cho Kế toán và Giám đốc.');
+        if (a.chi_dem) return { can_xu_ly: 3, dem: { 'Không có trên báo cáo': 1, 'Sai mã': 1, 'Lệch tiền': 1, 'Khớp': 9 } };
+        var hb = [
+          { name: 'HDB-26-0901', kieu: 'shinhan', ngay: '2026-11-09', tien: 450000, ma: ['A1B2C9'], diem: 'TCV',
+            trang_thai: 'Sai mã', ghi_chu: 'Báo cáo Thẻ Shinhan POS có giao dịch cùng tiền nhưng mã A1B2C3, bill ghi A1B2C9.' },
+          { name: 'HDB-26-0902', kieu: 'payoo', ngay: '2026-11-09', tien: 320000, ma: ['123456'], diem: 'TCV',
+            trang_thai: 'Không có trên báo cáo', ghi_chu: 'Báo cáo Thẻ Payoo không có giao dịch nào của bill này.' },
+          { name: 'HDB-26-0850', kieu: 'shinhan', ngay: '2026-11-08', tien: 210000, ma: ['ZZ0001'], diem: 'SALES',
+            trang_thai: 'Lệch tiền', ghi_chu: 'Bill 210.000, báo cáo Thẻ Shinhan POS ghi 200.000.' }];
+        if (a.trang_thai) hb = hb.filter(function (x) { return x.trang_thai === a.trang_thai; });
+        if (a.diem) hb = hb.filter(function (x) { return x.diem === a.diem; });
+        /* Codex #550: máy chủ giả có trang sau khi chưa lọc gì. */
+        var con = canh.billNhieu && !a.trang ? 1 : 0;
+        if (canh.billNhieu && a.trang) hb = [{ name: 'HDB-26-0001', kieu: 'payoo', ngay: '2026-10-28', tien: 1000, ma: ['M1'], diem: 'TCV',
+          trang_thai: 'Không có trên báo cáo', ghi_chu: '' }];
+        return { hang: hb, con: con, moi_trang: 200, cat: a.ky === 'tuy_chon' ? 1 : 0, dem: { 'Không có trên báo cáo': 1, 'Sai mã': 1, 'Lệch tiền': 1, 'Khớp': 9 }, can_xu_ly: 3,
+          dem_diem: { TCV: 2, SALES: 1 }, dem_kieu: { shinhan: 2, payoo: 1 }, ten_diem: { TCV: 'Trần Cao Vân', SALES: 'Sales Online' },
+          ten_kieu: { shinhan: 'Thẻ Shinhan POS', payoo: 'Thẻ Payoo' }, tu: '2026-10-27', den: '2026-11-09' };
+      }
       throw new Error('API ngoài dự kiến ' + m);
     },
   };
@@ -460,6 +481,52 @@ async function moTrungTam(canh) {
     await chonTep(app);
     bang('không nút Nhận, không nút mở', [app.tim('#dsvnNhan').length, app.tim('[data-dsvnct]').length], [0, 0]);
     dung('nói rõ lý do', app.chu().indexOf('đã nhận vào một pháp nhân khác') >= 0);
+  });
+
+  await ca('v647 ô Bill chưa khớp đối tác: số do máy chủ đếm; bấm mở danh sách theo ngày, chip lọc ở máy chủ, bấm bill mở đúng bill', async function () {
+    var app = await moTrungTam();
+    bang('số trên ô', app.mot('#dsvnBillSo').textContent, '3');
+    dung('hỏi chỉ đếm', !!app.mc.cuoi('vagabond.doi_soat_vendor.bill_doi_tac').a.chi_dem);
+    await app.bam(app.mot('[data-dsvnbill]'));
+    var c = app.chu();
+    dung('đủ ba bill', ['HDB-26-0901', 'HDB-26-0902', 'HDB-26-0850'].every(function (x) { return c.indexOf(x) >= 0; }));
+    dung('nhóm theo ngày, mới trước', c.indexOf('09/11/2026') >= 0 && c.indexOf('09/11/2026') < c.indexOf('08/11/2026'));
+    dung('tên điểm và đối tác tiếng Việt, không lộ mã', c.indexOf('Trần Cao Vân · Thẻ Shinhan POS') >= 0 && c.indexOf('· shinhan') < 0);
+    dung('có lời giải thích chip đang chọn', c.indexOf('Ba loại dưới đây gộp lại') >= 0);
+    await app.bam(app.mot('[data-dsvnbchip="tt|Sai mã"]'));
+    bang('gửi đúng trạng thái', app.mc.cuoi('vagabond.doi_soat_vendor.bill_doi_tac').a.trang_thai, 'Sai mã');
+    dung('giải thích Sai mã', app.chu().indexOf('sửa mã chuẩn chi trên bill') >= 0);
+    bang('chỉ còn bill sai mã', app.tim('[data-dsvnbill-si]').length, 1);
+    await app.bam(app.mot('[data-dsvnbchip="tt|"]'));
+    await app.bam(app.mot('[data-dsvnbchip="diem|SALES"]'));
+    bang('gửi đúng điểm', app.mc.cuoi('vagabond.doi_soat_vendor.bill_doi_tac').a.diem, 'SALES');
+    await app.bam(app.mot('[data-dsvnbill-si="HDB-26-0850"]'));
+    bang('mở đúng bill', app.g.__xemDon.slice(-1), ['HDB-26-0850']);
+  });
+
+  await ca('Codex #550: màn bill có chip ngày, ô tìm và trang sau, đều gửi xuống máy chủ; đổi bộ lọc về trang đầu', async function () {
+    var app = await moTrungTam({ billNhieu: true });
+    await app.bam(app.mot('[data-dsvnbill]'));
+    dung('nói rõ Mọi ngày là 14 ngày', app.chu().indexOf('Mọi ngày là 14 ngày gần nhất') >= 0);
+    await app.bam(app.mot('[data-dsvntrang="bill:1"]'));
+    bang('trang sau gửi trang 1', app.mc.cuoi('vagabond.doi_soat_vendor.bill_doi_tac').a.trang, 1);
+    dung('mở được bill ở trang sau', app.tim('[data-dsvnbill-si="HDB-26-0001"]').length === 1);
+    await app.bam(app.mot('[data-dscc="ky|thang_truoc"]'));
+    var a = app.mc.cuoi('vagabond.doi_soat_vendor.bill_doi_tac').a;
+    bang('chip Tháng trước, về trang đầu', [a.ky, a.trang], ['thang_truoc', 0]);
+    var o = app.mot('#dsvnbDsTim'); o.value = 'A1B2C9';
+    o.dispatchEvent(require('./dom_gia.js').suKien('change', {}, o)); await nghi(); await nghi();
+    bang('ô tìm gửi đúng chữ', app.mc.cuoi('vagabond.doi_soat_vendor.bill_doi_tac').a.tim, 'A1B2C9');
+    await app.bam(app.mot('[data-dscc="ky|tuy_chon"]'));
+    dung('khoảng dài quá thì nói rõ', app.chu().indexOf('chỉ xét 92 ngày cuối') >= 0);
+  });
+
+  await ca('v647 ô Bill chưa khớp: máy chủ lỗi thì ô hiện dấu hỏi, trung tâm vẫn mở; màn danh sách hiện lời máy chủ', async function () {
+    var app = await moTrungTam({ billLoi: true });
+    bang('ô hiện ?', app.mot('#dsvnBillSo').textContent, '?');
+    dung('trung tâm vẫn có danh sách nguồn', app.tim('[data-dsvnct]').length === 2);
+    await app.bam(app.mot('[data-dsvnbill]'));
+    dung('lời máy chủ', app.chu().indexOf('chỉ mở cho Kế toán và Giám đốc') >= 0);
   });
 
   console.log('Doi soat vendor 579: ' + ket.dat + ' dat, ' + ket.hong + ' hong');

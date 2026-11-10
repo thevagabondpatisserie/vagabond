@@ -17,7 +17,9 @@ export const KhoiNoiDung = {
   props: {viTri: String},
   render() {
     const ds = (ND.khoi || []).filter(k => k.hien && !LOAI_RIENG.includes(k.loai) && (k.vi_tri || 'cuoi_trang') === this.viTri);
+    const hn = ngayVN();
     return ds.map(k => {
+      if (k.loai === 'banner') return BannerAnh(k, hn);
       if (k.loai === 'hoi_dap') {
         return h('details', {class: 'web-khoi web-hoi-dap' + lopChon(k), 'data-khoi': k.id, onClick: bamKhoi(k)},
           [h('summary', null, k.tieu_de), h('p', {class: 'web-doan'}, k.noi_dung)]);
@@ -31,6 +33,22 @@ export const KhoiNoiDung = {
     });
   }
 };
+
+/* ---------- banner ảnh (v647, anh Việt 10/11/2026) ----------
+   Ảnh Marketing tự thiết kế, Minh Vũ thay ở thẻ Banner của trình biên tập. Có
+   ảnh điện thoại thì màn hẹp dùng ảnh đó. Ngoài ngày hiện hoặc chưa có ảnh thì
+   không vẽ gì; ở chế độ xem thử của trình biên tập thì vẫn vẽ để chọn được.
+   Link qua anToan: chỉ đường dẫn trong web hoặc HTTPS. */
+export function BannerAnh(k, homNay) {
+  if (!k.anh || !anToan(k.anh) || (!ND.xemThu && !khachThay(k, homNay))) return null;
+  const nguon = [];
+  if (k.anh_dt && anToan(k.anh_dt)) nguon.push(h('source', {media: '(max-width: 640px)', srcset: k.anh_dt}));
+  nguon.push(h('img', {class: 'web-banner-anh', src: k.anh, alt: k.mo_ta_anh || k.tieu_de || '', loading: k.vi_tri === 'dau_trang' ? 'eager' : 'lazy', decoding: 'async'}));
+  const anh = h('picture', null, nguon);
+  const chung = {class: 'web-banner' + lopChon(k), 'data-khoi': k.id, 'data-banner': k.vi_tri};
+  if (anToan(k.lien_ket) && !ND.xemThu) return h('a', Object.assign(chung, {href: k.lien_ket}), [anh]);
+  return h('div', Object.assign(chung, {onClick: bamKhoi(k)}), [anh]);
+}
 
 /* ---------- tiêu đề mục có thể thay (data-vgb-tieu-de cũ) ---------- */
 export const TieuDeMuc = {
@@ -166,6 +184,8 @@ const tien = s => String(parseInt(s, 10) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, 
 const dong = s => String(s || '').split('\n').map(x => x.trim()).filter(Boolean);
 export function khachThay(k, homNay) {
   if (!k.hien) return false;
+  // v647: banner chỉ hiện trong khoảng ngày, trùng noi_dung_web.trang_thai_muc.
+  if (k.loai === 'banner') return (!k.bat_dau || k.bat_dau <= homNay) && (!k.ket_thuc || k.ket_thuc >= homNay);
   if (k.loai === 'tiec') return !k.bat_dau || k.bat_dau >= homNay;
   return !k.ket_thuc || k.ket_thuc >= homNay;
 }

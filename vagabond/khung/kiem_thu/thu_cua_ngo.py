@@ -108,7 +108,7 @@ CUA_NGO = {
 	"ghim.py": ["lay", "luu"],
 	# v570: trang Cài đặt lõi và API trên app. Phép thuần (bo_cuc, gia_tri,
 	# ep_kieu, kiem_thay_doi, kiem_dong_bang) KHÔNG mở ra ngoài.
-	"doi_soat_vendor.py": ["chi_tiet", "cua_hoa_don", "doc_hop_thu_ngay", "doc_lai_thu", "doi_chieu_lai", "ds", "ds_thu", "dung_ban_sua", "duyet_nguon", "hop_thu", "nhan", "quet_email", "suc_khoe", "tai_len", "tai_thu_goc", "thu_ket_noi", "tu_choi_nguon", "xac_nhan_noi", "xac_nhan_nguon", "xem_truoc"],
+	"doi_soat_vendor.py": ["bill_doi_tac", "chi_tiet", "cua_hoa_don", "doc_hop_thu_ngay", "doc_lai_thu", "doi_chieu_lai", "ds", "ds_thu", "dung_ban_sua", "duyet_nguon", "hop_thu", "nhan", "quet_email", "suc_khoe", "tai_len", "tai_thu_goc", "thu_ket_noi", "tu_choi_nguon", "xac_nhan_noi", "xac_nhan_nguon", "xem_truoc"],
 	"cai_dat_loi.py": ["lay", "luu", "tim_lien_ket"],
 	# v550: trừ kho từng món và trừ bù. tru_bu, tru_bu_kho, xuat_ds là nội bộ
 	# (hook, việc nền, adapter Excel), không mở ra ngoài.
@@ -231,7 +231,7 @@ CUA_NGO = {
 	# Ba cửa quầy (_kiem_quyen_ban): `dem_cho`, `nhan`, `tu_choi`. Hai cửa màn In
 	# QR tại bàn (quản lý cửa hàng, Giám đốc): `diem_in_qr`, `to_qr`. Hàm còn
 	# lại (`quet_het_han` lịch, `con_cho_nhan` hỏi lại tin Zalo) là nội bộ.
-	"goi_mon_ban.py": ["mo_ban", "goi", "trang_thai", "goi_nhan_vien", "xong_tro_giup", "dem_cho", "nhan", "tu_choi", "diem_in_qr", "to_qr"],
+	"goi_mon_ban.py": ["mo_ban", "goi", "trang_thai", "goi_nhan_vien", "xong_tro_giup", "dem_cho", "nhan", "tu_choi", "diem_in_qr", "to_qr", "luu_so_do_ban"],
 	# v643: ưu đãi khách tự chọn tại bàn. Ba cửa khách (allow_guest, rate_limit,
 	# kiểm link bàn + phiên Thành viên): `ds`, `chon`, `bo`. Một cửa quầy
 	# (_kiem_quyen_ban): `bo_quay`. truoc_chot, sau_chot, tinh_lai là nội bộ.

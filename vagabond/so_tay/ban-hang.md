@@ -748,8 +748,8 @@ Thu ngân chỉ khách làm trên điện thoại, rồi áp mã khách đưa.
 
 **Các bước của khách**
 1. Quét mã QR trên bảng, nhập số điện thoại có Zalo, bấm nút Gửi mã qua Zalo.
-2. Nhập mã 6 số nhận qua Zalo (đủ 6 số là máy tự gửi, không cần bấm Xác nhận).
-3. Điền tên, ngày và tháng sinh (năm không bắt buộc), tích ô đồng ý nhận tin Zalo, bấm nút Nhận quà.
+2. Nhập mã 6 số nhận qua Zalo (đủ 6 số máy tự gửi).
+3. Điền tên, ngày và tháng sinh (năm không bắt buộc: bấm + Thêm năm sinh), tích ô đồng ý nhận tin Zalo, bấm nút Nhận quà.
 4. Màn hiện mã quà và hạn dùng. Thu ngân áp như mục Áp khuyến mãi.
 
 **Vì sao không nhận được**
@@ -762,8 +762,9 @@ Thu ngân chỉ khách làm trên điện thoại, rồi áp mã khách đưa.
 | Chưa gửi được mã qua Zalo. Chờ một chút hoặc gọi cho chúng tôi. | Kiểm số có Zalo không |
 
 **Lưu ý**
-- Khách đã là thành viên: mở trang thành viên, thẻ Ví quà có mã còn dùng được; khách đưa mã, thu ngân áp như mã quà.
-- Thẻ mã thành viên trên trang ghi "Thu ngân quét hoặc gõ mã này để tích điểm vào đúng hồ sơ". Thu ngân gõ mã đó vào ô tìm khách ở màn tính tiền. <!-- kiểm: ô tìm khách có nhận mã quét từ QR thành viên bằng máy quét không, mã thành viên là mã khách -->
+- Máy đã đăng nhập sẵn thì mở thẳng bước Hồ sơ, có số đã xác minh (che giữa); sai số thì bấm Đổi số.
+- Khách đã là thành viên: thẻ Ví quà có mã còn dùng được, thu ngân áp như mã quà.
+- Mã thành viên trên thẻ: thu ngân gõ vào ô tìm khách ở màn tính tiền để tích điểm đúng hồ sơ. <!-- kiểm: ô tìm khách có nhận mã quét từ QR thành viên bằng máy quét không, mã thành viên là mã khách -->
 
 ## Làm báo giá cho khách doanh nghiệp
 Từ khoá: báo giá, quotation, quote, chào giá, báo giá B2B, báo giá sự kiện, PDF báo giá, gửi báo giá, thư viện báo giá, mẫu báo giá, phiên bản báo giá, VGB-PQ
@@ -1249,12 +1250,33 @@ Khách quét mã QR trên bàn, chọn món, gửi. Đơn hiện trên màn Tín
 2. Bấm [[Nhận đơn và in phiếu pha chế]], hoặc [[Từ chối đơn]] kèm lý do.
 3. Khách bấm chuông thì thẻ đỏ hiện: tới bàn rồi bấm [[Đã tới bàn]].
 4. Tính tiền: bấm [[Mở bill bàn]].
-5. In mã QR: màn In QR tại bàn, bấm [[Tạo mã QR]] rồi [[In]].
+5. In mã QR: xem mục In mã QR bàn theo khu.
 
 **Lưu ý**
 - Đơn không nhận trong 10 phút thì hết hạn, khách được báo.
 - Khách tự chọn ưu đãi tại bàn phải nhập mã Zalo gửi tới số của mình.
 - Món, tuỳ chọn, ảnh trên trang bàn sửa ở màn Biên tập menu.
+
+## In mã QR bàn theo khu
+Từ khoá: in QR bàn, sơ đồ bàn, tên bàn, khu A, bàn A1, VIP, standee, mica, kích thước, A4, dấu cắt, số bàn
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý cửa hàng, Giám đốc | In QR tại bàn | [[Lưu sơ đồ bàn]] |
+
+Mỗi điểm khai sơ đồ bàn một lần: khu và khoảng số, máy ghép tên bàn A1, B1, VIP1. Màn Tính tiền dùng chung sơ đồ này để chia chip Số bàn theo khu.
+
+**Các bước**
+1. Mở In QR tại bàn, chọn điểm bán.
+2. Bấm [[Sửa sơ đồ bàn]]: mỗi dòng gõ khu (A, B, VIP), từ số, đến số. Gõ địa chỉ in dưới standee. Bấm [[Lưu sơ đồ bàn]].
+3. Tích các bàn cần in, hoặc bấm [[Chọn cả khu]].
+4. Chọn kích thước: Mica 7 x 7 cm, A6, A5, hoặc Tự nhập rộng và cao (mm). Khổ quá dẹt (ví dụ 200 x 40 mm) không đủ chỗ cho mã QR từ 2 cm nên máy báo chiều cao cần và không cho in.
+5. Bấm nút Tạo mã QR (nút ghi số bàn đã chọn), xem trước, rồi bấm nút In. In đúng tỉ lệ 100% trên giấy A4, cắt theo dấu ở lề.
+
+**Lưu ý**
+- QR bàn số đã in trước đây vẫn quét được, không phải in lại.
+- Đổi tên khu hay bỏ bàn thì QR đã in của các bàn đó hết dùng; máy hỏi lại trước khi lưu.
+- Để trống tên khu thì bàn chỉ có số như cũ.
 
 ## Biên tập menu theo điểm bán và ảnh món
 Từ khoá: biên tập menu, thực đơn tại bàn, thứ tự món, tuỳ chọn, topping, đá đường, ảnh món, ảnh vuông, xuất bản menu, menu theo điểm

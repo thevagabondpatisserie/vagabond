@@ -898,7 +898,9 @@ def _ung_vien_hd(kieu, tu, den, cong_ty):
 	meta = frappe.get_meta("Sales Invoice")
 	dk, bieu_ngay = _dk_hd(meta.has_field("vgb_ngay_ban"), meta.has_field("vgb_huy"))
 	co_ma = meta.has_field("vgb_ma_tham_chieu")
-	cot = "s.name, %s as ngay, s.grand_total, s.rounded_total%s" % (bieu_ngay, ", s.vgb_ma_tham_chieu" if co_ma else "")
+	# v647: quầy của bill để đối chiếu ngược theo điểm bán (bill_doi_tac).
+	quay = ", s.vgb_quay" if meta.has_field("vgb_quay") else ""
+	cot = "s.name, %s as ngay, s.grand_total, s.rounded_total%s%s" % (bieu_ngay, ", s.vgb_ma_tham_chieu" if co_ma else "", quay)
 	tham = dict(tu=tu, den=den, ct=cong_ty)
 	ra = []
 	tt = TIEN_TO_THEO_KIEU.get(kieu, {})
@@ -906,15 +908,16 @@ def _ung_vien_hd(kieu, tu, den, cong_ty):
 		for r in frappe.db.sql("select %s from `tabSales Invoice` s where %s and s.custom_nguon in %%(nguon)s limit 5000"
 				% (cot, dk), dict(tham, nguon=tuple(NGUON_THEO_KIEU[kieu])), as_dict=True):
 			ra.append(dict(name=r.name, ngay=str(r.ngay), tien=int(round(r.rounded_total or r.grand_total or 0)),
-				ma=[r.get("vgb_ma_tham_chieu") or ""] + _ma_dong_tt(r.name), tien_to=tt.get("nguon", "")))
+				ma=[r.get("vgb_ma_tham_chieu") or ""] + _ma_dong_tt(r.name), tien_to=tt.get("nguon", ""),
+				quay=r.get("vgb_quay") or ""))
 	pt = PT_THEO_KIEU.get(kieu, ())
 	if not pt:
 		return ra
 	da_co = {u["name"] for u in ra}
 	# Một bill trả nhiều kênh: lấy đúng dòng thanh toán của phương thức này.
-	dong_tt = frappe.db.sql("""select d.parent, d.so_tien, d.ma_tham_chieu, %s as ngay
+	dong_tt = frappe.db.sql("""select d.parent, d.so_tien, d.ma_tham_chieu, %s as ngay%s
 		from `tabVagabond Dong Thanh Toan` d join `tabSales Invoice` s on s.name = d.parent
-		where d.parenttype='Sales Invoice' and d.pt in %%(pt)s and %s""" % (bieu_ngay, dk), dict(tham, pt=pt), as_dict=True) \
+		where d.parenttype='Sales Invoice' and d.pt in %%(pt)s and %s""" % (bieu_ngay, quay, dk), dict(tham, pt=pt), as_dict=True) \
 		if frappe.db.table_exists("Vagabond Dong Thanh Toan") else []
 	co_dong = set()
 	for r in dong_tt:
@@ -922,15 +925,193 @@ def _ung_vien_hd(kieu, tu, den, cong_ty):
 			continue
 		co_dong.add(r.parent)
 		ra.append(dict(name=r.parent, ngay=str(r.ngay), tien=int(round(r.so_tien or 0)), ma=[r.ma_tham_chieu or ""],
-			tien_to=tt.get("pt", "")))
+			tien_to=tt.get("pt", ""), quay=r.get("vgb_quay") or ""))
 	if meta.has_field("vgb_pt_thanh_toan"):
 		for r in frappe.db.sql("select %s from `tabSales Invoice` s where %s and s.vgb_pt_thanh_toan in %%(pt)s limit 5000"
 				% (cot, dk), dict(tham, pt=tuple(pt)), as_dict=True):
 			if r.name in co_dong or r.name in da_co:
 				continue
 			ra.append(dict(name=r.name, ngay=str(r.ngay), tien=int(round(r.rounded_total or r.grand_total or 0)),
-				ma=[r.get("vgb_ma_tham_chieu") or ""], tien_to=tt.get("pt", "")))
+				ma=[r.get("vgb_ma_tham_chieu") or ""], tien_to=tt.get("pt", ""), quay=r.get("vgb_quay") or ""))
 	return ra
+
+
+# ------------------------------------------------------------ v647 bill -> báo cáo đối tác
+
+KIEU_BILL = ("shinhan", "payoo", "grab", "shopee", "greensm")
+NGAY_BILL = 14
+
+
+def mau_theo_kieu(kieu):
+	return [m for m, k in khop.KIEU_THEO_MAU.items() if k == kieu]
+
+
+def du_lieu_bill(tu, den, cong_ty_ds, hom_nay=None):
+	"""Đối chiếu ngược từng bill thẻ/sàn trong [tu, den] với báo cáo đối tác.
+	Codex #550: mỗi pháp nhân một lượt riêng (báo cáo của pháp nhân A không phủ
+	bill của pháp nhân B). Đọc ba thứ rồi để khop.doi_chieu_bill kết luận:
+	  bill   _ung_vien_hd của từng kênh (cùng tập ứng viên chiều xuôi dùng)
+	  noi    dòng đối tác đã nối bill (Đã nối, Lệch tiền, Nối theo tiền)
+	  phu    ngày, điểm có báo cáo đã nhận (bỏ nguồn bị từ chối)."""
+	hom_nay = hom_nay or frappe.utils.nowdate()
+	ra = []
+	for ct in cong_ty_ds:
+		ra.extend(_du_lieu_bill_ct(tu, den, ct, hom_nay))
+	return ra
+
+
+def _du_lieu_bill_ct(tu, den, ct, hom_nay):
+	from vagabond import diem_ban
+
+	bill = []
+	for kieu in KIEU_BILL:
+		for u in _ung_vien_hd(kieu, tu, den, ct):
+			bill.append(dict(name=u["name"], kieu=kieu, ngay=u["ngay"], tien=u["tien"], ma=u["ma"],
+				tien_to=u.get("tien_to") or "", diem=diem_ban.ma_theo_quay(u.get("quay") or ""), company=ct))
+	if not bill:
+		return []
+	ten = list({b["name"] for b in bill})
+	noi = {}
+	for i in range(0, len(ten), 500):
+		# Dòng Đã thay (bản cũ vendor đã sửa) không thuộc tập vì trạng thái nằm ngoài ba trạng thái nối (khop.DA_THAY).
+		for r in frappe.get_all(DT_DONG, filters={"sales_invoice": ["in", ten[i:i + 500]],
+				"trang_thai_khop": ["in", [t for t in ("Đã nối", "Lệch tiền", "Nối theo tiền") if t != khop.DA_THAY]]},
+				fields=["sales_invoice", "trang_thai_khop", "tien_hang", "giam_gia", "ma_tham_chieu", "nguon", "vendor"]):
+			kieu = _kieu_nguon(r.nguon)
+			if not kieu:
+				continue
+			tien = khop.tien_so_sanh(kieu, dict(tien_hang=int(r.tien_hang or 0), giam_gia=int(r.giam_gia or 0)))
+			cu = noi.get((r.sales_invoice, kieu))
+			# Bill có nhiều dòng đối tác (hiếm): dòng Đã nối thắng.
+			if not cu or cu["trang_thai_khop"] != "Đã nối":
+				noi[(r.sales_invoice, kieu)] = dict(trang_thai_khop=r.trang_thai_khop, tien=tien,
+					ma=r.ma_tham_chieu or "", vendor=r.vendor)
+	phu, cho_chon = set(), []
+	dm = diem_doi_tac()
+	den_phu = frappe.utils.add_days(den, 3)
+	for kieu in KIEU_BILL:
+		maus = mau_theo_kieu(kieu)
+		if not maus:
+			continue
+		nguon = frappe.get_all(DT_NGUON, filters={"mau": ["in", maus], "trang_thai": "Đã nhận", "company": ct,
+			"tu_ngay": ["<=", den_phu], "den_ngay": [">=", tu]},
+			fields=["name", "tu_ngay", "den_ngay", "tai_khoan", "duong_vao"], limit_page_length=2000)
+		nguon = [n for n in nguon if n.duong_vao != "Từ chối" and n.tu_ngay and n.den_ngay]
+		diem = {}
+		if nguon and kieu not in khop.KIEU_PHU_MOI_DIEM:
+			for r in frappe.get_all(DT_DONG, filters={"nguon": ["in", [n.name for n in nguon]], "diem_ban": ["is", "set"],
+					"trang_thai_khop": ["!=", khop.DA_THAY]},
+					fields=["nguon", "diem_ban"], group_by="nguon, diem_ban", limit_page_length=5000):
+				diem.setdefault(r.nguon, set()).add(r.diem_ban)
+			# Codex #550: giao dịch đã nhận ở nguồn trước (tệp gửi lại, tệp gộp
+			# nhiều cửa hàng) không có dòng riêng; phạm vi của nguồn là hợp của
+			# dòng riêng và cửa hàng của giao dịch gốc qua bảng Trùng.
+			for t, d in _diem_qua_trung([n.name for n in nguon]).items():
+				diem.setdefault(t, set()).update(d)
+		for n in nguon:
+			ds_diem = {"*"} if kieu in khop.KIEU_PHU_MOI_DIEM else set(diem.get(n.name) or ())
+			if kieu == "grab":
+				ds_diem.add(_diem_grab(n.tai_khoan))
+			ds_diem.discard("")
+			if not ds_diem and not dm.get(kieu):
+				ds_diem = {"*"}
+			# Kênh có cửa hàng riêng mà chưa xác định được phạm vi: nguồn không phủ
+			# cửa hàng nào (bill chờ báo cáo), không coi là phủ mọi cửa hàng.
+			d = str(n.tu_ngay)
+			while d <= str(n.den_ngay):
+				for x in ds_diem:
+					phu.add((kieu, d, x))
+				d = frappe.utils.add_days(d, 1)
+		# Codex #550: giữ chính các dòng chưa phân định để chỉ bill là ứng viên của chúng mới chờ chọn.
+		for r in frappe.get_all(DT_DONG, filters={"nguon": ["in", [n.name for n in nguon] or [""]],
+				"trang_thai_khop": ["in", [t for t in ("Nhiều chứng từ",) if t != khop.DA_THAY]], "ngay": ["between", [tu, den_phu]]},
+				fields=["ngay", "ma_tham_chieu", "tien_hang", "giam_gia"], limit_page_length=5000):
+			cho_chon.append(dict(kieu=kieu, ngay=str(r.ngay), ma_tham_chieu=r.ma_tham_chieu or "",
+				tien_hang=int(r.tien_hang or 0), giam_gia=int(r.giam_gia or 0)))
+	return khop.doi_chieu_bill(bill, noi, phu, cho_chon, hom_nay, dm)
+
+
+def _diem_qua_trung(ten_nguon):
+	"""{nguồn: tập điểm bán} đọc qua bảng Trùng tới dòng gốc cùng khoá."""
+	if not ten_nguon:
+		return {}
+	khoa = {}
+	for r in frappe.get_all(DT_TRUNG, filters={"nguon": ["in", ten_nguon]}, fields=["nguon", "khoa"],
+			limit_page_length=20000):
+		if r.khoa:
+			khoa.setdefault(r.khoa, set()).add(r.nguon)
+	ra, ds = {}, list(khoa)
+	for i in range(0, len(ds), 500):
+		for r in frappe.get_all(DT_DONG, filters={"khoa": ["in", ds[i:i + 500]], "diem_ban": ["is", "set"]},
+				fields=["khoa", "diem_ban"], limit_page_length=5000):
+			for t in khoa.get(r.khoa, ()):
+				ra.setdefault(t, set()).add(r.diem_ban)
+	return ra
+
+
+def diem_doi_tac():
+	"""Điểm bán có cửa hàng riêng bên từng đối tác, đọc từ danh mục ánh xạ cửa
+	hàng của bộ đọc báo cáo (một nguồn duy nhất, Codex #550)."""
+	from vagabond import doi_soat_mau as m
+
+	ra = {}
+	for kieu, bang in (("grab", m.GRAB_DIEM), ("shopee", m.SHOPEE_DIEM), ("greensm", m.GREENSM_DIEM)):
+		ra[kieu] = {v for v in bang.values() if v}
+	return ra
+
+
+def _diem_grab(tai_khoan):
+	from vagabond.doi_soat_mau import GRAB_DIEM
+
+	return GRAB_DIEM.get(str(tai_khoan or "").split(":", 1)[-1], "")
+
+
+BILL_MOI_TRANG = 200
+# Khoảng ngày dài nhất một lần đối chiếu (mỗi ngày đọc mọi bill thẻ/sàn).
+BILL_NGAY_TOI_DA = 92
+
+
+@frappe.whitelist()
+def bill_doi_tac(ky=None, tu=None, den=None, diem=None, trang_thai=None, kieu=None, tim=None, trang=0, chi_dem=0):
+	"""Màn "Bill chưa khớp đối tác": từng bill thu ngân chọn thẻ/sàn, đối chiếu
+	với báo cáo đối tác. ky là chip ngày dùng chung (khung/cong_cu_ds.khoang_ky);
+	Mọi ngày là 14 ngày tới hôm qua. Codex #550: phân trang, ô tìm theo mã bill
+	hoặc mã chuẩn chi, khoảng ngày dài quá BILL_NGAY_TOI_DA thì cắt và báo lại."""
+	_chan()
+	from vagabond.khung.cong_cu_ds import khoang_ky
+
+	hom = frappe.utils.nowdate()
+	a, b = khoang_ky(ky, hom, tu, den)
+	den = str(b or frappe.utils.add_days(hom, -1))[:10]
+	tu = str(a or frappe.utils.add_days(den, -(NGAY_BILL - 1)))[:10]
+	cat = 0
+	if tu < frappe.utils.add_days(den, -(BILL_NGAY_TOI_DA - 1)):
+		tu, cat = frappe.utils.add_days(den, -(BILL_NGAY_TOI_DA - 1)), 1
+	ds = du_lieu_bill(tu, den, _cong_ty_xem(), hom)
+	dem = {}
+	for x in ds:
+		dem[x["trang_thai"]] = dem.get(x["trang_thai"], 0) + 1
+	can = sum(dem.get(t, 0) for t in khop.TT_BILL_CAN_XU_LY)
+	if frappe.utils.cint(chi_dem):
+		return dict(can_xu_ly=can, dem=dem, tu=tu, den=den)
+	hang = [x for x in ds if (not trang_thai and x["trang_thai"] in khop.TT_BILL_CAN_XU_LY) or x["trang_thai"] == trang_thai
+		or trang_thai == "tat_ca"]
+	t = (tim or "").strip().upper()
+	if t:
+		hang = [x for x in hang if t in x["name"].upper() or any(t in str(m).upper() for m in x.get("ma") or [])]
+	dem_diem, dem_kieu = {}, {}
+	for x in hang:
+		dem_diem[x["diem"]] = dem_diem.get(x["diem"], 0) + 1
+		dem_kieu[x["kieu"]] = dem_kieu.get(x["kieu"], 0) + 1
+	hang = [x for x in hang if (not diem or x["diem"] == diem) and (not kieu or x["kieu"] == kieu)]
+	hang.sort(key=lambda x: (x["ngay"], x["name"]), reverse=True)
+	so = max(0, frappe.utils.cint(trang))
+	dau = so * BILL_MOI_TRANG
+	from vagabond import diem_ban
+
+	return dict(hang=hang[dau:dau + BILL_MOI_TRANG], con=max(0, len(hang) - dau - BILL_MOI_TRANG), tong_hang=len(hang),
+		dem=dem, can_xu_ly=can, dem_diem=dem_diem, dem_kieu=dem_kieu, ten_diem=diem_ban.ten_diem(),
+		ten_kieu=khop.TEN_KIEU, tu=tu, den=den, cat=cat, moi_trang=BILL_MOI_TRANG)
 
 
 def _ma_dong_tt(si):
@@ -974,7 +1155,9 @@ def _tien_ve(nguon):
 	co_tien_mat = bool(frappe.db.count(DT_DONG, {"nguon": nguon.name, "mo_ta": ["like", "%tiền mặt"]}))
 	bi_thay = bool(frappe.db.count(DT_DONG, {"nguon_cu": nguon.name, "thay_bang": ["is", "set"]}))
 	tt, ds, ghi = khop.khop_ngan_hang(nguon.mau, int(round(nguon.thuc_nhan)), str(tu), str(den), gd, da_dung,
-		ly_do_tay=khop.ly_do_khong_tu_nhan(nguon.mau, co_tien_mat, bi_thay))
+		ly_do_tay=khop.ly_do_khong_tu_nhan(nguon.mau, co_tien_mat, bi_thay),
+		ky=(str(nguon.tu_ngay or ""), str(nguon.den_ngay or "")) if getattr(nguon, "tu_ngay", None) and nguon.den_ngay else None,
+		ma_chuyen=_ma_chuyen(nguon), tai_khoan=getattr(nguon, "tai_khoan", "") or "")
 	# Codex #450: chỉ khi khớp đúng một giao dịch mới ghi vào giao_dich_ngan_hang
 	# (trường này là danh sách giao dịch đã dùng cho mọi nguồn khác). Gợi ý của
 	# "Lệch tiền về" nằm trong ghi chú.
@@ -983,6 +1166,15 @@ def _tien_ve(nguon):
 	gan = next((g for g in gd if ds and g["name"] == ds[0]), None) if tt == "Lệch tiền về" else None
 	_ghi_them(nguon.name, tien_ve=ghi, lech_tien=dict(gd=gan["name"], nhan=gan["tien"], bao=int(round(nguon.thuc_nhan)))
 		if gan else None)
+
+
+def _ma_chuyen(nguon):
+	"""Mã đợt trả OnePay (PVS...) đọc từ tab Summary của thông báo tạm ứng, lưu
+	trong du_lieu.them.ma_chuyen lúc nhận tệp. Rỗng khi không có."""
+	try:
+		return str(((json.loads(getattr(nguon, "du_lieu", None) or "{}") or {}).get("them") or {}).get("ma_chuyen") or "")
+	except (ValueError, TypeError, AttributeError):
+		return ""
 
 
 def _ghi_them(name, **k):
@@ -1522,6 +1714,47 @@ def quet_email(so_ngay=3):
 def quet_moi_gio():
 	frappe.set_user("Administrator")
 	quet_email(2)
+	do_lai_tien_ve()
+
+
+# v647 (10/11/2026): tiền về sau lúc đọc báo cáo (ShopeeFood về trưa hôm sau) thì
+# nguồn kẹt "Chưa thấy tiền về" vì _tien_ve chỉ chạy lúc đọc hay khi bấm đối
+# chiếu lại. Lượt mỗi giờ dò lại các nguồn còn chờ tiền trong 14 ngày gần đây.
+NGAY_DO_LAI = 14
+TOI_DA_DO_LAI = 300
+
+
+def do_lai_tien_ve(hom_nay=None):
+	"""Chạy lại _tien_ve cho nguồn Tiền bán còn chờ tiền về. Giữ nguyên mọi luật
+	của _tien_ve (giao dịch đã dùng, chỉ giữ khi khớp đúng một, lý do kế toán
+	phải tự chọn). Đổi sang "Đã thấy tiền về" thì chỉ đổi trạng thái, không gửi
+	tin; chỉ lệch thật mới qua tin "Lệch tiền về" một lần (doi_soat_thu)."""
+	from vagabond import doi_soat_thu
+
+	hom = hom_nay or frappe.utils.nowdate()
+	ds = frappe.get_all(DT_NGUON, filters={"nhom": "Tiền bán", "trang_thai": "Đã nhận",
+		"trang_thai_tien": ["in", list(khop.CHO_TIEN_VE)], "den_ngay": [">=", frappe.utils.add_days(hom, -NGAY_DO_LAI)]},
+		fields=["name", "duong_vao"], order_by="den_ngay asc, name asc", limit_page_length=TOI_DA_DO_LAI)
+	doi = 0
+	for r in ds:
+		if r.get("duong_vao") == "Từ chối":
+			continue
+		try:
+			# Codex #550: cùng khoá với lượt nhận tệp và nút Đối chiếu lại; khoá
+			# commit để mở ảnh dữ liệu mới, nên đọc lại nguồn SAU khi có khoá.
+			with khoa_doi_chieu():
+				nguon = frappe.get_doc(DT_NGUON, r.name)
+				cu = nguon.trang_thai_tien
+				if cu not in khop.CHO_TIEN_VE or nguon.get("duong_vao") == "Từ chối":
+					continue
+				_tien_ve(nguon)
+				moi = frappe.db.get_value(DT_NGUON, r.name, "trang_thai_tien")
+			if moi != cu:
+				doi += 1
+				doi_soat_thu.bao_lech_tien(r.name, cu)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Đối soát: dò lại tiền về %s" % r.name)
+	return dict(so_nguon=len(ds), doi=doi)
 
 
 # ------------------------------------------------------------ v641: hộp thư doisoat@, duyệt, xác nhận

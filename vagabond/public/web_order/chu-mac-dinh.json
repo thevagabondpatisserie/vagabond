@@ -6649,5 +6649,47 @@
     "nhom": "dat_banh",
     "mac_dinh": "Bánh làm theo mẻ chỉ nhận giao từ {tu} tới {den}. Quý khách chọn ngày trong khoảng này.",
     "nhieu_dong": true
+  },
+  "tv7_buoc_sdt": {
+    "ten": "Quà QR: tên bước 1",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số điện thoại",
+    "nhieu_dong": true
+  },
+  "tv7_buoc_ma": {
+    "ten": "Quà QR: tên bước 2",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã Zalo",
+    "nhieu_dong": true
+  },
+  "tv7_buoc_hs": {
+    "ten": "Quà QR: tên bước 3",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hồ sơ",
+    "nhieu_dong": true
+  },
+  "tv7_da_xac_minh": {
+    "ten": "Quà QR: số đã xác minh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{sdt} đã xác minh",
+    "nhieu_dong": true
+  },
+  "tv7_doi_so": {
+    "ten": "Quà QR: nút Đổi số",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đổi số",
+    "nhieu_dong": true
+  },
+  "tv7_sinh_nhat": {
+    "ten": "Quà QR: nhãn sinh nhật",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Sinh nhật (để gửi quà đúng ngày)",
+    "nhieu_dong": true
+  },
+  "tv7_them_nam": {
+    "ten": "Quà QR: mở ô năm sinh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "+ Thêm năm sinh (không bắt buộc)",
+    "nhieu_dong": true
   }
 }

@@ -314,6 +314,7 @@ export const MAU = `
       <div class="hint" id="gtHint"><dong-chu v-if="S.goi.gt" :phan="S.goi.gt"/></div>
     </div>
 
+    <div class="noi-dung-gio" data-vgb-vi-tri="gio_hang" v-if="!S.guiXong"><khoi-noi-dung vi-tri="gio_hang"/></div>
     <div class="sum" id="sum">
       <div class="row" v-for="r in hangTomTat" :key="r.k"><span>{{ r.nhan }}</span><b>{{ r.gia }}</b></div>
       <div class="row"><span>{{ t('gio_hang_nhan_ngay','Nhận ngày') }}</span><b>{{ kho.T.dmy(kho.ngayDangChon.value) }} · {{ kho.gioHopLe.value && S.daChonGio ? kho.slotDangChon.value.t : t('chon_lai_gio','Vui lòng chọn khung giờ còn nhận') }}</b></div>
@@ -334,6 +335,7 @@ export const MAU = `
     <div class="cta">
       <button class="btn" id="btnSend" style="width:100%" v-show="!S.guiXong || S.dangGui" :disabled="S.dangGui" :style="{opacity: S.dangGui ? .55 : 1, pointerEvents: S.dangGui ? 'none' : 'auto'}" @click="guiDon()">{{ S.dangGui ? t('dat_banh_848d6282f','Đang gửi đơn...') : t('dat_banh_df2154067','Gửi yêu cầu đặt bánh') }}</button>
       <div id="sendHint" style="margin-top:12px;font-size:13px;line-height:1.6"><dong-chu v-if="S.goi.gui" :phan="S.goi.gui"/></div>
+      <div class="noi-dung-dat-xong" data-vgb-vi-tri="dat_xong" v-if="S.guiXong && !S.dangGui"><khoi-noi-dung vi-tri="dat_xong"/></div>
     </div>
   </div>
 </section>

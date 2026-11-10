@@ -24,6 +24,7 @@ import re
 import frappe
 from frappe.utils import cint, flt
 
+from vagabond import so_do_ban
 from vagabond.lib import cfg, cfg_o
 
 TRUONG = "vgb_diem_ban"
@@ -149,6 +150,10 @@ def _chuan(d, i=0):
 		"anh": str(d.get("anh") or "").strip(),
 		"phu": str(d.get("phu") or "").strip(),
 		"dia_chi": str(d.get("dia_chi") or "").strip(),
+		# v647: sơ đồ bàn theo khu (màn In QR tại bàn lưu, màn Tính tiền đọc
+		# chung) và địa chỉ in dưới standee QR bàn.
+		"so_do_ban": so_do_ban.chuan_so_do(d.get("so_do_ban")),
+		"dia_chi_qr": str(d.get("dia_chi_qr") or "").strip(),
 		"mst": str(d.get("mst") or "").strip(),
 		"ky_hieu": str(d.get("ky_hieu") or "").strip(),
 		"kho_tang": str(d.get("kho_tang") or "").strip(),
@@ -687,6 +692,7 @@ def luu(diem=None):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới sửa được danh sách điểm bán.")
 	if isinstance(diem, str):
 		diem = frappe.parse_json(diem or "[]")
+	diem = giu_truong_rieng(diem, ds())
 	ra = [_chuan(d, i) for i, d in enumerate(diem or [])]
 	ra = [d for d in ra if d["ma"]]
 	_kiem(ra)
@@ -716,6 +722,43 @@ def luu(diem=None):
 		% ", ".join("%s%s" % (d["ma"], "" if d["bat"] else " (tắt)") for d in ra)
 	)
 	return {"diem": ds(), "sua_duoc": 1, "nguon_co_san": nguon_co_san()}
+
+
+# v647: trường do màn khác lưu (In QR tại bàn), màn Cài đặt điểm bán không gửi.
+TRUONG_RIENG = ("so_do_ban", "dia_chi_qr")
+
+
+def giu_truong_rieng(moi, cu):
+	"""THUAN: dòng màn Cài đặt gửi lên không có trường riêng thì giữ giá trị đã
+	lưu của đúng điểm đó, để lưu danh sách điểm bán không xoá sơ đồ bàn."""
+	theo_ma = {str(d.get("ma") or "").strip().upper(): d for d in cu or []}
+	ra = []
+	for d in moi or []:
+		d = dict(d or {})
+		c = theo_ma.get(str(d.get("ma") or "").strip().upper())
+		for k in TRUONG_RIENG:
+			if k not in d and c:
+				d[k] = c.get(k)
+		ra.append(d)
+	return ra
+
+
+def dat_truong(ma, cap, vet=""):
+	"""Ghi vài trường riêng của MỘT điểm (v647: sơ đồ bàn), giữ nguyên mọi
+	trường và mọi điểm khác. Chỉ nhận trường trong TRUONG_RIENG."""
+	ma = str(ma or "").strip().upper()
+	cap = {k: v for k, v in (cap or {}).items() if k in TRUONG_RIENG}
+	ra = ds()
+	d = next((x for x in ra if x["ma"] == ma), None)
+	if not d:
+		frappe.throw("Không thấy điểm bán %s." % ma)
+	d.update(cap)
+	ra = [_chuan(x, i) for i, x in enumerate(ra)]
+	frappe.db.set_single_value("Vagabond Settings", TRUONG, json.dumps(ra, ensure_ascii=False, indent=1))
+	frappe.db.commit()
+	if vet:
+		_ghi_vet(vet)
+	return d
 
 
 def _theo_kip_nguon(cu, moi):

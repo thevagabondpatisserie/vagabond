@@ -36,7 +36,16 @@
   /* Chữ quà cỡ lớn: "Giảm 20.000đ" hiện thành "20.000đ" (nhãn nhỏ đã nói là quà). */
   const soQua = t => String(t || '').replace(/^Giảm\s+/i, '');
   const MAN = ['dang-nhap', 'qua-ho-so', 'qua-ma', 'ho-so', 'bang-quay'];
-  function hien(id) { MAN.forEach(m => an(tim(m), m !== id)); }
+  /* v647 (anh Việt chọn mẫu A 10/11/2026): ba màn của luồng quà quét QR dùng
+     nền sáng; trang thành viên vẫn giữ nền đen như cũ. */
+  const MAN_SANG = ['dang-nhap', 'qua-ho-so', 'qua-ma'];
+  function hien(id) {
+    MAN.forEach(m => an(tim(m), m !== id));
+    const b = document.body;
+    if (b && b.classList) b.classList.toggle('tv-sang', !!quayQua && MAN_SANG.includes(id));
+  }
+  /* Số đã xác minh hiện che giữa: 0909 *** 412. */
+  const cheSo = v => { const s = String(v || '').replace(/\D/g, ''); return s.length >= 7 ? s.slice(0, 4) + ' *** ' + s.slice(-3) : s; };
 
   /* Hình bánh có sẵn làm ảnh đại diện: ảnh của web, cắt đúng chỗ, đen trắng. */
   const ANH_MAU = {
@@ -188,18 +197,34 @@
   function veForm(f, d, cheDo) {
     const hs = (d && d.ho_so) || {}, sn = hs.sinh_nhat || {};
     f.replaceChildren();
+    /* Mẫu A: bước hồ sơ của luồng quà nói rõ số nào đã xác minh, kèm Đổi số
+       (anh Việt 10/11/2026 tưởng trang không hỏi số vì máy đã đăng nhập sẵn). */
+    if (cheDo === 'qua' && d && d.sdt) {
+      const x = tao('div', '', 'xm-so'); x.id = 'xm-so';
+      x.append(tao('span', C('tv7_da_xac_minh', '{sdt} đã xác minh', { sdt: cheSo(d.sdt) })));
+      const doi = tao('button', C('tv7_doi_so', 'Đổi số'), 'doi-so'); doi.type = 'button'; doi.id = 'nut-doi-so'; doi.onclick = doiSo;
+      x.append(doi); f.append(x);
+    }
     f.append(oNhap(cheDo === 'qua' ? C('tv6_o_ten_goi', 'Tên gọi') : C('tv6_o_ho_ten', 'Họ và tên'), 'o-ten', hs.ten || '', 'text', { maxlength: '60', autocomplete: 'name' }));
     if (cheDo !== 'qua' && d && d.sdt) {
       const l = tao('div', '', 'o-khoa'); l.append(tao('span', C('tv6_o_sdt', 'Số điện thoại'), 'nhan'));
       const v = tao('div', '', 'gia-tri'); v.append(tao('span', d.sdt), tao('span', C('tv6_da_xac_minh', 'Đã xác minh qua Zalo'), 'xm'));
       l.append(v); f.append(l);
     }
-    const ns = tao('div', '', 'o-ngay'); ns.append(tao('span', C('tv6_o_ngay_sinh', 'Ngày sinh'), 'nhan'));
+    const ns = tao('div', '', 'o-ngay');
+    ns.append(tao('span', cheDo === 'qua' ? C('tv7_sinh_nhat', 'Sinh nhật (để gửi quà đúng ngày)') : C('tv6_o_ngay_sinh', 'Ngày sinh'), 'nhan'));
     const hang3 = tao('div', '', 'ba-o');
-    hang3.append(chon('o-ngay', C('tv6_ngay', 'Ngày'), 1, 31, sn.ngay), chon('o-thang', C('tv6_thang', 'Tháng'), 1, 12, sn.thang),
-      (function () { const o = tao('input', ''); o.id = 'o-nam'; o.type = 'text'; o.setAttribute('inputmode', 'numeric'); o.setAttribute('maxlength', '4');
-        o.setAttribute('placeholder', C('tv6_nam', 'Năm')); o.setAttribute('aria-label', C('tv6_nam', 'Năm')); o.value = sn.nam ? String(sn.nam) : ''; return o; })());
-    ns.append(hang3, tao('small', C('tv6_ngay_sinh_mo_ta', 'Để gửi quà sinh nhật đúng tháng. Năm sinh không bắt buộc.'), 'phu nho'));
+    const oNam = tao('input', ''); oNam.id = 'o-nam'; oNam.type = 'text'; oNam.setAttribute('inputmode', 'numeric'); oNam.setAttribute('maxlength', '4');
+    oNam.setAttribute('placeholder', C('tv6_nam', 'Năm')); oNam.setAttribute('aria-label', C('tv6_nam', 'Năm')); oNam.value = sn.nam ? String(sn.nam) : '';
+    hang3.append(chon('o-ngay', C('tv6_ngay', 'Ngày'), 1, 31, sn.ngay), chon('o-thang', C('tv6_thang', 'Tháng'), 1, 12, sn.thang), oNam);
+    ns.append(hang3);
+    if (cheDo === 'qua' && !oNam.value) {
+      /* Mẫu A: năm sinh không bắt buộc nên giấu sau một dòng bấm mở. */
+      an(oNam, true); hang3.classList.add('hai-o');
+      const them = tao('button', C('tv7_them_nam', '+ Thêm năm sinh (không bắt buộc)'), 'them-nam'); them.type = 'button'; them.id = 'nut-them-nam';
+      them.onclick = () => { an(oNam, false); hang3.classList.remove('hai-o'); an(them, true); if (oNam.focus) oNam.focus(); };
+      ns.append(them);
+    } else ns.append(tao('small', C('tv6_ngay_sinh_mo_ta', 'Để gửi quà sinh nhật đúng tháng. Năm sinh không bắt buộc.'), 'phu nho'));
     f.append(ns);
     if (cheDo !== 'qua') f.append(oNhap(C('tv6_o_email', 'Email (không bắt buộc)'), 'o-email', hs.email || '', 'email', { autocomplete: 'email' }));
     const st = tao('div', '', 'o-st'); st.append(tao('span', C('tv6_o_so_thich', 'Quý khách hay chọn (không bắt buộc)'), 'nhan'));
@@ -216,7 +241,7 @@
     const chu = tao('span', ''); chu.append(tao('b', C('tv6_dy_tieu_de', 'Đồng ý nhận tin từ Vagabond qua Zalo')),
       tao('small', C('tv6_dy_mo_ta', 'Quà sinh nhật, voucher, báo đơn bánh. Tắt lúc nào cũng được trong trang thành viên.')));
     dy.append(ck, chu); f.append(dy);
-    const nut = tao('button', cheDo === 'qua' ? C('tv6_nhan_qua_nut', 'Nhận quà {uu_dai}', { uu_dai: (d && d.qua && d.qua.uu_dai) || '' }) : C('tv6_luu_ho_so', 'Lưu hồ sơ'), 'chinh rong');
+    const nut = tao('button', cheDo === 'qua' ? C('tv6_nhan_qua_nut', 'Nhận quà {uu_dai}', { uu_dai: soQua(d && d.qua && d.qua.uu_dai) }) : C('tv6_luu_ho_so', 'Lưu hồ sơ'), 'chinh rong');
     nut.id = cheDo === 'qua' ? 'nut-nhan-qua' : 'nut-luu-hs'; f.append(nut);
   }
   function docForm(f) {
@@ -331,6 +356,14 @@
     veMaQua(r, d); return true;
   }
   function moFormQua(d) { hien('qua-ho-so'); veForm(tim('form-qua'), d, 'qua'); }
+  /* Đổi số: thoát phiên đang có rồi về bước nhập số, không mất quầy (?qua=). */
+  async function doiSo() {
+    const nut = tim('nut-doi-so'); if (nut) nut.disabled = true;
+    try { await api('thoat', {}); } catch (e) { /* phiên hỏng thì vẫn cho nhập số mới */ }
+    duLieu = null; soDaGui = ''; tim('sdt').value = ''; tim('ma').value = '';
+    const b2 = tim('buoc-2'); if (b2) b2.className = '';
+    moDangNhap(); bao(C('tv6_qua_bat_dau', 'Nhập số điện thoại có Zalo để nhận quà.'));
+  }
   async function buocQua(d) {
     duLieu = d;
     const q = d.qua || {};

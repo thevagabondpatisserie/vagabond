@@ -666,6 +666,44 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(loi,[]);
     await c.close();
   });
+  /* v647 (anh Việt 10/11/2026): banner ảnh Marketing ở Đầu trang và Giỏ hàng. Khách
+     mở trang thấy banner đầu trang; chọn bánh, mở giỏ thấy banner trên phần tổng
+     tiền; bấm banner mở trang thành viên. Banner hết hạn, đang ẩn, chưa có ảnh không
+     ra. Điện thoại dùng ảnh điện thoại. */
+  await test('F45 v647 banner: Đầu trang và Giỏ hàng hiện đúng ảnh và link trang thành viên, banner hết hạn hay đang ẩn không ra',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
+    const p=await c.newPage();
+    const bn=(id,vi,them)=>Object.assign({id,loai:'banner',vi_tri:vi,hien:true,tieu_de:'Sinh nhật',anh:'/assets/vagabond/web_order/anh-bia.png',
+      anh_dt:'/assets/vagabond/web_order/og-banh.jpg',mo_ta_anh:'Cập nhật ngày sinh nhận quà',lien_ket:'/thanh-vien',bat_dau:'',ket_thuc:''},them||{});
+    await p.route('**/api/method/vagabond.noi_dung_web.cong_khai*',async r=>{
+      const d=await (await r.fetch()).json();
+      d.message.khoi=[bn('b-dau','dau_trang'),bn('b-gio','gio_hang'),bn('b-het','gio_hang',{ket_thuc:'2020-01-01'}),
+        bn('b-an','dau_trang',{hien:false}),bn('b-xong','dat_xong')].concat(d.message.khoi||[]);
+      return r.fulfill({json:d});
+    });
+    await p.goto(url+'/web_moi/banh'); await p.locator('#noi-dung-marketing .web-banner').first().waitFor();
+    const dau=await p.$$eval('#noi-dung-marketing .web-banner',ds=>ds.map(a=>({id:a.dataset.khoi,href:a.getAttribute('href'),the:a.tagName,
+      src:a.querySelector('img').currentSrc?new URL(a.querySelector('img').currentSrc).pathname:'',alt:a.querySelector('img').alt})));
+    assert.deepEqual(dau,[{id:'b-dau',href:'/thanh-vien',the:'A',src:'/assets/vagabond/web_order/og-banh.jpg',alt:'Cập nhật ngày sinh nhận quà'}],'đầu trang chỉ banner đang bật, điện thoại dùng ảnh điện thoại');
+    assert.equal(await p.locator('.web-banner[data-khoi="b-xong"]').count(),0,'banner Đặt xong không ra ở trang chọn bánh');
+    await p.goto(url+'/web_moi/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
+    await p.locator('#s-sizes button').first().click(); await p.locator('#s-cta').click();
+    await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    const gio=await p.$$eval('#checkout .noi-dung-gio .web-banner',ds=>ds.map(a=>a.dataset.khoi));
+    assert.deepEqual(gio,['b-gio'],'giỏ hàng chỉ banner còn hạn');
+    const truocTong=await p.evaluate(()=>{const b=document.querySelector('#checkout .noi-dung-gio');const s=document.querySelector('#sum');
+      return !!(b&&s&&(b.compareDocumentPosition(s)&Node.DOCUMENT_POSITION_FOLLOWING));});
+    assert.ok(truocTong,'banner giỏ hàng nằm ngay trên phần tổng tiền');
+    await p.setViewportSize({width:1440,height:900}); await p.waitForTimeout(200);
+    const pc=await p.$eval('#checkout .noi-dung-gio img',i=>new URL(i.currentSrc).pathname);
+    assert.equal(pc,'/assets/vagabond/web_order/anh-bia.png','máy tính dùng ảnh máy tính');
+    await p.locator('#checkout .noi-dung-gio a.web-banner').click();
+    await p.waitForURL(u=>new URL(String(u)).pathname==='/thanh-vien');
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

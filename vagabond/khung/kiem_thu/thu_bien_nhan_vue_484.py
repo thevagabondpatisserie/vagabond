@@ -34,10 +34,11 @@ def _xong(nhan):
 	from vagabond import trang_khach, web_vue
 	from vagabond.www.banh.xong import TIEU_DE
 	fr = D(local=D(response_headers={}), sessions=D(get_csrf_token=lambda: "c"),
-		form_dict={"token": "T"}, PageDoesNotExistError=ValueError)
+		form_dict={"token": "T"}, PageDoesNotExistError=ValueError, utils=D(nowdate=lambda: "2026-11-10"))
 	dw = D(PHAP_NHAN={"ten": "X"}, lien_he=lambda: dict(LH), pixel_id=lambda: "",
 		bien_nhan_theo_token=lambda t: {"ma": "DW-1"})
-	nd = D(chinh_sach_dang_hien=lambda: [dict(c) for c in CS], cong_khai=lambda: {"nhan": nhan})
+	nd = D(chinh_sach_dang_hien=lambda: [dict(c) for c in CS], cong_khai=lambda: {"nhan": nhan},
+		banner_hien=lambda nd, vi_tri, hn: [])  # v647: banner Đặt xong, ca riêng ở thu_banner_647
 	g = {"frappe": fr, "don_web": dw, "trang_khach": trang_khach, "noi_dung_web": nd,
 		"TIEU_DE": TIEU_DE, "web_vue": web_vue}
 	c = nap("www/web_moi/xong.py", "get_context", g)(D())
