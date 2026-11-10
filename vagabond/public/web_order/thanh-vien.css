@@ -161,3 +161,46 @@
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.bq-in,header,.ho-tro,.thong-bao{display:none!important}.bang-quay{border:0}}
 .ho-tro{margin-top:30px;color:var(--fog);font-size:13px}
 @media(max-width:600px){.luoi{grid-template-columns:1fr}.trang-dich-vu main.tv{padding-top:22px}.bq-qr{grid-template-columns:140px 1fr}.bq-qr .qr{width:140px;height:140px}}
+/* v647 mẫu A (anh Việt chọn 10/11/2026): ba màn của luồng quà quét QR nền sáng,
+   thanh bước có chữ, số đã xác minh kèm Đổi số, năm sinh giấu sau một dòng.
+   Lớp tv-sang chỉ bật khi đang ở ba màn đó (thanh-vien.js hien()). */
+.buoc i span{display:none}
+.ba-o.hai-o{grid-template-columns:1fr 1fr}
+body.tv-sang{background:#f4f1ec;color:#1d1d1b}
+.tv-sang header{background:rgba(244,241,236,.94);border-bottom:1px solid #e6dfd5}
+.tv-sang .logo-anh img{filter:invert(1)}
+.tv-sang .dv-nav a{color:#8a8278}.tv-sang .dv-nav a[aria-current=page]{color:#1d1d1b}
+.tv-sang main{max-width:560px}
+.tv-sang .phu,.tv-sang .thong-bao{color:#5f584f}
+.tv-sang .thong-bao.loi{color:#b4522e}
+.tv-sang .nhan,.tv-sang .ho-tro{color:#8a8278}
+.tv-sang .ngoac{color:#8a8278;text-transform:uppercase;letter-spacing:.14em;font-size:13px;margin:22px 0 4px}
+.tv-sang .ngoac:before,.tv-sang .ngoac:after{content:""}
+.tv-sang .so-to,.tv-sang #qua-gia{color:#0f8f86}
+.tv-sang .tieu-de{color:#1d1d1b!important}
+.tv-sang .buoc{gap:8px;margin:6px 0 12px}
+.tv-sang .buoc i{height:auto;background:none;border-top:4px solid #e6dfd5;border-radius:2px;padding-top:8px;font:12.5px/1.3 var(--qualy);font-style:normal;color:#a59c90}
+.tv-sang .buoc i.on{border-top-color:#29bdb3;color:#0f8f86}
+.tv-sang .buoc i span{display:inline}
+.tv-sang label,.tv-sang .o-ngay .nhan,.tv-sang .o-st .nhan{color:#5f584f;font:14px var(--qualy);letter-spacing:0;text-transform:none}
+.tv-sang input,.tv-sang select{background:#fff;color:#1d1d1b;border:1.5px solid #e3ddd3;border-radius:14px;color-scheme:light;min-height:52px;font-size:17px}
+.tv-sang input:focus,.tv-sang select:focus{border-color:#29bdb3;outline:none}
+.tv-sang button{border:1.5px solid #d9d1c6;color:#1d1d1b;border-radius:14px;letter-spacing:.02em;text-transform:none;font-size:16px}
+.tv-sang button.chinh{background:#1d1d1b;color:#fff;border-color:#1d1d1b;min-height:56px}
+.tv-sang #nut-nhan-qua{background:#29bdb3;border-color:#29bdb3;color:#06302d}
+.tv-sang .chips button{border-radius:99px;background:#fff;color:#1d1d1b;border-color:#d9d1c6}
+.tv-sang .chips button[aria-pressed=true]{background:#1d1d1b;color:#fff;border-color:#1d1d1b}
+.tv-sang .dong-y{background:#fff;border:1.5px solid #29bdb3;border-radius:14px}
+.tv-sang .dong-y small{color:#8a8278}
+.tv-sang .xm-so{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#e9f7f5;border-radius:14px;padding:4px 6px 4px 14px;margin:6px 0 2px;font-size:15px;color:#0f8f86}
+.tv-sang .xm-so button{min-height:44px;border:0;padding:0 10px;text-decoration:underline;color:#0f8f86;font-size:14px;background:none}
+.tv-sang .them-nam{border:0;min-height:44px;padding:0;color:#0f8f86;font-size:14px;justify-content:flex-start;background:none}
+.tv-sang .ve-to{background:#1d1d1b;color:#fff;border-radius:22px}
+.tv-sang .ve-to:before,.tv-sang .ve-to:after{background:#f4f1ec}
+.tv-sang .ve-dau{border-bottom-color:rgba(255,255,255,.25)}
+.tv-sang .ve-dau b{color:#29bdb3}
+.tv-sang .ve-dau span,.tv-sang .ve-han{color:#b9b2a7}
+.tv-sang .ve-to p{color:#e8e3da}
+.tv-sang #nut-ve-trang{background:#1d1d1b;color:#fff;border-color:#1d1d1b;min-height:56px}
+.tv-sang #qua-ghi{margin-top:14px}
+.tv-sang .xm-so span:before{content:"";display:inline-block;width:5px;height:10px;border:solid #0f8f86;border-width:0 2px 2px 0;transform:rotate(45deg);margin:0 10px 3px 2px}
