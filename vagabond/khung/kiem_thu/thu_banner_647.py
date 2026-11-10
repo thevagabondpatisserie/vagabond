@@ -147,3 +147,10 @@ def _bien_tap():
 	r = subprocess.run(["node", os.path.join(GOC, "vagabond", "khung", "kiem_thu", "hanh_vi", "bien_tap_586.js")],
 		capture_output=True, text=True, timeout=120, cwd=GOC)
 	la("bien_tap_586.js chạy xanh", (r.returncode, (r.stderr or "")[-400:], (r.stdout or "")[-600:] if r.returncode else ""), (0, "", ""))
+
+
+@ca("v647 trang thành viên mẫu A: chạy thật luồng quà quét QR (số đã xác minh kèm Đổi số, năm sinh giấu, nền sáng)")
+def _thanh_vien_mau_a():
+	r = subprocess.run(["node", os.path.join(GOC, "vagabond", "khung", "kiem_thu", "hanh_vi", "thanh_vien_647.js")],
+		capture_output=True, text=True, timeout=120, cwd=GOC)
+	la("thanh_vien_647.js chạy xanh", (r.returncode, (r.stderr or "")[-400:], (r.stdout or "")[-600:] if r.returncode else ""), (0, "", ""))
