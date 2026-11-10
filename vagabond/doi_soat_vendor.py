@@ -774,7 +774,7 @@ def dung_ban_sua(name=None, khoa=None, dau_cu=None):
 def _goi_y_con_dung(name):
 	"""Codex #450: lúc kế toán bấm xác nhận, hoá đơn gợi ý phải CÒN là ứng viên
 	hợp lệ, cùng một phép kiểm với lượt đối chiếu (khop.xac_nhan_con_dung)."""
-	d = frappe.db.get_value(DT_DONG, name, ["nguon", "ngay", "tien_hang", "giam_gia", "sales_invoice"], as_dict=True)
+	d = frappe.db.get_value(DT_DONG, name, ["nguon", "ngay", "tien_hang", "giam_gia", "thuc_nhan", "sales_invoice"], as_dict=True)
 	n = frappe.db.get_value(DT_NGUON, d.nguon, ["mau", "company"], as_dict=True)
 	kieu = khop.KIEU_THEO_MAU.get(n.mau)
 	if not kieu or not d.ngay:
@@ -782,7 +782,7 @@ def _goi_y_con_dung(name):
 	lech = khop.LECH_NGAY.get(kieu, 0)
 	uv = _ung_vien_hd(kieu, frappe.utils.add_days(d.ngay, -lech), frappe.utils.add_days(d.ngay, lech), n.company)
 	return khop.xac_nhan_con_dung(kieu, dict(tien_hang=int(d.tien_hang or 0), giam_gia=int(d.giam_gia or 0),
-		sales_invoice=d.sales_invoice), uv)
+		thuc_nhan=int(d.thuc_nhan or 0), sales_invoice=d.sales_invoice), uv)
 
 
 def _doi_chieu(name):
@@ -850,7 +850,7 @@ def _noi_hoa_don_ban(nguon, dong):
 		if not d.get("xac_nhan_boi"):
 			continue
 		if khop.xac_nhan_con_dung(kieu, dict(tien_hang=int(d.tien_hang or 0), giam_gia=int(d.giam_gia or 0),
-				sales_invoice=d.sales_invoice), uv):
+				thuc_nhan=int(d.get("thuc_nhan") or 0), sales_invoice=d.sales_invoice), uv):
 			xac_nhan.add(d.name)
 			da_noi.add(d.sales_invoice)
 		else:
@@ -860,7 +860,7 @@ def _noi_hoa_don_ban(nguon, dong):
 	# "chiếm" một hoá đơn cùng tiền khác của dòng chưa nối.
 	can_khop = [d for d in dong if d.name not in xac_nhan]
 	dong_ds = [dict(loai=d.loai, ngay=str(d.ngay), ma_tham_chieu=d.ma_tham_chieu or "", tien_hang=int(d.tien_hang),
-		giam_gia=int(d.giam_gia)) for d in can_khop]
+		giam_gia=int(d.giam_gia), thuc_nhan=int(d.get("thuc_nhan") or 0)) for d in can_khop]
 	kq = khop.khop_hoa_don(kieu, dong_ds, uv)
 	for i, d in enumerate(can_khop):
 		r = kq.get(i)
@@ -900,7 +900,8 @@ def _ung_vien_hd(kieu, tu, den, cong_ty):
 	co_ma = meta.has_field("vgb_ma_tham_chieu")
 	# v647: quầy của bill để đối chiếu ngược theo điểm bán (bill_doi_tac).
 	quay = ", s.vgb_quay" if meta.has_field("vgb_quay") else ""
-	cot = "s.name, %s as ngay, s.grand_total, s.rounded_total%s%s" % (bieu_ngay, ", s.vgb_ma_tham_chieu" if co_ma else "", quay)
+	# v648: s.total là tổng TRƯỚC giảm của bill, để so với bill sàn ghi khuyến mại (khop.cung_tien).
+	cot = "s.name, %s as ngay, s.grand_total, s.rounded_total, s.total%s%s" % (bieu_ngay, ", s.vgb_ma_tham_chieu" if co_ma else "", quay)
 	tham = dict(tu=tu, den=den, ct=cong_ty)
 	ra = []
 	tt = TIEN_TO_THEO_KIEU.get(kieu, {})
@@ -908,8 +909,8 @@ def _ung_vien_hd(kieu, tu, den, cong_ty):
 		for r in frappe.db.sql("select %s from `tabSales Invoice` s where %s and s.custom_nguon in %%(nguon)s limit 5000"
 				% (cot, dk), dict(tham, nguon=tuple(NGUON_THEO_KIEU[kieu])), as_dict=True):
 			ra.append(dict(name=r.name, ngay=str(r.ngay), tien=int(round(r.rounded_total or r.grand_total or 0)),
-				ma=[r.get("vgb_ma_tham_chieu") or ""] + _ma_dong_tt(r.name), tien_to=tt.get("nguon", ""),
-				quay=r.get("vgb_quay") or ""))
+				tien_goc=int(round(r.total or 0)), ma=[r.get("vgb_ma_tham_chieu") or ""] + _ma_dong_tt(r.name),
+				tien_to=tt.get("nguon", ""), quay=r.get("vgb_quay") or ""))
 	pt = PT_THEO_KIEU.get(kieu, ())
 	if not pt:
 		return ra
@@ -932,7 +933,8 @@ def _ung_vien_hd(kieu, tu, den, cong_ty):
 			if r.name in co_dong or r.name in da_co:
 				continue
 			ra.append(dict(name=r.name, ngay=str(r.ngay), tien=int(round(r.rounded_total or r.grand_total or 0)),
-				ma=[r.get("vgb_ma_tham_chieu") or ""], tien_to=tt.get("pt", ""), quay=r.get("vgb_quay") or ""))
+				tien_goc=int(round(r.total or 0)), ma=[r.get("vgb_ma_tham_chieu") or ""], tien_to=tt.get("pt", ""),
+				quay=r.get("vgb_quay") or ""))
 	return ra
 
 
@@ -966,7 +968,7 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 	bill = []
 	for kieu in KIEU_BILL:
 		for u in _ung_vien_hd(kieu, tu, den, ct):
-			bill.append(dict(name=u["name"], kieu=kieu, ngay=u["ngay"], tien=u["tien"], ma=u["ma"],
+			bill.append(dict(name=u["name"], kieu=kieu, ngay=u["ngay"], tien=u["tien"], tien_goc=u.get("tien_goc"), ma=u["ma"],
 				tien_to=u.get("tien_to") or "", diem=diem_ban.ma_theo_quay(u.get("quay") or ""), company=ct))
 	if not bill:
 		return []
@@ -976,7 +978,7 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 		# Dòng Đã thay (bản cũ vendor đã sửa) không thuộc tập vì trạng thái nằm ngoài ba trạng thái nối (khop.DA_THAY).
 		for r in frappe.get_all(DT_DONG, filters={"sales_invoice": ["in", ten[i:i + 500]],
 				"trang_thai_khop": ["in", [t for t in ("Đã nối", "Lệch tiền", "Nối theo tiền") if t != khop.DA_THAY]]},
-				fields=["sales_invoice", "trang_thai_khop", "tien_hang", "giam_gia", "ma_tham_chieu", "nguon", "vendor"]):
+				fields=["sales_invoice", "trang_thai_khop", "tien_hang", "giam_gia", "thuc_nhan", "ma_tham_chieu", "nguon", "vendor"]):
 			kieu = _kieu_nguon(r.nguon)
 			if not kieu:
 				continue
@@ -985,7 +987,8 @@ def _du_lieu_bill_ct(tu, den, ct, hom_nay):
 			# Bill có nhiều dòng đối tác (hiếm): dòng Đã nối thắng.
 			if not cu or cu["trang_thai_khop"] != "Đã nối":
 				noi[(r.sales_invoice, kieu)] = dict(trang_thai_khop=r.trang_thai_khop, tien=tien,
-					ma=r.ma_tham_chieu or "", vendor=r.vendor)
+					ma=r.ma_tham_chieu or "", vendor=r.vendor, tien_hang=int(r.tien_hang or 0),
+					giam_gia=int(r.giam_gia or 0), thuc_nhan=int(getattr(r, "thuc_nhan", 0) or 0))
 	phu, cho_chon = set(), []
 	dm = diem_doi_tac()
 	den_phu = frappe.utils.add_days(den, 3)

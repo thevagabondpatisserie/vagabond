@@ -312,6 +312,47 @@ def chang_cua_mon(ma, co_btp_con, khai_tay=None, ten=None):
 	return None
 
 
+# v648 (anh Việt chốt 11/11/2026, phương án C): bếp chỉ bấm Hoàn tất món chính.
+# Ruột bánh cấp 1, bánh khuôn cấp 2 còn thiếu tồn thì máy tự tạo và hoàn tất
+# lệnh của chúng theo công thức ngay trước món chính, như bán thành phẩm làm tươi.
+# Cấu trúc công thức và tồn từng cấp giữ nguyên (quyết định 28/08: cấp 1, cấp 2
+# giữ tồn); món làm sẵn từ trước thì dùng tồn, máy chỉ làm phần còn thiếu.
+CHANG_TU_LAM = (BTP_SO_CAP, BTP_SAN_SANG)
+
+
+def duoc_tu_lam(theo_ton, lam_tuoi, chang, co_cong_thuc):
+	"""Máy được tự làm phần thiếu của món này khi hoàn tất món cha không. THUẦN.
+
+	Chỉ món giữ tồn và có công thức (lệnh con của ERPNext phải là mã giữ tồn;
+	mặt hàng ảo đã tự nổ trong lệnh cha). Làm tươi như trước; cấp 1, cấp 2 từ v648."""
+	if not cint(theo_ton) or not co_cong_thuc:
+		return False
+	return bool(cint(lam_tuoi)) or chang in CHANG_TU_LAM
+
+
+@frappe.whitelist()
+def mon_tu_lam(ma=None):
+	"""Các mã trong `ma` (danh sách JSON) mà máy tự làm phần thiếu khi hoàn tất
+	món cha. Chỉ đọc. Một nguồn cho app (05-san-xuat.js freshOf)."""
+	import json
+	ds = json.loads(ma) if isinstance(ma, str) else (ma or [])
+	ds = [str(x) for x in ds if x][:300]
+	if not ds:
+		return []
+	ra = []
+	cot = ["name", "item_name", "is_stock_item", "custom_lam_tuoi"]
+	if frappe.get_meta("Item").has_field("custom_chang_btp"):
+		cot.append("custom_chang_btp")
+	co_bom = set(frappe.get_all("BOM", filters={"item": ["in", ds], "is_active": 1, "docstatus": 1}, pluck="item"))
+	for it in frappe.get_all("Item", filters={"name": ["in", ds]}, fields=cot, limit_page_length=0):
+		if not cint(it.is_stock_item) or it.name not in co_bom:
+			continue
+		chang = chang_cua_mon(it.name, _co_btp_con(it.name), it.get("custom_chang_btp"), it.item_name)
+		if duoc_tu_lam(it.is_stock_item, it.get("custom_lam_tuoi"), chang, True):
+			ra.append(it.name)
+	return ra
+
+
 def ten_kho_cua(bep, chang, hau_to=" - TV"):
 	"""Tên kho lá của một bếp ở một chặng."""
 	b = BEP.get((bep or "").lower())
