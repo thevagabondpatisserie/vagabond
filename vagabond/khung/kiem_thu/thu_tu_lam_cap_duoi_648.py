@@ -55,6 +55,40 @@ def _():
 		ra = ksx.mon_tu_lam('["NBTP00016","NBTP00030","NBTP00099","BTPB00001","NVLT00041","BAWC00068","NBTP00077"]')
 	la("đúng các mã", sorted(ra), ["BTPB00001", "NBTP00016", "NBTP00030"])
 	la("danh sách rỗng", ksx.mon_tu_lam("[]"), [])
+	la("nhận BTP thành phần mọi cách gõ", [ksx.la_btp_thanh_phan(x) for x in ("BTP thành phần", " btp  THÀNH phần ", "BTP sơ cấp", None)],
+		[True, True, False, False])
+
+
+class _KhoThieuO(_Kho):
+	"""Site chưa có ô Làm tươi (bench CI): hỏi cột không có thì MariaDB báo
+	Unknown column; kho chỉ trả đúng các cột được hỏi."""
+	CO = {"name", "item_name", "is_stock_item", "custom_chang_btp"}
+
+	def get_all(self, dt, filters=None, fields=None, pluck=None, **k):
+		if dt == "BOM":
+			return super().get_all(dt, filters, fields, pluck, **k)
+		la_cot = set(fields or ()) - self.CO
+		if la_cot:
+			raise Exception("(1054, \"Unknown column '%s' in 'SELECT'\")" % sorted(la_cot)[0])
+		ds = filters["name"][1]
+		ra = []
+		for x in self.ITEM:
+			if x.name in ds:
+				d = {f: getattr(x, f) for f in fields}
+				ra.append(NS(**dict(d, get=(lambda key, mac=None, d=d: d.get(key, mac)))))
+		return ra
+
+
+@ca("Codex #551 bench: site chưa có ô Làm tươi thì mon_tu_lam không hỏi cột đó, cấp 1, cấp 2 vẫn tự làm")
+def _():
+	k = _KhoThieuO()
+	with patch.object(ksx.frappe, "get_all", k.get_all, create=True), \
+			patch.object(ksx.frappe, "get_meta", lambda dt: NS(has_field=lambda f: f in _KhoThieuO.CO), create=True), \
+			patch.object(ksx, "_co_btp_con", lambda ma: False):
+		ra = ksx.mon_tu_lam('["NBTP00016","NBTP00030","NBTP00099","BTPB00001","NVLT00041","BAWC00068","NBTP00077"]')
+	# BTPB00001 khai "BTP thành phần" (máy xếp về kho sơ cấp) chỉ tự làm nhờ cờ Làm
+	# tươi; site không có ô Làm tươi thì không tự làm, không bị coi là ruột bánh cấp 1.
+	la("cấp 1, cấp 2 vẫn tự làm", sorted(ra), ["NBTP00016", "NBTP00030"])
 
 
 @ca("v648 app chạy thật trong node: bếp bấm Hoàn tất món chính, máy làm cấp 1 trước cấp 2, chỉ phần thiếu")
