@@ -125,10 +125,11 @@ def _():
 def _():
 	src = _js("05-san-xuat.js")
 	i = src.index("async function freshOf(")
-	j = src.index("async function", i + 10)
+	j = src.index("\n}\n", i) + 2
 	than = src[i:j]
-	dung("đọc is_stock_item", "'is_stock_item'" in than)
-	dung("lọc theo cả hai cờ", "r.custom_lam_tuoi && r.is_stock_item" in than)
+	# v648: luật "chỉ mã còn theo tồn" chuyển về máy chủ (kho_san_xuat.mon_tu_lam,
+	# ca Python và ca chạy node ở thu_tu_lam_cap_duoi_648); app chỉ hỏi máy chủ.
+	dung("hỏi máy chủ, không tự suy", "vagabond.kho_san_xuat.mon_tu_lam" in than and "getList" not in than)
 
 
 @ca("v402 màn BTP cần làm nhập về kho nguyên liệu")
