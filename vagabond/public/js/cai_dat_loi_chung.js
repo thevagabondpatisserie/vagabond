@@ -94,6 +94,7 @@ var VGB_ZALO_TIN = {
 	kt_ds_chua_thay_tien: ['Hoá đơn, kế toán', 'Chưa thấy tiền đối tác chuyển về (08:30)', '08:30 mỗi sáng: đợt đối tác báo đã chuyển, quá ngày tiền về mà ngân hàng chưa thấy tiền.'],
 	kt_ds_phi_cao: ['Hoá đơn, kế toán', 'Đối tác thu phí cao hơn biểu phí hợp đồng', 'Ngay khi báo cáo Shinhan POS có giao dịch bị thu phí cao hơn biểu phí khai trong Cài đặt.'],
 	kt_ds_don_thieu_erp: ['Hoá đơn, kế toán', 'Giao dịch đối tác đã thu mà ERP chưa có đơn (08:30)', '08:30 mỗi sáng: giao dịch bán trong báo cáo đối tác ngày hôm qua chưa nối được với đơn hay bill nào.'],
+	kt_ds_bill_lech: ['Hoá đơn, kế toán', 'Bill thẻ, sàn không khớp báo cáo đối tác (08:30)', '08:30 mỗi sáng: bill chọn thẻ, sàn mà báo cáo đối tác không có, sai mã chuẩn chi hoặc lệch tiền.'],
 	bh_don_web_treo: ['Bán hàng, cửa hàng', 'Đơn web treo quá 30 phút chưa vào Pancake', 'Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.'],
 	bh_don_web_da_tra: ['Bán hàng, cửa hàng', 'Đơn web khách đã thanh toán online', 'Khách trả web xong (chuyển khoản hoặc thẻ): mã đơn, cách trả, COD trên Pancake đã giảm chưa.'],
 	bh_ton_web_loi: ['Bán hàng, cửa hàng', 'Lỗi kiểm tồn khi khách đặt web', 'Phép kiểm tồn bánh lỗi lúc khách đặt; Sales kiểm lại tồn trước khi xác nhận.'],
