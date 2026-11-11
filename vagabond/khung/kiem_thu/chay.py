@@ -260,6 +260,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_lenh_sx_649,
 	thu_tru_vo_btp_649,
 	thu_dat_truoc_tu_mai_649,
+	thu_giu_vo_da_lam_649,
 )
 
 

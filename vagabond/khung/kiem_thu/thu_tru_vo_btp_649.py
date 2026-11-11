@@ -95,7 +95,8 @@ def _thuan():
 	la("ô trống là 0", btp.chenh_sx([{"ma_hang": EPI, "sx": None}], [{"ma_hang": EPI, "sx": ""}]), {})
 	la("gộp hai dòng cùng mã", btp.chenh_sx([], [{"ma_hang": EPI, "sx": 1}, {"ma_hang": EPI, "sx": 2}]), {EPI: 3})
 	la("bỏ mã rỗng", btp.chenh_sx([], [{"ma_hang": "", "sx": 5}]), {})
-	la("giữ đơn hôm nay trừ bánh đã làm", (btp.giu_hom_nay(2, 1), btp.giu_hom_nay(2, 5), btp.giu_hom_nay(0, 3)), (1, 0, 0))
+	g = lambda don, sx: btp.don_con_giu_vo({"da_dat": don, "sx": sx})
+	la("giữ đơn trừ bánh đã làm", (g(2, 1), g(2, 5), g(0, 3)), (1, 0, 0))
 
 
 @ca("v649 Loan Anh: nhập Bếp làm 1 thì BTP sẵn 10 thành 9, Đủ decor 9 thành 8 NGAY, không chờ chốt sổ")
