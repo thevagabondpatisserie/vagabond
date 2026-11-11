@@ -40,3 +40,25 @@ def _():
 		where parent = 'BTP Banh O' and parenttype = 'BTP Banh O' and ma_hang = %s""", ma)[0][0]), 1)
 	d = [x for x in frappe.get_doc("BTP Banh O").dong if x.ma_hang == ma][0]
 	la("đọc lại bảng BTP như màn đọc", (d.so_btp, d.so_decor), (9, 8))
+
+
+@ca("v649 thật Codex #552 vòng 6: Bếp làm 3 nhập dưới bản cũ (ghi thẳng, không qua on_update), bản vá lên bản trừ đúng 3 một lần; lưu lại không trừ thêm")
+def _():
+	from vagabond.patches import v649_tru_vo_btp_dang_lam as p
+
+	b, ma = _bang_moi()
+	rieng = ma + "-V649LB"  # mã riêng của ca: bản vá đọc mọi bảng chưa chốt, mã này chỉ ca này có
+	kho = frappe.get_single("BTP Banh O")
+	kho.set("dong", [])
+	kho.append("dong", {"ma_hang": rieng, "ten_banh": "Bánh v649 lên bản", "so_btp": 10, "so_decor": 9})
+	kho.save(ignore_permissions=True)
+	b.append("dong", {"ma_hang": ma, "ten_banh": "Bánh v649 lên bản", "da_dat": 3})
+	b.insert(ignore_permissions=True)
+	_DA_TAO.append((b.doctype, b.name))
+	# Bản cũ: Bếp làm lưu mà không trừ vỏ. Ghi thẳng CSDL để giả đúng trạng thái đó.
+	frappe.db.set_value("Kiem Banh Dong", b.dong[0].name, {"ma_hang": rieng, "sx": 3}, update_modified=False)
+	la("trước bản vá: vỏ chưa trừ", _o(rieng), (10, 9))
+	p.execute()
+	la("bản vá trừ phần đã làm", _o(rieng), (7, 6))
+	b.reload(); b.dong[0].huy = 1; b.save(ignore_permissions=True)
+	la("lưu lại không trừ thêm", _o(rieng), (7, 6))
