@@ -120,7 +120,7 @@ def _():
 	la("chỉ hỏi: không lập, không ghi phiếu nào", he.nhat, [])
 
 	he = _He(ton)
-	kq = he.chay(lay_bu=1)
+	kq = he.chay(lay_bu=1, lay_toi_da='{"BOT": 70}')
 	la("thứ tự: điều chuyển rồi mới hoàn tất",
 		[(x[0], x[1]) for x in he.nhat],
 		[("insert", "Material Transfer"), ("submit", "Material Transfer"), ("insert", "Manufacture"), ("submit", "Manufacture")])
@@ -133,7 +133,7 @@ def _():
 @ca("v648 hoàn tất lấy bù: đủ nguyên liệu thì không lập phiếu; không có cờ thì đi đường cũ, không đọc kho")
 def _():
 	he = _He({("BOT", BEP): 100, ("BO", BEP): 50})
-	kq = he.chay(lay_bu=1)
+	kq = he.chay(lay_bu=1, lay_toi_da="{}")
 	la("đủ: chỉ phiếu hoàn tất", [x[1] for x in he.nhat], ["Manufacture", "Manufacture"])
 	la("không có phiếu bù", kq["phieu_bu"], "")
 
@@ -142,3 +142,31 @@ def _():
 	kq = he.chay()
 	la("đường cũ", [x[1] for x in he.nhat], ["Manufacture", "Manufacture"])
 	dung("không có ô hỏi", "hoi_lay_bu" not in kq)
+
+
+@ca("v648 Codex #551 vòng 8: số đã duyệt là trần của lượt ghi; cộng theo mã; thiếu số duyệt thì không ghi; chịu chuỗi JSON")
+def _():
+	lay = [dict(ma="BOT", sl=40.0), dict(ma="BOT", sl=30.0), dict(ma="BO", sl=5.0)]
+	dung("đủ trần", ksx.trong_han_lay(lay, {"BOT": 70, "BO": 5}))
+	dung("cộng theo mã: 70 vượt 60", not ksx.trong_han_lay(lay, {"BOT": 60, "BO": 5}))
+	dung("thiếu mã trong trần", not ksx.trong_han_lay(lay, {"BOT": 70}))
+	dung("không có số duyệt thì không ghi", not ksx.trong_han_lay(lay, None) and not ksx.trong_han_lay(lay, {}) and not ksx.trong_han_lay(lay, ""))
+	dung("chuỗi JSON như app gửi", ksx.trong_han_lay(lay, '{"BOT": 70, "BO": 5}'))
+	dung("chuỗi hỏng thì không ghi", not ksx.trong_han_lay(lay, "{BOT"))
+	dung("làm tròn 3 chữ số không chặn nhầm", ksx.trong_han_lay([dict(ma="BOT", sl=10.001)], {"BOT": 10.001}))
+
+
+@ca("v648 Codex #551 vòng 8: kho bếp bị dùng bớt giữa lượt hỏi và lượt ghi thì máy chủ KHÔNG lấy quá số bếp đã duyệt, chỉ hỏi lại")
+def _():
+	# Lượt hỏi: bếp còn 30 g, thiếu 70 g; bếp duyệt 70. Trước lượt ghi, đơn
+	# khác dùng hết 30 g: phần thiếu tính lại là 100 g.
+	he = _He({("BOT", BEP): 0, ("BO", BEP): 50, ("BOT", TONG): 1000})
+	kq = he.chay(lay_bu=1, lay_toi_da='{"BOT": 70}')
+	la("hỏi lại đúng 100", [(x["ma"], x["sl"]) for x in kq["hoi_lay_bu"]], [("BOT", 100.0)])
+	la("không lập, không ghi phiếu nào", he.nhat, [])
+	he = _He({("BOT", BEP): 0, ("BO", BEP): 50, ("BOT", TONG): 1000})
+	kq = he.chay(lay_bu=1)
+	la("lượt ghi không mang số duyệt: không ghi", (he.nhat, [x["sl"] for x in kq["hoi_lay_bu"]]), ([], [100.0]))
+	he = _He({("BOT", BEP): 0, ("BO", BEP): 50, ("BOT", TONG): 1000})
+	kq = he.chay(lay_bu=1, lay_toi_da='{"BOT": 100}')
+	la("bếp duyệt lại 100 thì lấy 100", [(x["ma"], x["sl"]) for x in kq["da_lay"]], [("BOT", 100.0)])
