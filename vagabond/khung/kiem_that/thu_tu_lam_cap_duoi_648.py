@@ -140,7 +140,16 @@ def _hoan_tat(wo, q, lay_bu=0, nhat=None):
 	"""make_stock_entry rồi hoan_tat_phieu: cửa của nút Hoàn tất (giờ máy chủ)."""
 	from vagabond.kho_san_xuat import hoan_tat_phieu
 	phieu = make_stock_entry(wo.name, "Manufacture", qty=q)
-	kq = hoan_tat_phieu(phieu, q=q, can=q, lay_bu=lay_bu)
+	if lay_bu:
+		# Như mfgGhiLenh: hỏi trước, rồi ghi kèm đúng số đã duyệt (Codex #551 vòng 8).
+		kq = hoan_tat_phieu(phieu, q=q, can=q, hoi_lay_bu=1)
+		if kq.get("hoi_lay_bu"):
+			toi = {}
+			for x in kq["hoi_lay_bu"]:
+				toi[x["ma"]] = toi.get(x["ma"], 0) + x["sl"]
+			kq = hoan_tat_phieu(make_stock_entry(wo.name, "Manufacture", qty=q), q=q, can=q, lay_bu=1, lay_toi_da=frappe.as_json(toi))
+	else:
+		kq = hoan_tat_phieu(phieu, q=q, can=q, lay_bu=lay_bu)
 	if kq.get("phieu_bu"):
 		nen._DA_TAO.append(("Stock Entry", kq["phieu_bu"]))
 		if nhat is not None:
@@ -268,6 +277,9 @@ def _lay_bu_kho_tong():
 		la("chỉ hỏi: trả đúng 60", [(x["ma"], x["sl"]) for x in kq.get("hoi_lay_bu") or []], [(w.nvl, 60.0)])
 		la("chỉ hỏi: không phiếu nào được lập", frappe.db.count("Stock Entry", {"from_warehouse": tong}), truoc)
 		dung("chỉ hỏi: không ghi phiếu hoàn tất", not kq.get("name"))
+		# Codex #551 vòng 8: số duyệt nhỏ hơn phần thiếu thì máy chủ không ghi.
+		kq = ksx.hoan_tat_phieu(make_stock_entry(cha.name, "Manufacture", qty=2), q=2, can=2, lay_bu=1, lay_toi_da=frappe.as_json({w.nvl: 30}))
+		la("duyệt 30 mà thiếu 60: hỏi lại, không lập phiếu", ([x["sl"] for x in kq.get("hoi_lay_bu") or []], frappe.db.count("Stock Entry", {"from_warehouse": tong})), ([60.0], truoc))
 		se = _hoan_tat(cha, 2, 1, nhat)
 	finally:
 		ksx.KHO_GOC = goc
