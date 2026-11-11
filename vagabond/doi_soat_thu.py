@@ -611,6 +611,25 @@ def tin_hop_thu_loi(tu_luc, ly_do):
 		"Trong lúc này thư đối soát vẫn nằm trong hộp thư, không mất. Giám đốc mở Cài đặt lõi để khai lại mật khẩu."])
 
 
+def ma_diem_nguon(tai_khoan):
+	"""THUẦN (v649). Mã điểm bán của một nguồn đối soát từ tài khoản nguồn
+	("GRABFOOD:5-C4E1NPWGG2WZFA" ra "TCV"), đọc từ đúng bảng ánh xạ cửa hàng của
+	bộ đọc báo cáo. Không rõ thì "" (OnePay, Payoo một tài khoản cho cả tiệm)."""
+	from vagabond import doi_soat_mau as m
+
+	ma = str(tai_khoan or "").split(":", 1)[-1].strip()
+	for bang in (m.GRAB_DIEM, m.SHOPEE_DIEM, m.GREENSM_DIEM):
+		if ma in bang:
+			return bang[ma]
+	return ""
+
+
+def ten_vendor_diem(vendor, ten_diem=""):
+	"""THUẦN (v649). "GrabFood Trần Cao Vân": ba cửa hàng Grab cùng ngày gửi ba tin
+	giống hệt nhau thì kế toán không biết tin nào của chỗ nào (anh Việt 11/11/2026)."""
+	return ("%s %s" % (vendor or "", ten_diem)).strip() if ten_diem else (vendor or "")
+
+
 def tin_tep_loi(vendor, ky, ly_do):
 	"""THUẦN. Tin 4: tệp đối soát từ thư đọc không được."""
 	return ("Tệp đối soát %s %s không đọc được" % (vendor, ky), [
@@ -1162,14 +1181,29 @@ def ky_hien(n):
 	return ("ngày " + _dm(a or b)) if (a or b) else "chưa rõ kỳ"
 
 
+def _vendor_kem_diem(vendor, tai_khoan):
+	"""Tên đối tác kèm tên điểm bán cho tin Zalo. Đọc tên điểm hỏng thì giữ mã."""
+	ma = ma_diem_nguon(tai_khoan)
+	if not ma:
+		return vendor
+	try:
+		from vagabond import diem_ban
+
+		ten = diem_ban.ten_diem().get(ma) or ma
+	except Exception:
+		ten = ma
+	return ten_vendor_diem(vendor, ten)
+
+
 def sau_khi_ghi(name, moi=True):
 	"""Gọi từ doi_soat_vendor._ghi_nguon. Không bao giờ làm hỏng lượt nhận."""
 	frappe = _frappe()
 	try:
 		n = frappe.db.get_value(DT_NGUON, name, ["name", "vendor", "tu_ngay", "den_ngay", "so_dong", "thuc_nhan",
-			"trang_thai", "ly_do", "kenh_nhan", "duong_vao", "ly_do_tai_tay", "owner"], as_dict=True)
+			"trang_thai", "ly_do", "kenh_nhan", "duong_vao", "ly_do_tai_tay", "owner", "tai_khoan"], as_dict=True)
 		if not n or not moi:
 			return
+		n.vendor = _vendor_kem_diem(n.vendor, n.tai_khoan)
 		from vagabond import kenh_zalo
 
 		if n.duong_vao == DV_CHO:
@@ -1191,7 +1225,7 @@ def sau_doi_chieu(name, tien_cu):
 	frappe = _frappe()
 	try:
 		n = frappe.db.get_value(DT_NGUON, name, ["name", "vendor", "mau", "nhom", "tu_ngay", "den_ngay", "thuc_nhan",
-			"trang_thai_tien", "du_lieu", "company"], as_dict=True)
+			"trang_thai_tien", "du_lieu", "company", "tai_khoan"], as_dict=True)
 		if not n:
 			return
 		d = json.loads(n.du_lieu or "{}")
@@ -1231,7 +1265,7 @@ def _bao_lech(n, d, tien_cu, ch):
 		if l and abs(int(l.get("nhan") or 0) - int(l.get("bao") or 0)) >= ch["nguong_lech"]:
 			from vagabond import kenh_zalo
 
-			t, dd = tin_lech_tien(n.vendor, ky_hien(n), l.get("bao"), l.get("nhan"))
+			t, dd = tin_lech_tien(_vendor_kem_diem(n.vendor, n.get("tai_khoan")), ky_hien(n), l.get("bao"), l.get("nhan"))
 			kenh_zalo.bao_hoac_ghi_loi("canh_bao", "cong_no", t, dd, link=_link(),
 				khoa=khoa_lech(n.name), ma_tin="kt_ds_lech_tien")
 
@@ -1242,7 +1276,7 @@ def bao_lech_tien(name, tien_cu):
 	frappe = _frappe()
 	try:
 		n = frappe.db.get_value(DT_NGUON, name, ["name", "vendor", "mau", "nhom", "tu_ngay", "den_ngay", "thuc_nhan",
-			"trang_thai_tien", "du_lieu", "company"], as_dict=True)
+			"trang_thai_tien", "du_lieu", "company", "tai_khoan"], as_dict=True)
 		if n:
 			_bao_lech(n, json.loads(n.du_lieu or "{}"), tien_cu, cau_hinh())
 	except Exception:

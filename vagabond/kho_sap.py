@@ -185,12 +185,14 @@ def con_hieu_luc_khoa(ngay_kiem, hom_nay, so_ngay=SO_NGAY_KHOA):
 
 
 def khoa_dang_kiem(phieu):
-	"""Tap (kho, ma hang) dang bi khoa, dung tu danh sach phieu dang mo.
+	"""Các (kho, mã hàng) đang bị khoá, dựng từ danh sách phiếu đang mở.
 
-	`phieu` la danh sach {"kho", "trang_thai", "ma", "con_hieu_luc"}. Phieu
-	khong ghi `con_hieu_luc` thi coi nhu con.
+	`phieu` là danh sách {"kho", "trang_thai", "ma", "con_hieu_luc", "phieu"}.
+	Phiếu không ghi `con_hieu_luc` thì coi như còn. Trả dict {(kho, mã): số
+	phiếu} (v649: câu chặn phải nói ĐÚNG phiếu nào đang khoá, KK-26-00085 ngày
+	11/11/2026 làm bếp bấm Hoàn tất lệnh Hannari mà không biết hỏi ai).
 	"""
-	ra = set()
+	ra = {}
 	for p in phieu or []:
 		if str((p or {}).get("trang_thai") or "") not in TRANG_THAI_KHOA:
 			continue
@@ -202,7 +204,7 @@ def khoa_dang_kiem(phieu):
 		for m in (p or {}).get("ma") or []:
 			m = str(m or "").strip()
 			if m:
-				ra.add((kho, m))
+				ra.setdefault((kho, m), str((p or {}).get("phieu") or "").strip())
 	return ra
 
 
@@ -210,7 +212,8 @@ def dong_bi_khoa(dong, khoa):
 	"""Nhung dong chung tu dang cham vao ma bi khoa.
 
 	`dong` la danh sach {"ma": ..., "kho": [...]} - mot dong co the cham hai
-	kho (phieu dieu chuyen), soi ca hai.
+	kho (phieu dieu chuyen), soi ca hai. `khoa` la dict tu khoa_dang_kiem
+	(hoac tap cu, khi do khong biet so phieu).
 	"""
 	ra = []
 	for d in dong or []:
@@ -220,26 +223,36 @@ def dong_bi_khoa(dong, khoa):
 		for kho in (d or {}).get("kho") or []:
 			kho = str(kho or "").strip()
 			if kho and (kho, ma) in khoa:
-				ra.append({"ma": ma, "kho": kho})
+				ra.append({"ma": ma, "kho": kho,
+					"phieu": khoa.get((kho, ma)) or "" if isinstance(khoa, dict) else ""})
 				break
 	return ra
 
 
 def cau_bi_khoa(vuong, ten_mon=None):
-	"""Cau chan, noi ro dang vuong ma nao o kho nao va phai lam gi."""
+	"""Câu chặn: mã nào, ở kho nào, nằm trong phiếu kiểm kê nào và phải làm gì.
+
+	v649: câu cũ dài, không có số phiếu, app cắt ở 180 ký tự nên bếp chỉ thấy
+	"...TVĐếm xong và ghi sổ chênh lệch của phiếu kiểm t". Nay số phiếu đứng
+	đầu câu, câu hướng dẫn ngắn.
+	"""
 	ten_mon = ten_mon or {}
 	if not vuong:
 		return ""
+	so = []
+	for v in vuong:
+		if v.get("phieu") and v["phieu"] not in so:
+			so.append(v["phieu"])
+	dau = ("Phiếu kiểm kê %s đang mở, chưa ghi sổ được:" % ", ".join(so)) if so else (
+		"Đang có phiếu kiểm kê mở trên những mặt hàng này nên chưa ghi sổ được:")
 	dong = [
 		"%s tại %s" % (ten_mon.get(v["ma"]) or v["ma"], v["kho"])
 		for v in vuong[:8]
 	]
-	them = "" if len(vuong) <= 8 else " và %d mặt hàng nữa" % (len(vuong) - 8)
+	them = "" if len(vuong) <= 8 else "<br>và %d mặt hàng nữa" % (len(vuong) - 8)
 	return (
-		"Đang có phiếu kiểm kê mở trên những mặt hàng này nên chưa ghi sổ "
-		"được:<br>%s%s<br><br>Đếm xong và ghi sổ chênh lệch của phiếu kiểm thì "
-		"chứng từ này lưu được ngay. Ghi sổ lúc đang đếm thì con số chênh lệch "
-		"đếm ra không còn đúng với thời điểm nào cả." % ("<br>".join(dong), them)
+		"%s<br>%s%s<br>Người duyệt mở phiếu ở Kiểm kê kho, ghi sổ chênh lệch rồi bấm lại."
+		% (dau, "<br>".join(dong), them)
 	)
 
 
