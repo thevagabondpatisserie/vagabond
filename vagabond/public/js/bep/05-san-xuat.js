@@ -1885,9 +1885,12 @@ async function mfgHoanTatMot(d, q, can, imLang) {
   var nvl = [];
   if (plan.length && !imLang) { try { nvl = await mfgNvlCuaKe(plan, src); } catch (e3) { nvl = []; } }
   busy(0);
+  /* Theo lô (imLang) không có hộp nào, nên không lấy bù (Codex #551 vòng 5). */
+  var bu = imLang ? null : { phieu: [], duyet: {} };
   if (plan.length && !imLang) {
     var okf = await mfgSheetKe(plan, nvl, src);
     if (!okf) return 0;
+    nvl.forEach(function (x) { if ((x.lay_tong || 0) > 0.0001) bu.duyet[x.code] = x.lay_tong; });
   }
   busy(1);
   try {
@@ -1895,9 +1898,6 @@ async function mfgHoanTatMot(d, q, can, imLang) {
       await api('frappe.client.submit', { doc: d });
       d = await api('frappe.client.get', { doctype: 'Work Order', name: d.name });
     }
-    /* Codex #551 vòng 5: chỉ lấy bù khi bếp THẤY hộp "Máy làm luôn giúp bếp"
-       và đồng ý. Theo lô (imLang) hộp đó bị bỏ qua, nên giữ như cũ. */
-    var bu = (plan.length && !imLang) ? { phieu: [] } : null;
     if (plan.length) await mfgRunFresh(plan, 1, bu);
     var it = await mfgLoadItem(d.production_item);
     var batch = await mfgBatchOf(d.name);
@@ -1918,25 +1918,12 @@ async function mfgHoanTatMot(d, q, can, imLang) {
     (se.items || []).forEach(function (r) {
       if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
     });
-    /* v648 cách 1: món chính luôn để máy chủ HỎI trước, bếp đồng ý rồi mới
-       lấy bù. Codex #551 vòng 6: hộp "Máy làm luôn giúp bếp" chỉ xét nguyên
-       liệu của lệnh con, nên bếp đồng ý ở đó chưa phải đồng ý lấy bù cho món
-       chính. Chế độ theo lô không hỏi thêm: giữ như cũ. */
-    var kq = await api('vagabond.kho_san_xuat.hoan_tat_phieu',
-      { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: imLang ? 0 : 1 });
-    if (kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length) {
-      busy(0);
-      var okBu = await confirmSheet('Kho bếp thiếu nguyên liệu', mfgCauLayBu(kq.hoi_lay_bu, kq.con_thieu),
-        'Lấy từ kho tổng và hoàn tất', 0);
-      if (!okBu) {
-        if (plan.length) toast('Phần máy làm giúp bếp đã xong; món chính chưa hoàn tất vì kho bếp còn thiếu nguyên liệu.', 6000);
-        return 0;
-      }
-      busy(1);
-      bu = bu || { phieu: [] };
-      kq = await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: q, can: can, lay_bu: 1 });
-    }
-    if (bu && kq && kq.phieu_bu) bu.phieu.push(kq.phieu_bu);
+    /* v648 cách 1: món chính cũng qua mfgGhiLenh. Codex #551 vòng 6: hộp
+       "Máy làm luôn giúp bếp" chỉ nêu nguyên liệu của phần máy làm, nên món
+       chính thiếu thì hỏi riêng: phần bếp đã duyệt cho lệnh con không dùng
+       cho món chính. */
+    if (bu) bu.duyet = {};
+    var kq = await mfgGhiLenh(se, q, can, bu);
     busy(0);
     if (imLang) return 'lai';
     toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || '') +
@@ -1944,7 +1931,15 @@ async function mfgHoanTatMot(d, q, can, imLang) {
     mfgL = { batch: batch || '', lenh: batch ? '' : d.name, item: d.production_item, name: d.item_name || d.production_item, qty: can, uom: d.stock_uom, meta: it };
     go(scrMfgLabel, true);
     return 0;
-  } catch (err) { busy(0); if (!imLang) toast(errMsg(err), 7000); throw err; }
+  } catch (err) {
+    busy(0);
+    if (err && err.tuChoi) {
+      toast('Chưa lấy từ kho tổng nên dừng lại: lệnh đã làm xong vẫn giữ, món chính chưa hoàn tất.', 6000);
+      return 0;
+    }
+    if (!imLang) toast(errMsg(err), 7000);
+    throw err;
+  }
 }
 
 /* Hoan thanh CA THE GOP bang mot lan go so.
@@ -2152,47 +2147,72 @@ async function mfgFreshPlan(mats, ratio, src, giu) {
    hinh dien thoai. Cot "tồn" doc tai dung cai kho se bi tru. */
 async function mfgNvlCuaKe(plan, src) {
   if (!plan || !plan.length) return [];
-  var boms = plan.map(function (f) { return f.bom; }).filter(Boolean);
-  if (!boms.length) return [];
-  var bq = {};
-  (await getList('BOM', {
-    fields: ['name', 'quantity'], filters: { name: ['in', boms] }, limit_page_length: 0
-  })).forEach(function (b) { bq[b.name] = b.quantity || 1; });
-
-  var dong = await inChunks(boms, 40, function (lot) {
-    return getList('BOM Item', {
-      parent: 'BOM',
-      fields: ['parent', 'item_code', 'item_name', 'stock_qty', 'stock_uom'],
-      filters: { parent: ['in', lot] }, limit_page_length: 0
-    });
-  });
-
-  var ti = {};
-  plan.forEach(function (f) {
-    if (!f.bom) return;
-    ti[f.bom] = (ti[f.bom] || 0) + ((f.qty || 0) / (bq[f.bom] || 1));
-  });
-
   var gom = {}, thu_tu = [];
-  dong.forEach(function (r) {
-    var t = ti[r.parent];
-    if (!t) return;
-    var c = r.item_code;
-    if (!gom[c]) { gom[c] = { code: c, name: r.item_name || c, uom: r.stock_uom, need: 0 }; thu_tu.push(c); }
-    gom[c].need = r3(gom[c].need + (r.stock_qty || 0) * t);
-  });
+  /* Cộng nguyên liệu của các công thức: ti = {tên công thức: số thành phẩm}. */
+  async function cong(ti) {
+    var boms = Object.keys(ti);
+    if (!boms.length) return;
+    var bq = {};
+    (await getList('BOM', {
+      fields: ['name', 'quantity'], filters: { name: ['in', boms] }, limit_page_length: 0
+    })).forEach(function (b) { bq[b.name] = b.quantity || 1; });
+    var dong = await inChunks(boms, 40, function (lot) {
+      return getList('BOM Item', {
+        parent: 'BOM',
+        fields: ['parent', 'item_code', 'item_name', 'stock_qty', 'stock_uom'],
+        filters: { parent: ['in', lot] }, limit_page_length: 0
+      });
+    });
+    dong.forEach(function (r) {
+      var t = (ti[r.parent] || 0) / (bq[r.parent] || 1);
+      if (!t) return;
+      var c = r.item_code;
+      if (!gom[c]) { gom[c] = { code: c, name: r.item_name || c, uom: r.stock_uom, need: 0 }; thu_tu.push(c); }
+      gom[c].need = r3(gom[c].need + (r.stock_qty || 0) * t);
+    });
+  }
+  var ti0 = {};
+  plan.forEach(function (f) { if (f.bom) ti0[f.bom] = (ti0[f.bom] || 0) + (f.qty || 0); });
+  await cong(ti0);
   if (!thu_tu.length) return [];
 
-  var tn = await stockOf(thu_tu, src);
   /* Tồn đã giữ cho món chính không tính là có cho lệnh con (cùng cách với
      mfgRunFresh; mọi món của một kế hoạch mang cùng phần giữ). */
   var giu = (plan[0] && plan[0].giu) || {};
   /* v648: ruột bánh cấp 1 (hay món làm tươi) nằm trong công thức bánh khuôn mà
      thiếu tồn thì máy cũng tự làm nốt, không phải "thiếu". Đánh dấu để hộp
      xác nhận ghi "máy làm thêm", không tô đỏ, không báo thiếu (anh Việt
-     11/11/2026 xem bản vẽ). Hỏi máy chủ hỏng thì giữ cách hiện cũ. */
-  var fr = {};
-  try { fr = await freshOf(thu_tu); } catch (e) { fr = {}; }
+     11/11/2026 xem bản vẽ). Hỏi máy chủ hỏng thì giữ cách hiện cũ.
+
+     Codex #551 vòng 7: phần máy làm thêm đó cũng ăn nguyên liệu. Hộp phải
+     cộng cả nguyên liệu của nó (tới 3 cấp như mfgRunFresh), không thì phần
+     lấy kho tổng bếp đồng ý nhỏ hơn phần máy thực lấy. */
+  var tn = {}, fr = {}, daMo = {};
+  for (var cap = 1; cap <= 3; cap++) {
+    var moi = thu_tu.filter(function (c) { return !(c in tn); });
+    if (moi.length) {
+      var t1 = await stockOf(moi, src);
+      moi.forEach(function (c) { tn[c] = t1[c] || 0; });
+      var f1 = {};
+      try { f1 = await freshOf(moi); } catch (e) { f1 = {}; }
+      moi.forEach(function (c) { fr[c] = f1[c] ? 1 : 0; });
+    }
+    if (cap === 3) break;
+    var mo = thu_tu.filter(function (c) {
+      var x = gom[c];
+      return fr[c] && !daMo[c] && x.need - Math.max(0, tn[c] - (giu[c] || 0)) > 0.0001;
+    });
+    if (!mo.length) break;
+    mo.forEach(function (c) { daMo[c] = 1; });
+    var bm = {};
+    try { bm = await bomOf(mo); } catch (e4) { bm = {}; }
+    var ti = {};
+    mo.forEach(function (c) {
+      var b = bm[c] && bm[c].name;
+      if (b) ti[b] = (ti[b] || 0) + r3(gom[c].need - Math.max(0, tn[c] - (giu[c] || 0)));
+    });
+    await cong(ti);
+  }
   var ra = thu_tu.map(function (c) {
     var x = gom[c];
     x.ton = Math.max(0, (tn[c] || 0) - (giu[c] || 0));
@@ -2265,11 +2285,40 @@ async function mfgRunFresh(list, depth, bu) {
        Truoc day lenh con lay gio dien thoai: dien thoai nhanh vai giay la
        phieu mon chinh (gio may chu) dung TRUOC phieu nhap banh khuon, ERPNext
        bao thieu ton. Tu v648 cap 1, cap 2 deu di duong nay nen phai chot. */
-    /* v648 cách 1: bếp đã đồng ý ở hộp "Máy làm luôn giúp bếp", nên lệnh con
-       thiếu nguyên liệu thì máy chủ lấy bù từ Kho tổng 307 luôn. */
-    var kq = await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: f.qty, can: f.qty, lay_bu: bu ? 1 : 0 });
-    if (bu && kq && kq.phieu_bu) bu.phieu.push(kq.phieu_bu);
+    /* v648 cách 1: lấy bù từ Kho tổng 307 chỉ trong phần bếp đã đồng ý ở hộp
+       "Máy làm luôn giúp bếp"; ngoài phần đó thì hỏi riêng (mfgGhiLenh). */
+    await mfgGhiLenh(se, f.qty, f.qty, bu);
   }
+}
+
+/* Ghi sổ MỘT lệnh qua cửa hoan_tat_phieu, lấy bù Kho tổng 307 chỉ khi bếp đã
+   đồng ý ĐÚNG phần đó.
+
+   bu = null: chế độ theo lô, không hỏi, không lấy bù (như trước v648).
+   bu.duyet = {mã: số}: phần "lấy kho tổng" hộp "Máy làm luôn giúp bếp" đã
+   nêu và bếp đã bấm đồng ý. Máy chủ chỉ HỎI trước (không ghi gì); phần thiếu
+   nằm trọn trong duyet thì lấy luôn và trừ dần, ngoài duyet thì hỏi riêng.
+   Codex #551 vòng 6, 7: một lần đồng ý chỉ phủ đúng điều hộp đã hiện. Bếp từ
+   chối thì ném lỗi tuChoi, lệnh đã ghi sổ trước đó vẫn giữ. */
+async function mfgGhiLenh(se, q, can, bu) {
+  var m = 'vagabond.kho_san_xuat.hoan_tat_phieu';
+  if (!bu) return await api(m, { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: 0 });
+  var kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: 1 });
+  if (!(kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length)) return kq;
+  var duyet = bu.duyet || (bu.duyet = {});
+  var trong = kq.hoi_lay_bu.every(function (x) { return (duyet[x.ma] || 0) + 0.0001 >= (x.sl || 0); });
+  if (trong) {
+    kq.hoi_lay_bu.forEach(function (x) { duyet[x.ma] = r3((duyet[x.ma] || 0) - (x.sl || 0)); });
+  } else {
+    busy(0);
+    var ok = await confirmSheet('Kho bếp thiếu nguyên liệu', mfgCauLayBu(kq.hoi_lay_bu, kq.con_thieu),
+      'Lấy từ kho tổng và hoàn tất', 0);
+    if (!ok) { var e = new Error('Bếp chưa đồng ý lấy nguyên liệu từ kho tổng'); e.tuChoi = 1; throw e; }
+    busy(1);
+  }
+  kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 1 });
+  if (kq && kq.phieu_bu) (bu.phieu || (bu.phieu = [])).push(kq.phieu_bu);
+  return kq;
 }
 
 /* ---------- 12c-5. Mon chua co cong thuc: khai nguyen lieu ngay tren app ---------- */
