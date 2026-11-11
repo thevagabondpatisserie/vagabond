@@ -157,7 +157,14 @@ function theGioi(ton, tuLam, tong) {
             (!f0.bom_no || w.bom_no === f0.bom_no);
         });
         if (o.limit_page_length) ra0 = ra0.slice(0, o.limit_page_length);
-        return ra0.map(function (w) { lenh[w.name] = lenh[w.name] || { code: w.production_item, qty: w.qty, src: w.source_warehouse }; return w; });
+        /* Như máy chủ thật: chỉ trả các cột app xin trong fields. Codex #552
+           vòng 2: quên xin process_loss_qty thì app không thấy phần hao. */
+        return ra0.map(function (w) {
+          lenh[w.name] = lenh[w.name] || { code: w.production_item, qty: w.qty, src: w.source_warehouse };
+          var r = {};
+          (o.fields || []).forEach(function (k) { if (k in w) r[k] = w[k]; });
+          return r;
+        });
       }
       throw new Error('getList la: ' + dt);
     },
@@ -182,7 +189,7 @@ function theGioi(ton, tuLam, tong) {
   the.MFG_KHO_TONG = 'Kho tổng 307 - TV';
   the.datTon = function (c, n) { ton[c] = n; };
   vm.createContext(the);
-  ['inChunks', 'freshOf', 'mfgHoanTatMot', 'mfgGhiLenh', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgChonLenhMo', 'mfgLenhChoTuLam', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
+  ['inChunks', 'freshOf', 'mfgHoanTatMot', 'mfgGhiLenh', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgConLai', 'mfgChonLenhMo', 'mfgLenhChoTuLam', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
     vm.runInContext(layHam(SRC, t), the);
   });
   the.nhat = nhat;
@@ -533,6 +540,28 @@ async function ca(ten, fn) {
     bang('bao loi cho bep', !!loi, true);
     bang('khong tao lenh', t.nhat.lenh, []);
     bang('khong ghi so', t.nhat.phieu, []);
+  });
+
+  /* Codex #552 vòng 2 (05-san-xuat.js mfgChonLenhMo): lệnh làm dở có ghi
+     hao hụt. Số còn được làm = qty - produced_qty - process_loss_qty, như
+     scrMfgView và kho_san_xuat.so_hoan_tat. Lệnh 10, đã làm 6, hao 3 chỉ còn
+     1: không được nhận thêm 2. */
+  await ca('26. Codex #552 vong 2: lenh lam do co hao hut, phan con lai (tru hao) khong du thi KHONG dung, tao lenh moi; con du thi dung', async function () {
+    var t = theGioi({ C1: 9 }, ['C1', 'C2']);
+    var K = t.mfg.src;
+    t.lenhMo = [
+      { name: 'WO-HAO', production_item: 'C2', qty: 10, produced_qty: 6, process_loss_qty: 3, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' }
+    ];
+    var ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('con 1 (10 - 6 - 3) < 2: tao lenh moi C2 x2', t.nhat.lenh, ['C2 x2']);
+    t = theGioi({ C1: 9 }, ['C1', 'C2']);
+    t.lenhMo = [
+      { name: 'WO-HAO2', production_item: 'C2', qty: 10, produced_qty: 6, process_loss_qty: 2, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' }
+    ];
+    ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('con 2 (10 - 6 - 2) du 2: dung lenh dang mo', [t.nhat.lenh, t.nhat.phieu], [[], ['C2 x2']]);
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');
