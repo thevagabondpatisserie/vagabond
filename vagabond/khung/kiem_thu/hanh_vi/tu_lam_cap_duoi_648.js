@@ -69,15 +69,31 @@ function theGioi(ton, tuLam, tong) {
         return { work_order: a.work_order_id, qty: a.qty, items: [{ is_finished_item: 1 }] };
       }
       if (m === 'vagabond.kho_san_xuat.hoan_tat_phieu' && a.phieu.work_order === 'WO-CHA') {
-        /* Lệnh món chính (ca 14): máy chủ giả chỉ trả lời đúng luật hỏi/lấy bù. */
+        /* Lệnh món chính (ca 14): máy chủ giả chỉ trả lời đúng luật hỏi/lấy bù.
+           chaDu: món chính đủ nguyên liệu, máy chủ không hỏi. */
         nhat.cha = (nhat.cha || []).concat([{ lay_bu: a.lay_bu, hoi_lay_bu: a.hoi_lay_bu }]);
-        if (a.hoi_lay_bu && !a.lay_bu) return { ok: 0, hoi_lay_bu: [{ ma: 'NVL', ten: 'Bột', sl: 60, dvt: 'Gram', kho_bep_con: 0 }], con_thieu: [] };
+        if (a.hoi_lay_bu && !a.lay_bu && !the.chaDu) return { ok: 0, hoi_lay_bu: [{ ma: 'NVL', ten: 'Bột', sl: 60, dvt: 'Gram', kho_bep_con: 0 }], con_thieu: [] };
         return { name: 'SE-CHA', phieu_bu: a.lay_bu ? 'PDC-CHA' : '' };
       }
       if (m === 'vagabond.kho_san_xuat.hoan_tat_phieu') {
         /* Codex #551: lenh con ghi so qua cung cua voi mon chinh (gio may chu). */
         var w2 = lenh[a.phieu.work_order];
         if (a.q !== a.can || a.q !== a.phieu.qty) throw new Error('so lam lech: ' + JSON.stringify([a.q, a.can, a.phieu.qty]));
+        /* v648 cách 1: khi app hỏi hoặc xin lấy bù, máy chủ giả tính NVL của
+           kho bếp như hoan_tat_phieu thật: chỉ hỏi thì trả phần thiếu, không
+           ghi gì; lấy bù thì chuyển đúng phần thiếu từ kho tổng. */
+        var nvlCan = 0, layBuSo = 0;
+        BOM[w2.code].dong.forEach(function (d) { if (d.item_code === 'NVL') nvlCan += d.so * a.q / BOM[w2.code].qty; });
+        if (a.hoi_lay_bu || a.lay_bu) {
+          var coNvl = ton.NVL || 0, thieuNvl = Math.round((nvlCan - coNvl) * 1000) / 1000;
+          if (thieuNvl > 0.0001 && !a.lay_bu) {
+            nhat.hoiCon = (nhat.hoiCon || []).concat([w2.code]);
+            return { ok: 0, hoi_lay_bu: [{ ma: 'NVL', ten: 'Bột', sl: thieuNvl, dvt: 'Gram', kho_bep_con: coNvl }], con_thieu: [] };
+          }
+          layBuSo = a.lay_bu && thieuNvl > 0.0001 ? thieuNvl : 0;
+          if (layBuSo) { tong.NVL = (tong.NVL || 0) - layBuSo; nhat.daLay = (nhat.daLay || 0) + layBuSo; }
+          ton.NVL = Math.round((coNvl + layBuSo - nvlCan) * 1000) / 1000;
+        }
         /* Codex #551 vòng 3: phiếu Manufacture thật TRỪ nguyên liệu của lệnh
            con. Kho giả cũ chỉ cộng thành phẩm nên không thấy lệnh C2 ăn mất
            ruột C1 vừa làm cho món chính. Món giữ tồn (C1, C2) mà âm là ERPNext
@@ -91,7 +107,7 @@ function theGioi(ton, tuLam, tong) {
         nhat.phieu.push(w2.code + ' x' + a.q);
         nhat.layBu = (nhat.layBu || []).concat([a.lay_bu]);
         ton[w2.code] = (ton[w2.code] || 0) + a.q;
-        return { name: 'SE-' + nhat.phieu.length, phieu_bu: a.lay_bu ? 'PDC-' + nhat.phieu.length : '' };
+        return { name: 'SE-' + nhat.phieu.length, phieu_bu: layBuSo ? 'PDC-' + nhat.phieu.length : '' };
       }
       if (m === 'frappe.client.insert' || m === 'frappe.client.submit') {
         nhat.giaoTho.push(m);
@@ -128,7 +144,7 @@ function theGioi(ton, tuLam, tong) {
     busy: function () {}, go: function () {}, scrMfgLabel: function () {}, mfgSheetKe: async function () { return true; },
     toast: function (c) { nhat.toast = (nhat.toast || []).concat([c]); },
     errMsg: function (e) { return String(e && e.message || e); },
-    confirmSheet: async function (t, c, ok) { nhat.hoiBep = (nhat.hoiBep || []).concat([[t, c, ok]]).concat([[t, c, ok]]); return the.dongY !== false; }
+    confirmSheet: async function (t, c, ok) { nhat.hoiBep = (nhat.hoiBep || []).concat([[t, c, ok]]); return the.dongY !== false; }
   };
   /* Món chính ghi sổ: trừ đủ nguyên liệu giữ tồn của lệnh, như ERPNext. */
   the.ghiMonChinh = function (mats, ratio) {
@@ -141,8 +157,9 @@ function theGioi(ton, tuLam, tong) {
     return ton;
   };
   the.MFG_KHO_TONG = 'Kho tổng 307 - TV';
+  the.datTon = function (c, n) { ton[c] = n; };
   vm.createContext(the);
-  ['inChunks', 'freshOf', 'mfgHoanTatMot', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
+  ['inChunks', 'freshOf', 'mfgHoanTatMot', 'mfgGhiLenh', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
     vm.runInContext(layHam(SRC, t), the);
   });
   the.nhat = nhat;
@@ -204,7 +221,8 @@ async function ca(ten, fn) {
     var ke = await t.mfgFreshPlan(MATS, 1, t.mfg.src);
     var nvl = await t.mfgNvlCuaKe(ke, t.mfg.src);
     var chip = nvl.map(function (x) { var c = t.mfgChipNvl(x); return [x.code, c.phu, c.bad]; });
-    bang('chip theo thu tu: thieu that len dau', chip, [['NVL', '200 · thiếu 200', true], ['C1', '2 · máy làm thêm 1', false]]);
+    /* Codex #551 vòng 7: 200 g của 2 bánh khuôn cộng 50 g của 1 ruột máy làm thêm. */
+    bang('chip theo thu tu: thieu that len dau', chip, [['NVL', '250 · thiếu 250', true], ['C1', '2 · máy làm thêm 1', false]]);
   });
 
   /* Codex #551 vòng 3 (P2, kho_san_xuat.py:335): món chính cần CẢ ruột C1
@@ -271,20 +289,25 @@ async function ca(ten, fn) {
     var ke = await t.mfgFreshPlan(MATS, 1, t.mfg.src);
     var nvl = await t.mfgNvlCuaKe(ke, t.mfg.src);
     var chip = nvl.map(function (x) { var c = t.mfgChipNvl(x); return [x.code, c.phu, c.bad]; });
-    bang('kho tong du: khong con dong do nao', chip, [['C1', '2 · máy làm thêm 1', false], ['NVL', '200 · lấy kho tổng 200', false]]);
+    bang('kho tong du: khong con dong do nao', chip, [['C1', '2 · máy làm thêm 1', false], ['NVL', '250 · lấy kho tổng 250', false]]);
     t = theGioi({ C1: 1 }, ['C1', 'C2'], { NVL: 50 });
     ke = await t.mfgFreshPlan(MATS, 1, t.mfg.src);
     nvl = await t.mfgNvlCuaKe(ke, t.mfg.src);
     chip = nvl.map(function (x) { var c = t.mfgChipNvl(x); return [x.code, c.phu, c.bad]; });
-    bang('kho tong chi co 50: thieu that len dau', chip[0], ['NVL', '200 · lấy kho tổng 50 · thiếu 150', true]);
+    bang('kho tong chi co 50: thieu that len dau', chip[0], ['NVL', '250 · lấy kho tổng 50 · thiếu 200', true]);
   });
 
-  await ca('13. bep dong y o hop xac nhan: moi lenh con gui lay_bu len may chu, may gom so phieu dieu chuyen', async function () {
+  await ca('13. bep dong y o hop xac nhan: phan lay kho tong hop da neu thi lenh con lay luon, khong hoi lai; may gom so phieu', async function () {
     var t = theGioi({}, ['C1', 'C2'], { NVL: 1000 });
     var ke = await t.mfgFreshPlan(MATS, 1, t.mfg.src);
-    var bu = { phieu: [] };
+    var nvl = await t.mfgNvlCuaKe(ke, t.mfg.src);
+    var bu = { phieu: [], duyet: {} };
+    nvl.forEach(function (x) { if (x.lay_tong) bu.duyet[x.code] = x.lay_tong; });
+    bang('hop neu du 300 g (C2 200, C1 100)', bu.duyet, { NVL: 300 });
     await t.mfgRunFresh(ke, 1, bu);
-    bang('ca hai lenh con deu xin lay bu', t.nhat.layBu, [1, 1]);
+    bang('ca hai lenh con hoi truoc roi lay bu', [t.nhat.hoiCon, t.nhat.layBu], [['C1', 'C2'], [1, 1]]);
+    bang('khong hop hoi nao them', t.nhat.hoiBep || [], []);
+    bang('lay dung phan da neu', [t.nhat.daLay, bu.duyet.NVL], [300, 0]);
     bang('gom so phieu', bu.phieu, ['PDC-1', 'PDC-2']);
     t = theGioi({}, ['C1', 'C2']);
     ke = await t.mfgFreshPlan(MATS, 1, t.mfg.src);
@@ -355,13 +378,66 @@ async function ca(ten, fn) {
     bang('lenh con van lam', t.nhat.phieu, ['C1 x2', 'C2 x2']);
     bang('mon chinh: hoi truoc, dong y moi lay bu', t.nhat.cha, [{ lay_bu: 0, hoi_lay_bu: 1 }, { lay_bu: 1 }]);
     bang('hop hoi rieng cho mon chinh', t.nhat.hoiBep[0][0], 'Kho bếp thiếu nguyên liệu');
-    bang('bao so phieu cua mon chinh, giu so phieu lenh con', /Đã lấy từ Kho tổng 307: PDC-1, PDC-2, PDC-CHA/.test(t.nhat.toast[0]), true);
+    bang('chi mot hop hoi, cho mon chinh', t.nhat.hoiBep.length, 1);
+    bang('bao so phieu cua mon chinh', /Đã lấy từ Kho tổng 307: PDC-CHA/.test(t.nhat.toast[0]), true);
     bang('ve man in tem', kq, 0);
     t = theGioi({ NVL: 100000 }, ['C1', 'C2'], { NVL: 1000 });
     t.dongY = false;
     kq = await t.mfgHoanTatMot(d, 2, 2, 0);
     bang('tu choi: khong lay bu, mon chinh dung', t.nhat.cha, [{ lay_bu: 0, hoi_lay_bu: 1 }]);
     bang('tu choi: bao phan may lam da xong, mon chinh chua', /món chính chưa hoàn tất/.test((t.nhat.toast || [''])[0]), true);
+  });
+
+  /* Codex #551 vòng 7 (P2, 05-san-xuat.js:2270): bánh khuôn C2 cần ruột C1 máy
+     tự làm, mà chỉ C1 thiếu nguyên liệu. Hộp "Máy làm luôn giúp bếp" trước
+     đây chỉ đọc công thức C2 nên không nêu phần lấy kho tổng nào, vậy mà lệnh
+     C1 vẫn được gửi lấy bù. Chạy thật nút Hoàn tất: hộp phải nêu đủ, và mọi
+     phần máy lấy từ kho tổng phải nằm trong phần hộp đã nêu. */
+  var MATS3 = [{ item_code: 'C2', item_name: 'Bánh khuôn C2', stock_uom: 'Cái', required_qty: 2 }];
+  await ca('18. chi ruot C1 may tu lam thieu nguyen lieu: hop dau neu phan lay kho tong cua ca C1, may khong lay qua phan da neu', async function () {
+    var d = { name: 'WO-CHA', docstatus: 1, qty: 2, production_item: 'TP', stock_uom: 'Cái', source_warehouse: 'Pastry - Nguyên liệu - TV', required_items: MATS3 };
+    var t = theGioi({ NVL: 200 }, ['C1', 'C2'], { NVL: 1000 });
+    t.chaDu = true;
+    var hop = [];
+    t.mfgSheetKe = async function (ke, nvl) { hop = nvl.map(function (x) { return [x.code, t.mfgChipNvl(x).phu]; }); return true; };
+    var kq = await t.mfgHoanTatMot(d, 2, 2, 0);
+    bang('hop dau nêu 300 g, lay kho tong 100', hop.filter(function (x) { return x[0] === 'NVL'; }), [['NVL', '300 · lấy kho tổng 100']]);
+    bang('lay dung 100 g da neu, khong hoi lai', [t.nhat.daLay, t.nhat.hoiBep || []], [100, []]);
+    bang('lenh con va mon chinh xong', [t.nhat.phieu, kq], [['C1 x2', 'C2 x2'], 0]);
+  });
+
+  /* Lớp chặn thứ hai: kho bếp đổi giữa lúc bếp đọc hộp và lúc máy ghi sổ (ai
+     đó vừa dùng bột). Phần thiếu vượt phần đã nêu thì hỏi riêng; bếp từ chối
+     thì dừng, không lấy gì thêm. */
+  await ca('19. phan thieu vuot phan hop da neu: hoi rieng truoc khi lay; tu choi thi dung, khong lay', async function () {
+    var d = { name: 'WO-CHA', docstatus: 1, qty: 2, production_item: 'TP', stock_uom: 'Cái', source_warehouse: 'Pastry - Nguyên liệu - TV', required_items: MATS3 };
+    var t = theGioi({ NVL: 200 }, ['C1', 'C2'], { NVL: 1000 });
+    t.chaDu = true;
+    t.dongY = false;
+    var ke = await t.mfgFreshPlan(MATS3, 1, t.mfg.src);
+    var nvl = await t.mfgNvlCuaKe(ke, t.mfg.src);
+    var bu = { phieu: [], duyet: {} };
+    nvl.forEach(function (x) { if (x.lay_tong) bu.duyet[x.code] = x.lay_tong; });
+    bang('hop neu 100 g', bu.duyet, { NVL: 100 });
+    /* Hộp đọc tồn 200 g, rồi trước khi ghi sổ kho bếp chỉ còn 50 g. */
+    t.datTon('NVL', 50);
+    var loi = null;
+    try { await t.mfgRunFresh(ke, 1, bu); } catch (e) { loi = e; }
+    bang('C1 thieu 50, trong phan da neu: lay luon', t.nhat.daLay, 50);
+    bang('C2 thieu 200, vuot phan con lai 50: hoi rieng', [t.nhat.hoiBep.length, t.nhat.hoiBep[0][0]], [1, 'Kho bếp thiếu nguyên liệu']);
+    bang('tu choi: dung, khong lay them', [loi && loi.tuChoi, t.nhat.daLay, t.nhat.phieu], [1, 50, ['C1 x2']]);
+  });
+
+  /* Phần đã duyệt là của lệnh con. Hàng về giữa chừng làm lệnh con lấy ít hơn
+     số đã nêu, phần dư KHÔNG được dùng để lấy bù cho món chính (hộp không nêu
+     nguyên liệu của món chính). */
+  await ca('20. phan duyet con du sau lenh con khong dung cho mon chinh: mon chinh van hoi rieng', async function () {
+    var d = { name: 'WO-CHA', docstatus: 1, qty: 2, production_item: 'TP', stock_uom: 'Cái', source_warehouse: 'Pastry - Nguyên liệu - TV', required_items: MATS };
+    var t = theGioi({}, ['C1', 'C2'], { NVL: 1000 });
+    t.mfgSheetKe = async function () { t.datTon('NVL', 100); return true; };
+    await t.mfgHoanTatMot(d, 2, 2, 0);
+    bang('lenh con chi lay 200 trong 300 da neu', t.nhat.daLay, 200);
+    bang('mon chinh hoi rieng', [t.nhat.cha, (t.nhat.hoiBep || []).length], [[{ lay_bu: 0, hoi_lay_bu: 1 }, { lay_bu: 1 }], 1]);
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');
