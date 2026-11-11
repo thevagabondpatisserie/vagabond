@@ -1365,10 +1365,61 @@ def hoan_tat_phieu(phieu, q=None, can=None, lay_bu=None, hoi_lay_bu=None, lay_to
 			phieu_bu = _lap_phieu_lay_bu(da_lay, phieu.get("company"), ten_lenh)
 
 	doc = frappe.get_doc(phieu)
-	doc.insert()
-	doc.submit()
+	# v650 (anh Việt 12/11/2026, LSX-121126-000604): kho bếp thiếu nguyên liệu
+	# thì ERPNext ném câu dịch máy "Cần 0.361 đơn vị Món ... để hoàn tất giao
+	# dịch này". Lùi về điểm lưu TRƯỚC rồi mới đọc tồn (bài học Codex #498), báo
+	# câu việc cần làm, giữ lớp lỗi gốc.
+	frappe.db.savepoint(DIEM_HOAN_TAT)
+	try:
+		doc.insert()
+		doc.submit()
+	except Exception as e:
+		_loi_thieu_nvl(e, doc, ten_lenh)
+		raise
 	return {"name": doc.name, "da_don": da_don, "fg_completed_qty": fg,
 		"qty_thanh_pham": qty_tp, "phieu_bu": phieu_bu, "da_lay": da_lay if phieu_bu else []}
+
+
+DIEM_HOAN_TAT = "vgb_hoan_tat_lenh"
+
+
+def cau_thieu_nvl(ten_lenh, thieu, kho):
+	"""THUẦN: câu báo khi kho bếp không đủ nguyên liệu để hoàn tất lệnh.
+
+	thieu: [{"ten","sl","dvt","ghi"}] của tin_kho.gom_thieu_ton (sl là số lệnh
+	cần, ghi là "kho đang có ..."). Nói rõ kho nào, món gì, rồi việc phải làm."""
+	from vagabond import tin_kho
+
+	ds = [d for d in (thieu or []) if (d.get("ten") or "").strip()]
+	dong = ["%s cần %s%s" % (d["ten"].strip(), " ".join([x for x in (tin_kho.so(d.get("sl")), (d.get("dvt") or "").strip()) if x]),
+		" (%s)" % d["ghi"] if d.get("ghi") else "") for d in ds[:4]]
+	if len(ds) > 4:
+		dong.append("+%d món khác" % (len(ds) - 4))
+	return ("Chưa hoàn tất được lệnh %s: kho %s chưa đủ nguyên liệu. %s. Lệnh này chưa ghi sổ. "
+		"Mở Kế hoạch sản xuất, bấm Xin chuyển nguyên liệu (hoặc nhờ kho chuyển), rồi bấm Hoàn tất lại."
+		% (ten_lenh or "", tin_kho.ten_kho(kho) or "bếp", "; ".join(dong)))
+
+
+def _loi_thieu_nvl(loi_goc, doc, ten_lenh):
+	"""Lỗi ghi phiếu hoàn tất vì kho bếp thiếu tồn thì lùi điểm lưu, đọc tồn và
+	ném câu dễ hiểu cùng lớp lỗi gốc. Không phải ca thiếu tồn thì TRẢ VỀ, người
+	gọi ném lại nguyên lỗi gốc. Lỗi chết giao dịch thì không đụng điểm lưu."""
+	from vagabond import tin_kho
+	from vagabond.loi_csdl import chet_giao_dich
+
+	if chet_giao_dich(loi_goc) or not tin_kho.la_loi_ton_loi(loi_goc):
+		return
+	frappe.db.rollback(save_point=DIEM_HOAN_TAT)
+	try:
+		thieu = tin_kho.kiem_thieu_ton(doc)
+	except Exception:
+		thieu = []
+	if not thieu:
+		return
+	kho = next((r.get("s_warehouse") for r in (doc.get("items") or []) if r.get("s_warehouse")), "")
+	frappe.local.message_log = []
+	lop = type(loi_goc) if isinstance(loi_goc, frappe.ValidationError) else frappe.ValidationError
+	frappe.throw(cau_thieu_nvl(ten_lenh, thieu, kho), exc=lop, title="Kho bếp chưa đủ nguyên liệu")
 
 
 def _goc_so(v):

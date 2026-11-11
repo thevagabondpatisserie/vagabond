@@ -27,6 +27,51 @@ def theo_mau_dau_phieu(doc, method=None):
 	xoa_thue_rieng(doc)
 
 
+# v650 (Uyên báo 12/11/2026, DMH-2026-00970): mẫu thuế từng món (GTGT 8% - TV)
+# khai CẢ tài khoản thuế đầu vào 1331 lẫn đầu ra 33311, mỗi tài khoản 8%. Cài đặt
+# kế toán bật "tự thêm thuế từ mẫu thuế của món" nên ERPNext thêm HAI dòng thuế
+# vào đơn mua, tiền thuế bị tính hai lần (620.000 đ ra 99.200 đ thay vì 49.600 đ).
+# Trên chứng từ MUA, dòng 33311 do máy tự thêm là sai: bỏ đi rồi tính lại tổng.
+# Dòng 33311 người dùng tự gõ thuế suất thì giữ nguyên.
+TK_THUE_VAO = "1331"
+TK_THUE_RA = "33311"
+
+
+def dong_thue_ra_tu_them(taxes):
+	"""THUẦN: chỉ số các dòng thuế đầu ra (33311) mà máy tự thêm vào chứng từ mua.
+
+	Máy tự thêm theo mẫu thuế của món thì dòng có loại "On Net Total" và thuế
+	suất 0 (thuế suất lấy theo từng món). Chỉ bỏ khi chứng từ đã có dòng thuế
+	đầu vào 1331, để không mất thuế của đơn chỉ khai 33311 (không có ca nào hợp lệ
+	nhưng không đoán thay người dùng)."""
+	def doc(r, k):
+		return r.get(k) if hasattr(r, "get") else getattr(r, k, None)
+
+	ds = list(taxes or [])
+	co_vao = any(str(doc(r, "account_head") or "").startswith(TK_THUE_VAO + " ") or str(doc(r, "account_head") or "") == TK_THUE_VAO
+		for r in ds)
+	if not co_vao:
+		return []
+	return [i for i, r in enumerate(ds)
+		if str(doc(r, "account_head") or "").startswith(TK_THUE_RA)
+		and (doc(r, "charge_type") or "") == "On Net Total"
+		and abs(float(doc(r, "rate") or 0)) < 1e-9]
+
+
+def bo_thue_ra_chung_tu_mua(doc, method=None):
+	"""Hook validate của Đơn mua, Phiếu nhập kho, Hoá đơn mua, Báo giá NCC."""
+	if doc.get("docstatus") == 2:
+		return
+	bo = dong_thue_ra_tu_them(doc.get("taxes"))
+	if not bo:
+		return
+	giu = [r for i, r in enumerate(doc.get("taxes") or []) if i not in bo]
+	for i, r in enumerate(giu, 1):
+		r.idx = i
+	doc.set("taxes", giu)
+	doc.calculate_taxes_and_totals()
+
+
 def xoa_thue_rieng(doc):
 	for dong in doc.get("items") or []:
 		dong.item_tax_template = ""

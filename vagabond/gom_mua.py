@@ -70,13 +70,28 @@ def chia_so(cac_dong, tong):
 	return ra
 
 
-def gom(dong_yc, ncc_cua, boi_canh=None, gia=None, anh=None, ten_ncc=None):
+def thue_cua_mon(mau_cua_mon, chi_tiet_mau, tk_vao="1331"):
+	"""Thuế suất GTGT đầu vào (%) của từng món theo mẫu thuế khai trên món. THUẦN.
+
+	mau_cua_mon: {ma: tên mẫu thuế}; chi_tiet_mau: {tên mẫu: [(tài khoản, thuế suất)]}.
+	Lấy đúng dòng tài khoản 1331 (mẫu của site khai cả 1331 lẫn 33311). Món chưa
+	khai mẫu, hay mẫu không có dòng 1331, thì không có trong kết quả."""
+	ra = {}
+	for ma, mau in (mau_cua_mon or {}).items():
+		for tk, ts in (chi_tiet_mau or {}).get(mau) or []:
+			if str(tk or "").split(" ")[0] == tk_vao:
+				ra[ma] = flt(ts)
+				break
+	return ra
+
+
+def gom(dong_yc, ncc_cua, boi_canh=None, gia=None, anh=None, ten_ncc=None, thue=None):
 	"""Dòng phiếu xin -> nhóm theo nhà cung cấp, mỗi nhóm cộng theo món. THUẦN.
 
 	dong_yc: [{ten, phieu, ma, ten_mon, xin (đơn vị kho), dvt (đơn vị kho), ngay,
 	bo_phan}]. ncc_cua: {ma: nhà cung cấp}. Nhóm "chưa có nhà cung cấp" đứng
 	cuối để thu mua chọn tay."""
-	boi_canh, gia, anh, ten_ncc = boi_canh or {}, gia or {}, anh or {}, ten_ncc or {}
+	boi_canh, gia, anh, ten_ncc, thue = boi_canh or {}, gia or {}, anh or {}, ten_ncc or {}, thue or {}
 	nhom = {}
 	for d in sorted(dong_yc or [], key=lambda x: (str(x.get("ngay") or "9"), x.get("phieu") or "", x.get("ten") or "")):
 		ncc = ncc_cua.get(d["ma"]) or CHUA_CO_NCC
@@ -86,7 +101,7 @@ def gom(dong_yc, ncc_cua, boi_canh=None, gia=None, anh=None, ten_ncc=None):
 			"xin": 0.0, "phieu": [], "ngay_can": "", "anh": anh.get(d["ma"]) or "",
 			"ton": flt((boi_canh.get(d["ma"]) or {}).get("ton")),
 			"cho_ve": flt((boi_canh.get(d["ma"]) or {}).get("cho_ve")),
-			"gia": flt(gia.get(d["ma"]))})
+			"gia": flt(gia.get(d["ma"])), "thue": thue.get(d["ma"])})
 		m["xin"] = round(m["xin"] + flt(d.get("xin")), 6)
 		m["phieu"].append({"phieu": d.get("phieu"), "bo_phan": d.get("bo_phan") or "", "xin": flt(d.get("xin")),
 			"ngay": str(d.get("ngay") or "")})
@@ -99,7 +114,8 @@ def gom(dong_yc, ncc_cua, boi_canh=None, gia=None, anh=None, ten_ncc=None):
 		for m in mon:
 			m["mua"] = m["xin"]
 		ra.append({"ncc": ncc, "ten_ncc": g["ten_ncc"], "mon": mon, "so_mon": len(mon), "so_phieu": len(g["so_phieu"]),
-			"tien": round(sum(m["mua"] * m["gia"] for m in mon))})
+			"tien": round(sum(m["mua"] * m["gia"] for m in mon)),
+			"tien_thue": round(sum(m["mua"] * m["gia"] * flt(m.get("thue")) / 100 for m in mon))})
 	ra.sort(key=lambda g: (g["ncc"] == CHUA_CO_NCC, g["ten_ncc"]))
 	return ra
 
@@ -195,6 +211,23 @@ def _gia_anh(cac_ma):
 	return gia, anh
 
 
+def _thue(cac_ma):
+	if not cac_ma:
+		return {}
+	mau = {}
+	for r in frappe.get_all("Item Tax", filters={"parent": ["in", cac_ma], "parenttype": "Item"},
+			fields=["parent", "item_tax_template", "idx"], order_by="idx asc", limit_page_length=0):
+		if r.get("item_tax_template"):
+			mau.setdefault(r.parent, r.item_tax_template)
+	if not mau:
+		return {}
+	ct = {}
+	for r in frappe.get_all("Item Tax Template Detail", filters={"parent": ["in", sorted(set(mau.values()))],
+			"parenttype": "Item Tax Template"}, fields=["parent", "tax_type", "tax_rate"], limit_page_length=0):
+		ct.setdefault(r.parent, []).append((r.tax_type, r.tax_rate))
+	return thue_cua_mon(mau, ct)
+
+
 @frappe.whitelist()
 def ds():
 	"""Màn Gom yêu cầu mua: nhóm theo nhà cung cấp, mỗi nhóm cộng theo món."""
@@ -210,7 +243,12 @@ def ds():
 		bc = dy.boi_canh_hang(cac_ma, kho=None) if cac_ma else {}
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "gom_mua: bối cảnh hàng")
-	nhom = gom(dong, ncc, bc, gia, anh, ten)
+	thue = {}
+	try:
+		thue = _thue(cac_ma)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "gom_mua: thuế của món")
+	nhom = gom(dong, ncc, bc, gia, anh, ten, thue)
 	return {"nhom": nhom, "so_dong": len(dong), "so_mon": len(cac_ma),
 		"so_phieu": len({d["phieu"] for d in dong})}
 
