@@ -11293,20 +11293,28 @@ async function mfgGhiLenh(se, q, can, bu) {
   var m = 'vagabond.kho_san_xuat.hoan_tat_phieu';
   if (!bu) return await api(m, { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: 0 });
   var kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: 1 });
-  if (!(kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length)) return kq;
   var duyet = bu.duyet || (bu.duyet = {});
-  var trong = kq.hoi_lay_bu.every(function (x) { return (duyet[x.ma] || 0) + 0.0001 >= (x.sl || 0); });
-  if (trong) {
-    kq.hoi_lay_bu.forEach(function (x) { duyet[x.ma] = r3((duyet[x.ma] || 0) - (x.sl || 0)); });
-  } else {
-    busy(0);
-    var ok = await confirmSheet('Kho bếp thiếu nguyên liệu', mfgCauLayBu(kq.hoi_lay_bu, kq.con_thieu),
-      'Lấy từ kho tổng và hoàn tất', 0);
-    if (!ok) { var e = new Error('Bếp chưa đồng ý lấy nguyên liệu từ kho tổng'); e.tuChoi = 1; throw e; }
-    busy(1);
+  /* Codex #551 vòng 8: lượt ghi mang đúng số đã duyệt (lay_toi_da), máy chủ
+     tính lại mà vượt thì chỉ hỏi lại, không ghi. Hỏi lại tối đa 3 lần. */
+  for (var lan = 0; kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length; lan++) {
+    if (lan >= 3) throw new Error('Kho bếp đang thay đổi liên tục nên chưa lấy được từ kho tổng. Bấm Hoàn tất lại.');
+    var toi = {};
+    kq.hoi_lay_bu.forEach(function (x) { toi[x.ma] = r3((toi[x.ma] || 0) + (x.sl || 0)); });
+    var trong = Object.keys(toi).every(function (c) { return (duyet[c] || 0) + 0.0001 >= toi[c]; });
+    if (!trong) {
+      busy(0);
+      var ok = await confirmSheet('Kho bếp thiếu nguyên liệu', mfgCauLayBu(kq.hoi_lay_bu, kq.con_thieu),
+        'Lấy từ kho tổng và hoàn tất', 0);
+      if (!ok) { var e = new Error('Bếp chưa đồng ý lấy nguyên liệu từ kho tổng'); e.tuChoi = 1; throw e; }
+      busy(1);
+    }
+    kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 1, lay_toi_da: JSON.stringify(toi) });
+    if (kq && kq.name) {
+      /* Trừ số đã duyệt theo phần THỰC lấy; phần bếp vừa duyệt riêng thì không trừ. */
+      if (trong) (kq.da_lay || []).forEach(function (x) { duyet[x.ma] = r3((duyet[x.ma] || 0) - (x.sl || 0)); });
+      if (kq.phieu_bu) (bu.phieu || (bu.phieu = [])).push(kq.phieu_bu);
+    }
   }
-  kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 1 });
-  if (kq && kq.phieu_bu) (bu.phieu || (bu.phieu = [])).push(kq.phieu_bu);
   return kq;
 }
 
