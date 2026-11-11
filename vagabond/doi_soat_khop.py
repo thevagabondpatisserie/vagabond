@@ -719,7 +719,7 @@ def doi_chieu_bill(bill, noi, phu, cho_chon=(), hom_nay=None, diem_doi_tac=None)
 				"bấm Đối chiếu lại nguồn." % ten)
 		elif d and d.get("trang_thai_khop") == "Lệch tiền":
 			goc = b.get("tien_goc")
-			x.update(trang_thai=TT_BILL_LECH, ghi_chu="Bill %s%s, báo cáo %s ghi %s." % (
+			x.update(trang_thai=TT_BILL_LECH, tien_bao_cao=int(d.get("tien") or 0), ghi_chu="Bill %s%s, báo cáo %s ghi %s." % (
 				_vn(b["tien"]), (" (trước giảm %s)" % _vn(goc)) if goc and goc != b["tien"] else "", ten, _vn(d.get("tien") or 0)))
 		elif d and d.get("trang_thai_khop") == "Nối theo tiền":
 			x.update(trang_thai=TT_BILL_SAI_MA, ghi_chu="Báo cáo %s có giao dịch cùng tiền nhưng mã %s, bill ghi %s." % (
