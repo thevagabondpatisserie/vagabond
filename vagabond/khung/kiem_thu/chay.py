@@ -258,6 +258,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_doi_soat_grab_649,
 	# v649 màn Lệnh sản xuất: thẻ gọn, câu chặn kiểm kê ghi số phiếu (ảnh anh Việt 11/11).
 	thu_lenh_sx_649,
+	thu_tru_vo_btp_649,
+	thu_dat_truoc_tu_mai_649,
 )
 
 
