@@ -1918,18 +1918,22 @@ async function mfgHoanTatMot(d, q, can, imLang) {
     (se.items || []).forEach(function (r) {
       if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
     });
-    /* v648 cách 1: có hộp xác nhận thì lấy bù luôn; không có hộp (món không
-       có phần máy tự làm) thì máy chủ chỉ HỎI, bếp đồng ý rồi mới ghi. Chế độ
-       theo lô không hỏi thêm: giữ như cũ. */
+    /* v648 cách 1: món chính luôn để máy chủ HỎI trước, bếp đồng ý rồi mới
+       lấy bù. Codex #551 vòng 6: hộp "Máy làm luôn giúp bếp" chỉ xét nguyên
+       liệu của lệnh con, nên bếp đồng ý ở đó chưa phải đồng ý lấy bù cho món
+       chính. Chế độ theo lô không hỏi thêm: giữ như cũ. */
     var kq = await api('vagabond.kho_san_xuat.hoan_tat_phieu',
-      { phieu: se, q: q, can: can, lay_bu: bu ? 1 : 0, hoi_lay_bu: (!bu && !imLang) ? 1 : 0 });
+      { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: imLang ? 0 : 1 });
     if (kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length) {
       busy(0);
       var okBu = await confirmSheet('Kho bếp thiếu nguyên liệu', mfgCauLayBu(kq.hoi_lay_bu, kq.con_thieu),
         'Lấy từ kho tổng và hoàn tất', 0);
-      if (!okBu) return 0;
+      if (!okBu) {
+        if (plan.length) toast('Phần máy làm giúp bếp đã xong; món chính chưa hoàn tất vì kho bếp còn thiếu nguyên liệu.', 6000);
+        return 0;
+      }
       busy(1);
-      bu = { phieu: [] };
+      bu = bu || { phieu: [] };
       kq = await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: q, can: can, lay_bu: 1 });
     }
     if (bu && kq && kq.phieu_bu) bu.phieu.push(kq.phieu_bu);
