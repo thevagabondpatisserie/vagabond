@@ -1164,6 +1164,7 @@ Từ v649 (Loan Anh đề xuất, anh Việt duyệt 11/11/2026) bánh bếp là
 
 **Lưu ý**
 - Ngày đầu áp dụng bếp đếm lại tủ và nhập lại hai ô một lần.
+- Bếp làm đã nhập trước giờ lên bản v649 (bảng hôm nay, hôm qua chưa chốt) được máy trừ một lần lúc lên bản; bếp đếm lại tủ sau đó vẫn là số đúng nhất.
 - Huỷ bánh vẫn không cộng lại vỏ.
 - Bếp làm nhiều hơn số đã đếm thì ô hiện 0: bếp đếm lại tủ rồi nhập lại.
 
