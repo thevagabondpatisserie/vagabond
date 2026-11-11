@@ -62,3 +62,32 @@ def _():
 	la("bản vá trừ phần đã làm", _o(rieng), (7, 6))
 	b.reload(); b.dong[0].huy = 1; b.save(ignore_permissions=True)
 	la("lưu lại không trừ thêm", _o(rieng), (7, 6))
+
+
+@ca("v649 thật Codex #552 vòng 7: bếp làm trước 3 bánh trên bảng ngày mai cho 3 đơn ngày mai: vỏ trừ 3 một lần, cửa nhận đơn ngày mai vẫn nhận đủ Đủ decor còn lại; câu giữ tồn đọc đủ cột")
+def _():
+	from datetime import timedelta
+	from unittest.mock import patch
+
+	from frappe.utils import getdate
+
+	from vagabond import giu_ton_web, ton_don_web
+
+	b, ma = _bang_moi()
+	rieng = ma + "-V649MAI"
+	kho = frappe.get_single("BTP Banh O")
+	kho.set("dong", [])
+	kho.append("dong", {"ma_hang": rieng, "ten_banh": "Bánh v649 làm trước", "so_btp": 10, "so_decor": 9})
+	kho.save(ignore_permissions=True)
+	b.append("dong", {"ma_hang": ma, "ten_banh": "Bánh v649 làm trước", "da_dat": 3})
+	b.insert(ignore_permissions=True)
+	_DA_TAO.append((b.doctype, b.name))
+	frappe.db.set_value("Kiem Banh Dong", b.dong[0].name, "ma_hang", rieng, update_modified=False)
+	b.reload(); b.dong[0].sx = 3; b.save(ignore_permissions=True)
+	la("làm trước 3: trừ vỏ một lần", _o(rieng), (7, 6))
+	mai = getdate(b.ngay)
+	with patch.object(ton_don_web, "hom_nay", lambda: mai - timedelta(days=1)):
+		la("ngày mai nhận 6 (Đủ decor 6, 3 đơn đã có bánh)", ton_don_web.kiem([{"variation_id": rieng, "quantity": 6}], mai), [])
+		dung("đặt 7 thì chặn, còn 6", "còn 6 cái" in "".join(ton_don_web.kiem([{"variation_id": rieng, "quantity": 7}], mai)))
+	d = giu_ton_web._dong(mai)[0]
+	la("câu giữ tồn đọc đủ cột trên CSDL thật", (int(d.sx), int(d.da_dat), int(d.don_khac or 0), int(d.giu_cho or 0)), (3, 3, 0, 0))
