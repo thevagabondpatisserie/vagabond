@@ -560,7 +560,25 @@ function giaFrappe(f) {
   global.frappe.confirm = function (m, ok) { ok(); };
   global.frappe.model = { set_value: function (dt, ten, k, v) { var r = f.doc.zalo_nhom.filter(function (x) { return x.name === ten; })[0]; if (r) r[k] = v; f.dat.push([ten, k, v]); },
     clear_doc: function (dt, ten) { f.doc.zalo_nhom = f.doc.zalo_nhom.filter(function (x) { return x.name !== ten; }); } };
-  global.frappe.ui.Dialog = function (o) { this.o = o; this.an = 0; hop.push(this); };
+  /* v648: hộp có fields_dict như Frappe: mỗi ô một $wrapper (ẩn, hiện, tìm mục chứa)
+     và $input (nối sự kiện), đủ cho ô Tìm tin chạy thật. Mỗi Section Break là một mục. */
+  global.frappe.ui.Dialog = function (o) {
+    var d = this; this.o = o; this.an = 0; hop.push(this);
+    this.fields_dict = {}; this.muc = [];
+    var muc = { an: false, toggle: function (b) { this.an = !b; } };
+    d.muc.push(muc);
+    (o.fields || []).forEach(function (f) {
+      if (f.fieldtype === 'Section Break') { muc = { an: false, ten: f.label, toggle: function (b) { this.an = !b; } }; d.muc.push(muc); }
+      if (!f.fieldname) return;
+      var m = muc;
+      d.fields_dict[f.fieldname] = {
+        $wrapper: { an: false, toggle: function (b) { this.an = !b; return this; }, is: function (sel) { return sel === ':hidden' ? (this.an || m.an) : false; },
+          closest: function () { return m; } },
+        $input: { nghe: {}, on: function (ev, fn) { (this.nghe[ev] = this.nghe[ev] || []).push(fn); return this; },
+          ban: function (ev) { (this.nghe[ev] || []).forEach(function (fn) { fn(); }); } },
+      };
+    });
+  };
   global.frappe.ui.Dialog.prototype = { show: function () {}, hide: function () { this.an = 1; },
     set_secondary_action_label: function (t) { this.phu = t; }, set_secondary_action: function (fn) { this.phuFn = fn; } };
   return { goi: goi, hop: hop, bao: bao };
@@ -708,8 +726,87 @@ ca('v604 Desk: hộp nhóm có phần Tin nhận theo bộ phận, Chọn cả m
     bh.concat(['ht_phat_hanh']));
   var html = V._desk.zaloChonTinHtml(['hd_trung']);
   dung('hộp chọn trên lưới có câu dẫn', html.indexOf('Tích tin nào thì nhóm nhận tin đó.') >= 0);
-  la('hộp chọn trên lưới đủ ô tích', (html.match(/type="checkbox"/g) || []).length, Object.keys(V.ZALO_TIN).length);
+  // v648: cộng một ô "Chỉ hiện tin đã tích" ở đầu hộp.
+  la('hộp chọn trên lưới đủ ô tích', (html.match(/type="checkbox" value=/g) || []).length, Object.keys(V.ZALO_TIN).length);
   la('hộp chọn trên lưới tích sẵn tin đang lưu', (html.match(/ checked/g) || []).length, 1);
+});
+
+// v648 (anh Việt 11/11/2026: "ma trận tin báo làm anh nhức đầu mỗi lần tìm rồi cài"):
+// ô Tìm tin và ô Chỉ hiện tin đã tích ở hộp Thêm/Sửa nhóm. Chạy THẬT suaNhomZalo:
+// gõ vào ô, bắn sự kiện input như trình duyệt, đọc ô nào đang hiện.
+ca('v648 Desk: hộp nhóm có ô Tìm tin, gõ không dấu lọc đúng tin, ẩn cả mục rỗng, Chọn cả mục chỉ tác động tin đang hiện, tin ẩn vẫn lưu', function () {
+  global.$ = $;
+  var z = frmZalo(ROWS()), g = giaFrappe(z.frm);
+  var d = V._desk.suaNhomZalo(z.frm, -1);
+  var fs = d.o.fields, gt = {};
+  fs.forEach(function (x) { if (x.fieldname) gt[x.fieldname] = x.default; });
+  d.get_value = function (k) { return gt[k]; };
+  d.set_value = function (k, v) { gt[k] = v; };
+  var oTim = fs.filter(function (x) { return x.fieldname === 'tim_tin'; })[0];
+  dung('có ô Tìm tin kiểu chữ', oTim && oTim.fieldtype === 'Data');
+  dung('ô Tìm tin đứng đầu phần Tin nhận, trước mục bộ phận đầu tiên', fs.indexOf(oTim) < fs.map(function (x) { return x.fieldname || ''; }).indexOf('tin_bp_0'));
+  dung('có ô Chỉ hiện tin đã tích', fs.some(function (x) { return x.fieldname === 'chi_tin_da_tich' && x.label === 'Chỉ hiện tin đã tích'; }));
+  function hien() { return Object.keys(V.ZALO_TIN).filter(function (m) { return !d.fields_dict['tin_nhan__' + m].$wrapper.is(':hidden'); }); }
+  la('chưa gõ thì hiện đủ', hien().length, Object.keys(V.ZALO_TIN).length);
+  gt.tim_tin = 'lech tien';
+  d.fields_dict.tim_tin.$input.ban('input');
+  var mong = Object.keys(V.ZALO_TIN).filter(function (m) {
+    var c = V.chuTimTin({ ma: m, ten: V.ZALO_TIN[m][1], giai_thich: V.ZALO_TIN[m][2] }, V.ZALO_TIN[m][0]);
+    return c.indexOf('lech') >= 0 && c.indexOf('tien') >= 0;
+  });
+  dung('gõ "lech tien" tìm ra tin bill lệch', mong.indexOf('kt_ds_bill_lech') >= 0);
+  la('chỉ hiện đúng các tin có đủ hai chữ, gõ không dấu', hien(), mong);
+  var bpCo = V.ZALO_BO_PHAN.filter(function (bp) { return mong.some(function (m) { return V.ZALO_TIN[m][0] === bp; }); });
+  la('mục không còn tin nào thì ẩn cả mục', d.muc.filter(function (mu) { return V.ZALO_BO_PHAN.indexOf(mu.ten) >= 0 && !mu.an; }).map(function (mu) { return mu.ten; }), bpCo);
+  // Tích sẵn một tin sẽ bị ẩn, rồi Chọn cả mục kế toán khi đang tìm.
+  gt.tin_nhan__ht_phat_hanh = 1;
+  var iKt = V.ZALO_BO_PHAN.indexOf('Hoá đơn, kế toán');
+  fs.filter(function (x) { return x.fieldname === 'tin_ca_' + iKt; })[0].click();
+  var ktHien = mong.filter(function (m) { return V.ZALO_TIN[m][0] === 'Hoá đơn, kế toán'; });
+  var ktAn = Object.keys(V.ZALO_TIN).filter(function (m) { return V.ZALO_TIN[m][0] === 'Hoá đơn, kế toán' && ktHien.indexOf(m) < 0; });
+  la('Chọn cả mục tích đúng các tin kế toán đang hiện', ktHien.filter(function (m) { return gt['tin_nhan__' + m]; }), ktHien);
+  la('tin kế toán đang ẩn không bị tích theo', ktAn.filter(function (m) { return gt['tin_nhan__' + m]; }), []);
+  gt.tim_tin = '';
+  gt.chi_tin_da_tich = 1;
+  d.fields_dict.chi_tin_da_tich.$input.ban('change');
+  la('Chỉ hiện tin đã tích', hien(), Object.keys(V.ZALO_TIN).filter(function (m) { return gt['tin_nhan__' + m]; }));
+  d.o.primary_action(Object.assign({}, gt, { nhom_zalo: 'Nhóm Zalo mã TOAN', ten_nhom: 'Kế toán', bat: 1 }));
+  la('lưu cả tin đã tích lúc đang ẩn, theo thứ tự danh mục', z.frm.con[0].tin_nhan,
+    Object.keys(V.ZALO_TIN).filter(function (m) { return ktHien.indexOf(m) >= 0 || m === 'ht_phat_hanh'; }).join(', '));
+});
+
+// v648: hộp Chọn tin nhận trên lưới (nút trên dòng bảng). Dựng THẬT HTML của hộp vào
+// DOM giả, gõ vào ô tìm, chạy đúng hàm lọc mà sự kiện input gọi.
+ca('v648 Desk lưới: hộp Chọn tin nhận có ô tìm, lọc đúng, ẩn mục rỗng, báo không khớp, Chọn cả mục chỉ dòng đang hiện', function () {
+  var goc = new dg.ElementGia('div');
+  goc.innerHTML = V._desk.zaloChonTinHtml(['ht_phat_hanh']);
+  la('có một ô tìm', goc.querySelectorAll('.vgbz-tim-o').length, 1);
+  la('có ô Chỉ hiện tin đã tích', goc.querySelectorAll('.vgbz-chi').length, 1);
+  var o = goc.querySelectorAll('.vgbz-tim-o')[0];
+  o.value = 'Đối soát bill';
+  var n = V._desk.zaloLocTin(goc);
+  var hienMa = goc.querySelectorAll('[data-vgbztim]').filter(function (x) { return x.style.display !== 'none'; })
+    .map(function (x) { return x.querySelectorAll('input')[0].getAttribute('value'); });
+  var mong = Object.keys(V.ZALO_TIN).filter(function (m) {
+    var c = V.chuTimTin({ ma: m, ten: V.ZALO_TIN[m][1], giai_thich: V.ZALO_TIN[m][2] }, V.ZALO_TIN[m][0]);
+    return c.indexOf('doi') >= 0 && c.indexOf('soat') >= 0 && c.indexOf('bill') >= 0;
+  });
+  // Tên tin bill lệch không có chữ "đối soát": phải tìm ra nhờ chữ tìm ẩn theo mã.
+  dung('tìm "đối soát bill" ra tin bill lệch dù tên không có chữ đối soát', mong.indexOf('kt_ds_bill_lech') >= 0);
+  dung('tên tin bill lệch đúng là không có chữ đối soát', V.boDau(V.ZALO_TIN.kt_ds_bill_lech[1] + V.ZALO_TIN.kt_ds_bill_lech[2]).indexOf('doi soat') < 0);
+  la('hiện đúng các tin khớp, gõ có dấu cũng được', hienMa, mong);
+  la('hàm trả số tin đang hiện', n, mong.length);
+  var hienMuc = goc.querySelectorAll('[data-vgbzbph]').filter(function (x) { return x.style.display !== 'none'; }).length;
+  la('chỉ hiện các mục còn tin', hienMuc, V.ZALO_BO_PHAN.filter(function (bp) { return mong.some(function (m) { return V.ZALO_TIN[m][0] === bp; }); }).length);
+  var iKt = V.tinTheoBoPhan().map(function (b) { return b.bo_phan; }).indexOf('Hoá đơn, kế toán');
+  V._desk.zaloChonCaMuc(goc, iKt);
+  var tich = goc.querySelectorAll('[data-vgbztim]').filter(function (x) { var i = x.querySelectorAll('input')[0]; return i.checked !== undefined ? i.checked : i.hasAttribute('checked'); })
+    .map(function (x) { return x.querySelectorAll('input')[0].getAttribute('value'); });
+  la('Chọn cả mục chỉ tích dòng kế toán đang hiện, giữ tin đã tích sẵn', tich.sort(),
+    mong.filter(function (m) { return V.ZALO_TIN[m][0] === 'Hoá đơn, kế toán'; }).concat(['ht_phat_hanh']).sort());
+  o.value = 'khongcotinnaonhuvay';
+  la('không khớp thì không dòng nào hiện', V._desk.zaloLocTin(goc), 0);
+  la('hiện câu báo không khớp', goc.querySelectorAll('.vgbz-trong')[0].style.display, '');
 });
 
 // v581 Codex #447 (finding 1): menu Zalo trên thanh công cụ (Nối Zalo Bot, Kiểm lại
@@ -953,7 +1050,8 @@ ca('Codex 3d0b446: Desk đang giữ bản chung CŨ (thiếu tongHop) thì vgb_n
   var fs = require('fs');
   var src = fs.readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
   // v604: bản cũ còn trong bộ nhớ là bản v596 (có tongHop) nhưng thiếu Tin nhận (tinTheoBoPhan).
-  var cu = { tinhTrang: function () { return []; }, tongHop: function () { return {}; } };
+  // v648: bản v604 (có tinTheoBoPhan) cũng là bản cũ vì thiếu ô tìm tin (locTin).
+  var cu = { tinhTrang: function () { return []; }, tongHop: function () { return {}; }, tinTheoBoPhan: function () { return []; } };
   var gan = [];
   var g = {
     frappe: { ui: { form: { on: function () {} } } },
@@ -974,7 +1072,7 @@ ca('Codex 3d0b446: Desk đang giữ bản chung CŨ (thiếu tongHop) thì vgb_n
   la('đang nạp dở thì gọi lần hai không gắn thêm thẻ script', gan.length, 1);
   dung('gọi lần hai nhận cùng lời hứa', hua2 === hua);
   // Tệp mới nạp xong (có tongHop): gọi tiếp trả ngay bản mới, không gắn thêm script.
-  g.VGB_CD = { tinhTrang: function () { return []; }, tongHop: function () { return {}; }, tinTheoBoPhan: function () { return []; } };
+  g.VGB_CD = { tinhTrang: function () { return []; }, tongHop: function () { return {}; }, tinTheoBoPhan: function () { return []; }, locTin: function () { return []; } };
   gan[0].onload();
   g.vgb_nap_cd_chung();
   la('đã có bản mới thì không nạp nữa', gan.length, 1);

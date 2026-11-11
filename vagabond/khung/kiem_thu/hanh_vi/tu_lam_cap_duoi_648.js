@@ -89,11 +89,25 @@ function theGioi(ton, tuLam) {
       nhat.lenh.push(f.code + ' x' + f.qty);
       return ten;
     },
+    num: function (n) { var v = Math.round((n || 0) * 1000) / 1000; return v.toLocaleString('vi-VN'); },
+    getList: async function (dt, o) {
+      if (dt === 'BOM') return Object.keys(BOM).filter(function (c) { return o.filters.name[1].indexOf(BOM[c].name) >= 0; })
+        .map(function (c) { return { name: BOM[c].name, quantity: BOM[c].qty }; });
+      if (dt === 'BOM Item') {
+        var ra = [];
+        Object.keys(BOM).forEach(function (c) {
+          if (o.filters.parent[1].indexOf(BOM[c].name) < 0) return;
+          BOM[c].dong.forEach(function (d) { ra.push({ parent: BOM[c].name, item_code: d.item_code, item_name: d.item_name, stock_qty: d.so, stock_uom: d.stock_uom }); });
+        });
+        return ra;
+      }
+      throw new Error('getList la: ' + dt);
+    },
     mfgLoadItem: async function () { return {}; },
     mfgMakeBatch: async function () { return ''; }
   };
   vm.createContext(the);
-  ['inChunks', 'freshOf', 'mfgFreshPlan', 'mfgRunFresh'].forEach(function (t) {
+  ['inChunks', 'freshOf', 'mfgFreshPlan', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
     vm.runInContext(layHam(SRC, t), the);
   });
   the.nhat = nhat;
@@ -148,6 +162,14 @@ async function ca(ten, fn) {
     var ke = await t.mfgFreshPlan(MATS, 0.5, t.mfg.src);
     bang('ke hoach', ke.map(function (f) { return f.code + ' x' + f.qty; }), ['C2 x1']);
     bang('nhap ve kho nguyen lieu cua bep', [ke[0].fg, ke[0].src], [t.mfg.src, t.mfg.src]);
+  });
+
+  await ca('6. hop xac nhan: ruot C1 thieu ma may tu lam ghi "may lam them", khong do; NVL thieu that van do va dung dau', async function () {
+    var t = theGioi({ C1: 1 }, ['C1', 'C2']);
+    var ke = await t.mfgFreshPlan(MATS, 1, t.mfg.src);
+    var nvl = await t.mfgNvlCuaKe(ke, t.mfg.src);
+    var chip = nvl.map(function (x) { var c = t.mfgChipNvl(x); return [x.code, c.phu, c.bad]; });
+    bang('chip theo thu tu: thieu that len dau', chip, [['NVL', '200 · thiếu 200', true], ['C1', '2 · máy làm thêm 1', false]]);
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');

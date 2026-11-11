@@ -675,6 +675,70 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('lưu mã theo thứ tự danh mục, nối dấu phẩy', b[1].tin_nhan, kt.concat(['ht_email_loi']).join(', '));
   });
 
+  // v648 (anh Việt 11/11/2026: "ma trận tin báo làm anh nhức đầu mỗi lần tìm rồi cài"):
+  // hộp Tin nhận trên app có ô tìm và chip Đã tích. Bấm và gõ THẬT như người dùng:
+  // mở nhóm, Chọn tin nhận, gõ vào ô tìm (sự kiện input), tích, Chọn cả, Xong, Lưu.
+  await ca('v648 Zalo: hộp Tin nhận có ô tìm, gõ không dấu lọc đúng, ô tìm giữ chữ khi tích, chip Đã tích, Chọn cả chỉ tin đang hiện, tin ẩn vẫn lưu', async function () {
+    var m = await moMan();
+    moTab(m, 'tab_tin_nhan');
+    bam(m, mot(m, '[data-cdlbangthem="zalo_nhom"]'));
+    var oTen = m.khung.querySelectorAll('[data-cdld]').filter(function (e) { return e.getAttribute('data-cdld') === 'ten_nhom'; })[0];
+    oTen.value = 'Kế toán';
+    m.khung.oninput({ target: oTen });
+    bam(m, mot(m, '[data-cdldtin]'));
+    var ov = m.tai.body.children[m.tai.body.children.length - 1];
+    var box = ov.children[0];
+    var TIN = m.g.VGB_ZALO_TIN, V = m.g.VGB_CD;
+    var tong = Object.keys(TIN).length;
+    // Tích sẵn một tin hệ thống trước khi tìm: nó sẽ bị ẩn khi lọc mà phải được lưu.
+    box.onclick({ target: box.querySelectorAll('[data-cdlt]').filter(function (d) { return d.getAttribute('data-cdlt') === 'ht_phat_hanh'; })[0] });
+    var o = box.querySelectorAll('[data-cdlttim]');
+    bang('có một ô tìm', o.length, 1);
+    o = o[0];
+    o.value = 'doi soat';
+    box.oninput({ target: o });
+    var mong = Object.keys(TIN).filter(function (ma) {
+      var c = V.chuTimTin({ ma: ma, ten: TIN[ma][1], giai_thich: TIN[ma][2] }, TIN[ma][0]);
+      return c.indexOf('doi') >= 0 && c.indexOf('soat') >= 0;
+    });
+    dung('tìm "doi soat" ra tin bill lệch đối tác', mong.indexOf('kt_ds_bill_lech') >= 0);
+    bang('chỉ hiện đúng các tin khớp, gõ không dấu', box.querySelectorAll('[data-cdlt]').map(function (d) { return d.getAttribute('data-cdlt'); }), mong);
+    dung('nói đang hiện bao nhiêu trên tổng', chu(box).indexOf('Đang hiện ' + mong.length + ' trên ' + tong + ' tin') >= 0);
+    bang('không lộ mã tin nào trong chữ của hộp', Object.keys(TIN).filter(function (ma) { return chu(box).indexOf(ma) >= 0; }), []);
+    box.onclick({ target: box.querySelectorAll('[data-cdlt]').filter(function (d) { return d.getAttribute('data-cdlt') === 'kt_ds_bill_lech'; })[0] });
+    dung('tích xong ô tìm vẫn là ô cũ, giữ chữ', box.querySelectorAll('[data-cdlttim]')[0] === o && o.value === 'doi soat');
+    bang('tích xong vẫn chỉ hiện các tin khớp', box.querySelectorAll('[data-cdlt]').length, mong.length);
+    // Chọn cả khi đang tìm: chỉ các tin kế toán đang hiện, không đụng tin kế toán đang ẩn.
+    var ktHien = mong.filter(function (ma) { return TIN[ma][0] === 'Hoá đơn, kế toán'; });
+    var nutKt = box.querySelectorAll('[data-cdltca]').filter(function (b) {
+      return b.getAttribute('data-cdltca') === String(m.g.VGB_ZALO_BO_PHAN.indexOf('Hoá đơn, kế toán'));
+    })[0];
+    dung('nút Chọn cả nói số tin đang hiện', chu(nutKt) === 'Chọn cả ' + ktHien.length + ' tin đang hiện');
+    box.onclick({ target: nutKt });
+    bang('Chọn cả tích hết tin kế toán đang hiện', box.querySelectorAll('[data-cdlt]').filter(function (d) { return chu(d).indexOf('☑') >= 0; })
+      .map(function (d) { return d.getAttribute('data-cdlt'); }).filter(function (ma) { return TIN[ma][0] === 'Hoá đơn, kế toán'; }), ktHien);
+    o.value = 'khong co tin nao nhu vay';
+    box.oninput({ target: o });
+    bang('không khớp thì không dòng nào', box.querySelectorAll('[data-cdlt]').length, 0);
+    dung('nói rõ không có tin khớp', chu(box).indexOf('Không có tin nào khớp') >= 0);
+    o.value = '';
+    box.oninput({ target: o });
+    var chip = box.querySelectorAll('[data-cdltchi]');
+    dung('chip Đã tích đếm đúng', chu(chip[1]) === 'Đã tích (' + (ktHien.length + 1) + ')');
+    box.onclick({ target: chip[1] });
+    bang('chip Đã tích chỉ hiện tin đã tích', box.querySelectorAll('[data-cdlt]').map(function (d) { return d.getAttribute('data-cdlt'); }).sort(),
+      ktHien.concat(['ht_phat_hanh']).sort());
+    box.onclick({ target: box.querySelectorAll('[data-cdltchi]')[0] });
+    bang('chip Tất cả hiện đủ danh mục', box.querySelectorAll('[data-cdlt]').length, tong);
+    box.onclick({ target: box.querySelectorAll('[data-cdltxong]')[0] });
+    bam(m, mot(m, '#cdlDongXong'));
+    await m.g.cdlLuu();
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.cai_dat_loi.luu'; })[0];
+    var b = JSON.parse(g.ts.bang).zalo_nhom;
+    bang('lưu cả tin tích lúc đang ẩn, theo thứ tự danh mục', b[1].tin_nhan,
+      Object.keys(TIN).filter(function (ma) { return ktHien.indexOf(ma) >= 0 || ma === 'ht_phat_hanh'; }).join(', '));
+  });
+
   // v606 (Codex #492 P2 4325875324): bảng Bot thêm trên app không được đi lưới chung
   // (chỉ tạo được dòng không token, không bao giờ gửi được). App có Thêm bot, Đổi
   // token, Nối lại gọi đúng máy chủ như Desk. Bấm THẬT, không gọi hàm nào ngoài chuỗi.
