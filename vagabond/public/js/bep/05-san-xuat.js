@@ -1670,7 +1670,7 @@ function mfgSheetKe(plan, nvl, src) {
              : 'background:#eef2f7;color:#374151;border:1px solid #e2e8f0') + '">' +
         h(t) + (phu ? ' <span style="font-weight:500;opacity:.75">' + h(phu) + '</span>' : '') + '</span>';
     }
-    var thieu = (nvl || []).filter(function (x) { return x.thieu > 0.0001; });
+    var thieu = (nvl || []).filter(function (x) { return mfgChipNvl(x).bad; });
     var html = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:82vh;overflow:auto">' +
       '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">Máy làm luôn giúp bếp</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">' +
@@ -1681,8 +1681,8 @@ function mfgSheetKe(plan, nvl, src) {
       html += '<div style="font-size:11.5px;color:#98a2b3;margin:10px 0 7px;letter-spacing:.4px">NGUYÊN LIỆU SẼ TRỪ · KHO ' +
         h(shortWh(src).toUpperCase()) + '</div><div>' +
         nvl.slice(0, 24).map(function (x) {
-          var bad = x.thieu > 0.0001;
-          return chip(x.name, num(x.need) + (bad ? ' · thiếu ' + num(x.thieu) : ''), bad);
+          var c = mfgChipNvl(x);
+          return chip(x.name, c.phu, c.bad);
         }).join('') +
         (nvl.length > 24 ? chip('và ' + (nvl.length - 24) + ' nguyên liệu nữa', '', false) : '') + '</div>';
       if (thieu.length) {
@@ -2127,12 +2127,27 @@ async function mfgNvlCuaKe(plan, src) {
   if (!thu_tu.length) return [];
 
   var tn = await stockOf(thu_tu, src);
+  /* v648: ruột bánh cấp 1 (hay món làm tươi) nằm trong công thức bánh khuôn mà
+     thiếu tồn thì máy cũng tự làm nốt, không phải "thiếu". Đánh dấu để hộp
+     xác nhận ghi "máy làm thêm", không tô đỏ, không báo thiếu (anh Việt
+     11/11/2026 xem bản vẽ). Hỏi máy chủ hỏng thì giữ cách hiện cũ. */
+  var fr = {};
+  try { fr = await freshOf(thu_tu); } catch (e) { fr = {}; }
   return thu_tu.map(function (c) {
     var x = gom[c];
     x.ton = tn[c] || 0;
     x.thieu = r3(Math.max(0, x.need - x.ton));
+    x.tu_lam = fr[c] ? 1 : 0;
     return x;
-  }).sort(function (a, b) { return (b.thieu > 0 ? 1 : 0) - (a.thieu > 0 ? 1 : 0); });
+  }).sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
+}
+
+/* Chữ phụ và màu của một chip nguyên liệu trong hộp "Máy làm luôn giúp bếp". THUẦN.
+   Thiếu mà máy tự làm được thì ghi "máy làm thêm", không đỏ; thiếu thật mới đỏ. */
+function mfgChipNvl(x) {
+  var thieu = (x.thieu || 0) > 0.0001;
+  if (thieu && x.tu_lam) return { phu: num(x.need) + ' · máy làm thêm ' + num(x.thieu), bad: false };
+  return { phu: num(x.need) + (thieu ? ' · thiếu ' + num(x.thieu) : ''), bad: thieu };
 }
 
 async function mfgRunFresh(list, depth) {
