@@ -32,6 +32,7 @@ from frappe.utils import add_days, getdate, now_datetime
 
 from vagabond import pancake_nhip, tat_ban_web
 from vagabond.anh_web import chon_anh
+from vagabond.giu_vo import don_con_giu_vo
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
 
 
@@ -1655,7 +1656,8 @@ def _dat_truoc_theo_decor():
 			# Ngày nằm trong khoảng refill của mã: đơn trừ vào refill, không trừ decor.
 			if refill.ngay_cua_refill(rf, d.ma_hang, add_days(ngay, i)):
 				continue
-			da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + int(d.da_dat or 0)
+			# v649 Codex #552 vòng 7: đơn đã có bánh bếp làm trước thì vỏ đã trừ.
+			da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + don_con_giu_vo(d, ("da_dat",))
 
 	ds = frappe.get_all(
 		"Item",

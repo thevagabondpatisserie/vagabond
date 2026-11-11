@@ -13,6 +13,7 @@ hanh cu, chi bo cong chup bang.
 import frappe
 from frappe.utils import add_days, getdate, now_datetime
 
+from vagabond.giu_vo import don_con_giu_vo
 from vagabond.kiem_banh import _co_that, _dang_ma_dung, _tra_anh_ten
 from vagabond.lib import cfg, key
 
@@ -73,12 +74,8 @@ def _giu_ngay_mai(rf=None):
 	for d in kb.dong:
 		if refill.ngay_cua_refill(rf, d.ma_hang, ngay):
 			continue
-		giu[d.ma_hang] = (
-			giu.get(d.ma_hang, 0)
-			+ (d.da_dat or 0)
-			+ (d.phat_sinh or 0)
-			+ (d.cho_chot or 0)
-		)
+		# v649 Codex #552 vòng 7: bánh bếp làm trước cho đơn ngày mai đã trừ vỏ.
+		giu[d.ma_hang] = giu.get(d.ma_hang, 0) + don_con_giu_vo(d)
 	return giu
 
 
@@ -100,11 +97,9 @@ def _giu_theo_ma(rf=None):
 		for d in kb.dong:
 			if refill.ngay_cua_refill(rf, d.ma_hang, ngay):
 				continue
-			don = (d.da_dat or 0) + (d.phat_sinh or 0) + (d.cho_chot or 0)
-			# v649: vỏ của bánh bếp đã làm hôm nay đã trừ thẳng vào BTP sẵn.
-			if i == 0:
-				don = giu_hom_nay(don, d.get("sx") if hasattr(d, "get") else getattr(d, "sx", 0))
-			giu[d.ma_hang] = giu.get(d.ma_hang, 0) + don
+			# v649: vỏ của bánh bếp đã làm (mọi ngày, kể cả làm trước cho ngày
+			# tới) đã trừ thẳng vào BTP sẵn; một phép duy nhất don_con_giu_vo.
+			giu[d.ma_hang] = giu.get(d.ma_hang, 0) + don_con_giu_vo(d)
 	return giu
 
 
@@ -171,14 +166,6 @@ def tru_vo_theo_sx(chenh):
 		# bảng đã đổi, thay vì ghi lại số cũ lên số vừa trừ.
 		frappe.db.set_single_value("BTP Banh O", "cap_nhat_luc", now_datetime())
 	return doi
-
-
-def giu_hom_nay(don, sx):
-	"""v649: đơn hôm nay còn phải giữ vỏ BTP. Bánh bếp đã làm hôm nay đã trừ vỏ
-	lúc nhập Bếp làm, nên đơn đã có bánh làm xong không giữ vỏ lần nữa. Bánh tồn
-	ngày trước không tính vào đây (giữ cẩn thận như cũ). Thuần."""
-	don, sx = int(don or 0), max(0, int(sx or 0))
-	return max(0, don - sx) if don > 0 else don
 
 
 @frappe.whitelist()

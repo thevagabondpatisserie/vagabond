@@ -7,6 +7,7 @@ Không commit ở đây; lỗi kiểm vẫn đi cách B tại cửa nhận đơn
 import json
 from datetime import datetime, timedelta
 import frappe
+from vagabond.giu_vo import don_con_giu_vo
 from vagabond.ton_don_web import decor_huu_han, hom_nay
 
 O = "giu_ton_web"
@@ -24,7 +25,9 @@ def khoa():
 
 
 def _dong(ngay):
-    return frappe.db.sql("""select ma_hang,ten_banh,co_the_ban,da_dat from `tabKiem Banh Dong`
+    # v649: đủ cột cho phép giữ vỏ (giu_vo.don_con_giu_vo).
+    return frappe.db.sql("""select ma_hang,ten_banh,co_the_ban,da_dat,phat_sinh,cho_chot,sx,huy,don_khac,giu_cho
+        from `tabKiem Banh Dong`
         where parent=%s and parenttype='Kiem Banh Ngay' for update""",
         ("KB-%s" % ngay,), as_dict=True)
 
@@ -90,7 +93,8 @@ def kiem_va_giu(hang, ngay):
                 ma = str(d.ma_hang)
                 if refill.ngay_cua_refill(rf, ma, ngay_kb):
                     continue
-                dd[ma] = dd.get(ma,0) + int(d.da_dat or 0)
+                # v649 Codex #552 vòng 7: đơn đã có bánh bếp làm trước thì vỏ đã trừ.
+                dd[ma] = dd.get(ma,0) + don_con_giu_vo(d, ("da_dat",))
         for d in btp:
             # v649: decor cạn vì bếp làm hết vẫn chặn (ton_don_web.decor_huu_han).
             if decor_huu_han(d) and not refill.ngay_cua_refill(rf, str(d.ma_hang), ng):

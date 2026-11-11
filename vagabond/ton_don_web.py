@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 
 import frappe
 
+from vagabond.giu_vo import don_con_giu_vo
+
 
 def hom_nay():
     return datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
@@ -104,7 +106,8 @@ def kiem(hang, ngay):
                     # v646: đơn ngày nằm trong khoảng refill của mã trừ vào refill.
                     if refill.ngay_cua_refill(rf, d.ma_hang, nay + timedelta(days=i)):
                         continue
-                    da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + int(d.da_dat or 0)
+                    # v649 Codex #552 vòng 7: đơn đã có bánh bếp làm trước thì vỏ đã trừ.
+                    da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + don_con_giu_vo(d, ("da_dat",))
         for d in kho.dong or []:
             # Dòng giữ chỗ decor0 chưa phải nguồn tồn hữu hạn.
             if d.ma_hang in ma and decor_huu_han(d):
