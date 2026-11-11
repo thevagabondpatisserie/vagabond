@@ -2066,24 +2066,49 @@ async function mfgMakeBatch(code, meta, qty, woName) {
   return b && b.name;
 }
 
-/* --- Ban thanh pham lam tuoi: may tu lam noi duoi truoc khi hoan tat mon cha --- */
-async function mfgFreshPlan(mats, ratio, src) {
+/* Phần tồn đã giữ cho các lệnh cấp trên: `giu` (của ông cha) cộng nhu cầu
+   trực tiếp của lệnh này (mats x ratio). THUẦN, không sửa `giu` truyền vào.
+
+   Codex #551 vòng 3: món chính cần cả ruột C1 lẫn bánh khuôn C2, mà C2 cũng
+   ăn C1. Không giữ phần C1 của món chính thì lệnh C2 thấy 2 ruột máy vừa làm
+   cho món chính là "có tồn", ăn hết, món chính báo thiếu sau khi lệnh con đã
+   ghi sổ. */
+function mfgGiuCuaLenh(mats, ratio, giu) {
+  var out = {};
+  Object.keys(giu || {}).forEach(function (c) { out[c] = giu[c]; });
+  (mats || []).forEach(function (m) {
+    var c = m.item_code;
+    if (!c) return;
+    out[c] = r3((out[c] || 0) + (m.required_qty || 0) * ratio);
+  });
+  return out;
+}
+
+/* --- Ban thanh pham lam tuoi: may tu lam noi duoi truoc khi hoan tat mon cha ---
+   `giu`: tồn đã giữ cho lệnh cấp trên (xem mfgGiuCuaLenh); chỉ phần tồn vượt
+   quá phần giữ mới được dùng cho lệnh này. Mỗi món trong kế hoạch mang theo
+   phần giữ cho lệnh con của nó (`giu`), để mfgRunFresh và hộp xác nhận cùng
+   tính một cách. */
+async function mfgFreshPlan(mats, ratio, src, giu) {
   if (!mats || !mats.length) return [];
+  giu = giu || {};
   var codes = mats.map(function (m) { return m.item_code; });
   var fr = await freshOf(codes);
   var fresh = codes.filter(function (c) { return fr[c]; });
   if (!fresh.length) return [];
   var bm = await bomOf(fresh);
   var tn = await stockOf(fresh, src);
+  var giuCon = mfgGiuCuaLenh(mats, ratio, giu);
   var out = [];
   mats.forEach(function (m) {
     var c = m.item_code;
     if (!fr[c] || !bm[c]) return;
     var need = r3((m.required_qty || 0) * ratio);
-    var miss = r3(need - (tn[c] || 0));
+    var co = Math.max(0, (tn[c] || 0) - (giu[c] || 0));
+    var miss = r3(need - co);
     if (miss > 0.0001) out.push({
       code: c, name: m.item_name || c, uom: m.stock_uom,
-      qty: miss, bom: bm[c].name, fg: src, src: src
+      qty: miss, bom: bm[c].name, fg: src, src: src, giu: giuCon
     });
   });
   return out;
@@ -2127,6 +2152,9 @@ async function mfgNvlCuaKe(plan, src) {
   if (!thu_tu.length) return [];
 
   var tn = await stockOf(thu_tu, src);
+  /* Tồn đã giữ cho món chính không tính là có cho lệnh con (cùng cách với
+     mfgRunFresh; mọi món của một kế hoạch mang cùng phần giữ). */
+  var giu = (plan[0] && plan[0].giu) || {};
   /* v648: ruột bánh cấp 1 (hay món làm tươi) nằm trong công thức bánh khuôn mà
      thiếu tồn thì máy cũng tự làm nốt, không phải "thiếu". Đánh dấu để hộp
      xác nhận ghi "máy làm thêm", không tô đỏ, không báo thiếu (anh Việt
@@ -2135,7 +2163,7 @@ async function mfgNvlCuaKe(plan, src) {
   try { fr = await freshOf(thu_tu); } catch (e) { fr = {}; }
   return thu_tu.map(function (c) {
     var x = gom[c];
-    x.ton = tn[c] || 0;
+    x.ton = Math.max(0, (tn[c] || 0) - (giu[c] || 0));
     x.thieu = r3(Math.max(0, x.need - x.ton));
     x.tu_lam = fr[c] ? 1 : 0;
     return x;
@@ -2157,7 +2185,7 @@ async function mfgRunFresh(list, depth) {
     var wo = await mfgCreateWO(f);
     var d = await api('frappe.client.get', { doctype: 'Work Order', name: wo });
     if (depth < 3) {
-      var sub = await mfgFreshPlan(d.required_items || [], 1, d.source_warehouse || mfg.src);
+      var sub = await mfgFreshPlan(d.required_items || [], 1, d.source_warehouse || mfg.src, f.giu);
       if (sub.length) await mfgRunFresh(sub, depth + 1);
     }
     var it = await mfgLoadItem(f.code);
