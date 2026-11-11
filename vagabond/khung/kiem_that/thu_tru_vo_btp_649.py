@@ -35,5 +35,8 @@ def _():
 	b.reload(); b.dong[0].huy = 1; b.save(ignore_permissions=True)
 	la("huỷ không đụng vỏ", _o(ma), (9, 8))
 	la("mã khác không đổi", _o(ma + "-KHAC"), (5, 5))
+	# Codex #552 vòng 4: cột phần đã trừ có thật trong CSDL và cộng đúng (làm 1, 3, rồi về 1).
+	la("phần Đủ decor đã trừ theo Bếp làm", int(frappe.db.sql("""select decor_da_lam from `tabBTP Banh O Dong`
+		where parent = 'BTP Banh O' and parenttype = 'BTP Banh O' and ma_hang = %s""", ma)[0][0]), 1)
 	d = [x for x in frappe.get_doc("BTP Banh O").dong if x.ma_hang == ma][0]
 	la("đọc lại bảng BTP như màn đọc", (d.so_btp, d.so_decor), (9, 8))
