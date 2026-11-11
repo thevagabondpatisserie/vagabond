@@ -49,7 +49,7 @@ def _mon(tag, loai, chang=None):
 	return ma
 
 
-def _the_gioi(ton_c1=0, cha_an_c1=0):
+def _the_gioi(ton_c1=0, cha_an_c1=0, nvl_bep=1000):
 	"""Bánh ổ TP cần 2 bánh khuôn C2 + 30 NVL; mỗi C2 cần 1 ruột C1 + 100 NVL;
 	mỗi C1 cần 50 NVL. Kho bếp có 1000 NVL giá 1000.
 
@@ -78,7 +78,7 @@ def _the_gioi(ton_c1=0, cha_an_c1=0):
 		# Dòng ruột bánh đứng TRƯỚC bánh khuôn như ca Codex (C1 đầu required_items).
 		dong_cha.insert(0, {"item_code": c1, "qty": cha_an_c1, "uom": uom, "do_not_explode": 1})
 	cha = _bom(tp, cty, dong_cha)
-	d = nhap(item_code=nvl, qty=1000, company=cty, to_warehouse=bep, rate=GIA_NVL, do_not_save=True)
+	d = nhap(item_code=nvl, qty=nvl_bep, company=cty, to_warehouse=bep, rate=GIA_NVL, do_not_save=True)
 	d.insert(); nen._DA_TAO.append(("Stock Entry", d.name)); d.submit()
 	if ton_c1:
 		# Ruột bánh làm sẵn hôm trước, nhập tồn đúng giá vốn của nó (50 NVL).
@@ -129,16 +129,20 @@ def _ke_hoach(mats, ratio, src, giu=None):
 	return ra
 
 
-def _hoan_tat(wo, q):
+def _hoan_tat(wo, q, lay_bu=0, nhat=None):
 	"""make_stock_entry rồi hoan_tat_phieu: cửa của nút Hoàn tất (giờ máy chủ)."""
 	from vagabond.kho_san_xuat import hoan_tat_phieu
 	phieu = make_stock_entry(wo.name, "Manufacture", qty=q)
-	kq = hoan_tat_phieu(phieu, q=q, can=q)
+	kq = hoan_tat_phieu(phieu, q=q, can=q, lay_bu=lay_bu)
+	if kq.get("phieu_bu"):
+		nen._DA_TAO.append(("Stock Entry", kq["phieu_bu"]))
+		if nhat is not None:
+			nhat.append(("bu", wo.production_item, kq["phieu_bu"]))
 	nen._DA_TAO.append(("Stock Entry", kq["name"]))
 	return frappe.get_doc("Stock Entry", kq["name"])
 
 
-def _lam_con(cty, ke, src, nhat, cap=1):
+def _lam_con(cty, ke, src, nhat, cap=1, lay_bu=0):
 	"""Chép mfgRunFresh: tạo lệnh, làm lệnh con của nó trước, rồi hoàn tất."""
 	for f in ke:
 		wo = _lenh_nhu_app(cty, f.code, f.bom, f.qty, src, src)
@@ -146,8 +150,8 @@ def _lam_con(cty, ke, src, nhat, cap=1):
 		if cap < 3:
 			con = _ke_hoach(wo.required_items, 1, wo.source_warehouse or src, f.giu)
 			if con:
-				_lam_con(cty, con, src, nhat, cap + 1)
-		se = _hoan_tat(wo, f.qty)
+				_lam_con(cty, con, src, nhat, cap + 1, lay_bu)
+		se = _hoan_tat(wo, f.qty, lay_bu, nhat)
 		nhat.append(("phieu", f.code, se.name))
 
 
@@ -234,6 +238,51 @@ def _cha_an_ca_hai():
 	la("ruột bánh về 0", _ton(w.c1, w.bep), 0.0)
 	la("bánh khuôn về 0", _ton(w.c2, w.bep), 0.0)
 	la("NVL: 1000 - 5x50 - 4x100 - 60", _ton(w.nvl, w.bep), 290.0)
+	cha.reload()
+	la("lệnh cha hoàn tất", (float(cha.produced_qty), cha.status), (2.0, "Completed"))
+
+
+@ca("v648 thật, cách 1 anh Việt chọn: kho bếp thiếu nguyên liệu thì máy lấy bù từ kho tổng ngay trước từng phiếu hoàn tất; chỉ hỏi thì không ghi gì")
+def _lay_bu_kho_tong():
+	from vagabond import kho_san_xuat as ksx
+	from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng
+	w = _the_gioi(nvl_bep=300)
+	tong, _ = _kho_rieng(w.cty, "648-TONG")
+	d = nhap(item_code=w.nvl, qty=1000, company=w.cty, to_warehouse=tong, rate=GIA_NVL, do_not_save=True)
+	d.insert(); nen._DA_TAO.append(("Stock Entry", d.name)); d.submit()
+	goc = ksx.KHO_GOC
+	ksx.KHO_GOC = tong  # bench không có Kho tổng 307 - TV
+	try:
+		cha = _lenh_nhu_app(w.cty, w.tp, w.cha.name, 2, w.bep, w.kho_tp)
+		ke = _ke_hoach(cha.required_items, 1, w.bep)
+		nhat = []
+		_lam_con(w.cty, ke, w.bep, nhat, lay_bu=1)
+		# Lệnh con xong, bếp hết NVL; món chính cần 60. Chỉ hỏi (đường của nút
+		# Hoàn tất khi không có hộp xác nhận): trả phần lấy, không ghi gì.
+		truoc = frappe.db.count("Stock Entry", {"from_warehouse": tong})
+		kq = ksx.hoan_tat_phieu(make_stock_entry(cha.name, "Manufacture", qty=2), q=2, can=2, hoi_lay_bu=1)
+		la("chỉ hỏi: trả đúng 60", [(x["ma"], x["sl"]) for x in kq.get("hoi_lay_bu") or []], [(w.nvl, 60.0)])
+		la("chỉ hỏi: không phiếu nào được lập", frappe.db.count("Stock Entry", {"from_warehouse": tong}), truoc)
+		dung("chỉ hỏi: không ghi phiếu hoàn tất", not kq.get("name"))
+		se = _hoan_tat(cha, 2, 1, nhat)
+	finally:
+		ksx.KHO_GOC = goc
+	bu = [x for x in nhat if x[0] == "bu"]
+	# C1 x4 ăn 200 (bếp còn 100), C2 x4 cần 400 (lấy 300), bánh ổ cần 60 (lấy 60).
+	la("phiếu lấy bù đúng lệnh", [x[1] for x in bu], [w.c2, w.tp])
+	la("số lấy", [sorted((r.item_code, r.s_warehouse, r.t_warehouse, float(r.qty)) for r in frappe.get_doc("Stock Entry", x[2]).items) for x in bu],
+		[[(w.nvl, tong, w.bep, 300.0)], [(w.nvl, tong, w.bep, 60.0)]])
+	for x in bu:
+		p = frappe.get_doc("Stock Entry", x[2])
+		la("phiếu lấy bù đã ghi sổ", (p.docstatus, p.purpose), (1, "Material Transfer"))
+		if frappe.get_meta("Stock Entry").has_field("vgb_nhan_tt"):
+			la("ghi bếp đã nhận đủ", p.get("vgb_nhan_tt"), "Đã nhận đủ")
+		gl = so_cai_cua(p)
+		la("GL cân phiếu lấy bù", round(sum(float(g.debit) for g in gl), 2), round(sum(float(g.credit) for g in gl), 2))
+	la("NVL bếp dùng hết", _ton(w.nvl, w.bep), 0.0)
+	la("kho tổng còn 1000 - 360", _ton(w.nvl, tong), 640.0)
+	la("bánh ổ nhập kho", _ton(w.tp, w.kho_tp), 2.0)
+	la("phiếu món chính ghi sổ", se.docstatus, 1)
 	cha.reload()
 	la("lệnh cha hoàn tất", (float(cha.produced_qty), cha.status), (2.0, "Completed"))
 
