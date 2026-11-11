@@ -167,22 +167,23 @@ Ngay sau khi tạo lệnh, máy tính bán thành phẩm có giữ tồn (ruột
 - Hiện "Không cần làm thêm bán thành phẩm nào" là tồn đã đủ.
 
 ## Hoàn tất lệnh sản xuất
-Từ khoá: hoàn tất lệnh, hoàn thành lệnh sản xuất, xong lệnh, nhập kho thành phẩm, trừ nguyên liệu, báo sản lượng, cân thực tế, hao hụt, manufacture, finish work order, ghi sổ nhiều lệnh, số cân, cân thật
+Từ khoá: hoàn tất lệnh, hoàn thành lệnh sản xuất, xong lệnh, nhập kho thành phẩm, trừ nguyên liệu, báo sản lượng, cân thực tế, hao hụt, manufacture, finish work order, ghi sổ nhiều lệnh, số cân, lấy kho tổng
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Bếp, bếp phó, quản lý sản xuất | Sản xuất (/san-xuat) | [[Hoàn tất]] |
 
-Bấm Hoàn tất là lúc máy trừ nguyên liệu và nhập thành phẩm vào kho. Bút toán kho ghi xong không sửa lại được.
+Hoàn tất là lúc máy trừ nguyên liệu, nhập thành phẩm. Bút toán kho ghi xong không sửa lại được.
 
 **Các bước**
 1. Bấm dấu ✓ cuối dòng lệnh, hoặc mở lệnh rồi bấm [[Hoàn tất]].
 2. Hộp Hoàn thành phiếu: gõ Số lượng làm theo lệnh (để trừ nguyên liệu).
-3. Gõ Thực tế cân được (để nhập kho). Ô để trống, bắt buộc nhập. Đổi đơn vị ở ô cạnh số nếu cân theo kg hay gram.
-4. Chip Lần trước gợi ý số hay gõ.
+3. Gõ Thực tế cân được (để nhập kho), bắt buộc. Đổi đơn vị ở ô cạnh số nếu cần.
+4. Chip Lần trước gợi ý số.
 5. Bấm [[Hoàn thành]].
-6. Cấp 1, cấp 2, làm tươi còn thiếu: hộp Máy làm luôn giúp bếp hiện món máy sẽ làm, bấm [[Xác nhận tạo lệnh]].
-7. Nhiều lệnh cùng món: bấm ✓ trên thẻ gộp, gõ tổng số, bấm [[Ghi sổ N lệnh]].
+6. Cấp 1, cấp 2, làm tươi còn thiếu: hộp Máy làm luôn giúp bếp hiện món máy sẽ làm, bấm nút xanh.
+7. Kho bếp thiếu nguyên liệu: bấm [[Lấy từ kho tổng và hoàn tất]], máy chuyển từ Kho tổng 307, bếp sang lấy.
+8. Nhiều lệnh cùng món: bấm ✓ trên thẻ gộp, gõ tổng số, bấm [[Ghi sổ N lệnh]].
 
 **Hạch toán** (từ 01/10/2026, mang trung tâm chi phí của bếp)
 | Nợ | Có | Khi nào |
@@ -194,7 +195,7 @@ Bấm Hoàn tất là lúc máy trừ nguyên liệu và nhập thành phẩm v�
 **Lưu ý**
 - Từ v648 chỉ bấm Hoàn tất món chính: máy làm phần cấp 1, cấp 2 thiếu (ghi máy làm thêm).
 - Cân ít hơn số làm thì phần chênh là hao hụt, lệnh vẫn đóng.
-- Ô Thực tế cân được phải là số cân thật, không chép lại số làm. Xem mục "Ghi số cân thật để tính được hao hụt".
+- Số cân phải là số cân thật: xem mục "Ghi số cân thật để tính được hao hụt".
 - Bị chặn: xem mục "Vì sao không hoàn tất được lệnh sản xuất".
 
 ## Ghi số cân thật để tính được hao hụt
@@ -227,7 +228,7 @@ Máy không ghi âm kho: thiếu là dừng, không để lại phiếu nháp. X
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
-| Kho ... không đủ ... để trừ: còn thiếu ... Mã này đang còn ở ... | Chuyển phần thiếu về kho Nguyên liệu của bếp rồi bấm lại |
+| Kho ... không đủ ... để trừ: còn thiếu ... Mã này đang còn ở ... | Chuyển phần thiếu về kho Nguyên liệu của bếp rồi bấm lại (Kho tổng 307 còn thì máy hỏi lấy luôn) |
 | ... Chưa tìm thấy tồn mã này ở kho khác | Kiểm tồn, nhập hàng hoặc kiểm kê lại |
 | ... Mã thay thế đã khai đang còn ... | Mã thay nằm ở kho khác, chuyển về đúng kho rồi bấm lại |
 | Số làm theo lệnh không được quá số còn lại là ... | Phần dư ghi vào ô Thực tế cân được |

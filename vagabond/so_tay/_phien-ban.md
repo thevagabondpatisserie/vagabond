@@ -15,6 +15,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Hoàn tất lệnh sản xuất
 - Bill chưa khớp đối tác
 - Chọn tin Zalo cho từng nhóm nhận tin
+- Vì sao không hoàn tất được lệnh sản xuất
 
 ## v647
 - Đặt banner ảnh trên trang đặt bánh
