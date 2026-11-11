@@ -10884,7 +10884,9 @@ async function mfgHoanTatMot(d, q, can, imLang) {
       await api('frappe.client.submit', { doc: d });
       d = await api('frappe.client.get', { doctype: 'Work Order', name: d.name });
     }
-    var bu = plan.length ? { phieu: [] } : null;
+    /* Codex #551 vòng 5: chỉ lấy bù khi bếp THẤY hộp "Máy làm luôn giúp bếp"
+       và đồng ý. Theo lô (imLang) hộp đó bị bỏ qua, nên giữ như cũ. */
+    var bu = (plan.length && !imLang) ? { phieu: [] } : null;
     if (plan.length) await mfgRunFresh(plan, 1, bu);
     var it = await mfgLoadItem(d.production_item);
     var batch = await mfgBatchOf(d.name);
@@ -10912,11 +10914,7 @@ async function mfgHoanTatMot(d, q, can, imLang) {
       { phieu: se, q: q, can: can, lay_bu: bu ? 1 : 0, hoi_lay_bu: (!bu && !imLang) ? 1 : 0 });
     if (kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length) {
       busy(0);
-      var okBu = await confirmSheet('Kho bếp thiếu nguyên liệu',
-        'Máy lập và ghi sổ luôn phiếu điều chuyển từ Kho tổng 307 sang kho bếp đúng phần thiếu, rồi hoàn tất lệnh. ' +
-        'Bếp sang kho tổng lấy hàng, Zalo báo kho.\n\n' +
-        kq.hoi_lay_bu.map(function (x) { return '• ' + x.ten + ': lấy ' + num(x.sl) + ' ' + (x.dvt || '') + ' (kho bếp còn ' + num(x.kho_bep_con) + ')'; }).join('\n') +
-        ((kq.con_thieu || []).length ? '\n\nKho tổng cũng không đủ: ' + kq.con_thieu.map(function (x) { return x.ten + ' thiếu ' + num(x.thieu) + ' ' + (x.dvt || ''); }).join('; ') : ''),
+      var okBu = await confirmSheet('Kho bếp thiếu nguyên liệu', mfgCauLayBu(kq.hoi_lay_bu, kq.con_thieu),
         'Lấy từ kho tổng và hoàn tất', 0);
       if (!okBu) return 0;
       busy(1);
@@ -11199,6 +11197,24 @@ async function mfgNvlCuaKe(plan, src) {
     });
   }
   return ra.sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
+}
+
+/* Câu của hộp hỏi lấy bù từ Kho tổng 307. THUẦN.
+   Codex #551 vòng 5 (P1): danh sách dài đẩy nút xác nhận ra khỏi màn (hộp
+   confirmSheet không cuộn). Theo AGENTS.md mục 17: đếm số, vài mục đầu, rồi
+   "và N nữa"; tối đa ba dòng. */
+function mfgCauLayBu(lay, conThieu) {
+  function gon(ds, f, toi) {
+    var dau = ds.slice(0, toi).map(f).join(', ');
+    return dau + (ds.length > toi ? ' và ' + (ds.length - toi) + ' nguyên liệu nữa' : '');
+  }
+  lay = lay || []; conThieu = conThieu || [];
+  var cau = 'Máy ghi sổ phiếu điều chuyển từ Kho tổng 307 đúng phần thiếu rồi hoàn tất; bếp sang lấy hàng, Zalo báo kho.';
+  if (lay.length) cau += '\nLấy ' + lay.length + ' nguyên liệu: ' +
+    gon(lay, function (x) { return x.ten + ' ' + num(x.sl) + ' ' + (x.dvt || ''); }, 2) + '.';
+  if (conThieu.length) cau += '\nKho tổng cũng thiếu ' + conThieu.length + ' nguyên liệu: ' +
+    gon(conThieu, function (x) { return x.ten; }, 2) + '.';
+  return cau;
 }
 
 /* Chữ phụ và màu của một chip nguyên liệu trong hộp "Máy làm luôn giúp bếp". THUẦN.
