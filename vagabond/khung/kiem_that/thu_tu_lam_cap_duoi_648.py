@@ -49,7 +49,7 @@ def _mon(tag, loai, chang=None):
 	return ma
 
 
-def _the_gioi(ton_c1=0, cha_an_c1=0, nvl_bep=1000):
+def _the_gioi(ton_c1=0, cha_an_c1=0, nvl_bep=1000, nvl_tong=0):
 	"""Bánh ổ TP cần 2 bánh khuôn C2 + 30 NVL; mỗi C2 cần 1 ruột C1 + 100 NVL;
 	mỗi C1 cần 50 NVL. Kho bếp có 1000 NVL giá 1000.
 
@@ -61,6 +61,10 @@ def _the_gioi(ton_c1=0, cha_an_c1=0, nvl_bep=1000):
 	dung("bench bật hạch toán kho", bool(is_perpetual_inventory_enabled(cty)))
 	bep, tk_bep = _kho_rieng(cty, "648-BEP")
 	kho_tp, tk_tp = _kho_rieng(cty, "648-TP")
+	# Kho tổng thử phải dựng TRƯỚC phiếu kho đầu tiên: ERPNext giữ bản đồ
+	# kho sang tài khoản trong request (frappe.flags), kho dựng sau phiếu đầu
+	# sẽ báo "not linked to any account" (bench 24e6375e96).
+	tong = _kho_rieng(cty, "648-TONG")[0] if nvl_tong else None
 	tag = uuid.uuid4().hex[:10]
 	nvl = _mon(tag, "NVL")
 	c1 = _mon(tag, "C1", "BTP sơ cấp")
@@ -80,11 +84,14 @@ def _the_gioi(ton_c1=0, cha_an_c1=0, nvl_bep=1000):
 	cha = _bom(tp, cty, dong_cha)
 	d = nhap(item_code=nvl, qty=nvl_bep, company=cty, to_warehouse=bep, rate=GIA_NVL, do_not_save=True)
 	d.insert(); nen._DA_TAO.append(("Stock Entry", d.name)); d.submit()
+	if nvl_tong:
+		d = nhap(item_code=nvl, qty=nvl_tong, company=cty, to_warehouse=tong, rate=GIA_NVL, do_not_save=True)
+		d.insert(); nen._DA_TAO.append(("Stock Entry", d.name)); d.submit()
 	if ton_c1:
 		# Ruột bánh làm sẵn hôm trước, nhập tồn đúng giá vốn của nó (50 NVL).
 		d = nhap(item_code=c1, qty=ton_c1, company=cty, to_warehouse=bep, rate=50 * GIA_NVL, do_not_save=True)
 		d.insert(); nen._DA_TAO.append(("Stock Entry", d.name)); d.submit()
-	return frappe._dict(cty=cty, bep=bep, kho_tp=kho_tp, tk_bep=tk_bep, tk_tp=tk_tp, nvl=nvl, c1=c1, c2=c2, tp=tp, cha=cha)
+	return frappe._dict(cty=cty, bep=bep, kho_tp=kho_tp, tong=tong, tk_bep=tk_bep, tk_tp=tk_tp, nvl=nvl, c1=c1, c2=c2, tp=tp, cha=cha)
 
 
 def _lenh_nhu_app(cty, code, bom, qty, src, fg):
@@ -245,11 +252,8 @@ def _cha_an_ca_hai():
 @ca("v648 thật, cách 1 anh Việt chọn: kho bếp thiếu nguyên liệu thì máy lấy bù từ kho tổng ngay trước từng phiếu hoàn tất; chỉ hỏi thì không ghi gì")
 def _lay_bu_kho_tong():
 	from vagabond import kho_san_xuat as ksx
-	from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng
-	w = _the_gioi(nvl_bep=300)
-	tong, _ = _kho_rieng(w.cty, "648-TONG")
-	d = nhap(item_code=w.nvl, qty=1000, company=w.cty, to_warehouse=tong, rate=GIA_NVL, do_not_save=True)
-	d.insert(); nen._DA_TAO.append(("Stock Entry", d.name)); d.submit()
+	w = _the_gioi(nvl_bep=300, nvl_tong=1000)
+	tong = w.tong
 	goc = ksx.KHO_GOC
 	ksx.KHO_GOC = tong  # bench không có Kho tổng 307 - TV
 	try:
