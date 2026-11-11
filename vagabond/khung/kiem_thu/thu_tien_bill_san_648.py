@@ -168,3 +168,35 @@ def _():
 	src = inspect.getsource(V)
 	# Chốt một nguồn: không chỗ nào còn tự đọc tiền hàng của một dòng đối tác (r., d.) ngoài _tien_dong.
 	la("không còn chỗ nào tự dựng tiền của dòng đối tác", re.findall(r"tien_hang=int\((?:r|d)\.", src), [])
+
+
+@ca("v648 tin Zalo 08:30 bill không khớp: bill sàn còn ghi Lệch tiền theo cách so cũ KHÔNG còn bị nhắc; lệch thật ghi cả số báo cáo đối tác")
+def _():
+	import sys
+
+	import vagabond
+	from vagabond import diem_ban
+	from vagabond import doi_soat_thu as T
+	from vagabond import doi_soat_vendor as V
+	# Đúng chuỗi của tin 08:30: kết luận THẬT của màn Bill chưa khớp (doi_chieu_bill) rồi bao_bill_lech.
+	b1 = dict(name="HDB-26-11-01815", kieu="grab", ngay="2026-11-09", tien=339500, tien_goc=385000, ma=["GF-727"], diem="TCV")
+	b2 = dict(name="SI-X", kieu="grab", ngay="2026-11-09", tien=90000, tien_goc=120000, ma=["GF-9"], diem="TCV")
+	noi = {("HDB-26-11-01815", "grab"): dict(trang_thai_khop="Lệch tiền", tien=385000, ma="GF-727", vendor="GrabFood",
+			tien_hang=339500, giam_gia=45500, thuc_nhan=289524),
+		("SI-X", "grab"): dict(trang_thai_khop="Lệch tiền", tien=150000, ma="GF-9", vendor="GrabFood",
+			tien_hang=150000, giam_gia=0, thuc_nhan=120000)}
+	ds = K.doi_chieu_bill([b1, b2], noi, {("grab", "2026-11-09", "*")}, (), "2026-11-15")
+	gui = []
+	gia = NS(bao_hoac_ghi_loi=lambda loai, cd, t, d, **k: gui.append((k["khoa"], t, d)))
+	gia_f = NS(utils=NS(add_days=lambda d, n: "2026-11-%02d" % (int(d[8:]) + n)), get_all=lambda *a, **k: ["CT"],
+		defaults=NS(get_global_default=lambda k: "CT"))
+	with patch.dict(sys.modules, {"vagabond.kenh_zalo": gia}), patch.object(vagabond, "kenh_zalo", gia, create=True), \
+			patch.object(T, "_frappe", lambda: gia_f), patch.object(T, "_link", lambda: "/bep/doi-soat"), \
+			patch.object(V, "_cong_ty_demo", lambda: ""), patch.object(V, "du_lieu_bill", lambda tu, den, ct, hom: ds), \
+			patch.object(diem_ban, "ten_diem", lambda: {"TCV": "Trần Cao Vân"}):
+		T.bao_bill_lech("2026-11-15")
+	la("một tin cho GrabFood ngày 09/11", [g[0] for g in gui], ["ds_bill:grab:2026-11-09"])
+	t, d = gui[0][1], gui[0][2]
+	la("tiêu đề chỉ đếm bill lệch thật", t, "1 bill GrabFood ngày 09/11 không khớp báo cáo đối tác")
+	dung("bill cùng tiền theo cách so mới không bị nhắc", not any("HDB-26-11-01815" in x for x in d))
+	dung("dòng lệch thật ghi số bill và số báo cáo", any("SI-X" in x and "lệch tiền" in x and "báo cáo ghi 150.000" in x for x in d))
