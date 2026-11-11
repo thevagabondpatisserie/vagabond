@@ -2293,14 +2293,23 @@ function mfgChonLenhMo(ds, f) {
 }
 
 async function mfgLenhChoTuLam(f) {
-  var ds = [];
+  /* Codex #552 P1: lọc kho, công thức ngay ở máy chủ và không cắt 20 dòng,
+     không thì lệnh hợp lệ thứ 21 bị bỏ sót, máy lại tạo lệnh trùng.
+     Codex #552 P2: đọc hỏng KHÔNG có nghĩa là không có lệnh mở; dừng hẳn,
+     không tạo lệnh mới (tạo được là thành lệnh trùng mà bếp không biết). */
+  var loc = { production_item: f.code, docstatus: 1, status: ['in', ['Not Started', 'In Process']],
+    fg_warehouse: f.fg, source_warehouse: f.src };
+  if (f.bom) loc.bom_no = f.bom;
+  var ds;
   try {
     ds = await getList('Work Order', {
       fields: ['name', 'qty', 'produced_qty', 'source_warehouse', 'fg_warehouse', 'bom_no'],
-      filters: { production_item: f.code, docstatus: 1, status: ['in', ['Not Started', 'In Process']] },
-      order_by: 'creation asc', limit_page_length: 20
+      filters: loc, order_by: 'creation asc', limit_page_length: 0
     });
-  } catch (e) { ds = []; }
+  } catch (e) {
+    throw new Error('Chưa đọc được các lệnh đang mở của ' + (f.name || f.code) +
+      ' nên máy chưa làm gì, để không tạo lệnh trùng. Kiểm mạng rồi bấm Hoàn tất lại.');
+  }
   return mfgChonLenhMo(ds, f) || await mfgCreateWO(f);
 }
 
