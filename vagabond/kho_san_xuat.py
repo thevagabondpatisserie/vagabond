@@ -46,6 +46,8 @@ lấy sai kho, mà sai kho thì trừ nhầm tồn của bếp khác - không ai
 tới lúc kiểm kê.
 """
 
+import json
+
 import frappe
 from frappe.utils import cint, flt
 
@@ -1191,6 +1193,27 @@ def _lam_tron_len(x, chu_so=3):
 	return math.ceil(flt(x) * m - 1e-6) / m
 
 
+def trong_han_lay(lay, toi_da):
+	"""Phần sắp lấy từ Kho tổng 307 có nằm trong số bếp đã duyệt không. THUẦN.
+
+	Codex #551 vòng 8: app hỏi trước (hoi_lay_bu), bếp duyệt đúng số đó, rồi
+	mới gọi ghi. Giữa hai lần gọi, đơn khác có thể dùng bớt kho bếp, máy chủ
+	tính lại thì phần thiếu lớn hơn. Máy chủ chỉ ghi khi phần tính lại không
+	vượt số đã duyệt (cộng theo mã); không có số duyệt là không ghi.
+	"""
+	if isinstance(toi_da, str):
+		try:
+			toi_da = json.loads(toi_da)
+		except ValueError:
+			toi_da = None
+	if not isinstance(toi_da, dict) or not toi_da:
+		return False
+	can = {}
+	for x in lay or []:
+		can[x["ma"]] = can.get(x["ma"], 0) + flt(x.get("sl"))
+	return all(v <= flt(toi_da.get(ma)) + 0.0005 for ma, v in can.items())
+
+
 def tinh_lay_bu(dong, ton_bep, ton_tong):
 	"""Phần nguyên liệu lấy từ Kho tổng 307 cho một phiếu hoàn tất. THUẦN.
 
@@ -1289,7 +1312,7 @@ def _lap_phieu_lay_bu(lay, cong_ty, ten_lenh):
 
 
 @frappe.whitelist()
-def hoan_tat_phieu(phieu, q=None, can=None, lay_bu=None, hoi_lay_bu=None):
+def hoan_tat_phieu(phieu, q=None, can=None, lay_bu=None, hoi_lay_bu=None, lay_toi_da=None):
 	"""Ghi phiếu kho hoàn tất lệnh trong MỘT yêu cầu.
 
 	Trước 03/09/2026 app gọi insert rồi submit là hai lệnh rời. Rớt mạng
@@ -1330,11 +1353,13 @@ def hoan_tat_phieu(phieu, q=None, can=None, lay_bu=None, hoi_lay_bu=None):
 
 	# v648: thiếu nguyên liệu ở kho bếp thì lấy bù từ Kho tổng 307 (xem
 	# NHAN_LAY_BU). hoi_lay_bu: chỉ HỎI (chưa ghi gì), app hiện hộp cho bếp
-	# đồng ý rồi gọi lại với lay_bu. Không truyền cả hai thì như cũ.
+	# đồng ý rồi gọi lại với lay_bu kèm lay_toi_da (số đã duyệt theo mã). Phần
+	# tính lại vượt số đã duyệt thì chỉ hỏi lại, không ghi (Codex #551 vòng 8).
+	# Không truyền cả hai thì như cũ.
 	phieu_bu, da_lay, con_thieu = "", [], []
 	if cint(lay_bu) or cint(hoi_lay_bu):
 		da_lay, con_thieu = _tinh_lay_bu_phieu(phieu)
-		if da_lay and not cint(lay_bu):
+		if da_lay and not (cint(lay_bu) and trong_han_lay(da_lay, lay_toi_da)):
 			return {"ok": 0, "hoi_lay_bu": da_lay, "con_thieu": con_thieu}
 		if da_lay:
 			phieu_bu = _lap_phieu_lay_bu(da_lay, phieu.get("company"), ten_lenh)
