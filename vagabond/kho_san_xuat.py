@@ -1174,8 +1174,122 @@ def _don_phieu_nhap_mo_coi(ten_lenh):
 	return da
 
 
+# v648 (anh Việt chọn cách 1, 11/11/2026): hoàn tất lệnh mà kho nguyên liệu
+# của bếp thiếu thì máy lập và ghi sổ luôn một phiếu điều chuyển từ Kho tổng
+# 307 sang kho bếp đúng phần thiếu, ngay trước phiếu hoàn tất, trong CÙNG một
+# yêu cầu: phiếu hoàn tất hỏng thì phiếu điều chuyển cũng lùi. Bếp tự sang kho
+# tổng lấy hàng; Zalo báo kho; phiếu được ghi là bếp đã nhận đủ (không nhắc
+# "chưa xác nhận nhận"). Không cho âm kho: kho tổng cũng thiếu thì chỉ lấy
+# phần kho tổng có, phần còn lại để mã thay thế đã duyệt hoặc báo thiếu như cũ.
+NHAN_LAY_BU = "Bếp lấy bù nguyên liệu từ Kho tổng 307"
+
+
+def _lam_tron_len(x, chu_so=3):
+	"""THUẦN: làm tròn LÊN tới chu_so chữ số lẻ (gram lẻ không được hụt)."""
+	import math
+	m = 10 ** chu_so
+	return math.ceil(flt(x) * m - 1e-6) / m
+
+
+def tinh_lay_bu(dong, ton_bep, ton_tong):
+	"""Phần nguyên liệu lấy từ Kho tổng 307 cho một phiếu hoàn tất. THUẦN.
+
+	dong: [{ma, ten, dvt, kho, can}] dòng nguyên liệu của phiếu (đơn vị tồn kho).
+	ton_bep: {(ma, kho): tồn}; ton_tong: {ma: tồn ở Kho tổng 307}.
+	Trả (lay, con_thieu): lay [{ma, ten, dvt, kho, sl, kho_bep_con, kho_tong_con}],
+	con_thieu [{ma, ten, dvt, kho, thieu}] là phần kho tổng cũng không đủ.
+	Cùng một mã ở hai kho bếp thì tồn kho tổng chỉ chia một lần."""
+	gom, thu_tu = {}, []
+	for d in dong or []:
+		kho = d.get("kho")
+		if not d.get("ma") or not kho or kho == KHO_GOC:
+			continue
+		k = (d["ma"], kho)
+		if k not in gom:
+			gom[k] = dict(ma=d["ma"], ten=d.get("ten") or d["ma"], dvt=d.get("dvt") or "", kho=kho, can=0.0)
+			thu_tu.append(k)
+		gom[k]["can"] += flt(d.get("can"))
+	lay, con_thieu, da_lay = [], [], {}
+	for k in thu_tu:
+		g = gom[k]
+		bep = flt((ton_bep or {}).get(k))
+		thieu = _lam_tron_len(g["can"] - bep)
+		if thieu <= 0.0001:
+			continue
+		tong = max(0.0, flt((ton_tong or {}).get(g["ma"])) - da_lay.get(g["ma"], 0.0))
+		sl = min(thieu, tong)
+		if sl > 0.0001:
+			da_lay[g["ma"]] = da_lay.get(g["ma"], 0.0) + sl
+			lay.append(dict(ma=g["ma"], ten=g["ten"], dvt=g["dvt"], kho=g["kho"], sl=sl,
+				kho_bep_con=bep, kho_tong_con=tong))
+		if thieu - sl > 0.0001:
+			con_thieu.append(dict(ma=g["ma"], ten=g["ten"], dvt=g["dvt"], kho=g["kho"], thieu=thieu - sl))
+	return lay, con_thieu
+
+
+def _dong_nguyen_lieu(phieu):
+	"""Dòng nguyên liệu (xuất khỏi kho) của phiếu hoàn tất, theo đơn vị tồn kho."""
+	ra = []
+	for d in phieu.get("items") or []:
+		if not d.get("s_warehouse") or cint(d.get("is_finished_item")) or cint(d.get("is_scrap_item")):
+			continue
+		sl = flt(d.get("transfer_qty")) or flt(d.get("qty")) * (flt(d.get("conversion_factor")) or 1)
+		ra.append(dict(ma=d.get("item_code"), ten=d.get("item_name") or d.get("item_code"),
+			dvt=d.get("stock_uom") or d.get("uom") or "", kho=d.get("s_warehouse"), can=sl))
+	return ra
+
+
+def _tinh_lay_bu_phieu(phieu):
+	dong = _dong_nguyen_lieu(phieu)
+	ma = sorted({d["ma"] for d in dong if d.get("ma")})
+	if not ma:
+		return [], []
+	kho = sorted({d["kho"] for d in dong} | {KHO_GOC})
+	ton_bep, ton_tong = {}, {}
+	for b in frappe.get_all("Bin", filters={"item_code": ["in", ma], "warehouse": ["in", kho]},
+			fields=["item_code", "warehouse", "actual_qty"], limit_page_length=0):
+		if b.warehouse == KHO_GOC:
+			ton_tong[b.item_code] = flt(b.actual_qty)
+		else:
+			ton_bep[(b.item_code, b.warehouse)] = flt(b.actual_qty)
+	return tinh_lay_bu(dong, ton_bep, ton_tong)
+
+
+def _lap_phieu_lay_bu(lay, cong_ty, ten_lenh):
+	"""Lập và ghi sổ phiếu điều chuyển Kho tổng 307 sang kho bếp cho phần lấy bù."""
+	from frappe.utils import now_datetime
+	doc = frappe.new_doc("Stock Entry")
+	doc.company = cong_ty or frappe.defaults.get_user_default("Company")
+	doc.stock_entry_type = "Material Transfer"
+	doc.purpose = "Material Transfer"
+	doc.set_posting_time = 0
+	doc.from_warehouse = KHO_GOC
+	kho_bep = sorted({x["kho"] for x in lay})
+	if len(kho_bep) == 1:
+		doc.to_warehouse = kho_bep[0]
+	doc.remarks = "%s cho lệnh sản xuất %s (máy lập khi hoàn tất lệnh)." % (NHAN_LAY_BU, ten_lenh or "")
+	for x in lay:
+		doc.append("items", {"item_code": x["ma"], "qty": x["sl"], "uom": x["dvt"] or None,
+			"stock_uom": x["dvt"] or None, "conversion_factor": 1,
+			"s_warehouse": KHO_GOC, "t_warehouse": x["kho"]})
+	doc.flags.bep_lay_bu = ten_lenh or "-"
+	doc.insert()
+	doc.submit()
+	# Bếp tự lấy hàng nên đã nhận đủ: không nhắc "chưa xác nhận nhận" (tin_kho).
+	meta = frappe.get_meta("Stock Entry")
+	ghi = {}
+	for o, v in (("vgb_nhan_tt", "Đã nhận đủ"), ("vgb_nhan_boi", frappe.session.user),
+			("vgb_nhan_luc", now_datetime()),
+			("vgb_nhan_ghi_chu", "Bếp tự lấy khi hoàn tất lệnh %s" % (ten_lenh or ""))):
+		if meta.has_field(o):
+			ghi[o] = v
+	if ghi:
+		frappe.db.set_value("Stock Entry", doc.name, ghi, update_modified=False)
+	return doc.name
+
+
 @frappe.whitelist()
-def hoan_tat_phieu(phieu, q=None, can=None):
+def hoan_tat_phieu(phieu, q=None, can=None, lay_bu=None, hoi_lay_bu=None):
 	"""Ghi phiếu kho hoàn tất lệnh trong MỘT yêu cầu.
 
 	Trước 03/09/2026 app gọi insert rồi submit là hai lệnh rời. Rớt mạng
@@ -1213,11 +1327,23 @@ def hoan_tat_phieu(phieu, q=None, can=None):
 	# ERPNext TransactionBase.validate_posting_time dùng giờ site khi cờ này
 	# tắt. Không tin đồng hồ điện thoại: UTC từng đặt xuất trước nhập 7 giờ.
 	phieu["set_posting_time"] = 0
+
+	# v648: thiếu nguyên liệu ở kho bếp thì lấy bù từ Kho tổng 307 (xem
+	# NHAN_LAY_BU). hoi_lay_bu: chỉ HỎI (chưa ghi gì), app hiện hộp cho bếp
+	# đồng ý rồi gọi lại với lay_bu. Không truyền cả hai thì như cũ.
+	phieu_bu, da_lay, con_thieu = "", [], []
+	if cint(lay_bu) or cint(hoi_lay_bu):
+		da_lay, con_thieu = _tinh_lay_bu_phieu(phieu)
+		if da_lay and not cint(lay_bu):
+			return {"ok": 0, "hoi_lay_bu": da_lay, "con_thieu": con_thieu}
+		if da_lay:
+			phieu_bu = _lap_phieu_lay_bu(da_lay, phieu.get("company"), ten_lenh)
+
 	doc = frappe.get_doc(phieu)
 	doc.insert()
 	doc.submit()
 	return {"name": doc.name, "da_don": da_don, "fg_completed_qty": fg,
-		"qty_thanh_pham": qty_tp}
+		"qty_thanh_pham": qty_tp, "phieu_bu": phieu_bu, "da_lay": da_lay if phieu_bu else []}
 
 
 def _goc_so(v):
