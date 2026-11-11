@@ -11,6 +11,11 @@ bản đó chưa có mục ở đây, hay tên mục ghi ở đây không có tr
 Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi đúng một dòng
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
+## v650
+- Hoàn tất lệnh sản xuất
+- Vì sao không hoàn tất được lệnh sản xuất
+- Gom yêu cầu mua thành đơn mua
+
 ## v649
 - Ra lệnh sản xuất từ kế hoạch
 - BTP sẵn và Đủ decor trừ ngay khi bếp nhập Bếp làm
