@@ -144,3 +144,4 @@ from vagabond.khung.kiem_that import thu_doi_soat_643  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_doi_soat_644  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_banh_web_644  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_tu_lam_cap_duoi_648  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_tru_vo_btp_649  # noqa: F401,E402
