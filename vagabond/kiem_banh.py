@@ -1207,33 +1207,10 @@ def chot_ngay(ngay=None):
 	finally:
 		frappe.flags.vgb_ton_da_co_nguon = False
 
-	# Tru kho BTP cap 2: moi banh giao xong hom nay von da an mot vo BTP
-	# luc bep lay ra trang tri toi hom truoc (quy trinh Han 01/08). Tru
-	# TAP TRUNG luc chot so de bep khong bao gio phai tru tay - trong ngay,
-	# phan da lay ra van duoc "don dang giu" tru ho nen CON NHAN luon dung.
-	try:
-		kho = frappe.get_single("BTP Banh O")
-		co_btp = {b.ma_hang: b for b in kho.dong}
-		doi = False
-		for d in doc.dong:
-			b = co_btp.get(d.ma_hang)
-			if not b:
-				continue
-			# Trừ vỏ BTP giữ NGUYÊN quy tắc cũ: chỉ theo số BÁN RA, không cộng
-			# huỷ. Quy tắc này chưa ai duyệt sửa, và một cái bánh huỷ chưa chắc
-			# đã ăn một vỏ mới - có thể là hàng tồn cũ vốn đã trừ vỏ hôm trước.
-			# Muốn đưa huỷ vào đây thì phải trình bảng ví dụ cho anh Việt chốt.
-			an = so_ban_ra(d.da_dat, d.phat_sinh, d.don_khac)
-			if an and ((b.so_btp or 0) or (b.so_decor or 0)):
-				b.so_btp = max(0, (b.so_btp or 0) - an)
-				# Banh ban ra la banh DA du decor - tru luon so du decor
-				b.so_decor = max(0, (b.so_decor or 0) - an)
-				doi = True
-		if doi:
-			kho.cap_nhat_luc = now_datetime()
-			kho.save(ignore_permissions=True)
-	except Exception:
-		frappe.log_error(title="Vagabond: tru BTP khi chot ngay loi", message=frappe.get_traceback())
+	# v649 (Loan Anh đề xuất, anh Việt chọn A 11/11/2026): chốt sổ KHÔNG trừ
+	# kho BTP nữa. Vỏ BTP và Đủ decor đã trừ ngay lúc bếp nhập ô Bếp làm (xem
+	# btp.tru_vo_theo_sx, gọi từ KiemBanhNgay.on_update). Trước v649 chỗ này
+	# trừ theo số BÁN RA lúc chốt; giữ lại thì mỗi cái bánh bị trừ hai lần.
 
 	doc.tinh_trang = "Da chot"
 	doc.chot_luc = now_datetime()

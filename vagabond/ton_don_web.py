@@ -43,6 +43,19 @@ def _kiem_refill(hang, ng, nay):
     return xet, refill.kiem_don([h for h in hang if h["variation_id"] in xet], ng, rf, con, decor)
 
 
+def chan_dat_truoc_hom_nay(hang, co_kb, ten_btp):
+    """v649: bánh đặt trước (có trong bảng BTP) mà không có dòng trong Kiểm bánh
+    hôm nay thì không nhận giao hôm nay. Bánh có dòng thì đã kiểm theo cột Bán
+    được như cũ. Thuần, không chạm Frappe."""
+    nhac = []
+    for h in hang or []:
+        ma = h.get("variation_id")
+        if ma in ten_btp and ma not in co_kb:
+            nhac.append("%s là bánh đặt trước, nhận từ ngày mai. Bánh nhận hôm nay "
+                        "quý khách chọn ở tab Có sẵn hôm nay." % ten_btp[ma])
+    return nhac
+
+
 def kiem(hang, ngay):
     if not ngay or not str(ngay).strip():
         return []
@@ -54,13 +67,21 @@ def kiem(hang, ngay):
         return nhac_rf
     ma = {h["variation_id"] for h in hang}
     ton = {}
+    nhac_truoc = []
     if ng == nay:
         ten = "KB-%s" % nay
+        # F21-4: chưa có bảng Kiểm bánh hôm nay là chưa biết tồn, nhận như cũ.
         if not frappe.db.exists("Kiem Banh Ngay", ten):
             return []
+        co_kb = set()
         for d in frappe.get_doc("Kiem Banh Ngay", ten).dong:
+            co_kb.add(d.ma_hang)
             if d.ma_hang in ma:
                 ton[d.ma_hang] = (max(0, int(d.co_the_ban or 0)), d.ten_banh or d.ma_hang)
+        # v649 (anh Việt 11/11/2026): bánh đặt trước nhận từ ngày mai. Đơn nhận
+        # hôm nay chỉ nhận bánh có trong Kiểm bánh hôm nay (tab Có sẵn hôm nay).
+        ten_btp = {d.ma_hang: (d.ten_banh or d.ma_hang) for d in (frappe.get_single("BTP Banh O").dong or [])}
+        nhac_truoc = chan_dat_truoc_hom_nay(hang, co_kb, ten_btp)
     else:
         kho = frappe.get_single("BTP Banh O")
         da_dat = {}
@@ -78,7 +99,7 @@ def kiem(hang, ngay):
             # Dòng giữ chỗ decor0 chưa phải nguồn tồn hữu hạn.
             if d.ma_hang in ma and int(d.so_decor or 0) > 0:
                 ton[d.ma_hang] = (max(0, int(d.so_decor or 0) - da_dat.get(d.ma_hang, 0)), d.ten_banh or d.ma_hang)
-    nhac = list(nhac_rf)
+    nhac = list(nhac_rf) + nhac_truoc
     for h in hang:
         if h["variation_id"] not in ton:
             continue
