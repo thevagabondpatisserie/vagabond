@@ -254,6 +254,10 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_zalo_mau_646,
 	# v646 Refill (bếp báo sau vụ Roman 18 đặt xa ngày, anh Việt duyệt 09/11).
 	thu_refill_646,
+	# v649 đối soát GrabFood: phí quảng cáo không mã, đơn mã dài ngắt dòng (site thật 10/11).
+	thu_doi_soat_grab_649,
+	# v649 màn Lệnh sản xuất: thẻ gọn, câu chặn kiểm kê ghi số phiếu (ảnh anh Việt 11/11).
+	thu_lenh_sx_649,
 )
 
 
