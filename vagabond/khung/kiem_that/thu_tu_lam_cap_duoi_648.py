@@ -364,8 +364,9 @@ def _lenh_mo_nhu_app(f, src):
 		"fg_warehouse": src, "source_warehouse": src}
 	if f.bom:
 		loc["bom_no"] = f.bom
-	for w in frappe.get_all("Work Order", filters=loc, fields=["name", "qty", "produced_qty"], order_by="creation asc"):
-		if float(w.qty) - float(w.produced_qty or 0) + 0.0001 >= float(f.qty):
+	for w in frappe.get_all("Work Order", filters=loc, fields=["name", "qty", "produced_qty", "process_loss_qty"], order_by="creation asc"):
+		# Codex #552 vòng 2: hao hụt đã ghi tính vào số kế hoạch, trừ ra mới là số còn làm.
+		if float(w.qty) - float(w.produced_qty or 0) - float(w.process_loss_qty or 0) + 0.0001 >= float(f.qty):
 			return frappe.get_doc("Work Order", w.name)
 	return None
 
@@ -420,3 +421,17 @@ def _dung_lenh_mo():
 		la("GL cân %s" % x[1], round(sum(float(d.debit) for d in gl), 2), round(sum(float(d.credit) for d in gl), 2))
 	cha.reload()
 	la("lệnh cha hoàn tất", (float(cha.produced_qty), cha.status), (2.0, "Completed"))
+
+
+@ca("v649 thật, Codex #552 vòng 2: lệnh đang mở có hao hụt đã ghi, số còn làm trừ cả hao; không đủ thì không dùng")
+def _lenh_mo_tru_hao():
+	w = _the_gioi()
+	bom = frappe.db.get_value("BOM", {"item": w.c2, "is_active": 1, "is_default": 1, "docstatus": 1}, "name")
+	kh = _lenh_nhu_app(w.cty, w.c2, bom, 5, w.bep, w.bep)
+	f = frappe._dict(code=w.c2, bom=bom, qty=2)
+	# Chỉ dựng dữ liệu: đặt thẳng số hao trên lệnh để thấy ô process_loss_qty
+	# của ERPNext thật được đọc đúng tên, đúng kiểu. Không ghi sổ gì.
+	kh.db_set("process_loss_qty", 4)
+	la("lệnh 5, hao 4, còn 1 < 2: không dùng", _lenh_mo_nhu_app(f, w.bep), None)
+	kh.db_set("process_loss_qty", 3)
+	la("lệnh 5, hao 3, còn 2 đủ 2: dùng", getattr(_lenh_mo_nhu_app(f, w.bep), "name", None), kh.name)
