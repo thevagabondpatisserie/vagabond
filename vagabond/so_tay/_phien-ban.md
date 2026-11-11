@@ -13,6 +13,8 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 ## v649
 - Ra lệnh sản xuất từ kế hoạch
+- BTP sẵn và Đủ decor trừ ngay khi bếp nhập Bếp làm
+- Web đặt bánh: tab Có sẵn hôm nay và tab Đặt bánh trước
 - Vì sao không hoàn tất được lệnh sản xuất
 - Đối soát nhà cung cấp tự động qua hộp thư doisoat@
 
