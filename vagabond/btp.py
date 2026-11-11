@@ -150,7 +150,8 @@ def tru_vo_theo_sx(chenh):
 			continue
 		frappe.db.sql(
 			"""update `tabBTP Banh O Dong` set so_btp = ifnull(so_btp, 0) - %(n)s,
-			so_decor = ifnull(so_decor, 0) - %(n)s
+			so_decor = ifnull(so_decor, 0) - %(n)s,
+			decor_da_lam = ifnull(decor_da_lam, 0) + %(n)s
 			where parent = 'BTP Banh O' and parenttype = 'BTP Banh O' and ma_hang = %(ma)s""",
 			{"n": int(n), "ma": ma},
 		)
@@ -258,6 +259,8 @@ def luu_decor(ma_hang, so_decor):
 	doc = frappe.get_single("BTP Banh O")
 	d = _dong_cua_ma(doc, ma_hang)
 	d.so_decor = max(0, int(so_decor or 0))
+	# v649: bếp đếm lại decor là gốc mới, phần đã trừ theo Bếp làm về 0.
+	d.decor_da_lam = 0
 	doc.cap_nhat_luc = now_datetime()
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()

@@ -7,7 +7,7 @@ Không commit ở đây; lỗi kiểm vẫn đi cách B tại cửa nhận đơn
 import json
 from datetime import datetime, timedelta
 import frappe
-from vagabond.ton_don_web import hom_nay
+from vagabond.ton_don_web import decor_huu_han, hom_nay
 
 O = "giu_ton_web"
 # v646 Codex 549 (1eefda8): suất refill đơn web đã giữ, ghi trong snapshot đơn.
@@ -81,7 +81,7 @@ def kiem_va_giu(hang, ngay):
         from vagabond import refill
         # Giữ đúng thứ tự khoá cũ: dòng kiểm bánh ba ngày trước, bảng BTP sau.
         kb = [(nay + timedelta(days=i), _dong(nay + timedelta(days=i))) for i in (1,2,3)]
-        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,so_refill,refill_tu,refill_den from `tabBTP Banh O Dong`
+        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,decor_da_lam,so_refill,refill_tu,refill_den from `tabBTP Banh O Dong`
             where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
         rf = refill.hieu_luc_tu_dong(btp, nay)
         dd = {}
@@ -92,8 +92,9 @@ def kiem_va_giu(hang, ngay):
                     continue
                 dd[ma] = dd.get(ma,0) + int(d.da_dat or 0)
         for d in btp:
-            if int(d.so_decor or 0) > 0 and not refill.ngay_cua_refill(rf, str(d.ma_hang), ng):
-                ton[str(d.ma_hang)] = (max(0,int(d.so_decor)-dd.get(str(d.ma_hang),0)),d.ten_banh or d.ma_hang)
+            # v649: decor cạn vì bếp làm hết vẫn chặn (ton_don_web.decor_huu_han).
+            if decor_huu_han(d) and not refill.ngay_cua_refill(rf, str(d.ma_hang), ng):
+                ton[str(d.ma_hang)] = (max(0,int(d.so_decor or 0)-dd.get(str(d.ma_hang),0)),d.ten_banh or d.ma_hang)
     giu = {}
     for d in _don():
         snap = json.loads(d.snapshot or '{}')

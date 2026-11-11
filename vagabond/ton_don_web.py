@@ -43,6 +43,16 @@ def _kiem_refill(hang, ng, nay):
     return xet, refill.kiem_don([h for h in hang if h["variation_id"] in xet], ng, rf, con, decor)
 
 
+def decor_huu_han(d):
+    """Dòng bảng BTP có nguồn Đủ decor hữu hạn không (F21 review 13/10: decor gốc
+    bằng 0 là dòng giữ chỗ, không chặn). v649, Codex #552 vòng 4: Đủ decor nay
+    trừ ngay theo Bếp làm, nên decor về 0 hay âm vì bếp làm hết vẫn là nguồn
+    hữu hạn đã cạn. Gốc = Đủ decor hiện còn + phần đã trừ theo Bếp làm kể từ lần
+    bếp nhập decor gần nhất. Thuần."""
+    lay = (lambda k: d.get(k)) if hasattr(d, "get") else (lambda k: getattr(d, k, 0))
+    return int(lay("so_decor") or 0) + int(lay("decor_da_lam") or 0) > 0
+
+
 def chan_dat_truoc_hom_nay(hang, co_kb, ten_btp):
     """v649: bánh đặt trước (có trong bảng BTP) mà không có dòng trong Kiểm bánh
     hôm nay thì không nhận giao hôm nay. Bánh có dòng thì đã kiểm theo cột Bán
@@ -97,7 +107,7 @@ def kiem(hang, ngay):
                     da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + int(d.da_dat or 0)
         for d in kho.dong or []:
             # Dòng giữ chỗ decor0 chưa phải nguồn tồn hữu hạn.
-            if d.ma_hang in ma and int(d.so_decor or 0) > 0:
+            if d.ma_hang in ma and decor_huu_han(d):
                 ton[d.ma_hang] = (max(0, int(d.so_decor or 0) - da_dat.get(d.ma_hang, 0)), d.ten_banh or d.ma_hang)
     nhac = list(nhac_rf) + nhac_truoc
     for h in hang:
