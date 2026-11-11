@@ -71,6 +71,16 @@ function theGioi(ton, tuLam) {
         /* Codex #551: lenh con ghi so qua cung cua voi mon chinh (gio may chu). */
         var w2 = lenh[a.phieu.work_order];
         if (a.q !== a.can || a.q !== a.phieu.qty) throw new Error('so lam lech: ' + JSON.stringify([a.q, a.can, a.phieu.qty]));
+        /* Codex #551 vòng 3: phiếu Manufacture thật TRỪ nguyên liệu của lệnh
+           con. Kho giả cũ chỉ cộng thành phẩm nên không thấy lệnh C2 ăn mất
+           ruột C1 vừa làm cho món chính. Món giữ tồn (C1, C2) mà âm là ERPNext
+           chặn thiếu tồn. */
+        BOM[w2.code].dong.forEach(function (d) {
+          var c = d.item_code, can = d.so * a.q / BOM[w2.code].qty;
+          if (c === 'NVL') return;
+          if ((ton[c] || 0) + 0.0001 < can) throw new Error('ERPNext: thieu ' + c + ' khi ghi so ' + w2.code + ' (con ' + (ton[c] || 0) + ', can ' + can + ')');
+          ton[c] = (ton[c] || 0) - can;
+        });
         nhat.phieu.push(w2.code + ' x' + a.q);
         ton[w2.code] = (ton[w2.code] || 0) + a.q;
         return { name: 'SE-' + nhat.phieu.length };
@@ -106,8 +116,18 @@ function theGioi(ton, tuLam) {
     mfgLoadItem: async function () { return {}; },
     mfgMakeBatch: async function () { return ''; }
   };
+  /* Món chính ghi sổ: trừ đủ nguyên liệu giữ tồn của lệnh, như ERPNext. */
+  the.ghiMonChinh = function (mats, ratio) {
+    mats.forEach(function (m) {
+      var c = m.item_code, can = (m.required_qty || 0) * ratio;
+      if (c !== 'C1' && c !== 'C2') return;
+      if ((ton[c] || 0) + 0.0001 < can) throw new Error('ERPNext: thieu ' + c + ' khi ghi so mon chinh (con ' + (ton[c] || 0) + ', can ' + can + ')');
+      ton[c] = (ton[c] || 0) - can;
+    });
+    return ton;
+  };
   vm.createContext(the);
-  ['inChunks', 'freshOf', 'mfgFreshPlan', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
+  ['inChunks', 'freshOf', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
     vm.runInContext(layHam(SRC, t), the);
   });
   the.nhat = nhat;
@@ -170,6 +190,63 @@ async function ca(ten, fn) {
     var nvl = await t.mfgNvlCuaKe(ke, t.mfg.src);
     var chip = nvl.map(function (x) { var c = t.mfgChipNvl(x); return [x.code, c.phu, c.bad]; });
     bang('chip theo thu tu: thieu that len dau', chip, [['NVL', '200 · thiếu 200', true], ['C1', '2 · máy làm thêm 1', false]]);
+  });
+
+  /* Codex #551 vòng 3 (P2, kho_san_xuat.py:335): món chính cần CẢ ruột C1
+     lẫn bánh khuôn C2, mà C2 cũng ăn C1. Trước đây máy làm C1 x2 rồi C2 x2;
+     C2 ăn hết 2 ruột vừa làm cho món chính, món chính báo thiếu C1 sau khi
+     hai lệnh con đã ghi sổ. Ca dựng đúng chuỗi của app: kế hoạch, chạy lệnh
+     con, rồi ghi sổ món chính; kho giả trừ nguyên liệu như ERPNext. */
+  var MATS2 = [
+    { item_code: 'C1', item_name: 'Ruột C1', stock_uom: 'Cái', required_qty: 2 },
+    { item_code: 'C2', item_name: 'Bánh khuôn C2', stock_uom: 'Cái', required_qty: 2 }
+  ];
+  await ca('7. mon chinh can ca C1 lan C2 (C2 cung an C1), het ton: may giu phan C1 cua mon chinh, lam du 4 C1', async function () {
+    var t = theGioi({}, ['C1', 'C2']);
+    var ke = await t.mfgFreshPlan(MATS2, 1, t.mfg.src);
+    await t.mfgRunFresh(ke, 1);
+    var con = t.ghiMonChinh(MATS2, 1);
+    bang('ghi so mon chinh xong, ton trung gian ve 0', [con.C1 || 0, con.C2 || 0], [0, 0]);
+    bang('tong C1 lam ra', t.nhat.phieu.filter(function (p) { return /^C1 /.test(p); }).reduce(function (s, p) { return s + +p.split('x')[1]; }, 0), 4);
+  });
+
+  await ca('8. nhu ca 7 nhung ruot C1 con 1: may chi lam them 3 C1, mon chinh van du', async function () {
+    var t = theGioi({ C1: 1 }, ['C1', 'C2']);
+    var ke = await t.mfgFreshPlan(MATS2, 1, t.mfg.src);
+    await t.mfgRunFresh(ke, 1);
+    var con = t.ghiMonChinh(MATS2, 1);
+    bang('ton trung gian ve 0', [con.C1 || 0, con.C2 || 0], [0, 0]);
+    bang('tong C1 lam ra', t.nhat.phieu.filter(function (p) { return /^C1 /.test(p); }).reduce(function (s, p) { return s + +p.split('x')[1]; }, 0), 3);
+  });
+
+  await ca('9. ruot C1 du cho mon chinh (2) nhung khong du cho C2: hop xac nhan ghi may lam them 2, khong coi ton do la dung duoc cho C2', async function () {
+    var t = theGioi({ C1: 2 }, ['C1', 'C2']);
+    var ke = await t.mfgFreshPlan(MATS2, 1, t.mfg.src);
+    bang('ke hoach cap tren', ke.map(function (f) { return f.code + ' x' + f.qty; }), ['C2 x2']);
+    var nvl = await t.mfgNvlCuaKe(ke, t.mfg.src);
+    var c1 = nvl.filter(function (x) { return x.code === 'C1'; })[0];
+    bang('chip C1', [t.mfgChipNvl(c1).phu, t.mfgChipNvl(c1).bad], ['2 · máy làm thêm 2', false]);
+    await t.mfgRunFresh(ke, 1);
+    var con = t.ghiMonChinh(MATS2, 1);
+    bang('ton trung gian ve 0', [con.C1 || 0, con.C2 || 0], [0, 0]);
+  });
+
+  await ca('10. nhu ca 8 nhung lenh mon chinh ghi C2 truoc C1: thu tu dong cong thuc khong lam sai so', async function () {
+    var t = theGioi({ C1: 1 }, ['C1', 'C2']);
+    var mats = [MATS2[1], MATS2[0]];
+    var ke = await t.mfgFreshPlan(mats, 1, t.mfg.src);
+    await t.mfgRunFresh(ke, 1);
+    var con = t.ghiMonChinh(mats, 1);
+    bang('ton trung gian ve 0', [con.C1 || 0, con.C2 || 0], [0, 0]);
+    bang('tong C1 lam ra', t.nhat.phieu.filter(function (p) { return /^C1 /.test(p); }).reduce(function (s, p) { return s + +p.split('x')[1]; }, 0), 3);
+  });
+
+  await ca('11. phan giu la phep thuan: cong don ong cha, khong sua ban truyen vao', async function () {
+    var t = theGioi({}, []);
+    var goc = { C1: 1 };
+    var ra = t.mfgGiuCuaLenh(MATS2, 0.5, goc);
+    bang('cong don', [ra.C1, ra.C2], [2, 1]);
+    bang('ban goc giu nguyen', goc, { C1: 1 });
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');
