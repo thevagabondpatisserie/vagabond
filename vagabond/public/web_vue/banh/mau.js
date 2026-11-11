@@ -162,7 +162,8 @@ export const MAU = `
   </section>
   <div class="wrap">
     <div class="sec"><span class="n"><span>{{ t('dat_banh_6dcd4ce23','A') }}</span></span><h3><span>{{ t('dat_banh_41d54a1aa','Ngày nhận bánh') }}</span></h3><i class="rule"></i></div>
-    <div class="rail" id="rail"><button v-for="d in kho.ngayRail.value" :key="d.i" class="day" :class="{on: d.on, best: d.best, off: d.off}" @click="kho.pick(d.i)"><span>{{ d.ten }}</span><b>{{ d.ngay }}</b></button></div>
+    <div class="rail" id="rail"><button v-for="d in kho.ngayRailDatTruoc.value" :key="d.i" class="day" :class="{on: d.on, best: d.best, off: d.off}" @click="kho.pick(d.i)"><span>{{ d.ten }}</span><b>{{ d.ngay }}</b></button></div>
+    <div class="note hom-nay-goi"><a href="#/">{{ t('can_banh_hom_nay','Cần bánh hôm nay? Xem tab Có sẵn hôm nay') }} →</a></div>
     <div class="sec"><span class="n"><span>{{ t('dat_banh_ae4f281df','B') }}</span></span><h3><span>{{ t('dat_banh_722864cac','Khung giờ nhận') }}</span></h3><i class="rule"></i></div>
     <div class="rail" id="slots"><button v-for="k in kho.khungRail.value" :key="k.i" class="slot" :class="{on: k.on, off: k.off}" @click="kho.pickSlot(k.i)" :disabled="k.off" :aria-disabled="k.off ? 'true' : null">{{ k.t }}</button></div>
     <div class="note" id="orderNote"><dong-chu :phan="kho.ghiChuDatTruoc.value"/></div>
