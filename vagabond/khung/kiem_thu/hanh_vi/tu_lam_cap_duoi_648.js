@@ -72,6 +72,7 @@ function theGioi(ton, tuLam, tong) {
         /* Lệnh món chính (ca 14): máy chủ giả chỉ trả lời đúng luật hỏi/lấy bù.
            chaDu: món chính đủ nguyên liệu, máy chủ không hỏi. */
         nhat.cha = (nhat.cha || []).concat([{ lay_bu: a.lay_bu, hoi_lay_bu: a.hoi_lay_bu }]);
+        if (a.lay_bu) nhat.chaToi = JSON.parse(a.lay_toi_da || 'null');
         if (a.hoi_lay_bu && !a.lay_bu && !the.chaDu) return { ok: 0, hoi_lay_bu: [{ ma: 'NVL', ten: 'Bột', sl: 60, dvt: 'Gram', kho_bep_con: 0 }], con_thieu: [] };
         return { name: 'SE-CHA', phieu_bu: a.lay_bu ? 'PDC-CHA' : '' };
       }
@@ -85,8 +86,12 @@ function theGioi(ton, tuLam, tong) {
         var nvlCan = 0, layBuSo = 0;
         BOM[w2.code].dong.forEach(function (d) { if (d.item_code === 'NVL') nvlCan += d.so * a.q / BOM[w2.code].qty; });
         if (a.hoi_lay_bu || a.lay_bu) {
+          /* truocGhi: đơn khác dùng kho bếp giữa lượt hỏi và lượt ghi (ca 21). */
+          if (a.lay_bu && the.truocGhi) { var f0 = the.truocGhi; the.truocGhi = null; f0(ton); }
           var coNvl = ton.NVL || 0, thieuNvl = Math.round((nvlCan - coNvl) * 1000) / 1000;
-          if (thieuNvl > 0.0001 && !a.lay_bu) {
+          /* Như trong_han_lay của máy chủ: lượt ghi chỉ lấy trong số đã duyệt. */
+          var toiDa = a.lay_bu ? JSON.parse(a.lay_toi_da || '{}') : {};
+          if (thieuNvl > 0.0001 && (!a.lay_bu || thieuNvl > (toiDa.NVL || 0) + 0.0005)) {
             nhat.hoiCon = (nhat.hoiCon || []).concat([w2.code]);
             return { ok: 0, hoi_lay_bu: [{ ma: 'NVL', ten: 'Bột', sl: thieuNvl, dvt: 'Gram', kho_bep_con: coNvl }], con_thieu: [] };
           }
@@ -107,7 +112,8 @@ function theGioi(ton, tuLam, tong) {
         nhat.phieu.push(w2.code + ' x' + a.q);
         nhat.layBu = (nhat.layBu || []).concat([a.lay_bu]);
         ton[w2.code] = (ton[w2.code] || 0) + a.q;
-        return { name: 'SE-' + nhat.phieu.length, phieu_bu: layBuSo ? 'PDC-' + nhat.phieu.length : '' };
+        return { name: 'SE-' + nhat.phieu.length, phieu_bu: layBuSo ? 'PDC-' + nhat.phieu.length : '',
+          da_lay: layBuSo ? [{ ma: 'NVL', sl: layBuSo }] : [] };
       }
       if (m === 'frappe.client.insert' || m === 'frappe.client.submit') {
         nhat.giaoTho.push(m);
@@ -438,6 +444,27 @@ async function ca(ten, fn) {
     await t.mfgHoanTatMot(d, 2, 2, 0);
     bang('lenh con chi lay 200 trong 300 da neu', t.nhat.daLay, 200);
     bang('mon chinh hoi rieng', [t.nhat.cha, (t.nhat.hoiBep || []).length], [[{ lay_bu: 0, hoi_lay_bu: 1 }, { lay_bu: 1 }], 1]);
+  });
+
+  /* Codex #551 vòng 8 (P2, 05-san-xuat.js:2319): đơn khác dùng bớt kho bếp
+     giữa lượt hỏi và lượt ghi. Lượt ghi mang số đã duyệt; máy chủ tính lại
+     mà vượt thì chỉ hỏi lại, không ghi; vượt số hộp đã nêu thì hỏi bếp. */
+  await ca('21. kho bep bi dung bot giua luot hoi va luot ghi: khong lay qua so da duyet; hoi lai, tu choi thi khong lay', async function () {
+    var t = theGioi({ NVL: 50 }, ['C1', 'C2'], { NVL: 1000 });
+    var bu = { phieu: [], duyet: { NVL: 50 } };
+    var ke = [{ code: 'C1', qty: 2, bom: 'BOM-C1', src: t.mfg.src, giu: {} }];
+    t.truocGhi = function (ton) { ton.NVL = 0; };
+    t.dongY = false;
+    var loi = null;
+    try { await t.mfgRunFresh(ke, 1, bu); } catch (e) { loi = e; }
+    bang('may chu khong ghi khi phan thieu (100) vuot so da duyet (50)', [t.nhat.daLay || 0, t.nhat.phieu], [0, []]);
+    bang('hoi lai bep, tu choi thi dung', [(t.nhat.hoiBep || []).length, loi && loi.tuChoi], [1, 1]);
+    t = theGioi({ NVL: 50 }, ['C1', 'C2'], { NVL: 1000 });
+    bu = { phieu: [], duyet: { NVL: 50 } };
+    t.truocGhi = function (ton) { ton.NVL = 0; };
+    await t.mfgRunFresh(ke, 1, bu);
+    bang('dong y o hop hoi lai: lay dung 100 g bep vua thay', [t.nhat.daLay, (t.nhat.hoiBep || []).length, t.nhat.phieu], [100, 1, ['C1 x2']]);
+    bang('so da duyet tu hop dau khong bi tru vi phan nay duyet rieng', bu.duyet.NVL, 50);
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');
