@@ -143,10 +143,20 @@ def tru_vo_theo_sx(chenh):
 	Trừ bằng một câu UPDATE cộng dồn trên từng dòng để hai người lưu cùng lúc
 	không đè số của nhau, và không kẹp về 0: sửa bớt thì cộng lại đúng phần đã
 	trừ. Số âm chỉ là hiển thị 0 (bang_btp) và báo bếp cần đếm lại tủ.
-	Mã không có trong bảng BTP thì bỏ qua."""
+	Mã không có trong bảng BTP thì bỏ qua: không UPDATE, không đổi giờ "BTP
+	bếp cập nhật" trên màn (nhập Bếp làm cho bánh khác không phải bếp vừa sửa
+	bảng BTP)."""
+	can = {ma: n for ma, n in (chenh or {}).items() if n}
+	if not can:
+		return 0
+	co = {r[0] for r in frappe.db.sql(
+		"""select ma_hang from `tabBTP Banh O Dong`
+		where parent = 'BTP Banh O' and parenttype = 'BTP Banh O' and ma_hang in %(ma)s""",
+		{"ma": tuple(sorted(can))},
+	)}
 	doi = 0
-	for ma, n in sorted((chenh or {}).items()):
-		if not n:
+	for ma, n in sorted(can.items()):
+		if ma not in co:
 			continue
 		frappe.db.sql(
 			"""update `tabBTP Banh O Dong` set so_btp = ifnull(so_btp, 0) - %(n)s,
