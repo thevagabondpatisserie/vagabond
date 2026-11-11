@@ -56,3 +56,25 @@ def _():
 	dung("xuống dòng thật giữa tên kho và câu hướng dẫn", "Pastry - Nguyên liệu - TV\nNgười duyệt" in ra)
 	dung("không dính chữ 'TVĐếm' như ảnh 15:25", "TVĐếm" not in ra and "TVNgười" not in ra)
 	dung("đủ câu, không bị cắt", ra.endswith("rồi bấm lại."))
+
+
+@ca("v649 Codex #552 vòng 2: số còn phải làm của lệnh trừ cả hao hụt (nút Hoàn tất, Kế hoạch, dùng lệnh đang mở) chạy thật trong node")
+def _():
+	r = subprocess.run(["node", str(GOC / "vagabond/khung/kiem_thu/hanh_vi/con_lai_lenh_649.js")],
+		capture_output=True, text=True, timeout=120)
+	dung("chạy được: " + (r.stdout[-1500:] + r.stderr[-600:]), r.returncode == 0)
+	dung("đủ 3 ca", "3 dat, 0 hong" in r.stdout)
+
+
+@ca("v649 một nguồn cho số còn lại của lệnh: trong bep/ chỉ mfgConLai tự lấy qty trừ produced_qty")
+def _():
+	import re
+	cho = []
+	for p in sorted((GOC / "vagabond/public/js/bep").glob("*.js")):
+		for i, dong in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+			if re.search(r"\.qty\s*\|\|\s*0\)\s*-\s*\([^)]*\.produced_qty", dong):
+				cho.append("%s:%d" % (p.name, i))
+	la("chỉ một chỗ (trong mfgConLai)", len(cho), 1)
+	src = (GOC / "vagabond/public/js/bep/05-san-xuat.js").read_text(encoding="utf-8")
+	dau = src.index("function mfgConLai(")
+	dung("chỗ đó nằm trong mfgConLai và trừ cả hao", "process_loss_qty" in src[dau:src.index("\n}\n", dau)])
