@@ -22,7 +22,7 @@ import frappe
 
 from vagabond import btp, kiem_banh
 from vagabond.khung.kiem_thu.nen import Doi, ca, dung, la
-from vagabond.khung.kiem_thu.thu_cot_huy_kiem_banh import BangGia, CuaGia, _tao_dong
+from vagabond.khung.kiem_thu.thu_cot_huy_kiem_banh import BangGia, CuaGia, DongGia, _tao_dong
 
 EPI = "BAWC00019"  # Bánh Ổ Epi 12cm, dòng trong ảnh Loan Anh gửi 11/11/2026
 
@@ -50,7 +50,8 @@ def _kho(so_btp=10, so_decor=9, sx=0, ma=EPI, ngay="2026-08-15", **dong):
 	nay = BangLuu(ngay=ngay, dong=[_tao_dong(ma_hang=ma, sx=sx, **dong)])
 	nay.trong_csdl = Doi(dong=copy.deepcopy([dict(d) for d in nay.dong]))
 	cua = CuaGia(**{"KB-" + ngay: nay})
-	cua.btp = Doi(dong=[Doi(ma_hang=ma, ten_banh="Bánh Ổ Epi, size 12cm", hinh="", so_btp=so_btp, so_decor=so_decor,
+	# Dòng BTP ghi thuộc tính vào khoá dict như dòng Frappe (luu_decor gán d.so_decor).
+	cua.btp = Doi(dong=[DongGia(ma_hang=ma, ten_banh="Bánh Ổ Epi, size 12cm", hinh="", so_btp=so_btp, so_decor=so_decor, decor_da_lam=0,
 		so_refill=0, refill_tu=None, refill_den=None)], cap_nhat_luc=None)
 	return nay, cua
 
@@ -67,6 +68,8 @@ def _chay(cua):
 				if d.ma_hang == gt["ma"]:
 					d["so_btp"] = (d["so_btp"] or 0) - gt["n"]
 					d["so_decor"] = (d["so_decor"] or 0) - gt["n"]
+					if "decor_da_lam = ifnull(decor_da_lam, 0) + %(n)s" in cau:
+						d["decor_da_lam"] = (d.get("decor_da_lam") or 0) + gt["n"]
 		return []
 
 	with cua, um.patch.object(frappe.db, "sql", sql, create=True), \
@@ -175,3 +178,17 @@ def _am():
 	d = _bang(cua, {"KB-%s" % HN: [{"ma_hang": EPI, "da_dat": 0, "phat_sinh": 0, "cho_chot": 0, "sx": 3}]})
 	la("màn hiện 0", (d["so_btp"], d["so_decor"]), (0, 0))
 	dung("Còn nhận 3 ngày âm (báo thiếu)", d["con_nhan"] < 0)
+
+
+@ca("v649 Codex #552 vòng 4: ghi phần Đủ decor đã trừ theo Bếp làm (cộng, sửa bớt thì bớt); bếp nhập lại Đủ decor thì về 0 (gốc mới)")
+def _da_lam():
+	nay, cua = _kho(so_decor=1)
+	cua.btp.save = lambda *a, **k: None
+	with _chay(cua), um.patch.object(btp, "_duoc_sua_btp", lambda: True), \
+			um.patch.object(btp, "bang_btp", lambda: None):
+		kiem_banh.luu_o("2026-08-15", EPI, "sx", 2)
+		la("đã trừ 2, decor còn -1", (cua.btp.dong[0]["decor_da_lam"], cua.btp.dong[0]["so_decor"]), (2, -1))
+		kiem_banh.luu_o("2026-08-15", EPI, "sx", 1)
+		la("sửa về 1", (cua.btp.dong[0]["decor_da_lam"], cua.btp.dong[0]["so_decor"]), (1, 0))
+		btp.luu_decor(EPI, 4)
+	la("bếp nhập lại 4: gốc mới", (cua.btp.dong[0].get("decor_da_lam"), cua.btp.dong[0].get("so_decor")), (0, 4))
