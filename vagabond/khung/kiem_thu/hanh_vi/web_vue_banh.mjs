@@ -707,7 +707,9 @@ await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; gi�
   la('nhãn refill', [k.nhanRefill('BAWC00068'), k.nhanRefill('BAWC00123')], ['Có từ 14/11', '']);
   la('giỏ trống: không ngày nào mờ', k.ngayRail.value.filter(d => d.off).length, 0);
   coThem(k, 'Kankin');
-  la('giỏ chỉ có bánh decor: không mờ', k.ngayRail.value.filter(d => d.off).length, 0);
+  /* v649 (anh Việt chọn tách đơn 11/11/2026): giỏ có bánh đặt trước thì ô Hôm nay
+     mờ; các ngày khác không mờ vì bánh decor không bị khoá theo refill. */
+  la('giỏ chỉ có bánh decor: chỉ mờ Hôm nay', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0]);
   coThem(k, 'Roman de la Rose');
   la('mờ 10 tới 13/11 và 21 tới 23/11', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 1, 2, 3, 11, 12, 13]);
   const truoc = k.S.ngayChon;
