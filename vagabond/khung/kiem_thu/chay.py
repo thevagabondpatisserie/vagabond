@@ -245,6 +245,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_bill_doi_tac_647,
 	# v648 (anh Việt chốt 11/11/2026, phương án C): Hoàn tất món chính, máy tự làm cấp 1, cấp 2 còn thiếu.
 	thu_tu_lam_cap_duoi_648,
+	thu_lay_bu_kho_tong_648,
 	# v648: bill sàn ghi khuyến mại hoặc thực nhận không còn bị báo Lệch tiền sai.
 	thu_tien_bill_san_648,
 	# v647 tên bàn theo khu (A1, B1, VIP1), in QR bàn đúng branding.

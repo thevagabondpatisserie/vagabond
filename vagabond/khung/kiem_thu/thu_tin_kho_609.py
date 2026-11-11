@@ -150,6 +150,19 @@ def _phieu_nhap():
 	_khong_tien(goi)
 
 
+@ca("v648 phiếu máy lập khi bếp hoàn tất mà kho bếp thiếu: tin kho ghi bếp tự lấy cho lệnh nào, không bảo kho nhận xác nhận")
+def _lay_bu_648():
+	se = _doc(purpose="Material Transfer", vgb_muc_dich_xuat="", name="PDC-9", docstatus=1, from_warehouse="Kho tổng 307 - TV",
+		to_warehouse="Pastry - Nguyên liệu - TV", vgb_huy=0, items=ITEMS)
+	se.flags["bep_lay_bu"] = "MFG-WO-2026-00123"
+	goi = _chay(lambda: tk.khi_ghi_so_phieu_kho(se))
+	la("đúng một tin kho, cùng mã tin chuyển kho", [(g.ma_tin, g.khoa) for g in goi], [("kho_da_chuyen", "dc-xong:PDC-9")])
+	la("tiêu đề", goi[0].tieu_de, "Bếp tự lấy nguyên liệu từ kho tổng")
+	dung("ghi lệnh", "bếp lấy cho lệnh MFG-WO-2026-00123" in goi[0].dong[0])
+	dung("không bảo xác nhận nhận", not any("Hàng chuyển về kho tôi" in x for x in goi[0].dong))
+	_khong_tien(goi)
+
+
 @ca("v609 phiếu kho ghi sổ: chuyển, huỷ (kho và kế toán), nội bộ, sản xuất; phục vụ bán và huỷ mềm thì im")
 def _phieu_kho():
 	nen = dict(name="PXK-1", docstatus=1, from_warehouse="Kho D1 - TV", to_warehouse="Kho TC - TV", vgb_huy=0,
