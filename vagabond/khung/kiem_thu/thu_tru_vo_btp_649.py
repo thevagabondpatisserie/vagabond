@@ -206,3 +206,63 @@ def _ngoai_bang():
 	la("bảng BTP giữ nguyên", _o(cua), (10, 9))
 	dung("không đổi giờ cập nhật bảng BTP", ("moc", "cap_nhat_luc") not in vet)
 	la("không câu UPDATE nào", [g for g in vet if isinstance(g, dict) and "n" in g], [])
+
+
+def _len_ban(cua, bang_csdl):
+	"""Chạy bản vá lên v649 trên bảng Kiểm bánh giả: get_all đọc các bảng đang có."""
+	from vagabond.patches import v649_tru_vo_btp_dang_lam as p
+
+	ds = [{"name": t, "ngay": b.ngay, "tinh_trang": getattr(b, "tinh_trang", None)} for t, b in bang_csdl.items()]
+	with _chay(cua), um.patch.object(frappe, "get_all", lambda *a, **k: [dict(x) for x in ds], create=True):
+		p.execute()
+
+
+@ca("v649 Codex #552 vòng 6: bếp đã nhập Bếp làm 3 dưới bản cũ (bảng chưa chốt), lên v649 thì bản vá trừ đúng 3 một lần; lưu, chốt sau đó không trừ thêm")
+def _len_ban_dang_lam():
+	nay, cua = _kho(sx=3, ton_d1=1, da_dat=3)
+	cua.btp.save = lambda *a, **k: None
+	mai = BangLuu(ngay="2026-08-16")
+	cua.bang["KB-2026-08-16"] = mai
+	# Đường lỗi khi chưa có bản vá: lưu ô khác rồi chốt, vỏ đứng yên 10/9 dù đã làm 3.
+	with _chay(cua):
+		kiem_banh.luu_o("2026-08-15", EPI, "huy", 0)
+	la("chưa có bản vá: bản cũ để lại vỏ chưa trừ", _o(cua), (10, 9))
+	_len_ban(cua, {"KB-2026-08-15": nay})
+	la("bản vá trừ phần làm dưới bản cũ", _o(cua), (7, 6))
+	la("phần Đủ decor đã trừ", cua.btp.dong[0]["decor_da_lam"], 3)
+	with _chay(cua):
+		kiem_banh.luu_o("2026-08-15", EPI, "huy", 1)
+		kiem_banh.chot_ngay("2026-08-15")
+	la("lưu, chốt sau đó không trừ thêm", _o(cua), (7, 6))
+
+
+@ca("v649 bản vá lên bản: chỉ trừ bảng chưa chốt của hôm nay, hôm qua; bảng đã chốt và bảng bỏ quên cũ không đụng")
+def _len_ban_chon():
+	import datetime
+
+	from vagabond.patches import v649_tru_vo_btp_dang_lam as p
+
+	hn = datetime.date(2026, 8, 15)
+	ds = [
+		{"name": "KB-2026-08-15", "ngay": hn, "tinh_trang": "Dang ban"},
+		{"name": "KB-2026-08-14", "ngay": hn - datetime.timedelta(days=1), "tinh_trang": None},
+		{"name": "KB-2026-08-13", "ngay": hn - datetime.timedelta(days=2), "tinh_trang": "Dang ban"},
+		{"name": "KB-2026-08-12", "ngay": hn - datetime.timedelta(days=3), "tinh_trang": "Da chot"},
+		{"name": "KB-2026-08-16", "ngay": hn + datetime.timedelta(days=1), "tinh_trang": ""},
+	]
+	la("chọn bảng", p.can_tru(ds, hn), (["KB-2026-08-14", "KB-2026-08-15", "KB-2026-08-16"], ["KB-2026-08-13"]))
+	nay, cua = _kho(sx=2)
+	nay.tinh_trang = "Da chot"
+	_len_ban(cua, {"KB-2026-08-15": nay})
+	la("bảng đã chốt: bản cũ đã trừ lúc chốt, không trừ lại", _o(cua), (10, 9))
+
+
+@ca("v649 bản vá lên bản nằm SAU đồng bộ cấu trúc v649 trong patches.txt (cần cột phần Đủ decor đã trừ)")
+def _len_ban_thu_tu():
+	import io
+	import os
+
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	sau = io.open(os.path.join(goc, "patches.txt"), encoding="utf-8").read().split("[post_model_sync]")[1].split()
+	dung("có trong post_model_sync", "vagabond.patches.v649_tru_vo_btp_dang_lam" in sau)
+	dung("sau đồng bộ cấu trúc v649", sau.index("vagabond.patches.v649_tru_vo_btp_dang_lam") > sau.index("#v649"))
