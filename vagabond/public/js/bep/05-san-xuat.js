@@ -456,15 +456,22 @@ async function stockOf(codes, wh) {
   rows.forEach(function (r) { m[r.item_code] = (m[r.item_code] || 0) + (r.actual_qty || 0); });
   return m;
 }
+/* Số còn phải làm của một lệnh: một nguồn cho mọi nơi (Codex #552 vòng 2).
+   Hao hụt đã ghi cũng tính vào số kế hoạch, như ERPNext đóng lệnh khi
+   produced_qty + process_loss_qty >= qty (kho_san_xuat.so_hoan_tat). Ai
+   đọc lệnh để tính phần còn lại phải xin cả cột process_loss_qty. */
+function mfgConLai(w) {
+  return Math.max(0, r3((w.qty || 0) - (w.produced_qty || 0) - (w.process_loss_qty || 0)));
+}
 async function openWoQty(codes) {
   var m = {};
   if (!codes || !codes.length) return m;
   var rows = await inChunks(codes, 80, function (lot) {
-    return getList('Work Order', { fields: ['production_item', 'qty', 'produced_qty', 'status'], filters: { docstatus: 1, production_item: ['in', lot] }, limit_page_length: 0 });
+    return getList('Work Order', { fields: ['production_item', 'qty', 'produced_qty', 'process_loss_qty', 'status'], filters: { docstatus: 1, production_item: ['in', lot] }, limit_page_length: 0 });
   });
   rows.forEach(function (w) {
     if (WODONE.indexOf(w.status) >= 0) return;
-    var left = (w.qty || 0) - (w.produced_qty || 0);
+    var left = mfgConLai(w);
     if (left > 0) m[w.production_item] = (m[w.production_item] || 0) + left;
   });
   return m;
@@ -633,6 +640,13 @@ function mfgPickItem(title, groups, onPick) {
    Ca danh sach doc trong MOT vong goi `ds_lenh`, va cac chip loc loc ngay
    tren mang da co. Bep nhap 40-50 phieu mot ngay nen moi vong goi thua la
    mot nhip cho thua. */
+/* v649: dòng số lượng của một thẻ lệnh, nằm dưới tên món (không còn cột phải).
+   "0 Cái / 9 Cái" cỡ chữ thường, đậm, không xuống dòng; nhãn trạng thái đứng
+   cạnh. THUẦN, ca kiểm dựng cả trang bằng gia_lap_trang.js. */
+function mfgDongSo(so, nhan) {
+  return '<div class="lso"><b class="lsq">' + so + '</b>' + (nhan || '') + '</div>';
+}
+
 async function scrMfgList() {
   await loadMasters();
   mfgInitWh();
@@ -673,26 +687,31 @@ async function scrMfgList() {
     return (w.so_da > 0) ? 'w' : 'b';
   }
   function coLam(w) { return !w.xong && (w.so_can - w.so_da) > 0.0001; }
+  /* v649 (anh Việt 11/11/2026, ảnh màn Lệnh sản xuất "xô lệch quá thể"): số
+     "0 Cái / 24 Cái" chữ to nằm cột phải ép tên món còn một nửa bề ngang, tên
+     xuống ba dòng, mã lệnh gãy dòng, chip Thiếu nguyên liệu bị cắt. Nay hàng
+     chỉ còn ba cột: ảnh, nội dung, nút ✓; số lượng và trạng thái xuống một
+     dòng riêng dưới tên (mfgDongSo). */
   function hangLenh(w, con) {
-    return '<div class="li" data-n="' + h(w.ten) + '">' +
+    return '<div class="li lm" data-n="' + h(w.ten) + '">' +
       (con ? '' : anhMon(w.anh)) +
       '<div class="lt"><div class="l1">' + h(con ? w.ten : (w.ten_mon || w.ma_mon)) + '</div>' +
       '<div class="l2">' + h(con ? '' : w.ten + ' · ') + h(dmy(w.ngay_lam)) + '</div>' +
+      mfgDongSo(kl(w.so_da, w.dvt) + ' / ' + kl(w.so_can, w.dvt),
+        '<span class="st ' + mauTt(w) + '">' + h(w.ten_trang_thai) + '</span>') +
       noiChip(w) + '</div>' +
-      '<div style="text-align:right"><div class="amt">' + kl(w.so_da, w.dvt) + ' / ' + kl(w.so_can, w.dvt) + '</div>' +
-      '<div class="st ' + mauTt(w) + '" style="margin-top:4px">' + h(w.ten_trang_thai) + '</div></div>' +
       '<button class="lok" data-ok="' + h(w.ten) + '"' + (coLam(w) ? '' : ' disabled') + '>✓</button></div>';
   }
   function theGop(g) {
     var mo = !!mfgMo[g.ma_mon];
     var conLai = g.so_can - g.so_da;
-    return '<div class="lgop"><div class="li" data-g="' + h(g.ma_mon) + '">' +
+    return '<div class="lgop"><div class="li lm" data-g="' + h(g.ma_mon) + '">' +
       anhMon(g.anh) +
       '<div class="lt"><div class="l1">' + h(g.ten_mon) + '</div>' +
       '<div class="l2">' + g.so_lenh + ' lệnh · còn ' + kl(Math.max(0, conLai), g.dvt) + '</div>' +
+      mfgDongSo(kl(g.so_da, g.dvt) + ' / ' + kl(g.so_can, g.dvt),
+        '<span class="lsl">' + (mo ? 'Thu lại' : 'Xem ' + g.so_lenh + ' lệnh') + '</span>') +
       noiChip({ chip: gopChip(g), ngay_can: g.ngay_can, xong: 0 }) + '</div>' +
-      '<div style="text-align:right"><div class="amt">' + kl(g.so_da, g.dvt) + ' / ' + kl(g.so_can, g.dvt) + '</div>' +
-      '<div class="lsl" style="margin-top:5px;display:inline-block">' + (mo ? 'Thu lại' : 'Xem ' + g.so_lenh + ' lệnh') + '</div></div>' +
       '<button class="lok" data-gok="' + h(g.ma_mon) + '"' + (conLai > 0.0001 ? '' : ' disabled') + '>✓</button></div>' +
       (mo ? '<div class="lcon">' + g.con.map(function (c) { return hangLenh(c, 1); }).join('') +
         '<button class="btn gh" data-gin="' + h(g.ma_mon) + '" style="margin-top:2px">🖨️ In tem cả ' + g.so_lenh + ' lệnh</button></div>' : '') +
@@ -1725,7 +1744,7 @@ async function scrMfgView(name) {
     try { tn[k] = await stockOf(nhomKho[k], k); }
     catch (e) { loiKho[k] = true; }
   }));
-  var left = Math.max(0, r3((d.qty || 0) - (d.produced_qty || 0) - (d.process_loss_qty || 0)));
+  var left = mfgConLai(d);
   var canDo = d.docstatus === 1 && WODONE.indexOf(d.status) < 0 && left > 0;
 
   var anh = '';
@@ -1854,7 +1873,7 @@ function mfgChiaSo(cacCon, tong) {
    Tra ve 'lai' khi da ghi so xong va man goi nen tai lai danh sach; tra ve
    0 khi bep bam huy hay co loi. */
 async function mfgChayHoanTat(d, cacDvt) {
-  var left = r3((d.qty || 0) - (d.produced_qty || 0));
+  var left = mfgConLai(d);
   if (!(left > 0)) { toast('Lệnh này đã làm đủ số rồi', 4000); return 0; }
   if (WODONE.indexOf(d.status) >= 0) { toast('Lệnh ' + (WOST[d.status] || d.status) + ' nên không hoàn tất được', 5000); return 0; }
 
@@ -2263,14 +2282,55 @@ function mfgChipNvl(x) {
   return { phu: num(x.need) + (lay > 0.0001 ? ' · lấy kho tổng ' + num(lay) : '') + (thieu ? ' · thiếu ' + num(con) : ''), bad: thieu };
 }
 
+/* v649 (anh Việt 11/11/2026): Chốt kế hoạch đã tạo sẵn lệnh cấp 1, cấp 2. Bếp
+   bấm thẳng ✓ món chính thì trước đây máy tạo lệnh MỚI cho phần cấp 1, cấp 2
+   còn thiếu, lệnh cũ vẫn treo "Chưa bắt đầu"; ai bấm tiếp lệnh cũ là kho ghi dư.
+   Nay máy dùng chính lệnh đang mở của cùng món, cùng kho, cùng công thức, còn
+   đủ số chưa làm; không có mới tạo lệnh. THUẦN: chọn lệnh từ danh sách. */
+function mfgChonLenhMo(ds, f) {
+  for (var i = 0; i < (ds || []).length; i++) {
+    var w = ds[i];
+    var con = mfgConLai(w);
+    if (w.fg_warehouse !== f.fg || w.source_warehouse !== f.src) continue;
+    if (f.bom && w.bom_no && w.bom_no !== f.bom) continue;
+    if (con + 0.0001 < f.qty) continue;
+    return w.name;
+  }
+  return '';
+}
+
+async function mfgLenhChoTuLam(f) {
+  /* Codex #552 P1: lọc kho, công thức ngay ở máy chủ và không cắt 20 dòng,
+     không thì lệnh hợp lệ thứ 21 bị bỏ sót, máy lại tạo lệnh trùng.
+     Codex #552 P2: đọc hỏng KHÔNG có nghĩa là không có lệnh mở; dừng hẳn,
+     không tạo lệnh mới (tạo được là thành lệnh trùng mà bếp không biết). */
+  var loc = { production_item: f.code, docstatus: 1, status: ['in', ['Not Started', 'In Process']],
+    fg_warehouse: f.fg, source_warehouse: f.src };
+  if (f.bom) loc.bom_no = f.bom;
+  var ds;
+  try {
+    ds = await getList('Work Order', {
+      fields: ['name', 'qty', 'produced_qty', 'process_loss_qty', 'source_warehouse', 'fg_warehouse', 'bom_no'],
+      filters: loc, order_by: 'creation asc', limit_page_length: 0
+    });
+  } catch (e) {
+    throw new Error('Chưa đọc được các lệnh đang mở của ' + (f.name || f.code) +
+      ' nên máy chưa làm gì, để không tạo lệnh trùng. Kiểm mạng rồi bấm Hoàn tất lại.');
+  }
+  return mfgChonLenhMo(ds, f) || await mfgCreateWO(f);
+}
+
 async function mfgRunFresh(list, depth, bu) {
   depth = depth || 1;
   for (var i = 0; i < list.length; i++) {
     var f = list[i];
-    var wo = await mfgCreateWO(f);
+    var wo = await mfgLenhChoTuLam(f);
     var d = await api('frappe.client.get', { doctype: 'Work Order', name: wo });
     if (depth < 3) {
-      var sub = await mfgFreshPlan(d.required_items || [], 1, d.source_warehouse || mfg.src, f.giu);
+      /* v649: lệnh dùng lại có thể lớn hơn phần máy làm (lệnh 9 cái, máy làm 2):
+         nguyên liệu của lệnh là cho cả lệnh, phải nhân tỷ lệ phần làm lúc này. */
+      var tile = (d.qty && d.qty > f.qty) ? f.qty / d.qty : 1;
+      var sub = await mfgFreshPlan(d.required_items || [], tile, d.source_warehouse || mfg.src, f.giu);
       if (sub.length) await mfgRunFresh(sub, depth + 1, bu);
     }
     var it = await mfgLoadItem(f.code);

@@ -61,7 +61,7 @@ function theGioi(ton, tuLam, tong) {
       if (m === 'frappe.client.get') {
         var w = lenh[a.name];
         var b = BOM[w.code];
-        return { name: a.name, source_warehouse: w.src, required_items: b.dong.map(function (d) {
+        return { name: a.name, qty: w.qty, source_warehouse: w.src, required_items: b.dong.map(function (d) {
           return { item_code: d.item_code, item_name: d.item_name, stock_uom: d.stock_uom, required_qty: d.so * w.qty };
         }) };
       }
@@ -142,6 +142,30 @@ function theGioi(ton, tuLam, tong) {
         });
         return ra;
       }
+      /* v649: lệnh đang mở của cùng món (Chốt kế hoạch tạo sẵn). */
+      if (dt === 'Work Order') {
+        /* Như máy chủ Frappe thật: lọc theo đúng các ô bộ lọc gửi lên, cắt theo
+           limit_page_length (0 là không cắt). Codex #552 P1: trước đây app chỉ
+           lọc theo món, lấy 20 lệnh đầu, lệnh hợp lệ thứ 21 bị bỏ sót. */
+        if (the.timLenhHong) throw new Error('mang rot');
+        nhat.timLenhMo = (nhat.timLenhMo || []).concat([o.filters.production_item]);
+        var f0 = o.filters;
+        var ra0 = (the.lenhMo || []).filter(function (w) {
+          return w.production_item === f0.production_item &&
+            (!f0.fg_warehouse || w.fg_warehouse === f0.fg_warehouse) &&
+            (!f0.source_warehouse || w.source_warehouse === f0.source_warehouse) &&
+            (!f0.bom_no || w.bom_no === f0.bom_no);
+        });
+        if (o.limit_page_length) ra0 = ra0.slice(0, o.limit_page_length);
+        /* Như máy chủ thật: chỉ trả các cột app xin trong fields. Codex #552
+           vòng 2: quên xin process_loss_qty thì app không thấy phần hao. */
+        return ra0.map(function (w) {
+          lenh[w.name] = lenh[w.name] || { code: w.production_item, qty: w.qty, src: w.source_warehouse };
+          var r = {};
+          (o.fields || []).forEach(function (k) { if (k in w) r[k] = w[k]; });
+          return r;
+        });
+      }
       throw new Error('getList la: ' + dt);
     },
     mfgLoadItem: async function () { return {}; },
@@ -165,7 +189,7 @@ function theGioi(ton, tuLam, tong) {
   the.MFG_KHO_TONG = 'Kho tổng 307 - TV';
   the.datTon = function (c, n) { ton[c] = n; };
   vm.createContext(the);
-  ['inChunks', 'freshOf', 'mfgHoanTatMot', 'mfgGhiLenh', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
+  ['inChunks', 'freshOf', 'mfgHoanTatMot', 'mfgGhiLenh', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgConLai', 'mfgChonLenhMo', 'mfgLenhChoTuLam', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
     vm.runInContext(layHam(SRC, t), the);
   });
   the.nhat = nhat;
@@ -465,6 +489,79 @@ async function ca(ten, fn) {
     await t.mfgRunFresh(ke, 1, bu);
     bang('dong y o hop hoi lai: lay dung 100 g bep vua thay', [t.nhat.daLay, (t.nhat.hoiBep || []).length, t.nhat.phieu], [100, 1, ['C1 x2']]);
     bang('so da duyet tu hop dau khong bi tru vi phan nay duyet rieng', bu.duyet.NVL, 50);
+  });
+
+  await ca('22. v649 Chot ke hoach da tao san lenh C1, C2: bam ✓ mon chinh thi may DUNG lenh dang mo, khong tao lenh moi', async function () {
+    var t = theGioi({}, ['C1', 'C2']);
+    var K = t.mfg.src;
+    t.lenhMo = [
+      { name: 'WO-KH-C2', production_item: 'C2', qty: 5, produced_qty: 0, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' },
+      { name: 'WO-KH-C1', production_item: 'C1', qty: 9, produced_qty: 0, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C1' }
+    ];
+    var ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('khong tao lenh moi nao', t.nhat.lenh, []);
+    bang('ghi so dung phan can: C1 x2 (tren lenh 9 cai), C2 x2 (tren lenh 5 cai)', t.nhat.phieu, ['C1 x2', 'C2 x2']);
+  });
+
+  await ca('23. v649 lenh dang mo khac kho, khac cong thuc hoac con thieu so thi khong dung, tao lenh moi nhu cu', async function () {
+    var t = theGioi({}, ['C1', 'C2']);
+    var K = t.mfg.src;
+    t.lenhMo = [
+      { name: 'WO-BAKER', production_item: 'C2', qty: 5, produced_qty: 0, source_warehouse: 'Baker - Nguyên liệu - TV', fg_warehouse: 'Baker - Nguyên liệu - TV', bom_no: 'BOM-C2' },
+      { name: 'WO-BOM-CU', production_item: 'C2', qty: 5, produced_qty: 0, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2-CU' },
+      { name: 'WO-GAN-XONG', production_item: 'C1', qty: 9, produced_qty: 8, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C1' }
+    ];
+    var ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('tao lenh moi cho ca hai', t.nhat.lenh, ['C2 x2', 'C1 x2']);
+  });
+
+  await ca('24. Codex #552 P1: hon 20 lenh dang mo cua cung mon, lenh hop le la lenh thu 21: van dung lenh do, khong tao moi', async function () {
+    var t = theGioi({ C1: 9 }, ['C1', 'C2']);
+    var K = t.mfg.src;
+    t.lenhMo = [];
+    for (var i = 0; i < 20; i++) {
+      t.lenhMo.push({ name: 'WO-CU-' + i, production_item: 'C2', qty: 3, produced_qty: 2, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' });
+    }
+    t.lenhMo.push({ name: 'WO-21', production_item: 'C2', qty: 5, produced_qty: 0, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' });
+    var ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('khong tao lenh moi', t.nhat.lenh, []);
+    bang('ghi so tren lenh thu 21', t.nhat.phieu, ['C2 x2']);
+  });
+
+  await ca('25. Codex #552 P2: doc lenh dang mo bi loi thi DUNG, khong tao lenh moi, khong ghi so gi', async function () {
+    var t = theGioi({}, ['C1', 'C2']);
+    t.timLenhHong = 1;
+    var ke = await t.mfgFreshPlan(MATS, 1, t.mfg.src);
+    var loi = null;
+    try { await t.mfgRunFresh(ke, 1); } catch (e) { loi = e; }
+    bang('bao loi cho bep', !!loi, true);
+    bang('khong tao lenh', t.nhat.lenh, []);
+    bang('khong ghi so', t.nhat.phieu, []);
+  });
+
+  /* Codex #552 vòng 2 (05-san-xuat.js mfgChonLenhMo): lệnh làm dở có ghi
+     hao hụt. Số còn được làm = qty - produced_qty - process_loss_qty, như
+     scrMfgView và kho_san_xuat.so_hoan_tat. Lệnh 10, đã làm 6, hao 3 chỉ còn
+     1: không được nhận thêm 2. */
+  await ca('26. Codex #552 vong 2: lenh lam do co hao hut, phan con lai (tru hao) khong du thi KHONG dung, tao lenh moi; con du thi dung', async function () {
+    var t = theGioi({ C1: 9 }, ['C1', 'C2']);
+    var K = t.mfg.src;
+    t.lenhMo = [
+      { name: 'WO-HAO', production_item: 'C2', qty: 10, produced_qty: 6, process_loss_qty: 3, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' }
+    ];
+    var ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('con 1 (10 - 6 - 3) < 2: tao lenh moi C2 x2', t.nhat.lenh, ['C2 x2']);
+    t = theGioi({ C1: 9 }, ['C1', 'C2']);
+    t.lenhMo = [
+      { name: 'WO-HAO2', production_item: 'C2', qty: 10, produced_qty: 6, process_loss_qty: 2, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' }
+    ];
+    ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('con 2 (10 - 6 - 2) du 2: dung lenh dang mo', [t.nhat.lenh, t.nhat.phieu], [[], ['C2 x2']]);
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');

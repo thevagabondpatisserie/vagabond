@@ -13,6 +13,7 @@ hanh cu, chi bo cong chup bang.
 import frappe
 from frappe.utils import add_days, getdate, now_datetime
 
+from vagabond.giu_vo import don_con_giu_vo
 from vagabond.kiem_banh import _co_that, _dang_ma_dung, _tra_anh_ten
 from vagabond.lib import cfg, key
 
@@ -73,12 +74,8 @@ def _giu_ngay_mai(rf=None):
 	for d in kb.dong:
 		if refill.ngay_cua_refill(rf, d.ma_hang, ngay):
 			continue
-		giu[d.ma_hang] = (
-			giu.get(d.ma_hang, 0)
-			+ (d.da_dat or 0)
-			+ (d.phat_sinh or 0)
-			+ (d.cho_chot or 0)
-		)
+		# v649 Codex #552 vòng 7: bánh bếp làm trước cho đơn ngày mai đã trừ vỏ.
+		giu[d.ma_hang] = giu.get(d.ma_hang, 0) + don_con_giu_vo(d)
 	return giu
 
 
@@ -100,13 +97,75 @@ def _giu_theo_ma(rf=None):
 		for d in kb.dong:
 			if refill.ngay_cua_refill(rf, d.ma_hang, ngay):
 				continue
-			giu[d.ma_hang] = (
-				giu.get(d.ma_hang, 0)
-				+ (d.da_dat or 0)
-				+ (d.phat_sinh or 0)
-				+ (d.cho_chot or 0)
-			)
+			# v649: vỏ của bánh bếp đã làm (mọi ngày, kể cả làm trước cho ngày
+			# tới) đã trừ thẳng vào BTP sẵn; một phép duy nhất don_con_giu_vo.
+			giu[d.ma_hang] = giu.get(d.ma_hang, 0) + don_con_giu_vo(d)
 	return giu
+
+
+def chenh_sx(cu, moi):
+	"""v649 (Loan Anh đề xuất, anh Việt chọn A 11/11/2026): số bánh bếp làm thêm
+	của từng mã giữa bản đang lưu (cu) và bản sắp lưu (moi) của một ngày Kiểm
+	bánh. Sửa tăng ra số dương (trừ thêm vỏ), sửa bớt ra số âm (cộng lại vỏ).
+	Thuần, không chạm Frappe."""
+	def gom(dong):
+		ra = {}
+		for d in dong or []:
+			ma = str((d.get("ma_hang") if hasattr(d, "get") else getattr(d, "ma_hang", "")) or "").strip()
+			if not ma:
+				continue
+			sx = d.get("sx") if hasattr(d, "get") else getattr(d, "sx", 0)
+			ra[ma] = ra.get(ma, 0) + int(sx or 0)
+		return ra
+
+	a, b = gom(cu), gom(moi)
+	ra = {}
+	for ma in set(a) | set(b):
+		n = b.get(ma, 0) - a.get(ma, 0)
+		if n:
+			ra[ma] = n
+	return ra
+
+
+def tru_vo_theo_sx(chenh):
+	"""Trừ BTP sẵn và Đủ decor NGAY khi bếp nhập hay sửa ô Bếp làm (v649).
+
+	Một cái bánh bếp làm xong là đã ăn một vỏ BTP đã đủ decor, nên trừ cả hai
+	ô theo số làm, không chờ chốt sổ (chốt sổ thôi trừ theo số bán, xem
+	kiem_banh.chot_ngay). Bếp đếm lại tủ rồi nhập lại BTP sẵn thì số đếm là gốc
+	mới: các lần sửa Bếp làm sau đó mới trừ tiếp.
+
+	Trừ bằng một câu UPDATE cộng dồn trên từng dòng để hai người lưu cùng lúc
+	không đè số của nhau, và không kẹp về 0: sửa bớt thì cộng lại đúng phần đã
+	trừ. Số âm chỉ là hiển thị 0 (bang_btp) và báo bếp cần đếm lại tủ.
+	Mã không có trong bảng BTP thì bỏ qua: không UPDATE, không đổi giờ "BTP
+	bếp cập nhật" trên màn (nhập Bếp làm cho bánh khác không phải bếp vừa sửa
+	bảng BTP)."""
+	can = {ma: n for ma, n in (chenh or {}).items() if n}
+	if not can:
+		return 0
+	co = {r[0] for r in frappe.db.sql(
+		"""select ma_hang from `tabBTP Banh O Dong`
+		where parent = 'BTP Banh O' and parenttype = 'BTP Banh O' and ma_hang in %(ma)s""",
+		{"ma": tuple(sorted(can))},
+	)}
+	doi = 0
+	for ma, n in sorted(can.items()):
+		if ma not in co:
+			continue
+		frappe.db.sql(
+			"""update `tabBTP Banh O Dong` set so_btp = ifnull(so_btp, 0) - %(n)s,
+			so_decor = ifnull(so_decor, 0) - %(n)s,
+			decor_da_lam = ifnull(decor_da_lam, 0) + %(n)s
+			where parent = 'BTP Banh O' and parenttype = 'BTP Banh O' and ma_hang = %(ma)s""",
+			{"n": int(n), "ma": ma},
+		)
+		doi += 1
+	if doi:
+		# Đổi mốc sửa của bảng BTP: ai đang mở bảng cũ mà lưu đè thì Frappe báo
+		# bảng đã đổi, thay vì ghi lại số cũ lên số vừa trừ.
+		frappe.db.set_single_value("BTP Banh O", "cap_nhat_luc", now_datetime())
+	return doi
 
 
 @frappe.whitelist()
@@ -128,8 +187,10 @@ def bang_btp():
 				"ma_hang": d.ma_hang,
 				"ten_banh": d.ten_banh or "",
 				"hinh": d.hinh or "",
-				"so_btp": d.so_btp or 0,
-				"so_decor": d.so_decor or 0,
+				# v649: bếp làm nhiều hơn số đếm thì số lưu có thể âm; màn hiện 0,
+				# còn các ô Còn nhận vẫn tính trên số thật để báo thiếu.
+				"so_btp": max(0, d.so_btp or 0),
+				"so_decor": max(0, d.so_decor or 0),
 				"dang_giu": giu.get(d.ma_hang, 0),
 				"con_nhan": (d.so_btp or 0) - giu.get(d.ma_hang, 0),
 				"giao_mai": decor - giu_mai.get(d.ma_hang, 0),
@@ -195,6 +256,8 @@ def luu_decor(ma_hang, so_decor):
 	doc = frappe.get_single("BTP Banh O")
 	d = _dong_cua_ma(doc, ma_hang)
 	d.so_decor = max(0, int(so_decor or 0))
+	# v649: bếp đếm lại decor là gốc mới, phần đã trừ theo Bếp làm về 0.
+	d.decor_da_lam = 0
 	doc.cap_nhat_luc = now_datetime()
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()

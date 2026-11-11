@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 
 import frappe
 
+from vagabond.giu_vo import don_con_giu_vo
+
 
 def hom_nay():
     return datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
@@ -43,6 +45,29 @@ def _kiem_refill(hang, ng, nay):
     return xet, refill.kiem_don([h for h in hang if h["variation_id"] in xet], ng, rf, con, decor)
 
 
+def decor_huu_han(d):
+    """Dòng bảng BTP có nguồn Đủ decor hữu hạn không (F21 review 13/10: decor gốc
+    bằng 0 là dòng giữ chỗ, không chặn). v649, Codex #552 vòng 4: Đủ decor nay
+    trừ ngay theo Bếp làm, nên decor về 0 hay âm vì bếp làm hết vẫn là nguồn
+    hữu hạn đã cạn. Gốc = Đủ decor hiện còn + phần đã trừ theo Bếp làm kể từ lần
+    bếp nhập decor gần nhất. Thuần."""
+    lay = (lambda k: d.get(k)) if hasattr(d, "get") else (lambda k: getattr(d, k, 0))
+    return int(lay("so_decor") or 0) + int(lay("decor_da_lam") or 0) > 0
+
+
+def chan_dat_truoc_hom_nay(hang, co_kb, ten_btp):
+    """v649: bánh đặt trước (có trong bảng BTP) mà không có dòng trong Kiểm bánh
+    hôm nay thì không nhận giao hôm nay. Bánh có dòng thì đã kiểm theo cột Bán
+    được như cũ. Thuần, không chạm Frappe."""
+    nhac = []
+    for h in hang or []:
+        ma = h.get("variation_id")
+        if ma in ten_btp and ma not in co_kb:
+            nhac.append("%s là bánh đặt trước, nhận từ ngày mai. Bánh nhận hôm nay "
+                        "quý khách chọn ở tab Có sẵn hôm nay." % ten_btp[ma])
+    return nhac
+
+
 def kiem(hang, ngay):
     if not ngay or not str(ngay).strip():
         return []
@@ -54,13 +79,21 @@ def kiem(hang, ngay):
         return nhac_rf
     ma = {h["variation_id"] for h in hang}
     ton = {}
+    nhac_truoc = []
     if ng == nay:
         ten = "KB-%s" % nay
+        # F21-4: chưa có bảng Kiểm bánh hôm nay là chưa biết tồn, nhận như cũ.
         if not frappe.db.exists("Kiem Banh Ngay", ten):
             return []
+        co_kb = set()
         for d in frappe.get_doc("Kiem Banh Ngay", ten).dong:
+            co_kb.add(d.ma_hang)
             if d.ma_hang in ma:
                 ton[d.ma_hang] = (max(0, int(d.co_the_ban or 0)), d.ten_banh or d.ma_hang)
+        # v649 (anh Việt 11/11/2026): bánh đặt trước nhận từ ngày mai. Đơn nhận
+        # hôm nay chỉ nhận bánh có trong Kiểm bánh hôm nay (tab Có sẵn hôm nay).
+        ten_btp = {d.ma_hang: (d.ten_banh or d.ma_hang) for d in (frappe.get_single("BTP Banh O").dong or [])}
+        nhac_truoc = chan_dat_truoc_hom_nay(hang, co_kb, ten_btp)
     else:
         kho = frappe.get_single("BTP Banh O")
         da_dat = {}
@@ -73,12 +106,13 @@ def kiem(hang, ngay):
                     # v646: đơn ngày nằm trong khoảng refill của mã trừ vào refill.
                     if refill.ngay_cua_refill(rf, d.ma_hang, nay + timedelta(days=i)):
                         continue
-                    da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + int(d.da_dat or 0)
+                    # v649 Codex #552 vòng 7: đơn đã có bánh bếp làm trước thì vỏ đã trừ.
+                    da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + don_con_giu_vo(d, ("da_dat",))
         for d in kho.dong or []:
             # Dòng giữ chỗ decor0 chưa phải nguồn tồn hữu hạn.
-            if d.ma_hang in ma and int(d.so_decor or 0) > 0:
+            if d.ma_hang in ma and decor_huu_han(d):
                 ton[d.ma_hang] = (max(0, int(d.so_decor or 0) - da_dat.get(d.ma_hang, 0)), d.ten_banh or d.ma_hang)
-    nhac = list(nhac_rf)
+    nhac = list(nhac_rf) + nhac_truoc
     for h in hang:
         if h["variation_id"] not in ton:
             continue

@@ -353,3 +353,85 @@ def _duong_cu():
 	# Chặn vì thiếu đúng bánh khuôn ở thời điểm phiếu món chính, không phải lỗi khác.
 	dung("đường cũ bị ERPNext chặn vì thiếu bánh khuôn (nếu ca này đỏ: sửa lại mô tả Codex #551): %r" % loi,
 		bool(loi) and w.c2 in loi)
+
+
+# ---------------------------------------------------------------- v649, Codex #552 P3
+
+def _lenh_mo_nhu_app(f, src):
+	"""Chép mfgLenhChoTuLam + mfgChonLenhMo (v649): lệnh đang mở cùng món, cùng kho
+	nguồn và kho nhập, cùng công thức, còn đủ số; lọc ở máy chủ, không cắt dòng."""
+	loc = {"production_item": f.code, "docstatus": 1, "status": ["in", ["Not Started", "In Process"]],
+		"fg_warehouse": src, "source_warehouse": src}
+	if f.bom:
+		loc["bom_no"] = f.bom
+	for w in frappe.get_all("Work Order", filters=loc, fields=["name", "qty", "produced_qty", "process_loss_qty"], order_by="creation asc"):
+		# Codex #552 vòng 2: hao hụt đã ghi tính vào số kế hoạch, trừ ra mới là số còn làm.
+		if float(w.qty) - float(w.produced_qty or 0) - float(w.process_loss_qty or 0) + 0.0001 >= float(f.qty):
+			return frappe.get_doc("Work Order", w.name)
+	return None
+
+
+def _lam_con_dung_lai(cty, ke, src, nhat, cap=1):
+	"""Chép mfgRunFresh v649: dùng lệnh đang mở trước, không có mới tạo; lệnh dùng
+	lại lớn hơn phần làm thì nguyên liệu cấp dưới nhân tỷ lệ f.qty / qty lệnh."""
+	for f in ke:
+		wo = _lenh_mo_nhu_app(f, src)
+		if wo:
+			nhat.append(("dung", f.code, wo.name))
+		else:
+			wo = _lenh_nhu_app(cty, f.code, f.bom, f.qty, src, src)
+			nhat.append(("lenh", f.code, float(f.qty)))
+		if cap < 3:
+			tile = float(f.qty) / float(wo.qty) if float(wo.qty) > float(f.qty) else 1
+			con = _ke_hoach(wo.required_items, tile, wo.source_warehouse or src, f.giu)
+			if con:
+				_lam_con_dung_lai(cty, con, src, nhat, cap + 1)
+		se = _hoan_tat(wo, f.qty, 0, nhat)
+		nhat.append(("phieu", f.code, se.name))
+
+
+@ca("v649 thật, Codex #552 P3: Chốt kế hoạch đã tạo lệnh ruột 9 (làm dở 1) và bánh khuôn 5: bấm Hoàn tất bánh ổ, máy dùng đúng hai lệnh đó, không tạo lệnh mới, số còn lại và sổ kho đúng")
+def _dung_lenh_mo():
+	w = _the_gioi()
+	bom = lambda ma: frappe.db.get_value("BOM", {"item": ma, "is_active": 1, "is_default": 1, "docstatus": 1}, "name")
+	kh_c1 = _lenh_nhu_app(w.cty, w.c1, bom(w.c1), 9, w.bep, w.bep)
+	kh_c2 = _lenh_nhu_app(w.cty, w.c2, bom(w.c2), 5, w.bep, w.bep)
+	_hoan_tat(kh_c1, 1)  # bếp đã làm 1 ruột trên lệnh kế hoạch (lệnh làm dở)
+	cha = _lenh_nhu_app(w.cty, w.tp, w.cha.name, 2, w.bep, w.kho_tp)
+	nhat = []
+	ke = _ke_hoach(cha.required_items, 1, w.bep)
+	_lam_con_dung_lai(w.cty, ke, w.bep, nhat)
+	se = _hoan_tat(cha, 2)
+	la("dùng đúng hai lệnh kế hoạch, không tạo lệnh mới",
+		[(x[0], x[1], x[2]) for x in nhat if x[0] in ("dung", "lenh")], [("dung", w.c2, kh_c2.name), ("dung", w.c1, kh_c1.name)])
+	la("mỗi món đúng một lệnh", [frappe.db.count("Work Order", {"production_item": m, "docstatus": 1}) for m in (w.c1, w.c2)], [1, 1])
+	kh_c1.reload(); kh_c2.reload()
+	la("lệnh ruột: đã làm 1 + 3, còn 5", (float(kh_c1.produced_qty), kh_c1.status), (4.0, "In Process"))
+	la("lệnh bánh khuôn: đã làm 4, còn 1", (float(kh_c2.produced_qty), kh_c2.status), (4.0, "In Process"))
+	phieu_c2 = [x[2] for x in nhat if x[0] == "phieu" and x[1] == w.c2][0]
+	la("phiếu bánh khuôn trên lệnh 5 cái chỉ làm 4: trừ 4 ruột, 400 NVL, nhập 4",
+		sorted((d.item_code, float(d.actual_qty)) for d in _sle(phieu_c2)), sorted([(w.c1, -4.0), (w.nvl, -400.0), (w.c2, 4.0)]))
+	la("ruột bánh về 0", _ton(w.c1, w.bep), 0.0)
+	la("bánh khuôn về 0", _ton(w.c2, w.bep), 0.0)
+	la("NVL: 1000 - 4x50 - 4x100 - 60", _ton(w.nvl, w.bep), 340.0)
+	for x in nhat + [("phieu", w.tp, se.name)]:
+		if x[0] != "phieu":
+			continue
+		gl = so_cai_cua(frappe.get_doc("Stock Entry", x[2]))
+		la("GL cân %s" % x[1], round(sum(float(d.debit) for d in gl), 2), round(sum(float(d.credit) for d in gl), 2))
+	cha.reload()
+	la("lệnh cha hoàn tất", (float(cha.produced_qty), cha.status), (2.0, "Completed"))
+
+
+@ca("v649 thật, Codex #552 vòng 2: lệnh đang mở có hao hụt đã ghi, số còn làm trừ cả hao; không đủ thì không dùng")
+def _lenh_mo_tru_hao():
+	w = _the_gioi()
+	bom = frappe.db.get_value("BOM", {"item": w.c2, "is_active": 1, "is_default": 1, "docstatus": 1}, "name")
+	kh = _lenh_nhu_app(w.cty, w.c2, bom, 5, w.bep, w.bep)
+	f = frappe._dict(code=w.c2, bom=bom, qty=2)
+	# Chỉ dựng dữ liệu: đặt thẳng số hao trên lệnh để thấy ô process_loss_qty
+	# của ERPNext thật được đọc đúng tên, đúng kiểu. Không ghi sổ gì.
+	kh.db_set("process_loss_qty", 4)
+	la("lệnh 5, hao 4, còn 1 < 2: không dùng", _lenh_mo_nhu_app(f, w.bep), None)
+	kh.db_set("process_loss_qty", 3)
+	la("lệnh 5, hao 3, còn 2 đủ 2: dùng", getattr(_lenh_mo_nhu_app(f, w.bep), "name", None), kh.name)

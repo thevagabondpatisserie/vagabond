@@ -1074,8 +1074,77 @@ GRAB_TEN = {"tran cao van": "5-C4E1NPWGG2WZFA", "the vagabond delivery kitchen":
 
 _SO_GRAB = r"-?\d{1,3}(?:\.\d{3})*|-"
 _RE_DON = re.compile(r"^\s*(\d{1,2}:\d{2}\s?[AP]M|Đã hủy)\s+(G[A-Z]-\s?[A-Z0-9]*)\s+(Trả thẻ / Ví|Tiền mặt|-)\s+(.*)$")
-_RE_ADS = re.compile(r"^\s*(\d{1,2})\s+Th(\d{1,2}),\s*(\d{1,2}:\d{2}\s?[AP]M)\s+(ADS-\d+)\s+(.*?)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s*$")
-_RE_DC = re.compile(r"^\s*(\d{1,2})\s+Th(\d{1,2}),\s*(\d{1,2}:\d{2}\s?[AP]M)\s+(MPA-\d+)\s+(?:(G[A-Z]-\s?[A-Z0-9]+)\s+)?(.*?)\s+(-?[\d.]+)\s*$")
+# v649: từ 11/2026 Grab in cột Mã giao dịch của mục Marketing là "-" (site thật,
+# báo cáo 10/11 cả ba cửa hàng: "10 Th11, 12:04 PM  -  Tự động tìm từ khoá -
+# 2026-11-10  -45.500  -3.639  -49.139"). Trước v649 mẫu bắt buộc ADS-số nên dòng
+# bị bỏ qua lặng lẽ và tổng thu nhập lệch đúng bằng phí quảng cáo.
+_RE_ADS = re.compile(r"^\s*(\d{1,2})\s+Th(\d{1,2}),\s*(\d{1,2}:\d{2}\s?[AP]M)\s+(ADS-\d+|-)\s+(.*?)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s*$")
+_RE_DC = re.compile(r"^\s*(\d{1,2})\s+Th(\d{1,2}),\s*(\d{1,2}:\d{2}\s?[AP]M)\s+(MPA-\d+|-)\s+(?:(G[A-Z]-\s?[A-Z0-9]+)\s+)?(.*?)\s+(-?[\d.]+)\s*$")
+# Mở đầu một dòng giao dịch của mục Marketing hay Điều chỉnh. Dòng mở đầu như
+# vậy mà không khớp mẫu thì phải báo lỗi, không được bỏ qua.
+_RE_DAU_MUC = re.compile(r"^\s*\d{1,2}\s+Th\d{1,2},\s*\d{1,2}:\d{2}")
+
+# v649: đơn có mã dài bị PDF ngắt làm hai dòng trong ô Mã đơn (GD- / 3O7K2M7B,
+# GF- / 255F). Ô bảng căn giữa theo chiều dọc nên PyMuPDF có thể trả ba mảnh
+# theo bất kỳ thứ tự nào: tiền tố mã, dòng đơn thiếu mã, phần sau của mã (site
+# thật 10/11: TCV dòng 40 và 46, Sales Online dòng 18 đến 20).
+_RE_DON_KHONG_MA = re.compile(r"^\s*(\d{1,2}:\d{2}\s?[AP]M|Đã hủy)\s+(Trả thẻ / Ví|Tiền mặt|-)\s+(.*)$")
+_RE_TIEN_TO_MA = re.compile(r"^\s*(G[A-Z]-)\s?([A-Z0-9]*)\s*$")
+_RE_DUOI_MA = re.compile(r"^\s*([A-Z0-9]{2,20})\s*$")
+
+
+def loai_manh_grab(s):
+	"""THUẦN (v649). Một dòng trong mục đơn hàng là gì.
+
+	du: dòng đơn đủ mã; cut: dòng đơn mà mã cụt ("GD-"); khong_ma: dòng đơn
+	không có mã; tien_to: chỉ có tiền tố mã ("GF-" hoặc "GF-255F"); duoi: chỉ
+	có phần sau của mã; "" là dòng khác."""
+	md = _RE_DON.match(s)
+	if md:
+		return "cut" if re.sub(r"\s+", "", md.group(2)).endswith("-") else "du"
+	if _RE_DON_KHONG_MA.match(s):
+		return "khong_ma"
+	if _RE_TIEN_TO_MA.match(s):
+		return "tien_to"
+	if _RE_DUOI_MA.match(s) and re.search(r"[A-Z]", s):
+		return "duoi"
+	return ""
+
+
+def ghep_don_grab(manh):
+	"""THUẦN (v649). Ghép các mảnh của MỘT đơn bị ngắt dòng thành dòng đơn đủ.
+
+	Trả dòng đã ghép, hoặc None khi còn thiếu mảnh. Mảnh thừa hay mâu thuẫn
+	(hai dòng đơn, hai tiền tố, hai phần đuôi) thì LoiDong."""
+	loai = [loai_manh_grab(m) if loai_manh_grab(m) else ("duoi" if _RE_DUOI_MA.match(m) else "") for m in manh]
+	if "" in loai or "du" in loai:
+		raise LoiDong("Dòng trong mục đơn hàng không đọc được; đối chiếu PDF.")
+	dong = [m for m, l in zip(manh, loai) if l in ("cut", "khong_ma")]
+	tien_to = [m for m, l in zip(manh, loai) if l == "tien_to"]
+	duoi = [m.strip() for m, l in zip(manh, loai) if l == "duoi"]
+	if len(dong) > 1 or len(tien_to) > 1 or len(duoi) > 1:
+		raise LoiDong("Mã đơn bị ngắt dòng nhưng không ghép lại được; đối chiếu PDF.")
+	if not dong:
+		return None
+	md = _RE_DON.match(dong[0])
+	if md:
+		gio, ma, pt, con = md.groups()
+		ma = re.sub(r"\s+", "", ma)
+		if tien_to:
+			raise LoiDong("Mã đơn bị ngắt dòng nhưng không ghép lại được; đối chiếu PDF.")
+	else:
+		gio, pt, con = _RE_DON_KHONG_MA.match(dong[0]).groups()
+		if not tien_to:
+			return None
+		a, b = _RE_TIEN_TO_MA.match(tien_to[0]).groups()
+		ma = a + b
+	if ma.endswith("-"):
+		if not duoi:
+			return None
+		ma += duoi[0]
+	elif duoi:
+		raise LoiDong("Mã đơn bị ngắt dòng nhưng không ghép lại được; đối chiếu PDF.")
+	return "%s %s %s %s" % (gio, ma, pt, con)
 
 
 def _so_grab(s):
@@ -1139,11 +1208,44 @@ def doc_grab(tep, mau):
 	tong = {}
 	vung = ""
 	huy = []
-	bo_qua = set()
+	cho = []  # v649: mảnh của một đơn bị ngắt dòng, đang chờ đủ mảnh
+
+	def bo_cho():
+		# Mảnh chờ mà tới chỗ khác vẫn chưa ghép đủ: báo một lỗi, kèm mọi mảnh.
+		if cho:
+			them_loi(kq, cho[0][0] + 1, LoiDong("Mã đơn bị ngắt dòng nhưng không ghép lại được; đối chiếu PDF."),
+				[x for _, x in cho])
+			del cho[:]
+
+	def doc_don(d):
+		md = _RE_DON.match(d)
+		if not md:
+			raise LoiDong("Dòng trong mục đơn hàng không đọc được; đối chiếu PDF.")
+		gio_, ma, pt, con = md.groups()
+		ma = re.sub(r"\s+", "", ma)
+		so = con.split()
+		if len(so) != 7:
+			raise LoiDong("Dòng đơn %s không đủ 7 cột tiền." % ma)
+		if gio_ == "Đã hủy":
+			if any(x != "-" for x in so):
+				raise LoiDong("Đơn huỷ %s lại có tiền; kiểm PDF." % ma)
+			huy.append(ma)
+			return
+		gop, vat, dv, km, ck, ship, nhan = (_so_grab(x) for x in so)
+		if gop + vat + dv + km + ck + ship != nhan:
+			raise LoiDong("Đơn %s: trị giá cộng các khoản khác thu nhập; kiểm PDF." % ma)
+		kq["dong"].append(dong_moi(
+			ma_su_kien="%s|%s|%s|%s|%s" % (merchant, ngay_bc, ma, _gio_24(gio_), gop),
+			merchant=merchant, diem_ban=diem, ngay=ngay_bc, gio=_gio_24(gio_), loai="ban",
+			ma_don=ma, ma_tham_chieu=ma, tien_hang=gop + vat + dv + km + ship, giam_gia=-(km + ship),
+			phi=-ck, thuc_nhan=nhan, thue=vat,
+			mo_ta="GrabFood %s" % ("tiền mặt" if pt == "Tiền mặt" else "thẻ/ví")))
+
 	for i, d in enumerate(dong):
-		if i in bo_qua:
-			continue
 		s = d.strip()
+		if cho and not (vung == "don" and (loai_manh_grab(d) in ("cut", "khong_ma", "tien_to", "duoi")
+				or (_RE_DUOI_MA.match(d) and not re.search(r"\.", s)))):
+			bo_cho()
 		if s.startswith("Hướng dẫn đọc hiểu báo cáo"):
 			break
 		if s.startswith("VND") and "đơn hàng" in s:
@@ -1181,63 +1283,66 @@ def doc_grab(tep, mau):
 			continue
 		try:
 			if vung == "don":
-				md = _RE_DON.match(d)
-				if not md:
-					if re.fullmatch(r"[\d.\s-]*", s):
-						continue
-					raise LoiDong("Dòng trong mục đơn hàng không đọc được; đối chiếu PDF.")
-				gio_, ma, pt, con = md.groups()
-				ma = re.sub(r"\s+", "", ma)
-				if ma.endswith("-"):
-					# Mã dài bị PDF ngắt sang dòng sau (GD-\n TZOZM7AF).
-					sau = dong[i + 1].strip() if i + 1 < len(dong) else ""
-					if not re.fullmatch(r"[A-Z0-9]{3,20}", sau):
-						raise LoiDong("Mã đơn %s bị cắt, không thấy phần sau; đối chiếu PDF." % ma)
-					ma += sau
-					bo_qua.add(i + 1)
-				so = con.split()
-				if len(so) != 7:
-					raise LoiDong("Dòng đơn %s không đủ 7 cột tiền." % ma)
-				if gio_ == "Đã hủy":
-					if any(x != "-" for x in so):
-						raise LoiDong("Đơn huỷ %s lại có tiền; kiểm PDF." % ma)
-					huy.append(ma)
+				lm = loai_manh_grab(d)
+				if lm == "du":
+					doc_don(d)
 					continue
-				gop, vat, dv, km, ck, ship, nhan = (_so_grab(x) for x in so)
-				if gop + vat + dv + km + ck + ship != nhan:
-					raise LoiDong("Đơn %s: trị giá cộng các khoản khác thu nhập; kiểm PDF." % ma)
-				kq["dong"].append(dong_moi(
-					ma_su_kien="%s|%s|%s|%s|%s" % (merchant, ngay_bc, ma, _gio_24(gio_), gop),
-					merchant=merchant, diem_ban=diem, ngay=ngay_bc, gio=_gio_24(gio_), loai="ban",
-					ma_don=ma, ma_tham_chieu=ma, tien_hang=gop + vat + dv + km + ship, giam_gia=-(km + ship),
-					phi=-ck, thuc_nhan=nhan, thue=vat,
-					mo_ta="GrabFood %s" % ("tiền mặt" if pt == "Tiền mặt" else "thẻ/ví")))
+				if lm in ("cut", "khong_ma", "tien_to", "duoi") or (cho and _RE_DUOI_MA.match(d) and "." not in s):
+					cho.append((i, d))
+					ghep = ghep_don_grab([x for _, x in cho])
+					if ghep is not None:
+						vi = cho[0][0] + 1
+						tho = [x for _, x in cho]
+						del cho[:]
+						try:
+							doc_don(ghep)
+						except LoiDong as e:
+							them_loi(kq, vi, e, tho)
+					elif len(cho) >= 3:
+						bo_cho()
+					continue
+				if re.fullmatch(r"[\d.\s-]*", s):
+					continue
+				raise LoiDong("Dòng trong mục đơn hàng không đọc được; đối chiếu PDF.")
 			elif vung == "ads":
 				ma_ = _RE_ADS.match(d)
 				if not ma_:
+					if _RE_DAU_MUC.match(d):
+						raise LoiDong("Dòng quảng cáo không đọc được; đối chiếu PDF.")
 					continue
 				dd, mo, gio_, ma, mo_ta, phi_, thue_, tong_ = ma_.groups()
 				phi_, thue_, tong_ = _so_grab(phi_), _so_grab(thue_), _so_grab(tong_)
 				if phi_ + thue_ != tong_:
-					raise LoiDong("Quảng cáo %s: phí cộng thuế khác tổng." % ma)
+					raise LoiDong("Quảng cáo %s: phí cộng thuế khác tổng." % (ma if ma != "-" else mo_ta))
+				# v649: không có mã ADS thì căn cước ghép giờ, tiền và mô tả (hai
+				# khoản cùng giờ cùng tiền vẫn khác mô tả), căn cứ là mô tả in trên PDF.
+				ma_sk, can_cu = ma, ma
+				if ma == "-":
+					ma_sk = "ADS|%s|%s|%s" % (_gio_24(gio_), tong_, chuan(mo_ta)[:60])
+					can_cu = ("Quảng cáo: " + mo_ta)[:140]
 				kq["dong"].append(dong_moi(
-					ma_su_kien="%s|%s|%s" % (merchant, ngay_bc, ma), merchant=merchant, diem_ban=diem,
-					ngay=ngay_bc, gio=_gio_24(gio_), loai="phi_ky", ma_can_cu=ma, ma_don=ma,
+					ma_su_kien="%s|%s|%s" % (merchant, ngay_bc, ma_sk), merchant=merchant, diem_ban=diem,
+					ngay=ngay_bc, gio=_gio_24(gio_), loai="phi_ky", ma_can_cu=can_cu, ma_don="" if ma == "-" else ma,
 					tien_hang=0, phi=-tong_, thuc_nhan=tong_, thue=-thue_, mo_ta=("Quảng cáo: " + mo_ta)[:140]))
 			elif vung == "dc":
 				mdc = _RE_DC.match(d)
 				if not mdc:
+					if _RE_DAU_MUC.match(d):
+						raise LoiDong("Dòng điều chỉnh không đọc được; đối chiếu PDF.")
 					continue
 				dd, mo, gio_, ma, ma_don, mo_ta, tien = mdc.groups()
 				tien = _so_grab(tien)
 				ma_don = re.sub(r"\s+", "", ma_don or "")
+				ma_sk = ma if ma != "-" else "MPA|%s|%s|%s|%s" % (_gio_24(gio_), ma_don, tien, chuan(mo_ta)[:60])
+				can_cu = (("" if ma == "-" else ma) + " " + ma_don).strip() or ("Điều chỉnh: " + mo_ta)[:140]
 				kq["dong"].append(dong_moi(
-					ma_su_kien="%s|%s|%s" % (merchant, ngay_bc, ma), merchant=merchant, diem_ban=diem,
-					ngay=ngay_bc, gio=_gio_24(gio_), loai="dieu_chinh", ma_can_cu=(ma + " " + ma_don).strip(),
+					ma_su_kien="%s|%s|%s" % (merchant, ngay_bc, ma_sk), merchant=merchant, diem_ban=diem,
+					ngay=ngay_bc, gio=_gio_24(gio_), loai="dieu_chinh", ma_can_cu=can_cu,
 					ma_don=ma_don, ma_tham_chieu=ma_don, dieu_chinh=tien, thuc_nhan=tien,
 					mo_ta=("Điều chỉnh: " + mo_ta)[:140]))
 		except LoiDong as e:
 			them_loi(kq, i + 1, e, [d])
+	bo_cho()
 	kq["them"]["don_huy"] = huy
 	if "thuc_nhan" not in tong:
 		kq["loi"].append("Không thấy Tổng thu nhập trên PDF GrabFood.")

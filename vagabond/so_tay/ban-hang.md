@@ -1145,6 +1145,47 @@ Bếp làm một mẻ lớn (BTP sẵn và đủ decor) để nhận đơn giao 
 - Web tab Đặt trước hiện bánh kèm "Có từ" ngày có bánh; ngày ngoài khoảng bị mờ, đặt quá số thì máy chặn, hai khách cùng đặt suất cuối thì chỉ một người được. Bánh lấy từ tab Hôm nay không bị khoá ngày.
 - Ô hiện "?" là chưa đếm được đơn từ Pancake; lúc đó web tạm ẩn bánh refill.
 
+## BTP sẵn và Đủ decor trừ ngay khi bếp nhập Bếp làm
+Từ khoá: BTP sẵn, đủ decor, vỏ bánh, bếp làm, trừ BTP, còn nhận 3 ngày, còn nhận mai, chốt sổ không trừ BTP, đếm lại tủ BTP
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp nhập; Sales, quản lý xem | Kiểm bánh hôm nay (/kiem-banh) | Ô Bếp làm, ô BTP sẵn, ô Đủ decor |
+
+Từ v649 (Loan Anh đề xuất, anh Việt duyệt 11/11/2026) bánh bếp làm xong trừ vỏ BTP ngay, không chờ chốt sổ.
+
+**Các bước**
+1. Bếp nhập số ô Bếp làm. Máy trừ ngay đúng số đó vào BTP sẵn và Đủ decor.
+2. Nhập nhầm, sửa bớt ô Bếp làm thì máy cộng lại đúng phần bớt.
+3. Bếp đếm lại tủ thì nhập lại ô BTP sẵn và Đủ decor: số đếm là gốc mới, chỉ bánh làm sau đó mới trừ tiếp.
+4. Cuối ngày bấm Chốt ngày như cũ: chốt sổ chỉ chuyển tồn, KHÔNG trừ BTP nữa.
+
+**Ví dụ**: Bánh Ổ Epi 12cm, sáng BTP sẵn 10, Đủ decor 9, đơn hôm nay 2. Bếp làm 1 thì BTP sẵn còn 9, Đủ decor còn 8, Còn nhận mai 8, Còn nhận 3 ngày vẫn 8 (đơn đã có bánh làm xong không giữ vỏ lần nữa).
+
+**Lưu ý**
+- Ngày đầu áp dụng bếp đếm lại tủ và nhập lại hai ô một lần.
+- Bếp làm đã nhập trước giờ lên bản v649 (bảng hôm nay, hôm qua chưa chốt) được máy trừ một lần lúc lên bản; bếp đếm lại tủ sau đó vẫn là số đúng nhất.
+- Huỷ bánh vẫn không cộng lại vỏ.
+- Bếp làm trước cho đơn ngày mai (nhập Bếp làm trên bảng ngày mai) thì vỏ trừ ngay và đơn đó thôi giữ vỏ, Còn nhận không bị trừ hai lần. Bánh làm xong mà kênh khác, giữ chỗ hay huỷ đã lấy thì đơn Pancake vẫn giữ vỏ.
+- Bếp làm nhiều hơn số đã đếm thì ô hiện 0: bếp đếm lại tủ rồi nhập lại.
+
+## Web đặt bánh: tab Có sẵn hôm nay và tab Đặt bánh trước
+Từ khoá: web đặt bánh, đặt bánh trước, có sẵn hôm nay, nhận hôm nay, ngày nhận bánh, tách đơn, giỏ có hai loại bánh, đặt trước nhận từ ngày mai
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách; Sales giải thích cho khách | Trang đặt bánh trên web | Tab Có sẵn hôm nay, tab Đặt bánh trước |
+
+Từ v649 (Loan Anh báo, anh Việt duyệt 11/11/2026) bánh đặt trước nhận từ ngày mai. Bánh nhận trong ngày lấy ở tab Có sẵn hôm nay, số ở đó là số bánh có thật trong tủ (cột Bán được của Kiểm bánh).
+
+**Khách sẽ thấy**
+1. Tab Đặt bánh trước: lịch bắt đầu từ Ngày mai, dưới lịch có dòng "Cần bánh hôm nay? Xem tab Có sẵn hôm nay".
+2. Giỏ có bánh đặt trước thì ô Hôm nay ở bước Ngày và giờ nhận bị mờ.
+3. Giỏ đang có bánh Có sẵn hôm nay mà thêm bánh đặt trước (hay ngược lại) thì web báo đặt hai đơn riêng.
+
+**Lưu ý**
+- Máy chủ cũng chặn: đơn nhận hôm nay chỉ nhận bánh có trong Kiểm bánh hôm nay, đủ số.
+
 ## Kiểm bánh theo mùa (Trung thu, Tết, panettone)
 Từ khoá: kiểm bánh theo mùa, bánh theo mùa, mùa vụ, trung thu, bánh Tết, panettone, bán lố, sắp hết, còn bán, hạn mức, ngưng nhận đơn, seasonal
 

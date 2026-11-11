@@ -1131,6 +1131,7 @@ Từ khoá: hộp thư đối soát, doisoat, email đối soát, ShopeeFood, Gr
 **Lưu ý**
 - Chỉ đối chiếu, không sửa chứng từ quá khứ đã ghi sổ. Lệch thì liệt kê cho kế toán trưởng.
 - Cần xem tận mắt thư gốc: [[Tải thư gốc (.eml) để kiểm →]].
+- Tin Zalo ghi kèm tên cửa hàng (GrabFood Trần Cao Vân). Từ v649 GrabFood đọc được phí quảng cáo không mã và đơn mã dài xuống dòng: nguồn GrabFood cũ đang Cần xử lý thì bấm [[Đọc lại thư gốc]].
 
 ## Đối chiếu tiền về của đối tác giao đồ ăn
 Từ khoá: tiền về, lệch tiền về, chưa thấy tiền về, cần chọn tiền về, ShopeeFood, GrabFood, Payoo, OnePay, sao kê, SePay, chờ tiền về

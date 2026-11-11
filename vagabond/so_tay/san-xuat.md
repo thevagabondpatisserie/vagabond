@@ -54,6 +54,7 @@ Từ phiếu kế hoạch, bếp ra lệnh cho từng món hoặc nhiều món m
 
 **Lưu ý**
 - Ô Tồn giờ gõ được: gõ số mới rồi rời ô, máy hỏi Đặt tồn, bấm [[Ghi phiếu kiểm kê]] là máy ghi một phiếu kiểm kê THẬT ngay lúc đó. Ô Tồn đầu không sửa được.
+- Lệnh cấp 1, cấp 2 do Chốt kế hoạch tạo: bấm ✓ món chính mà cấp dưới còn thiếu thì máy dùng chính các lệnh này (v649), không tạo lệnh mới.
 
 ## Xin chuyển nguyên liệu từ kho tổng về bếp
 Từ khoá: chuyển nguyên liệu, xin nguyên liệu, chuyển kho nguyên liệu cho sản xuất, material transfer, kho tổng 307, lấy hàng về bếp, thiếu nguyên liệu ở bếp
@@ -236,6 +237,7 @@ Máy không ghi âm kho: thiếu là dừng, không để lại phiếu nháp. X
 | Lệnh Đã dừng / Đã đóng nên không hoàn tất được | Ra lệnh mới |
 | Chỉ bếp, quản lý sản xuất hoặc giám đốc mới hoàn tất lệnh được | Nhờ quản lý mở quyền |
 | Không xác định được kho đích theo chặng ... | Báo quản lý sản xuất |
+| Phiếu kiểm kê KK-... đang mở, chưa ghi sổ được | Mã đang được đếm. Người duyệt mở phiếu ở Kiểm kê kho, ghi sổ chênh lệch rồi bấm lại |
 
 **Lưu ý**
 - Lỗi máy báo thiếu số lô gần như không còn: từ 30/09/2026 mọi mã đã tắt quản lý theo lô. Còn gặp thì báo kỹ thuật.

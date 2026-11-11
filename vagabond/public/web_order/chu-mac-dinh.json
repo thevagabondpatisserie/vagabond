@@ -6650,6 +6650,30 @@
     "mac_dinh": "Bánh làm theo mẻ chỉ nhận giao từ {tu} tới {den}. Quý khách chọn ngày trong khoảng này.",
     "nhieu_dong": true
   },
+  "tach_don_co_hom_nay": {
+    "ten": "Giỏ có bánh hôm nay, thêm bánh đặt trước",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giỏ đang có bánh có sẵn hôm nay. Bánh đặt trước nhận từ ngày mai nên đặt đơn riêng: quý khách gửi đơn đang có trước rồi đặt tiếp.",
+    "nhieu_dong": true
+  },
+  "tach_don_co_dat_truoc": {
+    "ten": "Giỏ có bánh đặt trước, thêm bánh hôm nay",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giỏ đang có bánh đặt trước, nhận từ ngày mai. Bánh có sẵn hôm nay đặt đơn riêng: quý khách gửi đơn đang có trước rồi đặt tiếp.",
+    "nhieu_dong": true
+  },
+  "dat_truoc_tu_mai": {
+    "ten": "Giỏ có bánh đặt trước, bấm ngày Hôm nay",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giỏ có bánh đặt trước nên nhận từ ngày mai. Muốn nhận bánh có sẵn hôm nay thì đặt đơn riêng.",
+    "nhieu_dong": true
+  },
+  "can_banh_hom_nay": {
+    "ten": "Dòng dưới lịch Đặt bánh trước",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cần bánh hôm nay? Xem tab Có sẵn hôm nay",
+    "nhieu_dong": true
+  },
   "tv7_buoc_sdt": {
     "ten": "Quà QR: tên bước 1",
     "nhom": "thanh_vien",

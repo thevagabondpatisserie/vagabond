@@ -107,6 +107,8 @@ main,header,footer,.sheet,.co{position:relative;z-index:2}
 .tt-doi:hover{background:var(--cyan);color:var(--bg)}
 .tt-doi:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .note b{color:var(--paper);font-weight:500}
+/* v649: dòng dẫn sang tab Có sẵn hôm nay, ngay dưới lịch Đặt bánh trước. */
+.hom-nay-goi a{color:var(--cyan);text-decoration:none;font-weight:500}
 
 /* Trang ban hang tu lo dieu huong; thanh HOME/LOGIN va chan trang
    "Powered by ERPNext" cua Frappe khong dinh dang gi den khach. */

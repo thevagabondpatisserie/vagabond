@@ -450,19 +450,18 @@ def _():
 	la("hôm nay đã khoá", nay.tinh_trang, "Da chot")
 
 
-@ca("chốt ngày KHÔNG trừ vỏ BTP theo số huỷ - giữ nguyên quy tắc cũ")
+@ca("v649 chốt ngày KHÔNG trừ vỏ BTP nữa (đã trừ lúc bếp nhập Bếp làm); tồn vẫn trừ cả bán lẫn huỷ")
 def _():
-	"""Quy tắc trừ BTP chưa ai duyệt sửa (Codex chặn trên PR #218).
-
-	Bản đầu của PR gộp huỷ vào cùng một hàm với bán ra rồi dùng cho cả hai
-	chỗ, thành ra lặng lẽ đổi luôn số vỏ BTP. Ca này khoá lại: chỉ số BÁN RA
-	mới ăn vào vỏ.
+	"""Quy tắc trừ BTP đổi theo anh Việt duyệt 11/11/2026 (Loan Anh đề xuất,
+	phương án A): vỏ BTP và Đủ decor trừ NGAY khi bếp nhập ô Bếp làm, xem
+	btp.tru_vo_theo_sx. Chốt sổ mà còn trừ theo số bán ra là trừ hai lần.
+	Huỷ vẫn không cộng lại vỏ (ca riêng ở thu_tru_vo_btp_649).
 	"""
 	d = _tao_dong(ma_hang="BAWC00055", ton_d1=20, da_dat=5, huy=3)
 	b = Doi({"ma_hang": "BAWC00055", "so_btp": 20, "so_decor": 15})
 	_nay, mai, kho = _chot([d], btp=[b])
-	la("vỏ BTP chỉ trừ 5 bánh bán ra", kho["dong"][0].so_btp, 15)
-	la("decor cũng chỉ trừ 5", kho["dong"][0].so_decor, 10)
+	la("vỏ BTP giữ nguyên lúc chốt", kho["dong"][0].so_btp, 20)
+	la("decor giữ nguyên lúc chốt", kho["dong"][0].so_decor, 15)
 	# Nhưng tồn thì vẫn phải trừ cả 8 (5 bán + 3 huỷ).
 	la("tồn ngày mai là 12, tức trừ đủ 8", mai.dong[0].ton_cu
 		+ mai.dong[0].ton_d2 + mai.dong[0].ton_d1, 12)
@@ -616,8 +615,10 @@ def _():
 	dung("nói rõ huỷ không trừ BTP", "KHÔNG trừ vào kho BTP sẵn" in css)
 	dung("công thức BÁN ĐƯỢC có huỷ",
 		"tồn + bếp làm - huỷ - đã đặt" in css)
-	dung("chú giải chốt ngày nói BÁN RA chứ không nói rời tủ",
-		"KHÔNG tính huỷ" in css)
+	dung("v649 chú giải chốt ngày nói chốt sổ không trừ BTP nữa",
+		"Chốt sổ KHÔNG trừ kho BTP nữa (đã trừ lúc nhập Bếp làm)" in css)
+	dung("v649 chú giải BTP sẵn nói trừ ngay khi nhập Bếp làm",
+		"bếp nhập ô Bếp làm là máy trừ ngay đúng số đó" in css)
 
 
 @ca("KHÔNG còn chỗ nào tự cộng lại số bán ra thay vì gọi hàm chung")
@@ -629,5 +630,6 @@ def _():
 	dung("không còn phép cộng tay trong chot_ngay",
 		"(d.da_dat or 0) + (d.phat_sinh or 0)" not in than)
 	la("lô hàng gọi so_roi_tu đúng một lần", than.count("so_roi_tu("), 1)
-	la("vỏ BTP gọi so_ban_ra đúng một lần", than.count("so_ban_ra("), 1)
+	# v649: chốt ngày không còn trừ vỏ BTP theo số bán ra.
+	la("chốt ngày không còn gọi so_ban_ra", than.count("so_ban_ra("), 0)
 	dung("không còn tên hàm gộp cũ", "so_da_tieu(" not in src)

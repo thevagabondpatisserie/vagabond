@@ -46,6 +46,10 @@ VENDOR_THEO_MIEN = {"greensm.com": "Xanh SM", "xanhsm.com": "Xanh SM", "grab.com
 	"shinhan.com.vn": "Shinhan", "be.com.vn": "Be for Business"}
 _TU_BAO_CAO = ("bao cao", "sao ke", "doi soat", "bien ban", "statement", "settlement", "report", "tam ung",
 	"thanh toan")
+# v649: thông báo kỹ thuật của đối tác (bảo trì, nâng cấp, gián đoạn) không phải báo cáo.
+_TU_THONG_BAO_KY_THUAT = ("bao tri", "maintenance", "nang cap he thong", "gian doan", "tam ngung dich vu",
+	"ngung dich vu")
+_TU_BAO_CAO_MANH = ("bao cao", "sao ke", "doi soat", "bien ban", "statement", "settlement", "report")
 
 # Mode of Payment / nguồn đơn trên hoá đơn bán ứng với từng kiểu nối.
 PT_THEO_KIEU = {
@@ -89,6 +93,13 @@ def thu_co_bao_cao(tieu_de, noi_dung):
 	kế toán thấy, không được im lặng như thư quảng cáo."""
 	from vagabond.doi_soat_mau import chuan
 
+	td = chuan(tieu_de or "")
+	# v649: thư OnePay "Thong bao bao tri he thong Ngan hang VietinBank và SeABank"
+	# (11/11/2026) có chữ "thanh toán" trong thân nên bị coi là thư báo cáo, dựng
+	# nguồn lỗi và nhắn nhóm Kế toán sai. Tiêu đề là thông báo kỹ thuật mà không
+	# nói tới báo cáo thì không phải thư báo cáo.
+	if any(t in td for t in _TU_THONG_BAO_KY_THUAT) and not any(t in td for t in _TU_BAO_CAO_MANH):
+		return False
 	chu = chuan((tieu_de or "") + " " + re.sub(r"<[^>]+>", " ", noi_dung or "")[:5000])
 	return any(t in chu for t in _TU_BAO_CAO)
 

@@ -1342,7 +1342,11 @@ async function doReceive(mr, src, dst, opt) {
 function errMsg(e) {
   var m = (e && (e.message || e._server_messages || '')) + '';
   try { var a = JSON.parse(e._server_messages); m = JSON.parse(a[0]).message; } catch (x) { }
-  return (m || 'Có lỗi xảy ra').replace(/<[^>]*>/g, '').slice(0, 180);
+  /* v649: <br> của câu máy chủ thành xuống dòng thật (trước đây bị xoá nên ra
+     "Pastry - Nguyên liệu - TVĐếm xong..."), trần 180 lên 320 ký tự để câu
+     chặn kiểm kê còn đủ số phiếu và việc cần làm. */
+  return (m || 'Có lỗi xảy ra').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
+    .replace(/\n{3,}/g, '\n\n').trim().slice(0, 320);
 }
 
 

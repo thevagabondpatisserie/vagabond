@@ -260,7 +260,7 @@ button,input,select,textarea{font-family:inherit;font-style:inherit;font-stretch
 .st.w{background:#fff4e0;color:#c07800}.st.b{background:#E4F9FD;color:#0B7C93}
 .st.g{background:#e4f7ec;color:#0d8a45}.st.r{background:#fdeaea;color:#c93a3a}
 .st.n{background:#eef0f3;color:#6b7280}
-.tst{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:#23262f;color:#fff;padding:13px 20px;border-radius:12px;font-size:14.5px;z-index:200;max-width:88%;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.tst{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:#23262f;color:#fff;padding:13px 20px;border-radius:12px;font-size:14.5px;z-index:200;max-width:88%;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.3);white-space:pre-line}
 .ld{position:fixed;inset:0;background:rgba(238,240,245,.75);z-index:150;display:flex;align-items:center;justify-content:center}
 .ld i{width:38px;height:38px;border:3.5px solid #cdd5e6;border-top-color:#0FB5CE;border-radius:50%;animation:sp .8s linear infinite;display:block}
 .li .im{width:46px;height:46px;flex:0 0 46px;border-radius:11px;object-fit:cover;background:#E4F9FD}
@@ -337,6 +337,15 @@ button,input,select,textarea{font-family:inherit;font-style:inherit;font-stretch
   display:flex;align-items:center;justify-content:center}
 .lok:active{transform:scale(.93)}
 .lok[disabled]{background:#f2f4f7;color:#c3c8d1;cursor:default}
+/* v649 the lenh san xuat: anh, noi dung, nut. So luong va trang thai xuong
+   mot dong rieng duoi ten; ten toi da hai dong; ma lenh mot dong. */
+.li.lm{align-items:flex-start}
+.li.lm .lok{align-self:center;width:44px;height:44px}
+.li.lm .l1{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.li.lm .l2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li.lm .lso{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px}
+.li.lm .lsq{font-size:14.5px;font-weight:700;color:#16181d;white-space:nowrap}
+.li.lm .noi i{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Chip goi y so lan truoc, nam ngay duoi o nhap so luc hoan tat. Bam mot
    cai la con so vao o. Anh Viet 31/08/2026: "bep hay lam chan me".

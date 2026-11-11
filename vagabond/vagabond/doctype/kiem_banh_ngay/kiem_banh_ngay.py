@@ -97,6 +97,16 @@ class KiemBanhNgay(Document):
 		for d in self.dong:
 			d.huy = self._doc_so_huy(d.huy, d.ma_hang)
 
+	def on_update(self):
+		"""v649 (anh Việt chọn A 11/11/2026): bếp nhập hay sửa ô Bếp làm thì trừ
+		BTP sẵn và Đủ decor ngay, theo phần chênh so với bản đang lưu. Đặt ở
+		tầng doctype để mọi đường sửa (màn Kiểm bánh, Desk, API) đều trừ, và
+		cùng giao dịch với lần lưu: lưu hỏng thì không trừ."""
+		from vagabond import btp
+
+		truoc = self._ban_truoc()
+		btp.tru_vo_theo_sx(btp.chenh_sx(getattr(truoc, "dong", None) or [], self.dong))
+
 	def _ban_truoc(self):
 		"""Bản đang nằm trong CSDL trước lần lưu này, hoặc None nếu là bản mới.
 		Tách ra để bàn giả kiểm thử thay được."""
