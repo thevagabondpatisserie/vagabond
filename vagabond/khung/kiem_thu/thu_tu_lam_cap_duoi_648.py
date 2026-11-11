@@ -97,4 +97,4 @@ def _():
 	r = subprocess.run(["node", str(goc / "vagabond/khung/kiem_thu/hanh_vi/tu_lam_cap_duoi_648.js")],
 		capture_output=True, text=True, timeout=120)
 	dung("chạy được: " + (r.stdout[-1500:] + r.stderr[-600:]), r.returncode == 0)
-	dung("đủ 6 ca", "6 dat, 0 hong" in r.stdout)
+	dung("đủ 11 ca", "11 dat, 0 hong" in r.stdout)
