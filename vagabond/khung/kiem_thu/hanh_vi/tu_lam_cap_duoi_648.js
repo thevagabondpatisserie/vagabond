@@ -144,9 +144,20 @@ function theGioi(ton, tuLam, tong) {
       }
       /* v649: lệnh đang mở của cùng món (Chốt kế hoạch tạo sẵn). */
       if (dt === 'Work Order') {
+        /* Như máy chủ Frappe thật: lọc theo đúng các ô bộ lọc gửi lên, cắt theo
+           limit_page_length (0 là không cắt). Codex #552 P1: trước đây app chỉ
+           lọc theo món, lấy 20 lệnh đầu, lệnh hợp lệ thứ 21 bị bỏ sót. */
+        if (the.timLenhHong) throw new Error('mang rot');
         nhat.timLenhMo = (nhat.timLenhMo || []).concat([o.filters.production_item]);
-        return (the.lenhMo || []).filter(function (w) { return w.production_item === o.filters.production_item; })
-          .map(function (w) { lenh[w.name] = lenh[w.name] || { code: w.production_item, qty: w.qty, src: w.source_warehouse }; return w; });
+        var f0 = o.filters;
+        var ra0 = (the.lenhMo || []).filter(function (w) {
+          return w.production_item === f0.production_item &&
+            (!f0.fg_warehouse || w.fg_warehouse === f0.fg_warehouse) &&
+            (!f0.source_warehouse || w.source_warehouse === f0.source_warehouse) &&
+            (!f0.bom_no || w.bom_no === f0.bom_no);
+        });
+        if (o.limit_page_length) ra0 = ra0.slice(0, o.limit_page_length);
+        return ra0.map(function (w) { lenh[w.name] = lenh[w.name] || { code: w.production_item, qty: w.qty, src: w.source_warehouse }; return w; });
       }
       throw new Error('getList la: ' + dt);
     },
@@ -497,6 +508,31 @@ async function ca(ten, fn) {
     var ke = await t.mfgFreshPlan(MATS, 1, K);
     await t.mfgRunFresh(ke, 1);
     bang('tao lenh moi cho ca hai', t.nhat.lenh, ['C2 x2', 'C1 x2']);
+  });
+
+  await ca('24. Codex #552 P1: hon 20 lenh dang mo cua cung mon, lenh hop le la lenh thu 21: van dung lenh do, khong tao moi', async function () {
+    var t = theGioi({ C1: 9 }, ['C1', 'C2']);
+    var K = t.mfg.src;
+    t.lenhMo = [];
+    for (var i = 0; i < 20; i++) {
+      t.lenhMo.push({ name: 'WO-CU-' + i, production_item: 'C2', qty: 3, produced_qty: 2, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' });
+    }
+    t.lenhMo.push({ name: 'WO-21', production_item: 'C2', qty: 5, produced_qty: 0, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' });
+    var ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('khong tao lenh moi', t.nhat.lenh, []);
+    bang('ghi so tren lenh thu 21', t.nhat.phieu, ['C2 x2']);
+  });
+
+  await ca('25. Codex #552 P2: doc lenh dang mo bi loi thi DUNG, khong tao lenh moi, khong ghi so gi', async function () {
+    var t = theGioi({}, ['C1', 'C2']);
+    t.timLenhHong = 1;
+    var ke = await t.mfgFreshPlan(MATS, 1, t.mfg.src);
+    var loi = null;
+    try { await t.mfgRunFresh(ke, 1); } catch (e) { loi = e; }
+    bang('bao loi cho bep', !!loi, true);
+    bang('khong tao lenh', t.nhat.lenh, []);
+    bang('khong ghi so', t.nhat.phieu, []);
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');
