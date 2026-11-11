@@ -1166,6 +1166,7 @@ Từ v649 (Loan Anh đề xuất, anh Việt duyệt 11/11/2026) bánh bếp là
 - Ngày đầu áp dụng bếp đếm lại tủ và nhập lại hai ô một lần.
 - Bếp làm đã nhập trước giờ lên bản v649 (bảng hôm nay, hôm qua chưa chốt) được máy trừ một lần lúc lên bản; bếp đếm lại tủ sau đó vẫn là số đúng nhất.
 - Huỷ bánh vẫn không cộng lại vỏ.
+- Bếp làm trước cho đơn ngày mai (nhập Bếp làm trên bảng ngày mai) thì vỏ trừ ngay và đơn đó thôi giữ vỏ, Còn nhận không bị trừ hai lần. Bánh làm xong mà kênh khác, giữ chỗ hay huỷ đã lấy thì đơn Pancake vẫn giữ vỏ.
 - Bếp làm nhiều hơn số đã đếm thì ô hiện 0: bếp đếm lại tủ rồi nhập lại.
 
 ## Web đặt bánh: tab Có sẵn hôm nay và tab Đặt bánh trước
