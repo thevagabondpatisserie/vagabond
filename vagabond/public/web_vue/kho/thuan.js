@@ -165,6 +165,22 @@ export function cartCount(gio) { return gio.reduce((a, x) => a + x.qty, 0); }
 export function cartTotal(gio) { return gio.reduce((a, x) => a + lineUnit(x) * x.qty, 0); }
 export function daCoTrongGio(gio, id) { return gio.filter(x => x.id === id).reduce((a, x) => a + x.qty, 0); }
 
+/* v649 (Loan Anh báo, anh Việt chọn tách đơn 11/11/2026): bánh đặt trước nhận
+   từ ngày mai; bánh nhận trong ngày lấy ở tab Có sẵn hôm nay. Một giỏ không
+   trộn hai loại. Hàng mùa vụ, hàng quầy (cm 0) không thuộc hai loại này. */
+export function laBanhDatTruoc(o) { return !!o && Number(o.cm) > 0 && o.nguon !== 'today'; }
+export function laBanhHomNay(o) { return !!o && Number(o.cm) > 0 && o.nguon === 'today'; }
+export function chanHomNay(gio) { return (gio || []).some(laBanhDatTruoc); }
+export function gioTron(gio) { return chanHomNay(gio) && (gio || []).some(laBanhHomNay); }
+export function xungDotGio(gio, o, boQua = -1) {
+  /* Thêm dòng o vào giỏ có làm giỏ trộn hai loại không. boQua: dòng đang sửa. */
+  if (!o || !(Number(o.cm) > 0)) return '';
+  const con = (gio || []).filter((x, i) => i !== boQua);
+  if (laBanhDatTruoc(o) && con.some(laBanhHomNay)) return 'co_hom_nay';
+  if (laBanhHomNay(o) && con.some(laBanhDatTruoc)) return 'co_dat_truoc';
+  return '';
+}
+
 export function hangGui(gio) {
   /* v589: MỘT nguồn cho danh sách món gửi máy chủ, dùng chung lúc gửi đơn và
      lúc hỏi ưu đãi. Gộp dòng trùng mã. */
