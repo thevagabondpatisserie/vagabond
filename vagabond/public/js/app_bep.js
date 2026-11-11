@@ -10659,7 +10659,7 @@ function mfgSheetKe(plan, nvl, src) {
              : 'background:#eef2f7;color:#374151;border:1px solid #e2e8f0') + '">' +
         h(t) + (phu ? ' <span style="font-weight:500;opacity:.75">' + h(phu) + '</span>' : '') + '</span>';
     }
-    var thieu = (nvl || []).filter(function (x) { return x.thieu > 0.0001; });
+    var thieu = (nvl || []).filter(function (x) { return mfgChipNvl(x).bad; });
     var html = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:82vh;overflow:auto">' +
       '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">Máy làm luôn giúp bếp</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">' +
@@ -10670,8 +10670,8 @@ function mfgSheetKe(plan, nvl, src) {
       html += '<div style="font-size:11.5px;color:#98a2b3;margin:10px 0 7px;letter-spacing:.4px">NGUYÊN LIỆU SẼ TRỪ · KHO ' +
         h(shortWh(src).toUpperCase()) + '</div><div>' +
         nvl.slice(0, 24).map(function (x) {
-          var bad = x.thieu > 0.0001;
-          return chip(x.name, num(x.need) + (bad ? ' · thiếu ' + num(x.thieu) : ''), bad);
+          var c = mfgChipNvl(x);
+          return chip(x.name, c.phu, c.bad);
         }).join('') +
         (nvl.length > 24 ? chip('và ' + (nvl.length - 24) + ' nguyên liệu nữa', '', false) : '') + '</div>';
       if (thieu.length) {
@@ -11116,12 +11116,27 @@ async function mfgNvlCuaKe(plan, src) {
   if (!thu_tu.length) return [];
 
   var tn = await stockOf(thu_tu, src);
+  /* v648: ruột bánh cấp 1 (hay món làm tươi) nằm trong công thức bánh khuôn mà
+     thiếu tồn thì máy cũng tự làm nốt, không phải "thiếu". Đánh dấu để hộp
+     xác nhận ghi "máy làm thêm", không tô đỏ, không báo thiếu (anh Việt
+     11/11/2026 xem bản vẽ). Hỏi máy chủ hỏng thì giữ cách hiện cũ. */
+  var fr = {};
+  try { fr = await freshOf(thu_tu); } catch (e) { fr = {}; }
   return thu_tu.map(function (c) {
     var x = gom[c];
     x.ton = tn[c] || 0;
     x.thieu = r3(Math.max(0, x.need - x.ton));
+    x.tu_lam = fr[c] ? 1 : 0;
     return x;
-  }).sort(function (a, b) { return (b.thieu > 0 ? 1 : 0) - (a.thieu > 0 ? 1 : 0); });
+  }).sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
+}
+
+/* Chữ phụ và màu của một chip nguyên liệu trong hộp "Máy làm luôn giúp bếp". THUẦN.
+   Thiếu mà máy tự làm được thì ghi "máy làm thêm", không đỏ; thiếu thật mới đỏ. */
+function mfgChipNvl(x) {
+  var thieu = (x.thieu || 0) > 0.0001;
+  if (thieu && x.tu_lam) return { phu: num(x.need) + ' · máy làm thêm ' + num(x.thieu), bad: false };
+  return { phu: num(x.need) + (thieu ? ' · thiếu ' + num(x.thieu) : ''), bad: thieu };
 }
 
 async function mfgRunFresh(list, depth) {
@@ -60256,7 +60271,8 @@ var CDL_MAN = {
 };
 
 function cdlNapChung() {
-  if (typeof VGB_CD !== 'undefined' && VGB_CD && VGB_CD.tongHop) return Promise.resolve();
+  /* v648: bản chung có ô tìm tin (locTin); bản cũ trong bộ nhớ thì nạp lại. */
+  if (typeof VGB_CD !== 'undefined' && VGB_CD && VGB_CD.locTin) return Promise.resolve();
   return inNapJs('/assets/vagabond/js/cai_dat_loi_chung.js?v=' + APPVER);
 }
 
@@ -61073,28 +61089,51 @@ function cdlChonZalo(cot, nhap, xong) {
    Chọn cả mục. Không tích tin nào thì nhóm nhận theo Loại tin, Chủ đề như cũ. */
 function cdlChonTinZalo(nhap, xong) {
   var BP = VGB_CD['tinTheoBoPhan']();
+  var TONG = BP.reduce(function (n, bp) { return n + bp.tin.length; }, 0);
   var dang = VGB_CD.tachMa(nhap.tin_nhan);
+  /* v648 (anh Việt 11/11/2026: "ma trận tin báo làm anh nhức đầu mỗi lần tìm rồi
+     cài"): ô tìm và chip Đã tích ở đầu hộp. Phần đầu dựng MỘT lần để ô tìm giữ
+     chữ và con trỏ khi gõ; mỗi lần gõ, tích, bỏ tích chỉ vẽ lại danh sách. */
+  var tu = '', chiDaTich = false;
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML = '<div class="shh"><b>Nhóm này nhận những tin nào?</b><div class="x">&times;</div></div>' +
+    '<div class="cdl-mo" style="padding:6px 14px">' + h(VGB_CD.GHI_CHU_TIN) + '</div>' +
+    '<div style="padding:4px 14px 6px"><input class="tin" data-cdlttim="1" placeholder="Tìm tin, ví dụ: đối soát, lệch tiền, bill, kho" autocomplete="off" style="width:100%"></div>' +
+    '<div data-cdltloc="1" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 14px 6px"></div>' +
+    '<div class="shl" data-cdltds="1"></div>' +
+    '<div style="padding:10px 14px"><button class="btn" data-cdltxong="1" style="width:100%;margin:0">Xong</button></div>';
+  function hien() { return VGB_CD.locTin(BP, tu, chiDaTich, dang); }
   function ve() {
     /* Anh Việt 02/11/2026: tích một tin là cả bảng cuộn về đầu, khó thao tác.
-       Mỗi lần tích vẽ lại cả hộp nên .shl mới bắt đầu ở 0; giữ vị trí cuộn cũ. */
-    var cu = box.querySelector('.shl'), cuon = cu ? cu.scrollTop : 0;
-    box.innerHTML = '<div class="shh"><b>Nhóm này nhận những tin nào?</b><div class="x">&times;</div></div>' +
-      '<div class="cdl-mo" style="padding:6px 14px">' + h(VGB_CD.GHI_CHU_TIN) + '</div>' +
-      '<div class="shl">' + BP.map(function (bp, k) {
-        return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
-          '<button class="cdl-lnk" data-cdltca="' + k + '">Chọn cả mục</button></div>' +
-          bp.tin.map(function (t) {
-            return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
-              '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
-          }).join('');
-      }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdltxong="1" style="width:100%;margin:0">Xong</button></div>';
-    var moi = box.querySelector('.shl');
-    if (moi && cuon) moi.scrollTop = cuon;
+       Chỉ vẽ lại danh sách nên giữ được vị trí cuộn cũ. */
+    var ds = box.querySelector('[data-cdltds]'), cuon = ds.scrollTop || 0;
+    var cac = hien();
+    var soHien = cac.reduce(function (n, bp) { return n + bp.tin.length; }, 0);
+    box.querySelector('[data-cdltloc]').innerHTML =
+      '<button class="chip' + (chiDaTich ? '' : ' on') + '" data-cdltchi="0">Tất cả (' + TONG + ')</button>' +
+      '<button class="chip' + (chiDaTich ? ' on' : '') + '" data-cdltchi="1">Đã tích (' + dang.length + ')</button>' +
+      '<span class="cdl-mo" style="margin:0">' + ((tu || chiDaTich) ? 'Đang hiện ' + soHien + ' trên ' + TONG + ' tin' : '') + '</span>';
+    ds.innerHTML = cac.length ? cac.map(function (bp) {
+      var k = BP.map(function (x) { return x.bo_phan; }).indexOf(bp.bo_phan);
+      return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
+        '<button class="cdl-lnk" data-cdltca="' + k + '">' + ((tu || chiDaTich) ? 'Chọn cả ' + bp.tin.length + ' tin đang hiện' : 'Chọn cả mục') + '</button></div>' +
+        bp.tin.map(function (t) {
+          return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
+            '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
+        }).join('');
+    }).join('') : '<div class="cdl-mo" data-cdltrong="1" style="padding:16px 14px">' +
+      (chiDaTich && !tu ? 'Nhóm này chưa tích tin nào. Bấm Tất cả để xem danh mục.' : 'Không có tin nào khớp "' + h(tu) + '". Thử chữ khác, gõ không dấu cũng được.') + '</div>';
+    if (cuon) ds.scrollTop = cuon;
   }
   ve();
   ov.appendChild(box); document.body.appendChild(ov);
+  box.oninput = function (e) {
+    if (!(e.target && e.target.getAttribute && e.target.getAttribute('data-cdlttim'))) return;
+    tu = e.target.value || '';
+    box.querySelector('[data-cdltds]').scrollTop = 0;
+    ve();
+  };
   box.onclick = function (e) {
     var r = e.target.closest('[data-cdlt]');
     if (r) {
@@ -61102,9 +61141,17 @@ function cdlChonTinZalo(nhap, xong) {
       if (k >= 0) dang.splice(k, 1); else dang.push(m);
       return ve();
     }
+    var chi = e.target.closest('[data-cdltchi]');
+    if (chi) {
+      chiDaTich = chi.getAttribute('data-cdltchi') === '1';
+      box.querySelector('[data-cdltds]').scrollTop = 0;
+      return ve();
+    }
     var ca = e.target.closest('[data-cdltca]');
     if (ca) {
-      var ds = (BP[parseInt(ca.getAttribute('data-cdltca'), 10)] || { tin: [] }).tin.map(function (t) { return t.ma; });
+      /* Đang tìm thì Chọn cả chỉ tác động lên các tin ĐANG HIỆN của mục đó. */
+      var ten = (BP[parseInt(ca.getAttribute('data-cdltca'), 10)] || {}).bo_phan;
+      var ds = (hien().filter(function (bp) { return bp.bo_phan === ten; })[0] || { tin: [] }).tin.map(function (t) { return t.ma; });
       var het = ds.every(function (m) { return dang.indexOf(m) >= 0; });
       ds.forEach(function (m) { var j = dang.indexOf(m); if (het && j >= 0) dang.splice(j, 1); if (!het && j < 0) dang.push(m); });
       return ve();
