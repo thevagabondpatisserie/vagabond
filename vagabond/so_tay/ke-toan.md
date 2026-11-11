@@ -1159,7 +1159,7 @@ Từ khoá: bill chưa khớp, mã chuẩn chi, Shinhan POS, Payoo, GrabFood, sa
 |---|---|---|
 | Kế toán công nợ | Đối soát nhà cung cấp | Ô Bill chưa khớp đối tác |
 
-Mỗi bill chọn thẻ hay sàn được máy dò trong báo cáo đối tác của đúng ngày đó, theo mã chuẩn chi (hoặc mã đơn) và số tiền. 08:30 mỗi sáng máy gửi Zalo bill không khớp của từng đối tác, từng ngày.
+Mỗi bill chọn thẻ hay sàn được máy dò trong báo cáo đối tác của đúng ngày đó, theo mã chuẩn chi (hoặc mã đơn) và số tiền. 08:30 mỗi sáng máy gửi Zalo bill không khớp của từng đối tác, từng ngày; bill lệch tiền ghi cả số báo cáo đối tác.
 
 **Các bước**
 1. Mở Đối soát nhà cung cấp, bấm ô Bill chưa khớp đối tác (14 ngày tới hôm qua).

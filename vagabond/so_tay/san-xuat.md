@@ -192,7 +192,7 @@ Bấm Hoàn tất là lúc máy trừ nguyên liệu và nhập thành phẩm v�
 | 152 | 154 | Bán thành phẩm nhập kho Nguyên liệu của bếp |
 
 **Lưu ý**
-- Từ v648 chỉ bấm Hoàn tất món chính: máy làm phần cấp 1, cấp 2 thiếu, có tồn thì dùng tồn.
+- Từ v648 chỉ bấm Hoàn tất món chính: máy làm phần cấp 1, cấp 2 thiếu (ghi máy làm thêm).
 - Cân ít hơn số làm thì phần chênh là hao hụt, lệnh vẫn đóng.
 - Ô Thực tế cân được phải là số cân thật, không chép lại số làm. Xem mục "Ghi số cân thật để tính được hao hụt".
 - Bị chặn: xem mục "Vì sao không hoàn tất được lệnh sản xuất".
