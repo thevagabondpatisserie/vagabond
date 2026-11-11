@@ -63,6 +63,9 @@ def _chay(cua):
 
 	def sql(cau, gt=None, *a, **k):
 		vet.append(gt)
+		if cau.lstrip().lower().startswith("select ma_hang from `tabbtp banh o dong`"):
+			can = set(gt["ma"] if isinstance(gt, dict) else gt)
+			return [(d["ma_hang"],) for d in cua.btp.dong if d["ma_hang"] in can]
 		if "update `tabBTP Banh O Dong`" in cau:
 			for d in cua.btp.dong:
 				if d.ma_hang == gt["ma"]:
@@ -192,3 +195,14 @@ def _da_lam():
 		la("sửa về 1", (cua.btp.dong[0]["decor_da_lam"], cua.btp.dong[0]["so_decor"]), (1, 0))
 		btp.luu_decor(EPI, 4)
 	la("bếp nhập lại 4: gốc mới", (cua.btp.dong[0].get("decor_da_lam"), cua.btp.dong[0].get("so_decor")), (0, 4))
+
+
+@ca("v649 nhập Bếp làm cho bánh không có trong bảng BTP: không ghi gì vào bảng BTP, không đổi giờ 'BTP bếp cập nhật'")
+def _ngoai_bang():
+	nay, cua = _kho(ma="BAWS00777")
+	cua.btp.dong[0]["ma_hang"] = EPI
+	with _chay(cua) as vet:
+		kiem_banh.luu_o("2026-08-15", "BAWS00777", "sx", 4)
+	la("bảng BTP giữ nguyên", _o(cua), (10, 9))
+	dung("không đổi giờ cập nhật bảng BTP", ("moc", "cap_nhat_luc") not in vet)
+	la("không câu UPDATE nào", [g for g in vet if isinstance(g, dict) and "n" in g], [])
