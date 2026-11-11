@@ -456,15 +456,22 @@ async function stockOf(codes, wh) {
   rows.forEach(function (r) { m[r.item_code] = (m[r.item_code] || 0) + (r.actual_qty || 0); });
   return m;
 }
+/* Số còn phải làm của một lệnh: một nguồn cho mọi nơi (Codex #552 vòng 2).
+   Hao hụt đã ghi cũng tính vào số kế hoạch, như ERPNext đóng lệnh khi
+   produced_qty + process_loss_qty >= qty (kho_san_xuat.so_hoan_tat). Ai
+   đọc lệnh để tính phần còn lại phải xin cả cột process_loss_qty. */
+function mfgConLai(w) {
+  return Math.max(0, r3((w.qty || 0) - (w.produced_qty || 0) - (w.process_loss_qty || 0)));
+}
 async function openWoQty(codes) {
   var m = {};
   if (!codes || !codes.length) return m;
   var rows = await inChunks(codes, 80, function (lot) {
-    return getList('Work Order', { fields: ['production_item', 'qty', 'produced_qty', 'status'], filters: { docstatus: 1, production_item: ['in', lot] }, limit_page_length: 0 });
+    return getList('Work Order', { fields: ['production_item', 'qty', 'produced_qty', 'process_loss_qty', 'status'], filters: { docstatus: 1, production_item: ['in', lot] }, limit_page_length: 0 });
   });
   rows.forEach(function (w) {
     if (WODONE.indexOf(w.status) >= 0) return;
-    var left = (w.qty || 0) - (w.produced_qty || 0);
+    var left = mfgConLai(w);
     if (left > 0) m[w.production_item] = (m[w.production_item] || 0) + left;
   });
   return m;
@@ -1737,7 +1744,7 @@ async function scrMfgView(name) {
     try { tn[k] = await stockOf(nhomKho[k], k); }
     catch (e) { loiKho[k] = true; }
   }));
-  var left = Math.max(0, r3((d.qty || 0) - (d.produced_qty || 0) - (d.process_loss_qty || 0)));
+  var left = mfgConLai(d);
   var canDo = d.docstatus === 1 && WODONE.indexOf(d.status) < 0 && left > 0;
 
   var anh = '';
@@ -1866,7 +1873,7 @@ function mfgChiaSo(cacCon, tong) {
    Tra ve 'lai' khi da ghi so xong va man goi nen tai lai danh sach; tra ve
    0 khi bep bam huy hay co loi. */
 async function mfgChayHoanTat(d, cacDvt) {
-  var left = r3((d.qty || 0) - (d.produced_qty || 0));
+  var left = mfgConLai(d);
   if (!(left > 0)) { toast('Lệnh này đã làm đủ số rồi', 4000); return 0; }
   if (WODONE.indexOf(d.status) >= 0) { toast('Lệnh ' + (WOST[d.status] || d.status) + ' nên không hoàn tất được', 5000); return 0; }
 
@@ -2283,7 +2290,7 @@ function mfgChipNvl(x) {
 function mfgChonLenhMo(ds, f) {
   for (var i = 0; i < (ds || []).length; i++) {
     var w = ds[i];
-    var con = (w.qty || 0) - (w.produced_qty || 0);
+    var con = mfgConLai(w);
     if (w.fg_warehouse !== f.fg || w.source_warehouse !== f.src) continue;
     if (f.bom && w.bom_no && w.bom_no !== f.bom) continue;
     if (con + 0.0001 < f.qty) continue;
@@ -2303,7 +2310,7 @@ async function mfgLenhChoTuLam(f) {
   var ds;
   try {
     ds = await getList('Work Order', {
-      fields: ['name', 'qty', 'produced_qty', 'source_warehouse', 'fg_warehouse', 'bom_no'],
+      fields: ['name', 'qty', 'produced_qty', 'process_loss_qty', 'source_warehouse', 'fg_warehouse', 'bom_no'],
       filters: loc, order_by: 'creation asc', limit_page_length: 0
     });
   } catch (e) {
