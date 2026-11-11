@@ -49,9 +49,12 @@ def _mon(tag, loai, chang=None):
 	return ma
 
 
-def _the_gioi(ton_c1=0):
+def _the_gioi(ton_c1=0, cha_an_c1=0):
 	"""Bánh ổ TP cần 2 bánh khuôn C2 + 30 NVL; mỗi C2 cần 1 ruột C1 + 100 NVL;
-	mỗi C1 cần 50 NVL. Kho bếp có 1000 NVL giá 1000."""
+	mỗi C1 cần 50 NVL. Kho bếp có 1000 NVL giá 1000.
+
+	cha_an_c1: bánh ổ cần thêm từng ấy ruột C1 trực tiếp (Codex #551 vòng 3:
+	C1 vừa là nguyên liệu của bánh ổ vừa là nguyên liệu của C2)."""
 	from erpnext import is_perpetual_inventory_enabled
 	from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng
 	cty = cong_ty()
@@ -69,8 +72,12 @@ def _the_gioi(ton_c1=0):
 	_bom(c1, cty, [{"item_code": nvl, "qty": 50, "uom": uom, "rate": GIA_NVL}])
 	_bom(c2, cty, [{"item_code": c1, "qty": 1, "uom": uom, "do_not_explode": 1},
 		{"item_code": nvl, "qty": 100, "uom": uom, "rate": GIA_NVL}])
-	cha = _bom(tp, cty, [{"item_code": c2, "qty": 2, "uom": uom, "do_not_explode": 1},
-		{"item_code": nvl, "qty": 30, "uom": uom, "rate": GIA_NVL}])
+	dong_cha = [{"item_code": c2, "qty": 2, "uom": uom, "do_not_explode": 1},
+		{"item_code": nvl, "qty": 30, "uom": uom, "rate": GIA_NVL}]
+	if cha_an_c1:
+		# Dòng ruột bánh đứng TRƯỚC bánh khuôn như ca Codex (C1 đầu required_items).
+		dong_cha.insert(0, {"item_code": c1, "qty": cha_an_c1, "uom": uom, "do_not_explode": 1})
+	cha = _bom(tp, cty, dong_cha)
 	d = nhap(item_code=nvl, qty=1000, company=cty, to_warehouse=bep, rate=GIA_NVL, do_not_save=True)
 	d.insert(); nen._DA_TAO.append(("Stock Entry", d.name)); d.submit()
 	if ton_c1:
@@ -93,20 +100,32 @@ def _ton(ma, kho):
 	return frappe.utils.flt(frappe.db.get_value("Bin", {"item_code": ma, "warehouse": kho}, "actual_qty"))
 
 
-def _ke_hoach(mats, ratio, src):
-	"""Chép phép trừ của mfgFreshPlan: món máy chủ cho tự làm, thiếu = cần - tồn."""
+def _giu_cua_lenh(mats, ratio, giu):
+	"""Chép mfgGiuCuaLenh: phần giữ của ông cha cộng nhu cầu trực tiếp của lệnh này."""
+	ra = dict(giu or {})
+	for m in mats:
+		ra[m.item_code] = round(ra.get(m.item_code, 0) + float(m.required_qty) * ratio, 3)
+	return ra
+
+
+def _ke_hoach(mats, ratio, src, giu=None):
+	"""Chép phép trừ của mfgFreshPlan: món máy chủ cho tự làm,
+	thiếu = cần - (tồn - phần đã giữ cho lệnh cấp trên)."""
 	from vagabond.kho_san_xuat import mon_tu_lam
 	import json
+	giu = giu or {}
 	ma = [m.item_code for m in mats]
 	tu_lam = set(mon_tu_lam(json.dumps(ma)))
+	giu_con = _giu_cua_lenh(mats, ratio, giu)
 	ra = []
 	for m in mats:
 		if m.item_code not in tu_lam:
 			continue
-		thieu = round(float(m.required_qty) * ratio - _ton(m.item_code, src), 3)
+		co = max(0, _ton(m.item_code, src) - giu.get(m.item_code, 0))
+		thieu = round(float(m.required_qty) * ratio - co, 3)
 		if thieu > 0.0001:
 			bom = frappe.db.get_value("BOM", {"item": m.item_code, "is_active": 1, "is_default": 1, "docstatus": 1}, "name")
-			ra.append(frappe._dict(code=m.item_code, qty=thieu, bom=bom))
+			ra.append(frappe._dict(code=m.item_code, qty=thieu, bom=bom, giu=giu_con))
 	return ra
 
 
@@ -125,7 +144,7 @@ def _lam_con(cty, ke, src, nhat, cap=1):
 		wo = _lenh_nhu_app(cty, f.code, f.bom, f.qty, src, src)
 		nhat.append(("lenh", f.code, float(f.qty)))
 		if cap < 3:
-			con = _ke_hoach(wo.required_items, 1, wo.source_warehouse or src)
+			con = _ke_hoach(wo.required_items, 1, wo.source_warehouse or src, f.giu)
 			if con:
 				_lam_con(cty, con, src, nhat, cap + 1)
 		se = _hoan_tat(wo, f.qty)
@@ -137,11 +156,11 @@ def _sle(phieu):
 		"is_cancelled": 0}, fields=["item_code", "warehouse", "actual_qty", "stock_value_difference"])
 
 
-def _bam_hoan_tat(w, so_banh):
+def _bam_hoan_tat(w, so_banh, doi=None):
 	"""Bếp bấm Hoàn tất món chính so_banh cái trên lệnh 2 bánh."""
 	cha = _lenh_nhu_app(w.cty, w.tp, w.cha.name, 2, w.bep, w.kho_tp)
 	la("lệnh cha đòi bánh khuôn, không nổ xuyên xuống ruột bánh",
-		sorted((d.item_code, float(d.required_qty)) for d in cha.required_items), sorted([(w.c2, 4.0), (w.nvl, 60.0)]))
+		sorted((d.item_code, float(d.required_qty)) for d in cha.required_items), sorted(doi or [(w.c2, 4.0), (w.nvl, 60.0)]))
 	nhat = []
 	ke = _ke_hoach(cha.required_items, so_banh / 2.0, w.bep)
 	_lam_con(w.cty, ke, w.bep, nhat)
@@ -199,6 +218,24 @@ def _du_ton():
 	cha, nhat, se = _bam_hoan_tat(w, 2)
 	la("không lệnh con", nhat, [])
 	la("NVL chỉ trừ phần rắc mặt", _ton(w.nvl, w.bep), 940.0)
+
+
+@ca("v648 thật, Codex #551 vòng 3: bánh ổ cần cả ruột bánh lẫn bánh khuôn (bánh khuôn cũng ăn ruột bánh): máy giữ phần ruột của bánh ổ, không báo thiếu sau khi lệnh con đã ghi sổ")
+def _cha_an_ca_hai():
+	w = _the_gioi(ton_c1=1, cha_an_c1=1)
+	# Lệnh 2 bánh: 2 ruột C1 trực tiếp + 4 bánh khuôn + 60 NVL. Tồn ruột 1.
+	cha, nhat, se = _bam_hoan_tat(w, 2, [(w.c1, 2.0), (w.c2, 4.0), (w.nvl, 60.0)])
+	la("lệnh con: ruột thiếu cho bánh ổ, bánh khuôn, ruột cho bánh khuôn",
+		sorted((x[1], x[2]) for x in nhat if x[0] == "lenh"), sorted([(w.c1, 1.0), (w.c2, 4.0), (w.c1, 4.0)]))
+	sle = _sle(se.name)
+	la("phiếu món chính trừ đủ 2 ruột, 4 bánh khuôn",
+		sorted((d.item_code, float(d.actual_qty)) for d in sle if d.item_code in (w.c1, w.c2)),
+		sorted([(w.c1, -2.0), (w.c2, -4.0)]))
+	la("ruột bánh về 0", _ton(w.c1, w.bep), 0.0)
+	la("bánh khuôn về 0", _ton(w.c2, w.bep), 0.0)
+	la("NVL: 1000 - 5x50 - 4x100 - 60", _ton(w.nvl, w.bep), 290.0)
+	cha.reload()
+	la("lệnh cha hoàn tất", (float(cha.produced_qty), cha.status), (2.0, "Completed"))
 
 
 @ca("v648 thật: lệnh con ghi sổ giờ máy chủ dù điện thoại nhanh 10 phút; phiếu món chính không đứng trước phiếu nhập bánh khuôn")
