@@ -6225,8 +6225,10 @@ la("hien ca ton hien co", "tồn " in _sx49, True)
 la("canh bao mã không đủ tồn", ("THIẾU" in _sx49) or ("· thiếu " in _sx49), True)
 la("nhac but toan kho khong sua lai duoc", "không sửa lại được" in _sx49, True)
 _nvl49 = _sx49.split("async function mfgNvlCuaKe(")[1].split("async function mfgRunFresh")[0]
-la("chia dung ti le theo san luong BOM", "bq[f.bom]" in _nvl49, True)
-la("doc ton tai dung kho se bi tru", "stockOf(thu_tu, src)" in _nvl49, True)
+# v648 (Codex #551 vong 7): mfgNvlCuaKe cong ca cong thuc long nhau (ruot banh
+# may lam them), chia theo san luong tung cong thuc va doc ton theo tung dot ma moi.
+la("chia dung ti le theo san luong BOM", "bq[r.parent]" in _nvl49, True)
+la("doc ton tai dung kho se bi tru", "stockOf(moi, src)" in _nvl49, True)
 
 # ---------- 49.3 Soi khoa SePay: doi chieu ma khong lo khoa ----------
 _soi49 = _sp49.split("def dau_khoa(")[1].split("@frappe.whitelist()")[0]
