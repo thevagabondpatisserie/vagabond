@@ -134,5 +134,27 @@ await ca('6. Giỏ cũ trộn hai loại (lưu từ trước v649): bấm Gửi 
   la('không gửi đơn', vet.filter(x => x[0] === 'POST' && x[1] === 'vagabond.don_hang.tao_don').length, 0);
 });
 
+/* Codex #552 vòng 4 (thuan.js:172): bánh một cỡ, tên không ghi size, máy chủ trả
+   cm 0 (kiem_banh._tach_ten_size). Phân loại theo đường kính thì nhầm nó với
+   hàng mùa vụ, hàng quầy và để lọt giỏ trộn. */
+const MOT_CO = {k: 'Bánh một cỡ', img: '', sizes: [{cm: 0, p: 500000, id: 'BAWC09001'}]};
+await ca('7. Codex #552 vòng 4: bánh một cỡ (cm 0) đặt trước vẫn khoá Hôm nay và không trộn với bánh hôm nay', async () => {
+  const k = taoKho(moiTruong().mt);
+  k.S.CAKES.push(Object.assign({}, MOT_CO));
+  la('thêm bánh một cỡ ở tab Đặt trước', them(k, 'order', 'Bánh một cỡ'), 'them');
+  dung('ô Hôm nay mờ', k.ngayRail.value[0].off);
+  la('không thêm bánh hôm nay', them(k, 'today'), false);
+  const k2 = taoKho(moiTruong().mt);
+  k2.S.CAKES.push(Object.assign({}, MOT_CO));
+  them(k2, 'today');
+  la('giỏ có bánh hôm nay: không thêm bánh một cỡ đặt trước', them(k2, 'order', 'Bánh một cỡ'), false);
+  const k3 = taoKho(moiTruong().mt);
+  k3.S.CAKES.push(Object.assign({}, MOT_CO));
+  them(k3, 'today');
+  k3.S.CART.push(Object.assign({}, k3.S.CART[0], {id: 'BAWC09001', cm: 0, nguon: 'order'}));
+  k3.pick(1); k3.pickSlot(8); k3.S.f.name = 'Khách thử'; k3.S.f.phone = '0900000000';
+  la('giỏ trộn có bánh một cỡ: không gửi', (await k3.submitOrder()).buoc, 'gio');
+});
+
 console.log('\n' + dat + ' dat, ' + hong + ' hong');
 process.exit(hong ? 1 : 0);
