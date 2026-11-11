@@ -757,6 +757,8 @@ def _chay_gm_chot(ncc_nhom, chon="NCC-B"):
 		"mon": [{"ma": "BO", "mua": 8000, "xin": 8000, "gia": 0.25}]}
 	ma = ("var vm=require('vm');var fs=require('fs');var ghi={hop:[],api:[]};var c={JSON:JSON,Object:Object,Array:Array,Number:Number,"
 		"String:String,Math:Math,isNaN:isNaN,Promise:Promise,"
+		# v650: hộp chốt nêu tạm tính có VAT, dùng hàm money của 00-nen.
+		"money:function(n){return String(Math.round(n||0));},"
 		"toast:function(t){ghi.hop.push(['toast',String(t)]);},busy:function(){},errMsg:function(e){return String(e);},"
 		"promptSheet:function(a,b){ghi.hop.push(['promptSheet',a]);return Promise.resolve('NCC-GO-TAY');},"
 		"hoiChu:function(a){ghi.hop.push(['hoiChu',a]);return Promise.resolve('NCC-GO-TAY');},"

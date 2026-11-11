@@ -74,7 +74,7 @@ class _He:
 	"""Kho giả: ghi lại thứ tự lập, ghi sổ phiếu và các ô ghi thẳng."""
 
 	def __init__(self, ton):
-		self.ton, self.nhat, self.set = ton, [], []
+		self.ton, self.nhat, self.set, self.diem = ton, [], [], []
 
 	def get_all(self, dt, filters=None, fields=None, **k):
 		assert dt == "Bin", dt
@@ -100,7 +100,9 @@ class _He:
 
 	def chay(self, **kw):
 		from vagabond.khung.kiem_thu import nen  # noqa: F401
-		db = NS(set_value=lambda dt, ten, ghi, update_modified=True: self.set.append((dt, ten, ghi)))
+		# v650: hoan_tat_phieu đặt điểm lưu trước khi ghi phiếu hoàn tất.
+		db = NS(set_value=lambda dt, ten, ghi, update_modified=True: self.set.append((dt, ten, ghi)),
+			savepoint=lambda ten: self.diem.append(("diem", ten)), rollback=lambda save_point=None: self.diem.append(("lui", save_point)))
 		with patch.object(ksx.frappe, "get_roles", lambda *a: ["Manufacturing User"], create=True), \
 				patch.object(ksx, "_don_phieu_nhap_mo_coi", lambda ten: []), \
 				patch.object(ksx.frappe, "get_all", self.get_all, create=True), \
