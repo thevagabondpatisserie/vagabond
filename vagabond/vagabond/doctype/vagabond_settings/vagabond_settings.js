@@ -10,15 +10,16 @@
 // tongHop; dùng lại khoá cũ thì trang Cài đặt hỏng tới khi tải lại hẳn trình duyệt.
 // Đổi khoá khi bản mới cần hàm mới mà bản cũ không có.
 // v604: bản chung có Tin nhận (tinTheoBoPhan), nên đổi khoá và hàm kiểm theo.
-var VGB_CD_KHOA_NAP = '__vgb_cd_nap_604';
+// v648: bản chung có ô tìm tin (locTin).
+var VGB_CD_KHOA_NAP = '__vgb_cd_nap_648';
 function vgb_nap_cd_chung() {
-	if (window.VGB_CD && window.VGB_CD.tinTheoBoPhan) return Promise.resolve(window.VGB_CD);
+	if (window.VGB_CD && window.VGB_CD.locTin) return Promise.resolve(window.VGB_CD);
 	if (window[VGB_CD_KHOA_NAP]) return window[VGB_CD_KHOA_NAP];
 	window[VGB_CD_KHOA_NAP] = new Promise(function (ok, hong) {
 		var s = document.createElement('script');
 		s.src = '/assets/vagabond/js/cai_dat_loi_chung.js?t=' + Date.now();
 		s.onload = function () {
-			if (window.VGB_CD && window.VGB_CD.tinTheoBoPhan) return ok(window.VGB_CD);
+			if (window.VGB_CD && window.VGB_CD.locTin) return ok(window.VGB_CD);
 			window[VGB_CD_KHOA_NAP] = null;
 			hong(new Error('Tệp cài đặt dùng chung còn bản cũ. Tải lại trang (Ctrl+Shift+R).'));
 		};
@@ -30,14 +31,44 @@ function vgb_nap_cd_chung() {
 // v604: hộp "Nhóm này nhận những tin nào?" trên lưới. Tin gom dưới tên bộ phận,
 // mỗi dòng: ô tích, tên tiếng Việt, một dòng giải thích; mỗi bộ phận có nút Chọn
 // cả mục. Giá trị lưu là mã nối ", " như hai ô loại tin, chủ đề.
+// v648 (anh Việt 11/11/2026): ô tìm tin và ô "Chỉ hiện tin đã tích" ở đầu hộp,
+// cùng phép lọc VGB_CD.khopTim với app. Dòng ẩn vẫn giữ ô tích, Xong lưu đủ.
 function zalo_chon_tin_html(dang) {
 	const e = frappe.utils.escape_html;
 	return '<div class="vgbz-goi">' + e(VGB_CD.GHI_CHU_TIN) + '</div>' +
-		VGB_CD.tinTheoBoPhan().map((bp, i) => '<div class="vgbz-bp"><b>' + e(bp.bo_phan) + '</b>' +
+		'<div class="vgbz-tim"><input type="text" class="form-control vgbz-tim-o" placeholder="Tìm tin, ví dụ: đối soát, lệch tiền, bill, kho" autocomplete="off">' +
+		'<label><input type="checkbox" class="vgbz-chi"> Chỉ hiện tin đã tích</label><small class="vgbz-dem"></small></div>' +
+		VGB_CD.tinTheoBoPhan().map((bp, i) => '<div class="vgbz-bp" data-vgbzbph="' + i + '"><b>' + e(bp.bo_phan) + '</b>' +
 			'<button type="button" class="btn btn-default btn-sm vgbz-ca" data-vgbzbp="' + i + '">Chọn cả mục</button></div>' +
-			bp.tin.map(t => '<label class="vgbz-dong" data-vgbzbpd="' + i + '"><input type="checkbox" value="' + e(t.ma) + '"' +
+			bp.tin.map(t => '<label class="vgbz-dong" data-vgbzbpd="' + i + '" data-vgbztim="' + e(VGB_CD.chuTimTin(t, bp.bo_phan)) + '"><input type="checkbox" value="' + e(t.ma) + '"' +
 				(dang.includes(t.ma) ? ' checked' : '') + '><span><b>' + e(t.ten) + '</b><small>' + e(t.giai_thich) + '</small></span></label>').join('')
-		).join('');
+		).join('') + '<div class="vgbz-goi vgbz-trong" style="display:none">Không có tin nào khớp. Thử chữ khác, gõ không dấu cũng được.</div>';
+}
+// Lọc dòng theo ô tìm và ô Chỉ hiện tin đã tích; bộ phận không còn dòng nào thì ẩn cả
+// đầu mục. Làm trên phần tử gốc của hộp (không qua jQuery) để ca kiểm chạy thật được.
+function zalo_tich(x) { return x.checked !== undefined ? !!x.checked : x.hasAttribute('checked'); }
+function zalo_loc_tin(goc) {
+	const o = goc.querySelectorAll('.vgbz-tim-o')[0], c = goc.querySelectorAll('.vgbz-chi')[0];
+	const tu = (o && o.value) || '', chi = !!(c && zalo_tich(c));
+	let hien = 0, tong = 0;
+	const con = {};
+	Array.from(goc.querySelectorAll('[data-vgbztim]')).forEach(function (d) {
+		tong++;
+		const ok = VGB_CD.khopTim(d.getAttribute('data-vgbztim'), tu) && (!chi || zalo_tich(d.querySelectorAll('input')[0]));
+		d.style.display = ok ? '' : 'none';
+		if (ok) { hien++; con[d.getAttribute('data-vgbzbpd')] = 1; }
+	});
+	Array.from(goc.querySelectorAll('[data-vgbzbph]')).forEach(function (b) { b.style.display = con[b.getAttribute('data-vgbzbph')] ? '' : 'none'; });
+	Array.from(goc.querySelectorAll('.vgbz-dem')).forEach(function (x) { x.textContent = (tu || chi) ? 'Đang hiện ' + hien + ' trên ' + tong + ' tin' : ''; });
+	Array.from(goc.querySelectorAll('.vgbz-trong')).forEach(function (x) { x.style.display = hien ? 'none' : ''; });
+	return hien;
+}
+// Chọn cả mục: còn ô nào chưa tích thì tích hết, đã tích hết thì bỏ hết. v648: đang tìm
+// thì chỉ tác động lên các dòng đang hiện của mục đó.
+function zalo_chon_ca_muc(goc, i) {
+	const o = Array.from(goc.querySelectorAll('[data-vgbzbpd="' + i + '"]')).filter(d => d.style.display !== 'none').map(d => d.querySelectorAll('input')[0]);
+	const het = o.every(zalo_tich);
+	o.forEach(x => { x.checked = !het; });
 }
 function zalo_chon(frm, cdt, cdn, truong) {
 	const row = locals[cdt][cdn];
@@ -58,7 +89,9 @@ function zalo_chon(frm, cdt, cdn, truong) {
 		'.vgbz-ca{min-height:44px;font-size:13px}' +
 		'.vgbz-dong{display:flex;align-items:flex-start;gap:12px;min-height:56px;padding:10px 8px;border-top:1px solid var(--border-color);cursor:pointer;margin:0}' +
 		'.vgbz-dong input{margin-top:3px;width:18px;height:18px;flex:none}.vgbz-ic{font-size:18px;line-height:22px;flex:none}' +
-		'.vgbz-dong b{display:block;font-size:14px}.vgbz-dong small{display:block;font-size:13px;color:var(--text-muted);line-height:1.4}</style>';
+		'.vgbz-dong b{display:block;font-size:14px}.vgbz-dong small{display:block;font-size:13px;color:var(--text-muted);line-height:1.4}' +
+		'.vgbz-tim{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-bottom:6px}.vgbz-tim-o{flex:1 1 260px;min-height:44px}' +
+		'.vgbz-tim label{display:flex;gap:6px;align-items:center;margin:0;min-height:44px;font-weight:normal}.vgbz-dem{color:var(--text-muted)}</style>';
 	const d = new frappe.ui.Dialog({
 		title: truong === 'tin_nhan' ? 'Nhóm này nhận những tin nào?' : (truong === 'loai_tin' ? 'Nhóm này nhận loại tin nào?' : 'Nhóm này nhận chủ đề nào?'),
 		fields: [{ fieldname: 'ds', fieldtype: 'HTML', options: html }],
@@ -69,11 +102,11 @@ function zalo_chon(frm, cdt, cdn, truong) {
 			d.hide();
 		},
 	});
-	// Chọn cả mục: còn ô nào chưa tích thì tích hết, đã tích hết thì bỏ hết.
+	// v648: ô tìm và ô Chỉ hiện tin đã tích.
+	d.$wrapper.on('input', '.vgbz-tim-o', () => zalo_loc_tin(d.$wrapper[0]));
+	d.$wrapper.on('change', '.vgbz-chi', () => zalo_loc_tin(d.$wrapper[0]));
 	d.$wrapper.on('click', '[data-vgbzbp]', function () {
-		const o = d.$wrapper.find('[data-vgbzbpd="' + $(this).attr('data-vgbzbp') + '"] input');
-		const het = o.toArray().every(x => x.checked);
-		o.prop('checked', !het);
+		zalo_chon_ca_muc(d.$wrapper[0], $(this).attr('data-vgbzbp'));
 	});
 	d.show();
 }
@@ -556,20 +589,47 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 	// v604: phần Tin nhận của hộp Thêm/Sửa nhóm. Mỗi bộ phận một mục có nút Chọn cả
 	// mục, mỗi tin một ô tích có tên và dòng giải thích hiện ra. hop() trả hộp sau khi dựng.
 	function oChonTin(dang, hop) {
-		var ra = [{ fieldtype: 'Section Break', label: 'Nhóm này nhận những tin nào?', description: VGB_CD.GHI_CHU_TIN }];
+		// v648: ô tìm tin và ô Chỉ hiện tin đã tích đứng đầu phần Tin nhận (ganTimTin nối sự kiện).
+		var ra = [{ fieldtype: 'Section Break', label: 'Nhóm này nhận những tin nào?', description: VGB_CD.GHI_CHU_TIN },
+			{ fieldname: 'tim_tin', fieldtype: 'Data', label: 'Tìm tin', placeholder: 'Ví dụ: đối soát, lệch tiền, bill, kho',
+				description: 'Gõ vài chữ trong tên tin, gõ không dấu cũng được. Tin bị ẩn vẫn giữ ô tích.' },
+			{ fieldtype: 'Column Break' },
+			{ fieldname: 'chi_tin_da_tich', fieldtype: 'Check', label: 'Chỉ hiện tin đã tích' }];
 		VGB_CD.tinTheoBoPhan().forEach(function (bp, i) {
 			ra.push({ fieldtype: 'Section Break', label: bp.bo_phan, fieldname: 'tin_bp_' + i });
 			ra.push({ fieldtype: 'Button', label: 'Chọn cả mục', fieldname: 'tin_ca_' + i, click: function () {
 				var d = hop();
 				if (!d) return;
-				var het = bp.tin.every(function (t) { return d.get_value('tin_nhan__' + t.ma); });
-				bp.tin.forEach(function (t) { d.set_value('tin_nhan__' + t.ma, het ? 0 : 1); });
+				// v648: đang tìm thì chỉ tác động lên các tin đang hiện của mục.
+				var ds = bp.tin.filter(function (t) { return !d.fields_dict['tin_nhan__' + t.ma].$wrapper.is(':hidden'); });
+				var het = ds.every(function (t) { return d.get_value('tin_nhan__' + t.ma); });
+				ds.forEach(function (t) { d.set_value('tin_nhan__' + t.ma, het ? 0 : 1); });
 			} });
 			bp.tin.forEach(function (t) {
 				ra.push({ fieldname: 'tin_nhan__' + t.ma, fieldtype: 'Check', label: t.ten, description: t.giai_thich, default: dang.indexOf(t.ma) >= 0 ? 1 : 0 });
 			});
 		});
 		return ra;
+	}
+	// v648: lọc các ô tích tin theo ô Tìm tin và ô Chỉ hiện tin đã tích, cùng phép
+	// VGB_CD.khopTim với app; mục không còn tin nào thì ẩn cả mục.
+	function ganTimTin(d) {
+		var BP = VGB_CD.tinTheoBoPhan();
+		function loc() {
+			var tu = d.get_value('tim_tin') || '', chi = d.get_value('chi_tin_da_tich');
+			BP.forEach(function (bp, i) {
+				var con = 0;
+				bp.tin.forEach(function (t) {
+					var ok = VGB_CD.khopTim(VGB_CD.chuTimTin(t, bp.bo_phan), tu) && (!chi || d.get_value('tin_nhan__' + t.ma));
+					d.fields_dict['tin_nhan__' + t.ma].$wrapper.toggle(!!ok);
+					if (ok) con++;
+				});
+				var ca = d.fields_dict['tin_ca_' + i];
+				if (ca) ca.$wrapper.closest('.form-section').toggle(con > 0);
+			});
+		}
+		d.fields_dict.tim_tin.$input.on('input', loc);
+		d.fields_dict.chi_tin_da_tich.$input.on('change', loc);
 	}
 	function tinDaChon(v) {
 		return Object.keys(VGB_CD.ZALO_TIN).filter(function (ma) { return v['tin_nhan__' + ma]; });
@@ -636,6 +696,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			});
 		}
 		d.show();
+		ganTimTin(d);
 		return d;
 	}
 
@@ -680,5 +741,6 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 	});
 	// Chỉ cho ca kiểm node (hanh_vi/cai_dat_568.js); trên trình duyệt không có module.
 	if (typeof module !== 'undefined' && module.exports) module.exports._desk = { veNganHang: veNganHang, veChipMuc: veChipMuc, veThanh: veThanh, veLoiO: veLoiO,
-		veZalo: veZalo, suaNhomZalo: suaNhomZalo, zaloChonTinHtml: zalo_chon_tin_html };
+		veZalo: veZalo, suaNhomZalo: suaNhomZalo, zaloChonTinHtml: zalo_chon_tin_html,
+		zaloLocTin: zalo_loc_tin, zaloChonCaMuc: zalo_chon_ca_muc, ganTimTin: ganTimTin };
 })();
