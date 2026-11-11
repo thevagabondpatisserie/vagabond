@@ -343,6 +343,27 @@ async function ca(ten, fn) {
     bang('ngan', cau.length < 320, true);
   });
 
+  /* Codex #551 vòng 6 (P2, 05-san-xuat.js:1900): hộp "Máy làm luôn giúp bếp"
+     chỉ xét nguyên liệu của lệnh con. Lệnh con đủ nguyên liệu mà món chính
+     thiếu một nguyên liệu khác thì hộp KHÔNG nói gì về kho tổng; bếp chỉ duyệt
+     tạo lệnh con. Món chính phải hỏi riêng trước khi lấy bù. Chạy thật
+     mfgHoanTatMot: lệnh con dùng hộp đầu, món chính hỏi lại. */
+  await ca('17. lenh con du nguyen lieu, mon chinh thieu: hop dau khong noi kho tong nen mon chinh phai hoi rieng truoc khi lay bu', async function () {
+    var d = { name: 'WO-CHA', docstatus: 1, qty: 2, production_item: 'TP', stock_uom: 'Cái', source_warehouse: 'Pastry - Nguyên liệu - TV', required_items: MATS };
+    var t = theGioi({ NVL: 100000 }, ['C1', 'C2'], { NVL: 1000 });
+    var kq = await t.mfgHoanTatMot(d, 2, 2, 0);
+    bang('lenh con van lam', t.nhat.phieu, ['C1 x2', 'C2 x2']);
+    bang('mon chinh: hoi truoc, dong y moi lay bu', t.nhat.cha, [{ lay_bu: 0, hoi_lay_bu: 1 }, { lay_bu: 1 }]);
+    bang('hop hoi rieng cho mon chinh', t.nhat.hoiBep[0][0], 'Kho bếp thiếu nguyên liệu');
+    bang('bao so phieu cua mon chinh, giu so phieu lenh con', /Đã lấy từ Kho tổng 307: PDC-1, PDC-2, PDC-CHA/.test(t.nhat.toast[0]), true);
+    bang('ve man in tem', kq, 0);
+    t = theGioi({ NVL: 100000 }, ['C1', 'C2'], { NVL: 1000 });
+    t.dongY = false;
+    kq = await t.mfgHoanTatMot(d, 2, 2, 0);
+    bang('tu choi: khong lay bu, mon chinh dung', t.nhat.cha, [{ lay_bu: 0, hoi_lay_bu: 1 }]);
+    bang('tu choi: bao phan may lam da xong, mon chinh chua', /món chính chưa hoàn tất/.test((t.nhat.toast || [''])[0]), true);
+  });
+
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');
   process.exit(ket.hong ? 1 : 0);
 })();
