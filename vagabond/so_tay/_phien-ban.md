@@ -11,6 +11,12 @@ bản đó chưa có mục ở đây, hay tên mục ghi ở đây không có tr
 Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi đúng một dòng
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
+## v648
+- Hoàn tất lệnh sản xuất
+- Bill chưa khớp đối tác
+- Chọn tin Zalo cho từng nhóm nhận tin
+- Vì sao không hoàn tất được lệnh sản xuất
+
 ## v647
 - Đặt banner ảnh trên trang đặt bánh
 - Chỉ khách nhận quà chào mừng và dùng mã thành viên

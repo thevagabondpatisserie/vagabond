@@ -1159,7 +1159,7 @@ Từ khoá: bill chưa khớp, mã chuẩn chi, Shinhan POS, Payoo, GrabFood, sa
 |---|---|---|
 | Kế toán công nợ | Đối soát nhà cung cấp | Ô Bill chưa khớp đối tác |
 
-Mỗi bill chọn thẻ hay sàn được máy dò trong báo cáo đối tác của đúng ngày đó, theo mã chuẩn chi (hoặc mã đơn) và số tiền. 08:30 mỗi sáng máy gửi Zalo bill không khớp của từng đối tác, từng ngày.
+Mỗi bill chọn thẻ hay sàn được máy dò trong báo cáo đối tác của đúng ngày đó, theo mã chuẩn chi (hoặc mã đơn) và số tiền. 08:30 mỗi sáng máy gửi Zalo bill không khớp của từng đối tác, từng ngày; bill lệch tiền ghi cả số báo cáo đối tác.
 
 **Các bước**
 1. Mở Đối soát nhà cung cấp, bấm ô Bill chưa khớp đối tác (14 ngày tới hôm qua).
@@ -1169,7 +1169,8 @@ Mỗi bill chọn thẻ hay sàn được máy dò trong báo cáo đối tác c
 5. Sửa bill xong, mở báo cáo đối tác ngày đó, bấm Đối chiếu lại.
 
 **Lưu ý**
-- Chờ báo cáo: báo cáo ngày đó (hoặc hôm sau, thẻ quẹt đêm) chưa về, máy chưa kết luận.
+- Bill sàn ghi khuyến mại hay thực nhận vẫn là Khớp (từ v648): máy so cả tổng trước giảm, tiền sau giảm và thực nhận.
+- Chờ báo cáo: báo cáo ngày đó (hoặc hôm sau, thẻ quẹt đêm) chưa về, hoặc báo cáo còn dòng lỗi; máy chưa kết luận.
 - Nhóm Zalo muốn nhận thì tích tin Bill thẻ, sàn không khớp báo cáo đối tác.
 
 ## Khách trả công nợ hoặc phiếu đề nghị thanh toán bằng thẻ OnePay

@@ -14,7 +14,8 @@
 // v596: điều kiện nạp lại dựa trên tongHop, hàm mới nhất; trang còn giữ bản cũ
 // trong bộ nhớ (chưa tải lại sau deploy) vẫn nạp được bản mới.
 // v604: thêm Tin nhận; điều kiện nạp lại đổi sang hàm mới nhất (tinTheoBoPhan).
-if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.tinTheoBoPhan) {
+// v648: ô tìm tin; hàm mới nhất là locTin.
+if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.locTin) {
 // v562 Codex #417, #423: Loại tin và Chủ đề chỉ chọn từ danh mục (hai ô này
 // read_only, không gõ tay được); máy chủ vẫn kiểm lại lúc lưu.
 var VGB_ZALO_DANH_MUC = {
@@ -543,6 +544,32 @@ var VGB_CD = (function () {
 				.map(function (m) { return { ma: m, ten: ZALO_TIN[m][1], giai_thich: ZALO_TIN[m][2] }; }) };
 		}).filter(function (x) { return x.tin.length; });
 	}
+	// v648 (anh Việt 11/11/2026: "ma trận tin báo làm anh nhức đầu mỗi lần tìm
+	// rồi cài"): ô tìm trong hộp Chọn tin nhận. Gõ không dấu cũng được, mọi chữ
+	// gõ phải có trong tên tin, dòng giải thích hoặc tên bộ phận. chiDaTich chỉ
+	// giữ tin đã tích. Bộ phận không còn tin nào thì bỏ cả mục. MỘT nguồn cho app
+	// và hai hộp trên Desk.
+	// Chữ tìm ẩn theo từng phần của mã tin (không hiện ra màn): người tìm "đối soát"
+	// phải ra cả tin "Bill thẻ, sàn không khớp báo cáo đối tác" dù tên không có chữ đó.
+	var TU_KHOA_MA = { ds: 'đối soát', hddt: 'hoá đơn điện tử', ycsx: 'yêu cầu sản xuất', ycmh: 'yêu cầu mua hàng',
+		ycdc: 'yêu cầu điều chuyển', app: 'phiếu chi', tkr: 'thiết kế riêng', mkt: 'marketing', ns: 'nhân sự tuyển dụng',
+		tm: 'thu mua', bgd: 'giám đốc', ht: 'hệ thống', bep: 'bếp sản xuất', bh: 'bán hàng', kt: 'kế toán', si: 'bánh sỉ' };
+	function chuTimTin(t, boPhan) {
+		var them = String(t.ma || '').split('_').map(function (p) { return TU_KHOA_MA[p] || ''; }).join(' ');
+		return boDau([t.ten, t.giai_thich, boPhan, them].join(' '));
+	}
+	function khopTim(chu, tu) {
+		var cac = boDau(tu).split(/\s+/).filter(Boolean);
+		return cac.every(function (c) { return chu.indexOf(c) >= 0; });
+	}
+	function locTin(bpDs, tu, chiDaTich, dang) {
+		dang = dang || [];
+		return (bpDs || []).map(function (bp) {
+			return { bo_phan: bp.bo_phan, tin: bp.tin.filter(function (t) {
+				return (!chiDaTich || dang.indexOf(t.ma) >= 0) && khopTim(chuTimTin(t, bp.bo_phan), tu);
+			}) };
+		}).filter(function (bp) { return bp.tin.length; });
+	}
 	// Tóm tắt Tin nhận cho thẻ nhóm: tối đa 3 tên rồi "và N tin nữa" (điều 17).
 	function tomTatTin(s) {
 		var ds = tachMa(s);
@@ -601,7 +628,7 @@ var VGB_CD = (function () {
 		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC, theNhomZalo: theNhomZalo, tachMa: tachMa,
 		maNhomZalo: maNhomZalo, nhanNhomZalo: nhanNhomZalo,
 		ZALO_TIN: ZALO_TIN, ZALO_BO_PHAN: ZALO_BO_PHAN, coNhomZalo: coNhomZalo, tenTin: tenTin, tinTheoBoPhan: tinTheoBoPhan,
-		tomTatTin: tomTatTin, GHI_CHU_TIN: GHI_CHU_TIN };
+		tomTatTin: tomTatTin, GHI_CHU_TIN: GHI_CHU_TIN, locTin: locTin, khopTim: khopTim, chuTimTin: chuTimTin };
 })();
 
 if (typeof window !== 'undefined') window.VGB_CD = VGB_CD;

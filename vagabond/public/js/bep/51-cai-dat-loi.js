@@ -44,7 +44,8 @@ var CDL_MAN = {
 };
 
 function cdlNapChung() {
-  if (typeof VGB_CD !== 'undefined' && VGB_CD && VGB_CD.tongHop) return Promise.resolve();
+  /* v648: bản chung có ô tìm tin (locTin); bản cũ trong bộ nhớ thì nạp lại. */
+  if (typeof VGB_CD !== 'undefined' && VGB_CD && VGB_CD.locTin) return Promise.resolve();
   return inNapJs('/assets/vagabond/js/cai_dat_loi_chung.js?v=' + APPVER);
 }
 
@@ -861,28 +862,51 @@ function cdlChonZalo(cot, nhap, xong) {
    Chọn cả mục. Không tích tin nào thì nhóm nhận theo Loại tin, Chủ đề như cũ. */
 function cdlChonTinZalo(nhap, xong) {
   var BP = VGB_CD['tinTheoBoPhan']();
+  var TONG = BP.reduce(function (n, bp) { return n + bp.tin.length; }, 0);
   var dang = VGB_CD.tachMa(nhap.tin_nhan);
+  /* v648 (anh Việt 11/11/2026: "ma trận tin báo làm anh nhức đầu mỗi lần tìm rồi
+     cài"): ô tìm và chip Đã tích ở đầu hộp. Phần đầu dựng MỘT lần để ô tìm giữ
+     chữ và con trỏ khi gõ; mỗi lần gõ, tích, bỏ tích chỉ vẽ lại danh sách. */
+  var tu = '', chiDaTich = false;
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML = '<div class="shh"><b>Nhóm này nhận những tin nào?</b><div class="x">&times;</div></div>' +
+    '<div class="cdl-mo" style="padding:6px 14px">' + h(VGB_CD.GHI_CHU_TIN) + '</div>' +
+    '<div style="padding:4px 14px 6px"><input class="tin" data-cdlttim="1" placeholder="Tìm tin, ví dụ: đối soát, lệch tiền, bill, kho" autocomplete="off" style="width:100%"></div>' +
+    '<div data-cdltloc="1" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 14px 6px"></div>' +
+    '<div class="shl" data-cdltds="1"></div>' +
+    '<div style="padding:10px 14px"><button class="btn" data-cdltxong="1" style="width:100%;margin:0">Xong</button></div>';
+  function hien() { return VGB_CD.locTin(BP, tu, chiDaTich, dang); }
   function ve() {
     /* Anh Việt 02/11/2026: tích một tin là cả bảng cuộn về đầu, khó thao tác.
-       Mỗi lần tích vẽ lại cả hộp nên .shl mới bắt đầu ở 0; giữ vị trí cuộn cũ. */
-    var cu = box.querySelector('.shl'), cuon = cu ? cu.scrollTop : 0;
-    box.innerHTML = '<div class="shh"><b>Nhóm này nhận những tin nào?</b><div class="x">&times;</div></div>' +
-      '<div class="cdl-mo" style="padding:6px 14px">' + h(VGB_CD.GHI_CHU_TIN) + '</div>' +
-      '<div class="shl">' + BP.map(function (bp, k) {
-        return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
-          '<button class="cdl-lnk" data-cdltca="' + k + '">Chọn cả mục</button></div>' +
-          bp.tin.map(function (t) {
-            return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
-              '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
-          }).join('');
-      }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdltxong="1" style="width:100%;margin:0">Xong</button></div>';
-    var moi = box.querySelector('.shl');
-    if (moi && cuon) moi.scrollTop = cuon;
+       Chỉ vẽ lại danh sách nên giữ được vị trí cuộn cũ. */
+    var ds = box.querySelector('[data-cdltds]'), cuon = ds.scrollTop || 0;
+    var cac = hien();
+    var soHien = cac.reduce(function (n, bp) { return n + bp.tin.length; }, 0);
+    box.querySelector('[data-cdltloc]').innerHTML =
+      '<button class="chip' + (chiDaTich ? '' : ' on') + '" data-cdltchi="0">Tất cả (' + TONG + ')</button>' +
+      '<button class="chip' + (chiDaTich ? ' on' : '') + '" data-cdltchi="1">Đã tích (' + dang.length + ')</button>' +
+      '<span class="cdl-mo" style="margin:0">' + ((tu || chiDaTich) ? 'Đang hiện ' + soHien + ' trên ' + TONG + ' tin' : '') + '</span>';
+    ds.innerHTML = cac.length ? cac.map(function (bp) {
+      var k = BP.map(function (x) { return x.bo_phan; }).indexOf(bp.bo_phan);
+      return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
+        '<button class="cdl-lnk" data-cdltca="' + k + '">' + ((tu || chiDaTich) ? 'Chọn cả ' + bp.tin.length + ' tin đang hiện' : 'Chọn cả mục') + '</button></div>' +
+        bp.tin.map(function (t) {
+          return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
+            '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
+        }).join('');
+    }).join('') : '<div class="cdl-mo" data-cdltrong="1" style="padding:16px 14px">' +
+      (chiDaTich && !tu ? 'Nhóm này chưa tích tin nào. Bấm Tất cả để xem danh mục.' : 'Không có tin nào khớp "' + h(tu) + '". Thử chữ khác, gõ không dấu cũng được.') + '</div>';
+    if (cuon) ds.scrollTop = cuon;
   }
   ve();
   ov.appendChild(box); document.body.appendChild(ov);
+  box.oninput = function (e) {
+    if (!(e.target && e.target.getAttribute && e.target.getAttribute('data-cdlttim'))) return;
+    tu = e.target.value || '';
+    box.querySelector('[data-cdltds]').scrollTop = 0;
+    ve();
+  };
   box.onclick = function (e) {
     var r = e.target.closest('[data-cdlt]');
     if (r) {
@@ -890,9 +914,17 @@ function cdlChonTinZalo(nhap, xong) {
       if (k >= 0) dang.splice(k, 1); else dang.push(m);
       return ve();
     }
+    var chi = e.target.closest('[data-cdltchi]');
+    if (chi) {
+      chiDaTich = chi.getAttribute('data-cdltchi') === '1';
+      box.querySelector('[data-cdltds]').scrollTop = 0;
+      return ve();
+    }
     var ca = e.target.closest('[data-cdltca]');
     if (ca) {
-      var ds = (BP[parseInt(ca.getAttribute('data-cdltca'), 10)] || { tin: [] }).tin.map(function (t) { return t.ma; });
+      /* Đang tìm thì Chọn cả chỉ tác động lên các tin ĐANG HIỆN của mục đó. */
+      var ten = (BP[parseInt(ca.getAttribute('data-cdltca'), 10)] || {}).bo_phan;
+      var ds = (hien().filter(function (bp) { return bp.bo_phan === ten; })[0] || { tin: [] }).tin.map(function (t) { return t.ma; });
       var het = ds.every(function (m) { return dang.indexOf(m) >= 0; });
       ds.forEach(function (m) { var j = dang.indexOf(m); if (het && j >= 0) dang.splice(j, 1); if (!het && j < 0) dang.push(m); });
       return ve();

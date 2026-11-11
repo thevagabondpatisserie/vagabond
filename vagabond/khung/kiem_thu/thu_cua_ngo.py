@@ -430,7 +430,7 @@ CUA_NGO = {
 	# ma may cu, khong sua gi. Thay cho ham tu doi da go.
 	"san_xuat_desktop.py": ["chi_tiet"],
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
-		"gan_nguoi_phu_trach", "hoan_tat_phieu", "soat_chang",
+		"gan_nguoi_phu_trach", "hoan_tat_phieu", "mon_tu_lam", "soat_chang",
 		"soat_ma_chang_cu", "tat_kho_trung_gian"],
 	# Gom nam nhan chang ve hai ten, va man Ton kho theo chang, 28/08/2026.
 	# `chang_cua_nhan`, `gop_dong`, `loc_theo_chang`, `cau_tom_tat` va

@@ -46,6 +46,8 @@ lấy sai kho, mà sai kho thì trừ nhầm tồn của bếp khác - không ai
 tới lúc kiểm kê.
 """
 
+import json
+
 import frappe
 from frappe.utils import cint, flt
 
@@ -310,6 +312,59 @@ def chang_cua_mon(ma, co_btp_con, khai_tay=None, ten=None):
 			return chang_theo_ten(ten) or (
 				BTP_SAN_SANG if co_btp_con else BTP_SO_CAP)
 	return None
+
+
+# v648 (anh Việt chốt 11/11/2026, phương án C): bếp chỉ bấm Hoàn tất món chính.
+# Ruột bánh cấp 1, bánh khuôn cấp 2 còn thiếu tồn thì máy tự tạo và hoàn tất
+# lệnh của chúng theo công thức ngay trước món chính, như bán thành phẩm làm tươi.
+# Cấu trúc công thức và tồn từng cấp giữ nguyên (quyết định 28/08: cấp 1, cấp 2
+# giữ tồn); món làm sẵn từ trước thì dùng tồn, máy chỉ làm phần còn thiếu.
+CHANG_TU_LAM = (BTP_SO_CAP, BTP_SAN_SANG)
+
+
+def la_btp_thanh_phan(khai_tay):
+	"""Ô "Chặng bán thành phẩm" khai đúng "BTP thành phần" không. THUẦN."""
+	return " ".join((khai_tay or "").split()).strip().lower() == NHAN_BTP_THANH_PHAN.lower()
+
+
+def duoc_tu_lam(theo_ton, lam_tuoi, chang, co_cong_thuc):
+	"""Máy được tự làm phần thiếu của món này khi hoàn tất món cha không. THUẦN.
+
+	Chỉ món giữ tồn và có công thức (lệnh con của ERPNext phải là mã giữ tồn;
+	mặt hàng ảo đã tự nổ trong lệnh cha). Làm tươi như trước; cấp 1, cấp 2 từ v648."""
+	if not cint(theo_ton) or not co_cong_thuc:
+		return False
+	return bool(cint(lam_tuoi)) or chang in CHANG_TU_LAM
+
+
+@frappe.whitelist()
+def mon_tu_lam(ma=None):
+	"""Các mã trong `ma` (danh sách JSON) mà máy tự làm phần thiếu khi hoàn tất
+	món cha. Chỉ đọc. Một nguồn cho app (05-san-xuat.js freshOf)."""
+	import json
+	ds = json.loads(ma) if isinstance(ma, str) else (ma or [])
+	ds = [str(x) for x in ds if x][:300]
+	if not ds:
+		return []
+	ra = []
+	# Hai ô tự thêm của hồ sơ món: site nào chưa có ô thì không hỏi cột đó
+	# (bench CI thiếu custom_lam_tuoi, Codex #551 lượt bench 37c4961).
+	meta = frappe.get_meta("Item")
+	cot = ["name", "item_name", "is_stock_item"] + [o for o in ("custom_lam_tuoi", "custom_chang_btp") if meta.has_field(o)]
+	co_bom = set(frappe.get_all("BOM", filters={"item": ["in", ds], "is_active": 1, "docstatus": 1}, pluck="item"))
+	for it in frappe.get_all("Item", filters={"name": ["in", ds]}, fields=cot, limit_page_length=0):
+		if not cint(it.is_stock_item) or it.name not in co_bom:
+			continue
+		khai = it.get("custom_chang_btp")
+		chang = chang_cua_mon(it.name, _co_btp_con(it.name), khai, it.item_name)
+		if la_btp_thanh_phan(khai):
+			# Ô khai "BTP thành phần" xếp về kho sơ cấp (ma_chang_khai_tay) nhưng
+			# KHÔNG phải ruột bánh cấp 1: phương án C chỉ tự làm cấp 1, cấp 2;
+			# thành phần chỉ tự làm khi bật Làm tươi như trước v648.
+			chang = None
+		if duoc_tu_lam(it.is_stock_item, it.get("custom_lam_tuoi"), chang, True):
+			ra.append(it.name)
+	return ra
 
 
 def ten_kho_cua(bep, chang, hau_to=" - TV"):
@@ -1121,8 +1176,143 @@ def _don_phieu_nhap_mo_coi(ten_lenh):
 	return da
 
 
+# v648 (anh Việt chọn cách 1, 11/11/2026): hoàn tất lệnh mà kho nguyên liệu
+# của bếp thiếu thì máy lập và ghi sổ luôn một phiếu điều chuyển từ Kho tổng
+# 307 sang kho bếp đúng phần thiếu, ngay trước phiếu hoàn tất, trong CÙNG một
+# yêu cầu: phiếu hoàn tất hỏng thì phiếu điều chuyển cũng lùi. Bếp tự sang kho
+# tổng lấy hàng; Zalo báo kho; phiếu được ghi là bếp đã nhận đủ (không nhắc
+# "chưa xác nhận nhận"). Không cho âm kho: kho tổng cũng thiếu thì chỉ lấy
+# phần kho tổng có, phần còn lại để mã thay thế đã duyệt hoặc báo thiếu như cũ.
+NHAN_LAY_BU = "Bếp lấy bù nguyên liệu từ Kho tổng 307"
+
+
+def _lam_tron_len(x, chu_so=3):
+	"""THUẦN: làm tròn LÊN tới chu_so chữ số lẻ (gram lẻ không được hụt)."""
+	import math
+	m = 10 ** chu_so
+	return math.ceil(flt(x) * m - 1e-6) / m
+
+
+def trong_han_lay(lay, toi_da):
+	"""Phần sắp lấy từ Kho tổng 307 có nằm trong số bếp đã duyệt không. THUẦN.
+
+	Codex #551 vòng 8: app hỏi trước (hoi_lay_bu), bếp duyệt đúng số đó, rồi
+	mới gọi ghi. Giữa hai lần gọi, đơn khác có thể dùng bớt kho bếp, máy chủ
+	tính lại thì phần thiếu lớn hơn. Máy chủ chỉ ghi khi phần tính lại không
+	vượt số đã duyệt (cộng theo mã); không có số duyệt là không ghi.
+	"""
+	if isinstance(toi_da, str):
+		try:
+			toi_da = json.loads(toi_da)
+		except ValueError:
+			toi_da = None
+	if not isinstance(toi_da, dict) or not toi_da:
+		return False
+	can = {}
+	for x in lay or []:
+		can[x["ma"]] = can.get(x["ma"], 0) + flt(x.get("sl"))
+	return all(v <= flt(toi_da.get(ma)) + 0.0005 for ma, v in can.items())
+
+
+def tinh_lay_bu(dong, ton_bep, ton_tong):
+	"""Phần nguyên liệu lấy từ Kho tổng 307 cho một phiếu hoàn tất. THUẦN.
+
+	dong: [{ma, ten, dvt, kho, can}] dòng nguyên liệu của phiếu (đơn vị tồn kho).
+	ton_bep: {(ma, kho): tồn}; ton_tong: {ma: tồn ở Kho tổng 307}.
+	Trả (lay, con_thieu): lay [{ma, ten, dvt, kho, sl, kho_bep_con, kho_tong_con}],
+	con_thieu [{ma, ten, dvt, kho, thieu}] là phần kho tổng cũng không đủ.
+	Cùng một mã ở hai kho bếp thì tồn kho tổng chỉ chia một lần."""
+	gom, thu_tu = {}, []
+	for d in dong or []:
+		kho = d.get("kho")
+		if not d.get("ma") or not kho or kho == KHO_GOC:
+			continue
+		k = (d["ma"], kho)
+		if k not in gom:
+			gom[k] = dict(ma=d["ma"], ten=d.get("ten") or d["ma"], dvt=d.get("dvt") or "", kho=kho, can=0.0)
+			thu_tu.append(k)
+		gom[k]["can"] += flt(d.get("can"))
+	lay, con_thieu, da_lay = [], [], {}
+	for k in thu_tu:
+		g = gom[k]
+		bep = flt((ton_bep or {}).get(k))
+		thieu = _lam_tron_len(g["can"] - bep)
+		if thieu <= 0.0001:
+			continue
+		tong = max(0.0, flt((ton_tong or {}).get(g["ma"])) - da_lay.get(g["ma"], 0.0))
+		sl = min(thieu, tong)
+		if sl > 0.0001:
+			da_lay[g["ma"]] = da_lay.get(g["ma"], 0.0) + sl
+			lay.append(dict(ma=g["ma"], ten=g["ten"], dvt=g["dvt"], kho=g["kho"], sl=sl,
+				kho_bep_con=bep, kho_tong_con=tong))
+		if thieu - sl > 0.0001:
+			con_thieu.append(dict(ma=g["ma"], ten=g["ten"], dvt=g["dvt"], kho=g["kho"], thieu=thieu - sl))
+	return lay, con_thieu
+
+
+def _dong_nguyen_lieu(phieu):
+	"""Dòng nguyên liệu (xuất khỏi kho) của phiếu hoàn tất, theo đơn vị tồn kho."""
+	ra = []
+	for d in phieu.get("items") or []:
+		if not d.get("s_warehouse") or cint(d.get("is_finished_item")) or cint(d.get("is_scrap_item")):
+			continue
+		sl = flt(d.get("transfer_qty")) or flt(d.get("qty")) * (flt(d.get("conversion_factor")) or 1)
+		ra.append(dict(ma=d.get("item_code"), ten=d.get("item_name") or d.get("item_code"),
+			dvt=d.get("stock_uom") or d.get("uom") or "", kho=d.get("s_warehouse"), can=sl))
+	return ra
+
+
+def _tinh_lay_bu_phieu(phieu):
+	dong = _dong_nguyen_lieu(phieu)
+	ma = sorted({d["ma"] for d in dong if d.get("ma")})
+	if not ma:
+		return [], []
+	kho = sorted({d["kho"] for d in dong} | {KHO_GOC})
+	ton_bep, ton_tong = {}, {}
+	for b in frappe.get_all("Bin", filters={"item_code": ["in", ma], "warehouse": ["in", kho]},
+			fields=["item_code", "warehouse", "actual_qty"], limit_page_length=0):
+		if b.warehouse == KHO_GOC:
+			ton_tong[b.item_code] = flt(b.actual_qty)
+		else:
+			ton_bep[(b.item_code, b.warehouse)] = flt(b.actual_qty)
+	return tinh_lay_bu(dong, ton_bep, ton_tong)
+
+
+def _lap_phieu_lay_bu(lay, cong_ty, ten_lenh):
+	"""Lập và ghi sổ phiếu điều chuyển Kho tổng 307 sang kho bếp cho phần lấy bù."""
+	from frappe.utils import now_datetime
+	doc = frappe.new_doc("Stock Entry")
+	doc.company = cong_ty or frappe.defaults.get_user_default("Company")
+	doc.stock_entry_type = "Material Transfer"
+	doc.purpose = "Material Transfer"
+	doc.set_posting_time = 0
+	doc.from_warehouse = KHO_GOC
+	kho_bep = sorted({x["kho"] for x in lay})
+	if len(kho_bep) == 1:
+		doc.to_warehouse = kho_bep[0]
+	doc.remarks = "%s cho lệnh sản xuất %s (máy lập khi hoàn tất lệnh)." % (NHAN_LAY_BU, ten_lenh or "")
+	for x in lay:
+		doc.append("items", {"item_code": x["ma"], "qty": x["sl"], "uom": x["dvt"] or None,
+			"stock_uom": x["dvt"] or None, "conversion_factor": 1,
+			"s_warehouse": KHO_GOC, "t_warehouse": x["kho"]})
+	doc.flags.bep_lay_bu = ten_lenh or "-"
+	doc.insert()
+	doc.submit()
+	# Bếp tự lấy hàng nên đã nhận đủ: không nhắc "chưa xác nhận nhận" (tin_kho).
+	meta = frappe.get_meta("Stock Entry")
+	ghi = {}
+	for o, v in (("vgb_nhan_tt", "Đã nhận đủ"), ("vgb_nhan_boi", frappe.session.user),
+			("vgb_nhan_luc", now_datetime()),
+			("vgb_nhan_ghi_chu", "Bếp tự lấy khi hoàn tất lệnh %s" % (ten_lenh or ""))):
+		if meta.has_field(o):
+			ghi[o] = v
+	if ghi:
+		frappe.db.set_value("Stock Entry", doc.name, ghi, update_modified=False)
+	return doc.name
+
+
 @frappe.whitelist()
-def hoan_tat_phieu(phieu, q=None, can=None):
+def hoan_tat_phieu(phieu, q=None, can=None, lay_bu=None, hoi_lay_bu=None, lay_toi_da=None):
 	"""Ghi phiếu kho hoàn tất lệnh trong MỘT yêu cầu.
 
 	Trước 03/09/2026 app gọi insert rồi submit là hai lệnh rời. Rớt mạng
@@ -1160,11 +1350,25 @@ def hoan_tat_phieu(phieu, q=None, can=None):
 	# ERPNext TransactionBase.validate_posting_time dùng giờ site khi cờ này
 	# tắt. Không tin đồng hồ điện thoại: UTC từng đặt xuất trước nhập 7 giờ.
 	phieu["set_posting_time"] = 0
+
+	# v648: thiếu nguyên liệu ở kho bếp thì lấy bù từ Kho tổng 307 (xem
+	# NHAN_LAY_BU). hoi_lay_bu: chỉ HỎI (chưa ghi gì), app hiện hộp cho bếp
+	# đồng ý rồi gọi lại với lay_bu kèm lay_toi_da (số đã duyệt theo mã). Phần
+	# tính lại vượt số đã duyệt thì chỉ hỏi lại, không ghi (Codex #551 vòng 8).
+	# Không truyền cả hai thì như cũ.
+	phieu_bu, da_lay, con_thieu = "", [], []
+	if cint(lay_bu) or cint(hoi_lay_bu):
+		da_lay, con_thieu = _tinh_lay_bu_phieu(phieu)
+		if da_lay and not (cint(lay_bu) and trong_han_lay(da_lay, lay_toi_da)):
+			return {"ok": 0, "hoi_lay_bu": da_lay, "con_thieu": con_thieu}
+		if da_lay:
+			phieu_bu = _lap_phieu_lay_bu(da_lay, phieu.get("company"), ten_lenh)
+
 	doc = frappe.get_doc(phieu)
 	doc.insert()
 	doc.submit()
 	return {"name": doc.name, "da_don": da_don, "fg_completed_qty": fg,
-		"qty_thanh_pham": qty_tp}
+		"qty_thanh_pham": qty_tp, "phieu_bu": phieu_bu, "da_lay": da_lay if phieu_bu else []}
 
 
 def _goc_so(v):

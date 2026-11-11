@@ -662,8 +662,10 @@ def tin_bill_lech(ten_kieu, ngay, ds, ten_diem=None):
 	"""THUẦN. v647: bill thu ngân chọn thẻ/sàn mà báo cáo đối tác không khớp.
 	Mỗi tin một kênh, một ngày; ghi mã bill để điểm bán mở đúng bill sửa."""
 	ten_diem = ten_diem or {}
-	dong = ["%s %s %s: %s" % (ten_diem.get(x.get("diem"), x.get("diem") or ""), x["name"], _tien(x["tien"]),
-		x["trang_thai"].lower()) for x in ds[:8]]
+	# v648: dòng lệch tiền ghi luôn số báo cáo đối tác, điểm bán so được ngay trên Zalo.
+	dong = ["%s %s %s: %s%s" % (ten_diem.get(x.get("diem"), x.get("diem") or ""), x["name"], _tien(x["tien"]),
+		x["trang_thai"].lower(), (", báo cáo ghi %s" % _tien(x["tien_bao_cao"])) if x.get("tien_bao_cao") is not None else "")
+		for x in ds[:8]]
 	if len(ds) > 8:
 		dong.append("và %s bill nữa" % (len(ds) - 8))
 	dong.append("Điểm bán kiểm phương thức và mã chuẩn chi trên bill; sửa xong kế toán bấm Đối chiếu lại báo cáo.")

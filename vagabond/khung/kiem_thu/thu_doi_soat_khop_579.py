@@ -815,9 +815,9 @@ def _():
 			loi = str(e)
 		dung("dòng không còn là gợi ý thì từ chối", "không còn là gợi ý" in loi)
 	# Đối chiếu lại: dòng R1 đã xác nhận với SI-1 giữ nguyên; SI-1 không gợi ý cho dòng R2 cùng tiền.
-	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0,
+	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0, thuc_nhan=0,
 			trang_thai_khop="Đã nối", sales_invoice="SI-1", xac_nhan_boi="ketoan@x"),
-		Hang(name="R2", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0,
+		Hang(name="R2", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0, thuc_nhan=0,
 			trang_thai_khop="Chưa nối", sales_invoice=None, xac_nhan_boi=None)]
 	ghi = {}
 	with patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", ngay="2026-07-17", tien=100000, ma=[""], tien_to="")]), \
@@ -861,7 +861,7 @@ def _():
 
 	class Hang(dict):
 		__getattr__ = dict.get
-	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0,
+	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0, thuc_nhan=0,
 		trang_thai_khop="Đã nối", sales_invoice="SI-HUY", xac_nhan_boi="ketoan@x")]
 	ghi = {}
 	with patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", ngay="2026-07-17", tien=100000, ma=[""], tien_to="")]), \
@@ -888,7 +888,7 @@ def _():
 		ra = [r for r in khac if r["nguon"] != filters["nguon"][1] and (tt is None or
 			(tt[0] == "in" and r["trang_thai_khop"] in tt[1]) or (tt[0] == "!=" and r["trang_thai_khop"] != tt[1]))]
 		return [Hang(sales_invoice=r["sales_invoice"], nguon=r["nguon"]) for r in ra]
-	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="GF-1", tien_hang=100000, giam_gia=0,
+	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="GF-1", tien_hang=100000, giam_gia=0, thuc_nhan=0,
 		trang_thai_khop="Chưa nối", sales_invoice=None, xac_nhan_boi=None)]
 	ghi = {}
 	with patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", ngay="2026-07-17", tien=100000, ma=["GF-1"], tien_to="")]), \
@@ -973,9 +973,9 @@ def _():
 
 	class Hang(dict):
 		__getattr__ = dict.get
-	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0,
+	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0, thuc_nhan=0,
 			trang_thai_khop="Đã nối", sales_invoice="SI-1", xac_nhan_boi="ketoan@x"),
-		Hang(name="R2", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0,
+		Hang(name="R2", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0, thuc_nhan=0,
 			trang_thai_khop="Chưa nối", sales_invoice=None, xac_nhan_boi=None)]
 	ghi = {}
 	uv = [dict(name="SI-1", ngay="2026-07-17", tien=100000, ma=[""], tien_to=""),
@@ -1013,7 +1013,7 @@ def _():
 	la("không ghi gì", ghi, {})
 	# _goi_y_con_dung dùng đúng phép kiểm của lượt đối chiếu
 	with patch.object(V.frappe.db, "get_value", lambda dt, n, f=None, **k: Hang(nguon="N1", ngay="2026-07-17", tien_hang=100000,
-				giam_gia=0, sales_invoice="SI-1") if dt == V.DT_DONG else Hang(mau="grabfood", company="CT"), create=True), \
+				giam_gia=0, thuc_nhan=0, sales_invoice="SI-1") if dt == V.DT_DONG else Hang(mau="grabfood", company="CT"), create=True), \
 			patch.object(V.frappe.utils, "add_days", lambda d, n: d, create=True), \
 			patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", tien=90000)]):
 		la("hoá đơn đổi tiền thì gợi ý không còn đúng", V._goi_y_con_dung("R9"), False)
@@ -1027,7 +1027,7 @@ def _():
 
 	class Hang(dict):
 		__getattr__ = dict.get
-	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="TT-SH-1", tien_hang=60000, giam_gia=0,
+	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="TT-SH-1", tien_hang=60000, giam_gia=0, thuc_nhan=0,
 		trang_thai_khop="Chưa nối", sales_invoice=None, xac_nhan_boi=None)]
 	ghi = {}
 	# Bill SI-1 trả 2 chân: Payoo (đã nối ở nguồn Payoo) và Shinhan (nguồn này).

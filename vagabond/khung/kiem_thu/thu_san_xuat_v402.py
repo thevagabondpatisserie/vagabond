@@ -116,8 +116,12 @@ def _():
 	i = src.index("async function mfgHoanTatMot(")
 	j = src.index("async function", i + 10)
 	than = src[i:j]
-	dung("gọi hoan_tat_phieu", "vagabond.kho_san_xuat.hoan_tat_phieu" in than)
-	dung("hết frappe.client.insert phiếu kho", "frappe.client.insert', { doc: se }" not in than)
+	# v648 (Codex #551 vòng 7): mọi lệnh, kể cả món chính, ghi sổ qua mfgGhiLenh,
+	# hàm này gọi đúng một cửa hoan_tat_phieu.
+	k = src.index("async function mfgGhiLenh(")
+	ghi = src[k:src.index("\n}\n", k)]
+	dung("gọi hoan_tat_phieu qua mfgGhiLenh", "mfgGhiLenh(se, q, can, bu)" in than and "vagabond.kho_san_xuat.hoan_tat_phieu" in ghi)
+	dung("hết frappe.client.insert phiếu kho", "frappe.client.insert', { doc: se }" not in than and "frappe.client.insert" not in ghi)
 	dung("app không tự đặt fg_completed_qty", "se.fg_completed_qty" not in than)
 
 
@@ -125,10 +129,11 @@ def _():
 def _():
 	src = _js("05-san-xuat.js")
 	i = src.index("async function freshOf(")
-	j = src.index("async function", i + 10)
+	j = src.index("\n}\n", i) + 2
 	than = src[i:j]
-	dung("đọc is_stock_item", "'is_stock_item'" in than)
-	dung("lọc theo cả hai cờ", "r.custom_lam_tuoi && r.is_stock_item" in than)
+	# v648: luật "chỉ mã còn theo tồn" chuyển về máy chủ (kho_san_xuat.mon_tu_lam,
+	# ca Python và ca chạy node ở thu_tu_lam_cap_duoi_648); app chỉ hỏi máy chủ.
+	dung("hỏi máy chủ, không tự suy", "vagabond.kho_san_xuat.mon_tu_lam" in than and "getList" not in than)
 
 
 @ca("v402 màn BTP cần làm nhập về kho nguyên liệu")

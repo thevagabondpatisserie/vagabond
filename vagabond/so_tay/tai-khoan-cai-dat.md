@@ -337,19 +337,19 @@ Thông báo bắn cho người phải xử lý bước kế tiếp, theo chức 
 | Trình duyệt này không có Web Push. | Dùng Safari trên iPhone hoặc Chrome trên Android |
 
 ## Chọn tin Zalo cho từng nhóm nhận tin
-Từ khoá: nhóm Zalo, nhóm nhận tin, chọn tin nhận, tin Zalo nội bộ, cảnh báo Zalo, giờ im, mã nhóm, thêm nhóm Zalo, thư cảnh báo, không nhận được tin Zalo
+Từ khoá: nhóm Zalo, nhóm nhận tin, chọn tin nhận, tìm tin Zalo, tin Zalo nội bộ, cảnh báo Zalo, giờ im, mã nhóm, thêm nhóm Zalo, thư cảnh báo, không nhận được tin Zalo
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Quản trị hệ thống | Cài đặt lõi và API (/cai-dat-loi-va-api), nhóm Tin nhắn & cảnh báo | [[Chọn tin nhận]] |
 
-Tin báo nội bộ chỉ đi nhóm Zalo, không còn thư cảnh báo. Mỗi nhóm tích đúng tin cần nhận.
+Tin báo nội bộ chỉ đi nhóm Zalo. Mỗi nhóm tích đúng tin cần nhận.
 
 **Các bước**
 1. Trong Zalo: thêm bot vào nhóm, gõ @ chọn bot rồi gửi một lần. Bot trả lời mã nhóm.
 2. App: Cài đặt, [[Cài đặt lõi và API]], nhóm Tin nhắn & cảnh báo, bấm [[Thêm nhóm nhận tin]] (hoặc bấm một nhóm có sẵn).
 3. Gõ Tên nhóm, bấm [[Chọn nhóm đã nhắn bot]], chọn đúng mã nhóm.
-4. Bấm [[Chọn tin nhận]], tích tin (hoặc [[Chọn cả mục]] cho cả bộ phận), bấm [[Xong]].
+4. Bấm [[Chọn tin nhận]], gõ chữ vào ô tìm (vd: đối soát), tích tin, bấm [[Xong]].
 5. Giờ im nếu cần: điền đủ hai ô dạng HH:MM. Bấm [[Xong]].
 6. Bấm [[Lưu ... thay đổi]] cuối màn, rồi [[Gửi thử vào nhóm này]] để kiểm.
 
@@ -359,13 +359,13 @@ Tin báo nội bộ chỉ đi nhóm Zalo, không còn thư cảnh báo. Mỗi nh
 | Chưa có nhóm Zalo nào nhắc bot. ... | Làm bước 1 |
 | ... Mỗi nhóm Zalo chỉ gán cho một dòng. | Sửa dòng cũ |
 | ... phải dạng HH:MM từ 00:00 đến 23:59 | Gõ lại, ví dụ 22:00 |
-| ... tin không còn trong danh mục ... | Mở nhóm, [[Chọn tin nhận]] lại |
 
 **Lưu ý**
 - Không tích tin nào thì nhóm nhận theo Loại tin và Chủ đề như cũ.
+- Chip Đã tích chỉ hiện tin đang nhận. Tin ẩn khi tìm vẫn giữ ô tích.
 - Giờ im chỉ Cảnh báo được gửi, tin khác gộp gửi sau. Nhóm nhận Báo cáo cuối ngày đừng im lúc 23:30.
 - Thẻ Thư cảnh báo vàng: có nhóm nhận tin Email của tiệm không gửi được mà Zalo Bot đang tắt.
-- Desk cũng có nút Chọn tin nhận.
+- Desk cũng có nút Chọn tin nhận và ô tìm.
 
 ## Thêm bot Zalo khi bot chính đầy nhóm
 Từ khoá: bot Zalo thứ hai, thêm bot, bot đầy nhóm, vượt quá số lượng nhóm, token bot, nối bot, đổi token, gửi bằng bot số, Zalo Bot Manager

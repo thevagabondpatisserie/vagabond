@@ -417,8 +417,15 @@ def _bao_da_chuyen(doc):
 	try:
 		dong = ["Phiếu %s: %s sang %s" % (doc.name, ten_kho(doc.get("from_warehouse")), ten_kho(doc.get("to_warehouse")))]
 		dong += dong_hang(hang_tu_items(doc.get("items")))
-		dong.append("Kho nhận vào Hàng chuyển về kho tôi để xác nhận số thực nhận.")
-		kenh_zalo.bao("thong_bao", "kho", "Đã chuyển hàng giữa kho", dong,
+		# v648: phiếu máy lập khi bếp hoàn tất lệnh mà kho bếp thiếu (kho_san_xuat
+		# NHAN_LAY_BU). Bếp tự lấy và đã nhận đủ, nên không bảo kho nhận xác nhận.
+		lenh = (getattr(doc, "flags", None) or {}).get("bep_lay_bu")
+		if lenh:
+			dong[0] += ", bếp lấy cho lệnh %s" % lenh
+			dong.append("Bếp tự sang kho tổng lấy hàng, phiếu đã ghi bếp nhận đủ. Kho tổng kiểm lại kệ khi tiện.")
+		else:
+			dong.append("Kho nhận vào Hàng chuyển về kho tôi để xác nhận số thực nhận.")
+		kenh_zalo.bao("thong_bao", "kho", "Bếp tự lấy nguyên liệu từ kho tổng" if lenh else "Đã chuyển hàng giữa kho", dong,
 			link=_url("/app/stock-entry/%s" % doc.name), khoa="dc-xong:%s" % doc.name, ma_tin="kho_da_chuyen")
 	except Exception as e:
 		if kenh_zalo.chet_giao_dich(e):

@@ -9375,17 +9375,20 @@ function pad2(n) { return ('0' + n).slice(-2); }
 function hmOf(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':00'; }
 function ymdOf(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
 async function freshOf(codes) {
-  /* Mon "lam tuoi" ma may tu lam giup khi hoan tat mon cha. CHI mon con
-     theo ton kho. Tu 25/08/2026 ban thanh pham phantom (is_stock_item = 0)
-     tu no trong lenh cha, khong can lenh con; tao lenh con cho no thi
-     ERPNext cho tao nhung phieu kho chan "is not a stock Item", lenh con
-     nam lai thanh rac, moi lan bam them mot cai. Ra soat 03/09/2026. */
+  /* Mon may tu lam phan THIEU khi hoan tat mon cha. CHI mon giu ton co cong
+     thuc: tu 25/08/2026 ban thanh pham phantom (is_stock_item = 0) tu no trong
+     lenh cha, tao lenh con cho no thi phieu kho chan "is not a stock Item",
+     lenh con nam lai thanh rac (ra soat 03/09/2026).
+     v648 (anh Viet chot 11/11/2026, phuong an C): ngoai mon lam tuoi, may tu
+     lam ca ruot banh cap 1, banh khuon cap 2 con thieu ton, de bep chi bam
+     Hoan tat mon chinh. May chu quyet mon nao (kho_san_xuat.mon_tu_lam: mot
+     nguon voi luat chang), app khong tu suy. */
   var m = {};
   if (!codes || !codes.length) return m;
-  var rows = await inChunks(codes, 80, function (lot) {
-    return getList('Item', { fields: ['name', 'custom_lam_tuoi', 'is_stock_item'], filters: { name: ['in', lot] }, limit_page_length: 0 });
+  var ds = await inChunks(codes, 80, async function (lot) {
+    return (await api('vagabond.kho_san_xuat.mon_tu_lam', { ma: JSON.stringify(lot) })) || [];
   });
-  rows.forEach(function (r) { if (r.custom_lam_tuoi && r.is_stock_item) m[r.name] = 1; });
+  ds.forEach(function (c) { m[c] = 1; });
   return m;
 }
 /* Me nao cua lenh nay con dung duoc. THUAN.
@@ -10387,6 +10390,10 @@ async function scrMfgBtp(woNames, depth) {
     });
     var bm = await bomOf(order);
     var fr = await freshOf(order);
+    /* v648: mon may tu lam (lam tuoi, cap 1, cap 2) KHONG hien o day: bep chi
+       bam Hoan tat mon chinh, may lam phan thieu luc do. Lam san tu truoc thi
+       tao lenh rieng o man Tao lenh san xuat nhu mon ngoai phieu yeu cau. */
+    var tuLam = order.filter(function (c) { return !!bm[c] && !!fr[c]; }).length;
     var prod = order.filter(function (c) { return !!bm[c] && !fr[c]; });
     if (prod.length) {
       var tn = await stockOf(prod, mfg.src);
@@ -10409,7 +10416,7 @@ async function scrMfgBtp(woNames, depth) {
   } catch (e) { toast(errMsg(e), 5000); }
 
   if (!rows.length) {
-    toast('Không cần làm thêm bán thành phẩm nào', 4000);
+    toast(tuLam ? 'Ruột bánh, bánh khuôn còn thiếu máy sẽ tự làm khi bấm Hoàn tất món chính' : 'Không cần làm thêm bán thành phẩm nào', 5000);
     return go(scrMfgList, true);
   }
 
@@ -10652,27 +10659,33 @@ function mfgSheetKe(plan, nvl, src) {
              : 'background:#eef2f7;color:#374151;border:1px solid #e2e8f0') + '">' +
         h(t) + (phu ? ' <span style="font-weight:500;opacity:.75">' + h(phu) + '</span>' : '') + '</span>';
     }
-    var thieu = (nvl || []).filter(function (x) { return x.thieu > 0.0001; });
+    var thieu = (nvl || []).filter(function (x) { return mfgChipNvl(x).bad; });
+    var layTong = (nvl || []).filter(function (x) { return (x.lay_tong || 0) > 0.0001; });
     var html = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:82vh;overflow:auto">' +
       '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">Máy làm luôn giúp bếp</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">' +
-      'Các bán thành phẩm làm tươi chưa có tồn. Máy tự tạo lệnh và trừ nguyên liệu ngay trước khi hoàn tất món chính. Bút toán kho ghi xong không sửa lại được.</div>' +
-      '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:7px;letter-spacing:.4px">SẼ LÀM TƯƠI</div><div>' +
+      'Bán thành phẩm còn thiếu tồn (làm tươi, ruột bánh cấp 1, bánh khuôn cấp 2). Máy tự tạo lệnh, trừ nguyên liệu theo công thức ngay trước khi hoàn tất món chính; phần đã có tồn thì dùng tồn. Bút toán kho ghi xong không sửa lại được.</div>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:7px;letter-spacing:.4px">MÁY SẼ LÀM</div><div>' +
       (plan || []).map(function (f) { return chip(f.name, num(f.qty) + ' ' + (f.uom || ''), false); }).join('') + '</div>';
     if ((nvl || []).length) {
       html += '<div style="font-size:11.5px;color:#98a2b3;margin:10px 0 7px;letter-spacing:.4px">NGUYÊN LIỆU SẼ TRỪ · KHO ' +
         h(shortWh(src).toUpperCase()) + '</div><div>' +
         nvl.slice(0, 24).map(function (x) {
-          var bad = x.thieu > 0.0001;
-          return chip(x.name, num(x.need) + (bad ? ' · thiếu ' + num(x.thieu) : ''), bad);
+          var c = mfgChipNvl(x);
+          return chip(x.name, c.phu, c.bad);
         }).join('') +
         (nvl.length > 24 ? chip('và ' + (nvl.length - 24) + ' nguyên liệu nữa', '', false) : '') + '</div>';
+      if (layTong.length) {
+        html += '<div style="font-size:12.5px;color:#374151;margin-top:6px;line-height:1.5">Kho bếp thiếu ' + layTong.length +
+          ' nguyên liệu: máy lập và ghi sổ luôn phiếu điều chuyển từ Kho tổng 307 đúng phần thiếu, báo Zalo kho. Bếp sang kho tổng lấy hàng.</div>';
+      }
       if (thieu.length) {
         html += '<div style="font-size:12.5px;color:#b3261e;margin-top:6px;line-height:1.5">Có ' + thieu.length +
-          ' nguyên liệu không đủ tồn tại kho này. Máy sẽ tự lấy mã thay thế đã duyệt nếu còn, hết cả thì báo thiếu chứ không ghi âm kho.</div>';
+          ' nguyên liệu cả Kho tổng 307 cũng không đủ. Máy sẽ tự lấy mã thay thế đã duyệt nếu còn, hết cả thì báo thiếu chứ không ghi âm kho.</div>';
       }
     }
-    html += '<button class="btn gr" data-y style="margin-top:14px">✅ Xác nhận tạo lệnh</button>' +
+    html += '<button class="btn gr" data-y style="margin-top:14px">' +
+      (layTong.length ? '✅ Lấy phần thiếu từ kho tổng và làm' : '✅ Xác nhận tạo lệnh') + '</button>' +
       '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
     var ov = document.createElement('div'); ov.className = 'sh';
     ov.innerHTML = html;
@@ -10861,9 +10874,12 @@ async function mfgHoanTatMot(d, q, can, imLang) {
   var nvl = [];
   if (plan.length && !imLang) { try { nvl = await mfgNvlCuaKe(plan, src); } catch (e3) { nvl = []; } }
   busy(0);
+  /* Theo lô (imLang) không có hộp nào, nên không lấy bù (Codex #551 vòng 5). */
+  var bu = imLang ? null : { phieu: [], duyet: {} };
   if (plan.length && !imLang) {
     var okf = await mfgSheetKe(plan, nvl, src);
     if (!okf) return 0;
+    nvl.forEach(function (x) { if ((x.lay_tong || 0) > 0.0001) bu.duyet[x.code] = x.lay_tong; });
   }
   busy(1);
   try {
@@ -10871,7 +10887,7 @@ async function mfgHoanTatMot(d, q, can, imLang) {
       await api('frappe.client.submit', { doc: d });
       d = await api('frappe.client.get', { doctype: 'Work Order', name: d.name });
     }
-    if (plan.length) await mfgRunFresh(plan, 1);
+    if (plan.length) await mfgRunFresh(plan, 1, bu);
     var it = await mfgLoadItem(d.production_item);
     var batch = await mfgBatchOf(d.name);
     if (!batch) batch = await mfgMakeBatch(d.production_item, it, can, d.name);
@@ -10891,14 +10907,28 @@ async function mfgHoanTatMot(d, q, can, imLang) {
     (se.items || []).forEach(function (r) {
       if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
     });
-    await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: q, can: can });
+    /* v648 cách 1: món chính cũng qua mfgGhiLenh. Codex #551 vòng 6: hộp
+       "Máy làm luôn giúp bếp" chỉ nêu nguyên liệu của phần máy làm, nên món
+       chính thiếu thì hỏi riêng: phần bếp đã duyệt cho lệnh con không dùng
+       cho món chính. */
+    if (bu) bu.duyet = {};
+    var kq = await mfgGhiLenh(se, q, can, bu);
     busy(0);
     if (imLang) return 'lai';
-    toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || ''), 5000);
+    toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || '') +
+      (bu && bu.phieu.length ? '. Đã lấy từ Kho tổng 307: ' + bu.phieu.join(', ') : ''), 7000);
     mfgL = { batch: batch || '', lenh: batch ? '' : d.name, item: d.production_item, name: d.item_name || d.production_item, qty: can, uom: d.stock_uom, meta: it };
     go(scrMfgLabel, true);
     return 0;
-  } catch (err) { busy(0); if (!imLang) toast(errMsg(err), 7000); throw err; }
+  } catch (err) {
+    busy(0);
+    if (err && err.tuChoi) {
+      toast('Chưa lấy từ kho tổng nên dừng lại: lệnh đã làm xong vẫn giữ, món chính chưa hoàn tất.', 6000);
+      return 0;
+    }
+    if (!imLang) toast(errMsg(err), 7000);
+    throw err;
+  }
 }
 
 /* Hoan thanh CA THE GOP bang mot lan go so.
@@ -11048,24 +11078,53 @@ async function mfgMakeBatch(code, meta, qty, woName) {
   return b && b.name;
 }
 
-/* --- Ban thanh pham lam tuoi: may tu lam noi duoi truoc khi hoan tat mon cha --- */
-async function mfgFreshPlan(mats, ratio, src) {
+/* Phần tồn đã giữ cho các lệnh cấp trên: `giu` (của ông cha) cộng nhu cầu
+   trực tiếp của lệnh này (mats x ratio). THUẦN, không sửa `giu` truyền vào.
+
+   Codex #551 vòng 3: món chính cần cả ruột C1 lẫn bánh khuôn C2, mà C2 cũng
+   ăn C1. Không giữ phần C1 của món chính thì lệnh C2 thấy 2 ruột máy vừa làm
+   cho món chính là "có tồn", ăn hết, món chính báo thiếu sau khi lệnh con đã
+   ghi sổ. */
+/* v648 (anh Việt chọn cách 1, 11/11/2026): kho bếp thiếu nguyên liệu thì
+   máy lấy bù từ kho này khi hoàn tất (kho_san_xuat.hoan_tat_phieu lay_bu). */
+var MFG_KHO_TONG = 'Kho tổng 307 - TV';
+
+function mfgGiuCuaLenh(mats, ratio, giu) {
+  var out = {};
+  Object.keys(giu || {}).forEach(function (c) { out[c] = giu[c]; });
+  (mats || []).forEach(function (m) {
+    var c = m.item_code;
+    if (!c) return;
+    out[c] = r3((out[c] || 0) + (m.required_qty || 0) * ratio);
+  });
+  return out;
+}
+
+/* --- Ban thanh pham lam tuoi: may tu lam noi duoi truoc khi hoan tat mon cha ---
+   `giu`: tồn đã giữ cho lệnh cấp trên (xem mfgGiuCuaLenh); chỉ phần tồn vượt
+   quá phần giữ mới được dùng cho lệnh này. Mỗi món trong kế hoạch mang theo
+   phần giữ cho lệnh con của nó (`giu`), để mfgRunFresh và hộp xác nhận cùng
+   tính một cách. */
+async function mfgFreshPlan(mats, ratio, src, giu) {
   if (!mats || !mats.length) return [];
+  giu = giu || {};
   var codes = mats.map(function (m) { return m.item_code; });
   var fr = await freshOf(codes);
   var fresh = codes.filter(function (c) { return fr[c]; });
   if (!fresh.length) return [];
   var bm = await bomOf(fresh);
   var tn = await stockOf(fresh, src);
+  var giuCon = mfgGiuCuaLenh(mats, ratio, giu);
   var out = [];
   mats.forEach(function (m) {
     var c = m.item_code;
     if (!fr[c] || !bm[c]) return;
     var need = r3((m.required_qty || 0) * ratio);
-    var miss = r3(need - (tn[c] || 0));
+    var co = Math.max(0, (tn[c] || 0) - (giu[c] || 0));
+    var miss = r3(need - co);
     if (miss > 0.0001) out.push({
       code: c, name: m.item_name || c, uom: m.stock_uom,
-      qty: miss, bom: bm[c].name, fg: src, src: src
+      qty: miss, bom: bm[c].name, fg: src, src: src, giu: giuCon
     });
   });
   return out;
@@ -11077,67 +11136,186 @@ async function mfgFreshPlan(mats, ratio, src) {
    hinh dien thoai. Cot "tồn" doc tai dung cai kho se bi tru. */
 async function mfgNvlCuaKe(plan, src) {
   if (!plan || !plan.length) return [];
-  var boms = plan.map(function (f) { return f.bom; }).filter(Boolean);
-  if (!boms.length) return [];
-  var bq = {};
-  (await getList('BOM', {
-    fields: ['name', 'quantity'], filters: { name: ['in', boms] }, limit_page_length: 0
-  })).forEach(function (b) { bq[b.name] = b.quantity || 1; });
-
-  var dong = await inChunks(boms, 40, function (lot) {
-    return getList('BOM Item', {
-      parent: 'BOM',
-      fields: ['parent', 'item_code', 'item_name', 'stock_qty', 'stock_uom'],
-      filters: { parent: ['in', lot] }, limit_page_length: 0
-    });
-  });
-
-  var ti = {};
-  plan.forEach(function (f) {
-    if (!f.bom) return;
-    ti[f.bom] = (ti[f.bom] || 0) + ((f.qty || 0) / (bq[f.bom] || 1));
-  });
-
   var gom = {}, thu_tu = [];
-  dong.forEach(function (r) {
-    var t = ti[r.parent];
-    if (!t) return;
-    var c = r.item_code;
-    if (!gom[c]) { gom[c] = { code: c, name: r.item_name || c, uom: r.stock_uom, need: 0 }; thu_tu.push(c); }
-    gom[c].need = r3(gom[c].need + (r.stock_qty || 0) * t);
-  });
+  /* Cộng nguyên liệu của các công thức: ti = {tên công thức: số thành phẩm}. */
+  async function cong(ti) {
+    var boms = Object.keys(ti);
+    if (!boms.length) return;
+    var bq = {};
+    (await getList('BOM', {
+      fields: ['name', 'quantity'], filters: { name: ['in', boms] }, limit_page_length: 0
+    })).forEach(function (b) { bq[b.name] = b.quantity || 1; });
+    var dong = await inChunks(boms, 40, function (lot) {
+      return getList('BOM Item', {
+        parent: 'BOM',
+        fields: ['parent', 'item_code', 'item_name', 'stock_qty', 'stock_uom'],
+        filters: { parent: ['in', lot] }, limit_page_length: 0
+      });
+    });
+    dong.forEach(function (r) {
+      var t = (ti[r.parent] || 0) / (bq[r.parent] || 1);
+      if (!t) return;
+      var c = r.item_code;
+      if (!gom[c]) { gom[c] = { code: c, name: r.item_name || c, uom: r.stock_uom, need: 0 }; thu_tu.push(c); }
+      gom[c].need = r3(gom[c].need + (r.stock_qty || 0) * t);
+    });
+  }
+  var ti0 = {};
+  plan.forEach(function (f) { if (f.bom) ti0[f.bom] = (ti0[f.bom] || 0) + (f.qty || 0); });
+  await cong(ti0);
   if (!thu_tu.length) return [];
 
-  var tn = await stockOf(thu_tu, src);
-  return thu_tu.map(function (c) {
+  /* Tồn đã giữ cho món chính không tính là có cho lệnh con (cùng cách với
+     mfgRunFresh; mọi món của một kế hoạch mang cùng phần giữ). */
+  var giu = (plan[0] && plan[0].giu) || {};
+  /* v648: ruột bánh cấp 1 (hay món làm tươi) nằm trong công thức bánh khuôn mà
+     thiếu tồn thì máy cũng tự làm nốt, không phải "thiếu". Đánh dấu để hộp
+     xác nhận ghi "máy làm thêm", không tô đỏ, không báo thiếu (anh Việt
+     11/11/2026 xem bản vẽ). Hỏi máy chủ hỏng thì giữ cách hiện cũ.
+
+     Codex #551 vòng 7: phần máy làm thêm đó cũng ăn nguyên liệu. Hộp phải
+     cộng cả nguyên liệu của nó (tới 3 cấp như mfgRunFresh), không thì phần
+     lấy kho tổng bếp đồng ý nhỏ hơn phần máy thực lấy. */
+  var tn = {}, fr = {}, daMo = {};
+  for (var cap = 1; cap <= 3; cap++) {
+    var moi = thu_tu.filter(function (c) { return !(c in tn); });
+    if (moi.length) {
+      var t1 = await stockOf(moi, src);
+      moi.forEach(function (c) { tn[c] = t1[c] || 0; });
+      var f1 = {};
+      try { f1 = await freshOf(moi); } catch (e) { f1 = {}; }
+      moi.forEach(function (c) { fr[c] = f1[c] ? 1 : 0; });
+    }
+    if (cap === 3) break;
+    var mo = thu_tu.filter(function (c) {
+      var x = gom[c];
+      return fr[c] && !daMo[c] && x.need - Math.max(0, tn[c] - (giu[c] || 0)) > 0.0001;
+    });
+    if (!mo.length) break;
+    mo.forEach(function (c) { daMo[c] = 1; });
+    var bm = {};
+    try { bm = await bomOf(mo); } catch (e4) { bm = {}; }
+    var ti = {};
+    mo.forEach(function (c) {
+      var b = bm[c] && bm[c].name;
+      if (b) ti[b] = (ti[b] || 0) + r3(gom[c].need - Math.max(0, tn[c] - (giu[c] || 0)));
+    });
+    await cong(ti);
+  }
+  var ra = thu_tu.map(function (c) {
     var x = gom[c];
-    x.ton = tn[c] || 0;
+    x.ton = Math.max(0, (tn[c] || 0) - (giu[c] || 0));
     x.thieu = r3(Math.max(0, x.need - x.ton));
+    x.tu_lam = fr[c] ? 1 : 0;
     return x;
-  }).sort(function (a, b) { return (b.thieu > 0 ? 1 : 0) - (a.thieu > 0 ? 1 : 0); });
+  });
+  /* v648 cách 1: phần thiếu mà Kho tổng 307 có thì máy lấy bù khi hoàn tất,
+     hộp xác nhận ghi "lấy kho tổng", không tô đỏ. Đọc kho tổng hỏng thì giữ
+     cách hiện cũ (đỏ), máy chủ vẫn tính lại khi ghi. */
+  var canTong = ra.filter(function (x) { return x.thieu > 0.0001 && !x.tu_lam; }).map(function (x) { return x.code; });
+  if (canTong.length && src !== MFG_KHO_TONG) {
+    var tg = {};
+    try { tg = await stockOf(canTong, MFG_KHO_TONG); } catch (e2) { tg = {}; }
+    ra.forEach(function (x) {
+      if (canTong.indexOf(x.code) >= 0) x.lay_tong = r3(Math.min(x.thieu, Math.max(0, tg[x.code] || 0)));
+    });
+  }
+  return ra.sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
 }
 
-async function mfgRunFresh(list, depth) {
+/* Câu của hộp hỏi lấy bù từ Kho tổng 307. THUẦN.
+   Codex #551 vòng 5 (P1): danh sách dài đẩy nút xác nhận ra khỏi màn (hộp
+   confirmSheet không cuộn). Theo AGENTS.md mục 17: đếm số, vài mục đầu, rồi
+   "và N nữa"; tối đa ba dòng. */
+function mfgCauLayBu(lay, conThieu) {
+  function gon(ds, f, toi) {
+    var dau = ds.slice(0, toi).map(f).join(', ');
+    return dau + (ds.length > toi ? ' và ' + (ds.length - toi) + ' nguyên liệu nữa' : '');
+  }
+  lay = lay || []; conThieu = conThieu || [];
+  var cau = 'Máy ghi sổ phiếu điều chuyển từ Kho tổng 307 đúng phần thiếu rồi hoàn tất; bếp sang lấy hàng, Zalo báo kho.';
+  if (lay.length) cau += '\nLấy ' + lay.length + ' nguyên liệu: ' +
+    gon(lay, function (x) { return x.ten + ' ' + num(x.sl) + ' ' + (x.dvt || ''); }, 2) + '.';
+  if (conThieu.length) cau += '\nKho tổng cũng thiếu ' + conThieu.length + ' nguyên liệu: ' +
+    gon(conThieu, function (x) { return x.ten; }, 2) + '.';
+  return cau;
+}
+
+/* Chữ phụ và màu của một chip nguyên liệu trong hộp "Máy làm luôn giúp bếp". THUẦN.
+   Thiếu mà máy tự làm được thì ghi "máy làm thêm", không đỏ; thiếu thật mới đỏ. */
+function mfgChipNvl(x) {
+  var thieu = (x.thieu || 0) > 0.0001;
+  if (thieu && x.tu_lam) return { phu: num(x.need) + ' · máy làm thêm ' + num(x.thieu), bad: false };
+  var lay = thieu ? Math.min(x.thieu, x.lay_tong || 0) : 0;
+  var con = thieu ? r3(x.thieu - lay) : 0;
+  if (thieu && con <= 0.0001) return { phu: num(x.need) + ' · lấy kho tổng ' + num(lay), bad: false };
+  return { phu: num(x.need) + (lay > 0.0001 ? ' · lấy kho tổng ' + num(lay) : '') + (thieu ? ' · thiếu ' + num(con) : ''), bad: thieu };
+}
+
+async function mfgRunFresh(list, depth, bu) {
   depth = depth || 1;
   for (var i = 0; i < list.length; i++) {
     var f = list[i];
     var wo = await mfgCreateWO(f);
     var d = await api('frappe.client.get', { doctype: 'Work Order', name: wo });
     if (depth < 3) {
-      var sub = await mfgFreshPlan(d.required_items || [], 1, d.source_warehouse || mfg.src);
-      if (sub.length) await mfgRunFresh(sub, depth + 1);
+      var sub = await mfgFreshPlan(d.required_items || [], 1, d.source_warehouse || mfg.src, f.giu);
+      if (sub.length) await mfgRunFresh(sub, depth + 1, bu);
     }
     var it = await mfgLoadItem(f.code);
     var batch = await mfgMakeBatch(f.code, it, f.qty, wo);
     var se = await api('erpnext.manufacturing.doctype.work_order.work_order.make_stock_entry',
       { work_order_id: wo, purpose: 'Manufacture', qty: f.qty });
-    se.set_posting_time = 1; se.posting_date = today(); se.posting_time = nowStamp().slice(11);
     (se.items || []).forEach(function (r) {
       if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
     });
-    var ins = await api('frappe.client.insert', { doc: se });
-    await api('frappe.client.submit', { doc: ins });
+    /* v648 (Codex #551, ca tich hop): lenh con ghi so QUA CUNG CUA voi mon
+       chinh (hoan_tat_phieu: gio may chu, insert va submit mot yeu cau).
+       Truoc day lenh con lay gio dien thoai: dien thoai nhanh vai giay la
+       phieu mon chinh (gio may chu) dung TRUOC phieu nhap banh khuon, ERPNext
+       bao thieu ton. Tu v648 cap 1, cap 2 deu di duong nay nen phai chot. */
+    /* v648 cách 1: lấy bù từ Kho tổng 307 chỉ trong phần bếp đã đồng ý ở hộp
+       "Máy làm luôn giúp bếp"; ngoài phần đó thì hỏi riêng (mfgGhiLenh). */
+    await mfgGhiLenh(se, f.qty, f.qty, bu);
   }
+}
+
+/* Ghi sổ MỘT lệnh qua cửa hoan_tat_phieu, lấy bù Kho tổng 307 chỉ khi bếp đã
+   đồng ý ĐÚNG phần đó.
+
+   bu = null: chế độ theo lô, không hỏi, không lấy bù (như trước v648).
+   bu.duyet = {mã: số}: phần "lấy kho tổng" hộp "Máy làm luôn giúp bếp" đã
+   nêu và bếp đã bấm đồng ý. Máy chủ chỉ HỎI trước (không ghi gì); phần thiếu
+   nằm trọn trong duyet thì lấy luôn và trừ dần, ngoài duyet thì hỏi riêng.
+   Codex #551 vòng 6, 7: một lần đồng ý chỉ phủ đúng điều hộp đã hiện. Bếp từ
+   chối thì ném lỗi tuChoi, lệnh đã ghi sổ trước đó vẫn giữ. */
+async function mfgGhiLenh(se, q, can, bu) {
+  var m = 'vagabond.kho_san_xuat.hoan_tat_phieu';
+  if (!bu) return await api(m, { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: 0 });
+  var kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: 1 });
+  var duyet = bu.duyet || (bu.duyet = {});
+  /* Codex #551 vòng 8: lượt ghi mang đúng số đã duyệt (lay_toi_da), máy chủ
+     tính lại mà vượt thì chỉ hỏi lại, không ghi. Hỏi lại tối đa 3 lần. */
+  for (var lan = 0; kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length; lan++) {
+    if (lan >= 3) throw new Error('Kho bếp đang thay đổi liên tục nên chưa lấy được từ kho tổng. Bấm Hoàn tất lại.');
+    var toi = {};
+    kq.hoi_lay_bu.forEach(function (x) { toi[x.ma] = r3((toi[x.ma] || 0) + (x.sl || 0)); });
+    var trong = Object.keys(toi).every(function (c) { return (duyet[c] || 0) + 0.0001 >= toi[c]; });
+    if (!trong) {
+      busy(0);
+      var ok = await confirmSheet('Kho bếp thiếu nguyên liệu', mfgCauLayBu(kq.hoi_lay_bu, kq.con_thieu),
+        'Lấy từ kho tổng và hoàn tất', 0);
+      if (!ok) { var e = new Error('Bếp chưa đồng ý lấy nguyên liệu từ kho tổng'); e.tuChoi = 1; throw e; }
+      busy(1);
+    }
+    kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 1, lay_toi_da: JSON.stringify(toi) });
+    if (kq && kq.name) {
+      /* Trừ số đã duyệt theo phần THỰC lấy; phần bếp vừa duyệt riêng thì không trừ. */
+      if (trong) (kq.da_lay || []).forEach(function (x) { duyet[x.ma] = r3((duyet[x.ma] || 0) - (x.sl || 0)); });
+      if (kq.phieu_bu) (bu.phieu || (bu.phieu = [])).push(kq.phieu_bu);
+    }
+  }
+  return kq;
 }
 
 /* ---------- 12c-5. Mon chua co cong thuc: khai nguyen lieu ngay tren app ---------- */
@@ -26961,7 +27139,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '647';
+var APPVER = '648';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -60246,7 +60424,8 @@ var CDL_MAN = {
 };
 
 function cdlNapChung() {
-  if (typeof VGB_CD !== 'undefined' && VGB_CD && VGB_CD.tongHop) return Promise.resolve();
+  /* v648: bản chung có ô tìm tin (locTin); bản cũ trong bộ nhớ thì nạp lại. */
+  if (typeof VGB_CD !== 'undefined' && VGB_CD && VGB_CD.locTin) return Promise.resolve();
   return inNapJs('/assets/vagabond/js/cai_dat_loi_chung.js?v=' + APPVER);
 }
 
@@ -61063,28 +61242,51 @@ function cdlChonZalo(cot, nhap, xong) {
    Chọn cả mục. Không tích tin nào thì nhóm nhận theo Loại tin, Chủ đề như cũ. */
 function cdlChonTinZalo(nhap, xong) {
   var BP = VGB_CD['tinTheoBoPhan']();
+  var TONG = BP.reduce(function (n, bp) { return n + bp.tin.length; }, 0);
   var dang = VGB_CD.tachMa(nhap.tin_nhan);
+  /* v648 (anh Việt 11/11/2026: "ma trận tin báo làm anh nhức đầu mỗi lần tìm rồi
+     cài"): ô tìm và chip Đã tích ở đầu hộp. Phần đầu dựng MỘT lần để ô tìm giữ
+     chữ và con trỏ khi gõ; mỗi lần gõ, tích, bỏ tích chỉ vẽ lại danh sách. */
+  var tu = '', chiDaTich = false;
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML = '<div class="shh"><b>Nhóm này nhận những tin nào?</b><div class="x">&times;</div></div>' +
+    '<div class="cdl-mo" style="padding:6px 14px">' + h(VGB_CD.GHI_CHU_TIN) + '</div>' +
+    '<div style="padding:4px 14px 6px"><input class="tin" data-cdlttim="1" placeholder="Tìm tin, ví dụ: đối soát, lệch tiền, bill, kho" autocomplete="off" style="width:100%"></div>' +
+    '<div data-cdltloc="1" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 14px 6px"></div>' +
+    '<div class="shl" data-cdltds="1"></div>' +
+    '<div style="padding:10px 14px"><button class="btn" data-cdltxong="1" style="width:100%;margin:0">Xong</button></div>';
+  function hien() { return VGB_CD.locTin(BP, tu, chiDaTich, dang); }
   function ve() {
     /* Anh Việt 02/11/2026: tích một tin là cả bảng cuộn về đầu, khó thao tác.
-       Mỗi lần tích vẽ lại cả hộp nên .shl mới bắt đầu ở 0; giữ vị trí cuộn cũ. */
-    var cu = box.querySelector('.shl'), cuon = cu ? cu.scrollTop : 0;
-    box.innerHTML = '<div class="shh"><b>Nhóm này nhận những tin nào?</b><div class="x">&times;</div></div>' +
-      '<div class="cdl-mo" style="padding:6px 14px">' + h(VGB_CD.GHI_CHU_TIN) + '</div>' +
-      '<div class="shl">' + BP.map(function (bp, k) {
-        return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
-          '<button class="cdl-lnk" data-cdltca="' + k + '">Chọn cả mục</button></div>' +
-          bp.tin.map(function (t) {
-            return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
-              '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
-          }).join('');
-      }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdltxong="1" style="width:100%;margin:0">Xong</button></div>';
-    var moi = box.querySelector('.shl');
-    if (moi && cuon) moi.scrollTop = cuon;
+       Chỉ vẽ lại danh sách nên giữ được vị trí cuộn cũ. */
+    var ds = box.querySelector('[data-cdltds]'), cuon = ds.scrollTop || 0;
+    var cac = hien();
+    var soHien = cac.reduce(function (n, bp) { return n + bp.tin.length; }, 0);
+    box.querySelector('[data-cdltloc]').innerHTML =
+      '<button class="chip' + (chiDaTich ? '' : ' on') + '" data-cdltchi="0">Tất cả (' + TONG + ')</button>' +
+      '<button class="chip' + (chiDaTich ? ' on' : '') + '" data-cdltchi="1">Đã tích (' + dang.length + ')</button>' +
+      '<span class="cdl-mo" style="margin:0">' + ((tu || chiDaTich) ? 'Đang hiện ' + soHien + ' trên ' + TONG + ' tin' : '') + '</span>';
+    ds.innerHTML = cac.length ? cac.map(function (bp) {
+      var k = BP.map(function (x) { return x.bo_phan; }).indexOf(bp.bo_phan);
+      return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
+        '<button class="cdl-lnk" data-cdltca="' + k + '">' + ((tu || chiDaTich) ? 'Chọn cả ' + bp.tin.length + ' tin đang hiện' : 'Chọn cả mục') + '</button></div>' +
+        bp.tin.map(function (t) {
+          return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
+            '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
+        }).join('');
+    }).join('') : '<div class="cdl-mo" data-cdltrong="1" style="padding:16px 14px">' +
+      (chiDaTich && !tu ? 'Nhóm này chưa tích tin nào. Bấm Tất cả để xem danh mục.' : 'Không có tin nào khớp "' + h(tu) + '". Thử chữ khác, gõ không dấu cũng được.') + '</div>';
+    if (cuon) ds.scrollTop = cuon;
   }
   ve();
   ov.appendChild(box); document.body.appendChild(ov);
+  box.oninput = function (e) {
+    if (!(e.target && e.target.getAttribute && e.target.getAttribute('data-cdlttim'))) return;
+    tu = e.target.value || '';
+    box.querySelector('[data-cdltds]').scrollTop = 0;
+    ve();
+  };
   box.onclick = function (e) {
     var r = e.target.closest('[data-cdlt]');
     if (r) {
@@ -61092,9 +61294,17 @@ function cdlChonTinZalo(nhap, xong) {
       if (k >= 0) dang.splice(k, 1); else dang.push(m);
       return ve();
     }
+    var chi = e.target.closest('[data-cdltchi]');
+    if (chi) {
+      chiDaTich = chi.getAttribute('data-cdltchi') === '1';
+      box.querySelector('[data-cdltds]').scrollTop = 0;
+      return ve();
+    }
     var ca = e.target.closest('[data-cdltca]');
     if (ca) {
-      var ds = (BP[parseInt(ca.getAttribute('data-cdltca'), 10)] || { tin: [] }).tin.map(function (t) { return t.ma; });
+      /* Đang tìm thì Chọn cả chỉ tác động lên các tin ĐANG HIỆN của mục đó. */
+      var ten = (BP[parseInt(ca.getAttribute('data-cdltca'), 10)] || {}).bo_phan;
+      var ds = (hien().filter(function (bp) { return bp.bo_phan === ten; })[0] || { tin: [] }).tin.map(function (t) { return t.ma; });
       var het = ds.every(function (m) { return dang.indexOf(m) >= 0; });
       ds.forEach(function (m) { var j = dang.indexOf(m); if (het && j >= 0) dang.splice(j, 1); if (!het && j < 0) dang.push(m); });
       return ve();

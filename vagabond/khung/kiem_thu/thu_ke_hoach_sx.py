@@ -1374,7 +1374,7 @@ def _():
 	m = _js("05-san-xuat.js")
 	doan = m.split("async function mfgHoanTatMot(")[1].split("\n}\n")[0]
 	dung("bỏ hộp hỏi khi chạy lô", "if (plan.length && !imLang) {" in doan)
-	dung("vẫn chạy phần làm tươi", "if (plan.length) await mfgRunFresh(plan, 1);" in doan)
+	dung("vẫn chạy phần làm tươi", "if (plan.length) await mfgRunFresh(plan, 1, bu);" in doan)
 
 
 @ca("máy KHÔNG tự điền số cũ lên ô nhập, chỉ gợi ý bằng chip")

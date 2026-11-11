@@ -78,7 +78,7 @@ class Kho:
 		uv = [dict(name=n, ngay="2026-11-08", tien=t, ma=[m]) for n, t, m, q, ct in self.bill if ct == "CT"]
 		kq = K.khop_hoa_don("shinhan", dong, uv)
 		self.dong = [dict(nguon="DSN-SH-0811", sales_invoice=kq[i]["hoa_don"] or None, trang_thai_khop=kq[i]["trang_thai"],
-			tien_hang=d["tien_hang"], giam_gia=0, ma_tham_chieu=d["ma_tham_chieu"], vendor="Shinhan", ngay="2026-11-08",
+			tien_hang=d["tien_hang"], giam_gia=0, thuc_nhan=d["tien_hang"], ma_tham_chieu=d["ma_tham_chieu"], vendor="Shinhan", ngay="2026-11-08",
 			diem_ban="") for i, d in enumerate(dong)]
 
 	def ung_vien(self, kieu, tu, den, ct):
