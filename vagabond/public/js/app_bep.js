@@ -10660,6 +10660,7 @@ function mfgSheetKe(plan, nvl, src) {
         h(t) + (phu ? ' <span style="font-weight:500;opacity:.75">' + h(phu) + '</span>' : '') + '</span>';
     }
     var thieu = (nvl || []).filter(function (x) { return mfgChipNvl(x).bad; });
+    var layTong = (nvl || []).filter(function (x) { return (x.lay_tong || 0) > 0.0001; });
     var html = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:82vh;overflow:auto">' +
       '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">Máy làm luôn giúp bếp</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">' +
@@ -10674,12 +10675,17 @@ function mfgSheetKe(plan, nvl, src) {
           return chip(x.name, c.phu, c.bad);
         }).join('') +
         (nvl.length > 24 ? chip('và ' + (nvl.length - 24) + ' nguyên liệu nữa', '', false) : '') + '</div>';
+      if (layTong.length) {
+        html += '<div style="font-size:12.5px;color:#374151;margin-top:6px;line-height:1.5">Kho bếp thiếu ' + layTong.length +
+          ' nguyên liệu: máy lập và ghi sổ luôn phiếu điều chuyển từ Kho tổng 307 đúng phần thiếu, báo Zalo kho. Bếp sang kho tổng lấy hàng.</div>';
+      }
       if (thieu.length) {
         html += '<div style="font-size:12.5px;color:#b3261e;margin-top:6px;line-height:1.5">Có ' + thieu.length +
-          ' nguyên liệu không đủ tồn tại kho này. Máy sẽ tự lấy mã thay thế đã duyệt nếu còn, hết cả thì báo thiếu chứ không ghi âm kho.</div>';
+          ' nguyên liệu cả Kho tổng 307 cũng không đủ. Máy sẽ tự lấy mã thay thế đã duyệt nếu còn, hết cả thì báo thiếu chứ không ghi âm kho.</div>';
       }
     }
-    html += '<button class="btn gr" data-y style="margin-top:14px">✅ Xác nhận tạo lệnh</button>' +
+    html += '<button class="btn gr" data-y style="margin-top:14px">' +
+      (layTong.length ? '✅ Lấy phần thiếu từ kho tổng và làm' : '✅ Xác nhận tạo lệnh') + '</button>' +
       '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
     var ov = document.createElement('div'); ov.className = 'sh';
     ov.innerHTML = html;
@@ -10878,7 +10884,8 @@ async function mfgHoanTatMot(d, q, can, imLang) {
       await api('frappe.client.submit', { doc: d });
       d = await api('frappe.client.get', { doctype: 'Work Order', name: d.name });
     }
-    if (plan.length) await mfgRunFresh(plan, 1);
+    var bu = plan.length ? { phieu: [] } : null;
+    if (plan.length) await mfgRunFresh(plan, 1, bu);
     var it = await mfgLoadItem(d.production_item);
     var batch = await mfgBatchOf(d.name);
     if (!batch) batch = await mfgMakeBatch(d.production_item, it, can, d.name);
@@ -10898,10 +10905,29 @@ async function mfgHoanTatMot(d, q, can, imLang) {
     (se.items || []).forEach(function (r) {
       if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
     });
-    await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: q, can: can });
+    /* v648 cách 1: có hộp xác nhận thì lấy bù luôn; không có hộp (món không
+       có phần máy tự làm) thì máy chủ chỉ HỎI, bếp đồng ý rồi mới ghi. Chế độ
+       theo lô không hỏi thêm: giữ như cũ. */
+    var kq = await api('vagabond.kho_san_xuat.hoan_tat_phieu',
+      { phieu: se, q: q, can: can, lay_bu: bu ? 1 : 0, hoi_lay_bu: (!bu && !imLang) ? 1 : 0 });
+    if (kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length) {
+      busy(0);
+      var okBu = await confirmSheet('Kho bếp thiếu nguyên liệu',
+        'Máy lập và ghi sổ luôn phiếu điều chuyển từ Kho tổng 307 sang kho bếp đúng phần thiếu, rồi hoàn tất lệnh. ' +
+        'Bếp sang kho tổng lấy hàng, Zalo báo kho.\n\n' +
+        kq.hoi_lay_bu.map(function (x) { return '• ' + x.ten + ': lấy ' + num(x.sl) + ' ' + (x.dvt || '') + ' (kho bếp còn ' + num(x.kho_bep_con) + ')'; }).join('\n') +
+        ((kq.con_thieu || []).length ? '\n\nKho tổng cũng không đủ: ' + kq.con_thieu.map(function (x) { return x.ten + ' thiếu ' + num(x.thieu) + ' ' + (x.dvt || ''); }).join('; ') : ''),
+        'Lấy từ kho tổng và hoàn tất', 0);
+      if (!okBu) return 0;
+      busy(1);
+      bu = { phieu: [] };
+      kq = await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: q, can: can, lay_bu: 1 });
+    }
+    if (bu && kq && kq.phieu_bu) bu.phieu.push(kq.phieu_bu);
     busy(0);
     if (imLang) return 'lai';
-    toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || ''), 5000);
+    toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || '') +
+      (bu && bu.phieu.length ? '. Đã lấy từ Kho tổng 307: ' + bu.phieu.join(', ') : ''), 7000);
     mfgL = { batch: batch || '', lenh: batch ? '' : d.name, item: d.production_item, name: d.item_name || d.production_item, qty: can, uom: d.stock_uom, meta: it };
     go(scrMfgLabel, true);
     return 0;
@@ -11062,6 +11088,10 @@ async function mfgMakeBatch(code, meta, qty, woName) {
    ăn C1. Không giữ phần C1 của món chính thì lệnh C2 thấy 2 ruột máy vừa làm
    cho món chính là "có tồn", ăn hết, món chính báo thiếu sau khi lệnh con đã
    ghi sổ. */
+/* v648 (anh Việt chọn cách 1, 11/11/2026): kho bếp thiếu nguyên liệu thì
+   máy lấy bù từ kho này khi hoàn tất (kho_san_xuat.hoan_tat_phieu lay_bu). */
+var MFG_KHO_TONG = 'Kho tổng 307 - TV';
+
 function mfgGiuCuaLenh(mats, ratio, giu) {
   var out = {};
   Object.keys(giu || {}).forEach(function (c) { out[c] = giu[c]; });
@@ -11150,13 +11180,25 @@ async function mfgNvlCuaKe(plan, src) {
      11/11/2026 xem bản vẽ). Hỏi máy chủ hỏng thì giữ cách hiện cũ. */
   var fr = {};
   try { fr = await freshOf(thu_tu); } catch (e) { fr = {}; }
-  return thu_tu.map(function (c) {
+  var ra = thu_tu.map(function (c) {
     var x = gom[c];
     x.ton = Math.max(0, (tn[c] || 0) - (giu[c] || 0));
     x.thieu = r3(Math.max(0, x.need - x.ton));
     x.tu_lam = fr[c] ? 1 : 0;
     return x;
-  }).sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
+  });
+  /* v648 cách 1: phần thiếu mà Kho tổng 307 có thì máy lấy bù khi hoàn tất,
+     hộp xác nhận ghi "lấy kho tổng", không tô đỏ. Đọc kho tổng hỏng thì giữ
+     cách hiện cũ (đỏ), máy chủ vẫn tính lại khi ghi. */
+  var canTong = ra.filter(function (x) { return x.thieu > 0.0001 && !x.tu_lam; }).map(function (x) { return x.code; });
+  if (canTong.length && src !== MFG_KHO_TONG) {
+    var tg = {};
+    try { tg = await stockOf(canTong, MFG_KHO_TONG); } catch (e2) { tg = {}; }
+    ra.forEach(function (x) {
+      if (canTong.indexOf(x.code) >= 0) x.lay_tong = r3(Math.min(x.thieu, Math.max(0, tg[x.code] || 0)));
+    });
+  }
+  return ra.sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
 }
 
 /* Chữ phụ và màu của một chip nguyên liệu trong hộp "Máy làm luôn giúp bếp". THUẦN.
@@ -11164,10 +11206,13 @@ async function mfgNvlCuaKe(plan, src) {
 function mfgChipNvl(x) {
   var thieu = (x.thieu || 0) > 0.0001;
   if (thieu && x.tu_lam) return { phu: num(x.need) + ' · máy làm thêm ' + num(x.thieu), bad: false };
-  return { phu: num(x.need) + (thieu ? ' · thiếu ' + num(x.thieu) : ''), bad: thieu };
+  var lay = thieu ? Math.min(x.thieu, x.lay_tong || 0) : 0;
+  var con = thieu ? r3(x.thieu - lay) : 0;
+  if (thieu && con <= 0.0001) return { phu: num(x.need) + ' · lấy kho tổng ' + num(lay), bad: false };
+  return { phu: num(x.need) + (lay > 0.0001 ? ' · lấy kho tổng ' + num(lay) : '') + (thieu ? ' · thiếu ' + num(con) : ''), bad: thieu };
 }
 
-async function mfgRunFresh(list, depth) {
+async function mfgRunFresh(list, depth, bu) {
   depth = depth || 1;
   for (var i = 0; i < list.length; i++) {
     var f = list[i];
@@ -11175,7 +11220,7 @@ async function mfgRunFresh(list, depth) {
     var d = await api('frappe.client.get', { doctype: 'Work Order', name: wo });
     if (depth < 3) {
       var sub = await mfgFreshPlan(d.required_items || [], 1, d.source_warehouse || mfg.src, f.giu);
-      if (sub.length) await mfgRunFresh(sub, depth + 1);
+      if (sub.length) await mfgRunFresh(sub, depth + 1, bu);
     }
     var it = await mfgLoadItem(f.code);
     var batch = await mfgMakeBatch(f.code, it, f.qty, wo);
@@ -11189,7 +11234,10 @@ async function mfgRunFresh(list, depth) {
        Truoc day lenh con lay gio dien thoai: dien thoai nhanh vai giay la
        phieu mon chinh (gio may chu) dung TRUOC phieu nhap banh khuon, ERPNext
        bao thieu ton. Tu v648 cap 1, cap 2 deu di duong nay nen phai chot. */
-    await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: f.qty, can: f.qty });
+    /* v648 cách 1: bếp đã đồng ý ở hộp "Máy làm luôn giúp bếp", nên lệnh con
+       thiếu nguyên liệu thì máy chủ lấy bù từ Kho tổng 307 luôn. */
+    var kq = await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: f.qty, can: f.qty, lay_bu: bu ? 1 : 0 });
+    if (bu && kq && kq.phieu_bu) bu.phieu.push(kq.phieu_bu);
   }
 }
 
