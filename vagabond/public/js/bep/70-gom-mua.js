@@ -11,7 +11,7 @@
 
    Tiền tố gm = gom mua. */
 
-var GM = { d: null, sua: {}, mo: {}, tim: '' };
+var GM = { d: null, sua: {}, mo: {}, tim: '', loc: '' };
 /* Bản nháp tự lưu (Codex 549): số thu mua đã sửa nằm ở GM.sua và được phần 48
    lưu trên máy. Mở lại từ bản nháp thì 48 đặt vào đây, màn ghép ngay sau khi
    đọc danh sách (phần sau 48 không móc sdGhep). */
@@ -50,32 +50,123 @@ function gmTien(nhom) {
   return Math.round((nhom.mon || []).reduce(function (t, m) { return t + (Number(gmSoMua(m)) || 0) * (m.gia || 0); }, 0));
 }
 
+/* v650 (anh Việt 12/11/2026): màn cũ trơ trụi, tên nhà cung cấp dài đẩy nút
+   Chốt tràn ngang, cả trang trượt sang phải. Nay mỗi món có dải chip trạng
+   thái (cần ngày nào, Kho tổng còn bao nhiêu, đang chờ về, thuế, đã sửa số),
+   đầu màn có dải tiến độ và chip lọc, nút Chốt nằm riêng một hàng. */
+
+/* THUẦN: ngày cách hôm nay bao nhiêu (âm là đã qua). Chuỗi YYYY-MM-DD. */
+function gmCachNgay(ngay, homNay) {
+  if (!ngay || !homNay) return null;
+  var a = Date.UTC(+ngay.slice(0, 4), +ngay.slice(5, 7) - 1, +ngay.slice(8, 10));
+  var b = Date.UTC(+homNay.slice(0, 4), +homNay.slice(5, 7) - 1, +homNay.slice(8, 10));
+  return Math.round((a - b) / 86400000);
+}
+
+/* THUẦN: món cần gấp (cần hôm nay, ngày mai, hay đã quá ngày cần). */
+function gmGap(m, homNay) {
+  var c = gmCachNgay(m.ngay_can, homNay);
+  return c != null && c <= 1;
+}
+
+/* THUẦN: các chip của một món, theo thứ tự đọc. c là màu của lớp .st:
+   r đỏ có việc gấp, w vàng cần để ý, g xanh ổn, b xanh dương thông tin, n xám. */
+function gmChipMon(m, homNay, daSua) {
+  var ra = [];
+  var c = gmCachNgay(m.ngay_can, homNay);
+  if (c != null) {
+    ra.push(c < 0 ? { t: 'Quá ngày cần ' + dmy(m.ngay_can).slice(0, 5), c: 'r' }
+      : c === 0 ? { t: 'Cần hôm nay', c: 'r' }
+        : c === 1 ? { t: 'Cần ngày mai', c: 'w' }
+          : { t: 'Cần ' + dmy(m.ngay_can).slice(0, 5), c: 'n' });
+  }
+  var ton = Number(m.ton) || 0, xin = Number(m.xin) || 0;
+  ra.push(ton <= 0 ? { t: 'Kho tổng hết', c: 'n' }
+    : ton + 0.0001 >= xin ? { t: 'Kho tổng đủ ' + kl(ton, m.dvt), c: 'g' }
+      : { t: 'Kho tổng còn ' + kl(ton, m.dvt), c: 'w' });
+  if ((Number(m.cho_ve) || 0) > 0) ra.push({ t: 'Đang chờ về ' + kl(m.cho_ve, m.dvt), c: 'w' });
+  ra.push(m.thue == null ? { t: 'Món chưa khai VAT', c: 'w' } : { t: 'VAT ' + num(m.thue) + '%', c: 'b' });
+  if (daSua) ra.push({ t: 'Đã sửa số mua', c: 'b' });
+  return ra;
+}
+
+/* THUẦN: món có hợp chip lọc đang chọn không. */
+function gmHopLoc(m, g, loc, homNay) {
+  if (loc === 'gap') return gmGap(m, homNay);
+  if (loc === 'kho') return (Number(m.ton) || 0) > 0;
+  if (loc === 'ncc') return !g.ncc;
+  if (loc === 'sua') return GM.sua[m.ma] != null && Math.abs((Number(GM.sua[m.ma]) || 0) - m.xin) > 0.0001;
+  return true;
+}
+
+/* THUẦN: tiền thuế tạm tính của nhóm theo số đang hiện. */
+function gmThue(nhom) {
+  return Math.round((nhom.mon || []).reduce(function (t, m) {
+    return t + (Number(gmSoMua(m)) || 0) * (m.gia || 0) * (Number(m.thue) || 0) / 100;
+  }, 0));
+}
+
+function gmStChip(x) {
+  return '<span class="st ' + x.c + '" style="font-size:11.5px;padding:3px 8px">' + h(x.t) + '</span>';
+}
+
 function gmMon(m, i) {
   var mo = !!GM.mo[m.ma];
   var lech = Math.abs((Number(gmSoMua(m)) || 0) - m.xin) > 0.0001;
-  return '<div class="khsx-the" data-gmmon="' + h(m.ma) + '" data-gmchu="' + h((m.ten || '') + ' ' + m.ma) + '"><div class="li" data-gmmo="' + h(m.ma) + '">' + anhMon(m.anh) +
-    '<div class="lt"><div class="l1">' + h(m.ten) + '</div>' +
-    '<div class="l2">Xin ' + kl(m.xin, m.dvt) + ' · ' + m.phieu.length + ' phiếu' +
-    (m.ngay_can ? ' · cần ' + h(dmy(m.ngay_can)) : '') + '</div>' +
-    '<div class="l2">Kho tổng ' + kl(m.ton, m.dvt) + (m.cho_ve > 0 ? ' · <b style="color:#b45309">chờ về ' + kl(m.cho_ve, m.dvt) + '</b>' : '') +
-    (m.gia ? ' · giá lần trước ' + money(m.gia) + ' đ' : '') + '</div></div>' +
+  return '<div class="khsx-the" data-gmmon="' + h(m.ma) + '" data-gmchu="' + h((m.ten || '') + ' ' + m.ma) + '"><div class="li" style="align-items:flex-start">' + anhMon(m.anh) +
+    '<div class="lt"><div class="l1" style="white-space:normal;word-break:break-word">' + h(m.ten) + '</div>' +
+    '<div class="l2">Xin ' + kl(m.xin, m.dvt) + (m.gia ? ' · giá lần trước ' + money(m.gia) + ' đ' : ' · chưa có giá mua') + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">' + gmChipMon(m, today(), lech).map(gmStChip).join('') +
+    '<button type="button" data-gmmo="' + h(m.ma) + '" class="st n" style="font-size:11.5px;padding:3px 8px;border:0;cursor:pointer;min-height:24px">' +
+    m.phieu.length + ' phiếu xin ' + (mo ? '▴' : '▾') + '</button></div></div>' +
     '<input class="tin" data-gmsl="' + h(m.ma) + '" inputmode="decimal" value="' + h(gmSoMua(m)) + '" ' +
     'style="width:84px;margin:0;text-align:center;flex:none' + (lech ? ';border-color:#0B7C93;font-weight:700' : '') + '" aria-label="Số mua ' + h(m.ten) + '">' +
     '</div>' +
-    (mo ? '<div style="padding:0 14px 10px 70px;font-size:12.5px;color:#5a6070;line-height:1.7">' +
+    (mo ? '<div style="padding:0 14px 10px 14px;font-size:12.5px;color:#5a6070;line-height:1.7">' +
       m.phieu.map(function (p) {
-        return h(p.phieu) + ' · ' + h(p.bo_phan || 'bộ phận chưa ghi') + ' · ' + kl(p.xin, m.dvt) + (p.ngay ? ' · cần ' + h(dmy(p.ngay)) : '');
+        return '• ' + h(p.phieu) + ' · ' + h(p.bo_phan || 'bộ phận chưa ghi') + ' · ' + kl(p.xin, m.dvt) + (p.ngay ? ' · cần ' + h(dmy(p.ngay)) : '');
       }).join('<br>') + '</div>' : '') +
     '</div>';
 }
 
 function gmNhom(g, i) {
-  return '<div data-gmnhom="' + i + '" data-gmncc="' + h((g.ten_ncc || '') + ' ' + (g.ncc || '')) + '">' +
-    '<div class="sec">' + h(g.ten_ncc) + ' · ' + g.so_mon + ' món · ' + g.so_phieu + ' phiếu</div>' +
+  var tien = gmTien(g), thue = gmThue(g);
+  var chuaThue = (g.mon || []).filter(function (m) { return m.thue == null; }).length;
+  return '<div class="card" data-gmnhom="' + i + '" data-gmncc="' + h((g.ten_ncc || '') + ' ' + (g.ncc || '')) + '" style="padding:12px 12px 14px;margin-bottom:14px">' +
+    '<div style="font-size:15.5px;font-weight:700;line-height:1.35;word-break:break-word">' + h(g.ten_ncc) + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 10px">' +
+    gmStChip({ t: g.so_mon + ' món · ' + g.so_phieu + ' phiếu', c: 'n' }) +
+    (g.ncc ? gmStChip({ t: 'Chờ thu mua chốt', c: 'b' }) : gmStChip({ t: 'Chưa có nhà cung cấp', c: 'w' })) +
+    (chuaThue ? gmStChip({ t: chuaThue + ' món chưa khai VAT', c: 'w' }) : '') + '</div>' +
     '<div class="lst">' + g.mon.map(gmMon).join('') + '</div>' +
-    '<div style="display:flex;align-items:center;gap:10px;margin:8px 0 16px">' +
-    '<div style="flex:1;font-size:12.5px;color:#6b7280">' + (g.ncc ? 'Tạm tính ' + money(gmTien(g)) + ' đ' : 'Nhóm này chưa có nhà cung cấp, bấm Chốt để chọn') + '</div>' +
-    '<button class="btn gr" data-gmchot="' + i + '" style="flex:0 0 auto;width:auto;padding:0 16px;margin:0">Chốt ' + h(g.ncc ? g.ten_ncc : 'nhóm này') + '</button></div></div>';
+    '<div style="font-size:13px;color:#374151;margin:10px 2px 8px;line-height:1.5">' +
+    (g.ncc ? 'Tạm tính ' + money(tien) + ' đ' + (thue ? ' + VAT ' + money(thue) + ' đ = <b>' + money(tien + thue) + ' đ</b>' : '') +
+      '<div style="font-size:12px;color:#6b7280">Giá lần mua trước, thuế theo mẫu VAT khai trên từng món.</div>'
+      : 'Bấm Chốt để chọn nhà cung cấp cho nhóm này.') + '</div>' +
+    '<button class="btn gr" data-gmchot="' + i + '" style="margin:0">✅ Chốt đơn ' + g.so_mon + ' món</button></div>';
+}
+
+/* Dải tiến độ một yêu cầu mua đi qua: thu mua đang ở bước 2. */
+function gmTienDo() {
+  var b = [['Bộ phận gửi yêu cầu', 'g'], ['Thu mua gom, chốt đơn', 'b'], ['Gửi đơn cho nhà cung cấp', 'n'], ['Kho nhận hàng', 'n']];
+  return '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px">' + b.map(function (x, i) {
+    return '<span class="st ' + x[1] + '" style="font-size:11.5px;padding:4px 8px' + (i === 1 ? ';outline:2px solid #0B7C93' : '') + '">' +
+      (i === 0 ? '✓ ' : (i + 1) + '. ') + h(x[0]) + (i === 1 ? ' (đang ở đây)' : '') + '</span>';
+  }).join('') + '</div>';
+}
+
+/* Chip lọc đầu màn, bấm được. Đếm theo món. */
+function gmChipLoc(nhom) {
+  var hn = today(), dem = { '': 0, gap: 0, kho: 0, ncc: 0, sua: 0 };
+  nhom.forEach(function (g) {
+    (g.mon || []).forEach(function (m) {
+      ['', 'gap', 'kho', 'ncc', 'sua'].forEach(function (k) { if (gmHopLoc(m, g, k, hn)) dem[k]++; });
+    });
+  });
+  var ds = [['', 'Tất cả'], ['gap', '🔴 Cần gấp'], ['kho', '📦 Kho tổng còn hàng'], ['ncc', '⚠️ Chưa có nhà cung cấp'], ['sua', '✏️ Đã sửa số']];
+  return '<div class="chips" style="flex-wrap:wrap;overflow:visible">' + ds.filter(function (x) { return !x[0] || dem[x[0]]; }).map(function (x) {
+    return '<button type="button" class="chip' + (GM.loc === x[0] ? ' on' : '') + '" data-gmloc="' + x[0] + '">' + h(x[1]) + ' ' + dem[x[0]] + '</button>';
+  }).join('') + '</div>';
 }
 
 /* Ô tìm nhanh (Codex 549, 4204048; AGENTS.md 2b.5): lọc theo tên món, mã món
@@ -86,7 +177,10 @@ function gmLoc(b) {
   Array.prototype.forEach.call(b.querySelectorAll('[data-gmnhom]'), function (g) {
     var ncc = g.getAttribute('data-gmncc') || '', con = 0;
     Array.prototype.forEach.call(g.querySelectorAll('[data-gmmon]'), function (m) {
-      var hop = !q || vgbKhop((m.getAttribute('data-gmchu') || '') + ' ' + ncc, q);
+      var gi = GM.d && GM.d.nhom ? GM.d.nhom[+g.getAttribute('data-gmnhom')] : null;
+      var mon = gi ? (gi.mon || []).filter(function (x) { return x.ma === m.getAttribute('data-gmmon'); })[0] : null;
+      var hop = (!q || vgbKhop((m.getAttribute('data-gmchu') || '') + ' ' + ncc, q)) &&
+        (!GM.loc || !mon || gmHopLoc(mon, gi, GM.loc, today()));
       m.style.display = hop ? '' : 'none';
       if (hop) con++;
     });
@@ -113,11 +207,10 @@ async function scrGomMua(giu) {
   }
   if (gmKhoiPhuc) { GM.sua = gmGiuSua(gmKhoiPhuc, GM.d); gmKhoiPhuc = null; }
   var d = GM.d, nhom = d.nhom || [];
-  var html = '<div class="card" style="padding:12px 14px;font-size:13.5px;line-height:1.55;color:#374151">' +
-    'Máy gom <b>' + d.so_dong + ' dòng</b> từ <b>' + d.so_phieu + ' phiếu</b> yêu cầu mua chưa duyệt, chia theo nhà cung cấp. ' +
-    'Số mua điền sẵn bằng tổng số xin: sửa nếu cần (gõ 0 là chưa mua đợt này), rồi bấm Chốt. ' +
-    'Bấm vào món để xem từng phiếu xin.</div>' +
-    (nhom.length ? vgbOTim('gmTim', nhom.reduce(function (t, g) { return t + (g.mon || []).length; }, 0),
+  var html = gmTienDo() + '<div class="card" style="padding:12px 14px;font-size:13.5px;line-height:1.55;color:#374151">' +
+    '<b>' + d.so_phieu + ' phiếu</b> yêu cầu mua chưa duyệt, <b>' + nhom.length + ' nhà cung cấp</b>. ' +
+    'Số mua điền sẵn bằng tổng số xin: sửa nếu cần (gõ 0 là chưa mua đợt này), rồi bấm Chốt đơn.</div>' +
+    (nhom.length ? gmChipLoc(nhom) + vgbOTim('gmTim', nhom.reduce(function (t, g) { return t + (g.mon || []).length; }, 0),
       '🔎 Gõ tên món, mã món hoặc nhà cung cấp') + nhom.map(gmNhom).join('')
       : '<div class="emp"><div class="e1">🎉</div><div class="e2">Không còn yêu cầu mua nào chờ gom</div></div>');
   var b = frame('Gom yêu cầu mua', html, { action: '&#8635;', onAction: function () { GM.d = null; scrGomMua(); } });
@@ -135,6 +228,8 @@ async function scrGomMua(giu) {
     };
   });
   b.onclick = async function (e) {
+    var lc = e.target.closest('[data-gmloc]');
+    if (lc) { GM.loc = lc.getAttribute('data-gmloc') || ''; return scrGomMua(1); }
     var c = e.target.closest('[data-gmchot]');
     if (c) return gmChot(nhom[+c.dataset.gmchot]);
     var m = e.target.closest('[data-gmmo]');
@@ -174,6 +269,8 @@ async function gmChot(g) {
   var so0 = dong.filter(function (x) { return Number(x.sl) === 0; }).length;
   if (!await confirmSheet('Chốt đơn ' + tenNcc + '?',
     'Máy duyệt ' + g.so_phieu + ' phiếu xin theo số đang hiện và lập đơn mua ' + (dong.length - so0) + ' món.' +
+    (gmTien(g) ? '\nTạm tính ' + money(gmTien(g)) + ' đ' + (gmThue(g) ? ' + VAT ' + money(gmThue(g)) + ' đ = ' + money(gmTien(g) + gmThue(g)) + ' đ' : '') +
+      '. VAT theo mẫu thuế khai trên từng món; sai thì sửa mẫu thuế của món trước khi chốt.' : '') +
     (so0 ? '\n\n' + so0 + ' món gõ 0: các dòng xin đó bị từ chối, ghi lý do "chưa mua đợt này".' : '') +
     '\n\nĐơn mua chưa gửi nhà cung cấp; gửi ở màn Đơn mua hàng.', 'Chốt đơn')) return;
   busy(1);
