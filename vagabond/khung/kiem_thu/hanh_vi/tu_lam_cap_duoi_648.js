@@ -61,7 +61,7 @@ function theGioi(ton, tuLam, tong) {
       if (m === 'frappe.client.get') {
         var w = lenh[a.name];
         var b = BOM[w.code];
-        return { name: a.name, source_warehouse: w.src, required_items: b.dong.map(function (d) {
+        return { name: a.name, qty: w.qty, source_warehouse: w.src, required_items: b.dong.map(function (d) {
           return { item_code: d.item_code, item_name: d.item_name, stock_uom: d.stock_uom, required_qty: d.so * w.qty };
         }) };
       }
@@ -142,6 +142,12 @@ function theGioi(ton, tuLam, tong) {
         });
         return ra;
       }
+      /* v649: lệnh đang mở của cùng món (Chốt kế hoạch tạo sẵn). */
+      if (dt === 'Work Order') {
+        nhat.timLenhMo = (nhat.timLenhMo || []).concat([o.filters.production_item]);
+        return (the.lenhMo || []).filter(function (w) { return w.production_item === o.filters.production_item; })
+          .map(function (w) { lenh[w.name] = lenh[w.name] || { code: w.production_item, qty: w.qty, src: w.source_warehouse }; return w; });
+      }
       throw new Error('getList la: ' + dt);
     },
     mfgLoadItem: async function () { return {}; },
@@ -165,7 +171,7 @@ function theGioi(ton, tuLam, tong) {
   the.MFG_KHO_TONG = 'Kho tổng 307 - TV';
   the.datTon = function (c, n) { ton[c] = n; };
   vm.createContext(the);
-  ['inChunks', 'freshOf', 'mfgHoanTatMot', 'mfgGhiLenh', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
+  ['inChunks', 'freshOf', 'mfgHoanTatMot', 'mfgGhiLenh', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgChonLenhMo', 'mfgLenhChoTuLam', 'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
     vm.runInContext(layHam(SRC, t), the);
   });
   the.nhat = nhat;
@@ -465,6 +471,32 @@ async function ca(ten, fn) {
     await t.mfgRunFresh(ke, 1, bu);
     bang('dong y o hop hoi lai: lay dung 100 g bep vua thay', [t.nhat.daLay, (t.nhat.hoiBep || []).length, t.nhat.phieu], [100, 1, ['C1 x2']]);
     bang('so da duyet tu hop dau khong bi tru vi phan nay duyet rieng', bu.duyet.NVL, 50);
+  });
+
+  await ca('22. v649 Chot ke hoach da tao san lenh C1, C2: bam ✓ mon chinh thi may DUNG lenh dang mo, khong tao lenh moi', async function () {
+    var t = theGioi({}, ['C1', 'C2']);
+    var K = t.mfg.src;
+    t.lenhMo = [
+      { name: 'WO-KH-C2', production_item: 'C2', qty: 5, produced_qty: 0, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2' },
+      { name: 'WO-KH-C1', production_item: 'C1', qty: 9, produced_qty: 0, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C1' }
+    ];
+    var ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('khong tao lenh moi nao', t.nhat.lenh, []);
+    bang('ghi so dung phan can: C1 x2 (tren lenh 9 cai), C2 x2 (tren lenh 5 cai)', t.nhat.phieu, ['C1 x2', 'C2 x2']);
+  });
+
+  await ca('23. v649 lenh dang mo khac kho, khac cong thuc hoac con thieu so thi khong dung, tao lenh moi nhu cu', async function () {
+    var t = theGioi({}, ['C1', 'C2']);
+    var K = t.mfg.src;
+    t.lenhMo = [
+      { name: 'WO-BAKER', production_item: 'C2', qty: 5, produced_qty: 0, source_warehouse: 'Baker - Nguyên liệu - TV', fg_warehouse: 'Baker - Nguyên liệu - TV', bom_no: 'BOM-C2' },
+      { name: 'WO-BOM-CU', production_item: 'C2', qty: 5, produced_qty: 0, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C2-CU' },
+      { name: 'WO-GAN-XONG', production_item: 'C1', qty: 9, produced_qty: 8, source_warehouse: K, fg_warehouse: K, bom_no: 'BOM-C1' }
+    ];
+    var ke = await t.mfgFreshPlan(MATS, 1, K);
+    await t.mfgRunFresh(ke, 1);
+    bang('tao lenh moi cho ca hai', t.nhat.lenh, ['C2 x2', 'C1 x2']);
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');
