@@ -82,6 +82,8 @@ function appMoi(kho, may) {
     'var __tin = []; function toast(s) { __tin.push(String(s)); } function busy() {} function baoTin(s) { __tin.push("baoTin:" + s); }',
     'function dSkin() {} function vgbCss() {} function money(x) { return String(x); } function kl(v, d) { return v + " " + d; }',
     'function anhMon() { return ""; } function dmy(x) { return String(x); }',
+    /* v650: màn Gom có chip ngày cần và thuế, cần thêm hai hàm của 00-nen. */
+    'function today() { return "2026-11-12"; } function num(x) { return String(x); }',
     'function errMsg(e) { return String((e && e.message) || e); }',
     'function confirmSheet() { return Promise.resolve(true); }',
     'function hoiChon(t, m, ds) { return Promise.resolve("tiep"); }',
