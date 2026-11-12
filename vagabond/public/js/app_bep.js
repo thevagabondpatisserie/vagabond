@@ -11328,6 +11328,23 @@ async function mfgKiemNvlNhom(docs, phan) {
     var kho = khoThuTu[k];
     (await mfgNvlCuaKe(theoKho[kho].plan, kho, 4, theoKho[kho].goc)).forEach(function (x) { x.kho = kho; ra.push(x); });
   }
+  /* Codex #553 vòng 2: mỗi nhóm kho tự đọc Kho tổng 307 nên cùng một mã ở
+     hai kho bếp được hứa lấy hai lần trên cùng một số tồn. Chia lại một số dư
+     chung cho mỗi mã (như máy chủ tinh_lay_bu), phần không phủ được đi tiếp
+     sang hàng thay thế. */
+  if (khoThuTu.length > 1) {
+    var canTong = [];
+    ra.forEach(function (x) { if (x.lay_tong != null && canTong.indexOf(x.code) < 0) canTong.push(x.code); });
+    if (canTong.length) {
+      var conTong = await stockOf(canTong, MFG_KHO_TONG);
+      ra.forEach(function (x) {
+        if (x.lay_tong == null) return;
+        var l = r3(Math.min(Math.max(0, x.thieu || 0), Math.max(0, conTong[x.code] || 0)));
+        x.lay_tong = l;
+        conTong[x.code] = r3((conTong[x.code] || 0) - l);
+      });
+    }
+  }
   var dung = ra.filter(function (x) { return !x.tu_lam; });
   if (dung.some(function (x) { return (x.thieu || 0) - (x.lay_tong || 0) > 0.0001; })) {
     var tt = await api('vagabond.kho_san_xuat.thay_the_cho_thieu', { dong: JSON.stringify(dung.map(function (x) {
