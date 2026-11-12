@@ -4180,6 +4180,7 @@ async function scrHome() {
         card('✅', 'Duyệt yêu cầu mua', 'Duyệt từng dòng, kèm tồn kho và số đang chờ về để quyết ngay', 0, 'DUYETYC') +
         card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
         card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
+        card('📅', 'Dự chi công nợ', 'Đợt trả nhà cung cấp ngày 10 và 20: chọn trả hết hay một phần, duyệt một lần là có APP', 0, 'DUCHI') +
         card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC') +
         card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA')
         /* v565, anh Viet 03/10/2026: *"dong y an luon ban khung di"*.
@@ -4808,18 +4809,18 @@ var VGB_NHOM = [
      03/10/2026. Hai ô đó dựng để đối chiếu số với bản cũ, số đã khớp từ
      lâu, giữ lại chỉ làm nhân viên thu mua bấm nhầm vào bản đối chiếu. */
   {
-    k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['GOMMUA', 'DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA'],
+    k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['GOMMUA', 'DUYETYC', 'PO', 'CNPT', 'DUCHI', 'NCC', 'BGIA'],
     nhom: [
       { t: 'Mua hàng', p: 'việc hàng ngày', keys: ['GOMMUA', 'DUYETYC', 'PO'] },
-      { t: 'Nhà cung cấp', p: '', keys: ['NCC', 'BGIA', 'CNPT'] }
+      { t: 'Nhà cung cấp', p: '', keys: ['NCC', 'BGIA', 'CNPT', 'DUCHI'] }
     ]
   },
   {
     k: 'KT', ten: 'Kế toán', icon: '🧮',
-    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'TCQUY', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
+    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'DUCHI', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'TCQUY', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
     nhom: [
       { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'BC:BC05'] },
-      { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT'] },
+      { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT', 'DUCHI'] },
       { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ', 'TCQUY'] },
       { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] },
       { t: 'Giá thành', p: 'định giá bán', keys: ['GVT'] }
@@ -5884,7 +5885,7 @@ function vclIcon(l) {
     kiem_ke: '🧮', sai_kho: '⚠️', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
     ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
     nop_quy: '💵', hang_tang: '🎁', doi_soat_duyet: '📨', goi_y: '📌',
-    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒'
+    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒', du_chi: '📅', hoa_don_thu: '📧'
   }[l] || '';
 }
 
@@ -5954,6 +5955,9 @@ function vclMo(x) {
   if (l === 'ke_hoach_sx') return go(function () { khsx.ngay = x.ngay || today(); khsx.d = null; khsx.tab = 'tp'; return scrKeHoachSX(); });
   if (l === 'ghi_nhan_sx') return go(function () { mfg.tab = 'open'; mfg.han = 'nay'; mfg.mon = ''; return scrMfgList(); });
   if (l === 'gom_mua') return go(function () { GM.d = null; return scrGomMua(); });
+  /* v653: hoá đơn trong hộp thư hoadon@ chưa tự đính được: mở bản ghi trên Desk (có PDF, XML, đường dẫn). */
+  if (l === 'hoa_don_thu') { window.open('/app/vagabond-hoa-don-thu/' + encodeURIComponent(x.ma), '_blank'); return; }
+  if (l === 'du_chi') return go(function () { DCN.d = null; DCN.sua = {}; DCN.mo = {}; if (x.ma) { DCN.ma = x.ma; return scrDuChiXem(); } return scrDuChi(); });
   if (l === 'ycmh_nhap') return go(function () { scrMRView(x.ma, typeOf('Purchase')); });
   if (l === 'ycsx_thieu') {
     toast('Ở bước chọn món, bấm Gợi ý từ hệ thống để lấy đúng số còn thiếu.', 5000);
@@ -6060,6 +6064,7 @@ var VGB_DUONG = {
   'don-tiec': 'TIEC',
   'dong-tien': 'TCDONG',
   'du-bao-30-ngay': 'TCDB',
+  'du-chi-cong-no': 'DUCHI',
   'du-lieu-hao-hut': 'BCHH',
   'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
@@ -6356,6 +6361,7 @@ function vgbGo(k) {
   if (k === 'BCSANG') return go(scrBangSang);
   if (k === 'DUYETYC') return go(scrDuyetYc);
   if (k === 'GOMMUA') return go(function () { GM.d = null; return scrGomMua(); });
+  if (k === 'DUCHI') return go(scrDuChi);
   if (k === 'PO') return go(scrDonMua);
   if (k === 'KHPO') return kgMo('PO');
   if (k === 'KHHDM') return kgMo('HDM');
@@ -27369,7 +27375,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '652';
+var APPVER = '653';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -60032,6 +60038,16 @@ sdKhai('gom_mua', 'scrGomMua', {
   tieuDe: function (v) { var n = v && v.sua ? Object.keys(v.sua).length : 0; return n ? n + ' món đã sửa số mua' : ''; },
   luu: [function (m, a) { return m === 'vagabond.gom_mua.chot' && !gmConSuaKhac(a); }]
 });
+/* v653 Dự chi công nợ (71, sau 48): chỉ giữ số trả, ghi chú, hẹn đợt Uyên
+   đã sửa mà chưa bấm Lưu, theo đúng mã đợt. Lưu (du_chi.luu) là xong nháp. */
+sdKhai('du_chi', 'scrDuChiXem', {
+  ten: 'Dự chi công nợ', khongO: 1,
+  lay: function () { return DCN.d && DCN.d.trang_thai === 'Nhap' && Object.keys(DCN.sua).length ? { ma: DCN.d.ma, sua: dcnGiuSua(DCN.sua, DCN.d) } : null; },
+  dat: function (v) { dcnKhoiPhuc = v || null; if (v && v.ma) DCN.ma = v.ma; },
+  ma: function () { return DCN.ma || ''; },
+  tieuDe: function (v) { var n = v && v.sua ? Object.keys(v.sua).length : 0; return n ? n + ' hoá đơn đã sửa số trả' : ''; },
+  luu: ['vagabond.du_chi.luu']
+});
 /* v622: hai màn lập phiếu của Tuyển dụng (60-tuyen-dung.js, đứng sau 48 nên
    ghép bằng dat() vào biến khôi phục, màn tự ghép lúc dựng trạng thái). */
 sdKhai('vi_tri_tuyen', 'scrTdViTri', {
@@ -60139,6 +60155,7 @@ scrQuyKiem = sdBoc('kiem_quy', 'scrQuyKiem', scrQuyKiem);
 scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
 scrQuyChotDau = sdBoc('chot_dau_quy', 'scrQuyChotDau', scrQuyChotDau);
 scrGomMua = sdBoc('gom_mua', 'scrGomMua', scrGomMua);
+scrDuChiXem = sdBoc('du_chi', 'scrDuChiXem', scrDuChiXem);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
@@ -60970,7 +60987,7 @@ function cdlVeTab(fnTab, oToi) {
     return '<div class="cdl-khoi" data-cdlmuc="' + h(m.fn) + '">' + dau +
       (mo ? '<div class="cdl-mth">' + (m.mo ? '<div class="cdl-mo" style="margin-bottom:6px">' + h(m.mo) + '</div>' : '') +
         m.o.map(function (o) { return cdlVeO(o, doc, loi[o.fn]); }).join('') +
-        (m.fn === 'sec_gsm' ? cdlVeThuGsm() : '') + '</div>' : '') + '</div>';
+        (m.fn === 'sec_gsm' ? cdlVeThuGsm() : '') + (m.fn === 'sec_wa' ? cdlVeWa() : '') + '</div>' : '') + '</div>';
   }).join('');
   var b = frame(t.nhan, html, { footer: cdlFooter() });
   cdlAnThanh(cdlSoThay());
@@ -61158,6 +61175,7 @@ function cdlBam(e, fnTab) {
   if ((el = e.target.closest('[data-cdlbottoken]'))) return cdlHopBot(el.getAttribute('data-cdlbottoken'));
   if ((el = e.target.closest('[data-cdlbotnoi]'))) return cdlNoiBot(el.getAttribute('data-cdlbotnoi'));
   if ((el = e.target.closest('[data-cdlthugsm]'))) return cdlThuGsm(fnTab);
+  if ((el = e.target.closest('[data-cdlwa]'))) return cdlWa(el.getAttribute('data-cdlwa'), fnTab);
   if ((el = e.target.closest('[data-cdlguithu]'))) return cdlGuiThuZalo((CDL.bang.zalo_nhom || [])[parseInt(el.getAttribute('data-cdlguithu'), 10)]);
   if ((el = e.target.closest('[data-cdldong]'))) {
     return cdlMoDong(el.getAttribute('data-cdlbang'), parseInt(el.getAttribute('data-cdldong'), 10));
@@ -61219,6 +61237,49 @@ function cdlVeThuGsm() {
   }
   return '<div class="cdl-f" id="cdl-thu-gsm"><button class="cdl-lnk" data-cdlthugsm="1"' + (k && k.dang ? ' disabled' : '') +
     '>Thử kết nối GreenSM</button><div class="cdl-mo">Chạy đủ chuỗi xem loại xe, báo giá, tạo đơn thử và xem lại đơn trên môi trường thử, để GreenSM nghiệm thu trước khi cấp khoá thật. Chỉ chạy khi đang bật Dùng môi trường thử nên không bao giờ gọi xe thật.</div>' + kq + '</div>';
+}
+
+/* v653 WhatsApp đường phụ (anh Việt chọn A 12/11/2026): trạng thái số, chip đã
+   khai cho token, PIN, App Secret, Verify token, và hai nút. Máy chủ đọc PIN và
+   token trong máy chủ, không bao giờ trả ra trình duyệt (whatsapp.trang_thai). */
+function cdlVeWa() {
+  var k = CDL.waKq;
+  var dong = '';
+  if (k && k.dang) dong = cdlChip('off', 'Đang hỏi Meta...');
+  else if (k && k.loi_goi) dong = cdlChip('err', 'Chưa hỏi được Meta') + '<div class="cdl-mo" style="margin-top:4px">' + h(k.loi_goi) + '</div>';
+  else if (k) {
+    var kh = k.khai || {};
+    dong = '<div class="cdl-chips">' + cdlChip(k.chip || 'off', 'Số WhatsApp: ' + (k.nhan || '')) +
+      [['token', 'Token'], ['pin', 'PIN'], ['app_secret', 'App Secret'], ['verify_token', 'Verify token']].map(function (x) {
+        return cdlChip(kh[x[0]] ? 'ok' : 'no', x[1] + (kh[x[0]] ? ': Đã khai' : ': Chưa khai'));
+      }).join('') + '</div>' +
+      (k.token_loi ? '<div class="cdl-mo" style="margin-top:4px;color:#a42424">' + h(k.token_loi) + '</div>' : '') +
+      (k.so_la_sdt ? '<div class="cdl-mo" style="margin-top:4px;color:#a42424">Ô mã số điện thoại đang là số điện thoại. Điền mã Meta cấp (15 tới 17 chữ số), ví dụ 1504016899452995.</div>' : '') +
+      (k.loi ? '<div class="cdl-mo" style="margin-top:4px">' + h(k.loi) + '</div>' : '');
+  }
+  return '<div class="cdl-f" id="cdl-wa">' + dong +
+    '<div><button class="cdl-lnk" data-cdlwa="xem">Xem trạng thái số WhatsApp</button></div>' +
+    '<div class="cdl-mo">Hỏi Meta số gửi đã kích hoạt chưa. Không gửi tin nào.</div>' +
+    '<div><button class="cdl-lnk" data-cdlwa="kich_hoat">Kích hoạt số WhatsApp</button></div>' +
+    '<div class="cdl-mo">Điền PIN 6 số, bấm Lưu, rồi bấm nút này một lần. Số chuyển sang Đã kích hoạt là gửi được.</div>' +
+    '<div><button class="cdl-lnk" data-cdlwa="su_kien">Đăng ký nhận sự kiện</button></div>' +
+    '<div class="cdl-mo">Để khách bấm Ngừng nhận ưu đãi trên WhatsApp là máy tự gỡ đồng ý. Bấm sau khi đã dán App Secret, Verify token và đường nhận sự kiện trên Meta.</div></div>';
+}
+
+async function cdlWa(viec, fnTab) {
+  if (CDL.waKq && CDL.waKq.dang) return;
+  if (viec !== 'xem' && cdlSoThay()) return toast('Bấm Lưu trước rồi mới bấm nút này.');
+  if (viec === 'kich_hoat' && !await confirmSheet('Kích hoạt số WhatsApp?', 'Máy gửi PIN hai bước đã lưu lên Meta để đăng ký số gửi tin. Làm một lần.', 'Kích hoạt')) return;
+  CDL.waKq = { dang: 1 };
+  cdlVeTab(fnTab);
+  try {
+    var m = await api(viec === 'kich_hoat' ? 'vagabond.whatsapp.kich_hoat' : 'vagabond.whatsapp.trang_thai', {});
+    if (viec === 'su_kien') { await api('vagabond.whatsapp.dang_ky_su_kien', {}); toast('Meta đã nhận đăng ký nhận sự kiện.', 5000); }
+    CDL.waKq = m || {};
+  } catch (e) {
+    CDL.waKq = { loi_goi: (e && e.message) || 'Không gọi được máy chủ, thử lại sau.' };
+  }
+  if (document.getElementById('cdl-wa')) cdlVeTab(fnTab);
 }
 
 async function cdlThuGsm(fnTab) {
@@ -71988,6 +72049,392 @@ async function gmChot(g) {
     if (r.don) { poXem = r.don; return go(scrDonMuaXem); }
     await scrGomMua();
   } catch (e) { toast(errMsg(e), 7000); } finally { busy(0); }
+}
+/* ---------- 71. Dự chi công nợ: trả nhà cung cấp hai đợt 10 và 20 (v653) ----------
+
+   Anh Việt 12/11/2026 (issue #555): thay bảng Excel "Dự chi công nợ" bằng một
+   màn trên app. Máy (vagabond/du_chi.py) soạn sẵn đợt nháp ngày 7 và 17 từ dư
+   nợ ERP; Uyên thương lượng từng nhà cung cấp, bấm Trả hết hoặc gõ số trả từng
+   hoá đơn, máy tính phần gia hạn. Gửi duyệt: kế toán soát, giám đốc duyệt CẢ
+   ĐỢT một lần, máy lập APP từng nhà cung cấp luôn.
+
+   Màn chỉ gửi số trả, ghi chú, hẹn đợt; máy chủ đọc lại dư nợ và phần APP khác
+   đang giữ dưới khoá rồi mới lưu (QT-19).
+
+   Tiền tố dcn = dự chi nợ. */
+
+var DCN = { ds: null, d: null, sua: {}, mo: {}, tim: '', loc: '' };
+var dcnKhoiPhuc = null;
+
+/* THUẦN: số trả đang hiện của một dòng (đã gõ thì theo số gõ). */
+function dcnSoTra(r) {
+  var s = DCN.sua[r.hoa_don];
+  return s && s.so_tra != null ? s.so_tra : r.so_tra;
+}
+
+/* THUẦN: gia hạn của một dòng theo số trả đang hiện. Không âm. */
+function dcnGiaHan(r) {
+  return Math.max(0, Math.round((Number(r.co_the_tra) || 0) - (Number(dcnSoTra(r)) || 0)));
+}
+
+/* THUẦN: dòng có số trả gõ hỏng hay vượt phần còn đề nghị được. */
+function dcnHong(r) {
+  var v = Number(dcnSoTra(r));
+  return isNaN(v) || v < 0 || v > (Number(r.co_the_tra) || 0) + 0.5;
+}
+
+/* THUẦN: giữ số đã sửa của những hoá đơn còn trên đợt. */
+function dcnGiuSua(sua, d) {
+  var co = {}, ra = {};
+  ((d && d.dong) || []).forEach(function (r) { co[r.hoa_don] = 1; });
+  Object.keys(sua || {}).forEach(function (k) { if (co[k]) ra[k] = sua[k]; });
+  return ra;
+}
+
+/* THUẦN: nhóm dòng theo nhà cung cấp, giữ thứ tự. */
+function dcnNhom(dong) {
+  var thu = [], m = {};
+  (dong || []).forEach(function (r) {
+    if (!m[r.ncc]) { m[r.ncc] = { ncc: r.ncc, ten: r.ten_ncc, nhom: r.nhom, dong: [] }; thu.push(m[r.ncc]); }
+    m[r.ncc].dong.push(r);
+  });
+  return thu;
+}
+
+/* THUẦN: ba tổng của đợt theo số đang hiện. */
+function dcnTong(dong) {
+  var t = { de_nghi: 0, tra: 0, gia_han: 0 };
+  (dong || []).forEach(function (r) {
+    t.de_nghi += Number(r.co_the_tra) || 0;
+    t.tra += Number(dcnSoTra(r)) || 0;
+    t.gia_han += dcnGiaHan(r);
+  });
+  return t;
+}
+
+/* THUẦN: dòng tới hạn (hạn dự tính trước hoặc đúng ngày đợt). */
+function dcnToiHan(r, ngayDot) { return !!r.han && r.han <= ngayDot; }
+
+/* THUẦN: dòng gửi máy chủ lúc lưu: chỉ những dòng đã sửa. */
+function dcnDongLuu() {
+  return Object.keys(DCN.sua).map(function (k) {
+    var s = DCN.sua[k], x = { hoa_don: k };
+    if (s.so_tra != null) x.so_tra = s.so_tra;
+    if (s.ghi_chu != null) x.ghi_chu = s.ghi_chu;
+    if (s.hen_dot != null) x.hen_dot = s.hen_dot;
+    return x;
+  });
+}
+
+/* THUẦN: các đợt sau ngày đợt này để hẹn trả (ba đợt kế). */
+function dcnDotSau(ngayDot) {
+  var y = +ngayDot.slice(0, 4), m = +ngayDot.slice(5, 7), d = +ngayDot.slice(8, 10), ra = [];
+  for (var i = 0; i < 3; i++) {
+    if (d < 20) d = 20; else { d = 10; m++; if (m > 12) { m = 1; y++; } }
+    ra.push(y + '-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2));
+  }
+  return ra;
+}
+
+/* THUẦN: chip nguồn số ngày được nợ. */
+function dcnChuNo(x) {
+  if (!x) return 'Nợ 30 ngày (mặc định)';
+  return 'Nợ ' + x.so + ' ngày' + (x.nguon === 'khai' ? '' : x.nguon === 'goi_y' ? ' (máy gợi ý)' : ' (mặc định)');
+}
+
+function dcnSua(hd, k, v) {
+  DCN.sua[hd] = DCN.sua[hd] || {};
+  DCN.sua[hd][k] = v;
+}
+
+function dcnSt(t, c) {
+  return '<span class="st ' + c + '" style="font-size:13px;padding:4px 9px">' + h(t) + '</span>';
+}
+
+/* Dải tiến độ của đợt: bốn bước, bước đang ở có viền. */
+function dcnTienDo(tt) {
+  var b = [['Nhap', 'Uyên thương lượng'], ['Cho ke toan', 'Kế toán soát'], ['Cho giam doc', 'Giám đốc duyệt'], ['Da chot', 'Đã lập APP']];
+  var vi = { 'Nhap': 0, 'Cho ke toan': 1, 'Cho giam doc': 2, 'Da duyet': 3, 'Da chot': 3 }[tt];
+  if (vi == null) vi = -1;
+  return '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px">' + b.map(function (x, i) {
+    var c = i < vi || tt === 'Da chot' ? 'g' : i === vi ? 'b' : 'n';
+    return '<span class="st ' + c + '" style="font-size:13px;padding:4px 9px' + (i === vi && tt !== 'Da chot' ? ';outline:2px solid #0B7C93' : '') + '">' +
+      (c === 'g' ? '✓ ' : (i + 1) + '. ') + h(x[1]) + '</span>';
+  }).join('') + '</div>';
+}
+
+function dcnDong(r, sua, ngayDot) {
+  var mo = !!DCN.mo[r.hoa_don];
+  var hong = dcnHong(r);
+  var s = DCN.sua[r.hoa_don] || {};
+  var ghiChu = s.ghi_chu != null ? s.ghi_chu : r.ghi_chu;
+  var hen = s.hen_dot != null ? s.hen_dot : r.hen_dot;
+  var chip = [];
+  if (r.han) chip.push(dcnToiHan(r, ngayDot) ? dcnSt('Tới hạn ' + dmy(r.han).slice(0, 5), 'r') : dcnSt('Hạn ' + dmy(r.han).slice(0, 5), 'n'));
+  if (r.dang_giu > 0) chip.push(dcnSt('APP khác giữ ' + money(r.dang_giu) + ' đ', 'w'));
+  if (dcnGiaHan(r) > 0) chip.push(dcnSt('Gia hạn ' + money(dcnGiaHan(r)) + ' đ', 'b'));
+  if (r.app) chip.push(dcnSt('Đã lập ' + r.app, 'g'));
+  if (r.ket_qua) chip.push(dcnSt('Chưa lập được APP', 'r'));
+  if (ghiChu) chip.push(dcnSt('Có ghi chú', 'n'));
+  return '<div class="khsx-the" data-dcndong="' + h(r.hoa_don) + '" data-dcnchu="' + h((r.ten_ncc || '') + ' ' + (r.so_hd || '') + ' ' + r.hoa_don) + '">' +
+    '<div class="li" data-dcnmo="' + h(r.hoa_don) + '" style="align-items:flex-start;min-height:44px;cursor:pointer">' +
+    '<div class="lt"><div class="l1" style="white-space:normal">HĐ ' + h(r.so_hd || r.hoa_don) + ' · ' + h(dmy(r.ngay_hd)) + '</div>' +
+    '<div class="l2">Còn đề nghị được ' + money(r.co_the_tra) + ' đ' + (r.con_no !== r.co_the_tra ? ' (dư nợ ' + money(r.con_no) + ' đ)' : '') + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">' + chip.join('') + '</div></div>' +
+    (sua ? '<input class="tin" data-dcntra="' + h(r.hoa_don) + '" inputmode="numeric" value="' + h(String(Math.round(Number(dcnSoTra(r)) || 0))) + '" ' +
+      'style="width:118px;margin:0;text-align:right;flex:none;font-size:15px' + (hong ? ';border-color:#b3261e;color:#b3261e' : '') + '" aria-label="Trả đợt này hoá đơn ' + h(r.so_hd || r.hoa_don) + '">'
+      : '<div style="flex:none;text-align:right;font-weight:700;font-size:15px">' + money(r.so_tra) + ' đ</div>') +
+    '</div>' +
+    (hong ? '<div style="padding:0 14px 8px;font-size:13px;color:#b3261e">Số trả phải từ 0 tới ' + money(r.co_the_tra) + ' đ.</div>' : '') +
+    (r.ket_qua ? '<div style="padding:0 14px 8px;font-size:13px;color:#b3261e">' + h(r.ket_qua) + '</div>' : '') +
+    (mo ? '<div style="padding:0 14px 12px">' +
+      (sua ? '<textarea class="tin" rows="2" data-dcngc="' + h(r.hoa_don) + '" placeholder="Ghi chú thương lượng, ví dụ: chị Lan đồng ý dời phần còn lại sang đợt 10/12" style="margin:0 0 8px;font-size:14px">' + h(ghiChu || '') + '</textarea>' +
+        '<div style="font-size:13px;color:#374151;margin-bottom:6px">Hẹn trả phần gia hạn vào đợt</div>' +
+        '<div class="chips" style="flex-wrap:wrap;overflow:visible">' + [''].concat(dcnDotSau(ngayDot)).map(function (n) {
+          return '<button type="button" class="chip' + ((hen || '') === n ? ' on' : '') + '" data-dcnhen="' + h(r.hoa_don) + '" data-ngay="' + n + '" style="min-height:44px">' + (n ? dmy(n).slice(0, 5) : 'Chưa hẹn') + '</button>';
+        }).join('') + '</div>'
+        : '<div style="font-size:13.5px;color:#374151;line-height:1.55">' + (ghiChu ? h(ghiChu) : 'Không có ghi chú') + (hen ? '<br>Hẹn trả đợt ' + h(dmy(hen)) : '') + '</div>') +
+      '</div>' : '') +
+    '</div>';
+}
+
+function dcnNcc(g, i, d, sua) {
+  var t = dcnTong(g.dong), no = (d.so_ngay_no || {})[g.ncc];
+  return '<div class="card" data-dcnnhom="' + i + '" data-dcnncc="' + h((g.ten || '') + ' ' + (g.ncc || '')) + '" style="padding:12px 12px 14px;margin-bottom:14px">' +
+    '<div style="font-size:15.5px;font-weight:700;line-height:1.35;word-break:break-word">' + h(g.ten) + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 10px">' +
+    dcnSt(g.dong.length + ' hoá đơn · ' + money(t.de_nghi) + ' đ', 'n') +
+    '<button type="button" class="st ' + (no && no.nguon === 'khai' ? 'b' : 'w') + '" data-dcnno="' + h(g.ncc) + '" style="font-size:13px;padding:4px 12px;border:0;min-height:44px;cursor:pointer">' + h(dcnChuNo(no)) + (sua ? ' ✎' : '') + '</button>' +
+    (g.nhom ? dcnSt(g.nhom, 'n') : '') + '</div>' +
+    '<div class="lst">' + g.dong.map(function (r) { return dcnDong(r, sua, d.ngay_dot); }).join('') + '</div>' +
+    '<div style="font-size:13.5px;color:#374151;margin:10px 2px 8px;line-height:1.5">Trả đợt này <b>' + money(t.tra) + ' đ</b> · gia hạn <b>' + money(t.gia_han) + ' đ</b></div>' +
+    (sua ? '<div style="display:flex;gap:8px"><button class="btn gr" data-dcnhet="' + i + '" style="margin:0;flex:1">Trả hết</button>' +
+      '<button class="btn gh" data-dcnkhong="' + i + '" style="margin:0;flex:1">Không trả đợt này</button></div>' : '') +
+    '</div>';
+}
+
+/* Ô tìm và chip lọc chỉ ẩn hiện thẻ, số đã sửa giữ nguyên. */
+function dcnLoc(b) {
+  var q = vgbChuan(DCN.tim || ''), thay = 0, nd = DCN.d ? DCN.d.ngay_dot : '';
+  Array.prototype.forEach.call(b.querySelectorAll('[data-dcnnhom]'), function (g) {
+    var ncc = g.getAttribute('data-dcnncc') || '', con = 0;
+    Array.prototype.forEach.call(g.querySelectorAll('[data-dcndong]'), function (m) {
+      var r = (DCN.d.dong || []).filter(function (x) { return x.hoa_don === m.getAttribute('data-dcndong'); })[0];
+      var hop = (!q || vgbKhop((m.getAttribute('data-dcnchu') || '') + ' ' + ncc, q)) &&
+        (!DCN.loc || !r || (DCN.loc === 'han' ? dcnToiHan(r, nd) : DCN.loc === 'giu' ? r.dang_giu > 0 : DCN.loc === 'tra' ? (Number(dcnSoTra(r)) || 0) > 0 : true));
+      m.style.display = hop ? '' : 'none';
+      if (hop) con++;
+    });
+    g.style.display = con ? '' : 'none';
+    thay += con;
+  });
+  var tr = b.querySelector('#dcnTimTrong');
+  if (tr) tr.style.display = (q && !thay) ? '' : 'none';
+}
+
+function dcnChipLoc(d) {
+  var dem = { '': d.dong.length, han: 0, giu: 0, tra: 0 };
+  d.dong.forEach(function (r) {
+    if (dcnToiHan(r, d.ngay_dot)) dem.han++;
+    if (r.dang_giu > 0) dem.giu++;
+    if ((Number(dcnSoTra(r)) || 0) > 0) dem.tra++;
+  });
+  var ds = [['', 'Tất cả'], ['han', '🔴 Tới hạn'], ['tra', '💸 Có trả đợt này'], ['giu', '⏳ APP khác đang giữ']];
+  return '<div class="chips" style="flex-wrap:wrap;overflow:visible">' + ds.filter(function (x) { return !x[0] || dem[x[0]]; }).map(function (x) {
+    return '<button type="button" class="chip' + (DCN.loc === x[0] ? ' on' : '') + '" data-dcnloc="' + x[0] + '" style="min-height:44px">' + h(x[1]) + ' ' + dem[x[0]] + '</button>';
+  }).join('') + '</div>';
+}
+
+async function scrDuChi() {
+  frame('Dự chi công nợ', '<div class="emp"><div class="e1">⏳</div></div>');
+  try { DCN.ds = await api('vagabond.du_chi.ds', {}); }
+  catch (e) { return frame('Dự chi công nợ', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' + h(errMsg(e)) + '</div></div>'); }
+  var r = DCN.ds;
+  var html = '<div class="card" style="padding:12px 14px;font-size:13.5px;line-height:1.55;color:#374151">' +
+    'Trả nhà cung cấp hai đợt mỗi tháng, ngày <b>10</b> và <b>20</b>. Máy soạn sẵn đợt ngày 7 và 17 từ dư nợ ERP; Uyên thương lượng, kế toán soát, giám đốc duyệt một lần là máy lập APP.</div>' +
+    (!r.da_co ? '<button class="btn" id="dcnSoan" style="margin:0 0 12px">💸 Soạn đợt ' + h(dmy(r.ke_tiep).slice(0, 5)) + ' ngay</button>' : '') +
+    (r.dot.length ? '<div class="lst">' + r.dot.map(function (x) {
+      var c = x.trang_thai === 'Da chot' ? 'g' : x.trang_thai === 'Huy' ? 'n' : x.trang_thai === 'Nhap' ? 'b' : 'w';
+      return '<div class="li" data-dcnxem="' + h(x.name) + '" style="min-height:44px;cursor:pointer"><div class="lt">' +
+        '<div class="l1">Đợt ' + h(dmy(x.ngay_dot)) + '</div>' +
+        '<div class="l2">Trả ' + money(x.tong_tra) + ' đ · gia hạn ' + money(x.tong_gia_han) + ' đ</div></div>' +
+        dcnSt(x.nhan, c) + '</div>';
+    }).join('') + '</div>' : '<div class="emp"><div class="e1">💸</div><div class="e2">Chưa có đợt nào. Bấm Soạn đợt để máy dựng từ dư nợ hiện tại.</div></div>');
+  var b = frame('Dự chi công nợ', html, { action: '&#8635;', onAction: scrDuChi });
+  b.onclick = async function (e) {
+    var x = e.target.closest('[data-dcnxem]');
+    if (x) { DCN.d = null; DCN.sua = {}; DCN.mo = {}; DCN.ma = x.getAttribute('data-dcnxem'); return go(scrDuChiXem); }
+    if (e.target.closest('#dcnSoan')) {
+      busy(1);
+      try { DCN.d = await api('vagabond.du_chi.soan_lai', { ngay_dot: r.ke_tiep }); DCN.ma = DCN.d.ma; DCN.sua = {}; DCN.mo = {}; }
+      catch (er) { toast(errMsg(er), 7000); return; } finally { busy(0); }
+      return go(function () { return scrDuChiXem(1); });
+    }
+  };
+}
+
+async function scrDuChiXem(giu) {
+  if (!giu || !DCN.d || DCN.d.ma !== DCN.ma) {
+    frame('Dự chi công nợ', '<div class="emp"><div class="e1">⏳</div></div>');
+    try { DCN.d = await api('vagabond.du_chi.chi_tiet', { ma: DCN.ma }); DCN.sua = dcnGiuSua(DCN.sua, DCN.d); }
+    catch (e) { return frame('Dự chi công nợ', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' + h(errMsg(e)) + '</div></div>'); }
+  }
+  if (dcnKhoiPhuc && dcnKhoiPhuc.ma === DCN.d.ma) { DCN.sua = dcnGiuSua(dcnKhoiPhuc.sua, DCN.d); dcnKhoiPhuc = null; }
+  var d = DCN.d, q = d.quyen || {};
+  var sua = d.trang_thai === 'Nhap' && q.sua;
+  var t = dcnTong(d.dong);
+  var du = d.so_du != null ? d.so_du - t.tra : null;
+  var nhom = dcnNhom(d.dong);
+  var html = dcnTienDo(d.trang_thai) +
+    '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13px;color:#6b7280">Đợt ' + h(dmy(d.ngay_dot)) + ' · ' + h(d.nhan) + '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
+    [['Trả đợt này', t.tra, '#0B7C93'], ['Gia hạn', t.gia_han, '#374151'], ['Còn đề nghị được', t.de_nghi, '#374151'],
+      ['Số dư TK chi', d.so_du, d.so_du == null ? '#6b7280' : (du < 0 ? '#b3261e' : '#178a4c')]].map(function (x) {
+        return '<div style="background:#f2f8fa;border-radius:10px;padding:8px 10px"><div style="font-size:13px;color:#6b7280">' + h(x[0]) + '</div>' +
+          '<div style="font-size:17px;font-weight:800;color:' + x[2] + '">' + (x[1] == null ? 'Chưa đọc được' : money(x[1]) + ' đ') + '</div></div>';
+      }).join('') + '</div>' +
+    (du != null ? '<div style="font-size:13px;margin-top:8px;color:' + (du < 0 ? '#b3261e' : '#178a4c') + '">' + (du < 0 ? 'Thiếu ' + money(-du) + ' đ so với số dư lúc soạn.' : 'Còn dư ' + money(du) + ' đ sau đợt này.') + '</div>' : '') +
+    (d.ly_do_tra_lai ? '<div style="font-size:13.5px;margin-top:8px;color:#b3261e">Trả lại: ' + h(d.ly_do_tra_lai) + '</div>' : '') +
+    ((d.fin_boi || d.gd_boi) ? '<div style="font-size:13px;margin-top:8px;color:#6b7280">' + (d.fin_boi ? 'Kế toán soát: ' + h(d.fin_boi) + ' ' + h(dmy(d.fin_luc)) : '') + (d.gd_boi ? ' · Giám đốc: ' + h(d.gd_boi) + ' ' + h(dmy(d.gd_luc)) : '') + '</div>' : '') +
+    '</div>' +
+    (d.dong.length ? dcnChipLoc(d) + vgbOTim('dcnTim', d.dong.length, '🔎 Gõ tên nhà cung cấp hoặc số hoá đơn') +
+      nhom.map(function (g, i) { return dcnNcc(g, i, d, sua); }).join('')
+      : '<div class="emp"><div class="e1">🎉</div><div class="e2">Không còn hoá đơn mua nào cần trả.</div></div>');
+  var foot = '';
+  if (sua) foot = '<div style="display:flex;gap:8px"><button class="btn gh" id="dcnLuu" style="flex:1;margin:0">💾 Lưu</button>' +
+    '<button class="btn" id="dcnGui" style="flex:2;margin:0">📤 Gửi duyệt ' + money(t.tra) + ' đ</button></div>';
+  else if (d.trang_thai === 'Cho ke toan' && q.fin) foot = '<div style="display:flex;gap:8px"><button class="btn gh" id="dcnTraLai" style="flex:1;margin:0">Trả lại</button>' +
+    '<button class="btn" id="dcnFin" style="flex:2;margin:0">✅ Kế toán đã soát</button></div>';
+  else if (d.trang_thai === 'Cho giam doc' && q.gd) foot = '<div style="display:flex;gap:8px"><button class="btn gh" id="dcnTraLai" style="flex:1;margin:0">Trả lại</button>' +
+    '<button class="btn" id="dcnGd" style="flex:2;margin:0">✅ Duyệt và lập APP</button></div>';
+  else if (d.trang_thai === 'Da duyet' && (q.sua || q.gd)) foot = '<button class="btn" id="dcnChot" style="margin:0">🔁 Lập APP cho phần còn lỗi</button>';
+  else if (d.trang_thai === 'Da chot') foot = '<button class="btn gh" id="dcnCk" style="margin:0">🏦 Danh sách chuyển khoản</button>';
+  var b = frame('Dự chi ' + dmy(d.ngay_dot).slice(0, 5), html, sua ? { footer: foot, action: '&#8635;', onAction: dcnSoanLai } : (foot ? { footer: foot } : {}));
+  var oTim = b.querySelector('#dcnTim');
+  if (oTim) { oTim.value = DCN.tim || ''; oTim.oninput = function () { DCN.tim = oTim.value; dcnLoc(b); }; dcnLoc(b); }
+  Array.prototype.forEach.call(b.querySelectorAll('[data-dcntra]'), function (o) {
+    o.onclick = function (ev) { ev.stopPropagation(); };
+    o.oninput = function () {
+      var v = String(o.value).replace(/[^0-9]/g, '');
+      dcnSua(o.dataset.dcntra, 'so_tra', v === '' ? null : Number(v));
+    };
+    o.onchange = function () { scrDuChiXem(1); };
+  });
+  Array.prototype.forEach.call(b.querySelectorAll('[data-dcngc]'), function (o) {
+    o.oninput = function () { dcnSua(o.dataset.dcngc, 'ghi_chu', o.value); };
+  });
+  /* Nút ở thanh dưới nằm ngoài thân màn (frame dựng .vf riêng). */
+  var tim = function (k) { return document.getElementById(k); };
+  if (tim('dcnLuu')) tim('dcnLuu').onclick = function () { dcnLuu(false); };
+  if (tim('dcnGui')) tim('dcnGui').onclick = function () { dcnLuu(true); };
+  if (tim('dcnFin')) tim('dcnFin').onclick = function () { dcnDuyet('fin'); };
+  if (tim('dcnGd')) tim('dcnGd').onclick = function () { dcnDuyet('gd'); };
+  if (tim('dcnTraLai')) tim('dcnTraLai').onclick = function () { dcnDuyet('tra_lai'); };
+  if (tim('dcnChot')) tim('dcnChot').onclick = dcnChot;
+  if (tim('dcnCk')) tim('dcnCk').onclick = dcnChuyenKhoan;
+  b.onclick = async function (e) {
+    var lc = e.target.closest('[data-dcnloc]');
+    if (lc) { DCN.loc = lc.getAttribute('data-dcnloc') || ''; return scrDuChiXem(1); }
+    var het = e.target.closest('[data-dcnhet]'), khong = e.target.closest('[data-dcnkhong]');
+    if (het || khong) {
+      var g = nhom[+(het || khong).getAttribute(het ? 'data-dcnhet' : 'data-dcnkhong')];
+      g.dong.forEach(function (r) { if (!r.app) dcnSua(r.hoa_don, 'so_tra', het ? Math.round(r.co_the_tra) : 0); });
+      return scrDuChiXem(1);
+    }
+    var hen = e.target.closest('[data-dcnhen]');
+    if (hen) { dcnSua(hen.getAttribute('data-dcnhen'), 'hen_dot', hen.getAttribute('data-ngay') || ''); return scrDuChiXem(1); }
+    var no = e.target.closest('[data-dcnno]');
+    if (no && sua) return dcnSoNgayNo(no.getAttribute('data-dcnno'));
+    if (e.target.closest('input') || e.target.closest('textarea')) return;
+    var m = e.target.closest('[data-dcnmo]');
+    if (m) { DCN.mo[m.dataset.dcnmo] = DCN.mo[m.dataset.dcnmo] ? 0 : 1; return scrDuChiXem(1); }
+  };
+}
+
+async function dcnSoanLai() {
+  if (Object.keys(DCN.sua).length && !await confirmSheet('Soạn lại đợt?', 'Máy đọc lại dư nợ ERP. Số đã LƯU được giữ; số vừa gõ mà chưa bấm Lưu sẽ mất.', 'Soạn lại')) return;
+  busy(1);
+  try { DCN.d = await api('vagabond.du_chi.soan_lai', { ngay_dot: DCN.d.ngay_dot }); DCN.sua = {}; toast('Đã đọc lại dư nợ ERP', 4000); }
+  catch (e) { toast(errMsg(e), 7000); } finally { busy(0); }
+  scrDuChiXem(1);
+}
+
+async function dcnLuu(gui) {
+  var d = DCN.d;
+  var hong = d.dong.filter(dcnHong);
+  if (hong.length) return toast('Còn ' + hong.length + ' hoá đơn có số trả sai (đỏ). Sửa rồi lưu lại.', 6000);
+  if (gui) {
+    var t = dcnTong(d.dong);
+    if (!await confirmSheet('Gửi đợt ' + dmy(d.ngay_dot).slice(0, 5) + ' đi duyệt?',
+      'Trả ' + money(t.tra) + ' đ, gia hạn ' + money(t.gia_han) + ' đ cho ' + dcnNhom(d.dong).filter(function (g) { return dcnTong(g.dong).tra > 0; }).length +
+      ' nhà cung cấp.\n\nKế toán soát, giám đốc duyệt xong máy lập APP từng nhà cung cấp, sẵn chờ chuyển tiền.', 'Gửi duyệt')) return;
+  }
+  busy(1);
+  try {
+    if (Object.keys(DCN.sua).length) DCN.d = await api('vagabond.du_chi.luu', { ma: d.ma, dong: JSON.stringify(dcnDongLuu()) });
+    DCN.sua = {};
+    if (gui) { DCN.d = await api('vagabond.du_chi.gui', { ma: d.ma }); toast('Đã gửi duyệt', 4000); }
+    else toast('Đã lưu', 3000);
+  } catch (e) { toast(errMsg(e), 8000); } finally { busy(0); }
+  scrDuChiXem(1);
+}
+
+async function dcnDuyet(buoc) {
+  var d = DCN.d, ly = '';
+  if (buoc === 'tra_lai') {
+    ly = await hoiChu('Trả lại đợt cho Uyên', 'Ghi lý do để Uyên biết sửa gì.', '', { nhieu_dong: 1, bat_buoc: 1 });
+    if (!ly) return;
+  } else if (!await confirmSheet(buoc === 'gd' ? 'Duyệt đợt và lập APP?' : 'Kế toán đã soát đợt này?',
+    buoc === 'gd' ? 'Máy lập APP cho từng nhà cung cấp đúng số trả, APP sẵn ở bước Đã duyệt chờ chuyển tiền.' : 'Đợt chuyển sang giám đốc duyệt.',
+    buoc === 'gd' ? 'Duyệt và lập APP' : 'Đã soát')) return;
+  busy(1);
+  try {
+    DCN.d = await api('vagabond.du_chi.duyet', { ma: d.ma, buoc: buoc, ly_do: ly });
+    var loi = (DCN.d.dong || []).filter(function (r) { return r.ket_qua; }).length;
+    toast(buoc === 'gd' ? (loi ? 'Đã duyệt. Còn ' + loi + ' hoá đơn chưa lập được APP, xem dòng đỏ rồi bấm Lập APP cho phần còn lỗi.' : 'Đã duyệt và lập đủ APP') : 'Đã ghi', loi ? 9000 : 4000);
+  }
+  catch (e) { toast(errMsg(e), 8000); } finally { busy(0); }
+  scrDuChiXem(1);
+}
+
+async function dcnChot() {
+  busy(1);
+  try {
+    var r = await api('vagabond.du_chi.chot', { ma: DCN.d.ma });
+    toast(r.loi && r.loi.length ? 'Còn ' + r.loi.length + ' nhà cung cấp chưa lập được APP, xem dòng đỏ.' : 'Đã lập đủ APP', 7000);
+  } catch (e) { toast(errMsg(e), 8000); } finally { busy(0); }
+  DCN.d = null; scrDuChiXem();
+}
+
+async function dcnSoNgayNo(ncc) {
+  var x = (DCN.d.so_ngay_no || {})[ncc];
+  var v = await hoiChu('Số ngày được nợ', 'Nhà cung cấp cho nợ bao nhiêu ngày kể từ ngày hoá đơn. ' +
+    (x && x.goi_y ? 'Lịch sử trả gợi ý ' + x.goi_y + ' ngày. ' : '') + 'Gõ 0 để máy tự dùng số gợi ý.', x && x.nguon === 'khai' ? String(x.so) : (x && x.goi_y ? String(x.goi_y) : ''), { kieu: 'number' });
+  if (v == null) return;
+  busy(1);
+  try { await api('vagabond.du_chi.luu_so_ngay_no', { ncc: ncc, so_ngay: v }); toast('Đã ghi. Bấm ↻ để máy tính lại hạn.', 5000); DCN.d.so_ngay_no[ncc] = { so: +v || 30, nguon: +v ? 'khai' : 'goi_y', goi_y: x && x.goi_y }; }
+  catch (e) { toast(errMsg(e), 7000); } finally { busy(0); }
+  scrDuChiXem(1);
+}
+
+async function dcnChuyenKhoan() {
+  var r;
+  busy(1);
+  try { r = await api('vagabond.du_chi.ds_chuyen_khoan', { ma: DCN.d.ma }); }
+  catch (e) { toast(errMsg(e), 7000); return; } finally { busy(0); }
+  var html = '<div class="lst">' + (r.dong || []).map(function (x) {
+    return '<div class="li" data-dcnapp="' + h(x.name) + '" style="min-height:44px;align-items:flex-start;cursor:pointer"><div class="lt">' +
+      '<div class="l1" style="white-space:normal">' + h(x.ten_nhan || x.ten_ncc) + '</div>' +
+      '<div class="l2">' + h(x.stk_nhan || 'Chưa có số tài khoản') + ' · ' + h(x.ngan_hang_nhan || '') + '</div>' +
+      '<div class="l2">' + h(x.name) + ' · ' + h(x.nhan) + '</div></div>' +
+      '<div style="flex:none;font-weight:700">' + money(x.tong_tien) + ' đ</div></div>';
+  }).join('') + '</div>';
+  var b = frame('Chuyển khoản đợt ' + dmy(DCN.d.ngay_dot).slice(0, 5), html);
+  b.onclick = function (e) {
+    var a = e.target.closest('[data-dcnapp]');
+    if (a) { var ma = a.getAttribute('data-dcnapp'); return go(function () { return scrHoSoTTView(ma); }); }
+  };
 }
 })();
 

@@ -119,6 +119,7 @@ var VGB_ZALO_TIN = {
 	bh_don_web_moi: ['Bán hàng, cửa hàng', 'Đơn web mới đã vào Pancake', 'Khách vừa đặt trên web: giờ nhận, món, tổng tiền, miễn phí giao hay không.'],
 	bh_hoan_tien_xong: ['Bán hàng, cửa hàng', 'Đã hoàn tiền cho khách', 'Kế toán đã chuyển xong tiền hoàn, Sales báo khách.'],
 	bh_banh_thieu_ngay_mai: ['Bán hàng, cửa hàng', 'Bánh khách đặt ngày mai còn thiếu', '17:00 và 21:00 (sửa được): món khách đặt ngày mai mà tồn và bếp đã lên chưa đủ.'],
+	bh_banh_co_san: ['Bán hàng, cửa hàng', 'Bánh có sẵn hôm nay, kèm ảnh bánh', 'Bảng Kiểm bánh hôm nay đổi số bán được (cách 15 phút, 08:00 tới 21:30): ảnh từng bánh, số còn.'],
 	bep_ke_hoach_sx: ['Bếp', 'Kế hoạch sản xuất hôm nay (05:00)', '05:00 sáng, kế hoạch sản xuất trong ngày đã sẵn, bếp đọc rồi chốt.'],
 	bep_tkr_da_coc: ['Bếp', 'Đơn thiết kế riêng đã cọc, lên lịch bếp', 'Khách đã cọc bánh thiết kế riêng: tác phẩm, size, trang trí, ngày giờ cần bánh, ghi chú cho bếp.'],
 	bep_si_don: ['Bếp', 'Đơn sỉ web cần làm', 'Đơn sỉ đã chắc chắn làm (khách trả cuối kỳ, hoặc trả trước đã xong): mã đơn, ngày giao, món và số lượng.'],
@@ -139,6 +140,7 @@ var VGB_ZALO_TIN = {
 	tm_don_mua_tre_hen: ['Thu mua', 'Đơn mua trễ hẹn chưa về đủ (08:00)', '08:00 mỗi sáng, đơn mua đã qua ngày hẹn mà hàng chưa về đủ.'],
 	tm_hang_ve_chua_hoa_don: ['Thu mua', 'Hàng về quá 3 ngày chưa có hoá đơn (08:25)', '08:25 mỗi sáng, phiếu nhập đã ghi sổ quá 3 ngày mà chưa có hoá đơn mua.'],
 	tm_gom_mua: ['Thu mua', 'Yêu cầu mua chờ gom thành đơn mua', '09:00 và 15:00 (sửa được): còn yêu cầu mua các bộ phận đã gửi mà thu mua chưa gom.'],
+	tm_du_chi: ['Thu mua', 'Dự chi công nợ đợt 10 và 20 đã soạn', 'Ngày 7 và 17 (giờ sửa được): máy soạn sẵn đợt trả nhà cung cấp, thu mua thương lượng rồi gửi duyệt.'],
 	kho_nhap_cho_kiem: ['Kho', 'Phiếu nhập chờ kho đếm và ghi sổ', 'Có phiếu nhập còn nháp chờ kho đếm hàng rồi ghi sổ.'],
 	kho_da_nhap: ['Kho', 'Đã nhập hàng vào kho', 'Phiếu nhập vừa ghi sổ: tên hàng, số lượng, lệch so với đơn mua, hạn lô.'],
 	kho_da_chuyen: ['Kho', 'Đã chuyển hàng giữa kho', 'Phiếu điều chuyển vừa ghi sổ: kho đi, kho đến, tên hàng, số lượng.'],
@@ -272,8 +274,10 @@ var VGB_CD = (function () {
 		// sự kiện cần khoá bí mật OA; mã QR mời quan tâm cần mã OA.
 		{ hau: 'Không mời khách quan tâm OA và không gửi tin Zalo OA theo chiến dịch.', ten: 'Zalo OA tin Truyền thông',
 			can: ['zalo_app_id', 'zalo_app_secret', 'zalo_refresh_token', 'zalo_oa_id', 'zalo_oa_khoa_webhook'], bat: 'zalo_oa_bat', toi: 'zalo_oa_bat', muc: 'sec_zalo_oa' },
-		// whatsapp.gui_mau từ chối khi không có tên mẫu; nơi gọi duy nhất dùng mẫu thanh toán.
-		{ hau: 'Không gửi được yêu cầu thanh toán qua WhatsApp.', ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token', 'wa_template_thanh_toan'], toi: 'wa_phone_id', muc: 'sec_wa' },
+		// whatsapp.gui_mau từ chối khi không có tên mẫu. v653: WhatsApp là đường phụ cho mã
+		// xác thực và ưu đãi (kenh_khach.wa_san_sang cần mã số, token và một mẫu).
+		{ hau: 'Khách không có Zalo không nhận được mã xác thực, ưu đãi và yêu cầu thanh toán qua WhatsApp.', ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token'],
+			canMot: [['wa_template_otp'], ['wa_template_uu_dai'], ['wa_template_thanh_toan']], toi: 'wa_phone_id', muc: 'sec_wa' },
 		// thong_bao.py gửi bằng khoá riêng VAPID; thiếu là "chua co khoa VAPID".
 		{ hau: 'Điện thoại nhân viên không nhận thông báo đẩy.', ten: 'Thông báo đẩy', can: ['push_khoa_cong_khai', 'push_khoa_rieng'], toi: 'push_khoa_cong_khai', muc: 'sec_push' },
 		{ hau: 'Quảng cáo Meta không đo được đơn từ web.', ten: 'Meta Pixel', can: ['meta_pixel_id'], toi: 'meta_pixel_id', muc: 'sec_meta_pixel' },
