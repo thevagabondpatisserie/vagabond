@@ -77,6 +77,11 @@ NGUOI_GUI_MAC_DINH = (
 	("Be", "be.com.vn", 1),
 	("Meta (biên lai quảng cáo)", "facebookmail.com, facebook.com", 1),
 )
+# v651 (anh Việt 12/11/2026, hướng B): đối tác ký DKIM hỏng ngay từ phía họ
+# (Shinhan: chữ ký bccardvn.com mà thân thư không khớp). Chỉ với các tên miền
+# này, máy tin kết quả SPF mà Gmail của tiệm ghi lúc thư vào và google.com niêm
+# phong bằng ARC (doi_soat_dkim.kiem_arc). Không mở cho đối tác nào khác.
+TIN_ARC_GOOGLE = ("shinhan.com.vn",)
 TAN_SUAT = ("Hằng ngày", "Hằng tháng", "Không theo lịch")
 # Lịch thư dự kiến mặc định: (nguồn như tên trên báo cáo, tần suất, hạn giờ,
 # hạn ngày trong tháng, chỉ ngày làm việc).
@@ -256,7 +261,16 @@ def quyet_noi_bo(dia_chi, so_from, chu_ky, dang_nhap):
 	return ra
 
 
-def quyet_dinh(mien, so_from, chu_ky, nguoi_gui):
+def can_kiem_arc(mien, chu_ky, nguoi_gui):
+	"""THUẦN. Thư có cần kiểm chuỗi ARC không: người gửi thuộc đối tác có tên
+	miền trong TIN_ARC_GOOGLE và thư chưa có chữ ký hợp lệ của chính đối tác."""
+	d = dong_cua(mien, nguoi_gui)
+	if not d or not any(thuoc(m, TIN_ARC_GOOGLE) for m in d["mien"]):
+		return False
+	return not any(c.get("dat") and thuoc(c.get("d"), d["mien"]) for c in chu_ky or [])
+
+
+def quyet_dinh(mien, so_from, chu_ky, nguoi_gui, arc=None):
 	"""THUẦN. Quyết một thư: nhận, chờ duyệt hay chặn.
 
 	chu_ky: kết quả doi_soat_dkim.kiem_thu ([{d, dat, ly_do}]).
@@ -277,6 +291,13 @@ def quyet_dinh(mien, so_from, chu_ky, nguoi_gui):
 		ra.update(ket_qua=KQ_XAC_THUC, ky_boi=dat[0]["d"], ly_do="Chữ ký số %s hợp lệ." % dat[0]["d"])
 		if dat[0].get("ghi_chu"):
 			ra["ly_do"] += " " + dat[0]["ghi_chu"]
+		return ra
+	# v651 hướng B: chỉ đối tác trong TIN_ARC_GOOGLE, chỉ khi Gmail ghi SPF đạt cho
+	# đúng tên miền người gửi (cũng là tên miền của đối tác) và chuỗi ARC hợp lệ.
+	if arc and arc.get("dat") and thuoc(mien, TIN_ARC_GOOGLE) and thuoc(arc.get("spf_mien"), [mien]):
+		ra.update(ket_qua=KQ_XAC_THUC, ky_boi="google.com (ARC)", ly_do=(
+			"Chữ ký số của %s hỏng từ phía đối tác; Gmail của tiệm xác nhận máy chủ %s được phép gửi "
+			"(SPF đạt, chuỗi ARC do google.com ký hợp lệ)." % (d["ten"], arc["spf_mien"])))
 		return ra
 	cua_minh = [c for c in chu_ky or [] if thuoc(c.get("d"), d["mien"])]
 	if cua_minh:
@@ -1067,7 +1088,15 @@ def _quyet(tho, t, ch):
 	noi_bo = (t.get("dia_chi") or "").lower() in (ch.get("noi_bo") or [])
 	chu_ky = doi_soat_dkim.kiem_thu(tho, doi_soat_dkim.lay_khoa_dns, bay) if (dong or noi_bo) and t["so_from"] == 1 else []
 	if dong or not noi_bo:
-		return quyet_dinh(t["mien"], t["so_from"], chu_ky, ch["nguoi_gui"]), chu_ky
+		arc = None
+		if t["so_from"] == 1 and can_kiem_arc(t["mien"], chu_ky, ch["nguoi_gui"]):
+			arc = doi_soat_dkim.kiem_arc(tho, doi_soat_dkim.lay_khoa_dns)
+			# Ghi kèm vào sổ chữ ký để tra lại; tra khoá lỗi tạm thì chưa kết luận
+			# (phai_doc_lai_dns đọc cờ tam). d=google.com không thuộc tên miền đối
+			# tác nên dòng này không tự làm thư "có chữ ký của đối tác".
+			chu_ky = list(chu_ky) + [dict(d=doi_soat_dkim.ARC_TIN, s="arc", dat=bool(arc.get("dat")),
+				ly_do=arc.get("ly_do") or ("ARC: SPF đạt cho %s." % arc.get("spf_mien")), tam=bool(arc.get("tam")))]
+		return quyet_dinh(t["mien"], t["so_from"], chu_ky, ch["nguoi_gui"], arc), chu_ky
 	td = [(a.decode("latin-1"), b.decode("latin-1")) for a, b, _k in doi_soat_dkim.tach_thu(tho)[0]]
 	return quyet_noi_bo(t["dia_chi"].lower(), t["so_from"], chu_ky, qua_may_chu_dang_nhap(td, t["dia_chi"])), chu_ky
 
