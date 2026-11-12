@@ -161,6 +161,10 @@ def sap_het_han(but, hom_nay, han_thang, so_ngay=NHAC_TRUOC_NGAY):
 		if qua_han_cuon_chieu(but, moc(mat)) - da_mat > 0:
 			ngay_mat = mat
 			break
+	if ngay_mat:
+		# Codex #557: chỉ số điểm mất ĐÚNG ngày đầu tiên đó, không cộng các đợt
+		# mất ngày sau trong 30 ngày (câu nhắc ghi "X điểm hết hạn ngày D").
+		tong = qua_han_cuon_chieu(but, moc(ngay_mat)) - da_mat
 	return {"diem": int(tong), "ngay": ngay_vn(ngay_mat or cuoi)}
 
 
@@ -304,12 +308,25 @@ def giu_diem(ten_don, khach, diem, tien_banh):
 
 	frappe.db.sql("select name from `tabCustomer` where name = %s for update", khach)
 	c = _cd()
-	so_du = diem_otp._so_du(khach)
+	so_du = _so_du_khoa(khach)
 	toi_da = diem_otp.tran_dung_duoc(tien_banh, so_du, c["quy_doi"], c["tran_pt"], c["bill_toi_thieu"])
 	if int(diem) <= 0 or int(toi_da) < int(diem):
 		return 0
 	_ghi_so_diem(khach, -abs(int(diem)), diem_otp.LOAI_TRU, None, _ghi_chu(ten_don))
 	return int(diem)
+
+
+def _so_du_khoa(khach):
+	"""Số dư cộng lại từ sổ bằng phép đọc CÓ KHOÁ (Codex #557). MariaDB
+	REPEATABLE READ: đọc thường trả ảnh chụp từ lần đọc đầu giao dịch (tao_don đã
+	đọc số dư trước khi khoá khách), nên không thấy phần đơn khác vừa trừ và
+	commit. FOR UPDATE đọc bản đã commit mới nhất."""
+	import frappe
+
+	from vagabond.diem_otp import SO_DIEM
+
+	r = frappe.db.sql("select sum(diem) from `tab%s` where khach = %%s for update" % SO_DIEM, (khach,))
+	return _so((r or [[0]])[0][0])
 
 
 def _da_tru_cua_don(ten_don):
