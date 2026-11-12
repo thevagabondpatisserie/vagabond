@@ -334,8 +334,9 @@ def _da_tru_cua_don(ten_don):
 
 	from vagabond.diem_otp import LOAI_TRU
 
-	r = frappe.db.sql("select khach, sum(diem) from `tabVagabond So Diem` where loai = %s and ghi_chu = %s group by khach",
-		(LOAI_TRU, _ghi_chu(ten_don)))
+	# Đọc có khoá (Codex #557 vòng 2): bên gọi đã khoá đơn, phải thấy bản đã commit.
+	r = frappe.db.sql("select khach, sum(diem) from `tabVagabond So Diem` where loai = %s and ghi_chu = %s"
+		" group by khach for update", (LOAI_TRU, _ghi_chu(ten_don)))
 	return [(k, abs(_so(d))) for k, d in (r or []) if _so(d) < 0]
 
 
@@ -344,7 +345,12 @@ def _da_hoan_cua_don(ten_don):
 
 	from vagabond.diem_otp import LOAI_HOAN
 
-	return bool(frappe.db.exists("Vagabond So Diem", {"loai": LOAI_HOAN, "ghi_chu": _ghi_chu(ten_don)}))
+	# Codex #557 vòng 2: lượt quét định kỳ đã đọc sổ (ảnh chụp REPEATABLE READ) trước
+	# khi khoá đơn; đọc thường ở đây không thấy bút hoàn mà lượt hoàn ngay vừa
+	# commit, hoàn hai lần. Đọc có khoá thấy bản đã commit.
+	r = frappe.db.sql("select count(*) from `tabVagabond So Diem` where loai = %s and ghi_chu = %s for update",
+		(LOAI_HOAN, _ghi_chu(ten_don)))
+	return bool(r and r[0][0])
 
 
 def hoan_don_web(ten_don, ly_do=""):
