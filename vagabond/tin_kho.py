@@ -870,7 +870,7 @@ def gom_thieu_ton(items, ton, gia=None):
 # dụ lo_hang "Kho ... không đủ ... còn thiếu ...") KHÔNG thuộc nhóm này, giữ nguyên.
 LOP_LOI_TON = ("NegativeStockError",)
 CHU_LOI_TON = ("valuation rate", "tỷ giá định giá", "is required to do accounting entries",
-	"to complete this transaction")
+	"to complete this transaction", "để hoàn tất giao dịch này")
 
 
 def la_loi_ton_loi(e):

@@ -182,9 +182,9 @@ Hoàn tất là lúc máy trừ nguyên liệu, nhập thành phẩm. Bút toán
 3. Gõ Thực tế cân được (để nhập kho), bắt buộc. Đổi đơn vị ở ô cạnh số nếu cần.
 4. Chip Lần trước gợi ý số.
 5. Bấm [[Hoàn thành]].
-6. Cấp 1, cấp 2, làm tươi còn thiếu: hộp Máy làm luôn giúp bếp hiện món máy sẽ làm, bấm nút xanh.
+6. Cấp 1, cấp 2, làm tươi thiếu: hộp Máy làm luôn giúp bếp, bấm nút xanh.
 7. Kho bếp thiếu nguyên liệu: bấm [[Lấy từ kho tổng và hoàn tất]], máy chuyển từ Kho tổng 307, bếp sang lấy.
-8. Nhiều lệnh cùng món: bấm ✓ trên thẻ gộp, gõ tổng số, bấm [[Ghi sổ N lệnh]].
+8. Nhiều lệnh cùng món: ✓ thẻ gộp, gõ tổng số; máy kiểm nguyên liệu rồi [[Ghi sổ N lệnh]].
 
 **Hạch toán** (từ 01/10/2026, mang trung tâm chi phí của bếp)
 | Nợ | Có | Khi nào |
@@ -229,7 +229,7 @@ Máy không ghi âm kho: thiếu là dừng, không để lại phiếu nháp. X
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
-| Kho ... không đủ ... để trừ: còn thiếu ... Mã này đang còn ở ... | Chuyển phần thiếu về kho Nguyên liệu của bếp rồi bấm lại (Kho tổng 307 còn thì máy hỏi lấy luôn) |
+| Kho ... không đủ ... để trừ / chưa đủ nguyên liệu | [[Xin chuyển nguyên liệu]] ở Kế hoạch sản xuất rồi bấm lại (Kho tổng 307 còn thì máy hỏi lấy luôn) |
 | ... Chưa tìm thấy tồn mã này ở kho khác | Kiểm tồn, nhập hàng hoặc kiểm kê lại |
 | ... Mã thay thế đã khai đang còn ... | Mã thay nằm ở kho khác, chuyển về đúng kho rồi bấm lại |
 | Số làm theo lệnh không được quá số còn lại là ... | Phần dư ghi vào ô Thực tế cân được |

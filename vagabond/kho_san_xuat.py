@@ -1365,10 +1365,99 @@ def hoan_tat_phieu(phieu, q=None, can=None, lay_bu=None, hoi_lay_bu=None, lay_to
 			phieu_bu = _lap_phieu_lay_bu(da_lay, phieu.get("company"), ten_lenh)
 
 	doc = frappe.get_doc(phieu)
-	doc.insert()
-	doc.submit()
+	# v650 (anh Việt 12/11/2026, LSX-121126-000604): kho bếp thiếu nguyên liệu
+	# thì ERPNext ném câu dịch máy "Cần 0.361 đơn vị Món ... để hoàn tất giao
+	# dịch này". Lùi về điểm lưu TRƯỚC rồi mới đọc tồn (bài học Codex #498), báo
+	# câu việc cần làm, giữ lớp lỗi gốc.
+	frappe.db.savepoint(DIEM_HOAN_TAT)
+	try:
+		doc.insert()
+		doc.submit()
+	except Exception as e:
+		_loi_thieu_nvl(e, doc, ten_lenh)
+		raise
 	return {"name": doc.name, "da_don": da_don, "fg_completed_qty": fg,
 		"qty_thanh_pham": qty_tp, "phieu_bu": phieu_bu, "da_lay": da_lay if phieu_bu else []}
+
+
+@frappe.whitelist()
+def thay_the_cho_thieu(dong=None):
+	"""Hàng thay thế đã khai bù được bao nhiêu phần thiếu của cả nhóm lệnh.
+
+	Codex #553 (P1): app kiểm nguyên liệu cả nhóm trước khi ghi sổ. Lúc ghi,
+	máy chủ lấy mã thay thế cùng kho (lo_hang.thay_ma_khong_lo cho mã không
+	theo lô, gan_lo cho mã theo lô), nên phép kiểm hỏi đúng luật đó ở đây
+	thay vì app tự đoán. Chỉ đọc, không ghi gì.
+
+	dong: [{ma, kho, can, thieu}] (JSON). Mã gốc theo lô thì chỉ nhận mã thay
+	theo lô, không theo lô thì mã thay không theo lô, đúng như hai đường ghi.
+	Trả [{ma, kho, bu, con, thay: [{ma, ten, sl}]}]."""
+	if not set(frappe.get_roles()) & (set(QUYEN) | {"Manufacturing User", "Stock User"}):
+		frappe.throw("Chỉ bếp, quản lý sản xuất hoặc giám đốc mới kiểm được nguyên liệu.")
+	from vagabond import lo_hang
+
+	if isinstance(dong, str):
+		dong = json.loads(dong or "[]")
+	dong = [d for d in (dong or []) if isinstance(d, dict) and d.get("ma") and d.get("kho")]
+	thay_cua, ton = {}, {}
+	for d in dong:
+		ma, kho = d["ma"], d["kho"]
+		if flt(d.get("thieu")) <= lo_hang.LI_TI:
+			continue
+		if ma not in thay_cua:
+			lo = bool(lo_hang._theo_lo(ma))
+			thay_cua[ma] = [m for m in lo_hang._cac_ma_thay_the(ma) if bool(lo_hang._theo_lo(m)) == lo]
+		for m in thay_cua[ma]:
+			if (m, kho) not in ton:
+				ton[(m, kho)] = flt(frappe.db.get_value("Bin", {"item_code": m, "warehouse": kho}, "actual_qty"))
+	ra = []
+	for r in lo_hang.bu_thay_the_nhom(dong, thay_cua, ton):
+		ra.append({"ma": r["ma"], "kho": r["kho"], "bu": r["bu"], "con": r["con"],
+			"thay": [{"ma": m, "ten": frappe.get_cached_value("Item", m, "item_name") or m, "sl": so}
+				for m, so in r["thay"]]})
+	return ra
+
+
+DIEM_HOAN_TAT = "vgb_hoan_tat_lenh"
+
+
+def cau_thieu_nvl(ten_lenh, thieu, kho):
+	"""THUẦN: câu báo khi kho bếp không đủ nguyên liệu để hoàn tất lệnh.
+
+	thieu: [{"ten","sl","dvt","ghi"}] của tin_kho.gom_thieu_ton (sl là số lệnh
+	cần, ghi là "kho đang có ..."). Nói rõ kho nào, món gì, rồi việc phải làm."""
+	from vagabond import tin_kho
+
+	ds = [d for d in (thieu or []) if (d.get("ten") or "").strip()]
+	dong = ["%s cần %s%s" % (d["ten"].strip(), " ".join([x for x in (tin_kho.so(d.get("sl")), (d.get("dvt") or "").strip()) if x]),
+		" (%s)" % d["ghi"] if d.get("ghi") else "") for d in ds[:4]]
+	if len(ds) > 4:
+		dong.append("+%d món khác" % (len(ds) - 4))
+	return ("Chưa hoàn tất được lệnh %s: kho %s chưa đủ nguyên liệu. %s. Lệnh này chưa ghi sổ. "
+		"Mở Kế hoạch sản xuất, bấm Xin chuyển nguyên liệu (hoặc nhờ kho chuyển), rồi bấm Hoàn tất lại."
+		% (ten_lenh or "", tin_kho.ten_kho(kho) or "bếp", "; ".join(dong)))
+
+
+def _loi_thieu_nvl(loi_goc, doc, ten_lenh):
+	"""Lỗi ghi phiếu hoàn tất vì kho bếp thiếu tồn thì lùi điểm lưu, đọc tồn và
+	ném câu dễ hiểu cùng lớp lỗi gốc. Không phải ca thiếu tồn thì TRẢ VỀ, người
+	gọi ném lại nguyên lỗi gốc. Lỗi chết giao dịch thì không đụng điểm lưu."""
+	from vagabond import tin_kho
+	from vagabond.loi_csdl import chet_giao_dich
+
+	if chet_giao_dich(loi_goc) or not tin_kho.la_loi_ton_loi(loi_goc):
+		return
+	frappe.db.rollback(save_point=DIEM_HOAN_TAT)
+	try:
+		thieu = tin_kho.kiem_thieu_ton(doc)
+	except Exception:
+		thieu = []
+	if not thieu:
+		return
+	kho = next((r.get("s_warehouse") for r in (doc.get("items") or []) if r.get("s_warehouse")), "")
+	frappe.local.message_log = []
+	lop = type(loi_goc) if isinstance(loi_goc, frappe.ValidationError) else frappe.ValidationError
+	frappe.throw(cau_thieu_nvl(ten_lenh, thieu, kho), exc=lop, title="Kho bếp chưa đủ nguyên liệu")
 
 
 def _goc_so(v):

@@ -1894,9 +1894,9 @@ async function mfgChayHoanTat(d, cacDvt) {
    nhom o tren roi, hoi lai tung lenh con la bat bep bam sau lan cho mot
    viec ho da duyet. Phan tu lam ban thanh pham tuoi VAN chay, chi khong
    hoi lai. */
-async function mfgHoanTatMot(d, q, can, imLang) {
+async function mfgHoanTatMot(d, q, can, imLang, buNhom) {
   var mats = d.required_items || [];
-  var src = d.source_warehouse || mfg.src;
+  var src = mfgKhoLenh(d);
   var ratio = (d.qty || 1) ? q / (d.qty || 1) : 1;
   var plan = [];
   busy(1);
@@ -1904,8 +1904,10 @@ async function mfgHoanTatMot(d, q, can, imLang) {
   var nvl = [];
   if (plan.length && !imLang) { try { nvl = await mfgNvlCuaKe(plan, src); } catch (e3) { nvl = []; } }
   busy(0);
-  /* Theo lô (imLang) không có hộp nào, nên không lấy bù (Codex #551 vòng 5). */
-  var bu = imLang ? null : { phieu: [], duyet: {} };
+  /* Theo lô (imLang) không có hộp nào, nên không lấy bù (Codex #551 vòng 5).
+     v650: hoàn thành cả nhóm đã kiểm nguyên liệu cho TỔNG số và bếp đã đồng ý
+     lấy kho tổng đúng phần hiện trong hộp (mfgKiemNvlNhom), mang theo buNhom. */
+  var bu = imLang ? (buNhom || null) : { phieu: [], duyet: {} };
   if (plan.length && !imLang) {
     var okf = await mfgSheetKe(plan, nvl, src);
     if (!okf) return 0;
@@ -1941,7 +1943,8 @@ async function mfgHoanTatMot(d, q, can, imLang) {
        "Máy làm luôn giúp bếp" chỉ nêu nguyên liệu của phần máy làm, nên món
        chính thiếu thì hỏi riêng: phần bếp đã duyệt cho lệnh con không dùng
        cho món chính. */
-    if (bu) bu.duyet = {};
+    /* Phần duyệt của hộp nhóm đã gồm nguyên liệu món chính nên giữ nguyên. */
+    if (bu && !buNhom) bu.duyet = {};
     var kq = await mfgGhiLenh(se, q, can, bu);
     busy(0);
     if (imLang) return 'lai';
@@ -1953,6 +1956,7 @@ async function mfgHoanTatMot(d, q, can, imLang) {
   } catch (err) {
     busy(0);
     if (err && err.tuChoi) {
+      if (imLang) throw err;
       toast('Chưa lấy từ kho tổng nên dừng lại: lệnh đã làm xong vẫn giữ, món chính chưa hoàn tất.', 6000);
       return 0;
     }
@@ -1988,11 +1992,27 @@ async function mfgHoanTatNhom(g, veLai) {
   var chia = mfgChiaSo(conLai, q);
   var tyLe = q > 0 ? (hai.thuc_te / q) : 1;
 
-  var dong = con.map(function (c, i) {
-    return chia.phan[i] > 0
-      ? '<i>' + h(c.ten) + ' · ' + h(num(chia.phan[i])) + ' ' + h(g.dvt || '') + '</i>'
-      : '<i class="d">' + h(c.ten) + ' · để lần sau</i>';
-  }).join('');
+  /* v650 (anh Việt 12/11/2026, chọn hướng A): đọc các lệnh và kiểm nguyên liệu
+     cho TỔNG số TRƯỚC khi ghi bất cứ gì. Trước đây cả nhóm bỏ qua bước kiểm,
+     bếp gõ số xong mới gặp câu dịch máy của ERPNext, lệnh con có khi đã ghi.
+     Kho bếp thiếu mà Kho tổng 307 đủ: gộp vào đúng một hộp xác nhận, không
+     thêm bước. Kho tổng cũng thiếu: dừng, không ghi lệnh nào. */
+  var docs = [];
+  busy(1);
+  try {
+    for (var k = 0; k < con.length; k++) {
+      docs.push(chia.phan[k] > 0 ? await api('frappe.client.get', { doctype: 'Work Order', name: con[k].ten }) : null);
+    }
+  } catch (e0) { busy(0); return toast('Chưa đọc được các lệnh nên máy chưa ghi gì. ' + errMsg(e0), 7000); }
+  var kt;
+  try { kt = mfgPhanNvl(await mfgKiemNvlNhom(docs, chia.phan)); }
+  catch (e1) { busy(0); return toast('Chưa kiểm được nguyên liệu nên máy chưa ghi gì. Kiểm mạng rồi bấm lại.', 7000); }
+  busy(0);
+  if (kt.thieu.length) {
+    await confirmSheet('Chưa đủ nguyên liệu, máy chưa ghi lệnh nào', mfgCauThieuNhom(kt), 'Đã hiểu');
+    return;
+  }
+
   var ok = await confirmSheet('Ghi sổ ' + con.length + ' lệnh',
     'Máy chia ' + num(q) + ' ' + (g.dvt || '') + ' cho các lệnh theo thứ tự, lệnh nào chưa tới lượt thì để nguyên số cũ cho lần sau. ' +
     (Math.abs(tyLe - 1) > 0.0001 ? 'Số cân thực tế chia theo cùng tỷ lệ. ' : '') +
@@ -2000,26 +2020,27 @@ async function mfgHoanTatNhom(g, veLai) {
     con.map(function (c, i) {
       return (chia.phan[i] > 0 ? '• ' + c.ten + ': ' + num(chia.phan[i]) + ' ' + (g.dvt || '')
         : '• ' + c.ten + ': để lần sau');
-    }).join('\n'),
-    'Ghi sổ ' + con.length + ' lệnh', 0);
+    }).join('\n') +
+    (kt.lay.length ? '\n\n' + mfgCauLayBu(kt.lay.map(function (x) { return { ten: x.name, sl: x.lay, dvt: x.uom }; }), []) : '') +
+    ((kt.thay || []).length ? '\n\n' + mfgCauThay(kt.thay) : ''),
+    (kt.lay.length ? 'Lấy kho tổng và ghi sổ ' : 'Ghi sổ ') + con.length + ' lệnh', 0);
   if (!ok) return;
   mfgNhoSo(g.ma_mon, hai.thuc_te, hai.dvt, hai.he_so);
 
+  var bu = { phieu: [], duyet: {} };
+  kt.lay.forEach(function (x) { bu.duyet[x.code] = r3((bu.duyet[x.code] || 0) + x.lay); });
   var xong = 0, hong = [];
   for (var i = 0; i < con.length; i++) {
-    if (!(chia.phan[i] > 0)) continue;
-    busy(1);
-    var d = null;
-    try { d = await api('frappe.client.get', { doctype: 'Work Order', name: con[i].ten }); }
-    catch (e) { busy(0); hong.push(con[i].ten + ': ' + errMsg(e)); continue; }
-    busy(0);
+    if (!docs[i]) continue;
     try {
-      await mfgHoanTatMot(d, chia.phan[i], r3(chia.phan[i] * tyLe), 1);
-      xong++;
-    } catch (e2) { hong.push(con[i].ten + ': ' + errMsg(e2)); }
+      if (await mfgHoanTatMot(docs[i], chia.phan[i], r3(chia.phan[i] * tyLe), 1, bu) === 'lai') xong++;
+    } catch (e2) {
+      hong.push(con[i].ten + ': ' + (e2 && e2.tuChoi ? 'bếp chưa đồng ý lấy thêm từ kho tổng' : errMsg(e2)));
+      break;
+    }
   }
   if (hong.length) {
-    toast('Ghi sổ được ' + xong + ' lệnh. ' + hong.length + ' lệnh hỏng: ' + hong[0], 9000);
+    toast((xong ? 'Đã ghi sổ ' + xong + ' lệnh, dừng ở ' : 'Chưa ghi sổ lệnh nào. ') + hong[0], 9000);
   } else {
     toast('Đã ghi sổ ' + xong + ' lệnh, tổng ' + num(q) + ' ' + (g.dvt || ''), 6000);
   }
@@ -2164,8 +2185,9 @@ async function mfgFreshPlan(mats, ratio, src, giu) {
    Chi doc MOT cap cong thuc: neu trong do lai co ban thanh pham lam tuoi
    thi may van tu lam tiep, nhung hop xac nhan khong nen bay ca cay ra man
    hinh dien thoai. Cot "tồn" doc tai dung cai kho se bi tru. */
-async function mfgNvlCuaKe(plan, src) {
-  if (!plan || !plan.length) return [];
+async function mfgNvlCuaKe(plan, src, capToi, goc) {
+  plan = plan || [];
+  if (!plan.length && !(goc && goc.length)) return [];
   var gom = {}, thu_tu = [];
   /* Cộng nguyên liệu của các công thức: ti = {tên công thức: số thành phẩm}. */
   async function cong(ti) {
@@ -2193,6 +2215,14 @@ async function mfgNvlCuaKe(plan, src) {
   var ti0 = {};
   plan.forEach(function (f) { if (f.bom) ti0[f.bom] = (ti0[f.bom] || 0) + (f.qty || 0); });
   await cong(ti0);
+  /* Codex #553 (P2): kiểm cả nhóm cấp đầu đi từ đúng dòng nguyên liệu lệnh sẽ
+     trừ (required_items của lệnh), không trải lại công thức. */
+  (goc || []).forEach(function (r) {
+    var c = r.code;
+    if (!c || !((r.need || 0) > 0)) return;
+    if (!gom[c]) { gom[c] = { code: c, name: r.name || c, uom: r.uom, need: 0 }; thu_tu.push(c); }
+    gom[c].need = r3(gom[c].need + r.need);
+  });
   if (!thu_tu.length) return [];
 
   /* Tồn đã giữ cho món chính không tính là có cho lệnh con (cùng cách với
@@ -2207,7 +2237,10 @@ async function mfgNvlCuaKe(plan, src) {
      cộng cả nguyên liệu của nó (tới 3 cấp như mfgRunFresh), không thì phần
      lấy kho tổng bếp đồng ý nhỏ hơn phần máy thực lấy. */
   var tn = {}, fr = {}, daMo = {};
-  for (var cap = 1; cap <= 3; cap++) {
+  /* capToi: số tầng đọc. Hộp một lệnh bắt đầu từ phần máy làm (3 tầng như
+     mfgRunFresh); kiểm cả nhóm bắt đầu từ món chính nên cần thêm một tầng. */
+  capToi = capToi || 3;
+  for (var cap = 1; cap <= capToi; cap++) {
     var moi = thu_tu.filter(function (c) { return !(c in tn); });
     if (moi.length) {
       var t1 = await stockOf(moi, src);
@@ -2216,7 +2249,7 @@ async function mfgNvlCuaKe(plan, src) {
       try { f1 = await freshOf(moi); } catch (e) { f1 = {}; }
       moi.forEach(function (c) { fr[c] = f1[c] ? 1 : 0; });
     }
-    if (cap === 3) break;
+    if (cap === capToi) break;
     var mo = thu_tu.filter(function (c) {
       var x = gom[c];
       return fr[c] && !daMo[c] && x.need - Math.max(0, tn[c] - (giu[c] || 0)) > 0.0001;
@@ -2251,6 +2284,130 @@ async function mfgNvlCuaKe(plan, src) {
     });
   }
   return ra.sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
+}
+
+/* Kho một lệnh trừ nguyên liệu, cùng luật màn Lệnh sản xuất (scrMfgView):
+   lệnh có bước chuyển kho (không bỏ qua chuyển, hoặc trừ từ kho dở dang) trừ
+   ở kho dở dang; còn lại trừ ở kho nguồn của lệnh. Codex #553 (P2). */
+function mfgKhoLenh(d) {
+  var src = (d && d.source_warehouse) || mfg.src;
+  return d && (!d.skip_transfer || d.from_wip_warehouse) && d.wip_warehouse ? d.wip_warehouse : src;
+}
+
+/* v650: nguyên liệu cho TỔNG số của cả nhóm lệnh (món chính, phần máy làm
+   thêm tới 3 cấp, tồn và Kho tổng 307), cùng phép với hộp "Máy làm luôn giúp
+   bếp" (mfgNvlCuaKe). docs[i] là lệnh, phan[i] là số làm của lệnh đó lần này;
+   docs[i] null là lệnh chưa tới lượt.
+
+   Codex #553: (P2) cấp đầu lấy đúng dòng nguyên liệu của lệnh (required_items)
+   và đúng kho từng dòng sẽ bị trừ: kho dở dang nếu lệnh qua bước chuyển kho,
+   không thì kho nguồn của dòng. (P1) phần còn thiếu sau Kho tổng thì hỏi máy
+   chủ hàng thay thế đã khai bù được bao nhiêu, đúng luật lúc ghi sổ. */
+async function mfgKiemNvlNhom(docs, phan) {
+  var theoKho = {}, khoThuTu = [];
+  function nhom(k) {
+    if (!theoKho[k]) { theoKho[k] = { plan: [], goc: [] }; khoThuTu.push(k); }
+    return theoKho[k];
+  }
+  (docs || []).forEach(function (d, i) {
+    if (!d || !(phan[i] > 0)) return;
+    var src = d.source_warehouse || mfg.src;
+    var mats = d.required_items || [];
+    if (!mats.length) { if (d.bom_no) nhom(src).plan.push({ bom: d.bom_no, qty: phan[i] }); return; }
+    var ratio = phan[i] / (d.qty || 1);
+    var khoLenh = mfgKhoLenh(d), quaWip = khoLenh !== src;
+    mats.forEach(function (m) {
+      var k = quaWip ? khoLenh : (m.source_warehouse || src);
+      nhom(k).goc.push({ code: m.item_code, name: m.item_name, uom: m.stock_uom, need: r3((m.required_qty || 0) * ratio) });
+    });
+  });
+  var ra = [];
+  for (var k = 0; k < khoThuTu.length; k++) {
+    var kho = khoThuTu[k];
+    (await mfgNvlCuaKe(theoKho[kho].plan, kho, 4, theoKho[kho].goc)).forEach(function (x) { x.kho = kho; ra.push(x); });
+  }
+  /* Codex #553 vòng 2: mỗi nhóm kho tự đọc Kho tổng 307 nên cùng một mã ở
+     hai kho bếp được hứa lấy hai lần trên cùng một số tồn. Chia lại một số dư
+     chung cho mỗi mã (như máy chủ tinh_lay_bu), phần không phủ được đi tiếp
+     sang hàng thay thế. */
+  if (khoThuTu.length > 1) {
+    var canTong = [];
+    ra.forEach(function (x) { if (x.lay_tong != null && canTong.indexOf(x.code) < 0) canTong.push(x.code); });
+    if (canTong.length) {
+      var conTong = await stockOf(canTong, MFG_KHO_TONG);
+      /* Codex #553 vòng 3: dòng lệnh trừ thẳng ở Kho tổng không chuyển kho
+         được, giữ phần đó trước rồi mới chia cho phần bếp thiếu. */
+      ra.forEach(function (x) {
+        if (x.kho === MFG_KHO_TONG && canTong.indexOf(x.code) >= 0) conTong[x.code] = r3((conTong[x.code] || 0) - (x.need || 0));
+      });
+      ra.forEach(function (x) {
+        if (x.lay_tong == null) return;
+        var l = r3(Math.min(Math.max(0, x.thieu || 0), Math.max(0, conTong[x.code] || 0)));
+        x.lay_tong = l;
+        conTong[x.code] = r3((conTong[x.code] || 0) - l);
+      });
+    }
+  }
+  var dung = ra.filter(function (x) { return !x.tu_lam; });
+  if (dung.some(function (x) { return (x.thieu || 0) - (x.lay_tong || 0) > 0.0001; })) {
+    var dongThay = dung.map(function (x) {
+      return { ma: x.code, kho: x.kho, can: x.need, thieu: r3(Math.max(0, (x.thieu || 0) - (x.lay_tong || 0))) };
+    });
+    /* Codex #553 vòng 4: phần sắp chuyển khỏi Kho tổng cũng là phần dùng ở
+       Kho tổng, máy chủ phải trừ ra trước khi hứa mã thay ở đó. */
+    dung.forEach(function (x) {
+      if ((x.lay_tong || 0) > 0.0001) dongThay.push({ ma: x.code, kho: MFG_KHO_TONG, can: r3(Math.min(x.thieu || 0, x.lay_tong)), thieu: 0 });
+    });
+    var tt = await api('vagabond.kho_san_xuat.thay_the_cho_thieu', { dong: JSON.stringify(dongThay) });
+    (tt || []).forEach(function (t) {
+      ra.forEach(function (x) {
+        if (x.code === t.ma && x.kho === t.kho && !x.tu_lam) { x.thay = t.bu || 0; x.thay_ds = t.thay || []; }
+      });
+    });
+  }
+  return ra;
+}
+
+/* THUẦN: chia kết quả kiểm thành phần lấy Kho tổng 307 và phần thiếu thật.
+   Thiếu mà máy tự làm được (tu_lam) không tính, nguyên liệu của phần đó đã
+   nằm trong danh sách. */
+function mfgPhanNvl(ra) {
+  var lay = [], thieu = [], thay = [];
+  (ra || []).forEach(function (x) {
+    if (!((x.thieu || 0) > 0.0001) || x.tu_lam) return;
+    var l = Math.min(x.thieu, Math.max(0, x.lay_tong || 0));
+    var t = Math.min(x.thieu - l, Math.max(0, x.thay || 0));
+    var con = r3(x.thieu - l - t);
+    if (l > 0.0001) lay.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, lay: r3(l) });
+    if (t > 0.0001) thay.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, sl: r3(t), ds: x.thay_ds || [] });
+    if (con > 0.0001) thieu.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, can: x.need, co: x.ton, thieu: con });
+  });
+  return { lay: lay, thieu: thieu, thay: thay };
+}
+
+/* THUẦN: một dòng trong hộp xác nhận nói phần dùng hàng thay thế đã khai
+   (Codex #553). Tối đa hai món rồi "và N nữa" (AGENTS.md mục 17). */
+function mfgCauThay(thay) {
+  thay = thay || [];
+  if (!thay.length) return '';
+  var dau = thay.slice(0, 2).map(function (x) {
+    var ten = (x.ds || []).map(function (y) { return y.ten || y.ma; }).join(', ');
+    return (ten || 'hàng thay thế') + ' ' + num(x.sl) + ' ' + (x.uom || '') + ' thay ' + x.name;
+  }).join('; ');
+  return 'Dùng hàng thay thế đã khai: ' + dau + (thay.length > 2 ? ' và ' + (thay.length - 2) + ' nguyên liệu nữa' : '') + '.';
+}
+
+/* THUẦN: câu hộp "chưa đủ nguyên liệu" của cả nhóm. Tối đa ba dòng món rồi
+   "và N nguyên liệu nữa" (AGENTS.md mục 17: hộp không cuộn). */
+function mfgCauThieuNhom(kt) {
+  var t = kt.thieu || [];
+  var dong = t.slice(0, 3).map(function (x) {
+    return '• ' + x.name + ': thiếu ' + num(x.thieu) + ' ' + (x.uom || '') + ' (cần ' + num(x.can) + ', ' +
+      (x.kho ? shortWh(x.kho) : 'kho bếp') + ' có ' + num(x.co) + ')';
+  });
+  if (t.length > 3) dong.push('• và ' + (t.length - 3) + ' nguyên liệu nữa');
+  return 'Kho bếp, Kho tổng 307 và hàng thay thế đã khai chưa đủ cho số này, nên máy chưa ghi lệnh nào (kể cả phần máy làm thêm).\n' +
+    dong.join('\n') + '\n\nNhờ kho nhập hoặc chuyển thêm (màn Kế hoạch sản xuất, nút Xin chuyển nguyên liệu), hoặc làm số ít hơn.';
 }
 
 /* Câu của hộp hỏi lấy bù từ Kho tổng 307. THUẦN.

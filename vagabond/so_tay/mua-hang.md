@@ -111,14 +111,14 @@ Từ khoá: gom yêu cầu mua, gom đơn, tổng hợp yêu cầu mua, lập đ
 |---|---|---|
 | Thu mua | Gom yêu cầu mua (/gom-yeu-cau-mua) | [[Chốt đơn]] |
 
-Máy gom mọi yêu cầu mua các bộ phận đã gửi mà chưa duyệt, chia theo nhà cung cấp, cộng các phiếu cùng món thành một dòng. Thu mua chỉ sửa số rồi chốt.
+Máy gom yêu cầu mua đã gửi mà chưa duyệt, chia theo nhà cung cấp, cộng phiếu cùng món. Thu mua sửa số rồi chốt.
 
 **Các bước**
 1. Trang chủ, ô [[Thu mua]], bấm [[Gom yêu cầu mua]].
-2. Mỗi nhóm là một nhà cung cấp. Số mua điền sẵn bằng tổng số xin; cạnh tên món có tồn kho tổng và hàng chờ về.
-3. Bấm vào món để xem từng phiếu xin. Danh sách dài thì gõ ô tìm để lọc theo món hoặc nhà cung cấp.
-4. Sửa ô số mua: mua chẵn thùng thì gõ nhiều hơn, chưa mua thì gõ 0. Số đã sửa máy tự lưu, thoát ra vẫn còn.
-5. Bấm nút Chốt cuối nhóm (nhóm chưa có nhà cung cấp thì chọn trong danh sách), rồi [[Chốt đơn]]. Máy duyệt các phiếu xin và lập đơn mua, mở luôn đơn đó.
+2. Mỗi thẻ là một nhà cung cấp. Số mua điền sẵn bằng tổng số xin. Chip dưới tên món: ngày cần (đỏ là gấp), tồn Kho tổng, Đang chờ về, VAT.
+3. Bấm chip [[N phiếu xin]] để xem từng phiếu. Lọc bằng chip đầu màn hoặc ô tìm.
+4. Sửa ô số mua: mua chẵn thùng gõ nhiều hơn, chưa mua gõ 0. Số đã sửa máy tự lưu.
+5. Bấm [[Chốt đơn N món]] cuối thẻ (Tạm tính đã cộng VAT) rồi [[Chốt đơn]]. Máy duyệt phiếu xin, lập và xác nhận đơn mua.
 6. Gửi đơn cho nhà cung cấp ở màn Đơn mua hàng như thường.
 
 **Vì sao bị chặn**
@@ -131,6 +131,7 @@ Máy gom mọi yêu cầu mua các bộ phận đã gửi mà chưa duyệt, chi
 **Lưu ý**
 - Số xin của nhân viên giữ nguyên, phần thu mua quyết nằm ở số duyệt. Gõ 0 là từ chối, máy ghi lý do "chưa mua đợt này".
 - Mua ít hơn tổng xin: phiếu cần sớm nhất được trước.
+- VAT theo mẫu thuế khai trên món; chip Món chưa khai VAT thì sửa món trước khi chốt.
 
 ## Sửa phiếu yêu cầu mua máy soạn rồi gửi duyệt
 Từ khoá: yêu cầu mua máy soạn, hàng sắp hết, phiếu nháp, sửa số lượng yêu cầu mua, gửi duyệt, lưu nháp

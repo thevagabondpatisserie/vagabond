@@ -437,3 +437,5 @@ vagabond.patches.dong_bo_cau_truc #v647
 vagabond.patches.dong_bo_cau_truc #v648
 vagabond.patches.dong_bo_cau_truc #v649
 vagabond.patches.v649_tru_vo_btp_dang_lam
+vagabond.patches.dong_bo_cau_truc #v650
+vagabond.patches.v650_bo_thue_ra_cu

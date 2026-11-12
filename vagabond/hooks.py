@@ -1125,6 +1125,15 @@ for _dt_tk, _sk_tk, _ham_tk in (
 	_cu_tk = doc_events.setdefault(_dt_tk, {}).get(_sk_tk, [])
 	doc_events[_dt_tk][_sk_tk] = ([_cu_tk] if isinstance(_cu_tk, str) else list(_cu_tk)) + [_ham_tk]
 del _dt_tk, _sk_tk, _ham_tk, _cu_tk
+
+# v650: chứng từ mua không mang dòng thuế đầu ra 33311 do máy tự thêm từ mẫu thuế
+# của món (thuế bị tính hai lần). Nối CUỐI chuỗi validate, sau khi ERPNext đã tự
+# thêm dòng thuế. Chỉ bốn loại chứng từ mua, không đặt trên "*".
+for _dt_tm in ("Purchase Order", "Purchase Receipt", "Purchase Invoice", "Supplier Quotation"):
+	_cu_tm = doc_events.setdefault(_dt_tm, {}).get("validate", [])
+	doc_events[_dt_tm]["validate"] = ([_cu_tm] if isinstance(_cu_tm, str) else list(_cu_tm)) + [
+		"vagabond.thue_don_mua.bo_thue_ra_chung_tu_mua"]
+del _dt_tm, _cu_tm
 scheduler_events.setdefault("cron", {}).setdefault("0 7 * * *", []).append("vagabond.tin_kho.nhac_lo_sap_het_han")
 scheduler_events.setdefault("cron", {}).setdefault("0 7 * * *", []).append("vagabond.tin_kho.nhac_ton_duoi_muc")
 scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_kho.nhac_don_mua_tre_hen")

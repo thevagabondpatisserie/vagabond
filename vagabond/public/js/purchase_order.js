@@ -10,6 +10,21 @@ function vgbTheoThueDauPhieu(frm) {
 	});
 }
 
+/* v650: mẫu thuế của món khai cả 1331 lẫn 33311 nên ERPNext tự thêm hai dòng
+   thuế, đơn mua tính thuế hai lần. Bỏ dòng 33311 máy tự thêm (thuế suất 0)
+   khi đã có dòng 1331, cùng luật với máy chủ (thue_don_mua.dong_thue_ra_tu_them). */
+function vgbBoThueRaTuThem(frm) {
+  var ds = frm.doc.taxes || [];
+  var coVao = ds.some(function (r) { return /^1331( |$)/.test(r.account_head || ''); });
+  if (!coVao) return;
+  var giu = ds.filter(function (r) {
+    return !(/^33311/.test(r.account_head || '') && r.charge_type === 'On Net Total' && !Number(r.rate));
+  });
+  if (giu.length === ds.length) return;
+  giu.forEach(function (r, i) { r.idx = i + 1; });
+  frm.doc.taxes = giu;
+}
+
 function vgbThueDonMua(frm) {
 	frm.set_df_property('taxes', 'read_only', Number(frm.doc.vgb_thue_theo_mau) ? 1 : 0);
 	/* Core gọi lại hàm tính này sau khi tải mẫu theo đơn giá. Chặn trên
@@ -18,6 +33,7 @@ function vgbThueDonMua(frm) {
 		var tinhGoc = frm.cscript.calculate_taxes_and_totals;
 		frm.cscript.calculate_taxes_and_totals = function () {
 			vgbTheoThueDauPhieu(frm);
+			vgbBoThueRaTuThem(frm);
 			return tinhGoc.apply(this, arguments);
 		};
 		frm.cscript.vgbDaGiuThue = true;
