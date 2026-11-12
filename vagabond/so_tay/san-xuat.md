@@ -725,3 +725,20 @@ Phiếu cho hàng ngoài danh mục hoặc trên 500.000 một hoá đơn, thư�
 
 **Lưu ý**
 - Có được mua ngoài danh mục hay không: Việc này do anh Việt quyết.
+
+## Xem ai đổi BTP sẵn, Đủ decor, Bếp làm
+Từ khoá: BTP sẵn, đủ decor, bếp làm, lịch sử BTP, ai sửa, nhật ký BTP
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp, Sales | Kiểm bánh (/kiem-banh) | Bấm dòng chữ nhỏ dưới số |
+
+Trước đây: số BTP đổi mà không biết ai đổi. Từ nay: dưới BTP sẵn, Đủ decor hiện lần đổi gần nhất (ví dụ Linh 22:27 · nhập tay, hoặc Máy trừ · Bếp làm 13/11 (Hân)); dưới Bếp làm hiện người sửa (Hân 21:05).
+
+**Các bước**
+1. Mở Kiểm bánh, tìm bánh cần xem.
+2. Bấm dòng chữ nhỏ dưới BTP sẵn hay Đủ decor: hộp hiện 10 lần đổi gần nhất.
+
+**Lưu ý**
+- Nhật ký bắt đầu từ bản v653, số trước đó không có.
+- Sửa ô Bếp làm là máy trừ vỏ, nhật ký ghi tên người sửa và bảng Kiểm bánh nguồn.

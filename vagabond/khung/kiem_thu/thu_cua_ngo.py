@@ -442,7 +442,7 @@ CUA_NGO = {
 	# Ban thanh pham tren mon, chot 04/09/2026. Bay ham nay da chay tren app
 	# tu truoc ma chua ai chot danh sach, nen mot decorator bam nham la khong
 	# ai biet. `quyen_btp` chi DOC quyen, van phai co ten o day.
-	"btp.py": ["bang_btp", "gieo_tu_kiem_banh", "luu_btp", "luu_decor", "luu_refill",
+	"btp.py": ["bang_btp", "gieo_tu_kiem_banh", "lich_su_btp", "luu_btp", "luu_decor", "luu_refill",
 		"quyen_btp", "them_ma_btp", "xoa_ma_btp"],
 	# Ke hoach san xuat trong ngay, 28/08/2026. `tu_lap_nua_dem`,
 	# `nhac_bep_sang` va `dung_mau_in` la nhip lap lich va after_migrate,
@@ -511,6 +511,12 @@ CUA_NGO = {
 	"viec_tu_dong.py": ["ds", "luu"],
 	# v646 Thu mua: gom yêu cầu mua theo nhà cung cấp, chốt một nhóm thành đơn mua.
 	"gom_mua.py": ["ds", "tim_ncc", "chot"],
+	# v653: Dự chi công nợ, đợt trả nhà cung cấp ngày 10 và 20.
+	# v653: WhatsApp đường phụ cho mã xác thực và ưu đãi.
+	# v653: hộp thư hoá đơn nhà cung cấp hoadon@.
+	"hoa_don_thu.py": ["doc_ngay"],
+	"whatsapp.py": ["dang_ky_su_kien", "kich_hoat", "trang_thai", "webhook"],
+	"du_chi.py": ["chi_tiet", "chot", "ds", "ds_chuyen_khoan", "duyet", "gui", "luu", "luu_so_ngay_no", "soan_lai"],
 	# v619: chuông thông báo trong app.
 	"chuong.py": ["da_xem", "dem", "thong_bao"],
 	# Gan Assignee that, them 21/08/2026. Chi mot duong DOC, va no chi doc

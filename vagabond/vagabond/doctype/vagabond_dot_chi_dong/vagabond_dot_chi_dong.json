@@ -1,0 +1,136 @@
+{
+ "actions": [],
+ "creation": "2026-11-12 23:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "nha_cung_cap",
+  "ten_ncc",
+  "nhom_ncc",
+  "hoa_don",
+  "so_hd_ncc",
+  "ngay_hd",
+  "han_du_tinh",
+  "con_no",
+  "dang_giu",
+  "co_the_tra",
+  "so_tra",
+  "gia_han",
+  "ghi_chu",
+  "hen_dot",
+  "ho_so_app",
+  "ket_qua"
+ ],
+ "fields": [
+  {
+   "fieldname": "nha_cung_cap",
+   "fieldtype": "Link",
+   "label": "Nhà cung cấp",
+   "options": "Supplier",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "ten_ncc",
+   "fieldtype": "Data",
+   "label": "Tên nhà cung cấp"
+  },
+  {
+   "fieldname": "nhom_ncc",
+   "fieldtype": "Data",
+   "label": "Nhóm nhà cung cấp"
+  },
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "label": "Hoá đơn mua",
+   "options": "Purchase Invoice",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "so_hd_ncc",
+   "fieldtype": "Data",
+   "label": "Số hoá đơn NCC"
+  },
+  {
+   "fieldname": "ngay_hd",
+   "fieldtype": "Date",
+   "label": "Ngày hoá đơn"
+  },
+  {
+   "fieldname": "han_du_tinh",
+   "fieldtype": "Date",
+   "label": "Hạn trả dự tính",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "con_no",
+   "fieldtype": "Currency",
+   "label": "Còn nợ lúc soạn"
+  },
+  {
+   "fieldname": "dang_giu",
+   "fieldtype": "Currency",
+   "label": "APP khác đang giữ"
+  },
+  {
+   "fieldname": "co_the_tra",
+   "fieldtype": "Currency",
+   "label": "Còn đề nghị được"
+  },
+  {
+   "fieldname": "so_tra",
+   "fieldtype": "Currency",
+   "label": "Trả đợt này",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "gia_han",
+   "fieldtype": "Currency",
+   "label": "Gia hạn",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú thương lượng"
+  },
+  {
+   "fieldname": "hen_dot",
+   "fieldtype": "Date",
+   "label": "Hẹn trả đợt"
+  },
+  {
+   "fieldname": "ho_so_app",
+   "fieldtype": "Link",
+   "label": "Hồ sơ APP đã lập",
+   "options": "Vagabond Ho So TT",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "ket_qua",
+   "fieldtype": "Small Text",
+   "label": "Kết quả lúc chốt",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-12 23:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Dot Chi Dong",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

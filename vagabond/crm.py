@@ -58,7 +58,7 @@ DK_HD_MUA = "docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(is_return, 0) =
 
 COT_DONG_Y = {"Zalo": "dy_zalo", "Gọi điện": "dy_goi", "Email": "dy_email"}
 TT_DONG_Y = ("Chưa hỏi", "Đồng ý", "Từ chối")
-NOI_GHI = ("Quầy", "Web", "Sales gọi", "Hồ sơ khách", "Desk", "Zalo OA")
+NOI_GHI = ("Quầy", "Web", "Sales gọi", "Hồ sơ khách", "Desk", "Zalo OA", "WhatsApp")
 
 # Kênh liên hệ của chiến dịch. Đợt 1 có gọi điện và Zalo cá nhân (Sales tự
 # nhắn). Đợt 2 (v617, anh Việt 28/10/2026: "OA Tăng trưởng bên anh có rồi")
@@ -808,7 +808,9 @@ def ghi_dong_y(khach=None, dat=None, noi_ghi="Quầy", chien_dich=None):
 
 
 # Nơi ghi chỉ máy được dùng: khách tự tích trên web, tự chia sẻ số qua OA.
-NOI_GHI_MAY = ("Web", "Zalo OA")
+NOI_GHI_MAY = ("Web", "Zalo OA", "WhatsApp")
+# v653: khách bấm "Ngừng nhận ưu đãi" trên tin WhatsApp (whatsapp.webhook).
+CAU_HOI_NGUNG_WA = "Khách bấm Ngừng nhận ưu đãi (hoặc nhắn DỪNG) trên tin ưu đãi WhatsApp."
 
 
 def ghi_dong_y_noi(khach, dat, noi_ghi, chien_dich=None, cau_hoi="", nguoi=None):

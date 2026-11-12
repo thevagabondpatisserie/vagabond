@@ -42,6 +42,7 @@ MAN_LAP_PHIEU = [
 	"scrQuyKiem", "scrQuyNop",  # v628 Codex #527 vòng 2: kiểm quỹ, nộp tiền mặt vào ngân hàng
 	"scrQuyChotDau",  # v635 Codex #536 vòng 2: chốt số dư đầu quỹ
 	"scrGomMua",  # v646 Codex 549: gom yêu cầu mua, số thu mua sửa trước khi chốt
+	"scrDuChiXem",  # v653: dự chi công nợ, số trả Uyên sửa trước khi bấm Lưu
 ]
 # Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
 # So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
@@ -66,7 +67,9 @@ SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	# v635 Codex #536 vòng 2: màn chốt số dư đầu quỹ ở 62, cùng điều kiện như scrQuyKiem.
 	"scrQuyChotDau": "62-quy-tien-mat.js",
 	# v646 Codex 549: màn Gom yêu cầu mua ở 70, ghép bằng dat() vào gmKhoiPhuc.
-	"scrGomMua": "70-gom-mua.js"}
+	"scrGomMua": "70-gom-mua.js",
+	# v653: màn Dự chi công nợ ở 71, ghép bằng dat() vào dcnKhoiPhuc theo mã đợt.
+	"scrDuChiXem": "71-du-chi.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",
@@ -232,7 +235,10 @@ def _thu_tu():
 		"69-tu-dong-hoa.js",
 		# v646: Gom yêu cầu mua, sửa số rồi chốt một nhóm có sẵn, không có form lập
 		# phiếu nháp nhiều ô.
-		"70-gom-mua.js"])
+		"70-gom-mua.js",
+		# v653: Dự chi công nợ, sửa số trả của một đợt máy đã soạn; bản nháp chỉ
+		# giữ số đã sửa (scrDuChiXem được bọc ở danh sách trên).
+		"71-du-chi.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

@@ -1198,3 +1198,22 @@ Phiếu đề nghị thanh toán có khối TRẢ BẰNG THẺ (ONEPAY): một l
 **Lưu ý**
 - Khách trả dư thì tin Zalo ghi số cần hoàn: làm phiếu hoàn tiền.
 - Link luôn hiện số còn phải trả lúc khách mở, gửi lại nhiều lần vẫn đúng.
+
+## Soát và duyệt đợt dự chi công nợ
+Từ khoá: dự chi, duyệt đợt, trả nhà cung cấp, đợt 10, đợt 20, APP tự lập
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, Giám đốc | Dự chi công nợ (/du-chi-cong-no) | [[Kế toán đã soát]], [[Duyệt và lập APP]], [[Trả lại]] |
+
+Trước đây: duyệt từng APP. Từ nay: duyệt cả đợt một lần; giám đốc duyệt xong máy lập APP từng nhà cung cấp, đã có dấu duyệt của đợt, chờ chuyển tiền như APP thường.
+
+**Các bước**
+1. Việc cần làm báo đợt chờ mình. Mở Dự chi công nợ, chọn đợt.
+2. Xem tổng trả, gia hạn, số dư tài khoản chi ở đầu màn.
+3. Kế toán bấm [[Kế toán đã soát]]; giám đốc bấm [[Duyệt và lập APP]]. Sai thì bấm [[Trả lại]] và ghi lý do.
+4. Có nhà cung cấp chưa lập được APP (dòng đỏ): sửa theo câu báo rồi bấm [[Lập APP cho phần còn lỗi]].
+
+**Lưu ý**
+- Người lập đợt không tự soát; hai cấp duyệt phải là hai người.
+- Không ghi sổ gì ở bước này: ghi sổ khi kế toán xác nhận đã chuyển tiền trên APP như cũ.

@@ -989,6 +989,7 @@ def bang(ngay=None):
 		return {"ngay": str(ngay), "co_so": 0, "dong": []}
 	doc = frappe.get_doc("Kiem Banh Ngay", ma)
 	tat = tat_ban_web.bang([d.ma_hang for d in doc.dong], ngay)
+	ten = _ten_nguoi_sx({d.get("sx_nguoi") for d in doc.dong if d.get("sx_nguoi")})
 	return {
 		"ngay": str(ngay),
 		"co_so": 1,
@@ -1002,6 +1003,8 @@ def bang(ngay=None):
 				"ton_d2": d.ton_d2 or 0, "nsx_d2": str(d.nsx_d2 or ""),
 				"ton_d1": d.ton_d1 or 0, "nsx_d1": str(d.nsx_d1 or ""),
 				"sx": d.sx or 0, "huy": d.huy or 0, "da_dat": d.da_dat or 0,
+				# v653: ai sửa ô Bếp làm lần gần nhất, chữ ngắn "Hân 21:05".
+				"sx_ai": ai_sua_sx(d, ten),
 				"phat_sinh": d.phat_sinh or 0, "ten_khach_ps": d.ten_khach_ps or "",
 				"cho_chot": d.cho_chot or 0, "ten_khach_cho": d.ten_khach_cho or "",
 				"don_khac": d.don_khac or 0, "ten_khach_khac": d.ten_khach_khac or "",
@@ -1019,6 +1022,30 @@ def bang(ngay=None):
 			for d in doc.dong
 		],
 	}
+
+
+def _ten_nguoi_sx(ds):
+	"""{email: tên đầy đủ} cho dòng "ai sửa Bếp làm" (v653). Một câu đọc."""
+	if not ds:
+		return {}
+	try:
+		return {r.name: r.full_name for r in frappe.get_all("User", filters={"name": ["in", sorted(ds)]},
+			fields=["name", "full_name"], limit_page_length=0, ignore_permissions=True)}
+	except Exception:
+		return {}
+
+
+def ai_sua_sx(d, ten=None):
+	"""Chữ ngắn dưới ô Bếp làm: "Hân 21:05" (tên đầy đủ, không hiện email;
+	máy sửa thì "Máy"). THUẦN với `ten` là {email: tên}."""
+	ai = d.get("sx_nguoi") if hasattr(d, "get") else None
+	if not ai:
+		return ""
+	luc = str(d.get("sx_luc") or "")
+	nguoi = (ten or {}).get(ai) or str(ai).split("@")[0]
+	if ai == "Administrator":
+		nguoi = "Máy"
+	return (nguoi + " " + luc[11:16]).strip() if len(luc) >= 16 else nguoi
 
 
 # Cot nguoi go tay. "huy" vao day tu 06/09/2026: cua hang go so banh hong,

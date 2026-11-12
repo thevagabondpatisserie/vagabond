@@ -114,9 +114,9 @@ def _cua_ngo_btp():
 
 	ds = thu_cua_ngo.CUA_NGO.get("btp.py")
 	dung("có mục btp.py", bool(ds))
-	# v646: thêm luu_refill (ô Refill trên bảng kiểm bánh).
-	la("đủ tám tên", sorted(ds), sorted([
-		"bang_btp", "gieo_tu_kiem_banh", "luu_btp", "luu_decor", "luu_refill", "quyen_btp",
+	# v646: thêm luu_refill (ô Refill trên bảng kiểm bánh). v653: thêm lich_su_btp.
+	la("đủ chín tên", sorted(ds), sorted([
+		"bang_btp", "gieo_tu_kiem_banh", "lich_su_btp", "luu_btp", "luu_decor", "luu_refill", "quyen_btp",
 		"them_ma_btp", "xoa_ma_btp",
 	]))
 

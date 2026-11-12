@@ -31,7 +31,9 @@
   "may_chuyen_ton_d2",
   "nguon_ton_d1",
   "may_chuyen_ton_d1",
-  "kiem_dem_ghi"
+  "kiem_dem_ghi",
+  "sx_nguoi",
+  "sx_luc"
  ],
  "fields": [
   {
@@ -223,11 +225,25 @@
    "label": "Ai đếm, lúc nào",
    "read_only": 1,
    "description": "JSON {o: {ai, luc}} ghi nguoi va gio kiem dem tung o ton."
+  },
+  {
+   "fieldname": "sx_nguoi",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Bếp làm: người sửa",
+   "read_only": 1,
+   "description": "Người sửa ô Bếp làm lần gần nhất (v653). Máy ghi, không sửa tay."
+  },
+  {
+   "fieldname": "sx_luc",
+   "fieldtype": "Datetime",
+   "label": "Bếp làm: lúc sửa",
+   "read_only": 1
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-09-07 04:00:00.000000",
+ "modified": "2026-11-13 00:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Kiem Banh Dong",

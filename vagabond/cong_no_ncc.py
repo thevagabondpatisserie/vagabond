@@ -31,7 +31,10 @@ def tong_hop(ds, hom_nay, trang_thai="con_no", tu_khoa="", ky="", nhom=""):
         # ghi outstanding_in_account_currency vào PI, không phải currency HĐ.
         no = _so(r.get("outstanding_amount"))
         tong = _so((r.get("rounded_total") or r.get("grand_total")) if r.get("account_currency") == r.get("currency") else (r.get("base_rounded_total") or r.get("base_grand_total")))
-        han = str(r.get("due_date") or "")[:10]
+        # v653 (#555): hạn dự tính theo "Số ngày được nợ" của nhà cung cấp
+        # (du_chi.han_du_tinh, một nguồn). Gần như mọi hoá đơn mua có hạn
+        # ghi sổ bằng đúng ngày hoá đơn nên chip Quá hạn đếm cả 350 tờ.
+        han = str(r.get("han_du_tinh") or r.get("due_date") or "")[:10]
         tre = max(0, (date.fromisoformat(str(hom_nay)[:10]) - date.fromisoformat(han)).days) if han else 0
         het = no == 0
         phan = 0 < no < tong
@@ -100,6 +103,8 @@ def _ket_qua(cong_ty=None, trang_thai="con_no", tu_khoa="", ky="", nhom="", **bo
     if trang_thai not in ("tat_ca", "con_no", "qua_han", "mot_phan", "het_no"):
         frappe.throw("Chọn lại trạng thái công nợ rồi tải lại.")
     cty, co, ds = _doc(cong_ty)
+    from vagabond.du_chi import gan_han_du_tinh
+    gan_han_du_tinh([r for r in ds if (r.get("outstanding_amount") or 0) > 0])
     kq = tong_hop(ds, nowdate(), trang_thai, tu_khoa, ky, nhom)
     kq.update(cong_ty=co.name if co else "", tien_te=co.default_currency if co else "",
         cac_cong_ty=[r.name for r in cty], cac_nhom=sorted({r["supplier_group"] for r in ds}),

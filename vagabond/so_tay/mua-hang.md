@@ -363,3 +363,44 @@ Sau khi đơn mua đã Xác nhận, hai việc tiếp theo nằm ở chương kh
 
 **Lưu ý**
 - Màn Đơn mua hàng cho biết đơn đã nối với phiếu nhập kho và hoá đơn mua nào.
+
+## Dự chi công nợ: đợt trả nhà cung cấp ngày 10 và 20
+Từ khoá: dự chi, dự trù công nợ, trả nhà cung cấp, đợt 10, đợt 20, gia hạn, thương lượng, payment run
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua (Uyên) | Dự chi công nợ (/du-chi-cong-no) | [[Trả hết]], [[Lưu]], [[Gửi duyệt]] |
+
+Trước đây: lập bảng Excel dự chi rồi lập từng APP, duyệt từng tờ. Từ nay: máy soạn sẵn đợt nháp ngày 7 (cho đợt 10) và ngày 17 (cho đợt 20) từ dư nợ ERP, nhắn nhóm Thu mua; giám đốc duyệt cả đợt một lần là máy lập APP.
+
+**Các bước**
+1. Mở Dự chi công nợ, chọn đợt đang ở bước Uyên đang thương lượng.
+2. Mỗi nhà cung cấp một thẻ. Hoá đơn tới hạn máy điền sẵn trả hết, chưa tới hạn để 0.
+3. Thương lượng xong: bấm [[Trả hết]], [[Không trả đợt này]], hoặc gõ số trả từng hoá đơn. Máy tính phần gia hạn.
+4. Bấm dòng hoá đơn để ghi chú và chọn đợt hẹn trả phần gia hạn.
+5. Chip Nợ 30 ngày trên thẻ: bấm để khai số ngày nhà cung cấp cho nợ (máy gợi theo lịch sử trả).
+6. Bấm [[Lưu]] khi đang làm dở, bấm [[Gửi duyệt]] khi xong.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Số trả lớn hơn phần còn đề nghị được | Phần chênh đang nằm trong APP khác hoặc đã trả: giảm số trả |
+| Đợt chưa có dòng nào trả | Nhập số trả cho ít nhất một hoá đơn |
+
+**Lưu ý**
+- Kế toán hay giám đốc trả lại thì đợt về Uyên, có lý do ở đầu màn.
+- Duyệt xong, APP đứng tên Uyên, đã có sẵn dấu duyệt, chờ kế toán chuyển tiền. Xem [[Danh sách chuyển khoản]].
+- Phí sàn (Grab, ShopeeFood) cấn trừ vào tiền sàn trả nên không có trong đợt.
+
+## Hoá đơn nhà cung cấp tự đính từ hộp thư hoadon@
+Từ khoá: hoá đơn nhà cung cấp, PDF hoá đơn, XML hoá đơn, hoadon@, bản thể hiện, đính kèm APP
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua, Kế toán | Việc cần làm, Hoá đơn trong thư (Desk) | Không cần bấm |
+
+Trước đây: tải tay PDF hoá đơn nhà cung cấp về đính vào APP. Từ nay: mỗi giờ máy đọc hộp thư hoadon@ (chỉ đọc, không đánh dấu đã đọc), lấy XML và PDF, khớp hoá đơn M-Invoice, đính PDF của nhà cung cấp để APP có sẵn.
+
+**Bạn cần làm**
+1. Việc cần làm hiện dòng Hoá đơn nhà cung cấp trong hộp thư khi thư chỉ có đường dẫn tra cứu, chỉ có PDF, hay 3 ngày chưa khớp.
+2. Bấm dòng đó, mở đường dẫn trong thư, tải hoá đơn, đính tay vào hoá đơn mua như trước.

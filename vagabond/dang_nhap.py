@@ -25,7 +25,10 @@ import secrets
 from datetime import timedelta
 
 import frappe
-import requests
+try:  # CI tay không có requests (mục E): nạp mềm, chỉ tra đơn Pancake mới cần.
+	import requests
+except ImportError:  # pragma: no cover
+	requests = None
 from frappe.rate_limiter import rate_limit
 from frappe.utils import add_days, now_datetime
 
@@ -98,10 +101,17 @@ def gui_ma(sdt=None):
 	frappe.db.commit()
 
 	c = cfg()
-	xong, loi = _gui_zns(c, s, ma)
-	if not xong:
-		return {"ok": 0, "ly_do": "khong_gui_duoc", "chi_tiet": loi}
-	return {"ok": 1, "song_giay": OTP_SONG_PHUT * 60}
+	# v653: Zalo trước, Zalo hỏng mới WhatsApp (kenh_khach). Lượt gửi đếm theo
+	# bản ghi Vagabond OTP ở trên nên chung cho cả hai kênh: rơi sang WhatsApp
+	# không mở thêm lượt.
+	from vagabond import kenh_khach
+
+	kenh, loi_z, loi_w = kenh_khach.gui_otp(c, s, ma, lambda: _gui_zns(c, s, ma))
+	if kenh == kenh_khach.KHONG:
+		# Không lộ mã lỗi kỹ thuật ra màn khách; lỗi đã ghi Error Log.
+		return {"ok": 0, "ly_do": "khong_gui_duoc"}
+	return {"ok": 1, "song_giay": OTP_SONG_PHUT * 60, "kenh": kenh,
+		"so": kenh_khach.che_so(s) if kenh == kenh_khach.WHATSAPP else ""}
 
 
 def _tao_phien(sdt84):

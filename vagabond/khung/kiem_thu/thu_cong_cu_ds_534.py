@@ -750,6 +750,9 @@ MIEN = {
 	# v646: bảng nhập số mua để chốt theo nhóm nhà cung cấp, danh sách do máy gom
 	# và sẽ rỗng sau khi chốt; không phải sổ để tra (sổ là màn Đơn mua hàng).
 	"scrGomMua": KHONG_PHAI,
+	# v653: tám đợt dự chi mới nhất (hai đợt mỗi tháng), máy chủ đã giới hạn;
+	# sổ để tra từng khoản trả là màn Hồ sơ thanh toán.
+	"scrDuChi": KHONG_PHAI,
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 

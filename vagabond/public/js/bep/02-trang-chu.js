@@ -42,6 +42,7 @@ async function scrHome() {
         card('✅', 'Duyệt yêu cầu mua', 'Duyệt từng dòng, kèm tồn kho và số đang chờ về để quyết ngay', 0, 'DUYETYC') +
         card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
         card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
+        card('📅', 'Dự chi công nợ', 'Đợt trả nhà cung cấp ngày 10 và 20: chọn trả hết hay một phần, duyệt một lần là có APP', 0, 'DUCHI') +
         card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC') +
         card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA')
         /* v565, anh Viet 03/10/2026: *"dong y an luon ban khung di"*.
@@ -670,18 +671,18 @@ var VGB_NHOM = [
      03/10/2026. Hai ô đó dựng để đối chiếu số với bản cũ, số đã khớp từ
      lâu, giữ lại chỉ làm nhân viên thu mua bấm nhầm vào bản đối chiếu. */
   {
-    k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['GOMMUA', 'DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA'],
+    k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['GOMMUA', 'DUYETYC', 'PO', 'CNPT', 'DUCHI', 'NCC', 'BGIA'],
     nhom: [
       { t: 'Mua hàng', p: 'việc hàng ngày', keys: ['GOMMUA', 'DUYETYC', 'PO'] },
-      { t: 'Nhà cung cấp', p: '', keys: ['NCC', 'BGIA', 'CNPT'] }
+      { t: 'Nhà cung cấp', p: '', keys: ['NCC', 'BGIA', 'CNPT', 'DUCHI'] }
     ]
   },
   {
     k: 'KT', ten: 'Kế toán', icon: '🧮',
-    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'TCQUY', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
+    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'DUCHI', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'TCQUY', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
     nhom: [
       { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'BC:BC05'] },
-      { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT'] },
+      { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT', 'DUCHI'] },
       { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ', 'TCQUY'] },
       { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] },
       { t: 'Giá thành', p: 'định giá bán', keys: ['GVT'] }
@@ -1746,7 +1747,7 @@ function vclIcon(l) {
     kiem_ke: '🧮', sai_kho: '⚠️', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
     ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
     nop_quy: '💵', hang_tang: '🎁', doi_soat_duyet: '📨', goi_y: '📌',
-    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒'
+    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒', du_chi: '📅', hoa_don_thu: '📧'
   }[l] || '';
 }
 
@@ -1816,6 +1817,9 @@ function vclMo(x) {
   if (l === 'ke_hoach_sx') return go(function () { khsx.ngay = x.ngay || today(); khsx.d = null; khsx.tab = 'tp'; return scrKeHoachSX(); });
   if (l === 'ghi_nhan_sx') return go(function () { mfg.tab = 'open'; mfg.han = 'nay'; mfg.mon = ''; return scrMfgList(); });
   if (l === 'gom_mua') return go(function () { GM.d = null; return scrGomMua(); });
+  /* v653: hoá đơn trong hộp thư hoadon@ chưa tự đính được: mở bản ghi trên Desk (có PDF, XML, đường dẫn). */
+  if (l === 'hoa_don_thu') { window.open('/app/vagabond-hoa-don-thu/' + encodeURIComponent(x.ma), '_blank'); return; }
+  if (l === 'du_chi') return go(function () { DCN.d = null; DCN.sua = {}; DCN.mo = {}; if (x.ma) { DCN.ma = x.ma; return scrDuChiXem(); } return scrDuChi(); });
   if (l === 'ycmh_nhap') return go(function () { scrMRView(x.ma, typeOf('Purchase')); });
   if (l === 'ycsx_thieu') {
     toast('Ở bước chọn món, bấm Gợi ý từ hệ thống để lấy đúng số còn thiếu.', 5000);
@@ -1922,6 +1926,7 @@ var VGB_DUONG = {
   'don-tiec': 'TIEC',
   'dong-tien': 'TCDONG',
   'du-bao-30-ngay': 'TCDB',
+  'du-chi-cong-no': 'DUCHI',
   'du-lieu-hao-hut': 'BCHH',
   'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
@@ -2218,6 +2223,7 @@ function vgbGo(k) {
   if (k === 'BCSANG') return go(scrBangSang);
   if (k === 'DUYETYC') return go(scrDuyetYc);
   if (k === 'GOMMUA') return go(function () { GM.d = null; return scrGomMua(); });
+  if (k === 'DUCHI') return go(scrDuChi);
   if (k === 'PO') return go(scrDonMua);
   if (k === 'KHPO') return kgMo('PO');
   if (k === 'KHHDM') return kgMo('HDM');

@@ -191,6 +191,8 @@ MAN = (
 	("DUYETYC", "Duyệt yêu cầu", None),
 	# v646: gom yêu cầu mua các bộ phận thành đơn mua theo nhà cung cấp (gom_mua.py, 70-gom-mua.js).
 	("GOMMUA", "Gom yêu cầu mua", None),
+	# v653: đợt trả nhà cung cấp ngày 10 và 20 (du_chi.py, 71-du-chi.js).
+	("DUCHI", "Dự chi công nợ", None),
 	("NCC", "Nhà cung cấp", None),
 	("NCCTAO", "Tạo nhà cung cấp", None),
 	("BGIA", "Bảng giá", None),

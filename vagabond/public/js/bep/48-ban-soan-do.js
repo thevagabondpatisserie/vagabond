@@ -846,6 +846,16 @@ sdKhai('gom_mua', 'scrGomMua', {
   tieuDe: function (v) { var n = v && v.sua ? Object.keys(v.sua).length : 0; return n ? n + ' món đã sửa số mua' : ''; },
   luu: [function (m, a) { return m === 'vagabond.gom_mua.chot' && !gmConSuaKhac(a); }]
 });
+/* v653 Dự chi công nợ (71, sau 48): chỉ giữ số trả, ghi chú, hẹn đợt Uyên
+   đã sửa mà chưa bấm Lưu, theo đúng mã đợt. Lưu (du_chi.luu) là xong nháp. */
+sdKhai('du_chi', 'scrDuChiXem', {
+  ten: 'Dự chi công nợ', khongO: 1,
+  lay: function () { return DCN.d && DCN.d.trang_thai === 'Nhap' && Object.keys(DCN.sua).length ? { ma: DCN.d.ma, sua: dcnGiuSua(DCN.sua, DCN.d) } : null; },
+  dat: function (v) { dcnKhoiPhuc = v || null; if (v && v.ma) DCN.ma = v.ma; },
+  ma: function () { return DCN.ma || ''; },
+  tieuDe: function (v) { var n = v && v.sua ? Object.keys(v.sua).length : 0; return n ? n + ' hoá đơn đã sửa số trả' : ''; },
+  luu: ['vagabond.du_chi.luu']
+});
 /* v622: hai màn lập phiếu của Tuyển dụng (60-tuyen-dung.js, đứng sau 48 nên
    ghép bằng dat() vào biến khôi phục, màn tự ghép lúc dựng trạng thái). */
 sdKhai('vi_tri_tuyen', 'scrTdViTri', {
@@ -953,6 +963,7 @@ scrQuyKiem = sdBoc('kiem_quy', 'scrQuyKiem', scrQuyKiem);
 scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
 scrQuyChotDau = sdBoc('chot_dau_quy', 'scrQuyChotDau', scrQuyChotDau);
 scrGomMua = sdBoc('gom_mua', 'scrGomMua', scrGomMua);
+scrDuChiXem = sdBoc('du_chi', 'scrDuChiXem', scrDuChiXem);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);

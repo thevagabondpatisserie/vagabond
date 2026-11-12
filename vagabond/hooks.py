@@ -1249,3 +1249,7 @@ scheduler_events.setdefault("cron", {}).setdefault("41 8 * * *", []).append("vag
 # (viec_tu_dong.py). Mỗi 15 phút đọc giờ chạy, giờ hạn anh đặt trong Cài đặt rồi
 # làm việc nào tới giờ; việc đang tắt thì bỏ qua.
 scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.viec_tu_dong.chay")
+# v653: tin Zalo "Bánh có sẵn hôm nay" kèm ảnh, khi số bán được trên bảng Kiểm bánh đổi.
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.tin_banh_co_san.quet")
+# v653: đọc hộp thư hoá đơn nhà cung cấp hoadon@ (chỉ đọc), đính PDF, XML vào hoá đơn mua.
+scheduler_events.setdefault("cron", {}).setdefault("17 * * * *", []).append("vagabond.hoa_don_thu.doc_dinh_ky")

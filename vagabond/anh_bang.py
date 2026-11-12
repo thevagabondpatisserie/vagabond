@@ -174,6 +174,128 @@ def ve_bang(tieu_de, phu_de, cot, hang, chu_thich=""):
 	return ra.getvalue()
 
 
+# ---------------------------------------------- v653: lưới ảnh bánh và số lượng
+
+COT_LUOI = 3
+O_LUOI = 312
+CAO_CHU_LUOI = 84
+TOI_DA_O = 30
+
+
+def xep_luoi(o, toi_da=TOI_DA_O):
+	"""THUẦN: các ô cần vẽ và số ô còn lại không vẽ (quá toi_da). Mỗi ô {ten, so, anh}."""
+	o = list(o or [])
+	return o[:toi_da], max(0, len(o) - toi_da)
+
+
+def chia_hai_dong(chu, rong, do_chu):
+	"""THUẦN: tên bánh thành tối đa hai dòng vừa `rong`, ngắt theo từ; dòng hai còn
+	dài thì cắt có dấu …"""
+	tu = str(chu or "").split()
+	d1 = ""
+	while tu and do_chu((d1 + " " + tu[0]).strip()) <= rong:
+		d1 = (d1 + " " + tu.pop(0)).strip()
+	if not d1 and tu:
+		return [cat_chu(" ".join(tu), rong, lambda c, d: do_chu(c))]
+	if not tu:
+		return [d1]
+	return [d1, cat_chu(" ".join(tu), rong, lambda c, d: do_chu(c))]
+
+
+def ve_luoi(tieu_de, phu_de, o, anh_cua=None, chu_thich=""):
+	"""Vẽ lưới ảnh bánh: mỗi ô một ảnh vuông, tên bánh hai dòng, số lượng to.
+	anh_cua(url) trả ảnh PIL hoặc None (tải hỏng thì ô xám có chữ "Chưa có ảnh").
+	Trả bytes PNG; ném lỗi nếu thiếu Pillow hoặc phông (nơi gọi gửi tin chữ)."""
+	from io import BytesIO
+
+	from PIL import Image, ImageDraw, ImageFont
+
+	thuong, dam = _phong()
+	f_td = ImageFont.truetype(dam, CO_TIEU_DE)
+	f_phu = ImageFont.truetype(thuong, CO_PHU)
+	f_ten = ImageFont.truetype(dam, 24)
+	f_so = ImageFont.truetype(dam, 44)
+	ve, con = xep_luoi(o)
+	khe = (RONG - 2 * LE - COT_LUOI * O_LUOI) // (COT_LUOI - 1)
+	so_hang = (len(ve) + COT_LUOI - 1) // COT_LUOI
+	cao = LE + CO_TIEU_DE + 14 + (CO_PHU + 18 if phu_de else 0) + 12 + so_hang * (O_LUOI + CAO_CHU_LUOI + 24) \
+		+ (CO_PHU + 30 if (chu_thich or con) else 0) + LE
+	anh = Image.new("RGB", (RONG, max(cao, 300)), MAU_NEN)
+	v = ImageDraw.Draw(anh)
+	y = LE
+	v.text((LE, y), cat_chu(tieu_de, RONG - 2 * LE, lambda c, d: int(f_td.getlength(c))), font=f_td, fill=MAU_CHU)
+	y += CO_TIEU_DE + 14
+	if phu_de:
+		v.text((LE, y), cat_chu(phu_de, RONG - 2 * LE, lambda c, d: int(f_phu.getlength(c))), font=f_phu, fill=MAU_PHU)
+		y += CO_PHU + 18
+	y += 12
+	for i, x in enumerate(ve):
+		cot, hang = i % COT_LUOI, i // COT_LUOI
+		x0 = LE + cot * (O_LUOI + khe)
+		y0 = y + hang * (O_LUOI + CAO_CHU_LUOI + 24)
+		hinh = None
+		try:
+			hinh = anh_cua(x.get("anh")) if (anh_cua and x.get("anh")) else None
+		except Exception:
+			hinh = None
+		if hinh is not None:
+			w, h = hinh.size
+			c = min(w, h)
+			hinh = hinh.convert("RGB").crop(((w - c) // 2, (h - c) // 2, (w - c) // 2 + c, (h - c) // 2 + c)).resize((O_LUOI, O_LUOI))
+			anh.paste(hinh, (x0, y0))
+		else:
+			v.rectangle([x0, y0, x0 + O_LUOI, y0 + O_LUOI], fill=MAU_SOC, outline=MAU_KE)
+			v.text((x0 + 20, y0 + O_LUOI // 2 - 14), "Chưa có ảnh", font=f_phu, fill=MAU_PHU)
+		# Số lượng nổi trên góc ảnh: nhìn một giây thấy còn bao nhiêu.
+		so = str(x.get("so"))
+		w_so = int(f_so.getlength(so)) + 28
+		v.rounded_rectangle([x0 + O_LUOI - w_so - 10, y0 + 10, x0 + O_LUOI - 10, y0 + 70], radius=14, fill=MAU_XANH)
+		v.text((x0 + O_LUOI - w_so + 4, y0 + 13), so, font=f_so, fill=MAU_NEN)
+		for k, dong in enumerate(chia_hai_dong(x.get("ten"), O_LUOI, lambda c: int(f_ten.getlength(c)))):
+			v.text((x0, y0 + O_LUOI + 10 + k * 34), dong, font=f_ten, fill=MAU_CHU)
+	if chu_thich or con:
+		y_ct = y + so_hang * (O_LUOI + CAO_CHU_LUOI + 24) + 8
+		ct = (chu_thich + ("  " if chu_thich and con else "") + ("... và %d loại nữa trong danh sách chữ." % con if con else ""))
+		v.text((LE, y_ct), cat_chu(ct, RONG - 2 * LE, lambda c, d: int(f_phu.getlength(c))), font=f_phu, fill=MAU_PHU)
+	ra = BytesIO()
+	anh.save(ra, format="PNG", optimize=True)
+	return ra.getvalue()
+
+
+def tai_anh(url, toi_da=3 * 1024 * 1024):
+	"""Tải ảnh bánh (Pancake, web) cho ô lưới; hỏng hay quá nặng thì None."""
+	from io import BytesIO
+
+	try:
+		import requests
+		from PIL import Image
+
+		r = requests.get(str(url), timeout=5, stream=True)
+		if r.status_code != 200:
+			return None
+		b = r.raw.read(toi_da + 1, decode_content=True)
+		if len(b) > toi_da:
+			return None
+		return Image.open(BytesIO(b))
+	except Exception:
+		return None
+
+
+def anh_luoi(nhom, tieu_de, phu_de, o, chu_thich=""):
+	"""Vẽ lưới ảnh bánh và lưu; trả đường dẫn hoặc None (đã ghi Error Log)."""
+	import frappe
+
+	try:
+		return luu_anh(ve_luoi(tieu_de, phu_de, o, tai_anh, chu_thich), nhom)
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+
+		if chet_giao_dich(e):
+			raise
+		frappe.log_error(frappe.get_traceback(), "anh_bang: chua ve duoc luoi %s" % nhom)
+		return None
+
+
 def ten_tep(nhom):
 	"""THUẦN (gần): tên tệp ảnh khó đoán, 24 ký tự ngẫu nhiên, có nhóm để dọn theo tiền tố."""
 	nhom = "".join(c for c in str(nhom or "bang").lower() if c.isalnum() or c == "-")[:24] or "bang"

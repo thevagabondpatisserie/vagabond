@@ -702,7 +702,8 @@ def gui_ma(sdt):
 	if not kh:
 		return {"ok": 0, "ly_do": ly}
 	r = _dn().gui_ma(sdt)
-	return {"ok": r.get("ok", 0), "ly_do": r.get("ly_do", ""), "song_giay": r.get("song_giay", 0)}
+	# v653: kênh đã gửi (zalo, whatsapp) để màn nói đúng kênh.
+	return {"ok": r.get("ok", 0), "ly_do": r.get("ly_do", ""), "song_giay": r.get("song_giay", 0), "kenh": r.get("kenh", ""), "so": r.get("so", "")}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

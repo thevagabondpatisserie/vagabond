@@ -731,6 +731,14 @@ def _gui_mau(c, sdt, mau, data, dau_vet):
 	return zalo.gui_mau(c, sdt, mau, data, dau_vet)
 
 
+def _gui_wa_uu_dai(kh, gt):
+	"""Đường phụ WhatsApp cho tin ưu đãi (kenh_khach, một nguồn). Trả (được, lỗi)."""
+	from vagabond import kenh_khach
+
+	nd = kenh_khach.noi_dung_uu_dai(gt.get("ten_uu_dai"), gt.get("ma_voucher"), gt.get("dieu_kien"))
+	return kenh_khach.gui_uu_dai(_cfg(), kh["sdt84"], kh.get("ten"), nd, gt.get("han_dung") or "", kh.get("dong_y"))
+
+
 def _doc_mau(ma):
 	from vagabond import zalo
 
@@ -1455,6 +1463,18 @@ def _gui_mot(c, row):
 		except Exception:
 			frappe.log_error(title="Vagabond: ghi nhật ký tin Zalo", message=frappe.get_traceback())
 		return 0
+	# v653 (anh Việt chốt 12/11/2026): Zalo từ chối RIÊNG khách này (không có
+	# Zalo, chặn tin...) thì gửi ưu đãi qua WhatsApp, chỉ khi khách đã đồng ý
+	# nhận tin. Lỗi của cả lượt (hết hạn mức, mẫu lệch) không rơi sang WhatsApp:
+	# dòng còn chờ lượt sau, gửi WhatsApp lúc này là gửi trùng sau đó.
+	if ma not in LOI_DUNG_LUOT and gt.get("ten_uu_dai"):
+		ok_w, loi_w = _gui_wa_uu_dai(kh, gt)
+		if ok_w:
+			_xong(row.name, TT_GUI, "Zalo không gửi được (%s), đã gửi qua WhatsApp." % cat(cau, 200), sdt=kh["sdt84"],
+				ten_khach=cat(kh["ten"], 140), voucher=ma_v, ma_mau=c["ma_mau"], gia=0, msg_id="")
+			return 0
+		if loi_w:
+			cau = "%s. WhatsApp: %s" % (cau, loi_w)
 	_huy_voucher(ma_huy, cau)
 	if ma in LOI_DUNG_LUOT:
 		# Lỗi của cả lượt: để dòng chờ cho lượt sau, ghi lý do để màn hiện.

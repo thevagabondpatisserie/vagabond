@@ -262,14 +262,18 @@ def _gui_zns(so84, ma, ten_khach, so_diem, so_tien):
 	# so tu may khach), nen khong ai be duoc con so; nhung lop "khach tu
 	# doc thay" thi mat. Muon co lai thi phai dang ky mot mau ZNS moi co
 	# du cac tham so ten_khach, so_diem, so_tien, roi sua lai dict nay.
-	xong, loi = zalo.gui_tin(
-		cfg(),
+	# v653: Zalo trước, Zalo hỏng mới gửi WhatsApp (kenh_khach, một nguồn).
+	from vagabond import kenh_khach
+
+	cf = cfg()
+	kenh, loi_z, loi_w = kenh_khach.gui_otp(cf, so84, ma, lambda: zalo.gui_tin(
+		cf,
 		so84,
 		c["mau_zns"],
 		{"otp": ma},
 		dau_vet="vgb-diem-%s" % so84,
-	)
-	return xong, loi, False
+	))
+	return kenh != kenh_khach.KHONG, (loi_w or loi_z) if kenh == kenh_khach.KHONG else "", False
 
 
 # --------------------------------------------------------------- doc du lieu

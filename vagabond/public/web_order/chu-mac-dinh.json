@@ -6961,5 +6961,29 @@
     "nhom": "gio_hang",
     "mac_dinh": "Điểm thành viên",
     "nhieu_dong": true
+  },
+  "tv653_o_sdt": {
+    "ten": "Thành viên: nhãn ô số điện thoại nhận mã",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số điện thoại",
+    "nhieu_dong": false
+  },
+  "tv653_phu_otp": {
+    "ten": "Thành viên: dòng dưới ô số điện thoại",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhận mã xác thực qua Zalo hoặc Whatsapp",
+    "nhieu_dong": false
+  },
+  "tv653_nut_otp": {
+    "ten": "Thành viên: nút gửi mã",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Gửi mã xác thực",
+    "nhieu_dong": false
+  },
+  "tv653_da_gui_wa": {
+    "ten": "Mã xác thực đã gửi qua WhatsApp (khi Zalo không gửi được)",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã đã gửi qua WhatsApp tới số {so}. Mã có hiệu lực 5 phút.",
+    "nhieu_dong": false
   }
 }

@@ -459,7 +459,8 @@ export function taoKho(moiTruong) {
     c.dangGui = false;
     if (!m || !m.ok) { c.loi = cauLoiDd(m && m.ly_do) || t('dat_banh_dd_chua_gui', 'Chưa gửi được mã. Quý khách thử lại sau.'); return m; }
     c.buoc = 'ma'; c.ma = '';
-    c.bao = t('dat_banh_dd_da_gui', 'Đã gửi mã qua Zalo.');
+    /* v653: Zalo hỏng thì mã đi WhatsApp; câu báo nói đúng kênh. */
+    c.bao = m.kenh === 'whatsapp' ? t('tv653_da_gui_wa', 'Mã đã gửi qua WhatsApp tới số {so}. Mã có hiệu lực 5 phút.', {so: m.so || ''}) : t('dat_banh_dd_da_gui', 'Đã gửi mã qua Zalo.');
     return m;
   }
   async function xacThucDonDau() {
