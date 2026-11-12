@@ -131,8 +131,8 @@ def sap_het_han(but, hom_nay, han_thang, so_ngay=NHAC_TRUOC_NGAY):
 	tiên. Trả {"diem", "ngay"} hoặc None. THUẦN.
 
 	Cùng luật diem_han.qua_han_cuon_chieu (vào trước ra trước, trừ phần đã tiêu,
-	không quá số dư). Bút tích ngày e hết hạn ở ngày e + han_thang tháng + 1:
-	ngày đó mốc của job (hôm nay lùi han_thang tháng) đã vượt e.
+	không quá số dư). Bút tích ngày e hết hạn ở ngày đầu tiên mà mốc của job
+	(hôm đó lùi han_thang tháng, kẹp cuối tháng) đã vượt e.
 	"""
 	from vagabond.diem_han import qua_han_cuon_chieu
 
@@ -148,18 +148,15 @@ def sap_het_han(but, hom_nay, han_thang, so_ngay=NHAC_TRUOC_NGAY):
 	tong = qua_han_cuon_chieu(but, moc(cuoi)) - da_mat
 	if tong <= 0:
 		return None
+	# Codex #557 vòng 3: ngày mất là ngày ĐẦU TIÊN mà mốc của việc định kỳ (hôm đó
+	# lùi han_thang tháng) vượt qua bút tích. Dò từng ngày trong khung nhắc, không
+	# cộng tháng xuôi từ ngày tích: bút cuối tháng (28/02 cộng 1 tháng là 28/03)
+	# không nghịch đảo được phép lùi tháng có kẹp ngày cuối tháng của việc định kỳ.
 	ngay_mat = None
-	for ngay_tich, diem in sorted(but, key=lambda x: str(x[0])):
-		if _so(diem) <= 0:
-			continue
-		d = _ngay(ngay_tich)
-		if not d:
-			continue
-		mat = cong_thang(d, int(_so(han_thang))) + timedelta(days=1)
-		if mat <= hn or mat > cuoi:
-			continue
-		if qua_han_cuon_chieu(but, moc(mat)) - da_mat > 0:
-			ngay_mat = mat
+	for i in range(1, int(so_ngay) + 1):
+		d = hn + timedelta(days=i)
+		if qua_han_cuon_chieu(but, moc(d)) - da_mat > 0:
+			ngay_mat = d
 			break
 	if ngay_mat:
 		# Codex #557: chỉ số điểm mất ĐÚNG ngày đầu tiên đó, không cộng các đợt

@@ -1161,7 +1161,8 @@ def quet_nhac_diem(hom_nay):
 		return 0
 	so_ngay = so_nguyen(c.get("so_ngay"), 30) or 30
 	han = so_nguyen(cd["han_thang"], 12) or 12
-	# Bút tích có ngày mất (ngày tích + han tháng + 1) rơi vào (hôm nay, hôm nay + so_ngay].
+	# Bút tích sẽ mất trong (hôm nay, hôm nay + so_ngay]: ngày tích từ mốc hôm nay tới
+	# trước mốc của ngày cuối khung (mốc = ngày lùi han tháng, cùng phép của việc định kỳ).
 	tu = diem_web.cong_thang(hom_nay, -han) - timedelta(days=1)
 	den = diem_web.cong_thang(hom_nay + timedelta(days=so_ngay), -han) - timedelta(days=1)
 	ds = [r[0] for r in frappe.db.sql("""select distinct khach from `tabVagabond So Diem`
