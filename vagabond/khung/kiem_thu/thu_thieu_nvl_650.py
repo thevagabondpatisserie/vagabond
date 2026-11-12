@@ -122,7 +122,7 @@ def _():
 
 	goc = os.path.dirname(os.path.abspath(__file__))
 	r = subprocess.run(["node", os.path.join(goc, "hanh_vi", "nhom_kiem_nvl_650.js")], capture_output=True, text=True)
-	la("node: 16 đạt, 0 hỏng", (r.returncode, r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]), (0, "16 dat, 0 hong"))
+	la("node: 18 đạt, 0 hỏng", (r.returncode, r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]), (0, "18 dat, 0 hong"))
 
 
 @ca("Codex #553 P1 thuần bu_thay_the_nhom: hàng thay thế cùng kho bù phần thiếu; nhóm tự dùng mã thay thì trừ trước; hai mã gốc chung một túi mã thay")
