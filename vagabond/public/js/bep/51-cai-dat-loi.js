@@ -346,7 +346,7 @@ function cdlVeTab(fnTab, oToi) {
     return '<div class="cdl-khoi" data-cdlmuc="' + h(m.fn) + '">' + dau +
       (mo ? '<div class="cdl-mth">' + (m.mo ? '<div class="cdl-mo" style="margin-bottom:6px">' + h(m.mo) + '</div>' : '') +
         m.o.map(function (o) { return cdlVeO(o, doc, loi[o.fn]); }).join('') +
-        (m.fn === 'sec_gsm' ? cdlVeThuGsm() : '') + '</div>' : '') + '</div>';
+        (m.fn === 'sec_gsm' ? cdlVeThuGsm() : '') + (m.fn === 'sec_wa' ? cdlVeWa() : '') + '</div>' : '') + '</div>';
   }).join('');
   var b = frame(t.nhan, html, { footer: cdlFooter() });
   cdlAnThanh(cdlSoThay());
@@ -534,6 +534,7 @@ function cdlBam(e, fnTab) {
   if ((el = e.target.closest('[data-cdlbottoken]'))) return cdlHopBot(el.getAttribute('data-cdlbottoken'));
   if ((el = e.target.closest('[data-cdlbotnoi]'))) return cdlNoiBot(el.getAttribute('data-cdlbotnoi'));
   if ((el = e.target.closest('[data-cdlthugsm]'))) return cdlThuGsm(fnTab);
+  if ((el = e.target.closest('[data-cdlwa]'))) return cdlWa(el.getAttribute('data-cdlwa'), fnTab);
   if ((el = e.target.closest('[data-cdlguithu]'))) return cdlGuiThuZalo((CDL.bang.zalo_nhom || [])[parseInt(el.getAttribute('data-cdlguithu'), 10)]);
   if ((el = e.target.closest('[data-cdldong]'))) {
     return cdlMoDong(el.getAttribute('data-cdlbang'), parseInt(el.getAttribute('data-cdldong'), 10));
@@ -595,6 +596,49 @@ function cdlVeThuGsm() {
   }
   return '<div class="cdl-f" id="cdl-thu-gsm"><button class="cdl-lnk" data-cdlthugsm="1"' + (k && k.dang ? ' disabled' : '') +
     '>Thử kết nối GreenSM</button><div class="cdl-mo">Chạy đủ chuỗi xem loại xe, báo giá, tạo đơn thử và xem lại đơn trên môi trường thử, để GreenSM nghiệm thu trước khi cấp khoá thật. Chỉ chạy khi đang bật Dùng môi trường thử nên không bao giờ gọi xe thật.</div>' + kq + '</div>';
+}
+
+/* v653 WhatsApp đường phụ (anh Việt chọn A 12/11/2026): trạng thái số, chip đã
+   khai cho token, PIN, App Secret, Verify token, và hai nút. Máy chủ đọc PIN và
+   token trong máy chủ, không bao giờ trả ra trình duyệt (whatsapp.trang_thai). */
+function cdlVeWa() {
+  var k = CDL.waKq;
+  var dong = '';
+  if (k && k.dang) dong = cdlChip('off', 'Đang hỏi Meta...');
+  else if (k && k.loi_goi) dong = cdlChip('err', 'Chưa hỏi được Meta') + '<div class="cdl-mo" style="margin-top:4px">' + h(k.loi_goi) + '</div>';
+  else if (k) {
+    var kh = k.khai || {};
+    dong = '<div class="cdl-chips">' + cdlChip(k.chip || 'off', 'Số WhatsApp: ' + (k.nhan || '')) +
+      [['token', 'Token'], ['pin', 'PIN'], ['app_secret', 'App Secret'], ['verify_token', 'Verify token']].map(function (x) {
+        return cdlChip(kh[x[0]] ? 'ok' : 'no', x[1] + (kh[x[0]] ? ': Đã khai' : ': Chưa khai'));
+      }).join('') + '</div>' +
+      (k.token_loi ? '<div class="cdl-mo" style="margin-top:4px;color:#a42424">' + h(k.token_loi) + '</div>' : '') +
+      (k.so_la_sdt ? '<div class="cdl-mo" style="margin-top:4px;color:#a42424">Ô mã số điện thoại đang là số điện thoại. Điền mã Meta cấp (15 tới 17 chữ số), ví dụ 1504016899452995.</div>' : '') +
+      (k.loi ? '<div class="cdl-mo" style="margin-top:4px">' + h(k.loi) + '</div>' : '');
+  }
+  return '<div class="cdl-f" id="cdl-wa">' + dong +
+    '<div><button class="cdl-lnk" data-cdlwa="xem">Xem trạng thái số WhatsApp</button></div>' +
+    '<div class="cdl-mo">Hỏi Meta số gửi đã kích hoạt chưa. Không gửi tin nào.</div>' +
+    '<div><button class="cdl-lnk" data-cdlwa="kich_hoat">Kích hoạt số WhatsApp</button></div>' +
+    '<div class="cdl-mo">Điền PIN 6 số, bấm Lưu, rồi bấm nút này một lần. Số chuyển sang Đã kích hoạt là gửi được.</div>' +
+    '<div><button class="cdl-lnk" data-cdlwa="su_kien">Đăng ký nhận sự kiện</button></div>' +
+    '<div class="cdl-mo">Để khách bấm Ngừng nhận ưu đãi trên WhatsApp là máy tự gỡ đồng ý. Bấm sau khi đã dán App Secret, Verify token và đường nhận sự kiện trên Meta.</div></div>';
+}
+
+async function cdlWa(viec, fnTab) {
+  if (CDL.waKq && CDL.waKq.dang) return;
+  if (viec !== 'xem' && cdlSoThay()) return toast('Bấm Lưu trước rồi mới bấm nút này.');
+  if (viec === 'kich_hoat' && !await confirmSheet('Kích hoạt số WhatsApp?', 'Máy gửi PIN hai bước đã lưu lên Meta để đăng ký số gửi tin. Làm một lần.', 'Kích hoạt')) return;
+  CDL.waKq = { dang: 1 };
+  cdlVeTab(fnTab);
+  try {
+    var m = await api(viec === 'kich_hoat' ? 'vagabond.whatsapp.kich_hoat' : 'vagabond.whatsapp.trang_thai', {});
+    if (viec === 'su_kien') { await api('vagabond.whatsapp.dang_ky_su_kien', {}); toast('Meta đã nhận đăng ký nhận sự kiện.', 5000); }
+    CDL.waKq = m || {};
+  } catch (e) {
+    CDL.waKq = { loi_goi: (e && e.message) || 'Không gọi được máy chủ, thử lại sau.' };
+  }
+  if (document.getElementById('cdl-wa')) cdlVeTab(fnTab);
 }
 
 async function cdlThuGsm(fnTab) {
