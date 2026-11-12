@@ -46,7 +46,9 @@ export function taoKho(moiTruong) {
       ship: null, shipTrangThai: null, quan: '', nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
       ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null,
       /* v645 ưu đãi đơn đầu tiên trên web: bước xác thực số qua Zalo. */
-      dd: {buoc: 'nut', ma: '', loi: '', bao: '', dangGui: false, lan: 0}},
+      dd: {buoc: 'nut', ma: '', loi: '', bao: '', dangGui: false, lan: 0},
+      /* v652: khách bấm Dùng điểm thành viên (máy chủ quyết số điểm, diem_web). */
+      dungDiem: false},
     f: {phone: '', name: '', mail: '', addr: '', rname: '', rphone: '', note: '', mst: '', cname: '', cmail: '', caddr: '', ma: '', gt: ''},
     goiY: [],
     goi: {phone: null, ship: null, mst: null, gui: null, phiThuLai: false, gt: null},
@@ -356,7 +358,7 @@ export function taoKho(moiTruong) {
   /* Số giảm tuỳ giỏ, mã, số điện thoại (lượt mỗi khách) và ngày nhận (lượt
      mỗi ngày): bốn thứ nằm trong khoá, đổi là hỏi lại (Codex #460). */
   /* v645: thêm lượt xác thực số (S.CO.dd.lan): xác thực xong thì hỏi lại để máy chủ thấy phiên. */
-  const khoaUuDai = computed(() => JSON.stringify([T.hangGui(S.CART), S.CO.uuMa || '', sdtUuDai(), ngayUuDai(), S.CO.dd.lan]));
+  const khoaUuDai = computed(() => JSON.stringify([T.hangGui(S.CART), S.CO.uuMa || '', sdtUuDai(), ngayUuDai(), S.CO.dd.lan, !!S.CO.dungDiem]));
   const uuHienTai = computed(() => (S.CO.uu && S.CO.uu.khoa === khoaUuDai.value ? S.CO.uu : null));
   const giam = computed(() => (uuHienTai.value ? (Number(uuHienTai.value.giam) || 0) : 0));
   async function xemUuDai() {
@@ -365,11 +367,12 @@ export function taoKho(moiTruong) {
     if (!S.CART.length) return;
     let m = null;
     try {
-      m = await ghi('vagabond.don_hang.xem_uu_dai', {don: JSON.stringify({items: T.hangGui(S.CART), ma_uu_dai: S.CO.uuMa || '', dien_thoai: sdtUuDai(), ngay_nhan: ngayUuDai()})});
+      m = await ghi('vagabond.don_hang.xem_uu_dai', {don: JSON.stringify({items: T.hangGui(S.CART), ma_uu_dai: S.CO.uuMa || '', dien_thoai: sdtUuDai(), ngay_nhan: ngayUuDai(), dung_diem: S.CO.dungDiem ? 1 : 0})});
     } catch (e) { m = null; }
     if (S.CO.uuDangHoi !== khoa) return; /* đã có lần hỏi mới hơn */
     S.CO.uu = {khoa, giam: (m && m.ok) ? (Number(m.giam) || 0) : 0, ap: (m && m.ok && m.ap) || [],
       dd: (m && m.don_dau && typeof m.don_dau === 'object') ? m.don_dau : null,
+      diem: (m && m.ok && m.diem && typeof m.diem === 'object') ? m.diem : null,
       loi: (m && !m.ok && m.ly_do === 'ma_uu_dai') ? String(m.chi_tiet || '') : ((!m && S.CO.uuMa) ? t('dat_banh_ma_chua_kiem', 'Chưa kiểm được mã lúc này, quý khách thử lại sau ít phút.') : '')};
   }
   let uuHen = null;
@@ -474,10 +477,59 @@ export function taoKho(moiTruong) {
     return m;
   }
   /* Đổi số điện thoại thì quay về bước đầu (mã đã gửi là của số cũ). */
-  watch(sdtUuDai, () => { const c = S.CO.dd; c.buoc = 'nut'; c.ma = ''; c.loi = ''; c.bao = ''; });
+  watch(sdtUuDai, () => { const c = S.CO.dd; c.buoc = 'nut'; c.ma = ''; c.loi = ''; c.bao = ''; S.CO.dungDiem = false; });
+
+  /* ---------------- điểm thành viên (v652) ----------------
+     Anh Việt chốt 12/11/2026: khách online dùng điểm ở bước thanh toán, xác thực
+     số qua Zalo (cùng phiên Thành viên với ưu đãi đơn đầu). Máy chủ quyết số điểm
+     (tối đa 50% tiền bánh sau ưu đãi, bill còn tối thiểu); trình duyệt chỉ hiện.
+     Xác thực xong thì máy chủ mới trả số dư: không cho đọc điểm của số khác. */
+  const soDiem = v => (Number(v) || 0).toLocaleString('vi-VN');
+  const theDiem = computed(() => {
+    const u = uuHienTai.value;
+    const so = sdtUuDai();
+    if (!so || !u || !u.diem) return null;
+    const d = u.diem;
+    const lh = d.len_hang && Number(d.len_hang.con_thieu) > 0 && d.len_hang.hang_tiep
+      ? t('dat_banh_dv_len_hang', 'Mua thêm {tien} trong {thang} tháng để lên hạng {hang}.', {tien: T.tienVN(Number(d.len_hang.con_thieu)), thang: d.len_hang.so_thang || 12, hang: d.len_hang.hang_tiep}) : '';
+    const coThe = !!theDonDau.value && theDonDau.value.kieu === 'xac_thuc';
+    switch (d.trang_thai) {
+      case 'can_xac_thuc':
+        return {kieu: coThe ? 'goi_y' : 'xac_thuc', tieu: t('dat_banh_dv_tieu', 'Dùng điểm thành viên'),
+          phu: coThe ? t('dat_banh_dv_xac_tren', 'Xác thực số ở thẻ phía trên là xem được điểm của số {so}.', {so})
+            : (S.CO.dd.buoc === 'ma' ? t('dat_banh_dd_phu_ma', 'Mã gửi tới Zalo của số {so}, có hiệu lực 5 phút.', {so})
+              : t('dat_banh_dv_xac', 'Xác thực số {so} qua Zalo để xem và dùng điểm cho đơn này.', {so})), lh: ''};
+      case 'khong_co':
+        return {kieu: 'goi_y', tieu: t('dat_banh_dv_moi', 'Đơn này sẽ tích điểm cho số {so}', {so}),
+          phu: t('dat_banh_dv_moi_phu', 'Số này chưa có điểm. Nhận bánh xong, điểm vào tài khoản thành viên.'), lh: ''};
+      case 'cam':
+        return {kieu: 'goi_y', tieu: t('dat_banh_dv_cam', 'Hạng của quý khách đã có ưu đãi giảm thẳng'),
+          phu: t('dat_banh_dv_cam_phu', 'Hạng này không dùng điểm. Nhân viên áp mức giảm của hạng khi xác nhận đơn.'), lh};
+      case 'chua_du':
+        return {kieu: 'goi_y', tieu: t('dat_banh_dv_co', 'Quý khách có {diem} điểm', {diem: soDiem(d.so_du)}),
+          phu: t('dat_banh_dv_chua_du', 'Đơn này chưa dùng được điểm (tối đa một nửa tiền bánh, bill còn lại tối thiểu).'), lh};
+      case 'dung_duoc':
+        if (Number(d.dung) > 0) {
+          return {kieu: 'da_ap', tieu: t('dat_banh_dv_da', 'Đã dùng {diem} điểm, giảm {tien}', {diem: soDiem(d.dung), tien: T.tienVN(Number(d.tien))}),
+            phu: t('dat_banh_dv_con', 'Còn {con} điểm sau đơn này. Đơn không thành thì điểm tự hoàn.', {con: soDiem(Math.max(0, Number(d.so_du) - Number(d.dung)))}), lh, bo: true};
+        }
+        return {kieu: 'dung', tieu: t('dat_banh_dv_co', 'Quý khách có {diem} điểm', {diem: soDiem(d.so_du)}),
+          phu: t('dat_banh_dv_dung_duoc', 'Đơn này dùng được {diem} điểm, giảm {tien}. Điểm trừ sau mọi ưu đãi, chỉ trên tiền bánh.', {diem: soDiem(d.toi_da), tien: T.tienVN(Number(d.tien_toi_da) || 0)}), lh};
+      default:
+        return null;
+    }
+  });
+  function dungDiem(co) {
+    S.CO.dungDiem = !!co;
+    S.CO.uu = null; S.CO.uuDangHoi = null;
+    hoiUuDaiNeuCan();
+  }
 
   /* ---------------- phí giao ---------------- */
-  const mienPhi = computed(() => T.laMienPhi(tienBanh.value - giam.value, S.mienPhiTu));
+  /* v652: điểm thành viên là phần trả bằng điểm, không làm đơn mất miễn phí giao
+     (máy chủ xét ngưỡng trên tiền bánh sau ưu đãi, chưa trừ điểm). */
+  const tienDiem = computed(() => (uuHienTai.value && uuHienTai.value.diem ? (Number(uuHienTai.value.diem.tien) || 0) : 0));
+  const mienPhi = computed(() => T.laMienPhi(tienBanh.value - (giam.value - tienDiem.value), S.mienPhiTu));
   const timQuan = ma => (!ma ? null : (((S.cauHinh && S.cauHinh.quan) || []).find(q => q.ma === ma) || null));
   let soPhi = 0, phiHen = null;
   const goiYPhiGoc = () => [thuong(t('dat_banh_e347a8e6c', 'Chọn khu vực hoặc gõ địa chỉ, hệ thống báo phí giao dự kiến.'))];
@@ -787,7 +839,7 @@ export function taoKho(moiTruong) {
       nonce: S.CO.nonce, dong_y: true, nhan_uu_dai: S.CO.uudai === true,
       thanh_toan: paysHien.value.some(p => p.k === S.CO.pay) ? S.CO.pay : 'bank', ma_gioi_thieu: soGioiThieu(),
       diem_lay_ten: tuLay ? diemNhanChon.value.n : '', diem_lay_id: tuLay ? diemNhanChon.value.id : '',
-      ma_uu_dai: S.CO.uuMa || '', giam_da_xem: giam.value, fbp: fb.fbp, fbc: fb.fbc
+      ma_uu_dai: S.CO.uuMa || '', giam_da_xem: giam.value, dung_diem: S.CO.dungDiem ? 1 : 0, fbp: fb.fbp, fbc: fb.fbc
     };
     const khoaLucGui = khoaUuDai.value;
     S.dangGui = true; S.goi.gui = null;
@@ -799,9 +851,18 @@ export function taoKho(moiTruong) {
         const moi = m.uu || {};
         S.CO.uuDangHoi = null;
         S.CO.uu = {khoa: khoaLucGui, giam: Number(moi.giam) || 0,
-          ap: Array.isArray(moi.ap) ? moi.ap : [], loi: ''};
+          ap: Array.isArray(moi.ap) ? moi.ap : [], loi: '', diem: (m.diem && typeof m.diem === 'object') ? m.diem : null};
         S.dangGui = false;
         S.goi.gui = [thuong(t('dat_banh_uu_dai_cap_nhat', 'Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.'))];
+        return {buoc: 'uu_dai', don};
+      }
+      if (m && m.ly_do === 'diem_doi') {
+        /* v652: điểm không còn dùng được như lúc khách xem (phiên hết, số dư hay
+           giỏ đổi). Bỏ chọn dùng điểm, hỏi lại tổng, khách xem rồi bấm gửi. */
+        S.CO.dungDiem = false; S.CO.uu = null; S.CO.uuDangHoi = null;
+        S.dangGui = false;
+        S.goi.gui = [thuong(t('dat_banh_dv_doi', 'Điểm thành viên vừa thay đổi nên chưa trừ điểm. Quý khách xem lại tổng tiền rồi bấm gửi.'))];
+        void xemUuDai();
         return {buoc: 'uu_dai', don};
       }
       if (m && ['het_hang', 'het_hang_mua_vu'].includes(m.ly_do)) {
@@ -822,7 +883,7 @@ export function taoKho(moiTruong) {
     }
     /* Gửi được: khoá nút trong lúc chuyển sang biên nhận, không bấm hai lần. */
     S.guiXong = true;
-    S.CART.splice(0); S.CO.nonce = ''; S.CO.uuMa = ''; S.CO.uu = null;
+    S.CART.splice(0); S.CO.nonce = ''; S.CO.uuMa = ''; S.CO.uu = null; S.CO.dungDiem = false;
     if (m.duong_dan && /^\/banh\/xong\/[A-Za-z0-9_-]+$/.test(m.duong_dan)) {
       S.goi.gui = noi(dam(t('dat_banh_01d9e68a4', 'Chúng tôi đã nhận yêu cầu.'), 'cyan'), thuong(' ' + t('dat_banh_f977b08ed', 'Đang mở biên nhận...')));
       return {buoc: 'xong', duong_dan: m.duong_dan, don};
@@ -1011,7 +1072,7 @@ export function taoKho(moiTruong) {
     curSize, moBanh, dongBanh, setSize, doiSoLuong, toggleNum, clearNums, toggleAdd, phuKienChon, tienNutThem,
     gioiHanNhan, addToCart, themNhanh, suaDongGio,
     soBanh, tienBanh, cartQty, cartRemove, dongGio, khoaUuDai, uuHienTai, giam, xemUuDai, apMaUuDai, goiYMa,
-    theDonDau, guiMaDonDau, xacThucDonDau,
+    theDonDau, guiMaDonDau, xacThucDonDau, theDiem, dungDiem, tienDiem,
     mienPhi, quoteShip, apPhiGiao, chonQuan, setMode, diemNhanChon, setPickup, capNhatDiemNhan, tong, dongMienPhi,
     paysHien, cauThanhToan, kiemGioiThieu, coGioiThieu,
     lookupPhone, diaChiLuu, selAddr, goiYDiaChi, chonGoiY, lookupMst,
