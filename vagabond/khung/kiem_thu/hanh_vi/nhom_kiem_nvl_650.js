@@ -48,7 +48,11 @@ var KHO = 'Pastry - Nguyên liệu - TV', TONG = 'Kho tổng 307 - TV';
 
 /* Thế giới: bánh TP cần 1 bánh khuôn C2 (máy tự làm phần thiếu) và 0,1 Kg
  * cacao; mỗi C2 cần 100 g bột. Lệnh WO-A 2 cái, WO-B 3 cái, còn nháp. */
-function theGioi(ton, tong) {
+function theGioi(ton, tong, opt) {
+  opt = opt || {};
+  var tonKho = opt.tonKho || {};
+  function tonCua(kho) { if (kho === KHO) return ton; if (!tonKho[kho]) tonKho[kho] = {}; return tonKho[kho]; }
+  var ALT = opt.alt || {};
   var BOM = {
     TP: { name: 'BOM-TP', qty: 1, dong: [{ item_code: 'C2', item_name: 'Bánh khuôn C2', stock_uom: 'Cái', so: 1 },
       { item_code: 'CACAO', item_name: 'Cacao Mass 100%', stock_uom: 'Kg', so: 0.1 }] },
@@ -59,6 +63,10 @@ function theGioi(ton, tong) {
     'WO-B': { code: 'TP', qty: 3, src: KHO, docstatus: 0 },
     'WO-D': { code: 'TP', qty: 1, src: KHO, docstatus: 0 }
   };
+  /* Codex #553: lệnh qua bước chuyển kho (skip 0, kho dở dang) hoặc dòng
+     nguyên liệu khai kho nguồn riêng (khoMon). */
+  Object.keys(opt.lenh || {}).forEach(function (k) { Object.assign(lenh[k], opt.lenh[k]); });
+  function khoTru(w, c) { return (w.skip === 0 && w.wip) ? w.wip : ((w.khoMon && w.khoMon[c]) || w.src); }
   var nhat = { lenh: [], phieu: [], ghiNhap: [], hoiBep: [], toast: [], laybu: 0 }, dem = 0;
   function r3(n) { return Math.round(n * 1000) / 1000; }
   var the = {
@@ -74,9 +82,30 @@ function theGioi(ton, tong) {
         var w = lenh[a.name];
         return { name: a.name, qty: w.qty, docstatus: w.docstatus, production_item: w.code, bom_no: BOM[w.code].name,
           source_warehouse: w.src, fg_warehouse: w.src, stock_uom: 'Cái',
+          skip_transfer: w.skip === 0 ? 0 : 1, from_wip_warehouse: 0, wip_warehouse: w.wip || '',
           required_items: BOM[w.code].dong.map(function (d) {
-            return { item_code: d.item_code, item_name: d.item_name, stock_uom: d.stock_uom, required_qty: r3(d.so * w.qty / BOM[w.code].qty) };
+            return { item_code: d.item_code, item_name: d.item_name, stock_uom: d.stock_uom, required_qty: r3(d.so * w.qty / BOM[w.code].qty),
+              source_warehouse: (w.khoMon && w.khoMon[d.item_code]) || w.src };
           }) };
+      }
+      if (m === 'vagabond.kho_san_xuat.thay_the_cho_thieu') {
+        /* Máy chủ giả đúng hợp đồng của thay_the_cho_thieu: mã thay cùng kho,
+           phần nhóm tự dùng mã thay trừ trước, cả nhóm chung một túi. */
+        var dg = JSON.parse(a.dong), dungK = {}, tui = {}, ra0 = [];
+        nhat.hoiThay = (nhat.hoiThay || 0) + 1;
+        dg.forEach(function (x) { dungK[x.ma + '|' + x.kho] = (dungK[x.ma + '|' + x.kho] || 0) + x.can; });
+        dg.forEach(function (x) {
+          if (!(x.thieu > 0.0001)) return;
+          var m2 = ALT[x.ma], bu = 0, thay = [];
+          if (m2) {
+            var k2 = m2 + '|' + x.kho;
+            if (!(k2 in tui)) tui[k2] = Math.max(0, (tonCua(x.kho)[m2] || 0) - (dungK[k2] || 0));
+            bu = r3(Math.min(x.thieu, tui[k2])); tui[k2] = r3(tui[k2] - bu);
+            if (bu > 0.0001) thay.push({ ma: m2, ten: opt.tenAlt || m2, sl: bu });
+          }
+          ra0.push({ ma: x.ma, kho: x.kho, bu: bu, con: r3(x.thieu - bu), thay: thay });
+        });
+        return ra0;
       }
       if (m === 'frappe.client.submit') { nhat.ghiNhap.push(a.doc.name); lenh[a.doc.name].docstatus = 1; return a.doc; }
       if (m === 'erpnext.manufacturing.doctype.work_order.work_order.make_stock_entry') {
@@ -89,7 +118,7 @@ function theGioi(ton, tong) {
         b.dong.forEach(function (d) { can[d.item_code] = r3((can[d.item_code] || 0) + d.so * a.q / b.qty); });
         var lay = [], conThieu = [];
         Object.keys(can).forEach(function (c) {
-          var th = r3(can[c] - (ton[c] || 0));
+          var th = r3(can[c] - (tonCua(khoTru(w2, c))[c] || 0));
           if (th <= 0.0001) return;
           var l = r3(Math.min(th, Math.max(0, tong[c] || 0)));
           if (l > 0.0001) lay.push({ ma: c, ten: c, sl: l, dvt: '' });
@@ -101,10 +130,18 @@ function theGioi(ton, tong) {
           if (lay.length && !trong) return { ok: 0, hoi_lay_bu: lay, con_thieu: conThieu };
           lay.forEach(function (x) { tong[x.ma] = r3(tong[x.ma] - x.sl); ton[x.ma] = r3((ton[x.ma] || 0) + x.sl); nhat.laybu = r3(nhat.laybu + x.sl); });
         } else { lay = []; }
+        var dungThay = {};
         Object.keys(can).forEach(function (c) {
-          if ((ton[c] || 0) + 0.0001 < can[c]) throw new Error('Cần ' + r3(can[c] - (ton[c] || 0)) + ' đơn vị Món ' + c + ' tại ' + KHO + ' để hoàn tất giao dịch này.');
+          var tk = tonCua(khoTru(w2, c)), th2 = r3(can[c] - (tk[c] || 0));
+          /* lo_hang.thay_ma_khong_lo: thiếu thì lấy mã thay cùng kho. */
+          if (th2 > 0.0001 && ALT[c]) { var l2 = r3(Math.min(th2, tk[ALT[c]] || 0)); dungThay[c] = l2; th2 = r3(th2 - l2); }
+          if (th2 > 0.0001) throw new Error('Cần ' + th2 + ' đơn vị Món ' + c + ' tại ' + khoTru(w2, c) + ' để hoàn tất giao dịch này.');
         });
-        Object.keys(can).forEach(function (c) { ton[c] = r3(ton[c] - can[c]); });
+        Object.keys(can).forEach(function (c) {
+          var tk = tonCua(khoTru(w2, c)), l3 = dungThay[c] || 0;
+          tk[c] = r3((tk[c] || 0) - (can[c] - l3));
+          if (l3) tk[ALT[c]] = r3(tk[ALT[c]] - l3);
+        });
         ton[w2.code] = r3((ton[w2.code] || 0) + a.q);
         nhat.phieu.push(a.phieu.work_order + ' x' + a.q);
         return { name: 'SE-' + nhat.phieu.length, phieu_bu: lay.length ? 'PDC-' + nhat.phieu.length : '', da_lay: lay };
@@ -112,7 +149,7 @@ function theGioi(ton, tong) {
       throw new Error('api la: ' + m);
     },
     bomOf: async function (ds) { var r = {}; ds.forEach(function (c) { if (BOM[c]) r[c] = { name: BOM[c].name }; }); return r; },
-    stockOf: async function (ds, wh) { var k = wh === TONG ? tong : ton; var r = {}; ds.forEach(function (c) { r[c] = k[c] || 0; }); return r; },
+    stockOf: async function (ds, wh) { var k = wh === TONG ? tong : tonCua(wh); var r = {}; ds.forEach(function (c) { r[c] = k[c] || 0; }); return r; },
     getList: async function (dt, o) {
       if (dt === 'BOM') return Object.keys(BOM).filter(function (c) { return o.filters.name[1].indexOf(BOM[c].name) >= 0; })
         .map(function (c) { return { name: BOM[c].name, quantity: BOM[c].qty }; });
@@ -155,12 +192,12 @@ function theGioi(ton, tong) {
   vm.createContext(the);
   ['inChunks', 'freshOf', 'mfgChiaSo', 'mfgHoanTatNhom', 'mfgHoanTatMot', 'mfgKiemNvlNhom', 'mfgPhanNvl', 'mfgCauThieuNhom',
     'mfgGhiLenh', 'mfgCauLayBu', 'mfgGiuCuaLenh', 'mfgFreshPlan', 'mfgConLai', 'mfgChonLenhMo', 'mfgLenhChoTuLam',
-    'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl'].forEach(function (t) {
+    'mfgRunFresh', 'mfgNvlCuaKe', 'mfgChipNvl', 'mfgKhoLenh', 'mfgCauThay'].forEach(function (t) {
     var ma = layHam(SRC, t);
     if (ma) vm.runInContext(ma, the);
   });
   the.nhat = nhat;
-  the.ton = ton; the.tong = tong;
+  the.ton = ton; the.tong = tong; the.tonKho = tonKho;
   return the;
 }
 
@@ -259,6 +296,57 @@ async function ca(ten, fn) {
     ]);
     bang('lay', kt.lay.map(function (x) { return [x.code, x.lay]; }), [['CACAO', 0.1]]);
     bang('thieu', kt.thieu.map(function (x) { return [x.code, x.thieu]; }), [['CACAO', 0.3]]);
+  });
+
+  await ca('9. Codex #553 P1: cacao het o bep va kho tong, hang thay the da khai (Cacao 70%) du: KHONG chan, hop noi dung hang thay, ghi ca 2 lenh', async function () {
+    var t = theGioi({ CACAO: 0, CACAO2: 1, BOT: 1000 }, {}, { alt: { CACAO: 'CACAO2' }, tenAlt: 'Cacao Mass 70%' });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('mot hop xac nhan', t.nhat.hoiBep.map(function (x) { return x[2]; }), ['Ghi sổ 2 lệnh']);
+    co('noi hang thay', t.nhat.hoiBep[0][1], 'Dùng hàng thay thế đã khai: Cacao Mass 70% 0,5 Kg thay Cacao Mass 100%');
+    bang('ghi ca 2 lenh', t.nhat.phieu, ['WO-C1 x2', 'WO-A x2', 'WO-C2 x3', 'WO-B x3']);
+    bang('cacao 70% con 0,5', t.ton.CACAO2, 0.5);
+  });
+
+  await ca('9b. hang thay the chi du mot phan: van chan truoc khi ghi, noi dung phan con thieu', async function () {
+    var t = theGioi({ CACAO: 0, CACAO2: 0.2, BOT: 1000 }, {}, { alt: { CACAO: 'CACAO2' }, tenAlt: 'Cacao Mass 70%' });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('khong phieu kho nao', t.nhat.phieu, []);
+    co('thieu 0,3', t.nhat.hoiBep[0][1], 'Cacao Mass 100%: thiếu 0,3 Kg');
+  });
+
+  await ca('9c. bep du thi khong hoi may chu hang thay the (khong them buoc)', async function () {
+    var t = theGioi({ CACAO: 1, BOT: 1000 }, {}, { alt: { CACAO: 'CACAO2' } });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('khong hoi', t.nhat.hoiThay || 0, 0);
+    bang('ghi du', t.nhat.phieu.length, 4);
+  });
+
+  await ca('10. Codex #553 P2: lenh qua buoc chuyen kho, nguyen lieu da o kho do dang: KHONG chan, kiem va tru dung kho do dang', async function () {
+    var WIP = 'Kho dở dang - TV';
+    var t = theGioi({}, {}, { lenh: { 'WO-A': { skip: 0, wip: WIP }, 'WO-B': { skip: 0, wip: WIP } },
+      tonKho: { 'Kho dở dang - TV': { C2: 5, CACAO: 0.5 } } });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('mot hop xac nhan', t.nhat.hoiBep.map(function (x) { return x[2]; }), ['Ghi sổ 2 lệnh']);
+    bang('ghi ca 2 lenh, khong lam them C2', t.nhat.phieu, ['WO-A x2', 'WO-B x3']);
+    bang('tru o kho do dang', [t.tonKho[WIP].C2, t.tonKho[WIP].CACAO], [0, 0]);
+  });
+
+  await ca('11. Codex #553 P2: dong cacao khai kho nguon rieng (kho lanh): kiem dung kho lanh, khong chan', async function () {
+    var LANH = 'Kho lạnh - TV';
+    var t = theGioi({ BOT: 1000 }, {}, { lenh: { 'WO-A': { khoMon: { CACAO: LANH } }, 'WO-B': { khoMon: { CACAO: LANH } } },
+      tonKho: { 'Kho lạnh - TV': { CACAO: 0.5 } } });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('mot hop xac nhan', t.nhat.hoiBep.map(function (x) { return x[2]; }), ['Ghi sổ 2 lệnh']);
+    bang('ghi ca 2 lenh', t.nhat.phieu.length, 4);
+    bang('kho lanh het cacao', t.tonKho[LANH].CACAO, 0);
+  });
+
+  await ca('12. THUAN mfgPhanNvl: thieu sau kho tong ma hang thay bu thi tach rieng, khong tinh thieu', async function () {
+    var t = theGioi({}, {});
+    var kt = t.mfgPhanNvl([{ code: 'CACAO', name: 'Cacao', uom: 'Kg', thieu: 0.5, lay_tong: 0.1, thay: 0.3, thay_ds: [{ ten: 'Cacao 70%' }], need: 0.5, ton: 0, kho: KHO }]);
+    bang('lay', kt.lay.map(function (x) { return x.lay; }), [0.1]);
+    bang('thay', kt.thay.map(function (x) { return x.sl; }), [0.3]);
+    bang('thieu', kt.thieu.map(function (x) { return x.thieu; }), [0.1]);
   });
 
   console.log('\n' + ket.dat + ' dat, ' + ket.hong + ' hong');

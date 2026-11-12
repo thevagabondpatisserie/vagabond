@@ -125,6 +125,26 @@ function duLieuDai() {
 
 (async () => {
   {
+    /* Codex #553 (P1, AGENTS.md mục 13): cả dòng món là vùng bấm mở phiếu xin
+       (cao ít nhất 44 điểm), không phải một chip nhỏ 24 điểm; bấm ô số mua thì
+       không mở; chữ trên màn tối thiểu 13 điểm. Bấm THẬT qua onclick của màn. */
+    const kho = khoMay(), may = { d: duLieu(8000), so: 0 };
+    const a = appMoi(kho, may);
+    await a.moMan();
+    const bam = async el => { assert(el, 'thiếu chỗ bấm'); await a.tl.getElementById('vgbBody').onclick({ target: el }); await nghi(); };
+    const dong = a.tl.querySelector('[data-gmmo="BO"]');
+    assert(dong && /(^|\s)li(\s|$)/.test(dong.getAttribute('class') || ''), 'cả dòng món Bơ là vùng bấm');
+    assert(/min-height:\s*44px/.test(dong.getAttribute('style') || ''), 'dòng cao ít nhất 44 điểm');
+    await bam(a.o('BO'));
+    assert(!a.g.GM.mo.BO, 'bấm ô số mua không mở phiếu xin');
+    await bam(a.tl.querySelector('[data-gmmo="BO"]'));
+    assert.equal(a.g.GM.mo.BO, 1, 'bấm dòng món mở phiếu xin');
+    assert(a.tl.getElementById('vgbBody').innerHTML.indexOf('YC-1') >= 0, 'hiện phiếu YC-1');
+    const nho = (a.tl.getElementById('vgbBody').innerHTML.match(/font-size:\s*(\d+(?:\.\d+)?)px/g) || [])
+      .map(x => parseFloat(x.replace(/[^\d.]/g, ''))).filter(x => x < 13);
+    assert.deepEqual(nho, [], 'không còn chữ nhỏ hơn 13 điểm trên màn Gom');
+  }
+  {
     const kho = khoMay(), may = { d: duLieuDai(), so: 0 };
     const a = appMoi(kho, may);
     await a.moMan();
