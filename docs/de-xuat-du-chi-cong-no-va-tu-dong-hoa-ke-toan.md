@@ -13,12 +13,13 @@ Ngày 12/11/2026. Bản đề xuất, CHƯA có code. Mở để Codex góp ý t
 
 **Kết quả sẽ thấy.** Không còn bảng Excel dự chi; mỗi đợt anh duyệt một lần thay vì khoảng 30 lần; công nợ còn lại sau mỗi đợt luôn đúng số ERP; kế toán và thu mua mở Việc cần làm là có sẵn việc.
 
-**Anh cần quyết** (đã gửi 4 ảnh duyệt trong chat):
-1. Hạn trả NCC: A. ô "Số ngày được nợ" trên hồ sơ NCC, máy gợi số theo lịch sử (em khuyên); B. mặc định 30 ngày.
-2. Cách duyệt: A. duyệt cả đợt một lần, APP sinh ra mang sẵn dấu duyệt (em khuyên); B. duyệt từng APP như cũ.
-3. Ngưỡng nhắc giá lệch: A. trên 5% (em khuyên); B. trên 10%.
-4. Thứ tự: A. Dự chi và APP trước, kịp đợt 10/12 (em khuyên); B. làm hết rồi deploy một lần.
-5. Vin dùng tài khoản nào trên app, mang vai gì (Thu mua hay riêng).
+**Anh Việt đã chốt (12/11/2026, đồng ý mọi điểm em khuyên):**
+1. Hạn trả NCC: ô "Số ngày được nợ" trên hồ sơ NCC, máy gợi số theo lịch sử, Vin xác nhận dần, áp cho hoá đơn từ nay.
+2. Duyệt cả đợt một lần; APP sinh ra mang sẵn dấu duyệt, chờ chuyển tiền.
+3. Ngưỡng nhắc giá lệch: trên 5%, sửa được trong Cài đặt.
+4. Thứ tự: Dự chi và APP trước, kịp đợt 10/12.
+
+**Còn chờ anh:** Vin dùng tài khoản nào trên app, mang vai gì; hộp thư hoadon@ cho phần E (mục E dưới).
 
 ## Số liệu thật trên site (đọc 12/11/2026, chỉ đọc)
 
@@ -56,7 +57,7 @@ Không sửa dữ liệu quá khứ: các hoá đơn cũ có hạn trả sai gi�
 
 ### Luồng
 1. Ngày 7 và 17 (giờ sửa được trong Cài đặt tự động hoá), máy soạn **đợt nháp** cho ngày 10 hoặc 20 và đưa việc vào Việc cần làm của Vin. Đợt nháp gồm:
-   - Mọi hoá đơn mua đã ghi sổ còn nợ, nhóm theo NCC, số còn nợ đọc từ `outstanding_amount` lúc soạn (không chép số từ đợt trước).
+   - Mọi hoá đơn mua đã ghi sổ còn nợ, nhóm theo NCC. **Số còn có thể đề nghị = `outstanding_amount` trừ phần APP khác còn hiệu lực đang giữ**, tính bằng đúng `phan_bo_app.dang_giu(hoa_don=...)` (một nguồn, không tự tính lại), đọc lúc soạn, không chép số từ đợt trước. Hoá đơn có APP lập riêng hoặc từ `app_tra_ngay` đang giữ một phần thì màn hiện rõ phần đang giữ và chỉ cho chọn phần còn lại (Codex PR #556 vòng 1).
    - Khoản cọc theo đơn mua có lịch thanh toán tới hạn (đi đường trả trước NCC đã có, v551, `tra_truoc_ncc.py`, `coc_app.py`).
    - Khoản định kỳ (thuê mặt bằng, Adecco, điện): máy gợi từ lịch sử 3 tháng (cùng người nhận ít nhất 3 tháng liền), người quản trị xác nhận một lần trong Cài đặt.
    - Ghi chú thương lượng và ngày hẹn trả của đợt trước, gắn theo hoá đơn.
@@ -72,7 +73,7 @@ Không sửa dữ liệu quá khứ: các hoá đơn cũ có hạn trả sai gi�
 - Doctype mới `Vagabond Dot Chi` (Đợt chi): mã DC-YY-MM-10 / DC-YY-MM-20, ngày đợt, trạng thái (Nháp máy soạn, Đang thương lượng, Chờ kế toán soát, Chờ giám đốc duyệt, Đã chốt, Đã chi xong, Huỷ), tổng đề xuất, tổng trả, tổng gia hạn, số dư MB lúc soạn, người soát, người duyệt.
 - Bảng con `Vagabond Dot Chi Dong`: NCC, nhóm NCC, loại dòng (Hoá đơn, Cọc theo đơn mua, Định kỳ), hoá đơn mua hoặc đơn mua, còn nợ lúc soạn, trả đợt này, gia hạn (máy tính), hạn dự tính, ghi chú thương lượng, đợt hẹn trả, APP đã sinh.
 - Trường mới trên Supplier: số ngày được nợ (theo lựa chọn 1 của anh), hoặc dùng `Payment Terms Template` lõi ERPNext để hoá đơn MỚI tự có hạn trả đúng (xem Q-D3).
-- Một hoá đơn không nằm trong hai đợt còn hiệu lực; số trả không vượt còn nợ đọc lại lúc chốt (đọc lại có khoá, như `phan_bo_app.py`).
+- Một hoá đơn không nằm trong hai đợt còn hiệu lực; số trả không vượt "còn nợ trừ phần APP khác đang giữ", đọc lại DƯỚI KHOÁ lúc chốt bằng `phan_bo_app.dang_giu(khoa=True, ...)` rồi `phan_bo_app.kiem()`; dòng nào vượt thì dừng dòng đó, báo Vin số mới, không chốt nửa vời.
 
 ## Phần B. Thu mua: tự soạn APP và việc nhắc
 
@@ -106,12 +107,30 @@ AI dùng khoá API Trợ lý đang có, chạy việc nền như `tuyen_dung_ai.
 
 **AI không bao giờ tự làm:** phát hành, huỷ, thay thế hoá đơn điện tử; ghi sổ, huỷ chứng từ; sửa dữ liệu đã ghi sổ; duyệt chi, chuyển tiền; kết chuyển cuối kỳ; kê khai thuế.
 
+## Phần E. Bản thể hiện hoá đơn NCC tự đính vào hồ sơ APP
+
+**Hiện trạng.** Bước tay duy nhất còn lại của APP là tải bản thể hiện PDF hoá đơn NCC rồi đính vào. Ngày 20/08 đã thử kéo PDF qua API M-Invoice (`minvoice_tep.py`), mọi biến thể đường tải trả lỗi 400; 21/08 anh chốt dùng nút tải lên (`ho_so_tt.dinh_tep`), nhịp kéo đã gỡ khỏi `hooks.py`. Đọc site 12/11: từ 13/08 có 233 tệp tải tay lên hoá đơn mua (Uyên 223, chị Dung 9), 197 PDF và 36 ảnh JPG. Site chưa có hộp thư nhận nào bật (`Email Account` chỉ có erp@, purchasing@, sales@, đều chỉ gửi).
+
+Về giá trị: tệp XML là dữ liệu gốc của hoá đơn điện tử, PDF chỉ là bản thể hiện để đọc. Kế toán lưu được cả hai thì chắc hơn chỉ lưu PDF.
+
+**E1 (em khuyên): đọc hộp thư hoadon@thevagabondpatisserie.com.** Nhà cung cấp và đơn vị hoá đơn điện tử của họ thường gửi thư kèm XML và PDF. ERP đọc hộp thư này, khớp MST bên bán, ký hiệu, số hoá đơn với hoá đơn mua (và bản ghi `MInvoice Invoice`), đính **PDF gốc của NCC và tệp XML** thẳng vào hoá đơn mua (như `dinh_tep` đang làm), ghi Comment nguồn "tự đính từ thư ngày...". Lúc lập APP thì tệp đã nằm sẵn.
+- Kiểm trước khi đính: số tiền, MST, ngày trong XML khớp hoá đơn mua; lệch thì không đính, đưa việc cho kế toán xem.
+- Thư chỉ có đường link tra cứu, hoặc NCC không gửi thư: đưa việc "Thiếu bản thể hiện" cho thu mua, nút tải tay giữ nguyên.
+- Thư lạ, tệp lạ: không mở tệp chạy được, chỉ nhận .xml, .pdf, .zip (bóc lấy hai loại trên).
+
+**E2: dựng bản thể hiện từ XML** khi có XML mà không có PDF: máy in một trang đủ nội dung hoá đơn từ XML, ghi rõ "Bản dựng từ tệp XML gốc". Chỉ làm nếu chị Dung chấp nhận.
+
+**E3: thử lại đường XML của M-Invoice** (`.../download/invoice.xml`, thấy trong bundle trang quản lý ngày 20/08) bằng token đang có, chỉ đọc. Chạy được thì hoá đơn có trên M-Invoice không cần chờ thư.
+
+**Anh cần làm cho E1:** xác nhận NCC đang gửi hoá đơn về hoadon@, và tự dán mật khẩu hộp thư vào ô Email Account máy dựng sẵn (máy không nhập mật khẩu).
+
 ## Phần D. Kế hoạch làm trong một PR
 
 1. Dự chi đợt + chốt đợt sinh APP + hạn trả NCC (không cần AI). Mục tiêu kịp đợt 10/12/2026.
 2. Việc nhắc thu mua (`app_tra_ngay`, `chi_dinh_ky`, `giao_tre`, `hoa_don_chua_ve`, `gia_lech`).
 3. Rà soát đêm và chốt tháng (luật cứng).
-4. Phần AI (`unc_ai`, `mau_doi_soat_ai`, `hoan_ung_ai`, `goi_y_tk`, soạn tin gia hạn).
+4. Bản thể hiện tự đính (phần E1, E3; E2 khi chị Dung đồng ý).
+5. Phần AI (`unc_ai`, `mau_doi_soat_ai`, `hoan_ung_ai`, `goi_y_tk`, soạn tin gia hạn).
 
 Mỗi phần: phép thuần tách khỏi phần chạm Frappe, ca kiểm trong `vagabond/khung/kiem_thu/`, hàm whitelist thêm vào `thu_cua_ngo.py`, mục sổ tay `mua-hang.md` và `ke-toan.md`, mỗi màn mới có chỗ trên sidebar desktop.
 
@@ -123,6 +142,7 @@ Mỗi phần: phép thuần tách khỏi phần chạm Frappe, ca kiểm trong `
 - **Q-D4.** Chốt đợt gọi `ho_so_tt.tao` lặp theo NCC: nếu một NCC lỗi giữa chừng thì xử lý thế nào để không có đợt nửa chốt (gói mỗi NCC một lượt riêng, ghi trạng thái từng dòng, cho chốt lại phần lỗi)?
 - **Q-D5.** Tách phí sàn cấn trừ: nhận diện theo nhóm NCC hay theo danh sách NCC trong `can_tru_san.py`? Tránh gõ cứng tên.
 - **Q-D6.** AI đọc UNC và ảnh hoá đơn: có rủi ro dữ liệu cá nhân hay chi phí nào cần chặn thêm ngoài cách `tuyen_dung_ai.py` đang làm?
+- **Q-D7.** Phần E1: khớp thư hoadon@ với hoá đơn mua theo MST, ký hiệu, số hoá đơn đọc từ XML có đủ chắc không, hay cần thêm kiểm chữ ký số trong XML? Kiểm chữ ký số thì thư viện nào chạy được trên CI (Python 3.11, không cài thêm gói nặng)?
 
 ## Ngoài phạm vi
 - Không sửa hạn trả, số tiền hay trạng thái của hoá đơn, hồ sơ đã ghi sổ hoặc đã chi.
