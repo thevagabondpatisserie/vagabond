@@ -162,6 +162,21 @@
   "col_cd_16",
   "wa_template_thanh_toan",
   "wa_ngon_ngu",
+  "wa_template_otp",
+  "wa_template_uu_dai",
+  "col_wa_653",
+  "wa_waba_id",
+  "wa_pin",
+  "wa_app_secret",
+  "wa_verify_token",
+  "sec_hd_thu",
+  "hd_thu_bat",
+  "hd_thu_dia_chi",
+  "hd_thu_mat_khau",
+  "col_hd_thu",
+  "hd_thu_may_chu",
+  "hd_thu_cong",
+  "hd_thu_moc",
   "sec_gui_thu",
   "email_canh_bao",
   "webhook_bao_dong",
@@ -1100,7 +1115,7 @@
    "description": "Đường dẫn ảnh ngang đặt trên đầu tin Truyền thông và tin hỏi số. Để trống là tin không có ảnh."
   },
   {
-   "description": "Chủ yếu cho khách nước ngoài.",
+   "description": "Đường phụ cho mã xác thực và tin ưu đãi: luôn gửi Zalo trước, Zalo không gửi được mới gửi WhatsApp. Cũng dùng cho yêu cầu thanh toán khi Sales chọn WhatsApp.",
    "fieldname": "sec_wa",
    "fieldtype": "Section Break",
    "label": "WhatsApp Business"
@@ -1108,7 +1123,8 @@
   {
    "fieldname": "wa_phone_id",
    "fieldtype": "Data",
-   "label": "Mã số điện thoại WhatsApp (Phone Number ID)"
+   "label": "Mã số điện thoại WhatsApp (Phone Number ID)",
+   "description": "Mã số Meta cấp cho số gửi (15 tới 17 chữ số), KHÔNG phải số điện thoại. Mặc định 1504016899452995."
   },
   {
    "fieldname": "wa_token",
@@ -1130,6 +1146,94 @@
    "fieldname": "wa_ngon_ngu",
    "fieldtype": "Data",
    "label": "Mã ngôn ngữ mẫu WhatsApp"
+  },
+  {
+   "fieldname": "wa_template_otp",
+   "fieldtype": "Data",
+   "label": "Tên mẫu WhatsApp gửi mã xác thực",
+   "description": "Mẫu hạng mục Xác thực có nút Sao chép mã, đã được Meta duyệt. Mặc định vgb_otp_dang_nhap."
+  },
+  {
+   "fieldname": "wa_template_uu_dai",
+   "fieldtype": "Data",
+   "label": "Tên mẫu WhatsApp gửi ưu đãi",
+   "description": "Mẫu Marketing ba tham số: tên khách, ưu đãi, hạn dùng; nút 1 là Ngừng nhận ưu đãi. Mặc định vgb_uu_dai."
+  },
+  {
+   "fieldname": "col_wa_653",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "wa_waba_id",
+   "fieldtype": "Data",
+   "label": "Mã tài khoản WhatsApp Business (WABA ID)",
+   "description": "Dùng cho nút Đăng ký nhận sự kiện. Dán cả dấu cách cũng được, máy tự bỏ."
+  },
+  {
+   "fieldname": "wa_pin",
+   "fieldtype": "Password",
+   "label": "PIN xác minh hai bước (6 số)",
+   "description": "Anh chị tự đặt trên Meta. Dùng cho nút Kích hoạt số WhatsApp; máy không bao giờ hiện lại PIN."
+  },
+  {
+   "fieldname": "wa_app_secret",
+   "fieldtype": "Password",
+   "label": "App Secret của ứng dụng Meta",
+   "description": "Ứng dụng Vagabond ERP, Cài đặt ứng dụng, Thông tin cơ bản. Máy dùng để kiểm chữ ký tin Meta gửi về."
+  },
+  {
+   "fieldname": "wa_verify_token",
+   "fieldtype": "Password",
+   "label": "Mã xác minh đường nhận sự kiện (Verify token)",
+   "description": "Anh chị tự đặt một chuỗi bất kỳ, dán vào đây và vào ô Verify token trên Meta."
+  },
+  {
+   "fieldname": "sec_hd_thu",
+   "fieldtype": "Section Break",
+   "label": "Hộp thư hoá đơn nhà cung cấp",
+   "description": "Máy đọc hộp thư hoadon@ mỗi giờ, CHỈ ĐỌC (không đánh dấu đã đọc, không xoá), lấy PDF và XML hoá đơn đính vào hoá đơn mua để APP có sẵn bản của nhà cung cấp."
+  },
+  {
+   "fieldname": "hd_thu_bat",
+   "fieldtype": "Check",
+   "label": "Bật đọc hộp thư hoá đơn",
+   "default": "1",
+   "description": "Chỉ chạy khi đã dán mật khẩu."
+  },
+  {
+   "fieldname": "hd_thu_dia_chi",
+   "fieldtype": "Data",
+   "label": "Địa chỉ hộp thư hoá đơn",
+   "default": "hoadon@thevagabondpatisserie.com"
+  },
+  {
+   "fieldname": "hd_thu_mat_khau",
+   "fieldtype": "Password",
+   "label": "Mật khẩu hộp thư hoá đơn",
+   "description": "Anh chị tự dán. Máy không bao giờ hiện lại."
+  },
+  {
+   "fieldname": "col_hd_thu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hd_thu_may_chu",
+   "fieldtype": "Data",
+   "label": "Máy chủ thư (IMAP)",
+   "default": "pro10.emailserver.vn"
+  },
+  {
+   "fieldname": "hd_thu_cong",
+   "fieldtype": "Int",
+   "label": "Cổng IMAP",
+   "default": "993"
+  },
+  {
+   "fieldname": "hd_thu_moc",
+   "fieldtype": "Small Text",
+   "label": "Mốc đã đọc (máy ghi)",
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "sec_gui_thu",
@@ -1458,7 +1562,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-09 12:00:00.000000",
+ "modified": "2026-11-13 01:05:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

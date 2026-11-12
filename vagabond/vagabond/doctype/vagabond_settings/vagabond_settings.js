@@ -712,6 +712,23 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		});
 	}
 
+	/* v653 WhatsApp đường phụ: ba nút như màn Cài đặt lõi trên app. Máy chủ đọc
+	   PIN và token, không trả ra trình duyệt. */
+	function waTacVu(frm, viec) {
+		if (viec !== 'trang_thai' && frm.is_dirty()) { frappe.msgprint('Bấm Lưu trước rồi mới bấm nút này.'); return; }
+		var m = { trang_thai: 'vagabond.whatsapp.trang_thai', kich_hoat: 'vagabond.whatsapp.kich_hoat', su_kien: 'vagabond.whatsapp.dang_ky_su_kien' }[viec];
+		frappe.call({ method: m, freeze: true, freeze_message: 'Đang hỏi Meta...' }).then(function (r) {
+			var k = r.message || {};
+			if (viec === 'su_kien') { frappe.show_alert({ message: 'Meta đã nhận đăng ký nhận sự kiện.', indicator: 'green' }); return; }
+			var kh = k.khai || {};
+			var e = frappe.utils.escape_html;
+			frappe.msgprint({ title: 'Số WhatsApp: ' + e(k.nhan || ''), indicator: k.chip === 'ok' ? 'green' : (k.chip === 'err' ? 'red' : 'orange'),
+				message: [['token', 'Token'], ['pin', 'PIN'], ['app_secret', 'App Secret'], ['verify_token', 'Verify token']].map(function (x) {
+					return x[1] + ': ' + (kh[x[0]] ? 'Đã khai' : 'Chưa khai');
+				}).join('<br>') + (k.token_loi ? '<br><b>' + e(k.token_loi) + '</b>' : '') + (k.loi ? '<br>' + e(k.loi) : '') });
+		});
+	}
+
 	frappe.ui.form.on('Vagabond Settings', {
 		onload(frm) {
 			if (!document.getElementById('vgb-cd-css')) $('<style id="vgb-cd-css"></style>').text(CSS).appendTo('head');
@@ -723,6 +740,9 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			// v612: chạy đủ chuỗi danh sách xe, báo giá, tạo đơn, xem đơn trên môi trường
 			// thử GreenSM, để GreenSM nghiệm thu bước tích hợp trước khi cấp khoá thật.
 			frm.add_custom_button('Thử kết nối GreenSM', function () { thuGreenSM(frm); }, 'Giao hàng');
+			[['Xem trạng thái số WhatsApp', 'trang_thai'], ['Kích hoạt số WhatsApp', 'kich_hoat'], ['Đăng ký nhận sự kiện', 'su_kien']].forEach(function (x) {
+				frm.add_custom_button(x[0], function () { waTacVu(frm, x[1]); }, 'WhatsApp');
+			});
 			$(frm.wrapper).addClass('vgb-cd');
 			vgb_nap_cd_chung().then(function () {
 				veThanh(frm);
