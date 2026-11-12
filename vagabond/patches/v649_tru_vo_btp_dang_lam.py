@@ -40,6 +40,7 @@ def execute():
 	tru, cu = can_tru(bang, getdate(nowdate()))
 	for ten in tru:
 		doc = frappe.get_doc("Kiem Banh Ngay", ten)
-		btp.tru_vo_theo_sx(btp.chenh_sx([], doc.dong))
+		# v653: ghi Nhật ký BTP lý do "bản vá" nếu bản vá này có lần chạy lại.
+		btp.tru_vo_theo_sx(btp.chenh_sx([], doc.dong), nguon=ten, ly_do="ban_va")
 	if cu:
 		print("v649: bảng Kiểm bánh chưa chốt cũ hơn hôm qua, không trừ BTP: " + ", ".join(cu))
