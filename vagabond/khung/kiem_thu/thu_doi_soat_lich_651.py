@@ -65,3 +65,71 @@ def _():
 		(T.KQ_CHAN, "Thân thư hoặc tệp đính kèm đã bị sửa sau khi đối tác ký."))
 	la("bccardvn.com không mở cửa cho người gửi khác", T.quyet_dinh("onepay.vn", 1,
 		[dict(d="bccardvn.com", dat=True, ly_do="")], NG)["ket_qua"], T.KQ_CHAN)
+
+
+def _site_da_gieo(lich_grab=12, mien_shinhan="shinhan.com.vn", da_nang=False):
+	"""Frappe giả của một site ĐÃ gieo Cài đặt bằng mặc định cũ (trước v651)."""
+	from types import SimpleNamespace as NS
+
+	bang = {
+		"Vagabond Doi Soat Nguoi Gui": [dict(name="NG%s" % i, parent=T.CAI_DAT, parentfield="ds_nguoi_gui", idx=i,
+			ten=t, ten_mien=(mien_shinhan if t.startswith("Shinhan") else m), bat_buoc_chu_ky=b)
+			for i, (t, m, b) in enumerate(T.NGUOI_GUI_MAC_DINH, 1)],
+		"Vagabond Doi Soat Lich Thu": [dict(name="LT%s" % i, parent=T.CAI_DAT, parentfield="ds_lich_thu", idx=i,
+			nguon=v, tan_suat=t, han_gio=(lich_grab if v == "GrabFood" else g), han_ngay=n, ngay_lam_viec=l)
+			for i, (v, t, g, n, l) in enumerate(T.LICH_MAC_DINH, 1)],
+	}
+	toan_cuc = {"vgb_ds_thu_gieo": "1", "vgb_ds_noi_bo_gieo": "1"}
+	if da_nang:
+		toan_cuc["vgb_ds_thu_v651"] = "1"
+
+	def get_all(dt, filters=None, fields=None, **k):
+		return [dict(r) for r in bang.get(dt, []) if all(r.get(a) == b for a, b in (filters or {}).items())]
+
+	def set_value(dt, name, f, v=None, **k):
+		for r in bang[dt]:
+			if r["name"] == name:
+				r[f] = v
+
+	def get_cached_doc(dt):
+		o = {"ds_thu_bat": 1, "ds_nguoi_gui": bang["Vagabond Doi Soat Nguoi Gui"], "ds_lich_thu": bang["Vagabond Doi Soat Lich Thu"]}
+		return NS(get=lambda key, d=None: o.get(key, d))
+	fr = NS(db=NS(table_exists=lambda dt: True, get_global=lambda key: toan_cuc.get(key),
+		set_global=lambda key, v: toan_cuc.__setitem__(key, v), count=lambda dt, f=None: len(bang.get(dt, [])),
+		set_value=set_value, get_single_value=lambda dt, f: "x"),
+		get_all=get_all, get_meta=lambda dt: NS(has_field=lambda f: True), get_cached_doc=get_cached_doc,
+		clear_document_cache=lambda *a: None, log_error=lambda *a, **k: (_ for _ in ()).throw(AssertionError(k)))
+	return fr, bang, toan_cuc
+
+
+@ca("Codex #554: site đã gieo Cài đặt cũ (GrabFood hạn 12, Shinhan chỉ shinhan.com.vn): lượt migrate nâng lên mặc định mới, cấu hình đọc ra đúng")
+def _():
+	from unittest.mock import patch
+	fr, bang, tc = _site_da_gieo()
+	with patch.object(T, "_frappe", lambda: fr):
+		T.gieo_mac_dinh()
+		ch = T.cau_hinh()
+	la("GrabFood hạn 18", [l["han_gio"] for l in ch["lich"] if l["vendor"] == "GrabFood"], [18])
+	la("Shinhan tin bccardvn.com", [g["mien"] for g in ch["nguoi_gui"] if g["ten"].startswith("Shinhan")],
+		[["shinhan.com.vn", "bccardvn.com"]])
+	la("lúc 12:30 không còn báo GrabFood", [x["vendor"] for x in T.thu_thieu(ch["lich"], HOM, 12,
+		[dict(vendor=l["vendor"], tai_khoan="", tu_ngay="2026-11-11", den_ngay="2026-11-11", kenh_nhan=T.KENH)
+		for l in ch["lich"] if l["vendor"] != "GrabFood"], BAT)], [])
+	la("đánh dấu đã nâng", tc.get("vgb_ds_thu_v651"), "1")
+
+
+@ca("Codex #554: giá trị quản trị đã tự sửa thì giữ nguyên; nâng một lần, quản trị đặt lại sau đó cũng không bị đè")
+def _():
+	from unittest.mock import patch
+	fr, bang, tc = _site_da_gieo(lich_grab=20, mien_shinhan="shinhan.com.vn, shinhanbank.vn")
+	with patch.object(T, "_frappe", lambda: fr):
+		T.gieo_mac_dinh()
+		ch = T.cau_hinh()
+	la("GrabFood 20 giữ", [l["han_gio"] for l in ch["lich"] if l["vendor"] == "GrabFood"], [20])
+	la("Shinhan tự khai giữ", [g["mien"] for g in ch["nguoi_gui"] if g["ten"].startswith("Shinhan")],
+		[["shinhan.com.vn", "shinhanbank.vn"]])
+	fr, bang, tc = _site_da_gieo(da_nang=True)
+	with patch.object(T, "_frappe", lambda: fr):
+		T.gieo_mac_dinh()
+	la("đã nâng rồi, quản trị đặt lại 12 thì giữ 12", [r["han_gio"] for r in bang["Vagabond Doi Soat Lich Thu"]
+		if r["nguon"] == "GrabFood"], [12])
