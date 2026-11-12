@@ -87,8 +87,10 @@ class _Db:
 		self.xoa.append((dt, loc))
 
 
-def _chay(cha, dong, co=None):
-	co = co or set(_cha()) | {"in_words", "base_in_words", "rounding_adjustment", "base_rounding_adjustment"}
+def _chay(cha, dong, co=None, lich=None):
+	co = co or set(_cha()) | {"in_words", "base_in_words", "rounding_adjustment", "base_rounding_adjustment", "payment_schedule"}
+	lich = lich if lich is not None else [{"name": "ps1", "invoice_portion": 100.0, "payment_amount": cha["grand_total"],
+		"paid_amount": 0.0, "base_paid_amount": 0.0, "discounted_amount": 0.0}]
 	db, ghi_chu = _Db(cha, dong), []
 
 	class _Doc(dict):
@@ -97,7 +99,8 @@ def _chay(cha, dong, co=None):
 
 	with patch.object(vb.frappe, "db", db, create=True), \
 			patch.object(vb.frappe, "get_meta", lambda dt: _Meta(co), create=True), \
-			patch.object(vb.frappe, "get_all", lambda *a, **k: [dict(r) for r in dong], create=True), \
+			patch.object(vb.frappe, "get_all", lambda dt, **k: [dict(r) for r in (dong if dt == "Purchase Taxes and Charges" else lich)],
+				create=True), \
 			patch.object(vb.frappe, "get_doc", lambda d: _Doc(d), create=True), \
 			patch.object(vb.frappe, "get_cached_value", lambda *a: "VND", create=True), \
 			patch("frappe.utils.round_based_on_smallest_currency_fraction", lambda x, c, p=0: round(x), create=True), \
@@ -154,3 +157,41 @@ def _():
 	la("đã sửa", kq["da_sua"], {"Purchase Order": 1, "Purchase Receipt": 1})
 	la("bỏ qua ghi log", log, [(vb.TIEU_DE_LOG, "Purchase Order B: tiền hàng đổi")])
 	dung("không đụng hoá đơn mua", "Purchase Invoice" not in vb.LOAI)
+
+
+@ca("Codex #553: chứng từ cũ có giảm giá trên tổng (10%) thì trừ số thuế SAU giảm: 647.280 ra 602.640, khớp dòng 1331 còn lại")
+def _():
+	dong = [dict(_d("t1", VAO, 49600.0, 602640.0), tax_amount_after_discount_amount=44640.0, base_tax_amount_after_discount_amount=44640.0),
+		dict(_d("t2", RA, 49600.0, 647280.0), tax_amount_after_discount_amount=44640.0, base_tax_amount_after_discount_amount=44640.0)]
+	cha = _cha(net_total=558000.0, grand_total=647280.0, base_grand_total=647280.0, total_taxes_and_charges=89280.0,
+		base_total_taxes_and_charges=89280.0, taxes_and_charges_added=89280.0, base_taxes_and_charges_added=89280.0,
+		rounded_total=647280.0, base_rounded_total=647280.0)
+	kq, db, gc = _chay(cha, dong)
+	moi = db.ghi[0][2]
+	la("tổng, thuế theo số sau giảm", (moi["grand_total"], moi["total_taxes_and_charges"], moi["taxes_and_charges_added"]),
+		(602640.0, 44640.0, 44640.0))
+	la("tổng mới bằng cộng dồn dòng 1331 còn lại", moi["grand_total"], db.ghi[1][2]["total"])
+	dung("ghi chú theo số sau giảm", "89.280 → 44.640" in gc[0])
+
+
+@ca("Codex #553: lịch thanh toán đơn mua theo tổng mới (719.200 ra 669.600), chia theo tỷ lệ kỳ, giữ phần đã trả; đã trả vượt hoặc lịch không đủ 100% thì không ghi gì")
+def _():
+	dong = [_d("t1", VAO, 49600.0, 669600.0), _d("t2", RA, 49600.0, 719200.0)]
+	kq, db, gc = _chay(_cha(), dong)
+	ps = [g for g in db.ghi if g[0] == "Payment Schedule"]
+	la("một kỳ 100%", ps, [("Payment Schedule", "ps1", {"payment_amount": 669600.0, "outstanding": 669600.0,
+		"base_payment_amount": 669600.0, "base_outstanding": 669600.0}, False)])
+	hai = [{"name": "a", "invoice_portion": 30.0, "paid_amount": 215760.0, "base_paid_amount": 215760.0, "discounted_amount": 0.0},
+		{"name": "b", "invoice_portion": 70.0, "paid_amount": 0.0, "base_paid_amount": 0.0, "discounted_amount": 0.0}]
+	hai[0]["paid_amount"] = hai[0]["base_paid_amount"] = 100000.0
+	kq, db, gc = _chay(_cha(), dong, lich=hai)
+	ps = {g[1]: g[2] for g in db.ghi if g[0] == "Payment Schedule"}
+	la("hai kỳ: chia 30/70, giữ phần đã trả", (ps["a"]["payment_amount"], ps["a"]["outstanding"], ps["b"]["payment_amount"], ps["b"]["outstanding"]),
+		(200880.0, 100880.0, 468720.0, 468720.0))
+	hai[0]["paid_amount"] = hai[0]["base_paid_amount"] = 215760.0
+	kq, db, gc = _chay(_cha(), dong, lich=hai)
+	la("đã trả kỳ 1 vượt số mới: bỏ qua, không ghi gì", (kq["loi"], db.ghi, db.xoa), (["kỳ 1 đã trả nhiều hơn số mới"], [], []))
+	kq, db, gc = _chay(_cha(), dong, lich=[{"name": "a", "invoice_portion": 60.0, "paid_amount": 0.0}])
+	la("lịch không đủ 100%: bỏ qua", (kq["loi"], db.ghi), (["lịch trả không đủ 100%"], []))
+	kq, db, gc = _chay(_cha(), dong, co=set(_cha()) - {"advance_paid"}, lich=[])
+	dung("phiếu nhập không có lịch trả: vẫn sửa", kq.get("sau") and not [g for g in db.ghi if g[0] == "Payment Schedule"])
