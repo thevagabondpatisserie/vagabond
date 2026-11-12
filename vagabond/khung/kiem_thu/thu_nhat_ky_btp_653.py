@@ -116,9 +116,11 @@ def _bep_lam():
 		kiem_banh.luu_o("2026-08-15", TIRA, "sx", 0)
 	la("trừ rồi cộng lại", _so(cua, TIRA), (1, 1))
 	nk = [(x["truong"], x["truoc"], x["sau"], x["ly_do"], x["nguon"], x["ten_nguoi"]) for x in b.nhat_ky]
-	la("bốn dòng", nk, [
+	la("sáu dòng: mỗi lần sửa Bếp làm có dòng riêng của ô Bếp làm (Codex #560)", nk, [
 		("so_btp", "1", "0", "tru_bep_lam", "KB-2026-08-15", "Hân"), ("so_decor", "1", "0", "tru_bep_lam", "KB-2026-08-15", "Hân"),
-		("so_btp", "0", "1", "cong_lai_bep_lam", "KB-2026-08-15", "Hân"), ("so_decor", "0", "1", "cong_lai_bep_lam", "KB-2026-08-15", "Hân")])
+		("sx", "0", "1", "sua_bep_lam", "KB-2026-08-15", "Hân"),
+		("so_btp", "0", "1", "cong_lai_bep_lam", "KB-2026-08-15", "Hân"), ("so_decor", "0", "1", "cong_lai_bep_lam", "KB-2026-08-15", "Hân"),
+		("sx", "1", "0", "sua_bep_lam", "KB-2026-08-15", "Hân")])
 	dung("đọc số trước dưới khoá", any(q.startswith("select ma_hang, so_btp, so_decor, ten_banh") and q.endswith("for update") for q, g in b.cau))
 
 
@@ -154,7 +156,7 @@ def _moi_cua():
 	dung("đủ chín cửa", len(cua_ghi) == 9)
 
 
-@ca("v653 xoá mã còn số bị chặn và không ghi gì; mã không có trên bảng thì Bếp làm không ghi nhật ký")
+@ca("v653 xoá mã còn số bị chặn và không ghi gì; bánh ngoài bảng BTP sửa Bếp làm hai lần vẫn có hai dòng nhật ký riêng (Codex #560)")
 def _chan():
 	nay, cua = _kho()
 	with cua, BangBTP(cua.btp.dong) as b, _vao():
@@ -163,9 +165,14 @@ def _chan():
 	nay, cua = _kho()
 	nay.dong.append(_tao_dong(ma_hang="BAWS00777"))
 	nay.trong_csdl.dong.append(DongGia(dict(nay.dong[-1])))
-	with cua, BangBTP(cua.btp.dong) as b:
+	with cua, BangBTP(cua.btp.dong, nguoi="ngochan41096@gmail.com") as b:
 		kiem_banh.luu_o("2026-08-15", "BAWS00777", "sx", 2)
-	la("bánh ngoài bảng BTP: không nhật ký", b.nhat_ky, [])
+	with cua, BangBTP(cua.btp.dong, nguoi="lethilinh051996@gmail.com") as b2:
+		kiem_banh.luu_o("2026-08-15", "BAWS00777", "sx", 3)
+	nk = [(x["ma_hang"], x["truong"], x["truoc"], x["sau"], x["ly_do"], x["nguoi"]) for x in b.nhat_ky + b2.nhat_ky]
+	la("bánh ngoài bảng BTP: không trừ BTP nhưng mỗi lần sửa Bếp làm một dòng, giữ người sửa trước", nk, [
+		("BAWS00777", "sx", "0", "2", "sua_bep_lam", "ngochan41096@gmail.com"),
+		("BAWS00777", "sx", "2", "3", "sua_bep_lam", "lethilinh051996@gmail.com")])
 
 
 @ca("v653 ô Bếp làm ghi ai sửa; máy lưu không đổi Bếp làm hay payload giả không đè vết; màn hiện tên đầy đủ, không email")
@@ -231,3 +238,37 @@ def _doctype():
 	k = json.load(open(os.path.join(GOC, "vagabond", "doctype", "kiem_banh_dong", "kiem_banh_dong.json"), encoding="utf-8"))
 	la("hai ô ai sửa Bếp làm", [f["fieldname"] for f in k["fields"]][-2:], ["sx_nguoi", "sx_luc"])
 	dung("đẩy mốc modified", k["modified"] >= "2026-11-13")
+
+
+@ca("v653 Codex #560: sửa bảng BTP thẳng trên Desk hay qua API (lưu cả bảng) vẫn ghi nhật ký từng ô đổi, mã thêm và mã bỏ")
+def _desk():
+	from vagabond.vagabond.doctype.btp_banh_o import btp_banh_o as bo
+
+	cu = [{"ma_hang": TIRA, "ten_banh": "Tira 18cm", "so_btp": 1, "so_decor": 1, "so_refill": 0, "refill_tu": None},
+		{"ma_hang": KHAC, "ten_banh": "Khác", "so_btp": 5, "so_decor": 5}]
+	moi = [{"ma_hang": TIRA, "ten_banh": "Tira 18cm", "so_btp": 4, "so_decor": 1, "so_refill": 0, "refill_tu": None},
+		{"ma_hang": "BAWC00999", "ten_banh": "Mới", "so_btp": 2}]
+	la("đổi ô, thêm mã, bỏ mã", bo.doi_khi_luu_ca_bang(cu, moi), [
+		(TIRA, "Tira 18cm", "so_btp", 1, 4, "desk"),
+		("BAWC00999", "Mới", "ma", "", "BAWC00999", "them_ma"), ("BAWC00999", "Mới", "so_btp", None, 2, "desk"),
+		(KHAC, "Khác", "ma", KHAC, "", "xoa_ma")])
+	la("lưu lại không đổi gì: không ghi", bo.doi_khi_luu_ca_bang(cu, cu), [])
+	ghi = []
+
+	class Dong(dict):
+		def as_dict(self):
+			return dict(self)
+
+	x = bo.BTPBanhO.__new__(bo.BTPBanhO)
+	x.get = lambda k, d=None: [Dong(r) for r in moi] if k == "dong" else d
+	x.get_doc_before_save = lambda: type("T", (), {"dong": [Dong(r) for r in cu]})()
+	with um.patch.object(btp, "ghi_nhat_ky", lambda *a, **k: ghi.append(a[:6] + (k.get("nguon"),))):
+		x.on_update()
+	la("on_update ghi đủ bốn dòng nguồn Desk", [(g[0], g[2], g[5], g[6]) for g in ghi], [
+		(TIRA, "so_btp", "desk", "Desk"), ("BAWC00999", "ma", "them_ma", "Desk"), ("BAWC00999", "so_btp", "desk", "Desk"),
+		(KHAC, "ma", "xoa_ma", "Desk")])
+	import json
+	d = json.load(open(os.path.join(GOC, "vagabond", "doctype", "nhat_ky_btp", "nhat_ky_btp.json"), encoding="utf-8"))
+	o = {f["fieldname"]: f.get("options", "").split("\n") for f in d["fields"]}
+	dung("ô Bếp làm và lý do mới có trong lựa chọn", "sx" in o["truong"] and {"sua_bep_lam", "desk"} <= set(o["ly_do"]))
+	dung("mọi lý do máy dùng đều có nhãn tiếng Việt", set(o["ly_do"]) <= set(btp.NHAN_LY_DO))

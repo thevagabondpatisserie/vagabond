@@ -117,6 +117,7 @@ class Kho(object):
 
 	def __init__(self):
 		self.dong, self.tep, self.moc = {}, [], "{}"
+		self.pi = "ACC-PINV-2026-00777"
 		self.mi = [Doi(name="MI-1", mst_doi_tac="0312345678", so_hd="1234", ky_hieu="C26TPH", loai="Đầu vào")]
 
 	def get_doc(self, a, b=None, **k):
@@ -167,7 +168,7 @@ class Kho(object):
 
 
 def _chay(kho, ham):
-	db = types.SimpleNamespace(exists=kho.exists, get_value=lambda dt_, f, *a, **k: "ACC-PINV-2026-00777" if dt_ == "Purchase Invoice" else None,
+	db = types.SimpleNamespace(exists=kho.exists, get_value=lambda dt_, f, *a, **k: kho.pi if dt_ == "Purchase Invoice" else None,
 		sql=lambda q, *a, **k: [(1,)] if "get_lock" in q else [], commit=lambda: None, rollback=lambda: None,
 		get_single_value=lambda dt_, k: kho.moc, set_single_value=lambda dt_, k, v: setattr(kho, "moc", v))
 	vs = [um.patch.object(fr, "get_doc", kho.get_doc), um.patch.object(fr, "get_all", kho.get_all), um.patch.object(fr, "db", db),
@@ -223,3 +224,83 @@ def _cho():
 	la("khớp lại được", (n, dong["trang_thai"]), (1, h.TT_DINH))
 	_chay(kho, lambda: h.xu_ly_thu(d, 9))
 	la("thư đã đọc không ghi lần hai", len(kho.dong), 1)
+
+
+XML2 = XML.replace(b"00001234", b"00001235").replace(b"12960000", b"500000")
+CH = {"dia_chi": "hoadon@thevagabondpatisserie.com", "mat_khau": "x", "may_chu": "pro10.emailserver.vn", "cong": 993}
+
+
+def _ghi_loi(ham, loi):
+	with um.patch.object(fr, "log_error", lambda *a, **k: loi.append(a[-1] if a else "")):
+		return ham()
+
+
+@ca("v653 Codex #560: thư đọc hỏng không bị bỏ qua: lượt sau đọc lại; hỏng đủ năm lần thành Việc cần làm cho Thu mua")
+def _thu_lai():
+	la("THUẦN: tên PDF có số 0 đầu vẫn khớp", (h.pdf_cua_so("00001234.pdf", "00001234"), h.pdf_cua_so("HD_1234.PDF", "1234"),
+		h.pdf_cua_so("00001235.pdf", "00001234"), h.pdf_cua_so("hd.pdf", "")), (True, True, False, False))
+	kho, loi = Kho(), []
+	may = Imap({5: None, 6: _thu("HDlink", than="Tra cứu hoá đơn: https://tracuu.vnpt-invoice.com.vn/?ma=XY99")})
+	with um.patch("imaplib.IMAP4_SSL", may):
+		r = _chay(kho, lambda: _ghi_loi(lambda: h.doc_hop_thu(CH), loi))
+	import json
+
+	m = json.loads(kho.moc)
+	la("thư 5 máy chủ không trả nội dung: chờ đọc lại, thư 6 vẫn đọc", (r["so_thu"], m["uid"], m["thu_lai"], len(kho.dong)), (2, 6, {"5": 1}, 1))
+	dung("có ghi lỗi kỹ thuật", len(loi) == 1)
+	may.thu[5] = _thu("HD1234", [("hd.xml", XML, ("application", "xml")), ("hd.pdf", PDF, ("application", "pdf"))])
+	may.lenh.clear()
+	with um.patch("imaplib.IMAP4_SSL", may):
+		_chay(kho, lambda: _ghi_loi(lambda: h.doc_hop_thu(CH), loi))
+	la("lượt sau đọc lại đúng thư 5", [x[2] for x in may.lenh if x[:2] == ("uid", "fetch")], ["5"])
+	st = {d["tieu_de"]: d for d in kho.dong.values()}
+	la("thư 5 đã đính, hết chờ đọc lại", (st["HD1234"]["trang_thai"], json.loads(kho.moc)["thu_lai"]), (h.TT_DINH, {}))
+	kho2 = Kho()
+	may2 = Imap({8: None})
+	for _ in range(h.SO_LAN_THU):
+		with um.patch("imaplib.IMAP4_SSL", may2):
+			_chay(kho2, lambda: _ghi_loi(lambda: h.doc_hop_thu(CH), loi))
+	d = list(kho2.dong.values())
+	la("hỏng năm lần: một dòng Lỗi cho Thu mua, thôi đọc lại", ([(x["uid"], x["trang_thai"]) for x in d], json.loads(kho2.moc)["thu_lai"]),
+		([("8", h.TT_LOI)], {}))
+	dung("dòng Lỗi nói rõ phải làm gì", "webmail" in d[0]["ghi_chu"])
+
+
+@ca("v653 Codex #560: khớp M-Invoice khi chưa có hoá đơn mua thì Thiếu tệp, có hoá đơn mua thì nhịp khớp lại đính XML rồi mới Đã đính")
+def _thieu_xml():
+	kho = Kho()
+	kho.pi = None
+	d = h.doc_thu_hd(_thu("HD1234", [("hd.xml", XML, ("application", "xml")), ("hd.pdf", PDF, ("application", "pdf"))]),
+		__import__("vagabond.doi_soat_thu", fromlist=["x"]).doc_thu)
+	_chay(kho, lambda: h.xu_ly_thu(d, 11))
+	dong = list(kho.dong.values())[0]
+	la("chưa có hoá đơn mua: Thiếu tệp, nói rõ chờ gì", (dong["trang_thai"], dong["hd_dien_tu"]), (h.TT_THIEU, "MI-1"))
+	dung("ghi chú nói chờ hoá đơn mua", "hoá đơn mua" in dong["ghi_chu"])
+	la("PDF đã sang M-Invoice, XML chưa đính đâu", sorted(x["attached_to_doctype"] for x in kho.tep if x["attached_to_doctype"] != h.DT),
+		["MInvoice Invoice"])
+	kho.pi = "ACC-PINV-2026-00888"
+	n = _chay(kho, h.khop_lai)
+	la("có hoá đơn mua: khớp lại đính XML, Đã đính", (n, dong["trang_thai"], dong["hoa_don_mua"], dong["ghi_chu"]),
+		(1, h.TT_DINH, "ACC-PINV-2026-00888", ""))
+	la("PDF không đính hai lần, XML vào hoá đơn mua", sorted((x["attached_to_doctype"], x["attached_to_name"]) for x in kho.tep
+		if x["attached_to_doctype"] != h.DT), [("MInvoice Invoice", "MI-1"), ("Purchase Invoice", "ACC-PINV-2026-00888")])
+
+
+@ca("v653 Codex #560: một thư hai hoá đơn, PDF tên có số 0 đầu: mỗi M-Invoice nhận đúng PDF của mình")
+def _nhieu_pdf():
+	kho = Kho()
+	kho.mi.append(Doi(name="MI-2", mst_doi_tac="0312345678", so_hd="1235", ky_hieu="C26TPH", loai="Đầu vào"))
+	d = h.doc_thu_hd(_thu("HD-doi", [("00001234.xml", XML, ("application", "xml")), ("00001235.xml", XML2, ("application", "xml")),
+		("00001234.pdf", PDF, ("application", "pdf")), ("00001235.pdf", PDF + b"2", ("application", "pdf"))]),
+		__import__("vagabond.doi_soat_thu", fromlist=["x"]).doc_thu)
+	_chay(kho, lambda: h.xu_ly_thu(d, 12))
+	la("hai dòng Đã đính", sorted((x["so_hd"], x["trang_thai"]) for x in kho.dong.values()), [("00001234", h.TT_DINH), ("00001235", h.TT_DINH)])
+	la("mỗi M-Invoice một PDF đúng của mình", sorted((x["attached_to_name"], x["content"]) for x in kho.tep
+		if x["attached_to_doctype"] == "MInvoice Invoice"), [("MI-1", PDF), ("MI-2", PDF + b"2")])
+	kho2 = Kho()
+	d2 = h.doc_thu_hd(_thu("HD-le", [("00001234.xml", XML, ("application", "xml")), ("00001235.xml", XML2, ("application", "xml")),
+		("bang-ke.pdf", PDF, ("application", "pdf"))]), __import__("vagabond.doi_soat_thu", fromlist=["x"]).doc_thu)
+	_chay(kho2, lambda: h.xu_ly_thu(d2, 13))
+	st = {x["so_hd"]: x for x in kho2.dong.values()}
+	la("PDF không mang số hoá đơn nào: Thiếu tệp, không Đã đính", st["00001234"]["trang_thai"], h.TT_THIEU)
+	dung("ghi chú bảo đính tay PDF", "PDF" in st["00001234"]["ghi_chu"])

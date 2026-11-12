@@ -190,6 +190,50 @@ def _luu():
 		nem("đợt đã gửi duyệt thì không sửa được", lambda: dc.luu("DC-26-11-20", [{"hoa_don": "PI-1", "so_tra": 1}]))
 
 
+@ca("v653 Codex #560: lưu chỉ ghi chú hay ngày hẹn giữ số trả đang lưu; số 0 gửi rõ vẫn là 0")
+def _luu_giu_so():
+	doc = _dot()
+	with um.patch.object(dc, "_vai", _vai("Purchase User")), um.patch.object(fr, "get_doc", lambda *a, **k: doc), \
+			um.patch.object(fr.db, "sql", lambda *a, **k: []), \
+			um.patch.object(fr, "get_all", lambda dt_, **k: [fr._dict(name="PI-1", outstanding_amount=100)]), \
+			um.patch.object(dc, "_dang_giu", lambda ds, khoa=False: {}), um.patch.object(dc, "_cho_man", lambda d: {"ok": 1}):
+		dc.luu("DC-26-11-20", [{"hoa_don": "PI-1", "ghi_chu": "chị Lan hẹn tuần sau"}])
+		r = doc.dong[0]
+		la("chỉ ghi chú: số trả giữ 100", (r.so_tra, r.gia_han, r.ghi_chu), (100, 0, "chị Lan hẹn tuần sau"))
+		dc.luu("DC-26-11-20", [{"hoa_don": "PI-1", "hen_dot": "2026-12-10"}])
+		la("chỉ ngày hẹn: số trả giữ 100", (r.so_tra, r.hen_dot), (100, "2026-12-10"))
+		dc.luu("DC-26-11-20", [{"hoa_don": "PI-1", "so_tra": None, "ghi_chu": "x"}])
+		la("so_tra rỗng như không gửi", r.so_tra, 100)
+		dc.luu("DC-26-11-20", [{"hoa_don": "PI-1", "so_tra": 0}])
+		la("số 0 gửi rõ là 0, hoãn cả", (r.so_tra, r.gia_han), (0, 100))
+	dung("du_chi.py lưu đợt có dấu được phép", doc.flags.vgb_du_chi is True)
+
+
+@ca("v653 Codex #560: sửa đợt thẳng trên Desk hay API bị chặn; chốt đợt Đã duyệt mà thiếu dấu giám đốc thì không lập APP")
+def _chan_desk():
+	from vagabond.vagabond.doctype.vagabond_dot_chi.vagabond_dot_chi import VagabondDotChi
+
+	class LoiQuyen(Exception):
+		pass
+
+	def throw(m, exc=None, *a, **k):
+		raise (exc or fr.ValidationError)(m)
+
+	x = VagabondDotChi.__new__(VagabondDotChi)
+	x.flags = fr._dict()
+	with um.patch.object(fr, "PermissionError", LoiQuyen, create=True), um.patch.object(fr, "throw", throw):
+		nem("lưu không qua du_chi.py (Desk, API, frappe.client.set_value) bị chặn bằng lỗi quyền", x.validate, LoiQuyen)
+		x.flags = fr._dict(vgb_du_chi=True)
+		x.validate()
+	doc = _dot("Da duyet")
+	ho = types.SimpleNamespace(tao=lambda **k: (_ for _ in ()).throw(AssertionError("không được lập APP")),
+		VAI_LAP={"Purchase User"}, VAI_GD={"AP Giám đốc"})
+	with um.patch.object(dc, "_ho_so", lambda: ho), um.patch.object(dc, "_vai", _vai("Purchase User")), \
+			um.patch.object(fr, "get_doc", lambda *a, **k: doc), um.patch.object(fr.db, "sql", KHOA):
+		nem("Thu mua tự đặt Đã duyệt trên Desk rồi bấm chốt: chặn", lambda: dc.chot("DC-26-11-20"))
+	la("không lập APP nào", [d.ho_so_app for d in doc.dong], ["", ""])
+
+
 @ca("v653 duyệt: người lập không tự soát, hai cấp hai người, trả lại phải có lý do và xoá dấu duyệt cũ")
 def _duyet():
 	doc = _dot("Cho ke toan")
@@ -214,6 +258,7 @@ def _duyet():
 @ca("v653 chốt: giám đốc bấm duyệt thì APP đứng tên Uyên, phiên trả về giám đốc; nhà lỗi không chặn nhà khác; chốt lại không trùng")
 def _chot():
 	doc = _dot("Da duyet")
+	doc.gd_boi, doc.gd_luc = "viet", "2026-11-13 08:00:00"
 	luu_dong = {d.name: d for d in doc.dong}
 	da_lap, ghi = {}, []
 
@@ -267,6 +312,7 @@ def _chot_khoa():
 @ca("v653 chốt lại sau khi APP đã lập mà bước sau hỏng: nhận lại APP cũ, không lập lần hai")
 def _chot_lai():
 	doc = _dot("Da duyet")
+	doc.gd_boi, doc.gd_luc = "viet", "2026-11-13 08:00:00"
 	doc.dong = doc.dong[:1]
 	ghi = []
 	ho = types.SimpleNamespace(tao=lambda **k: ghi.append(1) or {"ma": "APP.MOI"}, VAI_LAP={"Purchase User"}, VAI_GD={"AP Giám đốc"})
