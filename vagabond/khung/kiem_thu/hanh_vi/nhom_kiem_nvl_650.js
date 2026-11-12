@@ -58,6 +58,7 @@ function theGioi(ton, tong, opt) {
       { item_code: 'CACAO', item_name: 'Cacao Mass 100%', stock_uom: 'Kg', so: 0.1 }] },
     C2: { name: 'BOM-C2', qty: 1, dong: [{ item_code: 'BOT', item_name: 'Bột', stock_uom: 'Gram', so: 100 }] }
   };
+  if (opt.dongThem) BOM.TP.dong = BOM.TP.dong.concat(opt.dongThem);
   var lenh = {
     'WO-A': { code: 'TP', qty: 2, src: KHO, docstatus: 0 },
     'WO-B': { code: 'TP', qty: 3, src: KHO, docstatus: 0 },
@@ -376,6 +377,17 @@ async function ca(ten, fn) {
     bang('ghi ca 2 lenh', t.nhat.phieu.length, 4);
     bang('chuyen 0,3', t.nhat.laybu, 0.3);
     bang('kho tong het', t.tong.CACAO, 0);
+  });
+
+  await ca('15. Codex #553 vong 4: cacao 70% o Kho tong vua la ma thay cho phan tru thang, vua phai chuyen cho bep: khong hua hai lan, chan truoc khi ghi', async function () {
+    var t = theGioi({ BOT: 1000, CACAO: 0, CACAO2: 0 }, { CACAO: 0, CACAO2: 0.5 }, {
+      alt: { CACAO: 'CACAO2' }, tenAlt: 'Cacao Mass 70%',
+      dongThem: [{ item_code: 'CACAO2', item_name: 'Cacao Mass 70%', stock_uom: 'Kg', so: 0.1 }],
+      lenh: { 'WO-A': { khoMon: { CACAO: TONG } }, 'WO-B': { khoMon: { CACAO: TONG } } } });
+    await t.mfgHoanTatNhom({ con: [{ ten: 'WO-A', so_can: 2, so_da: 0 }, { ten: 'WO-B', so_can: 3, so_da: 0 }], dvt: 'Cái', ma_mon: 'TP' });
+    bang('khong phieu kho nao', t.nhat.phieu, []);
+    bang('khong lay kho tong', t.nhat.laybu, 0);
+    co('noi cacao thieu', t.nhat.hoiBep[0][1], 'Cacao Mass 100%: thiếu 0,5 Kg');
   });
 
   await ca('12. THUAN mfgPhanNvl: thieu sau kho tong ma hang thay bu thi tach rieng, khong tinh thieu', async function () {
