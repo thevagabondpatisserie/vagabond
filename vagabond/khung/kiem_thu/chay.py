@@ -238,6 +238,16 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_kiem_ke_xoay_646,
 	# v646 Cài đặt tự động hoá: việc máy soạn sẵn, nhịp 15 phút, quá hạn báo một lần.
 	thu_viec_tu_dong_646,
+	# v653 Dự chi công nợ: đợt trả nhà cung cấp 10 và 20, duyệt cả đợt, máy lập APP.
+	thu_du_chi_653,
+	# v653 Nhật ký BTP sẵn, Đủ decor (sự cố Tira 18cm), lưu một dòng có khoá.
+	thu_nhat_ky_btp_653,
+	# v653 WhatsApp đường phụ cho mã xác thực và ưu đãi (Zalo trước).
+	thu_whatsapp_653,
+	# v653 tin Zalo Bánh có sẵn hôm nay kèm ảnh bánh và số lượng.
+	thu_banh_co_san_653,
+	# v653 tự đính hoá đơn nhà cung cấp từ hộp thư hoadon@ (chỉ đọc).
+	thu_hoa_don_thu_653,
 	thu_banner_647,
 	# v647 đối soát ShopeeFood báo lệch sai: tiền đúng kỳ, dò lại mỗi giờ.
 	thu_tien_ve_dung_ky_647,

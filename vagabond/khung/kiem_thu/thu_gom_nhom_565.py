@@ -132,7 +132,8 @@ def _():
 	for k in ("KHPO", "KHHDM"):
 		dung("khoá %s không còn trong phân hệ Thu mua" % k, k not in m["TM"]["keys"])
 	# v646 (anh Việt 09/11/2026): thêm ô Gom yêu cầu mua, thành sáu ô.
-	la("phân hệ Thu mua có sáu ô", len(m["TM"]["keys"]), 6)
+	# v653 (#555): thêm ô Dự chi công nợ, thành bảy ô.
+	la("phân hệ Thu mua có bảy ô", len(m["TM"]["keys"]), 7)
 	ma = _ma_js()
 	dung("không còn nút nào dựng ô bản khung", "'KHPO')" not in ma.split("var VGB_DM")[0])
 	dung("vẫn còn đường đi tới màn bản khung", "if (k === 'KHPO')" in ma)

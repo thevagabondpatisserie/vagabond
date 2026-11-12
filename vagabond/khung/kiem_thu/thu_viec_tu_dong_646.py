@@ -88,7 +88,8 @@ def _cua_so():
 @ca("v646 cấu hình: ô trống hay gõ hỏng dùng mặc định, việc có màn riêng luôn bật, bậc 2 luôn sau bậc 1")
 def _gop():
 	c = _cfg()
-	la("đủ mười việc", len(c), 10)
+	# v653: thêm việc soạn đợt dự chi công nợ ngày 7 và 17.
+	la("đủ mười một việc", len(c), 11)
 	la("mặc định ghi nhận 19:00", c["ghi_nhan_cuoi_ca"]["gio"], "19:00")
 	la("yêu cầu mua theo lượng dùng mặc định bật (không cần hạn mức)", c["ycmh_tu_dong"]["bat"], 1)
 	la("ngưỡng 3 ngày, mua đủ 7 ngày", (c["ycmh_tu_dong"]["nguong"], c["ycmh_tu_dong"]["du"]), (3, 7))
@@ -106,7 +107,7 @@ def _gop():
 	c = _cfg(duyet_kiem_ke={"han": "36", "han2": "24"})
 	la("bậc 1 theo bảng", c["duyet_kiem_ke"]["han"], "36")
 	dung("bậc 2 bị đẩy ra sau bậc 1", int(c["duyet_kiem_ke"]["han2"]) > 36)
-	la("mã lạ trong bảng bị bỏ", len(vtd.gop_cau_hinh([{"ma": "la", "bat": 1}])), 10)
+	la("mã lạ trong bảng bị bỏ", len(vtd.gop_cau_hinh([{"ma": "la", "bat": 1}])), 11)
 
 
 @ca("v646 cửa lưu: gõ hỏng thì báo lỗi rõ, không lặng lẽ thay bằng mặc định")

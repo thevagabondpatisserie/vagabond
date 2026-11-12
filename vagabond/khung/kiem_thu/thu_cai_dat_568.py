@@ -269,13 +269,17 @@ def _():
 	# biểu phí, ngưỡng báo Zalo), thêm mới, không đổi tên ô cũ.
 	# v643: ô Hộp thư nội bộ được chuyển tiếp, thêm mới.
 	# v646: bảng Việc tự động (tab Tự động hoá), thêm mới.
+	# v653: sáu ô WhatsApp đường phụ (mẫu mã xác thực, mẫu ưu đãi, WABA ID, PIN, App
+	# Secret, Verify token), thêm mới, không đổi tên ô cũ; sáu ô Hộp thư hoá đơn hoadon@.
 	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), sorted(["html_du_lieu_app", "nguon_phi_giao_web",
 		"onepay_access_code", "onepay_bat", "onepay_cong", "onepay_hash_code", "onepay_merchant", "onepay_query_password",
 		"onepay_query_user", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the",
 		"zalo_oa_anh", "zalo_oa_bat", "zalo_oa_id", "zalo_oa_khoa_webhook", "zalo_oa_uid_thu", "zalo_tac_vu",
 		"ds_bieu_napas", "ds_bieu_noi_dia", "ds_bieu_quoc_te", "ds_lich_thu", "ds_mk_pdf_the", "ds_mk_zip_pos",
 		"ds_nguoi_gui", "ds_nguong_lech", "ds_nguong_phi", "ds_thu_bat", "ds_thu_cong", "ds_thu_dia_chi",
-		"ds_thu_mat_khau", "ds_thu_may_chu", "ds_thu_noi_bo", "ds_thu_thu_muc", "viec_tu_dong"]))
+		"ds_thu_mat_khau", "ds_thu_may_chu", "ds_thu_noi_bo", "ds_thu_thu_muc", "viec_tu_dong",
+		"wa_app_secret", "wa_pin", "wa_template_otp", "wa_template_uu_dai", "wa_verify_token", "wa_waba_id",
+		"hd_thu_bat", "hd_thu_cong", "hd_thu_dia_chi", "hd_thu_mat_khau", "hd_thu_may_chu", "hd_thu_moc"]))
 
 
 def _o_cu():
@@ -372,7 +376,9 @@ def _():
 		"Ahamove": ["ahamove_api_key", "ahamove_base", "ahamove_mobile"],
 		"Zalo ZNS gửi khách": ["zalo_app_id", "zalo_app_secret", "zalo_refresh_token"],
 		"Thông báo đẩy": ["push_khoa_rieng"],
-		"WhatsApp": ["wa_phone_id", "wa_token", "wa_template_thanh_toan"],
+		# v653: WhatsApp là đường phụ cho mã xác thực, ưu đãi và thanh toán; mẫu nào
+		# cũng đủ để chip xanh (canMot), mã số và token là bắt buộc.
+		"WhatsApp": ["wa_phone_id", "wa_token"],
 	}
 	for ten, tep, mau in MAY_CHU:
 		s = io.open(os.path.join(GOI, tep), encoding="utf-8").read()

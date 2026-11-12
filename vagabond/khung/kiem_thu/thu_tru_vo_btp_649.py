@@ -22,6 +22,7 @@ import frappe
 
 from vagabond import btp, kiem_banh
 from vagabond.khung.kiem_thu.nen import Doi, ca, dung, la
+from vagabond.khung.kiem_thu.btp_gia import BangBTP
 from vagabond.khung.kiem_thu.thu_cot_huy_kiem_banh import BangGia, CuaGia, DongGia, _tao_dong
 
 EPI = "BAWC00019"  # Bánh Ổ Epi 12cm, dòng trong ảnh Loan Anh gửi 11/11/2026
@@ -34,6 +35,8 @@ class BangLuu(BangGia):
 	def __init__(self, *a, **k):
 		super().__init__(*a, **k)
 		self.trong_csdl = None
+		# v653: tên bảng như Frappe đặt (KB-ngày), nhật ký BTP ghi làm nguồn.
+		self.name = "KB-%s" % self.ngay
 
 	def _ban_truoc(self):
 		return self.trong_csdl
@@ -58,27 +61,10 @@ def _kho(so_btp=10, so_decor=9, sx=0, ma=EPI, ngay="2026-08-15", **dong):
 
 @contextlib.contextmanager
 def _chay(cua):
-	"""Câu UPDATE cộng dồn của btp.tru_vo_theo_sx chạy trên bảng BTP giả."""
-	vet = []
-
-	def sql(cau, gt=None, *a, **k):
-		vet.append(gt)
-		if cau.lstrip().lower().startswith("select ma_hang from `tabbtp banh o dong`"):
-			can = set(gt["ma"] if isinstance(gt, dict) else gt)
-			return [(d["ma_hang"],) for d in cua.btp.dong if d["ma_hang"] in can]
-		if "update `tabBTP Banh O Dong`" in cau:
-			for d in cua.btp.dong:
-				if d.ma_hang == gt["ma"]:
-					d["so_btp"] = (d["so_btp"] or 0) - gt["n"]
-					d["so_decor"] = (d["so_decor"] or 0) - gt["n"]
-					if "decor_da_lam = ifnull(decor_da_lam, 0) + %(n)s" in cau:
-						d["decor_da_lam"] = (d.get("decor_da_lam") or 0) + gt["n"]
-		return []
-
-	with cua, um.patch.object(frappe.db, "sql", sql, create=True), \
-			um.patch.object(frappe.db, "set_single_value", lambda *a, **k: vet.append(("moc", a[1])), create=True), \
-			um.patch.object(frappe.db, "commit", lambda *a, **k: None, create=True):
-		yield vet
+	"""v653: bảng BTP giả chạy đúng câu khoá dòng, UPDATE cộng dồn, nhật ký
+	của btp.py (btp_gia.BangBTP); trả về bảng giả để ca đọc mốc và câu SQL."""
+	with cua, BangBTP(cua.btp.dong) as b:
+		yield b
 
 
 def _o(cua):
@@ -105,7 +91,7 @@ def _tru_ngay():
 	with _chay(cua) as vet:
 		kiem_banh.luu_o("2026-08-15", EPI, "sx", 1)
 	la("BTP sẵn, Đủ decor", _o(cua), (9, 8))
-	dung("đổi mốc sửa của bảng BTP", ("moc", "cap_nhat_luc") in vet)
+	dung("đổi mốc sửa của bảng BTP", "cap_nhat_luc" in vet.moc)
 
 
 @ca("v649 sửa Bếp làm: tăng thì trừ thêm, sửa bớt thì cộng lại đúng phần bớt, về 0 là trả đủ")
@@ -205,8 +191,8 @@ def _ngoai_bang():
 	with _chay(cua) as vet:
 		kiem_banh.luu_o("2026-08-15", "BAWS00777", "sx", 4)
 	la("bảng BTP giữ nguyên", _o(cua), (10, 9))
-	dung("không đổi giờ cập nhật bảng BTP", ("moc", "cap_nhat_luc") not in vet)
-	la("không câu UPDATE nào", [g for g in vet if isinstance(g, dict) and "n" in g], [])
+	dung("không đổi giờ cập nhật bảng BTP", "cap_nhat_luc" not in vet.moc)
+	la("không câu UPDATE nào", [g for q, g in vet.cau if isinstance(g, dict) and "n" in g], [])
 
 
 def _len_ban(cua, bang_csdl):

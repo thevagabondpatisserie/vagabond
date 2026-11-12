@@ -220,7 +220,7 @@ def _danh_muc():
 	# v645: thêm tin báo cáo ưu đãi Zalo tuần cho Marketing (anh Việt duyệt 08/11/2026).
 	# v646: thêm 9 tin Cài đặt tự động hoá và Thu mua (viec_tu_dong.py), anh Việt duyệt bản vẽ 09/11/2026.
 	la("đủ 113 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641, 1 tin v644, 1 tin v645, 10 tin v646, 1 tin v647)", len(kz.TIN), 114)
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641, 1 tin v644, 1 tin v645, 10 tin v646, 1 tin v647, 2 tin v653 dự chi và bánh có sẵn)", len(kz.TIN), 116)
 	la("chín bộ phận đúng thứ tự (v622 thêm Nhân sự, v644 thêm Marketing)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Marketing", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -605,6 +605,8 @@ def _patch_map():
 		"kt_du_lieu_hao_hut",
 		# v628: bản vá riêng v628_tin_tai_chinh tích cho nhóm mốc.
 		"kt_tien_ra_chua_gan", "kt_nop_nh_chua_khop",
+		# v653: bản vá riêng v653_tin_zalo_moi tích cho nhóm đang nhận tin đơn web mới.
+		"bh_banh_co_san",
 		# v630: tin thiết kế riêng, chưa có bản vá; quản lý tích tay trong Cài đặt cho nhóm Sales.
 		"bh_tkr_moi", "bh_tkr_da_coc", "bh_tkr_tu_van",
 		# v630 bánh sỉ: chưa có bản vá; quản lý tích tay trong Cài đặt cho nhóm Sales.

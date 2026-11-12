@@ -91,6 +91,9 @@ def _kiem_don():
 
 # ------------------------------------------------------------ chạm hệ
 
+from vagabond.khung.kiem_thu.btp_gia import BangBTP  # noqa: E402
+
+
 class Kho:
 	"""Bảng BTP và phiếu kiểm bánh ngày giả, đủ cho btp, kiem_banh, ton_don_web."""
 
@@ -247,12 +250,15 @@ def _luu():
 	with um.patch.object(btp, "_duoc_sua_btp", lambda: True), um.patch.object(btp, "bang_btp", lambda: "ok"), \
 			um.patch.object(frappe.db, "commit", lambda: None, create=True):
 		nem("ô trống", lambda: _chay(kho, lambda: btp.luu_refill("BAWC00123", "", "2026-11-14", "")), Exception)
-		_chay(kho, lambda: btp.luu_refill("BAWC00123", "12", "2026-11-16", ""))
-		d = kho.btp.dong[0]
-		la("đã lưu", (d.so_refill, d.refill_tu, d.refill_den, kho.da_luu), (12, D8(2026, 11, 16), D8(2026, 11, 22), True))
-		nem("có refill thì không xoá mã", lambda: _chay(kho, lambda: btp.xoa_ma_btp("BAWC00123")), Exception)
-		_chay(kho, lambda: btp.luu_refill("BAWC00123", "0", "", ""))
-		la("0 thì bỏ", (d.so_refill, d.refill_tu, d.refill_den), (0, None, None))
+		# v653: lưu đúng một dòng (khoá, UPDATE, nhật ký), không lưu cả bảng.
+		with BangBTP(kho.btp.dong) as b:
+			_chay(kho, lambda: btp.luu_refill("BAWC00123", "12", "2026-11-16", ""))
+			d = kho.btp.dong[0]
+			la("đã lưu", (d.so_refill, d.refill_tu, d.refill_den, kho.da_luu), (12, D8(2026, 11, 16), D8(2026, 11, 22), False))
+			la("nhật ký ba ô refill", sorted(x["truong"] for x in b.nhat_ky), ["refill_den", "refill_tu", "so_refill"])
+			nem("có refill thì không xoá mã", lambda: _chay(kho, lambda: btp.xoa_ma_btp("BAWC00123")), Exception)
+			_chay(kho, lambda: btp.luu_refill("BAWC00123", "0", "", ""))
+			la("0 thì bỏ", (d.so_refill, d.refill_tu, d.refill_den), (0, None, None))
 
 
 @ca("v646 một phép cho 'ngày này thuộc refill của mã': bốn chỗ trừ decor đều gọi refill.ngay_cua_refill")
