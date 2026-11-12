@@ -122,4 +122,62 @@ def _():
 
 	goc = os.path.dirname(os.path.abspath(__file__))
 	r = subprocess.run(["node", os.path.join(goc, "hanh_vi", "nhom_kiem_nvl_650.js")], capture_output=True, text=True)
-	la("node: 8 đạt, 0 hỏng", (r.returncode, r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]), (0, "8 dat, 0 hong"))
+	la("node: 14 đạt, 0 hỏng", (r.returncode, r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]), (0, "14 dat, 0 hong"))
+
+
+@ca("Codex #553 P1 thuần bu_thay_the_nhom: hàng thay thế cùng kho bù phần thiếu; nhóm tự dùng mã thay thì trừ trước; hai mã gốc chung một túi mã thay")
+def _():
+	from vagabond import lo_hang
+
+	K = "Pastry - Nguyên liệu - TV"
+	ra = lo_hang.bu_thay_the_nhom(
+		[{"ma": "CACAO", "kho": K, "can": 0.5, "thieu": 0.5}, {"ma": "BOT", "kho": K, "can": 100, "thieu": 0}],
+		{"CACAO": ["C70"]}, {("C70", K): 1})
+	la("bù đủ", [(r["ma"], r["bu"], r["con"], r["thay"]) for r in ra], [("CACAO", 0.5, 0.0, [("C70", 0.5)])])
+	ra = lo_hang.bu_thay_the_nhom([{"ma": "CACAO", "kho": K, "can": 0.5, "thieu": 0.5}], {"CACAO": ["C70"]}, {("C70", K): 0.2})
+	la("bù một phần", [(r["bu"], r["con"]) for r in ra], [(0.2, 0.3)])
+	ra = lo_hang.bu_thay_the_nhom(
+		[{"ma": "CACAO", "kho": K, "can": 0.5, "thieu": 0.5}, {"ma": "C70", "kho": K, "can": 0.8, "thieu": 0}],
+		{"CACAO": ["C70"]}, {("C70", K): 1})
+	la("nhóm dùng 0,8 mã thay thì chỉ còn 0,2 để bù", [(r["bu"], r["con"]) for r in ra], [(0.2, 0.3)])
+	ra = lo_hang.bu_thay_the_nhom(
+		[{"ma": "A", "kho": K, "can": 3, "thieu": 3}, {"ma": "B", "kho": K, "can": 3, "thieu": 3}],
+		{"A": ["X"], "B": ["X"]}, {("X", K): 4})
+	la("chung một túi, không đếm hai lần", [(r["ma"], r["bu"], r["con"]) for r in ra], [("A", 3, 0.0), ("B", 1, 2)])
+	ra = lo_hang.bu_thay_the_nhom([{"ma": "A", "kho": K, "can": 3, "thieu": 3}], {"A": ["X"]}, {("X", "Kho khác - TV"): 9})
+	la("mã thay ở kho khác không tính", [(r["bu"], r["con"]) for r in ra], [(0.0, 3)])
+
+
+@ca("Codex #553 P1 thay_the_cho_thieu: mã gốc không theo lô chỉ nhận mã thay không theo lô (đúng thay_ma_khong_lo); chỉ đọc; chặn người ngoài bếp")
+def _():
+	from vagabond import lo_hang
+
+	K = "Pastry - Nguyên liệu - TV"
+	lo = {"CACAO": 0, "C70": 0, "C_LO": 1, "BO": 1, "BO_LO": 1, "BO_THUONG": 0}
+	thay = {"CACAO": ["C_LO", "C70"], "BO": ["BO_THUONG", "BO_LO"]}
+	ton = {("C70", K): 1, ("C_LO", K): 9, ("BO_LO", K): 2, ("BO_THUONG", K): 9}
+	ghi = []
+	db = type("DB", (), {"get_value": staticmethod(lambda dt, f, c: ton.get((f["item_code"], f["warehouse"]), 0)),
+		"set_value": staticmethod(lambda *a, **k: ghi.append(a)), "commit": staticmethod(lambda: ghi.append("commit"))})
+	with patch.object(lo_hang, "_theo_lo", lambda m: lo.get(m, 0)), \
+			patch.object(lo_hang, "_cac_ma_thay_the", lambda m: thay.get(m, [])), \
+			patch.object(ksx.frappe, "db", db, create=True), \
+			patch.object(ksx.frappe, "get_cached_value", lambda dt, m, f: {"C70": "Cacao Mass 70%", "BO_LO": "Bơ Anchor"}.get(m, m), create=True), \
+			patch.object(ksx.frappe, "get_roles", lambda *a: ["Manufacturing User"], create=True):
+		ra = ksx.thay_the_cho_thieu('[{"ma":"CACAO","kho":"%s","can":0.5,"thieu":0.5},{"ma":"BO","kho":"%s","can":3,"thieu":3}]' % (K, K))
+	la("CACAO bù bằng C70 (không lấy mã theo lô C_LO)", ra[0], {"ma": "CACAO", "kho": K, "bu": 0.5, "con": 0.0,
+		"thay": [{"ma": "C70", "ten": "Cacao Mass 70%", "sl": 0.5}]})
+	la("BO theo lô chỉ lấy BO_LO", (ra[1]["bu"], ra[1]["con"], [x["ma"] for x in ra[1]["thay"]]), (2, 1, ["BO_LO"]))
+	la("không ghi gì", ghi, [])
+
+	def _throw(msg, *a, **k):
+		raise ksx.frappe.ValidationError(msg)
+
+	with patch.object(ksx.frappe, "get_roles", lambda *a: ["Sales User"], create=True), \
+			patch.object(ksx.frappe, "throw", _throw):
+		try:
+			ksx.thay_the_cho_thieu("[]")
+			chan = False
+		except ksx.frappe.ValidationError:
+			chan = True
+	dung("người ngoài bếp bị chặn", chan)
