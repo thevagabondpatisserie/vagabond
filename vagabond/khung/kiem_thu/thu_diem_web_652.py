@@ -310,3 +310,21 @@ def _():
 	with patch.dict(sys.modules, {"frappe": f, "vagabond.khach_hang": kh, "vagabond.zalo_kich_ban": zkb}):
 		n = dw.hoan_don_web("DW-9", "quét định kỳ")
 	la("lượt quét không hoàn lần hai", (n, ghi), (0, []))
+
+
+@ca("Codex #557 vòng 3 P2: bút tích cuối tháng báo đúng ngày mất theo mốc cuốn chiếu của việc định kỳ")
+def _():
+	from vagabond import diem_han
+	r = dw.sap_het_han([("2026-02-28", 100)], "2026-03-12", 1)
+	la("28/02 hạn 1 tháng mất ngày 01/04", r, {"diem": 100, "ngay": "01/04/2026"})
+	# Ngày báo phải đúng ngày đầu tiên việc định kỳ (mốc = hôm đó lùi han_thang) thấy bút đã quá hạn.
+	for but, hn, han in ((
+			[("2026-01-31", 80)], "2026-02-20", 1), ([("2025-11-30", 50), ("2025-12-31", 60)], "2026-11-20", 12),
+			([("2024-02-29", 70)], "2025-02-10", 12)):
+		r = dw.sap_het_han(but, hn, han)
+		d, m, y = (int(x) for x in r["ngay"].split("/"))
+		ngay = dw.date(y, m, d)
+		truoc = str(dw.cong_thang(ngay - dw.timedelta(days=1), -han))
+		la("%s: hôm trước chưa mất, hôm đó mất" % but, (
+			diem_han.qua_han_cuon_chieu(but, truoc) - diem_han.qua_han_cuon_chieu(but, str(dw.cong_thang(dw._ngay(hn), -han))),
+			diem_han.qua_han_cuon_chieu(but, str(dw.cong_thang(ngay, -han))) > 0), (0, True))
