@@ -110,7 +110,11 @@ NHAN_CACH_THUC = {
 	"Tang mon": "Tặng món",
 	"Dong gia": "Đồng giá",
 	"Giam luy ke": "Giảm luỹ kế",
+	# v652 (anh Việt 12/11/2026): KHÔNG giảm tiền. Máy nhân điểm tích của hoá
+	# đơn khớp thời gian, kênh, đối tượng; hệ số ở ô gia_tri. Xem diem_web.
+	"Nhan diem": "Nhân điểm",
 }
+CACH_NHAN_DIEM = "Nhan diem"
 
 
 def _kiem_quyen():
@@ -403,6 +407,9 @@ def _tinh_mot(km, gio, tong_hd):
 	trong gio chua co - may khach se tu them dong do voi gia 0.
 	"""
 	cach = km.get("cach_thuc") or "Giam tong hoa don"
+	if cach == CACH_NHAN_DIEM:
+		# Hệ số nằm ở gia_tri: đọc như % giảm là giảm oan 2% cho cả bill.
+		return {"giam": 0, "dien_giai": "chương trình nhân điểm, máy cộng điểm khi ghi sổ", "them_mon": []}
 	kieu = km.get("kieu_giam") or "Phan tram"
 	gt = flt(km.get("gia_tri"))
 	them = []
@@ -796,6 +803,9 @@ def ds_ctkm(quay=None, nguon=None, khach=None, sdt=None, ngay=None, tat_ca=0):
 		o["kenh_ds"] = _dong(km.get("kenh"))
 		o["quay_ds"] = [q.upper() for q in _dong(km.get("quay"))]
 		ok, ly_do = _hop_thoi_gian(km)
+		if ok and km.get("cach_thuc") == CACH_NHAN_DIEM and co_don:
+			# Thu ngân không chọn được: máy tự nhân điểm lúc ghi sổ.
+			ok, ly_do = False, "chương trình nhân điểm, máy tự cộng khi ghi sổ, không cần chọn"
 		if ok and co_don:
 			ok, ly_do = _hop_kenh(km, nguon, quay)
 		if ok and (co_don or khach or sdt):
@@ -1781,6 +1791,8 @@ TEN_THU = {"thu_2": "T2", "thu_3": "T3", "thu_4": "T4", "thu_5": "T5", "thu_6": 
 def ly_do_khong_web(km):
 	"""THUAN. Rong la chuong trinh dung duoc khi dat banh tren web; khac rong
 	la cau noi vi sao chi dung tai quay (hien ca o man ERP lan tren web)."""
+	if km.get("cach_thuc") == CACH_NHAN_DIEM:
+		return "Chương trình nhân điểm: máy cộng thêm điểm khi ghi sổ, không giảm tiền."
 	if km.get("cach_thuc") not in CACH_THUC_WEB:
 		return "Chương trình tặng món chỉ dùng tại cửa hàng."
 	if cint(km.get("can_otp")):

@@ -12,8 +12,14 @@ import json
 from datetime import datetime
 
 import frappe
-import requests
 from frappe.utils import now_datetime, get_datetime
+
+# v652: nạp mềm. Bộ kiểm CI không có requests mà ca điểm web nạp diem_otp (kéo
+# zalo); máy chủ thật luôn có requests nên đường gửi tin không đổi.
+try:
+	import requests
+except ImportError:  # pragma: no cover
+	requests = None
 
 from vagabond.lib import TIMEOUT, key
 

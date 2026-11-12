@@ -382,7 +382,28 @@ def toi():
 	ra = {'ok':1, 'ten':kh.get('customer_name',''), 'sdt':noi_dia, 'hang':hang,
 		'diem':diem, 'don':don, 'don_loi':don_loi, 'don_chua_mo':don_chua_mo, 'co_ho_so':bool(kh)}
 	ra.update(_phan_moi(kh, noi_dia))
+	ra['the_le'] = _the_le(kh.get('name'))
 	return ra
+
+
+def _the_le(khach=None):
+	"""v652: khối Thể lệ (hạng, % tích, quyền lợi, luật điểm, điểm sắp hết hạn).
+	Lỗi đọc không được làm hỏng trang thành viên: không có thì trang ẩn khối."""
+	try:
+		from vagabond import diem_web
+
+		return diem_web.the_le(khach)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "thanh_vien: đọc thể lệ")
+		return None
+
+
+@frappe.whitelist(allow_guest=True)
+@rate_limit(limit=60, seconds=600)
+def the_le():
+	"""v652 (anh Việt 12/11/2026): khách CHƯA đăng nhập cũng xem được thể lệ.
+	Không có số riêng của ai."""
+	return {'ok': 1, 'the_le': _the_le(None)}
 
 
 def _phan_moi(kh, noi_dia):

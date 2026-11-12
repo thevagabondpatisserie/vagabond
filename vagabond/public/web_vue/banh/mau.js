@@ -310,6 +310,21 @@ export const MAU = `
       <button class="btn btn-xs" id="btnMa" type="button" @click="kho.apMaUuDai()" style="min-height:44px"><span>{{ t('dat_banh_ap_ma','Áp dụng') }}</span></button></div>
       <div class="hint" id="maHint"><dong-chu :phan="kho.goiYMa.value"/></div>
     </div>
+    <div class="dd-the" id="theDiem" v-if="kho.theDiem.value" :class="'dd-' + (kho.theDiem.value.kieu === 'dung' ? 'goi_y' : kho.theDiem.value.kieu)" role="group" :aria-label="kho.theDiem.value.tieu">
+      <div class="dd-dau"><span class="dd-ic" aria-hidden="true">{{ kho.theDiem.value.kieu === 'da_ap' ? '✓' : '★' }}</span>
+        <div><b class="dd-tieu">{{ kho.theDiem.value.tieu }}</b><small class="dd-phu">{{ kho.theDiem.value.phu }}</small></div></div>
+      <template v-if="kho.theDiem.value.kieu === 'xac_thuc'">
+        <button v-if="S.CO.dd.buoc !== 'ma'" type="button" class="dd-nut" id="dvGuiMa" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ S.CO.dd.dangGui ? t('dat_banh_dd_dang_gui','Đang gửi...') : t('dat_banh_dd_gui_ma','Gửi mã xác thực qua Zalo') }}</button>
+        <div v-else class="dd-otp"><input id="dvMa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" :aria-label="t('dat_banh_dd_o_ma','Mã 6 số trong tin nhắn Zalo')" v-model="S.CO.dd.ma" @keydown.enter.prevent="kho.xacThucDonDau()">
+          <button type="button" class="dd-nut" id="dvXacNhan" :disabled="S.CO.dd.dangGui" @click="kho.xacThucDonDau()">{{ t('dat_banh_dd_xac_nhan','Xác nhận') }}</button></div>
+        <button v-if="S.CO.dd.buoc === 'ma'" type="button" class="dd-lai" id="dvGuiLai" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ t('dat_banh_dd_gui_lai','Gửi lại mã') }}</button>
+        <p class="dd-loi" v-if="S.CO.dd.loi" role="alert">{{ S.CO.dd.loi }}</p>
+        <p class="dd-ghi" v-else-if="S.CO.dd.bao">{{ S.CO.dd.bao }}</p>
+      </template>
+      <button v-if="kho.theDiem.value.kieu === 'dung'" type="button" class="dd-nut" id="dvDung" @click="kho.dungDiem(true)">{{ t('dat_banh_dv_nut', 'Dùng điểm cho đơn này') }}</button>
+      <button v-if="kho.theDiem.value.bo" type="button" class="dd-lai" id="dvBo" @click="kho.dungDiem(false)">{{ t('dat_banh_dv_bo', 'Bỏ dùng điểm') }}</button>
+      <p class="dd-ghi" v-if="kho.theDiem.value.lh">{{ kho.theDiem.value.lh }}</p>
+    </div>
     <div class="fld" id="gtKhoi" v-if="kho.coGioiThieu.value"><label for="f-gt"><span>{{ t('dat_banh_ma_gt','Mã giới thiệu (không bắt buộc)') }}</span></label>
       <input id="f-gt" inputmode="tel" autocomplete="off" maxlength="20" :placeholder="t('dat_banh_ma_gt_goi','Số điện thoại nhân viên giới thiệu')" v-model="S.f.gt" @blur="kho.kiemGioiThieu()" @keydown.enter.prevent="kho.kiemGioiThieu()">
       <div class="hint" id="gtHint"><dong-chu v-if="S.goi.gt" :phan="S.goi.gt"/></div>
@@ -321,7 +336,8 @@ export const MAU = `
       <div class="row"><span>{{ t('gio_hang_nhan_ngay','Nhận ngày') }}</span><b>{{ kho.T.dmy(kho.ngayDangChon.value) }} · {{ kho.gioHopLe.value && S.daChonGio ? kho.slotDangChon.value.t : t('chon_lai_gio','Vui lòng chọn khung giờ còn nhận') }}</b></div>
       <div class="row" v-if="S.CO.mode==='pick'"><span>{{ t('dat_banh_f738100e0','Tự lấy tại') }}</span><b>{{ kho.diemNhanChon.value ? kho.diemNhanChon.value.n : t('dat_banh_chua_chon_diem','Chưa chọn điểm nhận') }}</b></div>
       <div class="row"><span>{{ t('gio_hang_tien_banh','Tiền bánh') }}</span><b>{{ tienTom(kho.tong.value.items) }}</b></div>
-      <div class="row" v-if="kho.tong.value.giam > 0"><span>{{ t('dat_banh_dong_uu_dai','Ưu đãi') }}</span><b>- {{ tienTom(kho.tong.value.giam) }}</b></div>
+      <div class="row" v-if="kho.tong.value.giam - kho.tienDiem.value > 0"><span>{{ t('dat_banh_dong_uu_dai','Ưu đãi') }}</span><b>- {{ tienTom(kho.tong.value.giam - kho.tienDiem.value) }}</b></div>
+      <div class="row" v-if="kho.tienDiem.value > 0"><span>{{ t('dat_banh_dong_diem','Điểm thành viên') }}</span><b>- {{ tienTom(kho.tienDiem.value) }}</b></div>
       <div class="row"><span>{{ kho.tong.value.tt.nhan }}</span><b>{{ kho.tong.value.tt.gia_tri }}</b></div>
       <div class="row tot"><span>{{ kho.tong.value.tt.tong_nhan }}</span><b>{{ tienTom(kho.tong.value.total) }}</b></div>
     </div>

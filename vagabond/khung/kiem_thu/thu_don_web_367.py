@@ -237,6 +237,12 @@ def _hang_so(tep, ten):
 	raise KeyError(ten)
 
 
+DIEM_KHONG = types.SimpleNamespace(
+	thong_tin=lambda sdt, tien_banh, dung: {"trang_thai": "can_xac_thuc", "so_du": 0, "toi_da": 0, "tien_toi_da": 0,
+		"dung": 0, "tien": 0},
+	giu_diem=lambda *a: 0, hoan_don_web=lambda *a: None)
+
+
 def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, tong_pancake=None, thieu_giam_pancake=False, dau=None):
 	"""Dựng môi trường gọi tao_don THẬT, chặn mọi đường ra ngoài.
 
@@ -322,9 +328,13 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_ngay_pancake", "_hoa_don_pancake", "_diem_lay",
 			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm",
 			"_gan_giam_pancake", "_doc_lai_don_pancake", "_tong_pancake",
-			"_gui_pancake", "la_loi_the", "bot_the", "_them_dong", "cau_mien_phi", "_don_dau"):
+			"_gui_pancake", "la_loi_the", "bot_the", "_them_dong", "cau_mien_phi", "_don_dau",
+			"_diem_don", "_diem_hien", "_tra_diem_khi_tu_choi"):
 		nap("don_hang.py", ten, g)
 	g["TEN_THE"] = _hang_so("don_hang.py", "TEN_THE")
+	g["TEN_DIEM"] = _hang_so("don_hang.py", "TEN_DIEM")
+	# v652: điểm thành viên web; ca cũ không dùng điểm (khách chưa xác thực).
+	g.setdefault("diem_web", DIEM_KHONG)
 	g["_bao_lech_tong_pancake"] = lambda *a: vet.su.append(("bao_lech", a))
 	g["MAX_DONG"], g["MAX_SL"] = 30, 20
 	g["_UUID"] = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -1901,7 +1911,10 @@ def _():
 		tra.append(gc)
 	g = dict(frappe=types.SimpleNamespace(db=types.SimpleNamespace(sql=sql, commit=lambda: None, rollback=lambda: None),
 			log_error=lambda *a, **k: None, get_traceback=lambda: ""),
-		khuyen_mai=types.SimpleNamespace(tra_luot_web=tra_luot))
+		khuyen_mai=types.SimpleNamespace(tra_luot_web=tra_luot),
+		# v652: việc định kỳ còn hoàn điểm đơn huỷ; ca này không có đơn giữ điểm.
+		diem_web=types.SimpleNamespace(don_huy_con_giu_diem=lambda: [], hoan_don_web=lambda *a: None))
+	nap("don_hang.py", "_tra_luot_don_huy", g)
 	ham = nap("don_hang.py", "tra_uu_dai_don_huy", g)
 	n = ham()
 	la("một đơn lỗi không chặn đơn sau", (n, tra), (1, ["loi", "Đơn web DW-2"]))

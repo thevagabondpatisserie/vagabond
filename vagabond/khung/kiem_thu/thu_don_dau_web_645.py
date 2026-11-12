@@ -20,7 +20,7 @@ from types import SimpleNamespace as NS
 from vagabond import don_dau_web as dd
 from vagabond import don_web
 from vagabond.khung.kiem_thu.nen import ca, dung, la
-from vagabond.khung.kiem_thu.thu_don_web_367 import _Tra, _dau_gia, _don, _km_gia, _moi_truong_tao_don
+from vagabond.khung.kiem_thu.thu_don_web_367 import DIEM_KHONG, _Tra, _dau_gia, _don, _km_gia, _moi_truong_tao_don
 from vagabond.khung.kiem_thu.thu_su_co_290 import nap
 
 SO = "0931224334"   # số của _don() trong bộ #367
@@ -157,8 +157,11 @@ def _xem(ap_giam=0, ly_do="", dau=None, xet_loi=False):
 		_gia_va_ten=lambda ds: ({m: 450000 for m in ds}, {m: "Bánh " + m for m in ds}),
 		MAX_DONG=30, MAX_SL=20,
 	)
-	for ten in ("_so", "_lam_sach_hang", "_ngay_iso", "_uu_dai_don", "_don_dau"):
+	for ten in ("_so", "_lam_sach_hang", "_ngay_iso", "_uu_dai_don", "_don_dau", "_diem_don", "_diem_hien"):
 		nap("don_hang.py", ten, g)
+	# v652: điểm thành viên web; ca đơn đầu không dùng điểm.
+	g["TEN_DIEM"] = "Điểm thành viên"
+	g["diem_web"] = DIEM_KHONG
 	return nap("don_hang.py", "xem_uu_dai", g), dau, km, log
 
 

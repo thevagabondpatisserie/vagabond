@@ -3,7 +3,7 @@ decor trừ ngay (on_update của doctype, câu UPDATE cộng dồn trên bảng
 sửa bớt thì cộng lại, chốt sổ không trừ lần hai. Chạy trong savepoint của khung."""
 import frappe
 
-from vagabond.khung.kiem_that.nen import _DA_TAO, ca, la
+from vagabond.khung.kiem_that.nen import _DA_TAO, ca, dung, la
 from vagabond.khung.kiem_that.thu_kiem_banh_document import _bang_moi
 
 

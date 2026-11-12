@@ -268,7 +268,8 @@ Máy tự gửi tin Zalo cho khách theo mẫu Zalo đã duyệt. Mỗi kịch b
 5. Bật công tắc, đọc hộp Bật kịch bản rồi bấm [[Bật]].
 
 **Lưu ý**
-- Tin Cảm ơn khi khách nhận đơn, báo điểm đã bật sẵn từ bản 645: bill tại quầy gửi khi bill được ghi sổ (bill lưu nháp ghi sổ muộn vẫn được gửi, tính từ lúc ghi sổ), đơn giao gửi khi Pancake chuyển Đã nhận. Tin này là tin chăm sóc, không có ưu đãi.
+- Bản 652 thêm tin Báo đã hoàn điểm (đơn web không thành) và Nhắc điểm sắp hết hạn: đăng ký mẫu Zalo rồi bật.
+- Tin Cảm ơn khi khách nhận đơn, báo điểm đã bật sẵn từ bản 645: bill tại quầy gửi khi bill được ghi sổ (bill lưu nháp ghi sổ muộn vẫn được gửi, tính từ lúc ghi sổ), đơn giao gửi khi Pancake chuyển Đã nhận.
 - Không gửi sau 20:00. Đơn nhận buổi tối thì sáng hôm sau 8:00 mới gửi.
 - Tin có ưu đãi chỉ gửi khách đã đồng ý nhận tin Zalo. Mỗi khách tối đa một tin ưu đãi mỗi 7 ngày (trừ đền bù).
 - Zalo chỉ cấp hạn mức tin ưu đãi bằng 1/6 số tin chăm sóc đã gửi hai tháng trước, nên phải bật tin cảm ơn trước.
