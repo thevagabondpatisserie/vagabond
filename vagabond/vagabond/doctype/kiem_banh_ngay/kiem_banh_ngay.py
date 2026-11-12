@@ -7,6 +7,7 @@ class KiemBanhNgay(Document):
 	def validate(self):
 		self._chan_huy_am()
 		self._giu_nguon_ton()
+		self._ghi_nguoi_sx()
 		# "Co the ban" TINH o day, khong tin so tu ngoai gui vao.
 		# Ton dau mang dau CONG (chot voi anh Viet 01/08): banh hom qua van
 		# ban duoc, theo doi NSX de uu tien day hang cu di truoc.
@@ -105,7 +106,27 @@ class KiemBanhNgay(Document):
 		from vagabond import btp
 
 		truoc = self._ban_truoc()
-		btp.tru_vo_theo_sx(btp.chenh_sx(getattr(truoc, "dong", None) or [], self.dong))
+		btp.tru_vo_theo_sx(btp.chenh_sx(getattr(truoc, "dong", None) or [], self.dong), nguon=self.name)
+
+	def _ghi_nguoi_sx(self):
+		"""v653 (sự cố Tira 18cm 12/11/2026): ô Bếp làm ghi ai sửa, lúc nào.
+
+		Ô Bếp làm đổi là máy trừ BTP sẵn, Đủ decor (on_update), nên phải biết
+		ai đổi. Đặt ở tầng doctype để mọi đường (màn Kiểm bánh qua luu_o,
+		Desk, API) đều ghi. Ô Bếp làm KHÔNG đổi thì giữ đúng vết cũ trong CSDL,
+		không tin vết gửi lên trong payload, nên đồng bộ hay chốt của máy (không
+		sửa Bếp làm) không bao giờ đè hai ô này."""
+		truoc = self._ban_truoc()
+		cu = {d.get("name"): d for d in (getattr(truoc, "dong", None) or []) if d.get("name")}
+		for d in self.dong:
+			c = cu.get(d.get("name"))
+			sx_moi, sx_cu = int(d.get("sx") or 0), int((c.get("sx") if c is not None else 0) or 0)
+			if sx_moi != sx_cu:
+				d.set("sx_nguoi", frappe.session.user)
+				d.set("sx_luc", now_datetime())
+			elif c is not None:
+				d.set("sx_nguoi", c.get("sx_nguoi"))
+				d.set("sx_luc", c.get("sx_luc"))
 
 	def _ban_truoc(self):
 		"""Bản đang nằm trong CSDL trước lần lưu này, hoặc None nếu là bản mới.
