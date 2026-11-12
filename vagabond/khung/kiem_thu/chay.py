@@ -248,6 +248,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_lay_bu_kho_tong_648,
 	thu_thieu_nvl_650,
 	thu_thue_mua_650,
+	# v650 (anh Việt cho phép 12/11/2026): dọn dòng 33311 tự thêm trên chứng từ mua cũ.
+	thu_bo_thue_cu_650,
 	# v648: bill sàn ghi khuyến mại hoặc thực nhận không còn bị báo Lệch tiền sai.
 	thu_tien_bill_san_648,
 	# v647 tên bàn theo khu (A1, B1, VIP1), in QR bàn đúng branding.
