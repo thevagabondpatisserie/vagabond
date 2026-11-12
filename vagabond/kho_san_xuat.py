@@ -1380,6 +1380,44 @@ def hoan_tat_phieu(phieu, q=None, can=None, lay_bu=None, hoi_lay_bu=None, lay_to
 		"qty_thanh_pham": qty_tp, "phieu_bu": phieu_bu, "da_lay": da_lay if phieu_bu else []}
 
 
+@frappe.whitelist()
+def thay_the_cho_thieu(dong=None):
+	"""Hàng thay thế đã khai bù được bao nhiêu phần thiếu của cả nhóm lệnh.
+
+	Codex #553 (P1): app kiểm nguyên liệu cả nhóm trước khi ghi sổ. Lúc ghi,
+	máy chủ lấy mã thay thế cùng kho (lo_hang.thay_ma_khong_lo cho mã không
+	theo lô, gan_lo cho mã theo lô), nên phép kiểm hỏi đúng luật đó ở đây
+	thay vì app tự đoán. Chỉ đọc, không ghi gì.
+
+	dong: [{ma, kho, can, thieu}] (JSON). Mã gốc theo lô thì chỉ nhận mã thay
+	theo lô, không theo lô thì mã thay không theo lô, đúng như hai đường ghi.
+	Trả [{ma, kho, bu, con, thay: [{ma, ten, sl}]}]."""
+	if not set(frappe.get_roles()) & (set(QUYEN) | {"Manufacturing User", "Stock User"}):
+		frappe.throw("Chỉ bếp, quản lý sản xuất hoặc giám đốc mới kiểm được nguyên liệu.")
+	from vagabond import lo_hang
+
+	if isinstance(dong, str):
+		dong = json.loads(dong or "[]")
+	dong = [d for d in (dong or []) if isinstance(d, dict) and d.get("ma") and d.get("kho")]
+	thay_cua, ton = {}, {}
+	for d in dong:
+		ma, kho = d["ma"], d["kho"]
+		if flt(d.get("thieu")) <= lo_hang.LI_TI:
+			continue
+		if ma not in thay_cua:
+			lo = bool(lo_hang._theo_lo(ma))
+			thay_cua[ma] = [m for m in lo_hang._cac_ma_thay_the(ma) if bool(lo_hang._theo_lo(m)) == lo]
+		for m in thay_cua[ma]:
+			if (m, kho) not in ton:
+				ton[(m, kho)] = flt(frappe.db.get_value("Bin", {"item_code": m, "warehouse": kho}, "actual_qty"))
+	ra = []
+	for r in lo_hang.bu_thay_the_nhom(dong, thay_cua, ton):
+		ra.append({"ma": r["ma"], "kho": r["kho"], "bu": r["bu"], "con": r["con"],
+			"thay": [{"ma": m, "ten": frappe.get_cached_value("Item", m, "item_name") or m, "sl": so}
+				for m, so in r["thay"]]})
+	return ra
+
+
 DIEM_HOAN_TAT = "vgb_hoan_tat_lenh"
 
 

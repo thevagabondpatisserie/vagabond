@@ -163,6 +163,46 @@ def chia_khong_lo(can, con_goc, cac_thay):
 	return round(lay, 6), ra, (thieu if thieu > LI_TI else 0.0)
 
 
+def bu_thay_the_nhom(dong, thay_cua, ton):
+	"""Phần thiếu của cả nhóm lệnh mà hàng thay thế đã khai bù được. THUẦN.
+
+	Codex #553 (P1): hoàn thành cả nhóm kiểm nguyên liệu trước khi ghi, nhưng
+	lúc ghi sổ máy chủ còn lấy mã thay thế cùng kho (`thay_ma_khong_lo`,
+	`gan_lo`). Phép kiểm trước phải tính phần đó, không thì chặn ca máy chủ
+	vẫn ghi được.
+
+	`dong`: [{ma, kho, can, thieu}] mọi nguyên liệu của nhóm; `can` là số cả
+	nhóm dùng, `thieu` là phần còn thiếu sau kho bếp và Kho tổng 307.
+	`thay_cua`: {mã: [mã thay theo thứ tự]}. `ton`: {(mã, kho): tồn}.
+	Mã thay cũng là nguyên liệu của nhóm thì phần nhóm dùng trừ trước; cả
+	nhóm chung một túi tồn, cùng luật `chia_khong_lo` (mã thay theo thứ tự).
+	Trả [{ma, kho, bu, con, thay: [(mã thay, số)]}] cho dòng có thiếu.
+	"""
+	dung = {}
+	for d in dong or []:
+		k = (d.get("ma"), d.get("kho"))
+		dung[k] = dung.get(k, 0.0) + max(flt_thuan(d.get("can")), 0.0)
+	tui = {}
+
+	def con(m, kho):
+		k = (m, kho)
+		if k not in tui:
+			tui[k] = max(flt_thuan((ton or {}).get(k)) - dung.get(k, 0.0), 0.0)
+		return tui[k]
+
+	ra = []
+	for d in dong or []:
+		ma, kho = d.get("ma"), d.get("kho")
+		thieu = max(flt_thuan(d.get("thieu")), 0.0)
+		if thieu <= LI_TI:
+			continue
+		_, thay, con_thieu = chia_khong_lo(thieu, 0, [(m, con(m, kho)) for m in (thay_cua or {}).get(ma) or []])
+		for m, so in thay:
+			tui[(m, kho)] = round(con(m, kho) - so, 6)
+		ra.append({"ma": ma, "kho": kho, "bu": round(thieu - con_thieu, 6), "con": con_thieu, "thay": thay})
+	return ra
+
+
 def cau_thieu_lo(ten_hang, ma, kho, thieu, don_vi, kho_khac, thay_khac=None):
 	"""Câu báo thiếu hàng theo lô. Phải nói việc làm tiếp, không chỉ nói không.
 
