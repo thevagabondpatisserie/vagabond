@@ -61635,10 +61635,13 @@ var DSVN = { nhom: 'Tiền bán', tt: '', vendor: '', tim: '', ky: '', tu: '', d
 /* Codex #450: một nguồn đủ quyền có tới 20.000 dòng, danh sách có thể quá
    50 nguồn. Một chỗ giữ trang đang xem cho cả hai màn: bộ lọc đổi (dấu khác)
    thì về trang đầu, không nhớ trang cũ của bộ lọc khác. */
-// v651: dòng lỗi kèm chữ máy đọc được từ tệp, để kế toán so với PDF.
+/* v651: dòng lỗi kèm chữ máy đọc được từ tệp, để kế toán so với PDF.
+   Codex PR #554: lỗi ghép mảnh mang nhiều mảnh (tiền tố "GD-", dòng tiền, đuôi
+   mã); hiện ĐỦ các mảnh máy giữ (tối đa 3), không chỉ mảnh đầu. */
 function dsvDongLoi(d) {
-  var tho = ((d.tho || [])[0] || '').replace(/\s+/g, ' ').trim();
-  if (tho.length > 120) tho = tho.slice(0, 117) + '...';
+  var tho = (d.tho || []).map(function (x) { return String(x || '').replace(/\s+/g, ' ').trim(); })
+    .filter(Boolean).join(' | ');
+  if (tho.length > 240) tho = tho.slice(0, 237) + '...';
   return 'Dòng ' + d.vi_tri + ': ' + d.ly_do + (tho ? ' Máy đọc được: "' + tho + '"' : '');
 }
 
