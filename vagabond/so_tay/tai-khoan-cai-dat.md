@@ -714,3 +714,23 @@ App chạy trên trình duyệt, không cần tải từ kho ứng dụng.
 
 **Lưu ý**
 - Trên iPhone phải thêm ra màn hình chính thì mới bật được thông báo.
+
+## Kích hoạt WhatsApp và hộp thư hoá đơn
+Từ khoá: WhatsApp, kích hoạt số, PIN, App Secret, Verify token, webhook, hoadon@, mật khẩu hộp thư
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị (anh Việt) | Cài đặt lõi và API (/cai-dat-loi-va-api) | [[Kích hoạt số WhatsApp]], [[Đăng ký nhận sự kiện]] |
+
+Làm một lần sau khi lên bản v653.
+
+**Các bước**
+1. Mục WhatsApp Business: điền PIN 6 số xác minh hai bước, bấm Lưu, bấm [[Kích hoạt số WhatsApp]]. Chip chuyển Đã kích hoạt là gửi được.
+2. Dán App Secret (ứng dụng Vagabond ERP, Cài đặt ứng dụng, Thông tin cơ bản) vào ô App Secret.
+3. Tự đặt một chuỗi Verify token, dán vào ô Verify token, bấm Lưu.
+4. Trên Meta (ứng dụng Vagabond ERP, WhatsApp, Cấu hình): dán Callback URL https://app.thevagabondpatisserie.com/api/method/vagabond.whatsapp.webhook và đúng Verify token, chọn trường messages.
+5. Bấm [[Đăng ký nhận sự kiện]].
+6. Mục Hộp thư hoá đơn nhà cung cấp: dán mật khẩu hộp thư hoadon@, bấm Lưu. Máy đọc mỗi giờ.
+
+**Lưu ý**
+- Máy không bao giờ hiện lại PIN, token, App Secret, mật khẩu; chip chỉ báo Đã khai hay Chưa khai.

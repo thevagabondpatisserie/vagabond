@@ -1398,3 +1398,28 @@ Quán, khách sạn đăng ký đặt sỉ trên web. Sales duyệt, đặt giá
 
 **Lưu ý**
 - Giá sỉ và ai được duyệt: việc này do anh Việt quyết.
+
+## Tin Zalo Bánh có sẵn hôm nay
+Từ khoá: bánh có sẵn, còn bánh gì, tư vấn khách, tin Zalo, ảnh bánh
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, cửa hàng | Nhóm Zalo nhận tin bán hàng | Không cần bấm |
+
+Từ nay: mỗi khi số bán được trên bảng Kiểm bánh hôm nay đổi, máy gửi vào nhóm một ảnh: ảnh từng bánh còn bán, số còn ở góc. Hai tin cách nhau ít nhất 15 phút, từ 08:00 tới 21:30.
+
+**Lưu ý**
+- Số trên ảnh là số BÁN ĐƯỢC của Kiểm bánh lúc gửi; khách chốt thì xem lại màn Kiểm bánh.
+- Nhóm chưa nhận tin này: quản lý tích tin Bánh có sẵn hôm nay ở Cài đặt lõi, mục Bắn tin vào nhóm Zalo.
+
+## Khách không có Zalo nhận mã xác thực qua WhatsApp
+Từ khoá: mã xác thực, OTP, WhatsApp, khách không có Zalo, đăng nhập thành viên
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách, Sales | Trang thành viên, đặt bánh, gọi món tại bàn | [[Gửi mã xác thực]] |
+
+Trước đây: số không có Zalo không nhận được mã. Từ nay: máy luôn gửi Zalo trước; Zalo không gửi được thì gửi WhatsApp, không gửi cả hai. Trang báo đúng kênh, ví dụ Mã đã gửi qua WhatsApp tới số 0903 000 111.
+
+**Lưu ý**
+- Tin ưu đãi cũng rơi sang WhatsApp, chỉ với khách đã đồng ý nhận tin. Khách bấm Ngừng nhận ưu đãi trên WhatsApp thì máy tự gỡ đồng ý.

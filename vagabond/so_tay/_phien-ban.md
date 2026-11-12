@@ -11,6 +11,15 @@ bản đó chưa có mục ở đây, hay tên mục ghi ở đây không có tr
 Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi đúng một dòng
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
+
+## v653
+- Dự chi công nợ: đợt trả nhà cung cấp ngày 10 và 20
+- Hoá đơn nhà cung cấp tự đính từ hộp thư hoadon@
+- Soát và duyệt đợt dự chi công nợ
+- Xem ai đổi BTP sẵn, Đủ decor, Bếp làm
+- Tin Zalo Bánh có sẵn hôm nay
+- Khách không có Zalo nhận mã xác thực qua WhatsApp
+- Kích hoạt WhatsApp và hộp thư hoá đơn
 ## v652
 - Biên tập menu theo điểm bán và ảnh món
 - Khách dùng điểm thành viên khi đặt bánh trên web
