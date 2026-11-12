@@ -187,9 +187,10 @@ def _():
 	def sql(c, ts=None, **k):
 		if "sum(diem)" in c:
 			return [("KH-1", -300000)] if ts[1] == "Đơn web DW-1" else []
+		if "count(*)" in c:  # Codex #557 vòng 2: đã hoàn chưa đọc bằng SQL có khoá
+			return [(1 if da_hoan["x"] else 0,)]
 		return []
 	with patch.object(fr.db, "sql", side_effect=sql), \
-			patch.object(fr.db, "exists", side_effect=lambda dt, f=None: da_hoan["x"]), \
 			patch.dict("sys.modules", {"vagabond.khach_hang": types.SimpleNamespace(
 				_ghi_so_diem=lambda kh, d, loai, si, gc: (so.append((kh, d, loai, gc)), da_hoan.update(x=True)))}), \
 			patch("vagabond.zalo_kich_ban.cho_hoan_diem", lambda kh, don, d: zalo.append((kh, don, d))):
@@ -262,3 +263,50 @@ def _():
 		{"diem": 100, "ngay": "16/11/2026"})
 	la("cùng ngày thì cộng", dw.sap_het_han([("2025-11-15", 100), ("2025-11-15", 50)], "2026-11-12", 12),
 		{"diem": 150, "ngay": "16/11/2026"})
+
+
+class _SoHoanMVCC:
+	"""Sổ điểm giả cho hoàn điểm: đọc thường (kể cả frappe.db.exists) thấy ảnh chụp
+	đầu giao dịch, đọc có khoá thấy bản đã commit."""
+
+	def __init__(self, dong):
+		self.dong, self.anh = list(dong), list(dong)
+
+	def _bang(self, q):
+		return self.dong if ("for update" in q or "lock in share mode" in q) else self.anh
+
+	def sql(self, q, args=None, **k):
+		ql = " ".join(q.lower().split())
+		if "tabvagabond don web" in ql:
+			return []
+		if "tabvagabond so diem" in ql:
+			loai, gc = args[0], args[1]
+			ds = [r for r in self._bang(ql) if r["loai"] == loai and r["ghi_chu"] == gc]
+			if "sum(diem)" in ql:
+				tong = {}
+				for r in ds:
+					tong[r["khach"]] = tong.get(r["khach"], 0) + r["diem"]
+				return [(k2, v) for k2, v in tong.items()]
+			return [(len(ds),)] if "count(" in ql else [(r["name"],) for r in ds]
+		return []
+
+	def exists(self, dt, f):
+		return any(all(r.get(k2) == v for k2, v in f.items()) for r in self.anh)
+
+
+@ca("Codex #557 vòng 2 P1: lượt quét định kỳ và hoàn ngay khi Pancake từ chối chồng nhau thì vẫn hoàn ĐÚNG MỘT lần")
+def _():
+	import sys
+	from vagabond import diem_otp
+
+	gc = dw._ghi_chu("DW-9")
+	so = _SoHoanMVCC([dict(name="B1", khach="KH-1", diem=-50000, loai=diem_otp.LOAI_TRU, ghi_chu=gc)])
+	f = types.SimpleNamespace(db=so, log_error=lambda **k: None, get_traceback=lambda: "")
+	# Lượt quét đã chụp sổ (chưa có bút hoàn) thì lượt hoàn ngay commit bút hoàn 50.000.
+	so.dong.append(dict(name="B2", khach="KH-1", diem=50000, loai=diem_otp.LOAI_HOAN, ghi_chu=gc))
+	ghi = []
+	kh = types.SimpleNamespace(_ghi_so_diem=lambda khach, diem, loai, ref, g: ghi.append((khach, diem, loai)))
+	zkb = types.SimpleNamespace(cho_hoan_diem=lambda *a: None)
+	with patch.dict(sys.modules, {"frappe": f, "vagabond.khach_hang": kh, "vagabond.zalo_kich_ban": zkb}):
+		n = dw.hoan_don_web("DW-9", "quét định kỳ")
+	la("lượt quét không hoàn lần hai", (n, ghi), (0, []))
