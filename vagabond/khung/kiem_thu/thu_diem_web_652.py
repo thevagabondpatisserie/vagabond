@@ -218,3 +218,47 @@ def _():
 	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 	s = open(os.path.join(goc, "vagabond", "khung", "kiem_thu", "thu_cua_ngo.py"), encoding="utf-8").read()
 	dung("the_le", '"the_le"' in s.split('"thanh_vien.py"')[1].split("]")[0])
+
+
+class _SoMVCC:
+	"""Sổ điểm giả theo luật MariaDB REPEATABLE READ: đọc thường thấy ảnh chụp đầu
+	giao dịch, đọc có khoá (FOR UPDATE, LOCK IN SHARE MODE) thấy bản đã commit."""
+
+	def __init__(self, so_du):
+		self.but, self.anh, self.cau = [so_du], so_du, []
+
+	def sql(self, q, args=None, **k):
+		ql = " ".join(q.lower().split())
+		self.cau.append(ql)
+		if "tabcustomer" in ql:
+			return []
+		if "sum(diem)" in ql:
+			khoa = "for update" in ql or "lock in share mode" in ql
+			return [[sum(self.but) if khoa else self.anh]]
+		return []
+
+
+@ca("Codex #557 P1: hai đơn web cùng khách chạy song song không tiêu hai lần một số dư (đọc số dư có khoá sau khi khoá khách)")
+def _():
+	import sys
+	from vagabond import diem_otp
+
+	so = _SoMVCC(50000)
+	f = types.SimpleNamespace(db=so)
+	kh = types.SimpleNamespace(_ghi_so_diem=lambda khach, diem, loai, ref, gc: so.but.append(diem))
+	cd = {"quy_doi": 1.0, "tran_pt": 50.0, "bill_toi_thieu": 10000.0}
+	with patch.dict(sys.modules, {"frappe": f, "vagabond.khach_hang": kh}), patch.object(diem_otp, "frappe", f), \
+			patch.object(dw, "_cd", lambda: cd):
+		# Hai giao dịch cùng chụp số dư 50.000 từ lúc tạo đơn (thong_tin), đơn A ghi trước.
+		a = dw.giu_diem("WEB-A", "KH-1", 50000, 200000)
+		b = dw.giu_diem("WEB-B", "KH-1", 50000, 200000)
+	la("đơn A giữ đủ, đơn B không giữ được", (a, b), (50000, 0))
+	la("sổ không âm", sum(so.but), 0)
+
+
+@ca("Codex #557 P2: điểm sắp hết hạn trả đúng số mất vào ngày đầu tiên, không cộng đợt mất ngày khác")
+def _():
+	la("100 điểm mất 16/11, 200 điểm mất 26/11", dw.sap_het_han([("2025-11-15", 100), ("2025-11-25", 200)], "2026-11-12", 12),
+		{"diem": 100, "ngay": "16/11/2026"})
+	la("cùng ngày thì cộng", dw.sap_het_han([("2025-11-15", 100), ("2025-11-15", 50)], "2026-11-12", 12),
+		{"diem": 150, "ngay": "16/11/2026"})
