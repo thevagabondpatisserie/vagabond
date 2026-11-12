@@ -6715,5 +6715,251 @@
     "nhom": "thanh_vien",
     "mac_dinh": "+ Thêm năm sinh (không bắt buộc)",
     "nhieu_dong": true
+  },
+  "tv7_mua_lai": {
+    "ten": "Thể lệ thành viên: Mua lại",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mua lại",
+    "nhieu_dong": true
+  },
+  "tv7_dang_o": {
+    "ten": "Thể lệ thành viên: Hạng hiện tại",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạng hiện tại",
+    "nhieu_dong": true
+  },
+  "tv7_tu_moc": {
+    "ten": "Thể lệ thành viên: Chi tiêu từ {tien} trong {thang} tháng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chi tiêu từ {tien} trong {thang} tháng",
+    "nhieu_dong": true
+  },
+  "tv7_mo_dau": {
+    "ten": "Thể lệ thành viên: Ngay khi đăng ký thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Ngay khi đăng ký thành viên",
+    "nhieu_dong": true
+  },
+  "tv7_tich_moi": {
+    "ten": "Thể lệ thành viên: tích điểm mỗi hoá đơn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tích điểm mỗi hoá đơn",
+    "nhieu_dong": true
+  },
+  "tv7_giam_moi": {
+    "ten": "Thể lệ thành viên: giảm thẳng mỗi hoá đơn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "giảm thẳng mỗi hoá đơn",
+    "nhieu_dong": true
+  },
+  "tv7_tich_chu": {
+    "ten": "Thể lệ thành viên: Mỗi hoá đơn tích {pt} theo hạng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mỗi hoá đơn tích {pt} theo hạng.",
+    "nhieu_dong": true
+  },
+  "tv7_theo_hang": {
+    "ten": "Thể lệ thành viên: theo hạng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "theo hạng",
+    "nhieu_dong": true
+  },
+  "tv7_dung_chu": {
+    "ten": "Thể lệ thành viên: 1 điểm = 1đ. Tại quầy đọc mã Zalo cho th",
+    "nhom": "thanh_vien",
+    "mac_dinh": "1 điểm = 1đ. Tại quầy đọc mã Zalo cho thu ngân, trên web bấm Dùng điểm lúc thanh toán. Tối đa {tran} tiền bánh.",
+    "nhieu_dong": true
+  },
+  "tv7_han_chu": {
+    "ten": "Thể lệ thành viên: Điểm của mỗi lần tích dùng được {han}. Z",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Điểm của mỗi lần tích dùng được {han}. Zalo nhắc trước {nhac} khi sắp hết hạn.",
+    "nhieu_dong": true
+  },
+  "tv7_thang": {
+    "ten": "Thể lệ thành viên: tháng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tháng",
+    "nhieu_dong": true
+  },
+  "tv7_ngay": {
+    "ten": "Thể lệ thành viên: ngày",
+    "nhom": "thanh_vien",
+    "mac_dinh": "ngày",
+    "nhieu_dong": true
+  },
+  "tv7_han_khac": {
+    "ten": "Thể lệ thành viên: Hạn dùng điểm theo thông báo của cửa hàn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạn dùng điểm theo thông báo của cửa hàng.",
+    "nhieu_dong": true
+  },
+  "tv7_xet_chu": {
+    "ten": "Thể lệ thành viên: Hạng xét theo tổng chi tiêu {thang} gần ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạng xét theo tổng chi tiêu {thang} gần nhất, tại quầy và trên web.",
+    "nhieu_dong": true
+  },
+  "tv7_sap_het": {
+    "ten": "Thể lệ thành viên: {diem} điểm hết hạn ngày {ngay}. Dùng tr",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{diem} điểm hết hạn ngày {ngay}. Dùng trước để không mất.",
+    "nhieu_dong": true
+  },
+  "tv7_mua_lai_rong": {
+    "ten": "Thể lệ thành viên: Đơn này không còn món để mua lại.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đơn này không còn món để mua lại.",
+    "nhieu_dong": true
+  },
+  "tv7_mua_lai_loi": {
+    "ten": "Thể lệ thành viên: Trình duyệt đang chặn lưu giỏ. Quý khách",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Trình duyệt đang chặn lưu giỏ. Quý khách chọn bánh lại ở trang Chọn bánh.",
+    "nhieu_dong": true
+  },
+  "tv7_cac_hang": {
+    "ten": "Thể lệ thành viên: hạng thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "hạng thành viên",
+    "nhieu_dong": true
+  },
+  "tv7_cach_diem": {
+    "ten": "Thể lệ thành viên: điểm hoạt động thế nào",
+    "nhom": "thanh_vien",
+    "mac_dinh": "điểm hoạt động thế nào",
+    "nhieu_dong": true
+  },
+  "tv7_o_tich": {
+    "ten": "Thể lệ thành viên: Tích",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tích",
+    "nhieu_dong": true
+  },
+  "tv7_o_dung": {
+    "ten": "Thể lệ thành viên: Dùng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Dùng",
+    "nhieu_dong": true
+  },
+  "tv7_o_han": {
+    "ten": "Thể lệ thành viên: Hạn dùng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạn dùng",
+    "nhieu_dong": true
+  },
+  "tv7_o_hang": {
+    "ten": "Thể lệ thành viên: Xét hạng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Xét hạng",
+    "nhieu_dong": true
+  },
+  "tv7_dung_diem_web": {
+    "ten": "Thể lệ thành viên: Dùng điểm đặt bánh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Dùng điểm đặt bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_len_hang": {
+    "ten": "Giỏ hàng, điểm thành viên: Mua thêm {tien} trong {thang} tháng để l",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mua thêm {tien} trong {thang} tháng để lên hạng {hang}.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_tieu": {
+    "ten": "Giỏ hàng, điểm thành viên: Dùng điểm thành viên",
+    "nhom": "gio_hang",
+    "mac_dinh": "Dùng điểm thành viên",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_xac_tren": {
+    "ten": "Giỏ hàng, điểm thành viên: Xác thực số ở thẻ phía trên là xem được ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác thực số ở thẻ phía trên là xem được điểm của số {so}.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_xac": {
+    "ten": "Giỏ hàng, điểm thành viên: Xác thực số {so} qua Zalo để xem và dùng",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác thực số {so} qua Zalo để xem và dùng điểm cho đơn này.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_moi": {
+    "ten": "Giỏ hàng, điểm thành viên: Đơn này sẽ tích điểm cho số {so}",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đơn này sẽ tích điểm cho số {so}",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_moi_phu": {
+    "ten": "Giỏ hàng, điểm thành viên: Số này chưa có điểm. Nhận bánh xong, điể",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số này chưa có điểm. Nhận bánh xong, điểm vào tài khoản thành viên.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_cam": {
+    "ten": "Giỏ hàng, điểm thành viên: Hạng của quý khách đã có ưu đãi giảm thẳ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Hạng của quý khách đã có ưu đãi giảm thẳng",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_cam_phu": {
+    "ten": "Giỏ hàng, điểm thành viên: Hạng này không dùng điểm. Nhân viên áp m",
+    "nhom": "gio_hang",
+    "mac_dinh": "Hạng này không dùng điểm. Nhân viên áp mức giảm của hạng khi xác nhận đơn.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_co": {
+    "ten": "Giỏ hàng, điểm thành viên: Quý khách có {diem} điểm",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách có {diem} điểm",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_chua_du": {
+    "ten": "Giỏ hàng, điểm thành viên: Đơn này chưa dùng được điểm (tối đa một ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đơn này chưa dùng được điểm (tối đa một nửa tiền bánh, bill còn lại tối thiểu).",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_da": {
+    "ten": "Giỏ hàng, điểm thành viên: Đã dùng {diem} điểm, giảm {tien}",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã dùng {diem} điểm, giảm {tien}",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_con": {
+    "ten": "Giỏ hàng, điểm thành viên: Còn {con} điểm sau đơn này. Đơn không th",
+    "nhom": "gio_hang",
+    "mac_dinh": "Còn {con} điểm sau đơn này. Đơn không thành thì điểm tự hoàn.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_dung_duoc": {
+    "ten": "Giỏ hàng, điểm thành viên: Đơn này dùng được {diem} điểm, giảm {tie",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đơn này dùng được {diem} điểm, giảm {tien}. Điểm trừ sau mọi ưu đãi, chỉ trên tiền bánh.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_doi": {
+    "ten": "Giỏ hàng, điểm thành viên: Điểm thành viên vừa thay đổi nên chưa tr",
+    "nhom": "gio_hang",
+    "mac_dinh": "Điểm thành viên vừa thay đổi nên chưa trừ điểm. Quý khách xem lại tổng tiền rồi bấm gửi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_nut": {
+    "ten": "Giỏ hàng, điểm thành viên: Dùng điểm cho đơn này",
+    "nhom": "gio_hang",
+    "mac_dinh": "Dùng điểm cho đơn này",
+    "nhieu_dong": true
+  },
+  "dat_banh_dv_bo": {
+    "ten": "Giỏ hàng, điểm thành viên: Bỏ dùng điểm",
+    "nhom": "gio_hang",
+    "mac_dinh": "Bỏ dùng điểm",
+    "nhieu_dong": true
+  },
+  "dat_banh_dong_diem": {
+    "ten": "Giỏ hàng, điểm thành viên: Điểm thành viên",
+    "nhom": "gio_hang",
+    "mac_dinh": "Điểm thành viên",
+    "nhieu_dong": true
   }
 }
