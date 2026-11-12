@@ -107,6 +107,21 @@ class KiemBanhNgay(Document):
 
 		truoc = self._ban_truoc()
 		btp.tru_vo_theo_sx(btp.chenh_sx(getattr(truoc, "dong", None) or [], self.dong), nguon=self.name)
+		self._ghi_nhat_ky_sx(truoc)
+
+	def _ghi_nhat_ky_sx(self, truoc):
+		"""v653 Codex #560: mỗi lần ô Bếp làm đổi đều có một dòng Nhật ký BTP
+		không sửa được (trước, sau, ai, lúc nào), kể cả bánh không có trên bảng
+		BTP. Hai ô sx_nguoi, sx_luc chỉ giữ người sửa sau cùng; lần sửa trước
+		vẫn tra được trong nhật ký. Cùng giao dịch với lần lưu."""
+		from vagabond import btp
+
+		cu = {d.get("name"): d for d in (getattr(truoc, "dong", None) or []) if d.get("name")}
+		for d in self.dong:
+			c = cu.get(d.get("name"))
+			sx_moi, sx_cu = int(d.get("sx") or 0), int((c.get("sx") if c is not None else 0) or 0)
+			if sx_moi != sx_cu and d.get("ma_hang"):
+				btp.ghi_nhat_ky(d.get("ma_hang"), d.get("ten_banh"), "sx", sx_cu, sx_moi, "sua_bep_lam", nguon=self.name)
 
 	def _ghi_nguoi_sx(self):
 		"""v653 (sự cố Tira 18cm 12/11/2026): ô Bếp làm ghi ai sửa, lúc nào.
