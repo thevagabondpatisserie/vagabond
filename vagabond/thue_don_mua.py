@@ -58,6 +58,70 @@ def dong_thue_ra_tu_them(taxes):
 		and abs(float(doc(r, "rate") or 0)) < 1e-9]
 
 
+def kiem_sau_bo(truoc, sau, thue_bo):
+	"""THUẦN: chứng từ cũ sau khi bỏ dòng 33311 tự thêm có thay đổi ĐÚNG phần đó không.
+
+	truoc, sau: {net_total, grand_total, thue_giu, advance_paid}; thue_giu là tổng
+	thuế các dòng còn giữ. Chỉ được giảm tổng đúng bằng phần thuế bỏ (lệch tối đa
+	1 đồng làm tròn); tiền hàng và thuế 1331 giữ nguyên; tiền đã ứng trước không
+	được vượt tổng mới. Trả danh sách lý do, rỗng là đạt."""
+	def f(d, k):
+		return float((d or {}).get(k) or 0)
+
+	loi = []
+	if abs(f(truoc, "net_total") - f(sau, "net_total")) > 0.01:
+		loi.append("tiền hàng đổi")
+	if abs(f(truoc, "thue_giu") - f(sau, "thue_giu")) > 0.01:
+		loi.append("thuế đầu vào đổi")
+	if abs(f(truoc, "grand_total") - float(thue_bo or 0) - f(sau, "grand_total")) > 1:
+		loi.append("tổng không giảm đúng phần thuế bỏ")
+	if f(sau, "advance_paid") > f(sau, "grand_total") + 0.01:
+		loi.append("đã ứng trước nhiều hơn tổng mới")
+	return loi
+
+
+TRUONG_TIEN = ("grand_total", "total_taxes_and_charges", "taxes_and_charges_added")
+
+
+def tinh_bo_thue(cha, dong, bo, lam_tron=None):
+	"""THUẦN: số mới của chứng từ CŨ khi bỏ các dòng thuế `bo`, chỉ bằng phép trừ.
+
+	Không tính lại theo mẫu thuế hiện tại (mẫu có thể đã đổi từ ngày lập chứng từ,
+	tính lại sẽ đổi luôn thuế 1331 đã ghi). cha: các trường tiền của chứng từ (cả
+	base_*), rounded_total, disable_rounded_total. dong: các dòng thuế theo thứ tự
+	{name, tax_amount, base_tax_amount, total, base_total, add_deduct_tax}.
+	Trả (cha_moi, dong_moi) với dong_moi = [{name, idx, total, base_total}] của
+	các dòng giữ lại. lam_tron(x) làm tròn tổng theo tiền tệ."""
+	lam_tron = lam_tron or (lambda x: round(x))
+
+	def f(d, k):
+		return float(d.get(k) or 0)
+
+	def dau(r):
+		return -1.0 if (r.get("add_deduct_tax") or "Add") == "Deduct" else 1.0
+
+	tru, tru_base, dong_moi = 0.0, 0.0, []
+	for i, r in enumerate(dong):
+		if i in bo:
+			tru += dau(r) * f(r, "tax_amount")
+			tru_base += dau(r) * f(r, "base_tax_amount")
+			continue
+		dong_moi.append({"name": r.get("name"), "idx": len(dong_moi) + 1,
+			"total": round(f(r, "total") - tru, 6), "base_total": round(f(r, "base_total") - tru_base, 6)})
+	them = sum(f(dong[i], "tax_amount") for i in bo if dau(dong[i]) > 0)
+	them_base = sum(f(dong[i], "base_tax_amount") for i in bo if dau(dong[i]) > 0)
+	moi = {}
+	for k, d, db in (("grand_total", tru, tru_base), ("total_taxes_and_charges", tru, tru_base),
+			("taxes_and_charges_added", them, them_base)):
+		moi[k] = round(f(cha, k) - d, 6)
+		moi["base_" + k] = round(f(cha, "base_" + k) - db, 6)
+	if not int(cha.get("disable_rounded_total") or 0) and f(cha, "rounded_total"):
+		for p in ("", "base_"):
+			moi[p + "rounded_total"] = lam_tron(moi[p + "grand_total"])
+			moi[p + "rounding_adjustment"] = round(moi[p + "rounded_total"] - moi[p + "grand_total"], 6)
+	return moi, dong_moi
+
+
 def bo_thue_ra_chung_tu_mua(doc, method=None):
 	"""Hook validate của Đơn mua, Phiếu nhập kho, Hoá đơn mua, Báo giá NCC."""
 	if doc.get("docstatus") == 2:
