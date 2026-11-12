@@ -39,6 +39,12 @@ BAT_DAU = "13-Aug-2026"
 TOI_DA_MOI_LUOT = 40
 TOI_DA_TEP = 8 * 1024 * 1024
 TT_DINH, TT_CHO, TT_LINK, TT_KHONG, TT_LOI = "Đã đính", "Chờ khớp", "Chỉ có đường dẫn", "Không phải hoá đơn", "Lỗi"
+# Đã khớp M-Invoice nhưng còn thiếu tệp (chưa có hoá đơn mua để đính XML, hay
+# PDF trong thư không khớp số hoá đơn). Nhịp khớp lại thử tiếp (Codex #560).
+TT_THIEU = "Thiếu tệp"
+# Một thư đọc hỏng (máy chủ không trả nội dung, lỗi ghi) thì lượt sau đọc lại;
+# hỏng đủ số lần này thì thành Việc cần làm cho Thu mua (Codex #560).
+SO_LAN_THU = 5
 TIEN_TO_XML = "XMLHD-"
 
 
@@ -140,6 +146,25 @@ def so_nguyen(v):
 		return None
 
 
+def pdf_cua_so(ten_tep, so):
+	"""THUẦN. Tên tệp PDF có chứa số hoá đơn không. Bỏ số 0 đầu ở CẢ HAI phía:
+	00001234.pdf và HD_1234.pdf đều là hoá đơn 1234 (Codex #560)."""
+	n = so_nguyen(so)
+	if not n:
+		return False
+	return any(so_nguyen(t) == n for t in re.findall(r"\d+", str(ten_tep or "")))
+
+
+def con_thieu(co_xml, co_pdf, co_hoa_don_mua, so_pdf_trong_thu):
+	"""THUẦN. Những việc còn thiếu của một dòng đã khớp M-Invoice; rỗng là xong."""
+	ra = []
+	if co_xml and not co_hoa_don_mua:
+		ra.append("Chờ hoá đơn mua trên ERP để đính XML (máy tự thử lại mỗi giờ)")
+	if not co_pdf and int(so_pdf_trong_thu or 0) > 0:
+		ra.append("PDF trong thư không khớp số hoá đơn: đính tay PDF vào dòng này, máy tự chuyển sang hoá đơn")
+	return ra
+
+
 def khop_ky_hieu(a, b):
 	"""Ký hiệu khớp: bỏ mẫu số đứng đầu (1C25TAA với C25TAA), không phân biệt hoa thường. THUẦN."""
 	a, b = str(a or "").strip().upper(), str(b or "").strip().upper()
@@ -238,21 +263,38 @@ def doc_hop_thu(ch=None):
 				raise RuntimeError("Không mở được hộp thư đến của %s." % ch["dia_chi"])
 			uv = int((m.response("UIDVALIDITY")[1] or [b"0"])[0] or 0)
 			moc = _moc()
-			cuoi = int(moc.get("uid") or 0) if int(moc.get("uv") or 0) == uv else 0
+			cung = int(moc.get("uv") or 0) == uv
+			cuoi = int(moc.get("uid") or 0) if cung else 0
+			# Thư lượt trước đọc hỏng: đọc lại trước (Codex #560: mốc đã qua nó).
+			thu_lai = {int(k): int(v) for k, v in (moc.get("thu_lai") or {}).items()} if cung else {}
 			kq, du = (m.uid("search", None, "UID %d:*" % (cuoi + 1)) if cuoi else m.uid("search", None, "SINCE", BAT_DAU))
 			uids = sorted(int(x) for x in (du[0] or b"").split() if int(x) > cuoi) if kq == "OK" else []
-			for uid in uids[:TOI_DA_MOI_LUOT]:
-				kq, du = m.uid("fetch", str(uid), "(BODY.PEEK[])")
-				tho = next((x[1] for x in (du or []) if isinstance(x, tuple) and len(x) > 1), None)
+			for uid in (sorted(thu_lai) + uids)[:TOI_DA_MOI_LUOT]:
+				ok = False
 				try:
-					if tho:
-						xu_ly_thu(doc_thu_hd(tho, doc_thu), uid)
+					kq, du = m.uid("fetch", str(uid), "(BODY.PEEK[])")
+					tho = next((x[1] for x in (du or []) if isinstance(x, tuple) and len(x) > 1), None)
+					if not tho:
+						raise RuntimeError("Máy chủ thư không trả nội dung thư UID %s." % uid)
+					xu_ly_thu(doc_thu_hd(tho, doc_thu), uid)
 					frappe.db.commit()
+					ok = True
 				except Exception:
 					frappe.db.rollback()
 					frappe.log_error(frappe.get_traceback(), "hoa_don_thu: thư UID %s" % uid)
+				if ok:
+					thu_lai.pop(uid, None)
+				else:
+					n = thu_lai.get(uid, 0) + 1
+					if n >= SO_LAN_THU:
+						thu_lai.pop(uid, None)
+						_ghi_thu_hong(uid, n)
+					else:
+						thu_lai[uid] = n
 				so += 1
-				_ghi_moc({"uv": uv, "uid": uid, "luc": str(frappe.utils.now_datetime())[:19]})
+				cuoi = max(cuoi, uid)
+				_ghi_moc({"uv": uv, "uid": cuoi, "luc": str(frappe.utils.now_datetime())[:19],
+					"thu_lai": {str(k): v for k, v in sorted(thu_lai.items())}})
 				frappe.db.commit()
 		finally:
 			try:
@@ -303,6 +345,17 @@ def _ung_vien(hd):
 		fields=["name", "mst_doi_tac", "so_hd", "ky_hieu"], limit_page_length=0, order_by="ngay_lap desc")
 
 
+def _ghi_thu_hong(uid, so_lan):
+	"""Thư đọc hỏng đủ SO_LAN_THU lần: một dòng Lỗi để Thu mua tìm thư và đính tay."""
+	frappe = _frappe()
+	if frappe.db.exists(DT, {"uid": str(uid), "trang_thai": TT_LOI}):
+		return
+	doc = frappe.get_doc({"doctype": DT, "trang_thai": TT_LOI, "uid": str(uid),
+		"tieu_de": "Thư UID %s máy đọc không được" % uid,
+		"ghi_chu": "Máy đọc thư này hỏng %d lần. Mở webmail hoadon@, tìm thư theo UID hay giờ nhận, tải hoá đơn về đính tay." % so_lan})
+	doc.insert(ignore_permissions=True)
+
+
 def _dinh(b, ten, dt, ten_doc):
 	"""Lưu tệp riêng tư gắn vào một bản ghi; đã có cùng tên thì thôi."""
 	frappe = _frappe()
@@ -325,7 +378,7 @@ def xu_ly_thu(d, uid):
 	hds = [(t, b, doc_xml(b)) for t, b in xml]
 	hds = [x for x in hds if x[2]]
 	chung = {"tieu_de": d.get("tieu_de"), "nguoi_gui": d.get("nguoi_gui"), "gui_luc": d.get("gui_luc") or None,
-		"uid": str(uid), "message_id": d.get("message_id")}
+		"uid": str(uid), "message_id": d.get("message_id"), "pdf_trong_thu": len(pdf)}
 	if not hds:
 		link = duong_dan_hd(d.get("than"))
 		tt = TT_LINK if link else (TT_LOI if pdf else TT_KHONG)
@@ -343,7 +396,7 @@ def xu_ly_thu(d, uid):
 		# Thư một hoá đơn thì mọi PDF thuộc hoá đơn đó; nhiều hoá đơn thì chỉ nhận
 		# PDF có số hoá đơn trong tên tệp.
 		for tp, bp in pdf:
-			if len(hds) == 1 or str(so_nguyen(hd["so"])) in re.sub(r"\D", " ", tp).split():
+			if len(hds) == 1 or pdf_cua_so(tp, hd["so"]):
 				_dinh(bp, tp, DT, doc.name)
 		khop(doc.name)
 	return len(hds)
@@ -356,7 +409,7 @@ def khop(ten):
 
 	frappe = _frappe()
 	d = frappe.get_doc(DT, ten)
-	if d.trang_thai != TT_CHO:
+	if d.trang_thai not in (TT_CHO, TT_THIEU):
 		return 0
 	hd = {"mst_ban": d.mst_ban, "so": d.so_hd, "ky_hieu": d.ky_hieu}
 	u = chon_hd(hd, _ung_vien(hd))
@@ -375,8 +428,14 @@ def khop(ten):
 			_dinh(b, ten_tep_pdf(u.get("ky_hieu") or d.ky_hieu, u.get("so_hd") or d.so_hd)[:-4] + "-NCC.pdf", DT_HD, u["name"])
 		elif pi:
 			_dinh(b, f["file_name"], "Purchase Invoice", pi)
-	d.db_set({"trang_thai": TT_DINH, "hd_dien_tu": u["name"], "hoa_don_mua": pi or None}, update_modified=True)
-	return 1
+	ten_tep = [str(f["file_name"]).lower() for f in tep]
+	# Codex #560: chỉ Đã đính khi đủ tệp. Chưa có hoá đơn mua (XML chưa đính)
+	# hay PDF không khớp thì Thiếu tệp, nhịp khớp lại thử tiếp.
+	thieu = con_thieu(any(t.endswith(".xml") for t in ten_tep), any(t.endswith(".pdf") for t in ten_tep), bool(pi),
+		d.get("pdf_trong_thu"))
+	d.db_set({"trang_thai": TT_THIEU if thieu else TT_DINH, "hd_dien_tu": u["name"], "hoa_don_mua": pi or None,
+		"ghi_chu": "; ".join(thieu)}, update_modified=True)
+	return 0 if thieu else 1
 
 
 def khop_lai(so_ngay=30):
@@ -394,7 +453,7 @@ def khop_lai(so_ngay=30):
 def _khop_lai(so_ngay):
 	frappe = _frappe()
 	n = 0
-	for ten in frappe.get_all(DT, filters={"trang_thai": TT_CHO, "creation": [">", frappe.utils.add_days(frappe.utils.nowdate(), -so_ngay)]},
+	for ten in frappe.get_all(DT, filters={"trang_thai": ["in", [TT_CHO, TT_THIEU]], "creation": [">", frappe.utils.add_days(frappe.utils.nowdate(), -so_ngay)]},
 			pluck="name", limit_page_length=200):
 		try:
 			n += khop(ten)
@@ -416,12 +475,12 @@ def viec(vai):
 		return []
 	ra = []
 	han = frappe.utils.add_days(frappe.utils.nowdate(), -3)
-	for r in frappe.get_all(DT, filters={"trang_thai": ["in", [TT_LINK, TT_LOI, TT_CHO]]},
-			fields=["name", "tieu_de", "trang_thai", "so_hd", "ten_ban", "gui_luc", "creation"], order_by="creation asc", limit_page_length=50):
-		if r.trang_thai == TT_CHO and str(r.creation)[:10] > str(han):
+	for r in frappe.get_all(DT, filters={"trang_thai": ["in", [TT_LINK, TT_LOI, TT_CHO, TT_THIEU]]},
+			fields=["name", "tieu_de", "trang_thai", "so_hd", "ten_ban", "gui_luc", "creation", "ghi_chu"], order_by="creation asc", limit_page_length=50):
+		if r.trang_thai in (TT_CHO, TT_THIEU) and str(r.creation)[:10] > str(han):
 			continue
-		phu = {TT_LINK: "Thư chỉ có đường dẫn, tải hoá đơn về đính tay", TT_LOI: "Thư chỉ có PDF, đính tay vào hoá đơn mua",
-			TT_CHO: "Chưa khớp hoá đơn M-Invoice nào sau 3 ngày"}[r.trang_thai]
+		phu = {TT_LINK: "Thư chỉ có đường dẫn, tải hoá đơn về đính tay", TT_LOI: r.get("ghi_chu") or "Thư chỉ có PDF, đính tay vào hoá đơn mua",
+			TT_CHO: "Chưa khớp hoá đơn M-Invoice nào sau 3 ngày", TT_THIEU: r.get("ghi_chu") or "Còn thiếu tệp"}[r.trang_thai]
 		ra.append(vtd.dong_viec("hoa_don_thu", r.name, r.ten_ban or r.tieu_de or "Hoá đơn trong thư",
 			"%s%s" % (phu, (" · HĐ " + r.so_hd) if r.so_hd else ""), r.gui_luc or r.creation, False))
 	return ra

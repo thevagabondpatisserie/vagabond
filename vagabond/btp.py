@@ -197,9 +197,12 @@ NHAN_LY_DO = {
 	"ban_va": "bản vá nâng cấp",
 	"them_ma": "thêm mã",
 	"xoa_ma": "gỡ mã",
+	"sua_bep_lam": "sửa Bếp làm",
+	"desk": "sửa thẳng trên Desk",
 }
 NHAN_O = {"so_btp": "BTP sẵn", "so_decor": "Đủ decor", "decor_da_lam": "Đã trừ theo Bếp làm",
-	"so_refill": "Refill", "refill_tu": "Refill từ ngày", "refill_den": "Refill tới ngày", "ma": "Mã trên bảng"}
+	"so_refill": "Refill", "refill_tu": "Refill từ ngày", "refill_den": "Refill tới ngày", "ma": "Mã trên bảng",
+	"sx": "Bếp làm"}
 O_HIEN = ("so_btp", "so_decor")
 MAY = {"Administrator", "Guest", ""}
 

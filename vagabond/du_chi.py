@@ -457,6 +457,7 @@ def soan(ngay_dot=None, nguoi=None):
 	_dat_tong(doc)
 	doc.so_du_mb = _so_du_tk_chi()
 	doc.flags.ignore_permissions = True
+	doc.flags.vgb_du_chi = True
 	if not doc.is_new():
 		doc.save(ignore_permissions=True)
 		return doc
@@ -553,8 +554,12 @@ def luu(ma, dong=None):
 		if not x:
 			continue
 		ct = max(Decimal(0), no.get(d.hoa_don, Decimal(0)) - giu.get(d.hoa_don, Decimal(0)))
+		# Codex #560: lưu chỉ ghi chú hay ngày hẹn thì màn không gửi so_tra; giữ
+		# số đang lưu (kẹp theo phần còn trả được), không hiểu thành 0. Số 0
+		# gửi lên rõ ràng vẫn là 0.
+		vao = x.get("so_tra") if ("so_tra" in x and x.get("so_tra") not in (None, "")) else min(tien(d.so_tra), ct)
 		try:
-			st, gh = kiem_so_tra(x.get("so_tra"), ct)
+			st, gh = kiem_so_tra(vao, ct)
 		except ValueError as e:
 			loi.append("%s (%s): %s" % (d.so_hd_ncc or d.hoa_don, d.ten_ncc, e))
 			continue
@@ -568,6 +573,7 @@ def luu(ma, dong=None):
 		frappe.throw("Chưa lưu được %d dòng:<br>%s" % (len(loi), "<br>".join(loi[:8]) + ("<br>và %d dòng nữa" % (len(loi) - 8) if len(loi) > 8 else "")))
 	_dat_tong(doc)
 	doc.flags.ignore_permissions = True
+	doc.flags.vgb_du_chi = True
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return _cho_man(doc)
@@ -590,6 +596,7 @@ def gui(ma):
 	doc.nguoi_lap = frappe.session.user
 	doc.ly_do_tra_lai = ""
 	doc.flags.ignore_permissions = True
+	doc.flags.vgb_du_chi = True
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return _cho_man(doc)
@@ -635,6 +642,7 @@ def duyet(ma, buoc, ly_do=""):
 	else:
 		frappe.throw("Bước duyệt không hợp lệ: %s." % buoc)
 	doc.flags.ignore_permissions = True
+	doc.flags.vgb_du_chi = True
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	if buoc == "gd":
@@ -712,6 +720,10 @@ def _chot(ho, ma):
 	dot = frappe.get_doc(DT, ma, for_update=True)
 	if dot.trang_thai != TT_DA_DUYET:
 		frappe.throw("Đợt %s đang ở %s, chưa chốt được." % (dot.name, NHAN.get(dot.trang_thai)))
+	# Codex #560: không tin riêng ô trạng thái. Đợt phải có dấu giám đốc duyệt
+	# ghi bởi duyet(); thiếu dấu thì không lập APP đã duyệt.
+	if not dot.get("gd_boi") or not dot.get("gd_luc"):
+		frappe.throw("Đợt %s chưa có dấu giám đốc duyệt trên màn Dự chi công nợ, chưa chốt được." % dot.name)
 	ket = {"lap": [], "loi": []}
 	for ncc, ds_dong in gop_theo_ncc([d.as_dict() for d in dot.dong]):
 		ten = [d["name"] for d in ds_dong]
