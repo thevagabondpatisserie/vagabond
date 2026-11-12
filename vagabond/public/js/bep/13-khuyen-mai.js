@@ -510,7 +510,9 @@ var KM_CACH = [
   { k: 'Mua X tang Y', nhan: 'Mua X tặng Y', ic: '🎁', mo: 'Mua 2 tặng 1, mua 3 tặng 1...' },
   { k: 'Tang mon', nhan: 'Tặng món', ic: '🍬', mo: 'Đạt điều kiện thì tặng hẳn một món' },
   { k: 'Dong gia', nhan: 'Đồng giá', ic: '🏷️', mo: 'Kéo món về một mức giá cố định' },
-  { k: 'Giam luy ke', nhan: 'Giảm luỹ kế', ic: '📈', mo: 'Bậc thang: hoá đơn càng lớn giảm càng sâu' }
+  { k: 'Giam luy ke', nhan: 'Giảm luỹ kế', ic: '📈', mo: 'Bậc thang: hoá đơn càng lớn giảm càng sâu' },
+  /* v652 (anh Việt 12/11/2026): không giảm tiền, máy nhân điểm tích khi ghi sổ. */
+  { k: 'Nhan diem', nhan: 'Nhân điểm', ic: '⭐', mo: 'Không giảm tiền. Khách mua đúng thứ, giờ, kênh, hạng đã chọn thì được nhân điểm tích của hạng, ví dụ x2. Máy tự cộng khi ghi sổ, thu ngân không cần chọn.' }
 ];
 function kmNhanCach(k) {
   for (var i = 0; i < KM_CACH.length; i++) if (KM_CACH[i].k === k) return KM_CACH[i];
@@ -908,6 +910,7 @@ function kmChipNho(chu, nen, mau) {
 }
 
 function kmMucGiam(x) {
+  if (x.cach_thuc === 'Nhan diem') return 'x' + num(x.gia_tri) + ' điểm';
   if (x.cach_thuc === 'Dong gia') return 'đồng giá ' + money(x.gia_dong) + 'đ';
   if (x.cach_thuc === 'Giam luy ke') return 'theo bậc';
   if (x.cach_thuc === 'Mua X tang Y' || x.cach_thuc === 'Tang mon') return 'tặng món';
@@ -1086,7 +1089,10 @@ async function kmSheetCtkm(ma) {
       '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:12px;line-height:1.5">' + c.mo + '</div>';
 
     /* --- muc uu dai theo tung cach thuc --- */
-    if (k.cach_thuc === 'Dong gia') {
+    var nd = k.cach_thuc === 'Nhan diem';
+    if (nd) {
+      html += kmO('HỆ SỐ NHÂN ĐIỂM', 'kmGiaTri', k.gia_tri, '2', 'number', 'Ví dụ 2 là khách được gấp đôi điểm của hạng. Nhiều chương trình nhân điểm cùng khớp thì máy lấy hệ số lớn nhất, không nhân chồng.');
+    } else if (k.cach_thuc === 'Dong gia') {
       html += kmO('GIÁ ĐỒNG (đ)', 'kmGiaDong', k.gia_dong, '39000', 'number', 'Mọi món trong phạm vi kéo về mức giá này');
     } else if (k.cach_thuc === 'Giam luy ke') {
       html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:6px 0">CÁC BẬC</div>';
@@ -1106,7 +1112,7 @@ async function kmSheetCtkm(ma) {
     }
 
     /* --- pham vi mon --- */
-    if (k.cach_thuc === 'Giam tong hoa don' || k.cach_thuc === 'Giam gia mon' || k.cach_thuc === 'Dong gia') {
+    if (!nd && (k.cach_thuc === 'Giam tong hoa don' || k.cach_thuc === 'Giam gia mon' || k.cach_thuc === 'Dong gia')) {
       html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">PHẠM VI MÓN</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">' +
         posChipNut('data-kmpv="Ca hoa don"', 'Cả hoá đơn', k.pham_vi === 'Ca hoa don') +
@@ -1119,14 +1125,16 @@ async function kmSheetCtkm(ma) {
     }
 
     /* --- danh sach mon --- */
-    if (k.cach_thuc !== 'Giam tong hoa don' && k.cach_thuc !== 'Giam luy ke') {
+    if (nd) {
+      /* Nhân điểm: không có món, điều kiện tiền, mã hay hạn mức. */
+    } else if (k.cach_thuc !== 'Giam tong hoa don' && k.cach_thuc !== 'Giam luy ke') {
       html += kmHtmlDongMon(k);
     } else if (k.pham_vi === 'Mon chi dinh') {
       html += kmHtmlDongMon(k);
     }
 
     /* --- dieu kien --- */
-    html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">ĐIỀU KIỆN</div>' +
+    if (!nd) html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">ĐIỀU KIỆN</div>' +
       kmO('HOÁ ĐƠN TỪ (đ, để trống là không cần)', 'kmHdTt', k.hd_toi_thieu, '0', 'number') +
       kmO('SỐ MÓN TỐI THIỂU', 'kmSlTt', k.sl_toi_thieu, '0', 'number');
 
@@ -1178,6 +1186,8 @@ async function kmSheetCtkm(ma) {
     }
     if (k.doi_tuong === 'Nhan vien') html += '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">Máy nhận diện qua số điện thoại trên hồ sơ nhân sự, không phải nhân viên tự khai.</div>';
 
+    /* --- ma voucher, chong gian lan: Nhan diem khong co (may chu cung dat Khong can ma) --- */
+    if (!nd) {
     /* --- ma voucher --- */
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">CÁCH PHÁT MÃ</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">' +
@@ -1200,6 +1210,8 @@ async function kmSheetCtkm(ma) {
       kmO('TỐI ĐA MỖI SỐ ĐIỆN THOẠI KHÁCH', 'kmLanKhach', k.lan_moi_khach, '0', 'number') +
       kmO('TỔNG SỐ LƯỢT CẢ CHƯƠNG TRÌNH', 'kmTongLan', k.so_lan_toi_da, '0', 'number') +
       kmOta('GHI CHÚ', 'kmGhiChu', k.ghi_chu, '');
+
+    }
 
     /* --- website (v589): ERP la nguon duy nhat cua uu dai tren web --- */
     html += kmHtmlWeb(k);
