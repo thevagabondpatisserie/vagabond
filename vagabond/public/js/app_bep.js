@@ -11337,6 +11337,11 @@ async function mfgKiemNvlNhom(docs, phan) {
     ra.forEach(function (x) { if (x.lay_tong != null && canTong.indexOf(x.code) < 0) canTong.push(x.code); });
     if (canTong.length) {
       var conTong = await stockOf(canTong, MFG_KHO_TONG);
+      /* Codex #553 vòng 3: dòng lệnh trừ thẳng ở Kho tổng không chuyển kho
+         được, giữ phần đó trước rồi mới chia cho phần bếp thiếu. */
+      ra.forEach(function (x) {
+        if (x.kho === MFG_KHO_TONG && canTong.indexOf(x.code) >= 0) conTong[x.code] = r3((conTong[x.code] || 0) - (x.need || 0));
+      });
       ra.forEach(function (x) {
         if (x.lay_tong == null) return;
         var l = r3(Math.min(Math.max(0, x.thieu || 0), Math.max(0, conTong[x.code] || 0)));
