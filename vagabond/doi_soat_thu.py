@@ -813,6 +813,40 @@ def _ghi_trang_thai(**k):
 	return d
 
 
+def nang_mac_dinh_v651(nguoi_gui, lich):
+	"""THUẦN (Codex #554). Site đã gieo Cài đặt bằng mặc định cũ thì đổi mặc định
+	trong mã không có tác dụng (cau_hinh đọc bảng đã lưu). Trả các ô cần nâng
+	[(doctype, tên dòng, ô, giá trị)], CHỈ ở dòng còn đúng giá trị mặc định cũ:
+	  - Lịch thư GrabFood hằng ngày hạn 12 thành 18;
+	  - Người gửi có đúng một tên miền shinhan.com.vn thêm bccardvn.com.
+	Dòng quản trị đã tự sửa thì để nguyên."""
+	ra = []
+	for r in lich or []:
+		if ((r.get("nguon") or "").strip() == "GrabFood" and r.get("tan_suat") == "Hằng ngày"
+				and int(r.get("han_gio") or 0) == 12):
+			ra.append(("Vagabond Doi Soat Lich Thu", r["name"], "han_gio", 18))
+	for r in nguoi_gui or []:
+		if tach_mien(r.get("ten_mien")) == ["shinhan.com.vn"]:
+			ra.append(("Vagabond Doi Soat Nguoi Gui", r["name"], "ten_mien", "shinhan.com.vn, bccardvn.com"))
+	return ra
+
+
+def _nang_mac_dinh():
+	"""after_migrate, MỘT lần (cờ vgb_ds_thu_v651): nâng dòng Cài đặt còn mặc định
+	cũ. Quản trị đặt lại giá trị cũ sau đó thì không đè."""
+	frappe = _frappe()
+	if frappe.db.get_global("vgb_ds_thu_v651"):
+		return
+	ng = frappe.get_all("Vagabond Doi Soat Nguoi Gui", filters={"parent": CAI_DAT, "parentfield": "ds_nguoi_gui"},
+		fields=["name", "ten_mien"])
+	li = frappe.get_all("Vagabond Doi Soat Lich Thu", filters={"parent": CAI_DAT, "parentfield": "ds_lich_thu"},
+		fields=["name", "nguon", "tan_suat", "han_gio"])
+	for dt, ten, o, v in nang_mac_dinh_v651(ng, li):
+		frappe.db.set_value(dt, ten, o, v, update_modified=False)
+	frappe.db.set_global("vgb_ds_thu_v651", "1")
+	frappe.clear_document_cache(CAI_DAT, CAI_DAT)
+
+
 def gieo_mac_dinh():
 	"""after_migrate: gieo bảng Người gửi tin cậy và Lịch thư MỘT lần khi còn
 	trống (ghi thẳng dòng con, không lưu cả trang Cài đặt để không chạy kiểm tra
@@ -828,6 +862,7 @@ def gieo_mac_dinh():
 		if not (frappe.db.table_exists("Vagabond Doi Soat Nguoi Gui") and frappe.db.table_exists("Vagabond Doi Soat Lich Thu")):
 			return
 		if frappe.db.get_global("vgb_ds_thu_gieo"):
+			_nang_mac_dinh()
 			return
 		for fn, dt, dong in (
 			("ds_nguoi_gui", "Vagabond Doi Soat Nguoi Gui",
@@ -839,6 +874,8 @@ def gieo_mac_dinh():
 			for i, r in enumerate(dong, 1):
 				frappe.get_doc(dict(doctype=dt, parent=CAI_DAT, parenttype=CAI_DAT, parentfield=fn, idx=i, **r)).db_insert()
 		frappe.db.set_global("vgb_ds_thu_gieo", "1")
+		# Gieo bằng mặc định mới rồi: không cần nâng (Codex #554).
+		frappe.db.set_global("vgb_ds_thu_v651", "1")
 		frappe.clear_document_cache(CAI_DAT, CAI_DAT)
 	except Exception:
 		frappe.log_error(title="Đối soát hộp thư: gieo cài đặt mặc định")
