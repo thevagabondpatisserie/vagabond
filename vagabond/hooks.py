@@ -1227,11 +1227,11 @@ scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("va
 
 # v641 (anh Việt duyệt 06/11/2026): đối soát qua hộp thư doisoat@ (doi_soat_thu.py).
 # Đọc hộp thư mỗi 15 phút (Cài đặt tắt thì không làm gì); nhắc thư chưa về 12:30
-# và 17:00; 08:30 nhắc tiền chưa về và giao dịch đối tác chưa có đơn.
+# và 18:30 (v651: anh Việt 12/11/2026 lùi từ 17:00 vì Grab NVHTN gửi lúc 17:00); 08:30 nhắc tiền chưa về và giao dịch đối tác chưa có đơn.
 for _gio_v641, _ham_v641 in (
 	("*/15 * * * *", "vagabond.doi_soat_thu.doc_dinh_ky"),
 	("30 12 * * *", "vagabond.doi_soat_thu.nhac_thieu_thu"),
-	("0 17 * * *", "vagabond.doi_soat_thu.nhac_thieu_thu"),
+	("30 18 * * *", "vagabond.doi_soat_thu.nhac_thieu_thu"),
 	("30 8 * * *", "vagabond.doi_soat_thu.nhac_sang"),
 ):
 	scheduler_events.setdefault("cron", {}).setdefault(_gio_v641, []).append(_ham_v641)

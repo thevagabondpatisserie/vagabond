@@ -69,7 +69,8 @@ NGUON_NOI_BO = "Chuyển tiếp nội bộ"
 NGUOI_GUI_MAC_DINH = (
 	("OnePay", "onepay.vn", 1),
 	("Payoo", "payoo.com.vn", 1),
-	("Shinhan (POS và thẻ tín dụng)", "shinhan.com.vn", 1),
+	# v651 (anh Việt 12/11/2026): thư Shinhan do BC Card Việt Nam ký (d=bccardvn.com).
+	("Shinhan (POS và thẻ tín dụng)", "shinhan.com.vn, bccardvn.com", 1),
 	("Grab", "grab.com, grabtaxi.com", 1),
 	("ShopeeFood", "shopeefood.vn, shopee.vn", 1),
 	("GreenSM (Xanh SM)", "greensm.com, xanhsm.com", 1),
@@ -83,7 +84,7 @@ LICH_MAC_DINH = (
 	("OnePay", "Hằng ngày", 12, 0, 1),
 	("Shinhan POS", "Hằng ngày", 12, 0, 1),
 	("Payoo", "Hằng ngày", 12, 0, 1),
-	("GrabFood", "Hằng ngày", 12, 0, 0),
+	("GrabFood", "Hằng ngày", 18, 0, 0),
 	("ShopeeFood", "Hằng ngày", 12, 0, 0),
 	("Thẻ tín dụng Shinhan", "Hằng tháng", 0, 5, 0),
 	("Grab for Business", "Hằng tháng", 0, 5, 0),
@@ -594,13 +595,13 @@ def tin_gia_danh(nguon, nguoi_gui, luc, ly_do):
 
 
 def tin_thieu_thu(ds, lan):
-	"""THUẦN. Tin 2: thư dự kiến chưa về. lan 1 lúc 12:30, lan 2 lúc 17:00."""
+	"""THUẦN. Tin 2: thư dự kiến chưa về. lan 1 lúc 12:30, lan 2 lúc 18:30."""
 	dong = ["%s%s, %s" % (x["vendor"], (" (tài khoản %s)" % x["tai_khoan"]) if x.get("tai_khoan") else "",
 		("ngày " + _dm(x["ngay"])) if len(x["ngay"]) > 7 else _dm(x["ngay"])) for x in ds[:8]]
 	if len(ds) > 8:
 		dong.append("và %s thư nữa" % (len(ds) - 8))
-	dong.append("Thư về muộn thì máy tự nhận. Quá 17:00 vẫn chưa về: hỏi đối tác hoặc tải tay (chờ Giám đốc duyệt)."
-		if lan == 1 else "Vẫn chưa về sau 17:00: hỏi đối tác, hoặc tải tay tệp gốc (chờ Giám đốc duyệt).")
+	dong.append("Thư về muộn thì máy tự nhận. Quá 18:30 vẫn chưa về: hỏi đối tác hoặc tải tay (chờ Giám đốc duyệt)."
+		if lan == 1 else "Vẫn chưa về sau 18:30: hỏi đối tác, hoặc tải tay tệp gốc (chờ Giám đốc duyệt).")
 	return ("Còn %s thư đối soát chưa về" % len(ds), dong)
 
 
@@ -1623,7 +1624,7 @@ def con_thieu_thu(nguon=None):
 
 
 def nhac_thieu_thu():
-	"""12:30 và 17:00 mỗi ngày."""
+	"""12:30 và 18:30 mỗi ngày (v651: lùi từ 17:00, Grab NVHTN gửi lúc 17:00)."""
 	frappe = _frappe()
 	try:
 		ds = _thieu_hien()
