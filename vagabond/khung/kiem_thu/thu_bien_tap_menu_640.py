@@ -335,7 +335,7 @@ def _feed():
 def _node():
 	r = subprocess.run(["node", str(GOC / "vagabond/khung/kiem_thu/hanh_vi/bien_tap_menu_640.js")], capture_output=True, text=True, timeout=120)
 	dung("node chạy được: " + (r.stdout[-1500:] + r.stderr[-800:]), r.returncode == 0)
-	dung("đủ số ca", "16 ca dat, 0 ca hong" in r.stdout)
+	dung("đủ số ca", "17 ca dat, 0 ca hong" in r.stdout)
 
 
 @ca("v642 (anh Việt 06/11/2026): tuỳ chọn, topping riêng từng món ba nấc: Có bật thêm dù nhóm không áp, Không tắt, Theo nhóm; trang bàn, cửa gọi món và màn Tính tiền cùng thấy")
