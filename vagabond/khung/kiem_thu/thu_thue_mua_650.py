@@ -106,6 +106,30 @@ def _():
 	la("không truyền thuế: như cũ, món chưa khai", (g[0]["mon"][0]["thue"], g[0]["tien_thue"]), (None, 0))
 
 
+@ca("Codex #553 vòng 4: màn Gom yêu cầu mua đếm tồn đúng Kho tổng 307, không cộng tồn bếp vào chip Kho tổng")
+def _():
+	from unittest.mock import patch
+
+	from vagabond import duyet_ycmh as dy
+	from vagabond import gom_mua as gm
+	from vagabond.kho_san_xuat import KHO_GOC
+
+	bin_ = {("A", KHO_GOC): 0.0, ("A", "Pastry - Nguyên liệu - TV"): 5000.0}
+
+	def boi_canh(ma, bo_qua_phieu=None, kho=None):
+		# Đúng hợp đồng của duyet_ycmh.boi_canh_hang: có kho thì `ton` chỉ đếm kho đó.
+		return {m: {"ton": sum(v for (mm, k), v in bin_.items() if mm == m and (not kho or k == kho)),
+			"ton_tat_ca": sum(v for (mm, k), v in bin_.items() if mm == m), "cho_ve": 0.0} for m in ma}
+
+	dong = [{"ten": "r1", "phieu": "YCMH-1", "ma": "A", "ten_mon": "Bơ", "xin": 2000, "dvt": "Gram", "ngay": "2026-11-12"}]
+	with patch.object(gm, "_kiem_quyen", lambda: None), patch.object(gm, "dong_cho_gom", lambda: dong), \
+			patch.object(gm, "_ncc_cua", lambda m: ({"A": "NCC"}, {"NCC": "An Phú"})), \
+			patch.object(gm, "_gia_anh", lambda m: ({"A": 0.25}, {})), patch.object(gm, "_thue", lambda m: {}), \
+			patch.object(dy, "boi_canh_hang", boi_canh):
+		ra = gm.ds()
+	la("Kho tổng 0 dù bếp còn 5000", ra["nhom"][0]["mon"][0]["ton"], 0.0)
+
+
 @ca("v650 app: màn Gom yêu cầu mua chạy bộ kiểm hành vi node (chip, VAT, nút không tràn ngang)")
 def _():
 	import os
