@@ -18,6 +18,8 @@ Vì sao làm được an toàn:
 - Kiểm trước khi ghi: tổng cũ phải bằng tiền hàng cộng thuế (lệch tối đa 1 đồng),
   và sau khi trừ thì tiền hàng, thuế 1331 giữ nguyên, ứng trước không vượt tổng
   mới (thue_don_mua.kiem_sau_bo). Không đạt thì bỏ qua, liệt kê vào Error Log.
+- Codex #553: trừ theo số thuế SAU giảm giá trên tổng (tax_amount_after_discount_amount),
+  và chia lại lịch thanh toán của đơn mua theo tổng mới, giữ phần đã trả.
 - Mỗi chứng từ đã sửa có một dòng ghi chú ghi số trước và sau.
 """
 
@@ -73,14 +75,21 @@ def sua_mot(dt, ten):
 	cot = [k for k in TRUONG_CHA + ("company",) if meta.has_field(k)]
 	cha = frappe.db.get_value(dt, ten, cot, as_dict=True) or {}
 	dong = frappe.get_all("Purchase Taxes and Charges", filters={"parenttype": dt, "parent": ten, "parentfield": "taxes"},
-		fields=["name", "idx", "account_head", "charge_type", "rate", "tax_amount", "base_tax_amount", "total",
+		fields=["name", "idx", "account_head", "charge_type", "rate", "tax_amount", "base_tax_amount",
+			"tax_amount_after_discount_amount", "base_tax_amount_after_discount_amount", "total",
 			"base_total", "add_deduct_tax"], order_by="idx asc", limit_page_length=0)
 	bo = tdm.dong_thue_ra_tu_them(dong)
 	if not bo:
 		return None
 	ten_bo = [dong[i]["name"] for i in bo]
-	thue_bo = sum(flt(dong[i]["tax_amount"]) for i in bo)
-	thue_giu = sum(flt(r["tax_amount"]) for i, r in enumerate(dong) if i not in bo)
+
+	def thue(r):
+		# Số SAU giảm giá trên tổng (Codex #553), chứng từ không giảm thì bằng tax_amount.
+		v = r.get("tax_amount_after_discount_amount")
+		return flt(v if v is not None else r.get("tax_amount"))
+
+	thue_bo = sum(thue(dong[i]) for i in bo)
+	thue_giu = sum(thue(r) for i, r in enumerate(dong) if i not in bo)
 	if abs(flt(cha.get("grand_total")) - flt(cha.get("net_total")) - flt(cha.get("total_taxes_and_charges"))) > 1:
 		return {"ten": ten, "loi": ["tổng cũ không bằng tiền hàng cộng thuế"]}
 
@@ -94,11 +103,26 @@ def sua_mot(dt, ten):
 	if loi:
 		return {"ten": ten, "loi": loi}
 
+	# Codex #553: lịch thanh toán của đơn mua theo tổng mới, tính xong mới ghi.
+	lich_moi = []
+	if meta.get_field("payment_schedule"):
+		lich = frappe.get_all("Payment Schedule", filters={"parenttype": dt, "parent": ten},
+			fields=["name", "invoice_portion", "payment_amount", "paid_amount", "base_paid_amount", "discounted_amount"],
+			order_by="idx asc", limit_page_length=0)
+		lam_tron_bat = not int(cha.get("disable_rounded_total") or 0) and flt(moi.get("rounded_total"))
+		lich_moi, loi_lich = tdm.chia_lich_tra(lich,
+			flt(moi["rounded_total"] if lam_tron_bat else moi["grand_total"]),
+			flt(moi.get("base_rounded_total") if lam_tron_bat else moi.get("base_grand_total")))
+		if loi_lich:
+			return {"ten": ten, "loi": loi_lich}
+
 	moi.update(_bang_chu(dt, cha, moi))
 	frappe.db.set_value(dt, ten, {k: v for k, v in moi.items() if meta.has_field(k)}, update_modified=False)
 	for r in dong_moi:
 		frappe.db.set_value("Purchase Taxes and Charges", r["name"],
 			{"idx": r["idx"], "total": r["total"], "base_total": r["base_total"]}, update_modified=False)
+	for r in lich_moi:
+		frappe.db.set_value("Payment Schedule", r.pop("name"), r, update_modified=False)
 	frappe.db.delete("Purchase Taxes and Charges", {"name": ["in", ten_bo]})
 	frappe.db.delete("Item Wise Tax Detail", {"parenttype": dt, "parent": ten, "tax_row": ["in", ten_bo]})
 	frappe.get_doc({"doctype": "Comment", "comment_type": "Comment", "reference_doctype": dt, "reference_name": ten,
