@@ -158,12 +158,14 @@ def menu_mac_dinh(do_uong, topping, ds_tc):
 	}
 
 
-def chuan_menu(menu, ma_hop_le, tp_hop_le):
+def chuan_menu(menu, ma_hop_le, tp_hop_le, banh_hop_le=()):
 	"""Menu quản lý gửi lên -> menu đã chuẩn hoá. Sai cấu trúc thì ValueError với
 	câu quản lý đọc được; mã món, mã topping không còn trong danh mục thì lặng
 	lẽ bỏ (món vừa ngừng bán giữa lúc sửa). THUẦN.
 
-	ma_hop_le: tập mã món nước của điểm; tp_hop_le: tập mã topping của điểm."""
+	ma_hop_le: tập mã món nước của điểm; tp_hop_le: tập mã topping của điểm;
+	banh_hop_le (v652): mã bánh từng bày ở tủ của điểm. Bánh chỉ giữ ảnh và mô tả
+	riêng trên web, không vào nhóm nước, không tuỳ chọn, không topping."""
 	if isinstance(menu, str):
 		try:
 			menu = json.loads(menu or "{}")
@@ -172,6 +174,7 @@ def chuan_menu(menu, ma_hop_le, tp_hop_le):
 	if not isinstance(menu, dict):
 		raise ValueError("Menu gửi lên không đọc được. Tải lại màn rồi sửa lại.")
 	ma_hop_le, tp_hop_le = set(ma_hop_le or []), set(tp_hop_le or [])
+	banh_hop_le = set(banh_hop_le or []) - ma_hop_le
 	nhom_vao = menu.get("nhom") or []
 	if not isinstance(nhom_vao, list) or len(nhom_vao) > NHOM_TOI_DA:
 		raise ValueError("Menu tối đa %d nhóm." % NHOM_TOI_DA)
@@ -266,7 +269,7 @@ def chuan_menu(menu, ma_hop_le, tp_hop_le):
 	ten_tc_dung = {t["ten"] for t in tuy_chon}
 	for ma, o in mon_vao.items():
 		ma = str(ma or "").strip()
-		if ma not in ma_hop_le or not isinstance(o, dict):
+		if (ma not in ma_hop_le and ma not in banh_hop_le) or not isinstance(o, dict):
 			continue
 		r = {}
 		mo_ta = _str(o.get("mo_ta"), DAI_MO_TA)
@@ -275,6 +278,10 @@ def chuan_menu(menu, ma_hop_le, tp_hop_le):
 		anh = str(o.get("anh") or "").strip()
 		if MAU_ANH.match(anh):
 			r["anh"] = anh
+		if ma in banh_hop_le:
+			if r:
+				mon[ma] = r
+			continue
 		tat_tc = [x for x in (o.get("tat_tc") or []) if x in ten_tc_dung]
 		if tat_tc:
 			r["tat_tc"] = sorted(set(tat_tc))
@@ -374,6 +381,14 @@ def ap_menu(menu, do_uong):
 			nhom_ra.append({"ma": g["ma"], "ten": g["ten"], "loai": "nuoc"})
 			uong_ra.extend(cac)
 	return nhom_ra, uong_ra
+
+
+def rieng_banh(menu, ma, anh_goc, mo_ta_goc):
+	"""v652 (anh Việt 12/11/2026, Minh Vũ không vào được danh mục món): ảnh và mô
+	tả bánh khách thấy ở menu tại quầy, trang bàn. Sửa riêng trong Biên tập menu
+	thì dùng bản riêng, để trống thì dùng danh mục món. Trả (ảnh, mô tả). THUẦN."""
+	r = ((menu or {}).get("mon") or {}).get(str(ma or "")) or {}
+	return (r.get("anh") or anh_goc or ""), (r.get("mo_ta") or mo_ta_goc or "")
 
 
 def tc_cho_quay(menu, do_uong):
@@ -570,6 +585,39 @@ def menu_dang_chay(diem):
 	return doc_noi_dung(ds[0].get("noi_dung")), cint(ds[0].get("phien"))
 
 
+SO_NGAY_BANH = 60
+
+
+def banh_cua_diem(diem, hom_nay=None):
+	"""v652: bánh từng bày trên tủ của điểm trong SO_NGAY_BANH ngày gần đây (lấy
+	từ bảng Kiểm kho điểm), để quản lý sửa ảnh, mô tả trước khi bánh lên tủ.
+	[{ma, ten, anh, mo_ta, gia}] theo tên."""
+	from frappe.utils import add_days, getdate
+
+	from vagabond import diem_ban, goi_mon_ban, kiem_kho
+
+	ngay = getdate(hom_nay) if hom_nay else getdate()
+	ma = [r[0] for r in frappe.db.sql(
+		"select distinct d.ma_hang from `tab%s` d join `tab%s` p on p.name = d.parent "
+		"where d.parenttype = %%s and p.diem = %%s and p.ngay between %%s and %%s"
+		% (kiem_kho.DT_DONG, kiem_kho.DT), (kiem_kho.DT, diem, add_days(ngay, -SO_NGAY_BANH), ngay)) if r and r[0]]
+	if not ma:
+		return []
+	ds = frappe.get_all("Item", filters={"item_code": ["in", ma], "disabled": 0},
+		fields=["item_code", "item_name", "image", "standard_rate", "description"],
+		limit_page_length=0, ignore_permissions=True)
+	# Giá đúng như khách thấy ở điểm này: bảng giá điểm bán, không có thì giá chung.
+	gia_diem = diem_ban.gia_rieng(diem)
+	return sorted(({"ma": x["item_code"], "ten": x.get("item_name") or x["item_code"], "anh": x.get("image") or "",
+		"mo_ta": goi_mon_ban.mo_ta_ngan(x.get("description")),
+		"gia": goi_mon_ban.gia_mon(x["item_code"], gia_diem, x.get("standard_rate") or 0)} for x in ds),
+		key=lambda x: bo_dau(x["ten"]))
+
+
+def _hop_le(do_uong, topping, banh):
+	return ({str(x["ma"]) for x in do_uong}, {str(t["ma"]) for t in topping}, {str(b["ma"]) for b in banh or []})
+
+
 def _du_lieu(diem, hom_nay=None):
 	from vagabond import goi_mon_ban
 
@@ -602,8 +650,9 @@ def menu_hien_hanh(diem, do_uong=None, topping=None):
 	return menu_mac_dinh(do_uong, topping, goi_mon_ban.doc_tuy_chon())
 
 
-def _ten_tra(do_uong, topping):
-	ten = {str(x["ma"]): x.get("ten") or x["ma"] for x in do_uong or []}
+def _ten_tra(do_uong, topping, banh=()):
+	ten = {str(b["ma"]): b.get("ten") or b["ma"] for b in banh or []}
+	ten.update({str(x["ma"]): x.get("ten") or x["ma"] for x in do_uong or []})
 	ten.update({str(t["ma"]): t.get("ten") or t["ma"] for t in topping or []})
 	return ten
 
@@ -635,11 +684,11 @@ def mo(diem=None):
 		dang = menu_mac_dinh(do_uong, topping, goi_mon_ban.doc_tuy_chon())
 	nhap_dong = _dong(d["ma"], NHAP)
 	nhap = doc_noi_dung(nhap_dong[0].get("noi_dung")) if nhap_dong else None
-	ma_hop_le = {str(x["ma"]) for x in do_uong}
-	tp_hop_le = {str(t["ma"]) for t in topping}
-	nhap = chuan_menu(nhap or dang, ma_hop_le, tp_hop_le)
-	dang_sach = chuan_menu(dang, ma_hop_le, tp_hop_le)
-	ten = _ten_tra(do_uong, topping)
+	banh = banh_cua_diem(d["ma"])
+	ma_hop_le, tp_hop_le, banh_hop_le = _hop_le(do_uong, topping, banh)
+	nhap = chuan_menu(nhap or dang, ma_hop_le, tp_hop_le, banh_hop_le)
+	dang_sach = chuan_menu(dang, ma_hop_le, tp_hop_le, banh_hop_le)
+	ten = _ten_tra(do_uong, topping, banh)
 	lich_su = [{"phien": cint(r.phien), "luc": str(r.luc or ""), "boi": r.boi or "", "thay_doi": r.thay_doi or ""}
 		for r in _dong(d["ma"], XUAT)[:LICH_SU]]
 	return {
@@ -653,6 +702,8 @@ def mo(diem=None):
 			"khong_pha": int(x.get("khong_pha") or 0), "mo_ta": x.get("mo_ta") or "", "ban_web": int(x.get("ban_web", 1))}
 			for x in do_uong],
 		"topping": [{"ma": t["ma"], "ten": t["ten"], "gia": t["gia"]} for t in topping],
+		# v652: bánh từng bày ở tủ điểm này, sửa ảnh và mô tả riêng cho menu tại quầy.
+		"banh": banh,
 		"chua_xep": mon_chua_xep(nhap, do_uong),
 		"lich_su": lich_su,
 	}
@@ -676,16 +727,16 @@ def luu_nhap(diem=None, noi_dung=None):
 	_kiem_quyen()
 	d, _ = _chon_diem(diem)
 	do_uong, topping = _du_lieu(d["ma"])
-	ma_hop_le = {str(x["ma"]) for x in do_uong}
-	tp_hop_le = {str(t["ma"]) for t in topping}
+	banh = banh_cua_diem(d["ma"])
+	ma_hop_le, tp_hop_le, banh_hop_le = _hop_le(do_uong, topping, banh)
 	try:
-		menu = chuan_menu(noi_dung, ma_hop_le, tp_hop_le)
+		menu = chuan_menu(noi_dung, ma_hop_le, tp_hop_le, banh_hop_le)
 	except ValueError as e:
 		frappe.throw(str(e))
 	_luu_nhap(d["ma"], menu)
 	frappe.db.commit()
-	dang = chuan_menu(menu_hien_hanh(d["ma"], do_uong, topping), ma_hop_le, tp_hop_le)
-	return {"ok": 1, "thay_doi": khac_nhau(dang, menu, _ten_tra(do_uong, topping)),
+	dang = chuan_menu(menu_hien_hanh(d["ma"], do_uong, topping), ma_hop_le, tp_hop_le, banh_hop_le)
+	return {"ok": 1, "thay_doi": khac_nhau(dang, menu, _ten_tra(do_uong, topping, banh)),
 		"chua_xep": mon_chua_xep(menu, do_uong)}
 
 
@@ -715,15 +766,15 @@ def xuat_ban(diem=None):
 	_kiem_quyen()
 	d, _ = _chon_diem(diem)
 	do_uong, topping = _du_lieu(d["ma"])
-	ma_hop_le = {str(x["ma"]) for x in do_uong}
-	tp_hop_le = {str(t["ma"]) for t in topping}
+	banh = banh_cua_diem(d["ma"])
+	ma_hop_le, tp_hop_le, banh_hop_le = _hop_le(do_uong, topping, banh)
 	nhap_dong = _dong(d["ma"], NHAP)
 	nhap = doc_noi_dung(nhap_dong[0].get("noi_dung")) if nhap_dong else None
 	if not nhap:
 		frappe.throw("Chưa có bản nháp nào để xuất bản.")
-	nhap = chuan_menu(nhap, ma_hop_le, tp_hop_le)
-	dang = chuan_menu(menu_hien_hanh(d["ma"], do_uong, topping), ma_hop_le, tp_hop_le)
-	thay_doi = khac_nhau(dang, nhap, _ten_tra(do_uong, topping))
+	nhap = chuan_menu(nhap, ma_hop_le, tp_hop_le, banh_hop_le)
+	dang = chuan_menu(menu_hien_hanh(d["ma"], do_uong, topping), ma_hop_le, tp_hop_le, banh_hop_le)
+	thay_doi = khac_nhau(dang, nhap, _ten_tra(do_uong, topping, banh))
 	_, phien_cu = menu_dang_chay(d["ma"])
 	if not thay_doi and phien_cu:
 		return {"ok": 1, "phien": phien_cu, "khong_doi": 1}
@@ -751,9 +802,9 @@ def khoi_phuc(diem=None, phien=None):
 	if not cu:
 		frappe.throw("Không tìm thấy bản xuất bản phiên %s." % phien)
 	do_uong, topping = _du_lieu(d["ma"])
-	ma_hop_le = {str(x["ma"]) for x in do_uong}
-	tp_hop_le = {str(t["ma"]) for t in topping}
-	cu = chuan_menu(cu, ma_hop_le, tp_hop_le)
-	dang = chuan_menu(menu_hien_hanh(d["ma"], do_uong, topping), ma_hop_le, tp_hop_le)
-	thay_doi = ["Quay về bản phiên %d" % phien] + khac_nhau(dang, cu, _ten_tra(do_uong, topping))
+	banh = banh_cua_diem(d["ma"])
+	ma_hop_le, tp_hop_le, banh_hop_le = _hop_le(do_uong, topping, banh)
+	cu = chuan_menu(cu, ma_hop_le, tp_hop_le, banh_hop_le)
+	dang = chuan_menu(menu_hien_hanh(d["ma"], do_uong, topping), ma_hop_le, tp_hop_le, banh_hop_le)
+	thay_doi = ["Quay về bản phiên %d" % phien] + khac_nhau(dang, cu, _ten_tra(do_uong, topping, banh))
 	return {"ok": 1, "phien": _xuat(d["ma"], cu, thay_doi)}

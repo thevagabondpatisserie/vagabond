@@ -64,6 +64,13 @@ KICH_BAN = (
 		"giai_thich": "Gửi một lần cho mỗi đơn lúc khách nhận: bill tại quầy khi tính tiền xong, đơn giao khi Pancake chuyển Đã nhận. Mã đơn, điểm của đơn, tổng điểm, hạng. Tin chăm sóc, không có ưu đãi.",
 		"km": 0, "kieu": "", "mau": "659376", "so_ngay": 0, "nhac_lai": 0, "han": 14, "doi_chung": 0, "tran_tuan": 0,
 	},
+	# v652 (anh Việt 12/11/2026): báo hoàn điểm đơn web; tin chăm sóc, không voucher.
+	{
+		"ma": "hoan_diem",
+		"ten": "Báo đã hoàn điểm cho đơn web không thành",
+		"giai_thich": "Khách dùng điểm khi đặt trên web mà đơn bị huỷ hoặc không gửi được: máy hoàn điểm và báo khách số điểm đã hoàn, mã đơn.",
+		"km": 0, "kieu": "", "mau": "", "so_ngay": 0, "nhac_lai": 0, "han": 0, "doi_chung": 0, "tran_tuan": 0,
+	},
 	{
 		"ma": "den_bu_nhe",
 		"ten": "Đền bù sự cố mức nhẹ",
@@ -131,6 +138,14 @@ KICH_BAN = (
 		"giai_thich": "Mã riêng của khách (Ví quà, tin Zalo, đền bù) còn số ngày đã đặt mà chưa dùng: nhắc đúng một lần.",
 		"km": 1, "kieu": "co_san", "mau": "", "so_ngay": 3, "nhac_lai": 0, "han": 0, "doi_chung": 0, "tran_tuan": 1,
 		"nhan_ngay": "NHẮC KHI MÃ CÒN (NGÀY)", "goi_y_ngay": "Mã đã dùng thì không nhắc.",
+	},
+	# v652: nhắc điểm sắp hết hạn, xếp sau cùng (tin chăm sóc, không voucher).
+	{
+		"ma": "nhac_diem",
+		"ten": "Nhắc điểm sắp hết hạn",
+		"giai_thich": "Điểm hết hạn cuốn chiếu 12 tháng: trước số ngày đã đặt, máy nhắc khách số điểm sắp hết hạn và ngày hết hạn, để khách đặt bánh trên web dùng điểm. Mỗi khách tối đa một tin trong khoảng đó.",
+		"km": 0, "kieu": "", "mau": "", "so_ngay": 30, "nhac_lai": 0, "han": 0, "doi_chung": 0, "tran_tuan": 0,
+		"nhan_ngay": "NHẮC TRƯỚC KHI ĐIỂM HẾT HẠN (NGÀY)", "goi_y_ngay": "Chỉ nhắc khi hạn điểm đang chạy cuốn chiếu.",
 	},
 )
 MA_KB = tuple(k["ma"] for k in KICH_BAN)
@@ -1132,8 +1147,73 @@ def quet_nhac_han(hom_nay):
 	return n
 
 
+def quet_nhac_diem(hom_nay):
+	"""v652: khách có điểm sắp hết hạn (cuốn chiếu) trong `so_ngay` tới -> dòng
+	chờ nhắc. Khoá theo ngày mất đầu tiên; mỗi khách tối đa một tin nhắc điểm
+	trong `so_ngay` ngày (khách mua nhiều lần không bị nhắc mỗi ngày)."""
+	from vagabond import diem_han, diem_web
+
+	c = _cau_hinh("nhac_diem") or {}
+	if not int(c.get("bat") or 0):
+		return 0
+	cd = diem_han._cd()
+	if cd["cach"] != "Cuon chieu":
+		return 0
+	so_ngay = so_nguyen(c.get("so_ngay"), 30) or 30
+	han = so_nguyen(cd["han_thang"], 12) or 12
+	# Bút tích có ngày mất (ngày tích + han tháng + 1) rơi vào (hôm nay, hôm nay + so_ngay].
+	tu = diem_web.cong_thang(hom_nay, -han) - timedelta(days=1)
+	den = diem_web.cong_thang(hom_nay + timedelta(days=so_ngay), -han) - timedelta(days=1)
+	ds = [r[0] for r in frappe.db.sql("""select distinct khach from `tabVagabond So Diem`
+		where diem > 0 and date(ngay) > %s and date(ngay) <= %s
+		and khach not in (select t.khach from `tabVagabond Tin Zalo Khach` t
+			where t.kich_ban = 'nhac_diem' and t.creation >= %s)
+		limit 2000""", (tu, den, hom_nay - timedelta(days=so_ngay)))]
+	n = 0
+	for kh in ds:
+		but = [(str(r[0]), float(r[1] or 0)) for r in frappe.db.sql(
+			"select date(ngay), diem from `tabVagabond So Diem` where khach = %s order by ngay", (kh,))]
+		sh = diem_web.sap_het_han(but, hom_nay, han, so_ngay)
+		if sh and sh["diem"] > 0:
+			n += 1 if _ghi_cho("nhac_diem", khoa_tin("nhac_diem", kh, moc=sh["ngay"]), kh, diem=sh["diem"]) else 0
+	return n
+
+
+def cho_hoan_diem(khach, ten_don, diem):
+	"""v652: xếp tin báo khách đã hoàn điểm của đơn web không thành. Kịch bản
+	tắt thì thôi (điểm vẫn hoàn, chỉ không báo). Một đơn một tin."""
+	c = _cau_hinh("hoan_diem") or {}
+	if not int(c.get("bat") or 0):
+		return False
+	return _ghi_cho("hoan_diem", khoa_tin("hoan_diem", khach, moc=ten_don), khach, diem=diem)
+
+
+def _gia_tri_nhac_diem(row, kh):
+	"""Tính lại lúc gửi: khách đã dùng điểm từ lúc quét thì không nhắc nữa."""
+	from vagabond import diem_han, diem_web
+
+	cd = diem_han._cd()
+	if cd["cach"] != "Cuon chieu":
+		return None, "Hạn điểm không còn chạy cuốn chiếu."
+	c = _cau_hinh("nhac_diem") or {}
+	but = [(str(r[0]), float(r[1] or 0)) for r in frappe.db.sql(
+		"select date(ngay), diem from `tabVagabond So Diem` where khach = %s order by ngay", (row.khach,))]
+	sh = diem_web.sap_het_han(but, _bay_gio().date(), cd["han_thang"], so_nguyen(c.get("so_ngay"), 30) or 30)
+	if not sh:
+		return None, "Khách không còn điểm sắp hết hạn."
+	return {"ten_khach": kh["ten"], "diem_het_han": so_dep(sh["diem"]), "ngay_het_han": sh["ngay"],
+		"tong_diem": so_dep(float(kh["diem"] or 0)), "hang": kh["hang"] or "Thành viên"}, ""
+
+
+def _gia_tri_hoan_diem(row, kh):
+	ma_don = str(row.khoa or "").rsplit(":", 1)[-1]
+	return {"ten_khach": kh["ten"], "diem_hoan": so_dep(row.get("diem") or 0), "ma_don": ma_don,
+		"tong_diem": so_dep(float(kh["diem"] or 0)), "hang": kh["hang"] or "Thành viên"}, ""
+
+
 # Kịch bản quét một lần mỗi ngày (theo ngày), theo thứ tự ưu tiên của KICH_BAN.
 QUET_THEO_NGAY = {
+	"nhac_diem": "quet_nhac_diem",
 	"sinh_nhat": "quet_sinh_nhat", "nhac_dip": "quet_nhac_dip", "don_thu_hai": "quet_don_thu_hai",
 	"quay_lai": "quet_quay_lai", "quay_lai_2": "quet_quay_lai_2", "nhac_han": "quet_nhac_han",
 }
@@ -1352,7 +1432,7 @@ def _gui_mot(c, row):
 		ten_ud, dk = mo_ta_uu_dai(km, c.get("ten_uu_dai"), c.get("dieu_kien"))
 		gt = {"ten_khach": kh["ten"], "ten_uu_dai": ten_ud, "dieu_kien": dk, "han_dung": ngay_vn(han), "ma_voucher": ma_v}
 	else:
-		gt, loi = _gia_tri_sau_mua(row, kh)
+		gt, loi = {"nhac_diem": _gia_tri_nhac_diem, "hoan_diem": _gia_tri_hoan_diem}.get(ma_kb, _gia_tri_sau_mua)(row, kh)
 		if loi:
 			_xong(row.name, TT_BO, loi)
 			return None
@@ -1808,6 +1888,7 @@ MAU_THU = {
 	"ten_khach": "Khách thử", "ma_hoa_don": "HDB-THU-0001", "ngay_mua": "29/10/2026 15:30", "tong_tien": "450.000đ",
 	"diem_tich": "9.000", "tong_diem": "25.400", "hang": "EXPLORER", "ten_uu_dai": "Giảm 10%",
 	"dieu_kien": "Dùng 1 lần cho 1 hoá đơn", "han_dung": "30/11/2026", "ma_voucher": "THUTHU",
+	"diem_het_han": "12.000", "ngay_het_han": "31/01/2027", "diem_hoan": "20.000", "ma_don": "DW-2611-00123",
 }
 
 
