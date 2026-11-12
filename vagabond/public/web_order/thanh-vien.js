@@ -81,6 +81,7 @@
     hien('dang-nhap');
     an(tim('mo-dau-tv'), !!quayQua); an(tim('mo-dau-qua'), !quayQua);
     an(tim('xac-thuc'), true); an(tim('gui-ma'), false);
+    theLeDangNhap();
   }
 
   /* ---------- đơn bánh (giữ nguyên cách vẽ #245/#300) ---------- */
@@ -107,7 +108,9 @@
         }
         const ten=tao('div','');ten.append(tao('h4',m.ten||m.ma||(chuWeb("thanh_vien_50b133f3b", "Món bánh"))),tao('p',(chuWeb("thanh_vien_0433ae990", "Số lượng:") + " ")+m.sl));ten.children[0].className='c-name';
         mon.append(khung,ten);dong.append(mon);
-      });g.append(dong);
+      });
+      if((o.mon||[]).some(m=>m.ma)){const nut=tao('button',C('tv7_mua_lai','Mua lại'));nut.type='button';nut.className='nut-vien cyan mua-lai';nut.onclick=()=>muaLai(o);dong.append(nut);}
+      g.append(dong);
     });
   }
 
@@ -131,6 +134,109 @@
     });
   }
 
+  /* ---------- thể lệ thành viên (v652) ----------
+     Máy chủ gửi the_le: các hạng xét theo chi tiêu (không gồm hạng gán tay),
+     % tích, % giảm, quyền lợi từng dòng, và luật điểm đọc từ Cài đặt. Mọi
+     con số trên khối này đến từ máy chủ, trang không tự đặt số. */
+  function ghepDam(el, mau, thay) {
+    el.replaceChildren();
+    String(mau).split(/(\{[a-z_]+\})/).forEach(m => {
+      const k = /^\{([a-z_]+)\}$/.exec(m);
+      if (k) { if (thay[k[1]] != null && thay[k[1]] !== '') el.append(tao('b', String(thay[k[1]]))); }
+      else if (m) el.append(tao('span', m));
+    });
+  }
+  const pt = v => (Math.round((Number(v) || 0) * 10) / 10).toLocaleString('vi-VN') + '%';
+  function veTheLe(tl, hang, goc) {
+    const k = goc || tim('the-le');
+    if (!k) return;
+    const ds = (tl && tl.hang) || [];
+    an(k, !ds.length);
+    if (k.id === 'the-le') an(tim('ql-cu'), !!ds.length);
+    if (!ds.length) return;
+    const o = ten => k.querySelector('[data-tlo="' + ten + '"]');
+    const g = k.querySelector('.tl-hang'); g.replaceChildren();
+    ds.forEach((h, i) => {
+      const hien = !!(hang && h.ten_hang === hang.ten_hang);
+      const the = tao('article', '', 'tl-the' + (hien ? ' hien' : ''));
+      const dau = tao('div', '', 'tl-dau');
+      dau.append(tao('span', String(i + 1).padStart(2, '0'), 'tl-so'), tao('h3', h.ten_hang || '', 'tl-ten'));
+      if (hien) dau.append(tao('span', C('tv7_dang_o', 'Hạng hiện tại'), 'tl-dang'));
+      const moc = Number(h.chi_tieu_tu) || 0;
+      const dk = moc > 0 ? C('tv7_tu_moc', 'Chi tiêu từ {tien} trong {thang} tháng', { tien: so(moc) + 'đ', thang: h.so_thang_xet || 12 })
+        : C('tv7_mo_dau', 'Ngay khi đăng ký thành viên');
+      const so2 = tao('div', '', 'tl-so2');
+      const o1 = tao('div', ''); o1.append(tao('b', pt(h.tich_diem), 'tl-pt'), tao('span', C('tv7_tich_moi', 'tích điểm mỗi hoá đơn'), 'nho phu'));
+      so2.append(o1);
+      if (Number(h.giam_gia) > 0) {
+        const o2 = tao('div', ''); o2.append(tao('b', pt(h.giam_gia), 'tl-pt cyan'), tao('span', C('tv7_giam_moi', 'giảm thẳng mỗi hoá đơn'), 'nho phu'));
+        so2.append(o2);
+      }
+      the.append(dau, tao('p', dk, 'nho phu tl-dk'), so2);
+      if ((h.dac_quyen || []).length) {
+        const ql = tao('ul', '', 'tl-quyen');
+        h.dac_quyen.forEach(t => ql.append(tao('li', t)));
+        the.append(ql);
+      }
+      g.append(the);
+    });
+    const lu = tl.luat || {};
+    const tichHien = hang && hang.tich_diem != null ? pt(hang.tich_diem) : '';
+    // Tích: % theo hạng. Chương trình nhân điểm (Khuyến mãi, cách thức Nhân
+    // điểm) đang chạy thì máy chủ gửi kèm câu mô tả, ví dụ thứ Năm trên web x2.
+    ghepDam(o('tich'), C('tv7_tich_chu', 'Mỗi hoá đơn tích {pt} theo hạng.', { pt: '{pt}' }),
+      { pt: tichHien || C('tv7_theo_hang', 'theo hạng') });
+    (lu.nhan_diem || []).forEach(t => o('tich').append(tao('span', ' ' + t, 'cyan')));
+    ghepDam(o('dung'), C('tv7_dung_chu', '1 điểm = 1đ. Tại quầy đọc mã Zalo cho thu ngân, trên web bấm Dùng điểm lúc thanh toán. Tối đa {tran} tiền bánh.', { tran: '{tran}' }),
+      { tran: pt(lu.tran_pt || 50) });
+    if (Number(lu.han_thang) > 0) {
+      ghepDam(o('han'), C('tv7_han_chu', 'Điểm của mỗi lần tích dùng được {han}. Zalo nhắc trước {nhac} khi sắp hết hạn.', { han: '{han}', nhac: '{nhac}' }),
+        { han: lu.han_thang + ' ' + C('tv7_thang', 'tháng'), nhac: (lu.nhac_ngay || 30) + ' ' + C('tv7_ngay', 'ngày') });
+    } else {
+      o('han').textContent = C('tv7_han_khac', 'Hạn dùng điểm theo thông báo của cửa hàng.');
+    }
+    ghepDam(o('hang'), C('tv7_xet_chu', 'Hạng xét theo tổng chi tiêu {thang} gần nhất, tại quầy và trên web.', { thang: '{thang}' }),
+      { thang: (lu.so_thang_hang || 12) + ' ' + C('tv7_thang', 'tháng') });
+    if (k.id === 'the-le') {
+      const sh = tl.sap_het || null;
+      an(tim('diem-het'), !(sh && Number(sh.diem) > 0));
+      if (sh && Number(sh.diem) > 0) tim('diem-het').textContent = C('tv7_sap_het', '{diem} điểm hết hạn ngày {ngay}. Dùng trước để không mất.', { diem: so(sh.diem), ngay: sh.ngay || '' });
+    }
+  }
+  /* Khách chưa đăng nhập cũng xem được thể lệ (anh Việt 12/11/2026). Lỗi thì ẩn khối. */
+  let daNapTheLeDn = false;
+  async function theLeDangNhap() {
+    if (daNapTheLeDn) return;
+    daNapTheLeDn = true;
+    try { const r = await api('the_le'); veTheLe(r && r.the_le, null, tim('the-le-dn')); }
+    catch (e) { daNapTheLeDn = false; an(tim('the-le-dn'), true); }
+  }
+
+  /* Mua lại (v652): đưa món của đơn cũ vào giỏ trang Chọn bánh (cùng kho phiên
+     'vgb-gio-v1' trang /banh đọc lại). Giá, cỡ lấy lại từ danh mục đang bán; món
+     đã ngừng bán thì trang Chọn bánh tự bỏ. */
+  function muaLai(o) {
+    const them = {};
+    (o.mon || []).forEach(m => { const id = String(m.ma || '').trim(); const sl = parseInt(m.sl, 10);
+      if (id && sl > 0) them[id] = Math.min(99, (them[id] || 0) + sl); });
+    const ds = Object.keys(them);
+    if (!ds.length) { bao(C('tv7_mua_lai_rong', 'Đơn này không còn món để mua lại.'), true); return; }
+    try {
+      const kho = window.sessionStorage;
+      let d = null;
+      try { d = JSON.parse(kho.getItem('vgb-gio-v1') || 'null'); } catch (e) { d = null; }
+      if (!d || !Array.isArray(d.gio)) d = { gio: [] };
+      ds.forEach(id => {
+        const cu = d.gio.find(x => x && x.id === id && x.cm !== 0);
+        if (cu) cu.qty = Math.min(99, (parseInt(cu.qty, 10) || 0) + them[id]);
+        else d.gio.push({ id, qty: them[id], cm: 1, nguon: 'order' });
+      });
+      d.luc = Date.now();
+      kho.setItem('vgb-gio-v1', JSON.stringify(d));
+    } catch (e) { bao(C('tv7_mua_lai_loi', 'Trình duyệt đang chặn lưu giỏ. Quý khách chọn bánh lại ở trang Chọn bánh.'), true); return; }
+    location.href = '/banh';
+  }
+
   /* ---------- trang chính ---------- */
   function veChinh(d) {
     const hs = d.ho_so || {}, hang = d.hang || null;
@@ -143,6 +249,7 @@
     tim('diem').textContent = so(d.diem);
     tim('hang').textContent = (hang && hang.ten_hang) || (chuWeb("thanh_vien_b44660fa4", "Thành viên Vagabond"));
     tim('quyen-loi').textContent = (hang && hang.mo_ta) || '';
+    veTheLe(d.the_le, hang);
     const anh = (hang && hang.anh) || ''; an(tim('anh-the'), !anh);
     if (anh && (/^\/files\//.test(anh) || /^\/assets\//.test(anh) || /^https:\/\//.test(anh))) tim('anh-the').src = anh;
     const td = d.tien_do;

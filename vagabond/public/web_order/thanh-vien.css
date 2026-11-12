@@ -204,3 +204,33 @@ body.tv-sang{background:#f4f1ec;color:#1d1d1b}
 .tv-sang #nut-ve-trang{background:#1d1d1b;color:#fff;border-color:#1d1d1b;min-height:56px}
 .tv-sang #qua-ghi{margin-top:14px}
 .tv-sang .xm-so span:before{content:"";display:inline-block;width:5px;height:10px;border:solid #0f8f86;border-width:0 2px 2px 0;transform:rotate(45deg);margin:0 10px 3px 2px}
+/* v652 Thể lệ thành viên: bậc hạng, % tích, quyền lợi, cách tích và dùng điểm. */
+.diem-het{margin-top:6px}
+.nut-dung-diem{margin-top:14px;width:100%;text-decoration:none}
+.the-le{margin-top:8px}
+.tl-hang{position:relative;display:grid;gap:14px;padding-left:22px}
+.tl-hang:before{content:"";position:absolute;left:6px;top:14px;bottom:14px;width:1px;background:linear-gradient(var(--line),var(--cyan-dim),var(--amber-2))}
+.tl-the{position:relative;border:1px solid var(--line);background:var(--card);padding:16px 16px 14px}
+.tl-the:before{content:"";position:absolute;left:-21px;top:20px;width:11px;height:11px;border-radius:50%;background:var(--bg);border:1px solid var(--fog-2)}
+.tl-the.hien{border-color:var(--cyan-dim);box-shadow:0 0 0 1px var(--cyan-dim) inset,0 0 24px rgba(63,216,205,.10)}
+.tl-the.hien:before{background:var(--cyan-bright);border-color:var(--cyan-bright);box-shadow:0 0 10px var(--cyan-bright)}
+.tl-dau{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tl-so{font:11px var(--qualy);letter-spacing:.16em;color:var(--fog-2)}
+.tl-ten{font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:28px;line-height:1;color:var(--amber);text-transform:uppercase;margin:0}
+.tl-dang{margin-left:auto;font:10.5px var(--qualy);letter-spacing:.14em;text-transform:uppercase;color:var(--cyan-bright);border:1px solid var(--cyan-dim);padding:3px 8px}
+.tl-dk{margin:6px 0 10px}
+.tl-so2{display:flex;gap:18px;padding:10px 0;border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2)}
+.tl-so2>div{display:flex;flex-direction:column;min-width:0}
+.tl-pt{font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:44px;line-height:1;color:var(--paper)}
+.tl-pt.cyan{color:var(--cyan-bright)}
+.tl-quyen{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.tl-quyen li{position:relative;padding-left:16px;font-size:13.5px;line-height:1.45;color:var(--paper)}
+.tl-quyen li:before{content:"";position:absolute;left:0;top:.62em;width:8px;height:1px;background:var(--cyan-bright)}
+.tl-luat{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.tl-o{padding:14px 12px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.tl-o svg{width:26px;height:26px;fill:none;stroke:var(--cyan-bright);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;display:block;margin-bottom:8px}
+.tl-o p{margin-top:6px}
+.tl-o b{color:var(--paper);font-weight:400}
+.tl-chan{margin-top:12px}
+#the-le-dn{margin-top:30px}
+.mua-lai{margin-top:12px;width:100%}
