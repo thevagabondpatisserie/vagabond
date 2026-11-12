@@ -51,7 +51,7 @@ var KHO = 'Pastry - Nguyên liệu - TV', TONG = 'Kho tổng 307 - TV';
 function theGioi(ton, tong, opt) {
   opt = opt || {};
   var tonKho = opt.tonKho || {};
-  function tonCua(kho) { if (kho === KHO) return ton; if (!tonKho[kho]) tonKho[kho] = {}; return tonKho[kho]; }
+  function tonCua(kho) { if (kho === KHO) return ton; if (kho === TONG) return tong; if (!tonKho[kho]) tonKho[kho] = {}; return tonKho[kho]; }
   var ALT = opt.alt || {};
   var BOM = {
     TP: { name: 'BOM-TP', qty: 1, dong: [{ item_code: 'C2', item_name: 'Bánh khuôn C2', stock_uom: 'Cái', so: 1 },
@@ -359,6 +359,23 @@ async function ca(ten, fn) {
     bang('nut', t.nhat.hoiBep.map(function (x) { return x[2]; }), ['Lấy kho tổng và ghi sổ 2 lệnh']);
     bang('ghi ca 2 lenh', t.nhat.phieu.length, 4);
     bang('lay 0,5', t.nhat.laybu, 0.5);
+  });
+
+  await ca('14. Codex #553 vong 3: lenh A tru thang 0,2 cacao o Kho tong, lenh B thieu 0,3 o bep, Kho tong chi 0,3: giu phan tru thang truoc, chan truoc khi ghi', async function () {
+    var t = theGioi({ BOT: 1000, CACAO: 0 }, { CACAO: 0.3 }, { lenh: { 'WO-A': { khoMon: { CACAO: TONG } } } });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('khong phieu kho nao', t.nhat.phieu, []);
+    bang('khong lay kho tong', t.nhat.laybu, 0);
+    co('noi phan thieu that', t.nhat.hoiBep[0][1], 'thiếu 0,2 Kg');
+  });
+
+  await ca('14b. Kho tong du 0,5 cho ca phan tru thang va phan chuyen: ghi ca 2 lenh, chi chuyen 0,3', async function () {
+    var t = theGioi({ BOT: 1000, CACAO: 0 }, { CACAO: 0.5 }, { lenh: { 'WO-A': { khoMon: { CACAO: TONG } } } });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('nut', t.nhat.hoiBep.map(function (x) { return x[2]; }), ['Lấy kho tổng và ghi sổ 2 lệnh']);
+    bang('ghi ca 2 lenh', t.nhat.phieu.length, 4);
+    bang('chuyen 0,3', t.nhat.laybu, 0.3);
+    bang('kho tong het', t.tong.CACAO, 0);
   });
 
   await ca('12. THUAN mfgPhanNvl: thieu sau kho tong ma hang thay bu thi tach rieng, khong tinh thieu', async function () {
