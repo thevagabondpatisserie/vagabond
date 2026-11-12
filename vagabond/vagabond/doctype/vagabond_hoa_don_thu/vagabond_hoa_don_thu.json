@@ -23,6 +23,7 @@
   "hd_dien_tu",
   "hoa_don_mua",
   "duong_dan",
+  "pdf_trong_thu",
   "ghi_chu"
  ],
  "fields": [
@@ -69,7 +70,7 @@
    "fieldtype": "Select",
    "label": "Trạng thái",
    "read_only": 1,
-   "options": "Đã đính\nChờ khớp\nChỉ có đường dẫn\nKhông phải hoá đơn\nLỗi",
+   "options": "Đã đính\nChờ khớp\nThiếu tệp\nChỉ có đường dẫn\nKhông phải hoá đơn\nLỗi",
    "in_list_view": 1,
    "in_standard_filter": 1
   },
@@ -135,6 +136,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "pdf_trong_thu",
+   "fieldtype": "Int",
+   "label": "Số PDF trong thư",
+   "read_only": 1
+  },
+  {
    "fieldname": "ghi_chu",
    "fieldtype": "Small Text",
    "label": "Ghi chú",
@@ -143,7 +150,7 @@
  ],
  "in_create": 1,
  "links": [],
- "modified": "2026-11-13 01:00:00.000000",
+ "modified": "2026-11-13 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Hoa Don Thu",
