@@ -198,3 +198,81 @@ def _():
 		la("sổ cân", round(sum(flt(g.debit) for g in gl)), round(sum(flt(g.credit) for g in gl)))
 	finally:
 		frappe.db.set_single_value("Accounts Settings", "add_taxes_from_item_tax_template", cu)
+
+
+# v650 (anh Việt cho phép 12/11/2026): bản vá dọn chứng từ CŨ đã ghi sổ trước hook.
+
+
+def _thue_iwtd(doc):
+	return sorted((d.tax_row, round(flt(d.amount))) for d in frappe.get_all("Item Wise Tax Detail",
+		filters={"parenttype": doc.doctype, "parent": doc.name}, fields=["tax_row", "amount"]))
+
+
+@ca("v650 thật: bản vá chứng từ cũ trên đơn mua ĐÃ GHI SỔ cộng VAT hai lần: còn 49.600, tổng 669.600, chi tiết thuế chỉ còn dòng 1331, có ghi chú")
+def _():
+	from vagabond.patches import v650_bo_thue_ra_cu as vb
+
+	cty, vao, ra = _tk_thue()
+	mon = _mon_hai_tk(cty, vao, ra, ton_kho=False)
+	cu = frappe.db.get_single_value("Accounts Settings", "add_taxes_from_item_tax_template")
+	frappe.db.set_single_value("Accounts Settings", "add_taxes_from_item_tax_template", 1)
+	try:
+		with patch("vagabond.thue_don_mua.bo_thue_ra_chung_tu_mua", lambda doc, method=None: None):
+			po = _don(mon)
+			po.flags.ignore_permissions = True
+			nen.khong_nem("ghi sổ đơn mua cũ khi chưa có hook", po.submit)
+		po.reload()
+		la("dựng đúng ca cũ: thuế 99.200, tổng 719.200", (round(flt(po.total_taxes_and_charges)), round(flt(po.grand_total))), (99200, 719200))
+		dung("chứng từ nằm trong danh sách bản vá", po.name in vb.cac_chung_tu("Purchase Order"))
+		kq = nen.khong_nem("chạy bản vá trên đơn mua", lambda: vb.sua_mot("Purchase Order", po.name))
+		dung("bản vá đạt", bool(kq) and not kq.get("loi"))
+		po.reload()
+		la("sau bản vá: một dòng 1331, thuế 49.600, tổng 669.600, vẫn đã ghi sổ",
+			([r.account_head for r in po.taxes], round(flt(po.total_taxes_and_charges)), round(flt(po.grand_total)), po.docstatus),
+			([vao], 49600, 669600, 1))
+		la("chi tiết thuế từng món chỉ còn dòng 1331", [t for t, _ in _thue_iwtd(po)], [po.taxes[0].name])
+		dung("có ghi chú trên chứng từ", bool(frappe.db.exists("Comment", {"reference_doctype": "Purchase Order",
+			"reference_name": po.name, "content": ["like", "%33311%"]})))
+		la("chạy lần nữa không còn gì để bỏ", vb.sua_mot("Purchase Order", po.name), None)
+	finally:
+		frappe.db.set_single_value("Accounts Settings", "add_taxes_from_item_tax_template", cu)
+
+
+@ca("v650 thật: bản vá trên phiếu nhập ĐÃ GHI SỔ: tổng về 669.600, sổ kho và sổ cái giữ nguyên")
+def _():
+	from vagabond.patches import v650_bo_thue_ra_cu as vb
+
+	cty, vao, ra = _tk_thue()
+	mon = _mon_hai_tk(cty, vao, ra, ton_kho=True)
+	kho = nen.mot_kho(cty)
+	cu = frappe.db.get_single_value("Accounts Settings", "add_taxes_from_item_tax_template")
+	frappe.db.set_single_value("Accounts Settings", "add_taxes_from_item_tax_template", 1)
+	try:
+		with patch("vagabond.thue_don_mua.bo_thue_ra_chung_tu_mua", lambda doc, method=None: None):
+			pn = frappe.new_doc("Purchase Receipt")
+			pn.company, pn.supplier = cty, nen.mot_nha_cung_cap()
+			pn.currency, pn.conversion_rate = "VND", 1
+			pn.posting_date = today()
+			pn.ignore_pricing_rule = 1
+			pn.append("items", {"item_code": mon, "qty": 2000, "rate": 310, "warehouse": kho})
+			_luu(pn)
+			pn.flags.ignore_permissions = True
+			nen.khong_nem("ghi sổ phiếu nhập cũ khi chưa có hook", pn.submit)
+		pn.reload()
+		la("dựng đúng ca cũ: tổng 719.200", round(flt(pn.grand_total)), 719200)
+
+		def so():
+			sle = frappe.get_all("Stock Ledger Entry", filters={"voucher_type": "Purchase Receipt", "voucher_no": pn.name,
+				"is_cancelled": 0}, fields=["actual_qty", "stock_value_difference"])
+			gl = nen.so_cai_cua(pn)
+			return (sorted((flt(x.actual_qty), round(flt(x.stock_value_difference))) for x in sle),
+				sorted((g.account, round(flt(g.debit)), round(flt(g.credit))) for g in gl))
+
+		truoc = so()
+		kq = nen.khong_nem("chạy bản vá trên phiếu nhập", lambda: vb.sua_mot("Purchase Receipt", pn.name))
+		dung("bản vá đạt", bool(kq) and not kq.get("loi"))
+		pn.reload()
+		la("sau bản vá: một dòng 1331, tổng 669.600", ([r.account_head for r in pn.taxes], round(flt(pn.grand_total))), ([vao], 669600))
+		la("sổ kho và sổ cái giữ nguyên", so(), truoc)
+	finally:
+		frappe.db.set_single_value("Accounts Settings", "add_taxes_from_item_tax_template", cu)
