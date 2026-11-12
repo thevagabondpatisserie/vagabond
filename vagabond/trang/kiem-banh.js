@@ -319,7 +319,9 @@ var KB_LOC = (function () {
 					+ o(d, "ton_d1", "Tồn " + (fmtNSX(d.nsx_d1) || nsxLui(1)), d.ton_d1, true, "", nguonO(d, "ton_d1"))
 					+ o(d, "ton_d2", "Tồn " + (fmtNSX(d.nsx_d2) || nsxLui(2)), d.ton_d2, true, "", nguonO(d, "ton_d2"))
 					+ o(d, "ton_cu", d.nsx_cu ? "Tồn " + fmtNSX(d.nsx_cu) : "Tồn cũ hơn", d.ton_cu, true, "", nguonO(d, "ton_cu"))
-					+ o(d, "sx", "Bếp làm " + NGAY_CHON.slice(8, 10) + "/" + NGAY_CHON.slice(5, 7), d.sx, true)
+					/* v653: dưới ô Bếp làm hiện ai sửa lần gần nhất ("Hân 21:05"). */
+					+ o(d, "sx", "Bếp làm " + NGAY_CHON.slice(8, 10) + "/" + NGAY_CHON.slice(5, 7), d.sx, true, "",
+						d.sx_ai ? '<div class="kb-nguon kb-ai">' + chuSach(d.sx_ai) + "</div>" : "")
 					/* Cột Huỷ, gõ tay (anh Việt 06/09/2026, hướng A của issue #216).
 					   Đặt ngay sau Bếp làm để bốn ô gõ tay nằm liền nhau, và trước
 					   khối màu xanh của các cột máy đếm. Huỷ trừ vào BÁN ĐƯỢC, và
@@ -574,6 +576,8 @@ var KB_LOC = (function () {
 				ve();
 				return;
 			}
+			var lsEl = ev.target.closest("[data-lsbtp]");
+			if (lsEl) { moLichSuBTP(lsEl.getAttribute("data-lsbtp")); return; }
 			var rfEl = ev.target.closest("[data-refill]");
 			if (rfEl) { moRefill(rfEl.getAttribute("data-refill")); return; }
 			var oEl = ev.target.closest(".kb-o.sua");
@@ -817,9 +821,47 @@ var KB_LOC = (function () {
 			return '<div class="kb-o dang"><label>' + nhan + '</label><input id="kb-inp" type="number" min="0" inputmode="numeric" value="' + gt + '">' + nutOK() + '</div>';
 		}
 		if (!BTP_SUA) {
-			return '<div class="kb-o"><label>' + nhan + '</label><b>' + gt + "</b></div>";
+			return '<div class="kb-o"><label>' + nhan + '</label><b>' + gt + "</b>" + doiBTP(ma, truong) + "</div>";
 		}
-		return '<div class="kb-o sua" data-id="' + id + '"><label>' + nhan + '</label><b>' + gt + "</b></div>";
+		return '<div class="kb-o sua" data-id="' + id + '"><label>' + nhan + '</label><b>' + gt + "</b>" + doiBTP(ma, truong) + "</div>";
+	}
+
+	/* v653 Nhật ký BTP (sự cố Tira 18cm 12/11/2026): dòng "ai đổi, lúc nào"
+	   luôn hiện dưới BTP sẵn và Đủ decor. Chữ do máy chủ dựng sẵn (btp.nhan_doi),
+	   màn không tự ghép. Bấm vào thì mở 10 lần đổi gần nhất của mã. */
+	function doiBTP(ma, truong) {
+		var x = ((BTP[ma] || {}).doi || {})[truong];
+		if (!x || !x.chu) return "";
+		return '<div class="kb-nguon kb-doi" role="button" data-lsbtp="' + chuSach(ma) + '">' + chuSach(x.chu) + "</div>";
+	}
+
+	function moLichSuBTP(ma) {
+		var ten = (BTP[ma] || {}).ten_banh || ma;
+		var lop = document.createElement("div");
+		lop.id = "kb-ls-lop";
+		lop.innerHTML = '<div class="kb-ls-tam"><h3>Lịch sử BTP · ' + chuSach(ten) + '</h3>'
+			+ '<div class="kb-ls-giai">10 lần đổi BTP sẵn, Đủ decor, Refill gần nhất của bánh này. Máy ghi từ bản v653.</div>'
+			+ '<div id="kb-ls-ds" class="kb-ls-giai">Đang tải...</div>'
+			+ '<div class="kb-rf-nut"><button type="button" id="kb-ls-dong">Đóng</button></div></div>';
+		document.body.appendChild(lop);
+		lop.addEventListener("click", function (ev) {
+			if (ev.target.id === "kb-ls-lop" || ev.target.id === "kb-ls-dong") lop.remove();
+		});
+		var h = { "Content-Type": "application/json", "Accept": "application/json" };
+		var tk = window.csrf_token || (window.frappe && frappe.csrf_token);
+		if (tk && tk !== "None") h["X-Frappe-CSRF-Token"] = tk;
+		fetch("/api/method/vagabond.btp.lich_su_btp", { method: "POST", headers: h, credentials: "same-origin",
+			body: JSON.stringify({ ma_hang: ma, so: 10 }) })
+			.then(function (r) { if (!r.ok) { return r.text().then(function (t) { throw new Error(loiMayChu(t)); }); } return r.json(); })
+			.then(function (j) {
+				var ds = (j.message && j.message.dong) || [];
+				var el = document.getElementById("kb-ls-ds"); if (!el) return;
+				el.innerHTML = ds.length ? ds.map(function (x) {
+					return '<div class="kb-ls-dong"><b>' + chuSach(x.o) + ": " + chuSach(x.truoc === "" ? "trống" : x.truoc) + " → " + chuSach(x.sau === "" ? "trống" : x.sau)
+						+ '</b><span>' + chuSach(x.chu) + "</span></div>";
+				}).join("") : "Chưa có lần đổi nào được ghi. Nhật ký bắt đầu từ bản v653.";
+			})
+			.catch(function (e) { var el = document.getElementById("kb-ls-ds"); if (el) el.textContent = loiNguoiDoc(e.message); });
 	}
 
 	function oGiaoMai(ma) {

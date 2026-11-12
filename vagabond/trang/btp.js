@@ -49,7 +49,9 @@
 			.forEach(function (d) {
 				var oBtp = DANG_SUA === d.ma_hang
 					? '<div class="bt-o dang"><label>BTP sẵn</label><input id="bt-inp" type="number" min="0" value="' + (d.so_btp || 0) + '"></div>'
-					: '<div class="bt-o sua" data-id="' + d.ma_hang + '"><label>BTP sẵn</label><b>' + (d.so_btp || 0) + "</b></div>";
+					: '<div class="bt-o sua" data-id="' + d.ma_hang + '"><label>BTP sẵn</label><b>' + (d.so_btp || 0) + "</b>"
+						/* v653: ai đổi BTP sẵn lần gần nhất (chữ máy chủ dựng sẵn). */
+						+ (((d.doi || {}).so_btp || {}).chu ? '<div class="bt-ai">' + chuSach(d.doi.so_btp.chu) + "</div>" : "") + "</div>";
 				h += '<div class="bt-the"><div class="bt-ten">'
 					+ (d.hinh ? '<img src="' + d.hinh + '" loading="lazy" alt="">' : '<i class="bt-noimg"></i>')
 					+ "<b>" + d.ma_hang + "</b><span>" + chuSach(d.ten_banh) + "</span></div>"
