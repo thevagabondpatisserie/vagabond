@@ -86,6 +86,9 @@ LOAI_PHIEU = (
 	("ycsx_thieu", "Bánh thiếu ngày mai", "🎂"),
 	("gom_mua", "Gom yêu cầu mua", "🧺"),
 	("ycmh_nhap", "Yêu cầu mua máy soạn", "🛒"),
+	# v653 (#555): đợt dự chi công nợ 10 và 20 (du_chi.py).
+	("du_chi", "Dự chi công nợ", "💸"),
+	("hoa_don_thu", "Hoá đơn nhà cung cấp trong hộp thư", "📧"),
 )
 
 # ====================================================== CHẾ ĐỘ GIÁM ĐỐC
@@ -108,7 +111,7 @@ VAI_GIAM_DOC_SIET = {"AP Giám đốc", "Giám đốc"}
 # Ba việc anh Việt nêu đích danh. Thêm loại thứ tư thì thêm đúng một dòng ở
 # đây, và phải là việc mà giám đốc THẬT SỰ là người quyết, không phải việc
 # chỉ để xem cho biết.
-VIEC_HE_TRONG = ("ho_so_tt", "nop_quy", "hang_tang", "doi_soat_duyet")
+VIEC_HE_TRONG = ("ho_so_tt", "nop_quy", "hang_tang", "doi_soat_duyet", "du_chi")
 
 # Việc giao ĐÍCH DANH từ màn Việc hôm nay (#351). Không lọc theo vai mà theo
 # ToDo của chính người đang đăng nhập, nên ai được giao thì người đó thấy, kể
@@ -174,6 +177,9 @@ MA_TRAN = {
 	# phiếu yêu cầu máy soạn là việc của người giữ kho, thu mua thấy để đôn đốc.
 	"gom_mua": VAI_THU_MUA | VAI_GIAM_DOC,
 	"ycmh_nhap": VAI_KHO | VAI_THU_MUA | VAI_GIAM_DOC,
+	# v653 (#555): thu mua thương lượng, kế toán soát, giám đốc duyệt cả đợt.
+	"du_chi": VAI_THU_MUA | VAI_KE_TOAN | VAI_GIAM_DOC,
+	"hoa_don_thu": VAI_THU_MUA | VAI_KE_TOAN,
 }
 
 
@@ -811,6 +817,19 @@ def _viec_gom_mua():
 	return _vtd().viec_gom_mua()
 
 
+def _viec_hoa_don_thu(vai):
+	"""v653 (#555 phần E): hoá đơn trong hộp thư hoadon@ máy chưa tự đính được."""
+	from vagabond import hoa_don_thu
+
+	return hoa_don_thu.viec(set(vai))
+
+
+def _viec_du_chi(vai):
+	"""v653 (#555): đợt dự chi đúng bước của người xem (du_chi.viec)."""
+	from vagabond import du_chi
+	return du_chi.viec(set(vai))
+
+
 def _viec_ycmh_nhap(vai, kho):
 	"""v646: yêu cầu mua máy soạn còn nháp. Giữ kho thì thấy kho mình; thu mua thấy hết."""
 	return _vtd().viec_ycmh_nhap(kho, bool(set(vai or []) & VAI_THU_MUA))
@@ -878,6 +897,8 @@ def danh_sach(loai="", trang_thai=""):
 		("ycsx_thieu", lambda: _viec_ycsx_thieu()),
 		("gom_mua", lambda: _viec_gom_mua()),
 		("ycmh_nhap", lambda: _viec_ycmh_nhap(vai, kho)),
+		("du_chi", lambda: _viec_du_chi(vai)),
+		("hoa_don_thu", lambda: _viec_hoa_don_thu(vai)),
 	]
 
 	if chi_viec_giao:

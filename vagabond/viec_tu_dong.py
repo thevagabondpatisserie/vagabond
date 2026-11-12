@@ -125,6 +125,16 @@ VIEC = (
 		"mac_dinh": 1, "co_san": 0, "man": "GOMMUA",
 	},
 	{
+		"ma": "du_chi_dot", "bo_phan": "Thu mua", "icon": "💸",
+		"ten": "Dự chi công nợ đợt 10 và 20",
+		"mo": "Không còn bảng Excel dự chi: máy soạn sẵn đợt trả nhà cung cấp từ dư nợ ERP.",
+		"may": "Ngày 7 và 17, từ giờ chạy, máy soạn đợt nháp cho ngày 10 hoặc 20: mọi hoá đơn mua còn nợ (trừ phí sàn cấn trừ), hạn dự tính theo số ngày được nợ, tờ tới hạn điền sẵn trả hết. Nhắn nhóm Thu mua.",
+		"nguoi": "Uyên mở Dự chi công nợ, thương lượng từng nhà cung cấp: Trả hết hoặc gõ số trả từng hoá đơn, máy tính phần gia hạn. Bấm Gửi duyệt. Giám đốc duyệt xong máy lập APP luôn.",
+		"o": "san", "gio": "09:00", "gio_sua": 1, "han": "17:00", "han_kieu": "luc",
+		"bao": "Lúc soạn xong: nhắn nhóm Thu mua.",
+		"mac_dinh": 1, "co_san": 0, "man": "DUCHI",
+	},
+	{
 		"ma": "ycsx_thieu", "bo_phan": "Bán hàng", "icon": "🎂",
 		"ten": "Yêu cầu sản xuất cho bánh đang thiếu",
 		"mo": "Khách đã đặt mà bếp chưa có lệnh làm.",
@@ -900,6 +910,13 @@ def lam_gom_mua(c, bay):
 		_da_bao(khoa)
 
 
+def lam_du_chi(c, bay):
+	"""v653 (#555): ngày 7 và 17 soạn đợt dự chi nháp, nhắn nhóm Thu mua."""
+	from vagabond import du_chi
+
+	du_chi.lam_soan_tu_dong(c, bay)
+
+
 SO_NGAY_GIU_NHAP = 2
 
 
@@ -927,6 +944,7 @@ HANH_DONG = (
 	("duyet_kiem_ke", lam_duyet_kiem_ke),
 	("ycmh_tu_dong", lam_ycmh_tu_dong),
 	("gom_yeu_cau_mua", lam_gom_mua),
+	("du_chi_dot", lam_du_chi),
 	("ycsx_thieu", lam_ycsx_thieu),
 )
 
@@ -1039,6 +1057,15 @@ def _tinh_hinh(c):
 		if not so_mon:
 			return "Không còn yêu cầu chờ gom", "g"
 		return "%d món từ %d phiếu chờ gom" % (so_mon, so_phieu), ("r" if da_qua(c.get("han"), bay) else "y")
+	if ma == "du_chi_dot":
+		from vagabond import du_chi
+
+		nd = du_chi.ngay_dot_ke_tiep(getdate(nowdate()))
+		ten = frappe.db.get_value(du_chi.DT, du_chi.ma_dot(nd), ["trang_thai", "tong_tra"], as_dict=True)
+		if not ten:
+			return "Đợt %s soạn ngày %s" % (nd.strftime("%d/%m"), du_chi.ngay_soan(nd).strftime("%d/%m")), "x"
+		return "Đợt %s: %s, trả %s đ" % (nd.strftime("%d/%m"), du_chi.NHAN.get(ten.trang_thai, ten.trang_thai),
+			du_chi.dinh_dang(ten.tong_tra)), ("g" if ten.trang_thai == du_chi.TT_DA_CHOT else "y")
 	return "Đang chạy ở màn riêng", "g"
 
 

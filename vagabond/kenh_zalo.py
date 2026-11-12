@@ -214,6 +214,9 @@ TIN = {
 		"Kế toán đã chuyển xong tiền hoàn, Sales báo khách.", "thong_bao", "ban_hang"),
 	"bh_banh_thieu_ngay_mai": ("Bán hàng, cửa hàng", "Bánh khách đặt ngày mai còn thiếu",
 		"17:00 và 21:00 (sửa được): món khách đặt ngày mai mà tồn và bếp đã lên chưa đủ.", "viec", "san_xuat"),
+	# v653 (anh Việt 12/11/2026): ảnh bánh và số còn bán, mỗi khi bảng Kiểm bánh đổi.
+	"bh_banh_co_san": ("Bán hàng, cửa hàng", "Bánh có sẵn hôm nay, kèm ảnh bánh",
+		"Bảng Kiểm bánh hôm nay đổi số bán được (cách 15 phút, 08:00 tới 21:30): ảnh từng bánh, số còn.", "ban_tin", "ban_hang"),
 	"bep_ke_hoach_sx": ("Bếp", "Kế hoạch sản xuất hôm nay (05:00)",
 		"05:00 sáng, kế hoạch sản xuất trong ngày đã sẵn, bếp đọc rồi chốt.", "viec", "san_xuat"),
 	"bep_tkr_da_coc": ("Bếp", "Đơn thiết kế riêng đã cọc, lên lịch bếp",
@@ -257,6 +260,8 @@ TIN = {
 		"08:25 mỗi sáng, phiếu nhập đã ghi sổ quá 3 ngày mà chưa có hoá đơn mua.", "viec", "kho"),
 	"tm_gom_mua": ("Thu mua", "Yêu cầu mua chờ gom thành đơn mua",
 		"09:00 và 15:00 (sửa được): còn yêu cầu mua các bộ phận đã gửi mà thu mua chưa gom.", "viec", "kho"),
+	"tm_du_chi": ("Thu mua", "Dự chi công nợ đợt 10 và 20 đã soạn",
+		"Ngày 7 và 17 (giờ sửa được): máy soạn sẵn đợt trả nhà cung cấp, thu mua thương lượng rồi gửi duyệt.", "viec", "kho"),
 	"kho_nhap_cho_kiem": ("Kho", "Phiếu nhập chờ kho đếm và ghi sổ",
 		"Có phiếu nhập còn nháp chờ kho đếm hàng rồi ghi sổ.", "viec", "kho"),
 	"kho_da_nhap": ("Kho", "Đã nhập hàng vào kho",
