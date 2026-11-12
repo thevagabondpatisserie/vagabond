@@ -328,3 +328,23 @@ def _():
 		la("%s: hôm trước chưa mất, hôm đó mất" % but, (
 			diem_han.qua_han_cuon_chieu(but, truoc) - diem_han.qua_han_cuon_chieu(but, str(dw.cong_thang(dw._ngay(hn), -han))),
 			diem_han.qua_han_cuon_chieu(but, str(dw.cong_thang(ngay, -han))) > 0), (0, True))
+
+
+@ca("Codex #557 vòng 4 P2: CTKM Nhân điểm cho Nhân viên áp khi khách là nhân viên (lấy số điện thoại từ hồ sơ khách)")
+def _():
+	km = {"name": "KM-NV", "ten": "Nhân viên x2", "gia_tri": "2", "tu_ngay": None, "den_ngay": None, "gio_tu": None, "gio_den": None,
+		"kenh": "", "quay": "", "doi_tuong": "Nhan vien", "hang_khach": "", "nhom_khach": "", "hien_web": 0,
+		"thu_2": 1, "thu_3": 1, "thu_4": 1, "thu_5": 1, "thu_6": 1, "thu_7": 1, "thu_cn": 1}
+	from vagabond import diem_otp
+	from vagabond import khuyen_mai as km_
+	that = lambda v: v if isinstance(v, datetime) else datetime.fromisoformat(str(v))
+	so_kh = {"KH-NV": "84901234567", "KH-KHAC": "84987654321"}
+	nv = lambda sdt: str(sdt or "").endswith("901234567")
+	si = {"grand_total": 100000, "customer": "KH-NV", "posting_date": "2026-11-12", "posting_time": "10:00:00"}
+	kh = types.SimpleNamespace(diem_cho_don=lambda tong, ty_le: int(tong * ty_le / 100))
+	with patch.object(dw, "ctkm_nhan_dang_bat", return_value=[km]), patch.object(km_, "get_datetime", that), \
+			patch.object(km_, "_la_sdt_nhan_vien", nv), patch.object(diem_otp, "_sdt_khach", lambda k: so_kh.get(k, "")), \
+			patch.object(dw, "boi_canh_hoa_don", return_value=(datetime(2026, 11, 12, 10, 0), "Tai quay", "TCV")), \
+			patch.dict("sys.modules", {"vagabond.khach_hang": kh}):
+		la("hoá đơn 100.000 của nhân viên, tích 5%: x2", dw.diem_hoa_don(si, 5), (10000, 2.0, "Nhân viên x2"))
+		la("khách không phải nhân viên: x1", dw.diem_hoa_don(dict(si, customer="KH-KHAC"), 5), (5000, 1.0, ""))
