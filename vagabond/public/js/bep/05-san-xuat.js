@@ -2350,9 +2350,15 @@ async function mfgKiemNvlNhom(docs, phan) {
   }
   var dung = ra.filter(function (x) { return !x.tu_lam; });
   if (dung.some(function (x) { return (x.thieu || 0) - (x.lay_tong || 0) > 0.0001; })) {
-    var tt = await api('vagabond.kho_san_xuat.thay_the_cho_thieu', { dong: JSON.stringify(dung.map(function (x) {
+    var dongThay = dung.map(function (x) {
       return { ma: x.code, kho: x.kho, can: x.need, thieu: r3(Math.max(0, (x.thieu || 0) - (x.lay_tong || 0))) };
-    })) });
+    });
+    /* Codex #553 vòng 4: phần sắp chuyển khỏi Kho tổng cũng là phần dùng ở
+       Kho tổng, máy chủ phải trừ ra trước khi hứa mã thay ở đó. */
+    dung.forEach(function (x) {
+      if ((x.lay_tong || 0) > 0.0001) dongThay.push({ ma: x.code, kho: MFG_KHO_TONG, can: r3(Math.min(x.thieu || 0, x.lay_tong)), thieu: 0 });
+    });
+    var tt = await api('vagabond.kho_san_xuat.thay_the_cho_thieu', { dong: JSON.stringify(dongThay) });
     (tt || []).forEach(function (t) {
       ra.forEach(function (x) {
         if (x.code === t.ma && x.kho === t.kho && !x.tu_lam) { x.thay = t.bu || 0; x.thay_ds = t.thay || []; }
