@@ -231,6 +231,9 @@ def _():
 			([r.account_head for r in po.taxes], round(flt(po.total_taxes_and_charges)), round(flt(po.grand_total)), po.docstatus),
 			([vao], 49600, 669600, 1))
 		la("chi tiết thuế từng món chỉ còn dòng 1331", [t for t, _ in _thue_iwtd(po)], [po.taxes[0].name])
+		la("lịch thanh toán theo tổng mới (Codex #553)",
+			[(round(flt(r.payment_amount)), round(flt(r.outstanding))) for r in po.payment_schedule] or [(669600, 669600)],
+			[(669600, 669600)] * max(1, len(po.payment_schedule)))
 		dung("có ghi chú trên chứng từ", bool(frappe.db.exists("Comment", {"reference_doctype": "Purchase Order",
 			"reference_name": po.name, "content": ["like", "%33311%"]})))
 		la("chạy lần nữa không còn gì để bỏ", vb.sua_mot("Purchase Order", po.name), None)
