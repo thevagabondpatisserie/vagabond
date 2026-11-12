@@ -263,6 +263,10 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_doi_soat_grab_651,
 	thu_doi_soat_lich_651,
 	thu_doi_soat_arc_651,
+	# v652 ảnh, mô tả bánh trên tủ ở Biên tập menu (Minh Vũ, anh Việt 12/11).
+	thu_banh_menu_652,
+	# v652 điểm thành viên trên web, nhân điểm, thể lệ, hoàn điểm (anh Việt 12/11).
+	thu_diem_web_652,
 	# v649 màn Lệnh sản xuất: thẻ gọn, câu chặn kiểm kê ghi số phiếu (ảnh anh Việt 11/11).
 	thu_lenh_sx_649,
 	thu_tru_vo_btp_649,

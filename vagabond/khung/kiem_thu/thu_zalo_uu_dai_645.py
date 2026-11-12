@@ -88,8 +88,9 @@ def _dip():
 
 @ca("v645 thứ tự ưu tiên: cảm ơn, đền bù, sinh nhật, nhắc dịp, đơn thứ hai, giới thiệu, mời quay lại, nhắc hạn; đền bù không tính trần tuần")
 def _uu_tien():
-	la("thứ tự", [k["ma"] for k in zk.KICH_BAN], ["sau_mua", "den_bu_nhe", "den_bu_vua", "den_bu_nang", "sinh_nhat", "nhac_dip",
-		"don_thu_hai", "gioi_thieu", "quay_lai", "quay_lai_2", "nhac_han"])
+	# v652: báo hoàn điểm đơn web ngay sau cảm ơn (tin giao dịch), nhắc điểm sắp hết hạn sau cùng.
+	la("thứ tự", [k["ma"] for k in zk.KICH_BAN], ["sau_mua", "hoan_diem", "den_bu_nhe", "den_bu_vua", "den_bu_nang", "sinh_nhat", "nhac_dip",
+		"don_thu_hai", "gioi_thieu", "quay_lai", "quay_lai_2", "nhac_han", "nhac_diem"])
 	la("tính trần tuần", [k["ma"] for k in zk.KICH_BAN if k.get("tran_tuan")],
 		["sinh_nhat", "nhac_dip", "don_thu_hai", "gioi_thieu", "quay_lai", "quay_lai_2", "nhac_han"])
 	la("đo hiệu quả (có đối chứng)", zk.KB_DO_HIEU_QUA, ("don_thu_hai", "quay_lai", "quay_lai_2"))

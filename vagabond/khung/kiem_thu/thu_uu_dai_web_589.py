@@ -52,6 +52,8 @@ BANG_WEB = [
     ({"kenh": "Pancake\nWebsite"}, ""),
     ({"quay": "TCV"}, "quầy"),
     ({"quay": "TCV\nSALES"}, ""),
+    # Codex #557: CTKM Nhân điểm (v652) phải có cùng câu ở máy chủ và màn app.
+    ({"cach_thuc": "Nhan diem"}, "nhân điểm"),
 ]
 
 
