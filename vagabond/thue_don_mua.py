@@ -100,16 +100,22 @@ def tinh_bo_thue(cha, dong, bo, lam_tron=None):
 	def dau(r):
 		return -1.0 if (r.get("add_deduct_tax") or "Add") == "Deduct" else 1.0
 
+	def tien(r, base=""):
+		# Codex #553: có giảm giá trên tổng thì ERPNext cộng dồn theo số SAU giảm
+		# (tax_amount_after_discount_amount), tax_amount vẫn là số trước giảm.
+		k = base + "tax_amount_after_discount_amount"
+		return f(r, k) if r.get(k) is not None else f(r, base + "tax_amount")
+
 	tru, tru_base, dong_moi = 0.0, 0.0, []
 	for i, r in enumerate(dong):
 		if i in bo:
-			tru += dau(r) * f(r, "tax_amount")
-			tru_base += dau(r) * f(r, "base_tax_amount")
+			tru += dau(r) * tien(r)
+			tru_base += dau(r) * tien(r, "base_")
 			continue
 		dong_moi.append({"name": r.get("name"), "idx": len(dong_moi) + 1,
 			"total": round(f(r, "total") - tru, 6), "base_total": round(f(r, "base_total") - tru_base, 6)})
-	them = sum(f(dong[i], "tax_amount") for i in bo if dau(dong[i]) > 0)
-	them_base = sum(f(dong[i], "base_tax_amount") for i in bo if dau(dong[i]) > 0)
+	them = sum(tien(dong[i]) for i in bo if dau(dong[i]) > 0)
+	them_base = sum(tien(dong[i], "base_") for i in bo if dau(dong[i]) > 0)
 	moi = {}
 	for k, d, db in (("grand_total", tru, tru_base), ("total_taxes_and_charges", tru, tru_base),
 			("taxes_and_charges_added", them, them_base)):
@@ -120,6 +126,35 @@ def tinh_bo_thue(cha, dong, bo, lam_tron=None):
 			moi[p + "rounded_total"] = lam_tron(moi[p + "grand_total"])
 			moi[p + "rounding_adjustment"] = round(moi[p + "rounded_total"] - moi[p + "grand_total"], 6)
 	return moi, dong_moi
+
+
+def chia_lich_tra(lich, tong, tong_base):
+	"""THUẦN: lịch thanh toán (Payment Schedule) theo tổng mới của chứng từ cũ.
+
+	Codex #553: đơn mua có lịch trả 100% theo tổng cũ; trừ thuế mà không sửa lịch
+	thì lịch vẫn đòi tổng cũ. Chia lại theo tỷ lệ từng kỳ, kỳ cuối nhận phần dư làm
+	tròn, giữ phần đã trả. Trả (cập nhật, lỗi): lỗi khi các kỳ không đủ 100% hoặc
+	số đã trả của một kỳ vượt số mới."""
+	def f(d, k):
+		return float(d.get(k) or 0)
+
+	if not lich:
+		return [], []
+	if abs(sum(f(r, "invoice_portion") for r in lich) - 100) > 0.01:
+		return [], ["lịch trả không đủ 100%"]
+	ra, da, da_base = [], 0.0, 0.0
+	for i, r in enumerate(lich):
+		cuoi = i == len(lich) - 1
+		tien = round(tong - da, 2) if cuoi else round(tong * f(r, "invoice_portion") / 100, 2)
+		tien_base = round(tong_base - da_base, 2) if cuoi else round(tong_base * f(r, "invoice_portion") / 100, 2)
+		da, da_base = da + tien, da_base + tien_base
+		if f(r, "paid_amount") + f(r, "discounted_amount") > tien + 0.01:
+			return [], ["kỳ %s đã trả nhiều hơn số mới" % (i + 1)]
+		ra.append({"name": r.get("name"), "payment_amount": tien,
+			"outstanding": round(tien - f(r, "paid_amount") - f(r, "discounted_amount"), 2),
+			"base_payment_amount": tien_base,
+			"base_outstanding": round(tien_base - f(r, "base_paid_amount") - f(r, "discounted_amount"), 2)})
+	return ra, []
 
 
 def bo_thue_ra_chung_tu_mua(doc, method=None):
