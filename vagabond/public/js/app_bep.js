@@ -27369,7 +27369,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '651';
+var APPVER = '652';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -29148,7 +29148,9 @@ var KM_CACH = [
   { k: 'Mua X tang Y', nhan: 'Mua X tặng Y', ic: '🎁', mo: 'Mua 2 tặng 1, mua 3 tặng 1...' },
   { k: 'Tang mon', nhan: 'Tặng món', ic: '🍬', mo: 'Đạt điều kiện thì tặng hẳn một món' },
   { k: 'Dong gia', nhan: 'Đồng giá', ic: '🏷️', mo: 'Kéo món về một mức giá cố định' },
-  { k: 'Giam luy ke', nhan: 'Giảm luỹ kế', ic: '📈', mo: 'Bậc thang: hoá đơn càng lớn giảm càng sâu' }
+  { k: 'Giam luy ke', nhan: 'Giảm luỹ kế', ic: '📈', mo: 'Bậc thang: hoá đơn càng lớn giảm càng sâu' },
+  /* v652 (anh Việt 12/11/2026): không giảm tiền, máy nhân điểm tích khi ghi sổ. */
+  { k: 'Nhan diem', nhan: 'Nhân điểm', ic: '⭐', mo: 'Không giảm tiền. Khách mua đúng thứ, giờ, kênh, hạng đã chọn thì được nhân điểm tích của hạng, ví dụ x2. Máy tự cộng khi ghi sổ, thu ngân không cần chọn.' }
 ];
 function kmNhanCach(k) {
   for (var i = 0; i < KM_CACH.length; i++) if (KM_CACH[i].k === k) return KM_CACH[i];
@@ -29546,6 +29548,7 @@ function kmChipNho(chu, nen, mau) {
 }
 
 function kmMucGiam(x) {
+  if (x.cach_thuc === 'Nhan diem') return 'x' + num(x.gia_tri) + ' điểm';
   if (x.cach_thuc === 'Dong gia') return 'đồng giá ' + money(x.gia_dong) + 'đ';
   if (x.cach_thuc === 'Giam luy ke') return 'theo bậc';
   if (x.cach_thuc === 'Mua X tang Y' || x.cach_thuc === 'Tang mon') return 'tặng món';
@@ -29724,7 +29727,10 @@ async function kmSheetCtkm(ma) {
       '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:12px;line-height:1.5">' + c.mo + '</div>';
 
     /* --- muc uu dai theo tung cach thuc --- */
-    if (k.cach_thuc === 'Dong gia') {
+    var nd = k.cach_thuc === 'Nhan diem';
+    if (nd) {
+      html += kmO('HỆ SỐ NHÂN ĐIỂM', 'kmGiaTri', k.gia_tri, '2', 'number', 'Ví dụ 2 là khách được gấp đôi điểm của hạng. Nhiều chương trình nhân điểm cùng khớp thì máy lấy hệ số lớn nhất, không nhân chồng.');
+    } else if (k.cach_thuc === 'Dong gia') {
       html += kmO('GIÁ ĐỒNG (đ)', 'kmGiaDong', k.gia_dong, '39000', 'number', 'Mọi món trong phạm vi kéo về mức giá này');
     } else if (k.cach_thuc === 'Giam luy ke') {
       html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:6px 0">CÁC BẬC</div>';
@@ -29744,7 +29750,7 @@ async function kmSheetCtkm(ma) {
     }
 
     /* --- pham vi mon --- */
-    if (k.cach_thuc === 'Giam tong hoa don' || k.cach_thuc === 'Giam gia mon' || k.cach_thuc === 'Dong gia') {
+    if (!nd && (k.cach_thuc === 'Giam tong hoa don' || k.cach_thuc === 'Giam gia mon' || k.cach_thuc === 'Dong gia')) {
       html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">PHẠM VI MÓN</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">' +
         posChipNut('data-kmpv="Ca hoa don"', 'Cả hoá đơn', k.pham_vi === 'Ca hoa don') +
@@ -29757,14 +29763,16 @@ async function kmSheetCtkm(ma) {
     }
 
     /* --- danh sach mon --- */
-    if (k.cach_thuc !== 'Giam tong hoa don' && k.cach_thuc !== 'Giam luy ke') {
+    if (nd) {
+      /* Nhân điểm: không có món, điều kiện tiền, mã hay hạn mức. */
+    } else if (k.cach_thuc !== 'Giam tong hoa don' && k.cach_thuc !== 'Giam luy ke') {
       html += kmHtmlDongMon(k);
     } else if (k.pham_vi === 'Mon chi dinh') {
       html += kmHtmlDongMon(k);
     }
 
     /* --- dieu kien --- */
-    html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">ĐIỀU KIỆN</div>' +
+    if (!nd) html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">ĐIỀU KIỆN</div>' +
       kmO('HOÁ ĐƠN TỪ (đ, để trống là không cần)', 'kmHdTt', k.hd_toi_thieu, '0', 'number') +
       kmO('SỐ MÓN TỐI THIỂU', 'kmSlTt', k.sl_toi_thieu, '0', 'number');
 
@@ -29816,6 +29824,8 @@ async function kmSheetCtkm(ma) {
     }
     if (k.doi_tuong === 'Nhan vien') html += '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">Máy nhận diện qua số điện thoại trên hồ sơ nhân sự, không phải nhân viên tự khai.</div>';
 
+    /* --- ma voucher, chong gian lan: Nhan diem khong co (may chu cung dat Khong can ma) --- */
+    if (!nd) {
     /* --- ma voucher --- */
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">CÁCH PHÁT MÃ</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">' +
@@ -29838,6 +29848,8 @@ async function kmSheetCtkm(ma) {
       kmO('TỐI ĐA MỖI SỐ ĐIỆN THOẠI KHÁCH', 'kmLanKhach', k.lan_moi_khach, '0', 'number') +
       kmO('TỔNG SỐ LƯỢT CẢ CHƯƠNG TRÌNH', 'kmTongLan', k.so_lan_toi_da, '0', 'number') +
       kmOta('GHI CHÚ', 'kmGhiChu', k.ghi_chu, '');
+
+    }
 
     /* --- website (v589): ERP la nguon duy nhat cua uu dai tren web --- */
     html += kmHtmlWeb(k);
@@ -29982,6 +29994,8 @@ async function kmSheetCtkm(ma) {
    khach biet, kem cau "chi dung tai cua hang", va trang dat banh khong ap. */
 var KM_WEB_CACH = ['Giam tong hoa don', 'Giam gia mon', 'Mua A giam B', 'Dong gia', 'Giam luy ke'];
 function kmLyDoWeb(k) {
+  /* Codex #557: CTKM Nhan diem (v652) trung cau may chu (khuyen_mai.ly_do_khong_web). */
+  if (k.cach_thuc === 'Nhan diem') return 'Chương trình nhân điểm: máy cộng thêm điểm khi ghi sổ, không giảm tiền.';
   if (KM_WEB_CACH.indexOf(k.cach_thuc) < 0) return 'Chương trình tặng món chỉ dùng tại cửa hàng.';
   if (k.can_otp) return 'Chương trình cần mã OTP quản lý nên chỉ dùng tại cửa hàng.';
   if ((k.doi_tuong || 'Moi khach') !== 'Moi khach') return 'Chương trình theo hạng hoặc nhóm khách chỉ dùng tại cửa hàng.';
@@ -70653,7 +70667,7 @@ async function hhgtDoi(ma) {
    Giá chỉ xem: sửa giá ở danh mục, Bảng giá điểm bán (anh Việt chốt).
    Máy chủ: vagabond/bien_tap_menu.py. */
 
-var BTM = null, BTM_DIEM = '', BTM_TAB = 'thu_tu', BTM_NHOM = '', BTM_MON = '', BTM_TIM = '';
+var BTM = null, BTM_DIEM = '', BTM_TAB = 'thu_tu', BTM_NHOM = '', BTM_MON = '', BTM_TIM = '', BTM_BANH = '';
 var BTM_HEN = null, BTM_CHO_LUU = 0, BTM_DANG_LUU = null;
 var BTM_TAB_DS = [['thu_tu', 'Thứ tự'], ['tuy_chon', 'Tuỳ chọn'], ['topping', 'Topping']];
 
@@ -70748,6 +70762,13 @@ function btmTpHieu(menu, m) {
   });
 }
 function btmMon(ma) { return ((BTM && BTM.d.mon) || []).filter(function (x) { return x.ma === ma; })[0] || null; }
+/* v652: bánh từng bày ở tủ điểm này (máy chủ bien_tap_menu.banh_cua_diem). */
+function btmBanh(ma) { return ((BTM && BTM.d.banh) || []).filter(function (x) { return x.ma === ma; })[0] || null; }
+/* THUẦN: số bánh đang có ảnh hoặc mô tả riêng trong bản nháp. */
+function btmSoBanhRieng(nhap, banh) {
+  var r = (nhap && nhap.mon) || {};
+  return (banh || []).filter(function (b) { var x = r[b.ma] || {}; return !!(x.anh || x.mo_ta); }).length;
+}
 function btmTp(ma) { return ((BTM && BTM.d.topping) || []).filter(function (x) { return x.ma === ma; })[0] || null; }
 function btmNhom(ma) { return ((BTM && BTM.d.nhap.nhom) || []).filter(function (g) { return g.ma === ma; })[0] || null; }
 function btmRieng(ma) { var r = BTM.d.nhap.mon || (BTM.d.nhap.mon = {}); return r[ma] || (r[ma] = {}); }
@@ -70991,12 +71012,13 @@ function btmTabThuTu() {
   var d = BTM.d, cx = btmChuaXep().length;
   var html = '<div class="sec">Nhóm trên web và màn Tính tiền</div><div class="card" id="btmDsNhom">';
   d.nhap.nhom.forEach(function (g) {
-    var so = g.loai === 'banh' ? 'lấy theo tồn trên tủ trong ngày' : ((g.mon || []).length + ' món');
+    var nr = g.loai === 'banh' ? btmSoBanhRieng(d.nhap, d.banh) : 0;
+    var so = g.loai === 'banh' ? 'lấy theo tồn trên tủ trong ngày' + (nr ? ' · ' + nr + ' bánh có ảnh, mô tả riêng' : '') : ((g.mon || []).length + ' món');
     html += '<div data-btmhang data-ma="' + h(g.ma) + '" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f2f6;background:#fff">' +
       BTM_KEO + '<div style="flex:1;min-width:0;padding:6px 0"><b style="display:block;font-size:15px">' + h(g.ten) + '</b>' +
       '<small style="display:block;font-size:13px;color:#8a8f9c;margin-top:2px">' + h(so) + (g.hien ? '' : ' · đang ẩn trên web') + '</small></div>' +
       btmCongTac('data-btmhien="' + h(g.ma) + '"', !!g.hien, 'Hiện nhóm ' + g.ten + ' trên web') +
-      (g.loai === 'nuoc' ? '<button type="button" data-btmnhom="' + h(g.ma) + '" aria-label="Mở nhóm ' + h(g.ten) + ' để chỉnh từng món" style="flex:none;min-width:64px;min-height:44px;padding:0 10px;border:1.5px solid #7FE5F6;border-radius:10px;background:#fff;color:#0B7C93;font-size:13px;font-weight:700;cursor:pointer">Món &#8250;</button>' : '<span style="min-width:64px"></span>') +
+      '<button type="button" ' + (g.loai === 'nuoc' ? 'data-btmnhom="' + h(g.ma) + '"' : 'data-btmbanh') + ' aria-label="Mở nhóm ' + h(g.ten) + ' để chỉnh từng món" style="flex:none;min-width:64px;min-height:44px;padding:0 10px;border:1.5px solid #7FE5F6;border-radius:10px;background:#fff;color:#0B7C93;font-size:13px;font-weight:700;cursor:pointer">Món &#8250;</button>' +
       '</div>';
   });
   html += '</div>' +
@@ -71069,6 +71091,7 @@ async function btmBamChinh(e) {
   if ((x = t.closest('[data-btmtab]'))) { BTM_TAB = x.getAttribute('data-btmtab'); return btmVe(); }
   if ((x = t.closest('[data-btmhien]'))) { var g = btmNhom(x.getAttribute('data-btmhien')); if (g) { g.hien = g.hien ? 0 : 1; btmDoi(); } return; }
   if ((x = t.closest('[data-btmnhom]'))) { BTM_NHOM = x.getAttribute('data-btmnhom'); BTM_TIM = ''; return go(scrBtmNhom); }
+  if (t.closest('[data-btmbanh]')) { BTM_TIM = ''; return go(scrBtmDsBanh); }
   if (t.closest('[data-btmthemnhom]')) {
     var ten = await hoiChu('Thêm nhóm', 'Tên nhóm hiện trên web, ví dụ Trà sữa, Nước ép.', '', { bat_buoc: true });
     if (!ten) return;
@@ -71340,6 +71363,90 @@ function btmBamMon(e) {
     ['tat_tc', 'tat_tp', 'bat_tc', 'bat_tp'].forEach(function (k) { delete r3[k]; });
     return btmDoi();
   }
+}
+
+/* ---------- v652 bánh trên tủ: ảnh và mô tả riêng cho menu tại quầy (anh Việt 12/11/2026) ----------
+   Minh Vũ không được vào danh mục món nên không sửa được ảnh, mô tả bánh. Nhóm
+   Bánh trên tủ có nút Món: danh sách bánh từng bày ở tủ điểm này 60 ngày gần
+   đây, bấm một bánh để đổi ảnh (máy tự cắt vuông, nén) và mô tả. Lưu vào bản
+   nháp như đồ uống, khách thấy sau khi Xuất bản. Bánh vẫn lên menu theo tồn
+   trên tủ trong ngày; ở đây không ẩn hiện, không đổi giá. */
+function scrBtmDsBanh() {
+  if (!BTM) return scrBienTapMenu();
+  BTM.ve = scrBtmDsBanh;
+  var ds = BTM.d.banh || [], r = BTM.d.nhap.mon || {};
+  var html = btmBangHtml() + '<div class="card" style="padding:12px 14px;font-size:13px;color:#6b7280;line-height:1.45">' +
+    'Bánh tự lên menu theo tồn trên tủ trong ngày. Bấm một bánh để đổi ảnh và mô tả khách thấy khi gọi món tại quầy, tại bàn. Để trống thì dùng ảnh, mô tả trong danh mục món.</div>';
+  if (!ds.length) {
+    html += '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280;line-height:1.5">Điểm này chưa có bánh nào lên tủ trong 60 ngày gần đây. Bánh lên tủ (Kiểm kho điểm) rồi sẽ hiện ở đây.</div>';
+  } else {
+    html += '<input class="tin" id="btmTimMon" type="search" autocomplete="off" enterkeyhint="search" placeholder="🔎 Tìm bánh theo tên hoặc mã" value="' + h(BTM_TIM) + '" style="margin:0 0 9px">' +
+      '<div id="btmTimTrong" style="display:none;font-size:12.5px;color:#b45309;padding:6px 2px 9px;line-height:1.55">Không có bánh nào khớp. Xoá bớt chữ rồi tìm lại.</div>' +
+      '<div class="card" id="btmDsBanh">' + ds.map(function (b) {
+        var x = r[b.ma] || {}, nhan = [x.anh ? 'ảnh riêng' : '', x.mo_ta ? 'mô tả riêng' : ''].filter(Boolean).join(', ');
+        return '<button type="button" data-btmbanhmon="' + h(b.ma) + '" data-btmtim="' + h(b.ten + ' ' + b.ma) + '" style="display:flex;width:100%;align-items:center;gap:10px;border:0;border-bottom:1px solid #f0f2f6;background:#fff;text-align:left;padding:8px 12px;min-height:56px;cursor:pointer">' +
+          btmAnh(btmAnhMon(b)) + '<span style="flex:1;min-width:0"><b style="display:block;font-size:15px;color:#16181d">' + h(b.ten) +
+          (nhan ? ' <i style="font-style:normal;font-size:12.5px;font-weight:700;background:#E4F9FD;color:#0B7C93;border-radius:10px;padding:2px 8px;vertical-align:2px">' + h(nhan) + '</i>' : '') + '</b>' +
+          '<small style="display:block;font-size:13px;color:#8a8f9c;margin-top:2px;line-height:1.35">' + h((x.mo_ta || b.mo_ta || 'Chưa có mô tả').slice(0, 90)) + '</small></span>' +
+          '<span style="flex:none;color:#0B7C93;font-size:18px">&#8250;</span></button>';
+      }).join('') + '</div>';
+  }
+  var bx = frame('Bánh trên tủ', html);
+  bx.addEventListener('click', function (e) {
+    var x = e.target.closest('[data-btmbanhmon]');
+    if (x) { BTM_BANH = x.getAttribute('data-btmbanhmon'); return go(scrBtmBanhMon); }
+    if (e.target.closest('[data-btmxuat]')) return go(scrBtmXuat);
+  });
+  var o = bx.querySelector('#btmTimMon');
+  if (o) {
+    var loc = function () {
+      var q = String(BTM_TIM || '').trim(), thay = 0;
+      [].slice.call(bx.querySelectorAll('[data-btmtim]')).forEach(function (rw) {
+        var hop = !q || vgbKhop(rw.getAttribute('data-btmtim'), q);
+        rw.style.display = hop ? 'flex' : 'none'; if (hop) thay++;
+      });
+      var tr = bx.querySelector('#btmTimTrong'); if (tr) tr.style.display = (q && !thay) ? '' : 'none';
+    };
+    o.addEventListener('input', function () { BTM_TIM = o.value; loc(); });
+    loc();
+  }
+}
+function scrBtmBanhMon() {
+  if (!BTM) return scrBienTapMenu();
+  BTM.ve = scrBtmBanhMon;
+  var m = btmBanh(BTM_BANH);
+  if (!m) { back(); return; }
+  var rieng = (BTM.d.nhap.mon || {})[m.ma] || {};
+  var html = btmBangHtml() + '<div class="card" style="padding:14px;margin-bottom:12px">' +
+    '<div style="font-size:13px;color:#8a8f9c;line-height:1.45">Tên và giá lấy từ danh mục món. Bánh lên menu theo tồn trên tủ trong ngày.</div>' +
+    '<div style="font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Ảnh trên menu</div>' +
+    '<div id="btmAnhWeb" style="display:flex;gap:12px;align-items:center">' + btmAnh(btmAnhMon(m), 96) +
+    '<div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:6px">' +
+    '<button type="button" data-btmanhtai style="min-height:44px;border:1.5px solid #7FE5F6;background:#E4F9FD;color:#0B7C93;font-weight:700;font-size:14px;border-radius:10px;padding:0 14px;cursor:pointer">' + (rieng.anh ? 'Đổi ảnh' : 'Tải ảnh lên') + '</button>' +
+    (rieng.anh ? '<button type="button" data-btmanhbo style="min-height:44px;border:0;background:none;color:#4a5061;font-weight:600;font-size:13.5px;padding:0 6px;cursor:pointer">Dùng ảnh danh mục</button>' : '') + '</div>' +
+    '<div style="font-size:13px;color:#8a8f9c;margin-top:4px;line-height:1.45">' + (rieng.anh ? 'Đang dùng ảnh riêng cho menu.' : (m.anh ? 'Đang dùng ảnh trong danh mục món.' : 'Bánh chưa có ảnh, menu hiện ảnh nền.')) +
+    ' Chọn ảnh bất kỳ, máy tự cắt vuông 1:1 ở giữa và nén dưới 500 KB.</div></div></div>' +
+    '<label for="btmMoTa" style="display:block;font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Mô tả ngắn trên menu</label>' +
+    '<textarea id="btmMoTa" class="tin" rows="3" maxlength="300" placeholder="' + h(m.mo_ta || 'Một câu giới thiệu bánh cho khách') + '" style="margin:0">' + h(rieng.mo_ta || '') + '</textarea>' +
+    '<div style="font-size:12px;color:#8a8f9c;margin-top:4px">Để trống thì dùng mô tả trong danh mục món.</div>' +
+    '<div style="font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Giá</div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;background:#f6f8fc;border-radius:12px;padding:11px 12px;font-size:14px"><span>' + money(m.gia) + ' đ · ' + h(BTM.d.ten_diem) + '</span><span style="color:#8a8f9c;font-size:12.5px">Sửa ở Bảng giá điểm bán</span></div></div>';
+  var b = frame(m.ten, html, { footer: '<button class="btn" id="btmMonXong">Xong</button>' });
+  b.addEventListener('click', function (e) {
+    var t = e.target;
+    if (t.closest('[data-btmxuat]')) return go(scrBtmXuat);
+    if (t.closest('[data-btmanhtai]')) return btmTaiAnhMon(m.ma);
+    if (t.closest('[data-btmanhbo]')) { var r0 = btmRieng(m.ma); delete r0.anh; if (!r0.mo_ta) delete BTM.d.nhap.mon[m.ma]; return btmDoi(); }
+  });
+  var o = b.querySelector('#btmMoTa');
+  if (o) o.addEventListener('input', function () {
+    var r = btmRieng(m.ma); r.mo_ta = String(o.value || '').slice(0, 300);
+    if (!r.mo_ta) delete r.mo_ta;
+    if (!r.anh && !r.mo_ta) delete BTM.d.nhap.mon[m.ma];
+    btmDoi(false);
+  });
+  var xong = document.getElementById('btmMonXong');
+  if (xong) xong.onclick = function () { back(); };
 }
 
 /* ---------- xem và xuất bản ---------- */
