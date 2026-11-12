@@ -49,10 +49,20 @@ class VagabondCTKM(Document):
 				frappe.throw("Giảm luỹ kế thì phải khai ít nhất một bậc.")
 		elif self.cach_thuc == "Tang mon":
 			pass  # muc uu dai nam o dong mon
+		elif self.cach_thuc == "Nhan diem":
+			# v652: hệ số nhân điểm nằm ở gia_tri (2 là gấp đôi), không phải %.
+			if flt(self.gia_tri) <= 1:
+				frappe.throw("Nhân điểm thì điền hệ số lớn hơn 1, ví dụ 2 là khách được gấp đôi điểm.")
+			if flt(self.gia_tri) > 10:
+				frappe.throw("Hệ số nhân điểm tối đa là 10.")
+			self.kieu_giam = "Phan tram"
+			self.cach_ma = "Khong can ma"
+			self.pham_vi = "Ca hoa don"
+			self.vi_phat = 0
 		elif flt(self.gia_tri) <= 0 and self.cach_thuc != "Mua X tang Y":
 			frappe.throw("Chương trình chưa có mức giảm. Vui lòng điền giá trị giảm.")
 
-		if self.kieu_giam == "Phan tram" and flt(self.gia_tri) > 100:
+		if self.kieu_giam == "Phan tram" and flt(self.gia_tri) > 100 and self.cach_thuc != "Nhan diem":
 			frappe.throw("Giảm theo phần trăm mà điền %s là quá 100%%." % flt(self.gia_tri))
 
 		# --- bac luy ke phai xep tang dan va khong trung nguong ---
