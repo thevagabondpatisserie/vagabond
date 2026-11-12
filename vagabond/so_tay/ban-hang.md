@@ -1332,12 +1332,14 @@ Menu của trang gọi món tại bàn, riêng từng điểm bán. Sửa trên 
 1. Mở Biên tập menu, chọn điểm bán. Ba thẻ: Thứ tự, Tuỳ chọn, Topping.
 2. Bấm một món: ẩn hiện, tuỳ chọn riêng, topping.
 3. Ảnh trên web: bấm [[Tải ảnh lên]] hoặc [[Đổi ảnh]]. Máy tự cắt vuông, nén dưới 500 KB. Bỏ ảnh riêng: bấm [[Dùng ảnh danh mục]].
-4. Bấm [[Xem và xuất bản]], xem lại rồi bấm [[Xuất bản]].
-5. Xuất bản nhầm: chọn bản cũ, bấm [[Quay về bản này]].
+4. Bánh: ở nhóm Bánh trên tủ bấm [[Món ›]], chọn bánh, đổi ảnh và Mô tả ngắn trên menu như đồ uống (từ bản 652).
+5. Bấm [[Xem và xuất bản]], xem lại rồi bấm [[Xuất bản]].
+6. Xuất bản nhầm: chọn bản cũ, bấm [[Quay về bản này]].
 
 **Lưu ý**
 - Chưa xuất bản thì trang bàn vẫn chạy bản cũ. Bỏ hết sửa: [[Bỏ bản nháp]].
 - Ảnh 1:1 hiện vuông trên trang gọi món tại bàn.
+- Danh sách bánh là bánh từng lên tủ điểm đó 60 ngày gần đây. Bánh vẫn lên menu theo tồn trên tủ trong ngày; tên, giá sửa ở danh mục và Bảng giá điểm bán.
 
 ## Xem hoa hồng giới thiệu của nhân viên
 Từ khoá: hoa hồng giới thiệu, mã giới thiệu, giới thiệu khách, referral nhân viên, KPI giới thiệu, người giới thiệu
