@@ -409,6 +409,12 @@ def he_so_luc(luc, nguon, quay, khach, sdt=None):
 		ok, _ = km_._hop_thoi_gian(km, luc)
 		if ok:
 			ok, _ = km_._hop_kenh(km, nguon, quay)
+		if ok and not sdt and khach and km.get("doi_tuong") == "Nhan vien":
+			# Codex #557 vòng 4: đối tượng Nhân viên xét theo SỐ ĐIỆN THOẠI; hoá đơn chỉ
+			# có mã khách nên lấy số trên hồ sơ khách (cùng nguồn số nhận mã điểm).
+			from vagabond.diem_otp import _sdt_khach
+
+			sdt = _sdt_khach(khach) or None
 		if ok:
 			ok, _ = km_._hop_doi_tuong(km, khach, sdt)
 		if ok:
