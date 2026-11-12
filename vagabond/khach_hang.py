@@ -347,12 +347,16 @@ def diem_cua_don(hoa_don):
 		d = flt((da or [[0]])[0][0])
 		if d > 0:
 			return d, True
-		si = frappe.db.get_value("Sales Invoice", hoa_don, ["customer", "grand_total"], as_dict=True) or {}
+		si = frappe.db.get_value("Sales Invoice", hoa_don, ["customer", "grand_total", "posting_date", "posting_time",
+			"custom_nguon", "vgb_quay", "custom_pancake_id", "custom_pancake_display_id"], as_dict=True) or {}
 		kh = _khach_that(si)
 		if not kh:
 			return 0, False
 		ty_le = flt((_hang_cua(kh) or {}).get("tich_diem"))
-		return diem_cho_don(si.get("grand_total"), ty_le), False
+		# v652: cùng một phép với hook cộng điểm, kể cả chương trình nhân điểm.
+		from vagabond import diem_web
+
+		return diem_web.diem_hoa_don(si, ty_le)[0], False
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "khach_hang: diem cua don")
 		return 0, False
@@ -377,13 +381,17 @@ def cong_diem_hoa_don(doc, method=None):
 		ty_le = flt((hang or {}).get("tich_diem"))
 		if ty_le <= 0:
 			return
-		diem = diem_cho_don(doc.get("grand_total"), ty_le)
+		# v652: một nguồn cho số điểm (diem_web.diem_hoa_don), có hệ số của
+		# chương trình Nhân điểm đang chạy (Marketing cài ở màn Khuyến mãi).
+		from vagabond import diem_web
+
+		diem, hs, ten_km = diem_web.diem_hoa_don(doc, ty_le)
 		if diem <= 0:
 			return
-		_ghi_so_diem(
-			kh, diem, "Tich tu hoa don", doc.name,
-			"Hạng %s, tích %s%% của %s đ" % ((hang or {}).get("name"), ty_le, doc.get("grand_total")),
-		)
+		ghi = "Hạng %s, tích %s%% của %s đ" % ((hang or {}).get("name"), ty_le, doc.get("grand_total"))
+		if hs > 1:
+			ghi += ", %s theo chương trình %s" % (diem_web.chuoi_he_so(hs), ten_km)
+		_ghi_so_diem(kh, diem, "Tich tu hoa don", doc.name, ghi)
 	except Exception:
 		# Tich diem KHONG duoc lam hong viec ghi so hoa don. Hong thi ghi
 		# nhat ky roi thoi, chay lai bang nut "Tinh lai diem" duoc.
@@ -1142,7 +1150,16 @@ def the_tren_don(khach=None, tien=0, hoa_don=None):
 		diem_don = int(round(flt(da_tich)))
 		truoc_don = so_du - flt(da_tich)
 	else:
-		diem_don = diem_cho_don(tien, ty_le)
+		# v652: cùng phép với hook cộng điểm (diem_web.diem_hoa_don), có hệ số
+		# nhân điểm của chương trình đang chạy cho đúng hoá đơn này.
+		from vagabond import diem_web
+
+		si = {"customer": khach}
+		if hoa_don:
+			si = frappe.db.get_value("Sales Invoice", hoa_don, ["customer", "posting_date", "posting_time",
+				"custom_nguon", "vgb_quay", "custom_pancake_id", "custom_pancake_display_id"], as_dict=True) or si
+		si = dict(si, grand_total=tien)
+		diem_don = diem_web.diem_hoa_don(si, ty_le)[0]
 		truoc_don = so_du
 
 	return {

@@ -737,6 +737,17 @@ def con_lai(diem, ngay=None):
 	return ra
 
 
+def rieng_banh_menu(menu, x):
+	"""v652: (ảnh riêng, mô tả) của một bánh trên tủ theo menu đã xuất bản của
+	điểm. Ảnh riêng rỗng thì dùng đường ảnh cũ (danh mục, Pancake). THUẦN."""
+	if not menu:
+		return "", x.get("mo_ta") or ""
+	from vagabond.bien_tap_menu import rieng_banh
+
+	anh, mo_ta = rieng_banh(menu, x.get("ma"), "", x.get("mo_ta"))
+	return anh, mo_ta
+
+
 def banh_tren_quay(ma_diem, ngay=None):
 	"""Bánh trên tủ của MỘT quầy đang bày lên tab Tại quầy: [{ma, ten, con,
 	gia_chung, nhom, anh_goc}]. Một phép cho cả trang khách (con_tren_quay_web)
@@ -824,17 +835,27 @@ def con_tren_quay_web():
 		# v638: giá theo bảng giá điểm bán (giá riêng của điểm, không có thì giá
 		# chung), cùng phép cửa gọi món tại bàn dùng để tính tiền.
 		gia_diem = diem_ban.gia_rieng(d["ma"]) if cac_banh else {}
+		# v652: ảnh, mô tả bánh sửa riêng ở Biên tập menu (bản đã xuất bản) đứng trước danh mục món.
+		menu_diem = None
+		if cac_banh:
+			try:
+				from vagabond import bien_tap_menu
+
+				menu_diem = bien_tap_menu.menu_dang_chay(d["ma"])[0]
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "kiem_kho: doc menu banh rieng loi")
 		for x in cac_banh:
+			anh_rieng, mo_ta = rieng_banh_menu(menu_diem, x)
 			# #367: anh ho so mon ERP truoc, Pancake sau, anh nen cuoi cung.
 			# Mot thu tu cho moi tab, xem vagabond/anh_web.py.
 			anhs = []
-			if co_pancake and (not anh_cong_khai(x["anh_goc"])
+			if not anh_rieng and co_pancake and (not anh_cong_khai(x["anh_goc"])
 					or la_anh_pancake_da_chep(x["anh_goc"], x["ma"])):
 				try:
 					anhs = kiem_banh._anh_pancake(c, k, x["ma"]) or []
 				except Exception:
 					anhs = []
-			anh = chon_anh(x["anh_goc"], anhs, ma_hang=x["ma"])[0]
+			anh = chon_anh(anh_rieng or x["anh_goc"], anhs, ma_hang=x["ma"])[0]
 			q["mon"].append({
 				"ma": x["ma"],
 				"ten": x["ten"],
@@ -842,7 +863,7 @@ def con_tren_quay_web():
 				"anh": anh,
 				"con": x["con"],
 				"nhom": x["nhom"],
-				"mo_ta": x.get("mo_ta") or "",
+				"mo_ta": mo_ta,
 			})
 		# v638 (anh Việt 04/11/2026): đồ uống đang bật bán web của quầy, chỉ
 		# trong khoá RIÊNG `do_uong` để tab khác (trang cũ, editor) đọc `mon`

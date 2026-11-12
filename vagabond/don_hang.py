@@ -26,7 +26,7 @@ import frappe
 import requests
 from frappe.rate_limiter import rate_limit
 
-from vagabond import don_dau_web, don_web, khuyen_mai
+from vagabond import diem_web, don_dau_web, don_web, khuyen_mai
 from vagabond.giao_hang import phi_giao
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
 
@@ -313,6 +313,24 @@ def _tra_uu_dai_khi_tu_choi(kq, ma, giu_ma, ten_ban_ghi):
 
 
 def tra_uu_dai_don_huy():
+	"""Việc định kỳ 15 phút: trả lượt ưu đãi và (v652) hoàn điểm của đơn web đã huỷ."""
+	n = _tra_luot_don_huy()
+	try:
+		con = diem_web.don_huy_con_giu_diem()
+	except Exception:
+		frappe.log_error(title="Vagabond: dò đơn web huỷ còn giữ điểm", message=frappe.get_traceback())
+		con = []
+	for ten in con:
+		try:
+			diem_web.hoan_don_web(ten, "Đơn web đã huỷ")
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(title="Vagabond: hoàn điểm đơn web đã huỷ", message=frappe.get_traceback())
+	return n
+
+
+def _tra_luot_don_huy():
 	"""Việc định kỳ: đơn web đã huỷ mà còn giữ lượt chương trình hoặc mã dùng
 	một lần (chưa gắn hoá đơn) thì trả lại. Lưới an toàn cho lần trả ngay lúc
 	Pancake từ chối bị lỗi, và cho đơn chờ đối soát về sau mới thành Đã huỷ."""
@@ -338,6 +356,34 @@ def tra_uu_dai_don_huy():
 	return n
 
 
+TEN_DIEM = "Điểm thành viên"
+
+
+def _diem_don(sdt, tien_banh_con, dung):
+	"""v652: phần điểm thành viên của một giỏ web (diem_web.thong_tin)."""
+	return diem_web.thong_tin(sdt, max(0, int(tien_banh_con or 0)), dung is True or dung == 1)
+
+
+def _diem_hien(dv):
+	"""Phần điểm gửi cho trình duyệt: không có mã khách."""
+	if not dv:
+		return None
+	return {k: dv.get(k) for k in ("trang_thai", "so_du", "toi_da", "tien_toi_da", "dung", "tien", "len_hang")}
+
+
+def _tra_diem_khi_tu_choi(kq, ten_ban_ghi):
+	"""v652: Pancake từ chối thì hoàn điểm đã trừ cho đơn ngay. Lỗi thì việc
+	định kỳ tra_uu_dai_don_huy hoàn sau (đơn đã ở Đã huỷ)."""
+	if kq.get("ket_qua") != "tu_choi":
+		return
+	try:
+		diem_web.hoan_don_web(ten_ban_ghi, "Pancake từ chối đơn")
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Vagabond: hoàn điểm đơn web (việc định kỳ sẽ hoàn lại)", message=frappe.get_traceback())
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=30, seconds=60)
 def xem_uu_dai(don=None):
@@ -358,13 +404,20 @@ def xem_uu_dai(don=None):
 	sdt = _so(don.get("dien_thoai"))
 	uu = _uu_dai_don(hang, gia, ma, sdt, _ngay_iso(don.get("ngay_nhan")))
 	# v645: ưu đãi đơn đầu tiên trên web, không cộng với mã, giữ cái lớn hơn.
-	tt, ch = _don_dau(sdt, don_web.tinh_tien_banh(hang, gia)[0])
+	tien_banh = don_web.tinh_tien_banh(hang, gia)[0]
+	tt, ch = _don_dau(sdt, tien_banh)
 	uu, bo_ma = don_dau_web.tron(uu, tt, bool(ma), ch["giam"])
 	dd = dict(don_dau_web.phan_hoi(tt, ch), ap_dung=1 if uu.get("don_dau") else 0, bo_ma=1 if bo_ma else 0)
 	if ma and uu.get("ly_do"):
 		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"], "giam": 0, "ap": [], "don_dau": dd}
-	return {"ok": 1, "giam": int(uu.get("tong_giam") or 0),
-		"ap": [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []], "don_dau": dd}
+	giam_uu = int(uu.get("tong_giam") or 0)
+	ap = [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []]
+	# v652: điểm thành viên trừ SAU CÙNG, chỉ trên tiền bánh còn lại.
+	dv = _diem_don(sdt, tien_banh - giam_uu, don.get("dung_diem")) if sdt else None
+	if dv and dv["tien"]:
+		ap.append({"ten": TEN_DIEM, "giam": dv["tien"]})
+	return {"ok": 1, "giam": giam_uu + int((dv or {}).get("tien") or 0), "ap": ap, "don_dau": dd,
+		"diem": _diem_hien(dv)}
 
 
 def _gan_giam_pancake(hang, hang_goc, gia, giam):
@@ -586,15 +639,25 @@ def tao_don(don=None):
 	# lý do, dù máy chủ đã biết mã không còn hợp lệ.
 	if ma_uu_dai and uu.get("ly_do"):
 		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"]}
+	# v652: điểm thành viên, trừ sau cùng trên tiền bánh còn lại (không trừ phí
+	# giao). Khách chọn dùng điểm mà lúc gửi không còn dùng được (phiên hết, số
+	# dư đổi, giỏ đổi làm trần đổi) thì cho khách xem lại, không tự bỏ điểm.
+	dung_diem = don.get("dung_diem") is True or don.get("dung_diem") == 1
+	dv = _diem_don(dien_thoai, tien_banh - giam, True) if dung_diem else None
+	if dung_diem and (dv or {}).get("trang_thai") != "dung_duoc":
+		return {"ok": 0, "ly_do": "diem_doi", "diem": _diem_hien(dv)}
+	so_diem = int((dv or {}).get("dung") or 0)
+	tien_diem = int((dv or {}).get("tien") or 0)
+	giam_tong = giam + tien_diem
 	try:
 		giam_da_xem = int(float(don.get("giam_da_xem") or 0))
 	except (TypeError, ValueError):
 		giam_da_xem = 0
-	if giam != giam_da_xem:
-		return {"ok": 0, "ly_do": "uu_dai_doi", "uu": {
-			"giam": giam,
-			"ap": [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []],
-		}}
+	if giam_tong != giam_da_xem:
+		ap_doi = [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []]
+		if tien_diem:
+			ap_doi.append({"ten": TEN_DIEM, "giam": tien_diem})
+		return {"ok": 0, "ly_do": "uu_dai_doi", "uu": {"giam": giam_tong, "ap": ap_doi}, "diem": _diem_hien(dv)}
 	# Phi giao TINH LAI o day. Con so tu trinh duyet gui len chi de hien
 	# cho khach xem, khong duoc dung lam so tien that.
 	# Truyen luon moc gio khach chon, vi gia Ahamove doi theo gio.
@@ -663,8 +726,8 @@ def tao_don(don=None):
 		"received_at_shop": tu_lay,
 		"status": 0,
 	}
-	if giam:
-		body["items"] = _gan_giam_pancake(hang, hang_goc, gia, giam)
+	if giam_tong:
+		body["items"] = _gan_giam_pancake(hang, hang_goc, gia, giam_tong)
 	if phi.get("mien_phi"):
 		# 21/10/2026: khach duoc mien phi giao tren web nhung sales nhin don
 		# Pancake chi thay phi giao 0, tuong chua tinh nen thu them. Ghi ro
@@ -726,7 +789,11 @@ def tao_don(don=None):
 		"gioi_thieu_sdt": ttt.chuan_gioi_thieu(don.get("ma_gioi_thieu")),
 		"phi": phi,
 		"thieu_gia": _thieu_gia,
-		"uu_dai": dict({"ma": ma_uu_dai, "giam": giam, "ap": uu.get("ap") or []}, **({"don_dau": 1} if dung_dau else {})) if giam else None,
+		# v652: giam là TỔNG giảm (ưu đãi + điểm): mọi nơi tính số phải thu
+		# (thanh_toan_web_thuan.tien_ban_ghi, OnePay, mã QR) đọc đúng một số.
+		"uu_dai": dict({"ma": ma_uu_dai, "giam": giam_tong, "ap": (uu.get("ap") or []) + (
+			[{"ma": "", "ten": TEN_DIEM, "giam": tien_diem}] if tien_diem else [])},
+			**({"don_dau": 1} if dung_dau else {}), **({"diem": {"so_diem": so_diem, "tien": tien_diem}} if so_diem else {})) if giam_tong else None,
 	}
 
 	ip, ua = _ip_va_trinh_duyet()
@@ -809,6 +876,11 @@ def tao_don(don=None):
 			"trinh_duyet": ua,
 			"snapshot": json.dumps(snapshot, ensure_ascii=False),
 		})
+		if so_diem:
+			# v652: trừ điểm trong cùng giao dịch với bản ghi, dưới khoá dòng khách.
+			if diem_web.giu_diem(ban_ghi.name, dv["khach"], so_diem, tien_banh - giam) != so_diem:
+				frappe.db.rollback()
+				return {"ok": 0, "ly_do": "diem_doi", "diem": _diem_hien(_diem_don(dien_thoai, tien_banh - giam, True))}
 		giu_ma = bool(giam and ma_uu_dai and khuyen_mai.ma_dung_mot_lan(ma_uu_dai))
 		if giam and not dung_dau:
 			# Giữ lượt TRONG khoá, theo ngày nhận (đúng ngày đã soát hạn mức), cùng
@@ -870,19 +942,21 @@ def tao_don(don=None):
 		# Codex #495 P2: phí chưa rõ (Ahamove không báo được) KHÔNG ép thành 0;
 		# truyền nguyên phi để tin nói "phí giao chưa rõ" thay cho một Tổng giả.
 		tin_kho.bao_don_web_moi(ban_ghi.name, ten, ngay, tu_lay, don.get("diem_lay_ten"), dia_chi, snapshot["mon"],
-			tien_banh - giam, phi, kq.get("pancake_display_id") or kq.get("pancake_id"))
+			tien_banh - giam_tong, phi, kq.get("pancake_display_id") or kq.get("pancake_id"))
 		frappe.db.commit()
 
-	if giam and kq["ket_qua"] == "da_nhan":
+	if giam_tong and kq["ket_qua"] == "da_nhan":
 		ma_don = kq.get("pancake_id")
 		doc_lai = _doc_lai_don_pancake(shop_id, k, ma_don)
-		mong_doi = int(tien_banh - giam + (phi.get("phi_khach") or 0))
+		mong_doi = int(tien_banh - giam_tong + (phi.get("phi_khach") or 0))
 		thuc_te = _tong_pancake(doc_lai)
 		if thuc_te != mong_doi:
 			_bao_lech_tong_pancake(ma_don, mong_doi, thuc_te, ban_ghi.name)
 
 	if giam:
 		_tra_uu_dai_khi_tu_choi(kq, ma_uu_dai, giu_ma, ban_ghi.name)
+	if so_diem:
+		_tra_diem_khi_tu_choi(kq, ban_ghi.name)
 
 	if kq["ket_qua"] == "tu_choi":
 		return {"ok": 0, "ly_do": kq["ly_do"]}
