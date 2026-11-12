@@ -22,6 +22,21 @@ Ngay khi kết thúc mỗi vòng rà, trước khi chuyển việc hoặc kết 
 - Chỉ báo đã gửi khi có biên nhận. Nếu gửi lỗi, báo trực tiếp anh kèm link
   kết luận và lỗi gửi. Không coi biên nhận là anh đã đọc hoặc đã duyệt.
 
+## H10. Trách nhiệm của người rà
+
+1. **Vòng đầu rà theo nghiệp vụ từ đầu đến cuối.** Đọc yêu cầu và toàn bộ thay đổi so với nền. Với mỗi nghiệp vụ bị đổi, lần từ nút/API tới nơi quyết định và nơi ghi kết quả. Kiểm các lối vào dùng chung như Desktop, app, nhập tệp hoặc tác vụ nền nếu có. Khi thấy lỗi, chính Codex phải tìm các chỗ cùng nguyên nhân trong phạm vi thay đổi và các hàm gọi liên quan. Gộp các vị trí vào một nhận xét. Chỗ chưa chứng minh được ghi rõ là câu hỏi.
+2. **Nêu điều kiện để khép từng lỗi.** Ghi ai thao tác, trong tình huống nào, kết quả nào sai, bằng chứng ở đâu, và sau khi sửa cần quan sát điều gì. Một lỗi chặn cần dẫn tới sai nghiệp vụ hoặc vi phạm yêu cầu cụ thể. Góp ý dễ đọc và cải tiến ngoài phạm vi để riêng. Gom tóm tắt một lần ở cuối vòng, dẫn tới nhận xét theo dòng nếu có.
+3. **Vòng sau chỉ rà phần đã đổi và phần có thể bị ảnh hưởng.** Ghi SHA nền, SHA đã rà và SHA mới. Đọc các lỗi còn mở, thay đổi từ lần trước và các luồng dùng lại đoạn vừa sửa. Khi có rebase hoặc ghép nhánh, so cả nền mới. Mở rộng rà nếu quy tắc chung, quyền, thuế, ghi kho hoặc ranh giới giao dịch thay đổi. Có thể chốt một lỗi khi ca kiểm phân biệt được hành vi cũ với mới. Nếu cách sửa khác dự kiến nhưng đạt yêu cầu, chấp nhận kết quả.
+4. **Mốc hai vòng dùng để tìm nguyên nhân chậm.** Nếu vòng sau mới phát hiện lỗi cùng nguyên nhân ở đoạn đã có từ vòng đầu, ghi cả phần Codex đã rà sót. Nếu lỗi do thay đổi mới, ghi commit đưa lỗi vào. Phần còn tranh luận cần một ca phân xử hoặc một quyết định nghiệp vụ. Lỗi tác động tiền, kho, quyền hoặc số liệu tiếp tục chặn cho tới khi có bằng chứng. Quyền merge/deploy theo chỉ định riêng.
+5. **Cổng kế toán kiểm ý nghĩa bút toán.** Với thay đổi thuế, giá vốn hoặc thanh toán, ca bench đối chiếu từ chứng từ nguồn đến số tiền, chiều Nợ/Có và đúng TK theo nghiệp vụ. Kiểm hoàn nguyên hoặc gửi lại khi luồng cho phép. Bất kỳ đường mới nào có thể ghi sổ đều phải chỉ ra thao tác duyệt của kế toán hoặc chính sách tự động đã được anh Việt duyệt cho đúng nghiệp vụ. Dùng dữ liệu giả trong PR công khai.
+6. **Mỗi lần bàn giao gọi review một lần trên SHA cuối.** Các lô tải lên có thể tạo nhiều commit. CI vẫn chạy theo cổng hiện có. Khi SHA và nền đã rà không đổi, chỉ mở lại nếu có bằng chứng mới hoặc cổng kiểm đổi kết quả. Theo dõi ba số qua mười PR tiếp theo: số SHA bàn giao đã được rà, lỗi có sẵn bị phát hiện muộn, lỗi mới phát sinh sau lần sửa. Ghi riêng thời gian chờ bench nếu muốn đánh giá tốc độ.
+
+### Hướng dẫn áp dụng H3, H5 và H8.1
+
+- H3: Sau khoảng 15 phút, nếu chưa chứng minh được, ghi điều kiện còn thiếu và chọn phép kiểm quyết định. Với lỗi đồng thời hoặc giao dịch cần cho hai phiên bench chạy đan xen thực sự khi hành vi phụ thuộc cơ sở dữ liệu.
+- H5: Chạy từng thay đổi cố tình phá hành vi trong bản thử cô lập. Nếu một lớp khác vẫn bảo vệ đúng kết quả, ghi lớp đó. Khi cần kiểm hợp đồng của từng lớp, viết ca riêng. Chỉ kết luận một lỗi có thể đến tay người dùng khi có bằng chứng trên đường thao tác tương ứng.
+- H8.1: Khóa phần đọc quyết định lần ghi trên tài nguyên dùng chung. Đọc lại trạng thái quyết định trong cùng giao dịch sau khi lấy khóa. Báo cáo chỉ đọc có thể dùng ảnh chụp nhất quán. Thêm khóa dàn trải gây chờ mà chưa chắc ngăn được sai tiền.
+
 ## Cửa vào chung từ 12/10/2026
 
 Đọc [Instruction chung](INSTRUCTION_VAGABOND.md) trước. Quy trình nhận việc,
