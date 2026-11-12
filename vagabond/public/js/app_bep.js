@@ -10898,7 +10898,7 @@ async function mfgChayHoanTat(d, cacDvt) {
    hoi lai. */
 async function mfgHoanTatMot(d, q, can, imLang, buNhom) {
   var mats = d.required_items || [];
-  var src = d.source_warehouse || mfg.src;
+  var src = mfgKhoLenh(d);
   var ratio = (d.qty || 1) ? q / (d.qty || 1) : 1;
   var plan = [];
   busy(1);
@@ -11023,7 +11023,8 @@ async function mfgHoanTatNhom(g, veLai) {
       return (chia.phan[i] > 0 ? '• ' + c.ten + ': ' + num(chia.phan[i]) + ' ' + (g.dvt || '')
         : '• ' + c.ten + ': để lần sau');
     }).join('\n') +
-    (kt.lay.length ? '\n\n' + mfgCauLayBu(kt.lay.map(function (x) { return { ten: x.name, sl: x.lay, dvt: x.uom }; }), []) : ''),
+    (kt.lay.length ? '\n\n' + mfgCauLayBu(kt.lay.map(function (x) { return { ten: x.name, sl: x.lay, dvt: x.uom }; }), []) : '') +
+    ((kt.thay || []).length ? '\n\n' + mfgCauThay(kt.thay) : ''),
     (kt.lay.length ? 'Lấy kho tổng và ghi sổ ' : 'Ghi sổ ') + con.length + ' lệnh', 0);
   if (!ok) return;
   mfgNhoSo(g.ma_mon, hai.thuc_te, hai.dvt, hai.he_so);
@@ -11186,8 +11187,9 @@ async function mfgFreshPlan(mats, ratio, src, giu) {
    Chi doc MOT cap cong thuc: neu trong do lai co ban thanh pham lam tuoi
    thi may van tu lam tiep, nhung hop xac nhan khong nen bay ca cay ra man
    hinh dien thoai. Cot "tồn" doc tai dung cai kho se bi tru. */
-async function mfgNvlCuaKe(plan, src, capToi) {
-  if (!plan || !plan.length) return [];
+async function mfgNvlCuaKe(plan, src, capToi, goc) {
+  plan = plan || [];
+  if (!plan.length && !(goc && goc.length)) return [];
   var gom = {}, thu_tu = [];
   /* Cộng nguyên liệu của các công thức: ti = {tên công thức: số thành phẩm}. */
   async function cong(ti) {
@@ -11215,6 +11217,14 @@ async function mfgNvlCuaKe(plan, src, capToi) {
   var ti0 = {};
   plan.forEach(function (f) { if (f.bom) ti0[f.bom] = (ti0[f.bom] || 0) + (f.qty || 0); });
   await cong(ti0);
+  /* Codex #553 (P2): kiểm cả nhóm cấp đầu đi từ đúng dòng nguyên liệu lệnh sẽ
+     trừ (required_items của lệnh), không trải lại công thức. */
+  (goc || []).forEach(function (r) {
+    var c = r.code;
+    if (!c || !((r.need || 0) > 0)) return;
+    if (!gom[c]) { gom[c] = { code: c, name: r.name || c, uom: r.uom, need: 0 }; thu_tu.push(c); }
+    gom[c].need = r3(gom[c].need + r.need);
+  });
   if (!thu_tu.length) return [];
 
   /* Tồn đã giữ cho món chính không tính là có cho lệnh con (cùng cách với
@@ -11278,22 +11288,56 @@ async function mfgNvlCuaKe(plan, src, capToi) {
   return ra.sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
 }
 
+/* Kho một lệnh trừ nguyên liệu, cùng luật màn Lệnh sản xuất (scrMfgView):
+   lệnh có bước chuyển kho (không bỏ qua chuyển, hoặc trừ từ kho dở dang) trừ
+   ở kho dở dang; còn lại trừ ở kho nguồn của lệnh. Codex #553 (P2). */
+function mfgKhoLenh(d) {
+  var src = (d && d.source_warehouse) || mfg.src;
+  return d && (!d.skip_transfer || d.from_wip_warehouse) && d.wip_warehouse ? d.wip_warehouse : src;
+}
+
 /* v650: nguyên liệu cho TỔNG số của cả nhóm lệnh (món chính, phần máy làm
    thêm tới 3 cấp, tồn và Kho tổng 307), cùng phép với hộp "Máy làm luôn giúp
    bếp" (mfgNvlCuaKe). docs[i] là lệnh, phan[i] là số làm của lệnh đó lần này;
-   docs[i] null là lệnh chưa tới lượt. Lệnh khác kho nguồn thì kiểm riêng. */
+   docs[i] null là lệnh chưa tới lượt.
+
+   Codex #553: (P2) cấp đầu lấy đúng dòng nguyên liệu của lệnh (required_items)
+   và đúng kho từng dòng sẽ bị trừ: kho dở dang nếu lệnh qua bước chuyển kho,
+   không thì kho nguồn của dòng. (P1) phần còn thiếu sau Kho tổng thì hỏi máy
+   chủ hàng thay thế đã khai bù được bao nhiêu, đúng luật lúc ghi sổ. */
 async function mfgKiemNvlNhom(docs, phan) {
   var theoKho = {}, khoThuTu = [];
+  function nhom(k) {
+    if (!theoKho[k]) { theoKho[k] = { plan: [], goc: [] }; khoThuTu.push(k); }
+    return theoKho[k];
+  }
   (docs || []).forEach(function (d, i) {
-    if (!d || !(phan[i] > 0) || !d.bom_no) return;
+    if (!d || !(phan[i] > 0)) return;
     var src = d.source_warehouse || mfg.src;
-    if (!theoKho[src]) { theoKho[src] = []; khoThuTu.push(src); }
-    theoKho[src].push({ bom: d.bom_no, qty: phan[i] });
+    var mats = d.required_items || [];
+    if (!mats.length) { if (d.bom_no) nhom(src).plan.push({ bom: d.bom_no, qty: phan[i] }); return; }
+    var ratio = phan[i] / (d.qty || 1);
+    var khoLenh = mfgKhoLenh(d), quaWip = khoLenh !== src;
+    mats.forEach(function (m) {
+      var k = quaWip ? khoLenh : (m.source_warehouse || src);
+      nhom(k).goc.push({ code: m.item_code, name: m.item_name, uom: m.stock_uom, need: r3((m.required_qty || 0) * ratio) });
+    });
   });
   var ra = [];
   for (var k = 0; k < khoThuTu.length; k++) {
-    var src = khoThuTu[k];
-    (await mfgNvlCuaKe(theoKho[src], src, 4)).forEach(function (x) { x.kho = src; ra.push(x); });
+    var kho = khoThuTu[k];
+    (await mfgNvlCuaKe(theoKho[kho].plan, kho, 4, theoKho[kho].goc)).forEach(function (x) { x.kho = kho; ra.push(x); });
+  }
+  var dung = ra.filter(function (x) { return !x.tu_lam; });
+  if (dung.some(function (x) { return (x.thieu || 0) - (x.lay_tong || 0) > 0.0001; })) {
+    var tt = await api('vagabond.kho_san_xuat.thay_the_cho_thieu', { dong: JSON.stringify(dung.map(function (x) {
+      return { ma: x.code, kho: x.kho, can: x.need, thieu: r3(Math.max(0, (x.thieu || 0) - (x.lay_tong || 0))) };
+    })) });
+    (tt || []).forEach(function (t) {
+      ra.forEach(function (x) {
+        if (x.code === t.ma && x.kho === t.kho && !x.tu_lam) { x.thay = t.bu || 0; x.thay_ds = t.thay || []; }
+      });
+    });
   }
   return ra;
 }
@@ -11302,15 +11346,29 @@ async function mfgKiemNvlNhom(docs, phan) {
    Thiếu mà máy tự làm được (tu_lam) không tính, nguyên liệu của phần đó đã
    nằm trong danh sách. */
 function mfgPhanNvl(ra) {
-  var lay = [], thieu = [];
+  var lay = [], thieu = [], thay = [];
   (ra || []).forEach(function (x) {
     if (!((x.thieu || 0) > 0.0001) || x.tu_lam) return;
     var l = Math.min(x.thieu, Math.max(0, x.lay_tong || 0));
-    var con = r3(x.thieu - l);
+    var t = Math.min(x.thieu - l, Math.max(0, x.thay || 0));
+    var con = r3(x.thieu - l - t);
     if (l > 0.0001) lay.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, lay: r3(l) });
+    if (t > 0.0001) thay.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, sl: r3(t), ds: x.thay_ds || [] });
     if (con > 0.0001) thieu.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, can: x.need, co: x.ton, thieu: con });
   });
-  return { lay: lay, thieu: thieu };
+  return { lay: lay, thieu: thieu, thay: thay };
+}
+
+/* THUẦN: một dòng trong hộp xác nhận nói phần dùng hàng thay thế đã khai
+   (Codex #553). Tối đa hai món rồi "và N nữa" (AGENTS.md mục 17). */
+function mfgCauThay(thay) {
+  thay = thay || [];
+  if (!thay.length) return '';
+  var dau = thay.slice(0, 2).map(function (x) {
+    var ten = (x.ds || []).map(function (y) { return y.ten || y.ma; }).join(', ');
+    return (ten || 'hàng thay thế') + ' ' + num(x.sl) + ' ' + (x.uom || '') + ' thay ' + x.name;
+  }).join('; ');
+  return 'Dùng hàng thay thế đã khai: ' + dau + (thay.length > 2 ? ' và ' + (thay.length - 2) + ' nguyên liệu nữa' : '') + '.';
 }
 
 /* THUẦN: câu hộp "chưa đủ nguyên liệu" của cả nhóm. Tối đa ba dòng món rồi
@@ -11322,7 +11380,7 @@ function mfgCauThieuNhom(kt) {
       (x.kho ? shortWh(x.kho) : 'kho bếp') + ' có ' + num(x.co) + ')';
   });
   if (t.length > 3) dong.push('• và ' + (t.length - 3) + ' nguyên liệu nữa');
-  return 'Kho bếp và Kho tổng 307 chưa đủ cho số này, nên máy chưa ghi lệnh nào (kể cả phần máy làm thêm).\n' +
+  return 'Kho bếp, Kho tổng 307 và hàng thay thế đã khai chưa đủ cho số này, nên máy chưa ghi lệnh nào (kể cả phần máy làm thêm).\n' +
     dong.join('\n') + '\n\nNhờ kho nhập hoặc chuyển thêm (màn Kế hoạch sản xuất, nút Xin chuyển nguyên liệu), hoặc làm số ít hơn.';
 }
 
@@ -71602,23 +71660,23 @@ function gmThue(nhom) {
   }, 0));
 }
 
+/* Chip chữ 13 điểm (AGENTS.md mục 13, Codex #553). */
 function gmStChip(x) {
-  return '<span class="st ' + x.c + '" style="font-size:11.5px;padding:3px 8px">' + h(x.t) + '</span>';
+  return '<span class="st ' + x.c + '" style="font-size:13px;padding:4px 9px">' + h(x.t) + '</span>';
 }
 
 function gmMon(m, i) {
   var mo = !!GM.mo[m.ma];
   var lech = Math.abs((Number(gmSoMua(m)) || 0) - m.xin) > 0.0001;
-  return '<div class="khsx-the" data-gmmon="' + h(m.ma) + '" data-gmchu="' + h((m.ten || '') + ' ' + m.ma) + '"><div class="li" style="align-items:flex-start">' + anhMon(m.anh) +
+  return '<div class="khsx-the" data-gmmon="' + h(m.ma) + '" data-gmchu="' + h((m.ten || '') + ' ' + m.ma) + '"><div class="li" data-gmmo="' + h(m.ma) + '" style="align-items:flex-start;min-height:44px;cursor:pointer">' + anhMon(m.anh) +
     '<div class="lt"><div class="l1" style="white-space:normal;word-break:break-word">' + h(m.ten) + '</div>' +
     '<div class="l2">Xin ' + kl(m.xin, m.dvt) + (m.gia ? ' · giá lần trước ' + money(m.gia) + ' đ' : ' · chưa có giá mua') + '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">' + gmChipMon(m, today(), lech).map(gmStChip).join('') +
-    '<button type="button" data-gmmo="' + h(m.ma) + '" class="st n" style="font-size:11.5px;padding:3px 8px;border:0;cursor:pointer;min-height:24px">' +
-    m.phieu.length + ' phiếu xin ' + (mo ? '▴' : '▾') + '</button></div></div>' +
+    gmStChip({ t: m.phieu.length + ' phiếu xin ' + (mo ? '▴' : '▾'), c: 'n' }) + '</div></div>' +
     '<input class="tin" data-gmsl="' + h(m.ma) + '" inputmode="decimal" value="' + h(gmSoMua(m)) + '" ' +
     'style="width:84px;margin:0;text-align:center;flex:none' + (lech ? ';border-color:#0B7C93;font-weight:700' : '') + '" aria-label="Số mua ' + h(m.ten) + '">' +
     '</div>' +
-    (mo ? '<div style="padding:0 14px 10px 14px;font-size:12.5px;color:#5a6070;line-height:1.7">' +
+    (mo ? '<div style="padding:0 14px 10px 14px;font-size:13px;color:#5a6070;line-height:1.7">' +
       m.phieu.map(function (p) {
         return '• ' + h(p.phieu) + ' · ' + h(p.bo_phan || 'bộ phận chưa ghi') + ' · ' + kl(p.xin, m.dvt) + (p.ngay ? ' · cần ' + h(dmy(p.ngay)) : '');
       }).join('<br>') + '</div>' : '') +
@@ -71637,7 +71695,7 @@ function gmNhom(g, i) {
     '<div class="lst">' + g.mon.map(gmMon).join('') + '</div>' +
     '<div style="font-size:13px;color:#374151;margin:10px 2px 8px;line-height:1.5">' +
     (g.ncc ? 'Tạm tính ' + money(tien) + ' đ' + (thue ? ' + VAT ' + money(thue) + ' đ = <b>' + money(tien + thue) + ' đ</b>' : '') +
-      '<div style="font-size:12px;color:#6b7280">Giá lần mua trước, thuế theo mẫu VAT khai trên từng món.</div>'
+      '<div style="font-size:13px;color:#6b7280">Giá lần mua trước, thuế theo mẫu VAT khai trên từng món.</div>'
       : 'Bấm Chốt để chọn nhà cung cấp cho nhóm này.') + '</div>' +
     '<button class="btn gr" data-gmchot="' + i + '" style="margin:0">✅ Chốt đơn ' + g.so_mon + ' món</button></div>';
 }
@@ -71646,7 +71704,7 @@ function gmNhom(g, i) {
 function gmTienDo() {
   var b = [['Bộ phận gửi yêu cầu', 'g'], ['Thu mua gom, chốt đơn', 'b'], ['Gửi đơn cho nhà cung cấp', 'n'], ['Kho nhận hàng', 'n']];
   return '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px">' + b.map(function (x, i) {
-    return '<span class="st ' + x[1] + '" style="font-size:11.5px;padding:4px 8px' + (i === 1 ? ';outline:2px solid #0B7C93' : '') + '">' +
+    return '<span class="st ' + x[1] + '" style="font-size:13px;padding:4px 9px' + (i === 1 ? ';outline:2px solid #0B7C93' : '') + '">' +
       (i === 0 ? '✓ ' : (i + 1) + '. ') + h(x[0]) + (i === 1 ? ' (đang ở đây)' : '') + '</span>';
   }).join('') + '</div>';
 }
@@ -71728,6 +71786,9 @@ async function scrGomMua(giu) {
     if (lc) { GM.loc = lc.getAttribute('data-gmloc') || ''; return scrGomMua(1); }
     var c = e.target.closest('[data-gmchot]');
     if (c) return gmChot(nhom[+c.dataset.gmchot]);
+    /* Codex #553: cả dòng món là vùng bấm mở phiếu xin (cao ít nhất 44 điểm);
+       bấm vào ô số mua thì chỉ gõ số, không mở. */
+    if (e.target.closest('input')) return;
     var m = e.target.closest('[data-gmmo]');
     if (m) { GM.mo[m.dataset.gmmo] = GM.mo[m.dataset.gmmo] ? 0 : 1; return scrGomMua(1); }
   };
