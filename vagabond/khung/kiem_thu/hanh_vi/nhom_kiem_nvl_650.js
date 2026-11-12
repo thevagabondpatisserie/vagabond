@@ -128,7 +128,7 @@ function theGioi(ton, tong, opt) {
           var toi = a.lay_bu ? JSON.parse(a.lay_toi_da || '{}') : null;
           var trong = toi && lay.every(function (x) { return (toi[x.ma] || 0) + 0.0005 >= x.sl; });
           if (lay.length && !trong) return { ok: 0, hoi_lay_bu: lay, con_thieu: conThieu };
-          lay.forEach(function (x) { tong[x.ma] = r3(tong[x.ma] - x.sl); ton[x.ma] = r3((ton[x.ma] || 0) + x.sl); nhat.laybu = r3(nhat.laybu + x.sl); });
+          lay.forEach(function (x) { var tk0 = tonCua(khoTru(w2, x.ma)); tong[x.ma] = r3(tong[x.ma] - x.sl); tk0[x.ma] = r3((tk0[x.ma] || 0) + x.sl); nhat.laybu = r3(nhat.laybu + x.sl); });
         } else { lay = []; }
         var dungThay = {};
         Object.keys(can).forEach(function (c) {
@@ -339,6 +339,26 @@ async function ca(ten, fn) {
     bang('mot hop xac nhan', t.nhat.hoiBep.map(function (x) { return x[2]; }), ['Ghi sổ 2 lệnh']);
     bang('ghi ca 2 lenh', t.nhat.phieu.length, 4);
     bang('kho lanh het cacao', t.tonKho[LANH].CACAO, 0);
+  });
+
+  await ca('13. Codex #553 vong 2: hai lenh lay cacao o hai kho bep (thieu 0,2 va 0,3), Kho tong chi con 0,3: chia MOT so du, chan truoc khi ghi', async function () {
+    var LANH = 'Kho lạnh - TV';
+    var t = theGioi({ BOT: 1000, CACAO: 0 }, { CACAO: 0.3 }, { lenh: { 'WO-B': { khoMon: { CACAO: LANH } } },
+      tonKho: { 'Kho lạnh - TV': { CACAO: 0 } } });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('khong phieu kho nao', t.nhat.phieu, []);
+    bang('khong lay kho tong', t.nhat.laybu, 0);
+    co('noi phan thieu that', t.nhat.hoiBep[0][1], 'thiếu 0,2 Kg');
+  });
+
+  await ca('13b. Kho tong du cho ca hai kho bep (0,5): van mot hop, lay dung 0,2 va 0,3, ghi ca 2 lenh', async function () {
+    var LANH = 'Kho lạnh - TV';
+    var t = theGioi({ BOT: 1000, CACAO: 0 }, { CACAO: 0.5 }, { lenh: { 'WO-B': { khoMon: { CACAO: LANH } } },
+      tonKho: { 'Kho lạnh - TV': { CACAO: 0 } } });
+    await t.mfgHoanTatNhom(NHOM);
+    bang('nut', t.nhat.hoiBep.map(function (x) { return x[2]; }), ['Lấy kho tổng và ghi sổ 2 lệnh']);
+    bang('ghi ca 2 lenh', t.nhat.phieu.length, 4);
+    bang('lay 0,5', t.nhat.laybu, 0.5);
   });
 
   await ca('12. THUAN mfgPhanNvl: thieu sau kho tong ma hang thay bu thi tach rieng, khong tinh thieu', async function () {
