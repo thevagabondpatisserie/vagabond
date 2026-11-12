@@ -89,7 +89,7 @@ var VGB_ZALO_TIN = {
 	kt_du_lieu_hao_hut: ['Hoá đơn, kế toán', 'Dữ liệu để tính hao hụt (thứ Hai 08:00)', 'Thứ Hai 08:00: bánh bán chưa có lệnh, lệnh không cân, kho bếp lâu chưa kiểm kê, giá lệch kho.'],
 	kt_the_onepay: ['Hoá đơn, kế toán', 'Khách trả thẻ OnePay cho phiếu đề nghị thanh toán', 'Khách quét mã trên phiếu và trả thẻ thành công; máy đã ghi sổ phiếu thu. Trả dư thì tin ghi số cần hoàn.'],
 	kt_ds_thu_gia_danh: ['Hoá đơn, kế toán', 'Thư đối soát giả danh đối tác bị chặn', 'Ngay khi hộp thư doisoat@ nhận thư tự xưng đối tác mà không có chữ ký số đúng tên miền: không nhận số liệu.'],
-	kt_ds_thieu_thu: ['Hoá đơn, kế toán', 'Thư đối soát chưa về (12:30, nhắc 17:00)', '12:30 mỗi ngày: thư đối tác dự kiến đã quá hạn mà chưa về; 17:00 nhắc lại nếu vẫn chưa về.'],
+	kt_ds_thieu_thu: ['Hoá đơn, kế toán', 'Thư đối soát chưa về (12:30, nhắc 18:30)', '12:30 mỗi ngày: thư đối tác dự kiến đã quá hạn mà chưa về; 18:30 nhắc lại nếu vẫn chưa về.'],
 	kt_ds_tep_loi: ['Hoá đơn, kế toán', 'Tệp đối soát từ thư không đọc được', 'Ngay khi tệp trong thư đối tác đọc lỗi hoặc tổng tính lại khác tổng in trên tệp.'],
 	kt_ds_lech_tien: ['Hoá đơn, kế toán', 'Tiền về khác số đối tác báo chuyển', 'Ngay khi tiền về ngân hàng (SePay) khác số đối tác báo chuyển, từ ngưỡng khai trong Cài đặt.'],
 	kt_ds_chua_thay_tien: ['Hoá đơn, kế toán', 'Chưa thấy tiền đối tác chuyển về (08:30)', '08:30 mỗi sáng: đợt đối tác báo đã chuyển, quá ngày tiền về mà ngân hàng chưa thấy tiền.'],
