@@ -106,23 +106,23 @@ function gmThue(nhom) {
   }, 0));
 }
 
+/* Chip chữ 13 điểm (AGENTS.md mục 13, Codex #553). */
 function gmStChip(x) {
-  return '<span class="st ' + x.c + '" style="font-size:11.5px;padding:3px 8px">' + h(x.t) + '</span>';
+  return '<span class="st ' + x.c + '" style="font-size:13px;padding:4px 9px">' + h(x.t) + '</span>';
 }
 
 function gmMon(m, i) {
   var mo = !!GM.mo[m.ma];
   var lech = Math.abs((Number(gmSoMua(m)) || 0) - m.xin) > 0.0001;
-  return '<div class="khsx-the" data-gmmon="' + h(m.ma) + '" data-gmchu="' + h((m.ten || '') + ' ' + m.ma) + '"><div class="li" style="align-items:flex-start">' + anhMon(m.anh) +
+  return '<div class="khsx-the" data-gmmon="' + h(m.ma) + '" data-gmchu="' + h((m.ten || '') + ' ' + m.ma) + '"><div class="li" data-gmmo="' + h(m.ma) + '" style="align-items:flex-start;min-height:44px;cursor:pointer">' + anhMon(m.anh) +
     '<div class="lt"><div class="l1" style="white-space:normal;word-break:break-word">' + h(m.ten) + '</div>' +
     '<div class="l2">Xin ' + kl(m.xin, m.dvt) + (m.gia ? ' · giá lần trước ' + money(m.gia) + ' đ' : ' · chưa có giá mua') + '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">' + gmChipMon(m, today(), lech).map(gmStChip).join('') +
-    '<button type="button" data-gmmo="' + h(m.ma) + '" class="st n" style="font-size:11.5px;padding:3px 8px;border:0;cursor:pointer;min-height:24px">' +
-    m.phieu.length + ' phiếu xin ' + (mo ? '▴' : '▾') + '</button></div></div>' +
+    gmStChip({ t: m.phieu.length + ' phiếu xin ' + (mo ? '▴' : '▾'), c: 'n' }) + '</div></div>' +
     '<input class="tin" data-gmsl="' + h(m.ma) + '" inputmode="decimal" value="' + h(gmSoMua(m)) + '" ' +
     'style="width:84px;margin:0;text-align:center;flex:none' + (lech ? ';border-color:#0B7C93;font-weight:700' : '') + '" aria-label="Số mua ' + h(m.ten) + '">' +
     '</div>' +
-    (mo ? '<div style="padding:0 14px 10px 14px;font-size:12.5px;color:#5a6070;line-height:1.7">' +
+    (mo ? '<div style="padding:0 14px 10px 14px;font-size:13px;color:#5a6070;line-height:1.7">' +
       m.phieu.map(function (p) {
         return '• ' + h(p.phieu) + ' · ' + h(p.bo_phan || 'bộ phận chưa ghi') + ' · ' + kl(p.xin, m.dvt) + (p.ngay ? ' · cần ' + h(dmy(p.ngay)) : '');
       }).join('<br>') + '</div>' : '') +
@@ -141,7 +141,7 @@ function gmNhom(g, i) {
     '<div class="lst">' + g.mon.map(gmMon).join('') + '</div>' +
     '<div style="font-size:13px;color:#374151;margin:10px 2px 8px;line-height:1.5">' +
     (g.ncc ? 'Tạm tính ' + money(tien) + ' đ' + (thue ? ' + VAT ' + money(thue) + ' đ = <b>' + money(tien + thue) + ' đ</b>' : '') +
-      '<div style="font-size:12px;color:#6b7280">Giá lần mua trước, thuế theo mẫu VAT khai trên từng món.</div>'
+      '<div style="font-size:13px;color:#6b7280">Giá lần mua trước, thuế theo mẫu VAT khai trên từng món.</div>'
       : 'Bấm Chốt để chọn nhà cung cấp cho nhóm này.') + '</div>' +
     '<button class="btn gr" data-gmchot="' + i + '" style="margin:0">✅ Chốt đơn ' + g.so_mon + ' món</button></div>';
 }
@@ -150,7 +150,7 @@ function gmNhom(g, i) {
 function gmTienDo() {
   var b = [['Bộ phận gửi yêu cầu', 'g'], ['Thu mua gom, chốt đơn', 'b'], ['Gửi đơn cho nhà cung cấp', 'n'], ['Kho nhận hàng', 'n']];
   return '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px">' + b.map(function (x, i) {
-    return '<span class="st ' + x[1] + '" style="font-size:11.5px;padding:4px 8px' + (i === 1 ? ';outline:2px solid #0B7C93' : '') + '">' +
+    return '<span class="st ' + x[1] + '" style="font-size:13px;padding:4px 9px' + (i === 1 ? ';outline:2px solid #0B7C93' : '') + '">' +
       (i === 0 ? '✓ ' : (i + 1) + '. ') + h(x[0]) + (i === 1 ? ' (đang ở đây)' : '') + '</span>';
   }).join('') + '</div>';
 }
@@ -232,6 +232,9 @@ async function scrGomMua(giu) {
     if (lc) { GM.loc = lc.getAttribute('data-gmloc') || ''; return scrGomMua(1); }
     var c = e.target.closest('[data-gmchot]');
     if (c) return gmChot(nhom[+c.dataset.gmchot]);
+    /* Codex #553: cả dòng món là vùng bấm mở phiếu xin (cao ít nhất 44 điểm);
+       bấm vào ô số mua thì chỉ gõ số, không mở. */
+    if (e.target.closest('input')) return;
     var m = e.target.closest('[data-gmmo]');
     if (m) { GM.mo[m.dataset.gmmo] = GM.mo[m.dataset.gmmo] ? 0 : 1; return scrGomMua(1); }
   };
