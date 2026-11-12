@@ -1,0 +1,158 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-11-13 00:30:00.000000",
+ "description": "Mỗi dòng là một lần đổi số trên bảng BTP bánh ổ (BTP sẵn, Đủ decor, Refill). Chỉ máy ghi, người chỉ đọc (v653).",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_hang",
+  "ten_banh",
+  "truong",
+  "truoc",
+  "sau",
+  "chenh",
+  "cb1",
+  "ly_do",
+  "nguon",
+  "nguoi",
+  "ten_nguoi",
+  "luc"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_hang",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "label": "Mã bánh",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ten_banh",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "label": "Tên bánh",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "truong",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "label": "Ô",
+   "options": "so_btp\nso_decor\ndecor_da_lam\nso_refill\nrefill_tu\nrefill_den\nma",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "truoc",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "label": "Trước",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sau",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "label": "Sau",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "chenh",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "label": "Chênh"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "label": "Lý do",
+   "options": "nhap_tay\ntru_bep_lam\ncong_lai_bep_lam\nrefill\nban_va\nthem_ma\nxoa_ma",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "label": "Nguồn (bảng Kiểm bánh)"
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "label": "Người",
+   "options": "User",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ten_nguoi",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "label": "Tên người"
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "label": "Lúc",
+   "in_list_view": 1
+  }
+ ],
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-11-13 00:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Nhat Ky BTP",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "Sales User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "Stock User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "Bếp phó"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "Bếp trưởng"
+  }
+ ],
+ "sort_field": "luc",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "ma_hang",
+ "track_changes": 0
+}
