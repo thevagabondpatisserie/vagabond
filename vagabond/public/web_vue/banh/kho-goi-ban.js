@@ -694,7 +694,8 @@ export function taoGoiBan(moiTruong, S) {
     c.dangGui = false;
     if (!m || !m.ok) { c.loi = cauDn(m && m.ly_do, t) || t('goi_ban_ud_chua_gui', 'Chưa gửi được mã. Quý khách thử lại sau.'); return m; }
     c.buoc = 'ma'; c.ma = '';
-    c.bao = t('goi_ban_ud_da_gui', 'Đã gửi mã qua Zalo. Mã có hiệu lực 5 phút.');
+    /* v653: Zalo hỏng thì mã đi WhatsApp; câu báo nói đúng kênh. */
+    c.bao = m.kenh === 'whatsapp' ? t('tv653_da_gui_wa', 'Mã đã gửi qua WhatsApp tới số {so}. Mã có hiệu lực 5 phút.', {so: m.so || ''}) : t('goi_ban_ud_da_gui', 'Đã gửi mã qua Zalo. Mã có hiệu lực 5 phút.');
     return m;
   }
   function suaSoUd() { const c = G.ud; c.buoc = 'sdt'; c.ma = ''; c.loi = ''; c.bao = ''; }
