@@ -240,7 +240,11 @@ def ds():
 	gia, anh = _gia_anh(cac_ma)
 	bc = {}
 	try:
-		bc = dy.boi_canh_hang(cac_ma, kho=None) if cac_ma else {}
+		# Codex #553 vòng 4: chip "Kho tổng" phải đếm đúng Kho tổng 307, không
+		# cộng tồn bếp (hàng ở bếp không kéo ngược về kho tổng để bớt mua).
+		from vagabond.kho_san_xuat import KHO_GOC
+
+		bc = dy.boi_canh_hang(cac_ma, kho=KHO_GOC) if cac_ma else {}
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "gom_mua: bối cảnh hàng")
 	thue = {}
