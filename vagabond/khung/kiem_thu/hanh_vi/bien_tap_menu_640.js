@@ -75,6 +75,10 @@ var MON = [
   { ma: 'NUTR00040', ten: 'Kombucha Chill, chai 300ml', gia: 100000, anh: '', goc: 'Trà', khong_pha: 1, mo_ta: '', ban_web: 1 },
   { ma: 'NUCF00003', ten: 'Cà phê sữa', gia: 40000, anh: '', goc: 'Cà phê', khong_pha: 0, mo_ta: '', ban_web: 1 },
   { ma: 'NUTR00099', ten: 'Trà Ô Long Đào', gia: 65000, anh: '', goc: 'Trà', khong_pha: 0, mo_ta: '', ban_web: 1 }];
+/* v652: bánh từng bày ở tủ điểm (máy chủ bien_tap_menu.banh_cua_diem). */
+var BANH = [
+  { ma: 'BKMN00011', ten: 'Mille-feuille Vanilla', gia: 95000, anh: '/files/mille.jpg', mo_ta: 'Bánh ngàn lớp kem vani' },
+  { ma: 'BKMN00020', ten: 'Tarte Chanh Dây', gia: 85000, anh: '', mo_ta: '' }];
 var TOP = [{ ma: 'TPNC00001', ten: 'Trân châu ô long', gia: 10000 }, { ma: 'TPNC00005', ten: 'Thêm Cà Phê Phin', gia: 15000 },
   { ma: 'TPNC00007', ten: 'Thạch cà phê', gia: 15000 }];
 
@@ -108,7 +112,7 @@ function moApp(o) {
         return Promise.resolve({ diem: ts.diem || 'TCV', ten_diem: ts.diem === 'NVHTN' ? 'NVHTN' : 'District 1',
           cac_diem: [{ ma: 'TCV', ten: 'District 1' }, { ma: 'NVHTN', ten: 'NVHTN' }],
           nhap: JSON.parse(JSON.stringify(may.nhap)), dang_chay: JSON.parse(JSON.stringify(may.dang)), phien: may.phien,
-          thay_doi: thayDoi(), mon: JSON.parse(JSON.stringify(MON)), topping: TOP, chua_xep: ['NUTR00099'],
+          thay_doi: thayDoi(), mon: JSON.parse(JSON.stringify(MON)), topping: TOP, chua_xep: ['NUTR00099'], banh: o.khongBanh ? [] : JSON.parse(JSON.stringify(BANH)),
           lich_su: [{ phien: may.phien, luc: '2026-11-05 20:00:00', boi: 'de@x', thay_doi: 'Đổi thứ tự nhóm' }, { phien: may.phien - 1, luc: '2026-11-04 09:00:00', boi: 'de@x', thay_doi: 'Bản đầu' }] });
       }
       if (duong === 'vagabond.bien_tap_menu.luu_nhap') {
@@ -467,6 +471,46 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     bang('bỏ chọn tệp: không gửi gì', gui.length, 2);
     bang('cắt vuông chính giữa (thuần)', [m.g.btmCatVuong(4000, 3000), m.g.btmCatVuong(1080, 1920), m.g.btmCatVuong(600, 800)],
       [{ sx: 500, sy: 0, s: 3000, d: 1200 }, { sx: 0, sy: 420, s: 1080, d: 1080 }, { sx: 0, sy: 100, s: 600, d: 600 }]);
+  });
+
+  await ca('v652 bánh trên tủ (Minh Vũ không vào được danh mục món): nhóm Bánh trên tủ có nút Món; danh sách bánh từng bày ở tủ, tìm không dấu; mở bánh, tải ảnh, sửa mô tả thì bản nháp ghi ảnh và mô tả riêng; dòng nhóm đếm bánh sửa riêng; Dùng ảnh danh mục và xoá mô tả là bỏ hẳn; không có bánh thì báo rõ', async function () {
+    var m = await moMan();
+    var gui = [];
+    m.g.frappe = { csrf_token: 'tk' };
+    m.g.FormData = function () { this.ds = []; this.append = function (k, v, ten) { this.ds.push([k, ten || (typeof v === 'string' ? v : '')]); }; };
+    m.g.btmChonTep = function () { return Promise.resolve({ name: 'banh.jpg', size: 3 * 1024 * 1024 }); };
+    m.g.btmNenVuong = function () { return Promise.resolve({ blob: { size: 300000 }, canh: 1200, kb: 293 }); };
+    m.g.fetch = function (u, o) { gui.push(o.body.ds); return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ message: { file_url: '/files/menu-bkmn00020.jpg' } }); } }); };
+    var nut = q(m, '[data-ma="banh"]').querySelector('[data-btmbanh]');
+    dung('nút Món ở nhóm bánh cao 44', chu(nut).indexOf('Món') === 0 && String(nut.getAttribute('style')).indexOf('min-height:44px') >= 0);
+    await bam(m, '[data-btmbanh]');
+    bang('danh sách bánh', qs(m, '[data-btmbanhmon]').map(function (x) { return x.getAttribute('data-btmbanhmon'); }), ['BKMN00011', 'BKMN00020']);
+    dung('giải thích', chu(m.tai.body).indexOf('Bánh tự lên menu theo tồn trên tủ') >= 0);
+    var o = q(m, '#btmTimMon'); o.value = 'chanh day'; o.dispatchEvent(dg.suKien('input', {}, o)); await cho();
+    bang('tìm không dấu', qs(m, '[data-btmbanhmon]').map(function (x) { return x.style.display; }), ['none', 'flex']);
+    await bam(m, '[data-btmbanhmon="BKMN00020"]');
+    dung('màn bánh: ảnh nền, chưa có nút bỏ ảnh', chu(q(m, '#btmAnhWeb')).indexOf('chưa có ảnh') >= 0 && !qs(m, '[data-btmanhbo]').length);
+    await bam(m, '[data-btmanhtai]');
+    await cho(60);
+    bang('tải ảnh công khai, tên theo mã bánh', gui[0], [['file', 'menu-bkmn00020.jpg'], ['is_private', '0'], ['folder', 'Home']]);
+    var mt = q(m, '#btmMoTa'); mt.value = 'Tart chanh dây chua nhẹ, vỏ giòn'; mt.dispatchEvent(dg.suKien('input', {}, mt));
+    await cho(60);
+    bang('bản nháp ghi ảnh và mô tả riêng', luuCuoi(m).mon.BKMN00020, { anh: '/files/menu-bkmn00020.jpg', mo_ta: 'Tart chanh dây chua nhẹ, vỏ giòn' });
+    bang('đếm bánh sửa riêng (thuần)', m.g.btmSoBanhRieng(luuCuoi(m), BANH), 1);
+    m.tai.body.querySelector('#btmMonXong').onclick();
+    await cho(40);
+    dung('danh sách hiện ảnh mới và nhãn', q(m, '[data-btmbanhmon="BKMN00020"]').innerHTML.indexOf('/files/menu-bkmn00020.jpg') >= 0 && chu(q(m, '[data-btmbanhmon="BKMN00020"]')).indexOf('ảnh riêng, mô tả riêng') >= 0);
+    m.g.back(); await cho(40);
+    dung('dòng nhóm Bánh trên tủ đếm', chu(q(m, '[data-ma="banh"]')).indexOf('1 bánh có ảnh, mô tả riêng') >= 0);
+    await bam(m, '[data-btmbanh]');
+    await bam(m, '[data-btmbanhmon="BKMN00020"]');
+    await bam(m, '[data-btmanhbo]');
+    mt = q(m, '#btmMoTa'); mt.value = ''; mt.dispatchEvent(dg.suKien('input', {}, mt));
+    await cho(60);
+    bang('bỏ hẳn: không còn khoá bánh trong nháp', Object.prototype.hasOwnProperty.call(luuCuoi(m).mon, 'BKMN00020'), false);
+    var m2 = await moMan({ khongBanh: true });
+    await bam(m2, '[data-btmbanh]');
+    dung('không có bánh thì báo rõ', chu(m2.tai.body).indexOf('chưa có bánh nào lên tủ trong 60 ngày') >= 0 && !qs(m2, '[data-btmbanhmon]').length);
   });
 
   await ca('Màn Tính tiền: bảng tuỳ chọn giữ tối đa 60 giây rồi hỏi lại máy chủ; đổi quầy hỏi lại; lỗi mạng không giữ bảng rỗng', async function () {

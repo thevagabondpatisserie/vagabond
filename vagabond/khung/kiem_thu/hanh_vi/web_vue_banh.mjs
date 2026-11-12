@@ -774,6 +774,49 @@ await ca('Codex 549 (58ba797): mẻ refill chỉ còn 1 không chặn khách mua
   la('nút + trong giỏ còn tăng được tới 4', (k.cartQty(0, 1), k.S.CART[0].qty), 3);
 });
 
+await ca('v652 điểm thành viên: số chưa xác thực thì thẻ mời xác thực; xác thực rồi thẻ báo số điểm dùng được; bấm Dùng điểm thì hỏi lại máy chủ kèm dung_diem, tổng trừ điểm nhưng vẫn miễn phí giao theo tiền trước điểm; gửi đơn mang dung_diem; máy chủ báo diem_doi thì bỏ chọn và hỏi lại', async () => {
+  let co = false, diemDoi = false;
+  const hoi = [], gui = [];
+  const {mt, chayHen} = moiTruong('2026-10-11T08:00:00', {
+    'vagabond.don_hang.xem_uu_dai': th => {
+      const d = JSON.parse(th.don); hoi.push(d);
+      if (!co) return {ok: true, giam: 0, ap: [], diem: {trang_thai: 'can_xac_thuc', so_du: 0, toi_da: 0, tien_toi_da: 0, dung: 0, tien: 0}};
+      const tien = d.dung_diem ? 400000 : 0;
+      return {ok: true, giam: tien, ap: tien ? [{ten: 'Điểm thành viên', giam: tien}] : [],
+        diem: {trang_thai: 'dung_duoc', so_du: 900000, toi_da: 400000, tien_toi_da: 400000, dung: d.dung_diem ? 400000 : 0, tien,
+          len_hang: {con_thieu: 2500000, hang_tiep: 'AMBASSADOR', so_thang: 12}}};
+    },
+    'vagabond.don_hang.tao_don': th => { const d = JSON.parse(th.don); gui.push(d); return diemDoi ? {ok: 0, ly_do: 'diem_doi'} : {ok: 1, duong_dan: '/banh/xong/t'}; }
+  });
+  const k = taoKho(mt);
+  coThem(k); k.pick(3); k.pickSlot(6);
+  Object.assign(k.S.f, {name: 'Lan', phone: '0931224334', addr: '12 Nguyễn Huệ Q1'}); k.S.CO.dongy = true;
+  await k.xemUuDai(); await chayHen();
+  la('chưa xác thực: thẻ mời, không số dư', [k.theDiem.value && k.theDiem.value.kieu, /\d{3}\.\d{3} điểm/.test(JSON.stringify(k.theDiem.value))], ['xac_thuc', false]);
+  co = true; k.S.CO.uu = null; await k.xemUuDai(); await chayHen();
+  la('xác thực rồi: báo dùng được', k.theDiem.value.kieu, 'dung');
+  dung('câu số điểm và tiền', k.theDiem.value.phu.indexOf('400.000') >= 0 && k.theDiem.value.tieu.indexOf('900.000') >= 0);
+  dung('dòng lên hạng', k.theDiem.value.lh.indexOf('AMBASSADOR') >= 0);
+  const tienBanh = k.tienBanh.value;
+  k.dungDiem(true); await k.xemUuDai(); await chayHen();
+  la('hỏi lại kèm dung_diem', hoi[hoi.length - 1].dung_diem, 1);
+  la('thẻ đã áp', k.theDiem.value.kieu, 'da_ap');
+  la('tổng trừ điểm', k.tong.value.total, tienBanh - 400000 + k.tong.value.ship);
+  la('tiền điểm', k.tienDiem.value, 400000);
+  await k.submitOrder();
+  la('gửi đơn mang dung_diem và giảm đã xem', [gui[0].dung_diem, gui[0].giam_da_xem], [1, 400000]);
+  la('gửi xong thì bỏ chọn dùng điểm cho đơn sau', k.S.CO.dungDiem, false);
+  diemDoi = true;
+  const k2 = taoKho(mt);
+  coThem(k2); k2.pick(3); k2.pickSlot(6);
+  Object.assign(k2.S.f, {name: 'Lan', phone: '0931224334', addr: '12 Nguyễn Huệ Q1'}); k2.S.CO.dongy = true;
+  k2.dungDiem(true); await k2.xemUuDai(); await chayHen();
+  const n = hoi.length;
+  const kq = await k2.submitOrder(); await chayHen();
+  la('diem_doi: dừng cho khách xem, bỏ chọn', [kq && kq.buoc, k2.S.CO.dungDiem], ['uu_dai', false]);
+  dung('hỏi lại tổng không dùng điểm', hoi.length > n && hoi[hoi.length - 1].dung_diem === 0);
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');
