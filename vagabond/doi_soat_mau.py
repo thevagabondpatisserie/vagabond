@@ -1073,7 +1073,9 @@ GRAB_TEN = {"tran cao van": "5-C4E1NPWGG2WZFA", "the vagabond delivery kitchen":
 	"nha van hoa thanh nien": "5-C8BKA3MZMEW1CA"}
 
 _SO_GRAB = r"-?\d{1,3}(?:\.\d{3})*|-"
-_RE_DON = re.compile(r"^\s*(\d{1,2}:\d{2}\s?[AP]M|Đã hủy)\s+(G[A-Z]-\s?[A-Z0-9]*)\s+(Trả thẻ / Ví|Tiền mặt|-)\s+(.*)$")
+# v651: một dòng có thể mang hai mã (đơn gộp "GF-736, GF-755", site thật 11/11 TCV).
+_RE_DON = re.compile(r"^\s*(\d{1,2}:\d{2}\s?[AP]M|Đã hủy)\s+(G[A-Z]-\s?[A-Z0-9]*(?:,\s?G[A-Z]-[A-Z0-9]+)*)\s+"
+	r"(Trả thẻ / Ví|Tiền mặt|-)\s+(.*)$")
 # v649: từ 11/2026 Grab in cột Mã giao dịch của mục Marketing là "-" (site thật,
 # báo cáo 10/11 cả ba cửa hàng: "10 Th11, 12:04 PM  -  Tự động tìm từ khoá -
 # 2026-11-10  -45.500  -3.639  -49.139"). Trước v649 mẫu bắt buộc ADS-số nên dòng
@@ -1091,6 +1093,63 @@ _RE_DAU_MUC = re.compile(r"^\s*\d{1,2}\s+Th\d{1,2},\s*\d{1,2}:\d{2}")
 _RE_DON_KHONG_MA = re.compile(r"^\s*(\d{1,2}:\d{2}\s?[AP]M|Đã hủy)\s+(Trả thẻ / Ví|Tiền mặt|-)\s+(.*)$")
 _RE_TIEN_TO_MA = re.compile(r"^\s*(G[A-Z]-)\s?([A-Z0-9]*)\s*$")
 _RE_DUOI_MA = re.compile(r"^\s*([A-Z0-9]{2,20})\s*$")
+
+
+# v651: PyMuPDF 1.24 (bản trên Frappe Cloud) GỘP ba mảnh của ô mã ngắt dòng vào
+# CÙNG một dòng nhưng sai thứ tự: tiền tố đứng trước giờ, phần sau của mã dính ở
+# cuối dòng (site thật 11/11, DSN-2611-06914 dòng 15, 21, 24; DSN-2611-06912 mười
+# dòng). Ví dụ: "GF- 5:01 PM  Trả thẻ / Ví  100.000 0 - -39.500 -8.905 0 51.595  509F".
+_RE_GIO_DON = re.compile(r"(?<!\S)(\d{1,2}:\d{2}\s?[AP]M|Đã hủy)(?!\S)")
+_RE_PT_DON = re.compile(r"(?<!\S)(Trả thẻ / Ví|Tiền mặt)(?!\S)")
+_RE_MA_DON = re.compile(r"^(G[A-Z]-)([A-Z0-9]*),?$")
+_RE_TIEN_DON = re.compile(r"^(?:-?\d{1,3}(?:\.\d{3})*|-)$")
+
+
+def chuan_dong_don_grab(s):
+	"""THUẦN (v651). Xếp lại một dòng đơn mà PyMuPDF trả lẫn thứ tự thành dạng
+	chuẩn "giờ mã phương_thức 7_số". Không chắc chắn thì trả nguyên dòng để
+	đường cũ báo lỗi, không đoán.
+
+	Nhận: giờ (hoặc Đã hủy) đúng một lần; một hay nhiều mã G?- ở bất kỳ đâu;
+	mã cụt "GF-" ghép với đúng một mảnh đuôi chữ số (không phải số tiền);
+	phương thức (đơn huỷ dùng "-" đầu tiên); đúng 7 cột tiền."""
+	gio_ds = _RE_GIO_DON.findall(s)
+	if len(gio_ds) != 1:
+		return s
+	if _RE_DON.match(s) and not re.sub(r"\s+", "", _RE_DON.match(s).group(2)).endswith("-"):
+		return s
+	con = _RE_GIO_DON.sub(" ", s, count=1)
+	pt_ds = _RE_PT_DON.findall(con)
+	if len(pt_ds) > 1:
+		return s
+	con = _RE_PT_DON.sub(" ", con, count=1)
+	ma, tien, du = [], [], []
+	for t in con.split():
+		mm = _RE_MA_DON.match(t)
+		if mm:
+			ma.append([mm.group(1), mm.group(2)])
+		elif _RE_TIEN_DON.match(t):
+			tien.append(t)
+		else:
+			du.append(t)
+	if not ma:
+		return s
+	cut = [m for m in ma if not m[1]]
+	if du:
+		if len(cut) != 1 or len(du) != 1 or not re.fullmatch(r"[A-Z0-9]{2,20}", du[0]):
+			return s
+		cut[0][1] = du[0]
+	elif len(cut) > 1:
+		return s
+	if pt_ds:
+		pt = pt_ds[0]
+	elif gio_ds[0] == "Đã hủy" and tien and tien[0] == "-":
+		pt = tien.pop(0)
+	else:
+		return s
+	if len(tien) != 7:
+		return s
+	return "%s %s %s %s" % (gio_ds[0], ",".join(a + b for a, b in ma), pt, " ".join(tien))
 
 
 def loai_manh_grab(s):
@@ -1242,6 +1301,8 @@ def doc_grab(tep, mau):
 			mo_ta="GrabFood %s" % ("tiền mặt" if pt == "Tiền mặt" else "thẻ/ví")))
 
 	for i, d in enumerate(dong):
+		if vung == "don":
+			d = chuan_dong_don_grab(d)
 		s = d.strip()
 		if cho and not (vung == "don" and (loai_manh_grab(d) in ("cut", "khong_ma", "tien_to", "duoi")
 				or (_RE_DUOI_MA.match(d) and not re.search(r"\.", s)))):

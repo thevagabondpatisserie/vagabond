@@ -105,7 +105,7 @@ def xem_truoc(kq, cong_ty, da_nhan=None):
 		except LoiNguon as e:
 			ra.append(dict(vi_tri=vi_tri, trang_thai="loi", dong=d, ly_do=str(e)))
 	for l in kq["dong_loi"]:
-		ra.append(dict(vi_tri=l["vi_tri"], trang_thai="loi", ly_do=l["ly_do"], dong=None))
+		ra.append(dict(vi_tri=l["vi_tri"], trang_thai="loi", ly_do=l["ly_do"], dong=None, tho=l.get("tho") or []))
 	tong = {k: sum(x["dong"][k] for x in ra if x["dong"] and x["trang_thai"] != "loi")
 		for k in ("tien_hang", "phi", "thuc_nhan")}
 	so = {t: sum(1 for x in ra if x["trang_thai"] == t) for t in ("moi", "trung", "loi")}
@@ -137,6 +137,9 @@ def _ma_khop(kieu, ma_nguon, ma_hd):
 	if not a or not b:
 		return False
 	if kieu == "grab":
+		if "," in a:
+			# v651: đơn gộp in hai mã trên một dòng ("GF-736,GF-755"); hoá đơn gõ mã nào cũng khớp.
+			return any(_ma_khop(kieu, x, b) for x in a.split(",") if x)
 		pa, pb = a[:3], b[:3]
 		if pa != pb:
 			return False
