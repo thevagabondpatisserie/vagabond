@@ -1356,6 +1356,8 @@ async function kmSheetCtkm(ma) {
    khach biet, kem cau "chi dung tai cua hang", va trang dat banh khong ap. */
 var KM_WEB_CACH = ['Giam tong hoa don', 'Giam gia mon', 'Mua A giam B', 'Dong gia', 'Giam luy ke'];
 function kmLyDoWeb(k) {
+  /* Codex #557: CTKM Nhan diem (v652) trung cau may chu (khuyen_mai.ly_do_khong_web). */
+  if (k.cach_thuc === 'Nhan diem') return 'Chương trình nhân điểm: máy cộng thêm điểm khi ghi sổ, không giảm tiền.';
   if (KM_WEB_CACH.indexOf(k.cach_thuc) < 0) return 'Chương trình tặng món chỉ dùng tại cửa hàng.';
   if (k.can_otp) return 'Chương trình cần mã OTP quản lý nên chỉ dùng tại cửa hàng.';
   if ((k.doi_tuong || 'Moi khach') !== 'Moi khach') return 'Chương trình theo hạng hoặc nhóm khách chỉ dùng tại cửa hàng.';
