@@ -64,3 +64,44 @@ Từ khoá: banner, ảnh quảng cáo, banner sinh nhật, đầu trang, giỏ 
 - Thay ảnh: bấm Sửa ở banner đó, tải ảnh mới, lưu. Tắt công tắc Hiện trên web là gỡ ngay.
 - Không có ảnh điện thoại thì điện thoại dùng ảnh máy tính, chữ nhỏ khó đọc.
 - Qua ngày kết thúc web tự gỡ. Nội dung quà sinh nhật: việc này do anh Việt quyết.
+
+## Khách dùng điểm thành viên khi đặt bánh trên web
+Từ khoá: dùng điểm web, trừ điểm online, điểm thành viên, thanh toán bằng điểm, thể lệ thành viên, điểm sắp hết hạn, mua lại, hoàn điểm
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách, Sales trả lời khách | Trang đặt bánh, bước thanh toán | Dùng điểm |
+
+Từ bản 652 khách online tự trừ điểm ở bước thanh toán, cùng luật tại quầy: 1 điểm = 1đ, tối đa 50% tiền bánh, bill còn lại từ 10.000đ, hạng AMBASSADOR, FAMILY, OWNER không dùng điểm.
+
+**Các bước**
+1. Khách gõ số điện thoại, xác thực mã Zalo ở thẻ Điểm thành viên.
+2. Thẻ báo số điểm dùng được cho đơn, khách bấm Dùng điểm.
+3. Tổng tiền trừ ngay. Điểm trừ sau mọi ưu đãi khác, chỉ trên tiền bánh, không trừ phí giao.
+4. Gửi đơn: máy trừ điểm cùng lúc ghi đơn.
+
+**Lưu ý**
+- Đơn bị từ chối hoặc chuyển Đã huỷ: máy tự hoàn điểm và nhắn Zalo (kịch bản Báo đã hoàn điểm).
+- Trang thành viên có khối Thể lệ (hạng, % tích, hạn điểm, cách dùng), khách chưa đăng nhập cũng xem được; có dòng điểm sắp hết hạn và nút Mua lại ở đơn cũ.
+- Hạn điểm cuốn chiếu 12 tháng. Luật điểm: việc này do anh Việt quyết.
+
+## Chương trình nhân điểm (ví dụ thứ Năm trên web x2)
+Từ khoá: nhân điểm, x2 điểm, điểm gấp đôi, double point, tích điểm gấp, thứ Năm web
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Khuyến mãi | [[Lưu]] |
+
+Nhân điểm là một chương trình khuyến mãi, không mặc định trên web.
+
+**Các bước**
+1. Mở Khuyến mãi, tạo chương trình, chọn cách thức Nhân điểm.
+2. Ô HỆ SỐ NHÂN ĐIỂM: gõ 2 (x2), tối đa 10.
+3. Chọn ngày trong tuần, kênh (ví dụ chỉ Website), hạng khách nếu cần. Bật Hiện trên web để thể lệ ghi câu chương trình.
+4. Bấm [[Lưu]] rồi bật chương trình.
+
+**Lưu ý**
+- Máy tự nhân khi hoá đơn ghi sổ; đơn web xét theo lúc khách đặt. Thu ngân không chọn tay.
+- Nhiều chương trình cùng khớp thì lấy hệ số lớn nhất, không nhân chồng.
+- Mức nhân, ngày chạy: việc này do anh Việt quyết.
+
