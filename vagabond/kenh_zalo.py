@@ -148,8 +148,8 @@ TIN = {
 	# v641 (anh Việt duyệt 06/11/2026): đối soát qua hộp thư doisoat@ (doi_soat_thu.py).
 	"kt_ds_thu_gia_danh": ("Hoá đơn, kế toán", "Thư đối soát giả danh đối tác bị chặn",
 		"Ngay khi hộp thư doisoat@ nhận thư tự xưng đối tác mà không có chữ ký số đúng tên miền: không nhận số liệu.", "canh_bao", "cong_no"),
-	"kt_ds_thieu_thu": ("Hoá đơn, kế toán", "Thư đối soát chưa về (12:30, nhắc 17:00)",
-		"12:30 mỗi ngày: thư đối tác dự kiến đã quá hạn mà chưa về; 17:00 nhắc lại nếu vẫn chưa về.", "viec", "cong_no"),
+	"kt_ds_thieu_thu": ("Hoá đơn, kế toán", "Thư đối soát chưa về (12:30, nhắc 18:30)",
+		"12:30 mỗi ngày: thư đối tác dự kiến đã quá hạn mà chưa về; 18:30 nhắc lại nếu vẫn chưa về.", "viec", "cong_no"),
 	"kt_ds_tep_loi": ("Hoá đơn, kế toán", "Tệp đối soát từ thư không đọc được",
 		"Ngay khi tệp trong thư đối tác đọc lỗi hoặc tổng tính lại khác tổng in trên tệp.", "viec", "cong_no"),
 	"kt_ds_lech_tien": ("Hoá đơn, kế toán", "Tiền về khác số đối tác báo chuyển",

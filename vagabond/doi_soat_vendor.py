@@ -114,9 +114,16 @@ def tom_tat(kq, xt):
 		so=xt["so"], tong=xt["tong"], tong_tep=kq.get("tong") or {}, loi=xt["loi"][:20],
 		canh_bao=xt["canh_bao"][:10], ghi_chu_don_vi=kq.get("ghi_chu_don_vi") or "",
 		dau_tep=(kq.get("them") or {}).get("dau_tep") or [],
-		dong_loi=[dict(vi_tri=x["vi_tri"], ly_do=x.get("ly_do", "")) for x in xt["dong"] if x["trang_thai"] == "loi"][:50],
+		dong_loi=[dict(vi_tri=x["vi_tri"], ly_do=x.get("ly_do", ""), tho=_tho_ngan(x)) for x in xt["dong"]
+			if x["trang_thai"] == "loi"][:50],
 		mau_dong=[dict(ngay=d["ngay"], loai=d["loai"], ma=d["ma_don"] or d["ma_su_kien"][:30],
 			tien=d["tien_hang"], phi=d["phi"], nhan=d["thuc_nhan"], mo_ta=d["mo_ta"]) for d in moi[:30]])
+
+
+def _tho_ngan(x):
+	"""v651: chữ gốc của dòng lỗi (tối đa 3 mảnh, mỗi mảnh 200 ký tự) để kế toán
+	nhìn thấy dòng máy đọc ra và kỹ thuật tái hiện được mà không cần tệp gốc."""
+	return [str(v)[:200] for v in (x.get("tho") or [])][:3]
 
 
 def _so_vn(n):
@@ -578,8 +585,8 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None, t
 		phi=xt["tong"]["phi"], thuc_nhan=xt["tong"]["thuc_nhan"], tong_tep=tong_tep,
 		trang_thai_tien="Chưa đối chiếu",
 		du_lieu=json.dumps(dict(loi=xt["loi"], canh_bao=xt["canh_bao"], tong=kq.get("tong"), them=kq.get("them"),
-			ghi_chu_don_vi=kq.get("ghi_chu_don_vi"), dong_loi=[dict(vi_tri=x["vi_tri"], ly_do=x.get("ly_do", ""))
-				for x in xt["dong"] if x["trang_thai"] == "loi"][:300], lan_doc_truoc=lich_su or None,
+			ghi_chu_don_vi=kq.get("ghi_chu_don_vi"), dong_loi=[dict(vi_tri=x["vi_tri"], ly_do=x.get("ly_do", ""),
+				tho=_tho_ngan(x)) for x in xt["dong"] if x["trang_thai"] == "loi"][:300], lan_doc_truoc=lich_su or None,
 			ban_sua=khop.ban_sua(xt, kq["nhom"], kq["vendor"], kq["tai_khoan"]) or None),
 			ensure_ascii=False, default=str),
 	)

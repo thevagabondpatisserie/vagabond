@@ -25,6 +25,16 @@ var DSVN = { nhom: 'Tiền bán', tt: '', vendor: '', tim: '', ky: '', tu: '', d
 /* Codex #450: một nguồn đủ quyền có tới 20.000 dòng, danh sách có thể quá
    50 nguồn. Một chỗ giữ trang đang xem cho cả hai màn: bộ lọc đổi (dấu khác)
    thì về trang đầu, không nhớ trang cũ của bộ lọc khác. */
+/* v651: dòng lỗi kèm chữ máy đọc được từ tệp, để kế toán so với PDF.
+   Codex PR #554: lỗi ghép mảnh mang nhiều mảnh (tiền tố "GD-", dòng tiền, đuôi
+   mã); hiện ĐỦ các mảnh máy giữ (tối đa 3), không chỉ mảnh đầu. */
+function dsvDongLoi(d) {
+  var tho = (d.tho || []).map(function (x) { return String(x || '').replace(/\s+/g, ' ').trim(); })
+    .filter(Boolean).join(' | ');
+  if (tho.length > 240) tho = tho.slice(0, 237) + '...';
+  return 'Dòng ' + d.vi_tri + ': ' + d.ly_do + (tho ? ' Máy đọc được: "' + tho + '"' : '');
+}
+
 function dsvnTrang(loai, dau) {
   var t = DSVN.trang[loai];
   if (t.dau !== dau) { t.dau = dau; t.so = 0; }
@@ -640,7 +650,7 @@ function dsvnTheXemTruoc(x) {
     if (x.ghi_chu_don_vi) s += '<div style="font-size:12.5px;color:#475467;margin-top:4px">' + h(x.ghi_chu_don_vi) + '</div>';
   }
   if (!x.mau && (x.dau_tep || []).length) s += dsvnDauTep(x.dau_tep);
-  var nhac = (x.loi || []).concat((x.dong_loi || []).map(function (d) { return 'Dòng ' + d.vi_tri + ': ' + d.ly_do; }));
+  var nhac = (x.loi || []).concat((x.dong_loi || []).map(dsvDongLoi));
   if (nhac.length) {
     s += '<div style="background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:13px;color:#7a2e0e">' +
       '<b>' + nhac.length + ' điều cần xem</b><br>' + nhac.slice(0, 2).map(h).join('<br>') +
@@ -724,7 +734,7 @@ async function scrDsvnCt() {
         ' đ. Tải đủ thông báo tạm ứng ngày còn thiếu.') + '</div></div>';
   }
   if (n.trang_thai === 'Lỗi tệp' && (t.dau_tep || []).length) html += '<div class="card" style="padding:12px 14px">' + dsvnDauTep(t.dau_tep) + '</div>';
-  var nhac = (t.loi || []).concat((t.dong_loi || []).map(function (d) { return 'Dòng ' + d.vi_tri + ': ' + d.ly_do; }));
+  var nhac = (t.loi || []).concat((t.dong_loi || []).map(dsvDongLoi));
   if (nhac.length) {
     html += '<details class="card" style="padding:12px 14px"><summary style="cursor:pointer;min-height:24px"><b>' + nhac.length +
       ' điều cần xem</b> · ' + h(String(nhac[0]).slice(0, 80)) + '</summary><div style="font-size:13px;margin-top:6px;line-height:1.5">' +

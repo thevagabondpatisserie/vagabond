@@ -1,0 +1,43 @@
+Authentication-Results: mx.google.com;
+       dkim=neutral (body hash did not verify) header.i=@bccardvn.com header.s=bc1;
+       spf=pass (google.com: domain of admin@shinhan.com.vn designates 157.66.134.52 as permitted sender) smtp.mailfrom=admin@shinhan.com.vn
+ARC-Seal: i=1; cv=none; a=rsa-sha256; d=google.com; s=arc1; t=1794493467;
+ b=SKPPN4jkTHsXj4RkUNxclm83gDPasm0jGjarYzALSTwfcaWS0efvCmsxp7albuWjgg8bC
+ KkpiG2gZGRM3kHDXutcUkLdHejgqiVQbV4upQGoNYVbMcA4kGjGDCFVLLmLikutbWM6cHE1
+ so6Prjrx1usZY5599QTOKQrI0F4YA7jrtrBpUVKV933XAwkZpwnb9+B//OXuGRq6bLx7C7Z
+ M5b1MSz1EPEm2cmzSl0RVIUDdEyYmptgsykG5IU8pq5fo8kRnmwOHA85pB0mIEgKGv1o8zC
+ d80CHbX/VnFzsR0er88BVQtMB2mXJDiVw/uLBm0ckk63RE2pE40XLOpNEKrQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=google.com; s=arc1; t=1794493467; h=message-id : mime-version : date
+ : subject : reply-to : to : from;
+ bh=U20PSNgkTf4FYA+clwt9LjF+n/hBimW+tYs0Gry35pI=;
+ b=TLHdYsfsVCfKj7zqsS+okNCA61B9bgS0sjMzYTuV3egCxWR3PuO9yPIMWMBVBYb1r1Pty
+ 6ISAMrusFGOCNl+xwqyevUujU8DF61UAaKPmpTlxSZ2tW+xjv9ywsJlJHOGxuKEu44oWYzQ
+ 7hBv994SAkG9JX/4XpCizGhF+8wVgHBgpWXPzgIS7ySuR03M3sJT79lxtIirQEScg2bUetY
+ M43r9Hm9vasJaywGLSNzJCpE/qVVFSHn1tsGZJPWkqr+cLy1tlJsVDBa/cfx3yqS7OqPo1B
+ udIda9Y/fJe8LB9nbHGbKoryOEiiw5ey0p5K4aAap86A6hWbPpvhN2EjxKdg==
+ARC-Authentication-Results: i=1; mx.google.com;
+ dkim=neutral header.i=@bccardvn.com header.s=bc1;
+ spf=softfail smtp.mailfrom=admin@shinhan.com.vn
+Authentication-Results: mx.google.com;
+       dkim=neutral (body hash did not verify) header.i=@bccardvn.com header.s=bc1;
+       spf=softfail (google.com: domain of admin@shinhan.com.vn designates 157.66.134.52 as permitted sender) smtp.mailfrom=admin@shinhan.com.vn
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=bccardvn.com;
+ i=@bccardvn.com; q=dns/txt; s=bc1; t=1794493466; h=from : to :
+ reply-to : subject : date : mime-version : content-type;
+ bh=0zGxrPNJFL/Lb+a4HZbBldSpG1XXtKymA0eQD1yPgBg=;
+ b=AT3FeyuW/JMQwfzrW+hUmHONLSHAncoa0pMByHXhm/X0YeLKso99Zy48RmVqLcOyULck8
+ E4l4OAKRWNHrtLMOwBduMBW0tNBn6OOqquo8sBz3VOY5FwVFiYHdy26NiJR+rnqqa7G3rXc
+ ToRyL1FkQ1LzW7gXG6LaAV1sklLZdI+Z3kQ2E8FUf9mAhxeHzg0LEoHJjibrgx4h7W1uS1T
+ wx9KANt5b1qOvskLDrNdtCYyh/+cYu7rUTMUJahO/YtQyoChQPwn9IGuHcRt99gZdODJ5Ru
+ OHMWiccILrwmpoCp1Szd8Ejbw6XC0sS4QL0uFcdlfxNOnavflS2Nq5RnMAiA==
+From: "BAIS" <admin@shinhan.com.vn>
+To: <thevagabondbakery@gmail.com>
+Reply-to: <admin@shinhan.com.vn>
+Subject: [SHINHAN BANK VIETNAM] - PAYMENT DATE 20261109
+Date: Mon, 09 Nov 2026 09:54:50 +0900
+MIME-Version: 1.0
+Message-ID: <t651@shinhan.com.vn>
+Content-Type: text/plain; charset=utf-8
+
+Bao cao giao dich POS ngay 08/11/2026 (Thu gia lap, khong phai so lieu that).

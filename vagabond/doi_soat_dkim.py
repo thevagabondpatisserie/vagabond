@@ -379,6 +379,159 @@ def kiem_thu(tho, lay_khoa, bay_gio=None):
 	return [kiem_mot(tieu_de, than, i, lay_khoa, bay_gio) for i in range(min(so, 8))]
 
 
+# ------------------------------------------------------------ ARC (v651, thư chuyển qua Gmail)
+
+# Anh Việt 12/11/2026 (hướng B): thư Shinhan ký DKIM hỏng ngay từ phía Shinhan
+# (Gmail ghi "body hash did not verify") nhưng Gmail của tiệm xác nhận máy chủ
+# Shinhan được phép gửi (SPF đạt). Gmail ghi kết quả đó vào ARC-Authentication-
+# Results và KÝ bằng khoá google.com (ARC-Seal, RFC 8617). Chỉ tin chuỗi ARC
+# mà MỌI bộ do google.com niêm phong và mx.google.com ghi.
+ARC_TIN = "google.com"
+ARC_MAY_GHI = "mx.google.com"
+ARC_TOI_DA = 50
+
+
+def _arc_bo(tieu_de):
+	"""{i: {"aar": (tên, giá trị, khoảng), "ams": ..., "as": ...}} và thẻ đã đọc.
+	Ném LoiChuKy khi bộ ARC sai cấu trúc (thiếu, lặp, i lạ). THUẦN."""
+	ten_kieu = {b"arc-authentication-results": "aar", b"arc-message-signature": "ams", b"arc-seal": "as"}
+	bo = {}
+	for x in tieu_de:
+		k = ten_kieu.get(x[0].lower())
+		if not k:
+			continue
+		if k == "aar":
+			m = re.match(rb"\s*i\s*=\s*(\d+)\s*;", re.sub(rb"\r\n", b"", x[1]))
+			i = int(m.group(1)) if m else 0
+		else:
+			try:
+				i = int(doc_the(x[1]).get("i", b"0"))
+			except ValueError:
+				i = 0
+		if not 1 <= i <= ARC_TOI_DA:
+			raise LoiChuKy("Chuỗi ARC có số thứ tự i= sai.")
+		if k in bo.setdefault(i, {}):
+			raise LoiChuKy("Chuỗi ARC lặp bộ i=%s." % i)
+		bo[i][k] = x
+	if not bo:
+		return {}
+	n = max(bo)
+	if sorted(bo) != list(range(1, n + 1)) or any(len(bo[i]) != 3 for i in bo):
+		raise LoiChuKy("Chuỗi ARC thiếu bộ hoặc thiếu ô.")
+	return bo
+
+
+def _khoa_arc(t, lay_khoa):
+	d = t.get("d", b"").decode("latin-1").lower()
+	s = t.get("s", b"").decode("latin-1")
+	txt = lay_khoa("%s._domainkey.%s" % (s, d))
+	if not txt:
+		raise LoiChuKy("Không tìm thấy khoá công khai ARC của %s." % d)
+	k = doc_the(txt if isinstance(txt, bytes) else txt.encode("latin-1"))
+	if k.get("k", b"rsa").lower() != b"rsa" or not k.get("p"):
+		raise LoiChuKy("Khoá ARC của %s không dùng được." % d)
+	return khoa_rsa(_b64(k["p"]))
+
+
+def spf_dat_aar(gia_tri):
+	"""THUẦN. Tên miền smtp.mailfrom khi ô ARC-Authentication-Results ghi đúng MỘT
+	kết quả spf và kết quả đó là pass; còn lại trả "". Bỏ phần chú thích trong
+	ngoặc trước khi tách theo dấu chấm phẩy (chú thích là chữ tự do)."""
+	v = gia_tri.decode("latin-1") if isinstance(gia_tri, bytes) else str(gia_tri)
+	v = re.sub(r"\r\n", "", v)
+	for _ in range(3):
+		v = re.sub(r"\([^()]*\)", " ", v)
+	spf = [p.strip() for p in v.split(";") if re.match(r"\s*spf\s*=", p, re.I)]
+	if len(spf) != 1:
+		return ""
+	m = re.match(r"spf\s*=\s*pass\s+smtp\.mailfrom\s*=\s*\"?([^\s\"]+)\"?\s*$", spf[0], re.I)
+	if not m:
+		return ""
+	return m.group(1).split("@")[-1].strip().lower().rstrip(".")
+
+
+def kiem_arc(tho, lay_khoa):
+	"""Kiểm chuỗi ARC của thư. THUẦN với lay_khoa. Trả dict(dat, spf_mien,
+	ly_do, tam). dat=True chỉ khi:
+	  - mọi bộ ARC do google.com niêm phong, mx.google.com ghi;
+	  - ARC-Seal mọi bộ khớp chữ ký (cv=none ở bộ 1, pass ở các bộ sau);
+	  - ARC-Message-Signature của bộ cuối khớp (thân thư và các ô đã ký, có From);
+	  - bộ 1 (lúc thư vào Gmail từ ngoài) ghi spf=pass, lấy tên miền smtp.mailfrom.
+	"""
+	ra = dict(dat=False, spf_mien="", ly_do="", tam=False)
+	try:
+		tieu_de, than = tach_thu(tho)
+		bo = _arc_bo(tieu_de)
+		if not bo:
+			raise LoiChuKy("Thư không có chuỗi ARC.")
+		n = max(bo)
+		the = {}
+		for i in bo:
+			for k in ("ams", "as"):
+				t = doc_the(bo[i][k][1])
+				for can in ("a", "b", "d", "s"):
+					if can not in t:
+						raise LoiChuKy("Chuỗi ARC thiếu thẻ %s=." % can)
+				if t["a"].lower() != b"rsa-sha256":
+					raise LoiChuKy("Chuỗi ARC dùng thuật toán lạ.")
+				if t["d"].lower().decode("latin-1") != ARC_TIN:
+					raise LoiChuKy("Chuỗi ARC có bộ không do %s niêm phong." % ARC_TIN)
+				the[(i, k)] = t
+			aar = re.sub(rb"\r\n", b"", bo[i]["aar"][1]).decode("latin-1")
+			m = re.match(r"\s*i\s*=\s*\d+\s*;\s*([^;\s]+)", aar)
+			if not m or m.group(1).lower() != ARC_MAY_GHI:
+				raise LoiChuKy("Chuỗi ARC có bộ không do %s ghi." % ARC_MAY_GHI)
+			cv = the[(i, "as")].get("cv", b"").lower()
+			if cv != (b"none" if i == 1 else b"pass"):
+				raise LoiChuKy("Chuỗi ARC hỏng ở bộ %s (cv=%s)." % (i, cv.decode("latin-1")))
+		# ARC-Message-Signature của bộ cuối.
+		t = the[(n, "ams")]
+		for can in ("bh", "h"):
+			if can not in t:
+				raise LoiChuKy("Chuỗi ARC thiếu thẻ %s=." % can)
+		h = [x.strip().lower() for x in re.sub(rb"[\t \r\n]", b"", t["h"]).split(b":") if x.strip()]
+		if b"from" not in h or any(x.startswith(b"arc-") for x in h):
+			raise LoiChuKy("Chữ ký ARC không ký ô người gửi (From).")
+		c = (t.get("c") or b"simple/simple").lower().split(b"/")
+		kh, kt = [x.decode() for x in (c + [b"simple"])[:2]]
+		if kh not in ("simple", "relaxed") or kt not in ("simple", "relaxed"):
+			raise LoiChuKy("Chữ ký ARC dùng kiểu chuẩn hoá lạ.")
+		if base64.b64encode(hashlib.sha256(chuan_than(than, kt)).digest()) != re.sub(rb"[\t \r\n]", b"", t["bh"]):
+			raise LoiChuKy("Thân thư đã bị sửa sau khi Gmail ghi nhận.")
+		ten, gt, kk = bo[n]["ams"]
+		khong_arc = [x for x in tieu_de if not x[0].lower().startswith(b"arc-")]
+		du = b"".join(chuan_tieu_de(a, b, kh, k2) for a, b, k2 in chon_tieu_de(khong_arc, h))
+		du += chuan_tieu_de(ten, bo_gia_tri_b(gt), kh, kk).rstrip(b"\r\n")
+		nn, ee = _khoa_arc(t, lay_khoa)
+		if not kiem_rsa(nn, ee, _b64(t["b"]), du):
+			raise LoiChuKy("Chữ ký ARC của Gmail không khớp: tiêu đề thư đã bị sửa.")
+		# ARC-Seal từng bộ: ký các ô ARC của bộ 1..i theo thứ tự, kiểu relaxed.
+		for i in range(1, n + 1):
+			du = b""
+			for j in range(1, i + 1):
+				for k in ("aar", "ams", "as"):
+					a, b, k2 = bo[j][k]
+					v = bo_gia_tri_b(b) if (j == i and k == "as") else b
+					du += chuan_tieu_de(a, v, "relaxed", k2)
+			du = du.rstrip(b"\r\n")
+			ta = the[(i, "as")]
+			nn, ee = _khoa_arc(ta, lay_khoa)
+			if not kiem_rsa(nn, ee, _b64(ta["b"]), du):
+				raise LoiChuKy("Dấu niêm phong ARC bộ %s không khớp." % i)
+		ra["spf_mien"] = spf_dat_aar(bo[1]["aar"][1])
+		if not ra["spf_mien"]:
+			raise LoiChuKy("Gmail không ghi SPF đạt cho người gửi.")
+		ra["dat"] = True
+	except LoiChuKy as er:
+		ra["ly_do"] = str(er)
+	except LoiDnsTam as er:
+		ra["tam"] = True
+		ra["ly_do"] = "Chưa tra được khoá ARC của Gmail (mạng hoặc DNS lỗi tạm: %s), máy sẽ thử lại." % str(er)[:120]
+	except (ValueError, TypeError, IndexError, UnicodeDecodeError):
+		ra["ly_do"] = "Chuỗi ARC viết sai cú pháp."
+	return ra
+
+
 # ------------------------------------------------------------ DNS (chạm mạng)
 
 def lay_khoa_dns(ten):
