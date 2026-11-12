@@ -98,3 +98,29 @@ def _():
 	xt = K.xem_truoc(M.doc(_tep(THAT_0614.replace("51.595             509F", "51.595  509F  77AB"))), "C")
 	loi = [x for x in xt["dong"] if x["trang_thai"] == "loi"]
 	dung("xem trước giữ chữ gốc", loi and "509F" in " ".join(loi[0]["tho"]))
+
+
+@ca("Codex PR #554: dòng lỗi ghép mảnh hiện ĐỦ các mảnh máy giữ (tiền tố GD-, dòng tiền), không chỉ mảnh đầu; dài thì cắt có dấu ...")
+def _():
+	import json
+	import os
+	import subprocess
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+	js = """
+const s = require('fs').readFileSync(process.argv[1], 'utf8');
+const i = s.indexOf('function dsvDongLoi'), j = s.indexOf('\\n}\\n', i) + 2;
+eval(s.slice(i, j));
+const ra = JSON.parse(process.argv[2]).map(dsvDongLoi);
+console.log(JSON.stringify(ra));
+"""
+	ds = [{"vi_tri": 40, "ly_do": "Mã đơn bị ngắt dòng.", "tho": ["                    GD-",
+			" 12:25 PM      Trả thẻ / Ví     210.000   0   -   -40.000   -25.025   0   144.975"]},
+		{"vi_tri": 7, "ly_do": "x", "tho": ["a" * 200, "b" * 200]},
+		{"vi_tri": 8, "ly_do": "y", "tho": []}]
+	r = subprocess.run(["node", "-e", js, os.path.join(goc, "vagabond/public/js/bep/52-doi-soat-vendor.js"), json.dumps(ds)],
+		capture_output=True, text=True, timeout=60)
+	la("node chạy", (r.returncode, r.stderr[-300:]), (0, ""))
+	ra = json.loads(r.stdout)
+	la("đủ hai mảnh", ra[0], 'Dòng 40: Mã đơn bị ngắt dòng. Máy đọc được: "GD- | 12:25 PM Trả thẻ / Ví 210.000 0 - -40.000 -25.025 0 144.975"')
+	dung("cắt 240 ký tự có dấu ...", ra[1].endswith('..."') and len(ra[1].split('"')[1]) == 240)
+	la("không có chữ thì không thêm", ra[2], "Dòng 8: y")
