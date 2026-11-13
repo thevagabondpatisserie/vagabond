@@ -44,7 +44,7 @@ function dong(ncc, ten, hd, so, co, tra, han) {
     con_no: co, dang_giu: 0, co_the_tra: co, so_tra: tra, gia_han: co - tra, ghi_chu: '', hen_dot: '', app: '', ket_qua: '' };
 }
 function duLieu(tt, them) {
-  const d = { ma: MA, ngay_dot: '2026-11-20', trang_thai: tt || 'Nhap', nhan: 'Uyên đang thương lượng', so_du: 500000000,
+  const d = { ma: MA, ngay_dot: '2026-11-20', trang_thai: tt || 'Nhap', nhan: 'Thu mua đang thương lượng', so_du: 500000000,
     dong: [dong('NCC-P', 'Printeco', 'PI-1', '0001234', 100000000, 100000000),
       dong('NCC-P', 'Printeco', 'PI-2', '0001240', 30000000, 0, '2026-12-05'),
       dong('NCC-H', 'Phương Hoàng Phát', 'PI-3', '0000777', 50000000, 50000000)],
