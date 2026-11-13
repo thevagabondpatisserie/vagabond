@@ -485,7 +485,9 @@ def _da_co(lich, hd_no, tay_tat_ca, hom_nay):
 			if k and (k in ds_ncc or k in ds_ten):
 				ra.add((k, thang_cua(r.ngay)))
 	if ds_ncc:
-		for r in frappe.get_all("Purchase Invoice", filters={"docstatus": ["<", 2], "supplier": ["in", ds_ncc],
+		# Chỉ hoá đơn ĐÃ GHI SỔ: còn nợ thì máy đề xuất công nợ thay (_hd_no), đã trả
+		# thì xong. Hoá đơn nháp chưa thay được dòng nào, lịch tháng đó vẫn tính (Codex #561).
+		for r in frappe.get_all("Purchase Invoice", filters={"docstatus": 1, "supplier": ["in", ds_ncc],
 				"posting_date": [">=", str(tu)]}, fields=["supplier", "posting_date"], limit_page_length=0):
 			ra.add((r.supplier, thang_cua(r.posting_date)))
 	ten_lich = {l["name"]: l["khoa"] for l in lich}
