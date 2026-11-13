@@ -72619,7 +72619,8 @@ function ldcGhiChu(x) {
 function ldcDauTien(sd, dv) {
   if (sd.an) {
     return '<div style="font-size:13px;color:#6b7280">Tiền khả dụng</div>' +
-      '<div style="font-size:14px;color:#475467;line-height:1.5">Chỉ Giám đốc và người được xem mục Tài chính thấy số này. Máy vẫn dùng số dư ngân hàng và tiền dự kiến về để báo ngày không đủ tiền chi.</div>';
+      (sd.chua_ro ? '<div style="font-size:14px;color:#b45309;line-height:1.5;font-weight:600">Máy chưa xác định được số dư ngân hàng nên chưa báo được ngày nào không đủ tiền. Nhờ Kế toán kiểm mục Tài chính.</div>'
+        : '<div style="font-size:14px;color:#475467;line-height:1.5">Chỉ Giám đốc và người được xem mục Tài chính thấy số này. Máy vẫn dùng số dư ngân hàng và tiền dự kiến về để báo ngày không đủ tiền chi.</div>');
   }
   return '<div style="font-size:13px;color:#6b7280">Tiền khả dụng</div>' +
     (sd.so_tien == null ? '<div style="font-size:16px;font-weight:800;color:#b45309">Chưa xác định được khả năng chi</div>'
