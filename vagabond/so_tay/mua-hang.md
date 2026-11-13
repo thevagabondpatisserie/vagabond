@@ -403,15 +403,17 @@ Trước đây: màn chỉ có hai đợt 10 và 20; khoản chi gấp ngày kh�
 
 **Các bước**
 1. Mở Dự chi công nợ, bấm [[＋ Thêm dự chi]].
-2. Chọn Ngày cần chi (ngày nào cũng được, kể cả ngày 15), gõ Nội dung, Số tiền, Người nhận / Nhà cung cấp, Lý do.
-3. Có hoá đơn công nợ thì bấm [[Tìm]] và chọn hoá đơn; không có hoá đơn vẫn lưu được.
-4. Bấm [[Lưu dự chi nháp]]. Khoản mới hiện trên Lịch dự chi đúng ngày, chip Nhập tay.
-5. Chi thật: lập hồ sơ thanh toán (APP) và duyệt như cũ, rồi mở lại dự chi, gõ mã APP, bấm [[Nối]].
+2. Chọn Ngày cần chi (ngày nào cũng được, kể cả ngày 15), gõ Nội dung, Số tiền, Lý do.
+3. Trả nhà cung cấp thì bấm [[🔎 Chọn nhà cung cấp trong danh mục]]. Bên nhận không có trong danh mục (chợ, thợ) thì ghi ở ô Người nhận khác.
+4. Có hoá đơn công nợ thì gõ tên hay số hoá đơn, bấm [[Tìm]] và chọn trong kết quả; không có hoá đơn vẫn lưu được.
+5. Bấm [[Lưu dự chi nháp]]. Khoản mới hiện trên Lịch dự chi đúng ngày, chip Nhập tay.
+6. Chi thật: lập hồ sơ thanh toán (APP) và duyệt như cũ, rồi mở lại dự chi, bấm [[🔎 Chọn hồ sơ thanh toán để nối]].
 
 **Lưu ý**
 - Không đọc được số dư thì màn ghi Chưa xác định được khả năng chi, không đoán.
 - Tiền dự kiến về (doanh thu sàn, khách trả nợ) chưa tính vào Tiền khả dụng.
 - Máy chỉ lưu dự chi nháp; duyệt và chi đi theo hồ sơ APP như cũ.
+- Đang gõ mà thoát hay tải lại trang thì máy giữ bản đang soạn trên máy, mở lại hỏi có làm tiếp không.
 
 ## Đọc Lịch dự chi và lịch chi hằng tháng
 Từ khoá: lịch dự chi, máy đề xuất, nhập tay, theo lịch hằng tháng, tiền nhà, gợi ý lịch chi, tính hai lần
@@ -432,6 +434,7 @@ Từ khoá: lịch dự chi, máy đề xuất, nhập tay, theo lịch hằng t
 **Lưu ý**
 - Mỗi khoản chỉ tính một lần: có APP thì tính theo APP; dự chi gắn hoá đơn thì máy trừ phần đó khỏi số đề xuất; tháng đã có APP hay hoá đơn tiền nhà thì lịch tháng đó không tính thêm.
 - Tiền nhà Nguyễn Hữu Phước có sẵn lịch ngày 20; bấm dòng đó để sửa ngày hay số tiền.
+- Lịch đã tạm thôi vẫn nằm trong danh sách (chữ xám). Bấm dòng đó, bấm nút Đang tạm thôi để dùng lại, rồi [[💾 Lưu lịch]].
 - [[Máy gợi ý từ dữ liệu]] liệt kê người nhận thấy từ ba tháng trở lên, kèm ngoại lệ. Hoàn ứng không tính. Bấm [[Thêm vào lịch]] nếu đúng.
 
 ## Hoá đơn nhà cung cấp tự đính từ hộp thư hoadon@
