@@ -295,7 +295,11 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     vm.createContext(g);
     vm.runInContext(layHam(doc('26-cong-thuc.js'), 'ctHopGiaVon'), g);
     const ht = g.ctHopGiaVon({ mot: 50000, ban: 0, thieu: ['A1', 'A2', 'A3', 'A4', 'A5'], dvt: 'Cái' });
-    assert(ht.indexOf('Thiếu giá 5 nguyên liệu: A1, A2, A3 và 2 nữa.') >= 0 && ht.indexOf('A4') < 0, 'màn Công thức: đếm số, ba tên đầu');
+    const dau = ht.split('<details')[0];
+    assert(dau.indexOf('Thiếu giá 5 nguyên liệu: A1, A2, A3 và 2 nữa.') >= 0 && dau.indexOf('A4') < 0, 'màn Công thức: đếm số, ba tên đầu');
+    /* Codex #564 vòng 2: phần còn lại bấm mới mở, không ẩn hẳn; ô bấm cao 44. */
+    assert(/<details[^>]*><summary style="min-height:44px[^"]*">Xem đủ 5 nguyên liệu thiếu giá<\/summary><div[^>]*>A1, A2, A3, A4, A5<\/div><\/details>/.test(ht), 'có Xem đủ mở hết năm tên');
+    assert(g.ctHopGiaVon({ mot: 1, thieu: ['A1'], dvt: 'Cái' }).indexOf('<details') < 0, 'ba tên trở xuống không cần nút');
   }
   console.log('de_xuat_cong_thuc_656: 8 nhóm ca đạt');
 })().catch(e => { console.error(e); process.exit(1); });
