@@ -70,7 +70,7 @@ function dsvnChip(tt) {
     'Nhiều chứng từ': ['#fffaeb', '#b54708'], 'Không thấy chứng từ': ['#fffaeb', '#b54708'],
     'Chưa nối': ['#f2f4f7', '#475467'], 'Đã thay': ['#f2f4f7', '#475467'],
     'Khớp': ['#ecfdf3', '#067647'], 'Sai mã': ['#fef3f2', '#b42318'], 'Không có trên báo cáo': ['#fef3f2', '#b42318'],
-    'Chờ kế toán chọn': ['#fffaeb', '#b54708'], 'Chờ báo cáo': ['#f2f4f7', '#475467']
+    'Chờ kế toán chọn': ['#fffaeb', '#b54708'], 'Chờ báo cáo': ['#f2f4f7', '#475467'], 'Đã hoàn tất': ['#ecfdf3', '#067647']
   }[tt] || ['#f2f4f7', '#475467'];
   return '<span style="display:inline-block;background:' + mau[0] + ';color:' + mau[1] +
     ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(tt) + '</span>';
@@ -229,7 +229,7 @@ async function scrDsvn() {
         '<span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">' +
         (n.nhom === 'Tiền bán' ? dsvnChip(n.trang_thai_tien || 'Chưa đối chiếu') : '') +
         (n.so_chua_noi ? dsvnChip(n.so_chua_noi + ' chưa nối') : '') + '</span></div>' +
-        '<div style="margin-top:6px">' + dsvnDuongChip(n.duong) + (n.xac_nhan_luc ? ' ' + dsvnChip('Đã khép') : '') + '</div></div>';
+        '<div style="margin-top:6px">' + dsvnDuongChip(n.duong) + (n.xac_nhan_luc ? ' ' + dsvnChip('Đã hoàn tất') : '') + '</div></div>';
     }).join('') + '</div>';
   }
   html += dsvnPhanTrang('nguon', DSVN.trang.nguon.so, kq.con, 50, 'Nguồn');
@@ -418,7 +418,7 @@ function dsvnCongCu(kq) {
       { k: 'tt', tatCa: 'Mọi trạng thái', chon: DSVN.tt, dem: dem, mau: '#b42318',
         ds: [{ k: 'Cần xử lý', ten: 'Cần xử lý' }, { k: 'Chờ tiền về', ten: 'Chờ tiền về' }, { k: 'Chưa thấy tiền về', ten: 'Chưa thấy tiền' },
           { k: 'Lệch tiền về', ten: 'Lệch tiền về' }, { k: 'Cần chọn tiền về', ten: 'Trùng số tiền' }, { k: 'Chưa nối đủ', ten: 'Chưa nối đủ' },
-          { k: 'Đã khép', ten: 'Đã khép' }] },
+          { k: 'Đã hoàn tất', ten: 'Đã hoàn tất' }] },
       /* v641: đường vào của nguồn (thư có chữ ký hay tải tay). */
       { k: 'duong', tatCa: 'Mọi đường vào', chon: DSVN.duong, dem: kq.dem_duong || {}, mau: '#175cd3',
         ds: DSVN_DUONG.map(function (d) { return { k: d[0], ten: d[1] }; }) },
