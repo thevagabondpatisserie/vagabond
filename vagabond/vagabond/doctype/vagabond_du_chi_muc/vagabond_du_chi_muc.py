@@ -14,3 +14,8 @@ class VagabondDuChiMuc(Document):
 				"Chỉ sửa trên màn Dự chi công nợ của app. Form này chỉ để xem.",
 				frappe.PermissionError,
 			)
+
+	def on_trash(self):
+		# Chỉ nút Xoá dự chi nháp của app (lich_du_chi.xoa_muc) được xoá, và chỉ khi còn nháp.
+		if getattr(frappe.flags, "vgb_xoa_du_chi", None) != self.name:
+			frappe.throw("Chỉ xoá được bằng nút Xoá dự chi nháp trên màn Dự chi công nợ.", frappe.PermissionError)
