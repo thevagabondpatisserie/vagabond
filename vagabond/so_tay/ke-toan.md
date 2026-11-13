@@ -1237,7 +1237,7 @@ Trước đây: duyệt từng APP. Từ nay: duyệt cả đợt một lần; g
 
 **Các bước**
 1. Việc cần làm báo đợt chờ mình. Mở Dự chi công nợ, chọn đợt.
-2. Xem tổng trả, gia hạn, số dư tài khoản chi ở đầu màn.
+2. Xem tổng trả, gia hạn ở đầu màn. Số dư ngân hàng (lấy từ mục Tài chính) chỉ hiện với người được xem mục Tài chính.
 3. Kế toán bấm [[Kế toán đã soát]]; giám đốc bấm [[Duyệt và lập APP]]. Sai thì bấm [[Trả lại]] và ghi lý do.
 4. Có nhà cung cấp chưa lập được APP (dòng đỏ): sửa theo câu báo rồi bấm [[Lập APP cho phần còn lỗi]].
 

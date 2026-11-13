@@ -399,19 +399,19 @@ Từ khoá: thêm dự chi, chi gấp, tiền khả dụng, thiếu tiền, lị
 |---|---|---|
 | Thu mua, Kế toán, Giám đốc | Dự chi công nợ (/du-chi-cong-no) | [[＋ Thêm dự chi]], [[Lưu dự chi nháp]] |
 
-Trước đây: màn chỉ có hai đợt 10 và 20; khoản chi gấp ngày khác, tiền nhà, khoản đến hạn ngày 18 phải nhớ ngoài. Từ nay: đầu màn có Tiền khả dụng (số dư tài khoản chi theo SePay, giờ đọc), Lịch dự chi theo từng ngày và dòng cảnh báo khi một ngày thiếu tiền, ví dụ Ngày 20/11 còn thiếu 10.000.000 đ.
+Trước đây: chỉ có hai đợt 10 và 20. Từ nay: máy lấy số dư ngân hàng của mục Tài chính cộng tiền khách công nợ dự kiến trả, rồi báo ngày nào không đủ tiền chi, ví dụ Ngày 20/11 không đủ tiền chi. Số dư chỉ Giám đốc và người được xem mục Tài chính thấy.
 
 **Các bước**
 1. Mở Dự chi công nợ, bấm [[＋ Thêm dự chi]].
-2. Chọn Ngày cần chi (ngày nào cũng được, kể cả ngày 15), gõ Nội dung, Số tiền, Lý do.
+2. Chọn Ngày cần chi (ngày nào cũng được), gõ Nội dung, Số tiền, Lý do.
 3. Trả nhà cung cấp thì bấm [[🔎 Chọn nhà cung cấp trong danh mục]]. Bên nhận không có trong danh mục (chợ, thợ) thì ghi ở ô Người nhận khác.
 4. Có hoá đơn công nợ thì gõ tên hay số hoá đơn, bấm [[Tìm]] và chọn trong kết quả; không có hoá đơn vẫn lưu được.
 5. Bấm [[Lưu dự chi nháp]]. Khoản mới hiện trên Lịch dự chi đúng ngày, chip Nhập tay.
-6. Chi thật: lập hồ sơ thanh toán (APP) và duyệt như cũ, rồi mở lại dự chi, bấm [[🔎 Chọn hồ sơ thanh toán để nối]].
+6. Chi thật: lập hồ sơ thanh toán (APP) và duyệt như cũ, rồi mở lại dự chi, bấm [[🔎 Chọn hồ sơ thanh toán để nối]]. Khoản không chi nữa thì bấm [[🗑 Xoá dự chi nháp]].
 
 **Lưu ý**
-- Không đọc được số dư thì màn ghi Chưa xác định được khả năng chi, không đoán.
-- Tiền dự kiến về (doanh thu sàn, khách trả nợ) chưa tính vào Tiền khả dụng.
+- Không đọc được số dư thì máy không đoán.
+- Tiền dự kiến về lấy từ công nợ cần thu, đặt vào ngày khách đó thường trả; khách đã quá ngày thường trả mà chưa trả thì không tính.
 - Máy chỉ lưu dự chi nháp; duyệt và chi đi theo hồ sơ APP như cũ.
 - Đang gõ mà thoát hay tải lại trang thì máy giữ bản đang soạn trên máy, mở lại hỏi có làm tiếp không.
 
