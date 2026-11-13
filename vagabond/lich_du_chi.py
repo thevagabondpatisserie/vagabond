@@ -229,26 +229,34 @@ def ghep_muc(hom_nay, den, hd_no, dot_dong, app_song, tay, lich, da_co):
 	return ra
 
 
-def theo_ngay(so_du, muc):
+def theo_ngay(so_du, muc, ve=()):
 	"""Gom khoản chi theo ngày và tính tiền còn lại sau mỗi ngày. THUẦN.
 
-	so_du: số tiền khả dụng (Decimal) hoặc None khi chưa đọc được. Trả dict:
-	ngay [{ngay, muc, tong, con_lai, thieu}], tong, thieu_dau (ngày thiếu đầu
-	tiên hoặc None), can_thuong_luong (khoản công nợ tới ngày đó, khoản dời được
-	nhất đứng trước)."""
+	so_du: số tiền khả dụng (Decimal) hoặc None khi chưa đọc được.
+	ve: tiền dự kiến về [{ngay, so_tien}] (công nợ khách theo ngày dự kiến trả,
+	    xem du_kien_ve). Tiền về ngày D được cộng trước khi trừ khoản chi ngày D.
+	Trả dict: ngay [{ngay, muc, tong, ve, con_lai, thieu}], tong, thieu_dau
+	(ngày thiếu đầu tiên hoặc None), can_thuong_luong (khoản công nợ tới ngày
+	đó, khoản dời được nhất đứng trước)."""
 	ngay = []
 	for x in muc:
 		if not ngay or ngay[-1]["ngay"] != x["ngay"]:
 			ngay.append({"ngay": x["ngay"], "muc": [], "tong": Decimal(0)})
 		ngay[-1]["muc"].append(x)
 		ngay[-1]["tong"] += x["so_tien"]
+	cho_ve = sorted(((_ngay(v.get("ngay")), _tien(v.get("so_tien"))) for v in ve or () if _ngay(v.get("ngay"))), key=lambda v: v[0])
 	con = so_du
 	dau = None
+	i = 0
 	for g in ngay:
+		g["ve"] = Decimal(0)
+		while i < len(cho_ve) and cho_ve[i][0] <= g["ngay"]:
+			g["ve"] += cho_ve[i][1]
+			i += 1
 		if con is None:
 			g["con_lai"], g["thieu"] = None, None
 			continue
-		con = con - g["tong"]
+		con = con + g["ve"] - g["tong"]
 		g["con_lai"] = con
 		g["thieu"] = -con if con < 0 else Decimal(0)
 		if con < 0 and dau is None:
@@ -290,6 +298,91 @@ def chi_sau_anh(rows, luc_anh, tk):
 		if (r.get("tk_chi") or "") == tk and g is not None and g > moc:
 			ra += _tien(r.get("tong_tien"))
 	return ra
+
+
+TRE_MAC_DINH = 30  # ngày, khi chưa có lịch sử trả nào để học
+
+
+def trung_vi_ngay(ds):
+	"""THUẦN: trung vị số ngày (số nguyên), None khi rỗng."""
+	ds = sorted(int(x) for x in ds or () if x is not None)
+	if not ds:
+		return None
+	n = len(ds)
+	return ds[n // 2] if n % 2 else (ds[n // 2 - 1] + ds[n // 2]) // 2
+
+
+def du_kien_ve(hd_no, tre_theo_khach, hom_nay, den):
+	"""Tiền dự kiến về từ CÔNG NỢ CẦN THU (anh Việt 13/11). THUẦN.
+
+	hd_no: hoá đơn bán còn phải đòi [{hoa_don, khach, ngay (ngày hoá đơn), so_tien}].
+	tre_theo_khach: {khách: [số ngày từ ngày hoá đơn tới ngày trả]} học từ các
+	hoá đơn công nợ đã trả. Hạn trên hoá đơn bán của Vagabond trùng ngày hoá đơn
+	(117/117 tờ còn nợ ngày 13/11) nên không dùng được làm ngày về.
+	Ngày dự kiến về = ngày hoá đơn + trung vị số ngày trả của chính khách đó (từ
+	hai lần trả trở lên), không đủ thì trung vị chung, chưa có gì thì 30 ngày.
+	Đã qua ngày dự kiến mà chưa trả thì KHÔNG tính vào ngày nào (không đoán khách
+	trả hôm nay), chỉ cộng vào ô "quá hạn chưa thu". Sau khung xem cũng chỉ cộng tổng.
+	Trả {ve [{ngay, so_tien, hoa_don, khach}], trong_khung, qua_han, sau_khung, tre_chung}."""
+	t, den = _ngay(hom_nay), _ngay(den)
+	chung = trung_vi_ngay([x for v in (tre_theo_khach or {}).values() for x in v])
+	if chung is None:
+		chung = TRE_MAC_DINH
+	ve, qua, sau = [], Decimal(0), Decimal(0)
+	for r in hd_no or ():
+		so = _tien(r.get("so_tien"))
+		ngay_hd = _ngay(r.get("ngay"))
+		if so <= 0 or not ngay_hd:
+			continue
+		rieng = (tre_theo_khach or {}).get(r.get("khach")) or []
+		tre = trung_vi_ngay(rieng) if len(rieng) >= 2 else chung
+		d = ngay_hd + timedelta(days=tre)
+		if d < t:
+			qua += so
+		elif d > den:
+			sau += so
+		else:
+			ve.append({"ngay": d, "so_tien": so, "hoa_don": r.get("hoa_don"), "khach": r.get("khach")})
+	ve.sort(key=lambda v: (v["ngay"], str(v["hoa_don"])))
+	return {"ve": ve, "trong_khung": sum((v["so_tien"] for v in ve), Decimal(0)), "qua_han": qua, "sau_khung": sau, "tre_chung": chung}
+
+
+def kha_dung_tai_chinh(dong, chi_sau_theo_ba):
+	"""Tiền khả dụng = số dư NGÂN HÀNG đúng như mục Tài chính (anh Việt 13/11). THUẦN.
+
+	dong: các dòng `tai_chinh._tinh_tien()["dong"]`. Chỉ lấy tài khoản ngân hàng
+	của công ty (bỏ tài khoản tạm ứng đứng tên cá nhân, bỏ két, quỹ tiền mặt).
+	Dòng lấy thẳng số SePay báo (không đồng bộ giao dịch về app) thì trừ thêm
+	tiền đã ghi sổ ra khỏi tài khoản đó SAU giờ đọc (chi_sau_theo_ba {Bank
+	Account: tiền}); dòng tính từ mốc chốt cộng phát sinh sổ đã gồm mọi bút toán.
+	Một tài khoản tính hỏng thì KHÔNG đoán (trả None, nêu tên); tài khoản chưa
+	chốt số dư thì không cộng, nêu tên."""
+	tong, chi, co, hong, chua = Decimal(0), Decimal(0), 0, [], []
+	for d in dong or ():
+		if d.get("loai") != "Ngân hàng" or d.get("tam_ung") or d.get("dang_chuyen"):
+			continue
+		if d.get("so_du") is None:
+			(hong if d.get("loi") else chua).append(d.get("ten") or d.get("nguon") or "")
+			continue
+		co += 1
+		tong += _tien_am(d.get("so_du"))
+		if not d.get("dong_bo") and _tien(d.get("so_bao") or 0) > 0:
+			chi += _tien((chi_sau_theo_ba or {}).get(d.get("bank_account")) or 0)
+	if hong or not co:
+		return {"so_tien": None, "so_du_tk": None, "chi_sau": Decimal(0), "hong": hong, "chua_chot": chua}
+	return {"so_tien": tong - chi, "so_du_tk": tong, "chi_sau": chi, "hong": [], "chua_chot": chua}
+
+
+def an_so_tien(kq):
+	"""Người không được xem Tài chính (Thu mua): bỏ mọi con số lộ tiền trong tài
+	khoản, giữ ngày không đủ tiền và khoản cần thương lượng (anh Việt 13/11). THUẦN."""
+	kq = dict(kq)
+	kq["so_du"] = {"an": 1}
+	kq["du_kien_ve"] = {"an": 1}
+	kq["ngay"] = [dict(g, con_lai=None, thieu=None, ve=None, khong_du=1 if g.get("thieu") else 0) for g in kq.get("ngay") or ()]
+	if kq.get("thieu_dau"):
+		kq["thieu_dau"] = {"ngay": kq["thieu_dau"]["ngay"], "so_tien": None}
+	return kq
 
 
 def tien_kha_dung(so_du_tk, chi_sau_luc):
@@ -396,24 +489,66 @@ def _str(d):
 
 
 def so_du_kha_dung():
-	"""Số dư tài khoản chi lúc SePay đọc (nguồn, giờ đọc thật) và phần đã chi từ
-	đúng tài khoản đó sau giờ đọc."""
-	from vagabond import du_chi, tai_chinh
+	"""Tiền khả dụng lấy đúng số dư ngân hàng của mục Tài chính (anh Việt 13/11):
+	cùng hàm `tai_chinh._tinh_tien`, không tự đọc SePay riêng. Dòng lấy thẳng số
+	SePay báo thì trừ thêm tiền ghi sổ ra khỏi tài khoản đó sau giờ SePay đọc."""
+	from vagabond import tai_chinh
 
-	ba, v = du_chi._tk_chi_so_du()
-	if v is None:
-		return {"so_tien": None, "luc": "", "nguon": "Chưa đọc được số dư tài khoản chi từ SePay", "chi_sau": 0, "tk": ba or ""}
-	# Bản số dư có thể là bản đệm tới một phút (tai_chinh.SEPAY_DEM_GIAY): giờ đọc
-	# là giờ SePay trả về bản đó, không phải giờ mở màn.
+	tien = tai_chinh._tinh_tien()
 	luc = tai_chinh._sepay_luc_bao() or str(now_datetime())
-	# Codex #561 vòng 2: đọc tiền đi ra theo SỔ CÁI của đúng tài khoản ngân hàng đó,
-	# không theo ô tk_chi của APP (APP nhà cung cấp thường để trống, tài khoản chỉ
-	# được suy ra lúc ghi Payment Entry). Payment Entry và Journal Entry đều ghi GL Entry.
-	tk_gl = frappe.db.get_value("Bank Account", ba, "account") if ba else None
-	rows = frappe.get_all("GL Entry", filters={"account": tk_gl, "is_cancelled": 0, "credit": [">", 0], "creation": [">", luc]},
-		fields=["credit as tong_tien", "creation as luc", "account as tk_chi"], limit_page_length=0) if tk_gl else []
-	chi = chi_sau_anh([dict(r) for r in rows], luc, tk_gl)
-	return {"so_tien": flt(v), "luc": luc, "nguon": "Số dư tài khoản chi theo SePay", "chi_sau": flt(chi), "tk": ba or ""}
+	dong = tien.get("dong") or []
+	chi_sau = {}
+	for d in dong:
+		ba = d.get("bank_account")
+		if d.get("loai") != tai_chinh.LOAI_NH or d.get("dong_bo") or not ba or flt(d.get("so_bao")) <= 0:
+			continue
+		tk_gl = frappe.db.get_value("Bank Account", ba, "account")
+		if not tk_gl:
+			continue
+		# Đọc theo SỔ CÁI của đúng tài khoản (Codex #561 vòng 2): Payment Entry và
+		# Journal Entry đều ghi GL Entry, hồ sơ APP để trống tài khoản cũng không lọt.
+		rows = frappe.get_all("GL Entry", filters={"account": tk_gl, "is_cancelled": 0, "credit": [">", 0], "creation": [">", luc]},
+			fields=["credit as tong_tien", "creation as luc", "account as tk_chi"], limit_page_length=0)
+		chi_sau[ba] = chi_sau_anh([dict(r) for r in rows], luc, tk_gl)
+	kq = kha_dung_tai_chinh(dong, chi_sau)
+	if kq["so_tien"] is None:
+		nguon = ("Chưa đọc được số dư: " + ", ".join(kq["hong"])) if kq["hong"] else "Chưa có số dư ngân hàng nào trong mục Tài chính"
+	else:
+		nguon = "Số dư ngân hàng theo mục Tài chính" + ((" (chưa chốt: " + ", ".join(kq["chua_chot"]) + ")") if kq["chua_chot"] else "")
+	return {"so_tien": kq["so_tien"], "so_du_tk": kq["so_du_tk"], "chi_sau": flt(kq["chi_sau"]), "luc": luc, "nguon": nguon}
+
+
+def _phai_thu_hd():
+	"""Hoá đơn bán còn phải đòi, kể cả tờ đã gom vào phiếu đòi nợ: cùng phép tính
+	của màn Công nợ phải thu (cong_no.hd_con_doi)."""
+	from vagabond import cong_no
+
+	return [{"hoa_don": r.get("name"), "khach": r.get("vgb_khach_no") or r.get("customer") or "", "ngay": r.get("posting_date"),
+		"so_tien": r.get("con_doi")} for r in cong_no.hd_con_doi()]
+
+
+def _tre_thanh_toan(so_ngay=180):
+	"""{khách: [số ngày từ ngày hoá đơn tới ngày trả]} của hoá đơn công nợ đã trả đủ
+	trong 180 ngày, đọc theo Payment Ledger (phiếu thu và bút toán đều ghi vào đó)."""
+	tu = getdate(nowdate()) - timedelta(days=so_ngay)
+	rows = frappe.db.sql("""select coalesce(nullif(si.vgb_khach_no, ''), si.customer) khach, si.posting_date ngay, max(ple.posting_date) tra
+		from `tabPayment Ledger Entry` ple join `tabSales Invoice` si on si.name = ple.against_voucher_no
+		where ple.against_voucher_type = 'Sales Invoice' and ple.voucher_type in ('Payment Entry', 'Journal Entry')
+			and ple.delinked = 0 and ple.amount < 0 and si.docstatus = 1 and si.vgb_pt_thanh_toan = 'Công nợ'
+			and si.outstanding_amount <= 0 and si.posting_date >= %s
+		group by si.name, khach, si.posting_date""", (tu,), as_dict=True)
+	ra = {}
+	for r in rows:
+		if r.get("tra") and r.get("ngay"):
+			ra.setdefault(r["khach"], []).append(max(0, (getdate(r["tra"]) - getdate(r["ngay"])).days))
+	return ra
+
+
+def _xem_so_du():
+	"""Chỉ người được xem mục Tài chính thấy con số (anh Việt 13/11: Thu mua không biết số này)."""
+	from vagabond import tai_chinh
+
+	return tai_chinh.co_quyen()
 
 
 def _hd_no():
@@ -534,6 +669,12 @@ def lich(so_ngay=SO_NGAY_XEM):
 	t = getdate(nowdate())
 	den = t + timedelta(days=max(7, min(cint(so_ngay) or SO_NGAY_XEM, 120)))
 	sd = so_du_kha_dung()
+	try:
+		dv = du_kien_ve(_phai_thu_hd(), _tre_thanh_toan(), t, den)
+		dv_loi = ""
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "lich_du_chi: tien du kien ve")
+		dv, dv_loi = {"ve": [], "trong_khung": 0, "qua_han": 0, "sau_khung": 0, "tre_chung": 0}, "Chưa đọc được công nợ cần thu"
 	hd = _hd_no()
 	app = _app_song()
 	tay_tat_ca = [dict(r) for r in frappe.get_all(DT_MUC, filters={"trang_thai": ["!=", MUC_HUY]},
@@ -543,13 +684,14 @@ def lich(so_ngay=SO_NGAY_XEM):
 	lc = lich_dang_bat(ca_lich)
 	muc = ghep_muc(t, den, hd, _dot_dong(), app, tay, lc, _da_co(lc, hd, tay_tat_ca, t))
 	kd = tien_kha_dung(sd["so_tien"], sd["chi_sau"])
-	kq = theo_ngay(kd, muc)
-	return {
+	kq = theo_ngay(kd, muc, dv["ve"])
+	ra = {
 		"hom_nay": str(t), "den": str(den),
 		"so_du": {"so_tien": flt(kd) if kd is not None else None, "so_du_tk": sd["so_tien"], "chi_sau": sd["chi_sau"],
 			"luc": sd["luc"], "nguon": sd["nguon"]},
-		"du_kien_ve": {"so_tien": None, "ghi_chu": "Chưa tính tiền dự kiến về: chưa có nguồn số liệu tin được (doanh thu sàn, công nợ khách)."},
-		"ngay": [{"ngay": str(g["ngay"]), "tong": flt(g["tong"]), "con_lai": flt(g["con_lai"]) if g["con_lai"] is not None else None,
+		"du_kien_ve": {"trong_khung": flt(dv["trong_khung"]), "qua_han": flt(dv["qua_han"]), "sau_khung": flt(dv["sau_khung"]),
+			"tre_chung": cint(dv["tre_chung"]), "loi": dv_loi},
+		"ngay": [{"ngay": str(g["ngay"]), "tong": flt(g["tong"]), "ve": flt(g["ve"]), "con_lai": flt(g["con_lai"]) if g["con_lai"] is not None else None,
 			"thieu": flt(g["thieu"]) if g["thieu"] is not None else None, "muc": [_cho_man_muc(x) for x in g["muc"]]} for g in kq["ngay"]],
 		"tong": flt(kq["tong"]),
 		"thieu_dau": {"ngay": str(kq["thieu_dau"]["ngay"]), "so_tien": flt(kq["thieu_dau"]["so_tien"])} if kq["thieu_dau"] else None,
@@ -559,6 +701,10 @@ def lich(so_ngay=SO_NGAY_XEM):
 			"ngoai_le": l.get("ngoai_le") or "", "bat": cint(l.get("bat"))} for l in ca_lich],
 		"quyen": {"sua": 1 if (_vai() & ho.VAI_LAP) else 0},
 	}
+	if not _xem_so_du():
+		ra = an_so_tien(ra)
+	ra["quyen"]["xem_so"] = 0 if ra["so_du"].get("an") else 1
+	return ra
 
 
 def _ncc_chon(ma):
@@ -625,19 +771,23 @@ def luu_muc(name=None, ngay=None, noi_dung=None, so_tien=None, nguoi_nhan=None, 
 
 
 @frappe.whitelist(methods=["POST"])
-def huy_muc(name, ly_do=""):
+def xoa_muc(name):
+	"""Nút Xoá dự chi nháp (anh Việt 13/11): xoá hẳn một dự chi tay còn nháp. Chỉ là
+	bản ghi kế hoạch của app, không có chứng từ, sổ sách nào trỏ vào."""
 	ho = _ho()
-	_chan(ho.VAI_LAP, "huỷ dự chi")
+	_chan(ho.VAI_LAP, "xoá dự chi")
+	if not frappe.db.exists(DT_MUC, name):
+		return {"name": name, "da_xoa": 1}
 	doc = frappe.get_doc(DT_MUC, name, for_update=True)
 	if doc.trang_thai != MUC_NHAP:
-		return {"name": doc.name, "trang_thai": doc.trang_thai}
-	doc.trang_thai = MUC_HUY
-	doc.ly_do = ((doc.ly_do or "") + ("\nHuỷ: " + ly_do.strip() if (ly_do or "").strip() else "")).strip()
-	doc.flags.ignore_permissions = True
-	doc.flags.vgb_du_chi = True
-	doc.save(ignore_permissions=True)
+		frappe.throw("Dự chi %s không còn nháp nên không xoá được." % doc.name)
+	frappe.flags.vgb_xoa_du_chi = doc.name
+	try:
+		frappe.delete_doc(DT_MUC, doc.name, ignore_permissions=True, force=True)
+	finally:
+		frappe.flags.vgb_xoa_du_chi = None
 	frappe.db.commit()
-	return {"name": doc.name, "trang_thai": doc.trang_thai}
+	return {"name": name, "da_xoa": 1}
 
 
 @frappe.whitelist(methods=["POST"])
