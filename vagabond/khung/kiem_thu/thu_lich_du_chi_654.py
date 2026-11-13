@@ -272,22 +272,39 @@ def _codex_so_du_anh():
 	from vagabond import du_chi, tai_chinh
 
 	fr = __import__("frappe")
-	hoi = []
+	# Codex #561 vòng 2: APP nhà cung cấp thường để trống tk_chi; tiền đi ra đọc theo
+	# SỔ CÁI của đúng tài khoản ngân hàng (Payment Entry, Journal Entry đều ghi GL Entry).
+	gl = [{"account": "1121 - MB", "credit": 5 * TR, "debit": 0, "creation": "2026-11-13 09:29:40", "is_cancelled": 0},  # trước giờ đọc
+		{"account": "1121 - MB", "credit": 60 * TR, "debit": 0, "creation": "2026-11-13 09:30:20", "is_cancelled": 0},  # APP nhà cung cấp, tk_chi trống
+		{"account": "1121 - MB", "credit": 9 * TR, "debit": 0, "creation": "2026-11-13 09:30:25", "is_cancelled": 1},  # đã huỷ
+		{"account": "1121 - MB", "credit": 0, "debit": 20 * TR, "creation": "2026-11-13 09:30:30", "is_cancelled": 0},  # tiền vào
+		{"account": "1122 - ACB", "credit": 13 * TR, "debit": 0, "creation": "2026-11-13 09:30:35", "is_cancelled": 0}]  # tài khoản khác
 
 	def ga(dt_, filters=None, fields=None, **k):
-		hoi.append((dt_, dict(filters or {})))
-		return [Doi(r) for r in rows if r["tk_chi"] == (filters or {}).get("tk_chi")]
-	for luc_bao, mong in (("2026-11-13 09:30:00", 11 * TR), (None, 0)):
-		hoi.clear()
+		if dt_ != "GL Entry":
+			return []
+		f = filters or {}
+		ra = []
+		for r in gl:
+			if r["account"] != f.get("account") or r["is_cancelled"] != f.get("is_cancelled", r["is_cancelled"]):
+				continue
+			if "creation" in f and not str(r["creation"]) > str(f["creation"][1]):
+				continue
+			if "credit" in f and not r["credit"] > f["credit"][1]:
+				continue
+			ra.append(Doi(tong_tien=r["credit"], luc=r["creation"], tk_chi=r["account"]))
+		return ra
+
+	def gv(dt_, ten, truong=None, *a, **k):
+		return {"BA-CHI": "1121 - MB"}.get(ten) if (dt_, truong) == ("Bank Account", "account") else None
+	for luc_bao, mong in (("2026-11-13 09:30:00", 60 * TR), (None, 0)):
 		with um.patch.object(du_chi, "_tk_chi_so_du", lambda: ("BA-CHI", 100 * TR)), \
 				um.patch.object(tai_chinh, "_sepay_luc_bao", lambda: luc_bao), \
 				um.patch.object(l, "now_datetime", lambda: dt.datetime(2026, 11, 13, 9, 31, 0)), \
-				um.patch.object(fr, "get_all", ga):
+				um.patch.object(fr, "get_all", ga), um.patch.object(fr.db, "get_value", gv):
 			r = l.so_du_kha_dung()
-		la("bản số dư đọc lúc %s: trừ %s" % (luc_bao or "ngay bây giờ", int(mong / TR)), (r["chi_sau"], r["luc"], r["tk"]),
-			(float(mong), luc_bao or "2026-11-13 09:31:00", "BA-CHI"))
-		la("chỉ hỏi APP đã trả của đúng tài khoản, sau giờ đọc", [(d, f.get("tk_chi"), f.get("modified")) for d, f in hoi],
-			[("Vagabond Ho So TT", "BA-CHI", [">", luc_bao or "2026-11-13 09:31:00"])])
+		la("bản số dư đọc lúc %s: trừ %s triệu (APP nhà cung cấp trả sau giờ đọc, tk_chi trống)" % (luc_bao or "ngay bây giờ", int(mong / TR)),
+			(r["chi_sau"], r["luc"], r["tk"]), (float(mong), luc_bao or "2026-11-13 09:31:00", "BA-CHI"))
 	with um.patch.object(du_chi, "_tk_chi_so_du", lambda: ("BA-CHI", None)):
 		r = l.so_du_kha_dung()
 	la("không đọc được số dư: không đoán", (r["so_tien"], r["chi_sau"]), (None, 0))
