@@ -99,6 +99,24 @@ def _banh_moi():
 	for b in kq["bom"]:
 		la("%s đã ghi sổ và là bản đang dùng" % b["bom"], frappe.db.get_value("BOM", b["bom"], ["docstatus", "is_default"]), (1, 1))
 	dung("giá vốn thành phẩm tính từ cấp dưới (lớn hơn 0)", frappe.db.get_value("BOM", theo_ma[w["tp"]["16"]], "total_cost") > 0)
+	# Codex #563: công thức thành phần mới là phantom; dòng của nó trong cấp 2
+	# trỏ công thức con; dòng cấp 1 trong cấp 2 chặn nổ. Bảng nguyên liệu lệnh
+	# sản xuất cấp 2 (ERPNext thật, nổ một cấp lẫn nhiều cấp) phải trừ ĐƯỜNG bên
+	# trong thành phần mới (200 g mousse, mẻ 500 g ra từ 400 g đường: 160 g)
+	# và đòi đúng một ruột cấp 1, không đòi chính mã thành phần mới.
+	from erpnext.manufacturing.doctype.bom.bom import get_bom_items_as_dict
+	la("công thức thành phần mới là phantom", frappe.db.get_value("BOM", theo_ma[ma_moi], "is_phantom_bom"), 1)
+	dong_c2 = {r.item_code: r for r in frappe.get_doc("BOM", theo_ma[c2]).items}
+	la("dòng thành phần mới trong cấp 2: phantom, trỏ công thức con",
+		(dong_c2[ma_moi].is_phantom_item, dong_c2[ma_moi].bom_no, dong_c2[ma_moi].do_not_explode), (1, theo_ma[ma_moi], 0))
+	la("dòng cấp 1 trong cấp 2: chặn nổ", (dong_c2[c1].do_not_explode, dong_c2[c1].bom_no or ""), (1, ""))
+	dong_tp = {r.item_code: r for r in frappe.get_doc("BOM", theo_ma[w["tp"]["16"]]).items}
+	la("dòng cấp 2 trong thành phẩm: chặn nổ", dong_tp[c2].do_not_explode, 1)
+	for nhieu in (0, 1):
+		nl = get_bom_items_as_dict(theo_ma[c2], nen.cong_ty(), qty=1, fetch_exploded=nhieu)
+		la("lệnh cấp 2 (nổ %s): trừ 160 đường và đòi 1 ruột cấp 1, không đòi mã thành phần mới" % ("nhiều cấp" if nhieu else "một cấp"),
+			sorted((k, round(float(v.get("qty")), 3)) for k, v in nl.items()),
+			sorted([(w["duong"], 160.0), (c1, 1.0)]))
 	try:
 		dx.ghi_so_tat_ca(r["name"])
 		dung("bấm Ghi sổ tất cả lần hai bị chặn", False)
