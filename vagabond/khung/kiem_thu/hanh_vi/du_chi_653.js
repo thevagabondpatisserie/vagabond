@@ -244,5 +244,16 @@ const nhap = kho => Array.from(kho._m.keys()).filter(k => k.indexOf('vgbSoanDo:'
     });
     assert(!/<select/i.test(html), 'không dùng hộp select');
   }
+  {
+    /* v654 anh Việt 13/11: Thu mua không thấy số dư ngân hàng của đợt. */
+    const d = duLieu(); d.so_du = null; d.an_so_du = 1;
+    const a = appMoi(khoMay(), { d });
+    await a.moMan();
+    const t = a.tl.getElementById('vgbBody').innerHTML;
+    assert(t.indexOf('Số dư ngân hàng') < 0 && t.indexOf('Còn dư') < 0 && t.indexOf('so với số dư') < 0, 'không hiện ô số dư, không so với số dư');
+    const b = appMoi(khoMay(), { d: duLieu() });
+    await b.moMan();
+    assert(b.tl.getElementById('vgbBody').innerHTML.indexOf('Số dư ngân hàng') >= 0, 'người được xem Tài chính vẫn thấy');
+  }
   console.log('PASS 653 Dự chi công nợ: 100/60/40, tải lại trang, số vượt, trả hết, kế toán soát, tìm nhanh, chuẩn chạm');
 })().catch(e => { console.error(e); process.exit(1); });

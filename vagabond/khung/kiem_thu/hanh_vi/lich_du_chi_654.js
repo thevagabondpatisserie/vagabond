@@ -64,6 +64,7 @@ function appMoi(kho, may) {
     if (m === 'vagabond.lich_du_chi.chi_tiet_muc') return { name: a.name, ngay: '2026-11-15', noi_dung: 'Chi gấp', so_tien: 10000000, nguoi_nhan: 'Chợ', ly_do: '', hoa_don: '', trang_thai: 'Nhap', ho_so_app: '', nguon: 'Nhập tay', nha_cung_cap: '', ten_ncc: '' };
     if (m === 'vagabond.lich_du_chi.chon_app') return [{ name: 'APP.26.11.077', ten: 'Thợ', ngay: '2026-11-14', so_tien: 10000000, trang_thai: 'Chờ kế toán duyệt' }];
     if (m === 'vagabond.lich_du_chi.noi_app') return { name: a.name, ho_so_app: a.ho_so_app };
+    if (m === 'vagabond.lich_du_chi.xoa_muc') return { name: a.name, da_xoa: 1 };
     if (m === 'vagabond.du_chi.chi_tiet') return JSON.parse(JSON.stringify(d));
     if (m === 'vagabond.du_chi.luu') {
       JSON.parse(a.dong).forEach(x => {
@@ -139,6 +140,7 @@ function lichAnh(soDu) {
   return { hom_nay: '2026-11-13', den: '2026-12-18',
     so_du: soDu == null ? { so_tien: null, luc: '', nguon: 'Chưa đọc được số dư tài khoản chi từ SePay', chi_sau: 0 }
       : { so_tien: soDu, so_du_tk: soDu, chi_sau: 0, luc: '2026-11-13 09:30:00', nguon: 'Số dư tài khoản chi theo SePay' },
+    du_kien_ve: { trong_khung: 16000000, qua_han: 7000000, sau_khung: 5000000, tre_chung: 29, loi: '' },
     ngay, tong: 110000000, thieu_dau: soDu == null ? null : { ngay: '2026-11-20', so_tien: 10000000 },
     can_thuong_luong: soDu == null ? [] : [ngay[1].muc[0]],
     lich_chi: [{ name: 'LC-00001', noi_dung: 'Tiền nhà', nguoi_nhan: 'Nguyễn Hữu Phước', so_tien: 40000000, ngay_trong_thang: 20, so_thang_thay: 3, ngoai_le: '' }],
@@ -167,7 +169,8 @@ function chuanCham(a, chon, ten) {
     const t = a.than().innerHTML;
     assert(t.indexOf('Tiền khả dụng') >= 0 && t.indexOf('100000000 đ') >= 0, 'Tiền khả dụng 100 triệu');
     assert(t.indexOf('Số dư tài khoản chi theo SePay, đọc lúc 09:30 13/11') >= 0, 'nguồn và giờ đọc số dư');
-    assert(t.indexOf('Tiền dự kiến về: chưa tính') >= 0, 'tách tiền dự kiến về, nói rõ chưa tính');
+    assert(t.indexOf('Tiền dự kiến về (công nợ cần thu): 16000000 đ trong khung') >= 0, 'tiền dự kiến về lấy từ công nợ cần thu');
+    assert(t.indexOf('Khách quá hạn chưa trả 7000000 đ, không tính vào ngày nào') >= 0, 'nói rõ phần quá hạn không tính');
     assert(a.tl.getElementById('ldcThem'), 'có nút ＋ Thêm dự chi');
     assert(t.indexOf('⚠️ Ngày 20/11 còn thiếu 10000000 đ') >= 0, 'dòng cảnh báo ngày 20/11 thiếu 10 triệu');
     const lich = t.slice(t.indexOf('LỊCH DỰ CHI')), vt = s => lich.indexOf(s);
@@ -368,6 +371,42 @@ function chuanCham(a, chon, ten) {
     await b.bamNut('ldcLuu');
     const l = b.goi.filter(x => x.m === 'vagabond.lich_du_chi.luu_muc').pop();
     assert.deepEqual([l.a.name, l.a.noi_dung, l.a.nha_cung_cap], ['DCM-26-11-00001', 'Chi gấp mua bơ thêm', 'SUP-AN-PHU'], 'lưu đúng dự chi đang sửa');
+  }
+  {
+    /* 12. anh Việt 13/11: Thu mua không biết số dư. Máy chủ đã bỏ số; màn không hiện
+       số nào, vẫn báo ngày không đủ tiền và khoản cần thương lượng. */
+    const l = lichAnh(100000000);
+    l.so_du = { an: 1 }; l.du_kien_ve = { an: 1 };
+    l.ngay = l.ngay.map(g => Object.assign({}, g, { con_lai: null, thieu: null, ve: null, khong_du: g.thieu ? 1 : 0 }));
+    l.thieu_dau = { ngay: '2026-11-20', so_tien: null };
+    const a = appMoi(khoMay(), { l, gy: GY });
+    await a.moMan();
+    const t = a.than().innerHTML;
+    assert(t.indexOf('Chỉ Giám đốc và người được xem mục Tài chính thấy số này') >= 0, 'nói rõ ai thấy số');
+    assert(t.indexOf('100000000') < 0 && t.indexOf('còn 90000000') < 0, 'không có số dư, không có số còn lại');
+    assert(t.indexOf('⚠️ Ngày 20/11 không đủ tiền chi') >= 0, 'vẫn báo ngày không đủ tiền');
+    assert(t.indexOf('không đủ tiền</b>') >= 0, 'ngày 20 ghi không đủ tiền, không ghi số');
+    assert(t.indexOf('Khoản có thể thương lượng dời') >= 0, 'vẫn nêu khoản cần thương lượng');
+  }
+  {
+    /* 13. Tiền về hiện ở đầu ngày. */
+    const l = lichAnh(100000000);
+    l.ngay[2].ve = 16000000;
+    const a = appMoi(khoMay(), { l, gy: GY });
+    await a.moMan();
+    assert(a.than().innerHTML.indexOf('chi 40000000 đ · về 16000000 đ') >= 0, 'ngày 20 ghi tiền về');
+  }
+  {
+    /* 14. anh Việt 13/11: nút Xoá dự chi nháp xoá hẳn. */
+    const a = appMoi(khoMay(), { l: lichAnh(100000000), gy: GY });
+    await a.moMan();
+    await a.bam(a.tl.querySelector('[data-ldcmo="tay|DCM-26-11-00001"]'));
+    assert(!a.tl.getElementById('ldcHuy'), 'không còn nút Huỷ');
+    chuanCham(a, ['#ldcXoa'], 'nút Xoá dự chi nháp');
+    await a.bamId('ldcXoa');
+    assert(a.hop.some(x => x[0] === 'confirm' && /Xoá dự chi nháp/.test(x[1])), 'hỏi lại trước khi xoá');
+    const x = a.goi.filter(g => g.m === 'vagabond.lich_du_chi.xoa_muc');
+    assert.deepEqual(x.map(g => g.a.name), ['DCM-26-11-00001'], 'xoá đúng dự chi');
   }
   console.log('PASS 654 Lịch dự chi: màn theo ảnh, Thêm dự chi, thiếu số dư, gợi ý lịch, chuẩn chạm, chọn nhà cung cấp, bản nháp, lịch tạm thôi');
 })().catch(e => { console.error(e); process.exit(1); });
