@@ -122,7 +122,11 @@ async function posInBill(d) {
     /* Phieu tam tinh in kem QR THANH TOAN: khach xac nhan mon xong quet
        chuyen luon cung duoc, SePay khop theo ma bill. */
     var ndq = posNoiDungCk(d.bill, d.quay, d.nguon || '');
-    var uq = posQrUrl(ndq, d.thu, d.nguon || '', d.quay);
+    /* v655 (Dễ báo 13/11/2026, phiếu HDB-26-11-02558 in ra mã chỉ còn một góc):
+       đường in chụp phiếu thành ảnh bằng html2canvas, mà ảnh SVG co giãn của
+       VgbQr.tao không có cỡ riêng nên bị phóng to rồi cắt. Trên GIẤY dùng ảnh
+       điểm như mã xuất hoá đơn (inQrAnh), cùng chuỗi VietQR (posQrChuoiIn). */
+    var uq = await posQrAnhIn(ndq, d.thu, d.nguon || '', d.quay);
     if (!uq) qrKhoi = posQrLoi(posTaiKhoan(d.nguon || '', d.quay), ndq, d.thu);
     if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(ndq) + '</b></div></div>';
   } else if (d.xhd_url && M.qr_xhd) {
@@ -362,6 +366,9 @@ async function scrPosDs() {
   var laHomNay = posDsNgay === today();
   var tieuDe = (laHomNay ? 'Hoá đơn hôm nay' : 'Hoá đơn ' + posDsNgay.split('-').reverse().join('/')) + ' · ' + (posQuay.ma || '');
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang tải hoá đơn...</div></div>');
+  /* v655 (Dễ báo 13/11/2026): thu ngân mở thẳng Hoá đơn hôm nay vẫn nhận báo
+     đơn gọi món tại bàn, khách bấm chuông (dải nổi trên cùng màn). */
+  if (typeof gmbBatDau === 'function') gmbBatDau(posCoQuay() ? posQuay.ma : '');
   var kq;
   try { kq = await api('vagabond.ban_hang.pos_ds_bill', { quay: posQuay.ma || '', ngay: posDsNgay }); }
   catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }

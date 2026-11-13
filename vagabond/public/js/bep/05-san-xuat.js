@@ -1987,13 +1987,13 @@ async function mfgHoanTatNhom(g, veLai) {
       docs.push(chia.phan[k] > 0 ? await api('frappe.client.get', { doctype: 'Work Order', name: con[k].ten }) : null);
     }
   } catch (e0) { busy(0); return toast('Chưa đọc được các lệnh nên máy chưa ghi gì. ' + errMsg(e0), 7000); }
-  var kt;
-  try { kt = mfgPhanNvl(await mfgKiemNvlNhom(docs, chia.phan)); }
+  var kt, raNvl;
+  try { raNvl = await mfgKiemNvlNhom(docs, chia.phan); kt = mfgPhanNvl(raNvl); }
   catch (e1) { busy(0); return toast('Chưa kiểm được nguyên liệu nên máy chưa ghi gì. Kiểm mạng rồi bấm lại.', 7000); }
   busy(0);
   if (kt.thieu.length) {
     await mfgHoiXinKhoTong('Chưa đủ nguyên liệu, máy chưa ghi lệnh nào', mfgCauThieuNhom(kt),
-      kt.thieu.map(function (x) { return { ma: x.code, kho: x.kho, can: x.can, thieu: x.thieu }; }),
+      mfgDongXinNhom(raNvl),
       con.map(function (c) { return c.ten; }).join(', '));
     return;
   }
@@ -2465,6 +2465,22 @@ function mfgDongXinCuaPhieu(se) {
     if (sl > 0) ra.push({ ma: r.item_code, kho: r.s_warehouse, can: r3(sl) });
   });
   return ra;
+}
+
+/* THUẦN: dòng gửi máy chủ khi xin kho tổng cho cả nhóm lệnh: MỌI nguyên liệu
+   nhóm dùng (bỏ phần máy tự làm), chỉ số cần, không kèm số thiếu.
+
+   Codex #562 (P1): trước đây app gửi số thiếu tính lúc mở hộp; tồn đổi trước
+   khi bếp bấm Gửi là xin sai. Máy chủ tự đọc tồn và hàng thay thế lúc gửi; cần
+   cả dòng không thiếu vì hàng thay thế cũng có thể là nguyên liệu nhóm đang
+   dùng (lo_hang.bu_thay_the_nhom trừ phần đó trước). */
+function mfgDongXinNhom(ra) {
+  var ra2 = [];
+  (ra || []).forEach(function (x) {
+    if (x.tu_lam || !((x.need || 0) > 0) || !x.kho || x.kho === MFG_KHO_TONG) return;
+    ra2.push({ ma: x.code, kho: x.kho, can: r3(x.need) });
+  });
+  return ra2;
 }
 
 /* Hộp báo kho bếp thiếu, có nút Gửi phiếu xin kho tổng. Bếp bấm thì máy chủ
