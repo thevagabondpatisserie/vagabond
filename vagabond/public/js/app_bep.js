@@ -73006,35 +73006,53 @@ var DX_DICH = [
   ['thanh_pham', 'Thành phẩm', 'Trang trí lúc hoàn thiện']
 ];
 var DX_TT = [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ Khải', 'Chờ Khải'], ['Trả lại bếp', 'Trả lại bếp'],
-  ['Đã tạo nháp', 'Đã tạo nháp'], ['Đã ghi sổ', 'Đã ghi sổ']];
+  ['Đã tạo nháp', 'Đã tạo nháp'], ['Đã ghi sổ', 'Đã ghi sổ'], ['Đã huỷ', 'Đã huỷ']];
 var DX_MAU_TT = { 'Nháp': 'n', 'Chờ Khải': 'w', 'Trả lại bếp': 'r', 'Đã tạo nháp': 'w', 'Đã ghi sổ': 'g', 'Đã huỷ': 'n' };
 var DX_NUT = 'min-height:44px;font-size:14px';
 
 function dxSo(v) { var n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; }
 function dxId() { return 'd' + Date.now().toString(36) + Math.floor(Math.random() * 1000); }
 
+/* Danh sách phiếu: thanh công cụ chung (chip trạng thái có đếm, ô tìm mã phiếu
+   hoặc tên bánh lọc ở máy chủ), 50 phiếu một trang, Trang trước, Trang sau. */
 async function scrDxDs() {
-  frame('Phiếu đề xuất công thức', '<div class="emp"><div class="e1">⏳</div></div>');
-  try { DX.ds = await api('vagabond.de_xuat_cong_thuc.danh_sach', { trang_thai: DX.tt || null }); }
-  catch (e) { frame('Phiếu đề xuất công thức', '<div class="emp"><div class="e1">🔒</div><div>' + h(errMsg(e)) + '</div></div>'); return; }
-  var chips = DX_TT.map(function (c) {
-    return '<div class="chip' + (DX.tt === c[0] ? ' on' : '') + '" data-dxtt="' + h(c[0]) + '" style="' + DX_NUT + '">' + h(c[1]) + '</div>';
-  }).join('');
+  var lan = DX.lanDs = (DX.lanDs || 0) + 1, kq;
+  frame('Phiếu đề xuất công thức', '<div class="emp"><div class="e1">⏳</div><div class="e2">Đang đọc phiếu...</div></div>');
+  try { kq = await api('vagabond.de_xuat_cong_thuc.danh_sach', { trang_thai: DX.tt || null, tim: DX.tim || '', trang: DX.trang || 0 }); }
+  catch (e) {
+    if (lan !== DX.lanDs) return;
+    frame('Phiếu đề xuất công thức', '<div class="emp"><div class="e1">🔒</div><div>' + h(errMsg(e)) + '</div></div>'); return;
+  }
+  if (lan !== DX.lanDs) return;
+  DX.ds = kq.ds || [];
+  var cc = { ma: 'dx', tim: { gt: DX.tim || '', goiY: 'Tìm mã phiếu hoặc tên bánh' },
+    chang: { ds: DX_TT.slice(1).map(function (c) { return { k: c[0], ten: c[1] }; }),
+      dem: Object.assign({ '': (kq.dem || {}).tat_ca || 0 }, kq.dem || {}), chon: DX.tt || '', tatCa: 'Tất cả' } };
   var body = '<div class="mut" style="font-size:13px;line-height:1.5;margin-bottom:9px">Bếp ghi công thức bánh mới hoặc đề xuất sửa công thức đang dùng; Khải lên mã và ghi sổ.</div>' +
-    '<div class="chips">' + chips + '</div>' +
+    dsCongCu(cc) +
     (DX.ds.length ? '<div class="lst">' + DX.ds.map(function (x) {
       return '<div class="li" data-dxmo="' + h(x.name) + '" style="min-height:44px;cursor:pointer"><div class="lt">' +
         '<div class="l1">' + h(x.ten_banh || '(chưa đặt tên)') + '</div>' +
-        '<div class="l2">' + h(x.loai) + ' · ' + h(x.ten_nguoi_de_xuat) + ' · ' + h(x.modified) + '</div></div>' +
+        '<div class="l2">' + h(x.name) + ' · ' + h(x.loai) + ' · ' + h(x.ten_nguoi_de_xuat) + ' · ' + h(x.modified) + '</div></div>' +
         '<div style="text-align:right"><div class="st ' + (DX_MAU_TT[x.trang_thai] || 'n') + '">' + h(x.trang_thai) + '</div></div></div>';
-    }).join('') + '</div>' : '<div class="emp"><div class="e1">📝</div><div class="e2">Chưa có phiếu nào</div></div>');
+    }).join('') + '</div>' : '<div class="emp"><div class="e1">📝</div><div class="e2">' +
+      (DX.tim || DX.tt ? 'Không có phiếu khớp bộ lọc. Bấm Tất cả hoặc xoá ô tìm.' : 'Chưa có phiếu nào. Bấm nút tròn dấu cộng để lập phiếu.') + '</div></div>') +
+    ((DX.trang || kq.con_nua) ? '<div class="row2" style="margin-top:9px"><button class="btn gh" id="dxTruoc" style="' + DX_NUT + '"' + (DX.trang ? '' : ' disabled') + '>Trang trước</button>' +
+      '<button class="btn gh" id="dxSau" style="' + DX_NUT + '"' + (kq.con_nua ? '' : ' disabled') + '>Trang sau</button></div>' : '');
   var b = frame('Phiếu đề xuất công thức', body, { fab: true, onFab: dxMoi });
   b.onclick = function (e) {
-    var t = e.target.closest('[data-dxtt]');
-    if (t) { DX.tt = t.getAttribute('data-dxtt'); return scrDxDs(); }
     var m = e.target.closest('[data-dxmo]');
     if (m) return dxMo(m.getAttribute('data-dxmo'));
   };
+  dsCongCuNoi(b, cc, function (k, v) {
+    if (k === 'chang') DX.tt = v || '';
+    if (k === 'tim') DX.tim = v || '';
+    DX.trang = 0;
+    go(scrDxDs, true);
+  });
+  var tr = document.getElementById('dxTruoc'), sa = document.getElementById('dxSau');
+  if (tr) tr.onclick = function () { DX.trang = Math.max(0, (DX.trang || 0) - 1); go(scrDxDs, true); };
+  if (sa) sa.onclick = function () { DX.trang = (DX.trang || 0) + 1; go(scrDxDs, true); };
 }
 
 function dxMoi() {
@@ -73332,13 +73350,13 @@ function scrDxSua(name) {
     var tr = document.getElementById('dxTra');
     if (tr) tr.onclick = async function () {
       var v = await promptSheet('Hỏi lại bếp', 'Cần bếp sửa hay trả lời gì');
-      if (v && v.trim()) dxGoi('tra_lai', { name: f.name, ghi_chu: v.trim() }, 'Đã trả phiếu về bếp kèm câu hỏi.');
+      if (v && v.trim()) dxGoi('tra_lai', { name: f.name, ghi_chu: v.trim() }, 'Đã trả phiếu về bếp kèm câu hỏi.', true);
     };
     var ta = document.getElementById('dxTao');
     if (ta) ta.onclick = async function () {
       if (!await confirmSheet('Tạo mã và công thức?', 'Máy tạo mã thành phần mới, mã cấp 1, cấp 2 từng size và công thức nháp. Chưa ghi sổ: xem lại rồi bấm Ghi sổ tất cả.', 'Tạo')) return;
       var m = {}; Object.keys(f.ma_tp || {}).forEach(function (s) { m[s] = f.ma_tp[s].ma; });
-      dxGoi('tao_nhap', { name: f.name, ma_thanh_pham: JSON.stringify(m) }, 'Đã tạo mã và công thức nháp.');
+      dxGoi('tao_nhap', { name: f.name, ma_thanh_pham: JSON.stringify(m) }, 'Đã tạo mã và công thức nháp.', true);
     };
     var gs = document.getElementById('dxGhiSo');
     if (gs) gs.onclick = async function () {
@@ -73348,31 +73366,53 @@ function scrDxSua(name) {
     var du = document.getElementById('dxDuyet');
     if (du) du.onclick = async function () {
       if (!await confirmSheet('Duyệt và ghi sổ?', 'Máy ra phiên bản mới của ' + f.ten_banh + ' theo phiếu, bản cũ lui về làm bản lưu.', 'Duyệt')) return;
-      dxGoi('duyet_dieu_chinh', { name: f.name }, 'Đã ghi sổ phiên bản mới.');
+      dxGoi('duyet_dieu_chinh', { name: f.name }, 'Đã ghi sổ phiên bản mới.', true);
     };
   }
 
-  async function dxGoi(ham, args, xong) {
+  function thamLuu() {
+    var m = {}; Object.keys(f.ma_tp || {}).forEach(function (s) { m[s] = f.ma_tp[s].ma; });
+    return { name: f.name || null, ten_banh: f.ten_banh || '', du_lieu: JSON.stringify(dl),
+      loai: f.loai, bom_goc: f.bom_goc || null, ly_do: f.ly_do || '', ma_thanh_pham: JSON.stringify(m) };
+  }
+  function veLai() { DX.ds = null; go(function () { return scrDxSua(DX.f.name); }, true); }
+
+  /* luuTruoc: Khải sửa số trên phiếu Chờ Khải rồi bấm Tạo, Duyệt, Hỏi lại thì
+     lưu phần sửa TRƯỚC, máy chủ mới làm theo đúng số đang hiện (Codex #563). */
+  async function dxGoi(ham, args, xong, luuTruoc) {
     busy(1);
-    try { var r = await api('vagabond.de_xuat_cong_thuc.' + ham, args); busy(0); dxNap(r); toast(xong, 5000); }
-    catch (er) { busy(0); return toast(errMsg(er), 8000); }
-    DX.ds = null;
-    go(function () { return scrDxSua(DX.f.name); }, true);
+    try {
+      if (luuTruoc && dxSuaDuoc()) {
+        var s0 = await api('vagabond.de_xuat_cong_thuc.luu', thamLuu());
+        dxNap(s0);
+        args.name = s0.name;
+      }
+      var r = await api('vagabond.de_xuat_cong_thuc.' + ham, args);
+      busy(0); dxNap(r); toast(xong, 5000);
+    } catch (er) {
+      busy(0); toast(errMsg(er), 8000);
+      /* Đã lưu được phần sửa mà bước sau hỏng: vẽ lại theo bản đã lưu. */
+      if (DX.f !== f) veLai();
+      return;
+    }
+    veLai();
   }
 
   async function dxLuu(guiLuon) {
-    var m = {}; Object.keys(f.ma_tp || {}).forEach(function (s) { m[s] = f.ma_tp[s].ma; });
     busy(1);
-    try {
-      var r = await api('vagabond.de_xuat_cong_thuc.luu', { name: f.name || null, ten_banh: f.ten_banh || '', du_lieu: JSON.stringify(dl),
-        loai: f.loai, bom_goc: f.bom_goc || null, ly_do: f.ly_do || '', ma_thanh_pham: JSON.stringify(m) });
-      if (guiLuon) r = await api('vagabond.de_xuat_cong_thuc.gui', { name: r.name });
-      busy(0);
-      dxNap(r);
-      toast(guiLuon ? 'Đã gửi Khải.' : 'Đã lưu nháp ' + r.name + '.', 5000);
-    } catch (er) { busy(0); return toast(errMsg(er), 9000); }
-    DX.ds = null;
-    go(function () { return scrDxSua(DX.f.name); }, true);
+    var r;
+    try { r = await api('vagabond.de_xuat_cong_thuc.luu', thamLuu()); }
+    catch (er) { busy(0); return toast(errMsg(er), 9000); }
+    /* Nhận mã phiếu NGAY sau khi lưu: Gửi Khải hỏng (thiếu thông tin, rớt
+       mạng) thì bấm lại vẫn là phiếu này, không đẻ thêm phiếu (Codex #563). */
+    dxNap(r);
+    if (guiLuon) {
+      try { r = await api('vagabond.de_xuat_cong_thuc.gui', { name: r.name }); dxNap(r); }
+      catch (er) { busy(0); toast(errMsg(er), 9000); return veLai(); }
+    }
+    busy(0);
+    toast(guiLuon ? 'Đã gửi Khải.' : 'Đã lưu nháp ' + r.name + '.', 5000);
+    veLai();
   }
 
   /* Gợi ý size: máy chủ tính (de_xuat_cong_thuc.goi_y_cac_size), một nguồn. */
