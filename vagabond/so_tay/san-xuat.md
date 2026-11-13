@@ -61,16 +61,16 @@ Từ khoá: chuyển nguyên liệu, xin nguyên liệu, chuyển kho nguyên li
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Quản lý sản xuất, bếp trưởng; kho tổng ghi sổ | Lập kế hoạch sản xuất (/lap-ke-hoach-san-xuat) | [[Xin chuyển nguyên liệu]] |
+| Bếp, quản lý sản xuất; kho tổng ghi sổ | Lập kế hoạch sản xuất (/lap-ke-hoach-san-xuat), hộp báo thiếu khi Hoàn tất | [[Xin chuyển nguyên liệu]], [[📦 Gửi phiếu xin kho tổng]] |
 
-Lệnh sản xuất trừ nguyên liệu thẳng ở kho Nguyên liệu của bếp lúc bấm Hoàn tất, không có bước chuyển riêng. Hàng phải nằm sẵn ở kho Nguyên liệu của bếp trước khi làm.
+Hoàn tất trừ nguyên liệu ở kho Nguyên liệu của bếp. Từ v655 máy KHÔNG tự lấy hàng ở Kho tổng 307: kho tổng giao và ghi sổ trước.
 
 **Các bước**
-1. Mở phiếu kế hoạch của ngày. Chỉ xin cho một bếp thì chọn [[Pastry]] hoặc [[Baker]].
-2. Bấm [[Xin chuyển nguyên liệu]], rồi [[Tạo phiếu xin]].
-3. Máy tạo phiếu chuyển kho NHÁP từ Kho tổng 307 sang kho Nguyên liệu của bếp theo phần còn thiếu, và báo số phiếu.
-4. Kho tổng soát hàng rồi ghi sổ phiếu.
-5. Bếp xem hàng về ở màn Hàng chuyển về kho tôi (/hang-chuyen-ve-kho-toi).
+1. Theo kế hoạch: mở phiếu kế hoạch của ngày. Chỉ xin cho một bếp thì chọn [[Pastry]] hoặc [[Baker]]. Bấm [[Xin chuyển nguyên liệu]], rồi [[Gửi phiếu xin]].
+2. Hoàn tất mà kho bếp thiếu: bấm [[📦 Gửi phiếu xin kho tổng]] trên hộp báo. Máy xin đúng phần thiếu, làm tròn lên số nguyên (thiếu 14,2 ml xin 15 ml), không xin trùng phiếu đang chờ.
+3. Phiếu gửi ngay, Zalo báo nhóm Kho.
+4. Kho tổng giao bao nhiêu ghi bấy nhiêu (nguyên chai cũng được) ở Xuất điều chuyển, ghi sổ xong hàng vào kho bếp ngay.
+5. Bếp bấm Hoàn tất lại lệnh.
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
@@ -183,7 +183,7 @@ Hoàn tất là lúc máy trừ nguyên liệu, nhập thành phẩm. Bút toán
 4. Chip Lần trước gợi ý số.
 5. Bấm [[Hoàn thành]].
 6. Cấp 1, cấp 2, làm tươi thiếu: hộp Máy làm luôn giúp bếp, bấm nút xanh.
-7. Kho bếp thiếu nguyên liệu: bấm [[Lấy từ kho tổng và hoàn tất]], máy chuyển từ Kho tổng 307, bếp sang lấy.
+7. Kho bếp thiếu: máy dừng, bấm [[📦 Gửi phiếu xin kho tổng]], kho giao xong bấm lại.
 8. Nhiều lệnh cùng món: ✓ thẻ gộp, gõ tổng số; máy kiểm nguyên liệu rồi [[Ghi sổ N lệnh]].
 
 **Hạch toán** (từ 01/10/2026, mang trung tâm chi phí của bếp)
@@ -229,7 +229,7 @@ Máy không ghi âm kho: thiếu là dừng, không để lại phiếu nháp. X
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
-| Kho ... không đủ ... để trừ / chưa đủ nguyên liệu | [[Xin chuyển nguyên liệu]] ở Kế hoạch sản xuất rồi bấm lại (Kho tổng 307 còn thì máy hỏi lấy luôn) |
+| Kho ... không đủ ... để trừ / chưa đủ nguyên liệu | Bấm [[📦 Gửi phiếu xin kho tổng]] trên hộp báo, chờ kho tổng giao rồi bấm lại |
 | ... Chưa tìm thấy tồn mã này ở kho khác | Kiểm tồn, nhập hàng hoặc kiểm kê lại |
 | ... Mã thay thế đã khai đang còn ... | Mã thay nằm ở kho khác, chuyển về đúng kho rồi bấm lại |
 | Số làm theo lệnh không được quá số còn lại là ... | Phần dư ghi vào ô Thực tế cân được |

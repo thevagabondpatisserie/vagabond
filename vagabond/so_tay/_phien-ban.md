@@ -12,6 +12,13 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v655
+- Xin chuyển nguyên liệu từ kho tổng về bếp
+- Xuất điều chuyển hàng sang kho khác
+- Hoàn tất lệnh sản xuất
+- Vì sao không hoàn tất được lệnh sản xuất
+- OnePay nối theo số đơn Pancake và tự đối chiếu lại mỗi giờ
+
 ## v654
 - Tin Bánh có sẵn hôm nay gửi khi nào
 - Tin Zalo Bánh có sẵn hôm nay
