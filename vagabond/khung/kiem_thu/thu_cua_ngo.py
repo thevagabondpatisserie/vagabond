@@ -517,7 +517,7 @@ CUA_NGO = {
 	"hoa_don_thu.py": ["doc_ngay", "quet_lai"],
 	"whatsapp.py": ["dang_ky_su_kien", "kich_hoat", "trang_thai", "webhook"],
 	"du_chi.py": ["chi_tiet", "chot", "ds", "ds_chuyen_khoan", "duyet", "gui", "luu", "luu_so_ngay_no", "soan_lai"],
-	"lich_du_chi.py": ["chi_tiet_muc", "chon_app", "chon_hoa_don", "chon_ncc", "goi_y_lich", "huy_muc", "lich", "luu_lich", "luu_muc", "noi_app"],
+	"lich_du_chi.py": ["chi_tiet_muc", "chon_app", "chon_hoa_don", "chon_ncc", "goi_y_lich", "lich", "luu_lich", "luu_muc", "noi_app", "xoa_muc"],
 	# v619: chuông thông báo trong app.
 	"chuong.py": ["da_xem", "dem", "thong_bao"],
 	# Gan Assignee that, them 21/08/2026. Chi mot duong DOC, va no chi doc

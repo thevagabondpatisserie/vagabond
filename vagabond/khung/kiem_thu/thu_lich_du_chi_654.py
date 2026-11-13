@@ -214,14 +214,28 @@ def _cham_he():
 	vs = [um.patch.object(fr, "get_all", ga), um.patch.object(fr, "get_roles", lambda *a: ["Purchase User"], create=True),
 		um.patch.object(l, "so_du_kha_dung", lambda: {"so_tien": 100 * TR, "luc": "2026-11-13 09:30:00", "nguon": "SePay", "chi_sau": 0}),
 		um.patch.object(l, "_hd_no", lambda: [NO_18]), um.patch.object(l, "_dot_dong", lambda: []),
-		um.patch.object(l, "getdate", lambda v: HOM), um.patch.object(ho_so_tt, "VAI_LAP", {"Purchase User"})]
+		um.patch.object(l, "getdate", lambda v: HOM), um.patch.object(ho_so_tt, "VAI_LAP", {"Purchase User"}),
+		um.patch.object(l, "_phai_thu_hd", lambda: []), um.patch.object(l, "_tre_thanh_toan", lambda: {})]
+	xem = {"v": True}
+	vs.append(um.patch.object(l, "_xem_so_du", lambda: xem["v"]))
 	for v in vs:
 		v.start()
 	try:
 		r = l.lich()
+		xem["v"] = False
+		r_an = l.lich()
 	finally:
 		for v in reversed(vs):
 			v.stop()
+	# anh Việt 13/11: Thu mua không được biết số dư; máy vẫn báo ngày không đủ tiền.
+	import json as _js
+	chu = _js.dumps(r_an, default=str)
+	la("người không xem được Tài chính: không có số dư, còn lại, số thiếu",
+		(r_an["so_du"], r_an["du_kien_ve"], [g["con_lai"] for g in r_an["ngay"]], r_an["thieu_dau"], r_an["quyen"]["xem_so"]),
+		({"an": 1}, {"an": 1}, [None] * len(r_an["ngay"]), {"ngay": "2026-11-20", "so_tien": None}, 0))
+	dung("không lộ số 100 triệu ở đâu trong phản hồi", "100000000" not in chu and "1e8" not in chu)
+	la("vẫn đánh dấu đúng ngày không đủ tiền", [g["ngay"] for g in r_an["ngay"] if g["khong_du"]], [g["ngay"] for g in r["ngay"] if g["thieu"]])
+	la("người xem được Tài chính thấy số", r["quyen"]["xem_so"], 1)
 	g = {x["ngay"]: [(m["nguon"], m["ma"]) for m in x["muc"]] for x in r["ngay"]}
 	la("14: APP đang duyệt (ngày lập); 15: dự chi tay; 16 không có (đã nối APP); 18: công nợ; 20: tiền nhà (tháng 10 có APP không ảnh hưởng tháng 11)",
 		(g.get("2026-11-14"), g.get("2026-11-15"), g.get("2026-11-16"), g.get("2026-11-18"), g.get("2026-11-20")),
@@ -277,7 +291,7 @@ def _codex_so_du_anh():
 	la("giờ đọc là datetime cũng so đúng", l.chi_sau_anh(cung_giay, dt.datetime(2026, 11, 13, 9, 30, 0, 900000), "BA-CHI"), 3 * TR)
 	la("giờ hỏng: không trừ gì", l.chi_sau_anh(cung_giay, "hôm nay", "BA-CHI"), 0)
 	import unittest.mock as um
-	from vagabond import du_chi, tai_chinh
+	from vagabond import tai_chinh
 
 	fr = __import__("frappe")
 	# Codex #561 vòng 2: APP nhà cung cấp thường để trống tk_chi; tiền đi ra đọc theo
@@ -305,17 +319,101 @@ def _codex_so_du_anh():
 
 	def gv(dt_, ten, truong=None, *a, **k):
 		return {"BA-CHI": "1121 - MB"}.get(ten) if (dt_, truong) == ("Bank Account", "account") else None
+
+	def tinh(so_du=100 * TR, loi=0):
+		# Đúng dòng của mục Tài chính: tài khoản chi lấy thẳng số SePay báo.
+		return {"dong": [{"nguon": "nh:1", "loai": "Ngân hàng", "ten": "MB ···0001", "tam_ung": 0, "bank_account": "BA-CHI",
+			"dong_bo": 0, "so_bao": float(so_du or 0), "so_du": None if loi else float(so_du), "loi": loi}]}
 	for luc_bao, mong in (("2026-11-13 09:30:00", 60 * TR), (None, 0)):
-		with um.patch.object(du_chi, "_tk_chi_so_du", lambda: ("BA-CHI", 100 * TR)), \
+		with um.patch.object(tai_chinh, "_tinh_tien", lambda: tinh()), \
 				um.patch.object(tai_chinh, "_sepay_luc_bao", lambda: luc_bao), \
 				um.patch.object(l, "now_datetime", lambda: dt.datetime(2026, 11, 13, 9, 31, 0)), \
 				um.patch.object(fr, "get_all", ga), um.patch.object(fr.db, "get_value", gv):
 			r = l.so_du_kha_dung()
 		la("bản số dư đọc lúc %s: trừ %s triệu (APP nhà cung cấp trả sau giờ đọc, tk_chi trống)" % (luc_bao or "ngay bây giờ", int(mong / TR)),
-			(r["chi_sau"], r["luc"], r["tk"]), (float(mong), luc_bao or "2026-11-13 09:31:00", "BA-CHI"))
-	with um.patch.object(du_chi, "_tk_chi_so_du", lambda: ("BA-CHI", None)):
+			(r["chi_sau"], r["luc"], r["so_tien"]), (float(mong), luc_bao or "2026-11-13 09:31:00", 100 * TR - mong))
+	with um.patch.object(tai_chinh, "_tinh_tien", lambda: tinh(loi=1)), um.patch.object(tai_chinh, "_sepay_luc_bao", lambda: None):
 		r = l.so_du_kha_dung()
 	la("không đọc được số dư: không đoán", (r["so_tien"], r["chi_sau"]), (None, 0))
+	dung("nói rõ tài khoản đọc hỏng", "MB ···0001" in r["nguon"])
+
+
+@ca("v654 anh Việt 13/11: Tiền khả dụng lấy đúng số dư ngân hàng của mục Tài chính")
+def _kha_dung_tai_chinh():
+	dong = [
+		{"loai": "Ngân hàng", "ten": "MB chi", "bank_account": "BA-1", "dong_bo": 0, "so_bao": 80e6, "so_du": 80e6},  # SePay báo: trừ chi sau
+		{"loai": "Ngân hàng", "ten": "Shinhan thu", "bank_account": "BA-2", "dong_bo": 1, "so_bao": 50e6, "so_du": 45e6},  # tính từ mốc + sổ: không trừ
+		{"loai": "Ngân hàng", "ten": "TK tạm ứng", "bank_account": "BA-3", "tam_ung": 1, "so_du": 9e6},  # tiền cá nhân: bỏ
+		{"loai": "Ngân hàng", "ten": "ACB chưa chốt", "bank_account": "BA-4", "so_du": None},  # chưa chốt: không cộng, nêu tên
+		{"loai": "Tiền mặt", "ten": "Két Q1", "so_du": 7e6},  # két: bỏ
+		{"loai": "Tiền mặt", "ten": "Đang nộp về quỹ", "so_du": 2e6, "dang_chuyen": 1}]
+	kq = l.kha_dung_tai_chinh(dong, {"BA-1": 3 * TR, "BA-2": 4 * TR})
+	la("80 - 3 + 45 = 122 triệu; tạm ứng, két, chưa chốt không cộng; tài khoản tính từ sổ không trừ thêm",
+		(kq["so_tien"], kq["so_du_tk"], kq["chi_sau"], kq["chua_chot"]), (122 * TR, 125 * TR, 3 * TR, ["ACB chưa chốt"]))
+	kq = l.kha_dung_tai_chinh(dong + [{"loai": "Ngân hàng", "ten": "VCB lỗi", "so_du": None, "loi": 1}], {})
+	la("một tài khoản tính hỏng: không đoán", (kq["so_tien"], kq["hong"]), (None, ["VCB lỗi"]))
+	la("chưa có tài khoản nào có số: không đoán", l.kha_dung_tai_chinh([dong[3], dong[4]], {})["so_tien"], None)
+
+
+@ca("v654 anh Việt 13/11: tiền dự kiến về lấy từ công nợ cần thu, ngày về theo thói quen trả của từng khách")
+def _du_kien_ve():
+	la("trung vị", (l.trung_vi_ngay([30, 10, 20]), l.trung_vi_ngay([10, 20, 30, 41]), l.trung_vi_ngay([])), (20, 25, None))
+	hd = [{"hoa_don": "HD-A1", "khach": "A", "ngay": D(2026, 11, 1), "so_tien": 10 * TR},   # A trả sau 20 ngày: 21/11
+		{"hoa_don": "HD-B1", "khach": "B", "ngay": D(2026, 11, 5), "so_tien": 6 * TR},     # B một lần trả: theo chung 29 -> 04/12
+		{"hoa_don": "HD-C1", "khach": "C", "ngay": D(2026, 9, 1), "so_tien": 7 * TR},      # đã qua 30/09: quá hạn, không tính ngày nào
+		{"hoa_don": "HD-D1", "khach": "D", "ngay": D(2026, 12, 10), "so_tien": 5 * TR},    # 08/01: sau khung
+		{"hoa_don": "HD-E1", "khach": "E", "ngay": D(2026, 11, 2), "so_tien": 0}]
+	tre = {"A": [18, 20, 25], "B": [3], "X": [29, 29, 30, 40, 29]}
+	kq = l.du_kien_ve(hd, tre, HOM, DEN)
+	la("ngày về: A theo A (20 ngày), B theo trung vị chung (29 ngày)", [(v["hoa_don"], v["ngay"]) for v in kq["ve"]],
+		[("HD-A1", D(2026, 11, 21)), ("HD-B1", D(2026, 12, 4))])
+	la("tổng trong khung, quá hạn, sau khung", (kq["trong_khung"], kq["qua_han"], kq["sau_khung"], kq["tre_chung"]), (16 * TR, 7 * TR, 5 * TR, 29))
+	la("chưa có lịch sử trả nào: 30 ngày", l.du_kien_ve(hd[:1], {}, HOM, DEN)["ve"][0]["ngay"], D(2026, 12, 1))
+	# Tiền về được cộng trước khoản chi cùng ngày và mọi ngày sau.
+	m = l.ghep_muc(HOM, DEN, [], [], [], [CHI_GAP, dict(CHI_GAP, name="DCM-2", ngay=D(2026, 11, 25), so_tien=30 * TR)], [], set())
+	kq2 = l.theo_ngay(20 * TR, m, [{"ngay": D(2026, 11, 21), "so_tien": 10 * TR}, {"ngay": D(2026, 11, 14), "so_tien": 1 * TR}])
+	la("15/11: 20 + 1 về - 10 = 11; 25/11: 11 + 10 về - 30 = -9", [(g["ngay"].day, int(g["ve"] / TR), int(g["con_lai"] / TR)) for g in kq2["ngay"]],
+		[(15, 1, 11), (25, 10, -9)])
+	la("thiếu đầu tiên 25/11, 9 triệu", (kq2["thieu_dau"]["ngay"], kq2["thieu_dau"]["so_tien"]), (D(2026, 11, 25), 9 * TR))
+
+
+@ca("v654 anh Việt 13/11: Xoá dự chi nháp xoá hẳn bản ghi, chỉ khi còn nháp, chỉ qua nút của app")
+def _xoa_muc():
+	import types
+	import unittest.mock as um
+	from vagabond import ho_so_tt
+	from vagabond.vagabond.doctype.vagabond_du_chi_muc import vagabond_du_chi_muc as dt_muc
+
+	fr = __import__("frappe")
+	kho = {"DCM-1": "Nhap", "DCM-2": "Huy"}
+	xoa = []
+
+	def xoa_doc(dt_, ten, **k):
+		d = dt_muc.VagabondDuChiMuc.__new__(dt_muc.VagabondDuChiMuc)
+		d.__dict__["name"] = ten
+		d.on_trash()
+		xoa.append(ten)
+		kho.pop(ten)
+	co = types.SimpleNamespace()
+	vs = [um.patch.object(fr.db, "exists", lambda dt_, ten=None, *a, **k: ten in kho),
+		um.patch.object(fr, "get_doc", lambda dt_, ten, **k: Doi(name=ten, trang_thai=kho[ten]), create=True),
+		um.patch.object(fr, "delete_doc", xoa_doc, create=True), um.patch.object(fr, "flags", co),
+		um.patch.object(fr, "get_roles", lambda *a: ["Purchase User"], create=True),
+		um.patch.object(ho_so_tt, "VAI_LAP", {"Purchase User"})]
+	for v in vs:
+		v.start()
+	try:
+		la("xoá dự chi nháp", l.xoa_muc("DCM-1"), {"name": "DCM-1", "da_xoa": 1})
+		la("đã xoá hẳn", (xoa, "DCM-1" in kho), (["DCM-1"], False))
+		la("bấm lần hai: không lỗi, coi như đã xoá", l.xoa_muc("DCM-1"), {"name": "DCM-1", "da_xoa": 1})
+		nem("không còn nháp thì không xoá", lambda: l.xoa_muc("DCM-2"))
+		la("cờ xoá được trả về sau khi xoá", co.__dict__.get("vgb_xoa_du_chi"), None)
+		d = dt_muc.VagabondDuChiMuc.__new__(dt_muc.VagabondDuChiMuc)
+		d.__dict__["name"] = "DCM-9"
+		nem("xoá trên Desk hay API (không qua nút) bị chặn", d.on_trash)
+	finally:
+		for v in reversed(vs):
+			v.stop()
 
 
 @ca("v654 Codex #561: nhà cung cấp lưu theo MÃ chọn từ danh mục, không đoán từ chữ gõ; hoá đơn phải cùng nhà")
@@ -408,3 +506,22 @@ def _codex_hd_nhap():
 	with um.patch.object(fr, "get_all", ga):
 		da_co = l._da_co(lc, [], [], HOM)
 	la("hoá đơn đã ghi sổ: tháng 11 đã có (máy đề xuất công nợ thay hoặc đã trả)", ("Nguyễn Hữu Phước", "2026-11") in da_co, True)
+
+
+@ca("v654 anh Việt 13/11: đợt dự chi dùng đúng một số dư (mục Tài chính) và Thu mua không thấy số đó")
+def _dot_an_so_du():
+	import unittest.mock as um
+	from vagabond import du_chi, ho_so_tt
+
+	with um.patch.object(l, "so_du_kha_dung", lambda: {"so_tien": 123 * TR}):
+		la("số dư lúc soạn đợt lấy từ Tiền khả dụng của Lịch dự chi", du_chi._so_du_tk_chi(), float(123 * TR))
+	with um.patch.object(l, "so_du_kha_dung", lambda: {"so_tien": None}):
+		la("không đọc được: None", du_chi._so_du_tk_chi(), None)
+	doc = Doi(name="DC-26-11-20", ngay_dot=D(2026, 11, 20), trang_thai="Nhap", tong_de_nghi=0, tong_tra=0, tong_gia_han=0,
+		so_du_mb=500 * TR, nguoi_lap="", fin_boi="", gd_boi="", fin_luc="", gd_luc="", ly_do_tra_lai="", dong=[])
+	fr = __import__("frappe")
+	for xem, mong in ((True, (float(500 * TR), 0)), (False, (None, 1))):
+		with um.patch.object(du_chi, "_xem_so_du", lambda: xem), um.patch.object(du_chi, "so_ngay_no_cua", lambda *a: {}), \
+				um.patch.object(fr, "get_roles", lambda *a: ["Purchase User"], create=True), um.patch.object(ho_so_tt, "VAI_LAP", {"Purchase User"}):
+			r = du_chi._cho_man(doc)
+		la("người %s xem Tài chính: số dư đợt" % ("được" if xem else "không được"), (r["so_du"], r["an_so_du"]), mong)
