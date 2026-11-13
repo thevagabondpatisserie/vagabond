@@ -856,6 +856,22 @@ sdKhai('du_chi', 'scrDuChiXem', {
   tieuDe: function (v) { var n = v && v.sua ? Object.keys(v.sua).length : 0; return n ? n + ' hoá đơn đã sửa số trả' : ''; },
   luu: ['vagabond.du_chi.luu']
 });
+/* v654 Codex #561: form Thêm, Sửa dự chi và Lịch chi hằng tháng (71, sau 48).
+   Chữ trong ô đi theo số liệu ô; nhà cung cấp đã chọn, hoá đơn, mã dự chi nằm
+   trong LDC.form và LDC.lichForm. Sửa một dự chi có sẵn: dat() để vào
+   ldcKhoiPhuc, màn đọc máy chủ xong mới ghép (không móc sdGhep). Lưu thành công
+   (luu_muc, luu_lich) là xong nháp. Bản nháp chỉ nằm trên máy, không tạo gì trên
+   máy chủ. */
+sdKhai('du_chi_tay', 'scrDuChiThem', {
+  ten: 'Dự chi', lay: function () { var f = LDC.form; return (f && (!f.trang_thai || f.trang_thai === 'Nhap')) ? f : null; },
+  dat: function (v) { if (v && v.name) { ldcKhoiPhuc = v; LDC.form = null; } else { ldcKhoiPhuc = null; LDC.form = v || null; } },
+  ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('#ldcND', 'noi_dung'), luu: ['vagabond.lich_du_chi.luu_muc']
+});
+sdKhai('lich_chi', 'scrLichChi', {
+  ten: 'Lịch chi hằng tháng', lay: function () { return LDC.lichForm || null; }, dat: function (v) { LDC.lichForm = v || null; },
+  ma: function () { return (LDC.lichForm && LDC.lichForm.name) || ''; }, tieuDe: sdTieuDe('#lcND', 'noi_dung'),
+  luu: ['vagabond.lich_du_chi.luu_lich']
+});
 /* v622: hai màn lập phiếu của Tuyển dụng (60-tuyen-dung.js, đứng sau 48 nên
    ghép bằng dat() vào biến khôi phục, màn tự ghép lúc dựng trạng thái). */
 sdKhai('vi_tri_tuyen', 'scrTdViTri', {
@@ -964,6 +980,8 @@ scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
 scrQuyChotDau = sdBoc('chot_dau_quy', 'scrQuyChotDau', scrQuyChotDau);
 scrGomMua = sdBoc('gom_mua', 'scrGomMua', scrGomMua);
 scrDuChiXem = sdBoc('du_chi', 'scrDuChiXem', scrDuChiXem);
+scrDuChiThem = sdBoc('du_chi_tay', 'scrDuChiThem', scrDuChiThem);
+scrLichChi = sdBoc('lich_chi', 'scrLichChi', scrLichChi);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
