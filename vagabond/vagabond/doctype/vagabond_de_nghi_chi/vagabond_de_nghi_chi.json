@@ -181,7 +181,7 @@
    "label": "Nhà cung cấp",
    "options": "Supplier",
    "depends_on": "eval:doc.hinh_thuc=='Thanh toán cho nhà cung cấp' || doc.chung_tu_thue=='Có hoá đơn VAT'",
-   "description": "Chưa có nhà cung cấp trong danh mục thì anh chị liên hệ Uyên để tạo mã giúp. Có hoá đơn VAT thì bắt buộc phải chọn, kể cả khi tiền trả lại cho nhân viên, vì hoá đơn là của người bán."
+   "description": "Chưa có nhà cung cấp trong danh mục thì anh chị liên hệ Thu mua để tạo mã giúp. Có hoá đơn VAT thì bắt buộc phải chọn, kể cả khi tiền trả lại cho nhân viên, vì hoá đơn là của người bán."
   },
   {
    "fieldname": "phuong_thuc",
