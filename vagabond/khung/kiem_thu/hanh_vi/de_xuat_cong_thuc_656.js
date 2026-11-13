@@ -201,7 +201,7 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     /* 4. Đề xuất điều chỉnh. */
     let dl = null;
     const tu = { ten_banh: 'Bánh Ổ Very Berry', du_lieu: { sizes: [], dong: [{ id: 'd1', ma: 'NVL-BO', ten: 'Bơ', dvt: 'Gram', gram: { '': 200 } }] }, me: 1, dvt: 'Cái' };
-    const dc = d => PHIEU('Nháp', d, { loai: 'Điều chỉnh', ten_banh: 'Bánh Ổ Very Berry', bom_goc: 'BOM-X-001', ly_do: 'Bớt béo', gia: {}, thieu_gia: [],
+    const dc = d => PHIEU('Nháp', d, { loai: 'Điều chỉnh', ten_banh: 'Bánh Ổ Very Berry', bom_goc: 'BOM-X-001', ly_do: 'Bớt béo', gia: {}, thieu_gia: ['Bột bưởi'],
       doi_chieu: { bang: [{ ma: 'NVL-BO', ten: 'Bơ', cu: 200, moi: 180, kieu: 'doi' }], von_cu: 50000, von_moi: 46000 } });
     const may = { tu_cong_thuc: () => tu, luu: a => { dl = JSON.parse(a.du_lieu); return dc(dl); } };
     const a = appMoi(may, ['soan']);
@@ -213,6 +213,7 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     const l = a.goi.filter(x => x.m.endsWith('.luu'))[0].a;
     assert.deepEqual([l.loai, l.bom_goc, l.ly_do, dl.dong[0].gram['']], ['Điều chỉnh', 'BOM-X-001', 'Bớt béo', 180], 'lưu đúng phiếu điều chỉnh');
     assert(a.html().indexOf('Bơ (đổi)') >= 0 && ['<b>50000 đ</b>', '<b>46000 đ</b>', '(-4000 đ)'].every(c => a.html().indexOf(c) >= 0), 'bảng trước sau và giá vốn chênh');
+    assert(a.html().indexOf('⚠️ Thiếu giá: Bột bưởi') >= 0, 'Codex #563: phiếu điều chỉnh cũng ghi đỏ dòng thiếu giá');
     chuanCham(a, ['[data-dxg]', '#dxLyDo', '#dxLuu', '#dxGui', '#dxHuy'], 'điều chỉnh');
     let dl2 = null;
     const may2 = { chi_tiet: () => Object.assign(dc(dl), { trang_thai: 'Chờ Khải', quyen: { sua: 1, duyet: 1 } }),
