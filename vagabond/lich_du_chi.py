@@ -355,8 +355,8 @@ def kha_dung_tai_chinh(dong, chi_sau_theo_ba):
 	Dòng lấy thẳng số SePay báo (không đồng bộ giao dịch về app) thì trừ thêm
 	tiền đã ghi sổ ra khỏi tài khoản đó SAU giờ đọc (chi_sau_theo_ba {Bank
 	Account: tiền}); dòng tính từ mốc chốt cộng phát sinh sổ đã gồm mọi bút toán.
-	Một tài khoản tính hỏng thì KHÔNG đoán (trả None, nêu tên); tài khoản chưa
-	chốt số dư thì không cộng, nêu tên."""
+	Một tài khoản tính hỏng hoặc CHƯA CHỐT số dư thì KHÔNG đoán: trả None và
+	nêu tên, vì cộng phần đã biết sẽ ra số thiếu mà trông như đủ (Codex #561 vòng 5)."""
 	tong, chi, co, hong, chua = Decimal(0), Decimal(0), 0, [], []
 	for d in dong or ():
 		if d.get("loai") != "Ngân hàng" or d.get("tam_ung") or d.get("dang_chuyen"):
@@ -368,28 +368,22 @@ def kha_dung_tai_chinh(dong, chi_sau_theo_ba):
 		tong += _tien_am(d.get("so_du"))
 		if not d.get("dong_bo") and _tien(d.get("so_bao") or 0) > 0:
 			chi += _tien((chi_sau_theo_ba or {}).get(d.get("bank_account")) or 0)
-	if hong or not co:
+	if hong or chua or not co:
 		return {"so_tien": None, "so_du_tk": None, "chi_sau": Decimal(0), "hong": hong, "chua_chot": chua}
-	return {"so_tien": tong - chi, "so_du_tk": tong, "chi_sau": chi, "hong": [], "chua_chot": chua}
+	return {"so_tien": tong - chi, "so_du_tk": tong, "chi_sau": chi, "hong": [], "chua_chot": []}
 
 
 def an_so_tien(kq):
 	"""Người không được xem Tài chính (Thu mua): bỏ mọi con số lộ tiền trong tài
 	khoản, giữ ngày không đủ tiền và khoản cần thương lượng (anh Việt 13/11). THUẦN."""
 	kq = dict(kq)
-	kq["so_du"] = {"an": 1}
+	# Không có số thì không báo được ngày thiếu: nói cho Thu mua biết, không để lịch trông như đủ tiền.
+	kq["so_du"] = {"an": 1, "chua_ro": 1 if (kq.get("so_du") or {}).get("so_tien") is None else 0}
 	kq["du_kien_ve"] = {"an": 1}
 	kq["ngay"] = [dict(g, con_lai=None, thieu=None, ve=None, khong_du=1 if g.get("thieu") else 0) for g in kq.get("ngay") or ()]
 	if kq.get("thieu_dau"):
 		kq["thieu_dau"] = {"ngay": kq["thieu_dau"]["ngay"], "so_tien": None}
 	return kq
-
-
-def tien_kha_dung(so_du_tk, chi_sau_luc):
-	"""Số dư lúc đọc trừ phần đã chi sau lúc đó (chưa vào số dư). None giữ None. THUẦN."""
-	if so_du_tk is None:
-		return None
-	return _tien_am(so_du_tk) - _tien(chi_sau_luc or 0)
 
 
 def _tien_am(v):
@@ -511,10 +505,14 @@ def so_du_kha_dung():
 			fields=["credit as tong_tien", "creation as luc", "account as tk_chi"], limit_page_length=0)
 		chi_sau[ba] = chi_sau_anh([dict(r) for r in rows], luc, tk_gl)
 	kq = kha_dung_tai_chinh(dong, chi_sau)
-	if kq["so_tien"] is None:
-		nguon = ("Chưa đọc được số dư: " + ", ".join(kq["hong"])) if kq["hong"] else "Chưa có số dư ngân hàng nào trong mục Tài chính"
+	if kq["hong"]:
+		nguon = "Chưa đọc được số dư: " + ", ".join(kq["hong"])
+	elif kq["chua_chot"]:
+		nguon = "Chưa chốt số dư đầu: " + ", ".join(kq["chua_chot"]) + ". Chốt trong mục Tài chính thì máy mới tính tiền khả dụng"
+	elif kq["so_tien"] is None:
+		nguon = "Chưa có số dư ngân hàng nào trong mục Tài chính"
 	else:
-		nguon = "Số dư ngân hàng theo mục Tài chính" + ((" (chưa chốt: " + ", ".join(kq["chua_chot"]) + ")") if kq["chua_chot"] else "")
+		nguon = "Số dư ngân hàng theo mục Tài chính"
 	return {"so_tien": kq["so_tien"], "so_du_tk": kq["so_du_tk"], "chi_sau": flt(kq["chi_sau"]), "luc": luc, "nguon": nguon}
 
 
@@ -683,11 +681,12 @@ def lich(so_ngay=SO_NGAY_XEM):
 	ca_lich = _lich()
 	lc = lich_dang_bat(ca_lich)
 	muc = ghep_muc(t, den, hd, _dot_dong(), app, tay, lc, _da_co(lc, hd, tay_tat_ca, t))
-	kd = tien_kha_dung(sd["so_tien"], sd["chi_sau"])
+	# so_du_kha_dung đã trừ phần chi sau giờ SePay báo; KHÔNG trừ lần hai (Codex #561 vòng 5).
+	kd = sd["so_tien"]
 	kq = theo_ngay(kd, muc, dv["ve"])
 	ra = {
 		"hom_nay": str(t), "den": str(den),
-		"so_du": {"so_tien": flt(kd) if kd is not None else None, "so_du_tk": sd["so_tien"], "chi_sau": sd["chi_sau"],
+		"so_du": {"so_tien": flt(kd) if kd is not None else None, "so_du_tk": sd.get("so_du_tk"), "chi_sau": sd.get("chi_sau"),
 			"luc": sd["luc"], "nguon": sd["nguon"]},
 		"du_kien_ve": {"trong_khung": flt(dv["trong_khung"]), "qua_han": flt(dv["qua_han"]), "sau_khung": flt(dv["sau_khung"]),
 			"tre_chung": cint(dv["tre_chung"]), "loi": dv_loi},
