@@ -217,3 +217,31 @@ def _co_dong():
 		x.co_dong(1, "BOM-NBTP00070-001"), {"is_phantom_item": 0, "bom_no": "", "do_not_explode": 1})
 	la("nguyên liệu mua vào: để mặc định", x.co_dong(1, ""), {})
 	la("mã không quản tồn chưa có công thức: để mặc định (chưa có gì để nổ)", x.co_dong(0, ""), {})
+
+
+@ca("v656 Codex #563 vòng 2: Slice không nhận gợi ý, kể cả dòng trang trí")
+def _slice_trang_tri():
+	r = x.goi_y_cac_size({"dich": "thanh_pham", "gram": {"16": 3}}, ["16", "20", "Slice"])
+	la("trang trí: 20 chép số, Slice để trống", (r["gram"].get("20"), "Slice" in r["gram"]), (3, False))
+	r = x.goi_y_cac_size({"dich": "cap2", "gram": {"16": 100}}, ["16", "Slice", "Khuôn vuông 20"])
+	la("thành phần: Slice, khuôn vuông để trống", sorted(r["gram"]), ["16"])
+
+
+@ca("v656 Codex #563 vòng 2: phiếu điều chỉnh nêu dòng thiếu giá")
+def _thieu_gia_dc():
+	moi = [{"ma": "NVL-BO", "ten": "Bơ", "sl": 180}, {"ma": "NVL-MOI", "ten": "Bột bưởi", "sl": 5}, {"ma": "NVL-BO2", "ten": "Bỏ", "sl": 0}]
+	la("dòng có số lượng mà giá 0 thì nêu tên", x.thieu_gia_dong(moi, {"NVL-BO": 250, "NVL-MOI": 0}), ["Bột bưởi"])
+
+
+@ca("v656 Codex #563 vòng 2: phiếu chỉ người duyệt đọc được qua Desk và API chuẩn; bếp đọc qua cửa riêng có kiểm người lập")
+def _quyen_doctype():
+	import io
+	import json
+	import os
+
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	p = os.path.join(goc, "vagabond", "doctype", "vagabond_de_xuat_cong_thuc", "vagabond_de_xuat_cong_thuc.json")
+	vai = {q["role"] for q in json.load(io.open(p, encoding="utf-8"))["permissions"] if q.get("read")}
+	duyet = {"Manufacturing Manager", "System Manager", "Giám đốc", "AP Giám đốc", "VGB - Quản lý công thức"}
+	la("vai đọc được doctype chỉ là vai duyệt", sorted(vai - duyet), [])
+	dung("bếp phó, quầy bar, Manufacturing User không đọc thẳng", not vai & {"Bếp phó", "Quầy Bar", "Manufacturing User"})
