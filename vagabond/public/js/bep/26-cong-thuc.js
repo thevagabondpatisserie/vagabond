@@ -168,7 +168,9 @@ async function scrCongThuc() {
       (ctD.tong > ctD.ds.length ? '<div style="text-align:center;font-size:12px;color:#98a2b3;padding:10px">Đang hiện ' + ctD.ds.length + ' trên ' + ctD.tong + ', gõ ô tìm để thu hẹp</div>' : '')
         : '<div class="emp"><div class="e1">📖</div><div class="e2">Không có công thức nào khớp bộ lọc</div></div>');
 
-    var chan = '<div class="row2"><button class="btn gh" id="ctNhatKy">Nhật ký sửa</button>' +
+    /* v656: nut mo Phieu de xuat cong thuc (72-de-xuat-cong-thuc.js). */
+    var chan = '<button class="btn gh" id="ctDeXuat" style="margin-bottom:9px">📝 Phiếu đề xuất công thức</button>' +
+      '<div class="row2"><button class="btn gh" id="ctNhatKy">Nhật ký sửa</button>' +
       (ctGhiSoDuoc() ? '<button class="btn" id="ctExcel">Xuất Excel</button>' : '') + '</div>';
     var b = frame('Danh mục công thức', body,
       { fab: ctSoanDuoc(), onFab: ctSoanDuoc() ? ctTaoMoi : null, footer: chan });
@@ -194,6 +196,8 @@ async function scrCongThuc() {
     };
     var nx = document.getElementById('ctExcel');
     if (nx) nx.onclick = function () { ctXuatExcel(); };
+    var dxn = document.getElementById('ctDeXuat');
+    if (dxn) dxn.onclick = function () { go(scrDxDs); };
     var nk = document.getElementById('ctNhatKy');
     if (nk) nk.onclick = function () { go(scrCongThucNhatKy); };
     var ti = document.getElementById('ctTim');
@@ -232,6 +236,17 @@ function ctTaoMoi() {
   });
 }
 
+/* v656: giá vốn của công thức, lấy từ máy chủ (cong_thuc.chi_tiet ->
+   de_xuat_cong_thuc.gia_von_bom). Không tự tính ở đây: một nguồn. */
+function ctHopGiaVon(g) {
+  if (!g) return '';
+  return '<div style="padding:10px 14px 12px;border-top:1px solid #eef0f3;font-size:14px;line-height:1.5">' +
+    'Giá vốn một ' + h(g.dvt || 'cái') + ': <b>' + money(g.mot || 0) + ' đ</b>' +
+    (g.ban ? ' · giá bán ' + money(g.ban) + ' đ · <b>' + g.ty_le + '%</b>' : '') +
+    ((g.thieu || []).length ? '<div style="color:#b3261e;font-size:13px;margin-top:4px">⚠️ Thiếu giá: ' + h(g.thieu.join(', ')) + '. Giá vốn trên đang thiếu phần này.</div>' : '') +
+    '</div>';
+}
+
 async function scrCongThucXem(name) {
   frame('Công thức', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -247,7 +262,8 @@ async function scrCongThucXem(name) {
     '<div class="stk">' +
     '<div><div class="s1">Trạng thái</div><div class="s2">' + h(CT_TEN_TT[d.trang_thai] || d.trang_thai) + '</div></div>' +
     '<div><div class="s1">Mẻ ra</div><div class="s2">' + num(d.so_luong) + ' ' + h(d.dvt || '') + '</div></div>' +
-    '<div><div class="s1">Nguyên liệu</div><div class="s2">' + d.dong.length + ' dòng</div></div></div></div>';
+    '<div><div class="s1">Nguyên liệu</div><div class="s2">' + d.dong.length + ' dòng</div></div></div>' +
+    ctHopGiaVon(d.gia_von) + '</div>';
 
   html += '<div class="sec">Nguyên liệu</div><div class="lst">' + d.dong.map(function (m) {
     return '<div class="li"><div class="lt"><div class="l1">' + h(m.ten || m.ma) + '</div>' +
@@ -291,7 +307,12 @@ async function scrCongThucXem(name) {
           '<div class="mut" style="margin:7px 0 0;font-size:13px">Lưu nháp xong nhờ bếp trưởng bấm Ghi sổ.</div>') +
         '<button class="btn gh" id="ctBo" style="margin-top:9px;color:#b3261e">Bỏ bản nháp này</button>';
     } else if (d.trang_thai !== 'da_huy') {
-      nut += '<button class="btn" id="ctDc">🔁 Điều chỉnh (ra phiên bản mới)</button>';
+      /* v656 (anh Viet 13/11): bep sua cong thuc dang dung qua Phieu de xuat
+         dieu chinh, Khai duyet moi ra phien ban moi. Nguoi ghi so van giu nut
+         Dieu chinh thang. */
+      nut += '<button class="btn' + (ctGhiSoDuoc() ? ' gh' : '') + '" id="ctDxDc"' + (ctGhiSoDuoc() ? ' style="margin-bottom:9px"' : '') +
+        '>📝 Đề xuất điều chỉnh</button>';
+      if (ctGhiSoDuoc()) nut += '<button class="btn" id="ctDc">🔁 Điều chỉnh (ra phiên bản mới)</button>';
     }
   }
   var b = frame('Công thức', html, nut ? { footer: nut } : {});
@@ -325,6 +346,8 @@ async function scrCongThucXem(name) {
     ctD.ds = null;
     go(scrCongThuc, true);
   };
+  var dxdc = document.getElementById('ctDxDc');
+  if (dxdc) dxdc.onclick = function () { dxDieuChinh(d.bom); };
   var dc = document.getElementById('ctDc');
   if (dc) dc.onclick = async function () {
     busy(1);
