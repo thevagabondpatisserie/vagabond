@@ -21,7 +21,7 @@ Ca chốt:
 import datetime as dt
 from decimal import Decimal
 
-from vagabond.khung.kiem_thu.nen import ca, dung, gia_lap, la, nem
+from vagabond.khung.kiem_thu.nen import Doi, ca, dung, gia_lap, la, nem
 
 gia_lap()
 
@@ -194,7 +194,10 @@ def _cham_he():
 		hoa_don=None, ho_so_app="APP.26.11.077", lich=None, thang=None, nguon="Nhập tay")]
 	app = [Doi(name="APP.26.11.077", ngay=D(2026, 11, 14), tong_tien=5 * TR, ten_nhan="Thợ", ten_ncc="", loai="TK cong ty", ghi_chu="", nha_cung_cap=None)]
 	lich = [Doi(name="LC-00001", noi_dung="Tiền nhà", nguoi_nhan="Nguyễn Hữu Phước", nha_cung_cap="Nguyễn Hữu Phước", so_tien=40 * TR,
-		ngay_trong_thang=20, so_thang_thay=3, ngoai_le="")]
+		ngay_trong_thang=20, so_thang_thay=3, ngoai_le="", bat=1),
+		# Codex #561: lịch tạm thôi phải còn trên màn để bật lại, nhưng không tính tiền.
+		Doi(name="LC-00009", noi_dung="Tiền điện", nguoi_nhan="EVN", nha_cung_cap=None, so_tien=3 * TR,
+		ngay_trong_thang=16, so_thang_thay=3, ngoai_le="", bat=0)]
 
 	def ga(dt_, filters=None, **k):
 		if dt_ == l.DT_MUC:
@@ -225,3 +228,124 @@ def _cham_he():
 		([("app", "APP.26.11.077")], [("tay", "DCM-1")], None, [("may", "HDM-26-10-00900")], [("lich", "LC-00001")]))
 	la("thiếu đầu tiên 20/11, 15 triệu (thêm 5 triệu APP sửa máy)", (r["thieu_dau"]["ngay"], r["thieu_dau"]["so_tien"]), ("2026-11-20", 15000000.0))
 	la("nguồn số dư và giờ đọc đi kèm", (r["so_du"]["nguon"], r["so_du"]["luc"]), ("SePay", "2026-11-13 09:30:00"))
+	la("Codex #561: lịch tạm thôi vẫn trả về cho màn, kèm cờ", sorted((x["name"], x["bat"]) for x in r["lich_chi"]), [("LC-00001", 1), ("LC-00009", 0)])
+	la("Codex #561: lịch tạm thôi không vào phép tính (16/11 không có dòng nào)",
+		[m["ma"] for x in r["ngay"] for m in x["muc"] if m["nguon"] == "lich"], ["LC-00001"])
+
+
+@ca("v654 Codex #561 loại 3: dự chi tay gắn hoá đơn đã có đợt hay APP chỉ đếm phần còn lại, một nghĩa vụ đếm một lần")
+def _codex_tay_trung():
+	no = dict(NO_18, co_the_tra=100 * TR)
+	dot = [{"dot": "DC-26-11-20", "ngay_dot": D(2026, 11, 20), "trang_thai": "Cho ke toan", "hoa_don": no["hoa_don"],
+		"so_tra": 100 * TR, "co_the_tra": 100 * TR, "hen_dot": None}]
+	tay = [dict(CHI_GAP, hoa_don=no["hoa_don"], so_tien=100 * TR)]
+	m, kq = _lich(hd=[no], dot=dot, tay=tay)
+	la("dư nợ 100, đợt trả 100, dự chi tay 100: tổng 100 (Codex: trước đây 200)", kq["tong"], 100 * TR)
+	t = [x for x in m if x["nguon"] == "tay"][0]
+	la("dòng tay còn hiện, số đếm 0, ghi rõ đã tính nơi khác 100", (t["so_tien"], t["da_tinh_noi_khac"], t["so_tien_nhap"]), (0, 100 * TR, 100 * TR))
+	# APP đang giữ trọn hoá đơn: _hd_no đã trừ phần APP giữ nên co_the_tra 0.
+	app = [{"name": "APP.26.11.090", "ngay": D(2026, 11, 14), "so_tien": 100 * TR, "ten_nhan": "Công nợ A", "loai": "NCC"}]
+	m, kq = _lich(hd=[dict(no, co_the_tra=0)], app=app, tay=tay)
+	la("APP giữ trọn hoá đơn, dự chi tay 100 gắn hoá đơn đó: tổng 100", kq["tong"], 100 * TR)
+	dot50 = [dict(dot[0], so_tra=50 * TR)]
+	m, kq = _lich(hd=[no], dot=dot50, tay=[dict(tay[0], so_tien=30 * TR)])
+	la("đợt 50, tay 30, máy đề xuất phần còn 20: tổng đúng dư nợ 100",
+		(sorted((x["nguon"], int(x["so_tien"] / TR)) for x in m), kq["tong"]), ([("dot", 50), ("may", 20), ("tay", 30)], 100 * TR))
+	m, kq = _lich(hd=[], tay=[dict(tay[0], hoa_don="HDM-DA-TRA", so_tien=40 * TR)])
+	la("gắn hoá đơn không còn nợ: không đếm thêm", kq["tong"], 0)
+	m, kq = _lich(hd=[no], tay=[dict(CHI_GAP)])
+	la("dự chi tay không gắn hoá đơn vẫn đếm đủ (không đổi)", sorted((x["nguon"], int(x["so_tien"] / TR)) for x in m), [("may", 100), ("tay", 10)])
+
+
+@ca("v654 Codex #561: tiền khả dụng chỉ trừ khoản chi SAU giờ đọc số dư, từ đúng tài khoản đã đọc")
+def _codex_so_du_anh():
+	luc = "2026-11-13 09:30:00"
+	rows = [{"tong_tien": 5 * TR, "luc": "2026-11-13 09:29:40", "tk_chi": "BA-CHI"},  # trước giờ đọc: số dư đã gồm
+		{"tong_tien": 7 * TR, "luc": "2026-11-13 09:30:00", "tk_chi": "BA-CHI"},  # đúng giờ đọc: đã gồm
+		{"tong_tien": 11 * TR, "luc": "2026-11-13 09:30:20", "tk_chi": "BA-CHI"},  # sau giờ đọc: trừ
+		{"tong_tien": 13 * TR, "luc": "2026-11-13 09:30:30", "tk_chi": "BA-KHAC"},  # tài khoản khác: không trừ
+		{"tong_tien": 17 * TR, "luc": "2026-11-13 09:30:40", "tk_chi": ""}]  # tiền mặt: không trừ
+	la("chỉ trừ 11 triệu", l.chi_sau_anh(rows, luc, "BA-CHI"), 11 * TR)
+	la("không biết tài khoản: không trừ gì", l.chi_sau_anh(rows, luc, None), 0)
+	la("không biết giờ đọc: không trừ gì", l.chi_sau_anh(rows, "", "BA-CHI"), 0)
+	import unittest.mock as um
+	from vagabond import du_chi, tai_chinh
+
+	fr = __import__("frappe")
+	hoi = []
+
+	def ga(dt_, filters=None, fields=None, **k):
+		hoi.append((dt_, dict(filters or {})))
+		return [Doi(r) for r in rows if r["tk_chi"] == (filters or {}).get("tk_chi")]
+	for luc_bao, mong in (("2026-11-13 09:30:00", 11 * TR), (None, 0)):
+		hoi.clear()
+		with um.patch.object(du_chi, "_tk_chi_so_du", lambda: ("BA-CHI", 100 * TR)), \
+				um.patch.object(tai_chinh, "_sepay_luc_bao", lambda: luc_bao), \
+				um.patch.object(l, "now_datetime", lambda: dt.datetime(2026, 11, 13, 9, 31, 0)), \
+				um.patch.object(fr, "get_all", ga):
+			r = l.so_du_kha_dung()
+		la("bản số dư đọc lúc %s: trừ %s" % (luc_bao or "ngay bây giờ", int(mong / TR)), (r["chi_sau"], r["luc"], r["tk"]),
+			(float(mong), luc_bao or "2026-11-13 09:31:00", "BA-CHI"))
+		la("chỉ hỏi APP đã trả của đúng tài khoản, sau giờ đọc", [(d, f.get("tk_chi"), f.get("modified")) for d, f in hoi],
+			[("Vagabond Ho So TT", "BA-CHI", [">", luc_bao or "2026-11-13 09:31:00"])])
+	with um.patch.object(du_chi, "_tk_chi_so_du", lambda: ("BA-CHI", None)):
+		r = l.so_du_kha_dung()
+	la("không đọc được số dư: không đoán", (r["so_tien"], r["chi_sau"]), (None, 0))
+
+
+@ca("v654 Codex #561: nhà cung cấp lưu theo MÃ chọn từ danh mục, không đoán từ chữ gõ; hoá đơn phải cùng nhà")
+def _codex_ncc_ma():
+	import unittest.mock as um
+	from vagabond import ho_so_tt
+
+	fr = __import__("frappe")
+	ncc = {"SUP-AN-PHU": "Bơ sữa An Phú", "Nguyễn Hữu Phước": "Nguyễn Hữu Phước"}
+	pi = {"HDM-26-11-00195": "SUP-AN-PHU"}
+	luu = []
+
+	class Phieu(Doi):
+		def save(self, **k):
+			luu.append(dict(self))
+
+	def gv(dt_, ten, truong=None, *a, **k):
+		if dt_ == "Supplier" and truong == "supplier_name":
+			return ncc.get(ten)
+		if dt_ == "Purchase Invoice" and truong == "supplier":
+			return pi.get(ten)
+		return None
+
+	def ex(dt_, ten=None, *a, **k):
+		if dt_ == "Supplier":
+			return ten if ten in ncc else None
+		if dt_ == "Purchase Invoice":
+			return (ten or {}).get("name") in pi if isinstance(ten, dict) else ten in pi
+		return None
+	vs = [um.patch.object(fr.db, "get_value", gv), um.patch.object(fr.db, "exists", ex),
+		um.patch.object(fr, "new_doc", lambda dt_: Phieu(doctype=dt_, name="DCM-MOI", flags=__import__("types").SimpleNamespace()), create=True),
+		um.patch.object(fr, "get_roles", lambda *a: ["Purchase User"], create=True),
+		um.patch.object(ho_so_tt, "VAI_LAP", {"Purchase User"})]
+	for v in vs:
+		v.start()
+	try:
+		co = {"ngay": "2026-11-15", "noi_dung": "Trả bơ", "so_tien": "5000000"}
+		l.luu_muc(nguoi_nhan="Bơ sữa An Phú", **co)
+		la("gõ đúng tên một nhà cung cấp mà không chọn: KHÔNG tự gắn nhà cung cấp", (luu[-1]["nha_cung_cap"], luu[-1]["nguoi_nhan"]),
+			(None, "Bơ sữa An Phú"))
+		l.luu_muc(nha_cung_cap="SUP-AN-PHU", nguoi_nhan="gì cũng được", **co)
+		la("chọn mã: lưu mã, người nhận là tên trong danh mục", (luu[-1]["nha_cung_cap"], luu[-1]["nguoi_nhan"]), ("SUP-AN-PHU", "Bơ sữa An Phú"))
+		nem("mã không có trong danh mục", lambda: l.luu_muc(nha_cung_cap="SUP-GO-NHAM", **co))
+		l.luu_muc(hoa_don="HDM-26-11-00195", **co)
+		la("chỉ gắn hoá đơn: nhà cung cấp lấy theo hoá đơn", luu[-1]["nha_cung_cap"], "SUP-AN-PHU")
+		nem("hoá đơn của nhà khác với nhà đã chọn", lambda: l.luu_muc(hoa_don="HDM-26-11-00195", nha_cung_cap="Nguyễn Hữu Phước", **co))
+		l.luu_lich(noi_dung="Tiền nhà", nha_cung_cap="Nguyễn Hữu Phước", so_tien="86900000", ngay_trong_thang=20)
+		la("lịch hằng tháng lưu theo mã", (luu[-1]["nha_cung_cap"], luu[-1]["nguoi_nhan"]), ("Nguyễn Hữu Phước", "Nguyễn Hữu Phước"))
+		l.luu_lich(noi_dung="Tiền điện", nguoi_nhan="EVN", so_tien="3200000", ngay_trong_thang=7)
+		la("lịch cho người nhận khác: không gắn nhà cung cấp", (luu[-1]["nha_cung_cap"], luu[-1]["nguoi_nhan"]), (None, "EVN"))
+		nem("lịch không có nhà cung cấp, không có người nhận", lambda: l.luu_lich(noi_dung="Tiền điện", so_tien="1", ngay_trong_thang=7))
+	finally:
+		for v in reversed(vs):
+			v.stop()
+	# Trùng lịch theo MÃ: lịch gắn mã, APP tháng 11 của đúng mã đó thì lịch tháng 11 không đếm nữa.
+	lc = [dict(TIEN_NHA, khoa=l._khoa_nhan("SUP-NHA", "Ông Phước (gõ khác tên)"), nha_cung_cap="SUP-NHA")]
+	m = l.ghep_muc(HOM, DEN, [], [], [], [], lc, {("SUP-NHA", "2026-11")})
+	la("khoá lịch là mã nhà cung cấp, không phải chữ hiển thị", [x["ngay"] for x in m], [D(2026, 12, 20)] if DEN >= D(2026, 12, 20) else [])
