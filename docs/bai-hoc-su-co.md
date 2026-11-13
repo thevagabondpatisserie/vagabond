@@ -3144,3 +3144,13 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 - Kiểm bánh khai `track_changes: 1` trong JSON nhưng không có Version nào sau 20/08/2026: Property Setter "Kiem Banh Ngay-main-track_changes" = 0 tạo bằng Tùy chỉnh biểu mẫu lúc 18:23 ngày 20/08 (sau khi bảng đã sinh 25.452 Version, nhịp đồng bộ mỗi phút một bản). Property Setter thắng JSON; đọc bảng Property Setter trên site trước khi tin JSON. Không bật lại: vết người cần thì ghi ở ô riêng (`sx_nguoi`, `sx_luc`) và Nhật ký BTP.
 - Duyệt cả đợt rồi máy lập chứng từ thay người: hàm lập APP chỉ cho vai lập gọi, giám đốc bấm duyệt thì mọi nhà cung cấp đều hỏng quyền. Máy lập đứng tên người lập đợt (`frappe.set_user` trong `try/finally`), và vì `ho_so_tt.tao` tự commit nên khoá dòng của đợt nhả sau nhà cung cấp đầu: lượt chốt phải giữ khoá có tên suốt lượt, nhận lại APP đã lập theo ghi chú đợt khi chạy lại.
 - Đường phụ cho tin khách (Zalo trước, WhatsApp sau): lỗi của CẢ lượt Zalo (hết hạn mức, mẫu lệch) không được rơi sang WhatsApp, vì dòng còn chờ lượt sau gửi Zalo, rơi lúc này là gửi trùng hai kênh. Chỉ lỗi riêng một khách mới rơi.
+
+## 13/11/2026 (v654): Bánh có sẵn gửi lặp, hoá đơn mua thiếu XML PDF, Lịch dự chi
+
+- Tin "Bánh có sẵn hôm nay" gửi lặp vì dấu "đã gửi" chỉ nằm ở Redis và khoá chống trùng có chứa giờ phút: Redis mất khoá hay sang phút mới là coi như chưa gửi. Dấu chống gửi trùng phải dựa trên NỘI DUNG (mã, cỡ, số lượng bán được) và lưu bền, chỉ gửi khi nội dung đổi.
+- Đọc hộp thư hoá đơn từ thư cũ nhất thì mỗi lượt hết giờ trước khi tới thư mới, hoá đơn mới không bao giờ được nhận tệp. Đọc thư mới trước, thư cũ để nút Quét lại riêng.
+- So giờ bằng chuỗi cắt tới giây làm mất phần lẻ giây: chứng từ ghi cùng giây với giờ đọc số dư bị coi là "trước" và không bị trừ. Lưu và so đủ micro giây.
+- Hoá đơn nháp từng được coi là "tháng này đã có hoá đơn" và che dòng lịch tiền nhà. Chỉ chứng từ ĐÃ ghi sổ mới thay được một dòng lịch.
+- Hạn thanh toán trên hoá đơn công nợ của tiệm bằng đúng ngày hoá đơn (117 hoá đơn đang nợ ngày 13/11), nên không dùng hạn để đoán ngày tiền về. Ngày về = ngày hoá đơn cộng trung vị số ngày khách đó từng trả; hoá đơn đã quá ngày dự kiến không cộng vào ngày nào.
+- Codex PR #561 vòng 5: cùng một phép trừ "chi sau giờ SePay báo" nằm ở hai nơi (hàm số dư và màn lịch) nên bị trừ hai lần, báo thiếu tiền giả và lệch với màn Đợt. Số đã điều chỉnh chỉ tính ở một hàm, bỏ hẳn hàm trừ còn lại, ca kiểm chạy endpoint với chi sau khác 0.
+- Codex PR #561 vòng 5: tổng nhiều tài khoản mà có tài khoản chưa chốt số dư thì không được trả phần đã biết như thể là tổng, vì nó trông như đủ mà thật ra thiếu. Trả "chưa xác định", nêu tên tài khoản; chỗ ẩn số cho người không có quyền cũng phải báo "chưa rõ", không để màn trông như đủ tiền.
