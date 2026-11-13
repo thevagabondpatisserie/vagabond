@@ -268,6 +268,14 @@ def _codex_so_du_anh():
 	la("chỉ trừ 11 triệu", l.chi_sau_anh(rows, luc, "BA-CHI"), 11 * TR)
 	la("không biết tài khoản: không trừ gì", l.chi_sau_anh(rows, luc, None), 0)
 	la("không biết giờ đọc: không trừ gì", l.chi_sau_anh(rows, "", "BA-CHI"), 0)
+	# Codex #561 vòng 3: so đủ phần lẻ giây. Bút toán 09:30:00.8 ghi SAU bản số dư 09:30:00
+	# (cùng một giây) vẫn phải trừ; bản đọc lúc 09:30:00.9 thì đã gồm khoản đó.
+	cung_giay = [{"tong_tien": 60 * TR, "luc": "2026-11-13 09:30:00.800000", "tk_chi": "BA-CHI"},
+		{"tong_tien": 3 * TR, "luc": dt.datetime(2026, 11, 13, 9, 30, 0, 950000), "tk_chi": "BA-CHI"}]
+	la("cùng giây, sau giờ đọc 09:30:00: trừ cả 63 triệu", l.chi_sau_anh(cung_giay, "2026-11-13 09:30:00", "BA-CHI"), 63 * TR)
+	la("giờ đọc 09:30:00.900000: chỉ trừ 3 triệu ghi lúc .95", l.chi_sau_anh(cung_giay, "2026-11-13 09:30:00.900000", "BA-CHI"), 3 * TR)
+	la("giờ đọc là datetime cũng so đúng", l.chi_sau_anh(cung_giay, dt.datetime(2026, 11, 13, 9, 30, 0, 900000), "BA-CHI"), 3 * TR)
+	la("giờ hỏng: không trừ gì", l.chi_sau_anh(cung_giay, "hôm nay", "BA-CHI"), 0)
 	import unittest.mock as um
 	from vagabond import du_chi, tai_chinh
 
