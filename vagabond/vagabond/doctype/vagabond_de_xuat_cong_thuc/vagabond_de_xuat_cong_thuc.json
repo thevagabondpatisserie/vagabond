@@ -114,7 +114,7 @@
   }
  ],
  "links": [],
- "modified": "2026-11-13 18:00:00.000000",
+ "modified": "2026-11-13 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond De Xuat Cong Thuc",
@@ -141,34 +141,7 @@
    "export": 1
   },
   {
-   "role": "Manufacturing User",
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "print": 1,
-   "report": 1,
-   "export": 1
-  },
-  {
    "role": "VGB - Quản lý công thức",
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "print": 1,
-   "report": 1,
-   "export": 1
-  },
-  {
-   "role": "Bếp phó",
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "print": 1,
-   "report": 1,
-   "export": 1
-  },
-  {
-   "role": "Quầy Bar",
    "read": 1,
    "write": 1,
    "create": 1,
