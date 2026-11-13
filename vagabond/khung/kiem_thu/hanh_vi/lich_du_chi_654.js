@@ -389,6 +389,19 @@ function chuanCham(a, chon, ten) {
     assert(t.indexOf('Khoản có thể thương lượng dời') >= 0, 'vẫn nêu khoản cần thương lượng');
   }
   {
+    /* 12b. Codex #561 vòng 5: máy chưa xác định được số dư (tài khoản chưa chốt):
+       Thu mua phải biết là chưa báo được ngày thiếu, không để lịch trông như đủ tiền. */
+    const l = lichAnh(100000000);
+    l.so_du = { an: 1, chua_ro: 1 }; l.du_kien_ve = { an: 1 };
+    l.ngay = l.ngay.map(g => Object.assign({}, g, { con_lai: null, thieu: null, ve: null, khong_du: 0 }));
+    l.thieu_dau = null;
+    const a = appMoi(khoMay(), { l, gy: GY });
+    await a.moMan();
+    const t = a.than().innerHTML;
+    assert(t.indexOf('Máy chưa xác định được số dư ngân hàng nên chưa báo được ngày nào không đủ tiền') >= 0, 'nói rõ chưa báo được ngày thiếu');
+    assert(t.indexOf('Chỉ Giám đốc và người được xem mục Tài chính thấy số này') < 0, 'không nói máy vẫn đang dùng số');
+  }
+  {
     /* 13. Tiền về hiện ở đầu ngày. */
     const l = lichAnh(100000000);
     l.ngay[2].ve = 16000000;
