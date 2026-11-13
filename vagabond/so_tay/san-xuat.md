@@ -440,6 +440,88 @@ Công thức đã ghi sổ không sửa thẳng được. Ghi sổ bản mới x
 **Lưu ý**
 - Đổi công thức thì soát lại hướng dẫn chế biến (nút chuyển sang [[Soát lại HD]]).
 
+## Đề xuất công thức bánh mới
+Từ khoá: phiếu đề xuất công thức, bánh mới, recipe mới, gửi Khải, cấp 1, cấp 2, nhiều size, giá vốn dự kiến, mã gần giống
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp phó, Lab, quầy bar | Công thức (/cong-thuc), nút [[Phiếu đề xuất công thức]] | [[Gửi Khải]] |
+
+Bếp ghi công thức bánh mới một lần cho mọi size; Khải lên mã và công thức.
+
+**Các bước**
+1. Mở Công thức, bấm [[Phiếu đề xuất công thức]], bấm nút tròn dấu cộng.
+2. Gõ Tên bánh, bấm các chip size (12cm, 16cm, 18cm, 20cm, Slice, [[+ Size khác]]).
+3. Bấm [[+ Mã có sẵn]] hoặc [[+ Thành phần mới]] (thứ chưa có mã).
+4. Gõ tên thành phần mới: máy báo mã gần giống thì bấm mã đó, hoặc [[Không phải, vẫn tạo mới]].
+5. Bấm chip Vào đâu: Ruột (cấp 1), Khuôn (cấp 2) hoặc Thành phẩm.
+6. Gõ gram một size, bấm [[Gợi ý các size còn trống]] (máy tính theo diện tích khuôn), sửa ô nào lệch.
+7. Thành phần mới: gõ Một mẻ ra được (gram) và thêm nguyên liệu của nó.
+8. Bấm [[Lưu nháp]] để xem Giá vốn dự kiến, rồi [[Gửi Khải]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| ... chọn thành phần này vào ruột (cấp 1), khuôn (cấp 2) hay thành phẩm | Bấm chip Vào đâu |
+| Size ... chưa có thành phần nào có gram | Gõ gram hoặc bỏ chip size |
+| ... là thành phần mới: ghi một mẻ ra được bao nhiêu gram | Gõ Một mẻ ra được và nguyên liệu của nó |
+| ... đang dùng lẫn nhau thành vòng | Hai thành phần mới không lấy lẫn nhau |
+
+**Lưu ý**
+- Chữ đỏ Thiếu giá: nguyên liệu chưa có giá, vẫn gửi được.
+- Khải hỏi lại thì phiếu về Trả lại bếp (hiện ở Việc cần làm). Sửa rồi [[Gửi Khải]] lại.
+
+## Khải lên mã và ghi sổ phiếu đề xuất
+Từ khoá: duyệt phiếu đề xuất công thức, tạo mã và công thức, ghi sổ tất cả, hỏi lại bếp, mã thành phẩm từng size, BTPB, NBTP
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khải, bếp trưởng, giám đốc | Việc cần làm, hoặc Công thức, [[Phiếu đề xuất công thức]] | [[Tạo mã và công thức]], [[Ghi sổ tất cả]] |
+
+**Các bước**
+1. Mở phiếu Chờ Khải từ Việc cần làm (dòng 📝 Đề xuất công thức).
+2. Từng size bấm [[Chọn mã]], chọn mã thành phẩm bán ra của size đó.
+3. Bấm [[Tạo mã và công thức]]: máy tạo mã thành phần mới (BTPB), mã cấp 1, cấp 2 từng size (NBTP) và công thức nháp. Chưa ghi sổ.
+4. Bấm từng công thức ở mục Đã tạo để xem lại.
+5. Bấm [[Ghi sổ tất cả]]: máy ghi sổ từ thành phần lên thành phẩm.
+6. Cần bếp sửa: bấm [[Hỏi lại bếp]], gõ câu hỏi.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Size ...: chọn mã thành phẩm (mã bán ra) cho size này | Bấm [[Chọn mã]] cho size đó |
+| Mã ... đang có bản nháp công thức ... | Bỏ hoặc ghi sổ bản đó ở Danh mục công thức rồi bấm lại |
+| Chưa có nhóm hàng ... / chưa khai tiền tố mã | Khai trên Desk rồi bấm lại |
+
+**Lưu ý**
+- Giá vốn từng size và % giá bán hiện khi đã chọn mã thành phẩm có giá bán.
+
+## Đề xuất điều chỉnh công thức đang dùng
+Từ khoá: đề xuất điều chỉnh, sửa công thức qua phiếu, bảng trước và sau, lý do sửa, duyệt và ghi sổ, giá vốn chênh
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp phó, Lab đề xuất; Khải duyệt | Công thức (/cong-thuc) | [[Đề xuất điều chỉnh]], [[Duyệt và ghi sổ]] |
+
+Bếp muốn đổi định lượng công thức đang dùng thì gửi phiếu, Khải duyệt mới ra phiên bản mới. Lịch sử ghi người đề xuất, người duyệt, lý do.
+
+**Các bước**
+1. Mở công thức đang dùng, bấm [[Đề xuất điều chỉnh]].
+2. Sửa số lượng, bấm dấu × để bỏ dòng, [[+ Mã có sẵn]] để thêm.
+3. Gõ Lý do sửa, bấm [[Lưu nháp]]: máy hiện bảng Trước, Sau và giá vốn chênh.
+4. Bấm [[Gửi Khải]].
+5. Khải mở phiếu, bấm [[Duyệt và ghi sổ]] hoặc [[Hỏi lại bếp]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Phiếu không đổi dòng nào so với công thức đang dùng | Sửa ít nhất một dòng |
+| Công thức ... không còn là bản đang dùng | Có người đã ra bản mới; mở bản mới, đề xuất lại |
+| Dòng ...: chọn mã có sẵn | Thành phần chưa có mã thì lập phiếu đề xuất bánh mới |
+
+**Lưu ý**
+- Màn công thức hiện Giá vốn một cái và % giá bán; chữ đỏ Thiếu giá là nguyên liệu chưa có giá.
+
 ## Xuất công thức (BOM) ra Excel
 Từ khoá: xuất BOM, xuất excel công thức, tải BOM, export BOM, định mức ra excel, file BOM, hướng dẫn tôi xuất file BOM ra excel
 

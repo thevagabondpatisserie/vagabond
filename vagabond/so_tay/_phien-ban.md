@@ -12,6 +12,11 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v656
+- Đề xuất công thức bánh mới
+- Khải lên mã và ghi sổ phiếu đề xuất
+- Đề xuất điều chỉnh công thức đang dùng
+
 ## v654
 - Tin Bánh có sẵn hôm nay gửi khi nào
 - Tin Zalo Bánh có sẵn hôm nay
