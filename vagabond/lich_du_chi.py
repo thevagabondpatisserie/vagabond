@@ -262,12 +262,12 @@ def theo_ngay(so_du, muc):
 
 
 def chi_sau_anh(rows, luc_anh, tk):
-	"""Tổng APP đã trả SAU giờ đọc số dư, từ ĐÚNG tài khoản đã đọc. THUẦN.
+	"""Tổng tiền ĐI RA khỏi tài khoản đã đọc số dư, ghi sổ SAU giờ đọc. THUẦN.
 
-	rows: [{tong_tien, luc (giờ ghi nhận trả), tk_chi}]. Khoản trả trước hay đúng
-	giờ đọc đã nằm trong số dư nên không trừ lại; khoản trả từ tài khoản khác
-	hay tiền mặt không làm đổi số dư tài khoản này. Không biết tài khoản hay giờ
-	đọc thì không trừ gì (Codex #561)."""
+	rows: [{tong_tien, luc (giờ ghi sổ), tk_chi (tài khoản sổ cái)}]. Khoản ghi
+	trước hay đúng giờ đọc đã nằm trong số dư nên không trừ lại; khoản của tài
+	khoản khác hay tiền mặt không làm đổi số dư tài khoản này. Không biết tài
+	khoản hay giờ đọc thì không trừ gì (Codex #561)."""
 	if not tk or not luc_anh:
 		return Decimal(0)
 	moc = str(luc_anh)[:19]
@@ -389,9 +389,13 @@ def so_du_kha_dung():
 	# Bản số dư có thể là bản đệm tới một phút (tai_chinh.SEPAY_DEM_GIAY): giờ đọc
 	# là giờ SePay trả về bản đó, không phải giờ mở màn.
 	luc = tai_chinh._sepay_luc_bao() or str(now_datetime())[:19]
-	rows = frappe.get_all("Vagabond Ho So TT", filters={"trang_thai": "Da thanh toan", "tk_chi": ba,
-		"modified": [">", luc]}, fields=["tong_tien", "modified as luc", "tk_chi"], limit_page_length=0) if ba else []
-	chi = chi_sau_anh([dict(r) for r in rows], luc, ba)
+	# Codex #561 vòng 2: đọc tiền đi ra theo SỔ CÁI của đúng tài khoản ngân hàng đó,
+	# không theo ô tk_chi của APP (APP nhà cung cấp thường để trống, tài khoản chỉ
+	# được suy ra lúc ghi Payment Entry). Payment Entry và Journal Entry đều ghi GL Entry.
+	tk_gl = frappe.db.get_value("Bank Account", ba, "account") if ba else None
+	rows = frappe.get_all("GL Entry", filters={"account": tk_gl, "is_cancelled": 0, "credit": [">", 0], "creation": [">", luc]},
+		fields=["credit as tong_tien", "creation as luc", "account as tk_chi"], limit_page_length=0) if tk_gl else []
+	chi = chi_sau_anh([dict(r) for r in rows], luc, tk_gl)
 	return {"so_tien": flt(v), "luc": luc, "nguon": "Số dư tài khoản chi theo SePay", "chi_sau": flt(chi), "tk": ba or ""}
 
 
