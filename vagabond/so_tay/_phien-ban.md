@@ -18,6 +18,8 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Hoàn tất lệnh sản xuất
 - Vì sao không hoàn tất được lệnh sản xuất
 - OnePay nối theo số đơn Pancake và tự đối chiếu lại mỗi giờ
+- Nhận đơn khách gọi món tại bàn qua QR
+- In hoá đơn, in tạm tính, phiếu làm món và tem món
 
 ## v654
 - Tin Bánh có sẵn hôm nay gửi khi nào
