@@ -207,3 +207,13 @@ def _goi_y_cac_size():
 	r = x.goi_y_cac_size({"dich": "thanh_pham", "gram": {"16": 3}}, ["12", "16", "20"])
 	la("trang trí giữ nguyên số", (r["gram"]["12"], r["gram"]["20"]), (3, 3))
 	la("chưa có size tròn nào có gram", x.goi_y_cac_size({"gram": {"Slice": 5}}, ["Slice", "16"])["goc"], None)
+
+
+@ca("v656 Codex #563: cờ nổ từng dòng theo hợp đồng phantom (BTP thành phần nổ xuống, cấp 1, cấp 2 giữ tồn)")
+def _co_dong():
+	la("BTP thành phần không quản tồn có công thức: dòng phantom trỏ công thức con",
+		x.co_dong(0, "BOM-BTPB00215-001"), {"is_phantom_item": 1, "bom_no": "BOM-BTPB00215-001", "do_not_explode": 0})
+	la("ruột cấp 1, bánh khuôn cấp 2 quản tồn có công thức: chặn nổ, bỏ bom_no",
+		x.co_dong(1, "BOM-NBTP00070-001"), {"is_phantom_item": 0, "bom_no": "", "do_not_explode": 1})
+	la("nguyên liệu mua vào: để mặc định", x.co_dong(1, ""), {})
+	la("mã không quản tồn chưa có công thức: để mặc định (chưa có gì để nổ)", x.co_dong(0, ""), {})
