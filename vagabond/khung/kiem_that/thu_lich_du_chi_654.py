@@ -43,6 +43,13 @@ def _phieu_chi_ncc(hd, ba, tk_gl, tien):
 	pe.set_missing_values()
 	pe.insert(ignore_permissions=True)
 	_DA_TAO.append(("Payment Entry", pe.name))
+	# Phiếu chi qua ngân hàng bắt buộc có Uỷ nhiệm chi đính kèm (chung_tu_tien): kèm một
+	# UNC thử, nội dung riêng để không trùng tệp của ca khác.
+	tep = frappe.get_doc({"doctype": "File", "file_name": "kt654-unc-%s.txt" % pe.name, "is_private": 1,
+		"content": "UNC thu bench 654 " + frappe.generate_hash(length=16),
+		"attached_to_doctype": "Payment Entry", "attached_to_name": pe.name})
+	tep.insert(ignore_permissions=True)
+	_DA_TAO.append((tep.doctype, tep.name))
 	pe.submit()
 	return pe
 
