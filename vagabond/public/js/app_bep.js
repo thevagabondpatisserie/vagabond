@@ -73139,6 +73139,12 @@ function scrDxSua(name) {
       '</div>' + goiY + chip + gram + con + '</div>';
   }
 
+  /* Chữ đỏ Thiếu giá dùng chung cho phiếu mới và phiếu điều chỉnh (Codex #563). */
+  function thieuGia() {
+    return (f.thieu_gia || []).length ? '<div style="color:#b3261e;font-size:13px;margin-top:6px;line-height:1.45">⚠️ Thiếu giá: ' +
+      h(f.thieu_gia.join(', ')) + '. Giá vốn trên đang thiếu phần này.</div>' : '';
+  }
+
   function hopGia() {
     if (dc) {
       var d = f.doi_chieu;
@@ -73154,7 +73160,7 @@ function scrDxSua(name) {
             '<td style="text-align:right;padding:5px;border-top:1px solid #eef0f3">' + (r.moi == null ? '' : num(r.moi)) + '</td></tr>';
         }).join('') + '</table>' +
         '<div style="font-size:14px;margin-top:8px">Giá vốn: <b>' + money(d.von_cu) + ' đ</b> → <b>' + money(d.von_moi) + ' đ</b> (' +
-        (cl >= 0 ? '+' : '') + money(cl) + ' đ)</div>';
+        (cl >= 0 ? '+' : '') + money(cl) + ' đ)</div>' + thieuGia();
     }
     var g = f.gia || {};
     if (!dl.sizes.length) return '';
@@ -73164,7 +73170,7 @@ function scrDxSua(name) {
         '<span>Size ' + h(s) + '</span><span><b>' + money(x.von || 0) + ' đ</b>' +
         (x.ban ? ' · bán ' + money(x.ban) + ' đ · <b>' + x.ty_le + '%</b>' : '') + '</span></div>';
     }).join('') +
-      ((f.thieu_gia || []).length ? '<div style="color:#b3261e;font-size:13px;margin-top:6px;line-height:1.45">⚠️ Thiếu giá: ' + h(f.thieu_gia.join(', ')) + '. Giá vốn trên đang thiếu phần này.</div>' : '') +
+      thieuGia() +
       '<div class="mut" style="font-size:13px;margin-top:6px">Giá vốn dự kiến, tính lại mỗi lần Lưu nháp. % giá bán hiện khi Khải đã chọn mã thành phẩm.</div>';
   }
 
