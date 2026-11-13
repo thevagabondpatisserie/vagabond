@@ -59,6 +59,11 @@ function appMoi(kho, may) {
     if (m === 'vagabond.lich_du_chi.lich') return JSON.parse(JSON.stringify(may.l));
     if (m === 'vagabond.lich_du_chi.goi_y_lich') return JSON.parse(JSON.stringify(may.gy));
     if (m === 'vagabond.lich_du_chi.luu_muc' || m === 'vagabond.lich_du_chi.luu_lich') return { name: 'X-1' };
+    if (m === 'vagabond.lich_du_chi.chon_ncc') return [{ name: 'SUP-AN-PHU', ten: 'Bơ sữa An Phú', mst: '0301234567' }];
+    if (m === 'vagabond.lich_du_chi.chon_hoa_don') return [{ name: 'HDM-26-11-00195', ncc: 'SUP-AN-PHU', ten: 'Bơ sữa An Phú', so: '8882', con_no: 820000 }];
+    if (m === 'vagabond.lich_du_chi.chi_tiet_muc') return { name: a.name, ngay: '2026-11-15', noi_dung: 'Chi gấp', so_tien: 10000000, nguoi_nhan: 'Chợ', ly_do: '', hoa_don: '', trang_thai: 'Nhap', ho_so_app: '', nguon: 'Nhập tay', nha_cung_cap: '', ten_ncc: '' };
+    if (m === 'vagabond.lich_du_chi.chon_app') return [{ name: 'APP.26.11.077', ten: 'Thợ', ngay: '2026-11-14', so_tien: 10000000, trang_thai: 'Chờ kế toán duyệt' }];
+    if (m === 'vagabond.lich_du_chi.noi_app') return { name: a.name, ho_so_app: a.ho_so_app };
     if (m === 'vagabond.du_chi.chi_tiet') return JSON.parse(JSON.stringify(d));
     if (m === 'vagabond.du_chi.luu') {
       JSON.parse(a.dong).forEach(x => {
@@ -83,7 +88,7 @@ function appMoi(kho, may) {
     'function errMsg(e) { return String((e && e.message) || e); }',
     'function confirmSheet(t) { __hop.push(["confirm", t]); return Promise.resolve(true); }',
     'var __chu = null; function hoiChu(t, n, m, o) { __hop.push(["hoiChu", t, !!(o && o.bat_buoc)]); return Promise.resolve(__chu); }',
-    'function hoiChon(t, m, ds) { __hop.push(["hoiChon", t]); return Promise.resolve("tiep"); }',
+    'var __chon = {}; function hoiChon(t, m, ds) { __hop.push(["hoiChon", t, (ds || []).map(function (x) { return x.k; })]); return Promise.resolve(__chon[t] || "tiep"); }',
     'function api(m, a) { return __api(m, a); }',
     'function vgbGomNhom() {} function hqLaHop() { return false; }',
     'async function scrHome() { frame(APPNAME, "<div class=\\"emp\\">...</div>"); }',
@@ -115,6 +120,11 @@ function appMoi(kho, may) {
     async moMan() { await g.reset(g.scrHome); await nghi(); g.go(g.scrDuChi); await nghi(); await nghi(); await nghi(); },
     async bamId(id) { const el = tl.getElementById(id); assert(el, 'thiếu ' + id); await than().onclick({ target: el }); await nghi(); await nghi(); },
     dat(id, v) { const el = tl.getElementById(id); assert(el, 'thiếu ô ' + id); el.value = v; },
+    /* Gõ thật: đặt chữ rồi phát sự kiện input như bàn phím (phần 48 nghe ở document). */
+    async gõ(id, v) {
+      const el = tl.getElementById(id); assert(el, 'thiếu ô ' + id); el.value = v;
+      const ev = dom.suKien('input', {}, el); (nghe.input || []).forEach(f => f(ev)); el.dispatchEvent(ev); await nghi();
+    },
   };
 }
 
@@ -175,14 +185,14 @@ function chuanCham(a, chon, ten) {
     const a = appMoi(khoMay(), { l: lichAnh(100000000), gy: GY });
     await a.moMan();
     await a.bamId('ldcThem');
-    assert(a.than().innerHTML.indexOf('Ngày cần chi') >= 0 && a.than().innerHTML.indexOf('Người nhận / Nhà cung cấp') >= 0, 'form đủ ô theo ảnh');
-    chuanCham(a, ['#ldcNgay', '#ldcND', '#ldcTien', '#ldcNhan', '#ldcHD', '#ldcTimHD', '#ldcLuu'], 'form Thêm dự chi');
+    assert(a.than().innerHTML.indexOf('Ngày cần chi') >= 0 && a.than().innerHTML.indexOf('Nhà cung cấp') >= 0 && a.than().innerHTML.indexOf('Người nhận khác') >= 0, 'form đủ ô theo ảnh');
+    chuanCham(a, ['#ldcNgay', '#ldcND', '#ldcTien', '#ldcNcc', '#ldcNhan', '#ldcHDTim', '#ldcTimHD', '#ldcLuu'], 'form Thêm dự chi');
     a.dat('ldcNgay', '2026-11-15'); a.dat('ldcND', 'Chi gấp'); a.dat('ldcTien', '10.000.000'); a.dat('ldcNhan', 'Chợ Bến Thành'); a.dat('ldcLyDo', 'Hết bơ');
     await a.bamNut('ldcLuu');
     const l = a.goi.filter(x => x.m === 'vagabond.lich_du_chi.luu_muc');
     assert.equal(l.length, 1, 'Lưu dự chi nháp gọi máy chủ một lần');
-    assert.deepEqual([l[0].a.ngay, l[0].a.noi_dung, l[0].a.so_tien, l[0].a.nguoi_nhan, l[0].a.ly_do, l[0].a.hoa_don, l[0].a.name],
-      ['2026-11-15', 'Chi gấp', '10000000', 'Chợ Bến Thành', 'Hết bơ', '', ''], 'gửi đúng các ô, số bỏ dấu chấm');
+    assert.deepEqual([l[0].a.ngay, l[0].a.noi_dung, l[0].a.so_tien, l[0].a.nguoi_nhan, l[0].a.ly_do, l[0].a.hoa_don, l[0].a.name, l[0].a.nha_cung_cap],
+      ['2026-11-15', 'Chi gấp', '10000000', 'Chợ Bến Thành', 'Hết bơ', '', '', ''], 'gửi đúng các ô, số bỏ dấu chấm; người nhận khác không gắn nhà cung cấp');
   }
   {
     /* 3. Chưa đọc được số dư. */
@@ -205,7 +215,7 @@ function chuanCham(a, chon, ten) {
     chuanCham(a, ['[data-lcgy]'], 'gợi ý');
     await a.bam(a.tl.querySelector('[data-lcgy="0"]'));
     assert.equal(a.tl.getElementById('lcNgay').value, '5', 'form lịch điền sẵn ngày 5');
-    chuanCham(a, ['#lcND', '#lcNhan', '#lcTien', '#lcNgay', '#lcBat', '#lcLuu'], 'form lịch');
+    chuanCham(a, ['#lcND', '#lcNcc', '#lcNhan', '#lcTien', '#lcNgay', '#lcBat', '#lcLuu'], 'form lịch');
     await a.bamNut('lcBat');
     assert(a.tl.getElementById('lcBat').innerHTML.indexOf('tạm thôi tính') >= 0, 'bấm lần một: tạm thôi');
     await a.bamNut('lcBat');
@@ -214,5 +224,150 @@ function chuanCham(a, chon, ten) {
     assert.deepEqual([l[0].a.noi_dung, l[0].a.so_tien, l[0].a.ngay_trong_thang, l[0].a.bat, l[0].a.so_thang_thay],
       ['MA THANH SON', '37300000', '5', 1, 3], 'lưu lịch đúng gợi ý');
   }
-  console.log('PASS 654 Lịch dự chi: màn theo ảnh, Thêm dự chi, thiếu số dư, gợi ý lịch, chuẩn chạm');
+  {
+    /* 5. Codex #561: nhà cung cấp chọn từ danh mục (QT-31), không gõ tự do. Chữ
+       đang gõ không mất khi mở ô chọn; lưu gửi MÃ nhà cung cấp. */
+    const a = appMoi(khoMay(), { l: lichAnh(100000000), gy: GY });
+    await a.moMan();
+    await a.bamId('ldcThem');
+    a.dat('ldcNgay', '2026-11-15'); a.dat('ldcND', 'Trả bơ'); a.dat('ldcTien', '5.000.000');
+    a.g.__chu = 'an phu'; a.g.__chon['Chọn nhà cung cấp'] = 'SUP-AN-PHU';
+    await a.bamId('ldcNcc');
+    const goiNcc = a.goi.filter(x => x.m === 'vagabond.lich_du_chi.chon_ncc');
+    assert.deepEqual(goiNcc.map(x => x.a.tu_khoa), ['an phu'], 'tìm trong danh mục theo chữ gõ');
+    assert(a.tl.getElementById('ldcNcc').innerHTML.indexOf('Bơ sữa An Phú') >= 0, 'nút chọn hiện tên nhà đã chọn');
+    assert(!a.tl.getElementById('ldcNhan'), 'đã chọn nhà cung cấp thì không còn ô gõ tự do');
+    assert.deepEqual([a.tl.getElementById('ldcNgay').value, a.tl.getElementById('ldcND').value, a.tl.getElementById('ldcTien').value],
+      ['2026-11-15', 'Trả bơ', '5000000'], 'chữ đã gõ còn nguyên sau khi chọn');
+    await a.bamNut('ldcLuu');
+    const l = a.goi.filter(x => x.m === 'vagabond.lich_du_chi.luu_muc').pop();
+    assert.deepEqual([l.a.nha_cung_cap, l.a.nguoi_nhan], ['SUP-AN-PHU', 'Bơ sữa An Phú'], 'lưu gửi mã nhà cung cấp');
+  }
+  {
+    /* 6. Codex #561: form Thêm dự chi có bản nháp tự lưu. Gõ dở, tải lại trang:
+       mở lại còn ngày, số tiền, người nhận, hoá đơn; không gọi lưu lên máy chủ. */
+    const kho = khoMay();
+    const a = appMoi(kho, { l: lichAnh(100000000), gy: GY });
+    await a.moMan();
+    await a.bamId('ldcThem');
+    await a.gõ('ldcNgay', '2026-11-16'); await a.gõ('ldcND', 'Sửa lò'); await a.gõ('ldcTien', '7.500.000');
+    await a.gõ('ldcNhan', 'Thợ điện Minh');
+    await a.tua(2000);
+    const khoa = Array.from(kho._m.keys()).filter(k => k.indexOf('vgbSoanDo:') === 0);
+    assert.equal(khoa.length, 1, 'có đúng một bản nháp trên máy');
+    assert.equal(a.goi.filter(x => /luu_muc|luu_lich/.test(x.m)).length, 0, 'bản nháp không tạo gì trên máy chủ');
+    const b = appMoi(kho, { l: lichAnh(100000000), gy: GY });
+    await b.moMan();
+    await b.bamId('ldcThem'); await nghi(); await nghi();
+    assert(b.hop.some(x => x[0] === 'hoiChon' && /đang soạn dở/.test(x[1])), 'hỏi mở tiếp bản đang soạn');
+    assert.deepEqual(['ldcNgay', 'ldcND', 'ldcTien', 'ldcNhan'].map(id => b.tl.getElementById(id).value),
+      ['2026-11-16', 'Sửa lò', '7.500.000', 'Thợ điện Minh'], 'mở lại còn đủ chữ đã gõ');
+    assert.equal(b.goi.filter(x => /luu_muc|luu_lich/.test(x.m)).length, 0, 'mở lại cũng không tạo gì trên máy chủ');
+    await b.bamNut('ldcLuu');
+    await b.tua(2000);
+    assert.equal(Array.from(kho._m.keys()).filter(k => k.indexOf('vgbSoanDo:') === 0).length, 0, 'lưu xong thì xoá bản nháp');
+  }
+  {
+    /* 7. Codex #561: bản nháp giữ cả nhà cung cấp đã chọn (nằm ngoài ô gõ). */
+    const kho = khoMay();
+    const a = appMoi(kho, { l: lichAnh(100000000), gy: GY });
+    await a.moMan();
+    await a.bamId('ldcThem');
+    await a.gõ('ldcND', 'Trả bơ');
+    a.g.__chu = 'an phu'; a.g.__chon['Chọn nhà cung cấp'] = 'SUP-AN-PHU';
+    await a.bamId('ldcNcc');
+    await a.gõ('ldcTien', '5.000.000');
+    /* Hoá đơn chọn từ kết quả tìm (QT-31), không gõ mã. */
+    await a.gõ('ldcHDTim', 'an phu');
+    await a.bamId('ldcTimHD');
+    await a.bam(a.tl.querySelector('[data-ldchd="HDM-26-11-00195"]'));
+    assert(a.tl.getElementById('ldcHDDa').innerHTML.indexOf('HDM-26-11-00195') >= 0, 'hiện hoá đơn đã chọn');
+    assert.deepEqual([a.tl.getElementById('ldcND').value, a.tl.getElementById('ldcTien').value], ['Trả bơ', '5000000'], 'chọn hoá đơn không mất chữ đã gõ');
+    await a.tua(2000);
+    const b = appMoi(kho, { l: lichAnh(100000000), gy: GY });
+    await b.moMan();
+    await b.bamId('ldcThem'); await nghi(); await nghi();
+    assert(b.tl.getElementById('ldcNcc').innerHTML.indexOf('Bơ sữa An Phú') >= 0, 'mở lại còn nhà cung cấp đã chọn');
+    assert.deepEqual([b.tl.getElementById('ldcND').value, b.tl.getElementById('ldcTien').value], ['Trả bơ', '5000000'], 'và chữ đã gõ');
+    assert(b.tl.getElementById('ldcHDDa').innerHTML.indexOf('HDM-26-11-00195') >= 0, 'mở lại còn hoá đơn đã chọn');
+    await b.bamNut('ldcLuu');
+    const l = b.goi.filter(x => x.m === 'vagabond.lich_du_chi.luu_muc').pop();
+    assert.deepEqual([l.a.nha_cung_cap, l.a.hoa_don], ['SUP-AN-PHU', 'HDM-26-11-00195'], 'lưu sau khi mở lại vẫn gửi mã nhà cung cấp và hoá đơn');
+  }
+  {
+    /* 8. Codex #561: form Lịch chi hằng tháng cũng có bản nháp tự lưu. */
+    const kho = khoMay();
+    const a = appMoi(kho, { l: lichAnh(100000000), gy: GY });
+    await a.moMan();
+    await a.bamId('ldcThemLich');
+    await a.gõ('lcND', 'Tiền điện'); await a.gõ('lcNhan', 'EVN'); await a.gõ('lcTien', '3.200.000'); await a.gõ('lcNgay', '7');
+    await a.tua(2000);
+    assert.equal(a.goi.filter(x => /luu_lich/.test(x.m)).length, 0, 'chưa lưu lên máy chủ');
+    const b = appMoi(kho, { l: lichAnh(100000000), gy: GY });
+    await b.moMan();
+    await b.bamId('ldcThemLich'); await nghi(); await nghi();
+    assert.deepEqual(['lcND', 'lcNhan', 'lcTien', 'lcNgay'].map(id => b.tl.getElementById(id).value), ['Tiền điện', 'EVN', '3.200.000', '7'],
+      'mở lại form lịch còn đủ chữ đã gõ');
+  }
+  {
+    /* 9. Codex #561: lịch tạm thôi vẫn hiện để bật lại; gợi ý trỏ thẳng vào lịch đó. */
+    const l = lichAnh(100000000);
+    l.lich_chi.push({ name: 'LC-00002', noi_dung: 'Tiền điện', nguoi_nhan: 'EVN', nha_cung_cap: '', so_tien: 3200000, ngay_trong_thang: 7,
+      so_thang_thay: 3, ngoai_le: '', bat: 0 });
+    l.lich_chi[0].bat = 1;
+    const gy = JSON.parse(JSON.stringify(GY));
+    gy.goi_y.push({ khoa: 'EVN', ten: 'EVN', so_thang: 3, thang: ['2026-08', '2026-09', '2026-10'], ngay_goi_y: 7, so_tien_goi_y: 3200000,
+      ngoai_le: [], da_co: 1, da_tat: 1, lich: 'LC-00002', ncc: '' });
+    const a = appMoi(khoMay(), { l, gy });
+    await a.moMan();
+    const t = a.than().innerHTML;
+    assert(t.indexOf('Đang tạm thôi tính, bấm để mở và dùng lại') >= 0, 'lịch tạm thôi vẫn hiện trong danh sách');
+    await a.bam(a.tl.querySelector('[data-ldclich="LC-00002"]'));
+    assert(a.tl.getElementById('lcBat').innerHTML.indexOf('Đang tạm thôi') >= 0, 'mở ra đúng trạng thái tạm thôi');
+    await a.bamNut('lcBat');
+    await a.bamNut('lcLuu');
+    const s = a.goi.filter(x => x.m === 'vagabond.lich_du_chi.luu_lich').pop();
+    assert.deepEqual([s.a.name, s.a.bat], ['LC-00002', 1], 'bật lại và lưu đúng lịch');
+    const c = appMoi(khoMay(), { l, gy });
+    await c.moMan();
+    await c.bamId('ldcGoiY');
+    const mo = c.tl.querySelector('[data-lcmo="LC-00002"]');
+    assert(mo, 'gợi ý có nút mở lại lịch đang tạm thôi');
+    chuanCham(c, ['[data-lcmo]'], 'gợi ý mở lại');
+    await c.bam(mo);
+    assert.equal(c.tl.getElementById('lcND').value, 'Tiền điện', 'mở đúng lịch tạm thôi từ gợi ý');
+  }
+  {
+    /* 10. Codex #561 cùng loại QT-31: nối hồ sơ thanh toán bằng ô chọn, không gõ mã APP. */
+    const a = appMoi(khoMay(), { l: lichAnh(100000000), gy: GY });
+    await a.moMan();
+    await a.bam(a.tl.querySelector('[data-ldcmo="tay|DCM-26-11-00001"]'));
+    assert(!a.tl.getElementById('ldcApp'), 'không còn ô gõ mã APP');
+    chuanCham(a, ['#ldcNoi', '#ldcNcc'], 'form Sửa dự chi');
+    a.g.__chu = 'thợ'; a.g.__chon['Chọn hồ sơ thanh toán'] = 'APP.26.11.077';
+    await a.bamId('ldcNoi');
+    const n = a.goi.filter(x => x.m === 'vagabond.lich_du_chi.noi_app').pop();
+    assert.deepEqual([n.a.name, n.a.ho_so_app], ['DCM-26-11-00001', 'APP.26.11.077'], 'nối đúng hồ sơ đã chọn');
+  }
+  {
+    /* 11. Codex #561: sửa một dự chi đã có, gõ dở rồi tải lại trang: mở lại đúng
+       dự chi đó còn chữ đang sửa, số máy chủ không đè lên. */
+    const kho = khoMay();
+    const a = appMoi(kho, { l: lichAnh(100000000), gy: GY });
+    await a.moMan();
+    await a.bam(a.tl.querySelector('[data-ldcmo="tay|DCM-26-11-00001"]'));
+    a.g.__chu = 'an phu'; a.g.__chon['Chọn nhà cung cấp'] = 'SUP-AN-PHU';
+    await a.bamId('ldcNcc');
+    await a.gõ('ldcND', 'Chi gấp mua bơ thêm');
+    await a.tua(2000);
+    const b = appMoi(kho, { l: lichAnh(100000000), gy: GY });
+    await b.moMan();
+    await b.bam(b.tl.querySelector('[data-ldcmo="tay|DCM-26-11-00001"]')); await nghi(); await nghi();
+    assert.equal(b.tl.getElementById('ldcND').value, 'Chi gấp mua bơ thêm', 'mở lại dự chi đang sửa còn chữ đã gõ');
+    assert(b.tl.getElementById('ldcNcc').innerHTML.indexOf('Bơ sữa An Phú') >= 0, 'còn nhà cung cấp đã chọn khi sửa');
+    await b.bamNut('ldcLuu');
+    const l = b.goi.filter(x => x.m === 'vagabond.lich_du_chi.luu_muc').pop();
+    assert.deepEqual([l.a.name, l.a.noi_dung, l.a.nha_cung_cap], ['DCM-26-11-00001', 'Chi gấp mua bơ thêm', 'SUP-AN-PHU'], 'lưu đúng dự chi đang sửa');
+  }
+  console.log('PASS 654 Lịch dự chi: màn theo ảnh, Thêm dự chi, thiếu số dư, gợi ý lịch, chuẩn chạm, chọn nhà cung cấp, bản nháp, lịch tạm thôi');
 })().catch(e => { console.error(e); process.exit(1); });
