@@ -1532,13 +1532,24 @@ def xin_chuyen_nvl(ten, bep=None, gui=None):
 
 	doc.mr_items = giu
 	doc.db_update_all()
-	truoc = set(frappe.get_all("Material Request", filters={
-		"material_request_type": "Material Transfer", "docstatus": 0}, pluck="name"))
-	doc.make_material_request()
-	frappe.db.commit()
-	sau = set(frappe.get_all("Material Request", filters={
-		"material_request_type": "Material Transfer", "docstatus": 0}, pluck="name"))
-	moi = sorted(sau - truoc)
+	# Codex #562 (P1): chỉ lấy phiếu do CHÍNH lần bấm này sinh ra cho kế hoạch
+	# này. Trước đây so danh sách nháp TOÀN hệ thống trước và sau, nên phiếu
+	# nháp người khác vừa lưu chen giữa cũng lọt vào `moi` và bị gửi (submit,
+	# bỏ quyền) cùng tin Zalo báo kho. Nay lọc theo dòng phiếu mang đúng tên
+	# kế hoạch, và khoá theo kế hoạch để hai lần bấm cùng kế hoạch không lấy
+	# phiếu của nhau.
+	khoa = "vagabond:xin_chuyen_nvl:%s" % ten
+	r = frappe.db.sql("select get_lock(%s, %s)", (khoa, 30))
+	if not r or frappe.utils.cint(r[0][0]) != 1:
+		frappe.throw("Đang có người xin chuyển nguyên liệu cho kế hoạch này. Đợi vài giây rồi bấm lại.")
+	try:
+		frappe.db.commit()
+		truoc = _nhap_xin_cua_ke_hoach(ten)
+		doc.make_material_request()
+		frappe.db.commit()
+		moi = sorted(_nhap_xin_cua_ke_hoach(ten) - truoc)
+	finally:
+		frappe.db.sql("select release_lock(%s)", (khoa,))
 	if not moi:
 		return {"ok": 0, "ghi_chu": "Không có gì để xin thêm, các mã đã xin "
 			"chuyển đủ từ trước."}
@@ -1560,6 +1571,16 @@ def xin_chuyen_nvl(ten, bep=None, gui=None):
 	if da_chot_o_day:
 		cau += " Phiếu kế hoạch %s cũng vừa được ghi sổ." % ten
 	return {"ok": 1, "phieu": moi, "bo_qua": sorted(set(bo_qua)), "ghi_chu": cau}
+
+
+def _nhap_xin_cua_ke_hoach(ten):
+	"""Tên các phiếu xin chuyển (Material Transfer) còn NHÁP có dòng sinh từ kế
+	hoạch `ten` (ERPNext ghi production_plan trên dòng phiếu khi
+	make_material_request). Không đếm phiếu nháp của kế hoạch khác."""
+	return {r[0] for r in frappe.db.sql("""select distinct i.parent
+		from `tabMaterial Request Item` i join `tabMaterial Request` m on m.name = i.parent
+		where i.production_plan = %s and m.docstatus = 0
+		and m.material_request_type = 'Material Transfer'""", (ten,))}
 
 
 def _gui_phieu_xin(ds):
