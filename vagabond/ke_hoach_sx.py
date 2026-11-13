@@ -1469,7 +1469,7 @@ def _tao_mot_lenh(ten, khoa, loai="btp", so_luong=None, kho=None, roi_phieu=0):
 
 
 @frappe.whitelist()
-def xin_chuyen_nvl(ten, bep=None):
+def xin_chuyen_nvl(ten, bep=None, gui=None):
 	"""Sinh phiếu xin chuyển nguyên liệu từ Kho tổng 307 sang kho bếp.
 
 	Đây là mảnh còn thiếu giữa "kế hoạch nói cần bao nhiêu" và "bếp thật sự
@@ -1532,24 +1532,75 @@ def xin_chuyen_nvl(ten, bep=None):
 
 	doc.mr_items = giu
 	doc.db_update_all()
-	truoc = set(frappe.get_all("Material Request", filters={
-		"material_request_type": "Material Transfer", "docstatus": 0}, pluck="name"))
-	doc.make_material_request()
-	frappe.db.commit()
-	sau = set(frappe.get_all("Material Request", filters={
-		"material_request_type": "Material Transfer", "docstatus": 0}, pluck="name"))
-	moi = sorted(sau - truoc)
+	# Codex #562 (P1): chỉ lấy phiếu do CHÍNH lần bấm này sinh ra cho kế hoạch
+	# này. Trước đây so danh sách nháp TOÀN hệ thống trước và sau, nên phiếu
+	# nháp người khác vừa lưu chen giữa cũng lọt vào `moi` và bị gửi (submit,
+	# bỏ quyền) cùng tin Zalo báo kho. Nay lọc theo dòng phiếu mang đúng tên
+	# kế hoạch, và khoá theo kế hoạch để hai lần bấm cùng kế hoạch không lấy
+	# phiếu của nhau.
+	khoa = "vagabond:xin_chuyen_nvl:%s" % ten
+	r = frappe.db.sql("select get_lock(%s, %s)", (khoa, 30))
+	if not r or frappe.utils.cint(r[0][0]) != 1:
+		frappe.throw("Đang có người xin chuyển nguyên liệu cho kế hoạch này. Đợi vài giây rồi bấm lại.")
+	try:
+		frappe.db.commit()
+		truoc = _nhap_xin_cua_ke_hoach(ten)
+		doc.make_material_request()
+		frappe.db.commit()
+		moi = sorted(_nhap_xin_cua_ke_hoach(ten) - truoc)
+	finally:
+		frappe.db.sql("select release_lock(%s)", (khoa,))
 	if not moi:
 		return {"ok": 0, "ghi_chu": "Không có gì để xin thêm, các mã đã xin "
 			"chuyển đủ từ trước."}
-	cau = ("Đã tạo %d phiếu xin chuyển kho ở dạng NHÁP: %s. Kho tổng 307 soạn "
-		"hàng rồi ghi sổ." % (len(moi), ", ".join(moi)))
+	if frappe.utils.cint(gui):
+		da_gui, hong = _gui_phieu_xin(moi)
+		cau = ("Đã gửi %d phiếu xin cho Kho tổng 307: %s. Zalo đã báo kho; kho giao bao "
+			"nhiêu thì ghi bấy nhiêu ở màn Lập phiếu điều chuyển, ghi xong hàng vào kho bếp "
+			"ngay." % (len(da_gui), ", ".join(da_gui))) if da_gui else ""
+		if hong:
+			cau += (" %d phiếu chưa gửi được, còn ở dạng NHÁP: %s (mở phiếu trên Desk "
+				"bấm Gửi)." % (len(hong), ", ".join(hong)))
+		cau = cau.strip()
+	else:
+		cau = ("Đã tạo %d phiếu xin chuyển kho ở dạng NHÁP: %s. Kho tổng 307 soạn "
+			"hàng rồi ghi sổ." % (len(moi), ", ".join(moi)))
 	if bo_qua:
 		cau += (" Bỏ qua %d mã đã tắt trong danh mục: %s."
 			% (len(set(bo_qua)), ", ".join(sorted(set(bo_qua)))))
 	if da_chot_o_day:
 		cau += " Phiếu kế hoạch %s cũng vừa được ghi sổ." % ten
 	return {"ok": 1, "phieu": moi, "bo_qua": sorted(set(bo_qua)), "ghi_chu": cau}
+
+
+def _nhap_xin_cua_ke_hoach(ten):
+	"""Tên các phiếu xin chuyển (Material Transfer) còn NHÁP có dòng sinh từ kế
+	hoạch `ten` (ERPNext ghi production_plan trên dòng phiếu khi
+	make_material_request). Không đếm phiếu nháp của kế hoạch khác."""
+	return {r[0] for r in frappe.db.sql("""select distinct i.parent
+		from `tabMaterial Request Item` i join `tabMaterial Request` m on m.name = i.parent
+		where i.production_plan = %s and m.docstatus = 0
+		and m.material_request_type = 'Material Transfer'""", (ten,))}
+
+
+def _gui_phieu_xin(ds):
+	"""v655 (phương án B, anh Việt 13/11/2026): bếp bấm Xin chuyển nguyên liệu
+	là GỬI luôn phiếu (submit), hook tin_kho Zalo báo kho tổng, và phiếu hiện
+	ngay ở màn Lập phiếu điều chuyển để kho ghi số thực giao. Kho không còn
+	phải mở Desk gửi phiếu nháp. Phiếu nào hỏng thì để nháp và nêu tên."""
+	da_gui, hong = [], []
+	for m in ds:
+		try:
+			d = frappe.get_doc("Material Request", m)
+			d.flags.ignore_permissions = True
+			d.submit()
+			frappe.db.commit()
+			da_gui.append(m)
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(frappe.get_traceback(), "ke_hoach_sx: gửi phiếu xin %s" % m)
+			hong.append(m)
+	return da_gui, hong
 
 
 def _kho_nhan_nvl(ma, bep_chon, kho_dang_co):

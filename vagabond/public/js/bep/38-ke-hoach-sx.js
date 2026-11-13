@@ -497,14 +497,17 @@ async function khsxChotKeHoach(ds) {
 }
 
 async function khsxXinNvl() {
+  /* v655 (phương án B): gửi luôn phiếu cho kho tổng, Zalo báo kho. Kho giao
+     bao nhiêu thì ghi bấy nhiêu ở màn Lập phiếu điều chuyển, ghi xong là hàng
+     vào kho bếp. */
   if (!await confirmSheet('Xin chuyển nguyên liệu từ kho tổng?',
-    'Máy tạo phiếu xin chuyển kho từ Kho tổng 307 sang kho nguyên liệu của bếp, ' +
-    'đúng theo bảng nguyên liệu của kế hoạch này.\n\nPhiếu ở dạng NHÁP, kho tổng ' +
-    'còn soát hàng rồi mới ghi sổ. Bấm xong máy hiện số phiếu vừa tạo.', 'Tạo phiếu xin')) return;
+    'Máy gửi phiếu xin từ Kho tổng 307 sang kho nguyên liệu của bếp, ' +
+    'đúng theo bảng nguyên liệu của kế hoạch này, Zalo báo kho.\n\nKho tổng giao bao nhiêu ' +
+    'thì ghi bấy nhiêu, ghi sổ xong hàng vào kho bếp ngay.', 'Gửi phiếu xin')) return;
   busy(1);
   try {
     var r = await api('vagabond.ke_hoach_sx.xin_chuyen_nvl',
-      { ten: khsx.d.ten, bep: khsx.bep || null });
+      { ten: khsx.d.ten, bep: khsx.bep || null, gui: 1 });
     toast(r.ghi_chu, 9000);
     if (r.ok && (r.phieu || []).length) {
       khsx.d = null;

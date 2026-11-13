@@ -271,8 +271,39 @@ export function dungCombo(ds) {
     mo_ta: moTaCombo(c.thanh_phan) + (c.mo_ta ? ' · ' + c.mo_ta : ''),
     bienThe: [{ma: c.ma, size: '', gia: Number(c.gia) || 0, ten: c.ten}]}));
 }
+/* v655 (Dễ báo 13/11, anh Việt chọn A): hai tầng trên trang gọi món tại bàn.
+   Tầng lớn: Tất cả, Combo (nếu có), Bánh, Đồ uống. Chọn Bánh thì chip nhỏ chia
+   theo nhóm món của danh mục (Bánh lạnh, Bánh nướng, Bánh khô trước, nhóm khác
+   sau); chọn Đồ uống thì chip nhỏ là các nhóm đồ uống như cũ (theo Biên tập
+   menu). Tầng chỉ có một nhóm nhỏ thì không bày hàng chip nhỏ. THUẦN. */
+export const THU_TU_NHOM_BANH = ['Bánh lạnh', 'Bánh nướng', 'Bánh khô'];
+export function tangCua(m) { return m.loai === 'combo' ? 'combo' : (m.loai === 'banh' ? 'banh' : 'nuoc'); }
+export function chiaTang(ds, nhomNuoc, tangChon, t) {
+  const dem = k => ds.filter(m => tangCua(m) === k).length;
+  const tang = [{n: '', ten: t('tat_ca_muc', 'Tất cả'), so: ds.length}];
+  if (dem('combo')) tang.push({n: 'combo', ten: t('goi_ban_chip_combo', 'Combo'), so: dem('combo')});
+  if (dem('banh')) tang.push({n: 'banh', ten: t('goi_ban_tang_banh', 'Bánh'), so: dem('banh')});
+  if (dem('nuoc')) tang.push({n: 'nuoc', ten: t('goi_ban_tang_nuoc', 'Đồ uống'), so: dem('nuoc')});
+  const chon = tang.some(x => x.n === tangChon) ? tangChon : '';
+  let nho = [];
+  if (chon === 'banh') {
+    const banh = ds.filter(m => m.loai === 'banh');
+    const cac = [...new Set(banh.map(m => String(m.nhom || '').trim() || t('goi_ban_banh_khac', 'Bánh khác')))];
+    cac.sort((a, b) => {
+      const ia = THU_TU_NHOM_BANH.indexOf(a), ib = THU_TU_NHOM_BANH.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, 'vi');
+    });
+    nho = [{n: '', ten: t('goi_ban_tat_ca_banh', 'Tất cả bánh'), so: banh.length}].concat(cac.map(g => ({n: 'b:' + g, ten: g,
+      so: banh.filter(m => (String(m.nhom || '').trim() || t('goi_ban_banh_khac', 'Bánh khác')) === g).length})));
+  } else if (chon === 'nuoc') {
+    nho = [{n: '', ten: t('goi_ban_tat_ca_nuoc', 'Tất cả đồ uống'), so: dem('nuoc')}].concat(
+      (nhomNuoc || []).filter(x => x.n.startsWith('g:') || x.n === 'nuoc' || x.n.startsWith('nuoc:')));
+  }
+  return {tang, tangChon: chon, nho: nho.length > 2 ? nho : []};
+}
 function thuocChip(m, chip) {
   if (!chip) return true;
+  if (chip.startsWith('b:')) return m.loai === 'banh' && (String(m.nhom || '').trim() || 'Bánh khác') === chip.slice(2);
   if (chip === 'combo') return m.loai === 'combo';
   if (chip === 'banh') return m.loai === 'banh';
   if (chip.startsWith('g:')) return m.loai === 'nuoc' && m.nhom_hien === chip.slice(2);
@@ -308,12 +339,15 @@ export function dungQuayHien(S, G, t) {
   }
   /* Đầu mục "Còn N bánh" chỉ đếm bánh đang hiện theo menu. */
   const banhHien = coMenu && !chon.nhom_menu.some(g => g.loai === 'banh') ? [] : banh;
-  /* Chip đang chọn không còn món (đổi quầy, bán hết) thì coi như Tất cả. */
-  const chip = nhom.some(n => n.n === S.nhomQuay) ? S.nhomQuay : '';
-  const mon = ds.filter(m => thuocChip(m, chip) && khopTim(m.ten, m.mo_ta, tim));
+  /* v655: hai tầng. `nhom` trả ra là hàng chip NHỎ của tầng đang chọn (rỗng
+     khi Tất cả, Combo, hay tầng chỉ có một nhóm). Tầng hay chip đang chọn
+     không còn món (đổi quầy, bán hết) thì coi như Tất cả. */
+  const hai = chiaTang(ds, nhom, S.tangQuay || '', t);
+  const chip = hai.nho.some(n => n.n === S.nhomQuay) ? S.nhomQuay : '';
+  const mon = ds.filter(m => (!hai.tangChon || tangCua(m) === hai.tangChon) && thuocChip(m, chip) && khopTim(m.ten, m.mo_ta, tim));
   const rong = mon.length ? '' : (tim ? 'tim' : 'het');
-  return {quay, chon, mon, tong: banhHien.reduce((a, m) => a + (m.con || 0), 0), soBanh: banhHien.length, nhom, chip, tim, rong,
-    topping: chon.topping || []};
+  return {quay, chon, mon, tong: banhHien.reduce((a, m) => a + (m.con || 0), 0), soBanh: banhHien.length,
+    tang: hai.tang, tangChon: hai.tangChon, nhom: hai.nho, chip, tim, rong, topping: chon.topping || []};
 }
 
 /* v643 ưu đãi tại bàn (anh Việt duyệt mẫu 07/11/2026, "Máy tự trừ ngay").
@@ -402,7 +436,7 @@ export function taoGoiBan(moiTruong, S) {
     G.ban = m && m.ok ? m : {ok: 0};
     G.daKiem = true;
     if (G.ban.ok) {
-      S.quayChon = G.ban.diem; S.nhomQuay = ''; S.timQuay = '';
+      S.quayChon = G.ban.diem; S.nhomQuay = ''; S.tangQuay = ''; S.timQuay = '';
       G.don = docDonLuu().map(d => ({ma: d.ma, token: d.token, tt: null}));
       if (G.don.length) void hoiTrangThai();
     }

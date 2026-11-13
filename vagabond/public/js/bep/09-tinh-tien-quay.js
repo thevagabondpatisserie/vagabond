@@ -1907,6 +1907,15 @@ function posQrTao(q, noiDung, tien) {
 function posQrUrl(noiDung, tien, nguon, maDiem) {
   return posQrTao(posTaiKhoan(nguon, maDiem),noiDung,tien).anh;
 }
+/* v655: mã QR chuyển khoản để IN lên giấy. Ảnh SVG co giãn (posQrUrl) chỉ hợp
+   màn hình; đường in chụp bằng html2canvas phóng to rồi cắt nó (phiếu
+   HDB-26-11-02558). In thì vẽ ảnh điểm từ CÙNG chuỗi VietQR. Rỗng khi không vẽ
+   được, bên gọi tự in dòng chuyển tay. */
+async function posQrAnhIn(noiDung, tien, nguon, maDiem) {
+  var r = posQrTao(posTaiKhoan(nguon, maDiem), noiDung, tien);
+  if (!r.chuoi) return '';
+  try { return (await inQrAnh(r.chuoi)) || ''; } catch (e) { return ''; }
+}
 function posQrLoi(q, noiDung, tien) {
   var r=posQrTao(q,noiDung,tien);
   return '<div role="alert" style="color:#b3261e;font-size:13px">'+h(r.loi || 'Không vẽ được mã QR. Vui lòng chuyển tay.')+

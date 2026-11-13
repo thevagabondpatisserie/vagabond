@@ -495,7 +495,14 @@ def luu_dieu_chuyen(kho_xuat=None, kho_nhan=None, ghi_chu=None, dong=None, yeu_c
 	# Phieu chuyen kho khong ghi chi phi, nhung ERPNext van kiem tra o "TK chenh
 	# lech" cua tung dong nen van phai dien mot tai khoan chi phi that.
 	tk = _tk_chi_phi(ct)
-	for d in sach:
+	# v655: chuyển theo phiếu yêu cầu thì mỗi dòng phải trỏ ĐÚNG dòng của phiếu
+	# (material_request_item); thiếu ô đó ERPNext không đếm được phần đã giao và
+	# validate_with_material_request còn ngã. Kho tổng giao NHIỀU hơn số xin
+	# (bếp xin 15 ml, kho giao nguyên chai 700 ml) thì phần trong số xin nối
+	# phiếu, phần dư thành dòng riêng không nối, để ERPNext không chặn "vượt
+	# số yêu cầu" mà hàng vẫn vào kho bếp đúng số thật giao.
+	dong_yc = _dong_con_cua_yeu_cau(yeu_cau, kho_xuat, kho_nhan) if yeu_cau else []
+	for d in chia_theo_yeu_cau(sach, dong_yc):
 		hang = {
 			"item_code": d["ma"],
 			"qty": d["sl"],
@@ -503,14 +510,53 @@ def luu_dieu_chuyen(kho_xuat=None, kho_nhan=None, ghi_chu=None, dong=None, yeu_c
 			"t_warehouse": kho_nhan,
 			"expense_account": tk,
 		}
-		if yeu_cau:
+		if d.get("mr_item"):
 			hang["material_request"] = yeu_cau
+			hang["material_request_item"] = d["mr_item"]
 		doc.append("items", hang)
 	doc.flags.ignore_permissions = True
 	doc.insert(ignore_permissions=True)
 	doc.submit()
 	frappe.db.commit()
 	return {"ok": 1, "name": doc.name, "trang_thai": "Đã ghi sổ"}
+
+
+def chia_theo_yeu_cau(sach, dong_yc):
+	"""THUẦN: tách các dòng hàng chuyển theo dòng của phiếu yêu cầu.
+
+	sach: [{ma, sl}] số thật kho giao; dong_yc: [{ten, ma, con}] dòng phiếu còn
+	chờ giao (theo thứ tự trên phiếu). Mỗi dòng hàng lấy dần phần còn chờ của
+	các dòng phiếu cùng mã; phần vượt thành dòng không nối phiếu. Trả
+	[{ma, sl, mr_item}] (mr_item rỗng là dòng không nối)."""
+	con = [dict(x, con=max(0.0, flt(x.get("con")))) for x in dong_yc or []]
+	ra = []
+	for d in sach or []:
+		ma, sl = d["ma"], flt(d["sl"])
+		for x in con:
+			if sl <= 0.0005:
+				break
+			if x["ma"] != ma or x["con"] <= 0.0005:
+				continue
+			lay = min(sl, x["con"])
+			ra.append({"ma": ma, "sl": lay, "mr_item": x["ten"]})
+			x["con"] -= lay
+			sl -= lay
+		if sl > 0.0005:
+			ra.append({"ma": ma, "sl": sl, "mr_item": ""})
+	return ra
+
+
+def _dong_con_cua_yeu_cau(yeu_cau, kho_xuat, kho_nhan):
+	"""Dòng còn chờ giao của phiếu yêu cầu, khoá dòng để hai người giao cùng lúc
+	không cùng nối vào một phần còn chờ."""
+	mr = frappe.db.get_value("Material Request", yeu_cau,
+		["docstatus", "material_request_type", "set_from_warehouse"], as_dict=True)
+	if not mr or mr.docstatus != 1 or mr.material_request_type != "Material Transfer":
+		frappe.throw("Phiếu yêu cầu %s không còn chờ chuyển nên không nối được. Bỏ chọn phiếu rồi ghi sổ." % yeu_cau)
+	rows = frappe.db.sql("""select name, item_code, warehouse, stock_qty, ordered_qty
+		from `tabMaterial Request Item` where parent = %s order by idx for update""", (yeu_cau,), as_dict=True)
+	return [{"ten": r.name, "ma": r.item_code, "con": flt(r.stock_qty) - flt(r.ordered_qty)}
+		for r in rows if not r.warehouse or r.warehouse == kho_nhan]
 
 
 @frappe.whitelist()
@@ -542,6 +588,12 @@ def dong_cua_yeu_cau(name=None):
 	"""Cac dong con thieu cua mot phieu Dat hang noi bo."""
 	_duoc_xuat()
 	doc = frappe.get_doc("Material Request", name)
+	# v655: dòng hiện TỒN THẬT của kho xuất (trước đây hiện số xin ở chỗ chữ
+	# "tồn"), để kho tổng giao nguyên chai, nguyên bao biết kho còn bao nhiêu.
+	ma = list({d.item_code for d in doc.items if d.item_code})
+	ton = {b.item_code: flt(b.actual_qty) for b in frappe.get_all("Bin", filters={"item_code": ["in", ma or [""]],
+		"warehouse": doc.set_from_warehouse or ""}, fields=["item_code", "actual_qty"], limit_page_length=0)} \
+		if doc.set_from_warehouse else {}
 	ra = []
 	for d in doc.items:
 		con = flt(d.qty) - flt(d.ordered_qty)
@@ -553,6 +605,7 @@ def dong_cua_yeu_cau(name=None):
 				"ten": d.item_name,
 				"dvt": d.uom,
 				"sl": con,
+				"ton": ton.get(d.item_code, 0.0) if doc.set_from_warehouse else None,
 				"kho_nhan": d.warehouse,
 			}
 		)

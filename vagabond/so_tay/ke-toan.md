@@ -1182,6 +1182,27 @@ Mỗi báo cáo đối tác có số "báo chuyển". Máy tìm giao dịch ti�
 - Nội dung không ghi gì để nhận ra đợt (Xanh SM Ngon, hoặc khi ngân hàng cắt mất nội dung): máy chỉ báo Lệch tiền về khi có đúng một giao dịch của đối tác đó; nhiều giao dịch thì để kế toán chọn.
 - Tin Lệch tiền về chỉ gửi một lần cho mỗi đợt.
 
+## OnePay nối theo số đơn Pancake và tự đối chiếu lại mỗi giờ
+Từ khoá: OnePay, số đơn Pancake, không thấy chứng từ, nối theo tiền, đối chiếu lại, khách trả trước, đơn nhận sau, Đã hoàn tất, Đã khép
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán công nợ | Đối soát nhà cung cấp | Chip Đã hoàn tất, [[Đối chiếu lại]] |
+
+Mã giao dịch OnePay mang số đơn Pancake (S67355O97528T113544 là đơn 97528). Từ v655 máy nối từng dòng OnePay với hoá đơn của ĐÚNG đơn đó, kể cả khi hoá đơn có sau tới 45 ngày (khách trả trước, nhận bánh sau). Dòng có số đơn không bao giờ được gợi ý nối theo tiền vào hoá đơn của đơn khác.
+
+**Các bước**
+1. Mở Đối soát nhà cung cấp, chọn nguồn OnePay.
+2. Đã nối: đúng đơn, đúng tiền. Lệch tiền: đúng đơn nhưng hoá đơn khác số quẹt, xem lại đơn.
+3. Không thấy chứng từ, ghi chú "Chưa có hoá đơn bán của đơn Pancake #...": đơn chưa nhận nên chưa có hoá đơn. Máy tự đối chiếu lại mỗi giờ, không cần bấm.
+4. Nối theo tiền chỉ còn cho dòng không có số đơn: kế toán xem rồi xác nhận như cũ.
+5. Nguồn kế toán xác nhận xong hiện chip Đã hoàn tất (trước đây ghi Đã khép).
+
+**Lưu ý**
+- Mỗi giờ máy đối chiếu lại mọi nguồn tiền bán (OnePay, GrabFood, ShopeeFood, Xanh SM, Shinhan) còn dòng chưa nối trong 30 ngày gần đây, đúng như bấm [[Đối chiếu lại]]. Dòng kế toán đã xác nhận giữ nguyên.
+- Bản v655 đối chiếu lại một lần các nguồn từ 01/10/2026, nên các dòng Xanh SM ghi thực nhận còn kẹt Lệch tiền tự về Đã nối.
+- Chỉ đổi trạng thái đối soát, không tạo hay sửa chứng từ kế toán.
+
 ## Bill chưa khớp đối tác
 Từ khoá: bill chưa khớp, mã chuẩn chi, Shinhan POS, Payoo, GrabFood, sai mã, không có trên báo cáo, lệch tiền
 

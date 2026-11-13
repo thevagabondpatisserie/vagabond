@@ -276,6 +276,7 @@ Từ khoá: in bill, in hoá đơn, in lại, tạm tính, in tạm, phiếu là
 
 **Lưu ý**
 - In lại bill không tự in lại phiếu làm món, tránh bar pha thêm ly.
+- Phiếu tạm tính in kèm mã QR chuyển khoản đủ ba góc vuông (v655 sửa lỗi mã chỉ còn một góc); khách quét, SePay tự khớp theo mã bill.
 - Tạm tính còn treo hiện trong bảng chốt ca; cuối ca phải chốt hoặc huỷ.
 
 ## Sửa hoá đơn đã lưu và xin mã OTP quản lý
@@ -1284,10 +1285,12 @@ Từ khoá: gọi món tại bàn, QR bàn, order tại bàn, chuông gọi nhâ
 |---|---|---|
 | Thu ngân, phục vụ | Bán tại quầy (/ban-tai-quay) | [[Nhận đơn và in phiếu pha chế]], [[Đã tới bàn]] |
 
-Khách quét mã QR trên bàn, chọn món, gửi. Đơn hiện trên màn Tính tiền kèm tin Zalo nhóm Bán hàng.
+Khách quét mã QR trên bàn, chọn món, gửi. Đơn hiện trên màn Tính tiền kèm tin Zalo nhóm Bán hàng. Từ v655 đang ở màn khác (Hoá đơn hôm nay, mở một bill) vẫn thấy dải báo nổi trên cùng màn và nghe chuông, tên tab ghi "(N) Đơn mới".
+
+Trang khách gọi món có hai nút lớn Bánh và Đồ uống; chọn Bánh thì chia tiếp Bánh lạnh, Bánh nướng, Bánh khô theo nhóm món trong danh mục.
 
 **Các bước**
-1. Thẻ đơn tại bàn hiện trên màn Tính tiền: xem bàn, món, tuỳ chọn.
+1. Thẻ đơn tại bàn hiện trên màn Tính tiền, hoặc bấm dải báo nổi ở màn khác: xem bàn, món, tuỳ chọn.
 2. Bấm [[Nhận đơn và in phiếu pha chế]], hoặc [[Từ chối đơn]] kèm lý do.
 3. Khách bấm chuông thì thẻ đỏ hiện: tới bàn rồi bấm [[Đã tới bàn]].
 4. Tính tiền: bấm [[Mở bill bàn]].
@@ -1297,6 +1300,8 @@ Khách quét mã QR trên bàn, chọn món, gửi. Đơn hiện trên màn Tín
 - Đơn không nhận trong 10 phút thì hết hạn, khách được báo.
 - Khách tự chọn ưu đãi tại bàn phải nhập mã Zalo gửi tới số của mình.
 - Món, tuỳ chọn, ảnh trên trang bàn sửa ở màn Biên tập menu.
+- Máy quầy không có loa thì không nghe chuông: cắm một loa nhỏ vào máy. Dải báo vẫn hiện.
+- Nhóm Zalo nhân viên muốn nhận tin đơn mới thì tích tin Khách gọi món tại bàn qua QR và Khách cần trợ giúp tại bàn.
 
 ## In mã QR bàn theo khu
 Từ khoá: in QR bàn, sơ đồ bàn, tên bàn, khu A, bàn A1, VIP, standee, mica, kích thước, A4, dấu cắt, số bàn

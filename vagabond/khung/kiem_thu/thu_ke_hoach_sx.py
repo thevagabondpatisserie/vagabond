@@ -352,12 +352,90 @@ def _():
 	dung("nguồn là kho gốc", "ksx.KHO_GOC" in doan)
 
 
-@ca("phiếu xin chuyển sinh ra ở dạng nháp, chờ người giữ kho xem")
+@ca("phiếu xin chuyển: việc tự động (không gửi cờ) vẫn ra nháp; nút của bếp từ v655 gửi luôn để kho thấy ngay")
 def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import ke_hoach_sx as k
 	m = _py("ke_hoach_sx.py")
-	doan = m.split("def xin_chuyen_nvl")[1].split("\n@frappe")[0]
-	dung("lọc docstatus 0", '"docstatus": 0' in doan)
-	la("không tự ghi sổ", ".submit()" in doan, False)
+	doan = m.split("def xin_chuyen_nvl")[1].split("\ndef _gui_phieu_xin")[0]
+	dung("lọc phiếu nháp", "m.docstatus = 0" in m)
+	la("hàm chính không tự ghi sổ", ".submit()" in doan, False)
+	dung("chỉ gửi khi app xin", "if frappe.utils.cint(gui):" in doan)
+	gui, nhat = [], []
+
+	def lay(dt, ten):
+		d = NS(name=ten, flags=NS())
+
+		def submit():
+			if ten == "MR-HONG":
+				raise Exception("hỏng")
+			gui.append(ten)
+		d.submit = submit
+		return d
+	with patch.object(k.frappe, "get_doc", lay, create=True), \
+			patch.object(k.frappe, "db", NS(commit=lambda: nhat.append("c"), rollback=lambda: nhat.append("r")), create=True), \
+			patch.object(k.frappe, "log_error", lambda *a, **kw: None, create=True), \
+			patch.object(k.frappe, "get_traceback", lambda: "", create=True):
+		ra = k._gui_phieu_xin(["MR-1", "MR-HONG", "MR-2"])
+	la("gửi phiếu được, phiếu hỏng để nháp và nêu tên", ra, (["MR-1", "MR-2"], ["MR-HONG"]))
+	la("hỏng thì lùi, không kéo phiếu khác", nhat, ["c", "r", "c"])
+	dung("app gửi cờ gui", "gui: 1" in _js("38-ke-hoach-sx.js"))
+
+
+@ca("Codex #562 P1 xin chuyển nguyên liệu (gửi luôn): chỉ gửi phiếu CHÍNH lần bấm này sinh ra cho kế hoạch; phiếu nháp người khác lưu chen giữa vẫn là nháp")
+def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import ke_hoach_sx as k
+
+	nhap = {"MR-CU": "PP-1", "MR-B": "PP-KHAC"}  # tên phiếu nháp: kế hoạch
+	gui, khoa = [], []
+	pp = NS(name="PP-1", mr_items=[NS(item_code="BOT", from_warehouse="", warehouse="Pastry - Nguyên liệu - TV",
+		material_request_type="")], db_update_all=lambda: None)
+
+	def make_mr():
+		nhap["MR-A"] = "PP-1"
+		nhap["MR-KHAC"] = "PP-KHAC"  # người khác vừa lưu nháp cho kế hoạch khác
+	pp.make_material_request = make_mr
+
+	def sql(q, args=None, **kw):
+		if "get_lock" in q:
+			khoa.append("khoa")
+			return [[1]]
+		if "release_lock" in q:
+			khoa.append("nha")
+			return [[1]]
+		assert "Material Request Item" in q, q
+		# Hệ giả theo đúng điều kiện của câu SQL: có lọc kế hoạch thì chỉ phiếu của kế hoạch đó.
+		loc = " ".join(q.split())
+		return [(n,) for n, p in nhap.items() if "where i.production_plan = %s and" not in loc or p == args[0]]
+
+	def get_doc(dt, ten):
+		if dt == "Production Plan":
+			return pp
+
+		def submit():
+			gui.append(ten)
+			nhap.pop(ten, None)
+		return NS(name=ten, flags=NS(), submit=submit)
+
+	def get_all(dt, filters=None, **kw):
+		if dt == "Material Request":  # đường cũ: mọi phiếu nháp toàn hệ thống
+			return list(nhap)
+		return []
+	with patch.object(k, "_chan", lambda *a: None), patch.object(k, "_chot_ngam", lambda t: False), \
+			patch.object(k, "_kho_nhan_nvl", lambda ma, bep, kho: kho), \
+			patch.object(k.frappe, "get_doc", get_doc, create=True), \
+			patch.object(k.frappe, "get_all", get_all, create=True), \
+			patch.object(k.frappe, "db", NS(sql=sql, commit=lambda: None, rollback=lambda: None), create=True), \
+			patch.object(k.frappe, "log_error", lambda *a, **kw: None, create=True), \
+			patch.object(k.frappe, "get_traceback", lambda: "", create=True):
+		kq = k.xin_chuyen_nvl("PP-1", gui=1)
+	la("chỉ gửi MR-A", (gui, kq["phieu"]), (["MR-A"], ["MR-A"]))
+	dung("phiếu kế hoạch khác vẫn là nháp", "MR-KHAC" in nhap and "MR-B" in nhap)
+	dung("nháp cũ của chính kế hoạch (trước lần bấm) không bị gửi", "MR-CU" in nhap)
+	la("khoá theo kế hoạch rồi nhả", khoa, ["khoa", "nha"])
 
 
 # ------------------------------------------------ giữ chỗ: KHÔNG tự bật
@@ -1374,7 +1452,7 @@ def _():
 	m = _js("05-san-xuat.js")
 	doan = m.split("async function mfgHoanTatMot(")[1].split("\n}\n")[0]
 	dung("bỏ hộp hỏi khi chạy lô", "if (plan.length && !imLang) {" in doan)
-	dung("vẫn chạy phần làm tươi", "if (plan.length) await mfgRunFresh(plan, 1, bu);" in doan)
+	dung("vẫn chạy phần làm tươi", "if (plan.length) await mfgRunFresh(plan, 1);" in doan)
 
 
 @ca("máy KHÔNG tự điền số cũ lên ô nhập, chỉ gợi ý bằng chip")

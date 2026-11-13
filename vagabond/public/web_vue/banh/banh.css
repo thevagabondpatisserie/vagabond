@@ -697,6 +697,14 @@ html body .fld :is(input,textarea):focus-visible{outline:none}
 /* dải chip nhóm cuộn ngang, không bọc xuống nhiều dòng */
 html body .gb-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin-top:12px}
 .gb-chips::-webkit-scrollbar{display:none}
+/* v655: hàng tầng lớn Bánh | Đồ uống trên trang gọi món tại bàn. */
+html body .gb-tang{display:flex;gap:8px;margin-top:14px;overflow-x:auto;scrollbar-width:none}
+.gb-tang::-webkit-scrollbar{display:none}
+html body .gb-tang button{flex:1 0 auto;min-width:84px;min-height:52px;padding:8px 14px;border:1px solid var(--line);border-radius:14px;background:transparent;color:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:var(--sans);cursor:pointer}
+html body .gb-tang button b{font-size:15.5px;font-weight:700}
+html body .gb-tang button span{font-size:13px;color:var(--fog)}
+html body .gb-tang button[aria-pressed=true]{border-color:var(--cyan);color:var(--cyan);background:rgba(82,216,240,.08)}
+html body .gb-tang button[aria-pressed=true] span{color:var(--cyan)}
 html body .gb-chips button{flex:none;white-space:nowrap;font-family:var(--sans);font-size:13.5px}
 /* danh sách dòng món (chế độ gọi món) */
 .gb-ds{display:flex;flex-direction:column;margin-top:4px}

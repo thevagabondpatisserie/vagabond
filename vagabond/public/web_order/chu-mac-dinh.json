@@ -6985,5 +6985,35 @@
     "nhom": "thanh_vien",
     "mac_dinh": "Mã đã gửi qua WhatsApp tới số {so}. Mã có hiệu lực 5 phút.",
     "nhieu_dong": false
+  },
+  "goi_ban_tang_banh": {
+    "ten": "Gọi món tại bàn: nút lớn Bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh",
+    "nhieu_dong": true
+  },
+  "goi_ban_tang_nuoc": {
+    "ten": "Gọi món tại bàn: nút lớn Đồ uống",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đồ uống",
+    "nhieu_dong": true
+  },
+  "goi_ban_banh_khac": {
+    "ten": "Gọi món tại bàn: nhóm bánh chưa khai nhóm món",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh khác",
+    "nhieu_dong": true
+  },
+  "goi_ban_tat_ca_banh": {
+    "ten": "Gọi món tại bàn: chip Tất cả bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tất cả bánh",
+    "nhieu_dong": true
+  },
+  "goi_ban_tat_ca_nuoc": {
+    "ten": "Gọi món tại bàn: chip Tất cả đồ uống",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tất cả đồ uống",
+    "nhieu_dong": true
   }
 }

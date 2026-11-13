@@ -184,17 +184,60 @@ function bamTrong(goc, chon) { var el = goc.querySelector(chon); if (!el) throw 
     bang('mở phiếu tạm tính của bàn', m2.di, ['bill:ACC-SINV-0099']);
   });
 
-  await ca('Không có đơn: dải trống; rời màn Tính tiền thì nhịp tự dừng, không gọi máy chủ', async function () {
+  await ca('Không có đơn: dải trống, không dải nổi, tên tab giữ nguyên; bỏ chọn quầy thì nhịp dừng, không gọi máy chủ', async function () {
     var m = moApp({ cho: [] });
+    m.tai.title = 'Vagabond';
     manQuay(m);
     m.g.gmbBatDau('TCV');
     await choDen(function () { return m.goi.length; });
     await new Promise(function (r) { setTimeout(r, 20); });
     bang('dải trống', chu(m.tai.getElementById('gmbDai')), '');
-    m.tai.body.children = [];
+    bang('không dải nổi', m.tai.getElementById('gmbNoi'), null);
+    bang('tên tab', m.tai.title, 'Vagabond');
+    m.g.gmbBatDau('');
     var truoc = m.goi.length;
     await m.g.gmbHoi();
     bang('không gọi thêm', m.goi.length, truoc);
+  });
+
+  await ca('v655 (Dễ báo 13/11, anh Việt chọn A): rời màn Tính tiền (sang Hoá đơn hôm nay, mở bill) vẫn hỏi đơn mới; có đơn thì dải NỔI trên cùng màn, bấm mở danh sách; tên tab "(1) Đơn mới"; quay lại Tính tiền thì dải về chỗ cũ, không còn dải nổi; bỏ chọn quầy thì dải nổi mất', async function () {
+    var m2 = moApp({});
+    m2.tai.title = 'Vagabond';
+    manQuay(m2);
+    m2.g.gmbBatDau('TCV');
+    await choDen(function () { return m2.goi.length; });
+    m2.g.frame('Hoá đơn hôm nay · TCV', '<div>danh sách</div>');
+    var truoc = m2.goi.length;
+    await m2.g.gmbHoi();
+    bang('vẫn hỏi máy chủ khi rời màn Tính tiền', m2.goi.length, truoc + 1);
+    var noi = m2.tai.getElementById('gmbNoi');
+    dung('dải nổi có đơn', noi && chu(noi).indexOf('1 đơn gọi món tại bàn đang chờ nhận') >= 0);
+    bang('tên tab', m2.tai.title, '(1) Đơn mới · Vagabond');
+    bamTrong(noi, '[data-gmbmo]');
+    dung('bấm dải nổi mở danh sách đơn', chu(sheetCuoi(m2)).indexOf('Bàn 5') >= 0);
+    m2.g.frame('Tính tiền · TCV', m2.g.gmbKhoi());
+    m2.g.gmbVeLai();
+    bang('về màn Tính tiền: hết dải nổi', m2.tai.getElementById('gmbNoi'), null);
+    dung('dải về chỗ cũ', chu(m2.tai.getElementById('gmbDai')).indexOf('đang chờ nhận') >= 0);
+    m2.g.frame('Hoá đơn hôm nay · TCV', '<div>danh sách</div>');
+    m2.g.gmbVeLai();
+    dung('đổi màn: dải nổi lại hiện', !!m2.tai.getElementById('gmbNoi'));
+    /* Màn thật chỉ thay phần thân app, dải nổi gắn ở body còn đó khi màn Tính
+       tiền vẽ chỗ dải: không được hiện hai dải. */
+    manQuay(m2);
+    m2.g.gmbVeLai();
+    bang('có chỗ dải mà dải nổi còn: bỏ dải nổi', m2.tai.getElementById('gmbNoi'), null);
+    m2.g.frame('Hoá đơn hôm nay · TCV', '<div>danh sách</div>');
+    m2.g.gmbVeLai();
+    m2.g.gmbBatDau('');
+    bang('bỏ chọn quầy: dải nổi mất, tên tab về gốc', [m2.tai.getElementById('gmbNoi'), m2.tai.title], [null, 'Vagabond']);
+  });
+
+  await ca('v655 THUẦN tên tab: có việc chờ thì "(N) Đơn mới · tên gốc", lượt nhấp nháy trả tên gốc, không việc thì tên gốc', async function () {
+    var m = moApp({});
+    bang('có 2', m.g.gmbChuTieuDe('Vagabond', 2, 0), '(2) Đơn mới · Vagabond');
+    bang('nhấp nháy', m.g.gmbChuTieuDe('Vagabond', 2, 1), 'Vagabond');
+    bang('không việc', m.g.gmbChuTieuDe('Vagabond', 0, 0), 'Vagabond');
   });
 
   await ca('Nhận đơn: thẻ đủ bàn, số món, tạm tính, phút chờ, món kèm đá đường, ghi chú, tên gọi, người giới thiệu; bấm Nhận gọi goi_mon_ban.nhan, in phiếu pha chế chỉ món nước, mở phiếu tạm tính của bàn', async function () {

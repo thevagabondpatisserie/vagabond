@@ -7008,7 +7008,8 @@ async function scrXkCkNew() {
     if (!XK.yc) return;
     var ct = await api('vagabond.xuat_kho.dong_cua_yeu_cau', { name: XK.yc });
     XK.gio = (ct.dong || []).map(function (d) {
-      return { ma: d.ma, ten: d.ten, dvt: d.dvt, ton: d.sl, sl: d.sl };
+      /* v655: tồn thật của kho xuất (máy chủ cũ không gửi thì như trước). */
+      return { ma: d.ma, ten: d.ten, dvt: d.dvt, ton: d.ton != null ? d.ton : d.sl, sl: d.sl };
     });
     if (ct.kho_xuat) { XK.kho = ct.kho_xuat; eKho.value = ct.kho_xuat; }
     if (ct.kho_nhan) { XK.khoNhan = ct.kho_nhan; eKhoN.value = ct.kho_nhan; }
@@ -10698,7 +10699,6 @@ function mfgSheetKe(plan, nvl, src) {
         h(t) + (phu ? ' <span style="font-weight:500;opacity:.75">' + h(phu) + '</span>' : '') + '</span>';
     }
     var thieu = (nvl || []).filter(function (x) { return mfgChipNvl(x).bad; });
-    var layTong = (nvl || []).filter(function (x) { return (x.lay_tong || 0) > 0.0001; });
     var html = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:82vh;overflow:auto">' +
       '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">Máy làm luôn giúp bếp</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">' +
@@ -10713,17 +10713,12 @@ function mfgSheetKe(plan, nvl, src) {
           return chip(x.name, c.phu, c.bad);
         }).join('') +
         (nvl.length > 24 ? chip('và ' + (nvl.length - 24) + ' nguyên liệu nữa', '', false) : '') + '</div>';
-      if (layTong.length) {
-        html += '<div style="font-size:12.5px;color:#374151;margin-top:6px;line-height:1.5">Kho bếp thiếu ' + layTong.length +
-          ' nguyên liệu: máy lập và ghi sổ luôn phiếu điều chuyển từ Kho tổng 307 đúng phần thiếu, báo Zalo kho. Bếp sang kho tổng lấy hàng.</div>';
-      }
       if (thieu.length) {
         html += '<div style="font-size:12.5px;color:#b3261e;margin-top:6px;line-height:1.5">Có ' + thieu.length +
-          ' nguyên liệu cả Kho tổng 307 cũng không đủ. Máy sẽ tự lấy mã thay thế đã duyệt nếu còn, hết cả thì báo thiếu chứ không ghi âm kho.</div>';
+          ' nguyên liệu kho bếp không đủ. Máy tự lấy mã thay thế đã duyệt nếu còn; hết cả thì dừng, không ghi âm kho, và cho bếp gửi phiếu xin kho tổng.</div>';
       }
     }
-    html += '<button class="btn gr" data-y style="margin-top:14px">' +
-      (layTong.length ? '✅ Lấy phần thiếu từ kho tổng và làm' : '✅ Xác nhận tạo lệnh') + '</button>' +
+    html += '<button class="btn gr" data-y style="margin-top:14px">✅ Xác nhận tạo lệnh</button>' +
       '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
     var ov = document.createElement('div'); ov.className = 'sh';
     ov.innerHTML = html;
@@ -10902,7 +10897,7 @@ async function mfgChayHoanTat(d, cacDvt) {
    nhom o tren roi, hoi lai tung lenh con la bat bep bam sau lan cho mot
    viec ho da duyet. Phan tu lam ban thanh pham tuoi VAN chay, chi khong
    hoi lai. */
-async function mfgHoanTatMot(d, q, can, imLang, buNhom) {
+async function mfgHoanTatMot(d, q, can, imLang) {
   var mats = d.required_items || [];
   var src = mfgKhoLenh(d);
   var ratio = (d.qty || 1) ? q / (d.qty || 1) : 1;
@@ -10912,14 +10907,9 @@ async function mfgHoanTatMot(d, q, can, imLang, buNhom) {
   var nvl = [];
   if (plan.length && !imLang) { try { nvl = await mfgNvlCuaKe(plan, src); } catch (e3) { nvl = []; } }
   busy(0);
-  /* Theo lô (imLang) không có hộp nào, nên không lấy bù (Codex #551 vòng 5).
-     v650: hoàn thành cả nhóm đã kiểm nguyên liệu cho TỔNG số và bếp đã đồng ý
-     lấy kho tổng đúng phần hiện trong hộp (mfgKiemNvlNhom), mang theo buNhom. */
-  var bu = imLang ? (buNhom || null) : { phieu: [], duyet: {} };
   if (plan.length && !imLang) {
     var okf = await mfgSheetKe(plan, nvl, src);
     if (!okf) return 0;
-    nvl.forEach(function (x) { if ((x.lay_tong || 0) > 0.0001) bu.duyet[x.code] = x.lay_tong; });
   }
   busy(1);
   try {
@@ -10927,7 +10917,7 @@ async function mfgHoanTatMot(d, q, can, imLang, buNhom) {
       await api('frappe.client.submit', { doc: d });
       d = await api('frappe.client.get', { doctype: 'Work Order', name: d.name });
     }
-    if (plan.length) await mfgRunFresh(plan, 1, bu);
+    if (plan.length) await mfgRunFresh(plan, 1);
     var it = await mfgLoadItem(d.production_item);
     var batch = await mfgBatchOf(d.name);
     if (!batch) batch = await mfgMakeBatch(d.production_item, it, can, d.name);
@@ -10947,26 +10937,20 @@ async function mfgHoanTatMot(d, q, can, imLang, buNhom) {
     (se.items || []).forEach(function (r) {
       if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
     });
-    /* v648 cách 1: món chính cũng qua mfgGhiLenh. Codex #551 vòng 6: hộp
-       "Máy làm luôn giúp bếp" chỉ nêu nguyên liệu của phần máy làm, nên món
-       chính thiếu thì hỏi riêng: phần bếp đã duyệt cho lệnh con không dùng
-       cho món chính. */
-    /* Phần duyệt của hộp nhóm đã gồm nguyên liệu món chính nên giữ nguyên. */
-    if (bu && !buNhom) bu.duyet = {};
-    var kq = await mfgGhiLenh(se, q, can, bu);
+    await mfgGhiLenh(se, q, can, d.name);
     busy(0);
     if (imLang) return 'lai';
-    toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || '') +
-      (bu && bu.phieu.length ? '. Đã lấy từ Kho tổng 307: ' + bu.phieu.join(', ') : ''), 7000);
+    toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || ''), 7000);
     mfgL = { batch: batch || '', lenh: batch ? '' : d.name, item: d.production_item, name: d.item_name || d.production_item, qty: can, uom: d.stock_uom, meta: it };
     go(scrMfgLabel, true);
     return 0;
   } catch (err) {
     busy(0);
-    if (err && err.tuChoi) {
-      if (imLang) throw err;
-      toast('Chưa lấy từ kho tổng nên dừng lại: lệnh đã làm xong vẫn giữ, món chính chưa hoàn tất.', 6000);
-      return 0;
+    /* v655: kho bếp thiếu nguyên liệu thì hỏi bếp gửi phiếu xin kho tổng ngay
+       trên hộp báo thiếu, không bắt bếp sang màn khác (phương án B). */
+    if (!imLang && err && err.dongXin) {
+      await mfgHoiXinKhoTong('Kho bếp chưa đủ nguyên liệu', errMsg(err), err.dongXin, err.tenLenh || d.name);
+      throw err;
     }
     if (!imLang) toast(errMsg(err), 7000);
     throw err;
@@ -11012,12 +10996,14 @@ async function mfgHoanTatNhom(g, veLai) {
       docs.push(chia.phan[k] > 0 ? await api('frappe.client.get', { doctype: 'Work Order', name: con[k].ten }) : null);
     }
   } catch (e0) { busy(0); return toast('Chưa đọc được các lệnh nên máy chưa ghi gì. ' + errMsg(e0), 7000); }
-  var kt;
-  try { kt = mfgPhanNvl(await mfgKiemNvlNhom(docs, chia.phan)); }
+  var kt, raNvl;
+  try { raNvl = await mfgKiemNvlNhom(docs, chia.phan); kt = mfgPhanNvl(raNvl); }
   catch (e1) { busy(0); return toast('Chưa kiểm được nguyên liệu nên máy chưa ghi gì. Kiểm mạng rồi bấm lại.', 7000); }
   busy(0);
   if (kt.thieu.length) {
-    await confirmSheet('Chưa đủ nguyên liệu, máy chưa ghi lệnh nào', mfgCauThieuNhom(kt), 'Đã hiểu');
+    await mfgHoiXinKhoTong('Chưa đủ nguyên liệu, máy chưa ghi lệnh nào', mfgCauThieuNhom(kt),
+      mfgDongXinNhom(raNvl),
+      con.map(function (c) { return c.ten; }).join(', '));
     return;
   }
 
@@ -11029,26 +11015,28 @@ async function mfgHoanTatNhom(g, veLai) {
       return (chia.phan[i] > 0 ? '• ' + c.ten + ': ' + num(chia.phan[i]) + ' ' + (g.dvt || '')
         : '• ' + c.ten + ': để lần sau');
     }).join('\n') +
-    (kt.lay.length ? '\n\n' + mfgCauLayBu(kt.lay.map(function (x) { return { ten: x.name, sl: x.lay, dvt: x.uom }; }), []) : '') +
     ((kt.thay || []).length ? '\n\n' + mfgCauThay(kt.thay) : ''),
-    (kt.lay.length ? 'Lấy kho tổng và ghi sổ ' : 'Ghi sổ ') + con.length + ' lệnh', 0);
+    'Ghi sổ ' + con.length + ' lệnh', 0);
   if (!ok) return;
   mfgNhoSo(g.ma_mon, hai.thuc_te, hai.dvt, hai.he_so);
 
-  var bu = { phieu: [], duyet: {} };
-  kt.lay.forEach(function (x) { bu.duyet[x.code] = r3((bu.duyet[x.code] || 0) + x.lay); });
-  var xong = 0, hong = [];
+  var xong = 0, hong = [], loiXin = null;
   for (var i = 0; i < con.length; i++) {
     if (!docs[i]) continue;
     try {
-      if (await mfgHoanTatMot(docs[i], chia.phan[i], r3(chia.phan[i] * tyLe), 1, bu) === 'lai') xong++;
+      if (await mfgHoanTatMot(docs[i], chia.phan[i], r3(chia.phan[i] * tyLe), 1) === 'lai') xong++;
     } catch (e2) {
-      hong.push(con[i].ten + ': ' + (e2 && e2.tuChoi ? 'bếp chưa đồng ý lấy thêm từ kho tổng' : errMsg(e2)));
+      hong.push(con[i].ten + ': ' + errMsg(e2));
+      if (e2 && e2.dongXin) loiXin = e2;
       break;
     }
   }
   if (hong.length) {
-    toast((xong ? 'Đã ghi sổ ' + xong + ' lệnh, dừng ở ' : 'Chưa ghi sổ lệnh nào. ') + hong[0], 9000);
+    var cauDung = (xong ? 'Đã ghi sổ ' + xong + ' lệnh, dừng ở ' : 'Chưa ghi sổ lệnh nào. ') + hong[0];
+    /* v655: kho bếp vơi đi giữa lúc kiểm và lúc ghi (đơn khác vừa dùng):
+       vẫn cho bếp gửi phiếu xin ngay trên hộp báo dừng. */
+    if (loiXin) await mfgHoiXinKhoTong('Kho bếp chưa đủ nguyên liệu', cauDung, loiXin.dongXin, loiXin.tenLenh || '');
+    else toast(cauDung, 9000);
   } else {
     toast('Đã ghi sổ ' + xong + ' lệnh, tổng ' + num(q) + ' ' + (g.dvt || ''), 6000);
   }
@@ -11144,8 +11132,9 @@ async function mfgMakeBatch(code, meta, qty, woName) {
    ăn C1. Không giữ phần C1 của món chính thì lệnh C2 thấy 2 ruột máy vừa làm
    cho món chính là "có tồn", ăn hết, món chính báo thiếu sau khi lệnh con đã
    ghi sổ. */
-/* v648 (anh Việt chọn cách 1, 11/11/2026): kho bếp thiếu nguyên liệu thì
-   máy lấy bù từ kho này khi hoàn tất (kho_san_xuat.hoan_tat_phieu lay_bu). */
+/* v655 (anh Việt chọn phương án B, 13/11/2026): kho bếp thiếu nguyên liệu
+   thì bếp gửi phiếu xin kho này (kho_san_xuat.xin_kho_tong), không còn lấy bù
+   tự động lúc hoàn tất như v648. */
 var MFG_KHO_TONG = 'Kho tổng 307 - TV';
 
 function mfgGiuCuaLenh(mats, ratio, giu) {
@@ -11280,17 +11269,6 @@ async function mfgNvlCuaKe(plan, src, capToi, goc) {
     x.tu_lam = fr[c] ? 1 : 0;
     return x;
   });
-  /* v648 cách 1: phần thiếu mà Kho tổng 307 có thì máy lấy bù khi hoàn tất,
-     hộp xác nhận ghi "lấy kho tổng", không tô đỏ. Đọc kho tổng hỏng thì giữ
-     cách hiện cũ (đỏ), máy chủ vẫn tính lại khi ghi. */
-  var canTong = ra.filter(function (x) { return x.thieu > 0.0001 && !x.tu_lam; }).map(function (x) { return x.code; });
-  if (canTong.length && src !== MFG_KHO_TONG) {
-    var tg = {};
-    try { tg = await stockOf(canTong, MFG_KHO_TONG); } catch (e2) { tg = {}; }
-    ra.forEach(function (x) {
-      if (canTong.indexOf(x.code) >= 0) x.lay_tong = r3(Math.min(x.thieu, Math.max(0, tg[x.code] || 0)));
-    });
-  }
   return ra.sort(function (a, b) { return (mfgChipNvl(b).bad ? 1 : 0) - (mfgChipNvl(a).bad ? 1 : 0); });
 }
 
@@ -11334,37 +11312,10 @@ async function mfgKiemNvlNhom(docs, phan) {
     var kho = khoThuTu[k];
     (await mfgNvlCuaKe(theoKho[kho].plan, kho, 4, theoKho[kho].goc)).forEach(function (x) { x.kho = kho; ra.push(x); });
   }
-  /* Codex #553 vòng 2: mỗi nhóm kho tự đọc Kho tổng 307 nên cùng một mã ở
-     hai kho bếp được hứa lấy hai lần trên cùng một số tồn. Chia lại một số dư
-     chung cho mỗi mã (như máy chủ tinh_lay_bu), phần không phủ được đi tiếp
-     sang hàng thay thế. */
-  if (khoThuTu.length > 1) {
-    var canTong = [];
-    ra.forEach(function (x) { if (x.lay_tong != null && canTong.indexOf(x.code) < 0) canTong.push(x.code); });
-    if (canTong.length) {
-      var conTong = await stockOf(canTong, MFG_KHO_TONG);
-      /* Codex #553 vòng 3: dòng lệnh trừ thẳng ở Kho tổng không chuyển kho
-         được, giữ phần đó trước rồi mới chia cho phần bếp thiếu. */
-      ra.forEach(function (x) {
-        if (x.kho === MFG_KHO_TONG && canTong.indexOf(x.code) >= 0) conTong[x.code] = r3((conTong[x.code] || 0) - (x.need || 0));
-      });
-      ra.forEach(function (x) {
-        if (x.lay_tong == null) return;
-        var l = r3(Math.min(Math.max(0, x.thieu || 0), Math.max(0, conTong[x.code] || 0)));
-        x.lay_tong = l;
-        conTong[x.code] = r3((conTong[x.code] || 0) - l);
-      });
-    }
-  }
   var dung = ra.filter(function (x) { return !x.tu_lam; });
-  if (dung.some(function (x) { return (x.thieu || 0) - (x.lay_tong || 0) > 0.0001; })) {
+  if (dung.some(function (x) { return (x.thieu || 0) > 0.0001; })) {
     var dongThay = dung.map(function (x) {
-      return { ma: x.code, kho: x.kho, can: x.need, thieu: r3(Math.max(0, (x.thieu || 0) - (x.lay_tong || 0))) };
-    });
-    /* Codex #553 vòng 4: phần sắp chuyển khỏi Kho tổng cũng là phần dùng ở
-       Kho tổng, máy chủ phải trừ ra trước khi hứa mã thay ở đó. */
-    dung.forEach(function (x) {
-      if ((x.lay_tong || 0) > 0.0001) dongThay.push({ ma: x.code, kho: MFG_KHO_TONG, can: r3(Math.min(x.thieu || 0, x.lay_tong)), thieu: 0 });
+      return { ma: x.code, kho: x.kho, can: x.need, thieu: r3(Math.max(0, x.thieu || 0)) };
     });
     var tt = await api('vagabond.kho_san_xuat.thay_the_cho_thieu', { dong: JSON.stringify(dongThay) });
     (tt || []).forEach(function (t) {
@@ -11376,21 +11327,19 @@ async function mfgKiemNvlNhom(docs, phan) {
   return ra;
 }
 
-/* THUẦN: chia kết quả kiểm thành phần lấy Kho tổng 307 và phần thiếu thật.
-   Thiếu mà máy tự làm được (tu_lam) không tính, nguyên liệu của phần đó đã
-   nằm trong danh sách. */
+/* THUẦN: chia kết quả kiểm thành phần dùng hàng thay thế đã khai và phần
+   thiếu thật (v655: không còn phần lấy bù Kho tổng 307). Thiếu mà máy tự làm
+   được (tu_lam) không tính, nguyên liệu của phần đó đã nằm trong danh sách. */
 function mfgPhanNvl(ra) {
-  var lay = [], thieu = [], thay = [];
+  var thieu = [], thay = [];
   (ra || []).forEach(function (x) {
     if (!((x.thieu || 0) > 0.0001) || x.tu_lam) return;
-    var l = Math.min(x.thieu, Math.max(0, x.lay_tong || 0));
-    var t = Math.min(x.thieu - l, Math.max(0, x.thay || 0));
-    var con = r3(x.thieu - l - t);
-    if (l > 0.0001) lay.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, lay: r3(l) });
+    var t = Math.min(x.thieu, Math.max(0, x.thay || 0));
+    var con = r3(x.thieu - t);
     if (t > 0.0001) thay.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, sl: r3(t), ds: x.thay_ds || [] });
     if (con > 0.0001) thieu.push({ code: x.code, name: x.name, uom: x.uom, kho: x.kho, can: x.need, co: x.ton, thieu: con });
   });
-  return { lay: lay, thieu: thieu, thay: thay };
+  return { thieu: thieu, thay: thay };
 }
 
 /* THUẦN: một dòng trong hộp xác nhận nói phần dùng hàng thay thế đã khai
@@ -11414,26 +11363,8 @@ function mfgCauThieuNhom(kt) {
       (x.kho ? shortWh(x.kho) : 'kho bếp') + ' có ' + num(x.co) + ')';
   });
   if (t.length > 3) dong.push('• và ' + (t.length - 3) + ' nguyên liệu nữa');
-  return 'Kho bếp, Kho tổng 307 và hàng thay thế đã khai chưa đủ cho số này, nên máy chưa ghi lệnh nào (kể cả phần máy làm thêm).\n' +
-    dong.join('\n') + '\n\nNhờ kho nhập hoặc chuyển thêm (màn Kế hoạch sản xuất, nút Xin chuyển nguyên liệu), hoặc làm số ít hơn.';
-}
-
-/* Câu của hộp hỏi lấy bù từ Kho tổng 307. THUẦN.
-   Codex #551 vòng 5 (P1): danh sách dài đẩy nút xác nhận ra khỏi màn (hộp
-   confirmSheet không cuộn). Theo AGENTS.md mục 17: đếm số, vài mục đầu, rồi
-   "và N nữa"; tối đa ba dòng. */
-function mfgCauLayBu(lay, conThieu) {
-  function gon(ds, f, toi) {
-    var dau = ds.slice(0, toi).map(f).join(', ');
-    return dau + (ds.length > toi ? ' và ' + (ds.length - toi) + ' nguyên liệu nữa' : '');
-  }
-  lay = lay || []; conThieu = conThieu || [];
-  var cau = 'Máy ghi sổ phiếu điều chuyển từ Kho tổng 307 đúng phần thiếu rồi hoàn tất; bếp sang lấy hàng, Zalo báo kho.';
-  if (lay.length) cau += '\nLấy ' + lay.length + ' nguyên liệu: ' +
-    gon(lay, function (x) { return x.ten + ' ' + num(x.sl) + ' ' + (x.dvt || ''); }, 2) + '.';
-  if (conThieu.length) cau += '\nKho tổng cũng thiếu ' + conThieu.length + ' nguyên liệu: ' +
-    gon(conThieu, function (x) { return x.ten; }, 2) + '.';
-  return cau;
+  return 'Kho bếp và hàng thay thế đã khai chưa đủ cho số này, nên máy chưa ghi lệnh nào (kể cả phần máy làm thêm).\n' +
+    dong.join('\n') + '\n\nBấm Gửi phiếu xin kho tổng: máy xin đúng phần thiếu (làm tròn lên số nguyên), Zalo báo kho. Kho tổng giao xong thì bấm Hoàn thành lại, hoặc làm số ít hơn.';
 }
 
 /* Chữ phụ và màu của một chip nguyên liệu trong hộp "Máy làm luôn giúp bếp". THUẦN.
@@ -11441,10 +11372,7 @@ function mfgCauLayBu(lay, conThieu) {
 function mfgChipNvl(x) {
   var thieu = (x.thieu || 0) > 0.0001;
   if (thieu && x.tu_lam) return { phu: num(x.need) + ' · máy làm thêm ' + num(x.thieu), bad: false };
-  var lay = thieu ? Math.min(x.thieu, x.lay_tong || 0) : 0;
-  var con = thieu ? r3(x.thieu - lay) : 0;
-  if (thieu && con <= 0.0001) return { phu: num(x.need) + ' · lấy kho tổng ' + num(lay), bad: false };
-  return { phu: num(x.need) + (lay > 0.0001 ? ' · lấy kho tổng ' + num(lay) : '') + (thieu ? ' · thiếu ' + num(con) : ''), bad: thieu };
+  return { phu: num(x.need) + (thieu ? ' · thiếu ' + num(x.thieu) : ''), bad: thieu };
 }
 
 /* v649 (anh Việt 11/11/2026): Chốt kế hoạch đã tạo sẵn lệnh cấp 1, cấp 2. Bếp
@@ -11485,7 +11413,7 @@ async function mfgLenhChoTuLam(f) {
   return mfgChonLenhMo(ds, f) || await mfgCreateWO(f);
 }
 
-async function mfgRunFresh(list, depth, bu) {
+async function mfgRunFresh(list, depth) {
   depth = depth || 1;
   for (var i = 0; i < list.length; i++) {
     var f = list[i];
@@ -11496,7 +11424,7 @@ async function mfgRunFresh(list, depth, bu) {
          nguyên liệu của lệnh là cho cả lệnh, phải nhân tỷ lệ phần làm lúc này. */
       var tile = (d.qty && d.qty > f.qty) ? f.qty / d.qty : 1;
       var sub = await mfgFreshPlan(d.required_items || [], tile, d.source_warehouse || mfg.src, f.giu);
-      if (sub.length) await mfgRunFresh(sub, depth + 1, bu);
+      if (sub.length) await mfgRunFresh(sub, depth + 1);
     }
     var it = await mfgLoadItem(f.code);
     var batch = await mfgMakeBatch(f.code, it, f.qty, wo);
@@ -11510,48 +11438,78 @@ async function mfgRunFresh(list, depth, bu) {
        Truoc day lenh con lay gio dien thoai: dien thoai nhanh vai giay la
        phieu mon chinh (gio may chu) dung TRUOC phieu nhap banh khuon, ERPNext
        bao thieu ton. Tu v648 cap 1, cap 2 deu di duong nay nen phai chot. */
-    /* v648 cách 1: lấy bù từ Kho tổng 307 chỉ trong phần bếp đã đồng ý ở hộp
-       "Máy làm luôn giúp bếp"; ngoài phần đó thì hỏi riêng (mfgGhiLenh). */
-    await mfgGhiLenh(se, f.qty, f.qty, bu);
+    await mfgGhiLenh(se, f.qty, f.qty, wo);
   }
 }
 
-/* Ghi sổ MỘT lệnh qua cửa hoan_tat_phieu, lấy bù Kho tổng 307 chỉ khi bếp đã
-   đồng ý ĐÚNG phần đó.
+/* Ghi sổ MỘT lệnh qua cửa hoan_tat_phieu (insert và submit một yêu cầu).
 
-   bu = null: chế độ theo lô, không hỏi, không lấy bù (như trước v648).
-   bu.duyet = {mã: số}: phần "lấy kho tổng" hộp "Máy làm luôn giúp bếp" đã
-   nêu và bếp đã bấm đồng ý. Máy chủ chỉ HỎI trước (không ghi gì); phần thiếu
-   nằm trọn trong duyet thì lấy luôn và trừ dần, ngoài duyet thì hỏi riêng.
-   Codex #551 vòng 6, 7: một lần đồng ý chỉ phủ đúng điều hộp đã hiện. Bếp từ
-   chối thì ném lỗi tuChoi, lệnh đã ghi sổ trước đó vẫn giữ. */
-async function mfgGhiLenh(se, q, can, bu) {
-  var m = 'vagabond.kho_san_xuat.hoan_tat_phieu';
-  if (!bu) return await api(m, { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: 0 });
-  var kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 0, hoi_lay_bu: 1 });
-  var duyet = bu.duyet || (bu.duyet = {});
-  /* Codex #551 vòng 8: lượt ghi mang đúng số đã duyệt (lay_toi_da), máy chủ
-     tính lại mà vượt thì chỉ hỏi lại, không ghi. Hỏi lại tối đa 3 lần. */
-  for (var lan = 0; kq && kq.hoi_lay_bu && kq.hoi_lay_bu.length; lan++) {
-    if (lan >= 3) throw new Error('Kho bếp đang thay đổi liên tục nên chưa lấy được từ kho tổng. Bấm Hoàn tất lại.');
-    var toi = {};
-    kq.hoi_lay_bu.forEach(function (x) { toi[x.ma] = r3((toi[x.ma] || 0) + (x.sl || 0)); });
-    var trong = Object.keys(toi).every(function (c) { return (duyet[c] || 0) + 0.0001 >= toi[c]; });
-    if (!trong) {
-      busy(0);
-      var ok = await confirmSheet('Kho bếp thiếu nguyên liệu', mfgCauLayBu(kq.hoi_lay_bu, kq.con_thieu),
-        'Lấy từ kho tổng và hoàn tất', 0);
-      if (!ok) { var e = new Error('Bếp chưa đồng ý lấy nguyên liệu từ kho tổng'); e.tuChoi = 1; throw e; }
-      busy(1);
-    }
-    kq = await api(m, { phieu: se, q: q, can: can, lay_bu: 1, lay_toi_da: JSON.stringify(toi) });
-    if (kq && kq.name) {
-      /* Trừ số đã duyệt theo phần THỰC lấy; phần bếp vừa duyệt riêng thì không trừ. */
-      if (trong) (kq.da_lay || []).forEach(function (x) { duyet[x.ma] = r3((duyet[x.ma] || 0) - (x.sl || 0)); });
-      if (kq.phieu_bu) (bu.phieu || (bu.phieu = [])).push(kq.phieu_bu);
-    }
+   v655 (phương án B): không còn hỏi hay lấy bù Kho tổng 307. Máy chủ báo kho
+   bếp thiếu thì gắn vào lỗi các dòng nguyên liệu của phiếu (dongXin) để hộp
+   báo lỗi cho bếp gửi phiếu xin đúng phần thiếu; máy chủ tự đọc tồn và tính
+   số xin (kho_san_xuat.xin_kho_tong). */
+async function mfgGhiLenh(se, q, can, tenLenh) {
+  try {
+    return await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: q, can: can });
+  } catch (e) {
+    if (mfgLaLoiThieuNvl(errMsg(e))) { e.dongXin = mfgDongXinCuaPhieu(se); e.tenLenh = tenLenh || ''; }
+    throw e;
   }
-  return kq;
+}
+
+/* THUẦN: câu lỗi là câu "kho bếp chưa đủ nguyên liệu" của máy chủ
+   (kho_san_xuat.cau_thieu_nvl). */
+function mfgLaLoiThieuNvl(cau) {
+  cau = String(cau || '');
+  return cau.indexOf('Chưa hoàn tất được lệnh') >= 0 && cau.indexOf('chưa đủ nguyên liệu') >= 0;
+}
+
+/* THUẦN: dòng nguyên liệu (xuất khỏi kho bếp) của phiếu hoàn tất, theo đơn vị
+   tồn kho, để máy chủ tính phần xin. Bỏ thành phẩm, phế phẩm, dòng từ Kho tổng. */
+function mfgDongXinCuaPhieu(se) {
+  var ra = [];
+  ((se && se.items) || []).forEach(function (r) {
+    if (!r.s_warehouse || r.is_finished_item || r.is_scrap_item || r.s_warehouse === MFG_KHO_TONG) return;
+    var sl = r.transfer_qty || ((r.qty || 0) * (r.conversion_factor || 1));
+    if (sl > 0) ra.push({ ma: r.item_code, kho: r.s_warehouse, can: r3(sl) });
+  });
+  return ra;
+}
+
+/* THUẦN: dòng gửi máy chủ khi xin kho tổng cho cả nhóm lệnh: MỌI nguyên liệu
+   nhóm dùng (bỏ phần máy tự làm), chỉ số cần, không kèm số thiếu.
+
+   Codex #562 (P1): trước đây app gửi số thiếu tính lúc mở hộp; tồn đổi trước
+   khi bếp bấm Gửi là xin sai. Máy chủ tự đọc tồn và hàng thay thế lúc gửi; cần
+   cả dòng không thiếu vì hàng thay thế cũng có thể là nguyên liệu nhóm đang
+   dùng (lo_hang.bu_thay_the_nhom trừ phần đó trước). */
+function mfgDongXinNhom(ra) {
+  var ra2 = [];
+  (ra || []).forEach(function (x) {
+    if (x.tu_lam || !((x.need || 0) > 0) || !x.kho || x.kho === MFG_KHO_TONG) return;
+    ra2.push({ ma: x.code, kho: x.kho, can: r3(x.need) });
+  });
+  return ra2;
+}
+
+/* Hộp báo kho bếp thiếu, có nút Gửi phiếu xin kho tổng. Bếp bấm thì máy chủ
+   lập phiếu yêu cầu điều chuyển đúng phần thiếu và Zalo báo kho; bấm Huỷ thì
+   thôi. Không ghi gì vào lệnh. */
+async function mfgHoiXinKhoTong(tieuDe, cau, dong, tenLenh) {
+  if (!(dong || []).length) { toast(cau, 8000); return 0; }
+  var ok = await confirmSheet(tieuDe, cau, '📦 Gửi phiếu xin kho tổng');
+  if (!ok) return 0;
+  busy(1);
+  try {
+    var r = await api('vagabond.kho_san_xuat.xin_kho_tong', { dong: JSON.stringify(dong), ten_lenh: tenLenh || '' });
+    busy(0);
+    toast((r && r.ghi_chu) || 'Đã gửi phiếu xin kho tổng.', 9000);
+    return (r && r.phieu) || [];
+  } catch (e) {
+    busy(0);
+    toast('Chưa gửi được phiếu xin: ' + errMsg(e), 8000);
+    return 0;
+  }
 }
 
 /* ---------- 12c-5. Mon chua co cong thuc: khai nguyen lieu ngay tren app ---------- */
@@ -18616,6 +18574,15 @@ function posQrTao(q, noiDung, tien) {
 function posQrUrl(noiDung, tien, nguon, maDiem) {
   return posQrTao(posTaiKhoan(nguon, maDiem),noiDung,tien).anh;
 }
+/* v655: mã QR chuyển khoản để IN lên giấy. Ảnh SVG co giãn (posQrUrl) chỉ hợp
+   màn hình; đường in chụp bằng html2canvas phóng to rồi cắt nó (phiếu
+   HDB-26-11-02558). In thì vẽ ảnh điểm từ CÙNG chuỗi VietQR. Rỗng khi không vẽ
+   được, bên gọi tự in dòng chuyển tay. */
+async function posQrAnhIn(noiDung, tien, nguon, maDiem) {
+  var r = posQrTao(posTaiKhoan(nguon, maDiem), noiDung, tien);
+  if (!r.chuoi) return '';
+  try { return (await inQrAnh(r.chuoi)) || ''; } catch (e) { return ''; }
+}
 function posQrLoi(q, noiDung, tien) {
   var r=posQrTao(q,noiDung,tien);
   return '<div role="alert" style="color:#b3261e;font-size:13px">'+h(r.loi || 'Không vẽ được mã QR. Vui lòng chuyển tay.')+
@@ -19178,7 +19145,11 @@ async function posInBill(d) {
     /* Phieu tam tinh in kem QR THANH TOAN: khach xac nhan mon xong quet
        chuyen luon cung duoc, SePay khop theo ma bill. */
     var ndq = posNoiDungCk(d.bill, d.quay, d.nguon || '');
-    var uq = posQrUrl(ndq, d.thu, d.nguon || '', d.quay);
+    /* v655 (Dễ báo 13/11/2026, phiếu HDB-26-11-02558 in ra mã chỉ còn một góc):
+       đường in chụp phiếu thành ảnh bằng html2canvas, mà ảnh SVG co giãn của
+       VgbQr.tao không có cỡ riêng nên bị phóng to rồi cắt. Trên GIẤY dùng ảnh
+       điểm như mã xuất hoá đơn (inQrAnh), cùng chuỗi VietQR (posQrChuoiIn). */
+    var uq = await posQrAnhIn(ndq, d.thu, d.nguon || '', d.quay);
     if (!uq) qrKhoi = posQrLoi(posTaiKhoan(d.nguon || '', d.quay), ndq, d.thu);
     if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(ndq) + '</b></div></div>';
   } else if (d.xhd_url && M.qr_xhd) {
@@ -19418,6 +19389,9 @@ async function scrPosDs() {
   var laHomNay = posDsNgay === today();
   var tieuDe = (laHomNay ? 'Hoá đơn hôm nay' : 'Hoá đơn ' + posDsNgay.split('-').reverse().join('/')) + ' · ' + (posQuay.ma || '');
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang tải hoá đơn...</div></div>');
+  /* v655 (Dễ báo 13/11/2026): thu ngân mở thẳng Hoá đơn hôm nay vẫn nhận báo
+     đơn gọi món tại bàn, khách bấm chuông (dải nổi trên cùng màn). */
+  if (typeof gmbBatDau === 'function') gmbBatDau(posCoQuay() ? posQuay.ma : '');
   var kq;
   try { kq = await api('vagabond.ban_hang.pos_ds_bill', { quay: posQuay.ma || '', ngay: posDsNgay }); }
   catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
@@ -27375,7 +27349,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '654';
+var APPVER = '655';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -54212,14 +54186,17 @@ async function khsxChotKeHoach(ds) {
 }
 
 async function khsxXinNvl() {
+  /* v655 (phương án B): gửi luôn phiếu cho kho tổng, Zalo báo kho. Kho giao
+     bao nhiêu thì ghi bấy nhiêu ở màn Lập phiếu điều chuyển, ghi xong là hàng
+     vào kho bếp. */
   if (!await confirmSheet('Xin chuyển nguyên liệu từ kho tổng?',
-    'Máy tạo phiếu xin chuyển kho từ Kho tổng 307 sang kho nguyên liệu của bếp, ' +
-    'đúng theo bảng nguyên liệu của kế hoạch này.\n\nPhiếu ở dạng NHÁP, kho tổng ' +
-    'còn soát hàng rồi mới ghi sổ. Bấm xong máy hiện số phiếu vừa tạo.', 'Tạo phiếu xin')) return;
+    'Máy gửi phiếu xin từ Kho tổng 307 sang kho nguyên liệu của bếp, ' +
+    'đúng theo bảng nguyên liệu của kế hoạch này, Zalo báo kho.\n\nKho tổng giao bao nhiêu ' +
+    'thì ghi bấy nhiêu, ghi sổ xong hàng vào kho bếp ngay.', 'Gửi phiếu xin')) return;
   busy(1);
   try {
     var r = await api('vagabond.ke_hoach_sx.xin_chuyen_nvl',
-      { ten: khsx.d.ten, bep: khsx.bep || null });
+      { ten: khsx.d.ten, bep: khsx.bep || null, gui: 1 });
     toast(r.ghi_chu, 9000);
     if (r.ok && (r.phieu || []).length) {
       khsx.d = null;
@@ -61822,7 +61799,7 @@ function dsvnChip(tt) {
     'Nhiều chứng từ': ['#fffaeb', '#b54708'], 'Không thấy chứng từ': ['#fffaeb', '#b54708'],
     'Chưa nối': ['#f2f4f7', '#475467'], 'Đã thay': ['#f2f4f7', '#475467'],
     'Khớp': ['#ecfdf3', '#067647'], 'Sai mã': ['#fef3f2', '#b42318'], 'Không có trên báo cáo': ['#fef3f2', '#b42318'],
-    'Chờ kế toán chọn': ['#fffaeb', '#b54708'], 'Chờ báo cáo': ['#f2f4f7', '#475467']
+    'Chờ kế toán chọn': ['#fffaeb', '#b54708'], 'Chờ báo cáo': ['#f2f4f7', '#475467'], 'Đã hoàn tất': ['#ecfdf3', '#067647']
   }[tt] || ['#f2f4f7', '#475467'];
   return '<span style="display:inline-block;background:' + mau[0] + ';color:' + mau[1] +
     ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(tt) + '</span>';
@@ -61981,7 +61958,7 @@ async function scrDsvn() {
         '<span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">' +
         (n.nhom === 'Tiền bán' ? dsvnChip(n.trang_thai_tien || 'Chưa đối chiếu') : '') +
         (n.so_chua_noi ? dsvnChip(n.so_chua_noi + ' chưa nối') : '') + '</span></div>' +
-        '<div style="margin-top:6px">' + dsvnDuongChip(n.duong) + (n.xac_nhan_luc ? ' ' + dsvnChip('Đã khép') : '') + '</div></div>';
+        '<div style="margin-top:6px">' + dsvnDuongChip(n.duong) + (n.xac_nhan_luc ? ' ' + dsvnChip('Đã hoàn tất') : '') + '</div></div>';
     }).join('') + '</div>';
   }
   html += dsvnPhanTrang('nguon', DSVN.trang.nguon.so, kq.con, 50, 'Nguồn');
@@ -62170,7 +62147,7 @@ function dsvnCongCu(kq) {
       { k: 'tt', tatCa: 'Mọi trạng thái', chon: DSVN.tt, dem: dem, mau: '#b42318',
         ds: [{ k: 'Cần xử lý', ten: 'Cần xử lý' }, { k: 'Chờ tiền về', ten: 'Chờ tiền về' }, { k: 'Chưa thấy tiền về', ten: 'Chưa thấy tiền' },
           { k: 'Lệch tiền về', ten: 'Lệch tiền về' }, { k: 'Cần chọn tiền về', ten: 'Trùng số tiền' }, { k: 'Chưa nối đủ', ten: 'Chưa nối đủ' },
-          { k: 'Đã khép', ten: 'Đã khép' }] },
+          { k: 'Đã hoàn tất', ten: 'Đã hoàn tất' }] },
       /* v641: đường vào của nguồn (thư có chữ ký hay tải tay). */
       { k: 'duong', tatCa: 'Mọi đường vào', chon: DSVN.duong, dem: kq.dem_duong || {}, mau: '#175cd3',
         ds: DSVN_DUONG.map(function (d) { return { k: d[0], ten: d[1] }; }) },
@@ -69972,6 +69949,14 @@ function coQuyenGmbQr() {
 }
 
 var GMB_NHIP = null, GMB_DIEM = '', GMB_DS = [], GMB_TG = [], GMB_LY_DO = [], GMB_DA_THAY = {}, GMB_LUC = 0;
+/* v655 (Dễ báo 13/11/2026, anh Việt chọn A): đơn gọi món tại bàn và khách bấm
+   chuông phải thấy ở MỌI màn của app, không chỉ màn Tính tiền. Máy đã mở quầy
+   (đã vào Tính tiền hay Hoá đơn hôm nay một lần) thì cứ hỏi máy chủ, ở màn nào
+   cũng vậy. Màn có chỗ dải (#gmbDai) thì vẽ vào đó; màn khác thì vẽ dải NỔI
+   trên cùng (#gmbNoi). Có đơn chờ thì tên tab nhấp nháy "(N) Đơn mới" để thu
+   ngân thấy cả khi đang mở trang khác. */
+var GMB_VE = null, GMB_TIEU_DE = '', GMB_NHAY = 0, GMB_VE_EL = null;
+var GMB_NHIP_VE = 1500;
 var GMB_HOI_MOI = 15000;
 var GMB_KHOA_CHUONG = 'vgb_gmb_chuong';
 
@@ -70005,21 +69990,48 @@ function gmbKhoi() { return '<div id="gmbDai"></div>'; }
    KHÔNG hỏi máy chủ lại mỗi lần: cùng quầy và nhịp còn chạy thì chỉ vẽ lại
    dải từ số đã có. */
 function gmbBatDau(diem) {
-  if (!diem) { gmbDung(); return; }
+  if (!diem) { GMB_DIEM = ''; gmbDung(); return; }
   if (diem === GMB_DIEM && GMB_NHIP && Date.now() - GMB_LUC < GMB_HOI_MOI) { gmbVeDai(); return; }
   gmbDung();
   GMB_DIEM = diem;
   GMB_NHIP = setInterval(gmbHoi, GMB_HOI_MOI);
+  /* Nhịp vẽ nhẹ, không gọi máy chủ: đổi màn thì dải chuyển giữa chỗ trên màn
+     Tính tiền và dải nổi, tên tab nhấp nháy. */
+  GMB_VE = setInterval(gmbVeLai, GMB_NHIP_VE);
   gmbHoi();
 }
 function gmbDung() {
   if (GMB_NHIP) clearInterval(GMB_NHIP);
-  GMB_NHIP = null;
+  if (GMB_VE) clearInterval(GMB_VE);
+  GMB_NHIP = null; GMB_VE = null;
+  GMB_DS = []; GMB_TG = [];
+  var noi = document.getElementById('gmbNoi');
+  if (noi) noi.remove();
+  gmbTieuDe(0);
+}
+/* THUẦN: tên tab khi có N việc chờ. nhay luân phiên giữa câu báo và tên gốc. */
+function gmbChuTieuDe(goc, n, nhay) {
+  if (!n || nhay) return goc;
+  return '(' + n + ') Đơn mới · ' + goc;
+}
+function gmbTieuDe(n) {
+  var cu = String(document.title || '');
+  if (!GMB_TIEU_DE || cu.indexOf(') Đơn mới · ') < 0) GMB_TIEU_DE = cu.replace(/^\(\d+\) Đơn mới · /, '');
+  GMB_NHAY = n && document.hidden ? 1 - GMB_NHAY : 0;
+  var moi = gmbChuTieuDe(GMB_TIEU_DE, n, GMB_NHAY);
+  if (cu !== moi) document.title = moi;
+}
+function gmbVeLai() {
+  var dai = document.getElementById('gmbDai'), noi = document.getElementById('gmbNoi');
+  var can = GMB_DS.length + GMB_TG.length;
+  /* Màn vừa vẽ lại (chỗ dải mới, dải cũ bị xoá) hay còn cả hai: vẽ lại. */
+  if ((can && ((dai || noi) !== GMB_VE_EL || (dai && noi))) || (!can && noi)) gmbVeDai();
+  gmbTieuDe(can);
 }
 
 async function gmbHoi() {
-  /* Rời màn Tính tiền thì tự tắt, khỏi gọi máy chủ vô ích. */
-  if (!document.getElementById('gmbDai')) return gmbDung();
+  /* v655: không còn tự tắt khi rời màn Tính tiền; chỉ tắt khi bỏ chọn quầy. */
+  if (!GMB_DIEM) return gmbDung();
   var kq;
   try { kq = await api('vagabond.goi_mon_ban.dem_cho', { diem: GMB_DIEM }); } catch (e) { return; }
   GMB_LUC = Date.now();
@@ -70034,8 +70046,28 @@ async function gmbHoi() {
 
 function gmbVeDai() {
   var dai = document.getElementById('gmbDai');
-  if (!dai) return;
-  if (!GMB_DS.length && !GMB_TG.length) { dai.innerHTML = ''; return; }
+  var noi = document.getElementById('gmbNoi');
+  if (dai && noi) { noi.remove(); noi = null; }
+  if (!GMB_DS.length && !GMB_TG.length) {
+    if (dai) dai.innerHTML = '';
+    if (noi) noi.remove();
+    GMB_VE_EL = null;
+    gmbTieuDe(0);
+    return;
+  }
+  if (!dai) {
+    /* Màn không có chỗ dải: dải nổi trên cùng, đè lên màn, không đẩy nội dung. */
+    if (!noi) {
+      noi = document.createElement('div'); noi.id = 'gmbNoi';
+      noi.setAttribute('role', 'status');
+      noi.setAttribute('style', 'position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9000;' +
+        'max-width:560px;margin:0 auto;box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:14px');
+      document.body.appendChild(noi);
+    }
+    dai = noi;
+  }
+  GMB_VE_EL = dai;
+  gmbTieuDe(GMB_DS.length + GMB_TG.length);
   var ban = GMB_DS.map(function (x) { return 'Bàn ' + x.ban; });
   var phu = ban.slice(0, 4).join(', ') + (ban.length > 4 ? ' và ' + (ban.length - 4) + ' bàn nữa' : '');
   var tg = GMB_TG.map(function (x) { return 'Bàn ' + x.ban + ' ' + gmbLyDoNgan(x.ly_do); });
@@ -70122,7 +70154,7 @@ function gmbMoDs() {
       '<div class="shh" style="padding:0 0 10px"><b>Gọi món tại bàn · ' + h((posQuay && (posQuay.ten_ngan || posQuay.ten)) || GMB_DIEM) + '</b><div class="x" data-gmbdong="1">&times;</div></div>' +
       GMB_TG.map(gmbTheTroGiup).join('') +
       (GMB_DS.length ? GMB_DS.map(gmbThe).join('')
-        : (GMB_TG.length ? '' : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên màn Tính tiền.</div></div>')) +
+        : (GMB_TG.length ? '' : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên cùng màn.</div></div>')) +
       '</div>';
   }
   ve();

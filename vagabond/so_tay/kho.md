@@ -215,7 +215,7 @@ Chuyển hàng từ kho này sang kho khác. Phiếu ghi sổ ngay.
 
 **Các bước**
 1. Mở Xuất điều chuyển, bấm nút +.
-2. Chuyển theo phiếu yêu cầu thì chọn ở ô "Theo phiếu yêu cầu điều chuyển", máy tự điền.
+2. Chuyển theo phiếu yêu cầu thì chọn ở ô "Theo phiếu yêu cầu điều chuyển", máy tự điền. Phiếu bếp xin nguyên liệu (máy gửi khi bếp thiếu lúc hoàn tất lệnh) cũng hiện ở đây. Giao thực tế bao nhiêu thì sửa số bấy nhiêu: giao nguyên chai, nguyên bao nhiều hơn số xin vẫn ghi được, phần dư vẫn vào kho bếp.
 3. Chọn Kho xuất và Kho nhận.
 4. Bấm [[+ Thêm hàng]], chọn món (chỉ hiện mã còn tồn ở kho xuất), sửa số lượng.
 5. Ghi chú nếu cần, bấm [[Ghi sổ phiếu chuyển]].

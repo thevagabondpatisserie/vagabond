@@ -74,12 +74,13 @@ export const MAU = `
       </div>
       <goi-tai-ban :kho="kho" :tab="tab"/>
       <template v-if="quayHien">
-        <div class="quay-chon" v-if="!kho.goiBan.cheDo.value"><button v-for="q in quayHien.quay" :key="q.ma" :aria-pressed="String(q.ma===quayHien.chon.ma)" @click="S.quayChon=q.ma; S.nhomQuay=''">
+        <div class="quay-chon" v-if="!kho.goiBan.cheDo.value"><button v-for="q in quayHien.quay" :key="q.ma" :aria-pressed="String(q.ma===quayHien.chon.ma)" @click="S.quayChon=q.ma; S.nhomQuay=''; S.tangQuay=''">
           <b>{{ q.ten }}</b><span>{{ q.dia_chi || '' }}</span><span>{{ (q.mon||[]).reduce((a,m)=>a+(m.con||0),0) }} {{ t('dat_banh_3556aabb5','bánh') }} · {{ (q.mon||[]).length }} {{ t('so_loai','loại') }}</span></button></div>
         <div class="gb-tim" id="gbTim"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           <input id="gbTimO" type="search" autocomplete="off" :placeholder="t('goi_ban_tim','Tìm món, ví dụ trà lài, canelé')" :aria-label="t('goi_ban_tim','Tìm món, ví dụ trà lài, canelé')" v-model="S.timQuay">
           <button v-if="S.timQuay" type="button" class="gb-tim-xoa" :aria-label="t('goi_ban_tim_xoa','Xoá chữ tìm')" @click="S.timQuay=''">×</button></div>
-        <div class="cm-chips gb-chips" id="storeChip"><button v-for="n in quayHien.nhom" :key="n.n" :data-nhom="n.n" :aria-pressed="String(n.n===quayHien.chip)" @click="S.nhomQuay=n.n">{{ n.ten + ' · ' + n.so }}</button></div>
+        <div class="gb-tang" id="storeTang"><button v-for="n in quayHien.tang" :key="n.n" type="button" :data-tang="n.n" :aria-pressed="String(n.n===quayHien.tangChon)" @click="S.tangQuay=n.n; S.nhomQuay=''"><b>{{ n.ten }}</b><span>{{ n.so }}</span></button></div>
+        <div class="cm-chips gb-chips" id="storeChip" v-if="quayHien.nhom.length"><button v-for="n in quayHien.nhom" :key="n.n" :data-nhom="n.n" :aria-pressed="String(n.n===quayHien.chip)" @click="S.nhomQuay=n.n">{{ n.ten + ' · ' + n.so }}</button></div>
         <div class="quay">
           <div class="q-ten">{{ quayHien.chon.ten }}</div>
           <div class="q-dc" v-if="quayHien.chon.dia_chi">{{ quayHien.chon.dia_chi }}</div>

@@ -23,6 +23,14 @@ function coQuyenGmbQr() {
 }
 
 var GMB_NHIP = null, GMB_DIEM = '', GMB_DS = [], GMB_TG = [], GMB_LY_DO = [], GMB_DA_THAY = {}, GMB_LUC = 0;
+/* v655 (Dễ báo 13/11/2026, anh Việt chọn A): đơn gọi món tại bàn và khách bấm
+   chuông phải thấy ở MỌI màn của app, không chỉ màn Tính tiền. Máy đã mở quầy
+   (đã vào Tính tiền hay Hoá đơn hôm nay một lần) thì cứ hỏi máy chủ, ở màn nào
+   cũng vậy. Màn có chỗ dải (#gmbDai) thì vẽ vào đó; màn khác thì vẽ dải NỔI
+   trên cùng (#gmbNoi). Có đơn chờ thì tên tab nhấp nháy "(N) Đơn mới" để thu
+   ngân thấy cả khi đang mở trang khác. */
+var GMB_VE = null, GMB_TIEU_DE = '', GMB_NHAY = 0, GMB_VE_EL = null;
+var GMB_NHIP_VE = 1500;
 var GMB_HOI_MOI = 15000;
 var GMB_KHOA_CHUONG = 'vgb_gmb_chuong';
 
@@ -56,21 +64,48 @@ function gmbKhoi() { return '<div id="gmbDai"></div>'; }
    KHÔNG hỏi máy chủ lại mỗi lần: cùng quầy và nhịp còn chạy thì chỉ vẽ lại
    dải từ số đã có. */
 function gmbBatDau(diem) {
-  if (!diem) { gmbDung(); return; }
+  if (!diem) { GMB_DIEM = ''; gmbDung(); return; }
   if (diem === GMB_DIEM && GMB_NHIP && Date.now() - GMB_LUC < GMB_HOI_MOI) { gmbVeDai(); return; }
   gmbDung();
   GMB_DIEM = diem;
   GMB_NHIP = setInterval(gmbHoi, GMB_HOI_MOI);
+  /* Nhịp vẽ nhẹ, không gọi máy chủ: đổi màn thì dải chuyển giữa chỗ trên màn
+     Tính tiền và dải nổi, tên tab nhấp nháy. */
+  GMB_VE = setInterval(gmbVeLai, GMB_NHIP_VE);
   gmbHoi();
 }
 function gmbDung() {
   if (GMB_NHIP) clearInterval(GMB_NHIP);
-  GMB_NHIP = null;
+  if (GMB_VE) clearInterval(GMB_VE);
+  GMB_NHIP = null; GMB_VE = null;
+  GMB_DS = []; GMB_TG = [];
+  var noi = document.getElementById('gmbNoi');
+  if (noi) noi.remove();
+  gmbTieuDe(0);
+}
+/* THUẦN: tên tab khi có N việc chờ. nhay luân phiên giữa câu báo và tên gốc. */
+function gmbChuTieuDe(goc, n, nhay) {
+  if (!n || nhay) return goc;
+  return '(' + n + ') Đơn mới · ' + goc;
+}
+function gmbTieuDe(n) {
+  var cu = String(document.title || '');
+  if (!GMB_TIEU_DE || cu.indexOf(') Đơn mới · ') < 0) GMB_TIEU_DE = cu.replace(/^\(\d+\) Đơn mới · /, '');
+  GMB_NHAY = n && document.hidden ? 1 - GMB_NHAY : 0;
+  var moi = gmbChuTieuDe(GMB_TIEU_DE, n, GMB_NHAY);
+  if (cu !== moi) document.title = moi;
+}
+function gmbVeLai() {
+  var dai = document.getElementById('gmbDai'), noi = document.getElementById('gmbNoi');
+  var can = GMB_DS.length + GMB_TG.length;
+  /* Màn vừa vẽ lại (chỗ dải mới, dải cũ bị xoá) hay còn cả hai: vẽ lại. */
+  if ((can && ((dai || noi) !== GMB_VE_EL || (dai && noi))) || (!can && noi)) gmbVeDai();
+  gmbTieuDe(can);
 }
 
 async function gmbHoi() {
-  /* Rời màn Tính tiền thì tự tắt, khỏi gọi máy chủ vô ích. */
-  if (!document.getElementById('gmbDai')) return gmbDung();
+  /* v655: không còn tự tắt khi rời màn Tính tiền; chỉ tắt khi bỏ chọn quầy. */
+  if (!GMB_DIEM) return gmbDung();
   var kq;
   try { kq = await api('vagabond.goi_mon_ban.dem_cho', { diem: GMB_DIEM }); } catch (e) { return; }
   GMB_LUC = Date.now();
@@ -85,8 +120,28 @@ async function gmbHoi() {
 
 function gmbVeDai() {
   var dai = document.getElementById('gmbDai');
-  if (!dai) return;
-  if (!GMB_DS.length && !GMB_TG.length) { dai.innerHTML = ''; return; }
+  var noi = document.getElementById('gmbNoi');
+  if (dai && noi) { noi.remove(); noi = null; }
+  if (!GMB_DS.length && !GMB_TG.length) {
+    if (dai) dai.innerHTML = '';
+    if (noi) noi.remove();
+    GMB_VE_EL = null;
+    gmbTieuDe(0);
+    return;
+  }
+  if (!dai) {
+    /* Màn không có chỗ dải: dải nổi trên cùng, đè lên màn, không đẩy nội dung. */
+    if (!noi) {
+      noi = document.createElement('div'); noi.id = 'gmbNoi';
+      noi.setAttribute('role', 'status');
+      noi.setAttribute('style', 'position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9000;' +
+        'max-width:560px;margin:0 auto;box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:14px');
+      document.body.appendChild(noi);
+    }
+    dai = noi;
+  }
+  GMB_VE_EL = dai;
+  gmbTieuDe(GMB_DS.length + GMB_TG.length);
   var ban = GMB_DS.map(function (x) { return 'Bàn ' + x.ban; });
   var phu = ban.slice(0, 4).join(', ') + (ban.length > 4 ? ' và ' + (ban.length - 4) + ' bàn nữa' : '');
   var tg = GMB_TG.map(function (x) { return 'Bàn ' + x.ban + ' ' + gmbLyDoNgan(x.ly_do); });
@@ -173,7 +228,7 @@ function gmbMoDs() {
       '<div class="shh" style="padding:0 0 10px"><b>Gọi món tại bàn · ' + h((posQuay && (posQuay.ten_ngan || posQuay.ten)) || GMB_DIEM) + '</b><div class="x" data-gmbdong="1">&times;</div></div>' +
       GMB_TG.map(gmbTheTroGiup).join('') +
       (GMB_DS.length ? GMB_DS.map(gmbThe).join('')
-        : (GMB_TG.length ? '' : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên màn Tính tiền.</div></div>')) +
+        : (GMB_TG.length ? '' : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên cùng màn.</div></div>')) +
       '</div>';
   }
   ve();

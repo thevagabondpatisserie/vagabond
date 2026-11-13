@@ -113,6 +113,17 @@ async function chayHet() {
     dungDk('nội dung chuyển tay',m.ket.html.includes('TCVTHU'));
     dungDk('không ảnh rỗng',!m.ket.html.includes('src=""'));
   });
+  await ca('v655 (De bao 13/11, phieu HDB-26-11-02558 in ma chi con mot goc): phieu tam tinh in ma QR chuyen khoan la ANH DIEM (gif) cua dung chuoi VietQR, khong phai SVG co gian ma duong in html2canvas cat mat', async function () {
+    var m=dung();require('./qr_474_chung').nap(m.ctx);m.ctx.posNoiDungCk=()=> 'TCVFK57M';m.ctx.CFGBH={qr_quay:{bin:'970422',bank:'MB',stk:'0123456789',ten:'Vagabond'}};
+    await m.ctx.posInBill(Object.assign(bill(),{tam_tinh:1,thu:585000}));
+    var html=m.ket.html;
+    var the=html.match(/<div class="qr"><img src="([^"]+)"><div>Quét để chuyển khoản 585000 đ/);
+    dungDk('co anh QR kem cau quet', !!the);
+    dungDk('anh diem gif, khong SVG', /^data:image\/gif;base64,/.test(the[1]) && html.indexOf('image/svg') < 0);
+    var chuoi=m.ctx.VgbQr.tao({bin:'970422',stk:'0123456789',tien:585000,noi_dung:'TCVFK57M'}).chuoi;
+    var q=m.ctx.qrcode(0,'M');q.addData(chuoi,'Byte');q.make();var n=q.getModuleCount();
+    bang('dung chuoi VietQR so tien va noi dung', the[1], q.createDataURL(Math.max(2,Math.floor(190/(n+8))),4));
+  });
   await ca('bill that: ma QR ve tai may thanh anh nhung, khong tro ra mang ngoai, ma dung link xuat hoa don', async function () {
     var m = dung();
     await m.ctx.posInBill(bill());

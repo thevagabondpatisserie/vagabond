@@ -3,7 +3,7 @@
 nguyên liệu thì câu báo phải là việc cần làm, không phải câu dịch máy của ERPNext
 "Cần 0.361 đơn vị Món ... để hoàn tất giao dịch này".
 
-Chạy THẬT hoan_tat_phieu trên kho giả của bộ v648 (thu_lay_bu_kho_tong_648):
+Chạy THẬT hoan_tat_phieu trên kho giả của bộ v648 (thu_xin_kho_tong_655):
 phiếu hoàn tất ném lỗi thiếu tồn lúc submit như ERPNext. Máy phải lùi điểm
 lưu TRƯỚC rồi mới đọc tồn (bài học Codex #498), giữ đúng lớp lỗi gốc.
 """
@@ -19,7 +19,7 @@ if not hasattr(_fr.utils, "get_url"):
 
 from vagabond import kho_san_xuat as ksx  # noqa: E402
 from vagabond import tin_kho  # noqa: E402
-from vagabond.khung.kiem_thu.thu_lay_bu_kho_tong_648 import BEP, _He  # noqa: E402
+from vagabond.khung.kiem_thu.thu_xin_kho_tong_655 import BEP, _He  # noqa: E402
 
 
 class NegativeStockError(ksx.frappe.ValidationError):
@@ -85,7 +85,7 @@ def _():
 	dung("nói kho, không đuôi công ty", "kho Pastry - Nguyên liệu chưa đủ nguyên liệu" in cau)
 	dung("nói món, số cần, kho đang có", "Bột mì cần 100 Gram (kho đang có 30)" in cau)
 	dung("món đủ không kể", "Bơ" not in cau)
-	dung("việc phải làm", "Xin chuyển nguyên liệu" in cau and "bấm Hoàn tất lại" in cau)
+	dung("việc phải làm", "Gửi phiếu xin kho tổng" in cau and "Hoàn tất lại" in cau)
 	la("điểm lưu đặt rồi lùi", he.diem, [("diem", ksx.DIEM_HOAN_TAT), ("lui", ksx.DIEM_HOAN_TAT)])
 	la("đọc tồn SAU khi lùi", vet[-1], "đọc tồn sau lui")
 
@@ -122,7 +122,7 @@ def _():
 
 	goc = os.path.dirname(os.path.abspath(__file__))
 	r = subprocess.run(["node", os.path.join(goc, "hanh_vi", "nhom_kiem_nvl_650.js")], capture_output=True, text=True)
-	la("node: 19 đạt, 0 hỏng", (r.returncode, r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]), (0, "19 dat, 0 hong"))
+	la("node: 16 đạt, 0 hỏng", (r.returncode, r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]), (0, "16 dat, 0 hong"))
 
 
 @ca("Codex #553 P1 thuần bu_thay_the_nhom: hàng thay thế cùng kho bù phần thiếu; nhóm tự dùng mã thay thì trừ trước; hai mã gốc chung một túi mã thay")

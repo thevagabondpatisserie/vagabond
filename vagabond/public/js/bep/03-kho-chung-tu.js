@@ -561,7 +561,8 @@ async function scrXkCkNew() {
     if (!XK.yc) return;
     var ct = await api('vagabond.xuat_kho.dong_cua_yeu_cau', { name: XK.yc });
     XK.gio = (ct.dong || []).map(function (d) {
-      return { ma: d.ma, ten: d.ten, dvt: d.dvt, ton: d.sl, sl: d.sl };
+      /* v655: tồn thật của kho xuất (máy chủ cũ không gửi thì như trước). */
+      return { ma: d.ma, ten: d.ten, dvt: d.dvt, ton: d.ton != null ? d.ton : d.sl, sl: d.sl };
     });
     if (ct.kho_xuat) { XK.kho = ct.kho_xuat; eKho.value = ct.kho_xuat; }
     if (ct.kho_nhan) { XK.khoNhan = ct.kho_nhan; eKhoN.value = ct.kho_nhan; }
