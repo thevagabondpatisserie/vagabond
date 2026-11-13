@@ -526,7 +526,7 @@ def ly_do_chan(phieu):
 	for i, d in enumerate(cac_dong(p), 1):
 		if (d.get("phan_loai") or "").strip() in CHAN_TSCD:
 			return (
-				"Khoản %s là tài sản cố định nên không đi đường đề nghị chi lặt vặt được. Tài sản cố định cần đơn mua hàng, cần theo dõi khấu hao và cần hồ sơ tài sản, nhét vào một phiếu hoàn tiền là mất cả ba. Anh chị vui lòng tách khoản đó ra và lập Đơn mua hàng, hoặc nhắn Uyên để Uyên lập." % i
+				"Khoản %s là tài sản cố định nên không đi đường đề nghị chi lặt vặt được. Tài sản cố định cần đơn mua hàng, cần theo dõi khấu hao và cần hồ sơ tài sản, nhét vào một phiếu hoàn tiền là mất cả ba. Anh chị vui lòng tách khoản đó ra và lập Đơn mua hàng, hoặc nhắn Thu mua để Thu mua lập." % i
 			)
 	if la_tam_ung((p.get("loai_nghiep_vu") or "")) and co_hoa_don_vat(p):
 		return (
@@ -1447,7 +1447,7 @@ def danh_muc():
 		# không làm im lặng tắt mất ba ô đó.
 		"loai_chung_tu": _ds_chung_tu(),
 		"nguong_giam_doc": NGUONG_GIAM_DOC,
-		"nhac_ncc": "Nếu chưa có nhà cung cấp trong danh mục, anh chị liên hệ Uyên để tạo mã giúp.",
+		"nhac_ncc": "Nếu chưa có nhà cung cấp trong danh mục, anh chị liên hệ Thu mua để tạo mã giúp.",
 	}
 
 

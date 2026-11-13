@@ -129,7 +129,7 @@ VIEC = (
 		"ten": "Dự chi công nợ đợt 10 và 20",
 		"mo": "Không còn bảng Excel dự chi: máy soạn sẵn đợt trả nhà cung cấp từ dư nợ ERP.",
 		"may": "Ngày 7 và 17, từ giờ chạy, máy soạn đợt nháp cho ngày 10 hoặc 20: mọi hoá đơn mua còn nợ (trừ phí sàn cấn trừ), hạn dự tính theo số ngày được nợ, tờ tới hạn điền sẵn trả hết. Nhắn nhóm Thu mua.",
-		"nguoi": "Uyên mở Dự chi công nợ, thương lượng từng nhà cung cấp: Trả hết hoặc gõ số trả từng hoá đơn, máy tính phần gia hạn. Bấm Gửi duyệt. Giám đốc duyệt xong máy lập APP luôn.",
+		"nguoi": "Thu mua mở Dự chi công nợ, thương lượng từng nhà cung cấp: Trả hết hoặc gõ số trả từng hoá đơn, máy tính phần gia hạn. Bấm Gửi duyệt. Giám đốc duyệt xong máy lập APP luôn.",
 		"o": "san", "gio": "09:00", "gio_sua": 1, "han": "17:00", "han_kieu": "luc",
 		"bao": "Lúc soạn xong: nhắn nhóm Thu mua.",
 		"mac_dinh": 1, "co_san": 0, "man": "DUCHI",

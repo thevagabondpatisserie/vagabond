@@ -285,6 +285,34 @@ def _nhom_mua(r, hom_nay):
 	return _xep_mua(r, {"hom_nay": hom_nay})
 
 
+def _gan_tep(rows):
+	try:
+		from vagabond import hoa_don_thu
+		return hoa_don_thu.gan_tep(rows)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ke_toan: gan tep hoa don mua")
+		return rows
+
+
+def _hop_thu():
+	"""Tình trạng đọc hộp thư hoadon@ cho đầu màn Hoá đơn mua vào (v654)."""
+	try:
+		from vagabond import hoa_don_thu
+		m = hoa_don_thu._moc()
+		return {"quyen": 1 if ({"System Manager", "Accounts Manager"} & set(frappe.get_roles())) else 0,
+			"luc": m.get("luc") or "", "con": int(m.get("con") or 0), "dia_chi": hoa_don_thu.DIA_CHI_MAC_DINH}
+	except Exception:
+		return {"quyen": 0}
+
+
+def _o_minvoice():
+	"""Ô nối hoá đơn mua với hoá đơn M-Invoice, có trên site thì đọc kèm (v654)."""
+	try:
+		return ["custom_minvoice_id"] if frappe.get_meta("Purchase Invoice").has_field("custom_minvoice_id") else []
+	except Exception:
+		return []
+
+
 @frappe.whitelist()
 def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa="", nhom=None):
 	_kiem_quyen()
@@ -300,7 +328,7 @@ def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa="", nhom=Non
 			"outstanding_amount", "docstatus", "due_date", "bill_no", "bill_date",
 			"status", "total_qty", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
 			"amended_from",
-		],
+		] + _o_minvoice(),
 		order_by="posting_date desc, name desc",
 		limit_page_length=0,
 	)
@@ -338,7 +366,8 @@ def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa="", nhom=Non
 	else:
 		loc_ra = ra
 	return {
-		"hd": loc_ra[:TRAN_DONG],
+		"hd": _gan_tep(loc_ra[:TRAN_DONG]),
+		"hop_thu": _hop_thu(),
 		"tong_dong": len(loc_ra),
 		"bi_cat": max(0, len(loc_ra) - TRAN_DONG),
 		"dem": dem,

@@ -47,7 +47,7 @@ TT_DA_CHOT = "Da chot"
 TT_HUY = "Huy"
 TT_SONG = (TT_NHAP, TT_CHO_FIN, TT_CHO_GD, TT_DA_DUYET)
 NHAN = {
-	TT_NHAP: "Uyên đang thương lượng",
+	TT_NHAP: "Thu mua đang thương lượng",
 	TT_CHO_FIN: "Chờ kế toán soát",
 	TT_CHO_GD: "Chờ giám đốc duyệt",
 	TT_DA_DUYET: "Đã duyệt, đang lập APP",
@@ -629,7 +629,7 @@ def duyet(ma, buoc, ly_do=""):
 	elif buoc == "tra_lai":
 		_chan(ho.VAI_FIN | ho.VAI_GD, "trả lại đợt dự chi")
 		if not (ly_do or "").strip():
-			frappe.throw("Trả lại thì ghi lý do, để Uyên biết sửa gì.")
+			frappe.throw("Trả lại thì ghi lý do, để Thu mua biết sửa gì.")
 		if doc.trang_thai not in (TT_CHO_FIN, TT_CHO_GD):
 			frappe.throw("Đợt đang ở %s, không trả lại được." % NHAN.get(doc.trang_thai))
 		doc.trang_thai, doc.ly_do_tra_lai = TT_NHAP, ly_do.strip()
