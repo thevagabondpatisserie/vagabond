@@ -1,0 +1,155 @@
+{
+ "actions": [],
+ "autoname": "format:LC-{#####}",
+ "creation": "2026-11-13 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "noi_dung",
+  "nguoi_nhan",
+  "nha_cung_cap",
+  "so_tien",
+  "cb1",
+  "ngay_trong_thang",
+  "bat",
+  "so_thang_thay",
+  "sb1",
+  "ngoai_le",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "noi_dung",
+   "fieldtype": "Data",
+   "label": "Nội dung",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "nguoi_nhan",
+   "fieldtype": "Data",
+   "label": "Người nhận / Nhà cung cấp",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "nha_cung_cap",
+   "fieldtype": "Link",
+   "label": "Nhà cung cấp",
+   "options": "Supplier",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Currency",
+   "label": "Số tiền mỗi tháng",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngay_trong_thang",
+   "fieldtype": "Int",
+   "label": "Ngày chi trong tháng",
+   "default": "20",
+   "description": "Ngày 29, 30, 31 mà tháng ngắn hơn thì máy lùi về ngày cuối tháng."
+  },
+  {
+   "fieldname": "bat",
+   "fieldtype": "Check",
+   "label": "Đang dùng",
+   "default": "1"
+  },
+  {
+   "fieldname": "so_thang_thay",
+   "fieldtype": "Int",
+   "label": "Số tháng máy thấy trong dữ liệu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ngoai_le",
+   "fieldtype": "Small Text",
+   "label": "Ngoại lệ máy thấy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-13 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Lich Chi",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1,
+   "share": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Purchase Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Purchase User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "title_field": "noi_dung"
+}
