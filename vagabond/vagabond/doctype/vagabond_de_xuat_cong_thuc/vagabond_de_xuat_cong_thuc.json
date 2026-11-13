@@ -1,0 +1,194 @@
+{
+ "actions": [],
+ "autoname": "format:DXCT-{YY}-{MM}-{####}",
+ "creation": "2026-11-13 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "loai",
+  "ten_banh",
+  "trang_thai",
+  "cb1",
+  "nguoi_de_xuat",
+  "nguoi_duyet",
+  "bom_goc",
+  "sb1",
+  "ly_do",
+  "ghi_chu_khai",
+  "sb2",
+  "du_lieu",
+  "ma_thanh_pham",
+  "ket_qua"
+ ],
+ "fields": [
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "label": "Loại phiếu",
+   "options": "Mới\nĐiều chỉnh",
+   "default": "Mới",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_banh",
+   "fieldtype": "Data",
+   "label": "Tên bánh",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Nháp\nChờ Khải\nTrả lại bếp\nĐã tạo nháp\nĐã ghi sổ\nĐã huỷ",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nguoi_de_xuat",
+   "fieldtype": "Link",
+   "label": "Người đề xuất",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_duyet",
+   "fieldtype": "Link",
+   "label": "Người duyệt",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bom_goc",
+   "fieldtype": "Link",
+   "label": "Công thức gốc (điều chỉnh)",
+   "options": "BOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Small Text",
+   "label": "Lý do",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu_khai",
+   "fieldtype": "Small Text",
+   "label": "Khải hỏi lại",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb2",
+   "fieldtype": "Section Break",
+   "label": "Dữ liệu phiếu",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "du_lieu",
+   "fieldtype": "Long Text",
+   "label": "Thành phần (JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ma_thanh_pham",
+   "fieldtype": "Small Text",
+   "label": "Mã thành phẩm từng size (JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ket_qua",
+   "fieldtype": "Long Text",
+   "label": "Mã và công thức đã tạo (JSON)",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-13 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond De Xuat Cong Thuc",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1,
+   "share": 1
+  },
+  {
+   "role": "Manufacturing Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Manufacturing User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "VGB - Quản lý công thức",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Bếp phó",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Quầy Bar",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "title_field": "ten_banh"
+}
