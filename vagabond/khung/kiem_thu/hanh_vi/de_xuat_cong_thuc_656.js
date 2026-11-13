@@ -165,7 +165,7 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     assert.deepEqual(daLuu.sizes, ['16', '20']);
     assert.deepEqual(daLuu.dong.map(x => [x.ma || '', x.ten, x.dich, x.gram['16'], x.gram['20']]),
       [['BTPB-0012', 'Mousse bưởi hồng', 'cap1', 100, 156], ['', 'Hoa trang trí', 'thanh_pham', 3, 3]], 'gửi đúng dòng, vào đâu, gram');
-    assert(a.html().indexOf('⚠️ Thiếu giá: Bột bưởi') >= 0, 'thiếu giá hiện chữ đỏ');
+    assert(a.html().indexOf('⚠️ Thiếu giá 1 nguyên liệu: Bột bưởi.') >= 0, 'thiếu giá hiện chữ đỏ');
     assert(a.html().indexOf('152000 đ') >= 0, 'hiện giá vốn dự kiến máy chủ tính');
     await a.nut('dxGui');
     assert.deepEqual(a.goi.slice(-2).map(x => x.m.split('.').pop()), ['luu', 'gui'], 'Gửi Khải lưu trước rồi gửi');
@@ -213,7 +213,7 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     const l = a.goi.filter(x => x.m.endsWith('.luu'))[0].a;
     assert.deepEqual([l.loai, l.bom_goc, l.ly_do, dl.dong[0].gram['']], ['Điều chỉnh', 'BOM-X-001', 'Bớt béo', 180], 'lưu đúng phiếu điều chỉnh');
     assert(a.html().indexOf('Bơ (đổi)') >= 0 && ['<b>50000 đ</b>', '<b>46000 đ</b>', '(-4000 đ)'].every(c => a.html().indexOf(c) >= 0), 'bảng trước sau và giá vốn chênh');
-    assert(a.html().indexOf('⚠️ Thiếu giá: Bột bưởi') >= 0, 'Codex #563: phiếu điều chỉnh cũng ghi đỏ dòng thiếu giá');
+    assert(a.html().indexOf('⚠️ Thiếu giá 1 nguyên liệu: Bột bưởi.') >= 0, 'Codex #563: phiếu điều chỉnh cũng ghi đỏ dòng thiếu giá');
     chuanCham(a, ['[data-dxg]', '#dxLyDo', '#dxLuu', '#dxGui', '#dxHuy'], 'điều chỉnh');
     let dl2 = null;
     const may2 = { chi_tiet: () => Object.assign(dc(dl), { trang_thai: 'Chờ Khải', quyen: { sua: 1, duyet: 1 } }),
@@ -258,5 +258,44 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     assert.deepEqual(luu, [null, 'DXCT-26-11-0042'], 'lần hai lưu vào đúng phiếu đã có');
     assert(a.html().indexOf('Chờ Khải') >= 0, 'lần hai gửi được');
   }
-  console.log('de_xuat_cong_thuc_656: 6 nhóm ca đạt');
+  {
+    /* 7. Codex #564 (AGENTS 2b.17): khối chỉ để đọc không lấn khối để bấm.
+       Phiếu có 6 nguyên liệu thiếu giá, 8 dòng: Khải thấy nút Tạo mã trước
+       danh sách thành phần; cảnh báo thiếu giá chỉ một dòng đếm số, ba tên đầu,
+       "và 3 nữa", nằm dưới nút; bấm mới mở đủ. Phiếu điều chỉnh 8 dòng mà chỉ
+       đổi 1: bảng chỉ hiện dòng đổi, còn lại gom vào nút xem. */
+    const ten = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'];
+    const dl = { sizes: ['16'], dong: ten.concat(['B1', 'B2']).map((t, i) => ({ id: 'd' + i, ma: 'M' + i, ten: t, dvt: 'Gram', dich: 'cap2', gram: { '16': 10 } })) };
+    const may = { chi_tiet: () => PHIEU('Chờ Khải', dl, { quyen: { sua: 1, duyet: 1 }, thieu_gia: ten }) };
+    const a = appMoi(may, ['ghi']);
+    await a.mo(() => a.g.dxMo('DXCT-26-11-0001'));
+    const ht = a.html();
+    const iTao = ht.indexOf('id="dxTao"'), iTp = ht.indexOf('>Thành phần<'), iCb = ht.indexOf('⚠️ Thiếu giá');
+    assert(iTao > 0 && iTao < iTp, 'nút Tạo mã và công thức nằm trước danh sách thành phần');
+    assert(iCb > iTao, 'cảnh báo thiếu giá nằm dưới khối hành động');
+    assert(ht.indexOf('⚠️ Thiếu giá 6 nguyên liệu: A1, A2, A3 và 3 nữa.') >= 0 && ht.indexOf('A1, A2, A3, A4') < 0, 'chỉ ba tên đầu và đếm phần còn lại');
+    chuanCham(a, ['[data-dxmothieu]'], 'nút xem đủ thiếu giá');
+    await a.bam('[data-dxmothieu]');
+    assert(a.html().indexOf('A1, A2, A3, A4, A5, A6.') >= 0, 'bấm mới mở đủ');
+    const bang = ten.concat(['B1', 'B2']).map((t, i) => ({ ma: 'M' + i, ten: t, cu: 10, moi: i === 7 ? 12 : 10, kieu: i === 7 ? 'doi' : 'giu' }));
+    const may2 = { chi_tiet: () => PHIEU('Chờ Khải', { sizes: [], dong: [] }, { loai: 'Điều chỉnh', bom_goc: 'BOM-X-001', quyen: { sua: 0, duyet: 1 }, gia: {}, thieu_gia: [],
+      doi_chieu: { bang, von_cu: 1000, von_moi: 1020, thieu: [] } }) };
+    const k = appMoi(may2, ['ghi']);
+    await k.mo(() => k.g.dxMo('DXCT-26-11-0001'));
+    const hk = k.html();
+    assert(hk.indexOf('B2 (đổi)') >= 0 && hk.indexOf('>A1<') < 0, 'bảng chỉ hiện dòng đổi');
+    assert(hk.indexOf('id="dxDuyet"') < hk.indexOf('B2 (đổi)'), 'nút Duyệt nằm trên bảng');
+    assert(hk.indexOf('Xem cả 8 dòng (7 dòng đang ẩn)') >= 0, 'dòng giữ nguyên gom vào nút');
+    await k.bam('[data-dxmobang]');
+    assert(k.html().indexOf('>A1<') >= 0, 'bấm mới mở cả bảng');
+  }
+  {
+    /* 8. Cùng loại trên màn Công thức: dòng Thiếu giá gọn một dòng. */
+    const g = { h: x => String(x), money: x => String(x) };
+    vm.createContext(g);
+    vm.runInContext(layHam(doc('26-cong-thuc.js'), 'ctHopGiaVon'), g);
+    const ht = g.ctHopGiaVon({ mot: 50000, ban: 0, thieu: ['A1', 'A2', 'A3', 'A4', 'A5'], dvt: 'Cái' });
+    assert(ht.indexOf('Thiếu giá 5 nguyên liệu: A1, A2, A3 và 2 nữa.') >= 0 && ht.indexOf('A4') < 0, 'màn Công thức: đếm số, ba tên đầu');
+  }
+  console.log('de_xuat_cong_thuc_656: 8 nhóm ca đạt');
 })().catch(e => { console.error(e); process.exit(1); });
