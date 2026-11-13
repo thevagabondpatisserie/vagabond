@@ -369,14 +369,14 @@ Từ khoá: dự chi, dự trù công nợ, trả nhà cung cấp, đợt 10, đ
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Thu mua (Uyên) | Dự chi công nợ (/du-chi-cong-no) | [[Trả hết]], [[Lưu]], [[Gửi duyệt]] |
+| Thu mua | Dự chi công nợ (/du-chi-cong-no) | [[Trả hết]], [[Lưu]], [[Gửi duyệt]] |
 
 Trước đây: lập bảng Excel dự chi rồi lập từng APP, duyệt từng tờ. Từ nay: máy soạn sẵn đợt nháp ngày 7 (cho đợt 10) và ngày 17 (cho đợt 20) từ dư nợ ERP, nhắn nhóm Thu mua; giám đốc duyệt cả đợt một lần là máy lập APP.
 
 **Các bước**
-1. Mở Dự chi công nợ, chọn đợt đang ở bước Uyên đang thương lượng.
-2. Mỗi nhà cung cấp một thẻ. Hoá đơn tới hạn máy điền sẵn trả hết, chưa tới hạn để 0.
-3. Thương lượng xong: bấm [[Trả hết]], [[Không trả đợt này]], hoặc gõ số trả từng hoá đơn. Máy tính phần gia hạn.
+1. Mở Dự chi công nợ, chọn đợt đang ở bước Thu mua đang thương lượng.
+2. Mỗi nhà cung cấp một thẻ. Hoá đơn tới hạn máy chọn sẵn trả hết.
+3. Bấm ô ☑ ở từng hoá đơn (chọn là trả hết, bỏ là 0), hoặc lọc bằng chip hay ô tìm rồi bấm Chọn hết hay Bỏ chọn đang lọc; trả một phần thì gõ số. Dòng Đã chọn ghi số hoá đơn và tổng đợt.
 4. Bấm dòng hoá đơn để ghi chú và chọn đợt hẹn trả phần gia hạn.
 5. Chip Nợ 30 ngày trên thẻ: bấm để khai số ngày nhà cung cấp cho nợ (máy gợi theo lịch sử trả).
 6. Bấm [[Lưu]] khi đang làm dở, bấm [[Gửi duyệt]] khi xong.
@@ -388,9 +388,54 @@ Trước đây: lập bảng Excel dự chi rồi lập từng APP, duyệt từ
 | Đợt chưa có dòng nào trả | Nhập số trả cho ít nhất một hoá đơn |
 
 **Lưu ý**
-- Kế toán hay giám đốc trả lại thì đợt về Uyên, có lý do ở đầu màn.
-- Duyệt xong, APP đứng tên Uyên, đã có sẵn dấu duyệt, chờ kế toán chuyển tiền. Xem [[Danh sách chuyển khoản]].
+- Kế toán hay giám đốc trả lại thì đợt về Thu mua, có lý do ở đầu màn.
+- Duyệt xong, APP đứng tên người lập đợt bên Thu mua, đã có sẵn dấu duyệt, chờ kế toán chuyển tiền. Xem [[Danh sách chuyển khoản]].
 - Phí sàn (Grab, ShopeeFood) cấn trừ vào tiền sàn trả nên không có trong đợt.
+
+## Thêm dự chi và xem tiền khả dụng theo ngày
+Từ khoá: thêm dự chi, chi gấp, tiền khả dụng, thiếu tiền, lịch dự chi, tiền nhà, lịch chi hằng tháng, đến hạn
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua, Kế toán, Giám đốc | Dự chi công nợ (/du-chi-cong-no) | [[＋ Thêm dự chi]], [[Lưu dự chi nháp]] |
+
+Trước đây: chỉ có hai đợt 10 và 20. Từ nay: máy lấy số dư ngân hàng của mục Tài chính cộng tiền khách công nợ dự kiến trả, rồi báo ngày nào không đủ tiền chi, ví dụ Ngày 20/11 không đủ tiền chi. Số dư chỉ Giám đốc và người được xem mục Tài chính thấy.
+
+**Các bước**
+1. Mở Dự chi công nợ, bấm [[＋ Thêm dự chi]].
+2. Chọn Ngày cần chi (ngày nào cũng được), gõ Nội dung, Số tiền, Lý do.
+3. Trả nhà cung cấp thì bấm [[🔎 Chọn nhà cung cấp trong danh mục]]. Bên nhận không có trong danh mục (chợ, thợ) thì ghi ở ô Người nhận khác.
+4. Có hoá đơn công nợ thì gõ tên hay số hoá đơn, bấm [[Tìm]] và chọn trong kết quả; không có hoá đơn vẫn lưu được.
+5. Bấm [[Lưu dự chi nháp]]. Khoản mới hiện trên Lịch dự chi đúng ngày, chip Nhập tay.
+6. Chi thật: lập hồ sơ thanh toán (APP) và duyệt như cũ, rồi mở lại dự chi, bấm [[🔎 Chọn hồ sơ thanh toán để nối]]. Khoản không chi nữa thì bấm [[🗑 Xoá dự chi nháp]].
+
+**Lưu ý**
+- Không đọc được số dư thì máy không đoán.
+- Tiền dự kiến về lấy từ công nợ cần thu, đặt vào ngày khách đó thường trả; khách đã quá ngày thường trả mà chưa trả thì không tính.
+- Máy chỉ lưu dự chi nháp; duyệt và chi đi theo hồ sơ APP như cũ.
+- Đang gõ mà thoát hay tải lại trang thì máy giữ bản đang soạn trên máy, mở lại hỏi có làm tiếp không.
+
+## Đọc Lịch dự chi và lịch chi hằng tháng
+Từ khoá: lịch dự chi, máy đề xuất, nhập tay, theo lịch hằng tháng, tiền nhà, gợi ý lịch chi, tính hai lần
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua, Kế toán, Giám đốc | Dự chi công nợ (/du-chi-cong-no) | [[＋ Thêm lịch hằng tháng]], [[Máy gợi ý từ dữ liệu]] |
+
+**Chip trên mỗi khoản**
+| Chip | Nghĩa |
+|---|---|
+| Nhập tay | Khoản Thu mua thêm |
+| Máy đề xuất | Hoá đơn còn nợ xếp theo hạn: quá hạn xếp hôm nay; có đợt 10 hay 20 trước hạn thì xếp đợt đó; không có thì đúng ngày hạn (ví dụ 18/11), không dồn sang 20 |
+| Theo lịch hằng tháng | Tiền nhà, điện, nước... theo Lịch chi hằng tháng |
+| Đợt dự chi | Số đã chọn trả trong đợt đã gửi duyệt |
+| Hồ sơ APP đang duyệt | APP đã lập, đang chờ duyệt hay chờ chuyển tiền |
+
+**Lưu ý**
+- Mỗi khoản chỉ tính một lần: có APP thì tính theo APP; dự chi gắn hoá đơn thì máy trừ phần đó khỏi số đề xuất; tháng đã có APP hay hoá đơn tiền nhà thì lịch tháng đó không tính thêm.
+- Tiền nhà Nguyễn Hữu Phước có sẵn lịch ngày 20; bấm dòng đó để sửa ngày hay số tiền.
+- Lịch đã tạm thôi vẫn nằm trong danh sách (chữ xám). Bấm dòng đó, bấm nút Đang tạm thôi để dùng lại, rồi [[💾 Lưu lịch]].
+- [[Máy gợi ý từ dữ liệu]] liệt kê người nhận thấy từ ba tháng trở lên, kèm ngoại lệ. Hoàn ứng không tính. Bấm [[Thêm vào lịch]] nếu đúng.
 
 ## Hoá đơn nhà cung cấp tự đính từ hộp thư hoadon@
 Từ khoá: hoá đơn nhà cung cấp, PDF hoá đơn, XML hoá đơn, hoadon@, bản thể hiện, đính kèm APP
@@ -399,7 +444,7 @@ Từ khoá: hoá đơn nhà cung cấp, PDF hoá đơn, XML hoá đơn, hoadon@,
 |---|---|---|
 | Thu mua, Kế toán | Việc cần làm, Hoá đơn trong thư (Desk) | Không cần bấm |
 
-Trước đây: tải tay PDF hoá đơn nhà cung cấp về đính vào APP. Từ nay: mỗi giờ máy đọc hộp thư hoadon@ (chỉ đọc, không đánh dấu đã đọc), lấy XML và PDF, khớp hoá đơn M-Invoice, đính PDF của nhà cung cấp để APP có sẵn.
+Trước đây: tải tay PDF hoá đơn nhà cung cấp về đính vào APP. Từ nay: 15 phút một lần máy đọc hộp thư hoadon@ (chỉ đọc, không đánh dấu đã đọc), thư mới nhất trước, lấy XML và PDF, khớp hoá đơn M-Invoice theo MST người bán, ký hiệu, số hoá đơn và MST người mua là công ty, đính PDF của nhà cung cấp để APP có sẵn.
 
 **Bạn cần làm**
 1. Việc cần làm hiện dòng Hoá đơn nhà cung cấp trong hộp thư khi thư chỉ có đường dẫn tra cứu, chỉ có PDF, hay 3 ngày chưa khớp.

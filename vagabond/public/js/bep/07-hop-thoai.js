@@ -799,7 +799,7 @@ function vgbOTim(idO, soMuc, goiY) {
   return '<input class="tin" id="' + h(idO) + '" type="search" autocomplete="off" ' +
     'placeholder="' + h(goiY || ('🔎 Gõ để tìm nhanh trong ' + soMuc + ' mục')) + '" ' +
     'style="margin:0 0 9px">' +
-    '<div id="' + h(idO) + 'Trong" style="display:none;font-size:12.5px;color:#b45309;' +
+    '<div id="' + h(idO) + 'Trong" style="display:none;font-size:13px;color:#b45309;' +
     'padding:6px 2px 9px;line-height:1.55">Không có mục nào khớp. Xoá bớt chữ rồi tìm lại.</div>';
 }
 

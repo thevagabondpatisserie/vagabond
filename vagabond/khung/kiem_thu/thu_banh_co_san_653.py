@@ -66,12 +66,24 @@ class Bo(object):
 def _chay(bay, dong, bo, tin, anh="https://anh/luoi.png"):
 	from vagabond import kenh_zalo
 
-	vs = [um.patch.object(fr.db, "exists", lambda *a, **k: True), um.patch.object(fr, "get_all", lambda *a, **k: [dict(x) for x in dong]),
+	# v654: lần gửi trước đọc từ sổ tin (Vagabond Tin Kenh). Ca này giữ hành vi
+	# 653 bằng một sổ tin giả ghi theo từng lần bao().
+	def get_all(dt_, *a, **k):
+		if dt_ == "Vagabond Tin Kenh":
+			r = [x for x in tin if x[1].get("_luc")]
+			return [dict(dau=r[-1][1].get("dau"), creation=r[-1][1]["_luc"])] if r else []
+		return [dict(x) for x in dong]
+
+	def bao(*a, **k):
+		tin.append((a, dict(k, _luc=bay)))
+		return ["ZL-x"]
+	vs = [um.patch.object(fr.db, "exists", lambda *a, **k: True), um.patch.object(fr, "get_all", get_all),
+		um.patch.object(fr.db, "sql", lambda q, *a, **k: [(1,)] if "lock" in q else []),
 		um.patch.object(fr, "cache", lambda: bo, create=True),
 		um.patch("frappe.utils.now_datetime", lambda: bay), um.patch("frappe.utils.nowdate", lambda: str(bay.date())),
 		um.patch("frappe.utils.get_datetime", lambda v: dt.datetime.fromisoformat(str(v)), create=True),
 		um.patch.object(anh_bang, "anh_luoi", lambda *a, **k: anh),
-		um.patch.object(kenh_zalo, "bao_hoac_ghi_loi", lambda *a, **k: tin.append((a, k)))]
+		um.patch.object(kenh_zalo, "bao_hoac_ghi_loi", bao)]
 	for v in vs:
 		v.start()
 	try:

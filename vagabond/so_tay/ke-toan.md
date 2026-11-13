@@ -578,6 +578,33 @@ Người bán làm tròn nửa đồng lên, máy làm tròn kiểu khác, nên 
 - Dòng "Chênh lệch làm tròn theo hoá đơn điện tử" chỉ còn khi phần chênh không đặt được vào dòng hàng nào.
 - Tờ cũ đã kẹt "Thiếu mã hàng" vì dòng này: liên hệ kế toán trưởng.
 
+## Nhãn XML và PDF trên Hoá đơn mua vào
+Từ khoá: XML hoá đơn, PDF hoá đơn, hoadon@, thiếu tệp, quét lại thư cũ, đọc hộp thư
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, Thu mua | Hoá đơn mua vào (/hoa-don-mua) | [[XML]], [[PDF]], [[Đọc hộp thư ngay]], [[Quét lại thư cũ]] |
+
+Trước đây: hoá đơn mua (ví dụ HDM-26-11-00195, An Phú, số 8882) không cho biết thư đã về chưa. Từ nay: mỗi dòng có nhãn [[XML]], [[PDF]] khi tệp thật đã đính (bấm là mở); thiếu thì nhãn xám và một dòng lý do.
+
+**Các bước**
+1. Mở Hoá đơn mua vào, xem nhãn dưới từng dòng.
+2. Bấm [[XML]] hay [[PDF]] để mở tệp trên điện thoại.
+3. Kế toán trưởng: bấm [[Đọc hộp thư ngay]] khi cần ngay; bấm [[Quét lại thư cũ]] (chọn ngày bắt đầu) khi nghi thư cũ chưa đủ tệp. Quét lại chỉ bổ sung tệp còn thiếu, không tạo hoá đơn hay tệp trùng.
+
+**Lý do thường gặp**
+| Màn ghi | Nghĩa và cách làm |
+|---|---|
+| Chưa thấy thư hoá đơn này trong hộp thư hoadon@ | Thư chưa về hoặc máy chưa đọc tới; máy đọc thư mới nhất trước, 15 phút một lần |
+| Chưa thấy hoá đơn M-Invoice đầu vào cùng MST ... | Chờ M-Invoice kéo về, máy tự thử lại |
+| Có 2 hoá đơn M-Invoice cùng MST, số và ký hiệu | Kế toán chọn tay tờ đúng |
+| Hoá đơn ghi người mua MST ..., không phải MST công ty | Nhà cung cấp gửi nhầm, nhờ họ xuất lại |
+| Thư hoá đơn của nhà cung cấp không kèm PDF | Xin nhà cung cấp gửi lại nếu cần bản thể hiện |
+
+**Lưu ý**
+- Thư nhà cung cấp gửi lại cùng hoá đơn không tạo dòng mới, máy chỉ bổ sung tệp còn thiếu.
+- Hộp thư hoadon@ chỉ được đọc, máy không đánh dấu, không xoá, không chuyển thư.
+
 ## Xem hoá đơn mua vào và hoá đơn bán ra
 Từ khoá: hoá đơn mua, hoá đơn mua vào, purchase invoice, hoá đơn bán, hoá đơn bán ra, sales invoice, tra cứu hoá đơn, còn nợ, quá hạn
 
@@ -1210,7 +1237,7 @@ Trước đây: duyệt từng APP. Từ nay: duyệt cả đợt một lần; g
 
 **Các bước**
 1. Việc cần làm báo đợt chờ mình. Mở Dự chi công nợ, chọn đợt.
-2. Xem tổng trả, gia hạn, số dư tài khoản chi ở đầu màn.
+2. Xem tổng trả, gia hạn ở đầu màn. Số dư ngân hàng (lấy từ mục Tài chính) chỉ hiện với người được xem mục Tài chính.
 3. Kế toán bấm [[Kế toán đã soát]]; giám đốc bấm [[Duyệt và lập APP]]. Sai thì bấm [[Trả lại]] và ghi lý do.
 4. Có nhà cung cấp chưa lập được APP (dòng đỏ): sửa theo câu báo rồi bấm [[Lập APP cho phần còn lỗi]].
 

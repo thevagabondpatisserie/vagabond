@@ -1252,4 +1252,5 @@ scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("v
 # v653: tin Zalo "Bánh có sẵn hôm nay" kèm ảnh, khi số bán được trên bảng Kiểm bánh đổi.
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.tin_banh_co_san.quet")
 # v653: đọc hộp thư hoá đơn nhà cung cấp hoadon@ (chỉ đọc), đính PDF, XML vào hoá đơn mua.
-scheduler_events.setdefault("cron", {}).setdefault("17 * * * *", []).append("vagabond.hoa_don_thu.doc_dinh_ky")
+# v654: mỗi 15 phút (trước là mỗi giờ), thư mới nhất trước.
+scheduler_events.setdefault("cron", {}).setdefault("7,22,37,52 * * * *", []).append("vagabond.hoa_don_thu.doc_dinh_ky")

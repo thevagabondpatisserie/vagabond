@@ -837,7 +837,8 @@ async function chayHet() {
     /* v614 Codex #505: them chien_dich (lap chien dich CRM, 58-crm.js). */
     /* v622: them vi_tri_tuyen va ho_so_ung_vien (Tuyen dung, 60-tuyen-dung.js). */
     /* v646 Codex 549: them gom_mua (Gom yeu cau mua, 70-gom-mua.js). */
-    bang('du 51 loai phieu (v628: them kiem_quy, nop_ngan_hang; v635: chot_dau_quy; v646: gom_mua; v653: du_chi)', Object.keys(k.SD_MAN).length, 51);
+    /* v654 Codex #561: them du_chi_tay (Them, Sua du chi) va lich_chi (Lich chi hang thang), 71-du-chi.js. */
+    bang('du 53 loai phieu (v628: them kiem_quy, nop_ngan_hang; v635: chot_dau_quy; v646: gom_mua; v653: du_chi; v654: du_chi_tay, lich_chi)', Object.keys(k.SD_MAN).length, 53);
     /* v642 Codex #545 vong 2: ban nhap ho so hoan ung co HD phai giu ca giao dich sao ke da noi (hsGdCua),
        khong thi mo lai ban nhap roi Lap la mat chung tu ma khong ai hay. Ban nhap cu chua co o nay thi ve rong. */
     var hs = k.SD_MAN.ho_so_tt;

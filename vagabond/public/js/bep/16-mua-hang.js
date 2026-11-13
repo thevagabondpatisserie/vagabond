@@ -1149,11 +1149,40 @@ function mkBangHd(ds, loai) {
           : d.outstanding_amount > 0
             ? (d.tre_ngay ? '<b style="color:#b3261e">quá hạn ' + d.tre_ngay + ' ngày</b>' : 'hạn trả ' + ngayNgan(d.due_date || ''))
             : '<span style="color:#0f766e">đã trả xong</span>') +
-      (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div></div>' +
+      (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div>' + hdTepNhan(d) + '</div>' +
       '<div style="text-align:right;white-space:nowrap"><b>' + money(d.grand_total) + '</b>' +
       (d.docstatus === 1 && d.outstanding_amount > 0 ? '<div style="font-size:11.5px;color:#b3261e">còn ' + money(d.outstanding_amount) + '</div>' : '') +
       '</div></div>';
   }).join('') + '</div>';
+}
+
+/* v654 (anh Việt 13/11/2026, HDM-26-11-00195): nhãn XML, PDF theo TỆP THẬT đang
+   đính (hoá đơn mua hoặc hoá đơn M-Invoice nối với nó), bấm là mở tệp. Thiếu
+   tệp thì nói lý do máy biết (chưa thấy thư, chưa khớp, nhiều tờ trùng...). */
+function hdTepNhan(d) {
+  if (d.tep_xml === undefined && d.tep_pdf === undefined) return '';
+  var nut = function (url, chu) {
+    return url
+      ? '<a href="' + h(url) + '" target="_blank" rel="noopener" data-hdtep="1" style="display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:10px;background:#ecfdf3;color:#067647;font-weight:700;font-size:13px;text-decoration:none;border:1px solid #abefc6">📄 ' + chu + '</a>'
+      : '<span style="display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;background:#f2f4f7;color:#667085;font-size:13px">Chưa có ' + chu + '</span>';
+  };
+  return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' + nut(d.tep_xml, 'XML') + nut(d.tep_pdf, 'PDF') + '</div>' +
+    (d.tep_ly_do && !(d.tep_xml && d.tep_pdf) ? '<div style="font-size:13px;color:#b45309;margin-top:4px;line-height:1.45;white-space:normal">' + h(d.tep_ly_do) + '</div>' : '');
+}
+
+/* Đầu màn Hoá đơn mua vào: tình trạng đọc hộp thư hoá đơn, hai nút cho kế toán trưởng. */
+function hdHopThu(ht) {
+  if (!ht || !ht.quyen) return '';
+  return '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13px;color:#475467;line-height:1.5">Hộp thư <b>' + h(ht.dia_chi || 'hoadon@') + '</b>: ' +
+    (ht.luc ? 'đọc lần cuối ' + h(String(ht.luc).slice(11, 16) + ' ' + ngayNgan(String(ht.luc).slice(0, 10))) : 'chưa đọc lần nào') +
+    (ht.con ? ' · còn ' + money(ht.con) + ' thư chưa đọc (máy đọc thư mới nhất trước)' : '') + '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+    '<button class="btn" data-hdthu="doc" style="min-height:44px;font-size:14px">Đọc hộp thư ngay</button>' +
+    '<button class="btn" data-hdthu="quet" style="min-height:44px;font-size:14px;background:#fff;color:#344054;border:1px solid #d0d5dd">Quét lại thư cũ</button>' +
+    '<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#475467">từ ngày <input type="date" id="hdQuetTu" value="' +
+    new Date().toISOString().slice(0, 8) + '01" style="min-height:44px;font-size:14px;padding:0 8px;border:1px solid #d0d5dd;border-radius:10px"></label>' +
+    '</div><div style="font-size:12.5px;color:#667085;margin-top:6px">Quét lại thư cũ: máy đọc lại thư từ ngày anh chị chọn và chỉ bổ sung tệp còn thiếu, không tạo hoá đơn hay tệp trùng.</div></div>';
 }
 
 /* ---------------- Hoa don mua vao ---------------- */
@@ -1178,10 +1207,30 @@ async function scrHdMua() {
     mkChipNgay([[30, '30 ngày'], [60, '60 ngày'], [180, '6 tháng'], [365, '1 năm']], ktMuaNgay, 'data-ktmngay') + '</div>';
   html += '<div class="card" style="padding:10px 12px">' + mkChipNhom(kq.nhom, kq.dem, ktMuaNhom, 'data-ktmnhom') + '</div>';
   html += mkOTim('ktMuaTim', ktMuaTim, 'Tìm theo mã phiếu, tên nhà cung cấp, số hoá đơn...');
+  html += hdHopThu(kq.hop_thu);
   html += mkBangHd(ds, 'mua');
 
   var b = frame('Hoá đơn mua vào', html);
-  b.onclick = function (e) {
+  b.onclick = async function (e) {
+    if (e.target.closest('[data-hdtep]')) return;
+    var q = e.target.closest('[data-hdthu]');
+    if (q) {
+      var loai = q.getAttribute('data-hdthu');
+      var tu = '';
+      if (loai === 'quet') {
+        tu = (document.getElementById('hdQuetTu') || {}).value || '';
+        if (!tu) { baoTin('Chọn ngày bắt đầu quét lại rồi bấm lại.'); return; }
+      }
+      busy(true);
+      try {
+        var k = loai === 'doc' ? await api('vagabond.hoa_don_thu.doc_ngay', {})
+          : await api('vagabond.hoa_don_thu.quet_lai', { tu_ngay: tu });
+        busy(false);
+        toast(loai === 'doc' ? ('Đã đọc ' + money((k && k.so_thu) || 0) + ' thư, khớp thêm ' + money((k && k.khop_them) || 0) + ' hoá đơn.')
+          : ('Lượt đọc tới sẽ quét lại thư từ ' + ngayNgan(tu) + '.'), 5000);
+      } catch (err) { busy(false); baoTin((err && err.message) || 'Chưa làm được, bấm lại sau một phút.'); return; }
+      return go(scrHdMua, true);
+    }
     var t = e.target.closest('[data-ktmnhom]');
     if (t) { ktMuaNhom = t.getAttribute('data-ktmnhom'); return go(scrHdMua, true); }
     t = e.target.closest('[data-ktmngay]');

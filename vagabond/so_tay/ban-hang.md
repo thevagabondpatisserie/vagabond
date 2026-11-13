@@ -1411,6 +1411,23 @@ Từ nay: mỗi khi số bán được trên bảng Kiểm bánh hôm nay đổi
 **Lưu ý**
 - Số trên ảnh là số BÁN ĐƯỢC của Kiểm bánh lúc gửi; khách chốt thì xem lại màn Kiểm bánh.
 - Nhóm chưa nhận tin này: quản lý tích tin Bánh có sẵn hôm nay ở Cài đặt lõi, mục Bắn tin vào nhóm Zalo.
+- Từ bản 654: số bán được không đổi thì không có tin mới, kể cả khi bảng Kiểm bánh vừa đồng bộ lại, đổi thứ tự hay giờ cập nhật. Một bánh giảm 1, bánh khác tăng 1 thì vẫn có tin. Tin đầu ngày chỉ đi khi bảng đã có ít nhất một bánh bán được.
+
+## Tin Bánh có sẵn hôm nay gửi khi nào
+Từ khoá: tin lặp, tin trùng, bánh có sẵn, gửi lại, Zalo bánh
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, cửa hàng, quản lý | Nhóm Zalo nhận tin bán hàng | Không cần bấm |
+
+Trước đây: ngày 13/11 nhóm nhận 13 tin từ 08:02 tới 11:03, nhiều tin liền nhau giống hệt nhau. Từ nay: máy nhớ tin vừa gửi ngay trong sổ tin, chỉ gửi khi danh sách bánh còn bán hoặc số bán được của một bánh (mỗi cỡ một mã) đổi.
+
+**Bạn cần làm**
+1. Không cần làm gì. Muốn biết số mới nhất giữa hai tin thì mở màn Kiểm bánh.
+
+**Lưu ý**
+- Hai tin vẫn cách nhau ít nhất 15 phút, từ 08:00 tới 21:30; thay đổi trong lúc chờ gom vào tin sau.
+- Bảng đã báo có bánh mà nay hết sạch thì có một tin báo hết, mời khách đặt trước cho ngày mai.
 
 ## Khách không có Zalo nhận mã xác thực qua WhatsApp
 Từ khoá: mã xác thực, OTP, WhatsApp, khách không có Zalo, đăng nhập thành viên

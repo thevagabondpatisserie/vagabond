@@ -43,6 +43,7 @@ MAN_LAP_PHIEU = [
 	"scrQuyChotDau",  # v635 Codex #536 vòng 2: chốt số dư đầu quỹ
 	"scrGomMua",  # v646 Codex 549: gom yêu cầu mua, số thu mua sửa trước khi chốt
 	"scrDuChiXem",  # v653: dự chi công nợ, số trả Uyên sửa trước khi bấm Lưu
+	"scrDuChiThem", "scrLichChi",  # v654 Codex #561: form Thêm dự chi, Lịch chi hằng tháng
 ]
 # Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
 # So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
@@ -69,7 +70,10 @@ SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	# v646 Codex 549: màn Gom yêu cầu mua ở 70, ghép bằng dat() vào gmKhoiPhuc.
 	"scrGomMua": "70-gom-mua.js",
 	# v653: màn Dự chi công nợ ở 71, ghép bằng dat() vào dcnKhoiPhuc theo mã đợt.
-	"scrDuChiXem": "71-du-chi.js"}
+	"scrDuChiXem": "71-du-chi.js",
+	# v654 Codex #561: form Thêm, Sửa dự chi và Lịch chi hằng tháng ở 71, ghép bằng
+	# dat() vào LDC.form, ldcKhoiPhuc, LDC.lichForm.
+	"scrDuChiThem": "71-du-chi.js", "scrLichChi": "71-du-chi.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",

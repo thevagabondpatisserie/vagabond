@@ -12,6 +12,16 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v654
+- Tin Bánh có sẵn hôm nay gửi khi nào
+- Tin Zalo Bánh có sẵn hôm nay
+- Nhãn XML và PDF trên Hoá đơn mua vào
+- Hoá đơn nhà cung cấp tự đính từ hộp thư hoadon@
+- Thêm dự chi và xem tiền khả dụng theo ngày
+- Đọc Lịch dự chi và lịch chi hằng tháng
+- Dự chi công nợ: đợt trả nhà cung cấp ngày 10 và 20
+- Soát và duyệt đợt dự chi công nợ
+
 ## v653
 - Dự chi công nợ: đợt trả nhà cung cấp ngày 10 và 20
 - Hoá đơn nhà cung cấp tự đính từ hộp thư hoadon@

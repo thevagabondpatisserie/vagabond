@@ -322,6 +322,47 @@ def ds_khach_no(tim=""):
 	return bang_khach_no(tim)
 
 
+def _hd_no_tho(khach=None):
+	"""Hoá đơn bán đã ghi sổ còn nợ theo hai đường (cờ Công nợ, dòng thanh toán Công
+	nợ), CHƯA trừ tờ đã gom vào phiếu đòi nợ. Một nguồn cho màn Công nợ phải thu
+	và Lịch dự chi (v654)."""
+	from vagabond import thu_tien as tt
+
+	TRUONG = TRUONG_NO
+	# v630: lọc một khách ở tầng truy vấn (hai đường chủ nợ), rồi lọc lại chắc
+	# chắn ở Python theo đúng luật chủ nợ (vgb_khach_no ưu tiên customer).
+	cua_khach = {"or_filters": {"customer": khach, "vgb_khach_no": khach}} if khach else {}
+	rows = frappe.get_all(
+		"Sales Invoice",
+		filters={"docstatus": 1, "vgb_pt_thanh_toan": "Công nợ"},
+		fields=TRUONG,
+		order_by="posting_date asc",
+		limit_page_length=0,
+		**cua_khach
+	)
+	da_co = {r["name"] for r in rows}
+	them = [x for x in tt.si_co_dong_cong_no() if x not in da_co]
+	for i in range(0, len(them), 200):
+		rows += frappe.get_all(
+			"Sales Invoice",
+			filters={"docstatus": 1, "name": ["in", them[i:i + 200]]},
+			fields=TRUONG, limit_page_length=0,
+			**cua_khach
+		)
+	if khach:
+		rows = [r for r in rows if (r.get("vgb_khach_no") or r.get("customer")) == khach]
+	rows.sort(key=lambda r: str(r.get("posting_date") or ""))
+	return rows
+
+
+def hd_con_doi():
+	"""Từng hoá đơn bán còn phải đòi (cột con_doi), kể cả tờ đã gom vào phiếu đòi
+	nợ chờ thu: Lịch dự chi dùng để tính tiền dự kiến về (anh Việt 13/11). Cùng
+	phép tính `tinh_con_doi` của màn Công nợ, không tự tính riêng."""
+	rows, _the_ve, _khach_cho = tinh_con_doi(_hd_no_tho())
+	return [r for r in rows if flt(r.get("con_doi")) > 0]
+
+
 def bang_khach_no(tim="", khach=None):
 	"""Danh sach khach dang con no, kem so tien va so hoa don. KHÔNG cổng quyền:
 	chỉ gọi từ cửa đã kiểm quyền (ds_khach_no) hoặc từ phiên khách sỉ đã xác
@@ -354,30 +395,7 @@ def bang_khach_no(tim="", khach=None):
 	"""
 	from vagabond import thu_tien as tt
 
-	TRUONG = TRUONG_NO
-	# v630: lọc một khách ở tầng truy vấn (hai đường chủ nợ), rồi lọc lại chắc
-	# chắn ở Python theo đúng luật chủ nợ (vgb_khach_no ưu tiên customer).
-	cua_khach = {"or_filters": {"customer": khach, "vgb_khach_no": khach}} if khach else {}
-	rows = frappe.get_all(
-		"Sales Invoice",
-		filters={"docstatus": 1, "vgb_pt_thanh_toan": "Công nợ"},
-		fields=TRUONG,
-		order_by="posting_date asc",
-		limit_page_length=0,
-		**cua_khach
-	)
-	da_co = {r["name"] for r in rows}
-	them = [x for x in tt.si_co_dong_cong_no() if x not in da_co]
-	for i in range(0, len(them), 200):
-		rows += frappe.get_all(
-			"Sales Invoice",
-			filters={"docstatus": 1, "name": ["in", them[i:i + 200]]},
-			fields=TRUONG, limit_page_length=0,
-			**cua_khach
-		)
-	if khach:
-		rows = [r for r in rows if (r.get("vgb_khach_no") or r.get("customer")) == khach]
-	rows.sort(key=lambda r: str(r.get("posting_date") or ""))
+	rows = _hd_no_tho(khach)
 	da_gom = _hd_da_gom()
 	rows, the_ve, khach_cho = tinh_con_doi(rows)
 	khach = {}

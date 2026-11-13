@@ -44,7 +44,7 @@ function dong(ncc, ten, hd, so, co, tra, han) {
     con_no: co, dang_giu: 0, co_the_tra: co, so_tra: tra, gia_han: co - tra, ghi_chu: '', hen_dot: '', app: '', ket_qua: '' };
 }
 function duLieu(tt, them) {
-  const d = { ma: MA, ngay_dot: '2026-11-20', trang_thai: tt || 'Nhap', nhan: 'Uyên đang thương lượng', so_du: 500000000,
+  const d = { ma: MA, ngay_dot: '2026-11-20', trang_thai: tt || 'Nhap', nhan: 'Thu mua đang thương lượng', so_du: 500000000,
     dong: [dong('NCC-P', 'Printeco', 'PI-1', '0001234', 100000000, 100000000),
       dong('NCC-P', 'Printeco', 'PI-2', '0001240', 30000000, 0, '2026-12-05'),
       dong('NCC-H', 'Phương Hoàng Phát', 'PI-3', '0000777', 50000000, 50000000)],
@@ -243,6 +243,17 @@ const nhap = kho => Array.from(kho._m.keys()).filter(k => k.indexOf('vgbSoanDo:'
       ds.forEach(el => assert(/min-height:\s*44px/.test(el.getAttribute('style') || ''), sel + ' cao ít nhất 44 điểm'));
     });
     assert(!/<select/i.test(html), 'không dùng hộp select');
+  }
+  {
+    /* v654 anh Việt 13/11: Thu mua không thấy số dư ngân hàng của đợt. */
+    const d = duLieu(); d.so_du = null; d.an_so_du = 1;
+    const a = appMoi(khoMay(), { d });
+    await a.moMan();
+    const t = a.tl.getElementById('vgbBody').innerHTML;
+    assert(t.indexOf('Số dư ngân hàng') < 0 && t.indexOf('Còn dư') < 0 && t.indexOf('so với số dư') < 0, 'không hiện ô số dư, không so với số dư');
+    const b = appMoi(khoMay(), { d: duLieu() });
+    await b.moMan();
+    assert(b.tl.getElementById('vgbBody').innerHTML.indexOf('Số dư ngân hàng') >= 0, 'người được xem Tài chính vẫn thấy');
   }
   console.log('PASS 653 Dự chi công nợ: 100/60/40, tải lại trang, số vượt, trả hết, kế toán soát, tìm nhanh, chuẩn chạm');
 })().catch(e => { console.error(e); process.exit(1); });

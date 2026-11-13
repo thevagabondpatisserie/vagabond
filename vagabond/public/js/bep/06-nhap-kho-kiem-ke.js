@@ -337,7 +337,7 @@ async function scrRecvDoc(name) {
     var keep = L.filter(function (x) { return (x.got || 0) > 0; });
     if (!keep.length) return toast('Chưa có món nào có số lượng, chưa nhập kho được');
     var du = L.filter(function (x) { return (x.got || 0) > (x.ord || 0) + 0.0001; });
-    if (du.length) return toast('Nhà cung cấp giao dư ' + du.length + ' món so với số còn phải nhận. Chỉ nhập đúng số còn lại, phần dư báo chị Uyên lên đơn bổ sung rồi nhập sau.', 7000);
+    if (du.length) return toast('Nhà cung cấp giao dư ' + du.length + ' món so với số còn phải nhận. Chỉ nhập đúng số còn lại, phần dư báo Thu mua lên đơn bổ sung rồi nhập sau.', 7000);
     var thieu = L.filter(function (x) { return (x.got || 0) < (x.ord || 0) - 0.0001; });
     var msg = 'Nhập kho ' + keep.length + ' món.';
     if (thieu.length) msg += ' Có ' + thieu.length + ' món nhận thiếu hoặc không về, phần còn lại vẫn treo trên đơn mua hàng - vào tab "Còn phải nhận" để nhận đợt sau.';

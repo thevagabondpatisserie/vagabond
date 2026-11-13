@@ -47,7 +47,7 @@ TT_DA_CHOT = "Da chot"
 TT_HUY = "Huy"
 TT_SONG = (TT_NHAP, TT_CHO_FIN, TT_CHO_GD, TT_DA_DUYET)
 NHAN = {
-	TT_NHAP: "Uyên đang thương lượng",
+	TT_NHAP: "Thu mua đang thương lượng",
 	TT_CHO_FIN: "Chờ kế toán soát",
 	TT_CHO_GD: "Chờ giám đốc duyệt",
 	TT_DA_DUYET: "Đã duyệt, đang lập APP",
@@ -327,17 +327,16 @@ def gan_han_du_tinh(rows):
 
 
 def _so_du_tk_chi():
-	"""Số dư tài khoản chi chuyển khoản theo SePay. Không đọc được thì None."""
+	"""Số dư ngân hàng làm căn cứ đợt dự chi: đúng Tiền khả dụng của Lịch dự chi,
+	tức số dư ngân hàng mục Tài chính (anh Việt 13/11). Một nguồn, không tự đọc
+	SePay riêng. Không đọc được thì None."""
 	try:
-		from vagabond import tai_chinh
-		from vagabond.tra_tien_app import tk_tien_chi
-		cong_ty = frappe.defaults.get_user_default("Company") or frappe.db.get_single_value("Global Defaults", "default_company")
-		_tk, ba = tk_tien_chi(cong_ty, "Chuyển khoản")
-		so_tk = frappe.db.get_value("Bank Account", ba, "bank_account_no") if ba else None
-		bao = tai_chinh._sepay_so_bao()
-		v = bao.get(str(so_tk or "").strip())
+		from vagabond import lich_du_chi
+
+		v = lich_du_chi.so_du_kha_dung()["so_tien"]
 		return flt(v) if v is not None else None
 	except Exception:
+		frappe.log_error(frappe.get_traceback(), "du_chi: so du ngan hang")
 		return None
 
 
@@ -471,6 +470,15 @@ def soan(ngay_dot=None, nguoi=None):
 	return doc
 
 
+def _xem_so_du():
+	from vagabond import tai_chinh
+
+	try:
+		return bool(tai_chinh.co_quyen())
+	except Exception:
+		return False
+
+
 def _cho_man(doc):
 	ho = _ho_so()
 	dong = []
@@ -488,7 +496,9 @@ def _cho_man(doc):
 		"ma": doc.name, "ngay_dot": str(doc.ngay_dot), "trang_thai": doc.trang_thai,
 		"nhan": NHAN.get(doc.trang_thai, doc.trang_thai), "tong_de_nghi": flt(doc.tong_de_nghi),
 		"tong_tra": flt(doc.tong_tra), "tong_gia_han": flt(doc.tong_gia_han),
-		"so_du": doc.so_du_mb if doc.so_du_mb not in (None, "") else None,
+		# anh Việt 13/11: Thu mua không biết số dư; chỉ người được xem mục Tài chính thấy.
+		"so_du": (doc.so_du_mb if doc.so_du_mb not in (None, "") else None) if _xem_so_du() else None,
+		"an_so_du": 0 if _xem_so_du() else 1,
 		"nguoi_lap": doc.nguoi_lap, "ten_nguoi_lap": ho._ten_nguoi(doc.nguoi_lap) if doc.nguoi_lap else "",
 		"fin_boi": ho._ten_nguoi(doc.fin_boi) if doc.fin_boi else "", "fin_luc": str(doc.fin_luc or ""),
 		"gd_boi": ho._ten_nguoi(doc.gd_boi) if doc.gd_boi else "", "gd_luc": str(doc.gd_luc or ""),
@@ -629,7 +639,7 @@ def duyet(ma, buoc, ly_do=""):
 	elif buoc == "tra_lai":
 		_chan(ho.VAI_FIN | ho.VAI_GD, "trả lại đợt dự chi")
 		if not (ly_do or "").strip():
-			frappe.throw("Trả lại thì ghi lý do, để Uyên biết sửa gì.")
+			frappe.throw("Trả lại thì ghi lý do, để Thu mua biết sửa gì.")
 		if doc.trang_thai not in (TT_CHO_FIN, TT_CHO_GD):
 			frappe.throw("Đợt đang ở %s, không trả lại được." % NHAN.get(doc.trang_thai))
 		doc.trang_thai, doc.ly_do_tra_lai = TT_NHAP, ly_do.strip()

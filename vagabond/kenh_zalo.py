@@ -1096,7 +1096,7 @@ def cat_dong(ds, toi_da=12, don_vi="đơn"):
 
 
 def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=None, kiem=None, nguon=None,
-		ma_tin=None, noi_dung=None, anh=None):
+		ma_tin=None, noi_dung=None, anh=None, dau=None):
 	"""Điểm gọi DUY NHẤT cho mọi nơi trong app. Không ném lỗi ra ngoài, TRỪ lỗi làm chết
 	cả giao dịch (deadlock, chờ khoá quá hạn): khi đó chứng từ phải dừng, không được báo
 	thành công trong khi cơ sở dữ liệu đã rollback (Codex #428 vòng 12).
@@ -1110,6 +1110,8 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 	dùng nguyên văn (cắt ở TOI_DA_KY_TU) thay cho khuôn soan_tin.
 	anh: đường dẫn công khai của một ảnh (v613, bảng tồn, sản lượng); có thì gửi
 	ảnh, chữ của tin thành chú thích ảnh. Zalo tự tải ảnh từ đường dẫn này.
+	dau: dấu nội dung (v654, tin Bánh có sẵn hôm nay) ghi kèm dòng hộp thư, để
+	nơi phát đọc lại từ sổ xem lần trước đã báo trạng thái nào.
 
 	Codex #425: ghi tin vào sổ ("Chờ gửi") NGAY TRONG giao dịch của chứng từ,
 	rồi mới xếp hàng đợi sau commit. Chứng từ rollback thì tin cũng mất theo;
@@ -1119,7 +1121,7 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 			return
 		tin = {"loai": loai, "chu_de": chu_de, "tieu_de": tieu_de, "dong": list(dong or []),
 			"link": link, "khoa": khoa, "nguoi": nguoi, "han": han, "kiem": kiem, "nguon": nguon,
-			"ma_tin": ma_tin, "noi_dung": noi_dung, "anh": anh}
+			"ma_tin": ma_tin, "noi_dung": noi_dung, "anh": anh, "dau": dau}
 		ten = _ghi_hop_thu(tin)
 		if ten:
 			frappe.db.after_commit.add(lambda: _xep(ten))
@@ -1182,7 +1184,7 @@ def _ghi_hop_thu(tin):
 				"nhom": n.get("ten_nhom"), "chat_id": str(n.get("chat_id")).strip(), "loai": tin.get("loai"),
 				"chu_de": tin.get("chu_de"), "noi_dung": noi_dung,
 				"kiem": tin.get("kiem") or "", "nguon": tin.get("nguon") or "",
-				"ma_tin": tin.get("ma_tin") or "", "anh": tin.get("anh") or "",
+				"ma_tin": tin.get("ma_tin") or "", "anh": tin.get("anh") or "", "dau": tin.get("dau") or "",
 				"trang_thai": CHO_GUI}).insert(ignore_permissions=True)
 			ra.append(ten)
 		except frappe.DuplicateEntryError:

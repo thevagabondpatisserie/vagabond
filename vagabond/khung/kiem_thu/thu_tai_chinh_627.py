@@ -77,7 +77,16 @@ def _doc_that():
 	la("số dư theo số tài khoản", kq, {"700037279585": 242995597.0, "31561568": 0.0})
 	la("gọi đúng một lần, đúng địa chỉ, có khoá", [(u, h.get("Authorization")) for u, h in goi],
 		[("https://my.sepay.vn/userapi/bankaccounts/list", "Bearer tk-thu")])
-	la("lưu đệm tối đa 1 phút", list(dem.han.values()), [60])
+	# v654 Codex #561: kèm khoá giờ đọc của đúng bản số dư đó, cùng hạn 1 phút.
+	la("lưu đệm tối đa 1 phút (số dư và giờ đọc)", sorted(dem.han.items()), [("vgb_tc_sepay_so_du", 60), ("vgb_tc_sepay_so_du_luc", 60)])
+	# v654 Codex #561 vòng 3: giờ đọc giữ đủ phần lẻ giây, đọc lại đúng nguyên giá trị.
+	import datetime as _dt
+	luc = _dt.datetime(2026, 11, 13, 9, 30, 0, 250000)
+	with um.patch.object(tc, "now_datetime", lambda: luc):
+		_kq, _goi, dem2 = _chay(TRA_SEPAY)
+	la("giờ đọc đủ phần lẻ giây", dem2.d.get("vgb_tc_sepay_so_du_luc"), "2026-11-13 09:30:00.250000")
+	with um.patch.object(_fr, "cache", lambda: dem2, create=True):
+		la("đọc lại giờ đọc nguyên giá trị", tc._sepay_luc_bao(), "2026-11-13 09:30:00.250000")
 	kq2, goi2, _ = _chay(TRA_SEPAY, dem=dem)
 	la("lần mở sau trong 1 phút dùng đệm, không gọi lại", (kq2, len(goi2)), (kq, 0))
 

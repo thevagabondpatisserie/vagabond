@@ -18,6 +18,23 @@ Cách chạy:
 
 Nhóm nhận: nhóm Zalo đã tích tin "Bánh có sẵn hôm nay" (bh_banh_co_san) ở Cài
 đặt lõi, mục Bắn tin vào nhóm Zalo.
+
+v654: tin lặp lại dù số không đổi (anh Việt 13/11/2026, ảnh tin 09:32)
+---------------------------------------------------------------------
+Đo trên site 13/11: 13 tin từ 08:02 tới 11:03, nhiều cặp liền nhau giống hệt
+từng dòng (08:32, 08:48, 09:02, 09:20, 09:32 cùng 12 loại 23 bánh). Tin 09:02
+đi chỉ 13 phút sau tin 08:48, tức lúc đó máy không còn nhớ cả giờ gửi trước:
+"lần gửi trước" chỉ nằm trong bộ nhớ đệm Redis, mất là gửi lại; khoá chống
+trùng lại có giờ phút nên sổ tin không chặn được. Từ v654 lần gửi trước đọc
+từ chính SỔ TIN (dòng Vagabond Tin Kenh mới nhất hôm nay, ô `dau`), ghi cùng
+giao dịch với tin, có khoá có tên để hai lượt chạy chồng không cùng gửi.
+Dấu chỉ gồm mã bánh (mỗi cỡ một mã) và số bán được: giờ cập nhật, thứ tự hiện,
+ảnh vẽ lại không làm đổi dấu. Zalo chậm trả lời thì dòng tin vẫn đã có dấu
+(trạng thái "Chưa rõ"), nhịp sau không gửi lại.
+
+Tin đầu ngày: chỉ gửi khi bảng Kiểm bánh hôm nay đã có ít nhất một bánh bán
+được. Bảng còn trống thì im (không báo "hết bánh" lúc chưa ra lò). Đã từng
+báo có bánh mà nay hết sạch thì báo một tin "đã hết".
 """
 
 import hashlib
@@ -51,6 +68,21 @@ def dau_van_tay(ds):
 	"""Dấu của trạng thái: đổi khi có bánh mới còn, bánh hết, hay số đổi. THUẦN."""
 	chuoi = "|".join("%s:%s" % (x["ma"], x["so"]) for x in sorted(ds, key=lambda x: x["ma"]))
 	return hashlib.sha1(chuoi.encode("utf-8")).hexdigest()[:12]
+
+
+def can_gui(vt, so_loai, cu, bay_gio, lan_cuoi=None):
+	"""Quyết định gửi một tin. THUẦN.
+
+	vt: dấu trạng thái bây giờ; so_loai: số loại còn bán; cu: dấu lần gửi gần
+	nhất hôm nay (None là chưa gửi tin nào hôm nay, "" là dòng cũ chưa có dấu);
+	lan_cuoi: giờ lần gửi đó. Trả (gửi hay không, lý do ngắn)."""
+	if cu is None and not so_loai:
+		return False, "đầu ngày, bảng chưa có bánh bán được"
+	if cu is not None and cu == vt:
+		return False, "số bán được không đổi"
+	if not nen_gui(bay_gio, lan_cuoi):
+		return False, "chưa đủ %d phút hoặc ngoài giờ" % PHUT_GIUA
+	return True, "số bán được đổi" if cu else "tin đầu ngày"
 
 
 def phut(gio):
@@ -89,8 +121,49 @@ def _khoa_cache(ngay):
 	return "vgb_banh_co_san:%s" % ngay
 
 
+MA_TIN = "bh_banh_co_san"
+KHOA_CHAY = "vgb_banh_co_san_quet"
+
+
+def khoa_tin(ngay, vt, luc_truoc):
+	"""Khoá chống trùng của một tin: ngày, dấu mới và giờ của tin đứng trước nó.
+	Hai lượt chạy chồng cùng thấy một tin trước thì ra cùng khoá, sổ tin chỉ nhận
+	một dòng (lớp chặn thứ hai sau khoá có tên). Trạng thái quay lại giống một
+	lần trước thì tin trước đã khác nên vẫn gửi được. THUẦN."""
+	return "banh-co-san:%s:%s:%s" % (ngay, vt, str(luc_truoc or "dau-ngay")[:19])
+
+
+def lan_gui_cuoi(ngay):
+	"""(dấu, giờ) của dòng tin Bánh có sẵn mới nhất hôm nay trong sổ tin, hay
+	(None, None) khi hôm nay chưa có. Một nguồn: chính sổ tin, không phải bộ
+	nhớ đệm (v654)."""
+	import frappe
+
+	r = frappe.get_all("Vagabond Tin Kenh", filters={"ma_tin": MA_TIN, "creation": [">=", "%s 00:00:00" % ngay]},
+		fields=["dau", "creation"], order_by="creation desc", limit_page_length=1, ignore_permissions=True)
+	if not r:
+		return None, None
+	return (r[0].get("dau") or ""), r[0].get("creation")
+
+
 def quet():
 	"""Nhịp 5 phút. Không bao giờ ném lỗi ra ngoài (trừ lỗi làm chết giao dịch)."""
+	import frappe
+
+	k = frappe.db.sql("select get_lock(%s, 0)", (KHOA_CHAY,))
+	if not k or k[0][0] != 1:
+		# Lượt trước chưa xong (vẽ ảnh, Zalo chậm): lượt này nhường, không gửi chồng.
+		return None
+	try:
+		return _quet()
+	finally:
+		try:
+			frappe.db.sql("select release_lock(%s)", (KHOA_CHAY,))
+		except Exception:
+			pass
+
+
+def _quet():
 	import frappe
 	from frappe.utils import get_datetime, now_datetime, nowdate
 
@@ -105,12 +178,16 @@ def quet():
 			fields=["ma_hang", "ten_banh", "hinh", "co_the_ban"], limit_page_length=0, ignore_permissions=True)
 		ds = danh_sach(dong)
 		vt = dau_van_tay(ds)
-		cu = frappe.cache().get_value(_khoa_cache(ngay)) or {}
-		if cu.get("vt") == vt:
-			return None
+		cu, luc = lan_gui_cuoi(ngay)
+		if cu is None:
+			# Chưa có dòng nào trong sổ hôm nay (nhóm chưa tích tin này thì không có
+			# dòng): nhớ tạm trong bộ nhớ đệm để không ghi lỗi "chưa có nhóm" mỗi 5 phút.
+			dem = frappe.cache().get_value(_khoa_cache(ngay)) or {}
+			if dem.get("vt") == vt:
+				return None
 		bay = now_datetime()
-		lan = get_datetime(cu["luc"]) if cu.get("luc") else None
-		if not nen_gui(bay, lan):
+		gui, _ly_do = can_gui(vt, len(ds), cu, bay, get_datetime(luc) if luc else None)
+		if not gui:
 			return None
 		so_het = sum(1 for d in dong if int(d.get("co_the_ban") or 0) <= 0)
 		gio = bay.strftime("%H:%M")
@@ -119,7 +196,7 @@ def quet():
 			"Cập nhật %s · số trên ảnh là số còn bán được" % gio,
 			[{"ten": x["ten"], "so": x["so"], "anh": x["anh"]} for x in ds]) if ds else None
 		kenh_zalo.bao_hoac_ghi_loi("ban_tin", "ban_hang", "Bánh có sẵn hôm nay", chu,
-			link=kenh_zalo_url("/kiem-banh"), khoa="banh-co-san:%s:%s:%s" % (ngay, bay.strftime("%H%M"), vt), ma_tin="bh_banh_co_san", anh=anh)
+			link=kenh_zalo_url("/kiem-banh"), khoa=khoa_tin(ngay, vt, luc), ma_tin="bh_banh_co_san", anh=anh, dau=vt)
 		frappe.cache().set_value(_khoa_cache(ngay), {"vt": vt, "luc": str(bay)}, expires_in_sec=36 * 3600)
 		frappe.db.commit()
 		return vt

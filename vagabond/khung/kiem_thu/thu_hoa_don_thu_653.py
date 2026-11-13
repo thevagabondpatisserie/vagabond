@@ -159,6 +159,15 @@ class Kho(object):
 		if dt_ == "File":
 			return [Doi(name=x["name"], file_name=x["file_name"]) for x in self.tep
 				if x["attached_to_doctype"] == filters["attached_to_doctype"] and x["attached_to_name"] == filters["attached_to_name"]]
+		if dt_ == "Company":
+			return [Doi(tax_id=x) for x in getattr(self, "cong_ty", [])]
+		if dt_ == h.DT and "message_id" in (filters or {}):
+			ds = [d for d in self.dong.values() if d.get("message_id") == filters["message_id"]]
+			return [d["name"] for d in ds] if pluck else ds
+		if dt_ == h.DT and "mst_ban" in (filters or {}):
+			# v654 thư gửi lại: tìm dòng đã có cùng MST (đầu chuỗi) và số (đuôi chuỗi).
+			m, so = filters["mst_ban"][1].rstrip("%"), filters["so_hd"][1].lstrip("%")
+			return [Doi(d) for d in self.dong.values() if str(d.get("mst_ban") or "").startswith(m) and str(d.get("so_hd") or "").endswith(so)]
 		if dt_ == h.DT:
 			tt = filters.get("trang_thai")
 			cho = tt[1] if isinstance(tt, list) else [tt]
@@ -246,7 +255,8 @@ def _thu_lai():
 	import json
 
 	m = json.loads(kho.moc)
-	la("thư 5 máy chủ không trả nội dung: chờ đọc lại, thư 6 vẫn đọc", (r["so_thu"], m["uid"], m["thu_lai"], len(kho.dong)), (2, 6, {"5": 1}, 1))
+	# v654: mốc là danh sách khoảng UID đã xong (đọc mới nhất trước), thư 5 chưa xong.
+	la("thư 5 máy chủ không trả nội dung: chờ đọc lại, thư 6 vẫn đọc", (r["so_thu"], m["khoang"], m["thu_lai"], len(kho.dong)), (2, [[6, 6]], {"5": 1}, 1))
 	dung("có ghi lỗi kỹ thuật", len(loi) == 1)
 	may.thu[5] = _thu("HD1234", [("hd.xml", XML, ("application", "xml")), ("hd.pdf", PDF, ("application", "pdf"))])
 	may.lenh.clear()
