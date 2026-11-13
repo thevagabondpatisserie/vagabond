@@ -3154,3 +3154,10 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 - Hạn thanh toán trên hoá đơn công nợ của tiệm bằng đúng ngày hoá đơn (117 hoá đơn đang nợ ngày 13/11), nên không dùng hạn để đoán ngày tiền về. Ngày về = ngày hoá đơn cộng trung vị số ngày khách đó từng trả; hoá đơn đã quá ngày dự kiến không cộng vào ngày nào.
 - Codex PR #561 vòng 5: cùng một phép trừ "chi sau giờ SePay báo" nằm ở hai nơi (hàm số dư và màn lịch) nên bị trừ hai lần, báo thiếu tiền giả và lệch với màn Đợt. Số đã điều chỉnh chỉ tính ở một hàm, bỏ hẳn hàm trừ còn lại, ca kiểm chạy endpoint với chi sau khác 0.
 - Codex PR #561 vòng 5: tổng nhiều tài khoản mà có tài khoản chưa chốt số dư thì không được trả phần đã biết như thể là tổng, vì nó trông như đủ mà thật ra thiếu. Trả "chưa xác định", nêu tên tài khoản; chỗ ẩn số cho người không có quyền cũng phải báo "chưa rõ", không để màn trông như đủ tiền.
+
+## 13/11/2026 (v655): máy tự lấy bù Kho tổng làm lệch tồn, OnePay nối nhầm theo tiền
+
+- Lấy bù Kho tổng 307 lúc hoàn tất lệnh (v648) trừ kho tổng đúng phần lẻ bếp thiếu (14,245 ml, 22,792 ml rượu) trong khi kho giao nguyên chai: tồn ERP lệch tồn thật, kho không đếm được (PDC-2026-00744 tới 00748). Bút toán kho phải theo đúng hàng thật đi qua tay người: máy chỉ lập phiếu XIN (số nguyên, làm tròn lên), kho giao bao nhiêu ghi bấy nhiêu.
+- Phiếu chuyển theo Material Request: mỗi dòng phải mang `material_request_item`, thiếu là `validate_with_material_request` ngã; ERPNext chặn giao vượt số xin khi Stock Settings cho vượt 0%. Phần vượt (nguyên chai) tách thành dòng riêng không nối phiếu.
+- OnePay: mã giao dịch có số đơn Pancake (S<shop>O<đơn>T<giờ>) mà máy bỏ qua mã, chỉ nối theo tiền, nên gợi ý hoá đơn của đơn 97553 cho đơn 97533 cùng 905.237 đ. Có mã riêng thì không bao giờ nối theo tiền vào hoá đơn đã mang mã của đơn khác.
+- Nguồn đối chiếu trước khi luật so tiền đổi (v648) kẹt trạng thái cũ tới khi có người bấm Đối chiếu lại. Đổi luật nối phải kèm lượt đối chiếu lại định kỳ hoặc bản vá chạy lại một lần.
