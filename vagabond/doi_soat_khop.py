@@ -155,7 +155,34 @@ def _ma_khop(kieu, ma_nguon, ma_hd):
 		return a == b or (len(b) >= 4 and a.endswith(b))
 	if kieu == "shinhan":
 		return a == b.lstrip("'")
+	if kieu == "onepay":
+		# v655: mã OnePay S<shop>O<số đơn Pancake>T<giờ>; hoá đơn mang số đơn
+		# Pancake (so_don_pancake). Chỉ so số đơn, không so mã nguyên.
+		so = so_don_onepay(a)
+		return bool(so) and so == _so(b)
 	return False
+
+
+def so_don_onepay(ma):
+	"""Số đơn Pancake trong mã giao dịch OnePay. THUẦN, một nguồn.
+
+	Mã thật: "S67355O97528T113544" là shop 67355, đơn 97528, giờ 11:35:44.
+	Chịu chữ thường, khoảng trắng; mã không theo dạng này trả rỗng (khi đó
+	dòng chỉ nối theo tiền)."""
+	m = re.match(r"^S\d+O(\d+)T\d*$", re.sub(r"\s+", "", str(ma or "")).upper())
+	return m.group(1).lstrip("0") if m and m.group(1).strip("0") else ""
+
+
+def so_don_pancake(ma_don=None, ghi_chu=None):
+	"""Số đơn Pancake của một hoá đơn bán. THUẦN, MỘT nguồn cho mọi chỗ cần
+	(đối soát OnePay). Ưu tiên ô số đơn hiển thị (custom_pancake_display_id);
+	hoá đơn cũ hay nhập tay không có ô đó thì đọc từ ghi chú
+	"Pancake #97528 - Mr.Phong - 0903...". Không có thì rỗng."""
+	so = re.sub(r"\D", "", str(ma_don or ""))
+	if so.strip("0"):
+		return so.lstrip("0")
+	m = re.search(r"pancake\s*#\s*(\d+)", str(ghi_chu or ""), re.I)
+	return m.group(1).lstrip("0") if m and m.group(1).strip("0") else ""
 
 
 KIEU_THEO_MAU = {"grabfood": "grab", "shopeefood": "shopee", "greensm_ngon": "greensm",
@@ -164,6 +191,23 @@ KIEU_THEO_MAU = {"grabfood": "grab", "shopeefood": "shopee", "greensm_ngon": "gr
 
 # Số ngày lệch tối đa giữa ngày trên báo cáo vendor và ngày hoá đơn.
 LECH_NGAY = {"grab": 0, "shopee": 0, "greensm": 0, "payoo": 1, "shinhan": 1, "onepay": 3}
+# v655: nối THEO MÃ được nới khoảng ngày (có mã thì không sợ nhầm). OnePay:
+# khách trả trước, đơn nhận vài ngày tới vài tuần sau mới có hoá đơn.
+LECH_NGAY_MA = {"onepay": 45}
+
+
+def cua_so_ngay(kieu):
+	"""Số ngày lệch lớn nhất để đọc ứng viên cho kiểu này (cả hai lượt nối). THUẦN."""
+	return max(LECH_NGAY.get(kieu, 0), LECH_NGAY_MA.get(kieu, 0))
+
+
+def ma_rieng_cua_dong(kieu, d):
+	"""Dòng đối tác mang mã riêng đủ để nối theo mã không (OnePay: tách được số
+	đơn Pancake). Dòng có mã riêng KHÔNG được nối theo tiền vào hoá đơn của đơn
+	KHÁC (đơn 97533 không được lấy hoá đơn của đơn 97553 dù cùng 905.237 đ). THUẦN."""
+	if kieu == "onepay":
+		return so_don_onepay(d.get("ma_tham_chieu"))
+	return ""
 
 
 def tien_so_sanh(kieu, dong):
@@ -225,11 +269,12 @@ def khop_hoa_don(kieu, dong_ds, ung_vien):
 	for i, d in enumerate(dong_ds):
 		if d["loai"] not in ("ban", "hoan"):
 			kq[i] = dict(trang_thai="Không áp dụng", hoa_don="", ghi_chu="")
+	cho_ma = max(cho_lech, LECH_NGAY_MA.get(kieu, 0))
 	for i, d in ban:
-		if kieu == "onepay":
+		if kieu == "onepay" and not ma_rieng_cua_dong(kieu, d):
 			continue
 		tien = tien_so_sanh(kieu, d)
-		hop = [u for u in ung_vien if u["name"] not in da_dung and _hop_ma(kieu, d, u, cho_lech)]
+		hop = [u for u in ung_vien if u["name"] not in da_dung and _hop_ma(kieu, d, u, cho_ma)]
 		if len(hop) > 1:
 			dung_tien = [u for u in hop if cung_tien(kieu, d, u)]
 			hop = dung_tien if len(dung_tien) == 1 else hop
@@ -255,6 +300,10 @@ def khop_hoa_don(kieu, dong_ds, ung_vien):
 		elif len(hop) > 1:
 			kq[i] = dict(trang_thai="Nhiều chứng từ", hoa_don="",
 				ghi_chu="Cùng tiền, cùng ngày: " + ", ".join(u["name"] for u in hop[:5]))
+		elif ma_rieng_cua_dong(kieu, d):
+			kq[i] = dict(trang_thai="Không thấy chứng từ", hoa_don="",
+				ghi_chu="Chưa có hoá đơn bán của đơn Pancake #%s (đơn trả trước chưa nhận thì hoá đơn có sau). "
+				"Máy tự đối chiếu lại mỗi giờ." % ma_rieng_cua_dong(kieu, d))
 		else:
 			kq[i] = dict(trang_thai="Không thấy chứng từ", hoa_don="",
 				ghi_chu="Không có hoá đơn bán cùng mã hoặc cùng tiền trong khoảng ngày.")
@@ -267,7 +316,12 @@ def _hop_ma(kieu, d, u, cho_lech):
 
 
 def _hop_tien(kieu, d, u, cho_lech):
-	"""Bill u là ứng viên theo TIỀN của dòng đối tác d (lượt 2 của khop_hoa_don)."""
+	"""Bill u là ứng viên theo TIỀN của dòng đối tác d (lượt 2 của khop_hoa_don).
+	v655: dòng có mã riêng (OnePay có số đơn) chỉ được nối theo tiền vào bill
+	KHÔNG mang mã của đơn nào (bill nhập tay); bill đã mang số đơn khác là của
+	đơn khác."""
+	if ma_rieng_cua_dong(kieu, d) and u.get("so_don"):
+		return False
 	return cung_tien(kieu, d, u) and _lech_ngay(u["ngay"], d["ngay"]) <= cho_lech and _cung_tien_to(d, u)
 
 
@@ -275,7 +329,7 @@ def la_ung_vien(kieu, d, u):
 	"""Codex #550: bill u có thể là bill của dòng đối tác d chưa phân định
 	("Nhiều chứng từ") không. Cùng hai luật nối của chiều xuôi, một nguồn. THUẦN."""
 	cho = LECH_NGAY.get(kieu, 0)
-	return _hop_ma(kieu, d, u, cho) or _hop_tien(kieu, d, u, cho)
+	return _hop_ma(kieu, d, u, max(cho, LECH_NGAY_MA.get(kieu, 0))) or _hop_tien(kieu, d, u, cho)
 
 
 def _cung_tien_to(d, u):

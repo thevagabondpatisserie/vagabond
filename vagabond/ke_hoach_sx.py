@@ -1469,7 +1469,7 @@ def _tao_mot_lenh(ten, khoa, loai="btp", so_luong=None, kho=None, roi_phieu=0):
 
 
 @frappe.whitelist()
-def xin_chuyen_nvl(ten, bep=None):
+def xin_chuyen_nvl(ten, bep=None, gui=None):
 	"""Sinh phiếu xin chuyển nguyên liệu từ Kho tổng 307 sang kho bếp.
 
 	Đây là mảnh còn thiếu giữa "kế hoạch nói cần bao nhiêu" và "bếp thật sự
@@ -1542,14 +1542,44 @@ def xin_chuyen_nvl(ten, bep=None):
 	if not moi:
 		return {"ok": 0, "ghi_chu": "Không có gì để xin thêm, các mã đã xin "
 			"chuyển đủ từ trước."}
-	cau = ("Đã tạo %d phiếu xin chuyển kho ở dạng NHÁP: %s. Kho tổng 307 soạn "
-		"hàng rồi ghi sổ." % (len(moi), ", ".join(moi)))
+	if frappe.utils.cint(gui):
+		da_gui, hong = _gui_phieu_xin(moi)
+		cau = ("Đã gửi %d phiếu xin cho Kho tổng 307: %s. Zalo đã báo kho; kho giao bao "
+			"nhiêu thì ghi bấy nhiêu ở màn Lập phiếu điều chuyển, ghi xong hàng vào kho bếp "
+			"ngay." % (len(da_gui), ", ".join(da_gui))) if da_gui else ""
+		if hong:
+			cau += (" %d phiếu chưa gửi được, còn ở dạng NHÁP: %s (mở phiếu trên Desk "
+				"bấm Gửi)." % (len(hong), ", ".join(hong)))
+		cau = cau.strip()
+	else:
+		cau = ("Đã tạo %d phiếu xin chuyển kho ở dạng NHÁP: %s. Kho tổng 307 soạn "
+			"hàng rồi ghi sổ." % (len(moi), ", ".join(moi)))
 	if bo_qua:
 		cau += (" Bỏ qua %d mã đã tắt trong danh mục: %s."
 			% (len(set(bo_qua)), ", ".join(sorted(set(bo_qua)))))
 	if da_chot_o_day:
 		cau += " Phiếu kế hoạch %s cũng vừa được ghi sổ." % ten
 	return {"ok": 1, "phieu": moi, "bo_qua": sorted(set(bo_qua)), "ghi_chu": cau}
+
+
+def _gui_phieu_xin(ds):
+	"""v655 (phương án B, anh Việt 13/11/2026): bếp bấm Xin chuyển nguyên liệu
+	là GỬI luôn phiếu (submit), hook tin_kho Zalo báo kho tổng, và phiếu hiện
+	ngay ở màn Lập phiếu điều chuyển để kho ghi số thực giao. Kho không còn
+	phải mở Desk gửi phiếu nháp. Phiếu nào hỏng thì để nháp và nêu tên."""
+	da_gui, hong = [], []
+	for m in ds:
+		try:
+			d = frappe.get_doc("Material Request", m)
+			d.flags.ignore_permissions = True
+			d.submit()
+			frappe.db.commit()
+			da_gui.append(m)
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(frappe.get_traceback(), "ke_hoach_sx: gửi phiếu xin %s" % m)
+			hong.append(m)
+	return da_gui, hong
 
 
 def _kho_nhan_nvl(ma, bep_chon, kho_dang_co):

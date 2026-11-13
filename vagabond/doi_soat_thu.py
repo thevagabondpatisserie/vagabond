@@ -396,7 +396,7 @@ def loc_duong(k):
 def buoc_nguon(n):
 	"""THUẦN. Sáu bước của một nguồn: tt là chuỗi 6 ký tự (x xong, v đang chờ,
 	d có sự cố, n chưa tới / chưa áp dụng), hien là bước đang kẹt (1..6, 7 là
-	đã khép), ghi là một dòng nói kẹt gì, nhan là ghi chú từng bước."""
+	đã hoàn tất), ghi là một dòng nói kẹt gì, nhan là ghi chú từng bước."""
 	tt, nhan = [], []
 	kenh, dv = n.get("kenh_nhan") or "", n.get("duong_vao") or ""
 	# 1. Nhận.
@@ -467,7 +467,7 @@ def buoc_nguon(n):
 			continue
 		hien = i + 1
 		break
-	ghi = "Đã khép" if hien == 7 else nhan[hien - 1]
+	ghi = "Đã hoàn tất" if hien == 7 else nhan[hien - 1]
 	return dict(tt="".join(tt), hien=hien, ghi=ghi, nhan=nhan, xac_nhan_duoc=1 if (truoc and not n.get("xac_nhan_luc")) else 0)
 
 

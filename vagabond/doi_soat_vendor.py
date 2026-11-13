@@ -32,6 +32,8 @@ from vagabond import doi_soat_mau as mau_bc
 
 DT_NGUON = "Vagabond Doi Soat Nguon"
 DT_DONG = "Vagabond Doi Soat Dong"
+# v655: nguồn kế toán đã xác nhận xong (trước gọi là "Đã khép").
+TT_HOAN_TAT = "Đã hoàn tất"
 # Codex #450 vòng 14: sự kiện một nguồn có trong báo cáo nhưng đã nhận ở nguồn
 # khác (không ghi lại thành dòng). Giữ để tổng của bất kỳ tập nguồn nào cũng
 # đúng phần các báo cáo đó thể hiện, mỗi sự kiện một lần.
@@ -809,7 +811,7 @@ def _goi_y_con_dung(name):
 	kieu = khop.KIEU_THEO_MAU.get(n.mau)
 	if not kieu or not d.ngay:
 		return False
-	lech = khop.LECH_NGAY.get(kieu, 0)
+	lech = khop.cua_so_ngay(kieu)
 	uv = _ung_vien_hd(kieu, frappe.utils.add_days(d.ngay, -lech), frappe.utils.add_days(d.ngay, lech), n.company)
 	return khop.xac_nhan_con_dung(kieu, dict(_tien_dong(d), sales_invoice=d.sales_invoice), uv)
 
@@ -858,7 +860,8 @@ def _noi_hoa_don_ban(nguon, dong):
 			if d.loai not in ("ban", "hoan"):
 				frappe.db.set_value(DT_DONG, d.name, "trang_thai_khop", "Không áp dụng", update_modified=False)
 		return
-	lech = khop.LECH_NGAY.get(kieu, 0)
+	# v655: cửa sổ đọc ứng viên gồm cả khoảng nới của lượt nối theo mã (OnePay 45 ngày).
+	lech = khop.cua_so_ngay(kieu)
 	tu = frappe.utils.add_days(min(str(d.ngay) for d in ban), -lech)
 	den = frappe.utils.add_days(max(str(d.ngay) for d in ban), lech)
 	uv = _ung_vien_hd(kieu, tu, den, nguon.company)
@@ -962,7 +965,25 @@ def _ung_vien_hd(kieu, tu, den, cong_ty):
 			ra.append(dict(name=r.name, ngay=str(r.ngay), tien=int(round(r.rounded_total or r.grand_total or 0)),
 				tien_goc=int(round(r.total or 0)), ma=[r.get("vgb_ma_tham_chieu") or ""], tien_to=tt.get("pt", ""),
 				quay=r.get("vgb_quay") or ""))
+	if kieu == "onepay":
+		_gan_so_don_pancake(ra, meta)
 	return ra
+
+
+def _gan_so_don_pancake(ra, meta):
+	"""v655: gắn số đơn Pancake (khop.so_don_pancake, một nguồn) vào ứng viên
+	OnePay, cả bill trả một kênh lẫn chân OnePay của bill nhiều kênh. Đọc đủ,
+	theo lô 500, không cắt."""
+	ten = sorted({u["name"] for u in ra})
+	cot = ["name", "remarks"] + (["custom_pancake_display_id"] if meta.has_field("custom_pancake_display_id") else [])
+	so = {}
+	for i in range(0, len(ten), 500):
+		for r in frappe.get_all("Sales Invoice", filters={"name": ["in", ten[i:i + 500]]}, fields=cot, limit_page_length=0):
+			so[r.name] = khop.so_don_pancake(r.get("custom_pancake_display_id"), r.get("remarks"))
+	for u in ra:
+		u["so_don"] = so.get(u["name"], "")
+		if u["so_don"]:
+			u["ma"] = list(u.get("ma") or []) + [u["so_don"]]
 
 
 # ------------------------------------------------------------ v647 bill -> báo cáo đối tác
@@ -1415,7 +1436,9 @@ def loc_trang_thai(trang_thai):
 		return {"trang_thai_tien": trang_thai}
 	if trang_thai == "Chưa nối đủ":
 		return {"so_chua_noi": [">", 0]}
-	if trang_thai == "Đã khép":
+	# v655: anh Việt đổi chữ "Đã khép" thành "Đã hoàn tất"; app cũ còn trong bộ
+	# nhớ máy vẫn gửi khoá cũ nên nhận cả hai.
+	if trang_thai in (TT_HOAN_TAT, "Đã khép"):
 		return {"xac_nhan_luc": ["is", "set"]}
 	return {}
 
@@ -1493,7 +1516,10 @@ def dem_nguon(rows, nhom=None, vendor=None):
 		if (r.get("so_chua_noi") or 0) > 0:
 			dem["Chưa nối đủ"] = dem.get("Chưa nối đủ", 0) + 1
 		if r.get("xac_nhan_luc"):
-			dem["Đã khép"] = dem.get("Đã khép", 0) + 1
+			dem[TT_HOAN_TAT] = dem.get(TT_HOAN_TAT, 0) + 1
+	# App cũ (trước v655) đọc số đếm theo khoá cũ.
+	if TT_HOAN_TAT in dem:
+		dem["Đã khép"] = dem[TT_HOAN_TAT]
 	dem_vendor["tat_ca"] = sum(dem_vendor.values())
 	return dem, dem_vendor
 
@@ -1745,6 +1771,54 @@ def quet_moi_gio():
 	frappe.set_user("Administrator")
 	quet_email(2)
 	do_lai_tien_ve()
+	try:
+		doi_chieu_lai_dong()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Đối soát: đối chiếu lại dòng chưa nối")
+
+
+# v655 (13/11/2026): dòng bán chưa nối được lúc đọc báo cáo (OnePay khách trả
+# trước, đơn nhận sau mới có hoá đơn; nguồn đối chiếu trước khi luật so tiền
+# đổi) thì kẹt mãi vì chỉ nút Đối chiếu lại mới chạy lại. Lượt mỗi giờ đối
+# chiếu lại các nguồn Tiền bán còn dòng chưa nối trong 30 ngày gần đây.
+NGAY_NOI_LAI = 30
+TOI_DA_NOI_LAI = 60
+
+
+def chon_nguon_noi_lai(ds, toi_da):
+	"""THUẦN: các nguồn cần đối chiếu lại dòng, mới nhất trước (dễ vừa có hoá
+	đơn), bỏ nguồn giám đốc từ chối, tối đa `toi_da`."""
+	ra = [r for r in ds if r.get("duong_vao") != "Từ chối" and int(r.get("so_chua_noi") or 0) > 0]
+	ra.sort(key=lambda r: (str(r.get("den_ngay") or ""), r.get("name") or ""), reverse=True)
+	return ra[:max(0, int(toi_da))]
+
+
+def doi_chieu_lai_dong(hom_nay=None, tu_ngay=None, toi_da=None):
+	"""Đối chiếu lại (đúng như nút Đối chiếu lại) các nguồn Tiền bán đã nhận còn
+	dòng chưa nối. Chỉ đổi trạng thái đối soát, không tạo hay sửa chứng từ. Dòng
+	kế toán đã xác nhận giữ nguyên theo luật của _noi_hoa_don_ban. tu_ngay: bản
+	vá chạy một lần (từ 01/10/2026)."""
+	hom = hom_nay or frappe.utils.nowdate()
+	tu = tu_ngay or frappe.utils.add_days(hom, -NGAY_NOI_LAI)
+	ds = frappe.get_all(DT_NGUON, filters={"nhom": "Tiền bán", "trang_thai": "Đã nhận", "so_chua_noi": [">", 0],
+		"den_ngay": [">=", tu]}, fields=["name", "duong_vao", "so_chua_noi", "den_ngay"], limit_page_length=0)
+	chon = chon_nguon_noi_lai(ds, TOI_DA_NOI_LAI if toi_da is None else toi_da)
+	doi = 0
+	for r in chon:
+		try:
+			# Cùng khoá với lượt nhận tệp và nút Đối chiếu lại; khoá commit để mở
+			# ảnh dữ liệu mới, nên đọc lại nguồn SAU khi có khoá.
+			with khoa_doi_chieu():
+				n = frappe.db.get_value(DT_NGUON, r.name, ["trang_thai", "duong_vao", "so_chua_noi", "nhom"], as_dict=True)
+				if not n or n.nhom != "Tiền bán" or n.trang_thai != "Đã nhận" or n.duong_vao == "Từ chối" \
+						or not int(n.so_chua_noi or 0):
+					continue
+				_doi_chieu(r.name)
+				if int(frappe.db.get_value(DT_NGUON, r.name, "so_chua_noi") or 0) != int(n.so_chua_noi or 0):
+					doi += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Đối soát: đối chiếu lại dòng %s" % r.name)
+	return dict(so_nguon=len(chon), doi=doi)
 
 
 # v647 (10/11/2026): tiền về sau lúc đọc báo cáo (ShopeeFood về trưa hôm sau) thì
