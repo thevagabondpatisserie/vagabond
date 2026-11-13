@@ -375,6 +375,9 @@ CUA_NGO = {
 	"gia_von_tam.py": ["bo_thu", "chi_tiet", "chot", "ds_thu", "luu_he_so", "luu_thu", "tim_nl", "tinh", "tinh_thu"],
 	"cong_thuc.py": ["bo_nhap", "chi_tiet", "danh_sach", "dieu_chinh",
 		"ghi_so", "lich_su", "nhat_ky", "ban_da_xoa", "sua_nhap", "tao_moi", "xuat_excel"],
+	# v656 (anh Việt 13/11): phiếu đề xuất công thức, bếp gửi, Khải lên mã.
+	"de_xuat_cong_thuc.py": ["chi_tiet", "danh_sach", "duyet_dieu_chinh", "ghi_so_tat_ca", "gia_ma", "goi_y_ma", "goi_y_size_dong",
+		"gui", "huy", "luu", "tao_nhap", "tra_lai", "tu_cong_thuc"],
 	# Loi ke toan mua hang, them 21/08/2026. `giu_tk_theo_phieu_nhap` la hook
 	# nen KHONG whitelist, chi hai cua nay mo cho ke toan truong.
 	"ke_toan_mua.py": ["dat_tk_hang_chua_hoa_don", "kiem_tra", "so_chi_tiet_ncc"],

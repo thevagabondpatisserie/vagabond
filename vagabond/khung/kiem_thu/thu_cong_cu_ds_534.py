@@ -753,6 +753,9 @@ MIEN = {
 	# v653: tám đợt dự chi mới nhất (hai đợt mỗi tháng), máy chủ đã giới hạn;
 	# sổ để tra từng khoản trả là màn Hồ sơ thanh toán.
 	"scrDuChi": KHONG_PHAI,
+	# v656: phiếu đề xuất công thức, chip lọc trạng thái, máy chủ giới hạn 100
+	# phiếu mới nhất; sổ để tra công thức là màn Danh mục công thức.
+	"scrDxDs": KHONG_PHAI,
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 
