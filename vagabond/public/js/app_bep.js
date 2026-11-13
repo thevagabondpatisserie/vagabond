@@ -48896,7 +48896,11 @@ function ctHopGiaVon(g) {
     (g.ban ? ' · giá bán ' + money(g.ban) + ' đ · <b>' + g.ty_le + '%</b>' : '') +
     /* Một dòng: đếm số, ba tên đầu, "và N nữa" (AGENTS 2b.17, Codex #564). */
     ((g.thieu || []).length ? '<div style="color:#b3261e;font-size:13px;margin-top:4px">⚠️ Thiếu giá ' + g.thieu.length + ' nguyên liệu: ' +
-      h(g.thieu.slice(0, 3).join(', ')) + (g.thieu.length > 3 ? ' và ' + (g.thieu.length - 3) + ' nữa' : '') + '. Giá vốn đang thiếu phần này.</div>' : '') +
+      h(g.thieu.slice(0, 3).join(', ')) + (g.thieu.length > 3 ? ' và ' + (g.thieu.length - 3) + ' nữa' : '') + '. Giá vốn đang thiếu phần này.</div>' +
+      /* Codex #564: hơn ba tên thì bấm mới mở đủ, không ẩn hẳn. */
+      (g.thieu.length > 3 ? '<details style="margin-top:4px"><summary style="min-height:44px;display:flex;align-items:center;font-size:13px;cursor:pointer;color:#b3261e">' +
+        'Xem đủ ' + g.thieu.length + ' nguyên liệu thiếu giá</summary><div style="font-size:13px;line-height:1.5;color:#b3261e">' +
+        h(g.thieu.join(', ')) + '</div></details>' : '') : '') +
     '</div>';
 }
 
