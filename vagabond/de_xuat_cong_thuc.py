@@ -416,6 +416,26 @@ def ghep_ten(*phan):
 	return ", ".join(p.strip() for p in phan if p and str(p).strip())
 
 
+def co_dong(quan_ton, bom_con):
+	"""Cờ nổ cho một dòng công thức, đúng hợp đồng phantom của xưởng
+	(patches/no_phantom_chuan.py, phantom.py). THUẦN.
+
+	- Mã KHÔNG quản tồn có công thức (BTP thành phần): dòng phantom, trỏ
+	  bom_no vào công thức con, không chặn nổ. Lệnh nổ một cấp vẫn trừ
+	  nguyên liệu bên trong.
+	- Mã quản tồn có công thức (ruột cấp 1, bánh khuôn cấp 2): chặn nổ, bỏ
+	  bom_no, lệnh đòi đúng mã giữ tồn.
+	- Nguyên liệu mua vào (không công thức): để mặc định.
+	quan_ton: mã có quản tồn; bom_con: công thức đang dùng của mã (hoặc rỗng)."""
+	if not quan_ton:
+		if bom_con:
+			return {"is_phantom_item": 1, "bom_no": bom_con, "do_not_explode": 0}
+		return {}
+	if bom_con:
+		return {"is_phantom_item": 0, "bom_no": "", "do_not_explode": 1}
+	return {}
+
+
 def ma_viec(trang_thai, la_duyet, la_nguoi_lap):
 	"""Phiếu này có phải việc của người xem không. THUẦN.
 
@@ -571,21 +591,41 @@ def _sua_duoc(doc):
 	return doc.trang_thai == TT_CHO and _la_duyet()
 
 
+MOI_TRANG = 50
+
+
 @frappe.whitelist()
-def danh_sach(trang_thai=None):
-	"""Các phiếu đề xuất, mới nhất trước. Người lập thấy phiếu của mình; Khải thấy hết."""
+def danh_sach(trang_thai=None, tim=None, trang=0):
+	"""Các phiếu đề xuất, mới nhất trước, MOI_TRANG phiếu một trang. Người lập
+	thấy phiếu của mình; Khải thấy hết. tim: mã phiếu hoặc tên bánh (lọc ở
+	máy chủ, nên phiếu cũ ngoài trang đầu vẫn tìm ra). Trả {ds, dem, con_nua}."""
 	_kiem_lap()
 	f = {}
-	if trang_thai:
-		f["trang_thai"] = trang_thai
 	if not _la_duyet():
 		f["nguoi_de_xuat"] = frappe.session.user
-	ra = frappe.get_all(DT, filters=f, fields=["name", "loai", "ten_banh", "trang_thai", "nguoi_de_xuat", "modified"],
-		order_by="modified desc", limit_page_length=100)
+	hoac = None
+	tim = (tim or "").strip()
+	if tim:
+		# v583: tìm theo từng chữ, bỏ dấu (tim_kiem.py), một điều kiện "name in".
+		from vagabond import tim_kiem
+
+		hoac = [tim_kiem.loc_ten(DT, tim, ["name", "ten_banh"])]
+	dem = {}
+	# Đếm từng trạng thái cho hàng chip (đọc đủ, không giới hạn dòng).
+	for t in frappe.get_all(DT, filters=f, or_filters=hoac, pluck="trang_thai", limit_page_length=0):
+		dem[t] = dem.get(t, 0) + 1
+	dem["tat_ca"] = sum(dem.values())
+	if trang_thai:
+		f["trang_thai"] = trang_thai
+	trang = max(0, cint(trang))
+	ra = frappe.get_all(DT, filters=f, or_filters=hoac, fields=["name", "loai", "ten_banh", "trang_thai", "nguoi_de_xuat", "modified"],
+		order_by="modified desc", start=trang * MOI_TRANG, page_length=MOI_TRANG + 1)
+	con_nua = len(ra) > MOI_TRANG
+	ra = ra[:MOI_TRANG]
 	for r in ra:
 		r["ten_nguoi_de_xuat"] = _ten(r.nguoi_de_xuat)
 		r["modified"] = str(r.modified)[:16]
-	return ra
+	return {"ds": ra, "dem": dem, "con_nua": 1 if con_nua else 0, "trang": trang}
 
 
 @frappe.whitelist()
@@ -720,10 +760,19 @@ def goi_y_ma(ten):
 	chu = tach_chu(ten)
 	if not chu:
 		return []
-	dk = " or ".join(["item_name like %s"] * len(chu))
+	# Ứng viên: khớp BẤT KỲ chữ nào (gần giống, không cần đủ chữ); mẫu like lấy
+	# của tim_kiem.cac_mau để "duong" vẫn ra "Đường" (CSDL coi d, đ khác nhau).
+	from vagabond import tim_kiem
+
+	tham, hoac = {}, []
+	for i, t in enumerate(chu):
+		for j, m in enumerate(tim_kiem.cac_mau(t)):
+			k = "gy%d_%d" % (i, j)
+			tham[k] = m
+			hoac.append("item_name like %%(%s)s or name like %%(%s)s" % (k, k))
 	rows = frappe.db.sql(
-		"select name, item_name, stock_uom from `tabItem` where disabled=0 and (%s) limit 400" % dk,
-		tuple("%%%s%%" % t for t in chu), as_dict=True)
+		"select name, item_name, stock_uom from `tabItem` where disabled=0 and (%s) order by modified desc limit 400" % " or ".join(hoac),
+		tham, as_dict=True)
 	# CSDL so có dấu theo bảng mã của nó; xếp lại bằng tên đã bỏ dấu cho chắc.
 	uv = [{"ma": r.name, "ten": r.item_name, "dvt": r.stock_uom} for r in rows]
 	return xep_goi_y(ten, uv)
@@ -800,10 +849,36 @@ def _tao_bom(ma, so_luong, dvt, dong, chang):
 		b.custom_ban_truoc = cu
 	if chang and b.meta.has_field("custom_chang"):
 		b.custom_chang = chang
+	if not cint(frappe.db.get_value("Item", ma, "is_stock_item")) and b.meta.has_field("is_phantom_bom"):
+		# BTP thành phần không quản tồn: công thức phantom (no_phantom_chuan.py).
+		b.is_phantom_bom = 1
 	for m, sl, u in dong:
-		b.append("items", {"item_code": m, "qty": flt(sl), "uom": u or None})
+		r = {"item_code": m, "qty": flt(sl), "uom": u or None}
+		r.update(_co_dong_ma(m))
+		b.append("items", r)
 	b.insert(ignore_permissions=True)
 	return b.name
+
+
+def _co_dong_ma(ma):
+	"""Cờ nổ cho dòng mã này, đọc mã và công thức đang dùng của nó (co_dong)."""
+	bom = frappe.db.get_value("BOM", {"item": ma, "is_default": 1, "is_active": 1, "docstatus": 1}, "name") or ""
+	return co_dong(cint(frappe.db.get_value("Item", ma, "is_stock_item")), bom)
+
+
+def _dat_co_dong(ten_bom):
+	"""Trước khi ghi sổ một bản nháp của phiếu: công thức con vừa ghi sổ xong
+	(thành phần mới) giờ mới có để trỏ bom_no, nên đặt lại cờ nổ từng dòng.
+	ERPNext không cho bản nháp trỏ vào công thức con chưa ghi sổ."""
+	b = frappe.get_doc("BOM", ten_bom)
+	doi = False
+	for r in b.items:
+		for k, v in _co_dong_ma(r.item_code).items():
+			if r.meta.has_field(k) and (r.get(k) or (0 if k != "bom_no" else "")) != v:
+				r.set(k, v)
+				doi = True
+	if doi:
+		b.save(ignore_permissions=True)
 
 
 @frappe.whitelist()
@@ -899,6 +974,7 @@ def ghi_so_tat_ca(name):
 			continue
 		if ds != 0:
 			frappe.throw("Bản %s không còn là nháp (đã bỏ hoặc huỷ). Tạo lại phiếu mới." % b["bom"])
+		_dat_co_dong(b["bom"])
 		ct.ghi_so(b["bom"])
 		frappe.get_doc("BOM", b["bom"]).add_comment("Comment", "Từ phiếu đề xuất %s của %s, %s duyệt." % (
 			doc.name, _ten(doc.nguoi_de_xuat), _ten(frappe.session.user)))
