@@ -15,7 +15,7 @@ import unittest.mock as um
 import frappe
 from frappe.utils import now_datetime, today
 
-from vagabond import du_chi, lich_du_chi, tai_chinh
+from vagabond import lich_du_chi, tai_chinh
 from vagabond.khung.kiem_that.nen import _DA_TAO, _mot, ca, cong_ty, dung, khong_nem, la
 from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _hoa_don_mua, _tk_ngan_hang
 
@@ -23,7 +23,10 @@ SO_DU = 100000000
 
 
 def _so_du(ba, luc):
-	with um.patch.object(du_chi, "_tk_chi_so_du", lambda: (ba, SO_DU)), \
+	# Dòng tài khoản ngân hàng đúng như mục Tài chính trả về khi lấy thẳng số SePay báo.
+	dong = [{"nguon": "nh:kiem", "loai": tai_chinh.LOAI_NH, "ten": "Kiểm 654", "tam_ung": 0, "bank_account": ba,
+		"dong_bo": 0, "so_bao": float(SO_DU), "so_du": float(SO_DU)}]
+	with um.patch.object(tai_chinh, "_tinh_tien", lambda: {"dong": dong}), \
 			um.patch.object(tai_chinh, "_sepay_luc_bao", lambda: luc):
 		return lich_du_chi.so_du_kha_dung()
 
@@ -90,10 +93,37 @@ def _so_cai_that():
 	la("sổ cái ghi có đúng tài khoản ngân hàng", sorted((g.voucher_type, float(g.credit)) for g in gl),
 		[("Journal Entry", 25000.0), ("Payment Entry", 60000.0)])
 	r = _so_du(ba, luc_doc)
-	la("bản số dư đọc trước hai chứng từ: trừ đủ 85.000", (r["chi_sau"], r["tk"]), (85000.0, ba))
+	la("bản số dư đọc trước hai chứng từ: trừ đủ 85.000", (r["chi_sau"], float(r["so_tien"])), (85000.0, float(SO_DU - 85000)))
 	sau = str(now_datetime())
 	r = _so_du(ba, sau)
 	la("bản số dư đọc sau hai chứng từ: đã gồm, không trừ lại", r["chi_sau"], 0.0)
 	khong_nem("ERPNext huỷ bút toán chi thẳng", je.cancel)
 	r = _so_du(ba, luc_doc)
 	la("bút toán đã huỷ không còn bị trừ: chỉ còn 60.000", r["chi_sau"], 60000.0)
+
+
+@ca("v654 anh Việt 13/11: Lịch dự chi chạy trên ERPNext thật (công nợ cần thu, thói quen trả của khách); Xoá dự chi nháp xoá hẳn, Desk không xoá được")
+def _lich_va_xoa():
+	from frappe.utils import add_days
+
+	tre = khong_nem("đọc thói quen trả của khách qua Payment Ledger", lich_du_chi._tre_thanh_toan)
+	dung("thói quen trả là {khách: [số ngày]}", isinstance(tre, dict))
+	hd = khong_nem("đọc công nợ cần thu đúng phép tính màn Công nợ", lich_du_chi._phai_thu_hd)
+	dung("công nợ cần thu là danh sách", isinstance(hd, list))
+	kq = khong_nem("mở Lịch dự chi", lich_du_chi.lich)
+	if kq:
+		dung("có ô tiền dự kiến về", "du_kien_ve" in kq)
+	ten = khong_nem("lưu một dự chi nháp", lambda: lich_du_chi.luu_muc(ngay=add_days(today(), 2), noi_dung="Kiểm 654 xoá nháp",
+		so_tien="1000000", nguoi_nhan="Người nhận kiểm"))
+	if not ten:
+		return
+	ten = ten["name"]
+	_DA_TAO.append(("Vagabond Du Chi Muc", ten))
+	try:
+		frappe.delete_doc("Vagabond Du Chi Muc", ten, ignore_permissions=True)
+		dung("xoá thẳng (như trên Desk) phải bị chặn", False)
+	except frappe.PermissionError:
+		pass
+	dung("còn bản ghi sau lần xoá bị chặn", frappe.db.exists("Vagabond Du Chi Muc", ten))
+	khong_nem("nút Xoá dự chi nháp", lambda: lich_du_chi.xoa_muc(ten))
+	dung("đã xoá hẳn", not frappe.db.exists("Vagabond Du Chi Muc", ten))
