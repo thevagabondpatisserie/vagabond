@@ -349,3 +349,37 @@ def _codex_ncc_ma():
 	lc = [dict(TIEN_NHA, khoa=l._khoa_nhan("SUP-NHA", "Ông Phước (gõ khác tên)"), nha_cung_cap="SUP-NHA")]
 	m = l.ghep_muc(HOM, DEN, [], [], [], [], lc, {("SUP-NHA", "2026-11")})
 	la("khoá lịch là mã nhà cung cấp, không phải chữ hiển thị", [x["ngay"] for x in m], [D(2026, 12, 20)] if DEN >= D(2026, 12, 20) else [])
+
+
+@ca("v654 Codex #561: hoá đơn tiền nhà còn NHÁP không làm mất lịch tháng đó (chưa có dòng nào khác thay)")
+def _codex_hd_nhap():
+	import unittest.mock as um
+
+	fr = __import__("frappe")
+	pi = [Doi(supplier="Nguyễn Hữu Phước", posting_date=D(2026, 11, 5), docstatus=0)]
+
+	def khop(gt, dk):
+		if isinstance(dk, (list, tuple)):
+			op, v = dk
+			if op == "<":
+				return gt < v
+			if op == "in":
+				return gt in v
+			return gt == v
+		return gt == dk
+
+	def ga(dt_, filters=None, **k):
+		if dt_ != "Purchase Invoice":
+			return []
+		f = filters or {}
+		return [r for r in pi if khop(r.docstatus, f.get("docstatus", 1)) and khop(r.supplier, f.get("supplier"))]
+	lc = [dict(TIEN_NHA, khoa="Nguyễn Hữu Phước", nha_cung_cap="Nguyễn Hữu Phước")]
+	with um.patch.object(fr, "get_all", ga):
+		da_co = l._da_co(lc, [], [], HOM)
+	m, kq = _lich(lich=lc, da_co=da_co, so_du=30 * TR)
+	la("hoá đơn nháp: tiền nhà 20/11 vẫn tính, báo thiếu 10 triệu", ([x["ngay"] for x in m], kq["thieu_dau"] and kq["thieu_dau"]["so_tien"]),
+		([D(2026, 11, 20)], 10 * TR))
+	pi[0]["docstatus"] = 1
+	with um.patch.object(fr, "get_all", ga):
+		da_co = l._da_co(lc, [], [], HOM)
+	la("hoá đơn đã ghi sổ: tháng 11 đã có (máy đề xuất công nợ thay hoặc đã trả)", ("Nguyễn Hữu Phước", "2026-11") in da_co, True)
