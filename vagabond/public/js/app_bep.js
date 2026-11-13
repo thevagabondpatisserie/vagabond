@@ -60097,6 +60097,22 @@ sdKhai('du_chi', 'scrDuChiXem', {
   tieuDe: function (v) { var n = v && v.sua ? Object.keys(v.sua).length : 0; return n ? n + ' hoá đơn đã sửa số trả' : ''; },
   luu: ['vagabond.du_chi.luu']
 });
+/* v654 Codex #561: form Thêm, Sửa dự chi và Lịch chi hằng tháng (71, sau 48).
+   Chữ trong ô đi theo số liệu ô; nhà cung cấp đã chọn, hoá đơn, mã dự chi nằm
+   trong LDC.form và LDC.lichForm. Sửa một dự chi có sẵn: dat() để vào
+   ldcKhoiPhuc, màn đọc máy chủ xong mới ghép (không móc sdGhep). Lưu thành công
+   (luu_muc, luu_lich) là xong nháp. Bản nháp chỉ nằm trên máy, không tạo gì trên
+   máy chủ. */
+sdKhai('du_chi_tay', 'scrDuChiThem', {
+  ten: 'Dự chi', lay: function () { var f = LDC.form; return (f && (!f.trang_thai || f.trang_thai === 'Nhap')) ? f : null; },
+  dat: function (v) { if (v && v.name) { ldcKhoiPhuc = v; LDC.form = null; } else { ldcKhoiPhuc = null; LDC.form = v || null; } },
+  ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('#ldcND', 'noi_dung'), luu: ['vagabond.lich_du_chi.luu_muc']
+});
+sdKhai('lich_chi', 'scrLichChi', {
+  ten: 'Lịch chi hằng tháng', lay: function () { return LDC.lichForm || null; }, dat: function (v) { LDC.lichForm = v || null; },
+  ma: function () { return (LDC.lichForm && LDC.lichForm.name) || ''; }, tieuDe: sdTieuDe('#lcND', 'noi_dung'),
+  luu: ['vagabond.lich_du_chi.luu_lich']
+});
 /* v622: hai màn lập phiếu của Tuyển dụng (60-tuyen-dung.js, đứng sau 48 nên
    ghép bằng dat() vào biến khôi phục, màn tự ghép lúc dựng trạng thái). */
 sdKhai('vi_tri_tuyen', 'scrTdViTri', {
@@ -60205,6 +60221,8 @@ scrQuyNop = sdBoc('nop_ngan_hang', 'scrQuyNop', scrQuyNop);
 scrQuyChotDau = sdBoc('chot_dau_quy', 'scrQuyChotDau', scrQuyChotDau);
 scrGomMua = sdBoc('gom_mua', 'scrGomMua', scrGomMua);
 scrDuChiXem = sdBoc('du_chi', 'scrDuChiXem', scrDuChiXem);
+scrDuChiThem = sdBoc('du_chi_tay', 'scrDuChiThem', scrDuChiThem);
+scrLichChi = sdBoc('lich_chi', 'scrLichChi', scrLichChi);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
@@ -72564,6 +72582,9 @@ async function dcnChuyenKhoan() {
    Tiền tố ldc = lịch dự chi. */
 
 var LDC = { l: null, form: null, lichForm: null };
+/* v654 Codex #561: bản nháp tự lưu (phần 48) của form Sửa dự chi đặt vào đây;
+   màn ghép lại SAU khi đọc dự chi từ máy chủ (phần sau 48 không móc sdGhep). */
+var ldcKhoiPhuc = null;
 var LDC_MAU = { tay: ['#eef4ff', '#3538cd'], may: ['#fef6ee', '#b93815'], lich: ['#f4f3ff', '#5925dc'], dot: ['#ecfdf3', '#067647'], app: ['#f2f4f7', '#344054'] };
 
 /* THUẦN: ngày dd/mm từ yyyy-mm-dd. */
@@ -72587,6 +72608,7 @@ function ldcGhiChu(x) {
   if (x.nguon === 'may' && x.co === 'dot' && x.han) return 'Hạn ' + ldcNgay(x.han) + ', xếp vào đợt không sau hạn.';
   if (x.nguon === 'may' && x.co === 'hen') return 'Đã hẹn trả đợt này khi thương lượng.';
   if (x.qua_ngay) return '⚠️ Đã qua ngày cần chi, chưa thấy hồ sơ thanh toán.';
+  if (x.nguon === 'tay' && x.da_tinh_noi_khac > 0) return 'Đã tính ' + money(x.da_tinh_noi_khac) + ' đ của khoản này trong đợt dự chi hoặc hồ sơ thanh toán của hoá đơn đã gắn, không đếm hai lần.';
   return '';
 }
 
@@ -72631,11 +72653,13 @@ function ldcKhoi(l) {
   });
   html += '<div style="font-size:13px;font-weight:700;color:#475467;margin:14px 2px 6px">LỊCH CHI HẰNG THÁNG</div><div class="card" style="padding:0;overflow:hidden">' +
     ((l.lich_chi || []).length ? l.lich_chi.map(function (c) {
-      return '<div data-ldclich="' + h(c.name) + '" style="display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid #f2f4f7;min-height:44px;cursor:pointer">' +
-        '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">' + h(c.noi_dung) + '</div>' +
+      var tat = c.bat === 0;
+      return '<div data-ldclich="' + h(c.name) + '" style="display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid #f2f4f7;min-height:44px;cursor:pointer' + (tat ? ';background:#f9fafb' : '') + '">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600' + (tat ? ';color:#667085' : '') + '">' + h(c.noi_dung) + '</div>' +
         '<div style="font-size:13px;color:#6b7280">' + h(c.nguoi_nhan || '') + ' · ngày ' + c.ngay_trong_thang + ' hằng tháng' +
-        (c.so_thang_thay ? ' · máy thấy ' + c.so_thang_thay + ' tháng' : '') + '</div></div>' +
-        '<div style="flex:none;font-weight:700">' + money(c.so_tien) + ' đ</div></div>';
+        (c.so_thang_thay ? ' · máy thấy ' + c.so_thang_thay + ' tháng' : '') + '</div>' +
+        (tat ? '<div style="font-size:13px;color:#b45309;margin-top:2px">⏸ Đang tạm thôi tính, bấm để mở và dùng lại</div>' : '') + '</div>' +
+        '<div style="flex:none;font-weight:700' + (tat ? ';color:#98a2b3' : '') + '">' + money(c.so_tien) + ' đ</div></div>';
     }).join('') : '<div style="padding:12px 14px;font-size:13.5px;color:#6b7280">Chưa có lịch chi hằng tháng nào.</div>') +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 14px">' +
     (q.sua ? '<button class="btn gh" id="ldcThemLich" style="margin:0;min-height:44px;flex:1;font-size:14px">＋ Thêm lịch hằng tháng</button>' : '') +
@@ -72645,13 +72669,13 @@ function ldcKhoi(l) {
 
 /* Bấm trong khối Lịch dự chi. Trả true khi đã xử lý. */
 function ldcBam(e) {
-  if (e.target.closest('#ldcThem')) { LDC.form = { ngay: '', noi_dung: '', so_tien: '', nguoi_nhan: '', ly_do: '', hoa_don: '' }; go(scrDuChiThem); return true; }
-  if (e.target.closest('#ldcThemLich')) { LDC.lichForm = { noi_dung: '', nguoi_nhan: '', so_tien: '', ngay_trong_thang: 20, bat: 1 }; go(scrLichChi); return true; }
+  if (e.target.closest('#ldcThem')) { LDC.form = { ngay: '', noi_dung: '', so_tien: '', nguoi_nhan: '', ly_do: '', hoa_don: '', nha_cung_cap: '', ten_ncc: '' }; go(scrDuChiThem); return true; }
+  if (e.target.closest('#ldcThemLich')) { LDC.lichForm = { noi_dung: '', nguoi_nhan: '', so_tien: '', ngay_trong_thang: 20, bat: 1, nha_cung_cap: '', ten_ncc: '' }; go(scrLichChi); return true; }
   if (e.target.closest('#ldcGoiY')) { go(scrLichGoiY); return true; }
   var c = e.target.closest('[data-ldclich]');
   if (c) {
     var x = ((LDC.l && LDC.l.lich_chi) || []).filter(function (y) { return y.name === c.getAttribute('data-ldclich'); })[0];
-    if (x) { LDC.lichForm = Object.assign({ bat: 1 }, x); go(scrLichChi); }
+    if (x) { LDC.lichForm = ldcLichMo(x); go(scrLichChi); }
     return true;
   }
   var m = e.target.closest('[data-ldcmo]');
@@ -72660,9 +72684,10 @@ function ldcBam(e) {
     if (p[0] === 'app') { var ma = p[1]; go(function () { return scrHoSoTTView(ma); }); return true; }
     if (p[0] === 'lich') {
       var y = ((LDC.l && LDC.l.lich_chi) || []).filter(function (z) { return z.name === p[1]; })[0];
-      if (y) { LDC.lichForm = Object.assign({ bat: 1 }, y); go(scrLichChi); }
+      if (y) { LDC.lichForm = ldcLichMo(y); go(scrLichChi); }
       return true;
     }
+    LDC.form = null;
     go(function () { return scrDuChiThem(p[1]); });
     return true;
   }
@@ -72675,12 +72700,49 @@ function ldcO(nhan, giai, o) {
 }
 var LDC_O = 'width:100%;box-sizing:border-box;min-height:44px;font-size:15px;padding:8px 12px;border:1px solid #d0d5dd;border-radius:10px;background:#fff';
 
+/* THUẦN: form sửa một lịch hằng tháng mở từ danh sách. Giữ đúng cờ đang dùng
+   (lịch tạm thôi mở ra vẫn là tạm thôi, bấm nút mới dùng lại). */
+function ldcLichMo(x) {
+  return Object.assign({}, x, { bat: x.bat === 0 ? 0 : 1, ten_ncc: x.nha_cung_cap ? (x.nguoi_nhan || x.nha_cung_cap) : '' });
+}
+
+/* THUẦN: ô chọn nhà cung cấp (AGENTS QT-31: chọn từ danh mục, không gõ tự do). */
+function ldcONcc(id, f) {
+  return '<button type="button" class="btn gh" id="' + id + '" style="margin:0;min-height:44px;font-size:14px;text-align:left;width:100%">' +
+    (f.nha_cung_cap ? '🏭 ' + h(f.ten_ncc || f.nha_cung_cap) + ' <span style="color:#667085">· bấm để đổi</span>' : '🔎 Chọn nhà cung cấp trong danh mục') + '</button>';
+}
+
+/* Mở ô chọn nhà cung cấp: gõ một phần tên, mã hay MST, chọn trong danh mục.
+   Trả {ncc, ten}, {ncc: ''} khi bỏ chọn, null khi đóng. */
+async function ldcChonNcc(f) {
+  var tu = await hoiChu('Chọn nhà cung cấp', 'Gõ một phần tên, mã hoặc mã số thuế:', '', { bat_buoc: true });
+  if (!tu) return null;
+  var ds;
+  busy(1);
+  try { ds = await api('vagabond.lich_du_chi.chon_ncc', { tu_khoa: tu }); }
+  catch (e) { toast(errMsg(e), 6000); return null; } finally { busy(0); }
+  var lua = (ds || []).map(function (x) { return { k: x.name, icon: '🏭', nhan: x.ten, mo_ta: (x.mst ? 'MST ' + x.mst + ' · ' : '') + 'mã ' + x.name }; });
+  if (f && f.nha_cung_cap) lua.push({ k: '__bo', icon: '✖', nhan: 'Bỏ chọn nhà cung cấp', mo_ta: 'Khoản này trả cho người nhận khác, không phải nhà cung cấp' });
+  if (!lua.length) { baoTin('Không có nhà cung cấp nào khớp "' + tu + '". Bên nhận chưa có trong danh mục thì ghi ở ô Người nhận khác.', 'Chọn nhà cung cấp'); return null; }
+  var c = await hoiChon('Chọn nhà cung cấp', (ds || []).length + ' nhà khớp', lua);
+  if (!c) return null;
+  if (c === '__bo') return { ncc: '', ten: '' };
+  var x = (ds || []).filter(function (y) { return y.name === c; })[0];
+  return { ncc: c, ten: (x && x.ten) || c };
+}
+
 /* Form Thêm dự chi (ảnh đề xuất): ngày bất kỳ, nội dung, số tiền, người nhận, lý do, hoá đơn nếu có. */
 async function scrDuChiThem(name) {
   if (name) {
     frame('Sửa dự chi', '<div class="emp"><div class="e1">⏳</div></div>');
-    try { LDC.form = await api('vagabond.lich_du_chi.chi_tiet_muc', { name: name }); }
-    catch (e) { return frame('Sửa dự chi', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' + h(errMsg(e)) + '</div></div>'); }
+    if (!(LDC.form && LDC.form.name === name && LDC.form.__dang_sua)) {
+      try { LDC.form = await api('vagabond.lich_du_chi.chi_tiet_muc', { name: name }); }
+      catch (e) { return frame('Sửa dự chi', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' + h(errMsg(e)) + '</div></div>'); }
+      LDC.form.__dang_sua = 1;
+    }
+    /* Bản nháp tự lưu của đúng dự chi này: ghép sau khi đọc máy chủ. */
+    if (ldcKhoiPhuc && ldcKhoiPhuc.name === name) { LDC.form = Object.assign({}, LDC.form, ldcKhoiPhuc, { __dang_sua: 1 }); }
+    ldcKhoiPhuc = null;
   }
   var f = LDC.form || {};
   var nhap = !f.trang_thai || f.trang_thai === 'Nhap';
@@ -72688,46 +72750,86 @@ async function scrDuChiThem(name) {
     ldcO('Ngày cần chi', 'Chọn ngày bất kỳ, kể cả ngoài hai đợt 10 và 20.', '<input type="date" id="ldcNgay" value="' + h(f.ngay || '') + '" style="' + LDC_O + '">') +
     ldcO('Nội dung', '', '<input id="ldcND" value="' + h(f.noi_dung || '') + '" placeholder="Ví dụ: Chi gấp mua bơ" style="' + LDC_O + '">') +
     ldcO('Số tiền', '', '<input id="ldcTien" inputmode="numeric" value="' + h(f.so_tien ? money(f.so_tien) : '') + '" placeholder="10.000.000" style="' + LDC_O + '">') +
-    ldcO('Người nhận / Nhà cung cấp', 'Gõ đúng tên nhà cung cấp thì máy tự nối với nhà cung cấp đó.', '<input id="ldcNhan" value="' + h(f.nguoi_nhan || '') + '" style="' + LDC_O + '">') +
+    ldcO('Nhà cung cấp', 'Chọn trong danh mục để máy nối đúng hoá đơn, hồ sơ thanh toán của nhà đó.', ldcONcc('ldcNcc', f)) +
+    (f.nha_cung_cap ? '' : ldcO('Người nhận khác', 'Chỉ ghi khi bên nhận không có trong danh mục nhà cung cấp, ví dụ chi gấp ở chợ.',
+      '<input id="ldcNhan" value="' + h(f.nguoi_nhan || '') + '" style="' + LDC_O + '">')) +
     ldcO('Lý do', '', '<textarea id="ldcLyDo" rows="3" style="' + LDC_O + '">' + h(f.ly_do || '') + '</textarea>') +
     ldcO('Hoá đơn công nợ (nếu có)', 'Có hoá đơn thì máy trừ phần này khỏi số đề xuất của hoá đơn đó, không đếm hai lần. Không có hoá đơn vẫn lưu được.',
-      '<div style="display:flex;gap:8px"><input id="ldcHD" value="' + h(f.hoa_don || '') + '" placeholder="Mã hoá đơn mua, ví dụ HDM-26-11-00195" style="' + LDC_O + ';flex:1">' +
+      (f.hoa_don ? '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><div id="ldcHDDa" style="flex:1;min-width:0;font-size:14px;font-weight:600">🧾 ' + h(f.hoa_don) + '</div>' +
+        '<button class="btn gh" id="ldcBoHD" style="margin:0;min-height:44px;width:auto;padding:0 14px;font-size:14px">Bỏ hoá đơn</button></div>' : '') +
+      '<div style="display:flex;gap:8px"><input id="ldcHDTim" placeholder="Gõ tên nhà cung cấp, số hoặc mã hoá đơn" style="' + LDC_O + ';flex:1">' +
       '<button class="btn gh" id="ldcTimHD" style="margin:0;min-height:44px;width:auto;padding:0 14px;font-size:14px">Tìm</button></div><div id="ldcHDKq"></div>') +
     (f.ho_so_app ? '<div style="font-size:13.5px;color:#067647">Đã nối hồ sơ thanh toán ' + h(f.ho_so_app) + '. Lịch đếm theo hồ sơ này.</div>' : '') +
     '<div style="font-size:13px;color:#667085;line-height:1.5;margin-top:4px">Máy chỉ lưu dự chi nháp để tính tiền theo ngày. Chi thật vẫn lập hồ sơ thanh toán (APP) và duyệt như cũ, rồi nối hồ sơ vào đây.</div>' +
     '</div>';
   if (name && nhap) html += '<div class="card" style="padding:14px">' +
-    ldcO('Nối hồ sơ thanh toán đã lập', 'Gõ mã APP của khoản này.', '<div style="display:flex;gap:8px"><input id="ldcApp" placeholder="APP.26.11.001" style="' + LDC_O + ';flex:1">' +
-      '<button class="btn gh" id="ldcNoi" style="margin:0;min-height:44px;width:auto;padding:0 14px;font-size:14px">Nối</button></div>') +
+    ldcO('Nối hồ sơ thanh toán đã lập', 'Chọn hồ sơ thanh toán (APP) của khoản này. Từ lúc nối, lịch đếm theo hồ sơ đó.',
+      '<button class="btn gh" id="ldcNoi" style="margin:0;min-height:44px;font-size:14px;text-align:left;width:100%">🔎 Chọn hồ sơ thanh toán để nối</button>') +
     '<button class="btn gh" id="ldcHuy" style="margin:4px 0 0;min-height:44px;color:#b42318">Huỷ dự chi này</button></div>';
   var foot = nhap ? '<button class="btn" id="ldcLuu" style="margin:0;min-height:48px">💾 Lưu dự chi nháp</button>' : '';
   var b = frame(name ? 'Sửa dự chi' : 'Thêm dự chi', html, foot ? { footer: foot } : {});
   var v = function (k) { var o = document.getElementById(k); return o ? o.value : ''; };
+  /* Chép ô đang gõ vào LDC.form trước khi vẽ lại (chọn nhà cung cấp, chọn hoá đơn). */
+  var docO = function () {
+    f.ngay = v('ldcNgay'); f.noi_dung = v('ldcND'); f.so_tien = String(v('ldcTien')).replace(/[^0-9]/g, '');
+    if (!f.nha_cung_cap) f.nguoi_nhan = v('ldcNhan');
+    f.ly_do = v('ldcLyDo');
+  };
   var luu = document.getElementById('ldcLuu');
   if (luu) luu.onclick = async function () {
     busy(1);
     try {
       await api('vagabond.lich_du_chi.luu_muc', { name: name || '', ngay: v('ldcNgay'), noi_dung: v('ldcND'),
-        so_tien: String(v('ldcTien')).replace(/[^0-9]/g, ''), nguoi_nhan: v('ldcNhan'), ly_do: v('ldcLyDo'), hoa_don: v('ldcHD') });
+        so_tien: String(v('ldcTien')).replace(/[^0-9]/g, ''), nguoi_nhan: f.nha_cung_cap ? (f.ten_ncc || '') : v('ldcNhan'),
+        nha_cung_cap: f.nha_cung_cap || '', ly_do: v('ldcLyDo'), hoa_don: f.hoa_don || '' });
       toast('Đã lưu dự chi nháp', 3500);
     } catch (e) { toast(errMsg(e), 7000); return; } finally { busy(0); }
     back();
   };
   b.onclick = async function (e) {
+    if (e.target.closest('#ldcNcc')) {
+      docO();
+      var c = await ldcChonNcc(f);
+      if (!c) return;
+      f.nha_cung_cap = c.ncc; f.ten_ncc = c.ten; if (c.ncc) f.nguoi_nhan = c.ten;
+      LDC.form = f;
+      return go(function () { return scrDuChiThem(name); }, true);
+    }
     if (e.target.closest('#ldcTimHD')) {
       var kq;
-      try { kq = await api('vagabond.lich_du_chi.chon_hoa_don', { tu_khoa: v('ldcHD') }); } catch (er) { toast(errMsg(er), 6000); return; }
+      try { kq = await api('vagabond.lich_du_chi.chon_hoa_don', { tu_khoa: v('ldcHDTim') }); } catch (er) { toast(errMsg(er), 6000); return; }
       document.getElementById('ldcHDKq').innerHTML = (kq || []).length ? kq.map(function (x) {
-        return '<div data-ldchd="' + h(x.name) + '" style="padding:10px 4px;border-bottom:1px solid #f2f4f7;min-height:44px;cursor:pointer;font-size:13.5px"><b>' + h(x.name) + '</b> · ' + h(x.ten) +
+        return '<div data-ldchd="' + h(x.name) + '" data-ldchdncc="' + h(x.ncc || '') + '" data-ldchdten="' + h(x.ten || '') + '" style="padding:10px 4px;border-bottom:1px solid #f2f4f7;min-height:44px;cursor:pointer;font-size:13.5px"><b>' + h(x.name) + '</b> · ' + h(x.ten) +
           (x.so ? ' · số ' + h(x.so) : '') + ' · còn ' + money(x.con_no) + ' đ</div>';
       }).join('') : '<div style="font-size:13px;color:#667085;padding:8px 0">Không có hoá đơn còn nợ nào khớp.</div>';
       return;
     }
     var hd = e.target.closest('[data-ldchd]');
-    if (hd) { document.getElementById('ldcHD').value = hd.getAttribute('data-ldchd'); document.getElementById('ldcHDKq').innerHTML = ''; return; }
+    if (hd) {
+      docO();
+      f.hoa_don = hd.getAttribute('data-ldchd');
+      /* Hoá đơn của nhà nào thì khoản này trả cho đúng nhà đó. */
+      if (hd.getAttribute('data-ldchdncc')) { f.nha_cung_cap = hd.getAttribute('data-ldchdncc'); f.ten_ncc = hd.getAttribute('data-ldchdten') || f.nha_cung_cap; f.nguoi_nhan = f.ten_ncc; }
+      LDC.form = f;
+      return go(function () { return scrDuChiThem(name); }, true);
+    }
+    if (e.target.closest('#ldcBoHD')) {
+      docO(); f.hoa_don = ''; LDC.form = f;
+      return go(function () { return scrDuChiThem(name); }, true);
+    }
     if (e.target.closest('#ldcNoi')) {
+      var tu = await hoiChu('Chọn hồ sơ thanh toán', 'Gõ mã APP, tên người nhận hoặc nhà cung cấp:', f.ten_ncc || f.nguoi_nhan || '', { bat_buoc: true });
+      if (!tu) return;
+      var ds;
       busy(1);
-      try { await api('vagabond.lich_du_chi.noi_app', { name: name, ho_so_app: v('ldcApp').trim() }); toast('Đã nối hồ sơ', 3500); }
+      try { ds = await api('vagabond.lich_du_chi.chon_app', { tu_khoa: tu }); } catch (er) { toast(errMsg(er), 6000); return; } finally { busy(0); }
+      if (!(ds || []).length) return baoTin('Không có hồ sơ thanh toán nào khớp "' + tu + '".', 'Chọn hồ sơ thanh toán');
+      var c = await hoiChon('Chọn hồ sơ thanh toán', ds.length + ' hồ sơ khớp', ds.map(function (x) {
+        return { k: x.name, icon: '📄', nhan: x.name + ' · ' + money(x.so_tien) + ' đ', mo_ta: (x.ten ? x.ten + ' · ' : '') + x.trang_thai + (x.ngay ? ' · lập ' + ldcNgay(x.ngay) : '') };
+      }));
+      if (!c) return;
+      busy(1);
+      try { await api('vagabond.lich_du_chi.noi_app', { name: name, ho_so_app: c }); toast('Đã nối hồ sơ ' + c, 3500); }
       catch (er) { toast(errMsg(er), 7000); return; } finally { busy(0); }
       return back();
     }
@@ -72749,7 +72851,9 @@ function scrLichChi() {
   var f = LDC.lichForm || {};
   var html = '<div class="card" style="padding:14px">' +
     ldcO('Nội dung', '', '<input id="lcND" value="' + h(f.noi_dung || '') + '" placeholder="Ví dụ: Tiền nhà" style="' + LDC_O + '">') +
-    ldcO('Người nhận / Nhà cung cấp', '', '<input id="lcNhan" value="' + h(f.nguoi_nhan || '') + '" style="' + LDC_O + '">') +
+    ldcO('Nhà cung cấp', 'Chọn trong danh mục để máy biết tháng nào đã có hoá đơn, hồ sơ thanh toán của nhà đó.', ldcONcc('lcNcc', f)) +
+    (f.nha_cung_cap ? '' : ldcO('Người nhận khác', 'Chỉ ghi khi bên nhận không có trong danh mục nhà cung cấp.',
+      '<input id="lcNhan" value="' + h(f.nguoi_nhan || '') + '" style="' + LDC_O + '">')) +
     ldcO('Số tiền mỗi tháng', '', '<input id="lcTien" inputmode="numeric" value="' + h(f.so_tien ? money(f.so_tien) : '') + '" style="' + LDC_O + '">') +
     ldcO('Ngày chi trong tháng', 'Tháng ngắn hơn thì máy lùi về ngày cuối tháng. Tháng đã có hồ sơ thanh toán hay hoá đơn mua của đúng người nhận thì máy không tính thêm.',
       '<input id="lcNgay" type="number" min="1" max="31" value="' + h(String(f.ngay_trong_thang || 20)) + '" style="' + LDC_O + '">') +
@@ -72758,7 +72862,16 @@ function scrLichChi() {
     (f.ngoai_le ? '<div style="font-size:13px;color:#b45309;margin-top:6px;white-space:pre-line">' + h(f.ngoai_le) + '</div>' : '') +
     '</div>';
   frame(f.name ? 'Sửa lịch hằng tháng' : 'Thêm lịch hằng tháng', html, { footer: '<button class="btn" id="lcLuu" style="margin:0;min-height:48px">💾 Lưu lịch</button>' });
-  var v = function (k) { return document.getElementById(k).value; };
+  var v = function (k) { var o = document.getElementById(k); return o ? o.value : ''; };
+  document.getElementById('lcNcc').onclick = async function () {
+    f.noi_dung = v('lcND'); f.so_tien = String(v('lcTien')).replace(/[^0-9]/g, ''); f.ngay_trong_thang = v('lcNgay');
+    if (!f.nha_cung_cap) f.nguoi_nhan = v('lcNhan');
+    var c = await ldcChonNcc(f);
+    if (!c) return;
+    f.nha_cung_cap = c.ncc; f.ten_ncc = c.ten; if (c.ncc) f.nguoi_nhan = c.ten;
+    LDC.lichForm = f;
+    go(scrLichChi, true);
+  };
   document.getElementById('lcBat').onclick = function () {
     f.bat = f.bat === 0 ? 1 : 0;
     document.getElementById('lcBat').innerHTML = ldcChuBat(f.bat);
@@ -72766,7 +72879,8 @@ function scrLichChi() {
   document.getElementById('lcLuu').onclick = async function () {
     busy(1);
     try {
-      await api('vagabond.lich_du_chi.luu_lich', { name: f.name || '', noi_dung: v('lcND'), nguoi_nhan: v('lcNhan'),
+      await api('vagabond.lich_du_chi.luu_lich', { name: f.name || '', noi_dung: v('lcND'), nguoi_nhan: f.nha_cung_cap ? (f.ten_ncc || '') : v('lcNhan'),
+        nha_cung_cap: f.nha_cung_cap || '',
         so_tien: String(v('lcTien')).replace(/[^0-9]/g, ''), ngay_trong_thang: v('lcNgay'), bat: f.bat === 0 ? 0 : 1,
         ngoai_le: f.name ? null : (f.ngoai_le || null), so_thang_thay: f.so_thang_thay || null });
       toast('Đã lưu lịch', 3500);
@@ -72791,16 +72905,24 @@ async function scrLichGoiY() {
       '<div style="font-size:13px;color:#475467">Thấy ' + x.so_thang + ' tháng: ' + x.thang.map(function (t) { return h(t.slice(5) + '/' + t.slice(2, 4)); }).join(', ') +
       ' · thường ngày ' + x.ngay_goi_y + ' · khoảng ' + money(x.so_tien_goi_y) + ' đ</div>' +
       (x.ngoai_le.length ? '<div style="font-size:13px;color:#b45309;margin-top:4px;line-height:1.45">' + x.ngoai_le.map(h).join('<br>') + '</div>' : '') + '</div>' +
-      (x.da_co ? '<span style="flex:none;font-size:13px;color:#067647">Đã có lịch</span>'
+      (x.da_tat ? '<button class="btn gh" data-lcmo="' + h(x.lich) + '" style="flex:none;margin:0;min-height:44px;width:auto;padding:0 12px;font-size:14px">Đang tạm thôi, mở lại</button>'
+        : x.da_co ? '<span style="flex:none;font-size:13px;color:#067647">Đã có lịch</span>'
         : '<button class="btn gh" data-lcgy="' + i + '" style="flex:none;margin:0;min-height:44px;width:auto;padding:0 12px;font-size:14px">Thêm vào lịch</button>') +
       '</div></div>';
   }).join('') : '<div class="card"><div class="emp" style="padding:20px"><div class="e1">🗓️</div><div class="e2">Chưa thấy khoản nào lặp đủ ba tháng.</div></div></div>';
   var b = frame('Máy gợi ý lịch chi', html);
   b.onclick = function (e) {
+    var mo = e.target.closest('[data-lcmo]');
+    if (mo) {
+      var y = ((LDC.l && LDC.l.lich_chi) || []).filter(function (z) { return z.name === mo.getAttribute('data-lcmo'); })[0];
+      if (y) { LDC.lichForm = ldcLichMo(y); go(scrLichChi); }
+      return;
+    }
     var t = e.target.closest('[data-lcgy]');
     if (!t) return;
     var x = r.goi_y[+t.getAttribute('data-lcgy')];
     LDC.lichForm = { noi_dung: x.ten, nguoi_nhan: x.ten, so_tien: x.so_tien_goi_y, ngay_trong_thang: x.ngay_goi_y, bat: 1,
+      nha_cung_cap: x.ncc || '', ten_ncc: x.ncc ? x.ten : '',
       ngoai_le: x.ngoai_le.join('\n'), so_thang_thay: x.so_thang };
     go(scrLichChi);
   };
