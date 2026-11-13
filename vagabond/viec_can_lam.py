@@ -89,6 +89,8 @@ LOAI_PHIEU = (
 	# v653 (#555): đợt dự chi công nợ 10 và 20 (du_chi.py).
 	("du_chi", "Dự chi công nợ", "💸"),
 	("hoa_don_thu", "Hoá đơn nhà cung cấp trong hộp thư", "📧"),
+	# v656 (anh Việt 13/11): phiếu đề xuất công thức, bếp gửi, Khải lên mã.
+	("de_xuat_ct", "Đề xuất công thức", "📝"),
 )
 
 # ====================================================== CHẾ ĐỘ GIÁM ĐỐC
@@ -180,6 +182,8 @@ MA_TRAN = {
 	# v653 (#555): thu mua thương lượng, kế toán soát, giám đốc duyệt cả đợt.
 	"du_chi": VAI_THU_MUA | VAI_KE_TOAN | VAI_GIAM_DOC,
 	"hoa_don_thu": VAI_THU_MUA | VAI_KE_TOAN,
+	# v656: Khải (quản lý công thức) và bếp trưởng lên mã; người lập thấy phiếu bị trả lại.
+	"de_xuat_ct": {"Manufacturing Manager", "Manufacturing User", "Bếp phó", "Quầy Bar", "VGB - Quản lý công thức"} | VAI_GIAM_DOC,
 }
 
 
@@ -824,6 +828,12 @@ def _viec_hoa_don_thu(vai):
 	return hoa_don_thu.viec(set(vai))
 
 
+def _viec_de_xuat_ct(vai):
+	"""v656: phiếu đề xuất công thức đúng bước của người xem (de_xuat_cong_thuc.viec)."""
+	from vagabond import de_xuat_cong_thuc
+	return de_xuat_cong_thuc.viec(set(vai))
+
+
 def _viec_du_chi(vai):
 	"""v653 (#555): đợt dự chi đúng bước của người xem (du_chi.viec)."""
 	from vagabond import du_chi
@@ -899,6 +909,7 @@ def danh_sach(loai="", trang_thai=""):
 		("ycmh_nhap", lambda: _viec_ycmh_nhap(vai, kho)),
 		("du_chi", lambda: _viec_du_chi(vai)),
 		("hoa_don_thu", lambda: _viec_hoa_don_thu(vai)),
+		("de_xuat_ct", lambda: _viec_de_xuat_ct(vai)),
 	]
 
 	if chi_viec_giao:
