@@ -140,6 +140,9 @@ def goi_y_dong(dong, sizes, size_goc):
 	for s in sizes or ():
 		if s == size_goc or _so(gram.get(s)) > 0:
 			continue
+		if not so_size(s):
+			# Slice, khuôn vuông: không gợi ý gì, kể cả dòng trang trí (bếp tự ghi).
+			continue
 		if (dong or {}).get("dich") == THANH_PHAM:
 			gram[s] = _so(goc)
 			continue
@@ -346,6 +349,16 @@ def gia_von(du_lieu, gia):
 			t += g * p
 		ra[s] = round(t)
 	return {"size": ra, "thieu": thieu, "don_gia_moi": dg}
+
+
+def thieu_gia_dong(dong, gia):
+	"""Tên các dòng có số lượng mà chưa có đơn giá (giá vốn đang thiếu phần
+	này). Dùng cho phiếu điều chỉnh. dong: [{"ma","ten","sl"}]. THUẦN."""
+	ra = []
+	for r in dong or ():
+		if _so(r.get("sl")) > 0 and _so((gia or {}).get(r.get("ma"))) <= 0:
+			_them(ra, r.get("ten") or r.get("ma"))
+	return ra
 
 
 def _them(ds, x):
@@ -556,6 +569,8 @@ def _cho_man(doc):
 	}
 	if doc.loai == LOAI_DIEU_CHINH and doc.bom_goc:
 		ra["doi_chieu"] = _doi_chieu_dc(doc, d)
+		# Phiếu điều chỉnh không có size: dòng thiếu giá lấy theo bảng trước sau.
+		ra["thieu_gia"] = ra["doi_chieu"]["thieu"]
 	return ra
 
 
@@ -567,6 +582,7 @@ def _doi_chieu_dc(doc, d):
 	von_moi = sum(_so(r["sl"]) * _so(gia.get(r["ma"])) for r in moi)
 	q = flt(b.quantity) or 1
 	return {"bang": doi_chieu(cu, moi), "von_cu": round(flt(b.total_cost)), "von_moi": round(von_moi),
+		"thieu": thieu_gia_dong(moi, gia),
 		"me": q, "dvt": b.uom, "ma": b.item, "ten": frappe.db.get_value("Item", b.item, "item_name") or b.item,
 		"gia_ban": _gia_ban(b.item)}
 
