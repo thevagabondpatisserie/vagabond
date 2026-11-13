@@ -1,0 +1,194 @@
+{
+ "actions": [],
+ "autoname": "format:DCM-{YY}-{MM}-{#####}",
+ "creation": "2026-11-13 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ngay",
+  "noi_dung",
+  "so_tien",
+  "nguoi_nhan",
+  "nha_cung_cap",
+  "hoa_don",
+  "cb1",
+  "trang_thai",
+  "nguon",
+  "lich",
+  "thang",
+  "ho_so_app",
+  "nguoi_lap",
+  "sb1",
+  "ly_do"
+ ],
+ "fields": [
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngày cần chi",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "noi_dung",
+   "fieldtype": "Data",
+   "label": "Nội dung",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Currency",
+   "label": "Số tiền",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "nguoi_nhan",
+   "fieldtype": "Data",
+   "label": "Người nhận / Nhà cung cấp"
+  },
+  {
+   "fieldname": "nha_cung_cap",
+   "fieldtype": "Link",
+   "label": "Nhà cung cấp",
+   "options": "Supplier",
+   "read_only": 1,
+   "description": "Máy tự điền khi tên người nhận trùng một nhà cung cấp."
+  },
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "label": "Hoá đơn công nợ",
+   "options": "Purchase Invoice",
+   "description": "Có thì máy trừ phần này khỏi số đề xuất của hoá đơn đó, không đếm hai lần."
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Nhap\nHuy",
+   "default": "Nhap",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Select",
+   "label": "Nguồn",
+   "options": "Nhập tay\nTheo lịch hằng tháng",
+   "default": "Nhập tay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lich",
+   "fieldtype": "Link",
+   "label": "Lịch chi hằng tháng",
+   "options": "Vagabond Lich Chi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "thang",
+   "fieldtype": "Data",
+   "label": "Tháng của lịch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ho_so_app",
+   "fieldtype": "Link",
+   "label": "Hồ sơ thanh toán (APP)",
+   "options": "Vagabond Ho So TT",
+   "read_only": 1,
+   "description": "Đã lập APP theo luồng duyệt thì nối vào đây; từ đó APP là dòng được đếm trên lịch."
+  },
+  {
+   "fieldname": "nguoi_lap",
+   "fieldtype": "Link",
+   "label": "Người lập",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Small Text",
+   "label": "Lý do"
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-13 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Du Chi Muc",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1,
+   "share": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Purchase Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Purchase User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "title_field": "noi_dung"
+}
