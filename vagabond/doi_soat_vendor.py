@@ -1785,12 +1785,42 @@ NGAY_NOI_LAI = 30
 TOI_DA_NOI_LAI = 60
 
 
-def chon_nguon_noi_lai(ds, toi_da):
-	"""THUẦN: các nguồn cần đối chiếu lại dòng, mới nhất trước (dễ vừa có hoá
-	đơn), bỏ nguồn giám đốc từ chối, tối đa `toi_da`."""
+# Lần đối chiếu lại gần nhất của từng nguồn ({tên nguồn: giờ}), lưu bền trong
+# Default Value để mỗi lượt xoay vòng hết hàng chờ (Codex #562).
+MOC_NOI_LAI = "vgb_doi_chieu_lai_luot"
+
+
+def chon_nguon_noi_lai(ds, toi_da, lan_thu=None):
+	"""THUẦN: các nguồn cần đối chiếu lại dòng, bỏ nguồn giám đốc từ chối, tối
+	đa `toi_da`. Nguồn CHƯA thử lần nào trước, rồi nguồn thử lâu nhất; cùng mức
+	thì mới nhất trước (dễ vừa có hoá đơn).
+
+	Codex #562 (P2): trước đây chỉ xếp mới nhất trước; 60 nguồn mới nhất còn
+	kẹt thì lượt nào cũng chọn lại đúng 60 nguồn đó, nguồn cũ hơn không bao giờ
+	tới lượt cho tới khi rơi khỏi cửa sổ 30 ngày. lan_thu: {tên: giờ thử gần nhất}."""
+	lan = lan_thu or {}
 	ra = [r for r in ds if r.get("duong_vao") != "Từ chối" and int(r.get("so_chua_noi") or 0) > 0]
 	ra.sort(key=lambda r: (str(r.get("den_ngay") or ""), r.get("name") or ""), reverse=True)
+	ra.sort(key=lambda r: str(lan.get(r.get("name")) or ""))
 	return ra[:max(0, int(toi_da))]
+
+
+def ghi_lan_thu(lan_thu, da_thu, gio, con_hieu_luc):
+	"""THUẦN: sổ lần thử mới sau một lượt: nguồn vừa thử ghi `gio`, bỏ nguồn
+	không còn trong hàng chờ để sổ không phình."""
+	con = set(con_hieu_luc)
+	ra = {k: v for k, v in (lan_thu or {}).items() if k in con}
+	for t in da_thu:
+		ra[t] = gio
+	return ra
+
+
+def _doc_lan_thu():
+	try:
+		v = json.loads(frappe.db.get_default(MOC_NOI_LAI) or "{}")
+		return v if isinstance(v, dict) else {}
+	except Exception:
+		return {}
 
 
 def doi_chieu_lai_dong(hom_nay=None, tu_ngay=None, toi_da=None):
@@ -1802,9 +1832,11 @@ def doi_chieu_lai_dong(hom_nay=None, tu_ngay=None, toi_da=None):
 	tu = tu_ngay or frappe.utils.add_days(hom, -NGAY_NOI_LAI)
 	ds = frappe.get_all(DT_NGUON, filters={"nhom": "Tiền bán", "trang_thai": "Đã nhận", "so_chua_noi": [">", 0],
 		"den_ngay": [">=", tu]}, fields=["name", "duong_vao", "so_chua_noi", "den_ngay"], limit_page_length=0)
-	chon = chon_nguon_noi_lai(ds, TOI_DA_NOI_LAI if toi_da is None else toi_da)
-	doi = 0
+	lan_thu = _doc_lan_thu()
+	chon = chon_nguon_noi_lai(ds, TOI_DA_NOI_LAI if toi_da is None else toi_da, lan_thu)
+	doi, da_thu = 0, []
 	for r in chon:
+		da_thu.append(r.name)
 		try:
 			# Cùng khoá với lượt nhận tệp và nút Đối chiếu lại; khoá commit để mở
 			# ảnh dữ liệu mới, nên đọc lại nguồn SAU khi có khoá.
@@ -1818,6 +1850,16 @@ def doi_chieu_lai_dong(hom_nay=None, tu_ngay=None, toi_da=None):
 					doi += 1
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "Đối soát: đối chiếu lại dòng %s" % r.name)
+	if tu_ngay is None:
+		# Bản vá chạy một lần (tu_ngay) không ghi sổ xoay vòng của lượt mỗi giờ.
+		# Đọc lại sổ SAU khoá ngay trước khi ghi: lượt chồng nhau thì giữ phần
+		# lượt kia ghi.
+		try:
+			with khoa_doi_chieu():
+				moi = ghi_lan_thu(_doc_lan_thu(), da_thu, str(frappe.utils.now_datetime()), [r.name for r in ds])
+				frappe.db.set_default(MOC_NOI_LAI, json.dumps(moi, sort_keys=True))
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Đối soát: ghi sổ xoay vòng đối chiếu lại")
 	return dict(so_nguon=len(chon), doi=doi)
 
 

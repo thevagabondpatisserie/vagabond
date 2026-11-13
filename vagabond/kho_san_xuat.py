@@ -1185,7 +1185,6 @@ def _don_phieu_nhap_mo_coi(ten_lenh):
 # bao nhiêu thì ghi bấy nhiêu ở màn Lập phiếu điều chuyển, ghi sổ xong hàng
 # nằm ngay ở kho bếp, bếp bấm Hoàn tất lại.
 NHAN_XIN_KHO_TONG = "Bếp xin nguyên liệu từ Kho tổng 307"
-SO_NGAY_XIN_TRUNG = 2
 
 
 def _lam_tron_len(x, chu_so=3):
@@ -1206,15 +1205,9 @@ def so_xin(thieu):
 	return max(1, int(math.ceil(t - 1e-6)))
 
 
-def tinh_xin_kho_tong(dong, ton_bep):
-	"""Phần nguyên liệu bếp phải xin Kho tổng 307. THUẦN.
-
-	dong: [{ma, ten, dvt, kho, can, thieu?}] (đơn vị tồn kho), ton_bep: {(ma, kho): tồn}.
-	Gộp cùng mã, cùng kho; bỏ dòng xuất thẳng từ Kho tổng. Phần thiếu là cần
-	trừ tồn kho bếp. App đã trừ hàng thay thế đã khai và phần tồn giữ cho món
-	chính thì gửi kèm `thieu`: máy dùng số đó nhưng không vượt tổng cần (tồn kho
-	bếp có thể đang giữ cho món chính nên không tự trừ lại). Trả [{ma, ten, dvt, kho, can, co, thieu, xin}]
-	theo thứ tự gặp, chỉ dòng thiếu."""
+def gom_can_xin(dong):
+	"""THUẦN: gộp dòng xin theo (mã, kho), bỏ dòng xuất thẳng từ Kho tổng và số
+	âm. Trả (gom {(ma, kho): {ma, ten, dvt, kho, can}}, thu_tu)."""
 	gom, thu_tu = {}, []
 	for d in dong or []:
 		kho = (d.get("kho") or "").strip()
@@ -1223,22 +1216,45 @@ def tinh_xin_kho_tong(dong, ton_bep):
 			continue
 		k = (ma, kho)
 		if k not in gom:
-			gom[k] = dict(ma=ma, ten=d.get("ten") or ma, dvt=d.get("dvt") or "", kho=kho, can=0.0, app=None)
+			gom[k] = dict(ma=ma, ten=d.get("ten") or ma, dvt=d.get("dvt") or "", kho=kho, can=0.0)
 			thu_tu.append(k)
 		gom[k]["can"] += max(0.0, flt(d.get("can")))
-		if d.get("thieu") not in (None, ""):
-			gom[k]["app"] = (gom[k]["app"] or 0.0) + max(0.0, flt(d.get("thieu")))
+	return gom, thu_tu
+
+
+def tinh_xin_kho_tong(dong, ton_bep, bu_thay=None):
+	"""Phần nguyên liệu bếp phải xin Kho tổng 307. THUẦN.
+
+	dong: [{ma, ten, dvt, kho, can}] (đơn vị tồn kho), ton_bep: {(ma, kho): tồn},
+	bu_thay: {(ma, kho): phần hàng thay thế đã khai bù được} (máy chủ tự tính,
+	lo_hang.bu_thay_the_nhom). Gộp cùng mã, cùng kho; bỏ dòng xuất thẳng từ Kho
+	tổng. Phần thiếu = cần - tồn kho bếp - hàng thay thế, đọc lúc GỬI.
+
+	Codex #562 (P1): trước đây app gửi kèm `thieu` tính lúc mở hộp xác nhận và
+	máy dùng số đó; tồn đổi giữa lúc xem và lúc bấm Gửi là xin sai (thiếu 20 lúc
+	xem, bấm Gửi khi tồn còn 10 vẫn xin 20). Nay bỏ qua `thieu` của app (app cũ
+	còn trong bộ đệm vẫn gửi). Trả [{ma, ten, dvt, kho, can, co, thay, thieu, xin}]
+	theo thứ tự gặp, chỉ dòng thiếu."""
+	gom, thu_tu = gom_can_xin(dong)
 	ra = []
 	for k in thu_tu:
-		g = gom.pop(k)
-		app = g.pop("app")
+		g = gom[k]
 		co = max(0.0, flt((ton_bep or {}).get(k)))
-		thieu = _lam_tron_len(g["can"] - co if app is None else min(app, g["can"]))
+		thay = max(0.0, flt((bu_thay or {}).get(k)))
+		thieu = _lam_tron_len(g["can"] - co - thay)
 		xin = so_xin(thieu)
 		if xin <= 0:
 			continue
-		ra.append(dict(g, can=_lam_tron_len(g["can"]), co=co, thieu=thieu, xin=xin))
+		ra.append(dict(g, can=_lam_tron_len(g["can"]), co=co, thay=thay, thieu=thieu, xin=xin))
 	return ra
+
+
+def dong_bu_thay(dong, ton_bep):
+	"""THUẦN: dòng hỏi hàng thay thế (lo_hang.bu_thay_the_nhom) từ dòng xin:
+	[{ma, kho, can, thieu}] với thiếu = cần gộp - tồn kho bếp lúc gửi."""
+	gom, thu_tu = gom_can_xin(dong)
+	return [dict(ma=k[0], kho=k[1], can=gom[k]["can"],
+		thieu=max(0.0, gom[k]["can"] - max(0.0, flt((ton_bep or {}).get(k))))) for k in thu_tu]
 
 
 def tru_phieu_dang_cho(xin, dang_cho):
@@ -1287,9 +1303,11 @@ def _ton_bep(dong):
 
 
 def _phieu_xin_dang_cho(dong):
-	"""{(mã, kho nhận): số còn chờ} của phiếu xin Kho tổng 307 đã gửi trong
-	SO_NGAY_XIN_TRUNG ngày, chưa giao xong. Đọc SAU khoá xin_kho_tong."""
-	from frappe.utils import add_days, nowdate
+	"""{(mã, kho nhận): số còn chờ} của MỌI phiếu xin Kho tổng 307 đã gửi, còn
+	hiệu lực và chưa giao xong, không kể ngày lập. Đọc SAU khoá xin_kho_tong.
+
+	Codex #562 (P2): trước đây chỉ đọc phiếu lập trong 2 ngày; phiếu xin ngày
+	10/11 kho chưa giao thì 13/11 bếp bấm lại sinh phiếu thứ hai cùng phần thiếu."""
 	ma = sorted({d["ma"] for d in dong})
 	kho = sorted({d["kho"] for d in dong})
 	if not ma or not kho:
@@ -1298,9 +1316,9 @@ def _phieu_xin_dang_cho(dong):
 		from `tabMaterial Request Item` i join `tabMaterial Request` m on m.name = i.parent
 		where m.docstatus = 1 and m.material_request_type = 'Material Transfer'
 		and m.status in ('Pending', 'Partially Ordered', 'Partially Received')
-		and m.set_from_warehouse = %(goc)s and m.transaction_date >= %(tu)s
+		and m.set_from_warehouse = %(goc)s
 		and i.item_code in %(ma)s and i.warehouse in %(kho)s for update""",
-		dict(goc=KHO_GOC, tu=add_days(nowdate(), -SO_NGAY_XIN_TRUNG), ma=tuple(ma), kho=tuple(kho)), as_dict=True)
+		dict(goc=KHO_GOC, ma=tuple(ma), kho=tuple(kho)), as_dict=True)
 	cho = {}
 	for r in rows:
 		k = (r.item_code, r.warehouse)
@@ -1336,7 +1354,7 @@ def xin_kho_tong(dong=None, ten_lenh=None):
 			continue
 		if not frappe.db.exists("Warehouse", kho) or not bep_cua_kho(kho):
 			frappe.throw("Kho %s không phải kho bếp nên không xin kho tổng cho kho này được." % kho)
-		sach.append(dict(ma=ma, kho=kho, can=flt(d.get("can")), thieu=d.get("thieu")))
+		sach.append(dict(ma=ma, kho=kho, can=flt(d.get("can"))))
 	if not sach:
 		return {"ok": 0, "phieu": [], "ghi_chu": "Không có nguyên liệu nào cần xin."}
 
@@ -1349,7 +1367,10 @@ def xin_kho_tong(dong=None, ten_lenh=None):
 		for d in sach:
 			x = frappe.get_cached_value("Item", d["ma"], ["item_name", "stock_uom"], as_dict=True) or {}
 			d["ten"], d["dvt"] = x.get("item_name") or d["ma"], x.get("stock_uom") or ""
-		xin = tinh_xin_kho_tong(sach, _ton_bep(sach))
+		# Codex #562 (P1): tồn kho bếp và hàng thay thế đọc SAU khoá, lúc gửi.
+		ton = _ton_bep(sach)
+		bu = {(r["ma"], r["kho"]): flt(r["bu"]) for r in _bu_thay_the(dong_bu_thay(sach, ton))}
+		xin = tinh_xin_kho_tong(sach, ton, bu)
 		if not xin:
 			return {"ok": 0, "phieu": [], "ghi_chu": "Kho bếp đã đủ nguyên liệu, không cần xin. Bấm Hoàn tất lại."}
 		con_xin, da_co = tru_phieu_dang_cho(xin, _phieu_xin_dang_cho(xin))
@@ -1480,11 +1501,23 @@ def thay_the_cho_thieu(dong=None):
 	Trả [{ma, kho, bu, con, thay: [{ma, ten, sl}]}]."""
 	if not set(frappe.get_roles()) & (set(QUYEN) | {"Manufacturing User", "Stock User"}):
 		frappe.throw("Chỉ bếp, quản lý sản xuất hoặc giám đốc mới kiểm được nguyên liệu.")
-	from vagabond import lo_hang
-
 	if isinstance(dong, str):
 		dong = json.loads(dong or "[]")
 	dong = [d for d in (dong or []) if isinstance(d, dict) and d.get("ma") and d.get("kho")]
+	ra = []
+	for r in _bu_thay_the(dong):
+		ra.append({"ma": r["ma"], "kho": r["kho"], "bu": r["bu"], "con": r["con"],
+			"thay": [{"ma": m, "ten": frappe.get_cached_value("Item", m, "item_name") or m, "sl": so}
+				for m, so in r["thay"]]})
+	return ra
+
+
+def _bu_thay_the(dong):
+	"""Hàng thay thế cùng kho bù được bao nhiêu cho [{ma, kho, can, thieu}],
+	đúng luật lúc ghi sổ (lo_hang.thay_ma_khong_lo, gan_lo). Dùng chung cho hộp
+	kiểm cả nhóm (thay_the_cho_thieu) và lúc gửi phiếu xin (xin_kho_tong)."""
+	from vagabond import lo_hang
+
 	thay_cua, ton = {}, {}
 	for d in dong:
 		ma, kho = d["ma"], d["kho"]
@@ -1496,12 +1529,7 @@ def thay_the_cho_thieu(dong=None):
 		for m in thay_cua[ma]:
 			if (m, kho) not in ton:
 				ton[(m, kho)] = flt(frappe.db.get_value("Bin", {"item_code": m, "warehouse": kho}, "actual_qty"))
-	ra = []
-	for r in lo_hang.bu_thay_the_nhom(dong, thay_cua, ton):
-		ra.append({"ma": r["ma"], "kho": r["kho"], "bu": r["bu"], "con": r["con"],
-			"thay": [{"ma": m, "ten": frappe.get_cached_value("Item", m, "item_name") or m, "sl": so}
-				for m, so in r["thay"]]})
-	return ra
+	return lo_hang.bu_thay_the_nhom(dong, thay_cua, ton)
 
 
 DIEM_HOAN_TAT = "vgb_hoan_tat_lenh"
