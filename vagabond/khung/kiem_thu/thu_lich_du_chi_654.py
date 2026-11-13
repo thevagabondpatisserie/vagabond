@@ -59,10 +59,11 @@ def _anh():
 	la("mở lại, tính lại: vẫn đúng một dòng ngày 15", len([x for x in m2 if x["nguon"] == "tay"]), 1)
 	la("tính lại cho đúng cùng kết quả", _ngay_tien(kq2), _ngay_tien(kq))
 	# Ghi nhận khoản 18 đã trả: hoá đơn hết nợ, số dư SePay đọc sau đó còn 40tr.
-	_m3, kq3 = _lich(hd=[], tay=[CHI_GAP], lich=[TIEN_NHA], so_du=l.tien_kha_dung(40 * TR, 0))
+	_m3, kq3 = _lich(hd=[], tay=[CHI_GAP], lich=[TIEN_NHA], so_du=40 * TR)
 	la("sau khi trả 18: còn 30 ngày 15, thiếu 10 ngày 20 (số dư và công nợ khớp nhau)", _ngay_tien(kq3), [("15/11", ["tay"], 30), ("20/11", ["lich"], -10)])
 	# Số dư đọc TRƯỚC lúc trả (100tr) mà khoản 60tr vừa chi sau đó: trừ phần chi sau.
-	_m4, kq4 = _lich(hd=[], tay=[CHI_GAP], lich=[TIEN_NHA], so_du=l.tien_kha_dung(100 * TR, 60 * TR))
+	sepay = [{"loai": "Ngân hàng", "ten": "MB chi", "bank_account": "BA-1", "dong_bo": 0, "so_bao": 100 * TR, "so_du": 100 * TR}]
+	_m4, kq4 = _lich(hd=[], tay=[CHI_GAP], lich=[TIEN_NHA], so_du=l.kha_dung_tai_chinh(sepay, {"BA-1": 60 * TR})["so_tien"])
 	la("số dư đọc trước lúc trả: trừ phần đã chi sau, kết quả như trên", _ngay_tien(kq4), _ngay_tien(kq3))
 
 
@@ -121,7 +122,6 @@ def _khong_so_du():
 	m, kq = _lich(hd=[NO_18], tay=[CHI_GAP], so_du=None)
 	la("không có số còn lại, không báo thiếu", ([g["con_lai"] for g in kq["ngay"]], kq["thieu_dau"]), ([None, None], None))
 	la("vẫn có khoản chi", len(m), 2)
-	la("tiền khả dụng None giữ None", l.tien_kha_dung(None, 5), None)
 
 
 @ca("v654 học lịch hằng tháng từ dữ liệu thật: từ ba tháng, bỏ hoàn ứng, gộp trả từng phần, nêu ngoại lệ")
@@ -212,11 +212,12 @@ def _cham_he():
 			return lich
 		return []
 	vs = [um.patch.object(fr, "get_all", ga), um.patch.object(fr, "get_roles", lambda *a: ["Purchase User"], create=True),
-		um.patch.object(l, "so_du_kha_dung", lambda: {"so_tien": 100 * TR, "luc": "2026-11-13 09:30:00", "nguon": "SePay", "chi_sau": 0}),
+		um.patch.object(l, "so_du_kha_dung", lambda: dict(sdv)),
 		um.patch.object(l, "_hd_no", lambda: [NO_18]), um.patch.object(l, "_dot_dong", lambda: []),
 		um.patch.object(l, "getdate", lambda v: HOM), um.patch.object(ho_so_tt, "VAI_LAP", {"Purchase User"}),
 		um.patch.object(l, "_phai_thu_hd", lambda: []), um.patch.object(l, "_tre_thanh_toan", lambda: {})]
 	xem = {"v": True}
+	sdv = {"so_tien": 100 * TR, "so_du_tk": 100 * TR, "luc": "2026-11-13 09:30:00", "nguon": "SePay", "chi_sau": 0}
 	vs.append(um.patch.object(l, "_xem_so_du", lambda: xem["v"]))
 	for v in vs:
 		v.start()
@@ -224,6 +225,12 @@ def _cham_he():
 		r = l.lich()
 		xem["v"] = False
 		r_an = l.lich()
+		# Codex #561 vòng 5: so_du_kha_dung ĐÃ trừ chi sau giờ SePay báo; màn lịch không trừ lần hai.
+		xem["v"] = True
+		sdv.update(so_tien=40 * TR, so_du_tk=40 * TR, chi_sau=0)
+		r40 = l.lich()
+		sdv.update(so_tien=40 * TR, so_du_tk=100 * TR, chi_sau=60 * TR)
+		r_sau = l.lich()
 	finally:
 		for v in reversed(vs):
 			v.stop()
@@ -232,10 +239,17 @@ def _cham_he():
 	chu = _js.dumps(r_an, default=str)
 	la("người không xem được Tài chính: không có số dư, còn lại, số thiếu",
 		(r_an["so_du"], r_an["du_kien_ve"], [g["con_lai"] for g in r_an["ngay"]], r_an["thieu_dau"], r_an["quyen"]["xem_so"]),
-		({"an": 1}, {"an": 1}, [None] * len(r_an["ngay"]), {"ngay": "2026-11-20", "so_tien": None}, 0))
+		({"an": 1, "chua_ro": 0}, {"an": 1}, [None] * len(r_an["ngay"]), {"ngay": "2026-11-20", "so_tien": None}, 0))
 	dung("không lộ số 100 triệu ở đâu trong phản hồi", "100000000" not in chu and "1e8" not in chu)
 	la("vẫn đánh dấu đúng ngày không đủ tiền", [g["ngay"] for g in r_an["ngay"] if g["khong_du"]], [g["ngay"] for g in r["ngay"] if g["thieu"]])
 	la("người xem được Tài chính thấy số", r["quyen"]["xem_so"], 1)
+	la("SePay báo 100tr, chi 60tr sau giờ báo: khả dụng 40tr, không phải -20tr",
+		(r_sau["so_du"]["so_tien"], r_sau["so_du"]["so_du_tk"], r_sau["so_du"]["chi_sau"]), (40000000.0, 100 * TR, 60 * TR))
+	la("lịch từng ngày y như khi số dư đã là 40tr", [(g["ngay"], g["con_lai"], g["thieu"]) for g in r_sau["ngay"]],
+		[(g["ngay"], g["con_lai"], g["thieu"]) for g in r40["ngay"]])
+	dung("màn lịch không còn tự trừ chi sau (một nguồn: kha_dung_tai_chinh)", not hasattr(l, "tien_kha_dung"))
+	la("Thu mua: máy chưa xác định được số dư thì báo chưa rõ, không lộ nguồn", l.an_so_tien({"so_du": {"so_tien": None, "nguon": "Chưa chốt số dư đầu: ACB"}, "ngay": []})["so_du"],
+		{"an": 1, "chua_ro": 1})
 	g = {x["ngay"]: [(m["nguon"], m["ma"]) for m in x["muc"]] for x in r["ngay"]}
 	la("14: APP đang duyệt (ngày lập); 15: dự chi tay; 16 không có (đã nối APP); 18: công nợ; 20: tiền nhà (tháng 10 có APP không ảnh hưởng tháng 11)",
 		(g.get("2026-11-14"), g.get("2026-11-15"), g.get("2026-11-16"), g.get("2026-11-18"), g.get("2026-11-20")),
@@ -336,6 +350,14 @@ def _codex_so_du_anh():
 		r = l.so_du_kha_dung()
 	la("không đọc được số dư: không đoán", (r["so_tien"], r["chi_sau"]), (None, 0))
 	dung("nói rõ tài khoản đọc hỏng", "MB ···0001" in r["nguon"])
+	# Codex #561 vòng 5: thêm một tài khoản ngân hàng chưa chốt số dư đầu thì không đưa số.
+	acb = {"nguon": "nh:2", "loai": "Ngân hàng", "ten": "ACB ···0002", "tam_ung": 0, "bank_account": "BA-ACB", "dong_bo": 1, "so_du": None, "loi": 0}
+	with um.patch.object(tai_chinh, "_tinh_tien", lambda: {"dong": tinh()["dong"] + [acb]}), \
+			um.patch.object(tai_chinh, "_sepay_luc_bao", lambda: "2026-11-13 09:30:00"), \
+			um.patch.object(fr, "get_all", ga), um.patch.object(fr.db, "get_value", gv):
+		r = l.so_du_kha_dung()
+	la("một tài khoản chưa chốt: không ra 40 triệu của riêng tài khoản đã biết", r["so_tien"], None)
+	dung("nêu tên tài khoản chưa chốt", "ACB ···0002" in r["nguon"] and "Chưa chốt" in r["nguon"])
 
 
 @ca("v654 anh Việt 13/11: Tiền khả dụng lấy đúng số dư ngân hàng của mục Tài chính")
@@ -347,9 +369,13 @@ def _kha_dung_tai_chinh():
 		{"loai": "Ngân hàng", "ten": "ACB chưa chốt", "bank_account": "BA-4", "so_du": None},  # chưa chốt: không cộng, nêu tên
 		{"loai": "Tiền mặt", "ten": "Két Q1", "so_du": 7e6},  # két: bỏ
 		{"loai": "Tiền mặt", "ten": "Đang nộp về quỹ", "so_du": 2e6, "dang_chuyen": 1}]
+	du = [x for x in dong if x["ten"] != "ACB chưa chốt"]
+	kq = l.kha_dung_tai_chinh(du, {"BA-1": 3 * TR, "BA-2": 4 * TR})
+	la("80 - 3 + 45 = 122 triệu; tạm ứng, két không cộng; tài khoản tính từ sổ không trừ thêm",
+		(kq["so_tien"], kq["so_du_tk"], kq["chi_sau"], kq["chua_chot"]), (122 * TR, 125 * TR, 3 * TR, []))
 	kq = l.kha_dung_tai_chinh(dong, {"BA-1": 3 * TR, "BA-2": 4 * TR})
-	la("80 - 3 + 45 = 122 triệu; tạm ứng, két, chưa chốt không cộng; tài khoản tính từ sổ không trừ thêm",
-		(kq["so_tien"], kq["so_du_tk"], kq["chi_sau"], kq["chua_chot"]), (122 * TR, 125 * TR, 3 * TR, ["ACB chưa chốt"]))
+	la("Codex #561 vòng 5: có tài khoản ngân hàng chưa chốt số dư thì không đưa số, nêu tên",
+		(kq["so_tien"], kq["so_du_tk"], kq["chua_chot"], kq["hong"]), (None, None, ["ACB chưa chốt"], []))
 	kq = l.kha_dung_tai_chinh(dong + [{"loai": "Ngân hàng", "ten": "VCB lỗi", "so_du": None, "loi": 1}], {})
 	la("một tài khoản tính hỏng: không đoán", (kq["so_tien"], kq["hong"]), (None, ["VCB lỗi"]))
 	la("chưa có tài khoản nào có số: không đoán", l.kha_dung_tai_chinh([dong[3], dong[4]], {})["so_tien"], None)
