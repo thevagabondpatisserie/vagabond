@@ -445,3 +445,5 @@ vagabond.patches.dong_bo_cau_truc #v653
 vagabond.patches.v653_whatsapp_mac_dinh
 vagabond.patches.v653_hop_thu_hoa_don
 vagabond.patches.v653_tin_zalo_moi
+vagabond.patches.dong_bo_cau_truc #v654
+vagabond.patches.v654_lich_chi_tien_nha
