@@ -12,13 +12,29 @@
      4. Đề xuất điều chỉnh: lấy dòng từ công thức đang dùng, sửa số lượng, Lưu
         ra bảng trước và sau kèm giá vốn; Khải bấm Duyệt và ghi sổ.
      5. Chuẩn chạm: mọi nút, ô, chip mới cao từ 44 điểm, chữ từ 13 điểm.
-     6. Rời màn khi máy chủ chưa trả mã gần giống: không vẽ đè màn mới. */
+     6. Rời màn khi máy chủ chưa trả mã gần giống: không vẽ đè màn mới.
+     7. Codex #563: danh sách có tìm và trang; Khải sửa rồi Tạo, Duyệt thì lưu
+        trước; Gửi Khải hỏng thì bấm lại vẫn là phiếu đã lưu. */
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('assert');
 const dom = require('./dom_gia.js');
 const BEP = path.resolve(__dirname, '../../../public/js/bep');
 const doc = n => fs.readFileSync(path.join(BEP, n), 'utf8');
 const KHUNG = doc('01-khung-app.js'), DX = doc('72-de-xuat-cong-thuc.js');
+function layHam(src, ten) {
+  const dau = src.indexOf('function ' + ten + '(');
+  if (dau < 0) throw new Error('Không thấy hàm ' + ten);
+  let i = src.indexOf('{', dau), sau = 0;
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === '{') sau++;
+    else if (src[j] === '}') { sau--; if (!sau) return src.slice(dau, j + 1); }
+  }
+  throw new Error('Hàm ' + ten + ' không đóng ngoặc');
+}
+/* Thanh công cụ danh sách dùng chung, nạp THẬT từ 15, 09, 13. */
+const K15 = doc('15-khuon-danh-sach.js');
+const CONG_CU = [K15.match(/^var DS_KY = [\s\S]*?\]\];$/m)[0], layHam(K15, 'dsccHang'), layHam(K15, 'dsCongCu'), layHam(K15, 'dsCongCuNoi'),
+  layHam(doc('09-tinh-tien-quay.js'), 'posChipNut'), layHam(doc('13-khuyen-mai.js'), 'kmHangChip')].join('\n');
 
 async function nghi() { for (let i = 0; i < 12; i++) await Promise.resolve(); await new Promise(r => setImmediate(r)); }
 const sao = x => JSON.parse(JSON.stringify(x));
@@ -56,6 +72,7 @@ function appMoi(may, vai) {
     'function scrCongThucXem() {} async function scrHome() { frame(APPNAME, "<div></div>"); }',
   ].join('\n'), g);
   vm.runInContext(KHUNG, g);
+  vm.runInContext(CONG_CU, g);
   vm.runInContext(DX, g);
   const than = () => tl.getElementById('vgbBody');
   const a = {
@@ -93,7 +110,8 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     /* 1 và 2. Bếp lập phiếu mới. */
     let daLuu = null;
     const may = {
-      danh_sach: () => [],
+      danh_sach: a => ({ ds: a.tim ? [] : [{ name: 'DXCT-26-11-0009', loai: 'Mới', ten_banh: 'Bánh cũ', trang_thai: 'Nháp', ten_nguoi_de_xuat: 'Hân', modified: '2026-11-13 09:00' }],
+        dem: { tat_ca: 120, 'Nháp': 70, 'Đã ghi sổ': 50 }, con_nua: a.trang ? 0 : 1 }),
       goi_y_ma: () => [{ ma: 'BTPB-0012', ten: 'Mousse bưởi hồng', dvt: 'Gram', diem: 3 }],
       luu: a => { daLuu = JSON.parse(a.du_lieu); return PHIEU('Nháp', daLuu); },
       gui: () => PHIEU('Chờ Khải', daLuu, { quyen: { sua: 0, duyet: 0 } }),
@@ -103,7 +121,16 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     };
     const a = appMoi(may, ['soan']);
     await a.mo(() => a.g.go(a.g.scrDxDs));
-    chuanCham(a, ['[data-dxtt]'], 'danh sách');
+    chuanCham(a, ['#dxDsTim', '[data-dxmo]', '#dxTruoc', '#dxSau'], 'danh sách');
+    assert(a.html().indexOf('Nháp <b>70</b>') >= 0, 'chip trạng thái có đếm');
+    /* Codex #563: hơn 50 phiếu thì có Trang sau; tìm theo mã hay tên lọc ở máy chủ. */
+    await a.nut('dxSau');
+    assert.deepEqual(a.goi.filter(x => x.m.endsWith('danh_sach')).map(x => x.a.trang), [0, 1], 'Trang sau hỏi trang 1');
+    const oTim = a.tl.getElementById('dxDsTim'); oTim.value = 'DXCT-26-10-0001';
+    oTim.dispatchEvent(dom.suKien('change', {}, oTim)); await nghi(); await nghi();
+    const cuoi = a.goi.filter(x => x.m.endsWith('danh_sach')).pop().a;
+    assert.deepEqual([cuoi.tim, cuoi.trang], ['DXCT-26-10-0001', 0], 'tìm gửi máy chủ, về trang đầu');
+    assert(a.html().indexOf('Không có phiếu khớp bộ lọc') >= 0, 'không thấy thì nói cách mở rộng');
     a.g.dxMoi(); await nghi(); await nghi();
     await a.go('#dxTen', 'Bánh Pinkpom bưởi');
     await a.bam('[data-dxsize="16"]'); await a.bam('[data-dxsize="20"]');
@@ -147,7 +174,9 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
   {
     /* 3. Khải lên mã. */
     const dl = { sizes: ['16', '20'], dong: [{ id: 'd1', ten: 'Mousse bưởi', dvt: 'Gram', dich: 'cap1', gram: { '16': 100, '20': 156 }, con: { me: 500, dong: [] } }] };
+    let khaiLuu = null;
     const may = { chi_tiet: () => PHIEU('Chờ Khải', dl, { quyen: { sua: 1, duyet: 1 } }),
+      luu: a => { khaiLuu = JSON.parse(a.du_lieu); return PHIEU('Chờ Khải', khaiLuu, { quyen: { sua: 1, duyet: 1 } }); },
       get_value: () => ({ item_name: 'Bánh Pinkpom size 16' }),
       tao_nhap: a => PHIEU('Đã tạo nháp', dl, { quyen: { sua: 0, duyet: 1 }, ket_qua: { bom: [{ bom: 'BOM-BTPB-0099-001', ma: 'BTPB-0099', bac: 0 }] } }) };
     const a = appMoi(may, ['ghi']);
@@ -157,7 +186,11 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     a.g.__chonMa.push('TP-PINK-16'); await a.bam('[data-dxtp="16"]');
     a.g.__chonMa.push('TP-PINK-20'); await a.bam('[data-dxtp="20"]');
     assert((a.html().match(/chưa chọn mã thành phẩm/g) || []).length === 0, 'chọn đủ mã');
+    /* Codex #563: Khải sửa gram rồi bấm Tạo ngay: phần sửa phải lưu TRƯỚC. */
+    await a.go('[data-dxg="d1|20"]', '150');
     await a.nut('dxTao');
+    assert.deepEqual(a.goi.slice(-2).map(x => x.m.split('.').pop()), ['luu', 'tao_nhap'], 'lưu phần Khải sửa rồi mới tạo');
+    assert.equal(khaiLuu.dong[0].gram['20'], 150, 'máy chủ nhận đúng số Khải vừa sửa');
     const t = a.goi.filter(x => x.m.endsWith('tao_nhap'));
     assert.equal(t.length, 1);
     assert.deepEqual(JSON.parse(t[0].a.ma_thanh_pham), { '16': 'TP-PINK-16', '20': 'TP-PINK-20' }, 'gửi đúng mã từng size');
@@ -181,11 +214,16 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     assert.deepEqual([l.loai, l.bom_goc, l.ly_do, dl.dong[0].gram['']], ['Điều chỉnh', 'BOM-X-001', 'Bớt béo', 180], 'lưu đúng phiếu điều chỉnh');
     assert(a.html().indexOf('Bơ (đổi)') >= 0 && ['<b>50000 đ</b>', '<b>46000 đ</b>', '(-4000 đ)'].every(c => a.html().indexOf(c) >= 0), 'bảng trước sau và giá vốn chênh');
     chuanCham(a, ['[data-dxg]', '#dxLyDo', '#dxLuu', '#dxGui', '#dxHuy'], 'điều chỉnh');
+    let dl2 = null;
     const may2 = { chi_tiet: () => Object.assign(dc(dl), { trang_thai: 'Chờ Khải', quyen: { sua: 1, duyet: 1 } }),
+      luu: a => { dl2 = JSON.parse(a.du_lieu); return Object.assign(dc(dl2), { trang_thai: 'Chờ Khải', quyen: { sua: 1, duyet: 1 } }); },
       duyet_dieu_chinh: () => Object.assign(dc(dl), { trang_thai: 'Đã ghi sổ', quyen: { sua: 0, duyet: 1 } }) };
     const k = appMoi(may2, ['ghi']);
     await k.mo(() => k.g.dxMo('DXCT-26-11-0001'));
+    await k.go('[data-dxg="d1|"]', '170');
     await k.nut('dxDuyet');
+    assert.deepEqual(k.goi.slice(-2).map(x => x.m.split('.').pop()), ['luu', 'duyet_dieu_chinh'], 'lưu phần Khải sửa rồi mới duyệt');
+    assert.equal(dl2.dong[0].gram[''], 170, 'duyệt đúng số đang hiện');
     assert.equal(k.goi.filter(x => x.m.endsWith('duyet_dieu_chinh')).length, 1, 'Khải duyệt và ghi sổ');
     assert(k.html().indexOf('Đã ghi sổ') >= 0, 'phiếu thành Đã ghi sổ');
   }
@@ -203,5 +241,21 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     assert.equal(a.goi.filter(x => x.m.endsWith('goi_y_ma')).length, 1, 'vẫn hỏi máy chủ');
     assert(a.html().indexOf('Đã có mã gần giống') < 0 && !a.tl.querySelector('[data-dxten]'), 'màn danh sách không bị vẽ đè bằng phiếu cũ');
   }
-  console.log('de_xuat_cong_thuc_656: 5 nhóm ca đạt');
+  {
+    /* 6. Codex #563: Gửi Khải hỏng lần đầu (phiếu thiếu) thì bấm lại vẫn là
+       phiếu đã lưu, không đẻ thêm phiếu. */
+    let lanGui = 0;
+    const may = { luu: a => PHIEU('Nháp', JSON.parse(a.du_lieu), { name: a.name || 'DXCT-26-11-0042' }),
+      gui: () => { if (!lanGui++) throw new Error('Phiếu còn thiếu: Chọn ít nhất một size.'); return PHIEU('Chờ Khải', { sizes: ['16'], dong: [] }, { name: 'DXCT-26-11-0042', quyen: { sua: 0, duyet: 0 } }); } };
+    const a = appMoi(may, ['soan']);
+    await a.mo(() => { a.g.dxMoi(); });
+    await a.go('#dxTen', 'Bánh thử');
+    await a.nut('dxGui');
+    assert(a.g.__tin.some(t => t.indexOf('Phiếu còn thiếu') >= 0), 'báo lỗi gửi');
+    await a.nut('dxGui');
+    const luu = a.goi.filter(x => x.m.endsWith('.luu')).map(x => x.a.name);
+    assert.deepEqual(luu, [null, 'DXCT-26-11-0042'], 'lần hai lưu vào đúng phiếu đã có');
+    assert(a.html().indexOf('Chờ Khải') >= 0, 'lần hai gửi được');
+  }
+  console.log('de_xuat_cong_thuc_656: 6 nhóm ca đạt');
 })().catch(e => { console.error(e); process.exit(1); });
