@@ -9,11 +9,13 @@
    ngày, cùng khoá đối soát, đọc lại nguồn SAU khoá; bản vá một lần từ 01/10.
 3. Chữ "Đã khép" đổi thành "Đã hoàn tất", app cũ gửi khoá cũ vẫn lọc đúng.
 """
+import json
 from contextlib import ExitStack, nullcontext
 from types import SimpleNamespace as NS
 from unittest.mock import patch
 
 from vagabond import doi_soat_khop as K
+from vagabond import doi_soat_vendor as V
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 
@@ -117,6 +119,9 @@ class KhoNoiLai:
 		self.nhat = []
 		self.loc = None
 		self.sua_khi_cho_khoa = {}
+		self.mac_ket = False  # đối chiếu lại mà vẫn chưa có hoá đơn
+		self.mac_dinh = {}
+		self.gio = 0
 
 	def get_all(self, dt, filters=None, fields=None, limit_page_length=None, **k):
 		self.loc = filters
@@ -142,7 +147,8 @@ class KhoNoiLai:
 
 	def doi_chieu(self, name):
 		self.nhat.append(("doi_chieu", name))
-		self.nguon[name]["so_chua_noi"] = 0
+		if not self.mac_ket:
+			self.nguon[name]["so_chua_noi"] = 0
 
 	def chay(self, **kw):
 		from vagabond import doi_soat_vendor as V
@@ -153,6 +159,10 @@ class KhoNoiLai:
 		with ExitStack() as st:
 			st.enter_context(patch.object(V.frappe, "get_all", self.get_all, create=True))
 			st.enter_context(patch.object(V.frappe.db, "get_value", self.get_value, create=True))
+			st.enter_context(patch.object(V.frappe.db, "get_default", lambda k: self.mac_dinh.get(k), create=True))
+			st.enter_context(patch.object(V.frappe.db, "set_default", lambda k, v: self.mac_dinh.__setitem__(k, v), create=True))
+			self.gio += 1
+			st.enter_context(patch.object(V.frappe.utils, "now_datetime", lambda: "2026-11-13 %02d:00:00" % self.gio, create=True))
 			st.enter_context(patch.object(V.frappe.utils, "add_days", add_days, create=True))
 			st.enter_context(patch.object(V.frappe.utils, "nowdate", lambda: "2026-11-13", create=True))
 			st.enter_context(patch.object(V.frappe, "log_error", lambda *a, **k: self.nhat.append(("loi",)), create=True))
@@ -175,7 +185,7 @@ def _():
 	la("mốc 30 ngày", k.loc["den_ngay"], [">=", "2026-10-14"])
 	la("thứ tự: khoá, đọc lại, đối chiếu; nguồn vừa được lượt khác nối đủ thì bỏ",
 		[x for x in k.nhat if x[0] != "loi"], [("khoa",), ("doc", "DSN-OP-1"), ("doi_chieu", "DSN-OP-1"), ("doc", "DSN-OP-1"),
-			("khoa",), ("doc", "DSN-OP-2")])
+			("khoa",), ("doc", "DSN-OP-2"), ("khoa",)])  # khoá cuối: ghi sổ xoay vòng (Codex #562)
 	la("đếm", kq, dict(so_nguon=2, doi=1))
 
 
@@ -194,6 +204,37 @@ def _():
 			P.execute()
 	la("xếp hàng nền đúng hàm, đúng mốc", [(m, kw.get("tu_ngay"), kw.get("enqueue_after_commit")) for m, kw in xep],
 		[("vagabond.doi_soat_vendor.doi_chieu_lai_dong", "2026-10-01", True)])
+
+
+@ca("v655 Codex #562 P2 hàng chờ 61 nguồn, 60 nguồn mới nhất vẫn kẹt: lượt sau tới nguồn cũ nhất, mọi nguồn đều tới lượt")
+def _():
+	import datetime
+	ds = [_n("DSN-%02d" % i, str(datetime.date(2026, 10, 14) + datetime.timedelta(days=i % 30)), 2) for i in range(61)]
+	k = KhoNoiLai(ds)
+	k.mac_ket = True
+	k.chay()
+	lan1 = [x[1] for x in k.nhat if x[0] == "doi_chieu"]
+	la("lượt 1: 60 nguồn", len(lan1), 60)
+	con = sorted(set(n["name"] for n in ds) - set(lan1))
+	k.nhat = []
+	k.chay()
+	lan2 = [x[1] for x in k.nhat if x[0] == "doi_chieu"]
+	dung("lượt 2 tới nguồn chưa thử của lượt 1 trước", lan2[:1] == con)
+	la("hai lượt phủ đủ 61 nguồn", len(set(lan1) | set(lan2)), 61)
+	so = json.loads(k.mac_dinh[V.MOC_NOI_LAI])
+	la("sổ lần thử giữ đủ 61 nguồn còn chờ", len(so), 61)
+	k.nhat = []
+	k.chay(tu_ngay="2026-10-01", toi_da=1000)
+	la("bản vá một lần không ghi sổ xoay vòng", json.loads(k.mac_dinh[V.MOC_NOI_LAI]), so)
+
+
+@ca("v655 THUẦN chon_nguon_noi_lai và ghi_lan_thu: nguồn chưa thử trước, thử lâu nhất kế; sổ bỏ nguồn không còn chờ")
+def _():
+	ds = [dict(name="A", den_ngay="2026-11-01", so_chua_noi=1), dict(name="B", den_ngay="2026-11-10", so_chua_noi=1),
+		dict(name="C", den_ngay="2026-11-05", so_chua_noi=1)]
+	la("chưa thử: mới nhất trước", [r["name"] for r in V.chon_nguon_noi_lai(ds, 3, {})], ["B", "C", "A"])
+	la("B, C vừa thử: A trước", [r["name"] for r in V.chon_nguon_noi_lai(ds, 2, {"B": "2026-11-13 02", "C": "2026-11-13 01"})], ["A", "C"])
+	la("sổ mới", V.ghi_lan_thu({"A": "1", "X": "1"}, ["B"], "2", ["A", "B"]), {"A": "1", "B": "2"})
 
 
 @ca("v655 THUẦN chon_nguon_noi_lai: mới nhất trước, trần số nguồn mỗi lượt")

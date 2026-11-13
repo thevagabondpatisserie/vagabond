@@ -16,7 +16,7 @@ from types import SimpleNamespace as NS
 from unittest.mock import patch
 
 from vagabond import kho_san_xuat as ksx
-from vagabond import xuat_kho
+from vagabond import lo_hang, xuat_kho
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 BEP = "Pastry - Nguyên liệu - TV"
@@ -50,14 +50,15 @@ def _():
 	la("số âm của app bị chặn", ksx.tinh_xin_kho_tong([_d("BOT", -5)], {}), [])
 
 
-@ca("v655 tinh_xin_kho_tong: app gửi kèm phần thiếu (đã trừ hàng thay thế, tồn giữ cho món chính) thì dùng số đó nhưng không vượt tổng cần")
+@ca("v655 Codex #562 P1 tinh_xin_kho_tong: bỏ qua số thiếu app gửi kèm; thiếu = cần - tồn kho bếp - hàng thay thế máy chủ tính")
 def _():
-	ra = ksx.tinh_xin_kho_tong([_d("BOT", 100, thieu=20)], {("BOT", BEP): 30})
-	la("app nói thiếu 20 (đã có hàng thay thế): xin 20, không xin 70", [x["xin"] for x in ra], [20])
-	ra = ksx.tinh_xin_kho_tong([_d("BOT", 50, thieu=500)], {})
-	la("app gửi số vô lý: chặn ở tổng cần 50", [x["xin"] for x in ra], [50])
-	ra = ksx.tinh_xin_kho_tong([_d("BOT", 50, thieu=10)], {("BOT", BEP): 50})
-	la("tồn kho bếp đang giữ cho món chính: vẫn xin theo app", [x["xin"] for x in ra], [10])
+	ra = ksx.tinh_xin_kho_tong([_d("BOT", 100, thieu=20)], {("BOT", BEP): 10})
+	la("app nói thiếu 20 lúc xem, tồn nay còn 10: xin 90", [x["xin"] for x in ra], [90])
+	la("tồn nay đủ 100: không xin", ksx.tinh_xin_kho_tong([_d("BOT", 100, thieu=20)], {("BOT", BEP): 100}), [])
+	ra = ksx.tinh_xin_kho_tong([_d("BOT", 100)], {("BOT", BEP): 30}, {("BOT", BEP): 50})
+	la("hàng thay thế bù 50: xin 20", [(x["thay"], x["thieu"], x["xin"]) for x in ra], [(50.0, 20.0, 20)])
+	la("dòng hỏi hàng thay: thiếu theo tồn lúc gửi", ksx.dong_bu_thay([_d("BOT", 40), _d("BOT", 60), _d("CA", 5)], {("BOT", BEP): 30, ("CA", BEP): 9}),
+		[dict(ma="BOT", kho=BEP, can=100.0, thieu=70.0), dict(ma="CA", kho=BEP, can=5.0, thieu=0.0)])
 
 
 @ca("v655 tru_phieu_dang_cho: bấm hai lần hay hai lệnh cùng thiếu một món không sinh hai phiếu cho cùng phần thiếu")
@@ -156,19 +157,32 @@ def _():
 class _Xin:
 	"""Hệ giả cho xin_kho_tong: khoá có tên, tồn Bin, phiếu đang chờ, lập phiếu."""
 
-	def __init__(self, ton, cho=(), khoa=1, kho_ok=True):
+	def __init__(self, ton, cho=(), khoa=1, kho_ok=True, thay=None, lo=()):
+		# cho: (mã, kho, số xin, số đã giao[, ngày lập]); thay: {mã: [mã thay]}; lo: mã theo lô.
 		self.ton, self.cho, self.khoa, self.kho_ok = ton, list(cho), khoa, kho_ok
+		self.thay, self.lo = thay or {}, set(lo)
 		self.cau, self.phieu, self.commit = [], [], 0
+		self.truoc_doc = None
 
 	def sql(self, q, args=None, as_dict=False):
 		self.cau.append(q.split()[0] + " " + q.split()[1])
 		if "get_lock" in q:
+			if self.khoa and self.truoc_doc:
+				self.truoc_doc(self)
 			return [[self.khoa]]
 		if "release_lock" in q:
 			return [[1]]
 		if "Material Request Item" in q:
 			assert "for update" in q, "đọc phiếu chờ phải khoá"
-			return [NS(item_code=m, warehouse=w, stock_qty=s, ordered_qty=o) for m, w, s, o in self.cho]
+			hom_nay = "2026-11-13"
+			ra = []
+			for r in self.cho:
+				m, w, s, o = r[:4]
+				ngay = r[4] if len(r) > 4 else hom_nay
+				if "transaction_date >=" in q and ngay < str((args or {}).get("tu")):
+					continue
+				ra.append(NS(item_code=m, warehouse=w, stock_qty=s, ordered_qty=o))
+			return ra
 		raise AssertionError(q)
 
 	def chay(self, dong, **kw):
@@ -189,14 +203,18 @@ class _Xin:
 			d.insert, d.submit = insert, submit
 			return d
 		db = NS(sql=self.sql, commit=lambda: setattr(self, "commit", self.commit + 1),
-			exists=lambda dt, ten: self.kho_ok)
+			exists=lambda dt, ten: self.kho_ok,
+			get_value=lambda dt, f, cot: self.ton.get((f["item_code"], f["warehouse"]), 0))
 		bins = lambda dt, filters=None, **k: [NS(item_code=m, warehouse=w, actual_qty=q) for (m, w), q in self.ton.items()]
 		with patch.object(ksx.frappe, "get_roles", lambda *a: ["Manufacturing User"], create=True), \
 				patch.object(ksx.frappe, "db", db, create=True), \
 				patch.object(ksx.frappe, "get_all", bins, create=True), \
 				patch.object(ksx.frappe, "get_cached_value", lambda dt, ma, f, as_dict=False: {"item_name": "Tên " + ma, "stock_uom": "ML"}, create=True), \
 				patch.object(ksx.frappe, "new_doc", new_doc, create=True), \
-				patch.object(ksx.frappe, "get_meta", lambda dt: NS(has_field=lambda f: False), create=True):
+				patch.object(ksx.frappe, "get_meta", lambda dt: NS(has_field=lambda f: False), create=True), \
+				patch.object(lo_hang, "_theo_lo", lambda ma: 1 if ma in he.lo else 0), \
+				patch.object(lo_hang, "_cac_ma_thay_the", lambda ma: list(he.thay.get(ma) or [])), \
+				patch("frappe.utils.nowdate", lambda: "2026-11-13", create=True):
 			kq = ksx.xin_kho_tong(json.dumps(dong), **kw)
 		return kq, nhat
 
@@ -237,6 +255,44 @@ def _():
 		dung("không lấy được khoá thì phải dừng", False)
 	except Exception as e:
 		dung("báo đang có người gửi", "Đang có người gửi" in str(e))
+
+
+@ca("v655 Codex #562 P1 xin_kho_tong: tồn kho bếp đổi giữa lúc xem hộp và lúc bấm Gửi: máy chủ xin theo tồn LÚC GỬI, không theo số app gửi kèm")
+def _():
+	# Lúc xem: cần 100, tồn 80, app (bản cũ trong bộ đệm) gửi kèm thiếu 20.
+	he = _Xin({("BOT", BEP): 80})
+	he.truoc_doc = lambda h: h.ton.update({("BOT", BEP): 10})  # đơn khác vừa dùng 70
+	kq, nhat = he.chay([{"ma": "BOT", "kho": BEP, "can": 100, "thieu": 20}])
+	la("tồn còn 10: xin 90, không xin 20", [(i["item_code"], i["qty"]) for i in he.phieu[0].items], [("BOT", 90)])
+	he = _Xin({("BOT", BEP): 80})
+	he.truoc_doc = lambda h: h.ton.update({("BOT", BEP): 100})  # kho vừa giao thêm
+	kq, nhat = he.chay([{"ma": "BOT", "kho": BEP, "can": 100, "thieu": 20}])
+	la("tồn đã đủ: không lập phiếu", (nhat, kq["ok"]), ([], 0))
+
+
+@ca("v655 Codex #562 P1 xin_kho_tong: hàng thay thế đã khai cùng kho bù trước, máy chủ tự tính lúc gửi; hàng thay cũng là nguyên liệu nhóm dùng thì trừ phần đó trước")
+def _():
+	he = _Xin({("CACAO", BEP): 0.1, ("CACAO70", BEP): 0.2}, thay={"CACAO": ["CACAO70"]})
+	kq, nhat = he.chay([{"ma": "CACAO", "kho": BEP, "can": 0.5}])
+	la("thiếu 0,4, hàng thay bù 0,2: xin 1 (làm tròn lên của 0,2)", [(i["item_code"], i["qty"]) for i in he.phieu[0].items], [("CACAO", 1)])
+	dung("dòng xin ghi phần hàng thay", kq["xin"][0]["thay"] == 0.2 and kq["xin"][0]["thieu"] == 0.2)
+	he = _Xin({("BOT", BEP): 30, ("BOT2", BEP): 50}, thay={"BOT": ["BOT2"]})
+	kq, nhat = he.chay([{"ma": "BOT", "kho": BEP, "can": 100}, {"ma": "BOT2", "kho": BEP, "can": 50}])
+	la("Bột 2 nhóm dùng hết 50: không bù được, xin đủ 70", [(i["item_code"], i["qty"]) for i in he.phieu[0].items], [("BOT", 70)])
+	he = _Xin({("BOT", BEP): 30, ("BOT2", BEP): 200}, thay={"BOT": ["BOT2"]})
+	kq, nhat = he.chay([{"ma": "BOT", "kho": BEP, "can": 100}])
+	la("hàng thay đủ: không lập phiếu", (nhat, kq["ok"]), ([], 0))
+
+
+@ca("v655 Codex #562 P2 xin_kho_tong: phiếu xin lập từ 10/11 kho chưa giao vẫn được trừ ngày 13/11, bấm lại không sinh phiếu thứ hai")
+def _():
+	he = _Xin({}, cho=[("BOT", BEP, 100, 0, "2026-11-10")])
+	kq, nhat = he.chay([{"ma": "BOT", "kho": BEP, "can": 100}])
+	la("không lập phiếu mới", (nhat, kq["ok"]), ([], 0))
+	dung("báo đã có phiếu chờ", "đang chờ kho giao" in kq["ghi_chu"])
+	he = _Xin({}, cho=[("BOT", BEP, 100, 60, "2026-10-01")])
+	kq, nhat = he.chay([{"ma": "BOT", "kho": BEP, "can": 100}])
+	la("phiếu cũ đã giao 60, còn chờ 40: chỉ xin thêm 60", [(i["item_code"], i["qty"]) for i in he.phieu[0].items], [("BOT", 60)])
 
 
 @ca("v655 kho tổng giao theo phiếu xin: phần trong số xin nối đúng dòng phiếu, phần vượt (nguyên chai) thành dòng riêng không nối")
