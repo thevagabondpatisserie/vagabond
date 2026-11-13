@@ -153,10 +153,18 @@ function scrDxSua(name) {
       '</div>' + goiY + chip + gram + con + '</div>';
   }
 
-  /* Chữ đỏ Thiếu giá dùng chung cho phiếu mới và phiếu điều chỉnh (Codex #563). */
+  /* Chữ đỏ Thiếu giá dùng chung cho phiếu mới và phiếu điều chỉnh (Codex #563).
+     AGENTS 2b.17 (Codex #564): khối chỉ để đọc tối đa hai dòng, đếm số, ba tên
+     đầu, "và N nữa", bấm mới mở hết; đặt DƯỚI khối hành động. */
   function thieuGia() {
-    return (f.thieu_gia || []).length ? '<div style="color:#b3261e;font-size:13px;margin-top:6px;line-height:1.45">⚠️ Thiếu giá: ' +
-      h(f.thieu_gia.join(', ')) + '. Giá vốn trên đang thiếu phần này.</div>' : '';
+    var t = f.thieu_gia || [];
+    if (!t.length) return '';
+    var mo = DX.moThieu === (f.name || '');
+    var hien = mo ? t : t.slice(0, 3);
+    return '<div style="color:#b3261e;font-size:13px;margin-top:9px;line-height:1.45">⚠️ Thiếu giá ' + t.length + ' nguyên liệu: ' + h(hien.join(', ')) +
+      (t.length > hien.length ? ' và ' + (t.length - hien.length) + ' nữa' : '') + '. Giá vốn dự kiến đang thiếu phần này.</div>' +
+      (t.length > 3 ? '<button class="btn gh" data-dxmothieu="1" style="' + DX_NUT + ';margin-top:6px">' +
+        (mo ? 'Thu gọn' : 'Xem đủ ' + t.length + ' nguyên liệu thiếu giá') + '</button>' : '');
   }
 
   function hopGia() {
@@ -164,17 +172,25 @@ function scrDxSua(name) {
       var d = f.doi_chieu;
       if (!d) return '<div class="mut" style="font-size:13px">Bấm Lưu nháp để máy tính bảng trước và sau, kèm giá vốn.</div>';
       var cl = d.von_moi - d.von_cu;
+      /* Bảng chỉ để đọc: hiện dòng đổi (tối đa 5), dòng giữ nguyên gom lại,
+         bấm mới mở hết (AGENTS 2b.17, Codex #564). */
+      var moBang = DX.moBang === (f.name || '');
+      var doi = d.bang.filter(function (r) { return r.kieu !== 'giu'; });
+      var hienBang = moBang ? d.bang : doi.slice(0, 5);
+      var an = d.bang.length - hienBang.length;
       return '<table style="width:100%;border-collapse:collapse;font-size:13.5px">' +
         '<tr><th style="text-align:left;padding:5px">Dòng</th><th style="text-align:right;padding:5px">Trước</th><th style="text-align:right;padding:5px">Sau</th></tr>' +
-        d.bang.map(function (r) {
+        hienBang.map(function (r) {
           var mau = r.kieu === 'them' ? '#178a4c' : r.kieu === 'bot' ? '#b3261e' : r.kieu === 'doi' ? '#b45309' : '#475467';
           return '<tr style="color:' + mau + '"><td style="padding:5px;border-top:1px solid #eef0f3">' + h(r.ten || r.ma) +
             (r.kieu === 'them' ? ' (thêm)' : r.kieu === 'bot' ? ' (bỏ)' : r.kieu === 'doi' ? ' (đổi)' : '') + '</td>' +
             '<td style="text-align:right;padding:5px;border-top:1px solid #eef0f3">' + (r.cu == null ? '' : num(r.cu)) + '</td>' +
             '<td style="text-align:right;padding:5px;border-top:1px solid #eef0f3">' + (r.moi == null ? '' : num(r.moi)) + '</td></tr>';
         }).join('') + '</table>' +
+        (an > 0 || moBang ? '<button class="btn gh" data-dxmobang="1" style="' + DX_NUT + ';margin-top:6px">' +
+          (moBang ? 'Chỉ xem dòng đổi' : 'Xem cả ' + d.bang.length + ' dòng (' + an + ' dòng đang ẩn)') + '</button>' : '') +
         '<div style="font-size:14px;margin-top:8px">Giá vốn: <b>' + money(d.von_cu) + ' đ</b> → <b>' + money(d.von_moi) + ' đ</b> (' +
-        (cl >= 0 ? '+' : '') + money(cl) + ' đ)</div>' + thieuGia();
+        (cl >= 0 ? '+' : '') + money(cl) + ' đ)</div>';
     }
     var g = f.gia || {};
     if (!dl.sizes.length) return '';
@@ -184,7 +200,6 @@ function scrDxSua(name) {
         '<span>Size ' + h(s) + '</span><span><b>' + money(x.von || 0) + ' đ</b>' +
         (x.ban ? ' · bán ' + money(x.ban) + ' đ · <b>' + x.ty_le + '%</b>' : '') + '</span></div>';
     }).join('') +
-      thieuGia() +
       '<div class="mut" style="font-size:13px;margin-top:6px">Giá vốn dự kiến, tính lại mỗi lần Lưu nháp. % giá bán hiện khi Khải đã chọn mã thành phẩm.</div>';
   }
 
@@ -231,6 +246,10 @@ function scrDxSua(name) {
       (f.ghi_chu_khai && f.trang_thai === 'Trả lại bếp' ? '<div style="background:#fff7e6;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:14px;line-height:1.45"><b>Khải hỏi lại:</b> ' + h(f.ghi_chu_khai) + '</div>' : '') +
       (dc ? '<div class="lb" style="font-size:13px;margin-top:9px">Lý do sửa</div><textarea class="nt" id="dxLyDo" rows="2"' + (sua ? '' : ' disabled') +
         ' style="width:100%;min-height:64px;font-size:14.5px">' + h(f.ly_do || '') + '</textarea>' : '') + '</div>';
+    /* Khải đến để bấm: khối hành động nằm ngay dưới đầu phiếu, trong màn đầu ở
+       390x844 (AGENTS 2b.17, Codex #564). */
+    var khai = phanKhai();
+    body += khai;
     if (!dc) {
       body += '<div class="sec">Size</div><div class="chips">' + DX_SIZE.concat(dl.sizes.filter(function (s) { return DX_SIZE.indexOf(s) < 0; })).map(function (s) {
         return '<div class="chip' + (dl.sizes.indexOf(s) >= 0 ? ' on' : '') + '" data-dxsize="' + h(s) + '" style="' + DX_NUT + '">' + h(/^\d/.test(s) ? s + 'cm' : s) + '</div>';
@@ -240,7 +259,7 @@ function scrDxSua(name) {
       : '<div class="emp" style="padding:20px"><div class="e2">Chưa có thành phần nào</div></div>') +
       (sua ? '<div class="row2"><button class="btn gh" id="dxThemCo" style="' + DX_NUT + '">+ Mã có sẵn</button>' +
         (dc ? '' : '<button class="btn gh" id="dxThemMoi" style="' + DX_NUT + '">+ Thành phần mới</button>') + '</div>' : '');
-    body += '<div class="sec">Giá vốn dự kiến</div><div class="card" style="padding:12px 13px">' + hopGia() + '</div>' + phanKhai() + ketQua();
+    body += '<div class="sec">Giá vốn dự kiến</div><div class="card" style="padding:12px 13px">' + hopGia() + '</div>' + thieuGia() + ketQua();
     var nut = sua ? '<div class="row2"><button class="btn gh" id="dxLuu" style="' + DX_NUT + '">💾 Lưu nháp</button>' +
       '<button class="btn gr" id="dxGui" style="' + DX_NUT + '">📤 Gửi Khải</button></div>' +
       (f.name ? '<button class="btn gh" id="dxHuy" style="' + DX_NUT + ';margin-top:8px;color:#b3261e">Huỷ phiếu</button>' : '') : '';
@@ -319,6 +338,8 @@ function scrDxSua(name) {
           .then(function (r) { if (r && r.item_name) f.ma_tp[sz].ten = r.item_name; draw(); }, function () { draw(); });
       });
     }
+    if ((t = e.target.closest('[data-dxmothieu]'))) { DX.moThieu = DX.moThieu === (f.name || '') ? null : (f.name || ''); return draw(); }
+    if ((t = e.target.closest('[data-dxmobang]'))) { DX.moBang = DX.moBang === (f.name || '') ? null : (f.name || ''); return draw(); }
     if ((t = e.target.closest('[data-dxbom]'))) { var bn = t.getAttribute('data-dxbom'); return go(function () { scrCongThucXem(bn); }); }
   }
 

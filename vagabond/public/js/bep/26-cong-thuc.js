@@ -243,7 +243,9 @@ function ctHopGiaVon(g) {
   return '<div style="padding:10px 14px 12px;border-top:1px solid #eef0f3;font-size:14px;line-height:1.5">' +
     'Giá vốn một ' + h(g.dvt || 'cái') + ': <b>' + money(g.mot || 0) + ' đ</b>' +
     (g.ban ? ' · giá bán ' + money(g.ban) + ' đ · <b>' + g.ty_le + '%</b>' : '') +
-    ((g.thieu || []).length ? '<div style="color:#b3261e;font-size:13px;margin-top:4px">⚠️ Thiếu giá: ' + h(g.thieu.join(', ')) + '. Giá vốn trên đang thiếu phần này.</div>' : '') +
+    /* Một dòng: đếm số, ba tên đầu, "và N nữa" (AGENTS 2b.17, Codex #564). */
+    ((g.thieu || []).length ? '<div style="color:#b3261e;font-size:13px;margin-top:4px">⚠️ Thiếu giá ' + g.thieu.length + ' nguyên liệu: ' +
+      h(g.thieu.slice(0, 3).join(', ')) + (g.thieu.length > 3 ? ' và ' + (g.thieu.length - 3) + ' nữa' : '') + '. Giá vốn đang thiếu phần này.</div>' : '') +
     '</div>';
 }
 
