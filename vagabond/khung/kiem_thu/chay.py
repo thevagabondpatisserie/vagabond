@@ -246,8 +246,16 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_whatsapp_653,
 	# v653 tin Zalo Bánh có sẵn hôm nay kèm ảnh bánh và số lượng.
 	thu_banh_co_san_653,
+	# v654 tin Bánh có sẵn chỉ gửi khi số bán được đổi (dấu nằm trong sổ tin).
+	thu_banh_co_san_654,
 	# v653 tự đính hoá đơn nhà cung cấp từ hộp thư hoadon@ (chỉ đọc).
 	thu_hoa_don_thu_653,
+	# v654 hoá đơn mua vào tự nhận XML, PDF: thư mới nhất trước, thư gửi lại, quét lại.
+	thu_hoa_don_thu_654,
+	# v654 gọi đúng tên bộ phận Thu mua thay cho tên người trên màn và tin.
+	thu_thu_mua_654,
+	# v654 Lịch dự chi: dự chi tay, tự xếp theo hạn, tiền khả dụng theo ngày, lịch hằng tháng.
+	thu_lich_du_chi_654,
 	thu_banner_647,
 	# v647 đối soát ShopeeFood báo lệch sai: tiền đúng kỳ, dò lại mỗi giờ.
 	thu_tien_ve_dung_ky_647,
