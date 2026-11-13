@@ -119,18 +119,23 @@ async function moTrang(o = {}) {
 }
 const nutThem = goc => tim(goc, n => n.props['data-them']);
 const chip = goc => tim(theoId(goc, 'storeChip'), n => n.the === 'button').map(b => chu(b));
+/* v655: hàng tầng lớn (Tất cả, Combo, Bánh, Đồ uống): "mã=số". */
+const tang = goc => tim(theoId(goc, 'storeTang'), n => n.the === 'button').map(b => b.props['data-tang'] + '=' + chu(b).replace(/\D/g, ''));
+const bamTang = async (goc, n) => bam(tim(theoId(goc, 'storeTang'), x => x.props['data-tang'] === n)[0]);
 
 await ca('Link có k: chế độ gọi món của ĐÚNG quầy, nhãn "District 1 · Bàn 5", không còn chọn quầy khác, chip Tất cả / Bánh trên tủ / Đồ uống, nút + trên từng món', async () => {
   const {goc, kho} = await moTrang();
   la('chế độ', kho.goiBan.cheDo.value, 'goi');
   dung('nhãn bàn', chu(theoId(goc, 'gbDau')).includes('District 1 · Bàn 5'));
   la('không còn hàng chọn quầy', tim(goc, n => n.props.class === 'quay-chon').length, 0);
-  la('chip', chip(goc), ['Tất cả · 3', 'Bánh trên tủ · 1', 'Đồ uống · 2']);
+  la('tầng lớn', tang(goc), ['=3', 'banh=1', 'nuoc=2']);
+  la('Tất cả: không có hàng chip nhỏ', chip(goc), []);
   la('nút + cho cả ba món', nutThem(goc).map(n => n.props['data-them']), ['BAWC00115', 'NUTR00021', 'NUIC00002']);
   dung('bánh có số còn, đồ uống không', chu(tim(goc, n => n.props['data-ma'] === 'BAWC00115')[0]).includes('Còn 1')
     && !chu(tim(goc, n => n.props['data-ma'] === 'NUTR00021')[0]).includes('Còn'));
-  await bam(tim(theoId(goc, 'storeChip'), n => n.props['data-nhom'] === 'nuoc')[0]);
-  la('chip Đồ uống chỉ còn đồ uống', nutThem(goc).map(n => n.props['data-them']), ['NUTR00021', 'NUIC00002']);
+  await bamTang(goc, 'nuoc');
+  la('đồ uống chỉ một nhóm: không bày chip nhỏ', chip(goc), []);
+  la('tầng Đồ uống chỉ còn đồ uống', nutThem(goc).map(n => n.props['data-them']), ['NUTR00021', 'NUIC00002']);
 });
 
 await ca('Không có link, hay link sai khoá: tab giữ chế độ xem như hiện nay (chọn quầy, không nút +, không thanh giỏ)', async () => {
@@ -335,16 +340,18 @@ await ca('v639 phép thuần: tách size khỏi tên, gộp size cùng tên mộ
 
 await ca('v639 thực đơn: chip theo nhóm (Bánh trên tủ, Trà, Cà phê), size M và L gộp một dòng ghi "Size M · L", ô tìm lọc bỏ dấu và báo khi không khớp', async () => {
   const {goc, kho} = await moTrang2();
-  la('chip', chip(goc), ['Tất cả · 4', 'Bánh trên tủ · 1', 'Trà · 2', 'Cà phê · 1']);
+  la('tầng', tang(goc), ['=4', 'banh=1', 'nuoc=3']);
   la('bốn dòng, size gộp', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), ['BAWC00115', 'NUTR00031', 'NUCF00003', 'NUTR00040']);
   const dong = tim(goc, n => n.props['data-ma'] === 'NUTR00031')[0];
   dung('tên gộp không còn size, ghi Size M · L, có mô tả', chu(dong).includes('Trà Sữa Lài Kem Phô Mai') && !chu(dong).includes('Size M, Đá') && chu(dong).includes('Size M · L') && chu(dong).includes('Trà lài ủ lạnh'));
+  await bamTang(goc, 'nuoc');
+  la('chip nhỏ của Đồ uống', chip(goc), ['Tất cả đồ uống · 3', 'Trà · 2', 'Cà phê · 1']);
   await bam(tim(theoId(goc, 'storeChip'), n => n.props['data-nhom'] === 'nuoc:Trà')[0]);
   la('chip Trà', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), ['NUTR00031', 'NUTR00040']);
   go(theoId(goc, 'gbTimO'), 'ca phe'); await cho();
   la('tìm "ca phe" (đang ở chip Trà vẫn ra vì chip Trà không có, coi như không khớp)', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), []);
   dung('báo không khớp', chu(theoId(goc, 'gbTimRong')).includes('"ca phe"'));
-  await bam(tim(theoId(goc, 'storeChip'), n => n.props['data-nhom'] === '')[0]);
+  await bamTang(goc, '');
   la('tìm ở Tất cả', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), ['NUCF00003']);
   go(theoId(goc, 'gbTimO'), 'chanh day'); await cho();
   la('tìm theo mô tả bánh', tim(goc, n => n.props['data-ma']).map(n => n.props['data-ma']), ['BAWC00115']);
@@ -490,8 +497,7 @@ const STORE3 = JSON.parse(JSON.stringify(STORE2));
 await ca('v640 trang bàn theo menu của điểm: chip và món theo thứ tự quản lý kéo thả; Đá, Đường mỗi nhóm chọn một, mặc định sáng sẵn và không gửi lên; topping theo món và theo size; giỏ có ảnh; icon riêng, không emoji; nút đóng nằm trong tiêu đề', async () => {
   const {goc, kho, vet} = await moTrang2({store: STORE3});
   const G = kho.goiBan.G;
-  la('chip theo thứ tự menu', tim(theoId(goc, 'storeChip'), n => n.the === 'button').map(n => n.props['data-nhom']), ['', 'g:n-tra-sua', 'banh', 'g:n-ca-phe']);
-  la('tên chip', tim(theoId(goc, 'storeChip'), n => n.the === 'button').map(n => chu(n)), ['Tất cả · 3', 'Trà sữa · 1', 'Bánh trên tủ · 1', 'Cà phê · 1']);
+  la('tầng', tang(goc), ['=3', 'banh=1', 'nuoc=2']);
   la('món theo thứ tự nhóm', nutThem(goc).map(n => n.props['data-them']), ['NUTR00031', 'BAWC00115', 'NUCF00003']);
   await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00031'));
   const chon = theoId(goc, 'gbChon');
@@ -567,7 +573,7 @@ await ca('v640 Codex #543: menu rỗng thì không hiện món nào; menu không
   const r0 = dungQuayHien(quay({nhom_menu: []}), null, t);
   la('menu rỗng: không món, không đếm bánh', [r0.mon.map(m => m.ma), r0.tong, r0.soBanh], [[], 0, 0]);
   const r1 = dungQuayHien(quay({nhom_menu: [{ma: 'n-ca-phe', ten: 'Cà phê', loai: 'nuoc'}]}), null, t);
-  la('tắt nhóm Bánh: chỉ cà phê', [r1.mon.map(m => m.ma), r1.tong, r1.nhom.map(n => n.n)], [['N1'], 0, ['', 'g:n-ca-phe']]);
+  la('tắt nhóm Bánh: chỉ cà phê, không có tầng Bánh', [r1.mon.map(m => m.ma), r1.tong, r1.tang.map(n => n.n)], [['N1'], 0, ['', 'nuoc']]);
   const r2 = dungQuayHien(quay({}), null, t);
   la('máy chủ cũ: bày như trước', [r2.mon.map(m => m.ma), r2.tong], [['B1', 'N1'], 5]);
 });
@@ -651,11 +657,11 @@ await ca('v642 combo quán đang chạy (anh Việt 06/11/2026): chip Combo đ�
   await kho.napQuay();
   await kho.goiBan.kiemLink();
   const q = dungQuayHien(kho.S, kho.goiBan.G, t);
-  la('chip Combo sau Tất cả, chỉ combo còn bộ', q.nhom.slice(0, 2).map(n => [n.n, n.so]), [['', q.mon.length], ['combo', 1]]);
+  la('tầng Combo sau Tất cả, chỉ combo còn bộ', q.tang.slice(0, 2).map(n => [n.n, n.so]), [['', q.mon.length], ['combo', 1]]);
   la('combo đứng đầu', [q.mon[0].ma, q.mon[0].gia, q.mon[0].gocHien, q.mon[0].mo_ta], ['KMCB00001', 120000, 140000, 'Trà Hoa Lài, 2 Mousse Chanh Dây']);
-  kho.S.nhomQuay = 'combo';
-  la('chip Combo chỉ còn combo', dungQuayHien(kho.S, kho.goiBan.G, t).mon.map(x => x.ma), ['KMCB00001']);
-  kho.S.nhomQuay = '';
+  kho.S.tangQuay = 'combo';
+  la('tầng Combo chỉ còn combo', dungQuayHien(kho.S, kho.goiBan.G, t).mon.map(x => x.ma), ['KMCB00001']);
+  kho.S.tangQuay = '';
   la('không có QR: không bày combo', dungQuayHien(kho.S, null, t).mon.some(x => x.loai === 'combo'), false);
   la('bấm + combo: thêm thẳng', kho.goiBan.bamThem(q.mon[0]), true);
   la('giỏ: giá bộ, ghi món thành phần', [kho.goiBan.G.gio[0].ma, kho.goiBan.G.gio[0].gia, kho.goiBan.G.gio[0].thanhPhan.length], ['KMCB00001', 120000, 2]);
@@ -952,6 +958,23 @@ await ca('v643 ưu đãi tại bàn phép thuần: Cần thanh toán = hoá đơ
   la('số điện thoại', ['0909 123 412', '+84909123412', '12345', ''].map(K4.soDt), ['0909123412', '84909123412', '', '']);
   la('mỗi lý do đăng nhập có câu', K4.LY_DO_DN.every(x => K4.cauDn(x, t).length > 5), true);
   la('lý do lạ không câu', K4.cauDn('khac', t), '');
+});
+
+await ca('v655 (Dễ báo 13/11, anh Việt chọn A): hai tầng Bánh và Đồ uống; Bánh chia chip nhỏ theo nhóm món (Bánh lạnh, Bánh nướng, Bánh khô trước); đổi tầng thì chip nhỏ về Tất cả; menu xếp nhóm đồ uống vẫn giữ thứ tự', async () => {
+  const st = JSON.parse(JSON.stringify(STORE3));
+  st.quay[0].mon = [{ma: 'B1', ten: 'Canelé', gia: 65000, con: 4, nhom: 'Bánh nướng'}, {ma: 'B2', ten: 'Mousse Chanh Dây', gia: 95000, con: 2, nhom: 'Bánh lạnh'},
+    {ma: 'B3', ten: 'Entremet Xoài', gia: 120000, con: 1, nhom: 'Entremets'}, {ma: 'B4', ten: 'Cookie', gia: 45000, con: 6, nhom: 'Bánh khô'},
+    {ma: 'B5', ten: 'Tart Chanh', gia: 85000, con: 3, nhom: 'Bánh lạnh'}];
+  const {goc} = await moTrang2({store: st});
+  la('tầng', tang(goc), ['=7', 'banh=5', 'nuoc=2']);
+  await bamTang(goc, 'banh');
+  la('chip nhỏ của Bánh', chip(goc), ['Tất cả bánh · 5', 'Bánh lạnh · 2', 'Bánh nướng · 1', 'Bánh khô · 1', 'Entremets · 1']);
+  la('tầng Bánh chỉ bánh', nutThem(goc).map(n => n.props['data-them']).sort(), ['B1', 'B2', 'B3', 'B4', 'B5']);
+  await bam(tim(theoId(goc, 'storeChip'), n => n.props['data-nhom'] === 'b:Bánh lạnh')[0]);
+  la('Bánh lạnh', nutThem(goc).map(n => n.props['data-them']).sort(), ['B2', 'B5']);
+  await bamTang(goc, 'nuoc');
+  la('đổi tầng: chip nhỏ về Tất cả đồ uống', [tim(theoId(goc, 'storeChip'), n => n.props['aria-pressed'] === 'true').map(n => n.props['data-nhom']), nutThem(goc).length], [[''], 2]);
+  la('chip nhỏ Đồ uống theo thứ tự menu', tim(theoId(goc, 'storeChip'), n => n.the === 'button').map(n => n.props['data-nhom']), ['', 'g:n-tra-sua', 'g:n-ca-phe']);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');

@@ -3,7 +3,8 @@ const fs=require('fs'),path=require('path'),vm=require('vm');
 const root=path.resolve(__dirname,'../../../..');
 function doc(p){return fs.readFileSync(path.join(root,p),'utf8');}
 function ham(src,ten){
- const i=src.indexOf('function '+ten+'(');if(i<0)throw Error(ten);
+ let i=src.indexOf('function '+ten+'(');if(i<0)throw Error(ten);
+ if(src.slice(Math.max(0,i-6),i)==='async ')i-=6;
  let p=src.indexOf('{',i),n=0;
  for(let j=p;j<src.length;j++){if(src[j]==='{')n++;if(src[j]==='}'&&!--n)return src.slice(i,j+1);}
  throw Error('Thiếu dấu đóng '+ten);
@@ -19,7 +20,7 @@ function nap(c){
   vm.runInContext(src,c);
  }
  const pos=doc('vagabond/public/js/bep/09-tinh-tien-quay.js');
- for(const ten of ['posDiemCua','posTaiKhoan','posQrTao','posQrUrl','posQrLoi','posKhoiQr'])vm.runInContext(ham(pos,ten),c);
+ for(const ten of ['posDiemCua','posTaiKhoan','posQrTao','posQrUrl','posQrAnhIn','posQrLoi','posKhoiQr'])vm.runInContext(ham(pos,ten),c);
  return c;
 }
 module.exports={root,doc,ham,nap};
