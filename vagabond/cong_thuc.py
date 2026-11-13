@@ -612,7 +612,18 @@ def chi_tiet(name):
 		"dong": dong, "ban_truoc": chuoi, "ban_sau": ban_sau,
 		"phien_ban": duoi_phien_ban(b.name),
 		"lich_su": _lich_su_cua(_chuoi_bom(b.name))[:20],
+		# v656 (anh Việt 13/11): giá vốn và % giá bán ngay trên màn, cho bếp, Lab, Khải, anh.
+		"gia_von": _gia_von(b),
 	}
+
+
+def _gia_von(b):
+	try:
+		from vagabond import de_xuat_cong_thuc
+		return de_xuat_cong_thuc.gia_von_bom(b)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "cong_thuc: gia von")
+		return None
 
 
 @frappe.whitelist()

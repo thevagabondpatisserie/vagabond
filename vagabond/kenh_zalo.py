@@ -110,6 +110,8 @@ TIN = {
 		"08:25 mỗi sáng, hoá đơn mua vào chưa dựng được chứng từ hoặc có chứng từ trùng.", "canh_bao", "hoa_don"),
 	"kt_tra_truoc_erp": ("Hoá đơn, kế toán", "Khoản trả trước chờ duyệt",
 		"Thu mua gửi một khoản đã trả trước khi lên ERP, chờ kế toán duyệt.", "viec", "cong_no"),
+	"kt_cong_thuc_cho": ("Hoá đơn, kế toán", "Phiếu đề xuất công thức chờ lên mã",
+		"Bếp gửi phiếu đề xuất công thức (bánh mới hoặc điều chỉnh), chờ Khải tạo mã và công thức.", "viec", "san_xuat"),
 	"kt_hoan_tien": ("Hoá đơn, kế toán", "Yêu cầu hoàn tiền chờ chi",
 		"Sales gửi yêu cầu hoàn tiền cho khách, chờ kế toán chuyển khoản.", "viec", "cong_no"),
 	"kt_de_nghi_chi": ("Hoá đơn, kế toán", "Đề nghị chi chờ duyệt hoặc bị trả lại",
@@ -217,6 +219,9 @@ TIN = {
 	# v653 (anh Việt 12/11/2026): ảnh bánh và số còn bán, mỗi khi bảng Kiểm bánh đổi.
 	"bh_banh_co_san": ("Bán hàng, cửa hàng", "Bánh có sẵn hôm nay, kèm ảnh bánh",
 		"Bảng Kiểm bánh hôm nay đổi số bán được (cách 15 phút, 08:00 tới 21:30): ảnh từng bánh, số còn.", "ban_tin", "ban_hang"),
+	# v656 (anh Việt 13/11): phiếu đề xuất công thức (de_xuat_cong_thuc.py).
+	"bep_cong_thuc_tra_lai": ("Bếp", "Khải hỏi lại phiếu đề xuất công thức",
+		"Khải trả phiếu đề xuất công thức về bếp kèm câu hỏi: tên bánh, câu Khải hỏi.", "viec", "san_xuat"),
 	"bep_ke_hoach_sx": ("Bếp", "Kế hoạch sản xuất hôm nay (05:00)",
 		"05:00 sáng, kế hoạch sản xuất trong ngày đã sẵn, bếp đọc rồi chốt.", "viec", "san_xuat"),
 	"bep_tkr_da_coc": ("Bếp", "Đơn thiết kế riêng đã cọc, lên lịch bếp",

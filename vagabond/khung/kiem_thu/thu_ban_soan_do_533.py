@@ -44,6 +44,7 @@ MAN_LAP_PHIEU = [
 	"scrGomMua",  # v646 Codex 549: gom yêu cầu mua, số thu mua sửa trước khi chốt
 	"scrDuChiXem",  # v653: dự chi công nợ, số trả Uyên sửa trước khi bấm Lưu
 	"scrDuChiThem", "scrLichChi",  # v654 Codex #561: form Thêm dự chi, Lịch chi hằng tháng
+	"scrDxSua",  # v656: phiếu đề xuất công thức (bánh mới, điều chỉnh)
 ]
 # Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
 # So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
@@ -73,7 +74,10 @@ SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	"scrDuChiXem": "71-du-chi.js",
 	# v654 Codex #561: form Thêm, Sửa dự chi và Lịch chi hằng tháng ở 71, ghép bằng
 	# dat() vào LDC.form, ldcKhoiPhuc, LDC.lichForm.
-	"scrDuChiThem": "71-du-chi.js", "scrLichChi": "71-du-chi.js"}
+	"scrDuChiThem": "71-du-chi.js", "scrLichChi": "71-du-chi.js",
+	# v656: Phiếu đề xuất công thức ở 72, ghép bằng dat() vào dxKhoiPhuc, màn tự
+	# ghép lúc dựng (không móc sdGhep).
+	"scrDxSua": "72-de-xuat-cong-thuc.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",
@@ -242,7 +246,10 @@ def _thu_tu():
 		"70-gom-mua.js",
 		# v653: Dự chi công nợ, sửa số trả của một đợt máy đã soạn; bản nháp chỉ
 		# giữ số đã sửa (scrDuChiXem được bọc ở danh sách trên).
-		"71-du-chi.js"])
+		"71-du-chi.js",
+		# v656: Phiếu đề xuất công thức; form lập phiếu duy nhất scrDxSua được bọc
+		# ở danh sách trên.
+		"72-de-xuat-cong-thuc.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

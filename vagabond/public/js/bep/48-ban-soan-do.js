@@ -872,6 +872,18 @@ sdKhai('lich_chi', 'scrLichChi', {
   ma: function () { return (LDC.lichForm && LDC.lichForm.name) || ''; }, tieuDe: sdTieuDe('#lcND', 'noi_dung'),
   luu: ['vagabond.lich_du_chi.luu_lich']
 });
+/* v656: Phiếu đề xuất công thức (72, sau 48). Cả phiếu nằm trong DX.f (tên
+   bánh, size, dòng, gram, công thức con); dat() để vào dxKhoiPhuc, màn tự ghép
+   lúc dựng. Chỉ giữ nháp khi phiếu còn sửa được (Nháp, Trả lại bếp). Lưu nháp
+   hay Gửi Khải thành công là xong nháp trên máy. */
+sdKhai('de_xuat_ct', 'scrDxSua', {
+  ten: 'Phiếu đề xuất công thức',
+  lay: function () { var f = DX.f; return (f && f.quyen && f.quyen.sua && (f.trang_thai === 'Nháp' || f.trang_thai === 'Trả lại bếp')) ? f : null; },
+  dat: function (v) { dxKhoiPhuc = v || null; },
+  ma: function (a) { return a[0] || (DX.f && DX.f.bom_goc ? 'dc:' + DX.f.bom_goc : ''); },
+  tieuDe: sdTieuDe('#dxTen', 'ten_banh'),
+  luu: ['vagabond.de_xuat_cong_thuc.luu', 'vagabond.de_xuat_cong_thuc.gui']
+});
 /* v622: hai màn lập phiếu của Tuyển dụng (60-tuyen-dung.js, đứng sau 48 nên
    ghép bằng dat() vào biến khôi phục, màn tự ghép lúc dựng trạng thái). */
 sdKhai('vi_tri_tuyen', 'scrTdViTri', {
@@ -982,6 +994,7 @@ scrGomMua = sdBoc('gom_mua', 'scrGomMua', scrGomMua);
 scrDuChiXem = sdBoc('du_chi', 'scrDuChiXem', scrDuChiXem);
 scrDuChiThem = sdBoc('du_chi_tay', 'scrDuChiThem', scrDuChiThem);
 scrLichChi = sdBoc('lich_chi', 'scrLichChi', scrLichChi);
+scrDxSua = sdBoc('de_xuat_ct', 'scrDxSua', scrDxSua);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
