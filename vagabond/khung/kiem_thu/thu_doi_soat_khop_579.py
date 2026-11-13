@@ -328,10 +328,10 @@ def _():
 	def co_khoa(f):
 		return any(isinstance(n, ast.With) and any(getattr(getattr(i.context_expr, "func", None), "id", None) == "khoa_doi_chieu"
 			for i in n.items) for n in ast.walk(f))
-	la("ai gọi _doi_chieu", sorted(k for k, f in ham.items() if goi(f, "_doi_chieu")), ["_ghi_nguon", "doi_chieu_lai", "dung_ban_sua"])
+	la("ai gọi _doi_chieu", sorted(k for k, f in ham.items() if goi(f, "_doi_chieu")), ["_ghi_nguon", "doi_chieu_lai", "doi_chieu_lai_dong", "dung_ban_sua"])
 	la("ai gọi _ghi_nguon", sorted(k for k, f in ham.items() if goi(f, "_ghi_nguon")), ["_ghi_thu_khong_tep", "_nhan_byte"])
-	la("mọi cửa đều giữ khoá", [co_khoa(ham[k]) for k in ("_nhan_byte", "doi_chieu_lai", "_ghi_thu_khong_tep", "dung_ban_sua")],
-		[True, True, True, True])
+	la("mọi cửa đều giữ khoá", [co_khoa(ham[k]) for k in ("_nhan_byte", "doi_chieu_lai", "_ghi_thu_khong_tep", "dung_ban_sua", "doi_chieu_lai_dong")],
+		[True, True, True, True, True])
 	la("ai ghi dòng sự kiện", sorted(k for k, f in ham.items() if goi(f, "_chen_dong")), ["_ghi_nguon", "dung_ban_sua"])
 
 

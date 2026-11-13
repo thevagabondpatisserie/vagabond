@@ -181,7 +181,7 @@ def _():
 	b = T.buoc_nguon(_n())
 	la("chờ xác nhận", (b["tt"], b["hien"], b["xac_nhan_duoc"]), ("xxxxxv", 6, 1))
 	b = T.buoc_nguon(_n(xac_nhan_luc="2026-11-06 10:00:00"))
-	la("đã khép", (b["tt"], b["hien"], b["ghi"], b["xac_nhan_duoc"]), ("xxxxxx", 7, "Đã khép", 0))
+	la("đã hoàn tất (v655 đổi chữ Đã khép)", (b["tt"], b["hien"], b["ghi"], b["xac_nhan_duoc"]), ("xxxxxx", 7, "Đã hoàn tất", 0))
 	b = T.buoc_nguon(_n(xac_nhan_luc="2026-11-06 10:00:00", so_chua_noi=1))
 	la("xác nhận rồi mà số đổi thì bước 6 đỏ", b["tt"], "xxxxvd")
 
@@ -897,7 +897,7 @@ def _db_xac_nhan():
 	return nguon, dong, nhan_xet, vong
 
 
-@ca("Codex #544 vòng 4: hoá đơn nối bị huỷ rồi nối hoá đơn thay: xác nhận cũ hết hiệu lực, nguồn không tự về Đã khép, kế toán xác nhận lại")
+@ca("Codex #544 vòng 4: hoá đơn nối bị huỷ rồi nối hoá đơn thay: xác nhận cũ hết hiệu lực, nguồn không tự về Đã hoàn tất, kế toán xác nhận lại")
 def _():
 	from contextlib import ExitStack
 	nguon, dong, nhan_xet, vong = _db_xac_nhan()
@@ -917,7 +917,7 @@ def _():
 		nguon.update(so_chua_noi=0, so_da_noi=1)
 		T.kiem_xac_nhan("N1")
 		b = T.buoc_nguon(nguon)
-		la("không tự về Đã khép, nút Xác nhận mở", (b["hien"], b["xac_nhan_duoc"], b["ghi"]), (6, 1, "Chờ kế toán xác nhận"))
+		la("không tự về Đã hoàn tất, nút Xác nhận mở", (b["hien"], b["xac_nhan_duoc"], b["ghi"]), (6, 1, "Chờ kế toán xác nhận"))
 		T.xac_nhan("N1")
 		la("xác nhận lại thì khép", T.buoc_nguon(nguon)["hien"], 7)
 		# Chỉ đổi giao dịch tiền về (trạng thái tiền vẫn khớp) cũng phải xác nhận lại.

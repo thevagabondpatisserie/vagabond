@@ -120,7 +120,7 @@ def _():
 	# hàm này gọi đúng một cửa hoan_tat_phieu.
 	k = src.index("async function mfgGhiLenh(")
 	ghi = src[k:src.index("\n}\n", k)]
-	dung("gọi hoan_tat_phieu qua mfgGhiLenh", "mfgGhiLenh(se, q, can, bu)" in than and "vagabond.kho_san_xuat.hoan_tat_phieu" in ghi)
+	dung("gọi hoan_tat_phieu qua mfgGhiLenh", "mfgGhiLenh(se, q, can, d.name)" in than and "vagabond.kho_san_xuat.hoan_tat_phieu" in ghi)
 	dung("hết frappe.client.insert phiếu kho", "frappe.client.insert', { doc: se }" not in than and "frappe.client.insert" not in ghi)
 	dung("app không tự đặt fg_completed_qty", "se.fg_completed_qty" not in than)
 

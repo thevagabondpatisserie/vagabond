@@ -352,12 +352,35 @@ def _():
 	dung("nguồn là kho gốc", "ksx.KHO_GOC" in doan)
 
 
-@ca("phiếu xin chuyển sinh ra ở dạng nháp, chờ người giữ kho xem")
+@ca("phiếu xin chuyển: việc tự động (không gửi cờ) vẫn ra nháp; nút của bếp từ v655 gửi luôn để kho thấy ngay")
 def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import ke_hoach_sx as k
 	m = _py("ke_hoach_sx.py")
-	doan = m.split("def xin_chuyen_nvl")[1].split("\n@frappe")[0]
+	doan = m.split("def xin_chuyen_nvl")[1].split("\ndef _gui_phieu_xin")[0]
 	dung("lọc docstatus 0", '"docstatus": 0' in doan)
-	la("không tự ghi sổ", ".submit()" in doan, False)
+	la("hàm chính không tự ghi sổ", ".submit()" in doan, False)
+	dung("chỉ gửi khi app xin", "if frappe.utils.cint(gui):" in doan)
+	gui, nhat = [], []
+
+	def lay(dt, ten):
+		d = NS(name=ten, flags=NS())
+
+		def submit():
+			if ten == "MR-HONG":
+				raise Exception("hỏng")
+			gui.append(ten)
+		d.submit = submit
+		return d
+	with patch.object(k.frappe, "get_doc", lay, create=True), \
+			patch.object(k.frappe, "db", NS(commit=lambda: nhat.append("c"), rollback=lambda: nhat.append("r")), create=True), \
+			patch.object(k.frappe, "log_error", lambda *a, **kw: None, create=True), \
+			patch.object(k.frappe, "get_traceback", lambda: "", create=True):
+		ra = k._gui_phieu_xin(["MR-1", "MR-HONG", "MR-2"])
+	la("gửi phiếu được, phiếu hỏng để nháp và nêu tên", ra, (["MR-1", "MR-2"], ["MR-HONG"]))
+	la("hỏng thì lùi, không kéo phiếu khác", nhat, ["c", "r", "c"])
+	dung("app gửi cờ gui", "gui: 1" in _js("38-ke-hoach-sx.js"))
 
 
 # ------------------------------------------------ giữ chỗ: KHÔNG tự bật
@@ -1374,7 +1397,7 @@ def _():
 	m = _js("05-san-xuat.js")
 	doan = m.split("async function mfgHoanTatMot(")[1].split("\n}\n")[0]
 	dung("bỏ hộp hỏi khi chạy lô", "if (plan.length && !imLang) {" in doan)
-	dung("vẫn chạy phần làm tươi", "if (plan.length) await mfgRunFresh(plan, 1, bu);" in doan)
+	dung("vẫn chạy phần làm tươi", "if (plan.length) await mfgRunFresh(plan, 1);" in doan)
 
 
 @ca("máy KHÔNG tự điền số cũ lên ô nhập, chỉ gợi ý bằng chip")

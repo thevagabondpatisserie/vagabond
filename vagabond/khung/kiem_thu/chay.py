@@ -263,7 +263,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_bill_doi_tac_647,
 	# v648 (anh Việt chốt 11/11/2026, phương án C): Hoàn tất món chính, máy tự làm cấp 1, cấp 2 còn thiếu.
 	thu_tu_lam_cap_duoi_648,
-	thu_lay_bu_kho_tong_648,
+	thu_xin_kho_tong_655,
 	thu_thieu_nvl_650,
 	thu_thue_mua_650,
 	# v650 (anh Việt cho phép 12/11/2026): dọn dòng 33311 tự thêm trên chứng từ mua cũ.
@@ -286,6 +286,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	# v652 điểm thành viên trên web, nhân điểm, thể lệ, hoàn điểm (anh Việt 12/11).
 	thu_diem_web_652,
 	# v649 màn Lệnh sản xuất: thẻ gọn, câu chặn kiểm kê ghi số phiếu (ảnh anh Việt 11/11).
+	# v655 kho phương án B (bếp xin kho tổng, kho giao thực tế) và đối soát OnePay theo số đơn.
+	thu_doi_soat_onepay_655,
 	thu_lenh_sx_649,
 	thu_tru_vo_btp_649,
 	thu_dat_truoc_tu_mai_649,

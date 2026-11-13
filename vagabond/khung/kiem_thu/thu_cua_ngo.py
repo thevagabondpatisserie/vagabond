@@ -431,7 +431,9 @@ CUA_NGO = {
 	"san_xuat_desktop.py": ["chi_tiet"],
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
 		"gan_nguoi_phu_trach", "hoan_tat_phieu", "mon_tu_lam", "soat_chang",
-		"soat_ma_chang_cu", "tat_kho_trung_gian", "thay_the_cho_thieu"],
+		"soat_ma_chang_cu", "tat_kho_trung_gian", "thay_the_cho_thieu",
+		# v655 phương án B: bếp gửi phiếu xin Kho tổng đúng phần thiếu.
+		"xin_kho_tong"],
 	# Gom nam nhan chang ve hai ten, va man Ton kho theo chang, 28/08/2026.
 	# `chang_cua_nhan`, `gop_dong`, `loc_theo_chang`, `cau_tom_tat` va
 	# `kho_cua_bep` la phep thuan hoac ham noi bo, KHONG mo ra ngoai.
