@@ -666,7 +666,8 @@ def _sepay_so_bao():
 			c.set_value(k, json.dumps(ra), expires_in_sec=SEPAY_DEM_GIAY)
 			# v654 Codex #561: giữ giờ đọc thật của bản số dư này. Lịch dự chi chỉ
 			# trừ khoản chi SAU giờ đó, không trừ lại khoản số dư đã gồm.
-			c.set_value(k + "_luc", str(now_datetime())[:19], expires_in_sec=SEPAY_DEM_GIAY)
+			# Giữ đủ phần lẻ giây: bút toán ghi trong cùng giây sau lúc đọc vẫn phải được trừ.
+			c.set_value(k + "_luc", str(now_datetime()), expires_in_sec=SEPAY_DEM_GIAY)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tai_chinh: doc so du SePay")
 		return {}
@@ -674,7 +675,7 @@ def _sepay_so_bao():
 
 
 def _sepay_luc_bao():
-	"""Giờ đọc SePay của bản số dư đang dùng (chuỗi 'YYYY-MM-DD HH:MM:SS') hoặc None."""
+	"""Giờ đọc SePay của bản số dư đang dùng (chuỗi ISO, đủ phần lẻ giây) hoặc None."""
 	try:
 		v = frappe.cache().get_value("vgb_tc_sepay_so_du_luc")
 		return v.decode() if isinstance(v, bytes) else (v or None)

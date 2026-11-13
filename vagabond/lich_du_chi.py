@@ -40,7 +40,7 @@ Phần THUẦN đứng trước vạch, phần chạm hệ đứng sau.
 """
 
 import calendar
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 DT_MUC = "Vagabond Du Chi Muc"
@@ -261,18 +261,35 @@ def theo_ngay(so_du, muc):
 		"thieu_dau": {"ngay": dau["ngay"], "so_tien": dau["thieu"]} if dau else None, "can_thuong_luong": can}
 
 
+def moc_gio(v):
+	"""THUẦN: mốc giờ đủ phần lẻ giây (datetime) từ datetime hay chuỗi ISO; None khi trống hay hỏng."""
+	if not v:
+		return None
+	if isinstance(v, datetime):
+		return v
+	try:
+		return datetime.fromisoformat(str(v).strip())
+	except ValueError:
+		return None
+
+
 def chi_sau_anh(rows, luc_anh, tk):
 	"""Tổng tiền ĐI RA khỏi tài khoản đã đọc số dư, ghi sổ SAU giờ đọc. THUẦN.
 
 	rows: [{tong_tien, luc (giờ ghi sổ), tk_chi (tài khoản sổ cái)}]. Khoản ghi
 	trước hay đúng giờ đọc đã nằm trong số dư nên không trừ lại; khoản của tài
-	khoản khác hay tiền mặt không làm đổi số dư tài khoản này. Không biết tài
-	khoản hay giờ đọc thì không trừ gì (Codex #561)."""
-	if not tk or not luc_anh:
+	khoản khác hay tiền mặt không làm đổi số dư tài khoản này. So đủ phần lẻ
+	giây: khoản ghi sau giờ đọc trong cùng một giây vẫn được trừ. Không biết
+	tài khoản hay giờ đọc thì không trừ gì (Codex #561)."""
+	moc = moc_gio(luc_anh)
+	if not tk or moc is None:
 		return Decimal(0)
-	moc = str(luc_anh)[:19]
-	return sum((_tien(r.get("tong_tien")) for r in rows or []
-		if (r.get("tk_chi") or "") == tk and str(r.get("luc") or "")[:19] > moc), Decimal(0))
+	ra = Decimal(0)
+	for r in rows or []:
+		g = moc_gio(r.get("luc"))
+		if (r.get("tk_chi") or "") == tk and g is not None and g > moc:
+			ra += _tien(r.get("tong_tien"))
+	return ra
 
 
 def tien_kha_dung(so_du_tk, chi_sau_luc):
@@ -388,7 +405,7 @@ def so_du_kha_dung():
 		return {"so_tien": None, "luc": "", "nguon": "Chưa đọc được số dư tài khoản chi từ SePay", "chi_sau": 0, "tk": ba or ""}
 	# Bản số dư có thể là bản đệm tới một phút (tai_chinh.SEPAY_DEM_GIAY): giờ đọc
 	# là giờ SePay trả về bản đó, không phải giờ mở màn.
-	luc = tai_chinh._sepay_luc_bao() or str(now_datetime())[:19]
+	luc = tai_chinh._sepay_luc_bao() or str(now_datetime())
 	# Codex #561 vòng 2: đọc tiền đi ra theo SỔ CÁI của đúng tài khoản ngân hàng đó,
 	# không theo ô tk_chi của APP (APP nhà cung cấp thường để trống, tài khoản chỉ
 	# được suy ra lúc ghi Payment Entry). Payment Entry và Journal Entry đều ghi GL Entry.
