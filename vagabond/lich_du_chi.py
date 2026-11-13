@@ -193,10 +193,17 @@ def ghep_muc(hom_nay, den, hd_no, dot_dong, app_song, tay, lich, da_co):
 			"tre": (nd - h).days if (h and nd > h) else 0, "thuong_luong": 1})
 	for m in tay or []:
 		hd = m.get("hoa_don")
-		st = _tien(m.get("so_tien"))
-		if hd and hd in con:
-			con[hd] = max(Decimal(0), con[hd] - st)
+		nhap_so = _tien(m.get("so_tien"))
+		st = nhap_so
+		if hd:
+			# Codex #561: dự chi tay gắn hoá đơn chỉ được đếm phần hoá đơn CÒN lại sau
+			# APP đang giữ (đã trừ trong hd_no) và dòng đợt (vừa trừ ở trên). Hoá đơn
+			# không còn trong danh sách nợ (đã trả, cấn trừ sàn) thì không đếm thêm.
+			st = min(nhap_so, con.get(hd, Decimal(0)))
+			if hd in con:
+				con[hd] -= st
 		ra.append({"khoa": "tay:" + m["name"], "nguon": "tay", "ngay": max(_ngay(m.get("ngay")) or t, t), "so_tien": st,
+			"so_tien_nhap": nhap_so, "da_tinh_noi_khac": nhap_so - st,
 			"noi_dung": m.get("noi_dung") or "", "nguoi_nhan": m.get("nguoi_nhan") or "", "ma": m["name"],
 			"qua_ngay": 1 if (_ngay(m.get("ngay")) and _ngay(m.get("ngay")) < t) else 0, "thuong_luong": 0})
 	for hd, so in con.items():
@@ -216,7 +223,8 @@ def ghep_muc(hom_nay, den, hd_no, dot_dong, app_song, tay, lich, da_co):
 			ra.append({"khoa": "lich:%s:%s" % (l["name"], th), "nguon": "lich", "ngay": nd, "so_tien": _tien(l.get("so_tien")),
 				"noi_dung": l.get("noi_dung") or "", "nguoi_nhan": l.get("nguoi_nhan") or "", "ma": l["name"], "thang": th,
 				"qua_ngay": 1 if co == "qua_ngay" else 0, "thuong_luong": 0})
-	ra = [x for x in ra if x["ngay"] <= den and x["so_tien"] > 0]
+	# Dự chi tay đã tính hết ở đợt hay APP vẫn hiện (số 0 kèm ghi chú) để người lập thấy vì sao.
+	ra = [x for x in ra if x["ngay"] <= den and (x["so_tien"] > 0 or (x["nguon"] == "tay" and x.get("so_tien_nhap", 0) > 0))]
 	ra.sort(key=lambda x: (x["ngay"], 0 if x.get("co") == "qua_han" else 1, THU_TU[x["nguon"]], str(x.get("han") or ""), x["khoa"]))
 	return ra
 
@@ -251,6 +259,20 @@ def theo_ngay(so_du, muc):
 		can.sort(key=lambda x: (str(x.get("han") or "9999"), -x["so_tien"]), reverse=True)
 	return {"ngay": ngay, "tong": sum((g["tong"] for g in ngay), Decimal(0)),
 		"thieu_dau": {"ngay": dau["ngay"], "so_tien": dau["thieu"]} if dau else None, "can_thuong_luong": can}
+
+
+def chi_sau_anh(rows, luc_anh, tk):
+	"""Tổng APP đã trả SAU giờ đọc số dư, từ ĐÚNG tài khoản đã đọc. THUẦN.
+
+	rows: [{tong_tien, luc (giờ ghi nhận trả), tk_chi}]. Khoản trả trước hay đúng
+	giờ đọc đã nằm trong số dư nên không trừ lại; khoản trả từ tài khoản khác
+	hay tiền mặt không làm đổi số dư tài khoản này. Không biết tài khoản hay giờ
+	đọc thì không trừ gì (Codex #561)."""
+	if not tk or not luc_anh:
+		return Decimal(0)
+	moc = str(luc_anh)[:19]
+	return sum((_tien(r.get("tong_tien")) for r in rows or []
+		if (r.get("tk_chi") or "") == tk and str(r.get("luc") or "")[:19] > moc), Decimal(0))
 
 
 def tien_kha_dung(so_du_tk, chi_sau_luc):
@@ -357,18 +379,20 @@ def _str(d):
 
 
 def so_du_kha_dung():
-	"""Số dư tài khoản chi lúc đọc (SePay), nguồn, giờ đọc, và phần đã chi sau đó."""
-	from vagabond import du_chi
+	"""Số dư tài khoản chi lúc SePay đọc (nguồn, giờ đọc thật) và phần đã chi từ
+	đúng tài khoản đó sau giờ đọc."""
+	from vagabond import du_chi, tai_chinh
 
-	v = du_chi._so_du_tk_chi()
-	luc = now_datetime()
+	ba, v = du_chi._tk_chi_so_du()
 	if v is None:
-		return {"so_tien": None, "luc": "", "nguon": "Chưa đọc được số dư tài khoản chi từ SePay", "chi_sau": 0}
-	# SePay báo số dư mới tối đa một phút (tai_chinh.SEPAY_DEM_GIAY): coi như số
-	# dư lúc này, trừ các APP vừa trả trong một phút đó để không đếm thiếu.
-	chi = frappe.db.sql("""select ifnull(sum(tong_tien),0) from `tabVagabond Ho So TT`
-		where trang_thai='Da thanh toan' and modified > %s""", (luc - timedelta(minutes=1),))[0][0]
-	return {"so_tien": flt(v), "luc": str(luc)[:19], "nguon": "Số dư tài khoản chi theo SePay", "chi_sau": flt(chi)}
+		return {"so_tien": None, "luc": "", "nguon": "Chưa đọc được số dư tài khoản chi từ SePay", "chi_sau": 0, "tk": ba or ""}
+	# Bản số dư có thể là bản đệm tới một phút (tai_chinh.SEPAY_DEM_GIAY): giờ đọc
+	# là giờ SePay trả về bản đó, không phải giờ mở màn.
+	luc = tai_chinh._sepay_luc_bao() or str(now_datetime())[:19]
+	rows = frappe.get_all("Vagabond Ho So TT", filters={"trang_thai": "Da thanh toan", "tk_chi": ba,
+		"modified": [">", luc]}, fields=["tong_tien", "modified as luc", "tk_chi"], limit_page_length=0) if ba else []
+	chi = chi_sau_anh([dict(r) for r in rows], luc, ba)
+	return {"so_tien": flt(v), "luc": luc, "nguon": "Số dư tài khoản chi theo SePay", "chi_sau": flt(chi), "tk": ba or ""}
 
 
 def _hd_no():
@@ -432,9 +456,16 @@ def _khoa_nhan(ncc, ten):
 
 
 def _lich():
-	return [dict(r, khoa=_khoa_nhan(r.nha_cung_cap, r.nguoi_nhan)) for r in frappe.get_all(DT_LICH, filters={"bat": 1},
-		fields=["name", "noi_dung", "nguoi_nhan", "nha_cung_cap", "so_tien", "ngay_trong_thang", "so_thang_thay", "ngoai_le"],
-		limit_page_length=0)]
+	"""MỌI lịch hằng tháng, kể cả đang tạm thôi (Codex #561: lịch tạm thôi phải còn
+	trên màn để bật lại). Chỉ lịch đang bật mới vào phép tính tiền."""
+	return [dict(r, khoa=_khoa_nhan(r.nha_cung_cap, r.nguoi_nhan), bat=cint(r.bat)) for r in frappe.get_all(DT_LICH,
+		fields=["name", "noi_dung", "nguoi_nhan", "nha_cung_cap", "so_tien", "ngay_trong_thang", "so_thang_thay", "ngoai_le", "bat"],
+		order_by="bat desc, ngay_trong_thang asc", limit_page_length=0)]
+
+
+def lich_dang_bat(ds):
+	"""THUẦN: lịch đang bật, đúng thứ tự."""
+	return [x for x in ds or [] if cint(x.get("bat"))]
 
 
 def _da_co(lich, hd_no, tay_tat_ca, hom_nay):
@@ -468,7 +499,8 @@ def _cho_man_muc(x):
 	return {"khoa": x["khoa"], "nguon": x["nguon"], "nhan_nguon": NHAN_NGUON[x["nguon"]], "ngay": _str(x["ngay"]),
 		"so_tien": flt(x["so_tien"]), "noi_dung": x.get("noi_dung") or "", "nguoi_nhan": x.get("nguoi_nhan") or "",
 		"ma": x.get("ma") or "", "han": _str(x.get("han")), "tre": x.get("tre") or 0, "co": x.get("co") or "",
-		"qua_ngay": x.get("qua_ngay") or 0, "thang": x.get("thang") or "", "dot": x.get("dot") or ""}
+		"qua_ngay": x.get("qua_ngay") or 0, "thang": x.get("thang") or "", "dot": x.get("dot") or "",
+		"da_tinh_noi_khac": flt(x.get("da_tinh_noi_khac") or 0)}
 
 
 @frappe.whitelist()
@@ -484,7 +516,8 @@ def lich(so_ngay=SO_NGAY_XEM):
 	tay_tat_ca = [dict(r) for r in frappe.get_all(DT_MUC, filters={"trang_thai": ["!=", MUC_HUY]},
 		fields=["name", "lich", "thang"], limit_page_length=0)]
 	tay = _tay(app)
-	lc = _lich()
+	ca_lich = _lich()
+	lc = lich_dang_bat(ca_lich)
 	muc = ghep_muc(t, den, hd, _dot_dong(), app, tay, lc, _da_co(lc, hd, tay_tat_ca, t))
 	kd = tien_kha_dung(sd["so_tien"], sd["chi_sau"])
 	kq = theo_ngay(kd, muc)
@@ -498,24 +531,40 @@ def lich(so_ngay=SO_NGAY_XEM):
 		"tong": flt(kq["tong"]),
 		"thieu_dau": {"ngay": str(kq["thieu_dau"]["ngay"]), "so_tien": flt(kq["thieu_dau"]["so_tien"])} if kq["thieu_dau"] else None,
 		"can_thuong_luong": [_cho_man_muc(x) for x in kq["can_thuong_luong"][:8]],
-		"lich_chi": [{"name": l["name"], "noi_dung": l["noi_dung"], "nguoi_nhan": l["nguoi_nhan"], "so_tien": flt(l["so_tien"]),
-			"ngay_trong_thang": cint(l["ngay_trong_thang"]), "so_thang_thay": cint(l.get("so_thang_thay")),
-			"ngoai_le": l.get("ngoai_le") or ""} for l in lc],
+		"lich_chi": [{"name": l["name"], "noi_dung": l["noi_dung"], "nguoi_nhan": l["nguoi_nhan"], "nha_cung_cap": l.get("nha_cung_cap") or "",
+			"so_tien": flt(l["so_tien"]), "ngay_trong_thang": cint(l["ngay_trong_thang"]), "so_thang_thay": cint(l.get("so_thang_thay")),
+			"ngoai_le": l.get("ngoai_le") or "", "bat": cint(l.get("bat"))} for l in ca_lich],
 		"quyen": {"sua": 1 if (_vai() & ho.VAI_LAP) else 0},
 	}
 
 
-def _ncc_theo_ten(ten):
-	ten = (ten or "").strip()
-	if not ten:
-		return None
-	if frappe.db.exists("Supplier", ten):
-		return ten
-	return frappe.db.get_value("Supplier", {"supplier_name": ten}, "name")
+def _ncc_chon(ma):
+	"""Mã nhà cung cấp chọn từ ô chọn (Codex #561, AGENTS QT-31): phải có thật
+	trong danh mục; để trống là người nhận không phải nhà cung cấp. Không bao giờ
+	đoán nhà cung cấp từ chữ gõ tay."""
+	ma = (ma or "").strip()
+	if not ma:
+		return None, ""
+	ten = frappe.db.get_value("Supplier", ma, "supplier_name")
+	if ten is None and not frappe.db.exists("Supplier", ma):
+		frappe.throw("Không có nhà cung cấp mã %s trong danh mục. Bấm Chọn nhà cung cấp để chọn lại." % ma)
+	return ma, (ten or ma)
+
+
+@frappe.whitelist()
+def chon_ncc(tu_khoa=""):
+	"""Ô chọn nhà cung cấp của form Thêm dự chi và Lịch hằng tháng: tìm theo tên, mã, MST."""
+	ho = _ho()
+	_chan(ho.VAI_LAP, "chọn nhà cung cấp")
+	q = (tu_khoa or "").strip()
+	rows = frappe.get_all("Supplier", filters={"disabled": 0}, or_filters=[["name", "like", "%" + q + "%"],
+		["supplier_name", "like", "%" + q + "%"], ["tax_id", "like", "%" + q + "%"]] if q else None,
+		fields=["name", "supplier_name", "tax_id"], order_by="supplier_name asc", limit_page_length=20)
+	return [{"name": r.name, "ten": r.supplier_name or r.name, "mst": r.tax_id or ""} for r in rows]
 
 
 @frappe.whitelist(methods=["POST"])
-def luu_muc(name=None, ngay=None, noi_dung=None, so_tien=None, nguoi_nhan=None, ly_do=None, hoa_don=None):
+def luu_muc(name=None, ngay=None, noi_dung=None, so_tien=None, nguoi_nhan=None, ly_do=None, hoa_don=None, nha_cung_cap=None):
 	"""Nút Lưu dự chi nháp: thêm mới hoặc sửa một dự chi tay còn nháp."""
 	ho = _ho()
 	_chan(ho.VAI_LAP, "thêm dự chi")
@@ -525,9 +574,15 @@ def luu_muc(name=None, ngay=None, noi_dung=None, so_tien=None, nguoi_nhan=None, 
 		frappe.throw(str(e))
 	if x["hoa_don"] and not frappe.db.exists("Purchase Invoice", {"name": x["hoa_don"], "docstatus": 1}):
 		frappe.throw("Không có hoá đơn mua đã ghi sổ mã %s. Để trống ô hoá đơn nếu khoản này chưa có hoá đơn." % x["hoa_don"])
-	ncc = _ncc_theo_ten(x["nguoi_nhan"])
-	if x["hoa_don"] and not ncc:
-		ncc = frappe.db.get_value("Purchase Invoice", x["hoa_don"], "supplier")
+	ncc, ten_ncc = _ncc_chon(nha_cung_cap)
+	if x["hoa_don"]:
+		ncc_hd = frappe.db.get_value("Purchase Invoice", x["hoa_don"], "supplier")
+		if ncc and ncc_hd and ncc != ncc_hd:
+			frappe.throw("Hoá đơn %s là của nhà cung cấp %s, không phải nhà cung cấp đã chọn. Chọn lại một trong hai." % (x["hoa_don"], ncc_hd))
+		if not ncc and ncc_hd:
+			ncc, ten_ncc = _ncc_chon(ncc_hd)
+	if ncc:
+		x["nguoi_nhan"] = ten_ncc
 	if name:
 		doc = frappe.get_doc(DT_MUC, name, for_update=True)
 		if doc.trang_thai != MUC_NHAP:
@@ -582,13 +637,31 @@ def noi_app(name, ho_so_app):
 
 
 @frappe.whitelist()
+def chon_app(tu_khoa=""):
+	"""Ô chọn hồ sơ thanh toán để nối với dự chi tay (QT-31: chọn, không gõ mã).
+	Chỉ hồ sơ còn hiệu lực: nháp, đang duyệt, đã duyệt, đã thanh toán."""
+	ho = _ho()
+	_chan(ho.VAI_LAP, "nối dự chi với hồ sơ thanh toán")
+	from vagabond.ho_so_tt import NHAN, TT_DA_TRA, TT_NHAP
+	from vagabond.phan_bo_app import GIU
+
+	q = (tu_khoa or "").strip()
+	rows = frappe.get_all("Vagabond Ho So TT", filters={"trang_thai": ["in", [TT_NHAP, TT_DA_TRA] + list(GIU)]},
+		or_filters=[["name", "like", "%" + q + "%"], ["ten_nhan", "like", "%" + q + "%"], ["ten_ncc", "like", "%" + q + "%"]] if q else None,
+		fields=["name", "ngay", "ten_nhan", "ten_ncc", "tong_tien", "trang_thai"], order_by="modified desc", limit_page_length=20)
+	return [{"name": r.name, "ten": r.ten_nhan or r.ten_ncc or "", "ngay": _str(r.ngay), "so_tien": flt(r.tong_tien),
+		"trang_thai": NHAN.get(r.trang_thai, r.trang_thai or "")} for r in rows]
+
+
+@frappe.whitelist()
 def chi_tiet_muc(name):
 	ho = _ho()
 	_chan(ho.VAI_LAP | ho.VAI_FIN | ho.VAI_GD, "xem dự chi")
 	d = frappe.get_doc(DT_MUC, name)
 	return {"name": d.name, "ngay": _str(d.ngay), "noi_dung": d.noi_dung, "so_tien": flt(d.so_tien), "nguoi_nhan": d.nguoi_nhan or "",
 		"ly_do": d.ly_do or "", "hoa_don": d.hoa_don or "", "trang_thai": d.trang_thai, "ho_so_app": d.ho_so_app or "",
-		"nguon": d.nguon or NGUON_TAY}
+		"nguon": d.nguon or NGUON_TAY, "nha_cung_cap": d.nha_cung_cap or "",
+		"ten_ncc": (d.nguoi_nhan or d.nha_cung_cap or "") if d.nha_cung_cap else ""}
 
 
 @frappe.whitelist()
@@ -599,13 +672,14 @@ def chon_hoa_don(tu_khoa=""):
 	q = (tu_khoa or "").strip()
 	f = {"docstatus": 1, "outstanding_amount": [">", 0]}
 	rows = frappe.get_all("Purchase Invoice", filters=f, or_filters=[["name", "like", "%" + q + "%"], ["supplier_name", "like", "%" + q + "%"],
-		["bill_no", "like", "%" + q + "%"]] if q else None, fields=["name", "supplier_name", "bill_no", "outstanding_amount"],
+		["bill_no", "like", "%" + q + "%"]] if q else None, fields=["name", "supplier", "supplier_name", "bill_no", "outstanding_amount"],
 		order_by="posting_date desc", limit_page_length=30)
-	return [{"name": r.name, "ten": r.supplier_name, "so": r.bill_no or "", "con_no": flt(r.outstanding_amount)} for r in rows]
+	return [{"name": r.name, "ncc": r.supplier, "ten": r.supplier_name, "so": r.bill_no or "", "con_no": flt(r.outstanding_amount)} for r in rows]
 
 
 @frappe.whitelist(methods=["POST"])
-def luu_lich(name=None, noi_dung=None, nguoi_nhan=None, so_tien=None, ngay_trong_thang=20, bat=1, ngoai_le=None, so_thang_thay=None):
+def luu_lich(name=None, noi_dung=None, nguoi_nhan=None, so_tien=None, ngay_trong_thang=20, bat=1, ngoai_le=None, so_thang_thay=None,
+		nha_cung_cap=None):
 	"""Thêm hoặc sửa một lịch chi hằng tháng (ví dụ tiền nhà ngày 20)."""
 	ho = _ho()
 	_chan(ho.VAI_LAP, "sửa lịch chi hằng tháng")
@@ -619,8 +693,12 @@ def luu_lich(name=None, noi_dung=None, nguoi_nhan=None, so_tien=None, ngay_trong
 	except ValueError:
 		frappe.throw("Số tiền phải là số.")
 	doc = frappe.get_doc(DT_LICH, name, for_update=True) if name else frappe.new_doc(DT_LICH)
-	doc.update({"noi_dung": noi_dung.strip()[:140], "nguoi_nhan": (nguoi_nhan or "").strip()[:140],
-		"nha_cung_cap": _ncc_theo_ten(nguoi_nhan), "so_tien": flt(so), "ngay_trong_thang": n, "bat": cint(bat)})
+	ncc, ten_ncc = _ncc_chon(nha_cung_cap)
+	nhan = ten_ncc if ncc else (nguoi_nhan or "").strip()
+	if not nhan:
+		frappe.throw("Chọn nhà cung cấp, hoặc ghi tên người nhận khác.")
+	doc.update({"noi_dung": noi_dung.strip()[:140], "nguoi_nhan": nhan[:140],
+		"nha_cung_cap": ncc, "so_tien": flt(so), "ngay_trong_thang": n, "bat": cint(bat)})
 	if ngoai_le is not None and not name:
 		# Thêm từ gợi ý của máy: giữ ngoại lệ và số tháng máy đã thấy để người sau đọc.
 		doc.ngoai_le = str(ngoai_le)[:2000]
@@ -655,9 +733,19 @@ def goi_y_lich():
 	ho = _ho()
 	_chan(ho.VAI_LAP | ho.VAI_FIN | ho.VAI_GD, "xem gợi ý lịch chi")
 	ls = lich_su_chi()
-	co = {_khoa_nhan(r.nha_cung_cap, r.nguoi_nhan) for r in frappe.get_all(DT_LICH, fields=["nha_cung_cap", "nguoi_nhan"], limit_page_length=0)}
+	co = {}
+	for r in frappe.get_all(DT_LICH, fields=["name", "nha_cung_cap", "nguoi_nhan", "bat"], limit_page_length=0):
+		co[_khoa_nhan(r.nha_cung_cap, r.nguoi_nhan)] = r
 	thang = sorted({thang_cua(r["ngay"]) for r in ls if r.get("ngay")})
-	return {"thang_doc_duoc": thang, "goi_y": [dict(x, so_tien_goi_y=flt(x["so_tien_goi_y"]), da_co=1 if x["khoa"] in co else 0)
-		for x in hoc_lich(ls)][:40]}
+	gy = hoc_lich(ls)[:40]
+	la_ncc = {r.name for r in frappe.get_all("Supplier", filters={"name": ["in", [x["khoa"] for x in gy] or [""]]},
+		fields=["name"], limit_page_length=0)}
+	ra = []
+	for x in gy:
+		c = co.get(x["khoa"])
+		# Đã có lịch mà đang tạm thôi: trả mã lịch để màn mở đúng lịch đó bật lại (Codex #561).
+		ra.append(dict(x, so_tien_goi_y=flt(x["so_tien_goi_y"]), da_co=1 if c else 0, da_tat=1 if (c and not cint(c.bat)) else 0,
+			lich=c.name if c else "", ncc=x["khoa"] if x["khoa"] in la_ncc else ""))
+	return {"thang_doc_duoc": thang, "goi_y": ra}
 
 

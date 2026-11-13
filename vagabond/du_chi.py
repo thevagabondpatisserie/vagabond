@@ -326,8 +326,10 @@ def gan_han_du_tinh(rows):
 	return rows
 
 
-def _so_du_tk_chi():
-	"""Số dư tài khoản chi chuyển khoản theo SePay. Không đọc được thì None."""
+def _tk_chi_so_du():
+	"""(Bank Account chi chuyển khoản, số dư SePay của đúng tài khoản đó). Không
+	đọc được số dư thì phần sau là None. Một nguồn cho mọi nơi cần số dư chi."""
+	ba = None
 	try:
 		from vagabond import tai_chinh
 		from vagabond.tra_tien_app import tk_tien_chi
@@ -336,9 +338,14 @@ def _so_du_tk_chi():
 		so_tk = frappe.db.get_value("Bank Account", ba, "bank_account_no") if ba else None
 		bao = tai_chinh._sepay_so_bao()
 		v = bao.get(str(so_tk or "").strip())
-		return flt(v) if v is not None else None
+		return ba, (flt(v) if v is not None else None)
 	except Exception:
-		return None
+		return ba, None
+
+
+def _so_du_tk_chi():
+	"""Số dư tài khoản chi chuyển khoản theo SePay. Không đọc được thì None."""
+	return _tk_chi_so_du()[1]
 
 
 def _hd_trong_dot_khac(tru_ma):
