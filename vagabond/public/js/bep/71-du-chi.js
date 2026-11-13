@@ -293,8 +293,9 @@ async function scrDuChiXem(giu) {
     '<div class="card" style="padding:12px 14px">' +
     '<div style="font-size:13px;color:#6b7280">Đợt ' + h(dmy(d.ngay_dot)) + ' · ' + h(d.nhan) + '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
-    [['Trả đợt này', t.tra, '#0B7C93'], ['Gia hạn', t.gia_han, '#374151'], ['Còn đề nghị được', t.de_nghi, '#374151'],
-      ['Số dư TK chi', d.so_du, d.so_du == null ? '#6b7280' : (du < 0 ? '#b3261e' : '#178a4c')]].map(function (x) {
+    [['Trả đợt này', t.tra, '#0B7C93'], ['Gia hạn', t.gia_han, '#374151'], ['Còn đề nghị được', t.de_nghi, '#374151']].concat(
+      /* anh Việt 13/11: Thu mua không thấy số dư ngân hàng (máy chủ đã bỏ số). */
+      d.an_so_du ? [] : [['Số dư ngân hàng', d.so_du, d.so_du == null ? '#6b7280' : (du < 0 ? '#b3261e' : '#178a4c')]]).map(function (x) {
         return '<div style="background:#f2f8fa;border-radius:10px;padding:8px 10px"><div style="font-size:13px;color:#6b7280">' + h(x[0]) + '</div>' +
           '<div style="font-size:17px;font-weight:800;color:' + x[2] + '">' + (x[1] == null ? 'Chưa đọc được' : money(x[1]) + ' đ') + '</div></div>';
       }).join('') + '</div>' +
@@ -493,6 +494,25 @@ function ldcGhiChu(x) {
   return '';
 }
 
+/* THUẦN: đầu khối Lịch dự chi. Người không được xem mục Tài chính (Thu mua)
+   không thấy số dư, chỉ thấy máy đang dùng số đó để báo ngày không đủ tiền
+   (anh Việt 13/11). Tiền dự kiến về lấy từ công nợ cần thu. */
+function ldcDauTien(sd, dv) {
+  if (sd.an) {
+    return '<div style="font-size:13px;color:#6b7280">Tiền khả dụng</div>' +
+      '<div style="font-size:14px;color:#475467;line-height:1.5">Chỉ Giám đốc và người được xem mục Tài chính thấy số này. Máy vẫn dùng số dư ngân hàng và tiền dự kiến về để báo ngày không đủ tiền chi.</div>';
+  }
+  return '<div style="font-size:13px;color:#6b7280">Tiền khả dụng</div>' +
+    (sd.so_tien == null ? '<div style="font-size:16px;font-weight:800;color:#b45309">Chưa xác định được khả năng chi</div>'
+      : '<div style="font-size:24px;font-weight:800;color:#0B7C93">' + money(sd.so_tien) + ' đ</div>') +
+    '<div style="font-size:13px;color:#6b7280;line-height:1.45">' + h(sd.nguon || '') + (sd.luc ? ', đọc lúc ' + h(sd.luc.slice(11, 16)) + ' ' + h(ldcNgay(sd.luc.slice(0, 10))) : '') +
+    (sd.chi_sau ? '. Đã trừ ' + money(sd.chi_sau) + ' đ vừa chi sau lúc đọc.' : '.') + '</div>' +
+    '<div style="font-size:13px;color:#6b7280;margin-top:4px;line-height:1.45">' +
+    (dv.loi ? 'Tiền dự kiến về: ' + h(dv.loi) + '.'
+      : 'Tiền dự kiến về (công nợ cần thu): ' + money(dv.trong_khung || 0) + ' đ trong khung, cộng vào đúng ngày khách thường trả' +
+        (dv.qua_han ? '. Khách quá hạn chưa trả ' + money(dv.qua_han) + ' đ, không tính vào ngày nào' : '') + '.') + '</div>';
+}
+
 /* Khối Lịch dự chi trên màn chính. */
 function ldcKhoi(l) {
   if (!l) return '';
@@ -500,17 +520,13 @@ function ldcKhoi(l) {
   var sd = l.so_du || {}, q = l.quyen || {};
   var html = '<div class="card" style="padding:12px 14px">' +
     '<div style="display:flex;align-items:flex-start;gap:10px">' +
-    '<div style="flex:1;min-width:0"><div style="font-size:13px;color:#6b7280">Tiền khả dụng</div>' +
-    (sd.so_tien == null ? '<div style="font-size:16px;font-weight:800;color:#b45309">Chưa xác định được khả năng chi</div>'
-      : '<div style="font-size:24px;font-weight:800;color:#0B7C93">' + money(sd.so_tien) + ' đ</div>') +
-    '<div style="font-size:13px;color:#6b7280;line-height:1.45">' + h(sd.nguon || '') + (sd.luc ? ', đọc lúc ' + h(sd.luc.slice(11, 16)) + ' ' + h(ldcNgay(sd.luc.slice(0, 10))) : '') +
-    (sd.chi_sau ? '. Đã trừ ' + money(sd.chi_sau) + ' đ vừa chi sau lúc đọc.' : '.') + '</div>' +
-    '<div style="font-size:13px;color:#6b7280;margin-top:2px">Tiền dự kiến về: chưa tính, chưa có nguồn số liệu.</div></div>' +
+    '<div style="flex:1;min-width:0">' + ldcDauTien(sd, l.du_kien_ve || {}) + '</div>' +
     (q.sua ? '<button class="btn" id="ldcThem" style="flex:none;margin:0;min-height:44px;padding:0 14px;font-size:14px;width:auto">＋ Thêm dự chi</button>' : '') +
     '</div></div>';
   if (l.thieu_dau) {
     html += '<div class="card" style="padding:12px 14px;background:#fef3f2;border:1px solid #fecdca">' +
-      '<div style="font-size:15px;font-weight:800;color:#b42318">⚠️ Ngày ' + h(ldcNgay(l.thieu_dau.ngay)) + ' còn thiếu ' + money(l.thieu_dau.so_tien) + ' đ</div>' +
+      '<div style="font-size:15px;font-weight:800;color:#b42318">⚠️ Ngày ' + h(ldcNgay(l.thieu_dau.ngay)) +
+      (l.thieu_dau.so_tien == null ? ' không đủ tiền chi' : ' còn thiếu ' + money(l.thieu_dau.so_tien) + ' đ') + '</div>' +
       ((l.can_thuong_luong || []).length ? '<div style="font-size:13px;color:#7a271a;margin-top:4px;line-height:1.5">Khoản có thể thương lượng dời: ' +
         l.can_thuong_luong.slice(0, 3).map(function (x) { return h(x.nguoi_nhan || x.noi_dung) + ' ' + money(x.so_tien) + ' đ (' + ldcNgay(x.ngay) + ')'; }).join('; ') + '.</div>' : '') +
       '</div>';
@@ -521,7 +537,9 @@ function ldcKhoi(l) {
     html += '<div class="card" style="padding:0;overflow:hidden">' +
       '<div style="display:flex;justify-content:space-between;gap:8px;padding:10px 14px;background:#f8fafc;border-bottom:1px solid #eaecf0;font-size:13px">' +
       '<b style="font-size:14px">' + h(ldcNgay(g.ngay)) + '</b><span style="color:#475467">chi ' + money(g.tong) + ' đ' +
-      (g.con_lai == null ? '' : ' · <b style="color:' + (g.con_lai < 0 ? '#b42318' : '#067647') + '">' + (g.con_lai < 0 ? 'thiếu ' + money(-g.con_lai) : 'còn ' + money(g.con_lai)) + ' đ</b>') + '</span></div>' +
+      (g.ve ? ' · về ' + money(g.ve) + ' đ' : '') +
+      (g.con_lai == null ? (g.khong_du ? ' · <b style="color:#b42318">không đủ tiền</b>' : '')
+        : ' · <b style="color:' + (g.con_lai < 0 ? '#b42318' : '#067647') + '">' + (g.con_lai < 0 ? 'thiếu ' + money(-g.con_lai) : 'còn ' + money(g.con_lai)) + ' đ</b>') + '</span></div>' +
       g.muc.map(function (x) {
         var gc = ldcGhiChu(x), mo = x.nguon === 'tay' || x.nguon === 'app' || x.nguon === 'lich';
         return '<div ' + (mo ? 'data-ldcmo="' + h(x.nguon + '|' + x.ma) + '" ' : '') + 'style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid #f2f4f7;min-height:44px' + (mo ? ';cursor:pointer' : '') + '">' +
@@ -646,7 +664,7 @@ async function scrDuChiThem(name) {
   if (name && nhap) html += '<div class="card" style="padding:14px">' +
     ldcO('Nối hồ sơ thanh toán đã lập', 'Chọn hồ sơ thanh toán (APP) của khoản này. Từ lúc nối, lịch đếm theo hồ sơ đó.',
       '<button class="btn gh" id="ldcNoi" style="margin:0;min-height:44px;font-size:14px;text-align:left;width:100%">🔎 Chọn hồ sơ thanh toán để nối</button>') +
-    '<button class="btn gh" id="ldcHuy" style="margin:4px 0 0;min-height:44px;color:#b42318">Huỷ dự chi này</button></div>';
+    '<button class="btn gh" id="ldcXoa" style="margin:4px 0 0;min-height:44px;color:#b42318">🗑 Xoá dự chi nháp</button></div>';
   var foot = nhap ? '<button class="btn" id="ldcLuu" style="margin:0;min-height:48px">💾 Lưu dự chi nháp</button>' : '';
   var b = frame(name ? 'Sửa dự chi' : 'Thêm dự chi', html, foot ? { footer: foot } : {});
   var v = function (k) { var o = document.getElementById(k); return o ? o.value : ''; };
@@ -714,10 +732,10 @@ async function scrDuChiThem(name) {
       catch (er) { toast(errMsg(er), 7000); return; } finally { busy(0); }
       return back();
     }
-    if (e.target.closest('#ldcHuy')) {
-      if (!await confirmSheet('Huỷ dự chi này?', 'Khoản này không còn tính trên Lịch dự chi.', 'Huỷ dự chi', true)) return;
+    if (e.target.closest('#ldcXoa')) {
+      if (!await confirmSheet('Xoá dự chi nháp này?', 'Khoản này bị xoá hẳn, không còn trên Lịch dự chi.', 'Xoá dự chi', true)) return;
       busy(1);
-      try { await api('vagabond.lich_du_chi.huy_muc', { name: name }); toast('Đã huỷ', 3000); }
+      try { await api('vagabond.lich_du_chi.xoa_muc', { name: name }); toast('Đã xoá dự chi nháp', 3000); }
       catch (er) { toast(errMsg(er), 7000); return; } finally { busy(0); }
       return back();
     }

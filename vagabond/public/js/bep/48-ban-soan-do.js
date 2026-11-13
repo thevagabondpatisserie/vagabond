@@ -865,7 +865,7 @@ sdKhai('du_chi', 'scrDuChiXem', {
 sdKhai('du_chi_tay', 'scrDuChiThem', {
   ten: 'Dự chi', lay: function () { var f = LDC.form; return (f && (!f.trang_thai || f.trang_thai === 'Nhap')) ? f : null; },
   dat: function (v) { if (v && v.name) { ldcKhoiPhuc = v; LDC.form = null; } else { ldcKhoiPhuc = null; LDC.form = v || null; } },
-  ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('#ldcND', 'noi_dung'), luu: ['vagabond.lich_du_chi.luu_muc']
+  ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('#ldcND', 'noi_dung'), luu: ['vagabond.lich_du_chi.luu_muc', 'vagabond.lich_du_chi.xoa_muc']
 });
 sdKhai('lich_chi', 'scrLichChi', {
   ten: 'Lịch chi hằng tháng', lay: function () { return LDC.lichForm || null; }, dat: function (v) { LDC.lichForm = v || null; },
