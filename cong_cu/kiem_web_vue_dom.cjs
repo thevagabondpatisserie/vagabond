@@ -754,6 +754,23 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),390);
     assert.deepEqual(loi,[]); await c.close();
   });
+  await test('F49 Codex #566 vòng 3: sheet chọn vé hiện đủ thông tin Marketing nhập (ảnh, địa điểm, hạn đăng ký, câu chuyện nhiều dòng, danh sách Bao gồm)',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const SK=[{id:'sk9',loai:'tiec',loai_su_kien:'ra_mat',hien:true,tieu_de:'Ra mắt bánh mới',bat_dau:'2099-12-05',gio_bat_dau:'18:30',gio_ket_thuc:'20:00',gia_ve:'0',so_ve:'20',
+      han_ban:'2099-12-03',dia_diem:'Tầng 2, 9 Trần Cao Vân, Quận 1',anh:'/files/ra-mat.jpg',mo_ta_anh:'Bàn bánh',
+      noi_dung:'Dòng mở đầu ngắn.\nĐOẠN THỨ HAI CHỈ CÓ Ở NỘI DUNG ĐẦY ĐỦ',yeu_cau:'Bánh A\nBánh B\nTrà ô long'}];
+    await c.route('**/*cong_khai*',async r=>{const f=await r.fetch();const d=await f.json();const m=d.message||d;m.khoi=(m.khoi||[]).filter(k=>k.loai!=='tiec').concat(SK);m.ve={};await r.fulfill({response:f,body:JSON.stringify(d)});});
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    await p.goto(url+'/web_moi/banh#/ve-su-kien'); await p.waitForSelector('.vsk-the');
+    await p.locator('[data-vsk=sk9] .vsk-nut').click(); await p.waitForSelector('.vsk-sheet');
+    const chu=await p.$eval('.vsk-sheet',e=>e.innerText);
+    for(const x of ['Tầng 2, 9 Trần Cao Vân, Quận 1','03/12/2099','ĐOẠN THỨ HAI CHỈ CÓ Ở NỘI DUNG ĐẦY ĐỦ','Bánh A','Bánh B','Trà ô long']) assert.ok(chu.includes(x),'sheet thiếu: '+x);
+    assert.equal(await p.$eval('.vsk-sheet img.vsk-sh-anh',e=>e.getAttribute('src')),'/files/ra-mat.jpg');
+    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),390);
+    assert.deepEqual(loi,[]); await c.close();
+  });
   await test('F48 v658 Vé sự kiện: trả lời muộn của sự kiện A không hiện mã vé ở sheet sự kiện B; mở lại A thấy đúng mã',async()=>{
     const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});
     await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
