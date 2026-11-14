@@ -259,6 +259,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_de_xuat_cong_thuc_656,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.
 	thu_quy_tac_chu_657,
+	# v657 máy mở app qua đêm vẫn chạy bản cũ: hỏi số bản máy chủ, tải lại.
+	thu_ban_moi_657,
 	thu_banner_647,
 	# v647 đối soát ShopeeFood báo lệch sai: tiền đúng kỳ, dò lại mỗi giờ.
 	thu_tien_ve_dung_ky_647,
