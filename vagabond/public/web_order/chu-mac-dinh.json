@@ -7589,5 +7589,29 @@
     "ten": "Vành nghiêng: chạm mục để chọn (gợi ý lần đầu)",
     "mac_dinh": "chạm mục để chọn",
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tv659_ly_khach_cu": {
+    "ten": "The Vagabond Club: Quà chào mừng dành cho thành viên mới đăng ký. Quý khách đã là thành viên: hoàn thiện hồ sơ để nhận quà sinh nhật.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà chào mừng dành cho thành viên mới đăng ký. Quý khách đã là thành viên: hoàn thiện hồ sơ để nhận quà sinh nhật.",
+    "nhieu_dong": true
+  },
+  "tv659_moi_gia_sn": {
+    "ten": "The Vagabond Club: Quà sinh nhật",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà sinh nhật",
+    "nhieu_dong": true
+  },
+  "tv659_moi_chu_sn": {
+    "ten": "The Vagabond Club: Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật: 1 bánh nhóm {nhom}, gửi qua Zalo trước ngày sinh nhật.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật: 1 bánh nhóm {nhom}, gửi qua Zalo trước ngày sinh nhật.",
+    "nhieu_dong": true
+  },
+  "tv659_moi_chu_chuc": {
+    "ten": "The Vagabond Club: Thêm ngày sinh và đồng ý nhận tin Zalo để chúng tôi chúc mừng sinh nhật quý khách.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thêm ngày sinh và đồng ý nhận tin Zalo để chúng tôi chúc mừng sinh nhật quý khách.",
+    "nhieu_dong": true
   }
 }

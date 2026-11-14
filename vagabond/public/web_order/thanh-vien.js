@@ -26,6 +26,7 @@
     get anh_qua_lon(){return C('tv6_ly_anh_lon', 'Ảnh quá lớn, quý khách chọn ảnh khác.');},
     get qua_chua_mo(){return C('tv6_ly_qua_mo', 'Chương trình quà chào mừng đang tạm dừng. Quý khách vẫn tích điểm như thường.');},
     get nhan_vien(){return C('tv6_ly_nhan_vien', 'Số của nhân viên Vagabond không nhận quà chào mừng.');},
+    get khach_cu(){return C('tv659_ly_khach_cu', 'Quà chào mừng dành cho thành viên mới đăng ký. Quý khách đã là thành viên: hoàn thiện hồ sơ để nhận quà sinh nhật.');},
     get ho_so_thieu(){return C('tv6_ly_ho_so', 'Quý khách điền đủ tên, ngày sinh và đồng ý nhận tin Zalo để nhận quà.');},
     get khong_tao_duoc(){return C('tv6_ly_tao', 'Chưa tạo được hồ sơ. Gọi 0931 224 334 để được hỗ trợ.');}};
   function bao(s,loi){const o=tim('trang-thai');o.textContent=s;o.classList.toggle('loi',!!loi);if(loi&&o.scrollIntoView)o.scrollIntoView({block:'center',behavior:'smooth'});}
@@ -434,16 +435,30 @@
     veT1(tim('the-le'), tl, hang, td);
     veU3(tim('dung-diem'), dungDuoc ? tl : null, d.diem, true);
     const muc = d.muc || { du: 0, tong: 5, thieu_qua: [] };
-    tim('so-don').textContent = String((d.don || []).length).padStart(2, '0');
-    tim('so-vc').textContent = String((d.vi || []).filter(v => v.trang_thai === 'dung_duoc').length).padStart(2, '0');
+    /* Anh Việt 14/11/2026: ô Voucher hiện "00" trông như lỗi chữ. Số đếm ghi đúng số, không đệm số 0. */
+    tim('so-don').textContent = String((d.don || []).length);
+    tim('so-vc').textContent = String((d.vi || []).filter(v => v.trang_thai === 'dung_duoc').length);
     tim('so-hs').textContent = muc.du + '/' + muc.tong;
     const q = d.qua || {};
     /* Quà chưa nhận thì luôn còn đường nhận: hồ sơ thiếu thì mời cập nhật,
        hồ sơ đã đủ thì nút Nhận voucher (Codex PR #517 vòng 10). */
-    const moi = !!(d.co_ho_so !== false && q.mo && !q.da_nhan);
     const conThieu = (muc.thieu_qua || []).length > 0;
+    /* Anh Việt 12/11 và 14/11/2026: quà chào mừng (20.000đ) CHỈ cho khách mới
+       đăng ký. Khách cũ thiếu hồ sơ thì thẻ mời nhận QUÀ SINH NHẬT (theo hạng,
+       đọc từ the_le.qua_sn); hồ sơ đã đủ thì ẩn thẻ. */
+    const khachCu = !q.da_nhan && Number(q.khach_moi) === 0;
+    const qsn = khachCu ? quaSn(d.the_le, (d.hang || {}).ten_hang) : null;
+    const moi = khachCu ? !!(d.co_ho_so !== false && conThieu) : !!(d.co_ho_so !== false && q.mo && !q.da_nhan);
     an(tim('moi-ho-so'), !moi);
-    if (moi) {
+    if (moi && khachCu) {
+      tim('moi-gia').textContent = qsn ? C('tv659_moi_gia_sn', 'Quà sinh nhật') : '';
+      tim('moi-dem').textContent = C('tv6_ho_so_dem', 'Hồ sơ {du}/{tong}', { du: muc.du, tong: muc.tong });
+      tim('moi-chu').textContent = qsn
+        ? C('tv659_moi_chu_sn', 'Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật: 1 bánh nhóm {nhom}, gửi qua Zalo trước ngày sinh nhật.', { nhom: qsn.nhom || '' })
+        : C('tv659_moi_chu_chuc', 'Thêm ngày sinh và đồng ý nhận tin Zalo để chúng tôi chúc mừng sinh nhật quý khách.');
+      an(tim('moi-ho-so').querySelector('[data-di]'), false);
+      an(tim('nut-moi-nhan'), true);
+    } else if (moi) {
       tim('moi-gia').textContent = soQua(q.uu_dai);
       tim('moi-dem').textContent = C('tv6_ho_so_dem', 'Hồ sơ {du}/{tong}', { du: muc.du, tong: muc.tong });
       tim('moi-chu').textContent = conThieu
@@ -593,7 +608,7 @@
   async function quaSauHoSo() {
     const d = await api('toi');
     const q = (d && d.qua) || {};
-    if (!d || !d.ok || !q.mo || q.da_nhan || ((d.muc || {}).thieu_qua || []).length) return '';
+    if (!d || !d.ok || !q.mo || q.da_nhan || Number(q.khach_moi) === 0 || ((d.muc || {}).thieu_qua || []).length) return '';
     return nhanQuaWeb(true);
   }
   async function nhanQuaWeb(imLang) {
@@ -647,6 +662,7 @@
     duLieu = d;
     const q = d.qua || {};
     if (!q.mo && !q.da_nhan) { veHoSo(d); bao(lyDo.qua_chua_mo, true); return true; }
+    if (!q.da_nhan && Number(q.khach_moi) === 0) { veHoSo(d); bao(lyDo.khach_cu); return true; }
     if (!q.da_nhan && ((d.muc || {}).thieu_qua || []).length) { moFormQua(d); bao(''); return true; }
     try { await layQua(d); } catch (e) { veHoSo(d); bao(e.message, true); }
     return true;

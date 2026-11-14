@@ -58,3 +58,5 @@
 .ut-nut-vien{display:inline-flex;align-items:center;min-height:48px;padding:0 20px;border:1px solid var(--line);border-radius:14px;font-size:14px}
 .ut-ho-tro{margin-top:30px}
 .ut-ho-tro a{color:var(--cyan-bright)}
+/* Ô tiền không viền nằm trong khung có viền: khung sáng thay ô (14/11/2026). */
+.trang-dich-vu .ut-tien-o input:is(:focus,:focus-visible){box-shadow:none}.trang-dich-vu .ut-tien-o:focus-within{border-color:var(--cyan)}

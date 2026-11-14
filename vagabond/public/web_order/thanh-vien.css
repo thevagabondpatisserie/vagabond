@@ -22,6 +22,10 @@
 .trang-dich-vu button.chinh,.trang-dich-vu button[aria-pressed=true]{background:var(--cyan);color:var(--bg);border-color:var(--cyan)}
 .trang-dich-vu button:disabled{opacity:.5;cursor:wait}
 .trang-dich-vu :focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+/* Anh Việt 14/11/2026: ô nhập đang gõ sáng đúng viền của ô, không vẽ vòng lệch ra ngoài (mọi trang dùng tệp này: Thành viên, Đặt bàn, Ứng tuyển). */
+.trang-dich-vu :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea):is(:focus,:focus-visible){outline:none}
+.trang-dich-vu :where(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea):is(:focus,:focus-visible){border-color:var(--cyan);box-shadow:inset 0 0 0 1px var(--cyan)}
+.trang-dich-vu :is(input[type=checkbox],input[type=radio]):focus-visible{outline-offset:2px}
 .trang-dich-vu label{display:block;margin:18px 0 10px;font-size:14px}
 .trang-dich-vu input,.trang-dich-vu textarea{display:block;width:100%;min-width:0;min-height:44px;margin-top:8px;background:var(--bg-2);color:var(--paper);border:1px solid var(--line);border-radius:0;padding:12px;font:16px var(--qualy);color-scheme:dark}
 .trang-dich-vu textarea{min-height:100px;resize:vertical}
@@ -59,7 +63,9 @@
 .o-ma{font-size:28px!important;letter-spacing:.5em;text-align:center}
 .buoc{display:flex;gap:6px;margin:4px 0 18px}.buoc i{flex:1;height:3px;background:var(--line)}.buoc i.on{background:var(--cyan)}
 /* Thanh trên và lời chào */
-.vach{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.vach{display:flex;justify-content:space-between;align-items:center;padding:14px 0 13px;border-bottom:1px solid var(--line)}
+/* Anh Việt 14/11/2026: dòng THÀNH VIÊN, MÃ KL... nằm giữa hai đường kẻ, không sát vạch. */
+.vach .nhan{line-height:1.2;margin:0}
 .chao{display:grid;grid-template-columns:118px 1fr;gap:16px;align-items:end;margin-top:22px}
 .av{width:118px;height:118px;background:#222 center/cover no-repeat}
 .av.xam{filter:grayscale(1) contrast(1.15)}
@@ -273,6 +279,7 @@ body.tv-club:not(.tv-sang) .tab-duoi{background:rgba(35,31,32,.97)}
 .tv-club .cl-cau{position:relative;margin:12px 0 0;font-size:15px;line-height:1.45;color:rgba(255,255,255,.85)}
 body.tv-club:not(.tv-sang) #gui-ma label>span,body.tv-club:not(.tv-sang) #xac-thuc label>span{color:var(--kem);font-size:14px}
 body.tv-club:not(.tv-sang) #gui-ma input,body.tv-club:not(.tv-sang) #xac-thuc input{height:52px;border:1px solid rgba(255,255,255,.6);background:var(--night);font-size:18px}
+body.tv-club:not(.tv-sang) :is(#gui-ma,#xac-thuc) input:is(:focus,:focus-visible){outline:none;border-color:var(--cyan);box-shadow:inset 0 0 0 1px var(--cyan)}
 body.tv-club:not(.tv-sang) #nut-gui,body.tv-club:not(.tv-sang) #nut-xac-thuc{min-height:52px;border:0;background:var(--cl);color:var(--muc);font:16px var(--qualy);letter-spacing:.01em;text-transform:none}
 .tv-club .cl-dk{display:flex!important;width:100%;margin-top:16px;min-height:56px!important;padding:8px 14px!important;border:1px solid rgba(255,255,255,.35)!important;justify-content:space-between!important;gap:12px;font:15px var(--qualy)!important;letter-spacing:.01em!important;text-transform:none!important;color:#fff!important}
 .tv-club .cl-dk[hidden]{display:none!important}
