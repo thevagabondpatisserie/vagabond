@@ -80,7 +80,8 @@
   function moDangNhap() {
     hien('dang-nhap');
     an(tim('mo-dau-tv'), !!quayQua); an(tim('mo-dau-qua'), !quayQua);
-    an(tim('xac-thuc'), true); an(tim('gui-ma'), false);
+    an(tim('xac-thuc'), true); an(tim('gui-ma'), false); an(tim('nut-dang-ky'), !!quayQua);
+    if (sanSang) veAnhClub(sanSang.anh_club);
     theLeDangNhap();
   }
 
@@ -134,82 +135,243 @@
     });
   }
 
-  /* ---------- thể lệ thành viên (v652) ----------
-     Máy chủ gửi the_le: các hạng xét theo chi tiêu (không gồm hạng gán tay),
-     % tích, % giảm, quyền lợi từng dòng, và luật điểm đọc từ Cài đặt. Mọi
-     con số trên khối này đến từ máy chủ, trang không tự đặt số. */
-  function ghepDam(el, mau, thay) {
+  /* ---------- The Vagabond Club (v658, anh Việt chốt thiết kế 14/11/2026) ----------
+     Bốn khối dựng từ số máy chủ gửi (the_le), trang không tự đặt số:
+       J1c hành trình hạng (lõi góc trên trái, hạng cao gần lõi), khung chi
+       tiêu 12 tháng; T1 thẻ hạng vuốt ngang (kèm AMBASSADOR do Vagabond mời);
+       U3 dòng thời gian hạn điểm theo từng lần tích.
+     Luật ngắt dòng: mỗi cụm (số kèm đơn vị, tên hạng, "tại đây") bọc trong
+     span.cum (white-space: nowrap), chỗ ngắt đặt chủ động. */
+  const pt = v => (Math.round((Number(v) || 0) * 10) / 10).toLocaleString('vi-VN') + '%';
+  const dong = v => so(v) + 'đ';
+  /* Ghép câu có chỗ trống {k}: chữ thường để nguyên, giá trị bọc cụm không ngắt. */
+  function ghepCum(el, mau, thay) {
     el.replaceChildren();
     String(mau).split(/(\{[a-z_]+\})/).forEach(m => {
       const k = /^\{([a-z_]+)\}$/.exec(m);
-      if (k) { if (thay[k[1]] != null && thay[k[1]] !== '') el.append(tao('b', String(thay[k[1]]))); }
-      else if (m) el.append(tao('span', m));
+      if (k) { if (thay[k[1]] != null && thay[k[1]] !== '') el.append(tao('span', String(thay[k[1]]), 'cum')); }
+      else if (m) el.append(chuTho(m));
     });
+    return el;
   }
-  const pt = v => (Math.round((Number(v) || 0) * 10) / 10).toLocaleString('vi-VN') + '%';
-  function veTheLe(tl, hang, goc) {
-    const k = goc || tim('the-le');
-    if (!k) return;
-    const ds = (tl && tl.hang) || [];
+  const chuTho = t => (document.createTextNode ? document.createTextNode(t) : tao('span', t));
+  const chip = (chu, lop) => tao('span', chu, 'cl-chip' + (lop ? ' ' + lop : ''));
+  const hoaTiet = lop => { const i = tao('i', '', 'cl-mo ' + lop); i.setAttribute('aria-hidden', 'true'); return i; };
+  function quaSn(tl, ten) {
+    const q = tl && tl.qua_sn;
+    return q && (q.hang || []).indexOf(String(ten || '').trim().toUpperCase()) >= 0 ? q : null;
+  }
+
+  /* J1c: lõi ở góc, mỗi hạng theo chi tiêu một cung, hạng cao gần lõi nhất. */
+  function veHanhTrinh(tl, hang, td) {
+    const k = tim('hanh-trinh'), ve = tim('ht-ve');
+    const ds = ((tl && tl.hang) || []).slice();
     an(k, !ds.length);
-    if (k.id === 'the-le') an(tim('ql-cu'), !!ds.length);
     if (!ds.length) return;
-    const o = ten => k.querySelector('[data-tlo="' + ten + '"]');
-    const g = k.querySelector('.tl-hang'); g.replaceChildren();
-    ds.forEach((h, i) => {
-      const hien = !!(hang && h.ten_hang === hang.ten_hang);
-      const the = tao('article', '', 'tl-the' + (hien ? ' hien' : ''));
-      const dau = tao('div', '', 'tl-dau');
-      dau.append(tao('span', String(i + 1).padStart(2, '0'), 'tl-so'), tao('h3', h.ten_hang || '', 'tl-ten'));
-      if (hien) dau.append(tao('span', C('tv7_dang_o', 'Hạng hiện tại'), 'tl-dang'));
+    ve.replaceChildren();
+    const cao = ds.slice().reverse();
+    const tenHien = (hang && hang.ten_hang) || '';
+    const viTri = cao.findIndex(h => h.ten_hang === tenHien);
+    /* Hạng do Vagabond mời (AMBASSADOR) không nằm trên vòng chi tiêu nào: không vẽ hành trình. */
+    if (tenHien && viTri < 0) { an(k, true); return; }
+    const loi = tao('span', '', 'ht-loi'); loi.append(tao('span', C('tv658_loi', 'LÕI'), 'ht-loi-chu'));
+    ve.append(loi);
+    let day = 0;
+    cao.forEach((h, i) => {
+      const r = 150 + 110 * i, goc = (35 + 13.5 * i) * Math.PI / 180;
+      const x = Math.round(r * Math.cos(goc)), y = Math.round(r * Math.sin(goc));
+      const loai = i === viTri ? 'la' : (viTri >= 0 && i < viTri ? 'tren' : 'duoi');
+      const cung = tao('div', '', 'ht-cung ' + loai); cung.style.width = cung.style.height = (2 * r) + 'px';
+      const ht = tao('span', '', 'ht-ht ' + loai); ht.style.left = x + 'px'; ht.style.top = y + 'px';
+      const nhan = tao('div', '', 'ht-ten-khoi ' + loai); nhan.style.left = (x + (loai === 'la' ? 30 : 22)) + 'px'; nhan.style.top = (y - 22) + 'px';
+      nhan.append(tao('span', h.ten_hang || '', 'ht-ten'));
       const moc = Number(h.chi_tieu_tu) || 0;
-      const dk = moc > 0 ? C('tv7_tu_moc', 'Chi tiêu từ {tien} trong {thang} tháng', { tien: so(moc) + 'đ', thang: h.so_thang_xet || 12 })
-        : C('tv7_mo_dau', 'Ngay khi đăng ký thành viên');
-      const so2 = tao('div', '', 'tl-so2');
-      const o1 = tao('div', ''); o1.append(tao('b', pt(h.tich_diem), 'tl-pt'), tao('span', C('tv7_tich_moi', 'tích điểm mỗi hoá đơn'), 'nho phu'));
-      so2.append(o1);
-      if (Number(h.giam_gia) > 0) {
-        const o2 = tao('div', ''); o2.append(tao('b', pt(h.giam_gia), 'tl-pt cyan'), tao('span', C('tv7_giam_moi', 'giảm thẳng mỗi hoá đơn'), 'nho phu'));
-        so2.append(o2);
-      }
-      the.append(dau, tao('p', dk, 'nho phu tl-dk'), so2);
-      if ((h.dac_quyen || []).length) {
-        const ql = tao('ul', '', 'tl-quyen');
-        h.dac_quyen.forEach(t => ql.append(tao('li', t)));
-        the.append(ql);
-      }
-      g.append(the);
+      /* Dấu chấm giữa là dấu ngăn của thiết kế, không nằm trong chữ biên tập được. */
+      const dk = tao('span', '', 'ht-dk');
+      dk.append(ghepCum(tao('span', ''), C('tv658_ht_tu', 'từ {tien}'),
+        { tien: moc > 0 ? (moc % 1000000 === 0 ? so(moc / 1000000) + ' ' + C('tv658_trieu', 'triệu') : dong(moc)) : '0đ' }), chuTho(' · '),
+        ghepCum(tao('span', ''), C('tv658_tich_pt', 'tích {pt}'), { pt: pt(h.tich_diem) }));
+      nhan.append(dk);
+      if (loai === 'la') nhan.append(chip(C('tv658_ban_o_day', 'Bạn ở đây'), 'trang'));
+      ve.append(cung, ht, nhan);
+      day = Math.max(day, y + 70);
     });
-    const lu = tl.luat || {};
-    const tichHien = hang && hang.tich_diem != null ? pt(hang.tich_diem) : '';
-    // Tích: % theo hạng. Chương trình nhân điểm (Khuyến mãi, cách thức Nhân
-    // điểm) đang chạy thì máy chủ gửi kèm câu mô tả, ví dụ thứ Năm trên web x2.
-    ghepDam(o('tich'), C('tv7_tich_chu', 'Mỗi hoá đơn tích {pt} theo hạng.', { pt: '{pt}' }),
-      { pt: tichHien || C('tv7_theo_hang', 'theo hạng') });
-    (lu.nhan_diem || []).forEach(t => o('tich').append(tao('span', ' ' + t, 'cyan')));
-    ghepDam(o('dung'), C('tv7_dung_chu', '1 điểm = 1đ. Tại quầy đọc mã Zalo cho thu ngân, trên web bấm Dùng điểm lúc thanh toán. Tối đa {tran} tiền bánh.', { tran: '{tran}' }),
-      { tran: pt(lu.tran_pt || 50) });
-    if (Number(lu.han_thang) > 0) {
-      ghepDam(o('han'), C('tv7_han_chu', 'Điểm của mỗi lần tích dùng được {han}. Zalo nhắc trước {nhac} khi sắp hết hạn.', { han: '{han}', nhac: '{nhac}' }),
-        { han: lu.han_thang + ' ' + C('tv7_thang', 'tháng'), nhac: (lu.nhac_ngay || 30) + ' ' + C('tv7_ngay', 'ngày') });
-    } else {
-      o('han').textContent = C('tv7_han_khac', 'Hạn dùng điểm theo thông báo của cửa hàng.');
+    ve.style.height = Math.max(300, day) + 'px';
+    ve.setAttribute('aria-label', C('tv658_ht_aria', 'Hành trình hạng: {ds}.', { ds: cao.map(h => h.ten_hang).join(', ') })
+      + (viTri >= 0 ? ' ' + C('tv658_ht_aria_la', 'Bạn đang ở hạng {hang}.', { hang: tenHien }) : ''));
+    /* Khung chi tiêu 12 tháng (J1b): chỉ cho hạng xét theo chi tiêu. */
+    const khung = tim('ht-chi');
+    an(khung, !(viTri >= 0 && td));
+    if (!(viTri >= 0 && td)) return;
+    const tiep = td.hang_tiep ? ds.find(h => h.ten_hang === td.hang_tiep) : null;
+    const den = Number(td.da_mua || 0) + Number(td.con_thieu || 0);
+    ghepCum(tim('ht-tieu'), C('tv658_chi_12', 'Chi tiêu {thang}'), { thang: (td.so_thang || 12) + ' ' + C('tv7_thang', 'tháng') });
+    const s = tim('ht-so'); s.replaceChildren(tao('span', dong(td.da_mua)));
+    if (td.hang_tiep) s.append(tao('span', ' / ' + dong(den), 'mo'));
+    tim('ht-thanh').style.width = (td.hang_tiep ? Math.round(Math.max(0, Math.min(1, Number(td.ty_le) || 0)) * 100) : 100) + '%';
+    const c = tim('ht-chips'); c.replaceChildren();
+    if (td.hang_tiep) {
+      c.append(chip(C('tv658_con', 'Còn {tien}', { tien: dong(td.con_thieu) }), 'vien'));
+      c.append(chip(C('tv658_vao_vong', 'Vào vòng {hang}', { hang: td.hang_tiep }) + (tiep ? ' · ' + C('tv658_tich_pt', 'tích {pt}', { pt: pt(tiep.tich_diem) }) : ''), 'trang'));
+    } else c.append(chip(C('tv658_cao_nhat', 'Bạn đang ở vòng cao nhất'), 'trang'));
+  }
+
+  /* T1: mỗi hạng một thẻ, vuốt ngang. Hạng của khách nền xanh, hạng kế tiếp
+     viền gạch xanh kèm số còn thiếu, hạng mời nền kem. */
+  function veT1(goc, tl, hang, td) {
+    if (!goc) return;
+    goc.replaceChildren();
+    const ds = ((tl && tl.hang) || []).concat((tl && tl.hang_moi) || []);
+    an(goc, !ds.length);
+    if (!ds.length) return;
+    goc.append(tao('p', C('tv658_hang_ql', 'HẠNG VÀ QUYỀN LỢI'), 'cl-nhan'), tao('p', C('tv658_vuot', 'Vuốt ngang để xem từng hạng.'), 'cl-tieu'));
+    const day = tao('div', '', 't1-day');
+    const tenHien = (hang && hang.ten_hang) || '', tenTiep = (td && td.hang_tiep) || '';
+    let dang = 0;
+    ds.forEach((h, i) => {
+      const la = !!tenHien && h.ten_hang === tenHien, tiep = !la && !!tenTiep && h.ten_hang === tenTiep;
+      if (la) dang = i;
+      const the = tao('article', '', 't1-the' + (la ? ' la' : '') + (tiep ? ' tiep' : '') + (h.moi ? ' moi-hang' : ''));
+      if (!h.moi) the.append(hoaTiet('cl-mo14b'));
+      the.append(tao('h3', h.ten_hang || '', 't1-ten'));
+      const moc = Number(h.chi_tieu_tu) || 0;
+      the.append(ghepCum(tao('p', '', 't1-dk'), h.moi ? C('tv658_do_moi', 'Do Vagabond mời')
+        : moc > 0 ? C('tv658_chi_tu', 'Chi từ {tien} trong {thang}') : C('tv658_tu_dau', 'Từ đơn đầu tiên'),
+        { tien: moc % 1000000 === 0 ? so(moc / 1000000) + ' ' + C('tv658_trieu', 'triệu') : dong(moc), thang: (h.so_thang_xet || 12) + ' ' + C('tv7_thang', 'tháng') }));
+      if (la) the.append(chip(C('tv658_hang_cua_ban', 'Hạng của bạn'), 'den'));
+      else if (tiep && Number(td.con_thieu) > 0) the.append(chip(C('tv658_con', 'Còn {tien}', { tien: dong(td.con_thieu) }), 'vien'));
+      const tich = Number(h.tich_diem) || 0, giam = Number(h.giam_gia) || 0;
+      const lon = tao('p', '', 't1-so');
+      /* Chữ đơn vị là một cụm: không vừa thì xuống dòng nguyên cụm, không tách "mỗi hoá / đơn". */
+      if (tich > 0) { lon.append(tao('span', pt(tich), 'cum'), chuTho(' ')); lon.append(tao('small', C('tv658_tich_diem', 'tích điểm'), 'cum')); }
+      else if (giam > 0) { lon.append(tao('span', '-' + pt(giam), 'cum'), chuTho(' ')); lon.append(tao('small', C('tv658_moi_hd', 'mỗi hoá đơn'), 'cum')); }
+      the.append(lon);
+      const chips = tao('div', '', 'cl-chips');
+      const q = quaSn(tl, h.ten_hang);
+      if (q) chips.append(chip(C('tv658_qua_sn', 'Quà sinh nhật')));
+      if (tich > 0 && giam > 0) chips.append(chip(C('tv658_giam_moi', 'Giảm {pt} mỗi hoá đơn', { pt: pt(giam) })));
+      (h.dac_quyen || []).filter(t => !(q && t === q.ten)).forEach(t => chips.append(chip(t)));
+      if (tich > 0) chips.append(chip(C('tv658_1_diem', '1 điểm = 1đ')));
+      if (chips.children.length) the.append(chips);
+      day.append(the);
+    });
+    goc.append(day);
+    const cham = tao('div', '', 't1-cham'); cham.setAttribute('aria-hidden', 'true');
+    ds.forEach((h, i) => cham.append(tao('span', '', i === dang ? 'on' : '')));
+    goc.append(cham);
+    day.onscroll = () => {
+      const the = day.querySelector('.t1-the');
+      const rong = the && the.offsetWidth ? the.offsetWidth + 12 : 262;
+      const i = Math.max(0, Math.min(ds.length - 1, Math.round((day.scrollLeft || 0) / rong)));
+      Array.prototype.forEach.call(cham.children, (c, j) => { c.className = j === i ? 'on' : ''; });
+    };
+    /* Cuộn tới đúng vị trí thật của thẻ khách (thẻ rộng theo màn), không đoán bề rộng. */
+    const theLa = day.children[dang];
+    /* Đích phải trùng đúng một điểm bám của dải (thẻ thường bám mép trái, thẻ cuối bám mép phải),
+       nếu lệch thì trình duyệt tự bám lại về thẻ khác khi trang cuộn (khách AMBASSADOR thấy thẻ VOYAGER). */
+    if (dang > 0 && theLa && day.scrollTo) {
+      const trai = (theLa.offsetLeft || 0) - 20;
+      const dich = dang === ds.length - 1 ? trai + 20 + (theLa.offsetWidth || 0) - ((day.clientWidth || 0) - 20) : trai;
+      try { day.scrollTo({ left: Math.max(0, dich) }); } catch (e) { /* trình duyệt cũ: để nguyên */ }
     }
-    ghepDam(o('hang'), C('tv7_xet_chu', 'Hạng xét theo tổng chi tiêu {thang} gần nhất, tại quầy và trên web.', { thang: '{thang}' }),
-      { thang: (lu.so_thang_hang || 12) + ' ' + C('tv7_thang', 'tháng') });
-    if (k.id === 'the-le') {
-      const sh = tl.sap_het || null;
-      an(tim('diem-het'), !(sh && Number(sh.diem) > 0));
-      if (sh && Number(sh.diem) > 0) tim('diem-het').textContent = C('tv7_sap_het', '{diem} điểm hết hạn ngày {ngay}. Dùng trước để không mất.', { diem: so(sh.diem), ngay: sh.ngay || '' });
+    const q = tl.qua_sn;
+    if (q && q.nhom) {
+      const g = tao('p', '', 't1-ghi');
+      g.append(tao('span', C('tv658_qsn_1', 'Quà sinh nhật:'), 'cum'), chuTho(' '));
+      g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_2', '1 bánh nhóm {nhom},'), { nhom: q.nhom }), chuTho(' '));
+      if (Number(q.toi_da) > 0) g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_3', 'tối đa {tien},'), { tien: dong(q.toi_da) }), chuTho(' '));
+      /* Lịch gửi và hạn mã đọc từ kịch bản Zalo Sinh nhật (máy chủ), không cứng trong trang. */
+      const truoc = Number(q.truoc) || 0;
+      g.append(ghepCum(tao('span', '', 'cum'), truoc > 0 ? C('tv658_qsn_gui', 'mã gửi qua Zalo {ngay} trước sinh nhật,')
+        : C('tv658_qsn_gui_dung', 'mã gửi qua Zalo đúng ngày sinh nhật,'), { ngay: truoc + ' ' + C('tv658_ngay', 'ngày') }), chuTho(' '));
+      g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_han', 'dùng trong {ngay}.'), { ngay: (Number(q.han) || 1) + ' ' + C('tv658_ngay', 'ngày') }));
+      goc.append(g);
     }
   }
-  /* Khách chưa đăng nhập cũng xem được thể lệ (anh Việt 12/11/2026). Lỗi thì ẩn khối. */
+
+  /* U3: mỗi lần tích có hạn riêng; lần sắp hết hạn nhất đứng đầu, tô sáng. */
+  function veU3(goc, tl, diem, coPhien) {
+    if (!goc) return;
+    goc.replaceChildren();
+    an(goc, !tl);
+    if (!tl) return;
+    const lu = tl.luat || {};
+    goc.append(hoaTiet('cl-mo16'));
+    goc.append(tao('p', C('tv658_dung_the_nao', 'DÙNG ĐIỂM THẾ NÀO'), 'cl-nhan'));
+    const tieu = tao('p', '', 'cl-tieu');
+    if (Number(lu.han_thang) > 0) {
+      tieu.append(tao('span', C('tv658_han_1', 'Mỗi lần tích có hạn'), 'cum'), tao('br', ''),
+        ghepCum(tao('span', '', 'cum'), C('tv658_han_2', '{han} riêng.'), { han: lu.han_thang + ' ' + C('tv7_thang', 'tháng') }));
+    } else tieu.append(tao('span', C('tv7_han_khac', 'Hạn dùng điểm theo thông báo của cửa hàng.')));
+    goc.append(tieu);
+    const chips = tao('div', '', 'cl-chips');
+    chips.append(chip(C('tv658_1_diem', '1 điểm = 1đ'), 'trang'));
+    goc.append(chips);
+    /* Câu chuẩn anh Việt chốt: "Áp dụng thanh toán tối đa 50% giá trị đơn hàng". */
+    goc.append(ghepCum(tao('p', '', 'u3-tran'), C('tv658_tran', 'Áp dụng thanh toán {tran} {gia_tri}'),
+      { tran: C('tv658_toi_da', 'tối đa {pt}', { pt: pt(lu.tran_pt || 50) }), gia_tri: C('tv658_gia_tri', 'giá trị đơn hàng') }));
+    (lu.nhan_diem || []).forEach(t => goc.append(tao('p', t, 'u3-nhan')));
+    const lt = coPhien ? tl.lan_tich : null;
+    if (lt && (lt.ds || []).length) {
+      const dong3 = tao('div', '', 'u3-dong');
+      const sh = tl.sap_het;
+      lt.ds.forEach((x, i) => {
+        const moc = tao('div', '', 'u3-moc' + (i === 0 ? ' gan' : ''));
+        moc.append(tao('span', '', 'u3-cham'));
+        const the = tao('div', '', 'u3-the');
+        const trai = tao('div', '');
+        trai.append(ghepCum(tao('p', '', 'u3-han'), C('tv658_het_han', 'Hết hạn {ngay}'), { ngay: x.ngay_het }),
+          ghepCum(tao('p', '', 'u3-diem'), C('tv658_n_diem', '{diem} điểm'), { diem: so(x.diem) }));
+        the.append(trai);
+        if (i === 0 && sh && sh.ngay === x.ngay_het && Number(sh.diem) > 0) the.append(chip(C('tv658_dung_som', 'Dùng sớm'), 'xanh'));
+        else the.append(ghepCum(tao('span', '', 'u3-tich'), C('tv658_tich_ngay', 'Tích {ngay}'), { ngay: x.ngay_tich }));
+        moc.append(the); dong3.append(moc);
+      });
+      if (lt.khac && Number(lt.khac.so) > 0) {
+        const moc = tao('div', '', 'u3-moc khac'); moc.append(tao('span', '', 'u3-cham'));
+        const the = tao('div', '', 'u3-the');
+        the.append(tao('p', C('tv658_lan_khac', 'Các lần tích khác'), 'u3-khac'), ghepCum(tao('span', '', 'u3-so'), C('tv658_n_diem', '{diem} điểm'), { diem: so(lt.khac.diem) }));
+        moc.append(the); dong3.append(moc);
+      }
+      goc.append(dong3);
+    }
+    if (coPhien) {
+      const tong = tao('div', '', 'u3-tong');
+      tong.append(tao('span', C('tv658_tong_co', 'Tổng đang có')), ghepCum(tao('b', ''), C('tv658_n_diem', '{diem} điểm'), { diem: so(diem) }));
+      goc.append(tong);
+    }
+    const ghi = tao('p', '', 'u3-ghi');
+    if (Number(lu.han_thang) > 0) ghi.append(ghepCum(tao('span', '', 'cum'), C('tv658_nhac', 'Zalo nhắc trước {ngay}.'), { ngay: (lu.nhac_ngay || 30) + ' ' + C('tv7_ngay', 'ngày') }), chuTho(' '));
+    ghi.append(tao('span', C('tv658_hoan', 'Đơn bị huỷ thì điểm tự hoàn.'), 'cum'));
+    goc.append(ghi);
+  }
+
+  /* Khách chưa đăng nhập cũng xem được hạng và luật điểm (anh Việt 12/11/2026). Lỗi thì ẩn khối. */
   let daNapTheLeDn = false;
   async function theLeDangNhap() {
     if (daNapTheLeDn) return;
     daNapTheLeDn = true;
-    try { const r = await api('the_le'); veTheLe(r && r.the_le, null, tim('the-le-dn')); }
-    catch (e) { daNapTheLeDn = false; an(tim('the-le-dn'), true); }
+    try {
+      const r = await api('the_le'); const tl = r && r.the_le;
+      const ds = (tl && tl.hang) || [];
+      an(tim('the-le-dn'), !ds.length);
+      veT1(tim('t1-dn'), tl, null, null); veU3(tim('u3-dn'), tl, 0, false);
+      const cao = Math.max(0, ...ds.map(h => Number(h.tich_diem) || 0));
+      an(tim('cl-tich'), !(cao > 0));
+      if (cao > 0) tim('cl-tich-so').textContent = pt(cao);
+    } catch (e) { daNapTheLeDn = false; an(tim('the-le-dn'), true); }
+  }
+  /* Ảnh trang đăng nhập: Marketing tải ở trình biên tập (Banner, chỗ Trang thành viên). Chưa có thì nền trơn. */
+  function veAnhClub(ds) {
+    [tim('cl-anh-1'), tim('cl-anh-2')].forEach((o, i) => {
+      const b = (ds || [])[i] || null;
+      const url = b ? String((i === 0 && b.anh_dt) || b.anh || '') : '';
+      if (!o) return;
+      if (/^(\/files\/|\/assets\/|https:\/\/)[^"'()\s\\]+$/.test(url)) {
+        o.style.backgroundImage = 'url("' + url + '")'; o.classList.add('co-anh');
+        o.setAttribute('role', 'img'); o.setAttribute('aria-label', (b && (b.mo_ta_anh || b.tieu_de)) || C('tv658_anh_khach', 'Khách của Vagabond'));
+      } else { o.style.backgroundImage = ''; o.classList.remove('co-anh'); o.removeAttribute('role'); o.removeAttribute('aria-label'); }
+    });
   }
 
   /* Mua lại (v652): đưa món của đơn cũ vào giỏ trang Chọn bánh (cùng kho phiên
@@ -245,22 +407,27 @@
     veAnh(tim('av-chinh'), d); veAnh(tim('av-ho-so'), d);
     tim('hang-chip').textContent = (hang && hang.ten_hang) || C('tv6_hang_mac', 'Thành viên');
     tim('ten').textContent = hs.ten || d.ten || (chuWeb("thanh_vien_041a78ae1", "Chào quý khách"));
-    tim('tu-nam').textContent = d.tu_nam ? C('tv6_tu_nam', 'Thành viên từ {nam}', { nam: d.tu_nam }) : '';
-    tim('diem').textContent = so(d.diem);
+    tim('tu-nam').textContent = d.tu_thang || d.tu_nam ? C('tv658_tu', 'Thành viên từ {thang}', { thang: d.tu_thang || d.tu_nam }) : '';
     tim('hang').textContent = (hang && hang.ten_hang) || (chuWeb("thanh_vien_b44660fa4", "Thành viên Vagabond"));
-    tim('quyen-loi').textContent = (hang && hang.mo_ta) || '';
-    veTheLe(d.the_le, hang);
-    const anh = (hang && hang.anh) || ''; an(tim('anh-the'), !anh);
-    if (anh && (/^\/files\//.test(anh) || /^\/assets\//.test(anh) || /^https:\/\//.test(anh))) tim('anh-the').src = anh;
-    const td = d.tien_do;
-    an(tim('tien-do'), !(td && td.hang_tiep));
-    if (td && td.hang_tiep) {
-      tim('td-tu').textContent = (hang && hang.ten_hang) || '';
-      tim('td-den').textContent = td.hang_tiep;
-      tim('td-b').style.width = Math.round(Math.max(0, Math.min(1, Number(td.ty_le) || 0)) * 100) + '%';
-      tim('td-chu').textContent = C('tv6_td_chu', 'Đã mua {da} trong {thang} tháng. Thêm {thieu} để lên {hang}.',
-        { da: so(td.da_mua) + 'đ', thang: td.so_thang, thieu: so(td.con_thieu) + 'đ', hang: td.hang_tiep });
-    }
+    const tl = d.the_le || null, lu = (tl && tl.luat) || {}, td = d.tien_do || null;
+    veHanhTrinh(tl, hang, td);
+    /* Khối điểm: hạng không dùng điểm (AMBASSADOR, FAMILY, OWNER) thì ẩn cả khối,
+       ưu đãi giảm thẳng đã nằm trên thẻ hạng (anh Việt 14/11: khối "0 điểm" vô nghĩa). */
+    const dungDuoc = d.diem_dung_duoc !== 0;
+    an(tim('khoi-diem'), !dungDuoc);
+    tim('diem').textContent = so(d.diem);
+    const dc = tim('diem-chu');
+    if (dungDuoc) {
+      dc.replaceChildren(ghepCum(tao('span', '', 'dong'), C('tv658_tuong_duong', 'Tương đương {tien}.'), { tien: dong(d.diem) }));
+      dc.append(ghepCum(tao('span', '', 'dong'), C('tv658_tran', 'Áp dụng thanh toán {tran} {gia_tri}'),
+        { tran: C('tv658_toi_da', 'tối đa {pt}', { pt: pt(lu.tran_pt || 50) }), gia_tri: C('tv658_gia_tri', 'giá trị đơn hàng') + '.' }));
+    } else dc.textContent = C('tv658_khong_dung', 'Hạng của bạn được giảm thẳng trên mỗi hoá đơn, không dùng điểm.');
+    an(tim('nut-dung-diem'), !dungDuoc);
+    const sh = tl && tl.sap_het;
+    an(tim('diem-het'), !(dungDuoc && sh && Number(sh.diem) > 0));
+    if (sh && Number(sh.diem) > 0) ghepCum(tim('diem-het'), C('tv658_sap_het', '{diem} hết hạn ngày {ngay}. Dùng trước để không mất.', { diem: '{diem}', ngay: '{ngay}' }), { diem: so(sh.diem) + ' ' + C('tv658_diem', 'điểm'), ngay: sh.ngay || '' });
+    veT1(tim('the-le'), tl, hang, td);
+    veU3(tim('dung-diem'), dungDuoc ? tl : null, d.diem, true);
     const muc = d.muc || { du: 0, tong: 5, thieu_qua: [] };
     tim('so-don').textContent = String((d.don || []).length).padStart(2, '0');
     tim('so-vc').textContent = String((d.vi || []).filter(v => v.trang_thai === 'dung_duoc').length).padStart(2, '0');
@@ -527,9 +694,11 @@
   };
   document.querySelectorAll('[data-tab]').forEach(b => { b.onclick = () => moTab(b.getAttribute('data-tab')); });
   document.querySelectorAll('[data-di]').forEach(b => { b.onclick = () => moTab(b.getAttribute('data-di')); });
+  /* Đăng ký và đăng nhập là một đường: số chưa có hồ sơ thì xác minh xong hệ thống mở hồ sơ mới. */
+  tim('nut-dang-ky').onclick = () => { const o = tim('sdt'); if (o && o.focus) o.focus(); bao(C('tv658_dk_bao', 'Nhập số điện thoại để đăng ký. Mã xác minh gửi qua Zalo.')); };
   tim('nut-ve-trang').onclick = () => { if (typeof location !== 'undefined' && location.assign) location.assign('/thanh-vien'); };
   tim('nut-in').onclick = () => { if (typeof window.print === 'function') window.print(); };
-  tim('thoat').onclick=async()=>{tim('thoat').disabled=true;try{await api('thoat',{});moDangNhap();tim('don').replaceChildren();tim('diem').textContent='';tim('ten').textContent='';tim('anh-the').removeAttribute('src');duLieu=null;bao((chuWeb("thanh_vien_e2bfc6a0f", "Đã đăng xuất.")));}catch(e){bao(e.message,true);}finally{tim('thoat').disabled=false;}};
+  tim('thoat').onclick=async()=>{tim('thoat').disabled=true;try{await api('thoat',{});moDangNhap();tim('don').replaceChildren();tim('diem').textContent='';tim('ten').textContent='';duLieu=null;bao((chuWeb("thanh_vien_e2bfc6a0f", "Đã đăng xuất.")));}catch(e){bao(e.message,true);}finally{tim('thoat').disabled=false;}};
 
   /* ---------- bắt đầu ---------- */
   try {
@@ -538,7 +707,8 @@
     if (sanSang.qua && sanSang.qua.uu_dai) tim('qua-gia').textContent = soQua(sanSang.qua.uu_dai);
     if (!await hoSo()) {
       if (!sanSang.otp) { tim('nut-gui').disabled = true; bao(lyDo.chua_mo); }
-      else bao(quayQua ? C('tv6_qua_bat_dau', 'Nhập số điện thoại có Zalo để nhận quà.') : (chuWeb("thanh_vien_6168467d3", "Nhập số điện thoại đã mua bánh để xem hồ sơ.")));
+      /* v658: trang đăng nhập Club đã có câu mời riêng (khối CLUB), dòng trạng thái để trống tới khi có việc cần báo. */
+      else bao(quayQua ? C('tv6_qua_bat_dau', 'Nhập số điện thoại có Zalo để nhận quà.') : '');
     }
   } catch (e) { bao(e.message, true); moDangNhap(); }
 })();

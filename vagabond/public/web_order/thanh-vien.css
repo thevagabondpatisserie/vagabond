@@ -234,3 +234,142 @@ body.tv-sang{background:#f4f1ec;color:#1d1d1b}
 .tl-chan{margin-top:12px}
 #the-le-dn{margin-top:30px}
 .mua-lai{margin-top:12px;width:100%}
+/* v658 The Vagabond Club (anh Việt chốt thiết kế 14/11/2026: L3 + K1 trang đăng
+   nhập, J1c hành trình hạng, T1 thẻ hạng vuốt ngang, U3 dòng thời gian hạn điểm).
+   Nền Night, xanh thương hiệu, kem. Góc vuông mọi nơi trừ hành tinh và chip tròn,
+   không gradient. Vagabond Sans chỉ cho tên hạng và khối CLUB, còn lại Qualy.
+   Luật ngắt dòng: .cum không bao giờ tách qua hai dòng. Màn quà ở quầy (tv-sang)
+   giữ nền sáng như cũ. */
+body.tv-club:not(.tv-sang){--night:#231f20;--cl:#4fdbf2;--kem:#f5e6d3;--muc:#1a1a1a;background:#231f20}
+body.tv-club:not(.tv-sang) header{background:rgba(35,31,32,.94)}
+body.tv-club:not(.tv-sang) .tab-duoi{background:rgba(35,31,32,.97)}
+.tv-club .cum{white-space:nowrap}
+.tv-club .cl-mo{position:absolute;pointer-events:none;background:#fff;-webkit-mask:var(--mo) center/contain no-repeat;mask:var(--mo) center/contain no-repeat}
+.tv-club .cl-mo03{--mo:url("/assets/vagabond/web_order/hoa-tiet/03-quy-dao-bat-giac.svg")}
+.tv-club .cl-mo14b{--mo:url("/assets/vagabond/web_order/hoa-tiet/14b-nguyen-tu.svg")}
+.tv-club .cl-mo16{display:none}
+.tv-club .cl-nhan{margin:0;font:13px var(--qualy);letter-spacing:.08em;color:var(--kem)}
+.tv-club .cl-tieu{margin:8px 0 0;font:22px/1.35 var(--qualy);color:#fff}
+.tv-club .cl-chips{display:flex;flex-wrap:wrap;gap:8px}
+.tv-club .cl-chip{display:inline-flex;align-items:center;min-height:30px;padding:4px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);font:13px var(--qualy);white-space:nowrap;color:inherit}
+.tv-club .cl-chip.trang{background:#fff;border-color:#fff;color:var(--muc)}
+.tv-club .cl-chip.vien{border-color:var(--cl);color:var(--cl)}
+.tv-club .cl-chip.den{background:var(--muc);border-color:var(--muc);color:#fff}
+.tv-club .cl-chip.xanh{background:var(--cl);border-color:var(--cl);color:var(--muc)}
+/* L3: ảnh phía trên, nền Night phía dưới; tên kiểu K1 */
+.tv-club:not(.tv-sang) main.tv{padding-top:0}
+.tv-club .cl-dau{margin:0 -20px}
+.tv-club .cl-anh{height:300px;display:grid;grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr;gap:2px;background:var(--night)}
+.tv-club .cl-o1{grid-row:1/3;background:#d9cbb8 center/cover no-repeat}
+.tv-club .cl-o2{background:#c9b9a3 center/cover no-repeat}
+.tv-club .cl-o3{background:var(--cl);color:var(--muc);padding:10px;display:flex;flex-direction:column;justify-content:space-between;font-size:13px}
+.tv-club .cl-o3[hidden]{display:none}
+.tv-club .cl-o3 b{font:400 44px/1 var(--qualy)}
+.tv-club .cl-noi{position:relative;overflow:hidden;padding:24px 20px 4px}
+.tv-club .cl-noi .cl-mo03{right:-110px;top:-60px;width:280px;height:280px;opacity:.16}
+.tv-club .cl-ten{position:relative;margin:4px 0 0;display:flex;flex-direction:column;font-family:'Vagabond Sans',var(--serif);font-weight:400;color:var(--cl)}
+.tv-club .cl-ten span{font-size:38px;line-height:.95;letter-spacing:.03em;white-space:nowrap}
+.tv-club .cl-ten .cl-club{font-size:124px;line-height:.85;letter-spacing:.02em}
+.tv-club .cl-cau{position:relative;margin:12px 0 0;font-size:15px;line-height:1.45;color:rgba(255,255,255,.85)}
+body.tv-club:not(.tv-sang) #gui-ma label>span,body.tv-club:not(.tv-sang) #xac-thuc label>span{color:var(--kem);font-size:14px}
+body.tv-club:not(.tv-sang) #gui-ma input,body.tv-club:not(.tv-sang) #xac-thuc input{height:52px;border:1px solid rgba(255,255,255,.6);background:var(--night);font-size:18px}
+body.tv-club:not(.tv-sang) #nut-gui,body.tv-club:not(.tv-sang) #nut-xac-thuc{min-height:52px;border:0;background:var(--cl);color:var(--muc);font:16px var(--qualy);letter-spacing:.01em;text-transform:none}
+.tv-club .cl-dk{display:flex!important;width:100%;margin-top:16px;min-height:56px!important;padding:8px 14px!important;border:1px solid rgba(255,255,255,.35)!important;justify-content:space-between!important;gap:12px;font:15px var(--qualy)!important;letter-spacing:.01em!important;text-transform:none!important;color:#fff!important}
+.tv-club .cl-dk[hidden]{display:none!important}
+.tv-club .cl-dk i{font-style:normal;padding:5px 12px;min-height:30px;display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--cl);color:var(--cl);font-size:13px;white-space:nowrap}
+.tv-club .cl-the-le{margin-top:40px}
+/* Trang thành viên: đầu trang */
+.tv-club .cl-chao{grid-template-columns:56px 1fr;align-items:center;margin-top:22px}
+.tv-club .cl-chao .av{width:56px;height:56px}
+.tv-club .cl-tu{margin:0;font-size:14px;color:rgba(255,255,255,.85)}
+.tv-club .cl-tu .cum{display:block}
+.tv-club .cl-diem-chu .dong{display:block}
+.tv-club .thong-bao:empty{display:none}
+.tv-club .cl-hang{margin:12px 0 0;font:400 64px/1 'Vagabond Sans',var(--serif);letter-spacing:.03em;color:var(--cl);overflow-wrap:normal;white-space:nowrap}
+.tv-club .cl-chao-ten{margin:12px 0 0;font-size:18px;color:rgba(255,255,255,.85)}
+.tv-club .cl-chao-ten b{font-weight:400}
+/* J1c: lõi góc trên trái, ba cung quỹ đạo */
+.tv-club .cl-ht{position:relative;margin:24px -20px 0}
+.tv-club .ht-ve{position:relative;overflow:hidden;height:420px}
+.tv-club .ht-nhan{position:absolute;right:20px;top:28px}
+.tv-club .ht-loi,.tv-club .ht-cung,.tv-club .ht-ht{position:absolute;border-radius:50%;transform:translate(-50%,-50%);box-sizing:border-box}
+.tv-club .ht-loi{left:0;top:0;width:150px;height:150px;background:var(--kem)}
+.tv-club .ht-loi-chu{position:absolute;left:89px;top:95px;font-size:13px;letter-spacing:.08em;color:var(--muc)}
+.tv-club .ht-cung{left:0;top:0;border:1px solid rgba(255,255,255,.35)}
+.tv-club .ht-cung.tren{border:1px dashed rgba(255,255,255,.7)}
+.tv-club .ht-cung.la{border:1px solid var(--cl)}
+.tv-club .ht-ht{width:18px;height:18px;background:#fff}
+.tv-club .ht-ht.tren{width:26px;height:26px;background:var(--night);border:1px dashed #fff}
+.tv-club .ht-ht.la{width:38px;height:38px;background:var(--cl);box-shadow:0 0 0 6px var(--night),0 0 0 7px var(--cl)}
+.tv-club .ht-ten-khoi{position:absolute;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.tv-club .ht-ten{font:20px 'Vagabond Sans',var(--serif);letter-spacing:.03em;white-space:nowrap}
+.tv-club .ht-ten-khoi.la .ht-ten{color:var(--cl)}
+.tv-club .ht-ten-khoi.duoi .ht-ten,.tv-club .ht-ten-khoi.duoi .ht-dk{color:rgba(255,255,255,.6)}
+.tv-club .ht-dk{font-size:13px;color:rgba(255,255,255,.85);white-space:nowrap}
+.tv-club .ht-ten-khoi .cl-chip{margin-top:4px;min-height:26px;font-size:13px;padding:2px 10px}
+.tv-club .ht-chi{margin:0 20px;padding:16px;border:1px solid rgba(255,255,255,.3);display:flex;flex-direction:column;gap:10px}
+.tv-club .ht-chi[hidden]{display:none}
+.tv-club .ht-dong{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.tv-club .ht-tieu{font-size:13px;color:var(--kem)}
+.tv-club #ht-so{font-size:15px}.tv-club #ht-so .mo{color:rgba(255,255,255,.6)}
+.tv-club .ht-thanh{height:4px;background:rgba(255,255,255,.15)}
+.tv-club .ht-thanh b{display:block;height:4px;background:var(--cl)}
+/* Khối điểm */
+.tv-club .cl-diem{margin:32px 0 0;padding:24px;background:var(--cl);color:var(--muc);display:flex;flex-direction:column;gap:8px}
+.tv-club .cl-diem p{margin:0}
+.tv-club .cl-diem-nhan{font-size:14px}
+.tv-club .cl-diem-so{font:48px/1 var(--qualy);letter-spacing:.01em;margin:0}
+.tv-club .cl-diem-chu{font-size:16px;line-height:1.5}
+.tv-club .cl-diem-het{margin-top:8px!important;padding:12px 14px;background:#fff;font-size:15px;line-height:1.45}
+.tv-club .cl-nut-den{margin-top:12px;display:flex;align-items:center;justify-content:center;min-height:48px;background:var(--muc);color:#fff;text-decoration:none;font-size:16px}
+.tv-club .cl-nut-den[hidden]{display:none}
+/* T1: thẻ hạng vuốt ngang */
+.tv-club .cl-t1{margin-top:40px}
+.tv-club .t1-day{display:flex;align-items:stretch;gap:12px;overflow-x:auto;margin:20px -20px 0;padding:0 20px 4px;scroll-padding-inline:20px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.tv-club .t1-the{flex:0 0 min(320px,calc(100vw - 64px));min-height:360px;box-sizing:border-box;padding:20px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:12px;scroll-snap-align:start;border:1px solid rgba(255,255,255,.3)}
+/* Thẻ cuối không cuộn được tới mép trái: bám mép phải, nếu không trình duyệt tự bật về thẻ trước (khách AMBASSADOR thấy thẻ VOYAGER). */
+.tv-club .t1-the:last-child{scroll-snap-align:end}
+.tv-club .t1-the .cl-mo14b{right:-40px;top:-40px;width:160px;height:160px;opacity:.35}
+.tv-club .t1-the.la{background:var(--cl);border-color:var(--cl);color:var(--muc)}
+.tv-club .t1-the.la .cl-mo14b{background:var(--muc);opacity:.25}
+.tv-club .t1-the.tiep{border:1px dashed var(--cl)}
+.tv-club .t1-the.moi-hang{background:var(--kem);border-color:var(--kem);color:var(--muc)}
+.tv-club .t1-the .cl-chip{align-self:flex-start}
+.tv-club .t1-the.la .cl-chip:not(.den),.tv-club .t1-the.moi-hang .cl-chip{border-color:var(--muc)}
+.tv-club .t1-ten{position:relative;margin:0;font:26px 'Vagabond Sans',var(--serif);letter-spacing:.03em;white-space:nowrap}
+.tv-club .t1-dk{position:relative;margin:0;font-size:13px;color:rgba(255,255,255,.6)}
+.tv-club .t1-the.la .t1-dk,.tv-club .t1-the.moi-hang .t1-dk{color:var(--muc)}
+.tv-club .t1-so{margin:auto 0 0;font:64px/1 var(--qualy)}
+.tv-club .t1-so small{font-size:15px;display:inline-block;white-space:nowrap}
+.tv-club .t1-cham{display:flex;gap:6px;justify-content:center;margin-top:20px}
+.tv-club .t1-cham span{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.35)}
+.tv-club .t1-cham span.on{width:24px;border-radius:999px;background:var(--cl)}
+.tv-club .t1-ghi{margin:20px 0 0;padding:14px 16px;border:1px solid rgba(255,255,255,.3);font-size:14px;line-height:1.5;color:rgba(255,255,255,.85)}
+/* U3: dòng thời gian hạn điểm */
+.tv-club .cl-u3{position:relative;margin-top:40px;display:flex;flex-direction:column;gap:18px}
+.tv-club .u3-tran,.tv-club .u3-nhan{margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.85)}
+.tv-club .u3-nhan{color:var(--cl)}
+.tv-club .u3-dong{position:relative;display:flex;flex-direction:column;gap:10px}
+.tv-club .u3-dong:before{content:"";position:absolute;left:9px;top:18px;bottom:18px;width:1px;background:rgba(255,255,255,.3)}
+.tv-club .u3-moc{display:grid;grid-template-columns:20px 1fr;gap:12px;position:relative}
+.tv-club .u3-cham{width:12px;height:12px;border-radius:50%;margin-top:18px;justify-self:center;background:#fff}
+.tv-club .u3-moc.gan .u3-cham{background:var(--cl);box-shadow:0 0 0 4px var(--night),0 0 0 5px var(--cl)}
+.tv-club .u3-moc.khac .u3-cham{background:var(--night);border:1px solid rgba(255,255,255,.7);box-sizing:border-box}
+.tv-club .u3-the{padding:12px 14px;border:1px solid rgba(255,255,255,.3);display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
+.tv-club .u3-moc.gan .u3-the{border-color:var(--cl)}
+.tv-club .u3-moc.khac .u3-the{border-style:dashed}
+.tv-club .u3-the p{margin:0}
+.tv-club .u3-han{font-size:13px;color:rgba(255,255,255,.6)}
+.tv-club .u3-moc.gan .u3-han{color:var(--cl)}
+.tv-club .u3-diem{margin-top:4px!important;font-size:18px}
+.tv-club .u3-tich{font-size:13px;color:rgba(255,255,255,.6);white-space:nowrap}
+.tv-club .u3-khac{font-size:14px;color:rgba(255,255,255,.85)}
+.tv-club .u3-so{font-size:16px;white-space:nowrap}
+.tv-club .u3-tong{padding:14px 16px;background:#fff;color:var(--muc);display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}
+.tv-club .u3-tong b{font:400 22px var(--qualy);white-space:nowrap}
+.tv-club .u3-ghi{margin:-8px 0 0;font-size:13px;line-height:1.5;color:rgba(255,255,255,.6)}
+/* Chuẩn chạm và cỡ chữ cho cả trang Club: nhãn nhỏ, tab dưới, số gọi hỗ trợ. */
+.tv-club .nhan{font-size:13px}
+.tv-club.trang-dich-vu .tab-duoi button,.tv-club.trang-dich-vu .tab-duoi button[aria-pressed=true]{font-size:13px;letter-spacing:.01em;text-transform:none;white-space:nowrap}
+.tv-club .ho-tro a{display:inline-flex;align-items:center;min-height:44px}
+@media(prefers-reduced-motion:reduce){.tv-club .t1-day{scroll-behavior:auto}}

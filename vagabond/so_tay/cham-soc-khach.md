@@ -347,3 +347,22 @@ Mỗi tin máy gửi cho khách có một dòng: khách, số, hoá đơn, mã v
 - Dòng chờ quá 48 giờ thì máy bỏ, không gửi trễ.
 - Lỗi chung của cả lượt (mất mạng, hết tiền, hết hạn mức) thì dòng vẫn Chờ gửi, máy thử lại lượt sau.
 - Một hoá đơn chỉ một tin cảm ơn, một khách một tin sinh nhật mỗi năm.
+
+## Trang thành viên The Vagabond Club: hạng, điểm, hạn điểm
+Từ khoá: the vagabond club, trang thành viên, hành trình hạng, quyền lợi hạng, hạn điểm, điểm sắp hết hạn, dùng điểm, đăng ký thành viên, ambassador
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách (nhân viên hướng dẫn) | Web /thanh-vien | nút Nhận mã đăng nhập |
+
+**Trước đây:** trang Thành viên có khối Thể lệ bốn ô chữ.
+**Từ nay:** giao diện The Vagabond Club. Đăng nhập và đăng ký là một đường: khách nhập số, nhận mã qua Zalo; số chưa có hồ sơ thì hệ thống mở hồ sơ mới.
+
+Sau khi đăng nhập, khách thấy:
+- Hành trình hạng: ba vòng EXPLORER, VOYAGER, VAGABONDER, chấm sáng là hạng của khách, khung chi tiêu 12 tháng ghi số còn thiếu để lên vòng trong.
+- Điểm của bạn: 1 điểm = 1đ, áp dụng thanh toán tối đa 50% giá trị đơn hàng, nút Đặt bánh và dùng điểm.
+- Hạng và quyền lợi: thẻ vuốt ngang từng hạng, gồm AMBASSADOR (do Vagabond mời, giảm 10% mỗi hoá đơn, không tích điểm).
+- Dùng điểm thế nào: mỗi lần tích có hạn 12 tháng riêng, lần sắp hết hạn đứng đầu.
+- Ghi chú quà sinh nhật dưới thẻ hạng: món quà, số tiền tối đa, mã gửi qua Zalo bao nhiêu ngày trước sinh nhật và dùng trong bao nhiêu ngày. Số ngày lấy đúng từ kịch bản Chúc mừng sinh nhật kèm voucher (từ 14/11/2026: gửi trước 3 ngày, mã dùng 15 ngày). Kịch bản tắt hoặc chương trình quà hết hạn thì trang không hứa quà.
+
+**Bạn cần làm:** khách hỏi điểm khi nào hết hạn thì chỉ khối Dùng điểm thế nào. Khách AMBASSADOR không có khối điểm vì hạng này giảm thẳng trên hoá đơn, ưu đãi nằm trên thẻ hạng. Đổi số ngày gửi quà hay hạn mã thì sửa ở kịch bản Zalo, trang thành viên tự đổi theo.

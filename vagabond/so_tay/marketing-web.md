@@ -58,12 +58,34 @@ Từ khoá: banner, ảnh quảng cáo, banner sinh nhật, đầu trang, giỏ 
 | Máy báo | Cách gỡ |
 |---|---|
 | Tải ảnh máy tính trước khi bật hiện trên web. | Tải ảnh, hoặc tắt Hiện trên web để lưu trước |
-| Chọn chỗ đặt banner: Đầu trang, Giỏ hàng hoặc Đặt xong. | Bấm một chỗ |
+| Chọn chỗ đặt banner: Đầu trang, Giỏ hàng, Đặt xong hoặc Trang thành viên. | Bấm một chỗ |
 
 **Lưu ý**
 - Thay ảnh: bấm Sửa ở banner đó, tải ảnh mới, lưu. Tắt công tắc Hiện trên web là gỡ ngay.
 - Không có ảnh điện thoại thì điện thoại dùng ảnh máy tính, chữ nhỏ khó đọc.
 - Qua ngày kết thúc web tự gỡ. Nội dung quà sinh nhật: việc này do giám đốc quyết.
+
+## Ảnh trang đăng nhập The Vagabond Club
+Từ khoá: the vagabond club, trang thành viên, ảnh khách ăn bánh, ảnh đăng nhập, banner trang thành viên, thay ảnh club
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập website (/bien-tap-web), thẻ Banner | nút + Thêm banner |
+
+Trang đăng nhập The Vagabond Club (/thanh-vien) có hai ô ảnh phía trên: ô lớn bên trái (ảnh dọc khách ăn bánh) và ô nhỏ bên phải (ảnh cận lát bánh). Chưa có ảnh thì hai ô để nền trơn, trang vẫn chạy.
+
+**Trước đây:** trang đăng nhập không có ảnh.
+**Từ nay:** ảnh lấy từ thẻ Banner, chỗ đặt Trang thành viên.
+
+**Bạn cần làm**
+1. Mở Biên tập website, chọn thẻ Banner, bấm nút + Thêm banner.
+2. Ở Chỗ đặt, chọn Trang thành viên.
+3. Banner thứ nhất (đứng trên trong danh sách) là ô lớn: tải ảnh điện thoại khổ dọc, ví dụ 1080 x 1600. Banner thứ hai là ô nhỏ.
+4. Gõ mô tả ảnh (đọc cho người dùng trình đọc màn hình), bấm nút Lưu banner.
+
+**Lưu ý**
+- Chỉ dùng ảnh khách thật đã đồng ý, không dùng ảnh mẫu người lạ.
+- Tắt Hiện trên web là ô ảnh về nền trơn ngay.
 
 ## Khách dùng điểm thành viên khi đặt bánh trên web
 Từ khoá: dùng điểm web, trừ điểm online, điểm thành viên, thanh toán bằng điểm, thể lệ thành viên, điểm sắp hết hạn, mua lại, hoàn điểm
