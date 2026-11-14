@@ -10613,7 +10613,7 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
       }).join('') + '</div>' : '';
     var ov = document.createElement('div'); ov.className = 'sh';
     ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
-      '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">' + h(tieuDe || 'Hoàn thành phiếu') + '</div>' +
+      '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">' + h(tieuDe || 'Hoàn tất lệnh sản xuất') + '</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">Nguyên liệu trừ theo số làm; thành phẩm nhập kho theo số CÂN THỰC TẾ. Hai số lệch nhau bao nhiêu, máy ghi lại bấy nhiêu.</div>' +
       '<div style="font-size:12px;color:#8a8f9c;margin-bottom:6px">Số lượng làm theo lệnh (còn lại <span id="htCon">' + num(q(left)) + '</span>)</div>' +
       '<div class="qr" style="margin-bottom:8px"><div class="stp"><button data-m1>&minus;</button>' +
@@ -10621,12 +10621,12 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
       sel + '</div>' + goi +
       /* v646 Cài đặt tự động hoá, luật ô số anh Việt duyệt 09/11/2026: số
          làm ra là số ĐẾM, để trống cho người nhập. Điền sẵn số lệnh thì bếp
-         bấm Hoàn thành cho qua và kho thành phẩm mang số không ai cân. */
+         bấm Hoàn tất cho qua và kho thành phẩm mang số không ai cân. */
       '<div style="font-size:12px;color:#8a8f9c;margin:12px 0 6px">Thực tế cân được (bắt buộc nhập, kể cả bằng số theo lệnh)</div>' +
       '<div class="qr"><div class="stp"><button data-m2>&minus;</button>' +
       '<input type="number" inputmode="decimal" id="htCan" value="" placeholder="Nhập số cân"><button data-p2>+</button></div>' +
       '<div class="uml" id="htU2">' + h(dvt) + '</div></div>' +
-      '<button class="btn gr" data-y style="margin-top:14px">✅ Hoàn thành</button>' +
+      '<button class="btn gr" data-y style="margin-top:14px">✅ Hoàn tất</button>' +
       '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
     document.body.appendChild(ov);
     var i1 = ov.querySelector('#htLenh'), i2 = ov.querySelector('#htCan');
@@ -10978,7 +10978,7 @@ async function mfgHoanTatNhom(g, veLai) {
   var conLai = con.map(function (c) { return r3(c.so_can - c.so_da); });
   var tong = r3(conLai.reduce(function (a, b) { return a + b; }, 0));
   var hai = await mfgSheetHoanTat(tong, g.dvt, (con[0] || {}).cac_dvt, g.ma_mon,
-    'Hoàn thành ' + con.length + ' lệnh');
+    'Hoàn tất ' + con.length + ' lệnh');
   if (!hai) return;
   var q = hai.theo_lenh || hai.thuc_te;
   if (!(q > 0)) return;
@@ -11366,7 +11366,7 @@ function mfgCauThieuNhom(kt) {
   });
   if (t.length > 3) dong.push('• và ' + (t.length - 3) + ' nguyên liệu nữa');
   return 'Kho bếp và hàng thay thế đã khai chưa đủ cho số này, nên máy chưa ghi lệnh nào (kể cả phần máy làm thêm).\n' +
-    dong.join('\n') + '\n\nBấm Gửi phiếu xin kho tổng: máy xin đúng phần thiếu (làm tròn lên số nguyên), Zalo báo kho. Kho tổng giao xong thì bấm Hoàn thành lại, hoặc làm số ít hơn.';
+    dong.join('\n') + '\n\nBấm Gửi phiếu xin kho tổng: máy xin đúng phần thiếu (làm tròn lên số nguyên), Zalo báo kho. Kho tổng giao xong thì bấm Hoàn tất lại, hoặc làm số ít hơn.';
 }
 
 /* Chữ phụ và màu của một chip nguyên liệu trong hộp "Máy làm luôn giúp bếp". THUẦN.
@@ -15871,7 +15871,7 @@ async function scrDsView(name, can) {
     var than = (dsvHt.canh_bao_hddt
         ? '<div style="padding:9px 11px;border-radius:9px;background:#fffbeb;border:1.5px solid #fde68a;' +
           'font-size:12.5px;color:#78350f;margin-bottom:10px">Đơn này đã xuất hoá đơn điện tử số <b>' +
-          h(dsvHt.canh_bao_hddt) + '</b>. Máy KHÔNG tự động xử lý bên m-invoice, chị Dung phải làm tay.</div>'
+          h(dsvHt.canh_bao_hddt) + '</b>. Hệ thống <b>không</b> tự xử lý bên m-invoice, Kế toán làm tay trên m-invoice.</div>'
         : '') +
       '<div style="font-size:12px;color:#6b7280;margin-bottom:3px">Lý do hoàn</div>' +
       '<select id="htLyDo" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13.5px;margin-bottom:9px">' + ds + '</select>' +
@@ -15909,7 +15909,7 @@ async function scrDsView(name, can) {
           toast('Đã lập phiếu hoàn tiền ' + kq.ho_so, 3500);
           baoTin('Hàng đã vào ' + kq.kho_huy + ', KHÔNG về kho bán.\n\n' +
             'Phiếu chi ' + (kq.phieu_chi || '(chưa lập được)') + ' đang ở trạng thái nháp. ' +
-            'Chị Dung chuyển khoản, đính kèm uỷ nhiệm chi rồi mới ghi sổ được.\n\n' +
+            'Kế toán chuyển khoản, đính kèm uỷ nhiệm chi rồi mới ghi sổ được.\n\n' +
             'Nội dung chuyển khoản phải gõ đúng: ' + kq.noi_dung_ck);
           await dsvNapLai();
         } catch (e) { busy(false); }
@@ -23165,7 +23165,7 @@ function htDsVe() {
          (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác ' +
           '(' + trung.map(function (x) { return x.ho_so + ' trùng ' + x.trung_voi; }).join(', ') + '). ' +
           'Một lần tiền ra chỉ khớp cho một phiếu. Nếu đây thật sự là hai lần hoàn khác nhau ' +
-          'thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp.' : '') +
+          'thì sao kê còn thiếu một dòng, báo quản trị hệ thống nạp bù giúp.' : '') +
          ((kq.da_go || []).length ? '\n\nĐã lập lại chứng từ cho phiếu kẹt: ' + kq.da_go.join(', ') + '.' : '')));
       go(scrHoanTien, true);
     } catch (e) { busy(false); }
@@ -23498,7 +23498,7 @@ async function htSinhLai(d) {
       : 'Đã lập lại chứng từ. Giờ đính uỷ nhiệm chi được rồi.', 4500);
     return htChiTiet(d.name);
   }
-  baoTin((kq && kq.loi) || 'Máy vẫn chưa lập được chứng từ. Báo anh Việt.', 'Chưa sinh được');
+  baoTin((kq && kq.loi) || 'Hệ thống vẫn chưa lập được chứng từ. Báo quản trị hệ thống.', 'Chưa sinh được');
   return htChiTiet(d.name);
 }
 
@@ -23582,8 +23582,8 @@ function htCtHddt(d) {
       '<div style="font-size:11.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
       'border-radius:9px;padding:9px 11px;margin-top:8px;line-height:1.6">' +
       'Nút trên đang mở trang chủ M-Invoice chứ chưa nhảy thẳng tới tờ hoá đơn, ' +
-      'vì hệ thống chưa biết đường dẫn sâu của họ. Chị Dung mở một tờ bất kỳ bên đó, ' +
-      'chép đường dẫn trên thanh địa chỉ gửi anh Việt, khai vào Cài đặt một ' +
+      'vì hệ thống chưa biết đường dẫn sâu của họ. Kế toán mở một tờ bất kỳ bên đó, ' +
+      'chép đường dẫn trên thanh địa chỉ gửi quản trị hệ thống, khai vào Cài đặt một ' +
       'lần là từ đó bấm một phát ra đúng tờ.</div>';
   }
   h_ += htCtThayThe(d, v);
@@ -23981,7 +23981,7 @@ async function htFormGdVao(d) {
     than += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
       'border-radius:9px;padding:10px 12px;line-height:1.6">Không có giao dịch tiền vào nào ' +
       'trong sao kê đang có ở khoảng ngày này. Nếu tiền chắc chắn đã về thì sao kê ' +
-      'còn thiếu, báo anh Việt nạp bù giúp.</div>';
+      'còn thiếu, báo quản trị hệ thống nạp bù giúp.</div>';
   } else {
     than += rows.map(function (r) {
       /* Phân biệt bằng CẢ màu lẫn CHỮ, không chỉ bằng màu: có bạn không phân
@@ -27351,7 +27351,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '656';
+var APPVER = '657';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -37061,7 +37061,7 @@ async function scrThongBao() {
     hang('Máy này đã đăng ký nhận', (t.may_cua_toi || 0) > 0,
       (t.may_cua_toi || 0) > 0 ? 'Bạn đang nhận trên ' + t.may_cua_toi + ' máy.' : '') +
     hang('Máy chủ gửi được', !!t.co_thu_vien,
-      t.co_thu_vien ? '' : 'Bản build trên máy chủ chưa có thư viện gửi. Báo anh Việt deploy bản mới nhất.') +
+      t.co_thu_vien ? '' : 'Bản cài trên máy chủ chưa có thư viện gửi. Báo quản trị hệ thống cập nhật bản mới nhất.') +
     '</div>' +
 
     '<div style="padding:12px 12px 4px">' +
@@ -37084,8 +37084,8 @@ async function scrThongBao() {
       tu_choi: 'Bạn vừa bấm Không cho phép. Bấm lại nút này để hỏi lần nữa.',
       chua_cai: 'Phải thêm app ra màn hình chính trước đã.',
       khong_ho_tro: 'Trình duyệt này không có Web Push.',
-      chua_khai_khoa: 'Máy chủ chưa sinh được khoá. Báo anh Việt xem nhật ký lỗi.',
-      loi: 'Có lỗi lúc đăng ký. Thử lại một lần nữa; vẫn lỗi thì báo anh Việt.'
+      chua_khai_khoa: 'Máy chủ chưa sinh được khoá. Báo quản trị hệ thống xem nhật ký lỗi.',
+      loi: 'Có lỗi lúc đăng ký. Thử lại một lần nữa; vẫn lỗi thì báo quản trị hệ thống.'
     }[r] || 'Chưa rõ kết quả, vui lòng thử lại.';
     baoTin(noi, r === 'xong' ? 'Đã bật thông báo' : 'Chưa bật được');
     if (r === 'xong') go(scrThongBao, true);
@@ -38220,7 +38220,7 @@ function miVe() {
     nB.style.cssText = 'font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
       'border-radius:9px;padding:10px 12px;margin:10px 12px;line-height:1.6';
     nB.innerHTML = 'Tài khoản của anh chị <b>chỉ xem</b> được cấu hình máy in. ' +
-      'Nhờ quản lý, kế toán hoặc anh Việt gán giúp một lần, gán xong thì cả tiệm dùng chung.';
+      'Nhờ quản lý, kế toán hoặc quản trị hệ thống gán giúp một lần, gán xong thì cả tiệm dùng chung.';
     b.insertBefore(nB, b.firstChild);
   }
   var nThu = document.getElementById('ctThu');
@@ -38410,7 +38410,7 @@ function scrMayInSua() {
        luu setting ca". Nay cham vao la duoc noi thang ai gan giup duoc. */
     if (!miSuaDuoc) {
       return baoTin('Tài khoản của anh chị chỉ xem được cấu hình máy in, ' +
-        'chưa sửa được. Nhờ quản lý, kế toán hoặc anh Việt mở màn này gán ' +
+        'chưa sửa được. Nhờ quản lý, kế toán hoặc quản trị hệ thống mở màn này gán ' +
         'giúp một lần, gán xong thì cả tiệm dùng chung.', 'Chưa sửa được');
     }
     /* Cham mot chip la co thay doi chi nam trong bo nho, chua xuong may
@@ -39669,10 +39669,10 @@ async function hsNoiGdVaoHd(maHd) {
      vào quỹ tạm ứng) là tài khoản của người khác, không làm chứng từ được. */
   if (hsTkDs && hsTkDs.doan) {
     return baoTin('Người này chưa gắn tài khoản ngân hàng nào vào quỹ tạm ứng nên chưa nối được sao kê. ' +
-      'Nhờ chị Dung gắn tài khoản của người này vào 1411 bên Next rồi quay lại.', 'Nối sao kê');
+      'Nhờ Kế toán gắn tài khoản của người này vào 1411 trên Desk rồi quay lại.', 'Nối sao kê');
   }
   var dsTk = ((hsTkDs && hsTkDs.tk) || []).filter(function (x) { return !x.nguoi || x.nguoi === hsTaoNguoiUng; });
-  if (!dsTk.length) return baoTin('Người này chưa khai tài khoản ngân hàng nào. Nhờ chị Dung tạo Bank Account cho họ bên Next.', 'Nối sao kê');
+  if (!dsTk.length) return baoTin('Người này chưa khai tài khoản ngân hàng nào. Nhờ Kế toán tạo tài khoản ngân hàng cho họ trên Desk.', 'Nối sao kê');
   busy(true);
   var rows = [], loi = [];
   for (var i = 0; i < dsTk.length; i++) {
@@ -39982,7 +39982,7 @@ function hsMoChonNcc(ncc, laHU, chon) {
     tat_ca_phu: 'Gộp hoá đơn của mọi nhà vào một hồ sơ',
     tao_moi: coQuyenMua(),
     mo_ta_tao: 'Bảo hiểm xã hội, điện, nước, bên cho thuê nhà đều phải có hồ sơ nhà cung cấp mới lập được phiếu chi.',
-    trong: 'Máy chưa đọc được nhà cung cấp nào. Thoát ra rồi mở lại màn này một lần; vẫn trống thì nhờ chị Dung kiểm xem danh mục Nhà cung cấp bên Next có bị tắt hết không.',
+    trong: 'Hệ thống chưa đọc được nhà cung cấp nào. Thoát ra rồi mở lại màn này một lần; vẫn trống thì nhờ Kế toán kiểm xem danh mục Nhà cung cấp trên Desk có bị tắt hết không.',
     chon: chon,
     tao_xong: function (ma) { if (ma) chon(ma, null); }
   });
@@ -40094,7 +40094,7 @@ async function scrViSaoThieu() {
         '<div class="emp"><div class="e1">⚠️</div><div>' +
         h(errMsg(e) || 'Máy chủ không trả lời') +
         '<br><br>Kiểm lại mạng rồi bấm nút ⬅ quay ra, vào lại màn lập hồ sơ và ' +
-        'bấm nút này một lần nữa. Vẫn hỏng thì chụp màn hình gửi anh Việt, ' +
+        'bấm nút này một lần nữa. Vẫn hỏng thì chụp màn hình gửi quản trị hệ thống, ' +
         'trong lúc chờ thì bảng hoá đơn ở màn trước vẫn tick và lập bình thường.</div></div>');
       return;
     }
@@ -40307,12 +40307,12 @@ async function scrHoSoTTTao() {
               '<div style="font-size:11.5px;color:' + (hsTkHoan ? '#98a2b3' : '#b3261e') + ';margin-top:8px;line-height:1.6">' +
               (hsTkHoan
                 ? ((hsTkDs && hsTkDs.doan)
-                    ? '⚠️ Người này chưa gắn tài khoản nào vào quỹ tạm ứng 1411, nên máy bày tạm mọi tài khoản. Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 bên Next.'
+                    ? '⚠️ Người này chưa gắn tài khoản nào vào quỹ tạm ứng 1411, nên hệ thống bày tạm mọi tài khoản. Nhờ Kế toán gắn đúng tài khoản ứng vào 1411 trên Desk.'
                     : 'Tiền hoàn ứng trả về đúng tài khoản đã ứng ra. Số tài khoản hiện cạnh tên vì các tài khoản nhìn lướt rất giống nhau.')
                 : 'Chưa chọn tài khoản nhận tiền. Người này có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.') +
               '</div>'
             : '<div style="font-size:13px;color:#b45309;line-height:1.6">Người này chưa khai tài khoản ngân hàng nào. ' +
-              'Nhờ chị Dung tạo Bank Account cho họ bên Next rồi quay lại chọn.</div>')) +
+              'Nhờ Kế toán tạo tài khoản ngân hàng cho họ trên Desk rồi quay lại chọn.</div>')) +
       '</div>';
   }
 
@@ -40893,11 +40893,11 @@ async function scrHoanUngTao() {
           ? 'Chưa chọn tài khoản nhận tiền. Có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.'
           : dstk.doan
           ? '⚠️ Chưa có tài khoản nào gắn vào quỹ tạm ứng ' + '1411' + ', nên hệ thống bày tạm mọi tài khoản công ty. ' +
-            'Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn đúng tài khoản đang dùng.'
+            'Nhờ Kế toán gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn đúng tài khoản đang dùng.'
           : 'Tiền hoàn ứng luôn trả về tài khoản đã ứng ra. Chọn đúng tài khoản thì số dư quỹ tạm ứng mới khớp.') +
         '</div>'
       : '<div style="font-size:13px;color:#b45309;line-height:1.6">Chưa khai tài khoản ngân hàng nào. ' +
-        'Nhờ chị Dung tạo Bank Account cho quỹ tạm ứng bên Next trước đã.</div>') +
+        'Nhờ Kế toán tạo tài khoản ngân hàng cho quỹ tạm ứng trên Desk trước đã.</div>') +
     '</div>';
 
   html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
@@ -41108,7 +41108,7 @@ async function huChonTaiKhoan(tieu_de, dang_chon) {
   catch (e) { busy(false); baoTin((e && e.message) || 'Không tra được hệ thống tài khoản'); return null; }
   busy(false);
   if (!ds.length) {
-    baoTin('Chưa có tài khoản sổ cái nào đang dùng. Nhờ chị Dung mở Hệ thống tài khoản bên Next kiểm lại, ' +
+    baoTin('Chưa có tài khoản sổ cái nào đang dùng. Nhờ Kế toán mở Hệ thống tài khoản trên Desk kiểm lại, ' +
       'hoặc bỏ đánh dấu Ngưng dùng cho các tài khoản cần khai.');
     return null;
   }
@@ -41847,7 +41847,7 @@ async function scrHoSoTTView(name) {
     el.onclick = async function (ev) {
       ev.stopPropagation();
       var ma = el.getAttribute('data-hsgotep');
-      if (!ma) return toast('Tệp này không gỡ được từ app, nhờ chị Dung gỡ trên Desk giúp.', 5000);
+      if (!ma) return toast('Tệp này không gỡ được từ app, nhờ Kế toán gỡ trên Desk giúp.', 5000);
       if (!await hoiCo('Gỡ tệp khỏi hồ sơ', 'Tệp không bị xoá, chỉ thôi không nằm trên hồ sơ này nữa.', 'Gỡ')) return;
       busy(true);
       try { await api('vagabond.ho_so_tt.go_tep', { name: hs.ma, tep: ma }); }
@@ -41862,7 +41862,7 @@ async function scrHoSoTTView(name) {
 /* Go mot ban the hien dinh nham khoi to hoa don. Hoi lai truoc khi go: to
    nay se di theo ca bo ho so PDF gui di duyet chi tien. */
 async function hsGoBanTheHien(hs, hoaDon, tep, ten) {
-  if (!tep) return toast('Tệp này không gỡ được từ app, nhờ chị Dung gỡ trên Desk giúp.', 5000);
+  if (!tep) return toast('Tệp này không gỡ được từ app, nhờ Kế toán gỡ trên Desk giúp.', 5000);
   if (!await hoiCo('Gỡ bản thể hiện',
     'Gỡ "' + (ten || tep) + '" khỏi hoá đơn ' + hoaDon + '?\n\n' +
     'Tệp vẫn còn trên máy chủ, chỉ thôi không nằm trên hoá đơn này nữa.', 'Gỡ')) return;
@@ -41984,7 +41984,7 @@ async function hsHanh(k, hs) {
     catch (e) { busy(false); return baoTin((e && e.message) || 'Không tải được danh sách tài khoản'); }
     busy(false);
     var ds = (dtk && dtk.tk) || [];
-    if (!ds.length) return baoTin('Chưa khai tài khoản ngân hàng nào cho người này. Nhờ chị Dung tạo Bank Account bên Next, hoặc dùng nút Gõ tay.');
+    if (!ds.length) return baoTin('Chưa khai tài khoản ngân hàng nào cho người này. Nhờ Kế toán tạo tài khoản ngân hàng trên Desk, hoặc dùng nút Gõ tay.');
     var c = await hoiChon('Hoàn ứng vào tài khoản nào', 'Chọn tài khoản thì tên, số tài khoản và ngân hàng lấy nguyên từ hồ sơ ngân hàng, không lệch một chữ.',
       ds.map(function (x) { return { k: x.ma, icon: '🏦', nhan: x.nhan, mo_ta: x.ten || '' }; }));
     if (!c) return;
@@ -42353,7 +42353,7 @@ async function huNoiPhieuNoiBo(i) {
      go tay lai toan bo khoan chi - dung duong sinh ra chi hai lan. */
   if (kq && kq.loi) {
     return baoTin(kq.loi + '\n\nĐây là lỗi đọc dữ liệu, KHÔNG phải là không có phiếu. ' +
-      'Thử lại sau một phút, còn nếu vẫn vậy thì báo anh Việt, đừng gõ tay lại khoản đã có phiếu.',
+      'Thử lại sau một phút, còn nếu vẫn vậy thì báo quản trị hệ thống, đừng gõ tay lại khoản đã có phiếu.',
       'Chưa đọc được danh sách');
   }
   var ds = (kq && kq.ds) || [];
@@ -44197,7 +44197,7 @@ async function scrTaiSan() {
     if (!await hoiCo('Mở khoá nhóm công cụ dụng cụ',
       'Nhóm công cụ dụng cụ ghi giá trị vào tài khoản ' + t.tk + '. ERPNext đòi tài khoản này phải được đánh dấu là tài khoản giữ giá trị thì mới cho phân bổ dần.\n\n' +
       'Loại hiện tại: ' + t.loai_hien_tai + '\nSẽ đổi thành: Fixed Asset\nSố bút toán đang nằm ở tài khoản này: ' + t.so_but_toan + '\n\n' +
-      'Đây là sửa bảng hệ thống tài khoản. Chỉ đổi một trường loại tài khoản, không đổi số hiệu, không đổi tên, không đụng số dư. Chị Dung nên xem trước khi bấm.',
+      'Đây là sửa bảng hệ thống tài khoản. Chỉ đổi một trường loại tài khoản, không đổi số hiệu, không đổi tên, không đụng số dư. Kế toán trưởng nên xem trước khi bấm.',
       'Mở khoá')) return;
     busy(true);
     try { var kq = await api('vagabond.tai_san.mo_khoa_ccdc', { that_su: 1 }); busy(false); toast(kq.loi_nhan, 5000); }
@@ -53143,7 +53143,7 @@ function tlGan() {
     '<div id="tlThan"><div class="tlGoi">Hệ thống trả lời dựa trên tài liệu ' +
     'của chính phần mềm này, về cách dùng từng màn hình và ý nghĩa các câu ' +
     'chặn.<br><br>Hệ thống chưa đọc dữ liệu thật của tiệm, nên không trả lời ' +
-    'được tồn kho hay tình trạng đơn. Việc cần quyết thì hỏi anh Việt.</div></div>' +
+    'được tồn kho hay tình trạng đơn. Việc cần quyết thì hỏi giám đốc.</div></div>' +
     '<div id="tlChan">' +
     '<textarea id="tlO" placeholder="Nhập câu hỏi về cách dùng app"></textarea>' +
     '<button id="tlGui">Gửi</button></div>';
@@ -55371,7 +55371,7 @@ async function scrDuyetTang() {
       'border:1px solid #fecaca;border-radius:8px;font-size:12.5px;color:#b3261e">' +
       '⚠️ <b>Chưa khai Tài khoản chi phí biếu tặng trong Cài đặt.</b> Duyệt được ' +
       'nhưng đơn vẫn chưa ghi sổ được, vì máy không biết hạch toán phần tặng vào ' +
-      'đâu. Nhờ anh Việt và chị Dung chọn tài khoản trước.</div>' : '') +
+      'đâu. Nhờ giám đốc và kế toán trưởng chọn tài khoản trước.</div>' : '') +
     (kq.duyet_duoc ? '' : '<div style="margin-top:9px;padding:7px 9px;background:#f8fafc;' +
       'border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;color:#475467">' +
       'Bạn xem được danh sách nhưng không duyệt được. Chỉ Giám đốc mới duyệt, để ' +
@@ -57167,7 +57167,7 @@ function xktLoiHtml(loi) {
   return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;' +
     'padding:14px;margin:8px 0;font-size:13px;color:#991b1b;line-height:1.6">' +
     '<b>Không đọc được danh sách phiếu.</b><br>' + h(loi) +
-    '<br><span style="color:#7f1d1d;font-size:12px">Chụp màn này gửi anh Việt giúp.</span></div>';
+    '<br><span style="color:#7f1d1d;font-size:12px">Chụp màn này gửi quản trị hệ thống giúp.</span></div>';
 }
 
 /* Man danh sach dung chung: tim, ba hang chip, the tom tat, cac dong. */
@@ -60124,7 +60124,7 @@ sdKhai('lich_chi', 'scrLichChi', {
 /* v656: Phiếu đề xuất công thức (72, sau 48). Cả phiếu nằm trong DX.f (tên
    bánh, size, dòng, gram, công thức con); dat() để vào dxKhoiPhuc, màn tự ghép
    lúc dựng. Chỉ giữ nháp khi phiếu còn sửa được (Nháp, Trả lại bếp). Lưu nháp
-   hay Gửi Khải thành công là xong nháp trên máy. */
+   hay Gửi Kế toán thành công là xong nháp trên máy. */
 sdKhai('de_xuat_ct', 'scrDxSua', {
   ten: 'Phiếu đề xuất công thức',
   lay: function () { var f = DX.f; return (f && f.quyen && f.quyen.sua && (f.trang_thai === 'Nháp' || f.trang_thai === 'Trả lại bếp')) ? f : null; },
@@ -68537,7 +68537,7 @@ async function scrQuyChotDau() {
     '<div style="font-size:12.5px;color:#667085;margin:2px 0 8px">Gõ số tờ từng loại. Quỹ trống thì gõ 0.</div>' +
     qtmBangDem(q.menh_gia) +
     '<div id="qtmTong" style="margin-top:10px"></div>' +
-    '<input class="tin" id="qtmGhiChuChot" placeholder="Ghi thêm (nếu có), ví dụ: đếm cùng anh Việt" style="width:100%;height:44px;box-sizing:border-box;margin-top:10px"></div>' +
+    '<input class="tin" id="qtmGhiChuChot" placeholder="Ghi thêm (nếu có), ví dụ: đếm cùng quản lý cửa hàng" style="width:100%;height:44px;box-sizing:border-box;margin-top:10px"></div>' +
     '<div class="card" style="padding:11px 13px;font-size:13px;color:#475467;line-height:1.6">' +
     '<div>Đếm lúc nào trong ngày cũng được. Khoản đã ký nhận hay đã chi trước lúc đếm nằm sẵn trong số đếm; khoản ghi sau lúc chốt app cộng trừ tiếp.</div>' +
     '<div>Chỉ chốt một lần. Sau đó muốn sửa số quỹ thì Kiểm quỹ.</div></div>' +
@@ -73027,7 +73027,7 @@ async function scrLichGoiY() {
    Bếp (Hân, Linh, Lab) ghi công thức bánh mới trên điện thoại: tên bánh, các
    size, từng thành phần chọn mã có sẵn hoặc gõ tên mới, gram từng size, và
    bấm chip thành phần đó VÀO ĐÂU (ruột cấp 1, khuôn cấp 2, thành phẩm). Bấm
-   Gửi Khải. Khải chọn mã thành phẩm từng size, bấm Tạo mã và công thức (máy
+   Gửi Kế toán. Khải chọn mã thành phẩm từng size, bấm Tạo mã và công thức (máy
    tạo mã BTP, mã cấp 1, cấp 2, công thức nháp), xem lại rồi Ghi sổ tất cả.
 
    Bốn ý thêm anh duyệt: gõ tên mới thì máy báo mã gần giống; giá vốn dự kiến
@@ -73043,9 +73043,9 @@ var DX_DICH = [
   ['cap2', 'Khuôn (cấp 2)', 'Bọc vào khuôn, chờ trang trí'],
   ['thanh_pham', 'Thành phẩm', 'Trang trí lúc hoàn thiện']
 ];
-var DX_TT = [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ Khải', 'Chờ Khải'], ['Trả lại bếp', 'Trả lại bếp'],
+var DX_TT = [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ Kế toán', 'Chờ Kế toán'], ['Trả lại bếp', 'Trả lại bếp'],
   ['Đã tạo nháp', 'Đã tạo nháp'], ['Đã ghi sổ', 'Đã ghi sổ'], ['Đã huỷ', 'Đã huỷ']];
-var DX_MAU_TT = { 'Nháp': 'n', 'Chờ Khải': 'w', 'Trả lại bếp': 'r', 'Đã tạo nháp': 'w', 'Đã ghi sổ': 'g', 'Đã huỷ': 'n' };
+var DX_MAU_TT = { 'Nháp': 'n', 'Chờ Kế toán': 'w', 'Trả lại bếp': 'r', 'Đã tạo nháp': 'w', 'Đã ghi sổ': 'g', 'Đã huỷ': 'n' };
 var DX_NUT = 'min-height:44px;font-size:14px';
 
 function dxSo(v) { var n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; }
@@ -73066,7 +73066,7 @@ async function scrDxDs() {
   var cc = { ma: 'dx', tim: { gt: DX.tim || '', goiY: 'Tìm mã phiếu hoặc tên bánh' },
     chang: { ds: DX_TT.slice(1).map(function (c) { return { k: c[0], ten: c[1] }; }),
       dem: Object.assign({ '': (kq.dem || {}).tat_ca || 0 }, kq.dem || {}), chon: DX.tt || '', tatCa: 'Tất cả' } };
-  var body = '<div class="mut" style="font-size:13px;line-height:1.5;margin-bottom:9px">Bếp ghi công thức bánh mới hoặc đề xuất sửa công thức đang dùng; Khải lên mã và ghi sổ.</div>' +
+  var body = '<div class="mut" style="font-size:13px;line-height:1.5;margin-bottom:9px">Bếp ghi công thức bánh mới hoặc đề xuất sửa công thức đang dùng; Kế toán lên mã và ghi sổ.</div>' +
     dsCongCu(cc) +
     (DX.ds.length ? '<div class="lst">' + DX.ds.map(function (x) {
       return '<div class="li" data-dxmo="' + h(x.name) + '" style="min-height:44px;cursor:pointer"><div class="lt">' +
@@ -73153,7 +73153,7 @@ function scrDxSua(name) {
     var dau = x.ma
       ? '<div class="l1">' + h(x.ten || x.ma) + '</div><div class="l2">' + h(x.ma) + ' · mã có sẵn</div>'
       : '<input class="nt" data-dxten="' + h(x.id) + '" placeholder="Tên thành phần mới" value="' + h(x.ten || '') + '"' + (sua ? '' : ' disabled') +
-        ' style="height:44px;font-size:15px;width:100%"><div class="l2" style="margin-top:4px">Thành phần mới · Khải sẽ tạo mã</div>';
+        ' style="height:44px;font-size:15px;width:100%"><div class="l2" style="margin-top:4px">Thành phần mới · Kế toán sẽ tạo mã</div>';
     var goiY = (!x.ma && sua && gy.length && !x.bo_goi_y)
       ? '<div style="background:#fff7e6;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px;line-height:1.45">' +
         '<b>Đã có mã gần giống, dùng luôn cho khỏi tạo trùng?</b>' +
@@ -73224,13 +73224,13 @@ function scrDxSua(name) {
         '<span>Size ' + h(s) + '</span><span><b>' + money(x.von || 0) + ' đ</b>' +
         (x.ban ? ' · bán ' + money(x.ban) + ' đ · <b>' + x.ty_le + '%</b>' : '') + '</span></div>';
     }).join('') +
-      '<div class="mut" style="font-size:13px;margin-top:6px">Giá vốn dự kiến, tính lại mỗi lần Lưu nháp. % giá bán hiện khi Khải đã chọn mã thành phẩm.</div>';
+      '<div class="mut" style="font-size:13px;margin-top:6px">Giá vốn dự kiến, tính lại mỗi lần Lưu nháp. % giá bán hiện khi Kế toán đã chọn mã thành phẩm.</div>';
   }
 
   function phanKhai() {
     if (!f.name || !(f.quyen || {}).duyet) return '';
-    if (f.trang_thai === 'Chờ Khải' && !dc) {
-      return '<div class="sec">Khải lên mã</div><div class="card" style="padding:12px 13px">' +
+    if (f.trang_thai === 'Chờ Kế toán' && !dc) {
+      return '<div class="sec">Kế toán lên mã</div><div class="card" style="padding:12px 13px">' +
         dl.sizes.map(function (s) {
           var m = (f.ma_tp || {})[s];
           return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><div style="flex:1;font-size:14px">Size ' + h(s) + ': ' +
@@ -73241,7 +73241,7 @@ function scrDxSua(name) {
         '<div class="row2" style="margin-top:9px"><button class="btn gh" id="dxTra" style="' + DX_NUT + '">Hỏi lại bếp</button>' +
         '<button class="btn gr" id="dxTao" style="' + DX_NUT + '">Tạo mã và công thức</button></div></div>';
     }
-    if (f.trang_thai === 'Chờ Khải' && dc) {
+    if (f.trang_thai === 'Chờ Kế toán' && dc) {
       return '<div class="row2" style="margin-top:9px"><button class="btn gh" id="dxTra" style="' + DX_NUT + '">Hỏi lại bếp</button>' +
         '<button class="btn gr" id="dxDuyet" style="' + DX_NUT + '">Duyệt và ghi sổ</button></div>';
     }
@@ -73267,7 +73267,7 @@ function scrDxSua(name) {
         : '<div class="lb" style="font-size:13px">Tên bánh</div><input class="nt" id="dxTen" value="' + h(f.ten_banh || '') + '" placeholder="Ví dụ: Bánh Pinkpom bưởi"' +
           (sua ? '' : ' disabled') + ' style="height:44px;font-size:15px;width:100%">') +
       '<div style="margin-top:8px">' + tt + (f.ten_nguoi_de_xuat ? ' <span class="l2">· ' + h(f.ten_nguoi_de_xuat) + '</span>' : '') + '</div>' +
-      (f.ghi_chu_khai && f.trang_thai === 'Trả lại bếp' ? '<div style="background:#fff7e6;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:14px;line-height:1.45"><b>Khải hỏi lại:</b> ' + h(f.ghi_chu_khai) + '</div>' : '') +
+      (f.ghi_chu_khai && f.trang_thai === 'Trả lại bếp' ? '<div style="background:#fff7e6;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:14px;line-height:1.45"><b>Kế toán hỏi lại:</b> ' + h(f.ghi_chu_khai) + '</div>' : '') +
       (dc ? '<div class="lb" style="font-size:13px;margin-top:9px">Lý do sửa</div><textarea class="nt" id="dxLyDo" rows="2"' + (sua ? '' : ' disabled') +
         ' style="width:100%;min-height:64px;font-size:14.5px">' + h(f.ly_do || '') + '</textarea>' : '') + '</div>';
     /* Khải đến để bấm: khối hành động nằm ngay dưới đầu phiếu, trong màn đầu ở
@@ -73285,7 +73285,7 @@ function scrDxSua(name) {
         (dc ? '' : '<button class="btn gh" id="dxThemMoi" style="' + DX_NUT + '">+ Thành phần mới</button>') + '</div>' : '');
     body += '<div class="sec">Giá vốn dự kiến</div><div class="card" style="padding:12px 13px">' + hopGia() + '</div>' + thieuGia() + ketQua();
     var nut = sua ? '<div class="row2"><button class="btn gh" id="dxLuu" style="' + DX_NUT + '">💾 Lưu nháp</button>' +
-      '<button class="btn gr" id="dxGui" style="' + DX_NUT + '">📤 Gửi Khải</button></div>' +
+      '<button class="btn gr" id="dxGui" style="' + DX_NUT + '">📤 Gửi Kế toán</button></div>' +
       (f.name ? '<button class="btn gh" id="dxHuy" style="' + DX_NUT + ';margin-top:8px;color:#b3261e">Huỷ phiếu</button>' : '') : '';
     var b = frame(dc ? 'Đề xuất điều chỉnh' : 'Đề xuất công thức', body, nut ? { footer: nut } : {});
     thanNay = b;
@@ -73409,7 +73409,7 @@ function scrDxSua(name) {
     if (gu) gu.onclick = function () { dxLuu(true); };
     var hu = document.getElementById('dxHuy');
     if (hu) hu.onclick = async function () {
-      if (!await confirmSheet('Huỷ phiếu?', 'Phiếu ' + f.name + ' sẽ chuyển sang Đã huỷ, không gửi Khải nữa.', 'Huỷ phiếu')) return;
+      if (!await confirmSheet('Huỷ phiếu?', 'Phiếu ' + f.name + ' sẽ chuyển sang Đã huỷ, không gửi Kế toán nữa.', 'Huỷ phiếu')) return;
       dxGoi('huy', { name: f.name }, 'Đã huỷ phiếu.');
     };
     var tr = document.getElementById('dxTra');
@@ -73442,7 +73442,7 @@ function scrDxSua(name) {
   }
   function veLai() { DX.ds = null; go(function () { return scrDxSua(DX.f.name); }, true); }
 
-  /* luuTruoc: Khải sửa số trên phiếu Chờ Khải rồi bấm Tạo, Duyệt, Hỏi lại thì
+  /* luuTruoc: Khải sửa số trên phiếu Chờ Kế toán rồi bấm Tạo, Duyệt, Hỏi lại thì
      lưu phần sửa TRƯỚC, máy chủ mới làm theo đúng số đang hiện (Codex #563). */
   async function dxGoi(ham, args, xong, luuTruoc) {
     busy(1);
@@ -73468,7 +73468,7 @@ function scrDxSua(name) {
     var r;
     try { r = await api('vagabond.de_xuat_cong_thuc.luu', thamLuu()); }
     catch (er) { busy(0); return toast(errMsg(er), 9000); }
-    /* Nhận mã phiếu NGAY sau khi lưu: Gửi Khải hỏng (thiếu thông tin, rớt
+    /* Nhận mã phiếu NGAY sau khi lưu: Gửi Kế toán hỏng (thiếu thông tin, rớt
        mạng) thì bấm lại vẫn là phiếu này, không đẻ thêm phiếu (Codex #563). */
     dxNap(r);
     if (guiLuon) {
@@ -73476,7 +73476,7 @@ function scrDxSua(name) {
       catch (er) { busy(0); toast(errMsg(er), 9000); return veLai(); }
     }
     busy(0);
-    toast(guiLuon ? 'Đã gửi Khải.' : 'Đã lưu nháp ' + r.name + '.', 5000);
+    toast(guiLuon ? 'Đã gửi Kế toán.' : 'Đã lưu nháp ' + r.name + '.', 5000);
     veLai();
   }
 
