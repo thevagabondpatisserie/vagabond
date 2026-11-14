@@ -95,7 +95,7 @@ def _cau_bao_dung_viec():
 	dung("noi tai khoan sai", "1551" in c)
 	# Cau phai chi duong ra, khong duoc chi bao la sai.
 	dung("chi duong chon kho khac", "chọn một kho vật tư" in c)
-	dung("chi ro ai sua duoc", "chị Dung" in c)
+	dung("chi ro ai sua duoc", "Kế toán" in c)
 
 
 # ------------------------------------- 2. Hàng rào gắn đúng chỗ, đúng lúc

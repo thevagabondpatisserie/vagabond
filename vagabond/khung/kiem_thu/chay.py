@@ -257,6 +257,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	# v654 Lịch dự chi: dự chi tay, tự xếp theo hạn, tiền khả dụng theo ngày, lịch hằng tháng.
 	thu_lich_du_chi_654,
 	thu_de_xuat_cong_thuc_656,
+	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.
+	thu_quy_tac_chu_657,
 	thu_banner_647,
 	# v647 đối soát ShopeeFood báo lệch sai: tiền đúng kỳ, dò lại mỗi giờ.
 	thu_tien_ve_dung_ky_647,
