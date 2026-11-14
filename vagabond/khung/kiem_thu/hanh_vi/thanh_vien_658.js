@@ -32,7 +32,7 @@ function theLe(them) {
   var tl = {
     hang: [hang('EXPLORER', 0, 2, 0), hang('VOYAGER', 10000000, 3, 0), hang('VAGABONDER', 20000000, 5, 0)],
     hang_moi: [hang('AMBASSADOR', 0, 0, 10, true)],
-    qua_sn: { ten: QSN_TEN, nhom: 'Bánh lạnh', toi_da: 185000, hang: QSN_HANG },
+    qua_sn: { ten: QSN_TEN, nhom: 'Bánh lạnh', toi_da: 185000, hang: QSN_HANG, truoc: 3, han: 15 },
     luat: { tran_pt: 50, toi_thieu: 10000, han_thang: 12, cach_han: 'Cuon chieu', nhac_ngay: 30, so_thang_hang: 12, nhan_diem: [] },
     sap_het: { diem: 12000, ngay: '30/11/2026' },
     lan_tich: { ds: [{ diem: 12000, ngay_tich: '29/11/2025', ngay_het: '30/11/2026' },
@@ -102,14 +102,20 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     bang('điều kiện', the.map(function (x) { return chu(x.querySelector('.t1-dk')); }),
       ['Từ đơn đầu tiên', 'Chi từ 10 triệu trong 12 tháng', 'Chi từ 20 triệu trong 12 tháng', 'Do Vagabond mời']);
     dung('điều kiện không ngắt giữa số và đơn vị', the[1].querySelector('.t1-dk').querySelectorAll('.cum').map(chu).join('|') === '10 triệu|12 tháng');
-    bang('kiểu thẻ', the.map(function (x) { return lop(x); }), ['t1-the', 't1-the la', 't1-the tiep', 't1-the moi']);
+    bang('kiểu thẻ', the.map(function (x) { return lop(x); }), ['t1-the', 't1-the la', 't1-the tiep', 't1-the moi-hang']);
     dung('Hạng của bạn chỉ ở VOYAGER', chu(the[1]).indexOf('Hạng của bạn') >= 0 && the.filter(function (x) { return chu(x).indexOf('Hạng của bạn') >= 0; }).length === 1);
     dung('VAGABONDER: còn 6.250.000đ', chu(the[2]).indexOf('Còn ' + tien(6250000)) >= 0);
     bang('chip quà sinh nhật', the.map(function (x) { return chu(x).indexOf('Quà sinh nhật') >= 0; }), [false, true, true, true]);
     dung('không lặp tên chương trình dài', chu(the[1]).indexOf(QSN_TEN) < 0);
     dung('không hiện FAMILY, OWNER', chu(t.tim('the-le')).indexOf('FAMILY') < 0 && chu(t.tim('the-le')).indexOf('OWNER') < 0);
     bang('chấm chỉ vị trí đứng ở thẻ của khách', t.tim('the-le').querySelector('.t1-cham').children.map(function (x) { return lop(x); }), ['', 'on', '', '']);
-    bang('ghi chú quà sinh nhật', chu(t.tim('the-le').querySelector('.t1-ghi')), 'Quà sinh nhật: 1 bánh nhóm Bánh lạnh, tối đa ' + tien(185000) + ', nhận trong tháng sinh nhật.');
+    bang('ghi chú quà sinh nhật', chu(t.tim('the-le').querySelector('.t1-ghi')), 'Quà sinh nhật: 1 bánh nhóm Bánh lạnh, tối đa ' + tien(185000) + ', mã gửi qua Zalo 3 ngày trước sinh nhật, dùng trong 15 ngày.');
+    /* anh Việt 14/11: lịch gửi và hạn mã lấy từ kịch bản, mỗi phần là một cụm không ngắt dòng. */
+    bang('cụm của ghi chú', t.tim('the-le').querySelector('.t1-ghi').children.filter(function (x) { return lop(x) === 'cum'; }).map(chu),
+      ['Quà sinh nhật:', '1 bánh nhóm Bánh lạnh,', 'tối đa ' + tien(185000) + ',', 'mã gửi qua Zalo 3 ngày trước sinh nhật,', 'dùng trong 15 ngày.']);
+    /* "-10% mỗi hoá đơn" từng rớt "đơn" xuống dòng riêng: chữ đơn vị phải là một cụm. */
+    bang('chữ đơn vị là cụm', the.map(function (x) { var s = x.querySelector('.t1-so').children.filter(function (c) { return String(c.tagName || '').toLowerCase() === 'small'; })[0]; return s ? lop(s) + ':' + chu(s) : ''; }),
+      ['cum:tích điểm', 'cum:tích điểm', 'cum:tích điểm', 'cum:mỗi hoá đơn']);
     var hoaTiet = t.tim('the-le').querySelectorAll('.cl-mo14b');
     bang('hoạ tiết 14b ở ba thẻ theo chi tiêu', hoaTiet.length, 3);
     dung('hoạ tiết là trang trí', hoaTiet.every(function (x) { return x.getAttribute('aria-hidden') === 'true'; }));
@@ -118,6 +124,14 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
   await ca('T1: chương trình quà sinh nhật tắt (máy chủ không gửi qua_sn) thì không thẻ nào hứa quà và không có ghi chú', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: toi({ the_le: theLe({ qua_sn: null }) }), cap_vi_tv: { ok: 1, moi: [] } }, '');
     dung('không chip', chu(t.tim('the-le')).indexOf('Quà sinh nhật:') < 0 && t.tim('the-le').querySelectorAll('.t1-ghi').length === 0);
+  });
+
+  await ca('T1: đổi kịch bản Zalo Sinh nhật (gửi đúng ngày, mã 30 ngày) thì ghi chú đổi theo, không cứng số trong trang', async function () {
+    var tl = theLe(); tl.qua_sn = Object.assign({}, tl.qua_sn, { truoc: 0, han: 30 });
+    var t = await K.dungTrang({ san_sang: SS, toi: toi({ the_le: tl }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    var g = chu(t.tim('the-le').querySelector('.t1-ghi'));
+    dung('gửi đúng ngày', g.indexOf('mã gửi qua Zalo đúng ngày sinh nhật,') >= 0);
+    dung('dùng trong 30 ngày', g.indexOf('dùng trong 30 ngày.') >= 0 && g.indexOf('15 ngày') < 0);
   });
 
   await ca('U3: các lần tích sắp theo hạn, lần sắp hết hạn nhất tô sáng kèm Dùng sớm, các lần khác gộp một dòng, tổng đang có, câu 50% đúng nguyên văn', async function () {
@@ -153,13 +167,13 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     bang('tổng 0', t2.tim('dung-diem').querySelector('.u3-tong').children.map(chu), ['Tổng đang có', '0 điểm']);
   });
 
-  await ca('khách AMBASSADOR (không dùng điểm): khối điểm nói giảm thẳng, không nút Đặt bánh và dùng điểm, không khối U3', async function () {
+  await ca('khách AMBASSADOR (không dùng điểm): ẩn cả khối điểm (anh Việt 14/11: khối 0 điểm vô nghĩa), không khối U3; ưu đãi nằm trên thẻ hạng', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: toi({ hang: { ten_hang: 'AMBASSADOR', giam_gia: 10, tich_diem: 0 }, diem_dung_duoc: 0 }), cap_vi_tv: { ok: 1, moi: [] } }, '');
-    bang('câu', chu(t.tim('diem-chu')), 'Hạng của bạn được giảm thẳng trên mỗi hoá đơn, không dùng điểm.');
+    dung('ẩn khối điểm', K.an(t.tim('khoi-diem')));
     dung('ẩn nút', K.an(t.tim('nut-dung-diem')));
     dung('ẩn U3', K.an(t.tim('dung-diem')));
     dung('ẩn dòng hết hạn', K.an(t.tim('diem-het')));
-    dung('thẻ AMBASSADOR là hạng của bạn', lop(t.tim('the-le').querySelectorAll('.t1-the')[3]) === 't1-the la moi');
+    dung('thẻ AMBASSADOR là hạng của bạn', lop(t.tim('the-le').querySelectorAll('.t1-the')[3]) === 't1-the la moi-hang');
   });
 
   await ca('trang không còn chữ "tiền bánh" (anh Việt cấm), cả khi đã đăng nhập lẫn chưa', async function () {
