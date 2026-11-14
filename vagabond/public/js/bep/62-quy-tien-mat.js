@@ -218,7 +218,7 @@ async function scrQuyChotDau() {
     '<div style="font-size:12.5px;color:#667085;margin:2px 0 8px">Gõ số tờ từng loại. Quỹ trống thì gõ 0.</div>' +
     qtmBangDem(q.menh_gia) +
     '<div id="qtmTong" style="margin-top:10px"></div>' +
-    '<input class="tin" id="qtmGhiChuChot" placeholder="Ghi thêm (nếu có), ví dụ: đếm cùng anh Việt" style="width:100%;height:44px;box-sizing:border-box;margin-top:10px"></div>' +
+    '<input class="tin" id="qtmGhiChuChot" placeholder="Ghi thêm (nếu có), ví dụ: đếm cùng quản lý cửa hàng" style="width:100%;height:44px;box-sizing:border-box;margin-top:10px"></div>' +
     '<div class="card" style="padding:11px 13px;font-size:13px;color:#475467;line-height:1.6">' +
     '<div>Đếm lúc nào trong ngày cũng được. Khoản đã ký nhận hay đã chi trước lúc đếm nằm sẵn trong số đếm; khoản ghi sau lúc chốt app cộng trừ tiếp.</div>' +
     '<div>Chỉ chốt một lần. Sau đó muốn sửa số quỹ thì Kiểm quỹ.</div></div>' +

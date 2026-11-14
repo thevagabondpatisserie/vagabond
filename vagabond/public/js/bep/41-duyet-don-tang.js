@@ -109,7 +109,7 @@ async function scrDuyetTang() {
       'border:1px solid #fecaca;border-radius:8px;font-size:12.5px;color:#b3261e">' +
       '⚠️ <b>Chưa khai Tài khoản chi phí biếu tặng trong Cài đặt.</b> Duyệt được ' +
       'nhưng đơn vẫn chưa ghi sổ được, vì máy không biết hạch toán phần tặng vào ' +
-      'đâu. Nhờ anh Việt và chị Dung chọn tài khoản trước.</div>' : '') +
+      'đâu. Nhờ giám đốc và kế toán trưởng chọn tài khoản trước.</div>' : '') +
     (kq.duyet_duoc ? '' : '<div style="margin-top:9px;padding:7px 9px;background:#f8fafc;' +
       'border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;color:#475467">' +
       'Bạn xem được danh sách nhưng không duyệt được. Chỉ Giám đốc mới duyệt, để ' +

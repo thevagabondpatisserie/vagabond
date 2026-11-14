@@ -107,7 +107,7 @@ async function scrTaiSan() {
     if (!await hoiCo('Mở khoá nhóm công cụ dụng cụ',
       'Nhóm công cụ dụng cụ ghi giá trị vào tài khoản ' + t.tk + '. ERPNext đòi tài khoản này phải được đánh dấu là tài khoản giữ giá trị thì mới cho phân bổ dần.\n\n' +
       'Loại hiện tại: ' + t.loai_hien_tai + '\nSẽ đổi thành: Fixed Asset\nSố bút toán đang nằm ở tài khoản này: ' + t.so_but_toan + '\n\n' +
-      'Đây là sửa bảng hệ thống tài khoản. Chỉ đổi một trường loại tài khoản, không đổi số hiệu, không đổi tên, không đụng số dư. Chị Dung nên xem trước khi bấm.',
+      'Đây là sửa bảng hệ thống tài khoản. Chỉ đổi một trường loại tài khoản, không đổi số hiệu, không đổi tên, không đụng số dư. Kế toán trưởng nên xem trước khi bấm.',
       'Mở khoá')) return;
     busy(true);
     try { var kq = await api('vagabond.tai_san.mo_khoa_ccdc', { that_su: 1 }); busy(false); toast(kq.loi_nhan, 5000); }

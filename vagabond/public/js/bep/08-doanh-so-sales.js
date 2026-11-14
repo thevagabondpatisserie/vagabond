@@ -1212,7 +1212,7 @@ async function scrDsView(name, can) {
     var than = (dsvHt.canh_bao_hddt
         ? '<div style="padding:9px 11px;border-radius:9px;background:#fffbeb;border:1.5px solid #fde68a;' +
           'font-size:12.5px;color:#78350f;margin-bottom:10px">Đơn này đã xuất hoá đơn điện tử số <b>' +
-          h(dsvHt.canh_bao_hddt) + '</b>. Máy KHÔNG tự động xử lý bên m-invoice, chị Dung phải làm tay.</div>'
+          h(dsvHt.canh_bao_hddt) + '</b>. Hệ thống <b>không</b> tự xử lý bên m-invoice, Kế toán làm tay trên m-invoice.</div>'
         : '') +
       '<div style="font-size:12px;color:#6b7280;margin-bottom:3px">Lý do hoàn</div>' +
       '<select id="htLyDo" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13.5px;margin-bottom:9px">' + ds + '</select>' +
@@ -1250,7 +1250,7 @@ async function scrDsView(name, can) {
           toast('Đã lập phiếu hoàn tiền ' + kq.ho_so, 3500);
           baoTin('Hàng đã vào ' + kq.kho_huy + ', KHÔNG về kho bán.\n\n' +
             'Phiếu chi ' + (kq.phieu_chi || '(chưa lập được)') + ' đang ở trạng thái nháp. ' +
-            'Chị Dung chuyển khoản, đính kèm uỷ nhiệm chi rồi mới ghi sổ được.\n\n' +
+            'Kế toán chuyển khoản, đính kèm uỷ nhiệm chi rồi mới ghi sổ được.\n\n' +
             'Nội dung chuyển khoản phải gõ đúng: ' + kq.noi_dung_ck);
           await dsvNapLai();
         } catch (e) { busy(false); }

@@ -1602,7 +1602,7 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
       }).join('') + '</div>' : '';
     var ov = document.createElement('div'); ov.className = 'sh';
     ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
-      '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">' + h(tieuDe || 'Hoàn thành phiếu') + '</div>' +
+      '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">' + h(tieuDe || 'Hoàn tất lệnh sản xuất') + '</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">Nguyên liệu trừ theo số làm; thành phẩm nhập kho theo số CÂN THỰC TẾ. Hai số lệch nhau bao nhiêu, máy ghi lại bấy nhiêu.</div>' +
       '<div style="font-size:12px;color:#8a8f9c;margin-bottom:6px">Số lượng làm theo lệnh (còn lại <span id="htCon">' + num(q(left)) + '</span>)</div>' +
       '<div class="qr" style="margin-bottom:8px"><div class="stp"><button data-m1>&minus;</button>' +
@@ -1610,12 +1610,12 @@ function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe) {
       sel + '</div>' + goi +
       /* v646 Cài đặt tự động hoá, luật ô số anh Việt duyệt 09/11/2026: số
          làm ra là số ĐẾM, để trống cho người nhập. Điền sẵn số lệnh thì bếp
-         bấm Hoàn thành cho qua và kho thành phẩm mang số không ai cân. */
+         bấm Hoàn tất cho qua và kho thành phẩm mang số không ai cân. */
       '<div style="font-size:12px;color:#8a8f9c;margin:12px 0 6px">Thực tế cân được (bắt buộc nhập, kể cả bằng số theo lệnh)</div>' +
       '<div class="qr"><div class="stp"><button data-m2>&minus;</button>' +
       '<input type="number" inputmode="decimal" id="htCan" value="" placeholder="Nhập số cân"><button data-p2>+</button></div>' +
       '<div class="uml" id="htU2">' + h(dvt) + '</div></div>' +
-      '<button class="btn gr" data-y style="margin-top:14px">✅ Hoàn thành</button>' +
+      '<button class="btn gr" data-y style="margin-top:14px">✅ Hoàn tất</button>' +
       '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
     document.body.appendChild(ov);
     var i1 = ov.querySelector('#htLenh'), i2 = ov.querySelector('#htCan');
@@ -1967,7 +1967,7 @@ async function mfgHoanTatNhom(g, veLai) {
   var conLai = con.map(function (c) { return r3(c.so_can - c.so_da); });
   var tong = r3(conLai.reduce(function (a, b) { return a + b; }, 0));
   var hai = await mfgSheetHoanTat(tong, g.dvt, (con[0] || {}).cac_dvt, g.ma_mon,
-    'Hoàn thành ' + con.length + ' lệnh');
+    'Hoàn tất ' + con.length + ' lệnh');
   if (!hai) return;
   var q = hai.theo_lenh || hai.thuc_te;
   if (!(q > 0)) return;
@@ -2355,7 +2355,7 @@ function mfgCauThieuNhom(kt) {
   });
   if (t.length > 3) dong.push('• và ' + (t.length - 3) + ' nguyên liệu nữa');
   return 'Kho bếp và hàng thay thế đã khai chưa đủ cho số này, nên máy chưa ghi lệnh nào (kể cả phần máy làm thêm).\n' +
-    dong.join('\n') + '\n\nBấm Gửi phiếu xin kho tổng: máy xin đúng phần thiếu (làm tròn lên số nguyên), Zalo báo kho. Kho tổng giao xong thì bấm Hoàn thành lại, hoặc làm số ít hơn.';
+    dong.join('\n') + '\n\nBấm Gửi phiếu xin kho tổng: máy xin đúng phần thiếu (làm tròn lên số nguyên), Zalo báo kho. Kho tổng giao xong thì bấm Hoàn tất lại, hoặc làm số ít hơn.';
 }
 
 /* Chữ phụ và màu của một chip nguyên liệu trong hộp "Máy làm luôn giúp bếp". THUẦN.
