@@ -25,6 +25,9 @@ from datetime import date, datetime, timedelta
 CACH_NHAN = "Nhan diem"
 NGUON_WEB = "Website"
 HANG_CAM_TIEU = {"AMBASSADOR", "FAMILY", "OWNER"}
+# Hạng gán tay được hiện trên thể lệ (The Vagabond Club, anh Việt 14/11/2026).
+HANG_MOI_HIEN = {"AMBASSADOR"}
+KB_SINH_NHAT = "sinh_nhat"
 NHAC_TRUOC_NGAY = 30
 HE_SO_TOI_DA = 10
 
@@ -126,6 +129,82 @@ def ngay_vn(v):
 	return d.strftime("%d/%m/%Y") if d else ""
 
 
+def moc_han(d, han_thang):
+	"""Mốc của việc hết hạn định kỳ vào ngày d: bút tích TRƯỚC mốc này là đã quá
+	hạn (diem_han.qua_han_cuon_chieu). Một phép cho mọi chỗ cần mốc. THUẦN."""
+	return str(cong_thang(d, -int(_so(han_thang))))
+
+
+def ngay_het_lan_tich(ngay_tich, han_thang):
+	"""Ngày ĐẦU TIÊN việc định kỳ coi bút tích ngày ngay_tich là quá hạn, tức ngày
+	điểm của lần tích đó mất. Cùng luật sap_het_han: dò quanh ngay_tich cộng
+	han_thang tháng, vì lùi tháng có kẹp ngày cuối tháng không nghịch đảo được
+	phép cộng tháng (bút 28/02, 31/01). THUẦN."""
+	e = _ngay(ngay_tich)
+	if not e or int(_so(han_thang)) <= 0:
+		return None
+	d = cong_thang(e, int(_so(han_thang))) - timedelta(days=4)
+	while moc_han(d, han_thang) <= str(e):
+		d += timedelta(days=1)
+	while moc_han(d - timedelta(days=1), han_thang) > str(e):
+		d -= timedelta(days=1)
+	return d
+
+
+def cac_lan_tich_con_han(but, hom_nay, han_thang):
+	"""Các lần tích còn điểm và còn hạn, lần sắp hết hạn đứng đầu. THUẦN.
+
+	Khối "Dùng điểm thế nào" (U3, anh Việt chốt 14/11/2026) vẽ dòng thời gian
+	này. Cùng luật diem_han.qua_han_cuon_chieu: mọi bút âm (đã tiêu, đã hết
+	hạn, đã trừ) trừ vào lần tích CŨ nhất trước. Lần tích có ngày mất đã tới
+	(việc định kỳ đêm nay sẽ ghi bút hết hạn) không còn tính là còn hạn.
+	Trả [{"diem", "ngay_tich", "ngay_het", "het"}], het là date để sắp.
+	"""
+	hn = _ngay(hom_nay)
+	if not hn or int(_so(han_thang)) <= 0:
+		return []
+	lo = []
+	da_ra = 0.0
+	so_du = 0.0
+	for ngay, diem in sorted(but or [], key=lambda x: str(x[0] or "")):
+		d = _so(diem)
+		so_du += d
+		if d > 0:
+			lo.append([str(ngay or "")[:10], d])
+		elif d < 0:
+			da_ra += -d
+	ra = []
+	for ngay, d in lo:
+		tru = min(d, da_ra)
+		da_ra -= tru
+		con = d - tru
+		if con < 1:
+			continue
+		het = ngay_het_lan_tich(ngay, han_thang)
+		if het and het > hn:
+			ra.append({"diem": int(con), "ngay_tich": ngay_vn(ngay), "ngay_het": ngay_vn(het), "het": het})
+	ra.sort(key=lambda x: x["het"])
+	# Không bao giờ hiện quá số dư đang có (cùng luật qua_han_cuon_chieu).
+	tran = max(0, int(so_du))
+	tong = sum(x["diem"] for x in ra)
+	while ra and tong > tran:
+		bot = min(ra[-1]["diem"], tong - tran)
+		ra[-1]["diem"] -= bot
+		tong -= bot
+		if ra[-1]["diem"] <= 0:
+			ra.pop()
+	return ra
+
+
+def tom_tat_lan_tich(ds, so_hien=3):
+	"""Ba lần sắp hết hạn nhất hiện riêng, phần còn lại gộp một dòng. THUẦN."""
+	ds = list(ds or [])
+	dau = [{k: x[k] for k in ("diem", "ngay_tich", "ngay_het")} for x in ds[:so_hien]]
+	con = ds[so_hien:]
+	return {"ds": dau, "khac": {"diem": sum(x["diem"] for x in con), "so": len(con)},
+		"tong": sum(x["diem"] for x in ds)}
+
+
 def sap_het_han(but, hom_nay, han_thang, so_ngay=NHAC_TRUOC_NGAY):
 	"""Điểm sẽ hết hạn trong `so_ngay` tới theo cách cuốn chiếu, và ngày mất đầu
 	tiên. Trả {"diem", "ngay"} hoặc None. THUẦN.
@@ -141,7 +220,7 @@ def sap_het_han(but, hom_nay, han_thang, so_ngay=NHAC_TRUOC_NGAY):
 		return None
 
 	def moc(d):
-		return str(cong_thang(d, -int(_so(han_thang))))
+		return moc_han(d, han_thang)
 
 	da_mat = qua_han_cuon_chieu(but, moc(hn))
 	cuoi = hn + timedelta(days=int(so_ngay))
@@ -226,6 +305,44 @@ def bang_the_le(hang_ds, ctkm_ds):
 		ra.append({"ten_hang": ten, "chi_tieu_tu": _so(h.get("chi_tieu_tu")),
 			"so_thang_xet": int(_so(h.get("so_thang_xet"))) or 12, "tich_diem": _so(h.get("tich_diem")),
 			"giam_gia": _so(h.get("giam_gia")), "dac_quyen": dac_quyen_tu_ctkm(ten, ctkm_ds)})
+	return ra
+
+
+def bang_hang_moi(hang_ds, ctkm_ds):
+	"""Hạng gán tay hiện trên thể lệ: chỉ hạng trong HANG_MOI_HIEN đang bật (anh
+	Việt 14/11/2026: AMBASSADOR do Vagabond mời; FAMILY, OWNER không hiện). Số
+	giảm, số tích đọc từ hạng trên site, không cứng trong mã. THUẦN."""
+	ra = []
+	for h in sorted(hang_ds or [], key=lambda x: (int(_so(x.get("thu_tu"))), str(x.get("ten_hang") or ""))):
+		ten = h.get("ten_hang") or h.get("name")
+		if (h.get("loai") or "Theo chi tieu") == "Theo chi tieu" or not int(_so(h.get("bat"), 1)):
+			continue
+		if str(ten or "").strip().upper() not in HANG_MOI_HIEN:
+			continue
+		ra.append({"ten_hang": ten, "chi_tieu_tu": 0, "so_thang_xet": int(_so(h.get("so_thang_xet"))) or 12,
+			"tich_diem": _so(h.get("tich_diem")), "giam_gia": _so(h.get("giam_gia")), "moi": 1,
+			"dac_quyen": dac_quyen_tu_ctkm(ten, ctkm_ds)})
+	return ra
+
+
+def qua_sinh_nhat_tu_ctkm(km):
+	"""Quà sinh nhật đọc từ chương trình kịch bản Zalo Sinh nhật đang dùng. THUẦN.
+
+	Trả {"ten", "nhom", "toi_da", "hang"} khi chương trình bật, hiện web và đặt
+	theo hạng; "nhom", "toi_da" chỉ có khi là tặng trọn một bánh trong một nhóm
+	món (giảm 100% món, có trần). Không đủ thì None: trang không hứa quà."""
+	if not km or not int(_so(km.get("bat"))) or not int(_so(km.get("hien_web"))):
+		return None
+	if (km.get("doi_tuong") or "") != "Theo hang khach":
+		return None
+	hang = [x.strip().upper() for x in str(km.get("hang_khach") or "").splitlines() if x.strip()]
+	if not hang:
+		return None
+	ra = {"ten": str(km.get("ten") or "").strip(), "nhom": "", "toi_da": 0, "hang": hang}
+	if (km.get("kieu_giam") == "Phan tram" and _so(km.get("gia_tri")) >= 100
+			and km.get("pham_vi") == "Nhom mon chi dinh" and str(km.get("nhom_mon") or "").strip()):
+		ra["nhom"] = str(km.get("nhom_mon")).strip()
+		ra["toi_da"] = int(_so(km.get("giam_toi_da")))
 	return ra
 
 
@@ -492,7 +609,7 @@ def the_le(khach=None):
 	c = _cd()
 	cd_han = diem_han._cd()
 	bang = bang_the_le(hang, ctkm)
-	ra = {"hang": bang, "luat": {
+	ra = {"hang": bang, "hang_moi": bang_hang_moi(hang, ctkm), "qua_sn": _qua_sn(), "lan_tich": None, "luat": {
 		"tran_pt": c["tran_pt"], "toi_thieu": c["bill_toi_thieu"],
 		"han_thang": cd_han["han_thang"] if cd_han["cach"] == "Cuon chieu" else 0,
 		"cach_han": cd_han["cach"], "nhac_ngay": NHAC_TRUOC_NGAY,
@@ -503,4 +620,23 @@ def the_le(khach=None):
 		but = [(str(r[0]), _so(r[1])) for r in frappe.db.sql(
 			"select date(ngay), diem from `tabVagabond So Diem` where khach = %s order by ngay", (khach,))]
 		ra["sap_het"] = sap_het_han(but, hn, cd_han["han_thang"])
+		# v658: dòng thời gian các lần tích còn hạn (khối Dùng điểm thế nào).
+		ra["lan_tich"] = tom_tat_lan_tich(cac_lan_tich_con_han(but, hn, cd_han["han_thang"]))
 	return ra
+
+
+def _qua_sn():
+	"""Chương trình quà sinh nhật là chương trình gắn ở kịch bản Zalo Sinh nhật
+	(một nguồn với tin gửi quà). Lỗi đọc thì không hiện quà, trang vẫn chạy."""
+	import frappe
+
+	try:
+		ten = frappe.db.get_value("Vagabond Kich Ban Zalo", KB_SINH_NHAT, "ctkm")
+		if not ten:
+			return None
+		km = frappe.db.get_value("Vagabond CTKM", ten, ["name", "ten", "bat", "hien_web", "doi_tuong", "hang_khach",
+			"kieu_giam", "gia_tri", "pham_vi", "nhom_mon", "giam_toi_da"], as_dict=True)
+		return qua_sinh_nhat_tu_ctkm(km)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "diem_web: đọc quà sinh nhật")
+		return None

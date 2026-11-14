@@ -25,12 +25,12 @@ TRUONG_MOI_586 = {"don_toi_thieu", "gio_bat_dau", "gio_ket_thuc", "dieu_kien", "
 # nhất phải chặn số sai.
 TRUONG_TKR_DS = {"kich_co", "trang_tri"}
 TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "anh_dt", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email", "so_ngay"} | TRUONG_MOI_586 | TRUONG_TKR_DS
-VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "gio_hang", "dat_xong"}
+VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "gio_hang", "dat_xong", "club"}
 # v647 (anh Việt 10/11/2026): banner ảnh Marketing tự thiết kế, Minh Vũ thay ở
 # trình biên tập. Chỉ ba chỗ anh chọn: đầu trang, giỏ hàng (màn Thông tin đơn
 # hàng, trên phần tổng tiền) và đặt xong (ngay sau khi gửi đơn thành công).
 # Banner là mục theo thẻ như tiệc nhưng giữ vị trí riêng, không ép vi_tri = loai.
-VI_TRI_BANNER = ("dau_trang", "gio_hang", "dat_xong")
+VI_TRI_BANNER = ("dau_trang", "gio_hang", "dat_xong", "club")
 # Các loại có thẻ riêng trong trình biên tập mới, mỗi mục một thẻ trên web.
 LOAI_MUC = ("uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "banner")
 # Trần giá một size hoặc một trang trí (đồng, đã gồm VAT): chặn gõ thừa số 0.
@@ -447,7 +447,7 @@ def chuan_tkr(k):
 def _kiem_banner(k):
     """v647: banner chỉ ở ba chỗ đã chốt; bật hiện thì phải có ảnh. THUẦN."""
     if k.get("vi_tri") not in VI_TRI_BANNER:
-        raise ValueError("Chọn chỗ đặt banner: Đầu trang, Giỏ hàng hoặc Đặt xong.")
+        raise ValueError("Chọn chỗ đặt banner: Đầu trang, Giỏ hàng, Đặt xong hoặc Trang thành viên.")
     if k.get("hien") and not str(k.get("anh") or "").strip():
         raise ValueError("Tải ảnh banner trước khi bật hiện trên web.")
 
@@ -520,8 +520,8 @@ def chuan_hoa(du_lieu):
             _kiem_banner(k)
         if k.get("vi_tri", "cuoi_trang") not in VI_TRI:
             raise ValueError("Chọn vị trí khối trên trang đặt bánh.")
-        if k["loai"] != "banner" and (k.get("vi_tri") in ("gio_hang", "dat_xong") or k.get("anh_dt")):
-            raise ValueError("Vị trí Giỏ hàng, Đặt xong và ảnh điện thoại chỉ dùng cho banner.")
+        if k["loai"] != "banner" and (k.get("vi_tri") in ("gio_hang", "dat_xong", "club") or k.get("anh_dt")):
+            raise ValueError("Vị trí Giỏ hàng, Đặt xong, Trang thành viên và ảnh điện thoại chỉ dùng cho banner.")
         if k['loai'] not in LOAI_MUC and k.get('vi_tri') in LOAI_MUC:
             raise ValueError('Khối nội dung thường cần chọn vị trí trên trang bán hàng.')
         if k['loai'] == 'tieu_de_muc':
