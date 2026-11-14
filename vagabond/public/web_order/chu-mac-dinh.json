@@ -7015,5 +7015,359 @@
     "nhom": "dat_banh",
     "mac_dinh": "Tất cả đồ uống",
     "nhieu_dong": true
+  },
+  "tv658_loi": {
+    "ten": "The Vagabond Club: LÕI",
+    "nhom": "thanh_vien",
+    "mac_dinh": "LÕI",
+    "nhieu_dong": true
+  },
+  "tv658_trieu": {
+    "ten": "The Vagabond Club: triệu",
+    "nhom": "thanh_vien",
+    "mac_dinh": "triệu",
+    "nhieu_dong": true
+  },
+  "tv658_ban_o_day": {
+    "ten": "The Vagabond Club: Bạn ở đây",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Bạn ở đây",
+    "nhieu_dong": true
+  },
+  "tv658_ht_aria": {
+    "ten": "The Vagabond Club: Hành trình hạng: {ds}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hành trình hạng: {ds}.",
+    "nhieu_dong": true
+  },
+  "tv658_ht_aria_la": {
+    "ten": "The Vagabond Club: Bạn đang ở hạng {hang}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Bạn đang ở hạng {hang}.",
+    "nhieu_dong": true
+  },
+  "tv658_chi_12": {
+    "ten": "The Vagabond Club: Chi tiêu {thang}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chi tiêu {thang}",
+    "nhieu_dong": true
+  },
+  "tv658_con": {
+    "ten": "The Vagabond Club: Còn {tien}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Còn {tien}",
+    "nhieu_dong": true
+  },
+  "tv658_vao_vong": {
+    "ten": "The Vagabond Club: Vào vòng {hang}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Vào vòng {hang}",
+    "nhieu_dong": true
+  },
+  "tv658_cao_nhat": {
+    "ten": "The Vagabond Club: Bạn đang ở vòng cao nhất",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Bạn đang ở vòng cao nhất",
+    "nhieu_dong": true
+  },
+  "tv658_hang_ql": {
+    "ten": "The Vagabond Club: HẠNG VÀ QUYỀN LỢI",
+    "nhom": "thanh_vien",
+    "mac_dinh": "HẠNG VÀ QUYỀN LỢI",
+    "nhieu_dong": true
+  },
+  "tv658_vuot": {
+    "ten": "The Vagabond Club: Vuốt ngang để xem từng hạng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Vuốt ngang để xem từng hạng.",
+    "nhieu_dong": true
+  },
+  "tv658_do_moi": {
+    "ten": "The Vagabond Club: Do Vagabond mời",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Do Vagabond mời",
+    "nhieu_dong": true
+  },
+  "tv658_chi_tu": {
+    "ten": "The Vagabond Club: Chi từ {tien} trong {thang}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chi từ {tien} trong {thang}",
+    "nhieu_dong": true
+  },
+  "tv658_tu_dau": {
+    "ten": "The Vagabond Club: Từ đơn đầu tiên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Từ đơn đầu tiên",
+    "nhieu_dong": true
+  },
+  "tv658_hang_cua_ban": {
+    "ten": "The Vagabond Club: Hạng của bạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạng của bạn",
+    "nhieu_dong": true
+  },
+  "tv658_tich_diem": {
+    "ten": "The Vagabond Club: tích điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tích điểm",
+    "nhieu_dong": true
+  },
+  "tv658_moi_hd": {
+    "ten": "The Vagabond Club: mỗi hoá đơn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "mỗi hoá đơn",
+    "nhieu_dong": true
+  },
+  "tv658_qua_sn": {
+    "ten": "The Vagabond Club: Quà sinh nhật",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà sinh nhật",
+    "nhieu_dong": true
+  },
+  "tv658_giam_moi": {
+    "ten": "The Vagabond Club: Giảm {pt} mỗi hoá đơn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Giảm {pt} mỗi hoá đơn",
+    "nhieu_dong": true
+  },
+  "tv658_1_diem": {
+    "ten": "The Vagabond Club: 1 điểm = 1đ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "1 điểm = 1đ",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_1": {
+    "ten": "The Vagabond Club: Quà sinh nhật:",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà sinh nhật:",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_2": {
+    "ten": "The Vagabond Club: 1 bánh nhóm {nhom},",
+    "nhom": "thanh_vien",
+    "mac_dinh": "1 bánh nhóm {nhom},",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_3": {
+    "ten": "The Vagabond Club: tối đa {tien},",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tối đa {tien},",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_4": {
+    "ten": "The Vagabond Club: nhận trong tháng sinh nhật.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "nhận trong tháng sinh nhật.",
+    "nhieu_dong": true
+  },
+  "tv658_dung_the_nao": {
+    "ten": "The Vagabond Club: DÙNG ĐIỂM THẾ NÀO",
+    "nhom": "thanh_vien",
+    "mac_dinh": "DÙNG ĐIỂM THẾ NÀO",
+    "nhieu_dong": true
+  },
+  "tv658_han_1": {
+    "ten": "The Vagabond Club: Mỗi lần tích có hạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mỗi lần tích có hạn",
+    "nhieu_dong": true
+  },
+  "tv658_han_2": {
+    "ten": "The Vagabond Club: {han} riêng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{han} riêng.",
+    "nhieu_dong": true
+  },
+  "tv658_tran": {
+    "ten": "The Vagabond Club: Áp dụng thanh toán {tran} {gia_tri}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Áp dụng thanh toán {tran} {gia_tri}",
+    "nhieu_dong": true
+  },
+  "tv658_toi_da": {
+    "ten": "The Vagabond Club: tối đa {pt}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tối đa {pt}",
+    "nhieu_dong": true
+  },
+  "tv658_het_han": {
+    "ten": "The Vagabond Club: Hết hạn {ngay}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hết hạn {ngay}",
+    "nhieu_dong": true
+  },
+  "tv658_n_diem": {
+    "ten": "The Vagabond Club: {diem} điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{diem} điểm",
+    "nhieu_dong": true
+  },
+  "tv658_dung_som": {
+    "ten": "The Vagabond Club: Dùng sớm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Dùng sớm",
+    "nhieu_dong": true
+  },
+  "tv658_tich_ngay": {
+    "ten": "The Vagabond Club: Tích {ngay}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tích {ngay}",
+    "nhieu_dong": true
+  },
+  "tv658_lan_khac": {
+    "ten": "The Vagabond Club: Các lần tích khác",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Các lần tích khác",
+    "nhieu_dong": true
+  },
+  "tv658_tong_co": {
+    "ten": "The Vagabond Club: Tổng đang có",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tổng đang có",
+    "nhieu_dong": true
+  },
+  "tv658_nhac": {
+    "ten": "The Vagabond Club: Zalo nhắc trước {ngay}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Zalo nhắc trước {ngay}.",
+    "nhieu_dong": true
+  },
+  "tv658_hoan": {
+    "ten": "The Vagabond Club: Đơn bị huỷ thì điểm tự hoàn.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đơn bị huỷ thì điểm tự hoàn.",
+    "nhieu_dong": true
+  },
+  "tv658_anh_khach": {
+    "ten": "The Vagabond Club: Khách của Vagabond",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Khách của Vagabond",
+    "nhieu_dong": true
+  },
+  "tv658_tu": {
+    "ten": "The Vagabond Club: Thành viên từ {thang}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên từ {thang}",
+    "nhieu_dong": true
+  },
+  "tv658_tuong_duong": {
+    "ten": "The Vagabond Club: Tương đương {tien}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tương đương {tien}.",
+    "nhieu_dong": true
+  },
+  "tv658_khong_dung": {
+    "ten": "The Vagabond Club: Hạng của bạn được giảm thẳng trên mỗi ho",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạng của bạn được giảm thẳng trên mỗi hoá đơn, không dùng điểm.",
+    "nhieu_dong": true
+  },
+  "tv658_sap_het": {
+    "ten": "The Vagabond Club: {diem} hết hạn ngày {ngay}. Dùng trước đ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{diem} hết hạn ngày {ngay}. Dùng trước để không mất.",
+    "nhieu_dong": true
+  },
+  "tv658_diem": {
+    "ten": "The Vagabond Club: điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "điểm",
+    "nhieu_dong": true
+  },
+  "tv658_dk_bao": {
+    "ten": "The Vagabond Club: Nhập số điện thoại để đăng ký. Mã xác mi",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhập số điện thoại để đăng ký. Mã xác minh gửi qua Zalo.",
+    "nhieu_dong": true
+  },
+  "tv658_tich_den": {
+    "ten": "The Vagabond Club: Tích đến",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tích đến",
+    "nhieu_dong": true
+  },
+  "tv658_cau_1": {
+    "ten": "The Vagabond Club: Đăng nhập để xem hạng,",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đăng nhập để xem hạng,",
+    "nhieu_dong": true
+  },
+  "tv658_cau_2": {
+    "ten": "The Vagabond Club: điểm và quà của bạn.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "điểm và quà của bạn.",
+    "nhieu_dong": true
+  },
+  "tv658_o_sdt": {
+    "ten": "The Vagabond Club: Số điện thoại của bạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số điện thoại của bạn",
+    "nhieu_dong": true
+  },
+  "tv658_nut_otp": {
+    "ten": "The Vagabond Club: Nhận mã đăng nhập",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhận mã đăng nhập",
+    "nhieu_dong": true
+  },
+  "tv658_dk_cau": {
+    "ten": "The Vagabond Club: Đăng ký thành viên tại đây",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đăng ký thành viên tại đây",
+    "nhieu_dong": true
+  },
+  "tv658_dk_chip": {
+    "ten": "The Vagabond Club: Đăng ký",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đăng ký",
+    "nhieu_dong": true
+  },
+  "tv658_chao": {
+    "ten": "The Vagabond Club: Chào",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chào",
+    "nhieu_dong": true
+  },
+  "tv658_hanh_trinh": {
+    "ten": "The Vagabond Club: HÀNH TRÌNH CỦA BẠN",
+    "nhom": "thanh_vien",
+    "mac_dinh": "HÀNH TRÌNH CỦA BẠN",
+    "nhieu_dong": true
+  },
+  "tv658_diem_cua_ban": {
+    "ten": "The Vagabond Club: Điểm của bạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Điểm của bạn",
+    "nhieu_dong": true
+  },
+  "tv658_dat_dung_diem": {
+    "ten": "The Vagabond Club: Đặt bánh và dùng điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đặt bánh và dùng điểm",
+    "nhieu_dong": true
+  },
+  "tv658_goi_y_sdt": {
+    "ten": "The Vagabond Club: 09xx xxx xxx",
+    "nhom": "thanh_vien",
+    "mac_dinh": "09xx xxx xxx",
+    "nhieu_dong": true
+  },
+  "tv658_gia_tri": {
+    "ten": "The Vagabond Club: giá trị đơn hàng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "giá trị đơn hàng",
+    "nhieu_dong": true
+  },
+  "tv658_ht_tu": {
+    "ten": "The Vagabond Club: từ {tien}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "từ {tien}",
+    "nhieu_dong": true
+  },
+  "tv658_tich_pt": {
+    "ten": "The Vagabond Club: tích {pt}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tích {pt}",
+    "nhieu_dong": true
   }
 }

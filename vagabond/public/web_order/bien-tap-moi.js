@@ -41,6 +41,7 @@
     {ma: 'dau_trang', ten: 'Đầu trang', mo: 'Dưới thanh tiêu đề, trước các tab bánh. Ai vào trang cũng thấy.'},
     {ma: 'gio_hang', ten: 'Giỏ hàng', mo: 'Màn Thông tin đơn hàng, ngay trên phần tổng tiền.'},
     {ma: 'dat_xong', ten: 'Đặt xong', mo: 'Hiện ngay sau khi khách gửi đơn thành công.'},
+    {ma: 'club', ten: 'Trang thành viên', mo: 'Ảnh lớn trên trang đăng nhập The Vagabond Club. Banner thứ nhất là ảnh dọc bên trái, banner thứ hai là ảnh nhỏ bên phải.'},
   ];
   const tenCho = ma => (CHO_BANNER.find(c => c.ma === ma) || {}).ten || '';
   const HINH_THUC = ['Toàn thời gian', 'Bán thời gian', 'Thời vụ'];
