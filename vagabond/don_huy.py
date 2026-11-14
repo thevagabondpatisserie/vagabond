@@ -1445,7 +1445,7 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 		"khach": khach,
 		"ngan_hang": ngan_hang,
 		"so_anh": len(tep_bc),
-		"nhac": ("Hồ sơ đã nằm ở màn Phiếu hoàn tiền của kế toán. Chị Dung "
+		"nhac": ("Hồ sơ đã nằm ở màn Phiếu hoàn tiền của kế toán. Kế toán "
 			"chuyển tiền, bấm Đối soát lệnh chi, máy sinh hai phiếu nháp rồi "
 			"chị đính uỷ nhiệm chi và ghi sổ."),
 	}

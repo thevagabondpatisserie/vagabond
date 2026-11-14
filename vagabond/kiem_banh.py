@@ -187,7 +187,7 @@ def _keo_don(c, k, update_status, dau, cuoi):
 	raise LoiPancake(
 		0,
 		"Ngày này có hơn %d đơn, nhiều hơn mức máy kéo về một lượt. "
-		"Số trên bảng sẽ thiếu. Báo anh Việt để nới mức kéo."
+		"Số trên bảng sẽ thiếu. Báo quản trị hệ thống để nới mức kéo."
 		% (MAX_TRANG * 100),
 	)
 

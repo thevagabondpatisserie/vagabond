@@ -56,6 +56,6 @@ def chan_neu_khong_thu_mua(viec="vào phân hệ Thu mua"):
 	if not duoc_thu_mua():
 		frappe.throw(
 			"Tài khoản của bạn không có quyền %s. Phân hệ này chỉ mở cho Thu mua, "
-			"Kế toán và Giám đốc. Cần dùng thì báo anh Việt cấp thêm chức vụ "
+			"Kế toán và Giám đốc. Cần dùng thì báo quản trị hệ thống cấp thêm chức vụ "
 			"Thu mua trong màn Quản lý người dùng." % viec
 		)
