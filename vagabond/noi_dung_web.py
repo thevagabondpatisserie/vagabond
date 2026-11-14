@@ -17,7 +17,11 @@ LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap
 # có giá vé, số vé, hạn đăng ký. Mọi trường vẫn là CHUỖI để giữ một phép kiểm
 # chung cho chữ; con số được kiểm riêng là chuỗi chữ số.
 TRUONG_MOI_586 = {"don_toi_thieu", "gio_bat_dau", "gio_ket_thuc", "dieu_kien", "yeu_cau",
-                  "gia_ve", "so_ve", "han_ban", "dia_diem"}
+                  "gia_ve", "so_ve", "han_ban", "dia_diem", "loai_su_kien"}
+# v658 (anh Việt chọn A 14/11/2026): mục Tiệc nâng thành "Vé sự kiện", mỗi sự
+# kiện có loại. Mã lưu không dấu, chữ khách thấy ở web (ve-su-kien.js) và
+# trình biên tập. Trống là Tiệc (sự kiện tạo trước bản này).
+LOAI_SU_KIEN = {"tiec": "Tiệc", "ra_mat": "Ra mắt món", "dien_gia": "Diễn giả"}
 # v630 (anh Việt chốt 02/11/2026): bánh thiết kế riêng (Croquembouche...). Mỗi
 # tác phẩm là một khối: size và trang trí là DANH SÁCH (không phải chuỗi như
 # mọi trường khác), giá đã gồm VAT, kiểm riêng ở chuan_tkr. Máy chủ tính giá
@@ -244,6 +248,8 @@ def _kiem_truong_586(k):
     _so(k.get("don_toi_thieu", ""), "Đơn tối thiểu")
     _so(k.get("gia_ve", ""), "Giá vé")
     _so(k.get("so_ve", ""), "Số vé", 5)
+    if k.get("loai_su_kien") and k["loai_su_kien"] not in LOAI_SU_KIEN:
+        raise ValueError("Chọn loại sự kiện: Tiệc, Ra mắt món hoặc Diễn giả.")
     if k.get("so_ve") and int(k["so_ve"]) < 1:
         raise ValueError("Số vé phải từ 1 trở lên, để trống là không giới hạn.")
     g1, g2 = k.get("gio_bat_dau", ""), k.get("gio_ket_thuc", "")

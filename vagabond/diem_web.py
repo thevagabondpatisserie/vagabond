@@ -353,7 +353,14 @@ def qua_sinh_nhat_tu_ctkm(km, hom_nay, kb):
 	Có phát được hay không hỏi đúng MỘT cửa: zalo_kich_ban.ctkm_phat_duoc, cửa
 	mà tin sinh nhật và Ví quà (thanh_vien) dùng để cấp mã. Chương trình chưa
 	bắt đầu, đã qua ngày kết thúc, hạn mã đã qua hay không phải mã dùng một lần
-	thì không cấp được, nên trang cũng không hứa (Codex PR #566)."""
+	thì không cấp được, nên trang cũng không hứa (Codex PR #566).
+
+	Chương trình bật "Phát vào Ví quà thành viên" thì tin Zalo cấp mã theo luật
+	Ví quà (zalo_kich_ban._gui_mot gọi thanh_vien.xet_vi), không theo hạn của
+	kịch bản. Trang dùng đúng luật đó (Codex PR #566 vòng 2): dịp "Tháng sinh
+	nhật" thì "lich" = "thang" (chỉ nhận trong tháng sinh nhật, mã dùng tới hết
+	tháng, khách sinh đầu tháng sau chưa nhận trước sinh nhật); dịp "Mọi lúc"
+	thì hạn lấy từ thanh_vien.han_ma_vi. Còn lại "lich" = "truoc"."""
 	if not kb or not int(_so(kb.get("bat"))):
 		return None
 	if not km or not int(_so(km.get("bat"))) or not int(_so(km.get("hien_web"))):
@@ -361,7 +368,17 @@ def qua_sinh_nhat_tu_ctkm(km, hom_nay, kb):
 	from vagabond.zalo_kich_ban import ctkm_phat_duoc
 
 	hn = _ngay(hom_nay)
-	han, _ = ctkm_phat_duoc(km, hn, kb.get("han_ngay"))
+	lich = "truoc"
+	if int(_so(km.get("vi_phat"))):
+		from vagabond import thanh_vien
+
+		if (km.get("vi_dip") or "Moi luc") == "Thang sinh nhat":
+			# Hạn mã tới hết tháng sinh nhật của từng khách: trang ghi luật, không ghi số ngày.
+			lich, han = "thang", ctkm_phat_duoc(km, hn, 1)[0]
+		else:
+			han = thanh_vien.han_ma_vi(km, hn, None)
+	else:
+		han, _ = ctkm_phat_duoc(km, hn, kb.get("han_ngay"))
 	if not han:
 		return None
 	if (km.get("doi_tuong") or "") != "Theo hang khach":
@@ -369,8 +386,10 @@ def qua_sinh_nhat_tu_ctkm(km, hom_nay, kb):
 	hang = [x.strip().upper() for x in str(km.get("hang_khach") or "").splitlines() if x.strip()]
 	if not hang:
 		return None
-	ra = {"ten": str(km.get("ten") or "").strip(), "nhom": "", "toi_da": 0, "hang": hang,
+	ra = {"ten": str(km.get("ten") or "").strip(), "nhom": "", "toi_da": 0, "hang": hang, "lich": lich,
 		"truoc": max(0, int(_so(kb.get("so_ngay")))), "han": max(1, (han - hn).days)}
+	if lich == "thang":
+		ra["truoc"], ra["han"] = 0, 0
 	if (km.get("kieu_giam") == "Phan tram" and _so(km.get("gia_tri")) >= 100
 			and km.get("pham_vi") == "Nhom mon chi dinh" and str(km.get("nhom_mon") or "").strip()):
 		ra["nhom"] = str(km.get("nhom_mon")).strip()
@@ -668,7 +687,8 @@ def _qua_sn(hn):
 		if not ten:
 			return None
 		km = frappe.db.get_value("Vagabond CTKM", ten, ["name", "ten", "bat", "hien_web", "doi_tuong", "hang_khach",
-			"kieu_giam", "gia_tri", "pham_vi", "nhom_mon", "giam_toi_da", "cach_ma", "tu_ngay", "den_ngay", "han_ma"],
+			"kieu_giam", "gia_tri", "pham_vi", "nhom_mon", "giam_toi_da", "cach_ma", "tu_ngay", "den_ngay", "han_ma",
+			"vi_phat", "vi_dip", "vi_han_ngay"],
 			as_dict=True)
 		return qua_sinh_nhat_tu_ctkm(km, hn, kb)
 	except Exception:
