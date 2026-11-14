@@ -2162,13 +2162,14 @@ def bang_doanh_so(ngay=None):
 	# van chi ra de ke toan soat lai.
 	ma_trung = _ma_trung_trong_ngay(ngay, [s.vgb_ma_tham_chieu for s in sis])
 
+	_gan_can_ck(sis)
 	for s in sis:
 		s["can_hddt"] = 1 if s.custom_pancake_display_id in hd_cty else 0
 		s["trung"] = 1 if dem.get(s.custom_pancake_id, 0) > 1 else 0
 		g = tien_sepay.get(str(s.custom_pancake_display_id or ""))
 		s["sepay_nhan"] = int(g["nhan"]) if g else 0
 		s["sepay_ma"] = (g or {}).get("ma") or ""
-		s["sepay_du"] = 1 if g and g["nhan"] >= flt(s.grand_total) - 1 else 0
+		s["sepay_du"] = 1 if g and g["nhan"] >= _can_ck(s) - 1 else 0
 	# Tong phan giam TREN DONG HANG cua tung don. Doc mot luot cho ca ngay
 	# thay vi mo tung don: mot cau truy van thay vi vai chuc.
 	gan_khach_vao_dong(sis)
@@ -2693,6 +2694,40 @@ def _ck_don_web(si):
 		return {}
 
 
+def _gan_can_ck(ds):
+	"""Gắn `can_ck` (số ngân hàng phải nhận) cho cả danh sách bằng MỘT lượt
+	đọc bảng dòng thanh toán. Xem _can_ck."""
+	from vagabond import thanh_toan_nhieu as ttn
+
+	ten = [r.get("name") for r in ds or [] if r.get("name")]
+	bang = ttn.bang_dong_cua(ten) if ten else {}
+	for r in ds or []:
+		r["can_ck"] = ttn.so_can_ck(bang.get(r.get("name")), r.get("grand_total"))
+
+
+def _can_ck(r):
+	"""Số tiền ngân hàng phải nhận để tờ Chuyển khoản được coi là đủ tiền.
+
+	MỘT nguồn cho cửa ghi sổ (_soat_sepay) và mọi màn (danh sách Đơn bán,
+	màn tính tiền, Đơn còn treo, chuông ghi sổ, khớp theo số tiền): tờ có
+	nhiều dòng thanh toán thì chỉ đòi phần Chuyển khoản (Loan Anh 14/11/2026,
+	đơn 97492). Ca thu_can_ck_dong_chia chốt không còn chỗ nào tự so với
+	grand_total. Danh sách gọi _gan_can_ck trước để khỏi hỏi từng tờ.
+	"""
+	from vagabond import thanh_toan_nhieu as ttn
+
+	if r is None:
+		return 0.0
+	if r.get("can_ck") is not None:
+		return flt(r.get("can_ck"))
+	if hasattr(r, "get") and isinstance(r.get(ttn.BANG), list):
+		# Tài liệu đang mở (cửa ghi sổ): đọc bảng trong bộ nhớ, kể cả dòng vừa sửa.
+		dong = [{"pt": d.get("pt"), "so_tien": d.get("so_tien")} for d in r.get(ttn.BANG) or []]
+	else:
+		dong = ttn.dong_cua(r.get("name"))
+	return ttn.so_can_ck(dong, r.get("grand_total"))
+
+
 def _soat_sepay(si, sepay=None):
 	"""Don Chuyen khoan: ngan hang phai nhan du tien moi cho ghi so.
 
@@ -2711,24 +2746,25 @@ def _soat_sepay(si, sepay=None):
 		sepay = _sepay_theo_don(cfg().pancake_shop_id, [si.custom_pancake_display_id])
 	g = (sepay or {}).get(str(si.custom_pancake_display_id or "")) or {}
 	nhan = flt(g.get("nhan"))
-	if nhan < flt(si.grand_total) - 1:
+	can = _can_ck(si)
+	if nhan < can - 1:
 		# v638: đơn web trả chuyển khoản ngay trên web. Lấy số LỚN hơn, không
 		# cộng: hai đường có thể cùng thấy một dòng sao kê.
 		w = _ck_don_web(si) or {}
 		if flt(w.get("nhan")) > nhan:
 			g, nhan = w, flt(w.get("nhan"))
-	if nhan >= flt(si.grand_total) - 1:
+	if nhan >= can - 1:
 		if not (si.vgb_ma_tham_chieu or "").strip() and g.get("ma"):
 			si.vgb_ma_tham_chieu = g["ma"]
 		return
 	if (si.vgb_ma_tham_chieu or "").strip():
 		return
 	frappe.throw(
-		"Đơn %s ghi Chuyển khoản nhưng ngân hàng mới nhận %s đ trên tổng %s đ, "
+		"Đơn %s ghi Chuyển khoản nhưng ngân hàng mới nhận %s đ trên %s đ phải chuyển khoản, "
 		"chưa đủ tiền nên chưa ghi sổ được. Nếu khách đã chuyển mà ghi sai nội "
 		"dung khiến SePay không khớp được, anh chị tìm giao dịch trong sao kê "
 		"rồi gõ mã giao dịch vào ô Mã tham chiếu, ghi sổ sẽ qua."
-		% (si.custom_pancake_display_id or si.name, _tien(nhan), _tien(si.grand_total))
+		% (si.custom_pancake_display_id or si.name, _tien(nhan), _tien(can))
 	)
 
 
@@ -2750,9 +2786,10 @@ def _chuan_bi_ghi_so(si, sepay=None, cho_cho_duyet=False):
 	if pt == "Chuyển khoản" and si.get("vgb_quay"):
 		g = _sepay_cho_bill(si)
 		nhan = flt(g.get("nhan"))
-		if nhan < flt(si.grand_total) - 1:
-			frappe.throw("Bill %s: ngân hàng mới nhận %s đ trên tổng %s đ. Chờ tiền về hoặc kiểm lại mã tham chiếu."
-				% (si.name, _tien(nhan), _tien(si.grand_total)))
+		can = _can_ck(si)
+		if nhan < can - 1:
+			frappe.throw("Bill %s: ngân hàng mới nhận %s đ trên %s đ phải chuyển khoản. Chờ tiền về hoặc kiểm lại mã tham chiếu."
+				% (si.name, _tien(nhan), _tien(can)))
 		_chiem_gd_bill(si, g.get("gd") or [])
 	else:
 		_soat_sepay(si, sepay)
@@ -4086,7 +4123,7 @@ def _ly_do_treo(r, sepay):
 	if (r.get("vgb_ma_tham_chieu") or "").strip():
 		return "san_sang"
 	g = (sepay or {}).get(str(r.get("custom_pancake_display_id") or "")) or {}
-	if flt(g.get("nhan")) >= flt(r.get("grand_total")) - 1:
+	if flt(g.get("nhan")) >= _can_ck(r) - 1:
 		return "san_sang"
 	return "chua_ve_tien"
 
@@ -4126,6 +4163,7 @@ def _quet_don_treo(so_ngay=14):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ban_hang don treo: doc SePay")
 	hom_nay = str(getdate(nowdate()))
+	_gan_can_ck([r for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"])
 	for r in ds:
 		r["ly_do"] = _ly_do_treo(r, sepay)
 		r["ly_do_chu"] = LY_DO_TREO.get(r["ly_do"], r["ly_do"])
@@ -5774,12 +5812,12 @@ def _khop_theo_tien(ds, ngay, theo_ma=None):
 			continue
 		if r.get("vgb_huy") or r.get("sepay_du"):
 			continue
-		if flt(r.get("grand_total")) <= 0:
+		if _can_ck(r) <= 0:
 			continue
 		p = _phut_trong_ngay(r.get("creation"))
 		if p is None:
 			continue
-		bills.append({"ma": r.get("name"), "tien": flt(r.get("grand_total")), "phut": p})
+		bills.append({"ma": r.get("name"), "tien": _can_ck(r), "phut": p})
 	if not bills:
 		return con_gd
 	kq = khop_tien.de_xuat(bills, con_gd)
@@ -5788,7 +5826,7 @@ def _khop_theo_tien(ds, ngay, theo_ma=None):
 		g = chac.get(r.get("name"))
 		if g:
 			r["sepay_nhan"] = flt(g.get("tien"))
-			r["sepay_du"] = 1 if flt(g.get("tien")) >= flt(r.get("grand_total")) - 1 else 0
+			r["sepay_du"] = 1 if flt(g.get("tien")) >= _can_ck(r) - 1 else 0
 			r["sepay_duong"] = "so_tien"
 			r["sepay_gd"] = g.get("ten")
 		elif phan_van.get(r.get("name")):
@@ -5823,9 +5861,10 @@ def _gd_chua_ai_nhan(ngay=None):
 		limit_page_length=0,
 	)
 	theo_ma, _bo = _sepay_theo_ma_bill([r.vgb_ma_tham_chieu for r in ds])
+	_gan_can_ck(ds)
 	for r in ds:
 		g = theo_ma.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}
-		r["sepay_du"] = 1 if flt(g.get("nhan")) >= flt(r.grand_total) - 1 else 0
+		r["sepay_du"] = 1 if flt(g.get("nhan")) >= _can_ck(r) - 1 else 0
 	con = _khop_theo_tien(ds, ngay, theo_ma)
 	cache_set(kh, con, 8)
 	return con
@@ -6569,13 +6608,14 @@ def pos_ds_bill(quay=None, ngay=None):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ban_hang: doc SePay theo don cho danh sach bill")
 	ma_trung = _ma_trung_trong_ngay(ngay, [r.vgb_ma_tham_chieu for r in ds])
+	_gan_can_ck([r for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"])
 	for r in ds:
 		# Chip "Cho tien ve" tung sang do suot tren bill Pancake da tra du
 		# tien, vi no chi ngo mot duong. Nay lay duong nao ra nhieu nhat.
 		g = sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}
 		gd = theo_don.get(str(r.custom_pancake_display_id or "").strip()) or {}
 		r["sepay_nhan"] = max(flt(g.get("nhan")), flt(gd.get("nhan")))
-		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
+		r["sepay_du"] = 1 if r["sepay_nhan"] >= _can_ck(r) - 1 else 0
 		r["sepay_duong"] = "ma" if r["sepay_du"] else ""
 		r["trung_ma"] = 1 if str(r.vgb_ma_tham_chieu or "").upper() in ma_trung else 0
 	gan_khach_vao_dong(ds)
@@ -7253,6 +7293,7 @@ def pos_chot_ca(quay=None, ngay=None):
 	ck_thieu = []
 	da_ghi = 0
 	chua_ghi = 0
+	_gan_can_ck([r for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"])
 	for r in ds:
 		if frappe.utils.cint(r.vgb_tam_tinh):
 			tam_tinh["so"] += 1
@@ -7271,12 +7312,12 @@ def pos_chot_ca(quay=None, ngay=None):
 			_duong, g = chiem_sao_ke.chon_duong_khop([
 				("ma_bill", sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}),
 				("so_don_pancake", (theo_don or {}).get(str(r.get("custom_pancake_display_id") or "")) or {}),
-			], flt(r.grand_total))
+			], _can_ck(r))
 			nhan = flt(g.get("nhan"))
-			ck_ve += min(nhan, flt(r.grand_total))
-			if nhan < flt(r.grand_total) - 1:
+			ck_ve += min(nhan, _can_ck(r))
+			if nhan < _can_ck(r) - 1:
 				ck_thieu.append(
-					{"bill": r.vgb_ma_tham_chieu or r.name, "thieu": flt(r.grand_total) - nhan}
+					{"bill": r.vgb_ma_tham_chieu or r.name, "thieu": _can_ck(r) - nhan}
 				)
 	# Tien chua nam trong ket luc chot ca: Grab Dine-Out Grab giu den T+1,
 	# Cong no khach si con thieu. Tach ra de thu ngan doi chieu tien mat

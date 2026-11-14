@@ -273,6 +273,8 @@ def ghi_pancake(d):
 		if not (k and c.pancake_shop_id):
 			raise ValueError("Chưa điền khoá Pancake.")
 		don = _doc_don_pancake(c, k, pid)
+		if ttt.nen_cho_ngan_hang(ttt.doc_ds_gd(d.get("vgb_tt_ma_gd")), d.get("vgb_tt_cach"), d.get("vgb_tt_luc"), now_datetime(), don):
+			return "cho_ngan_hang"
 		than = ttt.than_pancake_ds(ttt.doc_ds_gd(d.get("vgb_tt_ma_gd")), d.get("vgb_tt_cach"), d.get("vgb_tt_da_thu"), don)
 		if not than:
 			return "da_co"
@@ -321,7 +323,7 @@ def _ghi_pancake_sau(ten):
 	"""Đơn đã báo Sales lúc chưa có mã Pancake: có mã rồi thì ghi tiền lên đơn.
 	Hỏng thì báo Sales một lần (tin cùng mã, khoá riêng)."""
 	d = _doc(ten)
-	if not d or d.vgb_tt_pancake != "cho_ma_don" or not d.pancake_id:
+	if not d or d.vgb_tt_pancake not in ("cho_ma_don", "cho_ngan_hang") or not d.pancake_id:
 		return
 	kq = ghi_pancake(d)
 	frappe.db.set_value(DT, ten, "vgb_tt_pancake", kq, update_modified=False)
@@ -359,7 +361,7 @@ def quet():
 			pluck="name", order_by="creation asc", limit_page_length=0, ignore_permissions=True)
 		bao = frappe.get_all(DT, filters={"vgb_tt_trang_thai": ttt.TT_DA_THU, "vgb_tt_bao_luc": ["is", "not set"],
 			"creation": [">=", tu]}, pluck="name", limit_page_length=0, ignore_permissions=True)
-		cho = frappe.get_all(DT, filters={"vgb_tt_pancake": "cho_ma_don", "pancake_id": ["is", "set"],
+		cho = frappe.get_all(DT, filters={"vgb_tt_pancake": ["in", ["cho_ma_don", "cho_ngan_hang"]], "pancake_id": ["is", "set"],
 			"creation": [">=", tu]}, pluck="name", limit_page_length=0, ignore_permissions=True)
 	except Exception:
 		frappe.db.rollback()

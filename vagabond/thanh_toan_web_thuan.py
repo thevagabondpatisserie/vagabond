@@ -378,6 +378,57 @@ def _so_o(don, o):
 		return 0.0
 
 
+def ngan_hang_pancake(don):
+	"""Số Pancake đã tự ghi từ ngân hàng (ô bank_payments, ví dụ
+	{"MBB_31561568": 855000}). Pancake cộng ô này VÀO tiền đã trả RIÊNG với ô
+	transfer_money. THUẦN."""
+	bp = (don or {}).get("bank_payments")
+	vals = bp.values() if isinstance(bp, dict) else (bp if isinstance(bp, list) else [])
+	t = 0.0
+	for v in vals:
+		if isinstance(v, dict):
+			v = v.get("amount") or v.get("money") or 0
+		try:
+			t += float(v or 0)
+		except (TypeError, ValueError):
+			continue
+	return t
+
+
+# Loan Anh 14/11/2026 (đơn 97598, 97388): khách chuyển khoản MỘT lần, nội dung
+# mang mã đơn Pancake (S<shop>O<đơn>T) nên Pancake tự khớp MBBank và ghi ô
+# bank_payments; máy lại ghi thêm transfer_money cùng số, đơn thành trả hai
+# lần, "Trả lại" đúng bằng số khách chuyển. Nay: trừ phần Pancake đã tự ghi,
+# và với chuyển khoản thì chờ Pancake tự khớp một lúc rồi mới ghi phần còn thiếu.
+PHUT_CHO_NGAN_HANG = 15
+
+
+def nen_cho_ngan_hang(ds, cach_thu, luc_thu, bay_gio, don, phut=PHUT_CHO_NGAN_HANG):
+	"""Khoản chuyển khoản vừa về chưa quá `phut` phút mà Pancake chưa tự ghi từ
+	ngân hàng: chờ, chưa ghi tay (ghi ngay thì Pancake khớp sau sẽ thành hai
+	lần). THUẦN. luc_thu, bay_gio là datetime hoặc chuỗi 'YYYY-MM-DD HH:MM:SS'."""
+	import datetime as _dt
+
+	def _gio(v):
+		if isinstance(v, _dt.datetime):
+			return v
+		try:
+			return _dt.datetime.fromisoformat(str(v).strip()[:26]) if v else None
+		except ValueError:
+			return None
+	luc_thu, bay_gio = _gio(luc_thu), _gio(bay_gio)
+	theo = so_theo_cach(ds)
+	co_ck = ("Chuyển khoản" in theo) if theo else (cach_thu == "Chuyển khoản")
+	if not co_ck or ngan_hang_pancake(don) > 0.5:
+		return False
+	if not luc_thu or not bay_gio:
+		return False
+	try:
+		return (bay_gio - luc_thu).total_seconds() < phut * 60
+	except TypeError:
+		return False
+
+
 def than_pancake(cach_thu, so, don):
 	"""Thân PUT ghi số đã trả lên đơn Pancake, hoặc None khi ô đó đã đủ (Sales
 	ghi tay trước, hay lượt trước đã ghi). Không bao giờ hạ số đang có. THUẦN."""
@@ -397,6 +448,11 @@ def than_pancake(cach_thu, so, don):
 		if cu >= so - 0.5 and _so_o(don, "cash") < 0.5:
 			return None
 		return {O_THE: so, "prepaid": max(int(round(cu)), so)}
+	if o == "transfer_money":
+		# Phần Pancake đã tự ghi từ ngân hàng không ghi lại lần hai.
+		so = int(round(so - ngan_hang_pancake(don)))
+		if so <= 0:
+			return None
 	if _so_o(don, o) >= so - 0.5:
 		return None
 	return {o: so}
@@ -453,6 +509,8 @@ CAU_PANCAKE = {
 	"tien_mat": ("Đã ghi số đã trả lên đơn Pancake (COD giảm đúng) nhưng Pancake xếp vào Tiền mặt: "
 		"Sales đổi hình thức thanh toán của đơn sang OnePay trên Pancake."),
 	"da_co": "Đơn Pancake đã có sẵn số đã trả.",
+	"cho_ngan_hang": ("Pancake đang tự ghi khoản chuyển khoản từ ngân hàng. Máy kiểm lại sau 15 phút và chỉ ghi "
+		"phần Pancake chưa ghi, Sales không cần ghi tay."),
 	"tat": "Cài đặt đang tắt ghi lên Pancake: Sales ghi tay số đã trả trên đơn Pancake.",
 	"cho_ma_don": "Đơn chưa vào Pancake: khi tạo hoặc ghép đơn, Sales ghi số đã trả để người giao không thu lại.",
 	"loi": "CHƯA ghi được lên Pancake: Sales ghi tay số đã trả trên đơn Pancake để người giao không thu lại.",

@@ -28,6 +28,26 @@ COOKIE = 'vgb_thanh_vien'
 
 # Quà chào mừng: dùng ngay hôm nay hoặc trong 7 ngày tới (anh Việt 30/10/2026).
 QUA_SO_NGAY = 7
+# Anh Việt 12/11/2026, nhắc lại 14/11/2026: quà chào mừng 20.000đ CHỈ cho khách
+# mới đăng ký (phát cho cả khách cũ tốn quá). Khách cũ hoàn thiện hồ sơ thì
+# được mời nhận quà sinh nhật. Khách mới = hồ sơ khách dựng trong 7 ngày gần
+# đây (khách vừa đăng ký trên web, hay vừa có đơn đầu tiên).
+KHACH_MOI_NGAY = 7
+
+
+def la_khach_moi(tao, hom_nay, so_ngay=KHACH_MOI_NGAY):
+	"""Khách mới được quà chào mừng. Chưa có hồ sơ khách (tao rỗng) là mới.
+	THUẦN: tao, hom_nay là date, datetime hay chuỗi 'YYYY-MM-DD...'."""
+	import datetime as _dt
+
+	if not tao:
+		return True
+	try:
+		d = tao.date() if isinstance(tao, _dt.datetime) else tao if isinstance(tao, _dt.date) else _dt.date.fromisoformat(str(tao)[:10])
+		h = hom_nay.date() if isinstance(hom_nay, _dt.datetime) else hom_nay if isinstance(hom_nay, _dt.date) else _dt.date.fromisoformat(str(hom_nay)[:10])
+	except (TypeError, ValueError):
+		return False
+	return (h - d).days < int(so_ngay)
 # Ngày sinh không khai năm thì lưu năm nhuận này (vgb_sinh_nhat là ô Date);
 # kịch bản sinh nhật chỉ đọc ngày và tháng, màn không hiện năm này.
 NAM_AN = 1904
@@ -434,7 +454,7 @@ def _phan_moi(kh, noi_dia):
 
 	han_qua, _ = ctkm_phat_duoc(km, hn, QUA_SO_NGAY)
 	qua = {"mo": 1 if han_qua else 0, "uu_dai": mo_ta_uu_dai(km)[0] if km else "", "han": ngay_vn(han_qua) if han_qua else "",
-		"so_ngay": QUA_SO_NGAY, "da_nhan": 0}
+		"so_ngay": QUA_SO_NGAY, "da_nhan": 0, "khach_moi": 1 if la_khach_moi((kh or {}).get("creation"), hn) else 0}
 	if not kh:
 		hs = muc_ho_so({})
 		return {"ho_so": {"ten": "", "sinh_nhat": hien_sinh_nhat(None), "email": "", "so_thich": [], "dong_y_zalo": 0,
@@ -575,7 +595,8 @@ def doi_anh(du_lieu=None):
 def nhan_qua(quay=None):
 	"""Cấp mã quà chào mừng cho số đã xác thực. Gọi lại trả đúng mã cũ.
 
-	Một số điện thoại một lần, cả khách cũ (anh Việt 30/10/2026). Khoá dòng hồ
+	Một số điện thoại một lần. Chỉ khách mới (la_khach_moi, anh Việt 12/11 và
+	14/11/2026); khách cũ trả ly_do khach_cu. Khoá dòng hồ
 	sơ CRM của khách trước khi kiểm, nên hai lượt bấm cùng lúc không ra hai mã.
 	"""
 	_khong_cache()
@@ -608,6 +629,10 @@ def nhan_qua(quay=None):
 	if cu:
 		return {'ok':1, 'cu':1, 'ma':cu.ma, 'uu_dai':ten_ud, 'han':ngay_vn(cu.han_dung) if cu.han_dung else "",
 			'trang_thai':trang_thai_voucher(cu, _hom_nay())}
+	if not la_khach_moi(kh.get("creation"), _hom_nay()):
+		# Quà chào mừng chỉ cho khách mới (anh Việt 12/11, 14/11/2026). Khách cũ
+		# xem quà sinh nhật trên trang thành viên.
+		return {'ok':0, 'ly_do':'khach_cu'}
 	quay = str(quay or "").strip().upper()[:20]
 	ma = khuyen_mai._sinh_ma_moi(1)[0]
 	frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.name, "ten_ctkm": cat(km.ten, 140),
