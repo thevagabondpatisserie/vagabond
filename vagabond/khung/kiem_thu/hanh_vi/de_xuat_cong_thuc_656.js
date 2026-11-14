@@ -6,15 +6,15 @@
         rồi Gợi ý size còn trống ra size 20 theo diện tích khuôn (100 g thành
         156 g), dòng thành phẩm giữ nguyên.
      2. Lưu nháp gửi đúng dữ liệu; máy chủ trả giá vốn và dòng thiếu giá, màn
-        hiện chữ đỏ Thiếu giá. Gửi Khải gọi lưu rồi gửi.
-     3. Khải mở phiếu Chờ Khải: chọn mã thành phẩm từng size, Tạo mã và công
+        hiện chữ đỏ Thiếu giá. Gửi Kế toán gọi lưu rồi gửi.
+     3. Khải mở phiếu Chờ Kế toán: chọn mã thành phẩm từng size, Tạo mã và công
         thức gửi đúng mã từng size; thiếu mã size nào thì màn ghi đỏ.
      4. Đề xuất điều chỉnh: lấy dòng từ công thức đang dùng, sửa số lượng, Lưu
         ra bảng trước và sau kèm giá vốn; Khải bấm Duyệt và ghi sổ.
      5. Chuẩn chạm: mọi nút, ô, chip mới cao từ 44 điểm, chữ từ 13 điểm.
      6. Rời màn khi máy chủ chưa trả mã gần giống: không vẽ đè màn mới.
      7. Codex #563: danh sách có tìm và trang; Khải sửa rồi Tạo, Duyệt thì lưu
-        trước; Gửi Khải hỏng thì bấm lại vẫn là phiếu đã lưu. */
+        trước; Gửi Kế toán hỏng thì bấm lại vẫn là phiếu đã lưu. */
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('assert');
 const dom = require('./dom_gia.js');
@@ -114,7 +114,7 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
         dem: { tat_ca: 120, 'Nháp': 70, 'Đã ghi sổ': 50 }, con_nua: a.trang ? 0 : 1 }),
       goi_y_ma: () => [{ ma: 'BTPB-0012', ten: 'Mousse bưởi hồng', dvt: 'Gram', diem: 3 }],
       luu: a => { daLuu = JSON.parse(a.du_lieu); return PHIEU('Nháp', daLuu); },
-      gui: () => PHIEU('Chờ Khải', daLuu, { quyen: { sua: 0, duyet: 0 } }),
+      gui: () => PHIEU('Chờ Kế toán', daLuu, { quyen: { sua: 0, duyet: 0 } }),
       /* Máy chủ giả trả đúng số goi_y_cac_size tính (ca Python chốt phép tính). */
       goi_y_size_dong: a => { const d = JSON.parse(a.dong), g = Object.assign({}, d.gram);
         g['20'] = d.dich === 'thanh_pham' ? g['16'] : Math.round(g['16'] * 400 / 256); return { goc: '16', gram: g }; },
@@ -168,15 +168,15 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     assert(a.html().indexOf('⚠️ Thiếu giá 1 nguyên liệu: Bột bưởi.') >= 0, 'thiếu giá hiện chữ đỏ');
     assert(a.html().indexOf('152000 đ') >= 0, 'hiện giá vốn dự kiến máy chủ tính');
     await a.nut('dxGui');
-    assert.deepEqual(a.goi.slice(-2).map(x => x.m.split('.').pop()), ['luu', 'gui'], 'Gửi Khải lưu trước rồi gửi');
-    assert(a.html().indexOf('Chờ Khải') >= 0 && !a.tl.getElementById('dxGui'), 'gửi xong thành Chờ Khải, hết nút sửa');
+    assert.deepEqual(a.goi.slice(-2).map(x => x.m.split('.').pop()), ['luu', 'gui'], 'Gửi Kế toán lưu trước rồi gửi');
+    assert(a.html().indexOf('Chờ Kế toán') >= 0 && !a.tl.getElementById('dxGui'), 'gửi xong thành Chờ Kế toán, hết nút sửa');
   }
   {
     /* 3. Khải lên mã. */
     const dl = { sizes: ['16', '20'], dong: [{ id: 'd1', ten: 'Mousse bưởi', dvt: 'Gram', dich: 'cap1', gram: { '16': 100, '20': 156 }, con: { me: 500, dong: [] } }] };
     let khaiLuu = null;
-    const may = { chi_tiet: () => PHIEU('Chờ Khải', dl, { quyen: { sua: 1, duyet: 1 } }),
-      luu: a => { khaiLuu = JSON.parse(a.du_lieu); return PHIEU('Chờ Khải', khaiLuu, { quyen: { sua: 1, duyet: 1 } }); },
+    const may = { chi_tiet: () => PHIEU('Chờ Kế toán', dl, { quyen: { sua: 1, duyet: 1 } }),
+      luu: a => { khaiLuu = JSON.parse(a.du_lieu); return PHIEU('Chờ Kế toán', khaiLuu, { quyen: { sua: 1, duyet: 1 } }); },
       get_value: () => ({ item_name: 'Bánh Pinkpom size 16' }),
       tao_nhap: a => PHIEU('Đã tạo nháp', dl, { quyen: { sua: 0, duyet: 1 }, ket_qua: { bom: [{ bom: 'BOM-BTPB-0099-001', ma: 'BTPB-0099', bac: 0 }] } }) };
     const a = appMoi(may, ['ghi']);
@@ -216,8 +216,8 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     assert(a.html().indexOf('⚠️ Thiếu giá 1 nguyên liệu: Bột bưởi.') >= 0, 'Codex #563: phiếu điều chỉnh cũng ghi đỏ dòng thiếu giá');
     chuanCham(a, ['[data-dxg]', '#dxLyDo', '#dxLuu', '#dxGui', '#dxHuy'], 'điều chỉnh');
     let dl2 = null;
-    const may2 = { chi_tiet: () => Object.assign(dc(dl), { trang_thai: 'Chờ Khải', quyen: { sua: 1, duyet: 1 } }),
-      luu: a => { dl2 = JSON.parse(a.du_lieu); return Object.assign(dc(dl2), { trang_thai: 'Chờ Khải', quyen: { sua: 1, duyet: 1 } }); },
+    const may2 = { chi_tiet: () => Object.assign(dc(dl), { trang_thai: 'Chờ Kế toán', quyen: { sua: 1, duyet: 1 } }),
+      luu: a => { dl2 = JSON.parse(a.du_lieu); return Object.assign(dc(dl2), { trang_thai: 'Chờ Kế toán', quyen: { sua: 1, duyet: 1 } }); },
       duyet_dieu_chinh: () => Object.assign(dc(dl), { trang_thai: 'Đã ghi sổ', quyen: { sua: 0, duyet: 1 } }) };
     const k = appMoi(may2, ['ghi']);
     await k.mo(() => k.g.dxMo('DXCT-26-11-0001'));
@@ -243,11 +243,11 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     assert(a.html().indexOf('Đã có mã gần giống') < 0 && !a.tl.querySelector('[data-dxten]'), 'màn danh sách không bị vẽ đè bằng phiếu cũ');
   }
   {
-    /* 6. Codex #563: Gửi Khải hỏng lần đầu (phiếu thiếu) thì bấm lại vẫn là
+    /* 6. Codex #563: Gửi Kế toán hỏng lần đầu (phiếu thiếu) thì bấm lại vẫn là
        phiếu đã lưu, không đẻ thêm phiếu. */
     let lanGui = 0;
     const may = { luu: a => PHIEU('Nháp', JSON.parse(a.du_lieu), { name: a.name || 'DXCT-26-11-0042' }),
-      gui: () => { if (!lanGui++) throw new Error('Phiếu còn thiếu: Chọn ít nhất một size.'); return PHIEU('Chờ Khải', { sizes: ['16'], dong: [] }, { name: 'DXCT-26-11-0042', quyen: { sua: 0, duyet: 0 } }); } };
+      gui: () => { if (!lanGui++) throw new Error('Phiếu còn thiếu: Chọn ít nhất một size.'); return PHIEU('Chờ Kế toán', { sizes: ['16'], dong: [] }, { name: 'DXCT-26-11-0042', quyen: { sua: 0, duyet: 0 } }); } };
     const a = appMoi(may, ['soan']);
     await a.mo(() => { a.g.dxMoi(); });
     await a.go('#dxTen', 'Bánh thử');
@@ -256,7 +256,7 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     await a.nut('dxGui');
     const luu = a.goi.filter(x => x.m.endsWith('.luu')).map(x => x.a.name);
     assert.deepEqual(luu, [null, 'DXCT-26-11-0042'], 'lần hai lưu vào đúng phiếu đã có');
-    assert(a.html().indexOf('Chờ Khải') >= 0, 'lần hai gửi được');
+    assert(a.html().indexOf('Chờ Kế toán') >= 0, 'lần hai gửi được');
   }
   {
     /* 7. Codex #564 (AGENTS 2b.17): khối chỉ để đọc không lấn khối để bấm.
@@ -266,7 +266,7 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
        đổi 1: bảng chỉ hiện dòng đổi, còn lại gom vào nút xem. */
     const ten = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'];
     const dl = { sizes: ['16'], dong: ten.concat(['B1', 'B2']).map((t, i) => ({ id: 'd' + i, ma: 'M' + i, ten: t, dvt: 'Gram', dich: 'cap2', gram: { '16': 10 } })) };
-    const may = { chi_tiet: () => PHIEU('Chờ Khải', dl, { quyen: { sua: 1, duyet: 1 }, thieu_gia: ten }) };
+    const may = { chi_tiet: () => PHIEU('Chờ Kế toán', dl, { quyen: { sua: 1, duyet: 1 }, thieu_gia: ten }) };
     const a = appMoi(may, ['ghi']);
     await a.mo(() => a.g.dxMo('DXCT-26-11-0001'));
     const ht = a.html();
@@ -278,7 +278,7 @@ const PHIEU = (tt, dl, them) => Object.assign({ name: 'DXCT-26-11-0001', loai: '
     await a.bam('[data-dxmothieu]');
     assert(a.html().indexOf('A1, A2, A3, A4, A5, A6.') >= 0, 'bấm mới mở đủ');
     const bang = ten.concat(['B1', 'B2']).map((t, i) => ({ ma: 'M' + i, ten: t, cu: 10, moi: i === 7 ? 12 : 10, kieu: i === 7 ? 'doi' : 'giu' }));
-    const may2 = { chi_tiet: () => PHIEU('Chờ Khải', { sizes: [], dong: [] }, { loai: 'Điều chỉnh', bom_goc: 'BOM-X-001', quyen: { sua: 0, duyet: 1 }, gia: {}, thieu_gia: [],
+    const may2 = { chi_tiet: () => PHIEU('Chờ Kế toán', { sizes: [], dong: [] }, { loai: 'Điều chỉnh', bom_goc: 'BOM-X-001', quyen: { sua: 0, duyet: 1 }, gia: {}, thieu_gia: [],
       doi_chieu: { bang, von_cu: 1000, von_moi: 1020, thieu: [] } }) };
     const k = appMoi(may2, ['ghi']);
     await k.mo(() => k.g.dxMo('DXCT-26-11-0001'));
