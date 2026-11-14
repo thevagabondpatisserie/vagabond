@@ -5,9 +5,14 @@
    trụ của trang, không khung, không nền riêng. Chữ mọi mục giữ CÙNG góc nghiêng
    của vành, không uốn theo đường cong (anh chê bản chữ uốn là "kịch cỡm").
 
-   Thao tác: vuốt ngang để đổi mục, vuốt dọc vẫn cuộn trang (touch-action:
-   pan-y), chạm thẳng vào một mục cũng chọn được, phím mũi tên và lăn chuột
-   ngang trên máy tính. Danh sách mục do trang truyền vào (các tab đang hiện),
+   Thao tác: vuốt ngang để đổi mục, chạm thẳng vào một mục cũng chọn được, phím
+   mũi tên và lăn chuột ngang trên máy tính. Anh Việt 14/11/2026 (bản v658 trên
+   site): vành giật khi quẹt và kéo cả trang cuộn dọc theo. Nay vùng vành KHOÁ
+   chỉ theo chiều ngang (touch-action: none, trình duyệt không tự cuộn khi ngón
+   tay đặt trên vành), mỗi khung hình vẽ đúng một lần (requestAnimationFrame),
+   không đọc lại kích thước mục giữa lúc vẽ (đo một lần, giữ trong bộ nhớ), và
+   chỉ làm mờ chữ khi vành đã đứng yên (blur mỗi khung là việc nặng nhất trên
+   iPhone). Danh sách mục do trang truyền vào (các tab đang hiện),
    thành phần này không ghi cứng mục nào.
 
    Phép tính hình học và luật vuốt là hàm THUẦN ở đầu tệp, ca kiểm node
@@ -95,30 +100,43 @@ export const VanhNghieng = {
     const viTriDang = () => Math.max(0, props.muc.findIndex(m => m.tab === props.dang));
     let pos = viTriDang(), dich = pos, keo = false, quay = false, nguoiDoi = false, daDiChuyen = false;
     const oMuc = [], oGon = [];
+    /* Kích thước từng mục đo MỘT lần (mở trang, đổi bề rộng, đổi danh sách),
+       không đọc offsetWidth trong lúc vẽ: đọc ngay sau khi vừa ghi transform
+       bắt trình duyệt tính lại bố cục mỗi mục mỗi khung, nguồn giật chính. */
+    const kt = [];
+    function doMuc() { oMuc.forEach((o, i) => { if (o) kt[i] = [o.offsetWidth, o.offsetHeight]; }); }
 
-    function ve() {
+    let gonTruoc = -2, moDangCo = null;
+    function ve(yen = false) {
       const N = n(); if (!N || !goc.value) return;
       const cx = G.w / 2, cy = cao.value / 2 - 12 * s.value;
+      /* Mờ chữ chỉ vẽ khi vành đứng yên; đang quay thì bỏ (blur mỗi khung rất nặng). */
+      const lamMo = yen && !RM;
       let truoc = -1, kMax = -1;
       oMuc.forEach((o, i) => {
         if (!o) return;
         const v = viTri(lech(i, pos, N), N, s.value, RM);
-        const w = o.offsetWidth, hh = o.offsetHeight;
-        o.style.transform = `translate(${(cx + v.x - w / 2).toFixed(1)}px,${(cy + v.y - hh / 2).toFixed(1)}px) rotate(${HINH.TILT}deg)`;
+        if (!kt[i]) kt[i] = [o.offsetWidth, o.offsetHeight];
+        const [w, hh] = kt[i];
+        o.style.transform = `translate3d(${(cx + v.x - w / 2).toFixed(1)}px,${(cy + v.y - hh / 2).toFixed(1)}px,0) rotate(${HINH.TILT}deg)`;
         const chu = o.firstElementChild;
-        if (chu) { chu.style.transform = `scale(${v.co.toFixed(3)})`; chu.style.filter = v.mo ? `blur(${v.mo.toFixed(2)}px)` : 'none'; }
+        if (chu) {
+          chu.style.transform = `scale(${v.co.toFixed(3)})`;
+          if (lamMo !== moDangCo || lamMo) chu.style.filter = lamMo && v.mo ? `blur(${v.mo.toFixed(2)}px)` : 'none';
+        }
         o.style.opacity = v.an ? '0' : v.dTrong.toFixed(2);
         o.style.visibility = v.an ? 'hidden' : 'visible';
         o.style.pointerEvents = v.an ? 'none' : 'auto';
         o.style.zIndex = String(v.lop);
         o.classList.toggle('truoc', v.truoc);
-        const k = viTri(lech(i, pos, N), N).k;
-        if (k > kMax) { kMax = k; truoc = i; }
+        if (v.k > kMax) { kMax = v.k; truoc = i; }
       });
-      veGon(truoc);
+      moDangCo = lamMo;
+      if (truoc !== gonTruoc) { gonTruoc = truoc; veGon(truoc); }
       return truoc;
     }
-    /* Thanh gọn: mục đang chọn ở giữa một cung mảnh, hai mục kề mờ hai bên. */
+    /* Thanh gọn: mục đang chọn ở giữa một cung mảnh, hai mục kề mờ hai bên.
+       Chỉ ghi lại chữ khi mục ở giữa đổi. */
     function veGon(truoc) {
       const N = n();
       oGon.forEach((o, j) => {
@@ -135,8 +153,8 @@ export const VanhNghieng = {
         khung = 0;
         if (!keo && !quay) pos = RM ? dich : pos + (dich - pos) * 0.18;
         if (!keo && !quay && Math.abs(dich - pos) < 0.002) pos = dich;
-        const truoc = ve();
         const yen = !keo && !quay && pos === dich;
+        const truoc = ve(yen);
         if (yen && nguoiDoi && truoc >= 0) {
           nguoiDoi = false;
           const m = props.muc[truoc];
@@ -173,25 +191,39 @@ export const VanhNghieng = {
       if (vongQuanh(Math.round(dich), n()) !== i) quayToi(i, 700, 0, false);
     });
     /* Danh sách đổi (tab theo mùa hiện, tắt): giữ đúng mục đang xem, không quay. */
-    watch(() => props.muc.map(m => m.tab).join(','), () => { pos = dich = viTriDang(); window.requestAnimationFrame(() => chay()); });
+    watch(() => props.muc.map(m => m.tab).join(','), () => {
+      pos = dich = viTriDang(); kt.length = 0; gonTruoc = -2;
+      window.requestAnimationFrame(() => { doMuc(); ve(true); chay(); });
+    });
 
     /* ---- vuốt, chạm ---- */
-    let sx = null, sy = 0, p0 = 0, kieu = null, dx0 = 0;
-    const tiLe = el => { const r = el.getBoundingClientRect(); return (r.width / el.offsetWidth) || 1; };
-    function xuong(e) { sx = e.clientX; sy = e.clientY; p0 = pos; kieu = null; dx0 = 0; daDiChuyen = false; }
+    /* Vùng vành khoá chiều ngang (CSS touch-action: none): ngón tay đặt trên
+       vành thì trình duyệt không cuộn trang, nên không còn cảnh vừa quẹt ngang
+       vừa bị kéo xuống. Vuốt dọc trên vành không làm gì; cuộn trang ở ngoài vành.
+       Mỗi lần ngón tay di chuyển chỉ ghi lại vị trí, vẽ gom vào một khung hình. */
+    let sx = null, sy = 0, p0 = 0, kieu = null, dx0 = 0, tl = 1, henVe = 0;
+    function xuong(e) {
+      sx = e.clientX; sy = e.clientY; p0 = pos; kieu = null; dx0 = 0; daDiChuyen = false;
+      const el = e.currentTarget, r = el.getBoundingClientRect(); tl = (r.width / el.offsetWidth) || 1;
+    }
     function di(e) {
       if (sx === null) return;
-      const el = e.currentTarget, tl = tiLe(el), dx = (e.clientX - sx) / tl, dy = (e.clientY - sy) / tl;
+      const el = e.currentTarget, dx = (e.clientX - sx) / tl, dy = (e.clientY - sy) / tl;
       if (!kieu) {
         kieu = kieuVuot(dx, dy);
         if (kieu === 'h') { keo = true; quay = false; daDiChuyen = true; tatGoiY(); try { el.setPointerCapture(e.pointerId); } catch (x) { /* trình duyệt cũ */ } }
+        if (kieu === 'v') daDiChuyen = true;
       }
-      if (kieu === 'h') { pos = viTriKeo(p0, dx); dx0 = dx; ve(); }
+      if (kieu === 'h') {
+        if (e.cancelable) e.preventDefault();
+        pos = viTriKeo(p0, dx); dx0 = dx;
+        if (!henVe) henVe = window.requestAnimationFrame(() => { henVe = 0; if (keo) ve(); });
+      }
     }
     function len() {
       if (sx === null) return;
       sx = null;
-      if (kieu === 'h') { keo = false; nguoiDoi = true; dich = dichBuong(p0, pos, dx0); chay(); }
+      if (kieu === 'h') { keo = false; nguoiDoi = true; dich = dichBuong(p0, pos, dx0); if (henVe) { window.cancelAnimationFrame(henVe); henVe = 0; } chay(); }
       kieu = null;
       setTimeout(() => { daDiChuyen = false; }, 0);
     }
@@ -217,7 +249,7 @@ export const VanhNghieng = {
     function tatGoiY() { G.goiY = false; clearTimeout(henGoiY); }
 
     let theoDoi = null, coDo = null;
-    function doRong() { if (goc.value) { G.w = goc.value.offsetWidth || 390; ve(); } }
+    function doRong() { if (goc.value) { G.w = goc.value.offsetWidth || 390; kt.length = 0; doMuc(); ve(true); } }
     onMounted(() => {
       doRong();
       try { coDo = new ResizeObserver(doRong); coDo.observe(goc.value); } catch (e) { window.addEventListener('resize', doRong); }
@@ -232,15 +264,16 @@ export const VanhNghieng = {
       const daMo = ss ? ss.getItem(KHOA_MO) : '1';
       if (!RM && !daMo && n() > 1) {
         try { ss.setItem(KHOA_MO, '1'); } catch (e) { /* bỏ qua */ }
-        const i = viTriDang(); pos = dich = i - 1.2; ve();
+        const i = viTriDang(); pos = dich = i - 1.2; ve(false);
         setTimeout(() => { if (!keo) quayToi(viTriDang(), 2600, n(), false); }, 400);
         setTimeout(hienGoiY, 3200);
-      } else { ve(); if (!RM) setTimeout(hienGoiY, 600); else hienGoiY(); }
+      } else { ve(true); if (!RM) setTimeout(hienGoiY, 600); else hienGoiY(); }
     });
     onBeforeUnmount(() => {
       if (theoDoi) theoDoi.disconnect(); if (coDo) coDo.disconnect();
       if (goc.value) goc.value.removeEventListener('wheel', lan);
       if (khung) window.cancelAnimationFrame(khung);
+      if (henVe) window.cancelAnimationFrame(henVe);
       clearTimeout(henGoiY);
     });
 

@@ -6514,7 +6514,9 @@ la("lượt quét đơn treo vẫn chừa ra đơn có cờ huỷ", '"vgb_huy": 
 la("lượt quét vẫn chừa ra phiếu tạm tính", '"vgb_tam_tinh": 0' in _quet52, True)
 _ly52 = _bh52.split("def _ly_do_treo(")[1].split("\ndef ")[0]
 la("chuyển khoản đã về đủ tiền là ĐỦ ĐIỀU KIỆN ghi sổ",
-   'return "san_sang"' in _ly52 and 'flt(g.get("nhan")) >= flt(r.get("grand_total"))' in _ly52, True)
+   'return "san_sang"' in _ly52 and 'flt(g.get("nhan")) >= _can_ck(r)' in _ly52, True)
+# v659 (Loan Anh 14/11/2026, đơn 97492): đủ tiền là đủ PHẦN chuyển khoản của tờ
+# (tờ chia nhiều cách trả); ca chạy thật nằm ở thu_can_ck_dong_chia.
 
 # ---------- 52.2 Danh dau huy TRUOC, lap phieu SAU ----------
 _tao52 = _ht52.split("def tao_huy_nhap(")[1].split("\ndef ")[0]

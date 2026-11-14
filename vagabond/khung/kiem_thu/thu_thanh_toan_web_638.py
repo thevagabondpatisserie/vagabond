@@ -671,3 +671,60 @@ def _node():
 	la(r.stdout[-2500:] + r.stderr[-1500:], r.returncode, 0)
 	m = re.search(r"(\d+) ca dat, 0 ca hong", r.stdout)
 	dung("đủ số ca", m and int(m.group(1)) >= 8)
+
+
+@ca("Loan Anh 14/11/2026 (đơn 97598, 97388): Pancake đã tự ghi MBBank từ ngân hàng thì máy KHÔNG ghi thêm Tiền chuyển khoản; ghi thiếu một phần thì chỉ ghi phần còn thiếu; tiền vừa về thì chờ Pancake tự khớp 15 phút rồi mới ghi")
+def _pancake_hai_lan():
+	import datetime as dtm
+
+	# Đúng dữ liệu đơn 97598 đọc trên Pancake 14/11: bank_payments MBB 855.000, transfer_money 0 lúc máy đọc.
+	la("Pancake đã ghi đủ từ MBBank", ttt.than_pancake("Chuyển khoản", 855000, {"bank_payments": {"MBB_31561568": 855000}, "transfer_money": 0}), None)
+	la("Pancake ghi một phần", ttt.than_pancake("Chuyển khoản", 855000, {"bank_payments": {"MBB_31561568": 500000}}), {"transfer_money": 355000})
+	la("không có MBBank như cũ", ttt.than_pancake("Chuyển khoản", 855000, {"bank_payments": {}}), {"transfer_money": 855000})
+	la("đọc được cả dạng danh sách", ttt.ngan_hang_pancake({"bank_payments": [{"amount": 300000}, 200000]}), 500000.0)
+	la("ô rỗng, ô lạ", (ttt.ngan_hang_pancake({}), ttt.ngan_hang_pancake({"bank_payments": "x"})), (0.0, 0.0))
+	ck = [{"gd": "BT-1", "so": 855000, "loai": "ck"}]
+	the = [{"gd": "OP-1", "so": 855000, "loai": "the"}]
+	bay_gio = dtm.datetime(2026, 11, 14, 12, 10)
+	la("CK vừa về 3 phút, Pancake chưa ghi: chờ", ttt.nen_cho_ngan_hang(ck, "Chuyển khoản", bay_gio - dtm.timedelta(minutes=3), bay_gio, {}), True)
+	la("quá 15 phút: thôi chờ", ttt.nen_cho_ngan_hang(ck, "Chuyển khoản", bay_gio - dtm.timedelta(minutes=16), bay_gio, {}), False)
+	la("Pancake đã ghi: không chờ", ttt.nen_cho_ngan_hang(ck, "Chuyển khoản", bay_gio, bay_gio, {"bank_payments": {"M": 1000}}), False)
+	la("thẻ không chờ ngân hàng", ttt.nen_cho_ngan_hang(the, "OnePay", bay_gio, bay_gio, {}), False)
+	la("bản ghi cũ chưa có loại, cách là CK: chờ", ttt.nen_cho_ngan_hang([], "Chuyển khoản", bay_gio, bay_gio, {}), True)
+	la("giờ dạng chuỗi như ô Datetime đọc ra", ttt.nen_cho_ngan_hang(ck, "Chuyển khoản", "2026-11-14 12:08:24.594189", "2026-11-14 12:10:00", {}), True)
+
+	from vagabond import lib
+
+	def chay(don_doc, luc=None):
+		vet = []
+		lan = iter(don_doc)
+		req = types.SimpleNamespace(get=lambda *a, **k: vet.append("get") or _Tra(200, {"data": next(lan)}),
+			put=lambda *a, **k: vet.append(("put", k.get("json"))) or _Tra(200, {}))
+		with patch.object(tw, "requests", req), patch.object(lib, "cfg_o", lambda o: ""), \
+				patch.object(tw, "_pancake_khoa", lambda: (D(pancake_shop_id="67355"), "k")), \
+				patch.object(tw, "now_datetime", lambda: bay_gio):
+			r = tw.ghi_pancake(D(name=TEN, pancake_id="97598", vgb_tt_cach="Chuyển khoản", vgb_tt_da_thu=855000,
+				vgb_tt_ma_gd=json.dumps(ck), vgb_tt_luc=luc))
+		return r, vet
+	# Đường thật: hàm ghi_pancake đọc đơn rồi quyết, đúng chuỗi thao tác của nhịp máy.
+	la("Pancake đã tự ghi MBBank: không PUT", chay([{"bank_payments": {"MBB_31561568": 855000}, "transfer_money": 0}],
+		luc=bay_gio - dtm.timedelta(minutes=6)), ("da_co", ["get"]))
+	la("tiền vừa về, Pancake chưa ghi: chờ, không PUT", chay([{"bank_payments": {}}], luc=bay_gio - dtm.timedelta(minutes=2)),
+		("cho_ngan_hang", ["get"]))
+	la("quá 15 phút Pancake vẫn chưa ghi: ghi đủ", chay([{"bank_payments": {}}, {"transfer_money": 855000}], luc=bay_gio - dtm.timedelta(minutes=20)),
+		("da_ghi", ["get", ("put", {"transfer_money": 855000}), "get"]))
+	dung("tin Sales có câu cho trạng thái chờ", bool(ttt.CAU_PANCAKE.get("cho_ngan_hang")))
+
+	# Nhịp 5 phút nhặt đơn đang chờ ngân hàng và làm nốt.
+	ghi = []
+	dbg = types.SimpleNamespace(set_value=lambda dt, ten, o, v=None, **k: ghi.append((ten, o, v)), commit=lambda: None)
+	with patch.object(tw, "_doc", lambda ten: D(name=ten, vgb_tt_pancake="cho_ngan_hang", pancake_id="97598")), \
+			patch.object(tw, "ghi_pancake", lambda d: "da_co"), patch.object(_fr, "db", dbg):
+		tw._ghi_pancake_sau(TEN)
+	la("làm nốt đơn chờ ngân hàng", ghi, [(TEN, "vgb_tt_pancake", "da_co")])
+	loc = []
+	dbq = types.SimpleNamespace(rollback=lambda: None, commit=lambda: None)
+	with patch.object(_fr, "get_all", lambda dt, filters=None, **k: loc.append(filters) or [], create=True), \
+			patch.object(_fr, "db", dbq), patch.object(_fr, "flags", types.SimpleNamespace(), create=True):
+		tw.quet()
+	dung("nhịp quét hỏi cả đơn chờ ngân hàng", any((f or {}).get("vgb_tt_pancake") == ["in", ["cho_ma_don", "cho_ngan_hang"]] for f in loc))

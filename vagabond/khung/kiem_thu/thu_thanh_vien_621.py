@@ -537,3 +537,22 @@ def _xoa_sinh_nhat():
 	m = Moi()
 	m.chay(tv.luu_ho_so, dat={"ten": "Lan Anh", "ngay": "5", "thang": "6", "nam": "", "dong_y_zalo": True})
 	la("đổi ngày sinh", m.kh.get("vgb_sinh_nhat"), D8(tv.NAM_AN, 6, 5))
+
+
+@ca("anh Việt 12/11, nhắc lại 14/11/2026: quà chào mừng 20.000đ CHỈ cho khách mới đăng ký (hồ sơ khách dựng trong 7 ngày); khách cũ không được cấp mã, trả khach_cu; khách cũ đã nhận mã từ trước vẫn xem lại đúng mã")
+def _chi_khach_moi():
+	la("chưa có hồ sơ khách là mới", tv.la_khach_moi(None, HN), True)
+	la("dựng hôm nay", tv.la_khach_moi(dt.datetime.combine(HN, dt.time(9)), HN), True)
+	la("dựng 6 ngày trước", tv.la_khach_moi(HN - dt.timedelta(days=6), HN), True)
+	la("dựng đúng 7 ngày trước là cũ", tv.la_khach_moi(HN - dt.timedelta(days=7), HN), False)
+	la("chuỗi ngày giờ", tv.la_khach_moi(str(HN - dt.timedelta(days=400)) + " 10:00:00", HN), False)
+	cu = D(name="KL0412", customer_name="Nguyễn Lan Anh", vgb_sinh_nhat=D8(1990, 11, 14), creation=dt.datetime(2025, 3, 2, 9, 0))
+	m = Moi(khach=cu)
+	kq = m.chay(tv.nhan_qua)
+	la("khách cũ: không cấp", (kq["ok"], kq["ly_do"], len(m.vc)), (0, "khach_cu", 0))
+	moi = D(name="KL0412", customer_name="Nguyễn Lan Anh", vgb_sinh_nhat=D8(1990, 11, 14), creation=dt.datetime.combine(HN - dt.timedelta(days=2), dt.time(8)))
+	m = Moi(khach=moi)
+	la("khách mới 2 ngày: cấp", (m.chay(tv.nhan_qua)["ok"], len(m.vc)), (1, 1))
+	m = Moi(khach=cu, vc={"QOLD12": D(ctkm=km.CTKM_QUA, danh_cho="KL0412", trang_thai="Chua dung", han_dung=D8(2026, 11, 2), sdt="0909123412")})
+	kq = m.chay(tv.nhan_qua)
+	la("khách cũ đã nhận từ trước: xem lại mã cũ", (kq["ok"], kq["ma"], kq["cu"]), (1, "QOLD12", 1))

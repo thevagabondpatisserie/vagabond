@@ -200,6 +200,28 @@ def tach_theo_pt(dong, tong_don):
 	return ra
 
 
+CHUYEN_KHOAN = "Chuyển khoản"
+
+
+def so_can_ck(dong, tong_don):
+	"""Số tiền ngân hàng phải nhận cho một hoá đơn Chuyển khoản. THUẦN.
+
+	Không có dòng thanh toán: cả tờ. Có dòng (khách trả nhiều đường): chỉ
+	phần Chuyển khoản theo tach_theo_pt, phần OnePay, tiền mặt... không về
+	tài khoản ngân hàng nên không được đòi SePay.
+
+	Loan Anh 14/11/2026, đơn 97492 (HDB-26-11-02701): khách chuyển 684.000
+	(SePay khớp đúng mã đơn) và trả 20.000 qua OnePay; Sales lưu hai dòng mà
+	màn Đơn bán vẫn báo "Chờ tiền về" và cửa ghi sổ chặn, vì mọi chỗ so số
+	ngân hàng nhận với CẢ tờ 704.000. Một nguồn cho cửa ghi sổ và mọi màn:
+	ban_hang._can_ck gọi hàm này.
+	"""
+	dong = gom_dong(dong)
+	if not dong:
+		return round(_so(tong_don), 2)
+	return round(_so(tach_theo_pt(dong, tong_don).get(CHUYEN_KHOAN)), 2)
+
+
 # ------------------------------------------------------- phần cần Frappe
 
 import json

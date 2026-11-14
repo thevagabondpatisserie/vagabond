@@ -13,6 +13,14 @@ def nap(tep, ten, g):
     ham=next(n for n in cay.body if isinstance(n,ast.FunctionDef) and n.name==ten)
     ham.decorator_list=[]
     exec(compile(ast.Module(body=[ham],type_ignores=[]),tep,'exec'),g)
+    if tep=='ban_hang.py' and ten not in ('_can_ck','_gan_can_ck'):
+        # Mọi phép so tiền ngân hàng nhận đi qua một nguồn _can_ck (tờ nhiều dòng
+        # thanh toán chỉ đòi phần Chuyển khoản, Loan Anh 14/11/2026). Hàm nạp lẻ
+        # nào gọi tới thì nạp kèm hai hàm này, với flt nếu ca chưa đưa.
+        g.setdefault('flt', lambda x: float(x or 0))
+        for phu in ('_can_ck','_gan_can_ck'):
+            if phu not in g:
+                nap(tep, phu, g)
     return g[ten]
 
 @ca('#290 A1 nháp cũ không giữ cửa, tờ đã ghi sổ vẫn giữ kể cả chờ đối chiếu')

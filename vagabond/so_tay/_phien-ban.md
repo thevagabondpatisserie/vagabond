@@ -12,6 +12,12 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v659
+- Khách trả một đơn bằng nhiều phương thức
+- Đơn web chuyển khoản: Pancake ghi MBBank, máy không ghi thêm
+- In bảng quà chào mừng để ở quầy
+- Thanh mục Vành nghiêng trên trang đặt bánh
+
 ## v658
 - Trang thành viên The Vagabond Club: hạng, điểm, hạn điểm
 - Ảnh trang đăng nhập The Vagabond Club

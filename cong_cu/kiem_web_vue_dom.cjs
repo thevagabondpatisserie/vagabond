@@ -705,7 +705,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(loi,[]);
     await c.close();
   });
-  await test('F46 v658 Vành nghiêng: vuốt ngang đổi đúng một mục, vuốt dọc trên vành chỉ cuộn trang, chạm mục chọn mục, thanh gọn hiện khi cuộn qua',async()=>{
+  await test('F46 v658 Vành nghiêng: vuốt ngang đổi đúng một mục, vuốt dọc trên vành không đổi mục và không kéo trang (anh Việt 14/11: khoá chiều ngang), chạm mục chọn mục, thanh gọn hiện khi cuộn qua',async()=>{
     const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});
     await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
     await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
@@ -723,7 +723,11 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.match(p.url(),/#\/dat-truoc$/,'vuốt trái ngắn sang đúng mục kế');
     await vuot(200,r.y+20,2,-250); await sleep(1200);
     assert.match(p.url(),/#\/dat-truoc$/,'vuốt dọc không đổi mục');
-    assert.ok(await p.evaluate(()=>scrollY)>50,'vuốt dọc vẫn cuộn trang');
+    assert.ok(await p.evaluate(()=>scrollY)<5,'vuốt trên vành không kéo trang cuộn dọc');
+    /* quẹt chéo (ngang là chính) cũng không kéo trang */
+    await vuot(320,r.y,-90,40); await sleep(1500);
+    assert.ok(await p.evaluate(()=>scrollY)<5,'quẹt chéo trên vành không kéo trang');
+    assert.equal(await p.$eval('.vanh',e=>getComputedStyle(e).touchAction),'none','vùng vành khoá chiều ngang');
     await p.evaluate(()=>scrollTo(0,0)); await sleep(500);
     const o=await p.$$eval('.vanh-muc',a=>{const e=a.find(x=>x.style.visibility!=='hidden'&&!x.classList.contains('truoc'));const b=e.getBoundingClientRect();return {tab:e.dataset.tab,x:b.left+b.width/2,y:b.top+b.height/2};});
     await p.touchscreen.tap(o.x,o.y); await sleep(1500);
@@ -770,6 +774,23 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.equal(await p.$eval('.vsk-sheet img.vsk-sh-anh',e=>e.getAttribute('src')),'/files/ra-mat.jpg');
     assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),390);
     assert.deepEqual(loi,[]); await c.close();
+  });
+  await test('F50 anh Việt 14/11: ô nhập đang gõ sáng đúng viền của ô (không vẽ vòng lệch ra ngoài): ô trong sheet chọn vé và mọi ô nhập của trang',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const SK=[{id:'sk7',loai:'tiec',loai_su_kien:'tiec',hien:true,tieu_de:'Tiệc thử',bat_dau:'2099-11-22',gia_ve:'1000',so_ve:'10'}];
+    await c.route('**/*cong_khai*',async r=>{const f=await r.fetch();const d=await f.json();const m=d.message||d;m.khoi=(m.khoi||[]).filter(k=>k.loai!=='tiec').concat(SK);m.ve={};await r.fulfill({response:f,body:JSON.stringify(d)});});
+    const p=await c.newPage();
+    await p.goto(url+'/web_moi/banh#/ve-su-kien'); await p.waitForSelector('.vsk-the');
+    await p.locator('[data-vsk=sk7] .vsk-nut').click(); await p.waitForSelector('.vsk-sheet input');
+    await p.focus('.vsk-sheet input'); await p.keyboard.type('Lan');
+    const o=await p.$eval('.vsk-sheet input',e=>{const s=getComputedStyle(e);return {ol:s.outlineStyle,bs:s.boxShadow,bc:s.borderTopColor};});
+    assert.equal(o.ol,'none','không vẽ vòng outline cách ra ngoài');
+    assert.match(o.bs,/inset/,'sáng viền phía trong ô');
+    const quyTac=await p.evaluate(()=>[...document.styleSheets].flatMap(ss=>{try{return [...ss.cssRules].map(r=>r.cssText)}catch(e){return []}}).filter(t=>/input:not\(\[type="?checkbox"?\]\)/.test(t)&&/outline: none/.test(t)).length);
+    assert.ok(quyTac>0,'luật chung cho mọi ô nhập có mặt');
+    await c.close();
   });
   await test('F48 v658 Vé sự kiện: trả lời muộn của sự kiện A không hiện mã vé ở sheet sự kiện B; mở lại A thấy đúng mã',async()=>{
     const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});

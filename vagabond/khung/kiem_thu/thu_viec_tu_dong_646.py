@@ -894,6 +894,9 @@ def _chay_ds_bill_ck(hd, theo_don=None, diem=""):
 	bh._sepay_theo_tham_chieu = lambda ma: {}
 	bh._sepay_theo_don = lambda shop, ds: {k: v for k, v in (theo_don or {}).items() if k in ds}
 	bh.cfg = lambda: types.SimpleNamespace(pancake_shop_id="S1")
+	# Một nguồn số tiền ngân hàng phải nhận (ban_hang._can_ck); bộ hoá đơn giả không có dòng chia tiền.
+	bh._gan_can_ck = lambda ds: [r.__setitem__("can_ck", float(r.get("grand_total") or 0)) for r in ds]
+	bh._can_ck = lambda r: float(r.get("can_ck") if r.get("can_ck") is not None else (r.get("grand_total") or 0))
 	import vagabond
 	with um.patch.dict(sys.modules, {"vagabond.ban_hang": bh}), \
 			um.patch.object(vagabond, "ban_hang", bh, create=True), \

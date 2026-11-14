@@ -227,6 +227,47 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     dung('ẩn nút đăng ký', K.an(g.tim('nut-dang-ky')));
   });
 
+  await ca('anh Việt 14/11: khách CŨ thiếu hồ sơ thì thẻ Hoàn thiện hồ sơ mời QUÀ SINH NHẬT, không hứa 20.000đ, không nút Nhận voucher; hồ sơ đủ thì ẩn thẻ; khách MỚI vẫn thấy 20.000đ', async function () {
+    var qua = { mo: 1, uu_dai: 'Giảm 20.000đ', han: '21/11/2026', so_ngay: 7, da_nhan: 0, khach_moi: 0 };
+    var thieu = { du: 3, tong: 5, thieu_qua: ['sinh_nhat', 'dong_y'] };
+    var t = await K.dungTrang({ san_sang: SS, toi: toi({ qua: qua, muc: thieu, hang: { ten_hang: 'AMBASSADOR', giam_gia: 10, tich_diem: 0 }, diem_dung_duoc: 0 }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    var the = t.tim('moi-ho-so');
+    dung('thẻ hiện', !K.an(the));
+    bang('chữ lớn', chu(t.tim('moi-gia')), 'Quà sinh nhật');
+    dung('mời quà sinh nhật, không 20.000đ', /quà sinh nhật/.test(chu(t.tim('moi-chu'))) && !/20\.000/.test(chu(the)));
+    dung('không nút Nhận voucher', K.an(t.tim('nut-moi-nhan')));
+    var t2 = await K.dungTrang({ san_sang: SS, toi: toi({ qua: qua, muc: { du: 5, tong: 5, thieu_qua: [] } }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    dung('khách cũ hồ sơ đủ: ẩn thẻ', K.an(t2.tim('moi-ho-so')));
+    var t3 = await K.dungTrang({ san_sang: SS, toi: toi({ qua: Object.assign({}, qua, { khach_moi: 1 }), muc: thieu }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    bang('khách mới: 20.000đ', chu(t3.tim('moi-gia')), '20.000đ');
+  });
+
+  await ca('Codex #567: thẻ Hoàn thiện hồ sơ của khách cũ chỉ hứa BÁNH khi chương trình sinh nhật tặng bánh; ưu đãi giảm giá nói đúng tên ưu đãi; Ví quà theo tháng nói nhận trong tháng, không nói gửi trước; lịch gửi đọc từ máy chủ', async function () {
+    var qua = { mo: 1, uu_dai: 'Giảm 20.000đ', da_nhan: 0, khach_moi: 0 };
+    var thieu = { du: 3, tong: 5, thieu_qua: ['sinh_nhat'] };
+    async function moiChu(qsn) {
+      var tl = theLe(); tl.qua_sn = qsn ? Object.assign({}, tl.qua_sn, qsn) : null;
+      var t = await K.dungTrang({ san_sang: SS, toi: toi({ qua: qua, muc: thieu, the_le: tl }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+      return chu(t.tim('moi-chu'));
+    }
+    var banh = await moiChu({});
+    dung('tặng bánh: nói bánh nhóm, gửi 3 ngày trước', banh.indexOf('1 bánh nhóm Bánh lạnh') >= 0 && banh.indexOf('3 ngày trước sinh nhật') >= 0);
+    var giam = await moiChu({ ten: 'Giảm 15% đơn sinh nhật', nhom: '', toi_da: 0 });
+    dung('giảm giá: không hứa bánh, nói đúng tên ưu đãi', giam.indexOf('bánh') < 0 && giam.indexOf('Giảm 15% đơn sinh nhật') >= 0);
+    var thang = await moiChu({ lich: 'thang', truoc: 0, han: 0 });
+    dung('Ví quà theo tháng: nhận trong tháng, không nói gửi trước', thang.indexOf('trong tháng sinh nhật') >= 0 && thang.indexOf('trước') < 0);
+    var dung_ngay = await moiChu({ truoc: 0, han: 30 });
+    dung('gửi đúng ngày', dung_ngay.indexOf('đúng ngày sinh nhật') >= 0 && dung_ngay.indexOf('trước') < 0);
+    var khong = await moiChu(null);
+    dung('không có chương trình: chỉ lời chúc', khong.indexOf('chúc mừng sinh nhật') >= 0 && khong.indexOf('bánh') < 0);
+  });
+
+  await ca('anh Việt 14/11: ô Đơn bánh, Voucher ghi đúng số, không đệm thành "00"', async function () {
+    var t = await K.dungTrang({ san_sang: SS, toi: toi(), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    bang('voucher 0', chu(t.tim('so-vc')), '0');
+    bang('đơn 0', chu(t.tim('so-don')), '0');
+  });
+
   console.log('Bo ca kiem HANH VI v658 (The Vagabond Club: dang nhap L3 + K1, J1c, T1, U3)');
   ket.loi.forEach(function (l) { console.log('  HONG ' + l); });
   console.log(ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng, tổng ' + (ket.dat + ket.hong) + ' ca.');

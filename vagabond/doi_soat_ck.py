@@ -505,6 +505,8 @@ def ds_bill_ck(ngay=None, diem=""):
 			frappe.log_error(frappe.get_traceback(), "doi_soat_ck: doc tien don Pancake")
 			theo_don = {}
 	rows, dem = [], {TT_DU: 0, TT_THIEU: 0, TT_CHUA: 0}
+	# Tờ trả nhiều đường: chỉ đòi phần Chuyển khoản (một nguồn ban_hang._can_ck).
+	bh._gan_can_ck(ds)
 	for r in ds:
 		ma_tc = str(r.vgb_ma_tham_chieu or "").strip().upper()
 		# Mã bill gốc nằm yên ở custom_pancake_display_id; ô tham chiếu đổi
@@ -519,7 +521,7 @@ def ds_bill_ck(ngay=None, diem=""):
 		# (v646: điểm Sales có vài chục đơn mỗi ngày).
 		if cint(r.docstatus) == 0 and ma_tc and not bh.RE_MA_BILL.fullmatch(ma_tc):
 			nhan = max(nhan, flt((bh._sepay_theo_tham_chieu(ma_tc) or {}).get("nhan")))
-		tt = TT_DU if cint(r.docstatus) == 1 else trang_thai_tien(nhan, r.grand_total)
+		tt = TT_DU if cint(r.docstatus) == 1 else trang_thai_tien(nhan, bh._can_ck(r))
 		dem[tt] = dem.get(tt, 0) + 1
 		rows.append({
 			"name": r.name, "ma": ma, "ma_tc": ma_tc, "quay": r.vgb_quay or "", "diem": dm,

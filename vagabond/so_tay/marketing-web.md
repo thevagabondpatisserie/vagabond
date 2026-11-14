@@ -110,7 +110,7 @@ Từ khoá: vành nghiêng, thanh mục, tab trang đặt bánh, vuốt ngang, �
 | Khách, Marketing | Trang đặt bánh (/banh), dưới dòng ngày | vuốt ngang trên vành |
 
 **Trước đây:** dải tab chữ hoa kéo ngang, khách dễ sót mục.
-**Từ nay:** các mục nằm trên một vành nghiêng. Khách vuốt ngang để đổi mục, chạm thẳng vào mục để chọn; vuốt dọc vẫn cuộn trang. Thứ tự: Có sẵn hôm nay, Đặt bánh trước, Thiết kế riêng, Vé sự kiện, Tại quầy, Ưu đãi, Tuyển dụng; In season tự hiện khi có hàng mùa vụ. Cuộn xuống quá vành thì đầu màn có thanh gọn chỉ mục đang chọn.
+**Từ nay:** các mục nằm trên một vành nghiêng. Khách vuốt ngang để đổi mục, chạm thẳng vào mục để chọn. Từ v659 vùng vành chỉ nhận vuốt ngang (trước đó quẹt bị kéo cả trang xuống), muốn cuộn trang thì đặt ngón tay ngoài vành; vành quay mượt hơn trên iPhone. Thứ tự: Có sẵn hôm nay, Đặt bánh trước, Thiết kế riêng, Vé sự kiện, Tại quầy, Ưu đãi, Tuyển dụng; In season tự hiện khi có hàng mùa vụ. Cuộn xuống quá vành thì đầu màn có thanh gọn chỉ mục đang chọn.
 
 **Bạn cần làm:** không cần làm gì. Đổi tên mục ở Trang và chữ như trước.
 

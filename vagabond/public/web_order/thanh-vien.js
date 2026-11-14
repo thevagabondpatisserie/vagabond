@@ -26,6 +26,7 @@
     get anh_qua_lon(){return C('tv6_ly_anh_lon', 'Ảnh quá lớn, quý khách chọn ảnh khác.');},
     get qua_chua_mo(){return C('tv6_ly_qua_mo', 'Chương trình quà chào mừng đang tạm dừng. Quý khách vẫn tích điểm như thường.');},
     get nhan_vien(){return C('tv6_ly_nhan_vien', 'Số của nhân viên Vagabond không nhận quà chào mừng.');},
+    get khach_cu(){return C('tv659_ly_khach_cu', 'Quà chào mừng dành cho thành viên mới đăng ký. Quý khách đã là thành viên: hoàn thiện hồ sơ để nhận quà sinh nhật.');},
     get ho_so_thieu(){return C('tv6_ly_ho_so', 'Quý khách điền đủ tên, ngày sinh và đồng ý nhận tin Zalo để nhận quà.');},
     get khong_tao_duoc(){return C('tv6_ly_tao', 'Chưa tạo được hồ sơ. Gọi 0931 224 334 để được hỗ trợ.');}};
   function bao(s,loi){const o=tim('trang-thai');o.textContent=s;o.classList.toggle('loi',!!loi);if(loi&&o.scrollIntoView)o.scrollIntoView({block:'center',behavior:'smooth'});}
@@ -161,6 +162,27 @@
     const q = tl && tl.qua_sn;
     return q && (q.hang || []).indexOf(String(ten || '').trim().toUpperCase()) >= 0 ? q : null;
   }
+  /* MỘT nguồn cho lời hứa quà sinh nhật (Codex #567): ghi chú thể lệ và thẻ Hoàn thiện hồ sơ
+     của khách cũ cùng đọc. Chỉ nói "bánh" khi chương trình tặng trọn một bánh trong nhóm món
+     (có nhom); ưu đãi khác nói đúng tên chương trình. Lịch gửi và hạn mã theo máy chủ:
+     Ví quà theo tháng thì nhận trong tháng; còn lại gửi trước N ngày hoặc đúng ngày.
+     Trả các cụm [khoá chữ, mặc định, giá trị thay]. */
+  function cumQuaSn(q) {
+    const ra = [];
+    if (q.nhom) {
+      ra.push(['tv658_qsn_2', '1 bánh nhóm {nhom},', { nhom: q.nhom }]);
+      if (Number(q.toi_da) > 0) ra.push(['tv658_qsn_3', 'tối đa {tien},', { tien: dong(q.toi_da) }]);
+    } else ra.push(['tv659_qsn_ten', '{ten},', { ten: q.ten || C('tv659_uu_dai_sn', 'ưu đãi sinh nhật') }]);
+    if (q.lich === 'thang') {
+      ra.push(['tv658_qsn_thang', 'nhận mã trong tháng sinh nhật,', {}], ['tv658_qsn_thang_han', 'dùng tới hết tháng.', {}]);
+    } else {
+      const truoc = Number(q.truoc) || 0;
+      ra.push(truoc > 0 ? ['tv658_qsn_gui', 'mã gửi qua Zalo {ngay} trước sinh nhật,', { ngay: truoc + ' ' + C('tv658_ngay', 'ngày') }]
+        : ['tv658_qsn_gui_dung', 'mã gửi qua Zalo đúng ngày sinh nhật,', {}]);
+      ra.push(['tv658_qsn_han', 'dùng trong {ngay}.', { ngay: (Number(q.han) || 1) + ' ' + C('tv658_ngay', 'ngày') }]);
+    }
+    return ra;
+  }
 
   /* J1c: lõi ở góc, mỗi hạng theo chi tiêu một cung, hạng cao gần lõi nhất. */
   function veHanhTrinh(tl, hang, td) {
@@ -277,19 +299,10 @@
     const q = tl.qua_sn;
     if (q && q.nhom) {
       const g = tao('p', '', 't1-ghi');
-      g.append(tao('span', C('tv658_qsn_1', 'Quà sinh nhật:'), 'cum'), chuTho(' '));
-      g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_2', '1 bánh nhóm {nhom},'), { nhom: q.nhom }), chuTho(' '));
-      if (Number(q.toi_da) > 0) g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_3', 'tối đa {tien},'), { tien: dong(q.toi_da) }), chuTho(' '));
-      /* Lịch gửi và hạn mã đọc từ kịch bản Zalo Sinh nhật (máy chủ), không cứng trong trang. */
-      const truoc = Number(q.truoc) || 0;
-      /* Chương trình phát vào Ví quà theo tháng sinh nhật: hạn tới hết tháng, không ghi số ngày (Codex #566 vòng 2). */
-      if (q.lich === 'thang') g.append(tao('span', C('tv658_qsn_thang', 'nhận mã trong tháng sinh nhật,'), 'cum'), chuTho(' '),
-        tao('span', C('tv658_qsn_thang_han', 'dùng tới hết tháng.'), 'cum'));
-      else {
-        g.append(ghepCum(tao('span', '', 'cum'), truoc > 0 ? C('tv658_qsn_gui', 'mã gửi qua Zalo {ngay} trước sinh nhật,')
-          : C('tv658_qsn_gui_dung', 'mã gửi qua Zalo đúng ngày sinh nhật,'), { ngay: truoc + ' ' + C('tv658_ngay', 'ngày') }), chuTho(' '));
-        g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_han', 'dùng trong {ngay}.'), { ngay: (Number(q.han) || 1) + ' ' + C('tv658_ngay', 'ngày') }));
-      }
+      g.append(tao('span', C('tv658_qsn_1', 'Quà sinh nhật:'), 'cum'));
+      /* Lịch gửi và hạn mã đọc từ kịch bản Zalo Sinh nhật (máy chủ), không cứng trong trang;
+         Ví quà theo tháng sinh nhật thì không ghi số ngày (Codex #566 vòng 2). Xem cumQuaSn. */
+      cumQuaSn(q).forEach(([k, md, thay]) => g.append(chuTho(' '), ghepCum(tao('span', '', 'cum'), C(k, md), thay)));
       goc.append(g);
     }
   }
@@ -434,16 +447,32 @@
     veT1(tim('the-le'), tl, hang, td);
     veU3(tim('dung-diem'), dungDuoc ? tl : null, d.diem, true);
     const muc = d.muc || { du: 0, tong: 5, thieu_qua: [] };
-    tim('so-don').textContent = String((d.don || []).length).padStart(2, '0');
-    tim('so-vc').textContent = String((d.vi || []).filter(v => v.trang_thai === 'dung_duoc').length).padStart(2, '0');
+    /* Anh Việt 14/11/2026: ô Voucher hiện "00" trông như lỗi chữ. Số đếm ghi đúng số, không đệm số 0. */
+    tim('so-don').textContent = String((d.don || []).length);
+    tim('so-vc').textContent = String((d.vi || []).filter(v => v.trang_thai === 'dung_duoc').length);
     tim('so-hs').textContent = muc.du + '/' + muc.tong;
     const q = d.qua || {};
     /* Quà chưa nhận thì luôn còn đường nhận: hồ sơ thiếu thì mời cập nhật,
        hồ sơ đã đủ thì nút Nhận voucher (Codex PR #517 vòng 10). */
-    const moi = !!(d.co_ho_so !== false && q.mo && !q.da_nhan);
     const conThieu = (muc.thieu_qua || []).length > 0;
+    /* Anh Việt 12/11 và 14/11/2026: quà chào mừng (20.000đ) CHỈ cho khách mới
+       đăng ký. Khách cũ thiếu hồ sơ thì thẻ mời nhận QUÀ SINH NHẬT (theo hạng,
+       đọc từ the_le.qua_sn); hồ sơ đã đủ thì ẩn thẻ. */
+    const khachCu = !q.da_nhan && Number(q.khach_moi) === 0;
+    const qsn = khachCu ? quaSn(d.the_le, (d.hang || {}).ten_hang) : null;
+    const moi = khachCu ? !!(d.co_ho_so !== false && conThieu) : !!(d.co_ho_so !== false && q.mo && !q.da_nhan);
     an(tim('moi-ho-so'), !moi);
-    if (moi) {
+    if (moi && khachCu) {
+      tim('moi-gia').textContent = qsn ? C('tv659_moi_gia_sn', 'Quà sinh nhật') : '';
+      tim('moi-dem').textContent = C('tv6_ho_so_dem', 'Hồ sơ {du}/{tong}', { du: muc.du, tong: muc.tong });
+      /* Lời hứa lấy đúng từ chương trình sinh nhật (cumQuaSn), không tự viết riêng (Codex #567). */
+      tim('moi-chu').textContent = qsn
+        ? [C('tv659_moi_chu_sn', 'Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật:')]
+          .concat(cumQuaSn(qsn).map(([k, md, thay]) => C(k, md, thay))).join(' ')
+        : C('tv659_moi_chu_chuc', 'Thêm ngày sinh và đồng ý nhận tin Zalo để chúng tôi chúc mừng sinh nhật quý khách.');
+      an(tim('moi-ho-so').querySelector('[data-di]'), false);
+      an(tim('nut-moi-nhan'), true);
+    } else if (moi) {
       tim('moi-gia').textContent = soQua(q.uu_dai);
       tim('moi-dem').textContent = C('tv6_ho_so_dem', 'Hồ sơ {du}/{tong}', { du: muc.du, tong: muc.tong });
       tim('moi-chu').textContent = conThieu
@@ -593,7 +622,7 @@
   async function quaSauHoSo() {
     const d = await api('toi');
     const q = (d && d.qua) || {};
-    if (!d || !d.ok || !q.mo || q.da_nhan || ((d.muc || {}).thieu_qua || []).length) return '';
+    if (!d || !d.ok || !q.mo || q.da_nhan || Number(q.khach_moi) === 0 || ((d.muc || {}).thieu_qua || []).length) return '';
     return nhanQuaWeb(true);
   }
   async function nhanQuaWeb(imLang) {
@@ -647,6 +676,7 @@
     duLieu = d;
     const q = d.qua || {};
     if (!q.mo && !q.da_nhan) { veHoSo(d); bao(lyDo.qua_chua_mo, true); return true; }
+    if (!q.da_nhan && Number(q.khach_moi) === 0) { veHoSo(d); bao(lyDo.khach_cu); return true; }
     if (!q.da_nhan && ((d.muc || {}).thieu_qua || []).length) { moFormQua(d); bao(''); return true; }
     try { await layQua(d); } catch (e) { veHoSo(d); bao(e.message, true); }
     return true;
