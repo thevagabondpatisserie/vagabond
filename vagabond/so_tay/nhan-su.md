@@ -106,7 +106,7 @@ Hồ sơ bị loại chuyển sang Đã loại, không bị xoá, và mở lại
 
 **Lưu ý**
 - Người đã nhận việc không loại được.
-- Nhận người hay không là việc của quản lý bộ phận; mức lương do anh Việt quyết.
+- Nhận người hay không là việc của quản lý bộ phận; mức lương do giám đốc quyết.
 
 ## Chấm phiếu phỏng vấn và làm thử
 Từ khoá: chấm điểm ứng viên, phiếu chấm, đánh giá phỏng vấn, đánh giá làm thử, tiêu chí, kết luận nhận
@@ -151,7 +151,7 @@ Làm thử có trả công. App ghi số giờ, số tiền và ai đã trả đ
 
 **Lưu ý**
 - Ô [[Công chưa trả]] đầu màn đếm mọi hồ sơ còn nợ công, kể cả hồ sơ cũ đã loại.
-- Tiền trả thật tại quầy hay chuyển khoản theo cách tiệm đang làm; mức công do anh Việt quyết.
+- Tiền trả thật tại quầy hay chuyển khoản theo cách tiệm đang làm; mức công do giám đốc quyết.
 
 ## Tạo vị trí tuyển và bật tắt trên trang web
 Từ khoá: vị trí tuyển dụng, đăng tuyển, tin tuyển dụng, bật tắt tuyển, trang ứng tuyển web, đang tuyển
@@ -177,7 +177,7 @@ Vị trí bật Đang tuyển thì trang Ứng tuyển trên web hiện vị tr�
 
 **Lưu ý**
 - Qua hạn nhận hồ sơ thì web tự ẩn vị trí.
-- Mức lương ghi trên web do anh Việt quyết.
+- Mức lương ghi trên web do giám đốc quyết.
 
 ## In mã QR ứng tuyển để dán quầy
 Từ khoá: mã QR tuyển dụng, QR ứng tuyển, dán quầy, in QR, tuyển dụng tại cửa hàng
@@ -240,4 +240,4 @@ Từ khoá: hạn lưu hồ sơ, xoá hồ sơ ứng viên, dữ liệu cá nhâ
 
 **Lưu ý**
 - Người đã nhận việc không bị xoá.
-- Ứng viên xin xoá sớm thì báo anh Việt. Việc này do anh Việt quyết.
+- Ứng viên xin xoá sớm thì báo giám đốc. Việc này do giám đốc quyết.

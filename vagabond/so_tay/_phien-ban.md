@@ -12,9 +12,15 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v657
+- Đề xuất công thức bánh mới
+- Kế toán lên mã và ghi sổ phiếu đề xuất
+- Đề xuất điều chỉnh công thức đang dùng
+- Hoàn tất lệnh sản xuất
+
 ## v656
 - Đề xuất công thức bánh mới
-- Khải lên mã và ghi sổ phiếu đề xuất
+- Kế toán lên mã và ghi sổ phiếu đề xuất
 - Đề xuất điều chỉnh công thức đang dùng
 
 ## v655

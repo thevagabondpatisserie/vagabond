@@ -136,7 +136,7 @@ Năm bước: Soạn nháp, Duyệt nội dung, Chốt danh sách, Đang liên h
 **Lưu ý**
 - Sửa nội dung sau khi duyệt là phải duyệt lại. Người khác vừa sửa thì máy báo, mở lại chiến dịch.
 - Lúc chốt máy giữ ngẫu nhiên 10% khách làm đối chứng, không liên hệ. Chốt xong danh sách không đổi nữa.
-- Chọn ai, ưu đãi gì, tỷ lệ đối chứng: việc này do anh Việt quyết.
+- Chọn ai, ưu đãi gì, tỷ lệ đối chứng: việc này do giám đốc quyết.
 
 ## Phát mỗi khách một mã ưu đãi riêng trong chiến dịch
 Từ khoá: mã riêng, mã ưu đãi riêng, voucher riêng từng khách, mã dùng một lần, mã cố định, lô voucher chiến dịch, phát mã lúc chốt, {ma}, đếm đơn dùng mã
@@ -165,7 +165,7 @@ Gắn chương trình khuyến mãi vào chiến dịch để đếm đơn chi�
 - Hạn mã theo HẠN CHIẾN DỊCH; để trống thì theo hạn dùng mặc định của chương trình.
 - Mã riêng nằm trong lô của chiến dịch, quầy và web áp được như mã xuất lô thường.
 - Hiệu quả chiến dịch đếm số mã riêng đã dùng trên tổng số mã.
-- Giảm bao nhiêu, phát cho ai: việc này do anh Việt quyết.
+- Giảm bao nhiêu, phát cho ai: việc này do giám đốc quyết.
 
 ## Gửi tin Zalo OA cho khách trong chiến dịch
 Từ khoá: Zalo OA, gửi tin OA, tin truyền thông, UID thử, gửi thử tin OA, quan tâm OA, tiêu đề tin Zalo OA, OA gửi hàng loạt
@@ -273,7 +273,7 @@ Máy tự gửi tin Zalo cho khách theo mẫu Zalo đã duyệt. Mỗi kịch b
 - Không gửi sau 20:00. Đơn nhận buổi tối thì sáng hôm sau 8:00 mới gửi.
 - Tin có ưu đãi chỉ gửi khách đã đồng ý nhận tin Zalo. Mỗi khách tối đa một tin ưu đãi mỗi 7 ngày (trừ đền bù).
 - Zalo chỉ cấp hạn mức tin ưu đãi bằng 1/6 số tin chăm sóc đã gửi hai tháng trước, nên phải bật tin cảm ơn trước.
-- Bật kịch bản nào, ưu đãi bao nhiêu: việc này do anh Việt quyết.
+- Bật kịch bản nào, ưu đãi bao nhiêu: việc này do giám đốc quyết.
 
 ## Các kịch bản ưu đãi tự động theo hành trình khách
 Từ khoá: đơn thứ hai, hẹn gặp lại, nhắc dịp, kỷ niệm, giới thiệu bạn, referral, mời quay lại mốc hai, khách vắng 90 ngày, nhắc mã sắp hết hạn, nhóm đối chứng, win-back
@@ -295,7 +295,7 @@ Từ bản 645 có thêm các kịch bản dưới, mặc định TẮT. Mỗi k
 **Lưu ý**
 - Ô NHÓM ĐỐI CHỨNG (%): bấy nhiêu phần trăm khách được giữ lại không gửi, để báo cáo thứ Hai so được tin có làm khách quay lại không. Máy chỉ chia nhóm trong số khách đủ điều kiện nhận tin (đúng đối tượng chương trình, chưa nhận tin ưu đãi tuần này).
 - Thứ tự ưu tiên khi hạn mức ít: đền bù, sinh nhật, nhắc dịp, đơn thứ hai, giới thiệu, mời quay lại, nhắc hạn.
-- Nội dung mẫu đề xuất ở tài liệu ưu đãi Zalo tự động. Mức ưu đãi: việc này do anh Việt quyết.
+- Nội dung mẫu đề xuất ở tài liệu ưu đãi Zalo tự động. Mức ưu đãi: việc này do giám đốc quyết.
 
 ## Đọc báo cáo ưu đãi Zalo thứ Hai
 Từ khoá: báo cáo ưu đãi, báo cáo tuần, hiệu quả voucher, mã đã dùng, doanh thu từ mã, nhóm đối chứng, Marketing

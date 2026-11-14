@@ -164,7 +164,7 @@ Gói chức vụ là cụm quyền chọn sẵn theo công việc: Bán hàng (S
 **Lưu ý**
 - Đổi xong, nhân viên tải lại app là thấy màn mới, không cần đăng xuất.
 - Đổi gói tự gỡ ô Hồ sơ vai trò trên Desk của người đó. Đừng gắn lại Hồ sơ vai trò trên Desk: nó ghi đè gói chức vụ mỗi lần lưu, quyền mất mà không báo (đã xảy ra 05/09/2026).
-- Ai được cấp gói nào là việc anh Việt quyết.
+- Ai được cấp gói nào là việc giám đốc quyết.
 
 ## Tắt tài khoản nhân viên nghỉ việc
 Từ khoá: tắt tài khoản, khoá tài khoản, vô hiệu hoá, disable user, nhân viên nghỉ, nghỉ việc, bật lại tài khoản, mở khoá tài khoản
@@ -214,7 +214,7 @@ Sửa, huỷ hoá đơn quầy, đổi ngày hoá đơn hay thêm giảm giá kh
 **Lưu ý**
 - Mã vừa đổi vẫn nhận thêm một lượt 10 phút, nên đọc qua điện thoại không bị hụt.
 - Quản lý tự thao tác thì không phải gõ mã. Mỗi lần sửa hoặc xoá đều ghi tên người làm vào hoá đơn.
-- Ai được vào danh sách quản lý cấp mã là việc anh Việt quyết.
+- Ai được vào danh sách quản lý cấp mã là việc giám đốc quyết.
 
 ## Cài quyền tại quầy (thu ngân được bỏ món tới đâu)
 Từ khoá: quyền quầy, quyền tại quầy, bỏ món, bớt món, sửa bill, in tạm tính, thu ngân, quyền thu ngân, cần quản lý duyệt, mức quyền
@@ -243,7 +243,7 @@ Chọn thu ngân được tự bớt món tới đâu, mốc tính từ lúc b�
 
 **Lưu ý**
 - Mức nào cũng vậy: huỷ nguyên bill luôn cần mã OTP; hoá đơn đã ghi sổ thì mọi lần sửa đều cần mã OTP.
-- Chọn mức nào là việc anh Việt quyết.
+- Chọn mức nào là việc giám đốc quyết.
 
 ## Xem việc cần làm
 Từ khoá: việc cần làm, việc chờ tôi, phiếu chờ duyệt, to do, todo, hàng chờ, việc được giao, giao bạn, chờ xử lý, số đỏ trên ô
@@ -454,7 +454,7 @@ Tin chỉ tới nhóm đã tích tin đó. Tên đúng như trong hộp Chọn t
 **Lưu ý**
 - Không có gì để báo thì máy không gửi. Tin kẹt ghi sổ còn gửi 20 và 45 phút sau giờ chuỗi cuối ngày.
 - Giờ im trùng giờ gửi thì tin bị gộp gửi khi hết giờ im.
-- Tin nào tới nhóm nào: việc này do anh Việt quyết.
+- Tin nào tới nhóm nào: việc này do giám đốc quyết.
 
 ## Tin Zalo máy tự gửi buổi tối và theo nhịp
 Từ khoá: tin Zalo buổi tối, tin 23 giờ, báo cáo cuối ngày, sản lượng cuối ngày, tồn bánh cuối ngày, đơn chưa ghi sổ 23:55, hoá đơn trùng, nhắc mỗi giờ, đặt bàn chưa xác nhận, ảnh bảng
@@ -483,7 +483,7 @@ Tin theo giờ buổi tối và tin nhắc lặp theo nhịp. Tên đúng như t
 **Lưu ý**
 - Báo cáo cuối ngày có doanh thu, giảm giá, sửa huỷ và mục Cần để ý; số giống màn Báo cáo.
 - Các tin còn lại trong hộp Chọn tin nhận gửi ngay khi việc xảy ra (phiếu ghi sổ, đơn web mới, yêu cầu mới...).
-- Ngưỡng của mục Cần để ý: việc này do anh Việt quyết.
+- Ngưỡng của mục Cần để ý: việc này do giám đốc quyết.
 
 ## Cài đặt SePay nhận giao dịch ngân hàng
 Từ khoá: SePay, webhook, sao kê, giao dịch ngân hàng, khoá HMAC, secret key, whsec, bản đồ tài khoản, nạp bù sao kê, tiền về không thấy, bank, ACB, MB
@@ -535,7 +535,7 @@ Trợ lý trả lời cách dùng app dựa trên sổ tay của phần mềm. T
 
 **Lưu ý**
 - Hỏi đúng tên việc, ví dụ "tạo phiếu nhập kho", sẽ ra câu trả lời sát hơn.
-- Câu trả lời có ghi chưa xác minh thì kiểm lại với quản lý trước khi làm. Việc cần quyết thì hỏi anh Việt.
+- Câu trả lời có ghi chưa xác minh thì kiểm lại với quản lý trước khi làm. Việc cần quyết thì hỏi giám đốc.
 
 ## Mở Sổ tay trong app
 Từ khoá: sổ tay, hướng dẫn, cẩm nang, tài liệu, manual, handbook, help, tra cứu, cách dùng app, đọc hướng dẫn, so-tay
@@ -653,7 +653,7 @@ Các ô này quyết định gọi xe thật hay thử, và web báo phí giao c
 2. Bấm [[Thử kết nối GreenSM]] để chạy thử đủ chuỗi cho GreenSM nghiệm thu. Nút chỉ chạy khi đang bật môi trường thử.
 
 **Lưu ý**
-- Đổi các ô này: việc này do anh Việt quyết.
+- Đổi các ô này: việc này do giám đốc quyết.
 
 ## Cài đặt trợ lý (khoá, hạn mức lượt hỏi)
 Từ khoá: cài đặt trợ lý, khoá API, API key, Anthropic, hạn mức, lượt hỏi mỗi ngày, lượt mỗi tháng, bật tắt trợ lý, mô hình, model
@@ -720,7 +720,7 @@ Từ khoá: WhatsApp, kích hoạt số, PIN, App Secret, Verify token, webhook,
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Quản trị (anh Việt) | Cài đặt lõi và API (/cai-dat-loi-va-api) | [[Kích hoạt số WhatsApp]], [[Đăng ký nhận sự kiện]] |
+| Quản trị hệ thống | Cài đặt lõi và API (/cai-dat-loi-va-api) | [[Kích hoạt số WhatsApp]], [[Đăng ký nhận sự kiện]] |
 
 Làm một lần sau khi lên bản v653.
 
