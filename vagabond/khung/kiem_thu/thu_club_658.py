@@ -19,6 +19,8 @@ from vagabond import noi_dung_web as nw
 from vagabond.diem_han import qua_han_cuon_chieu
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
+# Kịch bản Zalo Sinh nhật đúng như anh Việt bật trên site 14/11/2026: gửi trước 3 ngày, mã dùng 15 ngày.
+KB = {"ctkm": "QUA-SINH-NHAT", "bat": 1, "so_ngay": 3, "han_ngay": 15}
 GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
@@ -138,13 +140,79 @@ def _():
 def _():
 	km = {"name": "QUA-SINH-NHAT", "ten": "Quà sinh nhật thành viên", "bat": 1, "hien_web": 1, "doi_tuong": "Theo hang khach",
 		"hang_khach": "VOYAGER\nVAGABONDER\nAMBASSADOR\nFAMILY", "kieu_giam": "Phan tram", "gia_tri": 100,
-		"pham_vi": "Nhom mon chi dinh", "nhom_mon": "Bánh lạnh", "giam_toi_da": 185000}
-	la("đúng số site 14/11", dw.qua_sinh_nhat_tu_ctkm(km), {"ten": "Quà sinh nhật thành viên", "nhom": "Bánh lạnh", "toi_da": 185000,
-		"hang": ["VOYAGER", "VAGABONDER", "AMBASSADOR", "FAMILY"]})
+		"pham_vi": "Nhom mon chi dinh", "nhom_mon": "Bánh lạnh", "giam_toi_da": 185000, "cach_ma": "Ma dung mot lan"}
+	hn = "2026-11-14"
+	la("đúng số site 14/11", dw.qua_sinh_nhat_tu_ctkm(km, hn, KB), {"ten": "Quà sinh nhật thành viên", "nhom": "Bánh lạnh", "toi_da": 185000,
+		"hang": ["VOYAGER", "VAGABONDER", "AMBASSADOR", "FAMILY"], "truoc": 3, "han": 15})
 	for sai in ({"bat": 0}, {"hien_web": 0}, {"doi_tuong": "Moi khach"}, {"hang_khach": ""}):
-		la("không hứa quà khi %s" % sai, dw.qua_sinh_nhat_tu_ctkm(dict(km, **sai)), None)
-	la("không phải tặng trọn bánh thì không ghi nhóm", dw.qua_sinh_nhat_tu_ctkm(dict(km, gia_tri=50))["nhom"], "")
-	la("không có chương trình", dw.qua_sinh_nhat_tu_ctkm(None), None)
+		la("không hứa quà khi %s" % sai, dw.qua_sinh_nhat_tu_ctkm(dict(km, **sai), hn, KB), None)
+	la("không phải tặng trọn bánh thì không ghi nhóm", dw.qua_sinh_nhat_tu_ctkm(dict(km, gia_tri=50), hn, KB)["nhom"], "")
+	la("không có chương trình", dw.qua_sinh_nhat_tu_ctkm(None, hn, KB), None)
+
+
+@ca("v658 anh Việt 14/11: quà sinh nhật chỉ hứa khi kịch bản Zalo Sinh nhật đang bật (quà tới tay khách qua tin này); số ngày gửi trước và hạn mã đọc từ kịch bản, hạn kẹp theo ngày kết thúc chương trình")
+def _():
+	km = {"name": "QUA-SINH-NHAT", "ten": "Quà sinh nhật thành viên", "bat": 1, "hien_web": 1, "doi_tuong": "Theo hang khach",
+		"hang_khach": "VOYAGER", "kieu_giam": "Phan tram", "gia_tri": 100, "pham_vi": "Nhom mon chi dinh",
+		"nhom_mon": "Bánh lạnh", "giam_toi_da": 185000, "cach_ma": "Ma dung mot lan"}
+	hn = "2026-11-14"
+	la("kịch bản tắt thì không hứa", dw.qua_sinh_nhat_tu_ctkm(km, hn, dict(KB, bat=0)), None)
+	la("không đọc được kịch bản thì không hứa", dw.qua_sinh_nhat_tu_ctkm(km, hn, None), None)
+	r = dw.qua_sinh_nhat_tu_ctkm(km, hn, KB)
+	la("gửi trước 3 ngày, dùng 15 ngày", (r["truoc"], r["han"]), (3, 15))
+	r = dw.qua_sinh_nhat_tu_ctkm(km, hn, dict(KB, so_ngay=0, han_ngay=30))
+	la("đổi kịch bản thì trang đổi theo", (r["truoc"], r["han"]), (0, 30))
+	r = dw.qua_sinh_nhat_tu_ctkm(dict(km, den_ngay="2026-11-20"), hn, KB)
+	la("hạn mã kẹp theo ngày kết thúc chương trình như lúc cấp mã", r["han"], 6)
+
+
+@ca("v658 Codex #566: chương trình sinh nhật còn bật nhưng hết hạn, chưa bắt đầu, hạn mã đã qua hay không phải mã dùng một lần thì trang KHÔNG hứa quà, đúng như cửa cấp mã từ chối")
+def _():
+	from vagabond.zalo_kich_ban import ctkm_phat_duoc
+
+	km = {"name": "QUA-SINH-NHAT", "ten": "Quà sinh nhật thành viên", "bat": 1, "hien_web": 1, "doi_tuong": "Theo hang khach",
+		"hang_khach": "VOYAGER", "kieu_giam": "Phan tram", "gia_tri": 100, "pham_vi": "Nhom mon chi dinh",
+		"nhom_mon": "Bánh lạnh", "giam_toi_da": 185000, "cach_ma": "Ma dung mot lan"}
+	hn = "2026-11-14"
+	# Đúng thao tác Codex mô tả: hết hạn 01/11, xem trang ngày 14/11.
+	het = dict(km, den_ngay="2026-11-01")
+	dung("cửa cấp mã từ chối chương trình hết hạn", ctkm_phat_duoc(het, dw._ngay(hn), 7)[0] is None)
+	la("trang không hứa quà khi cửa cấp mã từ chối", dw.qua_sinh_nhat_tu_ctkm(het, hn, KB), None)
+	for sai in ({"tu_ngay": "2026-12-01"}, {"han_ma": "2026-11-13"}, {"cach_ma": "Ma chung"}):
+		la("không hứa quà khi %s" % sai, dw.qua_sinh_nhat_tu_ctkm(dict(km, **sai), hn, KB), None)
+	# Biên: ngày kết thúc là hôm nay vẫn cấp được nên vẫn hứa.
+	dung("đúng ngày kết thúc vẫn hứa", dw.qua_sinh_nhat_tu_ctkm(dict(km, den_ngay=hn), hn, KB) is not None)
+	# Một nguồn: trang hỏi đúng cửa cấp mã, không tự so ngày.
+	with patch("vagabond.zalo_kich_ban.ctkm_phat_duoc", lambda k, h, n: (None, "từ chối")):
+		la("cửa cấp mã từ chối thì trang không hứa dù ngày hợp lệ", dw.qua_sinh_nhat_tu_ctkm(km, hn, KB), None)
+
+
+@ca("v658 Codex #566 cùng loại: đặc quyền theo hạng trên thể lệ bỏ chương trình chưa tới ngày bắt đầu và đã qua ngày kết thúc, giữ đúng ngày biên")
+def _():
+	hn = "2026-11-14"
+	la("chưa bắt đầu", dw.ctkm_trong_han({"tu_ngay": "2026-11-15"}, hn), False)
+	la("bắt đầu hôm nay", dw.ctkm_trong_han({"tu_ngay": hn}, hn), True)
+	la("đã qua ngày kết thúc", dw.ctkm_trong_han({"den_ngay": "2026-11-13"}, hn), False)
+	la("kết thúc hôm nay", dw.ctkm_trong_han({"den_ngay": hn}, hn), True)
+	la("không đặt ngày", dw.ctkm_trong_han({}, hn), True)
+	# the_le dùng đúng hàm này, không còn tự so ngày.
+	nguon = open(os.path.join(GOC, "vagabond", "diem_web.py"), encoding="utf-8").read()
+	than = nguon[nguon.index("def the_le("):nguon.index("def _qua_sn(")]
+	dung("the_le lọc bằng ctkm_trong_han", "ctkm_trong_han(k, hn)" in than and "den_ngay\"]) <" not in than)
+
+
+@ca("v658 anh Việt 14/11 (giao diện xấu): lớp CSS của thẻ hạng T1 không trùng lớp cũ của trang (lớp .moi cũ của khối mời hồ sơ từng đẩy thẻ AMBASSADOR lệch 24 px, đổi chữ tiêu đề)")
+def _():
+	import re
+
+	css = open(os.path.join(GOC, "vagabond", "public", "web_order", "thanh-vien.css"), encoding="utf-8").read()
+	js = open(os.path.join(GOC, "vagabond", "public", "web_order", "thanh-vien.js"), encoding="utf-8").read()
+	cu = css[:css.index("/* v658")]
+	dong = js[js.index("function veT1("):js.index("function veU3(")]
+	lop = set(re.findall(r"' (la|tiep|moi[\w-]*)'", dong))
+	dung("đọc được lớp của thẻ", {"la", "tiep"} <= lop and any(x.startswith("moi") for x in lop))
+	trung = [x for x in sorted(lop) if re.search(r"(^|[\s,}])\." + re.escape(x) + r"(?![\w-])", cu)]
+	la("không lớp nào của thẻ T1 trùng lớp cũ", trung, [])
 
 
 @ca("v658 ảnh trang đăng nhập: banner có chỗ Trang thành viên, chỉ dành cho banner; trang thành viên chỉ nhận banner đúng chỗ, đang bật, có ảnh")
@@ -183,7 +251,7 @@ def _():
 	r = subprocess.run(["node", os.path.join(GOC, "vagabond", "khung", "kiem_thu", "hanh_vi", "thanh_vien_658.js")],
 		capture_output=True, text=True, timeout=120)
 	la("chạy xanh", (r.returncode, (r.stderr or "")[-400:], (r.stdout or "")[-800:] if r.returncode else ""), (0, "", ""))
-	dung("đủ 12 ca", "12 ca đạt, 0 ca hỏng" in r.stdout)
+	dung("đủ 13 ca", "13 ca đạt, 0 ca hỏng" in r.stdout)
 
 
 @ca("v658 hoạ tiết lấy nguyên bộ Gạo Muối (không tự vẽ): đúng mã băm tệp gốc trên canvas thiết kế")
