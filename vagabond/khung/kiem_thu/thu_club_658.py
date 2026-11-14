@@ -12,6 +12,8 @@ thật, ghi trong PR.
 """
 import os
 import subprocess
+import sys
+import types
 from unittest.mock import patch
 
 from vagabond import diem_web as dw
@@ -20,6 +22,10 @@ from vagabond.diem_han import qua_han_cuon_chieu
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 # Kịch bản Zalo Sinh nhật đúng như anh Việt bật trên site 14/11/2026: gửi trước 3 ngày, mã dùng 15 ngày.
+# thanh_vien nạp frappe.rate_limiter ở đầu tệp: Frappe giả không có, đặt bản rỗng như thu_voucher_tv_623.
+if "frappe.rate_limiter" not in sys.modules:
+	sys.modules["frappe.rate_limiter"] = types.ModuleType("frappe.rate_limiter")
+	sys.modules["frappe.rate_limiter"].rate_limit = lambda *a, **k: (lambda f: f)
 KB = {"ctkm": "QUA-SINH-NHAT", "bat": 1, "so_ngay": 3, "han_ngay": 15}
 GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -143,7 +149,7 @@ def _():
 		"pham_vi": "Nhom mon chi dinh", "nhom_mon": "Bánh lạnh", "giam_toi_da": 185000, "cach_ma": "Ma dung mot lan"}
 	hn = "2026-11-14"
 	la("đúng số site 14/11", dw.qua_sinh_nhat_tu_ctkm(km, hn, KB), {"ten": "Quà sinh nhật thành viên", "nhom": "Bánh lạnh", "toi_da": 185000,
-		"hang": ["VOYAGER", "VAGABONDER", "AMBASSADOR", "FAMILY"], "truoc": 3, "han": 15})
+		"hang": ["VOYAGER", "VAGABONDER", "AMBASSADOR", "FAMILY"], "lich": "truoc", "truoc": 3, "han": 15})
 	for sai in ({"bat": 0}, {"hien_web": 0}, {"doi_tuong": "Moi khach"}, {"hang_khach": ""}):
 		la("không hứa quà khi %s" % sai, dw.qua_sinh_nhat_tu_ctkm(dict(km, **sai), hn, KB), None)
 	la("không phải tặng trọn bánh thì không ghi nhóm", dw.qua_sinh_nhat_tu_ctkm(dict(km, gia_tri=50), hn, KB)["nhom"], "")
@@ -164,6 +170,35 @@ def _():
 	la("đổi kịch bản thì trang đổi theo", (r["truoc"], r["han"]), (0, 30))
 	r = dw.qua_sinh_nhat_tu_ctkm(dict(km, den_ngay="2026-11-20"), hn, KB)
 	la("hạn mã kẹp theo ngày kết thúc chương trình như lúc cấp mã", r["han"], 6)
+
+
+@ca("v658 Codex #566 vòng 2: chương trình phát vào Ví quà theo tháng sinh nhật thì trang ghi đúng luật Ví quà (nhận trong tháng, dùng tới hết tháng), không hứa gửi trước 3 ngày, dùng 15 ngày")
+def _():
+	from datetime import date
+	from vagabond import thanh_vien
+
+	km = {"name": "QUA-SINH-NHAT", "ten": "Quà sinh nhật thành viên", "bat": 1, "hien_web": 1, "doi_tuong": "Theo hang khach",
+		"hang_khach": "VOYAGER", "kieu_giam": "Phan tram", "gia_tri": 100, "pham_vi": "Nhom mon chi dinh",
+		"nhom_mon": "Bánh lạnh", "giam_toi_da": 185000, "cach_ma": "Ma dung mot lan",
+		"vi_phat": 1, "vi_dip": "Thang sinh nhat", "vi_han_ngay": 30}
+	# Đúng tình huống Codex: ngày 29/11, khách sinh 02/12. Nhánh gửi thật (ky_vi) từ chối.
+	ok, ly, _cuoi = thanh_vien.ky_vi(km, "1990-12-02", date(2026, 11, 29))
+	la("cửa Ví quà từ chối trước tháng sinh nhật", (ok, ly), (False, "chua_toi_thang_sinh_nhat"))
+	r = dw.qua_sinh_nhat_tu_ctkm(km, "2026-11-29", KB)
+	la("trang ghi luật tháng sinh nhật, không ghi gửi trước 3 ngày, dùng 15 ngày", (r["lich"], r["truoc"], r["han"]), ("thang", 0, 0))
+	# Trong tháng sinh nhật: mã Ví quà dùng tới hết tháng, đúng điều trang ghi.
+	ok, _ly, cuoi = thanh_vien.ky_vi(km, "1990-11-02", date(2026, 11, 1))
+	la("mã dùng tới hết tháng", (ok, cuoi), (True, date(2026, 11, 30)))
+	# Ví quà Mọi lúc: hạn theo số ngày của Ví quà (một nguồn thanh_vien.han_ma_vi), không theo kịch bản.
+	r = dw.qua_sinh_nhat_tu_ctkm(dict(km, vi_dip="Moi luc"), "2026-11-14", KB)
+	la("Ví quà Mọi lúc dùng hạn Ví quà", (r["lich"], r["han"]), ("truoc", 30))
+	la("đúng hàm của nhánh gửi", r["han"], (thanh_vien.han_ma_vi(dict(km, vi_dip="Moi luc"), date(2026, 11, 14), None) - date(2026, 11, 14)).days)
+	# Không phát vào Ví quà: giữ lịch của kịch bản Zalo.
+	r = dw.qua_sinh_nhat_tu_ctkm(dict(km, vi_phat=0), "2026-11-14", KB)
+	la("không Ví quà thì theo kịch bản", (r["lich"], r["truoc"], r["han"]), ("truoc", 3, 15))
+	# Chương trình hết hạn thì nhánh Ví quà cũng không hứa.
+	la("Ví quà hết hạn không hứa", dw.qua_sinh_nhat_tu_ctkm(dict(km, den_ngay="2026-11-01"), "2026-11-14", KB), None)
+	la("Ví quà Mọi lúc hết hạn không hứa", dw.qua_sinh_nhat_tu_ctkm(dict(km, vi_dip="Moi luc", den_ngay="2026-11-01"), "2026-11-14", KB), None)
 
 
 @ca("v658 Codex #566: chương trình sinh nhật còn bật nhưng hết hạn, chưa bắt đầu, hạn mã đã qua hay không phải mã dùng một lần thì trang KHÔNG hứa quà, đúng như cửa cấp mã từ chối")
@@ -251,7 +286,7 @@ def _():
 	r = subprocess.run(["node", os.path.join(GOC, "vagabond", "khung", "kiem_thu", "hanh_vi", "thanh_vien_658.js")],
 		capture_output=True, text=True, timeout=120)
 	la("chạy xanh", (r.returncode, (r.stderr or "")[-400:], (r.stdout or "")[-800:] if r.returncode else ""), (0, "", ""))
-	dung("đủ 13 ca", "13 ca đạt, 0 ca hỏng" in r.stdout)
+	dung("đủ 14 ca", "14 ca đạt, 0 ca hỏng" in r.stdout)
 
 
 @ca("v658 hoạ tiết lấy nguyên bộ Gạo Muối (không tự vẽ): đúng mã băm tệp gốc trên canvas thiết kế")

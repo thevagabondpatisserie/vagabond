@@ -753,6 +753,9 @@ MIEN = {
 	# v653: tám đợt dự chi mới nhất (hai đợt mỗi tháng), máy chủ đã giới hạn;
 	# sổ để tra từng khoản trả là màn Hồ sơ thanh toán.
 	"scrDuChi": KHONG_PHAI,
+	# v658: các sự kiện đang bán và mới diễn ra 14 ngày (máy chủ đã giới hạn),
+	# mỗi thẻ một sự kiện để mở danh sách khách; màn khách có ô tìm mã vé riêng.
+	"scrKhachSuKien": KHONG_PHAI,
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 

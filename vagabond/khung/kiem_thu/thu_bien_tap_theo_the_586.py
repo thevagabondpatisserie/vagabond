@@ -460,6 +460,8 @@ def _dk_ham_that():
             p.stop()
     la("một đăng ký", len(them), 1)
     la("gửi lại trả cùng mã", kq["ma"], kq2["ma"])
+    # v658: phiếu lưu mã vé, đúng mã trả khách; màn Khách sự kiện tìm theo mã này.
+    la("phiếu lưu mã vé đúng mã trả khách", them[0].get("ma_ve"), kq["ma"])
     # GHI CHÚ (Codex #453 vòng 1): bản trước của ca này thay hẳn dem_ve bằng
     # hàm giả, nên không bao giờ thấy câu đếm vé là đọc thường. Giữ dem_ve
     # thật, soi đúng câu SQL nó chạy.
