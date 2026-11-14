@@ -124,7 +124,7 @@ body{padding-top:0!important}
 .ph{position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--bg-2)}
 .ph img{width:100%;height:100%;object-fit:cover;font-size:0;color:transparent;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
 .card:hover .ph img{transform:scale(1.06)}
-.tagline{position:absolute;left:0;top:0;padding:8px 10px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);background:rgba(0,0,0,.72);backdrop-filter:blur(6px)}
+.tagline{position:absolute;left:0;top:0;padding:8px 10px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);background:rgba(0,0,0,.8)}
 .c-body{padding:12px 0 0;display:flex;flex-direction:column;flex:1}
 .c-name{font-family:'Vagabond Sans',var(--sans);font-size:19.5px;line-height:1.2;letter-spacing:.035em;text-transform:uppercase;transition:color .3s}
 @media(min-width:760px){.c-name{font-size:27px}}
@@ -423,7 +423,7 @@ html body .h1 em#bigDate{display:none}
    v532b (Codex #376): vung bam 44x44 theo AGENTS.md dieu 13; vong kinh 40px
    ve bang ::before (inset 2px) nen nhin van nhu cu, tam vong khong doi. */
 .c-them{position:absolute;top:8px;right:8px;z-index:3;width:44px;height:44px;min-width:44px;min-height:44px;border-radius:50%;background:none;border:0;color:var(--paper);display:grid;place-items:center;padding:0;transition:color .25s}
-.c-them::before{content:"";position:absolute;inset:2px;border-radius:50%;background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.32);transition:border-color .25s,background .25s}
+.c-them::before{content:"";position:absolute;inset:2px;border-radius:50%;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.32);transition:border-color .25s,background .25s}
 .c-them svg{position:relative;width:16px;height:16px;display:block}
 .c-them:hover,.c-them:focus-visible{color:var(--cyan)}
 .c-them:hover::before,.c-them:focus-visible::before{border-color:var(--cyan);background:rgba(0,0,0,.6)}
@@ -878,19 +878,19 @@ html body nav.tabs.vanh-ds{position:absolute;width:1px;height:1px;margin:-1px;pa
 .vanh-khung{position:relative;z-index:5;overflow-x:clip}
 /* Vành tràn hai mép nhưng không được nới bề ngang trang (máy cũ không có clip thì cắt cả khung). */
 @supports not (overflow-x:clip){.vanh-khung{overflow:hidden;padding:40px 0;margin:-40px 0}}
-.vanh{position:relative;width:100%;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;margin:4px 0 6px}
+.vanh{position:relative;width:100%;touch-action:none;overscroll-behavior:contain;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;margin:4px 0 6px}
 .vanh svg{position:absolute;left:-30%;top:-40px;width:160%;height:calc(100% + 80px);overflow:visible;pointer-events:none}
 .vanh .vanh-sau{z-index:1}.vanh .vanh-truoc{z-index:4}
 .vanh-san{position:absolute;inset:0;z-index:3}
 .vanh-muc{position:absolute;left:0;top:0;min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;padding:0 6px;cursor:pointer;will-change:transform,opacity}
-.vanh-chu{display:inline-block;white-space:nowrap;line-height:1;text-transform:uppercase;font-family:var(--sans);font-weight:600;font-size:16px;letter-spacing:.14em;color:rgba(255,255,255,.7);transform-origin:50% 50%;will-change:transform,filter}
+.vanh-chu{display:inline-block;white-space:nowrap;line-height:1;text-transform:uppercase;font-family:var(--sans);font-weight:600;font-size:16px;letter-spacing:.14em;color:rgba(255,255,255,.7);transform-origin:50% 50%;will-change:transform;backface-visibility:hidden}
 .vanh-muc.truoc .vanh-chu{color:#fff}
 .vanh-moi{font-style:normal;font-size:13px;font-weight:700;letter-spacing:.08em;background:#29bdb3;color:#000;border-radius:999px;padding:2px 7px;margin-left:7px;vertical-align:.1em}
 .vanh.co-phim .vanh-muc.truoc{outline:2px solid #29bdb3;outline-offset:2px;border-radius:4px}
 .vanh-goi-y{position:absolute;left:0;right:0;bottom:-6px;z-index:6;text-align:center;font-family:var(--sans);font-size:13px;line-height:1.2;letter-spacing:.04em;color:rgba(255,255,255,.75);opacity:0;transition:opacity .5s;pointer-events:none}
 .vanh-goi-y b{color:#29bdb3;font-weight:600}.vanh-goi-y.on{opacity:1}
 /* Thanh gọn dính đầu màn khi đã cuộn qua vành (đề xuất, chờ duyệt ảnh). */
-.vanh-gon{position:fixed;left:0;right:0;top:0;height:56px;z-index:36;touch-action:pan-y;-webkit-user-select:none;user-select:none;background:linear-gradient(rgba(0,0,0,.88),rgba(0,0,0,.72));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transform:translateY(-100%);transition:transform .25s;pointer-events:none}
+.vanh-gon{position:fixed;left:0;right:0;top:0;height:56px;z-index:36;touch-action:none;-webkit-user-select:none;user-select:none;background:linear-gradient(rgba(0,0,0,.88),rgba(0,0,0,.72));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transform:translateY(-100%);transition:transform .25s;pointer-events:none}
 .vanh-gon.on{transform:none;pointer-events:auto}
 .vanh-gon-cung{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .vanh-gon-muc{position:absolute;top:2px;min-height:44px;min-width:44px;padding:0 8px;background:none;border:0;color:rgba(255,255,255,.45);font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;cursor:pointer;transform:rotate(-4deg)}
@@ -941,3 +941,13 @@ html body nav.tabs.vanh-ds{position:absolute;width:1px;height:1px;margin:-1px;pa
 .vsk-sh-nhan{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);margin:0 0 6px}
 .vsk-sheet .cm-doan{font-size:15px;line-height:1.6;margin:0}
 .vsk-sheet .cm-doc-tiep,.vsk-sheet .cm-mon-them{min-height:44px}
+
+/* Anh Việt 14/11/2026: web phải mượt như Apple, Hermès. Làm mờ nền (backdrop-filter)
+   trên TỪNG thẻ bánh (nút +, nhãn góc) bắt iPhone tính lại mờ cho hàng chục ô mỗi
+   khung khi cuộn: nay dùng nền đặc. Chỉ giữ làm mờ ở vài thanh dính (đầu trang). */
+/* Nền quỹ đạo xoay mãi (SVG có mask) bắt điện thoại vẽ lại cả màn mỗi khung, kể
+   cả khi đang cuộn: trên máy cảm ứng để nền đứng yên (một vòng 4 phút, mắt gần
+   như không thấy), máy tính có chuột vẫn xoay. Lớp nền tách riêng để cuộn không
+   phải vẽ lại nó. */
+.sky{contain:strict;transform:translateZ(0)}
+@media (hover:none),(pointer:coarse){.sky .spin{animation:none}}
