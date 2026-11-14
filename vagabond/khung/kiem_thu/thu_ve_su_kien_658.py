@@ -176,3 +176,25 @@ def _():
 	dung("thứ tự trường đủ", {"ma_ve", "da_vao_cua", "vao_cua_luc"} <= set(d["field_order"]))
 	dung("mốc modified", d.get("modified", "") >= "2026-11-14")
 	dung("mã vé giữ nguyên khi sửa", '"ma_ve"' in _doc("vagabond/tiec_web.py").split("def kiem_phieu")[1].split("def ")[0])
+
+
+@ca("Codex #566 vòng 3: ô tìm ở màn Khách sự kiện tìm ra vé có mã toàn chữ số (12345678) chứ không chỉ tìm trong số điện thoại; tìm số điện thoại, 4 số cuối, tên, mã có chữ vẫn đúng")
+def _():
+	nen = _doc("vagabond/public/js/bep/00-nen.js")
+	ham = []
+	for ten in ("vgbChuan", "vgbKhop"):
+		m = re.search(r"\nfunction " + ten + r"\(.*?\n\}\n", nen, re.S)
+		dung("có " + ten, m is not None)
+		ham.append(m.group(0))
+	m = re.search(r"\nfunction skKhop\(.*?\n\}\n", _doc("vagabond/public/js/bep/74-khach-su-kien.js"), re.S)
+	dung("có skKhop", m is not None)
+	ham.append(m.group(0))
+	js = "\n".join(ham) + """
+var so = {ma_ve: '12345678', ten: 'Lan Anh', sdt: '0901234567'};
+var chu = {ma_ve: 'A1B2C3D4', ten: 'Minh', sdt: '0912000111'};
+console.log(JSON.stringify([skKhop(so, '12345678'), skKhop(so, '1234 5678'), skKhop(chu, '12345678'),
+  skKhop(so, '0901 234 567'), skKhop(chu, '0111'), skKhop(so, '4567'), skKhop(chu, 'a1b2'), skKhop(so, 'lan anh'), skKhop(chu, 'lan')]));
+"""
+	r = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+	la(r.stderr[-600:], r.returncode, 0)
+	la("kết quả", json.loads(r.stdout), [True, True, False, True, True, True, True, True, False])
