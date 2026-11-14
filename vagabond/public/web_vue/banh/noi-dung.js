@@ -176,12 +176,12 @@ export const KenhNoi = {
 
 /* ---------- chuyên mục Ưu đãi / Tiệc / Tuyển dụng (chuyen-muc.js) ---------- */
 export function ngayVN() { return new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date()); }
-const anToan = u => typeof u === 'string' && !/[\s\\]/.test(u) && ((u[0] === '/' && u[1] !== '/') || u[0] === '#' || /^https:\/\/[^/@]+(?:\/|$)/.test(u));
+export const anToan = u => typeof u === 'string' && !/[\s\\]/.test(u) && ((u[0] === '/' && u[1] !== '/') || u[0] === '#' || /^https:\/\/[^/@]+(?:\/|$)/.test(u));
 const RE_EMAIL = /^[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-const ngay = s => String(s || '').split('-').reverse().join('/');
+export const ngay = s => String(s || '').split('-').reverse().join('/');
 const gio = s => String(s || '').replace(/^0(\d)/, '$1').replace(':', 'g');
 const tien = s => String(parseInt(s, 10) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' đ';
-const dong = s => String(s || '').split('\n').map(x => x.trim()).filter(Boolean);
+export const dong = s => String(s || '').split('\n').map(x => x.trim()).filter(Boolean);
 export function khachThay(k, homNay) {
   if (!k.hien) return false;
   // v647: banner chỉ hiện trong khoảng ngày, trùng noi_dung_web.trang_thai_muc.
@@ -202,7 +202,7 @@ export function veVe(k) {
   return {con, chu: con ? t('cm_con_ve', 'Còn {so} vé', {so: con}) : t('cm_het_ve', 'Đã hết vé')};
 }
 const GAP_TU = 420, MON_HIEN = 8;
-const DoanGap = {
+export const DoanGap = {
   props: {chu: String, lop: String},
   data() { return {mo: false}; },
   render() {
@@ -214,7 +214,7 @@ const DoanGap = {
     ]);
   }
 };
-const NhanMon = {
+export const NhanMon = {
   props: {ds: Array},
   data() { return {het: false}; },
   render() {

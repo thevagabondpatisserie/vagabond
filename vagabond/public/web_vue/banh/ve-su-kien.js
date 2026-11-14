@@ -10,7 +10,7 @@
 import {h, reactive} from '../lib/vue.esm-browser.prod.js';
 import {ND, t, mxh} from '../kho/chu.js';
 import {ghi} from '../kho/api.js';
-import {khachThay, veVe} from './noi-dung.js';
+import {khachThay, veVe, anToan, ngay, dong as dongChu, DoanGap, NhanMon} from './noi-dung.js';
 
 /* Trùng noi_dung_web.LOAI_SU_KIEN (ca thu_ve_su_kien_658 chốt). Trống là Tiệc. */
 export const LOAI_SU_KIEN = {tiec: 'Tiệc', ra_mat: 'Ra mắt món', dien_gia: 'Diễn giả'};
@@ -94,6 +94,17 @@ function theSuKien(k, homNay) {
   ]);
 }
 
+function chiTietSuKien(k, tt) {
+  const ra = [];
+  if (k.anh && anToan(k.anh)) ra.push(h('img', {class: 'vsk-sh-anh', src: k.anh, alt: k.mo_ta_anh || '', loading: 'lazy'}));
+  if (k.dia_diem) ra.push(h('p', {class: 'vsk-sh-dia'}, k.dia_diem));
+  if (k.han_ban && tt.mo) ra.push(h('p', {class: 'vsk-sh-han'}, t('cm_han_dk', 'Đăng ký trước') + ' ' + ngay(k.han_ban)));
+  if (k.noi_dung) ra.push(h('div', {class: 'vsk-sh-chuyen'}, [h('p', {class: 'vsk-sh-nhan'}, t('cm_cau_chuyen', 'Câu chuyện')), h(DoanGap, {chu: k.noi_dung})]));
+  const ds = dongChu(k.yeu_cau);
+  if (ds.length) ra.push(h('div', {class: 'vsk-sh-mon'}, [h('p', {class: 'vsk-sh-nhan'}, [t('cm_bao_gom', 'Bao gồm'), ' · ', ds.length + ' ' + t('cm_mon', 'món')].join('')), h(NhanMon, {ds})]));
+  return ra;
+}
+
 function sheetVe(k, homNay) {
   if (!k) return null;
   const tt = trangThaiVe(k, homNay), toi = veToiDa(tt.con), o = oNgay(k.bat_dau);
@@ -102,6 +113,10 @@ function sheetVe(k, homNay) {
     h('p', {class: 'vsk-loai'}, LOAI_SU_KIEN[loaiCua(k)]),
     h('h2', null, k.tieu_de),
     h('p', {class: 'vsk-sh-ngay'}, [o ? o.thu + ', ' + o.ngay + '/' + String(k.bat_dau).slice(5, 7) : '', k.gio_bat_dau && k.gio_ket_thuc ? ' · ' + gio(k.gio_bat_dau) + ' - ' + gio(k.gio_ket_thuc) : ''].join(''))]);
+  /* Codex #566 vòng 3: mọi thông tin Marketing nhập cho sự kiện (ảnh, địa điểm,
+     hạn đăng ký, câu chuyện, danh sách Bao gồm) phải đọc được ở sheet, như thẻ
+     Tiệc cũ (TheTiec) từng hiện. Ca F49 chốt từng trường. */
+  const chiTiet = chiTietSuKien(k, tt);
   const dong = h('button', {class: 'vsk-dong', type: 'button', 'aria-label': t('vsk_dong', 'Đóng'), onClick: dongSheet}, '✕');
   let than;
   if (VSK.xong[k.id]) {
@@ -130,7 +145,7 @@ function sheetVe(k, homNay) {
         h('p', {class: 'vsk-bao', role: 'status'}, VSK.bao)])];
   }
   return h('div', {class: 'vsk-nen', onClick: e => { if (e.target === e.currentTarget) dongSheet(); }}, [
-    h('div', {class: 'vsk-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': k.tieu_de}, [dong, dau, ...than])]);
+    h('div', {class: 'vsk-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': k.tieu_de}, [dong, dau, ...chiTiet, ...than])]);
 }
 
 export const VeSuKien = {

@@ -934,3 +934,10 @@ html body nav.tabs.vanh-ds{position:absolute;width:1px;height:1px;margin:-1px;pa
 .vsk-xong{text-align:center;padding:10px 0}
 .vsk-ma{display:block;font-size:34px;letter-spacing:.14em;color:var(--cyan);margin:8px 0 12px}
 @media(max-width:600px){.vsk-ngay{width:76px}.vsk-ngay b{font-size:38px}}
+/* Codex #566 vòng 3: chi tiết sự kiện trong sheet chọn vé */
+.vsk-sh-anh{display:block;width:100%;max-height:220px;object-fit:cover;margin:0 0 12px;border:1px solid rgba(255,255,255,.08)}
+.vsk-sh-dia,.vsk-sh-han{color:var(--fog);font-size:14px;margin:0 0 6px;line-height:1.45}
+.vsk-sh-chuyen,.vsk-sh-mon{margin:12px 0 4px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)}
+.vsk-sh-nhan{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);margin:0 0 6px}
+.vsk-sheet .cm-doan{font-size:15px;line-height:1.6;margin:0}
+.vsk-sheet .cm-doc-tiep,.vsk-sheet .cm-mon-them{min-height:44px}
