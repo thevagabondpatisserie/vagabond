@@ -48,7 +48,8 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       {ma:'TCV',ten:'D1 fixture',mon:[{ma:'D1',ten:'Bánh D1 riêng',nhom:'Nhẹ',gia:10000,con:12}]},
       {ma:'NVHTN',ten:'NVHTN fixture',mon:[{ma:'NV',ten:'Bánh NV riêng',nhom:'Mặn',gia:20000,con:3}]}]}}}));
     await page.goto(url+'/web_moi/banh');
-    await page.locator('#tabStore').click();
+    /* v658: dải tab thay bằng Vành nghiêng; chọn mục qua danh sách mục cho bàn phím (role tab). */
+    await page.locator('.vanh-ds [data-tab="store"]').dispatchEvent('click'); await page.waitForURL(/#\/in-store/);
     await page.locator('.quay-chon button').filter({hasText:'D1 fixture'}).click();
     assert.match(await page.locator('#storeBody').innerText(),/Bánh D1 riêng/i);
     assert.equal(await page.locator('#storeBody .card').count(),1);
@@ -240,7 +241,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     }
   });
   await test('F05 hàng mùa vụ hết hàng và còn hàng; F01 tải tồn lỗi có đường thử lại',async()=>{
-    await page.goto(url+'/web_moi/banh'); await page.locator('#tabMua').click();
+    await page.goto(url+'/web_moi/banh'); await page.locator('.vanh-ds [data-tab="season"]').dispatchEvent('click'); await page.waitForURL(/#\/in-season/);
     assert.match(await page.locator('#muaLuoi').innerText(),/Hộp Trăng Rằm/i);
     assert.match(await page.locator('#muaLuoi').innerText(),/Hộp Sương Thu/i);
     await page.goto(url+'/web_moi/banh#/in-season/TTHOP02');
@@ -703,6 +704,78 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await p.waitForURL(u=>new URL(String(u)).pathname==='/thanh-vien');
     assert.deepEqual(loi,[]);
     await c.close();
+  });
+  await test('F46 v658 Vành nghiêng: vuốt ngang đổi đúng một mục, vuốt dọc trên vành chỉ cuộn trang, chạm mục chọn mục, thanh gọn hiện khi cuộn qua',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    await p.goto(url+'/web_moi/banh'); await p.waitForSelector('.vanh-muc'); await sleep(600);
+    const cdp=await c.newCDPSession(p);
+    const vuot=async(x0,y0,dx,dy)=>{await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x0,y:y0}]});
+      for(let i=1;i<=10;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x0+dx*i/10,y:y0+dy*i/10}]});await sleep(16);}
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});};
+    const thuTu=await p.$$eval('.vanh-ds [role=tab]',a=>a.map(x=>x.dataset.tab));
+    assert.deepEqual(thuTu.filter(x=>['today','order','tiec','store','uu_dai','tuyen_dung'].includes(x)),['today','order','tiec','store','uu_dai','tuyen_dung'],'thứ tự anh duyệt');
+    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),390,'vành không nới bề ngang trang');
+    const r=await p.$eval('.vanh',e=>{const b=e.getBoundingClientRect();return {y:b.top+b.height/2};});
+    await vuot(300,r.y,-60,3); await sleep(1500);
+    assert.match(p.url(),/#\/dat-truoc$/,'vuốt trái ngắn sang đúng mục kế');
+    await vuot(200,r.y+20,2,-250); await sleep(1200);
+    assert.match(p.url(),/#\/dat-truoc$/,'vuốt dọc không đổi mục');
+    assert.ok(await p.evaluate(()=>scrollY)>50,'vuốt dọc vẫn cuộn trang');
+    await p.evaluate(()=>scrollTo(0,0)); await sleep(500);
+    const o=await p.$$eval('.vanh-muc',a=>{const e=a.find(x=>x.style.visibility!=='hidden'&&!x.classList.contains('truoc'));const b=e.getBoundingClientRect();return {tab:e.dataset.tab,x:b.left+b.width/2,y:b.top+b.height/2};});
+    await p.touchscreen.tap(o.x,o.y); await sleep(1500);
+    assert.equal(await p.$eval('.vanh-ds [aria-selected=true]',e=>e.dataset.tab),o.tab,'chạm mục chọn đúng mục');
+    await p.evaluate(()=>scrollTo(0,1200)); await sleep(700);
+    assert.match(await p.$eval('.vanh-gon',e=>e.className),/\bon\b/,'thanh gọn hiện khi cuộn qua vành');
+    assert.deepEqual(loi,[]); await c.close();
+  });
+  await test('F47 v658 Vé sự kiện: thẻ ô ngày, hết chỗ thì nút Hết vé, sheet chọn vé không vượt số chỗ còn, tạm tính đúng',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const SK=[{id:'sk1',loai:'tiec',loai_su_kien:'tiec',hien:true,tieu_de:'Tiệc trà chiều',bat_dau:'2099-11-22',gio_bat_dau:'15:00',gio_ket_thuc:'17:00',gia_ve:'350000',so_ve:'10'},
+      {id:'sk2',loai:'tiec',loai_su_kien:'dien_gia',hien:true,tieu_de:'Trò chuyện sô cô la',bat_dau:'2099-12-12',gio_bat_dau:'19:00',gio_ket_thuc:'21:00',gia_ve:'450000',so_ve:'12'},
+      {id:'sk3',loai:'tiec',hien:true,tieu_de:'Đã qua',bat_dau:'2020-01-01',gia_ve:'1',so_ve:'5'},
+      {id:'sk4',loai:'tiec',hien:false,tieu_de:'Nháp chưa đăng',bat_dau:'2099-12-30',gia_ve:'1',so_ve:'5'}];
+    await c.route('**/*cong_khai*',async r=>{const f=await r.fetch();const d=await f.json();const m=d.message||d;m.khoi=(m.khoi||[]).filter(k=>k.loai!=='tiec').concat(SK);m.ve={sk1:7,sk2:12};await r.fulfill({response:f,body:JSON.stringify(d)});});
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    await p.goto(url+'/web_moi/banh#/ve-su-kien'); await p.waitForSelector('.vsk-the');
+    assert.deepEqual(await p.$$eval('.vsk-the',a=>a.map(x=>x.dataset.vsk)),['sk1','sk2'],'sự kiện đã qua và đang ẩn không ra web');
+    assert.match(await p.$eval('[data-vsk=sk2] .vsk-nut',e=>e.textContent+'|'+e.disabled),/Hết vé\|true/);
+    assert.match(await p.$eval('[data-vsk=sk1] .vsk-ngay',e=>e.innerText.replace(/\s+/g,' ')),/Tháng 11 22/i);
+    await p.locator('[data-vsk=sk1] .vsk-nut').click();
+    for(let i=0;i<6;i++){const nut=p.locator('.vsk-dem button').nth(1); if(await nut.isDisabled())break; await nut.click();}
+    assert.ok(await p.locator('.vsk-dem button').nth(1).isDisabled(),'nút thêm khoá khi đủ số chỗ còn');
+    assert.equal(await p.$eval('.vsk-dem b',e=>e.textContent),'3','không chọn quá 3 chỗ còn');
+    assert.match(await p.$eval('.vsk-tong b',e=>e.textContent),/1\.050\.000/);
+    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),390);
+    assert.deepEqual(loi,[]); await c.close();
+  });
+  await test('F48 v658 Vé sự kiện: trả lời muộn của sự kiện A không hiện mã vé ở sheet sự kiện B; mở lại A thấy đúng mã',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const SK=[{id:'a1',loai:'tiec',hien:true,tieu_de:'Sự kiện A',bat_dau:'2099-11-22',gia_ve:'100000',so_ve:'10'},
+      {id:'b2',loai:'tiec',loai_su_kien:'ra_mat',hien:true,tieu_de:'Sự kiện B',bat_dau:'2099-11-23',gia_ve:'0',so_ve:'10'}];
+    await c.route('**/*cong_khai*',async r=>{const f=await r.fetch();const d=await f.json();const m=d.message||d;m.khoi=(m.khoi||[]).filter(k=>k.loai!=='tiec').concat(SK);m.ve={};await r.fulfill({response:f,body:JSON.stringify(d)});});
+    let tha; const cho=new Promise(r=>{tha=r;});
+    await c.route('**/vagabond.tiec_web.dang_ky*',async r=>{await cho;await r.fulfill({json:{message:{ok:1,ma:'AAAA1111'}}});});
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    await p.goto(url+'/web_moi/banh#/ve-su-kien'); await p.waitForSelector('.vsk-the');
+    await p.locator('[data-vsk=a1] .vsk-nut').click();
+    await p.fill('.vsk-o input[autocomplete=name]','Lan'); await p.fill('.vsk-o input[autocomplete=tel]','0909123456');
+    await p.locator('.vsk-form button[type=submit]').click(); await sleep(200);
+    await p.locator('.vsk-dong').click();
+    await p.locator('[data-vsk=b2] .vsk-nut').click();
+    tha(); await sleep(400);
+    assert.equal(await p.locator('.vsk-ma').count(),0,'sheet B không hiện mã vé của A');
+    assert.equal(await p.locator('.vsk-bao').innerText(),'','sheet B không hiện câu báo của A');
+    await p.locator('.vsk-dong').click(); await p.locator('[data-vsk=a1] .vsk-nut').click();
+    assert.equal(await p.locator('.vsk-ma').innerText(),'AAAA1111','mở lại A thấy đúng mã vé');
+    assert.deepEqual(loi,[]); await c.close();
   });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
