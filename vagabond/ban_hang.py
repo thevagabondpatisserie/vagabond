@@ -4163,7 +4163,7 @@ def _quet_don_treo(so_ngay=14):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ban_hang don treo: doc SePay")
 	hom_nay = str(getdate(nowdate()))
-	_gan_can_ck([r for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"])
+	_gan_can_ck(ds)  # cả danh sách, một lượt: vòng dưới đi qua mọi tờ (Codex #567)
 	for r in ds:
 		r["ly_do"] = _ly_do_treo(r, sepay)
 		r["ly_do_chu"] = LY_DO_TREO.get(r["ly_do"], r["ly_do"])
@@ -4375,6 +4375,8 @@ def bao_dong_ghi_so(ngay):
 				sepay = _sepay_theo_don(c.pancake_shop_id, ma_sales) or {}
 			except Exception:
 				frappe.log_error(frappe.get_traceback(), "ban_hang bao dong ghi so: doc SePay")
+		# Số phải chuyển khoản đọc một lượt cho cả danh sách, không hỏi từng đơn (Codex #567).
+		_gan_can_ck(rows)
 		dem, tien = {}, {}
 		for r in rows:
 			if (r.get("vgb_quay") or "").strip():
@@ -6608,7 +6610,7 @@ def pos_ds_bill(quay=None, ngay=None):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ban_hang: doc SePay theo don cho danh sach bill")
 	ma_trung = _ma_trung_trong_ngay(ngay, [r.vgb_ma_tham_chieu for r in ds])
-	_gan_can_ck([r for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"])
+	_gan_can_ck(ds)  # cả danh sách, một lượt: vòng dưới đi qua mọi tờ (Codex #567)
 	for r in ds:
 		# Chip "Cho tien ve" tung sang do suot tren bill Pancake da tra du
 		# tien, vi no chi ngo mot duong. Nay lay duong nao ra nhieu nhat.
@@ -7293,7 +7295,7 @@ def pos_chot_ca(quay=None, ngay=None):
 	ck_thieu = []
 	da_ghi = 0
 	chua_ghi = 0
-	_gan_can_ck([r for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"])
+	_gan_can_ck(ds)  # cả danh sách, một lượt: vòng dưới đi qua mọi tờ (Codex #567)
 	for r in ds:
 		if frappe.utils.cint(r.vgb_tam_tinh):
 			tam_tinh["so"] += 1
