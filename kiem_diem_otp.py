@@ -972,7 +972,7 @@ la("Giam doc duoc vao", 'ROLE_GIAM_DOC' in _q_src, True)
 # hang ngay cua ho.
 la("ke toan van thay phan he Thu mua", '"Accounts Manager"' in _q_src, True)
 la("cau bao loi noi ro phai lam gi tiep (QT-24)",
-   "báo anh Việt cấp thêm chức vụ" in _q_src, True)
+   "báo quản trị hệ thống cấp thêm chức vụ" in _q_src, True)
 
 # --- Man khop may chu ---
 la("man an nut theo dung danh sach may chu",
