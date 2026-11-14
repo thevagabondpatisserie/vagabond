@@ -895,8 +895,10 @@ html body nav.tabs.vanh-ds{position:absolute;width:1px;height:1px;margin:-1px;pa
 .vanh-gon-cung{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .vanh-gon-muc{position:absolute;top:2px;min-height:44px;min-width:44px;padding:0 8px;background:none;border:0;color:rgba(255,255,255,.45);font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;cursor:pointer;transform:rotate(-4deg)}
 .vanh-gon-1{left:50%;transform:translateX(-50%) rotate(0);color:#fff;font-size:14px;top:4px}
-.vanh-gon-0{left:-6px;max-width:30%;overflow:hidden;text-overflow:ellipsis;transform:rotate(6deg)}
-.vanh-gon-2{right:-6px;max-width:30%;overflow:hidden;text-overflow:ellipsis;transform:rotate(-6deg)}
+/* Hai mục kề: không cắt chữ bằng "…" (máy 390 px cắt "ĐẶT BÁNH TRƯ…"), cho xuống tối đa hai dòng ngắn, chữ vẫn 13 px. */
+.vanh-gon-0,.vanh-gon-2{max-width:30%;white-space:normal;line-height:1.15;letter-spacing:.06em;overflow-wrap:normal}
+.vanh-gon-0{left:-6px;text-align:left;transform:rotate(6deg)}
+.vanh-gon-2{right:-6px;text-align:right;transform:rotate(-6deg)}
 @media (prefers-reduced-motion:reduce){.vanh-goi-y,.vanh-gon{transition:none}}
 /* ---------- v658 Vé sự kiện (anh Việt chọn A 14/11/2026): thẻ tkr-the, ô ngày thay ảnh ---------- */
 .vsk-ds{margin-top:14px}
