@@ -282,9 +282,14 @@
       if (Number(q.toi_da) > 0) g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_3', 'tối đa {tien},'), { tien: dong(q.toi_da) }), chuTho(' '));
       /* Lịch gửi và hạn mã đọc từ kịch bản Zalo Sinh nhật (máy chủ), không cứng trong trang. */
       const truoc = Number(q.truoc) || 0;
-      g.append(ghepCum(tao('span', '', 'cum'), truoc > 0 ? C('tv658_qsn_gui', 'mã gửi qua Zalo {ngay} trước sinh nhật,')
-        : C('tv658_qsn_gui_dung', 'mã gửi qua Zalo đúng ngày sinh nhật,'), { ngay: truoc + ' ' + C('tv658_ngay', 'ngày') }), chuTho(' '));
-      g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_han', 'dùng trong {ngay}.'), { ngay: (Number(q.han) || 1) + ' ' + C('tv658_ngay', 'ngày') }));
+      /* Chương trình phát vào Ví quà theo tháng sinh nhật: hạn tới hết tháng, không ghi số ngày (Codex #566 vòng 2). */
+      if (q.lich === 'thang') g.append(tao('span', C('tv658_qsn_thang', 'nhận mã trong tháng sinh nhật,'), 'cum'), chuTho(' '),
+        tao('span', C('tv658_qsn_thang_han', 'dùng tới hết tháng.'), 'cum'));
+      else {
+        g.append(ghepCum(tao('span', '', 'cum'), truoc > 0 ? C('tv658_qsn_gui', 'mã gửi qua Zalo {ngay} trước sinh nhật,')
+          : C('tv658_qsn_gui_dung', 'mã gửi qua Zalo đúng ngày sinh nhật,'), { ngay: truoc + ' ' + C('tv658_ngay', 'ngày') }), chuTho(' '));
+        g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_han', 'dùng trong {ngay}.'), { ngay: (Number(q.han) || 1) + ' ' + C('tv658_ngay', 'ngày') }));
+      }
       goc.append(g);
     }
   }

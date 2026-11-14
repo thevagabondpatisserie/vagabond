@@ -25,7 +25,8 @@
     {k: 'banner', ten: 'Banner', mo: 'Ảnh quảng cáo ở đầu trang, giỏ hàng, sau khi đặt xong', them: '+ Thêm banner', luu: 'Lưu banner', ten_muc: 'banner', dau: 'Danh sách banner'},
     /* v644 (anh Việt duyệt 07/11/2026): ảnh, mô tả, tầng hương vị từng bánh quản ở đây. */
     {k: 'banh', ten: 'Bánh', mo: 'Ảnh, mô tả, tầng hương vị từng bánh'},
-    {k: 'tiec', ten: 'Tiệc', mo: 'Tạo tiệc, đặt giá vé, số vé, hạn đăng ký', them: '+ Thêm tiệc', luu: 'Lưu tiệc', ten_muc: 'tiệc', dau: 'Danh sách tiệc'},
+    /* v658 (anh Việt chọn A 14/11/2026): Tiệc nâng thành Sự kiện, web là tab Vé sự kiện. */
+    {k: 'tiec', ten: 'Sự kiện', mo: 'Tiệc, ra mắt món, diễn giả: giá vé, số vé, hạn đăng ký', them: '+ Thêm sự kiện', luu: 'Lưu sự kiện', ten_muc: 'sự kiện', dau: 'Danh sách sự kiện'},
     /* v630 (anh Việt chốt 02/11/2026): bánh thiết kế riêng, khách cọc 50% trên web. */
     {k: 'thiet_ke_rieng', ten: 'Thiết kế riêng', mo: 'Tác phẩm đặt riêng: size, giá gồm VAT, trang trí, số ngày đặt trước', them: '+ Thêm tác phẩm', luu: 'Lưu tác phẩm', ten_muc: 'tác phẩm', dau: 'Danh sách tác phẩm'},
     {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Lấy từ app ERP, đổi ảnh từng vị trí ở đây', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
@@ -35,6 +36,7 @@
     {k: 'lien_he', ten: 'Liên hệ', mo: 'Điện thoại, email, mạng xã hội, công ty'},
   ];
   const LOAI_MUC = ['uu_dai', 'tiec', 'tuyen_dung', 'thiet_ke_rieng', 'banner'];
+  const LOAI_SK = {tiec: 'Tiệc', ra_mat: 'Ra mắt món', dien_gia: 'Diễn giả'};
   /* v647: chỗ đặt banner. Mã trùng noi_dung_web.VI_TRI_BANNER, chữ là tên khách
      thấy trên trang để Minh Vũ nhận ra ngay. */
   const CHO_BANNER = [
@@ -633,8 +635,11 @@
         muc(4, 'Ảnh và hiển thị'), oAnh(m, xem));
     } else {
       f.append(
-        muc(1, 'Thông tin tiệc'),
-        o('Tên tiệc', m.tieu_de, dat('tieu_de'), {ten: 'tieu_de', goi: 'Tiệc trà chiều mùa thu'}),
+        muc(1, 'Thông tin sự kiện'),
+        o('Tên sự kiện', m.tieu_de, dat('tieu_de'), {ten: 'tieu_de', goi: 'Tiệc trà chiều mùa thu'}),
+        /* v658: mã trùng noi_dung_web.LOAI_SU_KIEN; bỏ chọn là Tiệc. */
+        chip('Loại sự kiện', Object.values(LOAI_SK), () => LOAI_SK[m.loai_su_kien] || LOAI_SK.tiec,
+          v => { m.loai_su_kien = Object.keys(LOAI_SK).find(k => LOAI_SK[k] === v) || ''; xem(); }, false, 'Web lọc sự kiện theo loại: Tiệc, Ra mắt món hoặc Diễn giả.'),
         o('Mô tả', m.noi_dung, dat('noi_dung'), {nhieuDong: true, ten: 'noi_dung', chu: 'Vài câu về không khí, chủ đề, ai dẫn tiệc.'}),
         o('Bao gồm (không bắt buộc)', m.yeu_cau, dat('yeu_cau'), {nhieuDong: true, ten: 'yeu_cau', goi: '5 món bánh theo mùa\nMột ly trà hoặc cà phê', chu: 'Mỗi dòng một ý, web hiện thành danh sách.'}),
         muc(2, 'Thời gian và địa điểm'),

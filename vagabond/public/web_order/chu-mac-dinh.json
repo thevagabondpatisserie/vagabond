@@ -7178,6 +7178,18 @@
     "mac_dinh": "ngày",
     "nhieu_dong": true
   },
+  "tv658_qsn_thang": {
+    "ten": "The Vagabond Club: nhận mã trong tháng sinh nhật,",
+    "nhom": "thanh_vien",
+    "mac_dinh": "nhận mã trong tháng sinh nhật,",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_thang_han": {
+    "ten": "The Vagabond Club: dùng tới hết tháng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "dùng tới hết tháng.",
+    "nhieu_dong": true
+  },
   "tv658_dung_the_nao": {
     "ten": "The Vagabond Club: DÙNG ĐIỂM THẾ NÀO",
     "nhom": "thanh_vien",
@@ -7387,5 +7399,195 @@
     "nhom": "thanh_vien",
     "mac_dinh": "tích {pt}",
     "nhieu_dong": true
+  },
+  "vanh_nhan": {
+    "ten": "Vành nghiêng: Các mục của trang",
+    "mac_dinh": "Các mục của trang",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vanh_moi": {
+    "ten": "Vành nghiêng: Mới",
+    "mac_dinh": "Mới",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vanh_goi_y_vuot": {
+    "ten": "Vành nghiêng: vuốt ngang (gợi ý lần đầu)",
+    "mac_dinh": "vuốt ngang",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vanh_goi_y": {
+    "ten": "Vành nghiêng: để đổi mục (gợi ý lần đầu)",
+    "mac_dinh": "để đổi mục",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vsk_het_han": {
+    "ten": "Vé sự kiện: Hết hạn đăng ký",
+    "mac_dinh": "Hết hạn đăng ký",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_het_ve": {
+    "ten": "Vé sự kiện: Hết vé",
+    "mac_dinh": "Hết vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_chon_ve": {
+    "ten": "Vé sự kiện: Chọn vé",
+    "mac_dinh": "Chọn vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_xem_thu": {
+    "ten": "Vé sự kiện: Đây là bản xem trước, không gửi giữ chỗ.",
+    "mac_dinh": "Đây là bản xem trước, không gửi giữ chỗ.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_dang_gui": {
+    "ten": "Vé sự kiện: Đang gửi...",
+    "mac_dinh": "Đang gửi...",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_loi": {
+    "ten": "Vé sự kiện: Chưa gửi được. Kiểm tra mạng rồi bấm Giữ chỗ lại.",
+    "mac_dinh": "Chưa gửi được. Kiểm tra mạng rồi bấm Giữ chỗ lại.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_con_cho": {
+    "ten": "Vé sự kiện: Còn {so} chỗ",
+    "mac_dinh": "Còn {so} chỗ",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_het_cho": {
+    "ten": "Vé sự kiện: Hết chỗ",
+    "mac_dinh": "Hết chỗ",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_chua_ngay": {
+    "ten": "Vé sự kiện: Sắp có ngày",
+    "mac_dinh": "Sắp có ngày",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_ve": {
+    "ten": "Vé sự kiện: vé",
+    "mac_dinh": "vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_mien_phi": {
+    "ten": "Vé sự kiện: Miễn phí",
+    "mac_dinh": "Miễn phí",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_dong": {
+    "ten": "Vé sự kiện: Đóng",
+    "mac_dinh": "Đóng",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_xong_1": {
+    "ten": "Vé sự kiện: Đã giữ chỗ. Mã vé của quý khách:",
+    "mac_dinh": "Đã giữ chỗ. Mã vé của quý khách:",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_xong_2": {
+    "ten": "Vé sự kiện: Chúng tôi sẽ gọi xác nhận và hướng dẫn thanh toán. Đến cửa, quý khách đọc mã vé này.",
+    "mac_dinh": "Chúng tôi sẽ gọi xác nhận và hướng dẫn thanh toán. Đến cửa, quý khách đọc mã vé này.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_xong_dong": {
+    "ten": "Vé sự kiện: Xong",
+    "mac_dinh": "Xong",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_so_ve": {
+    "ten": "Vé sự kiện: Số vé",
+    "mac_dinh": "Số vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_bot": {
+    "ten": "Vé sự kiện: Bớt một vé",
+    "mac_dinh": "Bớt một vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_them": {
+    "ten": "Vé sự kiện: Thêm một vé",
+    "mac_dinh": "Thêm một vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_tam_tinh": {
+    "ten": "Vé sự kiện: Tạm tính",
+    "mac_dinh": "Tạm tính",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_ho_ten": {
+    "ten": "Vé sự kiện: Họ tên",
+    "mac_dinh": "Họ tên",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_sdt": {
+    "ten": "Vé sự kiện: Số điện thoại",
+    "mac_dinh": "Số điện thoại",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_ghi_chu": {
+    "ten": "Vé sự kiện: Ghi chú (không bắt buộc)",
+    "mac_dinh": "Ghi chú (không bắt buộc)",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_luu_y": {
+    "ten": "Vé sự kiện: lưu ý giữ chỗ",
+    "mac_dinh": "Giữ chỗ trước, chưa phải trả tiền trên web. Chúng tôi gọi xác nhận và hướng dẫn thanh toán. Đổi hoặc huỷ vé, quý khách liên hệ chúng tôi.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_giu_cho": {
+    "ten": "Vé sự kiện: Giữ chỗ {so} vé",
+    "mac_dinh": "Giữ chỗ {so} vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_meta": {
+    "ten": "Vé sự kiện: 04 / Vé sự kiện",
+    "mac_dinh": "04 / Vé sự kiện",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_meta_phai": {
+    "ten": "Vé sự kiện: Diễn ra tại The Vagabond",
+    "mac_dinh": "Diễn ra tại The Vagabond",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_tieu_de": {
+    "ten": "Vé sự kiện: Sự kiện",
+    "mac_dinh": "Sự kiện",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_tieu_de_phu": {
+    "ten": "Vé sự kiện: Tiệc, ra mắt món mới, buổi trò chuyện",
+    "mac_dinh": "Tiệc, ra mắt món mới, buổi trò chuyện",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_loi_dau": {
+    "ten": "Vé sự kiện: Đăng ký trước để giữ chỗ. Chúng tôi gọi xác nhận, đến cửa quý khách đọc mã vé.",
+    "mac_dinh": "Đăng ký trước để giữ chỗ. Chúng tôi gọi xác nhận, đến cửa quý khách đọc mã vé.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_loi_tai": {
+    "ten": "Vé sự kiện: Chưa tải được sự kiện. Tải lại trang hoặc gọi cho chúng tôi.",
+    "mac_dinh": "Chưa tải được sự kiện. Tải lại trang hoặc gọi cho chúng tôi.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_dang_tai": {
+    "ten": "Vé sự kiện: Đang tải sự kiện...",
+    "mac_dinh": "Đang tải sự kiện...",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_rong": {
+    "ten": "Vé sự kiện: chưa có sự kiện",
+    "mac_dinh": "Chưa có sự kiện nào mở đăng ký. Theo dõi The Vagabond để nhận tin sự kiện mới:",
+    "nhom": "Vé sự kiện"
+  },
+  "tab_ve_su_kien": {
+    "ten": "Vé sự kiện: Vé sự kiện",
+    "mac_dinh": "Vé sự kiện",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vanh_goi_y_cham": {
+    "ten": "Vành nghiêng: chạm mục để chọn (gợi ý lần đầu)",
+    "mac_dinh": "chạm mục để chọn",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
   }
 }
