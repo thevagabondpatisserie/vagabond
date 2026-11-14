@@ -8,6 +8,8 @@
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
 import {bienNhan} from '../../../public/web_vue/trang/app.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
+import {readFileSync} from 'node:fs';
+const APP = readFileSync(new URL('../../../public/web_vue/banh/app.js', import.meta.url), 'utf8');
 import {t0, tienVN, hangGui, tronMon} from '../../../public/web_vue/kho/thuan.js';
 import {nextTick} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
 import {execFileSync} from 'node:child_process';
@@ -291,7 +293,8 @@ await ca('PR #462: quầy trả lỗi vẫn hiện tab In store và nút thử l
   const k = taoKho(mt);
   await k.napQuay();
   la('ghi nhận lỗi lần đầu', [k.S.storeLoi, k.S.storeDaTai], [true, false]);
-  dung('tab hiện khi lỗi', MAU.includes(':hidden="!S.storeDaTai && !S.storeLoi"'));
+  /* v658: dải tab thay bằng Vành nghiêng; điều kiện hiện tab Tại quầy nằm ở mucVanh (app.js). */
+  dung('tab hiện khi lỗi', APP.includes("{tab: 'store', nhan: t('tab_store', 'Tại quầy'), hien: !!(S.storeDaTai || S.storeLoi), lop: 'store'}"));
   dung('nút thử lại gọi đúng cửa', MAU.includes('@click="kho.napQuay()"'));
   await k.napQuay();
   la('bấm thử gọi lại API', vet.filter(x => x[1] === 'vagabond.kiem_kho.con_tren_quay_web').length, 2);

@@ -1445,3 +1445,15 @@ Trước đây: số không có Zalo không nhận được mã. Từ nay: máy 
 
 **Lưu ý**
 - Tin ưu đãi cũng rơi sang WhatsApp, chỉ với khách đã đồng ý nhận tin. Khách bấm Ngừng nhận ưu đãi trên WhatsApp thì máy tự gỡ đồng ý.
+
+## Khách sự kiện: danh sách khách và đánh dấu đã vào cửa
+Từ khoá: khách sự kiện, vé sự kiện, mã vé, đã vào cửa, danh sách khách tiệc, soát vé
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy, Sales, Marketing | App, Bán hàng, Khách sự kiện | nút Đã vào cửa |
+
+**Trước đây:** xem đăng ký tiệc trên Desk, không có chỗ ghi khách đã tới.
+**Từ nay:** màn Khách sự kiện liệt kê các sự kiện đang bán và mới diễn ra 14 ngày, mỗi thẻ ghi số vé đã vào cửa. Mở một sự kiện: tìm mã vé, tên hoặc số điện thoại, bấm Đã vào cửa. Bấm nhầm thì bấm Bỏ dấu. Vé đã huỷ không đánh dấu được.
+
+**Bạn cần làm:** khách tới cửa đọc mã vé (8 ký tự), gõ vào ô tìm rồi bấm Đã vào cửa. Vé còn Chờ xác nhận thì hỏi Sales trước khi cho vào.

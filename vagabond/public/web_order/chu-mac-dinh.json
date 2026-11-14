@@ -7015,5 +7015,579 @@
     "nhom": "dat_banh",
     "mac_dinh": "Tất cả đồ uống",
     "nhieu_dong": true
+  },
+  "tv658_loi": {
+    "ten": "The Vagabond Club: LÕI",
+    "nhom": "thanh_vien",
+    "mac_dinh": "LÕI",
+    "nhieu_dong": true
+  },
+  "tv658_trieu": {
+    "ten": "The Vagabond Club: triệu",
+    "nhom": "thanh_vien",
+    "mac_dinh": "triệu",
+    "nhieu_dong": true
+  },
+  "tv658_ban_o_day": {
+    "ten": "The Vagabond Club: Bạn ở đây",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Bạn ở đây",
+    "nhieu_dong": true
+  },
+  "tv658_ht_aria": {
+    "ten": "The Vagabond Club: Hành trình hạng: {ds}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hành trình hạng: {ds}.",
+    "nhieu_dong": true
+  },
+  "tv658_ht_aria_la": {
+    "ten": "The Vagabond Club: Bạn đang ở hạng {hang}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Bạn đang ở hạng {hang}.",
+    "nhieu_dong": true
+  },
+  "tv658_chi_12": {
+    "ten": "The Vagabond Club: Chi tiêu {thang}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chi tiêu {thang}",
+    "nhieu_dong": true
+  },
+  "tv658_con": {
+    "ten": "The Vagabond Club: Còn {tien}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Còn {tien}",
+    "nhieu_dong": true
+  },
+  "tv658_vao_vong": {
+    "ten": "The Vagabond Club: Vào vòng {hang}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Vào vòng {hang}",
+    "nhieu_dong": true
+  },
+  "tv658_cao_nhat": {
+    "ten": "The Vagabond Club: Bạn đang ở vòng cao nhất",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Bạn đang ở vòng cao nhất",
+    "nhieu_dong": true
+  },
+  "tv658_hang_ql": {
+    "ten": "The Vagabond Club: HẠNG VÀ QUYỀN LỢI",
+    "nhom": "thanh_vien",
+    "mac_dinh": "HẠNG VÀ QUYỀN LỢI",
+    "nhieu_dong": true
+  },
+  "tv658_vuot": {
+    "ten": "The Vagabond Club: Vuốt ngang để xem từng hạng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Vuốt ngang để xem từng hạng.",
+    "nhieu_dong": true
+  },
+  "tv658_do_moi": {
+    "ten": "The Vagabond Club: Do Vagabond mời",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Do Vagabond mời",
+    "nhieu_dong": true
+  },
+  "tv658_chi_tu": {
+    "ten": "The Vagabond Club: Chi từ {tien} trong {thang}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chi từ {tien} trong {thang}",
+    "nhieu_dong": true
+  },
+  "tv658_tu_dau": {
+    "ten": "The Vagabond Club: Từ đơn đầu tiên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Từ đơn đầu tiên",
+    "nhieu_dong": true
+  },
+  "tv658_hang_cua_ban": {
+    "ten": "The Vagabond Club: Hạng của bạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạng của bạn",
+    "nhieu_dong": true
+  },
+  "tv658_tich_diem": {
+    "ten": "The Vagabond Club: tích điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tích điểm",
+    "nhieu_dong": true
+  },
+  "tv658_moi_hd": {
+    "ten": "The Vagabond Club: mỗi hoá đơn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "mỗi hoá đơn",
+    "nhieu_dong": true
+  },
+  "tv658_qua_sn": {
+    "ten": "The Vagabond Club: Quà sinh nhật",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà sinh nhật",
+    "nhieu_dong": true
+  },
+  "tv658_giam_moi": {
+    "ten": "The Vagabond Club: Giảm {pt} mỗi hoá đơn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Giảm {pt} mỗi hoá đơn",
+    "nhieu_dong": true
+  },
+  "tv658_1_diem": {
+    "ten": "The Vagabond Club: 1 điểm = 1đ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "1 điểm = 1đ",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_1": {
+    "ten": "The Vagabond Club: Quà sinh nhật:",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quà sinh nhật:",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_2": {
+    "ten": "The Vagabond Club: 1 bánh nhóm {nhom},",
+    "nhom": "thanh_vien",
+    "mac_dinh": "1 bánh nhóm {nhom},",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_3": {
+    "ten": "The Vagabond Club: tối đa {tien},",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tối đa {tien},",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_gui": {
+    "ten": "The Vagabond Club: mã gửi qua Zalo {ngay} trước sinh nhật,",
+    "nhom": "thanh_vien",
+    "mac_dinh": "mã gửi qua Zalo {ngay} trước sinh nhật,",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_gui_dung": {
+    "ten": "The Vagabond Club: mã gửi qua Zalo đúng ngày sinh nhật,",
+    "nhom": "thanh_vien",
+    "mac_dinh": "mã gửi qua Zalo đúng ngày sinh nhật,",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_han": {
+    "ten": "The Vagabond Club: dùng trong {ngay}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "dùng trong {ngay}.",
+    "nhieu_dong": true
+  },
+  "tv658_ngay": {
+    "ten": "The Vagabond Club: ngày",
+    "nhom": "thanh_vien",
+    "mac_dinh": "ngày",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_thang": {
+    "ten": "The Vagabond Club: nhận mã trong tháng sinh nhật,",
+    "nhom": "thanh_vien",
+    "mac_dinh": "nhận mã trong tháng sinh nhật,",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_thang_han": {
+    "ten": "The Vagabond Club: dùng tới hết tháng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "dùng tới hết tháng.",
+    "nhieu_dong": true
+  },
+  "tv658_dung_the_nao": {
+    "ten": "The Vagabond Club: DÙNG ĐIỂM THẾ NÀO",
+    "nhom": "thanh_vien",
+    "mac_dinh": "DÙNG ĐIỂM THẾ NÀO",
+    "nhieu_dong": true
+  },
+  "tv658_han_1": {
+    "ten": "The Vagabond Club: Mỗi lần tích có hạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mỗi lần tích có hạn",
+    "nhieu_dong": true
+  },
+  "tv658_han_2": {
+    "ten": "The Vagabond Club: {han} riêng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{han} riêng.",
+    "nhieu_dong": true
+  },
+  "tv658_tran": {
+    "ten": "The Vagabond Club: Áp dụng thanh toán {tran} {gia_tri}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Áp dụng thanh toán {tran} {gia_tri}",
+    "nhieu_dong": true
+  },
+  "tv658_toi_da": {
+    "ten": "The Vagabond Club: tối đa {pt}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tối đa {pt}",
+    "nhieu_dong": true
+  },
+  "tv658_het_han": {
+    "ten": "The Vagabond Club: Hết hạn {ngay}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hết hạn {ngay}",
+    "nhieu_dong": true
+  },
+  "tv658_n_diem": {
+    "ten": "The Vagabond Club: {diem} điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{diem} điểm",
+    "nhieu_dong": true
+  },
+  "tv658_dung_som": {
+    "ten": "The Vagabond Club: Dùng sớm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Dùng sớm",
+    "nhieu_dong": true
+  },
+  "tv658_tich_ngay": {
+    "ten": "The Vagabond Club: Tích {ngay}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tích {ngay}",
+    "nhieu_dong": true
+  },
+  "tv658_lan_khac": {
+    "ten": "The Vagabond Club: Các lần tích khác",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Các lần tích khác",
+    "nhieu_dong": true
+  },
+  "tv658_tong_co": {
+    "ten": "The Vagabond Club: Tổng đang có",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tổng đang có",
+    "nhieu_dong": true
+  },
+  "tv658_nhac": {
+    "ten": "The Vagabond Club: Zalo nhắc trước {ngay}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Zalo nhắc trước {ngay}.",
+    "nhieu_dong": true
+  },
+  "tv658_hoan": {
+    "ten": "The Vagabond Club: Đơn bị huỷ thì điểm tự hoàn.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đơn bị huỷ thì điểm tự hoàn.",
+    "nhieu_dong": true
+  },
+  "tv658_anh_khach": {
+    "ten": "The Vagabond Club: Khách của Vagabond",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Khách của Vagabond",
+    "nhieu_dong": true
+  },
+  "tv658_tu": {
+    "ten": "The Vagabond Club: Thành viên từ {thang}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên từ {thang}",
+    "nhieu_dong": true
+  },
+  "tv658_tuong_duong": {
+    "ten": "The Vagabond Club: Tương đương {tien}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tương đương {tien}.",
+    "nhieu_dong": true
+  },
+  "tv658_khong_dung": {
+    "ten": "The Vagabond Club: Hạng của bạn được giảm thẳng trên mỗi ho",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hạng của bạn được giảm thẳng trên mỗi hoá đơn, không dùng điểm.",
+    "nhieu_dong": true
+  },
+  "tv658_sap_het": {
+    "ten": "The Vagabond Club: {diem} hết hạn ngày {ngay}. Dùng trước đ",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{diem} hết hạn ngày {ngay}. Dùng trước để không mất.",
+    "nhieu_dong": true
+  },
+  "tv658_diem": {
+    "ten": "The Vagabond Club: điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "điểm",
+    "nhieu_dong": true
+  },
+  "tv658_dk_bao": {
+    "ten": "The Vagabond Club: Nhập số điện thoại để đăng ký. Mã xác mi",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhập số điện thoại để đăng ký. Mã xác minh gửi qua Zalo.",
+    "nhieu_dong": true
+  },
+  "tv658_tich_den": {
+    "ten": "The Vagabond Club: Tích đến",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Tích đến",
+    "nhieu_dong": true
+  },
+  "tv658_cau_1": {
+    "ten": "The Vagabond Club: Đăng nhập để xem hạng,",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đăng nhập để xem hạng,",
+    "nhieu_dong": true
+  },
+  "tv658_cau_2": {
+    "ten": "The Vagabond Club: điểm và quà của bạn.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "điểm và quà của bạn.",
+    "nhieu_dong": true
+  },
+  "tv658_o_sdt": {
+    "ten": "The Vagabond Club: Số điện thoại của bạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số điện thoại của bạn",
+    "nhieu_dong": true
+  },
+  "tv658_nut_otp": {
+    "ten": "The Vagabond Club: Nhận mã đăng nhập",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhận mã đăng nhập",
+    "nhieu_dong": true
+  },
+  "tv658_dk_cau": {
+    "ten": "The Vagabond Club: Đăng ký thành viên tại đây",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đăng ký thành viên tại đây",
+    "nhieu_dong": true
+  },
+  "tv658_dk_chip": {
+    "ten": "The Vagabond Club: Đăng ký",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đăng ký",
+    "nhieu_dong": true
+  },
+  "tv658_chao": {
+    "ten": "The Vagabond Club: Chào",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chào",
+    "nhieu_dong": true
+  },
+  "tv658_hanh_trinh": {
+    "ten": "The Vagabond Club: HÀNH TRÌNH CỦA BẠN",
+    "nhom": "thanh_vien",
+    "mac_dinh": "HÀNH TRÌNH CỦA BẠN",
+    "nhieu_dong": true
+  },
+  "tv658_diem_cua_ban": {
+    "ten": "The Vagabond Club: Điểm của bạn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Điểm của bạn",
+    "nhieu_dong": true
+  },
+  "tv658_dat_dung_diem": {
+    "ten": "The Vagabond Club: Đặt bánh và dùng điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đặt bánh và dùng điểm",
+    "nhieu_dong": true
+  },
+  "tv658_goi_y_sdt": {
+    "ten": "The Vagabond Club: 09xx xxx xxx",
+    "nhom": "thanh_vien",
+    "mac_dinh": "09xx xxx xxx",
+    "nhieu_dong": true
+  },
+  "tv658_gia_tri": {
+    "ten": "The Vagabond Club: giá trị đơn hàng",
+    "nhom": "thanh_vien",
+    "mac_dinh": "giá trị đơn hàng",
+    "nhieu_dong": true
+  },
+  "tv658_ht_tu": {
+    "ten": "The Vagabond Club: từ {tien}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "từ {tien}",
+    "nhieu_dong": true
+  },
+  "tv658_tich_pt": {
+    "ten": "The Vagabond Club: tích {pt}",
+    "nhom": "thanh_vien",
+    "mac_dinh": "tích {pt}",
+    "nhieu_dong": true
+  },
+  "vanh_nhan": {
+    "ten": "Vành nghiêng: Các mục của trang",
+    "mac_dinh": "Các mục của trang",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vanh_moi": {
+    "ten": "Vành nghiêng: Mới",
+    "mac_dinh": "Mới",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vanh_goi_y_vuot": {
+    "ten": "Vành nghiêng: vuốt ngang (gợi ý lần đầu)",
+    "mac_dinh": "vuốt ngang",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vanh_goi_y": {
+    "ten": "Vành nghiêng: để đổi mục (gợi ý lần đầu)",
+    "mac_dinh": "để đổi mục",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vsk_het_han": {
+    "ten": "Vé sự kiện: Hết hạn đăng ký",
+    "mac_dinh": "Hết hạn đăng ký",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_het_ve": {
+    "ten": "Vé sự kiện: Hết vé",
+    "mac_dinh": "Hết vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_chon_ve": {
+    "ten": "Vé sự kiện: Chọn vé",
+    "mac_dinh": "Chọn vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_xem_thu": {
+    "ten": "Vé sự kiện: Đây là bản xem trước, không gửi giữ chỗ.",
+    "mac_dinh": "Đây là bản xem trước, không gửi giữ chỗ.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_dang_gui": {
+    "ten": "Vé sự kiện: Đang gửi...",
+    "mac_dinh": "Đang gửi...",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_loi": {
+    "ten": "Vé sự kiện: Chưa gửi được. Kiểm tra mạng rồi bấm Giữ chỗ lại.",
+    "mac_dinh": "Chưa gửi được. Kiểm tra mạng rồi bấm Giữ chỗ lại.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_con_cho": {
+    "ten": "Vé sự kiện: Còn {so} chỗ",
+    "mac_dinh": "Còn {so} chỗ",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_het_cho": {
+    "ten": "Vé sự kiện: Hết chỗ",
+    "mac_dinh": "Hết chỗ",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_chua_ngay": {
+    "ten": "Vé sự kiện: Sắp có ngày",
+    "mac_dinh": "Sắp có ngày",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_ve": {
+    "ten": "Vé sự kiện: vé",
+    "mac_dinh": "vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_mien_phi": {
+    "ten": "Vé sự kiện: Miễn phí",
+    "mac_dinh": "Miễn phí",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_dong": {
+    "ten": "Vé sự kiện: Đóng",
+    "mac_dinh": "Đóng",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_xong_1": {
+    "ten": "Vé sự kiện: Đã giữ chỗ. Mã vé của quý khách:",
+    "mac_dinh": "Đã giữ chỗ. Mã vé của quý khách:",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_xong_2": {
+    "ten": "Vé sự kiện: Chúng tôi sẽ gọi xác nhận và hướng dẫn thanh toán. Đến cửa, quý khách đọc mã vé này.",
+    "mac_dinh": "Chúng tôi sẽ gọi xác nhận và hướng dẫn thanh toán. Đến cửa, quý khách đọc mã vé này.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_xong_dong": {
+    "ten": "Vé sự kiện: Xong",
+    "mac_dinh": "Xong",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_so_ve": {
+    "ten": "Vé sự kiện: Số vé",
+    "mac_dinh": "Số vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_bot": {
+    "ten": "Vé sự kiện: Bớt một vé",
+    "mac_dinh": "Bớt một vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_them": {
+    "ten": "Vé sự kiện: Thêm một vé",
+    "mac_dinh": "Thêm một vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_tam_tinh": {
+    "ten": "Vé sự kiện: Tạm tính",
+    "mac_dinh": "Tạm tính",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_ho_ten": {
+    "ten": "Vé sự kiện: Họ tên",
+    "mac_dinh": "Họ tên",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_sdt": {
+    "ten": "Vé sự kiện: Số điện thoại",
+    "mac_dinh": "Số điện thoại",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_ghi_chu": {
+    "ten": "Vé sự kiện: Ghi chú (không bắt buộc)",
+    "mac_dinh": "Ghi chú (không bắt buộc)",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_luu_y": {
+    "ten": "Vé sự kiện: lưu ý giữ chỗ",
+    "mac_dinh": "Giữ chỗ trước, chưa phải trả tiền trên web. Chúng tôi gọi xác nhận và hướng dẫn thanh toán. Đổi hoặc huỷ vé, quý khách liên hệ chúng tôi.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_giu_cho": {
+    "ten": "Vé sự kiện: Giữ chỗ {so} vé",
+    "mac_dinh": "Giữ chỗ {so} vé",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_meta": {
+    "ten": "Vé sự kiện: 04 / Vé sự kiện",
+    "mac_dinh": "04 / Vé sự kiện",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_meta_phai": {
+    "ten": "Vé sự kiện: Diễn ra tại The Vagabond",
+    "mac_dinh": "Diễn ra tại The Vagabond",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_tieu_de": {
+    "ten": "Vé sự kiện: Sự kiện",
+    "mac_dinh": "Sự kiện",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_tieu_de_phu": {
+    "ten": "Vé sự kiện: Tiệc, ra mắt món mới, buổi trò chuyện",
+    "mac_dinh": "Tiệc, ra mắt món mới, buổi trò chuyện",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_loi_dau": {
+    "ten": "Vé sự kiện: Đăng ký trước để giữ chỗ. Chúng tôi gọi xác nhận, đến cửa quý khách đọc mã vé.",
+    "mac_dinh": "Đăng ký trước để giữ chỗ. Chúng tôi gọi xác nhận, đến cửa quý khách đọc mã vé.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_loi_tai": {
+    "ten": "Vé sự kiện: Chưa tải được sự kiện. Tải lại trang hoặc gọi cho chúng tôi.",
+    "mac_dinh": "Chưa tải được sự kiện. Tải lại trang hoặc gọi cho chúng tôi.",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_dang_tai": {
+    "ten": "Vé sự kiện: Đang tải sự kiện...",
+    "mac_dinh": "Đang tải sự kiện...",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_rong": {
+    "ten": "Vé sự kiện: chưa có sự kiện",
+    "mac_dinh": "Chưa có sự kiện nào mở đăng ký. Theo dõi The Vagabond để nhận tin sự kiện mới:",
+    "nhom": "Vé sự kiện"
+  },
+  "tab_ve_su_kien": {
+    "ten": "Vé sự kiện: Vé sự kiện",
+    "mac_dinh": "Vé sự kiện",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "vanh_goi_y_cham": {
+    "ten": "Vành nghiêng: chạm mục để chọn (gợi ý lần đầu)",
+    "mac_dinh": "chạm mục để chọn",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
   }
 }

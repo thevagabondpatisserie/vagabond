@@ -174,6 +174,8 @@ async function scrHome() {
       (coQuyenDatBan() ? card('🪑', 'Thông tin đặt bàn', 'Khách đặt bàn trên web: xác nhận, huỷ kèm lý do, ghi khách đã đến', dbn, 'DATBAN') : '') +
       /* v630: bánh thiết kế riêng khách đặt và cọc trên web (63-don-dat-truoc.js). */
       (coQuyenDdt() ? card('🎂', 'Đơn đặt trước', 'Bánh thiết kế riêng: theo dõi cọc, thu phần còn lại, giao bánh và xuất hoá đơn', 0, 'DDT') : '') +
+      /* v658: vé sự kiện khách đăng ký trên web (74-khach-su-kien.js). */
+      (coQuyenSk() ? card('🎟️', 'Khách sự kiện', 'Danh sách khách từng sự kiện, tìm mã vé, đánh dấu đã vào cửa', 0, 'KSK') : '') +
       /* v630: bánh sỉ trên web (64-banh-si.js): đơn theo ngày giao, duyệt quán đăng ký và giá riêng từng khách. */
       (coQuyenBsiXem() ? card('🏢', 'Đơn sỉ web', 'Quán, khách sạn đặt sỉ trên web: xem theo ngày giao, giao hàng và xuất hoá đơn', 0, 'BSI') : '') +
       (coQuyenBsiSales() ? card('🤝', 'Khách sỉ web', 'Duyệt quán đăng ký, bật trả cuối kỳ 15 ngày, khai giá riêng từng khách', 0, 'BSIKH') : '') +
@@ -620,12 +622,12 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM', 'GMBQR', 'BTM'],
+    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'KSK', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM', 'GMBQR', 'BTM'],
     nhom: [
       { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'DSCK', 'BNTM'] },
       { t: 'Menu', p: 'món, nhóm, tuỳ chọn trên web và quầy', keys: ['BTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
-      { t: 'Khách hàng', p: 'đặt bàn, đặt trước và công nợ', keys: ['DATBAN', 'DDT', 'CN', 'SOTANG', 'SODU'] },
+      { t: 'Khách hàng', p: 'đặt bàn, đặt trước, sự kiện và công nợ', keys: ['DATBAN', 'DDT', 'KSK', 'CN', 'SOTANG', 'SODU'] },
       { t: 'Bánh sỉ', p: 'quán, khách sạn đặt trên web', keys: ['BSI', 'BSIKH'] },
       { t: 'Chương trình và hợp đồng', p: '', keys: ['KM', 'HDG'] },
       { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY', 'GMBQR'] }
@@ -2200,6 +2202,7 @@ function vgbGo(k) {
   if (k === 'TCTT') return go(scrSoDuTraTruoc);
   if (k === 'DATBAN') return go(scrDatBan);
   if (k === 'DDT') return go(scrDonDatTruoc);
+  if (k === 'KSK') return go(scrKhachSuKien);
   if (k === 'BSI') return go(scrDonSiWeb);
   if (k === 'BSIKH') return go(scrKhachSiWeb);
   /* Man "Don da huy cho hoan" truoc gio chi mo duoc tu man khac, khong co

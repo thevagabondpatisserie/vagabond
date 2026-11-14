@@ -33,6 +33,10 @@ function hoSoDu(them) {
     qua: { mo: 1, uu_dai: 'Giảm 20.000đ', han: '06/11/2026', so_ngay: 7, da_nhan: 1 },
     tien_do: { da_mua: 13580000, so_thang: 12, hang_tiep: 'VAGABONDER', con_thieu: 6420000, ty_le: 0.679 },
     ma_tv: 'KL0412', tu_nam: '2024',
+    the_le: { hang: [{ ten_hang: 'EXPLORER', chi_tieu_tu: 0, so_thang_xet: 12, tich_diem: 2, giam_gia: 0, dac_quyen: [] },
+      { ten_hang: 'VOYAGER', chi_tieu_tu: 10000000, so_thang_xet: 12, tich_diem: 3, giam_gia: 0, dac_quyen: [] },
+      { ten_hang: 'VAGABONDER', chi_tieu_tu: 20000000, so_thang_xet: 12, tich_diem: 5, giam_gia: 0, dac_quyen: [] }],
+      hang_moi: [], luat: { tran_pt: 50, han_thang: 12, nhac_ngay: 30 }, sap_het: null, lan_tich: null },
   };
   Object.keys(them || {}).forEach(function (k) { d[k] = them[k]; });
   return d;
@@ -45,9 +49,9 @@ function hoSoDu(them) {
     bang('tên', chuOf(t.tim('ten')), 'Lan Anh');
     bang('điểm', chuOf(t.tim('diem')), (184200).toLocaleString('vi-VN'));
     bang('hạng', [chuOf(t.tim('hang-chip')), chuOf(t.tim('hang'))], ['VOYAGER', 'VOYAGER']);
-    bang('ảnh thẻ thật', t.tim('anh-the').src, '/files/the-voyager.jpg');
-    bang('thanh tiến độ 68%', t.tim('td-b').style.width, '68%');
-    dung('câu tiến độ', chuOf(t.tim('td-chu')).indexOf('Thêm ' + (6420000).toLocaleString('vi-VN') + 'đ để lên VAGABONDER') >= 0);
+    /* v658: thẻ ảnh hạng và thanh tiến độ cũ thay bằng khối Hành trình hạng (J1c), kiểm kỹ ở thanh_vien_658.js. */
+    bang('thanh tiến độ 68%', t.tim('ht-thanh').style.width, '68%');
+    dung('còn thiếu để lên hạng', chuOf(t.tim('ht-chips')).indexOf('Còn ' + (6420000).toLocaleString('vi-VN') + 'đ') >= 0 && chuOf(t.tim('ht-chips')).indexOf('Vào vòng VAGABONDER') >= 0);
     bang('ba con số', [chuOf(t.tim('so-don')), chuOf(t.tim('so-vc')), chuOf(t.tim('so-hs'))], ['01', '01', '4/5']);
     dung('đã nhận quà: không có khung mời', K.an(t.tim('moi-ho-so')));
     bang('mã thành viên trên thanh', chuOf(t.tim('vach-phai')), 'Mã KL0412');

@@ -4,6 +4,7 @@
  "module": "Vagabond",
  "engine": "InnoDB",
  "field_order": [
+  "ma_ve",
   "tiec_id",
   "ten_tiec",
   "ngay_tiec",
@@ -16,9 +17,21 @@
   "ghi_chu",
   "trang_thai",
   "xu_ly",
+  "da_vao_cua",
+  "vao_cua_luc",
   "bam_noi_dung"
  ],
  "fields": [
+  {
+   "fieldname": "ma_ve",
+   "fieldtype": "Data",
+   "label": "Mã vé",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "description": "Khách đọc mã này ở cửa. Máy đặt khi khách đăng ký."
+  },
   {
    "fieldname": "tiec_id",
    "fieldtype": "Data",
@@ -99,6 +112,20 @@
    "label": "Ghi chú xử lý"
   },
   {
+   "fieldname": "da_vao_cua",
+   "fieldtype": "Check",
+   "label": "Đã vào cửa",
+   "in_list_view": 1,
+   "default": "0",
+   "description": "Quầy đánh dấu khi khách tới, trên app ở màn Khách sự kiện."
+  },
+  {
+   "fieldname": "vao_cua_luc",
+   "fieldtype": "Datetime",
+   "label": "Vào cửa lúc",
+   "read_only": 1
+  },
+  {
    "fieldname": "bam_noi_dung",
    "fieldtype": "Data",
    "label": "Dấu vết yêu cầu",
@@ -136,5 +163,6 @@
  "sort_field": "creation",
  "sort_order": "DESC",
  "title_field": "ten",
- "description": "Khách đăng ký tiệc trên trang đặt bánh (v586). Sales gọi xác nhận và thu tiền."
+ "description": "Khách đăng ký tiệc trên trang đặt bánh (v586). Sales gọi xác nhận và thu tiền.",
+ "modified": "2026-11-14 20:00:00.000000"
 }

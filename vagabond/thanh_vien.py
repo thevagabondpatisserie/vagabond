@@ -157,6 +157,12 @@ def doc_anh(du_lieu):
 	return raw, ""
 
 
+def thang_nam(v):
+	"""Tháng và năm vào hệ thống, dạng 03/2025 cho dòng "Thành viên từ". THUẦN."""
+	m = re.match(r"^(\d{4})-(\d{2})", str(v or ""))
+	return "%s/%s" % (m.group(2), m.group(1)) if m else ""
+
+
 def muc_ho_so(hs):
 	"""Hồ sơ đã khai được mấy mục và còn thiếu gì để nhận quà. THUẦN.
 
@@ -319,6 +325,15 @@ def san_sang():
 		ra['qua'] = {'mo':1 if han else 0, 'uu_dai':mo_ta_uu_dai(km)[0] if km else ''}
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "thanh_vien: đọc quà chào mừng")
+	# v658: ảnh trang đăng nhập The Vagabond Club. Marketing tải trong trình biên
+	# tập web (thẻ Banner, chỗ "Trang thành viên"); chưa có ảnh thì trang để nền trơn.
+	ra['anh_club'] = []
+	try:
+		from vagabond import noi_dung_web
+
+		ra['anh_club'] = noi_dung_web.banner_hien(noi_dung_web._ban_cong_khai(), "club", _hom_nay())[:2]
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "thanh_vien: đọc ảnh trang thành viên")
 	return ra
 
 
@@ -384,6 +399,10 @@ def toi():
 		'diem':diem, 'don':don, 'don_loi':don_loi, 'don_chua_mo':don_chua_mo, 'co_ho_so':bool(kh)}
 	ra.update(_phan_moi(kh, noi_dia))
 	ra['the_le'] = _the_le(kh.get('name'))
+	# v658: hạng không được dùng điểm (diem_web.HANG_CAM_TIEU, cùng luật quầy và
+	# web) thì khối điểm trên trang không mời "Đặt bánh và dùng điểm".
+	from vagabond.diem_web import HANG_CAM_TIEU
+	ra['diem_dung_duoc'] = 0 if str((hang or {}).get('ten_hang') or kh.get('vgb_hang') or '').strip().upper() in HANG_CAM_TIEU else 1
 	return ra
 
 
@@ -419,7 +438,7 @@ def _phan_moi(kh, noi_dia):
 	if not kh:
 		hs = muc_ho_so({})
 		return {"ho_so": {"ten": "", "sinh_nhat": hien_sinh_nhat(None), "email": "", "so_thich": [], "dong_y_zalo": 0,
-			"anh_mau": ""}, "anh": "", "muc": hs, "vi": [], "qua": qua, "tien_do": None, "ma_tv": "", "tu_nam": ""}
+			"anh_mau": ""}, "anh": "", "muc": hs, "vi": [], "qua": qua, "tien_do": None, "ma_tv": "", "tu_nam": "", "tu_thang": ""}
 	tv = _ho_so_tv(kh["name"])
 	so_thich = chuan_so_thich(tv.get("so_thich"))
 	anh = _anh_data_url(tv.get("anh_dai_dien"))
@@ -435,7 +454,7 @@ def _phan_moi(kh, noi_dia):
 	tao = kh.get("creation")
 	return {"ho_so": ho_so, "anh": anh, "muc": muc, "vi": vi, "qua": qua, "tien_do": _tien_do(kh["name"]),
 		"vi_cho": len(vi_du_dieu_kien(kh, noi_dia, hn)),
-		"ma_tv": kh["name"], "tu_nam": str(tao)[:4] if tao else ""}
+		"ma_tv": kh["name"], "tu_nam": str(tao)[:4] if tao else "", "tu_thang": thang_nam(tao)}
 
 
 def _khach_hoac_tao(so, ten=""):

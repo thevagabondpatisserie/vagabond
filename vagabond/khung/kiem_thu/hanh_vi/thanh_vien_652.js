@@ -40,30 +40,29 @@ function toi(them) {
 }
 
 (async function () {
-  await ca('thành viên đăng nhập: khối Thể lệ hai hạng đúng số site thật, chỉ Ambassador giảm 10%, chip Hạng hiện tại, bốn ô luật, câu nhân điểm, dòng điểm sắp hết hạn, nút Dùng điểm đặt bánh', async function () {
+  /* v658: khối Thể lệ cũ (bốn ô luật) thay bằng T1 thẻ hạng và U3 dòng thời gian hạn điểm.
+     Ba ca dưới giữ nguyên ý của v652 trên giao diện mới; ca kỹ ở thanh_vien_658.js. */
+  await ca('thành viên đăng nhập: thẻ hạng đúng số máy chủ, chỉ Ambassador giảm 10%, chip Hạng của bạn, luật điểm, câu nhân điểm, dòng điểm sắp hết hạn, nút Đặt bánh và dùng điểm', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: toi(), cap_vi_tv: { ok: 1, moi: [] } }, '');
     var k = t.tim('the-le');
-    dung('hiện khối thể lệ', !K.an(k));
-    dung('ẩn khối quyền lợi cũ', K.an(t.tim('ql-cu')));
-    var the = k.querySelectorAll('.tl-the');
-    bang('hai hạng', the.map(function (x) { return chu(x.querySelector('.tl-ten')); }), ['VAGABONDER', 'AMBASSADOR']);
-    dung('Vagabonder không có ô giảm', the[0].querySelectorAll('.tl-pt').length === 1);
-    dung('Ambassador giảm 10%', chu(the[1]).indexOf('10%') >= 0 && the[1].querySelectorAll('.tl-pt').length === 2);
-    dung('chip hạng hiện tại ở Vagabonder', !!the[0].querySelector('.tl-dang') && !the[1].querySelector('.tl-dang'));
-    dung('quyền lợi lấy từ chương trình', chu(the[1].querySelector('.tl-quyen')) === 'Quà sinh nhật Ambassador');
-    var o = function (x) { return chu(k.querySelector('[data-tlo="' + x + '"]')); };
-    dung('ô Tích: % hạng và câu nhân điểm', o('tich').indexOf('3%') >= 0 && o('tich').indexOf('Thứ Năm hằng tuần, đặt bánh trên web được x2 điểm.') >= 0);
-    dung('ô Dùng: 50% và web', o('dung').indexOf('50%') >= 0 && o('dung').indexOf('trên web') >= 0);
-    dung('ô Hạn: 12 tháng, nhắc 30 ngày', o('han').indexOf('12 tháng') >= 0 && o('han').indexOf('30 ngày') >= 0);
-    dung('ô Xét hạng', o('hang').indexOf('12 tháng') >= 0);
+    dung('hiện thẻ hạng', !K.an(k));
+    var the = k.querySelectorAll('.t1-the');
+    bang('hai hạng', the.map(function (x) { return chu(x.querySelector('.t1-ten')); }), ['VAGABONDER', 'AMBASSADOR']);
+    dung('Vagabonder không giảm', chu(the[0]).indexOf('Giảm') < 0);
+    dung('Ambassador giảm 10%', chu(the[1]).indexOf('Giảm 10% mỗi hoá đơn') >= 0);
+    dung('chip Hạng của bạn ở Vagabonder', chu(the[0]).indexOf('Hạng của bạn') >= 0 && chu(the[1]).indexOf('Hạng của bạn') < 0);
+    dung('quyền lợi lấy từ chương trình', chu(the[1]).indexOf('Quà sinh nhật Ambassador') >= 0);
+    var u = chu(t.tim('dung-diem'));
+    dung('câu nhân điểm', u.indexOf('Thứ Năm hằng tuần, đặt bánh trên web được x2 điểm.') >= 0);
+    dung('50% đúng câu chuẩn', u.indexOf('Áp dụng thanh toán tối đa 50% giá trị đơn hàng') >= 0);
+    dung('hạn 12 tháng, nhắc 30 ngày', u.indexOf('12 tháng riêng.') >= 0 && u.indexOf('Zalo nhắc trước 30 ngày.') >= 0);
     dung('dòng điểm sắp hết hạn', !K.an(t.tim('diem-het')) && chu(t.tim('diem-het')).indexOf('200 điểm hết hạn ngày 21/11/2026') === 0);
     bang('nút dùng điểm dẫn tới trang đặt bánh', t.tim('nut-dung-diem').getAttribute('href'), '/banh');
   });
 
-  await ca('không có điểm sắp hết hạn thì ẩn dòng; máy chủ chưa có thể lệ thì giữ khối quyền lợi cũ', async function () {
+  await ca('không có điểm sắp hết hạn thì ẩn dòng; máy chủ chưa có thể lệ thì ẩn thẻ hạng', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: toi({ the_le: { hang: [], luat: {}, sap_het: null } }), cap_vi_tv: { ok: 1, moi: [] } }, '');
-    dung('ẩn thể lệ', K.an(t.tim('the-le')));
-    dung('giữ quyền lợi cũ', !K.an(t.tim('ql-cu')));
+    dung('ẩn thẻ hạng', K.an(t.tim('the-le')));
     var t2 = await K.dungTrang({ san_sang: SS, toi: toi({ the_le: Object.assign({}, THE_LE, { sap_het: null }) }), cap_vi_tv: { ok: 1, moi: [] } }, '');
     dung('ẩn dòng hết hạn', K.an(t2.tim('diem-het')));
   });
@@ -72,8 +71,8 @@ function toi(them) {
     var t = await K.dungTrang({ san_sang: SS, toi: { ok: 0, ly_do: 'chua_dang_nhap' }, the_le: { the_le: Object.assign({}, THE_LE, { sap_het: null }) } }, '');
     var k = t.tim('the-le-dn');
     dung('hiện ở màn đăng nhập', !K.an(k) && !K.an(t.tim('dang-nhap')));
-    bang('hai hạng', k.querySelectorAll('.tl-ten').map(chu), ['VAGABONDER', 'AMBASSADOR']);
-    dung('không chip hạng hiện tại', !k.querySelector('.tl-dang'));
+    bang('hai hạng', k.querySelectorAll('.t1-ten').map(chu), ['VAGABONDER', 'AMBASSADOR']);
+    dung('không chip Hạng của bạn', chu(k).indexOf('Hạng của bạn') < 0);
     bang('gọi the_le một lần', t.cac('the_le').length, 1);
     var t2 = await K.dungTrang({ san_sang: SS, toi: { ok: 0, ly_do: 'chua_dang_nhap' }, the_le: function () { throw new Error('mạng'); } }, '');
     dung('lỗi thì ẩn', K.an(t2.tim('the-le-dn')));

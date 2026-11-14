@@ -870,3 +870,74 @@ html body .bar.gb-bar .go{border-radius:999px;min-height:48px;padding:0 22px}
 a.web-banner:focus-visible{outline:3px solid #29bdb3;outline-offset:3px}
 #noi-dung-marketing .web-banner{margin:12px auto;width:calc(100% - 32px)}
 .noi-dung-gio .web-banner,.noi-dung-dat-xong .web-banner{margin:16px 0}
+/* ---------- v658 Vành nghiêng (anh Việt duyệt bản thử 14/11/2026) ----------
+   Thay dải tab kéo ngang. Vẽ thẳng trên nền vũ trụ, không khung, không nền,
+   vành tràn hai mép. Chữ cùng góc nghiêng -11 độ với vành. Danh sách tab cũ
+   giữ lại cho trình đọc màn hình và bàn phím, ẩn khỏi mắt. */
+html body nav.tabs.vanh-ds{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);border:0;white-space:nowrap;background:none;backdrop-filter:none}
+.vanh-khung{position:relative;z-index:5;overflow-x:clip}
+/* Vành tràn hai mép nhưng không được nới bề ngang trang (máy cũ không có clip thì cắt cả khung). */
+@supports not (overflow-x:clip){.vanh-khung{overflow:hidden;padding:40px 0;margin:-40px 0}}
+.vanh{position:relative;width:100%;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;margin:4px 0 6px}
+.vanh svg{position:absolute;left:-30%;top:-40px;width:160%;height:calc(100% + 80px);overflow:visible;pointer-events:none}
+.vanh .vanh-sau{z-index:1}.vanh .vanh-truoc{z-index:4}
+.vanh-san{position:absolute;inset:0;z-index:3}
+.vanh-muc{position:absolute;left:0;top:0;min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;padding:0 6px;cursor:pointer;will-change:transform,opacity}
+.vanh-chu{display:inline-block;white-space:nowrap;line-height:1;text-transform:uppercase;font-family:var(--sans);font-weight:600;font-size:16px;letter-spacing:.14em;color:rgba(255,255,255,.7);transform-origin:50% 50%;will-change:transform,filter}
+.vanh-muc.truoc .vanh-chu{color:#fff}
+.vanh-moi{font-style:normal;font-size:13px;font-weight:700;letter-spacing:.08em;background:#29bdb3;color:#000;border-radius:999px;padding:2px 7px;margin-left:7px;vertical-align:.1em}
+.vanh.co-phim .vanh-muc.truoc{outline:2px solid #29bdb3;outline-offset:2px;border-radius:4px}
+.vanh-goi-y{position:absolute;left:0;right:0;bottom:-6px;z-index:6;text-align:center;font-family:var(--sans);font-size:13px;line-height:1.2;letter-spacing:.04em;color:rgba(255,255,255,.75);opacity:0;transition:opacity .5s;pointer-events:none}
+.vanh-goi-y b{color:#29bdb3;font-weight:600}.vanh-goi-y.on{opacity:1}
+/* Thanh gọn dính đầu màn khi đã cuộn qua vành (đề xuất, chờ duyệt ảnh). */
+.vanh-gon{position:fixed;left:0;right:0;top:0;height:56px;z-index:36;touch-action:pan-y;-webkit-user-select:none;user-select:none;background:linear-gradient(rgba(0,0,0,.88),rgba(0,0,0,.72));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transform:translateY(-100%);transition:transform .25s;pointer-events:none}
+.vanh-gon.on{transform:none;pointer-events:auto}
+.vanh-gon-cung{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.vanh-gon-muc{position:absolute;top:2px;min-height:44px;min-width:44px;padding:0 8px;background:none;border:0;color:rgba(255,255,255,.45);font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;cursor:pointer;transform:rotate(-4deg)}
+.vanh-gon-1{left:50%;transform:translateX(-50%) rotate(0);color:#fff;font-size:14px;top:4px}
+.vanh-gon-0{left:-6px;max-width:30%;overflow:hidden;text-overflow:ellipsis;transform:rotate(6deg)}
+.vanh-gon-2{right:-6px;max-width:30%;overflow:hidden;text-overflow:ellipsis;transform:rotate(-6deg)}
+@media (prefers-reduced-motion:reduce){.vanh-goi-y,.vanh-gon{transition:none}}
+/* ---------- v658 Vé sự kiện (anh Việt chọn A 14/11/2026): thẻ tkr-the, ô ngày thay ảnh ---------- */
+.vsk-ds{margin-top:14px}
+.vsk-the{cursor:default;min-height:132px;align-items:stretch}
+.vsk-ngay{flex:none;width:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px solid var(--line-2);color:var(--fog);font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-style:normal}
+.vsk-ngay i{font-style:normal;font-size:13px;white-space:nowrap}
+.vsk-ngay b{font-family:var(--display,'Vagabond Sans'),var(--sans);font-weight:400;font-size:44px;line-height:1;color:var(--cyan)}
+.vsk-loai{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);font-weight:600}
+.vsk-mo{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.vsk-nut{align-self:flex-start;margin-top:auto;min-height:44px;padding:0 18px;border:1px solid var(--cyan);background:var(--cyan);color:#000;font:600 14px/1 var(--sans);letter-spacing:.06em;cursor:pointer}
+.vsk-nut:disabled{background:none;color:var(--fog-2);border-color:var(--line-2);cursor:not-allowed}
+.vsk-het{opacity:.55}
+.vsk-rong a{color:var(--cyan);text-decoration:underline;display:inline-block;min-height:44px;line-height:44px}
+.vsk-chips button{min-height:44px}
+.vsk-nen *,.vsk-nen{box-sizing:border-box}
+.vsk-nen{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.vsk-sheet{position:relative;width:100%;max-width:560px;max-height:92vh;overflow:auto;background:#0b0d0e;border-top:1px solid var(--cyan);padding:22px 20px calc(22px + env(safe-area-inset-bottom));color:var(--paper)}
+.vsk-sheet h2{font-size:22px;margin:4px 0 2px;line-height:1.25}
+.vsk-sh-ngay{color:var(--fog);font-size:14px;margin:0 0 14px}
+.vsk-dong{position:absolute;right:8px;top:8px;width:44px;height:44px;border:0;background:none;color:var(--fog);font-size:18px;cursor:pointer}
+.vsk-so{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line-2)}
+.vsk-dem{display:flex;align-items:center;gap:14px}
+.vsk-dem button{width:44px;height:44px;border:1px solid var(--line-2);background:none;color:var(--paper);font-size:20px;cursor:pointer}
+.vsk-dem button:disabled{opacity:.35;cursor:not-allowed}
+.vsk-dem b{min-width:24px;text-align:center;font-size:18px}
+.vsk-goi-y{margin:0;color:var(--fog);font-size:13px}
+.vsk-tong{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2);margin:10px 0 14px}
+.vsk-tong b{font-size:20px;color:var(--cyan)}
+.vsk-form{display:grid;gap:10px}
+.vsk-o{display:grid;gap:4px;font-size:13px;color:var(--fog)}
+.vsk-o input{min-height:44px;padding:8px 12px;background:transparent;border:1px solid var(--line-2);color:var(--paper);font:15px var(--sans)}
+.vsk-luu-y{font-size:13px;color:var(--fog);margin:2px 0}
+.vsk-nut-lon{width:100%;min-height:48px;margin-top:4px}
+.vsk-bao{min-height:18px;font-size:13px;color:var(--amber,#db7e2a);margin:0}
+.vsk-xong{text-align:center;padding:10px 0}
+.vsk-ma{display:block;font-size:34px;letter-spacing:.14em;color:var(--cyan);margin:8px 0 12px}
+@media(max-width:600px){.vsk-ngay{width:76px}.vsk-ngay b{font-size:38px}}
+/* Codex #566 vòng 3: chi tiết sự kiện trong sheet chọn vé */
+.vsk-sh-anh{display:block;width:100%;max-height:220px;object-fit:cover;margin:0 0 12px;border:1px solid rgba(255,255,255,.08)}
+.vsk-sh-dia,.vsk-sh-han{color:var(--fog);font-size:14px;margin:0 0 6px;line-height:1.45}
+.vsk-sh-chuyen,.vsk-sh-mon{margin:12px 0 4px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)}
+.vsk-sh-nhan{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);margin:0 0 6px}
+.vsk-sheet .cm-doan{font-size:15px;line-height:1.6;margin:0}
+.vsk-sheet .cm-doc-tiep,.vsk-sheet .cm-mon-them{min-height:44px}

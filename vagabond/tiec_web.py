@@ -16,6 +16,45 @@ from datetime import datetime
 
 TRANG_THAI = ("Chờ xác nhận", "Đã xác nhận", "Đã thanh toán", "Đã hủy")
 VE_MOT_LAN_TOI_DA = 10
+# v658 Vé sự kiện (anh Việt chọn A 14/11/2026): mục Tiệc nâng thành Vé sự kiện,
+# vẫn là đăng ký giữ chỗ, Sales gọi xác nhận và thu tiền. Thêm mã vé, danh sách
+# khách từng sự kiện và nút "Đã vào cửa" trên app cho Quầy, Sales, Marketing.
+# Danh sách vai này trùng tuyệt đối QUYEN_SK trong bep/74-khach-su-kien.js
+# (ca thu_ve_su_kien_658 chốt).
+QUYEN_SK = ("Sales User", "Sales Manager", "System Manager", "VGB - Quản lý cửa hàng", "Marketing", "Giám đốc")
+
+
+def ma_ve(ten):
+    """Mã vé khách đọc ở cửa: 8 ký tự đầu của tên phiếu, chữ hoa. THUẦN.
+    Một nguồn cho lúc đăng ký (trả về web) và màn danh sách khách; phiếu tạo
+    trước v658 chưa có ô ma_ve vẫn ra đúng mã khách đã được báo."""
+    return str(ten or "")[:8].upper()
+
+
+def dong_khach(r):
+    """Một dòng danh sách khách của sự kiện. THUẦN."""
+    huy = r.get("trang_thai") == "Đã hủy"
+    return {"name": r.get("name"), "ma_ve": r.get("ma_ve") or ma_ve(r.get("name")), "ten": r.get("ten") or "",
+            "sdt": r.get("sdt") or "", "so_ve": int(r.get("so_ve") or 0), "trang_thai": r.get("trang_thai") or "",
+            "da_vao": bool(int(r.get("da_vao_cua") or 0)) and not huy, "vao_luc": str(r.get("vao_cua_luc") or "")[:16],
+            "ghi_chu": r.get("ghi_chu") or ""}
+
+
+def tong_khach(ds):
+    """Đếm của một sự kiện: số đăng ký và số vé chưa huỷ, số vé đã vào cửa. THUẦN."""
+    con = [d for d in ds if d["trang_thai"] != "Đã hủy"]
+    return {"so_dk": len(con), "so_ve": sum(d["so_ve"] for d in con),
+            "da_vao": sum(d["so_ve"] for d in con if d["da_vao"])}
+
+
+def ly_do_vao_cua(trang_thai, da_vao, muon):
+    """Đổi dấu "Đã vào cửa" có hợp lệ không. THUẦN. Trả "" là được, "giu" là đã
+    đúng trạng thái (bấm hai lần không đổi gì), còn lại là câu báo."""
+    if trang_thai == "Đã hủy":
+        return "Vé đã huỷ, không đánh dấu vào cửa được."
+    if bool(da_vao) == bool(muon):
+        return "giu"
+    return ""
 
 
 def con_ve(tiec, da_dang_ky):
@@ -159,7 +198,7 @@ def dang_ky(du_lieu, ma_lan_gui):
                        str(frappe.utils.nowdate()))
     except (TypeError, ValueError) as e:
         frappe.throw(str(e))
-    d = frappe.get_doc(dict(nd, doctype=DOCTYPE, name=ten, bam_noi_dung=dau, trang_thai="Chờ xác nhận"))
+    d = frappe.get_doc(dict(nd, doctype=DOCTYPE, name=ten, bam_noi_dung=dau, trang_thai="Chờ xác nhận", ma_ve=ma_ve(ten)))
     d.flags.dang_ky_web = True
     # Như dat_ban.dat: chưa có hàng nội dung web để khoá thì hai lần gửi cùng
     # mã vẫn có thể cùng tới đây; lần sau đâm khoá chính thì trả lại lần trước.
@@ -176,7 +215,7 @@ def dang_ky(du_lieu, ma_lan_gui):
         # db_insert đã thêm thông báo Duplicate Name trước khi ném lỗi.
         del frappe.local.message_log[so_thong_bao:]
         return cu
-    return {"ok": 1, "ma": d.name[:8].upper()}
+    return {"ok": 1, "ma": ma_ve(d.name)}
 
 
 def _da_nhan(ten, dau, khoa=False):
@@ -186,7 +225,7 @@ def _da_nhan(ten, dau, khoa=False):
         return None
     if cu.bam_noi_dung != dau:
         frappe.throw("Đăng ký trước đã được nhận. Tải lại trang để đăng ký thêm.")
-    return {"ok": 1, "ma": cu.name[:8].upper()}
+    return {"ok": 1, "ma": ma_ve(cu.name)}
 
 
 def kiem_phieu(doc):
@@ -198,7 +237,7 @@ def kiem_phieu(doc):
     cu = doc.get_doc_before_save()
     if cu:
         for ten in ("tiec_id", "ten_tiec", "ngay_tiec", "ten", "sdt", "email", "so_ve", "gia_ve", "tong_tien",
-                    "ghi_chu", "bam_noi_dung"):
+                    "ghi_chu", "bam_noi_dung", "ma_ve"):
             if str(cu.get(ten) or "") != str(doc.get(ten) or ""):
                 frappe.throw("Giữ nguyên đăng ký khách đã gửi. Ghi thay đổi vào ghi chú xử lý.")
         chuyen = {"Chờ xác nhận": {"Đã xác nhận", "Đã thanh toán", "Đã hủy"},
@@ -232,3 +271,68 @@ def bao_moi(doc, method=None):
                                kiem="tiec_cho", nguon=doc.name, ma_tin="bh_tiec")
 
 
+
+
+# ---------------------------------------------------------------- v658 app
+
+def _kiem_quyen_sk():
+    if not set(QUYEN_SK) & set(frappe.get_roles()):
+        frappe.throw("Màn này mở cho Quầy, Sales, Marketing và giám đốc.", frappe.PermissionError)
+
+
+COT_KHACH = ["name", "ma_ve", "ten", "sdt", "so_ve", "trang_thai", "da_vao_cua", "vao_cua_luc", "ghi_chu"]
+
+
+@frappe.whitelist()
+def ds_su_kien():
+    """Các sự kiện đang bán hoặc mới diễn ra (14 ngày), kèm số đăng ký và số
+    vé đã vào cửa. Đọc ĐỦ mọi đăng ký (không giới hạn trang): số vé ở cửa
+    phải đúng thật."""
+    _kiem_quyen_sk()
+    from datetime import date, timedelta
+    from vagabond.noi_dung_web import _ban_cong_khai, LOAI_SU_KIEN
+
+    hn = date.fromisoformat(str(frappe.utils.nowdate()))
+    moc = str(hn - timedelta(days=14))
+    sk = [k for k in (_ban_cong_khai().get("khoi") or []) if k.get("loai") == "tiec" and (k.get("bat_dau") or "9999") >= moc]
+    rows = frappe.get_all(DOCTYPE, filters={"tiec_id": ["in", [k["id"] for k in sk] or ["-"]]},
+                          fields=COT_KHACH + ["tiec_id"], limit_page_length=0)
+    theo = {}
+    for r in rows:
+        theo.setdefault(r.get("tiec_id"), []).append(dong_khach(r))
+    ra = []
+    for k in sorted(sk, key=lambda x: (x.get("bat_dau") or "9999", x.get("gio_bat_dau") or "")):
+        ra.append(dict(tong_khach(theo.get(k["id"], [])), id=k["id"], ten=k.get("tieu_de") or "", ngay=k.get("bat_dau") or "",
+                       gio=k.get("gio_bat_dau") or "", loai=LOAI_SU_KIEN.get(k.get("loai_su_kien") or "tiec", "Tiệc"),
+                       tong_cho=int(k.get("so_ve") or 0), hien=bool(k.get("hien"))))
+    return {"hom_nay": str(hn), "su_kien": ra}
+
+
+@frappe.whitelist()
+def khach_su_kien(tiec_id):
+    """Danh sách khách của một sự kiện, đọc đủ mọi đăng ký."""
+    _kiem_quyen_sk()
+    rows = frappe.get_all(DOCTYPE, filters={"tiec_id": str(tiec_id or "")}, fields=COT_KHACH,
+                          order_by="creation asc", limit_page_length=0)
+    ds = [dong_khach(r) for r in rows]
+    return {"khach": ds, "tong": tong_khach(ds)}
+
+
+@frappe.whitelist(methods=["POST"])
+def vao_cua(ten, co=1):
+    """Đánh dấu (hoặc bỏ dấu) "Đã vào cửa" cho một vé. Khoá đúng dòng rồi mới
+    đọc trạng thái (hai máy ở cửa bấm cùng lúc vẫn đúng); bấm hai lần không
+    đổi gì; vé đã huỷ thì không đánh dấu."""
+    _kiem_quyen_sk()
+    muon = str(co) not in ("0", "", "false", "False")
+    r = frappe.db.get_value(DOCTYPE, ten, ["name", "trang_thai", "da_vao_cua"], as_dict=True, for_update=True)
+    if not r:
+        frappe.throw("Không tìm thấy vé này. Tải lại danh sách.")
+    ly = ly_do_vao_cua(r.trang_thai, int(r.da_vao_cua or 0), muon)
+    if ly and ly != "giu":
+        frappe.throw(ly)
+    if not ly:
+        frappe.db.set_value(DOCTYPE, ten, {"da_vao_cua": 1 if muon else 0,
+                                           "vao_cua_luc": frappe.utils.now_datetime() if muon else None})
+    moi = frappe.db.get_value(DOCTYPE, ten, COT_KHACH, as_dict=True)
+    return dong_khach(moi)

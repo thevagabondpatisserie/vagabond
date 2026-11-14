@@ -252,7 +252,10 @@ def _thu_tu():
 		"72-de-xuat-cong-thuc.js",
 		# v657: nhịp hỏi bản app mới và dải Tải lại; không có màn nào, gọi
 		# sdLuuNgay để lưu nháp trước khi tải lại.
-		"73-ban-moi.js"])
+		"73-ban-moi.js",
+		# v658: màn Khách sự kiện chỉ xem danh sách và bấm Đã vào cửa, không có
+		# form lập phiếu nào để lưu nháp.
+		"74-khach-su-kien.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

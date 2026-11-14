@@ -48,7 +48,8 @@ CUA_NGO = {
 		"luu_form_tuyen_dung",
 		# v630: Marketing đổi ảnh thẻ một vị trí tuyển dụng (kiem_quyen Marketing).
 		"doi_anh_tuyen_dung"],
-	"tiec_web.py": ["dang_ky"],
+	# v658 Vé sự kiện: ds_su_kien, khach_su_kien, vao_cua cho màn Khách sự kiện trên app (kiểm vai QUYEN_SK).
+	"tiec_web.py": ["dang_ky", "ds_su_kien", "khach_su_kien", "vao_cua"],
 	# v630 bánh sỉ: san_sang, gui_ma, xac_thuc, thoat, toi, dat, trang_thai_don,
 	# qr_no, dang_ky mở cho khách vãng lai (trần lượt; mọi hàm sau đăng nhập đọc
 	# khách từ số đã xác thực, không nhận mã khách từ trình duyệt). Các hàm màn

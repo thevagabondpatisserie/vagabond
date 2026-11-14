@@ -176,12 +176,12 @@ export const KenhNoi = {
 
 /* ---------- chuyên mục Ưu đãi / Tiệc / Tuyển dụng (chuyen-muc.js) ---------- */
 export function ngayVN() { return new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date()); }
-const anToan = u => typeof u === 'string' && !/[\s\\]/.test(u) && ((u[0] === '/' && u[1] !== '/') || u[0] === '#' || /^https:\/\/[^/@]+(?:\/|$)/.test(u));
+export const anToan = u => typeof u === 'string' && !/[\s\\]/.test(u) && ((u[0] === '/' && u[1] !== '/') || u[0] === '#' || /^https:\/\/[^/@]+(?:\/|$)/.test(u));
 const RE_EMAIL = /^[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-const ngay = s => String(s || '').split('-').reverse().join('/');
+export const ngay = s => String(s || '').split('-').reverse().join('/');
 const gio = s => String(s || '').replace(/^0(\d)/, '$1').replace(':', 'g');
 const tien = s => String(parseInt(s, 10) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' đ';
-const dong = s => String(s || '').split('\n').map(x => x.trim()).filter(Boolean);
+export const dong = s => String(s || '').split('\n').map(x => x.trim()).filter(Boolean);
 export function khachThay(k, homNay) {
   if (!k.hien) return false;
   // v647: banner chỉ hiện trong khoảng ngày, trùng noi_dung_web.trang_thai_muc.
@@ -195,14 +195,14 @@ export function dieuKien(k) {
   if (k.gio_bat_dau && k.gio_ket_thuc) ra.push(t('cm_khung_gio', 'Khung giờ') + ' ' + gio(k.gio_bat_dau) + ' - ' + gio(k.gio_ket_thuc));
   return ra.join(' · ');
 }
-function veVe(k) {
+export function veVe(k) {
   const da = +((ND.ve || {})[k.id] || 0);
   if (!k.so_ve) return {con: null, chu: ''};
   const con = Math.max(0, +k.so_ve - da);
   return {con, chu: con ? t('cm_con_ve', 'Còn {so} vé', {so: con}) : t('cm_het_ve', 'Đã hết vé')};
 }
 const GAP_TU = 420, MON_HIEN = 8;
-const DoanGap = {
+export const DoanGap = {
   props: {chu: String, lop: String},
   data() { return {mo: false}; },
   render() {
@@ -214,7 +214,7 @@ const DoanGap = {
     ]);
   }
 };
-const NhanMon = {
+export const NhanMon = {
   props: {ds: Array},
   data() { return {het: false}; },
   render() {

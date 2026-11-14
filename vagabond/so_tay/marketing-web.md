@@ -58,12 +58,61 @@ Từ khoá: banner, ảnh quảng cáo, banner sinh nhật, đầu trang, giỏ 
 | Máy báo | Cách gỡ |
 |---|---|
 | Tải ảnh máy tính trước khi bật hiện trên web. | Tải ảnh, hoặc tắt Hiện trên web để lưu trước |
-| Chọn chỗ đặt banner: Đầu trang, Giỏ hàng hoặc Đặt xong. | Bấm một chỗ |
+| Chọn chỗ đặt banner: Đầu trang, Giỏ hàng, Đặt xong hoặc Trang thành viên. | Bấm một chỗ |
 
 **Lưu ý**
 - Thay ảnh: bấm Sửa ở banner đó, tải ảnh mới, lưu. Tắt công tắc Hiện trên web là gỡ ngay.
 - Không có ảnh điện thoại thì điện thoại dùng ảnh máy tính, chữ nhỏ khó đọc.
 - Qua ngày kết thúc web tự gỡ. Nội dung quà sinh nhật: việc này do giám đốc quyết.
+
+## Ảnh trang đăng nhập The Vagabond Club
+Từ khoá: the vagabond club, trang thành viên, ảnh khách ăn bánh, ảnh đăng nhập, banner trang thành viên, thay ảnh club
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập website (/bien-tap-web), thẻ Banner | nút + Thêm banner |
+
+Trang đăng nhập The Vagabond Club (/thanh-vien) có hai ô ảnh phía trên: ô lớn bên trái (ảnh dọc khách ăn bánh) và ô nhỏ bên phải (ảnh cận lát bánh). Chưa có ảnh thì hai ô để nền trơn, trang vẫn chạy.
+
+**Trước đây:** trang đăng nhập không có ảnh.
+**Từ nay:** ảnh lấy từ thẻ Banner, chỗ đặt Trang thành viên.
+
+**Bạn cần làm**
+1. Mở Biên tập website, chọn thẻ Banner, bấm nút + Thêm banner.
+2. Ở Chỗ đặt, chọn Trang thành viên.
+3. Banner thứ nhất (đứng trên trong danh sách) là ô lớn: tải ảnh điện thoại khổ dọc, ví dụ 1080 x 1600. Banner thứ hai là ô nhỏ.
+4. Gõ mô tả ảnh (đọc cho người dùng trình đọc màn hình), bấm nút Lưu banner.
+
+**Lưu ý**
+- Chỉ dùng ảnh khách thật đã đồng ý, không dùng ảnh mẫu người lạ.
+- Tắt Hiện trên web là ô ảnh về nền trơn ngay.
+
+## Tạo sự kiện bán vé trên web (Vé sự kiện)
+Từ khoá: vé sự kiện, sự kiện, tiệc, ra mắt món, diễn giả, giá vé, số vé, hạn đăng ký, mã vé
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập website (/bien-tap-web), thẻ Sự kiện | nút + Thêm sự kiện |
+
+**Trước đây:** thẻ Tiệc, web có tab Tiệc.
+**Từ nay:** thẻ đổi tên thành Sự kiện, mỗi sự kiện chọn một Loại sự kiện: Tiệc, Ra mắt món hoặc Diễn giả. Web có tab Vé sự kiện: thẻ ô ngày, giá mỗi vé, số chỗ còn, nút Chọn vé. Khách chọn số vé, giữ chỗ và nhận mã vé; Sales gọi xác nhận và thu tiền như trước.
+
+**Bạn cần làm**
+1. Mở thẻ Sự kiện, bấm + Thêm sự kiện, chọn Loại sự kiện.
+2. Điền ngày, giờ, giá vé, số vé, hạn đăng ký; bật Hiện trên web.
+3. Hết chỗ thì web tự đổi nút thành Hết vé; sự kiện đã qua tự ẩn.
+
+## Thanh mục Vành nghiêng trên trang đặt bánh
+Từ khoá: vành nghiêng, thanh mục, tab trang đặt bánh, vuốt ngang, đổi mục
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách, Marketing | Trang đặt bánh (/banh), dưới dòng ngày | vuốt ngang trên vành |
+
+**Trước đây:** dải tab chữ hoa kéo ngang, khách dễ sót mục.
+**Từ nay:** các mục nằm trên một vành nghiêng. Khách vuốt ngang để đổi mục, chạm thẳng vào mục để chọn; vuốt dọc vẫn cuộn trang. Thứ tự: Có sẵn hôm nay, Đặt bánh trước, Thiết kế riêng, Vé sự kiện, Tại quầy, Ưu đãi, Tuyển dụng; In season tự hiện khi có hàng mùa vụ. Cuộn xuống quá vành thì đầu màn có thanh gọn chỉ mục đang chọn.
+
+**Bạn cần làm:** không cần làm gì. Đổi tên mục ở Trang và chữ như trước.
 
 ## Khách dùng điểm thành viên khi đặt bánh trên web
 Từ khoá: dùng điểm web, trừ điểm online, điểm thành viên, thanh toán bằng điểm, thể lệ thành viên, điểm sắp hết hạn, mua lại, hoàn điểm
