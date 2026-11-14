@@ -107,3 +107,54 @@ def _mot_nguon():
 		la(tep + ": chỗ tự so với grand_total", sai, [])
 	s = (GOC / "ban_hang.py").read_text(encoding="utf-8")
 	dung("cửa ghi sổ gọi _can_ck", "can = _can_ck(si)" in s.split("def _soat_sepay")[1].split("\ndef ")[0])
+
+
+@ca("Codex #567: màn tính tiền (pos_ds_bill) với 100 bill tiền mặt chỉ đọc bảng chia tiền MỘT lượt, không hỏi từng bill; bill chuyển khoản chia đôi vẫn chỉ đòi phần chuyển khoản")
+def _pos_khong_hoi_tung_bill():
+	import sys
+	import types
+	from unittest.mock import patch
+
+	from vagabond import thanh_toan_nhieu as ttn
+
+	hoi = []
+
+	def get_all(dt, filters=None, fields=None, **k):
+		if dt == "Sales Invoice":
+			ds = [D(name="TM-%03d" % i, grand_total=50000, vgb_pt_thanh_toan="Tiền mặt", vgb_ma_tham_chieu="",
+				custom_pancake_display_id="") for i in range(100)]
+			ds.append(D(name="HDB-26-11-02701", grand_total=704000, vgb_pt_thanh_toan="Chuyển khoản",
+				vgb_ma_tham_chieu="", custom_pancake_display_id="97492"))
+			return ds
+		if dt == ttn.DT_DONG:
+			hoi.append(filters.get("parent"))
+			cha = filters.get("parent")
+			ten = cha[1] if isinstance(cha, list) else [cha]
+			if "HDB-26-11-02701" in ten:
+				return [{"parent": "HDB-26-11-02701", "pt": "Chuyển khoản", "so_tien": 684000, "ma_tham_chieu": "", "do_may": 0},
+					{"parent": "HDB-26-11-02701", "pt": "OnePay", "so_tien": 20000, "ma_tham_chieu": "", "do_may": 0}]
+		return []
+
+	fr = NS(get_all=get_all, throw=_nem, log_error=lambda *a, **k: None, get_traceback=lambda: "")
+	g = dict(frappe=fr, flt=lambda x: float(x or 0), _kiem_quyen_ban=lambda: None, _loc_diem_ban=lambda q: {},
+		getdate=lambda x: x, nowdate=lambda: "2026-11-14", cfg=lambda: NS(pancake_shop_id="67355"),
+		_sepay_theo_ma_bill=lambda ma: ({}, []), _sepay_theo_don=lambda shop, ma: {"97492": {"nhan": 684000}},
+		_ma_trung_trong_ngay=lambda ngay, ma: set(), gan_khach_vao_dong=lambda ds: None, _gan_ly_do_treo=lambda ds: None,
+		pancake_nhip=NS(tinh_trang=lambda: {}), ghi_so_dieu_kien=NS(LY_DO={}))
+	ham = nap("ban_hang.py", "pos_ds_bill", g)
+	kho = types.ModuleType("vagabond.tru_kho_bu")
+	kho.gan_trang_thai = lambda ds: None
+	with patch.object(ttn.frappe, "get_all", get_all, create=True), patch.dict(sys.modules, {"vagabond.tru_kho_bu": kho}):
+		kq = ham("TCV", "2026-11-14")
+	la("đọc bảng chia một lượt cho cả ngày", len(hoi), 1)
+	ck = [b for b in kq["bill"] if b.name == "HDB-26-11-02701"][0]
+	la("bill chia đôi: đủ phần chuyển khoản", ck["sepay_du"], 1)
+
+
+@ca("Codex #567 quét theo loại: mọi chỗ gắn số phải chuyển khoản đều gắn cho CẢ danh sách mà vòng lặp sau đó đi qua (không lọc riêng tờ Chuyển khoản), và chuông ghi sổ cũng gắn trước khi xét lý do treo")
+def _gan_ca_danh_sach():
+	s = (GOC / "ban_hang.py").read_text(encoding="utf-8")
+	la("không còn chỗ gắn cho danh sách đã lọc", re.findall(r"_gan_can_ck\(\[", s), [])
+	than = s.split("\ndef bao_dong_ghi_so(")[1].split("\ndef ")[0]
+	dung("chuông ghi sổ gắn trước vòng lặp", "_gan_can_ck(rows)" in than
+		and than.index("_gan_can_ck(rows)") < than.index("_ly_do_treo(r, sepay)"))

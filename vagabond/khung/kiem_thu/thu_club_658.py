@@ -286,7 +286,7 @@ def _():
 	r = subprocess.run(["node", os.path.join(GOC, "vagabond", "khung", "kiem_thu", "hanh_vi", "thanh_vien_658.js")],
 		capture_output=True, text=True, timeout=120)
 	la("chạy xanh", (r.returncode, (r.stderr or "")[-400:], (r.stdout or "")[-800:] if r.returncode else ""), (0, "", ""))
-	dung("đủ 16 ca", "16 ca đạt, 0 ca hỏng" in r.stdout)
+	dung("đủ 17 ca", "17 ca đạt, 0 ca hỏng" in r.stdout)
 
 
 @ca("v658 hoạ tiết lấy nguyên bộ Gạo Muối (không tự vẽ): đúng mã băm tệp gốc trên canvas thiết kế")

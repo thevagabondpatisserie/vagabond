@@ -631,6 +631,7 @@ def _bao_dong():
 		g = dict(frappe=f, cfg=lambda: D(tu_ghi_so_bat=1, tu_ghi_so_quay="TCV", pancake_shop_id="S"),
 			cint=lambda x: int(x or 0), flt=float, _khach_le=lambda: "", _con_nhap=lambda ngay, q: rows,
 			_quay_bat_cfg=lambda c: ["TCV"], _sepay_theo_don=lambda *a: {}, _ly_do_treo=lambda r, s: "san_sang",
+			_gan_can_ck=lambda ds: None,  # v659 Codex #567: chuông gắn số phải chuyển khoản một lượt
 			ghi_so_dieu_kien=NS(ly_do=lambda r, **kw: "chua_ve_tien"), hddt_bu=hddt_bu,
 			now_datetime=lambda: datetime(2026, 10, 17, 23, 20), LY_DO_TREO={"chua_ve_tien": "Chưa về tiền"})
 		with patch.dict(sys.modules, {"vagabond.kenh_zalo": kz}):
