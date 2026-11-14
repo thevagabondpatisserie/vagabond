@@ -195,7 +195,7 @@ export function dieuKien(k) {
   if (k.gio_bat_dau && k.gio_ket_thuc) ra.push(t('cm_khung_gio', 'Khung giờ') + ' ' + gio(k.gio_bat_dau) + ' - ' + gio(k.gio_ket_thuc));
   return ra.join(' · ');
 }
-function veVe(k) {
+export function veVe(k) {
   const da = +((ND.ve || {})[k.id] || 0);
   if (!k.so_ve) return {con: null, chu: ''};
   const con = Math.max(0, +k.so_ve - da);

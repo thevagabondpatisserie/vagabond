@@ -13,19 +13,10 @@ export const MAU = `
 <div id="noi-dung-marketing" data-vgb-vi-tri="dau_trang" :aria-label="t('dat_banh_f4a541343','Lời chào từ chúng tôi')"><khoi-noi-dung vi-tri="dau_trang"/></div>
 <div id="danh-muc-banh" tabindex="-1"></div>
 <p class="ngay-ban" id="ngayBan">{{ ngayBan }}</p>
-<nav class="tabs">
-  <button class="tab mua" :class="{on: tab==='season'}" data-tab="season" id="tabMua" :hidden="!kho.coMua.value" @click="go('season')">{{ t('tab_season','In season') }}</button>
-  <button class="tab store" :class="{on: tab==='store'}" data-tab="store" id="tabStore" :hidden="!S.storeDaTai && !S.storeLoi" @click="go('store')">{{ t('tab_store','Tại quầy') }}</button>
-  <button class="tab" :class="{on: tab==='uu_dai'}" data-tab="uu_dai" @click="go('uu_dai')">{{ t('tab_uu_dai','Ưu đãi') }}</button>
-  <button class="tab" :class="{on: tab==='tiec'}" data-tab="tiec" :hidden="!coTiec" @click="go('tiec')">{{ t('tab_tiec','Tiệc') }}</button>
-  <button class="tab" :class="{on: tab==='tuyen_dung'}" data-tab="tuyen_dung" @click="go('tuyen_dung')">{{ t('tab_tuyen_dung','Tuyển dụng') }}</button>
-  <button class="tab" :class="{on: tab==='today'}" data-tab="today" @click="go('today')">{{ t('tab_today','Có sẵn hôm nay') }}</button>
-  <button class="tab" :class="{on: tab==='order'}" data-tab="order" @click="go('order')">{{ t('tab_order','Đặt bánh trước') }}</button>
-  <button class="tab" :class="{on: tab==='thiet_ke_rieng'}" data-tab="thiet_ke_rieng" :hidden="!coTkr" @click="go('thiet_ke_rieng')">{{ t('tab_thiet_ke_rieng','Thiết kế riêng') }}</button>
-</nav>
+<vanh-nghieng :muc="mucVanh" :dang="tab" @chon="go"/>
 
 <section class="wrap" id="uu_dai" :hidden="tab!=='uu_dai'"><header class="sec-head"><h1 class="h1">{{ t('tab_uu_dai','Ưu đãi') }}</h1></header><chuyen-muc v-if="tab==='uu_dai'" loai="uu_dai"/></section>
-<section class="wrap" id="tiec" :hidden="tab!=='tiec'"><header class="sec-head"><h1 class="h1">{{ t('tab_tiec','Tiệc') }}</h1></header><chuyen-muc v-if="tab==='tiec'" loai="tiec"/></section>
+<section class="wrap" id="tiec" :hidden="tab!=='tiec'"><ve-su-kien v-if="tab==='tiec'"/></section>
 <section class="wrap" id="thiet_ke_rieng" :hidden="tab!=='thiet_ke_rieng'"><thiet-ke-rieng v-if="tab==='thiet_ke_rieng'"/></section>
 <section class="wrap" id="tuyen_dung" :hidden="tab!=='tuyen_dung'"><header class="sec-head"><h1 class="h1">{{ t('tab_tuyen_dung','Tuyển dụng') }}</h1></header><chuyen-muc v-if="tab==='tuyen_dung'" loai="tuyen_dung"/></section>
 

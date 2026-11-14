@@ -6,7 +6,7 @@
      #/            bánh có sẵn hôm nay       #/dat-truoc   đặt bánh trước
      #/banh/<ten>  chi tiết một bánh         #/gio-hang    thông tin đơn
      #/in-season[/<ma>]  hàng mùa vụ         #/in-store    bánh trên tủ quầy
-     #/uu-dai  #/tiec  #/tuyen-dung          ba chuyên mục
+     #/uu-dai  #/ve-su-kien  #/tuyen-dung    ba chuyên mục (#/tiec cũ mở Vé sự kiện)
      #/tuyen-dung/<mã vị trí>                chi tiết một vị trí (v625) */
 import {createApp, computed, watch, nextTick} from '../lib/vue.esm-browser.prod.js';
 import {ND, t, tMon, napNoiDung, laXemThu, telChu, telSo, mxh} from '../kho/chu.js';
@@ -22,6 +22,8 @@ import {ChanTrang, locChinhSach} from './chan-trang.js';
 import {ThietKeRieng, moTacPham, veDanhSach, dsTacPham} from './thiet-ke-rieng.js';
 import {GoiTaiBan, GoiTaiBanNoi} from './goi-tai-ban.js';
 import {dungQuayHien} from './kho-goi-ban.js';
+import {VanhNghieng, xepMuc} from './vanh.js';
+import {VeSuKien, dongSheet as dongSheetVe} from './ve-su-kien.js';
 
 function luuTruAnToan() {
   try { const s = window.sessionStorage; s.getItem('x'); return s; } catch (e) { return null; }
@@ -56,7 +58,7 @@ export function khoiDong(goc = '#app') {
 
   const app = createApp({
     template: MAU,
-    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan, GoiTaiBanNoi},
+    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan, GoiTaiBanNoi, VanhNghieng, VeSuKien},
     setup() {
       const tab = computed(() => S.tab);
       const gioMo = computed(() => S.trang === 'gio');
@@ -64,6 +66,20 @@ export function khoiDong(goc = '#app') {
       /* v630: tab Thiết kế riêng chỉ hiện khi có tác phẩm đang nhận đặt. */
       const coTkr = computed(() => dsTacPham().length > 0);
       const coQuay = computed(() => true);
+      /* v658: các mục của Vành nghiêng = các tab đang hiện, cùng điều kiện ẩn hiện
+         của dải tab cũ (In season, Tại quầy, Thiết kế riêng bật tắt theo dữ liệu),
+         xếp theo thứ tự anh Việt duyệt (vanh.js THU_TU_MUC). */
+      const mucVanh = computed(() => xepMuc([
+        {tab: 'season', nhan: t('tab_season', 'In season'), hien: !!kho.coMua.value, lop: 'mua'},
+        {tab: 'store', nhan: t('tab_store', 'Tại quầy'), hien: !!(S.storeDaTai || S.storeLoi), lop: 'store'},
+        {tab: 'uu_dai', nhan: t('tab_uu_dai', 'Ưu đãi'), hien: true},
+        /* Tab Tiệc nâng thành Vé sự kiện (anh Việt chọn A 14/11/2026): luôn hiện, chưa có sự kiện thì mời theo dõi tiệm. */
+        {tab: 'tiec', nhan: t('tab_ve_su_kien', 'Vé sự kiện'), hien: true, moi: true},
+        {tab: 'tuyen_dung', nhan: t('tab_tuyen_dung', 'Tuyển dụng'), hien: true},
+        {tab: 'today', nhan: t('tab_today', 'Có sẵn hôm nay'), hien: true},
+        {tab: 'order', nhan: t('tab_order', 'Đặt bánh trước'), hien: true},
+        {tab: 'thiet_ke_rieng', nhan: t('tab_thiet_ke_rieng', 'Thiết kế riêng'), hien: coTkr.value},
+      ].filter(m => m.hien)));
       /* v638: tab Tại quầy có bánh trên tủ và đồ uống; chip Tất cả, Bánh trên tủ,
          Đồ uống; mở từ QR một bàn thì chỉ còn quầy của bàn đó (kho-goi-ban.js). */
       const quayHien = computed(() => dungQuayHien(S, kho.goiBan.G, t));
@@ -117,7 +133,7 @@ export function khoiDong(goc = '#app') {
           tinh: m.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)};
       });
       const tienTom = n => kho.T.tienVN(n);
-      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, quayHien, chuongQuay, nhacQr, chinhSach, baoMat,
+      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, chuongQuay, nhacQr, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
         moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh};
@@ -135,7 +151,8 @@ export function khoiDong(goc = '#app') {
     else nav(S.tab === 'order' ? '#/dat-truoc' : '#/', true);
   }
   function go(tab) {
-    if (tab === 'uu_dai' || tab === 'tuyen_dung' || tab === 'tiec') { nav('#/' + tab.replace('_', '-')); window.scrollTo(0, 0); return; }
+    if (tab === 'uu_dai' || tab === 'tuyen_dung') { nav('#/' + tab.replace('_', '-')); window.scrollTo(0, 0); return; }
+    if (tab === 'tiec') { nav('#/ve-su-kien'); window.scrollTo(0, 0); return; }
     if (tab === 'thiet_ke_rieng') { nav('#/thiet-ke-rieng'); window.scrollTo(0, 0); return; }
     nav(tab === 'season' ? '#/in-season' : tab === 'store' ? '#/in-store' : tab === 'order' ? '#/dat-truoc' : '#/');
     window.scrollTo({top: 0, behavior: 'smooth'});
@@ -157,7 +174,9 @@ export function khoiDong(goc = '#app') {
     /* v630: #/thiet-ke-rieng (danh sách) và #/thiet-ke-rieng/<mã tác phẩm>. */
     const mTkr = h.match(/^\/thiet-ke-rieng(?:\/(.+))?$/);
     if (mTkr) { dongHet(); S.tab = 'thiet_ke_rieng'; if (mTkr[1]) moTacPham(decodeURIComponent(mTkr[1])); else veDanhSach(); return; }
-    if (h === '/uu-dai' || h === '/tuyen-dung' || h === '/tiec') { dongHet(); S.tab = h.slice(1).replace('-', '_'); return; }
+    if (h === '/uu-dai' || h === '/tuyen-dung') { dongHet(); S.tab = h.slice(1).replace('-', '_'); return; }
+    /* v658: Vé sự kiện; link #/tiec cũ đã gửi khách vẫn mở đúng tab. */
+    if (h === '/ve-su-kien' || h === '/tiec') { dongHet(); S.tab = 'tiec'; return; }
     if (mBanh) {
       const c = S.CAKES.find(x => kho.T.slug(x.k) === mBanh[1]);
       /* Codex #462: bánh bếp thêm tay chỉ có sau lần nạp tồn đầu. Chưa nạp
@@ -187,6 +206,7 @@ export function khoiDong(goc = '#app') {
     S.tab = /^\/in-season/.test(h) ? 'season' : /^\/in-store/.test(h) ? 'store' : /^\/dat-truoc/.test(h) ? 'order' : 'today';
   }
   function dongHet() {
+    dongSheetVe();
     if (S.trang === 'gio') kho.roiGio();
     S.cur = null; S.dongDangSua = -1; S.muaDangXem = null; S.trang = 'danh_muc';
   }
@@ -253,15 +273,14 @@ export function khoiDong(goc = '#app') {
   watch(() => S.trang, v => { document.body.style.overflow = (v === 'banh' || v === 'mua') ? 'hidden' : ''; });
   watch(() => S.CART.length > 0, co => document.body.classList.toggle('has-bar', co), {immediate: true});
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.trang !== 'danh_muc') navBack(); });
-  /* Thanh tab cuộn ngang: tab đang mở phải lọt vào tầm mắt. */
-  /* v630: tab Thiết kế riêng chỉ hiện sau khi nội dung về, nên theo dõi cả số tác phẩm để link mở thẳng vẫn cuộn tới tab. */
-  watch(() => [S.tab, dsTacPham().length], ([tb]) => nextTick(() => { const n = document.querySelector('.tab[data-tab="' + tb + '"]'); if (n && n.scrollIntoView) try { n.scrollIntoView({block: 'nearest', inline: 'center'}); } catch (e) { /* bỏ qua */ } }), {immediate: true});
+  /* v658: dải tab cuộn ngang đã thay bằng Vành nghiêng (vanh.js), vành tự quay tới mục đang xem. */
   /* Điểm nhận bánh đến từ thẻ Cửa hàng của nội dung web (Codex #453). */
   watch(() => ND.diem_nhan, ds => kho.capNhatDiemNhan(ds));
   /* Trình biên tập chọn khối ưu đãi/tuyển dụng thì mở đúng chuyên mục. */
   window.addEventListener('vgb-xem-thu-chon', e => {
     const nd = e.detail && e.detail.noi_dung, chon = ((nd && nd.khoi) || []).find(k => k.id === e.detail.chon);
-    if (chon && ['uu_dai', 'tuyen_dung', 'tiec'].includes(chon.loai) && location.hash !== '#/' + chon.loai.replace('_', '-')) go(chon.loai);
+    if (chon && ['uu_dai', 'tuyen_dung'].includes(chon.loai) && location.hash !== '#/' + chon.loai.replace('_', '-')) go(chon.loai);
+    if (chon && chon.loai === 'tiec' && location.hash !== '#/ve-su-kien') go('tiec');
     if (chon && chon.loai === 'thiet_ke_rieng' && location.hash !== '#/thiet-ke-rieng/' + encodeURIComponent(chon.id)) nav('#/thiet-ke-rieng/' + encodeURIComponent(chon.id));
   });
 
