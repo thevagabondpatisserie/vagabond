@@ -173,7 +173,10 @@ def _dau_trang():
                       ('www/chinh-sach.html', None), ('www/banh/xong.html', None)):
         s = (GOC / tep).read_text()
         dung(tep + ' logo ảnh đúng mã băm', '/assets/vagabond/web_order/logo-trang.png?v=' + bam in s)
-        dung(tep + ' bỏ logo chữ', 'logo-chu' not in s and 'THE VAGABOND</span>' not in s)
+        # v658: khối chữ THE VAGABOND / CLUB của trang đăng nhập Club là thiết kế anh Việt chốt 14/11/2026,
+        # không phải logo chữ tạm; luật này soát phần đầu trang (logo) như ý ban đầu.
+        dau = s[s.index('<header'):s.index('</header>')] if '<header' in s else s
+        dung(tep + ' bỏ logo chữ', 'logo-chu' not in s and 'THE VAGABOND</span>' not in dau)
         if dang:
             la(tep + ' đánh dấu đúng một trang', s.count('aria-current="page"'), 1)
             dung(tep + ' đánh dấu đúng trang', ('href="%s" aria-current="page"' % dang) in s)
@@ -195,7 +198,9 @@ def _thanh_vien():
         dung('bán kính ngang đủ lớn', float(m.group(5)) >= 4.74)
         dung('bán kính dọc đủ lớn', float(m.group(6)) >= 7.52)
         dung('bỏ viền trắng đáy 6px trên 638px', float(m.group(3)) >= 6 / 638 * 100)
-    dung('không tự vẽ thẻ, vẫn dùng ảnh hạng', 'id="anh-the"' in (GOC / 'www/thanh-vien.html').read_text())
+    # v658 (anh Việt chốt thiết kế The Vagabond Club 14/11/2026): ảnh thẻ hạng thay bằng thẻ hạng
+    # vuốt ngang T1 dựng từ số máy chủ (ca kỹ ở thu_club_658 và hanh_vi/thanh_vien_658.js).
+    dung('thẻ hạng T1 thay ảnh thẻ cũ', 'id="the-le" class="cl-t1"' in (GOC / 'www/thanh-vien.html').read_text())
 
 
 @ca('v597 nhãn mới đều có trong sổ nhãn Editor, không đại từ cũ')

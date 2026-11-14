@@ -290,6 +290,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_banh_menu_652,
 	# v652 điểm thành viên trên web, nhân điểm, thể lệ, hoàn điểm (anh Việt 12/11).
 	thu_diem_web_652,
+	thu_club_658,
 	# v649 màn Lệnh sản xuất: thẻ gọn, câu chặn kiểm kê ghi số phiếu (ảnh anh Việt 11/11).
 	# v655 kho phương án B (bếp xin kho tổng, kho giao thực tế) và đối soát OnePay theo số đơn.
 	thu_doi_soat_onepay_655,
