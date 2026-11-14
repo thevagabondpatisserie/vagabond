@@ -134,6 +134,14 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     dung('dùng trong 30 ngày', g.indexOf('dùng trong 30 ngày.') >= 0 && g.indexOf('15 ngày') < 0);
   });
 
+  await ca('T1 (Codex #566 vòng 2): chương trình Ví quà theo tháng sinh nhật thì ghi chú nói nhận trong tháng, dùng tới hết tháng, không nói số ngày', async function () {
+    var tl = theLe(); tl.qua_sn = Object.assign({}, tl.qua_sn, { lich: 'thang', truoc: 0, han: 0 });
+    var t = await K.dungTrang({ san_sang: SS, toi: toi({ the_le: tl }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    var g = chu(t.tim('the-le').querySelector('.t1-ghi'));
+    dung('nhận trong tháng', g.indexOf('nhận mã trong tháng sinh nhật, dùng tới hết tháng.') >= 0);
+    dung('không ghi số ngày', g.indexOf('trước sinh nhật') < 0 && g.indexOf('dùng trong') < 0);
+  });
+
   await ca('U3: các lần tích sắp theo hạn, lần sắp hết hạn nhất tô sáng kèm Dùng sớm, các lần khác gộp một dòng, tổng đang có, câu 50% đúng nguyên văn', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: toi(), cap_vi_tv: { ok: 1, moi: [] } }, '');
     var u = t.tim('dung-diem');

@@ -11,6 +11,7 @@
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
+import {readFileSync} from 'node:fs';
 import {ND} from '../../../public/web_vue/kho/chu.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
 import {ThietKeRieng, TKR, datMoiTruong, moTacPham, veDanhSach, dsTacPham} from '../../../public/web_vue/banh/thiet-ke-rieng.js';
@@ -96,7 +97,8 @@ await ca('danh sách: thẻ Croquembouche ghi giá từ, số size, số ngày �
   dung('giá từ: ' + s, s.includes('Từ 5.940.000 đ · 3 size'));
   dung('ngày', s.includes('Đặt trước 7 ngày'));
   dung('ảnh repo', tim(the, n => n.the === 'img')[0].props.src === '/assets/vagabond/web_order/croquembouche.jpg');
-  dung('tab có điều kiện', MAU.includes(`data-tab="thiet_ke_rieng" :hidden="!coTkr"`));
+  /* v658: dải tab thay bằng Vành nghiêng; mục Thiết kế riêng hiện theo coTkr ở mucVanh (app.js). */
+  dung('tab có điều kiện', readFileSync(new URL('../../../public/web_vue/banh/app.js', import.meta.url), 'utf8').includes("{tab: 'thiet_ke_rieng', nhan: t('tab_thiet_ke_rieng', 'Thiết kế riêng'), hien: coTkr.value}"));
   ND.khoi = [Object.assign({}, MAY, {hien: false})];
   la('tác phẩm ẩn thì không có trong danh sách', dsTacPham().length, 0);
 });
