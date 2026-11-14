@@ -325,20 +325,52 @@ def bang_hang_moi(hang_ds, ctkm_ds):
 	return ra
 
 
-def qua_sinh_nhat_tu_ctkm(km):
+def ctkm_trong_han(km, hom_nay):
+	"""Chương trình đã tới ngày bắt đầu và chưa qua ngày kết thúc. THUẦN.
+
+	Cùng luật ngày với cửa quầy (khuyen_mai._hop_thoi_gian): trang không kể
+	đặc quyền mà quầy sẽ từ chối (Codex PR #566)."""
+	hn = _ngay(hom_nay)
+	tu, den = _ngay(km.get("tu_ngay")), _ngay(km.get("den_ngay"))
+	if hn and tu and hn < tu:
+		return False
+	if hn and den and hn > den:
+		return False
+	return True
+
+
+def qua_sinh_nhat_tu_ctkm(km, hom_nay, kb):
 	"""Quà sinh nhật đọc từ chương trình kịch bản Zalo Sinh nhật đang dùng. THUẦN.
 
-	Trả {"ten", "nhom", "toi_da", "hang"} khi chương trình bật, hiện web và đặt
-	theo hạng; "nhom", "toi_da" chỉ có khi là tặng trọn một bánh trong một nhóm
-	món (giảm 100% món, có trần). Không đủ thì None: trang không hứa quà."""
+	Trả {"ten", "nhom", "toi_da", "hang", "truoc", "han"} khi kịch bản Zalo Sinh
+	nhật đang BẬT (quà chỉ tới tay khách qua tin này), chương trình bật, hiện
+	web, đặt theo hạng VÀ hôm nay còn phát được mã; "nhom", "toi_da" chỉ có khi
+	là tặng trọn một bánh trong một nhóm món (giảm 100% món, có trần). "truoc"
+	là số ngày gửi trước sinh nhật, "han" là số ngày mã dùng được, đọc từ kịch
+	bản và kẹp theo chương trình bằng đúng cửa cấp mã. Không đủ thì None:
+	trang không hứa quà.
+
+	Có phát được hay không hỏi đúng MỘT cửa: zalo_kich_ban.ctkm_phat_duoc, cửa
+	mà tin sinh nhật và Ví quà (thanh_vien) dùng để cấp mã. Chương trình chưa
+	bắt đầu, đã qua ngày kết thúc, hạn mã đã qua hay không phải mã dùng một lần
+	thì không cấp được, nên trang cũng không hứa (Codex PR #566)."""
+	if not kb or not int(_so(kb.get("bat"))):
+		return None
 	if not km or not int(_so(km.get("bat"))) or not int(_so(km.get("hien_web"))):
+		return None
+	from vagabond.zalo_kich_ban import ctkm_phat_duoc
+
+	hn = _ngay(hom_nay)
+	han, _ = ctkm_phat_duoc(km, hn, kb.get("han_ngay"))
+	if not han:
 		return None
 	if (km.get("doi_tuong") or "") != "Theo hang khach":
 		return None
 	hang = [x.strip().upper() for x in str(km.get("hang_khach") or "").splitlines() if x.strip()]
 	if not hang:
 		return None
-	ra = {"ten": str(km.get("ten") or "").strip(), "nhom": "", "toi_da": 0, "hang": hang}
+	ra = {"ten": str(km.get("ten") or "").strip(), "nhom": "", "toi_da": 0, "hang": hang,
+		"truoc": max(0, int(_so(kb.get("so_ngay")))), "han": max(1, (han - hn).days)}
 	if (km.get("kieu_giam") == "Phan tram" and _so(km.get("gia_tri")) >= 100
 			and km.get("pham_vi") == "Nhom mon chi dinh" and str(km.get("nhom_mon") or "").strip()):
 		ra["nhom"] = str(km.get("nhom_mon")).strip()
@@ -603,13 +635,13 @@ def the_le(khach=None):
 	hang = frappe.get_all("Vagabond Hang Khach", fields=["name", "ten_hang", "thu_tu", "loai", "giam_gia",
 		"tich_diem", "chi_tieu_tu", "so_thang_xet", "bat"], limit_page_length=0)
 	ctkm = frappe.get_all("Vagabond CTKM", filters={"bat": 1, "doi_tuong": "Theo hang khach", "hien_web": 1},
-		fields=["name", "ten", "cach_thuc", "doi_tuong", "hang_khach", "hien_web", "den_ngay"], limit_page_length=0)
+		fields=["name", "ten", "cach_thuc", "doi_tuong", "hang_khach", "hien_web", "tu_ngay", "den_ngay"], limit_page_length=0)
 	hn = _ngay(nowdate())
-	ctkm = [k for k in ctkm if not (k.get("den_ngay") and _ngay(k["den_ngay"]) < hn)]
+	ctkm = [k for k in ctkm if ctkm_trong_han(k, hn)]
 	c = _cd()
 	cd_han = diem_han._cd()
 	bang = bang_the_le(hang, ctkm)
-	ra = {"hang": bang, "hang_moi": bang_hang_moi(hang, ctkm), "qua_sn": _qua_sn(), "lan_tich": None, "luat": {
+	ra = {"hang": bang, "hang_moi": bang_hang_moi(hang, ctkm), "qua_sn": _qua_sn(hn), "lan_tich": None, "luat": {
 		"tran_pt": c["tran_pt"], "toi_thieu": c["bill_toi_thieu"],
 		"han_thang": cd_han["han_thang"] if cd_han["cach"] == "Cuon chieu" else 0,
 		"cach_han": cd_han["cach"], "nhac_ngay": NHAC_TRUOC_NGAY,
@@ -625,18 +657,20 @@ def the_le(khach=None):
 	return ra
 
 
-def _qua_sn():
+def _qua_sn(hn):
 	"""Chương trình quà sinh nhật là chương trình gắn ở kịch bản Zalo Sinh nhật
 	(một nguồn với tin gửi quà). Lỗi đọc thì không hiện quà, trang vẫn chạy."""
 	import frappe
 
 	try:
-		ten = frappe.db.get_value("Vagabond Kich Ban Zalo", KB_SINH_NHAT, "ctkm")
+		kb = frappe.db.get_value("Vagabond Kich Ban Zalo", KB_SINH_NHAT, ["ctkm", "bat", "so_ngay", "han_ngay"], as_dict=True)
+		ten = kb and kb.get("ctkm")
 		if not ten:
 			return None
 		km = frappe.db.get_value("Vagabond CTKM", ten, ["name", "ten", "bat", "hien_web", "doi_tuong", "hang_khach",
-			"kieu_giam", "gia_tri", "pham_vi", "nhom_mon", "giam_toi_da"], as_dict=True)
-		return qua_sinh_nhat_tu_ctkm(km)
+			"kieu_giam", "gia_tri", "pham_vi", "nhom_mon", "giam_toi_da", "cach_ma", "tu_ngay", "den_ngay", "han_ma"],
+			as_dict=True)
+		return qua_sinh_nhat_tu_ctkm(km, hn, kb)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "diem_web: đọc quà sinh nhật")
 		return None
