@@ -325,20 +325,22 @@ body.tv-club:not(.tv-sang) #nut-gui,body.tv-club:not(.tv-sang) #nut-xac-thuc{min
 .tv-club .cl-nut-den[hidden]{display:none}
 /* T1: thẻ hạng vuốt ngang */
 .tv-club .cl-t1{margin-top:40px}
-.tv-club .t1-day{display:flex;gap:12px;overflow-x:auto;margin:20px -20px 0;padding:0 20px 4px;scroll-padding-inline:20px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-.tv-club .t1-the{flex:0 0 250px;min-height:360px;box-sizing:border-box;padding:20px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:12px;scroll-snap-align:start;border:1px solid rgba(255,255,255,.3)}
+.tv-club .t1-day{display:flex;align-items:stretch;gap:12px;overflow-x:auto;margin:20px -20px 0;padding:0 20px 4px;scroll-padding-inline:20px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.tv-club .t1-the{flex:0 0 min(320px,calc(100vw - 64px));min-height:360px;box-sizing:border-box;padding:20px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:12px;scroll-snap-align:start;border:1px solid rgba(255,255,255,.3)}
+/* Thẻ cuối không cuộn được tới mép trái: bám mép phải, nếu không trình duyệt tự bật về thẻ trước (khách AMBASSADOR thấy thẻ VOYAGER). */
+.tv-club .t1-the:last-child{scroll-snap-align:end}
 .tv-club .t1-the .cl-mo14b{right:-40px;top:-40px;width:160px;height:160px;opacity:.35}
 .tv-club .t1-the.la{background:var(--cl);border-color:var(--cl);color:var(--muc)}
 .tv-club .t1-the.la .cl-mo14b{background:var(--muc);opacity:.25}
 .tv-club .t1-the.tiep{border:1px dashed var(--cl)}
-.tv-club .t1-the.moi{background:var(--kem);border-color:var(--kem);color:var(--muc)}
+.tv-club .t1-the.moi-hang{background:var(--kem);border-color:var(--kem);color:var(--muc)}
 .tv-club .t1-the .cl-chip{align-self:flex-start}
-.tv-club .t1-the.la .cl-chip:not(.den),.tv-club .t1-the.moi .cl-chip{border-color:var(--muc)}
+.tv-club .t1-the.la .cl-chip:not(.den),.tv-club .t1-the.moi-hang .cl-chip{border-color:var(--muc)}
 .tv-club .t1-ten{position:relative;margin:0;font:26px 'Vagabond Sans',var(--serif);letter-spacing:.03em;white-space:nowrap}
 .tv-club .t1-dk{position:relative;margin:0;font-size:13px;color:rgba(255,255,255,.6)}
-.tv-club .t1-the.la .t1-dk,.tv-club .t1-the.moi .t1-dk{color:var(--muc)}
+.tv-club .t1-the.la .t1-dk,.tv-club .t1-the.moi-hang .t1-dk{color:var(--muc)}
 .tv-club .t1-so{margin:auto 0 0;font:64px/1 var(--qualy)}
-.tv-club .t1-so small{font-size:15px}
+.tv-club .t1-so small{font-size:15px;display:inline-block;white-space:nowrap}
 .tv-club .t1-cham{display:flex;gap:6px;justify-content:center;margin-top:20px}
 .tv-club .t1-cham span{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.35)}
 .tv-club .t1-cham span.on{width:24px;border-radius:999px;background:var(--cl)}

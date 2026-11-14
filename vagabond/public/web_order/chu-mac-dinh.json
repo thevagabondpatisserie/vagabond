@@ -7154,10 +7154,28 @@
     "mac_dinh": "tối đa {tien},",
     "nhieu_dong": true
   },
-  "tv658_qsn_4": {
-    "ten": "The Vagabond Club: nhận trong tháng sinh nhật.",
+  "tv658_qsn_gui": {
+    "ten": "The Vagabond Club: mã gửi qua Zalo {ngay} trước sinh nhật,",
     "nhom": "thanh_vien",
-    "mac_dinh": "nhận trong tháng sinh nhật.",
+    "mac_dinh": "mã gửi qua Zalo {ngay} trước sinh nhật,",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_gui_dung": {
+    "ten": "The Vagabond Club: mã gửi qua Zalo đúng ngày sinh nhật,",
+    "nhom": "thanh_vien",
+    "mac_dinh": "mã gửi qua Zalo đúng ngày sinh nhật,",
+    "nhieu_dong": true
+  },
+  "tv658_qsn_han": {
+    "ten": "The Vagabond Club: dùng trong {ngay}.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "dùng trong {ngay}.",
+    "nhieu_dong": true
+  },
+  "tv658_ngay": {
+    "ten": "The Vagabond Club: ngày",
+    "nhom": "thanh_vien",
+    "mac_dinh": "ngày",
     "nhieu_dong": true
   },
   "tv658_dung_the_nao": {

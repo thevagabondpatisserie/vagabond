@@ -231,7 +231,7 @@
     ds.forEach((h, i) => {
       const la = !!tenHien && h.ten_hang === tenHien, tiep = !la && !!tenTiep && h.ten_hang === tenTiep;
       if (la) dang = i;
-      const the = tao('article', '', 't1-the' + (la ? ' la' : '') + (tiep ? ' tiep' : '') + (h.moi ? ' moi' : ''));
+      const the = tao('article', '', 't1-the' + (la ? ' la' : '') + (tiep ? ' tiep' : '') + (h.moi ? ' moi-hang' : ''));
       if (!h.moi) the.append(hoaTiet('cl-mo14b'));
       the.append(tao('h3', h.ten_hang || '', 't1-ten'));
       const moc = Number(h.chi_tieu_tu) || 0;
@@ -242,8 +242,9 @@
       else if (tiep && Number(td.con_thieu) > 0) the.append(chip(C('tv658_con', 'Còn {tien}', { tien: dong(td.con_thieu) }), 'vien'));
       const tich = Number(h.tich_diem) || 0, giam = Number(h.giam_gia) || 0;
       const lon = tao('p', '', 't1-so');
-      if (tich > 0) { lon.append(tao('span', pt(tich), 'cum')); lon.append(tao('small', ' ' + C('tv658_tich_diem', 'tích điểm'))); }
-      else if (giam > 0) { lon.append(tao('span', '-' + pt(giam), 'cum')); lon.append(tao('small', ' ' + C('tv658_moi_hd', 'mỗi hoá đơn'))); }
+      /* Chữ đơn vị là một cụm: không vừa thì xuống dòng nguyên cụm, không tách "mỗi hoá / đơn". */
+      if (tich > 0) { lon.append(tao('span', pt(tich), 'cum'), chuTho(' ')); lon.append(tao('small', C('tv658_tich_diem', 'tích điểm'), 'cum')); }
+      else if (giam > 0) { lon.append(tao('span', '-' + pt(giam), 'cum'), chuTho(' ')); lon.append(tao('small', C('tv658_moi_hd', 'mỗi hoá đơn'), 'cum')); }
       the.append(lon);
       const chips = tao('div', '', 'cl-chips');
       const q = quaSn(tl, h.ten_hang);
@@ -264,14 +265,26 @@
       const i = Math.max(0, Math.min(ds.length - 1, Math.round((day.scrollLeft || 0) / rong)));
       Array.prototype.forEach.call(cham.children, (c, j) => { c.className = j === i ? 'on' : ''; });
     };
-    if (dang > 0 && day.scrollTo) { try { day.scrollTo({ left: dang * 262 }); } catch (e) { /* trình duyệt cũ: để nguyên */ } }
+    /* Cuộn tới đúng vị trí thật của thẻ khách (thẻ rộng theo màn), không đoán bề rộng. */
+    const theLa = day.children[dang];
+    /* Đích phải trùng đúng một điểm bám của dải (thẻ thường bám mép trái, thẻ cuối bám mép phải),
+       nếu lệch thì trình duyệt tự bám lại về thẻ khác khi trang cuộn (khách AMBASSADOR thấy thẻ VOYAGER). */
+    if (dang > 0 && theLa && day.scrollTo) {
+      const trai = (theLa.offsetLeft || 0) - 20;
+      const dich = dang === ds.length - 1 ? trai + 20 + (theLa.offsetWidth || 0) - ((day.clientWidth || 0) - 20) : trai;
+      try { day.scrollTo({ left: Math.max(0, dich) }); } catch (e) { /* trình duyệt cũ: để nguyên */ }
+    }
     const q = tl.qua_sn;
     if (q && q.nhom) {
       const g = tao('p', '', 't1-ghi');
       g.append(tao('span', C('tv658_qsn_1', 'Quà sinh nhật:'), 'cum'), chuTho(' '));
       g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_2', '1 bánh nhóm {nhom},'), { nhom: q.nhom }), chuTho(' '));
       if (Number(q.toi_da) > 0) g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_3', 'tối đa {tien},'), { tien: dong(q.toi_da) }), chuTho(' '));
-      g.append(tao('span', C('tv658_qsn_4', 'nhận trong tháng sinh nhật.'), 'cum'));
+      /* Lịch gửi và hạn mã đọc từ kịch bản Zalo Sinh nhật (máy chủ), không cứng trong trang. */
+      const truoc = Number(q.truoc) || 0;
+      g.append(ghepCum(tao('span', '', 'cum'), truoc > 0 ? C('tv658_qsn_gui', 'mã gửi qua Zalo {ngay} trước sinh nhật,')
+        : C('tv658_qsn_gui_dung', 'mã gửi qua Zalo đúng ngày sinh nhật,'), { ngay: truoc + ' ' + C('tv658_ngay', 'ngày') }), chuTho(' '));
+      g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_han', 'dùng trong {ngay}.'), { ngay: (Number(q.han) || 1) + ' ' + C('tv658_ngay', 'ngày') }));
       goc.append(g);
     }
   }
@@ -398,8 +411,10 @@
     tim('hang').textContent = (hang && hang.ten_hang) || (chuWeb("thanh_vien_b44660fa4", "Thành viên Vagabond"));
     const tl = d.the_le || null, lu = (tl && tl.luat) || {}, td = d.tien_do || null;
     veHanhTrinh(tl, hang, td);
-    /* Khối điểm: hạng không dùng điểm (AMBASSADOR, FAMILY, OWNER) thì không mời dùng. */
+    /* Khối điểm: hạng không dùng điểm (AMBASSADOR, FAMILY, OWNER) thì ẩn cả khối,
+       ưu đãi giảm thẳng đã nằm trên thẻ hạng (anh Việt 14/11: khối "0 điểm" vô nghĩa). */
     const dungDuoc = d.diem_dung_duoc !== 0;
+    an(tim('khoi-diem'), !dungDuoc);
     tim('diem').textContent = so(d.diem);
     const dc = tim('diem-chu');
     if (dungDuoc) {
