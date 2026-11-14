@@ -242,6 +242,26 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     bang('khách mới: 20.000đ', chu(t3.tim('moi-gia')), '20.000đ');
   });
 
+  await ca('Codex #567: thẻ Hoàn thiện hồ sơ của khách cũ chỉ hứa BÁNH khi chương trình sinh nhật tặng bánh; ưu đãi giảm giá nói đúng tên ưu đãi; Ví quà theo tháng nói nhận trong tháng, không nói gửi trước; lịch gửi đọc từ máy chủ', async function () {
+    var qua = { mo: 1, uu_dai: 'Giảm 20.000đ', da_nhan: 0, khach_moi: 0 };
+    var thieu = { du: 3, tong: 5, thieu_qua: ['sinh_nhat'] };
+    async function moiChu(qsn) {
+      var tl = theLe(); tl.qua_sn = qsn ? Object.assign({}, tl.qua_sn, qsn) : null;
+      var t = await K.dungTrang({ san_sang: SS, toi: toi({ qua: qua, muc: thieu, the_le: tl }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+      return chu(t.tim('moi-chu'));
+    }
+    var banh = await moiChu({});
+    dung('tặng bánh: nói bánh nhóm, gửi 3 ngày trước', banh.indexOf('1 bánh nhóm Bánh lạnh') >= 0 && banh.indexOf('3 ngày trước sinh nhật') >= 0);
+    var giam = await moiChu({ ten: 'Giảm 15% đơn sinh nhật', nhom: '', toi_da: 0 });
+    dung('giảm giá: không hứa bánh, nói đúng tên ưu đãi', giam.indexOf('bánh') < 0 && giam.indexOf('Giảm 15% đơn sinh nhật') >= 0);
+    var thang = await moiChu({ lich: 'thang', truoc: 0, han: 0 });
+    dung('Ví quà theo tháng: nhận trong tháng, không nói gửi trước', thang.indexOf('trong tháng sinh nhật') >= 0 && thang.indexOf('trước') < 0);
+    var dung_ngay = await moiChu({ truoc: 0, han: 30 });
+    dung('gửi đúng ngày', dung_ngay.indexOf('đúng ngày sinh nhật') >= 0 && dung_ngay.indexOf('trước') < 0);
+    var khong = await moiChu(null);
+    dung('không có chương trình: chỉ lời chúc', khong.indexOf('chúc mừng sinh nhật') >= 0 && khong.indexOf('bánh') < 0);
+  });
+
   await ca('anh Việt 14/11: ô Đơn bánh, Voucher ghi đúng số, không đệm thành "00"', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: toi(), cap_vi_tv: { ok: 1, moi: [] } }, '');
     bang('voucher 0', chu(t.tim('so-vc')), '0');
