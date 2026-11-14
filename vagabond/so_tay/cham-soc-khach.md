@@ -363,6 +363,6 @@ Sau khi đăng nhập, khách thấy:
 - Điểm của bạn: 1 điểm = 1đ, áp dụng thanh toán tối đa 50% giá trị đơn hàng, nút Đặt bánh và dùng điểm.
 - Hạng và quyền lợi: thẻ vuốt ngang từng hạng, gồm AMBASSADOR (do Vagabond mời, giảm 10% mỗi hoá đơn, không tích điểm).
 - Dùng điểm thế nào: mỗi lần tích có hạn 12 tháng riêng, lần sắp hết hạn đứng đầu.
-- Ghi chú quà sinh nhật dưới thẻ hạng: món quà, số tiền tối đa, mã gửi qua Zalo bao nhiêu ngày trước sinh nhật và dùng trong bao nhiêu ngày. Số ngày lấy đúng từ kịch bản Chúc mừng sinh nhật kèm voucher (từ 14/11/2026: gửi trước 3 ngày, mã dùng 15 ngày). Kịch bản tắt hoặc chương trình quà hết hạn thì trang không hứa quà.
+- Ghi chú quà sinh nhật: quà, tiền tối đa, lịch gửi mã. Lịch lấy từ kịch bản Chúc mừng sinh nhật kèm voucher (từ 14/11/2026: gửi trước 3 ngày, mã dùng 15 ngày); chương trình phát vào Ví quà theo tháng sinh nhật thì ghi "nhận mã trong tháng sinh nhật". Kịch bản tắt hay quà hết hạn thì trang không hứa.
 
-**Bạn cần làm:** khách hỏi điểm khi nào hết hạn thì chỉ khối Dùng điểm thế nào. Khách AMBASSADOR không có khối điểm vì hạng này giảm thẳng trên hoá đơn, ưu đãi nằm trên thẻ hạng. Đổi số ngày gửi quà hay hạn mã thì sửa ở kịch bản Zalo, trang thành viên tự đổi theo.
+**Bạn cần làm:** khách hỏi điểm khi nào hết hạn thì chỉ khối Dùng điểm thế nào. Khách AMBASSADOR không có khối điểm vì hạng này giảm thẳng trên hoá đơn, ưu đãi nằm trên thẻ hạng. Đổi lịch gửi quà thì sửa kịch bản Zalo, trang tự đổi.

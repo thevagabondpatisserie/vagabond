@@ -15,6 +15,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 ## v658
 - Trang thành viên The Vagabond Club: hạng, điểm, hạn điểm
 - Ảnh trang đăng nhập The Vagabond Club
+- Tạo sự kiện bán vé trên web (Vé sự kiện)
+- Thanh mục Vành nghiêng trên trang đặt bánh
+- Khách sự kiện: danh sách khách và đánh dấu đã vào cửa
 
 ## v657
 - Đề xuất công thức bánh mới

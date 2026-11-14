@@ -87,6 +87,33 @@ Trang đăng nhập The Vagabond Club (/thanh-vien) có hai ô ảnh phía trên
 - Chỉ dùng ảnh khách thật đã đồng ý, không dùng ảnh mẫu người lạ.
 - Tắt Hiện trên web là ô ảnh về nền trơn ngay.
 
+## Tạo sự kiện bán vé trên web (Vé sự kiện)
+Từ khoá: vé sự kiện, sự kiện, tiệc, ra mắt món, diễn giả, giá vé, số vé, hạn đăng ký, mã vé
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập website (/bien-tap-web), thẻ Sự kiện | nút + Thêm sự kiện |
+
+**Trước đây:** thẻ Tiệc, web có tab Tiệc.
+**Từ nay:** thẻ đổi tên thành Sự kiện, mỗi sự kiện chọn một Loại sự kiện: Tiệc, Ra mắt món hoặc Diễn giả. Web có tab Vé sự kiện: thẻ ô ngày, giá mỗi vé, số chỗ còn, nút Chọn vé. Khách chọn số vé, giữ chỗ và nhận mã vé; Sales gọi xác nhận và thu tiền như trước.
+
+**Bạn cần làm**
+1. Mở thẻ Sự kiện, bấm + Thêm sự kiện, chọn Loại sự kiện.
+2. Điền ngày, giờ, giá vé, số vé, hạn đăng ký; bật Hiện trên web.
+3. Hết chỗ thì web tự đổi nút thành Hết vé; sự kiện đã qua tự ẩn.
+
+## Thanh mục Vành nghiêng trên trang đặt bánh
+Từ khoá: vành nghiêng, thanh mục, tab trang đặt bánh, vuốt ngang, đổi mục
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách, Marketing | Trang đặt bánh (/banh), dưới dòng ngày | vuốt ngang trên vành |
+
+**Trước đây:** dải tab chữ hoa kéo ngang, khách dễ sót mục.
+**Từ nay:** các mục nằm trên một vành nghiêng. Khách vuốt ngang để đổi mục, chạm thẳng vào mục để chọn; vuốt dọc vẫn cuộn trang. Thứ tự: Có sẵn hôm nay, Đặt bánh trước, Thiết kế riêng, Vé sự kiện, Tại quầy, Ưu đãi, Tuyển dụng; In season tự hiện khi có hàng mùa vụ. Cuộn xuống quá vành thì đầu màn có thanh gọn chỉ mục đang chọn.
+
+**Bạn cần làm:** không cần làm gì. Đổi tên mục ở Trang và chữ như trước.
+
 ## Khách dùng điểm thành viên khi đặt bánh trên web
 Từ khoá: dùng điểm web, trừ điểm online, điểm thành viên, thanh toán bằng điểm, thể lệ thành viên, điểm sắp hết hạn, mua lại, hoàn điểm
 
