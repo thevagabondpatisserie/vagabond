@@ -67,3 +67,6 @@
 @media(min-width:900px){.si-main{padding-top:30px}}
 /* Codex #531 f4: nút mở lại QR trong dòng đơn chờ chuyển khoản, không kéo giãn cả hàng. */
 .si-tbl .si-btn2{display:inline-block;width:auto;margin:0;padding:8px 10px;min-height:44px;white-space:nowrap}
+/* Nền quỹ đạo đứng yên trên máy cảm ứng để cuộn mượt (cùng luật trang đặt bánh, 14/11/2026). */
+.sky{contain:strict;transform:translateZ(0)}
+@media (hover:none),(pointer:coarse){.sky .spin{animation:none}}
