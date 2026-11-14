@@ -456,6 +456,7 @@ Ví dụ khách chuyển khoản trước một phần, tới tiệm đưa nốt
 **Lưu ý**
 - Nút này chỉ có ở màn Chi tiết đơn bên Doanh số, màn tính tiền tại quầy chưa có. Bill quầy cần chia thì mở đơn bên Doanh số.
 - Ô Phương thức ngoài tự mang dòng lớn nhất. Màn chốt ca đếm theo từng dòng, chia đúng thì két không lệch.
+- Từ v659: đơn đã chia thì ngân hàng chỉ cần nhận đủ phần Chuyển khoản. Ví dụ chuyển khoản 684.000 + OnePay 20.000: SePay nhận đủ 684.000 là hết chip Chờ tiền về và ghi sổ được, không còn đòi cả tổng đơn.
 
 ## Ghi khoản khách nạp tiền trả trước
 Từ khoá: nạp tiền, trả trước, khách gửi tiền trước, trừ dần, số dư khách, phiếu nạp, sổ trả trước, prepaid, deposit, top up
@@ -731,9 +732,10 @@ Bảng có mã QR. Khách quét, xác minh số qua Zalo, khai tên, ngày sinh,
 | Chương trình quà chào mừng đang tạm dừng. ... | Chương trình Quà chào mừng thành viên đang tắt, báo quản lý |
 | Số của nhân viên Vagabond không nhận quà chào mừng. | Đúng luật |
 | Quý khách điền đủ tên, ngày sinh và đồng ý nhận tin Zalo để nhận quà. | Khách điền đủ ba ô |
+| Quà chào mừng dành cho thành viên mới đăng ký. ... | Đúng luật |
 
 **Lưu ý**
-- Mỗi số điện thoại nhận một lần, cả khách cũ. Mã dùng ngay hoặc trong 7 ngày.
+- Mỗi số nhận một lần, mã dùng trong 7 ngày. Từ v659 chỉ khách mới (hồ sơ dựng trong 7 ngày) được quà này; khách cũ được mời nhận quà sinh nhật.
 - Chương trình Quà chào mừng thành viên máy tự dựng, mặc định BẬT, giảm 20.000đ. Sửa giá trị, ngày, bật tắt ở màn Khuyến mãi như chương trình thường.
 - Giá trị quà, ai được nhận: việc này do giám đốc quyết.
 <!-- kiểm: mã quầy điền sau ?bang= chưa có quy ước (máy nhận chữ và số, tối đa 20 ký tự, ghi vào hồ sơ để biết quà phát ở quầy nào); hỏi quản lý mã của từng quầy -->
@@ -1277,6 +1279,24 @@ Khách trả thẻ OnePay trên web thì máy ghi lên Pancake đúng ô OnePay 
 **Lưu ý**
 - Hoá đơn ERP lấy hình thức theo đơn web (đã thu online) trước, không đoán theo Pancake.
 - Đơn cũ trước bản 645 đã ghi sai: không sửa chứng từ đã ghi sổ, liên hệ kế toán trưởng.
+
+## Đơn web chuyển khoản: Pancake ghi MBBank, máy không ghi thêm
+Từ khoá: chuyển khoản hai lần, trả lại, Trả lại tiền, COD âm, MBBank, tiền chuyển khoản, đơn web chuyển khoản, ghi trùng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales | Đơn trên Pancake, tin Zalo nhóm Bán hàng | Không có, máy tự ghi |
+
+Trước đây: khách chuyển khoản đơn web một lần, Pancake tự ghi dòng MBBank, máy lại ghi thêm ô Tiền chuyển khoản cùng số. Đơn hiện "Trả lại" đúng bằng số khách chuyển, người giao có thể trả tiền nhầm.
+Từ nay (v659): máy đọc dòng MBBank Pancake đã ghi và chỉ ghi phần còn thiếu. Tiền vừa về thì máy chờ 15 phút cho Pancake tự khớp rồi mới kiểm lại.
+
+**Các bước**
+1. Đọc tin Zalo Đơn web đã thanh toán online. Câu "Pancake đang tự ghi khoản chuyển khoản từ ngân hàng" thì không cần làm gì.
+2. Mở đơn trên Pancake, xem khối Thanh toán: tổng dòng MBBank và Tiền chuyển khoản bằng số khách đã trả, Trả lại bằng 0.
+3. Thấy Trả lại khác 0 thì sửa ô Tiền chuyển khoản về đúng phần còn thiếu, giữ nguyên dòng MBBank, rồi báo quản trị hệ thống kèm mã đơn.
+
+**Lưu ý**
+- Bốn đơn đã dính trước v659: 97598, 97666, 97447, 97388. Sales sửa ô Tiền chuyển khoản trên Pancake, không sửa chứng từ đã ghi sổ.
 
 ## Nhận đơn khách gọi món tại bàn qua QR
 Từ khoá: gọi món tại bàn, QR bàn, order tại bàn, chuông gọi nhân viên, khách cần trợ giúp, xin tính tiền, in QR bàn, table order
