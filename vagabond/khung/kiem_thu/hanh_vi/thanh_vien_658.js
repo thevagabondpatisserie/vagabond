@@ -227,6 +227,27 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     dung('ẩn nút đăng ký', K.an(g.tim('nut-dang-ky')));
   });
 
+  await ca('anh Việt 14/11: khách CŨ thiếu hồ sơ thì thẻ Hoàn thiện hồ sơ mời QUÀ SINH NHẬT, không hứa 20.000đ, không nút Nhận voucher; hồ sơ đủ thì ẩn thẻ; khách MỚI vẫn thấy 20.000đ', async function () {
+    var qua = { mo: 1, uu_dai: 'Giảm 20.000đ', han: '21/11/2026', so_ngay: 7, da_nhan: 0, khach_moi: 0 };
+    var thieu = { du: 3, tong: 5, thieu_qua: ['sinh_nhat', 'dong_y'] };
+    var t = await K.dungTrang({ san_sang: SS, toi: toi({ qua: qua, muc: thieu, hang: { ten_hang: 'AMBASSADOR', giam_gia: 10, tich_diem: 0 }, diem_dung_duoc: 0 }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    var the = t.tim('moi-ho-so');
+    dung('thẻ hiện', !K.an(the));
+    bang('chữ lớn', chu(t.tim('moi-gia')), 'Quà sinh nhật');
+    dung('mời quà sinh nhật, không 20.000đ', /quà sinh nhật/.test(chu(t.tim('moi-chu'))) && !/20\.000/.test(chu(the)));
+    dung('không nút Nhận voucher', K.an(t.tim('nut-moi-nhan')));
+    var t2 = await K.dungTrang({ san_sang: SS, toi: toi({ qua: qua, muc: { du: 5, tong: 5, thieu_qua: [] } }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    dung('khách cũ hồ sơ đủ: ẩn thẻ', K.an(t2.tim('moi-ho-so')));
+    var t3 = await K.dungTrang({ san_sang: SS, toi: toi({ qua: Object.assign({}, qua, { khach_moi: 1 }), muc: thieu }), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    bang('khách mới: 20.000đ', chu(t3.tim('moi-gia')), '20.000đ');
+  });
+
+  await ca('anh Việt 14/11: ô Đơn bánh, Voucher ghi đúng số, không đệm thành "00"', async function () {
+    var t = await K.dungTrang({ san_sang: SS, toi: toi(), cap_vi_tv: { ok: 1, moi: [] } }, '');
+    bang('voucher 0', chu(t.tim('so-vc')), '0');
+    bang('đơn 0', chu(t.tim('so-don')), '0');
+  });
+
   console.log('Bo ca kiem HANH VI v658 (The Vagabond Club: dang nhap L3 + K1, J1c, T1, U3)');
   ket.loi.forEach(function (l) { console.log('  HONG ' + l); });
   console.log(ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng, tổng ' + (ket.dat + ket.hong) + ' ca.');

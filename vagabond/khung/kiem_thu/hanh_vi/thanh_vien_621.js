@@ -52,7 +52,8 @@ function hoSoDu(them) {
     /* v658: thẻ ảnh hạng và thanh tiến độ cũ thay bằng khối Hành trình hạng (J1c), kiểm kỹ ở thanh_vien_658.js. */
     bang('thanh tiến độ 68%', t.tim('ht-thanh').style.width, '68%');
     dung('còn thiếu để lên hạng', chuOf(t.tim('ht-chips')).indexOf('Còn ' + (6420000).toLocaleString('vi-VN') + 'đ') >= 0 && chuOf(t.tim('ht-chips')).indexOf('Vào vòng VAGABONDER') >= 0);
-    bang('ba con số', [chuOf(t.tim('so-don')), chuOf(t.tim('so-vc')), chuOf(t.tim('so-hs'))], ['01', '01', '4/5']);
+    /* Anh Việt 14/11/2026: không đệm số 0 ("00" trông như lỗi chữ). */
+    bang('ba con số', [chuOf(t.tim('so-don')), chuOf(t.tim('so-vc')), chuOf(t.tim('so-hs'))], ['1', '1', '4/5']);
     dung('đã nhận quà: không có khung mời', K.an(t.tim('moi-ho-so')));
     bang('mã thành viên trên thanh', chuOf(t.tim('vach-phai')), 'Mã KL0412');
     dung('ảnh đại diện mặc định là hình bánh đen trắng', t.tim('av-chinh').classList.contains('xam') && /anh-bia\.png/.test(t.tim('av-chinh').style.backgroundImage));
