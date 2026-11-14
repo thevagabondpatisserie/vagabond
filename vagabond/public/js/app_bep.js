@@ -73565,13 +73565,24 @@ function banMoiDai() {
   d.id = 'vgbBanMoi';
   d.setAttribute('role', 'status');
   d.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#fff7ed;' +
-    'border-bottom:1px solid #fdba74;padding:8px 12px;display:flex;gap:10px;align-items:center;' +
+    'border-bottom:1px solid #fdba74;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;display:flex;gap:10px;align-items:center;' +
     'font-size:14px;line-height:1.35;color:#7c2d12;box-shadow:0 2px 8px rgba(0,0,0,.08)');
   d.innerHTML = '<div style="flex:1;min-width:0">Hệ thống đã có bản app mới. Lưu xong việc đang làm rồi bấm Tải lại để dùng bản mới.</div>' +
     '<button type="button" id="vgbBanMoiTai" style="min-height:44px;min-width:96px;padding:0 14px;border:0;border-radius:10px;' +
     'background:#ea580c;color:#fff;font-size:15px;font-weight:700">🔄 Tải lại</button>';
   document.body.appendChild(d);
   document.getElementById('vgbBanMoiTai').onclick = banMoiTaiLai;
+  banMoiChua();
+  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('resize', banMoiChua);
+}
+
+/* Codex #565: dải nằm ở top:0 trên cả khung app (#vgb là position:fixed;
+   inset:0), che mất thanh tiêu đề với nút Quay lại, Trang chủ. Đẩy khung app
+   xuống đúng bằng chiều cao dải để mọi nút vẫn bấm được trong lúc dải hiện. */
+function banMoiChua() {
+  var d = document.getElementById('vgbBanMoi'), k = document.getElementById('vgb');
+  if (!d || !k) return;
+  k.style.top = (d.offsetHeight || 64) + 'px';
 }
 
 /* Quyết định sau khi biết số bản máy chủ. Trả về việc đã làm, để kiểm thử. */
