@@ -12,6 +12,10 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v658
+- Trang thành viên The Vagabond Club: hạng, điểm, hạn điểm
+- Ảnh trang đăng nhập The Vagabond Club
+
 ## v657
 - Đề xuất công thức bánh mới
 - Kế toán lên mã và ghi sổ phiếu đề xuất
