@@ -84,7 +84,7 @@ def execute(filters=None):
 				r = {"item_code": m.name, "item_name": m.item_name, "item_group": m.item_group,
 					"brand": m.brand, "stock_uom": m.stock_uom, "ton": float(ton.get(m.name) or 0)}
 				dong.append(r)
-			r["ly_do"] = "Tài sản/dịch vụ đã có sổ kho; Khải cần xử lý trước khi bật cờ."
+			r["ly_do"] = "Tài sản/dịch vụ đã có sổ kho; kế toán giá thành cần xử lý trước khi bật cờ."
 	for r in dong:
 		r.setdefault("ly_do", "Chưa có tài khoản tồn kho cho công ty đã chọn.")
 	if not dong:

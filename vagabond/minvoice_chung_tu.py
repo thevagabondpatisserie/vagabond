@@ -764,7 +764,7 @@ TRUONG_MOI = {
 def _kiem_quyen(viec="xem hoá đơn điện tử chưa thành chứng từ"):
 	if not QUYEN & set(frappe.get_roles()):
 		frappe.throw(
-			"Tài khoản của bạn không có quyền %s. Nhờ chị Dung hoặc anh Việt "
+			"Tài khoản của bạn không có quyền %s. Nhờ kế toán trưởng hoặc quản trị hệ thống "
 			"chạy giúp." % viec
 		)
 
@@ -1819,7 +1819,7 @@ def canh_bao_tac_nhip():
 				"Nhịp dựng chứng từ đang tắc: %s hoá đơn điện tử đầu vào xếp hàng mà %s tiếng nay hệ "
 				"không dựng thêm được chứng từ nào." % (cho, int(gio)),
 				"Mở màn Hoá đơn mua hàng trên Desk, bấm Đồng bộ M-Invoice. Vẫn không nhúc nhích thì "
-				"báo anh Việt, nhiều khả năng nhịp tự động đã tắt.",
+				"báo quản trị hệ thống, nhiều khả năng nhịp tự động đã tắt.",
 			]
 		if cint(trung.get("so_to_thua")):
 			dong += [

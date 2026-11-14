@@ -432,7 +432,7 @@ def doc_ho_so(ten):
 			khoi = {"type": "image", "source": {"type": "base64", "media_type": kieu, "data": base64.b64encode(du_lieu).decode()}}
 		he, hoi = dung_loi_dan(vt, cho_ai, bool(khoi), frappe.utils.nowdate())
 		if not _giu_luot(ten):
-			_ghi(ten, {"ai_trang_thai": TT_LOI, "ai_loi": "Đã dùng đủ %d lượt đọc AI trong tháng, chờ tháng sau hoặc báo anh Việt nâng trần." % TRAN_THANG})
+			_ghi(ten, {"ai_trang_thai": TT_LOI, "ai_loi": "Đã dùng đủ %d lượt đọc AI trong tháng, chờ tháng sau hoặc báo quản trị hệ thống nâng trần." % TRAN_THANG})
 			return
 		kq = doc_ket_qua(_goi(khoa, mo_hinh, he, hoi, khoi), bool(khoi))
 		anh = _lay_anh(du_lieu, kieu, doc_pdf, kq["anh"]) if khoi else None

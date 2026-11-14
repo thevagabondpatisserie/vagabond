@@ -450,3 +450,5 @@ vagabond.patches.v654_lich_chi_tien_nha
 vagabond.patches.dong_bo_cau_truc #v655
 vagabond.patches.v655_doi_chieu_lai_tien_ban
 vagabond.patches.dong_bo_cau_truc #v656
+vagabond.patches.dong_bo_cau_truc #v657
+vagabond.patches.v657_doi_ten_cho_ke_toan

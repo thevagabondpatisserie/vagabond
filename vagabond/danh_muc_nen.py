@@ -154,7 +154,7 @@ SUA_KHACH = XEM_KHACH
 
 LOI_CHUNG = (
 	"Phân hệ Danh mục chỉ mở cho Kế toán, Thu mua và Giám đốc, vì đây là dữ "
-	"liệu nền của cả hệ thống. Cần xem thì báo anh Việt cấp thêm chức vụ "
+	"liệu nền của cả hệ thống. Cần xem thì báo quản trị hệ thống cấp thêm chức vụ "
 	"trong màn Quản lý người dùng."
 )
 
@@ -922,7 +922,7 @@ BANG_TAI_KHOAN = khai.bang(
 		quyen=SUA_TIEN,
 		ghi_chu=(
 			"Thêm một tài khoản là sửa hệ thống tài khoản của cả công ty. Chỉ "
-			"thêm khi chị Dung đã chốt số hiệu và tài khoản cha."
+			"thêm khi kế toán trưởng đã chốt số hiệu và tài khoản cha."
 		),
 		o=[
 			khai.o("account_name", "Tên tài khoản", "chu", bat_buoc=1),

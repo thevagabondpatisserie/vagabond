@@ -148,7 +148,7 @@ def _ma_ten_viec():
 	la("tên cấp 2 size 16", x.ten_cap("cap2", "Bánh Ổ Very Berry", "16"), ("BTP Cấp 2 Bánh Ổ Very Berry", "size 16cm"))
 	la("tên cấp 1 slice", x.ten_cap("cap1", "Pinkpom", "Slice"), ("BTP Cấp 1 Pinkpom", "Slice"))
 	la("ghép tên như Desk", x.ghep_ten("BTP Cấp 2 Pinkpom", "size 16cm", ""), "BTP Cấp 2 Pinkpom, size 16cm")
-	la("Khải thấy Chờ Khải và Đã tạo nháp",
+	la("Khải thấy Chờ Kế toán và Đã tạo nháp",
 		[x.ma_viec(t, True, False) for t in (x.TT_NHAP, x.TT_CHO, x.TT_DA_TAO, x.TT_TRA, x.TT_XONG)], [False, True, True, False, False])
 	la("người đề xuất chỉ thấy phiếu mình bị trả lại",
 		[x.ma_viec(t, False, True) for t in (x.TT_NHAP, x.TT_CHO, x.TT_TRA)], [False, False, True])

@@ -917,7 +917,7 @@ function miVe() {
     nB.style.cssText = 'font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
       'border-radius:9px;padding:10px 12px;margin:10px 12px;line-height:1.6';
     nB.innerHTML = 'Tài khoản của anh chị <b>chỉ xem</b> được cấu hình máy in. ' +
-      'Nhờ quản lý, kế toán hoặc anh Việt gán giúp một lần, gán xong thì cả tiệm dùng chung.';
+      'Nhờ quản lý, kế toán hoặc quản trị hệ thống gán giúp một lần, gán xong thì cả tiệm dùng chung.';
     b.insertBefore(nB, b.firstChild);
   }
   var nThu = document.getElementById('ctThu');
@@ -1107,7 +1107,7 @@ function scrMayInSua() {
        luu setting ca". Nay cham vao la duoc noi thang ai gan giup duoc. */
     if (!miSuaDuoc) {
       return baoTin('Tài khoản của anh chị chỉ xem được cấu hình máy in, ' +
-        'chưa sửa được. Nhờ quản lý, kế toán hoặc anh Việt mở màn này gán ' +
+        'chưa sửa được. Nhờ quản lý, kế toán hoặc quản trị hệ thống mở màn này gán ' +
         'giúp một lần, gán xong thì cả tiệm dùng chung.', 'Chưa sửa được');
     }
     /* Cham mot chip la co thay doi chi nam trong bo nho, chua xuong may

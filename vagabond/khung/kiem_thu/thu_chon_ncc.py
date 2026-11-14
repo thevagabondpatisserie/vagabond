@@ -336,7 +336,7 @@ def _bao_loi_noi_viec_lam_tiep():
 	k = j.index("function hsMoChonNcc(")
 	than2 = j[k:j.index("\n/* ==================== XEM VÌ SAO THIẾU", k)]
 	dung("ô chọn trống cũng chỉ việc làm tiếp",
-		"mở lại màn này một lần" in than2 and "nhờ chị Dung" in than2)
+		"mở lại màn này một lần" in than2 and "nhờ Kế toán" in than2)
 
 
 @ca("#198 vòng hai: tra được tờ nằm NGOÀI 500 tờ máy chủ bày ra")

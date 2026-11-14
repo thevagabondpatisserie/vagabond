@@ -1237,7 +1237,7 @@ def _kiem_gd_hoan_ung(dong, nguoi_ung):
 	if cint(kq.get("doan")):
 		frappe.throw(
 			"Người được hoàn ứng chưa gắn tài khoản ngân hàng nào vào quỹ tạm ứng, nên chưa nối được "
-			"giao dịch sao kê. Nhờ chị Dung gắn tài khoản của người này vào 1411 bên Next, hoặc bỏ nối sao kê.",
+			"giao dịch sao kê. Nhờ Kế toán gắn tài khoản của người này vào 1411 trên Desk, hoặc bỏ nối sao kê.",
 			title="Giao dịch sao kê chưa đúng")
 	# Chỉ tài khoản thật sự đứng tên người này (chủ là đúng mã nhà cung cấp).
 	tk = {x["ma"] for x in kq.get("tk") or [] if (x.get("nguoi") or "") == nguoi}
@@ -1498,7 +1498,7 @@ def _sinh_hoa_don_hoan_ung(doc):
 	for mon in (MON_CO_VAT, MON_KHONG_VAT):
 		if not frappe.db.exists("Item", mon):
 			frappe.throw(
-				"Chưa có mã món <b>%s</b> trong hệ. Đây là mã dùng cho hàng mua lẻ không nhập kho; nhờ chị Dung tạo trước rồi duyệt lại." % mon
+				"Chưa có mã món <b>%s</b> trong hệ. Đây là mã dùng cho hàng mua lẻ không nhập kho; nhờ Kế toán tạo trước rồi duyệt lại." % mon
 			)
 
 	cong_ty = frappe.db.get_single_value("Global Defaults", "default_company")
@@ -1565,7 +1565,7 @@ def _sinh_hoa_don_hoan_ung(doc):
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: sinh hoa don hoan ung %s" % doc.name)
 		frappe.throw(
 			"Không lập được hoá đơn mua cho hồ sơ hoàn ứng %s. Hồ sơ giữ nguyên "
-			"ở bước chờ giám đốc, chưa có gì vào sổ. Nhờ chị Dung xem lại mã món "
+			"ở bước chờ giám đốc, chưa có gì vào sổ. Nhờ Kế toán xem lại mã món "
 			"%s / %s và kỳ kế toán rồi duyệt lại." % (doc.name, MON_CO_VAT, MON_KHONG_VAT)
 		)
 	frappe.db.commit()

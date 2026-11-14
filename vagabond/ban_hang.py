@@ -2960,7 +2960,7 @@ def doi_ngay_hoa_don(si_name, ngay=None, otp=None, ly_do=""):
 	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
 		frappe.throw(
 			"Chỉ quản lý hoặc kế toán mới được đổi ngày hoá đơn. "
-			"Bạn cần đổi thì báo chị Dung."
+			"Cần đổi thì báo Kế toán."
 		)
 	si = frappe.get_doc("Sales Invoice", si_name)
 	moi = _kiem_ngay_ban_nhap(si, ngay or nowdate())
@@ -6358,7 +6358,7 @@ def _gan_tien_vao(name=None, gd=None, tu_bill=None):
 	if not RE_MA_NGAN_HANG.fullmatch(tc):
 		frappe.throw(
 			"Dòng sao kê này không có số tham chiếu ngân hàng nên máy không "
-			"gắn được. Báo anh Việt kiểm lại dòng %s." % ma_gd
+			"gắn được. Báo quản trị hệ thống kiểm lại dòng %s." % ma_gd
 		)
 	# Khong de hai bill cung om mot so tham chieu.
 	trung = frappe.get_all(

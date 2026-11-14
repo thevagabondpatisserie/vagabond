@@ -652,7 +652,7 @@ def co_quyen():
 
 def _kiem_quyen():
 	if not co_quyen():
-		frappe.throw("Phân hệ Tuyển dụng chỉ mở cho quản lý các bộ phận và giám đốc. Cần dùng thì báo anh Việt "
+		frappe.throw("Phân hệ Tuyển dụng chỉ mở cho quản lý các bộ phận và giám đốc. Cần dùng thì báo quản trị hệ thống "
 			"gán chức vụ VGB - Tuyển dụng trong màn Quản lý người dùng.", frappe.PermissionError)
 
 

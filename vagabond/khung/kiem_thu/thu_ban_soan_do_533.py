@@ -249,7 +249,10 @@ def _thu_tu():
 		"71-du-chi.js",
 		# v656: Phiếu đề xuất công thức; form lập phiếu duy nhất scrDxSua được bọc
 		# ở danh sách trên.
-		"72-de-xuat-cong-thuc.js"])
+		"72-de-xuat-cong-thuc.js",
+		# v657: nhịp hỏi bản app mới và dải Tải lại; không có màn nào, gọi
+		# sdLuuNgay để lưu nháp trước khi tải lại.
+		"73-ban-moi.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

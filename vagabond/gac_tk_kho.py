@@ -106,7 +106,7 @@ def loi_thanh_pham(idx, ten_mon, ten_kho, tk_kho):
 		"tài khoản %s, là tài khoản THÀNH PHẨM dành cho bánh do bếp làm ra. "
 		"Hàng mua của nhà cung cấp không được vào tài khoản này.<br><br>"
 		"Cách xử lý: chọn một kho vật tư để nhận hàng, ví dụ Kho tổng 307. "
-		"Nếu hàng bắt buộc phải nhập đúng kho này thì nhờ chị Dung sửa ô "
+		"Nếu hàng bắt buộc phải nhập đúng kho này thì nhờ Kế toán sửa ô "
 		"Tài khoản của kho %s sang tài khoản 152 hoặc 153 rồi nhập lại."
 		% (idx, ten_mon, ten_kho, tk_kho, ten_kho)
 	)

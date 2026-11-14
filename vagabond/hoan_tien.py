@@ -1208,7 +1208,7 @@ def _kiem_huy_nhap_duoc(si):
 	if so_hddt:
 		frappe.throw(
 			"Đơn %s còn ở dạng nháp mà đã mang số hoá đơn điện tử %s. Đây là "
-			"trạng thái bất thường, máy không tự xử. Báo anh Việt trước khi làm "
+			"trạng thái bất thường, hệ thống không tự xử. Báo quản trị hệ thống trước khi làm "
 			"gì tiếp." % (si.name, so_hddt)
 		)
 	ho = frappe.db.get_value(
@@ -2370,7 +2370,7 @@ def _sinh_va_ghi_loi(ten):
 				DT, ten, "loi_sinh_ct",
 				("Tiền đã ra và đã khớp sao kê, nhưng máy chưa sinh được "
 				 "chứng từ: %s. Nhờ kế toán bấm nút Sinh lại chứng từ trên phiếu "
-				 "này, còn không được thì báo anh Việt."
+				 "này, còn không được thì báo quản trị hệ thống."
 				 % ly_do[:300]),
 			)
 			frappe.db.commit()
@@ -3505,7 +3505,7 @@ def tu_choi(ho_so, ly_do=None):
 	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw(
-			"Từ chối hoàn tiền là quyền của Kế toán và Giám đốc. Anh chị nhờ chị Dung hoặc anh Việt bấm giúp, hoặc báo bộ phận kỹ thuật cấp thêm chức vụ trong màn Quản lý người dùng."
+			"Từ chối hoàn tiền là quyền của Kế toán và Giám đốc. Nhờ kế toán trưởng hoặc giám đốc bấm giúp, hoặc báo quản trị hệ thống cấp thêm chức vụ trong màn Quản lý người dùng."
 		)
 	ly_do = (ly_do or "").strip()
 	if len(ly_do) < 5:
@@ -3714,7 +3714,7 @@ def ruot_tep_b64(f, co="lon", ten_lui="uy-nhiem-chi"):
 		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc ruot tep")
 		frappe.throw(
 			"Tệp %s có trong sổ nhưng máy đọc không ra nội dung. Có thể tệp đã "
-			"bị gỡ trên Desk; nhờ chị Dung đính lại giúp." % (ten_f or ten_lui)
+			"bị gỡ trên Desk; nhờ Kế toán đính lại giúp." % (ten_f or ten_lui)
 		)
 	if isinstance(ruot, str):
 		ruot = ruot.encode("utf-8")
@@ -3769,8 +3769,8 @@ def dinh_unc(ho_so=None, ten=None, noi_dung=None):
 	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw(
-			"Chỉ kế toán hoặc giám đốc mới đính uỷ nhiệm chi được. Nhờ chị Dung "
-			"đính giúp rồi anh chị tải về gửi khách."
+			"Chỉ kế toán hoặc giám đốc mới đính uỷ nhiệm chi được. Nhờ Kế toán "
+			"đính giúp rồi tải về gửi khách."
 		)
 	if not frappe.db.exists(DT, ho_so):
 		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
@@ -3859,7 +3859,7 @@ def go_unc(ho_so=None, tep=None):
 	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw(
-			"Chỉ kế toán hoặc giám đốc mới gỡ được uỷ nhiệm chi. Nhờ chị Dung gỡ giúp."
+			"Chỉ kế toán hoặc giám đốc mới gỡ được uỷ nhiệm chi. Nhờ Kế toán gỡ giúp."
 		)
 	if not frappe.db.exists(DT, ho_so):
 		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)

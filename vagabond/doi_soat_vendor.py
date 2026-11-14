@@ -140,7 +140,7 @@ def _chan(ghi=False):
 	from vagabond.viec_can_lam import VAI_GIAM_DOC, VAI_KE_TOAN
 
 	if not (set(frappe.get_roles()) & (VAI_KE_TOAN | VAI_GIAM_DOC)):
-		frappe.throw("Đối soát nhà cung cấp chỉ mở cho Kế toán và Giám đốc. Cần dùng thì báo anh Việt cấp chức vụ.",
+		frappe.throw("Đối soát nhà cung cấp chỉ mở cho Kế toán và Giám đốc. Cần dùng thì báo quản trị hệ thống cấp chức vụ.",
 			frappe.PermissionError)
 
 
@@ -195,7 +195,7 @@ def cong_ty_nhan(gui, duoc):
 	duoc = [c for c in duoc if c]
 	gui = (gui or "").strip()
 	if not duoc:
-		return "", "Tài khoản chưa được cấp pháp nhân nào. Báo anh Việt cấp quyền pháp nhân.", True
+		return "", "Tài khoản chưa được cấp pháp nhân nào. Báo quản trị hệ thống cấp quyền pháp nhân.", True
 	if gui:
 		if gui in duoc:
 			return gui, "", False

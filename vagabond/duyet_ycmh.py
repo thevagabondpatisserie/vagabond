@@ -160,7 +160,7 @@ def _kiem_quyen():
 	if not QUYEN_DUYET & set(frappe.get_roles()):
 		frappe.throw(
 			"Duyệt yêu cầu mua hàng chỉ mở cho Thu mua, Kế toán và Giám đốc. "
-			"Cần vào đây thì báo anh Việt cấp thêm chức vụ Thu mua trong màn "
+			"Cần vào đây thì báo quản trị hệ thống cấp thêm chức vụ Thu mua trong màn "
 			"Quản lý người dùng."
 		)
 

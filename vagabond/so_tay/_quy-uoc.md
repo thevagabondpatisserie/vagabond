@@ -74,8 +74,12 @@ không ra mục.
   trợ lý phải nói với người hỏi rằng điểm đó chưa được xác minh. Kiểm xong thì
   XOÁ chú thích đó. Chú thích HTML khác bị bỏ khi nạp.
 - Không ghi tên hàm, tên tệp, tên trường máy.
+- Không gọi tên người, chỉ gọi bộ phận hoặc chức danh: Kế toán, kế toán
+  trưởng, Thu mua, Bếp, giám đốc (việc chính sách), quản trị hệ thống (cấp
+  quyền, cài đặt, lỗi kỹ thuật). Dòng `Từ khoá` được giữ cách gọi cũ để tìm.
+  Bộ quy tắc chữ đầy đủ ở `docs/quy-tac-chu-erp.md`.
 - Câu thuộc về CHÍNH SÁCH (giá, giảm giá, thưởng phạt, có được làm không) thì
-  ghi "Việc này do anh Việt quyết".
+  ghi "Việc này do giám đốc quyết".
 - Không hướng dẫn sửa, huỷ chứng từ quá khứ đã ghi sổ hay hoá đơn điện tử đã
   phát hành. Ghi "liên hệ kế toán trưởng".
 - Không dùng dấu gạch dài, chỉ dùng dấu gạch ngang thường. Không dùng emoji.

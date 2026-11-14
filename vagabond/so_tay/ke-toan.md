@@ -92,7 +92,7 @@ Hoá đơn mua còn nợ nhưng tiền đã trả trước khi ERP chạy, nên 
 
 **Lưu ý**
 - Gửi xong dư nợ CHƯA giảm, dòng hiện "Chờ kế toán duyệt". Thu mua bấm [[Rút lại]] được.
-- Vế Có mặc định 11211 theo chị Dung chốt 02/10/2026. Kế toán đổi được lúc duyệt, ví dụ tài khoản tạm khi số dư ngân hàng đầu kỳ đã trừ khoản này.
+- Vế Có mặc định 11211 theo kế toán trưởng chốt 02/10/2026. Kế toán đổi được lúc duyệt, ví dụ tài khoản tạm khi số dư ngân hàng đầu kỳ đã trừ khoản này.
 - Mất mạng thì bấm lại, máy không ghi hai lần.
 
 ## Kế toán duyệt khoản đã trả trước khi lên ERP
@@ -357,7 +357,7 @@ Tiền về mà nội dung chuyển khoản không có mã đơn nên máy khôn
 **Lưu ý**
 - Máy chỉ gợi ý, không tự gán theo số tiền.
 - Không thấy giao dịch nào thì kiểm sao kê hoặc nhập sao kê bù.
-- Ghi sổ phiếu thu bắt buộc có ảnh UNC khách gửi (anh Việt chốt 28/09/2026).
+- Ghi sổ phiếu thu bắt buộc có ảnh UNC khách gửi (giám đốc chốt 28/09/2026).
 
 ## Lập hồ sơ thanh toán (APP): chọn đúng đường
 Từ khoá: hồ sơ thanh toán, APP, đề nghị thanh toán, lập APP, trả nhà cung cấp, chi thẳng tài khoản công ty, hoàn ứng, đề nghị chi, payment request
@@ -474,7 +474,7 @@ Mọi phiếu thu/chi đi qua tài khoản ngân hàng (lập từ 16/08/2026) p
 | ... đi qua tài khoản ngân hàng ... nên bắt buộc phải có Uỷ nhiệm chi đính kèm mới ghi sổ được. | Đính tệp UNC rồi ghi sổ lại |
 
 **Lưu ý**
-- Dòng sao kê SePay chỉ để xem tiền đã đi chưa, không thay được UNC khi làm việc với cơ quan thuế (chị Dung chốt 16/08/2026).
+- Dòng sao kê SePay chỉ để xem tiền đã đi chưa, không thay được UNC khi làm việc với cơ quan thuế (kế toán trưởng chốt 16/08/2026).
 - Tên chứng từ tự đổi theo tài khoản: tiền mặt là Phiếu chi, Phiếu thu; ngân hàng là Uỷ nhiệm chi, Giấy báo Có.
 
 ## Lập bút toán tay theo định khoản mẫu
@@ -751,7 +751,7 @@ Mọi bill trả chuyển khoản của một ngày, đủ mọi điểm bán (c
 - Mỗi bill có chip tiền (Đã khớp đủ tiền, Mới nhận ..., Chưa khớp khoản nào) và chip Đã ghi sổ / Chưa ghi sổ.
 - Bill chuyển khoản chưa khớp đủ tiền thì máy chưa tự ghi sổ.
 - Khách Sales chuyển không theo mã QR: chip Sales Online, bấm bill chưa khớp, dò tiền rồi gắn.
-- Bill không rõ điểm nằm ở chip Chưa rõ điểm, gặp thì báo anh Việt.
+- Bill không rõ điểm nằm ở chip Chưa rõ điểm, gặp thì báo quản trị hệ thống.
 
 ## Gắn khoản khách chuyển thẳng vào tài khoản công ty
 Từ khoá: SePay không ghi nhận, khách chuyển vào tài khoản công ty, tài khoản chính, MB, vào thẳng TK công ty, dò tiền, gắn giao dịch, tiền chưa gắn chứng từ, chuyển sai tài khoản
@@ -765,7 +765,7 @@ Khách xin số tài khoản rồi chuyển tay vào tài khoản chính, không
 **Các bước**
 1. Ở Đối soát chuyển khoản bấm bill. Bảng Dò tiền chuyển khoản mở ra.
 2. Bấm chip [[Vào thẳng TK công ty]] (hoặc khung gợi ý vàng "Có ... khoản đúng ...").
-3. Cần thì đổi chip ngày [[Hôm trước]], [[Hôm sau]].
+3. Cần thì đổi ngày [[Hôm trước]], [[Hôm sau]].
 4. Đối chiếu giờ, số tiền với điện thoại khách, chọn khoản, bấm [[Gắn vào hoá đơn]].
 
 **Vì sao bị chặn**
@@ -773,10 +773,10 @@ Khách xin số tài khoản rồi chuyển tay vào tài khoản chính, không
 |---|---|
 | Khoản này vào thẳng tài khoản chính công ty, không phải tài khoản của điểm .... Chỉ Quản lý cửa hàng hoặc Kế toán được gắn ... | Thu ngân không gắn được, nhờ quản lý |
 | Khoản này đã thuộc về .... Một khoản tiền chỉ thuộc về một chứng từ. | Chọn khoản khác, hỏi kế toán khoản đó của ai |
-| Dòng sao kê này không có số tham chiếu ngân hàng nên máy không gắn được. ... | Báo anh Việt kiểm dòng đó |
+| Dòng sao kê này không có số tham chiếu ngân hàng nên máy không gắn được. ... | Báo quản trị hệ thống kiểm dòng đó |
 
 **Lưu ý**
-- Nghe "SePay không ghi nhận" thì mở chip này trước. Tài khoản chính còn nhận tiền khách sỉ trả nợ, đối chiếu thật kỹ.
+- Nghe "SePay không ghi nhận" thì mở chip này trước. Tài khoản chính còn nhận tiền khách sỉ trả nợ, đối chiếu kỹ.
 - Lệch tiền máy vẫn gắn, ghi số lệch vào ghi chú đối soát.
 - 08:00 mỗi sáng kế toán nhận tin "Tiền vào tài khoản công ty chưa gắn chứng từ" cho khoản quá 24 giờ chưa thuộc đơn hay phiếu nào.
 
@@ -805,7 +805,7 @@ Thu ngân lập biên nhận, đếm theo mệnh giá, ký bên giao. Kế toán
 **Lưu ý**
 - Ký nhận xong phiếu khoá cứng, kể cả bảng mệnh giá.
 - Ký nhận không sinh bút toán. Kế toán hạch toán tiền nộp quỹ riêng.
-- Lệch tiền xử lý thế nào: việc này do anh Việt quyết.
+- Lệch tiền xử lý thế nào: việc này do giám đốc quyết.
 
 ## Chi tiền và đóng phiếu hoàn tiền khách
 Từ khoá: hoàn tiền, cash-back, refund, trả lại tiền khách, phiếu hoàn tiền, đối soát lệnh chi, uỷ nhiệm chi hoàn tiền, phiếu chi hoàn tiền
@@ -831,7 +831,7 @@ Sales lập phiếu hoàn tiền. Kế toán chuyển khoản trả khách từ 
 **Lưu ý**
 - Phiếu chỉ khép được khi có tệp UNC; dòng sao kê SePay không thay được UNC.
 - Ghi sổ rồi không sửa được: liên hệ kế toán trưởng.
-- Có hoàn hay không, hoàn bao nhiêu: việc này do anh Việt quyết.
+- Có hoàn hay không, hoàn bao nhiêu: việc này do giám đốc quyết.
 
 ## Khách chuyển tiền trả trước vào tài khoản Giám đốc: chọn tài khoản và ghi sổ
 Từ khoá: Giám đốc thu hộ, tài khoản cá nhân Giám đốc, phải thu Giám đốc, 1388, nạp trả trước, chưa khai tài khoản, prepayment
@@ -963,7 +963,7 @@ Từ khoá: tách lệnh, nhiều giao dịch, gộp sao kê, chia sao kê, bộ
 |---|---|---|
 | Kế toán | Hồ sơ thanh toán, Thanh toán nội bộ, Hoàn tiền | [[Đối chiếu tay]], [[Gán]] |
 
-Câu hỏi của chị Dung: “thanh toán lương 714.138.056 mà ngân hàng tách làm 2 lệnh 450.000.000 + 264.138.056 nên không ghi nhận thanh toán được”.
+Câu hỏi của kế toán: “thanh toán lương 714.138.056 mà ngân hàng tách làm 2 lệnh 450.000.000 + 264.138.056 nên không ghi nhận thanh toán được”.
 
 1. Mở đúng hồ sơ, chọn [[Đối chiếu tay]].
 2. Chọn hai dòng cùng tài khoản. Thanh tổng hiện số đã chọn và phần còn thiếu. Ví dụ trên phải chọn cả 450.000.000 và 264.138.056.
@@ -1031,7 +1031,7 @@ Tiền nguyên liệu mỗi bánh theo công thức đang dùng, cộng dồn qu
 | Vượt giá bán | Giá vốn bằng hoặc cao hơn giá bán | Xem lại đơn vị trong công thức |
 | Công thức vòng | Công thức trỏ vòng vào chính nó | Sửa công thức đó trên Desk |
 | Thiếu giá NVL | Nguyên liệu chưa có giá nào | Khai bảng giá mua |
-| Dưới mục tiêu | Giá bán chưa gấp đủ hệ số của nhóm | Đổi giá bán hay không: việc này do anh Việt quyết |
+| Dưới mục tiêu | Giá bán chưa gấp đủ hệ số của nhóm | Đổi giá bán hay không: việc này do giám đốc quyết |
 
 **Lưu ý**
 - Nguồn giá lần lượt: Giá kho (bình quân kho có tồn), Giá khai trên mặt hàng, Bảng giá nhập.
@@ -1064,7 +1064,7 @@ Hệ số là giá bán gấp mấy lần giá vốn. Giá bán đề xuất = g
 | Tài khoản của bạn không có quyền đặt hệ số mục tiêu. / chốt giá vốn tạm tính. | Nhờ kế toán trưởng làm |
 
 **Lưu ý**
-- Hệ số mỗi nhóm là bao nhiêu: việc này do anh Việt quyết.
+- Hệ số mỗi nhóm là bao nhiêu: việc này do giám đốc quyết.
 - Món thiếu giá nguyên liệu hoặc công thức vòng bị bỏ qua khi chốt.
 - Mỗi món mỗi ngày một dòng trong bảng giá; chốt lại trong ngày thì ghi đè số của hôm đó.
 
@@ -1130,7 +1130,7 @@ Hao hụt chỉ đo được khi bếp ghi đủ lệnh, cân thật, kiểm kê
 **Lưu ý**
 - Tuần đủ dữ liệu thì tin chỉ còn "Dữ liệu tuần này đủ để tính hao hụt."
 - Mỗi bếp có việc nhận riêng tin việc cần làm, hạn Chủ nhật.
-- Tin hao hụt quy ra tiền làm khi nào: việc này do anh Việt quyết.
+- Tin hao hụt quy ra tiền làm khi nào: việc này do giám đốc quyết.
 - Ô % hao hụt cho phép nằm trên Công thức ở Desk. <!-- kiểm: máy đếm ô Process Loss Percentage của BOM; chưa đối chiếu tên tiếng Việt site đang hiện, app chưa có ô này -->
 
 ## Đối soát nhà cung cấp tự động qua hộp thư doisoat@

@@ -165,7 +165,7 @@ def thu_phong():
 	gi, va danh sach phong ho "Vagabond" ma fontconfig nhin thay.
 	"""
 	if "System Manager" not in frappe.get_roles():
-		frappe.throw("Chỉ System Manager mới xem được. Nhờ anh Việt mở giúp.")
+		frappe.throw("Chỉ quản trị hệ thống mới xem được màn này.")
 	ra = {
 		"ho_phong": HO_PHONG,
 		"ngan_xep": NGAN_XEP,

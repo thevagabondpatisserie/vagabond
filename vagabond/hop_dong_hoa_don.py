@@ -287,8 +287,8 @@ def _khach(hd):
 		if co:
 			return co
 	frappe.throw(
-		"Hợp đồng chưa gắn khách hàng nào bên Next nên chưa lập hoá đơn được. "
-		"Anh chị mở hợp đồng và chọn khách hàng, hoặc nhờ chị Dung tạo hồ sơ khách."
+		"Hợp đồng chưa gắn khách hàng nào nên chưa lập hoá đơn được. "
+		"Mở hợp đồng và chọn khách hàng, hoặc nhờ Kế toán tạo hồ sơ khách."
 	)
 
 

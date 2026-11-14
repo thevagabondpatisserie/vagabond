@@ -34,7 +34,8 @@ LOAI_MOI = "Mới"
 LOAI_DIEU_CHINH = "Điều chỉnh"
 
 TT_NHAP = "Nháp"
-TT_CHO = "Chờ Khải"
+TT_CHO = "Chờ Kế toán"
+TT_CHO_CU = "Chờ Khải"  # tên cũ trước v657, chỉ dùng cho bản vá đổi tên
 TT_TRA = "Trả lại bếp"
 TT_DA_TAO = "Đã tạo nháp"
 TT_XONG = "Đã ghi sổ"
@@ -187,7 +188,7 @@ def doc_du_lieu(s):
 
 
 def kiem_phieu(loai, ten_banh, du_lieu, bom_goc=None):
-	"""Các lỗi phải sửa trước khi Gửi Khải, câu nói việc cần làm. THUẦN."""
+	"""Các lỗi phải sửa trước khi Gửi Kế toán, câu nói việc cần làm. THUẦN."""
 	d = doc_du_lieu(du_lieu)
 	loi = []
 	if loai == LOAI_DIEU_CHINH:
@@ -452,7 +453,7 @@ def co_dong(quan_ton, bom_con):
 def ma_viec(trang_thai, la_duyet, la_nguoi_lap):
 	"""Phiếu này có phải việc của người xem không. THUẦN.
 
-	Khải (vai ghi sổ công thức): phiếu Chờ Khải và Đã tạo nháp. Người đề xuất:
+	Khải (vai ghi sổ công thức): phiếu Chờ Kế toán và Đã tạo nháp. Người đề xuất:
 	phiếu của mình bị Trả lại bếp."""
 	if la_duyet and trang_thai in (TT_CHO, TT_DA_TAO):
 		return True
@@ -494,7 +495,7 @@ def _kiem_lap():
 
 def _kiem_duyet():
 	if not _la_duyet():
-		frappe.throw("Chỉ Khải (quản lý công thức), bếp trưởng hoặc giám đốc làm bước này.", frappe.PermissionError)
+		frappe.throw("Chỉ kế toán giá thành, bếp trưởng hoặc giám đốc làm được bước này.", frappe.PermissionError)
 
 
 def _doc_khoa(name):
@@ -656,7 +657,7 @@ def chi_tiet(name):
 @frappe.whitelist()
 def luu(name=None, ten_banh=None, du_lieu=None, loai=None, bom_goc=None, ly_do=None, ma_thanh_pham=None):
 	"""Lưu nháp (tạo mới nếu chưa có). Bếp sửa được lúc Nháp và Trả lại bếp; Khải
-	sửa được cả lúc Chờ Khải."""
+	sửa được cả lúc Chờ Kế toán."""
 	_kiem_lap()
 	d = doc_du_lieu(du_lieu)
 	if name:
@@ -742,14 +743,14 @@ def tra_lai(name, ghi_chu=None):
 	_kiem_duyet()
 	doc = _doc_khoa(name)
 	if doc.trang_thai != TT_CHO:
-		frappe.throw("Chỉ trả lại được phiếu đang Chờ Khải.")
+		frappe.throw("Chỉ trả lại được phiếu đang Chờ Kế toán.")
 	if not (ghi_chu or "").strip():
 		frappe.throw("Ghi rõ cần bếp sửa hay trả lời gì.")
 	doc.trang_thai = TT_TRA
 	doc.ghi_chu_khai = (ghi_chu or "").strip()
 	_luu_doc(doc)
 	from vagabond import kenh_zalo
-	kenh_zalo.bao_hoac_ghi_loi("viec", "san_xuat", "Khải hỏi lại phiếu công thức %s" % doc.ten_banh,
+	kenh_zalo.bao_hoac_ghi_loi("viec", "san_xuat", "Kế toán trả lại phiếu công thức %s" % doc.ten_banh,
 		[doc.ghi_chu_khai, "Người đề xuất: %s" % _ten(doc.nguoi_de_xuat)], link=_url("/cong-thuc"),
 		khoa="dxct_tra:%s:%s" % (doc.name, doc.modified), nguon=doc.name, ma_tin="bep_cong_thuc_tra_lai")
 	return _cho_man(doc)
@@ -1039,7 +1040,7 @@ def duyet_dieu_chinh(name):
 
 
 def viec(vai):
-	"""Dòng Việc cần làm: Khải thấy phiếu Chờ Khải và Đã tạo nháp (chưa ghi sổ);
+	"""Dòng Việc cần làm: Khải thấy phiếu Chờ Kế toán và Đã tạo nháp (chưa ghi sổ);
 	người đề xuất thấy phiếu của mình bị Trả lại bếp."""
 	la_duyet = bool(_ct()._vai_ghi_so() & set(vai or ()))
 	from vagabond import viec_tu_dong as vtd

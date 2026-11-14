@@ -75,7 +75,7 @@ Từ khoá: bán hàng, tính tiền, thu tiền, lên bill, tạo bill, hoá đ
 - Máy cảnh báo có bill cùng số tiền vừa lưu chưa đầy 2 phút: kiểm danh sách, dễ là bấm trùng.
 - Phí giao gõ SỐ TIỀN ở ô phí giao thu của khách.
 - Bill đã thu nằm yên 4 tiếng là máy tự ghi sổ và xuất hoá đơn điện tử, không chờ cuối ngày.
-- Mức giảm giá tay và cho khách nào nợ: việc này do anh Việt quyết.
+- Mức giảm giá tay và cho khách nào nợ: việc này do giám đốc quyết.
 
 ## Điểm bán tự nhận theo tài khoản và bảng giá riêng từng điểm
 Từ khoá: chọn nhầm điểm bán, chọn quầy, điểm bán của tôi, nhân viên đứng điểm, giá NVH, giá riêng, bảng giá theo điểm bán, giá Nhà Văn Hóa
@@ -176,7 +176,7 @@ Từ khoá: khuyến mãi, KM, giảm giá, ưu đãi, combo, voucher, mã giả
 - Điểm chỉ thật sự trừ khi bấm Thu tiền.
 - Số tiền giảm do máy chủ tính lại mỗi lần giỏ hàng đổi. Mọi lượt áp đều ghi ai bấm, bill nào.
 - Mã quà chào mừng, Ví quà, voucher tin Zalo: xem mục Áp mã quà chỉ người nhận được dùng. Ưu đãi theo hạng: xem mục Ưu đãi theo hạng thành viên tự áp vào hoá đơn.
-- Mở chương trình, mức giảm, ai được giảm: việc này do anh Việt quyết.
+- Mở chương trình, mức giảm, ai được giảm: việc này do giám đốc quyết.
 
 ## Áp mã quà chỉ người nhận được dùng
 Từ khoá: ví quà, quà chào mừng, mã của khách khác, chỉ người nhận dùng, voucher tin Zalo, mã quà, mã gắn người nhận, mã của số điện thoại khác
@@ -221,7 +221,7 @@ Khách thuộc hạng đang bật phần trăm giảm thì máy tự giảm ngay
 - Ưu đãi hạng tính trên phần còn lại sau combo và chương trình.
 - Dòng ưu đãi hạng không có nút bỏ. Muốn bỏ thì bỏ chọn khách (dấu x cạnh tên khách).
 - Đơn GrabFood, BeFood, GreenSM Food, ShopeeFood và Khách sỉ không giảm theo hạng.
-- Phần trăm giảm của từng hạng: việc này do anh Việt quyết.
+- Phần trăm giảm của từng hạng: việc này do giám đốc quyết.
 
 ## Phát voucher vào Ví quà thành viên
 Từ khoá: ví quà, ví quà thành viên, voucher thành viên, quà sinh nhật, voucher tháng sinh nhật, phát vào ví quà, trang thành viên, mã dùng một lần, chỉ người nhận dùng, số lần nhận, mỗi năm một lần
@@ -252,7 +252,7 @@ Khách thuộc đối tượng mở trang thành viên là tự thấy mã trong
 - Số lần nhận tính cả mã đã dùng, đã huỷ, đã gửi qua Zalo. Tin Zalo cùng chương trình gửi lại đúng mã trong ví.
 - Mã chỉ dùng cho chính người nhận, kể cả sau khi tắt Ví quà.
 - Số điện thoại nhân viên không nhận, trừ chương trình đối tượng Nhân viên.
-- Phát cho ai, giảm bao nhiêu: việc này do anh Việt quyết.
+- Phát cho ai, giảm bao nhiêu: việc này do giám đốc quyết.
 
 ## In hoá đơn, in tạm tính, phiếu làm món và tem món
 Từ khoá: in bill, in hoá đơn, in lại, tạm tính, in tạm, phiếu làm món, phiếu pha chế, tem, nhãn ly, máy in, không in được, QZ Tray, căn tem, khổ giấy, printer, bill treo chờ trả
@@ -385,7 +385,7 @@ Chỉ cho đơn ĐÃ ghi sổ. [[Hoàn tiền]]: khách trả bánh, doanh thu b
 **Lưu ý**
 - Đơn đã xuất hoá đơn điện tử: tờ đó không tự sửa, liên hệ kế toán trưởng.
 - Hàng khách trả vào kho hàng huỷ, không về kho bán.
-- Hoàn bao nhiêu phần trăm: việc này do anh Việt quyết.
+- Hoàn bao nhiêu phần trăm: việc này do giám đốc quyết.
 
 ## Hoàn tiền đơn Pancake đã huỷ
 Từ khoá: đơn huỷ Pancake, đơn đã huỷ, khách huỷ đơn online, tiền giữ hộ, hoàn tiền đơn huỷ, đơn không có hoá đơn, chờ hoàn, hoàn cọc
@@ -412,7 +412,7 @@ Từ khoá: đơn huỷ Pancake, đơn đã huỷ, khách huỷ đơn online, ti
 
 **Lưu ý**
 - Chuyển lại đúng tài khoản khách đã chuyển đến. Khách xin đổi tài khoản thì gọi điện xác minh trước, đây là kịch bản lừa đảo hay gặp.
-- Giữ lại một phần tiền nguyên liệu: việc này do anh Việt quyết; phần giữ lại phải xuất hoá đơn riêng.
+- Giữ lại một phần tiền nguyên liệu: việc này do giám đốc quyết; phần giữ lại phải xuất hoá đơn riêng.
 
 ## Xem phiếu hoàn tiền đang tới đâu
 Từ khoá: phiếu hoàn tiền, theo dõi hoàn tiền, khách hỏi tiền tới đâu, uỷ nhiệm chi, UNC, tải UNC gửi khách, cash back, lập phiếu hoàn, refund status
@@ -485,7 +485,7 @@ Từ khoá: nạp tiền, trả trước, khách gửi tiền trước, trừ d�
 - Không xuất hoá đơn lúc nạp; hoá đơn xuất từng đơn khi giao bánh.
 - Nạp tiền mặt, thẻ tại quầy thì Chốt ca của quầy đó tính vào két.
 - Chip Sắp hết là còn dưới 1.000.000 đ.
-- Nhận trả trước của khách nào: việc này do anh Việt quyết.
+- Nhận trả trước của khách nào: việc này do giám đốc quyết.
 
 ## Trừ một đơn vào số dư trả trước của khách
 Từ khoá: trừ số dư, dùng số dư, trừ tiền trả trước, khách đã nạp tiền, phần còn lại, giữ chỗ, prepaid balance
@@ -581,7 +581,7 @@ Tổ chức không có mã số thuế Việt Nam vẫn xuất hoá đơn mang t
 
 **Lưu ý**
 - Đã lưu tên rồi thì nhịp đồng bộ Pancake không đổi tên, địa chỉ hay mã số thuế nữa, kể cả khi ghi chú đơn có một mã số thuế khác. Muốn đổi thì sales sửa tay.
-- Đơn mở ra thấy tên đã bị đổi thành "Bán cho người tiêu dùng" trước khi xuất: gõ lại thông tin, lưu, rồi báo anh Việt kèm mã đơn.
+- Đơn mở ra thấy tên đã bị đổi thành "Bán cho người tiêu dùng" trước khi xuất: gõ lại thông tin, lưu, rồi báo quản trị hệ thống kèm mã đơn.
 - Hoá đơn đã phát hành cho người tiêu dùng mà đúng ra phải mang tên tổ chức: không tự sửa, liên hệ kế toán trưởng.
 
 ## Bán hàng tặng: lập đơn và chọn lý do tặng
@@ -610,7 +610,7 @@ Khách không trả tiền, hoá đơn vẫn xuất nguyên giá, nguyên thuế
 
 **Lưu ý**
 - Chọn Hàng tặng thì chỉ còn một nút, lưu cả phương thức, loại, lý do, ảnh. Thiếu một thứ là không lưu gì.
-- Tặng cho ai, bao nhiêu, danh sách lý do: việc này do anh Việt quyết.
+- Tặng cho ai, bao nhiêu, danh sách lý do: việc này do giám đốc quyết.
 
 ## Giám đốc duyệt đơn hàng tặng
 Từ khoá: duyệt hàng tặng, duyệt đơn tặng, giám đốc duyệt, từ chối đơn tặng, đơn tặng chờ duyệt, hàng tặng bị từ chối, approve gift
@@ -708,7 +708,7 @@ Từ khoá: khách hàng, tra khách, khách sỉ, khách lẻ, hạng khách, h
 - Đơn đã ghi sổ thì gắn khách chỉ để theo dõi công nợ, bút toán giữ nguyên.
 - Khách chưa có trong danh mục thì kế toán tạo trước.
 - Đầu màn có ô ĐANG XEM và CHI TIÊU 12 THÁNG; màn hiện 200 khách chi nhiều nhất, gõ tìm để ra khách khác.
-- Mốc chi tiêu, phần trăm giảm, tỷ lệ tích điểm: việc này do anh Việt quyết.
+- Mốc chi tiêu, phần trăm giảm, tỷ lệ tích điểm: việc này do giám đốc quyết.
 
 ## In bảng quà chào mừng để ở quầy
 Từ khoá: quà chào mừng, quà thành viên mới, mã QR quầy, bảng in quầy, trang thành viên, đăng ký thành viên, khai hồ sơ nhận quà, 20.000đ, welcome gift
@@ -735,7 +735,7 @@ Bảng có mã QR. Khách quét, xác minh số qua Zalo, khai tên, ngày sinh,
 **Lưu ý**
 - Mỗi số điện thoại nhận một lần, cả khách cũ. Mã dùng ngay hoặc trong 7 ngày.
 - Chương trình Quà chào mừng thành viên máy tự dựng, mặc định BẬT, giảm 20.000đ. Sửa giá trị, ngày, bật tắt ở màn Khuyến mãi như chương trình thường.
-- Giá trị quà, ai được nhận: việc này do anh Việt quyết.
+- Giá trị quà, ai được nhận: việc này do giám đốc quyết.
 <!-- kiểm: mã quầy điền sau ?bang= chưa có quy ước (máy nhận chữ và số, tối đa 20 ký tự, ghi vào hồ sơ để biết quà phát ở quầy nào); hỏi quản lý mã của từng quầy -->
 
 ## Chỉ khách nhận quà chào mừng và dùng mã thành viên
@@ -792,7 +792,7 @@ Từ khoá: báo giá, quotation, quote, chào giá, báo giá B2B, báo giá s�
 
 **Lưu ý**
 - Chỉ xoá được tờ còn Nháp.
-- Giá, chiết khấu, điều khoản cọc: việc này do anh Việt quyết.
+- Giá, chiết khấu, điều khoản cọc: việc này do giám đốc quyết.
 
 ## Hợp đồng đã ký và đơn tiệc
 Từ khoá: hợp đồng, contract, event, catering, teabreak, tiệc, đơn tiệc, B2B sỉ, bánh thiết kế, gắn hoá đơn, theo dõi tiền về, người ký, bản scan, xuất nguyên liệu tiệc
@@ -846,7 +846,7 @@ Khách gửi yêu cầu ở trang Đặt bàn trên web, máy nhắn nhóm Zalo 
 - Khách không để email thì máy chỉ nhắn Zalo nhóm, nhớ gọi báo khách. Không muốn gửi email thì tắt công tắc trong hộp xác nhận.
 - Lý do huỷ khách đọc nguyên văn.
 - Còn 3 giờ tới giờ hẹn mà chưa xác nhận thì nhóm Zalo Bán hàng nhận tin nhắc.
-- Mở nhận đặt bàn, khung giờ, số khách tối đa: việc này do anh Việt quyết. <!-- kiểm: tờ cấu hình đặt bàn chỉ có trên Desk, chưa đối chiếu tên tiếng Việt trên site -->
+- Mở nhận đặt bàn, khung giờ, số khách tối đa: việc này do giám đốc quyết. <!-- kiểm: tờ cấu hình đặt bàn chỉ có trên Desk, chưa đối chiếu tên tiếng Việt trên site -->
 
 ## Tạo vận đơn và giao bánh cho khách
 Từ khoá: vận đơn, giao hàng, ship, shipper, giao bánh, book xe, Ahamove, Grab, Lalamove, BE, gộp chuyến, xếp tuyến, khách ký nhận, ảnh giao hàng, khách tự lấy, delivery, GreenSM
@@ -907,7 +907,7 @@ GreenSM bắt xem cước trước rồi mới gọi được tài xế.
 - Khung vàng "GreenSM đang chạy thử" là giá giả, nút Gọi xe khoá.
 - Đổi loại xe hay dịch vụ thêm thì phải Xem giá lại.
 - Chọn Ahamove (chạy thật) ở hộp Book xe qua app là book luôn, không xem giá; muốn xem cước trước thì đi đường Phân công.
-- Dùng hãng nào, ai chịu cước: việc này do anh Việt quyết.
+- Dùng hãng nào, ai chịu cước: việc này do giám đốc quyết.
 
 ## Đối soát tiền COD shipper nộp về
 Từ khoá: COD, thu hộ, tiền shipper nộp, đối soát COD, nộp tiền COD, shipper nộp tiền, cash on delivery
@@ -944,7 +944,7 @@ Từ khoá: xăng xe, sửa xe, chi phí giao hàng, hoàn ứng shipper, phí b
 | Nhập số tiền đã nhé | Gõ số tiền |
 
 **Lưu ý**
-- Mức chi được duyệt: việc này do anh Việt quyết.
+- Mức chi được duyệt: việc này do giám đốc quyết.
 
 ## Xem doanh thu Sales, đồng bộ Pancake và nhập đơn tay
 Từ khoá: doanh thu, doanh số, doanh thu Sales, đơn online, Pancake, đồng bộ, đặt bánh online, nhập đơn tay, đơn Grab, đơn Be, phiếu trùng, tìm đơn, chi tiết đơn, sales revenue
@@ -1003,7 +1003,7 @@ Khách đặt trên web, đơn vào Pancake xong máy nhắn nhóm Zalo Bán hà
 - Tin đơn hàng không ghi tiền. Xem tiền trên Pancake hoặc Doanh số.
 - Khách chọn số nĩa gỗ, dĩa bã mía, thiệp nhỏ ngay trên web. <!-- kiểm: số nĩa, dĩa, thiệp hiện ở ô nào trên Pancake và phiếu bếp -->
 - Khách mất trang biên nhận: biên nhận chỉ mở được từ đường dẫn hiện ngay sau khi đặt; tra đơn theo số điện thoại trên Pancake.
-- Mức miễn phí giao, đơn vị báo phí: việc này do anh Việt quyết.
+- Mức miễn phí giao, đơn vị báo phí: việc này do giám đốc quyết.
 
 ## Đơn khách đặt trên web chưa vào Pancake
 Từ khoá: đơn web, đặt bánh online, trang đặt bánh, order.thevagabondpatisserie.com, đơn web chưa vào Pancake, ĐƠN WEB CHƯA VÀO PANCAKE, Zalo, đơn mất, khách đặt web không thấy đơn, web order
@@ -1052,7 +1052,7 @@ Máy gửi tin ngay khi việc xảy ra. Tin có đường dẫn thì bấm đ�
 
 **Lưu ý**
 - Nhóm nào nhận tin nào chọn ở Cài đặt lõi; xem mục Chọn tin Zalo cho từng nhóm nhận tin (chương Tài khoản, quyền và cài đặt).
-- Gửi tin nào cho ai: việc này do anh Việt quyết.
+- Gửi tin nào cho ai: việc này do giám đốc quyết.
 
 ## Xem KPI và hoa hồng của tôi
 Từ khoá: KPI, hoa hồng, commission, thưởng doanh số, chỉ tiêu, điểm KPI, phiếu KPI, khiếu nại KPI, bảng kê hoa hồng
@@ -1075,7 +1075,7 @@ Từ khoá: KPI, hoa hồng, commission, thưởng doanh số, chỉ tiêu, đi�
 
 **Lưu ý**
 - Phiếu đi qua kế toán soát rồi giám đốc duyệt, không ai tự duyệt phiếu của mình.
-- Chỉ tiêu và bậc hoa hồng: việc này do anh Việt quyết.
+- Chỉ tiêu và bậc hoa hồng: việc này do giám đốc quyết.
 
 ## Lên danh sách tặng quà khách VIP
 Từ khoá: tặng quà, quà VIP, quà Trung thu, quà Tết, CRM, chăm sóc khách, đợt tặng quà, lời chúc, thiệp, đã liên hệ, đã tặng, hoá đơn quà tặng, gift list
@@ -1099,7 +1099,7 @@ Từ khoá: tặng quà, quà VIP, quà Trung thu, quà Tết, CRM, chăm sóc k
 
 **Lưu ý**
 - Dưới ô số điện thoại máy hiện số đọc ra được. Số không chính chủ thì tin nhắn tự động bị khoá.
-- Tặng ai, quà gì: việc này do anh Việt quyết.
+- Tặng ai, quà gì: việc này do giám đốc quyết.
 
 ## Nhận bánh từ bếp đầu ngày
 Từ khoá: nhận bánh, sổ nhận bánh, nhận bánh đầu ngày, tồn đầu, đợt giao, bếp giao bánh, bảng Excel Zalo, chốt sổ, mở lại sổ
@@ -1153,7 +1153,7 @@ Từ khoá: BTP sẵn, đủ decor, vỏ bánh, bếp làm, trừ BTP, còn nh�
 |---|---|---|
 | Bếp nhập; Sales, quản lý xem | Kiểm bánh hôm nay (/kiem-banh) | Ô Bếp làm, ô BTP sẵn, ô Đủ decor |
 
-Từ v649 (Loan Anh đề xuất, anh Việt duyệt 11/11/2026) bánh bếp làm xong trừ vỏ BTP ngay, không chờ chốt sổ.
+Từ v649 (Sales đề xuất, giám đốc duyệt 11/11/2026) bánh bếp làm xong trừ vỏ BTP ngay, không chờ chốt sổ.
 
 **Các bước**
 1. Bếp nhập số ô Bếp làm. Máy trừ ngay đúng số đó vào BTP sẵn và Đủ decor.
@@ -1177,7 +1177,7 @@ Từ khoá: web đặt bánh, đặt bánh trước, có sẵn hôm nay, nhận 
 |---|---|---|
 | Khách; Sales giải thích cho khách | Trang đặt bánh trên web | Tab Có sẵn hôm nay, tab Đặt bánh trước |
 
-Từ v649 (Loan Anh báo, anh Việt duyệt 11/11/2026) bánh đặt trước nhận từ ngày mai. Bánh nhận trong ngày lấy ở tab Có sẵn hôm nay, số ở đó là số bánh có thật trong tủ (cột Bán được của Kiểm bánh).
+Từ v649 (Sales báo, giám đốc duyệt 11/11/2026) bánh đặt trước nhận từ ngày mai. Bánh nhận trong ngày lấy ở tab Có sẵn hôm nay, số ở đó là số bánh có thật trong tủ (cột Bán được của Kiểm bánh).
 
 **Khách sẽ thấy**
 1. Tab Đặt bánh trước: lịch bắt đầu từ Ngày mai, dưới lịch có dòng "Cần bánh hôm nay? Xem tab Có sẵn hôm nay".
@@ -1232,7 +1232,7 @@ Từ khoá: đền bù, xin lỗi khách, giao trễ, sai trang trí, sai lời 
 - Bánh hỏng vẫn phải làm lại hoặc hoàn tiền trước, mã chỉ là phần thêm.
 - Mã vào Ví quà của khách, chỉ chính khách dùng, hạn mặc định 60 ngày. Máy ghi người cấp, lý do, đơn gốc.
 - Chương trình của mỗi mức nên dành cho mọi khách. Chương trình chỉ dành cho một hạng, nhóm hay danh sách khách thì máy báo không áp cho khách ngoài phạm vi và không cấp mã.
-- Mức giảm từng mức: việc này do anh Việt quyết.
+- Mức giảm từng mức: việc này do giám đốc quyết.
 
 ## Ưu đãi đơn đầu tiên trên web: bật, tắt, mức giảm, mã Zalo
 Từ khoá: đơn đầu tiên, khách mới web, giảm 50000, ưu đãi đơn đầu, first order, OTP Zalo, mã xác thực, công tắc ưu đãi
@@ -1258,7 +1258,7 @@ Số điện thoại chưa từng có đơn web được giảm một lần khi 
 - Mặc định khi lên bản 645: BẬT, giảm 50.000đ cho tiền bánh từ 300.000đ, bắt mã Zalo.
 - Không cộng chung mã khác: máy giữ mức giảm lớn hơn. Bắt mã Zalo thì bước thanh toán luôn hiện.
 - Máy không đọc được cài đặt thì web tạm không giảm.
-- Mức giảm: việc này do anh Việt quyết.
+- Mức giảm: việc này do giám đốc quyết.
 
 ## Đơn web khách trả thẻ OnePay ghi lên Pancake
 Từ khoá: OnePay, thẻ, đơn web trả trước, charged by OnePay, tiền mặt sai, COD, thanh toán online, đã thanh toán
@@ -1364,7 +1364,7 @@ Khách gõ số điện thoại của nhân viên ở ô Mã giới thiệu (web
 **Lưu ý**
 - Tính trên tiền hàng sau ưu đãi, không gồm phí giao. Huỷ hoặc hoàn tiền thì hoa hồng về 0.
 - Số của khách thường (không phải nhân viên) ở ô Mã giới thiệu thì khách đó nhận mã cảm ơn qua Zalo (kịch bản Cảm ơn khách giới thiệu bạn), không có hoa hồng.
-- Tỉ lệ hoa hồng: việc này do anh Việt quyết.
+- Tỉ lệ hoa hồng: việc này do giám đốc quyết.
 
 ## Đơn đặt trước tại quầy và bánh thiết kế riêng: cọc, thẻ OnePay, giao bánh
 Từ khoá: đơn đặt trước, bánh thiết kế riêng, cọc 50%, thu phần còn lại, thẻ OnePay, giao bánh, xuất hoá đơn, custom cake
@@ -1402,7 +1402,7 @@ Quán, khách sạn đăng ký đặt sỉ trên web. Sales duyệt, đặt giá
 4. Khách chuyển khoản: [[Khách đã chuyển, kiểm tiền về]]. Giao: [[Giao hàng và xuất hoá đơn]].
 
 **Lưu ý**
-- Giá sỉ và ai được duyệt: việc này do anh Việt quyết.
+- Giá sỉ và ai được duyệt: việc này do giám đốc quyết.
 
 ## Tin Zalo Bánh có sẵn hôm nay
 Từ khoá: bánh có sẵn, còn bánh gì, tư vấn khách, tin Zalo, ảnh bánh

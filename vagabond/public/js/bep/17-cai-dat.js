@@ -2790,7 +2790,7 @@ async function scrThongBao() {
     hang('Máy này đã đăng ký nhận', (t.may_cua_toi || 0) > 0,
       (t.may_cua_toi || 0) > 0 ? 'Bạn đang nhận trên ' + t.may_cua_toi + ' máy.' : '') +
     hang('Máy chủ gửi được', !!t.co_thu_vien,
-      t.co_thu_vien ? '' : 'Bản build trên máy chủ chưa có thư viện gửi. Báo anh Việt deploy bản mới nhất.') +
+      t.co_thu_vien ? '' : 'Bản cài trên máy chủ chưa có thư viện gửi. Báo quản trị hệ thống cập nhật bản mới nhất.') +
     '</div>' +
 
     '<div style="padding:12px 12px 4px">' +
@@ -2813,8 +2813,8 @@ async function scrThongBao() {
       tu_choi: 'Bạn vừa bấm Không cho phép. Bấm lại nút này để hỏi lần nữa.',
       chua_cai: 'Phải thêm app ra màn hình chính trước đã.',
       khong_ho_tro: 'Trình duyệt này không có Web Push.',
-      chua_khai_khoa: 'Máy chủ chưa sinh được khoá. Báo anh Việt xem nhật ký lỗi.',
-      loi: 'Có lỗi lúc đăng ký. Thử lại một lần nữa; vẫn lỗi thì báo anh Việt.'
+      chua_khai_khoa: 'Máy chủ chưa sinh được khoá. Báo quản trị hệ thống xem nhật ký lỗi.',
+      loi: 'Có lỗi lúc đăng ký. Thử lại một lần nữa; vẫn lỗi thì báo quản trị hệ thống.'
     }[r] || 'Chưa rõ kết quả, vui lòng thử lại.';
     baoTin(noi, r === 'xong' ? 'Đã bật thông báo' : 'Chưa bật được');
     if (r === 'xong') go(scrThongBao, true);

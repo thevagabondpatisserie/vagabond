@@ -205,7 +205,7 @@ var KB_LOC = (function () {
 			return "Pancake đang từ chối lượt gọi. Thường do nhiều máy cùng mở màn "
 				+ "kiểm bánh, đợi vài phút là hết. Số dưới đây là của lần đồng bộ trước.";
 		}
-		if (/401|Unauthorized/i.test(x)) return "Pancake không nhận khoá API. Báo anh Việt dán lại khoá.";
+		if (/401|Unauthorized/i.test(x)) return "Pancake không nhận khoá API. Báo quản trị hệ thống dán lại khoá.";
 		if (/50\d|Server Error/i.test(x)) return "Máy chủ Pancake đang trục trặc. Lát nữa thử lại.";
 		if (/Timeout|timed out|Connection/i.test(x)) return "Không nối được Pancake. Kiểm tra mạng rồi thử lại.";
 		return x.length > 160 ? "Chưa kéo được đơn từ Pancake. Lát nữa thử lại." : x;

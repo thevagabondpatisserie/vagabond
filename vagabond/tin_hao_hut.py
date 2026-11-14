@@ -257,7 +257,7 @@ def soan(tu, den, ban, khong_can, chua_dem, lech_gia, btp_khong_ct, so_ct, so_ct
 	else:
 		ra.append("Chưa đủ dữ liệu để tính hao hụt. Còn %d chỗ cần sửa:" % len(dong))
 		ra += ["- " + d for d in dong]
-		ra.append("Phụ trách: Khải (giá vốn, công thức); bếp Pastry, Baker (lệnh, số cân, kiểm kê)")
+		ra.append("Phụ trách: kế toán giá thành (giá vốn, công thức); bếp Pastry, Baker (lệnh, số cân, kiểm kê)")
 		ra.append("Hạn: trước bản tin thứ Hai tới")
 	if link:
 		ra.append("Mở: %s" % link)
