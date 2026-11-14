@@ -608,7 +608,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Chị Dung chốt 16/08/2026: dùng tài khoản ngân hàng CÔNG TY (MB Bank), không dùng quỹ tạm ứng OCB.",
+   "description": "Kế toán trưởng chốt 16/08/2026: dùng tài khoản ngân hàng CÔNG TY (MB Bank), không dùng quỹ tạm ứng OCB.",
    "fieldname": "tk_hoan_tien",
    "fieldtype": "Link",
    "label": "Tài khoản ngân hàng chi hoàn tiền",
@@ -1562,7 +1562,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-13 01:05:00.000000",
+ "modified": "2026-11-14 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

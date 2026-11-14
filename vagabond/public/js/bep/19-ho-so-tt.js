@@ -475,10 +475,10 @@ async function hsNoiGdVaoHd(maHd) {
      vào quỹ tạm ứng) là tài khoản của người khác, không làm chứng từ được. */
   if (hsTkDs && hsTkDs.doan) {
     return baoTin('Người này chưa gắn tài khoản ngân hàng nào vào quỹ tạm ứng nên chưa nối được sao kê. ' +
-      'Nhờ chị Dung gắn tài khoản của người này vào 1411 bên Next rồi quay lại.', 'Nối sao kê');
+      'Nhờ Kế toán gắn tài khoản của người này vào 1411 trên Desk rồi quay lại.', 'Nối sao kê');
   }
   var dsTk = ((hsTkDs && hsTkDs.tk) || []).filter(function (x) { return !x.nguoi || x.nguoi === hsTaoNguoiUng; });
-  if (!dsTk.length) return baoTin('Người này chưa khai tài khoản ngân hàng nào. Nhờ chị Dung tạo Bank Account cho họ bên Next.', 'Nối sao kê');
+  if (!dsTk.length) return baoTin('Người này chưa khai tài khoản ngân hàng nào. Nhờ Kế toán tạo tài khoản ngân hàng cho họ trên Desk.', 'Nối sao kê');
   busy(true);
   var rows = [], loi = [];
   for (var i = 0; i < dsTk.length; i++) {
@@ -788,7 +788,7 @@ function hsMoChonNcc(ncc, laHU, chon) {
     tat_ca_phu: 'Gộp hoá đơn của mọi nhà vào một hồ sơ',
     tao_moi: coQuyenMua(),
     mo_ta_tao: 'Bảo hiểm xã hội, điện, nước, bên cho thuê nhà đều phải có hồ sơ nhà cung cấp mới lập được phiếu chi.',
-    trong: 'Máy chưa đọc được nhà cung cấp nào. Thoát ra rồi mở lại màn này một lần; vẫn trống thì nhờ chị Dung kiểm xem danh mục Nhà cung cấp bên Next có bị tắt hết không.',
+    trong: 'Hệ thống chưa đọc được nhà cung cấp nào. Thoát ra rồi mở lại màn này một lần; vẫn trống thì nhờ Kế toán kiểm xem danh mục Nhà cung cấp trên Desk có bị tắt hết không.',
     chon: chon,
     tao_xong: function (ma) { if (ma) chon(ma, null); }
   });
@@ -900,7 +900,7 @@ async function scrViSaoThieu() {
         '<div class="emp"><div class="e1">⚠️</div><div>' +
         h(errMsg(e) || 'Máy chủ không trả lời') +
         '<br><br>Kiểm lại mạng rồi bấm nút ⬅ quay ra, vào lại màn lập hồ sơ và ' +
-        'bấm nút này một lần nữa. Vẫn hỏng thì chụp màn hình gửi anh Việt, ' +
+        'bấm nút này một lần nữa. Vẫn hỏng thì chụp màn hình gửi quản trị hệ thống, ' +
         'trong lúc chờ thì bảng hoá đơn ở màn trước vẫn tick và lập bình thường.</div></div>');
       return;
     }
@@ -1113,12 +1113,12 @@ async function scrHoSoTTTao() {
               '<div style="font-size:11.5px;color:' + (hsTkHoan ? '#98a2b3' : '#b3261e') + ';margin-top:8px;line-height:1.6">' +
               (hsTkHoan
                 ? ((hsTkDs && hsTkDs.doan)
-                    ? '⚠️ Người này chưa gắn tài khoản nào vào quỹ tạm ứng 1411, nên máy bày tạm mọi tài khoản. Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 bên Next.'
+                    ? '⚠️ Người này chưa gắn tài khoản nào vào quỹ tạm ứng 1411, nên hệ thống bày tạm mọi tài khoản. Nhờ Kế toán gắn đúng tài khoản ứng vào 1411 trên Desk.'
                     : 'Tiền hoàn ứng trả về đúng tài khoản đã ứng ra. Số tài khoản hiện cạnh tên vì các tài khoản nhìn lướt rất giống nhau.')
                 : 'Chưa chọn tài khoản nhận tiền. Người này có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.') +
               '</div>'
             : '<div style="font-size:13px;color:#b45309;line-height:1.6">Người này chưa khai tài khoản ngân hàng nào. ' +
-              'Nhờ chị Dung tạo Bank Account cho họ bên Next rồi quay lại chọn.</div>')) +
+              'Nhờ Kế toán tạo tài khoản ngân hàng cho họ trên Desk rồi quay lại chọn.</div>')) +
       '</div>';
   }
 
@@ -1699,11 +1699,11 @@ async function scrHoanUngTao() {
           ? 'Chưa chọn tài khoản nhận tiền. Có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.'
           : dstk.doan
           ? '⚠️ Chưa có tài khoản nào gắn vào quỹ tạm ứng ' + '1411' + ', nên hệ thống bày tạm mọi tài khoản công ty. ' +
-            'Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn đúng tài khoản đang dùng.'
+            'Nhờ Kế toán gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn đúng tài khoản đang dùng.'
           : 'Tiền hoàn ứng luôn trả về tài khoản đã ứng ra. Chọn đúng tài khoản thì số dư quỹ tạm ứng mới khớp.') +
         '</div>'
       : '<div style="font-size:13px;color:#b45309;line-height:1.6">Chưa khai tài khoản ngân hàng nào. ' +
-        'Nhờ chị Dung tạo Bank Account cho quỹ tạm ứng bên Next trước đã.</div>') +
+        'Nhờ Kế toán tạo tài khoản ngân hàng cho quỹ tạm ứng trên Desk trước đã.</div>') +
     '</div>';
 
   html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
@@ -1914,7 +1914,7 @@ async function huChonTaiKhoan(tieu_de, dang_chon) {
   catch (e) { busy(false); baoTin((e && e.message) || 'Không tra được hệ thống tài khoản'); return null; }
   busy(false);
   if (!ds.length) {
-    baoTin('Chưa có tài khoản sổ cái nào đang dùng. Nhờ chị Dung mở Hệ thống tài khoản bên Next kiểm lại, ' +
+    baoTin('Chưa có tài khoản sổ cái nào đang dùng. Nhờ Kế toán mở Hệ thống tài khoản trên Desk kiểm lại, ' +
       'hoặc bỏ đánh dấu Ngưng dùng cho các tài khoản cần khai.');
     return null;
   }
@@ -2653,7 +2653,7 @@ async function scrHoSoTTView(name) {
     el.onclick = async function (ev) {
       ev.stopPropagation();
       var ma = el.getAttribute('data-hsgotep');
-      if (!ma) return toast('Tệp này không gỡ được từ app, nhờ chị Dung gỡ trên Desk giúp.', 5000);
+      if (!ma) return toast('Tệp này không gỡ được từ app, nhờ Kế toán gỡ trên Desk giúp.', 5000);
       if (!await hoiCo('Gỡ tệp khỏi hồ sơ', 'Tệp không bị xoá, chỉ thôi không nằm trên hồ sơ này nữa.', 'Gỡ')) return;
       busy(true);
       try { await api('vagabond.ho_so_tt.go_tep', { name: hs.ma, tep: ma }); }
@@ -2668,7 +2668,7 @@ async function scrHoSoTTView(name) {
 /* Go mot ban the hien dinh nham khoi to hoa don. Hoi lai truoc khi go: to
    nay se di theo ca bo ho so PDF gui di duyet chi tien. */
 async function hsGoBanTheHien(hs, hoaDon, tep, ten) {
-  if (!tep) return toast('Tệp này không gỡ được từ app, nhờ chị Dung gỡ trên Desk giúp.', 5000);
+  if (!tep) return toast('Tệp này không gỡ được từ app, nhờ Kế toán gỡ trên Desk giúp.', 5000);
   if (!await hoiCo('Gỡ bản thể hiện',
     'Gỡ "' + (ten || tep) + '" khỏi hoá đơn ' + hoaDon + '?\n\n' +
     'Tệp vẫn còn trên máy chủ, chỉ thôi không nằm trên hoá đơn này nữa.', 'Gỡ')) return;
@@ -2790,7 +2790,7 @@ async function hsHanh(k, hs) {
     catch (e) { busy(false); return baoTin((e && e.message) || 'Không tải được danh sách tài khoản'); }
     busy(false);
     var ds = (dtk && dtk.tk) || [];
-    if (!ds.length) return baoTin('Chưa khai tài khoản ngân hàng nào cho người này. Nhờ chị Dung tạo Bank Account bên Next, hoặc dùng nút Gõ tay.');
+    if (!ds.length) return baoTin('Chưa khai tài khoản ngân hàng nào cho người này. Nhờ Kế toán tạo tài khoản ngân hàng trên Desk, hoặc dùng nút Gõ tay.');
     var c = await hoiChon('Hoàn ứng vào tài khoản nào', 'Chọn tài khoản thì tên, số tài khoản và ngân hàng lấy nguyên từ hồ sơ ngân hàng, không lệch một chữ.',
       ds.map(function (x) { return { k: x.ma, icon: '🏦', nhan: x.nhan, mo_ta: x.ten || '' }; }));
     if (!c) return;
@@ -3159,7 +3159,7 @@ async function huNoiPhieuNoiBo(i) {
      go tay lai toan bo khoan chi - dung duong sinh ra chi hai lan. */
   if (kq && kq.loi) {
     return baoTin(kq.loi + '\n\nĐây là lỗi đọc dữ liệu, KHÔNG phải là không có phiếu. ' +
-      'Thử lại sau một phút, còn nếu vẫn vậy thì báo anh Việt, đừng gõ tay lại khoản đã có phiếu.',
+      'Thử lại sau một phút, còn nếu vẫn vậy thì báo quản trị hệ thống, đừng gõ tay lại khoản đã có phiếu.',
       'Chưa đọc được danh sách');
   }
   var ds = (kq && kq.ds) || [];

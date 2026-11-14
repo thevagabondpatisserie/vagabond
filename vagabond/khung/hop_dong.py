@@ -286,7 +286,7 @@ def tao(nhan, quyen, o=None, loi_quyen=None, truoc_khi_ghi=None, ghi_chu=None, d
 		"di_toi": di_toi or "",
 		"loi_quyen": loi_quyen or (
 			"Tài khoản của bạn không được tạo mới ở danh mục này. Cần thêm thì "
-			"báo anh Việt cấp thêm chức vụ trong màn Quản lý người dùng."
+			"báo quản trị hệ thống cấp thêm chức vụ trong màn Quản lý người dùng."
 		),
 		"truoc_khi_ghi": truoc_khi_ghi,
 		"ghi_chu": ghi_chu or "",

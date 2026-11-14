@@ -51,7 +51,7 @@ def _quyen(sua=False):
 	if not QUYEN & set(frappe.get_roles()):
 		frappe.throw(
 			"Hợp đồng chỉ mở cho Sales, Thu mua, Kế toán và Giám đốc. "
-			"Cần xem thì báo anh Việt cấp thêm chức vụ trong màn Quản lý người dùng."
+			"Cần xem thì báo quản trị hệ thống cấp thêm chức vụ trong màn Quản lý người dùng."
 		)
 
 

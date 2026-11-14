@@ -761,7 +761,7 @@ def _gan_chang_theo_ten(chay_that=0, gioi_han=1000):
 		frappe.db.commit()
 	ra["ghi_chu"] = (
 		"%s. Khai %d món theo chữ cấp trong tên, %d món đã khai từ trước, "
-		"%d món không có chữ cấp nên để nguyên chờ bảng duyệt của Khải."
+		"%d món không có chữ cấp nên để nguyên chờ bảng duyệt của kế toán giá thành."
 		% ("Đã ghi" if chay_that else "Chạy thử, chưa ghi gì",
 			len(ra["se_khai"]), len(ra["da_khai"]), ra["khong_co_chu_cap"]))
 	return ra
@@ -799,7 +799,7 @@ def soat_ma_chang_cu():
 		"%d hồ sơ món còn mang mã máy cũ trong ô Chặng bán thành phẩm. "
 		"Máy KHÔNG tự đổi. App vẫn đọc đúng chặng của các mã cũ này; chỉ khi "
 		"có người mở hồ sơ ra sửa và lưu bên Desk thì giá trị cũ mới có thể "
-		"bị bỏ trắng. Muốn dọn thì báo anh Việt quyết, đừng để máy tự ghi."
+		"bị bỏ trắng. Muốn dọn thì báo giám đốc quyết, đừng để hệ thống tự ghi."
 		% ra["tong"])
 	return ra
 

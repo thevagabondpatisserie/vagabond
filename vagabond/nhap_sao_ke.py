@@ -258,7 +258,7 @@ def _doc_tep(file_url):
 	except Exception:
 		return [], (
 			"Không mở được tệp vừa tải lên. Thử tải lại một lần nữa; vẫn lỗi "
-			"thì báo anh Việt."
+			"thì báo quản trị hệ thống."
 		)
 	ten = (getattr(tep, "file_name", "") or file_url).lower()
 	if ten.endswith((".xlsx", ".xlsm")):
@@ -552,5 +552,5 @@ def _chan():
 	if not (set(frappe.get_roles()) & (VAI_KE_TOAN | VAI_THU_MUA | VAI_GIAM_DOC)):
 		frappe.throw(
 			"Nhập sao kê ngân hàng chỉ mở cho Kế toán, Thu mua và Giám đốc. "
-			"Cần dùng thì báo anh Việt cấp thêm chức vụ trong màn Quản lý người dùng."
+			"Cần dùng thì báo quản trị hệ thống cấp thêm chức vụ trong màn Quản lý người dùng."
 		)

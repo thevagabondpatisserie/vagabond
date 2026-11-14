@@ -196,7 +196,7 @@ Phiếu điều chuyển ghi sổ là hàng đã vào kho bạn trong sổ. Màn
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
-| Tài khoản của bạn chưa khai Kho phụ trách | Báo anh Việt khai ở màn Người dùng |
+| Tài khoản của bạn chưa khai Kho phụ trách | Báo quản trị hệ thống khai ở màn Người dùng |
 | Phiếu này chuyển về kho ..., không phải kho bạn phụ trách | Người giữ kho nhận xác nhận |
 
 **Lưu ý**
@@ -294,7 +294,7 @@ Hàng ra khỏi kho mà tiệm vẫn dùng. Tồn chỉ trừ khi quản lý kho
 |---|---|
 | Chưa chọn mục đích xuất dùng / Chưa chọn bộ phận chịu chi phí | Chọn đủ |
 | Có ... món vượt tồn | Sửa số |
-| Bộ phận ... chưa có trong hệ thống | Báo anh Việt |
+| Bộ phận ... chưa có trong hệ thống | Báo quản trị hệ thống |
 | Chỉ quản lý kho mới được ghi sổ phiếu xuất dùng nội bộ | Nhờ quản lý kho |
 
 **Hạch toán**
@@ -570,7 +570,7 @@ Từ khoá: tồn kho dưới mức, tồn thấp, sắp hết hàng, mức tố
 - Món chưa khai mức hoặc mức bằng 0 thì máy không xét.
 - Tin kê tên hàng, số tồn, đơn vị và mức tối thiểu, tối đa 8 món rồi ghi thêm số món khác.
 - Tin cho Kho không có số tiền.
-- Mức tối thiểu bao nhiêu: việc này do anh Việt quyết.
+- Mức tối thiểu bao nhiêu: việc này do giám đốc quyết.
 <!-- kiểm: tên tiếng Việt trên Desk của bảng mức đặt lại theo kho (Item Reorder) và ô mức (warehouse_reorder_level) chưa đối chiếu bản dịch site; ai được sửa Mặt hàng cũng chưa kiểm -->
 <!-- kiểm: nút Mở trong tin trỏ tới trang tạo Yêu cầu vật tư mới trên Desk, chưa kiểm người kho có quyền mở -->
 
@@ -611,7 +611,7 @@ Hoá đơn bán lúc kho điểm bán chưa có hàng vẫn ghi sổ doanh thu. 
 | Máy báo | Cách gỡ |
 |---|---|
 | Chỉ kế toán, quản lý cửa hàng hoặc giám đốc được bấm trừ bù | Nhờ người có quyền |
-| Điểm bán ... chưa khai kho xuất | Báo anh Việt khai kho cho điểm bán |
+| Điểm bán ... chưa khai kho xuất | Báo quản trị hệ thống khai kho cho điểm bán |
 | Chưa trừ bù được | Kho chưa đủ hàng, chờ hàng về |
 
 **Hạch toán**
@@ -636,9 +636,9 @@ Từ 30/09/2026 tiệm tắt quản lý theo lô cho toàn bộ mã hàng. Nhậ
 - Màn Nhập kho chỉ hiện ô Hạn sử dụng cho món còn quản lý theo lô.
 - Tồn cũ ở các lô cũ coi là tồn chung của mã. Chứng từ cũ có lô giữ nguyên.
 - Huỷ chứng từ cũ có lô có thể báo lỗi: liên hệ kế toán trưởng.
-- Còn gặp câu "Vui lòng thêm Gói Số seri và Lô" thì mã đó vẫn bật lô: báo anh Việt hoặc kế toán, không tự sửa.
+- Còn gặp câu "Vui lòng thêm Gói Số seri và Lô" thì mã đó vẫn bật lô: báo quản trị hệ thống hoặc kế toán, không tự sửa.
 - Hạn dùng ngắn hoặc quá hạn lúc nhận chỉ bị nhắc, không chặn.
-- Bật lại lô cho mã nào do anh Việt quyết.
+- Bật lại lô cho mã nào do giám đốc quyết.
 
 ## Cây kho: kho nào dùng cho việc gì
 Từ khoá: cây kho, danh sách kho, kho nào, kho tổng 307, kho D1, kho NVHTN, kho Sales Online, kho bếp, kho nguyên liệu bếp, kho thành phẩm, kho Lab, kho phụ trách, warehouse
@@ -659,7 +659,7 @@ Mỗi kho trên máy ứng với một nơi giữ hàng thật.
 
 **Lưu ý**
 - Hai kho BTP sơ cấp và BTP sẵn sàng đã tắt từ 28/08/2026.
-- Mỗi tài khoản có ô Kho phụ trách. Cần thêm kho thì báo anh Việt khai ở màn Người dùng.
+- Mỗi tài khoản có ô Kho phụ trách. Cần thêm kho thì báo quản trị hệ thống khai ở màn Người dùng.
 - Máy không chặn chuyển hàng giữa các kho, chỉ nhắc khi hàng nằm sai chặng.
 
 ## Mã chứng từ kho: PNK, PDC, PXD, PKK là gì
@@ -705,10 +705,10 @@ Tiệm không cho tồn âm, nên mọi phiếu kho đều kiểm tồn trước
 | Số lượng xuất vượt quá tồn kho: mã (tồn ..., xuất ...) | Sửa số, chuyển hàng về kho này trước, hoặc kiểm kê lại |
 | Kho ... không đủ ... để trừ: còn thiếu ... | Câu báo nói kho nào còn mã đó, chuyển phần thiếu rồi bấm lại |
 | Đang có phiếu kiểm kê mở trên những mặt hàng này | Xem mục "Đang có phiếu kiểm kê mở" |
-| Vui lòng thêm Gói Số seri và Lô | Mã vẫn bật lô, báo anh Việt hoặc kế toán |
+| Vui lòng thêm Gói Số seri và Lô | Mã vẫn bật lô, báo quản trị hệ thống hoặc kế toán |
 | Chưa có tài khoản chi phí nào để ghi giá trị hàng huỷ, nhờ kế toán khai thêm | Báo kế toán |
 | Tài khoản của bạn chưa được cấp quyền xuất kho | Báo quản lý cấp quyền |
-| Kho này không nằm trong các kho bạn phụ trách | Báo anh Việt khai Kho phụ trách |
+| Kho này không nằm trong các kho bạn phụ trách | Báo quản trị hệ thống khai Kho phụ trách |
 | Phiếu đã ghi sổ thì phải huỷ đúng nghiệp vụ bên máy tính | Liên hệ kế toán trưởng |
 | Phiếu chưa có dòng hàng nào có số lượng lớn hơn 0 | Gõ số lượng cho ít nhất một dòng |
 | ... chưa đủ hàng để chuyển: ... | Xem mục "Nhận hàng điều chuyển không được vì kho xuất chưa đủ hàng" |

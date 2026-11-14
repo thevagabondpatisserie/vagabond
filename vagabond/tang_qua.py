@@ -218,7 +218,7 @@ def _kiem_quyen(viec="vào phân hệ CRM chăm sóc khách"):
 	if not QUYEN_CRM & set(frappe.get_roles()):
 		frappe.throw(
 			"Tài khoản của bạn không có quyền %s. Phân hệ này mở cho Sales và "
-			"Marketing. Cần dùng thì báo anh Việt cấp thêm chức vụ Marketing "
+			"Marketing. Cần dùng thì báo quản trị hệ thống cấp thêm chức vụ Marketing "
 			"trong màn Quản lý người dùng." % viec
 		)
 

@@ -805,7 +805,7 @@
     const the2 = tao('div', 'bt-chi-doc');
     the2.append(tao('b', '', pn.ten || ''), tao('p', '', 'Mã số thuế ' + (pn.mst || '')));
     (pn.dia_chi || []).forEach(d => the2.append(tao('p', '', d.ten + ': ' + d.dia_chi)));
-    the2.append(tao('span', 'bt-goi-y', 'Thông tin đăng ký kinh doanh in ở chân mọi trang. Muốn đổi thì báo kế toán và anh Việt, không sửa ở đây.'));
+    the2.append(tao('span', 'bt-goi-y', 'Thông tin đăng ký kinh doanh in ở chân mọi trang. Muốn đổi thì báo Kế toán và quản trị hệ thống, không sửa ở đây.'));
     f.append(the2);
     const hang = tao('div', 'bt-hang-nut bt-chan-form');
     const luu = tao('button', 'bt-nut chinh', 'Lưu liên hệ'); luu.type = 'submit'; luu.dataset.luu = '1';

@@ -71,7 +71,7 @@ TEN_TIEM = "The Vagabond Pâtisserie"
 HOTLINE = "0931 224 334"
 WEB = "thevagabondpatisserie.com"
 WEB_DAT_BANH = "order.thevagabondpatisserie.com/banh"
-HO_TRO_APP = "Cần hỗ trợ về app hãy nhắn anh Việt, 0901 486 556 (Zalo)."
+HO_TRO_APP = "Cần hỗ trợ về app hãy nhắn quản trị hệ thống, 0901 486 556 (Zalo)."
 
 # Anh dung trong thu, nam trong repo de theo phien ban. Duoc phuc vu o
 # /assets/vagabond/images/thu/... tren site.

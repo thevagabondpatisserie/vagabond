@@ -111,7 +111,7 @@ Muốn sửa số quỹ thì đếm tiền thật. Lệch thì máy ghi bút to�
 **Lưu ý**
 - Lệch từ 2.000.000 đ trở xuống: máy ghi ngay, Ban giám đốc thấy trong tin Tiền cuối ngày.
 - Lệch quá 2.000.000 đ: chờ Giám đốc duyệt, quỹ giữ số cũ tới khi duyệt. Giám đốc bấm [[Duyệt, ghi nhận chênh lệch]] hoặc [[Trả lại, nhờ đếm lại]]. Người kiểm không tự duyệt.
-- Ghi xong không sửa, không xoá. Ngưỡng duyệt: việc này do anh Việt quyết.
+- Ghi xong không sửa, không xoá. Ngưỡng duyệt: việc này do giám đốc quyết.
 
 ## Nộp tiền mặt vào ngân hàng
 Từ khoá: nộp tiền mặt vào ngân hàng, nộp tiền vào tài khoản, gửi tiền ngân hàng, giấy nộp tiền, chuyển quỹ vào tài khoản, cash deposit
@@ -222,7 +222,7 @@ Từ khoá: quyền tài chính, ai xem được, kế toán trưởng, người
 **Lưu ý**
 - Giám đốc luôn xem được. Không tích ai thì chỉ Giám đốc xem.
 - Người được chọn cũng chốt được số dư, nhưng không chọn thêm người khác được.
-- Ai được xem: việc này do anh Việt quyết.
+- Ai được xem: việc này do giám đốc quyết.
 
 ## Tin Zalo của phân hệ Tài chính
 Từ khoá: tin tài chính, tiền cuối ngày, két lệch, tiền ra chưa có chứng từ, bản tin tuần, lãi lỗ tháng, zalo bot

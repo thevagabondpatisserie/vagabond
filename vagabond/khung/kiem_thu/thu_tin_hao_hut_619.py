@@ -100,7 +100,7 @@ TIN_MONG = "\n".join([
 	"và 2.500 đ/g (Kho tổng 307) và 3 món khác.",
 	"- Công thức: 7 bán thành phẩm chưa có công thức (Brown Butter, Dark cocoa biscuit, Dough croissant tart "
 	"( Ko sử dụng mã này ), Nước ép dứa, Sữa chua Hy Lạp VGB, Thịt bí, Thịt dứa); 0/424 công thức có % hao hụt cho phép.",
-	"Phụ trách: Khải (giá vốn, công thức); bếp Pastry, Baker (lệnh, số cân, kiểm kê)",
+	"Phụ trách: kế toán giá thành (giá vốn, công thức); bếp Pastry, Baker (lệnh, số cân, kiểm kê)",
 	"Hạn: trước bản tin thứ Hai tới",
 	"Mở: " + APP + "/du-lieu-hao-hut",
 ])

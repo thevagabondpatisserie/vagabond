@@ -293,7 +293,7 @@ function xktLoiHtml(loi) {
   return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;' +
     'padding:14px;margin:8px 0;font-size:13px;color:#991b1b;line-height:1.6">' +
     '<b>Không đọc được danh sách phiếu.</b><br>' + h(loi) +
-    '<br><span style="color:#7f1d1d;font-size:12px">Chụp màn này gửi anh Việt giúp.</span></div>';
+    '<br><span style="color:#7f1d1d;font-size:12px">Chụp màn này gửi quản trị hệ thống giúp.</span></div>';
 }
 
 /* Man danh sach dung chung: tim, ba hang chip, the tom tat, cac dong. */

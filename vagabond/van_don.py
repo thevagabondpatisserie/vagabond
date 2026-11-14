@@ -1996,7 +1996,7 @@ def book_xe(name, kenh, service_id=None, requests_them=None, ma_gia=None):
 	elif kenh == "GreenSM":
 		oid, link, phi = _greensm_dat_don(doc, service_id, requests_them, ma_gia)
 	elif kenh == "BE":
-		frappe.throw("BE Delivery chưa cấp API (anh Việt đang xin). Có key là nối được, khung dùng chung với GreenSM.")
+		frappe.throw("BE Delivery chưa cấp API (đang xin). Có key là nối được, khung dùng chung với GreenSM.")
 	else:
 		frappe.throw("Kênh %s không book qua API được." % kenh)
 	doc.kenh = kenh

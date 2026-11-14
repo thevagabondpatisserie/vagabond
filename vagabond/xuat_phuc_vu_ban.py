@@ -580,7 +580,7 @@ def luu(kho=None, bo_phan_chiu=None, ghi_chu=None, dong=None):
 	ma_tt = bo_phan.ten_that(bo_phan_chiu, viet_tat)
 	if not frappe.db.exists("Cost Center", ma_tt):
 		frappe.throw(
-			"Bộ phận %s chưa có trong hệ thống. Báo anh Việt để máy dựng lại "
+			"Bộ phận %s chưa có trong hệ thống. Báo quản trị hệ thống để dựng lại "
 			"cây bộ phận." % bo_phan_chiu
 		)
 

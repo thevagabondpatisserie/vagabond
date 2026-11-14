@@ -135,8 +135,8 @@ TRUONG_MOI = {
 def _kiem_quyen():
 	if not VAI_SUA & set(frappe.get_roles()):
 		frappe.throw(
-			"Tài khoản của anh chị chưa được mở quyền tạo nhà cung cấp. Nhờ "
-			"anh Việt hoặc chị Dung cấp vai Thu mua giúp."
+			"Tài khoản của bạn chưa được mở quyền tạo nhà cung cấp. Nhờ "
+			"quản trị hệ thống cấp vai Thu mua giúp."
 		)
 
 

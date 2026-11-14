@@ -306,12 +306,12 @@ def thu_gui():
 			"thêm app ra màn hình chính trước thì trình duyệt mới cho bật."
 		),
 		"ban build chua co pywebpush": (
-			"Bản build trên máy chủ còn thiếu thư viện gửi. Báo anh Việt deploy "
-			"lại bản mới nhất trên Frappe Cloud."
+			"Bản build trên máy chủ còn thiếu thư viện gửi. Báo quản trị hệ thống "
+			"cập nhật lại bản mới nhất."
 		),
 		"chua co khoa VAPID": "Máy chủ chưa sinh khoá. Bấm Bật thông báo một lần rồi thử lại.",
-		"khoa VAPID hong": "Khoá trên máy chủ hỏng. Báo anh Việt xem nhật ký lỗi.",
-	}.get(vi_sao, "Chưa gửi được. Báo anh Việt xem nhật ký lỗi trên Desk.")
+		"khoa VAPID hong": "Khoá trên máy chủ hỏng. Báo quản trị hệ thống xem nhật ký lỗi.",
+	}.get(vi_sao, "Chưa gửi được. Báo quản trị hệ thống xem nhật ký lỗi trên Desk.")
 	return {"ok": 0, "loi_nhan": cach}
 
 

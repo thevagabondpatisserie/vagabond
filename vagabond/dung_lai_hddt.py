@@ -1055,7 +1055,7 @@ def dung_lai(name):
 	if cint(doc.docstatus) != 0:
 		frappe.throw(
 			"Hoá đơn %s đã ghi sổ rồi, không dựng lại kiểu này được. Tờ đã "
-			"ghi sổ mà lệch thì báo anh Việt và chị Dung." % name
+			"ghi sổ mà lệch thì báo quản trị hệ thống và kế toán trưởng." % name
 		)
 	g = _goc(doc.get("custom_minvoice_id"))
 	if not g:

@@ -3,7 +3,7 @@
    Bếp (Hân, Linh, Lab) ghi công thức bánh mới trên điện thoại: tên bánh, các
    size, từng thành phần chọn mã có sẵn hoặc gõ tên mới, gram từng size, và
    bấm chip thành phần đó VÀO ĐÂU (ruột cấp 1, khuôn cấp 2, thành phẩm). Bấm
-   Gửi Khải. Khải chọn mã thành phẩm từng size, bấm Tạo mã và công thức (máy
+   Gửi Kế toán. Khải chọn mã thành phẩm từng size, bấm Tạo mã và công thức (máy
    tạo mã BTP, mã cấp 1, cấp 2, công thức nháp), xem lại rồi Ghi sổ tất cả.
 
    Bốn ý thêm anh duyệt: gõ tên mới thì máy báo mã gần giống; giá vốn dự kiến
@@ -19,9 +19,9 @@ var DX_DICH = [
   ['cap2', 'Khuôn (cấp 2)', 'Bọc vào khuôn, chờ trang trí'],
   ['thanh_pham', 'Thành phẩm', 'Trang trí lúc hoàn thiện']
 ];
-var DX_TT = [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ Khải', 'Chờ Khải'], ['Trả lại bếp', 'Trả lại bếp'],
+var DX_TT = [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ Kế toán', 'Chờ Kế toán'], ['Trả lại bếp', 'Trả lại bếp'],
   ['Đã tạo nháp', 'Đã tạo nháp'], ['Đã ghi sổ', 'Đã ghi sổ'], ['Đã huỷ', 'Đã huỷ']];
-var DX_MAU_TT = { 'Nháp': 'n', 'Chờ Khải': 'w', 'Trả lại bếp': 'r', 'Đã tạo nháp': 'w', 'Đã ghi sổ': 'g', 'Đã huỷ': 'n' };
+var DX_MAU_TT = { 'Nháp': 'n', 'Chờ Kế toán': 'w', 'Trả lại bếp': 'r', 'Đã tạo nháp': 'w', 'Đã ghi sổ': 'g', 'Đã huỷ': 'n' };
 var DX_NUT = 'min-height:44px;font-size:14px';
 
 function dxSo(v) { var n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; }
@@ -42,7 +42,7 @@ async function scrDxDs() {
   var cc = { ma: 'dx', tim: { gt: DX.tim || '', goiY: 'Tìm mã phiếu hoặc tên bánh' },
     chang: { ds: DX_TT.slice(1).map(function (c) { return { k: c[0], ten: c[1] }; }),
       dem: Object.assign({ '': (kq.dem || {}).tat_ca || 0 }, kq.dem || {}), chon: DX.tt || '', tatCa: 'Tất cả' } };
-  var body = '<div class="mut" style="font-size:13px;line-height:1.5;margin-bottom:9px">Bếp ghi công thức bánh mới hoặc đề xuất sửa công thức đang dùng; Khải lên mã và ghi sổ.</div>' +
+  var body = '<div class="mut" style="font-size:13px;line-height:1.5;margin-bottom:9px">Bếp ghi công thức bánh mới hoặc đề xuất sửa công thức đang dùng; Kế toán lên mã và ghi sổ.</div>' +
     dsCongCu(cc) +
     (DX.ds.length ? '<div class="lst">' + DX.ds.map(function (x) {
       return '<div class="li" data-dxmo="' + h(x.name) + '" style="min-height:44px;cursor:pointer"><div class="lt">' +
@@ -129,7 +129,7 @@ function scrDxSua(name) {
     var dau = x.ma
       ? '<div class="l1">' + h(x.ten || x.ma) + '</div><div class="l2">' + h(x.ma) + ' · mã có sẵn</div>'
       : '<input class="nt" data-dxten="' + h(x.id) + '" placeholder="Tên thành phần mới" value="' + h(x.ten || '') + '"' + (sua ? '' : ' disabled') +
-        ' style="height:44px;font-size:15px;width:100%"><div class="l2" style="margin-top:4px">Thành phần mới · Khải sẽ tạo mã</div>';
+        ' style="height:44px;font-size:15px;width:100%"><div class="l2" style="margin-top:4px">Thành phần mới · Kế toán sẽ tạo mã</div>';
     var goiY = (!x.ma && sua && gy.length && !x.bo_goi_y)
       ? '<div style="background:#fff7e6;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px;line-height:1.45">' +
         '<b>Đã có mã gần giống, dùng luôn cho khỏi tạo trùng?</b>' +
@@ -200,13 +200,13 @@ function scrDxSua(name) {
         '<span>Size ' + h(s) + '</span><span><b>' + money(x.von || 0) + ' đ</b>' +
         (x.ban ? ' · bán ' + money(x.ban) + ' đ · <b>' + x.ty_le + '%</b>' : '') + '</span></div>';
     }).join('') +
-      '<div class="mut" style="font-size:13px;margin-top:6px">Giá vốn dự kiến, tính lại mỗi lần Lưu nháp. % giá bán hiện khi Khải đã chọn mã thành phẩm.</div>';
+      '<div class="mut" style="font-size:13px;margin-top:6px">Giá vốn dự kiến, tính lại mỗi lần Lưu nháp. % giá bán hiện khi Kế toán đã chọn mã thành phẩm.</div>';
   }
 
   function phanKhai() {
     if (!f.name || !(f.quyen || {}).duyet) return '';
-    if (f.trang_thai === 'Chờ Khải' && !dc) {
-      return '<div class="sec">Khải lên mã</div><div class="card" style="padding:12px 13px">' +
+    if (f.trang_thai === 'Chờ Kế toán' && !dc) {
+      return '<div class="sec">Kế toán lên mã</div><div class="card" style="padding:12px 13px">' +
         dl.sizes.map(function (s) {
           var m = (f.ma_tp || {})[s];
           return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><div style="flex:1;font-size:14px">Size ' + h(s) + ': ' +
@@ -217,7 +217,7 @@ function scrDxSua(name) {
         '<div class="row2" style="margin-top:9px"><button class="btn gh" id="dxTra" style="' + DX_NUT + '">Hỏi lại bếp</button>' +
         '<button class="btn gr" id="dxTao" style="' + DX_NUT + '">Tạo mã và công thức</button></div></div>';
     }
-    if (f.trang_thai === 'Chờ Khải' && dc) {
+    if (f.trang_thai === 'Chờ Kế toán' && dc) {
       return '<div class="row2" style="margin-top:9px"><button class="btn gh" id="dxTra" style="' + DX_NUT + '">Hỏi lại bếp</button>' +
         '<button class="btn gr" id="dxDuyet" style="' + DX_NUT + '">Duyệt và ghi sổ</button></div>';
     }
@@ -243,7 +243,7 @@ function scrDxSua(name) {
         : '<div class="lb" style="font-size:13px">Tên bánh</div><input class="nt" id="dxTen" value="' + h(f.ten_banh || '') + '" placeholder="Ví dụ: Bánh Pinkpom bưởi"' +
           (sua ? '' : ' disabled') + ' style="height:44px;font-size:15px;width:100%">') +
       '<div style="margin-top:8px">' + tt + (f.ten_nguoi_de_xuat ? ' <span class="l2">· ' + h(f.ten_nguoi_de_xuat) + '</span>' : '') + '</div>' +
-      (f.ghi_chu_khai && f.trang_thai === 'Trả lại bếp' ? '<div style="background:#fff7e6;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:14px;line-height:1.45"><b>Khải hỏi lại:</b> ' + h(f.ghi_chu_khai) + '</div>' : '') +
+      (f.ghi_chu_khai && f.trang_thai === 'Trả lại bếp' ? '<div style="background:#fff7e6;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:14px;line-height:1.45"><b>Kế toán hỏi lại:</b> ' + h(f.ghi_chu_khai) + '</div>' : '') +
       (dc ? '<div class="lb" style="font-size:13px;margin-top:9px">Lý do sửa</div><textarea class="nt" id="dxLyDo" rows="2"' + (sua ? '' : ' disabled') +
         ' style="width:100%;min-height:64px;font-size:14.5px">' + h(f.ly_do || '') + '</textarea>' : '') + '</div>';
     /* Khải đến để bấm: khối hành động nằm ngay dưới đầu phiếu, trong màn đầu ở
@@ -261,7 +261,7 @@ function scrDxSua(name) {
         (dc ? '' : '<button class="btn gh" id="dxThemMoi" style="' + DX_NUT + '">+ Thành phần mới</button>') + '</div>' : '');
     body += '<div class="sec">Giá vốn dự kiến</div><div class="card" style="padding:12px 13px">' + hopGia() + '</div>' + thieuGia() + ketQua();
     var nut = sua ? '<div class="row2"><button class="btn gh" id="dxLuu" style="' + DX_NUT + '">💾 Lưu nháp</button>' +
-      '<button class="btn gr" id="dxGui" style="' + DX_NUT + '">📤 Gửi Khải</button></div>' +
+      '<button class="btn gr" id="dxGui" style="' + DX_NUT + '">📤 Gửi Kế toán</button></div>' +
       (f.name ? '<button class="btn gh" id="dxHuy" style="' + DX_NUT + ';margin-top:8px;color:#b3261e">Huỷ phiếu</button>' : '') : '';
     var b = frame(dc ? 'Đề xuất điều chỉnh' : 'Đề xuất công thức', body, nut ? { footer: nut } : {});
     thanNay = b;
@@ -385,7 +385,7 @@ function scrDxSua(name) {
     if (gu) gu.onclick = function () { dxLuu(true); };
     var hu = document.getElementById('dxHuy');
     if (hu) hu.onclick = async function () {
-      if (!await confirmSheet('Huỷ phiếu?', 'Phiếu ' + f.name + ' sẽ chuyển sang Đã huỷ, không gửi Khải nữa.', 'Huỷ phiếu')) return;
+      if (!await confirmSheet('Huỷ phiếu?', 'Phiếu ' + f.name + ' sẽ chuyển sang Đã huỷ, không gửi Kế toán nữa.', 'Huỷ phiếu')) return;
       dxGoi('huy', { name: f.name }, 'Đã huỷ phiếu.');
     };
     var tr = document.getElementById('dxTra');
@@ -418,7 +418,7 @@ function scrDxSua(name) {
   }
   function veLai() { DX.ds = null; go(function () { return scrDxSua(DX.f.name); }, true); }
 
-  /* luuTruoc: Khải sửa số trên phiếu Chờ Khải rồi bấm Tạo, Duyệt, Hỏi lại thì
+  /* luuTruoc: Khải sửa số trên phiếu Chờ Kế toán rồi bấm Tạo, Duyệt, Hỏi lại thì
      lưu phần sửa TRƯỚC, máy chủ mới làm theo đúng số đang hiện (Codex #563). */
   async function dxGoi(ham, args, xong, luuTruoc) {
     busy(1);
@@ -444,7 +444,7 @@ function scrDxSua(name) {
     var r;
     try { r = await api('vagabond.de_xuat_cong_thuc.luu', thamLuu()); }
     catch (er) { busy(0); return toast(errMsg(er), 9000); }
-    /* Nhận mã phiếu NGAY sau khi lưu: Gửi Khải hỏng (thiếu thông tin, rớt
+    /* Nhận mã phiếu NGAY sau khi lưu: Gửi Kế toán hỏng (thiếu thông tin, rớt
        mạng) thì bấm lại vẫn là phiếu này, không đẻ thêm phiếu (Codex #563). */
     dxNap(r);
     if (guiLuon) {
@@ -452,7 +452,7 @@ function scrDxSua(name) {
       catch (er) { busy(0); toast(errMsg(er), 9000); return veLai(); }
     }
     busy(0);
-    toast(guiLuon ? 'Đã gửi Khải.' : 'Đã lưu nháp ' + r.name + '.', 5000);
+    toast(guiLuon ? 'Đã gửi Kế toán.' : 'Đã lưu nháp ' + r.name + '.', 5000);
     veLai();
   }
 

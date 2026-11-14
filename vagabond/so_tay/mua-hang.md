@@ -234,7 +234,7 @@ Xem đơn đã gửi nhà cung cấp, đã nhận bao nhiêu, đã lên hoá đ�
 | Chưa gửi | Chưa ai bấm gửi |
 
 **Lưu ý**
-- Tháng 8/2026 từng có 26 thư đơn mua không đi mà màn vẫn báo xong. Thấy Gửi lỗi thì báo anh Việt, đừng gửi lại liên tục.
+- Tháng 8/2026 từng có 26 thư đơn mua không đi mà màn vẫn báo xong. Thấy Gửi lỗi thì báo quản trị hệ thống, đừng gửi lại liên tục.
 - Đơn còn món chưa về: kho nhận tiếp ở màn Nhập kho, thẻ [[Còn phải nhận]] (xem chương Kho).
 
 ## Tạo nhà cung cấp mới
@@ -260,7 +260,7 @@ Mở hồ sơ cho nhà cung cấp chưa có trong hệ.
 | Mã số thuế phải là 10, 12 hoặc 13 chữ số | Kiểm lại, hoặc bỏ trống điền sau |
 | Mã số thuế ... đã có trong hệ / Đã có nhà cung cấp tên ... | Mở hồ sơ cũ ra sửa, đừng lập hồ sơ thứ hai |
 | Email ... trông chưa đúng | Kiểm dấu chấm và phần đuôi (.com) |
-| Tài khoản của anh chị chưa được mở quyền tạo nhà cung cấp | Nhờ anh Việt hoặc chị Dung cấp vai Thu mua |
+| Tài khoản của bạn chưa được mở quyền tạo nhà cung cấp | Nhờ quản trị hệ thống cấp vai Thu mua |
 
 **Lưu ý**
 - Tên khác cổng thuế thì hoá đơn điện tử có thể bị từ chối. Chi nhánh 13 số giữ nguyên dấu gạch.
@@ -314,7 +314,7 @@ Giá mua khai ở đây tự điền vào đơn mua hàng và dùng để tính 
 
 **Lưu ý**
 - Món nằm ở thẻ Thiếu quy đổi thì giá vốn đang sai, khai bù sớm.
-- Giá bao nhiêu, mua nhà nào: việc này do anh Việt quyết. Màn này chỉ ghi lại.
+- Giá bao nhiêu, mua nhà nào: việc này do giám đốc quyết. Màn này chỉ ghi lại.
 
 ## Luồng duyệt phiếu chi 3 cấp (trả tiền nhà cung cấp)
 Từ khoá: duyệt chi, phiếu chi, APP, trả tiền nhà cung cấp, thanh toán NCC, duyệt 3 cấp, gửi kiểm tra, xác nhận hợp lệ, giám đốc duyệt chi, trả lại, uỷ nhiệm chi, UNC, xác nhận đã chuyển tiền, payment entry

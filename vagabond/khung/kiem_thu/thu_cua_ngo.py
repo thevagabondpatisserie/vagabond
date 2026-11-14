@@ -67,6 +67,8 @@ CUA_NGO = {
 	# v611: đặt bàn web. cau_hinh và gửi yêu cầu mở cho khách; năm hàm của màn
 	# Thông tin đặt bàn chặn quyền ở máy chủ (QUYEN_DAT_BAN).
 	"dat_ban.py": ["cau_hinh", "gui", "ds_dat_ban", "dem_cho_xac_nhan", "xac_nhan", "huy", "da_den"],
+	# v657: số bản app trên máy chủ, trang app hỏi để biết mà tải lại (cần đăng nhập).
+	"phien_ban_app.py": ["hien_tai"],
 	# v622 phân hệ Tuyển dụng: vi_tri_cong_khai và ung_tuyen mở cho khách vãng lai
 	# (form /ung-tuyen); tám hàm của màn Tuyển dụng chặn quyền QUYEN_TUYEN_DUNG.
 	"tuyen_dung.py": ["vi_tri_cong_khai", "ung_tuyen", "tong_quan", "dem_cho_goi", "luu_vi_tri", "bat_tat_vi_tri",

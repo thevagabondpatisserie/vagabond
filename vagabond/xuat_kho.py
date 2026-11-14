@@ -735,7 +735,7 @@ def _gio_hhmm(v):
 # v607 (De 21/10/2026): truoc day cau bao chi "Bao anh Viet khai giup o man
 # Quan ly nguoi dung" ma man do khong co cho khai. Nay co nut rieng.
 CHI_DUONG_KHO = (
-	"Nhờ người quản lý người dùng (quản lý cửa hàng hoặc anh Việt) mở Quản lý "
+	"Nhờ người quản lý người dùng (quản lý cửa hàng hoặc quản trị hệ thống) mở Quản lý "
 	"người dùng, bấm vào tên bạn, bấm Đổi kho phụ trách và chọn kho."
 )
 

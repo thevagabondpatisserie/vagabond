@@ -875,7 +875,7 @@ sdKhai('lich_chi', 'scrLichChi', {
 /* v656: Phiếu đề xuất công thức (72, sau 48). Cả phiếu nằm trong DX.f (tên
    bánh, size, dòng, gram, công thức con); dat() để vào dxKhoiPhuc, màn tự ghép
    lúc dựng. Chỉ giữ nháp khi phiếu còn sửa được (Nháp, Trả lại bếp). Lưu nháp
-   hay Gửi Khải thành công là xong nháp trên máy. */
+   hay Gửi Kế toán thành công là xong nháp trên máy. */
 sdKhai('de_xuat_ct', 'scrDxSua', {
   ten: 'Phiếu đề xuất công thức',
   lay: function () { var f = DX.f; return (f && f.quyen && f.quyen.sua && (f.trang_thai === 'Nháp' || f.trang_thai === 'Trả lại bếp')) ? f : null; },

@@ -2161,7 +2161,7 @@ function htDsVe() {
          (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác ' +
           '(' + trung.map(function (x) { return x.ho_so + ' trùng ' + x.trung_voi; }).join(', ') + '). ' +
           'Một lần tiền ra chỉ khớp cho một phiếu. Nếu đây thật sự là hai lần hoàn khác nhau ' +
-          'thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp.' : '') +
+          'thì sao kê còn thiếu một dòng, báo quản trị hệ thống nạp bù giúp.' : '') +
          ((kq.da_go || []).length ? '\n\nĐã lập lại chứng từ cho phiếu kẹt: ' + kq.da_go.join(', ') + '.' : '')));
       go(scrHoanTien, true);
     } catch (e) { busy(false); }
@@ -2494,7 +2494,7 @@ async function htSinhLai(d) {
       : 'Đã lập lại chứng từ. Giờ đính uỷ nhiệm chi được rồi.', 4500);
     return htChiTiet(d.name);
   }
-  baoTin((kq && kq.loi) || 'Máy vẫn chưa lập được chứng từ. Báo anh Việt.', 'Chưa sinh được');
+  baoTin((kq && kq.loi) || 'Hệ thống vẫn chưa lập được chứng từ. Báo quản trị hệ thống.', 'Chưa sinh được');
   return htChiTiet(d.name);
 }
 
@@ -2578,8 +2578,8 @@ function htCtHddt(d) {
       '<div style="font-size:11.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
       'border-radius:9px;padding:9px 11px;margin-top:8px;line-height:1.6">' +
       'Nút trên đang mở trang chủ M-Invoice chứ chưa nhảy thẳng tới tờ hoá đơn, ' +
-      'vì hệ thống chưa biết đường dẫn sâu của họ. Chị Dung mở một tờ bất kỳ bên đó, ' +
-      'chép đường dẫn trên thanh địa chỉ gửi anh Việt, khai vào Cài đặt một ' +
+      'vì hệ thống chưa biết đường dẫn sâu của họ. Kế toán mở một tờ bất kỳ bên đó, ' +
+      'chép đường dẫn trên thanh địa chỉ gửi quản trị hệ thống, khai vào Cài đặt một ' +
       'lần là từ đó bấm một phát ra đúng tờ.</div>';
   }
   h_ += htCtThayThe(d, v);
@@ -2977,7 +2977,7 @@ async function htFormGdVao(d) {
     than += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
       'border-radius:9px;padding:10px 12px;line-height:1.6">Không có giao dịch tiền vào nào ' +
       'trong sao kê đang có ở khoảng ngày này. Nếu tiền chắc chắn đã về thì sao kê ' +
-      'còn thiếu, báo anh Việt nạp bù giúp.</div>';
+      'còn thiếu, báo quản trị hệ thống nạp bù giúp.</div>';
   } else {
     than += rows.map(function (r) {
       /* Phân biệt bằng CẢ màu lẫn CHỮ, không chỉ bằng màu: có bạn không phân

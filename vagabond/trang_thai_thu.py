@@ -383,7 +383,7 @@ def soat_lai(so_ngay=7):
 	if not frappe.has_permission("Purchase Order", "write"):
 		frappe.throw(
 			"Chỉ người có quyền sửa đơn mua hàng mới soát lại được. "
-			"Anh chị nhờ anh Việt chạy giúp."
+			"Nhờ quản trị hệ thống chạy giúp."
 		)
 	ngay = max(1, min(int(so_ngay or 7), 90))
 	moc = add_to_date(now_datetime(), days=-ngay)
@@ -498,8 +498,8 @@ def _dung_o_ly_do():
 				"read_only": 1,
 				"depends_on": "eval:doc.%s=='%s'" % (O_TRANG_THAI, GUI_LOI),
 				"description": (
-					"Máy tự điền. Câu này nói rõ ai phải làm gì tiếp. Nếu nó "
-					"bảo là lỗi cấu hình của hệ thống thì anh chị báo anh Việt, "
+					"Hệ thống tự điền. Câu này nói rõ ai phải làm gì tiếp. Nếu nó "
+					"bảo là lỗi cấu hình của hệ thống thì báo quản trị hệ thống, "
 					"đơn không cần lập lại."
 				),
 			}

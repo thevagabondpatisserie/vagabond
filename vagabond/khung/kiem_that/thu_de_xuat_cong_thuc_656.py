@@ -75,7 +75,7 @@ def _banh_moi():
 	with um.patch.object(dx, "_bao_khai", lambda doc: None):
 		r = dx.luu(None, "Bánh thử " + w["tag"], json.dumps(w["du_lieu"]), dx.LOAI_MOI)
 		r = dx.gui(r["name"])
-	la("gửi xong thành Chờ Khải", r["trang_thai"], dx.TT_CHO)
+	la("gửi xong thành Chờ Kế toán", r["trang_thai"], dx.TT_CHO)
 	r = dx.tao_nhap(r["name"], json.dumps(w["tp"]))
 	la("tạo xong thành Đã tạo nháp", r["trang_thai"], dx.TT_DA_TAO)
 	kq = r["ket_qua"]

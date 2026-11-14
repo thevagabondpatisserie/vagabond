@@ -41,7 +41,7 @@
    "fieldname": "trang_thai",
    "fieldtype": "Select",
    "label": "Trạng thái",
-   "options": "Nháp\nChờ Khải\nTrả lại bếp\nĐã tạo nháp\nĐã ghi sổ\nĐã huỷ",
+   "options": "Nháp\nChờ Kế toán\nTrả lại bếp\nĐã tạo nháp\nĐã ghi sổ\nĐã huỷ",
    "default": "Nháp",
    "in_list_view": 1,
    "read_only": 1,
@@ -85,7 +85,7 @@
   {
    "fieldname": "ghi_chu_khai",
    "fieldtype": "Small Text",
-   "label": "Khải hỏi lại",
+   "label": "Kế toán hỏi lại",
    "read_only": 1
   },
   {
@@ -114,7 +114,7 @@
   }
  ],
  "links": [],
- "modified": "2026-11-13 21:00:00.000000",
+ "modified": "2026-11-14 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond De Xuat Cong Thuc",

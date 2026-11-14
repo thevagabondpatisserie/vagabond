@@ -412,8 +412,8 @@ def keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 	"""
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw(
-			"Chỉ quản lý hoặc kế toán mới chạy kéo bù hoá đơn được. Nhờ chị "
-			"Dung hoặc anh Việt chạy giúp."
+			"Chỉ quản lý hoặc kế toán mới chạy kéo bù hoá đơn được. Nhờ kế toán "
+			"trưởng hoặc quản trị hệ thống chạy giúp."
 		)
 	return _keo(so_ngay, tu_ngay, den_ngay, chi_loai, do_lai_het)
 

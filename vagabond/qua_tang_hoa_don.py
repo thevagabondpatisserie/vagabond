@@ -331,7 +331,7 @@ def _tk_chi_phi():
 	if not tk:
 		frappe.throw(
 			"Chưa khai <b>Tài khoản chi phí biếu tặng</b> trong Cài đặt. "
-			"Nhờ anh Việt và chị Dung chọn tài khoản chi phí cho hàng biếu "
+			"Nhờ giám đốc và kế toán trưởng chọn tài khoản chi phí cho hàng biếu "
 			"tặng rồi mới xuất hoá đơn quà.",
 			title="Thiếu tài khoản chi phí biếu tặng",
 		)

@@ -599,7 +599,7 @@ def _chan_neu_khong_duyet():
 		frappe.throw(
 			"Chỉ Giám đốc mới duyệt được đơn hàng tặng. Hàng rào này sinh ra "
 			"để người tặng và người duyệt không phải là một. Cần duyệt thì "
-			"nhờ anh Việt.",
+			"nhờ giám đốc.",
 			title="Không có quyền duyệt đơn tặng",
 		)
 

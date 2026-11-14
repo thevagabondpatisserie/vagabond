@@ -121,10 +121,10 @@ LOI_KHAC = "khac"
 # biết ngồi đợi.
 CAU_CHO_NGUOI_DUNG = {
 	LOI_NGUOI_GUI: (
-		"Hệ thống chưa xác định được hộp thư gửi đi. Đây là lỗi cấu hình của hệ thống, không phải lỗi của đơn này, anh chị vui lòng báo anh Việt. Đơn không cần lập lại, gửi lại được ngay sau khi sửa."
+		"Hệ thống chưa xác định được hộp thư gửi đi. Đây là lỗi cấu hình của hệ thống, không phải lỗi của đơn này. Báo quản trị hệ thống. Đơn không cần lập lại, gửi lại được ngay sau khi sửa."
 	),
 	LOI_DANG_NHAP: (
-		"Hộp thư gửi đi bị máy chủ từ chối đăng nhập. Báo anh Việt kiểm lại "
+		"Hộp thư gửi đi bị máy chủ từ chối đăng nhập. Báo quản trị hệ thống kiểm lại "
 		"mật khẩu hộp thư, đơn không cần lập lại."
 	),
 	LOI_DIA_CHI_NHAN: (
@@ -132,15 +132,15 @@ CAU_CHO_NGUOI_DUNG = {
 		"chị mở hồ sơ nhà cung cấp kiểm lại địa chỉ rồi bấm gửi lại."
 	),
 	LOI_MANG: (
-		"Máy chủ thư không phản hồi. Thường là tạm thời, anh chị thử gửi lại "
-		"sau ít phút; vẫn hỏng thì báo anh Việt."
+		"Máy chủ thư không phản hồi. Thường là tạm thời, thử gửi lại "
+		"sau ít phút; vẫn hỏng thì báo quản trị hệ thống."
 	),
 	LOI_HAN_MUC: (
 		"Hộp thư đã chạm hạn mức gửi trong ngày. Chờ sang ngày mai hoặc báo "
-		"anh Việt nâng hạn mức."
+		"quản trị hệ thống nâng hạn mức."
 	),
 	LOI_KHAC: (
-		"Gửi không thành công, chưa xếp được nguyên nhân. Anh chị vui lòng báo anh Việt kèm mã đơn."
+		"Gửi không thành công, chưa xếp được nguyên nhân. Báo quản trị hệ thống kèm mã đơn."
 	),
 }
 

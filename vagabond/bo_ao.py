@@ -106,7 +106,7 @@ def tong_ket(ma, da_la_hang_ton, so_bom_rieng, so_dong, so_dung_lai, vuot_chan):
 		% (ma, so_bom_rieng, so_dong, so_dung_lai))
 	if vuot_chan:
 		cau += (" Mã đã từng có giao dịch kho nên máy ghi thẳng, vượt chặn của "
-			"ERPNext (anh Việt cho phép 03/10/2026).")
+			"ERPNext (giám đốc cho phép 03/10/2026).")
 	return cau
 
 

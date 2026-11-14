@@ -416,7 +416,7 @@ def nap_bom_thu_vien(chay_that=0):
 		da_nap.append(doc.name)
 	frappe.db.commit()
 	ke["da_nap"] = da_nap
-	ke["ghi_chu"] = ("Đã nạp %d BOM nháp từ file của Hân. Bếp trưởng vào màn "
+	ke["ghi_chu"] = ("Đã nạp %d công thức nháp từ file của Bếp. Bếp trưởng vào màn "
 		"Danh mục công thức duyệt từng bản." % len(da_nap))
 	return ke
 

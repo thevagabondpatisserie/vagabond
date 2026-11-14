@@ -178,10 +178,10 @@ Hoàn tất là lúc máy trừ nguyên liệu, nhập thành phẩm. Bút toán
 
 **Các bước**
 1. Bấm dấu ✓ cuối dòng lệnh, hoặc mở lệnh rồi bấm [[Hoàn tất]].
-2. Hộp Hoàn thành phiếu: gõ Số lượng làm theo lệnh (để trừ nguyên liệu).
+2. Hộp Hoàn tất lệnh sản xuất: gõ Số lượng làm theo lệnh (để trừ nguyên liệu).
 3. Gõ Thực tế cân được (để nhập kho), bắt buộc. Đổi đơn vị ở ô cạnh số nếu cần.
 4. Chip Lần trước gợi ý số.
-5. Bấm [[Hoàn thành]].
+5. Bấm [[Hoàn tất]] ở cuối hộp.
 6. Cấp 1, cấp 2, làm tươi thiếu: hộp Máy làm luôn giúp bếp, bấm nút xanh.
 7. Kho bếp thiếu: máy dừng, bấm [[📦 Gửi phiếu xin kho tổng]], kho giao xong bấm lại.
 8. Nhiều lệnh cùng món: ✓ thẻ gộp, gõ tổng số; máy kiểm nguyên liệu rồi [[Ghi sổ N lệnh]].
@@ -204,7 +204,7 @@ Từ khoá: số cân, cân thật, lệnh không cân, dữ liệu hao hụt, T
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Bếp, bếp phó, quản lý sản xuất | Sản xuất (/san-xuat) | [[Hoàn thành]] |
+| Bếp, bếp phó, quản lý sản xuất | Sản xuất (/san-xuat) | [[Hoàn tất]] |
 
 Hao hụt chỉ đo được khi số nhập kho là số cân thật của mẻ.
 
@@ -355,7 +355,7 @@ Từ khoá: in tem, tem HACCP, tem nhãn, nhãn bánh, NSX, HSD, hạn dùng, m�
 Tem ghi tên món, khối lượng tịnh, điều kiện bảo quản, chất gây dị ứng, NSX, HSD, mã vạch món. Từ 03/10/2026 tem không cần lô: dòng lô cũ đổi thành "Ngày: ......" để bếp điền tay.
 
 **Các bước**
-1. Mở lệnh, bấm [[In tem]] hoặc [[In lại tem]]. Bấm [[Hoàn thành]] xong máy cũng tự mở màn In tem HACCP.
+1. Mở lệnh, bấm [[In tem]] hoặc [[In lại tem]]. Bấm [[Hoàn tất]] xong máy cũng tự mở màn In tem HACCP.
 2. Chỉnh Số tem cần in.
 3. Bấm [[In thử 1 tem]] hoặc [[In N tem]].
 4. Dán tem, điền tay ngày vào dòng Ngày.
@@ -364,7 +364,7 @@ Tem ghi tên món, khối lượng tịnh, điều kiện bảo quản, chất g
 
 **Lưu ý**
 - NSX là giờ bấm in, HSD tính từ NSX. In trước để dán sau thì sửa tay cho đúng.
-- Đừng tự bật lại Có quản lý lô trên Desk: tắt lô là quyết định của anh Việt 30/09/2026.
+- Đừng tự bật lại Có quản lý lô trên Desk: tắt lô là quyết định của giám đốc 30/09/2026.
 - Hạn dùng trên tem lấy từ số giờ hạn dùng hoặc Thời gian Sử dụng theo Ngày trên hồ sơ món.
 - In cả nhóm cần máy in tem đã nối QZ Tray; chưa nối thì máy báo "chỉ in được từng lệnh một".
 
@@ -441,13 +441,13 @@ Công thức đã ghi sổ không sửa thẳng được. Ghi sổ bản mới x
 - Đổi công thức thì soát lại hướng dẫn chế biến (nút chuyển sang [[Soát lại HD]]).
 
 ## Đề xuất công thức bánh mới
-Từ khoá: phiếu đề xuất công thức, bánh mới, recipe mới, gửi Khải, cấp 1, cấp 2, nhiều size, giá vốn dự kiến, mã gần giống
+Từ khoá: phiếu đề xuất công thức, bánh mới, recipe mới, gửi kế toán, gửi Khải, cấp 1, cấp 2, nhiều size, giá vốn dự kiến, mã gần giống
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Bếp phó, Lab, quầy bar | Công thức (/cong-thuc), nút [[Phiếu đề xuất công thức]] | [[Gửi Khải]] |
+| Bếp phó, Lab, quầy bar | Công thức (/cong-thuc), nút [[Phiếu đề xuất công thức]] | [[Gửi Kế toán]] |
 
-Bếp ghi công thức bánh mới một lần cho mọi size; Khải lên mã và công thức.
+Bếp ghi công thức bánh mới một lần cho mọi size; Kế toán lên mã và công thức.
 
 **Các bước**
 1. Mở Công thức, bấm [[Phiếu đề xuất công thức]], bấm nút tròn dấu cộng.
@@ -455,9 +455,9 @@ Bếp ghi công thức bánh mới một lần cho mọi size; Khải lên mã v
 3. Bấm [[+ Mã có sẵn]] hoặc [[+ Thành phần mới]] (thứ chưa có mã).
 4. Gõ tên thành phần mới: máy báo mã gần giống thì bấm mã đó, hoặc [[Không phải, vẫn tạo mới]].
 5. Bấm chip Vào đâu: Ruột (cấp 1), Khuôn (cấp 2) hoặc Thành phẩm.
-6. Gõ gram một size, bấm [[Gợi ý các size còn trống]] (máy tính theo diện tích khuôn), sửa ô nào lệch.
+6. Gõ gram một size, bấm [[Gợi ý các size còn trống]] (theo diện tích khuôn), sửa ô nào lệch.
 7. Thành phần mới: gõ Một mẻ ra được (gram) và thêm nguyên liệu của nó.
-8. Bấm [[Lưu nháp]] để xem Giá vốn dự kiến, rồi [[Gửi Khải]].
+8. Bấm [[Lưu nháp]] để xem Giá vốn dự kiến, rồi [[Gửi Kế toán]].
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
@@ -469,17 +469,17 @@ Bếp ghi công thức bánh mới một lần cho mọi size; Khải lên mã v
 
 **Lưu ý**
 - Chữ đỏ Thiếu giá: nguyên liệu chưa có giá, vẫn gửi được.
-- Khải hỏi lại thì phiếu về Trả lại bếp (hiện ở Việc cần làm). Sửa rồi [[Gửi Khải]] lại.
+- Kế toán hỏi lại thì phiếu về Trả lại bếp (ở Việc cần làm). Sửa rồi gửi lại.
 
-## Khải lên mã và ghi sổ phiếu đề xuất
+## Kế toán lên mã và ghi sổ phiếu đề xuất
 Từ khoá: duyệt phiếu đề xuất công thức, tạo mã và công thức, ghi sổ tất cả, hỏi lại bếp, mã thành phẩm từng size, BTPB, NBTP
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Khải, bếp trưởng, giám đốc | Việc cần làm, hoặc Công thức, [[Phiếu đề xuất công thức]] | [[Tạo mã và công thức]], [[Ghi sổ tất cả]] |
+| Kế toán giá thành, bếp trưởng, giám đốc | Việc cần làm, hoặc Công thức, [[Phiếu đề xuất công thức]] | [[Tạo mã và công thức]], [[Ghi sổ tất cả]] |
 
 **Các bước**
-1. Mở phiếu Chờ Khải từ Việc cần làm (dòng 📝 Đề xuất công thức).
+1. Mở phiếu Chờ Kế toán từ Việc cần làm (dòng 📝 Đề xuất công thức).
 2. Từng size bấm [[Chọn mã]], chọn mã thành phẩm bán ra của size đó.
 3. Bấm [[Tạo mã và công thức]]: máy tạo mã thành phần mới (BTPB), mã cấp 1, cấp 2 từng size (NBTP) và công thức nháp. Chưa ghi sổ.
 4. Bấm từng công thức ở mục Đã tạo để xem lại.
@@ -501,16 +501,16 @@ Từ khoá: đề xuất điều chỉnh, sửa công thức qua phiếu, bảng
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Bếp phó, Lab đề xuất; Khải duyệt | Công thức (/cong-thuc) | [[Đề xuất điều chỉnh]], [[Duyệt và ghi sổ]] |
+| Bếp phó, Lab đề xuất; Kế toán duyệt | Công thức (/cong-thuc) | [[Đề xuất điều chỉnh]], [[Duyệt và ghi sổ]] |
 
-Bếp muốn đổi định lượng công thức đang dùng thì gửi phiếu, Khải duyệt mới ra phiên bản mới. Lịch sử ghi người đề xuất, người duyệt, lý do.
+Bếp muốn đổi định lượng công thức đang dùng thì gửi phiếu, Kế toán duyệt mới ra phiên bản mới. Lịch sử ghi người đề xuất, người duyệt, lý do.
 
 **Các bước**
 1. Mở công thức đang dùng, bấm [[Đề xuất điều chỉnh]].
 2. Sửa số lượng, bấm dấu × để bỏ dòng, [[+ Mã có sẵn]] để thêm.
 3. Gõ Lý do sửa, bấm [[Lưu nháp]]: máy hiện bảng Trước, Sau và giá vốn chênh.
-4. Bấm [[Gửi Khải]].
-5. Khải mở phiếu, bấm [[Duyệt và ghi sổ]] hoặc [[Hỏi lại bếp]].
+4. Bấm [[Gửi Kế toán]].
+5. Kế toán mở phiếu, bấm [[Duyệt và ghi sổ]] hoặc [[Hỏi lại bếp]].
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
@@ -586,7 +586,7 @@ Bốn chữ đầu của mã cho biết loại món. Mã chuẩn là đầu mã 
 
 **Lưu ý**
 - Chặng cụ thể của bán thành phẩm xem mục "Chặng bán thành phẩm là gì".
-- Thêm đầu mã mới: Việc này do anh Việt quyết.
+- Thêm đầu mã mới: Việc này do giám đốc quyết.
 
 ## Chặng bán thành phẩm là gì
 Từ khoá: chặng, chặng bán thành phẩm, BTP thành phần, BTP sơ cấp, BTP sẵn sàng, cấp 1, cấp 2, ruột bánh, bánh khuôn, C1, C2, kho đích, kho nhập thành phẩm, máy sửa kho đích theo chặng
@@ -721,7 +721,7 @@ Chuyển hàng loạt các mã BTP thành phần sang mặt hàng ảo (bỏ qu�
 | Khung đỏ CHƯA CHẠY THẬT ĐƯỢC (còn lệnh treo, còn tồn) | Bấm [[Sang màn Dọn chứng từ thử]] để xử lý |
 
 **Lưu ý**
-- Chạy ngoài giờ bếp đang làm. Việc này do anh Việt quyết.
+- Chạy ngoài giờ bếp đang làm. Việc này do giám đốc quyết.
 
 ## Soạn hướng dẫn chế biến
 Từ khoá: hướng dẫn chế biến, cách làm, quy trình làm bánh, SOP món, các bước làm, tiêu chí QC, CCP, OPRP, dị ứng, ảnh món đạt, in A4
@@ -806,7 +806,7 @@ Phiếu cho hàng ngoài danh mục hoặc trên 500.000 một hoá đơn, thư�
 | Chưa ghi tên hàng cần mua | Điền tên hàng |
 
 **Lưu ý**
-- Có được mua ngoài danh mục hay không: Việc này do anh Việt quyết.
+- Có được mua ngoài danh mục hay không: Việc này do giám đốc quyết.
 
 ## Xem ai đổi BTP sẵn, Đủ decor, Bếp làm
 Từ khoá: BTP sẵn, đủ decor, bếp làm, lịch sử BTP, ai sửa, nhật ký BTP
@@ -815,7 +815,7 @@ Từ khoá: BTP sẵn, đủ decor, bếp làm, lịch sử BTP, ai sửa, nhậ
 |---|---|---|
 | Bếp, Sales | Kiểm bánh (/kiem-banh) | Bấm dòng chữ nhỏ dưới số |
 
-Trước đây: số BTP đổi mà không biết ai đổi. Từ nay: dưới BTP sẵn, Đủ decor hiện lần đổi gần nhất (ví dụ Linh 22:27 · nhập tay, hoặc Máy trừ · Bếp làm 13/11 (Hân)); dưới Bếp làm hiện người sửa (Hân 21:05).
+Trước đây: số BTP đổi mà không biết ai đổi. Từ nay: dưới BTP sẵn, Đủ decor hiện lần đổi gần nhất (ví dụ: tên người sửa kèm giờ và "nhập tay", hoặc "Máy trừ · Bếp làm 13/11" kèm tên người làm); dưới Bếp làm hiện tên người sửa và giờ sửa.
 
 **Các bước**
 1. Mở Kiểm bánh, tìm bánh cần xem.

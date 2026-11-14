@@ -35,7 +35,7 @@ Mục Ưu đãi trên web lấy từ ERP, không gõ tay ở trình biên tập 
 
 **Lưu ý**
 - Tắt chương trình là web tự ẩn thẻ.
-- Nội dung ưu đãi, ảnh: việc này do anh Việt và Marketing quyết.
+- Nội dung ưu đãi, ảnh: việc này do giám đốc và Marketing quyết.
 
 ## Đặt banner ảnh trên trang đặt bánh
 Từ khoá: banner, ảnh quảng cáo, banner sinh nhật, đầu trang, giỏ hàng, đặt xong, biên nhận, thay ảnh banner, cập nhật ngày sinh, trang thành viên
@@ -63,7 +63,7 @@ Từ khoá: banner, ảnh quảng cáo, banner sinh nhật, đầu trang, giỏ 
 **Lưu ý**
 - Thay ảnh: bấm Sửa ở banner đó, tải ảnh mới, lưu. Tắt công tắc Hiện trên web là gỡ ngay.
 - Không có ảnh điện thoại thì điện thoại dùng ảnh máy tính, chữ nhỏ khó đọc.
-- Qua ngày kết thúc web tự gỡ. Nội dung quà sinh nhật: việc này do anh Việt quyết.
+- Qua ngày kết thúc web tự gỡ. Nội dung quà sinh nhật: việc này do giám đốc quyết.
 
 ## Khách dùng điểm thành viên khi đặt bánh trên web
 Từ khoá: dùng điểm web, trừ điểm online, điểm thành viên, thanh toán bằng điểm, thể lệ thành viên, điểm sắp hết hạn, mua lại, hoàn điểm
@@ -83,7 +83,7 @@ Từ bản 652 khách online tự trừ điểm ở bước thanh toán, cùng l
 **Lưu ý**
 - Đơn bị từ chối hoặc chuyển Đã huỷ: máy tự hoàn điểm và nhắn Zalo (kịch bản Báo đã hoàn điểm).
 - Trang thành viên có khối Thể lệ (hạng, % tích, hạn điểm, cách dùng), khách chưa đăng nhập cũng xem được; có dòng điểm sắp hết hạn và nút Mua lại ở đơn cũ.
-- Hạn điểm cuốn chiếu 12 tháng. Luật điểm: việc này do anh Việt quyết.
+- Hạn điểm cuốn chiếu 12 tháng. Luật điểm: việc này do giám đốc quyết.
 
 ## Chương trình nhân điểm (ví dụ thứ Năm trên web x2)
 Từ khoá: nhân điểm, x2 điểm, điểm gấp đôi, double point, tích điểm gấp, thứ Năm web
@@ -103,5 +103,5 @@ Nhân điểm là một chương trình khuyến mãi, không mặc định trê
 **Lưu ý**
 - Máy tự nhân khi hoá đơn ghi sổ; đơn web xét theo lúc khách đặt. Thu ngân không chọn tay.
 - Nhiều chương trình cùng khớp thì lấy hệ số lớn nhất, không nhân chồng.
-- Mức nhân, ngày chạy: việc này do anh Việt quyết.
+- Mức nhân, ngày chạy: việc này do giám đốc quyết.
 

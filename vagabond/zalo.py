@@ -230,7 +230,7 @@ def thu_mau(template_id=None):
 	Ham nay KHONG gui tin nao, khong ton mot tin ZNS nao.
 	"""
 	if "System Manager" not in frappe.get_roles():
-		frappe.throw("Chỉ System Manager mới xem được mẫu ZNS. Nhờ anh Việt mở giúp.")
+		frappe.throw("Chỉ quản trị hệ thống mới xem được mẫu ZNS.")
 	from vagabond.lib import cfg
 
 	ma = str(template_id or "").strip()

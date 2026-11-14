@@ -189,7 +189,7 @@ trình biên tập web) chuyển sang Vue 3, mã ở `vagabond/public/web_vue/`:
 Anh Việt đã yêu cầu nhiều lần, lần cuối 03/09/2026 với ảnh hai màn xuất kho
 "rất thô sơ, không đồng bộ với giao diện đẹp của app". Bản đầy đủ nằm ở
 project doc `nguyen-tac-thiet-ke-man-hinh-app-va-de-xuat-kho-theo-sap`. Mười
-tám điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn sửa; ca kiểm
+chín điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn sửa; ca kiểm
 `thu_nguyen_tac_man_hinh.py` canh những điều soi được bằng chuỗi.
 
 1. **Dùng khung có sẵn, không tự vẽ.** `frame`, `card`, hàng chip, bottom
@@ -248,6 +248,14 @@ tám điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn 
     nhìn thấy; tên dài rút thành mã ngắn cộng bốn số cuối, ví dụ "MB · 0615",
     tên đầy đủ để trong title. Hàng chip cuộn ngang phải chừa lề hai bên để
     chữ không bị cắt ở mép.
+19. **Chữ trên màn theo [quy tắc chữ ERP](docs/quy-tac-chu-erp.md)** (anh
+    Việt duyệt 14/11/2026). Không gọi tên người, chỉ gọi bộ phận hoặc chức
+    danh (Kế toán, kế toán trưởng, Thu mua, Bếp, giám đốc, quản trị hệ
+    thống). Một việc một chữ: Lưu nháp, Gửi + bộ phận, Duyệt, Trả lại, Ghi
+    sổ, Hoàn tất, Huỷ chứng từ, Xoá. Gọi phần mềm là "hệ thống". Không viết
+    tắt NCC, BTP, BOM trên nhãn. Chọn chữ theo mẫu chứng từ Thông tư 99,
+    rồi chữ tiệm đang dùng, rồi Odoo và MISA; không lấy bản dịch máy của
+    ERPNext. Ca kiểm `thu_quy_tac_chu_657.py` chặn tên người.
 
 Khi giao việc có đổi màn hình cho Codex, áp
 [skill dẫn giao diện](.agents/skills/vagabond-uxui-giao-viec/SKILL.md): issue

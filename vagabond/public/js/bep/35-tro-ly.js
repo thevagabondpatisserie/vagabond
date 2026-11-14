@@ -292,7 +292,7 @@ function tlGan() {
     '<div id="tlThan"><div class="tlGoi">Hệ thống trả lời dựa trên tài liệu ' +
     'của chính phần mềm này, về cách dùng từng màn hình và ý nghĩa các câu ' +
     'chặn.<br><br>Hệ thống chưa đọc dữ liệu thật của tiệm, nên không trả lời ' +
-    'được tồn kho hay tình trạng đơn. Việc cần quyết thì hỏi anh Việt.</div></div>' +
+    'được tồn kho hay tình trạng đơn. Việc cần quyết thì hỏi giám đốc.</div></div>' +
     '<div id="tlChan">' +
     '<textarea id="tlO" placeholder="Nhập câu hỏi về cách dùng app"></textarea>' +
     '<button id="tlGui">Gửi</button></div>';
