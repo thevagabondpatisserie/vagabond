@@ -30,6 +30,24 @@ Tự đặt mật khẩu mới qua thư, dùng cả khi mới được cấp tà
 - Đặt xong, mọi máy khác đang đăng nhập tài khoản này bị đăng xuất.
 - Thư không tới dù đã chờ: nhờ quản lý mở hồ sơ bạn, bấm [[Gửi lại thư mời đặt mật khẩu]].
 
+## Tải lại app khi có bản mới
+Từ khoá: tải lại app, bản mới, cập nhật app, app cũ, refresh, reload, dải cam Tải lại, QR in thiếu, mã QR chỉ còn một góc
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi nhân viên, nhất là máy quầy mở app cả ngày | Mọi màn của app | [[🔄 Tải lại]] |
+
+Trước đây: app nạp một lần lúc mở trang. Máy để mở qua đêm thì vẫn chạy bản cũ, bản sửa lỗi không tới (ví dụ mã QR trên phiếu tạm tính in ra chỉ còn một góc dù đã sửa).
+Từ nay: vài phút một lần app hỏi hệ thống có bản mới chưa. Đang ở trang chủ thì app tự tải lại. Đang làm dở một màn thì hiện dải cam trên cùng.
+
+**Các bước**
+1. Thấy dải cam "Hệ thống đã có bản app mới", lưu xong việc đang làm (đơn, phiếu).
+2. Bấm [[🔄 Tải lại]].
+
+**Lưu ý**
+- Phiếu đang soạn dở được lưu nháp trước khi tải lại, mở lại ở mục Phiếu đang soạn dở trên trang chủ.
+- Máy in QR thiếu ô: tải lại app rồi in lại phiếu.
+
 ## Đổi mật khẩu khi đang đăng nhập
 Từ khoá: đổi mật khẩu, thay mật khẩu, change password, update password, mật khẩu cũ, mật khẩu mới, đổi pass, update-password
 

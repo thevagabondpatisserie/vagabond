@@ -17,6 +17,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Kế toán lên mã và ghi sổ phiếu đề xuất
 - Đề xuất điều chỉnh công thức đang dùng
 - Hoàn tất lệnh sản xuất
+- Tải lại app khi có bản mới
 
 ## v656
 - Đề xuất công thức bánh mới
