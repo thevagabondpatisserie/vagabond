@@ -73661,6 +73661,10 @@ function skNhanNgay(ngay, homNay) {
 function skKhop(r, q) {
   var t = String(q || '').trim();
   if (!t) return true;
+  /* Codex #566 vòng 3: mã vé có thể toàn chữ số (8 ký tự đầu mã băm), nên luôn
+     xét mã vé TRƯỚC rồi mới tới nhánh số điện thoại; hai nhánh cộng dồn. */
+  var gon = t.replace(/\s+/g, '').toUpperCase();
+  if (gon && String(r.ma_ve || '').toUpperCase().indexOf(gon) >= 0) return true;
   var so = t.replace(/[^0-9]/g, '');
   if (so.length >= 3 && so.length === t.replace(/[\s.+-]/g, '').length) return String(r.sdt || '').replace(/[^0-9]/g, '').indexOf(so) >= 0;
   return vgbKhop([r.ma_ve, r.ten, r.sdt], t);
