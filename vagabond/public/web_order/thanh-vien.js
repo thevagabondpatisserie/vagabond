@@ -162,6 +162,27 @@
     const q = tl && tl.qua_sn;
     return q && (q.hang || []).indexOf(String(ten || '').trim().toUpperCase()) >= 0 ? q : null;
   }
+  /* MỘT nguồn cho lời hứa quà sinh nhật (Codex #567): ghi chú thể lệ và thẻ Hoàn thiện hồ sơ
+     của khách cũ cùng đọc. Chỉ nói "bánh" khi chương trình tặng trọn một bánh trong nhóm món
+     (có nhom); ưu đãi khác nói đúng tên chương trình. Lịch gửi và hạn mã theo máy chủ:
+     Ví quà theo tháng thì nhận trong tháng; còn lại gửi trước N ngày hoặc đúng ngày.
+     Trả các cụm [khoá chữ, mặc định, giá trị thay]. */
+  function cumQuaSn(q) {
+    const ra = [];
+    if (q.nhom) {
+      ra.push(['tv658_qsn_2', '1 bánh nhóm {nhom},', { nhom: q.nhom }]);
+      if (Number(q.toi_da) > 0) ra.push(['tv658_qsn_3', 'tối đa {tien},', { tien: dong(q.toi_da) }]);
+    } else ra.push(['tv659_qsn_ten', '{ten},', { ten: q.ten || C('tv659_uu_dai_sn', 'ưu đãi sinh nhật') }]);
+    if (q.lich === 'thang') {
+      ra.push(['tv658_qsn_thang', 'nhận mã trong tháng sinh nhật,', {}], ['tv658_qsn_thang_han', 'dùng tới hết tháng.', {}]);
+    } else {
+      const truoc = Number(q.truoc) || 0;
+      ra.push(truoc > 0 ? ['tv658_qsn_gui', 'mã gửi qua Zalo {ngay} trước sinh nhật,', { ngay: truoc + ' ' + C('tv658_ngay', 'ngày') }]
+        : ['tv658_qsn_gui_dung', 'mã gửi qua Zalo đúng ngày sinh nhật,', {}]);
+      ra.push(['tv658_qsn_han', 'dùng trong {ngay}.', { ngay: (Number(q.han) || 1) + ' ' + C('tv658_ngay', 'ngày') }]);
+    }
+    return ra;
+  }
 
   /* J1c: lõi ở góc, mỗi hạng theo chi tiêu một cung, hạng cao gần lõi nhất. */
   function veHanhTrinh(tl, hang, td) {
@@ -278,19 +299,10 @@
     const q = tl.qua_sn;
     if (q && q.nhom) {
       const g = tao('p', '', 't1-ghi');
-      g.append(tao('span', C('tv658_qsn_1', 'Quà sinh nhật:'), 'cum'), chuTho(' '));
-      g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_2', '1 bánh nhóm {nhom},'), { nhom: q.nhom }), chuTho(' '));
-      if (Number(q.toi_da) > 0) g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_3', 'tối đa {tien},'), { tien: dong(q.toi_da) }), chuTho(' '));
-      /* Lịch gửi và hạn mã đọc từ kịch bản Zalo Sinh nhật (máy chủ), không cứng trong trang. */
-      const truoc = Number(q.truoc) || 0;
-      /* Chương trình phát vào Ví quà theo tháng sinh nhật: hạn tới hết tháng, không ghi số ngày (Codex #566 vòng 2). */
-      if (q.lich === 'thang') g.append(tao('span', C('tv658_qsn_thang', 'nhận mã trong tháng sinh nhật,'), 'cum'), chuTho(' '),
-        tao('span', C('tv658_qsn_thang_han', 'dùng tới hết tháng.'), 'cum'));
-      else {
-        g.append(ghepCum(tao('span', '', 'cum'), truoc > 0 ? C('tv658_qsn_gui', 'mã gửi qua Zalo {ngay} trước sinh nhật,')
-          : C('tv658_qsn_gui_dung', 'mã gửi qua Zalo đúng ngày sinh nhật,'), { ngay: truoc + ' ' + C('tv658_ngay', 'ngày') }), chuTho(' '));
-        g.append(ghepCum(tao('span', '', 'cum'), C('tv658_qsn_han', 'dùng trong {ngay}.'), { ngay: (Number(q.han) || 1) + ' ' + C('tv658_ngay', 'ngày') }));
-      }
+      g.append(tao('span', C('tv658_qsn_1', 'Quà sinh nhật:'), 'cum'));
+      /* Lịch gửi và hạn mã đọc từ kịch bản Zalo Sinh nhật (máy chủ), không cứng trong trang;
+         Ví quà theo tháng sinh nhật thì không ghi số ngày (Codex #566 vòng 2). Xem cumQuaSn. */
+      cumQuaSn(q).forEach(([k, md, thay]) => g.append(chuTho(' '), ghepCum(tao('span', '', 'cum'), C(k, md), thay)));
       goc.append(g);
     }
   }
@@ -453,8 +465,10 @@
     if (moi && khachCu) {
       tim('moi-gia').textContent = qsn ? C('tv659_moi_gia_sn', 'Quà sinh nhật') : '';
       tim('moi-dem').textContent = C('tv6_ho_so_dem', 'Hồ sơ {du}/{tong}', { du: muc.du, tong: muc.tong });
+      /* Lời hứa lấy đúng từ chương trình sinh nhật (cumQuaSn), không tự viết riêng (Codex #567). */
       tim('moi-chu').textContent = qsn
-        ? C('tv659_moi_chu_sn', 'Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật: 1 bánh nhóm {nhom}, gửi qua Zalo trước ngày sinh nhật.', { nhom: qsn.nhom || '' })
+        ? [C('tv659_moi_chu_sn', 'Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật:')]
+          .concat(cumQuaSn(qsn).map(([k, md, thay]) => C(k, md, thay))).join(' ')
         : C('tv659_moi_chu_chuc', 'Thêm ngày sinh và đồng ý nhận tin Zalo để chúng tôi chúc mừng sinh nhật quý khách.');
       an(tim('moi-ho-so').querySelector('[data-di]'), false);
       an(tim('nut-moi-nhan'), true);

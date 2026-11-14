@@ -7603,15 +7603,27 @@
     "nhieu_dong": true
   },
   "tv659_moi_chu_sn": {
-    "ten": "The Vagabond Club: Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật: 1 bánh nhóm {nhom}, gửi qua Zalo trước ngày sinh nhật.",
+    "ten": "The Vagabond Club: Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật: (sau câu này máy tự ghép quà và lịch gửi theo chương trình sinh nhật)",
     "nhom": "thanh_vien",
-    "mac_dinh": "Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật: 1 bánh nhóm {nhom}, gửi qua Zalo trước ngày sinh nhật.",
+    "mac_dinh": "Thêm ngày sinh và đồng ý nhận tin Zalo để nhận quà sinh nhật:",
     "nhieu_dong": true
   },
   "tv659_moi_chu_chuc": {
     "ten": "The Vagabond Club: Thêm ngày sinh và đồng ý nhận tin Zalo để chúng tôi chúc mừng sinh nhật quý khách.",
     "nhom": "thanh_vien",
     "mac_dinh": "Thêm ngày sinh và đồng ý nhận tin Zalo để chúng tôi chúc mừng sinh nhật quý khách.",
+    "nhieu_dong": true
+  },
+  "tv659_qsn_ten": {
+    "ten": "The Vagabond Club: tên ưu đãi sinh nhật khi chương trình không tặng bánh ({ten},)",
+    "nhom": "thanh_vien",
+    "mac_dinh": "{ten},",
+    "nhieu_dong": true
+  },
+  "tv659_uu_dai_sn": {
+    "ten": "The Vagabond Club: ưu đãi sinh nhật (khi chương trình chưa có tên)",
+    "nhom": "thanh_vien",
+    "mac_dinh": "ưu đãi sinh nhật",
     "nhieu_dong": true
   }
 }
