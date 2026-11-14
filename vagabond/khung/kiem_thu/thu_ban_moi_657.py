@@ -43,13 +43,13 @@ def _may_chu():
 _NODE = r"""
 var vm = require('vm'), fs = require('fs');
 function moi(o) {
-  var ss = {}, nav = [], the = {};
+  var ss = {}, nav = [], the = { vgb: { style: {} } };
   var c = {
     APPVER: o.appver, S: o.S, hardNav: function () { nav.push(1); },
     sessionStorage: { getItem: function (k) { return k in ss ? ss[k] : null; }, setItem: function (k, v) { ss[k] = String(v); } },
     document: { hidden: false, addEventListener: function () {},
       getElementById: function (id) { return the[id] || null; },
-      createElement: function () { return { setAttribute: function () {}, set innerHTML(v) { this._h = v; } }; },
+      createElement: function () { return { offsetHeight: 56, setAttribute: function () {}, set innerHTML(v) { this._h = v; } }; },
       body: { appendChild: function (d) { the[d.id] = d; the.vgbBanMoiTai = {}; } } },
     setInterval: function () {}, Date: Date, parseInt: parseInt, isFinite: isFinite, String: String
   };
@@ -68,6 +68,8 @@ kq.trangChu = a.banMoiXuLy(657); kq.trangChuNav = a.nav.length; kq.trangChuDai =
 kq.lan2 = a.banMoiXuLy(657); kq.lan2Nav = a.nav.length; kq.lan2Dai = !!a.the.vgbBanMoi;
 var b = moi({ appver: '656', S: { stack: [function () {}, function () {}], draft: null } });
 kq.dangLam = b.banMoiXuLy(657); kq.dangLamNav = b.nav.length; kq.dangLamDai = !!b.the.vgbBanMoi;
+// Codex #565: dải không được che thanh tiêu đề, khung app phải lùi xuống.
+kq.khungTop = b.the.vgb.style.top || '';
 // Mở một màn từ trang chủ: trang chủ nằm dưới đáy chồng, màn đang làm ở trên.
 var g = moi({ appver: '656', S: { stack: [], draft: null }, trangChu: 1 });
 g.S.stack.push(function () {});
@@ -96,6 +98,7 @@ def _trang():
 	la("tải rồi mà vẫn cũ: không tải lặp, hiện dải", [k["lan2"], k["lan2Nav"], k["lan2Dai"]], ["bao", 1, True])
 	la("đang làm một màn: không tự tải, hiện dải", [k["dangLam"], k["dangLamNav"], k["dangLamDai"]], ["bao", 0, True])
 	la("màn mở chồng lên trang chủ: không tự tải", [k["trenTrangChu"], k["trenTrangChuNav"]], ["bao", 0])
+	la("dải hiện thì khung app lùi xuống đúng chiều cao dải, không che nút Quay lại", k["khungTop"], "56px")
 	la("phiếu soạn dở ở trang chủ: không tự tải", [k["phieuDo"], k["phieuDoNav"]], ["bao", 0])
 	la("cùng số bản: không làm gì", [k["bangNhau"], k["bangNhauNav"], k["bangNhauDai"]], ["giu", 0, False])
 	la("máy chủ không trả số: không làm gì", k["mayChuLoi"], "giu")
