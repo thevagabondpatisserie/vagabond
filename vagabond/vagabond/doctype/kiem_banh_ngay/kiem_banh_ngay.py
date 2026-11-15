@@ -51,6 +51,11 @@ class KiemBanhNgay(Document):
 				# khach toi. Phan da giao roi thi roi khoi cot nay va di vao
 				# cot Kenh khac cua chinh ngay giao, nen tong luon can.
 				- (d.giu_cho or 0)
+				# v660: bánh bán SAU giờ chốt. Các cột trên khoá lúc chốt để mở
+				# ngày cũ còn đúng số; phần bán thêm nằm ở hai ô này và vẫn
+				# phải trừ để web, quầy không bán lố sau chốt.
+				- (d.get("sau_chot_pc") or 0)
+				- (d.get("sau_chot_khac") or 0)
 			)
 
 
