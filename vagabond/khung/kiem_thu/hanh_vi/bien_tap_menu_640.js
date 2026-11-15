@@ -222,7 +222,8 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     bang('món trong nhóm', qs(m, '[data-btmhang]').map(function (x) { return x.getAttribute('data-ma'); }), ['NUTR00090', 'NUTR00040']);
     dung('chai ghi đóng sẵn', chu(q(m, '[data-ma="NUTR00040"]')).indexOf('đóng sẵn, không hỏi đá đường') >= 0);
     dung('Kombucha ghi 2 tuỳ chọn 2 topping', chu(q(m, '[data-ma="NUTR00090"]')).indexOf('2 tuỳ chọn · 2 topping') >= 0);
-    await bam(m, '[data-btman="NUTR00090"]');
+    /* v662: công tắc "Hiện trên web" thay bằng chip Tại bàn (tắt là vào nhap.an). */
+    qs(m, '[data-btmkenh]').filter(function (x) { return x.getAttribute('data-ma') === 'NUTR00090' && x.getAttribute('data-btmkenh') === 'tai_ban'; })[0].click(); await cho();
     await bam(m, '[data-btmxep="NUTR00099"]');
     await cho(40);
     var n = luuCuoi(m);
@@ -487,7 +488,8 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
     bang('danh sách bánh', qs(m, '[data-btmbanhmon]').map(function (x) { return x.getAttribute('data-btmbanhmon'); }), ['BKMN00011', 'BKMN00020']);
     dung('giải thích', chu(m.tai.body).indexOf('Bánh tự lên menu theo tồn trên tủ') >= 0);
     var o = q(m, '#btmTimMon'); o.value = 'chanh day'; o.dispatchEvent(dg.suKien('input', {}, o)); await cho();
-    bang('tìm không dấu', qs(m, '[data-btmbanhmon]').map(function (x) { return x.style.display; }), ['none', 'flex']);
+    /* v662: mỗi dòng bánh là khung chứa nút mở bánh và hai chip kênh; ô tìm ẩn hiện cả khung. */
+    bang('tìm không dấu', qs(m, '[data-btmbanhmon]').map(function (x) { return x.parentNode.style.display; }), ['none', 'flex']);
     await bam(m, '[data-btmbanhmon="BKMN00020"]');
     dung('màn bánh: ảnh nền, chưa có nút bỏ ảnh', chu(q(m, '#btmAnhWeb')).indexOf('chưa có ảnh') >= 0 && !qs(m, '[data-btmanhbo]').length);
     await bam(m, '[data-btmanhtai]');
@@ -565,6 +567,22 @@ function luuCuoi(m) { var ds = m.goi.filter(function (x) { return x.duong === 'v
        chọn) không được rơi về nhóm gốc. */
     bang('tắt hết tuỳ chọn: không hỏi gì', m.g.posNhomTc({ item_code: 'NUTR00040', nhom: 'Trà' }, { NUTR00040: [] }, [{ nhom: 'Đá', lua_chon: [], nhom_mon: ['Trà'] }]), []);
     bang('món lạ: theo nhóm gốc', m.g.posNhomTc({ item_code: 'X', nhom: 'Trà' }, theoMon, [{ nhom: 'Đường', lua_chon: [], nhom_mon: ['Trà'] }, { nhom: 'Kem', lua_chon: [], nhom_mon: ['Ice Cream - Kem'] }]).map(function (x) { return x.nhom; }), ['Đường']);
+  });
+
+  await ca('v662 hai tick Tại bàn và Giao (anh Việt 15/11/2026): món mới Tại bàn bật, Giao tắt; bấm Giao là vào nhap.giao; Bật Giao cả nhóm bật hết, bấm lại tắt hết; chip cao 44', async function () {
+    var m = await moMan();
+    await bam(m, '[data-btmnhom="n-tra"]');
+    var chip = function (ma, k) { return qs(m, '[data-btmkenh]').filter(function (x) { return x.getAttribute('data-ma') === ma && x.getAttribute('data-btmkenh') === k; })[0]; };
+    bang('mặc định', [chip('NUTR00090', 'tai_ban').getAttribute('aria-checked'), chip('NUTR00090', 'giao').getAttribute('aria-checked')], ['true', 'false']);
+    dung('chip cao 44', String(chip('NUTR00090', 'giao').getAttribute('style')).indexOf('min-height:44px') >= 0);
+    chip('NUTR00090', 'giao').click(); await cho(40);
+    bang('vào giao', luuCuoi(m).giao, ['NUTR00090']);
+    bang('chip sáng', chip('NUTR00090', 'giao').getAttribute('aria-checked'), 'true');
+    qs(m, '[data-btmcanhom]').filter(function (x) { return x.getAttribute('data-btmcanhom') === 'giao'; })[0].click(); await cho(40);
+    bang('cả nhóm bật', luuCuoi(m).giao.slice().sort(), ['NUTR00040', 'NUTR00090']);
+    qs(m, '[data-btmcanhom]').filter(function (x) { return x.getAttribute('data-btmcanhom') === 'giao'; })[0].click(); await cho(40);
+    bang('bấm lại tắt hết', luuCuoi(m).giao, []);
+    bang('thuần: tắt Tại bàn là vào an', (function () { var nh = { an: [], giao: [] }; m.g.btmDatKenh(nh, 'X', 'tai_ban', false); return nh.an; })(), ['X']);
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong');
