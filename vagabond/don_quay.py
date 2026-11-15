@@ -585,7 +585,8 @@ def tao_don(don=None):
 		return {"ok": 0, "cau": "Quầy này chưa nhận đơn giao. Quý khách chọn quầy khác."}
 	from frappe.utils import now_datetime
 
-	if not goi_mon_ban._gio_mo_cua(d, now_datetime()):
+	# Codex #573 vòng 2 (H8 loại 10): _gio_mo_cua trả dict {dang_mo, gio}, không phải bool.
+	if not (goi_mon_ban._gio_mo_cua(d, now_datetime()) or {}).get("dang_mo"):
 		return {"ok": 0, "cau": "Quầy đang đóng cửa. Quý khách đặt lại trong giờ mở cửa."}
 	# Chống trùng theo nonce một lần mở giỏ: gửi lại cùng nonce nhận lại đúng đơn cũ.
 	hang_khoa = [{"variation_id": str(x.get("ma") or ""), "quantity": int(x.get("sl") or 0)}
@@ -598,7 +599,9 @@ def tao_don(don=None):
 	# Kết thúc giao dịch đọc từ đầu yêu cầu rồi mới khoá điểm: đọc tủ SAU khoá
 	# phải là ảnh chụp mới (H8 loại 1), không thì hai khách cùng lấy chiếc bánh cuối.
 	frappe.db.commit()
-	ten_khoa = "vagabond:weborder:%s" % d["ma"]
+	# Codex #573 vòng 2: CHUNG khoá điểm với khách gọi món tại bàn (goi_mon_ban.goi):
+	# hai kênh cùng đọc tủ bánh (bang_mon) rồi mới ghi phần giữ, nên phải chờ nhau.
+	ten_khoa = goi_mon_ban.TEN_KHOA_DIEM % d["ma"]
 	if not _khoa(ten_khoa):
 		return {"ok": 0, "cau": "Quầy đang nhận nhiều đơn cùng lúc. Quý khách bấm gửi lại sau vài giây."}
 	try:
@@ -799,7 +802,7 @@ def xac_nhan(ma=None, hen=None):
 	suốt lượt (qua các lần commit): hai thu ngân bấm cùng lúc thì người sau
 	chờ, rồi đọc lại thấy đơn đã xác nhận, không lập phiếu thứ hai.
 	Phiếu giữ ĐÚNG giá khách đã trả (giá chốt lúc đặt), không lấy lại bảng giá
-	điểm; tổng phiếu lệch số khách đã trả thì xoá phiếu nháp và dừng."""
+	điểm; tổng phiếu lệch số khách đã trả thì huỷ mềm phiếu (giữ chứng từ) và dừng."""
 	_kiem_quyen()
 	try:
 		phut = chuan_hen(hen)
@@ -857,12 +860,18 @@ def _xac_nhan_trong_khoa(ma, phut):
 		frappe.flags.vgb_gia_chot = False
 	bill = (kq or {}).get("name") or ""
 	if bill and int(round(float((kq or {}).get("grand_total") or 0))) != mong:
-		# Không để thu ngân chốt một phiếu khác số khách đã trả.
+		# Không để thu ngân chốt một phiếu khác số khách đã trả. Phiếu đã lưu là
+		# chứng từ: KHÔNG xoá (QT-20), đánh dấu huỷ mềm kèm lý do để kế toán đối chiếu.
+		ly = "Đơn giao web %s: tổng phiếu %s đ khác số khách đã trả %s đ. Máy huỷ phiếu, chưa xác nhận đơn." % (
+			ma, "{:,}".format(int(round(float(kq.get("grand_total") or 0)))).replace(",", "."), "{:,}".format(mong).replace(",", "."))
 		try:
-			frappe.delete_doc("Sales Invoice", bill, ignore_permissions=True, force=1)
+			from vagabond import chung_tu
+
+			chung_tu.danh_dau_huy(frappe.get_doc("Sales Invoice", bill), ly)
 			frappe.db.commit()
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "don_quay: xoá phiếu lệch tổng %s" % bill)
+			frappe.db.rollback()
+			frappe.log_error(frappe.get_traceback(), "don_quay: huỷ phiếu lệch tổng %s" % bill)
 		frappe.throw("Phiếu tạm tính ra %s đ, khác số khách đã trả %s đ cho đơn %s. Máy chưa xác nhận đơn; báo quản lý kiểm giá món." % (
 			"{:,}".format(int(round(float(kq.get("grand_total") or 0)))).replace(",", "."), "{:,}".format(mong).replace(",", "."), ma))
 	if bill:

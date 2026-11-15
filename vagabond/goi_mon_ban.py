@@ -994,6 +994,10 @@ def goi(diem=None, ban=None, k=None, nonce=None, mon=None, ghi_chu="", ten="", s
 	# đơn kia được ghi, cả hai qua. Đọc tồn, kiểm số và ghi đơn chạy tuần tự
 	# theo điểm bán, khoá giữ tới khi đơn đã commit.
 	khoa = TEN_KHOA_DIEM % d["ma"]
+	# Codex #573 vòng 2 (H8 loại 1): khoá này dùng CHUNG với đơn giao của quầy
+	# (don_quay.tao_don). Kết thúc ảnh chụp đọc từ đầu yêu cầu (đã đọc nonce) trước
+	# khi khoá, để lần đọc tủ sau khoá thấy phần giữ kênh kia vừa commit.
+	frappe.db.commit()
 	if not _lay_khoa(khoa):
 		return {"ok": 0, "cau": "Quầy đang nhận nhiều đơn cùng lúc. Quý khách bấm Gọi món lại sau vài giây."}
 	try:
