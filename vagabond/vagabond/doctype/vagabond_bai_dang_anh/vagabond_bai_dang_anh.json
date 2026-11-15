@@ -1,0 +1,55 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Bai Dang Anh",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "creation": "2026-11-15 22:00:00.000000",
+ "modified": "2026-11-15 22:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "istable": 1,
+ "editable_grid": 0,
+ "permissions": [],
+ "field_order": [
+  "file_url",
+  "khung",
+  "rong",
+  "cao",
+  "ma_bam"
+ ],
+ "fields": [
+  {
+   "fieldname": "file_url",
+   "fieldtype": "Attach Image",
+   "label": "Ảnh",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "khung",
+   "fieldtype": "Data",
+   "label": "Khung",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "rong",
+   "fieldtype": "Int",
+   "label": "Rộng (px)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cao",
+   "fieldtype": "Int",
+   "label": "Cao (px)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ma_bam",
+   "fieldtype": "Data",
+   "label": "Mã băm tệp",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ]
+}
