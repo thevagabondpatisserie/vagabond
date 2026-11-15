@@ -121,7 +121,8 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
 }
 
 /* Nhap mot dong chu. tuyChon: {kieu: 'text'|'number'|'email', goi_y, nhieu_dong,
-   bat_buoc, don_vi} */
+   bat_buoc, don_vi, nut (chu nut dong y, mac dinh Xong), kiem (ham nhan chu da go,
+   tra cau loi thi giu hop lai)} */
 function hoiChu(tuaDe, nhan, macDinh, tuyChon) {
   var o = tuyChon || {};
   return new Promise(function (xong) {
@@ -134,13 +135,15 @@ function hoiChu(tuaDe, nhan, macDinh, tuyChon) {
       + '<div id="hqLoi" style="display:none;font-size:12.5px;color:#b3261e;margin-top:7px"></div>';
     var k = hopKhung(tuaDe, than,
       '<button class="btn gh" data-hqx style="flex:1;margin:0">Thôi</button>'
-      + '<button class="btn" data-hqok style="flex:2;margin:0">Xong</button>');
+      + '<button class="btn" data-hqok style="flex:2;margin:0">' + h(o.nut || 'Xong') + '</button>');
     var inp = k.box.querySelector('#hqIn');
     var loi = k.box.querySelector('#hqLoi');
     var tra = function (v) { k.dong(); xong(v); };
     var gui = function () {
       var v = String(inp.value == null ? '' : inp.value).trim();
       if (o.bat_buoc && !v) { loi.textContent = 'Chỗ này bắt buộc điền.'; loi.style.display = 'block'; inp.focus(); return; }
+      var sai = o.kiem ? o.kiem(v) : '';
+      if (sai) { loi.textContent = sai; loi.style.display = 'block'; inp.focus(); return; }
       tra(v);
     };
     k.box.onclick = function (e) {

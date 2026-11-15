@@ -45,7 +45,7 @@ var BD_TT = {
 var BD_THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 var BD_DS_LOC = [['', 'Mọi bài'], ['chua_gio', 'Chưa hẹn giờ'], ['Chờ duyệt', 'Chờ duyệt'], ['Chờ đăng tay', 'Chờ đăng tay'],
   ['Đã hẹn giờ', 'Đã hẹn giờ'], ['Đã đăng', 'Đã đăng'], ['Nháp', 'Nháp']];
-var BD = { xem: 'tuan', moc: '', ngay: '', loc: [], tt: '', dl: null, bai: null, ban: 0, cho: null, thay: {}, chuoi: Promise.resolve(), tab: 0 };
+var BD = { xem: 'tuan', moc: '', ngay: '', loc: [], tt: '', dl: null, bai: null, ban: 0, cho: null, thay: {}, thayMa: '', banMa: {}, chuoi: Promise.resolve(true), tab: 0 };
 
 function bdKenh(k) { return BD_KENH.filter(function (x) { return x.k === k; })[0] || {}; }
 function bdThu(ngay) { var p = String(ngay).split('-'); return BD_THU[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; }
@@ -343,7 +343,8 @@ function bdViecDangTay(bai) {
       var phu = x.tt === 'Đã đăng' ? 'Đã đăng ' + (x.luc || '') : x.tt === 'Đã hẹn giờ' ? 'Đến giờ hẹn hệ thống nhắn nhóm Marketing' : 'Đăng tay trong app';
       return '<div style="border-top:1px solid #f2f4f7"><div style="display:flex;gap:10px;align-items:center;padding:8px 0;min-height:52px">' + bdAvatar(x.k, 32, x.tt) +
         '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700">' + kn.ten + '</div><div style="font-size:13px;color:#667085">' + h(phu) + '</div></div>' +
-        (x.link ? '<a href="' + h(x.link) + '" target="_blank" rel="noopener" style="min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#0B7C93;text-decoration:none">Xem bài ›</a>' : '') + '</div>' +
+        (x.link ? '<a href="' + h(x.link) + '" target="_blank" rel="noopener" style="min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#0B7C93;text-decoration:none">Xem bài ›</a>' :
+          x.tt === 'Đã đăng' ? '<button class="btn gh" data-bdthemlink="' + x.k + '" style="margin:0;min-height:44px;padding:0 12px;font-size:14px">Thêm link</button>' : '') + '</div>' +
         (x.tt === 'Chờ đăng tay' ? '<div style="display:flex;gap:8px;padding:0 0 10px 42px">' +
           '<button class="btn gh" data-bdmotay="' + x.k + '" style="margin:0;flex:1.6;min-height:44px;padding:0 10px;font-size:14px">📋 Chép và mở app</button>' +
           '<button class="btn" data-bddadang="' + x.k + '" style="margin:0;flex:1;min-height:44px;padding:0 10px;font-size:14px">Đã đăng</button></div>' : '') + '</div>';
@@ -394,6 +395,10 @@ function bdDongTinh(khoa, ic, nhan, gt, attr) {
 
 function bdNhanBai(dl) {
   BD.bai = dl.bai; BD.ban = dl.bai.ban_luu; BD.duyet = dl.duyet; BD.gioVang = dl.gio_vang || [];
+  BD.banMa[dl.bai.name] = dl.bai.ban_luu;
+  /* Phần sửa đang chờ thuộc về MỘT bài. Mở bài khác, hoặc đã chọn "Rời đi, bỏ thay đổi"
+     (câu hỏi Chưa lưu đã bị xoá) thì phần chờ cũ bỏ đi, không bao giờ ghi sang bài này. */
+  if (BD.thayMa !== dl.bai.name || !S.chuaLuu) { BD.thay = {}; BD.thayMa = dl.bai.name; }
 }
 
 async function scrBaiDangSoan(ma, dl) {
@@ -451,6 +456,7 @@ async function scrBaiDangSoan(ma, dl) {
     if ((t = e.target.closest('[data-bdchep]'))) return bdChep(t.getAttribute('data-bdchep'));
     if ((t = e.target.closest('[data-bdmotay]'))) return bdMoTay(t.getAttribute('data-bdmotay'));
     if ((t = e.target.closest('[data-bddadang]'))) return bdDaDang(t.getAttribute('data-bddadang'));
+    if ((t = e.target.closest('[data-bdthemlink]'))) return bdThemLink(t.getAttribute('data-bdthemlink'));
     if ((t = e.target.closest('[data-bdsua]'))) return bdSuaTheoKiem(t.getAttribute('data-bdsua'));
   };
 }
@@ -470,6 +476,9 @@ function bdGop(a, b) {
   return a;
 }
 function bdHenLuu(thay) {
+  var ma = BD.bai && BD.bai.name;
+  if (!ma) return;
+  if (BD.thayMa !== ma) { BD.thay = {}; BD.thayMa = ma; }
   BD.thay = bdGop(BD.thay || {}, thay);
   S.chuaLuu = 'Bài đang lưu dở. Ở lại vài giây để hệ thống lưu xong.';
   var o = document.getElementById('bdLuuChu'); if (o) o.textContent = 'Đang lưu...';
@@ -477,32 +486,54 @@ function bdHenLuu(thay) {
   BD.cho = setTimeout(bdLuuNgay, 800);
 }
 /* Lưu ngay phần đang chờ. Lượt sau chỉ chạy khi lượt trước xong, để số lần lưu
-   gửi lên luôn là số máy chủ vừa trả (không tự báo xung đột với chính mình). */
+   gửi lên luôn là số máy chủ vừa trả (không tự báo xung đột với chính mình).
+   Phần chờ, mã bài và số lần lưu đi cùng nhau theo TỪNG bài (Codex #572): mở bài B
+   sau khi bài A lưu hỏng không được gửi nội dung A dưới mã B hay số lần lưu của B.
+   Trả về Promise: true khi lượt này lưu được (hoặc không có gì để lưu), false khi hỏng. */
 function bdLuuNgay(veLai) {
   clearTimeout(BD.cho);
+  var ma = BD.thayMa || (BD.bai && BD.bai.name);
   var thay = BD.thay; BD.thay = {};
   if ((!thay || !Object.keys(thay).length) && !veLai) return BD.chuoi;
-  var ma = BD.bai && BD.bai.name;
-  BD.chuoi = BD.chuoi.then(async function () {
-    if (!ma) return;
+  BD.chuoi = BD.chuoi.then(function () { return true; }, function () { return true; }).then(async function () {
+    if (!ma) return true;
     var dl;
-    try { dl = await api(BD_P + 'luu', { ma: ma, ban_luu: BD.ban, thay: JSON.stringify(thay || {}) }); }
-    catch (e) { BD.thay = bdGop(thay || {}, BD.thay || {}); var o0 = document.getElementById('bdLuuChu'); if (o0) o0.textContent = 'Chưa lưu được'; bdLoi(e); return; }
-    if (!BD.bai || BD.bai.name !== ma || !bdDangMo(ma)) return;
+    try { dl = await api(BD_P + 'luu', { ma: ma, ban_luu: BD.banMa[ma] != null ? BD.banMa[ma] : BD.ban, thay: JSON.stringify(thay || {}) }); }
+    catch (e) {
+      /* Chỉ giữ lại để lưu lần sau khi người dùng vẫn ở đúng bài này. */
+      if (BD.bai && BD.bai.name === ma && (BD.thayMa === ma || !Object.keys(BD.thay || {}).length)) { BD.thay = bdGop(thay || {}, BD.thay || {}); BD.thayMa = ma; }
+      var o0 = document.getElementById('bdLuuChu'); if (o0) o0.textContent = 'Chưa lưu được'; bdLoi(e); return false;
+    }
+    if (dl && dl.bai) BD.banMa[ma] = dl.bai.ban_luu;
+    if (!BD.bai || BD.bai.name !== ma || !bdDangMo(ma)) return true;
     if (!Object.keys(BD.thay || {}).length) vgbBoChuaLuu();
-    if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000); BD.thay = {}; vgbBoChuaLuu(); return bdVeLai(dl); }
+    if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000); BD.thay = {}; vgbBoChuaLuu(); bdVeLai(dl); return false; }
     bdNhanBai(dl);
-    if (veLai) return bdVeLai(dl);
+    if (veLai) { bdVeLai(dl); return true; }
     var o = document.getElementById('bdLuuChu'); if (o) o.textContent = 'Đã tự lưu ' + (dl.bai.luu_luc || '');
     var k = document.getElementById('bdKiemO'); if (k) k.innerHTML = bdBangKiem(dl.bai.kiem);
     var d = document.getElementById('bdDay'); if (d) d.innerHTML = bdNutDay(dl.bai, dl.duyet);
+    return true;
   });
   return BD.chuoi;
 }
+/* Việc dựa trên bản đã lưu (Duyệt, Gửi duyệt, AI soạn, thêm hay bỏ ảnh): lưu hết phần
+   đang chờ trước; lưu hỏng hoặc còn phần chưa lưu thì dừng, không chạy trên bản cũ. */
+async function bdLuuChac() {
+  var ok = await bdLuuNgay();
+  if (ok === false || Object.keys(BD.thay || {}).length) {
+    toast('Phần vừa sửa chưa lưu được nên chưa làm tiếp. Kiểm mạng rồi bấm lại.', 4500);
+    return false;
+  }
+  return true;
+}
 /* Đổi thuộc tính (kiểu bài, kênh, giờ, thứ tự ảnh): lưu ngay rồi vẽ lại cả màn. */
 async function bdLuuVeLai(thay) {
+  var ma = BD.bai && BD.bai.name;
+  if (!ma) return false;
+  if (BD.thayMa !== ma) { BD.thay = {}; BD.thayMa = ma; }
   BD.thay = bdGop(BD.thay || {}, thay);
-  await bdLuuNgay(true);
+  return bdLuuNgay(true);
 }
 
 /* ---------- ảnh ---------- */
@@ -514,7 +545,7 @@ function bdChonAnh() {
   inp.onchange = async function () {
     var tep = [].slice.call(inp.files || []); inp.remove();
     if (!tep.length) return;
-    await bdLuuNgay();
+    if (!(await bdLuuChac())) return;
     var dl = null, loi = 0;
     for (var i = 0; i < tep.length; i++) {
       busy(true);
@@ -563,7 +594,7 @@ function bdSheetAnh(ten) {
     ov.remove();
     var ds = anh.map(function (a) { return a.ten; });
     if (t.hasAttribute('data-bdboanh')) {
-      await bdLuuNgay();
+      if (!(await bdLuuChac())) return;
       try { var dl = await api(BD_P + 'xoa_anh', { ma: BD.bai.name, ban_luu: BD.ban, dong: ten }); } catch (er) { return bdLoi(er); }
       if (dl.xung_dot) toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000);
       return bdVeLai(dl);
@@ -623,7 +654,8 @@ function bdSheetKenh() {
 }
 
 /* Chọn giờ: ngày trên, ô giờ dưới. Ô đỏ là kênh đó đã có bài trong 2 giờ, ghi rõ
-   trùng bài nào; chạm vẫn được (máy chủ nhắc lại ở bảng Kiểm). Giờ vàng có sao. */
+   trùng bài nào; chạm vẫn được (máy chủ nhắc lại ở bảng Kiểm). Ô kênh đã có bài ĐÚNG
+   giờ đó thì khoá (máy chủ cũng chặn Duyệt). Giờ vàng có sao. */
 async function bdSheetGio(ngay) {
   await bdLuuNgay();
   var dl;
@@ -638,13 +670,13 @@ async function bdSheetGio(ngay) {
           '<div style="font-size:17px;font-weight:800">' + n.slice(8, 10) + '</div></button>';
       }).join('') + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' + (dl.khung || []).map(function (x) {
-        var on = x.gio === chon.gio, ban = !!x.trung;
-        return '<button data-bdsggio="' + x.gio + '"' + (x.qua ? ' disabled' : '') + ' style="min-height:56px;border-radius:12px;font:inherit;padding:4px;opacity:' + (x.qua ? .35 : 1) + ';' +
+        var on = x.gio === chon.gio, ban = !!x.trung, tat = x.qua || !!x.da_co;
+        return '<button data-bdsggio="' + x.gio + '"' + (tat ? ' disabled' : '') + ' style="min-height:56px;border-radius:12px;font:inherit;padding:4px;opacity:' + (x.qua ? .35 : x.da_co ? .6 : 1) + ';' +
           'border:' + (on ? '2px solid #05323C' : ban ? '1px dashed #fda29b' : '1px solid #e4e7ec') + ';background:' + (on ? '#E4F9FD' : ban ? '#fef3f2' : '#fff') + '">' +
           '<div style="font-size:16px;font-weight:800;color:' + (ban ? '#b42318' : '#101828') + '">' + x.gio + (x.vang ? ' ★' : '') + '</div>' +
-          (x.qua ? '<div style="font-size:13px;color:#667085">Đã qua</div>' : ban ? '<div style="font-size:13px;color:#b42318;line-height:1.2">Trùng ' + h(x.trung) + '</div>' : (x.vang ? '<div style="font-size:13px;color:#0B7C93">Giờ vàng</div>' : '')) + '</button>';
+          (x.qua ? '<div style="font-size:13px;color:#667085">Đã qua</div>' : x.da_co ? '<div style="font-size:13px;color:#b42318;line-height:1.2">' + h(x.da_co) + ' đã có bài giờ này</div>' : ban ? '<div style="font-size:13px;color:#b42318;line-height:1.2">Trùng ' + h(x.trung) + '</div>' : (x.vang ? '<div style="font-size:13px;color:#0B7C93">Giờ vàng</div>' : '')) + '</button>';
       }).join('') + '</div>' +
-      '<div style="font-size:13px;color:#667085;margin:10px 2px;line-height:1.45">★ Giờ vàng: khung Marketing đặt sẵn. Đỏ: kênh đó đã có bài trong vòng 2 giờ, đăng sát nhau dễ làm bài trước bị chìm.</div>' +
+      '<div style="font-size:13px;color:#667085;margin:10px 2px;line-height:1.45">★ Giờ vàng: khung Marketing đặt sẵn. Đỏ: kênh đó đã có bài trong vòng 2 giờ, đăng sát nhau dễ làm bài trước bị chìm. Ô mờ: kênh đó đã có bài đúng giờ này, không chọn được.</div>' +
       '<div style="display:flex;gap:8px"><button class="btn gh" data-bdsgngaykhi="1" style="margin:0;flex:1;min-height:48px;font-size:15px">Ngay khi duyệt</button>' +
       '<button class="btn" data-bdsgok="1"' + (chon.gio ? '' : ' disabled') + ' style="margin:0;flex:1.3;min-height:48px;font-size:15px">' + (chon.gio ? 'Chọn ' + chon.gio + ' · ' + bdNgayChu(chon.ngay) : 'Chọn một ô giờ') + '</button></div>';
   };
@@ -669,7 +701,7 @@ async function bdSheetGio(ngay) {
 async function bdSoanAi(kenh) {
   var y = document.getElementById('bdY');
   if (y && !y.value.trim()) { y.focus(); return toast('Ghi vài dòng ý chính trước: món, dịp, có ưu đãi không.', 3500); }
-  await bdLuuNgay();
+  if (!(await bdLuuChac())) return;
   var coChu = kenh ? ((BD.bai.ban || {})[kenh] || {}).chu : Object.keys(BD.bai.ban || {}).some(function (k) { return (BD.bai.ban[k] || {}).chu; });
   if (coChu && !(await confirmSheet('Soạn lại chữ?', 'Chữ đang có của ' + (kenh ? bdKenh(kenh).ten : 'các kênh') + ' sẽ được thay bằng chữ AI mới soạn.', 'Soạn lại'))) return;
   busy(true);
@@ -753,12 +785,26 @@ async function bdMoTay(k) {
   try { window.open(kn.web, '_blank', 'noopener'); } catch (e) { }
   toast((daChep ? 'Đã chép chữ' : 'Chưa chép được chữ') + (tep.length ? ', đã lưu ' + tep.length + ' ảnh' : '') + '. Đăng xong quay lại bấm Đã đăng.', 4500);
 }
+function bdKiemLink(v) { return v && !/^https?:\/\/\S+$/i.test(v) ? 'Link phải bắt đầu bằng https:// và không có dấu cách.' : ''; }
+/* Đã đăng: hỏi link bài ngay trong hộp xác nhận (không bắt buộc); kênh đã đăng mà chưa
+   có link thì có nút Thêm link để dán sau. */
 async function bdDaDang(k) {
   var kn = bdKenh(k);
-  if (!(await confirmSheet('Đã đăng ' + kn.ten + '?', 'Chỉ bấm khi bài đã hiện trên ' + kn.ten + '. Bấm xong kênh này chuyển sang Đã đăng.', 'Đã đăng ' + kn.ten))) return;
+  var link = await hoiChu('Đã đăng ' + kn.ten + '?', 'Chỉ bấm khi bài đã hiện trên ' + kn.ten + '. Dán link bài để mở lại sau (không bắt buộc).', '',
+    { kieu: 'url', goi_y: 'https://...', nut: 'Đã đăng ' + kn.ten, kiem: bdKiemLink });
+  if (link === null) return;
   var dl;
-  try { dl = await api(BD_P + 'da_dang', { ma: BD.bai.name, kenh: k }); } catch (e) { return bdLoi(e); }
+  try { dl = await api(BD_P + 'da_dang', { ma: BD.bai.name, kenh: k, link: link }); } catch (e) { return bdLoi(e); }
   toast('Đã ghi ' + kn.ten + ' đã đăng');
+  bdVeLai(dl);
+}
+async function bdThemLink(k) {
+  var kn = bdKenh(k);
+  var link = await hoiChu('Link bài ' + kn.ten, 'Dán link bài đã đăng để mở lại sau.', '', { kieu: 'url', goi_y: 'https://...', nut: 'Lưu link', bat_buoc: true, kiem: bdKiemLink });
+  if (!link) return;
+  var dl;
+  try { dl = await api(BD_P + 'da_dang', { ma: BD.bai.name, kenh: k, link: link }); } catch (e) { return bdLoi(e); }
+  toast('Đã lưu link ' + kn.ten);
   bdVeLai(dl);
 }
 
@@ -767,7 +813,7 @@ async function bdDaDang(k) {
 async function bdBamDay(e) {
   var t, dl;
   if ((t = e.target.closest('[data-bdduyet]'))) {
-    await bdLuuNgay();
+    if (!(await bdLuuChac())) return;
     try { dl = await api(BD_P + 'duyet', { ma: BD.bai.name, ban_luu: BD.ban }); } catch (er) { return bdLoi(er); }
     if (dl.can_doc_nhac && dl.can_doc_nhac.length) {
       if (!(await confirmSheet('Duyệt dù còn ' + dl.can_doc_nhac.length + ' điều cần để ý?', dl.can_doc_nhac.join('\n'), 'Vẫn duyệt'))) return bdVeLai(dl);
@@ -778,7 +824,7 @@ async function bdBamDay(e) {
     return bdVeLai(dl);
   }
   if ((t = e.target.closest('[data-bdgui]'))) {
-    await bdLuuNgay();
+    if (!(await bdLuuChac())) return;
     try { dl = await api(BD_P + 'gui_duyet', { ma: BD.bai.name, ban_luu: BD.ban }); } catch (er) { return bdLoi(er); }
     if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới.', 4000); return bdVeLai(dl); }
     toast('Đã gửi Marketing duyệt'); return bdVeLai(dl);
