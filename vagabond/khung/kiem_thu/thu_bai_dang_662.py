@@ -257,12 +257,33 @@ class _Bai(object):
 		return r
 
 
-def _chay(doc, ham, anh_cu=None, **k):
+class _KhoaGia(object):
+	"""Khoá lịch giả: ghi lại thứ tự vào, ra để ca kiểm biết đọc bài nằm TRONG khoá."""
+
+	def __init__(self, nhat):
+		self.nhat = nhat
+
+	def __enter__(self):
+		self.nhat.append("vao_khoa")
+		return self
+
+	def __exit__(self, loai, *a):
+		self.nhat.append("ra_khoa")
+		return False
+
+
+def _chay(doc, ham, anh_cu=None, trung=None, nhat=None, **k):
 	luu = []
+	nhat = nhat if nhat is not None else []
+
+	def _doc_k(ma):
+		nhat.append("doc_bai")
+		return doc
 	with um.patch.object(x, "_kiem_soan", lambda: None), um.patch.object(x, "_kiem_duyet", lambda: None), \
-			um.patch.object(x, "_la_duyet", lambda: True), um.patch.object(x, "_doc_khoa", lambda ma: doc), \
+			um.patch.object(x, "_la_duyet", lambda: True), um.patch.object(x, "_doc_khoa", _doc_k), \
+			um.patch.object(x, "_khoa_lich", lambda: _KhoaGia(nhat)), \
 			um.patch.object(x, "_luu", lambda d: luu.append(d.ban_luu)), um.patch.object(x, "_bay_gio", lambda: BAY_GIO), \
-			um.patch.object(x, "_trung_gio", lambda d: []), um.patch.object(x, "_anh_cu", lambda d: list(anh_cu or [])), \
+			um.patch.object(x, "_trung_gio", lambda d: list(trung or [])), um.patch.object(x, "_anh_cu", lambda d: list(anh_cu or [])), \
 			um.patch.object(x, "gio_vang", lambda: list(x.GIO_VANG_MAC_DINH)), \
 			um.patch.object(x.frappe, "session", type("S", (), {"user": "mkt@x"})(), create=True):
 		ra = ham(**k)
@@ -335,6 +356,58 @@ def _den_gio():
 			um.patch.object(x.frappe.db, "rollback", lambda: None, create=True), um.patch.object(x, "_bao_den_gio", lambda d, k: bao2.append(d.name)):
 		_, luu = _chay(doc2, x.quet_den_gio)
 	la("bài đã trả về nháp: không đổi, không nhắn", (doc2.trang_thai, luu, bao2), (x.TT_NHAP, [], []))
+
+
+@ca("v662 Codex #572: hai bài cùng kênh ĐÚNG một giờ thì chặn duyệt (kể cả bấm Vẫn duyệt); cách 1 phút chỉ nhắc")
+def _trung_dung():
+	khac = [{"name": "BD-1", "tieu_de": "Croissant", "luc": "2026-11-17 07:30:00", "kenh": ["fb"]}]
+	t = x.tim_trung_gio("2026-11-17 07:30:00", ["fb"], khac)
+	la("cùng phút là đúng giờ", [(a["kenh"], a["dung"]) for a in t], [("fb", True)])
+	la("cách 1 phút không phải đúng giờ", [a["dung"] for a in x.tim_trung_gio("2026-11-17 07:31:00", ["fb"], khac)], [False])
+	k = x.kiem_bai(_bai(hen_luc="2026-11-17 07:30"), BAY_GIO, t)
+	la("bảng Kiểm chặn", _muc(k, "chan"), ['Facebook đã có bài "Croissant" đúng lúc 07:30'])
+	la("không nhắc trùng lần hai", [z for z in _muc(k, "nhac") if "Croissant" in z], [])
+	la("không báo không trùng", "Không trùng giờ bài khác cùng kênh" in _muc(k, "ok"), False)
+	tr = [{"kenh": "fb", "name": "BD-1", "tieu_de": "Croissant", "gio": "07:30", "cach": 0, "dung": True}]
+	doc = _Bai(hen_luc="2026-11-17 07:30:00", kenh_chon="fb")
+	nem("Duyệt bị chặn", lambda: _chay(doc, x.duyet, trung=tr, ma=doc.name, ban_luu=3))
+	nem("Vẫn duyệt (đã đọc nhắc) cũng bị chặn", lambda: _chay(doc, x.duyet, trung=tr, ma=doc.name, ban_luu=3, da_doc_nhac=1))
+	la("vẫn Nháp", doc.trang_thai, x.TT_NHAP)
+	tr1 = [dict(tr[0], cach=1, dung=False, gio="07:31")]
+	doc2 = _Bai(hen_luc="2026-11-17 07:30:00", kenh_chon="fb")
+	ra, luu = _chay(doc2, x.duyet, trung=tr1, ma=doc2.name, ban_luu=3, da_doc_nhac=1)
+	la("cách 1 phút: đọc nhắc rồi duyệt được", (doc2.trang_thai, luu), (x.TT_HEN, [4]))
+	the = [{"name": "A", "tieu_de": "A", "luc": "2026-11-17 07:30", "kenh": [{"k": "fb"}]},
+		{"name": "B", "tieu_de": "B", "luc": "2026-11-17 07:30", "kenh": [{"k": "fb"}]}]
+	x.danh_dau_trung(the)
+	la("thẻ lịch ghi trùng đúng giờ", [t.get("trung") for t in the], [None, "Facebook trùng đúng giờ bài 07:30"])
+
+
+@ca("v662 Codex #572 (H8 loại 1): Duyệt lấy khoá lịch chung TRƯỚC khi đọc bài và lịch, nhả khoá sau khi ghi")
+def _duyet_khoa_lich():
+	nhat = []
+	doc = _Bai()
+	_chay(doc, x.duyet, nhat=nhat, ma=doc.name, ban_luu=3)
+	la("thứ tự", nhat, ["vao_khoa", "doc_bai", "ra_khoa"])
+	nhat2 = []
+	nem("lỗi đỏ vẫn nhả khoá", lambda: _chay(_Bai(kenh=[_Dong(ma_kenh="fb", chu="", trang_thai=x.K_CHUA)], kenh_chon="fb"), x.duyet, nhat=nhat2, ma="BD", ban_luu=3))
+	la("nhả khoá khi lỗi", nhat2[-1], "ra_khoa")
+	src = _doc("vagabond/bai_dang.py")
+	dung("khoá lịch dùng get_lock và release_lock", "get_lock" in src and "release_lock" in src)
+
+
+@ca("v662 Codex #572: Đã đăng nhận link; kênh đã đăng chưa có link thì chỉ ghi thêm link; đã có link hay link lạ thì không đổi")
+def _da_dang_link():
+	doc = _Bai(trang_thai=x.TT_TAY, kenh=[_Dong(ma_kenh="fb", trang_thai=x.K_XONG, link=""), _Dong(ma_kenh="th", trang_thai=x.K_TAY)])
+	_, luu = _chay(doc, x.da_dang, ma=doc.name, kenh="fb", link="https://facebook.com/p/9")
+	la("thêm link sau", (doc.kenh[0].link, doc.kenh[0].trang_thai, doc.trang_thai, len(luu)), ("https://facebook.com/p/9", x.K_XONG, x.TT_TAY, 1))
+	_, luu2 = _chay(doc, x.da_dang, ma=doc.name, kenh="fb", link="https://facebook.com/p/khac")
+	la("đã có link thì không ghi đè", (doc.kenh[0].link, luu2), ("https://facebook.com/p/9", []))
+	doc2 = _Bai(trang_thai=x.TT_XONG, kenh=[_Dong(ma_kenh="fb", trang_thai=x.K_XONG, link="")])
+	_, luu3 = _chay(doc2, x.da_dang, ma=doc2.name, kenh="fb", link="javascript:x")
+	la("link lạ không ghi", (doc2.kenh[0].link, luu3), ("", []))
+	_, luu4 = _chay(doc2, x.da_dang, ma=doc2.name, kenh="fb", link="https://instagram.com/p/1")
+	la("bài đã đăng đủ vẫn thêm được link", (doc2.kenh[0].link, doc2.trang_thai, len(luu4)), ("https://instagram.com/p/1", x.TT_XONG, 1))
 
 
 @ca("v662 danh sách quyền bên app trùng máy chủ; nhịp 5 phút có trong hooks; bản vá tích tin cho nhóm Marketing")
