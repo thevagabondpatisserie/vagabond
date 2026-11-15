@@ -354,6 +354,130 @@ var MKT = ['Marketing'];
     dung('không báo chưa lưu được', !m.toast.some(function (t) { return t.indexOf('chưa lưu được') >= 0; }));
   });
 
+  await ca('Codex #572 vòng 3: bấm Duyệt lúc lượt lưu của CHÍNH bài đang chạy mà máy khác vừa sửa: không duyệt, nạp bản mới; bấm lại mới duyệt đúng bản mới', async function () {
+    var nha = null;
+    var m = dungMoi(MKT, {
+      luu: function () { return new Promise(function (r) { nha = function () { var d = baiMau({ ban_luu: 6, y_chinh: 'Bản máy khác' }); d.xung_dot = 1; r(d); }; }); },
+      duyet: function (ts) { var d = baiMau({ trang_thai: 'Chờ đăng tay', sua: false, ban_luu: ts.ban_luu + 1, kenh: [{ k: 'fb', tt: 'Chờ đăng tay' }] }); return d; }
+    });
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'Chú thích của tôi');
+    m.goc.querySelector('#vgbBody').dispatchEvent(dg.suKien('focusout', {}, m.goc.querySelector('#vgbBody')));
+    await choDen(function () { return !!nha; });
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await cho(20);
+    nha();
+    await choDen(function () { return m.toast.some(function (t) { return t.indexOf('Xem lại rồi bấm lại') >= 0; }); });
+    await cho(20);
+    bang('chưa duyệt', goiTen(m, 'duyet').length, 0);
+    bang('đã nạp bản mới', mot(m.goc, '#bdY').value, 'Bản máy khác');
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await choDen(function () { return goiTen(m, 'duyet').length === 1; });
+    bang('bấm lại: duyệt đúng số lần lưu của bản mới', goiTen(m, 'duyet')[0].ts.ban_luu, 6);
+  });
+
+  await ca('Codex #572 vòng 3: tự lưu bị máy khác sửa trước, rời về lịch rồi mở lại bài: Duyệt chạy ngay (không còn bị chặn vì lần xung đột cũ)', async function () {
+    var lan = 0;
+    var m = dungMoi(MKT, {
+      luu: function () { lan++; var d = baiMau({ ban_luu: 9 }); d.xung_dot = 1; return d; },
+      duyet: function () { return baiMau({ trang_thai: 'Chờ đăng tay', sua: false, kenh: [{ k: 'fb', tt: 'Chờ đăng tay' }] }); }
+    });
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '#bdY'), 'gõ');
+    await cho(950);
+    await choDen(function () { return lan === 1; });
+    await cho(20);
+    await m.g.scrBaiDang();
+    await m.g.scrBaiDangSoan('BD-1');
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await choDen(function () { return goiTen(m, 'duyet').length === 1; });
+    bang('duyệt một lần', goiTen(m, 'duyet').length, 1);
+  });
+
+  await ca('Codex #572 vòng 3: sau lần xung đột đã nạp bản mới, người dùng sửa tiếp và lưu được: Duyệt chạy ngay', async function () {
+    var lan = 0;
+    var m = dungMoi(MKT, {
+      luu: function () { lan++; var d = baiMau({ ban_luu: 8 + lan }); if (lan === 1) d.xung_dot = 1; return d; },
+      duyet: function () { return baiMau({ trang_thai: 'Chờ đăng tay', sua: false, kenh: [{ k: 'fb', tt: 'Chờ đăng tay' }] }); }
+    });
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '#bdY'), 'gõ lần một');
+    await cho(950);
+    await choDen(function () { return lan === 1; });
+    await cho(20);
+    go(m, mot(m.goc, '#bdY'), 'sửa trên bản mới');
+    await cho(950);
+    await choDen(function () { return lan === 2; });
+    await cho(20);
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await choDen(function () { return goiTen(m, 'duyet').length === 1; });
+    bang('duyệt đúng bản vừa lưu', goiTen(m, 'duyet')[0].ts.ban_luu, 10);
+  });
+
+  await ca('Codex #572 vòng 3: lưu hỏng rồi mạng có lại: bấm Duyệt lưu lại phần sửa trước, lưu được thì duyệt', async function () {
+    var lan = 0;
+    var m = dungMoi(MKT, {
+      luu: function (ts) { lan++; if (lan === 1) throw new Error('mất mạng'); return baiMau({ ban_luu: 7 }); },
+      duyet: function (ts) { return baiMau({ trang_thai: 'Chờ đăng tay', sua: false, kenh: [{ k: 'fb', tt: 'Chờ đăng tay' }] }); }
+    });
+    m.g.bdLoi = function () {};
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'Chú thích mới');
+    await cho(950);
+    await choDen(function () { return lan === 1; });
+    await cho(20);
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await choDen(function () { return goiTen(m, 'duyet').length === 1; });
+    bang('lượt hai gửi lại phần sửa', JSON.parse(goiTen(m, 'luu')[1].ts.thay), { ban: { fb: { chu: 'Chú thích mới' } } });
+    bang('duyệt đúng bản vừa lưu', goiTen(m, 'duyet')[0].ts.ban_luu, 7);
+  });
+
+  await ca('H8 loại 8 (quét vòng 3): đang tải 2 ảnh cho bài A thì mở bài B: ảnh thứ hai vẫn vào bài A với số lần lưu của A', async function () {
+    var nhaAnh = null, lanAnh = 0;
+    var m = dungMoi(MKT, {
+      xem: function (ts) { return baiMau(ts.ma === 'BD-2' ? { name: 'BD-2', ban_luu: 11 } : {}); },
+      them_anh: function (ts) { lanAnh++; if (lanAnh === 1) return new Promise(function (r) { nhaAnh = function () { r(baiMau({ ban_luu: 6 })); }; }); return baiMau({ ban_luu: 7 }); }
+    });
+    m.g.bdTaiTep = function (f, ma) { return Promise.resolve('/files/' + f.name + '@' + ma); };
+    await m.g.scrBaiDangSoan('BD-1');
+    m.g.bdChonAnh();
+    var inp = m.tai.body.children.filter(function (x) { return x.tagName && String(x.tagName).toLowerCase() === 'input'; }).pop();
+    dung('có ô chọn tệp', !!inp);
+    inp.files = [{ name: 'a1.jpg' }, { name: 'a2.jpg' }];
+    var xong = inp.onchange();
+    await choDen(function () { return !!nhaAnh; });
+    await m.g.scrBaiDangSoan('BD-2');
+    nhaAnh();
+    await xong;
+    var g = goiTen(m, 'them_anh').map(function (x) { return [x.ts.ma, x.ts.ban_luu, x.ts.file_url]; });
+    bang('hai ảnh vào bài A', g, [['BD-1', 5, '/files/a1.jpg@BD-1'], ['BD-1', 6, '/files/a2.jpg@BD-1']]);
+    dung('màn vẫn ở bài B', !!mot(m.goc, '[data-bdman="BD-2"]'));
+    bang('bài đang mở trong bộ nhớ vẫn là B (không bị ảnh của A kéo về A)', [m.g.BD.bai.name, m.g.BD.ban], ['BD-2', 11]);
+  });
+
+  await ca('H8 loại 8 (quét vòng 3): sheet giờ chạm ngày 18 rồi ngày 19, lượt ngày 18 trả về muộn KHÔNG vẽ đè ô giờ ngày 19', async function () {
+    var tre = [];
+    var m = dungMoi(MKT, { gio_trong: function (ts) {
+      var d = { ngay: ['2026-11-17', '2026-11-18', '2026-11-19'], chon: ts.ngay || '2026-11-17', gio: '', khung: [{ gio: ts.ngay === '2026-11-18' ? '18:00' : '19:00', vang: 0, qua: false, trung: '' }] };
+      if (ts.ngay === '2026-11-18') return new Promise(function (r) { tre.push(function () { r(d); }); });
+      return d;
+    } });
+    await m.g.scrBaiDangSoan('BD-1');
+    bam(m, mot(m.goc, '[data-bdgio]'));
+    await choDen(function () { return !!sheet(m); });
+    bam(m, mot(sheet(m), '[data-bdsgngay="2026-11-18"]'));
+    await cho(10);
+    bam(m, mot(sheet(m), '[data-bdsgngay="2026-11-19"]'));
+    await choDen(function () { return !!mot(sheet(m), '[data-bdsggio="19:00"]') && chu(mot(sheet(m), '[data-bdsgok]')).indexOf('Chọn một ô giờ') >= 0; });
+    tre.forEach(function (f) { f(); });
+    await cho(30);
+    dung('vẫn là ô giờ ngày 19', !!mot(sheet(m), '[data-bdsggio="19:00"]') && !mot(sheet(m), '[data-bdsggio="18:00"]'));
+    bam(m, mot(sheet(m), '[data-bdsggio="19:00"]'));
+    bam(m, mot(sheet(m), '[data-bdsgok]'));
+    await choDen(function () { return goiTen(m, 'luu').length === 1; });
+    bang('lưu đúng ngày 19', JSON.parse(goiTen(m, 'luu')[0].ts.thay), { hen_luc: '2026-11-19 19:00' });
+  });
+
   await ca('Codex #572: lượt lưu bài A còn xếp hàng khi đã mở bài B: lượt đó gửi đúng mã A và số lần lưu A vừa nhận, không lấy số của B', async function () {
     var nhaDau = null;
     var m = dungMoi(MKT, {
