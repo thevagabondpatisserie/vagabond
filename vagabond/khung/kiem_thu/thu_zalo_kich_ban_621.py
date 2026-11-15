@@ -102,19 +102,39 @@ def _tham_so():
 	la("số 0", zk.so_chuoi("0đ"), "0")
 
 
-@ca("v661 mức giảm trên màn Tin Zalo tự động: đọc thẳng số của chương trình (phần trăm kèm trần giảm, số tiền, hoá đơn tối thiểu); không chương trình hay không giá trị thì để trống")
+@ca("v661 mức giảm trên màn Tin Zalo tự động: lấy đúng câu của khuyen_mai.mo_ta_muc_giam (một nguồn với màn Khuyến mãi và web), trần giảm hiện cho cả giảm số tiền; nối thêm hoá đơn tối thiểu, số món tối thiểu; không chương trình hay không giá trị thì để trống")
 def _muc_giam():
+	from vagabond import khuyen_mai
 	la("phần trăm có trần", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 10, "giam_toi_da": 70000}), "Giảm 10%, tối đa 70.000đ")
-	la("phần trăm không trần", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 12.5, "giam_toi_da": 0}), "Giảm 12.5%")
+	la("phần trăm lẻ, không trần", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 12.5, "giam_toi_da": 0}), "Giảm 12,5%")
 	la("số tiền kèm tối thiểu", zk.mo_ta_muc_giam({"kieu_giam": "So tien", "gia_tri": 50000, "hd_toi_thieu": 300000}),
 		"Giảm 50.000đ, hoá đơn từ 300.000đ")
-	la("số tiền không đọc trần giảm", zk.mo_ta_muc_giam({"kieu_giam": "So tien", "gia_tri": 50000, "giam_toi_da": 70000}), "Giảm 50.000đ")
-	la("đủ ba phần", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 10, "giam_toi_da": 70000, "hd_toi_thieu": 200000}),
-		"Giảm 10%, tối đa 70.000đ, hoá đơn từ 200.000đ")
+	# Codex #571: khuyen_mai.tinh áp trần cho MỌI kiểu giảm; 50.000 mà trần 30.000 thì khách chỉ được 30.000.
+	la("số tiền có trần nhỏ hơn giá trị", zk.mo_ta_muc_giam({"kieu_giam": "So tien", "gia_tri": 50000, "giam_toi_da": 30000}),
+		"Giảm 50.000đ, tối đa 30.000đ")
+	la("đủ các phần", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 10, "giam_toi_da": 70000, "hd_toi_thieu": 200000,
+		"sl_toi_thieu": 2}), "Giảm 10%, tối đa 70.000đ, hoá đơn từ 200.000đ, đơn từ 2 món")
+	la("đồng giá", zk.mo_ta_muc_giam({"cach_thuc": "Dong gia", "gia_dong": 99000}), "Đồng giá 99.000đ")
+	la("nhân điểm không phải mức giảm", zk.mo_ta_muc_giam({"cach_thuc": khuyen_mai.CACH_NHAN_DIEM, "gia_tri": 2}), "")
 	la("không chương trình", zk.mo_ta_muc_giam(None), "")
 	la("không giá trị", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 0}), "")
 	la("giá trị hỏng", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": "abc"}), "")
-	dung("đọc cả trần giảm từ chương trình", "giam_toi_da" in zk.COT_CTKM)
+	for km in ({"kieu_giam": "Phan tram", "gia_tri": 15, "giam_toi_da": 50000}, {"kieu_giam": "So tien", "gia_tri": 40000, "giam_toi_da": 20000},
+			{"cach_thuc": "Giam gia mon", "kieu_giam": "Phan tram", "gia_tri": 20}):
+		la("trùng câu của màn Khuyến mãi: %s" % km, zk.mo_ta_muc_giam(km), khuyen_mai.mo_ta_muc_giam(km))
+	dung("đọc đủ cột chương trình để nói mức giảm", all(c in zk.COT_CTKM for c in ("cach_thuc", "gia_dong", "giam_toi_da", "sl_toi_thieu")))
+
+
+@ca("v661 Codex #571: lời cạnh nút Sửa mức giảm và sổ tay nói đúng tác động tới voucher đã gửi (lúc tính tiền đọc mức giảm đang ghi ở chương trình), không còn hứa voucher cũ giữ mức cũ")
+def _loi_sua_muc_giam():
+	import os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	man = open(os.path.join(goc, "public", "js", "bep", "58-crm.js"), encoding="utf-8").read()
+	st = open(os.path.join(goc, "so_tay", "cham-soc-khach.md"), encoding="utf-8").read()
+	for ten, chu in (("màn", man), ("sổ tay", st)):
+		dung(ten + ": không còn hứa giữ mức cũ", "giữ mức cũ" not in chu)
+		dung(ten + ": nói rõ đổi cả voucher đã gửi", "cả voucher đã gửi khách mà khách chưa dùng" in chu)
+	la("màn nói ở cả thẻ và tấm Cài đặt", man.count("cả voucher đã gửi khách mà khách chưa dùng"), 2)
 
 
 @ca("v661 thẻ kịch bản trả mức giảm và tên chương trình đang gắn; tin chăm sóc và tin nhắc mã có sẵn không gắn chương trình thì để trống")
