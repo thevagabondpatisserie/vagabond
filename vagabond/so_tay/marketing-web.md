@@ -207,3 +207,32 @@ Từ khoá: đăng tay, chép và mở app, đã đăng, chờ đăng tay, đế
 - Chỉ bấm Đã đăng khi bài đã hiện trên kênh. Đủ kênh thì bài chuyển Đã đăng.
 - Muốn sửa bài đã duyệt mà chưa kênh nào lên: bấm [[Trả về nháp để sửa]], rồi duyệt lại.
 - Huỷ bài (biểu tượng thùng rác trên đầu màn) chỉ được khi chưa kênh nào lên.
+
+## Mã ưu đãi đơn giao của quầy
+Từ khoá: mã đơn đầu, thẻ QR túi Grab, đơn thứ hai, giờ vắng, weborder, khuyến mãi đơn giao
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, quản lý | Bán hàng, Chương trình khuyến mãi - combo | ô Bật |
+
+Máy đã lập sẵn bốn chương trình cho đơn đặt qua tab Tại quầy, đều đang TẮT và mức giảm 0: Đơn giao đầu tiên đặt thẳng trên web (mã GIAOLANDAU), Thẻ QR trong túi Grab (mã dùng một lần), Đơn thứ hai trong 14 ngày (ví quà), Giờ vắng 14h tới 17h cho đồ uống.
+
+**Các bước**
+1. Mở chương trình, điền mức giảm (số tiền hoặc phần trăm).
+2. Thẻ QR trong túi Grab: sinh mã dùng một lần rồi in lên thẻ.
+3. Bật chương trình. Chưa điền mức thì máy không cho bật.
+
+**Lưu ý**
+- Bốn chương trình chỉ áp cho đơn giao của quầy, không áp cho đơn đặt bánh trước.
+
+## Màu Robin egg và nút vệ tinh trên trang đặt bánh
+Từ khoá: màu xanh web, robin egg, teal, nút chính, nút phụ, trụ Zalo Grab, nút nổi
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Trang đặt bánh /banh | không có nút mới |
+
+Trước đây: web dùng xanh teal #29BDB3. Từ nay: màu xanh của cả web là Robin egg #4FDBF2 theo bộ nhận diện; chữ trên nền xanh màu Ink. Nút chính có vành ngoài và mặt trăng mũi tên bên phải, nút giỏ dưới đáy hiện số bánh trong mặt trăng. Trụ Zalo và Grab xếp dọc ở mép phải, cuộn xuống thì thu vào chỉ chừa chấm vàng, cuộn lên hoặc dừng thì hiện lại, tự thu khi đè lên nút.
+
+**Lưu ý**
+- Ảnh tĩnh có màu teal cũ (nếu có) không tự đổi; báo kỹ thuật kèm tên ảnh.
