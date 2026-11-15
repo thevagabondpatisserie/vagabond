@@ -736,8 +736,6 @@ MIEN = {
 	"scrDiemBan": KHONG_PHAI, "scrPtThanhToan": KHONG_PHAI, "scrTaiKhoan": KHONG_PHAI,
 	"scrCaiDatKho": KHONG_PHAI, "scrMayIn": KHONG_PHAI, "scrNguoiDung": KHONG_PHAI,
 	"scrMauBg": KHONG_PHAI, "scrMauIn": KHONG_PHAI,
-	# v621: ba thẻ kịch bản cố định, không phải sổ để tra (sổ tin nằm ở scrCrmZaloTin).
-	"scrCrmZalo": KHONG_PHAI,
 	# v628: màn Kiểm kê gọi thêm ds_dem_hom_nay (thẻ Đếm hôm nay) nên phép dò mới thấy;
 	# sổ phiếu kiểm kê vẫn thuộc đợt 3 như các màn kho khác.
 	"scrKkList": DOT3,

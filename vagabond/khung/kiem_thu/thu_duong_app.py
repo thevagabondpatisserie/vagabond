@@ -595,3 +595,12 @@ def thu_mien_chinh():
             la('Miền khách về đặt bánh',dich_chuyen_huong(m,d),'/banh')
         for d in ('/dat-ban','/thanh-vien','/tt','/xhd','/api/method/x','/assets/a.js'):
             la('Giữ đường khách và tài nguyên',dich_chuyen_huong(m,d),'')
+
+
+@ca("v661 đổi tên phân hệ Khách hàng thành Khách hàng & Marketing: đường dẫn phan-he-khach-hang đã chạy vẫn mở đúng phân hệ, không sinh đường dẫn mới theo tên")
+def _giu_duong_phan_he():
+	from vagabond.duong_app import PHAN_HE, bang_duong
+	b = bang_duong()
+	la("đường cũ vẫn mở phân hệ", b.get("phan-he-khach-hang"), "PH:KHG")
+	la("chỉ một đường cho phân hệ này", sorted(s for s, k in b.items() if k == "PH:KHG"), ["phan-he-khach-hang"])
+	la("tên hiển thị mới", dict(PHAN_HE)["KHG"], "Khách hàng & Marketing")

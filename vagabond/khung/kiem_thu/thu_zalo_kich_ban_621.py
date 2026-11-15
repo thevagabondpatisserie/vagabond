@@ -102,6 +102,36 @@ def _tham_so():
 	la("số 0", zk.so_chuoi("0đ"), "0")
 
 
+@ca("v661 mức giảm trên màn Tin Zalo tự động: đọc thẳng số của chương trình (phần trăm kèm trần giảm, số tiền, hoá đơn tối thiểu); không chương trình hay không giá trị thì để trống")
+def _muc_giam():
+	la("phần trăm có trần", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 10, "giam_toi_da": 70000}), "Giảm 10%, tối đa 70.000đ")
+	la("phần trăm không trần", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 12.5, "giam_toi_da": 0}), "Giảm 12.5%")
+	la("số tiền kèm tối thiểu", zk.mo_ta_muc_giam({"kieu_giam": "So tien", "gia_tri": 50000, "hd_toi_thieu": 300000}),
+		"Giảm 50.000đ, hoá đơn từ 300.000đ")
+	la("số tiền không đọc trần giảm", zk.mo_ta_muc_giam({"kieu_giam": "So tien", "gia_tri": 50000, "giam_toi_da": 70000}), "Giảm 50.000đ")
+	la("đủ ba phần", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 10, "giam_toi_da": 70000, "hd_toi_thieu": 200000}),
+		"Giảm 10%, tối đa 70.000đ, hoá đơn từ 200.000đ")
+	la("không chương trình", zk.mo_ta_muc_giam(None), "")
+	la("không giá trị", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": 0}), "")
+	la("giá trị hỏng", zk.mo_ta_muc_giam({"kieu_giam": "Phan tram", "gia_tri": "abc"}), "")
+	dung("đọc cả trần giảm từ chương trình", "giam_toi_da" in zk.COT_CTKM)
+
+
+@ca("v661 thẻ kịch bản trả mức giảm và tên chương trình đang gắn; tin chăm sóc và tin nhắc mã có sẵn không gắn chương trình thì để trống")
+def _the_muc_giam():
+	km = {"name": "KM-ND", "ten": "Zalo - Nhắc dịp", "kieu_giam": "Phan tram", "gia_tri": 10, "giam_toi_da": 70000, "bat": 1,
+		"cach_ma": "Ma dung mot lan"}
+	with um.patch.object(zk, "_doc_ctkm", lambda ten: dict(km) if ten == "KM-ND" else None):
+		t = zk._the({"ma": "nhac_dip", "ctkm": "KM-ND", "bat": 1, "han_ngay": 12}, {})
+		la("mức giảm", t["muc_giam"], "Giảm 10%, tối đa 70.000đ")
+		la("tên chương trình", t["ten_ctkm"], "Zalo - Nhắc dịp")
+		la("cần chương trình", t["can_ctkm"], 1)
+		t2 = zk._the({"ma": "nhac_dip", "ctkm": "", "bat": 1}, {})
+		la("chưa chọn: trống", [t2["muc_giam"], t2["ten_ctkm"], t2["can_ctkm"]], ["", "", 1])
+		t3 = zk._the({"ma": "sau_mua", "ctkm": "KM-ND", "bat": 1}, {})
+		la("tin chăm sóc: không đọc chương trình", [t3["muc_giam"], t3["ten_ctkm"], t3["can_ctkm"]], ["", "", 0])
+
+
 @ca("v621 ô voucher: tự viết từ chương trình (phần trăm, số tiền, hoá đơn tối thiểu); ô người điền thắng và bị cắt đúng trần")
 def _uu_dai():
 	la("phần trăm", zk.mo_ta_uu_dai({"kieu_giam": "Phan tram", "gia_tri": 10}), ("Giảm 10%", "Dùng 1 lần cho 1 hoá đơn"))
