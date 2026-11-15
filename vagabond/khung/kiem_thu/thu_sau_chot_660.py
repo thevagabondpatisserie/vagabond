@@ -270,3 +270,103 @@ def _khoa_truoc_khi_dem():
 	dung("đếm bill SAU khoá", "dem" in sau)
 	dung("đọc lại bảng SAU khoá", "doc" in sau)
 	la("số bán sau chốt ghi đúng", hom.dong[0].sau_chot_khac, 1)
+
+
+def _voi_giu(dem):
+	"""Thay phép đếm giữ chỗ lúc này bằng `dem` ({mã: số}) trong một khối with."""
+	import unittest.mock as um
+	return um.patch.object(kiem_banh, "_giu_cho_bay_gio", lambda ngay: (None if dem is None else dict(dem)))
+
+
+@ca("v660 Codex #569 giữ chỗ nhận sau chốt: 3 bánh, giữ chỗ 1, chốt; khách tới nhận bánh đã giữ thì Bán được còn 2 (không trừ hai lần), tồn hôm sau cũng 2; cột Giữ chỗ lúc chốt giữ nguyên")
+def _giu_cho_nhan_sau_chot():
+	cua, hom, mai = _hai_bang(sx=2, giu_cho=1)
+	with cua:
+		kiem_banh.chot_ngay("2026-11-14")
+	d = hom.dong[0]
+	la("lúc chốt Bán được 2", d.co_the_ban, 2)
+	with _voi_giu({}):
+		_khac(cua, {EPI: 1})
+	la("bill sau chốt ghi 1", d.sau_chot_khac, 1)
+	la("giữ chỗ đã nhận sau chốt 1", d.sau_chot_nha_giu, 1)
+	la("cột Giữ chỗ lúc chốt giữ nguyên", d.giu_cho, 1)
+	la("Bán được vẫn 2, không trừ hai lần", d.co_the_ban, 2)
+	la("tồn hôm sau 2 (3 trừ bánh đã ra khỏi tủ)", _ton(mai)[0], 2)
+	with _voi_giu({}):
+		_khac(cua, {EPI: 2})
+	la("thêm một khách vãng lai mua: Bán được còn 1", d.co_the_ban, 1)
+	la("ô bù không vượt số đã giữ", d.sau_chot_nha_giu, 1)
+
+
+@ca("v660 Codex #569 giữ chỗ: phiếu giữ chỗ bị huỷ sau chốt mà không ai mua thì bảng đã chốt giữ nguyên; huỷ rồi khách khác mua thì chỉ trừ một lần; đọc số giữ chỗ hỏng thì không đụng ô bù")
+def _giu_cho_huy_sau_chot():
+	cua, hom, mai = _hai_bang(sx=2, giu_cho=1)
+	with cua:
+		kiem_banh.chot_ngay("2026-11-14")
+	d = hom.dong[0]
+	with _voi_giu({}):
+		_khac(cua, {EPI: 0})
+	la("huỷ giữ chỗ, không ai mua: không bù", (d.get("sau_chot_nha_giu") or 0, d.co_the_ban), (0, 2))
+	with _voi_giu({}):
+		_khac(cua, {EPI: 1})
+	la("khách khác mua: bù 1, Bán được vẫn 2", (d.sau_chot_nha_giu, d.co_the_ban), (1, 2))
+	with _voi_giu(None):
+		_khac(cua, {EPI: 1})
+	la("đọc hỏng: giữ ô bù cũ", d.sau_chot_nha_giu, 1)
+	with _voi_giu({EPI: 1}):
+		_khac(cua, {EPI: 1})
+	la("phiếu vẫn còn giữ mà có bill khác: không bù, Bán được 1", (d.sau_chot_nha_giu, d.co_the_ban), (0, 1))
+	with _voi_giu(None):
+		_khac(cua, {EPI: 1})
+	la("đọc hỏng lần nữa: ô bù vẫn 0, không tự coi là đã nhả hết", (d.sau_chot_nha_giu, d.co_the_ban), (0, 1))
+	la("phép thuần", [kiem_banh.nha_giu_sau_chot(2, 0, 1), kiem_banh.nha_giu_sau_chot(1, 3, 5), kiem_banh.nha_giu_sau_chot(0, 0, 4),
+		kiem_banh.nha_giu_sau_chot(3, 1, 9)], [1, 0, 0, 2])
+
+
+@ca("v660 Codex #569 bảng ngày đã qua chỉ xem ở máy chủ: sửa ô, thêm mã, xoá dòng, tắt bán web của ngày cũ đều bị chặn, kể cả bảng QUÊN CHỐT; bảng hôm nay và ngày mai không bị chặn")
+def _ngay_cu_chi_xem():
+	import unittest.mock as um
+	la("phép thuần", [kiem_banh.ngay_da_qua("2026-11-14", "2026-11-15"), kiem_banh.ngay_da_qua("2026-11-15", "2026-11-15"),
+		kiem_banh.ngay_da_qua("2026-11-16", "2026-11-15"), kiem_banh.ngay_da_qua(None, "2026-11-15")], [True, False, False, False])
+	cua, hom, mai = _hai_bang()
+	la("bảng 14/11 đang quên chốt", hom.tinh_trang != "Da chot", True)
+
+	def chan(ten, ham):
+		try:
+			ham()
+		except frappe.ValidationError as e:
+			dung(ten + ": câu báo nói bảng đã qua chỉ xem", "chỉ xem" in str(e))
+			return
+		dung(ten + ": phải bị chặn", False)
+	with cua, um.patch.object(kiem_banh, "getdate", lambda v=None: frappe.utils.getdate(v or "2026-11-15")):
+		chan("sửa Bếp làm", lambda: kiem_banh.luu_o("2026-11-14", EPI, "sx", 5))
+		chan("sửa Huỷ", lambda: kiem_banh.luu_o("2026-11-14", EPI, "huy", 1))
+		chan("thêm mã", lambda: kiem_banh.them_dong("2026-11-14", "BAWC00056"))
+		chan("xoá dòng", lambda: kiem_banh.xoa_dong("2026-11-14", EPI))
+		chan("tắt bán web", lambda: kiem_banh.tat_ban_web_dat(EPI, 1, "2026-11-14"))
+		la("bảng cũ không đổi", hom.dong[0].sx, 2)
+		kiem_banh.chan_ngay_da_qua("2026-11-15")
+		kiem_banh.chan_ngay_da_qua("2026-11-16")
+
+
+@ca("v660 Codex #569 ba ô Refill cũ: dòng đã có đợt mà ô cũ mang số thì chặn lưu kèm chỉ chỗ sửa; dòng chưa có đợt thì ô cũ vẫn dùng được; ba ô cũ ẩn và chỉ đọc trên Desk")
+def _o_refill_cu():
+	import json
+	import os
+	from vagabond.vagabond.doctype.btp_banh_o import btp_banh_o as m
+
+	co = '[{"id": "a", "so": 20, "tu": "2026-11-14", "den": "2026-11-20"}]'
+	la("đã có đợt, ô cũ sửa thành 5", m.o_refill_cu_bi_dien([{"ma_hang": EPI, "ten_banh": "Epi", "refill_dot": co, "so_refill": 5}]), ["Epi"])
+	la("đã có đợt, ô cũ chỉ có ngày", m.o_refill_cu_bi_dien([{"ma_hang": EPI, "refill_dot": co, "so_refill": 0, "refill_tu": "2026-11-21"}]), [EPI])
+	la("đã có đợt, ô cũ sạch", m.o_refill_cu_bi_dien([{"ma_hang": EPI, "refill_dot": co, "so_refill": 0, "refill_tu": None, "refill_den": None}]), [])
+	la("chưa có đợt thì ô cũ vẫn là nguồn", m.o_refill_cu_bi_dien([{"ma_hang": EPI, "refill_dot": "", "so_refill": 5, "refill_tu": "2026-11-21"}]), [])
+	doc = Doi({"dong": [Doi({"as_dict": lambda: {"ma_hang": EPI, "ten_banh": "Epi", "refill_dot": co, "so_refill": 5}})]})
+	doc.get = lambda k, mac=None: getattr(doc, k, mac)
+	try:
+		m.BTPBanhO.validate(doc)
+		dung("phải chặn lưu", False)
+	except frappe.ValidationError as e:
+		dung("câu báo chỉ chỗ sửa", "Kiểm bánh" in str(e) and "Epi" in str(e))
+	p = os.path.join(os.path.dirname(m.__file__), "..", "btp_banh_o_dong", "btp_banh_o_dong.json")
+	f = {x["fieldname"]: x for x in json.load(open(p, encoding="utf-8"))["fields"]}
+	la("ba ô cũ ẩn và chỉ đọc", [(f[k].get("hidden"), f[k].get("read_only")) for k in ("so_refill", "refill_tu", "refill_den")], [(1, 1)] * 3)
