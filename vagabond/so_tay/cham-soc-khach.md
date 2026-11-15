@@ -292,9 +292,9 @@ Mức giảm của một tin ưu đãi nằm ở chương trình khuyến mãi g
 4. Thẻ ghi Chưa chọn chương trình phát voucher thì bấm [[Chọn chương trình]], chọn rồi bấm [[Lưu cài đặt]].
 
 **Lưu ý**
-- Đổi mức giảm áp cho voucher phát từ lúc lưu. Voucher đã phát giữ mức cũ.
+- Đổi mức giảm là đổi cho cả voucher đã gửi khách mà khách chưa dùng: lúc tính tiền hệ thống đọc mức giảm đang ghi ở chương trình.
 - Ô TÊN ƯU ĐÃI TRÊN TIN chỉ là chữ hiện trên tin, không đổi mức giảm.
-- Tin nhắc mã sắp hết hạn lấy mức giảm từ chính mã khách đang giữ.
+- Tin nhắc mã sắp hết hạn: mức giảm theo chương trình của mã khách đang giữ.
 - Mức ưu đãi: việc này do giám đốc quyết.
 
 ## Các kịch bản ưu đãi tự động theo hành trình khách
