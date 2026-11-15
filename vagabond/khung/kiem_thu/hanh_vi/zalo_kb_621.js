@@ -132,6 +132,73 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     bang('hỏi máy chủ đúng một lần', goiTen(m, 'ds_kich_ban').length, 1);
   });
 
+  /* v661 (anh Việt 15/11/2026): chip lọc và mức giảm trên thẻ, trên tấm cài đặt. */
+  function dlUuDai() {
+    var d = dlMau();
+    d.ctkm = [{ name: 'KM-SN', ten: 'Quà sinh nhật 10%', muc_giam: 'Giảm 10%, tối đa 70.000đ' }, { name: 'KM-QL', ten: 'Mời quay lại 50k', muc_giam: 'Giảm 50.000đ, hoá đơn từ 300.000đ' }];
+    d.ds[1].can_ctkm = 1;
+    d.ds[2].can_ctkm = 1; d.ds[2].ten_ctkm = 'Mời quay lại 50k'; d.ds[2].muc_giam = 'Giảm 50.000đ, hoá đơn từ 300.000đ';
+    d.ds.push({ ma: 'nhac_dip', ten: 'Nhắc dịp sắp tới', giai_thich: 'Nhắc trước ngày khách đã lưu.', km: 1, bat: 1, san_sang: 0, ly_do: 'Mẫu chưa được Zalo duyệt',
+      ma_mau: '', mau_trang_thai: 'Chưa kiểm', mau_duyet: 0, can_ctkm: 1, ctkm: 'KM-SN', ten_ctkm: 'Quà sinh nhật 10%', muc_giam: 'Giảm 10%, tối đa 70.000đ',
+      han_ngay: 12, tran_ngay: 100, gio_tu: 8, gio_den: 20, dem: {} });
+    return d;
+  }
+  function chipLoc(m) { return m.khung.querySelectorAll('[data-dscc]').map(function (c) { return chu(c).replace(/\s+/g, ' ').trim(); }); }
+
+  await ca('v661 chip lọc: Tất cả, Đang chạy, Cần xử lý, Đang tắt, Có ưu đãi kèm số; bấm chip chỉ còn thẻ khớp và KHÔNG hỏi lại máy chủ; lọc hết thẻ thì tự về Tất cả', async function () {
+    var m = dungMoi(QL, { ds_kich_ban: dlUuDai() });
+    await m.g.scrCrmZalo();
+    bang('năm chip kèm số', chipLoc(m), ['Tất cả 4', 'Đang chạy 1', 'Cần xử lý 1', 'Đang tắt 2', 'Có ưu đãi 3']);
+    bang('đủ bốn thẻ', m.khung.querySelectorAll('[data-crmzlthe]').length, 4);
+    bam(m, mot(m.khung, '[data-dscc="chang|can"]'));
+    bang('chỉ còn thẻ cần xử lý', m.khung.querySelectorAll('[data-crmzlthe]').map(function (x) { return x.getAttribute('data-crmzlthe'); }), ['nhac_dip']);
+    dung('nói đang xem mấy trên mấy', chu(m.khung).indexOf('Đang xem 1 trên 4 kịch bản') >= 0);
+    bam(m, mot(m.khung, '[data-dscc="chang|km"]'));
+    bang('có ưu đãi: ba thẻ', m.khung.querySelectorAll('[data-crmzlthe]').length, 3);
+    bang('không hỏi lại máy chủ khi đổi chip', goiTen(m, 'ds_kich_ban').length, 1);
+    bam(m, mot(m.khung, '[data-dscc="chang|can"]'));
+    var d2 = dlUuDai(); d2.ds[3].san_sang = 1;
+    await m.g.scrCrmZalo(d2);
+    bang('hết thẻ cần xử lý thì về Tất cả', m.khung.querySelectorAll('[data-crmzlthe]').length, 4);
+  });
+
+  await ca('v661 mức giảm trên thẻ: thẻ có chương trình ghi mức giảm, tên chương trình và nút Sửa mức giảm mở đúng chương trình; chưa chọn thì báo và có nút Chọn chương trình; tin chăm sóc không có khối ưu đãi', async function () {
+    var m = dungMoi(QL, { ds_kich_ban: dlUuDai() });
+    var mo = [];
+    m.g.kmSheetCtkm = function (ma) { mo.push(ma); };
+    await m.g.scrCrmZalo();
+    dung('tin chăm sóc không có khối ưu đãi', !mot(m.khung, '[data-crmzlud="sau_mua"]'));
+    var ql = chu(mot(m.khung, '[data-crmzlud="quay_lai"]'));
+    dung('ghi mức giảm', ql.indexOf('Giảm 50.000đ, hoá đơn từ 300.000đ') >= 0);
+    dung('ghi tên chương trình và hạn voucher', ql.indexOf('Chương trình: Mời quay lại 50k') >= 0 && ql.indexOf('voucher dùng trong 14 ngày') >= 0);
+    var sn = mot(m.khung, '[data-crmzlud="sinh_nhat"]');
+    dung('chưa chọn chương trình thì nói rõ', chu(sn).indexOf('Chưa chọn chương trình phát voucher') >= 0);
+    dung('có nút Chọn chương trình mở cài đặt', !!sn.querySelector('[data-crmzlcd="sinh_nhat"]') && !sn.querySelector('[data-crmzlgiam]'));
+    bam(m, mot(m.khung, '[data-crmzlud="nhac_dip"]').querySelector('[data-crmzlgiam]'));
+    bang('Sửa mức giảm mở đúng chương trình', mo, ['KM-SN']);
+    var x = dungMoi(SALES, { ds_kich_ban: (function () { var d = dlUuDai(); d.sua = 0; return d; })() });
+    await x.g.scrCrmZalo();
+    dung('vai chỉ xem vẫn thấy mức giảm', chu(mot(x.khung, '[data-crmzlud="quay_lai"]')).indexOf('Giảm 50.000đ') >= 0);
+    bang('vai chỉ xem không có nút sửa mức giảm', x.khung.querySelectorAll('[data-crmzlgiam]').length, 0);
+  });
+
+  await ca('v661 tấm cài đặt: chia ba mục, đổi chip chương trình thì dòng Mức giảm đang áp đổi theo, nút Sửa mức giảm mở đúng chương trình vừa chọn', async function () {
+    var m = dungMoi(QL, { ds_kich_ban: dlUuDai() });
+    var mo = [];
+    m.g.kmSheetCtkm = function (ma) { mo.push(ma); };
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzlthe="quay_lai"]').querySelectorAll('[data-crmzlcd]')[0]);
+    var sh = sheet(m);
+    bang('ba mục', sh.querySelectorAll('[data-crmzlmuc]').map(function (x) { return chu(x); }), ['Mẫu tin và lúc gửi', 'Ưu đãi trong tin', 'Giới hạn gửi']);
+    dung('mức giảm của chương trình đang chọn', chu(mot(sh, '[data-crmzlmg]')).indexOf('Giảm 50.000đ, hoá đơn từ 300.000đ') >= 0);
+    bam(m, mot(sh, '[data-crmzlkm="KM-SN"]'));
+    sh = sheet(m);
+    dung('đổi chip thì mức giảm đổi theo', chu(mot(sh, '[data-crmzlmg]')).indexOf('Giảm 10%, tối đa 70.000đ') >= 0);
+    bam(m, mot(sh, '[data-crmzlmg]').querySelector('[data-crmzlgiam]'));
+    bang('mở đúng chương trình vừa chọn', mo, ['KM-SN']);
+    bang('chưa lưu gì lên máy chủ', goiTen(m, 'luu_kich_ban').length, 0);
+  });
+
   await ca('vai chỉ xem: không công tắc, không Cài đặt, không Gửi thử; vẫn xem được tin đã gửi', async function () {
     var m = dungMoi(SALES, { ds_kich_ban: dlMau({ sua: 0 }) });
     await m.g.scrCrmZalo();
