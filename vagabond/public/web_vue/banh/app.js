@@ -66,6 +66,10 @@ export function khoiDong(goc = '#app') {
       /* v630: tab Thiết kế riêng chỉ hiện khi có tác phẩm đang nhận đặt. */
       const coTkr = computed(() => dsTacPham().length > 0);
       const coQuay = computed(() => true);
+      /* v662 (anh Việt 15/11/2026): O2O là trang riêng chỉ mở bằng QR dán trên bàn.
+         Link QR đúng thì vành chỉ còn Tại quầy (menu của đúng quầy đó), khách không
+         lạc sang đặt bánh trước; link QR đã in vẫn dùng được, không in lại. */
+      const coQr = computed(() => !!(kho.goiBan.G.ban && kho.goiBan.G.ban.ok));
       /* v658: các mục của Vành nghiêng = các tab đang hiện, cùng điều kiện ẩn hiện
          của dải tab cũ (In season, Tại quầy, Thiết kế riêng bật tắt theo dữ liệu),
          xếp theo thứ tự anh Việt duyệt (vanh.js THU_TU_MUC). */
@@ -79,7 +83,7 @@ export function khoiDong(goc = '#app') {
         {tab: 'today', nhan: t('tab_today', 'Có sẵn hôm nay'), hien: true},
         {tab: 'order', nhan: t('tab_order', 'Đặt bánh trước'), hien: true},
         {tab: 'thiet_ke_rieng', nhan: t('tab_thiet_ke_rieng', 'Thiết kế riêng'), hien: coTkr.value},
-      ].filter(m => m.hien)));
+      ].filter(m => m.hien && (!coQr.value || m.tab === 'store'))));
       /* v638: tab Tại quầy có bánh trên tủ và đồ uống; chip Tất cả, Bánh trên tủ,
          Đồ uống; mở từ QR một bàn thì chỉ còn quầy của bàn đó (kho-goi-ban.js). */
       const quayHien = computed(() => dungQuayHien(S, kho.goiBan.G, t));

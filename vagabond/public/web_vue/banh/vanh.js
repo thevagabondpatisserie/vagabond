@@ -79,9 +79,9 @@ function veVanh(cx, cy, rx, ry, nua) {
   const d = (a, b) => `M${cx - a},${cy} A${a},${b} 0 0 ${sw} ${cx + a},${cy}`;
   const net = [
     [rx * 1.14, ry * 1.18, {stroke: 'rgba(255,255,255,.10)', 'stroke-dasharray': '1 5'}],
-    [rx * 0.86, ry * 0.8, {stroke: `rgba(41,189,179,${sau ? 0.09 : 0.15})`, 'stroke-width': 7}],
-    [rx, ry, {stroke: `rgba(41,189,179,${sau ? 0.42 : 0.72})`, 'stroke-width': 1.2}],
-    [rx * 0.93, ry * 0.9, {stroke: `rgba(41,189,179,${sau ? 0.16 : 0.26})`, 'stroke-width': 0.8}],
+    [rx * 0.86, ry * 0.8, {stroke: `rgba(79,219,242,${sau ? 0.09 : 0.15})`, 'stroke-width': 7}],
+    [rx, ry, {stroke: `rgba(79,219,242,${sau ? 0.42 : 0.72})`, 'stroke-width': 1.2}],
+    [rx * 0.93, ry * 0.9, {stroke: `rgba(79,219,242,${sau ? 0.16 : 0.26})`, 'stroke-width': 0.8}],
   ];
   return h('g', {transform: `rotate(${HINH.TILT} ${cx} ${cy})`}, net.map(([a, b, kieu]) => h('path', Object.assign({d: d(a, b), fill: 'none'}, kieu))));
 }
@@ -310,8 +310,8 @@ export const VanhNghieng = {
         /* Thanh gọn dính đầu màn khi đã cuộn qua vành (đề xuất, chờ anh Việt duyệt ảnh). */
         h('div', Object.assign({ref: gon, class: 'vanh-gon' + (G.gonHien ? ' on' : ''), 'aria-hidden': 'true'}, suKien), [
           h('svg', {class: 'vanh-gon-cung', viewBox: '0 0 390 56', preserveAspectRatio: 'none'}, [
-            h('path', {d: 'M-10,50 Q195,8 400,50', fill: 'none', stroke: 'rgba(41,189,179,.55)', 'stroke-width': 1}),
-            h('path', {d: 'M-10,54 Q195,14 400,54', fill: 'none', stroke: 'rgba(41,189,179,.14)', 'stroke-width': 5}),
+            h('path', {d: 'M-10,50 Q195,8 400,50', fill: 'none', stroke: 'rgba(79,219,242,.55)', 'stroke-width': 1}),
+            h('path', {d: 'M-10,54 Q195,14 400,54', fill: 'none', stroke: 'rgba(79,219,242,.14)', 'stroke-width': 5}),
           ]),
           ...[0, 1, 2].map(j => h('button', {type: 'button', tabindex: -1, class: 'vanh-gon-muc vanh-gon-' + j, ref: el => { oGon[j] = el; },
             onClick: e => { if (daDiChuyen) return; const i = Number(e.currentTarget.dataset.i); if (j !== 1 && i >= 0) chon(i); }}, [h('span')])),

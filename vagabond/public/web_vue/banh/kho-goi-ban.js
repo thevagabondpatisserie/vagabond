@@ -14,7 +14,7 @@
    xong, không đi Pancake. Mọi số trên màn là computed từ kho này; giá chỉ để
    hiện, máy chủ tính lại (QT-19). Phụ thuộc bên ngoài tiêm vào để bộ kiểm chạy
    được trong node với Vue thật. */
-import {reactive, computed} from '../lib/vue.esm-browser.prod.js';
+import {reactive, computed, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 
 export const NHIP_TRANG_THAI = 10000;
@@ -315,13 +315,23 @@ function thuocChip(m, chip) {
 /* Phần tab Tại quầy đang bày: quầy chọn, món theo chip và ô tìm, tổng bánh
    còn. THUẦN theo S và G. Bánh trên tủ (đếm "còn") và đồ uống (gộp size)
    chung một danh sách. Mở từ QR một bàn thì chỉ còn đúng quầy của bàn đó. */
+/* v662: món có bán ở kênh này không. Máy chủ gửi cờ tai_ban, giao (0 hoặc 1);
+   bản cũ không gửi cờ thì Tại bàn coi như bán, Giao coi như KHÔNG bán. THUẦN. */
+export function banOKenh(m, kenh) {
+  if (kenh === 'giao') return Number(m && m.giao) === 1;
+  return !(m && m.tai_ban !== undefined && Number(m.tai_ban) === 0);
+}
 export function dungQuayHien(S, G, t) {
   let quay = (S.STORE && S.STORE.quay) || [];
   if (G && G.ban && G.ban.ok) quay = quay.filter(q => q.ma === G.ban.diem);
   if (!quay.length) return null;
   const chon = quay.find(q => q.ma === S.quayChon) || quay[0];
-  const banh = (chon.mon || []).map(m => ({...m, loai: 'banh', bienThe: [{ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten}]}));
-  const nuoc = gomSize((chon.do_uong || []).map(m => ({...m, loai: 'nuoc'})));
+  /* v662: mở từ QR bàn là kênh Tại bàn; tab Tại quầy trên trang chủ là kênh Giao
+     (WEBORDER), chỉ món quản lý đã tick Giao ở Biên tập menu. */
+  /* Cùng điều kiện chế độ của taoGoiBan.cheDo: chưa ở tab Tại quầy thì chưa lọc. */
+  const kenh = (G && G.ban && G.ban.ok) ? 'tai_ban' : (S.tab === 'store' ? 'giao' : '');
+  const banh = (chon.mon || []).filter(m => !kenh || banOKenh(m, kenh)).map(m => ({...m, loai: 'banh', bienThe: [{ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten}]}));
+  const nuoc = gomSize((chon.do_uong || []).filter(m => !kenh || banOKenh(m, kenh)).map(m => ({...m, loai: 'nuoc'})));
   const tim = (S.timQuay || '').trim();
   let ds, nhom;
   /* Có trường nhom_menu (kể cả mảng RỖNG: quản lý tắt hết nhóm) là đi theo menu;
@@ -396,6 +406,10 @@ export function taoGoiBan(moiTruong, S) {
     tra: {mo: false, cach: '', hd: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
     /* v643 ưu đãi tại bàn: buoc '' | 'dang' | 'sdt' | 'ma' | 'ds'. */
     ud: {mo: false, buoc: '', sdt: '', ma: '', ds: [], chon: '', hienTai: null, sdtCo: '', coHoaDon: 0, dangGui: false, loi: '', bao: ''},
+    /* v662 WEBORDER: đặt từ tab Tại quầy trên trang chủ, quầy giao hoặc khách tự lấy.
+       diem: quầy của giỏ (đổi quầy thì giỏ cũ bỏ). gia: số máy chủ báo lần gần nhất. */
+    web: {diem: '', tuLay: false, ten: '', sdt: '', diaChi: '', lat: null, lng: null, goiY: [], ma: '', pt: 'bank',
+      dongY: false, ghiChu: '', gia: null, dangXem: false, dangGui: false, loi: '', nonce: ''},
   });
 
   const khoaLuu = () => (G.link ? 'vgb-goi-ban-' + G.link.diem + '-' + G.link.ban : '');
@@ -412,16 +426,24 @@ export function taoGoiBan(moiTruong, S) {
   }
 
   /* Đang ở chế độ gọi món (link đúng) và quầy đang mở cửa. */
-  const cheDo = computed(() => (!G.ban || !G.ban.ok) ? '' : (G.ban.mo_cua ? 'goi' : 'dong'));
-  const nhanBan = computed(() => (G.ban && G.ban.ok) ? (G.ban.ten + ' · ' + t('goi_ban_ban', 'Bàn') + ' ' + G.ban.ban) : '');
+  /* v662: chưa mở từ QR bàn mà đang ở tab Tại quầy trên trang chủ là chế độ
+     'giao' (WEBORDER): thêm món, giỏ, đặt giao hoặc tự lấy, trả trước. */
+  const cheDo = computed(() => (!G.ban || !G.ban.ok) ? (G.daKiem && S.tab === 'store' ? 'giao' : '') : (G.ban.mo_cua ? 'goi' : 'dong'));
+  const coGio = () => cheDo.value === 'goi' || cheDo.value === 'giao';
+  const nhanBan = computed(() => (G.ban && G.ban.ok) ? (G.ban.ten + ' · ' + t('goi_ban_ban', 'Bàn') + ' ' + G.ban.ban)
+    : (cheDo.value === 'giao' ? ((quayCua() || {}).ten || '') + ' · ' + t('web_giao_nhan', 'Giao tận nơi hoặc tự lấy') : ''));
   const soMon = computed(() => G.gio.reduce((a, x) => a + x.sl, 0));
   const tong = computed(() => G.gio.reduce((a, x) => a + giaDong(x) * x.sl, 0));
-  const quayCua = () => ((S.STORE && S.STORE.quay) || []).find(q => G.ban && q.ma === G.ban.diem) || null;
+  const quayCua = () => {
+    const ds = (S.STORE && S.STORE.quay) || [];
+    if (G.ban && G.ban.ok) return ds.find(q => q.ma === G.ban.diem) || null;
+    return ds.find(q => q.ma === S.quayChon) || ds[0] || null;
+  };
   const toppingQuay = () => ((quayCua() || {}).topping) || [];
   /* Thanh giỏ hiện khi có món và không bảng nào đang mở (nút nổi Zalo, Grab
      nâng lên theo, xem KenhNoi). */
   const coBang = () => G.moGio || !!G.chon || G.chuong.mo || G.moDon || G.tra.mo || G.ud.mo;
-  const barMo = computed(() => cheDo.value === 'goi' && G.gio.length > 0 && !coBang());
+  const barMo = computed(() => coGio() && G.gio.length > 0 && !coBang());
   /* v642 (anh Việt 06/11/2026: gọi xong màn co lại, không xem được đơn, không
      có chỗ tính tiền): bàn đã gọi mà giỏ trống thì thanh đơn LUÔN hiện ở đáy
      (Bàn 5 · Đã gọi n lượt · Tạm tính · Xem đơn). Giỏ có món thì thanh giỏ
@@ -465,7 +487,13 @@ export function taoGoiBan(moiTruong, S) {
   const coBangChon = m => m.loai === 'nuoc' && ((m.bienThe || []).length > 1 || (m.tc || []).length > 0 || toppingCho(m).length > 0);
   /* Bấm "+" trên dòng: đồ uống có size, đá đường hay topping thì mở bảng chọn, còn lại thêm luôn. */
   function bamThem(m) {
-    if (cheDo.value !== 'goi') return false;
+    if (!coGio()) return false;
+    if (cheDo.value === 'giao') {
+      /* Giỏ WEBORDER thuộc MỘT quầy: đổi quầy thì giỏ cũ bỏ (quầy khác giao món khác). */
+      const q = quayCua(); const ma = q ? q.ma : '';
+      if (G.web.diem && G.web.diem !== ma && G.gio.length) { G.gio.splice(0); G.web.gia = null; }
+      G.web.diem = ma;
+    }
     if (conThem(m) <= 0) {
       toast(m.loai === 'nuoc' ? t('goi_ban_qua_nhieu', 'Mỗi lần gọi tối đa 20 ly một món.')
         : (m.loai === 'combo' ? t('goi_ban_combo_het', 'Combo này hiện gọi được tối đa {so} bộ.', {so: Number(m.con) || 0})
@@ -817,7 +845,97 @@ export function taoGoiBan(moiTruong, S) {
     return m;
   }
 
+  /* ---------------- v662 WEBORDER: đặt giao từ tab Tại quầy ---------------- */
+  const monGui = () => JSON.stringify(G.gio.map(x => Object.assign({ma: x.ma, sl: x.sl, tc: x.tc}, (x.tp || []).length ? {tp: x.tp.map(y => y.ma)} : {})));
+  const thanWeb = () => ({diem: G.web.diem || ((quayCua() || {}).ma || ''), mon: JSON.parse(monGui()), tu_lay: !!G.web.tuLay,
+    dia_chi: String(G.web.diaChi || '').trim(), lat: G.web.lat, lng: G.web.lng, dien_thoai: String(G.web.sdt || '').replace(/\D/g, ''),
+    ma_uu_dai: String(G.web.ma || '').trim().toUpperCase()});
+  /* Lần hỏi giá mới nhất thắng: trả lời muộn của lần cũ không ghi đè (H8 loại 8). */
+  let luotGiaWeb = 0, henGiaWeb = null;
+  function xemGiaWeb(ngay = false) {
+    huyHen(henGiaWeb); henGiaWeb = null;
+    const lam = async () => {
+      if (cheDo.value !== 'giao' || !G.gio.length) { G.web.gia = null; return; }
+      const luot = ++luotGiaWeb; G.web.dangXem = true;
+      let m = null;
+      try { m = await ghi('vagabond.don_quay.xem_gia', {don: JSON.stringify(thanWeb())}); } catch (e) { m = null; }
+      if (luot !== luotGiaWeb) return;
+      G.web.dangXem = false;
+      G.web.gia = (m && m.ok) ? m : null;
+      G.web.loi = (m && !m.ok && m.cau) ? m.cau : '';
+    };
+    if (ngay) return lam();
+    henGiaWeb = hen(lam, 500);
+    return null;
+  }
+  let luotDcWeb = 0, henDcWeb = null;
+  function goiYDiaChiWeb() {
+    const luot = ++luotDcWeb; G.web.lat = null; G.web.lng = null; G.web.gia = null;
+    huyHen(henDcWeb);
+    const q = String(G.web.diaChi || '').trim();
+    if (q.length < 5) { G.web.goiY = []; return; }
+    henDcWeb = hen(async () => {
+      let m = null;
+      try { m = await doc('vagabond.dia_chi.goi_y_dia_chi', {q}); } catch (e) { m = null; }
+      if (luot !== luotDcWeb) return;
+      G.web.goiY = ((m || {}).suggestions || []).slice(0, 6);
+    }, 450);
+  }
+  async function chonGoiYWeb(i) {
+    const g = G.web.goiY[i]; if (!g) return;
+    const luot = ++luotDcWeb;
+    G.web.diaChi = g.mo_ta; G.web.goiY = [];
+    let m = null;
+    try { m = await doc('vagabond.dia_chi.chi_tiet_dia_chi', {place_id: g.place_id}); } catch (e) { m = null; }
+    if (luot !== luotDcWeb) return;
+    if (m && m.lat && m.lng) { G.web.lat = m.lat; G.web.lng = m.lng; if (m.dia_chi) G.web.diaChi = m.dia_chi; }
+    void xemGiaWeb(true);
+  }
+  /* Tổng khách trả theo số máy chủ vừa báo: tiền món - giảm + phí giao. THUẦN theo G.web.gia. */
+  const tongWeb = computed(() => {
+    const g = G.web.gia; if (!g) return null;
+    if (!G.web.tuLay && (g.phi === null || g.phi === undefined)) return null;
+    return Math.max(0, (Number(g.tien_hang) || 0) - (Number(g.giam) || 0) + (G.web.tuLay ? 0 : (Number(g.phi) || 0)));
+  });
+  /* Mở giỏ, đổi món, đổi số lượng ở chế độ giao: hỏi lại tổng của máy chủ. */
+  if (typeof watch === 'function') {
+    watch(() => G.moGio, v => { if (v && cheDo.value === 'giao') void xemGiaWeb(true); });
+    watch(() => G.gio.map(x => x.khoa + ':' + x.sl).join(','), () => { if (G.moGio && cheDo.value === 'giao') xemGiaWeb(); });
+  }
+  let luotDat = null;
+  function datWeb() {
+    if (luotDat) return luotDat;
+    luotDat = datWebMotLan().finally(() => { luotDat = null; });
+    return luotDat;
+  }
+  async function datWebMotLan() {
+    const w = G.web;
+    if (cheDo.value !== 'giao' || !G.gio.length) return null;
+    if (!String(w.ten || '').trim()) { w.loi = t('web_giao_thieu_ten', 'Quý khách điền tên.'); return null; }
+    if (String(w.sdt || '').replace(/\D/g, '').length < 9) { w.loi = t('dat_banh_971b60e8f', 'Số điện thoại chưa đúng'); return null; }
+    if (!w.tuLay && String(w.diaChi || '').trim().length < 8) { w.loi = t('dat_banh_147c2c4a9', 'Quý khách điền địa chỉ giao'); return null; }
+    if (!w.dongY) { w.loi = t('dat_banh_ea9153cee', 'Quý khách chọn ô đồng ý ngay trên nút gửi.'); return null; }
+    if (!w.gia) await xemGiaWeb(true);
+    if (!w.gia || tongWeb.value === null) { w.loi = w.loi || t('web_giao_chua_gia', 'Chưa báo được tổng tiền. Quý khách thử lại sau ít phút.'); return null; }
+    if (!w.nonce) w.nonce = T.taoNonce(ngauNhien);
+    w.dangGui = true; w.loi = '';
+    const than = Object.assign(thanWeb(), {ho_ten: String(w.ten || '').trim(), ghi_chu: String(w.ghiChu || '').trim().slice(0, 300),
+      thanh_toan: w.pt, nonce: w.nonce, dong_y: true, giam_da_xem: Number(w.gia.giam) || 0, phi_da_xem: w.tuLay ? null : w.gia.phi});
+    let m = null;
+    try { m = await ghi('vagabond.don_quay.tao_don', {don: JSON.stringify(than)}); } catch (e) { m = null; }
+    w.dangGui = false;
+    if (!m || !m.ok) {
+      if (m && m.ly_do === 'gia_doi') { w.gia = Object.assign({}, w.gia, {tien_hang: m.tien_hang, giam: m.giam, phi: m.phi}); }
+      w.loi = (m && m.cau) || t('web_giao_loi', 'Chưa gửi được đơn. Quý khách thử lại sau ít phút.');
+      if (m && m.tai_lai && moiTruong.napQuay) void moiTruong.napQuay();
+      return m;
+    }
+    G.gio.splice(0); w.nonce = ''; w.gia = null; G.moGio = false;
+    return m;
+  }
+
   return {G, cheDo, nhanBan, soMon, tong, barMo, quayCua, toppingQuay, macDinh, kiemLink, conThem, daChon, coBangChon, bamThem, moBangChon, chonBienThe,
+    xemGiaWeb, goiYDiaChiWeb, chonGoiYWeb, tongWeb, datWeb,
     chonTc, chonTp, doiSlChon, giaChon, tongChon, xongChon, them, doiSl, kiemGt, goiMon, hoiTrangThai, cauDon, chuTuyChon,
     moChuong, dongChuong, goiNhanVien, tom, barDon, moDon, dongDon, moTra, dongTra, guiTra,
     moUd, dongUd, napUd, guiMaUd, suaSoUd, xacThucUd, dungUd, boUd, udHienTai};

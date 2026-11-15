@@ -15,6 +15,7 @@ import * as T from '../kho/thuan.js';
 import {AnhMon} from './thanh-phan.js';
 import {giaDong, LY_DO_GOI, CACH_TRA, TT_KHONG_TINH, moTaCombo} from './kho-goi-ban.js';
 import {BieuTuong, ICON_LY_DO} from './bieu-tuong.js';
+import {PAYS} from './du-lieu.js';
 
 
 /* Khối "đã gọi" là khối CHỈ ĐỂ ĐỌC, không được lấn chỗ khối để bấm (AGENTS.md
@@ -82,7 +83,7 @@ export const MAU_GOI_BAN_NOI = `
 <div class="gb" v-if="tab==='store'">
   <div class="bar gb-bar" id="gbBar" :class="{on: gb.barMo.value}"><div class="wrap in">
     <span class="cnt"><b>{{ t('goi_ban_728f6901b','{so} món · {tien}',{so: gb.soMon.value, tien: tien(gb.tong.value)}) }}</b></span>
-    <button class="go" id="gbXemGio" @click="G.moGio=true">{{ t('dat_banh_fb62c648d','Xem giỏ') }}</button>
+    <button class="go" id="gbXemGio" @click="G.moGio=true"><span>{{ t('dat_banh_fb62c648d','Xem giỏ') }}</span><span class="vt-so" aria-hidden="true">{{ gb.soMon.value }}</span></button>
   </div></div>
 
   <div class="bar gb-bar gb-bar-don" id="gbBarDon" :class="{on: gb.barDon.value}"><div class="wrap in">
@@ -122,7 +123,7 @@ export const MAU_GOI_BAN_NOI = `
 
   <section class="sheet gb-sheet" id="gbGio" :class="{open: G.moGio}" role="dialog" aria-modal="true" aria-labelledby="gb-gio-tieu">
     <div class="gb-khung">
-      <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ gb.nhanBan.value }}</small><h2 id="gb-gio-tieu">{{ G.don.length ? t('goi_ban_goi_them','Gọi thêm món') : t('goi_ban_goi_mon','Gọi món') }}</h2></div>
+      <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ gb.nhanBan.value }}</small><h2 id="gb-gio-tieu">{{ gb.cheDo.value==='giao' ? t('web_giao_tieu_de','Đặt giao') : (G.don.length ? t('goi_ban_goi_them','Gọi thêm món') : t('goi_ban_goi_mon','Gọi món')) }}</h2></div>
         <button class="gb-x" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="G.moGio=false"><bieu-tuong ten="dong"/></button></header>
       <div class="gb-than">
         <div class="gb-dong" v-for="(x,i) in G.gio" :key="x.khoa" :data-dong="x.ma">
@@ -132,6 +133,7 @@ export const MAU_GOI_BAN_NOI = `
               <div class="gb-step gb-step-nho"><button type="button" :aria-label="t('goi_ban_bot','Bớt một')" @click="gb.doiSl(i,-1)"><bieu-tuong ten="tru"/></button><span>{{ x.sl }}</span><button type="button" :aria-label="t('goi_ban_them','Thêm một')" @click="gb.doiSl(i,1)"><bieu-tuong ten="cong"/></button></div></div>
           </div>
         </div>
+        <template v-if="gb.cheDo.value!=='giao'">
         <div class="fld"><label for="gb-ghi"><span>{{ t('goi_ban_ghi_chu','Ghi chú cho quầy') }}</span></label>
           <textarea id="gb-ghi" rows="2" maxlength="300" :placeholder="t('goi_ban_ghi_chu_goi','Ví dụ: mang trà ra trước, bánh để sau')" v-model="G.ghiChu"></textarea></div>
         <div class="fld"><label for="gb-ten"><span>{{ t('goi_ban_ten','Tên để quầy gọi (không bắt buộc)') }}</span></label>
@@ -144,11 +146,42 @@ export const MAU_GOI_BAN_NOI = `
           <button class="gb-ghost" id="gbGioChuong" type="button" @click="moChuong('')"><bieu-tuong ten="chuong"/>{{ t('goi_ban_chuong_nut','Gọi nhân viên') }}</button>
           <button class="gb-ghost" id="gbGioTinhTien" type="button" @click="moChuong(LY_DO_GOI[1])"><bieu-tuong ten="hoaDon"/>{{ t('goi_ban_xin_tinh_tien','Xin tính tiền') }}</button>
         </div>
+        </template>
+        <template v-else>
+          <div class="seg" id="gbWebCach" role="group" :aria-label="t('web_giao_cach','Cách nhận')">
+            <button type="button" :class="{on: !G.web.tuLay}" :aria-pressed="String(!G.web.tuLay)" @click="G.web.tuLay=false; gb.xemGiaWeb()"><b>{{ t('web_giao_tan_noi','Giao tận nơi') }}</b><span>{{ t('web_giao_tan_noi_mo','Quầy gọi xe GreenSM khi đóng gói xong') }}</span></button>
+            <button type="button" :class="{on: G.web.tuLay}" :aria-pressed="String(G.web.tuLay)" @click="G.web.tuLay=true; gb.xemGiaWeb()"><b>{{ t('web_giao_tu_lay','Tự lấy tại quầy') }}</b><span>{{ (gb.quayCua() || {}).dia_chi || '' }}</span></button>
+          </div>
+          <div class="fld"><label for="gb-web-ten"><span>{{ t('web_giao_ten','Tên người đặt') }}</span></label><input id="gb-web-ten" maxlength="80" autocomplete="name" v-model="G.web.ten"></div>
+          <div class="fld"><label for="gb-web-sdt"><span>{{ t('web_giao_sdt','Số điện thoại') }}</span></label><input id="gb-web-sdt" inputmode="tel" maxlength="15" autocomplete="tel" v-model="G.web.sdt"></div>
+          <div class="fld" v-if="!G.web.tuLay"><label for="gb-web-dc"><span>{{ t('web_giao_dia_chi','Địa chỉ giao') }}</span></label>
+            <input id="gb-web-dc" maxlength="300" autocomplete="street-address" v-model="G.web.diaChi" @input="gb.goiYDiaChiWeb()" @blur="gb.xemGiaWeb()">
+            <div class="goiy" v-if="G.web.goiY.length"><button v-for="(g,i) in G.web.goiY" :key="i" type="button" @click="gb.chonGoiYWeb(i)">{{ g.mo_ta }}</button></div></div>
+          <div class="fld"><label for="gb-web-ma"><span>{{ t('dat_banh_ma_uu_dai','Mã ưu đãi') }}</span></label>
+            <input id="gb-web-ma" maxlength="40" autocomplete="off" v-model="G.web.ma" @blur="gb.xemGiaWeb()"></div>
+          <div class="fld"><label for="gb-web-ghi"><span>{{ t('goi_ban_ghi_chu','Ghi chú cho quầy') }}</span></label>
+            <textarea id="gb-web-ghi" rows="2" maxlength="300" v-model="G.web.ghiChu"></textarea></div>
+          <div class="gb-web-pt" role="group" :aria-label="t('web_giao_thanh_toan','Thanh toán')">
+            <button v-for="p in ptWeb" :key="p.k" type="button" class="pick" :class="{on: G.web.pt===p.k}" :aria-pressed="String(G.web.pt===p.k)" @click="G.web.pt=p.k"><b>{{ t(p.kn, p.n) }}</b><span>{{ t(p.kd, p.d) }}</span></button>
+          </div>
+          <p class="gb-phu">{{ t('web_giao_tra_truoc','Đơn giao trả trước. Tiền về, quầy xác nhận và báo giờ xong; quầy hết món thì The Vagabond hoàn tiền cho quý khách.') }}</p>
+          <button type="button" class="chk" :class="{on: G.web.dongY}" role="checkbox" :aria-checked="G.web.dongY ? 'true' : 'false'" @click="G.web.dongY=!G.web.dongY"><span class="bx">{{ G.web.dongY ? '✓' : '' }}</span>
+            <span class="tx"><span>{{ t('web_giao_dong_y','Tôi đồng ý để The Vagabond dùng tên, số điện thoại, địa chỉ này để giao đơn.') }}</span></span></button>
+        </template>
       </div>
       <footer class="gb-day gb-day-doc">
         <p class="gb-loi" id="gbLoi" role="status" v-if="G.loi">{{ G.loi }}</p>
+        <template v-if="gb.cheDo.value==='giao'">
+          <p class="gb-loi" id="gbWebLoi" role="status" v-if="G.web.loi">{{ G.web.loi }}</p>
+          <div class="gb-tong gb-web-dong" v-if="giamWeb"><span>{{ t('web_giao_giam','Giảm') }}</span><b>- {{ tien(G.web.gia.giam) }}</b></div>
+          <div class="gb-tong gb-web-dong" v-if="!G.web.tuLay"><span>{{ t('web_giao_phi','Phí giao') }}</span><b>{{ phiWebChu }}</b></div>
+          <div class="gb-tong"><span>{{ t('goi_ban_so_mon','{so} món',{so: gb.soMon.value}) }}</span><b>{{ tien(gb.tongWeb.value === null ? gb.tong.value : gb.tongWeb.value) }}</b></div>
+          <button type="button" class="gb-cta" id="gbDatWeb" :disabled="G.web.dangGui || !G.gio.length" @click="datWeb()">{{ G.web.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : t('web_giao_dat','Đặt và trả trước') }}</button>
+        </template>
+        <template v-else>
         <div class="gb-tong"><span>{{ t('goi_ban_so_mon','{so} món',{so: gb.soMon.value}) }}</span><b>{{ tien(gb.tong.value) }}</b></div>
         <button type="button" class="gb-cta" id="gbGoi" :disabled="G.dangGui || !G.gio.length" @click="gb.goiMon()">{{ G.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : (G.don.length ? t('goi_ban_d8e2f3a4b','Gọi thêm · {tien}',{tien: tien(gb.tong.value)}) : t('goi_ban_6a9970661','Gọi món · {tien}',{tien: tien(gb.tong.value)})) }}</button>
+        </template>
       </footer>
     </div>
   </section>
@@ -337,7 +370,24 @@ export const GoiTaiBanNoi = {
           : (Number(x.dung_duoc) ? t('goi_ban_ud_giam', 'Giảm {tien}', {tien: tien(x.giam)}) : (x.ly_do || t('goi_ban_ud_chua_du', 'chưa đủ điều kiện')))}))}))
       .filter(n => n.ds.length));
     const udDungDuoc = computed(() => !G.ud.dangGui && G.ud.ds.some(x => x.khoa === G.ud.chon && Number(x.dung_duoc)));
+    /* v662 WEBORDER: trả trước, không có tiền mặt; thẻ chỉ khi cổng OnePay đang bật. */
+    const ptWeb = computed(() => PAYS.filter(p => p.k !== 'cash' && (!p.the || !!(props.kho.S && props.kho.S.cauHinh && Number(props.kho.S.cauHinh.onepay) === 1))));
+    const phiWebChu = computed(() => {
+      const g = G.web.gia;
+      if (!g || g.trang_thai_phi === 'thieu_dia_chi') return t('web_giao_phi_cho_dc', 'Điền địa chỉ để báo phí');
+      if (g.trang_thai_phi === 'mien_phi') return t('web_giao_mien_phi', 'Miễn phí');
+      return (g.phi === null || g.phi === undefined) ? t('web_giao_phi_chua_ro', 'Chưa báo được') : tien(g.phi);
+    });
+    /* Biểu thức && để ngoài khuôn (bản Vue chạy trong node không giải mã thực thể). */
+    const giamWeb = computed(() => Number((G.web.gia || {}).giam) || 0);
+    async function datWeb() {
+      const m = await gb.datWeb();
+      if (m && m.ok && m.duong_dan && /^\/banh\/xong\/[A-Za-z0-9_-]+$/.test(m.duong_dan)) {
+        try { window.location.assign(m.duong_dan); } catch (e) { /* node */ }
+      }
+      return m;
+    }
     return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, ICON_LY_DO, phuLyDo, moChuong, chuDong, luot, goiThem, CACH_TRA,
-      udO, udDangNhap, udDau, nhomUd, udDungDuoc};
+      udO, udDangNhap, udDau, nhomUd, udDungDuoc, ptWeb, phiWebChu, datWeb, giamWeb};
   }
 };
