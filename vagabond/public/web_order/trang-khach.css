@@ -11,7 +11,7 @@ body.trang-khach{font-family:var(--sans);font-size:16px;line-height:1.65;backgro
 .bn-nhan{font-size:12px;letter-spacing:.16em;color:var(--cyan);margin-bottom:8px}
 .bn h1{font-size:clamp(24px,6.5vw,34px);line-height:1.25;font-weight:600}
 .bn h1 b{display:block;color:var(--cyan);font-size:clamp(28px,8vw,44px);letter-spacing:.02em;word-break:break-all}
-.bn-trang-thai{display:inline-block;margin-top:14px;padding:6px 14px;border-radius:20px;font-size:14px;background:rgba(41,189,179,.15);color:var(--cyan-bright)}
+.bn-trang-thai{display:inline-block;margin-top:14px;padding:6px 14px;border-radius:20px;font-size:14px;background:rgba(79,219,242,.15);color:var(--cyan-bright)}
 .bn-trang-thai.cho{background:rgba(219,126,42,.16);color:#f0a55c}
 .bn-trang-thai.huy{background:rgba(255,255,255,.08);color:var(--fog)}
 .bn-cau{margin-top:12px;font-size:16px;color:var(--paper)}
@@ -39,7 +39,7 @@ body.trang-khach{font-family:var(--sans);font-size:16px;line-height:1.65;backgro
 .bn-nut{display:grid;gap:10px;margin-top:24px}
 @media(min-width:560px){.bn-nut{grid-template-columns:repeat(2,1fr)}}
 .nut{display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;border:1px solid var(--cyan);border-radius:26px;color:var(--cyan-bright);font-size:15px;text-align:center}
-.nut.chinh{background:var(--cyan);color:#00201d;font-weight:600}
+.nut.chinh{background:var(--cyan);color:var(--ink-on-cyan,#1A1A1A);font-weight:600}
 .nut.phu{border-color:var(--line);color:var(--paper)}
 .cs-in h1{font-size:clamp(26px,7vw,40px);line-height:1.2;margin-bottom:18px;color:var(--cyan)}
 .cs-in h2,.cs-in h3{margin:26px 0 8px;font-size:19px}
