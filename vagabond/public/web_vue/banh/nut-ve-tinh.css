@@ -58,15 +58,14 @@ html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.c
   font:500 12px/1.3 var(--sans,sans-serif);font-style:normal;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;
 }
 html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a){
-  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;
 }
-/* Cao 40 theo mẫu, vùng bấm vẫn đủ 44 (AGENTS.md điều 13): phần trong suốt nhô 2px trên dưới. */
-html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a)::after{content:"";position:absolute;left:0;right:0;top:-2px;bottom:-2px}
+/* v663 (CI ra nút): cao thật 44 (AGENTS.md điều 13). Phần trong suốt nhô ra bằng ::after
+   không được máy đo vùng bấm tính, lại làm chữ bị coi là tràn, nên không dùng. */
 html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a):hover{background:rgba(79,219,242,.12)}
 /* Thanh dịch vụ đầu trang: Đặt bàn, Khách sỉ, Thành viên vừa một hàng ở 390 px. */
 html body nav.dich-vu{gap:6px}
-html body nav.dich-vu a{position:relative;display:inline-flex;align-items:center;min-height:32px;height:32px;padding:0 11px;font-size:10.5px;white-space:nowrap}
-html body nav.dich-vu a::after{content:"";position:absolute;left:-3px;right:-3px;top:-6px;bottom:-6px}
+html body nav.dich-vu a{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:44px;height:44px;min-width:44px;padding:0 11px;font-size:10.5px;white-space:nowrap}
 @media(max-width:374px){html body nav.dich-vu a{padding:0 8px;font-size:10px}}
 /* Thẻ chọn quầy nhiều dòng: chỉ đổi màu, giữ chiều cao theo nội dung, chữ thường cho dễ đọc. */
 html body .quay-chon button{border-radius:18px;text-transform:none;letter-spacing:.02em;color:var(--paper,#fff)}
