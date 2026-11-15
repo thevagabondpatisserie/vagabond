@@ -752,3 +752,24 @@ Làm một lần sau khi lên bản v653.
 
 **Lưu ý**
 - Máy không bao giờ hiện lại PIN, token, App Secret, mật khẩu; chip chỉ báo Đã khai hay Chưa khai.
+- Nút [[Kích hoạt số WhatsApp]] mà Meta báo "(#10) Application does not have permission" thì đăng ký số ngay trên Meta: developers.facebook.com, ứng dụng Vagabond ERP, Kết nối trên WhatsApp, Bước 2 Thiết lập chính thức, bấm [[Đăng ký]] ở dòng số của tiệm. Số chuyển Đã đăng ký là xong (làm ngày 15/11/2026).
+
+## Gửi thử tin WhatsApp
+Từ khoá: gửi thử WhatsApp, thử WhatsApp, kiểm WhatsApp, số nhận tin thử, mã thử
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị hệ thống | Cài đặt lõi và API (/cai-dat-loi-va-api), nhóm Tin nhắn và cảnh báo | [[Gửi thử WhatsApp]] |
+
+Mã xác thực thật luôn gửi Zalo trước, chỉ khi Zalo không gửi được mới sang WhatsApp. Vì vậy số có Zalo không bao giờ nhận mã qua WhatsApp. Nút này gửi thẳng qua WhatsApp để kiểm đường WhatsApp có chạy không.
+
+**Các bước**
+1. Mở Cài đặt lõi và API, bấm nhóm Tin nhắn và cảnh báo, kéo tới mục WhatsApp Business.
+2. Gõ số vào ô Số nhận tin thử: số Việt Nam gõ kiểu nào cũng được (0901 486 556), số nước ngoài gõ có dấu + ở đầu.
+3. Bấm [[Gửi thử WhatsApp]]. Chip xanh "Đã gửi tới ..." và câu nêu mã thử là máy chủ đã gửi.
+4. Mở WhatsApp trên máy có số đó: tin của The Vagabond Pâtisserie có mã thử trùng mã trên màn là đường WhatsApp chạy.
+
+**Lưu ý**
+- Mã thử không đăng nhập được gì.
+- Chip đỏ "Chưa gửi được" kèm câu của Meta: đọc câu đó (số chưa kích hoạt, mẫu chưa duyệt, số nhận không có WhatsApp).
+- Trên Desk (Vagabond Settings) cũng có nút cùng tên trong nhóm WhatsApp.
