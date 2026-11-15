@@ -73860,7 +73860,7 @@ var BD_TT = {
 var BD_THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 var BD_DS_LOC = [['', 'Mọi bài'], ['chua_gio', 'Chưa hẹn giờ'], ['Chờ duyệt', 'Chờ duyệt'], ['Chờ đăng tay', 'Chờ đăng tay'],
   ['Đã hẹn giờ', 'Đã hẹn giờ'], ['Đã đăng', 'Đã đăng'], ['Nháp', 'Nháp']];
-var BD = { xem: 'tuan', moc: '', ngay: '', loc: [], tt: '', dl: null, bai: null, ban: 0, cho: null, thay: {}, thayMa: '', banMa: {}, loiMa: {}, chuoi: Promise.resolve(), tab: 0 };
+var BD = { xem: 'tuan', moc: '', ngay: '', loc: [], tt: '', dl: null, bai: null, ban: 0, cho: null, thay: {}, thayMa: '', banMa: {}, loiMa: {}, xdLan: {}, chuoi: Promise.resolve(), tab: 0 };
 
 function bdKenh(k) { return BD_KENH.filter(function (x) { return x.k === k; })[0] || {}; }
 function bdThu(ngay) { var p = String(ngay).split('-'); return BD_THU[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; }
@@ -74307,8 +74307,9 @@ function bdHenLuu(thay) {
    Phần chờ, mã bài và số lần lưu đi cùng nhau theo TỪNG bài (Codex #572): mở bài B
    sau khi bài A lưu hỏng không được gửi nội dung A dưới mã B hay số lần lưu của B.
    Lưu hỏng: BD.loiMa[mã] = 1 và phần sửa trả lại BD.thay của đúng bài đó (nếu người
-   dùng còn ở bài đó). Máy khác vừa sửa: BD.loiMa[mã] = 'xd' để việc kế tiếp trên bài
-   đó dừng một lần.
+   dùng còn ở bài đó). Máy khác vừa sửa: tăng BD.xdLan[mã]; lượt nào của bài đó viết
+   TRƯỚC lần xung đột này (người dùng chưa thấy bản mới) bị bỏ, không ghi đè bản mới;
+   việc nào đang chờ lưu lúc xung đột xảy ra thì dừng (bdLuuChac).
    Lượt sau của chính bài đó lưu được thì xoá; mở lại bài từ lịch cũng xoá. Kết quả
    của bài A không bao giờ chặn việc trên bài B. */
 function bdLuuNgay(veLai) {
@@ -74316,8 +74317,10 @@ function bdLuuNgay(veLai) {
   var ma = BD.thayMa || (BD.bai && BD.bai.name);
   var thay = BD.thay; BD.thay = {};
   if ((!thay || !Object.keys(thay).length) && !veLai) return BD.chuoi;
+  var xdTruoc = BD.xdLan[ma] || 0;
   BD.chuoi = BD.chuoi.then(function () {}, function () {}).then(async function () {
     if (!ma) return;
+    if ((BD.xdLan[ma] || 0) !== xdTruoc) return;
     var dl;
     try { dl = await api(BD_P + 'luu', { ma: ma, ban_luu: BD.banMa[ma] != null ? BD.banMa[ma] : BD.ban, thay: JSON.stringify(thay || {}) }); }
     catch (e) {
@@ -74327,7 +74330,8 @@ function bdLuuNgay(veLai) {
       var o0 = document.getElementById('bdLuuChu'); if (o0) o0.textContent = 'Chưa lưu được'; bdLoi(e); return;
     }
     if (dl && dl.bai) BD.banMa[ma] = dl.bai.ban_luu;
-    if (dl.xung_dot) BD.loiMa[ma] = 'xd'; else delete BD.loiMa[ma];
+    delete BD.loiMa[ma];
+    if (dl.xung_dot) BD.xdLan[ma] = (BD.xdLan[ma] || 0) + 1;
     if (!BD.bai || BD.bai.name !== ma || !bdDangMo(ma)) return;
     if (!Object.keys(BD.thay || {}).length) vgbBoChuaLuu();
     if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000); BD.thay = {}; vgbBoChuaLuu(); bdVeLai(dl); return; }
@@ -74342,10 +74346,10 @@ function bdLuuNgay(veLai) {
 /* Việc dựa trên bản đã lưu (Duyệt, Gửi duyệt, AI soạn, thêm hay bỏ ảnh): lưu hết phần
    đang chờ và đợi tới khi hàng lưu THẬT SỰ yên (lượt nào nối thêm trong lúc chờ cũng
    phải xong, Codex #572 vòng 4). Lượt cuối của CHÍNH bài này hỏng, còn phần chưa lưu,
-   hoặc máy khác vừa sửa (đã nạp bản mới) thì dừng; xung đột chỉ chặn một lần để người
-   dùng xem lại bản mới rồi bấm lại. Mỗi việc chỉ chạy một lượt (bdMotLan). */
+   hoặc có xung đột xảy ra TRONG lúc việc này đang chờ (máy khác vừa sửa, đã nạp bản mới)
+   thì dừng; người dùng xem lại bản mới rồi bấm lại là việc mới. Mỗi việc chỉ chạy một lượt (bdMotLan). */
 async function bdLuuChac() {
-  var ma = BD.bai && BD.bai.name;
+  var ma = BD.bai && BD.bai.name, xdTruoc = BD.xdLan[ma] || 0;
   for (var vong = 0; vong < 50; vong++) {
     var c = bdLuuNgay();
     await c;
@@ -74355,8 +74359,7 @@ async function bdLuuChac() {
     break;
   }
   if (!ma || !BD.bai || BD.bai.name !== ma) return false;
-  if (BD.loiMa[ma] === 'xd') {
-    delete BD.loiMa[ma];
+  if ((BD.xdLan[ma] || 0) !== xdTruoc) {
     toast('Bài vừa được sửa ở máy khác, đã nạp bản mới. Xem lại rồi bấm lại.', 4500);
     return false;
   }
