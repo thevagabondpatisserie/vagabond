@@ -13,7 +13,8 @@
   "decor_da_lam",
   "so_refill",
   "refill_tu",
-  "refill_den"
+  "refill_den",
+  "refill_dot"
  ],
  "fields": [
   {
@@ -77,11 +78,18 @@
    "fieldname": "refill_den",
    "fieldtype": "Date",
    "label": "Refill nhận đơn tới ngày"
+  },
+  {
+   "fieldname": "refill_dot",
+   "fieldtype": "Long Text",
+   "label": "Các đợt refill",
+   "read_only": 1,
+   "description": "Máy ghi. Danh sách các đợt refill của bánh (số bánh, có bánh từ ngày, nhận đơn tới ngày). Sửa ở màn Kiểm bánh, ô Refill."
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-11-14 11:00:00.000000",
+ "modified": "2026-11-15 17:10:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "BTP Banh O Dong",
