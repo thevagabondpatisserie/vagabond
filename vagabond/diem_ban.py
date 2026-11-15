@@ -249,9 +249,14 @@ def ap_gia_diem(items, rows, gia, mien=()):
 	MAY CHU da xac nhan (dong_combo_tao, dong_giu_gia_sua): combo co gia rieng
 	cua no. Nhan combo do may khach tu gui KHONG duoc mien (Codex PR #532:
 	gui combo "bat ky" kem gia 1 dong la lot gia diem). Mon chua co gia o
-	diem nay giu gia may khach gui (gia chung). Tra so dong da doi."""
+	diem nay giu gia may khach gui (gia chung). Tra so dong da doi.
+
+	Codex #573: đơn giao của quầy khách ĐÃ TRẢ theo giá máy chủ chốt lúc đặt
+	(don_quay.xac_nhan bật cờ frappe.flags.vgb_gia_chot quanh lời lập phiếu).
+	Quản lý đổi bảng giá điểm sau đó thì phiếu vẫn giữ đúng giá đã thu. Cờ chỉ
+	mã máy chủ đặt được, lời gọi từ trình duyệt không mang theo được."""
 	doi = 0
-	if not gia:
+	if not gia or frappe.flags.get("vgb_gia_chot"):
 		return 0
 	mien = set(mien or ())
 	for i, r in enumerate(items or []):

@@ -637,6 +637,9 @@ NGUON_CU = {
 	# v638: phiếu tạm tính lập từ đơn gọi món tại bàn mang nguồn riêng để báo
 	# cáo tách được, còn phương thức thanh toán thì đi đúng như "Tại chỗ".
 	"QR tại bàn": "Tại chỗ",
+	# v662: phiếu tạm tính lập từ đơn giao của quầy (WEBORDER, khách đặt qua tab
+	# Tại quầy trên trang chủ, đã trả trước): nguồn riêng cho báo cáo, thanh toán như "Mang về".
+	"Web giao": "Mang về",
 }
 
 

@@ -269,6 +269,11 @@ def dung():
 	from vagabond import gioi_thieu
 
 	_dung_nhom(gioi_thieu.TRUONG_MOI, "gioi_thieu")
+	# v662: đơn giao của quầy (WEBORDER) trên Don Web, neo sau nhật ký thẻ OnePay;
+	# ô Miễn phí giao WEBORDER trong Cài đặt neo sau ô Miễn phí giao của đơn web.
+	from vagabond import don_quay
+
+	_dung_nhom(don_quay.TRUONG_MOI, "don_quay")
 	try:
 		gioi_thieu.gieo_mac_dinh()
 	except Exception:

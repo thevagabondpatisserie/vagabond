@@ -319,6 +319,10 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 		"dang_xac_nhan": cho,
 		"da_huy": tt == "Da huy",
 		"cau": (
+			# v662: đơn giao của quầy (WEBORDER) không qua Sales: quầy nhận khi tiền về.
+			("Quầy %s nhận đơn ngay khi tiền về và báo giờ xong. Quầy hết món thì The Vagabond hoàn tiền cho quý khách."
+				% ((snap.get("weborder") or {}).get("ten_diem") or "")).replace("Quầy  ", "Quầy ")
+			if snap.get("weborder") and tt != "Da huy" else
 			"Tiệm đã nhận yêu cầu, Sales sẽ gọi xác nhận trong ít phút. Không cần đặt lại."
 			if cho else (
 				"Đơn này đã được huỷ. Anh chị cần đặt lại thì nhắn tiệm qua Zalo hoặc Messenger bên dưới."

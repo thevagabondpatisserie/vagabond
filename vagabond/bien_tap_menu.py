@@ -42,6 +42,12 @@ Không (tat_tc / tat_tp). Một mục không nằm cả hai danh sách; mục c�
 hai (dữ liệu sửa tay) thì Không thắng.
 Món nước chưa nằm trong nhóm nào ("Món mới chưa xếp") thì ẩn trên web; màn
 Tính tiền vẫn hỏi tuỳ chọn theo nhóm có cùng nhóm gốc.
+
+v662 (anh Việt 15/11/2026): mỗi món, mỗi bánh trên tủ có HAI dấu tick bán.
+"Tại bàn" (O2O, khách quét QR trên bàn) là món KHÔNG nằm trong "an"; "Giao"
+(WEBORDER, khách đặt qua tab Tại quầy trên trang chủ, quầy giao hoặc khách tự
+lấy) là món NẰM trong "giao". Món mới lên tủ không ở danh sách nào nên mặc
+định Tại bàn bật, Giao tắt (anh Việt chốt): bánh mong manh không tự lên đơn giao.
 """
 
 import json
@@ -56,6 +62,11 @@ XUAT = "Xuất bản"
 MA_BANH = "banh"
 TEN_BANH = "Bánh trên tủ"
 MUC_MAC_DINH = "Bình thường"
+# v662: hai kênh bán của một món tại quầy.
+KENH_TAI_BAN = "tai_ban"
+KENH_GIAO = "giao"
+# Trang khách nạp một lần cho cả hai chế độ, tự lọc theo chế độ đang mở.
+KENH_MOI = "moi_kenh"
 TEN_KHAC = "Tuỳ chọn khác"
 # Thứ tự và nhãn nhóm nước mặc định, trùng goi_mon_ban.NHOM_NUOC.
 NHOM_GOC = ("Trà", "Cà phê", "Matcha", "Cacao", "Ice Cream - Kem")
@@ -152,7 +163,7 @@ def menu_mac_dinh(do_uong, topping, ds_tc):
 		ap = [g["ma"] for g in nuoc if not t["ap_goc"] or g["goc"] in t["ap_goc"]]
 		tuy_chon.append({"ten": t["ten"], "muc": t["muc"], "mac_dinh": t["mac_dinh"], "ap": ap})
 	return {
-		"nhom": nhom, "an": [], "tuy_chon": tuy_chon,
+		"nhom": nhom, "an": [], "giao": [], "tuy_chon": tuy_chon,
 		"topping": {str(t["ma"]): [g["ma"] for g in nuoc] for t in topping or []},
 		"mon": {},
 	}
@@ -256,11 +267,17 @@ def chuan_menu(menu, ma_hop_le, tp_hop_le, banh_hop_le=()):
 			ap = set(str(x) for x in (ap or []) if isinstance(ap, list))
 			topping[ma] = [m for m in ma_nuoc if m in ap]
 
+	# v662: "an" (tắt Tại bàn) nhận cả bánh trên tủ; "giao" (bật Giao) nhận món nước và bánh.
 	an = []
 	for x in menu.get("an") or []:
 		x = str(x or "").strip()
-		if x in ma_hop_le and x not in an:
+		if (x in ma_hop_le or x in banh_hop_le) and x not in an:
 			an.append(x)
+	giao = []
+	for x in menu.get("giao") or [] if isinstance(menu.get("giao"), list) else []:
+		x = str(x or "").strip()
+		if (x in ma_hop_le or x in banh_hop_le) and x not in giao:
+			giao.append(x)
 
 	mon = {}
 	mon_vao = menu.get("mon") or {}
@@ -296,7 +313,7 @@ def chuan_menu(menu, ma_hop_le, tp_hop_le, banh_hop_le=()):
 			r["bat_tp"] = sorted(set(bat_tp))
 		if r:
 			mon[ma] = r
-	return {"nhom": nhom, "an": an, "tuy_chon": tuy_chon, "topping": topping, "mon": mon}
+	return {"nhom": nhom, "an": an, "giao": giao, "tuy_chon": tuy_chon, "topping": topping, "mon": mon}
 
 
 def nhom_cua_mon(menu, ma, goc=""):
@@ -345,13 +362,27 @@ def tp_cua_mon(menu, ma, goc="", khong_pha=False):
 	return ra + [tp for tp in bat if tp not in ra and tp not in tat]
 
 
-def ap_menu(menu, do_uong):
+def ban_o_kenh(menu, ma, kenh=KENH_TAI_BAN):
+	"""v662: món (nước hoặc bánh) có bán ở kênh này không. Tại bàn: không nằm
+	trong "an". Giao: nằm trong "giao". THUẦN."""
+	ma = str(ma or "")
+	giao = ma in set((menu or {}).get("giao") or [])
+	tai_ban = ma not in set((menu or {}).get("an") or [])
+	if kenh == KENH_GIAO:
+		return giao
+	if kenh == KENH_MOI:
+		return giao or tai_ban
+	return tai_ban
+
+
+def ap_menu(menu, do_uong, kenh=KENH_TAI_BAN):
 	"""Menu + đồ uống đang bán của điểm -> (các nhóm hiện trên web theo thứ tự,
-	đồ uống theo thứ tự nhóm rồi thứ tự món). Nhóm tắt, món ẩn, món chưa xếp
-	không lên web; nhóm nước không còn món nào thì không hiện. Mỗi đồ uống có
-	thêm nhom_hien (mã nhóm), tc, tp (mã topping được kèm), mô tả và ảnh sửa riêng. THUẦN."""
+	đồ uống theo thứ tự nhóm rồi thứ tự món). Nhóm tắt, món không bán ở kênh
+	(Tại bàn: món ẩn; Giao: món chưa tick Giao), món chưa xếp không lên web;
+	nhóm nước không còn món nào thì không hiện. Mỗi đồ uống có thêm nhom_hien
+	(mã nhóm), tc, tp (mã topping được kèm), mô tả và ảnh sửa riêng. THUẦN."""
 	theo_ma = {str(x["ma"]): x for x in do_uong or []}
-	an = set(menu.get("an") or [])
+	an = {str(x["ma"]) for x in do_uong or [] if not ban_o_kenh(menu, x["ma"], kenh)}
 	nhom_ra, uong_ra = [], []
 	for g in menu.get("nhom") or []:
 		if not g.get("hien", 1):
@@ -469,9 +500,14 @@ def khac_nhau(cu, moi, ten):
 				ra.append("%s: đổi thứ tự món" % g["ten"])
 	an_cu, an_moi = set(cu.get("an") or []), set(moi.get("an") or [])
 	for m in sorted(an_moi - an_cu, key=lambda x: ten.get(x, x)):
-		ra.append("Ẩn %s trên web" % ten.get(m, m))
+		ra.append("%s: tắt bán Tại bàn" % ten.get(m, m))
 	for m in sorted(an_cu - an_moi, key=lambda x: ten.get(x, x)):
-		ra.append("Hiện lại %s trên web" % ten.get(m, m))
+		ra.append("%s: bật bán Tại bàn" % ten.get(m, m))
+	gi_cu, gi_moi = set(cu.get("giao") or []), set(moi.get("giao") or [])
+	for m in sorted(gi_moi - gi_cu, key=lambda x: ten.get(x, x)):
+		ra.append("%s: bật bán Giao" % ten.get(m, m))
+	for m in sorted(gi_cu - gi_moi, key=lambda x: ten.get(x, x)):
+		ra.append("%s: tắt bán Giao" % ten.get(m, m))
 	tc_cu = {t["ten"]: t for t in cu.get("tuy_chon") or []}
 	tc_moi = {t["ten"]: t for t in moi.get("tuy_chon") or []}
 	for t in tc_moi:
