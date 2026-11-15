@@ -82,7 +82,7 @@
 .so3>div{padding:16px 12px 14px 0;border-right:1px solid var(--line)}.so3>div:last-child{border:0}.so3>div+div{padding-left:14px}
 .so3 b{display:block;font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:40px;line-height:1;margin-top:8px}
 .quyen-loi{white-space:pre-line;font-size:14.5px;line-height:1.6}
-.moi{margin:24px 0 8px;border:1px solid var(--cyan-dim);padding:18px;position:relative;background:linear-gradient(135deg,rgba(41,189,179,.10),transparent 60%)}
+.moi{margin:24px 0 8px;border:1px solid var(--cyan-dim);padding:18px;position:relative;background:linear-gradient(135deg,rgba(79,219,242,.10),transparent 60%)}
 .moi h3{text-transform:uppercase;font-family:'Vagabond Sans',var(--sans);font-weight:400;font-size:22px;letter-spacing:.04em;margin:6px 0}
 .moi-gia{position:absolute;right:16px;top:14px;font-family:'Vagabond Sans',var(--sans);font-size:24px}
 /* Ví quà */
@@ -126,8 +126,8 @@
 .ba-o{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .trang-dich-vu .chips button{min-height:40px;padding:0 12px;letter-spacing:.02em;text-transform:none;font-size:13.5px}
-.trang-dich-vu .chips button[aria-pressed=true]{background:rgba(41,189,179,.1);color:var(--cyan-bright);border-color:var(--cyan-bright)}
-.dong-y{display:grid!important;grid-template-columns:26px 1fr;gap:12px;align-items:start;margin:22px 0 4px!important;padding:14px;border:1px solid var(--cyan-dim);background:rgba(41,189,179,.06);cursor:pointer}
+.trang-dich-vu .chips button[aria-pressed=true]{background:rgba(79,219,242,.1);color:var(--cyan-bright);border-color:var(--cyan-bright)}
+.dong-y{display:grid!important;grid-template-columns:26px 1fr;gap:12px;align-items:start;margin:22px 0 4px!important;padding:14px;border:1px solid var(--cyan-dim);background:rgba(79,219,242,.06);cursor:pointer}
 .trang-dich-vu .dong-y input{width:22px;height:22px;min-height:0;margin:2px 0 0;accent-color:var(--cyan)}
 .dong-y b{font-weight:400;font-size:14.5px;display:block}.dong-y small{display:block;color:var(--fog);font-size:12.5px;margin-top:4px;line-height:1.45}
 /* Mã quà cho thu ngân */
@@ -182,34 +182,34 @@ body.tv-sang{background:#f4f1ec;color:#1d1d1b}
 .tv-sang .nhan,.tv-sang .ho-tro{color:#8a8278}
 .tv-sang .ngoac{color:#8a8278;text-transform:uppercase;letter-spacing:.14em;font-size:13px;margin:22px 0 4px}
 .tv-sang .ngoac:before,.tv-sang .ngoac:after{content:""}
-.tv-sang .so-to,.tv-sang #qua-gia{color:#0f8f86}
+.tv-sang .so-to,.tv-sang #qua-gia{color:#00BFDD}
 .tv-sang .tieu-de{color:#1d1d1b!important}
 .tv-sang .buoc{gap:8px;margin:6px 0 12px}
 .tv-sang .buoc i{height:auto;background:none;border-top:4px solid #e6dfd5;border-radius:2px;padding-top:8px;font:12.5px/1.3 var(--qualy);font-style:normal;color:#a59c90}
-.tv-sang .buoc i.on{border-top-color:#29bdb3;color:#0f8f86}
+.tv-sang .buoc i.on{border-top-color:#4FDBF2;color:#00BFDD}
 .tv-sang .buoc i span{display:inline}
 .tv-sang label,.tv-sang .o-ngay .nhan,.tv-sang .o-st .nhan{color:#5f584f;font:14px var(--qualy);letter-spacing:0;text-transform:none}
 .tv-sang input,.tv-sang select{background:#fff;color:#1d1d1b;border:1.5px solid #e3ddd3;border-radius:14px;color-scheme:light;min-height:52px;font-size:17px}
-.tv-sang input:focus,.tv-sang select:focus{border-color:#29bdb3;outline:none}
+.tv-sang input:focus,.tv-sang select:focus{border-color:#4FDBF2;outline:none}
 .tv-sang button{border:1.5px solid #d9d1c6;color:#1d1d1b;border-radius:14px;letter-spacing:.02em;text-transform:none;font-size:16px}
 .tv-sang button.chinh{background:#1d1d1b;color:#fff;border-color:#1d1d1b;min-height:56px}
-.tv-sang #nut-nhan-qua{background:#29bdb3;border-color:#29bdb3;color:#06302d}
+.tv-sang #nut-nhan-qua{background:#4FDBF2;border-color:#4FDBF2;color:#022D34}
 .tv-sang .chips button{border-radius:99px;background:#fff;color:#1d1d1b;border-color:#d9d1c6}
 .tv-sang .chips button[aria-pressed=true]{background:#1d1d1b;color:#fff;border-color:#1d1d1b}
-.tv-sang .dong-y{background:#fff;border:1.5px solid #29bdb3;border-radius:14px}
+.tv-sang .dong-y{background:#fff;border:1.5px solid #4FDBF2;border-radius:14px}
 .tv-sang .dong-y small{color:#8a8278}
-.tv-sang .xm-so{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#e9f7f5;border-radius:14px;padding:4px 6px 4px 14px;margin:6px 0 2px;font-size:15px;color:#0f8f86}
-.tv-sang .xm-so button{min-height:44px;border:0;padding:0 10px;text-decoration:underline;color:#0f8f86;font-size:14px;background:none}
-.tv-sang .them-nam{border:0;min-height:44px;padding:0;color:#0f8f86;font-size:14px;justify-content:flex-start;background:none}
+.tv-sang .xm-so{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#C1EEF1;border-radius:14px;padding:4px 6px 4px 14px;margin:6px 0 2px;font-size:15px;color:#00BFDD}
+.tv-sang .xm-so button{min-height:44px;border:0;padding:0 10px;text-decoration:underline;color:#00BFDD;font-size:14px;background:none}
+.tv-sang .them-nam{border:0;min-height:44px;padding:0;color:#00BFDD;font-size:14px;justify-content:flex-start;background:none}
 .tv-sang .ve-to{background:#1d1d1b;color:#fff;border-radius:22px}
 .tv-sang .ve-to:before,.tv-sang .ve-to:after{background:#f4f1ec}
 .tv-sang .ve-dau{border-bottom-color:rgba(255,255,255,.25)}
-.tv-sang .ve-dau b{color:#29bdb3}
+.tv-sang .ve-dau b{color:#4FDBF2}
 .tv-sang .ve-dau span,.tv-sang .ve-han{color:#b9b2a7}
 .tv-sang .ve-to p{color:#e8e3da}
 .tv-sang #nut-ve-trang{background:#1d1d1b;color:#fff;border-color:#1d1d1b;min-height:56px}
 .tv-sang #qua-ghi{margin-top:14px}
-.tv-sang .xm-so span:before{content:"";display:inline-block;width:5px;height:10px;border:solid #0f8f86;border-width:0 2px 2px 0;transform:rotate(45deg);margin:0 10px 3px 2px}
+.tv-sang .xm-so span:before{content:"";display:inline-block;width:5px;height:10px;border:solid #00BFDD;border-width:0 2px 2px 0;transform:rotate(45deg);margin:0 10px 3px 2px}
 /* v652 Thể lệ thành viên: bậc hạng, % tích, quyền lợi, cách tích và dùng điểm. */
 .diem-het{margin-top:6px}
 .nut-dung-diem{margin-top:14px;width:100%;text-decoration:none}
@@ -218,7 +218,7 @@ body.tv-sang{background:#f4f1ec;color:#1d1d1b}
 .tl-hang:before{content:"";position:absolute;left:6px;top:14px;bottom:14px;width:1px;background:linear-gradient(var(--line),var(--cyan-dim),var(--amber-2))}
 .tl-the{position:relative;border:1px solid var(--line);background:var(--card);padding:16px 16px 14px}
 .tl-the:before{content:"";position:absolute;left:-21px;top:20px;width:11px;height:11px;border-radius:50%;background:var(--bg);border:1px solid var(--fog-2)}
-.tl-the.hien{border-color:var(--cyan-dim);box-shadow:0 0 0 1px var(--cyan-dim) inset,0 0 24px rgba(63,216,205,.10)}
+.tl-the.hien{border-color:var(--cyan-dim);box-shadow:0 0 0 1px var(--cyan-dim) inset,0 0 24px rgba(142,234,248,.10)}
 .tl-the.hien:before{background:var(--cyan-bright);border-color:var(--cyan-bright);box-shadow:0 0 10px var(--cyan-bright)}
 .tl-dau{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .tl-so{font:11px var(--qualy);letter-spacing:.16em;color:var(--fog-2)}

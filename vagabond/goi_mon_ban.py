@@ -838,10 +838,11 @@ def _phieu_tam_mo(ten):
 		"vgb_huy": ["!=", 1]}, pluck="name", limit_page_length=0, ignore_permissions=True))
 
 
-def bang_mon(d, hom_nay=None):
+def bang_mon(d, hom_nay=None, kenh=None):
 	"""Bảng món gọi được ở một điểm lúc này: {mã: {...}}. Bánh lấy từ bảng kiểm
 	kho (cùng phép tab Tại quầy), trừ số đang chờ quầy nhận và số đã nhận mà
-	phiếu tạm tính của bàn chưa chốt; đồ uống đang bật."""
+	phiếu tạm tính của bàn chưa chốt; đồ uống đang bật. v662: kenh là kênh bán
+	(mặc định Tại bàn); món, bánh chưa tick kênh đó ở Biên tập menu không gọi được."""
 	from vagabond import diem_ban, kiem_kho
 
 	from vagabond import bien_tap_menu
@@ -851,9 +852,11 @@ def bang_mon(d, hom_nay=None):
 	# v640: món nước, tuỳ chọn và topping theo menu đang chạy của điểm (Biên tập
 	# menu): món ẩn, nhóm tắt, món chưa xếp không gọi được; cùng một nguồn với
 	# trang khách (kiem_kho) và màn Tính tiền.
+	kenh = kenh or bien_tap_menu.KENH_TAI_BAN
 	ds_uong = do_uong_cua_diem(d["ma"], hom_nay)
 	ds_tp = topping_cua_diem(d["ma"])
-	_, uong = bien_tap_menu.ap_menu(bien_tap_menu.menu_hien_hanh(d["ma"], ds_uong, ds_tp), ds_uong)
+	menu = bien_tap_menu.menu_hien_hanh(d["ma"], ds_uong, ds_tp)
+	_, uong = bien_tap_menu.ap_menu(menu, ds_uong, kenh)
 	for x in uong:
 		if not x["ban_web"]:
 			continue
@@ -864,8 +867,15 @@ def bang_mon(d, hom_nay=None):
 	da_nhan = _da_nhan_cua(d["ma"])
 	cho = sl_dang_cho(mon_dang_giu([r.get("mon") for r in _cho_cua(d["ma"]) if not het_han(r.get("luc"), bay)],
 		da_nhan, _phieu_tam_mo([r.get("hoa_don") for r in da_nhan]), bay.date()))
+	# v662: bánh đơn giao của quầy (WEBORDER) đang giữ cũng trừ ở MỌI kênh, một nguồn (don_quay.giu_cua_diem).
+	from vagabond import don_quay
+
+	for ma_g, sl_g in don_quay.giu_cua_diem(d["ma"]).items():
+		cho[ma_g] = int(cho.get(ma_g) or 0) + int(sl_g)
 	gia_diem = diem_ban.gia_rieng(d["ma"])
 	for m in kiem_kho.banh_tren_quay(d["ma"], hom_nay):
+		if not bien_tap_menu.ban_o_kenh(menu, m["ma"], kenh):
+			continue
 		con = int(m["con"]) - int(cho.get(m["ma"]) or 0)
 		ra[m["ma"]] = {"ten": m["ten"], "gia": gia_mon(m["ma"], gia_diem, m["gia_chung"]), "loai": "banh", "con": con,
 			"nhom_goc": m.get("nhom") or ""}
@@ -984,6 +994,10 @@ def goi(diem=None, ban=None, k=None, nonce=None, mon=None, ghi_chu="", ten="", s
 	# đơn kia được ghi, cả hai qua. Đọc tồn, kiểm số và ghi đơn chạy tuần tự
 	# theo điểm bán, khoá giữ tới khi đơn đã commit.
 	khoa = TEN_KHOA_DIEM % d["ma"]
+	# Codex #573 vòng 2 (H8 loại 1): khoá này dùng CHUNG với đơn giao của quầy
+	# (don_quay.tao_don). Kết thúc ảnh chụp đọc từ đầu yêu cầu (đã đọc nonce) trước
+	# khi khoá, để lần đọc tủ sau khoá thấy phần giữ kênh kia vừa commit.
+	frappe.db.commit()
 	if not _lay_khoa(khoa):
 		return {"ok": 0, "cau": "Quầy đang nhận nhiều đơn cùng lúc. Quý khách bấm Gọi món lại sau vài giây."}
 	try:
@@ -1231,7 +1245,11 @@ def dem_cho(diem=None):
 	ten = d.get("ten_ngan") or d["ten"]
 	ds = [r for r in ds if not het_han(r.get("luc"), bay)]
 	the = [the_quay(r, bay, ten, _anh_mon([x.get("ma") for r in ds for x in _doc_mon(r)])) for r in ds]
-	return {"so": len(the), "ds": the, "ly_do": list(LY_DO_TU_CHOI), "tro_giup": _tro_giup_cho(d, bay)}
+	from vagabond import don_quay
+
+	# v662: số đơn giao của quầy đã trả tiền chờ xác nhận, cho dải chờ trên mọi màn.
+	return {"so": len(the), "ds": the, "ly_do": list(LY_DO_TU_CHOI), "tro_giup": _tro_giup_cho(d, bay),
+		"web": don_quay.dem_cho(d["ma"])}
 
 
 def _tro_giup_cho(d, bay):

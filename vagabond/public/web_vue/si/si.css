@@ -3,7 +3,7 @@
 /* Hoạ tiết quỹ đạo làm nền cố định như trang đặt bánh (banh.css), nằm dưới nội dung. */
 .sky{position:fixed;inset:-10%;z-index:0;pointer-events:none;opacity:.6}
 .sky svg{width:100%;height:100%}
-.glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(56% 46% at 70% 26%,rgba(41,189,179,.11),transparent 66%)}
+.glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(56% 46% at 70% 26%,rgba(79,219,242,.11),transparent 66%)}
 .si{min-height:100vh;display:flex;flex-direction:column;position:relative;z-index:2}
 .si-hd{gap:12px}
 .si-nav{display:flex;gap:4px}
@@ -31,7 +31,7 @@
 .si-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
 .si-chip{border:1px solid var(--line);padding:9px 13px;min-height:44px;font-family:var(--sans);font-size:13px;color:var(--fog)}
 .si-chip.on{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
-.si-btn{display:block;width:100%;text-align:center;background:var(--cyan);color:#00201D;padding:14px;min-height:48px;font-family:var(--sans);font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;margin-top:16px}
+.si-btn{display:block;width:100%;text-align:center;background:var(--cyan);color:var(--ink-on-cyan,#1A1A1A);padding:14px;min-height:48px;font-family:var(--sans);font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;margin-top:16px}
 .si-btn:disabled{opacity:.55}
 .si-btn2{display:block;width:100%;text-align:center;border:1px solid var(--line);color:var(--paper);padding:12px;min-height:46px;font-family:var(--sans);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:10px}
 .si-note{font-family:var(--sans);font-size:12.5px;color:var(--fog-2);margin-top:10px;line-height:1.55}

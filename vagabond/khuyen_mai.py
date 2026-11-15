@@ -1778,6 +1778,8 @@ def bat_tat_combo(ma, bat):
 # phai co nguoi bo mon vao hop, de tai quay).
 
 NGUON_WEB = "Website"
+# v662: đơn đặt qua tab Tại quầy trên trang chủ, quầy giao (don_quay.KENH).
+NGUON_WEBORDER = "WEBORDER"
 CACH_THUC_WEB = ("Giam tong hoa don", "Giam gia mon", "Mua A giam B", "Dong gia", "Giam luy ke")
 TRUONG_WEB = [
 	"name", "ten", "cach_thuc", "kieu_giam", "gia_tri", "gia_dong", "giam_toi_da",
@@ -1788,7 +1790,7 @@ TRUONG_WEB = [
 TEN_THU = {"thu_2": "T2", "thu_3": "T3", "thu_4": "T4", "thu_5": "T5", "thu_6": "T6", "thu_7": "T7", "thu_cn": "CN"}
 
 
-def ly_do_khong_web(km):
+def ly_do_khong_web(km, nguon=None):
 	"""THUAN. Rong la chuong trinh dung duoc khi dat banh tren web; khac rong
 	la cau noi vi sao chi dung tai quay (hien ca o man ERP lan tren web)."""
 	if km.get("cach_thuc") == CACH_NHAN_DIEM:
@@ -1800,8 +1802,10 @@ def ly_do_khong_web(km):
 	if (km.get("doi_tuong") or "Moi khach") != "Moi khach":
 		return "Chương trình theo hạng hoặc nhóm khách chỉ dùng tại cửa hàng."
 	kenh = _dong(km.get("kenh"))
-	if kenh and NGUON_WEB not in kenh:
-		return "Chương trình không mở cho kênh Website."
+	nguon = nguon or NGUON_WEB
+	if kenh and nguon not in kenh:
+		# v662: đơn giao của quầy (WEBORDER) có kênh riêng; mã WEBORDER không áp cho đơn đặt bánh Website.
+		return "Chương trình không mở cho kênh %s." % ("đặt giao tại quầy" if nguon == NGUON_WEBORDER else "Website")
 	quay = [q.upper() for q in _dong(km.get("quay"))]
 	if quay and "SALES" not in quay:
 		return "Chương trình chỉ áp dụng tại quầy."
@@ -1925,10 +1929,10 @@ def ds_web_bien_tap(hom_nay=None):
 	return ra
 
 
-def _tu_ap_web():
+def _tu_ap_web(nguon=None):
 	"""Chuong trinh hien web, khong can ma, dung duoc tren web: tu ap."""
 	return [km for km in _ds_web_tho()
-		if (km.get("cach_ma") or "Khong can ma") == "Khong can ma" and not ly_do_khong_web(km)]
+		if (km.get("cach_ma") or "Khong can ma") == "Khong can ma" and not ly_do_khong_web(km, nguon)]
 
 
 def bo_thu_web(tu_ap, bo_ra=None):
@@ -1945,7 +1949,7 @@ def bo_thu_web(tu_ap, bo_ra=None):
 	return ra
 
 
-def ap_web(gio_co_gia, ma=None, sdt=None, ngay=None):
+def ap_web(gio_co_gia, ma=None, sdt=None, ngay=None, nguon=None):
 	"""Tinh giam cho mot don web. gio_co_gia: [{item_code, qty, rate}] voi gia
 	do MAY CHU doc (QT-19). Tra {tong_giam, ap, ma, ly_do}. Ma sai thi ly_do
 	khac rong va tong_giam = 0, KHONG nem: trang khach can cau de hien.
@@ -1954,12 +1958,13 @@ def ap_web(gio_co_gia, ma=None, sdt=None, ngay=None):
 	ap cong don duoc voi no. Khong co ma thi lay cach co loi nhat cho khach
 	trong cac chuong trinh tu ap."""
 	ma = str(ma or "").strip().upper()
-	tu_ap = _tu_ap_web()
+	nguon = nguon or NGUON_WEB
+	tu_ap = _tu_ap_web(nguon)
 	rong = {"tong_giam": 0, "ap": [], "ma": ma, "ly_do": "", "kq": None}
 
 	def _thu(ctkm, ma_go):
 		try:
-			kq = tinh(gio_co_gia, ctkm=list(ctkm), ma=ma_go or None, quay="", nguon=NGUON_WEB,
+			kq = tinh(gio_co_gia, ctkm=list(ctkm), ma=ma_go or None, quay="", nguon=nguon,
 				sdt=sdt, ngay=ngay)
 		except Exception as e:
 			return None, str(getattr(e, "message", "") or e).strip() or "không dùng được lúc này"
@@ -1968,7 +1973,7 @@ def ap_web(gio_co_gia, ma=None, sdt=None, ngay=None):
 			if a.get("loai") != "ctkm":
 				return None, "không dùng được khi đặt trên web"
 			km = _doc_ctkm(a["ma"])
-			lydo = ly_do_khong_web(km)
+			lydo = ly_do_khong_web(km, nguon)
 			if lydo:
 				return None, lydo
 		if kq.get("them_mon") or cint(kq.get("can_otp")):

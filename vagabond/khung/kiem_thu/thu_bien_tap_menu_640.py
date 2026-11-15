@@ -241,7 +241,7 @@ def _vong_doi():
 		nhap["an"] = ["NUIC00002"]
 		nhap["topping"]["TPNC00005"] = ["n-ca-phe"]
 		k = btm.luu_nhap(diem="TCV", noi_dung=json.dumps(nhap))
-		la("thay đổi đọc được", k["thay_doi"], ["Đổi thứ tự nhóm: Bánh trên tủ, Cà phê, Trà, Kem", "Ẩn Kem Vani trên web", "Topping Thêm Cà Phê Phin: áp cho Cà phê"])
+		la("thay đổi đọc được", k["thay_doi"], ["Đổi thứ tự nhóm: Bánh trên tủ, Cà phê, Trà, Kem", "Kem Vani: tắt bán Tại bàn", "Topping Thêm Cà Phê Phin: áp cho Cà phê"])
 		la("khách chưa thấy: chưa có bản xuất bản", btm.menu_dang_chay("TCV"), (None, 0))
 		x = btm.xuat_ban(diem="TCV")
 		la("phiên 1", x["phien"], 1)
@@ -262,7 +262,7 @@ def _vong_doi():
 		r = btm.mo(diem="TCV")
 		r["nhap"]["an"] = []
 		btm.luu_nhap(diem="TCV", noi_dung=json.dumps(r["nhap"]))
-		la("có nháp", btm.mo(diem="TCV")["thay_doi"], ["Hiện lại Kem Vani trên web"])
+		la("có nháp", btm.mo(diem="TCV")["thay_doi"], ["Kem Vani: bật bán Tại bàn"])
 		btm.bo_nhap(diem="TCV")
 		la("bỏ nháp: hết thay đổi", btm.mo(diem="TCV")["thay_doi"], [])
 		# xuất phiên 2 rồi quay về phiên 1
@@ -335,7 +335,7 @@ def _feed():
 def _node():
 	r = subprocess.run(["node", str(GOC / "vagabond/khung/kiem_thu/hanh_vi/bien_tap_menu_640.js")], capture_output=True, text=True, timeout=120)
 	dung("node chạy được: " + (r.stdout[-1500:] + r.stderr[-800:]), r.returncode == 0)
-	dung("đủ số ca", "17 ca dat, 0 ca hong" in r.stdout)
+	dung("đủ số ca", "18 ca dat, 0 ca hong" in r.stdout)
 
 
 @ca("v642 (anh Việt 06/11/2026): tuỳ chọn, topping riêng từng món ba nấc: Có bật thêm dù nhóm không áp, Không tắt, Theo nhóm; trang bàn, cửa gọi món và màn Tính tiền cùng thấy")

@@ -229,7 +229,7 @@ def _hoi_greensm(c, diem_lay, diem_khach, luc_giao):
 
 @frappe.whitelist(allow_guest=True)
 @rate_limit(limit=40, seconds=60)
-def phi_giao(addr=None, lat=None, lng=None, luc_giao=None):
+def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
 	"""Phi giao cho mot dia chi, tai dung khung gio khach chon.
 
 	Truyen san lat/lng thi khong ton mot luot goi Goong.
@@ -266,7 +266,9 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None):
 	# CHAN DON XA TRUOC KHI GOI AHAMOVE.
 	# Do duong chim bay, dung nghia "ban kinh" tren ban do, va khoi ton mot
 	# luot goi cho dia chi chac chan khong giao duoc.
-	diem_lay_ds = _cac_diem_lay(c)
+	# v662: đơn giao của quầy (don_quay) báo phí từ CHÍNH quầy đó, không chọn
+	# điểm gần nhất giữa bếp và cửa hàng.
+	diem_lay_ds = [dict(diem_lay)] if diem_lay else _cac_diem_lay(c)
 	if not diem_lay_ds:
 		return {"ok": 0, "ly_do": "chua_dien_toa_do_diem_lay"}
 

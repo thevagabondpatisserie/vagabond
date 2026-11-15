@@ -754,6 +754,9 @@ MIEN = {
 	# v658: các sự kiện đang bán và mới diễn ra 14 ngày (máy chủ đã giới hạn),
 	# mỗi thẻ một sự kiện để mở danh sách khách; màn khách có ô tìm mã vé riêng.
 	"scrKhachSuKien": KHONG_PHAI,
+	# v662: đơn giao của quầy trong 24 giờ (máy chủ đã giới hạn), thẻ việc để
+	# xác nhận, gọi xe; sổ để tra là Vagabond Don Web và hoá đơn quầy.
+	"scrDonGiaoQuay": KHONG_PHAI,
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 

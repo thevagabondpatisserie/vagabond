@@ -23,6 +23,8 @@ function coQuyenGmbQr() {
 }
 
 var GMB_NHIP = null, GMB_DIEM = '', GMB_DS = [], GMB_TG = [], GMB_LY_DO = [], GMB_DA_THAY = {}, GMB_LUC = 0;
+/* v662: số đơn giao của quầy (WEBORDER) đã trả tiền, chờ xác nhận (dem_cho trả `web`). */
+var GMB_WEB = 0, GMB_WEB_CU = 0;
 /* v655 (Dễ báo 13/11/2026, anh Việt chọn A): đơn gọi món tại bàn và khách bấm
    chuông phải thấy ở MỌI màn của app, không chỉ màn Tính tiền. Máy đã mở quầy
    (đã vào Tính tiền hay Hoá đơn hôm nay một lần) thì cứ hỏi máy chủ, ở màn nào
@@ -78,7 +80,7 @@ function gmbDung() {
   if (GMB_NHIP) clearInterval(GMB_NHIP);
   if (GMB_VE) clearInterval(GMB_VE);
   GMB_NHIP = null; GMB_VE = null;
-  GMB_DS = []; GMB_TG = [];
+  GMB_DS = []; GMB_TG = []; GMB_WEB = 0; GMB_WEB_CU = 0;
   var noi = document.getElementById('gmbNoi');
   if (noi) noi.remove();
   gmbTieuDe(0);
@@ -97,7 +99,7 @@ function gmbTieuDe(n) {
 }
 function gmbVeLai() {
   var dai = document.getElementById('gmbDai'), noi = document.getElementById('gmbNoi');
-  var can = GMB_DS.length + GMB_TG.length;
+  var can = GMB_DS.length + GMB_TG.length + GMB_WEB;
   /* Màn vừa vẽ lại (chỗ dải mới, dải cũ bị xoá) hay còn cả hai: vẽ lại. */
   if ((can && ((dai || noi) !== GMB_VE_EL || (dai && noi))) || (!can && noi)) gmbVeDai();
   gmbTieuDe(can);
@@ -112,7 +114,9 @@ async function gmbHoi() {
   GMB_DS = (kq && kq.ds) || [];
   GMB_TG = (kq && kq.tro_giup) || [];
   GMB_LY_DO = (kq && kq.ly_do) || [];
-  var moi = GMB_DS.concat(GMB_TG).some(function (x) { return !GMB_DA_THAY[x.ma]; });
+  GMB_WEB = Number(kq && kq.web) || 0;
+  var moi = GMB_DS.concat(GMB_TG).some(function (x) { return !GMB_DA_THAY[x.ma]; }) || GMB_WEB > GMB_WEB_CU;
+  GMB_WEB_CU = GMB_WEB;
   GMB_DS.concat(GMB_TG).forEach(function (x) { GMB_DA_THAY[x.ma] = 1; });
   gmbVeDai();
   if (moi && gmbChuongBat()) gmbKeu();
@@ -122,7 +126,7 @@ function gmbVeDai() {
   var dai = document.getElementById('gmbDai');
   var noi = document.getElementById('gmbNoi');
   if (dai && noi) { noi.remove(); noi = null; }
-  if (!GMB_DS.length && !GMB_TG.length) {
+  if (!GMB_DS.length && !GMB_TG.length && !GMB_WEB) {
     if (dai) dai.innerHTML = '';
     if (noi) noi.remove();
     GMB_VE_EL = null;
@@ -141,12 +145,13 @@ function gmbVeDai() {
     dai = noi;
   }
   GMB_VE_EL = dai;
-  gmbTieuDe(GMB_DS.length + GMB_TG.length);
+  gmbTieuDe(GMB_DS.length + GMB_TG.length + GMB_WEB);
   var ban = GMB_DS.map(function (x) { return 'Bàn ' + x.ban; });
   var phu = ban.slice(0, 4).join(', ') + (ban.length > 4 ? ' và ' + (ban.length - 4) + ' bàn nữa' : '');
   var tg = GMB_TG.map(function (x) { return 'Bàn ' + x.ban + ' ' + gmbLyDoNgan(x.ly_do); });
-  var dong1 = (GMB_DS.length ? GMB_DS.length + ' đơn gọi món tại bàn đang chờ nhận' : '') +
-    (GMB_DS.length && GMB_TG.length ? ' · ' : '') + (GMB_TG.length ? GMB_TG.length + ' bàn cần trợ giúp' : '');
+  var dong1 = [GMB_DS.length ? GMB_DS.length + ' đơn gọi món tại bàn đang chờ nhận' : '',
+    GMB_TG.length ? GMB_TG.length + ' bàn cần trợ giúp' : '',
+    GMB_WEB ? GMB_WEB + ' đơn giao đã trả tiền chờ xác nhận' : ''].filter(Boolean).join(' · ');
   var dong2 = (GMB_DS.length ? phu : '') + (GMB_DS.length && GMB_TG.length ? ' · ' : '') + tg.slice(0, 3).join(', ') +
     (tg.length > 3 ? ' và ' + (tg.length - 3) + ' bàn nữa' : '');
   var bat = gmbChuongBat();
@@ -160,7 +165,11 @@ function gmbVeDai() {
     (bat ? '🔔 Tắt chuông' : '🔕 Bật chuông') + '</button></div>';
   dai.onclick = function (e) {
     if (e.target.closest('[data-gmbchuong]')) { gmbDatChuong(!gmbChuongBat()); gmbVeDai(); return; }
-    if (e.target.closest('[data-gmbmo]')) gmbMoDs();
+    if (e.target.closest('[data-gmbmo]')) {
+      /* Chỉ có đơn giao chờ: mở thẳng màn Đơn giao của quầy. */
+      if (GMB_WEB && !GMB_DS.length && !GMB_TG.length) return go(function () { scrDonGiaoQuay(GMB_DIEM); });
+      gmbMoDs();
+    }
   };
 }
 
@@ -226,6 +235,8 @@ function gmbMoDs() {
   function ve() {
     ov.innerHTML = '<div class="shb" style="padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:88vh;overflow:auto">' +
       '<div class="shh" style="padding:0 0 10px"><b>Gọi món tại bàn · ' + h((posQuay && (posQuay.ten_ngan || posQuay.ten)) || GMB_DIEM) + '</b><div class="x" data-gmbdong="1">&times;</div></div>' +
+      (GMB_WEB ? '<button data-gmbweb="1" style="width:100%;min-height:48px;margin-bottom:10px;border:1.5px solid #7FE5F6;background:#E4F9FD;color:#0B7C93;font-weight:700;font-size:14.5px;border-radius:12px;cursor:pointer">🛵 ' +
+        GMB_WEB + ' đơn giao đã trả tiền chờ xác nhận · mở</button>' : '') +
       GMB_TG.map(gmbTheTroGiup).join('') +
       (GMB_DS.length ? GMB_DS.map(gmbThe).join('')
         : (GMB_TG.length ? '' : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên cùng màn.</div></div>')) +
@@ -235,6 +246,7 @@ function gmbMoDs() {
   document.body.appendChild(ov);
   ov.onclick = async function (e) {
     if (e.target === ov || e.target.closest('[data-gmbdong]')) return ov.remove();
+    if (e.target.closest('[data-gmbweb]')) { ov.remove(); return go(function () { scrDonGiaoQuay(GMB_DIEM); }); }
     var n = e.target.closest('[data-gmbnhan]');
     if (n) return gmbNhan(n.getAttribute('data-gmbnhan'), ov);
     var t = e.target.closest('[data-gmbtuchoi]');

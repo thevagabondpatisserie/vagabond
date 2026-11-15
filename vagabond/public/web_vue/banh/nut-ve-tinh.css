@@ -1,0 +1,159 @@
+/* v662 (anh Việt duyệt 15/11/2026 qua ảnh chụp trang thật): hệ nút "vệ tinh"
+   kiểu C cho cả trang /banh. Màu lấy từ biến Robin egg ở nen.css: --cyan (XANH)
+   và --ink-on-cyan (INK, chữ và biểu tượng đặt trên nền xanh). Phông của mọi
+   nút là phông thanh mục: sans hệ thống, in hoa, đứng, giãn chữ, đậm 500 tới
+   600. Không thêm phông, không chữ nghiêng trên nút. Tệp nạp SAU thao-tac.css
+   nên dùng cùng tiền tố html body để thắng các luật cũ. */
+
+html body{--vt-ink:var(--ink-on-cyan,#1A1A1A);--vt-xanh:var(--cyan,#4FDBF2)}
+
+/* ---------- 1. Nút chính: vành ngoài, viên xanh bên trong, mặt trăng ↗ ---------- */
+html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .btn,a.td-ung){
+  --nm:var(--vt-xanh);
+  position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;
+  min-height:52px;padding:0 60px 0 24px;margin:0;border:1px solid var(--nm);border-radius:999px;
+  background:transparent;color:var(--vt-ink);box-shadow:none;text-decoration:none;
+  font:600 12.5px/1.2 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif);
+  font-style:normal;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;text-align:center;
+}
+html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .btn,a.td-ung)::before{
+  content:"";position:absolute;z-index:-1;top:4px;bottom:4px;left:4px;right:52px;border-radius:999px;background:var(--nm);
+}
+html body :is(button.btn:not(.btn-xs),.bar .go:not(:has(.vt-so)),a.web-nut,.ctr-nut-chinh,.empty .btn,a.td-ung)::after{
+  content:"";position:absolute;top:4px;bottom:4px;right:4px;width:42px;border-radius:50%;
+  background:var(--nm) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 17L17 7M9 7h8v8' fill='none' stroke='%231A1A1A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/18px no-repeat;
+}
+html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .btn,a.td-ung):hover{filter:brightness(1.06)}
+html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .btn,a.td-ung):disabled{opacity:.5}
+/* Hàng mùa vụ giữ màu cam của mục (anh Việt: cam giữ nguyên). */
+html body .sheet.mua button.btn{--nm:var(--amber,#DB7E2A)}
+/* Nút trong thanh .cta (Gửi đặt bánh, Thêm vào giỏ) giãn hết hàng. */
+html body .cta button.btn:not(.btn-xs){flex:1;min-width:0;padding:0 60px 0 22px;font-size:12.5px}
+/* Chữ dài (tiếng Anh, giá kèm) không được đè lên mặt trăng: cắt bằng dấu ba chấm thay vì tràn. */
+html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .btn,a.td-ung)>span:not(.vt-so){overflow:hidden;text-overflow:ellipsis}
+
+/* Thanh giỏ dưới đáy: mặt trăng hiện SỐ BÁNH trong giỏ thay mũi tên. */
+html body .bar .go{padding:0 60px 0 22px}
+html body .bar .go .vt-so{
+  position:absolute;top:4px;bottom:4px;right:4px;width:42px;border-radius:50%;background:var(--nm);
+  display:grid;place-items:center;color:var(--vt-ink);font:600 15px/1 var(--sans,sans-serif);letter-spacing:0;
+}
+
+/* Khung chọn bánh có nút gọi: một vành chung bao viên chữ và nút gọi tròn 48px.
+   Nút gọi đóng vai mặt trăng nên viên chữ không có mặt trăng riêng. */
+html body .cta:has(>a.tel)>button.btn:not(.btn-xs){min-height:58px;padding:0 70px 0 22px}
+html body .cta:has(>a.tel)>button.btn:not(.btn-xs)::before{right:62px}
+html body .cta:has(>a.tel)>button.btn:not(.btn-xs)::after{display:none}
+html body .cta>a.tel{
+  position:relative;z-index:1;align-self:center;flex:0 0 48px;width:48px;height:48px;min-height:48px;
+  margin-left:-63px;margin-right:5px;border:0;border-radius:50%;background:var(--vt-xanh);display:grid;place-items:center;
+}
+html body .cta>a.tel svg{width:20px;height:20px;stroke:var(--vt-ink);fill:none;stroke-width:1.7}
+html body .sheet.mua .cta>a.tel{background:var(--amber,#DB7E2A)}
+html body .sheet.mua .cta:has(>a.tel)>button.btn{border-color:var(--amber,#DB7E2A)}
+
+/* ---------- 2. Nút phụ: viên viền xanh mờ, nền xanh 6%, chữ xanh in hoa ---------- */
+html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a,nav.dich-vu a,.quay-chon button){
+  border:1px solid rgba(79,219,242,.5);border-radius:999px;background:rgba(79,219,242,.06);color:var(--vt-xanh);
+  font:500 12px/1.3 var(--sans,sans-serif);font-style:normal;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;
+}
+html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a){
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;
+}
+/* v663 (CI ra nút): cao thật 44 (AGENTS.md điều 13). Phần trong suốt nhô ra bằng ::after
+   không được máy đo vùng bấm tính, lại làm chữ bị coi là tràn, nên không dùng. */
+html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a):hover{background:rgba(79,219,242,.12)}
+/* Thanh dịch vụ đầu trang: Đặt bàn, Khách sỉ, Thành viên vừa một hàng ở 390 px. */
+html body nav.dich-vu{gap:6px}
+html body nav.dich-vu a{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:44px;height:44px;min-width:44px;padding:0 11px;font-size:10.5px;white-space:nowrap}
+@media(max-width:374px){html body nav.dich-vu a{padding:0 8px;font-size:10px}}
+/* Thẻ chọn quầy nhiều dòng: chỉ đổi màu, giữ chiều cao theo nội dung, chữ thường cho dễ đọc. */
+html body .quay-chon button{border-radius:18px;text-transform:none;letter-spacing:.02em;color:var(--paper,#fff)}
+html body .quay-chon button[aria-pressed=true]{border-color:var(--vt-xanh);background:rgba(79,219,242,.10);box-shadow:0 0 0 1px rgba(79,219,242,.5)}
+/* Áp dụng mã: viên xanh đặc, chữ INK, quầng đen rồi xanh. */
+html body button.btn-xs{
+  border:0;border-radius:999px;background:var(--vt-xanh);color:var(--vt-ink);
+  box-shadow:0 0 0 3px #000,0 0 0 4px var(--vt-xanh);
+  font:600 12px/1.2 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;font-style:normal;
+}
+
+/* ---------- 3. Ô chọn ---------- */
+html body :is(.cm-chips button,.gb-tang button,.nums button){
+  border:1px solid rgba(255,255,255,.2);border-radius:999px;color:rgba(255,255,255,.8);background:transparent;
+}
+html body :is(.cm-chips button,.gb-tang button,.nums button):is(.on,[aria-pressed=true]){
+  background:var(--vt-xanh);border-color:var(--vt-xanh);color:var(--vt-ink);
+  box-shadow:0 0 0 3px #000,0 0 0 4px rgba(79,219,242,.5);
+}
+html body .gb-tang button[aria-pressed=true] span{color:var(--vt-ink)}
+/* Ngày, khung giờ: bo 18 thay vì tròn hẳn. */
+html body :is(.rail .day,.rail .slot){border-radius:18px;border-color:rgba(255,255,255,.2)}
+html body :is(.rail .day,.rail .slot).on{background:var(--vt-xanh);border-color:var(--vt-xanh);color:var(--vt-ink);box-shadow:0 0 0 3px #000,0 0 0 4px rgba(79,219,242,.5)}
+html body :is(.rail .day,.rail .slot).on *{color:var(--vt-ink)}
+/* Thẻ chọn lớn (cách nhận, cách trả, size): khi chọn KHÔNG tô đặc, chữ giữ trắng. */
+html body :is(.seg button,button.pick,button.size){border-radius:18px}
+html body :is(.seg button,button.pick,button.size).on{background:rgba(79,219,242,.10);border-color:var(--vt-xanh);box-shadow:0 0 0 1px rgba(79,219,242,.5);color:var(--paper,#fff)}
+html body .sheet button.size{border-radius:18px}
+
+/* ---------- 4. Nút tròn ---------- */
+/* Thêm bánh +, + trong ô số lượng: đĩa xanh 44, biểu tượng INK, quầng đen rồi xanh. */
+html body :is(.c-them,.qty button:last-child){
+  width:44px;height:44px;min-width:44px;min-height:44px;border:0;border-radius:50%;
+  background:var(--vt-xanh);color:var(--vt-ink);box-shadow:0 0 0 3px #000,0 0 0 4px var(--vt-xanh);
+}
+html body .c-them::before{display:none}
+html body .c-them:hover,html body .c-them:focus-visible{color:var(--vt-ink);filter:brightness(1.06)}
+/* Nút - đang ở 1 (không giảm được nữa): tối, không nổi. */
+html body .qty button:first-child{border:1px solid rgba(255,255,255,.2);border-radius:50%;background:#0B0B0B;color:var(--paper,#fff);box-shadow:none}
+html body .qty button:first-child:disabled{opacity:.45}
+/* Đóng, quay lại: tròn, viền xanh, nền đen 60%, biểu tượng xanh. */
+html body :is(.close,.hs-x,.kenh-dong,.bk,a.td-lui){
+  width:44px;height:44px;min-width:44px;min-height:44px;border:1px solid var(--vt-xanh);border-radius:50%;
+  background:rgba(0,0,0,.6);color:var(--vt-xanh);display:inline-grid;place-items:center;
+}
+html body :is(.close,.bk) svg{stroke:var(--vt-xanh)}
+/* Mạng xã hội chân trang: tròn 46, kiểu nút phụ. */
+html body a.ctr-mxh-nut{width:46px;height:46px;min-width:46px;min-height:46px;border:1px solid rgba(79,219,242,.5);border-radius:50%;background:rgba(79,219,242,.06);color:var(--vt-xanh);display:inline-grid;place-items:center}
+/* Ô đánh dấu: tròn, viền xanh, chọn thì đặc xanh. */
+html body button.chk .bx{border:1px solid var(--vt-xanh);border-radius:50%;color:var(--vt-ink)}
+html body button.chk.on .bx{background:var(--vt-xanh)}
+
+/* ---------- 5. Trụ Zalo, Grab nổi ---------- */
+html body aside.kenh-noi{
+  right:10px;gap:6px;padding:5px;border:1px solid var(--vt-xanh);border-radius:999px;background:rgba(2,10,10,.82);
+  transition:transform .28s ease-out;
+}
+/* Zalo trên, Grab dưới, chuông gọi nhân viên (chỉ khi mở từ QR bàn) cuối cùng. */
+html body aside.kenh-noi>.kenh-zalo{order:1}
+html body aside.kenh-noi>.kenh-app{order:2}
+html body aside.kenh-noi>.kenh-chuong{order:3}
+html body aside.kenh-noi>.kenh-bang{order:0}
+html body aside.kenh-noi>.kenh-bong{
+  width:50px;height:50px;min-height:50px;padding:0;border:0;border-radius:50%;background:var(--vt-xanh);
+  display:grid;place-items:center;box-shadow:none;color:var(--vt-ink);
+}
+html body aside.kenh-noi>.kenh-bong>:first-child{
+  width:42px;height:42px;border-radius:50%;background:#fff;display:grid;place-items:center;overflow:hidden;
+}
+html body aside.kenh-noi .kenh-logo-nut{width:42px;height:42px}
+html body aside.kenh-noi .kenh-logo-nut img{width:34px;height:auto;max-height:34px}
+html body aside.kenh-noi .kenh-logo-zalo img{width:30px;height:auto;max-height:30px}
+html body aside.kenh-noi .kenh-logo-zalo{width:42px;height:42px}
+/* Bỏ chữ "Nhắn Zalo" và "Gọi nhân viên" trên trụ, chỉ để logo; tên vẫn đọc được qua aria-label. */
+html body aside.kenh-noi>.kenh-bong>span:not(:first-child){display:none}
+html body aside.kenh-noi .kenh-icon-chuong{color:var(--vt-ink);font-size:22px}
+/* Cuộn xuống (hoặc trụ đè nút chính, thanh nút dưới đáy): trượt ra mép phải, chừa một chấm vàng Marigold. */
+html body aside.kenh-noi::before{
+  content:"";position:absolute;left:-18px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;
+  background:#FDB738;opacity:0;transition:opacity .28s ease-out;
+}
+html body aside.kenh-noi.thu{transform:translateX(calc(100% + 10px))}
+html body aside.kenh-noi.thu::before{opacity:1}
+html body aside.kenh-noi.thu .kenh-bang{display:none}
+@media(prefers-reduced-motion:reduce){html body aside.kenh-noi,html body aside.kenh-noi::before{transition:none}}
+
+/* Luật cũ ".cta .btn:not(.btn-md):not(.btn-lg):not(.btn-xs)" (thao-tac.css) có độ ưu tiên
+   cao hơn nhóm :is ở trên, nên nút trong thanh .cta phải nhắc lại hình viên tròn. */
+html body .cta button.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){border-radius:999px;min-height:52px;padding:0 60px 0 22px;letter-spacing:.16em;font-size:12.5px}
+html body .cta:has(>a.tel)>button.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){min-height:58px;padding:0 70px 0 22px}
+html body .cta>a.tel:not(.x){border-radius:50%;width:48px;min-height:48px;flex:0 0 48px}

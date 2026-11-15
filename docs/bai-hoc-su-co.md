@@ -3173,3 +3173,9 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 - Codex #569: nhánh mới gọi lại phép đếm có sẵn mà thiếu tham số tập mã đang theo dõi, nên mã bếp thêm tay bị bỏ. Gọi lại một phép đếm thì so tham số với mọi chỗ gọi cũ, gom phần dựng tham số về một hàm.
 - Codex #569: đổi nơi lưu (ba ô Refill sang danh sách đợt) mà ô cũ vẫn sửa được trên Desk thì người sửa thấy lưu thành công nhưng không có hiệu lực. Ô thôi dùng phải ẩn, khoá, và lớp doctype chặn lưu kèm chỉ chỗ sửa mới.
 - v661: đổi TÊN HIỂN THỊ của phân hệ làm đổi luôn đường dẫn sinh từ tên. Đường dẫn đã chạy phải khai giữ nguyên (duong_app.SLUG_PHAN_HE_GIU), có ca kiểm.
+
+## 15/11/2026 (v663): Codex rà đạt nhưng CI trang khách vẫn đỏ, chế độ mới giấu mất chỗ chọn quầy
+
+- #573 được Codex rà đạt, cổng `chay.py`, giả lập CI, `kiem_truoc_deploy.sh` đều xanh, nhưng hai job "Anh giao dien web" (`dom-khach`, `ra-nut`) đỏ và chặn merge. Hai bộ này KHÔNG nằm trong `chay.py`: PR đụng trang khách (`web_vue`, `www`, `web_order`, `trang/banh.html`) phải chạy tay `node cong_cu/kiem_web_vue_dom.cjs` và `python3 cong_cu/ra_nut_web.py` trước khi bàn giao, và đọc kết quả check trên PR trước khi merge, không chỉ đọc kết luận của Codex.
+- Thêm chế độ mới cho một màn (tab Tại quầy không QR thành kênh Giao) mà dùng lại điều kiện ẩn của chế độ cũ (`v-if="!cheDo"`) thì giấu luôn chỗ chọn quầy: khách chỉ đặt được ở quầy đầu danh sách. Thêm chế độ thì rà mọi `v-if` theo biến chế độ, hỏi từng chỗ "chế độ mới cần cái này không".
+- Vùng bấm "nhô ra" bằng `::after` trong suốt không được máy đo vùng bấm tính, lại làm `scrollWidth` lớn hơn hộp nên bị coi là chữ tràn. Nút trang khách phải cao thật 44 px.
