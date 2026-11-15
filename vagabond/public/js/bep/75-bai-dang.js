@@ -433,7 +433,7 @@ async function scrBaiDangSoan(ma, dl) {
   var chan = bdNutDay(bai, dl.duyet);
   var b = frame('Bài đăng', html, { action: (bai.sua || bai.trang_thai === 'Đã hẹn giờ') ? '🗑' : '', footer: chan ? '<div id="bdDay">' + chan + '</div>' : '' });
   var nh = document.getElementById('vgbAct'); if (nh) { nh.setAttribute('aria-label', 'Huỷ bài'); nh.onclick = function () { bdHuy(); }; }
-  var vf = document.querySelector('.vf'); if (vf) vf.onclick = bdBamDay;
+  var vf = document.querySelector('.vf'); if (vf) vf.onclick = function (e) { return bdMotLan(function () { return bdBamDay(e); }); };
   b.oninput = function (e) {
     var t = e.target, k;
     if (t.id === 'bdY') return bdHenLuu({ y_chinh: t.value });
@@ -453,8 +453,8 @@ async function scrBaiDangSoan(ma, dl) {
     if (e.target.closest('[data-bdkieu]')) return bdSheetKieu();
     if (e.target.closest('[data-bdgio]')) return bdSheetGio();
     if (e.target.closest('[data-bdchonkenh]')) return bdSheetKenh();
-    if (e.target.closest('[data-bdsoan]')) return bdSoanAi('');
-    if ((t = e.target.closest('[data-bdsoanlai]'))) return bdSoanAi(t.getAttribute('data-bdsoanlai'));
+    if (e.target.closest('[data-bdsoan]')) return bdMotLan(function () { return bdSoanAi(''); });
+    if ((t = e.target.closest('[data-bdsoanlai]'))) { var kk = t.getAttribute('data-bdsoanlai'); return bdMotLan(function () { return bdSoanAi(kk); }); }
     if ((t = e.target.closest('[data-bdchep]'))) return bdChep(t.getAttribute('data-bdchep'));
     if ((t = e.target.closest('[data-bdmotay]'))) return bdMoTay(t.getAttribute('data-bdmotay'));
     if ((t = e.target.closest('[data-bddadang]'))) return bdDaDang(t.getAttribute('data-bddadang'));
@@ -491,8 +491,9 @@ function bdHenLuu(thay) {
    gửi lên luôn là số máy chủ vừa trả (không tự báo xung đột với chính mình).
    Phần chờ, mã bài và số lần lưu đi cùng nhau theo TỪNG bài (Codex #572): mở bài B
    sau khi bài A lưu hỏng không được gửi nội dung A dưới mã B hay số lần lưu của B.
-   Lưu hỏng: phần sửa trả lại BD.thay của đúng bài đó (nếu người dùng còn ở bài đó).
-   Máy khác vừa sửa: ghi BD.loiMa[mã] = 'xd' để việc kế tiếp trên bài đó dừng một lần.
+   Lưu hỏng: BD.loiMa[mã] = 1 và phần sửa trả lại BD.thay của đúng bài đó (nếu người
+   dùng còn ở bài đó). Máy khác vừa sửa: BD.loiMa[mã] = 'xd' để việc kế tiếp trên bài
+   đó dừng một lần.
    Lượt sau của chính bài đó lưu được thì xoá; mở lại bài từ lịch cũng xoá. Kết quả
    của bài A không bao giờ chặn việc trên bài B. */
 function bdLuuNgay(veLai) {
@@ -505,6 +506,7 @@ function bdLuuNgay(veLai) {
     var dl;
     try { dl = await api(BD_P + 'luu', { ma: ma, ban_luu: BD.banMa[ma] != null ? BD.banMa[ma] : BD.ban, thay: JSON.stringify(thay || {}) }); }
     catch (e) {
+      BD.loiMa[ma] = 1;
       /* Chỉ giữ lại để lưu lần sau khi người dùng vẫn ở đúng bài này. */
       if (BD.bai && BD.bai.name === ma && (BD.thayMa === ma || !Object.keys(BD.thay || {}).length)) { BD.thay = bdGop(thay || {}, BD.thay || {}); BD.thayMa = ma; }
       var o0 = document.getElementById('bdLuuChu'); if (o0) o0.textContent = 'Chưa lưu được'; bdLoi(e); return;
@@ -523,23 +525,38 @@ function bdLuuNgay(veLai) {
   return BD.chuoi;
 }
 /* Việc dựa trên bản đã lưu (Duyệt, Gửi duyệt, AI soạn, thêm hay bỏ ảnh): lưu hết phần
-   đang chờ trước và đợi mọi lượt đang chạy. Lượt của CHÍNH bài này hỏng, còn phần chưa
-   lưu, hoặc máy khác vừa sửa (đã nạp bản mới) thì dừng; xung đột chỉ chặn một lần để
-   người dùng xem lại bản mới rồi bấm lại. */
+   đang chờ và đợi tới khi hàng lưu THẬT SỰ yên (lượt nào nối thêm trong lúc chờ cũng
+   phải xong, Codex #572 vòng 4). Lượt cuối của CHÍNH bài này hỏng, còn phần chưa lưu,
+   hoặc máy khác vừa sửa (đã nạp bản mới) thì dừng; xung đột chỉ chặn một lần để người
+   dùng xem lại bản mới rồi bấm lại. Mỗi việc chỉ chạy một lượt (bdMotLan). */
 async function bdLuuChac() {
   var ma = BD.bai && BD.bai.name;
-  await bdLuuNgay();
+  for (var vong = 0; vong < 50; vong++) {
+    var c = bdLuuNgay();
+    await c;
+    if (c !== BD.chuoi) continue;
+    if (BD.loiMa[ma]) break;
+    if (BD.thayMa === ma && Object.keys(BD.thay || {}).length) continue;
+    break;
+  }
   if (!ma || !BD.bai || BD.bai.name !== ma) return false;
   if (BD.loiMa[ma] === 'xd') {
     delete BD.loiMa[ma];
     toast('Bài vừa được sửa ở máy khác, đã nạp bản mới. Xem lại rồi bấm lại.', 4500);
     return false;
   }
-  if (BD.thayMa === ma && Object.keys(BD.thay || {}).length) {
+  if (BD.loiMa[ma] || (BD.thayMa === ma && Object.keys(BD.thay || {}).length)) {
     toast('Phần vừa sửa chưa lưu được nên chưa làm tiếp. Kiểm mạng rồi bấm lại.', 4500);
     return false;
   }
   return true;
+}
+/* Một việc dựa trên bản đã lưu chạy một lượt: bấm đúp hay bấm việc khác khi việc trước
+   chưa xong thì bỏ qua (H8 loại 4). */
+async function bdMotLan(viec) {
+  if (BD.dangLam) return;
+  BD.dangLam = true;
+  try { return await viec(); } finally { BD.dangLam = false; }
 }
 /* Đổi thuộc tính (kiểu bài, kênh, giờ, thứ tự ảnh): lưu ngay rồi vẽ lại cả màn. */
 async function bdLuuVeLai(thay) {
@@ -556,7 +573,8 @@ function bdChonAnh() {
   var inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/jpeg,image/png,image/webp'; inp.multiple = true;
   inp.style.display = 'none'; document.body.appendChild(inp);
-  inp.onchange = async function () {
+  inp.onchange = function () { return bdMotLan(bdTaiCacAnh); };
+  async function bdTaiCacAnh() {
     var tep = [].slice.call(inp.files || []); inp.remove();
     if (!tep.length) return;
     if (!(await bdLuuChac())) return;
@@ -575,7 +593,7 @@ function bdChonAnh() {
       busy(false);
     }
     if (dl) { toast(loi ? 'Đã tải ' + (tep.length - loi) + '/' + tep.length + ' ảnh' : 'Đã tải ' + tep.length + ' ảnh'); bdVeLai(dl); }
-  };
+  }
   inp.click();
 }
 async function bdTaiTep(f, ma) {
@@ -611,10 +629,13 @@ function bdSheetAnh(ten) {
     ov.remove();
     var ds = anh.map(function (a) { return a.ten; });
     if (t.hasAttribute('data-bdboanh')) {
-      if (!(await bdLuuChac())) return;
-      try { var dl = await api(BD_P + 'xoa_anh', { ma: BD.bai.name, ban_luu: BD.ban, dong: ten }); } catch (er) { return bdLoi(er); }
-      if (dl.xung_dot) toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000);
-      return bdVeLai(dl);
+      return bdMotLan(async function () {
+        if (!(await bdLuuChac())) return;
+        var dl;
+        try { dl = await api(BD_P + 'xoa_anh', { ma: BD.bai.name, ban_luu: BD.ban, dong: ten }); } catch (er) { return bdLoi(er); }
+        if (dl.xung_dot) toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000);
+        return bdVeLai(dl);
+      });
     }
     var v = t.getAttribute('data-bdthu'), j = v === 'dau' ? 0 : i + (+v);
     ds.splice(i, 1); ds.splice(j, 0, ten);
