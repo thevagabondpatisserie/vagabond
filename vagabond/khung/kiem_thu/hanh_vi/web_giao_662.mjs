@@ -147,8 +147,9 @@ await ca('Đặt giao: + hai món, mở giỏ hỏi giá máy chủ, gõ tên s�
   const gui = vet.filter(x => x[1] === 'vagabond.don_quay.tao_don');
   la('gửi một lần', gui.length, 1);
   const don = JSON.parse(gui[0][2].don);
-  la('thân gửi', [don.diem, don.tu_lay, don.ho_ten, don.dien_thoai, don.dia_chi, don.mon.map(x => [x.ma, x.sl]), don.giam_da_xem, don.phi_da_xem, don.thanh_toan, don.dong_y],
-    ['TCV', false, 'Lan', '0909123456', '12 Lê Lợi, Quận 1', [['BAWC00115', 1], ['NUIC00002', 1]], 0, 22000, 'bank', true]);
+  // Codex #573: gửi đủ ba số khách đã xem (tiền món, giảm, phí giao) để máy chủ đối chiếu cả tiền món.
+  la('thân gửi', [don.diem, don.tu_lay, don.ho_ten, don.dien_thoai, don.dia_chi, don.mon.map(x => [x.ma, x.sl]), don.tien_hang_da_xem, don.giam_da_xem, don.phi_da_xem, don.thanh_toan, don.dong_y],
+    ['TCV', false, 'Lan', '0909123456', '12 Lê Lợi, Quận 1', [['BAWC00115', 1], ['NUIC00002', 1]], 125000, 0, 22000, 'bank', true]);
   la('giỏ trống sau khi đặt', G.gio.length, 0);
 });
 
