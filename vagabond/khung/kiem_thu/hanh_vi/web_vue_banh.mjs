@@ -723,6 +723,37 @@ await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; gi�
   la('chọn được 15/11', k.S.ngayChon, '2026-11-15');
 });
 
+/* v660 (Loan Anh, bếp báo 15/11/2026): một bánh HAI đợt refill, 14/11 tới 17/11 (20 bánh) và 20/11 tới 23/11
+   (9 bánh), dựng THẬT từ máy chủ. */
+const RF2_MAY = JSON.parse(execFileSync('python3', ['-B', '-c', `
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from vagabond.khung.kiem_thu import nen
+nen.gia_lap()
+from vagabond.khung.kiem_thu import thu_refill_646 as t
+t.ROMAN = dict(t.ROMAN, so_refill=0, refill_tu=None, refill_den=None, refill_dot=json.dumps([
+	{"id": "d1", "so": 20, "tu": "2026-11-14", "den": "2026-11-17"}, {"id": "d2", "so": 9, "tu": "2026-11-20", "den": "2026-11-23"}]))
+print(json.dumps(t.du_lieu_web(), ensure_ascii=False, default=str))
+`, GOC_REPO]).toString());
+
+await ca('v660 refill nhiều đợt: lịch chỉ mở ngày thuộc MỘT trong hai đợt, ngày giữa hai đợt mờ và báo đủ hai khoảng; số được đặt lấy theo đúng đợt chứa ngày nhận', async () => {
+  const {mt} = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: RF2_MAY})});
+  const k = taoKho(mt);
+  await k.napTon();
+  k.S.tab = 'order';
+  coThem(k, 'Roman de la Rose');
+  /* Hôm nay 10/11 là ô 0. Mở: 14 tới 17/11 (ô 4 tới 7) và 20 tới 23/11 (ô 10 tới 13). */
+  la('ngày mờ', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 1, 2, 3, 8, 9]);
+  const truoc = k.S.ngayChon;
+  k.pick(8);
+  la('ngày 18/11 giữa hai đợt: không đổi ngày', k.S.ngayChon, truoc);
+  dung('báo đủ hai khoảng', /từ 14\/11 tới 17\/11 hoặc từ 20\/11 tới 23\/11/.test(k.S.toast.chu));
+  k.pick(5);
+  la('15/11 thuộc đợt 1: giới hạn theo số còn của đợt 1 (20 trừ 6 đơn giao 14 tới 17/11)', [k.S.ngayChon, k.gioiHanNhan('BAWC00068')], ['2026-11-15', 14]);
+  k.pick(11);
+  la('21/11 thuộc đợt 2: giới hạn theo số còn của đợt 2 (9 trừ 1 đơn giao 20/11)', [k.S.ngayChon, k.gioiHanNhan('BAWC00068')], ['2026-11-21', 8]);
+});
+
 /* Codex 549 (1eefda8): Kankin vừa còn decor 3 vừa có mẻ refill 15 (14/11 tới 20/11), dựng THẬT từ máy chủ. */
 const RF_HAI = JSON.parse(execFileSync('python3', ['-B', '-c', `
 import json, sys
