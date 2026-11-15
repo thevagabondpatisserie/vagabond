@@ -201,7 +201,7 @@ NHAN_LY_DO = {
 	"desk": "sửa thẳng trên Desk",
 }
 NHAN_O = {"so_btp": "BTP sẵn", "so_decor": "Đủ decor", "decor_da_lam": "Đã trừ theo Bếp làm",
-	"so_refill": "Refill", "refill_tu": "Refill từ ngày", "refill_den": "Refill tới ngày", "ma": "Mã trên bảng",
+	"refill_dot": "Đợt refill", "so_refill": "Refill", "refill_tu": "Refill từ ngày", "refill_den": "Refill tới ngày", "ma": "Mã trên bảng",
 	"sx": "Bếp làm"}
 O_HIEN = ("so_btp", "so_decor")
 MAY = {"Administrator", "Guest", ""}
@@ -273,7 +273,7 @@ def _khoa_dong(ma_hang):
 	Không có chỉ mục trên ma_hang nên InnoDB khoá cả khoảng đã quét: hai người
 	cùng thêm một mã mới sẽ đi lần lượt, không ra hai dòng."""
 	r = frappe.db.sql(
-		"""select name, ma_hang, ten_banh, so_btp, so_decor, decor_da_lam, so_refill, refill_tu, refill_den
+		"""select name, ma_hang, ten_banh, so_btp, so_decor, decor_da_lam, so_refill, refill_tu, refill_den, refill_dot
 		from `tabBTP Banh O Dong` where parent = 'BTP Banh O' and parenttype = 'BTP Banh O'
 		and ma_hang = %(ma)s for update""",
 		{"ma": ma_hang}, as_dict=True,
@@ -405,14 +405,19 @@ def bang_btp():
 				"dang_giu": giu.get(d.ma_hang, 0),
 				"con_nhan": (d.so_btp or 0) - giu.get(d.ma_hang, 0),
 				"giao_mai": decor - giu_mai.get(d.ma_hang, 0),
-				"refill": (so_rf.get("refill") or {}).get(d.ma_hang),
+				# v660: danh sách các đợt đang nhận của bánh, đợt sớm nhất trước.
+				"refill": (so_rf.get("refill") or {}).get(d.ma_hang) or [],
 				# v653: lần đổi gần nhất của BTP sẵn, Đủ decor (chữ ngắn sẵn để hiện).
 				"doi": doi.get(d.ma_hang) or {},
 			}
 		)
 	return {"cap_nhat_luc": str(doc.cap_nhat_luc or ""), "dong": dong,
 		"dat_xa": so_rf.get("dat_xa") or {}, "refill_loi": so_rf.get("loi") or "",
-		"lich_refill": sorted((dict(v, ma_hang=m) for m, v in (so_rf.get("refill") or {}).items()), key=lambda x: (x["tu"], x["ma_hang"]))}
+		"lich_refill": sorted((dict(v, ma_hang=m) for m, ds in (so_rf.get("refill") or {}).items() for v in ds), key=lambda x: (x["tu"], x["ma_hang"])),
+		# v660: đợt đã qua ngày nhận đơn, giữ 60 ngày để tra lại số làm, đã nhận, còn.
+		"dot_xong": [{"ma_hang": x["ma_hang"], "ten": x["ten"], "so": x["so"], "tu": x["tu"].isoformat(), "den": x["den"].isoformat(),
+			"da_dat": x.get("da_dat"), "con": (x["so"] - int(x["da_dat"])) if x.get("da_dat") is not None else None}
+			for x in refill.da_qua_tu_dong(doc.dong, getdate())]}
 
 
 @frappe.whitelist()
@@ -440,18 +445,37 @@ def luu_decor(ma_hang, so_decor):
 
 
 @frappe.whitelist()
-def luu_refill(ma_hang, so_refill=None, refill_tu=None, refill_den=None):
-	"""v646: bếp nhập mẻ refill của một bánh. Số 0 là bỏ refill."""
+def luu_refill(ma_hang, so_refill=None, refill_tu=None, refill_den=None, dot=None):
+	"""v646: bếp nhập mẻ refill của một bánh. v660 (Loan Anh, bếp báo 15/11/2026):
+	một bánh nhiều đợt. `dot` trống là THÊM đợt mới; có mã đợt là sửa đúng đợt
+	đó, số 0 là bỏ đợt đó. Đợt khác của bánh không bị đụng tới."""
 	from vagabond import refill
 
 	if not _duoc_sua_btp():
 		frappe.throw("Ô Refill chỉ bếp được nhập - bếp nhập thì bếp chịu trách nhiệm số")
+	# Khoá dòng TRƯỚC rồi mới đọc danh sách đợt: hai người cùng thêm đợt cho một
+	# bánh đi lần lượt, người sau thấy đợt của người trước và bị chặn nếu trùng ngày.
+	d = _dong_hoac_them(ma_hang)
+	ds = refill.doc_dot(d)
+	# Mã đợt không được trùng mã đợt đang có của bánh (thử vài lần rồi thôi).
+	id_moi = ""
+	if not str(dot or "").strip():
+		for _lan in range(5):
+			id_moi = frappe.generate_hash(length=8)
+			if not any(x["id"] == id_moi for x in ds):
+				break
+		else:
+			frappe.throw("Chưa tạo được mã cho đợt refill mới, bấm Lưu lại lần nữa.")
 	try:
-		so, tu, den = refill.chuan_refill(so_refill, refill_tu, refill_den, getdate())
+		moi, truoc, sau = refill.luu_dot(ds, str(dot or "").strip(), so_refill, refill_tu, refill_den, getdate(), id_moi=id_moi)
 	except refill.LoiRefill as e:
 		frappe.throw(str(e))
-	d = _dong_hoac_them(ma_hang)
-	_ghi_o(d, {"so_refill": so, "refill_tu": tu or None, "refill_den": den or None}, "refill")
+	# Một nguồn: từ đây mọi đợt nằm ở ô refill_dot, ba ô cũ về trống.
+	frappe.db.sql("update `tabBTP Banh O Dong` set `refill_dot` = %(refill_dot)s, `so_refill` = %(so_refill)s, "
+		"`refill_tu` = %(refill_tu)s, `refill_den` = %(refill_den)s where name = %(ten)s",
+		{"refill_dot": refill.ghi_dot(moi), "so_refill": 0, "refill_tu": None, "refill_den": None, "ten": d.name})
+	ghi_nhat_ky(d.ma_hang, d.ten_banh, "refill_dot", refill.mo_ta_dot(truoc), refill.mo_ta_dot(sau), "refill")
+	frappe.db.set_single_value("BTP Banh O", "cap_nhat_luc", now_datetime())
 	frappe.db.commit()
 	try:
 		# Số refill mới phải lên bảng ngay, không chờ hết 5 phút giữ số đơn.
@@ -497,7 +521,9 @@ def xoa_ma_btp(ma_hang):
 	d = _khoa_dong(str(ma_hang or "").strip())
 	if not d:
 		frappe.throw("Khong thay ma hang %s trong bang BTP" % ma_hang)
-	if int(d.so_btp or 0) or int(d.so_decor or 0) or int(d.so_refill or 0):
+	from vagabond import refill
+
+	if int(d.so_btp or 0) or int(d.so_decor or 0) or any(x["den"] >= getdate() for x in refill.doc_dot(d)):
 		frappe.throw("Mã %s đang có số BTP, số decor hoặc refill, xoá số về 0 trước đã." % ma_hang)
 	frappe.db.sql("delete from `tabBTP Banh O Dong` where name = %(ten)s", {"ten": d.name})
 	ghi_nhat_ky(d.ma_hang, d.ten_banh, "ma", d.ma_hang, "", "xoa_ma")

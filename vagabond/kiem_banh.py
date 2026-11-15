@@ -396,6 +396,39 @@ def may_duoc_ghi(nguon, gia_tri=None):
 	return nguon in (NGUON_MAY, NGUON_TRONG)
 
 
+def chuyen_ton(d, ngay, ban):
+	"""Tồn của MỘT dòng chạy sang ngày mai khi đã rời tủ `ban` cái. THUẦN.
+
+	Trả [(ô ngày mai, số, NSX)] cho ba ô tồn. Bán hàng cũ trước nên phép trừ ăn
+	vào lô cũ trước: ton_cu -> ton_d2 -> ton_d1 -> sx; phần còn dư lùi một bậc
+	tuổi. Một nguồn cho chốt ngày và cho lần chuyển lại sau chốt (v660).
+	"""
+	lo = [
+		[int(d.get("ton_cu") or 0), d.get("nsx_cu")],
+		[int(d.get("ton_d2") or 0), d.get("nsx_d2")],
+		[int(d.get("ton_d1") or 0), d.get("nsx_d1")],
+		[int(d.get("sx") or 0), ngay],
+	]
+	tru_theo_lo(lo, ban)
+	# lo[0]+lo[1] dồn thành "cũ hơn" của ngày mai, lấy NSX cũ nhất làm mốc
+	cu = lo[0][0] + lo[1][0]
+	nsx_cu = lo[0][1] if lo[0][0] else (lo[1][1] if lo[1][0] else None)
+	return [("ton_cu", cu, nsx_cu), ("ton_d2", lo[2][0], lo[2][1]), ("ton_d1", lo[3][0], ngay)]
+
+
+def so_sau_chot(dem_moi, so_luc_chot):
+	"""Bánh bán thêm SAU giờ chốt của một nhóm cột: số đếm bây giờ trừ số đã
+	khoá lúc chốt, không âm. THUẦN. Số đếm tụt xuống dưới số lúc chốt (đơn
+	đổi ngày, huỷ) thì coi là 0: bảng đã chốt giữ nguyên, không cộng lại tồn."""
+	return max(0, int(dem_moi or 0) - int(so_luc_chot or 0))
+
+
+def roi_tu_ca_sau_chot(d):
+	"""Số rời tủ của dòng tính cả phần bán sau chốt. THUẦN."""
+	return (so_roi_tu(d.get("da_dat"), d.get("phat_sinh"), d.get("don_khac"), d.get("huy"))
+		+ max(0, int(d.get("sau_chot_pc") or 0)) + max(0, int(d.get("sau_chot_khac") or 0)))
+
+
 def dong_moi(**kw):
 	"""Khai một dòng MỚI cho bảng: ba ô tồn mang nguồn Chua ghi. THUẦN.
 
@@ -537,6 +570,9 @@ def dong_bo(ngay=None):
 	lần hai vẫn đụng thì trả bảng hiện có, nhịp 5 phút sau làm tiếp, không ghi
 	Error Log vì đây không phải hỏng.
 	"""
+	# v660: xem lại ngày cũ thì chỉ ĐỌC bảng, không kéo Pancake viết lại.
+	if ngay and getdate(ngay) < getdate():
+		return bang(ngay)
 	return _dong_bo_thu_lai(ngay)
 
 
@@ -630,6 +666,32 @@ def _dong_bo_mot_lan(ngay=None):
 	dem_dd, ten1, hinh1, _k1 = _dem_banh(dd_don, dang_theo_doi)
 	dem_ps, ten2, hinh2, khach_ps = _dem_banh(ps_don, dang_theo_doi)
 	dem_cho, ten3, hinh3, khach_cho = _dem_banh(moi_don, dang_theo_doi)
+	if doc.tinh_trang == "Da chot":
+		# v660: bảng đã chốt giữ nguyên số lúc chốt (trước đây nhịp này vẫn viết
+		# lại Đã đặt, Phát sinh nên mở ngày cũ không còn là số lúc chốt). Đơn
+		# phát sinh sau giờ chốt ghi riêng và trừ tiếp vào tồn đã chuyển. Cột
+		# Chờ chốt là giữ chỗ mềm, vẫn đo lại: đơn Mới chốt xong sau giờ chốt
+		# rời cột này sang Bán sau chốt, không bị trừ hai lần vào Bán được.
+		pc = {ma: dem_dd.get(ma, 0) + dem_ps.get(ma, 0) for ma in set(dem_dd) | set(dem_ps)}
+		khac, _mo_ta = _dem_don_khac(ngay, dang_theo_doi)
+		doi_cho = False
+		for d in doc.dong:
+			n = dem_cho.get(d.ma_hang, 0)
+			if n != int(d.cho_chot or 0):
+				d.cho_chot = n
+				d.ten_khach_cho = ", ".join(khach_cho.get(d.ma_hang, []))
+				doi_cho = True
+		doi = ghi_sau_chot(doc.dong, pc, khac)
+		doc.dong_bo_luc = now_datetime()
+		if doi or doi_cho:
+			doc.save(ignore_permissions=True)
+		else:
+			frappe.db.set_value("Kiem Banh Ngay", ma_doc, "dong_bo_luc", doc.dong_bo_luc, update_modified=False)
+		chuyen_lai_ton(doc, doi)
+		giu_ton_web.da_dem(ngay, [o.get("id") for o in
+			(giao_hom_nay if str(ngay)[:10] == str(giu_ton_web.hom_nay()) else dd_don)])
+		frappe.db.commit()
+		return bang(ngay)
 	ten1.update(ten2)
 	ten1.update(ten3)
 	hinh1.update(hinh2)
@@ -878,7 +940,16 @@ def cap_nhat_don_khac(ngay=None):
 			return {"ok": 1, "bo_qua": 1}
 	doc = _lay_hoac_tao(ngay)
 	if doc.tinh_trang == "Da chot":
-		return {"ok": 1, "da_chot": 1}
+		# v660: bán ở quầy, kênh khác sau giờ chốt ghi riêng và trừ tiếp vào tồn
+		# đã chuyển; các cột lúc chốt giữ nguyên.
+		# Hai bill bấm cùng lúc: giữ khoá bảng ngày đó TRƯỚC rồi mới đếm và đọc
+		# lại bảng, để lượt sau thấy bill của lượt trước (sổ mẫu lỗi loại 1).
+		frappe.db.sql("select name from `tabKiem Banh Ngay` where name = %s for update", (ma,))
+		dem, _ = _dem_don_khac(ngay)
+		doc = frappe.get_doc("Kiem Banh Ngay", ma)
+		doi = _luu_sau_chot(doc, None, dem)
+		frappe.db.commit()
+		return {"ok": 1, "da_chot": 1, "sau_chot": doi}
 	_ghi_don_khac(doc, ngay)
 	_ghi_giu_cho(doc, ngay)
 	doc.save(ignore_permissions=True)
@@ -1009,6 +1080,8 @@ def bang(ngay=None):
 				"cho_chot": d.cho_chot or 0, "ten_khach_cho": d.ten_khach_cho or "",
 				"don_khac": d.don_khac or 0, "ten_khach_khac": d.ten_khach_khac or "",
 				"co_the_ban": d.co_the_ban or 0,
+				# v660: bánh bán sau giờ chốt (Pancake + kênh khác), đã trừ vào Bán được.
+				"ban_sau_chot": int(d.get("sau_chot_pc") or 0) + int(d.get("sau_chot_khac") or 0),
 				# Cong tac tam ngung ban tren web. Bay len man de nguoi bam
 				# nhin thay ngay minh vua tat cai gi, va den bao gio ban lai.
 				"tat_web": (tat.get(d.ma_hang) or {}).get("tat", 0),
@@ -1202,30 +1275,19 @@ def chot_ngay(ngay=None):
 
 	for d in doc.dong:
 		# Trừ lô hàng dùng SỐ RỜI TỦ: bánh huỷ cũng phải biến khỏi tồn ngày mai.
-		ban = so_roi_tu(d.da_dat, d.phat_sinh, d.don_khac, d.huy)
-		lo = [
-			[d.ton_cu or 0, d.nsx_cu],
-			[d.ton_d2 or 0, d.nsx_d2],
-			[d.ton_d1 or 0, d.nsx_d1],
-			[d.sx or 0, ngay],
-		]
-		tru_theo_lo(lo, ban)
-		# lo[0]+lo[1] don thanh "cu hon" cua ngay mai, lay NSX cu nhat lam moc
-		cu = lo[0][0] + lo[1][0]
-		nsx_cu = lo[0][1] if lo[0][0] else (lo[1][1] if lo[1][0] else None)
+		so = chuyen_ton(d, ngay, so_roi_tu(d.da_dat, d.phat_sinh, d.don_khac, d.huy))
 		m = co_mai.get(d.ma_hang)
 		if not m:
 			# Khong con gi va ngay mai chua co dong thi khong de dong trong.
-			if not (cu or lo[2][0] or lo[3][0]):
+			if not any(x[1] for x in so):
 				continue
 			m = mai.append("dong", dong_moi(ma_hang=d.ma_hang, ten_banh=d.ten_banh))
 			co_mai[d.ma_hang] = m
 		# Tung o theo NGUON cua no (#216): o may chuyen thi ghi de, ke ca ve 0
 		# (truoc day con 0 la bo qua, so cu nam lai); o nguoi da dem thi giu,
 		# chi ghi so may ben canh; o chua ro nguon ma co so thi giu de xac nhan.
-		ghi_o_chuyen(m, "ton_cu", cu, nsx_cu)
-		ghi_o_chuyen(m, "ton_d2", lo[2][0], lo[2][1])
-		ghi_o_chuyen(m, "ton_d1", lo[3][0], ngay)
+		for o, n, nsx in so:
+			ghi_o_chuyen(m, o, n, nsx)
 
 	# Chốt là đường của MÁY: lớp doctype không được coi các ô vừa ghi là
 	# người sửa tay (xem KiemBanhNgay._giu_nguon_ton).
@@ -1245,6 +1307,87 @@ def chot_ngay(ngay=None):
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "ngay_mai": str(add_days(ngay, 1))}
+
+
+def ghi_sau_chot(dong, dem_pc=None, dem_khac=None):
+	"""Ghi số bán sau chốt vào các dòng của bảng ĐÃ CHỐT. THUẦN với dòng get/set.
+
+	dem_pc: {mã: đã đặt + phát sinh đếm lúc này} hoặc None nếu lượt này không
+	đếm Pancake; dem_khac tương tự cho kênh khác. Các cột lúc chốt KHÔNG đổi.
+	Trả tập mã có số bán sau chốt vừa đổi."""
+	doi = set()
+	for d in dong:
+		ma = d.get("ma_hang")
+		if dem_pc is not None:
+			n = so_sau_chot(dem_pc.get(ma, 0), int(d.get("da_dat") or 0) + int(d.get("phat_sinh") or 0))
+			if n != int(d.get("sau_chot_pc") or 0):
+				d.set("sau_chot_pc", n)
+				doi.add(ma)
+		if dem_khac is not None:
+			n = so_sau_chot(dem_khac.get(ma, 0), d.get("don_khac"))
+			if n != int(d.get("sau_chot_khac") or 0):
+				d.set("sau_chot_khac", n)
+				doi.add(ma)
+	return doi
+
+
+def chuyen_lai_ton(doc, ma_doi):
+	"""v660 (anh Việt chọn 15/11/2026): bánh bán sau giờ chốt thì máy tự trừ
+	tiếp vào tồn đã chuyển sang ngày mai.
+
+	Chỉ ghi các mã có số bán sau chốt vừa đổi, đúng một nguồn với chốt ngày
+	(chuyen_ton, ghi_o_chuyen): ô người đã đếm tay thì giữ, chỉ ghi số máy bên
+	cạnh. Ngày mai đã chốt hoặc chưa có bảng thì thôi. Ghi số tuyệt đối nên
+	chạy lại bao nhiêu lần cũng ra một kết quả.
+	"""
+	# Luôn xét cả các mã ĐANG có bán sau chốt, không chỉ mã vừa đổi ở lượt này:
+	# lượt trước ghi được số bán sau chốt mà chưa kịp sửa tồn hôm sau (bảng hôm
+	# sau đang có người lưu) thì lượt này tự chữa.
+	ma_doi = set(ma_doi or ()) | {d.ma_hang for d in doc.dong
+		if int(d.get("sau_chot_pc") or 0) or int(d.get("sau_chot_khac") or 0)}
+	if not ma_doi:
+		return 0
+	ngay = getdate(doc.ngay)
+	ma_mai = "KB-%s" % add_days(ngay, 1)
+	if not frappe.db.exists("Kiem Banh Ngay", ma_mai):
+		return 0
+	mai = frappe.get_doc("Kiem Banh Ngay", ma_mai)
+	if mai.tinh_trang == "Da chot":
+		return 0
+	co_mai = {d.ma_hang: d for d in mai.dong}
+	n = 0
+	for d in doc.dong:
+		if d.ma_hang not in ma_doi:
+			continue
+		so = chuyen_ton(d, ngay, roi_tu_ca_sau_chot(d))
+		m = co_mai.get(d.ma_hang)
+		if not m:
+			if not any(x[1] for x in so):
+				continue
+			m = mai.append("dong", dong_moi(ma_hang=d.ma_hang, ten_banh=d.ten_banh))
+			co_mai[d.ma_hang] = m
+		# Chỉ đếm là đổi khi số máy chuyển khác số đang ghi: lượt không đổi gì thì
+		# không lưu lại bảng hôm sau (khỏi chen vào người đang nhập).
+		khac = any(int(m.get("may_chuyen_" + o) or 0) != int(sl or 0) for o, sl, _nsx in so)
+		for o, sl, nsx in so:
+			ghi_o_chuyen(m, o, sl, nsx)
+		n += 1 if khac else 0
+	if n:
+		frappe.flags.vgb_ton_da_co_nguon = True
+		try:
+			mai.save(ignore_permissions=True)
+		finally:
+			frappe.flags.vgb_ton_da_co_nguon = False
+	return n
+
+
+def _luu_sau_chot(doc, dem_pc=None, dem_khac=None):
+	"""Bảng đã chốt: chỉ ghi số bán sau chốt rồi chuyển lại tồn. Trả số mã đổi."""
+	doi = ghi_sau_chot(doc.dong, dem_pc, dem_khac)
+	if doi:
+		doc.save(ignore_permissions=True)
+	chuyen_lai_ton(doc, doi)
+	return len(doi)
 
 
 RE_SIZE = re.compile(r"^(.*?)[,\s]*\bsize\b\s*(\d+)\s*cm\b.*$", re.IGNORECASE)
@@ -1662,10 +1805,12 @@ def _dat_truoc_theo_decor():
 	if refill.hieu_luc_tu_dong(kho.dong, getdate()):
 		so_rf = refill.tinh(dong=kho.dong)
 		# Chưa đếm được đơn (Pancake lỗi) thì KHÔNG mở bán refill: thà ẩn còn hơn nhận lố.
-		rf = {m: r for m, r in (so_rf.get("refill") or {}).items() if r.get("con") is not None}
+		# v660: một bánh nhiều đợt, giữ các đợt đã đếm được.
+		rf = {m: [r for r in ds if r.get("con") is not None] for m, ds in (so_rf.get("refill") or {}).items()}
+		rf = {m: ds for m, ds in rf.items() if ds}
 	dong = [
 		b for b in (kho.dong or [])
-		if ((b.so_decor or 0) > 0 or ((rf.get(b.ma_hang) or {}).get("con") or 0) > 0)
+		if ((b.so_decor or 0) > 0 or any((r.get("con") or 0) > 0 for r in rf.get(b.ma_hang) or []))
 		and not str(b.ma_hang or "").upper().startswith("BAWS")
 	]
 	if not dong:
@@ -1705,7 +1850,9 @@ def _dat_truoc_theo_decor():
 			# khong dua len trang khach (v606, xem duoc_len_web).
 			continue
 		con = int(b.so_decor or 0) - int(da_dat.get(b.ma_hang, 0)) if (b.so_decor or 0) > 0 else 0
-		r = rf.get(b.ma_hang)
+		# Các đợt còn suất, đợt sớm nhất đứng đầu (v660).
+		ds_rf = [r for r in rf.get(b.ma_hang) or [] if int(r.get("con") or 0) > 0]
+		r = ds_rf[0] if ds_rf else None
 		con_rf = int((r or {}).get("con") or 0)
 		if con <= 0 and con_rf <= 0:
 			continue
@@ -1730,7 +1877,11 @@ def _dat_truoc_theo_decor():
 		if con_rf > 0:
 			# Khoảng ngày nhận của refill; chỉ còn refill (decor hết) thì web
 			# chỉ cho chọn ngày trong khoảng này.
-			g["sizes"][-1]["refill"] = {"tu": r["tu"], "den": r["den"], "con": con_rf, "chi_refill": 0 if con > 0 else 1}
+			# "ds" là mọi đợt còn suất: web cho chọn ngày trong bất kỳ đợt nào và lấy
+			# số còn của đúng đợt chứa ngày đó. tu, den, con là đợt sớm nhất, giữ
+			# cho trang khách còn mở bản cũ.
+			g["sizes"][-1]["refill"] = {"tu": r["tu"], "den": r["den"], "con": con_rf, "chi_refill": 0 if con > 0 else 1,
+				"ds": [{"tu": x["tu"], "den": x["den"], "con": int(x.get("con") or 0)} for x in ds_rf]}
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
 	ra = _anh_noi_dung_web([nhom[k] for k in thu_tu])
