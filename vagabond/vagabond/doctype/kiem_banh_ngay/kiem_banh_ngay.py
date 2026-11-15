@@ -56,6 +56,9 @@ class KiemBanhNgay(Document):
 				# phải trừ để web, quầy không bán lố sau chốt.
 				- (d.get("sau_chot_pc") or 0)
 				- (d.get("sau_chot_khac") or 0)
+				# Codex #569: bánh giữ chỗ lúc chốt mà khách đã tới nhận sau chốt
+				# nằm ở cả Giữ chỗ lẫn Bán sau chốt, bù lại một lần.
+				+ (d.get("sau_chot_nha_giu") or 0)
 			)
 
 
