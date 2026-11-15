@@ -54,7 +54,7 @@ class BangBTP(object):
 				if d.ma_hang == gt["ma"]:
 					self._ten(d)
 					return [Doi({x: d.get(x) for x in ("name", "ma_hang", "ten_banh", "so_btp", "so_decor", "decor_da_lam",
-						"so_refill", "refill_tu", "refill_den")})]
+						"so_refill", "refill_tu", "refill_den", "refill_dot")})]
 			return []
 		if ql.startswith("select ifnull(max(idx), 0)"):
 			return [(len(self.dong),)]

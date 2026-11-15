@@ -292,7 +292,11 @@ def _():
 	than = src[i:j]
 	for o in kiem_banh.O_TON:
 		dung("không còn 'm.%s =' trong chot_ngay" % o, ("m.%s =" % o) not in than)
-	la("ba lời gọi ghi_o_chuyen", than.count("ghi_o_chuyen(m,"), 3)
+	# v660: ba ô đi chung MỘT vòng trên kết quả chuyen_ton (cùng nguồn với lần
+	# chuyển lại tồn sau chốt), không còn ba lời gọi viết tay.
+	la("một lời gọi ghi_o_chuyen trong vòng", than.count("ghi_o_chuyen(m,"), 1)
+	dung("chốt tính tồn chuyển bằng chuyen_ton", "chuyen_ton(d, ngay," in than)
+	la("chuyen_ton trả đủ ba ô tồn", sorted(x[0] for x in kiem_banh.chuyen_ton({}, "2026-08-15", 0)), sorted(kiem_banh.O_TON))
 	dung("không còn nhánh continue khi còn 0 mà ngày mai có dòng",
 		"if not (cu or lo[2][0] or lo[3][0]):\n\t\t\tcontinue" not in than)
 
