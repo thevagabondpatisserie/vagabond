@@ -193,7 +193,8 @@ def tim_trung_gio(luc, kenh, bai_khac, phut=CACH_TRUNG_PHUT):
 	"""THUẦN: các bài khác cùng kênh đăng trong vòng `phut` phút quanh `luc`.
 
 	bai_khac: [{"name", "tieu_de", "luc", "kenh": [mã]}]. Trả [{"kenh", "name",
-	"tieu_de", "gio", "cach"}], gần nhất trước."""
+	"tieu_de", "gio", "cach", "dung"}], gần nhất trước. "dung" là cùng phút: hai bài cùng kênh
+	đúng một giờ, bảng Kiểm chặn chứ không chỉ nhắc."""
 	d = _dt(luc)
 	if not d:
 		return []
@@ -208,7 +209,8 @@ def tim_trung_gio(luc, kenh, bai_khac, phut=CACH_TRUNG_PHUT):
 		for k in kenh or []:
 			if k in (b.get("kenh") or []):
 				ra.append({"kenh": k, "name": b.get("name"), "tieu_de": b.get("tieu_de") or b.get("name"),
-					"gio": db.strftime("%H:%M"), "cach": int(round(cach))})
+					"gio": db.strftime("%H:%M"), "cach": int(round(cach)),
+					"dung": db.replace(second=0) == d.replace(second=0)})
 	ra.sort(key=lambda x: (x["cach"], THU_TU_KENH.index(x["kenh"])))
 	return ra
 
@@ -262,6 +264,10 @@ def kiem_bai(bai, bay_gio, trung_gio=None, anh_cu=None):
 	if hen and bay_gio and hen <= bay_gio:
 		ra.append({"muc": "chan", "chu": "Giờ hẹn %s đã qua" % hen.strftime("%H:%M %d/%m"), "goi_y": "Chọn giờ mới hoặc Ngay khi duyệt.", "nut": ["gio", "Đổi giờ"]})
 	for t in trung_gio or []:
+		if t.get("dung"):
+			ra.append({"muc": "chan", "chu": '%s đã có bài "%s" đúng lúc %s' % (KENH[t["kenh"]]["ten"], t["tieu_de"], t["gio"]),
+				"goi_y": "Hai bài cùng kênh không đăng cùng một giờ. Đổi giờ hoặc bỏ kênh này.", "nut": ["gio", "Đổi giờ"]})
+			continue
 		ra.append({"muc": "nhac", "chu": '%s đã có bài "%s" lúc %s' % (KENH[t["kenh"]]["ten"], t["tieu_de"], t["gio"]),
 			"goi_y": "Hai bài cách nhau %s, bài trước dễ bị chìm." % chu_cach(t["cach"]), "nut": ["gio", "Đổi giờ"]})
 	for a in anh_cu or []:
@@ -480,6 +486,36 @@ def _bay_gio():
 	return now_datetime().replace(microsecond=0)
 
 
+KHOA_LICH = "vgb_bai_dang_lich"
+
+
+class _KhoaLich(object):
+	"""Khoá chung của lịch đăng khi duyệt: hai người duyệt hai bài cùng kênh cùng giờ
+	thì người sau chờ, đọc lịch SAU khi người trước đã ghi xong (H8 loại 1).
+	Ghi xong thì chốt giao dịch rồi mới nhả khoá, để người sau thấy bài vừa duyệt."""
+
+	def __enter__(self):
+		r = frappe.db.sql("select get_lock(%s, %s)", (KHOA_LICH, 15))
+		if not (r and r[0] and str(r[0][0]) == "1"):
+			frappe.throw("Đang có người duyệt bài khác. Chờ vài giây rồi bấm Duyệt lại.")
+		return self
+
+	def __exit__(self, loai, *a):
+		try:
+			if loai is None:
+				frappe.db.commit()
+		finally:
+			try:
+				frappe.db.sql("select release_lock(%s)", (KHOA_LICH,))
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "bai_dang: nhả khoá lịch")
+		return False
+
+
+def _khoa_lich():
+	return _KhoaLich()
+
+
 def _link_man():
 	from frappe.utils import get_url
 	return get_url("/bep/bai-dang-mang-xa-hoi")
@@ -609,7 +645,9 @@ def danh_dau_trung(the):
 		truoc = [{"name": x["name"], "tieu_de": x["tieu_de"], "luc": x["luc"] + ":00", "kenh": [k["k"] for k in x["kenh"]]}
 			for x in ds[:i]]
 		tr = tim_trung_gio(t["luc"] + ":00", [k["k"] for k in t["kenh"]], truoc)
-		if tr:
+		if tr and tr[0].get("dung"):
+			t["trung"] = "%s trùng đúng giờ bài %s" % (KENH[tr[0]["kenh"]]["ten"], tr[0]["gio"])
+		elif tr:
 			t["trung"] = "%s cách bài %s %s" % (KENH[tr[0]["kenh"]]["ten"], tr[0]["gio"], chu_cach(tr[0]["cach"]))
 	return the
 
@@ -937,8 +975,10 @@ def gio_trong(ma=None, ngay=None):
 	for g in khung_gio_ngay(vang):
 		luc = datetime.strptime(cac_ngay[0] + " " + g, "%Y-%m-%d %H:%M")
 		tr = tim_trung_gio(luc, kenh, khac)
+		dung = [t for t in tr if t.get("dung")]
 		khung.append({"gio": g, "vang": g in vang, "qua": luc <= bay_gio,
-			"trung": ("%s %s" % (KENH[tr[0]["kenh"]]["ten"], tr[0]["gio"])) if tr else ""})
+			"trung": ("%s %s" % (KENH[tr[0]["kenh"]]["ten"], tr[0]["gio"])) if tr else "",
+			"da_co": KENH[dung[0]["kenh"]]["ten"] if dung else ""})
 	return {"ngay": cac_ngay, "chon": cac_ngay[0], "gio": str(doc.hen_luc or "")[11:16], "khung": khung}
 
 
@@ -990,6 +1030,11 @@ def duyet(ma=None, ban_luu=None, da_doc_nhac=0):
 	lần thì lần sau thấy bài đã đổi trạng thái và không làm gì thêm."""
 	_kiem_soan()
 	_kiem_duyet()
+	with _khoa_lich():
+		return _duyet_trong_khoa(ma, ban_luu, da_doc_nhac)
+
+
+def _duyet_trong_khoa(ma, ban_luu, da_doc_nhac):
 	doc = _doc_khoa(ma)
 	if doc.trang_thai not in TT_SUA_DUOC:
 		return _cho_man(doc)
@@ -1021,20 +1066,26 @@ def duyet(ma=None, ban_luu=None, da_doc_nhac=0):
 
 @frappe.whitelist()
 def da_dang(ma=None, kenh=None, link=None):
-	"""Marketing đăng tay xong một kênh. Chỉ đổi kênh đang Chờ đăng tay (bấm lại không đổi gì)."""
+	"""Marketing đăng tay xong một kênh, kèm link bài (không bắt buộc). Chỉ đổi kênh đang
+	Chờ đăng tay; bấm lại không đổi gì. Kênh đã đăng mà chưa có link thì chỉ ghi thêm link
+	(không đổi trạng thái, không gửi tin gì)."""
 	_kiem_soan()
 	doc = _doc_khoa(ma)
-	if doc.trang_thai != TT_TAY:
-		return _cho_man(doc)
 	r = None
 	for x in doc.get("kenh") or []:
 		if x.ma_kenh == kenh:
 			r = x
-	if not r or r.trang_thai != K_TAY:
+	sach = lam_sach_link(link)
+	if r and r.trang_thai == K_XONG and sach and not r.link:
+		r.link = sach
+		doc.ban_luu = int(doc.ban_luu or 0) + 1
+		_luu(doc)
+		return _cho_man(doc)
+	if doc.trang_thai != TT_TAY or not r or r.trang_thai != K_TAY:
 		return _cho_man(doc)
 	r.trang_thai = K_XONG
 	r.dang_luc = _bay_gio()
-	r.link = lam_sach_link(link) or r.link
+	r.link = sach or r.link
 	doc.trang_thai = gom_trang_thai(doc.trang_thai, [x.trang_thai for x in doc.get("kenh") or []])
 	doc.ban_luu = int(doc.ban_luu or 0) + 1
 	_luu(doc)
