@@ -752,7 +752,7 @@ def _ho_so(khach, tao=False):
 @frappe.whitelist()
 def dong_y_cua(khach=None):
 	"""Trạng thái đồng ý của một khách, cho tấm hỏi ở quầy."""
-	_kiem(CRM_XEM, "dùng phân hệ Khách hàng")
+	_kiem(CRM_XEM, "dùng phân hệ Khách hàng & Marketing")
 	khach = (khach or "").strip()
 	from vagabond.khach_hang import la_khach_gop
 
@@ -944,7 +944,7 @@ def ho_so_crm(khach=None, lh_bat_dau=0):
 	dòng cũ hơn, lh_con_nua = 1 khi còn (Codex PR #505 vòng 5: danh sách nào
 	cắt N dòng thì phải lấy tiếp được).
 	"""
-	_kiem(CRM_XEM, "dùng phân hệ Khách hàng")
+	_kiem(CRM_XEM, "dùng phân hệ Khách hàng & Marketing")
 	khach = (khach or "").strip()
 	if not khach or not frappe.db.exists("Customer", khach):
 		frappe.throw("Không có khách hàng %s." % (khach or "(trống)"))
@@ -1154,7 +1154,7 @@ def kiem_sua_chien_dich(doc):
 	cu = cu or {}
 	if not frappe.flags.get("crm_ghi") and cu.get("trang_thai") and cu.get("trang_thai") != "Nháp":
 		frappe.throw("Chiến dịch %s đã chốt danh sách nên không sửa trên Desk được. "
-			"Mở app, phân hệ Khách hàng, Chiến dịch." % doc.name)
+			"Mở app, phân hệ Khách hàng & Marketing, Chiến dịch." % doc.name)
 	# Codex PR #505: cờ duyệt kịch bản tính lại ở MỌI đường lưu (app lẫn Desk).
 	# Bản mới chưa có gì để so: coi kịch bản cũ chính là kịch bản đang lưu, chỉ
 	# xét quyền bật cờ.

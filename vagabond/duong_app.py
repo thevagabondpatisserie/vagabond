@@ -349,6 +349,11 @@ TIEN_TO_PHAN_HE = "phan-he"
 
 # Khoa phan he phai TRUNG KHIT voi truong `k` cua VGB_NHOM ben
 # 02-trang-chu.js. Co ca kiem doi chieu hai ben, doc thang tu ma nguon JS.
+# v661: phân hệ đổi TÊN HIỂN THỊ thì đường dẫn đã chạy phải giữ nguyên, không thì
+# link nhân viên đã lưu và link trong tin Zalo cũ mở ra trang chủ. Khai slug cũ ở
+# đây; phân hệ không có trong bảng này thì slug sinh từ tên như trước.
+SLUG_PHAN_HE_GIU = {"KHG": "khach-hang"}
+
 PHAN_HE = (
 	("DH", "Đặt hàng"),
 	("SX", "Sản xuất"),
@@ -356,7 +361,7 @@ PHAN_HE = (
 	("XK", "Xuất kho"),
 	("KK", "Kiểm kê"),
 	("BH", "Bán hàng"),
-	("KHG", "Khách hàng"),
+	("KHG", "Khách hàng & Marketing"),
 	("GH", "Giao hàng"),
 	("BC", "Báo cáo"),
 	("TM", "Thu mua"),
@@ -430,7 +435,7 @@ def _cap_duong():
 	for ma, ten in DANH_MUC:
 		yield "%s-%s" % (TIEN_TO_DANH_MUC, slugify(ten)), "DM:" + ma
 	for ma, ten in PHAN_HE:
-		yield "%s-%s" % (TIEN_TO_PHAN_HE, slugify(ten)), "PH:" + ma
+		yield "%s-%s" % (TIEN_TO_PHAN_HE, SLUG_PHAN_HE_GIU.get(ma) or slugify(ten)), "PH:" + ma
 
 
 def bang_duong():

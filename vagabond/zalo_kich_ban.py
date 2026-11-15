@@ -477,6 +477,34 @@ def du_lieu_mau(gia_tri, tham_so):
 	return data, thieu
 
 
+def mo_ta_muc_giam(km):
+	"""Một dòng nói mức giảm của chương trình cho màn Tin Zalo tự động. THUẦN.
+
+	"Giảm 10%, tối đa 70.000đ, hoá đơn từ 300.000đ". Đọc thẳng số của chương
+	trình khuyến mãi (một nguồn với màn Khuyến mãi), không đọc chữ người điền
+	trên tin. Không có chương trình hay chương trình không khai giá trị thì "".
+	"""
+	km = km or {}
+
+	def so(k):
+		try:
+			return float(km.get(k) or 0)
+		except (TypeError, ValueError):
+			return 0
+	gt = so("gia_tri")
+	if gt <= 0:
+		return ""
+	if km.get("kieu_giam") == "Phan tram":
+		ra = "Giảm %s%%" % (int(gt) if gt == int(gt) else gt)
+		if so("giam_toi_da") > 0:
+			ra += ", tối đa " + tien_vn(so("giam_toi_da"))
+	else:
+		ra = "Giảm " + tien_vn(gt)
+	if so("hd_toi_thieu") > 0:
+		ra += ", hoá đơn từ " + tien_vn(so("hd_toi_thieu"))
+	return ra
+
+
 def mo_ta_uu_dai(km, ten_dat="", dieu_kien_dat=""):
 	"""Tên ưu đãi (<=30) và điều kiện (<=40) hiện trong ô voucher. THUẦN.
 
@@ -1245,7 +1273,7 @@ def _gia_tri_sau_mua(row, kh):
 	}, ""
 
 
-COT_CTKM = ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "hd_toi_thieu", "tu_ngay", "den_ngay", "han_ma",
+COT_CTKM = ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "giam_toi_da", "hd_toi_thieu", "tu_ngay", "den_ngay", "han_ma",
 	"doi_tuong", "hang_khach", "nhom_khach", "vi_phat", "vi_dip", "vi_so_lan", "vi_han_ngay"]
 
 
@@ -1730,10 +1758,13 @@ def _the(c, dem, hom_nay=None):
 	kb = kich_ban(c["ma"]) or {}
 	duoc, ly_do = mau_san_sang(c)
 	can_ctkm = kb.get("km") and (kb.get("kieu") != "co_san" or str(c["ma"]).startswith("den_bu"))
+	# v661: thẻ nói luôn mức giảm đang áp và tên chương trình, để không phải mở
+	# màn Khuyến mãi mới biết tin này giảm bao nhiêu.
+	km = _doc_ctkm(c.get("ctkm")) if can_ctkm else None
 	if duoc and can_ctkm and hom_nay:
 		# Thẻ nói luôn khi chương trình đã chọn hết hạn: máy sẽ giữ tin chờ.
 		# v645: đền bù cũng cần chương trình (mã phát lúc quản lý bấm cấp).
-		han, ly = ctkm_phat_duoc(_doc_ctkm(c.get("ctkm")), hom_nay, c.get("han_ngay"))
+		han, ly = ctkm_phat_duoc(km, hom_nay, c.get("han_ngay"))
 		if not han:
 			duoc, ly_do = False, ly
 	return {
@@ -1751,6 +1782,8 @@ def _the(c, dem, hom_nay=None):
 		"han_ngay": c.get("han_ngay"), "ten_uu_dai": c.get("ten_uu_dai") or "", "dieu_kien": c.get("dieu_kien") or "",
 		"tran_ngay": c.get("tran_ngay"), "gio_tu": c.get("gio_tu"), "gio_den": c.get("gio_den"),
 		"ket_qua_luot": c.get("ket_qua_luot") or "", "dem": dem.get(c["ma"]) or {},
+		"can_ctkm": 1 if can_ctkm else 0, "muc_giam": mo_ta_muc_giam(km),
+		"ten_ctkm": ((km or {}).get("ten") or (km or {}).get("name") or "") if km else "",
 	}
 
 
@@ -1785,7 +1818,8 @@ def ds_kich_ban():
 			phu = "Bắt đầu %s, %s" % (ngay_vn(tu), phu[0].lower() + phu[1:])
 		dt_ghi = ghi_doi_tuong(km)
 		ctkm.append({"name": km.get("name"), "ten": km.get("ten") or km.get("name"),
-			"phu": phu + ((" · " + dt_ghi) if dt_ghi else ""), "doi_tuong": dt_ghi})
+			"phu": phu + ((" · " + dt_ghi) if dt_ghi else ""), "doi_tuong": dt_ghi,
+			"muc_giam": mo_ta_muc_giam(km)})
 	q = _han_muc() or {}
 	return {"ds": ds, "ctkm": ctkm, "han_muc": q, "sua": 1 if _co_lap() else 0}
 
