@@ -262,6 +262,10 @@ var KB_LOC = (function () {
 		API(daQua(iso) ? "bang" : "dong_bo", { ngay: iso }).then(nhan).catch(function () { taiLai(true); });
 	}
 	function daQua(iso) { return iso < homNay(); }
+	/* Codex #569: bảng ngày đã qua chỉ để tra soát. Mọi chỗ ghi (ô sửa, Refill,
+	   công tắc bán web, nút xoá dòng) hỏi hàm này, kể cả bảng quên chốt. */
+	function chiXem() { return daQua(NGAY_CHON); }
+	var CAU_CHI_XEM = "Bảng ngày cũ chỉ xem được. Số cần sửa thì ghi ở bảng hôm nay.";
 
 	function nhan(m) {
 		// Chong dua nhau: nguoi dung vua doi tab ngay thi bo qua ket qua cu.
@@ -367,6 +371,10 @@ var KB_LOC = (function () {
 			});
 		});
 		g.innerHTML = h;
+		if (chiXem()) {
+			var oSua = g.querySelectorAll(".kb-o.sua");
+			for (var iS = 0; iS < oSua.length; iS++) { oSua[iS].classList.remove("sua"); oSua[iS].removeAttribute("data-refill"); }
+		}
 		ganInput();
 		ganXoa(g);
 		ganWeb(g);
@@ -385,7 +393,7 @@ var KB_LOC = (function () {
 	}
 
 	function nutXoa(d) {
-		if (!trongTron(d)) return "";
+		if (chiXem() || !trongTron(d)) return "";
 		return '<button type="button" data-xoa="' + d.ma_hang + '" title="Xoa ma go nham"'
 			+ ' style="margin-left:auto;border:0;background:transparent;color:#b23;'
 			+ 'font-size:18px;line-height:1;padding:2px 8px;cursor:pointer">&#10005;</button>';
@@ -404,6 +412,7 @@ var KB_LOC = (function () {
 		var tat = !!d.tat_web;
 		var den = d.tat_web_den || "";
 		var nhan = tat ? "Tắt bán web" : "Đang bán web";
+		if (chiXem()) return '<span class="kb-web' + (tat ? " tat" : "") + '" data-webxem="1">' + (tat ? "&#9679; " : "&#9675; ") + nhan + "</span>";
 		var tip = tat
 			? ("Không hiện trên web đặt bánh đến hết " + (den ? fmtVN(den) : "hôm nay")
 				+ ". Bấm để cho bán lại ngay.")
@@ -423,6 +432,7 @@ var KB_LOC = (function () {
 			if (!n) return;
 			e.preventDefault();
 			e.stopPropagation();
+			if (chiXem()) { bao(CAU_CHI_XEM, true); return; }
 			var ma = n.getAttribute("data-web");
 			var dangTat = n.getAttribute("data-tat") === "1";
 			/* Tat la mot quyet dinh co hau qua tien bac: khach dang xem web se
@@ -452,6 +462,7 @@ var KB_LOC = (function () {
 			if (!n) return;
 			e.preventDefault();
 			e.stopPropagation();
+			if (chiXem()) { bao(CAU_CHI_XEM, true); return; }
 			var ma = n.getAttribute("data-xoa");
 			if (!window.confirm("Xoá mã " + ma + " khỏi bảng ngày " + fmtVN(NGAY_CHON) + "?")) return;
 			API("xoa_dong", { ngay: NGAY_CHON, ma_hang: ma })
@@ -602,8 +613,9 @@ var KB_LOC = (function () {
 			var lsEl = ev.target.closest("[data-lsbtp]");
 			if (lsEl) { moLichSuBTP(lsEl.getAttribute("data-lsbtp")); return; }
 			var rfEl = ev.target.closest("[data-refill]");
-			if (rfEl) { moRefill(rfEl.getAttribute("data-refill")); return; }
 			var oEl = ev.target.closest(".kb-o.sua");
+			if (chiXem()) { if (rfEl || oEl) bao(CAU_CHI_XEM, true); return; }
+			if (rfEl) { moRefill(rfEl.getAttribute("data-refill")); return; }
 			if (!oEl) return;
 			if (DL && DL.tinh_trang === "Da chot") { bao("Ngày này đã chốt sổ, không sửa nữa", true); return; }
 			DANG_SUA = oEl.getAttribute("data-id");
@@ -916,13 +928,23 @@ var KB_LOC = (function () {
 	function dsRefill(ma) { var r = (BTP[ma] || {}).refill; return Array.isArray(r) ? r : (r ? [r] : []); }
 	function khoangNgan(r) { return r.tu.slice(8, 10) + "/" + r.tu.slice(5, 7) + " tới " + r.den.slice(8, 10) + "/" + r.den.slice(5, 7); }
 
+	/* Phần chỉ đọc không được dài theo số đợt: ghi RF_GON đợt đầu rồi "và N đợt nữa". */
+	var RF_GON = 2;
+	var LICH_GON = 5;
+	function gonDot(ds, viet, noi) {
+		var dau = ds.slice(0, RF_GON).map(viet).join(noi);
+		return ds.length > RF_GON ? dau + noi + "và " + (ds.length - RF_GON) + " đợt nữa" : dau;
+	}
+
 	function oRefill(ma) {
 		var ds = dsRefill(ma);
-		var sua = BTP_SUA ? ' sua" data-refill="' + ma : '';
-		if (!ds.length) return '<div class="kb-o kb-rf' + sua + '"><label>Refill</label><b>' + (BTP_SUA ? "+" : 0) + '</b></div>';
+		var duocSua = BTP_SUA && !chiXem();
+		var sua = duocSua ? ' sua" data-refill="' + ma : '';
+		if (!ds.length) return '<div class="kb-o kb-rf' + sua + '"><label>Refill</label><b>' + (duocSua ? "+" : 0) + '</b></div>';
 		var tong = ds.reduce(function (a, r) { return a + (r.so || 0); }, 0);
+		/* Codex #569: nhiều đợt thì ô chỉ ghi vài đợt đầu kèm số đếm, bấm ô mới xem đủ. */
 		return '<div class="kb-o kb-rf co' + sua + '"><label>Refill</label><b>' + tong + '</b><div class="kb-nguon">'
-			+ (ds.length > 1 ? ds.length + " đợt: " + ds.map(function (r) { return r.so + " (" + khoangNgan(r) + ")"; }).join(", ") : ds[0].mo_ta) + '</div></div>';
+			+ (ds.length > 1 ? ds.length + " đợt: " + gonDot(ds, function (r) { return r.so + " (" + khoangNgan(r) + ")"; }, ", ") : ds[0].mo_ta) + '</div></div>';
 	}
 
 	function oConRefill(ma) {
@@ -936,22 +958,27 @@ var KB_LOC = (function () {
 		/* Nhiều đợt: số lớn là tổng còn, dòng dưới ghi còn của TỪNG đợt để không cộng nhầm. */
 		var tong = ds.reduce(function (a, r) { return a + r.con; }, 0), am = ds.some(function (r) { return r.con < 0; });
 		return '<div class="kb-o kb-nh2 ' + (am ? "am" : (tong > 0 ? "duong" : "")) + '"><label>Còn nhận refill</label><b>' + tong + '</b><div class="kb-nguon">'
-			+ ds.map(function (r) { return "đợt " + r.tu.slice(8, 10) + "/" + r.tu.slice(5, 7) + ": còn " + r.con; }).join(" · ") + '</div></div>';
+			+ gonDot(ds, function (r) { return "đợt " + r.tu.slice(8, 10) + "/" + r.tu.slice(5, 7) + ": còn " + r.con; }, " · ") + '</div></div>';
 	}
 
 	function veLichRefill() {
 		var el = document.getElementById("kb-refill"); if (!el) return;
 		if (!LICH_RF.length && !RF_LOI && !DOT_XONG.length) { el.style.display = "none"; return; }
 		el.style.display = "";
-		var mo = el.querySelector("details") && el.querySelector("details").open;
+		var oXong = document.getElementById("kb-rf-da-xong"), oLich = document.getElementById("kb-rf-them-lich");
+		var mo = oXong && oXong.open, moLich = oLich && oLich.open;
+		function dongLich(r) {
+			return '<div class="kb-rf-dong"><span>' + ngayNgan(r.tu) + ' tới ' + r.den.slice(8, 10) + "/" + r.den.slice(5, 7) + '</span><b>' + (r.ten || r.ma_hang)
+				+ '</b><span class="kb-rf-so">' + r.so + (r.con === null || r.con === undefined ? "" : " · còn " + r.con) + "</span></div>";
+		}
 		el.innerHTML = (LICH_RF.length || RF_LOI ? '<div class="kb-rf-tieu">LỊCH REFILL SẮP TỚI</div>' : "")
-			+ LICH_RF.map(function (r) {
-				return '<div class="kb-rf-dong"><span>' + ngayNgan(r.tu) + ' tới ' + r.den.slice(8, 10) + "/" + r.den.slice(5, 7) + '</span><b>' + (r.ten || r.ma_hang)
-					+ '</b><span class="kb-rf-so">' + r.so + (r.con === null || r.con === undefined ? "" : " · còn " + r.con) + "</span></div>";
-			}).join("")
+			/* Codex #569: lịch dài theo số đợt thì chỉ hiện LICH_GON dòng đầu, phần còn lại gập kèm số đếm. */
+			+ LICH_RF.slice(0, LICH_GON).map(dongLich).join("")
+			+ (LICH_RF.length > LICH_GON ? '<details class="kb-rf-xong" id="kb-rf-them-lich"' + (moLich ? " open" : "") + '><summary>Xem thêm ' + (LICH_RF.length - LICH_GON) + ' đợt</summary>'
+				+ LICH_RF.slice(LICH_GON).map(dongLich).join("") + "</details>" : "")
 			+ (RF_LOI ? '<div class="kb-rf-loi">' + RF_LOI + "</div>" : "")
 			/* v660: đợt đã qua ngày nhận đơn giữ 60 ngày để tra lại số làm, đã nhận, còn. */
-			+ (DOT_XONG.length ? '<details class="kb-rf-xong"' + (mo ? " open" : "") + '><summary>Đợt đã xong (' + DOT_XONG.length + ')</summary>'
+			+ (DOT_XONG.length ? '<details class="kb-rf-xong" id="kb-rf-da-xong"' + (mo ? " open" : "") + '><summary>Đợt đã xong (' + DOT_XONG.length + ')</summary>'
 				+ DOT_XONG.map(function (r) {
 					var chot = r.da_dat !== null && r.da_dat !== undefined;
 					return '<div class="kb-rf-dong"><span>' + khoangNgan(r) + '</span><b>' + (r.ten || r.ma_hang) + '</b><span class="kb-rf-so">làm ' + r.so
@@ -1004,9 +1031,8 @@ var KB_LOC = (function () {
 		}
 		var lop = document.createElement("div");
 		lop.id = "kb-rf-lop";
+		var khac = ds.filter(function (x) { return x.id !== idDot; });
 		lop.innerHTML = '<div class="kb-rf-tam"><h3>' + (idDot ? "Sửa đợt refill " : (ds.length ? "Thêm đợt refill " : "Refill ")) + ten + '</h3>'
-			+ '<div class="kb-rf-giai">Mẻ lớn làm sẵn BTP và đủ decor để nhận đơn giao những ngày sau. Số này để nhận đơn trước, không cộng vào tồn.</div>'
-			+ (!idDot && ds.length ? '<div class="kb-rf-giai">Đang có: ' + ds.map(function (x) { return x.so + " bánh " + khoangNgan(x); }).join("; ") + '. Đợt mới không được trùng ngày với các đợt này.</div>' : "")
 			+ '<label>SỐ BÁNH REFILL</label><input id="kb-rf-so" type="number" min="0" inputmode="numeric" placeholder="Nhập số bánh làm được" value="">'
 			+ '<div class="kb-rf-giai">' + (r.so ? "Đợt này đang có " + r.so + " bánh. Nhập 0 là bỏ đợt này." : "Nhập số bánh bếp làm được cho đợt này.") + '</div>'
 			+ '<label>CÓ BÁNH TỪ NGÀY</label><div class="kb-rf-chips">' + chips + '</div><input id="kb-rf-tu" type="date" value="' + tu + '" min="' + (r.tu && r.tu < hn ? r.tu : hn) + '">'
@@ -1014,7 +1040,11 @@ var KB_LOC = (function () {
 			+ '<label>NHẬN ĐƠN TỚI NGÀY</label><input id="kb-rf-den" type="date" value="' + den + '">'
 			+ '<div class="kb-rf-giai">Máy điền sẵn có bánh cộng 6 ngày. Quá ngày này đợt tự rời tab Đặt trước trên web và chuyển xuống Đợt đã xong.</div>'
 			+ '<div id="kb-rf-bao" class="kb-rf-giai" style="color:#b91c1c;font-weight:600"></div>'
-			+ '<div class="kb-rf-nut"><button type="button" id="kb-rf-huy">' + (ds.length ? "Quay lại" : "Đóng") + '</button><button type="button" id="kb-rf-luu">' + (idDot ? "Lưu đợt này" : "Lưu refill") + '</button></div></div>';
+			+ '<div class="kb-rf-nut"><button type="button" id="kb-rf-huy">' + (ds.length ? "Quay lại" : "Đóng") + '</button><button type="button" id="kb-rf-luu">' + (idDot ? "Lưu đợt này" : "Lưu refill") + '</button></div>'
+			/* Codex #569: phần giải thích dài và danh sách đợt khác nằm DƯỚI khối nhập và nút, thu gọn kèm số đếm. */
+			+ (khac.length ? '<div class="kb-rf-giai" id="kb-rf-khac">Đợt ' + (idDot ? "khác " : "") + 'đang có (' + khac.length + "): "
+				+ gonDot(khac, function (x) { return x.so + " bánh " + khoangNgan(x); }, "; ") + '. Đợt mới không được trùng ngày với các đợt này.</div>' : "")
+			+ '<div class="kb-rf-giai">Mẻ lớn làm sẵn BTP và đủ decor để nhận đơn giao những ngày sau. Số này để nhận đơn trước, không cộng vào tồn.</div></div>';
 		document.body.appendChild(lop);
 		var oTu = document.getElementById("kb-rf-tu"), oDen = document.getElementById("kb-rf-den");
 		function datTu(v) {
