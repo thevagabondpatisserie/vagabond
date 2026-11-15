@@ -6650,6 +6650,24 @@
     "mac_dinh": "Bánh làm theo mẻ chỉ nhận giao từ {tu} tới {den}. Quý khách chọn ngày trong khoảng này.",
     "nhieu_dong": true
   },
+  "refill_ngoai_khoang_nhieu": {
+    "ten": "Đặt bánh: bánh làm theo mẻ có nhiều đợt, ngày chọn ngoài mọi đợt ({khoang})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh làm theo mẻ chỉ nhận giao {khoang}. Quý khách chọn ngày trong các khoảng này.",
+    "nhieu_dong": true
+  },
+  "refill_khoang": {
+    "ten": "Đặt bánh: một khoảng ngày của đợt bánh làm theo mẻ ({tu}, {den})",
+    "nhom": "dat_banh",
+    "mac_dinh": "từ {tu} tới {den}",
+    "nhieu_dong": true
+  },
+  "refill_hoac": {
+    "ten": "Đặt bánh: chữ nối giữa hai khoảng ngày của bánh làm theo mẻ",
+    "nhom": "dat_banh",
+    "mac_dinh": " hoặc ",
+    "nhieu_dong": true
+  },
   "tach_don_co_hom_nay": {
     "ten": "Giỏ có bánh hôm nay, thêm bánh đặt trước",
     "nhom": "dat_banh",

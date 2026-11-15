@@ -27,7 +27,32 @@ def doi_khi_luu_ca_bang(truoc, sau):
 	return ra
 
 
+def o_refill_cu_bi_dien(dong):
+	"""THUẦN. Codex #569: từ bản 660 refill nằm ở danh sách đợt (refill_dot);
+	ba ô cũ chỉ còn được đọc khi dòng chưa có đợt nào. Dòng ĐÃ có đợt mà ba ô
+	cũ lại mang số (sửa trên Desk hay qua API) thì số đó không có hiệu lực:
+	trả tên các bánh như vậy để lớp doctype chặn lưu, không báo lưu thành công
+	một thay đổi web không nhận."""
+	ra = []
+	for d in dong or []:
+		if not str(d.get("refill_dot") or "").strip():
+			continue
+		try:
+			so = int(float(d.get("so_refill") or 0))
+		except (TypeError, ValueError):
+			so = 1
+		if so or d.get("refill_tu") or d.get("refill_den"):
+			ra.append(str(d.get("ten_banh") or d.get("ma_hang") or ""))
+	return ra
+
+
 class BTPBanhO(Document):
+	def validate(self):
+		sai = o_refill_cu_bi_dien([d.as_dict() for d in (self.get("dong") or [])])
+		if sai:
+			frappe.throw("Refill của %s đã chuyển sang nhiều đợt nên ba ô Refill cũ không còn hiệu lực. "
+				"Sửa ở màn Kiểm bánh, bấm ô Refill trên thẻ bánh." % ", ".join(sai[:5]), title="Chưa lưu được refill")
+
 	def on_update(self):
 		"""v653 Codex #560: màn /btp, Kiểm bánh và các hàm của btp.py ghi từng
 		dòng bằng UPDATE và tự ghi nhật ký, không lưu cả bảng. Lưu cả bảng chỉ

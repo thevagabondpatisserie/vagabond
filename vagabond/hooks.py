@@ -1135,6 +1135,8 @@ for _dt_tm in ("Purchase Order", "Purchase Receipt", "Purchase Invoice", "Suppli
 		"vagabond.thue_don_mua.bo_thue_ra_chung_tu_mua"]
 del _dt_tm, _cu_tm
 scheduler_events.setdefault("cron", {}).setdefault("0 7 * * *", []).append("vagabond.tin_kho.nhac_lo_sap_het_han")
+# v660: đợt refill vừa qua ngày nhận đơn thì chốt số đã nhận một lần, giữ 60 ngày.
+scheduler_events.setdefault("cron", {}).setdefault("20 0 * * *", []).append("vagabond.refill.chot_dot_da_qua_nen")
 scheduler_events.setdefault("cron", {}).setdefault("0 7 * * *", []).append("vagabond.tin_kho.nhac_ton_duoi_muc")
 scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_kho.nhac_don_mua_tre_hen")
 scheduler_events.setdefault("cron", {}).setdefault("25 8 * * *", []).append("vagabond.tin_kho.nhac_hang_ve_chua_hoa_don")

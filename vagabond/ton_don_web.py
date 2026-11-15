@@ -35,13 +35,14 @@ def _kiem_refill(hang, ng, nay):
         # nhưng báo Sales đối chiếu như mọi lỗi kiểm tồn.
         bao_loi(ng)
         return set(rf) & ma_hang, []
-    con = {m: (r.get("con") or 0) for m, r in (so.get("refill") or {}).items()}
+    # v660: một bánh nhiều đợt, số còn là của đợt CHỨA ngày nhận.
+    con = {m: (c or 0) for m, c in refill.con_theo_ngay(so, ng).items()}
     decor = {}
     if ng <= nay + timedelta(days=3):
         for d in dong_btp or []:
             if int(d.so_decor or 0) > 0:
                 decor[d.ma_hang] = int(d.so_decor or 0)
-    xet = {m for m in set(rf) & ma_hang if refill.trong_khoang(ng, rf[m]["tu"], rf[m]["den"]) or m not in decor}
+    xet = {m for m in set(rf) & ma_hang if refill.ngay_cua_refill(rf, m, ng) or m not in decor}
     return xet, refill.kiem_don([h for h in hang if h["variation_id"] in xet], ng, rf, con, decor)
 
 

@@ -165,13 +165,14 @@ def _bang_btp():
 
 	kho = Kho([ROMAN, KANKIN])
 	m = _chay(kho, btp.bang_btp, _tinh_that())
-	r = [d for d in m["dong"] if d["ma_hang"] == "BAWC00068"][0]["refill"]
+	# v660: mỗi bánh một DANH SÁCH đợt; dòng cũ ba ô đọc thành một đợt.
+	r = [d for d in m["dong"] if d["ma_hang"] == "BAWC00068"][0]["refill"][0]
 	la("refill Roman", (r["so"], r["tu"], r["den"], r["da_dat"], r["con"]), (20, "2026-11-14", "2026-11-20", 7, 13))
 	la("đặt xa ngày", m["dat_xa"]["BAWC00068"]["tong"], 7)
 	la("lịch refill", [(x["ma_hang"], x["tu"]) for x in m["lich_refill"]], [("BAWC00068", "2026-11-14")])
-	la("Kankin không refill", [d for d in m["dong"] if d["ma_hang"] == "BAWC00123"][0]["refill"], None)
+	la("Kankin không refill", [d for d in m["dong"] if d["ma_hang"] == "BAWC00123"][0]["refill"], [])
 	m = _chay(Kho([ROMAN]), btp.bang_btp, _tinh_that(loi=True))
-	r = m["dong"][0]["refill"]
+	r = m["dong"][0]["refill"][0]
 	la("Pancake lỗi: chưa đếm, không phải 0", (r["da_dat"], r["con"]), (None, None))
 	dung("có câu báo", "Chưa đếm được" in m["refill_loi"])
 
@@ -212,7 +213,8 @@ def _web():
 	m = du_lieu_web()
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
 	la("Roman: còn 13, khoảng 14 tới 20, chỉ refill", (s["BAWC00068"]["con"], s["BAWC00068"]["refill"]),
-		(13, {"tu": "2026-11-14", "den": "2026-11-20", "con": 13, "chi_refill": 1}))
+		(13, {"tu": "2026-11-14", "den": "2026-11-20", "con": 13, "chi_refill": 1,
+			"ds": [{"tu": "2026-11-14", "den": "2026-11-20", "con": 13}]}))
 	la("Kankin decor 5 trừ 2 đơn", (s["BAWC00123"]["con"], "refill" in s["BAWC00123"]), (3, False))
 	m = du_lieu_web(loi=True)
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
@@ -254,11 +256,16 @@ def _luu():
 		with BangBTP(kho.btp.dong) as b:
 			_chay(kho, lambda: btp.luu_refill("BAWC00123", "12", "2026-11-16", ""))
 			d = kho.btp.dong[0]
-			la("đã lưu", (d.so_refill, d.refill_tu, d.refill_den, kho.da_luu), (12, D8(2026, 11, 16), D8(2026, 11, 22), False))
-			la("nhật ký ba ô refill", sorted(x["truong"] for x in b.nhat_ky), ["refill_den", "refill_tu", "so_refill"])
+			# v660: đợt nằm ở ô refill_dot (một nguồn), ba ô cũ về trống.
+			ds = rf.doc_dot(d)
+			la("đã lưu một đợt", [(x["so"], x["tu"], x["den"]) for x in ds], [(12, D8(2026, 11, 16), D8(2026, 11, 22))])
+			la("ba ô cũ trống, không lưu cả bảng", (d.so_refill, d.refill_tu, d.refill_den, kho.da_luu), (0, None, None, False))
+			la("nhật ký một dòng cho đợt", [(x["truong"], x["truoc"], x["sau"]) for x in b.nhat_ky],
+				[("refill_dot", "", "12 bánh 16/11 tới 22/11")])
 			nem("có refill thì không xoá mã", lambda: _chay(kho, lambda: btp.xoa_ma_btp("BAWC00123")), Exception)
-			_chay(kho, lambda: btp.luu_refill("BAWC00123", "0", "", ""))
-			la("0 thì bỏ", (d.so_refill, d.refill_tu, d.refill_den), (0, None, None))
+			nem("số 0 mà không chỉ đợt nào thì báo", lambda: _chay(kho, lambda: btp.luu_refill("BAWC00123", "0", "", "")), Exception)
+			_chay(kho, lambda: btp.luu_refill("BAWC00123", "0", "", "", dot=ds[0]["id"]))
+			la("0 trên đúng đợt thì bỏ đợt đó", rf.doc_dot(d), [])
 
 
 @ca("v646 một phép cho 'ngày này thuộc refill của mã': bốn chỗ trừ decor đều gọi refill.ngay_cua_refill")
@@ -271,7 +278,7 @@ def _mot_nguon():
 		n = io.open(os.path.join(goc, tep), encoding="utf-8").read().count("refill.ngay_cua_refill(")
 		dung("%s gọi đủ %d lần (được %d)" % (tep, so, n), n >= so)
 	j = json.load(io.open(os.path.join(goc, "vagabond", "doctype", "btp_banh_o_dong", "btp_banh_o_dong.json"), encoding="utf-8"))
-	la("ba ô mới trên bảng BTP", [f["fieldname"] for f in j["fields"]][-3:], ["so_refill", "refill_tu", "refill_den"])
+	la("ba ô mới trên bảng BTP", [f["fieldname"] for f in j["fields"]][-4:], ["so_refill", "refill_tu", "refill_den", "refill_dot"])
 
 
 @ca("v646 web tab Đặt trước: bánh có cả decor lẫn refill thì đơn ngày nằm trong refill không trừ decor (Kankin decor 5, đơn 11/11 thuộc refill)")
@@ -354,9 +361,9 @@ def _dem_tu_dau_me():
 	ro = dict(ROMAN, so_refill=20)
 	don = [dict(_don("BAWC00068", "2026-11-14T03:00:00", 20), id="P-1")]
 	kq, hoi = _dem_that(don, D8(2026, 11, 14), [ro])
-	la("ngày 14: còn 0", kq["refill"]["BAWC00068"]["con"], 0)
+	la("ngày 14: còn 0", kq["refill"]["BAWC00068"][0]["con"], 0)
 	kq, hoi = _dem_that(don, D8(2026, 11, 15), [ro])
-	la("ngày 15: vẫn còn 0 (trước: 20)", kq["refill"]["BAWC00068"]["con"], 0)
+	la("ngày 15: vẫn còn 0 (trước: 20)", kq["refill"]["BAWC00068"][0]["con"], 0)
 	la("Pancake được hỏi từ ngày đầu mẻ 14/11", hoi, [D8(2026, 11, 14)])
 	la("mã đơn đã đếm đi kèm cùng lần kéo", kq["ids"], ["P-1"])
 	la("thuần: ngày bắt đầu là ngày đầu mẻ sớm nhất", rf.ngay_bat_dau_dem({"A": {"tu": D8(2026, 11, 12)}, "B": {"tu": D8(2026, 11, 16)}},
@@ -384,7 +391,7 @@ def _giu_rf(dong_web, so_con, ids, hang, ngay, nay=D8(2026, 11, 12), loi=""):
 		raise AssertionError(q)
 
 	def tinh(n, moi=False, dong=None):
-		return {"refill": {"BAWC00068": {"con": so_con}}, "ids": ids, "loi": loi}
+		return {"refill": {"BAWC00068": [{"con": so_con, "tu": "2026-11-14", "den": "2026-11-20"}]}, "ids": ids, "loi": loi}
 	with um.patch.object(g, "hom_nay", lambda: nay), um.patch.object(g, "frappe", NS(db=NS(sql=sql))), \
 			um.patch.object(rf, "tinh", tinh):
 		return g.kiem_va_giu_refill(hang, ngay), hoi
@@ -451,13 +458,13 @@ def _quay_da_giao():
 	q = lambda tt, sl, giao, hd=0, ngay="2026-11-14": {"item_code": "BAWC00068", "delivery_date": ngay, "qty": sl,
 		"delivered_qty": giao, "billed_qty": hd, "trang_thai": tt}
 	kq, _ = _dem_that([], D8(2026, 11, 14), [ro], [q("To Deliver and Bill", 20, 0)])
-	la("phiếu quầy 20 còn chờ giao: còn 0", kq["refill"]["BAWC00068"]["con"], 0)
+	la("phiếu quầy 20 còn chờ giao: còn 0", kq["refill"]["BAWC00068"][0]["con"], 0)
 	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("Completed", 20, 20, 20)])
-	la("phiếu quầy 20 đã giao xong: vẫn còn 0 (trước: 20)", kq["refill"]["BAWC00068"]["con"], 0)
+	la("phiếu quầy 20 đã giao xong: vẫn còn 0 (trước: 20)", kq["refill"]["BAWC00068"][0]["con"], 0)
 	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("Closed", 20, 5)])
-	la("phiếu đóng sau khi giao 5: ăn 5, còn 15", kq["refill"]["BAWC00068"]["con"], 15)
+	la("phiếu đóng sau khi giao 5: ăn 5, còn 15", kq["refill"]["BAWC00068"][0]["con"], 15)
 	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("Closed", 20, 0, 8)])
-	la("phiếu đóng, giao qua hoá đơn 8 (chưa có phiếu giao): ăn 8, còn 12", kq["refill"]["BAWC00068"]["con"], 12)
+	la("phiếu đóng, giao qua hoá đơn 8 (chưa có phiếu giao): ăn 8, còn 12", kq["refill"]["BAWC00068"][0]["con"], 12)
 	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("To Bill", 20, 0, 12)])
-	la("đã xuất hoá đơn 12 nhưng phiếu còn mở: ăn đủ 20", kq["refill"]["BAWC00068"]["con"], 0)
+	la("đã xuất hoá đơn 12 nhưng phiếu còn mở: ăn đủ 20", kq["refill"]["BAWC00068"][0]["con"], 0)
 	la("thuần: mã không phải bánh ổ bị bỏ", rf.tieu_thu_phieu_dat([dict(q("Completed", 3, 3), item_code="NVL001")], ("BAWC",)), {})

@@ -84,7 +84,7 @@ def kiem_va_giu(hang, ngay):
         from vagabond import refill
         # Giữ đúng thứ tự khoá cũ: dòng kiểm bánh ba ngày trước, bảng BTP sau.
         kb = [(nay + timedelta(days=i), _dong(nay + timedelta(days=i))) for i in (1,2,3)]
-        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,decor_da_lam,so_refill,refill_tu,refill_den from `tabBTP Banh O Dong`
+        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,decor_da_lam,so_refill,refill_tu,refill_den,refill_dot from `tabBTP Banh O Dong`
             where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
         rf = refill.hieu_luc_tu_dong(btp, nay)
         dd = {}
@@ -116,8 +116,12 @@ def kiem_va_giu(hang, ngay):
     return nhac, {'dong':dong,'da_dem':False} if dong else None
 
 
-def giu_refill_cho(rows, ids, rf):
+def giu_refill_cho(rows, ids, rf, ngay=None):
     """{mã: số} suất refill đơn web đang giữ mà lần đếm Pancake chưa có. THUẦN.
+
+    v660: một bánh nhiều đợt. Chỉ tính suất của đơn có ngày nhận nằm trong
+    CÙNG đợt với ngày đang xét `ngay` (rf dạng {mã: [đợt]}), để đơn của đợt
+    khác không ăn vào số còn của đợt này. rf dạng cũ {mã: đợt} vẫn nhận.
 
     Đơn đã lên Pancake (pancake_id nằm trong `ids` của CÙNG lần đếm) thì số
     refill đã trừ nó rồi, không trừ lần hai. Đơn chưa lên, hoặc lên sau lần
@@ -131,6 +135,8 @@ def giu_refill_cho(rows, ids, rf):
         b = json.loads(d.get("snapshot") or "{}").get(O_RF) or {}
         for ma, so in (b.get("dong") or {}).items():
             r = (rf or {}).get(ma)
+            if isinstance(r, list):
+                r = refill.dot_cua(rf, ma, ngay)
             if r and refill.trong_khoang(b.get("ngay"), r["tu"], r["den"]):
                 ra[ma] = ra.get(ma, 0) + int(so or 0)
     return ra
@@ -153,13 +159,13 @@ def kiem_va_giu_refill(hang, ngay):
     if ng <= nay:
         return [], None
     khoa()
-    btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,so_refill,refill_tu,refill_den from `tabBTP Banh O Dong`
+    btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,so_refill,refill_tu,refill_den,refill_dot from `tabBTP Banh O Dong`
         where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
     rf = refill.hieu_luc_tu_dong(btp, nay)
     can = {}
     for h in hang or []:
         ma = str(h["variation_id"])
-        if ma in rf and refill.trong_khoang(ng, rf[ma]["tu"], rf[ma]["den"]):
+        if refill.ngay_cua_refill(rf, ma, ng):
             can[ma] = can.get(ma, 0) + int(h["quantity"])
     if not can:
         return [], None
@@ -167,14 +173,17 @@ def kiem_va_giu_refill(hang, ngay):
     so = refill.tinh(nay, dong=btp)
     if so.get("loi"):
         return [], giu
-    tu = min(rf[m]["tu"] for m in can)
-    den = max(rf[m]["den"] for m in can)
+    # v660: chỉ xét đợt CHỨA ngày nhận của đơn này (một bánh nhiều đợt).
+    rf_ng = refill.theo_ngay(rf, ng)
+    tu = min(rf_ng[m]["tu"] for m in can)
+    den = max(rf_ng[m]["den"] for m in can)
     rows = frappe.db.sql("select name,pancake_id,snapshot from `tabVagabond Don Web` "
         "force index (vgb_ngay_nguon_ton) where trang_thai in ('Dang gui','Da nhan','Cho doi soat','Da ghi so')"
         " and vgb_ngay_nguon_ton >= %s and vgb_ngay_nguon_ton <= %s for update",
         (str(tu), str(den)), as_dict=True)
-    dang_giu = giu_refill_cho(rows, so.get("ids"), rf)
-    con = {m: (((so.get("refill") or {}).get(m) or {}).get("con") or 0) - dang_giu.get(m, 0) for m in can}
+    dang_giu = giu_refill_cho(rows, so.get("ids"), rf_ng)
+    con_dot = refill.con_theo_ngay(so, ng)
+    con = {m: (con_dot.get(m) or 0) - dang_giu.get(m, 0) for m in can}
     nhac = refill.kiem_don([{"variation_id": m, "quantity": n} for m, n in can.items()], ng, rf, con)
     return nhac, giu
 

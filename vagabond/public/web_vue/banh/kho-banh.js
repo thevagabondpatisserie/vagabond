@@ -100,8 +100,12 @@ export function taoKho(moiTruong) {
        thuộc mẻ refill tương lai, nên không khoá ngày. */
     const iso = isoNgayThu(i);
     return S.CART.filter(o => o.nguon !== 'today').map(o => S.TRUOC_RF[o.id])
-      .find(r => r && r.chi_refill && (iso < r.tu || iso > r.den)) || null;
+      .find(r => r && r.chi_refill && !dotRefill(r, iso)) || null;
   }
+  /* v660: một bánh nhiều đợt refill. Trả đợt có khoảng ngày chứa ngày iso
+     (r.ds là mọi đợt còn suất; máy chủ bản cũ chỉ có r.tu, r.den). */
+  function dsDotRefill(r) { return r && r.ds && r.ds.length ? r.ds : (r ? [r] : []); }
+  function dotRefill(r, iso) { return dsDotRefill(r).find(k => iso >= k.tu && iso <= k.den) || null; }
   function ngayNgan(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : ''; }
   function nhanRefill(id) {
     const r = S.TRUOC_RF[id];
@@ -140,7 +144,13 @@ export function taoKho(moiTruong) {
   function pick(i) {
     if (i === 0 && homNayBiChan.value) { toast(cauTachDon('')); return; }
     const rc = refillChan(i);
-    if (rc) { toast(t('refill_ngoai_khoang', 'Bánh làm theo mẻ chỉ nhận giao từ {tu} tới {den}. Quý khách chọn ngày trong khoảng này.', {tu: ngayNgan(rc.tu), den: ngayNgan(rc.den)})); return; }
+    if (rc) {
+      const ds = dsDotRefill(rc);
+      if (ds.length > 1) toast(t('refill_ngoai_khoang_nhieu', 'Bánh làm theo mẻ chỉ nhận giao {khoang}. Quý khách chọn ngày trong các khoảng này.',
+        {khoang: ds.map(k => t('refill_khoang', 'từ {tu} tới {den}', {tu: ngayNgan(k.tu), den: ngayNgan(k.den)})).join(t('refill_hoac', ' hoặc '))}));
+      else toast(t('refill_ngoai_khoang', 'Bánh làm theo mẻ chỉ nhận giao từ {tu} tới {den}. Quý khách chọn ngày trong khoảng này.', {tu: ngayNgan(rc.tu), den: ngayNgan(rc.den)}));
+      return;
+    }
     dongHoNhich(); neoNgay(i); S.daChonNgay = true; S.gioBiDoi = false;
     if (fixSlot()) { S.daChonGio = false; S.moLich = true; S.gioBiDoi = true; }
     quoteShip();
@@ -261,7 +271,10 @@ export function taoKho(moiTruong) {
     const r = S.TRUOC_RF[id];
     if (r) {
       const iso = isoNgayThu(picked.value);
-      if (r.chi_refill || (iso >= r.tu && iso <= r.den)) return r.con || 0;
+      /* v660: số còn của ĐÚNG đợt chứa ngày nhận đang chọn. */
+      const k = dotRefill(r, iso);
+      if (k) return k.con || 0;
+      if (r.chi_refill) return r.con || 0;
     }
     return S.TRUOC[id] || 0;
   }
