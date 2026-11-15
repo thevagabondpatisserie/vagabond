@@ -328,6 +328,11 @@ TIN = {
 	# v646 (Minh Vũ báo 09/11/2026): Zalo từ chối tin cho khách vì dữ liệu không khớp mẫu.
 	"mkt_zalo_mau_loi": ("Marketing", "Tin Zalo cho khách đang dừng vì lệch mẫu",
 		"Zalo từ chối tin của một kịch bản vì dữ liệu lệch mẫu đã duyệt; tin để chờ, báo một lần mỗi ngày.", "canh_bao", "ban_hang"),
+	# v662 (anh Việt 15/11/2026): bài đăng mạng xã hội (bai_dang.py).
+	"mkt_bai_cho_duyet": ("Marketing", "Bài đăng chờ Marketing duyệt",
+		"Người soạn không có quyền duyệt vừa gửi một bài đăng mạng xã hội cho Marketing duyệt.", "viec", "don_web"),
+	"mkt_bai_dang_den_gio": ("Marketing", "Đến giờ đăng tay bài đăng",
+		"Bài đã duyệt và hẹn giờ tới giờ đăng: các kênh chưa tự đăng được chờ Marketing đăng tay.", "viec", "don_web"),
 	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",
