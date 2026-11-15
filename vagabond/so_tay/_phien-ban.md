@@ -12,6 +12,10 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v660
+- Nhập mẻ refill và xem đơn đặt xa ngày
+- Xem lại bảng Kiểm bánh ngày cũ và bánh bán sau giờ chốt
+
 ## v659
 - Khách trả một đơn bằng nhiều phương thức
 - Đơn web chuyển khoản: Pancake ghi MBBank, máy không ghi thêm

@@ -1122,31 +1122,57 @@ Thay bảng Excel gõ tay gửi nhóm Zalo mỗi sáng. Màn chưa có đường
 - Sổ này không trừ tồn kho và không sinh bút toán.
 
 ## Nhập mẻ refill và xem đơn đặt xa ngày
-Từ khoá: refill, mẻ lớn, làm sẵn, đặt xa ngày, bánh đặt trước nhiều ngày, có bánh từ ngày, nhận đơn tới ngày, còn nhận refill, lịch refill, đặt bánh trước trên web
+Từ khoá: refill, mẻ lớn, làm sẵn, đặt xa ngày, nhiều đợt refill, thêm đợt, đợt đã xong, có bánh từ ngày, nhận đơn tới ngày, còn nhận refill, lịch refill, đặt bánh trước trên web
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Bếp nhập; Sales, quản lý xem | Kiểm bánh hôm nay (/kiem-banh) | Ô [[Refill]] trên thẻ bánh |
 
-Bếp làm một mẻ lớn (BTP sẵn và đủ decor) để nhận đơn giao những ngày sau. Số refill để NHẬN ĐƠN trước, không cộng vào tồn.
+Bếp làm một mẻ lớn (BTP sẵn và đủ decor) để nhận đơn giao những ngày sau. Số refill để NHẬN ĐƠN trước, không cộng vào tồn. Một bánh có nhiều đợt, đợt mới không đè đợt cũ.
 
 **Các bước**
-1. Bếp bấm ô [[Refill]] trên thẻ bánh.
-2. Gõ số bánh làm được (ô để trống, bắt buộc nhập).
-3. Chọn ngày có bánh. Ngày nhận đơn tới máy điền sẵn cộng 6 ngày, sửa được, tối đa 13 ngày.
-4. Bấm nút Lưu refill. Muốn bỏ refill thì nhập 0.
+1. Bếp bấm ô [[Refill]] trên thẻ bánh. Bánh đã có đợt thì hiện danh sách đợt.
+2. Bấm [[Thêm đợt]] để thêm đợt mới, hoặc [[Sửa]] ở đúng đợt cần sửa.
+3. Gõ số bánh, chọn ngày có bánh. Ngày nhận đơn tới máy điền sẵn cộng 6 ngày, tối đa 13 ngày.
+4. Bấm nút Lưu refill. Muốn bỏ một đợt thì bấm [[Sửa]] đợt đó rồi nhập 0.
 
-**Đọc ba ô mới**
+**Đọc các ô**
 | Ô | Nghĩa |
 |---|---|
 | Đặt xa ngày | Đơn giao sau 3 ngày tới, kèm từng ngày |
-| Refill | Số bánh và khoảng ngày nhận đơn |
-| Còn nhận refill | Số refill trừ mọi đơn giao trong khoảng, kể cả ngày đã qua và phiếu đặt tại quầy đã giao |
+| Refill | Tổng số bánh và khoảng ngày của từng đợt |
+| Còn nhận refill | Số còn của từng đợt: số làm trừ đơn giao trong khoảng của đợt đó |
+| Đợt đã xong | Đợt đã qua ngày nhận đơn: số làm, đã nhận, còn. Giữ 60 ngày |
 
 **Lưu ý**
-- Đơn giao trong khoảng refill trừ vào refill, không trừ Đủ decor.
-- Web tab Đặt trước hiện bánh kèm "Có từ" ngày có bánh; ngày ngoài khoảng bị mờ, đặt quá số thì máy chặn, hai khách cùng đặt suất cuối thì chỉ một người được. Bánh lấy từ tab Hôm nay không bị khoá ngày.
+- Hai đợt của cùng một bánh không được trùng ngày. Làm thêm bánh cho khoảng ngày đang chạy thì sửa số của chính đợt đó.
+- Đơn giao ngày nào trừ vào đợt chứa ngày đó, không trừ Đủ decor.
+- Web chỉ cho chọn ngày thuộc một đợt, đặt quá số còn của đợt thì máy chặn.
 - Ô hiện "?" là chưa đếm được đơn từ Pancake; lúc đó web tạm ẩn bánh refill.
+
+## Xem lại bảng Kiểm bánh ngày cũ và bánh bán sau giờ chốt
+Từ khoá: hôm qua, ngày khác, ngày cũ, tra soát tồn, đã chốt, số lúc chốt, bán sau chốt, tồn hôm sau, chốt ngày, tồn sai
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, quản lý cửa hàng, bếp | Kiểm bánh hôm nay (/kiem-banh) | Chip [[Hôm qua]], ô [[Ngày khác]] |
+
+**Các bước**
+1. Bấm chip [[Hôm qua]] đứng trước chip Hôm nay để mở bảng hôm qua.
+2. Cần ngày xa hơn thì bấm [[Ngày khác]], chọn ngày trong 30 ngày gần đây.
+3. Ngày đã qua chỉ xem, không sửa, không đồng bộ lại.
+
+**Đọc bảng đã chốt**
+| Chỗ | Nghĩa |
+|---|---|
+| Đã chốt lúc 20:25 | Giờ bấm Chốt ngày. Các ô trên bảng giữ nguyên số lúc chốt |
+| Bán sau chốt | Bánh của ngày đó bán sau giờ chốt (Pancake, quầy, kênh khác) |
+| BÁN ĐƯỢC | Đã trừ cả phần bán sau chốt |
+
+**Lưu ý**
+- Bánh bán sau giờ chốt được máy tự trừ tiếp vào tồn đã chuyển sang ngày hôm sau.
+- Ô tồn hôm sau mà người đã đếm tay thì máy không đụng, chỉ ghi số máy bên cạnh để so.
+- Đơn sau chốt bị huỷ thì tồn hôm sau trả về đúng số lúc chốt.
 
 ## BTP sẵn và Đủ decor trừ ngay khi bếp nhập Bếp làm
 Từ khoá: BTP sẵn, đủ decor, vỏ bánh, bếp làm, trừ BTP, còn nhận 3 ngày, còn nhận mai, chốt sổ không trừ BTP, đếm lại tủ BTP
