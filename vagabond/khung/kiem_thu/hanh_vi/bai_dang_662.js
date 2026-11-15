@@ -332,6 +332,28 @@ var MKT = ['Marketing'];
     bang('lượt lưu của B', [l.ma, l.ban_luu, JSON.parse(l.thay)], ['BD-2', 11, { y_chinh: 'Ý của B sửa' }]);
   });
 
+  await ca('Codex #572 vòng 2: bài A lưu hỏng, bỏ thay đổi, mở bài B đã lưu đủ: Duyệt B chạy ngay, kết quả hỏng của A không chặn B', async function () {
+    var lan = 0;
+    var m = dungMoi(MKT, {
+      xem: function (ts) { return baiMau(ts.ma === 'BD-2' ? { name: 'BD-2', ban_luu: 11 } : {}); },
+      luu: function () { lan++; throw new Error('mất mạng'); },
+      duyet: function (ts) { var d = baiMau({ name: ts.ma, trang_thai: 'Chờ đăng tay', sua: false, kenh: [{ k: 'fb', tt: 'Chờ đăng tay' }] }); return d; }
+    });
+    m.g.bdLoi = function () {};
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '#bdY'), 'chữ A');
+    await cho(950);
+    await choDen(function () { return lan === 1; });
+    await cho(20);
+    m.g.S.chuaLuu = '';
+    await m.g.scrBaiDangSoan('BD-2');
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await choDen(function () { return goiTen(m, 'duyet').length === 1; });
+    bang('duyệt đúng bài B', goiTen(m, 'duyet').map(function (x) { return x.ts.ma; }), ['BD-2']);
+    bang('không lưu gì thêm', lan, 1);
+    dung('không báo chưa lưu được', !m.toast.some(function (t) { return t.indexOf('chưa lưu được') >= 0; }));
+  });
+
   await ca('Codex #572: lượt lưu bài A còn xếp hàng khi đã mở bài B: lượt đó gửi đúng mã A và số lần lưu A vừa nhận, không lấy số của B', async function () {
     var nhaDau = null;
     var m = dungMoi(MKT, {
