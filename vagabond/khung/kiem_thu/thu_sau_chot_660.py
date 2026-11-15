@@ -370,3 +370,37 @@ def _o_refill_cu():
 	p = os.path.join(os.path.dirname(m.__file__), "..", "btp_banh_o_dong", "btp_banh_o_dong.json")
 	f = {x["fieldname"]: x for x in json.load(open(p, encoding="utf-8"))["fields"]}
 	la("ba ô cũ ẩn và chỉ đọc", [(f[k].get("hidden"), f[k].get("read_only")) for k in ("so_refill", "refill_tu", "refill_den")], [(1, 1)] * 3)
+
+
+@ca("v660 Codex #569 vòng 2 mã bếp thêm tay (Patechaud): bill sau chốt đếm theo đúng tập mã bảng đang theo dõi, đọc SAU khoá; có 3, bán 1 lúc chốt rồi bán thêm 1 thì Bán được và tồn hôm sau là 1; mọi phép đếm kênh khác dùng chung một hàm lấy tập mã")
+def _ma_them_tay_sau_chot():
+	import inspect
+	PT = "BANU00007"
+	hom = BangGia(ngay="2026-11-14", dong=[_tao_dong(ma_hang=PT, ten_banh="Patechaud", ton_d1=1, nsx_d1="2026-11-13", sx=2, don_khac=1)])
+	mai = BangGia(ngay="2026-11-15", dong=[])
+	cua = CuaGia(**{"KB-2026-11-14": hom, "KB-2026-11-15": mai})
+	cua.btp = Doi({"dong": [], "cap_nhat_luc": None, "save": lambda *a, **k: None})
+	with cua:
+		kiem_banh.chot_ngay("2026-11-14")
+	la("lúc chốt chuyển 2", sum(int(mai.dong[0].get(o) or 0) for o in ("ton_cu", "ton_d2", "ton_d1")), 2)
+	nhan = []
+
+	def dem(ngay, theo_doi=None):
+		# Đúng luật của _dem_don_khac thật: mã ngoài bánh ổ chỉ được đếm khi nằm trong tập đang theo dõi.
+		nhan.append(set(theo_doi or ()))
+		return ({PT: 2} if PT in (theo_doi or ()) else {}), {}
+	cu = kiem_banh._dem_don_khac
+	kiem_banh._dem_don_khac = dem
+	try:
+		with cua, _voi_giu({}):
+			kiem_banh.cap_nhat_don_khac("2026-11-14")
+	finally:
+		kiem_banh._dem_don_khac = cu
+	d = hom.dong[0]
+	dung("lượt đếm sau khoá nhận tập mã của bảng", PT in nhan[-1])
+	la("bán sau chốt ghi 1", d.sau_chot_khac, 1)
+	la("Bán được còn 1", d.co_the_ban, 1)
+	la("tồn hôm sau còn 1", sum(int(mai.dong[0].get(o) or 0) for o in ("ton_cu", "ton_d2", "ton_d1")), 1)
+	la("tập mã viết hoa, bỏ dòng trống", kiem_banh.ma_dang_theo_doi(Doi({"dong": [Doi({"ma_hang": "banu1"}), Doi({"ma_hang": ""})]})), {"BANU1"})
+	nguon = inspect.getsource(kiem_banh)
+	la("không còn chỗ tự dựng tập mã", nguon.count('{str(d.ma_hang or "").upper() for d in doc.dong if d.ma_hang}'), 1)
