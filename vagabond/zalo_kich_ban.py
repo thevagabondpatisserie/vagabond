@@ -480,28 +480,36 @@ def du_lieu_mau(gia_tri, tham_so):
 def mo_ta_muc_giam(km):
 	"""Một dòng nói mức giảm của chương trình cho màn Tin Zalo tự động. THUẦN.
 
-	"Giảm 10%, tối đa 70.000đ, hoá đơn từ 300.000đ". Đọc thẳng số của chương
-	trình khuyến mãi (một nguồn với màn Khuyến mãi), không đọc chữ người điền
-	trên tin. Không có chương trình hay chương trình không khai giá trị thì "".
+	"Giảm 10%, tối đa 70.000đ, hoá đơn từ 300.000đ". Codex #571: câu mức giảm
+	lấy từ ĐÚNG hàm của màn Khuyến mãi và thẻ ưu đãi trên web
+	(khuyen_mai.mo_ta_muc_giam), không tự viết lại: trần giảm áp cho cả giảm số
+	tiền, đồng giá, luỹ kế đều do một chỗ nói. Ở đây chỉ nối thêm điều kiện
+	hoá đơn tối thiểu, số món tối thiểu. Không có chương trình hay chương trình
+	không khai giá trị thì "".
 	"""
-	km = km or {}
+	from vagabond import khuyen_mai
+
+	if not km:
+		return ""
 
 	def so(k):
 		try:
 			return float(km.get(k) or 0)
 		except (TypeError, ValueError):
 			return 0
-	gt = so("gia_tri")
-	if gt <= 0:
+	cach = km.get("cach_thuc") or "Giam tong hoa don"
+	if cach == khuyen_mai.CACH_NHAN_DIEM:
 		return ""
-	if km.get("kieu_giam") == "Phan tram":
-		ra = "Giảm %s%%" % (int(gt) if gt == int(gt) else gt)
-		if so("giam_toi_da") > 0:
-			ra += ", tối đa " + tien_vn(so("giam_toi_da"))
-	else:
-		ra = "Giảm " + tien_vn(gt)
+	if cach == "Dong gia":
+		if so("gia_dong") <= 0:
+			return ""
+	elif cach != "Giam luy ke" and so("gia_tri") <= 0:
+		return ""
+	ra = khuyen_mai.mo_ta_muc_giam(km)
 	if so("hd_toi_thieu") > 0:
 		ra += ", hoá đơn từ " + tien_vn(so("hd_toi_thieu"))
+	if so("sl_toi_thieu") > 0:
+		ra += ", đơn từ %d món" % int(so("sl_toi_thieu"))
 	return ra
 
 
@@ -1273,7 +1281,8 @@ def _gia_tri_sau_mua(row, kh):
 	}, ""
 
 
-COT_CTKM = ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "giam_toi_da", "hd_toi_thieu", "tu_ngay", "den_ngay", "han_ma",
+COT_CTKM = ["name", "ten", "cach_ma", "bat", "cach_thuc", "kieu_giam", "gia_tri", "gia_dong", "giam_toi_da", "hd_toi_thieu", "sl_toi_thieu",
+	"tu_ngay", "den_ngay", "han_ma",
 	"doi_tuong", "hang_khach", "nhom_khach", "vi_phat", "vi_dip", "vi_so_lan", "vi_han_ngay"]
 
 
