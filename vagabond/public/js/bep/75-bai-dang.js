@@ -494,7 +494,10 @@ function bdLuuNgay(veLai) {
   clearTimeout(BD.cho);
   var ma = BD.thayMa || (BD.bai && BD.bai.name);
   var thay = BD.thay; BD.thay = {};
-  if ((!thay || !Object.keys(thay).length) && !veLai) return BD.chuoi;
+  /* Không có gì chờ lưu: chỉ đợi các lượt đang chạy xong. Kết quả hỏng của lượt trước
+     (có thể của bài khác đã bỏ thay đổi) không thuộc về lần gọi này; nếu lượt hỏng là
+     của chính bài đang mở thì phần sửa đã được trả lại BD.thay và bdLuuChac thấy ngay. */
+  if ((!thay || !Object.keys(thay).length) && !veLai) return BD.chuoi.then(function () { return true; }, function () { return true; });
   BD.chuoi = BD.chuoi.then(function () { return true; }, function () { return true; }).then(async function () {
     if (!ma) return true;
     var dl;
