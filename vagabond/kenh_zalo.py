@@ -177,6 +177,9 @@ TIN = {
 	# v638 (anh Việt 04/11/2026): khách gọi món tại bàn qua QR (goi_mon_ban.py).
 	"bh_goi_mon_tai_ban": ("Bán hàng, cửa hàng", "Khách gọi món tại bàn qua QR",
 		"Khách quét QR trên bàn và gọi món; quầy nhận đơn trên màn Tính tiền trong 10 phút.", "viec", "ban_hang"),
+	# v662 (anh Việt 15/11/2026): đơn đặt qua tab Tại quầy trên trang chủ, khách đã trả trước.
+	"bh_weborder_moi": ("Bán hàng, cửa hàng", "Đơn giao của quầy đã trả tiền, chờ xác nhận",
+		"Khách đặt qua tab Tại quầy trên web và đã trả online; quầy xác nhận ở màn Đơn giao của quầy.", "viec", "ban_hang"),
 	# v639 (anh Việt duyệt mẫu 05/11/2026): khách bấm chuông Gọi nhân viên trên trang bàn.
 	"bh_khach_can_tro_giup": ("Bán hàng, cửa hàng", "Khách cần trợ giúp tại bàn",
 		"Khách bấm chuông trên trang bàn: gọi nhân viên, xin tính tiền, xin nước đá; quầy tới bàn rồi bấm Đã tới bàn.", "viec", "ban_hang"),
@@ -349,6 +352,8 @@ DIEU_KIEN = {
 	"ung_vien_moi": "vagabond.tuyen_dung.con_moi_nhan",
 	# v638: đơn gọi món tại bàn đã có quầy nhận, từ chối hay hết hạn thì thôi.
 	"goi_mon_cho": "vagabond.goi_mon_ban.con_cho_nhan",
+	# v662: đơn giao của quầy đã có người xác nhận hay từ chối thì thôi.
+	"weborder_cho": "vagabond.don_quay.con_cho_xac_nhan",
 	# v639: lời gọi nhân viên đã có người tới bàn hay quá 30 phút thì thôi.
 	"tro_giup_cho": "vagabond.goi_mon_ban.con_tro_giup",
 	# v641: thư đối soát về muộn trong giờ im thì không nhắc nữa.

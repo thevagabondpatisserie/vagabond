@@ -836,11 +836,11 @@ def con_tren_quay_web():
 		# chung), cùng phép cửa gọi món tại bàn dùng để tính tiền.
 		gia_diem = diem_ban.gia_rieng(d["ma"]) if cac_banh else {}
 		# v652: ảnh, mô tả bánh sửa riêng ở Biên tập menu (bản đã xuất bản) đứng trước danh mục món.
+		from vagabond import bien_tap_menu
+
 		menu_diem = None
 		if cac_banh:
 			try:
-				from vagabond import bien_tap_menu
-
 				menu_diem = bien_tap_menu.menu_dang_chay(d["ma"])[0]
 			except Exception:
 				frappe.log_error(frappe.get_traceback(), "kiem_kho: doc menu banh rieng loi")
@@ -864,6 +864,9 @@ def con_tren_quay_web():
 				"con": x["con"],
 				"nhom": x["nhom"],
 				"mo_ta": mo_ta,
+				# v662: bán Tại bàn (QR) và bán Giao (WEBORDER) theo tick ở Biên tập menu.
+				"tai_ban": 1 if bien_tap_menu.ban_o_kenh(menu_diem, x["ma"], bien_tap_menu.KENH_TAI_BAN) else 0,
+				"giao": 1 if bien_tap_menu.ban_o_kenh(menu_diem, x["ma"], bien_tap_menu.KENH_GIAO) else 0,
 			})
 		# v638 (anh Việt 04/11/2026): đồ uống đang bật bán web của quầy, chỉ
 		# trong khoá RIÊNG `do_uong` để tab khác (trang cũ, editor) đọc `mon`
@@ -875,11 +878,14 @@ def con_tren_quay_web():
 			# chạy của điểm (Bán hàng > Biên tập menu), cùng nguồn cửa gọi món.
 			ds_uong = goi_mon_ban.do_uong_cua_diem(d["ma"], ngay)
 			ds_tp = goi_mon_ban.topping_cua_diem(d["ma"])
-			nhom_menu, uong = bien_tap_menu.ap_menu(bien_tap_menu.menu_hien_hanh(d["ma"], ds_uong, ds_tp), ds_uong)
+			menu_uong = bien_tap_menu.menu_hien_hanh(d["ma"], ds_uong, ds_tp)
+			nhom_menu, uong = bien_tap_menu.ap_menu(menu_uong, ds_uong, bien_tap_menu.KENH_MOI)
 			for x in uong:
 				if not x["ban_web"]:
 					continue
 				q["do_uong"].append({
+					"tai_ban": 1 if bien_tap_menu.ban_o_kenh(menu_uong, x["ma"], bien_tap_menu.KENH_TAI_BAN) else 0,
+					"giao": 1 if bien_tap_menu.ban_o_kenh(menu_uong, x["ma"], bien_tap_menu.KENH_GIAO) else 0,
 					"ma": x["ma"], "ten": x["ten"], "gia": x["gia"], "anh": chon_anh(x["anh"], [], ma_hang=x["ma"])[0],
 					"nhom": goi_mon_ban.NHAN_DO_UONG, "tc": x["tc"], "tp": x["tp"], "nhom_hien": x["nhom_hien"],
 					# v639: nhóm gốc, mô tả, cờ đóng sẵn.

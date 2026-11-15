@@ -87,7 +87,7 @@ TRUONG_MOI = {
 
 F_DOC = ["name", "trang_thai", "thanh_toan", "tien_banh", "trang_thai_phi", "snapshot", "creation",
 	"pancake_id", "pancake_display_id", "vgb_tt_trang_thai", "vgb_tt_da_thu", "vgb_tt_cach",
-	"vgb_tt_ma_gd", "vgb_tt_pancake", "vgb_tt_bao_luc", O_NK]
+	"vgb_tt_ma_gd", "vgb_tt_pancake", "vgb_tt_bao_luc", O_NK, "vgb_kenh"]
 
 
 def _snap(d):
@@ -304,6 +304,13 @@ def sau_thu(ten):
 	try:
 		d = _doc(ten)
 		if not d or d.vgb_tt_trang_thai != ttt.TT_DA_THU or d.vgb_tt_bao_luc:
+			return
+		if (d.get("vgb_kenh") or "") == "WEBORDER":
+			# v662: đơn giao của quầy không có Pancake, không báo Sales: đơn vào quầy.
+			from vagabond import don_quay
+
+			don_quay.sau_thu(ten)
+			frappe.db.commit()
 			return
 		kq = ghi_pancake(d)
 		tien = ttt.tien_ban_ghi(d, _snap(d))

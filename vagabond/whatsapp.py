@@ -152,6 +152,27 @@ def so_xin_ngung(goi):
 	return ra
 
 
+def so_gui_thu(v):
+	"""Số nhận tin thử của nút Gửi thử WhatsApp. THUẦN.
+
+	Số Việt Nam gõ kiểu nào cũng nhận (0901 486 556, +84 901 486 556,
+	84901486556, 901486556) và trả 84xxxxxxxxx. Số nước ngoài phải có dấu +
+	đầu, 8 tới 15 chữ số, trả nguyên chữ số. Sai dạng trả chuỗi rỗng."""
+	s = str(v or "").strip()
+	x = chi_so(s)
+	if not x:
+		return ""
+	if s.startswith("+") and not x.startswith("84"):
+		return x if 8 <= len(x) <= 15 else ""
+	if x.startswith("84") and len(x) == 11:
+		return x
+	if x.startswith("0") and len(x) == 10:
+		return "84" + x[1:]
+	if len(x) == 9 and not x.startswith("0"):
+		return "84" + x
+	return ""
+
+
 def chu_trang_thai(j):
 	"""Trạng thái số từ GET /{phone_id}: nhãn người đọc và màu chip. THUẦN."""
 	st = str((j or {}).get("status") or "").upper()
@@ -260,6 +281,30 @@ def kich_hoat():
 		frappe.log_error(title="Vagabond: kich hoat so WhatsApp", message=json.dumps(j)[:1000])
 		frappe.throw("Meta chưa nhận kích hoạt: %s. Kiểm lại PIN hai bước rồi bấm lại." % ((j.get("error") or {}).get("message") or "lỗi không rõ"))
 	return trang_thai()
+
+
+@frappe.whitelist(methods=["POST"])
+def gui_thu(so=None):
+	"""Nút "Gửi thử WhatsApp" (anh Việt 15/11/2026): gửi THẲNG qua WhatsApp một
+	mã thử 6 số theo mẫu Xác thực tới số quản trị gõ vào, KHÔNG đi Zalo trước.
+	Mã xác thực thật luôn đi Zalo trước (kenh_khach.gui_otp), nên số có Zalo
+	không bao giờ thử được đường WhatsApp nếu không có nút này. Mã thử không
+	đăng nhập được gì. Chỉ quản trị hệ thống."""
+	import secrets
+
+	_chi_quan_tri()
+	s = so_gui_thu(so)
+	if not s:
+		frappe.throw("Số nhận chưa đúng. Gõ số Việt Nam (ví dụ 0901 486 556) hoặc số nước ngoài có dấu + ở đầu.")
+	c = _cfg()
+	h = cau_hinh(c)
+	if not h["mau_otp"]:
+		frappe.throw("Chưa khai tên mẫu WhatsApp gửi mã xác thực. Điền vgb_otp_dang_nhap, bấm Lưu, rồi bấm lại.")
+	ma = "".join(secrets.choice("0123456789") for _ in range(6))
+	ok, loi = gui_mau(c, s, h["mau_otp"], None, h["ngon_ngu"], components=comp_otp(ma))
+	if not ok:
+		frappe.throw("WhatsApp chưa gửi được: %s" % loi)
+	return {"ok": 1, "so": "+" + s, "ma": ma}
 
 
 @frappe.whitelist(methods=["POST"])
