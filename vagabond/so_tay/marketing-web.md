@@ -165,11 +165,11 @@ Từ khoá: bài đăng, mạng xã hội, Facebook, Instagram, Threads, Zalo OA
 Soạn, duyệt, theo dõi bài trên bốn kênh. Ảnh do designer làm; AI chỉ soạn chữ.
 
 **Các bước**
-1. Mở Bài đăng mạng xã hội. Bấm [[＋ Bài mới]], hoặc chạm một khung Giờ vàng trống trên lịch tuần.
-2. Bấm [[Tải ảnh designer lên]], chọn một hay nhiều ảnh. Chạm ảnh để đổi thứ tự hoặc bỏ ảnh.
+1. Mở Bài đăng mạng xã hội. Bấm [[＋ Bài mới]], hoặc chạm một khung Giờ vàng trống.
+2. Bấm [[Tải ảnh designer lên]], chọn một hay nhiều ảnh. Chạm ảnh để đổi thứ tự, bỏ ảnh.
 3. Chạm dòng Kiểu bài (Bài đăng hay Story), Lúc đăng (chọn ô giờ), Kênh (bật tắt từng kênh).
-4. Ghi vài dòng ý chính (món, dịp, có ưu đãi không), bấm nút AI soạn chữ.
-5. Vuốt ngang xem từng kênh, sửa chữ ngay trên bài. Bài tự lưu.
+4. Ghi vài dòng ý chính (món, dịp, ưu đãi), bấm nút AI soạn chữ.
+5. Vuốt ngang xem từng kênh, sửa chữ ngay trên bài, bài tự lưu.
 6. Đọc bảng Kiểm trước khi duyệt, sửa dòng đỏ, rồi bấm nút Duyệt ở đáy màn.
 
 **Vì sao bị chặn**
@@ -179,11 +179,13 @@ Soạn, duyệt, theo dõi bài trên bốn kênh. Ảnh do designer làm; AI ch
 | Instagram nhận tối đa 10 ảnh một bài | Bớt ảnh hoặc tắt Instagram |
 | Giờ hẹn đã qua | Chọn giờ mới hoặc Ngay khi duyệt |
 | Zalo OA chưa có tiêu đề bài viết | Gõ tiêu đề ở thẻ Zalo OA |
+| Facebook đã có bài đúng lúc 07:30 | Đổi giờ hoặc tắt kênh đó |
+| Phần vừa sửa chưa lưu được | Kiểm mạng rồi bấm lại |
 
 **Lưu ý**
-- Ô đỏ khi chọn giờ: kênh đó đã có bài trong 2 giờ, đăng sát nhau dễ làm bài trước bị chìm.
-- Facebook tự xếp lưới nhiều ảnh theo ảnh số 1; lưới trên màn chỉ là dự kiến.
-- Story không có chữ kèm và không có sticker khi tự đăng; cần sticker thì đăng tay trong app.
+- Ô đỏ khi chọn giờ: kênh đó có bài trong 2 giờ. Ô mờ: đã có bài đúng giờ, không chọn được.
+- Facebook xếp lưới theo ảnh số 1; lưới trên màn chỉ là dự kiến.
+- Story không có chữ kèm, không có sticker; cần sticker thì đăng tay.
 - Người không có quyền duyệt bấm [[Gửi Marketing duyệt]].
 
 ## Đăng tay bài đã duyệt và ghi Đã đăng
@@ -198,7 +200,8 @@ Từ khoá: đăng tay, chép và mở app, đã đăng, chờ đăng tay, đế
 **Các bước**
 1. Mở bài có chữ Chờ đăng tay (trên lịch, hoặc chạm dòng "kênh chờ đăng tay" đầu màn).
 2. Ở từng kênh, bấm [[📋 Chép và mở app]]: máy chép chữ, đưa ảnh đúng khung kênh sang app hoặc lưu về máy.
-3. Đăng xong trong app, quay lại bấm [[Đã đăng]] của kênh đó.
+3. Đăng xong trong app, quay lại bấm [[Đã đăng]] của kênh đó. Dán link bài vào ô trong hộp (không bắt buộc) để sau này bấm Xem bài mở lại.
+4. Quên dán link: kênh đã đăng có nút [[Thêm link]], bấm rồi dán link.
 
 **Lưu ý**
 - Chỉ bấm Đã đăng khi bài đã hiện trên kênh. Đủ kênh thì bài chuyển Đã đăng.
