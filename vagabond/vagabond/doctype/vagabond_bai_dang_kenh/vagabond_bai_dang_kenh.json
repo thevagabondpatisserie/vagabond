@@ -1,0 +1,72 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Bai Dang Kenh",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "creation": "2026-11-15 22:00:00.000000",
+ "modified": "2026-11-15 22:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "istable": 1,
+ "editable_grid": 0,
+ "permissions": [],
+ "field_order": [
+  "ma_kenh",
+  "trang_thai",
+  "tieu_de",
+  "chu",
+  "ai_soan",
+  "dang_luc",
+  "link"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_kenh",
+   "fieldtype": "Select",
+   "label": "Kênh",
+   "options": "fb\nig\nth\nzl",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Chưa đăng\nĐã hẹn giờ\nChờ đăng tay\nĐã đăng",
+   "default": "Chưa đăng",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "tieu_de",
+   "fieldtype": "Data",
+   "label": "Tiêu đề (Zalo OA)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chu",
+   "fieldtype": "Long Text",
+   "label": "Chữ đăng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_soan",
+   "fieldtype": "Check",
+   "label": "AI soạn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dang_luc",
+   "fieldtype": "Datetime",
+   "label": "Đăng lúc",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "link",
+   "fieldtype": "Data",
+   "label": "Đường dẫn bài",
+   "read_only": 1
+  }
+ ]
+}
