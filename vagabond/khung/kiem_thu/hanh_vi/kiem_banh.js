@@ -85,9 +85,9 @@ function dungMan(canh) {
   var hen = [];          // cac loi hen dang treo, ca kiem tu tha
   var nhip = [];         // cac setInterval bi chan lai
 
-  function traLoi(ten) {
+  function traLoi(ten, ts) {
     if (ten === 'kiem_banh.bang' || ten === 'kiem_banh.dong_bo') {
-      return { ok: 1, than: canh.bang() };
+      return { ok: 1, than: canh.bang(ts) };
     }
     if (ten === 'kiem_banh.quyen_btp') return { ok: 1, than: { sua: false } };
     /* v660: ca refill nhiều đợt cần bảng BTP và quyền bếp thật của trang. */
@@ -115,7 +115,7 @@ function dungMan(canh) {
       goi.push(ban);
       var giu = canh.giu && canh.giu(ten);
       if (giu) { hen.push(giu); ban.hen = giu; return giu.p; }
-      var kq = traLoi(ten);
+      var kq = traLoi(ten, ts);
       return Promise.resolve({
         ok: true, status: 200,
         json: function () { return Promise.resolve({ message: kq.than }); },
@@ -547,6 +547,64 @@ ca('v660 refill nhieu dot: o Refill va Con nhan refill ghi tung dot; bam mo danh
   await choToi('goi luu dot moi', function () { return m.goi.some(function (g2, i) { return i >= truoc && g2.ten === 'btp.luu_refill'; }); });
   g = m.goi.filter(function (x, i) { return i >= truoc && x.ten === 'btp.luu_refill'; })[0];
   bang('them dot: ma dot trong', [g.ts.dot, g.ts.so_refill, g.ts.refill_tu, g.ts.refill_den].join('|'), '|10|2026-11-28|2026-12-04');
+});
+
+ca('v660 Codex #569 bang ngay da qua chi xem, ke ca bang QUEN CHOT va tai khoan bep: khong con o nao bam sua duoc, khong mo duoc o Huy, khong mo duoc tam Refill, khong nut xoa dong, cong tac ban web thanh chu; ve hom nay thi sua lai duoc', async function () {
+  var hn = isoLui(0);
+  function bangNgay(ts) {
+    var d = dong({ ton_d1: 2 }); d.xoa_duoc = 1;
+    var b = bangCua([d]);            /* Dang ban: bảng quên chốt */
+    b.ngay = (ts && ts.ngay) || hn;
+    return b;
+  }
+  var m = await moMan({ bang: bangNgay, bep: true, btp: btpHaiDot });
+  await choToi('hom nay: o Refill bam duoc', function () { return m.tai.querySelectorAll('[data-refill]').length === 1; });
+  dung('hom nay co o sua duoc', m.tai.querySelectorAll('.kb-o.sua').length > 0);
+  dung('hom nay co nut xoa va cong tac web', m.tai.querySelectorAll('[data-xoa]').length === 1 && m.tai.querySelectorAll('[data-web]').length === 1);
+  m.tai.querySelectorAll('[data-ngay]')[0].click();
+  await choToi('bang hom qua ve xong', function () { return m.tai.querySelectorAll('[data-webxem]').length === 1; });
+  bang('khong o nao con lop sua', m.tai.querySelectorAll('.kb-o.sua').length, 0);
+  bang('khong o Refill bam duoc', m.tai.querySelectorAll('[data-refill]').length, 0);
+  bang('khong nut xoa dong', m.tai.querySelectorAll('[data-xoa]').length, 0);
+  bang('khong cong tac ban web', m.tai.querySelectorAll('[data-web]').length, 0);
+  var truoc = m.goi.length;
+  oTheo(m, 'BAWC00055|huy').click();
+  dung('bam o Huy khong mo o nhap', !m.tai.getElementById('kb-inp'));
+  m.tai.querySelectorAll('.kb-rf')[0].click();
+  dung('bam o Refill khong mo tam', !m.tai.getElementById('kb-rf-lop'));
+  dung('khong goi cua ghi nao', m.goi.slice(truoc).every(function (g) { return ['kiem_banh.luu_o', 'btp.luu_refill', 'kiem_banh.xoa_dong', 'kiem_banh.tat_ban_web_dat'].indexOf(g.ten) < 0; }));
+  m.tai.querySelectorAll('[data-ngay]')[1].click();
+  await choToi('ve hom nay sua lai duoc', function () { return m.tai.querySelectorAll('.kb-o.sua').length > 0 && m.tai.querySelectorAll('[data-refill]').length === 1; });
+});
+
+ca('v660 Codex #569 nhieu dot thi phan chi doc thu gon: o Refill va Con nhan refill chi ghi 2 dot dau kem "va N dot nua"; tam nhap dat danh sach dot khac va loi giai thich DUOI o nhap va nut, co so dem', async function () {
+  function btpNamDot() {
+    var b = btpHaiDot(), ds = [];
+    for (var i = 0; i < 5; i++) ds.push({ id: 'd' + i, so: 10 + i, tu: '2026-12-0' + (i + 1), den: '2026-12-0' + (i + 1), da_dat: 1, con: 9 + i, mo_ta: 'x' });
+    b.dong[0].refill = ds;
+    b.dot_xong = [];
+    b.lich_refill = [];
+    for (var j = 0; j < 7; j++) b.lich_refill.push({ ma_hang: 'BAWC00055', ten: 'Bánh thử', so: 10, tu: '2026-12-1' + j, den: '2026-12-1' + j, con: 5 });
+    return b;
+  }
+  var m = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 2 })]); }, bep: true, btp: btpNamDot });
+  await choToi('o Refill co 5 dot', function () { var o = m.tai.querySelector('[data-refill]'); return o && o.textContent.indexOf('5 đợt') >= 0; });
+  var o = m.tai.querySelector('[data-refill]').textContent;
+  dung('o Refill: 2 dot dau roi va 3 dot nua', o.indexOf('10 (01/12 tới 01/12), 11 (02/12 tới 02/12), và 3 đợt nữa') >= 0 && o.indexOf('03/12') < 0);
+  var con = m.tai.querySelectorAll('.kb-nh2').filter(function (e) { return e.querySelector('label').textContent === 'Còn nhận refill'; })[0].textContent;
+  dung('Con nhan refill: 2 dot dau roi va 3 dot nua', con.indexOf('đợt 01/12: còn 9 · đợt 02/12: còn 10 · và 3 đợt nữa') >= 0 && con.indexOf('03/12') < 0);
+  var lich = m.tai.getElementById('kb-refill');
+  bang('lich sap toi: 5 dong dau hien, 2 dong sau gap lai', [lich.querySelectorAll('.kb-rf-dong').length, m.tai.getElementById('kb-rf-them-lich').querySelectorAll('.kb-rf-dong').length].join('|'), '7|2');
+  dung('nut gap ghi so dem', m.tai.getElementById('kb-rf-them-lich').querySelector('summary').textContent === 'Xem thêm 2 đợt');
+  m.tai.querySelector('[data-refill]').click();
+  bang('tam quan ly van liet ke du 5 dot de sua', m.tai.querySelectorAll('[data-suadot]').length, 5);
+  m.tai.getElementById('kb-rf-them').click();
+  var html = m.tai.getElementById('kb-rf-lop').innerHTML;
+  var khac = m.tai.getElementById('kb-rf-khac').textContent;
+  dung('danh sach dot khac co so dem va thu gon', khac.indexOf('Đợt đang có (5)') === 0 && khac.indexOf('và 3 đợt nữa') > 0 && khac.indexOf('03/12') < 0);
+  dung('danh sach dot khac nam DUOI nut Luu', html.indexOf('id="kb-rf-khac"') > html.indexOf('id="kb-rf-luu"'));
+  dung('loi giai thich me lon nam DUOI nut Luu', html.indexOf('Mẻ lớn làm sẵn') > html.indexOf('id="kb-rf-luu"'));
+  dung('o nhap so dung ngay sau tieu de', html.indexOf('id="kb-rf-so"') < html.indexOf('id="kb-rf-luu"') && html.indexOf('kb-rf-giai') > html.indexOf('SỐ BÁNH REFILL'));
 });
 
 /* ---------- chay ---------- */
