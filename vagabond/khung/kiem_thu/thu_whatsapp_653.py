@@ -335,3 +335,51 @@ def _kich_hoat():
 		la("gọi register với PIN đọc trong máy chủ", g.goi[0][:3], ("POST", "1504016899452995/register", {"messaging_product": "whatsapp", "pin": "123456"}))
 		with um.patch.object(wa, "key", lambda c, k: "12" if k == "wa_pin" else _key(c, k)), um.patch.object(wa, "_goi", g):
 			nem("PIN thiếu số", wa.kich_hoat)
+
+
+@ca("v660 THUẦN số nhận tin thử: số Việt Nam gõ kiểu nào cũng ra 84xxxxxxxxx; số nước ngoài phải có dấu +; sai dạng thì rỗng")
+def _so_gui_thu():
+	for v in ("0901486556", "0901 486 556", "+84 901 486 556", "84901486556", "901486556", "+84-901.486.556"):
+		la("số VN %s" % v, wa.so_gui_thu(v), "84901486556")
+	la("số Mỹ có +", wa.so_gui_thu("+1 415 555 0100"), "14155550100")
+	for v in ("", "abc", "12345", "0901 486", "090148655611", "14155550100", "+1234567"):
+		la("sai dạng %r" % v, wa.so_gui_thu(v), "")
+
+
+@ca("v660 Gửi thử WhatsApp: chỉ quản trị; gửi THẲNG WhatsApp (không gọi Zalo) đúng mẫu Xác thực có nút Sao chép mã, tới đúng số; Meta từ chối thì báo câu dễ hiểu")
+def _gui_thu():
+	g = Graph()
+	with um.patch.object(fr, "get_roles", lambda *a: ["Sales User"]):
+		nem("vai khác bị chặn", lambda: _chay(g, lambda: wa.gui_thu("0901486556")))
+	la("vai khác không gửi gì", g.goi, [])
+	zns = []
+	with um.patch.object(fr, "get_roles", lambda *a: ["System Manager"]), um.patch.object(wa, "_cfg", lambda: dict(CFG)), \
+			um.patch.object(kk, "gui_otp", lambda *a, **k: zns.append(a)):
+		r = _chay(g, lambda: wa.gui_thu("0901 486 556"))
+		la("gửi một tin", len(g.goi), 1)
+		pt, duong, than = g.goi[0]
+		la("đúng đường gửi", (pt, duong), ("POST", "1504016899452995/messages"))
+		la("đúng số, đúng mẫu", (than["to"], than["template"]["name"]), ("84901486556", "vgb_otp_dang_nhap"))
+		comps = than["template"]["components"]
+		la("nút Sao chép mã mang đúng mã thử", comps[1]["parameters"][0]["text"], r["ma"])
+		la("thân mang đúng mã thử", comps[0]["parameters"][0]["text"], r["ma"])
+		dung("mã thử 6 số", len(r["ma"]) == 6 and r["ma"].isdigit())
+		la("trả số đã gửi", r["so"], "+84901486556")
+		la("không đi Zalo", zns, [])
+		g.goi.clear()
+		nem("số sai dạng", lambda: _chay(g, lambda: wa.gui_thu("12345")))
+		la("số sai không gửi", g.goi, [])
+		hong = Graph(tra=(400, {"error": {"message": "Recipient phone number not in allowed list"}}))
+		try:
+			_chay(hong, lambda: wa.gui_thu("+84901486556"))
+			dung("Meta từ chối phải báo", False)
+		except Exception as e:
+			dung("báo lý do Meta", "WhatsApp chưa gửi được" in str(e) and "allowed list" in str(e))
+
+
+@ca("v660 nút Gửi thử WhatsApp trên app chạy thật (hanh_vi/wa_gui_thu_660.js): gõ số, bấm, gọi máy chủ đúng số; chưa gõ số thì không gọi; lỗi Meta hiện đúng câu")
+def _gui_thu_app():
+	import subprocess
+	r = subprocess.run(["node", os.path.join(os.path.dirname(os.path.abspath(__file__)), "hanh_vi", "wa_gui_thu_660.js")],
+		capture_output=True, text=True)
+	dung("bộ hành vi đạt hết:\n" + r.stdout[-1500:] + r.stderr[-500:], r.returncode == 0 and " 0 ca hong" in r.stdout)
