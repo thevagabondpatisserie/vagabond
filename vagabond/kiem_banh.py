@@ -576,6 +576,11 @@ def dong_bo(ngay=None):
 	return _dong_bo_thu_lai(ngay)
 
 
+def ma_dang_theo_doi(doc):
+	"""Tập mã (viết hoa) đang có dòng trên bảng. Một nguồn cho mọi phép đếm."""
+	return {str(d.ma_hang or "").upper() for d in doc.dong if d.ma_hang}
+
+
 def ngay_da_qua(ngay, hom_nay):
 	"""Ngày của bảng đứng trước hôm nay. THUẦN."""
 	return bool(ngay) and getdate(ngay) < getdate(hom_nay)
@@ -675,7 +680,7 @@ def _dong_bo_mot_lan(ngay=None):
 	from vagabond import giu_ton_web
 	giu_ton_web.khoa()
 	doc = _lay_hoac_tao(ngay)
-	dang_theo_doi = {str(d.ma_hang or "").upper() for d in doc.dong if d.ma_hang}
+	dang_theo_doi = ma_dang_theo_doi(doc)
 
 	dem_dd, ten1, hinh1, _k1 = _dem_banh(dd_don, dang_theo_doi)
 	dem_ps, ten2, hinh2, khach_ps = _dem_banh(ps_don, dang_theo_doi)
@@ -928,9 +933,7 @@ def _ghi_don_khac(doc, ngay):
 	"""
 	if doc.tinh_trang == "Da chot":
 		return {}
-	dem, mo_ta = _dem_don_khac(
-		ngay, {str(d.ma_hang or "").upper() for d in doc.dong if d.ma_hang}
-	)
+	dem, mo_ta = _dem_don_khac(ngay, ma_dang_theo_doi(doc))
 	co = {d.ma_hang: d for d in doc.dong}
 	_them_dong_thieu(doc, co, [ma for ma in dem if ma not in co])
 	for ma, d in co.items():
@@ -959,8 +962,11 @@ def cap_nhat_don_khac(ngay=None):
 		# Hai bill bấm cùng lúc: giữ khoá bảng ngày đó TRƯỚC rồi mới đếm và đọc
 		# lại bảng, để lượt sau thấy bill của lượt trước (sổ mẫu lỗi loại 1).
 		frappe.db.sql("select name from `tabKiem Banh Ngay` where name = %s for update", (ma,))
-		dem, _ = _dem_don_khac(ngay)
 		doc = frappe.get_doc("Kiem Banh Ngay", ma)
+		# Codex #569 vòng 2: đếm theo ĐÚNG tập mã bảng đang theo dõi (một nguồn với
+		# nhịp Pancake và _ghi_don_khac), không thì mã bếp thêm tay như Patechaud
+		# bị bỏ khỏi phép đếm và số bán sau chốt nhịp nền vừa ghi bị xoá.
+		dem, _ = _dem_don_khac(ngay, ma_dang_theo_doi(doc))
 		doi = _luu_sau_chot(doc, None, dem)
 		frappe.db.commit()
 		return {"ok": 1, "da_chot": 1, "sau_chot": doi}
