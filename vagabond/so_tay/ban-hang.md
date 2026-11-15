@@ -1514,8 +1514,8 @@ Từ khoá: đơn giao, weborder, giao tận nơi, tự lấy, gọi xe GreenSM,
 Khách đặt qua tab Tại quầy trên trang chủ, chọn Giao tận nơi hoặc Tự lấy tại quầy và trả trước bằng chuyển khoản hay thẻ. Tiền về thì đơn hiện ở dải trên cùng mọi màn ("N đơn giao đã trả tiền chờ xác nhận") và tin Zalo nhóm cửa hàng. Đơn này không nằm trong màn Vận đơn của Sales.
 
 **Các bước**
-1. Bấm dải trên cùng hoặc mở Bán hàng, Đơn giao của quầy.
-2. Bấm [[Xác nhận]], chọn hẹn 10, 15 hay 20 phút. Máy lập phiếu tạm tính ở quầy (món, phí giao, phần giảm).
+1. Bấm dải trên cùng hoặc mở Bán hàng, Đơn giao của quầy. Bấm số trên thẻ đầu màn hay chip để lọc theo trạng thái, cách nhận, 24 giờ hoặc 7 ngày. Khách hỏi đơn thì gõ mã, tên, số điện thoại vào ô tìm.
+2. Bấm [[Xác nhận]], chọn hẹn 10, 15 hay 20 phút. Máy lập phiếu tạm tính đúng giá khách đã trả; tổng lệch thì máy dừng, báo quản lý.
 3. Hết món hay quầy quá đông thì bấm [[Từ chối]] và chọn lý do. Khách đã trả thì kế toán nhận tin hoàn tiền.
 4. Đóng gói xong, đơn giao tận nơi bấm [[Gọi xe GreenSM]], xem cước rồi bấm [[Gọi xe]]. Thẻ đơn hiện link theo dõi tài xế.
 5. Khách nhận rồi bấm [[Đã giao xong]]. Chốt phiếu tạm tính bằng đúng cách khách đã trả trên web (Chuyển khoản hoặc OnePay).
@@ -1523,6 +1523,7 @@ Khách đặt qua tab Tại quầy trên trang chủ, chọn Giao tận nơi ho�
 **Lưu ý**
 - Tài xế GreenSM huỷ chuyến thì máy CHƯA tự báo (GreenSM chưa có tài liệu báo trạng thái). Xem app GreenSM và gọi lại nếu cần.
 - Món chỉ lên đơn giao khi quản lý đã tick Giao ở Biên tập menu.
+- Từ chối thì mã ưu đãi của đơn trả lại cho khách.
 
 ## Tick bán Tại bàn và Giao ở Biên tập menu
 Từ khoá: tại bàn, giao, O2O, weborder, bánh mong manh, tick cả nhóm, ẩn món trên web
