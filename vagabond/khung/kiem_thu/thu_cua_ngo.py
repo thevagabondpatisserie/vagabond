@@ -40,6 +40,7 @@ CUA_NGO = {
 	# #367: don dat banh tu website. tao_don va cau_hinh_web mo cho khach
 	# vang lai; cac ham con lai cua don_web la noi bo (hook, nhip, hang doi).
 	"don_hang.py": ["tao_don", "xem_uu_dai"],
+	"don_quay.py": ["danh_sach", "goi_xe", "gsm_bao_gia", "tao_don", "tu_choi", "xac_nhan", "xem_gia", "xong"],
 	"don_web.py": ["cau_hinh_web"],
 	# v586: trình biên tập theo thẻ (lưu từng mục, khách thấy ngay) và đăng ký tiệc.
 	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap",
@@ -523,7 +524,7 @@ CUA_NGO = {
 	# v653: WhatsApp đường phụ cho mã xác thực và ưu đãi.
 	# v653: hộp thư hoá đơn nhà cung cấp hoadon@.
 	"hoa_don_thu.py": ["doc_ngay", "quet_lai"],
-	"whatsapp.py": ["dang_ky_su_kien", "kich_hoat", "trang_thai", "webhook"],
+	"whatsapp.py": ["dang_ky_su_kien", "gui_thu", "kich_hoat", "trang_thai", "webhook"],
 	"du_chi.py": ["chi_tiet", "chot", "ds", "ds_chuyen_khoan", "duyet", "gui", "luu", "luu_so_ngay_no", "soan_lai"],
 	"lich_du_chi.py": ["chi_tiet_muc", "chon_app", "chon_hoa_don", "chon_ncc", "goi_y_lich", "lich", "luu_lich", "luu_muc", "noi_app", "xoa_muc"],
 	# v619: chuông thông báo trong app.

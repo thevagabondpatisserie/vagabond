@@ -255,7 +255,10 @@ def _thu_tu():
 		"73-ban-moi.js",
 		# v658: màn Khách sự kiện chỉ xem danh sách và bấm Đã vào cửa, không có
 		# form lập phiếu nào để lưu nháp.
-		"74-khach-su-kien.js"])
+		"74-khach-su-kien.js",
+		# v663: Đơn giao của quầy: xác nhận, từ chối, gọi xe một đơn có sẵn bằng
+		# bảng hỏi một bước, không có form lập phiếu nháp nhiều ô.
+		"76-don-giao-quay.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:
