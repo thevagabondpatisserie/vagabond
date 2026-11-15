@@ -45,14 +45,17 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   await test('F02/F03 đổi D1/NVHTN: đúng món, số lượng, không trộn quầy', async()=>{
     await page.route('**/api/method/vagabond.kiem_kho.con_tren_quay_web*',r=>r.fulfill({json:{message:{quay:[
-      {ma:'TCV',ten:'D1 fixture',mon:[{ma:'D1',ten:'Bánh D1 riêng',nhom:'Nhẹ',gia:10000,con:12}]},
-      {ma:'NVHTN',ten:'NVHTN fixture',mon:[{ma:'NV',ten:'Bánh NV riêng',nhom:'Mặn',gia:20000,con:3}]}]}}}));
+      /* v663: tab Tại quầy không quét QR là kênh Giao, chỉ bày món quản lý đã tick Giao
+         (giao:1). Món chưa tick (D1M) không được hiện; khách vẫn chọn được quầy. */
+      {ma:'TCV',ten:'D1 fixture',mon:[{ma:'D1',ten:'Bánh D1 riêng',nhom:'Nhẹ',gia:10000,con:12,giao:1},{ma:'D1M',ten:'Bánh mong manh D1',nhom:'Nhẹ',gia:15000,con:4}]},
+      {ma:'NVHTN',ten:'NVHTN fixture',mon:[{ma:'NV',ten:'Bánh NV riêng',nhom:'Mặn',gia:20000,con:3,giao:1}]}]}}}));
     await page.goto(url+'/web_moi/banh');
     /* v658: dải tab thay bằng Vành nghiêng; chọn mục qua danh sách mục cho bàn phím (role tab). */
     await page.locator('.vanh-ds [data-tab="store"]').dispatchEvent('click'); await page.waitForURL(/#\/in-store/);
     await page.locator('.quay-chon button').filter({hasText:'D1 fixture'}).click();
     assert.match(await page.locator('#storeBody').innerText(),/Bánh D1 riêng/i);
-    assert.equal(await page.locator('#storeBody .card').count(),1);
+    assert.doesNotMatch(await page.locator('#storeBody').innerText(),/mong manh D1/i);
+    assert.equal(await page.locator('#storeBody .gb-mon').count(),1);
     assert.match(await page.locator('.q-con').innerText(),/12/);
     await page.locator('.quay-chon button').filter({hasText:'NVHTN fixture'}).click();
     assert.match(await page.locator('#storeBody').innerText(),/Bánh NV riêng/i);
