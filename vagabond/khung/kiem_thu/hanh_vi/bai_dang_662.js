@@ -85,6 +85,15 @@ function dungMoi(vai, traLoi) {
     vgbBoChuaLuu: function () { that.S.chuaLuu = ''; },
     toast: function (m) { toastDs.push(m); },
     confirmSheet: function (t, m) { hoi.push(t + '|' + m); return Promise.resolve(that._dongY !== false); },
+    /* Hộp nhập chữ giả: chạy đúng hàm kiem của màn như hộp thật; người dùng "dán" that._link. */
+    hoiChu: function (t, m, md, o) {
+      hoi.push(t + '|' + m + '|' + ((o || {}).nut || ''));
+      if (that._dongY === false) return Promise.resolve(null);
+      var v = that._link || '';
+      var sai = o && o.kiem ? o.kiem(v) : '';
+      if (sai) { that._loiHop = sai; return Promise.resolve(null); }
+      return Promise.resolve(v);
+    },
     api: function (duong, ts) {
       goi.push({ duong: duong, ts: ts });
       var f = (traLoi || {})[duong.replace(P, '')];
@@ -273,7 +282,97 @@ var MKT = ['Marketing'];
     bam(m, mot(m.goc, '[data-bddadang="th"]'));
     await choDen(function () { return goiTen(m, 'da_dang').length === 1; });
     dung('hỏi đúng kênh', m.hoi[m.hoi.length - 1].indexOf('Đã đăng Threads?') === 0);
-    bang('gửi đúng kênh', goiTen(m, 'da_dang')[0].ts, { ma: 'BD-1', kenh: 'th' });
+    bang('gửi đúng kênh, chưa dán link', goiTen(m, 'da_dang')[0].ts, { ma: 'BD-1', kenh: 'th', link: '' });
+  });
+
+  await ca('Codex #572: Đã đăng có ô dán link và gửi link lên; link lạ bị giữ lại trong hộp; kênh đã đăng chưa có link có nút Thêm link', async function () {
+    var dl = baiMau({ trang_thai: 'Chờ đăng tay', sua: false, kenh: [{ k: 'fb', tt: 'Đã đăng', luc: '09:12', link: '' }, { k: 'th', tt: 'Chờ đăng tay' }] });
+    var m = dungMoi(MKT, { xem: dl, da_dang: dl });
+    await m.g.scrBaiDangSoan('BD-1');
+    m.g._link = 'javascript:alert(1)';
+    bam(m, mot(m.goc, '[data-bddadang="th"]'));
+    await cho(30);
+    dung('link lạ: hộp báo lỗi', (m.g._loiHop || '').indexOf('https://') >= 0);
+    bang('link lạ: không gọi máy chủ', goiTen(m, 'da_dang').length, 0);
+    m.g._link = 'https://www.threads.net/@thevagabond.patisserie/post/1';
+    bam(m, mot(m.goc, '[data-bddadang="th"]'));
+    await choDen(function () { return goiTen(m, 'da_dang').length === 1; });
+    bang('gửi link', goiTen(m, 'da_dang')[0].ts, { ma: 'BD-1', kenh: 'th', link: 'https://www.threads.net/@thevagabond.patisserie/post/1' });
+    dung('nút trong hộp ghi đúng việc', m.hoi[m.hoi.length - 1].indexOf('|Đã đăng Threads') > 0);
+    var n = mot(m.goc, '[data-bdthemlink="fb"]');
+    dung('Facebook đã đăng chưa có link: có nút Thêm link', !!n);
+    m.g._link = 'https://facebook.com/p/9';
+    bam(m, n);
+    await choDen(function () { return goiTen(m, 'da_dang').length === 2; });
+    bang('thêm link Facebook', goiTen(m, 'da_dang')[1].ts, { ma: 'BD-1', kenh: 'fb', link: 'https://facebook.com/p/9' });
+  });
+
+  await ca('Codex #572: bài A lưu hỏng, chọn Rời đi bỏ thay đổi, mở bài B: KHÔNG ghi nội dung A vào B, lượt lưu của B chỉ có chữ B và đúng số lần lưu của B', async function () {
+    var lan = 0;
+    var m = dungMoi(MKT, {
+      xem: function (ts) { return baiMau(ts.ma === 'BD-2' ? { name: 'BD-2', ban_luu: 11, y_chinh: 'Ý của B' } : {}); },
+      luu: function (ts) { lan++; if (lan === 1) throw new Error('mất mạng'); return baiMau({ name: ts.ma, ban_luu: 12 }); }
+    });
+    m.g.bdLoi = function () {};
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '#bdY'), 'chữ của A chưa lưu');
+    await cho(950);
+    await choDen(function () { return lan === 1; });
+    await cho(20);
+    m.g.S.chuaLuu = '';
+    await m.g.scrBaiDangSoan('BD-2');
+    mot(m.goc, '#bdY').dispatchEvent(dg.suKien('focusout', {}, mot(m.goc, '#bdY')));
+    m.goc.querySelector('#vgbBody').dispatchEvent(dg.suKien('focusout', {}, m.goc.querySelector('#vgbBody')));
+    await cho(50);
+    bang('mở B rồi rời ô: không lưu gì lên B', goiTen(m, 'luu').filter(function (x) { return x.ts.ma === 'BD-2'; }).length, 0);
+    go(m, mot(m.goc, '#bdY'), 'Ý của B sửa');
+    await cho(950);
+    await choDen(function () { return goiTen(m, 'luu').length === 2; });
+    var l = goiTen(m, 'luu')[1].ts;
+    bang('lượt lưu của B', [l.ma, l.ban_luu, JSON.parse(l.thay)], ['BD-2', 11, { y_chinh: 'Ý của B sửa' }]);
+  });
+
+  await ca('Codex #572: lượt lưu bài A còn xếp hàng khi đã mở bài B: lượt đó gửi đúng mã A và số lần lưu A vừa nhận, không lấy số của B', async function () {
+    var nhaDau = null;
+    var m = dungMoi(MKT, {
+      xem: function (ts) { return baiMau(ts.ma === 'BD-2' ? { name: 'BD-2', ban_luu: 11 } : {}); },
+      luu: function (ts) {
+        if (!nhaDau) return new Promise(function (r) { nhaDau = function () { r(baiMau({ ban_luu: 6 })); }; });
+        return baiMau({ name: ts.ma, ban_luu: 7 });
+      }
+    });
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '#bdY'), 'lần một');
+    m.goc.querySelector('#vgbBody').dispatchEvent(dg.suKien('focusout', {}, m.goc.querySelector('#vgbBody')));
+    await choDen(function () { return !!nhaDau; });
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'lần hai');
+    m.goc.querySelector('#vgbBody').dispatchEvent(dg.suKien('focusout', {}, m.goc.querySelector('#vgbBody')));
+    await m.g.scrBaiDangSoan('BD-2');
+    nhaDau();
+    await choDen(function () { return goiTen(m, 'luu').length === 2; });
+    var l = goiTen(m, 'luu')[1].ts;
+    bang('lượt hai của A', [l.ma, l.ban_luu, JSON.parse(l.thay)], ['BD-1', 6, { ban: { fb: { chu: 'lần hai' } } }]);
+  });
+
+  await ca('Codex #572: sửa chú thích rồi bấm Duyệt mà lượt lưu hỏng: KHÔNG gọi Duyệt trên bản cũ, báo chưa lưu được', async function () {
+    var m = dungMoi(MKT, { luu: function () { throw new Error('mất mạng'); } });
+    m.g.bdLoi = function () {};
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'Chú thích mới');
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await choDen(function () { return goiTen(m, 'luu').length === 1; });
+    await cho(30);
+    bang('không duyệt', goiTen(m, 'duyet').length, 0);
+    dung('báo chưa lưu được', m.toast.some(function (t) { return t.indexOf('chưa lưu được') >= 0; }));
+    bang('phần sửa còn giữ để lưu lại', m.g.BD.thay, { ban: { fb: { chu: 'Chú thích mới' } } });
+    var x = dungMoi(MKT, { luu: function () { throw new Error('mất mạng'); } });
+    x.g.bdLoi = function () {};
+    await x.g.scrBaiDangSoan('BD-1');
+    go(x, mot(x.goc, '#bdY'), 'Ý mới');
+    bam(x, mot(x.goc, '[data-bdsoan]'));
+    await choDen(function () { return goiTen(x, 'luu').length === 1; });
+    await cho(30);
+    bang('AI soạn cũng dừng', goiTen(x, 'soan_ai').length, 0);
   });
 
   await ca('Story: tấm Kênh chỉ bật tắt Facebook, Instagram; không có ô AI soạn chữ; xem trước 9:16 ghi rõ không có sticker', async function () {
@@ -294,13 +393,14 @@ var MKT = ['Marketing'];
 
   await ca('chọn giờ: ô đã qua bị khoá, ô trùng ghi tên kênh; chọn 11:30 rồi bấm Chọn thì lưu đúng ngày giờ', async function () {
     var m = dungMoi(MKT, { gio_trong: { ngay: ['2026-11-17', '2026-11-18'], chon: '2026-11-17', gio: '07:30',
-      khung: [{ gio: '07:30', vang: 1, qua: false, trung: '' }, { gio: '08:00', vang: 0, qua: false, trung: 'Instagram 08:30' }, { gio: '11:30', vang: 1, qua: false, trung: '' }, { gio: '06:00', qua: true }] } });
+      khung: [{ gio: '07:30', vang: 1, qua: false, trung: '' }, { gio: '08:00', vang: 0, qua: false, trung: 'Instagram 08:30' }, { gio: '11:30', vang: 1, qua: false, trung: '' }, { gio: '06:00', qua: true }, { gio: '09:00', vang: 0, qua: false, trung: 'Facebook 09:00', da_co: 'Facebook' }] } });
     await m.g.scrBaiDangSoan('BD-1');
     bam(m, mot(m.goc, '[data-bdgio]'));
     await choDen(function () { return !!sheet(m); });
     var sh = sheet(m);
     dung('ô trùng', chu(mot(sh, '[data-bdsggio="08:00"]')).indexOf('Trùng Instagram 08:30') >= 0);
     dung('ô đã qua khoá', mot(sh, '[data-bdsggio="06:00"]').hasAttribute('disabled'));
+    dung('Codex #572: ô kênh đã có bài đúng giờ bị khoá, ghi tên kênh', mot(sh, '[data-bdsggio="09:00"]').hasAttribute('disabled') && chu(mot(sh, '[data-bdsggio="09:00"]')).indexOf('Facebook đã có bài giờ này') >= 0);
     bam(m, mot(sh, '[data-bdsggio="11:30"]'));
     bam(m, mot(sheet(m), '[data-bdsgok]'));
     await choDen(function () { return goiTen(m, 'luu').length === 1; });
