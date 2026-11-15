@@ -729,6 +729,21 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		});
 	}
 
+	/* v660 (anh Việt 15/11/2026): Gửi thử WhatsApp, gửi thẳng qua WhatsApp một mã
+	   thử tới số gõ vào, không đi Zalo trước. Cùng hàm với nút trên app. */
+	function waGuiThu(frm) {
+		if (frm.is_dirty()) { frappe.msgprint('Bấm Lưu trước rồi mới bấm nút này.'); return; }
+		frappe.prompt([{ fieldname: 'so', fieldtype: 'Data', label: 'Số nhận tin thử', reqd: 1,
+			description: 'Số Việt Nam (0901 486 556) hoặc số nước ngoài có dấu + ở đầu. Mã thử không đăng nhập được gì.' }],
+		function (v) {
+			frappe.call({ method: 'vagabond.whatsapp.gui_thu', args: { so: v.so }, freeze: true, freeze_message: 'Đang gửi thử...' }).then(function (r) {
+				var k = r.message || {};
+				frappe.msgprint({ title: 'Đã gửi tin thử WhatsApp', indicator: 'green',
+					message: 'Đã gửi tới ' + frappe.utils.escape_html(k.so || '') + '. Mã thử trong tin là ' + frappe.utils.escape_html(k.ma || '') + '.' });
+			});
+		}, 'Gửi thử WhatsApp', 'Gửi');
+	}
+
 	frappe.ui.form.on('Vagabond Settings', {
 		onload(frm) {
 			if (!document.getElementById('vgb-cd-css')) $('<style id="vgb-cd-css"></style>').text(CSS).appendTo('head');
@@ -743,6 +758,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			[['Xem trạng thái số WhatsApp', 'trang_thai'], ['Kích hoạt số WhatsApp', 'kich_hoat'], ['Đăng ký nhận sự kiện', 'su_kien']].forEach(function (x) {
 				frm.add_custom_button(x[0], function () { waTacVu(frm, x[1]); }, 'WhatsApp');
 			});
+			frm.add_custom_button('Gửi thử WhatsApp', function () { waGuiThu(frm); }, 'WhatsApp');
 			$(frm.wrapper).addClass('vgb-cd');
 			vgb_nap_cd_chung().then(function () {
 				veThanh(frm);
