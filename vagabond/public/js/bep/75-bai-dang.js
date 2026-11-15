@@ -45,7 +45,7 @@ var BD_TT = {
 var BD_THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 var BD_DS_LOC = [['', 'Mọi bài'], ['chua_gio', 'Chưa hẹn giờ'], ['Chờ duyệt', 'Chờ duyệt'], ['Chờ đăng tay', 'Chờ đăng tay'],
   ['Đã hẹn giờ', 'Đã hẹn giờ'], ['Đã đăng', 'Đã đăng'], ['Nháp', 'Nháp']];
-var BD = { xem: 'tuan', moc: '', ngay: '', loc: [], tt: '', dl: null, bai: null, ban: 0, cho: null, thay: {}, thayMa: '', banMa: {}, chuoi: Promise.resolve(true), tab: 0 };
+var BD = { xem: 'tuan', moc: '', ngay: '', loc: [], tt: '', dl: null, bai: null, ban: 0, cho: null, thay: {}, thayMa: '', banMa: {}, loiMa: {}, chuoi: Promise.resolve(), tab: 0 };
 
 function bdKenh(k) { return BD_KENH.filter(function (x) { return x.k === k; })[0] || {}; }
 function bdThu(ngay) { var p = String(ngay).split('-'); return BD_THU[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; }
@@ -403,6 +403,8 @@ function bdNhanBai(dl) {
 
 async function scrBaiDangSoan(ma, dl) {
   if (!dl) {
+    /* Mở bài từ lịch: kết quả lưu hỏng cũ của bài này (đã bỏ thay đổi) không còn giá trị. */
+    delete BD.loiMa[ma];
     frame('Bài đăng', '<div class="emp"><div class="e1">⏳</div><div>Đang mở bài...</div></div>');
     try { dl = await api(BD_P + 'xem', { ma: ma }); }
     catch (e) { return frame('Bài đăng', crmTrong('⚠️', h(errMsg(e)))); }
@@ -489,42 +491,51 @@ function bdHenLuu(thay) {
    gửi lên luôn là số máy chủ vừa trả (không tự báo xung đột với chính mình).
    Phần chờ, mã bài và số lần lưu đi cùng nhau theo TỪNG bài (Codex #572): mở bài B
    sau khi bài A lưu hỏng không được gửi nội dung A dưới mã B hay số lần lưu của B.
-   Trả về Promise: true khi lượt này lưu được (hoặc không có gì để lưu), false khi hỏng. */
+   Lưu hỏng: phần sửa trả lại BD.thay của đúng bài đó (nếu người dùng còn ở bài đó).
+   Máy khác vừa sửa: ghi BD.loiMa[mã] = 'xd' để việc kế tiếp trên bài đó dừng một lần.
+   Lượt sau của chính bài đó lưu được thì xoá; mở lại bài từ lịch cũng xoá. Kết quả
+   của bài A không bao giờ chặn việc trên bài B. */
 function bdLuuNgay(veLai) {
   clearTimeout(BD.cho);
   var ma = BD.thayMa || (BD.bai && BD.bai.name);
   var thay = BD.thay; BD.thay = {};
-  /* Không có gì chờ lưu: chỉ đợi các lượt đang chạy xong. Kết quả hỏng của lượt trước
-     (có thể của bài khác đã bỏ thay đổi) không thuộc về lần gọi này; nếu lượt hỏng là
-     của chính bài đang mở thì phần sửa đã được trả lại BD.thay và bdLuuChac thấy ngay. */
-  if ((!thay || !Object.keys(thay).length) && !veLai) return BD.chuoi.then(function () { return true; }, function () { return true; });
-  BD.chuoi = BD.chuoi.then(function () { return true; }, function () { return true; }).then(async function () {
-    if (!ma) return true;
+  if ((!thay || !Object.keys(thay).length) && !veLai) return BD.chuoi;
+  BD.chuoi = BD.chuoi.then(function () {}, function () {}).then(async function () {
+    if (!ma) return;
     var dl;
     try { dl = await api(BD_P + 'luu', { ma: ma, ban_luu: BD.banMa[ma] != null ? BD.banMa[ma] : BD.ban, thay: JSON.stringify(thay || {}) }); }
     catch (e) {
       /* Chỉ giữ lại để lưu lần sau khi người dùng vẫn ở đúng bài này. */
       if (BD.bai && BD.bai.name === ma && (BD.thayMa === ma || !Object.keys(BD.thay || {}).length)) { BD.thay = bdGop(thay || {}, BD.thay || {}); BD.thayMa = ma; }
-      var o0 = document.getElementById('bdLuuChu'); if (o0) o0.textContent = 'Chưa lưu được'; bdLoi(e); return false;
+      var o0 = document.getElementById('bdLuuChu'); if (o0) o0.textContent = 'Chưa lưu được'; bdLoi(e); return;
     }
     if (dl && dl.bai) BD.banMa[ma] = dl.bai.ban_luu;
-    if (!BD.bai || BD.bai.name !== ma || !bdDangMo(ma)) return true;
+    if (dl.xung_dot) BD.loiMa[ma] = 'xd'; else delete BD.loiMa[ma];
+    if (!BD.bai || BD.bai.name !== ma || !bdDangMo(ma)) return;
     if (!Object.keys(BD.thay || {}).length) vgbBoChuaLuu();
-    if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000); BD.thay = {}; vgbBoChuaLuu(); bdVeLai(dl); return false; }
+    if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000); BD.thay = {}; vgbBoChuaLuu(); bdVeLai(dl); return; }
     bdNhanBai(dl);
-    if (veLai) { bdVeLai(dl); return true; }
+    if (veLai) { bdVeLai(dl); return; }
     var o = document.getElementById('bdLuuChu'); if (o) o.textContent = 'Đã tự lưu ' + (dl.bai.luu_luc || '');
     var k = document.getElementById('bdKiemO'); if (k) k.innerHTML = bdBangKiem(dl.bai.kiem);
     var d = document.getElementById('bdDay'); if (d) d.innerHTML = bdNutDay(dl.bai, dl.duyet);
-    return true;
   });
   return BD.chuoi;
 }
 /* Việc dựa trên bản đã lưu (Duyệt, Gửi duyệt, AI soạn, thêm hay bỏ ảnh): lưu hết phần
-   đang chờ trước; lưu hỏng hoặc còn phần chưa lưu thì dừng, không chạy trên bản cũ. */
+   đang chờ trước và đợi mọi lượt đang chạy. Lượt của CHÍNH bài này hỏng, còn phần chưa
+   lưu, hoặc máy khác vừa sửa (đã nạp bản mới) thì dừng; xung đột chỉ chặn một lần để
+   người dùng xem lại bản mới rồi bấm lại. */
 async function bdLuuChac() {
-  var ok = await bdLuuNgay();
-  if (ok === false || Object.keys(BD.thay || {}).length) {
+  var ma = BD.bai && BD.bai.name;
+  await bdLuuNgay();
+  if (!ma || !BD.bai || BD.bai.name !== ma) return false;
+  if (BD.loiMa[ma] === 'xd') {
+    delete BD.loiMa[ma];
+    toast('Bài vừa được sửa ở máy khác, đã nạp bản mới. Xem lại rồi bấm lại.', 4500);
+    return false;
+  }
+  if (BD.thayMa === ma && Object.keys(BD.thay || {}).length) {
     toast('Phần vừa sửa chưa lưu được nên chưa làm tiếp. Kiểm mạng rồi bấm lại.', 4500);
     return false;
   }
@@ -549,14 +560,17 @@ function bdChonAnh() {
     var tep = [].slice.call(inp.files || []); inp.remove();
     if (!tep.length) return;
     if (!(await bdLuuChac())) return;
-    var dl = null, loi = 0;
+    /* Ảnh thuộc về bài lúc chọn ảnh: mã bài và số lần lưu giữ theo bài đó suốt vòng tải,
+       kể cả khi người dùng đã sang bài khác giữa chừng (H8 loại 8). */
+    var ma = BD.bai.name, dl = null, loi = 0;
     for (var i = 0; i < tep.length; i++) {
       busy(true);
       try {
-        var url = await bdTaiTep(tep[i]);
-        dl = await api(BD_P + 'them_anh', { ma: BD.bai.name, ban_luu: BD.ban, file_url: url });
+        var url = await bdTaiTep(tep[i], ma);
+        dl = await api(BD_P + 'them_anh', { ma: ma, ban_luu: BD.banMa[ma] != null ? BD.banMa[ma] : BD.ban, file_url: url });
+        if (dl && dl.bai) BD.banMa[ma] = dl.bai.ban_luu;
         if (dl.xung_dot) { busy(false); toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất. Tải lại ảnh còn thiếu.', 4000); return bdVeLai(dl); }
-        bdNhanBai(dl);
+        if (BD.bai && BD.bai.name === ma) bdNhanBai(dl);
       } catch (e) { loi++; bdLoi(e); }
       busy(false);
     }
@@ -564,12 +578,12 @@ function bdChonAnh() {
   };
   inp.click();
 }
-async function bdTaiTep(f) {
+async function bdTaiTep(f, ma) {
   var fd = new FormData();
   fd.append('file', f, f.name || ('anh-' + Date.now() + '.jpg'));
   fd.append('is_private', '0');
   fd.append('doctype', 'Vagabond Bai Dang');
-  fd.append('docname', BD.bai.name);
+  fd.append('docname', ma || BD.bai.name);
   var hd = {};
   hd['X-Frappe-' + 'CSRF-' + 'Token'] = frappe.csrf_token;
   var r = await fetch('/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
@@ -659,6 +673,7 @@ function bdSheetKenh() {
 /* Chọn giờ: ngày trên, ô giờ dưới. Ô đỏ là kênh đó đã có bài trong 2 giờ, ghi rõ
    trùng bài nào; chạm vẫn được (máy chủ nhắc lại ở bảng Kiểm). Ô kênh đã có bài ĐÚNG
    giờ đó thì khoá (máy chủ cũng chặn Duyệt). Giờ vàng có sao. */
+bdSheetGio.luot = 0;
 async function bdSheetGio(ngay) {
   await bdLuuNgay();
   var dl;
@@ -687,8 +702,11 @@ async function bdSheetGio(ngay) {
   ov.onclick = async function (e) {
     var t;
     if ((t = e.target.closest('[data-bdsgngay]'))) {
-      var n = t.getAttribute('data-bdsgngay');
-      try { var d2 = await api(BD_P + 'gio_trong', { ma: BD.bai.name, ngay: n }); dl.khung = d2.khung; } catch (er) { return bdLoi(er); }
+      var n = t.getAttribute('data-bdsgngay'), luot = ++bdSheetGio.luot;
+      try { var d2 = await api(BD_P + 'gio_trong', { ma: BD.bai.name, ngay: n }); } catch (er) { return bdLoi(er); }
+      /* Chạm ngày khác trước khi lượt này trả về: lượt cũ không được vẽ đè ô giờ của ngày mới. */
+      if (luot !== bdSheetGio.luot) return;
+      dl.khung = d2.khung;
       chon.ngay = n; chon.gio = '';
       ov.querySelector('#bdGioSh').innerHTML = ve(); return;
     }
