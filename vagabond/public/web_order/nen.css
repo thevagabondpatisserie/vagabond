@@ -3,7 +3,9 @@
 @font-face{font-family:"Qualy Text";src:url("/assets/vagabond/mau_in/Qualy.otf") format("opentype");font-display:swap}
 :root{
   --bg:#000000; --bg-2:#070707; --card:#0B0B0B;
-  --cyan:#29BDB3; --cyan-bright:#3FD8CD; --cyan-dim:#1B6F69;
+  --cyan:#4FDBF2; --cyan-bright:#8EEAF8; --cyan-dim:#129AAF;
+  /* v662: Robin egg (design system The Vagabond Pâtisserie); chữ, biểu tượng đặt trên nền xanh dùng Ink. */
+  --ink-on-cyan:#1A1A1A;
   --amber:#DB7E2A; --amber-2:rgba(219,126,42,.72);
   --paper:#FFFFFF; --fog:rgba(255,255,255,.62); --fog-2:rgba(255,255,255,.36);
   --line:rgba(255,255,255,.16); --line-2:rgba(255,255,255,.08);
@@ -26,13 +28,13 @@ header{position:sticky;top:0;z-index:40;background:rgba(0,0,0,.82);backdrop-filt
 .tab{flex:1;padding:16px 4px 14px;font-family:var(--sans);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--fog-2);position:relative;text-align:center;transition:color .3s}
 .tab+.tab{border-left:1px solid var(--line-2)}
 .tab.on{color:var(--paper)}
-.tab.on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--cyan);box-shadow:0 0 16px rgba(41,189,179,.7)}
+.tab.on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--cyan);box-shadow:0 0 16px rgba(79,219,242,.7)}
 .h1{margin-top:30px;font-family:'Vagabond Sans',var(--sans);font-size:clamp(52px,14vw,124px);line-height:.94;letter-spacing:.005em;text-transform:uppercase;color:var(--cyan)}
 .sec{display:flex;align-items:baseline;gap:16px;padding:38px 0 6px}
 .sec .n{font-size:10px;letter-spacing:.2em;color:var(--cyan)}
 .sec h3{font-family:var(--sans);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--fog);font-weight:400}
 .sec .rule{flex:1;height:1px;background:var(--line-2)}
-.btn{display:inline-block;margin-top:22px;background:var(--cyan);color:#00201D;padding:14px 30px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;font-family:var(--sans);transition:filter .25s}
+.btn{display:inline-block;margin-top:22px;background:var(--cyan);color:var(--ink-on-cyan,#1A1A1A);padding:14px 30px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;font-family:var(--sans);transition:filter .25s}
 .btn:hover{background:var(--cyan-bright)}
 .btn:not(.btn-md):not(.btn-lg):not(.btn-xs){padding:14px 30px;font-size:11px;line-height:1.2;border-radius:0}
 .s-head{padding:0}

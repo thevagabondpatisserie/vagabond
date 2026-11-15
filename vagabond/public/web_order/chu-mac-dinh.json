@@ -7643,5 +7643,143 @@
     "nhom": "thanh_vien",
     "mac_dinh": "ưu đãi sinh nhật",
     "nhieu_dong": true
+  },
+  "web_giao_huong_dan": {
+    "ten": "Đặt giao: Bấm + trên món để thêm vào giỏ, chọn giao tận nơi hoặc tự lấy, trả trư",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bấm + trên món để thêm vào giỏ, chọn giao tận nơi hoặc tự lấy, trả trước online. Món mong manh chỉ bán tại quầy nên không có ở đây.",
+    "nhieu_dong": true
+  },
+  "web_giao_rong": {
+    "ten": "Đặt giao: Quầy này hiện chưa có món nào đặt giao được. Quý khách ghé quầy hoặc đ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy này hiện chưa có món nào đặt giao được. Quý khách ghé quầy hoặc đặt qua ứng dụng giao hàng.",
+    "nhieu_dong": true
+  },
+  "web_giao_nhan": {
+    "ten": "Đặt giao: Giao tận nơi hoặc tự lấy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giao tận nơi hoặc tự lấy",
+    "nhieu_dong": false
+  },
+  "web_giao_thieu_ten": {
+    "ten": "Đặt giao: Quý khách điền tên.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách điền tên.",
+    "nhieu_dong": false
+  },
+  "web_giao_chua_gia": {
+    "ten": "Đặt giao: Chưa báo được tổng tiền. Quý khách thử lại sau ít phút.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa báo được tổng tiền. Quý khách thử lại sau ít phút.",
+    "nhieu_dong": true
+  },
+  "web_giao_loi": {
+    "ten": "Đặt giao: Chưa gửi được đơn. Quý khách thử lại sau ít phút.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa gửi được đơn. Quý khách thử lại sau ít phút.",
+    "nhieu_dong": true
+  },
+  "web_giao_tieu_de": {
+    "ten": "Đặt giao: Đặt giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đặt giao",
+    "nhieu_dong": false
+  },
+  "web_giao_cach": {
+    "ten": "Đặt giao: Cách nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cách nhận",
+    "nhieu_dong": false
+  },
+  "web_giao_tan_noi": {
+    "ten": "Đặt giao: Giao tận nơi",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giao tận nơi",
+    "nhieu_dong": false
+  },
+  "web_giao_tan_noi_mo": {
+    "ten": "Đặt giao: Quầy gọi xe GreenSM khi đóng gói xong",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy gọi xe GreenSM khi đóng gói xong",
+    "nhieu_dong": false
+  },
+  "web_giao_tu_lay": {
+    "ten": "Đặt giao: Tự lấy tại quầy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tự lấy tại quầy",
+    "nhieu_dong": false
+  },
+  "web_giao_ten": {
+    "ten": "Đặt giao: Tên người đặt",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tên người đặt",
+    "nhieu_dong": false
+  },
+  "web_giao_sdt": {
+    "ten": "Đặt giao: Số điện thoại",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số điện thoại",
+    "nhieu_dong": false
+  },
+  "web_giao_dia_chi": {
+    "ten": "Đặt giao: Địa chỉ giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "Địa chỉ giao",
+    "nhieu_dong": false
+  },
+  "web_giao_thanh_toan": {
+    "ten": "Đặt giao: Thanh toán",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thanh toán",
+    "nhieu_dong": false
+  },
+  "web_giao_tra_truoc": {
+    "ten": "Đặt giao: Đơn giao trả trước. Tiền về, quầy xác nhận và báo giờ xong; quầy hết m",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đơn giao trả trước. Tiền về, quầy xác nhận và báo giờ xong; quầy hết món thì The Vagabond hoàn tiền cho quý khách.",
+    "nhieu_dong": true
+  },
+  "web_giao_dong_y": {
+    "ten": "Đặt giao: Tôi đồng ý để The Vagabond dùng tên, số điện thoại, địa chỉ này để gia",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tôi đồng ý để The Vagabond dùng tên, số điện thoại, địa chỉ này để giao đơn.",
+    "nhieu_dong": true
+  },
+  "web_giao_giam": {
+    "ten": "Đặt giao: Giảm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giảm",
+    "nhieu_dong": false
+  },
+  "web_giao_phi": {
+    "ten": "Đặt giao: Phí giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "Phí giao",
+    "nhieu_dong": false
+  },
+  "web_giao_dat": {
+    "ten": "Đặt giao: Đặt và trả trước",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đặt và trả trước",
+    "nhieu_dong": false
+  },
+  "web_giao_phi_cho_dc": {
+    "ten": "Đặt giao: Điền địa chỉ để báo phí",
+    "nhom": "dat_banh",
+    "mac_dinh": "Điền địa chỉ để báo phí",
+    "nhieu_dong": false
+  },
+  "web_giao_mien_phi": {
+    "ten": "Đặt giao: Miễn phí",
+    "nhom": "dat_banh",
+    "mac_dinh": "Miễn phí",
+    "nhieu_dong": false
+  },
+  "web_giao_phi_chua_ro": {
+    "ten": "Đặt giao: Chưa báo được",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa báo được",
+    "nhieu_dong": false
   }
 }

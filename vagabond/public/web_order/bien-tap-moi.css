@@ -5,7 +5,7 @@
 @font-face{font-family:"Vagabond Sans";src:url("/assets/vagabond/mau_in/VagabondSans-Regular.otf") format("opentype");font-display:swap}
 @font-face{font-family:"Qualy Text";src:url("/assets/vagabond/mau_in/Qualy.otf") format("opentype");font-display:swap}
 body.bt-che-do-moi{--bt-nen:#000;--bt-the:#0c1112;--bt-the-2:#111819;--bt-vien:rgba(255,255,255,.16);--bt-vien-2:rgba(255,255,255,.08);
-  --bt-chu:#fff;--bt-mo:rgba(255,255,255,.64);--bt-mo-2:rgba(255,255,255,.42);--bt-xanh:#3FD8CD;--bt-xanh-dam:#29BDB3;--bt-xanh-chu:#00201D;
+  --bt-chu:#fff;--bt-mo:rgba(255,255,255,.64);--bt-mo-2:rgba(255,255,255,.42);--bt-xanh:#8EEAF8;--bt-xanh-dam:#4FDBF2;--bt-xanh-chu:var(--ink-on-cyan,#1A1A1A);
   --bt-luc:#3ECF8E;--bt-cam:#DB7E2A;--bt-do:#F07167;--bt-font:'Qualy Text',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   background:var(--bt-nen);color:var(--bt-chu);font:15px/1.6 var(--bt-font)}
 body.bt-che-do-moi header{background:#000;border-bottom:1px solid var(--bt-vien-2);color:#fff}
@@ -26,7 +26,7 @@ body.bt-che-do-moi header a{color:#fff}
 #bt-moi .bt-o-the:last-child{border-right:0}
 #bt-moi .bt-o-the:hover{background:var(--bt-the-2)}
 #bt-moi .bt-o-the:focus-visible{outline:2px solid var(--bt-xanh);outline-offset:-2px}
-#bt-moi .bt-o-the.dang{background:#0b1a1a}
+#bt-moi .bt-o-the.dang{background:#0A181B}
 #bt-moi .bt-o-the.dang::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--bt-xanh)}
 #bt-moi .bt-ten-the{display:flex;align-items:center;gap:10px;font-size:19px}
 #bt-moi .bt-dem{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 7px;border-radius:13px;background:rgba(255,255,255,.08);color:var(--bt-mo);font-size:13px}
@@ -92,7 +92,7 @@ body.bt-che-do-moi header a{color:#fff}
 .bt-chips{display:flex;flex-wrap:wrap;gap:10px}
 #bt-moi .bt-chip{all:unset;box-sizing:border-box;cursor:pointer;min-height:48px;padding:10px 22px;display:inline-flex;align-items:center;background:var(--bt-the);border:1px solid var(--bt-vien-2);font:16px var(--bt-font);color:var(--bt-chu)}
 #bt-moi .bt-chip:hover{border-color:var(--bt-vien)}
-#bt-moi .bt-chip.dang{border-color:var(--bt-xanh);background:#0b1a1a}
+#bt-moi .bt-chip.dang{border-color:var(--bt-xanh);background:#0A181B}
 #bt-moi .bt-chip:focus-visible{outline:2px solid var(--bt-xanh);outline-offset:2px}
 .bt-tom-tat{margin:0;padding:6px 0 6px 18px;border-left:2px solid var(--bt-vien);color:var(--bt-mo)}
 .bt-tom-tat b{color:#fff}
@@ -108,9 +108,9 @@ body.bt-che-do-moi header a{color:#fff}
 .bt-xem{position:sticky;top:20px;border:1px dashed var(--bt-vien);padding:16px}
 .bt-nhan-xem{margin:0 0 12px;letter-spacing:.2em;font-size:12px;text-transform:uppercase;color:var(--bt-xanh)}
 /* Biến màu của trang khách (nen.css) không nạp ở đây; khai lại trong khung. */
-.bt-xem{--cyan:#29BDB3;--cyan-bright:#3FD8CD;--line:rgba(255,255,255,.16);--fog:rgba(255,255,255,.62);--paper:#fff;--bg:#000;--amber:#DB7E2A;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.bt-xem{--cyan:#4FDBF2;--cyan-bright:#8EEAF8;--line:rgba(255,255,255,.16);--fog:rgba(255,255,255,.62);--paper:#fff;--bg:#000;--amber:#DB7E2A;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 /* Trang khách chia hai cột khi chỉ có một thẻ; khung xem trước hẹp nên luôn một cột. */
-.bt-xem .cm-the,.bt-xem .cm-the:only-child{display:block;border:1px solid var(--bt-vien);background:rgba(8,22,21,.78)}
+.bt-xem .cm-the,.bt-xem .cm-the:only-child{display:block;border:1px solid var(--bt-vien);background:rgba(7,21,23,.78)}
 .bt-xem .cm-anh,.bt-xem .cm-the:only-child .cm-anh{height:auto;min-height:0;max-height:none;aspect-ratio:16/9;width:100%}
 .bt-xem .cm-noi-dung{padding:18px}
 .bt-xem .cm-noi-dung h2{font-size:24px;margin:6px 0 12px}
@@ -132,7 +132,7 @@ body.bt-che-do-moi header a{color:#fff}
 .bt-hop p{color:var(--bt-mo);margin:0 0 22px}
 .bt-hop .bt-nut{all:unset;box-sizing:border-box;cursor:pointer;min-height:44px;padding:10px 20px;border:1px solid rgba(255,255,255,.6);font:600 15px var(--bt-font)}
 .bt-hop .bt-nut.nguy{background:#F07167;color:#2b0703;border-color:#F07167}
-.bt-hop .bt-nut.chinh{background:#29BDB3;color:#00201D;border-color:#29BDB3}
+.bt-hop .bt-nut.chinh{background:#4FDBF2;color:var(--ink-on-cyan,#1A1A1A);border-color:#4FDBF2}
 .bt-hang-nut .bt-nut+.bt-nut{margin-left:0}
 /* Thẻ Nâng cao: thanh quay lại trình mới đặt trên bảng cũ. */
 .bt-ve-moi-thanh{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 3vw;background:#0c1112;color:#fff}
@@ -161,7 +161,7 @@ body.bt-che-do-moi header a{color:#fff}
 .bt-banh-khung{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:24px;align-items:start}
 .bt-banh-ds{display:flex;flex-direction:column;gap:8px;max-height:72vh;overflow:auto}
 #bt-moi .bt-banh-mon{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px;background:var(--bt-the);border:1px solid var(--bt-vien-2);color:var(--bt-chu)}
-#bt-moi .bt-banh-mon.dang{border-color:var(--bt-xanh);background:#0b1a1a}
+#bt-moi .bt-banh-mon.dang{border-color:var(--bt-xanh);background:#0A181B}
 #bt-moi .bt-banh-mon:focus-visible{outline:2px solid var(--bt-xanh);outline-offset:2px}
 .bt-banh-mon img,.bt-banh-trong{width:48px;height:48px;flex:0 0 48px;object-fit:cover;background:var(--bt-the-2)}
 .bt-banh-trong{display:grid;place-items:center;border:1px dashed var(--bt-vien);color:var(--bt-mo);font-size:20px}
