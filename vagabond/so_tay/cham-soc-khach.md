@@ -20,14 +20,14 @@ Máy chỉ gọi, nhắn quảng cáo qua kênh khách đã đồng ý.
 | Máy báo | Cách gỡ |
 |---|---|
 | Chọn đúng một khách có tên trước khi ghi đồng ý nhận tin. | Hoá đơn đang là khách lẻ gộp, chọn đúng hồ sơ khách |
-| Tài khoản của bạn chưa được ghi đồng ý nhận tin. | Cần gói có quyền phân hệ Khách hàng |
+| Tài khoản của bạn chưa được ghi đồng ý nhận tin. | Cần gói có quyền phân hệ Khách hàng & Marketing |
 
 **Lưu ý**
 - Bấm ra ngoài tấm hỏi là bỏ qua: khách vẫn là "chưa hỏi", lần sau quầy được hỏi lại. Dải nhắc không chặn thu tiền.
 - Tắt một kênh khách đang đồng ý là ghi khách rút lại (Từ chối).
 - Khách quét mã QR Zalo OA trong tấm hỏi, quan tâm OA rồi chia sẻ số, hoặc tự tích ô nhận ưu đãi trên trang đặt bánh: máy tự ghi đồng ý.
 - Mỗi lần ghi có một dòng ở Sổ đồng ý nhận tin.
-<!-- kiểm: dải nhắc ở quầy chỉ hiện với tài khoản có quyền phân hệ Khách hàng; thu ngân không có gói đó thì không thấy dải -->
+<!-- kiểm: dải nhắc ở quầy chỉ hiện với tài khoản có quyền phân hệ Khách hàng & Marketing; thu ngân không có gói đó thì không thấy dải -->
 
 ## Ghi liên hệ và đánh dấu không quảng cáo trong hồ sơ khách
 Từ khoá: chăm sóc khách, nhật ký liên hệ, ghi liên hệ, đã gọi khách, gặp tại quầy, danh sách không quảng cáo, không gọi, không nhắn, chặn quảng cáo, do not call, món hay mua, nhóm khách, CRM
@@ -67,7 +67,7 @@ Từ khoá: nhóm khách, phân nhóm, trung thành, khách mới, sắp rời �
 Máy chia khách thành sáu nhóm mỗi đêm theo mua gần đây, mua thường xuyên và chi bao nhiêu. Bộ lọc đã lưu dùng lại khi lập chiến dịch.
 
 **Các bước**
-1. Trang chủ, phân hệ Khách hàng, bấm [[Nhóm khách]].
+1. Trang chủ, phân hệ Khách hàng & Marketing, bấm [[Nhóm khách]].
 2. Bấm chip một nhóm: thẻ dưới cho biết số khách, bao nhiêu đã đồng ý Zalo, gọi điện, đã từ chối.
 3. Bấm [[Xem khách trong nhóm]] để xem tên khách, gõ ô tìm theo tên hoặc số điện thoại. Bấm một khách để mở hồ sơ.
 4. Lưu bộ lọc: bấm [[+ Lưu bộ lọc mới]], đặt TÊN BỘ LỌC, chọn nhóm, khoảng ngày mua lần cuối, số ngày chưa mua, món đã mua, kênh đã đồng ý.
@@ -96,7 +96,7 @@ Từ khoá: sổ đồng ý, bằng chứng đồng ý, ai đồng ý, ai từ c
 Mỗi lần khách đồng ý hay từ chối đều có một dòng: kênh nào, ghi ở đâu, ai ghi, lúc nào. Đây là bằng chứng khi khách hỏi lại.
 
 **Các bước**
-1. Phân hệ Khách hàng, bấm [[Sổ đồng ý nhận tin]].
+1. Phân hệ Khách hàng & Marketing, bấm [[Sổ đồng ý nhận tin]].
 2. Đầu màn: số đồng ý, từ chối, chưa hỏi của Zalo, Gọi điện, Email và số trong Danh sách không quảng cáo.
 3. Lọc chip [[Đồng ý]] hoặc [[Từ chối]], chip kênh, chip nơi ghi: Quầy, Web, Zalo OA, Sales gọi, Hồ sơ khách, Desk.
 4. Tìm một khách: gõ tên, mã khách hoặc vài số cuối điện thoại.
@@ -117,11 +117,11 @@ Từ khoá: chiến dịch, campaign, lập chiến dịch, gọi khách mùa l�
 Năm bước: Soạn nháp, Duyệt nội dung, Chốt danh sách, Đang liên hệ, Kết thúc.
 
 **Các bước**
-1. Phân hệ Khách hàng, [[Chiến dịch]], bấm [[+ Chiến dịch mới]].
+1. Phân hệ Khách hàng & Marketing, [[Chiến dịch]], [[+ Chiến dịch mới]].
 2. Gõ TÊN CHIẾN DỊCH, bấm [[Chọn nhóm hoặc bộ lọc đã lưu]].
 3. Chọn KÊNH: [[Gọi điện]], [[Zalo cá nhân]], [[Zalo OA]]. Thêm món, mã ưu đãi, hạn nếu có.
 4. Bấm [[+ Thêm Sales]] chọn người nhận danh sách gọi.
-5. Viết KỊCH BẢN GỌI và TIN ZALO ({ten} là tên khách). Bấm [[Lưu nháp]] để đếm khách.
+5. Viết KỊCH BẢN GỌI và TIN ZALO ({ten} là tên khách). [[Lưu nháp]] để đếm khách.
 6. Xem khung Ai sẽ được liên hệ. Giám đốc bấm [[Duyệt kịch bản gọi và tin Zalo]].
 7. Bấm [[Chốt danh sách và chia việc]], xác nhận.
 
@@ -129,7 +129,7 @@ Năm bước: Soạn nháp, Duyệt nội dung, Chốt danh sách, Đang liên h
 | Máy báo | Cách gỡ |
 |---|---|
 | Có thay đổi chưa lưu. Bấm Lưu nháp ... | Bấm [[Lưu nháp]] trước |
-| Nội dung chưa được duyệt. Nhờ giám đốc duyệt rồi chốt. | Nhờ giám đốc |
+| Nội dung chưa được duyệt. ... | Nhờ giám đốc duyệt |
 | Viết kịch bản gọi (ít nhất 20 chữ) ... | Viết dài hơn |
 | Không có khách nào vừa khớp bộ lọc vừa đã đồng ý kênh đã chọn. ... | Đổi nhóm hoặc kênh |
 
@@ -205,7 +205,7 @@ Từ khoá: danh sách gọi, gọi khách, khách được chia, chép tin Zalo
 Khách quản lý chia cho bạn trong các chiến dịch đang chạy. Số đỏ trên ô là số khách bạn còn phải gọi.
 
 **Các bước**
-1. Phân hệ Khách hàng, bấm [[Danh sách gọi của tôi]].
+1. Phân hệ Khách hàng & Marketing, bấm [[Danh sách gọi của tôi]].
 2. Bấm [[Xem kịch bản gọi]] để đọc kịch bản đã duyệt.
 3. Bấm [[Gọi]] để gọi, hoặc [[Chép tin]] rồi mở Zalo của bạn dán tin gửi khách.
 4. Bấm [[Kết quả]], chọn Quan tâm, Đã đặt đơn, Không nghe máy, Hẹn gọi lại hoặc Không muốn nhận tin nữa.
@@ -235,7 +235,7 @@ Từ khoá: hiệu quả chiến dịch, đo chiến dịch, doanh thu chiến d
 So nhóm được liên hệ với nhóm đối chứng không được liên hệ, cùng một mốc thời gian, để biết chiến dịch mang về thêm bao nhiêu.
 
 **Các bước**
-1. Phân hệ Khách hàng, bấm [[Hiệu quả chiến dịch]], chọn một chiến dịch đã chốt. Hoặc trong chiến dịch bấm [[Xem hiệu quả]].
+1. Phân hệ Khách hàng & Marketing, bấm [[Hiệu quả chiến dịch]], chọn một chiến dịch đã chốt. Hoặc trong chiến dịch bấm [[Xem hiệu quả]].
 2. Xem hai thẻ Nhóm được liên hệ và Nhóm đối chứng: số khách, tỷ lệ có mua, bình quân mỗi khách.
 3. Xem CHIẾN DỊCH MANG VỀ THÊM, số đơn dùng mã, số khách xin ngừng nhận tin.
 4. Xem phần Theo từng Sales: số khách, đã gọi xong, số đơn.
@@ -258,22 +258,44 @@ Từ khoá: tin Zalo tự động, kịch bản Zalo, cảm ơn sau mua hàng, c
 |---|---|---|
 | Quản lý Sales, quản trị (người khác chỉ xem) | Tin Zalo tự động (/tin-zalo-tu-dong) | [[Cài đặt]], [[Gửi thử]] |
 
-Máy tự gửi tin Zalo cho khách theo mẫu Zalo đã duyệt. Mỗi kịch bản một thẻ, có công tắc riêng.
+Hệ thống gửi tin Zalo theo mẫu Zalo đã duyệt. Mỗi kịch bản một thẻ, có công tắc riêng.
 
 **Các bước**
-1. Phân hệ Khách hàng, bấm [[Tin Zalo tự động]].
-2. Thẻ ghi mẫu đã duyệt chưa, giá một tin, số đã gửi hôm nay và 30 ngày.
-3. Bấm [[Cài đặt]]: mã mẫu, số ngày, trần tin mỗi ngày, giờ gửi; kịch bản có ưu đãi thì chọn CHƯƠNG TRÌNH PHÁT VOUCHER. Bấm [[Lưu cài đặt]].
-4. Bấm [[Gửi thử]], gõ số di động, bấm [[Gửi tin thử]].
-5. Bật công tắc, đọc hộp Bật kịch bản rồi bấm [[Bật]].
+1. Phân hệ Khách hàng & Marketing, bấm [[Tin Zalo tự động]].
+2. Lọc bằng chip [[Đang chạy]], [[Cần xử lý]], [[Đang tắt]], [[Có ưu đãi]].
+3. Thẻ ghi mẫu, giá một tin, số gửi hôm nay, chờ, lỗi.
+4. Bấm [[Cài đặt]]: mã mẫu, số ngày, trần tin mỗi ngày, giờ gửi; kịch bản có ưu đãi thì chọn CHƯƠNG TRÌNH PHÁT VOUCHER. Bấm [[Lưu cài đặt]].
+5. Bấm [[Gửi thử]], gõ số di động, bấm [[Gửi tin thử]].
+6. Bật công tắc, đọc hộp Bật kịch bản rồi bấm [[Bật]].
 
 **Lưu ý**
-- Bản 652 thêm tin Báo đã hoàn điểm (đơn web không thành) và Nhắc điểm sắp hết hạn: đăng ký mẫu Zalo rồi bật.
+- Tin Báo đã hoàn điểm, Nhắc điểm sắp hết hạn: đăng ký mẫu rồi bật.
 - Tin Cảm ơn khi khách nhận đơn, báo điểm đã bật sẵn từ bản 645: bill tại quầy gửi khi bill được ghi sổ (bill lưu nháp ghi sổ muộn vẫn được gửi, tính từ lúc ghi sổ), đơn giao gửi khi Pancake chuyển Đã nhận.
-- Không gửi sau 20:00. Đơn nhận buổi tối thì sáng hôm sau 8:00 mới gửi.
-- Tin có ưu đãi chỉ gửi khách đã đồng ý nhận tin Zalo. Mỗi khách tối đa một tin ưu đãi mỗi 7 ngày (trừ đền bù).
+- Không gửi sau 20:00, đơn nhận buổi tối thì 8:00 sáng hôm sau gửi.
+- Tin có ưu đãi chỉ gửi khách đã đồng ý nhận tin Zalo, tối đa một tin mỗi 7 ngày (trừ đền bù).
 - Zalo chỉ cấp hạn mức tin ưu đãi bằng 1/6 số tin chăm sóc đã gửi hai tháng trước, nên phải bật tin cảm ơn trước.
 - Bật kịch bản nào, ưu đãi bao nhiêu: việc này do giám đốc quyết.
+
+## Xem và sửa mức giảm của tin Zalo ưu đãi
+Từ khoá: mức giảm tin Zalo, giảm bao nhiêu, sửa mức giảm, ưu đãi trong tin, tối đa, trần giảm, chương trình phát voucher, nhắc dịp giảm bao nhiêu, sinh nhật giảm bao nhiêu
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý Sales, Marketing (người khác chỉ xem) | Tin Zalo tự động (/tin-zalo-tu-dong) | [[Sửa mức giảm]] |
+
+Mức giảm của một tin ưu đãi nằm ở chương trình khuyến mãi gắn với kịch bản đó, không nằm trong mẫu Zalo.
+
+**Các bước**
+1. Phân hệ Khách hàng & Marketing, bấm [[Tin Zalo tự động]], bấm chip [[Có ưu đãi]].
+2. Khối Ưu đãi trong tin trên thẻ ghi mức giảm đang áp (ví dụ Giảm 10%, tối đa 70.000đ) và tên chương trình.
+3. Bấm [[Sửa mức giảm]]: mở đúng chương trình ở màn Khuyến mãi. Sửa giá trị giảm, trần giảm, hoá đơn tối thiểu rồi lưu.
+4. Thẻ ghi Chưa chọn chương trình phát voucher thì bấm [[Chọn chương trình]], chọn rồi bấm [[Lưu cài đặt]].
+
+**Lưu ý**
+- Đổi mức giảm áp cho voucher phát từ lúc lưu. Voucher đã phát giữ mức cũ.
+- Ô TÊN ƯU ĐÃI TRÊN TIN chỉ là chữ hiện trên tin, không đổi mức giảm.
+- Tin nhắc mã sắp hết hạn lấy mức giảm từ chính mã khách đang giữ.
+- Mức ưu đãi: việc này do giám đốc quyết.
 
 ## Các kịch bản ưu đãi tự động theo hành trình khách
 Từ khoá: đơn thứ hai, hẹn gặp lại, nhắc dịp, kỷ niệm, giới thiệu bạn, referral, mời quay lại mốc hai, khách vắng 90 ngày, nhắc mã sắp hết hạn, nhóm đối chứng, win-back
