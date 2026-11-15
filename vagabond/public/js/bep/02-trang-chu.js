@@ -208,7 +208,7 @@ async function scrHome() {
   if (coQuyenCrm()) {
     var crmn = 0;
     try { crmn = (await api('vagabond.crm.tong_quan', {})).viec_toi || 0; } catch (e) { }
-    html += '<div class="sec">Khách hàng</div><div class="card">' +
+    html += '<div class="sec">Khách hàng &amp; Marketing</div><div class="card">' +
       card('📞', 'Danh sách gọi của tôi', 'Khách được chia cho bạn: gọi, chép tin Zalo, ghi kết quả', crmn, 'CRMGOI') +
       (isSales() ? card('👤', 'Tra cứu khách hàng', 'Hồ sơ đầy đủ: món hay mua, dịp đã mua, nhật ký liên hệ, đồng ý nhận tin', 0, 'KH') : '') +
       card('🧩', 'Nhóm khách', '6 nhóm máy tự chia mỗi đêm và các bộ lọc đã lưu', 0, 'CRMNHOM') +
@@ -636,7 +636,7 @@ var VGB_NHOM = [
   /* v614 phân hệ Khách hàng (CRM). Đứng ngay sau Bán hàng, anh Việt duyệt
      mẫu 27/10/2026. */
   {
-    k: 'KHG', ten: 'Khách hàng', icon: '💝',
+    k: 'KHG', ten: 'Khách hàng & Marketing', icon: '💝',
     keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'TQV'],
     nhom: [
       { t: 'Việc hôm nay', p: '', keys: ['CRMGOI'] },

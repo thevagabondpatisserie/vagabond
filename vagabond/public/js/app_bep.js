@@ -4346,7 +4346,7 @@ async function scrHome() {
   if (coQuyenCrm()) {
     var crmn = 0;
     try { crmn = (await api('vagabond.crm.tong_quan', {})).viec_toi || 0; } catch (e) { }
-    html += '<div class="sec">Khách hàng</div><div class="card">' +
+    html += '<div class="sec">Khách hàng &amp; Marketing</div><div class="card">' +
       card('📞', 'Danh sách gọi của tôi', 'Khách được chia cho bạn: gọi, chép tin Zalo, ghi kết quả', crmn, 'CRMGOI') +
       (isSales() ? card('👤', 'Tra cứu khách hàng', 'Hồ sơ đầy đủ: món hay mua, dịp đã mua, nhật ký liên hệ, đồng ý nhận tin', 0, 'KH') : '') +
       card('🧩', 'Nhóm khách', '6 nhóm máy tự chia mỗi đêm và các bộ lọc đã lưu', 0, 'CRMNHOM') +
@@ -4774,7 +4774,7 @@ var VGB_NHOM = [
   /* v614 phân hệ Khách hàng (CRM). Đứng ngay sau Bán hàng, anh Việt duyệt
      mẫu 27/10/2026. */
   {
-    k: 'KHG', ten: 'Khách hàng', icon: '💝',
+    k: 'KHG', ten: 'Khách hàng & Marketing', icon: '💝',
     keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'TQV'],
     nhom: [
       { t: 'Việc hôm nay', p: '', keys: ['CRMGOI'] },
@@ -27354,7 +27354,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '660';
+var APPVER = '661';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -65367,7 +65367,7 @@ function crmGoiLoc(ds, tt, cd, tim) {
    không hỏi lại máy chủ. Mở từ ô hay F5 thì đọc lại. */
 async function scrCrmGoi(daCo) {
   var tieuDe = 'Danh sách gọi của tôi';
-  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
+  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng & Marketing chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
   if (daCo !== true) {
     frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách gọi...</div></div>');
     var d;
@@ -65547,7 +65547,7 @@ function crmLocBoLoc(ds, tim) {
 
 async function scrCrmNhom() {
   var tieuDe = 'Nhóm khách';
-  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
+  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng & Marketing chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đếm nhóm khách...</div></div>');
   try { crmNhomD = await api('vagabond.crm.nhom_khach', {}); }
   catch (e) { return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
@@ -65726,7 +65726,7 @@ var crmDyTim = '', crmDyDong = [], crmDyCon = 0, crmDyNoi = '', crmDyKenh = '';
 
 async function scrCrmDongY(them) {
   var tieuDe = 'Sổ đồng ý nhận tin';
-  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
+  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng & Marketing chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
   var bat = them === true ? crmDyDong.length : 0;
   if (bat) busy(true);
   else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sổ đồng ý...</div></div>');
@@ -65817,7 +65817,7 @@ async function crmDsCd(them, loc) {
 
 async function scrCrmCdDs(them) {
   var tieuDe = 'Chiến dịch';
-  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
+  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng & Marketing chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
   if (them === true) busy(true);
   else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chiến dịch...</div></div>');
   var d;
@@ -66187,7 +66187,7 @@ async function scrCrmHqDs(them) {
      vòng 3: có ô tìm và chip trạng thái (AGENTS: ô tìm nhanh ở đầu mọi danh
      sách), máy chủ lọc "đã chốt" nên nháp mới không đẩy chiến dịch cũ ra. */
   var tieuDe = 'Hiệu quả chiến dịch';
-  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
+  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng & Marketing chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
   if (them === true) busy(true);
   else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chiến dịch...</div></div>');
   var d;
@@ -66287,47 +66287,93 @@ function crmZlHanMuc(q) {
   return html;
 }
 
+/* v661 (anh Việt 15/11/2026: làm lại phần Tin Zalo, thêm chip, hiện mức giảm).
+   Mỗi thẻ chia khối rõ: tên và công tắc, trạng thái, ưu đãi đang áp, số gửi
+   hôm nay, rồi nút. Chữ từ 13, vùng bấm từ 44. */
+function crmZlNhom(k) {
+  if (!+k.bat) return 'tat';
+  return +k.san_sang ? 'chay' : 'can';
+}
+function crmZlOSo(nhan, so, mau) {
+  return '<div style="flex:1;min-width:0;background:#f8fafc;border-radius:10px;padding:8px 6px;text-align:center">' +
+    '<b style="display:block;font-size:18px;font-weight:800;color:' + (so ? mau : '#98a2b3') + '">' + money(so) + '</b>' +
+    '<div style="font-size:13px;color:#667085">' + nhan + '</div></div>';
+}
+/* Khối ưu đãi của một kịch bản: mức giảm đọc từ chương trình khuyến mãi (máy
+   chủ trả sẵn), kèm nút mở đúng chương trình để sửa. */
+function crmZlUuDai(k, sua) {
+  if (!+k.km) return '';
+  var khung = function (trong, vang) {
+    return '<div data-crmzlud="' + h(k.ma) + '" style="border:1px solid ' + (vang ? '#fec84b' : '#a6f4c5') + ';background:' + (vang ? '#fffaeb' : '#f6fef9') +
+      ';border-radius:12px;padding:10px 12px;margin:8px 0">' + trong + '</div>';
+  };
+  if (!+k.can_ctkm) return khung('<div style="font-size:13.5px;color:#344054;line-height:1.45">🎁 Tin này nhắc đúng mã khách đang giữ. Mức giảm theo chương trình của mã đó, hạn dùng theo mã.</div>');
+  if (!k.ctkm || !k.ten_ctkm) return khung('<div style="font-size:14px;font-weight:700;color:#93370d">🎁 Chưa chọn chương trình phát voucher</div>' +
+    '<div style="font-size:13px;color:#667085;margin-top:2px;line-height:1.45">Chưa có chương trình thì tin này chưa gửi được.</div>' +
+    (sua ? '<button class="btn gh" data-crmzlcd="' + h(k.ma) + '" style="margin:8px 0 0;min-height:44px">Chọn chương trình</button>' : ''), true);
+  return khung('<div style="font-size:13px;color:#667085">Ưu đãi trong tin</div>' +
+    '<div style="font-size:16px;font-weight:800;color:#05603a;margin:2px 0;line-height:1.35">🎁 ' + h(k.muc_giam || 'Theo chương trình') + '</div>' +
+    '<div style="font-size:13px;color:#344054;line-height:1.45">Chương trình: ' + h(k.ten_ctkm) + (k.han_ngay ? ' · voucher dùng trong ' + money(k.han_ngay) + ' ngày' : '') + '</div>' +
+    (sua ? '<button class="btn gh" data-crmzlgiam="' + h(k.ctkm) + '" style="margin:8px 0 0;min-height:44px">✏️ Sửa mức giảm</button>' +
+      '<div style="font-size:13px;color:#667085;margin-top:4px;line-height:1.4">Mở chương trình ở màn Khuyến mãi. Đổi mức giảm là đổi cho cả voucher đã gửi khách mà khách chưa dùng.</div>' : ''));
+}
 function crmZlThe(k, sua) {
   var d = k.dem || {}, hn = d.hom_nay || {}, bm = d.ba_muoi || {};
   var mau = 'Mẫu Zalo ' + h(k.ma_mau || 'chưa gắn') + ': <b>' + h(k.mau_trang_thai) + '</b>' + (k.mau_gia ? ' · ' + money(+k.mau_gia) + 'đ một tin' : '');
-  return '<div class="card" data-crmzlthe="' + h(k.ma) + '" style="padding:14px">' +
+  var nut = 'margin:0;flex:1 1 45%;min-height:44px;font-size:14px';
+  return '<div class="card" data-crmzlthe="' + h(k.ma) + '" style="padding:14px;border-left:4px solid ' + ({ chay: '#12b76a', can: '#f79009', tat: '#d0d5dd' }[crmZlNhom(k)]) + '">' +
     '<div style="display:flex;align-items:center;gap:10px">' +
     '<span style="font-size:24px">' + (CRM_ZL_IC[k.ma] || '💬') + '</span>' +
     '<b style="flex:1;font-size:16px;line-height:1.35">' + h(k.ten) + '</b>' +
     (sua ? crmCongTac('data-crmzlbat="' + h(k.ma) + '"', +k.bat) : '') + '</div>' +
-    '<div style="font-size:13px;color:#667085;margin:6px 0 8px;line-height:1.45">' + h(k.giai_thich) + '</div>' +
-    '<div>' + crmZlTrangThai(k) + (+k.km ? crmTag('Tin khuyến mãi, chỉ khách đã đồng ý', 'lam') : crmTag('Tin chăm sóc', 'lam')) + '</div>' +
-    '<div style="font-size:13.5px;color:#344054;margin:4px 0">' + mau + '</div>' +
+    '<div style="margin-top:8px">' + crmZlTrangThai(k) + (+k.km ? crmTag('Tin khuyến mãi, chỉ khách đã đồng ý', 'lam') : crmTag('Tin chăm sóc', 'lam')) + '</div>' +
+    '<div style="font-size:13.5px;color:#475467;margin:2px 0 4px;line-height:1.5">' + h(k.giai_thich) + '</div>' +
+    crmZlUuDai(k, sua) +
+    '<div data-crmzldem="' + h(k.ma) + '" style="display:flex;gap:8px;margin:8px 0 6px">' +
+    crmZlOSo('Gửi hôm nay', crmZlSo(hn, 'Đã gửi'), '#05603a') + crmZlOSo('Đang chờ', crmZlSo(hn, 'Chờ gửi'), '#93370d') + crmZlOSo('Lỗi', crmZlSo(hn, 'Lỗi'), '#b42318') + '</div>' +
+    '<div style="font-size:13px;color:#667085;line-height:1.5">30 ngày: gửi ' + money(crmZlSo(bm, 'Đã gửi')) + ' tin · phí khoảng ' + money(d.phi || 0) + 'đ</div>' +
+    '<div style="font-size:13px;color:#667085;line-height:1.5">' + mau + '</div>' +
     (k.mau_trang_thai === 'Bị từ chối' && k.mau_ly_do ? '<div style="font-size:13px;color:#b42318;margin:2px 0 4px">Zalo ghi: ' + h(k.mau_ly_do) + '</div>' : '') +
-    '<div data-crmzldem="' + h(k.ma) + '" style="font-size:13.5px;color:#344054;margin:6px 0 2px">Hôm nay: gửi <b>' + crmZlSo(hn, 'Đã gửi') + '</b> · chờ <b>' +
-    crmZlSo(hn, 'Chờ gửi') + '</b> · lỗi <b>' + crmZlSo(hn, 'Lỗi') + '</b></div>' +
-    '<div style="font-size:13px;color:#667085">30 ngày: gửi ' + money(crmZlSo(bm, 'Đã gửi')) + ' tin · phí khoảng ' + money(d.phi || 0) + 'đ</div>' +
-    (k.ket_qua_luot ? '<div style="font-size:13px;color:#667085;margin-top:4px">Lượt gần nhất: ' + h(k.ket_qua_luot) + '</div>' : '') +
+    (k.ket_qua_luot ? '<div style="font-size:13px;color:#667085;line-height:1.5">Lượt gần nhất: ' + h(k.ket_qua_luot) + '</div>' : '') +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
-    (sua ? '<button class="btn gh" data-crmzlcd="' + h(k.ma) + '" style="margin:0;flex:1 1 45%;min-height:44px">⚙️ Cài đặt</button>' : '') +
-    (sua ? '<button class="btn gh" data-crmzlthu="' + h(k.ma) + '" style="margin:0;flex:1 1 45%;min-height:44px">📨 Gửi thử</button>' : '') +
-    '<button class="btn gh" data-crmzlkiem="' + h(k.ma) + '" style="margin:0;flex:1 1 45%;min-height:44px">🔄 Kiểm lại mẫu</button>' +
-    '<button class="btn gh" data-crmzltin="' + h(k.ma) + '" style="margin:0;flex:1 1 45%;min-height:44px">📋 Tin đã gửi</button></div></div>';
+    (sua ? '<button class="btn gh" data-crmzlcd="' + h(k.ma) + '" style="' + nut + '">⚙️ Cài đặt</button>' : '') +
+    (sua ? '<button class="btn gh" data-crmzlthu="' + h(k.ma) + '" style="' + nut + '">📨 Gửi thử</button>' : '') +
+    '<button class="btn gh" data-crmzlkiem="' + h(k.ma) + '" style="' + nut + '">🔄 Kiểm lại mẫu</button>' +
+    '<button class="btn gh" data-crmzltin="' + h(k.ma) + '" style="' + nut + '">📋 Tin đã gửi</button></div></div>';
 }
+
+var crmZlLoc = '';
+var CRM_ZL_LOC = [{ k: 'chay', ten: 'Đang chạy' }, { k: 'can', ten: 'Cần xử lý' }, { k: 'tat', ten: 'Đang tắt' }, { k: 'km', ten: 'Có ưu đãi' }];
+function crmZlKhop(k, loc) { return !loc || (loc === 'km' ? !!+k.km : crmZlNhom(k) === loc); }
 
 async function scrCrmZalo(dl) {
   var tieuDe = 'Tin Zalo tự động';
-  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
+  if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng & Marketing chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
   if (!dl) {
     frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc kịch bản và hạn mức Zalo...</div></div>');
     try { dl = await api('vagabond.zalo_kich_ban.ds_kich_ban', {}); }
     catch (e) { return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
   }
   crmZlDl = dl;
-  var sua = +dl.sua;
-  var html = '<div style="font-size:13px;color:#8a8f9c;margin:0 2px 10px;line-height:1.45">Máy tự gửi tin Zalo cho khách theo mẫu đã được Zalo duyệt. ' +
-    'Câu chữ nằm trong mẫu, máy chỉ điền tên khách, mã hoá đơn, điểm, mã voucher. Mỗi tin tốn phí theo giá Zalo ghi trên từng kịch bản.</div>' +
-    crmZlHanMuc(dl.han_muc) + (dl.ds || []).map(function (k) { return crmZlThe(k, sua); }).join('');
-  if (!sua) html += crmChan('Chỉ Sales Manager và quản trị được bật tắt, cài đặt và gửi thử.');
+  var sua = +dl.sua, tat = dl.ds || [];
+  var dem = { tat_ca: tat.length };
+  CRM_ZL_LOC.forEach(function (c) { dem[c.k] = tat.filter(function (k) { return crmZlKhop(k, c.k); }).length; });
+  /* Chip đang chọn mà không còn kịch bản nào khớp (vừa bật, vừa tắt) thì về Tất cả. */
+  if (crmZlLoc && !dem[crmZlLoc]) crmZlLoc = '';
+  var cc = { ma: 'crmZl', chang: { ds: CRM_ZL_LOC, dem: dem, chon: crmZlLoc, tatCa: 'Tất cả' } };
+  var hien = tat.filter(function (k) { return crmZlKhop(k, crmZlLoc); });
+  var html = '<div style="font-size:13px;color:#667085;margin:0 2px 10px;line-height:1.5">Hệ thống tự gửi tin Zalo cho khách theo mẫu đã được Zalo duyệt. ' +
+    'Câu chữ nằm trong mẫu, hệ thống chỉ điền tên khách, mã hoá đơn, điểm, mã voucher. Mỗi tin tốn phí theo giá Zalo ghi trên từng kịch bản.</div>' +
+    crmZlHanMuc(dl.han_muc) + dsCongCu(cc) +
+    '<div style="font-size:13px;color:#667085;margin:8px 2px">Đang xem ' + hien.length + ' trên ' + tat.length + ' kịch bản.</div>' +
+    hien.map(function (k) { return crmZlThe(k, sua); }).join('');
+  if (!sua) html += crmChan('Chỉ Sales Manager và quản trị hệ thống được bật tắt, cài đặt và gửi thử.');
   var b = frame(tieuDe, html);
+  dsCongCuNoi(b, cc, function (ho, v) { if (ho === 'chang') { crmZlLoc = v; scrCrmZalo(crmZlDl); } });
   b.onclick = async function (e) {
     var t;
     if ((t = e.target.closest('[data-crmzlbat]'))) return crmZlBat(t.getAttribute('data-crmzlbat'));
+    if ((t = e.target.closest('[data-crmzlgiam]'))) return kmSheetCtkm(t.getAttribute('data-crmzlgiam'));
     if ((t = e.target.closest('[data-crmzlcd]'))) return crmZlSheetCaiDat(crmZlTim(t.getAttribute('data-crmzlcd')));
     if ((t = e.target.closest('[data-crmzlthu]'))) return crmZlSheetThu(crmZlTim(t.getAttribute('data-crmzlthu')));
     if ((t = e.target.closest('[data-crmzltin]'))) { var ma = t.getAttribute('data-crmzltin'); crmZlTinTt = ''; crmZlTinTim = ''; crmZlTinKy = ''; crmZlTinTu = ''; crmZlTinDen = ''; return go(function () { return scrCrmZaloTin(ma); }); }
@@ -66354,11 +66400,14 @@ async function crmZlBat(ma) {
   catch (e) { busy(false); return toast(errMsg(e), 5000); }
 }
 
+function crmZlMuc(ten) {
+  return '<div data-crmzlmuc="1" style="font-size:15px;font-weight:800;color:#101828;margin:18px 0 0;padding-top:12px;border-top:1px solid #eaecf0">' + ten + '</div>';
+}
 function crmZlO(id, nhan, giai, gt, kieu, them) {
-  return '<div style="font-size:12px;color:#0B7C93;font-weight:600;margin:12px 0 4px">' + nhan + '</div>' +
+  return '<div style="font-size:13px;color:#0B7C93;font-weight:700;margin:12px 0 4px">' + nhan + '</div>' +
     '<input class="tin" id="' + id + '" ' + (kieu === 'so' ? 'type="number" inputmode="numeric"' : 'type="text"') + (them || '') + ' value="' + h(gt == null ? '' : gt) +
     '" style="font-size:15px;font-weight:500;text-align:left;padding:0 12px">' +
-    '<div style="font-size:12.5px;color:#667085;margin-top:3px;line-height:1.4">' + giai + '</div>';
+    '<div style="font-size:13px;color:#667085;margin-top:3px;line-height:1.4">' + giai + '</div>';
 }
 
 /* Nhãn chip chương trình tối đa 16 ký tự nhìn thấy (AGENTS.md 2b.18), cắt ở
@@ -66379,6 +66428,8 @@ function crmZlSheetCaiDat(k) {
   var ctkm = k.ctkm || '';
   function ve() {
     var html = '<div style="font-size:18px;font-weight:700;margin-bottom:4px">' + h(k.ten) + '</div>' +
+      '<div style="font-size:13px;color:#667085;line-height:1.45">' + h(k.giai_thich || '') + '</div>' +
+      crmZlMuc('Mẫu tin và lúc gửi') +
       crmZlO('crmZlMau', 'MÃ MẪU ZALO', 'Mã mẫu tin đã đăng ký với Zalo. Đổi mã thì máy hỏi lại Zalo mẫu mới đã duyệt chưa.', k.ma_mau, 'chu', ' inputmode="numeric"');
     /* v645: chữ ô số ngày do máy chủ trả theo từng kịch bản, màn không đoán theo mã. */
     if (k.nhan_ngay) html += crmZlO('crmZlNgay', h(k.nhan_ngay), h(k.goi_y_ngay || ''), k.so_ngay, 'so');
@@ -66389,7 +66440,8 @@ function crmZlSheetCaiDat(k) {
       var ds = (crmZlDl && crmZlDl.ctkm) || [];
       var chon = ds.filter(function (c) { return c.name === ctkm; })[0];
       /* AGENTS.md 2b.2: hơn 8 lựa chọn thì thẻ chọn mở tấm có ô tìm, không đổ chip (Codex PR #517). */
-      html += '<div style="font-size:12px;color:#0B7C93;font-weight:600;margin:12px 0 4px">CHƯƠNG TRÌNH PHÁT VOUCHER</div>' +
+      html += crmZlMuc('Ưu đãi trong tin') +
+        '<div style="font-size:13px;color:#0B7C93;font-weight:700;margin:12px 0 4px">CHƯƠNG TRÌNH PHÁT VOUCHER</div>' +
         (!ds.length ? '<div style="font-size:13px;color:#b42318">Chưa có chương trình nào đang bật và để cách phát mã là Mã dùng một lần. Tạo ở màn Khuyến mãi trước.</div>'
           : ds.length > 8 ? '<div data-crmzlkmchon="1" style="display:flex;align-items:center;gap:10px;border:1px solid #d0d5dd;border-radius:12px;padding:10px 12px;min-height:48px;cursor:pointer;background:#fff">' +
               '<span style="font-size:20px">&#127873;</span><span style="flex:1;min-width:0"><b style="font-size:15px">' + h(chon ? (chon.ten || chon.name) : 'Chọn chương trình') + '</b>' +
@@ -66397,12 +66449,17 @@ function crmZlSheetCaiDat(k) {
           : kmHangChip(ds.map(function (c) { return posChipNut('data-crmzlkm="' + h(c.name) + '" title="' + h(c.ten || c.name) + '"', h(crmZlChipGon(c.ten || c.name)), c.name === ctkm); }).join(''))) +
         (ctkm && !chon ? '<div style="font-size:13px;color:#b42318;margin-top:4px">Chương trình đã chọn trước đây đã hết hạn hoặc đã tắt, chọn lại chương trình khác.</div>' : '') +
         (chon && chon.doi_tuong ? '<div data-crmzldt="1" style="font-size:13px;color:#b54708;margin-top:4px">' + h(chon.doi_tuong) + ', không phát mã cho họ.</div>' : '') +
-        '<div style="font-size:12.5px;color:#667085;margin-top:3px;line-height:1.4">Mỗi khách nhận một mã riêng dùng một lần của chương trình này, dùng được ở quầy và trên web.</div>' +
+        (chon ? '<div data-crmzlmg="1" style="border:1px solid #a6f4c5;background:#f6fef9;border-radius:12px;padding:10px 12px;margin-top:8px">' +
+          '<div style="font-size:13px;color:#667085">Mức giảm đang áp</div>' +
+          '<div style="font-size:16px;font-weight:800;color:#05603a;margin:2px 0;line-height:1.35">' + h(chon.muc_giam || 'Theo chương trình') + '</div>' +
+          '<button class="btn gh" data-crmzlgiam="' + h(chon.name) + '" style="margin:6px 0 0;min-height:44px">✏️ Sửa mức giảm</button>' +
+          '<div style="font-size:13px;color:#667085;margin-top:4px;line-height:1.4">Mở chương trình ở màn Khuyến mãi. Các ô chưa lưu trên tấm này sẽ bỏ. Đổi mức giảm là đổi cho cả voucher đã gửi khách mà khách chưa dùng.</div></div>' : '') +
+        '<div style="font-size:13px;color:#667085;margin-top:6px;line-height:1.4">Mỗi khách nhận một mã riêng dùng một lần của chương trình này, dùng được ở quầy và trên web.</div>' +
         crmZlO('crmZlHan', 'VOUCHER DÙNG ĐƯỢC (NGÀY)', String(k.ma).indexOf('den_bu') === 0 ? 'Tính từ ngày quản lý cấp mã.' : 'Tính từ ngày gửi tin.', k.han_ngay, 'so') +
-        crmZlO('crmZlTenUd', 'TÊN ƯU ĐÃI TRÊN TIN (TỐI ĐA 30 CHỮ)', 'Để trống thì máy tự viết từ chương trình, ví dụ Giảm 10%.', k.ten_uu_dai, 'chu', ' maxlength="30"') +
+        crmZlO('crmZlTenUd', 'TÊN ƯU ĐÃI TRÊN TIN (TỐI ĐA 30 CHỮ)', 'Để trống thì hệ thống tự viết từ chương trình, ví dụ Giảm 10%. Chữ này chỉ là tên hiện trên tin, không đổi mức giảm.', k.ten_uu_dai, 'chu', ' maxlength="30"') +
         crmZlO('crmZlDk', 'ĐIỀU KIỆN TRÊN TIN (TỐI ĐA 30 CHỮ)', 'Để trống thì máy tự viết, ví dụ Hoá đơn từ 300.000đ.', k.dieu_kien, 'chu', ' maxlength="30"');
     }
-    html += crmZlO('crmZlTran', 'TRẦN SỐ TIN MỖI NGÀY', 'Gửi đủ số này thì dừng tới hôm sau. Để 0 là không gửi tin nào.', k.tran_ngay, 'so') +
+    html += crmZlMuc('Giới hạn gửi') + crmZlO('crmZlTran', 'TRẦN SỐ TIN MỖI NGÀY', 'Gửi đủ số này thì dừng tới hôm sau. Để 0 là không gửi tin nào.', k.tran_ngay, 'so') +
       '<div style="display:flex;gap:8px"><div style="flex:1">' + crmZlO('crmZlTu', 'GỬI TỪ (GIỜ)', 'Sớm nhất 6 giờ.', k.gio_tu, 'so') + '</div>' +
       '<div style="flex:1">' + crmZlO('crmZlDen', 'ĐẾN TRƯỚC (GIỜ)', 'Muộn nhất 20 giờ, không gửi khi khách đi ngủ.', k.gio_den, 'so') + '</div></div>' +
       '<button class="btn" data-crmzlluu="1" style="margin-top:14px">Lưu cài đặt</button>';
@@ -66418,6 +66475,8 @@ function crmZlSheetCaiDat(k) {
       sheet('Chọn chương trình phát voucher', ds2, ctkm, function (it) { ctkm = it.value; ve(); datO(giu2); }, true);
       return;
     }
+    var g = e.target.closest('[data-crmzlgiam]');
+    if (g) { ov.remove(); return kmSheetCtkm(g.getAttribute('data-crmzlgiam')); }
     if (!e.target.closest('[data-crmzlluu]')) return;
     var dat = docO();
     busy(true);
