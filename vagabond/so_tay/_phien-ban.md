@@ -12,6 +12,15 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v663
+- Gửi thử tin WhatsApp
+- Kích hoạt WhatsApp và hộp thư hoá đơn
+- Đơn giao của quầy: khách đặt trên web, quầy xác nhận và gọi xe
+- Tick bán Tại bàn và Giao ở Biên tập menu
+- Mã ưu đãi đơn giao của quầy
+- Màu Robin egg và nút vệ tinh trên trang đặt bánh
+- Miễn phí giao đơn giao của quầy
+
 ## v661
 - Bật tin Zalo tự động cho khách
 - Xem và sửa mức giảm của tin Zalo ưu đãi

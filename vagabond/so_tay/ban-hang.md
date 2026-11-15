@@ -1503,3 +1503,41 @@ Từ khoá: khách sự kiện, vé sự kiện, mã vé, đã vào cửa, danh 
 **Từ nay:** màn Khách sự kiện liệt kê các sự kiện đang bán và mới diễn ra 14 ngày, mỗi thẻ ghi số vé đã vào cửa. Mở một sự kiện: tìm mã vé, tên hoặc số điện thoại, bấm Đã vào cửa. Bấm nhầm thì bấm Bỏ dấu. Vé đã huỷ không đánh dấu được.
 
 **Bạn cần làm:** khách tới cửa đọc mã vé (8 ký tự), gõ vào ô tìm rồi bấm Đã vào cửa. Vé còn Chờ xác nhận thì hỏi Sales trước khi cho vào.
+
+## Đơn giao của quầy: khách đặt trên web, quầy xác nhận và gọi xe
+Từ khoá: đơn giao, weborder, giao tận nơi, tự lấy, gọi xe GreenSM, đơn web của quầy, hoàn tiền
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu ngân, quản lý cửa hàng | App, Bán hàng, Đơn giao của quầy | [[Xác nhận]] |
+
+Khách đặt qua tab Tại quầy trên trang chủ, chọn Giao tận nơi hoặc Tự lấy tại quầy và trả trước bằng chuyển khoản hay thẻ. Tiền về thì đơn hiện ở dải trên cùng mọi màn ("N đơn giao đã trả tiền chờ xác nhận") và tin Zalo nhóm cửa hàng. Đơn này không nằm trong màn Vận đơn của Sales.
+
+**Các bước**
+1. Bấm dải trên cùng hoặc mở Bán hàng, Đơn giao của quầy.
+2. Bấm [[Xác nhận]], chọn hẹn 10, 15 hay 20 phút. Máy lập phiếu tạm tính ở quầy (món, phí giao, phần giảm).
+3. Hết món hay quầy quá đông thì bấm [[Từ chối]] và chọn lý do. Khách đã trả thì kế toán nhận tin hoàn tiền.
+4. Đóng gói xong, đơn giao tận nơi bấm [[Gọi xe GreenSM]], xem cước rồi bấm [[Gọi xe]]. Thẻ đơn hiện link theo dõi tài xế.
+5. Khách nhận rồi bấm [[Đã giao xong]]. Chốt phiếu tạm tính bằng đúng cách khách đã trả trên web (Chuyển khoản hoặc OnePay).
+
+**Lưu ý**
+- Tài xế GreenSM huỷ chuyến thì máy CHƯA tự báo (GreenSM chưa có tài liệu báo trạng thái). Xem app GreenSM và gọi lại nếu cần.
+- Món chỉ lên đơn giao khi quản lý đã tick Giao ở Biên tập menu.
+
+## Tick bán Tại bàn và Giao ở Biên tập menu
+Từ khoá: tại bàn, giao, O2O, weborder, bánh mong manh, tick cả nhóm, ẩn món trên web
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý cửa hàng, Marketing | Bán hàng, Biên tập menu | chip [[Tại bàn]] và [[Giao]] |
+
+Mỗi món nước, mỗi bánh trên tủ có hai chip ngay trên dòng. Tại bàn là khách quét QR trên bàn gọi món. Giao là khách đặt qua tab Tại quầy trên trang chủ. Món mới lên tủ chưa tick gì thì Tại bàn bật, Giao tắt.
+
+**Các bước**
+1. Mở một nhóm (hoặc nút Món của nhóm Bánh trên tủ).
+2. Bấm chip [[Giao]] để bật bán giao; bánh mong manh, khó giao xa thì để tắt. Bấm [[Tại bàn]] để tắt món khỏi trang gọi món tại bàn.
+3. Muốn đổi cả nhóm thì bấm nút Bật Giao cả nhóm (hoặc Tắt Giao cả nhóm) ở đầu danh sách.
+4. Bấm Xem và xuất bản. Khách thấy sau khi xuất bản.
+
+**Lưu ý**
+- Link QR đã dán trên bàn vẫn dùng được, không phải in lại. Mở từ QR thì trang chỉ còn menu của đúng quầy đó.
