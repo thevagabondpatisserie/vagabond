@@ -457,3 +457,5 @@ vagabond.patches.dong_bo_cau_truc #v659
 vagabond.patches.dong_bo_cau_truc #v660
 vagabond.patches.v660_refill_nhieu_dot
 vagabond.patches.dong_bo_cau_truc #v661
+vagabond.patches.dong_bo_cau_truc #v663
+vagabond.patches.v663_khung_ma_weborder
