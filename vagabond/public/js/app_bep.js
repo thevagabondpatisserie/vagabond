@@ -66307,7 +66307,7 @@ function crmZlUuDai(k, sua) {
     return '<div data-crmzlud="' + h(k.ma) + '" style="border:1px solid ' + (vang ? '#fec84b' : '#a6f4c5') + ';background:' + (vang ? '#fffaeb' : '#f6fef9') +
       ';border-radius:12px;padding:10px 12px;margin:8px 0">' + trong + '</div>';
   };
-  if (!+k.can_ctkm) return khung('<div style="font-size:13.5px;color:#344054;line-height:1.45">🎁 Tin này nhắc đúng mã khách đang giữ. Mức giảm và hạn dùng lấy từ chính mã đó.</div>');
+  if (!+k.can_ctkm) return khung('<div style="font-size:13.5px;color:#344054;line-height:1.45">🎁 Tin này nhắc đúng mã khách đang giữ. Mức giảm theo chương trình của mã đó, hạn dùng theo mã.</div>');
   if (!k.ctkm || !k.ten_ctkm) return khung('<div style="font-size:14px;font-weight:700;color:#93370d">🎁 Chưa chọn chương trình phát voucher</div>' +
     '<div style="font-size:13px;color:#667085;margin-top:2px;line-height:1.45">Chưa có chương trình thì tin này chưa gửi được.</div>' +
     (sua ? '<button class="btn gh" data-crmzlcd="' + h(k.ma) + '" style="margin:8px 0 0;min-height:44px">Chọn chương trình</button>' : ''), true);
@@ -66315,7 +66315,7 @@ function crmZlUuDai(k, sua) {
     '<div style="font-size:16px;font-weight:800;color:#05603a;margin:2px 0;line-height:1.35">🎁 ' + h(k.muc_giam || 'Theo chương trình') + '</div>' +
     '<div style="font-size:13px;color:#344054;line-height:1.45">Chương trình: ' + h(k.ten_ctkm) + (k.han_ngay ? ' · voucher dùng trong ' + money(k.han_ngay) + ' ngày' : '') + '</div>' +
     (sua ? '<button class="btn gh" data-crmzlgiam="' + h(k.ctkm) + '" style="margin:8px 0 0;min-height:44px">✏️ Sửa mức giảm</button>' +
-      '<div style="font-size:13px;color:#667085;margin-top:4px;line-height:1.4">Mở chương trình ở màn Khuyến mãi. Đổi mức giảm áp cho voucher phát từ lúc lưu, voucher đã phát giữ mức cũ.</div>' : ''));
+      '<div style="font-size:13px;color:#667085;margin-top:4px;line-height:1.4">Mở chương trình ở màn Khuyến mãi. Đổi mức giảm là đổi cho cả voucher đã gửi khách mà khách chưa dùng.</div>' : ''));
 }
 function crmZlThe(k, sua) {
   var d = k.dem || {}, hn = d.hom_nay || {}, bm = d.ba_muoi || {};
@@ -66453,7 +66453,7 @@ function crmZlSheetCaiDat(k) {
           '<div style="font-size:13px;color:#667085">Mức giảm đang áp</div>' +
           '<div style="font-size:16px;font-weight:800;color:#05603a;margin:2px 0;line-height:1.35">' + h(chon.muc_giam || 'Theo chương trình') + '</div>' +
           '<button class="btn gh" data-crmzlgiam="' + h(chon.name) + '" style="margin:6px 0 0;min-height:44px">✏️ Sửa mức giảm</button>' +
-          '<div style="font-size:13px;color:#667085;margin-top:4px;line-height:1.4">Mở chương trình ở màn Khuyến mãi. Các ô chưa lưu trên tấm này sẽ bỏ.</div></div>' : '') +
+          '<div style="font-size:13px;color:#667085;margin-top:4px;line-height:1.4">Mở chương trình ở màn Khuyến mãi. Các ô chưa lưu trên tấm này sẽ bỏ. Đổi mức giảm là đổi cho cả voucher đã gửi khách mà khách chưa dùng.</div></div>' : '') +
         '<div style="font-size:13px;color:#667085;margin-top:6px;line-height:1.4">Mỗi khách nhận một mã riêng dùng một lần của chương trình này, dùng được ở quầy và trên web.</div>' +
         crmZlO('crmZlHan', 'VOUCHER DÙNG ĐƯỢC (NGÀY)', String(k.ma).indexOf('den_bu') === 0 ? 'Tính từ ngày quản lý cấp mã.' : 'Tính từ ngày gửi tin.', k.han_ngay, 'so') +
         crmZlO('crmZlTenUd', 'TÊN ƯU ĐÃI TRÊN TIN (TỐI ĐA 30 CHỮ)', 'Để trống thì hệ thống tự viết từ chương trình, ví dụ Giảm 10%. Chữ này chỉ là tên hiện trên tin, không đổi mức giảm.', k.ten_uu_dai, 'chu', ' maxlength="30"') +
