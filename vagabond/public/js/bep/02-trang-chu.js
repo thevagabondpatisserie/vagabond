@@ -160,6 +160,8 @@ async function scrHome() {
       (coQuyenGmbQr() ? card('🔳', 'In QR tại bàn', 'Mỗi bàn một mã QR, khách quét để gọi món; in khổ A6', 0, 'GMBQR') : '') +
       /* v640: menu theo điểm bán cho trang bàn và màn Tính tiền (68-bien-tap-menu.js). */
       (coQuyenGmbQr() ? card('📋', 'Biên tập menu', 'Thứ tự nhóm và món, đá đường, topping cho món nước, ẩn hiện trên web', 0, 'BTM') : '') +
+      /* v662: đơn khách đặt qua tab Tại quầy trên trang chủ, quầy giao (69-don-giao-quay.js). */
+      card('🛵', 'Đơn giao của quầy', 'Khách đặt giao hoặc tự lấy trên web, đã trả trước: xác nhận, gọi xe GreenSM', 0, 'DGQ') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       /* v582: chi Sales that, QLCH, ke toan, giam doc (coQuyenCongNo). */
       (coQuyenCongNo() ? card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') : '') +
@@ -622,9 +624,9 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'KSK', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM', 'GMBQR', 'BTM'],
+    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DDT', 'KSK', 'BSI', 'BSIKH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM', 'GMBQR', 'BTM', 'DGQ'],
     nhom: [
-      { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'DSCK', 'BNTM'] },
+      { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DGQ', 'DTREO', 'DSCK', 'BNTM'] },
       { t: 'Menu', p: 'món, nhóm, tuỳ chọn trên web và quầy', keys: ['BTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
       { t: 'Khách hàng', p: 'đặt bàn, đặt trước, sự kiện và công nợ', keys: ['DATBAN', 'DDT', 'KSK', 'CN', 'SOTANG', 'SODU'] },
@@ -2213,6 +2215,7 @@ function vgbGo(k) {
   if (k === 'POS') return go(scrPosChonQuay);
   if (k === 'GMBQR') return go(scrGmbInQr);
   if (k === 'BTM') return go(scrBienTapMenu);
+  if (k === 'DGQ') return go(function () { scrDonGiaoQuay(); });
   if (k === 'TQV') return go(scrTqDot);
   /* v614 phân hệ Khách hàng (58-crm.js). */
   if (k === 'CRMGOI') return go(scrCrmGoi);
