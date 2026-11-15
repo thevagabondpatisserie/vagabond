@@ -334,6 +334,8 @@ def _tra_luot_don_huy():
 	"""Việc định kỳ: đơn web đã huỷ mà còn giữ lượt chương trình hoặc mã dùng
 	một lần (chưa gắn hoá đơn) thì trả lại. Lưới an toàn cho lần trả ngay lúc
 	Pancake từ chối bị lỗi, và cho đơn chờ đối soát về sau mới thành Đã huỷ."""
+	from vagabond import don_quay
+
 	hang = frappe.db.sql(
 		"select gc from ("
 		" select sd.ghi_chu as gc from `tabVagabond CTKM Su Dung` sd"
@@ -343,7 +345,12 @@ def _tra_luot_don_huy():
 		" select v.ghi_chu as gc from `tabVagabond Voucher` v"
 		" where v.trang_thai='Da dung' and v.hoa_don is null and v.ghi_chu like 'Đơn web %%'"
 		") x join `tabVagabond Don Web` d on x.gc = concat('Đơn web ', d.name)"
-		" where d.trang_thai='Da huy' limit 200")
+		" where d.trang_thai='Da huy'"
+		# Codex #573: đơn giao của quầy (WEBORDER) không qua Pancake: quầy từ chối,
+		# hoặc khách bỏ không trả quá một ngày, thì cũng trả lượt đã giữ.
+		" or (ifnull(d.vgb_kenh, '')=%s and (d.vgb_tt_quay=%s"
+		" or (d.vgb_tt_quay=%s and d.creation < now() - interval 1 day)))"
+		" limit 200", (don_quay.KENH, don_quay.TT_TU_CHOI, don_quay.TT_CHO_TRA))
 	n = 0
 	for (gc,) in hang:
 		try:

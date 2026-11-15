@@ -239,8 +239,62 @@ def con_giu(tt, luc, bay_gio, phut=PHUT_GIU_CHUA_TRA):
 		return False
 
 
-def the_don(r, snap):
-	"""Thẻ một đơn cho màn Đơn giao của quầy. THUẦN (r: dict bản ghi)."""
+BILL_TAM, BILL_CHOT, BILL_HUY = "tam", "chot", "huy"
+
+
+def tt_bill(si):
+	"""Trạng thái phiếu quầy của đơn theo đúng phép kiem_kho.da_ban: phiếu đã chốt
+	(không tạm tính, không huỷ, chưa cancel) đã được tính là đã bán. THUẦN.
+	si: dict {docstatus, vgb_tam_tinh, vgb_huy} hoặc None (không còn phiếu)."""
+	if not si:
+		return None
+	if int(si.get("docstatus") or 0) >= 2 or int(si.get("vgb_huy") or 0):
+		return BILL_HUY
+	return BILL_TAM if int(si.get("vgb_tam_tinh") or 0) else BILL_CHOT
+
+
+def giu_theo_bill(tt, luc, bay_gio, bill):
+	"""Codex #573: mỗi phần bánh trừ ĐÚNG MỘT lần. Phiếu đã chốt thì
+	kiem_kho.da_ban đã trừ, đơn thôi giữ (kể cả khi đơn chưa bấm Đã giao); phiếu
+	còn tạm tính thì da_ban chưa trừ, đơn phải giữ (kể cả khi đã bấm Đã giao);
+	chưa có phiếu hoặc phiếu đã huỷ thì giữ theo trạng thái đơn. THUẦN."""
+	if tt == TT_TU_CHOI:
+		return False
+	if bill == BILL_CHOT:
+		return False
+	if bill == BILL_TAM:
+		return True
+	return con_giu(tt, luc, bay_gio)
+
+
+def so_da_doi(kq, raw):
+	"""Codex #573: tổng khách phải trả đổi so với lần khách vừa xem thì không tạo
+	đơn: tiền món, phần giảm, phí giao (giao tận nơi) đều phải khớp số đã xem.
+	Thiếu số đã xem là đổi (trình duyệt luôn gửi đủ ba số). THUẦN."""
+	def so(v):
+		if v in (None, ""):
+			return None
+		try:
+			return int(round(float(v)))
+		except (TypeError, ValueError):
+			return None
+
+	if so(raw.get("tien_hang_da_xem")) != int(kq.get("tien_hang") or 0):
+		return True
+	if (so(raw.get("giam_da_xem")) or 0) != int(kq.get("giam") or 0):
+		return True
+	return (not kq.get("tu_lay")) and so(raw.get("phi_da_xem")) != kq.get("phi")
+
+
+def tong_phai_thu(r, snap):
+	"""Tổng khách đã được báo và đã trả cho đơn: tiền món - giảm + phí giao. THUẦN."""
+	uu = (snap or {}).get("uu_dai") or {}
+	phi = (snap or {}).get("phi") or {}
+	return int(r.get("tien_banh") or 0) - int(uu.get("giam") or 0) + int(phi.get("phi_khach") or 0)
+
+
+def the_don(r, snap, anh=None):
+	"""Thẻ một đơn cho màn Đơn giao của quầy. THUẦN (r: dict bản ghi; anh: {mã món: ảnh})."""
 	wo = (snap or {}).get("weborder") or {}
 	phi = (snap or {}).get("phi") or {}
 	uu = (snap or {}).get("uu_dai") or {}
@@ -249,6 +303,7 @@ def the_don(r, snap):
 		"ten": r.get("ho_ten") or "", "sdt": r.get("dien_thoai") or "",
 		"tu_lay": 1 if r.get("tu_lay") else 0, "dia_chi": (snap or {}).get("dia_chi") or "",
 		"mon": [{"ten": d.get("ten"), "sl": int(d.get("sl") or 0), "tc": d.get("tc_chu") or "",
+			"anh": (anh or {}).get(d.get("ma")) or "",
 			"tp": [t.get("ten") for t in d.get("tp") or []]} for d in wo.get("dong") or []],
 		"tien_hang": int(r.get("tien_banh") or 0), "giam": int(uu.get("giam") or 0),
 		"phi": phi.get("phi_khach"), "mien_phi": 1 if phi.get("mien_phi") else 0,
@@ -339,18 +394,31 @@ def toa_do_diem(d):
 def giu_cua_diem(ma_diem, bo_ten=None):
 	"""{mã: sl} món đang giữ trên tủ bởi đơn WEBORDER còn hiệu lực của điểm.
 	MỘT nguồn cho bảng món gọi được (goi_mon_ban.bang_mon) của cả hai kênh."""
-	from frappe.utils import now_datetime
+	from frappe.utils import add_days, now_datetime
 
+	bay = now_datetime()
 	try:
-		ds = frappe.get_all(DT, filters={"vgb_kenh": KENH, "vgb_diem": ma_diem, "vgb_tt_quay": ["in", list(TT_GIU)]},
-			fields=["name", "vgb_tt_quay", "creation", "snapshot"], limit_page_length=0, ignore_permissions=True)
+		# Đã giao mà phiếu còn tạm tính vẫn phải giữ (giu_theo_bill): đọc cả đơn Đã
+		# giao trong hai ngày gần nhất, phần còn lại do phiếu quyết định.
+		ds = frappe.get_all(DT, filters={"vgb_kenh": KENH, "vgb_diem": ma_diem,
+			"vgb_tt_quay": ["in", list(TT_GIU) + [TT_XONG]], "creation": [">=", add_days(bay, -2)]},
+			fields=["name", "vgb_tt_quay", "creation", "snapshot", "vgb_bill_quay"], limit_page_length=0,
+			ignore_permissions=True)
 	except Exception:
 		# Site chưa có ô (chưa migrate xong): chưa có đơn WEBORDER nào.
 		return {}
-	bay = now_datetime()
+	ten_bill = sorted({r.get("vgb_bill_quay") for r in ds if r.get("vgb_bill_quay")})
+	bill = {}
+	if ten_bill:
+		for si in frappe.get_all("Sales Invoice", filters={"name": ["in", ten_bill]},
+				fields=["name", "docstatus", "vgb_tam_tinh", "vgb_huy"], limit_page_length=0, ignore_permissions=True):
+			bill[si["name"]] = tt_bill(si)
 	snaps = []
 	for r in ds:
-		if r["name"] == bo_ten or not con_giu(r.get("vgb_tt_quay"), r.get("creation"), bay):
+		b = bill.get(r.get("vgb_bill_quay")) if r.get("vgb_bill_quay") else None
+		if r.get("vgb_bill_quay") and b is None:
+			b = BILL_HUY  # phiếu đã bị xoá: như phiếu huỷ, giữ theo trạng thái đơn
+		if r["name"] == bo_ten or not giu_theo_bill(r.get("vgb_tt_quay"), r.get("creation"), bay, b):
 			continue
 		try:
 			snaps.append(json.loads(r.get("snapshot") or "{}"))
@@ -460,12 +528,45 @@ def _cong_khai(kq):
 	return {k: kq[k] for k in ("ok", "tien_hang", "giam", "phi", "trang_thai_phi", "nguong", "loi_ma") if k in kq}
 
 
+def _ds_ctkm(kq):
+	"""Mã các chương trình bộ tính đã áp cho đơn (để khoá hàng), đã xếp."""
+	return sorted({str(a.get("ma")) for a in ((kq or {}).get("uu") or {}).get("ap") or [] if a.get("ma")}) \
+		if int((kq or {}).get("giam") or 0) else []
+
+
+def ghi_chu_don(ten):
+	"""Sợi dây nối lượt ưu đãi, mã dùng một lần với đơn (cùng mẫu đơn đặt bánh,
+	để khuyen_mai.tra_luot_web, gan_hoa_don_web và việc dọn định kỳ dùng chung)."""
+	from vagabond import don_web
+
+	return don_web.GHI_CHU_DON_WEB % ten
+
+
+def _giu_uu_dai(kq, ten, ho_ten, sdt):
+	"""Codex #573: giữ mã dùng một lần và ghi lượt chương trình CÙNG giao dịch với
+	bản ghi đơn (chưa commit), như đơn đặt bánh. Trả câu lỗi cho khách hoặc ""."""
+	from vagabond import khuyen_mai
+
+	if not int(kq.get("giam") or 0):
+		return ""
+	gc = ghi_chu_don(ten)
+	try:
+		ma = kq.get("ma") or ""
+		if ma and khuyen_mai.ma_dung_mot_lan(ma) and not khuyen_mai.giu_ma_mot_lan(ma, gc):
+			return "Mã %s vừa được dùng cho một đơn khác." % ma
+		khuyen_mai.giu_luot_web((kq.get("uu") or {}).get("kq") or {}, khach=ho_ten, sdt=sdt, ghi_chu=gc)
+	except Exception:
+		frappe.log_error(title="Vagabond: giữ ưu đãi đơn giao của quầy", message=frappe.get_traceback())
+		return "Chưa giữ được ưu đãi lúc này. Quý khách thử gửi lại sau ít phút."
+	return ""
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=60)
 def tao_don(don=None):
 	"""Khách gửi đơn WEBORDER: kiểm món trên tủ trong khoá điểm, ghi bản ghi Don
 	Web (kênh WEBORDER, Chờ trả tiền), trả đường biên nhận để khách trả ngay."""
-	from vagabond import don_web, goi_mon_ban
+	from vagabond import don_web, goi_mon_ban, khuyen_mai
 
 	raw = _doc_don(don)
 	if raw is None:
@@ -507,14 +608,23 @@ def tao_don(don=None):
 		kq, loi = _tinh(raw)
 		if loi:
 			return {"ok": 0, "cau": loi, "tai_lai": 1}
-		try:
-			giam_da_xem = int(float(raw.get("giam_da_xem") or 0))
-			phi_da_xem = raw.get("phi_da_xem")
-			phi_da_xem = None if phi_da_xem in (None, "") else int(float(phi_da_xem))
-		except (TypeError, ValueError):
-			giam_da_xem, phi_da_xem = 0, None
-		if kq["giam"] != giam_da_xem or (not kq["tu_lay"] and kq["phi"] != phi_da_xem):
-			# Số đổi trong lúc khách đọc giỏ: cho khách xem tổng mới rồi tự bấm lại.
+		ds_km = _ds_ctkm(kq)
+		if ds_km:
+			# Codex #573 (H8 loại 1): khoá hàng các chương trình sắp áp rồi TÍNH LẠI
+			# trên ảnh chụp mới, như đơn đặt bánh (don_hang._giu_luot_uu_dai). Commit
+			# trước để kết thúc ảnh chụp đọc cũ; khoá điểm get_lock vẫn giữ qua commit.
+			frappe.db.commit()
+			khuyen_mai.khoa_ctkm(ds_km)
+			kq2, loi = _tinh(raw)
+			if loi:
+				return {"ok": 0, "cau": loi, "tai_lai": 1}
+			if _ds_ctkm(kq2) != ds_km or kq2["giam"] != kq["giam"]:
+				return dict(_cong_khai(kq2), ok=0, ly_do="gia_doi",
+					cau="Ưu đãi vừa thay đổi (chương trình đã hết lượt hoặc vừa tắt). Quý khách xem lại tổng tiền rồi gửi lại.")
+			kq = kq2
+		if so_da_doi(kq, raw):
+			# Số đổi trong lúc khách đọc giỏ (tiền món, giảm hay phí giao): cho
+			# khách xem tổng mới rồi tự bấm lại.
 			return dict(_cong_khai(kq), ok=0, ly_do="gia_doi",
 				cau="Tổng tiền vừa cập nhật. Quý khách xem lại rồi bấm gửi.")
 		pt = chuan_pt(raw.get("thanh_toan"))
@@ -547,6 +657,10 @@ def tao_don(don=None):
 			"khoa_chong_trung": khoa_trung, "snapshot": json.dumps(snapshot, ensure_ascii=False),
 			"vgb_kenh": KENH, "vgb_diem": d["ma"], "vgb_tt_quay": TT_CHO_TRA,
 		})
+		loi_giu = _giu_uu_dai(kq, ban_ghi.name, ten, sdt)
+		if loi_giu:
+			frappe.db.rollback()
+			return {"ok": 0, "cau": loi_giu, "tai_lai": 1}
 		# Không qua Pancake: đánh dấu đã nhận để nhịp đối soát Pancake bỏ qua.
 		frappe.db.set_value(DT, ban_ghi.name, "trang_thai", "Da nhan", update_modified=False)
 		ban_ghi.trang_thai = "Da nhan"
@@ -612,13 +726,29 @@ def _snap(r):
 		return {}
 
 
+NGAY_XEM = (1, 7)
+
+
+def chuan_ngay_xem(v):
+	"""Khoảng ngày màn Đơn giao của quầy: 1 (24 giờ) hoặc 7 ngày; lạ thì 1. THUẦN."""
+	try:
+		n = int(v)
+	except (TypeError, ValueError):
+		return NGAY_XEM[0]
+	return n if n in NGAY_XEM else NGAY_XEM[0]
+
+
 @frappe.whitelist()
-def danh_sach(diem=None):
-	"""Màn Đơn giao của quầy: đơn chờ xác nhận, đang làm, đã gọi xe trong ngày;
-	đơn đã giao hay từ chối hôm nay xếp cuối. Đơn chưa trả tiền không hiện."""
+def danh_sach(diem=None, ngay=None):
+	"""Màn Đơn giao của quầy: đơn chờ xác nhận, đang làm, đã gọi xe; đơn đã giao
+	hay từ chối xếp cuối. Khoảng ngày 24 giờ hoặc 7 ngày (chip trên màn). Đơn
+	chưa trả tiền không hiện. Món kèm ảnh danh mục (AGENTS.md 2b.4)."""
 	from frappe.utils import add_days, now_datetime
 
+	from vagabond import goi_mon_ban
+
 	_kiem_quyen()
+	so_ngay = chuan_ngay_xem(ngay)
 	from vagabond import bien_tap_menu
 
 	cac = bien_tap_menu._diem_co_quay()
@@ -626,13 +756,18 @@ def danh_sach(diem=None):
 	if not d:
 		return {"ds": [], "diem": "", "cac_diem": []}
 	ds = frappe.get_all(DT, filters={"vgb_kenh": KENH, "vgb_diem": d["ma"], "vgb_tt_quay": ["!=", TT_CHO_TRA],
-		"creation": [">=", add_days(now_datetime(), -1)]},
+		"creation": [">=", add_days(now_datetime(), -so_ngay)]},
 		fields=["name", "creation", "ho_ten", "dien_thoai", "tu_lay", "tien_banh", "snapshot", "vgb_tt_quay", "vgb_hen_phut",
 			"vgb_tt_da_thu", "vgb_tt_cach", "vgb_gsm_link", "vgb_bill_quay", "vgb_can_hoan", "vgb_ly_do_quay"],
 		order_by="creation asc", limit_page_length=0)
 	thu_tu = {TT_CHO_XN: 0, TT_XN: 1, TT_GOI_XE: 2, TT_XONG: 3, TT_TU_CHOI: 4}
-	the = sorted((the_don(r, _snap(r)) for r in ds), key=lambda x: (thu_tu.get(x["tt"], 9), x["luc"]))
-	return {"ds": the, "diem": d["ma"], "ten_diem": d.get("ten_ngan") or d["ten"], "hen": list(PHUT_HEN),
+	snaps = [(r, _snap(r)) for r in ds]
+	try:
+		anh = goi_mon_ban._anh_mon(sorted({x.get("ma") for _, sn in snaps for x in mon_tu_snapshot(sn) if x.get("ma")}))
+	except Exception:
+		anh = {}
+	the = sorted((the_don(r, sn, anh) for r, sn in snaps), key=lambda x: (thu_tu.get(x["tt"], 9), x["luc"]))
+	return {"ds": the, "diem": d["ma"], "ten_diem": d.get("ten_ngan") or d["ten"], "hen": list(PHUT_HEN), "ngay": so_ngay,
 		"ly_do": list(LY_DO_TU_CHOI), "cac_diem": [{"ma": x["ma"], "ten": x.get("ten_ngan") or x["ten"]} for x in cac]}
 
 
@@ -657,17 +792,41 @@ def _nguon_bill(d):
 
 @frappe.whitelist(methods=["POST"])
 def xac_nhan(ma=None, hen=None):
-	"""Quầy nhận đơn: hẹn 10, 15, 20 phút, lập phiếu tạm tính ở quầy. Hai thu
-	ngân bấm cùng lúc chỉ một người lập được phiếu (khoá hàng, đọc hiện tại)."""
-	from frappe.utils import now_datetime
+	"""Quầy nhận đơn: hẹn 10, 15, 20 phút, lập phiếu tạm tính ở quầy.
 
-	from vagabond import ban_hang, goi_mon_ban
-
+	Codex #573: tao_don_tay tự commit giữa chừng, nên khoá hàng (for update)
+	nhả ra trước khi đơn đổi trạng thái. Khoá phiên get_lock theo mã đơn giữ
+	suốt lượt (qua các lần commit): hai thu ngân bấm cùng lúc thì người sau
+	chờ, rồi đọc lại thấy đơn đã xác nhận, không lập phiếu thứ hai.
+	Phiếu giữ ĐÚNG giá khách đã trả (giá chốt lúc đặt), không lấy lại bảng giá
+	điểm; tổng phiếu lệch số khách đã trả thì xoá phiếu nháp và dừng."""
 	_kiem_quyen()
 	try:
 		phut = chuan_hen(hen)
 	except ValueError as e:
 		frappe.throw(str(e))
+	return _mot_luot(ma, _xac_nhan_trong_khoa, ma, phut)
+
+
+def _mot_luot(ma, ham, *args):
+	"""Codex #573 (H8 loại 1, 4): mọi việc đổi trạng thái một đơn ở quầy chạy
+	trong khoá phiên get_lock theo mã đơn, giữ qua các lần commit giữa chừng
+	(tao_don_tay, GreenSM). Hai máy bấm cùng lúc: máy sau chờ rồi đọc lại."""
+	ten_khoa = "vagabond:weborder-don:%s" % (ma or "")
+	frappe.db.commit()
+	if not _khoa(ten_khoa, 15):
+		frappe.throw("Đơn %s đang được một máy khác xử lý. Đợi vài giây rồi tải lại danh sách." % ma)
+	try:
+		return ham(*args)
+	finally:
+		_nha(ten_khoa)
+
+
+def _xac_nhan_trong_khoa(ma, phut):
+	from frappe.utils import now_datetime
+
+	from vagabond import ban_hang, goi_mon_ban, khuyen_mai
+
 	r = _doc_khoa(ma)
 	moi = chuyen_duoc(r.get("vgb_tt_quay"), "xac_nhan")
 	if not moi:
@@ -679,22 +838,40 @@ def xac_nhan(ma=None, hen=None):
 	dong = mon_tu_snapshot(snap)
 	uu = snap.get("uu_dai") or {}
 	phi = snap.get("phi") or {}
+	mong = tong_phai_thu(r, snap)
 	import random
 
 	sr = random.SystemRandom()
 	gc = ("Đơn giao web %s (%s), khách đã trả trước %s đ qua %s. Chốt phiếu bằng đúng cách đó." % (
 		ma, "tự lấy" if r.get("tu_lay") else "giao tận nơi", "{:,}".format(int(r.get("vgb_tt_da_thu") or 0)).replace(",", "."),
 		r.get("vgb_tt_cach") or "chuyển khoản"))[:300]
-	kq = ban_hang.tao_don_tay(
-		nguon=_nguon_bill(d), quay=d["ma"], ma_don=goi_mon_ban.ma_bill_moi(d["ma"], sr.choice),
-		ten_khach=r.get("ho_ten") or "Khách đặt web", dien_thoai=r.get("dien_thoai") or "",
-		items=goi_mon_ban.dong_hoa_don(dong), tam_tinh=1, so_ban=("Web " + str(ma))[-12:], ghi_chu=gc,
-		giam_gia=int(uu.get("giam") or 0), phi_ship=int(phi.get("phi_khach") or 0))
+	# Cờ chỉ máy chủ đặt được (không đi qua lời gọi của trình duyệt): giữ giá dòng.
+	frappe.flags.vgb_gia_chot = True
+	try:
+		kq = ban_hang.tao_don_tay(
+			nguon=_nguon_bill(d), quay=d["ma"], ma_don=goi_mon_ban.ma_bill_moi(d["ma"], sr.choice),
+			ten_khach=r.get("ho_ten") or "Khách đặt web", dien_thoai=r.get("dien_thoai") or "",
+			items=goi_mon_ban.dong_hoa_don(dong), tam_tinh=1, so_ban=("Web " + str(ma))[-12:], ghi_chu=gc,
+			giam_gia=int(uu.get("giam") or 0), phi_ship=int(phi.get("phi_khach") or 0))
+	finally:
+		frappe.flags.vgb_gia_chot = False
 	bill = (kq or {}).get("name") or ""
+	if bill and int(round(float((kq or {}).get("grand_total") or 0))) != mong:
+		# Không để thu ngân chốt một phiếu khác số khách đã trả.
+		try:
+			frappe.delete_doc("Sales Invoice", bill, ignore_permissions=True, force=1)
+			frappe.db.commit()
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "don_quay: xoá phiếu lệch tổng %s" % bill)
+		frappe.throw("Phiếu tạm tính ra %s đ, khác số khách đã trả %s đ cho đơn %s. Máy chưa xác nhận đơn; báo quản lý kiểm giá món." % (
+			"{:,}".format(int(round(float(kq.get("grand_total") or 0)))).replace(",", "."), "{:,}".format(mong).replace(",", "."), ma))
 	if bill:
 		# Cùng cách phiếu gọi món tại bàn (goi_mon_ban.NGUON_QR): nguồn riêng để
 		# báo cáo tách được đơn giao web, thanh toán đi như "Mang về" (ban_hang.NGUON_CU).
 		frappe.db.set_value("Sales Invoice", bill, "custom_nguon", NGUON_BILL, update_modified=False)
+		if int(uu.get("giam") or 0):
+			# Codex #573: lượt ưu đãi và mã đã giữ lúc đặt nối với phiếu.
+			khuyen_mai.gan_hoa_don_web(ghi_chu_don(ma), bill)
 	frappe.db.set_value(DT, ma, {"vgb_tt_quay": moi, "vgb_hen_phut": phut, "vgb_xn_luc": now_datetime(),
 		"vgb_xn_boi": frappe.session.user, "vgb_bill_quay": bill or None}, update_modified=False)
 	frappe.db.commit()
@@ -704,12 +881,16 @@ def xac_nhan(ma=None, hen=None):
 @frappe.whitelist(methods=["POST"])
 def tu_choi(ma=None, ly_do=None):
 	"""Quầy từ chối: đơn đã trả thì đánh dấu cần hoàn tiền và báo nhóm kế toán."""
-	from frappe.utils import now_datetime
-
 	_kiem_quyen()
 	ly = chuan_ly_do(ly_do)
 	if not ly:
 		frappe.throw("Chọn lý do từ chối.")
+	return _mot_luot(ma, _tu_choi_trong_khoa, ma, ly)
+
+
+def _tu_choi_trong_khoa(ma, ly):
+	from frappe.utils import now_datetime
+
 	r = _doc_khoa(ma)
 	moi = chuyen_duoc(r.get("vgb_tt_quay"), "tu_choi")
 	if not moi:
@@ -717,6 +898,11 @@ def tu_choi(ma=None, ly_do=None):
 	da_tra = int(r.get("vgb_tt_da_thu") or 0)
 	frappe.db.set_value(DT, ma, {"vgb_tt_quay": moi, "vgb_ly_do_quay": ly, "vgb_xn_luc": now_datetime(),
 		"vgb_xn_boi": frappe.session.user, "vgb_can_hoan": 1 if da_tra else 0}, update_modified=False)
+	# Codex #573: đơn không thành thì trả lượt ưu đãi và mã dùng một lần đã giữ,
+	# cùng giao dịch với việc đổi trạng thái (khoá hàng của đơn đang giữ).
+	from vagabond import khuyen_mai
+
+	khuyen_mai.tra_luot_web(ghi_chu_don(ma))
 	if da_tra:
 		try:
 			from vagabond import kenh_zalo
@@ -736,6 +922,10 @@ def tu_choi(ma=None, ly_do=None):
 def xong(ma=None):
 	"""Quầy bấm Đã giao xong (khách đã nhận hoặc tài xế đã giao)."""
 	_kiem_quyen()
+	return _mot_luot(ma, _xong_trong_khoa, ma)
+
+
+def _xong_trong_khoa(ma):
 	r = _doc_khoa(ma)
 	moi = chuyen_duoc(r.get("vgb_tt_quay"), "xong")
 	if not moi:
@@ -797,11 +987,15 @@ def gsm_bao_gia(ma=None):
 
 @frappe.whitelist(methods=["POST"])
 def goi_xe(ma=None, ma_gia=None):
-	"""Gọi xe GreenSM từ bản giá vừa xem. Chỉ một lần cho một đơn (khoá hàng)."""
+	"""Gọi xe GreenSM từ bản giá vừa xem. Chỉ một lần cho một đơn (khoá đơn)."""
+	_kiem_quyen()
+	return _mot_luot(ma, _goi_xe_trong_khoa, ma, ma_gia)
+
+
+def _goi_xe_trong_khoa(ma, ma_gia):
 	from vagabond import greensm
 	from vagabond.lib import cache_get, cache_set, cfg
 
-	_kiem_quyen()
 	r = _doc_khoa(ma)
 	moi = chuyen_duoc(r.get("vgb_tt_quay"), "goi_xe")
 	if not moi or r.get("vgb_gsm_id"):
