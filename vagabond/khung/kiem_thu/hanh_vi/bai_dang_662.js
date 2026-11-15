@@ -376,6 +376,70 @@ var MKT = ['Marketing'];
     bang('bấm lại: duyệt đúng số lần lưu của bản mới', goiTen(m, 'duyet')[0].ts.ban_luu, 6);
   });
 
+  await ca('Codex #572 vòng 4: bấm đúp Duyệt lúc lượt lưu đang chạy rồi bị xung đột: KHÔNG lần bấm nào duyệt; bấm lại sau khi thấy bản mới mới duyệt', async function () {
+    var nha = null;
+    var m = dungMoi(MKT, {
+      luu: function () { return new Promise(function (r) { nha = function () { var d = baiMau({ ban_luu: 6, y_chinh: 'Bản máy khác' }); d.xung_dot = 1; r(d); }; }); },
+      duyet: function (ts) { return baiMau({ trang_thai: 'Chờ đăng tay', sua: false, kenh: [{ k: 'fb', tt: 'Chờ đăng tay' }] }); }
+    });
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'Chú thích của tôi');
+    m.goc.querySelector('#vgbBody').dispatchEvent(dg.suKien('focusout', {}, m.goc.querySelector('#vgbBody')));
+    await choDen(function () { return !!nha; });
+    var nut = mot(m.goc, '[data-bdduyet]');
+    bam(m, nut); bam(m, nut);
+    await cho(20);
+    nha();
+    await cho(60);
+    bang('hai lần bấm trước xung đột: không duyệt', goiTen(m, 'duyet').length, 0);
+    dung('không báo Đã duyệt', !m.toast.some(function (t) { return t.indexOf('Đã duyệt') === 0; }));
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await choDen(function () { return goiTen(m, 'duyet').length === 1; });
+    bang('bấm lại sau khi thấy bản mới thì duyệt', goiTen(m, 'duyet')[0].ts.ban_luu, 6);
+  });
+
+  await ca('Codex #572 vòng 4: bấm Duyệt lúc đang lưu, rồi sửa tiếp và rời ô trước khi lượt đầu trả về: Duyệt chỉ chạy SAU lượt lưu cuối, đúng số lần lưu cuối', async function () {
+    var nha = [], thuTu = [];
+    var m = dungMoi(MKT, {
+      luu: function (ts) { return new Promise(function (r) { nha.push(function () { thuTu.push('luu:' + ts.ban_luu); r(baiMau({ ban_luu: ts.ban_luu + 1 })); }); }); },
+      duyet: function (ts) { thuTu.push('duyet:' + ts.ban_luu); return baiMau({ trang_thai: 'Chờ đăng tay', sua: false, kenh: [{ k: 'fb', tt: 'Chờ đăng tay' }] }); }
+    });
+    await m.g.scrBaiDangSoan('BD-1');
+    var vb = function () { m.goc.querySelector('#vgbBody').dispatchEvent(dg.suKien('focusout', {}, m.goc.querySelector('#vgbBody'))); };
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'Lần một'); vb();
+    await choDen(function () { return nha.length === 1; });
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await cho(10);
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'Lần hai'); vb();
+    await cho(10);
+    nha[0]();
+    await choDen(function () { return nha.length === 2; });
+    await cho(30);
+    bang('chưa duyệt khi lượt hai còn chờ', goiTen(m, 'duyet').length, 0);
+    nha[1]();
+    await choDen(function () { return goiTen(m, 'duyet').length === 1; });
+    bang('thứ tự', thuTu, ['luu:5', 'luu:6', 'duyet:7']);
+  });
+
+  await ca('Codex #572 vòng 4: bấm Duyệt lúc đang lưu, rồi gõ thêm (chưa rời ô): Duyệt lưu nốt phần vừa gõ rồi mới duyệt, không báo chưa lưu được', async function () {
+    var nha = [], thuTu = [];
+    var m = dungMoi(MKT, {
+      luu: function (ts) { var p = new Promise(function (r) { nha.push(function () { thuTu.push('luu:' + ts.ban_luu); r(baiMau({ ban_luu: ts.ban_luu + 1 })); }); }); if (nha.length > 1) nha[nha.length - 1](); return p; },
+      duyet: function (ts) { thuTu.push('duyet:' + ts.ban_luu); return baiMau({ trang_thai: 'Chờ đăng tay', sua: false, kenh: [{ k: 'fb', tt: 'Chờ đăng tay' }] }); }
+    });
+    await m.g.scrBaiDangSoan('BD-1');
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'Lần một');
+    m.goc.querySelector('#vgbBody').dispatchEvent(dg.suKien('focusout', {}, m.goc.querySelector('#vgbBody')));
+    await choDen(function () { return nha.length === 1; });
+    bam(m, mot(m.goc, '[data-bdduyet]'));
+    await cho(10);
+    go(m, mot(m.goc, '[data-bdchu="fb"]'), 'Lần hai');
+    nha[0]();
+    await choDen(function () { return goiTen(m, 'duyet').length === 1; });
+    bang('thứ tự', thuTu, ['luu:5', 'luu:6', 'duyet:7']);
+    dung('không báo chưa lưu được', !m.toast.some(function (t) { return t.indexOf('chưa lưu được') >= 0; }));
+  });
+
   await ca('Codex #572 vòng 3: tự lưu bị máy khác sửa trước, rời về lịch rồi mở lại bài: Duyệt chạy ngay (không còn bị chặn vì lần xung đột cũ)', async function () {
     var lan = 0;
     var m = dungMoi(MKT, {
@@ -509,6 +573,7 @@ var MKT = ['Marketing'];
     await choDen(function () { return goiTen(m, 'luu').length === 1; });
     await cho(30);
     bang('không duyệt', goiTen(m, 'duyet').length, 0);
+    bang('lưu hỏng thì không gửi lại liên tục', goiTen(m, 'luu').length, 1);
     dung('báo chưa lưu được', m.toast.some(function (t) { return t.indexOf('chưa lưu được') >= 0; }));
     bang('phần sửa còn giữ để lưu lại', m.g.BD.thay, { ban: { fb: { chu: 'Chú thích mới' } } });
     var x = dungMoi(MKT, { luu: function () { throw new Error('mất mạng'); } });
