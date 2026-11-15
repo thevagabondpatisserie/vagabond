@@ -576,6 +576,20 @@ def dong_bo(ngay=None):
 	return _dong_bo_thu_lai(ngay)
 
 
+def ngay_da_qua(ngay, hom_nay):
+	"""Ngày của bảng đứng trước hôm nay. THUẦN."""
+	return bool(ngay) and getdate(ngay) < getdate(hom_nay)
+
+
+def chan_ngay_da_qua(ngay):
+	"""Codex #569: bảng ngày đã qua chỉ để tra soát. Mọi cửa ghi (sửa ô, thêm
+	mã, xoá dòng) dừng ở đây, kể cả bảng quên chốt: sửa Bếp làm của ngày cũ sẽ
+	trừ kho bán thành phẩm của hôm nay."""
+	if ngay_da_qua(ngay, getdate()):
+		frappe.throw("Bảng kiểm bánh ngày %s đã qua nên chỉ xem được. Số cần sửa thì ghi ở bảng hôm nay."
+			% getdate(ngay).strftime("%d/%m/%Y"), title="Bảng ngày cũ chỉ xem")
+
+
 class DongBoBiChen(frappe.ValidationError):
 	"""Codex #546 vòng 4: hai lần đồng bộ đều bị người ghi khác chen. Nhịp nền
 	và màn hình thì trả bảng hiện có; CHỐT NGÀY thì phải dừng, không được chốt
@@ -681,7 +695,7 @@ def _dong_bo_mot_lan(ngay=None):
 				d.cho_chot = n
 				d.ten_khach_cho = ", ".join(khach_cho.get(d.ma_hang, []))
 				doi_cho = True
-		doi = ghi_sau_chot(doc.dong, pc, khac)
+		doi = ghi_sau_chot(doc.dong, pc, khac, _giu_cho_bay_gio(ngay))
 		doc.dong_bo_luc = now_datetime()
 		if doi or doi_cho:
 			doc.save(ignore_permissions=True)
@@ -1136,6 +1150,7 @@ def luu_o(ngay, ma_hang, truong, gia_tri):
 	"""
 	if truong not in SUA_DUOC:
 		frappe.throw("Cot nay may tu dem, khong sua tay duoc")
+	chan_ngay_da_qua(ngay)
 	doc = frappe.get_doc("Kiem Banh Ngay", "KB-%s" % getdate(ngay))
 	if doc.tinh_trang == "Da chot":
 		frappe.throw("Ngay nay da chot so, khong sua nua")
@@ -1185,6 +1200,7 @@ def doc_so_o(truong, gia_tri, ma_hang=None):
 @frappe.whitelist()
 def them_dong(ngay, ma_hang):
 	"""Bep them banh se lam hom nay ma chua co don nao."""
+	chan_ngay_da_qua(ngay)
 	c = cfg()
 	k = key(c, "pancake_api_key")
 	ma_hang = str(ma_hang or "").strip()
@@ -1226,6 +1242,7 @@ def xoa_dong(ngay, ma_hang):
 	dung "BAWC". Truoc day khong co duong nao go ra, phai vao Desk. Gio man
 	hinh co dau x tren the nao chua co so nao.
 	"""
+	chan_ngay_da_qua(ngay)
 	doc = frappe.get_doc("Kiem Banh Ngay", "KB-%s" % getdate(ngay))
 	if doc.tinh_trang == "Da chot":
 		frappe.throw("Ngày này đã chốt sổ, không xoá dòng được nữa")
@@ -1249,6 +1266,8 @@ def tat_ban_web_dat(ma_hang=None, tat=1, den_ngay=None):
 	chung voi man Kiem mua vu. Co cua rieng o day vi trang /kiem-banh goi API
 	bang tien to `vagabond.kiem_banh.`, khong goi thang mo dun khac duoc.
 	"""
+	if den_ngay:
+		chan_ngay_da_qua(den_ngay)
 	return tat_ban_web.dat(ma_hang=ma_hang, tat=tat, den_ngay=den_ngay)
 
 
@@ -1309,12 +1328,26 @@ def chot_ngay(ngay=None):
 	return {"ok": 1, "ngay_mai": str(add_days(ngay, 1))}
 
 
-def ghi_sau_chot(dong, dem_pc=None, dem_khac=None):
+def nha_giu_sau_chot(giu_luc_chot, giu_bay_gio, ban_khac_sau_chot):
+	"""Số bánh GIỮ CHỖ lúc chốt mà sau chốt khách đã tới nhận và ra bill. THUẦN.
+
+	Codex #569: bánh giữ chỗ đã trừ vào Bán được lúc chốt (cột Giữ chỗ khoá
+	lại). Khách tới nhận sau chốt thì bill của họ vào Bán sau chốt, cùng một
+	bánh bị trừ hai lần. Phần giữ chỗ đã nhả (số lúc chốt trừ số còn giữ bây
+	giờ) được bù lại, nhưng không quá số bill sau chốt: phiếu giữ chỗ bị huỷ mà
+	không ai mua thì bảng đã chốt giữ nguyên, không cộng lại.
+	"""
+	nha = max(0, int(giu_luc_chot or 0) - max(0, int(giu_bay_gio or 0)))
+	return min(nha, max(0, int(ban_khac_sau_chot or 0)))
+
+
+def ghi_sau_chot(dong, dem_pc=None, dem_khac=None, dem_giu=None):
 	"""Ghi số bán sau chốt vào các dòng của bảng ĐÃ CHỐT. THUẦN với dòng get/set.
 
 	dem_pc: {mã: đã đặt + phát sinh đếm lúc này} hoặc None nếu lượt này không
-	đếm Pancake; dem_khac tương tự cho kênh khác. Các cột lúc chốt KHÔNG đổi.
-	Trả tập mã có số bán sau chốt vừa đổi."""
+	đếm Pancake; dem_khac tương tự cho kênh khác; dem_giu: {mã: số còn giữ chỗ
+	lúc này} hoặc None khi chưa đọc được (giữ nguyên ô bù). Các cột lúc chốt
+	KHÔNG đổi. Trả tập mã có số bán sau chốt vừa đổi."""
 	doi = set()
 	for d in dong:
 		ma = d.get("ma_hang")
@@ -1328,7 +1361,24 @@ def ghi_sau_chot(dong, dem_pc=None, dem_khac=None):
 			if n != int(d.get("sau_chot_khac") or 0):
 				d.set("sau_chot_khac", n)
 				doi.add(ma)
+		if dem_giu is not None:
+			n = nha_giu_sau_chot(d.get("giu_cho"), dem_giu.get(str(ma or "").upper(), 0), d.get("sau_chot_khac"))
+			if n != int(d.get("sau_chot_nha_giu") or 0):
+				d.set("sau_chot_nha_giu", n)
+				doi.add(ma)
 	return doi
+
+
+def _giu_cho_bay_gio(ngay):
+	"""{mã: số còn giữ chỗ lúc này} của một ngày, None khi đọc hỏng (khi đó
+	không đụng ô bù giữ chỗ, giống _ghi_giu_cho)."""
+	from vagabond import dat_banh
+
+	try:
+		return {str(k or "").upper(): int(v or 0) for k, v in (dat_banh.dem_giu_cho(ngay) or {}).items()}
+	except Exception:
+		frappe.log_error(title="Vagabond: doc so giu cho that bai, giu nguyen so cu", message=frappe.get_traceback())
+		return None
 
 
 def chuyen_lai_ton(doc, ma_doi):
@@ -1383,7 +1433,7 @@ def chuyen_lai_ton(doc, ma_doi):
 
 def _luu_sau_chot(doc, dem_pc=None, dem_khac=None):
 	"""Bảng đã chốt: chỉ ghi số bán sau chốt rồi chuyển lại tồn. Trả số mã đổi."""
-	doi = ghi_sau_chot(doc.dong, dem_pc, dem_khac)
+	doi = ghi_sau_chot(doc.dong, dem_pc, dem_khac, _giu_cho_bay_gio(doc.ngay))
 	if doi:
 		doc.save(ignore_permissions=True)
 	chuyen_lai_ton(doc, doi)
