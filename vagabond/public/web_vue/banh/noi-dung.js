@@ -116,14 +116,52 @@ const LogoKenh = {
     ]);
   }
 };
+/* v662: trụ kênh nổi tự thu khi đè lên nút chính hoặc thanh nút dưới đáy. THUẦN:
+   hai hình chữ nhật {top,bottom,left,right} cắt nhau (chừa 2 px mép) là đè. */
+export const KENH_NOI_DUNG_MS = 600;
+export function kenhNoiNenThu(tru, ds) {
+  if (!tru || !(tru.bottom > tru.top)) return false;
+  return (ds || []).some(r => r && r.bottom - 2 > tru.top && r.top + 2 < tru.bottom && r.right - 2 > tru.left && r.left + 2 < tru.right);
+}
+/* Chỗ trụ đứng khi KHÔNG thu: đang thu thì trụ đã trượt sang phải đúng bề rộng
+   cộng 10 px (nut-ve-tinh.css), phải trừ lại, không thì thu, ra khỏi chỗ đè,
+   hiện lại, đè lại, nhấp nháy mãi. */
+function viTriGoc(el) {
+  const r = el.getBoundingClientRect(), lech = el.classList && el.classList.contains('thu') ? r.width + 10 : 0;
+  return {top: r.top, bottom: r.bottom, left: r.left - lech, right: r.right - lech};
+}
+/* Nút chính và thanh nút đang hiện trên màn (không tính phần tử ẩn, kích thước 0). */
+const NUT_CHINH = '.cta, .bar.on, button.btn:not(.btn-xs), a.web-nut, .ctr-nut-chinh, a.td-ung, .td-day';
+function dsNutChinh() {
+  if (typeof document === 'undefined' || !document.querySelectorAll) return [];
+  return Array.from(document.querySelectorAll(NUT_CHINH)).filter(el => !el.closest || !el.closest('.kenh-noi'))
+    .map(el => el.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);
+}
 export const KenhNoi = {
   name: 'KenhNoi',
   /* v639: chuong là hàm mở bảng Gọi nhân viên khi trang mở từ QR bàn (nút
      dưới Nhắn Zalo, anh Việt 05/11/2026); nang là số px nâng thêm khi thanh
      giỏ gọi món đang hiện (thanh đó nằm ngoài #bar nên không đo được). */
   props: {chuong: {type: Function, default: null}, nang: {type: Number, default: 0}},
-  data() { return {mo: false, day: 0}; },
+  data() { return {mo: false, day: 0, thu: false}; },
   mounted() {
+    /* v662 (anh Việt 15/11/2026): cuộn xuống thì trụ trượt ra mép phải, chừa
+       chấm vàng; cuộn lên hoặc dừng 600 ms thì trượt lại. Trụ đè nút chính hay
+       thanh nút dưới đáy thì tự thu như khi cuộn xuống (kenhNoiNenThu). */
+    this._y = window.scrollY || 0;
+    this._xet = () => {
+      const el = this.$el, vuaCham = Date.now() - (this._chamLuc || 0) < 4000;
+      this.thu = !vuaCham && (this._cuon || (!!el && !!el.getBoundingClientRect && kenhNoiNenThu(viTriGoc(el), dsNutChinh())));
+    };
+    this._cuonNghe = () => {
+      const y = window.scrollY || 0, xuong = y > this._y + 4, len = y < this._y - 4;
+      if (xuong) this._cuon = true; else if (len) this._cuon = false;
+      this._y = y; this._xet();
+      clearTimeout(this._dung);
+      this._dung = setTimeout(() => { this._cuon = false; this._xet(); }, KENH_NOI_DUNG_MS);
+    };
+    window.addEventListener('scroll', this._cuonNghe, {passive: true});
+    this._xetDinhKy = setInterval(this._xet, 700);
     /* Nút nổi đứng trên thanh giỏ: đo chiều cao thật của thanh (leDay cũ). */
     const bar = document.getElementById('bar');
     this._le = () => { this.day = bar && bar.classList.contains('on') ? bar.getBoundingClientRect().height : 0; };
@@ -141,6 +179,7 @@ export const KenhNoi = {
     document.removeEventListener('keydown', this._phim, true);
     document.removeEventListener('click', this._bam);
     window.removeEventListener('hashchange', this._hash);
+    window.removeEventListener('scroll', this._cuonNghe); clearTimeout(this._dung); clearInterval(this._xetDinhKy);
   },
   methods: {
     dong(layLai) { const da = this.mo; this.mo = false; if (da && layLai && this.$refs.nut) this.$refs.nut.focus(); },
@@ -165,11 +204,13 @@ export const KenhNoi = {
       con.push(h('button', {class: 'kenh-bong kenh-app', type: 'button', ref: 'nut', 'aria-expanded': String(this.mo), 'aria-controls': 'kenh-dat-hang',
         'aria-label': ten, title: ten, onClick: this.bat}, [h(LogoKenh, {k: cauHinh, lop: 'kenh-logo-nut', duPhong: '↗'})]));
     }
-    if (zalo) con.push(h('a', {class: 'kenh-bong kenh-zalo', href: linkAnToan(zalo.lien_ket, true), target: '_blank', rel: 'noopener noreferrer', 'data-khoi': zalo.id},
+    if (zalo) con.push(h('a', {class: 'kenh-bong kenh-zalo', href: linkAnToan(zalo.lien_ket, true), target: '_blank', rel: 'noopener noreferrer', 'data-khoi': zalo.id, 'aria-label': zalo.tieu_de || 'Zalo'},
       [h(LogoKenh, {k: zalo, lop: 'kenh-logo-zalo', duPhong: zalo.nut || 'Zalo'}), h('span', null, zalo.tieu_de)]));
-    if (this.chuong) con.push(h('button', {class: 'kenh-bong kenh-chuong', type: 'button', id: 'kenhChuong', onClick: () => this.chuong('')},
+    if (this.chuong) con.push(h('button', {class: 'kenh-bong kenh-chuong', type: 'button', id: 'kenhChuong', 'aria-label': t('goi_ban_chuong_nut', 'Gọi nhân viên'), onClick: () => this.chuong('')},
       [h('span', {class: 'kenh-icon kenh-icon-chuong', 'aria-hidden': 'true'}, [h(BieuTuong, {ten: 'chuong'})]), h('span', null, t('goi_ban_chuong_nut', 'Gọi nhân viên'))]));
-    return h('aside', {class: 'kenh-noi', hidden: !coApp && !zalo && !this.chuong, 'aria-label': t('kenh_noi_nhan', 'Kênh đặt hàng và hỗ trợ'),
+    /* Đang thu mà khách chạm chấm vàng: trụ trượt lại ngay. */
+    return h('aside', {class: ['kenh-noi', this.thu && !this.mo ? 'thu' : ''], hidden: !coApp && !zalo && !this.chuong, 'aria-label': t('kenh_noi_nhan', 'Kênh đặt hàng và hỗ trợ'),
+      onClickCapture: e => { if (this.thu && !this.mo) { e.preventDefault(); e.stopPropagation(); this._cuon = false; this._chamLuc = Date.now(); this.thu = false; } },
       style: 'bottom:calc(' + (this.day + (this.nang || 0) + 16) + 'px + env(safe-area-inset-bottom))'}, con);
   }
 };
