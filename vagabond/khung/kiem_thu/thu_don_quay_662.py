@@ -275,7 +275,8 @@ def _moi_truong_tao_don(vet, tinh, km=None, tao_ten="DW-2611-00001"):
 		um.patch.object(don_web, "tao_ban_ghi", side_effect=lambda n, d: (vet.su.append(("ghi", d.get("vgb_kenh"))), types.SimpleNamespace(name=tao_ten))[1]),
 		um.patch.object(don_web, "phan_hoi", side_effect=lambda b, n, trung=False: {"ok": 1, "ma_yeu_cau": b.name}),
 		um.patch.object(don_quay, "_diem_giao", return_value={"ma": "TCV", "ten": "Cửa hàng Sài Gòn", "dia_chi": "1 Đồng Khởi"}),
-		um.patch.object(goi_mon_ban, "_gio_mo_cua", return_value=True),
+		# Đúng hợp đồng của goi_mon_ban._gio_mo_cua: dict {dang_mo, gio} (Codex #573 vòng 2).
+		um.patch.object(goi_mon_ban, "_gio_mo_cua", return_value=km.get("gio", {"dang_mo": True, "gio": "7:00 - 22:00"})),
 		um.patch.object(don_quay, "_khoa", side_effect=lambda t, g=10: vet.su.append(("khoa", t)) or True),
 		um.patch.object(don_quay, "_nha", side_effect=lambda t: vet.su.append(("nha", t))),
 		um.patch.object(don_quay, "_tinh", side_effect=_tinh),
@@ -402,7 +403,7 @@ def _moi_truong_quay(vet, r, tao=None):
 	import types
 
 	import vagabond
-	from vagabond import don_quay, goi_mon_ban, khuyen_mai
+	from vagabond import chung_tu, don_quay, goi_mon_ban, khuyen_mai
 
 	# ban_hang kéo requests ở đầu tệp: bộ kiểm tầng khung không nạp nó, thay bằng mô đun giả.
 	ban_hang = types.ModuleType("vagabond.ban_hang")
@@ -427,6 +428,8 @@ def _moi_truong_quay(vet, r, tao=None):
 		um.patch.object(khuyen_mai, "gan_hoa_don_web", side_effect=lambda gc, si: vet.su.append(("gan", gc, si))),
 		um.patch.object(khuyen_mai, "tra_luot_web", side_effect=lambda gc: vet.su.append(("tra", gc))),
 		um.patch.object(frappe, "delete_doc", side_effect=lambda dt, ten, **k: vet.su.append(("xoa", ten)), create=True),
+		um.patch.object(frappe, "get_doc", side_effect=lambda dt, ten=None, **k: types.SimpleNamespace(doctype=dt, name=ten)),
+		um.patch.object(chung_tu, "danh_dau_huy", side_effect=lambda doc, ly=None, **k: vet.su.append(("huy", doc.name, ly))),
 		um.patch.object(frappe.db, "commit", side_effect=lambda *a, **k: vet.su.append("commit")),
 		um.patch.object(frappe.db, "set_value", side_effect=lambda *a, **k: vet.su.append(("set", a[0], a[1], a[2] if len(a) > 2 else None))),
 	]
@@ -442,7 +445,7 @@ def _ban_ghi_xn(**k):
 	return r
 
 
-@ca("Codex #573: Xác nhận lập phiếu GIỮ giá khách đã trả (cờ giá chốt), nối lượt ưu đãi với phiếu; tổng phiếu lệch số đã trả thì xoá phiếu nháp, KHÔNG đổi trạng thái")
+@ca("Codex #573: Xác nhận lập phiếu GIỮ giá khách đã trả (cờ giá chốt), nối lượt ưu đãi với phiếu; tổng phiếu lệch số đã trả thì huỷ mềm phiếu (không xoá chứng từ), KHÔNG đổi trạng thái")
 def _():
 	import frappe
 
@@ -461,7 +464,11 @@ def _():
 		dung("phải báo lệch tổng", False)
 	except frappe.ValidationError as e:
 		dung("câu nói hai con số", "132.000" in str(e) and "107.000" in str(e))
-	dung("xoá phiếu nháp lệch", ("xoa", "BILL-2") in vet.su)
+	# Codex #573 vòng 2: phiếu đã lưu là chứng từ, KHÔNG xoá; huỷ mềm kèm lý do.
+	dung("không xoá phiếu", not any(isinstance(x, tuple) and x[0] == "xoa" for x in vet.su))
+	huy = [x for x in vet.su if isinstance(x, tuple) and x[0] == "huy"]
+	la("huỷ mềm đúng phiếu", [x[1] for x in huy], ["BILL-2"])
+	dung("lý do có mã đơn và hai con số", "DW-2611-00001" in huy[0][2] and "132.000" in huy[0][2] and "107.000" in huy[0][2])
 	dung("không đổi trạng thái đơn", not any(isinstance(x, tuple) and x[0] == "set" and x[1] == "Vagabond Don Web" for x in vet.su))
 	dung("vẫn nhả khoá đơn", ("nha", "vagabond:weborder-don:DW-2611-00001") in vet.su)
 
@@ -575,3 +582,73 @@ def _():
 	dung("vẫn giữ đơn Đã huỷ", "d.trang_thai='Da huy'" in q)
 	dung("thêm đơn WEBORDER từ chối hay chưa trả quá một ngày", "vgb_kenh" in q and "interval 1 day" in q)
 	la("tham số", v, (don_quay.KENH, don_quay.TT_TU_CHOI, don_quay.TT_CHO_TRA))
+
+
+@ca("Codex #573 vòng 2 (H8 loại 10): quầy ngoài giờ mở cửa thì KHÔNG nhận đơn giao (đúng kiểu dict của _gio_mo_cua)")
+def _():
+	d = _dq()
+	vet = _Vet()
+	kq = _chay(_moi_truong_tao_don(vet, [_kq()], km={"gio": {"dang_mo": False, "gio": "8:00 - 20:00"}}), lambda: d.tao_don(_don_gui()))
+	la("chặn", (kq.get("ok"), kq.get("cau")), (0, "Quầy đang đóng cửa. Quý khách đặt lại trong giờ mở cửa."))
+	dung("không ghi đơn, không khoá", not any(isinstance(x, tuple) and x[0] in ("ghi", "khoa") for x in vet.su))
+
+
+@ca("Codex #573 vòng 2 (H8 loại 1): đơn giao và khách gọi món tại bàn dùng CHUNG khoá điểm: đang giữ khoá đặt giao thì lượt gọi món cùng điểm phải chờ, không đọc tủ song song; gọi món commit bỏ ảnh chụp cũ TRƯỚC khi khoá")
+def _():
+	import unittest.mock as um
+
+	import frappe
+
+	from vagabond import don_quay, goi_mon_ban
+
+	d = _dq()
+	giu = {}
+	vet = _Vet()
+
+	def khoa(ten, giay=10):
+		vet.su.append(("khoa", ten))
+		if ten in giu:
+			return False  # MariaDB get_lock hết giờ chờ: phiên kia đang giữ
+		giu[ten] = 1
+		return True
+
+	def nha(ten):
+		vet.su.append(("nha", ten))
+		giu.pop(ten, None)
+
+	kq_ban = {}
+
+	def tinh_va_goi_ban(raw, chi_xem=False):
+		# Đang ở trong khoá đặt giao (đã đọc tủ): khách tại bàn cùng điểm bấm Gọi món.
+		with um.patch.object(goi_mon_ban, "_kiem_link", return_value=({"ma": "TCV", "ten": "Cửa hàng Sài Gòn"}, "B5")), \
+				um.patch.object(goi_mon_ban, "chuan_nonce", return_value="n" * 32), \
+				um.patch.object(goi_mon_ban, "_bi_mat", return_value="bm"), \
+				um.patch.object(goi_mon_ban, "_gio_mo_cua", return_value={"dang_mo": True}), \
+				um.patch.object(goi_mon_ban, "_lay_khoa", side_effect=khoa), \
+				um.patch.object(goi_mon_ban, "_nha_khoa", side_effect=nha), \
+				um.patch.object(goi_mon_ban, "_goi_trong_khoa", side_effect=lambda *a: vet.su.append("doc_tu_ban") or {"ok": 1}), \
+				um.patch.object(frappe.db, "get_value", return_value=None):
+			kq_ban.update(goi_mon_ban.goi("TCV", "B5", "k", "n" * 32, "[]"))
+		return _kq(), None
+
+	ps = _moi_truong_tao_don(vet, [_kq()])
+	ps += [um.patch.object(don_quay, "_khoa", side_effect=khoa), um.patch.object(don_quay, "_nha", side_effect=nha),
+		um.patch.object(don_quay, "_tinh", side_effect=tinh_va_goi_ban)]
+	kq = _chay(ps, lambda: d.tao_don(_don_gui()))
+	la("đơn giao nhận", kq.get("ok"), 1)
+	la("gọi món cùng lúc phải chờ (không lấy được khoá chung)", (kq_ban.get("ok"), "doc_tu_ban" in vet.su), (0, False))
+	ten = [x[1] for x in vet.su if isinstance(x, tuple) and x[0] == "khoa"]
+	la("cùng một tên khoá điểm", sorted(set(ten)), [goi_mon_ban.TEN_KHOA_DIEM % "TCV"])
+	# Gọi món commit trước khi khoá.
+	vet2 = _Vet()
+	with um.patch.object(goi_mon_ban, "_kiem_link", return_value=({"ma": "TCV", "ten": "Cửa hàng Sài Gòn"}, "B5")), \
+			um.patch.object(goi_mon_ban, "chuan_nonce", return_value="n" * 32), \
+			um.patch.object(goi_mon_ban, "_bi_mat", return_value="bm"), \
+			um.patch.object(goi_mon_ban, "_gio_mo_cua", return_value={"dang_mo": True}), \
+			um.patch.object(goi_mon_ban, "_lay_khoa", side_effect=lambda t, g=10: vet2.su.append("khoa") or True), \
+			um.patch.object(goi_mon_ban, "_nha_khoa", side_effect=lambda t: vet2.su.append("nha")), \
+			um.patch.object(goi_mon_ban, "_goi_trong_khoa", side_effect=lambda *a: vet2.su.append("doc_tu") or {"ok": 0}), \
+			um.patch.object(frappe.db, "get_value", return_value=None), \
+			um.patch.object(frappe.db, "commit", side_effect=lambda *a, **k: vet2.su.append("commit")):
+		goi_mon_ban.goi("TCV", "B5", "k", "n" * 32, "[]")
+	la("thứ tự gọi món", vet2.su, ["commit", "khoa", "doc_tu", "nha"])

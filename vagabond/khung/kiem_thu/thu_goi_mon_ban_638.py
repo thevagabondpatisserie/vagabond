@@ -525,11 +525,15 @@ def _hai_ban_dua():
 	dung("khoá không còn bị giữ", not any(k.locked() for k in kho.khoa_ten.values()))
 	# Đơn được ghi phải COMMIT trước khi nhả khoá, không thì luồng sau đọc tồn
 	# lúc đơn trước chưa hiện ra với nó (kho giả không mô phỏng cô lập giao dịch).
+	# Codex #573 vòng 2: mỗi lượt còn commit một lần TRƯỚC khi khoá (bỏ ảnh chụp đọc
+	# cũ, khoá dùng chung với đơn giao của quầy), nên chỉ đếm commit nằm giữa lấy khoá và nhả.
 	thu_tu = {}
 	for x in kho.goi_khoa:
-		if x[0] in ("commit", "nha"):
+		if x[0] in ("lay", "commit", "nha"):
 			thu_tu.setdefault(x[-1], []).append(x[0])
-	dung("mỗi lượt gọi được: commit rồi mới nhả khoá", sum(1 for v in thu_tu.values() if "commit" in v and v.index("commit") < v.index("nha")) == 1)
+	trong = [v for v in thu_tu.values() if "lay" in v and "commit" in v[v.index("lay"):v.index("nha")]]
+	dung("mỗi lượt gọi được: commit rồi mới nhả khoá", len(trong) == 1)
+	dung("mọi lượt commit trước khi lấy khoá", all("commit" in v[:v.index("lay")] for v in thu_tu.values() if "lay" in v))
 	# Khoá đang bị giữ quá lâu: không ghi đơn, câu mời gọi lại, không nhả khoá của người khác.
 	kho2 = Kho()
 	kho2.khoa_ten["vgb_goi_mon_ban:TCV"] = threading.Lock()
