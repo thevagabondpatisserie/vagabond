@@ -65,10 +65,12 @@ def _truong_tu_them():
 	from vagabond import thanh_toan_web
 	# v638: mục Hoa hồng giới thiệu (công tắc, hai %) ở tab Bán hàng & thanh toán.
 	from vagabond import gioi_thieu
+	# v662: ô Miễn phí giao đơn giao của quầy (WEBORDER), neo sau ô Miễn phí giao đơn web.
+	from vagabond import don_quay
 
 	ra = []
 	for m in (o_cai_dat, tai_khoan, hach_toan_kho, minvoice_tep, sepay, qua_tang_hoa_don, tra_truoc_khach, thanh_toan_web,
-			gioi_thieu):
+			gioi_thieu, don_quay):
 		for f in m.TRUONG_MOI.get("Vagabond Settings", []):
 			ra.append(dict(f))
 	return ra
@@ -206,7 +208,7 @@ def _():
 			co.add(ten[:-3])
 	la("các module khai trường tự thêm", sorted(co),
 		sorted(["o_cai_dat", "tai_khoan", "hach_toan_kho", "minvoice_tep", "sepay", "qua_tang_hoa_don",
-			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu"]))
+			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu", "don_quay"]))
 
 
 @ca("cài đặt v568: mọi nhãn và mô tả là tiếng Việt có dấu, không còn số issue trong nhãn")
