@@ -27354,7 +27354,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '659';
+var APPVER = '660';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -61348,16 +61348,27 @@ function cdlVeWa() {
       (k.so_la_sdt ? '<div class="cdl-mo" style="margin-top:4px;color:#a42424">Ô mã số điện thoại đang là số điện thoại. Điền mã Meta cấp (15 tới 17 chữ số), ví dụ 1504016899452995.</div>' : '') +
       (k.loi ? '<div class="cdl-mo" style="margin-top:4px">' + h(k.loi) + '</div>' : '');
   }
+  /* v660 (anh Việt 15/11/2026): Gửi thử WhatsApp. Mã xác thực thật luôn đi Zalo
+     trước, nên số có Zalo không bao giờ nhận qua WhatsApp; nút này gửi thẳng. */
+  var t = CDL.waThu;
+  var thu = t && t.dang ? cdlChip('off', 'Đang gửi thử...') :
+    t && t.loi ? cdlChip('err', 'Chưa gửi được') + '<div class="cdl-mo" style="margin-top:4px">' + h(t.loi) + '</div>' :
+    t && t.ok ? cdlChip('ok', 'Đã gửi tới ' + (t.so || '')) + '<div class="cdl-mo" style="margin-top:4px">Mã thử trong tin là ' + h(t.ma || '') + '. Máy kia nhận được tin là đường WhatsApp chạy.</div>' : '';
   return '<div class="cdl-f" id="cdl-wa">' + dong +
     '<div><button class="cdl-lnk" data-cdlwa="xem">Xem trạng thái số WhatsApp</button></div>' +
     '<div class="cdl-mo">Hỏi Meta số gửi đã kích hoạt chưa. Không gửi tin nào.</div>' +
     '<div><button class="cdl-lnk" data-cdlwa="kich_hoat">Kích hoạt số WhatsApp</button></div>' +
     '<div class="cdl-mo">Điền PIN 6 số, bấm Lưu, rồi bấm nút này một lần. Số chuyển sang Đã kích hoạt là gửi được.</div>' +
     '<div><button class="cdl-lnk" data-cdlwa="su_kien">Đăng ký nhận sự kiện</button></div>' +
-    '<div class="cdl-mo">Để khách bấm Ngừng nhận ưu đãi trên WhatsApp là máy tự gỡ đồng ý. Bấm sau khi đã dán App Secret, Verify token và đường nhận sự kiện trên Meta.</div></div>';
+    '<div class="cdl-mo">Để khách bấm Ngừng nhận ưu đãi trên WhatsApp là máy tự gỡ đồng ý. Bấm sau khi đã dán App Secret, Verify token và đường nhận sự kiện trên Meta.</div>' +
+    '<div class="cdl-f"><label for="cdl-wa-so">Số nhận tin thử</label>' +
+    '<input class="tin" id="cdl-wa-so" type="tel" inputmode="tel" autocomplete="off" placeholder="0901 486 556" value="' + h(CDL.waSo || '') + '">' +
+    '<div><button class="cdl-lnk" data-cdlwa="gui_thu">Gửi thử WhatsApp</button></div>' +
+    '<div class="cdl-mo">Gửi thẳng qua WhatsApp (không đi Zalo trước) một mã thử 6 số tới số trên. Mã thử không đăng nhập được gì. Số nước ngoài gõ có dấu + ở đầu.</div>' + thu + '</div></div>';
 }
 
 async function cdlWa(viec, fnTab) {
+  if (viec === 'gui_thu') return cdlWaGuiThu(fnTab);
   if (CDL.waKq && CDL.waKq.dang) return;
   if (viec !== 'xem' && cdlSoThay()) return toast('Bấm Lưu trước rồi mới bấm nút này.');
   if (viec === 'kich_hoat' && !await confirmSheet('Kích hoạt số WhatsApp?', 'Máy gửi PIN hai bước đã lưu lên Meta để đăng ký số gửi tin. Làm một lần.', 'Kích hoạt')) return;
@@ -61371,6 +61382,24 @@ async function cdlWa(viec, fnTab) {
     CDL.waKq = { loi_goi: (e && e.message) || 'Không gọi được máy chủ, thử lại sau.' };
   }
   if (document.getElementById('cdl-wa')) cdlVeTab(fnTab);
+}
+
+async function cdlWaGuiThu(fnTab) {
+  if (CDL.waThu && CDL.waThu.dang) return;
+  var o = document.getElementById('cdl-wa-so');
+  CDL.waSo = String((o && o.value) || CDL.waSo || '').trim();
+  if (!CDL.waSo) return toast('Gõ số nhận tin thử trước.');
+  if (cdlSoThay()) return toast('Bấm Lưu trước rồi mới bấm nút này.');
+  CDL.waThu = { dang: 1 };
+  cdlVeTab(fnTab);
+  try {
+    var m = (await api('vagabond.whatsapp.gui_thu', { so: CDL.waSo })) || {};
+    CDL.waThu = { ok: 1, so: m.so || '', ma: m.ma || '' };
+  } catch (e) {
+    CDL.waThu = { loi: (e && e.message) || 'Không gọi được máy chủ, thử lại sau.' };
+  }
+  if (document.getElementById('cdl-wa')) cdlVeTab(fnTab);
+  else toast(CDL.waThu.ok ? 'Đã gửi tin thử WhatsApp.' : 'Gửi thử WhatsApp chưa được: ' + CDL.waThu.loi, 6000);
 }
 
 async function cdlThuGsm(fnTab) {
