@@ -920,7 +920,8 @@ export function taoGoiBan(moiTruong, S) {
     if (!w.nonce) w.nonce = T.taoNonce(ngauNhien);
     w.dangGui = true; w.loi = '';
     const than = Object.assign(thanWeb(), {ho_ten: String(w.ten || '').trim(), ghi_chu: String(w.ghiChu || '').trim().slice(0, 300),
-      thanh_toan: w.pt, nonce: w.nonce, dong_y: true, giam_da_xem: Number(w.gia.giam) || 0, phi_da_xem: w.tuLay ? null : w.gia.phi});
+      thanh_toan: w.pt, nonce: w.nonce, dong_y: true, tien_hang_da_xem: Number(w.gia.tien_hang) || 0,
+      giam_da_xem: Number(w.gia.giam) || 0, phi_da_xem: w.tuLay ? null : w.gia.phi});
     let m = null;
     try { m = await ghi('vagabond.don_quay.tao_don', {don: JSON.stringify(than)}); } catch (e) { m = null; }
     w.dangGui = false;
