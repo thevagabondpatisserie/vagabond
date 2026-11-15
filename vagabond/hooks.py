@@ -132,6 +132,9 @@ scheduler_events = {
 			# chưa quay lại). Hàm tự kiểm công tắc, giờ gửi và trần từng
 			# kịch bản; quét sinh nhật, quay lại mỗi ngày một lần.
 			"vagabond.zalo_kich_ban.chay_tu_dong",
+			# v662: bài đăng mạng xã hội đã hẹn tới giờ thì chuyển sang Chờ đăng
+			# tay và nhắn nhóm Marketing (bai_dang.py).
+			"vagabond.bai_dang.quet_den_gio",
 		],
 		"*/30 * * * *": [
 			"vagabond.ban_hang.dong_bo_doanh_so_tu_dong",

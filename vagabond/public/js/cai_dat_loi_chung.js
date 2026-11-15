@@ -171,6 +171,8 @@ var VGB_ZALO_TIN = {
 	mkt_banh_cho_anh: ['Marketing', 'Bánh mới chờ ảnh trên web', 'Ngay khi có người bấm Đưa lên web, và 08:41 mỗi sáng còn bánh chưa có ảnh: khách chưa thấy các bánh này.'],
 	mkt_bao_cao_uu_dai: ['Marketing', 'Báo cáo ưu đãi Zalo (Thứ Hai 09:07)', 'Thứ Hai hằng tuần: tin đã gửi khách, mã đã phát và đã dùng, doanh thu từ mã, hiệu quả so với nhóm đối chứng.'],
 	mkt_zalo_mau_loi: ['Marketing', 'Tin Zalo cho khách đang dừng vì lệch mẫu', 'Zalo từ chối tin của một kịch bản vì dữ liệu lệch mẫu đã duyệt; tin để chờ, báo một lần mỗi ngày.'],
+	mkt_bai_cho_duyet: ['Marketing', 'Bài đăng chờ Marketing duyệt', 'Người soạn không có quyền duyệt vừa gửi một bài đăng mạng xã hội cho Marketing duyệt.'],
+	mkt_bai_dang_den_gio: ['Marketing', 'Đến giờ đăng tay bài đăng', 'Bài đã duyệt và hẹn giờ tới giờ đăng: các kênh chưa tự đăng được chờ Marketing đăng tay.'],
 	ht_email_loi: ['Hệ thống', 'Email của tiệm không gửi được', 'Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.'],
 	ht_phat_hanh: ['Hệ thống', 'Bản tin cập nhật app sau mỗi deploy', 'App vừa lên bản mới: thêm gì, bộ phận cần làm gì.'],
 	ht_ds_hop_thu_loi: ['Hệ thống', 'Không đọc được hộp thư đối soát doisoat@', 'Đọc hộp thư đối soát lỗi 2 lần liên tiếp (sai mật khẩu, hộp thư đầy, mất kết nối).'],

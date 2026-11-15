@@ -80,6 +80,8 @@ SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	"scrDxSua": "72-de-xuat-cong-thuc.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
+	# v662: bài đăng mạng xã hội tạo bản nháp trên máy chủ ngay khi mở, tự lưu sau mỗi lần gõ (bai_dang.luu).
+	"scrBaiDangSoan": "bài đăng tự lưu lên máy chủ sau mỗi lần gõ, có đếm lần lưu",
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",
 	"scrMfgNew": "danh sách lệnh do máy tính từ nhu cầu, mở lại là tính lại; bấm tạo là tạo lệnh ngay",
 	"scrPhLap": "chỉ là màn chọn loại việc và chọn đơn, form hoàn tiền phía sau đã có bản nháp",
@@ -255,7 +257,10 @@ def _thu_tu():
 		"73-ban-moi.js",
 		# v658: màn Khách sự kiện chỉ xem danh sách và bấm Đã vào cửa, không có
 		# form lập phiếu nào để lưu nháp.
-		"74-khach-su-kien.js"])
+		"74-khach-su-kien.js",
+		# v662: Bài đăng mạng xã hội, bản nháp nằm trên máy chủ và tự lưu sau mỗi
+		# lần gõ (bai_dang.luu), không có form lập phiếu nháp trên máy.
+		"75-bai-dang.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

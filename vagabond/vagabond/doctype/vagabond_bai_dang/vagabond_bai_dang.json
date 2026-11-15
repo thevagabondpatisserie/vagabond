@@ -1,0 +1,187 @@
+{
+ "actions": [],
+ "autoname": "format:BD-{YY}-{MM}-{####}",
+ "creation": "2026-11-15 22:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "tieu_de",
+  "trang_thai",
+  "kieu",
+  "cb1",
+  "hen_luc",
+  "kenh_chon",
+  "nguoi_duyet",
+  "duyet_luc",
+  "ban_luu",
+  "sb1",
+  "y_chinh",
+  "anh",
+  "sb2",
+  "kenh"
+ ],
+ "fields": [
+  {
+   "fieldname": "tieu_de",
+   "fieldtype": "Data",
+   "label": "Tên bài",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Nháp\nChờ duyệt\nĐã hẹn giờ\nChờ đăng tay\nĐã đăng\nĐã huỷ",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "kieu",
+   "fieldtype": "Select",
+   "label": "Kiểu bài",
+   "options": "Bài đăng\nStory",
+   "default": "Bài đăng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "hen_luc",
+   "fieldtype": "Datetime",
+   "label": "Giờ hẹn đăng",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "kenh_chon",
+   "fieldtype": "Data",
+   "label": "Kênh",
+   "read_only": 1,
+   "description": "Mã kênh: fb Facebook, ig Instagram, th Threads, zl Zalo OA."
+  },
+  {
+   "fieldname": "nguoi_duyet",
+   "fieldtype": "Link",
+   "label": "Người duyệt",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duyet_luc",
+   "fieldtype": "Datetime",
+   "label": "Duyệt lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ban_luu",
+   "fieldtype": "Int",
+   "label": "Lần lưu",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "sb1",
+   "fieldtype": "Section Break",
+   "label": "Ý chính và ảnh"
+  },
+  {
+   "fieldname": "y_chinh",
+   "fieldtype": "Small Text",
+   "label": "Ý chính để AI soạn chữ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "anh",
+   "fieldtype": "Table",
+   "label": "Ảnh",
+   "options": "Vagabond Bai Dang Anh",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb2",
+   "fieldtype": "Section Break",
+   "label": "Chữ từng kênh"
+  },
+  {
+   "fieldname": "kenh",
+   "fieldtype": "Table",
+   "label": "Kênh",
+   "options": "Vagabond Bai Dang Kenh",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-15 22:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Bai Dang",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "title_field": "tieu_de"
+}

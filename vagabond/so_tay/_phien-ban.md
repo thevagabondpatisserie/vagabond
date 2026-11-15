@@ -12,6 +12,10 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v662
+- Soạn và duyệt bài đăng mạng xã hội
+- Đăng tay bài đã duyệt và ghi Đã đăng
+
 ## v661
 - Bật tin Zalo tự động cho khách
 - Xem và sửa mức giảm của tin Zalo ưu đãi

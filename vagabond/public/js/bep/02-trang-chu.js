@@ -216,6 +216,8 @@ async function scrHome() {
       card('📣', 'Chiến dịch', 'Chọn nhóm khách, món giới thiệu, mã ưu đãi riêng, chia cho Sales', 0, 'CRMCD') +
       card('📊', 'Hiệu quả chiến dịch', 'Doanh thu nhóm được liên hệ so với nhóm đối chứng', 0, 'CRMHQ') +
       card('🤖', 'Tin Zalo tự động', 'Máy tự gửi khách: cảm ơn sau mua hàng, sinh nhật, mời quay lại', 0, 'CRMZL') +
+      /* v662 Bài đăng mạng xã hội (75-bai-dang.js): Marketing tải ảnh, AI soạn chữ, duyệt, đăng tay. */
+      (coQuyenBaiDang() ? card('🗓️', 'Bài đăng mạng xã hội', 'Lịch đăng Facebook, Instagram, Threads, Zalo OA: tải ảnh, AI soạn chữ, duyệt', 0, 'BAIDANG') : '') +
       (isSales() ? card('🎁', 'Tặng quà khách VIP', 'Lên danh sách, chia việc, theo dõi đã tặng và đã liên hệ', 0, 'TQV') : '') + '</div>';
   }
   /* Anh Viet 14/08/2026: doi ten nut 'Hop dong event, catering' thanh
@@ -637,12 +639,13 @@ var VGB_NHOM = [
      mẫu 27/10/2026. */
   {
     k: 'KHG', ten: 'Khách hàng & Marketing', icon: '💝',
-    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'TQV'],
+    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'BAIDANG', 'TQV'],
     nhom: [
       { t: 'Việc hôm nay', p: '', keys: ['CRMGOI'] },
       { t: 'Hồ sơ khách', p: '', keys: ['KH', 'CRMNHOM', 'CRMDY'] },
       { t: 'Chiến dịch', p: '', keys: ['CRMCD', 'CRMHQ', 'TQV'] },
-      { t: 'Tin tự động', p: '', keys: ['CRMZL'] }
+      { t: 'Tin tự động', p: '', keys: ['CRMZL'] },
+      { t: 'Mạng xã hội', p: '', keys: ['BAIDANG'] }
     ]
   },
   {
@@ -1892,6 +1895,7 @@ function scrNhom(nh) {
    Sua ben do roi chay: python3 sinh_duong.py
    Sua tay o day thi ca kiem thu_duong_app.py do ngay. */
 var VGB_DUONG = {
+  'bai-dang-mang-xa-hoi': 'BAIDANG',
   'ban-tai-quay': 'POS',
   'bang-bep-hom-nay': 'KIT',
   'bang-gia': 'BGIA',
@@ -2221,6 +2225,7 @@ function vgbGo(k) {
   if (k === 'CRMCD') return go(scrCrmCdDs);
   if (k === 'CRMHQ') return go(scrCrmHqDs);
   if (k === 'CRMZL') return go(scrCrmZalo);
+  if (k === 'BAIDANG') return go(function () { return scrBaiDang(); });
   if (k === 'HDG') return go(scrHopDongHub);
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);
