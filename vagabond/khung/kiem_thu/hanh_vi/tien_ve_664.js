@@ -3,8 +3,8 @@
  *
  * Nạp THẬT 66-goi-mon-tai-ban.js, 77-chuong-mau.js và hai hàm của màn tính tiền
  * (posPollBat: màn bill đang chờ tiền; posQrSheet: bảng mã QR sau khi lưu bill)
- * vào DOM giả. Giọng đọc là speechSynthesis giả ghi lại câu và giọng đã chọn;
- * chuông là AudioContext giả đếm số nút tổng nối vào loa. setInterval và
+ * vào DOM giả. Âm báo là tệp thu sẵn: fetch giả đọc đúng tệp mp3 trong repo,
+ * AudioContext giả ghi lại tệp đã phát và đếm hồi chuông tổng hợp. setInterval và
  * setTimeout giả để chạy đúng lượt hỏi SePay mà không chờ 5 giây thật.
  *
  * Chạy:  node vagabond/khung/kiem_thu/hanh_vi/tien_ve_664.js
@@ -53,19 +53,23 @@ function nho() {
     removeItem: function (k) { delete kho[k]; }, _kho: kho };
 }
 
-/* o.giong: danh sách giọng của máy; o.ss: sessionStorage dùng chung (tải lại trang);
-   o.sepay: hàm trả kết quả pos_kiem_sepay theo lượt hỏi. */
+/* o.ss: sessionStorage dùng chung (tải lại trang); o.sepay: hàm trả kết quả
+   pos_kiem_sepay theo lượt hỏi; o.mangHong: máy chủ trả 404 cho tệp âm báo.
+   fetch giả đọc ĐÚNG tệp trong vagabond/public theo đường /assets/vagabond/...
+   nên đường dẫn sai hay thiếu tệp là ca đỏ. */
 function dung_may(o) {
   o = o || {};
-  var tai = dg.taiLieuGia(), keu = [], noi = [], hen = [], lap = [];
+  var tai = dg.taiLieuGia(), keu = [], phat = [], tai_tep = [], hen = [], lap = [], nghe = [];
   var posNd = new dg.ElementGia('div'); posNd.setAttribute('id', 'posNd');
   tai.body.appendChild(posNd);
   tai.body.contains = function (el) { var x = el; while (x) { if (x === tai.body) return true; x = x.parentNode; } return false; };
+  tai.addEventListener = function (loai, f) { nghe.push([loai, f]); };
+  tai.removeEventListener = function (loai, f) { nghe = nghe.filter(function (x) { return x[1] !== f; }); };
   var luot = 0, ve = [];
   var g = {
     console: console, document: tai, Math: Math, JSON: JSON, String: String, Array: Array, Object: Object,
     RegExp: RegExp, Promise: Promise, Number: Number, Date: Date, isNaN: isNaN, parseInt: parseInt, parseFloat: parseFloat,
-    encodeURIComponent: encodeURIComponent,
+    encodeURIComponent: encodeURIComponent, Error: Error,
     localStorage: o.ls || nho(), sessionStorage: o.ss || nho(),
     setTimeout: function (f) { hen.push(f); return hen.length; },
     setInterval: function (f) { lap.push(f); return lap.length; }, clearInterval: function (id) { lap[id - 1] = null; },
@@ -76,140 +80,155 @@ function dung_may(o) {
       if (duong !== 'vagabond.ban_hang.pos_kiem_sepay') return Promise.reject(new Error('api la: ' + duong));
       luot++;
       return Promise.resolve((o.sepay || function (l, a) { return { nhan: a.tien, du: 1 }; })(luot, args));
+    },
+    fetch: function (url) {
+      tai_tep.push(url);
+      var duong = String(url).split('?')[0], tep = null;
+      if (!o.mangHong && duong.indexOf('/assets/vagabond/') === 0) {
+        var p = path.join(GOC, 'vagabond', 'public', duong.slice('/assets/vagabond/'.length));
+        if (fs.existsSync(p)) tep = fs.readFileSync(p);
+      }
+      return Promise.resolve({ ok: !!tep, status: tep ? 200 : 404,
+        arrayBuffer: function () { return Promise.resolve(tep.buffer.slice(tep.byteOffset, tep.byteOffset + tep.length)); } });
     }
   };
   g.window = g;
   g.window.AudioContext = function () {
     var ac = { currentTime: 0, state: 'running', destination: {}, resume: function () {},
       createOscillator: function () { return { frequency: {}, connect: function () {}, start: function () {}, stop: function () {} }; },
-      createGain: function () { return { gain: { value: 1, setValueAtTime: function () {}, linearRampToValueAtTime: function () {}, exponentialRampToValueAtTime: function () {} },
-        connect: function (dich) { if (dich === ac.destination) keu.push(1); } }; } };
+      createGain: function () { var gn = { gain: { value: 1, setValueAtTime: function () {}, linearRampToValueAtTime: function () {}, exponentialRampToValueAtTime: function () {} },
+        connect: function (dich) { if (dich === ac.destination && gn.gain.value === 0.32) keu.push(1); } }; return gn; },
+      /* Bộ giải mã giả: nhận đúng byte của tệp mp3 (đầu tệp ID3 hay khung MPEG). */
+      decodeAudioData: function (b, ok, hong) {
+        var u = new Uint8Array(b), mp3 = (u[0] === 0x49 && u[1] === 0x44 && u[2] === 0x33) || (u[0] === 0xFF && (u[1] & 0xE0) === 0xE0);
+        var buf = { byte: u.length, duration: 3.2 };
+        if (mp3) { ok(buf); return Promise.resolve(buf); }
+        var e = new Error('khong phai mp3'); hong(e); return Promise.reject(e);
+      },
+      createBufferSource: function () { var s = { connect: function () {}, start: function () { phat.push(s.buffer); } }; return s; } };
     return ac;
   };
-  if (o.coGiong !== false) {
-    g.window.SpeechSynthesisUtterance = function (cau) { this.text = cau; };
-    g.window.speechSynthesis = { getVoices: function () { return o.giong || []; }, cancel: function () {},
-      speak: function (u) { noi.push({ cau: u.text, giong: u.voice ? u.voice.name : null, lang: u.lang }); } };
-  }
   vm.runInNewContext(MA, g, { filename: 'tien-ve.js' });
   async function hoi() {
     for (var i = 0; i < lap.length; i++) if (lap[i]) await lap[i]();
-    for (var k = 0; k < 5; k++) await Promise.resolve();
+    for (var k = 0; k < 10; k++) await new Promise(function (r) { setImmediate(r); });
     while (hen.length) hen.shift()();
   }
-  return { g: g, tai: tai, keu: keu, noi: noi, hoi: hoi, luot: function () { return luot; }, posNd: posNd };
+  return { g: g, tai: tai, keu: keu, phat: phat, tai_tep: tai_tep, nghe: function () { return nghe; }, hoi: hoi, luot: function () { return luot; } };
 }
 
-var GIONG_IPAD = [{ name: 'Linh', lang: 'vi-VN' }, { name: 'Samantha', lang: 'en-US' }, { name: 'Daniel', lang: 'en-GB' },
-  { name: 'Karen', lang: 'en-AU' }];
+var TEP = path.join(GOC, 'vagabond', 'public', 'am_thanh', 'tien-ve-payment-received.mp3');
 
 (async function () {
-  console.log('v664 âm báo tiền chuyển khoản về');
+  console.log('v664 âm báo tiền chuyển khoản về (tệp thu sẵn mẫu 2 anh Việt chọn)');
 
-  await ca('câu đọc của từng mẫu: số tiền viết 95,000 để giọng Anh đọc đúng; không có số tiền thì đọc câu cảm ơn; Chỉ chuông không đọc', function () {
+  await ca('hai mẫu: Payment received (mặc định) và Chỉ chuông; mẫu cũ đã lưu trên máy (so_tien...) về mặc định; tệp có thật, ?v= khớp sha1', function () {
     var m = dung_may();
-    bang('đọc số tiền', m.g.tienCauDoc('so_tien', 95000), 'Payment received, 95,000 dong.');
-    bang('số lớn', m.g.tienCauDoc('so_tien', 1250000.4), 'Payment received, 1,250,000 dong.');
-    bang('không số tiền', m.g.tienCauDoc('so_tien', 0), 'Payment received. Thank you.');
-    bang('cảm ơn', m.g.tienCauDoc('cam_on', 95000), 'Payment received. Thank you.');
-    bang('chuyển khoản', m.g.tienCauDoc('chuyen_khoan', 95000), 'Bank transfer received.');
-    bang('xác nhận', m.g.tienCauDoc('xac_nhan', 95000), 'Payment confirmed.');
-    bang('chỉ chuông', m.g.tienCauDoc('chi_chuong', 95000), '');
-    bang('năm mẫu, mặc định đọc số tiền', [m.g.TIEN_MAU_BAO.length, m.g.tienMauBao()], [5, 'so_tien']);
+    bang('mẫu', m.g.TIEN_MAU_BAO.map(function (x) { return x.ma; }), ['giong', 'chi_chuong']);
+    bang('mặc định', m.g.tienMauBao(), 'giong');
     m.g.TIEN_MAU_BAO.forEach(function (x) { dung('mẫu ' + x.ma + ' có tên và mô tả có dấu', x.ten && x.mo_ta && /[àáảãạâăđêôơưéèíóúý]/i.test(x.mo_ta)); });
+    var ls = nho(); ls.setItem('vgb_tien_mau_bao', 'so_tien');
+    bang('giá trị cũ', dung_may({ ls: ls }).g.tienMauBao(), 'giong');
+    var u = m.g.TIEN_TEP, sha = require('crypto').createHash('sha1').update(fs.readFileSync(TEP)).digest('hex');
+    bang('đường tệp', u.split('?')[0], '/assets/vagabond/am_thanh/tien-ve-payment-received.mp3');
+    bang('?v= là sha1 tệp', u.split('?v=')[1], sha.slice(0, 8));
+    dung('tệp nhỏ hơn 100 KB', fs.statSync(TEP).size < 100000);
   });
 
-  await ca('chọn giọng: iPad có Daniel (Anh-Anh) thì chọn Daniel, không chọn giọng Việt hay Mỹ; giọng Premium đứng trước; máy không có giọng Anh thì không có giọng', function () {
-    var m = dung_may();
-    bang('iPad', m.g.tienChonGiong(GIONG_IPAD).name, 'Daniel');
-    bang('Serena trước Daniel', m.g.tienChonGiong(GIONG_IPAD.concat([{ name: 'Serena (Premium)', lang: 'en-GB' }])).name, 'Serena (Premium)');
-    bang('Edge Windows', m.g.tienChonGiong([{ name: 'Microsoft David', lang: 'en-US' }, { name: 'Microsoft Sonia Online (Natural) - English (United Kingdom)', lang: 'en-GB' }]).name,
-      'Microsoft Sonia Online (Natural) - English (United Kingdom)');
-    bang('Android lạ: Anh-Anh trước Úc', m.g.tienChonGiong([{ name: 'English Australia', lang: 'en-AU' }, { name: 'English UK', lang: 'en_GB' }]).name, 'English UK');
-    bang('không giọng Anh', m.g.tienChonGiong([{ name: 'Linh', lang: 'vi-VN' }]), null);
-    bang('danh sách rỗng', m.g.tienChonGiong([]), null);
-  });
-
-  await ca('màn bill đang chờ chuyển khoản: SePay báo đủ thì kêu chuông rồi đọc "Payment received, 95,000 dong" bằng giọng Daniel, đúng một lần', async function () {
-    var m = dung_may({ giong: GIONG_IPAD, sepay: function (l) { return l === 1 ? { nhan: 0 } : { nhan: 95000, du: 1 }; } });
+  await ca('màn bill đang chờ chuyển khoản: SePay báo đủ thì phát tệp "Payment received. Thank you." đúng một lần, không kêu thêm chuông tổng hợp', async function () {
+    var m = dung_may({ sepay: function (l) { return l === 1 ? { nhan: 0 } : { nhan: 95000, du: 1 }; } });
     m.g.posPollBat('TCVG8FRJ', 95000);
     await m.hoi();
-    bang('chưa đủ tiền thì im', [m.keu.length, m.noi.length], [0, 0]);
+    bang('chưa đủ tiền thì im', [m.phat.length, m.keu.length], [0, 0]);
     await m.hoi();
-    bang('một hồi chuông', m.keu.length, 1);
-    bang('đọc', m.noi, [{ cau: 'Payment received, 95,000 dong.', giong: 'Daniel', lang: 'en-GB' }]);
+    bang('phát tệp', m.phat.length, 1);
+    bang('đúng byte tệp thật', m.phat[0].byte, fs.statSync(TEP).size);
+    bang('không chuông tổng hợp', m.keu.length, 0);
     await m.hoi();
-    bang('đủ rồi thì thôi hỏi SePay, không đọc lại', [m.luot(), m.noi.length], [2, 1]);
+    bang('đủ rồi thì thôi hỏi SePay, không phát lại', [m.luot(), m.phat.length], [2, 1]);
   });
 
   await ca('bảng mã QR sau khi lưu bill và màn bill cùng thấy tiền về cho một bill: chỉ báo một lần; bảng QR vẫn hiện ĐÃ NHẬN ĐỦ', async function () {
-    var m = dung_may({ giong: GIONG_IPAD });
+    var m = dung_may();
     m.g.posPollBat('TCVG8FRJ', 95000);
     m.g.posQrSheet('TCVG8FRJ', 95000, null, '', 'TCV');
     await m.hoi();
-    bang('một chuông, một câu', [m.keu.length, m.noi.length], [1, 1]);
+    bang('một lần', m.phat.length + m.keu.length, 1);
     var bao = m.tai.body.querySelector('#qrsBao');
     dung('bảng QR báo đủ', bao && /ĐÃ NHẬN ĐỦ 95/.test(bao.innerHTML));
   });
 
-  await ca('bill khác thì báo riêng; tải lại trang khi bill cũ còn mở thì không đọc lại bill cũ', async function () {
+  await ca('bill khác thì báo riêng, tệp chỉ tải một lần; tải lại trang khi bill cũ còn mở thì không báo lại bill cũ', async function () {
     var ss = nho();
-    var m = dung_may({ giong: GIONG_IPAD, ss: ss });
+    var m = dung_may({ ss: ss });
     m.g.posQrSheet('BILL-1', 95000, null, '', 'TCV');
     await m.hoi();
     m.g.posQrSheet('BILL-2', 120000, null, '', 'TCV');
     await m.hoi();
-    bang('hai bill hai lần', m.noi.length, 2);
-    var m2 = dung_may({ giong: GIONG_IPAD, ss: ss });
+    bang('hai bill hai lần', m.phat.length, 2);
+    bang('tải tệp một lần', m.tai_tep.length, 1);
+    var m2 = dung_may({ ss: ss });
     m2.g.posPollBat('BILL-1', 95000);
     await m2.hoi();
-    bang('tải lại không đọc lại', [m2.keu.length, m2.noi.length], [0, 0]);
+    bang('tải lại không báo lại', [m2.phat.length, m2.keu.length], [0, 0]);
   });
 
-  await ca('máy không có giọng tiếng Anh hoặc không hỗ trợ đọc: vẫn kêu chuông, không lỗi', async function () {
-    var m = dung_may({ giong: [{ name: 'Linh', lang: 'vi-VN' }] });
+  await ca('máy chủ không trả được tệp: vẫn kêu chuông; bill sau thử tải lại', async function () {
+    var m = dung_may({ mangHong: true });
     m.g.posQrSheet('BILL-3', 50000, null, '', 'TCV');
     await m.hoi();
-    bang('chuông', m.keu.length, 1);
-    bang('vẫn đọc tiếng Anh mặc định của máy', m.noi, [{ cau: 'Payment received, 50,000 dong.', giong: null, lang: 'en-GB' }]);
-    var k = dung_may({ coGiong: false });
-    k.g.posQrSheet('BILL-4', 50000, null, '', 'TCV');
-    await k.hoi();
-    bang('không có speechSynthesis vẫn kêu', k.keu.length, 1);
+    bang('chuông thay tệp', [m.keu.length, m.phat.length], [1, 0]);
+    m.g.posQrSheet('BILL-4', 50000, null, '', 'TCV');
+    await m.hoi();
+    bang('thử tải lại', m.tai_tep.length, 2);
   });
 
-  await ca('bảng Chọn chuông: có khối Âm báo tiền với 5 chip cao 44, chọn Payment confirmed thì lưu trên máy, đọc thử ngay; Chỉ chuông thì không đọc', async function () {
-    var m = dung_may({ giong: GIONG_IPAD });
+  await ca('lần chạm đầu vào app: mở loa và tải sẵn tệp, tiền về là phát ngay không chờ tải', async function () {
+    var m = dung_may();
+    var ds = m.nghe().filter(function (x) { return x[0] === 'click'; });
+    bang('có nghe lần chạm đầu', ds.length, 1);
+    ds[0][1]();
+    await m.hoi();
+    bang('đã tải sẵn', m.tai_tep.length, 1);
+    bang('chạm xong thì thôi nghe', m.nghe().filter(function (x) { return x[0] === 'click'; }).length, 0);
+    m.g.tienBao(50000, 'ck:BILL-7');
+    bang('phát ngay, không chờ tải', m.phat.length, 1);
+    m.g.posQrSheet('BILL-8', 50000, null, '', 'TCV');
+    await m.hoi();
+    bang('bill sau dùng tệp đã tải', [m.phat.length, m.tai_tep.length], [2, 1]);
+  });
+
+  await ca('bảng Chọn chuông: khối Âm báo tiền 2 chip cao 44; chọn Chỉ chuông thì lưu trên máy, nghe thử là chuông; bill thật theo mẫu đã chọn', async function () {
+    var m = dung_may();
     m.g.gmbMoChonChuong();
     var ds = m.tai.body.children, ov = ds[ds.length - 1];
     var chip = ov.querySelectorAll('[data-tienmau]');
-    bang('năm chip', chip.length, 5);
+    bang('hai chip', chip.length, 2);
     chip.forEach(function (c) { dung('chip cao 44: ' + c.getAttribute('data-tienmau'), /min-height:44px/.test(c.getAttribute('style') || '')); });
     dung('nút Nghe thử', ov.querySelector('[data-tiennghe]'));
-    ov.onclick({ target: ov.querySelector('[data-tienmau="xac_nhan"]') });
+    ov.onclick({ target: ov.querySelector('[data-tiennghe]') });
     await m.hoi();
-    bang('lưu trên máy', m.g.localStorage.getItem('vgb_tien_mau_bao'), 'xac_nhan');
-    bang('đọc thử', m.noi[m.noi.length - 1].cau, 'Payment confirmed.');
+    bang('nghe thử mặc định là tệp', [m.phat.length, m.keu.length], [1, 0]);
+    ov.onclick({ target: ov.querySelector('[data-tienmau="chi_chuong"]') });
+    await m.hoi();
+    bang('lưu trên máy', m.g.localStorage.getItem('vgb_tien_mau_bao'), 'chi_chuong');
+    bang('nghe ngay: chuông', [m.phat.length, m.keu.length], [1, 1]);
     var ov2 = m.tai.body.children[m.tai.body.children.length - 1];
-    dung('chip vừa chọn sáng lên', /aria-pressed="true"[^>]*>Payment confirmed/.test(ov2.innerHTML) || ov2.querySelector('[data-tienmau="xac_nhan"]').getAttribute('aria-pressed') === 'true');
-    var truoc = m.noi.length;
-    ov2.onclick({ target: ov2.querySelector('[data-tienmau="chi_chuong"]') });
-    await m.hoi();
-    bang('chỉ chuông không đọc', m.noi.length, truoc);
+    bang('chip vừa chọn sáng lên', ov2.querySelector('[data-tienmau="chi_chuong"]').getAttribute('aria-pressed'), 'true');
     m.g.posQrSheet('BILL-5', 70000, null, '', 'TCV');
     await m.hoi();
-    bang('bill thật theo mẫu đã chọn: không đọc', m.noi.length, truoc);
+    bang('bill thật: chuông, không phát tệp', [m.phat.length, m.keu.length], [1, 2]);
   });
 
   await ca('bảng mã QR có nút Đổi âm báo tiền về cao 44, bấm mở bảng Chọn chuông và âm báo', async function () {
-    var m = dung_may({ giong: GIONG_IPAD });
+    var m = dung_may();
     m.g.posQrSheet('BILL-6', 70000, null, '', 'TCV');
     var ds = m.tai.body.children, qr = ds[ds.length - 1];
     var nut = qr.querySelector('[data-amchon]');
     dung('có nút', nut && /min-height:44px/.test(nut.getAttribute('style')));
     await qr.onclick({ target: nut });
     var moi = m.tai.body.children[m.tai.body.children.length - 1];
-    dung('mở bảng chọn', moi !== qr && moi.querySelectorAll('[data-tienmau]').length === 5);
+    dung('mở bảng chọn', moi !== qr && moi.querySelectorAll('[data-tienmau]').length === 2);
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
