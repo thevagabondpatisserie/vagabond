@@ -781,4 +781,6 @@ Từ khoá: miễn phí giao, ngưỡng miễn phí, weborder, phí giao tại q
 |---|---|---|
 | Quản lý, giám đốc | Desk, Vagabond Settings, ô Miễn phí giao đơn giao của quầy (WEBORDER) từ | Lưu |
 
-Đơn đặt qua tab Tại quầy đạt mức này (sau ưu đãi) thì khách không trả phí giao, tiệm trả cước GreenSM. Để trống là 500.000 đ; gõ 0 là tắt miễn phí. Gõ 500000, 500.000 hay 500k đều được.
+Đơn đặt qua tab Tại quầy đạt mức này (sau ưu đãi) thì khách không trả phí giao, tiệm trả cước GreenSM. Để trống hoặc 0 là 500.000 đ. Gõ 500000, 500.000 hay 500k đều được.
+
+Muốn bỏ hẳn miễn phí giao (mọi đơn đều tính phí): bật ô Tắt miễn phí giao đơn giao của quầy ngay dưới, bấm Lưu. Tắt ô đó là áp lại mức ở trên.
