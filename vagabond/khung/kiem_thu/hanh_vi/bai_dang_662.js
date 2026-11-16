@@ -769,6 +769,28 @@ var MKT = ['Marketing'];
     bang('kiểm lại', goiTen(m, 'cai_dat')[1].ts.kiem_lai, 1);
   });
 
+  await ca('v664 Codex #576: ô tìm nhanh đầu Kho bản thảo và Danh sách: gõ không dấu là lọc, không thấy thì nói rõ, ô tìm không bị vẽ lại', async function () {
+    var m = dungMoi(MKT, { lich: { xem: 'bt', moc: '2026-11-16', duyet: true, viec: {}, ky_chu: '2 bản thảo', bt: [
+      { name: 'BD-7', tieu_de: 'Cheesecake', trich: 'Dâu tây, mâm xôi', trang_thai: 'Nháp', luc: '2026-11-16 12:58', nguoi: 'Minh Vũ', so_anh: 3, anh: '' },
+      { name: 'BD-8', tieu_de: 'Bánh khúc cây Giáng sinh', trich: 'Tuần 1', trang_thai: 'Nháp', luc: '2026-11-16 09:10', nguoi: 'Viet Nguyen', so_anh: 0, anh: '' }],
+      ds: [the('BD-1', '07:30', 'Chờ duyệt', ['fb', 'ig']), the('BD-2', '08:30', 'Nháp', ['th'])] } });
+    m.g.BD.xem = 'bt';
+    await m.g.scrBaiDang();
+    var o = mot(m.goc, '#bdTim');
+    go(m, o, 'banh khuc');
+    bang('lọc không dấu', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-8']);
+    dung('ô tìm giữ nguyên', mot(m.goc, '#bdTim') === o);
+    go(m, o, 'mam xoi');
+    bang('lọc theo nội dung', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-7']);
+    go(m, o, 'xyz');
+    dung('không thấy', chu(m.goc).indexOf('Không thấy bản thảo nào khớp') >= 0);
+    bam(m, mot(m.goc, '[data-bdxem="ds"]'));
+    await choDen(function () { return !!mot(m.goc, '#bdDsO') && m.goc.querySelectorAll('[data-bdbai]').length === 2; });
+    bang('đổi sang Danh sách thì ô tìm trống', mot(m.goc, '#bdTim').value, '');
+    go(m, mot(m.goc, '#bdTim'), 'threads');
+    bang('Danh sách lọc theo kênh', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-2']);
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();
