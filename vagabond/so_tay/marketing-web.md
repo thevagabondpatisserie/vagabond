@@ -274,3 +274,16 @@ Trước đây: web dùng xanh teal #29BDB3. Từ nay: màu xanh của cả web 
 
 **Lưu ý**
 - Ảnh tĩnh có màu teal cũ (nếu có) không tự đổi; báo kỹ thuật kèm tên ảnh.
+
+## Gắn Google Analytics cho trang web khách
+Từ khoá: Google Analytics, GA4, mã đo lường, G-, đo lường web, xem bánh, thêm giỏ, thanh toán, gửi đơn, purchase
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, quản lý | Desk, Vagabond Settings, ô Google Analytics ID (dưới ô Meta Pixel ID) | Lưu |
+
+Dán mã đo lường GA4 (dạng G-XXXXXXXXXX, lấy ở Google Analytics > Quản trị > Luồng dữ liệu) rồi bấm Lưu. Dán nguyên đoạn mã gtag cũng được, máy tự lấy đúng mã. Để trống là tắt.
+
+Sau khi lưu, các trang đặt bánh, biên nhận, bánh sỉ, thành viên, đặt bàn, ứng tuyển, chính sách tự nạp GA. Màn nhân viên không đo. Sự kiện gửi sang GA: xem bánh (view_item), thêm vào giỏ (add_to_cart), bắt đầu thanh toán (begin_checkout), gửi đơn (purchase, mỗi đơn một lần).
+
+Đường dẫn gửi sang GA đã gỡ mã biên nhận, chỉ giữ tham số quảng cáo (utm, gclid, fbclid). Khung xem thử trong Biên tập web không gửi số liệu.

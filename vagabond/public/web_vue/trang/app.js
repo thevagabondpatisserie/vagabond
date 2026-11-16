@@ -1,5 +1,6 @@
 import {createApp, h, reactive} from '../lib/vue.esm-browser.prod.js';
 import {ghi as ghiMang} from '../kho/api.js';
+import {itemsGuiDon} from '../kho/thuan.js';
 
 // Chỉ dựng thẻ được máy chủ làm sạch, chữ là text node, không thành template.
 export function veCay(cay) {
@@ -69,6 +70,13 @@ export function bienNhan(D, win = window) {
         content_ids: ev.ma_mon || [], content_type: 'product'}, {eventID: String(ev.event_id)});
       ghi('vgb_ev_' + ev.event_id, '1');
     }
+  }
+  /* v664: gửi đơn sang GA4 (purchase), mã giao dịch là mã sự kiện của đơn; mở lại
+     biên nhận không gửi lần hai. Chỉ khi đã gỡ token khỏi đường dẫn. */
+  if (anToan && ev.ban && ev.event_id && typeof win.gtag === 'function' && !doc('vgb_ga_' + ev.event_id)) {
+    win.gtag('event', 'purchase', {transaction_id: String(ev.event_id), value: Number(ev.gia_tri) || 0, currency: 'VND',
+      items: itemsGuiDon(ev)});
+    ghi('vgb_ga_' + ev.event_id, '1');
   }
   return bn;
 }

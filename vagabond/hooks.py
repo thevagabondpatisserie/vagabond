@@ -895,6 +895,8 @@ doc_events = {
 update_website_context = [
 	"vagabond.hooks._dinh_tuyen_ten_mien",
 	"vagabond.lib.og_theo_ten_mien",
+	# v664: thẻ Google Analytics cho các trang khách (chỉ trang chèn {{ vgb_ga_head }}).
+	"vagabond.do_luong_ga.ngu_canh",
 ]
 
 # Thu moi nhan vien: thay thu chao mung mac dinh cua Frappe (dan vao ban quan

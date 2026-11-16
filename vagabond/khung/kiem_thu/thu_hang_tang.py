@@ -101,6 +101,22 @@ def _():
 		isinstance(dau_van(1, [{"ma": "B1", "so_luong": "x"}]), str))
 
 
+@ca("v664 hàng tặng nhiều món (HDB-26-11-02846, 9 dòng): dấu vân vừa ô Data 140 ký tự, đơn cũ đã duyệt giữ nguyên dấu")
+def _():
+	from vagabond.hang_tang import DAU_VAN_TOI_DA
+	# Đúng đơn sáng 16/11: 9 dòng, mã dài, 1.555.000 đ. Bản cũ ra chuỗi ~190 ký tự,
+	# MariaDB báo "Data too long for column 'vgb_tang_dau_van'", nút Duyệt ra lỗi 500.
+	dong = [{"ma": "BKCRS%05d-FULL" % i, "so_luong": sl} for i, sl in enumerate((1, 1, 1, 1, 1, 1, 3, 5, 1))]
+	d = dau_van(1555000, dong)
+	dung("dấu đơn 9 dòng dài %d, không quá %d" % (len(d), DAU_VAN_TOI_DA), len(d) <= DAU_VAN_TOI_DA)
+	dung("đơn 40 dòng vẫn vừa ô", len(dau_van(9999999999, [{"ma": "MA-RAT-DAI-%03d" % i, "so_luong": 12.5} for i in range(40)])) <= DAU_VAN_TOI_DA)
+	la("đảo thứ tự dòng của đơn dài: dấu y nguyên", dau_van(1555000, list(reversed(dong))), d)
+	dung("đơn dài đổi số lượng một dòng: dấu đổi", d != dau_van(1555000, dong[:-1] + [{"ma": dong[-1]["ma"], "so_luong": 2}]))
+	dung("đơn dài bị sửa sau duyệt vẫn phải xin duyệt lại", can_duyet_lai(d, dau_van(1555000, dong[:-1])))
+	# Đơn ngắn đã duyệt trước bản này: dấu lưu ở dạng chữ cũ, phải khớp y nguyên.
+	la("đơn ngắn giữ đúng dạng chữ cũ", dau_van(100000, [{"ma": "B1", "so_luong": 1}]), "100000.00|B1:1.000")
+
+
 @ca("hàng tặng: sửa ruột sau khi duyệt thì phải xin duyệt lại")
 def _():
 	a = dau_van(100000, [{"ma": "B1", "so_luong": 1}])

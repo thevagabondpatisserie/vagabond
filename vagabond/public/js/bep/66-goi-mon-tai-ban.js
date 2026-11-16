@@ -42,21 +42,27 @@ function gmbChuongBat() {
 function gmbDatChuong(bat) {
   try { localStorage.setItem(GMB_KHOA_CHUONG, bat ? '1' : '0'); } catch (e) { }
 }
-/* Chuông ngắn hai nốt bằng WebAudio, không cần tệp âm thanh. Trình duyệt chặn
-   âm thanh khi chưa có cú chạm nào thì im lặng, dải chờ vẫn hiện. */
-function gmbKeu() {
+/* v664 (chị Dễ 16/11/2026: chuông chỉ kêu một tiếng ngắn, dễ lỡ): phát mẫu chuông
+   dài máy quầy đã chọn (77-chuong-mau.js). Dùng lại MỘT AudioContext: Safari giới
+   hạn số context và cần resume sau cú chạm. Trình duyệt chặn âm thanh khi chưa có
+   cú chạm nào thì im lặng, dải chờ vẫn hiện. */
+var GMB_AC = null, GMB_LUC_KEU = 0;
+var GMB_NHAC_LAI = 60000;
+function gmbKeu(ma) {
   try {
     var C = window.AudioContext || window.webkitAudioContext;
     if (!C) return;
-    var ac = new C();
-    [880, 1175].forEach(function (f, i) {
-      var o = ac.createOscillator(), g = ac.createGain();
-      o.frequency.value = f; o.connect(g); g.connect(ac.destination);
-      var t0 = ac.currentTime + i * 0.18;
-      g.gain.setValueAtTime(0.2, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
-      o.start(t0); o.stop(t0 + 0.17);
-    });
+    if (!GMB_AC || GMB_AC.state === 'closed') GMB_AC = new C();
+    if (GMB_AC.state === 'suspended' && GMB_AC.resume) GMB_AC.resume();
+    gmbPhatChuong(GMB_AC, ma || gmbMauChuong());
   } catch (e) { }
+}
+/* THUẦN: lượt hỏi này có kêu không. Có việc mới thì kêu ngay; còn việc chờ chưa ai
+   xử lý thì cứ GMB_NHAC_LAI kêu lại; hết việc chờ hay đã tắt chuông thì im. */
+function gmbCanKeu(batChuong, moi, soCho, lucKeu, bayGio) {
+  if (!batChuong || !soCho) return false;
+  if (moi) return true;
+  return bayGio - (lucKeu || 0) >= GMB_NHAC_LAI;
 }
 
 /* Chỗ trống trên màn Tính tiền; gmbVeDai đổ nội dung vào sau. */
@@ -119,7 +125,11 @@ async function gmbHoi() {
   GMB_WEB_CU = GMB_WEB;
   GMB_DS.concat(GMB_TG).forEach(function (x) { GMB_DA_THAY[x.ma] = 1; });
   gmbVeDai();
-  if (moi && gmbChuongBat()) gmbKeu();
+  var bayGio = Date.now();
+  if (gmbCanKeu(gmbChuongBat(), moi, GMB_DS.length + GMB_TG.length + GMB_WEB, GMB_LUC_KEU, bayGio)) {
+    GMB_LUC_KEU = bayGio;
+    gmbKeu();
+  }
 }
 
 function gmbVeDai() {
@@ -162,9 +172,11 @@ function gmbVeDai() {
     '<div style="font-weight:800;font-size:15px">🔔 ' + h(dong1) + '</div>' +
     '<div style="font-size:13px;margin-top:2px">' + h(dong2) + ' · bấm để xem</div></button>' +
     '<button data-gmbchuong="1" aria-label="' + (bat ? 'Tắt chuông' : 'Bật chuông') + '" style="flex:none;min-width:44px;min-height:44px;border:1px solid #fdba74;background:#fff;border-radius:10px;font-size:13px;color:#9a3412;cursor:pointer">' +
-    (bat ? '🔔 Tắt chuông' : '🔕 Bật chuông') + '</button></div>';
+    (bat ? '🔔 Tắt chuông' : '🔕 Bật chuông') + '</button>' +
+    '<button data-gmbchon="1" aria-label="Chọn tiếng chuông" style="flex:none;min-width:44px;min-height:44px;border:1px solid #fdba74;background:#fff;border-radius:10px;font-size:13px;color:#9a3412;cursor:pointer">🎵 Chọn chuông</button></div>';
   dai.onclick = function (e) {
     if (e.target.closest('[data-gmbchuong]')) { gmbDatChuong(!gmbChuongBat()); gmbVeDai(); return; }
+    if (e.target.closest('[data-gmbchon]')) { gmbMoChonChuong(); return; }
     if (e.target.closest('[data-gmbmo]')) {
       /* Chỉ có đơn giao chờ: mở thẳng màn Đơn giao của quầy. */
       if (GMB_WEB && !GMB_DS.length && !GMB_TG.length) return go(function () { scrDonGiaoQuay(GMB_DIEM); });
@@ -240,6 +252,7 @@ function gmbMoDs() {
       GMB_TG.map(gmbTheTroGiup).join('') +
       (GMB_DS.length ? GMB_DS.map(gmbThe).join('')
         : (GMB_TG.length ? '' : '<div class="emp"><div class="e1">✅</div><div>Không còn đơn nào chờ. Đơn mới sẽ hiện ở dải trên cùng màn.</div></div>')) +
+      gmbKhoiChonChuong() +
       '</div>';
   }
   ve();
@@ -255,6 +268,10 @@ function gmbMoDs() {
     if (x) return gmbXongTroGiup(x.getAttribute('data-gmbxong'), ve);
     var b = e.target.closest('[data-gmbbill]');
     if (b) { ov.remove(); return go(function () { scrPosBill(b.getAttribute('data-gmbbill')); }); }
+    /* v664: chọn tiếng chuông của máy này, chọn là nghe luôn. */
+    var cm = e.target.closest('[data-gmbmau]');
+    if (cm) { gmbDatMauChuong(cm.getAttribute('data-gmbmau')); ve(); return gmbKeu(); }
+    if (e.target.closest('[data-gmbnghe]')) return gmbKeu();
   };
 }
 

@@ -49,7 +49,8 @@ def _mo_dun_frappe_tim(html):
 	return os.path.join(thu_muc, os.path.splitext(ten)[0].replace("-", "_") + ".py")
 
 
-_BIEN = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*(\|\s*e\s*)?\}\}")
+# v664: thêm dạng `{{ ten or "" }}` (thẻ Google Analytics trong <head>): thiếu biến thì in rỗng.
+_BIEN = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*(\|\s*e\s*)?(\s*or\s*\"\"\s*)?\}\}")
 
 
 class _MauLa(Exception):
@@ -67,7 +68,7 @@ def _render(mau, ctx):
 		gia = ctx
 		for phan in ten.split("."):
 			if not isinstance(gia, dict) or phan not in gia:
-				return m.group(0)
+				return "" if m.group(3) else m.group(0)
 			gia = gia[phan]
 		chu = "" if gia is None else str(gia)
 		return _html.escape(chu, quote=True) if loc else chu
@@ -108,6 +109,10 @@ def _dung_trang(ten_html):
 			context = _Ctx()
 			md.get_context(context)
 		ctx = dict(context)
+	# Frappe chạy hook update_website_context sau get_context (v664: thẻ GA).
+	from vagabond import do_luong_ga
+	with patch.object(do_luong_ga, "ga_id", lambda: ""):
+		ctx = do_luong_ga.ngu_canh(ctx)
 	with io.open(html, encoding="utf-8") as f:
 		mau = f.read()
 	return _render(mau, ctx), co

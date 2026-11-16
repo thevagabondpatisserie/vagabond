@@ -301,7 +301,7 @@ export function taoKho(moiTruong) {
       return 'sua';
     }
     const hit = T.themVaoGio(S.CART, o);
-    suKien('AddToCart', {content_ids: [o.id], content_type: 'product', value: T.lineUnit(o) * o.qty, currency: 'VND'});
+    suKien('AddToCart', {content_ids: [o.id], contents: [{id: o.id, quantity: o.qty}], content_type: 'product', value: T.lineUnit(o) * o.qty, currency: 'VND'});
     toast(hit ? t('them_so_luong_banh', 'Đã thêm {so} bánh, giỏ có {tong} bánh', {so: o.qty, tong: T.cartCount(S.CART)})
       : t('dat_banh_01548bfbc', 'Đã thêm {gia_tri_a} vào giỏ', {gia_tri_a: tenMonGio(o)}));
     return 'them';
@@ -320,7 +320,7 @@ export function taoKho(moiTruong) {
     }
     const o = {k: c.k, img: c.img, id: sz.id, cm: sz.cm, price: sz.p, nguon: cheDo === 'today' ? 'today' : 'order', wish: '', adds: [], qty: 1};
     T.themVaoGio(S.CART, o);
-    suKien('AddToCart', {content_ids: [o.id], content_type: 'product', value: T.lineUnit(o) * o.qty, currency: 'VND'});
+    suKien('AddToCart', {content_ids: [o.id], contents: [{id: o.id, quantity: o.qty}], content_type: 'product', value: T.lineUnit(o) * o.qty, currency: 'VND'});
     toast(t('dat_banh_7e42d2e7b', 'Đã thêm {gia_tri_a}{gia_tri_b}. Vào giỏ, chọn Sửa bánh để thêm lời chúc, phụ kiện.', {gia_tri_a: tenMonGio(o), gia_tri_b: sz.cm ? ' ' + sz.cm + 'cm' : ''}));
     return 'them';
   }
@@ -768,7 +768,7 @@ export function taoKho(moiTruong) {
     if (!S.CO.nonce) S.CO.nonce = T.taoNonce(ngauNhien);
     if (S.CO.daBaoDat !== S.CO.nonce) {
       S.CO.daBaoDat = S.CO.nonce;
-      suKien('InitiateCheckout', {content_ids: S.CART.map(o => o.id), content_type: 'product', num_items: soBanh.value, value: tienBanh.value, currency: 'VND'});
+      suKien('InitiateCheckout', {content_ids: S.CART.map(o => o.id), contents: S.CART.map(o => ({id: o.id, quantity: o.qty})), content_type: 'product', num_items: soBanh.value, value: tienBanh.value, currency: 'VND'});
     }
     hoiUuDaiNeuCan();
   }
@@ -973,7 +973,7 @@ export function taoKho(moiTruong) {
     if (daCo(ma) >= m.con) { toast(t('dat_banh_3b1a7e8cc', 'Mùa này chỉ còn') + ' ' + m.con + ' ' + t('dat_banh_5faac70d7', 'phần. Cần nhiều hơn quý khách gọi 0931 224 334')); return false; }
     const o = {k: m.ten, img: m.anh || '', id: m.ma, cm: 0, price: m.gia || 0, wish: '', adds: [], qty: 1};
     const hit = T.themVaoGio(S.CART, o);
-    suKien('AddToCart', {content_ids: [o.id], content_type: 'product', value: o.price, currency: 'VND'});
+    suKien('AddToCart', {content_ids: [o.id], contents: [{id: o.id, quantity: 1}], content_type: 'product', value: o.price, currency: 'VND'});
     toast(hit ? t('dat_banh_cf8a493c0', 'Thêm 1 phần nữa, giỏ có') + ' ' + soBanh.value + ' ' + t('dat_banh_9900d8257', 'món')
       : t('dat_banh_1998bbe74', 'Đã thêm') + ' ' + tmon(m.ma, 'ten', m.ten) + ' ' + t('dat_banh_478beb847', 'vào giỏ'));
     return true;

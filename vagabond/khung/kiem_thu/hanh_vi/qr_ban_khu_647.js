@@ -39,7 +39,7 @@ function layHam(src, ten) {
 }
 var NEN = doc('00-nen.js'), POS = doc('09-tinh-tien-quay.js'), IN = doc('27-in-ngam.js'), GMB = doc('66-goi-mon-tai-ban.js');
 var MA = layHam(NEN, 'h') + '\n' + ['posChipNut', 'posVeSoBan', 'posNhomBan'].map(function (t) { return layHam(POS, t); }).join('\n') + '\n' +
-  /var IN_VENDOR = [\s\S]*?\};\n/.exec(IN)[0] + layHam(IN, 'inNapJs') + '\nvar inDaNap = {};\n' + GMB;
+  /var IN_VENDOR = [\s\S]*?\};\n/.exec(IN)[0] + layHam(IN, 'inNapJs') + '\nvar inDaNap = {};\n' + GMB + '\n' + doc('77-chuong-mau.js');
 var QR_LIB = fs.readFileSync(path.join(PUB, 'js', 'vendor', 'qrcode.js'), 'utf8');
 
 var ket = { dat: 0, hong: 0, loi: [] };

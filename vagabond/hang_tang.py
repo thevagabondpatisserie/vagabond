@@ -56,6 +56,8 @@ nhóm thứ tư `TIEN_KHONG_THU`. Xếp nhầm nó vào ba nhóm cũ thì thu ng
 tiền xong sẽ thấy thiếu đúng bằng số hàng đã tặng, mà không hiểu vì sao.
 """
 
+import hashlib
+
 # --------------------------------------------------------------- phần thuần
 #
 # Đặt trên `import frappe` để bộ kiểm thử tầng khung chạy được ở CI tay
@@ -329,6 +331,10 @@ def thieu_khi_dat_tang(don):
 	return [m for m in thieu_gi(don) if m in ("ly_do", "loai")]
 
 
+# Ô vgb_tang_dau_van là Data (varchar 140).
+DAU_VAN_TOI_DA = 140
+
+
 def dau_van(tong, dong):
 	"""Dấu vân của một đơn tặng: đổi ruột là đổi dấu. THUẦN.
 
@@ -351,7 +357,14 @@ def dau_van(tong, dong):
 			sl = 0.0
 		cac.append("%s:%s" % (ma, ("%.3f" % sl)))
 	cac.sort()
-	return "%.2f|%s" % (float(tong or 0), ",".join(cac))
+	tho = "%.2f|%s" % (float(tong or 0), ",".join(cac))
+	# v664 (16/11/2026, HDB-26-11-02846 chín dòng): ô lưu dấu là Data, tối đa
+	# 140 ký tự. Đơn nhiều món làm dấu dài hơn, MariaDB báo "Data too long"
+	# và nút Duyệt ra lỗi máy chủ 500. Dấu ngắn giữ nguyên chữ như cũ để các
+	# đơn ĐÃ duyệt không bị coi là đổi ruột; dấu dài thì thu về mã băm cố định.
+	if len(tho) <= DAU_VAN_TOI_DA:
+		return tho
+	return "h1:" + hashlib.sha1(tho.encode("utf-8")).hexdigest()
 
 
 def can_duyet_lai(dau_cu, dau_moi):

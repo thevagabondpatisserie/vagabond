@@ -12,11 +12,17 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
-## v664
+## v665
 - Hệ thống tự đăng Facebook, Instagram, Threads
 - Kho bản thảo thay cho gửi ghi chú qua lại
 - Soạn và duyệt bài đăng mạng xã hội
 - Đăng tay bài đã duyệt và ghi Đã đăng
+
+## v664
+- Miễn phí giao đơn giao của quầy
+- Gắn Google Analytics cho trang web khách
+- Chọn tiếng chuông báo đơn gọi món tại bàn
+- Âm báo tiền chuyển khoản về
 
 ## v663
 - Gửi thử tin WhatsApp
