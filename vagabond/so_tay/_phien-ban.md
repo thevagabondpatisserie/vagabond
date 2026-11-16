@@ -15,6 +15,8 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 ## v664
 - Miễn phí giao đơn giao của quầy
 - Gắn Google Analytics cho trang web khách
+- Chọn tiếng chuông báo đơn gọi món tại bàn
+- Âm báo tiền chuyển khoản về
 
 ## v663
 - Gửi thử tin WhatsApp
