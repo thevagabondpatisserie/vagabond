@@ -334,7 +334,31 @@ export function gaTuMeta(ten, du) {
   const ten_ga = {ViewContent: 'view_item', AddToCart: 'add_to_cart', InitiateCheckout: 'begin_checkout'}[ten];
   if (!ten_ga) return null;
   const d = du || {};
-  const ma = Array.isArray(d.content_ids) ? d.content_ids : [];
-  const items = ma.map(id => ({item_id: String(id), ...(d.content_name ? {item_name: String(d.content_name)} : {})}));
+  const tenMon = d.content_name ? {item_name: String(d.content_name)} : {};
+  /* Codex #575: có contents (id, quantity) thì giữ số lượng, gộp dòng cùng mã;
+     không có (xem bánh) thì mỗi mã một món, GA hiểu số lượng 1. */
+  const items = Array.isArray(d.contents) && d.contents.length
+    ? gopSoLuong(d.contents.map(c => ({ma: c && c.id, sl: c && c.quantity}))).map(x => ({item_id: x.ma, quantity: x.sl, ...tenMon}))
+    : (Array.isArray(d.content_ids) ? d.content_ids : []).map(id => ({item_id: String(id), ...tenMon}));
   return [ten_ga, {currency: 'VND', value: Number(d.value) || 0, items}];
+}
+
+/* [{ma, sl}] -> gộp cùng mã, số lượng nguyên dương (thiếu là 1). */
+export function gopSoLuong(ds) {
+  const gop = new Map();
+  for (const x of ds || []) {
+    const ma = String((x && x.ma) || '').trim();
+    if (!ma) continue;
+    const sl = Math.max(1, Math.floor(Number(x.sl) || 0));
+    gop.set(ma, (gop.get(ma) || 0) + sl);
+  }
+  return [...gop].map(([ma, sl]) => ({ma, sl}));
+}
+
+/* Món của sự kiện gửi đơn (biên nhận) cho GA4: mon_sl của máy chủ; bản máy chủ cũ
+   chỉ có ma_mon thì mỗi mã số lượng 1. */
+export function itemsGuiDon(ev) {
+  const e = ev || {};
+  const ds = Array.isArray(e.mon_sl) && e.mon_sl.length ? e.mon_sl : (e.ma_mon || []).map(ma => ({ma, sl: 1}));
+  return gopSoLuong(ds).map(x => ({item_id: x.ma, quantity: x.sl}));
 }
