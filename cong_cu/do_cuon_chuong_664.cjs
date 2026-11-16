@@ -118,6 +118,18 @@ var MAN = [{ ten: 'điện thoại nằm ngang 667x375', w: 667, h: 375 }, { ten
     }
     await p.close();
   }
+  /* Anh Việt 16/11: âm báo tiền về nằm trong app, mở app là giải mã sẵn. Nạp THẬT
+     66 và 77 vào Chromium (không chạm gì), đợi rồi đọc tệp đã giải mã. */
+  var pg = await br.newPage();
+  await pg.setContent('<!doctype html><html><body></body></html>');
+  await pg.addScriptTag({ content: 'function h(s){return String(s==null?"":s)}\n' + doc('66-goi-mon-tai-ban.js') + '\n' + doc('77-chuong-mau.js') });
+  var am = await pg.evaluate(async function () {
+    for (var i = 0; i < 50 && !TIEN_BUF; i++) await new Promise(function (r) { setTimeout(r, 100); });
+    return TIEN_BUF ? { giay: Math.round(TIEN_BUF.duration * 10) / 10, kenh: TIEN_BUF.numberOfChannels } : null;
+  });
+  await pg.close();
+  if (am && am.giay >= 3 && am.giay <= 3.5) { dat++; console.log('  DAT   âm báo tiền về giải mã sẵn khi mở app: ' + am.giay + ' giây'); }
+  else { hong++; console.log('  HONG  âm báo tiền về không giải mã được khi mở app: ' + JSON.stringify(am)); }
   await br.close();
   console.log(dat + ' nút chạm được, ' + hong + ' hỏng.');
   process.exit(hong ? 1 : 0);
