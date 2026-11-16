@@ -54,9 +54,9 @@ function nho() {
 }
 
 /* o.ss: sessionStorage dùng chung (tải lại trang); o.sepay: hàm trả kết quả
-   pos_kiem_sepay theo lượt hỏi; o.mangHong: máy chủ trả 404 cho tệp âm báo.
-   fetch giả đọc ĐÚNG tệp trong vagabond/public theo đường /assets/vagabond/...
-   nên đường dẫn sai hay thiếu tệp là ca đỏ. */
+   pos_kiem_sepay theo lượt hỏi; o.giaiMaHong: số lần giải mã đầu bị hỏng;
+   o.khongOffline: máy không có OfflineAudioContext. fetch giả chỉ để ghi lại:
+   âm báo nằm trong app, không được tải qua mạng (anh Việt 16/11). */
 function dung_may(o) {
   o = o || {};
   var tai = dg.taiLieuGia(), keu = [], phat = [], tai_tep = [], hen = [], lap = [], nghe = [];
@@ -81,30 +81,27 @@ function dung_may(o) {
       luot++;
       return Promise.resolve((o.sepay || function (l, a) { return { nhan: a.tien, du: 1 }; })(luot, args));
     },
-    fetch: function (url) {
-      tai_tep.push(url);
-      var duong = String(url).split('?')[0], tep = null;
-      if (!o.mangHong && duong.indexOf('/assets/vagabond/') === 0) {
-        var p = path.join(GOC, 'vagabond', 'public', duong.slice('/assets/vagabond/'.length));
-        if (fs.existsSync(p)) tep = fs.readFileSync(p);
-      }
-      return Promise.resolve({ ok: !!tep, status: tep ? 200 : 404,
-        arrayBuffer: function () { return Promise.resolve(tep.buffer.slice(tep.byteOffset, tep.byteOffset + tep.length)); } });
-    }
+    fetch: function (url) { tai_tep.push(url); return Promise.reject(new Error('khong duoc tai qua mang')); },
+    atob: function (b) { return Buffer.from(b, 'base64').toString('latin1'); }, Uint8Array: Uint8Array
   };
   g.window = g;
+  var hong = o.giaiMaHong || 0, giai_ma = [];
+  /* Bộ giải mã giả: nhận đúng byte mp3 (đầu tệp ID3 hay khung MPEG), ghi lại byte. */
+  function giaiMa(b, ok, loi) {
+    var u = new Uint8Array(b), mp3 = (u[0] === 0x49 && u[1] === 0x44 && u[2] === 0x33) || (u[0] === 0xFF && (u[1] & 0xE0) === 0xE0);
+    giai_ma.push(u.length);
+    if (hong > 0) { hong--; var e0 = new Error('giai ma hong'); loi(e0); return Promise.reject(e0); }
+    var buf = { byte: u.length, sha1: require('crypto').createHash('sha1').update(Buffer.from(u)).digest('hex'), duration: 3.2 };
+    if (mp3) { ok(buf); return Promise.resolve(buf); }
+    var e = new Error('khong phai mp3'); loi(e); return Promise.reject(e);
+  }
+  if (!o.khongOffline) g.window.OfflineAudioContext = function () { return { decodeAudioData: giaiMa }; };
   g.window.AudioContext = function () {
     var ac = { currentTime: 0, state: 'running', destination: {}, resume: function () {},
       createOscillator: function () { return { frequency: {}, connect: function () {}, start: function () {}, stop: function () {} }; },
       createGain: function () { var gn = { gain: { value: 1, setValueAtTime: function () {}, linearRampToValueAtTime: function () {}, exponentialRampToValueAtTime: function () {} },
         connect: function (dich) { if (dich === ac.destination && gn.gain.value === 0.32) keu.push(1); } }; return gn; },
-      /* Bộ giải mã giả: nhận đúng byte của tệp mp3 (đầu tệp ID3 hay khung MPEG). */
-      decodeAudioData: function (b, ok, hong) {
-        var u = new Uint8Array(b), mp3 = (u[0] === 0x49 && u[1] === 0x44 && u[2] === 0x33) || (u[0] === 0xFF && (u[1] & 0xE0) === 0xE0);
-        var buf = { byte: u.length, duration: 3.2 };
-        if (mp3) { ok(buf); return Promise.resolve(buf); }
-        var e = new Error('khong phai mp3'); hong(e); return Promise.reject(e);
-      },
+      decodeAudioData: giaiMa,
       createBufferSource: function () { var s = { connect: function () {}, start: function () { phat.push(s.buffer); } }; return s; } };
     return ac;
   };
@@ -114,25 +111,43 @@ function dung_may(o) {
     for (var k = 0; k < 10; k++) await new Promise(function (r) { setImmediate(r); });
     while (hen.length) hen.shift()();
   }
-  return { g: g, tai: tai, keu: keu, phat: phat, tai_tep: tai_tep, nghe: function () { return nghe; }, hoi: hoi, luot: function () { return luot; } };
+  return { g: g, tai: tai, keu: keu, phat: phat, tai_tep: tai_tep, giai_ma: giai_ma, nghe: function () { return nghe; }, hoi: hoi, luot: function () { return luot; } };
 }
 
 var TEP = path.join(GOC, 'vagabond', 'public', 'am_thanh', 'tien-ve-payment-received.mp3');
 
 (async function () {
-  console.log('v664 âm báo tiền chuyển khoản về (tệp thu sẵn mẫu 2 anh Việt chọn)');
+  console.log('v664 âm báo tiền chuyển khoản về (tệp thu sẵn mẫu 2 anh Việt chọn, nằm trong app)');
 
-  await ca('hai mẫu: Payment received (mặc định) và Chỉ chuông; mẫu cũ đã lưu trên máy (so_tien...) về mặc định; tệp có thật, ?v= khớp sha1', function () {
+  await ca('hai mẫu: Payment received (mặc định) và Chỉ chuông; mẫu cũ đã lưu trên máy (so_tien...) về mặc định', function () {
     var m = dung_may();
     bang('mẫu', m.g.TIEN_MAU_BAO.map(function (x) { return x.ma; }), ['giong', 'chi_chuong']);
     bang('mặc định', m.g.tienMauBao(), 'giong');
     m.g.TIEN_MAU_BAO.forEach(function (x) { dung('mẫu ' + x.ma + ' có tên và mô tả có dấu', x.ten && x.mo_ta && /[àáảãạâăđêôơưéèíóúý]/i.test(x.mo_ta)); });
     var ls = nho(); ls.setItem('vgb_tien_mau_bao', 'so_tien');
     bang('giá trị cũ', dung_may({ ls: ls }).g.tienMauBao(), 'giong');
-    var u = m.g.TIEN_TEP, sha = require('crypto').createHash('sha1').update(fs.readFileSync(TEP)).digest('hex');
-    bang('đường tệp', u.split('?')[0], '/assets/vagabond/am_thanh/tien-ve-payment-received.mp3');
-    bang('?v= là sha1 tệp', u.split('?v=')[1], sha.slice(0, 8));
-    dung('tệp nhỏ hơn 100 KB', fs.statSync(TEP).size < 100000);
+  });
+
+  await ca('âm báo nằm ngay trong app: trùng từng byte tệp mp3 anh đã nghe (sha1), không tải qua mạng', async function () {
+    var m = dung_may();
+    var tep = fs.readFileSync(TEP), sha = require('crypto').createHash('sha1').update(tep).digest('hex');
+    bang('byte trong app', Buffer.from(m.g.TIEN_AM_B64, 'base64').equals(tep), true);
+    bang('sha1 tệp đã duyệt', sha, '02c3e730b4fecdabc4766556dea6ac02558722cd');
+    m.g.posQrSheet('BILL-0', 50000, null, '', 'TCV');
+    await m.hoi();
+    bang('phát đúng tệp', m.phat.map(function (b) { return b.sha1; }), [sha]);
+    bang('không gọi mạng', m.tai_tep, []);
+  });
+
+  await ca('mở app chưa chạm gì: đã giải mã sẵn trong nền; tiền về là phát ngay trong cùng lượt, không chờ', async function () {
+    var m = dung_may();
+    await m.hoi();
+    bang('giải mã một lần lúc mở app', m.giai_ma.length, 1);
+    m.g.tienBao(50000, 'ck:BILL-9');
+    bang('phát ngay', m.phat.length, 1);
+    m.g.posQrSheet('BILL-10', 50000, null, '', 'TCV');
+    await m.hoi();
+    bang('bill sau không giải mã lại', [m.phat.length, m.giai_ma.length], [2, 1]);
   });
 
   await ca('màn bill đang chờ chuyển khoản: SePay báo đủ thì phát tệp "Payment received. Thank you." đúng một lần, không kêu thêm chuông tổng hợp', async function () {
@@ -158,7 +173,7 @@ var TEP = path.join(GOC, 'vagabond', 'public', 'am_thanh', 'tien-ve-payment-rece
     dung('bảng QR báo đủ', bao && /ĐÃ NHẬN ĐỦ 95/.test(bao.innerHTML));
   });
 
-  await ca('bill khác thì báo riêng, tệp chỉ tải một lần; tải lại trang khi bill cũ còn mở thì không báo lại bill cũ', async function () {
+  await ca('bill khác thì báo riêng, tệp chỉ giải mã một lần; tải lại trang khi bill cũ còn mở thì không báo lại bill cũ', async function () {
     var ss = nho();
     var m = dung_may({ ss: ss });
     m.g.posQrSheet('BILL-1', 95000, null, '', 'TCV');
@@ -166,36 +181,36 @@ var TEP = path.join(GOC, 'vagabond', 'public', 'am_thanh', 'tien-ve-payment-rece
     m.g.posQrSheet('BILL-2', 120000, null, '', 'TCV');
     await m.hoi();
     bang('hai bill hai lần', m.phat.length, 2);
-    bang('tải tệp một lần', m.tai_tep.length, 1);
+    bang('giải mã một lần', m.giai_ma.length, 1);
     var m2 = dung_may({ ss: ss });
     m2.g.posPollBat('BILL-1', 95000);
     await m2.hoi();
     bang('tải lại không báo lại', [m2.phat.length, m2.keu.length], [0, 0]);
   });
 
-  await ca('máy chủ không trả được tệp: vẫn kêu chuông; bill sau thử tải lại', async function () {
-    var m = dung_may({ mangHong: true });
+  await ca('giải mã hỏng: vẫn kêu chuông thay; bill sau giải mã lại và phát được', async function () {
+    var m = dung_may({ giaiMaHong: 2 });
+    await m.hoi();
     m.g.posQrSheet('BILL-3', 50000, null, '', 'TCV');
     await m.hoi();
     bang('chuông thay tệp', [m.keu.length, m.phat.length], [1, 0]);
     m.g.posQrSheet('BILL-4', 50000, null, '', 'TCV');
     await m.hoi();
-    bang('thử tải lại', m.tai_tep.length, 2);
+    bang('lần sau phát được', m.phat.length, 1);
   });
 
-  await ca('lần chạm đầu vào app: mở loa và tải sẵn tệp, tiền về là phát ngay không chờ tải', async function () {
-    var m = dung_may();
+  await ca('máy không có OfflineAudioContext: lần chạm đầu vào app mở loa và giải mã, tiền về phát ngay', async function () {
+    var m = dung_may({ khongOffline: true });
+    await m.hoi();
+    bang('chưa giải mã', m.giai_ma.length, 0);
     var ds = m.nghe().filter(function (x) { return x[0] === 'click'; });
     bang('có nghe lần chạm đầu', ds.length, 1);
     ds[0][1]();
     await m.hoi();
-    bang('đã tải sẵn', m.tai_tep.length, 1);
+    bang('giải mã ở lần chạm', m.giai_ma.length, 1);
     bang('chạm xong thì thôi nghe', m.nghe().filter(function (x) { return x[0] === 'click'; }).length, 0);
     m.g.tienBao(50000, 'ck:BILL-7');
-    bang('phát ngay, không chờ tải', m.phat.length, 1);
-    m.g.posQrSheet('BILL-8', 50000, null, '', 'TCV');
-    await m.hoi();
-    bang('bill sau dùng tệp đã tải', [m.phat.length, m.tai_tep.length], [2, 1]);
+    bang('phát ngay', m.phat.length, 1);
   });
 
   await ca('bảng Chọn chuông: khối Âm báo tiền 2 chip cao 44; chọn Chỉ chuông thì lưu trên máy, nghe thử là chuông; bill thật theo mẫu đã chọn', async function () {
