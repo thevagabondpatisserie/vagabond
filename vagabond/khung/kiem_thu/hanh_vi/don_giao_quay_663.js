@@ -54,7 +54,7 @@ function app(traDs) {
     h: function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); },
     busy: function () {}, toast: function () {}, go: function () {},
     api: function (m, a) { goi.push([m, a]); return Promise.resolve(JSON.parse(JSON.stringify(traDs ? traDs(a) : { ds: DS, diem: 'TCV', ten_diem: 'District 1', cac_diem: [], hen: [10, 15, 20], ly_do: ['Hết món'] }))); },
-    frame: function (tieuDe, html) { man.html = html; man.nghe = {}; man.nut = {};
+    frame: function (tieuDe, html, opt) { man.html = html; man.chan = (opt && opt.footer) || ''; man.nghe = {}; man.nut = {};
       return { addEventListener: function (loai, f) { man.nghe[loai] = f; } }; },
     document: { getElementById: function (id) { return man.nut[id] || (man.nut[id] = { id: id, innerHTML: '', value: '' }); } },
   };
@@ -132,6 +132,14 @@ function app(traDs) {
     b.g.api = function () { return Promise.reject(new Error('Mất kết nối')); };
     await b.g.scrDonGiaoQuay(); await nghi();
     dung('câu lỗi', b.man.html.indexOf('Chưa tải được đơn giao: Mất kết nối') >= 0 && b.man.html.indexOf('Tải lại') >= 0);
+  });
+
+  await ca('v664 chân màn có nút Chọn chuông cạnh Tải lại, bấm mở bảng chọn tiếng chuông', async function () {
+    var a = app(); var mo = 0; a.g.gmbMoChonChuong = function () { mo++; };
+    await a.g.scrDonGiaoQuay(); await nghi();
+    dung('có nút', a.man.chan.indexOf('id="dqChuong"') >= 0 && a.man.chan.indexOf('Chọn chuông') >= 0 && a.man.chan.indexOf('id="dqTai"') >= 0);
+    a.nut.dqChuong.onclick();
+    bang('mở bảng chọn', mo, 1);
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');

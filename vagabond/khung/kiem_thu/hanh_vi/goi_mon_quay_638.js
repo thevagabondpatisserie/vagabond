@@ -42,7 +42,7 @@ var MA = ['h', 'money', 'today', 'anhMon'].map(function (t) { return layHam(NEN,
   layHam(POS, 'posChipNut') + '\n' + layHam(SALES, 'nguonBH') + '\n' + layHam(SALES, 'ptTheoNguon') + '\n' +
   layBien(BILL, 'POS_NHOM_NUOC') + layBien(BILL, 'IN_MAU_MD') +
   ['posLaNuoc', 'posMonNuoc', 'inKho', 'inMau', 'posInPhieuMon'].map(function (t) { return layHam(BILL, t); }).join('\n') + '\n' +
-  layHam(IN, 'inThemLenhIn') + '\n' + GMB;
+  layHam(IN, 'inThemLenhIn') + '\n' + GMB + '\n' + doc('77-chuong-mau.js');
 
 var ket = { dat: 0, hong: 0 };
 function dung(mo, dk) { if (!dk) throw new Error(mo); }
@@ -65,12 +65,12 @@ var THE = [{ ma: 'TQ-261104-0001', ban: 5, diem: 'TCV', ten_diem: 'District 1', 
 function moApp(o) {
   o = o || {};
   var tai = dg.taiLieuGia();
-  var goi = [], tin = [], di = [], giay = [], cuaSo = [], keu = [];
+  var goi = [], tin = [], di = [], giay = [], cuaSo = [], keu = [], soAc = [];
   var ls = {};
   var cho = o.cho || THE;
   var g = {
     document: tai, console: console, Math: Math, JSON: JSON, String: String, Array: Array, Object: Object,
-    RegExp: RegExp, Promise: Promise, Number: Number, Date: Date, isNaN: isNaN, parseInt: parseInt,
+    RegExp: RegExp, Promise: Promise, Number: Number, Date: o.gio ? { now: function () { return o.gio.t; } } : Date, isNaN: isNaN, parseInt: parseInt,
     setTimeout: setTimeout, clearTimeout: clearTimeout,
     setInterval: function () { return 1; }, clearInterval: function () {},
     localStorage: { getItem: function (k) { return Object.prototype.hasOwnProperty.call(ls, k) ? ls[k] : null; }, setItem: function (k, v) { ls[k] = String(v); } },
@@ -118,12 +118,18 @@ function moApp(o) {
   };
   g.window = g;
   g.window.open = function () { var w = { doc: '', document: { write: function (s) { w.doc += s; }, close: function () {} } }; cuaSo.push(w); return w; };
+  /* v664: mỗi lần kêu dựng một nút gain tổng (gmbPhatChuong); đếm số lần kêu bằng
+     số nút tổng nối thẳng vào loa. Một AudioContext dùng lại cho mọi lần kêu. */
   g.window.AudioContext = function () {
-    return { currentTime: 0, destination: {}, createOscillator: function () { return { frequency: {}, connect: function () {}, start: function () { keu.push(1); }, stop: function () {} }; },
-      createGain: function () { return { gain: { setValueAtTime: function () {}, exponentialRampToValueAtTime: function () {} }, connect: function () {} }; } };
+    var ac = { currentTime: 0, state: 'running', destination: {}, resume: function () {},
+      createOscillator: function () { return { frequency: {}, connect: function () {}, start: function () {}, stop: function () {} }; },
+      createGain: function () { var gn = { gain: { value: 1, setValueAtTime: function () {}, linearRampToValueAtTime: function () {}, exponentialRampToValueAtTime: function () {} },
+        connect: function (dich) { if (dich === ac.destination) keu.push(1); } }; return gn; } };
+    soAc.push(ac);
+    return ac;
   };
   vm.runInNewContext(MA, g, { filename: 'goi-mon-quay.js' });
-  return { g: g, tai: tai, goi: goi, tin: tin, di: di, giay: giay, cuaSo: cuaSo, keu: keu, ls: ls };
+  return { g: g, tai: tai, goi: goi, tin: tin, di: di, giay: giay, cuaSo: cuaSo, keu: keu, ls: ls, soAc: soAc };
 }
 function manQuay(m) {
   /* Khối dải chờ đúng như scrPosQuay chèn vào giữa màn (gmbKhoi). */
@@ -145,9 +151,9 @@ function bamTrong(goc, chon) { var el = goc.querySelector(chon); if (!el) throw 
     var dai = m.tai.getElementById('gmbDai');
     dung('dải hiện', chu(dai).indexOf('1 đơn gọi món tại bàn đang chờ nhận') >= 0 && chu(dai).indexOf('Bàn 5') >= 0);
     bang('hỏi đúng cửa, đúng quầy', m.goi[0], { duong: 'vagabond.goi_mon_ban.dem_cho', ts: { diem: 'TCV' } });
-    bang('chuông kêu (hai nốt)', m.keu.length, 2);
+    bang('chuông kêu một lần', m.keu.length, 1);
     m.g.GMB_LUC = 0; await m.g.gmbHoi();
-    bang('đơn cũ không kêu lại', m.keu.length, 2);
+    bang('đơn cũ không kêu lại trong 1 phút', m.keu.length, 1);
     bamTrong(dai, '[data-gmbchuong]');
     bang('tắt chuông nhớ theo máy', m.ls.vgb_gmb_chuong, '0');
     dung('nút đổi chữ', chu(dai).indexOf('Bật chuông') >= 0);
@@ -162,7 +168,7 @@ function bamTrong(goc, chon) { var el = goc.querySelector(chon); if (!el) throw 
     await choDen(function () { return chu(m.tai.getElementById('gmbDai')).indexOf('cần trợ giúp') >= 0; });
     var dai = m.tai.getElementById('gmbDai');
     dung('dải ghi cả hai', chu(dai).indexOf('1 đơn gọi món tại bàn đang chờ nhận · 2 bàn cần trợ giúp') >= 0 && chu(dai).indexOf('Bàn 5 xin tính tiền') >= 0 && chu(dai).indexOf('Bàn 9 cần hỗ trợ') >= 0);
-    bang('chuông kêu', m.keu.length, 2);
+    bang('chuông kêu', m.keu.length, 1);
     bamTrong(dai, '[data-gmbmo]');
     var sh = sheetCuoi(m);
     var the = sh.querySelectorAll('[data-gmbtg]');
@@ -324,6 +330,87 @@ function bamTrong(goc, chon) { var el = goc.querySelector(chon); if (!el) throw 
     bang('QLCH', moApp({ vai: ['VGB - Quản lý cửa hàng'] }).g.coQuyenGmbQr(), true);
     bang('Giám đốc', moApp({ vai: ['Giám đốc'] }).g.coQuyenGmbQr(), true);
     bang('Sales', moApp({ vai: ['Sales User'] }).g.coQuyenGmbQr(), false);
+  });
+
+  /* v664 (chị Dễ 16/11/2026): chuông O2O kêu một tiếng ngắn nên dễ lỡ. */
+  await ca('v664 năm mẫu chuông đều dài từ 4 giây (chuông cũ 0,35 giây), máy chưa chọn là Hộp nhạc (anh Việt chọn), nốt hợp lệ', async function () {
+    var m = moApp();
+    bang('năm mẫu', m.g.GMB_MAU_CHUONG.map(function (x) { return x.ma; }), ['pha_le', 'le_tan', 'thap', 'chuong_gio', 'hop_nhac']);
+    m.g.GMB_MAU_CHUONG.forEach(function (x) {
+      var dai = m.g.gmbDoDaiChuong(x.ma);
+      dung(x.ten + ' dài ' + dai.toFixed(2) + ' giây', dai >= 4 && dai <= 9);
+      dung(x.ten + ' có tên tiếng Việt và dòng giải thích', /[àáảãạăâđèéêìíòóôơùúưỳý]/i.test(x.ten + x.mo_ta) && x.mo_ta.length > 20);
+      m.g.gmbNotChuong(x.ma).forEach(function (n) { dung(x.ma + ' nốt hợp lệ', n.f > 100 && n.f < 5000 && n.d > 0 && n.v > 0 && n.v <= 1 && n.t >= 0 && m.g.GMB_AM_SAC[n.k]); });
+    });
+    bang('mã lạ', JSON.stringify(m.g.gmbNotChuong('xyz')), JSON.stringify(m.g.gmbNotChuong('pha_le')));
+    bang('mặc định Hộp nhạc', m.g.gmbMauChuong(), 'hop_nhac');
+    m.ls.vgb_gmb_mau_chuong = 'khong-co'; bang('mẫu lưu lạ về mặc định', m.g.gmbMauChuong(), 'hop_nhac');
+  });
+
+  await ca('v664 còn đơn chờ chưa ai nhận thì cứ 1 phút kêu lại; nhận xong thì im; tắt chuông thì im; dùng lại một AudioContext', async function () {
+    var gio = { t: 1000000 }, cho = JSON.parse(JSON.stringify(THE));
+    var m = moApp({ gio: gio, cho: cho });
+    manQuay(m);
+    m.g.gmbBatDau('TCV');
+    await choDen(function () { return m.keu.length >= 1; });
+    bang('đơn mới kêu ngay', m.keu.length, 1);
+    gio.t += 15000; await m.g.gmbHoi(); gio.t += 15000; await m.g.gmbHoi();
+    bang('30 giây sau chưa kêu lại', m.keu.length, 1);
+    gio.t += 30000; await m.g.gmbHoi();
+    bang('đủ 1 phút còn đơn chờ: kêu lại', m.keu.length, 2);
+    gio.t += 20000; await m.g.gmbHoi();
+    bang('20 giây sau lần nhắc: chưa kêu', m.keu.length, 2);
+    cho.splice(0); gio.t += 60000; await m.g.gmbHoi();
+    bang('đơn đã nhận, không còn chờ: im', m.keu.length, 2);
+    cho.push(JSON.parse(JSON.stringify(Object.assign({}, THE[0], { ma: 'TQ-261104-0002', ban: 7 }))));
+    gio.t += 1000; await m.g.gmbHoi();
+    bang('đơn mới khác: kêu ngay', m.keu.length, 3);
+    m.g.gmbDatChuong(false); gio.t += 120000; await m.g.gmbHoi();
+    bang('tắt chuông: im', m.keu.length, 3);
+    bang('một AudioContext cho mọi lần kêu', m.soAc.length, 1);
+    var bang_ = m.g.gmbCanKeu;
+    bang('bảng quyết định', [bang_(true, true, 1, 0, 5), bang_(true, false, 1, 0, 59999), bang_(true, false, 1, 0, 60000), bang_(true, false, 0, 0, 999999), bang_(false, true, 3, 0, 1)],
+      [true, false, true, false, false]);
+  });
+
+  await ca('v664 bảng Gọi món tại bàn có dòng Tiếng chuông: năm chip cao 44 điểm, bấm Chuông tháp thì máy nhớ và nghe luôn, Nghe thử kêu đúng mẫu', async function () {
+    var m = moApp();
+    manQuay(m);
+    m.g.gmbBatDau('TCV');
+    await choDen(function () { return chu(m.tai.getElementById('gmbDai')).indexOf('đang chờ nhận') >= 0; });
+    bamTrong(m.tai.getElementById('gmbDai'), '[data-gmbmo]');
+    var sh = sheetCuoi(m);
+    var chip = sh.querySelectorAll('[data-gmbmau]');
+    bang('năm chip', chip.length, 5);
+    chip.forEach(function (c) { dung('chip cao 44', /min-height:44px/.test(c.getAttribute('style'))); });
+    dung('dòng giải thích mẫu đang chọn (Hộp nhạc mặc định)', chu(sh).indexOf('như hộp nhạc') >= 0 && chu(sh).indexOf('Hộp nhạc (mặc định)') >= 0 && chu(sh).indexOf('1 phút kêu lại') >= 0);
+    var truoc = m.keu.length;
+    bamTrong(sh, '[data-gmbmau="thap"]');
+    bang('máy nhớ mẫu', m.ls.vgb_gmb_mau_chuong, 'thap');
+    bang('chọn là nghe luôn', m.keu.length, truoc + 1);
+    sh = sheetCuoi(m);
+    dung('chip Chuông tháp sáng', sh.querySelector('[data-gmbmau="thap"]').getAttribute('aria-pressed') === 'true');
+    dung('dòng giải thích đổi theo', chu(sh).indexOf('tháp đồng hồ cổ') >= 0);
+    bamTrong(sh, '[data-gmbnghe]');
+    bang('Nghe thử kêu', m.keu.length, truoc + 2);
+  });
+
+  await ca('v664 nút Chọn chuông trên dải báo đơn mở bảng chọn tiếng chuông riêng; chọn Chuông gió thì máy nhớ, nghe luôn; đóng được', async function () {
+    var m = moApp();
+    manQuay(m);
+    m.g.gmbBatDau('TCV');
+    await choDen(function () { return chu(m.tai.getElementById('gmbDai')).indexOf('đang chờ nhận') >= 0; });
+    var nut = bamTrong(m.tai.getElementById('gmbDai'), '[data-gmbchon]');
+    dung('nút cao 44', /min-height:44px/.test(nut.getAttribute('style')));
+    var sh = sheetCuoi(m);
+    bang('bảng chọn chuông', sh.getAttribute('id'), 'gmbChonChuong');
+    bang('năm chip', sh.querySelectorAll('[data-gmbmau]').length, 5);
+    var truoc = m.keu.length;
+    bamTrong(sh, '[data-gmbmau="chuong_gio"]');
+    bang('máy nhớ', m.ls.vgb_gmb_mau_chuong, 'chuong_gio');
+    bang('nghe luôn', m.keu.length, truoc + 1);
+    bamTrong(sh, '[data-gmbdong]');
+    dung('đã đóng', !m.tai.getElementById('gmbChonChuong'));
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong');
