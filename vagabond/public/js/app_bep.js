@@ -74108,13 +74108,37 @@ function bdLichThang(dl) {
     }).join('') + '</div>';
 }
 
+/* Ô tìm nhanh đầu danh sách (AGENTS 2b.5): gõ là lọc ngay trên máy, không dấu cũng khớp.
+   Chỉ vẽ lại phần danh sách nên ô tìm giữ con trỏ. */
+function bdBoDau(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase(); }
+function bdKhopTim(chu, q) {
+  var t = bdBoDau(chu);
+  return bdBoDau(q).split(/\s+/).filter(Boolean).every(function (w) { return t.indexOf(w) >= 0; });
+}
+function bdOTim(goiY) {
+  return '<input class="tin" id="bdTim" type="search" placeholder="' + h(goiY) + '" value="' + h(BD.tim || '') + '" style="font-size:16px;text-align:left;padding:0 12px;margin-top:10px">';
+}
+function bdDsLoc(dl) {
+  var q = BD.tim || '';
+  if (BD.xem === 'bt') {
+    var bt = (dl.bt || []).filter(function (b) { return !q || bdKhopTim(b.tieu_de + ' ' + b.trich + ' ' + b.nguoi, q); });
+    return bt.length ? bt.map(bdTheBanThao).join('') : '<div class="card"><div class="emp" style="padding:18px">' + (q ? 'Không thấy bản thảo nào khớp "' + h(q) + '".' : 'Chưa có bản thảo nào.') + '</div></div>';
+  }
+  var ds = (dl.ds || []).filter(function (b) {
+    return !q || bdKhopTim(b.tieu_de + ' ' + bdTtMau(b.trang_thai).ten + ' ' + (b.kenh || []).map(function (k) { return bdKenh(k.k).ten; }).join(' '), q);
+  });
+  var truoc = '';
+  return ds.length ? ds.map(function (b) {
+    var dau = b.ngay && b.ngay !== truoc ? '<div style="font-size:13px;font-weight:700;color:#667085;margin:4px 2px">' + h(bdNgayChu(b.ngay)) + '</div>' : '';
+    truoc = b.ngay || truoc;
+    return dau + bdTheLich(b);
+  }).join('') : '<div class="card"><div class="emp" style="padding:18px">' + (q ? 'Không thấy bài nào khớp "' + h(q) + '".' : 'Chưa có bài nào ở mục này.') + '</div></div>';
+}
 function bdDanhSach(dl) {
-  var ds = dl.ds || [];
   return '<div style="margin-top:10px">' + kmHangChip(BD_DS_LOC.map(function (x) { return bdChip('data-bdloctt="' + h(x[0]) + '"', h(x[1]), BD.tt === x[0]); }).join('')) + '</div>' +
+    bdOTim('Tìm theo tên bài, kênh, trạng thái') +
     '<div style="font-size:13px;color:#667085;margin:10px 2px 8px">' + h(dl.ky_chu || '') + '</div>' +
-    (ds.length ? ds.map(function (b) {
-      return (b.ngay ? '<div style="font-size:13px;font-weight:700;color:#667085;margin:4px 2px">' + h(bdNgayChu(b.ngay)) + '</div>' : '') + bdTheLich(b);
-    }).join('') : '<div class="card"><div class="emp" style="padding:18px">Chưa có bài nào ở mục này.</div></div>');
+    '<div id="bdDsO">' + bdDsLoc(dl) + '</div>';
 }
 
 function bdTheBanThao(b) {
@@ -74127,13 +74151,13 @@ function bdTheBanThao(b) {
     (b.trang_thai === 'Chờ duyệt' ? ' · Chờ duyệt' : '') + '</span></span></button>';
 }
 function bdKhoBanThao(dl) {
-  var ds = dl.bt || [];
   return '<div class="card" style="padding:12px 14px;margin-top:10px">' +
     '<div style="font-size:14px;line-height:1.5;color:#475467">Bản thảo là bài chưa hẹn giờ. Mọi người cùng sửa một bản ngay tại đây, không cần gửi ghi chú qua lại. Có ảnh và giờ đăng thì bài lên lịch.</div>' +
     '<button class="btn gh" data-bdnhap="1" style="margin:10px 0 0;width:100%;min-height:44px;font-size:15px">📄 Nhập tệp Word, Excel thành bản thảo</button>' +
     '<div style="font-size:13px;color:#667085;margin-top:8px;line-height:1.45">Word hoặc tệp chữ: mỗi tệp thành một bản thảo. Excel: mỗi dòng một bản thảo; cột Nội dung bắt buộc, có cột Tiêu đề, Ngày, Giờ, Kênh thì hệ thống điền sẵn.</div></div>' +
+    bdOTim('Tìm bản thảo theo tên, nội dung, người sửa') +
     '<div style="font-size:13px;color:#667085;margin:10px 2px 8px">' + h(dl.ky_chu || '') + '</div>' +
-    (ds.length ? ds.map(bdTheBanThao).join('') : '<div class="card"><div class="emp" style="padding:18px">Chưa có bản thảo nào.</div></div>');
+    '<div id="bdDsO">' + bdDsLoc(dl) + '</div>';
 }
 function bdNhap() {
   var inp = document.createElement('input');
@@ -74201,7 +74225,7 @@ async function scrBaiDang(dl) {
   var cd = document.getElementById('vgbAct'); if (cd) cd.onclick = function () { bdSheetCaiDat(); };
   b.onclick = async function (e) {
     var t;
-    if ((t = e.target.closest('[data-bdxem]'))) { BD.xem = t.getAttribute('data-bdxem'); return scrBaiDang(); }
+    if ((t = e.target.closest('[data-bdxem]'))) { BD.xem = t.getAttribute('data-bdxem'); BD.tim = ''; return scrBaiDang(); }
     if ((t = e.target.closest('[data-bdviec]'))) { BD.xem = 'ds'; BD.tt = t.getAttribute('data-bdviec'); return scrBaiDang(); }
     if ((t = e.target.closest('[data-bdloctt]'))) { BD.tt = t.getAttribute('data-bdloctt'); return scrBaiDang(); }
     if ((t = e.target.closest('[data-bdngay]'))) { BD.ngay = t.getAttribute('data-bdngay'); if (BD.xem === 'thang') { BD.xem = 'tuan'; BD.moc = BD.ngay; return scrBaiDang(); } return scrBaiDang(BD.dl); }
@@ -74219,6 +74243,12 @@ async function scrBaiDang(dl) {
     if ((t = e.target.closest('[data-bdbai]'))) { var ma = t.getAttribute('data-bdbai'); return go(function () { return scrBaiDangSoan(ma); }); }
     if ((t = e.target.closest('[data-bdtrong]'))) return bdTaoBai(t.getAttribute('data-bdtrong'));
     if (e.target.closest('[data-bdnhap]')) return bdNhap();
+  };
+  b.oninput = function (e) {
+    if (e.target.id !== 'bdTim') return;
+    BD.tim = e.target.value;
+    var o = b.querySelector('#bdDsO');
+    if (o) o.innerHTML = bdDsLoc(BD.dl);
   };
 }
 
