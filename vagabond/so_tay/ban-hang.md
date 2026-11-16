@@ -1369,22 +1369,22 @@ Có đơn gọi món tại bàn, bàn cần trợ giúp hay đơn giao chờ xá
 - Nút Tắt chuông trên dải báo vẫn tắt hẳn chuông của máy đó.
 - Máy chưa có cú chạm nào từ lúc mở app thì trình duyệt chưa cho phát âm thanh: chạm vào màn một lần sau khi mở.
 ## Âm báo tiền chuyển khoản về
-Từ khoá: tiền về, chuyển khoản, SePay, đã nhận đủ, giọng đọc, tiếng Anh, Payment received, âm báo, đọc số tiền
+Từ khoá: tiền về, chuyển khoản, SePay, đã nhận đủ, giọng đọc, tiếng Anh, Payment received, âm báo
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Thu ngân | Bảng mã QR chuyển khoản, màn Tính tiền | [[🎵 Đổi âm báo tiền về]], [[Nghe thử]] |
 
-Khách chuyển khoản và SePay nhận đủ tiền thì máy quầy kêu hai nốt chuông rồi đọc bằng giọng tiếng Anh, ví dụ "Payment received, 95,000 dong". Mỗi bill chỉ báo một lần.
+Khách chuyển khoản và SePay nhận đủ tiền thì máy quầy kêu hai nốt chuông rồi giọng nữ tiếng Anh đọc "Payment received. Thank you." Mỗi bill chỉ báo một lần. Máy quầy nào cũng nghe cùng một giọng.
 
 **Các bước**
 1. Bấm [[🎵 Đổi âm báo tiền về]] dưới mã QR, hoặc [[🎵 Chọn chuông]] ở màn Đơn giao của quầy.
-2. Ở mục Âm báo tiền chuyển khoản về, chọn một trong năm mẫu: Đọc số tiền (mặc định), Payment received, Transfer received, Payment confirmed, Chỉ chuông. Bấm là nghe luôn.
+2. Ở mục Âm báo tiền chuyển khoản về, chọn Payment received (mặc định) hoặc Chỉ chuông. Bấm là nghe luôn.
 3. Bấm [[Nghe thử]] để nghe lại.
 
 **Lưu ý**
-- Giọng đọc là giọng tiếng Anh có sẵn trên máy. iPad, iPhone, Mac đọc giọng Anh-Anh (Daniel, Kate); máy không có giọng tiếng Anh thì chỉ kêu chuông.
-- Mở app xong chạm vào màn một lần thì máy mới cho đọc thành tiếng.
+- Mở app xong chạm vào màn một lần thì máy mới cho phát âm thanh.
+- Mạng chập chờn chưa tải được giọng đọc thì máy chỉ kêu chuông.
 - Âm báo chỉ là để nghe nhanh. Vẫn nhìn dòng ĐÃ NHẬN ĐỦ trên màn trước khi đưa bánh.
 ## In mã QR bàn theo khu
 Từ khoá: in QR bàn, sơ đồ bàn, tên bàn, khu A, bàn A1, VIP, standee, mica, kích thước, A4, dấu cắt, số bàn
