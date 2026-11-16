@@ -86,8 +86,9 @@ CUA_NGO = {
 	# v621 Tin Zalo tự động: năm cửa của màn, chặn vai CRM ở máy chủ. Nhịp
 	# chay_tu_dong và các hàm quét, gửi KHÔNG được mở ra ngoài.
 	# v662 (anh Việt 15/11): bài đăng mạng xã hội, Marketing soạn, duyệt, đăng tay.
-	"bai_dang.py": ["cai_dat", "da_dang", "doi_moc", "duyet", "gio_trong", "gui_duyet", "huy", "lich", "luu", "soan_ai",
-		"tao", "them_anh", "tra_ve", "xem", "xoa_anh"],
+	"bai_dang.py": ["cai_dat", "da_dang", "doi_moc", "duyet", "gio_trong", "gui_duyet", "huy", "lich", "luu", "nhap_tep", "soan_ai",
+		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh"],
+	"mxh.py": [],
 	"zalo_kich_ban.py": ["ds_kich_ban", "luu_kich_ban", "kiem_mau_zalo", "ds_tin", "gui_thu"],
 	# v621: trang thành viên. Mọi hàm mở cho khách vãng lai, tự xác thực bằng
 	# cookie phiên OTP; luu_ho_so, doi_anh, nhan_qua chỉ sửa hồ sơ của số đã xác thực.

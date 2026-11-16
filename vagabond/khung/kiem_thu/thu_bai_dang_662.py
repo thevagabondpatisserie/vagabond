@@ -285,6 +285,7 @@ def _chay(doc, ham, anh_cu=None, trung=None, nhat=None, **k):
 			um.patch.object(x, "_luu", lambda d: luu.append(d.ban_luu)), um.patch.object(x, "_bay_gio", lambda: BAY_GIO), \
 			um.patch.object(x, "_trung_gio", lambda d: list(trung or [])), um.patch.object(x, "_anh_cu", lambda d: list(anh_cu or [])), \
 			um.patch.object(x, "gio_vang", lambda: list(x.GIO_VANG_MAC_DINH)), \
+			um.patch.object(x, "_noi", lambda *a: set()), um.patch.object(x, "_xep_dang", lambda ma: None), \
 			um.patch.object(x.frappe, "session", type("S", (), {"user": "mkt@x"})(), create=True):
 		ra = ham(**k)
 	return ra, luu
@@ -342,19 +343,19 @@ def _da_dang():
 	nem("đã có kênh đăng thì không huỷ", lambda: _chay(_Bai(trang_thai=x.TT_TAY, kenh=[_Dong(ma_kenh="fb", trang_thai=x.K_XONG)]), x.huy, ma="BD"))
 
 
-@ca("v662 nhịp đến giờ: chỉ bài Đã hẹn giờ tới giờ; đọc lại sau khoá, bài vừa trả về nháp thì bỏ qua")
+@ca("v662 nhịp đến giờ (v664 qua lượt đăng từng bài): kênh chưa nối tới giờ thì Chờ đăng tay và nhắn; đọc lại sau khoá, bài vừa trả về nháp thì bỏ qua")
 def _den_gio():
 	doc = _Bai(trang_thai=x.TT_HEN, hen_luc="2026-11-15 19:30:00", kenh=[_Dong(ma_kenh="fb", trang_thai=x.K_HEN)])
 	bao = []
-	with um.patch.object(x.frappe, "get_all", lambda *a, **k: [doc.name]), um.patch.object(x.frappe.db, "commit", lambda: None, create=True), \
+	with um.patch.object(x.frappe.db, "commit", lambda: None, create=True), \
 			um.patch.object(x.frappe.db, "rollback", lambda: None, create=True), um.patch.object(x, "_bao_den_gio", lambda d, k: bao.append((d.name, k))):
-		_chay(doc, x.quet_den_gio)
+		_chay(doc, x.dang_bai, ma=doc.name)
 	la("chuyển Chờ đăng tay và nhắn", (doc.trang_thai, doc.kenh[0].trang_thai, bao), (x.TT_TAY, x.K_TAY, [(doc.name, ["Facebook"])]))
 	doc2 = _Bai(trang_thai=x.TT_NHAP, hen_luc="2026-11-15 19:30:00")
 	bao2 = []
-	with um.patch.object(x.frappe, "get_all", lambda *a, **k: [doc2.name]), um.patch.object(x.frappe.db, "commit", lambda: None, create=True), \
+	with um.patch.object(x.frappe.db, "commit", lambda: None, create=True), \
 			um.patch.object(x.frappe.db, "rollback", lambda: None, create=True), um.patch.object(x, "_bao_den_gio", lambda d, k: bao2.append(d.name)):
-		_, luu = _chay(doc2, x.quet_den_gio)
+		_, luu = _chay(doc2, x.dang_bai, ma=doc2.name)
 	la("bài đã trả về nháp: không đổi, không nhắn", (doc2.trang_thai, luu, bao2), (x.TT_NHAP, [], []))
 
 
