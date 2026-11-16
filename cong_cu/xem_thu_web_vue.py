@@ -23,6 +23,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 GOC = Path(os.environ.get('VGB_GOC') or Path(__file__).resolve().parents[1]).resolve()
+
+
+def the_ga_thu():
+	sys.path.insert(0, str(GOC))
+	from vagabond.do_luong_ga import the_ga
+	return the_ga('G-THU12345')
 CONG = int(sys.argv[1]) if len(sys.argv) > 1 else 8790
 BAN_CU = Path(os.environ.get('VGB_BAN_CU') or GOC / 'vagabond/trang/banh.html')
 TAI_SAN_CU = Path(os.environ.get('VGB_TAI_SAN_CU') or GOC / 'vagabond/public/web_order')
@@ -197,6 +203,9 @@ class Xu(BaseHTTPRequestHandler):
 			return self.gui(200, kieu, tep.read_bytes())
 		if duong == '/web_moi/banh':
 			s = (GOC / 'vagabond/www/web_moi/banh.html').read_text().replace('{{ csrf_token }}', 'thu')
+			# v664: thẻ Google Analytics THẬT do máy chủ dựng (mã thử); gtag.js ngoài mạng bị chặn,
+			# sự kiện vẫn nằm trong window.dataLayer để ca DOM đọc.
+			s = s.replace('{{ vgb_ga_head or "" }}', the_ga_thu())
 			return self.gui(200, 'text/html; charset=utf-8', s)
 		if duong == '/ung-tuyen':
 			s = (GOC / 'vagabond/www/ung-tuyen.html').read_text().replace('{{ csrf_token }}', 'thu')

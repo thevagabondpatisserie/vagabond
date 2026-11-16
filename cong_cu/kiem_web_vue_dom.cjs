@@ -86,6 +86,13 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.equal(await page.locator('#sum').innerText(),before);
     const ev=await page.evaluate(()=>Array.from(window.fbq?.queue||[],a=>Array.from(a)[1]));
     for(const e of ['PageView','ViewContent','AddToCart','InitiateCheckout']) assert(ev.includes(e),e);
+    /* v664: cùng chỗ bắn Pixel thì bắn GA4 (thẻ GA thật của máy chủ, mã thử G-THU12345). */
+    const ga=await page.evaluate(()=>Array.from(window.dataLayer||[],a=>Array.from(a)));
+    assert.deepEqual(ga.find(a=>a[0]==='config').slice(0,2),['config','G-THU12345']);
+    const gaEv=ga.filter(a=>a[0]==='event').map(a=>a[1]);
+    for(const e of ['view_item','add_to_cart','begin_checkout']) assert(gaEv.includes(e),'GA '+e);
+    const them=ga.find(a=>a[0]==='event'&&a[1]==='add_to_cart')[2];
+    assert.equal(them.currency,'VND'); assert(them.value>0 && them.items.length>0,'add_to_cart có tiền và món');
   });
   await test('F08/F10/F18/F33 nhập người nhận, hóa đơn, thanh toán rồi reload giữ đủ',async()=>{
     await page.locator('#f-phone').fill('0900000000'); await page.locator('#f-name').fill('Khách thử');
