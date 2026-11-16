@@ -83,7 +83,9 @@ def ngu_canh(context=None):
 		return context
 	try:
 		from markupsafe import Markup
-
+	except ImportError:  # máy kiểm thử không có Frappe; Jinja của Frappe luôn có markupsafe
+		Markup = str
+	try:
 		context["vgb_ga_head"] = Markup(the_ga(ga_id()))
 	except Exception:
 		context["vgb_ga_head"] = ""
