@@ -42,6 +42,12 @@
 
   var px = String(D.pixel_id || '').replace(/\D/g, '');
   var ev = D.su_kien || {};
+  /* v664: gửi đơn sang GA4 (purchase), mã giao dịch là mã sự kiện; không gửi lần hai. */
+  if (ev.ban && ev.event_id && typeof window.gtag === 'function' && !doc('vgb_ga_' + ev.event_id)) {
+    window.gtag('event', 'purchase', {transaction_id: String(ev.event_id), value: Number(ev.gia_tri) || 0, currency: 'VND',
+      items: (ev.ma_mon || []).map(function (id) { return {item_id: String(id)}; })});
+    ghi('vgb_ga_' + ev.event_id, '1');
+  }
   if (!px) return;
   /* Doan nap chuan cua Meta, viet lai cho doc duoc. */
   if (!window.fbq) {
