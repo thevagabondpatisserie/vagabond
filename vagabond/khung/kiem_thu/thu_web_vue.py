@@ -193,7 +193,8 @@ def _pixel_capi_chung_id():
 	b = {'name':'DW-FIXTURE','trang_thai':'Da nhan','tien_banh':650000,
 		'event_id_gui_don':'uuid-fixture-server','snapshot':json.dumps({'mon':[{'ma':'BANH','sl':1,'gia':650000}]})}
 	g = dict(frappe=D(get_all=lambda *a, **k:[b]), DOCTYPE='Vagabond Don Web',
-		token_hop_le=lambda tok:True, bam=don_web.bam, json=json, tom_tat_bien_nhan=don_web.tom_tat_bien_nhan)
+		token_hop_le=lambda tok:True, bam=don_web.bam, json=json, tom_tat_bien_nhan=don_web.tom_tat_bien_nhan,
+		mon_su_kien=don_web.mon_su_kien)
 	du = nap('don_web.py','bien_nhan_theo_token',g)('token-fixture')
 	ev = du['su_kien']
 	capi = don_web.goi_su_kien('GuiDon', ev['event_id'], 1, ev['gia_tri'], ev['ma_mon'])

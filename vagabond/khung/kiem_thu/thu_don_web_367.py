@@ -1649,7 +1649,8 @@ def _():
 	fr = types.SimpleNamespace(new_doc=lambda dt: Doc(flags=D()), get_all=get_all)
 	g = dict(frappe=fr, DOCTYPE="Vagabond Don Web", json=json, _khoa_bi_mat=lambda: KHOA,
 		sinh_muoi=don_web.sinh_muoi, sinh_event_id=don_web.sinh_event_id, sinh_token=don_web.sinh_token,
-		bam=don_web.bam, token_hop_le=don_web.token_hop_le, tom_tat_bien_nhan=don_web.tom_tat_bien_nhan)
+		bam=don_web.bam, token_hop_le=don_web.token_hop_le, tom_tat_bien_nhan=don_web.tom_tat_bien_nhan,
+		mon_su_kien=don_web.mon_su_kien)
 	tao = nap("don_web.py", "tao_ban_ghi", g)
 	g["token_cua"] = nap("don_web.py", "token_cua", g)
 	ph = nap("don_web.py", "phan_hoi", g)

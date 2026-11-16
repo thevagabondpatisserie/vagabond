@@ -79,4 +79,16 @@ def _():
 	r = subprocess.run(["node", "vagabond/khung/kiem_thu/hanh_vi/ga_664.mjs"], cwd=GOC, capture_output=True, text=True, timeout=120)
 	la(r.stdout[-1500:] + r.stderr[-1500:], r.returncode, 0)
 	m = re.search(r"(\d+) ca dat, 0 ca hong", r.stdout)
-	dung("đủ 6 ca", bool(m) and int(m.group(1)) >= 6)
+	dung("đủ 8 ca", bool(m) and int(m.group(1)) >= 8)
+
+
+@ca("v664 GA Codex #575: sự kiện gửi đơn của biên nhận mang số lượng từng món, gộp dòng cùng mã")
+def _():
+	from vagabond import don_web
+
+	la("ba bánh cùng mã và hai dòng cùng mã", don_web.mon_su_kien({"mon": [{"ma": "B1", "sl": 3}, {"ma": "B2", "sl": 1}, {"ma": "B1", "sl": 2}, {"ma": "", "sl": 9}]}),
+		[{"ma": "B1", "sl": 5}, {"ma": "B2", "sl": 1}])
+	la("số lượng hỏng là 1", don_web.mon_su_kien({"mon": [{"ma": "B1", "sl": "x"}]}), [{"ma": "B1", "sl": 1}])
+	la("không có món", don_web.mon_su_kien({}), [])
+	import inspect
+	dung("biên nhận gửi mon_sl", '"mon_sl": mon_su_kien(snap)' in inspect.getsource(don_web.bien_nhan_theo_token))
