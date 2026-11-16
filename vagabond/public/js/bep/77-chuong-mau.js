@@ -138,20 +138,21 @@ function gmbMoChonChuong() {
 }
 
 /* ---------- v664 (anh Việt 16/11/2026): âm báo TIỀN CHUYỂN KHOẢN VỀ ----------
-   "giọng người đọc đã nhận chuyển khoản bằng tiếng Anh cho sang". Một hồi chuông
-   ngắn rồi giọng đọc tiếng Anh của chính máy (giọng Anh-Anh ưu tiên, iPad/Mac có
-   Daniel, Kate, Serena; Windows Edge có Sonia, Libby). Máy không có giọng tiếng
-   Anh thì chỉ kêu chuông. Báo đúng MỘT lần cho một bill khi SePay nhận đủ tiền. */
+   "giọng người đọc đã nhận chuyển khoản bằng tiếng Anh cho sang". Anh nghe năm
+   mẫu và chọn mẫu 2: hai nốt chuông rồi giọng nữ Anh-Anh đọc "Payment received.
+   Thank you." Âm báo là TỆP THU SẴN (public/am_thanh), không dùng giọng đọc của
+   máy, nên máy quầy nào nghe cũng giống hệt bản anh đã duyệt. Báo đúng MỘT lần
+   cho một bill khi SePay nhận đủ tiền. Tệp chưa tải được thì kêu chuông. */
 var TIEN_KHOA_MAU = 'vgb_tien_mau_bao';
+/* ?v= là 8 ký tự đầu sha1 của tệp; đổi tệp thì đổi số (ca kiểm chốt). */
+var TIEN_TEP = '/assets/vagabond/am_thanh/tien-ve-payment-received.mp3?v=02c3e730';
 var TIEN_MAU_BAO = [
-  { ma: 'so_tien', ten: 'Đọc số tiền', mo_ta: 'Chuông rồi đọc "Payment received, 95,000 dong". Nghe là biết đủ tiền chưa.' },
-  { ma: 'cam_on', ten: 'Payment received', mo_ta: 'Chuông rồi đọc "Payment received. Thank you."' },
-  { ma: 'chuyen_khoan', ten: 'Transfer received', mo_ta: 'Chuông rồi đọc "Bank transfer received."' },
-  { ma: 'xac_nhan', ten: 'Payment confirmed', mo_ta: 'Chuông rồi đọc "Payment confirmed."' },
+  { ma: 'giong', ten: 'Payment received', mo_ta: 'Chuông rồi giọng nữ Anh-Anh đọc "Payment received. Thank you."' },
   { ma: 'chi_chuong', ten: 'Chỉ chuông', mo_ta: 'Hai nốt chuông vàng sáng, không đọc.' }
 ];
-var TIEN_MAU_MAC_DINH = 'so_tien';
+var TIEN_MAU_MAC_DINH = 'giong';
 var TIEN_DA_BAO = {};
+var TIEN_BUF = null, TIEN_NAP = null;
 
 function tienMauBao() {
   var ma = '';
@@ -162,47 +163,58 @@ function tienDatMauBao(ma) {
   try { localStorage.setItem(TIEN_KHOA_MAU, ma); } catch (e) { }
 }
 
-/* THUẦN: câu đọc của mẫu. Số tiền viết kiểu 95,000 để giọng tiếng Anh đọc
-   "ninety-five thousand". Không có số tiền thì mẫu đọc số tiền đọc câu cảm ơn. */
-function tienCauDoc(ma, soTien) {
-  var so = Math.round(Number(soTien) || 0);
-  if (ma === 'chi_chuong') return '';
-  if (ma === 'chuyen_khoan') return 'Bank transfer received.';
-  if (ma === 'xac_nhan') return 'Payment confirmed.';
-  if (ma === 'so_tien' && so > 0) return 'Payment received, ' + String(so).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' dong.';
-  return 'Payment received. Thank you.';
-}
-
-/* THUẦN: chọn giọng tiếng Anh sang nhất trong danh sách giọng của máy
-   ({name, lang}). Giọng có tên trong bảng ưu tiên đứng trước, rồi Anh-Anh,
-   rồi mọi giọng tiếng Anh; không có thì null. */
-var TIEN_GIONG_UU_TIEN = ['Serena', 'Kate', 'Daniel', 'Martha', 'Arthur', 'Stephanie', 'Sonia', 'Libby', 'Google UK English Female',
-  'Google UK English Male', 'Samantha', 'Ava', 'Allison', 'Aria', 'Jenny', 'Google US English'];
-function tienChonGiong(ds) {
-  var en = (ds || []).filter(function (v) { return v && /^en[-_]/i.test(String(v.lang || '')); });
-  if (!en.length) return null;
-  function hang(v) {
-    var ten = String(v.name || '');
-    for (var i = 0; i < TIEN_GIONG_UU_TIEN.length; i++) if (ten.indexOf(TIEN_GIONG_UU_TIEN[i]) >= 0) return i;
-    return /^en[-_]GB/i.test(v.lang) ? 100 : 200;
-  }
-  var tot = en.slice().sort(function (a, b) {
-    var d = hang(a) - hang(b);
-    if (d) return d;
-    /* Cùng hạng: giọng chất lượng cao (Premium, Enhanced, Natural) trước. */
-    return (/(Premium|Enhanced|Natural)/.test(b.name) ? 1 : 0) - (/(Premium|Enhanced|Natural)/.test(a.name) ? 1 : 0);
-  });
-  return tot[0];
-}
-
-/* THUẦN: hai nốt chuông vàng sáng báo tiền về (khác hẳn chuông đơn O2O). */
+/* THUẦN: hai nốt chuông vàng sáng báo tiền về (khác hẳn chuông đơn O2O). Cũng là
+   hai nốt mở đầu của tệp thu sẵn. */
 function tienNotChuong() {
   return [{ t: 0, f: 1318.51, d: 1.4, v: 0.55, k: 'pha_le' }, { t: 0.16, f: 1975.53, d: 1.8, v: 0.5, k: 'pha_le' },
     { t: 0.16, f: 987.77, d: 1.8, v: 0.25, k: 'pha_le' }];
 }
 
-/* Báo tiền về: chuông, chờ chuông vang rồi đọc. khoa: mã bill, cùng bill chỉ báo một lần.
-   Trả true khi đã báo. */
+function tienAc() {
+  var C = window.AudioContext || window.webkitAudioContext;
+  if (!C) return null;
+  if (!GMB_AC || GMB_AC.state === 'closed') GMB_AC = new C();
+  if (GMB_AC.state === 'suspended' && GMB_AC.resume) GMB_AC.resume();
+  return GMB_AC;
+}
+
+/* Tải và giải mã tệp một lần cho cả phiên. Hỏng thì lần sau tải lại. */
+function tienNapTep(ac) {
+  if (TIEN_BUF) return Promise.resolve(TIEN_BUF);
+  if (TIEN_NAP) return TIEN_NAP;
+  TIEN_NAP = fetch(TIEN_TEP, { credentials: 'same-origin' }).then(function (r) {
+    if (!r.ok) throw new Error('tep am bao ' + r.status);
+    return r.arrayBuffer();
+  }).then(function (b) {
+    /* Safari cũ chỉ có decodeAudioData kiểu gọi lại. */
+    return new Promise(function (ok, hong) {
+      var p = ac.decodeAudioData(b, ok, hong);
+      if (p && p.then) p.then(ok, hong);
+    });
+  }).then(function (buf) { TIEN_BUF = buf; return buf; }, function (e) { TIEN_NAP = null; throw e; });
+  return TIEN_NAP;
+}
+
+function tienKeuChuong(ac) {
+  var t0 = ac.currentTime + 0.02, tong = ac.createGain();
+  tong.gain.value = 0.32; tong.connect(ac.destination);
+  tienNotChuong().forEach(function (n) {
+    GMB_AM_SAC.pha_le.boi.forEach(function (b, i) {
+      var o = ac.createOscillator(), g = ac.createGain(), bd = t0 + n.t, ngan = n.d / (1 + i * 0.9);
+      o.type = 'sine'; o.frequency.value = n.f * b[0]; o.connect(g); g.connect(tong);
+      g.gain.setValueAtTime(0.0001, bd); g.gain.linearRampToValueAtTime(n.v * b[1], bd + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, bd + ngan); o.start(bd); o.stop(bd + ngan + 0.05);
+    });
+  });
+}
+function tienPhatTep(ac, buf) {
+  var src = ac.createBufferSource(), g = ac.createGain();
+  src.buffer = buf; g.gain.value = 0.9;
+  src.connect(g); g.connect(ac.destination); src.start(ac.currentTime + 0.02);
+}
+
+/* Báo tiền về. khoa: nội dung chuyển khoản của bill, cùng bill chỉ báo một lần.
+   Trả true khi đã báo. (soTien giữ cho nơi gọi cũ, tệp thu sẵn không đọc số.) */
 function tienDaBao(khoa) {
   if (TIEN_DA_BAO[khoa]) return true;
   try { return sessionStorage.getItem('vgb_tien_bao:' + khoa) === '1'; } catch (e) { return false; }
@@ -216,36 +228,12 @@ function tienBao(soTien, khoa, ma) {
     try { sessionStorage.setItem('vgb_tien_bao:' + khoa, '1'); } catch (e) { }
   }
   ma = ma || tienMauBao();
-  try {
-    var C = window.AudioContext || window.webkitAudioContext;
-    if (C) {
-      if (!GMB_AC || GMB_AC.state === 'closed') GMB_AC = new C();
-      if (GMB_AC.state === 'suspended' && GMB_AC.resume) GMB_AC.resume();
-      var t0 = GMB_AC.currentTime + 0.02, tong = GMB_AC.createGain();
-      tong.gain.value = 0.32; tong.connect(GMB_AC.destination);
-      tienNotChuong().forEach(function (n) {
-        GMB_AM_SAC.pha_le.boi.forEach(function (b, i) {
-          var o = GMB_AC.createOscillator(), g = GMB_AC.createGain(), bd = t0 + n.t, ngan = n.d / (1 + i * 0.9);
-          o.type = 'sine'; o.frequency.value = n.f * b[0]; o.connect(g); g.connect(tong);
-          g.gain.setValueAtTime(0.0001, bd); g.gain.linearRampToValueAtTime(n.v * b[1], bd + 0.006);
-          g.gain.exponentialRampToValueAtTime(0.0001, bd + ngan); o.start(bd); o.stop(bd + ngan + 0.05);
-        });
-      });
-    }
-  } catch (e) { }
-  var cau = tienCauDoc(ma, soTien);
-  var ss = window.speechSynthesis;
-  if (cau && ss && window.SpeechSynthesisUtterance) {
-    setTimeout(function () {
-      try {
-        var u = new window.SpeechSynthesisUtterance(cau);
-        var gi = tienChonGiong(ss.getVoices ? ss.getVoices() : []);
-        if (gi) { u.voice = gi; u.lang = gi.lang; } else u.lang = 'en-GB';
-        u.rate = 0.95; u.pitch = 1; u.volume = 1;
-        ss.cancel(); ss.speak(u);
-      } catch (e) { }
-    }, 700);
-  }
+  var ac = null;
+  try { ac = tienAc(); } catch (e) { }
+  if (!ac) return true;
+  if (ma !== 'giong') { try { tienKeuChuong(ac); } catch (e) { } return true; }
+  if (TIEN_BUF) { try { tienPhatTep(ac, TIEN_BUF); } catch (e) { } return true; }
+  tienNapTep(ac).then(function (buf) { tienPhatTep(ac, buf); }, function () { try { tienKeuChuong(ac); } catch (e) { } });
   return true;
 }
 
@@ -261,22 +249,20 @@ function tienKhoiChonBao() {
         'font-size:13.5px;cursor:pointer;border:1.5px solid ' + (on ? '#15803d;background:#dcfce7;color:#166534;font-weight:700' : '#d4d4d8;background:#fff;color:#27272a') + '">' +
         h(x.ten + (x.ma === TIEN_MAU_MAC_DINH ? ' (mặc định)' : '')) + '</button>';
     }).join('') + '</div>' +
-    '<div style="font-size:13px;color:#52525b;margin:8px 0">' + h(m.mo_ta) + ' Báo một lần cho mỗi bill khi SePay nhận đủ tiền. Giọng đọc là giọng tiếng Anh có sẵn trên máy.</div>' +
+    '<div style="font-size:13px;color:#52525b;margin:8px 0">' + h(m.mo_ta) + ' Báo một lần cho mỗi bill khi SePay nhận đủ tiền.</div>' +
     '<button data-tiennghe="1" style="min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #d4d4d8;background:#fff;font-size:13.5px;cursor:pointer">▶ Nghe thử</button>' +
     '</div>';
 }
 
-/* iPad và iPhone chỉ cho trang đọc thành tiếng sau lần chạm đầu tiên của người
-   dùng. Lần chạm đầu vào app thì mở khoá giọng đọc bằng một câu rỗng, nạp sẵn
-   danh sách giọng (Chrome nạp giọng chậm), để lúc tiền về máy đọc được ngay. */
+/* iPad và iPhone chỉ cho phát âm thanh sau lần chạm đầu tiên của người dùng.
+   Lần chạm đầu vào app thì mở loa (AudioContext) và tải sẵn tệp âm báo, để lúc
+   tiền về máy phát được ngay. */
 (function () {
   try {
-    var ss = window.speechSynthesis;
-    if (!ss || !document.addEventListener) return;
-    if (ss.getVoices) ss.getVoices();
+    if (!document.addEventListener) return;
     var mo = function () {
       document.removeEventListener('click', mo, true);
-      try { if (window.SpeechSynthesisUtterance) { var u = new window.SpeechSynthesisUtterance(''); u.volume = 0; ss.speak(u); } } catch (e) { }
+      try { var ac = tienAc(); if (ac) tienNapTep(ac).catch(function () { }); } catch (e) { }
     };
     document.addEventListener('click', mo, true);
   } catch (e) { }
