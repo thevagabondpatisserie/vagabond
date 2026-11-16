@@ -326,3 +326,15 @@ export function tkrBatTrangTri(tp, dang, ten) {
   const n = String(co[ten].nhom || '');
   return [...(dang || []).filter(x => !n || String((co[x] || {}).nhom || '') !== n), ten];
 }
+
+/* v664 (Minh Vũ 16/11/2026): sự kiện Meta Pixel -> sự kiện GA4 cùng chỗ bắn.
+   ViewContent -> view_item, AddToCart -> add_to_cart, InitiateCheckout -> begin_checkout.
+   Sự kiện khác trả null (không gửi GA). Không đưa tên, số điện thoại khách. */
+export function gaTuMeta(ten, du) {
+  const ten_ga = {ViewContent: 'view_item', AddToCart: 'add_to_cart', InitiateCheckout: 'begin_checkout'}[ten];
+  if (!ten_ga) return null;
+  const d = du || {};
+  const ma = Array.isArray(d.content_ids) ? d.content_ids : [];
+  const items = ma.map(id => ({item_id: String(id), ...(d.content_name ? {item_name: String(d.content_name)} : {})}));
+  return [ten_ga, {currency: 'VND', value: Number(d.value) || 0, items}];
+}
