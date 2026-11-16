@@ -14,6 +14,9 @@ on:
       - 'cong_cu/kiem_tuyen_dung_dom.cjs'
       - 'cong_cu/kiem_anh_menu_dom.cjs'
       - 'vagabond/public/js/bep/68-bien-tap-menu.js'
+      - 'vagabond/public/js/bep/77-chuong-mau.js'
+      - 'vagabond/public/js/bep/09-tinh-tien-quay.js'
+      - 'cong_cu/do_cuon_chuong_664.cjs'
       - 'cong_cu/tuyen_dung_mau.json'
       - 'vagabond/tuyen_dung.py'
       - 'vagabond/tuyen_dung_form.py'
@@ -141,3 +144,5 @@ jobs:
           node cong_cu/kiem_tuyen_dung_dom.cjs
           # v645: anh mon Bien tap menu: cat vuong, nen duoi 500 KB tren Chromium that; khung anh trang goi mon 1:1.
           node cong_cu/kiem_anh_menu_dom.cjs
+          # v664 (Codex #575): bảng Chọn chuông và âm báo, bảng mã QR cuộn được trên điện thoại nằm ngang, mọi nút chạm tới.
+          node cong_cu/do_cuon_chuong_664.cjs
