@@ -1211,7 +1211,7 @@ def _quay_js():
 
 @ca("v664 âm báo tiền chuyển khoản về (node, mã nguồn thật): SePay báo đủ thì chuông rồi giọng Anh đọc số tiền, mỗi bill một lần, chọn mẫu ở bảng Chọn chuông")
 def _tien_ve_664():
-	_node("tien_ve_664.js", 8)
+	_node("tien_ve_664.js", 10)
 
 
 @ca("v638 bảng kiểm kho (node, trang thật): mục Đồ uống đủ món, công tắc Bán trên web gọi đúng cửa, ngày cũ không bấm được")
