@@ -1349,6 +1349,43 @@ Trang khách gọi món có hai nút lớn Bánh và Đồ uống; chọn Bánh 
 - Máy quầy không có loa thì không nghe chuông: cắm một loa nhỏ vào máy. Dải báo vẫn hiện.
 - Nhóm Zalo nhân viên muốn nhận tin đơn mới thì tích tin Khách gọi món tại bàn qua QR và Khách cần trợ giúp tại bàn.
 
+
+## Chọn tiếng chuông báo đơn gọi món tại bàn
+Từ khoá: tiếng chuông, đổi chuông, chuông dài, chuông pha lê, chuông tháp, chuông gió, hộp nhạc, chuông lễ tân, nghe thử, chuông kêu lại, O2O
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu ngân, quản lý cửa hàng | Dải báo đơn trên cùng màn, màn Đơn giao của quầy | [[🎵 Chọn chuông]], [[Nghe thử]] |
+
+Có đơn gọi món tại bàn, bàn cần trợ giúp hay đơn giao chờ xác nhận thì máy quầy kêu một hồi chuông dài khoảng 5 giây. Còn việc chờ chưa ai xử lý thì cứ 1 phút kêu lại, xử lý xong là thôi.
+
+**Các bước**
+1. Bấm [[🎵 Chọn chuông]] trên dải báo đơn, hoặc ở chân màn Đơn giao của quầy (cạnh Tải lại). Bảng Gọi món tại bàn cũng có dòng Tiếng chuông ở cuối.
+2. Bấm một trong năm mẫu: Chuông pha lê, Chuông quầy lễ tân, Chuông tháp, Chuông gió, Hộp nhạc (mặc định). Bấm là nghe luôn.
+3. Bấm [[Nghe thử]] để nghe lại mẫu đang chọn.
+
+**Lưu ý**
+- Mỗi máy quầy nhớ mẫu của máy đó. Quán ồn thì chọn Chuông tháp, trầm và rõ nhất.
+- Nút Tắt chuông trên dải báo vẫn tắt hẳn chuông của máy đó.
+- Máy chưa có cú chạm nào từ lúc mở app thì trình duyệt chưa cho phát âm thanh: chạm vào màn một lần sau khi mở.
+## Âm báo tiền chuyển khoản về
+Từ khoá: tiền về, chuyển khoản, SePay, đã nhận đủ, giọng đọc, tiếng Anh, Payment received, âm báo
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu ngân | Bảng mã QR chuyển khoản, màn Tính tiền | [[🎵 Đổi âm báo tiền về]], [[Nghe thử]] |
+
+Khách chuyển khoản và SePay nhận đủ tiền thì máy quầy kêu hai nốt chuông rồi giọng nữ tiếng Anh đọc "Payment received. Thank you." Mỗi bill chỉ báo một lần. Máy quầy nào cũng nghe cùng một giọng.
+
+**Các bước**
+1. Bấm [[🎵 Đổi âm báo tiền về]] dưới mã QR, hoặc [[🎵 Chọn chuông]] ở màn Đơn giao của quầy.
+2. Ở mục Âm báo tiền chuyển khoản về, chọn Payment received (mặc định) hoặc Chỉ chuông. Bấm là nghe luôn.
+3. Bấm [[Nghe thử]] để nghe lại.
+
+**Lưu ý**
+- Mở app xong chạm vào màn một lần thì máy mới cho phát âm thanh.
+- Giọng đọc nằm sẵn trong app, mở app là sẵn sàng, không phải chờ tải. Thu ngân không cần bấm gì, tiền về là máy tự đọc.
+- Âm báo chỉ là để nghe nhanh. Vẫn nhìn dòng ĐÃ NHẬN ĐỦ trên màn trước khi đưa bánh.
 ## In mã QR bàn theo khu
 Từ khoá: in QR bàn, sơ đồ bàn, tên bàn, khu A, bàn A1, VIP, standee, mica, kích thước, A4, dấu cắt, số bàn
 

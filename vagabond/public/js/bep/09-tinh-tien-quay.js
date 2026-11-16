@@ -111,7 +111,7 @@ function posPollBat(ma, tien) {
       var gy = kq ? (parseInt(kq.goi_y, 10) || 0) : 0;
       if (gy !== posSepayGoiY) { posSepayGoiY = gy; doi = true; }
       if (doi && document.getElementById('posNd')) go(scrPosQuay, true);
-      if (kq && kq.du) posPollTat();
+      if (kq && kq.du) { posPollTat(); if (typeof tienBao === 'function') tienBao(kq.nhan, 'ck:' + ma); }
     } catch (e) { }
   }, 5000);
 }
@@ -2115,12 +2115,15 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
   var q = posTaiKhoan(nguon, maDiem);
   var url = posQrUrl(soPhieu, tien, nguon, maDiem);
   var ov = document.createElement('div'); ov.className = 'sh';
-  ov.innerHTML = '<div class="shb" style="padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
+  /* Codex #575: bảng QR cao hơn màn điện thoại nằm ngang; tự cuộn dọc để
+     với tới Đổi âm báo, In hoá đơn, Hoá đơn mới. */
+  ov.innerHTML = '<div class="shb" style="padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center;overflow-y:auto;-webkit-overflow-scrolling:touch">' +
     '<div style="font-size:21px;font-weight:800">Chuyển khoản ' + money(tien) + ' đ</div>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' + h(q.ten || '') + ' · ' + h((q.bank || '') + ' ' + (q.stk || '')) + '</div>' +
     (url ? '<img src="' + url + '" alt="VietQR" style="width:min(300px,72vw);aspect-ratio:1;margin:12px auto 4px;display:block;border:1px solid #e5e7eb;border-radius:14px;background:#fff">' : posQrLoi(q,soPhieu,tien)) +
     '<div style="font-size:13px;color:#374151">Nội dung chuyển khoản: <b>' + h(soPhieu) + '</b></div>' +
     '<div id="qrsBao" style="font-size:12.5px;color:#b45309;margin-top:8px">⏳ Đang chờ tiền về... màn hình tự báo khi SePay nhận đủ.</div>' +
+    (typeof gmbMoChonChuong === 'function' ? '<button data-amchon="1" style="min-height:44px;margin-top:6px;padding:0 12px;border:0;background:none;color:#52525b;font-size:13px;text-decoration:underline;cursor:pointer">🎵 Đổi âm báo tiền về</button>' : '') +
     '<div style="display:flex;gap:8px;margin-top:14px">' +
     (posBillVua ? '<button class="btn gh" data-in style="flex:0 0 34%;margin:0">🖨 In hoá đơn</button>' : '') +
     '<button class="btn" data-y style="flex:1;margin:0">Hoá đơn mới</button></div>' +
@@ -2134,6 +2137,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
       var kq = await api('vagabond.ban_hang.pos_kiem_sepay', { noi_dung: soPhieu, tien: tien });
       if (kq && kq.du) {
         clearInterval(pid);
+        if (typeof tienBao === 'function') tienBao(kq.nhan, 'ck:' + soPhieu);
         var bao = ov.querySelector('#qrsBao');
         if (bao) { bao.style.color = '#15803d'; bao.innerHTML = '✅ <b>ĐÃ NHẬN ĐỦ ' + money(kq.nhan) + ' đ</b> - SePay khớp nội dung ' + h(soPhieu) + '.'; }
         var ny = ov.querySelector('[data-y]');
@@ -2142,6 +2146,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
     } catch (e) { }
   }, 5000);
   ov.onclick = async function (e) {
+    if (e.target.hasAttribute('data-amchon')) return gmbMoChonChuong();
     /* In bill / ghi so xong la ve DANH SACH BILL de quan ly thay chip
        trang thai ca (anh Viet 09/08); Bill moi thi ve man bam bill. */
     if (e.target.hasAttribute('data-in')) {

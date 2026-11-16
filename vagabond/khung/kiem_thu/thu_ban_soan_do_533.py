@@ -264,7 +264,9 @@ def _thu_tu():
 
 		# v663: Đơn giao của quầy: xác nhận, từ chối, gọi xe một đơn có sẵn bằng
 		# bảng hỏi một bước, không có form lập phiếu nháp nhiều ô.
-		"76-don-giao-quay.js"])
+		"76-don-giao-quay.js",
+		# v664: năm mẫu chuông O2O và chỗ chọn tiếng chuông, không có form lập phiếu.
+		"77-chuong-mau.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

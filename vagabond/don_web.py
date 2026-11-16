@@ -968,9 +968,26 @@ def bien_nhan_theo_token(token):
 			"event_id": b.get("event_id_gui_don"),
 			"gia_tri": int(b.get("tien_banh") or 0),
 			"ma_mon": [m.get("ma") for m in (snap.get("mon") or []) if m.get("ma")],
+			# v664 (Codex #575): GA4 cần số lượng, ba bánh cùng mã là quantity 3.
+			"mon_sl": mon_su_kien(snap),
 			"ban": b.get("trang_thai") != "Da huy",
 		},
 	}
+
+
+def mon_su_kien(snap):
+	"""Món của đơn cho sự kiện đo lường: [{"ma", "sl"}], gộp dòng cùng mã. THUẦN."""
+	gop = {}
+	for m in (snap or {}).get("mon") or []:
+		ma = str((m or {}).get("ma") or "").strip()
+		if not ma:
+			continue
+		try:
+			sl = int(float((m or {}).get("sl") or 0))
+		except (TypeError, ValueError):
+			sl = 0
+		gop[ma] = gop.get(ma, 0) + max(sl, 1)
+	return [{"ma": k, "sl": v} for k, v in gop.items()]
 
 
 LO_DOI_SOAT = 100

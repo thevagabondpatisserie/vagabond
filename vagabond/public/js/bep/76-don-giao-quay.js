@@ -151,7 +151,9 @@ function dqVe() {
       '<div class="card" style="padding:10px 12px;margin-top:10px"><input class="tin" id="dqTim" style="min-height:44px;font-size:15px" placeholder="Tìm mã đơn, tên khách, số điện thoại, địa chỉ, món" value="' + h(DQ_TIM) + '"></div>' +
       '<div id="dqDs">' + dqDanhSach() + '</div>';
   }
-  var b = frame('Đơn giao của quầy · ' + h((DQ && DQ.ten_diem) || DQ_DIEM), html, { footer: '<button class="btn gh" id="dqTai">Tải lại</button>' });
+  /* v664: nút Chọn chuông cạnh Tải lại, mở bảng chọn tiếng chuông của máy này (77-chuong-mau.js). */
+  var b = frame('Đơn giao của quầy · ' + h((DQ && DQ.ten_diem) || DQ_DIEM), html, { footer: '<div style="display:flex;gap:8px">' +
+    '<button class="btn gh" id="dqTai" style="flex:1">Tải lại</button><button class="btn gh" id="dqChuong" style="flex:1">🎵 Chọn chuông</button></div>' });
   b.addEventListener('click', dqBam);
   b.addEventListener('input', function (e) {
     if (!e.target || e.target.id !== 'dqTim') return;
@@ -160,6 +162,8 @@ function dqVe() {
   });
   var t = document.getElementById('dqTai');
   if (t) t.onclick = function () { scrDonGiaoQuay(); };
+  var ch = document.getElementById('dqChuong');
+  if (ch) ch.onclick = function () { if (typeof gmbMoChonChuong === 'function') gmbMoChonChuong(); };
 }
 
 function dqMoHop(tieuDe, chon, nhan, laDo, xong) {

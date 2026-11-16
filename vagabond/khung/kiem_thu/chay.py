@@ -306,6 +306,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_giu_vo_da_lam_649,
 	# v662 tách kênh Tại bàn và Giao, đơn giao của quầy (WEBORDER), khung mã đơn giao.
 	thu_don_quay_662,
+	# v664 Google Analytics 4 trên trang khách.
+	thu_do_luong_ga_664,
 )
 
 
