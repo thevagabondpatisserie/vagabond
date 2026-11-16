@@ -629,6 +629,60 @@ def _excel_trong():
 	la("tệp gốc chưa xoá khi từ chối", tep.da_xoa, 0)
 
 
+def _sua_kich_thuoc(nd, ref):
+	"""Ghi lại tệp xlsx với <dimension ref> khai sai (như tệp xuất từ công cụ ngoài Excel, #457)."""
+	vao = zipfile.ZipFile(io.BytesIO(nd))
+	ra = io.BytesIO()
+	with zipfile.ZipFile(ra, "w") as z:
+		for it in vao.infolist():
+			du = vao.read(it.filename)
+			if it.filename.startswith("xl/worksheets/sheet"):
+				import re as _re
+				du = _re.sub(rb'<dimension ref="[^"]*"/>', ('<dimension ref="%s"/>' % ref).encode(), du)
+			z.writestr(it, du)
+	return ra.getvalue()
+
+
+@ca("v664 Codex #576 vòng 2 (bài học #457): tệp Excel khai kích thước sheet nhỏ hơn bảng thật vẫn đọc đủ dòng")
+def _excel_kich_thuoc():
+	try:
+		import openpyxl
+	except ImportError:
+		src = _doc("vagabond/bai_dang.py")
+		dung("CI không có openpyxl: _hang_xlsx còn gọi reset_dimensions", "ws.reset_dimensions()" in src.split("def _hang_xlsx(")[1].split("\ndef ")[0])
+		return
+	wb = openpyxl.Workbook()
+	ws = wb.active
+	ws["A1"] = "Nội dung"
+	ws["A2"] = "A"
+	ws["A40"] = "B"
+	nd = io.BytesIO()
+	wb.save(nd)
+	sai = _sua_kich_thuoc(nd.getvalue(), "A1:A2")
+	ra, tao = _nhap(_Tep("lich.xlsx", sai))
+	la("đủ hai bản thảo dù sheet khai A1:A2", (ra["so"], [t.y_chinh for t in tao]), (2, ["A", "B"]))
+
+
+@ca("v664 bài học #301: xếp lượt đăng SAU commit, lỗi khi xếp nằm trong callback được bọc, không làm hỏng lời gọi")
+def _xep_sau_commit():
+	cb = []
+
+	class _Sau(object):
+		def add(self, f):
+			cb.append(f)
+	loi = []
+
+	def _enq(*a, **k):
+		raise RuntimeError("redis chết")
+	with um.patch.object(x.frappe.db, "after_commit", _Sau(), create=True), um.patch.object(x.frappe, "enqueue", _enq, create=True), \
+			um.patch.object(x.frappe, "log_error", lambda *a, **k: loi.append(a), create=True), \
+			um.patch.object(x.frappe, "get_traceback", lambda: "tb", create=True):
+		x._xep_dang("BD-1")
+		la("chưa xếp trước commit", (len(cb), loi), (1, []))
+		cb[0]()
+	la("lỗi xếp được ghi, không ném ra", len(loi), 1)
+
+
 def _jpeg_xoay():
 	from PIL import Image
 	im = Image.new("RGB", (200, 100), (200, 30, 30))
