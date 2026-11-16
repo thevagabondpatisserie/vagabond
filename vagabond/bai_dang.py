@@ -1014,9 +1014,11 @@ def _do_anh(url):
 	rong = cao = 0
 	try:
 		import io
-		from PIL import Image
+		from PIL import Image, ImageOps
 		with Image.open(io.BytesIO(f.get_content())) as im:
-			rong, cao = im.size
+			# Khung ảnh tính theo chiều đã xoay đúng EXIF, cùng chiều với màn xem trước và
+			# với ảnh mxh.anh_jpeg gửi lên kênh (Codex #576).
+			rong, cao = ImageOps.exif_transpose(im).size
 	except Exception:
 		pass
 	return {"file": f, "rong": rong, "cao": cao, "ma_bam": f.content_hash or ""}
@@ -1556,13 +1558,26 @@ def _ban_thao():
 	return ra
 
 
+def hang_co_chu(cac_hang, tran=TOI_DA_NHAP):
+	"""THUẦN: các dòng có ít nhất một ô có chữ, đọc tới hết bảng (dòng trống xen giữa không
+	làm mất nội dung phía dưới). Dừng khi đã quá trần (5 dòng đầu có thể là tiêu đề, cộng
+	một dòng để biết là vượt), để nhap_tep từ chối rõ ràng thay vì cắt im lặng (Codex #576)."""
+	ra = []
+	for h in cac_hang:
+		h = list(h or [])
+		if any(str(o).strip() for o in h if o is not None):
+			ra.append(h)
+			if len(ra) > tran + 5:
+				break
+	return ra
+
+
 def _hang_xlsx(noi_dung):
 	import io
 	from openpyxl import load_workbook
 	wb = load_workbook(io.BytesIO(noi_dung), read_only=True, data_only=True)
 	try:
-		ws = wb.worksheets[0]
-		return [list(h) for h, _ in zip(ws.iter_rows(values_only=True), range(TOI_DA_NHAP + 10))]
+		return hang_co_chu(wb.worksheets[0].iter_rows(values_only=True))
 	finally:
 		wb.close()
 

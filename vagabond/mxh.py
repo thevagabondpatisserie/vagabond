@@ -266,10 +266,13 @@ def anh_jpeg(url, khung=None):
 	"""Ảnh của bài thành JPEG; có khung thì cắt giữa đúng khung (như màn xem trước ghi
 	"Ảnh cắt tự động"). Instagram chỉ nhận JPEG."""
 	import io
-	from PIL import Image
+	from PIL import Image, ImageOps
 	goc = _noi_dung_anh(url)
 	with Image.open(io.BytesIO(goc)) as im:
-		im = im.convert("RGB")
+		# Ảnh điện thoại ghi hướng xoay trong EXIF: xoay đúng chiều TRƯỚC khi cắt, như
+		# màn xem trước (trình duyệt tự xoay theo EXIF). Bỏ bước này thì ảnh lên kênh bị
+		# nằm ngang và vùng cắt lệch (Codex #576).
+		im = ImageOps.exif_transpose(im).convert("RGB")
 		if khung:
 			hop = hop_cat(im.size[0], im.size[1], khung)
 			if hop:
