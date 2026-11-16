@@ -283,6 +283,9 @@ var VGB_CD = (function () {
 		// xác thực và ưu đãi (kenh_khach.wa_san_sang cần mã số, token và một mẫu).
 		{ hau: 'Khách không có Zalo không nhận được mã xác thực, ưu đãi và yêu cầu thanh toán qua WhatsApp.', ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token'],
 			canMot: [['wa_template_otp'], ['wa_template_uu_dai'], ['wa_template_thanh_toan']], toi: 'wa_phone_id', muc: 'sec_wa' },
+		// v664 mxh.dang: Facebook, Instagram cần token người dùng hệ thống; Threads cần token Threads.
+		{ hau: 'Bài đã duyệt không tự lên Facebook, Instagram; Marketing phải đăng tay.', ten: 'Đăng bài Facebook, Instagram', can: ['mxh_token'], toi: 'mxh_token', muc: 'sec_mxh' },
+		{ hau: 'Bài đã duyệt không tự lên Threads; Marketing phải đăng tay.', ten: 'Đăng bài Threads', can: ['th_token'], toi: 'th_token', muc: 'sec_mxh' },
 		// thong_bao.py gửi bằng khoá riêng VAPID; thiếu là "chua co khoa VAPID".
 		{ hau: 'Điện thoại nhân viên không nhận thông báo đẩy.', ten: 'Thông báo đẩy', can: ['push_khoa_cong_khai', 'push_khoa_rieng'], toi: 'push_khoa_cong_khai', muc: 'sec_push' },
 		{ hau: 'Quảng cáo Meta không đo được đơn từ web.', ten: 'Meta Pixel', can: ['meta_pixel_id'], toi: 'meta_pixel_id', muc: 'sec_meta_pixel' },
