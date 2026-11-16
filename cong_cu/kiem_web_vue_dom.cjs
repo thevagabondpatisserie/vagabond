@@ -93,6 +93,10 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     for(const e of ['view_item','add_to_cart','begin_checkout']) assert(gaEv.includes(e),'GA '+e);
     const them=ga.find(a=>a[0]==='event'&&a[1]==='add_to_cart')[2];
     assert.equal(them.currency,'VND'); assert(them.value>0 && them.items.length>0,'add_to_cart có tiền và món');
+    /* Codex #575: số lượng đi theo món (bánh và thiệp thêm 1 cái mỗi món). */
+    assert(them.items.every(x=>x.quantity>=1),'add_to_cart có quantity');
+    const tt=ga.find(a=>a[0]==='event'&&a[1]==='begin_checkout')[2];
+    assert(tt.items.length>0 && tt.items.every(x=>x.quantity>=1),'begin_checkout có quantity');
   });
   await test('F08/F10/F18/F33 nhập người nhận, hóa đơn, thanh toán rồi reload giữ đủ',async()=>{
     await page.locator('#f-phone').fill('0900000000'); await page.locator('#f-name').fill('Khách thử');
