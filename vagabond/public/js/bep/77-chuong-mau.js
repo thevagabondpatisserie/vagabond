@@ -116,7 +116,9 @@ function gmbMoChonChuong() {
   if (cu) cu.remove();
   var ov = document.createElement('div'); ov.className = 'sh'; ov.id = 'gmbChonChuong';
   function ve() {
-    ov.innerHTML = '<div class="shb" style="padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
+    /* Codex #575: .shb chung có overflow:hidden; điện thoại nằm ngang thì phần
+       âm báo tiền và nút Nghe thử bị cắt. Bảng này tự cuộn dọc. */
+    ov.innerHTML = '<div class="shb" style="padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 16px);overflow-y:auto;-webkit-overflow-scrolling:touch">' +
       '<div class="shh" style="padding:0 0 4px"><b>Chọn chuông và âm báo</b><div class="x" data-gmbdong="1">&times;</div></div>' +
       '<div style="font-size:13px;color:#52525b">Chuông đơn kêu khi có đơn gọi món tại bàn, bàn cần trợ giúp, đơn giao chờ xác nhận. Âm báo tiền kêu khi khách chuyển khoản đủ tiền.</div>' +
       gmbKhoiChonChuong() + tienKhoiChonBao() + '</div>';
