@@ -462,3 +462,4 @@ vagabond.patches.v662_tin_bai_dang
 vagabond.patches.dong_bo_cau_truc #v663
 vagabond.patches.v663_khung_ma_weborder
 vagabond.patches.dong_bo_cau_truc #v664
+vagabond.patches.dong_bo_cau_truc #v665
