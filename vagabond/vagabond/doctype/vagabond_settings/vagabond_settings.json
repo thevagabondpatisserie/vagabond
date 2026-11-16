@@ -169,6 +169,13 @@
   "wa_pin",
   "wa_app_secret",
   "wa_verify_token",
+  "sec_mxh",
+  "mxh_token",
+  "mxh_page_id",
+  "col_mxh",
+  "th_token",
+  "th_het_han",
+  "th_gia_han_luc",
   "sec_hd_thu",
   "hd_thu_bat",
   "hd_thu_dia_chi",
@@ -1188,6 +1195,46 @@
    "description": "Anh chị tự đặt một chuỗi bất kỳ, dán vào đây và vào ô Verify token trên Meta."
   },
   {
+   "fieldname": "sec_mxh",
+   "fieldtype": "Section Break",
+   "label": "Đăng bài mạng xã hội (Meta)",
+   "description": "Màn Bài đăng mạng xã hội tự đăng bài đã duyệt lên Facebook, Instagram, Threads đúng giờ hẹn. Ô trống thì kênh đó đăng tay như cũ. Hệ thống không bao giờ hiện lại token."
+  },
+  {
+   "fieldname": "mxh_token",
+   "fieldtype": "Password",
+   "label": "Token đăng bài Facebook, Instagram (System User, vĩnh viễn)",
+   "description": "Meta Business, Cài đặt doanh nghiệp, Người dùng hệ thống, Vagabond ERP, Tạo mã: chọn ứng dụng Vagabond ERP, hạn Không bao giờ, tích pages_manage_posts, pages_read_engagement, pages_show_list, instagram_basic, instagram_content_publish. Người dùng hệ thống phải được gán Trang của tiệm."
+  },
+  {
+   "fieldname": "mxh_page_id",
+   "fieldtype": "Data",
+   "label": "Mã Trang Facebook (để trống nếu token chỉ thấy một Trang)",
+   "description": "Chỉ điền khi token thấy nhiều Trang. Dán cả dấu cách cũng được, hệ thống chỉ lấy chữ số."
+  },
+  {
+   "fieldname": "col_mxh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "th_token",
+   "fieldtype": "Password",
+   "label": "Token Threads (sống 60 ngày, hệ thống tự gia hạn)",
+   "description": "developers.facebook.com, ứng dụng Vagabond ERP, Trường hợp sử dụng, Truy cập vào API Threads, Cài đặt, Trình tạo mã người dùng, Tạo mã truy cập cho tài khoản Threads của tiệm."
+  },
+  {
+   "fieldname": "th_het_han",
+   "fieldtype": "Date",
+   "label": "Token Threads dùng tới",
+   "read_only": 1
+  },
+  {
+   "fieldname": "th_gia_han_luc",
+   "fieldtype": "Datetime",
+   "label": "Lần gia hạn token Threads gần nhất",
+   "read_only": 1
+  },
+  {
    "fieldname": "sec_hd_thu",
    "fieldtype": "Section Break",
    "label": "Hộp thư hoá đơn nhà cung cấp",
@@ -1562,7 +1609,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-14 11:00:00.000000",
+ "modified": "2026-11-16 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

@@ -133,7 +133,8 @@ scheduler_events = {
 			# kịch bản; quét sinh nhật, quay lại mỗi ngày một lần.
 			"vagabond.zalo_kich_ban.chay_tu_dong",
 			# v662: bài đăng mạng xã hội đã hẹn tới giờ thì chuyển sang Chờ đăng
-			# tay và nhắn nhóm Marketing (bai_dang.py).
+			# tay và nhắn nhóm Marketing (bai_dang.py). v664: kênh đã nối thì xếp
+			# lượt tự đăng cho từng bài.
 			"vagabond.bai_dang.quet_den_gio",
 		],
 		"*/30 * * * *": [
@@ -1261,3 +1262,6 @@ scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("va
 # v653: đọc hộp thư hoá đơn nhà cung cấp hoadon@ (chỉ đọc), đính PDF, XML vào hoá đơn mua.
 # v654: mỗi 15 phút (trước là mỗi giờ), thư mới nhất trước.
 scheduler_events.setdefault("cron", {}).setdefault("7,22,37,52 * * * *", []).append("vagabond.hoa_don_thu.doc_dinh_ky")
+
+# v664: token Threads sống 60 ngày, hệ thống tự gia hạn (mxh.py).
+scheduler_events.setdefault("cron", {}).setdefault("17 3 * * *", []).append("vagabond.mxh.gia_han_threads")

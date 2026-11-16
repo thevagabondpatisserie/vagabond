@@ -681,6 +681,131 @@ var MKT = ['Marketing'];
     bang('lưu giờ', JSON.parse(goiTen(m, 'luu')[0].ts.thay), { hen_luc: '2026-11-17 11:30' });
   });
 
+  /* ------------------------------------------------------------ v664 */
+  function baiDuyet() {
+    return baiMau({ trang_thai: 'Chờ đăng tay', sua: false, kiem: [], kenh_chon: ['fb', 'ig', 'th', 'zl'], hen_luc: '', tu_dong: ['fb', 'ig', 'th'],
+      kenh: [{ k: 'fb', tt: 'Đã đăng', tu: 1, luc: '19:30', link: 'https://facebook.com/p/1' },
+        { k: 'ig', tt: 'Chờ đăng tay', tu: 1, loi: 'Instagram từ chối bài: Ảnh quá nhỏ', dang_duoc: 1 },
+        { k: 'th', tt: 'Đã đăng', tu: 1, luc: '19:31' }, { k: 'zl', tt: 'Chờ đăng tay', tu: 0 }] });
+  }
+
+  await ca('v664 Kho bản thảo: phân đoạn Bản thảo hỏi lịch kiểu bt, hiện thẻ bản thảo (người sửa, số ảnh), nút đáy tạo Bản thảo mới, có nút nhập Word, Excel', async function () {
+    var m = dungMoi(MKT, { lich: { xem: 'bt', moc: '2026-11-16', duyet: true, viec: {}, ky_chu: '2 bản thảo', bt: [
+      { name: 'BD-7', tieu_de: 'Cheesecake', trich: 'Dâu tây, mâm xôi', trang_thai: 'Nháp', luc: '2026-11-16 12:58', nguoi: 'Minh Vũ', so_anh: 3, anh: '/f/1.jpg' },
+      { name: 'BD-8', tieu_de: 'Giáng sinh', trich: 'Tuần 1', trang_thai: 'Chờ duyệt', luc: '2026-11-16 09:10', nguoi: 'Viet Nguyen', so_anh: 0, anh: '' }] } });
+    await m.g.scrBaiDang();
+    bam(m, mot(m.goc, '[data-bdxem="bt"]'));
+    await choDen(function () { return goiTen(m, 'lich').length === 2 && m.goc.querySelectorAll('[data-bdbai]').length; });
+    bang('hỏi kiểu bt', goiTen(m, 'lich')[1].ts.xem, 'bt');
+    bang('hai thẻ', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-7', 'BD-8']);
+    dung('người sửa, số ảnh', chu(mot(m.goc, '[data-bdbai="BD-7"]')).indexOf('Minh Vũ · 3 ảnh') >= 0);
+    dung('chưa có ảnh, chờ duyệt', chu(mot(m.goc, '[data-bdbai="BD-8"]')).indexOf('chưa có ảnh · Chờ duyệt') >= 0);
+    dung('nút nhập', !!mot(m.goc, '[data-bdnhap]'));
+    dung('nút đáy', chu(mot(m.goc, '[data-bdmoi]')).indexOf('Bản thảo mới') >= 0);
+    bam(m, mot(m.goc, '[data-bdmoi]'));
+    await choDen(function () { return goiTen(m, 'tao').length === 1; });
+    bang('tạo không hẹn giờ', goiTen(m, 'tao')[0].ts.hen_luc, '');
+  });
+
+  await ca('v664 sau duyệt: kênh tự đăng lỗi hiện lý do và nút Thử lại; bấm hỏi lại rồi gửi đúng kênh; bấm đúp chỉ gửi một lần; kênh Zalo OA chỉ có đăng tay', async function () {
+    var m = dungMoi(MKT, { xem: baiDuyet(), thu_lai: function () { return new Promise(function (ok) { setTimeout(function () { ok(baiDuyet()); }, 30); }); } });
+    await m.g.scrBaiDangSoan('BD-1');
+    dung('lý do', chu(m.goc).indexOf('Instagram từ chối bài: Ảnh quá nhỏ') >= 0);
+    dung('dòng phụ', chu(mot(m.goc, '[data-bdthulai="ig"]').parentNode.parentNode).indexOf('Hệ thống chưa tự đăng được') >= 0);
+    bang('chỉ Instagram có Thử lại', m.goc.querySelectorAll('[data-bdthulai]').map(function (x) { return x.getAttribute('data-bdthulai'); }), ['ig']);
+    dung('Zalo OA vẫn đăng tay', !!mot(m.goc, '[data-bdmotay="zl"]') && !!mot(m.goc, '[data-bddadang="zl"]'));
+    dung('Facebook hệ thống tự đăng', chu(m.goc).indexOf('Đã đăng 19:30 · hệ thống tự đăng') >= 0);
+    bam(m, mot(m.goc, '[data-bdthulai="ig"]'));
+    bam(m, mot(m.goc, '[data-bdthulai="ig"]'));
+    await choDen(function () { return goiTen(m, 'thu_lai').length >= 1; });
+    await cho(80);
+    bang('một lần, đúng kênh', goiTen(m, 'thu_lai').map(function (x) { return x.ts.kenh; }), ['ig']);
+    dung('hỏi lại nhắc kiểm trên kênh trước', m.hoi.some(function (x) { return x.indexOf('chưa thấy bài') >= 0; }));
+  });
+
+  await ca('v664 máy tính: chạm tên kênh đổi bài xem trước, không vẽ lại màn, không mất chữ đang gõ', async function () {
+    var m = dungMoi(MKT, { xem: baiMau({ kenh_chon: ['fb', 'th'] }) });
+    await m.g.scrBaiDangSoan('BD-1');
+    bang('mặc định kênh đầu', m.goc.querySelectorAll('[data-bdthe]').map(function (x) { return x.getAttribute('data-bdthe') + ':' + x.classList.contains('on'); }), ['fb:true', 'th:false']);
+    go(m, mot(m.goc, '#bdY'), 'đang gõ');
+    var y = mot(m.goc, '#bdY');
+    bam(m, mot(m.goc, '[data-bdxemk="th"]'));
+    bang('đổi', m.goc.querySelectorAll('[data-bdthe]').map(function (x) { return x.getAttribute('data-bdthe') + ':' + x.classList.contains('on'); }), ['fb:false', 'th:true']);
+    dung('không vẽ lại', mot(m.goc, '#bdY') === y && y.value === 'đang gõ');
+    bang('nút chọn', mot(m.goc, '[data-bdxemk="th"]').getAttribute('aria-pressed'), 'true');
+  });
+
+  await ca('v664 đang đăng: màn tự đọc lại bài để hiện kết quả; đã rời bài thì lượt đọc muộn không kéo màn về bài cũ', async function () {
+    var dang = baiDuyet(); dang.bai.kenh[1] = { k: 'ig', tt: 'Đang đăng', tu: 1 };
+    var xong = baiDuyet(); xong.bai.kenh[1] = { k: 'ig', tt: 'Đã đăng', tu: 1, luc: '19:32' };
+    var lan = 0;
+    var m = dungMoi(MKT, { xem: function () { lan++; return lan === 1 ? dang : xong; } });
+    m.g.BD.tdCho = 15;
+    await m.g.scrBaiDangSoan('BD-1');
+    dung('đang đăng', chu(m.goc).indexOf('Hệ thống đang đăng lên Instagram') >= 0);
+    await choDen(function () { return chu(m.goc).indexOf('Đã đăng 19:32') >= 0; });
+    dung('đã cập nhật', chu(m.goc).indexOf('Đã đăng 19:32') >= 0);
+    var m2 = dungMoi(MKT, { xem: function () { return dang; } });
+    m2.g.BD.tdCho = 15;
+    await m2.g.scrBaiDangSoan('BD-1');
+    m2.goc.innerHTML = '<div>màn khác</div>';
+    await cho(60);
+    bang('không kéo về', chu(m2.goc), 'màn khác');
+    bang('không đọc khi đã rời', goiTen(m2, 'xem').length, 1);
+  });
+
+  await ca('v664 Kết nối kênh: sheet cài đặt ghi kênh nào tự đăng, kênh nào đăng tay, kênh lỗi; Kiểm lại hỏi máy chủ đọc mới; không có ô token', async function () {
+    var cd = { gio_vang: ['07:30'], sua: true, quan_tri: true, ket_noi: { fb: { ok: 1, chu: 'Tự đăng lên Trang Vagabond' },
+      ig: { ok: 0, loi: 1, chu: 'Token Facebook hết hạn' }, th: { ok: 0, chu: 'Chưa nối. Bài lên Threads phải đăng tay.' }, zl: { ok: 0, chu: 'Zalo OA đăng tay.' } } };
+    var m = dungMoi(MKT, { cai_dat: cd });
+    await m.g.scrBaiDang();
+    bam(m, m.tai.getElementById ? (m.goc.querySelectorAll('#vgbAct')[0]) : null);
+    await choDen(function () { return !!sheet(m); });
+    var t = chu(sheet(m));
+    dung('ba trạng thái', t.indexOf('Tự đăng lên Trang Vagabond') >= 0 && t.indexOf('Token Facebook hết hạn') >= 0 && t.indexOf('Lỗi') >= 0 && t.indexOf('Đăng tay') >= 0);
+    dung('không có ô nhập token', !sheet(m).querySelectorAll('input').some(function (x) { return x.getAttribute('id') !== 'bdGioVang'; }));
+    bam(m, mot(sheet(m), '[data-bdkiemkn]'));
+    await choDen(function () { return goiTen(m, 'cai_dat').length === 2; });
+    bang('kiểm lại', goiTen(m, 'cai_dat')[1].ts.kiem_lai, 1);
+  });
+
+  await ca('v664 Codex #576: ô tìm nhanh đầu Kho bản thảo và Danh sách: gõ không dấu là lọc, không thấy thì nói rõ, ô tìm không bị vẽ lại', async function () {
+    var m = dungMoi(MKT, { lich: { xem: 'bt', moc: '2026-11-16', duyet: true, viec: {}, ky_chu: '2 bản thảo', bt: [
+      { name: 'BD-7', tieu_de: 'Cheesecake', trich: 'Dâu tây, mâm xôi', trang_thai: 'Nháp', luc: '2026-11-16 12:58', nguoi: 'Minh Vũ', so_anh: 3, anh: '' },
+      { name: 'BD-8', tieu_de: 'Bánh khúc cây Giáng sinh', trich: 'Tuần 1', trang_thai: 'Nháp', luc: '2026-11-16 09:10', nguoi: 'Viet Nguyen', so_anh: 0, anh: '' }],
+      ds: [the('BD-1', '07:30', 'Chờ duyệt', ['fb', 'ig']), the('BD-2', '08:30', 'Nháp', ['th'])] } });
+    m.g.BD.xem = 'bt';
+    await m.g.scrBaiDang();
+    var o = mot(m.goc, '#bdTim');
+    go(m, o, 'banh khuc');
+    bang('lọc không dấu', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-8']);
+    dung('ô tìm giữ nguyên', mot(m.goc, '#bdTim') === o);
+    go(m, o, 'mam xoi');
+    bang('lọc theo nội dung', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-7']);
+    go(m, o, 'xyz');
+    dung('không thấy', chu(m.goc).indexOf('Không thấy bản thảo nào khớp') >= 0);
+    bam(m, mot(m.goc, '[data-bdxem="ds"]'));
+    await choDen(function () { return !!mot(m.goc, '#bdDsO') && m.goc.querySelectorAll('[data-bdbai]').length === 2; });
+    bang('đổi sang Danh sách thì ô tìm trống', mot(m.goc, '#bdTim').value, '');
+    go(m, mot(m.goc, '#bdTim'), 'threads');
+    bang('Danh sách lọc theo kênh', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-2']);
+  });
+
+  await ca('v664 logo: khung xem trước dùng đúng logo vuông 2025 của tiệm từ design system, logo kênh là tệp logo gốc có thật; không còn chữ V tự vẽ', async function () {
+    var fs = require('fs'), dd = require('path');
+    var m = dungMoi(MKT);
+    await m.g.scrBaiDangSoan('BD-1');
+    var html = m.goc.innerHTML || '';
+    var nguon = (html.match(/src="\/assets\/vagabond\/[^"]+"/g) || []).map(function (x) { return x.slice(5, -1); });
+    dung('ảnh đại diện là logo tiệm', nguon.indexOf('/assets/vagabond/images/logo-vagabond-vuong.jpg') >= 0);
+    dung('logo Facebook và Threads là tệp gốc', nguon.indexOf('/assets/vagabond/images/kenh-mxh/facebook.svg') >= 0 && nguon.indexOf('/assets/vagabond/images/kenh-mxh/threads.svg') >= 0);
+    nguon.forEach(function (u) {
+      dung('tệp có thật: ' + u, fs.existsSync(dd.join(__dirname, '..', '..', '..', 'public', u.replace('/assets/vagabond/', ''))));
+    });
+    dung('không còn chữ V tự vẽ', html.indexOf('Georgia') < 0 && !/>V<\/span>/.test(html));
+    dung('không còn chữ thay logo kênh', !/>(IG|@|Z|f)<span/.test(html) && !/>(IG|@|Z|f)<\/span>/.test(html));
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();

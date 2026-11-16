@@ -4,7 +4,7 @@
  "module": "Vagabond",
  "engine": "InnoDB",
  "creation": "2026-11-15 22:00:00.000000",
- "modified": "2026-11-15 22:00:00.000000",
+ "modified": "2026-11-16 14:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "istable": 1,
@@ -17,7 +17,10 @@
   "chu",
   "ai_soan",
   "dang_luc",
-  "link"
+  "link",
+  "tu_dong",
+  "ma_bai",
+  "loi"
  ],
  "fields": [
   {
@@ -32,7 +35,7 @@
    "fieldname": "trang_thai",
    "fieldtype": "Select",
    "label": "Trạng thái",
-   "options": "Chưa đăng\nĐã hẹn giờ\nChờ đăng tay\nĐã đăng",
+   "options": "Chưa đăng\nĐã hẹn giờ\nĐang đăng\nChờ đăng tay\nĐã đăng",
    "default": "Chưa đăng",
    "in_list_view": 1,
    "read_only": 1
@@ -66,6 +69,24 @@
    "fieldname": "link",
    "fieldtype": "Data",
    "label": "Đường dẫn bài",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tu_dong",
+   "fieldtype": "Check",
+   "label": "Hệ thống tự đăng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ma_bai",
+   "fieldtype": "Data",
+   "label": "Mã bài trên kênh",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loi",
+   "fieldtype": "Small Text",
+   "label": "Lý do chưa tự đăng được",
    "read_only": 1
   }
  ]

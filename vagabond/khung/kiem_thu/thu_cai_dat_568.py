@@ -275,6 +275,8 @@ def _():
 	# v646: bảng Việc tự động (tab Tự động hoá), thêm mới.
 	# v653: sáu ô WhatsApp đường phụ (mẫu mã xác thực, mẫu ưu đãi, WABA ID, PIN, App
 	# Secret, Verify token), thêm mới, không đổi tên ô cũ; sáu ô Hộp thư hoá đơn hoadon@.
+	# v664: năm ô Đăng bài mạng xã hội (token Facebook, Instagram, mã Trang, token Threads,
+	# hạn và lần gia hạn token Threads), thêm mới, không đổi tên ô cũ.
 	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), sorted(["html_du_lieu_app", "nguon_phi_giao_web",
 		"onepay_access_code", "onepay_bat", "onepay_cong", "onepay_hash_code", "onepay_merchant", "onepay_query_password",
 		"onepay_query_user", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the",
@@ -283,7 +285,8 @@ def _():
 		"ds_nguoi_gui", "ds_nguong_lech", "ds_nguong_phi", "ds_thu_bat", "ds_thu_cong", "ds_thu_dia_chi",
 		"ds_thu_mat_khau", "ds_thu_may_chu", "ds_thu_noi_bo", "ds_thu_thu_muc", "viec_tu_dong",
 		"wa_app_secret", "wa_pin", "wa_template_otp", "wa_template_uu_dai", "wa_verify_token", "wa_waba_id",
-		"hd_thu_bat", "hd_thu_cong", "hd_thu_dia_chi", "hd_thu_mat_khau", "hd_thu_may_chu", "hd_thu_moc"]))
+		"hd_thu_bat", "hd_thu_cong", "hd_thu_dia_chi", "hd_thu_mat_khau", "hd_thu_may_chu", "hd_thu_moc",
+		"mxh_page_id", "mxh_token", "th_gia_han_luc", "th_het_han", "th_token"]))
 
 
 def _o_cu():

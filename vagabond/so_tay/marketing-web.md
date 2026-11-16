@@ -168,8 +168,8 @@ Soạn, duyệt, theo dõi bài trên bốn kênh. Ảnh do designer làm; AI ch
 1. Mở Bài đăng mạng xã hội. Bấm [[＋ Bài mới]], hoặc chạm một khung Giờ vàng trống.
 2. Bấm [[Tải ảnh designer lên]], chọn một hay nhiều ảnh. Chạm ảnh để đổi thứ tự, bỏ ảnh.
 3. Chạm dòng Kiểu bài (Bài đăng hay Story), Lúc đăng (chọn ô giờ), Kênh (bật tắt từng kênh).
-4. Ghi vài dòng ý chính (món, dịp, ưu đãi), bấm nút AI soạn chữ.
-5. Vuốt ngang xem từng kênh, sửa chữ ngay trên bài, bài tự lưu.
+4. Gõ vào ô Nội dung gốc (món, dịp, ưu đãi), bấm AI soạn chữ.
+5. Xem trước từng kênh (máy tính: cột phải, chạm tên kênh), sửa chữ ngay trên bài.
 6. Đọc bảng Kiểm trước khi duyệt, sửa dòng đỏ, rồi bấm nút Duyệt ở đáy màn.
 
 **Vì sao bị chặn**
@@ -184,8 +184,8 @@ Soạn, duyệt, theo dõi bài trên bốn kênh. Ảnh do designer làm; AI ch
 
 **Lưu ý**
 - Ô đỏ khi chọn giờ: kênh đó có bài trong 2 giờ. Ô mờ: đã có bài đúng giờ, không chọn được.
-- Facebook xếp lưới theo ảnh số 1; lưới trên màn chỉ là dự kiến.
-- Story không có chữ kèm, không có sticker; cần sticker thì đăng tay.
+- Facebook xếp lưới theo ảnh số 1 (lưới trên màn là dự kiến).
+- Story không có chữ kèm, không có sticker.
 - Người không có quyền duyệt bấm [[Gửi Marketing duyệt]].
 
 ## Đăng tay bài đã duyệt và ghi Đã đăng
@@ -195,7 +195,7 @@ Từ khoá: đăng tay, chép và mở app, đã đăng, chờ đăng tay, đế
 |---|---|---|
 | Marketing | Bài đăng mạng xã hội | [[📋 Chép và mở app]] |
 
-Đợt này mọi kênh đăng tay. Bài hẹn giờ thì tới giờ nhóm Zalo Marketing nhận tin Đến giờ đăng tay bài đăng.
+Kênh chưa nối và Zalo OA đăng tay. Kênh đã nối thì xem mục Hệ thống tự đăng Facebook, Instagram, Threads. Bài hẹn giờ thì tới giờ nhóm Zalo Marketing nhận tin Đến giờ đăng tay bài đăng.
 
 **Các bước**
 1. Mở bài có chữ Chờ đăng tay (trên lịch, hoặc chạm dòng "kênh chờ đăng tay" đầu màn).
@@ -207,6 +207,44 @@ Từ khoá: đăng tay, chép và mở app, đã đăng, chờ đăng tay, đế
 - Chỉ bấm Đã đăng khi bài đã hiện trên kênh. Đủ kênh thì bài chuyển Đã đăng.
 - Muốn sửa bài đã duyệt mà chưa kênh nào lên: bấm [[Trả về nháp để sửa]], rồi duyệt lại.
 - Huỷ bài (biểu tượng thùng rác trên đầu màn) chỉ được khi chưa kênh nào lên.
+
+## Hệ thống tự đăng Facebook, Instagram, Threads
+Từ khoá: tự đăng, đăng tự động, kết nối kênh, thử lại, đang đăng, token Meta, Facebook, Instagram, Threads
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng mạng xã hội | [[Kiểm lại kết nối]] |
+
+Trước đây mọi kênh đăng tay. Từ nay kênh đã nối thì hệ thống tự đăng đúng giờ hẹn (không hẹn giờ thì đăng ngay khi duyệt). Zalo OA vẫn đăng tay.
+
+**Các bước**
+1. Soạn, duyệt bài như cũ. Bảng Kiểm ghi kênh nào hệ thống tự đăng, kênh nào đăng tay.
+2. Tới giờ, kênh hiện Hệ thống đang đăng, xong thì Đã đăng kèm Xem bài. Màn tự cập nhật.
+3. Kênh lỗi: chữ đỏ ghi lý do, kênh chuyển Chờ đăng tay. Bấm nút Thử lại (mở kênh kiểm trước, chưa có bài mới bấm) hoặc đăng tay như cũ. Nhóm Zalo Marketing nhận tin Bài chưa tự lên.
+4. Xem kênh nào đang nối: bấm biểu tượng bánh răng góc trên màn lịch, mục Kết nối kênh.
+
+**Lưu ý**
+- Chữ đỏ "chưa rõ bài đã lên chưa": mở kênh kiểm. Đã có bài thì bấm Đã đăng, đừng bấm Thử lại.
+- Nối kênh do quản trị hệ thống làm: dán token ở Cài đặt lõi và API, mục Đăng bài mạng xã hội (Meta). Token Threads hệ thống tự gia hạn.
+
+## Kho bản thảo thay cho gửi ghi chú qua lại
+Từ khoá: bản thảo, kho bản thảo, ý tưởng bài, Evernote, nhập Word, nhập Excel, lịch nội dung, nội dung gốc
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, giám đốc | Bài đăng mạng xã hội, phân đoạn Bản thảo | [[＋ Bản thảo mới]] |
+
+Bản thảo là bài chưa hẹn giờ. Mọi người cùng sửa một bản trong app, không gửi ghi chú qua lại.
+
+**Các bước**
+1. Mở Bài đăng mạng xã hội, chạm Bản thảo.
+2. Bấm [[＋ Bản thảo mới]], gõ hoặc dán vào ô Nội dung gốc. Bài tự lưu, người khác mở là thấy bản mới.
+3. Có sẵn tệp: bấm [[📄 Nhập tệp Word, Excel thành bản thảo]]. Word hoặc tệp chữ: mỗi tệp một bản thảo. Excel: mỗi dòng một bản thảo, cần cột Nội dung; có cột Tiêu đề, Ngày, Giờ, Kênh thì hệ thống điền sẵn.
+4. Đủ ảnh thì chọn Lúc đăng: bài rời Kho bản thảo, lên lịch, rồi duyệt như thường.
+
+**Lưu ý**
+- Dòng Excel có ngày giờ còn tới thì bài nằm thẳng trên lịch; giờ đã qua thì thành bản thảo chưa hẹn giờ.
+- Hai người sửa cùng lúc: người sau được báo và nạp bản mới, không ai ghi đè ai.
 
 ## Mã ưu đãi đơn giao của quầy
 Từ khoá: mã đơn đầu, thẻ QR túi Grab, đơn thứ hai, giờ vắng, weborder, khuyến mãi đơn giao

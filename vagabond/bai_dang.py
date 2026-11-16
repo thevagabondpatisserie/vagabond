@@ -50,6 +50,13 @@ K_CHUA = "Chưa đăng"
 K_HEN = "Đã hẹn giờ"
 K_TAY = "Chờ đăng tay"
 K_XONG = "Đã đăng"
+# v664: hệ thống đang gọi Meta cho kênh này. Chỉ lượt đã đổi kênh sang Đang đăng
+# (dưới khoá dòng) mới được gọi Meta, nên hai lượt chạy chồng không đăng hai lần.
+K_DANG = "Đang đăng"
+# Kênh kẹt Đang đăng quá lâu (máy chủ khởi động lại giữa chừng): chuyển đăng tay, báo
+# chưa rõ đã lên chưa, không tự đăng lại.
+KET_PHUT = 15
+KENH_TU_DONG = ("fb", "ig", "th")
 
 KIEU_BAI = "Bài đăng"
 KIEU_STORY = "Story"
@@ -215,7 +222,7 @@ def tim_trung_gio(luc, kenh, bai_khac, phut=CACH_TRUNG_PHUT):
 	return ra
 
 
-def kiem_bai(bai, bay_gio, trung_gio=None, anh_cu=None):
+def kiem_bai(bai, bay_gio, trung_gio=None, anh_cu=None, tu=None):
 	"""THUẦN: bảng Kiểm trước khi duyệt.
 
 	bai: {"kieu", "kenh_chon", "anh": [{"khung"...}], "ban": {mã: {"chu", "tieu_de"}}, "hen_luc"}.
@@ -279,6 +286,13 @@ def kiem_bai(bai, bay_gio, trung_gio=None, anh_cu=None):
 		ra.append({"muc": "ok", "chu": "Ảnh chưa đăng trong %d ngày qua" % NGAY_TRUNG_ANH})
 	if not trung_gio and kenh and (hen or not bai.get("hen_luc")):
 		ra.append({"muc": "ok", "chu": "Không trùng giờ bài khác cùng kênh"})
+	if tu is not None and kenh:
+		co = kenh_tu_dong(tu, kieu)
+		tu_dang = [KENH[k]["ten"] for k in kenh if k in co]
+		tay = [KENH[k]["ten"] for k in kenh if k not in co]
+		chu = "; ".join(x for x in ("Hệ thống tự đăng: " + ", ".join(tu_dang) if tu_dang else "",
+			"Đăng tay: " + ", ".join(tay) if tay else "") if x)
+		ra.append({"muc": "ok", "chu": chu})
 	return ra
 
 
@@ -295,7 +309,9 @@ def so_chan(kiem):
 
 
 def gom_trang_thai(trang_thai_bai, trang_thai_kenh):
-	"""THUẦN: trạng thái bài sau khi một kênh đổi. Chỉ dùng khi bài đã qua duyệt."""
+	"""THUẦN: trạng thái bài sau khi một kênh đổi. Chỉ dùng khi bài đã qua duyệt.
+	Đủ kênh đã đăng: Đã đăng. Còn kênh phải đăng tay: Chờ đăng tay. Còn kênh hệ thống
+	sẽ tự đăng hoặc đang đăng: Đã hẹn giờ."""
 	if trang_thai_bai not in (TT_HEN, TT_TAY, TT_XONG):
 		return trang_thai_bai
 	ds = [t for t in trang_thai_kenh if t]
@@ -303,7 +319,40 @@ def gom_trang_thai(trang_thai_bai, trang_thai_kenh):
 		return TT_XONG
 	if any(t == K_TAY for t in ds):
 		return TT_TAY
+	if any(t in (K_HEN, K_DANG) for t in ds):
+		return TT_HEN
 	return trang_thai_bai
+
+
+def kenh_tu_dong(noi, kieu=KIEU_BAI):
+	"""THUẦN: các kênh hệ thống tự đăng được cho kiểu bài này, từ tập kênh đang nối."""
+	co = set(noi or ()) & set(KENH_TU_DONG)
+	if kieu == KIEU_STORY:
+		co = set(k for k in co if KENH[k]["story"])
+	return co
+
+
+def den_gio(hen_luc, bay_gio):
+	"""THUẦN: bài tới lượt đăng chưa. Không hẹn giờ là đăng ngay khi duyệt."""
+	hen = _dt(hen_luc) if hen_luc else None
+	return hen is None or (bay_gio is not None and hen <= bay_gio)
+
+
+def chia_kenh_den_gio(dong, tu):
+	"""THUẦN: tới giờ, kênh Đã hẹn giờ nào hệ thống tự đăng, kênh nào chuyển đăng tay.
+	dong: [(mã kênh, trạng thái, tự đăng lúc duyệt)]; tu: tập kênh đang nối LÚC NÀY."""
+	dang, tay = [], []
+	for k, tt, tu_luc_duyet in dong:
+		if tt != K_HEN:
+			continue
+		(dang if (tu_luc_duyet and k in tu) else tay).append(k)
+	return dang, tay
+
+
+def ket_dang(dang_luc, bay_gio, phut=KET_PHUT):
+	"""THUẦN: kênh Đang đăng từ lâu quá `phut` phút là kẹt."""
+	d = _dt(dang_luc)
+	return d is None or (bay_gio - d) > timedelta(minutes=phut)
 
 
 def tuan_cua(ngay):
@@ -403,7 +452,7 @@ def cau_hoi_ai(y_chinh, kenh, kieu=KIEU_BAI, so_anh=0):
 	"""THUẦN: câu gửi mô hình. Ý chính bọc trong thẻ để mô hình coi là dữ liệu."""
 	ten = ", ".join("%s (%s)" % (k, KENH[k]["ten"]) for k in kenh)
 	return ("Viết chữ cho các kênh: %s.\nKiểu bài: %s, %d ảnh.\n\n<y_chinh>\n%s\n</y_chinh>"
-		% (ten, kieu, int(so_anh or 0), str(y_chinh or "").strip()[:1500]))
+		% (ten, kieu, int(so_anh or 0), str(y_chinh or "").strip()[:TRAN_Y_CHINH_AI]))
 
 
 GACH_DAI, GACH_VUA = chr(0x2014), chr(0x2013)
@@ -439,6 +488,153 @@ def doc_tra_loi_ai(chu, kenh):
 def chu_tin_den_gio(ten_bai, gio, kenh_ten):
 	return ("Đến giờ đăng bài: %s" % ten_bai, ["Giờ hẹn: %s" % gio, "Kênh cần đăng tay: %s" % ", ".join(kenh_ten),
 		"Mở bài, bấm Chép và mở app, đăng xong bấm Đã đăng."])
+
+
+# ---------- v664 Kho bản thảo: nhập Word, Excel thành bản thảo
+
+TOI_DA_NHAP = 200
+TRAN_Y_CHINH = 20000
+TRAN_Y_CHINH_AI = 4000
+DUOI_NHAP = ("docx", "xlsx", "xlsm", "txt", "md")
+
+
+def bo_dau(s):
+	"""THUẦN: chữ thường, bỏ dấu tiếng Việt, để so tên cột người gõ tay."""
+	import unicodedata
+	s = unicodedata.normalize("NFD", str(s or "").replace("đ", "d").replace("Đ", "D"))
+	return re.sub(r"\s+", " ", "".join(c for c in s if unicodedata.category(c) != "Mn")).strip().lower()
+
+
+COT = (
+	("noi_dung", ("noi dung", "y chinh", "content", "caption", "bai viet", "chu dang", "chu", "text")),
+	("tieu_de", ("tieu de", "title", "ten bai", "chu de")),
+	("ngay", ("ngay dang", "ngay", "date", "lich")),
+	("gio", ("gio dang", "gio", "time")),
+	("kenh", ("kenh", "channel", "nen tang")),
+)
+TU_KENH = (("fb", ("facebook", "fb", "face")), ("ig", ("instagram", "insta", "ig")), ("th", ("threads", "thread", "th")),
+	("zl", ("zalo oa", "zalo", "zl")))
+
+
+def chu_docx(noi_dung):
+	"""THUẦN: chữ trong tệp Word .docx (mỗi đoạn một dòng). Không cần thư viện ngoài."""
+	import io
+	import zipfile
+	from xml.etree import ElementTree as ET
+	W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+	try:
+		with zipfile.ZipFile(io.BytesIO(noi_dung)) as z:
+			goc = ET.fromstring(z.read("word/document.xml"))
+	except Exception:
+		return None
+	dong = []
+	for p in goc.iter(W + "p"):
+		phan = []
+		for e in p.iter():
+			if e.tag == W + "t":
+				phan.append(e.text or "")
+			elif e.tag == W + "tab":
+				phan.append("\t")
+			elif e.tag in (W + "br", W + "cr"):
+				phan.append("\n")
+		dong.append("".join(phan).rstrip())
+	chu = "\n".join(dong)
+	return re.sub(r"\n{3,}", "\n\n", chu).strip()
+
+
+def doc_kenh_chu(s):
+	"""THUẦN: mã kênh từ ô Kênh gõ tay ("Facebook, IG", "fb/threads", "Zalo OA")."""
+	t = bo_dau(s)
+	if not t:
+		return []
+	phan = [x.strip() for x in re.split(r"[,;/+&|\n]+| va ", t) if x.strip()]
+	co = set()
+	for x in phan:
+		for ma, tu in TU_KENH:
+			if x in tu or any(x.startswith(w) for w in tu if len(w) > 2):
+				co.add(ma)
+	return [k for k in THU_TU_KENH if k in co]
+
+
+def doc_ngay_gio(ngay, gio=None):
+	"""THUẦN: giờ hẹn "YYYY-MM-DD HH:MM:00" từ ô Ngày, ô Giờ của Excel (kiểu ngày giờ của
+	Excel, hoặc chữ 17/11/2026, 17/11/2026 07:30, 2026-11-17). Không đọc được thì ""."""
+	from datetime import date, time as gio_t
+	d = None
+	g = ""
+	if isinstance(ngay, datetime):
+		d = ngay.date()
+		if ngay.hour or ngay.minute:
+			g = "%02d:%02d" % (ngay.hour, ngay.minute)
+	elif isinstance(ngay, date):
+		d = ngay
+	else:
+		s = str(ngay or "").strip()
+		m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\S+))?$", s) or re.match(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})(?:\s+(\S+))?$", s)
+		if m:
+			a, b, c = m.group(1), m.group(2), m.group(3)
+			try:
+				d = date(int(a), int(b), int(c)) if len(a) == 4 else date(int(c), int(b), int(a))
+			except ValueError:
+				d = None
+			if m.group(4):
+				g = chuan_gio(m.group(4)[:5])
+	if not d:
+		return ""
+	if isinstance(gio, gio_t):
+		g = "%02d:%02d" % (gio.hour, gio.minute)
+	elif isinstance(gio, datetime):
+		g = "%02d:%02d" % (gio.hour, gio.minute)
+	elif gio not in (None, ""):
+		g = chuan_gio(str(gio)) or g
+	if not g:
+		return ""
+	return chuan_hen("%s %s" % (d.strftime("%Y-%m-%d"), g)) or ""
+
+
+def ban_thao_tu_bang(hang, bay_gio=None):
+	"""THUẦN: mỗi dòng của bảng Excel thành một bản thảo.
+
+	Có dòng tiêu đề cột (trong 5 dòng đầu có ô Nội dung, Ý chính, Content...) thì đọc
+	theo cột: Nội dung (bắt buộc), Tiêu đề, Ngày, Giờ, Kênh. Không có thì mỗi dòng gộp các
+	ô có chữ thành nội dung. Giờ hẹn đã qua thì bỏ (bản thảo chưa hẹn giờ)."""
+	hang = [list(h) for h in (hang or []) if h is not None]
+	cot = {}
+	bat_dau = 0
+	for i, h in enumerate(hang[:5]):
+		thu = {}
+		for j, o in enumerate(h):
+			t = bo_dau(o)
+			if not t:
+				continue
+			for ten, tu in COT:
+				if ten not in thu and t in tu:
+					thu[ten] = j
+					break
+		if "noi_dung" in thu:
+			cot, bat_dau = thu, i + 1
+			break
+	ra = []
+	for h in hang[bat_dau:]:
+		lay = lambda ten: h[cot[ten]] if ten in cot and cot[ten] < len(h) else None
+		if cot:
+			noi = str(lay("noi_dung") or "").strip()
+		else:
+			noi = "\n".join(str(o).strip() for o in h if o not in (None, "") and str(o).strip())
+		if not noi:
+			continue
+		hen = doc_ngay_gio(lay("ngay"), lay("gio")) if cot else ""
+		if hen and bay_gio is not None and _dt(hen) <= bay_gio:
+			hen = ""
+		ra.append({"y_chinh": noi[:TRAN_Y_CHINH], "tieu_de": str(lay("tieu_de") or "").strip()[:140],
+			"hen_luc": hen, "kenh": doc_kenh_chu(lay("kenh"))})
+	return ra
+
+
+def ten_tep_sach(ten):
+	"""THUẦN: tên tệp bỏ đuôi, gạch dưới thành dấu cách, làm tiêu đề bản thảo."""
+	t = re.sub(r"\.[A-Za-z0-9]{1,5}$", "", str(ten or "")).replace("_", " ").strip()
+	return re.sub(r"\s+", " ", t)[:140]
 
 
 # ------------------------------------------------------------ phần chạm hệ
@@ -581,8 +777,21 @@ def _anh_cu(doc):
 	return [{"name": d.name, "tieu_de": d.tieu_de, "ngay": d.luc.strftime("%d/%m") if hasattr(d.luc, "strftime") else str(d.luc)[:10]} for d in dong]
 
 
+def _noi(lam_moi=False):
+	"""Tập kênh đang nối để tự đăng. Lỗi đọc kết nối thì coi như chưa nối (đăng tay),
+	không làm hỏng màn."""
+	try:
+		from vagabond import mxh
+		return mxh.kenh_noi(lam_moi)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "bai_dang: đọc kết nối kênh")
+		return set()
+
+
 def _cho_man(doc):
 	kieu = doc.kieu or KIEU_BAI
+	noi = _noi()
+	tu = kenh_tu_dong(noi, kieu)
 	anh = _anh_doc(doc)
 	ban = _ban_doc(doc)
 	kenh = chuan_kenh(doc.kenh_chon, kieu)
@@ -591,12 +800,14 @@ def _cho_man(doc):
 		"name": doc.name, "tieu_de": doc.tieu_de or "", "trang_thai": doc.trang_thai, "kieu": kieu,
 		"y_chinh": doc.y_chinh or "", "kenh_chon": kenh, "hen_luc": str(doc.hen_luc or "")[:16],
 		"ban_luu": int(doc.ban_luu or 0), "anh": anh, "ban": ban,
-		"kenh": [{"k": r.ma_kenh, "tt": r.trang_thai, "link": r.link or "", "luc": str(r.dang_luc or "")[11:16]}
+		"kenh": [{"k": r.ma_kenh, "tt": r.trang_thai, "link": r.link or "", "luc": str(r.dang_luc or "")[11:16],
+			"tu": int(getattr(r, "tu_dong", 0) or 0), "loi": getattr(r, "loi", "") or "",
+			"dang_duoc": int(r.trang_thai == K_TAY and r.ma_kenh in tu)}
 			for r in doc.get("kenh") or [] if r.ma_kenh in kenh and doc.trang_thai not in TT_SUA_DUOC],
 		"duyet_luc": str(doc.duyet_luc or "")[:16], "luu_luc": str(doc.modified or "")[11:16],
-		"sua": sua,
+		"sua": sua, "tu_dong": [k for k in kenh if k in tu],
 	}
-	bai["kiem"] = kiem_bai(bai, _bay_gio(), _trung_gio(doc), _anh_cu(doc)) if sua else []
+	bai["kiem"] = kiem_bai(bai, _bay_gio(), _trung_gio(doc), _anh_cu(doc), noi) if sua else []
 	bai["cho_kenh"] = {k: anh_cho_kenh(anh, k, kieu) for k in kenh}
 	return {"bai": bai, "duyet": _la_duyet(), "gio_vang": gio_vang()}
 
@@ -662,7 +873,7 @@ def _viec():
 
 @frappe.whitelist()
 def lich(xem="tuan", moc=None, kenh=None, trang_thai=None):
-	"""Màn chính. xem: tuan | thang | ds. moc: một ngày trong kỳ cần xem."""
+	"""Màn chính. xem: tuan | thang | ds | bt (Kho bản thảo). moc: một ngày trong kỳ cần xem."""
 	_kiem_soan()
 	bay_gio = _bay_gio()
 	hom_nay = bay_gio.strftime("%Y-%m-%d")
@@ -682,6 +893,9 @@ def lich(xem="tuan", moc=None, kenh=None, trang_thai=None):
 			theo.setdefault(t["ngay"], []).append(t)
 		ra["thang"] = [None if not x else {"ngay": x, "hom_nay": x == hom_nay, "da_qua": x < hom_nay, "bai": theo.get(x, [])} for x in o]
 		ra["ky_chu"] = "Tháng %s/%s" % (moc[5:7], moc[:4])
+	elif xem == "bt":
+		ra["bt"] = _ban_thao()
+		ra["ky_chu"] = "200 bản thảo mới sửa nhất" if len(ra["bt"]) >= 200 else "%d bản thảo" % len(ra["bt"])
 	elif xem == "ds":
 		if trang_thai == "chua_gio":
 			ra["ds"] = _doc_bai(loc_kenh=loc, khong_gio=True, gioi_han=200)
@@ -759,7 +973,7 @@ def luu(ma=None, ban_luu=None, thay=None):
 	if "kieu" in t and t["kieu"] in KIEU:
 		doc.kieu = t["kieu"]
 	if "y_chinh" in t:
-		doc.y_chinh = str(t["y_chinh"] or "")[:2000]
+		doc.y_chinh = str(t["y_chinh"] or "")[:TRAN_Y_CHINH]
 	if "kenh_chon" in t:
 		doc.kenh_chon = ",".join(chuan_kenh(t["kenh_chon"], doc.kieu))
 	elif "kieu" in t:
@@ -800,9 +1014,11 @@ def _do_anh(url):
 	rong = cao = 0
 	try:
 		import io
-		from PIL import Image
+		from PIL import Image, ImageOps
 		with Image.open(io.BytesIO(f.get_content())) as im:
-			rong, cao = im.size
+			# Khung ảnh tính theo chiều đã xoay đúng EXIF, cùng chiều với màn xem trước và
+			# với ảnh mxh.anh_jpeg gửi lên kênh (Codex #576).
+			rong, cao = ImageOps.exif_transpose(im).size
 	except Exception:
 		pass
 	return {"file": f, "rong": rong, "cao": cao, "ma_bam": f.content_hash or ""}
@@ -1030,11 +1246,13 @@ def duyet(ma=None, ban_luu=None, da_doc_nhac=0):
 	lần thì lần sau thấy bài đã đổi trạng thái và không làm gì thêm."""
 	_kiem_soan()
 	_kiem_duyet()
+	# Đọc kết nối (gọi Meta) TRƯỚC khi lấy khoá lịch, không giữ khoá trong lúc chờ mạng.
+	noi = _noi()
 	with _khoa_lich():
-		return _duyet_trong_khoa(ma, ban_luu, da_doc_nhac)
+		return _duyet_trong_khoa(ma, ban_luu, da_doc_nhac, noi)
 
 
-def _duyet_trong_khoa(ma, ban_luu, da_doc_nhac):
+def _duyet_trong_khoa(ma, ban_luu, da_doc_nhac, noi=None):
 	doc = _doc_khoa(ma)
 	if doc.trang_thai not in TT_SUA_DUOC:
 		return _cho_man(doc)
@@ -1053,14 +1271,23 @@ def _duyet_trong_khoa(ma, ban_luu, da_doc_nhac):
 	bay_gio = _bay_gio()
 	kenh = chuan_kenh(doc.kenh_chon, doc.kieu)
 	hen = _dt(doc.hen_luc) if doc.hen_luc else None
-	doc.trang_thai = TT_HEN if hen and hen > bay_gio else TT_TAY
+	sau = bool(hen and hen > bay_gio)
+	tu = kenh_tu_dong(noi, doc.kieu)
 	doc.nguoi_duyet = frappe.session.user
 	doc.duyet_luc = bay_gio
 	for k in kenh:
-		_dong_kenh(doc, k).trang_thai = K_HEN if doc.trang_thai == TT_HEN else K_TAY
+		r = _dong_kenh(doc, k)
+		r.tu_dong = 1 if k in tu else 0
+		r.loi = ""
+		# Kênh hệ thống tự đăng: chờ tới giờ (hoặc đăng ngay). Kênh đăng tay: có giờ hẹn thì
+		# chờ tới giờ hẹn hệ thống nhắn Marketing, không hẹn thì đăng tay ngay.
+		r.trang_thai = K_HEN if (k in tu or sau) else K_TAY
 	doc.set("kenh", [r for r in doc.get("kenh") or [] if r.ma_kenh in kenh])
+	doc.trang_thai = gom_trang_thai(TT_HEN, [r.trang_thai for r in doc.get("kenh") or []])
 	doc.ban_luu = int(doc.ban_luu or 0) + 1
 	_luu(doc)
+	if not sau and any(r.trang_thai == K_HEN for r in doc.get("kenh") or []):
+		_xep_dang(doc.name)
 	return _cho_man(doc)
 
 
@@ -1099,6 +1326,8 @@ def tra_ve(ma=None):
 	doc = _doc_khoa(ma)
 	if doc.trang_thai not in (TT_HEN, TT_TAY):
 		return _cho_man(doc)
+	if any(r.trang_thai == K_DANG for r in doc.get("kenh") or []):
+		frappe.throw("Hệ thống đang đăng bài lên kênh. Chờ một phút rồi mở lại bài.")
 	if any(r.trang_thai == K_XONG for r in doc.get("kenh") or []):
 		frappe.throw("Đã có kênh đăng rồi nên không trả về nháp được. Kênh còn lại vẫn đăng tay được.")
 	doc.trang_thai = TT_NHAP
@@ -1106,6 +1335,7 @@ def tra_ve(ma=None):
 	doc.duyet_luc = None
 	for r in doc.get("kenh") or []:
 		r.trang_thai = K_CHUA
+		r.loi = ""
 	doc.ban_luu = int(doc.ban_luu or 0) + 1
 	_luu(doc)
 	return _cho_man(doc)
@@ -1118,7 +1348,7 @@ def huy(ma=None):
 	doc = _doc_khoa(ma)
 	if doc.trang_thai == TT_HUY:
 		return {"ok": 1}
-	if doc.trang_thai not in (TT_NHAP, TT_CHO, TT_HEN) or any(r.trang_thai == K_XONG for r in doc.get("kenh") or []):
+	if doc.trang_thai not in (TT_NHAP, TT_CHO, TT_HEN) or any(r.trang_thai in (K_XONG, K_DANG) for r in doc.get("kenh") or []):
 		frappe.throw("Bài đã có kênh đăng hoặc đang chờ đăng tay nên không huỷ được.")
 	doc.trang_thai = TT_HUY
 	doc.ban_luu = int(doc.ban_luu or 0) + 1
@@ -1127,37 +1357,290 @@ def huy(ma=None):
 
 
 @frappe.whitelist()
-def cai_dat(gio_vang_moi=None):
-	"""Đọc hoặc lưu giờ vàng (Marketing, giám đốc)."""
+def cai_dat(gio_vang_moi=None, kiem_lai=0):
+	"""Đọc hoặc lưu giờ vàng (Marketing, giám đốc); kết nối từng kênh (không trả token)."""
 	_kiem_soan()
 	if gio_vang_moi is not None:
 		_kiem_duyet()
 		ds = doc_gio_vang(gio_vang_moi)
 		frappe.db.set_single_value("Vagabond Settings", O_GIO_VANG, ", ".join(ds))
 		frappe.clear_cache(doctype="Vagabond Settings")
-	return {"gio_vang": gio_vang(), "sua": _la_duyet()}
+	try:
+		from vagabond import mxh
+		ket_noi = mxh.trang_thai(bool(int(kiem_lai or 0)))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "bai_dang: đọc kết nối kênh")
+		ket_noi = {}
+	return {"gio_vang": gio_vang(), "sua": _la_duyet(), "ket_noi": ket_noi,
+		"quan_tri": "System Manager" in _vai()}
+
+
+def _xep_dang(ma):
+	"""Xếp lượt đăng của một bài vào hàng đợi nền (mỗi bài một lượt, có trần thời gian),
+	SAU khi giao dịch chốt để lượt đăng đọc được trạng thái vừa ghi. Bài học #301: lỗi trong
+	callback sau commit không nằm trong try của người gọi, nên bọc ngay trong callback.
+	Xếp không được thì nhịp 5 phút sẽ nhặt lại, nên chỉ ghi lỗi."""
+	def xep():
+		try:
+			frappe.enqueue("vagabond.bai_dang.dang_bai", queue="long", timeout=900,
+				job_id="vgb-bai-dang-%s" % ma, deduplicate=True, ma=ma)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "bai_dang: xếp lượt đăng")
+	try:
+		frappe.db.after_commit.add(xep)
+	except Exception:
+		xep()
+
+
+def _bao_loi_dang(doc, kenh, chu):
+	try:
+		from vagabond import kenh_zalo
+		kenh_zalo.bao("viec", "don_web", "Bài chưa tự lên %s: %s" % (KENH[kenh]["ten"], doc.tieu_de or doc.name),
+			[chu, "Mở bài để Thử lại hoặc đăng tay."], link=_link_man(),
+			khoa="bai_loi:%s:%s:%s" % (doc.name, kenh, doc.ban_luu), ma_tin="mkt_bai_dang_den_gio")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "bai_dang: chưa nhắn được Marketing")
+
+
+def _bai_den_gio(bay_gio):
+	"""Bài có kênh Đã hẹn giờ đã tới lượt. Đọc đủ, không giới hạn số dòng."""
+	return [d[0] for d in frappe.db.sql("""select distinct b.name from `tab%s` b join `tab%s` k on k.parent = b.name
+		where k.parenttype = %%s and k.trang_thai = %%s and b.trang_thai in %%s
+		and (b.hen_luc is null or b.hen_luc <= %%s)""" % (DT, DT_KENH), (DT, K_HEN, (TT_HEN, TT_TAY), bay_gio))]
+
+
+def _kenh_ket(bay_gio):
+	moc = bay_gio - timedelta(minutes=KET_PHUT)
+	return [(d[0], d[1]) for d in frappe.db.sql("""select parent, ma_kenh from `tab%s` where parenttype = %%s
+		and trang_thai = %%s and (dang_luc is null or dang_luc < %%s)""" % DT_KENH, (DT, K_DANG, moc))]
+
+
+def _dong(doc, kenh):
+	for r in doc.get("kenh") or []:
+		if r.ma_kenh == kenh:
+			return r
+	return None
+
+
+def _ghi_ket_qua(ma, kenh, tt, link="", ma_bai="", loi="", ket_truoc=None):
+	"""Ghi kết quả một kênh SAU khi khoá lại dòng, chỉ khi kênh vẫn Đang đăng.
+	ket_truoc: chỉ ghi khi kênh đã Đang đăng quá lâu tính tới mốc này (gỡ kênh kẹt)."""
+	doc = _doc_khoa(ma)
+	r = _dong(doc, kenh)
+	if not r or r.trang_thai != K_DANG or (ket_truoc is not None and not ket_dang(r.dang_luc, ket_truoc)):
+		frappe.db.rollback()
+		return None
+	r.trang_thai = tt
+	r.loi = loi
+	if ma_bai:
+		r.ma_bai = ma_bai
+	if tt == K_XONG:
+		r.dang_luc = _bay_gio()
+		r.link = lam_sach_link(link) or r.link
+	doc.trang_thai = gom_trang_thai(doc.trang_thai, [x.trang_thai for x in doc.get("kenh") or []])
+	doc.ban_luu = int(doc.ban_luu or 0) + 1
+	_luu(doc)
+	frappe.db.commit()
+	if loi:
+		_bao_loi_dang(doc, kenh, loi)
+	return doc
+
+
+def dang_bai(ma):
+	"""Lượt đăng một bài (hàng đợi nền). Bước 1 dưới khoá dòng: kênh tự đăng tới lượt đổi
+	sang Đang đăng, kênh đăng tay tới giờ đổi sang Chờ đăng tay; chốt giao dịch. Bước 2
+	ngoài khoá: gọi Meta từng kênh. Bước 3: khoá lại, ghi kết quả nếu kênh vẫn Đang đăng.
+	Chỉ lượt đã đổi kênh sang Đang đăng mới gọi Meta, nên hai lượt chồng nhau không đăng
+	hai lần (H8 loại 1, 4)."""
+	from vagabond import mxh
+	noi = _noi()
+	bay_gio = _bay_gio()
+	doc = _doc_khoa(ma)
+	if doc.trang_thai not in (TT_HEN, TT_TAY) or not den_gio(doc.hen_luc, bay_gio):
+		frappe.db.rollback()
+		return
+	kieu = doc.kieu or KIEU_BAI
+	dang, tay = chia_kenh_den_gio([(r.ma_kenh, r.trang_thai, int(getattr(r, "tu_dong", 0) or 0)) for r in doc.get("kenh") or []],
+		kenh_tu_dong(noi, kieu))
+	if not dang and not tay:
+		frappe.db.rollback()
+		return
+	for r in doc.get("kenh") or []:
+		if r.ma_kenh in dang:
+			r.trang_thai = K_DANG
+			r.dang_luc = bay_gio
+			r.loi = ""
+		elif r.ma_kenh in tay:
+			r.trang_thai = K_TAY
+			if int(getattr(r, "tu_dong", 0) or 0):
+				r.loi = "Lúc đến giờ %s chưa nối được nên chuyển đăng tay." % KENH[r.ma_kenh]["ten"]
+	doc.trang_thai = gom_trang_thai(doc.trang_thai, [r.trang_thai for r in doc.get("kenh") or []])
+	doc.ban_luu = int(doc.ban_luu or 0) + 1
+	_luu(doc)
+	frappe.db.commit()
+	if tay:
+		_bao_den_gio(doc, [KENH[k]["ten"] for k in tay])
+	anh = _anh_doc(doc)
+	ban = _ban_doc(doc)
+	for k in dang:
+		try:
+			ma_bai, link = mxh.dang(k, doc.name, mxh.chu_cho_kenh((ban.get(k) or {}).get("chu"), KENH[k]["tran"]),
+				anh_cho_kenh(anh, k, kieu), kieu == KIEU_STORY)
+			kq = (K_XONG, link, ma_bai, "")
+		except mxh.LoiDang as e:
+			kq = (K_TAY, "", "", e.chu)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "bai_dang: đăng %s" % k)
+			kq = (K_TAY, "", "", "Hệ thống gặp lỗi khi đăng %s, chưa rõ bài đã lên chưa. Mở %s kiểm trước: chưa có bài thì Thử lại hoặc đăng tay." % (KENH[k]["ten"], KENH[k]["ten"]))
+		try:
+			_ghi_ket_qua(ma, k, *kq)
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(frappe.get_traceback(), "bai_dang: ghi kết quả đăng %s" % k)
+
+
+def go_ket(bay_gio=None):
+	"""Kênh kẹt Đang đăng quá 15 phút (máy chủ khởi động lại giữa chừng): chuyển đăng tay,
+	báo chưa rõ đã lên chưa. Không tự đăng lại."""
+	bay_gio = bay_gio or _bay_gio()
+	for ma, k in _kenh_ket(bay_gio):
+		try:
+			ten = KENH.get(k, {}).get("ten", k)
+			_ghi_ket_qua(ma, k, K_TAY, loi="Chưa rõ bài đã lên %s chưa (hệ thống bị ngắt giữa chừng). Mở %s kiểm: đã có bài thì bấm Đã đăng, chưa có thì Thử lại hoặc đăng tay." % (ten, ten),
+				ket_truoc=bay_gio)
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(frappe.get_traceback(), "bai_dang: gỡ kênh kẹt")
 
 
 def quet_den_gio():
-	"""Nhịp 5 phút: bài đã hẹn tới giờ thì chuyển các kênh sang Chờ đăng tay và nhắn
-	nhóm Marketing. Mỗi bài một giao dịch, khoá dòng và kiểm lại trạng thái sau khoá."""
+	"""Nhịp 5 phút: gỡ kênh kẹt; bài có kênh tới giờ thì xếp một lượt đăng riêng cho từng
+	bài (kênh tự đăng thì đăng, kênh đăng tay thì nhắn nhóm Marketing)."""
 	bay_gio = _bay_gio()
-	ten = frappe.get_all(DT, filters={"trang_thai": TT_HEN, "hen_luc": ["<=", bay_gio]}, pluck="name", limit_page_length=0)
-	for ma in ten:
+	go_ket(bay_gio)
+	for ma in _bai_den_gio(bay_gio):
+		_xep_dang(ma)
+
+
+@frappe.whitelist()
+def thu_lai(ma=None, kenh=None):
+	"""Kênh đang Chờ đăng tay (tự đăng lỗi, hay lúc duyệt chưa nối) mà nay đã nối: cho
+	hệ thống đăng lại kênh đó. Chỉ đổi kênh đang Chờ đăng tay; bấm hai lần không đăng hai."""
+	_kiem_soan()
+	noi = _noi(True)
+	doc = _doc_khoa(ma)
+	r = _dong(doc, kenh)
+	if doc.trang_thai not in (TT_HEN, TT_TAY) or not r or r.trang_thai != K_TAY:
+		return _cho_man(doc)
+	if kenh not in kenh_tu_dong(noi, doc.kieu):
+		frappe.throw("%s chưa nối nên hệ thống chưa tự đăng được. Đăng tay, hoặc báo quản trị hệ thống nối kênh." % KENH.get(kenh, {}).get("ten", kenh))
+	r.trang_thai = K_HEN
+	r.tu_dong = 1
+	r.loi = ""
+	doc.trang_thai = gom_trang_thai(doc.trang_thai, [x.trang_thai for x in doc.get("kenh") or []])
+	doc.ban_luu = int(doc.ban_luu or 0) + 1
+	_luu(doc)
+	_xep_dang(doc.name)
+	return _cho_man(doc)
+
+
+def _ban_thao():
+	"""Kho bản thảo: bài Nháp, Chờ duyệt chưa hẹn giờ, mới sửa trước. Màn chỉ để xem nên
+	giới hạn 200 bản mới nhất và ghi rõ trên màn."""
+	from frappe.utils import get_fullname
+	dong = frappe.db.sql("""select b.name, b.tieu_de, b.y_chinh, b.trang_thai, b.modified, b.modified_by,
+		(select count(*) from `tab%s` a where a.parent = b.name and a.parenttype = %%s) as so_anh,
+		(select a.file_url from `tab%s` a where a.parent = b.name and a.parenttype = %%s order by a.idx limit 1) as anh
+		from `tab%s` b where b.trang_thai in %%s and b.hen_luc is null order by b.modified desc limit 200""" % (DT_ANH, DT_ANH, DT),
+		(DT, DT, TT_SUA_DUOC), as_dict=True)
+	ten = {}
+	ra = []
+	for d in dong:
+		if d.modified_by not in ten:
+			ten[d.modified_by] = get_fullname(d.modified_by)
+		y = str(d.y_chinh or "").strip()
+		ra.append({"name": d.name, "tieu_de": d.tieu_de or tieu_de_tu(y, {}) or "Bản thảo chưa có chữ", "trich": y[:220],
+			"trang_thai": d.trang_thai, "luc": str(d.modified or "")[:16], "nguoi": ten[d.modified_by], "so_anh": int(d.so_anh or 0),
+			"anh": d.anh or ""})
+	return ra
+
+
+def hang_co_chu(cac_hang, tran=TOI_DA_NHAP):
+	"""THUẦN: các dòng có ít nhất một ô có chữ, đọc tới hết bảng (dòng trống xen giữa không
+	làm mất nội dung phía dưới). Dừng khi đã quá trần (5 dòng đầu có thể là tiêu đề, cộng
+	một dòng để biết là vượt), để nhap_tep từ chối rõ ràng thay vì cắt im lặng (Codex #576)."""
+	ra = []
+	for h in cac_hang:
+		h = list(h or [])
+		if any(str(o).strip() for o in h if o is not None):
+			ra.append(h)
+			if len(ra) > tran + 5:
+				break
+	return ra
+
+
+def _hang_xlsx(noi_dung):
+	import io
+	from openpyxl import load_workbook
+	wb = load_workbook(io.BytesIO(noi_dung), read_only=True, data_only=True)
+	try:
+		ws = wb.worksheets[0]
+		# #457: tệp ghi <dimension ref> nhỏ hơn bảng thật thì read_only chỉ trả vùng khai
+		# báo. Bỏ kích thước khai báo, đọc theo dữ liệu thật (như doi_soat_doc.doc_xlsx).
 		try:
-			doc = _doc_khoa(ma)
-			if doc.trang_thai != TT_HEN or not doc.hen_luc or _dt(doc.hen_luc) > bay_gio:
-				frappe.db.rollback()
-				continue
-			for r in doc.get("kenh") or []:
-				if r.trang_thai == K_HEN:
-					r.trang_thai = K_TAY
-			doc.trang_thai = TT_TAY
-			doc.ban_luu = int(doc.ban_luu or 0) + 1
-			_luu(doc)
-			kenh_ten = [KENH[r.ma_kenh]["ten"] for r in doc.get("kenh") or [] if r.trang_thai == K_TAY and r.ma_kenh in KENH]
-			_bao_den_gio(doc, kenh_ten)
-			frappe.db.commit()
+			ws.reset_dimensions()
 		except Exception:
-			frappe.db.rollback()
-			frappe.log_error(frappe.get_traceback(), "bai_dang: chuyển bài đến giờ")
+			pass
+		return hang_co_chu(ws.iter_rows(values_only=True))
+	finally:
+		wb.close()
+
+
+@frappe.whitelist()
+def nhap_tep(file_url=None):
+	"""Nhập tệp Word (.docx), Excel (.xlsx), chữ (.txt) thành bản thảo. Word, chữ: một tệp
+	một bản thảo. Excel: mỗi dòng một bản thảo. Tệp gốc xoá sau khi nhập; khoá dòng tệp
+	nên bấm hai lần không nhập hai lần."""
+	_kiem_soan()
+	f = frappe.db.get_value("File", {"file_url": file_url}, ["name", "owner"], as_dict=True) if file_url else None
+	if not f or f.owner != frappe.session.user:
+		frappe.throw("Tệp chưa tải lên xong. Chọn lại tệp.")
+	if not frappe.db.sql("select name from `tabFile` where name=%s for update", (f.name,)):
+		frappe.throw("Tệp này đã nhập xong rồi.")
+	tep = frappe.get_doc("File", f.name)
+	duoi = str(tep.file_name or "").rsplit(".", 1)[-1].lower()
+	if duoi not in DUOI_NHAP:
+		frappe.throw("Chỉ nhận tệp Word (.docx), Excel (.xlsx) hoặc chữ (.txt).")
+	nd = tep.get_content()
+	if isinstance(nd, str):
+		nd = nd.encode("utf-8")
+	if duoi == "docx":
+		chu = chu_docx(nd)
+		if chu is None:
+			frappe.throw("Không đọc được tệp Word này. Mở tệp, Lưu thành .docx rồi tải lại.")
+		muc = [{"y_chinh": chu[:TRAN_Y_CHINH], "tieu_de": ten_tep_sach(tep.file_name), "hen_luc": "", "kenh": []}]
+	elif duoi in ("xlsx", "xlsm"):
+		try:
+			hang = _hang_xlsx(nd)
+		except Exception:
+			frappe.throw("Không đọc được tệp Excel này. Mở tệp, Lưu thành .xlsx rồi tải lại.")
+		muc = ban_thao_tu_bang(hang, _bay_gio())
+	else:
+		muc = [{"y_chinh": nd.decode("utf-8", "ignore").strip()[:TRAN_Y_CHINH], "tieu_de": ten_tep_sach(tep.file_name), "hen_luc": "", "kenh": []}]
+	muc = [m for m in muc if str(m.get("y_chinh") or "").strip()]
+	if not muc:
+		frappe.throw("Tệp không có chữ nào để làm bản thảo.")
+	if len(muc) > TOI_DA_NHAP:
+		frappe.throw("Tệp có %d dòng nội dung; mỗi lần nhập tối đa %d. Chia tệp nhỏ hơn." % (len(muc), TOI_DA_NHAP))
+	tao = []
+	for m in muc:
+		kenh = m.get("kenh") or chuan_kenh(THU_TU_KENH)
+		doc = frappe.get_doc({"doctype": DT, "trang_thai": TT_NHAP, "kieu": KIEU_BAI, "hen_luc": m.get("hen_luc") or None,
+			"kenh_chon": ",".join(kenh), "y_chinh": m["y_chinh"], "ban_luu": 1,
+			"tieu_de": m.get("tieu_de") or tieu_de_tu(m["y_chinh"], {})})
+		doc.flags.vgb_bai_dang = True
+		doc.insert(ignore_permissions=True)
+		tao.append(doc.name)
+	tep.flags.ignore_permissions = True
+	tep.delete(ignore_permissions=True)
+	return {"so": len(tao), "ma": tao, "hen": len([m for m in muc if m.get("hen_luc")])}
