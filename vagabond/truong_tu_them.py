@@ -274,6 +274,10 @@ def dung():
 	from vagabond import don_quay
 
 	_dung_nhom(don_quay.TRUONG_MOI, "don_quay")
+	# v664: ô Google Analytics ID ngay dưới ô Meta Pixel ID trong Cài đặt.
+	from vagabond import do_luong_ga
+
+	_dung_nhom(do_luong_ga.TRUONG_MOI, "do_luong_ga")
 	try:
 		gioi_thieu.gieo_mac_dinh()
 	except Exception:
