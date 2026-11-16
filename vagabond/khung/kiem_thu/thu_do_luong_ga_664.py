@@ -72,6 +72,10 @@ def _():
 	dung("ngữ cảnh có thẻ", "G-RMWD2XHNZ8" in str(c["vgb_ga_head"]))
 	with mock.patch.object(g, "ga_id", lambda: ""):
 		la("chưa khai thì rỗng", str(g.ngu_canh({})["vgb_ga_head"]), "")
+	# Máy CI không có markupsafe (không Frappe): hook vẫn đặt được thẻ (CI #575 đỏ vì nuốt ImportError).
+	import sys
+	with mock.patch.dict(sys.modules, {"markupsafe": None}), mock.patch.object(g, "ga_id", lambda: "G-RMWD2XHNZ8"):
+		dung("không có markupsafe vẫn có thẻ", "G-RMWD2XHNZ8" in str(g.ngu_canh({})["vgb_ga_head"]))
 
 
 @ca("v664 GA chạy thật: thẻ gtag gỡ mã biên nhận, xem thử không nạp, đổi sự kiện, purchase một lần (hanh_vi/ga_664.mjs)")
