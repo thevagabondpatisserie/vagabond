@@ -30,7 +30,9 @@ permissions:
 
 jobs:
   chup-anh:
-    runs-on: ubuntu-latest
+    # v664 (16/11/2026): ubuntu-latest đã sang 26.04, Playwright 1.55 chưa hỗ trợ
+    # ("Playwright does not support chromium on ubuntu26.04-x64"). Giữ 24.04 như bench.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +83,9 @@ jobs:
   # v598 (16/10/2026): nút "Gửi yêu cầu đặt bánh" bị co tròn khi có dòng báo lỗi.
   # Rà mọi nút trên các trang khách ở 390 px và 1440 px; vi phạm thì job đỏ.
   ra-nut:
-    runs-on: ubuntu-latest
+    # v664 (16/11/2026): ubuntu-latest đã sang 26.04, Playwright 1.55 chưa hỗ trợ
+    # ("Playwright does not support chromium on ubuntu26.04-x64"). Giữ 24.04 như bench.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -109,7 +113,9 @@ jobs:
   # giỏ, gửi đơn lỗi, biên nhận, hộp Cách chọn size, đồ có sẵn). Trước đây bộ
   # này chỉ chạy tay, nên lỗi giao diện chỉ lộ khi khách bấm. Đỏ là chặn merge.
   dom-khach:
-    runs-on: ubuntu-latest
+    # v664 (16/11/2026): ubuntu-latest đã sang 26.04, Playwright 1.55 chưa hỗ trợ
+    # ("Playwright does not support chromium on ubuntu26.04-x64"). Giữ 24.04 như bench.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
