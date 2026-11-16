@@ -26,8 +26,13 @@ GOC = Path(os.environ.get('VGB_GOC') or Path(__file__).resolve().parents[1]).res
 
 
 def the_ga_thu():
-	sys.path.insert(0, str(GOC))
-	from vagabond.do_luong_ga import the_ga
+	# Cây gốc cũ (bước chụp ảnh của main làm mốc) chưa có do_luong_ga: không có thẻ GA.
+	if str(GOC) not in sys.path:
+		sys.path.insert(0, str(GOC))
+	try:
+		from vagabond.do_luong_ga import the_ga
+	except Exception:
+		return ''
 	return the_ga('G-THU12345')
 CONG = int(sys.argv[1]) if len(sys.argv) > 1 else 8790
 BAN_CU = Path(os.environ.get('VGB_BAN_CU') or GOC / 'vagabond/trang/banh.html')
