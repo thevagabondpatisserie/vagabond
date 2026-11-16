@@ -55,6 +55,9 @@ LY_DO_TU_CHOI = ("Hết món", "Quầy quá đông", "Ngoài giờ giao", "Khác
 
 MIEN_PHI_MAC_DINH = 500000
 O_MIEN_PHI = "weborder_mien_phi_tu"
+# v664: tắt miễn phí bằng công tắc riêng. Ô tiền (Currency) để trống đọc ra 0,
+# nên "gõ 0 là tắt" không phân biệt được với để trống (v663 ghi sai mô tả).
+O_TAT_MIEN_PHI = "weborder_tat_mien_phi"
 # Trả trước bắt buộc: không có tiền mặt.
 PT_TRA_TRUOC = ("bank", "card", "atm")
 
@@ -95,7 +98,10 @@ TRUONG_MOI = {
 		{"fieldname": O_MIEN_PHI, "label": "Miễn phí giao đơn giao của quầy (WEBORDER) từ", "fieldtype": "Currency",
 			"insert_after": "mien_phi_giao_tu",
 			"description": "Đơn đặt qua tab Tại quầy trên trang chủ đạt mức này (sau ưu đãi) thì khách không trả phí giao, "
-				"tiệm trả cước GreenSM. Để trống là 500.000 đ. Gõ 0 là tắt miễn phí."},
+				"tiệm trả cước GreenSM. Để trống hoặc 0 là 500.000 đ. Muốn bỏ miễn phí giao thì bật ô Tắt miễn phí giao bên dưới."},
+		{"fieldname": O_TAT_MIEN_PHI, "label": "Tắt miễn phí giao đơn giao của quầy", "fieldtype": "Check",
+			"insert_after": O_MIEN_PHI,
+			"description": "Bật: mọi đơn giao của quầy đều tính phí giao, kể cả đơn lớn. Tắt (mặc định): áp mức ở ô trên."},
 	],
 }
 
@@ -134,12 +140,25 @@ def dong_khung_ma(x):
 
 # ------------------------------------------------------------- phần thuần
 
-def chuan_nguong(v):
-	"""Ô Miễn phí giao người điền tay -> số đồng. THUẦN.
+def chuan_nguong(v, tat=False):
+	"""Ô Miễn phí giao người điền tay -> số đồng. THUẦN. Trả 0 là không miễn phí.
 
-	Trống, None: mặc định 500.000. "0": tắt. Nhận "500000", "500.000",
+	tat: công tắc Tắt miễn phí giao đang bật thì trả 0.
+	Trống, None, 0: mặc định 500.000 (ô tiền để trống đọc ra 0, v664). Nhận "500000", "500.000",
 	"500,000", "500k", "500 nghìn", "0,5tr", "1tr" (v608: ô cài đặt là đầu vào
 	không tin được). Đọc không ra số thì dùng mặc định, không bao giờ tắt oan."""
+	if tat:
+		return 0
+	so = _so_nguong(v)
+	return so if so > 0 else MIEN_PHI_MAC_DINH
+
+
+def la_bat(v):
+	"""Ô Check đọc từ bảng Singles ("1", 1, "0", "", None) -> bật hay tắt. THUẦN."""
+	return str(v if v is not None else "").strip().lower() in ("1", "1.0", "true", "yes", "on")
+
+
+def _so_nguong(v):
 	if v is None:
 		return MIEN_PHI_MAC_DINH
 	if isinstance(v, (int, float)):
@@ -344,7 +363,7 @@ def nguong_mien_phi():
 	from vagabond.lib import cfg_o
 
 	try:
-		return chuan_nguong(cfg_o(O_MIEN_PHI))
+		return chuan_nguong(cfg_o(O_MIEN_PHI), tat=la_bat(cfg_o(O_TAT_MIEN_PHI)))
 	except Exception:
 		return MIEN_PHI_MAC_DINH
 
