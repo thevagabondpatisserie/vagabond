@@ -1384,7 +1384,7 @@ Khách chuyển khoản và SePay nhận đủ tiền thì máy quầy kêu hai 
 
 **Lưu ý**
 - Mở app xong chạm vào màn một lần thì máy mới cho phát âm thanh.
-- Mạng chập chờn chưa tải được giọng đọc thì máy chỉ kêu chuông.
+- Giọng đọc nằm sẵn trong app, mở app là sẵn sàng, không phải chờ tải. Thu ngân không cần bấm gì, tiền về là máy tự đọc.
 - Âm báo chỉ là để nghe nhanh. Vẫn nhìn dòng ĐÃ NHẬN ĐỦ trên màn trước khi đưa bánh.
 ## In mã QR bàn theo khu
 Từ khoá: in QR bàn, sơ đồ bàn, tên bàn, khu A, bàn A1, VIP, standee, mica, kích thước, A4, dấu cắt, số bàn
