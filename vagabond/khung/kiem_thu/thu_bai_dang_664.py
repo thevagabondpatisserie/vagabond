@@ -597,6 +597,66 @@ def _nhap_xlsx():
 	la("hai bản, một có giờ", (ra["so"], ra["hen"], [t.y_chinh for t in tao], tao[0].hen_luc), (2, 1, ["A", "B"], "2026-12-01 07:30:00"))
 
 
+@ca("v664 Codex #576: Excel có dòng trống xen giữa vẫn đọc tới hết; quá 200 bản thảo thì từ chối rõ, không cắt im lặng")
+def _excel_trong():
+	hang = [["Nội dung"], ["A"]] + [[None, ""]] * 210 + [["B"]]
+	la("bỏ dòng trống, giữ B", [h[0] for h in x.hang_co_chu(iter(hang))], ["Nội dung", "A", "B"])
+	nhieu = [["Nội dung"]] + [["Ý %d" % i] for i in range(300)]
+	la("dừng khi đã quá trần", len(x.hang_co_chu(iter(nhieu))), x.TOI_DA_NHAP + 6)
+	try:
+		import openpyxl
+	except ImportError:
+		dung("CI không có openpyxl: phần bỏ dòng trống đã kiểm ở trên", True)
+		return
+	wb = openpyxl.Workbook()
+	ws = wb.active
+	ws["A1"] = "Nội dung"
+	ws["A2"] = "A"
+	ws["A213"] = "B"
+	nd = io.BytesIO()
+	wb.save(nd)
+	ra, tao = _nhap(_Tep("lich.xlsx", nd.getvalue()))
+	la("hai bản thảo, có cả dòng 213", (ra["so"], [t.y_chinh for t in tao]), (2, ["A", "B"]))
+	wb2 = openpyxl.Workbook()
+	ws2 = wb2.active
+	ws2.append(["Nội dung"])
+	for i in range(201):
+		ws2.append(["Ý %d" % i])
+	nd2 = io.BytesIO()
+	wb2.save(nd2)
+	tep = _Tep("nhieu.xlsx", nd2.getvalue())
+	nem("201 bản thảo: từ chối", lambda: _nhap(tep))
+	la("tệp gốc chưa xoá khi từ chối", tep.da_xoa, 0)
+
+
+def _jpeg_xoay():
+	from PIL import Image
+	im = Image.new("RGB", (200, 100), (200, 30, 30))
+	ex = Image.Exif()
+	ex[0x0112] = 6
+	nd = io.BytesIO()
+	im.save(nd, "JPEG", exif=ex)
+	return nd.getvalue()
+
+
+@ca("v664 Codex #576: ảnh điện thoại có EXIF xoay 90 độ: xoay đúng chiều trước khi cắt và tính khung (ảnh 200x100 xoay thành 100x200)")
+def _exif():
+	try:
+		from PIL import Image
+	except ImportError:
+		dung("CI không có Pillow", True)
+		return
+	nd = _jpeg_xoay()
+	with um.patch.object(m, "_noi_dung_anh", lambda url: nd):
+		la("không cắt: đứng", Image.open(io.BytesIO(m.anh_jpeg("/f/1.jpg"))).size, (100, 200))
+		la("cắt 4:5 theo chiều đã xoay", Image.open(io.BytesIO(m.anh_jpeg("/f/1.jpg", "4:5"))).size, (100, 125))
+	tep = type("F", (), {"get_content": lambda self: nd, "content_hash": "h"})()
+	with um.patch.object(x.frappe.db, "get_value", lambda *a, **k: "F1", create=True), \
+			um.patch.object(x.frappe, "get_doc", lambda *a, **k: tep, create=True):
+		do = x._do_anh("/f/1.jpg")
+	la("khung khi gắn ảnh tính theo chiều đã xoay", (do["rong"], do["cao"], x.doc_khung(do["rong"], do["cao"])), (100, 200, ""))
+
+
 # ------------------------------------------------------------ nối
 
 @ca("v664 nối: ô token trên Cài đặt lõi (Password), chip trạng thái, nhịp gia hạn Threads, trạng thái Đang đăng trên doctype, màn có màu Đang đăng")
