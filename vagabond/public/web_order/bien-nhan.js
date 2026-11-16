@@ -45,7 +45,18 @@
   /* v664: gửi đơn sang GA4 (purchase), mã giao dịch là mã sự kiện; không gửi lần hai. */
   if (ev.ban && ev.event_id && typeof window.gtag === 'function' && !doc('vgb_ga_' + ev.event_id)) {
     window.gtag('event', 'purchase', {transaction_id: String(ev.event_id), value: Number(ev.gia_tri) || 0, currency: 'VND',
-      items: (ev.ma_mon || []).map(function (id) { return {item_id: String(id)}; })});
+      items: (function () {
+        /* Codex #575: giữ số lượng (mon_sl), gộp cùng mã; máy chủ cũ chỉ có ma_mon thì số lượng 1. */
+        var ds = (ev.mon_sl && ev.mon_sl.length) ? ev.mon_sl : (ev.ma_mon || []).map(function (ma) { return {ma: ma, sl: 1}; });
+        var gop = {}, thu = [];
+        ds.forEach(function (x) {
+          var ma = String((x && x.ma) || '').trim(); if (!ma) return;
+          var sl = Math.max(1, Math.floor(Number(x.sl) || 0));
+          if (!(ma in gop)) { gop[ma] = 0; thu.push(ma); }
+          gop[ma] += sl;
+        });
+        return thu.map(function (ma) { return {item_id: ma, quantity: gop[ma]}; });
+      }())});
     ghi('vgb_ga_' + ev.event_id, '1');
   }
   if (!px) return;
