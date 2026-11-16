@@ -791,6 +791,21 @@ var MKT = ['Marketing'];
     bang('Danh sách lọc theo kênh', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-2']);
   });
 
+  await ca('v664 logo: khung xem trước dùng đúng logo vuông 2025 của tiệm từ design system, logo kênh là tệp logo gốc có thật; không còn chữ V tự vẽ', async function () {
+    var fs = require('fs'), dd = require('path');
+    var m = dungMoi(MKT);
+    await m.g.scrBaiDangSoan('BD-1');
+    var html = m.goc.innerHTML || '';
+    var nguon = (html.match(/src="\/assets\/vagabond\/[^"]+"/g) || []).map(function (x) { return x.slice(5, -1); });
+    dung('ảnh đại diện là logo tiệm', nguon.indexOf('/assets/vagabond/images/logo-vagabond-vuong.jpg') >= 0);
+    dung('logo Facebook và Threads là tệp gốc', nguon.indexOf('/assets/vagabond/images/kenh-mxh/facebook.svg') >= 0 && nguon.indexOf('/assets/vagabond/images/kenh-mxh/threads.svg') >= 0);
+    nguon.forEach(function (u) {
+      dung('tệp có thật: ' + u, fs.existsSync(dd.join(__dirname, '..', '..', '..', 'public', u.replace('/assets/vagabond/', ''))));
+    });
+    dung('không còn chữ V tự vẽ', html.indexOf('Georgia') < 0 && !/>V<\/span>/.test(html));
+    dung('không còn chữ thay logo kênh', !/>(IG|@|Z|f)<span/.test(html) && !/>(IG|@|Z|f)<\/span>/.test(html));
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();
