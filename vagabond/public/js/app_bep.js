@@ -18798,7 +18798,9 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
   var q = posTaiKhoan(nguon, maDiem);
   var url = posQrUrl(soPhieu, tien, nguon, maDiem);
   var ov = document.createElement('div'); ov.className = 'sh';
-  ov.innerHTML = '<div class="shb" style="padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
+  /* Codex #575: bảng QR cao hơn màn điện thoại nằm ngang; tự cuộn dọc để
+     với tới Đổi âm báo, In hoá đơn, Hoá đơn mới. */
+  ov.innerHTML = '<div class="shb" style="padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center;overflow-y:auto;-webkit-overflow-scrolling:touch">' +
     '<div style="font-size:21px;font-weight:800">Chuyển khoản ' + money(tien) + ' đ</div>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' + h(q.ten || '') + ' · ' + h((q.bank || '') + ' ' + (q.stk || '')) + '</div>' +
     (url ? '<img src="' + url + '" alt="VietQR" style="width:min(300px,72vw);aspect-ratio:1;margin:12px auto 4px;display:block;border:1px solid #e5e7eb;border-radius:14px;background:#fff">' : posQrLoi(q,soPhieu,tien)) +
@@ -75180,7 +75182,9 @@ function gmbMoChonChuong() {
   if (cu) cu.remove();
   var ov = document.createElement('div'); ov.className = 'sh'; ov.id = 'gmbChonChuong';
   function ve() {
-    ov.innerHTML = '<div class="shb" style="padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
+    /* Codex #575: .shb chung có overflow:hidden; điện thoại nằm ngang thì phần
+       âm báo tiền và nút Nghe thử bị cắt. Bảng này tự cuộn dọc. */
+    ov.innerHTML = '<div class="shb" style="padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 16px);overflow-y:auto;-webkit-overflow-scrolling:touch">' +
       '<div class="shh" style="padding:0 0 4px"><b>Chọn chuông và âm báo</b><div class="x" data-gmbdong="1">&times;</div></div>' +
       '<div style="font-size:13px;color:#52525b">Chuông đơn kêu khi có đơn gọi món tại bàn, bàn cần trợ giúp, đơn giao chờ xác nhận. Âm báo tiền kêu khi khách chuyển khoản đủ tiền.</div>' +
       gmbKhoiChonChuong() + tienKhoiChonBao() + '</div>';
