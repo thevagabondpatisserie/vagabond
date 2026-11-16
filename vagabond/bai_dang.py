@@ -1376,13 +1376,20 @@ def cai_dat(gio_vang_moi=None, kiem_lai=0):
 
 
 def _xep_dang(ma):
-	"""Xếp lượt đăng của một bài vào hàng đợi nền (mỗi bài một lượt, có trần thời gian).
+	"""Xếp lượt đăng của một bài vào hàng đợi nền (mỗi bài một lượt, có trần thời gian),
+	SAU khi giao dịch chốt để lượt đăng đọc được trạng thái vừa ghi. Bài học #301: lỗi trong
+	callback sau commit không nằm trong try của người gọi, nên bọc ngay trong callback.
 	Xếp không được thì nhịp 5 phút sẽ nhặt lại, nên chỉ ghi lỗi."""
+	def xep():
+		try:
+			frappe.enqueue("vagabond.bai_dang.dang_bai", queue="long", timeout=900,
+				job_id="vgb-bai-dang-%s" % ma, deduplicate=True, ma=ma)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "bai_dang: xếp lượt đăng")
 	try:
-		frappe.enqueue("vagabond.bai_dang.dang_bai", queue="long", timeout=900, enqueue_after_commit=True,
-			job_id="vgb-bai-dang-%s" % ma, deduplicate=True, ma=ma)
+		frappe.db.after_commit.add(xep)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "bai_dang: xếp lượt đăng")
+		xep()
 
 
 def _bao_loi_dang(doc, kenh, chu):
@@ -1577,7 +1584,14 @@ def _hang_xlsx(noi_dung):
 	from openpyxl import load_workbook
 	wb = load_workbook(io.BytesIO(noi_dung), read_only=True, data_only=True)
 	try:
-		return hang_co_chu(wb.worksheets[0].iter_rows(values_only=True))
+		ws = wb.worksheets[0]
+		# #457: tệp ghi <dimension ref> nhỏ hơn bảng thật thì read_only chỉ trả vùng khai
+		# báo. Bỏ kích thước khai báo, đọc theo dữ liệu thật (như doi_soat_doc.doc_xlsx).
+		try:
+			ws.reset_dimensions()
+		except Exception:
+			pass
+		return hang_co_chu(ws.iter_rows(values_only=True))
 	finally:
 		wb.close()
 
