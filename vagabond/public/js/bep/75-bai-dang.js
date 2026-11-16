@@ -33,13 +33,13 @@ var BD_P = 'vagabond.bai_dang.';
 var BD_QUYEN = ['Marketing', 'System Manager', 'Giám đốc', 'AP Giám đốc', 'Sales Manager', 'VGB - Quản lý cửa hàng'];
 function coQuyenBaiDang() { return BD_QUYEN.some(function (v) { return hasRole(v); }); }
 var BD_KENH = [
-  { k: 'fb', ten: 'Facebook', chu: 'f', nen: '#1877F2', cham: '#1877F2', tran: 5000, web: 'https://www.facebook.com/',
+  { k: 'fb', ten: 'Facebook', anh: '/assets/vagabond/images/kenh-mxh/facebook.svg', cham: '#1877F2', tran: 5000, web: 'https://www.facebook.com/',
     giai: 'Bài trên Trang Facebook của tiệm. Nhiều ảnh thì Facebook tự xếp lưới theo ảnh đầu.' },
-  { k: 'ig', ten: 'Instagram', chu: 'IG', nen: 'linear-gradient(45deg,#F58529,#DD2A7B 55%,#8134AF)', cham: '#DD2A7B', tran: 2200, web: 'https://www.instagram.com/',
+  { k: 'ig', ten: 'Instagram', anh: '/assets/vagabond/images/kenh-mxh/instagram.svg', cham: '#DD2A7B', tran: 2200, web: 'https://www.instagram.com/',
     giai: 'Bài hoặc Story trên tài khoản Instagram của tiệm. Nhiều ảnh thành băng chuyền 4:5, tối đa 10 ảnh.' },
-  { k: 'th', ten: 'Threads', chu: '@', nen: '#101828', cham: '#101828', tran: 500, web: 'https://www.threads.net/',
+  { k: 'th', ten: 'Threads', anh: '/assets/vagabond/images/kenh-mxh/threads.svg', cham: '#101828', tran: 500, web: 'https://www.threads.net/',
     giai: 'Một đến ba câu, tối đa 500 ký tự, tối đa 20 ảnh. Threads không có Story.' },
-  { k: 'zl', ten: 'Zalo OA', chu: 'Z', nen: '#0068FF', cham: '#0068FF', tran: 5000, web: 'https://oa.zalo.me/',
+  { k: 'zl', ten: 'Zalo OA', anh: '/assets/vagabond/web_order/logo-kenh/zalo.png', cham: '#0068FF', tran: 5000, web: 'https://oa.zalo.me/',
     giai: 'Bài viết trên trang Zalo OA, có tiêu đề. Không gửi tin cho khách, không tốn phí tin. Zalo OA không có Story.' }
 ];
 /* Màu trạng thái dùng chung mọi màn: thanh trái của thẻ, chấm trên ảnh kênh, chú thích lịch tháng. */
@@ -80,14 +80,16 @@ function bdNgayChu(ngay) { return bdThu(ngay) + ' ' + String(ngay).slice(8, 10) 
 function bdLucChu(s) { s = String(s || ''); return s.length >= 16 ? bdNgayChu(s.slice(0, 10)) + ' · ' + s.slice(11, 16) : ''; }
 function bdTtMau(tt) { return BD_TT[tt] || BD_TT['Nháp']; }
 
-/* Ảnh tròn của kênh. tt: trạng thái của kênh trong bài, hiện thành chấm góc. */
+/* Logo của kênh, dùng đúng tệp logo gốc của hãng (images/kenh-mxh), không vẽ lại.
+   tt: trạng thái của kênh trong bài, hiện thành chấm góc. */
+var BD_LOGO_TIEM = '/assets/vagabond/images/logo-vagabond-vuong.jpg';
 function bdAvatar(k, co, tt, tat) {
   var kn = bdKenh(k); co = co || 28;
   var cham = tt ? '<span style="position:absolute;right:-2px;bottom:-2px;width:' + Math.round(co * .42) + 'px;height:' + Math.round(co * .42) + 'px;border-radius:50%;' +
     'border:2px solid #fff;background:' + bdTtMau(tt).mau + '"></span>' : '';
-  return '<span title="' + h(kn.ten) + '" style="position:relative;flex:0 0 ' + co + 'px;width:' + co + 'px;height:' + co + 'px;border-radius:50%;display:inline-flex;' +
-    'align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:' + Math.round(co * (kn.chu.length > 1 ? .36 : .5)) + 'px;background:' + kn.nen +
-    (tat ? ';opacity:.28;filter:grayscale(1)' : '') + '">' + kn.chu + cham + '</span>';
+  return '<span title="' + h(kn.ten) + '" style="position:relative;flex:0 0 ' + co + 'px;width:' + co + 'px;height:' + co + 'px;display:inline-flex' +
+    (tat ? ';opacity:.28;filter:grayscale(1)' : '') + '"><img src="' + kn.anh + '" alt="' + h(kn.ten) + '" width="' + co + '" height="' + co + '" ' +
+    'style="display:block;width:' + co + 'px;height:' + co + 'px;object-fit:contain">' + cham + '</span>';
 }
 function bdChongAvatar(ds) {
   return '<span style="display:inline-flex;align-items:center">' + (ds || []).map(function (x, i) {
@@ -414,7 +416,7 @@ function bdTheXem(bai, k, on) {
   var kn = bdKenh(k), ban = (bai.ban || {})[k] || {}, anh = (bai.cho_kenh || {})[k] || [], story = bai.kieu === 'Story';
   var dai = String(ban.chu || '').length, qua = dai > kn.tran, khoa = !bai.sua;
   var dau = '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px">' +
-    '<span style="flex:0 0 34px;height:34px;border-radius:50%;background:#05323C;color:#50DBF2;display:flex;align-items:center;justify-content:center;font:700 17px Georgia,serif">V</span>' +
+    '<img src="' + BD_LOGO_TIEM + '" alt="The Vagabond Pâtisserie" width="34" height="34" style="flex:0 0 34px;width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #eaecf0">' +
     '<div style="flex:1;min-width:0;line-height:1.25"><div style="font-size:14px;font-weight:700">' + (k === 'ig' || k === 'th' ? 'thevagabondpatisserie' : 'The Vagabond Pâtisserie') + '</div>' +
     '<div style="font-size:13px;color:#667085">' + h(story ? 'Story · 24 giờ' : (bdLucChu(bai.hen_luc) || 'Ngay khi duyệt')) + '</div></div>' + bdAvatar(k, 26) + '</div>';
   if (story) {
