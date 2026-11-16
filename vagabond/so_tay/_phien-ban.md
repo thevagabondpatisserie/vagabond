@@ -14,6 +14,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 ## v664
 - Miễn phí giao đơn giao của quầy
+- Gắn Google Analytics cho trang web khách
 
 ## v663
 - Gửi thử tin WhatsApp
