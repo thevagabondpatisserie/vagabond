@@ -24,6 +24,7 @@ import {GoiTaiBan, GoiTaiBanNoi} from './goi-tai-ban.js';
 import {dungQuayHien} from './kho-goi-ban.js';
 import {VanhNghieng, xepMuc} from './vanh.js';
 import {VeSuKien, dongSheet as dongSheetVe} from './ve-su-kien.js';
+import {gaTuMeta} from '../kho/thuan.js';
 
 function luuTruAnToan() {
   try { const s = window.sessionStorage; s.getItem('x'); return s; } catch (e) { return null; }
@@ -39,7 +40,12 @@ export function khoiDong(goc = '#app') {
      thử hiện giỏ và thông tin khách cũ. Cùng một hàm laXemThu với napNoiDung. */
   ND.xemThu = laXemThu(window);
   const pixel = {id: ''};
-  const suKien = (ten, du) => { try { if (pixel.id && typeof window.fbq === 'function') window.fbq('track', ten, du); } catch (e) { /* im lặng */ } };
+  const suKien = (ten, du) => {
+    try { if (pixel.id && typeof window.fbq === 'function') window.fbq('track', ten, du); } catch (e) { /* im lặng */ }
+    /* v664: cùng chỗ bắn Pixel thì bắn GA4. Thẻ GA trong <head> chỉ nạp khi Cài đặt có mã
+       và không ở khung xem thử, nên không có window.gtag là không gửi. */
+    try { const g = ND.xemThu ? null : gaTuMeta(ten, du); if (g && typeof window.gtag === 'function') window.gtag('event', g[0], g[1]); } catch (e) { /* im lặng */ }
+  };
   const kho = taoKho({t, tMon, doc, ghi, luuTru: luuTruAnToan(), suKien, ngauNhien, xemThu: () => ND.xemThu, mxh, nd: ND,
     cookie: () => document.cookie, timKiem: () => location.search});
   const S = kho.S;
