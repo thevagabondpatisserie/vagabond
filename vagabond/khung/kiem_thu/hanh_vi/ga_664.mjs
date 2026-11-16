@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {gaTuMeta} from '../../../public/web_vue/kho/thuan.js';
+import {gaTuMeta, itemsGuiDon} from '../../../public/web_vue/kho/thuan.js';
 import {bienNhan} from '../../../public/web_vue/trang/app.js';
 
 const GOC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
@@ -78,6 +78,14 @@ ca('sự kiện Pixel sang GA4: xem bánh, thêm giỏ, bắt đầu thanh toán
   bang('PageView không gửi qua đây', gaTuMeta('PageView', {}), null);
 });
 
+ca('Codex #575 số lượng: thêm 3 bánh cùng mã là quantity 3; giỏ hai dòng cùng mã gộp lại; biên nhận ba bánh cùng mã là 3', () => {
+  bang('thêm 3', gaTuMeta('AddToCart', {content_ids: ['B1'], contents: [{id: 'B1', quantity: 3}], value: 1350000})[1].items, [{item_id: 'B1', quantity: 3}]);
+  bang('giỏ', gaTuMeta('InitiateCheckout', {content_ids: ['B1', 'B2', 'B1'], contents: [{id: 'B1', quantity: 2}, {id: 'B2', quantity: 1}, {id: 'B1', quantity: 1}], value: 1})[1].items,
+    [{item_id: 'B1', quantity: 3}, {item_id: 'B2', quantity: 1}]);
+  bang('biên nhận mon_sl', itemsGuiDon({mon_sl: [{ma: 'BAWC00139', sl: 3}], ma_mon: ['BAWC00139']}), [{item_id: 'BAWC00139', quantity: 3}]);
+  bang('máy chủ cũ chỉ có ma_mon', itemsGuiDon({ma_mon: ['A', 'B']}), [{item_id: 'A', quantity: 1}, {item_id: 'B', quantity: 1}]);
+});
+
 ca('biên nhận gửi đơn: bắn purchase đúng một lần, mã giao dịch là mã sự kiện; mở lại không bắn', () => {
   const tok = 'C'.repeat(43), kho = {}, gui = [];
   const win = {
@@ -86,12 +94,31 @@ ca('biên nhận gửi đơn: bắn purchase đúng một lần, mã giao dịch
     sessionStorage: {getItem: k => (k in kho ? kho[k] : null), setItem: (k, v) => { kho[k] = String(v); }},
     gtag: (...a) => gui.push(a), document: {createElement: () => ({}), head: {appendChild() {}}},
   };
-  const D = {bien_nhan: {ma: 'DW-1'}, pixel_id: '', su_kien: {ban: 1, event_id: 'EV-77', gia_tri: 650000, ma_mon: ['BAWC00139']}};
+  const D = {bien_nhan: {ma: 'DW-1'}, pixel_id: '', su_kien: {ban: 1, event_id: 'EV-77', gia_tri: 1950000, ma_mon: ['BAWC00139'], mon_sl: [{ma: 'BAWC00139', sl: 3}]}};
   bienNhan(D, win);
-  bang('một purchase', gui, [['event', 'purchase', {transaction_id: 'EV-77', value: 650000, currency: 'VND', items: [{item_id: 'BAWC00139'}]}]]);
+  bang('một purchase, ba bánh cùng mã', gui, [['event', 'purchase', {transaction_id: 'EV-77', value: 1950000, currency: 'VND', items: [{item_id: 'BAWC00139', quantity: 3}]}]]);
   win.location.pathname = '/banh/xong/' + tok;
   bienNhan(D, win);
   bang('mở lại không bắn thêm', gui.length, 1);
+});
+
+ca('biên nhận trang cũ (bien-nhan.js chạy thật): purchase một lần, ba bánh cùng mã là quantity 3, không cần Pixel', () => {
+  const fs = globalThis.process.getBuiltinModule('node:fs');
+  const src = fs.readFileSync(path.join(GOC, 'vagabond/public/web_order/bien-nhan.js'), 'utf8');
+  const kho = {}, gui = [];
+  const mo = () => {
+    const win = {VGB_BIEN_NHAN: {than: '<main></main>', pixel_id: '', su_kien: {ban: true, event_id: 'EV-9', gia_tri: 1950000,
+      ma_mon: ['B1', 'B2'], mon_sl: [{ma: 'B1', sl: 3}, {ma: 'B2', sl: 1}]}},
+      location: {pathname: '/banh/xong/' + 'D'.repeat(43), search: ''}, history: {replaceState() {}},
+      sessionStorage: {getItem: k => (k in kho ? kho[k] : null), setItem: (k, v) => { kho[k] = String(v); }},
+      gtag: (...a) => gui.push(a)};
+    const g = {window: win, document: {getElementById: () => ({}), createElement: () => ({}), getElementsByTagName: () => [{parentNode: {insertBefore() {}}}]},
+      Math, Number, String};
+    vm.createContext(g); vm.runInContext(src, g);
+  };
+  mo(); mo();
+  bang('một purchase', gui, [['event', 'purchase', {transaction_id: 'EV-9', value: 1950000, currency: 'VND',
+    items: [{item_id: 'B1', quantity: 3}, {item_id: 'B2', quantity: 1}]}]]);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong.');
