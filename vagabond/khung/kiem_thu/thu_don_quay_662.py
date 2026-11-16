@@ -8,7 +8,7 @@ Ca chốt:
   - Bảng món gọi được (goi_mon_ban.bang_mon) theo kênh, và trừ bánh mà đơn giao
     của quầy đang giữ ở MỌI kênh (một nguồn don_quay.giu_cua_diem).
   - Ô Miễn phí giao đơn giao của quầy người điền tay: mọi cách điền hợp lý; để
-    trống là 500.000 đ, gõ 0 là tắt.
+    trống hoặc 0 là 500.000 đ (ô tiền trống đọc ra 0, v664); tắt bằng công tắc riêng.
   - Trả trước bắt buộc: tiền mặt về chuyển khoản.
   - Trạng thái ở quầy chỉ đi đúng chiều: bấm hai lần, màn cũ bấm muộn đều dừng.
   - Đơn chưa trả chỉ giữ món 30 phút.
@@ -78,13 +78,36 @@ def _():
 	la("mặc định vẫn là Tại bàn", [x["ma"] for x in b.ap_menu(menu, uong)[1]], ["NU2"])
 
 
-@ca("v662 ô Miễn phí giao đơn giao của quầy: trống là 500.000, 0 là tắt, nhận 500.000, 500k, 0,5tr, 1tr, chữ lạ không tắt oan")
+@ca("v664 ô Miễn phí giao đơn giao của quầy: trống hay 0 là 500.000 (ô tiền trống đọc ra 0), nhận 500.000, 500k, 0,5tr, 1tr, chữ lạ không tắt oan")
 def _():
 	c = _dq().chuan_nguong
-	for v, mong in ((None, 500000), ("", 500000), ("   ", 500000), ("0", 0), (0, 0), ("500000", 500000),
+	for v, mong in ((None, 500000), ("", 500000), ("   ", 500000), ("0", 500000), (0, 500000), (0.0, 500000),
+			("0.000000000", 500000), ("500000", 500000),
 			("500.000", 500000), ("500,000", 500000), ("500k", 500000), ("500 nghìn", 500000), ("0,5tr", 500000),
 			("1tr", 1000000), ("1 triệu", 1000000), ("300.000đ", 300000), ("abc", 500000), (450000.0, 450000)):
 		la("%r" % (v,), c(v), mong)
+
+
+@ca("v664 công tắc Tắt miễn phí giao đơn giao của quầy: đọc đúng từ Cài đặt, bật thì đơn lớn vẫn tính phí")
+def _():
+	import sys
+	from unittest import mock
+	d = _dq()
+	la("chuẩn hoá ô Check", [d.la_bat(x) for x in (1, "1", 1.0, "0", 0, "", None, "True")], [True, True, True, False, False, False, False, True])
+	o = {}
+	lib = type(sys)("vagabond.lib")
+	lib.cfg_o = lambda ten: o.get(ten, "")
+	with mock.patch.dict(sys.modules, {"vagabond.lib": lib}):
+		la("chưa khai gì: 500.000", d.nguong_mien_phi(), 500000)
+		o[d.O_MIEN_PHI] = 0.0
+		la("ô tiền đọc ra 0: vẫn 500.000", d.nguong_mien_phi(), 500000)
+		o[d.O_MIEN_PHI] = 800000.0
+		la("khai 800.000", d.nguong_mien_phi(), 800000)
+		o[d.O_TAT_MIEN_PHI] = "1"
+		la("bật Tắt miễn phí giao: không miễn phí", d.nguong_mien_phi(), 0)
+	f = [x["fieldname"] for x in d.TRUONG_MOI["Vagabond Settings"]]
+	la("Cài đặt có cả ô mức và công tắc, công tắc đứng ngay sau ô mức", f, [d.O_MIEN_PHI, d.O_TAT_MIEN_PHI])
+	dung("mô tả ô mức không còn câu sai 'Gõ 0 là tắt'", "Gõ 0 là tắt" not in d.TRUONG_MOI["Vagabond Settings"][0]["description"])
 
 
 @ca("v662 đơn giao trả trước: tiền mặt và giá trị lạ về chuyển khoản; thẻ giữ nguyên")
