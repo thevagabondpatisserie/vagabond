@@ -310,19 +310,25 @@ export function chiaTang(ds, nhomNuoc, tangChon, t) {
   if (dem('banh')) tang.push({n: 'banh', ten: t('goi_ban_tang_banh', 'Bánh'), so: dem('banh')});
   if (dem('nuoc')) tang.push({n: 'nuoc', ten: t('goi_ban_tang_nuoc', 'Đồ uống'), so: dem('nuoc')});
   const chon = tang.some(x => x.n === tangChon) ? tangChon : '';
+  const banh = ds.filter(m => m.loai === 'banh');
+  const tenNhom = m => String(m.nhom || '').trim() || t('goi_ban_banh_khac', 'Bánh khác');
+  const cac = [...new Set(banh.map(tenNhom))];
+  cac.sort((a, b) => {
+    const ia = THU_TU_NHOM_BANH.indexOf(a), ib = THU_TU_NHOM_BANH.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, 'vi');
+  });
+  const chipBanh = cac.map(g => ({n: 'b:' + g, ten: g, so: banh.filter(m => tenNhom(m) === g).length}));
+  const chipNuoc = (nhomNuoc || []).filter(x => x.n.startsWith('g:') || x.n === 'nuoc' || x.n.startsWith('nuoc:'));
   let nho = [];
   if (chon === 'banh') {
-    const banh = ds.filter(m => m.loai === 'banh');
-    const cac = [...new Set(banh.map(m => String(m.nhom || '').trim() || t('goi_ban_banh_khac', 'Bánh khác')))];
-    cac.sort((a, b) => {
-      const ia = THU_TU_NHOM_BANH.indexOf(a), ib = THU_TU_NHOM_BANH.indexOf(b);
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, 'vi');
-    });
-    nho = [{n: '', ten: t('goi_ban_tat_ca_banh', 'Tất cả bánh'), so: banh.length}].concat(cac.map(g => ({n: 'b:' + g, ten: g,
-      so: banh.filter(m => (String(m.nhom || '').trim() || t('goi_ban_banh_khac', 'Bánh khác')) === g).length})));
+    nho = [{n: '', ten: t('goi_ban_tat_ca_banh', 'Tất cả bánh'), so: banh.length}].concat(chipBanh);
   } else if (chon === 'nuoc') {
-    nho = [{n: '', ten: t('goi_ban_tat_ca_nuoc', 'Tất cả đồ uống'), so: dem('nuoc')}].concat(
-      (nhomNuoc || []).filter(x => x.n.startsWith('g:') || x.n === 'nuoc' || x.n.startsWith('nuoc:')));
+    nho = [{n: '', ten: t('goi_ban_tat_ca_nuoc', 'Tất cả đồ uống'), so: dem('nuoc')}].concat(chipNuoc);
+  } else if (!chon) {
+    /* v670 (Minh Vũ 17/11): ở Tất cả bày luôn mọi nhóm món (Bánh lạnh, Bánh nướng,
+       Bánh khô, rồi Trà, Cà phê...) để khách chạm thẳng vào nhóm, không phải chọn
+       Bánh hay Đồ uống trước. */
+    nho = [{n: '', ten: t('goi_ban_moi_nhom', 'Mọi nhóm'), so: ds.length}].concat(chipBanh, chipNuoc);
   }
   return {tang, tangChon: chon, nho: nho.length > 2 ? nho : []};
 }
@@ -353,6 +359,12 @@ export function monGiaoCuaQuay(chon) {
   const banh = (chon.mon || []).filter(m => banOKenh(m, 'giao')).map(m => ({...m, loai: 'banh', bienThe: [{ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten}]}));
   return banh.concat(gomSize((chon.do_uong || []).filter(m => banOKenh(m, 'giao')).map(m => ({...m, loai: 'nuoc'}))));
 }
+/* v670: combo của một kênh. Bản máy chủ cũ không gửi cờ thì Tại bàn coi như bán,
+   Giao coi như KHÔNG bán (cùng luật banOKenh của món). THUẦN. */
+export function comboTheoKenh(ds, kenh) {
+  if (kenh !== 'tai_ban' && kenh !== 'giao') return [];
+  return (ds || []).filter(c => banOKenh(c, kenh)).map(c => (kenh === 'giao' && c.con_giao !== undefined ? {...c, con: c.con_giao} : c));
+}
 export function dungQuayHien(S, G, t) {
   let quay = (S.STORE && S.STORE.quay) || [];
   if (G && G.ban && G.ban.ok) quay = quay.filter(q => q.ma === G.ban.diem);
@@ -372,8 +384,11 @@ export function dungQuayHien(S, G, t) {
   const coMenu = Array.isArray(chon.nhom_menu);
   if (coMenu) ({nhom, ds} = theoMenu(chon.nhom_menu, banh, nuoc, t));
   else { ds = banh.concat(nuoc); nhom = chipNhom(banh, nuoc, t); }
-  /* Combo chỉ bày ở chế độ gọi món tại bàn (khách xem tủ bánh không cần). */
-  const combo = (G && G.ban && G.ban.ok) ? dungCombo(chon.combo) : [];
+  /* Combo bày ở gọi món tại bàn và (v670, Minh Vũ 17/11) ở tab Tại quầy đặt giao,
+     mỗi kênh theo cờ máy chủ gửi (combo bán Giao khi mọi món thành phần tick Giao
+     và luật bán cho phép nguồn phiếu của đơn giao). Số bộ của kênh Giao là con_giao.
+     Xem tủ bánh thường (chưa vào tab Tại quầy) không bày combo. */
+  const combo = dungCombo(comboTheoKenh(chon.combo, kenh));
   if (combo.length) {
     ds = combo.concat(ds);
     nhom.splice(1, 0, {n: 'combo', ten: t('goi_ban_chip_combo', 'Combo'), so: combo.length});
