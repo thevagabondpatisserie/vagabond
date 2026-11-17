@@ -791,6 +791,46 @@ var MKT = ['Marketing'];
     bang('Danh sách lọc theo kênh', m.goc.querySelectorAll('[data-bdbai]').map(function (x) { return x.getAttribute('data-bdbai'); }), ['BD-2']);
   });
 
+  await ca('v666 Đăng ngay: bài có giờ hẹn hiện thêm nút Đăng ngay; lỗi đỏ về giờ không khoá nút; hỏi xác nhận rồi gửi duyet kèm dang_ngay', async function () {
+    var nhan = [];
+    var m = dungMoi(MKT, { xem: baiMau({ hen_luc: '2026-11-16 19:00', kiem: [{ muc: 'chan', chu: 'Giờ hẹn 19:00 16/11 đã qua', nut: ['gio', 'Đổi giờ'] }] }),
+      duyet: function (ts) { nhan.push(ts); return baiMau({ hen_luc: '', trang_thai: 'Đã hẹn giờ', sua: false, kenh: [{ k: 'fb', tt: 'Đã hẹn giờ', tu: 1 }, { k: 'th', tt: 'Đã hẹn giờ', tu: 1 }] }); } });
+    await m.g.scrBaiDangSoan('BD-1');
+    dung('nút Duyệt khoá vì giờ đã qua', mot(m.goc, '[data-bdduyet]').hasAttribute('disabled'));
+    var n = mot(m.goc, '[data-bddangngay]');
+    dung('có nút Đăng ngay, không khoá', !!n && !n.hasAttribute('disabled'));
+    bam(m, n);
+    await choDen(function () { return nhan.length; });
+    dung('hỏi xác nhận nói số kênh', m.hoi.some(function (x) { return x.indexOf('Đăng ngay 2 kênh?') === 0; }));
+    bang('gửi đúng một lần kèm dang_ngay', JSON.stringify(nhan.map(function (x) { return [x.ma, x.dang_ngay]; })), JSON.stringify([['BD-1', 1]]));
+    await choDen(function () { return m.toast.length; });
+    dung('báo đang đăng', m.toast.some(function (t) { return t.indexOf('Hệ thống đang đăng 2 kênh') === 0; }));
+    var k = dungMoi(MKT, { xem: baiMau({ hen_luc: '2026-11-17 07:30', kiem: [{ muc: 'chan', chu: 'Chưa có ảnh', nut: ['anh', 'Tải ảnh'] }] }) });
+    await k.g.scrBaiDangSoan('BD-1');
+    dung('lỗi đỏ khác: Đăng ngay khoá', mot(k.goc, '[data-bddangngay]').hasAttribute('disabled'));
+    var z = dungMoi(MKT, { xem: baiMau({ hen_luc: '' }) });
+    await z.g.scrBaiDangSoan('BD-1');
+    dung('không hẹn giờ: chỉ một nút Duyệt, ghi đăng ngay', !mot(z.goc, '[data-bddangngay]') && /Duyệt · đăng (tay )?ngay/.test(chu(mot(z.goc, '.vf'))));
+    var t = dungMoi(MKT, { xem: baiMau({ hen_luc: '2026-11-17 07:30' }) });
+    t.g._dongY = false;
+    await t.g.scrBaiDangSoan('BD-1');
+    bam(t, mot(t.goc, '[data-bddangngay]'));
+    await cho(50);
+    dung('bấm Thôi: không gửi', !t.goi.some(function (g) { return g.duong.indexOf('duyet') >= 0; }));
+  });
+
+  await ca('v666 danh sách: logo kênh của một bài xếp cách nhau, không chồng lên nhau', async function () {
+    var m = dungMoi(MKT, { lich: { xem: 'ds', moc: '2026-11-16', duyet: true, viec: {}, ky_chu: '1 bài',
+      ds: [the('BD-1', '19:30', 'Nháp', ['fb', 'ig', 'th', 'zl'])] } });
+    m.g.BD.xem = 'ds';
+    await m.g.scrBaiDang();
+    await choDen(function () { return (m.goc.innerHTML || '').indexOf('data-bdbai') >= 0; });
+    var html = m.goc.innerHTML || '';
+    dung('có thẻ bài', html.indexOf('data-bdbai') >= 0);
+    dung('không còn lề âm làm logo chồng nhau', html.indexOf('margin-left:-') < 0);
+    dung('dãy logo có khoảng cách', html.indexOf('display:inline-flex;align-items:center;gap:6px') >= 0);
+  });
+
   await ca('v664 logo: khung xem trước dùng đúng logo vuông 2025 của tiệm từ design system, logo kênh là tệp logo gốc có thật; không còn chữ V tự vẽ', async function () {
     var fs = require('fs'), dd = require('path');
     var m = dungMoi(MKT);
