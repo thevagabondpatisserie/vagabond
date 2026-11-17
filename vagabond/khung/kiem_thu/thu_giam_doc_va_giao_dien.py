@@ -62,8 +62,9 @@ def _():
 	# giám đốc duyệt ("đưa vào mục việc cần làm của giám đốc là được").
 	# v653 (#555): thêm việc thứ năm, đợt dự chi công nợ chờ giám đốc duyệt
 	# (duyệt cả đợt một lần thay vì từng APP).
-	la("đúng năm việc hệ trọng", sorted(vcl.VIEC_HE_TRONG),
-		["doi_soat_duyet", "du_chi", "hang_tang", "ho_so_tt", "nop_quy"])
+	# v666 (anh Việt 17/11/2026): thêm việc thứ sáu, bài đăng Marketing gửi giám đốc duyệt.
+	la("đúng sáu việc hệ trọng", sorted(vcl.VIEC_HE_TRONG),
+		["bai_dang", "doi_soat_duyet", "du_chi", "hang_tang", "ho_so_tt", "nop_quy"])
 	dung("kế toán KHÔNG thấy việc duyệt tải tay", not vcl.thay_duoc("doi_soat_duyet", {"Accounts Manager"}))
 
 
