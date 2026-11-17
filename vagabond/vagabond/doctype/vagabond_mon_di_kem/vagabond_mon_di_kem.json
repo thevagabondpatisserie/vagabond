@@ -11,7 +11,7 @@
  "search_fields": "mon_goc,ten_goi_y",
  "sort_field": "modified",
  "sort_order": "DESC",
- "modified": "2026-11-17 22:00:00.000000",
+ "modified": "2026-11-17 23:30:00.000000",
  "description": "v668: cặp Món gốc - Món gợi ý cho khối Gợi ý mua thêm ở giỏ hàng web và khung Đặt giao. Web chỉ dùng dòng Đã duyệt. Duyệt ở app, màn Món đi kèm.",
  "field_order": [
   "mon_goc",
@@ -122,6 +122,20 @@
   },
   {
    "role": "Marketing",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "AP Giám đốc",
    "read": 1,
    "write": 1,
    "create": 1,
