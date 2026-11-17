@@ -140,7 +140,7 @@ def _kiem_2():
 	k = x.kiem_bai(_bai(hen_luc="2026-11-17 08:30"), BAY_GIO, tr, [{"name": "BD-9", "tieu_de": "Mekong", "ngay": "03/11"}])
 	la("nhắc trùng giờ và ảnh cũ", _muc(k, "nhac"), ['Instagram đã có bài "Croissant" lúc 07:30', 'Ảnh này đã đăng trong bài "Mekong" ngày 03/11'])
 	la("nhắc không chặn", _muc(k, "chan"), [])
-	la("ảnh khác khung khi có Facebook thì nhắc", _muc(x.kiem_bai(_bai(anh=[{"khung": "1:1"}, {"khung": "4:5"}]), BAY_GIO), "nhac"), ["Ảnh khác khung nhau"])
+	la("ảnh khác khung khi có Facebook thì nhắc (v668: nói rõ ảnh bị cắt)", _muc(x.kiem_bai(_bai(anh=[{"khung": "1:1"}, {"khung": "4:5"}]), BAY_GIO), "nhac"), ["Facebook sẽ cắt ảnh 2 cho đúng lưới 2 ảnh vuông"])
 	la("chữ cách", (x.chu_cach(45), x.chu_cach(60), x.chu_cach(119)), ("45 phút", "1 giờ", "1 giờ 59 phút"))
 
 

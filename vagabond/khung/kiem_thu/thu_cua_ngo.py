@@ -86,6 +86,8 @@ CUA_NGO = {
 	# v621 Tin Zalo tự động: năm cửa của màn, chặn vai CRM ở máy chủ. Nhịp
 	# chay_tu_dong và các hàm quét, gửi KHÔNG được mở ra ngoài.
 	# v662 (anh Việt 15/11): bài đăng mạng xã hội, Marketing soạn, duyệt, đăng tay.
+	# v668 Gợi ý mua thêm: hai cửa cho trang khách, các cửa màn Món đi kèm.
+	"goi_y_mua.py": ["bao_cao_goi_y", "cap_quay", "dat_muc_giu", "doi_nhieu", "duoi_muc_giu", "goi_y_dat_truoc", "luu_cai_dat", "luu_cap", "man_hinh"],
 	"bai_dang.py": ["cai_dat", "da_dang", "doi_moc", "duyet", "gio_trong", "gui_duyet", "huy", "lich", "luu", "nhap_tep", "soan_ai",
 		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh"],
 	"mxh.py": [],

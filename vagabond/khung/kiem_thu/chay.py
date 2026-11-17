@@ -258,7 +258,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_lich_du_chi_654,
 	thu_de_xuat_cong_thuc_656,
 	# v662 Bài đăng mạng xã hội: kênh, khung ảnh, trùng giờ, bảng Kiểm, Duyệt có khoá.
-	thu_bai_dang_662, thu_bai_dang_664,
+	thu_bai_dang_662, thu_bai_dang_664, thu_bai_dang_668,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.
 	thu_quy_tac_chu_657,
 	# v657 máy mở app qua đêm vẫn chạy bản cũ: hỏi số bản máy chủ, tải lại.
@@ -297,6 +297,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_ve_su_kien_658,
 	# v667 Đặc biệt tuần này: đợt cuối tuần, luật ngày giao, giờ chốt, số lượng dưới khoá.
 	thu_dac_biet_tuan_667,
+	# v668 Gợi ý mua thêm: luật tồn, ghép, xếp hạng, đo, mức giữ tại bếp, bản nháp.
+	thu_goi_y_mua_668,
 	# v659 tờ chia nhiều cách trả: chỉ đòi ngân hàng phần Chuyển khoản (Loan Anh 14/11, đơn 97492).
 	thu_can_ck_dong_chia,
 	# v649 màn Lệnh sản xuất: thẻ gọn, câu chặn kiểm kê ghi số phiếu (ảnh anh Việt 11/11).
