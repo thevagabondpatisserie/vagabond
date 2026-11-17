@@ -597,9 +597,9 @@ def tao_don(don=None):
 	ly_dbt = dbt.kiem_don(dot, hang_dbt, ma_dbt, ngay, dbt.luc_vn())
 	if ly_dbt:
 		return {"ok": 0, "ly_do": ly_dbt, "ngay_giao": list(dot.get("ngay_giao") or [])}
-	# Món có số lượng tối đa: đếm và giữ suất dưới khoá đợt, ngay trước lúc ghi.
-	co_suat = bool(dot) and bool(dbt.dong_cua_dot(hang_dbt, ma_dbt)) and any(
-		m.get("toi_da") for m in dot.get("mon_dt") or [])
+	# Đơn có món của đợt: xét lại giờ mở, giờ chốt, ngày giao và số lượng dưới
+	# khoá đợt, ngay trước lúc ghi (Codex #579: bấm 19:59, tới lúc ghi đã 20:01).
+	co_dbt = bool(dot) and bool(dbt.dong_cua_dot(hang_dbt, ma_dbt))
 
 	# F21 cách B: tìm nonce ở trên, rồi mới đọc tồn tại lúc gửi. Nguồn
 	# không đọc được thì nhận như cũ, nhưng phải báo Sales đối chiếu.
@@ -828,17 +828,29 @@ def tao_don(don=None):
 	# v645: đơn dùng ưu đãi đơn đầu tiên thì khoá thêm theo số, xét lại ngay
 	# dưới khoá: hai đơn cùng số gửi cùng lúc chỉ một đơn được giảm.
 	with don_web.khoa_ghi(khoa), (don_dau_web.khoa_so(dien_thoai) if dung_dau else contextlib.nullcontext()), \
-			(dbt.khoa_suat(dot) if co_suat else contextlib.nullcontext()):
+			(dbt.khoa_suat(dot) if co_dbt else contextlib.nullcontext()):
 		trung = don_web.tim_trung(khoa)
 		if trung:
 			return don_web.phan_hoi(trung, nonce, trung=True)
-		if co_suat:
+		if co_dbt:
 			# v667: đọc SAU khoá đợt. Kết thúc giao dịch đọc từ đầu yêu cầu để thấy
-			# đơn vừa commit của khách khác (MariaDB đọc thường thấy ảnh chụp cũ).
+			# đơn vừa commit của khách khác và bản đợt Marketing vừa lưu (MariaDB
+			# đọc thường thấy ảnh chụp cũ). Giờ lấy lại tại đây, không dùng giờ
+			# lúc nhận yêu cầu: chờ giá, phí giao, khoá có thể vượt qua giờ chốt.
 			frappe.db.commit()
-			vuot = dbt.vuot_suat(dot, hang_dbt, ma_dbt, dbt.da_dat(dot, ma_dbt))
-			if vuot:
-				return {"ok": 0, "ly_do": dbt.HET_SUAT, "nhac": vuot}
+			try:
+				dot_x = dbt.dot_de_xet(dot, dbt.dot_cong_khai())
+				ma_x = ma_dbt if dot_x is dot else dbt.ma_theo_khoa(dot_x)
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc lại được đợt Đặc biệt tuần này")
+				dot_x, ma_x = dot, ma_dbt
+			ly_dbt = dbt.kiem_don(dot_x, hang_dbt, ma_x, ngay, dbt.luc_vn())
+			if ly_dbt:
+				return {"ok": 0, "ly_do": ly_dbt, "ngay_giao": list(dot_x.get("ngay_giao") or [])}
+			if any(m.get("toi_da") for m in dot_x.get("mon_dt") or []):
+				vuot = dbt.vuot_suat(dot_x, hang_dbt, ma_x, dbt.da_dat(dot_x, ma_x))
+				if vuot:
+					return {"ok": 0, "ly_do": dbt.HET_SUAT, "nhac": vuot}
 		if dung_dau:
 			# Kết thúc giao dịch đọc từ đầu yêu cầu để thấy đơn vừa commit.
 			frappe.db.commit()

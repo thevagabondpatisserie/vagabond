@@ -214,6 +214,16 @@ def kiem_don(dot, hang, ma_theo_khoa, ngay_nhan, luc):
     return None
 
 
+def dot_de_xet(dot_dau, dot_moi):
+    """THUẦN. Đợt dùng để xét lại dưới khoá đợt. Đọc lại vẫn đúng đợt khách đã
+    đặt thì dùng bản mới (Marketing vừa sửa giờ chốt, ngày giao, số tối đa).
+    Đợt vừa bị tắt, hết ngày hiện hay bị thay bằng đợt khác thì giữ bản đầu,
+    để món của đợt không lọt qua như bánh thường sau giờ chốt."""
+    if dot_moi and dot_dau and dot_moi.get("id") == dot_dau.get("id"):
+        return dot_moi
+    return dot_dau
+
+
 def vuot_suat(dot, hang, ma_theo_khoa, da_dat):
     """THUẦN. Món vượt số lượng tối đa nếu nhận thêm đơn này: [{khoa, con}]."""
     them = dong_cua_dot(hang, ma_theo_khoa)
