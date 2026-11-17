@@ -806,6 +806,46 @@ var MKT = ['Marketing'];
     dung('không còn chữ thay logo kênh', !/>(IG|@|Z|f)<span/.test(html) && !/>(IG|@|Z|f)<\/span>/.test(html));
   });
 
+  await ca('v668 lưới Facebook xem trước: mỗi ô đúng khung máy chủ gửi (bo_cuc_fb), đúng bảng cỡ ảnh anh Việt gửi', async function () {
+    var c = {}; vm.createContext(c); vm.runInContext(layHam(MAN, 'bdLuoiFb'), c);
+    var ty = function (k) { var p = k.split(':'); return +p[0] / +p[1]; };
+    /* [số ảnh, khung từng ô] lấy đúng như bo_cuc_fb trả (thu_bai_dang_668.py). */
+    [[1, ['4:5']], [1, ['1:1']], [1, ['3:2']], [2, ['2:1', '2:1']], [2, ['1:2', '1:2']], [2, ['1:1', '1:1']],
+      [3, ['2:1', '1:1', '1:1']], [3, ['1:2', '1:1', '1:1']], [3, ['1:1', '1:1', '1:1']], [4, ['1:1', '1:1', '1:1', '1:1']],
+      [5, ['1:1', '1:1', '1:1', '1:1', '1:1']]].forEach(function (m) {
+      var l = c.bdLuoiFb(m[0], m[1][0]);
+      bang(m[0] + ' ảnh ' + m[1][0] + ': số ô', l.o.length, m[0]);
+      l.o.forEach(function (o, i) {
+        var thuc = o.w / (o.h * l.cao / 100);
+        dung(m[0] + ' ảnh ' + m[1][0] + ' ô ' + (i + 1) + ': cần ' + m[1][i] + ', được ' + thuc.toFixed(2), Math.abs(thuc - ty(m[1][i])) / ty(m[1][i]) < 0.03);
+        dung('ô nằm trong khung', o.x + o.w <= 100.1 && o.y + o.h <= 100.1);
+      });
+    });
+  });
+
+  await ca('v668 (ảnh anh Việt 17/11): hàng kênh ĐÃ LÊN ĐỦ KÊNH không còn chữ dọc từng ký tự; mọi nút .btn nằm trong hàng ngang đều giữ bề rộng riêng, không chiếm cả hàng', async function () {
+    var dl = baiMau({ trang_thai: 'Đã đăng', sua: false, kenh: [{ k: 'fb', tt: 'Đã đăng', luc: '13:22', link: '' }, { k: 'ig', tt: 'Đã đăng', luc: '13:22', link: 'https://instagram.com/p/1' },
+      { k: 'th', tt: 'Chờ đăng tay', dang_duoc: 1, loi: 'Hết hạn đăng nhập' }, { k: 'zl', tt: 'Đã hẹn giờ', tu: 1 }] });
+    var m = dungMoi(MKT, { xem: dl });
+    await m.g.scrBaiDangSoan('BD-1');
+    dung('có nút Thêm link', !!mot(m.goc, '[data-bdthemlink="fb"]'));
+    var sai = [], dem = 0;
+    (function di(el) {
+      (el.children || []).forEach(function (c) {
+        var lop = ' ' + (c.getAttribute && c.getAttribute('class') || '') + ' ';
+        var cha = (el.getAttribute && el.getAttribute('style') || '').replace(/\s/g, '');
+        var st = (c.getAttribute && c.getAttribute('style') || '').replace(/\s/g, '');
+        if (lop.indexOf(' btn ') >= 0 && cha.indexOf('display:flex') >= 0 && cha.indexOf('flex-direction:column') < 0) {
+          dem++;
+          if (!/width:auto|(^|;)flex:/.test(st)) sai.push((c._chu || c.textContent || '').trim().slice(0, 30) || st);
+        }
+        di(c);
+      });
+    })(m.goc);
+    dung('đã đo các nút trong hàng ngang (Thêm link, Chép và mở app, Đã đăng)', dem >= 3);
+    bang('nút chiếm cả hàng', sai, []);
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();
