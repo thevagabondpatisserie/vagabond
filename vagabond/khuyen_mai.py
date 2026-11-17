@@ -215,9 +215,21 @@ def _hop_thoi_gian(km, luc=None):
 	return True, ""
 
 
+# v670 (anh Việt 17/11/2026): kênh đặt giao Tại quầy gọi một chữ WEBORDER ở mọi chỗ cài
+# đặt; phiếu cũ (và ô Kênh chưa đổi) còn mang "Web giao". Codex #585: so kênh qua bí danh để
+# phiếu cũ không mất ưu đãi, điểm sau khi ô Kênh đổi sang WEBORDER. Không sửa chứng từ cũ.
+BI_DANH_KENH = {"Web giao": "WEBORDER"}
+
+
+def chuan_kenh(nguon):
+	"""THUẦN: tên kênh chuẩn để so luật (bí danh cũ về tên mới)."""
+	n = (nguon or "").strip()
+	return BI_DANH_KENH.get(n, n)
+
+
 def _hop_kenh(km, nguon, quay):
-	ds_kenh = _dong(km.get("kenh"))
-	if ds_kenh and (nguon or "").strip() not in ds_kenh:
+	ds_kenh = [chuan_kenh(x) for x in _dong(km.get("kenh"))]
+	if ds_kenh and chuan_kenh(nguon) not in ds_kenh:
 		return False, "không áp dụng cho nguồn đơn %s" % (nguon or "(trống)")
 	ds_quay = [q.upper() for q in _dong(km.get("quay"))]
 	# Don ban online cua Sales khong mang ma quay (o vgb_quay de trong), nen
@@ -1801,8 +1813,8 @@ def ly_do_khong_web(km, nguon=None):
 		return "Chương trình cần mã OTP quản lý nên chỉ dùng tại cửa hàng."
 	if (km.get("doi_tuong") or "Moi khach") != "Moi khach":
 		return "Chương trình theo hạng hoặc nhóm khách chỉ dùng tại cửa hàng."
-	kenh = _dong(km.get("kenh"))
-	nguon = nguon or NGUON_WEB
+	kenh = [chuan_kenh(x) for x in _dong(km.get("kenh"))]
+	nguon = chuan_kenh(nguon or NGUON_WEB)
 	if kenh and nguon not in kenh:
 		# v662: đơn giao của quầy (WEBORDER) có kênh riêng; mã WEBORDER không áp cho đơn đặt bánh Website.
 		return "Chương trình không mở cho kênh %s." % ("đặt giao tại quầy" if nguon == NGUON_WEBORDER else "Website")

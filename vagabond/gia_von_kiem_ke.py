@@ -76,6 +76,21 @@ def moc(ngay=None, gio=None):
 	return "%s %s" % (str(ngay)[:10], g[:8])
 
 
+def moc_ghi_so(ngay, gio, sua_ngay_gio, bay_gio):
+	"""THUẦN: (ngày, giờ) phiếu kiểm kê SẼ ghi sổ, để tra giá đúng mốc đó.
+
+	Không tích "Sửa ngày giờ ghi sổ" thì ERPNext đặt lại ngày giờ phiếu về lúc
+	lưu (validate_posting_time, chạy SAU hook trước khi lưu của app). Ngày giờ
+	đang nằm trên phiếu lúc đó có thể cũ: Frappe giữ khuôn phiếu mới theo từng
+	tiến trình, ngày mặc định "Hôm nay" tính MỘT lần còn giờ tính lại mỗi lần,
+	nên qua nửa đêm phiếu mới mang ngày hôm qua với giờ 00:00 (bench 17/11:
+	"chưa có giá vốn tới 2026-11-17 00:00:03" trong khi hàng nhập lúc 23:59).
+	Màn Desk mở từ trước cũng vậy. `bay_gio` là datetime lúc lưu."""
+	if int(sua_ngay_gio or 0):
+		return ngay, gio
+	return bay_gio.strftime("%Y-%m-%d"), bay_gio.strftime("%H:%M:%S")
+
+
 def _gia_kho_khac(ma, kho, ngay=None, gio=None):
 	"""Giá sổ kho gần nhất của mã ở KHO KHÁC cùng công ty, KHÔNG muộn hơn mốc
 	phiếu (Codex #401 F2: phiếu ghi lùi ngày không được lấy giá tương lai)."""
@@ -118,6 +133,11 @@ def dien_gia(doc, method=None):
 	"""
 	if doc.docstatus == 2:
 		return
+	from frappe.utils import now_datetime
+
+	# Nhập dữ liệu hay khôi phục: ERPNext giữ ngày trên phiếu (coi như đã tích sửa).
+	sua = doc.get("set_posting_time") or ((frappe.flags.in_import or doc.flags.get("from_restore")) and doc.posting_date)
+	ngay, gio = moc_ghi_so(doc.posting_date, doc.posting_time, 1 if sua else 0, now_datetime())
 	for r in doc.get("items") or []:
 		if not r.item_code:
 			continue
@@ -129,8 +149,7 @@ def dien_gia(doc, method=None):
 			if r.get("use_serial_batch_fields"):
 				r.use_serial_batch_fields = 0
 		if can_dien(r.qty, r.valuation_rate, r.get("allow_zero_valuation_rate"), r.get("current_valuation_rate")):
-			gia, _nguon = gia_von(r.item_code, r.warehouse or doc.get("set_warehouse"),
-				doc.posting_date, doc.posting_time)
+			gia, _nguon = gia_von(r.item_code, r.warehouse or doc.get("set_warehouse"), ngay, gio)
 			if gia:
 				r.valuation_rate = gia
 			else:
@@ -138,7 +157,7 @@ def dien_gia(doc, method=None):
 				# sang Item Price/Item hiện tại. Chặn trước để Desk không đi vòng.
 				frappe.throw("Dòng %s, món %s: chưa có giá vốn trên sổ kho tới %s. "
 					"Nhập giá vốn tại thời điểm kiểm kê đã được kế toán xác minh."
-					% (r.idx, r.item_code, moc(doc.posting_date, doc.posting_time)))
+					% (r.idx, r.item_code, moc(ngay, gio)))
 
 
 @frappe.whitelist()
