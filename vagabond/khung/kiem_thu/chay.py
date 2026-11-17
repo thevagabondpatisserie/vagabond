@@ -312,6 +312,10 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_don_quay_662,
 	# v664 Google Analytics 4 trên trang khách.
 	thu_do_luong_ga_664,
+	# v666 hoá đơn điều chỉnh của nhà cung cấp trên màn Đối chiếu mua.
+	thu_hd_dieu_chinh_666,
+	# v667 tiền nộp thừa trả OnePay ở đơn Pancake cũ (Loan Anh, đơn 97790).
+	thu_tien_du_onepay_667,
 )
 
 

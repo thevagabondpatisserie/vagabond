@@ -322,7 +322,8 @@ CUA_NGO = {
 		# `bo_noi` them 10/09/2026 (issue #252): go dau noi phieu nhap tren
 		# to con nhap, khi luong cua phieu da bi hoa don khac ghi so lay mat.
 		"bo_noi",
-		"danh_sach", "don_vi_cua_mon", "gan_ma_hang", "ghi_so_thang", "goi_y_mon",
+		# `ghi_so_dieu_chinh` them v666: ghi so to hoa don dieu chinh vao to goc.
+		"danh_sach", "don_vi_cua_mon", "gan_ma_hang", "ghi_so_dieu_chinh", "ghi_so_thang", "goi_y_mon",
 		"khai_don_vi", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
 	],
 	# Bang gia nhap duoi theo gia tren hoa don, them 31/08/2026. `can_khai_don_vi`

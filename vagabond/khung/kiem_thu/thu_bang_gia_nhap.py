@@ -170,8 +170,14 @@ def _gan_ma_hang():
 	dung("nan lai don vi khi gan", "goi_y_don_vi(dvt_ncc)" in MA_DCM)
 	dung("bao lai khi don vi chua khai", "chua_khai_don_vi" in MA_DCM)
 	# KHONG dong toi tien: do la so cua ban goc da gui co quan thue.
-	dung("khong sua so luong", "d.qty =" not in MA_DCM)
-	dung("khong sua don gia", "d.rate =" not in MA_DCM)
+	# v666: xet dung than ham gan ma hang. Nut "Quy ve" (sua_don_vi quy_doi)
+	# co doi so luong va don gia theo don vi moi nhung giu nguyen thanh tien,
+	# co ca kiem rieng trong thu_hd_dieu_chinh_666.
+	i = MA_DCM.index("def gan_ma_hang(")
+	j = MA_DCM.find("\n@frappe.whitelist", i)
+	than = MA_DCM[i:j if j > 0 else len(MA_DCM)]
+	dung("khong sua so luong", "d.qty =" not in than)
+	dung("khong sua don gia", "d.rate =" not in than)
 	# To da ghi so thi khong duoc dong vao.
 	dung("chan to da ghi so", "đã ghi sổ rồi, không gắn mã hàng được" in MA_DCM)
 	dung("man hinh co nut", "data-dcmgan" in MA_DCM_JS)
