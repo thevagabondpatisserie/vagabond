@@ -1,0 +1,131 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Mon Di Kem",
+ "module": "Vagabond",
+ "custom": 0,
+ "istable": 0,
+ "autoname": "hash",
+ "engine": "InnoDB",
+ "track_changes": 1,
+ "title_field": "ten_goi_y",
+ "search_fields": "mon_goc,ten_goi_y",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "modified": "2026-11-17 22:00:00.000000",
+ "description": "v668: cặp Món gốc - Món gợi ý cho khối Gợi ý mua thêm ở giỏ hàng web và khung Đặt giao. Web chỉ dùng dòng Đã duyệt. Duyệt ở app, màn Món đi kèm.",
+ "field_order": [
+  "mon_goc",
+  "nhom_goc",
+  "mon_goi_y",
+  "ten_goi_y",
+  "ly_do_vn",
+  "ly_do_en",
+  "col_1",
+  "trang_thai",
+  "ghim_tu",
+  "ghim_den",
+  "uu_tien",
+  "nguon"
+ ],
+ "fields": [
+  {
+   "fieldname": "mon_goc",
+   "label": "Món gốc",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Bánh khách đã chọn: tên bánh trên web (mọi size dùng chung) hoặc mã món. Để trống nếu dùng Nhóm món gốc."
+  },
+  {
+   "fieldname": "nhom_goc",
+   "label": "Nhóm món gốc",
+   "fieldtype": "Link",
+   "options": "Item Group",
+   "in_standard_filter": 1,
+   "description": "Áp cho mọi món trong nhóm này khi món đó chưa có dòng riêng."
+  },
+  {
+   "fieldname": "mon_goi_y",
+   "label": "Món gợi ý",
+   "fieldtype": "Link",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ten_goi_y",
+   "label": "Tên món gợi ý",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "fetch_from": "mon_goi_y.item_name"
+  },
+  {
+   "fieldname": "ly_do_vn",
+   "label": "Câu lý do (tiếng Việt)",
+   "fieldtype": "Data",
+   "length": 60,
+   "description": "Dưới 40 ký tự, hiện dưới tên món. Ví dụ: Caramel muối hợp bơ muối."
+  },
+  {
+   "fieldname": "ly_do_en",
+   "label": "Câu lý do (tiếng Anh)",
+   "fieldtype": "Data",
+   "length": 60
+  },
+  {
+   "fieldname": "col_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "trang_thai",
+   "label": "Trạng thái",
+   "fieldtype": "Select",
+   "options": "Nháp\nĐã duyệt\nBỏ",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Web chỉ dùng dòng Đã duyệt. Nháp: chờ duyệt. Bỏ: không dùng."
+  },
+  {
+   "fieldname": "ghim_tu",
+   "label": "Ghim từ ngày",
+   "fieldtype": "Date",
+   "description": "Trong khoảng ghim, món này luôn đứng đầu khối gợi ý."
+  },
+  {
+   "fieldname": "ghim_den",
+   "label": "Ghim đến ngày",
+   "fieldtype": "Date"
+  },
+  {
+   "fieldname": "uu_tien",
+   "label": "Thứ tự ưu tiên",
+   "fieldtype": "Int",
+   "default": "10",
+   "description": "Số nhỏ đứng trước khi cùng được ghim."
+  },
+  {
+   "fieldname": "nguon",
+   "label": "Nguồn",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "description": "Bản nháp tự soạn hay người thêm."
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ]
+}
