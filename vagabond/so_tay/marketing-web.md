@@ -343,17 +343,17 @@ Từ khoá: món đi kèm, duyệt gợi ý, ghim món, mức giữ tại bếp,
 |---|---|---|
 | Marketing, giám đốc, bếp | Món đi kèm (phân hệ Khách hàng & Marketing, mục Web đặt bánh) | [[Duyệt ... dòng]] |
 
-**Trước đây:** không có chỗ chọn món gợi ý mua thêm, bếp không có mức giữ bánh khô cho đơn web.
+**Trước đây:** không có chỗ chọn món gợi ý mua thêm, bếp không có mức giữ bánh khô.
 
-**Từ nay:** bảng Món đi kèm có sẵn bản nháp soạn từ tên, mô tả, tầng hương của bánh (trạng thái Chờ duyệt). Bếp đặt Mức giữ tại bếp cho đơn web cho từng bánh khô; phiếu chuyển từ bếp ra cửa hàng làm tồn bếp xuống dưới mức thì hệ thống cảnh báo, không chặn.
+**Từ nay:** bảng Món đi kèm có sẵn bản nháp soạn từ tên, tầng hương của bánh (Chờ duyệt). Bếp đặt Mức giữ tại bếp cho đơn web cho từng bánh khô; phiếu chuyển từ bếp ra cửa hàng làm tồn bếp xuống dưới mức thì hệ thống cảnh báo, không chặn.
 
 **Các bước**
 1. Mở Món đi kèm, phần Cặp gợi ý, chip Chờ duyệt. Các dòng gom theo món gốc.
-2. Chạm một dòng để sửa câu lý do (dưới 40 ký tự), ghim từ ngày đến ngày, thứ tự; bấm [[Lưu và duyệt]] hoặc [[Bỏ cặp này]].
+2. Thêm cặp: bấm [[＋ Thêm cặp]], chọn bánh gốc hoặc nhóm và món gợi ý trong danh sách. Chạm một dòng để sửa câu lý do (dưới 40 ký tự), ghim từ ngày đến ngày, thứ tự; bấm [[Lưu và duyệt]] hoặc [[Bỏ cặp này]].
 3. Duyệt nhiều dòng: chạm ô chọn từng dòng hoặc [[Chọn cả món]], rồi bấm [[Duyệt ... dòng]] ở chân màn.
-4. Phần Mức giữ: xem món đang dưới mức, đặt mức cho một món (gõ mã món và số).
-5. Phần Kết quả: tỉ lệ đơn có món mua thêm, giá trị đơn trung bình, món được thêm nhiều nhất (30 ngày).
-6. Phần Cài đặt: bật tắt gợi ý ở giỏ đặt trước, Tại quầy, Đặc biệt tuần này, thanh miễn phí giao; số món tối đa, ngưỡng tồn, nhóm món, kho bếp, câu chung theo nhóm. Bấm [[Lưu cài đặt]].
+4. Phần Mức giữ: xem món dưới mức; đặt mức: chọn món, điền số, bấm [[Lưu mức giữ]].
+5. Phần Kết quả: tỉ lệ đơn có món mua thêm, giá trị đơn trung bình, món thêm nhiều nhất (30 ngày).
+6. Phần Cài đặt: bật tắt gợi ý ở giỏ đặt trước, Tại quầy, Đặc biệt tuần này, thanh miễn phí giao; số món tối đa, ngưỡng tồn; chọn nhóm món, kho bếp trong danh sách; câu chung theo nhóm thêm bằng [[＋ Thêm câu cho nhóm]]. Bấm [[Lưu cài đặt]].
 
 **Lưu ý**
 - Hệ thống không tự điều chuyển giữa các kho. Bếp tự lập phiếu điều chuyển như cũ.
