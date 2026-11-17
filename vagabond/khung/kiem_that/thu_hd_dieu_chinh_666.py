@@ -95,13 +95,14 @@ def _ghi_so_that():
 		if g.account == dc.credit_to and g.party == dc.supplier), 2), float(-DIEU_CHINH))
 	la("công nợ tờ gốc còn 8.000.000",
 		flt(frappe.db.get_value("Purchase Invoice", goc.name, "outstanding_amount")), float(PNK))
-	cty = nen.cong_ty()
-	srbnb = frappe.get_cached_value("Company", cty, "stock_received_but_not_billed")
+	la("công nợ ghi ngược vào tờ gốc", (dc.get("update_outstanding_for_self"), flt(dc.outstanding_amount)), (0, 0.0))
+	# Tài khoản hàng về chưa có hoá đơn: lấy đúng tài khoản ERPNext đặt cho
+	# dòng hàng kho của phiếu nợ (bench lượt đầu đọc Company và không thấy).
+	srbnb = frappe.get_cached_value("Company", nen.cong_ty(), "stock_received_but_not_billed") or dc.items[0].expense_account
+	dung("có tài khoản hàng về chưa có hoá đơn", bool(srbnb))
 	theo_hd = frappe.db.get_single_value("Buying Settings", "set_landed_cost_based_on_purchase_invoice_rate")
 	if srbnb and not theo_hd:
 		la("hàng về chưa có hoá đơn của phiếu nhập về 0 sau ba chứng từ", _so_du(srbnb, p, goc, dc), 0.0)
-	else:
-		dung("Buying Settings đang tính giá kho theo hoá đơn: ca này chưa xét tài khoản hàng về", not theo_hd)
 
 
 @ca("v666 bấm ghi sổ điều chỉnh lần hai thì từ chối, không ghi phiếu nợ thứ hai")
