@@ -12,6 +12,11 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v668
+- Gợi ý mua thêm trên trang đặt bánh
+- Duyệt món đi kèm và mức giữ bánh khô tại bếp
+- Cỡ ảnh bài Facebook
+
 ## v667
 - Đợt món cuối tuần (tab Đặc biệt tuần này)
 - Tab Tại quầy gọn hơn và dọn cuối trang đặt bánh

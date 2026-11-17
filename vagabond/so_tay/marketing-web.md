@@ -185,6 +185,7 @@ Soạn, duyệt, theo dõi bài trên bốn kênh. Ảnh do designer làm; AI ch
 **Lưu ý**
 - Ô đỏ khi chọn giờ: kênh đó có bài trong 2 giờ. Ô mờ: đã có bài đúng giờ, không chọn được.
 - Facebook xếp lưới theo ảnh số 1 (lưới trên màn là dự kiến).
+
 - Story không có chữ kèm, không có sticker.
 - Người không có quyền duyệt bấm [[Gửi Marketing duyệt]].
 
@@ -315,3 +316,68 @@ Dán mã đo lường GA4 (dạng G-XXXXXXXXXX, lấy ở Google Analytics > Qu�
 Sau khi lưu, các trang đặt bánh, biên nhận, bánh sỉ, thành viên, đặt bàn, ứng tuyển, chính sách tự nạp GA. Màn nhân viên không đo. Sự kiện gửi sang GA: xem bánh (view_item), thêm vào giỏ (add_to_cart), bắt đầu thanh toán (begin_checkout), gửi đơn (purchase, mỗi đơn một lần).
 
 Đường dẫn gửi sang GA đã gỡ mã biên nhận, chỉ giữ tham số quảng cáo (utm, gclid, fbclid). Khung xem thử trong Biên tập web không gửi số liệu.
+
+## Gợi ý mua thêm trên trang đặt bánh
+Từ khoá: gợi ý mua thêm, giao kèm cùng chuyến, uống kèm, ăn kèm, miễn phí giao, bánh khô, viennoiserie, món đi kèm
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách đặt bánh, Marketing | Trang đặt bánh: giỏ hàng, khung Đặt giao của tab Tại quầy | nút + trên thẻ món |
+
+**Trước đây:** giỏ hàng chỉ có bánh khách chọn, không gợi ý món giao kèm.
+
+**Từ nay:** giỏ đặt trước có khối GIAO KÈM CÙNG CHUYẾN ngay dưới nút Chọn thêm bánh: bánh khô còn hàng ở bếp trung tâm và viennoiserie bếp làm theo đơn. Khung Đặt giao của tab Tại quầy có khối UỐNG KÈM CHO HỢP (giỏ có bánh) hoặc ĂN KÈM CHO HỢP (giỏ chỉ có đồ uống), lấy đúng món của cửa hàng đang chọn. Khách bấm + là thêm ngay một cái. Giao tận nơi chưa đủ mốc miễn phí giao thì có dòng "Thêm ... nữa được miễn phí giao" kèm vạch tiến độ.
+
+**Bạn cần làm**
+1. Marketing duyệt các cặp món ở màn Món đi kèm (mục dưới). Web chỉ dùng cặp Đã duyệt; món chưa có cặp thì gợi ý theo nhóm với câu chung.
+2. Muốn tắt gợi ý ở một chỗ: màn Món đi kèm, phần Cài đặt.
+
+**Lưu ý**
+- Không gợi ý món đã có trong giỏ, món hết ở bếp, món còn dưới ngưỡng tồn (mặc định 3).
+- Dòng khách thêm từ gợi ý được đánh dấu để đo kết quả; chỉ tính đơn từ bản này.
+
+## Duyệt món đi kèm và mức giữ bánh khô tại bếp
+Từ khoá: món đi kèm, duyệt gợi ý, ghim món, mức giữ tại bếp, dưới mức giữ, cảnh báo chuyển kho, kết quả gợi ý
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, giám đốc, bếp | Món đi kèm (phân hệ Khách hàng & Marketing, mục Web đặt bánh) | [[Duyệt ... dòng]] |
+
+**Trước đây:** không có chỗ chọn món gợi ý mua thêm, bếp không có mức giữ bánh khô cho đơn web.
+
+**Từ nay:** bảng Món đi kèm có sẵn bản nháp soạn từ tên, mô tả, tầng hương của bánh (trạng thái Chờ duyệt). Bếp đặt Mức giữ tại bếp cho đơn web cho từng bánh khô; phiếu chuyển từ bếp ra cửa hàng làm tồn bếp xuống dưới mức thì hệ thống cảnh báo, không chặn.
+
+**Các bước**
+1. Mở Món đi kèm, phần Cặp gợi ý, chip Chờ duyệt. Các dòng gom theo món gốc.
+2. Chạm một dòng để sửa câu lý do (dưới 40 ký tự), ghim từ ngày đến ngày, thứ tự; bấm [[Lưu và duyệt]] hoặc [[Bỏ cặp này]].
+3. Duyệt nhiều dòng: chạm ô chọn từng dòng hoặc [[Chọn cả món]], rồi bấm [[Duyệt ... dòng]] ở chân màn.
+4. Phần Mức giữ: xem món đang dưới mức, đặt mức cho một món (gõ mã món và số).
+5. Phần Kết quả: tỉ lệ đơn có món mua thêm, giá trị đơn trung bình, món được thêm nhiều nhất (30 ngày).
+6. Phần Cài đặt: bật tắt gợi ý ở giỏ đặt trước, Tại quầy, Đặc biệt tuần này, thanh miễn phí giao; số món tối đa, ngưỡng tồn, nhóm món, kho bếp, câu chung theo nhóm. Bấm [[Lưu cài đặt]].
+
+**Lưu ý**
+- Hệ thống không tự điều chuyển giữa các kho. Bếp tự lập phiếu điều chuyển như cũ.
+
+## Cỡ ảnh bài Facebook
+Từ khoá: cỡ ảnh, kích thước ảnh, Facebook, lưới ảnh, ảnh bị cắt, ảnh mờ, 1200x1200, 1920x1920, Story, Reels
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, designer | Bài đăng mạng xã hội, bảng Kiểm | [[Sửa ảnh]] |
+
+**Trước đây:** hệ thống cắt mọi ảnh Facebook thành vuông.
+
+**Từ nay:** hệ thống xếp lưới Facebook theo số ảnh và ảnh số 1, ảnh đã đúng ô thì đăng nguyên bản.
+
+| Số ảnh | Cỡ nên làm |
+|---|---|
+| 1 ảnh | dọc 960x1200, vuông 1200x1200, ngang 1200x800 |
+| 2 ảnh | hai ảnh ngang 1200x600 hoặc hai ảnh dọc 600x1200 |
+| 3 ảnh | ảnh chính ngang 1920x960 hoặc dọc 960x1920, hai ảnh vuông 1920x1920 |
+| 4 ảnh | bốn ảnh vuông 1920x1920 |
+| 5 ảnh trở lên | ảnh vuông 1920x1920, ảnh phụ vuông hoặc 1920x1280 |
+| Story, Reels | 1080x1920 |
+
+**Lưu ý**
+- Ảnh lệch ô lưới: bảng Kiểm nhắc "Facebook sẽ cắt ảnh ..." kèm cỡ nên làm. Ảnh dưới 1080 px: nhắc dễ bị mờ. Chỉ nhắc, vẫn duyệt được.
+
