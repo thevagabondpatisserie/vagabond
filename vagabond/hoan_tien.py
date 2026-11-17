@@ -238,6 +238,10 @@ def so_don_hop_le(v):
 	return x.lstrip("0") if x.isdigit() and x.strip("0") else ""
 
 
+# Dòng bảng kê OnePay tính vào tiền khách đã trả: mua và hoàn (hoàn mang số âm).
+LOAI_ONEPAY = ("ban", "hoan")
+
+
 def tien_onepay_cua_don(cac_so, dong, si_name):
 	"""Tiền OnePay đã về cho một hoá đơn, từ các dòng bảng kê. THUẦN.
 
@@ -272,8 +276,9 @@ def _so_don_cua_si(si):
 
 
 def _dong_onepay(cac_so, si_name):
-	"""Dòng bảng kê OnePay (đã nhận) mang các số đơn này hoặc đã nối vào hoá
-	đơn này. Đọc đủ, không giới hạn số dòng."""
+	"""Dòng bảng kê OnePay mang các số đơn này hoặc đã nối vào hoá đơn này: cả
+	giao dịch mua (loai "ban") lẫn hoàn qua OnePay (loai "hoan", số âm), để tiền
+	còn giữ của khách là số RÒNG (Codex #580). Đọc đủ, không giới hạn số dòng."""
 	from vagabond.doi_soat_vendor import DT_DONG
 
 	if not frappe.db.exists("DocType", DT_DONG):
@@ -282,7 +287,7 @@ def _dong_onepay(cac_so, si_name):
 	ra, thay = [], set()
 	loc = [{"sales_invoice": si_name}] + [{"ma_tham_chieu": ["like", "%%O%sT%%" % s]} for s in cac_so if s]
 	for f in loc:
-		f.update({"vendor": "OnePay", "loai": "ban"})
+		f.update({"vendor": "OnePay", "loai": ["in", list(LOAI_ONEPAY)]})
 		for r in frappe.get_all(DT_DONG, filters=f, fields=truong, limit_page_length=0):
 			if r.name not in thay:
 				thay.add(r.name)
@@ -330,13 +335,12 @@ def _kiem_don_cu(si, don_cu, khoa=False):
 		frappe.throw("Số đơn cũ chỉ gồm chữ số, ví dụ 97615.")
 	if so == _so_don_cua_si(si):
 		frappe.throw("Đó là số đơn của chính hoá đơn này, không phải đơn cũ.")
-	# Đơn cũ còn hoá đơn của chính nó thì tiền thuộc về hoá đơn đó.
-	if frappe.get_meta(SI).has_field("custom_pancake_display_id"):
-		hd = frappe.db.get_value(SI, {"custom_pancake_display_id": so, "docstatus": ["<", 2],
-			"name": ["!=", si.name], "vgb_huy": 0}, "name")
-		if hd:
-			frappe.throw("Đơn %s còn hoá đơn %s của chính nó, tiền OnePay của đơn đó thuộc hoá đơn ấy."
-				% (so, hd))
+	# Đơn cũ còn hoá đơn của chính nó thì tiền thuộc về hoá đơn đó. Số đơn đọc
+	# đúng một cách với đối soát (ô số đơn, hoá đơn cũ thì ghi chú), Codex #580.
+	hd = _hoa_don_cua_don(so, si.name)
+	if hd:
+		frappe.throw("Đơn %s còn hoá đơn %s của chính nó, tiền OnePay của đơn đó thuộc hoá đơn ấy."
+			% (so, hd[0]))
 	# Một khoản OnePay chỉ được trả lại một lần. Lúc lập phiếu (khoa) thì đọc
 	# khoá, thấy cả phiếu lần bấm khác vừa ghi.
 	if co_o_don_tra_tien():
@@ -352,6 +356,25 @@ def _kiem_don_cu(si, don_cu, khoa=False):
 	return so
 
 
+def _hoa_don_cua_don(so, tru):
+	"""Hoá đơn còn hiệu lực (khác `tru`) mang số đơn Pancake `so`, đọc bằng
+	doi_soat_khop.so_don_pancake: ô số đơn, thiếu thì ghi chú "Pancake #...".
+	Đọc đủ, không giới hạn."""
+	from vagabond.doi_soat_khop import so_don_pancake
+
+	co_o = frappe.get_meta(SI).has_field("custom_pancake_display_id")
+	truong = ["name", "remarks"] + (["custom_pancake_display_id"] if co_o else [])
+	hoac = [["remarks", "like", "%%%s%%" % so]] + ([["custom_pancake_display_id", "=", so]] if co_o else [])
+	f = {"docstatus": ["<", 2], "name": ["!=", tru]}
+	if frappe.get_meta(SI).has_field("vgb_huy"):
+		f["vgb_huy"] = 0
+	ra = []
+	for r in frappe.get_all(SI, filters=f, or_filters=hoac, fields=truong, limit_page_length=0):
+		if so_don_pancake(r.get("custom_pancake_display_id"), r.get("remarks")) == so:
+			ra.append(r.get("name"))
+	return ra
+
+
 def co_o_don_tra_tien():
 	try:
 		return frappe.get_meta(DT).has_field("don_tra_tien")
@@ -359,32 +382,54 @@ def co_o_don_tra_tien():
 		return True
 
 
-def goi_y_don_cu(si, toi_da=5):
-	"""Dòng OnePay chưa nối hoá đơn nào, tiền lớn hơn đơn này, trong 45 ngày
-	trước ngày đơn: gợi ý số đơn cũ cho Sales chạm chọn (vẫn kiểm đủ khi lập)."""
+def chon_goi_y(dong, don_cua_khach, so_cua_hd, tong_don, tu_ngay, toi_da=5):
+	"""Gợi ý đơn cũ: CHỈ đơn Pancake của chính khách này (AGENTS 2b.16, Codex
+	#580), khác đơn của hoá đơn, còn dòng OnePay chưa nối hoá đơn nào, tiền
+	ròng (mua trừ hoàn) lớn hơn đơn này, từ `tu_ngay`. Lọc phạm vi TRƯỚC rồi
+	mới cắt `toi_da`, đơn của khách khác không chiếm chỗ. THUẦN."""
 	from vagabond.doi_soat_khop import so_don_onepay
-	from vagabond.doi_soat_vendor import DT_DONG
 
+	cua_khach = {str(x) for x in don_cua_khach or [] if str(x or "").strip()} - {str(so_cua_hd or "")}
+	gom = {}
+	for d in dong or []:
+		so = so_don_onepay(d.get("ma_tham_chieu"))
+		if so not in cua_khach or str(d.get("sales_invoice") or "").strip():
+			continue
+		g = gom.setdefault(so, {"so": so, "tien": 0.0, "ngay": ""})
+		g["tien"] += flt(d.get("tien_hang"))
+		g["ngay"] = max(g["ngay"], str(d.get("ngay") or ""))
+	ra = [g for g in gom.values() if g["tien"] > flt(tong_don) and g["ngay"] >= str(tu_ngay or "")]
+	ra.sort(key=lambda g: g["ngay"], reverse=True)
+	return [dict(g, tien=round(g["tien"], 0)) for g in ra[:toi_da]]
+
+
+def _don_cua_khach(sdt):
+	"""Số đơn Pancake của một số điện thoại, đọc thẳng Pancake (30 đơn gần nhất)."""
+	from vagabond import dang_nhap
+	from vagabond.lib import key
+
+	c = cfg()
+	k = key(c, "pancake_api_key")
+	if not (k and c.pancake_shop_id and sdt):
+		return []
+	return [o.get("ma_don") for o in dang_nhap._don_pancake(c, k, sdt, gioi_han=30) if o.get("ma_don")]
+
+
+def goi_y_don_cu(si, toi_da=5):
+	"""Gợi ý số đơn cũ cho Sales chạm chọn (vẫn kiểm đủ khi lập): đơn của chính
+	khách trên hoá đơn còn tiền OnePay chưa nối, trong 45 ngày trước ngày đơn."""
 	try:
-		if not frappe.db.exists("DocType", DT_DONG):
+		sdt = _khach_tren_don(si.name, si.get("customer")).get("sdt")
+		don = _don_cua_khach(sdt)
+		so = _so_don_cua_si(si)
+		cac = [d for d in don if d and d != so]
+		if not cac:
 			return []
-		ngay = si.get("posting_date")
-		rows = frappe.get_all(DT_DONG, filters={"vendor": "OnePay", "loai": "ban",
-			"sales_invoice": ["is", "not set"], "tien_hang": [">", flt(si.grand_total)],
-			"ngay": ["between", [add_days(ngay, -45), ngay]]},
-			fields=["ma_tham_chieu", "tien_hang", "ngay"], order_by="ngay desc", limit_page_length=50)
+		return chon_goi_y(_dong_onepay(cac, si.name), cac, so, flt(si.grand_total),
+			str(add_days(si.get("posting_date"), -45)), toi_da)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "hoan_tien: goi y don cu OnePay")
 		return []
-	ra, thay = [], {_so_don_cua_si(si)}
-	for r in rows:
-		so = so_don_onepay(r.get("ma_tham_chieu"))
-		if so and so not in thay:
-			thay.add(so)
-			ra.append({"so": so, "tien": flt(r.get("tien_hang")), "ngay": str(r.get("ngay") or "")})
-		if len(ra) >= toi_da:
-			break
-	return ra
 
 
 def _tien_da_nhan(si):
