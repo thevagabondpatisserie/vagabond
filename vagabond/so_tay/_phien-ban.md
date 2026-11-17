@@ -23,6 +23,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Gửi giám đốc duyệt bài đăng
 - Dải chip trạng thái đầu màn Bài đăng
 - Nhóm món và combo ở tab Tại quầy đặt giao
+- Mã đơn WEBORDER và O2O
 
 ## v669
 - Không đổi thao tác: bản gộp để deploy một lần v666 (#578), v667 (#579, #580), v668 (#581); hướng dẫn nằm ở các mục của từng bản bên dưới

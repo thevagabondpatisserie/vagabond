@@ -1582,7 +1582,7 @@ Khách đặt qua tab Tại quầy trên trang chủ, chọn Giao tận nơi ho�
 
 **Lưu ý**
 - Tài xế GreenSM huỷ chuyến thì máy CHƯA tự báo (GreenSM chưa có tài liệu báo trạng thái). Xem app GreenSM và gọi lại nếu cần.
-- Món chỉ lên đơn giao khi quản lý đã tick Giao ở Biên tập menu.
+- Món chỉ lên đơn giao khi quản lý đã tick WEBORDER ở Biên tập menu.
 - Từ chối thì mã ưu đãi của đơn trả lại cho khách.
 
 ## Nhóm món và combo ở tab Tại quầy đặt giao
@@ -1595,27 +1595,43 @@ Từ khoá: tại quầy, đặt giao, nhóm món, bánh nướng, bánh khô, t
 Trước đây: tab Tại quầy chỉ có ba chip Tất cả, Bánh, Đồ uống; muốn xem Bánh nướng phải bấm Bánh trước. Combo chỉ bày ở trang gọi món tại bàn. Từ nay: ngay dưới hàng Tất cả, Combo, Bánh, Đồ uống có hàng nhóm món (Bánh lạnh, Bánh nướng, Bánh khô, rồi Trà, Cà phê...), chạm là lọc. Trang gọi món tại bàn cũng vậy. Combo cố định của quầy bày cả ở tab Tại quầy cho khách đặt giao.
 
 **Bạn cần làm**
-1. Muốn một combo lên tab Tại quầy: mở combo, bật combo, ô Kênh để trống hoặc có nguồn Mang về của quầy (đơn giao lập phiếu tạm tính với nguồn này).
-2. Mọi món trong combo phải tick [[Giao]] ở Biên tập menu. Thiếu một món thì combo không lên tab Tại quầy.
+1. Muốn một combo lên tab Tại quầy: mở combo, bật combo, ô Kênh để trống hoặc có WEBORDER.
+2. Mọi món trong combo phải tick [[WEBORDER]] ở Biên tập menu. Thiếu một món thì combo không lên tab Tại quầy.
 3. Mở tab Tại quầy trên web kiểm combo có nút +, đặt thử một đơn nhỏ.
 
 **Lưu ý**
 - Combo có nhóm chọn món, có giới hạn khuyến mãi hay cần OTP không bày trên web (chỉ bán ở quầy).
 - Mã giảm số tiền, phần trăm áp cho đơn giao khi chương trình mở kênh đặt giao tại quầy.
 
+## Mã đơn WEBORDER và O2O
+Từ khoá: mã đơn, WO, O2O, WEBORDER, gọi món tại bàn, đơn giao của quầy, tra đơn, nội dung chuyển khoản
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu ngân, quản lý, kế toán | Đơn giao của quầy; Tính tiền (đơn gọi món tại bàn) | ô tìm đơn |
+
+Trước đây: đơn giao của quầy mang mã DW-2611-00023 như đơn đặt bánh; đơn gọi món tại bàn mang mã TQ-261117-0005, số chạy lại mỗi ngày. Từ nay: đơn khách đặt giao qua tab Tại quầy (kênh WEBORDER) mang mã WO-261117-00023; đơn gọi món tại bàn (O2O) mang mã O2O-261117-00005. Sáu số giữa là năm, tháng, ngày đặt; năm số cuối chạy tiếp cả tháng, sang tháng mới về 00001.
+
+**Các bước**
+1. Khách hỏi đơn: gõ mã (hoặc tên, số điện thoại) vào ô tìm ở màn Đơn giao của quầy.
+2. Đối chiếu tiền chuyển khoản: nội dung khách chuyển là mã bỏ gạch, ví dụ WO26111700023.
+
+**Lưu ý**
+- Đơn cũ giữ mã cũ (DW-..., TQ-...). Đơn đặt bánh trên web vẫn là DW-.
+
 ## Tick bán Tại bàn và Giao ở Biên tập menu
 Từ khoá: tại bàn, giao, O2O, weborder, bánh mong manh, tick cả nhóm, ẩn món trên web
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Quản lý cửa hàng, Marketing | Bán hàng, Biên tập menu | chip [[Tại bàn]] và [[Giao]] |
+| Quản lý cửa hàng, Marketing | Bán hàng, Biên tập menu | chip [[Tại bàn]] và [[WEBORDER]] |
 
-Mỗi món nước, mỗi bánh trên tủ có hai chip ngay trên dòng. Tại bàn là khách quét QR trên bàn gọi món. Giao là khách đặt qua tab Tại quầy trên trang chủ. Món mới lên tủ chưa tick gì thì Tại bàn bật, Giao tắt.
+Mỗi món nước, mỗi bánh trên tủ có hai chip ngay trên dòng. Tại bàn là khách quét QR trên bàn gọi món. WEBORDER là khách đặt giao qua tab Tại quầy trên trang chủ (trước gọi là Giao). Món mới lên tủ chưa tick gì thì Tại bàn bật, WEBORDER tắt.
 
 **Các bước**
 1. Mở một nhóm (hoặc nút Món của nhóm Bánh trên tủ).
-2. Bấm chip [[Giao]] để bật bán giao; bánh mong manh, khó giao xa thì để tắt. Bấm [[Tại bàn]] để tắt món khỏi trang gọi món tại bàn.
-3. Muốn đổi cả nhóm thì bấm nút Bật Giao cả nhóm (hoặc Tắt Giao cả nhóm) ở đầu danh sách.
+2. Bấm chip [[WEBORDER]] để bật bán giao; bánh mong manh, khó giao xa thì để tắt. Bấm [[Tại bàn]] để tắt món khỏi trang gọi món tại bàn.
+3. Muốn đổi cả nhóm thì bấm nút Bật WEBORDER cả nhóm (hoặc Tắt WEBORDER cả nhóm) ở đầu danh sách.
 4. Bấm Xem và xuất bản. Khách thấy sau khi xuất bản.
 
 **Lưu ý**
