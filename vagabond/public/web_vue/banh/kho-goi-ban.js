@@ -16,6 +16,7 @@
    được trong node với Vue thật. */
 import {reactive, computed, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
+import {goiYQuay, monBay, thanhMienPhi} from './goi-y-mua.js';
 
 export const NHIP_TRANG_THAI = 10000;
 /* v643: không còn lượt chờ mà bàn còn hoá đơn mở thì vẫn hỏi lại tổng hoá đơn
@@ -345,6 +346,13 @@ export function banOKenh(m, kenh) {
   if (kenh === 'giao') return Number(m && m.giao) === 1;
   return !(m && m.tai_ban !== undefined && Number(m.tai_ban) === 0);
 }
+/* v668: mọi món GIAO được của một quầy (bánh trên tủ và đồ uống gộp size), dùng cho
+   khối Uống kèm, Ăn kèm của khung Đặt giao. THUẦN. */
+export function monGiaoCuaQuay(chon) {
+  if (!chon) return [];
+  const banh = (chon.mon || []).filter(m => banOKenh(m, 'giao')).map(m => ({...m, loai: 'banh', bienThe: [{ma: m.ma, size: '', gia: Number(m.gia) || 0, ten: m.ten}]}));
+  return banh.concat(gomSize((chon.do_uong || []).filter(m => banOKenh(m, 'giao')).map(m => ({...m, loai: 'nuoc'}))));
+}
 export function dungQuayHien(S, G, t) {
   let quay = (S.STORE && S.STORE.quay) || [];
   if (G && G.ban && G.ban.ok) quay = quay.filter(q => q.ma === G.ban.diem);
@@ -420,6 +428,7 @@ export function taoGoiBan(moiTruong, S) {
     link: docLinkBan(timKiem()),
     ban: null, daKiem: false,
     gio: [],
+    gy: {cfg: null, dangHoi: false, da: []},   // v668 gợi ý mua thêm: cấu hình máy chủ, mã đã thêm từ gợi ý
     chon: null,          // bảng chọn một món: {m, bt (biến thể đang chọn), tc, tp: {ma: 1}, sl}
     moGio: false,
     ghiChu: '', ten: '', gt: '', gtHien: '',
@@ -871,7 +880,35 @@ export function taoGoiBan(moiTruong, S) {
 
   /* ---------------- v662 WEBORDER: đặt giao từ tab Tại quầy ---------------- */
   const monGui = () => JSON.stringify(G.gio.map(x => Object.assign({ma: x.ma, sl: x.sl, tc: x.tc}, (x.tp || []).length ? {tp: x.tp.map(y => y.ma)} : {})));
+  /* ---------------- v668 gợi ý mua thêm trong khung Đặt giao ---------------- */
+  async function napGoiYQuay() {
+    if (G.gy.cfg || G.gy.dangHoi) return;
+    G.gy.dangHoi = true;
+    try { const m = await doc('vagabond.goi_y_mua.cap_quay'); if (m && typeof m === 'object') G.gy.cfg = m; } catch (e) { /* không có gợi ý thì thôi */ }
+    G.gy.dangHoi = false;
+  }
+  const goiYQuayHien = computed(() => {
+    if (cheDo.value !== 'giao' || !G.gio.length || !G.gy.cfg) return {loai: '', ds: []};
+    const r = goiYQuay(G.gio.map(x => ({ma: x.ma, loai: x.loai})), monGiaoCuaQuay(quayCua()), G.gy.cfg);
+    return {loai: r.loai, ds: monBay(r.ds, G.gio.map(x => x.ma), Number(G.gy.cfg.toi_da) || 4)};
+  });
+  const thanhMienPhiQuay = computed(() => (cheDo.value === 'giao' && G.gy.cfg && G.gio.length
+    ? thanhMienPhi(tienTinhMienPhi(), G.gy.cfg.mien_phi_tu, !G.web.tuLay, !!Number(G.gy.cfg.thanh_mien_phi)) : null));
+  /* Máy chủ xét miễn phí giao trên tiền hàng SAU ưu đãi (don_quay): có báo giá thì dùng đúng số đó. */
+  function tienTinhMienPhi() {
+    const g = G.web.gia;
+    return g && g.tien_hang !== undefined ? Math.max(0, (Number(g.tien_hang) || 0) - (Number(g.giam) || 0)) : tong.value;
+  }
+  function themGoiYQuay(u) {
+    /* Bấm + là thêm NGAY một cái, đúng size của cặp đã duyệt, tuỳ chọn mặc định. */
+    if (!u || !u.m || !coGio() || cheDo.value !== 'giao') return false;
+    if (conThem(u.m) <= 0) { toast(t('goi_ban_het_con', 'Món này trên tủ chỉ còn {so}.', {so: Number(u.m.con) || 0})); return false; }
+    them(u.m, {}, {bt: u.bt, sl: 1});
+    if (!G.gy.da.includes(u.ma)) G.gy.da.push(u.ma);
+    return true;
+  }
   const thanWeb = () => ({diem: G.web.diem || ((quayCua() || {}).ma || ''), mon: JSON.parse(monGui()), tu_lay: !!G.web.tuLay,
+    goi_y: G.gy.da.filter(ma => G.gio.some(x => x.ma === ma)),
     dia_chi: String(G.web.diaChi || '').trim(), lat: G.web.lat, lng: G.web.lng, dien_thoai: String(G.web.sdt || '').replace(/\D/g, ''),
     ma_uu_dai: String(G.web.ma || '').trim().toUpperCase()});
   /* Lần hỏi giá mới nhất thắng: trả lời muộn của lần cũ không ghi đè (H8 loại 8). */
@@ -923,7 +960,7 @@ export function taoGoiBan(moiTruong, S) {
   });
   /* Mở giỏ, đổi món, đổi số lượng ở chế độ giao: hỏi lại tổng của máy chủ. */
   if (typeof watch === 'function') {
-    watch(() => G.moGio, v => { if (v && cheDo.value === 'giao') void xemGiaWeb(true); });
+    watch(() => G.moGio, v => { if (v && cheDo.value === 'giao') { void xemGiaWeb(true); void napGoiYQuay(); } });
     watch(() => G.gio.map(x => x.khoa + ':' + x.sl).join(','), () => { if (G.moGio && cheDo.value === 'giao') xemGiaWeb(); });
   }
   let luotDat = null;
@@ -960,7 +997,7 @@ export function taoGoiBan(moiTruong, S) {
   }
 
   return {G, cheDo, nhanBan, soMon, tong, barMo, quayCua, toppingQuay, macDinh, kiemLink, conThem, daChon, coBangChon, bamThem, moBangChon, chonBienThe,
-    xemGiaWeb, goiYDiaChiWeb, chonGoiYWeb, tongWeb, datWeb,
+    xemGiaWeb, goiYDiaChiWeb, chonGoiYWeb, tongWeb, datWeb, goiYQuayHien, thanhMienPhiQuay, themGoiYQuay, napGoiYQuay,
     chonTc, chonTp, doiSlChon, giaChon, tongChon, xongChon, them, doiSl, kiemGt, goiMon, hoiTrangThai, cauDon, chuTuyChon,
     moChuong, dongChuong, goiNhanVien, tom, barDon, moDon, dongDon, moTra, dongTra, guiTra,
     moUd, dongUd, napUd, guiMaUd, suaSoUd, xacThucUd, dungUd, boUd, udHienTai};

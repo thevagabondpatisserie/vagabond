@@ -208,6 +208,7 @@ export const MAU = `
           <button class="rm" @click="kho.cartRemove(d.i); if(!S.CART.length) nav('#/',true)"><bieu-tuong loai="bo"/>{{ t('bo_khoi_gio','Bỏ khỏi giỏ') }}</button></div></li>
     </ul>
     <button class="cart-add" @click="navBack()"><bieu-tuong loai="cong"/><span>{{ t('dat_banh_7ddb8bc3b','Chọn thêm bánh') }}</span></button>
+    <goi-y-mua id-khoi="gyGio" :tieu="t('gy_tieu_gio','GIAO KÈM CÙNG CHUYẾN')" :ds="kho.goiYGio.value" :them="kho.themGoiY" :thanh="kho.thanhMienPhiGio.value"/>
 
     <div class="sec"><span class="n">02</span><h3><span>{{ t('dat_banh_73b0921c0','Ngày và giờ nhận') }}</span></h3><i class="rule"></i></div>
     <div class="tomtat" id="c-tomtat" v-if="kho.hienTomTat.value"><div class="tt-doc"><span>{{ t('dat_banh_9e6a654ba','Thời gian nhận') }}</span><b>{{ tomTatLich }}</b></div><button type="button" class="tt-doi" @click="kho.doiLich()">{{ t('dat_banh_2d141c148','Thay đổi') }}</button></div>

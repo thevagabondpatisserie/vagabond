@@ -25,6 +25,7 @@ import {dungQuayHien, tenQuayHaiDong} from './kho-goi-ban.js';
 import {VanhNghieng, xepMuc} from './vanh.js';
 import {VeSuKien, dongSheet as dongSheetVe} from './ve-su-kien.js';
 import {DacBietTuan} from './dac-biet-tuan.js';
+import {GoiYMua} from './goi-y-mua.js';
 import {gaTuMeta} from '../kho/thuan.js';
 
 function luuTruAnToan() {
@@ -65,7 +66,7 @@ export function khoiDong(goc = '#app') {
 
   const app = createApp({
     template: MAU,
-    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan, GoiTaiBanNoi, VanhNghieng, VeSuKien, DacBietTuan},
+    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan, GoiTaiBanNoi, VanhNghieng, VeSuKien, DacBietTuan, GoiYMua},
     setup() {
       const tab = computed(() => S.tab);
       const gioMo = computed(() => S.trang === 'gio');

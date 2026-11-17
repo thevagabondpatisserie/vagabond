@@ -15,6 +15,7 @@ import {CONFIG, SLOTS, cakesGoc, NUMS, ADDONS, PICKUPS_GOC, LY_DO, TEN_DIEM, NHA
 import {thuong, dam, mau, lienKet, cauCoSo, noi} from './chu-giau.js';
 import {taoGoiBan, cauDn} from './kho-goi-ban.js';
 import * as D from './dbt-thuan.js';
+import {monBay, thanhMienPhi} from './goi-y-mua.js';
 
 const KHOA_LUU = 'vgb-gio-v1';
 /* v638: bốn cách thanh toán khách chọn được. */
@@ -56,6 +57,8 @@ export function taoKho(moiTruong) {
     dangGui: false, guiXong: false,
     PICKUPS: PICKUPS_GOC.slice(),
     cauHinh: null, mienPhiTu: 0,
+    /* v668 Gợi ý mua thêm ở giỏ đặt trước (goi_y_mua.goi_y_dat_truoc). */
+    GY: {bat: 0, toi_da: 4, thanh: 0, mon: [], khoa: ''},
     toast: {chu: '', on: false, so: 0},
     /* lớp giao diện: đang xem danh mục, chi tiết bánh, hàng mùa hay giỏ */
     trang: 'danh_muc', anhChon: 0, nhich: 0
@@ -404,7 +407,8 @@ export function taoKho(moiTruong) {
     if (chuDc) ex.push([thuong(chuDc)]);
     if (o.wish) ex.push([thuong(t('dat_banh_1970655ae', 'Lời chúc:') + ' '), {chu: o.wish, nghieng: true}]);
     if (o.adds.length) ex.push([thuong(t('dat_banh_2c04193c6', 'Thêm: {gia_tri_a}', {gia_tri_a: o.adds.map(a => a.n).join(', ')}))]);
-    return {i, o, ten: tenMonGio(o), phu: t('dat_banh_7498bc8a8', 'Ø {gia_tri_a}cm · mã {gia_tri_b}', {gia_tri_a: o.cm, gia_tri_b: o.id}),
+    return {i, o, ten: tenMonGio(o), phu: o.goi_y ? t('gy_dong_phu', 'Giao kèm cùng chuyến, mã {ma}', {ma: o.id})
+      : t('dat_banh_7498bc8a8', 'Ø {gia_tri_a}cm · mã {gia_tri_b}', {gia_tri_a: o.cm, gia_tri_b: o.id}),
       ex, tien: T.tienVN(T.lineUnit(o) * o.qty)};
   }));
 
@@ -587,6 +591,33 @@ export function taoKho(moiTruong) {
      (máy chủ xét ngưỡng trên tiền bánh sau ưu đãi, chưa trừ điểm). */
   const tienDiem = computed(() => (uuHienTai.value && uuHienTai.value.diem ? (Number(uuHienTai.value.diem.tien) || 0) : 0));
   const mienPhi = computed(() => T.laMienPhi(tienBanh.value - (giam.value - tienDiem.value), S.mienPhiTu));
+  /* ---------------- v668 gợi ý mua thêm ---------------- */
+  /* Món gốc là BÁNH khách chọn (dòng có size); món thêm từ gợi ý chỉ để không gợi ý lại. */
+  const maBanhGio = () => S.CART.filter(o => o.cm && !o.goi_y).map(o => o.id);
+  async function napGoiY() {
+    const goc = maBanhGio(), khoa = goc.slice().sort().join(',') + '|' + S.CART.map(o => o.id).sort().join(',');
+    if (!goc.length) { S.GY.mon = []; S.GY.khoa = khoa; return; }
+    if (khoa === S.GY.khoa) return;
+    S.GY.khoa = khoa;
+    let m = null;
+    try { m = await doc('vagabond.goi_y_mua.goi_y_dat_truoc', {ma: JSON.stringify(goc), bo: JSON.stringify(S.CART.map(o => o.id))}); } catch (e) { m = null; }
+    if (S.GY.khoa !== khoa) return; /* giỏ đã đổi, chờ lượt mới */
+    if (!m || typeof m !== 'object') { S.GY.mon = []; return; }
+    S.GY.bat = Number(m.bat) ? 1 : 0; S.GY.toi_da = Number(m.toi_da) || 4; S.GY.thanh = Number(m.thanh_mien_phi) ? 1 : 0;
+    S.GY.mon = Array.isArray(m.mon) ? m.mon.filter(u => u && typeof u.ma === 'string' && Number(u.gia) > 0) : [];
+  }
+  const goiYGio = computed(() => (S.GY.bat ? monBay(S.GY.mon, S.CART.map(o => o.id), S.GY.toi_da) : []));
+  const thanhMienPhiGio = computed(() => (S.CART.length ? thanhMienPhi(tienBanh.value - (giam.value - tienDiem.value), S.mienPhiTu,
+    S.CO.mode !== 'pick', !!S.GY.thanh) : null));
+  function themGoiY(u) {
+    /* Bấm + là thêm NGAY một cái. Món gợi ý không cần chọn size hay tuỳ chọn. */
+    if (!u || S.CART.some(o => o.id === u.ma)) return false;
+    const o = {k: u.ten, img: u.anh || '', id: u.ma, cm: 0, price: Number(u.gia) || 0, nguon: 'order', wish: '', adds: [], qty: 1, goi_y: 1};
+    S.CART.push(o);
+    suKien('AddToCart', {content_ids: [o.id], contents: [{id: o.id, quantity: 1}], content_type: 'product', value: o.price, currency: 'VND'});
+    toast(t('gy_da_them', 'Đã thêm {ten} vào giỏ', {ten: u.ten}));
+    return true;
+  }
   const timQuan = ma => (!ma ? null : (((S.cauHinh && S.cauHinh.quan) || []).find(q => q.ma === ma) || null));
   let soPhi = 0, phiHen = null;
   const goiYPhiGoc = () => [thuong(t('dat_banh_e347a8e6c', 'Chọn khu vực hoặc gõ địa chỉ, hệ thống báo phí giao dự kiến.'))];
@@ -900,6 +931,7 @@ export function taoKho(moiTruong) {
       tu_lay: tuLay, dia_chi: diaChi,
       lat: S.CO.pickedLoc ? S.CO.pickedLoc.lat : null, lng: S.CO.pickedLoc ? S.CO.pickedLoc.lng : null,
       items: T.hangGui(S.CART), tags, ngay_nhan: mocGioNhan(),
+      goi_y: S.CART.filter(o => o.goi_y).map(o => o.id),
       note_print: lines.join('\n'), note, hoa_don: vat,
       nonce: S.CO.nonce, dong_y: true, nhan_uu_dai: S.CO.uudai === true,
       thanh_toan: paysHien.value.some(p => p.k === S.CO.pay) ? S.CO.pay : 'bank', ma_gioi_thieu: soGioiThieu(),
@@ -1086,9 +1118,13 @@ export function taoKho(moiTruong) {
       const d = JSON.parse((luuTru && luuTru.getItem(KHOA_LUU)) || 'null');
       if (!d || bayGio().getTime() - d.luc > 86400000 || !Array.isArray(d.gio)) return;
       const hop = o => typeof o.id === 'string' && Number.isInteger(o.qty) && o.qty > 0 && o.qty <= 99;
-      S.gioCho.mua = d.gio.slice(0, 50).filter(o => o.cm === 0 && hop(o));
+      S.gioCho.mua = d.gio.slice(0, 50).filter(o => o.cm === 0 && !o.goi_y && hop(o));
       const luu = d.gio.slice(0, 50).filter(o => o.cm !== 0 && hop(o));
       S.CART.splice(0); S.gioCho.banh = [];
+      /* v668: món thêm từ gợi ý giữ nguyên dòng; máy chủ tính lại giá khi gửi. */
+      d.gio.slice(0, 50).filter(o => o.cm === 0 && o.goi_y && hop(o) && /^[A-Z0-9-]{3,40}$/.test(o.id)).forEach(o => S.CART.push({
+        k: String(o.k || o.id).slice(0, 120), img: typeof o.img === 'string' ? o.img : '', id: o.id, cm: 0, price: Number(o.price) || 0,
+        nguon: 'order', wish: '', adds: [], qty: o.qty, goi_y: 1}));
       luu.forEach(o => { const x = dongGioTuLuu(o); if (x) S.CART.push(x); else S.gioCho.banh.push(o); });
       if (S.tonNapXong) ganGioCho();
       if (/^\d{4}-\d{2}-\d{2}$/.test(d.ngay || '')) S.ngayChon = d.ngay;
@@ -1138,6 +1174,8 @@ export function taoKho(moiTruong) {
     if (fixSlot()) S.daChonGio = false;
   }
   watch(() => [S.CART.length, dotDbt.value, maDbt.value, picked.value], theoNgayDot, {flush: 'sync'});
+  /* v668: giỏ đổi bánh thì hỏi lại khối gợi ý (không gọi dịch vụ ngoài, máy chủ tự xếp). */
+  watch(() => S.CART.map(o => o.id).join(','), () => { void napGoiY(); });
 
   /* v638: gọi món tại bàn qua QR, kho riêng (kho-goi-ban.js) dùng chung S. */
   const goiBan = taoGoiBan({t, doc, ghi, luuTru, ngauNhien, hen, huyHen, toast, napQuay,
@@ -1145,7 +1183,7 @@ export function taoKho(moiTruong) {
 
   return {S, T, goiBan, picked, slotOk, firstOk, ngayDangChon, slotDangChon, gioHopLe, daChot, hienTomTat, nhanNgayDangChon,
     ngayRail, ngayRailDatTruoc, homNayBiChan, khungRail, pick, pickSlot, nhanRefill, doiLich, mocGioNhan, ghiChuDatTruoc, ghiChuGio, fixSlot,
-    dotDbt, maDbt, lucDbt,
+    dotDbt, maDbt, lucDbt, goiYGio, thanhMienPhiGio, themGoiY, napGoiY,
     coTruoc, banhHomNay, banhDatTruoc, tongTon, kichThuocDangBan, dongTrangThai, ghiChuHomNay, theBanh,
     curSize, moBanh, dongBanh, setSize, doiSoLuong, toggleNum, clearNums, toggleAdd, phuKienChon, tienNutThem,
     gioiHanNhan, addToCart, themNhanh, suaDongGio,

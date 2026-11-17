@@ -242,3 +242,29 @@ html body .dbt-cham{display:flex;justify-content:center;gap:8px;margin-top:14px}
 html body .dbt-cham i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.28)}
 html body .dbt-cham i.on{width:18px;border-radius:999px;background:var(--vt-xanh)}
 @media(min-width:700px){html body .dbt-the.dbt-mot{max-width:760px}}
+
+/* ---------- 8. v668 Gợi ý mua thêm (giỏ đặt trước, khung Đặt giao của Tại quầy) ----------
+   Thẻ 136px (122px trong khung Đặt giao), ảnh vuông bo 16px, nút + tròn 36px ở góc dưới
+   phải ảnh (vùng bấm 44px), tên tối đa 2 dòng, câu lý do màu xanh, giá. Vuốt ngang;
+   vuốt dọc vẫn cuộn trang. Không khung chen ngang. */
+html body .gy{margin:22px 0 6px}
+html body .gy-tieu{margin:0 0 10px;font:600 11px/1.4 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--vt-xanh,#4FDBF2)}
+html body .gy-bang{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:2px 2px 8px;
+  margin:0 -2px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x pan-y}
+html body .gy-bang::-webkit-scrollbar{display:none}
+html body .gy-the{flex:0 0 136px;width:136px;scroll-snap-align:start;margin:0}
+html body .gy-nho .gy-the{flex-basis:122px;width:122px}
+html body .gy-anh{position:relative;aspect-ratio:1/1;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.06)}
+html body .gy-anh img{display:block;width:100%;height:100%;object-fit:cover}
+html body .gy-cong{position:absolute;right:4px;bottom:4px;width:44px;height:44px;padding:0;border:0;background:transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;color:#1A1A1A}
+html body .gy-cong::before{content:"";position:absolute;width:36px;height:36px;border-radius:50%;background:var(--vt-xanh,#4FDBF2);box-shadow:0 1px 6px rgba(0,0,0,.35)}
+html body .gy-cong svg{position:relative;width:18px;height:18px}
+html body .gy-ten{margin:8px 0 0;font:400 15px/1.15 'Vagabond Sans',var(--sans,sans-serif);text-transform:uppercase;color:var(--paper,#fff);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+html body .gy-ly{margin:4px 0 0;font:13px/1.35 var(--qualy,var(--sans,sans-serif));color:var(--vt-xanh,#4FDBF2)}
+html body .gy-gia{margin:4px 0 0;font:600 13px/1.3 var(--sans,sans-serif);color:var(--paper,#fff)}
+html body .gy-mp{margin:0 0 16px;padding:12px 14px;border:1px solid var(--line,rgba(255,255,255,.16))}
+html body .gy-mp p{margin:0;font:13px/1.45 var(--qualy,var(--sans,sans-serif));color:var(--paper,#fff)}
+html body .gy-vach{margin-top:8px;height:4px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+html body .gy-vach i{display:block;height:100%;background:var(--vt-xanh,#4FDBF2);border-radius:2px}
