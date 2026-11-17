@@ -1505,12 +1505,16 @@ function htLyDoTen(k) {
      - Ảnh không bắt buộc: bằng chứng nằm ngay trong sổ, là chênh lệch giữa
        số SePay đã nhận và tổng đơn, máy tự tính chứ không ai khai.
      - Gọi endpoint khác, và endpoint đó KHÔNG lập hoá đơn trả hàng. */
-function hoanMoFormDu(don) {
+function hoanMoFormDu(don, donCu) {
   busy(true);
   /* v533: tra promise de ban boc tu luu nhap cho duoc toi khi form ve xong. */
-  return api('vagabond.hoan_tien.xem_tien_du', { si_name: don.name }).then(function (t) {
+  return api('vagabond.hoan_tien.xem_tien_du', { si_name: don.name, don_cu: donCu || '' }).then(function (t) {
     busy(false);
     if (!t || !t.duoc) {
+      /* v667 (Loan Anh, đơn 97790): khách trả OnePay ở đơn Pancake cũ rồi
+         huỷ bớt món, món còn lại sang số đơn mới. Cho Sales chọn đơn cũ;
+         máy chủ kiểm đúng khách, bảng kê OnePay đã về, chưa dùng. */
+      if (t && t.cho_chon_don_cu) return hoanChonDonCu(don, t);
       return baoTin((t && t.vi_sao) || 'Đơn này không có phần dư để chuyển lại.',
         'Không lập được phiếu');
     }
@@ -1519,7 +1523,8 @@ function hoanMoFormDu(don) {
       da_nhan: Number(t.da_nhan || 0), tien: Number(t.tran || 0), muc: 100,
       ly_do: '', dien_giai: '', ten_tk: '', so_tk: '', ngan_hang: '', sdt: '',
       ten_khach: '', nguon_khach: '', anh: [], goi_y: null,
-      hddt: (don.custom_hddt_so || t.canh_bao_hddt || '')
+      hddt: (don.custom_hddt_so || t.canh_bao_hddt || ''),
+      don_cu: t.don_cu || ''
     };
     /* v533: mo lai ban nhap tu luu (48-ban-soan-do.js) thi ghep phan da go vao. */
     if (typeof sdGhep === 'function') htF = sdGhep('hoan_du', htF);
@@ -1527,6 +1532,22 @@ function hoanMoFormDu(don) {
     htNapGoiY(don);
   }).catch(function (e) {
     busy(false); baoTin((e && e.message) || 'Không đọc được phần dư của đơn này.');
+  });
+}
+
+/* v667: chọn đơn Pancake cũ khách đã trả OnePay. Gợi ý là các khoản OnePay
+   trong bảng kê chưa nối hoá đơn nào, lớn hơn đơn này; hoặc gõ số đơn. */
+function hoanChonDonCu(don, t) {
+  var ds = (t.goi_y_don_cu || []).map(function (g) {
+    return { value: g.so, icon: '💳', label: 'Đơn ' + g.so + ' · ' + money(g.tien) + ' đ',
+      phu: 'OnePay ngày ' + ngayNgan(g.ngay) + ', chưa nối hoá đơn nào' };
+  });
+  ds.push({ value: '', icon: '⌨️', label: 'Gõ số đơn Pancake cũ',
+    phu: 'Số đơn khách đã trả trước khi huỷ bớt món hoặc làm lại đơn' });
+  sheet('Chưa thấy tiền dư. Khách trả OnePay ở đơn cũ?', ds, null, async function (it) {
+    var so = it.value;
+    if (!so) so = await promptSheet('Số đơn Pancake cũ khách đã trả', 'Ví dụ 97615');
+    if (so) hoanMoFormDu(don, so);
   });
 }
 
@@ -1829,6 +1850,7 @@ async function htFGui() {
       tep: JSON.stringify(f.anh.map(function (a) { return { ten: a.ten, noi_dung: a.b64 }; }))
     };
     if (huy) goiF.otp = otpHuy || '';
+    if (du && f.don_cu) goiF.don_cu = f.don_cu;
     var kq = await api(
       du ? 'vagabond.hoan_tien.tao_tien_du'
         : huy ? 'vagabond.hoan_tien.tao_huy_nhap'
@@ -2273,11 +2295,17 @@ function htCtVe() {
          tien khach da that su vao chua. Ca Ms.Giang hom 19/08 la vi khong
          co dong nay ma khong ai tra loi duoc. */
       htCtDong('SePay đã nhận', money(d.don.da_nhan_sepay) + ' đ', 1) +
-      (d.loai_hoan === 'Tien nop thua'
-        ? htCtDong('Khách nộp thừa',
-            money(Math.max(0, Number(d.don.da_nhan_sepay || 0) - Number(d.don.tong || 0))) + ' đ', 1)
+      /* v667: tiền OnePay theo bảng kê (đơn Pancake cũ nếu khách trả ở đơn
+         khác) và phần nộp thừa máy chủ tính, màn không tự trừ lại. */
+      (Number(d.don.da_nhan_onepay || 0) > 0
+        ? htCtDong('OnePay đã về (bảng kê)' + (d.don.don_tra_tien ? ' · đơn ' + d.don.don_tra_tien : ''),
+            money(d.don.da_nhan_onepay) + ' đ', 1)
         : '') +
-      (Number(d.don.da_nhan_sepay || 0) <= 0 ? htCtSepayTrong(d) : '') +
+      (d.loai_hoan === 'Tien nop thua'
+        ? htCtDong('Khách nộp thừa', money(d.don.nop_thua != null ? d.don.nop_thua
+            : Math.max(0, Number(d.don.da_nhan_sepay || 0) - Number(d.don.tong || 0))) + ' đ', 1)
+        : '') +
+      (Number(d.don.da_nhan_sepay || 0) <= 0 && Number(d.don.da_nhan_onepay || 0) <= 0 ? htCtSepayTrong(d) : '') +
       htCtDong('Đã thu', money(d.don.da_thu) + ' đ') +
       (d.don.diem_ban ? htCtDong('Điểm bán', d.don.diem_ban) : '') +
       '<div style="padding:9px 0 0">' + (d.don.mon || []).map(function (m) {
