@@ -27,6 +27,8 @@
     {k: 'banh', ten: 'Bánh', mo: 'Ảnh, mô tả, tầng hương vị từng bánh'},
     /* v658 (anh Việt chọn A 14/11/2026): Tiệc nâng thành Sự kiện, web là tab Vé sự kiện. */
     {k: 'tiec', ten: 'Sự kiện', mo: 'Tiệc, ra mắt món, diễn giả: giá vé, số vé, hạn đăng ký', them: '+ Thêm sự kiện', luu: 'Lưu sự kiện', ten_muc: 'sự kiện', dau: 'Danh sách sự kiện'},
+    /* v667 (anh Việt duyệt 17/11/2026): đợt món chỉ làm cuối tuần, web là tab Đặc biệt tuần này. */
+    {k: 'dac_biet_tuan', ten: 'Cuối tuần', mo: 'Món chỉ làm cuối tuần: lịch mở, chốt đơn, ngày giao, món', them: '+ Thêm đợt cuối tuần', luu: 'Lưu đợt', ten_muc: 'đợt cuối tuần', dau: 'Danh sách đợt cuối tuần'},
     /* v630 (anh Việt chốt 02/11/2026): bánh thiết kế riêng, khách cọc 50% trên web. */
     {k: 'thiet_ke_rieng', ten: 'Thiết kế riêng', mo: 'Tác phẩm đặt riêng: size, giá gồm VAT, trang trí, số ngày đặt trước', them: '+ Thêm tác phẩm', luu: 'Lưu tác phẩm', ten_muc: 'tác phẩm', dau: 'Danh sách tác phẩm'},
     {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Lấy từ app ERP, đổi ảnh từng vị trí ở đây', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
@@ -35,7 +37,7 @@
     {k: 'chu', ten: 'Trang và chữ', mo: 'Tiêu đề từng trang, khẩu hiệu, chân trang, câu nhắc'},
     {k: 'lien_he', ten: 'Liên hệ', mo: 'Điện thoại, email, mạng xã hội, công ty'},
   ];
-  const LOAI_MUC = ['uu_dai', 'tiec', 'tuyen_dung', 'thiet_ke_rieng', 'banner'];
+  const LOAI_MUC = ['uu_dai', 'tiec', 'tuyen_dung', 'thiet_ke_rieng', 'banner', 'dac_biet_tuan'];
   const LOAI_SK = {tiec: 'Tiệc', ra_mat: 'Ra mắt món', dien_gia: 'Diễn giả'};
   /* v647: chỗ đặt banner. Mã trùng noi_dung_web.VI_TRI_BANNER, chữ là tên khách
      thấy trên trang để Minh Vũ nhận ra ngay. */
@@ -67,13 +69,16 @@
   function thu(s) { const p = String(s || '').split('-').map(Number); if (p.length !== 3 || !p[0]) return ''; return THU[new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay()]; }
   function maMoi(loai) { return loai.replace('_', '-') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   const homNay = () => (B && B.hom_nay) || new Date().toISOString().slice(0, 10);
+  /* v667: "2026-11-20T20:00" -> "20/11 20g". */
+  const ngayNgan = s => (s ? String(s).slice(8, 10) + '/' + String(s).slice(5, 7) : '');
+  const lucVN = s => (s ? ngayNgan(s) + ' ' + gio(String(s).slice(11, 16)) : 'chưa chọn');
 
   /* Nhãn trạng thái, trùng ĐÚNG phép trang_thai_muc ở máy chủ (có ca kiểm
      chạy cùng một bảng mẫu cho hai bên). */
   function trangThai(k, hn) {
     const bd = k.bat_dau || '', kt = k.ket_thuc || '';
     if (k.loai === 'thiet_ke_rieng') return ['dang', 'Đang nhận đặt'];
-    if (k.loai === 'banner') {
+    if (k.loai === 'banner' || k.loai === 'dac_biet_tuan') {
       if (kt && kt < hn) return ['het', 'Đã hết hạn'];
       if (bd && bd > hn) return ['sap', 'Chưa tới ngày hiện'];
       return ['dang', 'Đang hiện'];
@@ -90,12 +95,13 @@
   }
   function khachThay(k) {
     if (k.loai === 'banner') return !!k.hien && !!k.anh && trangThai(k, homNay())[0] === 'dang';
+    if (k.loai === 'dac_biet_tuan') return !!k.hien && trangThai(k, homNay())[0] === 'dang';
     return window.vgbKhachThayMuc ? window.vgbKhachThayMuc(k, homNay()) : !!k.hien;
   }
   function chuCongTac(k) {
     if (!k.hien) return 'Khách không thấy';
     if (k.loai === 'banner' && !k.anh) return 'Chưa có ảnh, khách không thấy';
-    if (k.loai === 'banner' && trangThai(k, homNay())[0] === 'sap') return 'Chưa tới ngày, khách chưa thấy';
+    if ((k.loai === 'banner' || k.loai === 'dac_biet_tuan') && trangThai(k, homNay())[0] === 'sap') return 'Chưa tới ngày, khách chưa thấy';
     if (!khachThay(k)) return 'Đã hết hạn, khách không thấy';
     return trangThai(k, homNay())[0] === 'sap' ? 'Khách thấy nhãn Sắp diễn ra' : 'Khách đang thấy';
   }
@@ -104,6 +110,10 @@
       return [tenCho(k.vi_tri) || 'Chưa chọn chỗ đặt', k.lien_ket ? 'bấm mở ' + k.lien_ket : 'không có link',
         k.bat_dau || k.ket_thuc ? [ngayVN(k.bat_dau), ngayVN(k.ket_thuc)].filter(Boolean).join(' - ') : 'không giới hạn ngày',
         k.anh_dt ? 'có ảnh điện thoại' : 'dùng chung ảnh máy tính'].join(' · ');
+    }
+    if (k.loai === 'dac_biet_tuan') {
+      return ['Mở đơn ' + lucVN(k.mo_don), 'chốt ' + lucVN(k.chot_don), 'giao ' + ((k.ngay_giao || []).map(ngayNgan).join(', ') || 'chưa chọn ngày'),
+        (k.mon_dt || []).length + ' món'].join(' · ');
     }
     if (k.loai === 'uu_dai') {
       return [k.ma_uu_dai ? 'Mã ' + k.ma_uu_dai : '', +k.don_toi_thieu > 0 ? 'Đơn từ ' + tien(k.don_toi_thieu) : '',
@@ -477,6 +487,7 @@
     if (loai === 'uu_dai') return Object.assign(goc, {nhom: '', ma_uu_dai: '', don_toi_thieu: '', bat_dau: homNay(), ket_thuc: '', gio_bat_dau: '', gio_ket_thuc: '', dieu_kien: ''});
     if (loai === 'tuyen_dung') return Object.assign(goc, {noi_lam: '', hinh_thuc: 'Toàn thời gian', ket_thuc: '', yeu_cau: '', email: (B.lien_he || {}).email || ''});
     if (loai === 'banner') return Object.assign(goc, {vi_tri: 'gio_hang', anh_dt: '', lien_ket: '/thanh-vien', bat_dau: homNay(), ket_thuc: ''});
+    if (loai === 'dac_biet_tuan') return Object.assign(goc, macDinhDot(homNay()));
     if (loai === 'thiet_ke_rieng') return Object.assign(goc, {nhan: '', yeu_cau: '', dieu_kien: 'Giá đã gồm VAT.', so_ngay: '7',
       kich_co: [{ten: 'S', mo_ta: '', gia: ''}], trang_tri: []});
     return Object.assign(goc, {bat_dau: '', gio_bat_dau: '', gio_ket_thuc: '', dia_diem: '', gia_ve: '', so_ve: '', han_ban: '', yeu_cau: ''});
@@ -520,7 +531,7 @@
       g.replaceChildren();
       (m[truong] || []).forEach((d, i) => {
         const hang = tao('div', 'bt-dong-o'); hang.dataset.dongO = truong + '-' + i;
-        cot.forEach(([k, nhan, goi, so]) => hang.append(o(nhan, d[k], v => { d[k] = v; xem(); }, {ten: truong + '_' + k + '_' + i, goi, so: !!so})));
+        cot.forEach(([k, nhan, goi, so, kieu]) => hang.append(o(nhan, d[k], v => { d[k] = v; xem(); }, {ten: truong + '_' + k + '_' + i, goi, so: !!so, kieu})));
         const bo = tao('button', 'bt-nut chu-do nho', 'Bỏ dòng'); bo.type = 'button'; bo.dataset.boDong = truong + '-' + i;
         bo.onclick = () => { m[truong].splice(i, 1); ve(); xem(); };
         hang.append(bo); g.append(hang);
@@ -559,6 +570,7 @@
     const xem = () => {
       xemNoi.replaceChildren();
       if (m.loai === 'thiet_ke_rieng') xemNoi.append(tao('p', 'bt-tom-tat', m.tieu_de ? m.tieu_de + ': ' + moTa(m) : 'Điền tên và size để xem tóm tắt.'));
+      else if (m.loai === 'dac_biet_tuan') xemNoi.append(tao('p', 'bt-tom-tat', String(m.tieu_de || '').replace('\n', ' ') + ': ' + moTa(m) + '. Lưu xong mở trang đặt bánh, tab Đặc biệt tuần này để xem đúng giao diện khách thấy.'));
       else if (m.loai === 'banner') xemNoi.append(xemBanner(m));
       else if (window.vgbTheMuc) xemNoi.append(window.vgbTheMuc(m, {homNay: homNay(), ve: B.ve, lienHe: B.lien_he, xemTruoc: true}));
       if (dkEl) { const c = window.vgbDieuKienUuDai ? window.vgbDieuKienUuDai(m) : ''; dkEl.replaceChildren(tao('span', '', 'Khách sẽ thấy điều kiện: '), tao('b', '', c || 'Không có điều kiện, áp dụng cả ngày.')); }
@@ -584,6 +596,8 @@
         muc(3, 'Khi khách bấm và ngày hiện'),
         o('Mở trang khi bấm', m.lien_ket, dat('lien_ket'), {ten: 'lien_ket', goi: '/thanh-vien', chu: '/thanh-vien là trang thành viên: khách xác minh số qua Zalo rồi khai ngày sinh. Để trống thì banner không bấm được.'}),
         ngay);
+    } else if (loai === 'dac_biet_tuan') {
+      formDot(f, m, xem, dat);
     } else if (loai === 'tuyen_dung') {
       f.append(
         o('Tên vị trí', m.tieu_de, dat('tieu_de'), {ten: 'tieu_de', goi: 'Thợ làm bánh (Pâtissier)', chu: 'Ví dụ: Thợ làm bánh (Pâtissier)'}),
@@ -674,6 +688,10 @@
         const loiBn = loiBanner(m);
         if (loiBn) { bao(loiBn, true); return; }
       }
+      if (loai === 'dac_biet_tuan') {
+        const loiD = loiDot(m);
+        if (loiD) { bao(loiD, true); return; }
+      }
       if (loai === 'tiec' && m.hien && !m.bat_dau) { bao('Chọn ngày diễn ra tiệc trước khi bật hiện trên web.', true); return; }
       if (loai === 'thiet_ke_rieng') {
         const loiTkr = loiTacPham(m);
@@ -687,6 +705,138 @@
     khung.append(lui, tieu, luoi);
     khung._sauKhiGan = xem;
     return khung;
+  }
+
+  /* ------------------------------------------------------------ đợt cuối tuần (v667) */
+  /* Mặc định theo lịch thường anh Việt nói: mở đơn thứ hai, chốt thứ sáu 20g,
+     giao nhận thứ bảy và chủ nhật của tuần tới gần nhất. Marketing sửa được hết. */
+  function isoCong(iso, n) { const p = iso.split('-').map(Number); const d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)); return d.toISOString().slice(0, 10); }
+  function thuNgan(iso) { return ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][new Date(iso + 'T00:00:00Z').getUTCDay()] + ' ' + ngayNgan(iso); }
+  function macDinhDot(hn) {
+    const thuHn = new Date(hn + 'T00:00:00Z').getUTCDay();
+    const t2 = isoCong(hn, ((1 - thuHn) + 7) % 7), t6 = isoCong(t2, 4), t7 = isoCong(t2, 5), cn = isoCong(t2, 6);
+    return {nhan: 'CHỈ CUỐI TUẦN', tieu_de: 'CUỐI TUẦN\n' + t7.slice(8, 10) + ' · ' + ngayNgan(cn),
+      noi_dung: 'Món đặc biệt của tuần này. Đặt trước với số lượng giới hạn.', bat_dau: hn, ket_thuc: cn,
+      mo_don: t2 + 'T08:00', chot_don: t6 + 'T20:00', ngay_giao: [t7, cn],
+      dem_nguoc: '1', dem_chu_1: 'còn lại để đặt', dem_chu_2: 'Chốt hết thứ sáu ' + ngayNgan(t6),
+      moc: [{nhan: 'MỞ ĐƠN', chu_ngay: thuNgan(t2), luc: t2 + 'T08:00'}, {nhan: 'CHỐT ĐƠN', chu_ngay: thuNgan(t6), luc: t6 + 'T20:00'},
+        {nhan: 'BẾP LÀM', chu_ngay: 'T6 · T7', luc: t6 + 'T20:01'}, {nhan: 'GIAO NHẬN', chu_ngay: 'T7 · CN', luc: t7 + 'T08:00'}],
+      mon_dt: []};
+  }
+  /* Kiểm sớm trên trình duyệt; máy chủ kiểm lại đủ (dac_biet_tuan.chuan_dot). */
+  function loiDot(m) {
+    const reLuc = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    if (!reLuc.test(m.mo_don || '') || !reLuc.test(m.chot_don || '')) return 'Chọn giờ mở đơn và giờ chốt đơn.';
+    if (m.mo_don >= m.chot_don) return 'Giờ chốt đơn phải sau giờ mở đơn.';
+    const moc = m.moc || [];
+    if (moc.length < 2 || moc.length > 5) return 'Bảng mốc lịch cần từ 2 đến 5 mốc.';
+    if (moc.some(x => !String(x.nhan || '').trim() || !reLuc.test(x.luc || ''))) return 'Mỗi mốc cần nhãn và ngày giờ bắt đầu.';
+    if (moc.some((x, i) => i && x.luc < moc[i - 1].luc)) return 'Các mốc lịch phải xếp theo thời gian.';
+    if (!(m.ngay_giao || []).length) return 'Chọn ít nhất một ngày giao, nhận.';
+    if (!(m.mon_dt || []).length) return 'Thêm ít nhất một món cho đợt.';
+    if ((m.mon_dt || []).some(x => !x.khoa)) return 'Chọn bánh cho từng món của đợt.';
+    if (new Set(m.mon_dt.map(x => x.khoa)).size !== m.mon_dt.length) return 'Một bánh đang được chọn hai lần trong đợt.';
+    const dong = String(m.tieu_de || '').split('\n').filter(x => x.trim());
+    if (dong.length < 1 || dong.length > 2) return 'Tiêu đề đợt có 1 hoặc 2 dòng.';
+    return '';
+  }
+  /* Ngày giao: danh sách chip có nút bỏ, ô chọn ngày và nút thêm. */
+  function oNgayGiao(m, xem) {
+    const g = tao('div', 'bt-o'); g.append(tao('span', 'bt-nhan', 'Ngày giao, nhận'));
+    const hang = tao('div', 'bt-chips'); g.append(hang);
+    const them = tao('div', 'bt-hang-nut');
+    const i = tao('input'); i.type = 'date'; i.setAttribute('name', 'ngay_giao_moi');
+    const nut = tao('button', 'bt-nut vien', '+ Thêm ngày'); nut.type = 'button'; nut.dataset.themNgay = '1';
+    function ve() {
+      hang.replaceChildren();
+      (m.ngay_giao || []).forEach(d => {
+        const b = tao('button', 'bt-chip dang', thuNgan(d) + '  ×'); b.type = 'button'; b.dataset.boNgay = d;
+        b.setAttribute('aria-label', 'Bỏ ngày ' + thuNgan(d));
+        b.onclick = () => { m.ngay_giao = m.ngay_giao.filter(x => x !== d); ve(); xem(); };
+        hang.append(b);
+      });
+      if (!(m.ngay_giao || []).length) hang.append(tao('span', 'bt-goi-y', 'Chưa có ngày nào.'));
+    }
+    nut.onclick = () => {
+      if (!i.value) { bao('Chọn một ngày rồi bấm Thêm ngày.', true); return; }
+      if (!(m.ngay_giao || []).includes(i.value)) m.ngay_giao = (m.ngay_giao || []).concat([i.value]).sort();
+      i.value = ''; ve(); xem();
+    };
+    them.append(i, nut); g.append(them);
+    g.append(tao('span', 'bt-goi-y', 'Giỏ có món của đợt thì khách chỉ chọn được các ngày này. Thường là thứ bảy và chủ nhật.'));
+    ve();
+    return g;
+  }
+  /* Món của đợt: chọn bánh ở thẻ Bánh (gõ tìm theo tên), mô tả, nhãn góc, số tối đa, ảnh đứng. */
+  function dsMonDot(m, xem) {
+    const g = tao('div', 'bt-ds-dong'); g.dataset.dsDong = 'mon_dt';
+    const dsBanh = () => ((BB && BB.banh) || []).filter(x => x.trang_thai !== 'Đã ẩn');
+    const tenCua = khoa => (dsBanh().find(x => x.khoa === khoa) || {}).ten || khoa;
+    function ve() {
+      g.replaceChildren();
+      if (!BB) { g.append(tao('p', 'bt-rong', 'Đang tải danh sách bánh...')); taiBanh().then(ve); return; }
+      const dl = tao('datalist'); dl.id = 'bt-dl-banh-dot';
+      dsBanh().forEach(x => { const op = tao('option'); op.value = x.ten; dl.append(op); });
+      g.append(dl);
+      (m.mon_dt || []).forEach((d, i) => {
+        const hang = tao('div', 'bt-dong-o'); hang.dataset.dongO = 'mon_dt-' + i;
+        const chon = o('Bánh', tenCua(d.khoa), v => {
+          const x = dsBanh().find(b => b.ten.toLocaleLowerCase('vi') === v.trim().toLocaleLowerCase('vi'));
+          d.khoa = x ? x.khoa : ''; xem();
+        }, {ten: 'mon_dt_khoa_' + i, goi: 'Gõ tên bánh', chu: 'Gõ rồi chọn trong danh sách. Giá, size, tầng hương lấy từ thẻ Bánh.'});
+        chon.querySelector('input').setAttribute('list', 'bt-dl-banh-dot');
+        hang.append(chon,
+          o('Mô tả ngắn', d.mo_ta, v => { d.mo_ta = v; xem(); }, {ten: 'mon_dt_mo_ta_' + i, goi: 'Vani Tahiti, caramel muối'}),
+          o('Nhãn góc (không bắt buộc)', d.nhan_goc, v => { d.nhan_goc = v; xem(); }, {ten: 'mon_dt_nhan_goc_' + i, goi: 'CHỈ CUỐI TUẦN', chu: 'Để trống là CHỈ CUỐI TUẦN.'}),
+          o('Số lượng tối đa của đợt (không bắt buộc)', d.toi_da, v => { d.toi_da = v; xem(); }, {so: true, ten: 'mon_dt_toi_da_' + i, goi: '30', chu: 'Đủ số này web tự chuyển sang Đã chốt đơn. Để trống là không giới hạn.'}),
+          oAnh(d, xem, 'anh', 'Ảnh đứng (không bắt buộc)', 'Ảnh dọc 3:4 hoặc 2:3. Để trống thì dùng ảnh đầu tiên của bánh ở thẻ Bánh.'));
+        const bo = tao('button', 'bt-nut chu-do nho', 'Bỏ món'); bo.type = 'button'; bo.dataset.boDong = 'mon_dt-' + i;
+        bo.onclick = () => { m.mon_dt.splice(i, 1); ve(); xem(); };
+        hang.append(bo); g.append(hang);
+      });
+      if ((m.mon_dt || []).length < 6) {
+        const them = tao('button', 'bt-nut vien', '+ Thêm món'); them.type = 'button'; them.dataset.themDong = 'mon_dt';
+        them.onclick = () => { m.mon_dt = (m.mon_dt || []).concat([{khoa: '', mo_ta: '', anh: '', nhan_goc: '', toi_da: ''}]); ve(); xem(); };
+        g.append(them);
+      }
+    }
+    ve();
+    return g;
+  }
+  function formDot(f, m, xem, dat) {
+    const dongTieu = () => String(m.tieu_de || '').split('\n');
+    const datDong = i => v => { const d = dongTieu(); d[i] = v; m.tieu_de = [d[0] || '', d[1] || ''].filter((x, j) => j === 0 || x.trim()).join('\n'); xem(); };
+    const tieu = tao('div', 'bt-hai-cot');
+    tieu.append(o('Tiêu đề dòng 1', dongTieu()[0], datDong(0), {ten: 'tieu_de_1', goi: 'CUỐI TUẦN'}),
+      o('Tiêu đề dòng 2', dongTieu()[1] || '', datDong(1), {ten: 'tieu_de_2', goi: '21 · 22/11'}));
+    const luat = tao('div', 'bt-hai-cot');
+    luat.append(o('Mở đơn lúc', m.mo_don, dat('mo_don'), {kieu: 'datetime-local', ten: 'mo_don', chu: 'Trước giờ này nút đặt khoá, ghi Mở đơn kèm ngày.'}),
+      o('Chốt đơn lúc', m.chot_don, dat('chot_don'), {kieu: 'datetime-local', ten: 'chot_don', chu: 'Qua giờ này nút khoá, thẻ ghi Đã chốt đơn tuần này.'}));
+    const dem = tao('div', 'bt-hai-cot');
+    dem.append(o('Dòng chữ 1', m.dem_chu_1, dat('dem_chu_1'), {ten: 'dem_chu_1', goi: 'còn lại để đặt'}),
+      o('Dòng chữ 2', m.dem_chu_2, dat('dem_chu_2'), {ten: 'dem_chu_2', goi: 'Chốt hết thứ sáu 20/11'}));
+    const ngay = tao('div', 'bt-hai-cot');
+    ngay.append(o('Hiện từ ngày', m.bat_dau, dat('bat_dau'), {kieu: 'date', ten: 'bat_dau', chu: 'Để trống là hiện ngay khi lưu.'}),
+      o('Ngừng hiện sau ngày', m.ket_thuc, dat('ket_thuc'), {kieu: 'date', ten: 'ket_thuc', chu: 'Qua ngày này tab tự ẩn khỏi web.'}));
+    f.append(
+      muc(1, 'Đầu tab'),
+      tieu,
+      o('Nhãn bên phải', m.nhan, dat('nhan'), {ten: 'nhan', goi: 'CHỈ CUỐI TUẦN'}),
+      o('Câu mô tả', m.noi_dung, dat('noi_dung'), {nhieuDong: true, dong: 2, ten: 'noi_dung'}),
+      muc(2, 'Các mốc lịch'),
+      tao('p', 'bt-goi-y', 'Từ 2 đến 5 mốc. Web tự tô sáng mốc đang diễn ra theo ngày giờ bắt đầu.'),
+      dsDong(m, 'moc', [['nhan', 'Nhãn', 'MỞ ĐƠN'], ['chu_ngay', 'Chữ ngày', 'T2 16/11'], ['luc', 'Bắt đầu lúc', '', false, 'datetime-local']],
+        {nhan: '', chu_ngay: '', luc: ''}, '+ Thêm mốc', 5, xem),
+      muc(3, 'Ô đếm ngược'),
+      congTac('Hiện ô đếm ngược', m.dem_nguoc === '1', v => { m.dem_nguoc = v ? '1' : ''; xem(); }, bat => bat ? 'Web tự tính số ngày còn lại tới giờ chốt đơn, dưới 24 giờ thì tính theo giờ' : 'Không hiện ô đếm ngược'),
+      dem,
+      muc(4, 'Luật đặt'),
+      luat, oNgayGiao(m, xem),
+      muc(5, 'Món của đợt'),
+      tao('p', 'bt-goi-y', 'Đợt 1 món: web hiện một thẻ lớn có nút Đặt món này. Đợt 2 món trở lên: thẻ vuốt ngang.'),
+      dsMonDot(m, xem),
+      muc(6, 'Ngày hiện trên web'),
+      ngay);
   }
 
   /* v647: kiểm banner trước khi gửi, trùng luật noi_dung_web._kiem_banner. */
@@ -1104,16 +1254,22 @@
     bSua = banSua(x);
     bGoc = bSua ? JSON.stringify(bSua) : '';
   }
-  async function taiBanh() {
-    if (bTai) return;
-    bTai = true;
-    try {
-      BB = await api('ds_bien_tap', null, 'banh_web');
-      const dang = banhDangChon() || BB.banh[0] || null;
-      moBanh(dang);
-    } catch (e) { bao(e.message, true); BB = {banh: [], dem: {}}; }
-    finally { bTai = false; }
-    if (the === 'banh') ve();
+  /* v667: giữ lời hứa của lượt tải đang chạy, để ô chọn bánh của đợt cuối tuần
+     chờ đúng lượt đó (thẻ Bánh và form đợt có thể cùng gọi). */
+  let bHua = null;
+  function taiBanh() {
+    if (bHua) return bHua;
+    bHua = (async () => {
+      bTai = true;
+      try {
+        BB = await api('ds_bien_tap', null, 'banh_web');
+        const dang = banhDangChon() || BB.banh[0] || null;
+        moBanh(dang);
+      } catch (e) { bao(e.message, true); BB = {banh: [], dem: {}}; }
+      finally { bTai = false; bHua = null; }
+      if (the === 'banh') ve();
+    })();
+    return bHua;
   }
   function chuSize(x) {
     const ds = (x.sizes || []).map(s => s.cm ? s.cm + ' cm' : 'một cỡ');

@@ -7781,5 +7781,145 @@
     "nhom": "dat_banh",
     "mac_dinh": "Chưa báo được",
     "nhieu_dong": false
+  },
+  "tab_store": {
+    "ten": "Thanh chọn: Tại quầy",
+    "mac_dinh": "Tại quầy",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tab_dac_biet": {
+    "ten": "Thanh chọn: Đặc biệt tuần này",
+    "mac_dinh": "Đặc biệt tuần này",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "ct667_bep_tieu_de": {
+    "ten": "Chân trang: Bếp trung tâm",
+    "mac_dinh": "Bếp trung tâm",
+    "nhom": "chinh_sach"
+  },
+  "ct667_bep_dia_chi": {
+    "ten": "Chân trang: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà",
+    "mac_dinh": "307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà",
+    "nhom": "chinh_sach"
+  },
+  "dbt_mo_don": {
+    "ten": "Đặc biệt tuần này: Mở đơn",
+    "mac_dinh": "Mở đơn",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_da_chot": {
+    "ten": "Đặc biệt tuần này: Đã chốt đơn tuần này",
+    "mac_dinh": "Đã chốt đơn tuần này",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_meta": {
+    "ten": "Đặc biệt tuần này: 05 / Đặc biệt tuần này",
+    "mac_dinh": "05 / Đặc biệt tuần này",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_nhan_mac_dinh": {
+    "ten": "Đặc biệt tuần này: Chỉ cuối tuần",
+    "mac_dinh": "Chỉ cuối tuần",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_lich": {
+    "ten": "Đặc biệt tuần này: Lịch đợt",
+    "mac_dinh": "Lịch đợt",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_dem_ngay": {
+    "ten": "Đặc biệt tuần này: {so} ngày",
+    "mac_dinh": "{so} ngày",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_dem_gio": {
+    "ten": "Đặc biệt tuần này: {so} giờ",
+    "mac_dinh": "{so} giờ",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_tu": {
+    "ten": "Đặc biệt tuần này: Từ",
+    "mac_dinh": "Từ",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_tang_huong": {
+    "ten": "Đặc biệt tuần này: Tầng hương",
+    "mac_dinh": "Tầng hương",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_dat_mon": {
+    "ten": "Đặc biệt tuần này: Đặt món này",
+    "mac_dinh": "Đặt món này",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_xem_mon": {
+    "ten": "Đặc biệt tuần này: Xem {ten}",
+    "mac_dinh": "Xem {ten}",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_them": {
+    "ten": "Đặc biệt tuần này: Chọn size {ten}",
+    "mac_dinh": "Chọn size {ten}",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_rong": {
+    "ten": "Đặc biệt tuần này: Tuần này chưa có món đặc biệt. Quý khách xem các bánh đặt trước nhé.",
+    "mac_dinh": "Tuần này chưa có món đặc biệt. Quý khách xem các bánh đặt trước nhé.",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_chua_co_mon": {
+    "ten": "Đặc biệt tuần này: Món của tuần này đang được cập nhật. Quý khách quay lại sau ít phút.",
+    "mac_dinh": "Món của tuần này đang được cập nhật. Quý khách quay lại sau ít phút.",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_con_suat": {
+    "ten": "Đặc biệt tuần này: Món cuối tuần này chỉ còn nhận {so} bánh.",
+    "mac_dinh": "Món cuối tuần này chỉ còn nhận {so} bánh.",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_chi_giao": {
+    "ten": "Đặc biệt tuần này: Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.",
+    "mac_dinh": "Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "quay_chon_cua_hang": {
+    "ten": "Tại quầy: Chọn cửa hàng",
+    "mac_dinh": "Chọn cửa hàng",
+    "nhom": "dat_banh"
+  },
+  "quay_dong_con": {
+    "ten": "Tại quầy: Còn {so} bánh",
+    "mac_dinh": "Còn {so} bánh",
+    "nhom": "dat_banh"
+  },
+  "goi_ban_tim_nut": {
+    "ten": "Tại quầy: Tìm món",
+    "mac_dinh": "Tìm món",
+    "nhom": "dat_banh"
+  },
+  "dbt_ly_chua_mo": {
+    "ten": "Đặc biệt tuần này: Món cuối tuần chưa mở đơn. Quý khách quay lại khi mở đơn nhé.",
+    "mac_dinh": "Món cuối tuần chưa mở đơn. Quý khách quay lại khi mở đơn nhé.",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_ly_da_chot": {
+    "ten": "Đặc biệt tuần này: Món cuối tuần đã chốt đơn tuần này. Quý khách bỏ món này khỏi giỏ để gửi phần cò",
+    "mac_dinh": "Món cuối tuần đã chốt đơn tuần này. Quý khách bỏ món này khỏi giỏ để gửi phần còn lại.",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_ly_sai_ngay": {
+    "ten": "Đặc biệt tuần này: Món cuối tuần chỉ giao, nhận vào ngày giao của đợt. Quý khách chọn lại ngày nhận",
+    "mac_dinh": "Món cuối tuần chỉ giao, nhận vào ngày giao của đợt. Quý khách chọn lại ngày nhận.",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "dbt_ly_het_suat": {
+    "ten": "Đặc biệt tuần này: Món cuối tuần vừa hết số lượng nhận. Quý khách bớt số lượng hoặc bỏ món này rồi ",
+    "mac_dinh": "Món cuối tuần vừa hết số lượng nhận. Quý khách bớt số lượng hoặc bỏ món này rồi gửi lại.",
+    "nhom": "Đặc biệt tuần này"
+  },
+  "quay_dong_loai": {
+    "ten": "Tại quầy: {loai} loại",
+    "mac_dinh": "{loai} loại",
+    "nhom": "dat_banh"
   }
 }
