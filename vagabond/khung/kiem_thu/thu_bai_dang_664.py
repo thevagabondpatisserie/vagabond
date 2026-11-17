@@ -52,9 +52,10 @@ def _gom():
 	la("nháp không đổi", x.gom_trang_thai(x.TT_NHAP, [x.K_XONG]), x.TT_NHAP)
 
 
-@ca("v664 kênh tự đăng: chỉ Facebook, Instagram, Threads đã nối; Story bỏ Threads; Zalo OA luôn đăng tay")
+@ca("v664 kênh tự đăng: chỉ kênh đã nối; Story bỏ Threads và Zalo OA (v666: Zalo OA nối được thì tự đăng)")
 def _tu_dong():
-	la("bài", sorted(x.kenh_tu_dong({"fb", "th", "zl"})), ["fb", "th"])
+	la("bài", sorted(x.kenh_tu_dong({"fb", "th", "zl"})), ["fb", "th", "zl"])
+	la("Story bỏ Zalo OA", sorted(x.kenh_tu_dong({"fb", "zl"}, x.KIEU_STORY)), ["fb"])
 	la("Story", sorted(x.kenh_tu_dong({"fb", "ig", "th"}, x.KIEU_STORY)), ["fb", "ig"])
 	la("chưa nối", x.kenh_tu_dong(None), set())
 
@@ -165,8 +166,9 @@ def _chay(doc, ham, noi=(), bay_gio=BAY_GIO, dang=None, **k):
 	"""Chạy một hàm của bai_dang với bản giả. dang: hàm thay mxh.dang (ghi lại lời gọi)."""
 	nhat = {"luu": [], "xep": [], "bao_tay": [], "bao_loi": [], "commit": 0, "goi": []}
 
-	def _dang(kenh, ma_bai, chu, anh, story=False):
+	def _dang(kenh, ma_bai, chu, anh, story=False, tieu_de=""):
 		nhat["goi"].append((kenh, chu, len(anh), story))
+		nhat.setdefault("tieu_de", []).append((kenh, tieu_de))
 		if dang:
 			return dang(kenh)
 		return ("ID-" + kenh, "https://x.com/" + kenh)

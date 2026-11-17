@@ -336,6 +336,9 @@ TIN = {
 		"Người soạn không có quyền duyệt vừa gửi một bài đăng mạng xã hội cho Marketing duyệt.", "viec", "don_web"),
 	"mkt_bai_dang_den_gio": ("Marketing", "Đến giờ đăng tay bài đăng",
 		"Bài đã duyệt và hẹn giờ tới giờ đăng: các kênh chưa tự đăng được chờ Marketing đăng tay.", "viec", "don_web"),
+	# v666 (anh Việt 17/11/2026): Marketing gửi giám đốc duyệt; giám đốc duyệt, đồng ý nội dung hay trả lại.
+	"mkt_bai_gd_duyet": ("Marketing", "Giám đốc duyệt hoặc trả lại bài đăng",
+		"Giám đốc vừa duyệt, đồng ý nội dung hoặc trả lại kèm góp ý một bài đăng gửi giám đốc duyệt.", "viec", "don_web"),
 	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",

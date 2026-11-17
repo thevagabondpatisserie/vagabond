@@ -87,7 +87,9 @@ CUA_NGO = {
 	# chay_tu_dong và các hàm quét, gửi KHÔNG được mở ra ngoài.
 	# v662 (anh Việt 15/11): bài đăng mạng xã hội, Marketing soạn, duyệt, đăng tay.
 	"bai_dang.py": ["cai_dat", "da_dang", "doi_moc", "duyet", "gio_trong", "gui_duyet", "huy", "lich", "luu", "nhap_tep", "soan_ai",
-		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh"],
+		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh",
+		# v666 Sổ chủ đề, gắn sao, gửi giám đốc duyệt.
+		"gui_giam_doc", "gd_dong_y", "gd_tra_lai", "gan_sao", "chu_de_ds", "chu_de_luu"],
 	"mxh.py": [],
 	"zalo_kich_ban.py": ["ds_kich_ban", "luu_kich_ban", "kiem_mau_zalo", "ds_tin", "gui_thu"],
 	# v621: trang thành viên. Mọi hàm mở cho khách vãng lai, tự xác thực bằng

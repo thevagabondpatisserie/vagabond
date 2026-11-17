@@ -91,6 +91,8 @@ LOAI_PHIEU = (
 	("hoa_don_thu", "Hoá đơn nhà cung cấp trong hộp thư", "📧"),
 	# v656 (anh Việt 13/11): phiếu đề xuất công thức, bếp gửi, Khải lên mã.
 	("de_xuat_ct", "Đề xuất công thức", "📝"),
+	# v666 (anh Việt 17/11): bài đăng gửi giám đốc duyệt; bài giám đốc trả lại cho Marketing.
+	("bai_dang", "Bài đăng mạng xã hội", "📣"),
 )
 
 # ====================================================== CHẾ ĐỘ GIÁM ĐỐC
@@ -113,7 +115,7 @@ VAI_GIAM_DOC_SIET = {"AP Giám đốc", "Giám đốc"}
 # Ba việc anh Việt nêu đích danh. Thêm loại thứ tư thì thêm đúng một dòng ở
 # đây, và phải là việc mà giám đốc THẬT SỰ là người quyết, không phải việc
 # chỉ để xem cho biết.
-VIEC_HE_TRONG = ("ho_so_tt", "nop_quy", "hang_tang", "doi_soat_duyet", "du_chi")
+VIEC_HE_TRONG = ("ho_so_tt", "nop_quy", "hang_tang", "doi_soat_duyet", "du_chi", "bai_dang")
 
 # Việc giao ĐÍCH DANH từ màn Việc hôm nay (#351). Không lọc theo vai mà theo
 # ToDo của chính người đang đăng nhập, nên ai được giao thì người đó thấy, kể
@@ -184,6 +186,8 @@ MA_TRAN = {
 	"hoa_don_thu": VAI_THU_MUA | VAI_KE_TOAN,
 	# v656: Khải (quản lý công thức) và bếp trưởng lên mã; người lập thấy phiếu bị trả lại.
 	"de_xuat_ct": {"Manufacturing Manager", "Manufacturing User", "Bếp phó", "Quầy Bar", "VGB - Quản lý công thức"} | VAI_GIAM_DOC,
+	# v666: giám đốc thấy bài chờ mình duyệt; Marketing thấy bài giám đốc trả lại (bai_dang.viec).
+	"bai_dang": VAI_MKT | VAI_GIAM_DOC | {"Giám đốc", "AP Giám đốc"},
 }
 
 
@@ -834,6 +838,12 @@ def _viec_de_xuat_ct(vai):
 	return de_xuat_cong_thuc.viec(set(vai))
 
 
+def _viec_bai_dang(vai):
+	"""v666: bài đăng chờ giám đốc duyệt, bài giám đốc trả lại (bai_dang.viec)."""
+	from vagabond import bai_dang
+	return bai_dang.viec(set(vai))
+
+
 def _viec_du_chi(vai):
 	"""v653 (#555): đợt dự chi đúng bước của người xem (du_chi.viec)."""
 	from vagabond import du_chi
@@ -910,6 +920,7 @@ def danh_sach(loai="", trang_thai=""):
 		("du_chi", lambda: _viec_du_chi(vai)),
 		("hoa_don_thu", lambda: _viec_hoa_don_thu(vai)),
 		("de_xuat_ct", lambda: _viec_de_xuat_ct(vai)),
+		("bai_dang", lambda: _viec_bai_dang(vai)),
 	]
 
 	if chi_viec_giao:
