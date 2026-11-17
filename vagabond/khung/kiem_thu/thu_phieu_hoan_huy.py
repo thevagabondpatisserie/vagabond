@@ -417,7 +417,8 @@ def _():
 	# the, hoac doi quay; con so cua mot cua hang khong duoc doi theo.
 	c = inspect.getsource(dh.tao_hoan)
 	dung("đường Pancake ghi thẳng Sales Online", '"diem_ban": "SALES"' in c)
-	for ham in (ht.tao, ht.tao_tien_du, ht.tao_huy_nhap):
+	# v667: phần lập phiếu nộp thừa tách sang _tao_tien_du (tao_tien_du giữ khoá).
+	for ham in (ht.tao, ht._tao_tien_du, ht.tao_huy_nhap):
 		c2 = inspect.getsource(ham)
 		dung("%s có ghi điểm bán" % ham.__name__, '"diem_ban": _diem_cua_si(si)' in c2)
 
