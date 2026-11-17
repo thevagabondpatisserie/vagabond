@@ -1585,6 +1585,24 @@ Khách đặt qua tab Tại quầy trên trang chủ, chọn Giao tận nơi ho�
 - Món chỉ lên đơn giao khi quản lý đã tick Giao ở Biên tập menu.
 - Từ chối thì mã ưu đãi của đơn trả lại cho khách.
 
+## Nhóm món và combo ở tab Tại quầy đặt giao
+Từ khoá: tại quầy, đặt giao, nhóm món, bánh nướng, bánh khô, trà, cà phê, combo, weborder, O2O, mọi nhóm
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách, quản lý cửa hàng, Marketing | Trang đặt bánh /banh, tab Tại quầy; Bán hàng, Khuyến mãi - combo | chip [[Mọi nhóm]] |
+
+Trước đây: tab Tại quầy chỉ có ba chip Tất cả, Bánh, Đồ uống; muốn xem Bánh nướng phải bấm Bánh trước. Combo chỉ bày ở trang gọi món tại bàn. Từ nay: ngay dưới hàng Tất cả, Combo, Bánh, Đồ uống có hàng nhóm món (Bánh lạnh, Bánh nướng, Bánh khô, rồi Trà, Cà phê...), chạm là lọc. Trang gọi món tại bàn cũng vậy. Combo cố định của quầy bày cả ở tab Tại quầy cho khách đặt giao.
+
+**Bạn cần làm**
+1. Muốn một combo lên tab Tại quầy: mở combo, bật combo, ô Kênh để trống hoặc có nguồn Mang về của quầy (đơn giao lập phiếu tạm tính với nguồn này).
+2. Mọi món trong combo phải tick [[Giao]] ở Biên tập menu. Thiếu một món thì combo không lên tab Tại quầy.
+3. Mở tab Tại quầy trên web kiểm combo có nút +, đặt thử một đơn nhỏ.
+
+**Lưu ý**
+- Combo có nhóm chọn món, có giới hạn khuyến mãi hay cần OTP không bày trên web (chỉ bán ở quầy).
+- Mã giảm số tiền, phần trăm áp cho đơn giao khi chương trình mở kênh đặt giao tại quầy.
+
 ## Tick bán Tại bàn và Giao ở Biên tập menu
 Từ khoá: tại bàn, giao, O2O, weborder, bánh mong manh, tick cả nhóm, ẩn món trên web
 

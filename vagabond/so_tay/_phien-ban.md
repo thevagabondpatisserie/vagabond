@@ -22,6 +22,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - AI soạn chữ theo giọng văn The Vagabond
 - Gửi giám đốc duyệt bài đăng
 - Dải chip trạng thái đầu màn Bài đăng
+- Nhóm món và combo ở tab Tại quầy đặt giao
 
 ## v669
 - Không đổi thao tác: bản gộp để deploy một lần v666 (#578), v667 (#579, #580), v668 (#581); hướng dẫn nằm ở các mục của từng bản bên dưới
