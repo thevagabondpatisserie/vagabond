@@ -207,7 +207,7 @@ chín điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn
    `scrXkChonHang`), hàng hoá có thêm nút quét mã. TUYỆT ĐỐI không dùng
    `<select>`. Dưới 8 lựa chọn thì dùng hàng chip. Giá trị đang chọn hiện
    dạng thẻ (ảnh, tên đậm, dòng phụ xám, mũi tên), chạm vào là mở sheet.
-3. **Chip theo công việc của danh sách:** dùng trạng thái có đếm, nhóm hoặc
+3. **Ba hàng chip theo nhu cầu danh sách:** dùng trạng thái có đếm, nhóm hoặc
    nguồn, khoảng ngày khi dữ liệu và thao tác cần các chiều lọc đó. Màn chọn
    kho ngắn có thể dùng tìm kiếm và dấu đang chọn. Ghi lý do mục không áp dụng
    trong bàn giao. Chip trên dòng thể hiện trạng thái có thật; việc nhiều
