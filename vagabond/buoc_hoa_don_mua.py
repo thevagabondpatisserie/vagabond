@@ -69,7 +69,7 @@ TRUONG_MOI = {
 # ------------------------------------------------------------ phép thuần
 
 
-def buoc_cua_to(dong, lech_hddt=0):
+def buoc_cua_to(dong, lech_hddt=0, dieu_chinh=0):
 	"""Tờ đang ở bước nào. THUẦN, không chạm Frappe.
 
 	`dong` là danh sách từ điển, mỗi dòng có `item_code`, `purchase_receipt`
@@ -93,6 +93,10 @@ def buoc_cua_to(dong, lech_hddt=0):
 		return B_THIEU_MA
 	if cint(lech_hddt):
 		return B_LECH_HDDT
+	# v666: tờ hoá đơn điều chỉnh chỉ sửa tiền của tờ gốc, hàng đã vào kho bằng
+	# phiếu nhập của tờ gốc nên không chờ nối phiếu nhập.
+	if cint(dieu_chinh):
+		return B_CHO_GHI_SO
 	for d in ds:
 		if not cint((d or {}).get("qua_kho")):
 			continue
@@ -195,7 +199,8 @@ def dat_buoc(doc, method=None):
 				"purchase_receipt": d.get("purchase_receipt"),
 				"qua_kho": _qua_kho(ma),
 			})
-		doc.set(TRUONG, buoc_cua_to(dong, _lech_hddt(doc)))
+		dc = str(doc.get("custom_trang_thai_hddt") or "").strip() == "Điều chỉnh"
+		doc.set(TRUONG, buoc_cua_to(dong, _lech_hddt(doc), 1 if dc else 0))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "buoc_hoa_don_mua: dat buoc")
 
