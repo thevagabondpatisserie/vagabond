@@ -880,19 +880,25 @@ def bang_mon(d, hom_nay=None, kenh=None):
 		ra[m["ma"]] = {"ten": m["ten"], "gia": gia_mon(m["ma"], gia_diem, m["gia_chung"]), "loai": "banh", "con": con,
 			"nhom_goc": m.get("nhom") or ""}
 	# v642: combo cố định đang chạy, sau khi đã có đủ nước và bánh để kiểm thành phần.
-	for c in combo_ban_duoc(doc_combo_ban(d["ma"]), ra):
+	# v670 (Minh Vũ 17/11): kênh Giao (WEBORDER) cũng gọi được combo; luật bán xét
+	# đúng nguồn của phiếu tạm tính quầy sẽ lập cho đơn giao (don_quay.nguon_combo).
+	nguon_cb = don_quay.nguon_combo(d) if kenh == bien_tap_menu.KENH_GIAO else None
+	for c in combo_ban_duoc(doc_combo_ban(d["ma"], nguon_cb), ra):
 		ra[c["ma"]] = c
 	return ra
 
 
-def doc_combo_ban(ma_diem):
+def doc_combo_ban(ma_diem, nguon=None):
 	"""Combo cố định của một điểm cho trang bàn: [{ma, ten, gia, goc, mo_ta, anh,
 	dong}]. Luật bán lấy đúng của hoá đơn (combo_mon.ly_do_khong_ban) và phải qua
 	cho CẢ HAI nguồn đơn bàn: phiếu tạm tính lập với nguồn Tại chỗ, các lượt gọi
 	sau thêm vào phiếu đã mang nguồn QR tại bàn, mà combo được rã lúc lưu phiếu.
-	Giá bộ tính như cửa rã combo (giá gốc trừ phần giảm của bộ)."""
+	Giá bộ tính như cửa rã combo (giá gốc trừ phần giảm của bộ).
+	v670: nguon là các nguồn phiếu phải qua luật bán; mặc định hai nguồn đơn bàn,
+	kênh Giao truyền nguồn phiếu tạm tính của đơn giao (don_quay.nguon_combo)."""
 	from vagabond import combo_mon, khuyen_mai
 
+	nguon = tuple(nguon or (NGUON_TAO, NGUON_QR))
 	try:
 		ds = frappe.get_all("Vagabond Combo", filters={"bat": 1, "ma_hang": ["like", "KMCB%"]},
 			fields=["name", "ma_hang"], order_by="uu_tien asc, ten asc", limit_page_length=0)
@@ -906,7 +912,7 @@ def doc_combo_ban(ma_diem):
 			# Số lượng lẻ (0,5 phần) không bày ra bàn: khách gọi theo bộ nguyên.
 			if not cb["dong"] or any(flt(x.get("so_luong")) != int(flt(x.get("so_luong"))) for x in cb["dong"]):
 				continue
-			if any(combo_mon.ly_do_khong_ban(cb, r["ma_hang"], ma_diem, n) for n in (NGUON_TAO, NGUON_QR)):
+			if any(combo_mon.ly_do_khong_ban(cb, r["ma_hang"], ma_diem, n) for n in nguon):
 				continue
 			goc = sum(flt(x.get("so_luong")) * flt(x.get("gia_goc")) for x in cb["dong"])
 			gia = goc - khuyen_mai._tiet_kiem_bo(cb, goc)

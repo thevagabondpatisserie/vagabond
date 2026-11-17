@@ -420,6 +420,49 @@ def chu_chua_nhom(loai, chu_de, nguon=None, ma_tin=None):
 	return tieu_de[:140], loi
 
 
+# v670 (Minh Vũ 17/11: nhóm cửa hàng không nhận tin đơn giao vì nhóm đã tích danh
+# sách Tin nhận từ trước, tin mới ra không tự vào). Mỗi mã tin MỚI mà nhóm đã chọn
+# lọc cần nhận thì khai ở đây một mã MỐC đã có: nhóm nào đang nhận mã mốc thì bản
+# vá của bản đó tích thêm mã mới (tich_theo_moc). Nhóm để trống Tin nhận vẫn nhận tất.
+TIN_MOC = {
+	"mkt_bai_gd_duyet": "mkt_bai_cho_duyet",
+	"bh_weborder_moi": "bh_goi_mon_tai_ban",
+}
+
+
+def tin_them_theo_moc(tin_nhan, moi, moc):
+	"""THUẦN (v670): chuỗi Tin nhận mới của một nhóm khi tích thêm `moi` cho nhóm
+	đang nhận `moc`; None nếu không đổi (nhóm nhận tất cả, chưa nhận mốc, đã có)."""
+	cu = [m.strip() for m in str(tin_nhan or "").replace(";", ",").split(",") if m.strip()]
+	if not cu or moc not in cu or moi in cu:
+		return None
+	return ", ".join(cu + [moi])
+
+
+def tich_theo_moc(cac_ma):
+	"""v670: tích các mã tin mới (khoá trong TIN_MOC) cho nhóm đang nhận mã mốc của
+	nó. Bản vá của từng bản gọi với đúng các mã mới của bản đó, một lần; nhóm đã
+	bỏ tích sau đó không bị tích lại ở bản sau. Trả số nhóm đã đổi."""
+	for ma in cac_ma:
+		if ma not in TIN or ma not in TIN_MOC or TIN_MOC[ma] not in TIN:
+			raise Exception("kenh_zalo.tich_theo_moc: mã tin %s chưa khai trong TIN hoặc TIN_MOC" % ma)
+	if not frappe.db.has_column("Vagabond Kenh Zalo", "tin_nhan"):
+		return 0
+	rows = frappe.get_all("Vagabond Kenh Zalo", filters={"parenttype": "Vagabond Settings", "parentfield": "zalo_nhom"},
+		fields=["name", "tin_nhan"], order_by="idx asc", limit_page_length=0)
+	doi = 0
+	for r in rows:
+		tn, moi = r.get("tin_nhan"), None
+		for ma in cac_ma:
+			moi = tin_them_theo_moc(tn, ma, TIN_MOC[ma]) or moi
+			tn = moi or tn
+		if moi:
+			frappe.db.set_value("Vagabond Kenh Zalo", r["name"], "tin_nhan", moi, update_modified=False)
+			doi += 1
+	frappe.clear_cache(doctype="Vagabond Settings")
+	return doi
+
+
 def tach_ds(s):
 	"""THUẦN: "viec, canh_bao" -> {"viec", "canh_bao"}; rỗng -> set()."""
 	return {x.strip() for x in str(s or "").replace(";", ",").split(",") if x.strip()}

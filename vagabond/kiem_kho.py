@@ -790,6 +790,23 @@ def banh_tren_quay(ma_diem, ngay=None):
 	return ra
 
 
+def gop_combo_kenh(tai_ban, giao):
+	"""THUẦN (v670): gộp combo bày Tại bàn và combo bày cho đơn Giao thành một danh
+	sách, mỗi combo mang cờ tai_ban, giao (0 hoặc 1) như món. Cùng mã ở hai kênh thì
+	giữ số bộ "con" của từng kênh (con_giao). Trả [(combo, cờ)] theo thứ tự Tại bàn
+	rồi combo chỉ bán Giao."""
+	theo = {}
+	for c in tai_ban or []:
+		theo[c["ma"]] = [dict(c), {"tai_ban": 1, "giao": 0}]
+	for c in giao or []:
+		if c["ma"] in theo:
+			theo[c["ma"]][1]["giao"] = 1
+			theo[c["ma"]][1]["con_giao"] = int(c.get("con") or 0)
+		else:
+			theo[c["ma"]] = [dict(c), {"tai_ban": 0, "giao": 1, "con_giao": int(c.get("con") or 0)}]
+	return [tuple(v) for v in theo.values()]
+
+
 @frappe.whitelist(allow_guest=True)
 def con_tren_quay_web():
 	"""Tab "In store" cua trang dat banh: tung quay dang con gi, bao nhieu cai.
@@ -902,8 +919,16 @@ def con_tren_quay_web():
 		try:
 			bang = {m["ma"]: {"ten": m["ten"], "loai": "banh", "con": m["con"], "nhom_goc": m.get("nhom") or ""} for m in q["mon"]}
 			bang.update({m["ma"]: {"ten": m["ten"], "loai": "nuoc", "nhom_goc": m.get("nhom_goc") or ""} for m in q["do_uong"]})
-			q["combo"] = [dict(c, anh=chon_anh(c.get("anh") or "", [], ma_hang=c["ma"])[0] if c.get("anh") else "")
-				for c in goi_mon_ban.combo_ban_duoc(goi_mon_ban.doc_combo_ban(d["ma"]), bang)]
+			ban = goi_mon_ban.combo_ban_duoc(goi_mon_ban.doc_combo_ban(d["ma"]), bang)
+			# v670 (Minh Vũ 17/11): combo cho tab Tại quầy đặt giao (WEBORDER): thành phần
+			# phải là món đã tick Giao, luật bán xét nguồn phiếu của đơn giao; cùng phép
+			# bang_mon(kenh=KENH_GIAO) dùng lúc đặt nên trang bày combo nào thì đặt được.
+			from vagabond import don_quay
+
+			bang_giao = {k: v for k, v in bang.items() if any(m["ma"] == k and m.get("giao") for m in q["mon"] + q["do_uong"])}
+			giao = goi_mon_ban.combo_ban_duoc(goi_mon_ban.doc_combo_ban(d["ma"], don_quay.nguon_combo(d)), bang_giao)
+			q["combo"] = [dict(c, anh=chon_anh(c.get("anh") or "", [], ma_hang=c["ma"])[0] if c.get("anh") else "", **co)
+				for c, co in gop_combo_kenh(ban, giao)]
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "kiem_kho: combo tai quay loi")
 			q["combo"] = []

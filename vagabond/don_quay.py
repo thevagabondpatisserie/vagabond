@@ -816,6 +816,13 @@ def _nguon_bill(d):
 	return goi_mon_ban.NGUON_TAO
 
 
+def nguon_combo(d):
+	"""v670: nguồn phiếu mà luật bán combo phải cho phép thì đơn giao mới bày và gọi
+	được combo đó: đúng nguồn phiếu tạm tính quầy lập khi xác nhận (_nguon_bill),
+	vì combo được rã lúc lưu phiếu. Một nguồn cho trang khách, bảng món, phiếu."""
+	return (_nguon_bill(d),)
+
+
 @frappe.whitelist(methods=["POST"])
 def xac_nhan(ma=None, hen=None):
 	"""Quầy nhận đơn: hẹn 10, 15, 20 phút, lập phiếu tạm tính ở quầy.
