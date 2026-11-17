@@ -12,6 +12,12 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v666
+- Hoá đơn điều chỉnh giảm của nhà cung cấp
+- Quy đổi đơn vị dòng hoá đơn theo phiếu nhập
+- Vì sao không nối được phiếu nhập kho vào hoá đơn
+- Nối phiếu nhập kho với hoá đơn mua
+
 ## v665
 - Hệ thống tự đăng Facebook, Instagram, Threads
 - Kho bản thảo thay cho gửi ghi chú qua lại
