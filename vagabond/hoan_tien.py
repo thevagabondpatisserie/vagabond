@@ -242,6 +242,18 @@ def so_don_hop_le(v):
 LOAI_ONEPAY = ("ban", "hoan")
 
 
+def dong_hieu_luc(dong, nguon_tu_choi=()):
+	"""Dòng bảng kê còn hiệu lực để tính tiền. THUẦN. Bỏ dòng "Đã thay" (bản
+	đọc cũ vendor đã sửa, giữ làm vết; bản thay mang cùng giao dịch) và dòng
+	của tệp giám đốc đã từ chối (Codex #580 vòng 2), để một giao dịch chỉ tính
+	một lần, giống mọi truy vấn "đã dùng" của Đối soát."""
+	from vagabond.doi_soat_khop import DA_THAY
+
+	bo = {str(x) for x in nguon_tu_choi or () if x}
+	return [d for d in dong or [] if d.get("trang_thai_khop") != DA_THAY
+		and not (d.get("nguon") and str(d.get("nguon")) in bo)]
+
+
 def tien_onepay_cua_don(cac_so, dong, si_name):
 	"""Tiền OnePay đã về cho một hoá đơn, từ các dòng bảng kê. THUẦN.
 
@@ -253,7 +265,7 @@ def tien_onepay_cua_don(cac_so, dong, si_name):
 
 	so = {str(x) for x in cac_so or [] if str(x or "").strip()}
 	tong, ma = 0.0, []
-	for d in dong or []:
+	for d in dong_hieu_luc(dong):
 		noi = str(d.get("sales_invoice") or "").strip()
 		if noi and noi != si_name:
 			continue
@@ -279,20 +291,24 @@ def _dong_onepay(cac_so, si_name):
 	"""Dòng bảng kê OnePay mang các số đơn này hoặc đã nối vào hoá đơn này: cả
 	giao dịch mua (loai "ban") lẫn hoàn qua OnePay (loai "hoan", số âm), để tiền
 	còn giữ của khách là số RÒNG (Codex #580). Đọc đủ, không giới hạn số dòng."""
-	from vagabond.doi_soat_vendor import DT_DONG
+	from vagabond.doi_soat_khop import DA_THAY
+	from vagabond.doi_soat_vendor import DT_DONG, DT_NGUON
 
 	if not frappe.db.exists("DocType", DT_DONG):
 		return []
-	truong = ["name", "ma_tham_chieu", "tien_hang", "sales_invoice", "ngay"]
+	truong = ["name", "ma_tham_chieu", "tien_hang", "sales_invoice", "ngay", "trang_thai_khop", "nguon"]
 	ra, thay = [], set()
 	loc = [{"sales_invoice": si_name}] + [{"ma_tham_chieu": ["like", "%%O%sT%%" % s]} for s in cac_so if s]
 	for f in loc:
-		f.update({"vendor": "OnePay", "loai": ["in", list(LOAI_ONEPAY)]})
+		f.update({"vendor": "OnePay", "loai": ["in", list(LOAI_ONEPAY)], "trang_thai_khop": ["!=", DA_THAY]})
 		for r in frappe.get_all(DT_DONG, filters=f, fields=truong, limit_page_length=0):
 			if r.name not in thay:
 				thay.add(r.name)
 				ra.append(r)
-	return ra
+	nguon = sorted({str(r.get("nguon")) for r in ra if r.get("nguon")})
+	tu_choi = frappe.get_all(DT_NGUON, filters={"name": ["in", nguon], "duong_vao": "Từ chối"},
+		pluck="name", limit_page_length=0) if nguon else []
+	return dong_hieu_luc(ra, tu_choi)
 
 
 def _onepay_da_ve(si, don_cu=""):
@@ -391,7 +407,7 @@ def chon_goi_y(dong, don_cua_khach, so_cua_hd, tong_don, tu_ngay, toi_da=5):
 
 	cua_khach = {str(x) for x in don_cua_khach or [] if str(x or "").strip()} - {str(so_cua_hd or "")}
 	gom = {}
-	for d in dong or []:
+	for d in dong_hieu_luc(dong):
 		so = so_don_onepay(d.get("ma_tham_chieu"))
 		if so not in cua_khach or str(d.get("sales_invoice") or "").strip():
 			continue
