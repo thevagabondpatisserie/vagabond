@@ -19,6 +19,10 @@
     [{"loai": "banner"}, "dang", "Đang hiện"],
     [{"loai": "banner", "bat_dau": "2026-10-08"}, "sap", "Chưa tới ngày hiện"],
     [{"loai": "banner", "bat_dau": "2026-10-07", "ket_thuc": "2026-10-07"}, "dang", "Đang hiện"],
-    [{"loai": "banner", "ket_thuc": "2026-10-06"}, "het", "Đã hết hạn"]
+    [{"loai": "banner", "ket_thuc": "2026-10-06"}, "het", "Đã hết hạn"],
+    [{"loai": "dac_biet_tuan"}, "dang", "Đang hiện"],
+    [{"loai": "dac_biet_tuan", "bat_dau": "2026-10-08"}, "sap", "Chưa tới ngày hiện"],
+    [{"loai": "dac_biet_tuan", "bat_dau": "2026-10-07", "ket_thuc": "2026-10-07"}, "dang", "Đang hiện"],
+    [{"loai": "dac_biet_tuan", "ket_thuc": "2026-10-06"}, "het", "Đã hết hạn"]
   ]
 }
