@@ -640,6 +640,8 @@ NGUON_CU = {
 	# v662: phiếu tạm tính lập từ đơn giao của quầy (WEBORDER, khách đặt qua tab
 	# Tại quầy trên trang chủ, đã trả trước): nguồn riêng cho báo cáo, thanh toán như "Mang về".
 	"Web giao": "Mang về",
+	# v670 (anh Việt 17/11/2026): từ nay phiếu của kênh này mang đúng chữ WEBORDER.
+	"WEBORDER": "Mang về",
 }
 
 
