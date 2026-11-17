@@ -67,13 +67,16 @@ def _gia_so_kho(ma, kho, ngay=None, gio=None):
 
 
 def moc(ngay=None, gio=None):
-	"""THUẦN: mốc thời gian 'YYYY-MM-DD HH:MM:SS' của phiếu, thiếu giờ thì cuối ngày."""
+	"""THUẦN: mốc thời gian 'YYYY-MM-DD HH:MM:SS[.ffffff]' của phiếu, thiếu giờ thì cuối ngày.
+
+	Giữ phần lẻ giây nếu có: posting_datetime của sổ kho lưu tới micro giây, cắt
+	tới giây thì chứng từ cùng giây với phiếu bị coi là sau mốc."""
 	if not ngay:
 		return None
-	g = str(gio or "23:59:59")
+	g = str(gio or "23:59:59").strip()
 	if len(g) == 5:
 		g += ":00"
-	return "%s %s" % (str(ngay)[:10], g[:8])
+	return "%s %s" % (str(ngay)[:10], g[:15])
 
 
 def moc_ghi_so(ngay, gio, sua_ngay_gio, bay_gio):
@@ -88,7 +91,9 @@ def moc_ghi_so(ngay, gio, sua_ngay_gio, bay_gio):
 	Màn Desk mở từ trước cũng vậy. `bay_gio` là datetime lúc lưu."""
 	if int(sua_ngay_gio or 0):
 		return ngay, gio
-	return bay_gio.strftime("%Y-%m-%d"), bay_gio.strftime("%H:%M:%S")
+	# Giữ phần lẻ giây như ERPNext ("%H:%M:%S.%f"): cắt tới giây thì hàng nhập
+	# trong cùng giây với lúc lưu bị coi là sau mốc (bench 18/11 01:12:02).
+	return bay_gio.strftime("%Y-%m-%d"), bay_gio.strftime("%H:%M:%S.%f")
 
 
 def _gia_kho_khac(ma, kho, ngay=None, gio=None):
@@ -157,7 +162,7 @@ def dien_gia(doc, method=None):
 				# sang Item Price/Item hiện tại. Chặn trước để Desk không đi vòng.
 				frappe.throw("Dòng %s, món %s: chưa có giá vốn trên sổ kho tới %s. "
 					"Nhập giá vốn tại thời điểm kiểm kê đã được kế toán xác minh."
-					% (r.idx, r.item_code, moc(ngay, gio)))
+					% (r.idx, r.item_code, (moc(ngay, gio) or "")[:19]))
 
 
 @frappe.whitelist()
