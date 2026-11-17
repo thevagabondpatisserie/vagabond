@@ -27370,7 +27370,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '665';
+var APPVER = '666';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -37403,6 +37403,8 @@ function dcmChip(d) {
   if (d.nhom === 'xong') return the('#dcfce7', '#166534', '✅ Đã ghi sổ');
   if (d.nhom === 'huy') return the('#fee2e2', '#991b1b', '🚫 Đã huỷ');
   if (d.noi_cu) return the('#fee2e2', '#991b1b', '⚠️ Phiếu nhập đã bị hoá đơn khác lấy, nối lại');
+  /* v666: tờ hoá đơn điều chỉnh không nối phiếu nhập, chờ ghi sổ sau tờ gốc. */
+  if (d.dieu_chinh && d.nhom === 'cho_ghi_so') return the('#ede9fe', '#5b21b6', '🧾 Hoá đơn điều chỉnh, chờ ghi sổ');
   if (d.nhom === 'cho_ghi_so') return the('#dbeafe', '#1e40af', '📒 Đã nối phiếu, chờ ghi sổ');
   if (d.nhom === 'khong_thay') return the('#f3f4f6', '#4b5563', '❓ Không thấy phiếu nhập nào');
   if (d.nhom === 'lech') {
@@ -37438,6 +37440,11 @@ async function scrDcmXem(name) {
     var s = dcmSs;
     var html = '<div class="card" style="padding:13px 14px;background:' + (s.khop ? '#f0fdf4' : '#fffbeb') + ';border:1.5px solid ' + (s.khop ? '#86efac' : '#fcd34d') + '">' +
       '<div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:#374151">Tiền hàng trên hoá đơn</span><b>' + money(s.tien_hd) + ' đ</b></div>' +
+      /* v666: tờ gốc có hoá đơn điều chỉnh thì so với phiếu nhập bằng tiền SAU điều chỉnh. */
+      (s.tien_dieu_chinh ? '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151">Hoá đơn điều chỉnh ' +
+        h((s.cac_to_dieu_chinh || []).map(function (t) { return t.name + (t.bill_no ? ' (số ' + t.bill_no + ')' : ''); }).join(', ')) +
+        '</span><b>' + money(s.tien_dieu_chinh) + ' đ</b></div>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151;font-weight:700">Tiền hàng sau điều chỉnh</span><b>' + money(s.tien_hd_sau) + ' đ</b></div>' : '') +
       '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151">Tiền hàng phiếu nhập còn lại' + ((s.hd_da_dung || []).length ? ' (sau ' + h(s.hd_da_dung.join(', ')) + ')' : '') + '</span><b>' + money(s.tien_pnk) + ' đ</b></div>' +
       '<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.08)">' +
       '<b style="font-size:13.5px;color:' + (s.khop ? '#15803d' : '#92400e') + '">' + (s.khop ? '✅ Khớp' : '⚠️ Lệch') + '</b>' +
@@ -37459,6 +37466,17 @@ async function scrDcmXem(name) {
       var khacTen = !!r.khac_ten_dvt;
       var noiCu = !!r.noi_cu;
       var lech = lechDvt || noiCu || Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.005 || !r.co_phieu;
+      /* v666 (Gourmet Partner 33387): dòng đã bị đổi sang đơn vị khác với đơn vị
+         nhà cung cấp ghi (20 Thùng thay vì 20 KG, thành 200 kg) thì cần đường đưa
+         về đúng đơn vị trên hoá đơn điện tử, giữ nguyên số lượng và tiền; rồi
+         mới quy đổi theo phiếu nhập. Hiện khi dòng lệch đơn vị hay lệch số lượng. */
+      var nutVeDvtNcc = (kq.lam_duoc && r.dvt_ncc && r.item_code && !r.da_noi && r.co_phieu &&
+        (lechDvt || Math.abs(r.lech_sl) > 0.0001) &&
+        String(r.dvt_ncc).toLowerCase() !== String(r.dvt_hd || '').toLowerCase() &&
+        String(r.dvt_ncc).toLowerCase() !== String(r.dvt_pnk || '').toLowerCase())
+        ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_ncc) +
+          '" style="margin:7px 0 2px;padding:10px 14px;min-height:44px;font-size:13px">Đưa về đơn vị trên hoá đơn điện tử (' + h(r.dvt_ncc) + ')</button>'
+        : '';
       /* Phieu nhap hien LUONG CON LAI cho to nay, kem so da nhan va ten hoa
          don da lay, chu khong hien nguyen so da nhan. HĐ 3019 ngay 10/09/2026:
          man in "Phieu nhap 6 Hop" trong khi 3 hop da bi to khac ghi so, ke
@@ -37521,10 +37539,20 @@ async function scrDcmXem(name) {
           ' thì hoá đơn là ' + num(r.ton_hd) + ' còn phiếu nhập là ' + num(r.ton_pnk) + '.' +
           (r.dvt_ncc ? ' Nhà cung cấp ghi đơn vị "' + h(r.dvt_ncc) + '" trên hoá đơn điện tử, hệ chưa biết đó là đơn vị nào của mình.' : '') +
           '</div>' +
-          (kq.lam_duoc && r.dvt_pnk && !r.da_noi
-            ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
-              '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
-            : '') +
+          /* v666 (Gourmet Partner 33387): quy về kho hai bên BẰNG NHAU (20 KG và
+             2 Thùng cùng 20.000 g) thì chỉ khác cách đếm. Nút đổi tên đơn vị giữ
+             nguyên số 20 sẽ thành 20 Thùng = 200 kg; ở đây phải QUY ĐỔI: 2 Thùng,
+             đơn giá tính lại, thành tiền giữ nguyên. Không bằng nhau mới hiện nút cũ. */
+          (kq.lam_duoc && r.dvt_pnk && !r.da_noi && r.hs_pnk && Math.abs((r.ton_hd || 0) - (r.ton_pnk || 0)) < 0.0001
+            ? '<button class="btn" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) + '" data-quydoi="1"' +
+              ' data-slmoi="' + h(String(r.ton_hd / r.hs_pnk)) + '" data-giamoi="' + h(String(r.tien_hd / (r.ton_hd / r.hs_pnk))) +
+              '" style="margin:7px 0 2px;padding:10px 14px;min-height:44px;font-size:13px">Quy về ' + num(r.ton_hd / r.hs_pnk) + ' ' + h(r.dvt_pnk) +
+              ' × ' + money(r.tien_hd / (r.ton_hd / r.hs_pnk)) + ' (thành tiền giữ nguyên)</button>'
+            : (kq.lam_duoc && r.dvt_pnk && !r.da_noi
+              ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
+                '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
+              : '')) +
+          nutVeDvtNcc +
           /* KHAI HAN DON VI CUA NHA CUNG CAP VAO MON. Nut tren chi chua
              DONG NAY; thang sau nha cung cap gui to khac la lech y nguyen.
              Nut duoi day chua CAI GOC: khai mot lan cho mon, tu do ve sau
@@ -37539,7 +37567,8 @@ async function scrDcmXem(name) {
       } else {
         html += (khacTen ? '<div style="font-size:12px;color:#166534;margin-top:3px;line-height:1.55">Hoá đơn ghi <b>' + h(r.dvt_hd || '') + '</b>, phiếu nhập ghi <b>' + h(r.dvt_pnk || '') + '</b>, hai bên cùng ' + num(r.ton_hd) + ' ' + h(r.dvt_kho || '') + ' nên không sao. Lúc nối máy tự đổi tên đơn vị dòng hoá đơn cho khớp phiếu nhập.</div>' : '') +
           (r.co_phieu && Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + ' (tính gộp các dòng cùng món trên hoá đơn so với phần phiếu còn lại)</div>' : '') +
-          (r.co_phieu && Math.abs(r.lech_gia) > 0.005 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ mỗi ' + h(r.dvt_kho || '') + '</div>' : '');
+          (r.co_phieu && Math.abs(r.lech_gia) > 0.005 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ mỗi ' + h(r.dvt_kho || '') + '</div>' : '') +
+          nutVeDvtNcc;
       }
       html += '</div>';
     });
@@ -37619,6 +37648,62 @@ async function scrDcmXem(name) {
         ? '<button class="btn" id="dcmDungLai" style="margin:9px 0 0;width:100%">Dựng lại theo hoá đơn điện tử</button>'
         : '') +
       '</div>';
+  }
+
+  /* v666 (anh Việt 17/11/2026, Gourmet Partner 33387 và 39339): hoá đơn điều
+     chỉnh của nhà cung cấp chỉ sửa TIỀN của tờ gốc. Hàng đã vào kho bằng phiếu
+     nhập của tờ gốc nên tờ này không nối phiếu nhập, không đổi đơn vị. */
+  var dc = kq.dieu_chinh || {};
+  if (dc.la_dieu_chinh && d.docstatus === 0 && !cint0(d.vgb_huy)) {
+    var g = dc.goc || null;
+    html += '<div class="card" style="padding:13px 14px;background:#f5f3ff;border:1.5px solid #c4b5fd">' +
+      '<b style="font-size:14px;color:#5b21b6">🧾 Hoá đơn điều chỉnh cho hoá đơn số ' + h(dc.so_goc || '') + '</b>' +
+      (g ? '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:#374151"><span>Tờ gốc ' + h(g.name) +
+          (g.docstatus === 1 ? ' · đã ghi sổ' : ' · còn nháp') + '</span><b>' + money(g.total) + ' đ</b></div>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:13px;color:#374151"><span>Tờ điều chỉnh này</span><b>' + money(dc.tien) + ' đ</b></div>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.08);font-size:13.5px"><b>Tiền hàng sau điều chỉnh</b><b>' + money(dc.tien_sau) + ' đ</b></div>' : '') +
+      '<div style="font-size:13px;color:#4c1d95;line-height:1.65;margin-top:7px">' +
+      'Hàng đã vào kho bằng phiếu nhập của tờ gốc. Tờ này chỉ sửa tiền nên <b>không nối phiếu nhập, không đổi đơn vị</b>. ' +
+      'Thu mua đối chiếu tờ gốc với phiếu nhập: máy so bằng tiền sau điều chỉnh. Ghi sổ tờ gốc xong thì kế toán ghi sổ tờ này, công nợ tờ gốc giảm theo.</div>' +
+      (dc.loi ? '<div style="font-size:13px;color:#b3261e;line-height:1.6;margin-top:6px">' + h(dc.loi) + '</div>' : '') +
+      (g ? '<button class="btn gh" data-dcmgoc="' + h(g.name) + '" style="margin:9px 0 0;width:100%">Mở tờ gốc ' + h(g.name) + '</button>' : '') +
+      '</div>';
+    var footDc = '';
+    if (kq.ghi_so_duoc && !dc.loi) {
+      footDc = '<button class="btn" id="dcmGhiDc" style="margin:0;width:100%">✅ Ghi sổ điều chỉnh vào tờ gốc</button>';
+    } else if (!kq.ghi_so_duoc) {
+      footDc = '<div style="font-size:13px;color:#667085;margin:0 0 10px;line-height:1.6">Kế toán ghi sổ tờ này sau khi tờ gốc đã ghi sổ.</div>';
+    }
+    var bDc = frame('Đối chiếu ' + name, html, footDc ? { footer: footDc } : {});
+    bDc.onclick = function (e) {
+      var t = e.target.closest('[data-dcmgoc]');
+      if (t) { var ten = t.getAttribute('data-dcmgoc'); dcmPhieu = []; dcmSs = null; return go(function () { scrDcmXem(ten); }); }
+    };
+    var nDc = document.getElementById('dcmGhiDc');
+    if (nDc) nDc.onclick = async function () {
+      var ok = await confirmSheet('Ghi sổ hoá đơn điều chỉnh',
+        'Ghi sổ ' + name + ' (' + money(dc.tien) + ' đ) vào tờ gốc ' + (g ? g.name : '') + '.\nCông nợ tờ gốc giảm theo, tồn kho không đổi.',
+        'Ghi sổ', false);
+      if (!ok) return;
+      busy(true);
+      try {
+        var r = await api('vagabond.doi_chieu_mua.ghi_so_dieu_chinh', { name: name });
+        busy(false);
+        toast((r && r.loi_nhan) || ('Đã ghi sổ ' + name), 5000);
+        dcmPhieu = []; dcmSs = null;
+        go(scrDoiChieuMua, true);
+      } catch (e2) { busy(false); baoTin((e2 && e2.message) || 'Không ghi sổ được'); }
+    };
+    dcmGanDungLai(name);
+    return;
+  }
+  /* Tờ gốc có hoá đơn điều chỉnh: nói ngay từ đầu. */
+  if ((dc.cac_to || []).length && d.docstatus === 0) {
+    html += '<div class="card" style="padding:12px 14px;background:#f5f3ff;border:1.5px solid #c4b5fd;font-size:13px;color:#4c1d95;line-height:1.65">' +
+      '🧾 Nhà cung cấp đã xuất hoá đơn điều chỉnh cho tờ này: ' +
+      h(dc.cac_to.map(function (t) { return t.name + (t.bill_no ? ' số ' + t.bill_no : '') + ' (' + money(t.total) + ' đ)'; }).join(', ')) +
+      '. Tiền hàng sau điều chỉnh <b>' + money(dc.tien_sau) + ' đ</b>, máy so với phiếu nhập bằng số này. ' +
+      'Nối phiếu và ghi sổ tờ này trước, rồi ghi sổ tờ điều chỉnh.</div>';
   }
 
   if (d.docstatus === 1) {
@@ -37707,7 +37792,8 @@ async function scrDcmXem(name) {
        luong va don gia nen thanh tien khong doi mot dong. Chi so luong quy
        ve don vi kho la duoc nan lai. Anh Viet 26/08/2026. */
     var u = e.target.closest('[data-dcmdvt]');
-    if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'));
+    if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'),
+      u.getAttribute('data-quydoi') === '1' ? { sl: u.getAttribute('data-slmoi'), gia: u.getAttribute('data-giamoi') } : null);
     var g = e.target.closest('[data-dcmgan]');
     if (g) return dcmGanMaHang(name, g.getAttribute('data-dcmgan'), g.getAttribute('data-mahien'));
     var gy = e.target.closest('[data-dcmgoiy]');
@@ -38969,16 +39055,21 @@ async function dtKeo() {
 /* Doi don vi mot dong hoa don mua con nhap.
    Chi doi don vi, khong dong den so luong hay don gia, nen tien tren to
    hoa don khong xe dich. Cai duoc nan lai la so luong quy ve don vi kho. */
-async function dcmDoiDonVi(name, idx, dvt) {
+async function dcmDoiDonVi(name, idx, dvt, quyDoi) {
   if (!dvt) return;
-  var ok = await confirmSheet('Đổi đơn vị dòng ' + idx + ' thành ' + dvt,
-    'Số lượng và đơn giá giữ nguyên nên thành tiền của hoá đơn không đổi.\n\n' +
-    'Cái được sửa là số lượng quy về đơn vị kho, để khớp với phiếu nhập.',
-    'Đổi đơn vị', false);
+  var ok = quyDoi
+    ? await confirmSheet('Quy dòng ' + idx + ' về ' + dvt,
+      'Dòng thành ' + num(parseFloat(quyDoi.sl)) + ' ' + dvt + ' × ' + money(parseFloat(quyDoi.gia)) + ' đ.\n\n' +
+      'Lượng quy về kho và thành tiền giữ nguyên, chỉ đổi cách đếm cho khớp phiếu nhập.',
+      'Quy đổi', false)
+    : await confirmSheet('Đổi đơn vị dòng ' + idx + ' thành ' + dvt,
+      'Số lượng và đơn giá giữ nguyên nên thành tiền của hoá đơn không đổi.\n\n' +
+      'Cái được sửa là số lượng quy về đơn vị kho, để khớp với phiếu nhập.',
+      'Đổi đơn vị', false);
   if (!ok) return;
   busy(true);
   try {
-    var kq = await api('vagabond.doi_chieu_mua.sua_don_vi', { name: name, dong: JSON.stringify([String(idx)]), dvt: dvt });
+    var kq = await api('vagabond.doi_chieu_mua.sua_don_vi', { name: name, dong: JSON.stringify([String(idx)]), dvt: dvt, quy_doi: quyDoi ? 1 : 0 });
     busy(false);
     /* May tra ve la CHUA GIU DUOC thi phai noi that, dung toast "da doi".
        To dang lech tong voi hoa don dien tu thi nhip luu dung lai ca bang
