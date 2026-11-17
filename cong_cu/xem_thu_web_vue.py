@@ -71,6 +71,32 @@ def _tuyen_dung():
 	return tuyen_dung, tuyen_dung_form, the, form
 
 
+def _dot_mau():
+	"""v667: đợt Đặc biệt tuần này mẫu, theo biến VGB_DBT: mot (1 món), hai (2 món),
+	chot (đã chốt đơn), chua_mo (chưa mở đơn), het (món có giới hạn đã đủ suất).
+	Không đặt biến thì không có đợt (tab ẩn), giữ nguyên các ảnh mốc cũ."""
+	import datetime as _dt
+	kieu = os.environ.get('VGB_DBT') or ''
+	if not kieu:
+		return None
+	hn = _dt.date.today()
+	n = lambda d: (hn + _dt.timedelta(days=d)).isoformat()
+	thu = lambda d: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][(hn + _dt.timedelta(days=d)).weekday()] + ' ' + (hn + _dt.timedelta(days=d)).strftime('%d/%m')
+	mo, chot = (1, 4) if kieu == 'chua_mo' else ((-4, -1) if kieu == 'chot' else (-1, 3))
+	mon = [{'khoa': 'candle', 'mo_ta': 'Vani Tahiti, caramel muối, lớp giòn hạnh nhân.', 'anh': '', 'nhan_goc': '', 'toi_da': '3' if kieu == 'het' else ''}]
+	if kieu != 'mot':
+		mon.append({'khoa': 'phi tử tiếu', 'mo_ta': 'Vải thiều, hoa hồng, kem phô mai.', 'anh': '', 'nhan_goc': 'Số lượng có hạn', 'toi_da': ''})
+	return {'id': 'dbt-mau', 'loai': 'dac_biet_tuan', 'vi_tri': 'dac_biet_tuan', 'hien': True, 'nhan': 'CHỈ CUỐI TUẦN',
+		'tieu_de': 'CUỐI TUẦN\n' + (hn + _dt.timedelta(days=chot + 1)).strftime('%d') + ' · ' + (hn + _dt.timedelta(days=chot + 2)).strftime('%d/%m'),
+		'noi_dung': 'Món đặc biệt của tuần này. Đặt trước với số lượng giới hạn.', 'bat_dau': n(-7), 'ket_thuc': n(10),
+		'mo_don': n(mo) + 'T08:00', 'chot_don': n(chot) + 'T20:00', 'dem_nguoc': '1', 'dem_chu_1': 'còn lại để đặt',
+		'dem_chu_2': 'Chốt hết ' + thu(chot), 'ngay_giao': [n(chot + 1), n(chot + 2)],
+		'moc': [{'nhan': 'MỞ ĐƠN', 'chu_ngay': thu(mo), 'luc': n(mo) + 'T08:00'}, {'nhan': 'CHỐT ĐƠN', 'chu_ngay': thu(chot), 'luc': n(chot) + 'T20:00'},
+			{'nhan': 'BẾP LÀM', 'chu_ngay': thu(chot + 1)[:2] + ' · ' + thu(chot + 2)[:2], 'luc': n(chot) + 'T20:01'},
+			{'nhan': 'GIAO NHẬN', 'chu_ngay': thu(chot + 1)[:2] + ' · ' + thu(chot + 2)[:2], 'luc': n(chot + 1) + 'T08:00'}],
+		'mon_dt': mon}
+
+
 def noi_dung():
 	nd = _hang('MAC_DINH') or {'khoi': []}
 	nhan = dict(_hang('NHAN') or {})
@@ -84,8 +110,15 @@ def noi_dung():
 	tkr = _hang('TKR_MAU')
 	if tkr:
 		khoi.append(tkr)
-	return {'khoi': khoi, 'tuyen_dung_chung': {'phuc_loi': form['phuc_loi'], 'gioi_thieu': form['gioi_thieu']}, 'nhan': nhan, 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334',
-		'messenger': 'https://m.me/thevagabond.saigon'}, 'thong_tin': nd.get('thong_tin', {}), 'san_pham': {},
+	dot = _dot_mau()
+	thong_tin = nd.get('thong_tin', {})
+	if dot:
+		khoi.append(dot)
+		# Ảnh chụp v667: có một cửa hàng để chân trang đủ cột như site thật.
+		thong_tin = {'cua_hang': [{'id': 'cua-hang-sai-gon', 'ten': 'Cửa hàng Sài Gòn', 'dia_chi': '9 Trần Cao Vân, P. Sài Gòn',
+			'gio_mo_cua': '7:00 - 22:00', 'hien': True, 'chi_duong': 'https://maps.app.goo.gl/vagabond'}]}
+	return {'dac_biet_da_dat': {'candle': 3} if os.environ.get('VGB_DBT') == 'het' else {}, 'khoi': khoi, 'tuyen_dung_chung': {'phuc_loi': form['phuc_loi'], 'gioi_thieu': form['gioi_thieu']}, 'nhan': nhan, 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334',
+		'messenger': 'https://m.me/thevagabond.saigon'}, 'thong_tin': thong_tin, 'san_pham': {},
 		'diem_nhan': [{'id': 'bep-tan-son-hoa', 'n': 'Bếp Tân Sơn Hoà', 'a': '307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà'},
 			{'id': 'cua-hang-sai-gon', 'n': 'Cửa hàng Sài Gòn', 'a': '9 Trần Cao Vân, P. Sài Gòn'}]}
 

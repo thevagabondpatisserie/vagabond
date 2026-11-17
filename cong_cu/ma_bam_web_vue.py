@@ -12,6 +12,12 @@ Cách dùng:
     python3 cong_cu/ma_bam_web_vue.py --kiem   chỉ kiểm, lệch thì mã trả về 1
 
 Ca kiểm thu_web_vue.py gọi --kiem, nên quên chạy là CI đỏ.
+
+v667 (anh Việt 17/11/2026): web đã đổi sang màu Robin egg từ v662 nhưng khách
+vẫn thấy màu teal cũ, vì trang /banh còn trỏ nen.css, khoi.css... của web_order
+bằng ?v= cũ (công cụ chỉ đóng dấu tệp web_vue). Nay đóng dấu MỌI tệp
+/assets/vagabond/<đường>?v=<băm> có trong vagabond/public, trên mọi trang www
+(web_moi, trình biên tập, ứng tuyển) và trang cũ vagabond/trang.
 """
 import hashlib
 import json
@@ -22,7 +28,9 @@ from pathlib import Path
 GOC = Path(__file__).resolve().parent.parent
 THU_MUC = GOC / 'vagabond/public/web_vue'
 TIEN_TO = '/assets/vagabond/web_vue/'
-TRANG = sorted((GOC / 'vagabond/www/web_moi').glob('*.html'))
+CONG = GOC / 'vagabond/public'
+TIEN_TO_CHUNG = '/assets/vagabond/'
+TRANG = sorted(set((GOC / 'vagabond/www').rglob('*.html')) | set((GOC / 'vagabond/trang').glob('*.html')))
 DAU, CUOI = '<!-- vue-map:dau -->', '<!-- vue-map:cuoi -->'
 
 
@@ -48,9 +56,9 @@ def dong_dau(s):
 
 	def thay(m):
 		duong = m.group(1)
-		p = THU_MUC / duong[len(TIEN_TO):]
-		return duong + '?v=' + bam(p) if p.exists() else m.group(0)
-	return re.sub(r'(' + re.escape(TIEN_TO) + r'[A-Za-z0-9_./-]+\.(?:css|js))\?v=[0-9a-f]+', thay, s)
+		p = CONG / duong[len(TIEN_TO_CHUNG):]
+		return duong + '?v=' + bam(p) if '..' not in duong and p.is_file() else m.group(0)
+	return re.sub(r'(' + re.escape(TIEN_TO_CHUNG) + r'[A-Za-z0-9_./-]+\.(?:css|js|png|jpe?g|webp|svg|woff2?))\?v=[0-9a-f]+', thay, s)
 
 
 def main():
