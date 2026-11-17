@@ -189,3 +189,29 @@ def _gia_am():
 	dung("core báo giá âm", bool(loi and "Negative Valuation Rate" in loi))
 	la("không đổi tồn", _ton(ma, kho), 10.0)
 	dung("không để phiếu nháp dở", not frappe.db.exists("Stock Reconciliation Item", {"item_code": ma}))
+
+
+@ca("v670 thật: phiếu mới mang ngày hôm qua mà không tích sửa ngày giờ (khuôn phiếu Frappe giữ ngày cũ qua nửa đêm, như bench 17/11): tra giá theo lúc lưu, ghi sổ được giá 400, ngày ghi sổ là hôm nay")
+def _ngay_cu_khong_tich():
+	from frappe.utils import add_days, nowdate, nowtime
+	cty = cong_ty()
+	kho = _kho(cty)
+	ma = _mon("NVLT-KT670N")
+	khong_nem("nhập 10 giá 400", lambda: _phieu(cty, kho, ma, 10, "Material Receipt", 400))
+
+	def lap():
+		tk = frappe.db.get_value("Company", cty, "stock_adjustment_account")
+		sr = frappe.new_doc("Stock Reconciliation")
+		sr.company, sr.purpose, sr.expense_account, sr.set_warehouse = cty, "Stock Reconciliation", tk, kho
+		sr.set_posting_time = 0
+		sr.posting_date, sr.posting_time = add_days(nowdate(), -1), nowtime()
+		sr.append("items", {"warehouse": kho, "item_code": ma, "qty": 9, "valuation_rate": 0})
+		sr.insert(ignore_permissions=True)
+		nen._DA_TAO.append(("Stock Reconciliation", sr.name))
+		sr.submit()
+		return sr
+	sr = khong_nem("kiểm kê 9 giá 0, phiếu mang ngày hôm qua", lap)
+	if not sr:
+		return
+	la("giá lấy sổ kho", flt(sr.items[0].valuation_rate), 400.0)
+	la("ERPNext ghi sổ hôm nay", str(sr.posting_date), nowdate())

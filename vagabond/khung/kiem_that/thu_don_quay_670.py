@@ -72,3 +72,49 @@ def _ten_va_nguon():
 	g = frappe.new_doc("Vagabond Goi Mon Ban")
 	khong_nem("đặt tên đơn gọi món", lambda: set_new_name(g))
 	dung("đơn gọi món tại bàn mang mã O2O: " + str(g.name), bool(re.fullmatch(r"O2O-[0-9]{6}-[0-9]{5}", g.name or "")))
+
+
+@ca("v670 thật: dòng phiếu đặt ERPNext không có cột billed_qty; số đã xuất hoá đơn đọc từ hoá đơn ĐÃ GHI SỔ lập từ phiếu (đặt 5, hoá đơn 2 ghi sổ, hoá đơn 1 còn nháp: 2); đọc giữ chỗ và đếm refill chạy không lỗi")
+def _da_xuat_hd():
+	from erpnext.selling.doctype.sales_order.sales_order import make_sales_invoice
+	from frappe.utils import add_days, getdate, today
+
+	from vagabond import dat_banh
+
+	dung("bảng dòng phiếu đặt không có cột billed_qty (app không được đọc cột này)",
+		"billed_qty" not in frappe.db.get_table_columns("Sales Order Item"))
+	ct, tk, _ = _nen()
+	mon = _mon(tk)
+	kh = frappe.db.get_value("Customer", {"disabled": 0, "is_internal_customer": 0}, "name")
+	ngay = add_days(today(), 3)
+	so = frappe.get_doc(dict(doctype="Sales Order", company=ct, customer=kh, transaction_date=today(), delivery_date=ngay,
+		items=[dict(item_code=mon, qty=5, rate=10000, delivery_date=ngay)]))
+
+	def lap_so():
+		so.insert(ignore_permissions=True)
+		nen._DA_TAO.append((so.doctype, so.name))
+		so.submit()
+		return so.name
+	if not khong_nem("lập phiếu đặt", lap_so):
+		return
+
+	def lap_hd(sl, ghi_so):
+		hd = make_sales_invoice(so.name)
+		hd.items = [d for d in hd.items if d.so_detail == so.items[0].name]
+		hd.items[0].qty = sl
+		hd.insert(ignore_permissions=True)
+		nen._DA_TAO.append((hd.doctype, hd.name))
+		if ghi_so:
+			hd.submit()
+		return hd.name
+	if not khong_nem("hoá đơn 2 cái ghi sổ", lambda: lap_hd(2, True)):
+		return
+	khong_nem("hoá đơn 1 cái để nháp", lambda: lap_hd(1, False))
+
+	ten = so.items[0].name
+	la("hàm đọc một nguồn", dat_banh.doc_da_xuat_hd([ten]), {ten: 2.0})
+	dong = khong_nem("đọc dòng giữ chỗ", lambda: dat_banh.dong_phieu_dat(ngay)) or []
+	la("dòng giữ chỗ mang số đã xuất hoá đơn", [d["da_xuat_hd"] for d in dong if d.get("name") == ten], [2.0])
+	tt = khong_nem("đọc dòng refill", lambda: dat_banh.dong_tieu_thu(ngay, add_days(ngay, 1))) or []
+	la("dòng refill mang số đã xuất hoá đơn", [d["da_xuat_hd"] for d in tt if d.get("name") == ten], [2.0])
+	dung("đếm giữ chỗ chạy không lỗi", khong_nem("đếm giữ chỗ", lambda: dat_banh.dem_giu_cho(getdate(ngay)) or "rỗng") is not None)
