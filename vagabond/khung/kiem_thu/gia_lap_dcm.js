@@ -60,7 +60,9 @@ const ctx = {
   },
   ngayNgan: function (s) { return String(s || ''); },
   busy: function () {}, toast: function () {}, baoTin: function () {},
-  go: function (f) { f(); }, confirmSheet: async function () { return true; },
+  /* v666: bấm ghi sổ xong màn quay về danh sách; ghi lại việc quay về, không
+     vẽ danh sách (cần cả bộ ô chọn ngày, ngoài phạm vi giả lập này). */
+  go: function (f) { if (f && f.name === 'scrDoiChieuMua') { ghi.ve_danh_sach = 1; return; } f(); }, confirmSheet: async function () { return true; },
   sheet: function () {}, mfgPickItem: function () {},
   setTimeout: setTimeout,
 };
@@ -85,5 +87,6 @@ vm.runInContext(man, ctx);
     footer: ghi.footer.join('\n'),
     api: ghi.api,
     api_args: ghi.api_args,
+    ve_danh_sach: ghi.ve_danh_sach || 0,
   }));
 })().catch(function (e) { console.error(e && e.stack || e); process.exit(1); });
