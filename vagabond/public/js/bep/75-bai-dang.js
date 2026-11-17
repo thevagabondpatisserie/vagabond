@@ -696,14 +696,29 @@ async function bdSheetChonChuDe() {
   var dang = bdGt('chu_de') || '';
   var nut = function (ma, ic, ten, phu) {
     var on = ma === dang;
-    return '<button data-bdchoncd="' + h(ma) + '" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;min-height:52px;border:' + (on ? '2px solid #05323C' : '1px solid #e4e7ec') + ';border-radius:14px;background:' + (on ? '#E4F9FD' : '#fff') + ';font:inherit;padding:6px 12px;margin-bottom:6px;cursor:pointer">' +
+    return '<button data-bdchoncd="' + h(ma) + '" data-bdcdten="' + h(ten) + '" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;min-height:52px;border:' + (on ? '2px solid #05323C' : '1px solid #e4e7ec') + ';border-radius:14px;background:' + (on ? '#E4F9FD' : '#fff') + ';font:inherit;padding:6px 12px;margin-bottom:6px;cursor:pointer">' +
       '<span style="font-size:20px">' + ic + '</span><span style="flex:1;min-width:0"><b style="font-size:15px">' + h(ten) + (on ? ' ✓' : '') + '</b>' + (phu ? '<div style="font-size:13px;color:#667085">' + h(phu) + '</div>' : '') + '</span></button>';
   };
   var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Chủ đề</div>' +
     '<div style="font-size:13px;color:#667085;margin:0 2px 10px;line-height:1.45">Bản thảo nằm trong sổ chủ đề này ở Kho bản thảo, AI viết đúng loại bài, và chân bài mẫu của chủ đề hiện sẵn để tích.</div>' +
-    '<div style="max-height:56vh;overflow:auto">' + (cdl.ds || []).map(function (x) { return nut(x.ma, x.bt || '🗂️', x.ten, x.cta.length ? x.cta.length + ' câu chân bài mẫu' : ''); }).join('') +
+    /* Codex #585: hơn 8 chủ đề thì phải có ô tìm (AGENTS mục 2b.2). Lọc tại chỗ, bỏ dấu,
+       khớp mọi từ; dòng "Không thuộc chủ đề nào" luôn hiện. */
+    ((cdl.ds || []).length > 8 ? '<input class="tin" id="bdCdTim" type="search" placeholder="Tìm chủ đề" style="font-size:16px;text-align:left;padding:0 12px;margin:0 0 8px">' : '') +
+    '<div id="bdCdDs" style="max-height:56vh;overflow:auto">' + (cdl.ds || []).map(function (x) { return nut(x.ma, x.bt || '🗂️', x.ten, x.cta.length ? x.cta.length + ' câu chân bài mẫu' : ''); }).join('') +
+    '<div id="bdCdRong" style="display:none;font-size:14px;color:#667085;padding:8px 4px 12px">Không thấy chủ đề nào khớp.</div>' +
     nut('', '📂', 'Không thuộc chủ đề nào', '') + '</div>' +
     (cdl.sua ? '<button class="btn gh" data-bdcdmoi2="1" style="margin:8px 0 0;min-height:44px">＋ Chủ đề mới</button>' : ''));
+  var o = ov.querySelector('#bdCdTim');
+  if (o) o.addEventListener('input', function () {
+    var con = 0;
+    ov.querySelectorAll('[data-bdchoncd]').forEach(function (b) {
+      if (!b.getAttribute('data-bdchoncd')) return;
+      var khop = bdKhopTim(b.getAttribute('data-bdcdten'), o.value);
+      b.style.display = khop ? 'flex' : 'none';
+      if (khop) con++;
+    });
+    ov.querySelector('#bdCdRong').style.display = con ? 'none' : 'block';
+  });
   ov.onclick = function (e) {
     var t;
     if (e.target.closest('[data-bdcdmoi2]')) { ov.remove(); return bdSheetChuDe(null, function (kq) { bdLuuVeLai({ chu_de: kq.ma }); }); }
