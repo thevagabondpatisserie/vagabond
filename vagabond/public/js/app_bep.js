@@ -75754,6 +75754,7 @@ function mdkVeCap(tieuDe, dl) {
         g.ds.map(function (c) {
           return '<div style="display:flex;gap:10px;align-items:center;border-top:1px solid #f2f4f7;min-height:56px">' +
             '<button type="button" role="checkbox" aria-checked="' + (MDK.chon[c.name] ? 'true' : 'false') + '" data-mdkchon="' + h(c.name) + '" aria-label="Chọn dòng ' + h(c.ten_goi_y || c.mon_goi_y) + '" style="flex:0 0 44px;width:44px;height:44px;border:0;background:none;padding:0;font-size:22px">' + (MDK.chon[c.name] ? '☑️' : '⬜') + '</button>' +
+            anhMon(c.anh_goi_y) +
             '<button type="button" data-mdksua="' + h(c.name) + '" style="flex:1;min-width:0;min-height:52px;border:0;background:none;font:inherit;text-align:left;padding:6px 0">' +
             '<span style="display:block;font-size:15px;font-weight:700">' + h(c.ten_goi_y || c.mon_goi_y) + '</span>' +
             '<span style="display:block;font-size:13.5px;color:#0B7C93">' + h(c.ly_do_vn || 'Chưa có câu lý do') + '</span>' +
@@ -75816,10 +75817,10 @@ async function mdkDm() {
   if (!MDK.dm) MDK.dm = await api(MDK_P + 'danh_muc');
   return MDK.dm;
 }
-function mdkNutChon(thuoc, nhan, gt, phu) {
+function mdkNutChon(thuoc, nhan, gt, phu, anh) {
   return '<div style="margin:10px 0 0;font-size:14px;font-weight:700">' + nhan +
     (phu ? '<span style="display:block;font-size:13px;font-weight:500;color:#667085">' + phu + '</span>' : '') +
-    '<button type="button" ' + thuoc + ' style="display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;min-height:52px;margin-top:6px;border:1px solid #d0d5dd;border-radius:12px;background:#fff;padding:6px 12px;font:inherit;font-size:16px;text-align:left">' +
+    '<button type="button" ' + thuoc + ' style="display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;min-height:52px;margin-top:6px;border:1px solid #d0d5dd;border-radius:12px;background:#fff;padding:6px 12px;font:inherit;font-size:16px;text-align:left">' + (anh !== undefined ? anhMon(anh) : '') +
     '<span style="flex:1;min-width:0;' + (gt ? 'color:#101828;font-weight:600' : 'color:#667085') + '">' + h(gt || 'Bấm để chọn') + '</span><span aria-hidden="true">›</span></button></div>';
 }
 
@@ -75831,7 +75832,7 @@ function mdkSua(c) {
       (phu ? '<span style="display:block;font-size:13px;font-weight:500;color:#667085">' + phu + '</span>' : '') +
       '<input id="' + id + '" type="' + (kieu || 'text') + '" value="' + h(gt || '') + '" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:6px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px"></label>';
   };
-  var ov = crmMoSheet('<div style="font-size:17px;font-weight:800">' + (c.name ? h(c.ten_goi_y || c.mon_goi_y) : 'Thêm cặp món đi kèm') + '</div>' +
+  var ov = crmMoSheet('<div style="display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800">' + (c.name ? anhMon(c.anh_goi_y) + '<span style="flex:1;min-width:0">' + h(c.ten_goi_y || c.mon_goi_y) + '</span>' : 'Thêm cặp món đi kèm') + '</div>' +
     (c.name ? '<div style="font-size:13.5px;color:#667085">Đi kèm: <b style="text-transform:capitalize">' + h(c.mon_goc || ('Nhóm ' + (c.nhom_goc || ''))) + '</b></div>'
       : '<div id="mdkChonGoc">' + mdkNutChon('data-mdkchongoc="1"', 'Bánh gốc hoặc nhóm món', '', 'Bánh trên web cho giỏ đặt trước, nhóm món cho khung Đặt giao của Tại quầy.') + '</div>' +
         '<div id="mdkChonMa">' + mdkNutChon('data-mdkchonma="1"', 'Món gợi ý', '', 'Món hiện trong khối Gợi ý mua thêm.') + '</div>') +
@@ -75858,8 +75859,8 @@ function mdkSua(c) {
     if ((n = e.target.closest('[data-mdkchonma]'))) {
       var ds = await vgbChonMon({ tieu_de: 'Chọn món gợi ý', nhieu: false });
       if (!ds || !ds.length) return;
-      moi.ma = ds[0].ma; moi.ten = ds[0].ten || ds[0].ma;
-      ov.querySelector('#mdkChonMa').innerHTML = mdkNutChon('data-mdkchonma="1"', 'Món gợi ý', moi.ten, '');
+      moi.ma = ds[0].ma; moi.ten = ds[0].ten || ds[0].ma; moi.anh = ds[0].hinh || ds[0].anh || '';
+      ov.querySelector('#mdkChonMa').innerHTML = mdkNutChon('data-mdkchonma="1"', 'Món gợi ý', moi.ten, '', moi.anh);
       return;
     }
     n = e.target.closest('[data-mdkluu]'); if (!n) return;
@@ -75884,11 +75885,11 @@ async function mdkMucGiu(tieuDe) {
   var html = mdkPhan() + '<div style="font-size:13.5px;color:#667085;margin:10px 2px">Bánh khô có Mức giữ tại bếp cho đơn web. Phiếu chuyển ra cửa hàng làm tồn bếp xuống dưới mức thì hệ thống cảnh báo, không chặn. Đặt mức ở dòng dưới cùng.</div>' +
     (dl.loi ? '<div class="emp"><div class="e1">⚠️</div><div>' + h(dl.loi) + '</div></div>' :
       (dl.mon.length ? '<div class="card" style="padding:6px 12px">' + dl.mon.map(function (m) {
-        return '<div style="display:flex;align-items:center;gap:10px;min-height:52px;border-top:1px solid #f2f4f7"><div style="flex:1;min-width:0"><b style="font-size:15px">' + h(m.ten) + '</b>' +
+        return '<div style="display:flex;align-items:center;gap:10px;min-height:52px;border-top:1px solid #f2f4f7">' + anhMon(m.anh) + '<div style="flex:1;min-width:0"><b style="font-size:15px">' + h(m.ten) + '</b>' +
           '<div style="font-size:13.5px;color:#b42318">Tồn bếp ' + money(m.ton) + ', mức giữ ' + money(m.muc) + '</div></div></div>';
       }).join('') + '</div>' : '<div class="emp"><div class="e1">✅</div><div>' + (dl.co_muc ? 'Không món nào dưới mức giữ.' : 'Chưa món nào có mức giữ.') + '</div></div>')) +
     '<div class="card" style="padding:10px 12px"><b style="font-size:15px">Đặt mức giữ cho một món</b>' +
-    '<div id="mdkMucChon">' + mdkNutChon('data-mdkmucchon="1"', '', MDK.mucTen || '', '') + '</div>' +
+    '<div id="mdkMucChon">' + mdkNutChon('data-mdkmucchon="1"', '', MDK.mucTen || '', '', MDK.mucTen ? (MDK.mucAnh || '') : undefined) + '</div>' +
     '<input id="mdkMucSo" type="number" min="0" placeholder="Số giữ, 0 là bỏ giữ" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:8px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px">' +
     '<button class="btn" id="mdkMucLuu" style="margin:10px 0 0">Lưu mức giữ</button></div>';
   var b = frame(tieuDe, html);
@@ -75897,14 +75898,14 @@ async function mdkMucGiu(tieuDe) {
   if (nc) nc.onclick = async function () {
     var ds = await vgbChonMon({ tieu_de: 'Chọn món đặt mức giữ', nhieu: false });
     if (!ds || !ds.length) return;
-    MDK.mucMa = ds[0].ma; MDK.mucTen = ds[0].ten || ds[0].ma;
-    nc.innerHTML = mdkNutChon('data-mdkmucchon="1"', '', MDK.mucTen, '');
+    MDK.mucMa = ds[0].ma; MDK.mucTen = ds[0].ten || ds[0].ma; MDK.mucAnh = ds[0].hinh || ds[0].anh || '';
+    nc.innerHTML = mdkNutChon('data-mdkmucchon="1"', '', MDK.mucTen, '', MDK.mucAnh);
   };
   var n = document.getElementById('mdkMucLuu');
   if (n) n.onclick = async function () {
     if (!MDK.mucMa) return toast('Chọn món trước khi lưu mức giữ.');
     n.disabled = true;
-    try { await api(MDK_P + 'dat_muc_giu', { ma: MDK.mucMa, so: document.getElementById('mdkMucSo').value }); toast('Đã lưu mức giữ'); MDK.mucMa = MDK.mucTen = ''; mdkMucGiu(tieuDe); }
+    try { await api(MDK_P + 'dat_muc_giu', { ma: MDK.mucMa, so: document.getElementById('mdkMucSo').value }); toast('Đã lưu mức giữ'); MDK.mucMa = MDK.mucTen = MDK.mucAnh = ''; mdkMucGiu(tieuDe); }
     catch (e) { n.disabled = false; toast(errMsg(e)); }
   };
 }
@@ -75920,7 +75921,7 @@ async function mdkKetQua(tieuDe) {
     '<div class="card" style="display:flex;flex-direction:row;flex-wrap:wrap;padding:6px">' + o(money(r.ti_le) + '%', 'đơn có món mua thêm (' + r.don_co_goi_y + '/' + r.so_don + ')') +
     o(money(r.gia_tri_tb) + ' đ', 'giá trị đơn trung bình') + o(money(r.gia_tri_tb_co_goi_y) + ' đ', 'đơn có món mua thêm') + '</div>' +
     '<div class="card" style="padding:6px 12px"><b style="font-size:15px">Món được thêm nhiều nhất</b>' + ((r.mon || []).length ? r.mon.map(function (m) {
-      return '<div style="display:flex;gap:8px;min-height:44px;align-items:center;border-top:1px solid #f2f4f7"><span style="flex:1;min-width:0">' + h(m.ten) + '</span><b>' + m.sl + '</b></div>';
+      return '<div style="display:flex;gap:8px;min-height:44px;align-items:center;border-top:1px solid #f2f4f7">' + anhMon(m.anh) + '<span style="flex:1;min-width:0">' + h(m.ten) + '</span><b>' + m.sl + '</b></div>';
     }).join('') : '<div style="font-size:14px;color:#667085;padding:8px 0">Chưa có đơn nào thêm món từ gợi ý.</div>') + '</div>');
   mdkNghePhan(frame(tieuDe, html));
 }
