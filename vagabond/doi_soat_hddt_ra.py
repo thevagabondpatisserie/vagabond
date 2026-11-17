@@ -80,8 +80,11 @@ def so(x):
 
 
 def tach_goc(chu):
-	"""(ký hiệu, số) của tờ gốc từ ô hd_goc: "KH C26MPV - So 14180 - Ngay ..."."""
-	m = re.search(r"KH\s*(\S*)\s*-\s*So\s*(\d+)", str(chu or ""))
+	"""(ký hiệu, số) của tờ gốc từ ô hd_goc: "KH C26MPV - So 14180 - Ngay ...".
+
+	MỘT nguồn đọc ô này cho cả hoá đơn bán ra (đối soát) lẫn hoá đơn mua điều
+	chỉnh (v666, hd_dieu_chinh.doc_hd_goc). Nhận cả "Số" có dấu, chữ thường."""
+	m = re.search(r"KH\s*([^\s-]*)\s*-\s*S[oố]\s*(\d+)", str(chu or ""), re.I)
 	if not m:
 		return None
 	return (kh(m.group(1)), so(m.group(2)))

@@ -162,6 +162,13 @@ def cap_nhat_tu_hoa_don(doc, method=None):
 
 
 def _chay(doc):
+	# v666: tờ trả lại / hoá đơn điều chỉnh (phiếu nợ hay tờ tăng) mang đơn giá của
+	# phần CHÊNH (bơ 33387: 60.000 đ/kg giảm), không phải giá mua. Ghi vào
+	# bảng giá là đặt hàng lần sau với giá 60.000 đ/kg.
+	# Codex #578: cả điều chỉnh TĂNG (is_return = 0) cũng chỉ mang giá phần chênh.
+	from vagabond import hd_dieu_chinh
+	if hd_dieu_chinh.la_to_dieu_chinh_doc(doc):
+		return {"sua": 0, "them": 0, "giu_nguyen": 0, "bo_qua": {"tờ trả lại hoặc điều chỉnh": 1}}
 	ngay = str(doc.get("posting_date") or nowdate())
 	so_hd = (doc.get("bill_no") or "").strip()
 	kq = {"sua": 0, "them": 0, "giu_nguyen": 0, "bo_qua": {}}
