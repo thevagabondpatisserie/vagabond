@@ -295,6 +295,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_club_658,
 	# v658 Vé sự kiện (Tiệc nâng lên) và Vành nghiêng của trang đặt bánh.
 	thu_ve_su_kien_658,
+	# v667 Đặc biệt tuần này: đợt cuối tuần, luật ngày giao, giờ chốt, số lượng dưới khoá.
+	thu_dac_biet_tuan_667,
 	# v659 tờ chia nhiều cách trả: chỉ đòi ngân hàng phần Chuyển khoản (Loan Anh 14/11, đơn 97492).
 	thu_can_ck_dong_chia,
 	# v649 màn Lệnh sản xuất: thẻ gọn, câu chặn kiểm kê ghi số phiếu (ảnh anh Việt 11/11).
