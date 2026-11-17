@@ -846,6 +846,107 @@ var MKT = ['Marketing'];
     dung('không còn chữ thay logo kênh', !/>(IG|@|Z|f)<span/.test(html) && !/>(IG|@|Z|f)<\/span>/.test(html));
   });
 
+  /* ---------- v666 Sổ chủ đề, chân bài, giám đốc duyệt, kiểu chữ (anh Việt 17/11/2026) ---------- */
+  function cdMau() {
+    return { ds: [{ ma: 'CD-001', ten: 'Giới thiệu bánh ổ', bt: '🎂', cta: ['🛒 Đặt bánh online', '📍 9 Trần Cao Vân'], so: 2 },
+      { ma: 'CD-002', ten: 'Weekend Set', bt: '🧺', cta: [], so: 1 }], so_sao: 1, tong: 3, khong_chu_de: 0, sua: true };
+  }
+  function btMau() {
+    return { xem: 'bt', moc: '2026-11-17', duyet: true, viec: {}, ky_chu: '2 bản thảo', chu_de: cdMau(), chon_cd: '', chon_the: '',
+      bt: [{ name: 'BD-7', tieu_de: 'Peachruby', trich: 'Đào hồng', luc: '2026-11-17 10:12', nguoi: 'Vũ', so_anh: 3, anh: '', the: ['peachruby', 'mille'], sao: 1, chu_de: 'CD-001' },
+        { name: 'BD-8', tieu_de: 'Monsoon', trich: 'Entremet', luc: '2026-11-16 15:40', nguoi: 'Vũ', so_anh: 0, anh: '', the: ['monsoon'], sao: 0, chu_de: 'CD-001', cho_gd: 1 }] };
+  }
+
+  await ca('v666 Kho bản thảo: sổ chủ đề (cột trái máy tính, chip điện thoại), lọc chủ đề và thẻ gửi máy chủ, gắn sao tại chỗ, bản thảo mới vào đúng chủ đề', async function () {
+    var lan = [];
+    var m = dungMoi(MKT, { lich: function (ts) { lan.push(ts); return btMau(); }, gan_sao: function (ts) { return { ma: ts.ma, sao: ts.sao }; },
+      tao: function (ts) { lan.push({ tao: ts }); return baiMau(); } });
+    m.g.BD.xem = 'bt';
+    await m.g.scrBaiDang();
+    var html = m.goc.innerHTML || '';
+    dung('cột chủ đề có Gắn sao, Tất cả và tên chủ đề', html.indexOf('bd-cot') >= 0 && html.indexOf('Gắn sao') >= 0 && html.indexOf('Giới thiệu bánh ổ') >= 0);
+    dung('dải chip chủ đề cho điện thoại', html.indexOf('bd-chipcd') >= 0);
+    dung('thẻ bản thảo hiện #thẻ và nhãn chờ giám đốc', html.indexOf('#peachruby') >= 0 && html.indexOf('Chờ giám đốc duyệt') >= 0);
+    var cdNut = m.goc.querySelectorAll('[data-bdcd="CD-001"]');
+    dung('chủ đề có ở cả cột và dải chip', cdNut.length === 2);
+    bam(m, cdNut[1]);
+    await choDen(function () { return lan.length >= 2; });
+    bang('lọc chủ đề gửi máy chủ', [lan[1].xem, lan[1].chu_de, lan[1].the], ['bt', 'CD-001', '']);
+    await choDen(function () { return mot(m.goc, '[data-bdlocthe="mille"]'); });
+    bam(m, mot(m.goc, '[data-bdlocthe="mille"]'));
+    await choDen(function () { return lan.length >= 3; });
+    bang('lọc thẻ giữ chủ đề', [lan[2].chu_de, lan[2].the], ['CD-001', 'mille']);
+    await choDen(function () { return mot(m.goc, '[data-bdsao="BD-8"]'); });
+    var sao = mot(m.goc, '[data-bdsao="BD-8"]');
+    bam(m, sao);
+    await choDen(function () { return goiTen(m, 'gan_sao').length; });
+    await choDen(function () { return sao.getAttribute('aria-pressed') === 'true'; });
+    bang('gắn sao gửi đúng bài', goiTen(m, 'gan_sao').map(function (x) { return [x.ts.ma, x.ts.sao]; }), [['BD-8', 1]]);
+    dung('sao đổi tại chỗ', sao.getAttribute('aria-pressed') === 'true' && chu(sao) === '★');
+    bam(m, mot(m.goc, '[data-bdmoi]'));
+    await choDen(function () { return lan.some(function (x) { return x.tao; }); });
+    bang('bản thảo mới vào chủ đề đang mở', lan.filter(function (x) { return x.tao; })[0].tao.chu_de, 'CD-001');
+  });
+
+  await ca('v666 chân bài: câu mẫu của chủ đề hiện để tích; tích gửi chan_bai lên máy chủ rồi vẽ lại bằng chữ máy chủ trả; thêm câu riêng', async function () {
+    var nhan = [];
+    var b0 = baiMau({ chu_de: { ma: 'CD-001', ten: 'Giới thiệu bánh ổ', bt: '🎂', cta: ['🛒 Đặt bánh online', '📍 9 Trần Cao Vân'] }, chan_bai: [] });
+    var m = dungMoi(MKT, { xem: b0, luu: function (ts) { nhan.push(JSON.parse(ts.thay)); return baiMau({ chu_de: b0.chu_de, chan_bai: ['🛒 Đặt bánh online'],
+      ban: { fb: { chu: 'Bánh fb\n\n🛒 Đặt bánh online' }, th: { chu: 'Bánh th\n\n🛒 Đặt bánh online' } } }); } });
+    await m.g.scrBaiDangSoan('BD-1');
+    var html = m.goc.innerHTML || '';
+    dung('có thẻ chân bài với câu mẫu', html.indexOf('CHÂN BÀI (CTA)') >= 0 && html.indexOf('9 Trần Cao Vân') >= 0);
+    dung('hàng Chủ đề ghi tên chủ đề', html.indexOf('Giới thiệu bánh ổ') >= 0);
+    bam(m, mot(m.goc, '[data-bdcta="0"]'));
+    await choDen(function () { return nhan.length; });
+    bang('gửi đúng bộ chân bài', nhan[0].chan_bai, ['🛒 Đặt bánh online']);
+    await choDen(function () { return (m.goc.innerHTML || '').indexOf('Bánh fb\n\n🛒') >= 0 || (m.goc.innerHTML || '').indexOf('Bánh fb') >= 0; });
+    var o = mot(m.goc, '#bdCtaMoi');
+    o.value = '☎ 0909 000 000';
+    bam(m, mot(m.goc, '[data-bdctathem]'));
+    await choDen(function () { return nhan.length >= 2; });
+    bang('thêm câu riêng giữ câu đã tích', nhan[1].chan_bai, ['🛒 Đặt bánh online', '☎ 0909 000 000']);
+  });
+
+  await ca('v666 gửi giám đốc duyệt: Marketing có nút, hỏi lại rồi gửi; giám đốc mở bài chờ mình thấy Đồng ý nội dung, Trả lại kèm góp ý', async function () {
+    var m = dungMoi(MKT, { gui_giam_doc: function () { return baiMau({ trang_thai: 'Chờ duyệt', cho_gd: 1, gui_gd: 'Minh Vũ', gui_gd_luc: '2026-11-17 10:00' }); } });
+    await m.g.scrBaiDangSoan('BD-1');
+    bam(m, mot(m.goc, '[data-bdguigd]'));
+    await choDen(function () { return goiTen(m, 'gui_giam_doc').length; });
+    dung('hỏi trước khi gửi', m.hoi.some(function (x) { return x.indexOf('Gửi giám đốc duyệt?') === 0; }));
+    await choDen(function () { return (m.goc.innerHTML || '').indexOf('Đang chờ giám đốc duyệt') >= 0; });
+    dung('bài hiện dải chờ giám đốc, hết nút gửi', (m.goc.innerHTML || '').indexOf('Đang chờ giám đốc duyệt') >= 0 && !mot(m.goc, '[data-bdguigd]'));
+    var gd = ['Giám đốc'], gop = [];
+    var g = dungMoi(gd, { xem: function () { var d = baiMau({ trang_thai: 'Chờ duyệt', cho_gd: 1, gui_gd: 'Minh Vũ', kiem: [{ muc: 'chan', chu: 'Chưa có giờ', nut: ['gio', 'Đổi giờ'] }] }); return { bai: d.bai || d, duyet: true, la_gd: true }; },
+      gd_tra_lai: function (ts) { gop.push(ts); return baiMau({ ly_do_tra: ts.ly_do }); } });
+    g.g.promptSheet = function () { return Promise.resolve('Đoạn đầu dài quá'); };
+    await g.g.scrBaiDangSoan('BD-1');
+    dung('giám đốc thấy Đồng ý nội dung và Trả lại', !!mot(g.goc, '[data-bdgdok]') && !!mot(g.goc, '[data-bdgdtra]'));
+    dung('còn lỗi đỏ: không hiện nút Duyệt khoá làm rối', !mot(g.goc, '[data-bdduyet]'));
+    bam(g, mot(g.goc, '[data-bdgdtra]'));
+    await choDen(function () { return gop.length; });
+    bang('trả lại kèm góp ý', [gop[0].ma, gop[0].ly_do], ['BD-1', 'Đoạn đầu dài quá']);
+  });
+
+  await ca('v666 kiểu chữ: bôi đen rồi chạm Đậm đổi đúng vùng, giữ dấu tiếng Việt; Bỏ kiểu trả về chữ gốc', async function () {
+    var nhan = [];
+    var m = dungMoi(MKT, { luu: function (ts) { nhan.push(JSON.parse(ts.thay)); return baiMau(); } });
+    m.g.Event = function (t) { return dg.suKien(t, {}, null); };
+    await m.g.scrBaiDangSoan('BD-1');
+    var o = mot(m.goc, '[data-bdchu="fb"]');
+    o.value = 'NGUYỄN HOÀNG VIỆT 2026 đẹp';
+    m.g.BD.chon.fb = [0, 17];
+    bam(m, m.goc.querySelectorAll('[data-bdkieuchu="d"]').filter(function (x) { return x.getAttribute('data-k') === 'fb'; })[0]);
+    var dam = o.value.slice(0, o.value.indexOf(' 2026'));
+    dung('chữ cái thành chữ đậm Unicode', /\uD835/.test(dam) && dam.indexOf('N') < 0);
+    bang('bỏ kiểu ra đúng chữ gốc có dấu', m.g.bdBoKieu(dam), 'NGUYỄN HOÀNG VIỆT');
+    dung('giữ dấu (dấu ghép đi sau chữ đậm)', /[̀-ͯ]/.test(dam));
+    dung('phần ngoài vùng bôi không đổi', o.value.slice(-9) === ' 2026 đẹp');
+    bang('Đ không có bản đậm thì giữ nguyên', m.g.bdKieuChu('Đ', 'd'), 'Đ');
+    await choDen(function () { return nhan.length; });
+    dung('lưu chữ mới của kênh', nhan.length && nhan[0].ban && nhan[0].ban.fb && /\uD835/.test(nhan[0].ban.fb.chu));
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();
