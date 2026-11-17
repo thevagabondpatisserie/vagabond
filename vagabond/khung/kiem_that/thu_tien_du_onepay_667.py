@@ -67,21 +67,33 @@ def _xem_that():
 	la("phần dư", (t.get("duoc"), flt(t.get("tran"))), (1, float(DU)))
 
 
+def _ngan_hang():
+	"""Ngân hàng nhận tiền là ô Link tới Bank; bench trống thì dựng một ngân hàng ảo."""
+	ten = frappe.db.get_value("Bank", {}, "name")
+	if ten:
+		return ten
+	b = frappe.get_doc({"doctype": "Bank", "bank_name": "Kiem 667 Bank"})
+	b.insert(ignore_permissions=True)
+	nen._DA_TAO.append((b.doctype, b.name))
+	return b.name
+
+
 @ca("v667 thật: lập phiếu nộp thừa 880.000 từ đơn cũ, phiếu ghi đơn 97615; lập lần hai, hoá đơn khác lấy lại đơn 97615 đều bị chặn")
 def _tao_that():
 	hd = khong_nem("dựng đơn", _don)
-	if not hd:
+	nh = khong_nem("ngân hàng", _ngan_hang)
+	if not (hd and nh):
 		return
 	with _gia():
 		kq = khong_nem("lập phiếu", lambda: hoan_tien.tao_tien_du(hd.name, ly_do="Khac", dien_giai="Ca kiểm v667",
-			so_tien=DU, ten_tk="NGUYEN THI HAO", so_tk="0123456789", ngan_hang="MB", don_cu="97615")) or {}
+			so_tien=DU, ten_tk="NGUYEN THI HAO", so_tk="0123456789", ngan_hang=nh, don_cu="97615")) or {}
 		if kq.get("ho_so"):
 			nen._DA_TAO.append((hoan_tien.DT, kq["ho_so"]))
 		la("phiếu ghi đơn cũ", frappe.db.get_value(hoan_tien.DT, kq.get("ho_so"), ["so_tien", "don_tra_tien"]),
 			(float(DU), "97615"))
 		try:
 			hoan_tien.tao_tien_du(hd.name, ly_do="Khac", dien_giai="lần hai", so_tien=DU, ten_tk="A",
-				so_tk="1", ngan_hang="MB", don_cu="97615")
+				so_tk="1", ngan_hang=nh, don_cu="97615")
 			loi = ""
 		except frappe.ValidationError as e:
 			loi = nen.cau_loi(e)
