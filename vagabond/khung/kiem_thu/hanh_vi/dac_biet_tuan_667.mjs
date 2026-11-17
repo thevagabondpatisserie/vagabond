@@ -132,6 +132,59 @@ await ca('6. Gửi đơn: giỏ có món của đợt mà đã qua giờ chốt 
   dung('nhắc đã chốt', /đã chốt đơn/.test(k2.S.toast.chu));
 });
 
+await ca('6b. (Codex #579) Bảng đặt trước đang lọc, Candle chỉ làm cho đợt: thêm ở tab Đặc biệt rồi bấm Sửa bánh, đổi lời chúc, Lưu thay đổi thì lưu được', async () => {
+  const {k} = moiTruong('2026-11-17T10:00:00+07:00');
+  k.S.TRUOC = {BAWC00068: 5};
+  la('thêm Candle ở tab Đặc biệt tuần này', them(k), 'them');
+  const c = k.suaDongGio(0);
+  dung('mở lại đúng bánh', c && c.k === 'CANDLE');
+  dung('size đang sửa nằm trong các size đang nhận', k.kichThuocDangBan(c).some(s => s.id === k.S.CART[0].id));
+  k.S.wish = 'Mừng sinh nhật';
+  la('Lưu thay đổi', k.addToCart(), 'sua');
+  la('giỏ vẫn 1 dòng, đã có lời chúc', [k.S.CART.length, k.S.CART[0].wish, k.S.CART[0].qty], [1, 'Mừng sinh nhật', 1]);
+  la('mở chi tiết từ tab Đặt bánh trước (đường dẫn bánh) cũng thấy size của đợt', k.kichThuocDangBan(c, 'order').length > 0, true);
+  la('tab Có sẵn hôm nay không đổi luật: chỉ size có sẵn', k.kichThuocDangBan(c, 'today').length, c.sizes.length);
+  const b = moiTruong('2026-11-17T10:00:00+07:00', null).k;
+  b.S.TRUOC = {BAWC00068: 5};
+  la('không có đợt: Candle ở tab Đặt bánh trước vẫn theo bảng đặt trước', b.kichThuocDangBan(b.S.CAKES.find(x => x.k === 'CANDLE'), 'order'), []);
+});
+
+await ca('6c. (Codex #579) Nút + trong giỏ giữ số lượng tối đa của đợt; nút - và bánh khác không bị ảnh hưởng', async () => {
+  const {k} = moiTruong('2026-11-17T10:00:00+07:00', dotMau(), {candle: 1});
+  la('thêm 1 cái (còn 1)', them(k), 'them');
+  k.cartQty(0, 1);
+  la('bấm +: vẫn 1', k.S.CART[0].qty, 1);
+  dung("nhắc đã đủ số lượng", /đủ số lượng nhận/.test(k.S.toast.chu));
+  const c = moiTruong('2026-11-17T10:00:00+07:00', dotMau({mon_dt: [{khoa: 'candle', toi_da: '3'}]}), {candle: 1}).k;
+  them(c); c.cartQty(0, 1);
+  la('tối đa 3, đã đặt 1: bấm + lên 2 được', c.S.CART[0].qty, 2);
+  c.cartQty(0, 1);
+  la('bấm + lần nữa: giữ 2', c.S.CART[0].qty, 2);
+  c.cartQty(0, -1);
+  la('bấm -: xuống 1', c.S.CART[0].qty, 1);
+  const q = moiTruong('2026-11-20T19:00:00+07:00').k;
+  them(q);
+  q.S.tab = 'order';
+  const d = moiTruong('2026-11-20T20:01:00+07:00').k;
+  d.S.CART.push(Object.assign({}, q.S.CART[0]));
+  d.cartQty(0, 1);
+  la('qua giờ chốt: bấm + không tăng', d.S.CART[0].qty, 1);
+  la('Phi Tử Tiếu: bấm + vẫn tăng', (() => { them(d, 'order', 'Phi Tử Tiếu'); const i = d.S.CART.findIndex(o => o.k !== 'CANDLE'); d.cartQty(i, 1); return d.S.CART[i].qty; })(), 2);
+});
+
+await ca('6d. (Codex #579) Giỏ lưu từ trước vượt số lượng của đợt: dừng ở giỏ trước khi gọi máy chủ', async () => {
+  let goi = 0;
+  const k = taoKho({t: t0, tMon: (m, tr, x) => x || '', bayGio: () => new Date('2026-11-17T10:00:00+07:00'), hen: () => 0, huyHen: () => {},
+    doc: async () => ({}), ghi: async () => { goi++; return {ok: true}; }, luuTru: null, suKien: () => {},
+    nd: {nhan: {}, khoi: [dotMau()], dac_biet_da_dat: {candle: 1}}});
+  const c = k.S.CAKES.find(x => x.k === 'CANDLE'), z = c.sizes[0];
+  k.S.CART.push({k: c.k, img: c.img, id: z.id, cm: z.cm, price: z.p, nguon: 'order', wish: '', adds: [], qty: 2});
+  const kq = await k.submitOrder();
+  la('dừng ở giỏ', kq && kq.buoc, 'gio');
+  la('không gọi máy chủ', goi, 0);
+  dung('nhắc còn nhận 1', /chỉ còn nhận 1 bánh/.test(k.S.toast.chu));
+});
+
 /* ---------- vẽ thành phần bằng bộ dựng cây của Vue ---------- */
 const nut = the => ({the, props: {}, con: [], cha: null, nghe: {},
   addEventListener(ev, f) { (this.nghe[ev] = this.nghe[ev] || []).push(f); },
