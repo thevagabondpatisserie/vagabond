@@ -86,6 +86,8 @@ CUA_NGO = {
 	# v621 Tin Zalo tự động: năm cửa của màn, chặn vai CRM ở máy chủ. Nhịp
 	# chay_tu_dong và các hàm quét, gửi KHÔNG được mở ra ngoài.
 	# v662 (anh Việt 15/11): bài đăng mạng xã hội, Marketing soạn, duyệt, đăng tay.
+	# v668 Gợi ý mua thêm: hai cửa cho trang khách, các cửa màn Món đi kèm.
+	"goi_y_mua.py": ["bao_cao_goi_y", "cap_quay", "danh_muc", "dat_muc_giu", "doi_nhieu", "duoi_muc_giu", "goi_y_dat_truoc", "luu_cai_dat", "luu_cap", "man_hinh"],
 	"bai_dang.py": ["cai_dat", "da_dang", "doi_moc", "duyet", "gio_trong", "gui_duyet", "huy", "lich", "luu", "nhap_tep", "soan_ai",
 		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh"],
 	"mxh.py": [],
@@ -320,7 +322,8 @@ CUA_NGO = {
 		# `bo_noi` them 10/09/2026 (issue #252): go dau noi phieu nhap tren
 		# to con nhap, khi luong cua phieu da bi hoa don khac ghi so lay mat.
 		"bo_noi",
-		"danh_sach", "don_vi_cua_mon", "gan_ma_hang", "ghi_so_thang", "goi_y_mon",
+		# `ghi_so_dieu_chinh` them v666: ghi so to hoa don dieu chinh vao to goc.
+		"danh_sach", "don_vi_cua_mon", "gan_ma_hang", "ghi_so_dieu_chinh", "ghi_so_thang", "goi_y_mon",
 		"khai_don_vi", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
 	],
 	# Bang gia nhap duoi theo gia tren hoa don, them 31/08/2026. `can_khai_don_vi`

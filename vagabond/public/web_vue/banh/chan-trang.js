@@ -77,6 +77,15 @@ const BIEU_TUONG = {
   tiktok: () => svg([h('path', {d: 'M14 3.5v11.2a3.6 3.6 0 1 1-3.6-3.6'}), h('path', {d: 'M14 3.5c.4 2.7 2.2 4.4 5 4.6'})])
 };
 
+/* v667 (anh Việt 17/11/2026): cột Liên hệ chỉ còn số điện thoại, email (bỏ Nhắn Zalo vì
+   nút Zalo tròn đã có ở hàng mạng xã hội, bỏ dòng bếp). Bếp chuyển sang cột Cửa hàng,
+   dưới các cửa hàng, tiêu đề cùng kiểu chữ tiêu đề cột. */
+function BEP_TRUNG_TAM() {
+  return [h('div', {class: 'ctr-bep', id: 'ctrBep'}, [
+    h('p', {class: 'ctr-bep-h'}, t('ct667_bep_tieu_de', 'Bếp trung tâm')),
+    h('p', null, t('ct667_bep_dia_chi', '307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà'))])];
+}
+
 /* ---------- thành phần ---------- */
 export const ChanTrang = {
   name: 'ChanTrang',
@@ -125,15 +134,14 @@ export const ChanTrang = {
         mxh.length ? h('nav', {class: 'ctr-mxh', id: 'ctrMxh', 'aria-label': t('ct630_mxh', 'Mạng xã hội')},
           mxh.map(x => h('a', {class: 'ctr-mxh-nut', href: x.url, target: '_blank', rel: 'noopener noreferrer', 'data-mxh': x.k, 'aria-label': x.ten, title: x.ten}, [BIEU_TUONG[x.k]()]))) : null
       ]),
-      cuaHang.length ? this.muc('cua_hang', t('ct630_cua_hang', 'Cửa hàng'), cuaHang.map(c => h('div', {class: 'ctr-ch', 'data-cua-hang': c.id}, [
+      /* v667: cột luôn có (Bếp trung tâm đứng cuối), kể cả khi chưa bật cửa hàng nào. */
+      this.muc('cua_hang', t('ct630_cua_hang', 'Cửa hàng'), cuaHang.map(c => h('div', {class: 'ctr-ch', 'data-cua-hang': c.id}, [
         h('b', null, c.ten), h('p', null, c.dia_chi), c.gio_mo_cua ? h('p', {class: 'ctr-gio'}, c.gio_mo_cua) : null,
         chiDuongAnToan(c.chi_duong) ? h('a', {class: 'ctr-chi-duong', href: c.chi_duong, target: '_blank', rel: 'noopener'}, chiDuong) : null
-      ])), 'ctrCuaHang') : null,
+      ])).concat(BEP_TRUNG_TAM()), 'ctrCuaHang'),
       this.muc('lien_he', t('ct630_lien_he', 'Liên hệ'), [h('div', {id: 'fLienHe'}, [
         h('a', {class: 'ctr-dt', href: 'tel:' + lien.so}, [h('b', null, lien.dt)]),
-        lien.email ? h('a', {href: 'mailto:' + lien.email}, lien.email) : null,
-        lien.zalo ? h('a', {href: lien.zalo, target: '_blank', rel: 'noopener noreferrer'}, t('ct630_zalo', 'Nhắn Zalo')) : null,
-        h('p', null, t('dat_banh_cc4a76159', 'Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh'))
+        lien.email ? h('a', {href: 'mailto:' + lien.email}, lien.email) : null
       ])], 'ctrLienHe'),
       this.muc('mua', t('ct630_mua_banh', 'Mua bánh'), [h('nav', {class: 'ctr-ds', 'aria-label': t('ct630_mua_banh', 'Mua bánh')},
         mua.map(m => h('a', {href: m.href, 'data-tab': m.k || undefined,

@@ -99,6 +99,8 @@ function appMoi(tuy) {
       return tra(JSON.parse(JSON.stringify(B)));
     }
     if (ham === 'tai_anh') return tra({ url: '/files/web-moi.png' });
+    /* v667: thẻ Bánh (banh_web.ds_bien_tap) cho ô chọn bánh của đợt cuối tuần. */
+    if (ham === 'ds_bien_tap') return tra({ banh: [{ khoa: 'candle', ten: 'Candle', trang_thai: 'Đang hiện', anh: [], ma_hang: ['BAWC00139'], sizes: [] }, { khoa: 'phi tử tiếu', ten: 'Phi Tử Tiếu', trang_thai: 'Đã ẩn', anh: [], ma_hang: [], sizes: [] }], dem: {} });
     if (ham === 'doi_anh_tuyen_dung') {
       B.tuyen_dung_erp.forEach(function (v) { if (v.ma_vi_tri === a.ma_vi_tri) { v.anh_web = a.anh; v.anh_the = a.anh || '/assets/vagabond/images/quay-sales.jpg'; } });
       return tra(JSON.parse(JSON.stringify(B)));
@@ -152,7 +154,8 @@ function appMoi(tuy) {
     /* v630: thêm thẻ Thiết kế riêng ngay sau Tiệc. */
     /* v644: thêm thẻ Bánh ngay sau Ưu đãi (ảnh, mô tả, tầng hương vị từng bánh). */
     /* v647: thêm thẻ Banner ngay sau Ưu đãi. */
-    bang('11 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'banner', 'banh', 'tiec', 'thiet_ke_rieng', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
+    /* v667: thẻ Cuối tuần (đợt Đặc biệt tuần này) đứng sau Sự kiện. */
+    bang('12 o the', app.tim('[data-the]').map(function (b) { return b.dataset.the; }), ['uu_dai', 'banner', 'banh', 'tiec', 'dac_biet_tuan', 'thiet_ke_rieng', 'tuyen_dung', 'cau_hoi', 'cua_hang', 'chu', 'lien_he', 'nang_cao']);
     dung('dem uu dai tu ERP', String(app.mot('[data-the="uu_dai"]').textContent).indexOf('Ưu đãi2') === 0);
     bang('khong hien uu dai go tay', app.tim('[data-muc]').length, 0);
     var u1 = String(app.mot('[data-muc-erp="SN10"]').textContent);
@@ -566,6 +569,34 @@ function appMoi(tuy) {
 
   /* v630: thẻ Thiết kế riêng (anh Việt chốt 02/11/2026). Marketing thêm tác phẩm,
      size và giá gồm VAT, trang trí theo nhóm, số ngày đặt trước. */
+  await ca('v667 Them dot cuoi tuan: mac dinh lich thu hai mo, thu sau chot, giao thu bay chu nhat; thieu mon thi bao, khong goi may chu; chon banh theo ten, luu dung cau truc', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('dac_biet_tuan');
+    await app.bam(app.mot('[data-them="dac_biet_tuan"]'));
+    /* Hôm nay của trình biên tập giả là thứ tư 07/10/2026: thứ hai tới là 12/10. */
+    bang('tieu de mac dinh', [app.oTen('tieu_de_1').value, app.oTen('tieu_de_2').value], ['CUỐI TUẦN', '17 · 18/10']);
+    bang('mo, chot don', [app.oTen('mo_don').value, app.oTen('chot_don').value], ['2026-10-12T08:00', '2026-10-16T20:00']);
+    bang('bon moc', app.tim('.bt-dong-o').filter(function (n) { return n.dataset.dongO.indexOf('moc-') === 0; }).length, 4);
+    bang('hai ngay giao', app.tim('[data-bo-ngay]').map(function (b) { return b.dataset.boNgay; }), ['2026-10-17', '2026-10-18']);
+    await app.luu();
+    bang('thieu mon: bao, khong goi may chu', [app.bao(), app.dem('luu_muc')], ['Thêm ít nhất một món cho đợt.', 0]);
+    await app.bam(app.mot('[data-them-dong="mon_dt"]'));
+    await nghi(); await nghi();
+    var tuyChon = app.tim('option').map(function (x) { return x.value; });
+    bang('chi banh dang hien trong goi y', tuyChon, ['Candle']);
+    await app.luu();
+    bang('chua chon banh: bao', app.bao(), 'Chọn bánh cho từng món của đợt.');
+    await app.go(app.oTen('mon_dt_khoa_0'), 'candle');
+    await app.go(app.oTen('mon_dt_toi_da_0'), '30 cái');
+    await app.bam(app.mot('[data-bo-ngay="2026-10-18"]'));
+    await app.go(app.oTen('tieu_de_2'), '17/10');
+    await app.luu();
+    var a = app.cuoi('luu_muc').muc;
+    bang('cau truc gui', [a.loai, a.tieu_de, a.mon_dt, a.ngay_giao, a.moc.length, a.dem_nguoc, a.hien],
+      ['dac_biet_tuan', 'CUỐI TUẦN\n17/10', [{ khoa: 'candle', mo_ta: '', anh: '', nhan_goc: '', toi_da: '30' }], ['2026-10-17'], 4, '1', true]);
+    dung('dong danh sach tom tat', String(app.mot('[data-muc="' + a.id + '"]').textContent).indexOf('Mở đơn 12/10 8g00 · chốt 16/10 20g00 · giao 17/10 · 1 món') >= 0);
+  });
+
   await ca('v630 Them tac pham thiet ke rieng: size, trang tri, so ngay; luu gui dung cau truc cho may chu', async function () {
     var app = appMoi(); await nghi();
     await app.the('thiet_ke_rieng');

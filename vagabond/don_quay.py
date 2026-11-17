@@ -658,8 +658,12 @@ def tao_don(don=None):
 		except Exception:
 			pt = "bank"
 		phi = kq["phi_day_du"]
+		from vagabond import goi_y_mua
+
 		snapshot = {
 			"mon": [{"ma": x["ma"], "ten": x["ten"], "sl": int(x["sl"]), "gia": int(goi_mon_ban.gia_dong(x))} for x in kq["dong"]],
+			# v668: món khách thêm từ khối Gợi ý mua thêm (để đo, chỉ đơn mới có).
+			"goi_y": goi_y_mua.ma_goi_y(raw.get("goi_y"), [x["ma"] for x in kq["dong"]]),
 			"nguoi_dat": {"ho_ten": ten, "dien_thoai": sdt, "email": ""},
 			"nguoi_nhan": None, "tu_lay": kq["tu_lay"],
 			"dia_chi": kq["dia_chi"] if not kq["tu_lay"] else (d.get("dia_chi") or ""),

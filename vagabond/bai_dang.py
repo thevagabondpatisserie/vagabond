@@ -78,7 +78,20 @@ KHUNG_STORY = "9:16"
 TOI_DA_ANH_BAI = 20
 
 # Khung ảnh nhận ra được, sai số 3% (Meta để sai số 3% cho tỷ lệ ảnh quảng cáo).
-KHUNG = (("1:1", 1.0), ("4:5", 0.8), ("9:16", 0.5625), ("16:9", 1.7778), ("1.91:1", 1.91), ("3:4", 0.75), ("2:3", 0.6667))
+KHUNG = (("1:1", 1.0), ("4:5", 0.8), ("9:16", 0.5625), ("16:9", 1.7778), ("1.91:1", 1.91), ("3:4", 0.75), ("2:3", 0.6667),
+	("2:1", 2.0), ("1:2", 0.5), ("3:2", 1.5))
+TY_KHUNG = dict(KHUNG)
+
+# v668: cỡ ảnh Facebook theo bảng anh Việt gửi 17/11/2026 (khung ô lưới -> cỡ
+# nên làm). Bài 1 ảnh dọc 960x1200, vuông 1200x1200, ngang 1200x800; 2 ảnh
+# 1200x600 hoặc 600x1200; 3 ảnh trở lên ảnh chính 1920x960, 960x1920, ô vuông
+# 1920x1920, ô phụ 1920x1280.
+CO_FB = {
+	1: {"4:5": "960x1200", "1:1": "1200x1200", "3:2": "1200x800"},
+	2: {"2:1": "1200x600", "1:2": "600x1200", "1:1": "1200x1200"},
+	3: {"2:1": "1920x960", "1:2": "960x1920", "1:1": "1920x1920", "3:2": "1920x1280"},
+}
+TEN_LUOI_FB = {"2:1": "ngang", "1:2": "dọc", "1:1": "vuông"}
 SAI_SO_KHUNG = 0.03
 
 GIO_VANG_MAC_DINH = ("07:30", "11:30", "19:30")
@@ -124,6 +137,38 @@ def khung_kenh(kenh, kieu=KIEU_BAI):
 	return KHUNG_STORY if kieu == KIEU_STORY else KENH[kenh]["khung"]
 
 
+def _huong(khung):
+	ty = TY_KHUNG.get(khung or "", 1.0)
+	return "ngang" if ty > 1.05 else "doc" if ty < 0.95 else "vuong"
+
+
+def bo_cuc_fb(anh):
+	"""THUẦN: khung từng ô của lưới Facebook theo số ảnh và hướng ảnh đầu (bảng
+	cỡ ảnh anh Việt gửi 17/11/2026). 1 ảnh: dọc 4:5, vuông 1:1, ngang 3:2.
+	2 ảnh: cả hai 2:1, 1:2 hoặc 1:1 theo ảnh đầu. 3 ảnh: ảnh chính 2:1 hoặc 1:2,
+	hai ô vuông. 4 ảnh: vuông. 5 ảnh trở lên: vuông, ô phụ (từ ảnh 3) đã là 3:2
+	thì giữ."""
+	ds = list(anh or [])
+	n = len(ds)
+	if not n:
+		return []
+	hg = _huong(ds[0].get("khung"))
+	if n == 1:
+		return [{"doc": "4:5", "vuong": "1:1", "ngang": "3:2"}[hg]]
+	if n == 2:
+		return [{"doc": "1:2", "vuong": "1:1", "ngang": "2:1"}[hg]] * 2
+	if n == 3:
+		return [{"doc": "1:2", "vuong": "1:1", "ngang": "2:1"}[hg], "1:1", "1:1"]
+	if n == 4:
+		return ["1:1"] * 4
+	return ["1:1", "1:1"] + ["3:2" if (a.get("khung") == "3:2") else "1:1" for a in ds[2:]]
+
+
+def co_fb(n, khung):
+	"""THUẦN: cỡ nên làm cho ô có khung này trong bài n ảnh, theo bảng anh gửi."""
+	return CO_FB[min(max(int(n or 1), 1), 3)].get(khung, "")
+
+
 def anh_cho_kenh(anh, kenh, kieu=KIEU_BAI):
 	"""THUẦN: mỗi ảnh của bài dùng cho kênh này ra sao.
 
@@ -135,9 +180,11 @@ def anh_cho_kenh(anh, kenh, kieu=KIEU_BAI):
 	if kieu == KIEU_STORY:
 		dung = [a for a in ds if a.get("khung") == can]
 		ds = dung[:1] or ds[:1]
+	# v668: Facebook theo lưới đúng số ảnh, không còn cắt mọi ảnh thành vuông.
+	o = bo_cuc_fb(ds) if kenh == "fb" and kieu == KIEU_BAI else [can] * len(ds)
 	ra = []
-	for a in ds:
-		ra.append({"ten": a.get("ten"), "url": a.get("url"), "khung": can, "cat": a.get("khung") != can})
+	for a, k in zip(ds, o):
+		ra.append({"ten": a.get("ten"), "url": a.get("url"), "khung": k, "cat": a.get("khung") != k})
 	return ra
 
 
@@ -263,10 +310,8 @@ def kiem_bai(bai, bay_gio, trung_gio=None, anh_cu=None, tu=None):
 			ra.append({"muc": "nhac", "chu": "Chưa có ảnh 9:16 cho Story", "goi_y": "Hệ thống sẽ cắt giữa ảnh đầu; chữ ở mép ảnh có thể bị mất.", "nut": ["anh", "Tải ảnh 9:16"]})
 		if "fb" in kenh:
 			ra.append({"muc": "nhac", "chu": "Story Facebook không hiện chữ kèm theo", "goi_y": "Chữ và lời mời đặt bánh phải in sẵn trên ảnh."})
-	elif len(anh) > 1 and "fb" in kenh:
-		dau = anh[0].get("khung") or ""
-		if any((a.get("khung") or "") != dau for a in anh[1:]):
-			ra.append({"muc": "nhac", "chu": "Ảnh khác khung nhau", "goi_y": "Facebook chọn lưới theo ảnh đầu; ảnh khác khung sẽ bị cắt.", "nut": ["anh", "Sửa ảnh"]})
+	elif anh and "fb" in kenh:
+		ra.extend(kiem_anh_fb(anh))
 	hen = _dt(bai.get("hen_luc"))
 	if hen and bay_gio and hen <= bay_gio:
 		ra.append({"muc": "chan", "chu": "Giờ hẹn %s đã qua" % hen.strftime("%H:%M %d/%m"), "goi_y": "Chọn giờ mới hoặc Ngay khi duyệt.", "nut": ["gio", "Đổi giờ"]})
@@ -293,6 +338,37 @@ def kiem_bai(bai, bay_gio, trung_gio=None, anh_cu=None, tu=None):
 		chu = "; ".join(x for x in ("Hệ thống tự đăng: " + ", ".join(tu_dang) if tu_dang else "",
 			"Đăng tay: " + ", ".join(tay) if tay else "") if x)
 		ra.append({"muc": "ok", "chu": chu})
+	return ra
+
+
+def kiem_anh_fb(anh):
+	"""THUẦN: nhắc theo bảng cỡ ảnh Facebook. Ảnh lệch ô lưới (hệ thống sẽ cắt)
+	và ảnh nhỏ hơn cỡ khuyên dùng. Ảnh không rõ cỡ thì không nhắc cỡ."""
+	ra = []
+	n = len(anh)
+	o = bo_cuc_fb(anh)
+	cat = [i for i, (a, k) in enumerate(zip(anh, o)) if (a.get("khung") or "") != k]
+	if cat:
+		so = ", ".join(str(i + 1) for i in cat)
+		luoi = "%d ảnh %s" % (n, TEN_LUOI_FB.get(o[0], "")) if n in (2, 3) else "%d ảnh" % n if n > 1 else "ảnh đơn"
+		goi = "; ".join("ảnh %d khung %s (%s)" % (i + 1, o[i], co_fb(n, o[i])) for i in cat)
+		ra.append({"muc": "nhac", "chu": "Facebook sẽ cắt ảnh %s cho đúng lưới %s" % (so, luoi.strip()),
+			"goi_y": "Nên làm %s. Hệ thống cắt giữa ảnh, chữ ở mép có thể mất." % goi, "nut": ["anh", "Sửa ảnh"]})
+	# Ngưỡng nhắc mờ là 1080 px (cỡ phổ biến của ảnh mạng xã hội); cỡ trong bảng
+	# là cỡ NÊN làm, ghi ở câu gợi ý, không nhắc mọi ảnh 1080 (quá ồn).
+	can = 1080
+	nho = []
+	for i, a in enumerate(anh):
+		try:
+			dai = max(int(a.get("rong") or 0), int(a.get("cao") or 0))
+		except (TypeError, ValueError):
+			dai = 0
+		if dai and dai < can:
+			nho.append(i + 1)
+	if nho:
+		ra.append({"muc": "nhac", "chu": "Ảnh %s nhỏ hơn cỡ Facebook khuyên dùng" % ", ".join(str(i) for i in nho),
+			"goi_y": "Ảnh dưới %d px dễ bị mờ. Cỡ nên làm: %s." % (can, ", ".join(sorted(set(
+				"%s %s" % (k, co_fb(n, k)) for k in o)))), "nut": ["anh", "Sửa ảnh"]})
 	return ra
 
 

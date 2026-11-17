@@ -53,15 +53,20 @@ const ctx = {
     ghi.api.push(method);
     ghi.api_args.push({ m: method, a: args || {} });
     if (method === 'vagabond.doi_chieu_mua.noi_phieu') return { da_noi: 1, da_ghi_so: 0, con_lai: [], loi_nhan: 'Đã nối 1 dòng.' };
-    if (method === 'vagabond.hach_toan_thang.xem') return { name: xem.hd.name, dong: [], ghi_so_duoc: 1, tong: 0 };
+    /* v666: ca kiểm có thể đặt sẵn dòng hạch toán (tờ có dòng chi phí). */
+    if (method === 'vagabond.hach_toan_thang.xem') return { name: xem.hd.name, dong: xem.ht_dong || [], ghi_so_duoc: 1, tong: 0 };
     if (method === 'vagabond.doi_chieu_mua.xem') return xem;
     if (method === 'vagabond.doi_chieu_mua.so_sanh') return soSanh;
     return {};
   },
   ngayNgan: function (s) { return String(s || ''); },
   busy: function () {}, toast: function () {}, baoTin: function () {},
-  go: function (f) { f(); }, confirmSheet: async function () { return true; },
+  /* v666: bấm ghi sổ xong màn quay về danh sách; ghi lại việc quay về, không
+     vẽ danh sách (cần cả bộ ô chọn ngày, ngoài phạm vi giả lập này). */
+  go: function (f) { if (f && f.name === 'scrDoiChieuMua') { ghi.ve_danh_sach = 1; return; } f(); }, confirmSheet: async function () { return true; },
   sheet: function () {}, mfgPickItem: function () {},
+  /* v666: màn Hạch toán vẽ ảnh món bằng hàm của tệp khác. */
+  anhMon: function () { return ''; },
   setTimeout: setTimeout,
 };
 vm.createContext(ctx);
@@ -85,5 +90,6 @@ vm.runInContext(man, ctx);
     footer: ghi.footer.join('\n'),
     api: ghi.api,
     api_args: ghi.api_args,
+    ve_danh_sach: ghi.ve_danh_sach || 0,
   }));
 })().catch(function (e) { console.error(e && e.stack || e); process.exit(1); });

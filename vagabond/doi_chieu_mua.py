@@ -366,7 +366,7 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 			"name", "posting_date", "supplier", "supplier_name", "grand_total",
 			"total", "docstatus", "bill_no", "bill_date", "update_stock",
 			"outstanding_amount", "vgb_huy",
-		],
+		] + (["custom_trang_thai_hddt"] if _co_tt_hddt() else []),
 		order_by="posting_date desc, name desc",
 		limit_page_length=0,
 	)
@@ -444,6 +444,16 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 			ra.append(o)
 			continue
 		dong = dong_theo_hd.get(r["name"]) or []
+		if _la_dieu_chinh_nhanh(r):
+			# v666: tờ điều chỉnh chỉ sửa tiền, không nối phiếu nhập. Đi thẳng
+			# nhóm Chờ ghi sổ (ghi sau tờ gốc), không gợi ý phiếu, không chấm lệch.
+			o["so_dong"] = len(dong)
+			o["da_noi"] = 0
+			o["so_phieu_goi_y"] = 0
+			o["nhom"] = "cho_ghi_so"
+			o["dieu_chinh"] = 1
+			ra.append(o)
+			continue
 		ma_hd = {d["item_code"] for d in dong}
 		gy = []
 		for p in pnk_theo_ncc.get(r["supplier"]) or []:
@@ -506,7 +516,9 @@ def xem(name):
 	if not hd:
 		frappe.throw("Không có hoá đơn %s." % name)
 	dong = _dong_hd(name)
-	gy = _goi_y(hd, dong) if hd.get("docstatus") == 0 else []
+	dieu_chinh = _dieu_chinh(name)
+	# v666: tờ điều chỉnh không nối phiếu nhập, nên không gợi ý phiếu nào.
+	gy = _goi_y(hd, dong) if (hd.get("docstatus") == 0 and not dieu_chinh.get("la_dieu_chinh")) else []
 	# Phieu ma hoa don nay DA tro toi. Uyen noi phieu tu hom truoc roi bo
 	# do vi khong biet con nut Gui; mo lai man nay ma may tick san mot
 	# phieu khac thi bang doi chieu ben duoi noi sai chuyen.
@@ -565,9 +577,12 @@ def xem(name):
 		noi_cu = 1 if name in hd_noi_cu({name: dong}) else 0
 		if noi_cu:
 			nhom = "cho_doi_chieu"
+	if dieu_chinh.get("la_dieu_chinh") and hd.get("docstatus") == 0 and nhom not in ("huy", "xong"):
+		nhom = "cho_ghi_so"
 	return {
 		"hd": hd,
 		"hddt": hddt,
+		"dieu_chinh": dieu_chinh,
 		"dong": dong,
 		"da_noi": _da_noi(dong),
 		"phieu_da_noi": da_noi_ds,
@@ -595,6 +610,13 @@ def so_sanh(name, phieu=None):
 	)
 	if not hd:
 		frappe.throw("Không có hoá đơn %s." % name)
+	dieu_chinh = _dieu_chinh(name)
+	if dieu_chinh.get("la_dieu_chinh"):
+		frappe.throw("Tờ %s là hoá đơn điều chỉnh, chỉ sửa tiền của tờ gốc nên không đối chiếu "
+			"với phiếu nhập. Mở tờ gốc để đối chiếu." % name)
+	# v666: tờ gốc có hoá đơn điều chỉnh thì so với phiếu nhập bằng TIỀN SAU
+	# ĐIỀU CHỈNH (Gourmet Partner 33387 + 39339 = đúng phiếu PNK-2026-00803).
+	tien_dc = flt(dieu_chinh.get("tien_dieu_chinh"))
 	dong = _dong_hd(name)
 
 	for p in phieu:
@@ -764,19 +786,25 @@ def so_sanh(name, phieu=None):
 	so_lech_dvt = len([r for r in ra if r.get("lech_dvt")])
 	so_khac_ten_dvt = len([r for r in ra if r.get("khac_ten_dvt")])
 	so_noi_cu = len([r for r in ra if r.get("noi_cu")])
+	# MỘT nguồn cho tiền sau điều chỉnh (hd_dieu_chinh), màn hình đọc lại số này.
+	from vagabond import hd_dieu_chinh
+	tien_hd_sau = hd_dieu_chinh.tien_sau_dieu_chinh(hd["total"], dieu_chinh.get("cac_to"))
 	return {
 		"dong": ra,
 		"thua": thua,
 		"tien_hd": flt(hd["total"]),
+		"tien_dieu_chinh": tien_dc,
+		"tien_hd_sau": tien_hd_sau,
+		"cac_to_dieu_chinh": dieu_chinh.get("cac_to") or [],
 		"tien_pnk": tien_pnk,
 		"tien_pnk_goc": flt(tien_pnk_goc, 0),
-		"lech_tien": flt(hd["total"]) - tien_pnk,
+		"lech_tien": tien_hd_sau - tien_pnk,
 		# Lech don vi thi khong bao gio duoc coi la khop, du tien co bang nhau
 		# tuyet doi: tien bang nhau ma so luong lech mot nghin lan la ca that
 		# ngay 26/08/2026, doc `vagabond/dvt_mua.py`.
 		# Dau noi cu mat hieu luc cung khong khop: ghi so la bi chan ngay.
 		"khop": 1
-		if abs(flt(hd["total"]) - tien_pnk) <= NGUONG_LECH and not thua and not so_lech_dvt
+		if abs(tien_hd_sau - tien_pnk) <= NGUONG_LECH and not thua and not so_lech_dvt
 		and not so_noi_cu
 		else 0,
 		"so_lech_dvt": so_lech_dvt,
@@ -1299,6 +1327,10 @@ def noi_phieu(name, phieu=None, ghi_so=0, tk=None):
 	doc = frappe.get_doc("Purchase Invoice", name)
 	if doc.docstatus != 0:
 		frappe.throw("Hoá đơn %s đã ghi sổ rồi, không nối lại được." % name)
+	if _dieu_chinh(name).get("la_dieu_chinh"):
+		frappe.throw("Tờ %s là hoá đơn điều chỉnh: hàng đã vào kho bằng phiếu nhập của tờ gốc, "
+			"tờ này chỉ sửa tiền nên không nối phiếu nhập. Nối phiếu cho tờ gốc, ghi sổ tờ gốc, "
+			"rồi bấm Ghi sổ điều chỉnh ở tờ này." % name)
 	if cint(doc.get("update_stock")):
 		frappe.throw(
 			'Hoá đơn %s đang bật "Cập nhật tồn kho". Nối vào phiếu nhập nữa là hàng vào kho hai lần. Vui lòng tắt ô đó rồi nối lại.' % name
@@ -1393,7 +1425,7 @@ def _loi_nhan_noi(kq):
 
 
 @frappe.whitelist()
-def sua_don_vi(name, dong=None, dvt=None):
+def sua_don_vi(name, dong=None, dvt=None, quy_doi=0):
 	"""Sua DON VI cua mot dong hoa don mua con nhap, giu nguyen tien.
 
 	Vi sao co ham nay: man hinh bao "hai bên khác đơn vị" ma khong co duong
@@ -1412,6 +1444,12 @@ def sua_don_vi(name, dong=None, dvt=None):
 	_kiem_quyen()
 	if not _lam_duoc():
 		frappe.throw("Chỉ kế toán hoặc thu mua mới sửa đơn vị dòng hoá đơn được.")
+	# v666 QUY ĐỔI (Gourmet Partner 33387, anh Việt 17/11/2026): hoá đơn ghi
+	# 20 KG, phiếu nhập ghi 2 Thùng, quy về Gram hai bên cùng 20.000. Nút đổi
+	# đơn vị cũ giữ nguyên số 20 nên thành 20 Thùng = 200 kg, sai mười lần.
+	# quy_doi=1: đổi sang đơn vị mới VÀ quy lại số lượng (giữ lượng quy về kho),
+	# đơn giá tính lại để thành tiền giữ nguyên tuyệt đối.
+	quy_doi = cint(quy_doi)
 	dvt = str(dvt or "").strip()
 	if not dvt:
 		frappe.throw("Chưa chọn đơn vị mới.")
@@ -1436,9 +1474,21 @@ def sua_don_vi(name, dong=None, dvt=None):
 				'Món %s chưa khai đơn vị "%s" trong bảng quy đổi. Nhờ thu mua khai '
 				"đơn vị đó cho món trước, rồi quay lại đổi." % (d.item_name or d.item_code, dvt)
 			)
-		if dvt_mua.cung_don_vi(d.get("uom"), dvt):
+		# v666: đơn vị nhà cung cấp ghi "KG" mà bảng quy đổi khai "Kg": lấy đúng
+		# tên trong bảng quy đổi, không ghi chữ của nhà cung cấp vào ô đơn vị.
+		dvt_dung = frappe.db.get_value("UOM Conversion Detail", {"parent": d.item_code, "uom": dvt}, "uom") or dvt
+		if dvt_mua.cung_don_vi(d.get("uom"), dvt_dung):
 			continue
-		d.uom = dvt
+		if quy_doi:
+			sl_moi = flt(dvt_mua.ton(d.qty, dvt_mua.he_so(d.get("conversion_factor"))) / flt(hs), 6)
+			if sl_moi <= 0:
+				frappe.throw("Dòng %d: số lượng quy đổi ra 0, không đổi được." % d.idx)
+			tien = flt(d.amount) or flt(d.qty) * flt(d.rate)
+			d.qty = sl_moi
+			d.rate = tien / sl_moi
+			d.price_list_rate = d.rate
+			d.amount = tien
+		d.uom = dvt_dung
 		d.conversion_factor = hs
 		da_doi.append(cint(d.idx))
 		sua += 1
@@ -2122,6 +2172,8 @@ def ghi_so_thang(name, tk=None):
 	doc = frappe.get_doc("Purchase Invoice", name)
 	if doc.docstatus != 0:
 		frappe.throw("Hoá đơn %s không còn ở dạng nháp." % name)
+	if _dieu_chinh(name).get("la_dieu_chinh"):
+		return ghi_so_dieu_chinh(name, tk)
 
 	# Dong hang that ma chua noi phieu: chan. Dong dich vu, phi ship, van
 	# phong pham thi cho di.
@@ -2177,6 +2229,53 @@ def _ghi_so_co_hach_toan(doc, tk):
 		frappe.throw("Chưa ghi sổ: máy tự đổi tài khoản khác với chị chọn (%s). Báo kỹ thuật." % "; ".join(lech))
 	frappe.db.commit()
 	return chon
+
+
+def _co_tt_hddt():
+	from vagabond import hd_dieu_chinh
+	return hd_dieu_chinh.co_truong("Purchase Invoice", "custom_trang_thai_hddt")
+
+
+def _la_dieu_chinh_nhanh(r):
+	"""Màn danh sách: tờ nháp có trạng thái hoá đơn điện tử "Điều chỉnh". Đọc ô
+	trên chính tờ, không hỏi M-Invoice từng tờ (màn danh sách đọc vài trăm tờ)."""
+	from vagabond import hd_dieu_chinh
+	return str(r.get("custom_trang_thai_hddt") or "").strip() == hd_dieu_chinh.TT_DIEU_CHINH
+
+
+def _dieu_chinh(name):
+	"""Thông tin hoá đơn điều chỉnh của một tờ ({} nếu không dính). Lỗi đọc thì
+	ghi nhật ký và coi như không dính, không làm hỏng màn Đối chiếu."""
+	try:
+		from vagabond import hd_dieu_chinh
+		return hd_dieu_chinh.thong_tin(name) or {}
+	except Exception:
+		try:
+			frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: hoa don dieu chinh")
+		except Exception:
+			pass  # Lỗi ghi nhật ký cũng không được làm hỏng màn Đối chiếu.
+		return {}
+
+
+@frappe.whitelist(methods=["POST"])
+def ghi_so_dieu_chinh(name, tk=None):
+	"""v666: ghi sổ một tờ hoá đơn điều chỉnh vào tờ gốc đã ghi sổ.
+
+	Tờ âm thành phiếu nợ trả lại gắn tờ gốc (return_against): công nợ tờ gốc
+	giảm đúng số điều chỉnh, không đụng tồn kho. Đi qua đúng một cửa ghi sổ có
+	hạch toán của màn này (`_ghi_so_co_hach_toan`)."""
+	_kiem_quyen()
+	if not _ghi_so_duoc():
+		frappe.throw("Chỉ kế toán mới ghi sổ hoá đơn mua được. Nhờ kế toán ghi sổ giúp tờ này.")
+	from vagabond import hd_dieu_chinh
+	doc = hd_dieu_chinh.chuan_bi_ghi_so(name)
+	_ghi_so_co_hach_toan(doc, tk)
+	goc = doc.get("return_against") or ""
+	return {
+		"name": doc.name, "da_ghi_so": 1, "trang_thai": doc.status, "goc": goc,
+		"loi_nhan": "Đã ghi sổ tờ điều chỉnh %s%s." % (
+			doc.name, (" vào tờ gốc " + goc + ", công nợ tờ gốc đã giảm theo") if goc else ""),
+	}
 
 
 def chan_vuot_luong_da_nhan(doc, method=None):

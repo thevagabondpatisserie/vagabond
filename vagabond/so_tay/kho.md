@@ -149,7 +149,7 @@ Hàng nhập kho trước, hoá đơn về sau. Hoá đơn mua phải nối vớ
 
 **Lưu ý**
 - Không bấm [[desk:Lấy mặt hàng từ]] trên Desk: nó chép đè dòng hàng, mất dòng phí dịch vụ, phí giao hàng.
-- Giá trên hoá đơn luôn là giá đúng. Giá sai thì nhà cung cấp xuất hoá đơn thay thế, không sửa giá trên phiếu.
+- Giá trên hoá đơn luôn là giá đúng. Giá sai thì nhà cung cấp xuất hoá đơn thay thế hoặc điều chỉnh, không sửa giá trên phiếu.
 - Chỉ nối trên màn Đối chiếu mua: màn này giữ nguyên số lượng và đơn giá của hoá đơn.
 - Không bấm [[desk:Nối phiếu nhập kho]] trên Desk: nút này chép giá phiếu nhập đè lên hoá đơn. Hoá đơn dựng từ hoá đơn điện tử thì máy dựng lại giá gốc khi lưu, hoá đơn nhập tay thì không.
 - Hàng không qua kho (dịch vụ, phí ship) không có phiếu nhập: kế toán bấm [[Ghi sổ thẳng, không nối phiếu]].
@@ -166,7 +166,7 @@ Các câu máy báo khi nối phiếu và cách gỡ.
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
-| Chưa nối được vì lệch đơn vị | Bấm [[Đổi đơn vị dòng này thành ...]], hoặc khai đơn vị cho món để lần sau máy tự hiểu |
+| Chưa nối được vì lệch đơn vị | Hai bên cùng lượng thì bấm [[Quy về ...]]; khác lượng thì [[Đổi đơn vị dòng này thành ...]], hoặc khai đơn vị cho món để lần sau máy tự hiểu. Xem mục Quy đổi đơn vị dòng hoá đơn theo phiếu nhập |
 | Phiếu nhập đã bị hoá đơn khác lấy mất lượng | Nối lại, hoặc [[Bỏ nối, chọn lại phiếu từ đầu]] |
 | Dòng N: món ... là hàng qua kho mà chưa nối phiếu nhập | Nối phiếu trước, không ghi sổ thẳng |
 | Lệch so với hoá đơn điện tử của nhà cung cấp | Bấm [[Dựng lại theo hoá đơn điện tử]] nếu có nút |
@@ -176,6 +176,57 @@ Các câu máy báo khi nối phiếu và cách gỡ.
 
 **Lưu ý**
 - Giá trên hoá đơn khác giá phiếu nhập thì vẫn ghi sổ được, nhưng phải là kế toán ghi.
+
+## Hoá đơn điều chỉnh giảm của nhà cung cấp
+Từ khoá: hoá đơn điều chỉnh, điều chỉnh giảm, hoá đơn âm, giảm trừ, xuất sai giá, hoá đơn gốc, debit note
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua, Kế toán | Đối chiếu mua (/doi-chieu-mua) | [[✅ Ghi sổ điều chỉnh vào tờ gốc]] |
+
+Nhà cung cấp xuất sai giá rồi xuất thêm một hoá đơn điều chỉnh giảm (số âm). Tờ điều chỉnh chỉ sửa TIỀN của tờ gốc, không nối phiếu nhập.
+
+**Các bước**
+1. Mở Đối chiếu mua. Tờ điều chỉnh mang nhãn tím "Hoá đơn điều chỉnh, chờ ghi sổ".
+2. Bấm vào tờ, xem thẻ tím: hoá đơn gốc, tiền hàng sau điều chỉnh.
+3. Bấm [[Mở tờ gốc ...]], nối tờ gốc với phiếu nhập như thường: máy so bằng tiền sau điều chỉnh.
+4. Kế toán ghi sổ tờ gốc.
+5. Quay lại tờ điều chỉnh, kế toán bấm [[✅ Ghi sổ điều chỉnh vào tờ gốc]], rồi [[Ghi sổ]] ở hộp xác nhận.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Ghi sổ tờ gốc ... trước | Nối phiếu nhập cho tờ gốc và ghi sổ tờ gốc trước |
+| Chưa tìm thấy tờ hoá đơn mua của hoá đơn gốc | Kiểm hoá đơn gốc đã kéo về từ M-Invoice chưa |
+| Tờ gốc ... đã huỷ | Báo kế toán, không ghi sổ điều chỉnh vào tờ đã huỷ |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 331 Phải trả người bán (trừ vào tờ gốc) | 3311 và 1331 | Khi kế toán ghi sổ tờ điều chỉnh giảm |
+
+**Lưu ý**
+- Không sửa số trên hai tờ: mỗi tờ khớp một hoá đơn điện tử đã gửi thuế.
+- Không đụng tồn kho, không đổi bảng giá nhập; công nợ tờ gốc giảm đúng số điều chỉnh.
+
+## Quy đổi đơn vị dòng hoá đơn theo phiếu nhập
+Từ khoá: quy đổi đơn vị, quy về, KG và Thùng, lệch đơn vị, đổi đơn vị, đơn vị trên hoá đơn điện tử, 20 KG thành 2 Thùng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua, Kế toán | Đối chiếu mua (/doi-chieu-mua) | [[Quy về ...]] |
+
+Hoá đơn ghi một đơn vị (20 KG), phiếu nhập ghi đơn vị khác (2 Thùng) mà cùng một lượng hàng. Quy đổi dòng hoá đơn về đơn vị của phiếu nhập, thành tiền giữ nguyên.
+
+**Các bước**
+1. Mở tờ hoá đơn trên Đối chiếu mua, chọn phiếu nhập.
+2. Dòng báo "Hai bên khác đơn vị" mà hai bên quy về kho bằng nhau thì có nút [[Quy về ...]], ví dụ "Quy về 2 Thùng × 4.600.000".
+3. Bấm nút, rồi [[Quy đổi]] ở hộp xác nhận. Dòng thành 2 Thùng, đơn giá tính lại, thành tiền không đổi.
+4. Dòng trước đó đã bị đổi nhầm (ví dụ 20 Thùng thay vì 20 KG): bấm [[Đưa về đơn vị trên hoá đơn điện tử ...]] trước, rồi mới quy đổi.
+
+**Lưu ý**
+- Nút [[Đổi đơn vị dòng này thành ...]] chỉ đổi tên đơn vị, giữ nguyên số lượng: 20 KG thành 20 Thùng là gấp mười lần hàng. Chỉ dùng khi hai bên khác lượng thật.
+- Dòng đã nối phiếu nhập thì bỏ nối trước khi quy đổi.
 
 ## Xác nhận hàng chuyển về kho tôi
 Từ khoá: nhận điều chuyển, nhận hàng điều chuyển, hàng chuyển về, hàng về kho bếp, hàng về cửa hàng, xác nhận nhận hàng, nhận thiếu, kho khác chuyển sang, transfer receipt, PDC

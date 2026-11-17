@@ -387,6 +387,29 @@ Chỉ cho đơn ĐÃ ghi sổ. [[Hoàn tiền]]: khách trả bánh, doanh thu b
 - Hàng khách trả vào kho hàng huỷ, không về kho bán.
 - Hoàn bao nhiêu phần trăm: việc này do giám đốc quyết.
 
+## Chuyển lại tiền dư khi khách trả OnePay ở đơn cũ
+Từ khoá: tiền dư OnePay, huỷ bớt bánh, đơn bị tách, đơn làm lại, đơn cũ, trả trước OnePay, chưa thấy tiền dư, không ghi nhận phần dư
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales | Doanh số (/doanh-so), màn Chi tiết đơn | [[Chuyển lại tiền dư]] |
+
+Khách trả OnePay cả đơn rồi huỷ bớt món, món còn lại sang số đơn Pancake mới. Tiền OnePay vẫn nằm ở số đơn cũ nên máy cần biết đơn cũ.
+
+**Các bước**
+1. Mở đơn mới, bấm [[Chuyển lại tiền dư]].
+2. Máy chưa thấy dư thì hiện bảng "Khách trả OnePay ở đơn cũ?". Chạm đơn cũ máy gợi ý, hoặc chạm [[Gõ số đơn Pancake cũ]] rồi gõ số.
+3. Máy kiểm đơn cũ cùng số điện thoại khách và bảng kê OnePay đã về, rồi mở form với phần dư.
+4. Điền tài khoản khách, bấm [[Gửi duyệt]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Đơn ... chưa nhận dư đồng nào | Bảng kê OnePay thường về sau 1 ngày; mở lại hôm sau |
+| Không cùng số điện thoại với khách | Kiểm lại số đơn cũ |
+| Tiền OnePay của đơn ... đã dùng cho phiếu ... | Một khoản chỉ trả lại một lần, xem phiếu đó |
+| Đơn ... còn hoá đơn ... của chính nó | Tiền thuộc hoá đơn đó, lập phiếu từ hoá đơn đó |
+
 ## Hoàn tiền đơn Pancake đã huỷ
 Từ khoá: đơn huỷ Pancake, đơn đã huỷ, khách huỷ đơn online, tiền giữ hộ, hoàn tiền đơn huỷ, đơn không có hoá đơn, chờ hoàn, hoàn cọc
 

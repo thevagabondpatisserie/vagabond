@@ -116,10 +116,15 @@ await ca('cột Cửa hàng: chỉ cửa hàng đang hiện và có địa chỉ
   const cd = tim(goc, lop('ctr-chi-duong'));
   la('chỉ một nút chỉ đường (link javascript bị bỏ)', cd.map(n => n.props.href), ['https://maps.app.goo.gl/abc']);
   la('chữ nút', chu(cd[0]), 'Chỉ đường ›');
-  /* Marketing tắt hết cửa hàng: cột biến mất, không để tiêu đề trơ trọi. */
+  /* v667 (anh Việt 17/11/2026): dưới các cửa hàng là Bếp trung tâm, tiêu đề cùng kiểu tiêu đề cột. */
+  const bep = mot(goc, id('ctrBep'), 'khối bếp trung tâm');
+  la('bếp trung tâm', [chu(tim(bep, lop('ctr-bep-h'))[0]), chu(bep).includes('307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà')], ['Bếp trung tâm', true]);
+  dung('bếp nằm trong cột Cửa hàng', !!tim(mot(goc, id('ctrCuaHang'), 'cột cửa hàng'), id('ctrBep')).length);
+  /* Marketing tắt hết cửa hàng: không còn thẻ cửa hàng nào. v667: cột vẫn còn vì có
+     Bếp trung tâm đứng cuối (anh Việt 17/11/2026), nên tiêu đề không trơ trọi. */
   napNoiDung(CAU_HINH.lien_he, CUA_HANG.map(c => ({...c, hien: false})));
   await nextTick();
-  la('không còn mục Cửa hàng', tim(goc, n => n.props['data-muc'] === 'cua_hang').length, 0);
+  la('không còn thẻ cửa hàng, chỉ còn bếp', [tim(goc, lop('ctr-ch')).length, tim(goc, id('ctrBep')).length], [0, 1]);
 });
 
 await ca('điện thoại: mục Cửa hàng mở sẵn, Liên hệ/Mua bánh/Chính sách gấp; bấm là mở, bấm lại là gấp', async () => {
@@ -194,7 +199,9 @@ await ca('pháp lý và liên hệ giữ đủ: tên công ty, mã số thuế, 
   for (const x of ['Công ty TNHH Patisserie Vagabond', 'Mã số thuế 0318561568', '9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ)', '307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà']) dung('có ' + x, tat.includes(x));
   dung('có năm', /© 20\d\d Công ty/.test(chu(mot(goc, id('fPhapNhan'), 'khối pháp lý'))));
   const lh = mot(goc, id('fLienHe'), 'khối liên hệ');
-  la('link liên hệ', tim(lh, n => n.the === 'a').map(n => n.props.href), ['tel:0931224334', 'mailto:hello@thevagabondpatisserie.com', 'https://zalo.me/0931224334']);
+  /* v667: cột Liên hệ bỏ Nhắn Zalo (nút Zalo tròn ở hàng mạng xã hội giữ) và dòng bếp. */
+  la('link liên hệ', tim(lh, n => n.the === 'a').map(n => n.props.href), ['tel:0931224334', 'mailto:hello@thevagabondpatisserie.com']);
+  dung('liên hệ không còn dòng bếp, không còn Nhắn Zalo', !chu(lh).includes('307/1') && !chu(lh).includes('Nhắn Zalo'));
   /* Email điền sai dạng: không thành mailto; chưa điền số: về số gốc. */
   napNoiDung({email: 'hello at vagabond', zalo: ''});
   await nextTick();

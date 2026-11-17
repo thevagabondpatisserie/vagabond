@@ -3,29 +3,32 @@
 <link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="192x192" href="/assets/vagabond/pwa/icon-192.png"><link rel="apple-touch-icon" href="/assets/vagabond/pwa/icon-180.png">
 <meta name="csrf-token" content="{{ csrf_token }}"><meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer"><title>{{ tieu_de }}</title>
-<link rel="stylesheet" href="/assets/vagabond/web_order/nen.css?v=35b24d4964ff">
-<link rel="stylesheet" href="/assets/vagabond/web_order/trang-khach.css?v=38a7976a0844">
+<link rel="stylesheet" href="/assets/vagabond/web_order/nen.css?v=38259d8903d5">
+<link rel="stylesheet" href="/assets/vagabond/web_order/trang-khach.css?v=c5314b8bf488">
 <!-- vue-map:dau -->
 <script type="importmap">
 {
  "imports": {
   "/assets/vagabond/web_vue/banh/anh.js": "/assets/vagabond/web_vue/banh/anh.js?v=a26dbe10b7f4",
-  "/assets/vagabond/web_vue/banh/app.js": "/assets/vagabond/web_vue/banh/app.js?v=7b8c15e4cf3b",
+  "/assets/vagabond/web_vue/banh/app.js": "/assets/vagabond/web_vue/banh/app.js?v=12dd5dac0ae3",
   "/assets/vagabond/web_vue/banh/bieu-tuong.js": "/assets/vagabond/web_vue/banh/bieu-tuong.js?v=2ccb3367b5dc",
-  "/assets/vagabond/web_vue/banh/chan-trang.js": "/assets/vagabond/web_vue/banh/chan-trang.js?v=f51fcaf683cc",
+  "/assets/vagabond/web_vue/banh/chan-trang.js": "/assets/vagabond/web_vue/banh/chan-trang.js?v=21c10ef0ec2e",
   "/assets/vagabond/web_vue/banh/chu-giau.js": "/assets/vagabond/web_vue/banh/chu-giau.js?v=074a307ac954",
-  "/assets/vagabond/web_vue/banh/du-lieu.js": "/assets/vagabond/web_vue/banh/du-lieu.js?v=074ea0d577a5",
-  "/assets/vagabond/web_vue/banh/goi-tai-ban.js": "/assets/vagabond/web_vue/banh/goi-tai-ban.js?v=185df587f35e",
-  "/assets/vagabond/web_vue/banh/kho-banh.js": "/assets/vagabond/web_vue/banh/kho-banh.js?v=ab731ad81bc1",
-  "/assets/vagabond/web_vue/banh/kho-goi-ban.js": "/assets/vagabond/web_vue/banh/kho-goi-ban.js?v=835c66a5d540",
-  "/assets/vagabond/web_vue/banh/mau.js": "/assets/vagabond/web_vue/banh/mau.js?v=fb90b7861ea3",
-  "/assets/vagabond/web_vue/banh/noi-dung.js": "/assets/vagabond/web_vue/banh/noi-dung.js?v=7ea7500dbf6e",
+  "/assets/vagabond/web_vue/banh/dac-biet-tuan.js": "/assets/vagabond/web_vue/banh/dac-biet-tuan.js?v=9138b4fb6f0c",
+  "/assets/vagabond/web_vue/banh/dbt-thuan.js": "/assets/vagabond/web_vue/banh/dbt-thuan.js?v=0718f7054f4f",
+  "/assets/vagabond/web_vue/banh/du-lieu.js": "/assets/vagabond/web_vue/banh/du-lieu.js?v=9102f84cb390",
+  "/assets/vagabond/web_vue/banh/goi-tai-ban.js": "/assets/vagabond/web_vue/banh/goi-tai-ban.js?v=c00d7dacb6f9",
+  "/assets/vagabond/web_vue/banh/goi-y-mua.js": "/assets/vagabond/web_vue/banh/goi-y-mua.js?v=d75c43ff88a9",
+  "/assets/vagabond/web_vue/banh/kho-banh.js": "/assets/vagabond/web_vue/banh/kho-banh.js?v=8a9685e2f31a",
+  "/assets/vagabond/web_vue/banh/kho-goi-ban.js": "/assets/vagabond/web_vue/banh/kho-goi-ban.js?v=14f50d76d5bf",
+  "/assets/vagabond/web_vue/banh/mau.js": "/assets/vagabond/web_vue/banh/mau.js?v=e84496cccd20",
+  "/assets/vagabond/web_vue/banh/noi-dung.js": "/assets/vagabond/web_vue/banh/noi-dung.js?v=c8c6b374fbc0",
   "/assets/vagabond/web_vue/banh/thanh-phan.js": "/assets/vagabond/web_vue/banh/thanh-phan.js?v=64194b6b4edf",
   "/assets/vagabond/web_vue/banh/thiet-ke-rieng.js": "/assets/vagabond/web_vue/banh/thiet-ke-rieng.js?v=b5f9a5ed4445",
-  "/assets/vagabond/web_vue/banh/vanh.js": "/assets/vagabond/web_vue/banh/vanh.js?v=f55f16f7197b",
+  "/assets/vagabond/web_vue/banh/vanh.js": "/assets/vagabond/web_vue/banh/vanh.js?v=0e9609d45341",
   "/assets/vagabond/web_vue/banh/ve-su-kien.js": "/assets/vagabond/web_vue/banh/ve-su-kien.js?v=612acf45eec3",
   "/assets/vagabond/web_vue/kho/api.js": "/assets/vagabond/web_vue/kho/api.js?v=648504e84b1d",
-  "/assets/vagabond/web_vue/kho/chu.js": "/assets/vagabond/web_vue/kho/chu.js?v=fcb43d193480",
+  "/assets/vagabond/web_vue/kho/chu.js": "/assets/vagabond/web_vue/kho/chu.js?v=673ef282237d",
   "/assets/vagabond/web_vue/kho/thuan.js": "/assets/vagabond/web_vue/kho/thuan.js?v=410ac962529c",
   "/assets/vagabond/web_vue/lib/vue.esm-browser.prod.js": "/assets/vagabond/web_vue/lib/vue.esm-browser.prod.js?v=c6cae9e17888",
   "/assets/vagabond/web_vue/si/app.js": "/assets/vagabond/web_vue/si/app.js?v=e480e8b78afb",

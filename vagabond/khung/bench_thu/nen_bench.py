@@ -219,7 +219,13 @@ def dung():
 		{"fieldname": "vgb_huy_ly_do", "fieldtype": "Small Text", "label": "Lý do huỷ", "read_only": 1, "insert_after": "vgb_huy"},
 		{"fieldname": "vgb_huy_luc", "fieldtype": "Datetime", "label": "Huỷ lúc", "read_only": 1, "insert_after": "vgb_huy"},
 		{"fieldname": "vgb_huy_boi", "fieldtype": "Data", "label": "Người huỷ", "read_only": 1, "insert_after": "vgb_huy"},
+		# v666: site thật có ô trạng thái hoá đơn điện tử trên tờ (Gốc, Điều
+		# chỉnh, Thay thế), máy dựng tờ từ M-Invoice ghi vào đó.
+		{"fieldname": "custom_trang_thai_hddt", "fieldtype": "Data", "label": "Trạng thái HĐĐT", "read_only": 1, "insert_after": "custom_minvoice_id"},
 	])
+	# v666: ô "hoá đơn gốc" của M-Invoice ("KH C26TGP - So 33387 - Ngay ..."),
+	# site thật có; hoá đơn mua điều chỉnh tìm tờ gốc bằng ô này.
+	_truong("MInvoice Invoice", [{"fieldname": "hd_goc", "fieldtype": "Data", "label": "Hoá đơn gốc", "insert_after": "trang_thai"}])
 	# Huỷ mềm trên Stock Entry (chung_tu.KHOA_XOA), tạo tay trên Desk ngày
 	# trước, cùng bốn ô như staging/cau_truc_cu.json. Bench thiếu bốn ô này
 	# thì mọi màn lọc "vgb_huy": 0 trên phiếu kho nổ Unknown column ngay ở

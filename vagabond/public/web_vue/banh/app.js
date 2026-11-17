@@ -15,15 +15,17 @@ import {taoKho} from './kho-banh.js';
 import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE} from './du-lieu.js';
 import {LOGO} from './anh.js';
 import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
-import {KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, dsMuc, TD, UD} from './noi-dung.js';
+import {KhoiNoiDung, TieuDeMuc, KenhNoi, ChuyenMuc, dsMuc, TD, UD} from './noi-dung.js';
 import {thuong} from './chu-giau.js';
 import {MAU} from './mau.js';
 import {ChanTrang, locChinhSach} from './chan-trang.js';
 import {ThietKeRieng, moTacPham, veDanhSach, dsTacPham} from './thiet-ke-rieng.js';
 import {GoiTaiBan, GoiTaiBanNoi} from './goi-tai-ban.js';
-import {dungQuayHien} from './kho-goi-ban.js';
+import {dungQuayHien, tenQuayHaiDong} from './kho-goi-ban.js';
 import {VanhNghieng, xepMuc} from './vanh.js';
 import {VeSuKien, dongSheet as dongSheetVe} from './ve-su-kien.js';
+import {DacBietTuan} from './dac-biet-tuan.js';
+import {GoiYMua} from './goi-y-mua.js';
 import {gaTuMeta} from '../kho/thuan.js';
 
 function luuTruAnToan() {
@@ -64,7 +66,7 @@ export function khoiDong(goc = '#app') {
 
   const app = createApp({
     template: MAU,
-    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan, GoiTaiBanNoi, VanhNghieng, VeSuKien},
+    components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, KenhNoi, ChuyenMuc, ChanTrang, ThietKeRieng, GoiTaiBan, GoiTaiBanNoi, VanhNghieng, VeSuKien, DacBietTuan, GoiYMua},
     setup() {
       const tab = computed(() => S.tab);
       const gioMo = computed(() => S.trang === 'gio');
@@ -85,6 +87,8 @@ export function khoiDong(goc = '#app') {
         {tab: 'uu_dai', nhan: t('tab_uu_dai', 'Ưu đãi'), hien: true},
         /* Tab Tiệc nâng thành Vé sự kiện (anh Việt chọn A 14/11/2026): luôn hiện, chưa có sự kiện thì mời theo dõi tiệm. */
         {tab: 'tiec', nhan: t('tab_ve_su_kien', 'Vé sự kiện'), hien: true, moi: true},
+        /* v667: Đặc biệt tuần này, chỉ hiện khi có đợt đang hiện (trình biên tập, thẻ Cuối tuần). */
+        {tab: 'dac_biet', nhan: t('tab_dac_biet', 'Đặc biệt tuần này'), hien: !!kho.dotDbt.value},
         {tab: 'tuyen_dung', nhan: t('tab_tuyen_dung', 'Tuyển dụng'), hien: true},
         {tab: 'today', nhan: t('tab_today', 'Có sẵn hôm nay'), hien: true},
         {tab: 'order', nhan: t('tab_order', 'Đặt bánh trước'), hien: true},
@@ -97,6 +101,10 @@ export function khoiDong(goc = '#app') {
          nhắc quét QR khi mở tab mà không có mã bàn (biểu thức && để ngoài khuôn). */
       const chuongQuay = computed(() => (kho.goiBan.cheDo.value === 'goi' && S.tab === 'store') ? kho.goiBan.moChuong : null);
       const nhacQr = computed(() => kho.goiBan.G.daKiem && !!quayHien.value);
+      /* v667 (anh Việt 17/11/2026): tab Tại quầy trên trang chủ (chế độ giao) bỏ khung chú
+         thích đầu tab; khung vẫn giữ cho gọi món tại bàn và ngoài giờ. */
+      const gbDauHien = computed(() => !!kho.goiBan.cheDo.value && kho.goiBan.cheDo.value !== 'giao');
+      const nhacQrHien = computed(() => nhacQr.value && !kho.goiBan.cheDo.value);
       const chinhSach = computed(() => locChinhSach(S.cauHinh && S.cauHinh.chinh_sach, location.pathname));
       const baoMat = computed(() => chinhSach.value.find(c => c.khoa === 'chinh_sach_bao_mat') || null);
       const ngayBan = computed(() => { void S.nhip; const b = new Date(); return DAYS[b.getDay()] + ', ' + kho.T.dmy(b); });
@@ -143,7 +151,7 @@ export function khoiDong(goc = '#app') {
           tinh: m.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)};
       });
       const tienTom = n => kho.T.tienVN(n);
-      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, chuongQuay, nhacQr, chinhSach, baoMat,
+      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
         moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh};
@@ -158,11 +166,12 @@ export function khoiDong(goc = '#app') {
   }
   function navBack() {
     if (history.state && history.state.vgb) history.back();
-    else nav(S.tab === 'order' ? '#/dat-truoc' : '#/', true);
+    else nav(S.tab === 'order' ? '#/dat-truoc' : S.tab === 'dac_biet' ? '#/dac-biet-tuan-nay' : '#/', true);
   }
   function go(tab) {
     if (tab === 'uu_dai' || tab === 'tuyen_dung') { nav('#/' + tab.replace('_', '-')); window.scrollTo(0, 0); return; }
     if (tab === 'tiec') { nav('#/ve-su-kien'); window.scrollTo(0, 0); return; }
+    if (tab === 'dac_biet') { nav('#/dac-biet-tuan-nay'); window.scrollTo(0, 0); return; }
     if (tab === 'thiet_ke_rieng') { nav('#/thiet-ke-rieng'); window.scrollTo(0, 0); return; }
     nav(tab === 'season' ? '#/in-season' : tab === 'store' ? '#/in-store' : tab === 'order' ? '#/dat-truoc' : '#/');
     window.scrollTo({top: 0, behavior: 'smooth'});
@@ -187,6 +196,7 @@ export function khoiDong(goc = '#app') {
     if (h === '/uu-dai' || h === '/tuyen-dung') { dongHet(); S.tab = h.slice(1).replace('-', '_'); return; }
     /* v658: Vé sự kiện; link #/tiec cũ đã gửi khách vẫn mở đúng tab. */
     if (h === '/ve-su-kien' || h === '/tiec') { dongHet(); S.tab = 'tiec'; return; }
+    if (h === '/dac-biet-tuan-nay') { dongHet(); S.tab = 'dac_biet'; return; }
     if (mBanh) {
       const c = S.CAKES.find(x => kho.T.slug(x.k) === mBanh[1]);
       /* Codex #462: bánh bếp thêm tay chỉ có sau lần nạp tồn đầu. Chưa nạp

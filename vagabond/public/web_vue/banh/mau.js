@@ -17,6 +17,7 @@ export const MAU = `
 
 <section class="wrap" id="uu_dai" :hidden="tab!=='uu_dai'"><header class="sec-head"><h1 class="h1">{{ t('tab_uu_dai','Ưu đãi') }}</h1></header><chuyen-muc v-if="tab==='uu_dai'" loai="uu_dai"/></section>
 <section class="wrap" id="tiec" :hidden="tab!=='tiec'"><ve-su-kien v-if="tab==='tiec'"/></section>
+<section class="wrap" id="dac_biet" :hidden="tab!=='dac_biet'"><dac-biet-tuan v-if="tab==='dac_biet'" :kho="kho" :mo="moBanh"/></section>
 <section class="wrap" id="thiet_ke_rieng" :hidden="tab!=='thiet_ke_rieng'"><thiet-ke-rieng v-if="tab==='thiet_ke_rieng'"/></section>
 <section class="wrap" id="tuyen_dung" :hidden="tab!=='tuyen_dung'"><header class="sec-head"><h1 class="h1">{{ t('tab_tuyen_dung','Tuyển dụng') }}</h1></header><chuyen-muc v-if="tab==='tuyen_dung'" loai="tuyen_dung"/></section>
 
@@ -54,30 +55,26 @@ export const MAU = `
       <h1 class="h1"><tieu-de-muc vi-tri="store" :dong="['Bánh trên tủ','tại quầy']"/></h1>
     </div>
     <div id="storeBody">
-      <div class="gb-dau" id="gbDau" v-if="kho.goiBan.cheDo.value">
+      <div class="gb-dau" id="gbDau" v-if="gbDauHien">
         <b>{{ kho.goiBan.nhanBan.value }}</b>
         <span v-if="kho.goiBan.cheDo.value==='goi'">{{ t('goi_ban_huong_dan','Bấm + trên món để thêm vào giỏ, rồi bấm Gọi món. Thanh toán tại quầy khi dùng xong.') }}</span>
-        <span v-else-if="kho.goiBan.cheDo.value==='giao'">{{ t('web_giao_huong_dan','Bấm + trên món để thêm vào giỏ, chọn giao tận nơi hoặc tự lấy, trả trước online. Món mong manh chỉ bán tại quầy nên không có ở đây.') }}</span>
         <span v-else>{{ t('goi_ban_ngoai_gio','Quầy đang ngoài giờ mở cửa ({gio}). Quý khách xem món, quầy mở cửa thì gọi được.',{gio: kho.goiBan.G.ban.gio || ''}) }}</span>
       </div>
-      <div class="gb-dau gb-nhac" id="gbNhacQr" v-else-if="nhacQr">
+      <div class="gb-dau gb-nhac" id="gbNhacQr" v-else-if="nhacQrHien">
         <b>{{ t('goi_ban_nhac_qr','Đang ngồi tại quầy? Quét mã QR dán trên bàn để gọi món') }}</b>
         <span>{{ t('goi_ban_nhac_qr_phu','Trang này chỉ xem bánh còn trên tủ. Gọi món cần mã của đúng bàn để quầy mang ra đúng chỗ. Chưa có mã trên bàn thì nhắn nhân viên gần nhất.') }}</span>
       </div>
       <goi-tai-ban :kho="kho" :tab="tab"/>
       <template v-if="quayHien">
-        <div class="quay-chon" v-if="!kho.goiBan.cheDo.value || kho.goiBan.cheDo.value==='giao'"><button v-for="q in quayHien.quay" :key="q.ma" :aria-pressed="String(q.ma===quayHien.chon.ma)" @click="S.quayChon=q.ma; S.nhomQuay=''; S.tangQuay=''">
-          <b>{{ q.ten }}</b><span>{{ q.dia_chi || '' }}</span><span>{{ (q.mon||[]).reduce((a,m)=>a+(m.con||0),0) }} {{ t('dat_banh_3556aabb5','bánh') }} · {{ (q.mon||[]).length }} {{ t('so_loai','loại') }}</span></button></div>
-        <div class="gb-tim" id="gbTim"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <div class="quay-gat" id="quayGat" role="group" :aria-label="t('quay_chon_cua_hang','Chọn cửa hàng')" v-if="!kho.goiBan.cheDo.value || kho.goiBan.cheDo.value==='giao'" :style="{gridTemplateColumns: 'repeat(' + quayHien.quay.length + ',1fr)'}"><button v-for="q in quayHien.quay" :key="q.ma" type="button" :aria-pressed="String(q.ma===quayHien.chon.ma)" @click="S.quayChon=q.ma; S.nhomQuay=''; S.tangQuay=''">
+          <span v-for="(d,i) in tenQuayHaiDong(q.ten)" :key="i">{{ d }}</span></button></div>
+        <p class="quay-dong" id="quayDong"><b v-if="quayHien.chon.dia_chi">{{ quayHien.chon.dia_chi }}</b><span>{{ quayHien.tong ? (quayHien.chon.dia_chi ? ' · ' : '') + t('quay_dong_con','Còn {so} bánh',{so: quayHien.tong}) + ' · ' + t('quay_dong_loai','{loai} loại',{loai: quayHien.soBanh}) : (quayHien.chon.dia_chi ? ' · ' : '') + t('dat_banh_71fb5d32e','Hiện đã hết bánh trên tủ') }}</span></p>
+        <div class="gb-tim" id="gbTim">
           <input id="gbTimO" type="search" autocomplete="off" :placeholder="t('goi_ban_tim','Tìm món, ví dụ trà lài, canelé')" :aria-label="t('goi_ban_tim','Tìm món, ví dụ trà lài, canelé')" v-model="S.timQuay">
-          <button v-if="S.timQuay" type="button" class="gb-tim-xoa" :aria-label="t('goi_ban_tim_xoa','Xoá chữ tìm')" @click="S.timQuay=''">×</button></div>
+          <button v-if="S.timQuay" type="button" class="gb-tim-xoa" :aria-label="t('goi_ban_tim_xoa','Xoá chữ tìm')" @click="S.timQuay=''">×</button>
+          <button type="button" class="gb-tim-nut" :aria-label="t('goi_ban_tim_nut','Tìm món')" @click="$event.currentTarget.parentNode.querySelector('input').focus()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button></div>
         <div class="gb-tang" id="storeTang"><button v-for="n in quayHien.tang" :key="n.n" type="button" :data-tang="n.n" :aria-pressed="String(n.n===quayHien.tangChon)" @click="S.tangQuay=n.n; S.nhomQuay=''"><b>{{ n.ten }}</b><span>{{ n.so }}</span></button></div>
         <div class="cm-chips gb-chips" id="storeChip" v-if="quayHien.nhom.length"><button v-for="n in quayHien.nhom" :key="n.n" :data-nhom="n.n" :aria-pressed="String(n.n===quayHien.chip)" @click="S.nhomQuay=n.n">{{ n.ten + ' · ' + n.so }}</button></div>
-        <div class="quay">
-          <div class="q-ten">{{ quayHien.chon.ten }}</div>
-          <div class="q-dc" v-if="quayHien.chon.dia_chi">{{ quayHien.chon.dia_chi }}</div>
-          <div class="q-con">{{ quayHien.tong ? t('dat_banh_75f5cf26e','Còn') + ' ' + quayHien.tong + ' ' + t('dat_banh_9ce7e8d31','bánh ·') + ' ' + quayHien.mon.length + ' ' + t('dat_banh_97a16dfdf','loại') : t('dat_banh_71fb5d32e','Hiện đã hết bánh trên tủ') }}</div>
-        </div>
         <div v-if="quayHien.rong==='tim'" class="store-empty" id="gbTimRong">{{ t('goi_ban_tim_rong','Không có món nào khớp "{tim}". Quý khách thử chữ khác hoặc chọn nhóm.',{tim: quayHien.tim}) }}</div>
         <div v-else-if="quayHien.rong" class="store-empty" :id="kho.goiBan.cheDo.value==='giao' ? 'webGiaoRong' : null">{{ kho.goiBan.cheDo.value==='giao' ? t('web_giao_rong','Quầy này hiện chưa có món nào đặt giao được. Quý khách ghé quầy hoặc đặt qua ứng dụng giao hàng.') : t('dat_banh_a85783ffc','Quầy này đã bán hết bánh trong tủ. Bánh mới lên tủ theo từng đợt trong ngày.') }}</div>
         <div v-else-if="kho.goiBan.cheDo.value" class="gb-ds" id="storeLuoi">
@@ -179,7 +176,6 @@ export const MAU = `
   </div>
 </main>
 
-<cua-hang/>
 <div data-vgb-vi-tri="cuoi_trang" :aria-label="t('dat_banh_b69802262','Câu chuyện Vagabond')"><khoi-noi-dung vi-tri="cuoi_trang"/></div>
 <chan-trang :kho="kho" :go="go"/>
 
@@ -212,6 +208,7 @@ export const MAU = `
           <button class="rm" @click="kho.cartRemove(d.i); if(!S.CART.length) nav('#/',true)"><bieu-tuong loai="bo"/>{{ t('bo_khoi_gio','Bỏ khỏi giỏ') }}</button></div></li>
     </ul>
     <button class="cart-add" @click="navBack()"><bieu-tuong loai="cong"/><span>{{ t('dat_banh_7ddb8bc3b','Chọn thêm bánh') }}</span></button>
+    <goi-y-mua id-khoi="gyGio" :tieu="t('gy_tieu_gio','GIAO KÈM CÙNG CHUYẾN')" :ds="kho.goiYGio.value" :them="kho.themGoiY" :thanh="kho.thanhMienPhiGio.value"/>
 
     <div class="sec"><span class="n">02</span><h3><span>{{ t('dat_banh_73b0921c0','Ngày và giờ nhận') }}</span></h3><i class="rule"></i></div>
     <div class="tomtat" id="c-tomtat" v-if="kho.hienTomTat.value"><div class="tt-doc"><span>{{ t('dat_banh_9e6a654ba','Thời gian nhận') }}</span><b>{{ tomTatLich }}</b></div><button type="button" class="tt-doi" @click="kho.doiLich()">{{ t('dat_banh_2d141c148','Thay đổi') }}</button></div>

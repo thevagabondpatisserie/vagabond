@@ -12,6 +12,25 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v669
+- Không đổi thao tác: bản gộp để deploy một lần v666 (#578), v667 (#579, #580), v668 (#581); hướng dẫn nằm ở các mục của từng bản bên dưới
+
+## v668
+- Gợi ý mua thêm trên trang đặt bánh
+- Duyệt món đi kèm và mức giữ bánh khô tại bếp
+- Cỡ ảnh bài Facebook
+
+## v667
+- Đợt món cuối tuần (tab Đặc biệt tuần này)
+- Tab Tại quầy gọn hơn và dọn cuối trang đặt bánh
+- Chuyển lại tiền dư khi khách trả OnePay ở đơn cũ
+
+## v666
+- Hoá đơn điều chỉnh giảm của nhà cung cấp
+- Quy đổi đơn vị dòng hoá đơn theo phiếu nhập
+- Vì sao không nối được phiếu nhập kho vào hoá đơn
+- Nối phiếu nhập kho với hoá đơn mua
+
 ## v665
 - Hệ thống tự đăng Facebook, Instagram, Threads
 - Kho bản thảo thay cho gửi ghi chú qua lại

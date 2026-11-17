@@ -29,6 +29,7 @@ export const ND = reactive({
   thong_tin: {},
   diem_nhan: null,
   ve: {},
+  dac_biet_da_dat: {},
   /* v625: phúc lợi chung và lời giới thiệu của trang tuyển dụng (trình biên tập). */
   tuyen_dung_chung: null,
   /* Đang được nhúng trong khung xem thử của trình biên tập. */
@@ -82,6 +83,8 @@ export function apNoiDung(nd) {
   ND.thong_tin = nd.thong_tin || {};
   ND.diem_nhan = Array.isArray(nd.diem_nhan) ? nd.diem_nhan : null;
   ND.ve = nd.ve || {};
+  /* v667: số đã đặt từng món có giới hạn của đợt Đặc biệt tuần này. */
+  ND.dac_biet_da_dat = nd.dac_biet_da_dat && typeof nd.dac_biet_da_dat === 'object' ? nd.dac_biet_da_dat : {};
   ND.tuyen_dung_chung = nd.tuyen_dung_chung && typeof nd.tuyen_dung_chung === 'object' ? nd.tuyen_dung_chung : null;
   ND.daTai = true;
   ND.loiTai = false;

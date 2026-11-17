@@ -11,8 +11,8 @@ from vagabond import noi_dung_web as web
 
 # Phần cong_khai() tự ghép thêm, không nằm trong nội dung đã lưu: "nhan" từ
 # v532; thông tin cửa hàng, điểm nhận, liên hệ và số vé tiệc từ v586; phúc lợi
-# chung của trang tuyển dụng từ v625.
-DAN_XUAT = ("nhan", "thong_tin", "diem_nhan", "lien_he", "ve", "tuyen_dung_chung")
+# chung của trang tuyển dụng từ v625; số đã đặt món Đặc biệt tuần này từ v667.
+DAN_XUAT = ("nhan", "thong_tin", "diem_nhan", "lien_he", "ve", "tuyen_dung_chung", "dac_biet_da_dat")
 
 
 def _bo_nhan(x):

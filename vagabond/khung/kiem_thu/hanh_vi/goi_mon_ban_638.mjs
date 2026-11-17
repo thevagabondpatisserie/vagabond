@@ -13,7 +13,7 @@
 import {createRenderer, nextTick, computed} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
-import {dungQuayHien} from '../../../public/web_vue/banh/kho-goi-ban.js';
+import {dungQuayHien, tenQuayHaiDong} from '../../../public/web_vue/banh/kho-goi-ban.js';
 import {GoiTaiBan, GoiTaiBanNoi} from '../../../public/web_vue/banh/goi-tai-ban.js';
 import {KenhNoi} from '../../../public/web_vue/banh/noi-dung.js';
 import {gomSize, tachSize, khopTim, chipNhom, LY_DO_GOI} from '../../../public/web_vue/banh/kho-goi-ban.js';
@@ -110,7 +110,10 @@ async function moTrang(o = {}) {
     components: {AnhMon, GoiTaiBan, GoiTaiBanNoi, KhoiNoiDung: Rong, TieuDeMuc: Rong},
     setup: () => {
       const quayHien = computed(() => dungQuayHien(kho.S, kho.goiBan.G, t));
-      return {S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien, nhacQr: computed(() => kho.goiBan.G.daKiem && !!quayHien.value),
+      return {S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien, nhacQr: computed(() => kho.goiBan.G.daKiem && !!quayHien.value), tenQuayHaiDong,
+        /* v667: cùng điều kiện app.js (khung chú thích chỉ ở gọi món tại bàn, ngoài giờ). */
+        gbDauHien: computed(() => !!kho.goiBan.cheDo.value && kho.goiBan.cheDo.value !== 'giao'),
+        nhacQrHien: computed(() => kho.goiBan.G.daKiem && !!quayHien.value && !kho.goiBan.cheDo.value),
         tienTom: n => T.tienVN(n), mxh: (k, d) => d, telSo: () => '0931224334', telChu: () => '0931 224 334'};
     }
   }).mount(goc);
@@ -127,7 +130,7 @@ await ca('Link có k: chế độ gọi món của ĐÚNG quầy, nhãn "Distric
   const {goc, kho} = await moTrang();
   la('chế độ', kho.goiBan.cheDo.value, 'goi');
   dung('nhãn bàn', chu(theoId(goc, 'gbDau')).includes('District 1 · Bàn 5'));
-  la('không còn hàng chọn quầy', tim(goc, n => n.props.class === 'quay-chon').length, 0);
+  la('không còn hàng chọn quầy', tim(goc, n => n.props.class === 'quay-gat').length, 0);
   la('tầng lớn', tang(goc), ['=3', 'banh=1', 'nuoc=2']);
   la('Tất cả: không có hàng chip nhỏ', chip(goc), []);
   la('nút + cho cả ba món', nutThem(goc).map(n => n.props['data-them']), ['BAWC00115', 'NUTR00021', 'NUIC00002']);
@@ -143,7 +146,7 @@ await ca('Không có link, hay link sai khoá: tab giữ chế độ xem như hi
     const {goc, kho, vet} = await moTrang(o);
     la('chế độ xem', kho.goiBan.cheDo.value, '');
     la('không nút +', nutThem(goc).length, 0);
-    la('còn chọn quầy', tim(goc, n => n.props.class === 'quay-chon').length, 1);
+    la('còn chọn quầy (thanh gạt v667)', tim(goc, n => n.props.class === 'quay-gat').length, 1);
     dung('không thanh giỏ gọi món', !theoId(goc, 'gbBar'));
     if (o.tim !== undefined) la('link thiếu, sai dạng thì không hỏi máy chủ', vet.filter(x => x[1] === 'vagabond.goi_mon_ban.mo_ban').length, 0);
   }
@@ -312,7 +315,10 @@ async function moTrang2(o = {}) {
     components: {AnhMon, GoiTaiBan, GoiTaiBanNoi, KhoiNoiDung: Rong, TieuDeMuc: Rong},
     setup: () => {
       const quayHien = computed(() => dungQuayHien(kho.S, kho.goiBan.G, t));
-      return {S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien, nhacQr: computed(() => kho.goiBan.G.daKiem && !!quayHien.value),
+      return {S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien, nhacQr: computed(() => kho.goiBan.G.daKiem && !!quayHien.value), tenQuayHaiDong,
+        /* v667: cùng điều kiện app.js (khung chú thích chỉ ở gọi món tại bàn, ngoài giờ). */
+        gbDauHien: computed(() => !!kho.goiBan.cheDo.value && kho.goiBan.cheDo.value !== 'giao'),
+        nhacQrHien: computed(() => kho.goiBan.G.daKiem && !!quayHien.value && !kho.goiBan.cheDo.value),
         tienTom: n => T.tienVN(n), mxh: (k, d) => d, telSo: () => '0931224334', telChu: () => '0931 224 334'};
     }
   }).mount(g);

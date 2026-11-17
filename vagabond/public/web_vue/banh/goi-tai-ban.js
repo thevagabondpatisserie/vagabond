@@ -16,6 +16,7 @@ import {AnhMon} from './thanh-phan.js';
 import {giaDong, LY_DO_GOI, CACH_TRA, TT_KHONG_TINH, moTaCombo} from './kho-goi-ban.js';
 import {BieuTuong, ICON_LY_DO} from './bieu-tuong.js';
 import {PAYS} from './du-lieu.js';
+import {GoiYMua} from './goi-y-mua.js';
 
 
 /* Khối "đã gọi" là khối CHỈ ĐỂ ĐỌC, không được lấn chỗ khối để bấm (AGENTS.md
@@ -148,6 +149,8 @@ export const MAU_GOI_BAN_NOI = `
         </div>
         </template>
         <template v-else>
+          <goi-y-mua id-khoi="gyQuay" nho :tieu="gb.goiYQuayHien.value.loai==='an' ? t('gy_tieu_an','ĂN KÈM CHO HỢP') : t('gy_tieu_uong','UỐNG KÈM CHO HỢP')"
+            :ds="gb.goiYQuayHien.value.ds" :them="gb.themGoiYQuay" :thanh="gb.thanhMienPhiQuay.value"/>
           <div class="seg" id="gbWebCach" role="group" :aria-label="t('web_giao_cach','Cách nhận')">
             <button type="button" :class="{on: !G.web.tuLay}" :aria-pressed="String(!G.web.tuLay)" @click="G.web.tuLay=false; gb.xemGiaWeb()"><b>{{ t('web_giao_tan_noi','Giao tận nơi') }}</b><span>{{ t('web_giao_tan_noi_mo','Quầy gọi xe GreenSM khi đóng gói xong') }}</span></button>
             <button type="button" :class="{on: G.web.tuLay}" :aria-pressed="String(G.web.tuLay)" @click="G.web.tuLay=true; gb.xemGiaWeb()"><b>{{ t('web_giao_tu_lay','Tự lấy tại quầy') }}</b><span>{{ (gb.quayCua() || {}).dia_chi || '' }}</span></button>
@@ -318,7 +321,7 @@ export const MAU_GOI_BAN_NOI = `
 export const GoiTaiBanNoi = {
   name: 'GoiTaiBanNoi',
   props: {kho: {type: Object, required: true}, tab: {type: String, default: ''}},
-  components: {AnhMon, BieuTuong},
+  components: {AnhMon, BieuTuong, GoiYMua},
   template: MAU_GOI_BAN_NOI,
   setup(props) {
     const gb = props.kho.goiBan;

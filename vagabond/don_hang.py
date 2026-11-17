@@ -583,6 +583,24 @@ def tao_don(don=None):
 		dia_chi = diem["a"]
 		don["diem_lay_ten"] = diem["n"]
 
+	# v667: món của đợt "Đặc biệt tuần này" chỉ nhận trong giờ mở đơn và đúng
+	# ngày giao của đợt. Trang khách đã khoá ngày khác, ở đây chặn lại vì ai
+	# cũng gọi thẳng được. Đọc đợt hỏng thì ghi lỗi, không chặn đơn thường.
+	from vagabond import dac_biet_tuan as dbt
+	try:
+		dot = dbt.dot_cong_khai()
+		ma_dbt = dbt.ma_theo_khoa(dot) if dot else {}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được đợt Đặc biệt tuần này")
+		dot, ma_dbt = None, {}
+	hang_dbt = [{"ma": h["variation_id"], "sl": int(h.get("quantity") or 0)} for h in hang]
+	ly_dbt = dbt.kiem_don(dot, hang_dbt, ma_dbt, ngay, dbt.luc_vn())
+	if ly_dbt:
+		return {"ok": 0, "ly_do": ly_dbt, "ngay_giao": list(dot.get("ngay_giao") or [])}
+	# Đơn có món của đợt: xét lại giờ mở, giờ chốt, ngày giao và số lượng dưới
+	# khoá đợt, ngay trước lúc ghi (Codex #579: bấm 19:59, tới lúc ghi đã 20:01).
+	co_dbt = bool(dot) and bool(dbt.dong_cua_dot(hang_dbt, ma_dbt))
+
 	# F21 cách B: tìm nonce ở trên, rồi mới đọc tồn tại lúc gửi. Nguồn
 	# không đọc được thì nhận như cũ, nhưng phải báo Sales đối chiếu.
 	from vagabond import ton_don_web
@@ -770,12 +788,16 @@ def tao_don(don=None):
 	from vagabond import thanh_toan_web_thuan as ttt
 
 	thanh_toan = ttt.chuan_pt(don.get("thanh_toan"), the_dung=_op.dung_duoc())
+	from vagabond import goi_y_mua
+
 	snapshot = {
 		"mon": [
 			{"ma": h["variation_id"], "ten": ten_mon.get(h["variation_id"]) or h["variation_id"],
 			 "sl": int(h["quantity"]), "gia": int(float(gia.get(h["variation_id"]) or 0))}
 			for h in hang_goc
 		],
+		# v668: món khách thêm từ khối Gợi ý mua thêm (để đo, chỉ đơn mới có).
+		"goi_y": goi_y_mua.ma_goi_y(don.get("goi_y"), [h["variation_id"] for h in hang_goc]),
 		"nguoi_dat": {"ho_ten": ten, "dien_thoai": dien_thoai, "email": (don.get("email") or "").strip()},
 		"nguoi_nhan": {"ho_ten": (nguoi_nhan.get("ho_ten") or "").strip(),
 			"dien_thoai": _so(nguoi_nhan.get("dien_thoai"))} if nguoi_nhan else None,
@@ -809,10 +831,30 @@ def tao_don(don=None):
 	# tim trung va phep ghi, de hai lan bam cung luc khong cung lot qua.
 	# v645: đơn dùng ưu đãi đơn đầu tiên thì khoá thêm theo số, xét lại ngay
 	# dưới khoá: hai đơn cùng số gửi cùng lúc chỉ một đơn được giảm.
-	with don_web.khoa_ghi(khoa), (don_dau_web.khoa_so(dien_thoai) if dung_dau else contextlib.nullcontext()):
+	with don_web.khoa_ghi(khoa), (don_dau_web.khoa_so(dien_thoai) if dung_dau else contextlib.nullcontext()), \
+			(dbt.khoa_suat(dot) if co_dbt else contextlib.nullcontext()):
 		trung = don_web.tim_trung(khoa)
 		if trung:
 			return don_web.phan_hoi(trung, nonce, trung=True)
+		if co_dbt:
+			# v667: đọc SAU khoá đợt. Kết thúc giao dịch đọc từ đầu yêu cầu để thấy
+			# đơn vừa commit của khách khác và bản đợt Marketing vừa lưu (MariaDB
+			# đọc thường thấy ảnh chụp cũ). Giờ lấy lại tại đây, không dùng giờ
+			# lúc nhận yêu cầu: chờ giá, phí giao, khoá có thể vượt qua giờ chốt.
+			frappe.db.commit()
+			try:
+				dot_x = dbt.dot_de_xet(dot, dbt.dot_cong_khai())
+				ma_x = ma_dbt if dot_x is dot else dbt.hop_ma(ma_dbt, dbt.ma_theo_khoa(dot_x))
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc lại được đợt Đặc biệt tuần này")
+				dot_x, ma_x = dot, ma_dbt
+			ly_dbt = dbt.kiem_don(dot_x, hang_dbt, ma_x, ngay, dbt.luc_vn())
+			if ly_dbt:
+				return {"ok": 0, "ly_do": ly_dbt, "ngay_giao": list(dot_x.get("ngay_giao") or [])}
+			if any(m.get("toi_da") for m in dot_x.get("mon_dt") or []):
+				vuot = dbt.vuot_suat(dot_x, hang_dbt, ma_x, dbt.da_dat(dot_x, ma_x))
+				if vuot:
+					return {"ok": 0, "ly_do": dbt.HET_SUAT, "nhac": vuot}
 		if dung_dau:
 			# Kết thúc giao dịch đọc từ đầu yêu cầu để thấy đơn vừa commit.
 			frappe.db.commit()

@@ -71,6 +71,32 @@ def _tuyen_dung():
 	return tuyen_dung, tuyen_dung_form, the, form
 
 
+def _dot_mau():
+	"""v667: đợt Đặc biệt tuần này mẫu, theo biến VGB_DBT: mot (1 món), hai (2 món),
+	chot (đã chốt đơn), chua_mo (chưa mở đơn), het (món có giới hạn đã đủ suất).
+	Không đặt biến thì không có đợt (tab ẩn), giữ nguyên các ảnh mốc cũ."""
+	import datetime as _dt
+	kieu = os.environ.get('VGB_DBT') or ''
+	if not kieu:
+		return None
+	hn = _dt.date.today()
+	n = lambda d: (hn + _dt.timedelta(days=d)).isoformat()
+	thu = lambda d: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][(hn + _dt.timedelta(days=d)).weekday()] + ' ' + (hn + _dt.timedelta(days=d)).strftime('%d/%m')
+	mo, chot = (1, 4) if kieu == 'chua_mo' else ((-4, -1) if kieu == 'chot' else (-1, 3))
+	mon = [{'khoa': 'candle', 'mo_ta': 'Vani Tahiti, caramel muối, lớp giòn hạnh nhân.', 'anh': '', 'nhan_goc': '', 'toi_da': '3' if kieu == 'het' else ''}]
+	if kieu != 'mot':
+		mon.append({'khoa': 'phi tử tiếu', 'mo_ta': 'Vải thiều, hoa hồng, kem phô mai.', 'anh': '', 'nhan_goc': 'Số lượng có hạn', 'toi_da': ''})
+	return {'id': 'dbt-mau', 'loai': 'dac_biet_tuan', 'vi_tri': 'dac_biet_tuan', 'hien': True, 'nhan': 'CHỈ CUỐI TUẦN',
+		'tieu_de': 'CUỐI TUẦN\n' + (hn + _dt.timedelta(days=chot + 1)).strftime('%d') + ' · ' + (hn + _dt.timedelta(days=chot + 2)).strftime('%d/%m'),
+		'noi_dung': 'Món đặc biệt của tuần này. Đặt trước với số lượng giới hạn.', 'bat_dau': n(-7), 'ket_thuc': n(10),
+		'mo_don': n(mo) + 'T08:00', 'chot_don': n(chot) + 'T20:00', 'dem_nguoc': '1', 'dem_chu_1': 'còn lại để đặt',
+		'dem_chu_2': 'Chốt hết ' + thu(chot), 'ngay_giao': [n(chot + 1), n(chot + 2)],
+		'moc': [{'nhan': 'MỞ ĐƠN', 'chu_ngay': thu(mo), 'luc': n(mo) + 'T08:00'}, {'nhan': 'CHỐT ĐƠN', 'chu_ngay': thu(chot), 'luc': n(chot) + 'T20:00'},
+			{'nhan': 'BẾP LÀM', 'chu_ngay': thu(chot + 1)[:2] + ' · ' + thu(chot + 2)[:2], 'luc': n(chot) + 'T20:01'},
+			{'nhan': 'GIAO NHẬN', 'chu_ngay': thu(chot + 1)[:2] + ' · ' + thu(chot + 2)[:2], 'luc': n(chot + 1) + 'T08:00'}],
+		'mon_dt': mon}
+
+
 def noi_dung():
 	nd = _hang('MAC_DINH') or {'khoi': []}
 	nhan = dict(_hang('NHAN') or {})
@@ -84,8 +110,15 @@ def noi_dung():
 	tkr = _hang('TKR_MAU')
 	if tkr:
 		khoi.append(tkr)
-	return {'khoi': khoi, 'tuyen_dung_chung': {'phuc_loi': form['phuc_loi'], 'gioi_thieu': form['gioi_thieu']}, 'nhan': nhan, 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334',
-		'messenger': 'https://m.me/thevagabond.saigon'}, 'thong_tin': nd.get('thong_tin', {}), 'san_pham': {},
+	dot = _dot_mau()
+	thong_tin = nd.get('thong_tin', {})
+	if dot:
+		khoi.append(dot)
+		# Ảnh chụp v667: có một cửa hàng để chân trang đủ cột như site thật.
+		thong_tin = {'cua_hang': [{'id': 'cua-hang-sai-gon', 'ten': 'Cửa hàng Sài Gòn', 'dia_chi': '9 Trần Cao Vân, P. Sài Gòn',
+			'gio_mo_cua': '7:00 - 22:00', 'hien': True, 'chi_duong': 'https://maps.app.goo.gl/vagabond'}]}
+	return {'dac_biet_da_dat': {'candle': 3} if os.environ.get('VGB_DBT') == 'het' else {}, 'khoi': khoi, 'tuyen_dung_chung': {'phuc_loi': form['phuc_loi'], 'gioi_thieu': form['gioi_thieu']}, 'nhan': nhan, 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334',
+		'messenger': 'https://m.me/thevagabond.saigon'}, 'thong_tin': thong_tin, 'san_pham': {},
 		'diem_nhan': [{'id': 'bep-tan-son-hoa', 'n': 'Bếp Tân Sơn Hoà', 'a': '307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà'},
 			{'id': 'cua-hang-sai-gon', 'n': 'Cửa hàng Sài Gòn', 'a': '9 Trần Cao Vân, P. Sài Gòn'}]}
 
@@ -107,7 +140,38 @@ CAU_HINH = {'mien_phi_tu': 0, 'pixel_id': '', 'lien_he': {'dien_thoai': '0931 22
 	'quan': [{'ma': 'Q1', 'ten': 'Quận 1 cũ', 'lat': 10.776, 'lng': 106.700}, {'ma': 'BT', 'ten': 'Bình Thạnh', 'lat': 10.81, 'lng': 106.71}]}
 
 
+# v668 ảnh chụp Gợi ý mua thêm (VGB_GY=1): món gợi ý, cặp quầy, mốc miễn phí giao như site.
+A = '/assets/vagabond/web_order/'
+GY = {'bat': 1, 'toi_da': 4, 'thanh_mien_phi': 1, 'mon': [
+	{'ma': 'BACF00028', 'ten': 'Biscotti Cocoa, Hũ 200 gr', 'anh': A + 'og-banh.jpg', 'gia': 190000, 'ly_do_vn': 'Cacao đắng hợp sô cô la 70%', 'ghim': 1},
+	{'ma': 'BANU00016', 'ten': 'Bánh Triple Chocolatine, Full size', 'anh': A + 'croquembouche.jpg', 'gia': 80000, 'ly_do_vn': 'Ba lớp sô cô la cho người mê', 'ghim': 0},
+	{'ma': 'BANU00004', 'ten': 'Croissant Nhân Kem Tiramisu Cà Phê', 'anh': A + 'tay-lam-banh-minh-hoa.jpg', 'gia': 90000, 'ly_do_vn': 'Tiramisu cà phê hợp mocha', 'ghim': 0},
+	{'ma': 'BACF00008', 'ten': 'Bánh Canelé', 'anh': A + 'anh-bia.png', 'gia': 65000, 'ly_do_vn': 'Giòn thơm, để được nhiều ngày', 'ghim': 0},
+	{'ma': 'BANU00015', 'ten': 'Bánh Plain Croissant, Full size', 'anh': A + 'og-banh.jpg', 'gia': 60000, 'ly_do_vn': 'Croissant bơ cho bữa sáng', 'ghim': 0}]}
+CAP_QUAY = {'bat': 1, 'toi_da': 4, 'nguong': 3, 'thanh_mien_phi': 1, 'mien_phi_tu': 500000, 'ghim': [], 'hom_nay': '2026-11-17',
+	'ly_do_nhom': {'Đồ uống': ['Uống kèm cho hợp', ''], 'Bánh trên tủ': ['Bánh còn trên tủ hôm nay', '']},
+	'cap': [{'mon_goc': '', 'nhom_goc': 'Bánh lạnh', 'mon_goi_y': 'NUCF00007', 'ly_do_vn': 'Caramel muối hợp kem béo', 'uu_tien': 10},
+		{'mon_goc': '', 'nhom_goc': 'Bánh lạnh', 'mon_goi_y': 'NUTR00017', 'ly_do_vn': 'Trà lài thanh vị bánh kem', 'uu_tien': 20},
+		{'mon_goc': '', 'nhom_goc': 'Bánh lạnh', 'mon_goi_y': 'NUMC00008', 'ly_do_vn': 'Matcha đắng nhẹ cân vị ngọt', 'uu_tien': 30}]}
+QUAY_GY = {'cap_nhat': '2026-11-17 16:41:00', 'quay': [{'ma': 'TCV', 'ten': 'The Vagabond Quận 1', 'dia_chi': '9 Trần Cao Vân', 'mon': [
+	{'ma': 'BL01', 'ten': 'Very Berry Mini', 'nhom': 'Bánh lạnh', 'con': 6, 'gia': 95000, 'anh': A + 'croquembouche.jpg', 'giao': 1, 'tai_ban': 1},
+	{'ma': 'BL02', 'ten': 'Tart Chanh Dây', 'nhom': 'Bánh lạnh', 'con': 4, 'gia': 85000, 'anh': A + 'og-banh.jpg', 'giao': 1, 'tai_ban': 1}],
+	'do_uong': [{'ma': 'NUCF00007', 'ten': 'Cà Phê Caramel Muối, Đá/Iced', 'nhom_goc': 'Cà phê', 'gia': 95000, 'anh': '/assets/vagabond/images/quay-tcv.jpg', 'giao': 1},
+		{'ma': 'NUTR00017', 'ten': 'Tách trà Xanh Hoa Lài, Nóng/Hot', 'nhom_goc': 'Trà', 'gia': 75000, 'anh': '/assets/vagabond/images/quay-nvhtn.jpg', 'giao': 1},
+		{'ma': 'NUMC00008', 'ten': 'Matcha Latte, Size M, Đá/Iced', 'nhom_goc': 'Matcha', 'gia': 95000, 'anh': '/assets/vagabond/images/quay-sales.jpg', 'giao': 1}],
+	'topping': []}]}
+
+
 def tra_loi_get(phuong, q):
+	gy = os.environ.get('VGB_GY') == '1'
+	if gy and phuong == 'goi_y_dat_truoc':
+		return GY
+	if gy and phuong == 'cap_quay':
+		return CAP_QUAY
+	if gy and phuong == 'con_tren_quay_web':
+		return QUAY_GY
+	if gy and phuong == 'cau_hinh_web':
+		return dict(CAU_HINH, mien_phi_tu=1000000)
 	if phuong == 'cong_khai':
 		return noi_dung()
 	if phuong == 'vi_tri_cong_khai':

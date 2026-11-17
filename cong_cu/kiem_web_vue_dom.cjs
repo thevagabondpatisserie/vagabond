@@ -52,16 +52,19 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await page.goto(url+'/web_moi/banh');
     /* v658: dải tab thay bằng Vành nghiêng; chọn mục qua danh sách mục cho bàn phím (role tab). */
     await page.locator('.vanh-ds [data-tab="store"]').dispatchEvent('click'); await page.waitForURL(/#\/in-store/);
-    await page.locator('.quay-chon button').filter({hasText:'D1 fixture'}).click();
+    await page.locator('.quay-gat button').filter({hasText:/^D1/}).click();
     assert.match(await page.locator('#storeBody').innerText(),/Bánh D1 riêng/i);
     assert.doesNotMatch(await page.locator('#storeBody').innerText(),/mong manh D1/i);
     assert.equal(await page.locator('#storeBody .gb-mon').count(),1);
-    assert.match(await page.locator('.q-con').innerText(),/12/);
-    await page.locator('.quay-chon button').filter({hasText:'NVHTN fixture'}).click();
+    /* v667: khối tên quầy lớn (.quay) thay bằng một dòng nhãn dưới thanh gạt. */
+    assert.match(await page.locator('#quayDong').innerText(),/CÒN 12 BÁNH · 1 LOẠI/i);
+    assert.equal(await page.locator('#storeBody .quay').count(),0);
+    assert.equal(await page.locator('#gbDau').count(),0);
+    await page.locator('.quay-gat button').filter({hasText:/^NVHTN/}).click();
     assert.match(await page.locator('#storeBody').innerText(),/Bánh NV riêng/i);
     assert.doesNotMatch(await page.locator('#storeBody').innerText(),/Bánh D1 riêng/i);
-    assert.match(await page.locator('.q-con').innerText(),/3/);
-    await page.locator('.quay-chon button').filter({hasText:'D1 fixture'}).click();
+    assert.match(await page.locator('#quayDong').innerText(),/CÒN 3 BÁNH/i);
+    await page.locator('.quay-gat button').filter({hasText:/^D1/}).click();
     assert.doesNotMatch(await page.locator('#storeBody').innerText(),/Bánh NV riêng/i);
   });
   await test('F06/F09 thêm bánh qua DOM, tăng giảm giỏ và tổng cập nhật',async()=>{

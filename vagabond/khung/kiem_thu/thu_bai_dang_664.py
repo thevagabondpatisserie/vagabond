@@ -708,7 +708,7 @@ def _exif():
 	with um.patch.object(x.frappe.db, "get_value", lambda *a, **k: "F1", create=True), \
 			um.patch.object(x.frappe, "get_doc", lambda *a, **k: tep, create=True):
 		do = x._do_anh("/f/1.jpg")
-	la("khung khi gắn ảnh tính theo chiều đã xoay", (do["rong"], do["cao"], x.doc_khung(do["rong"], do["cao"])), (100, 200, ""))
+	la("khung khi gắn ảnh tính theo chiều đã xoay", (do["rong"], do["cao"], x.doc_khung(do["rong"], do["cao"])), (100, 200, "1:2"))  # v668: 1:2 là khung 2 ảnh dọc của Facebook
 
 
 # ------------------------------------------------------------ nối

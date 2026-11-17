@@ -377,18 +377,20 @@ function bdKhung(tyLe) { var p = String(tyLe).split(':'); return (+p[1] / +p[0] 
    cách xếp; Facebook quyết định cuối cùng, màn ghi rõ như vậy. Trả các ô
    {x, y, w, h} theo phần trăm, và chiều cao khung theo phần trăm chiều rộng. */
 function bdLuoiFb(n, khungDau) {
-  var ngang = khungDau === '16:9' || khungDau === '1.91:1';
-  var doc = khungDau === '4:5' || khungDau === '9:16' || khungDau === '3:4' || khungDau === '2:3';
-  if (n <= 1) return { cao: ngang ? 56.25 : doc ? 125 : 100, o: [{ x: 0, y: 0, w: 100, h: 100 }] };
+  /* v668: máy chủ đã đặt khung từng ô theo bảng cỡ ảnh Facebook (bo_cuc_fb):
+     1 ảnh theo khung ảnh; 2 ảnh 2:1 chồng dọc, 1:2 hoặc vuông cạnh nhau;
+     3 ảnh ảnh chính 2:1 trên, 1:2 trái, vuông lớn trái, hai ô vuông; 4 ảnh lưới
+     vuông; 5 ảnh trở lên hai ô vuông lớn trên, ba ô vuông dưới. */
+  var p = String(khungDau || '1:1').split(':'), ty = (+p[0] / +p[1]) || 1;
+  var ngang = ty > 1.05, doc = ty < 0.95;
+  if (n <= 1) return { cao: +(100 / ty).toFixed(2), o: [{ x: 0, y: 0, w: 100, h: 100 }] };
   if (n === 2) return ngang ? { cao: 100, o: [{ x: 0, y: 0, w: 100, h: 50 }, { x: 0, y: 50, w: 100, h: 50 }] }
-    : { cao: doc ? 62.5 : 50, o: [{ x: 0, y: 0, w: 50, h: 100 }, { x: 50, y: 0, w: 50, h: 100 }] };
-  if (n === 3) return doc ? { cao: 100, o: [{ x: 0, y: 0, w: 66.6, h: 100 }, { x: 66.6, y: 0, w: 33.4, h: 50 }, { x: 66.6, y: 50, w: 33.4, h: 50 }] }
-    : { cao: 100, o: [{ x: 0, y: 0, w: 100, h: 66.6 }, { x: 0, y: 66.6, w: 50, h: 33.4 }, { x: 50, y: 66.6, w: 50, h: 33.4 }] };
-  if (n === 4 && !ngang && !doc) return { cao: 100, o: [{ x: 0, y: 0, w: 50, h: 50 }, { x: 50, y: 0, w: 50, h: 50 }, { x: 0, y: 50, w: 50, h: 50 }, { x: 50, y: 50, w: 50, h: 50 }] };
-  if (n === 4) return doc ? { cao: 100, o: [{ x: 0, y: 0, w: 66.6, h: 100 }, { x: 66.6, y: 0, w: 33.4, h: 33.3 }, { x: 66.6, y: 33.3, w: 33.4, h: 33.3 }, { x: 66.6, y: 66.6, w: 33.4, h: 33.4 }] }
-    : { cao: 100, o: [{ x: 0, y: 0, w: 100, h: 66.6 }, { x: 0, y: 66.6, w: 33.3, h: 33.4 }, { x: 33.3, y: 66.6, w: 33.4, h: 33.4 }, { x: 66.7, y: 66.6, w: 33.3, h: 33.4 }] };
-  return doc ? { cao: 100, o: [{ x: 0, y: 0, w: 50, h: 50 }, { x: 0, y: 50, w: 50, h: 50 }, { x: 50, y: 0, w: 50, h: 33.3 }, { x: 50, y: 33.3, w: 50, h: 33.4 }, { x: 50, y: 66.7, w: 50, h: 33.3 }] }
-    : { cao: 83.3, o: [{ x: 0, y: 0, w: 50, h: 60 }, { x: 50, y: 0, w: 50, h: 60 }, { x: 0, y: 60, w: 33.3, h: 40 }, { x: 33.3, y: 60, w: 33.4, h: 40 }, { x: 66.7, y: 60, w: 33.3, h: 40 }] };
+    : { cao: doc ? 100 : 50, o: [{ x: 0, y: 0, w: 50, h: 100 }, { x: 50, y: 0, w: 50, h: 100 }] };
+  if (n === 3) return ngang ? { cao: 100, o: [{ x: 0, y: 0, w: 100, h: 50 }, { x: 0, y: 50, w: 50, h: 50 }, { x: 50, y: 50, w: 50, h: 50 }] }
+    : doc ? { cao: 100, o: [{ x: 0, y: 0, w: 50, h: 100 }, { x: 50, y: 0, w: 50, h: 50 }, { x: 50, y: 50, w: 50, h: 50 }] }
+    : { cao: 66.67, o: [{ x: 0, y: 0, w: 66.67, h: 100 }, { x: 66.67, y: 0, w: 33.33, h: 50 }, { x: 66.67, y: 50, w: 33.33, h: 50 }] };
+  if (n === 4) return { cao: 100, o: [{ x: 0, y: 0, w: 50, h: 50 }, { x: 50, y: 0, w: 50, h: 50 }, { x: 0, y: 50, w: 50, h: 50 }, { x: 50, y: 50, w: 50, h: 50 }] };
+  return { cao: 83.33, o: [{ x: 0, y: 0, w: 50, h: 60 }, { x: 50, y: 0, w: 50, h: 60 }, { x: 0, y: 60, w: 33.33, h: 40 }, { x: 33.33, y: 60, w: 33.34, h: 40 }, { x: 66.67, y: 60, w: 33.33, h: 40 }] };
 }
 
 function bdAnhFb(anh) {
@@ -471,8 +473,8 @@ function bdViecDangTay(bai) {
         x.loi ? 'Hệ thống chưa tự đăng được' : 'Đăng tay trong app';
       return '<div style="border-top:1px solid #f2f4f7"><div style="display:flex;gap:10px;align-items:center;padding:8px 0;min-height:52px">' + bdAvatar(x.k, 32, x.tt) +
         '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700">' + kn.ten + '</div><div style="font-size:13px;color:#667085">' + h(phu) + '</div></div>' +
-        (x.link ? '<a href="' + h(x.link) + '" target="_blank" rel="noopener" style="min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#0B7C93;text-decoration:none">Xem bài ›</a>' :
-          x.tt === 'Đã đăng' ? '<button class="btn gh" data-bdthemlink="' + x.k + '" style="margin:0;min-height:44px;padding:0 12px;font-size:14px">Thêm link</button>' : '') + '</div>' +
+        (x.link ? '<a href="' + h(x.link) + '" target="_blank" rel="noopener" style="min-height:44px;display:flex;align-items:center;flex:none;font-size:14px;font-weight:700;color:#0B7C93;text-decoration:none">Xem bài ›</a>' :
+          x.tt === 'Đã đăng' ? '<button class="btn gh" data-bdthemlink="' + x.k + '" style="margin:0;width:auto;flex:none;min-height:44px;padding:0 12px;font-size:14px">Thêm link</button>' : '') + '</div>' +
         (x.loi && x.tt === 'Chờ đăng tay' ? '<div style="margin:0 0 8px 42px;background:#fef3f2;color:#b42318;border-radius:10px;padding:8px 10px;font-size:13.5px;line-height:1.45">' + h(x.loi) + '</div>' : '') +
         (x.tt === 'Chờ đăng tay' && x.dang_duoc ? '<div style="padding:0 0 8px 42px"><button class="btn" data-bdthulai="' + x.k + '" style="margin:0;width:100%;min-height:44px;font-size:14px">' +
           (x.loi ? '🔁 Thử lại: hệ thống đăng lên ' : '⚡ Để hệ thống đăng lên ') + kn.ten + '</button></div>' : '') +

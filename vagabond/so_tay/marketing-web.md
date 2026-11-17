@@ -110,7 +110,7 @@ Từ khoá: vành nghiêng, thanh mục, tab trang đặt bánh, vuốt ngang, �
 | Khách, Marketing | Trang đặt bánh (/banh), dưới dòng ngày | vuốt ngang trên vành |
 
 **Trước đây:** dải tab chữ hoa kéo ngang, khách dễ sót mục.
-**Từ nay:** các mục nằm trên một vành nghiêng. Khách vuốt ngang để đổi mục, chạm thẳng vào mục để chọn. Từ v659 vùng vành chỉ nhận vuốt ngang (trước đó quẹt bị kéo cả trang xuống), muốn cuộn trang thì đặt ngón tay ngoài vành; vành quay mượt hơn trên iPhone. Thứ tự: Có sẵn hôm nay, Đặt bánh trước, Thiết kế riêng, Vé sự kiện, Tại quầy, Ưu đãi, Tuyển dụng; In season tự hiện khi có hàng mùa vụ. Cuộn xuống quá vành thì đầu màn có thanh gọn chỉ mục đang chọn.
+**Từ nay:** các mục nằm trên một vành nghiêng. Khách vuốt ngang để đổi mục, chạm thẳng vào mục để chọn. Từ v659 vùng vành chỉ nhận vuốt ngang (trước đó quẹt bị kéo cả trang xuống), muốn cuộn trang thì đặt ngón tay ngoài vành; vành quay mượt hơn trên iPhone. Thứ tự: Có sẵn hôm nay, Đặt bánh trước, Thiết kế riêng, Vé sự kiện, Đặc biệt tuần này, Tại quầy, Ưu đãi, Tuyển dụng; In season tự hiện khi có hàng mùa vụ, Đặc biệt tuần này tự hiện khi có đợt cuối tuần (từ v667). Cuộn xuống quá vành thì đầu màn có thanh gọn chỉ mục đang chọn.
 
 **Bạn cần làm:** không cần làm gì. Đổi tên mục ở Trang và chữ như trước.
 
@@ -185,6 +185,7 @@ Soạn, duyệt, theo dõi bài trên bốn kênh. Ảnh do designer làm; AI ch
 **Lưu ý**
 - Ô đỏ khi chọn giờ: kênh đó có bài trong 2 giờ. Ô mờ: đã có bài đúng giờ, không chọn được.
 - Facebook xếp lưới theo ảnh số 1 (lưới trên màn là dự kiến).
+
 - Story không có chữ kèm, không có sticker.
 - Người không có quyền duyệt bấm [[Gửi Marketing duyệt]].
 
@@ -275,6 +276,34 @@ Trước đây: web dùng xanh teal #29BDB3. Từ nay: màu xanh của cả web 
 **Lưu ý**
 - Ảnh tĩnh có màu teal cũ (nếu có) không tự đổi; báo kỹ thuật kèm tên ảnh.
 
+## Đợt món cuối tuần (tab Đặc biệt tuần này)
+Từ khoá: đặc biệt tuần này, cuối tuần, món cuối tuần, mở đơn, chốt đơn, ngày giao, đếm ngược, số lượng tối đa
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập website (/bien-tap-web), thẻ Cuối tuần | nút + Thêm đợt cuối tuần |
+
+**Trước đây:** món chỉ làm cho cuối tuần phải đăng như bánh đặt trước thường, khách chọn được mọi ngày nhận.
+**Từ nay:** trang đặt bánh có tab Đặc biệt tuần này (mục 05, sau Vé sự kiện). Mỗi đợt Marketing tự nhập: nhãn bên phải, tiêu đề hai dòng, câu mô tả, 2 đến 5 mốc lịch, ô đếm ngược, giờ mở đơn, giờ chốt đơn, các ngày giao nhận và các món (chọn bánh ở thẻ Bánh, câu mô tả ngắn, ảnh đứng, nhãn góc, số lượng tối đa). Đợt 1 món hiện một thẻ lớn có nút Đặt món này; đợt 2 món trở lên hiện thẻ vuốt ngang có nút +. Giỏ có món cuối tuần thì khách chỉ chọn được ngày giao của đợt. Chưa tới giờ mở đơn thẻ ghi Mở đơn kèm ngày; qua giờ chốt hay đủ số lượng thẻ ghi Đã chốt đơn tuần này. Không có đợt nào đang hiện thì tab tự ẩn.
+
+**Bạn cần làm**
+1. Mở thẻ Cuối tuần, bấm + Thêm đợt cuối tuần. Lịch điền sẵn: mở thứ hai 8g, chốt thứ sáu 20g, giao thứ bảy và chủ nhật; sửa lại nếu tuần này khác.
+2. Bấm + Thêm món, gõ tên bánh rồi chọn trong danh sách (bánh phải đang hiện ở thẻ Bánh). Điền số lượng tối đa nếu bếp chỉ làm được số đó.
+3. Chọn Hiện từ ngày và Ngừng hiện sau ngày, bật Hiện trên web rồi bấm Lưu đợt.
+4. Lịch đổi giữa tuần thì mở đợt sửa giờ chốt hay ngày giao, lưu là khách thấy ngay. Đơn đã đặt trước đó giữ nguyên.
+
+## Tab Tại quầy gọn hơn và dọn cuối trang đặt bánh
+Từ khoá: tại quầy, chọn cửa hàng, thanh gạt, tìm món, ghé cửa hàng, chân trang, bếp trung tâm
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách, Marketing | Trang đặt bánh /banh, tab Tại quầy và chân trang | thanh gạt chọn cửa hàng |
+
+**Trước đây:** tab Tại quầy có khung chú thích, hai nút cửa hàng lớn và khối tên cửa hàng lớn, món đầu tiên nằm dưới màn đầu. Cuối mọi tab có khối Ghé cửa hàng và khối Từ The Vagabond Pâtisserie. Cột Liên hệ ở chân trang có Nhắn Zalo và địa chỉ bếp.
+**Từ nay:** chọn cửa hàng bằng thanh gạt hai ô (THE VAGABOND / QUẬN 1 và NHÀ VĂN HOÁ / THANH NIÊN), ngay dưới là một dòng địa chỉ, số bánh còn và số loại. Ô tìm món có nút kính lúp tròn, ô lọc một dòng có số món. Bỏ hai khối cuối trang; cột Cửa hàng ở chân trang thêm Bếp trung tâm 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà; cột Liên hệ còn số điện thoại và email (nút Zalo tròn vẫn ở hàng mạng xã hội). Web đổi sang màu Robin egg từ bản trước nay mới thật sự tới máy khách.
+
+**Bạn cần làm:** không cần làm gì. Khối Câu chuyện cũ vẫn lưu trong trình biên tập nhưng không còn hiện trên trang đặt bánh.
+
 ## Gắn Google Analytics cho trang web khách
 Từ khoá: Google Analytics, GA4, mã đo lường, G-, đo lường web, xem bánh, thêm giỏ, thanh toán, gửi đơn, purchase
 
@@ -287,3 +316,68 @@ Dán mã đo lường GA4 (dạng G-XXXXXXXXXX, lấy ở Google Analytics > Qu�
 Sau khi lưu, các trang đặt bánh, biên nhận, bánh sỉ, thành viên, đặt bàn, ứng tuyển, chính sách tự nạp GA. Màn nhân viên không đo. Sự kiện gửi sang GA: xem bánh (view_item), thêm vào giỏ (add_to_cart), bắt đầu thanh toán (begin_checkout), gửi đơn (purchase, mỗi đơn một lần).
 
 Đường dẫn gửi sang GA đã gỡ mã biên nhận, chỉ giữ tham số quảng cáo (utm, gclid, fbclid). Khung xem thử trong Biên tập web không gửi số liệu.
+
+## Gợi ý mua thêm trên trang đặt bánh
+Từ khoá: gợi ý mua thêm, giao kèm cùng chuyến, uống kèm, ăn kèm, miễn phí giao, bánh khô, viennoiserie, món đi kèm
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách đặt bánh, Marketing | Trang đặt bánh: giỏ hàng, khung Đặt giao của tab Tại quầy | nút + trên thẻ món |
+
+**Trước đây:** giỏ hàng chỉ có bánh khách chọn, không gợi ý món giao kèm.
+
+**Từ nay:** giỏ đặt trước có khối GIAO KÈM CÙNG CHUYẾN ngay dưới nút Chọn thêm bánh: bánh khô còn hàng ở bếp trung tâm và viennoiserie bếp làm theo đơn. Khung Đặt giao của tab Tại quầy có khối UỐNG KÈM CHO HỢP (giỏ có bánh) hoặc ĂN KÈM CHO HỢP (giỏ chỉ có đồ uống), lấy đúng món của cửa hàng đang chọn. Khách bấm + là thêm ngay một cái. Giao tận nơi chưa đủ mốc miễn phí giao thì có dòng "Thêm ... nữa được miễn phí giao" kèm vạch tiến độ.
+
+**Bạn cần làm**
+1. Marketing duyệt các cặp món ở màn Món đi kèm (mục dưới). Web chỉ dùng cặp Đã duyệt; món chưa có cặp thì gợi ý theo nhóm với câu chung.
+2. Muốn tắt gợi ý ở một chỗ: màn Món đi kèm, phần Cài đặt.
+
+**Lưu ý**
+- Không gợi ý món đã có trong giỏ, món hết ở bếp, món còn dưới ngưỡng tồn (mặc định 3).
+- Dòng khách thêm từ gợi ý được đánh dấu để đo kết quả; chỉ tính đơn từ bản này.
+
+## Duyệt món đi kèm và mức giữ bánh khô tại bếp
+Từ khoá: món đi kèm, duyệt gợi ý, ghim món, mức giữ tại bếp, dưới mức giữ, cảnh báo chuyển kho, kết quả gợi ý
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, giám đốc, bếp | Món đi kèm (phân hệ Khách hàng & Marketing, mục Web đặt bánh) | [[Duyệt ... dòng]] |
+
+**Trước đây:** không có chỗ chọn món gợi ý mua thêm, bếp không có mức giữ bánh khô.
+
+**Từ nay:** bảng Món đi kèm có sẵn bản nháp soạn từ tên, tầng hương của bánh (Chờ duyệt). Bếp đặt Mức giữ tại bếp cho đơn web cho từng bánh khô; phiếu chuyển từ bếp ra cửa hàng làm tồn bếp xuống dưới mức thì hệ thống cảnh báo, không chặn.
+
+**Các bước**
+1. Mở Món đi kèm, phần Cặp gợi ý, chip Chờ duyệt. Các dòng gom theo món gốc.
+2. Thêm cặp: bấm [[＋ Thêm cặp]], chọn bánh gốc hoặc nhóm và món gợi ý trong danh sách. Chạm một dòng để sửa câu lý do (dưới 40 ký tự), ghim từ ngày đến ngày, thứ tự; bấm [[Lưu và duyệt]] hoặc [[Bỏ cặp này]].
+3. Duyệt nhiều dòng: chạm ô chọn từng dòng hoặc [[Chọn cả món]], rồi bấm [[Duyệt ... dòng]] ở chân màn.
+4. Phần Mức giữ: xem món dưới mức; đặt mức: chọn món, điền số, bấm [[Lưu mức giữ]].
+5. Phần Kết quả: tỉ lệ đơn có món mua thêm, giá trị đơn trung bình, món thêm nhiều nhất (30 ngày).
+6. Phần Cài đặt: bật tắt gợi ý ở giỏ đặt trước, Tại quầy, Đặc biệt tuần này, thanh miễn phí giao; số món tối đa, ngưỡng tồn; chọn nhóm món, kho bếp trong danh sách; câu chung theo nhóm thêm bằng [[＋ Thêm câu cho nhóm]]. Bấm [[Lưu cài đặt]].
+
+**Lưu ý**
+- Hệ thống không tự điều chuyển giữa các kho. Bếp tự lập phiếu điều chuyển như cũ.
+
+## Cỡ ảnh bài Facebook
+Từ khoá: cỡ ảnh, kích thước ảnh, Facebook, lưới ảnh, ảnh bị cắt, ảnh mờ, 1200x1200, 1920x1920, Story, Reels
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, designer | Bài đăng mạng xã hội, bảng Kiểm | [[Sửa ảnh]] |
+
+**Trước đây:** hệ thống cắt mọi ảnh Facebook thành vuông.
+
+**Từ nay:** hệ thống xếp lưới Facebook theo số ảnh và ảnh số 1, ảnh đã đúng ô thì đăng nguyên bản.
+
+| Số ảnh | Cỡ nên làm |
+|---|---|
+| 1 ảnh | dọc 960x1200, vuông 1200x1200, ngang 1200x800 |
+| 2 ảnh | hai ảnh ngang 1200x600 hoặc hai ảnh dọc 600x1200 |
+| 3 ảnh | ảnh chính ngang 1920x960 hoặc dọc 960x1920, hai ảnh vuông 1920x1920 |
+| 4 ảnh | bốn ảnh vuông 1920x1920 |
+| 5 ảnh trở lên | ảnh vuông 1920x1920, ảnh phụ vuông hoặc 1920x1280 |
+| Story, Reels | 1080x1920 |
+
+**Lưu ý**
+- Ảnh lệch ô lưới: bảng Kiểm nhắc "Facebook sẽ cắt ảnh ..." kèm cỡ nên làm. Ảnh dưới 1080 px: nhắc dễ bị mờ. Chỉ nhắc, vẫn duyệt được.
+

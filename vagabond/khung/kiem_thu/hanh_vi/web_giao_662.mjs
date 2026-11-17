@@ -18,7 +18,7 @@
 import {createRenderer, nextTick, computed} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
-import {dungQuayHien} from '../../../public/web_vue/banh/kho-goi-ban.js';
+import {dungQuayHien, tenQuayHaiDong} from '../../../public/web_vue/banh/kho-goi-ban.js';
 import {GoiTaiBan, GoiTaiBanNoi} from '../../../public/web_vue/banh/goi-tai-ban.js';
 import {KenhNoi} from '../../../public/web_vue/banh/noi-dung.js';
 import {gomSize, tachSize, khopTim, chipNhom, LY_DO_GOI} from '../../../public/web_vue/banh/kho-goi-ban.js';
@@ -114,7 +114,9 @@ async function moTrang(o = {}) {
     components: {AnhMon, GoiTaiBan, GoiTaiBanNoi, KhoiNoiDung: Rong, TieuDeMuc: Rong},
     setup: () => {
       const quayHien = computed(() => dungQuayHien(kho.S, kho.goiBan.G, t));
-      return {S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien, nhacQr: computed(() => kho.goiBan.G.daKiem && !!quayHien.value),
+      return {S: kho.S, kho, t, tMon, tab: computed(() => 'store'), quayHien, nhacQr: computed(() => kho.goiBan.G.daKiem && !!quayHien.value), tenQuayHaiDong,
+        gbDauHien: computed(() => !!kho.goiBan.cheDo.value && kho.goiBan.cheDo.value !== 'giao'),
+        nhacQrHien: computed(() => kho.goiBan.G.daKiem && !!quayHien.value && !kho.goiBan.cheDo.value),
         tienTom: n => T.tienVN(n), mxh: (k, d) => d, telSo: () => '0931224334', telChu: () => '0931 224 334'};
     }
   }).mount(goc);
@@ -127,7 +129,9 @@ await ca('Tab Tại quầy không có QR là đơn giao: chỉ món đã tick Gi
   const {goc, kho} = await moTrang();
   la('chế độ', kho.goiBan.cheDo.value, 'giao');
   la('chỉ món tick Giao', nutThem(goc).map(n => n.props['data-them']), ['BAWC00115', 'NUIC00002']);
-  dung('nhãn', chu(theoId(goc, 'gbDau')).includes('Giao tận nơi hoặc tự lấy'));
+  /* v667 (anh Việt 17/11/2026): bỏ khung chú thích đầu tab; chọn quầy bằng thanh gạt, một dòng nhãn. */
+  dung('không còn khung chú thích đầu tab', !theoId(goc, 'gbDau') && !theoId(goc, 'gbNhacQr'));
+  dung('có thanh gạt chọn quầy và dòng nhãn', !!theoId(goc, 'quayGat') && !!theoId(goc, 'quayDong'));
 });
 
 await ca('Đặt giao: + hai món, mở giỏ hỏi giá máy chủ, gõ tên số địa chỉ, chọn đồng ý, Đặt và trả trước gửi đúng quầy, món, cách nhận, số giảm và phí đã xem; xong thì giỏ trống', async () => {
