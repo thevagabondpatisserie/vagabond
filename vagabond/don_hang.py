@@ -840,7 +840,7 @@ def tao_don(don=None):
 			frappe.db.commit()
 			try:
 				dot_x = dbt.dot_de_xet(dot, dbt.dot_cong_khai())
-				ma_x = ma_dbt if dot_x is dot else dbt.ma_theo_khoa(dot_x)
+				ma_x = ma_dbt if dot_x is dot else dbt.hop_ma(ma_dbt, dbt.ma_theo_khoa(dot_x))
 			except Exception:
 				frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc lại được đợt Đặc biệt tuần này")
 				dot_x, ma_x = dot, ma_dbt

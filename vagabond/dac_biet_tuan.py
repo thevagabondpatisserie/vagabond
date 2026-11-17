@@ -224,6 +224,16 @@ def dot_de_xet(dot_dau, dot_moi):
     return dot_dau
 
 
+def hop_ma(ma_dau, ma_moi):
+    """THUẦN. Mã món của đợt dùng để xét lại dưới khoá: giữ mọi món đã thuộc
+    đợt lúc nhận yêu cầu (Marketing gỡ bánh khỏi đợt giữa chừng thì bánh đó
+    không lọt qua như bánh thường), cộng thêm món của bản mới."""
+    ra = {k: set(v) for k, v in (ma_dau or {}).items()}
+    for k, v in (ma_moi or {}).items():
+        ra.setdefault(k, set()).update(v)
+    return ra
+
+
 def vuot_suat(dot, hang, ma_theo_khoa, da_dat):
     """THUẦN. Món vượt số lượng tối đa nếu nhận thêm đơn này: [{khoa, con}]."""
     them = dong_cua_dot(hang, ma_theo_khoa)
