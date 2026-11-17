@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "tiec", "kenh_dat_hang", "zalo_oa", "nut_kenh", "thiet_ke_rieng", "banner"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "tiec", "kenh_dat_hang", "zalo_oa", "nut_kenh", "thiet_ke_rieng", "banner", "dac_biet_tuan"}
 # v586 (Minh Vũ đề xuất, anh Việt duyệt 07/10/2026): ưu đãi có điều kiện đơn
 # tối thiểu và khung giờ, tuyển dụng có yêu cầu và quyền lợi, thêm loại Tiệc
 # có giá vé, số vé, hạn đăng ký. Mọi trường vẫn là CHUỖI để giữ một phép kiểm
@@ -28,15 +28,19 @@ LOAI_SU_KIEN = {"tiec": "Tiệc", "ra_mat": "Ra mắt món", "dien_gia": "Diễn
 # đơn từ chính các số này (thiet_ke_rieng.tinh_gia), nên đây là cửa nhập duy
 # nhất phải chặn số sai.
 TRUONG_TKR_DS = {"kich_co", "trang_tri"}
-TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "anh_dt", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email", "so_ngay"} | TRUONG_MOI_586 | TRUONG_TKR_DS
-VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "gio_hang", "dat_xong", "club"}
+# v667 (anh Việt 17/11/2026): đợt "Đặc biệt tuần này". Trường danh sách (mốc
+# lịch, ngày giao, món) kiểm riêng ở dac_biet_tuan.chuan_dot.
+from vagabond.dac_biet_tuan import TRUONG_CHU as TRUONG_DBT, TRUONG_DS as TRUONG_DBT_DS, chuan_dot  # noqa: E402
+TRUONG_DS = TRUONG_TKR_DS | TRUONG_DBT_DS
+TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "anh_dt", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email", "so_ngay"} | TRUONG_MOI_586 | TRUONG_DS | TRUONG_DBT
+VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "gio_hang", "dat_xong", "club", "dac_biet_tuan"}
 # v647 (anh Việt 10/11/2026): banner ảnh Marketing tự thiết kế, Minh Vũ thay ở
 # trình biên tập. Chỉ ba chỗ anh chọn: đầu trang, giỏ hàng (màn Thông tin đơn
 # hàng, trên phần tổng tiền) và đặt xong (ngay sau khi gửi đơn thành công).
 # Banner là mục theo thẻ như tiệc nhưng giữ vị trí riêng, không ép vi_tri = loai.
 VI_TRI_BANNER = ("dau_trang", "gio_hang", "dat_xong", "club")
 # Các loại có thẻ riêng trong trình biên tập mới, mỗi mục một thẻ trên web.
-LOAI_MUC = ("uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "banner")
+LOAI_MUC = ("uu_dai", "tuyen_dung", "tiec", "thiet_ke_rieng", "banner", "dac_biet_tuan")
 # Trần giá một size hoặc một trang trí (đồng, đã gồm VAT): chặn gõ thừa số 0.
 GIA_TKR_TOI_DA = 200000000
 SO_NGAY_TKR_TOI_THIEU = 7
@@ -514,8 +518,14 @@ def chuan_hoa(du_lieu):
         if not isinstance(k, dict) or set(k) - TRUONG:
             raise ValueError("Khối có trường không được hỗ trợ.")
         if k.get("loai") == "thiet_ke_rieng":
+            if TRUONG_DBT_DS & set(k):
+                raise ValueError("Khối có trường không được hỗ trợ.")
             k = ds[i_k] = chuan_tkr(k)
-        elif TRUONG_TKR_DS & set(k):
+        elif k.get("loai") == "dac_biet_tuan":
+            if TRUONG_TKR_DS & set(k):
+                raise ValueError("Khối có trường không được hỗ trợ.")
+            k = ds[i_k] = chuan_dot(k)
+        elif TRUONG_DS & set(k):
             raise ValueError("Khối có trường không được hỗ trợ.")
         if k.get("loai") not in LOAI or not re.fullmatch(r"[a-zA-Z0-9_-]{1,60}", str(k.get("id", ""))):
             raise ValueError("Loại hoặc mã khối không hợp lệ.")
@@ -539,7 +549,7 @@ def chuan_hoa(du_lieu):
             tieu_de_da_co.add(vi_tri)
         if type(k.get("hien")) is not bool:
             raise ValueError("Chọn hiện hoặc ẩn cho từng khối.")
-        for ten in TRUONG - {"hien"} - TRUONG_TKR_DS:
+        for ten in TRUONG - {"hien"} - TRUONG_DS:
             v = k.get(ten, "")
             if not isinstance(v, str) or len(v) > (4000 if ten in ("noi_dung", "yeu_cau") else 1000):
                 raise ValueError("Chữ trong khối quá dài hoặc không hợp lệ: " + ten)
@@ -707,7 +717,7 @@ def trang_thai_muc(muc, hom_nay):
     bd, kt = muc.get("bat_dau") or "", muc.get("ket_thuc") or ""
     if loai == "thiet_ke_rieng":
         return ("dang", "Đang nhận đặt")
-    if loai == "banner":
+    if loai in ("banner", "dac_biet_tuan"):
         if kt and kt < hom_nay:
             return ("het", "Đã hết hạn")
         if bd and bd > hom_nay:
@@ -787,7 +797,21 @@ def cong_khai():
     ra["diem_nhan"] = diem_nhan(ra)
     ra["lien_he"] = lien_he()
     ra["ve"] = _dem_ve(ra)
+    ra["dac_biet_da_dat"] = _dem_dac_biet(ra)
     return ra
+
+
+def _dem_dac_biet(cong):
+    """v667: số đã đặt từng món có số lượng tối đa của đợt Đặc biệt tuần này,
+    để trang khách khoá nút khi hết suất. Chỉ để hiện; phép chặn thật nằm ở
+    don_hang.tao_don dưới khoá đợt."""
+    from vagabond import dac_biet_tuan as dbt
+    try:
+        dot = dbt.dot_dang_hien(cong.get("khoi"), dbt.luc_vn()[:10])
+        return dbt.da_dat(dot, dbt.ma_theo_khoa(dot)) if dot else {}
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Biên tập web: không đếm được món Đặc biệt tuần này")
+        return {}
 
 
 def thay_khoi_erp(khoi, the_erp, loai):

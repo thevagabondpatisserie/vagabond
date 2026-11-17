@@ -583,6 +583,24 @@ def tao_don(don=None):
 		dia_chi = diem["a"]
 		don["diem_lay_ten"] = diem["n"]
 
+	# v667: món của đợt "Đặc biệt tuần này" chỉ nhận trong giờ mở đơn và đúng
+	# ngày giao của đợt. Trang khách đã khoá ngày khác, ở đây chặn lại vì ai
+	# cũng gọi thẳng được. Đọc đợt hỏng thì ghi lỗi, không chặn đơn thường.
+	from vagabond import dac_biet_tuan as dbt
+	try:
+		dot = dbt.dot_cong_khai()
+		ma_dbt = dbt.ma_theo_khoa(dot) if dot else {}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được đợt Đặc biệt tuần này")
+		dot, ma_dbt = None, {}
+	hang_dbt = [{"ma": h["variation_id"], "sl": int(h.get("quantity") or 0)} for h in hang]
+	ly_dbt = dbt.kiem_don(dot, hang_dbt, ma_dbt, ngay, dbt.luc_vn())
+	if ly_dbt:
+		return {"ok": 0, "ly_do": ly_dbt, "ngay_giao": list(dot.get("ngay_giao") or [])}
+	# Món có số lượng tối đa: đếm và giữ suất dưới khoá đợt, ngay trước lúc ghi.
+	co_suat = bool(dot) and bool(dbt.dong_cua_dot(hang_dbt, ma_dbt)) and any(
+		m.get("toi_da") for m in dot.get("mon_dt") or [])
+
 	# F21 cách B: tìm nonce ở trên, rồi mới đọc tồn tại lúc gửi. Nguồn
 	# không đọc được thì nhận như cũ, nhưng phải báo Sales đối chiếu.
 	from vagabond import ton_don_web
@@ -809,10 +827,18 @@ def tao_don(don=None):
 	# tim trung va phep ghi, de hai lan bam cung luc khong cung lot qua.
 	# v645: đơn dùng ưu đãi đơn đầu tiên thì khoá thêm theo số, xét lại ngay
 	# dưới khoá: hai đơn cùng số gửi cùng lúc chỉ một đơn được giảm.
-	with don_web.khoa_ghi(khoa), (don_dau_web.khoa_so(dien_thoai) if dung_dau else contextlib.nullcontext()):
+	with don_web.khoa_ghi(khoa), (don_dau_web.khoa_so(dien_thoai) if dung_dau else contextlib.nullcontext()), \
+			(dbt.khoa_suat(dot) if co_suat else contextlib.nullcontext()):
 		trung = don_web.tim_trung(khoa)
 		if trung:
 			return don_web.phan_hoi(trung, nonce, trung=True)
+		if co_suat:
+			# v667: đọc SAU khoá đợt. Kết thúc giao dịch đọc từ đầu yêu cầu để thấy
+			# đơn vừa commit của khách khác (MariaDB đọc thường thấy ảnh chụp cũ).
+			frappe.db.commit()
+			vuot = dbt.vuot_suat(dot, hang_dbt, ma_dbt, dbt.da_dat(dot, ma_dbt))
+			if vuot:
+				return {"ok": 0, "ly_do": dbt.HET_SUAT, "nhac": vuot}
 		if dung_dau:
 			# Kết thúc giao dịch đọc từ đầu yêu cầu để thấy đơn vừa commit.
 			frappe.db.commit()
