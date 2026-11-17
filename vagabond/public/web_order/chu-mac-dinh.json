@@ -7877,6 +7877,11 @@
     "mac_dinh": "Món cuối tuần này chỉ còn nhận {so} bánh.",
     "nhom": "Đặc biệt tuần này"
   },
+  "dbt_du_suat": {
+    "ten": "Đặc biệt tuần này: Món cuối tuần này đã đủ số lượng nhận.",
+    "mac_dinh": "Món cuối tuần này đã đủ số lượng nhận.",
+    "nhom": "Đặc biệt tuần này"
+  },
   "dbt_chi_giao": {
     "ten": "Đặc biệt tuần này: Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.",
     "mac_dinh": "Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.",
