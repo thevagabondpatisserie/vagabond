@@ -1757,7 +1757,7 @@ function vclIcon(l) {
     kiem_ke: '🧮', sai_kho: '⚠️', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
     ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
     nop_quy: '💵', hang_tang: '🎁', doi_soat_duyet: '📨', goi_y: '📌',
-    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒', du_chi: '📅', hoa_don_thu: '📧', de_xuat_ct: '📝'
+    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒', du_chi: '📅', hoa_don_thu: '📧', de_xuat_ct: '📝', bai_dang: '📣'
   }[l] || '';
 }
 
@@ -1833,6 +1833,8 @@ function vclMo(x) {
   if (l === 'ycmh_nhap') return go(function () { scrMRView(x.ma, typeOf('Purchase')); });
   /* v656: phiếu đề xuất công thức chờ Khải, hoặc bị trả về bếp: mở thẳng phiếu. */
   if (l === 'de_xuat_ct') return dxMo(x.ma);
+  /* v666: bài đăng chờ giám đốc duyệt, hoặc bị giám đốc trả lại: mở thẳng bài. */
+  if (l === 'bai_dang') return go(function () { return scrBaiDangSoan(x.ma); });
   if (l === 'ycsx_thieu') {
     toast('Ở bước chọn món, bấm Gợi ý từ hệ thống để lấy đúng số còn thiếu.', 5000);
     return startDraft(typeOf('Manufacture'));
