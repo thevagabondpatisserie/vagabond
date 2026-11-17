@@ -788,12 +788,16 @@ def tao_don(don=None):
 	from vagabond import thanh_toan_web_thuan as ttt
 
 	thanh_toan = ttt.chuan_pt(don.get("thanh_toan"), the_dung=_op.dung_duoc())
+	from vagabond import goi_y_mua
+
 	snapshot = {
 		"mon": [
 			{"ma": h["variation_id"], "ten": ten_mon.get(h["variation_id"]) or h["variation_id"],
 			 "sl": int(h["quantity"]), "gia": int(float(gia.get(h["variation_id"]) or 0))}
 			for h in hang_goc
 		],
+		# v668: món khách thêm từ khối Gợi ý mua thêm (để đo, chỉ đơn mới có).
+		"goi_y": goi_y_mua.ma_goi_y(don.get("goi_y"), [h["variation_id"] for h in hang_goc]),
 		"nguoi_dat": {"ho_ten": ten, "dien_thoai": dien_thoai, "email": (don.get("email") or "").strip()},
 		"nguoi_nhan": {"ho_ten": (nguoi_nhan.get("ho_ten") or "").strip(),
 			"dien_thoai": _so(nguoi_nhan.get("dien_thoai"))} if nguoi_nhan else None,

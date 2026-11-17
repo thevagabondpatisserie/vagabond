@@ -135,6 +135,8 @@ MAN = (
 	("CRMZL", "Tin Zalo tự động", None),
 	# v662 Bài đăng mạng xã hội (bai_dang.py, 75-bai-dang.js).
 	("BAIDANG", "Bài đăng mạng xã hội", None),
+	# v668 Gợi ý mua thêm: duyệt bảng Món đi kèm, mức giữ tại bếp (goi_y_mua.py, 78-mon-di-kem.js).
+	("MONDK", "Món đi kèm", None),
 	("TRUKHO", "Hoá đơn chưa trừ kho", None),
 	# --- Nhan su (HRM). Anh Viet chot 01/09/2026, lam trong app Vagabond
 	# chu chua cai phan he HR cua Frappe.

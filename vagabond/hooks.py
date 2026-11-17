@@ -1125,6 +1125,8 @@ for _dt_tk, _sk_tk, _ham_tk in (
 	("Purchase Receipt", "on_submit", "vagabond.tin_kho.khi_ghi_so_phieu_nhap"),
 	("Stock Entry", "after_insert", "vagabond.tin_kho.khi_lap_phieu_kho"),
 	("Stock Entry", "on_submit", "vagabond.tin_kho.khi_ghi_so_phieu_kho"),
+	# v668: phiếu chuyển từ bếp ra cửa hàng làm tồn bếp dưới Mức giữ cho đơn web: cảnh báo, không chặn.
+	("Stock Entry", "validate", "vagabond.goi_y_mua.canh_bao_muc_giu"),
 	("Delivery Note", "on_submit", "vagabond.tin_kho.khi_ghi_so_giao_si"),
 	("Phieu Kiem Ke", "on_update", "vagabond.tin_kho.khi_doi_phieu_kiem_ke"),
 ):

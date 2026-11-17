@@ -36,6 +36,9 @@ def dung():
 	_dung_nhom(combo_mon.TRUONG_MOI, "combo_mon")
 	from vagabond import hach_toan_kho
 	_dung_nhom(hach_toan_kho.TRUONG_MOI, "hach_toan_kho")
+	# v668 Gợi ý mua thêm: ô Mức giữ tại bếp, cài đặt gợi ý, bản nháp Món đi kèm.
+	from vagabond import goi_y_mua
+	goi_y_mua.dung()
 	# v550: ô Trừ bù kho trên hoá đơn bán, ô Hoá đơn được trừ bù trên phiếu
 	# kho. Dựng SAU hach_toan_kho vì ô mới chèn sau ô Lý do chưa trừ kho.
 	from vagabond import tru_kho_bu
