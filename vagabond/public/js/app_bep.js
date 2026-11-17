@@ -27370,7 +27370,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '665';
+var APPVER = '666';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -73967,7 +73967,7 @@ async function scrKhachSuKienCt() {
 
    v664 (anh Việt 16/11/2026):
    - Kênh đã nối (Facebook, Instagram, Threads) hệ thống TỰ ĐĂNG đúng giờ hẹn; lỗi thì
-     kênh chuyển Chờ đăng tay kèm lý do, có nút Thử lại. Zalo OA vẫn đăng tay.
+     kênh chuyển Chờ đăng tay kèm lý do, có nút Thử lại. v666: Zalo OA tự đăng thành Bài viết khi đã nối.
    - Máy tính (rộng từ 900 px): màn soạn hai cột như trang Tạo bài viết của Meta,
      trái là ảnh, thuộc tính, nội dung; phải là xem trước MỘT kênh, chạm tên kênh để
      đổi. Điện thoại giữ một cột, vuốt ngang xem từng kênh.
@@ -74037,9 +74037,11 @@ function bdAvatar(k, co, tt, tat) {
     (tat ? ';opacity:.28;filter:grayscale(1)' : '') + '"><img src="' + kn.anh + '" alt="' + h(kn.ten) + '" width="' + co + '" height="' + co + '" ' +
     'style="display:block;width:' + co + 'px;height:' + co + 'px;object-fit:contain">' + cham + '</span>';
 }
+/* Dãy logo kênh của một bài. Logo là tệp gốc có nền trong, đặt chồng lên nhau thì dính
+   chùm (anh Việt 17/11/2026), nên xếp cách nhau, không chồng. */
 function bdChongAvatar(ds) {
-  return '<span style="display:inline-flex;align-items:center">' + (ds || []).map(function (x, i) {
-    return '<span style="margin-left:' + (i ? -6 : 0) + 'px;border-radius:50%;box-shadow:0 0 0 2px #fff;display:inline-flex">' + bdAvatar(x.k, 24, x.tt) + '</span>';
+  return '<span style="display:inline-flex;align-items:center;gap:6px">' + (ds || []).map(function (x) {
+    return bdAvatar(x.k, 22, x.tt);
   }).join('') + '</span>';
 }
 /* Nút phân đoạn (Tuần, Tháng, Danh sách; Bài đăng, Story): một nhóm, một lựa chọn. */
@@ -74452,8 +74454,15 @@ function bdNutDay(bai, duyet) {
     if (!duyet) return bai.trang_thai === 'Chờ duyệt' ? '<button class="btn gh" disabled style="margin:0">Đã gửi, chờ Marketing duyệt</button>'
       : '<button class="btn" data-bdgui="1"' + (chan ? ' disabled style="margin:0;background:#fef3f2;color:#b42318;border:1.5px solid #fda29b"' : ' style="margin:0"') + '>' +
         (chan ? 'Còn ' + chan + ' lỗi đỏ, sửa xong mới gửi được' : 'Gửi Marketing duyệt') + '</button>';
-    return '<button class="btn" data-bdduyet="1"' + (chan ? ' disabled style="margin:0;background:#fef3f2;color:#b42318;border:1.5px solid #fda29b"' : ' style="margin:0"') + '>' +
-      (chan ? 'Còn ' + chan + ' lỗi đỏ, sửa xong mới duyệt được' : 'Duyệt · ' + viec + ' · ' + (bai.kenh_chon || []).length + ' kênh') + '</button>';
+    var soK = (bai.kenh_chon || []).length;
+    var nutDuyet = '<button class="btn" data-bdduyet="1"' + (chan ? ' disabled style="margin:0;flex:1;background:#fef3f2;color:#b42318;border:1.5px solid #fda29b"' : ' style="margin:0;flex:1"') + '>' +
+      (chan ? 'Còn ' + chan + ' lỗi đỏ, sửa xong mới duyệt được' : 'Duyệt · ' + viec + ' · ' + soK + ' kênh') + '</button>';
+    if (!bai.hen_luc) return nutDuyet;
+    /* Bài có giờ hẹn: thêm nút Đăng ngay (anh Việt 17/11/2026). Đăng ngay bỏ giờ hẹn nên lỗi
+       đỏ về giờ (giờ hẹn đã qua, trùng giờ bài khác) không chặn nút này; máy chủ kiểm lại. */
+    var chanNgay = (bai.kiem || []).filter(function (x) { return x.muc === 'chan' && !(x.nut && x.nut[0] === 'gio'); }).length;
+    return '<div style="display:flex;gap:8px;flex-wrap:wrap">' + nutDuyet +
+      '<button class="btn" data-bddangngay="1"' + (chanNgay ? ' disabled' : '') + ' style="margin:0;flex:0 0 auto;min-width:150px;background:' + (chanNgay ? '#f2f4f7;color:#98a2b3' : '#0B7C93;color:#fff') + '">⚡ Đăng ngay</button></div>';
   }
   if (bai.trang_thai === 'Đã hẹn giờ' || bai.trang_thai === 'Chờ đăng tay') {
     var daLen = (bai.kenh || []).some(function (x) { return x.tt === 'Đã đăng'; });
@@ -75013,6 +75022,20 @@ async function bdBamDay(e) {
     var tuK = (dl.bai.kenh || []).filter(function (x) { return x.tu; }).length, tayK = (dl.bai.kenh || []).length - tuK;
     toast(dl.bai.hen_luc && dl.bai.trang_thai === 'Đã hẹn giờ' ? 'Đã duyệt, hẹn ' + bdLucChu(dl.bai.hen_luc) + (tuK ? '. Tới giờ hệ thống tự đăng ' + tuK + ' kênh.' : '') :
       tuK ? 'Đã duyệt. Hệ thống đang đăng ' + tuK + ' kênh' + (tayK ? ', còn ' + tayK + ' kênh đăng tay bên dưới.' : '.') : 'Đã duyệt. Đăng tay từng kênh bên dưới.', 4000);
+    return bdVeLai(dl);
+  }
+  if ((t = e.target.closest('[data-bddangngay]'))) {
+    var soKenh = (BD.bai.kenh_chon || []).length;
+    if (!(await confirmSheet('Đăng ngay ' + soKenh + ' kênh?', 'Bỏ giờ hẹn ' + bdLucChu(BD.bai.hen_luc) + '. Kênh đã nối hệ thống đăng ngay; kênh chưa nối chuyển sang Chờ đăng tay.', 'Đăng ngay ' + soKenh + ' kênh'))) return;
+    if (!(await bdLuuChac())) return;
+    try { dl = await api(BD_P + 'duyet', { ma: BD.bai.name, ban_luu: BD.ban, dang_ngay: 1 }); } catch (er) { return bdLoi(er); }
+    if (dl.can_doc_nhac && dl.can_doc_nhac.length) {
+      if (!(await confirmSheet('Đăng dù còn ' + dl.can_doc_nhac.length + ' điều cần để ý?', dl.can_doc_nhac.join('\n'), 'Vẫn đăng ngay'))) return bdVeLai(dl);
+      try { dl = await api(BD_P + 'duyet', { ma: BD.bai.name, ban_luu: dl.bai.ban_luu, da_doc_nhac: 1, dang_ngay: 1 }); } catch (er) { return bdLoi(er); }
+    }
+    if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới. Xem lại rồi bấm Đăng ngay.', 4500); return bdVeLai(dl); }
+    var tuN = (dl.bai.kenh || []).filter(function (x) { return x.tu; }).length, tayN = (dl.bai.kenh || []).length - tuN;
+    toast(tuN ? 'Hệ thống đang đăng ' + tuN + ' kênh' + (tayN ? ', còn ' + tayN + ' kênh đăng tay bên dưới.' : '.') : 'Đã duyệt. Đăng tay từng kênh bên dưới.', 4000);
     return bdVeLai(dl);
   }
   if ((t = e.target.closest('[data-bdgui]'))) {
