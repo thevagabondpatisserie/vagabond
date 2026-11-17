@@ -7926,5 +7926,40 @@
     "ten": "Tại quầy: {loai} loại",
     "mac_dinh": "{loai} loại",
     "nhom": "dat_banh"
+  },
+  "gy_tieu_gio": {
+    "ten": "Gợi ý mua thêm: GIAO KÈM CÙNG CHUYẾN",
+    "mac_dinh": "GIAO KÈM CÙNG CHUYẾN",
+    "nhom": "Gợi ý mua thêm"
+  },
+  "gy_tieu_uong": {
+    "ten": "Gợi ý mua thêm: UỐNG KÈM CHO HỢP",
+    "mac_dinh": "UỐNG KÈM CHO HỢP",
+    "nhom": "Gợi ý mua thêm"
+  },
+  "gy_tieu_an": {
+    "ten": "Gợi ý mua thêm: ĂN KÈM CHO HỢP",
+    "mac_dinh": "ĂN KÈM CHO HỢP",
+    "nhom": "Gợi ý mua thêm"
+  },
+  "gy_them": {
+    "ten": "Gợi ý mua thêm: Thêm {ten} vào giỏ",
+    "mac_dinh": "Thêm {ten} vào giỏ",
+    "nhom": "Gợi ý mua thêm"
+  },
+  "gy_mien_phi": {
+    "ten": "Gợi ý mua thêm: Thêm {tien} nữa được miễn phí giao",
+    "mac_dinh": "Thêm {tien} nữa được miễn phí giao",
+    "nhom": "Gợi ý mua thêm"
+  },
+  "gy_da_them": {
+    "ten": "Gợi ý mua thêm: Đã thêm {ten} vào giỏ",
+    "mac_dinh": "Đã thêm {ten} vào giỏ",
+    "nhom": "Gợi ý mua thêm"
+  },
+  "gy_dong_phu": {
+    "ten": "Gợi ý mua thêm: Giao kèm cùng chuyến, mã {ma}",
+    "mac_dinh": "Giao kèm cùng chuyến, mã {ma}",
+    "nhom": "Gợi ý mua thêm"
   }
 }
