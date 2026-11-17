@@ -244,5 +244,35 @@ await ca('10. Codex #581 vòng 2: giỏ có bánh Có sẵn hôm nay thì không
   la('giỏ đặt trước giữ dòng gợi ý', k4.S.CART.map(o => [o.nguon, !!o.goi_y]).sort(), [['order', false], ['order', true]]);
 });
 
+await ca('11. Codex #581 vòng 3: giỏ lưu có bánh hôm nay CHƯA có trong danh mục ban đầu (chờ máy chủ) cùng dòng gợi ý: phục hồi và sau khi danh mục về, giỏ không trộn', async () => {
+  const kho = {'vgb-gio-v1': JSON.stringify({luc: new Date('2026-11-17T09:00:00+07:00').getTime(),
+    gio: [{id: 'BAWC07777', cm: 14, nguon: 'today', qty: 1}, {id: 'BACF00027', k: 'Biscotti', cm: 0, goi_y: 1, qty: 1, price: 190000}]})};
+  const k = taoKho({t: t0, tMon: (ma, tr, d) => d || '', bayGio: () => new Date('2026-11-17T10:00:00+07:00'), hen: () => 0, huyHen: () => {},
+    doc: async m => (m === 'vagabond.kiem_banh.co_the_ban_hom_nay'
+      ? {banh: {BAWC07777: 2}, nhom: [{ten: 'Bánh chỉ có trên máy chủ', sizes: [{cm: 14, ma: 'BAWC07777', gia: 520000}]}]} : {}),
+    ghi: async () => ({}), suKien: () => {}, nd: {nhan: {}, khoi: [], dac_biet_da_dat: {}},
+    luuTru: {getItem: x => kho[x] || null, setItem: () => {}, removeItem: () => {}}});
+  dung('bánh chưa có trong danh mục ban đầu', !k.S.CAKES.some(c => c.sizes.some(z => z.id === 'BAWC07777')));
+  k.phucHoiGio();
+  la('lúc phục hồi: dòng gợi ý đã bỏ vì dòng chờ là bánh hôm nay', k.S.CART.filter(o => o.goi_y).length, 0);
+  await k.napTon();
+  la('sau khi danh mục về: chỉ bánh hôm nay', k.S.CART.map(o => [o.id, o.nguon, !!o.goi_y]), [['BAWC07777', 'today', false]]);
+
+  /* Bánh hôm nay còn chờ danh mục: khối gợi ý không bày, bấm + không thêm; dòng gợi ý nào lọt vào trước khi danh mục về cũng bị dọn khi gắn. */
+  const kho2 = {'vgb-gio-v1': JSON.stringify({luc: new Date('2026-11-17T09:00:00+07:00').getTime(), gio: [{id: 'BAWC07777', cm: 14, nguon: 'today', qty: 1}]})};
+  const k2 = taoKho({t: t0, tMon: (ma, tr, d) => d || '', bayGio: () => new Date('2026-11-17T10:00:00+07:00'), hen: () => 0, huyHen: () => {},
+    doc: async m => (m === 'vagabond.kiem_banh.co_the_ban_hom_nay'
+      ? {banh: {BAWC07777: 2}, nhom: [{ten: 'Bánh chỉ có trên máy chủ', sizes: [{cm: 14, ma: 'BAWC07777', gia: 520000}]}]} : {}),
+    ghi: async () => ({}), suKien: () => {}, nd: {nhan: {}, khoi: [], dac_biet_da_dat: {}},
+    luuTru: {getItem: x => kho2[x] || null, setItem: () => {}, removeItem: () => {}}});
+  k2.phucHoiGio();
+  k2.S.GY.mon = [BIS]; k2.S.GY.bat = 1;
+  la('dòng hôm nay đang chờ: không bày', k2.goiYGio.value.length, 0);
+  la('dòng hôm nay đang chờ: bấm + không thêm', k2.themGoiY(BIS), false);
+  k2.S.CART.push({k: 'Biscotti', img: '', id: 'BACF00027', cm: 0, price: 190000, nguon: 'order', wish: '', adds: [], qty: 1, goi_y: 1});
+  await k2.napTon();
+  la('gắn dòng chờ thì dọn dòng gợi ý', k2.S.CART.map(o => [o.id, !!o.goi_y]), [['BAWC07777', false]]);
+});
+
 console.log(`\n${dat} đạt, ${hong} hỏng`);
 if (hong) { console.log('Hỏng: ' + loi.join(' | ')); process.exit(1); }
