@@ -1,3 +1,12 @@
+## Quy tắc dùng chung cập nhật 17/11/2026
+
+Đọc [AGENTS.md](AGENTS.md), mục 2b và 2c,
+về giao diện, luồng nghiệp vụ và bằng chứng nghiệm thu;
+[H10](AGENTS.md#h10-trách-nhiệm-của-người-rà) về review và H3/H5/H8.1.
+Đây là nguồn chung ưu tiên hướng dẫn cũ mâu thuẫn cùng chủ đề, gồm cả skill
+và instruction project. Instruction project quản lý công cụ và nơi ghi
+chép của phiên; khi triển khai áp đúng phạm vi anh Việt giao.
+
 ## Phân công và báo review ngay (anh Việt chốt 15/10/2026)
 
 Mục này ưu tiên mọi phân công cũ mâu thuẫn bên dưới và trong tài liệu liên kết.
@@ -196,8 +205,10 @@ Codex trên PR đang mở cùng phạm vi. Chi tiết ở AGENTS.md mục 10b v�
 
 ## Khi Codex báo lỗi
 
-Tái hiện TRƯỚC, đừng phản biện trước. Qua bốn vòng của issue #205, mọi finding
-của Codex đều tái hiện được, kể cả những cái ban đầu nghe như bắt bẻ.
+Xác minh nhận xét trên đúng SHA bằng chuỗi thao tác và bằng chứng nghiệp vụ.
+Áp H10 và hướng dẫn H3/H5/H8.1 trong AGENTS.md: sau khoảng 15 phút chưa chứng
+minh được thì nêu điều kiện còn thiếu và chọn phép kiểm quyết định. Chỉ phá
+thử trong bản kiểm cô lập; ghi nhận lớp bảo vệ khác vẫn giữ đúng kết quả.
 
 Trình tự bắt buộc: dựng lại đúng chuỗi thao tác Codex mô tả trên đúng SHA họ nói,
 chạy và ghi số liệu thật, sửa, rồi trả lời kèm số liệu TRƯỚC và SAU khi sửa.
@@ -214,6 +225,11 @@ mục mới hoặc sửa trong `vagabond/so_tay/`, và tên mục ghi dưới `#
 nếu thiếu. Chi tiết ở AGENTS.md mục 7.
 
 ## Cổng kiểm bắt buộc trước khi bàn giao
+
+PR đổi màn hình phải đạt bảng kiểm và chuỗi thao tác ở AGENTS.md mục 2c.5.
+Bàn giao ghi màn đã kiểm, vai, SHA, kích thước, ảnh có CSS và phần chưa đạt.
+PR chỉ tài liệu ghi cổng giao diện không áp dụng. Sau triển khai áp mục 2c.6
+và chuẩn bị bản tin việc cần làm theo bộ phận cho anh Việt.
 
 ```
 python3 vagabond/khung/kiem_thu/chay.py -im
