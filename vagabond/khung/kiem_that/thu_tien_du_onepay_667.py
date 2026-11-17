@@ -49,6 +49,7 @@ def _don():
 
 def _gia():
 	return patch.multiple(hoan_tien, _sdt_don_pancake=lambda so: "0916220439",
+		_don_cua_khach=lambda sdt: ["97615", "97790"],
 		_khach_tren_don=lambda n, kh=None: {"ten": "Ms.Hảo", "sdt": "0916220439"},
 		_bao_ke_toan=lambda h, s: (0, []))
 
