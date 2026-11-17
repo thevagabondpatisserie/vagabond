@@ -209,6 +209,99 @@ def _danh_muc():
 			(g.O["ly_do_nhom"], "Bánh khô | Giòn | Crisp\nBánh trên tủ | Còn trên tủ | On the counter")])
 
 
+@ca("v669 Codex #584: lưu cặp Món đi kèm từ Desk (không qua màn app) cũng kiểm bánh, nhóm, món có trong danh mục; sửa câu không đổi khoá thì không hỏi lại; bản nháp bỏ bánh không còn thẻ web")
+def _desk_danh_muc():
+	class Loi(Exception):
+		pass
+
+	def nem(m, *a, **k):
+		raise Loi(m)
+
+	class Doc(dict):
+		__getattr__ = dict.get
+
+		def __setattr__(self, k, v):
+			self[k] = v
+
+		def as_dict(self):
+			return dict(self)
+
+		def is_new(self):
+			return self.get("_moi", True)
+
+		def has_value_changed(self, k):
+			return k in self.get("_doi", ())
+
+	co = {("Item", "BACF00034"), ("Item Group", "Bánh lạnh")}
+
+	def ton_tai(dt, q):
+		if isinstance(q, dict):
+			return q.get("khoa") == "candle"
+		return (dt, q) in co
+
+	with um.patch.object(g.frappe, "throw", nem, create=True), um.patch.object(g.frappe.db, "exists", ton_tai, create=True):
+		try:
+			g.kiem_dong(Doc(mon_goc="Candel", mon_goi_y="BACF00034", trang_thai="Đã duyệt"))
+			la("Desk lưu bánh gõ sai phải bị trả về", "lưu được", "bị chặn")
+		except Loi as e:
+			dung("câu nói ô sai: " + str(e), "candel" in str(e))
+		try:
+			g.kiem_dong(Doc(mon_goc="candle", mon_goi_y="BACF0034", trang_thai="Đã duyệt"))
+			la("Desk lưu mã món sai phải bị trả về", "lưu được", "bị chặn")
+		except Loi as e:
+			dung("câu nói mã món sai", "BACF0034" in str(e))
+		d = Doc(mon_goc=" Candle ", mon_goi_y="BACF00034", trang_thai="Đã duyệt")
+		g.kiem_dong(d)
+		la("đúng danh mục thì lưu, khoá viết thường", d.mon_goc, "candle")
+		g.kiem_dong(Doc(mon_goc="banh cu", mon_goi_y="BACF00034", trang_thai="Nháp", ly_do_vn="Câu mới", _moi=False, _doi=("ly_do_vn",)))
+		dung("dòng cũ chỉ sửa câu, không đổi khoá: không chặn", True)
+	them = []
+
+	class DocNhap(dict):
+		def update(self, d):
+			dict.update(self, d)
+
+		def insert(self, **k):
+			them.append(dict(self, mon_goc=self.__dict__.get("mon_goc")))
+
+	def get_all(dt, **k):
+		if dt == "Item":
+			return [type("X", (), {"name": d[1]}) for d in goi_y_nhap.NHAP]
+		return [type("X", (), {"khoa": "very berry"})]
+
+	with um.patch.object(g.frappe.db, "get_default", lambda k: None, create=True), \
+			um.patch.object(g.frappe.db, "set_default", lambda k, v: None, create=True), \
+			um.patch.object(g.frappe.db, "count", lambda dt: 0, create=True), \
+			um.patch.object(g.frappe.db, "exists", lambda *a: True, create=True), \
+			um.patch.object(g.frappe, "new_doc", lambda dt: DocNhap(), create=True), \
+			um.patch.object(g.frappe, "get_all", get_all, create=True):
+		g.gieo_nhap()
+	goc = {x.get("mon_goc") for x in them if x.get("mon_goc")}
+	la("chỉ gieo bánh còn thẻ web", goc, {"very berry"})
+
+
+@ca("v669 Codex #584 (AGENTS.md 2b.4): màn Món đi kèm trả ảnh món ở dòng cặp, Mức giữ, Kết quả")
+def _anh_man():
+	class R(dict):
+		__getattr__ = dict.get
+
+	def get_all(dt, filters=None, fields=None, **k):
+		if dt == g.DOCTYPE:
+			return [R(name="c1", mon_goc="candle", mon_goi_y="BACF00034", trang_thai="Nháp"), R(name="c2", mon_goc="candle", mon_goi_y="KHONGANH", trang_thai="Nháp")]
+		if dt == "Item" and "image" in (fields or []) and "item_code" in (fields or []):
+			return [R(item_code="BACF00034", item_name="Canelé", image="files/can.jpg", vgb_muc_giu_web=20)]
+		return [R(name="BACF00034", image="files/can.jpg"), R(name="KHONGANH", image=None)]
+
+	with um.patch.object(g, "_quyen", lambda *a: None), um.patch.object(g.frappe, "get_all", get_all, create=True), \
+			um.patch.object(g.frappe.db, "count", lambda *a: 0, create=True), um.patch.object(g, "cai_dat", lambda: g.chuan_cai_dat({})), \
+			um.patch.object(g, "_ton", lambda ma, kho: {"BACF00034": 3}), \
+			um.patch.object(g, "_snap_moi", lambda n=60: [{"mon": [{"ma": "BACF00034", "ten": "Canelé", "sl": 2, "gia": 65000}], "goi_y": ["BACF00034"]}]):
+		mh = g.man_hinh()
+		la("dòng cặp có ảnh, chưa có ảnh thì rỗng", [c["anh_goi_y"] for c in mh["cap"]], ["/files/can.jpg", ""])
+		la("Mức giữ có ảnh", g.duoi_muc_giu()["mon"][0]["anh"], "/files/can.jpg")
+		la("Kết quả có ảnh", g.bao_cao_goi_y()["mon"][0]["anh"], "/files/can.jpg")
+
+
 @ca("v668 Codex #581: mọi vai được màn Món đi kèm cho sửa cặp (giám đốc) đều có quyền tạo, sửa trên DocType; không còn vai qua cửa màn mà lưu hỏng")
 def _quyen_doctype():
 	d = json.load(open(os.path.join(GOC, "vagabond/vagabond/doctype/vagabond_mon_di_kem/vagabond_mon_di_kem.json")))
@@ -259,7 +352,7 @@ def _gieo():
 			um.patch.object(g.frappe.db, "count", lambda dt: 0, create=True), \
 			um.patch.object(g.frappe.db, "exists", lambda *a: True, create=True), \
 			um.patch.object(g.frappe, "new_doc", lambda dt: Doc(), create=True), \
-			um.patch.object(g.frappe, "get_all", lambda dt, **k: [type("X", (), {"name": d[1]}) for d in goi_y_nhap.NHAP], create=True):
+			um.patch.object(g.frappe, "get_all", lambda dt, **k: [type("X", (), {"name": d[1], "khoa": d[0]}) for d in goi_y_nhap.NHAP], create=True):
 		n = g.gieo_nhap()
 		la("lần đầu gieo đủ, trạng thái Nháp", (n, len(them), {x.get("trang_thai") for x in them}), (len(goi_y_nhap.NHAP), len(goi_y_nhap.NHAP), {"Nháp"}))
 		la("lần sau (bảng đã bị xoá hết) không gieo lại", g.gieo_nhap(), 0)
