@@ -104,12 +104,117 @@ def _do():
 	la("mã lạ, trùng, không còn trong đơn bị bỏ", g.ma_goi_y(["A", "A", "Z", None, 5], ["A", "B"]), ["A"])
 	la("không phải danh sách", g.ma_goi_y("A", ["A"]), [])
 	snaps = [json.dumps({"mon": [{"ma": "BANH", "sl": 1, "gia": 650000}, {"ma": "A", "ten": "Canelé", "sl": 2, "gia": 65000}], "goi_y": ["A"]}),
-		{"mon": [{"ma": "BANH", "sl": 1, "gia": 880000}]}, "hỏng", {"mon": [{"ma": "B", "ten": "Biscotti", "sl": 1, "gia": 190000}], "goi_y": ["B"]}]
+		{"mon": [{"ma": "BANH", "sl": 1, "gia": 880000}], "goi_y": []}, "hỏng", {"mon": [{"ma": "B", "ten": "Biscotti", "sl": 1, "gia": 190000}], "goi_y": ["B"]},
+		{"mon": [{"ma": "CU", "sl": 1, "gia": 990000}]}]
 	bc = g.bao_cao(snaps)
 	la("báo cáo", (bc["so_don"], bc["don_co_goi_y"], bc["ti_le"], bc["gia_tri_tb"], bc["gia_tri_tb_co_goi_y"]),
 		(3, 2, 66.7, (780000 + 880000 + 190000) // 3, (780000 + 190000) // 2))
 	la("món thêm nhiều nhất", [(m["ma"], m["sl"]) for m in bc["mon"]], [("A", 2), ("B", 1)])
 	la("hay mua cùng", g.mua_cung_dem(snaps), {"A": 1, "B": 1})
+
+
+@ca("v668 Codex #581: báo cáo Kết quả chỉ tính đơn từ bản này (ảnh chụp có dấu goi_y); đơn cũ không vào mẫu số, đơn mới không thêm gì vẫn vào")
+def _bao_cao_moi():
+	cu = {"mon": [{"ma": "BANH", "sl": 1, "gia": 500000}]}
+	moi = {"mon": [{"ma": "BANH", "sl": 1, "gia": 500000}, {"ma": "A", "ten": "Canelé", "sl": 1, "gia": 65000}], "goi_y": ["A"]}
+	la("một đơn cũ + một đơn mới có gợi ý: 100%, không phải 50%", (g.bao_cao([cu, moi])["so_don"], g.bao_cao([cu, moi])["ti_le"]), (1, 100.0))
+	la("đơn mới không thêm gì vẫn vào mẫu số", g.bao_cao([cu, moi, {"mon": [{"ma": "X", "sl": 1, "gia": 1}], "goi_y": []}])["ti_le"], 50.0)
+	la("chỉ toàn đơn cũ: chưa có số", g.bao_cao([cu, cu])["so_don"], 0)
+
+
+@ca("v668 Codex #581: công tắc gợi ý TẮT (ô lưu 0) thì đọc ra tắt ở cả màn Cài đặt lẫn trang khách; chưa có dòng cài đặt thì bật")
+def _cong_tac_0():
+	gt = {}
+	with um.patch.object(g.frappe.db, "get_single_value", lambda dt, f: gt.get(f), create=True), \
+			um.patch("vagabond.lib.cfg_o", lambda f: "", create=True):
+		for k in g.O_BAT:
+			gt[g.O[k]] = 0
+		cd = g.cai_dat()
+		la("bốn công tắc lưu 0 đọc ra tắt", [cd[k] for k in g.O_BAT], [False] * 4)
+		r = g.goi_y_dat_truoc('["BACF00001"]')
+		la("trang khách: giỏ không gợi ý, không thanh miễn phí", (r["bat"], r["thanh_mien_phi"], r["mon"]), (0, 0, []))
+		gt.clear()
+		la("chưa có dòng cài đặt: bật", [g.cai_dat()[k] for k in g.O_BAT], [True] * 4)
+		gt[g.O["bat_gio"]] = 1
+		la("lưu 1 là bật", g.cai_dat()["bat_gio"], True)
+	with um.patch.object(g.frappe.db, "get_single_value", lambda dt, f: 0, create=True), \
+			um.patch.object(g.frappe.db, "set_single_value", lambda *a: luu.append(a), create=True), \
+			um.patch.object(g.frappe, "clear_document_cache", lambda *a: None, create=True), \
+			um.patch.object(g, "_quyen", lambda *a: None):
+		luu = []
+		g.luu_cai_dat(json.dumps({"bat_quay": 0}))
+		la("màn Cài đặt lưu tắt là 0", luu, [("Vagabond Settings", g.O["bat_quay"], 0)])
+
+
+@ca("v668 Codex #581 (QT-31): bánh gốc, nhóm, món gợi ý, nhóm và kho trong cài đặt phải có trong danh mục; chữ gõ sai bị trả về kèm việc cần làm")
+def _danh_muc():
+	banh, nhom, mon, kho = {"candle"}, {"Bánh khô", "Bánh lạnh"}, {"BACF00034"}, {"Pastry - Thành phẩm - TV"}
+
+	def co(dt, q):
+		if dt == "Item Group":
+			return q in nhom
+		if dt == "Item":
+			return q in mon
+		return (q or {}).get("khoa") in banh
+
+	class Loi(Exception):
+		pass
+
+	def nem(m, *a, **k):
+		raise Loi(m)
+
+	def get_all(dt, filters=None, **k):
+		ds = (filters or {}).get("name", ["in", []])[1]
+		bo = {"Item Group": nhom, "Warehouse": kho}[dt]
+		return [type("X", (), {"name": x}) for x in ds if x in bo]
+
+	luu = []
+
+	class Doc(dict):
+		name = "MDK-1"
+
+		def set(self, k, v):
+			self[k] = v
+
+		def save(self):
+			luu.append(dict(self))
+
+	with um.patch.object(g.frappe.db, "exists", co, create=True), um.patch.object(g.frappe, "throw", nem, create=True), \
+			um.patch.object(g.frappe, "get_all", get_all, create=True), um.patch.object(g.frappe, "new_doc", lambda dt: Doc(), create=True), \
+			um.patch.object(g.frappe.db, "set_single_value", lambda *a: luu.append(a), create=True), \
+			um.patch.object(g.frappe, "clear_document_cache", lambda *a: None, create=True), um.patch.object(g, "_quyen", lambda *a: None):
+		for d, chu in (({"mon_goc": "candel", "mon_goi_y": "BACF00034"}, "Bánh gốc \"candel\""),
+				({"nhom_goc": "Banh lanh", "mon_goi_y": "BACF00034"}, "Nhóm món \"Banh lanh\""),
+				({"mon_goc": "candle", "mon_goi_y": "bacf0034"}, "Món gợi ý \"bacf0034\"")):
+			try:
+				g.luu_cap(json.dumps(dict(d, trang_thai="Nháp")))
+				la("phải trả về: " + chu, "lưu được", "bị chặn")
+			except Loi as e:
+				dung("câu nói rõ ô sai và cách chọn lại: " + str(e), chu in str(e) and "chọn trong danh sách" in str(e))
+		la("chưa lưu dòng nào", luu, [])
+		g.luu_cap(json.dumps({"mon_goc": "Candle ", "mon_goi_y": "BACF00034", "trang_thai": "Đã duyệt"}))
+		la("chọn đúng thì lưu", (len(luu), luu[0]["mon_goi_y"]), (1, "BACF00034"))
+		for d, chu in (({"nhom": ["Bánh khô", "Banh kho"]}, "Banh kho"), ({"kho_bep": ["Kho bep"]}, "Kho bep"),
+				({"ly_do_nhom": [["Banh kho", "Giòn", "Crisp"]]}, "Banh kho")):
+			try:
+				g.luu_cai_dat(json.dumps(d))
+				la("phải trả về " + chu, "lưu được", "bị chặn")
+			except Loi as e:
+				dung("cài đặt nói rõ tên sai: " + str(e), chu in str(e) and "chọn trong danh sách" in str(e))
+		del luu[:]
+		g.luu_cai_dat(json.dumps({"nhom": ["Bánh khô"], "kho_bep": ["Pastry - Thành phẩm - TV"],
+			"ly_do_nhom": [["Bánh khô", "Giòn", "Crisp"], ["Bánh trên tủ", "Còn trên tủ", "On the counter"]]}))
+		la("đúng danh mục thì lưu; nhóm riêng Bánh trên tủ được nhận", [x[1:] for x in luu],
+			[(g.O["nhom"], "Bánh khô"), (g.O["kho_bep"], "Pastry - Thành phẩm - TV"),
+			(g.O["ly_do_nhom"], "Bánh khô | Giòn | Crisp\nBánh trên tủ | Còn trên tủ | On the counter")])
+
+
+@ca("v668 Codex #581: mọi vai được màn Món đi kèm cho sửa cặp (giám đốc) đều có quyền tạo, sửa trên DocType; không còn vai qua cửa màn mà lưu hỏng")
+def _quyen_doctype():
+	d = json.load(open(os.path.join(GOC, "vagabond/vagabond/doctype/vagabond_mon_di_kem/vagabond_mon_di_kem.json")))
+	co = {p["role"] for p in d["permissions"] if p.get("create") and p.get("write") and p.get("read")}
+	la("vai thiếu quyền", sorted(set(g.QUYEN) - co), [])
+	dung("vai trong app khớp máy chủ", "var MDK_QUYEN = ['" + "', '".join(g.QUYEN) + "'];" in open(os.path.join(GOC, "vagabond/public/js/bep/78-mon-di-kem.js")).read())
 
 
 @ca("v668 cảnh báo mức giữ tại bếp: chuyển làm tồn dưới mức thì cảnh báo, đúng mức thì không; món không có mức không cảnh báo; hook không chặn lưu phiếu")
@@ -223,6 +328,6 @@ GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.ab
 
 @ca("v668 chạy thật trang khách (hanh_vi/goi_y_mua_668.mjs: giỏ đặt trước, Tại quầy, khối vẽ) và màn Món đi kèm (hanh_vi/mon_di_kem_668.js) đều đạt")
 def _node():
-	for t, can in (("goi_y_mua_668.mjs", "9 đạt, 0 hỏng"), ("mon_di_kem_668.js", "5 ca đạt, 0 ca hỏng")):
+	for t, can in (("goi_y_mua_668.mjs", "9 đạt, 0 hỏng"), ("mon_di_kem_668.js", "7 ca đạt, 0 ca hỏng")):
 		r = subprocess.run(["node", os.path.join(GOC, "vagabond/khung/kiem_thu/hanh_vi", t)], capture_output=True, text=True, timeout=120)
 		la(t, (r.returncode, can in (r.stdout or ""), (r.stdout or "")[-500:] if r.returncode else ""), (0, True, ""))
