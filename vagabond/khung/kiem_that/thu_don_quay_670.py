@@ -14,7 +14,7 @@ import frappe
 
 from vagabond import ban_hang, diem_ban
 from vagabond.khung.kiem_that import nen
-from vagabond.khung.kiem_that.nen import ca, khong_nem, la
+from vagabond.khung.kiem_that.nen import ca, dung, khong_nem, la
 from vagabond.khung.kiem_that.thu_cua_thue_243 import _mon, _nen
 
 
@@ -51,3 +51,24 @@ def _combo_giao():
 	la("rã thành món thật", [(d.item_code, d.qty) for d in hd.items if d.item_code == mon], [(mon, 2)])
 	la("không còn dòng mã combo", [d.item_code for d in hd.items if d.item_code == cha.name], [])
 	la("tổng đúng giá combo khách đã trả", int(round(hd.grand_total)), 89000)
+
+
+@ca("v670 thật: phiếu mang nguồn WEBORDER thanh toán đúng như Mang về; đơn kênh WEBORDER đặt tên WO-YYMMDD-5 số, đơn đặt bánh web vẫn DW, đơn gọi món tại bàn O2O, số liền nhau")
+def _ten_va_nguon():
+	import re
+
+	from frappe.model.naming import set_new_name
+
+	la("phương thức như Mang về", ban_hang._pt_cho_nguon("WEBORDER"), ban_hang._pt_cho_nguon("Mang về"))
+	ten = []
+	for kenh in ("WEBORDER", "WEBORDER", ""):
+		d = frappe.new_doc("Vagabond Don Web")
+		d.vgb_kenh = kenh
+		khong_nem("đặt tên đơn web", lambda: set_new_name(d))
+		ten.append(d.name or "")
+	dung("hai đơn WEBORDER mang mã WO: " + ", ".join(ten), all(re.fullmatch(r"WO-[0-9]{6}-[0-9]{5}", x) for x in ten[:2]))
+	la("số liền nhau", int(ten[1][-5:]) - int(ten[0][-5:]), 1)
+	dung("đơn đặt bánh web vẫn DW: " + ten[2], ten[2].startswith("DW-"))
+	g = frappe.new_doc("Vagabond Goi Mon Ban")
+	khong_nem("đặt tên đơn gọi món", lambda: set_new_name(g))
+	dung("đơn gọi món tại bàn mang mã O2O: " + str(g.name), bool(re.fullmatch(r"O2O-[0-9]{6}-[0-9]{5}", g.name or "")))
