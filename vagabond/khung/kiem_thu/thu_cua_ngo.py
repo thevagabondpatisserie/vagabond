@@ -89,7 +89,9 @@ CUA_NGO = {
 	# v668 Gợi ý mua thêm: hai cửa cho trang khách, các cửa màn Món đi kèm.
 	"goi_y_mua.py": ["bao_cao_goi_y", "cap_quay", "danh_muc", "dat_muc_giu", "doi_nhieu", "duoi_muc_giu", "goi_y_dat_truoc", "luu_cai_dat", "luu_cap", "man_hinh"],
 	"bai_dang.py": ["cai_dat", "da_dang", "doi_moc", "duyet", "gio_trong", "gui_duyet", "huy", "lich", "luu", "nhap_tep", "soan_ai",
-		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh"],
+		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh",
+		# v666 Sổ chủ đề, gắn sao, gửi giám đốc duyệt.
+		"gui_giam_doc", "gd_dong_y", "gd_tra_lai", "gan_sao", "chu_de_ds", "chu_de_luu"],
 	"mxh.py": [],
 	"zalo_kich_ban.py": ["ds_kich_ban", "luu_kich_ban", "kiem_mau_zalo", "ds_tin", "gui_thu"],
 	# v621: trang thành viên. Mọi hàm mở cho khách vãng lai, tự xác thực bằng

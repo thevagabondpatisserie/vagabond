@@ -47,8 +47,10 @@ LOAI_CACH = {"ck": "Chuyển khoản", "the": "OnePay"}
 TT_DA_THU = "Da thu"
 TT_THIEU = "Thu thieu"
 
-RE_TEN_DW = re.compile(r"^DW-([0-9]{4})-([0-9]{5})$")
-RE_MA_DW = re.compile(r"^DW[0-9]{9}$")
+# v670: đơn kênh WEBORDER mang mã WO-YYMMDD-5 số (vagabond/ma_don.py); mã giao dịch,
+# nội dung chuyển khoản bỏ gạch thành WO + 11 số. Đơn đặt bánh giữ DW-YYMM-5 số.
+RE_TEN_DW = re.compile(r"^(?:DW-[0-9]{4}-[0-9]{5}|WO-[0-9]{6}-[0-9]{5})$")
+RE_MA_DW = re.compile(r"^(?:DW[0-9]{9}|WO[0-9]{11})$")
 
 
 def chuan_pt(v, the_dung=True):
@@ -133,9 +135,14 @@ def ma_dw(ten):
 
 
 def ten_dw(ma):
-	"""DW261100123 -> DW-2611-00123. Sai dạng thì rỗng. THUẦN."""
-	m = re.fullmatch(r"DW([0-9]{4})([0-9]{5})", str(ma or "").strip().upper())
-	return "DW-%s-%s" % m.groups() if m else ""
+	"""DW261100123 -> DW-2611-00123; WO26111700023 -> WO-261117-00023 (v670).
+	Sai dạng thì rỗng. THUẦN."""
+	ma = str(ma or "").strip().upper()
+	m = re.fullmatch(r"DW([0-9]{4})([0-9]{5})", ma)
+	if m:
+		return "DW-%s-%s" % m.groups()
+	m = re.fullmatch(r"WO([0-9]{6})([0-9]{5})", ma)
+	return "WO-%s-%s" % m.groups() if m else ""
 
 
 def la_ma_dw(ma):
@@ -199,7 +206,7 @@ def mo_ta_khop(mo_ta, shop_id, ten, did):
 	return any(re.search(r"(?<![0-9A-Za-z])%s(?![0-9A-Za-z])" % re.escape(m), s, re.I) for m in ma)
 
 
-RE_DW_TRONG = re.compile(r"(?<![0-9A-Za-z])(DW[0-9]{9})(?![0-9A-Za-z])", re.I)
+RE_DW_TRONG = re.compile(r"(?<![0-9A-Za-z])(DW[0-9]{9}|WO[0-9]{11})(?![0-9A-Za-z])", re.I)
 
 
 def ma_don_khac(mo_ta, shop_id, ten, did):

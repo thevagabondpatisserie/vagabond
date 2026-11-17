@@ -45,7 +45,8 @@ SO_LAN_TOI_DA = 30
 TRANG_QUET = 200
 # v637: mã đơn đặt trước (TKR...) cũng nhận trả thẻ, xem onepay_dat.py.
 # v638: mã đơn đặt bánh trên web (DW + năm tháng + 5 số), xem thanh_toan_web.py.
-RE_MA_GD = re.compile(r"^(DNTT[0-9]{9}|CN[A-Z0-9]{6}|TKR[0-9]{8}|DW[0-9]{9})-([0-9]{1,3})$")
+# v670: WO + 11 số là đơn kênh WEBORDER (vagabond/ma_don.py), cùng đường trả thẻ với DW.
+RE_MA_GD = re.compile(r"^(DNTT[0-9]{9}|CN[A-Z0-9]{6}|TKR[0-9]{8}|DW[0-9]{9}|WO[0-9]{11})-([0-9]{1,3})$")
 # Loại thẻ cổng nhận (vpc_CardList): quốc tế hay ATM nội địa. Giá trị khác thì
 # không gửi, cổng hiện mọi loại thẻ như trước.
 CARD_LIST = ("INTERNATIONAL", "DOMESTIC")

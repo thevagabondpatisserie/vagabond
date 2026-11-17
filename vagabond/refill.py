@@ -359,7 +359,7 @@ def tieu_thu_phieu_dat(dong, tien_to):
 		g = ngay(d.get("delivery_date"))
 		if not g or not la_banh_o(ma, tien_to):
 			continue
-		da = max(so(d.get("delivered_qty")), so(d.get("billed_qty")))
+		da = max(so(d.get("delivered_qty")), so(d.get("da_xuat_hd")))
 		n = da if str(d.get("trang_thai") or "").strip() in TT_NHA_CHO else max(da, so(d.get("qty")))
 		if n > 0:
 			m = ra.setdefault(g.isoformat(), {})

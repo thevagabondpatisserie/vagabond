@@ -165,7 +165,7 @@ def gom_giu_cho(dong, tien_to):
 	"""Gom các dòng phiếu đặt thành {ngày nhận: {mã hàng: số còn giữ}}. THUẦN.
 
 	`dong` là list dict {item_code, delivery_date, qty, delivered_qty,
-	billed_qty}. Bỏ dòng không phải bánh ổ, bỏ dòng đã giao xong, bỏ dòng
+	da_xuat_hd}; `da_xuat_hd` do `kem_da_xuat_hd` điền, xem ghi chú ở đó. Bỏ dòng không phải bánh ổ, bỏ dòng đã giao xong, bỏ dòng
 	thiếu ngày nhận (không biết giữ chỗ vào ngày nào thì giữ vào ngày nào
 	cũng là đoán).
 	"""
@@ -179,7 +179,7 @@ def gom_giu_cho(dong, tien_to):
 		ngay = str(d.get("delivery_date") or "").strip()
 		if not ngay:
 			continue
-		con = con_giu_cho(d.get("qty"), d.get("delivered_qty"), d.get("billed_qty"))
+		con = con_giu_cho(d.get("qty"), d.get("delivered_qty"), d.get("da_xuat_hd"))
 		if con <= 0:
 			continue
 		ra.setdefault(ngay, {})
@@ -465,6 +465,49 @@ TRUONG_MOI = {
 }
 
 
+def gan_da_xuat_hd(dong, da_xuat):
+	"""Gắn số đã xuất hoá đơn vào từng dòng phiếu đặt. THUẦN.
+
+	`da_xuat` là {tên dòng phiếu đặt: tổng số trên hoá đơn đã ghi sổ}. Trả về
+	bản sao từng dòng có thêm ô `da_xuat_hd` (không âm), không đụng bản gốc.
+	"""
+	ra = []
+	for d in dong or []:
+		if not isinstance(d, dict):
+			continue
+		n = _so_thuc((da_xuat or {}).get(d.get("name")))
+		ra.append(dict(d, da_xuat_hd=max(0.0, n)))
+	return ra
+
+
+def doc_da_xuat_hd(ten_dong):
+	"""{tên dòng phiếu đặt: tổng số đã xuất trên hoá đơn bán ĐÃ GHI SỔ}.
+
+	MỘT NGUỒN cho cả giữ chỗ (dat_banh) lẫn mẻ refill (refill.tieu_thu_phieu_dat).
+	Dòng phiếu đặt của ERPNext KHÔNG có cột số đã xuất hoá đơn, chỉ có tiền
+	(billed_amt). Bản v646 đọc một cột không tồn tại nên mỗi lượt đếm đều đổ
+	lỗi (Error Log "Refill: chưa đếm được đơn tương lai" từ 10/11). Ở đây cộng
+	số lượng các dòng hoá đơn đã ghi sổ trỏ về đúng dòng phiếu đặt (so_detail);
+	hoá đơn trả hàng mang số âm nên tự trừ lại. Không suy số từ tiền chia giá
+	vì giá dòng hoá đơn có thể khác giá phiếu đặt.
+	"""
+	ten = sorted({str(t) for t in ten_dong or [] if t})
+	ra = {}
+	for i in range(0, len(ten), 500):
+		for r in frappe.db.sql(
+			"""select so_detail, sum(qty) as sl from `tabSales Invoice Item`
+			where docstatus = 1 and so_detail in %(ten)s group by so_detail""",
+			{"ten": tuple(ten[i:i + 500])}, as_dict=True):
+			ra[r.get("so_detail")] = _so_thuc(r.get("sl"))
+	return ra
+
+
+def kem_da_xuat_hd(dong):
+	"""Dòng phiếu đặt (có ô name) kèm `da_xuat_hd` đọc từ hoá đơn thật."""
+	dong = list(dong or [])
+	return gan_da_xuat_hd(dong, doc_da_xuat_hd([d.get("name") for d in dong if isinstance(d, dict)]))
+
+
 def dong_phieu_dat(ngay=None):
 	"""Các dòng phiếu đặt bánh ổ CÒN HIỆU LỰC, để đo giữ chỗ.
 
@@ -486,12 +529,12 @@ def dong_phieu_dat(ngay=None):
 	loc_dong = {"parent": ["in", cha]}
 	if ngay:
 		loc_dong["delivery_date"] = str(getdate(ngay))
-	return frappe.get_all(
+	return kem_da_xuat_hd(frappe.get_all(
 		"Sales Order Item",
 		filters=loc_dong,
-		fields=["item_code", "delivery_date", "qty", "delivered_qty", "billed_qty"],
+		fields=["name", "item_code", "delivery_date", "qty", "delivered_qty"],
 		limit_page_length=0,
-	)
+	))
 
 
 def dong_tieu_thu(tu, den):
@@ -502,11 +545,11 @@ def dong_tieu_thu(tu, den):
 	nhiêu bánh, không chỉ phần còn giữ chỗ (dong_phieu_dat bỏ phiếu đã đóng,
 	gom_giu_cho trừ phần đã giao). Một câu nối có lọc ngày giao, không kéo
 	mọi phiếu từ trước tới nay."""
-	return frappe.db.sql(
-		"""select i.item_code, i.delivery_date, i.qty, i.delivered_qty, i.billed_qty, s.status as trang_thai
+	return kem_da_xuat_hd(frappe.db.sql(
+		"""select i.name, i.item_code, i.delivery_date, i.qty, i.delivered_qty, s.status as trang_thai
 		from `tabSales Order Item` i join `tabSales Order` s on s.name = i.parent
 		where s.docstatus = 1 and s.status != 'Cancelled' and i.delivery_date >= %s and i.delivery_date < %s""",
-		(str(getdate(tu)), str(getdate(den))), as_dict=True)
+		(str(getdate(tu)), str(getdate(den))), as_dict=True))
 
 
 def dem_giu_cho(ngay):

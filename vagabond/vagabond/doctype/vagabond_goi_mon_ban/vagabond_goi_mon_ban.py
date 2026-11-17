@@ -7,4 +7,9 @@ from frappe.model.document import Document
 
 
 class VagabondGoiMonBan(Document):
-	pass
+	def autoname(self):
+		"""v670 (anh Việt 17/11/2026): mã O2O-YYMMDD-5 số, số chạy theo tháng
+		(vagabond/ma_don.py). Đơn cũ giữ mã TQ-YYMMDD-4 số."""
+		from vagabond import ma_don
+
+		self.name = ma_don.dat_ten(ma_don.TIEN_TO_O2O)

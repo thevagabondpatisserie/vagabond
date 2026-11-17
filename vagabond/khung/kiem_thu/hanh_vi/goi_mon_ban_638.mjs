@@ -132,7 +132,8 @@ await ca('Link có k: chế độ gọi món của ĐÚNG quầy, nhãn "Distric
   dung('nhãn bàn', chu(theoId(goc, 'gbDau')).includes('District 1 · Bàn 5'));
   la('không còn hàng chọn quầy', tim(goc, n => n.props.class === 'quay-gat').length, 0);
   la('tầng lớn', tang(goc), ['=3', 'banh=1', 'nuoc=2']);
-  la('Tất cả: không có hàng chip nhỏ', chip(goc), []);
+  /* v670 (Minh Vũ 17/11, anh Việt đồng ý): ở Tất cả bày luôn mọi nhóm món để chạm thẳng (trước v670 không bày). */
+  la('Tất cả: hàng chip nhóm món', chip(goc), ['Mọi nhóm · 3', 'Bánh lạnh · 1', 'Đồ uống · 2']);
   la('nút + cho cả ba món', nutThem(goc).map(n => n.props['data-them']), ['BAWC00115', 'NUTR00021', 'NUIC00002']);
   dung('bánh có số còn, đồ uống không', chu(tim(goc, n => n.props['data-ma'] === 'BAWC00115')[0]).includes('Còn 1')
     && !chu(tim(goc, n => n.props['data-ma'] === 'NUTR00021')[0]).includes('Còn'));

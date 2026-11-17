@@ -196,7 +196,7 @@ Từ khoá: đăng tay, chép và mở app, đã đăng, chờ đăng tay, đế
 |---|---|---|
 | Marketing | Bài đăng mạng xã hội | [[📋 Chép và mở app]] |
 
-Kênh chưa nối và Zalo OA đăng tay. Kênh đã nối thì xem mục Hệ thống tự đăng Facebook, Instagram, Threads. Bài hẹn giờ thì tới giờ nhóm Zalo Marketing nhận tin Đến giờ đăng tay bài đăng.
+Kênh chưa nối thì đăng tay. Kênh đã nối thì xem mục Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA. Bài hẹn giờ thì tới giờ nhóm Zalo Marketing nhận tin Đến giờ đăng tay bài đăng.
 
 **Các bước**
 1. Mở bài có chữ Chờ đăng tay (trên lịch, hoặc chạm dòng "kênh chờ đăng tay" đầu màn).
@@ -209,14 +209,14 @@ Kênh chưa nối và Zalo OA đăng tay. Kênh đã nối thì xem mục Hệ t
 - Muốn sửa bài đã duyệt mà chưa kênh nào lên: bấm [[Trả về nháp để sửa]], rồi duyệt lại.
 - Huỷ bài (biểu tượng thùng rác trên đầu màn) chỉ được khi chưa kênh nào lên.
 
-## Hệ thống tự đăng Facebook, Instagram, Threads
-Từ khoá: tự đăng, đăng tự động, kết nối kênh, thử lại, đang đăng, token Meta, Facebook, Instagram, Threads
+## Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
+Từ khoá: tự đăng, đăng tự động, kết nối kênh, thử lại, đang đăng, token Meta, Facebook, Instagram, Threads, Zalo OA, bài viết OA
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Marketing | Bài đăng mạng xã hội | [[Kiểm lại kết nối]] |
 
-Trước đây mọi kênh đăng tay. Từ nay kênh đã nối thì hệ thống tự đăng đúng giờ hẹn (không hẹn giờ thì đăng ngay khi duyệt). Zalo OA vẫn đăng tay.
+Trước đây mọi kênh đăng tay. Từ nay kênh đã nối thì hệ thống tự đăng đúng giờ hẹn (không hẹn giờ thì đăng ngay khi duyệt). Zalo OA lên thành Bài viết trên trang OA: ảnh đầu làm ảnh bìa, tiêu đề lấy ô tiêu đề Zalo OA, không gửi tin cho khách.
 
 **Các bước**
 1. Soạn, duyệt bài như cũ. Bảng Kiểm ghi kênh nào hệ thống tự đăng, kênh nào đăng tay.
@@ -227,6 +227,25 @@ Trước đây mọi kênh đăng tay. Từ nay kênh đã nối thì hệ thố
 **Lưu ý**
 - Chữ đỏ "chưa rõ bài đã lên chưa": mở kênh kiểm. Đã có bài thì bấm Đã đăng, đừng bấm Thử lại.
 - Nối kênh do quản trị hệ thống làm: dán token ở Cài đặt lõi và API, mục Đăng bài mạng xã hội (Meta). Token Threads hệ thống tự gia hạn.
+- Zalo OA dùng chung kết nối Zalo OA sẵn có. Kết nối kênh báo "Zalo chưa duyệt quyền đăng bài viết" thì quản trị hệ thống vào Zalo for Developers, mục Article API, bấm Nộp xét duyệt; chờ Zalo duyệt thì đăng tay.
+
+## Đăng ngay bài đã hẹn giờ
+Từ khoá: đăng ngay, bỏ giờ hẹn, giờ hẹn đã qua, duyệt và đăng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, chân màn soạn | [[⚡ Đăng ngay]] |
+
+Bài đã chọn Lúc đăng thì chân màn có thêm nút ⚡ Đăng ngay cạnh nút Duyệt.
+
+**Các bước**
+1. Mở bài, sửa xong lỗi đỏ (trừ lỗi về giờ).
+2. Bấm [[⚡ Đăng ngay]], đọc câu hỏi rồi bấm Đăng ngay.
+3. Hệ thống bỏ giờ hẹn, duyệt và đăng ngay các kênh đã nối; kênh chưa nối chuyển Chờ đăng tay.
+
+**Lưu ý**
+- Giờ hẹn đã qua không chặn Đăng ngay. Lỗi đỏ khác (thiếu ảnh, thiếu chữ) vẫn chặn.
+- Bấm Thôi ở câu hỏi thì bài giữ nguyên giờ hẹn.
 
 ## Kho bản thảo thay cho gửi ghi chú qua lại
 Từ khoá: bản thảo, kho bản thảo, ý tưởng bài, Evernote, nhập Word, nhập Excel, lịch nội dung, nội dung gốc
@@ -246,6 +265,115 @@ Bản thảo là bài chưa hẹn giờ. Mọi người cùng sửa một bản 
 **Lưu ý**
 - Dòng Excel có ngày giờ còn tới thì bài nằm thẳng trên lịch; giờ đã qua thì thành bản thảo chưa hẹn giờ.
 - Hai người sửa cùng lúc: người sau được báo và nạp bản mới, không ai ghi đè ai.
+
+## Sổ chủ đề, thẻ và gắn sao trong Kho bản thảo
+Từ khoá: chủ đề, sổ, notebook, Evernote, thẻ, hashtag, gắn sao, lọc bản thảo
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, giám đốc | Bài đăng mạng xã hội, phân đoạn Bản thảo | [[＋ Chủ đề mới]] |
+
+Trước đây mọi bản thảo nằm chung một danh sách. Từ nay bản thảo xếp theo sổ chủ đề như Evernote: máy tính có cột Chủ đề bên trái, điện thoại có dải chip vuốt ngang. Hệ thống gieo sẵn 12 chủ đề theo sổ Evernote của tiệm.
+
+**Các bước**
+1. Chạm Bản thảo, chọn một chủ đề (hoặc Gắn sao, Tất cả). Bấm [[＋ Bản thảo mới]] khi đang mở chủ đề thì bài vào đúng chủ đề đó.
+2. Trong bài: dòng Chủ đề để đổi sổ, ô Thẻ gõ #peachruby #millecrepes, công tắc Gắn sao cho bản hay dùng lại.
+3. Ở Kho bản thảo: chạm ☆ trên thẻ bài để gắn sao; chạm #thẻ ở dòng Lọc thẻ để lọc trong chủ đề đang mở.
+4. Thêm hay sửa chủ đề: [[＋ Chủ đề mới]], hoặc ✏️ Sửa chủ đề khi đang mở một chủ đề. Mỗi chủ đề có tên, biểu tượng và chân bài mẫu.
+
+**Lưu ý**
+- Ô tìm tìm cả tên, nội dung và #thẻ, gõ không dấu cũng được.
+- Chỉ Marketing và giám đốc tạo, sửa được chủ đề.
+
+## Chân bài (CTA) theo chủ đề
+Từ khoá: CTA, chân bài, footer, lời mời đặt bánh, đặt trước 48 tiếng, địa chỉ
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, thẻ Chân bài (CTA) dưới Nội dung gốc | [[Thêm]] |
+
+Trước đây CTA phải gõ tay vào cuối chữ từng kênh. Từ nay tích một câu là hệ thống thêm vào cuối chữ mọi kênh, bỏ tích là gỡ ra.
+
+**Các bước**
+1. Chọn Chủ đề cho bài: các câu chân bài mẫu của chủ đề hiện sẵn.
+2. Tích câu cần dùng. Chữ của Facebook, Instagram, Threads, Zalo OA có ngay câu đó ở cuối.
+3. Cần câu khác: gõ vào ô Thêm câu chân bài khác rồi bấm [[Thêm]]. Muốn bài sau dùng lại thì bấm Lưu thành mẫu của chủ đề.
+
+**Lưu ý**
+- AI soạn chữ cũng tự gắn chân bài đã tích, không viết lặp lời mời đặt bánh.
+- Threads chỉ 500 ký tự: chân bài dài thì bảng Kiểm báo đỏ, bỏ bớt câu cho kênh đó.
+
+## Chữ đậm, nghiêng và biểu tượng trong chữ đăng
+Từ khoá: chữ đậm, chữ nghiêng, YayText, ký tự đặc biệt, biểu tượng, emoji
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, thanh trên ô chữ từng kênh | [[Đậm]] |
+
+Facebook, Instagram, Threads không có nút in đậm. Từ nay ô chữ mỗi kênh có thanh Đậm, Nghiêng, Đậm nghiêng, Bỏ kiểu và ✨ Biểu tượng, giống YayText, giữ đủ dấu tiếng Việt.
+
+**Các bước**
+1. Bôi đen đoạn chữ trong ô chữ của kênh.
+2. Chạm [[Đậm]], Nghiêng hoặc Đậm nghiêng. Muốn trả về chữ thường thì bôi đen rồi chạm Bỏ kiểu.
+3. Chạm ✨ Biểu tượng để chèn biểu tượng vào chỗ con trỏ.
+
+**Lưu ý**
+- Chữ kiểu này là ký tự đặc biệt: Facebook không tìm ra, máy đọc màn hình đọc sai. Chỉ dùng cho tên bánh, tiêu đề, điểm nhấn.
+- Chữ Đ, đ không có bản đậm nên giữ nguyên.
+
+## AI soạn chữ theo giọng văn The Vagabond
+Từ khoá: AI soạn chữ, giọng văn, prompt, viết bài, Muốn AI viết thế nào
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, thẻ Nội dung gốc | [[✨ AI soạn chữ]] |
+
+AI viết theo giọng văn của tiệm (chép từ skill viết bài The Vagabond), đúng loại bài của chủ đề, rồi gắn chân bài đã tích.
+
+**Các bước**
+1. Gõ Nội dung gốc: món, nguyên liệu, câu chuyện, ưu đãi nếu có.
+2. Muốn viết khác đi thì gõ vào ô Muốn AI viết thế nào, ví dụ "giọng khoa học, Facebook dài, Threads một câu".
+3. Bấm [[✨ AI soạn chữ]] rồi đọc lại, sửa từng kênh.
+
+**Lưu ý**
+- AI không tự thêm giá, ưu đãi, ngày giờ; không bịa trích dẫn hay số liệu. Vẫn phải đọc lại trước khi duyệt.
+- Mỗi lượt soạn tính tiền theo tài khoản API của tiệm (khoảng 1.000 đồng một bài), tối đa 300 lượt một tháng.
+
+## Gửi giám đốc duyệt bài đăng
+Từ khoá: gửi giám đốc duyệt, duyệt nội dung, trả lại, góp ý, việc cần làm
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, giám đốc | Bài đăng; Việc cần làm của giám đốc | [[👔 Gửi giám đốc duyệt]] |
+
+Marketing vẫn tự duyệt được. Khi muốn giám đốc xem trước, bấm Gửi giám đốc duyệt: bài vào Việc cần làm của giám đốc.
+
+**Các bước**
+1. Marketing: soạn xong bấm [[👔 Gửi giám đốc duyệt]]. Bản thảo chưa có ảnh, chưa có giờ vẫn gửi được.
+2. Giám đốc: mở Việc cần làm, chạm bài. Sửa chữ trực tiếp nếu cần.
+3. Giám đốc chọn: ✓ Đồng ý nội dung (bài về Nháp để Marketing thêm ảnh, giờ), Duyệt (bài đủ điều kiện thì đăng hoặc hẹn giờ luôn), hoặc ↩ Trả lại kèm góp ý.
+4. Nhóm Zalo Marketing nhận tin Giám đốc duyệt hoặc trả lại bài đăng. Bài bị trả lại hiện góp ý ở đầu bài và trong Việc cần làm của Marketing.
+
+**Lưu ý**
+- Marketing tự duyệt bài đang chờ giám đốc thì bài thôi chờ, không có tin báo.
+
+## Dải chip trạng thái đầu màn Bài đăng
+Từ khoá: chưa hẹn giờ, chờ duyệt, chờ đăng tay, đã hẹn giờ, đã đăng, nháp, lọc bài, đếm bài
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, giám đốc | Bài đăng mạng xã hội | [[Chưa hẹn giờ]] |
+
+Đầu màn Bài đăng có một hàng chip: Mọi bài, Chưa hẹn giờ, Chờ duyệt, Chờ đăng tay, Đã hẹn giờ, Đã đăng, Nháp. Mỗi chip ghi số bài trong viên tròn.
+
+**Các bước**
+1. Mở Bài đăng mạng xã hội, nhìn hàng chip ở đầu màn. Chip có bài thì viên số có màu, chip không có bài thì xám.
+2. Chạm một chip: màn chuyển sang Danh sách, chỉ còn bài loại đó. Chip đang lọc tô đậm.
+3. Chạm Mọi bài để bỏ lọc. Hàng chip dài hơn màn điện thoại thì vuốt ngang.
+
+**Lưu ý**
+- Số trên chip đếm mọi kênh, kể cả khi đang lọc kênh bằng hàng logo.
+- Chưa hẹn giờ là bài Nháp hoặc Chờ duyệt chưa có giờ đăng, đúng các bài trong Kho bản thảo.
 
 ## Mã ưu đãi đơn giao của quầy
 Từ khoá: mã đơn đầu, thẻ QR túi Grab, đơn thứ hai, giờ vắng, weborder, khuyến mãi đơn giao

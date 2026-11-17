@@ -124,7 +124,10 @@ def truoc_khi_luu(doc, method=None):
             continue
         if doc.get('is_return'):
             frappe.throw('Trả combo: lấy từng món từ hoá đơn gốc, không nhập lại mã combo.')
-        for x in ra_dong(d.item_code, d.qty, doc.get('vgb_quay'), doc.get('custom_nguon')):
+        # v670: phiếu đơn giao WEBORDER lập với nguồn thanh toán Mang về; luật bán
+        # combo xét đúng kênh WEBORDER (cờ chỉ máy chủ đặt, don_quay._xac_nhan_trong_khoa).
+        nguon_luat = getattr(frappe.flags, 'vgb_nguon_luat', None) or doc.get('custom_nguon')
+        for x in ra_dong(d.item_code, d.qty, doc.get('vgb_quay'), nguon_luat):
             # Giữ kho được chọn; tuyệt đối không tạo Stock Entry riêng.
             if d.get('warehouse'):
                 x['warehouse'] = d.warehouse

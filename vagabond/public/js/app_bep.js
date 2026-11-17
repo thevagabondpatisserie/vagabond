@@ -5895,7 +5895,7 @@ function vclIcon(l) {
     kiem_ke: '🧮', sai_kho: '⚠️', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
     ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
     nop_quy: '💵', hang_tang: '🎁', doi_soat_duyet: '📨', goi_y: '📌',
-    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒', du_chi: '📅', hoa_don_thu: '📧', de_xuat_ct: '📝'
+    ke_hoach_sx: '📋', ghi_nhan_sx: '✅', ycsx_thieu: '🎂', gom_mua: '🧺', ycmh_nhap: '🛒', du_chi: '📅', hoa_don_thu: '📧', de_xuat_ct: '📝', bai_dang: '📣'
   }[l] || '';
 }
 
@@ -5971,6 +5971,8 @@ function vclMo(x) {
   if (l === 'ycmh_nhap') return go(function () { scrMRView(x.ma, typeOf('Purchase')); });
   /* v656: phiếu đề xuất công thức chờ Khải, hoặc bị trả về bếp: mở thẳng phiếu. */
   if (l === 'de_xuat_ct') return dxMo(x.ma);
+  /* v666: bài đăng chờ giám đốc duyệt, hoặc bị giám đốc trả lại: mở thẳng bài. */
+  if (l === 'bai_dang') return go(function () { return scrBaiDangSoan(x.ma); });
   if (l === 'ycsx_thieu') {
     toast('Ở bước chọn món, bấm Gợi ý từ hệ thống để lấy đúng số còn thiếu.', 5000);
     return startDraft(typeOf('Manufacture'));
@@ -27403,7 +27405,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '669';
+var APPVER = '670';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -30208,6 +30210,8 @@ function kmDsKenh() {
   if (ds.indexOf('Pancake') < 0) ds.unshift('Pancake');
   /* v589: don dat banh tren web mang nguon Website (khuyen_mai.NGUON_WEB). */
   if (ds.indexOf('Website') < 0) ds.push('Website');
+  /* v670 (anh Việt 17/11/2026): kênh khách đặt giao qua tab Tại quầy trên web, một chữ WEBORDER. */
+  if (ds.indexOf('WEBORDER') < 0) ds.push('WEBORDER');
   return ds;
 }
 
@@ -71373,7 +71377,8 @@ function btmCongTac(attr, bat, nhan) {
    nhap.an); "Giao" là đơn WEBORDER từ tab Tại quầy trên trang chủ, quầy giao
    hoặc khách tự lấy (bán khi NẰM trong nhap.giao). Món mới chưa tick gì: Tại
    bàn bật, Giao tắt. Bánh mong manh thì tắt Giao, tại bàn vẫn bán. */
-var BTM_KENH = { tai_ban: 'Tại bàn', giao: 'Giao' };
+/* v670 (anh Việt 17/11/2026): kênh khách đặt giao qua tab Tại quầy gọi một chữ WEBORDER ở mọi chỗ. */
+var BTM_KENH = { tai_ban: 'Tại bàn', giao: 'WEBORDER' };
 /* THUẦN: món có bán ở kênh này trong menu nháp không. */
 function btmCoKenh(nh, ma, kenh) {
   if (kenh === 'giao') return ((nh && nh.giao) || []).indexOf(ma) >= 0;
@@ -71821,7 +71826,7 @@ function scrBtmMon() {
     '<div style="display:flex;gap:12px;align-items:center">' +
     '<div style="flex:1;min-width:0;font-size:13px;color:#8a8f9c;line-height:1.45">Tên lấy từ danh mục món.<br>' + (g ? 'Nhóm ' + h(g.ten) : 'Chưa xếp vào nhóm nào, đang ẩn trên web') + '</div>' +
     '</div>' + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">' + btmChipKenh(m.ma, 'tai_ban', !an && !!g, m.ten) + btmChipKenh(m.ma, 'giao', !!g && btmCoKenh(nh, m.ma, 'giao'), m.ten) + '</div>' +
-    '<div style="font-size:12.5px;color:#8a8f9c;margin-top:4px;line-height:1.45">Tại bàn: khách quét QR trên bàn gọi được món này. Giao: khách đặt qua tab Tại quầy trên trang chủ, quầy giao hoặc khách tự lấy.</div>' +
+    '<div style="font-size:12.5px;color:#8a8f9c;margin-top:4px;line-height:1.45">Tại bàn: khách quét QR trên bàn gọi được món này. WEBORDER: khách đặt giao qua tab Tại quầy trên trang chủ, quầy giao hoặc khách tự lấy.</div>' +
     /* v645: ảnh riêng cho web, khung vuông 1:1 như trang gọi món tại bàn. */
     '<div style="font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Ảnh trên web</div>' +
     '<div id="btmAnhWeb" style="display:flex;gap:12px;align-items:center">' + btmAnh(btmAnhMon(m), 96) +
@@ -71971,7 +71976,7 @@ function scrBtmBanhMon() {
   var html = btmBangHtml() + '<div class="card" style="padding:14px;margin-bottom:12px">' +
     '<div style="font-size:13px;color:#8a8f9c;line-height:1.45">Tên và giá lấy từ danh mục món. Bánh lên menu theo tồn trên tủ trong ngày.</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">' + btmChipKenh(m.ma, 'tai_ban', btmCoKenh(BTM.d.nhap, m.ma, 'tai_ban'), m.ten) + btmChipKenh(m.ma, 'giao', btmCoKenh(BTM.d.nhap, m.ma, 'giao'), m.ten) + '</div>' +
-    '<div style="font-size:12.5px;color:#8a8f9c;margin-top:4px;line-height:1.45">Bánh mong manh, khó giao xa thì tắt Giao; tại bàn vẫn bán.</div>' +
+    '<div style="font-size:12.5px;color:#8a8f9c;margin-top:4px;line-height:1.45">Bánh mong manh, khó giao xa thì tắt WEBORDER; tại bàn vẫn bán.</div>' +
     '<div style="font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Ảnh trên menu</div>' +
     '<div id="btmAnhWeb" style="display:flex;gap:12px;align-items:center">' + btmAnh(btmAnhMon(m), 96) +
     '<div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:6px">' +
@@ -74116,7 +74121,7 @@ async function scrKhachSuKienCt() {
 
    v664 (anh Việt 16/11/2026):
    - Kênh đã nối (Facebook, Instagram, Threads) hệ thống TỰ ĐĂNG đúng giờ hẹn; lỗi thì
-     kênh chuyển Chờ đăng tay kèm lý do, có nút Thử lại. Zalo OA vẫn đăng tay.
+     kênh chuyển Chờ đăng tay kèm lý do, có nút Thử lại. v666: Zalo OA tự đăng thành Bài viết khi đã nối.
    - Máy tính (rộng từ 900 px): màn soạn hai cột như trang Tạo bài viết của Meta,
      trái là ảnh, thuộc tính, nội dung; phải là xem trước MỘT kênh, chạm tên kênh để
      đổi. Điện thoại giữ một cột, vuốt ngang xem từng kênh.
@@ -74150,7 +74155,7 @@ var BD_TT = {
 var BD_THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 var BD_DS_LOC = [['', 'Mọi bài'], ['chua_gio', 'Chưa hẹn giờ'], ['Chờ duyệt', 'Chờ duyệt'], ['Chờ đăng tay', 'Chờ đăng tay'],
   ['Đã hẹn giờ', 'Đã hẹn giờ'], ['Đã đăng', 'Đã đăng'], ['Nháp', 'Nháp']];
-var BD = { xemK: '', td: 0, tdCho: 5000, xem: 'tuan', moc: '', ngay: '', loc: [], tt: '', dl: null, bai: null, ban: 0, cho: null, thay: {}, thayMa: '', banMa: {}, loiMa: {}, xdLan: {}, chuoi: Promise.resolve(), tab: 0 };
+var BD = { dk: {}, dkSo: 0, cd: '', theLoc: '', chon: {}, xemK: '', td: 0, tdCho: 5000, xem: 'tuan', moc: '', ngay: '', loc: [], tt: '', dl: null, bai: null, ban: 0, cho: null, thay: {}, thayMa: '', banMa: {}, loiMa: {}, xdLan: {}, chuoi: Promise.resolve(), tab: 0 };
 
 /* Bố cục: một cột trên điện thoại; từ 900 px hai cột kiểu trang Tạo bài viết của Meta.
    Điện thoại dùng display:contents cho cột trái để thứ tự các khối giữ như cũ. */
@@ -74165,7 +74170,8 @@ function bdCss() {
     '.bd-trai{display:block;min-width:0}.bd-phai{position:sticky;top:12px;min-width:0}' +
     '.bd-chonxem{display:flex}.bd-chidt{display:none}' +
     '.bd-phai [data-bdcuon]{display:block!important;overflow:visible!important;margin:0!important;padding:0!important}' +
-    '.bd-phai [data-bdthe]{display:none}.bd-phai [data-bdthe].on{display:block}}';
+    '.bd-phai [data-bdthe]{display:none}.bd-phai [data-bdthe].on{display:block}' +
+    '.bd-bt{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px;align-items:start}.bd-cot{display:block!important;position:sticky;top:12px}.bd-chipcd{display:none!important}}';
   cha.appendChild(st);
 }
 
@@ -74186,9 +74192,11 @@ function bdAvatar(k, co, tt, tat) {
     (tat ? ';opacity:.28;filter:grayscale(1)' : '') + '"><img src="' + kn.anh + '" alt="' + h(kn.ten) + '" width="' + co + '" height="' + co + '" ' +
     'style="display:block;width:' + co + 'px;height:' + co + 'px;object-fit:contain">' + cham + '</span>';
 }
+/* Dãy logo kênh của một bài. Logo là tệp gốc có nền trong, đặt chồng lên nhau thì dính
+   chùm (anh Việt 17/11/2026), nên xếp cách nhau, không chồng. */
 function bdChongAvatar(ds) {
-  return '<span style="display:inline-flex;align-items:center">' + (ds || []).map(function (x, i) {
-    return '<span style="margin-left:' + (i ? -6 : 0) + 'px;border-radius:50%;box-shadow:0 0 0 2px #fff;display:inline-flex">' + bdAvatar(x.k, 24, x.tt) + '</span>';
+  return '<span style="display:inline-flex;align-items:center;gap:6px">' + (ds || []).map(function (x) {
+    return bdAvatar(x.k, 22, x.tt);
   }).join('') + '</span>';
 }
 /* Nút phân đoạn (Tuần, Tháng, Danh sách; Bài đăng, Story): một nhóm, một lựa chọn. */
@@ -74294,7 +74302,7 @@ function bdOTim(goiY) {
 function bdDsLoc(dl) {
   var q = BD.tim || '';
   if (BD.xem === 'bt') {
-    var bt = (dl.bt || []).filter(function (b) { return !q || bdKhopTim(b.tieu_de + ' ' + b.trich + ' ' + b.nguoi, q); });
+    var bt = (dl.bt || []).filter(function (b) { return !q || bdKhopTim(b.tieu_de + ' ' + b.trich + ' ' + b.nguoi + ' ' + (b.the || []).map(function (t) { return '#' + t; }).join(' '), q); });
     return bt.length ? bt.map(bdTheBanThao).join('') : '<div class="card"><div class="emp" style="padding:18px">' + (q ? 'Không thấy bản thảo nào khớp "' + h(q) + '".' : 'Chưa có bản thảo nào.') + '</div></div>';
   }
   var ds = (dl.ds || []).filter(function (b) {
@@ -74307,30 +74315,89 @@ function bdDsLoc(dl) {
     return dau + bdTheLich(b);
   }).join('') : '<div class="card"><div class="emp" style="padding:18px">' + (q ? 'Không thấy bài nào khớp "' + h(q) + '".' : 'Chưa có bài nào ở mục này.') + '</div></div>';
 }
+/* v670 (anh Việt 17/11): dải chip trạng thái ở đầu màn thay thẻ "2 bài chưa hẹn giờ"
+   lệch dòng. Đủ mọi loại chip lọc của Danh sách, mỗi chip một số đếm canh giữa trong
+   viên tròn; bấm chip nào cũng mở Danh sách lọc đúng loại đó. Số đếm lấy từ máy chủ
+   (viec.dem, một nguồn với câu lọc), không tự đếm ở máy. Chip đang chọn tô đậm khi đang
+   ở Danh sách; Danh sách không còn hàng chip riêng. */
+var BD_DAI_MAU = { '': '#05323C', chua_gio: '#667085' };
+function bdDaiTrangThai(dl) {
+  var v = dl.viec || {}, dem = v.dem || { chua_gio: v.chua_gio || 0, 'Chờ duyệt': v.cho_duyet || 0 };
+  var o = BD_DS_LOC;
+  return '<div class="card bd-dai" style="padding:8px;margin-bottom:10px"><div style="display:flex;flex-direction:row;flex-wrap:nowrap;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">' +
+    o.map(function (x) {
+      var k = x[0], so = +dem[k] || 0, on = BD.xem === 'ds' && BD.tt === k;
+      var mau = BD_DAI_MAU[k] || bdTtMau(k).mau;
+      return '<button data-bdviec="' + h(k) + '" aria-pressed="' + on + '" aria-label="' + h(x[1]) + ': ' + so + ' bài" ' +
+        'style="flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 6px 0 14px;border-radius:999px;cursor:pointer;font:inherit;white-space:nowrap;' +
+        'border:1.5px solid ' + (on ? '#05323C' : '#d7dce5') + ';background:' + (on ? '#05323C' : '#fff') + ';color:' + (on ? '#fff' : so ? '#1d2939' : '#98a2b3') + '">' +
+        '<span style="font-size:14px;font-weight:' + (on ? 800 : 600) + ';line-height:1">' + h(x[1]) + '</span>' +
+        '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 7px;box-sizing:border-box;border-radius:14px;' +
+        'font-size:13.5px;font-weight:800;line-height:28px;padding-top:1px;font-variant-numeric:tabular-nums;background:' + (on ? '#fff' : so ? mau : '#f2f4f7') + ';color:' + (on ? '#05323C' : so ? '#fff' : '#98a2b3') + '">' + so + '</span></button>';
+    }).join('') + '</div></div>';
+}
 function bdDanhSach(dl) {
-  return '<div style="margin-top:10px">' + kmHangChip(BD_DS_LOC.map(function (x) { return bdChip('data-bdloctt="' + h(x[0]) + '"', h(x[1]), BD.tt === x[0]); }).join('')) + '</div>' +
-    bdOTim('Tìm theo tên bài, kênh, trạng thái') +
+  return bdOTim('Tìm theo tên bài, kênh, trạng thái') +
     '<div style="font-size:13px;color:#667085;margin:10px 2px 8px">' + h(dl.ky_chu || '') + '</div>' +
     '<div id="bdDsO">' + bdDsLoc(dl) + '</div>';
 }
 
 function bdTheBanThao(b) {
-  return '<button data-bdbai="' + h(b.name) + '" class="card" style="display:flex;flex-direction:row;gap:12px;width:100%;box-sizing:border-box;text-align:left;border:0;font:inherit;color:inherit;cursor:pointer;padding:12px;align-items:flex-start;margin:0 0 8px">' +
+  var nhan = b.cho_gd ? ' · Chờ giám đốc duyệt' : b.tra ? ' · Giám đốc trả lại' : b.trang_thai === 'Chờ duyệt' ? ' · Chờ duyệt' : '';
+  return '<div style="position:relative;margin:0 0 8px">' +
+    '<button data-bdbai="' + h(b.name) + '" class="card" style="display:flex;flex-direction:row;gap:12px;width:100%;box-sizing:border-box;text-align:left;border:0;font:inherit;color:inherit;cursor:pointer;padding:12px 52px 12px 12px;align-items:flex-start;margin:0">' +
     (b.anh ? '<span style="flex:0 0 56px;height:56px;border-radius:10px;background:#f2f4f7 center/cover no-repeat url(' + h(b.anh) + ')"></span>'
       : '<span style="flex:0 0 56px;height:56px;border-radius:10px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font-size:22px">📝</span>') +
     '<span style="flex:1;min-width:0"><b style="display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(b.tieu_de) + '</b>' +
     (b.trich ? '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;color:#475467;line-height:1.4;margin-top:2px">' + h(b.trich) + '</span>' : '') +
+    ((b.the || []).length ? '<span style="display:block;font-size:13px;font-weight:700;color:#0B7C93;margin-top:4px;line-height:1.5">' + b.the.map(function (t) { return '#' + h(t); }).join(' ') + '</span>' : '') +
     '<span style="display:block;font-size:13px;color:#98a2b3;margin-top:4px">Sửa ' + h(bdLucChu(b.luc)) + ' · ' + h(b.nguoi || '') + (b.so_anh ? ' · ' + b.so_anh + ' ảnh' : ' · chưa có ảnh') +
-    (b.trang_thai === 'Chờ duyệt' ? ' · Chờ duyệt' : '') + '</span></span></button>';
+    '<b style="color:' + (b.tra ? '#b42318' : '#b54708') + '">' + h(nhan) + '</b></span></span></button>' +
+    '<button data-bdsao="' + h(b.name) + '" aria-pressed="' + (b.sao ? 'true' : 'false') + '" aria-label="' + (b.sao ? 'Bỏ sao' : 'Gắn sao') + '" ' +
+    'style="position:absolute;top:4px;right:4px;width:44px;height:44px;border:0;background:none;font-size:22px;cursor:pointer;color:' + (b.sao ? '#f79009' : '#c0c5cf') + '">' + (b.sao ? '★' : '☆') + '</button></div>';
+}
+/* Sổ chủ đề (anh Việt 17/11/2026, phương án A như sổ Evernote): máy tính có cột chủ đề
+   bên trái, điện thoại là dải chip. Lọc chủ đề, sao, thẻ ở máy chủ (trước giới hạn 200). */
+function bdMucCd(cdl) {
+  var ds = [['*', '⭐', 'Gắn sao', cdl.so_sao], ['', '🗂️', 'Tất cả', cdl.tong]];
+  (cdl.ds || []).forEach(function (x) { ds.push([x.ma, x.bt || '🗂️', x.ten, x.so]); });
+  if (cdl.khong_chu_de) ds.push(['-', '📂', 'Chưa có chủ đề', cdl.khong_chu_de]);
+  return ds;
+}
+function bdTenCd(cdl, ma) {
+  var m = bdMucCd(cdl).filter(function (x) { return x[0] === ma; })[0];
+  return m ? m[1] + ' ' + m[2] : '🗂️ Tất cả';
 }
 function bdKhoBanThao(dl) {
-  return '<div class="card" style="padding:12px 14px;margin-top:10px">' +
-    '<div style="font-size:14px;line-height:1.5;color:#475467">Bản thảo là bài chưa hẹn giờ. Mọi người cùng sửa một bản ngay tại đây, không cần gửi ghi chú qua lại. Có ảnh và giờ đăng thì bài lên lịch.</div>' +
-    '<button class="btn gh" data-bdnhap="1" style="margin:10px 0 0;width:100%;min-height:44px;font-size:15px">📄 Nhập tệp Word, Excel thành bản thảo</button>' +
-    '<div style="font-size:13px;color:#667085;margin-top:8px;line-height:1.45">Word hoặc tệp chữ: mỗi tệp thành một bản thảo. Excel: mỗi dòng một bản thảo; cột Nội dung bắt buộc, có cột Tiêu đề, Ngày, Giờ, Kênh thì hệ thống điền sẵn.</div></div>' +
-    bdOTim('Tìm bản thảo theo tên, nội dung, người sửa') +
+  var cdl = dl.chu_de || { ds: [] }, muc = bdMucCd(cdl), cdThat = (cdl.ds || []).some(function (x) { return x.ma === BD.cd; });
+  var cot = '<div class="bd-cot card" style="display:none;padding:8px">' +
+    '<div style="font-size:13px;font-weight:800;color:#667085;margin:4px 8px 6px">CHỦ ĐỀ</div>' +
+    muc.map(function (x, i) {
+      var on = x[0] === BD.cd;
+      return (i === 2 ? '<div style="border-top:1px solid #eaecf0;margin:4px 8px"></div>' : '') +
+        '<button data-bdcd="' + h(x[0]) + '" aria-pressed="' + on + '" style="display:flex;align-items:center;gap:8px;width:100%;min-height:44px;border:0;border-radius:10px;padding:0 10px;font:inherit;font-size:14px;text-align:left;cursor:pointer;' +
+        'background:' + (on ? '#E4F9FD' : 'none') + ';font-weight:' + (on ? 800 : 600) + ';color:#101828"><span style="flex:0 0 22px">' + x[1] + '</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(x[2]) + '</span>' +
+        '<span style="font-size:13px;color:#98a2b3;font-weight:600">' + (x[3] || '') + '</span></button>';
+    }).join('') +
+    (cdl.sua ? '<button class="btn gh" data-bdcdmoi="1" style="margin:8px 0 0;width:100%;min-height:44px;font-size:14px">＋ Chủ đề mới</button>' : '') + '</div>';
+  var chip = '<div class="bd-chipcd" style="display:flex;gap:7px;overflow-x:auto;margin:10px -12px 0;padding:0 12px 2px">' +
+    muc.map(function (x) { return bdChip('data-bdcd="' + h(x[0]) + '"', x[1] + ' ' + h(x[2]) + (x[3] ? ' <span style="opacity:.7">' + x[3] + '</span>' : ''), x[0] === BD.cd); }).join('') +
+    (cdl.sua ? bdChip('data-bdcdmoi="1" aria-label="Chủ đề mới"', '＋', false) : '') + '</div>';
+  var the = {};
+  (dl.bt || []).forEach(function (b) { (b.the || []).forEach(function (t) { the[t] = (the[t] || 0) + 1; }); });
+  var theDs = Object.keys(the).sort(function (a, c) { return the[c] - the[a] || (a < c ? -1 : 1); }).slice(0, 12);
+  if (BD.theLoc && theDs.indexOf(BD.theLoc) < 0) theDs.unshift(BD.theLoc);
+  var phai = '<div>' + chip +
+    '<div style="display:flex;align-items:center;gap:8px;margin:12px 2px 0"><b style="flex:1;min-width:0;font-size:16px">' + h(bdTenCd(cdl, BD.cd)) + '</b>' +
+    (cdThat && cdl.sua ? '<button data-bdcdsua="' + h(BD.cd) + '" style="min-height:44px;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:#0B7C93;padding:0 6px">✏️ Sửa chủ đề</button>' : '') + '</div>' +
+    '<button class="btn gh" data-bdnhap="1" style="margin:8px 0 0;width:100%;min-height:44px;font-size:15px">📄 Nhập tệp Word, Excel thành bản thảo' + (cdThat ? ' vào chủ đề này' : '') + '</button>' +
+    '<div style="font-size:13px;color:#667085;margin-top:6px;line-height:1.45">Word hoặc tệp chữ: mỗi tệp một bản thảo. Excel: mỗi dòng một bản thảo, cột Nội dung bắt buộc; có cột Tiêu đề, Ngày, Giờ, Kênh thì hệ thống điền sẵn.</div>' +
+    bdOTim('Tìm trong ' + bdTenCd(cdl, BD.cd).replace(/^\S+ /, '') + ': tên, nội dung, #thẻ') +
+    (theDs.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span style="font-size:13px;color:#667085;font-weight:700">Lọc thẻ</span>' +
+      theDs.map(function (t) { var on = t === BD.theLoc; return '<button data-bdlocthe="' + h(t) + '" aria-pressed="' + on + '" style="min-height:44px;border:0;border-radius:999px;padding:0 12px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;background:' + (on ? '#05323C' : '#E4F9FD') + ';color:' + (on ? '#fff' : '#0B7C93') + '">#' + h(t) + (on ? ' ✕' : '') + '</button>'; }).join('') + '</div>' : '') +
     '<div style="font-size:13px;color:#667085;margin:10px 2px 8px">' + h(dl.ky_chu || '') + '</div>' +
-    '<div id="bdDsO">' + bdDsLoc(dl) + '</div>';
+    '<div id="bdDsO">' + bdDsLoc(dl) + '</div></div>';
+  return '<div class="bd-bt" style="margin-top:10px">' + cot + phai + '</div>';
 }
 function bdNhap() {
   var inp = document.createElement('input');
@@ -74350,7 +74417,7 @@ async function bdNhapTep(f) {
     var r = await fetch('/api/method/upload_file', { method: 'POST', headers: hd, body: fd }), j = {};
     try { j = await r.json(); } catch (e) { }
     if (!r.ok || !j.message || !j.message.file_url) throw new Error('Chưa tải được tệp ' + f.name + '. Tệp có thể quá nặng; thử tệp dưới 10 MB.');
-    dl = await api(BD_P + 'nhap_tep', { file_url: j.message.file_url });
+    dl = await api(BD_P + 'nhap_tep', { file_url: j.message.file_url, chu_de: bdCdThat() });
   } catch (e) { busy(false); return bdLoi(e); }
   busy(false);
   toast('Đã tạo ' + dl.so + ' bản thảo' + (dl.hen ? '; ' + dl.hen + ' bản có sẵn giờ hẹn nằm trên lịch' : ''), 4500);
@@ -74366,20 +74433,12 @@ async function scrBaiDang(dl) {
     /* Bấm đổi Tuần, Tháng, lọc kênh liên tiếp: lượt trả lời cũ đến muộn không được vẽ đè lượt mới. */
     var luot = BD.luot = (BD.luot || 0) + 1;
     frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc lịch đăng bài...</div></div>');
-    try { dl = await api(BD_P + 'lich', { xem: BD.xem, moc: BD.moc, kenh: BD.loc.join(','), trang_thai: BD.xem === 'ds' ? BD.tt : '' }); }
+    try { dl = await api(BD_P + 'lich', { xem: BD.xem, moc: BD.moc, kenh: BD.loc.join(','), trang_thai: BD.xem === 'ds' ? BD.tt : '', chu_de: BD.xem === 'bt' ? BD.cd : '', the: BD.xem === 'bt' ? BD.theLoc : '' }); }
     catch (e) { if (luot !== BD.luot) return; return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)) + '<div style="margin-top:6px">Mở lại màn, hoặc báo quản trị hệ thống.</div>')); }
     if (luot !== BD.luot) return;
   }
   BD.dl = dl; BD.moc = dl.moc;
-  var viec = dl.viec || {};
-  var oViec = function (tt, so, chu, mau) {
-    return so ? '<button data-bdviec="' + h(tt) + '" style="flex:1;min-width:0;min-height:52px;border:0;background:none;font:inherit;text-align:left;cursor:pointer;padding:4px 6px">' +
-      '<b style="font-size:20px;color:' + mau + '">' + so + '</b> <span style="font-size:13.5px;font-weight:600">' + chu + ' ›</span></button>' : '';
-  };
-  var coViec = viec.cho_duyet || viec.dang_tay || viec.chua_gio;
-  var html = (coViec ? '<div class="card" style="padding:2px 8px;display:flex;flex-direction:row;gap:2px;flex-wrap:wrap">' +
-      oViec('Chờ duyệt', viec.cho_duyet, 'bài chờ duyệt', '#f79009') + oViec('Chờ đăng tay', viec.dang_tay, 'kênh chờ đăng tay', '#7a5af8') +
-      oViec('chua_gio', viec.chua_gio, 'bài chưa hẹn giờ', '#667085') + '</div>' : '') +
+  var html = bdDaiTrangThai(dl) +
     bdPhanDoan('data-bdxem', [['tuan', 'Tuần'], ['thang', 'Tháng'], ['ds', 'Danh sách'], ['bt', 'Bản thảo']], BD.xem) +
     (BD.xem === 'bt' ? bdKhoBanThao(dl) : (BD.xem === 'ds' ? '' : '<div style="display:flex;align-items:center;gap:6px;margin-top:10px">' +
       '<button class="btn gh" data-bdlui="-1" aria-label="Kỳ trước" style="margin:0;width:44px;min-height:44px;padding:0;font-size:20px">‹</button>' +
@@ -74400,7 +74459,6 @@ async function scrBaiDang(dl) {
     var t;
     if ((t = e.target.closest('[data-bdxem]'))) { BD.xem = t.getAttribute('data-bdxem'); BD.tim = ''; return scrBaiDang(); }
     if ((t = e.target.closest('[data-bdviec]'))) { BD.xem = 'ds'; BD.tt = t.getAttribute('data-bdviec'); return scrBaiDang(); }
-    if ((t = e.target.closest('[data-bdloctt]'))) { BD.tt = t.getAttribute('data-bdloctt'); return scrBaiDang(); }
     if ((t = e.target.closest('[data-bdngay]'))) { BD.ngay = t.getAttribute('data-bdngay'); if (BD.xem === 'thang') { BD.xem = 'tuan'; BD.moc = BD.ngay; return scrBaiDang(); } return scrBaiDang(BD.dl); }
     if ((t = e.target.closest('[data-bdlockenh]'))) {
       var k = t.getAttribute('data-bdlockenh');
@@ -74416,6 +74474,11 @@ async function scrBaiDang(dl) {
     if ((t = e.target.closest('[data-bdbai]'))) { var ma = t.getAttribute('data-bdbai'); return go(function () { return scrBaiDangSoan(ma); }); }
     if ((t = e.target.closest('[data-bdtrong]'))) return bdTaoBai(t.getAttribute('data-bdtrong'));
     if (e.target.closest('[data-bdnhap]')) return bdNhap();
+    if ((t = e.target.closest('[data-bdcd]'))) { BD.cd = t.getAttribute('data-bdcd'); BD.theLoc = ''; BD.tim = ''; return scrBaiDang(); }
+    if ((t = e.target.closest('[data-bdlocthe]'))) { var th = t.getAttribute('data-bdlocthe'); BD.theLoc = BD.theLoc === th ? '' : th; return scrBaiDang(); }
+    if ((t = e.target.closest('[data-bdsao]'))) return bdSaoThe(t);
+    if (e.target.closest('[data-bdcdmoi]')) return bdSheetChuDe(null, function () { scrBaiDang(); });
+    if ((t = e.target.closest('[data-bdcdsua]'))) return bdSheetChuDe(t.getAttribute('data-bdcdsua'), function () { scrBaiDang(); });
   };
   b.oninput = function (e) {
     if (e.target.id !== 'bdTim') return;
@@ -74425,10 +74488,67 @@ async function scrBaiDang(dl) {
   };
 }
 
+/* Mã chủ đề đang mở ở Kho bản thảo (không tính Gắn sao, Tất cả, Chưa có chủ đề). */
+function bdCdThat() {
+  var cdl = (BD.dl && BD.dl.chu_de) || { ds: [] };
+  return (cdl.ds || []).some(function (x) { return x.ma === BD.cd; }) ? BD.cd : '';
+}
+/* Gắn, bỏ sao ngay trên thẻ bản thảo: đổi tại chỗ, không vẽ lại cả danh sách. */
+async function bdSaoThe(t) {
+  var ma = t.getAttribute('data-bdsao'), moi = t.getAttribute('aria-pressed') === 'true' ? 0 : 1, dl;
+  try { dl = await api(BD_P + 'gan_sao', { ma: ma, sao: moi }); } catch (e) { return bdLoi(e); }
+  (BD.dl && BD.dl.bt || []).forEach(function (b) { if (b.name === ma) b.sao = dl.sao; });
+  if (BD.dl && BD.dl.chu_de) BD.dl.chu_de.so_sao = Math.max(0, (BD.dl.chu_de.so_sao || 0) + (dl.sao ? 1 : -1));
+  if (BD.cd === '*' && !dl.sao) return scrBaiDang();
+  t.setAttribute('aria-pressed', dl.sao ? 'true' : 'false'); t.setAttribute('aria-label', dl.sao ? 'Bỏ sao' : 'Gắn sao');
+  t.textContent = dl.sao ? '★' : '☆'; t.style.color = dl.sao ? '#f79009' : '#c0c5cf';
+  toast(dl.sao ? 'Đã gắn sao' : 'Đã bỏ sao');
+}
+var BD_BT = ['🗂️', '🎉', '📱', '🥐', '🎂', '🍰', '🧋', '☕', '🏛️', '🍂', '🌸', '🍓', '📚', '🎓', '🤝', '🧺', '🎁', '📣', '⭐', '💡'];
+/* Tạo hay sửa một chủ đề: tên, biểu tượng, chân bài mẫu (mỗi dòng một câu). */
+async function bdSheetChuDe(ma, xong) {
+  var cdl;
+  try { cdl = await api(BD_P + 'chu_de_ds', {}); } catch (e) { return bdLoi(e); }
+  var cd = (cdl.ds || []).filter(function (x) { return x.ma === ma; })[0] || { ten: '', bt: '🗂️', cta: [] };
+  var chon = cd.bt || '🗂️';
+  var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 10px">' + (ma ? 'Sửa chủ đề' : 'Chủ đề mới') + '</div>' +
+    '<div style="font-size:14px;font-weight:700;margin:0 2px 6px">Tên chủ đề</div>' +
+    '<input class="tin" id="bdCdTen" value="' + h(cd.ten) + '" placeholder="Ví dụ: Giới thiệu bánh ổ" style="font-size:16px;text-align:left;padding:0 12px">' +
+    '<div style="font-size:14px;font-weight:700;margin:12px 2px 6px">Biểu tượng</div>' +
+    '<div id="bdCdBt" style="display:flex;flex-wrap:wrap;gap:4px">' + BD_BT.map(function (x) {
+      return '<button data-bdcdbt="' + x + '" aria-pressed="' + (x === chon) + '" style="width:44px;height:44px;border-radius:10px;font-size:22px;cursor:pointer;border:' + (x === chon ? '2px solid #05323C' : '1px solid #e4e7ec') + ';background:' + (x === chon ? '#E4F9FD' : '#fff') + '">' + x + '</button>';
+    }).join('') + '</div>' +
+    '<div style="font-size:14px;font-weight:700;margin:12px 2px 2px">Chân bài (CTA) mẫu</div>' +
+    '<div style="font-size:13px;color:#667085;margin:0 2px 6px;line-height:1.45">Mỗi dòng một câu. Khi soạn bài thuộc chủ đề này, các câu hiện sẵn để tích thêm vào cuối chữ mọi kênh.</div>' +
+    '<textarea class="nt" id="bdCdCta" rows="5" style="font-size:15px">' + h((cd.cta || []).join('\n')) + '</textarea>' +
+    '<button class="btn" data-bdcdluu="1" style="margin:12px 0 0">' + (ma ? 'Lưu chủ đề' : 'Tạo chủ đề') + '</button>');
+  ov.onclick = async function (e) {
+    var t;
+    if (e.target === ov) return ov.remove();
+    if ((t = e.target.closest('[data-bdcdbt]'))) {
+      chon = t.getAttribute('data-bdcdbt');
+      ov.querySelectorAll('[data-bdcdbt]').forEach(function (b) { var on = b === t; b.setAttribute('aria-pressed', on); b.style.border = on ? '2px solid #05323C' : '1px solid #e4e7ec'; b.style.background = on ? '#E4F9FD' : '#fff'; });
+      return;
+    }
+    if (!e.target.closest('[data-bdcdluu]')) return;
+    var ten = ov.querySelector('#bdCdTen').value.trim();
+    if (!ten) return toast('Ghi tên chủ đề.');
+    var kq;
+    try { kq = await api(BD_P + 'chu_de_luu', { ma: ma || '', ten: ten, bieu_tuong: chon, cta: JSON.stringify(ov.querySelector('#bdCdCta').value.split('\n')) }); }
+    catch (er) { return bdLoi(er); }
+    ov.remove();
+    toast(ma ? 'Đã lưu chủ đề' : 'Đã tạo chủ đề ' + ten);
+    if (!ma && BD.xem === 'bt') BD.cd = kq.ma;
+    if (xong) xong(kq);
+  };
+}
+
 async function bdTaoBai(hen) {
   busy(true);
   var dl;
-  try { dl = await api(BD_P + 'tao', { hen_luc: hen || '' }); } catch (e) { busy(false); return bdLoi(e); }
+  var ts = { hen_luc: hen || '' }, cd = BD.xem === 'bt' ? bdCdThat() : '';
+  if (cd) ts.chu_de = cd;
+  try { dl = await api(BD_P + 'tao', ts); } catch (e) { busy(false); return bdLoi(e); }
   busy(false);
   go(function () { return scrBaiDangSoan(dl.bai.name, dl); });
 }
@@ -74523,6 +74643,14 @@ function bdTheXem(bai, k, on) {
   var dong = String(ban.chu || '').split('\n').reduce(function (a, d) { return a + Math.max(1, Math.ceil(d.length / 37)); }, 0);
   var chu = '<textarea data-bdchu="' + k + '"' + (khoa ? ' readonly' : '') + ' rows="' + Math.min(12, Math.max(3, dong + 1)) + '" placeholder="Chữ đăng ' + kn.ten + '" ' +
     'style="display:block;width:100%;box-sizing:border-box;border:0;padding:8px 12px;font:inherit;font-size:14.5px;line-height:1.5;resize:none;background:transparent">' + h(ban.chu || '') + '</textarea>';
+  var nutK = function (kieu, nhan, kieuChu) {
+    return '<button data-bdkieuchu="' + kieu + '" data-k="' + k + '" style="min-height:44px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;font:inherit;font-size:14px;padding:0 12px;cursor:pointer;' + kieuChu + '">' + nhan + '</button>';
+  };
+  /* Thanh kiểu chữ: bôi đen rồi chạm. Không hiện khi bài đã khoá. */
+  var thanhKieu = khoa ? '' : '<div style="display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px 0">' +
+    nutK('d', 'Đậm', 'font-weight:800') + nutK('n', 'Nghiêng', 'font-style:italic') + nutK('dn', 'Đậm nghiêng', 'font-weight:800;font-style:italic') + nutK('bo', 'Bỏ kiểu', 'color:#667085') +
+    '<button data-bdbieutuong="' + k + '" style="min-height:44px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;font:inherit;font-size:14px;padding:0 12px;cursor:pointer">✨ Biểu tượng</button></div>';
+  chu = thanhKieu + chu;
   var anhHtml = k === 'fb' ? bdAnhFb(anh) : bdAnhBang(anh, k === 'zl' ? '16:9' : '4:5');
   var tieuDeZl = k === 'zl' ? '<input data-bdtieude="zl"' + (khoa ? ' readonly' : '') + ' value="' + h(ban.tieu_de || '') + '" placeholder="Tiêu đề bài viết Zalo OA" style="display:block;width:100%;box-sizing:border-box;border:0;padding:10px 12px 0;font:inherit;font-size:16px;font-weight:800;min-height:44px">' : '';
   /* Facebook: chữ trên ảnh; Instagram: ảnh trước chữ; Threads: chữ trước ảnh; Zalo OA: ảnh bìa, tiêu đề, chữ. */
@@ -74600,17 +74728,105 @@ function bdNutDay(bai, duyet) {
   if (bai.sua) {
     var chan = (bai.kiem || []).filter(function (x) { return x.muc === 'chan'; }).length;
     var viec = bai.hen_luc ? 'hẹn ' + bdLucChu(bai.hen_luc) : (bai.tu_dong || []).length ? 'đăng ngay' : 'đăng tay ngay';
-    if (!duyet) return bai.trang_thai === 'Chờ duyệt' ? '<button class="btn gh" disabled style="margin:0">Đã gửi, chờ Marketing duyệt</button>'
+    if (!duyet) return bai.trang_thai === 'Chờ duyệt' ? '<button class="btn gh" disabled style="margin:0">Đã gửi, chờ ' + (bai.cho_gd ? 'giám đốc' : 'Marketing') + ' duyệt</button>'
       : '<button class="btn" data-bdgui="1"' + (chan ? ' disabled style="margin:0;background:#fef3f2;color:#b42318;border:1.5px solid #fda29b"' : ' style="margin:0"') + '>' +
         (chan ? 'Còn ' + chan + ' lỗi đỏ, sửa xong mới gửi được' : 'Gửi Marketing duyệt') + '</button>';
-    return '<button class="btn" data-bdduyet="1"' + (chan ? ' disabled style="margin:0;background:#fef3f2;color:#b42318;border:1.5px solid #fda29b"' : ' style="margin:0"') + '>' +
-      (chan ? 'Còn ' + chan + ' lỗi đỏ, sửa xong mới duyệt được' : 'Duyệt · ' + viec + ' · ' + (bai.kenh_chon || []).length + ' kênh') + '</button>';
+    var soK = (bai.kenh_chon || []).length;
+    /* v666: giám đốc mở bài đang chờ mình duyệt. Đồng ý nội dung (bài chưa đủ ảnh, giờ vẫn
+       được), Trả lại kèm góp ý; bài đủ điều kiện thì thêm nút Duyệt để đăng luôn. */
+    var hangGd = bai.cho_gd && BD.laGd ? '<div style="display:flex;gap:8px;margin-top:' + (chan ? 0 : 8) + 'px">' +
+      '<button class="btn" data-bdgdok="1" style="margin:0;flex:1;background:#067647;color:#fff">✓ Đồng ý nội dung</button>' +
+      '<button class="btn gh" data-bdgdtra="1" style="margin:0;flex:1">↩ Trả lại</button></div>' : '';
+    var nutDuyet = '<button class="btn" data-bdduyet="1"' + (chan ? ' disabled style="margin:0;flex:1;background:#fef3f2;color:#b42318;border:1.5px solid #fda29b"' : ' style="margin:0;flex:1"') + '>' +
+      (chan ? 'Còn ' + chan + ' lỗi đỏ, sửa xong mới duyệt được' : 'Duyệt · ' + viec + ' · ' + soK + ' kênh') + '</button>';
+    if (hangGd && chan) return hangGd;
+    if (!bai.hen_luc) return nutDuyet + hangGd;
+    /* Bài có giờ hẹn: thêm nút Đăng ngay (anh Việt 17/11/2026). Đăng ngay bỏ giờ hẹn nên lỗi
+       đỏ về giờ (giờ hẹn đã qua, trùng giờ bài khác) không chặn nút này; máy chủ kiểm lại. */
+    var chanNgay = (bai.kiem || []).filter(function (x) { return x.muc === 'chan' && !(x.nut && x.nut[0] === 'gio'); }).length;
+    return '<div style="display:flex;gap:8px;flex-wrap:wrap">' + nutDuyet +
+      '<button class="btn" data-bddangngay="1"' + (chanNgay ? ' disabled' : '') + ' style="margin:0;flex:0 0 auto;min-width:150px;background:' + (chanNgay ? '#f2f4f7;color:#98a2b3' : '#0B7C93;color:#fff') + '">⚡ Đăng ngay</button></div>' + hangGd;
   }
   if (bai.trang_thai === 'Đã hẹn giờ' || bai.trang_thai === 'Chờ đăng tay') {
     var daLen = (bai.kenh || []).some(function (x) { return x.tt === 'Đã đăng'; });
     return daLen ? '' : '<button class="btn gh" data-bdtrave="1" style="margin:0">Trả về nháp để sửa</button>';
   }
   return '';
+}
+
+/* v666: dải trạng thái giám đốc duyệt ở đầu bài. */
+function bdBangGd(bai) {
+  var o = function (nen, vien, chu, than) {
+    return '<div class="card" style="order:0;margin:0 0 12px;padding:12px 14px;background:' + nen + ';border:1px solid ' + vien + '"><div style="font-size:14px;font-weight:800;color:' + chu + '">' + than[0] + '</div>' +
+      (than[1] ? '<div style="font-size:14px;line-height:1.5;color:#344054;margin-top:4px;white-space:pre-line">' + than[1] + '</div>' : '') + '</div>';
+  };
+  if (bai.cho_gd) return o('#fffaeb', '#fedf89', '#b54708', ['👔 Đang chờ giám đốc duyệt', h((bai.gui_gd ? bai.gui_gd + ' gửi ' : 'Gửi ') + (bdLucChu(bai.gui_gd_luc) || '')) +
+    (BD.laGd ? '<br>Bấm Đồng ý nội dung khi chữ đã ổn, Duyệt để đăng luôn, hoặc Trả lại kèm góp ý. Sửa chữ trực tiếp được.' : '')]);
+  if (bai.ly_do_tra && bai.sua) return o('#fef3f2', '#fecdca', '#b42318', ['↩ Giám đốc trả lại, góp ý:', h(bai.ly_do_tra) + '<br><span style="color:#667085">Sửa xong bấm Gửi giám đốc duyệt, hoặc tự duyệt.</span>']);
+  if (bai.gd_dong_y_luc && bai.sua) return o('#ecfdf3', '#abefc6', '#067647', ['✓ Giám đốc đã đồng ý nội dung ' + h(bdLucChu(bai.gd_dong_y_luc)), 'Thêm ảnh, chọn giờ rồi bấm Duyệt để đăng.']);
+  return '';
+}
+/* v666: chân bài (CTA). Câu mẫu của chủ đề cộng câu bài đang dùng; tích là thêm vào cuối
+   chữ mọi kênh, bỏ tích là gỡ. Máy chủ đổi chữ (một nguồn), màn vẽ lại bằng chữ trả về. */
+function bdCacCta(bai) {
+  var ds = ((bai.chu_de || {}).cta || []).slice();
+  (bai.chan_bai || []).forEach(function (x) { if (ds.indexOf(x) < 0) ds.push(x); });
+  return ds;
+}
+function bdTheCta(bai) {
+  var ds = bdCacCta(bai), dang = bai.chan_bai || [];
+  var moiTrongMau = dang.filter(function (x) { return ((bai.chu_de || {}).cta || []).indexOf(x) < 0; }).length;
+  return '<div style="font-size:13px;font-weight:800;color:#667085;margin:14px 2px 2px">CHÂN BÀI (CTA)</div>' +
+    '<div style="font-size:13px;color:#667085;margin:0 2px 6px;line-height:1.45">Tích để thêm vào cuối chữ mọi kênh' + (bai.chu_de ? '. Gợi ý theo chủ đề ' + h(bai.chu_de.ten) : '. Chọn chủ đề để có câu mẫu') + '.</div>' +
+    '<div class="card" style="padding:6px 8px">' +
+    ds.map(function (x, i) {
+      var on = dang.indexOf(x) >= 0;
+      return '<button data-bdcta="' + i + '" aria-pressed="' + on + '" style="display:flex;align-items:center;gap:10px;width:100%;min-height:48px;border:1px solid ' + (on ? '#05323C' : '#eaecf0') + ';border-radius:12px;background:' + (on ? '#E4F9FD' : '#fff') + ';font:inherit;font-size:14px;line-height:1.4;text-align:left;padding:6px 10px;margin:4px 0;cursor:pointer;color:#101828">' +
+        '<span style="flex:0 0 22px;height:22px;border-radius:6px;border:2px solid ' + (on ? '#05323C' : '#c0c5cf') + ';background:' + (on ? '#05323C' : '#fff') + ';color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center">' + (on ? '✓' : '') + '</span>' +
+        '<span style="flex:1;min-width:0">' + h(x) + '</span></button>';
+    }).join('') +
+    '<div style="display:flex;gap:6px;margin:6px 0 2px"><input id="bdCtaMoi" placeholder="Thêm câu chân bài khác" style="flex:1;min-width:0;min-height:44px;border:1px solid #e4e7ec;border-radius:10px;padding:0 10px;font:inherit;font-size:15px">' +
+    '<button class="btn gh" data-bdctathem="1" style="margin:0;flex:0 0 auto;min-height:44px;width:auto;padding:0 14px;font-size:14px">Thêm</button></div>' +
+    (bai.chu_de && BD.duyet && moiTrongMau ? '<button data-bdctamau="1" style="width:100%;min-height:44px;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:#0B7C93">＋ Lưu ' + moiTrongMau + ' câu mới thành mẫu của chủ đề</button>' : '') + '</div>';
+}
+async function bdCtaDoi(ds) { return bdLuuVeLai({ chan_bai: ds }); }
+async function bdSheetChonChuDe() {
+  var cdl;
+  try { cdl = await api(BD_P + 'chu_de_ds', {}); } catch (e) { return bdLoi(e); }
+  var dang = bdGt('chu_de') || '';
+  var nut = function (ma, ic, ten, phu) {
+    var on = ma === dang;
+    return '<button data-bdchoncd="' + h(ma) + '" data-bdcdten="' + h(ten) + '" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;min-height:52px;border:' + (on ? '2px solid #05323C' : '1px solid #e4e7ec') + ';border-radius:14px;background:' + (on ? '#E4F9FD' : '#fff') + ';font:inherit;padding:6px 12px;margin-bottom:6px;cursor:pointer">' +
+      '<span style="font-size:20px">' + ic + '</span><span style="flex:1;min-width:0"><b style="font-size:15px">' + h(ten) + (on ? ' ✓' : '') + '</b>' + (phu ? '<div style="font-size:13px;color:#667085">' + h(phu) + '</div>' : '') + '</span></button>';
+  };
+  var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Chủ đề</div>' +
+    '<div style="font-size:13px;color:#667085;margin:0 2px 10px;line-height:1.45">Bản thảo nằm trong sổ chủ đề này ở Kho bản thảo, AI viết đúng loại bài, và chân bài mẫu của chủ đề hiện sẵn để tích.</div>' +
+    /* Codex #585: hơn 8 chủ đề thì phải có ô tìm (AGENTS mục 2b.2). Lọc tại chỗ, bỏ dấu,
+       khớp mọi từ; dòng "Không thuộc chủ đề nào" luôn hiện. */
+    ((cdl.ds || []).length > 8 ? '<input class="tin" id="bdCdTim" type="search" placeholder="Tìm chủ đề" style="font-size:16px;text-align:left;padding:0 12px;margin:0 0 8px">' : '') +
+    '<div id="bdCdDs" style="max-height:56vh;overflow:auto">' + (cdl.ds || []).map(function (x) { return nut(x.ma, x.bt || '🗂️', x.ten, x.cta.length ? x.cta.length + ' câu chân bài mẫu' : ''); }).join('') +
+    '<div id="bdCdRong" style="display:none;font-size:14px;color:#667085;padding:8px 4px 12px">Không thấy chủ đề nào khớp.</div>' +
+    nut('', '📂', 'Không thuộc chủ đề nào', '') + '</div>' +
+    (cdl.sua ? '<button class="btn gh" data-bdcdmoi2="1" style="margin:8px 0 0;min-height:44px">＋ Chủ đề mới</button>' : ''));
+  var o = ov.querySelector('#bdCdTim');
+  if (o) o.addEventListener('input', function () {
+    var con = 0;
+    ov.querySelectorAll('[data-bdchoncd]').forEach(function (b) {
+      if (!b.getAttribute('data-bdchoncd')) return;
+      var khop = bdKhopTim(b.getAttribute('data-bdcdten'), o.value);
+      b.style.display = khop ? 'flex' : 'none';
+      if (khop) con++;
+    });
+    ov.querySelector('#bdCdRong').style.display = con ? 'none' : 'block';
+  });
+  ov.onclick = function (e) {
+    var t;
+    if (e.target.closest('[data-bdcdmoi2]')) { ov.remove(); return bdSheetChuDe(null, function (kq) { bdLuuVeLai({ chu_de: kq.ma }); }); }
+    if (!(t = e.target.closest('[data-bdchoncd]'))) return;
+    ov.remove();
+    var ma = t.getAttribute('data-bdchoncd');
+    if (ma !== (bdGt('chu_de') || '')) bdLuuVeLai({ chu_de: ma });
+  };
 }
 
 function bdDongTinh(khoa, ic, nhan, gt, attr) {
@@ -74622,7 +74838,7 @@ function bdDongTinh(khoa, ic, nhan, gt, attr) {
 }
 
 function bdNhanBai(dl) {
-  BD.bai = dl.bai; BD.ban = dl.bai.ban_luu; BD.duyet = dl.duyet; BD.gioVang = dl.gio_vang || [];
+  BD.bai = dl.bai; BD.ban = dl.bai.ban_luu; BD.duyet = dl.duyet; BD.laGd = !!dl.la_gd; BD.gioVang = dl.gio_vang || [];
   BD.banMa[dl.bai.name] = dl.bai.ban_luu;
   /* Phần sửa đang chờ thuộc về MỘT bài. Mở bài khác, hoặc đã chọn "Rời đi, bỏ thay đổi"
      (câu hỏi Chưa lưu đã bị xoá) thì phần chờ cũ bỏ đi, không bao giờ ghi sang bài này. */
@@ -74633,20 +74849,21 @@ async function scrBaiDangSoan(ma, dl) {
   bdCss();
   if (!dl) {
     /* Mở bài từ lịch: kết quả lưu hỏng cũ của bài này (đã bỏ thay đổi) không còn giá trị. */
-    delete BD.loiMa[ma];
+    delete BD.loiMa[ma]; delete BD.dk[ma];
     frame('Bài đăng', '<div class="emp"><div class="e1">⏳</div><div>Đang mở bài...</div></div>');
     try { dl = await api(BD_P + 'xem', { ma: ma }); }
     catch (e) { return frame('Bài đăng', crmTrong('⚠️', h(errMsg(e)))); }
   }
   bdNhanBai(dl);
   var bai = dl.bai, tt = bdTtMau(bai.trang_thai), khoa = !bai.sua, story = bai.kieu === 'Story';
+  if (bai.cho_gd) tt = { ten: 'Chờ giám đốc duyệt', mau: tt.mau, nen: tt.nen };
   var chon = bai.kenh_chon || [];
   var tuDong = bai.tu_dong || [];
   var xemK = chon.indexOf(BD.xemK) >= 0 ? BD.xemK : chon[0];
   var dongY = String(bai.y_chinh || '').split('\n').reduce(function (a, d) { return a + Math.max(1, Math.ceil(d.length / 60)); }, 0);
   /* Cột trái: ảnh, thuộc tính, nội dung gốc, kiểm. Cột phải: xem trước. Mỗi khối có
      order để điện thoại (một cột) giữ thứ tự cũ: xem trước đứng trước bảng Kiểm. */
-  var trai = '<div style="order:1">' + bdKhayAnh(bai) + '</div>' +
+  var trai = bdBangGd(bai) + '<div style="order:1">' + bdKhayAnh(bai) + '</div>' +
     '<div class="card" style="order:2;padding:0 14px;margin-top:12px">' +
     '<div style="display:flex;align-items:center;gap:10px;min-height:50px"><span style="flex:0 0 22px;font-size:17px">🏷️</span><span style="flex:0 0 86px;font-size:14px;color:#667085">Trạng thái</span>' +
     '<span style="font-size:13px;font-weight:800;color:' + tt.mau + ';background:' + tt.nen + ';border-radius:999px;padding:5px 10px">' + h(tt.ten) + '</span>' +
@@ -74654,12 +74871,25 @@ async function scrBaiDangSoan(ma, dl) {
     bdDongTinh(khoa, '🖼️', 'Kiểu bài', h(bai.kieu || 'Bài đăng'), 'data-bdkieu="1"') +
     bdDongTinh(khoa, '📅', 'Lúc đăng', bai.hen_luc ? h(bdLucChu(bai.hen_luc)) : '<span style="color:#98a2b3;font-weight:600">Ngay khi duyệt</span>', 'data-bdgio="1"') +
     bdDongTinh(khoa, '📣', 'Kênh', BD_KENH.filter(function (x) { return !story || x.k === 'fb' || x.k === 'ig'; }).map(function (x) { return bdAvatar(x.k, 28, '', chon.indexOf(x.k) < 0); }).join('') +
-      '<span style="font-size:13px;color:#667085;font-weight:600">' + chon.length + ' kênh' + (tuDong.length ? ', ' + tuDong.length + ' tự đăng' : '') + '</span>', 'data-bdchonkenh="1"') + '</div>' +
+      '<span style="font-size:13px;color:#667085;font-weight:600">' + chon.length + ' kênh' + (tuDong.length ? ', ' + tuDong.length + ' tự đăng' : '') + '</span>', 'data-bdchonkenh="1"') +
+    bdDongTinh(khoa, '📁', 'Chủ đề', bai.chu_de ? h((bai.chu_de.bt || '') + ' ' + bai.chu_de.ten) : '<span style="color:#98a2b3;font-weight:600">Chưa chọn</span>', 'data-bdchude="1"') +
+    '<label style="display:flex;align-items:center;gap:10px;min-height:50px;border-top:1px solid #f2f4f7"><span style="flex:0 0 22px;font-size:17px">#</span><span style="flex:0 0 86px;font-size:14px;color:#667085">Thẻ</span>' +
+    '<input data-bdthevao="1"' + (khoa ? ' readonly' : '') + ' value="' + h((bai.the || []).map(function (t) { return '#' + t; }).join(' ')) + '" placeholder="#peachruby #millecrepes" ' +
+    'style="flex:1;min-width:0;min-height:44px;border:0;font:inherit;font-size:15px;font-weight:700;color:#0B7C93;background:transparent"></label>' +
+    '<button data-bdsaobai="1" aria-pressed="' + (bai.sao ? 'true' : 'false') + '" style="display:flex;align-items:center;gap:10px;width:100%;min-height:50px;border:0;border-top:1px solid #f2f4f7;background:none;font:inherit;text-align:left;padding:0;cursor:pointer;color:#101828">' +
+    '<span style="flex:0 0 22px;font-size:17px;color:#f79009">' + (bai.sao ? '★' : '☆') + '</span><span style="flex:0 0 86px;font-size:14px;color:#667085">Gắn sao</span>' +
+    '<span style="flex:1;font-size:13.5px;color:#667085">Bản thảo hay dùng lại, hiện ở mục Gắn sao</span>' + bdCongTac(bai.sao) + '</button></div>' +
     (khoa ? '<div style="order:3">' + bdViecDangTay(bai) + '</div>' : '') +
     (!khoa && !story ? '<div style="order:4"><div style="font-size:13px;font-weight:800;color:#667085;margin:14px 2px 6px">NỘI DUNG GỐC</div>' +
       '<div class="card" style="padding:4px 4px 8px"><textarea id="bdY" rows="' + Math.min(14, Math.max(3, dongY + 1)) + '" placeholder="Gõ hoặc dán nội dung: món, dịp, câu chuyện, ưu đãi nếu có. AI viết chữ từng kênh theo đúng nội dung này." style="display:block;width:100%;box-sizing:border-box;border:0;padding:8px 10px;font:inherit;font-size:15px;line-height:1.5;resize:vertical">' + h(bai.y_chinh || '') + '</textarea>' +
-      '<button class="btn' + (Object.keys(bai.ban || {}).some(function (k) { return (bai.ban[k] || {}).chu; }) ? ' gh' : '') + '" data-bdsoan="1" style="margin:0 6px;width:calc(100% - 12px);min-height:44px;font-size:15px">✨ AI soạn chữ cho ' + chon.length + ' kênh</button></div></div>' : '') +
-    (khoa ? '' : '<div id="bdKiemO" style="order:6">' + bdBangKiem(bai.kiem) + '</div>');
+      '<div style="border-top:1px solid #f2f4f7;margin:4px 6px 0;padding-top:6px"><div style="font-size:13px;font-weight:700;color:#667085;padding:0 4px">Muốn AI viết thế nào (không bắt buộc)</div>' +
+      '<textarea id="bdYc" rows="2" placeholder="Ví dụ: giọng khoa học, kể nguồn gốc Ruby Chocolate; Facebook dài, Threads một câu." style="display:block;width:100%;box-sizing:border-box;border:0;padding:6px 4px;font:inherit;font-size:15px;line-height:1.5;resize:vertical">' + h(bai.yeu_cau_ai || '') + '</textarea></div>' +
+      '<button class="btn' + (Object.keys(bai.ban || {}).some(function (k) { return (bai.ban[k] || {}).chu; }) ? ' gh' : '') + '" data-bdsoan="1" style="margin:0 6px;width:calc(100% - 12px);min-height:44px;font-size:15px">✨ AI soạn chữ cho ' + chon.length + ' kênh</button>' +
+      '<div style="font-size:13px;color:#667085;margin:6px 8px 0;line-height:1.45">AI viết theo giọng văn The Vagabond' + (bai.chu_de ? ', đúng chủ đề ' + h(bai.chu_de.ten) : '') + ((bai.chan_bai || []).length ? ', rồi gắn chân bài đã tích' : '') + '.</div></div>' +
+      bdTheCta(bai) + '</div>' : '') +
+    (khoa ? '' : '<div id="bdKiemO" style="order:6">' + bdBangKiem(bai.kiem) + '</div>') +
+    (khoa || bai.cho_gd || BD.laGd ? '' : '<div style="order:7;margin-top:12px"><button class="btn gh" data-bdguigd="1" style="margin:0;min-height:44px;font-size:15px">👔 Gửi giám đốc duyệt</button>' +
+      '<div style="font-size:13px;color:#667085;margin:6px 2px 0;line-height:1.45">Bài vào Việc cần làm của giám đốc. Giám đốc duyệt hay trả lại, nhóm Zalo Marketing nhận tin. Bạn vẫn tự duyệt được.</div></div>');
   var phai = chon.length ? '<div class="bd-phai" style="order:5"><div style="display:flex;align-items:baseline;margin:14px 2px 6px"><span style="font-size:13px;font-weight:800;color:#667085">XEM TRƯỚC TỪNG KÊNH</span>' +
       (chon.length > 1 ? '<span class="bd-chidt" style="margin-left:auto;font-size:13px;color:#98a2b3">vuốt ngang ‹ ›</span>' : '') + '</div>' +
       '<div class="bd-chonxem" style="gap:6px;flex-wrap:wrap;margin:0 0 8px">' + chon.map(function (k) {
@@ -74679,6 +74909,8 @@ async function scrBaiDangSoan(ma, dl) {
   b.oninput = function (e) {
     var t = e.target, k;
     if (t.id === 'bdY') return bdHenLuu({ y_chinh: t.value });
+    if (t.id === 'bdYc') return bdHenLuu({ yeu_cau_ai: t.value });
+    if (t.getAttribute('data-bdthevao')) return bdHenLuu({ the_bai: t.value });
     if ((k = t.getAttribute('data-bdchu'))) {
       var kn = bdKenh(k), n = t.value.length, dem = b.querySelector('[data-bddem="' + k + '"]');
       if (dem) { dem.textContent = money(n) + '/' + money(kn.tran) + (n > kn.tran ? ' · quá dài' : ''); dem.style.color = n > kn.tran ? '#b42318' : '#667085'; }
@@ -74704,6 +74936,131 @@ async function scrBaiDangSoan(ma, dl) {
     if ((t = e.target.closest('[data-bddadang]'))) return bdDaDang(t.getAttribute('data-bddadang'));
     if ((t = e.target.closest('[data-bdthemlink]'))) return bdThemLink(t.getAttribute('data-bdthemlink'));
     if ((t = e.target.closest('[data-bdsua]'))) return bdSuaTheoKiem(t.getAttribute('data-bdsua'));
+    if (e.target.closest('[data-bdchude]')) return bdSheetChonChuDe();
+    if (e.target.closest('[data-bdsaobai]')) return bdMotLan(bdSaoBai);
+    if ((t = e.target.closest('[data-bdcta]'))) {
+      var cx = bdCacCta(BD.bai)[+t.getAttribute('data-bdcta')], dang = (bdGt('chan_bai') || []).slice();
+      if (cx == null) return;
+      return bdCtaDoi(dang.indexOf(cx) >= 0 ? dang.filter(function (y) { return y !== cx; }) : dang.concat([cx]));
+    }
+    if (e.target.closest('[data-bdctathem]')) {
+      var o = b.querySelector('#bdCtaMoi'), v = o ? o.value.trim() : '';
+      if (!v) return toast('Gõ câu chân bài trước, ví dụ giờ mở cửa hay số hotline.');
+      return bdCtaDoi((bdGt('chan_bai') || []).filter(function (y) { return y !== v; }).concat([v]));
+    }
+    if (e.target.closest('[data-bdctamau]')) return bdMotLan(bdCtaLuuMau);
+    if (e.target.closest('[data-bdguigd]')) return bdMotLan(bdGuiGd);
+    if ((t = e.target.closest('[data-bdkieuchu]'))) return bdApKieu(b, t.getAttribute('data-k'), t.getAttribute('data-bdkieuchu'));
+    if ((t = e.target.closest('[data-bdbieutuong]'))) return bdSheetBieuTuong(b, t.getAttribute('data-bdbieutuong'));
+  };
+  /* Kiểu chữ: nhớ vùng đang bôi đen của từng ô chữ, vì chạm nút trên điện thoại làm ô mất focus. */
+  ['select', 'keyup', 'mouseup', 'touchend'].forEach(function (ev) {
+    b.addEventListener(ev, function (e) { var k = e.target && e.target.getAttribute && e.target.getAttribute('data-bdchu'); if (k) BD.chon[k] = [e.target.selectionStart, e.target.selectionEnd]; });
+  });
+  b.addEventListener('mousedown', function (e) { if (e.target.closest('[data-bdkieuchu],[data-bdbieutuong]')) e.preventDefault(); });
+  if (!BD.ngheChon && document.addEventListener) {
+    BD.ngheChon = 1;
+    document.addEventListener('selectionchange', function () {
+      var a = document.activeElement, k = a && a.getAttribute && a.getAttribute('data-bdchu');
+      if (k) BD.chon[k] = [a.selectionStart, a.selectionEnd];
+    });
+  }
+  BD.chon = {};
+}
+
+/* ---------- v666: sao, chân bài mẫu, gửi giám đốc, kiểu chữ ---------- */
+
+async function bdSaoBai() {
+  var dl;
+  try { dl = await api(BD_P + 'gan_sao', { ma: BD.bai.name, sao: BD.bai.sao ? 0 : 1 }); } catch (e) { return bdLoi(e); }
+  BD.bai.sao = dl.sao;
+  var t = document.querySelector('[data-bdsaobai]');
+  if (t) { t.setAttribute('aria-pressed', dl.sao ? 'true' : 'false'); t.firstChild.textContent = dl.sao ? '★' : '☆'; t.lastChild.outerHTML = bdCongTac(dl.sao); }
+  toast(dl.sao ? 'Đã gắn sao' : 'Đã bỏ sao');
+}
+/* Câu chân bài người soạn tự thêm cho bài này: lưu luôn vào mẫu của chủ đề để bài sau dùng lại. */
+async function bdCtaLuuMau() {
+  /* Lưu xong phần đang chờ (câu chân bài vừa tích) rồi mới đọc chân bài của bài. */
+  if (!(await bdLuuChac())) return;
+  var cd = BD.bai.chu_de;
+  if (!cd) return;
+  var moi = (cd.cta || []).concat((BD.bai.chan_bai || []).filter(function (x) { return (cd.cta || []).indexOf(x) < 0; }));
+  try { await api(BD_P + 'chu_de_luu', { ma: cd.ma, ten: cd.ten, bieu_tuong: cd.bt, cta: JSON.stringify(moi) }); } catch (e) { return bdLoi(e); }
+  toast('Đã lưu vào mẫu của chủ đề ' + cd.ten);
+  var dl;
+  try { dl = await api(BD_P + 'xem', { ma: BD.bai.name }); } catch (e) { return; }
+  bdVeLai(dl);
+}
+async function bdGuiGd() {
+  if (!(await confirmSheet('Gửi giám đốc duyệt?', 'Bài vào Việc cần làm của giám đốc. Giám đốc sửa chữ, đồng ý nội dung, duyệt đăng hoặc trả lại kèm góp ý; nhóm Zalo Marketing nhận tin.', 'Gửi giám đốc duyệt'))) return;
+  if (!(await bdLuuChac())) return;
+  var dl;
+  try { dl = await api(BD_P + 'gui_giam_doc', { ma: BD.bai.name, ban_luu: BD.ban }); } catch (e) { return bdLoi(e); }
+  if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới.', 4000); return bdVeLai(dl); }
+  toast('Đã gửi giám đốc duyệt');
+  bdVeLai(dl);
+}
+
+/* Chữ đậm, nghiêng kiểu YayText: đổi chữ cái Latinh sang ký tự toán học Unicode (sans-serif).
+   Tách dấu tiếng Việt ra (NFD) rồi gắn lại sau chữ đã đổi, nên chữ có dấu vẫn giữ dấu;
+   chữ Đ, đ không có bản đậm nên giữ nguyên. Đây là ký tự, không phải định dạng: Facebook
+   không tìm được chữ kiểu này, máy đọc màn hình đọc sai, nên chỉ dùng cho tiêu đề, điểm nhấn. */
+var BD_KIEU = { d: [0x1D5D4, 0x1D5EE, 0x1D7EC], n: [0x1D608, 0x1D622, 0], dn: [0x1D63C, 0x1D656, 0] };
+function bdBoKieu(s) {
+  return Array.from(String(s || '')).map(function (ch) {
+    var c = ch.codePointAt(0);
+    for (var k in BD_KIEU) {
+      var g = BD_KIEU[k];
+      if (c >= g[0] && c < g[0] + 26) return String.fromCharCode(65 + c - g[0]);
+      if (c >= g[1] && c < g[1] + 26) return String.fromCharCode(97 + c - g[1]);
+      if (g[2] && c >= g[2] && c < g[2] + 10) return String.fromCharCode(48 + c - g[2]);
+    }
+    return ch;
+  }).join('').normalize('NFC');
+}
+function bdKieuChu(s, kieu) {
+  var goc = bdBoKieu(s), g = BD_KIEU[kieu];
+  if (!g) return goc;
+  return Array.from(goc.normalize('NFD')).map(function (ch) {
+    var c = ch.charCodeAt(0);
+    if (ch.length === 1 && c >= 65 && c <= 90) return String.fromCodePoint(g[0] + c - 65);
+    if (ch.length === 1 && c >= 97 && c <= 122) return String.fromCodePoint(g[1] + c - 97);
+    if (ch.length === 1 && c >= 48 && c <= 57 && g[2]) return String.fromCodePoint(g[2] + c - 48);
+    return ch;
+  }).join('');
+}
+function bdOChu(b, k) { return b.querySelector('[data-bdchu="' + k + '"]'); }
+function bdThayVung(b, k, doi) {
+  var t = bdOChu(b, k);
+  if (!t || t.readOnly) return;
+  var c = BD.chon[k] || [t.value.length, t.value.length], dau = Math.min(c[0], t.value.length), cuoi = Math.min(c[1], t.value.length);
+  var moi = doi(t.value.slice(dau, cuoi), dau === cuoi);
+  if (moi == null) return;
+  t.value = t.value.slice(0, dau) + moi + t.value.slice(cuoi);
+  BD.chon[k] = [dau, dau + moi.length];
+  try { t.focus({ preventScroll: true }); t.setSelectionRange(dau, dau + moi.length); } catch (e) { }
+  t.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function bdApKieu(b, k, kieu) {
+  bdThayVung(b, k, function (vung, trong) {
+    if (trong) { toast('Bôi đen chữ cần đổi kiểu rồi chạm lại nút.'); return null; }
+    return bdKieuChu(vung, kieu);
+  });
+}
+var BD_BIEU_TUONG = ['✨', '🌸', '🍓', '🍑', '🍋', '🥭', '🍫', '☕', '🧁', '🍰', '🎂', '🥐', '🎁', '🎉', '🎄', '🌙', '🔥', '⭐', '❤️', '🤍',
+  '⏰', '📍', '🛒', '💬', '📞', '🚚', '👉', '✅', '•', '◦', '✦', '✧', '★', '☆', '→', '➤', '✿', '❀', '·', '×'];
+function bdSheetBieuTuong(b, k) {
+  var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Biểu tượng</div>' +
+    '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Chạm để chèn vào chỗ con trỏ trong chữ ' + h(bdKenh(k).ten) + '.</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:4px">' + BD_BIEU_TUONG.map(function (x) {
+      return '<button data-bdchen="' + h(x) + '" style="width:48px;height:48px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;font-size:22px;cursor:pointer">' + h(x) + '</button>';
+    }).join('') + '</div>');
+  ov.onclick = function (e) {
+    var t = e.target.closest('[data-bdchen]');
+    if (!t) return;
+    ov.remove();
+    var x = t.getAttribute('data-bdchen');
+    bdThayVung(b, k, function () { return x; });
   };
 }
 
@@ -74773,11 +75130,38 @@ function bdGop(a, b) {
   });
   return a;
 }
+/* v670 (Codex #577, H8 loại 4 và 8): giá trị người dùng vừa chọn mà máy chủ chưa xác
+   nhận (đang chờ hoặc đang gửi). Mọi phép bật tắt, đổi thứ tự, so "có đổi không" đọc
+   qua bdGt, không đọc thẳng BD.bai: bấm chọn A rồi B khi lượt lưu A chưa về thì B
+   tính từ [A], không từ bản cũ, nên không xoá mất A. Mỗi lần ghi mang một số thứ tự;
+   máy chủ xác nhận đúng số đang giữ thì bỏ; lưu hỏng thì giữ (phần sửa được gửi lại);
+   xung đột hay mở lại bài thì bỏ hết của bài đó. */
+function bdDkGhi(ma, thay) {
+  if (!ma) return;
+  var d = BD.dk[ma] = BD.dk[ma] || {};
+  Object.keys(thay || {}).forEach(function (k) { if (k !== 'ban') d[k] = { v: thay[k], so: ++BD.dkSo }; });
+}
+function bdGt(k) {
+  var b = BD.bai || {}, d = BD.dk[b.name] || {};
+  if (d[k]) return d[k].v;
+  if (k === 'chu_de') return (b.chu_de || {}).ma || '';
+  if (k === 'thu_tu_anh') return (b.anh || []).map(function (a) { return a.ten; });
+  return b[k];
+}
+/* Ảnh theo thứ tự người dùng vừa xếp (kể cả lượt xếp chưa lưu xong). */
+function bdAnhDangXep() {
+  var anh = (BD.bai && BD.bai.anh) || [], thu = bdGt('thu_tu_anh') || [];
+  var theo = {}; anh.forEach(function (a) { theo[a.ten] = a; });
+  var ra = thu.filter(function (t) { return theo[t]; }).map(function (t) { return theo[t]; });
+  anh.forEach(function (a) { if (thu.indexOf(a.ten) < 0) ra.push(a); });
+  return ra;
+}
 function bdHenLuu(thay) {
   var ma = BD.bai && BD.bai.name;
   if (!ma) return;
   if (BD.thayMa !== ma) { BD.thay = {}; BD.thayMa = ma; }
   BD.thay = bdGop(BD.thay || {}, thay);
+  bdDkGhi(ma, thay);
   S.chuaLuu = 'Bài đang lưu dở. Ở lại vài giây để hệ thống lưu xong.';
   var o = document.getElementById('bdLuuChu'); if (o) o.textContent = 'Đang lưu...';
   clearTimeout(BD.cho);
@@ -74798,10 +75182,12 @@ function bdLuuNgay(veLai) {
   var ma = BD.thayMa || (BD.bai && BD.bai.name);
   var thay = BD.thay; BD.thay = {};
   if ((!thay || !Object.keys(thay).length) && !veLai) return BD.chuoi;
-  var xdTruoc = BD.xdLan[ma] || 0;
+  var xdTruoc = BD.xdLan[ma] || 0, soGui = {}, d0 = BD.dk[ma] || {};
+  Object.keys(thay || {}).forEach(function (k) { if (d0[k]) soGui[k] = d0[k].so; });
+  var boDk = function () { var d1 = BD.dk[ma]; if (d1) Object.keys(soGui).forEach(function (k) { if (d1[k] && d1[k].so === soGui[k]) delete d1[k]; }); };
   BD.chuoi = BD.chuoi.then(function () {}, function () {}).then(async function () {
     if (!ma) return;
-    if ((BD.xdLan[ma] || 0) !== xdTruoc) return;
+    if ((BD.xdLan[ma] || 0) !== xdTruoc) { boDk(); return; }
     var dl;
     try { dl = await api(BD_P + 'luu', { ma: ma, ban_luu: BD.banMa[ma] != null ? BD.banMa[ma] : BD.ban, thay: JSON.stringify(thay || {}) }); }
     catch (e) {
@@ -74812,7 +75198,8 @@ function bdLuuNgay(veLai) {
     }
     if (dl && dl.bai) BD.banMa[ma] = dl.bai.ban_luu;
     delete BD.loiMa[ma];
-    if (dl.xung_dot) BD.xdLan[ma] = (BD.xdLan[ma] || 0) + 1;
+    boDk();
+    if (dl.xung_dot) { BD.xdLan[ma] = (BD.xdLan[ma] || 0) + 1; delete BD.dk[ma]; }
     if (!BD.bai || BD.bai.name !== ma || !bdDangMo(ma)) return;
     if (!Object.keys(BD.thay || {}).length) vgbBoChuaLuu();
     if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới nhất.', 4000); BD.thay = {}; vgbBoChuaLuu(); bdVeLai(dl); return; }
@@ -74863,6 +75250,7 @@ async function bdLuuVeLai(thay) {
   if (!ma) return false;
   if (BD.thayMa !== ma) { BD.thay = {}; BD.thayMa = ma; }
   BD.thay = bdGop(BD.thay || {}, thay);
+  bdDkGhi(ma, thay);
   return bdLuuNgay(true);
 }
 
@@ -74910,7 +75298,7 @@ async function bdTaiTep(f, ma) {
   return j.message.file_url;
 }
 function bdSheetAnh(ten) {
-  var anh = BD.bai.anh || [], i = anh.map(function (a) { return a.ten; }).indexOf(ten);
+  var anh = bdAnhDangXep(), i = anh.map(function (a) { return a.ten; }).indexOf(ten);
   if (i < 0 || !BD.bai.sua) return;
   var nut = function (attr, chu, phu, dg) {
     return '<button ' + attr + ' style="display:block;width:100%;text-align:left;min-height:52px;border:0;border-top:1px solid #f2f4f7;background:none;font:inherit;padding:8px 2px;cursor:pointer">' +
@@ -74948,7 +75336,7 @@ function bdSheetKieu() {
   var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 10px">Kiểu bài</div>' +
     [['Bài đăng', 'Bài trên tường của Trang. Một hoặc nhiều ảnh, có chữ. Đăng được cả bốn kênh.'],
       ['Story', 'Ảnh 9:16, mất sau 24 giờ, chỉ Facebook và Instagram. Không có chữ kèm theo; chữ và lời mời in sẵn trên ảnh. Cần sticker (link, bình chọn) thì đăng tay trong app.']].map(function (x) {
-      var on = BD.bai.kieu === x[0];
+      var on = bdGt('kieu') === x[0];
       return '<button data-bdchonkieu="' + x[0] + '" style="display:block;width:100%;text-align:left;min-height:56px;border:' + (on ? '2px solid #05323C' : '1px solid #e4e7ec') + ';border-radius:14px;background:' + (on ? '#E4F9FD' : '#fff') + ';font:inherit;padding:10px 12px;margin-bottom:8px;cursor:pointer">' +
         '<b style="font-size:15px">' + x[0] + (on ? ' ✓' : '') + '</b><div style="font-size:13px;color:#667085;line-height:1.45">' + x[1] + '</div></button>';
     }).join(''));
@@ -74956,11 +75344,11 @@ function bdSheetKieu() {
     var t = e.target.closest('[data-bdchonkieu]');
     if (!t) { if (e.target === ov) ov.remove(); return; }
     ov.remove();
-    if (t.getAttribute('data-bdchonkieu') !== BD.bai.kieu) bdLuuVeLai({ kieu: t.getAttribute('data-bdchonkieu') });
+    if (t.getAttribute('data-bdchonkieu') !== bdGt('kieu')) bdLuuVeLai({ kieu: t.getAttribute('data-bdchonkieu') });
   };
 }
 function bdSheetKenh() {
-  var story = BD.bai.kieu === 'Story', chon = (BD.bai.kenh_chon || []).slice();
+  var story = bdGt('kieu') === 'Story', chon = (bdGt('kenh_chon') || []).slice();
   var ve = function () {
     return '<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Đăng lên kênh</div>' +
       '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Bật kênh nào thì bài có bản xem trước và chữ riêng cho kênh đó.</div>' +
@@ -74984,7 +75372,7 @@ function bdSheetKenh() {
     }
     if (e.target.closest('[data-bdxongkenh]') || e.target === ov) {
       ov.remove();
-      var cu = (BD.bai.kenh_chon || []).join(','), moi = BD_KENH.filter(function (x) { return chon.indexOf(x.k) >= 0; }).map(function (x) { return x.k; });
+      var cu = (bdGt('kenh_chon') || []).join(','), moi = BD_KENH.filter(function (x) { return chon.indexOf(x.k) >= 0; }).map(function (x) { return x.k; });
       if (moi.join(',') !== cu) bdLuuVeLai({ kenh_chon: moi });
     }
   };
@@ -75166,11 +75554,41 @@ async function bdBamDay(e) {
       tuK ? 'Đã duyệt. Hệ thống đang đăng ' + tuK + ' kênh' + (tayK ? ', còn ' + tayK + ' kênh đăng tay bên dưới.' : '.') : 'Đã duyệt. Đăng tay từng kênh bên dưới.', 4000);
     return bdVeLai(dl);
   }
+  if ((t = e.target.closest('[data-bddangngay]'))) {
+    var soKenh = (bdGt('kenh_chon') || []).length;
+    if (!(await confirmSheet('Đăng ngay ' + soKenh + ' kênh?', 'Bỏ giờ hẹn ' + bdLucChu(BD.bai.hen_luc) + '. Kênh đã nối hệ thống đăng ngay; kênh chưa nối chuyển sang Chờ đăng tay.', 'Đăng ngay ' + soKenh + ' kênh'))) return;
+    if (!(await bdLuuChac())) return;
+    try { dl = await api(BD_P + 'duyet', { ma: BD.bai.name, ban_luu: BD.ban, dang_ngay: 1 }); } catch (er) { return bdLoi(er); }
+    if (dl.can_doc_nhac && dl.can_doc_nhac.length) {
+      if (!(await confirmSheet('Đăng dù còn ' + dl.can_doc_nhac.length + ' điều cần để ý?', dl.can_doc_nhac.join('\n'), 'Vẫn đăng ngay'))) return bdVeLai(dl);
+      try { dl = await api(BD_P + 'duyet', { ma: BD.bai.name, ban_luu: dl.bai.ban_luu, da_doc_nhac: 1, dang_ngay: 1 }); } catch (er) { return bdLoi(er); }
+    }
+    if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới. Xem lại rồi bấm Đăng ngay.', 4500); return bdVeLai(dl); }
+    var tuN = (dl.bai.kenh || []).filter(function (x) { return x.tu; }).length, tayN = (dl.bai.kenh || []).length - tuN;
+    toast(tuN ? 'Hệ thống đang đăng ' + tuN + ' kênh' + (tayN ? ', còn ' + tayN + ' kênh đăng tay bên dưới.' : '.') : 'Đã duyệt. Đăng tay từng kênh bên dưới.', 4000);
+    return bdVeLai(dl);
+  }
   if ((t = e.target.closest('[data-bdgui]'))) {
     if (!(await bdLuuChac())) return;
     try { dl = await api(BD_P + 'gui_duyet', { ma: BD.bai.name, ban_luu: BD.ban }); } catch (er) { return bdLoi(er); }
     if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới.', 4000); return bdVeLai(dl); }
     toast('Đã gửi Marketing duyệt'); return bdVeLai(dl);
+  }
+  if ((t = e.target.closest('[data-bdgdok]'))) {
+    if (!(await confirmSheet('Đồng ý nội dung bài này?', 'Bài về Nháp để Marketing thêm ảnh, chọn giờ rồi duyệt đăng. Nhóm Zalo Marketing nhận tin.', 'Đồng ý nội dung'))) return;
+    if (!(await bdLuuChac())) return;
+    try { dl = await api(BD_P + 'gd_dong_y', { ma: BD.bai.name, ban_luu: BD.ban }); } catch (er) { return bdLoi(er); }
+    if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới.', 4000); return bdVeLai(dl); }
+    toast('Đã đồng ý nội dung, Marketing nhận tin trên Zalo'); return bdVeLai(dl);
+  }
+  if ((t = e.target.closest('[data-bdgdtra]'))) {
+    var lyDo = await promptSheet('Trả lại bài: góp ý cho Marketing', 'Ví dụ: đoạn đầu dài quá, thêm nguồn gốc Ruby Chocolate, bỏ hashtag thứ ba.');
+    if (lyDo == null) return;
+    if (!lyDo) return toast('Ghi góp ý để Marketing biết cần sửa gì.');
+    if (!(await bdLuuChac())) return;
+    try { dl = await api(BD_P + 'gd_tra_lai', { ma: BD.bai.name, ban_luu: BD.ban, ly_do: lyDo }); } catch (er) { return bdLoi(er); }
+    if (dl.xung_dot) { toast('Bài vừa được sửa ở máy khác, đã nạp bản mới.', 4000); return bdVeLai(dl); }
+    toast('Đã trả lại, Marketing nhận góp ý trên Zalo'); return bdVeLai(dl);
   }
   if ((t = e.target.closest('[data-bdtrave]'))) {
     if (!(await confirmSheet('Trả về nháp để sửa?', 'Bài thôi hẹn giờ và các kênh thôi chờ đăng. Sửa xong Marketing phải duyệt lại.', 'Trả về nháp'))) return;

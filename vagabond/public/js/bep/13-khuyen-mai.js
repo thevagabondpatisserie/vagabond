@@ -1536,6 +1536,8 @@ function kmDsKenh() {
   if (ds.indexOf('Pancake') < 0) ds.unshift('Pancake');
   /* v589: don dat banh tren web mang nguon Website (khuyen_mai.NGUON_WEB). */
   if (ds.indexOf('Website') < 0) ds.push('Website');
+  /* v670 (anh Việt 17/11/2026): kênh khách đặt giao qua tab Tại quầy trên web, một chữ WEBORDER. */
+  if (ds.indexOf('WEBORDER') < 0) ds.push('WEBORDER');
   return ds;
 }
 

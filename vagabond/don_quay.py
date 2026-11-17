@@ -109,9 +109,10 @@ TRUONG_MOI = {
 # v662 phần 3 (anh Việt 15/11/2026: "làm sẵn đi, Marketing điền sau"): khung bốn
 # mã kéo khách từ GrabFood sang đặt thẳng. Gieo một lần ở trạng thái TẮT, mức
 # giảm 0; Marketing điền mức trong màn Chương trình khuyến mãi rồi bật (máy chặn
-# bật khi chưa có mức). Kênh WEBORDER để mã chỉ áp cho đơn giao của quầy; "Web
-# giao" là nguồn phiếu tạm tính ở quầy của chính các đơn đó (ví quà phát sau ghi sổ).
-KENH_MA = "WEBORDER\nWeb giao"
+# bật khi chưa có mức). Kênh WEBORDER để mã chỉ áp cho đơn giao của quầy. v670 (anh
+# Việt 17/11): phiếu tạm tính quầy của chính các đơn đó cũng mang nguồn WEBORDER (trước
+# là "Web giao"), nên một chữ WEBORDER đủ cho lúc đặt lẫn ví quà phát sau ghi sổ.
+KENH_MA = KENH
 NHOM_DO_UONG = "Trà\nCà phê\nMatcha\nCacao"
 KHUNG_MA = (
 	{"ma_ctkm": "WEB-DON-DAU", "ten": "Đơn giao đầu tiên đặt thẳng trên web", "cach_thuc": "Giam tong hoa don",
@@ -356,7 +357,9 @@ except ImportError:  # Frappe giả của bộ kiểm tầng khung
 	def rate_limit(**_kw):
 		return lambda f: f
 
-NGUON_BILL = "Web giao"
+# v670 (anh Việt 17/11/2026): một chữ WEBORDER cho kênh này ở mọi nơi (đơn, phiếu,
+# chương trình, combo, Cài đặt). Phiếu cũ mang "Web giao" giữ nguyên.
+NGUON_BILL = KENH
 
 
 def nguong_mien_phi():
@@ -816,6 +819,15 @@ def _nguon_bill(d):
 	return goi_mon_ban.NGUON_TAO
 
 
+def nguon_combo(d):
+	"""v670: kênh mà luật bán combo phải cho phép thì đơn giao mới bày và gọi được
+	combo đó: WEBORDER (anh Việt 17/11: một chữ cho kênh này ở mọi chỗ Cài đặt).
+	Phiếu tạm tính quầy rã combo lúc lưu cũng xét đúng kênh này (cờ vgb_nguon_luat
+	đặt ở _xac_nhan_trong_khoa). Một nguồn cho trang khách, bảng món, phiếu. d giữ
+	để sau này mỗi điểm có kênh riêng."""
+	return (KENH,)
+
+
 @frappe.whitelist(methods=["POST"])
 def xac_nhan(ma=None, hen=None):
 	"""Quầy nhận đơn: hẹn 10, 15, 20 phút, lập phiếu tạm tính ở quầy.
@@ -873,6 +885,9 @@ def _xac_nhan_trong_khoa(ma, phut):
 		r.get("vgb_tt_cach") or "chuyển khoản"))[:300]
 	# Cờ chỉ máy chủ đặt được (không đi qua lời gọi của trình duyệt): giữ giá dòng.
 	frappe.flags.vgb_gia_chot = True
+	# v670: luật bán combo trên phiếu này xét kênh WEBORDER (nguon_combo), không xét
+	# nguồn thanh toán Mang về mà phiếu mượn lúc lập.
+	frappe.flags.vgb_nguon_luat = KENH
 	try:
 		kq = ban_hang.tao_don_tay(
 			nguon=_nguon_bill(d), quay=d["ma"], ma_don=goi_mon_ban.ma_bill_moi(d["ma"], sr.choice),
@@ -881,6 +896,7 @@ def _xac_nhan_trong_khoa(ma, phut):
 			giam_gia=int(uu.get("giam") or 0), phi_ship=int(phi.get("phi_khach") or 0))
 	finally:
 		frappe.flags.vgb_gia_chot = False
+		frappe.flags.vgb_nguon_luat = None
 	bill = (kq or {}).get("name") or ""
 	if bill and int(round(float((kq or {}).get("grand_total") or 0))) != mong:
 		# Không để thu ngân chốt một phiếu khác số khách đã trả. Phiếu đã lưu là

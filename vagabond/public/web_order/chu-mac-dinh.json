@@ -7034,6 +7034,12 @@
     "mac_dinh": "Tất cả đồ uống",
     "nhieu_dong": true
   },
+  "goi_ban_moi_nhom": {
+    "ten": "Gọi món tại bàn và tab Tại quầy: chip Mọi nhóm (đầu hàng nhóm món khi đang xem Tất cả)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mọi nhóm",
+    "nhieu_dong": true
+  },
   "tv658_loi": {
     "ten": "The Vagabond Club: LÕI",
     "nhom": "thanh_vien",

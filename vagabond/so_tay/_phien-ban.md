@@ -12,6 +12,19 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v670
+- Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
+- Đăng ngay bài đã hẹn giờ
+- Đăng tay bài đã duyệt và ghi Đã đăng
+- Sổ chủ đề, thẻ và gắn sao trong Kho bản thảo
+- Chân bài (CTA) theo chủ đề
+- Chữ đậm, nghiêng và biểu tượng trong chữ đăng
+- AI soạn chữ theo giọng văn The Vagabond
+- Gửi giám đốc duyệt bài đăng
+- Dải chip trạng thái đầu màn Bài đăng
+- Nhóm món và combo ở tab Tại quầy đặt giao
+- Mã đơn WEBORDER và O2O
+
 ## v669
 - Không đổi thao tác: bản gộp để deploy một lần v666 (#578), v667 (#579, #580), v668 (#581); hướng dẫn nằm ở các mục của từng bản bên dưới
 
@@ -32,7 +45,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Nối phiếu nhập kho với hoá đơn mua
 
 ## v665
-- Hệ thống tự đăng Facebook, Instagram, Threads
+- Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
 - Kho bản thảo thay cho gửi ghi chú qua lại
 - Soạn và duyệt bài đăng mạng xã hội
 - Đăng tay bài đã duyệt và ghi Đã đăng

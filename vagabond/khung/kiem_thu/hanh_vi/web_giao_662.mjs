@@ -83,10 +83,10 @@ const STORE = {ngay: '2026-11-15', cap_nhat: '2026-11-15 10:00', quay: [
   {ma: 'NVHTN', ten: 'Nhà Văn Hóa Thanh Niên', ten_ngan: 'NVHTN', dia_chi: '21 Phạm Ngọc Thạch', mon: [], do_uong: []}]};
 
 function moiTruong({xemGia = th => ({ok: 1, tien_hang: 125000, giam: 0, phi: 22000, trang_thai_phi: 'chinh_xac', nguong: 500000}),
-  tao = () => ({ok: 1, ma_yeu_cau: 'DW-2026-00001', duong_dan: '/banh/xong/' + 'a'.repeat(40)})} = {}) {
+  tao = () => ({ok: 1, ma_yeu_cau: 'DW-2026-00001', duong_dan: '/banh/xong/' + 'a'.repeat(40)}), store = STORE} = {}) {
   const vet = [], hen = [];
   const mang = {
-    'vagabond.kiem_kho.con_tren_quay_web': () => JSON.parse(JSON.stringify(STORE)),
+    'vagabond.kiem_kho.con_tren_quay_web': () => JSON.parse(JSON.stringify(store)),
     'vagabond.don_quay.xem_gia': th => xemGia(th),
     'vagabond.don_quay.tao_don': th => tao(th),
   };
@@ -183,6 +183,49 @@ await ca('Máy chủ báo tổng đổi: không xoá giỏ, hiện câu, giữ s
   la('giỏ còn', G.gio.length, 1);
   la('câu', G.web.loi, 'Tổng tiền vừa cập nhật. Quý khách xem lại rồi bấm gửi.');
   la('số giảm mới', G.web.gia.giam, 10000);
+});
+
+/* ---------- v670 (Minh Vũ 17/11, anh Việt đồng ý): nhóm món như O2O và combo cho đơn giao ---------- */
+function storeV670() {
+  const st = JSON.parse(JSON.stringify(STORE));
+  const q = st.quay[0];
+  q.mon.push({ma: 'BKNU00010', ten: 'Canelé', gia: 45000, anh: '', con: 5, nhom: 'Bánh nướng', tai_ban: 1, giao: 1});
+  q.do_uong.push({ma: 'NUTR00030', ten: 'Trà Lài Đào', gia: 55000, anh: '', nhom: 'Đồ uống', nhom_goc: 'Trà', tc: [], tai_ban: 1, giao: 1});
+  q.combo = [
+    {ma: 'KMCB0001', ten: 'Combo Trà và Canelé', gia: 89000, goc: 100000, con: 5, tai_ban: 1, giao: 1, con_giao: 1,
+      thanh_phan: [{ma: 'NUTR00030', ten: 'Trà Lài Đào', sl: 1, loai: 'nuoc'}, {ma: 'BKNU00010', ten: 'Canelé', sl: 1, loai: 'banh'}]},
+    {ma: 'KMCB0002', ten: 'Combo chỉ bán tại bàn', gia: 70000, goc: 80000, con: 3, tai_ban: 1, giao: 0, thanh_phan: [{ma: 'NUTR00021', ten: 'Trà Hoa Lài', sl: 1}]},
+    /* Máy chủ cũ không gửi cờ: Giao coi như KHÔNG bán. */
+    {ma: 'KMCB0003', ten: 'Combo bản cũ', gia: 60000, goc: 70000, con: 3, thanh_phan: [{ma: 'BAWC00115', ten: 'Mousse Chanh Dây', sl: 1}]}];
+  return st;
+}
+const chipNho = goc => tim(theoId(goc, 'storeChip'), n => n.the === 'button');
+
+await ca('v670 Tại quầy đặt giao: ở Tất cả bày luôn nhóm món (bánh theo nhóm, đồ uống theo nhóm), chạm nhóm Bánh nướng chỉ còn món nhóm đó', async () => {
+  const {goc} = await moTrang({store: storeV670()});
+  const ten = chipNho(goc).map(b => chu(b));
+  dung('có Mọi nhóm, Bánh lạnh, Bánh nướng và nhóm đồ uống: ' + JSON.stringify(ten),
+    ten[0].startsWith('Mọi nhóm') && ten.some(x => x.startsWith('Bánh lạnh')) && ten.some(x => x.startsWith('Bánh nướng')) && ten.some(x => x.startsWith('Trà')));
+  dung('Bánh lạnh đứng trước Bánh nướng', ten.findIndex(x => x.startsWith('Bánh lạnh')) < ten.findIndex(x => x.startsWith('Bánh nướng')));
+  await bam(chipNho(goc).find(b => chu(b).startsWith('Bánh nướng')));
+  la('chỉ món Bánh nướng', nutThem(goc).map(n => n.props['data-them']), ['BKNU00010']);
+});
+
+await ca('v670 combo cho đơn giao: chỉ combo máy chủ cho bán Giao (cờ giao), số bộ theo con_giao; thêm vào giỏ rồi Đặt gửi đúng mã combo', async () => {
+  const {goc, kho, vet} = await moTrang({store: storeV670()});
+  const G = kho.goiBan.G;
+  const ma = nutThem(goc).map(n => n.props['data-them']);
+  dung('combo bán Giao có nút +', ma.includes('KMCB0001'));
+  dung('combo chỉ bán tại bàn và combo bản cũ không bày', !ma.includes('KMCB0002') && !ma.includes('KMCB0003'));
+  dung('có tầng Combo', tim(theoId(goc, 'storeTang'), n => n.the === 'button').some(b => b.props['data-tang'] === 'combo'));
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'KMCB0001'));
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'KMCB0001'));
+  la('con_giao 1 bộ: bấm lần hai không thêm', G.gio.map(x => [x.ma, x.sl]), [['KMCB0001', 1]]);
+  G.web.ten = 'Lan'; G.web.sdt = '0909123456'; G.web.tuLay = true; G.web.dongY = true;
+  await kho.goiBan.xemGiaWeb(true);
+  await kho.goiBan.datWeb(); await cho();
+  const gui = vet.filter(x => x[1] === 'vagabond.don_quay.tao_don');
+  la('gửi đúng mã combo', JSON.parse(gui[0][2].don).mon.map(x => [x.ma, x.sl]), [['KMCB0001', 1]]);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');
