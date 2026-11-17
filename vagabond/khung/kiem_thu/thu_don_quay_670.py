@@ -234,3 +234,111 @@ def _():
 		combo_mon.frappe.flags.vgb_nguon_luat = "WEBORDER"
 		combo_mon.truoc_khi_luu(phieu())
 	la("phiếu thường rồi phiếu đơn giao", goi, ["Mang về", "WEBORDER"])
+
+
+@ca("Codex #585: phiếu cũ mang nguồn \"Web giao\" vẫn hợp chương trình, combo đã đổi ô Kênh sang WEBORDER (và ngược lại ô Kênh chưa đổi vẫn nhận phiếu mới); kênh khác không lọt")
+def _():
+	from vagabond import khuyen_mai as km
+
+	moi, cu = {"kenh": "WEBORDER"}, {"kenh": "Web giao"}
+	la("phiếu cũ, cấu hình mới", km._hop_kenh(moi, "Web giao", "TCV")[0], True)
+	la("phiếu mới, cấu hình mới", km._hop_kenh(moi, "WEBORDER", "TCV")[0], True)
+	la("phiếu mới, cấu hình cũ chưa đổi", km._hop_kenh(cu, "WEBORDER", "TCV")[0], True)
+	la("kênh khác không lọt", (km._hop_kenh(moi, "Mang về", "TCV")[0], km._hop_kenh(moi, "Website", "")[0]), (False, False))
+	la("mã web kênh WEBORDER nhận nguồn cũ", km.ly_do_khong_web({"cach_thuc": "Giam tong hoa don", "kenh": "WEBORDER"}, "Web giao"), "")
+	la("bí danh một chỗ", km.chuan_kenh(" Web giao "), "WEBORDER")
+
+
+# ---------------------------------------------------------------------------
+# v670 số đã xuất hoá đơn của dòng phiếu đặt (Error Log "Refill: chưa đếm được
+# đơn tương lai" từ 10/11, "doc so giu cho that bai" từ 17/11 17:55): dòng phiếu
+# đặt của ERPNext không có cột billed_qty. Một hàm đọc hoá đơn đã ghi sổ
+# (dat_banh.doc_da_xuat_hd) cho cả giữ chỗ lẫn mẻ refill.
+# ---------------------------------------------------------------------------
+
+def _sql_gia(dong_so, tong_hd, hoi):
+	"""Bản giả frappe.db.sql: câu đọc dòng phiếu đặt và câu cộng hoá đơn."""
+	def sql(q, vals=None, as_dict=False):
+		hoi.append((q, vals))
+		if "tabSales Invoice Item" in q:
+			ten = (vals or {}).get("ten") or ()
+			return [{"so_detail": t, "sl": tong_hd[t]} for t in ten if t in tong_hd]
+		if "tabSales Order Item" in q:
+			return [dict(d) for d in dong_so]
+		raise AssertionError("câu lạ: " + q[:60])
+	return sql
+
+
+@ca("v670 gắn số đã xuất hoá đơn: lấy đúng dòng theo tên, dòng không có hoá đơn là 0, tổng âm (trả hàng nhiều hơn) về 0, không sửa dòng gốc")
+def _():
+	from vagabond import dat_banh
+
+	goc = [{"name": "a", "qty": 5}, {"name": "b", "qty": 3}, {"name": "c", "qty": 1}]
+	ra = dat_banh.gan_da_xuat_hd(goc, {"a": 2, "c": -1})
+	la("số theo dòng", [d["da_xuat_hd"] for d in ra], [2.0, 0.0, 0.0])
+	dung("không sửa dòng gốc", all("da_xuat_hd" not in d for d in goc))
+	la("rỗng", dat_banh.gan_da_xuat_hd(None, {}), [])
+
+
+@ca("v670 đọc số đã xuất hoá đơn: chỉ hoá đơn ĐÃ GHI SỔ, gom theo dòng phiếu đặt (so_detail), chia lô 500 tên, không có tên thì không hỏi cơ sở dữ liệu")
+def _():
+	from types import SimpleNamespace as NS
+
+	from vagabond import dat_banh
+
+	hoi = []
+	tong = {"r%d" % i: 1 for i in range(1201)}
+	with um.patch.object(dat_banh, "frappe", NS(db=NS(sql=_sql_gia([], tong, hoi)))):
+		ra = dat_banh.doc_da_xuat_hd(["r%d" % i for i in range(1201)] + ["", None, "r0"])
+		la("đủ 1201 dòng", (len(ra), ra["r1200"]), (1201, 1.0))
+		la("ba lô, mỗi lô tối đa 500", [len(v["ten"]) for _q, v in hoi], [500, 500, 201])
+		q = hoi[0][0]
+		dung("đọc dòng hoá đơn bán", "tabSales Invoice Item" in q)
+		dung("chỉ hoá đơn đã ghi sổ", "docstatus = 1" in q)
+		dung("gom theo dòng phiếu đặt", "so_detail in" in q and "group by so_detail" in q)
+		del hoi[:]
+		la("không tên thì không hỏi", (dat_banh.doc_da_xuat_hd([None, ""]), hoi), ({}, []))
+
+
+@ca("v670 Error Log billed_qty: đếm refill đọc phiếu đặt không chạm cột không có; phiếu đóng chưa giao mà đã xuất hoá đơn 8 thì ăn 8 vào mẻ; giữ chỗ trừ phần đã xuất hoá đơn (đặt 5, xuất 2: giữ 3)")
+def _():
+	from datetime import date
+	from types import SimpleNamespace as NS
+
+	from vagabond import dat_banh, refill
+
+	hoi = []
+	dong = [
+		{"name": "SOI-1", "item_code": "BAWC00068", "delivery_date": date(2026, 11, 20), "qty": 20, "delivered_qty": 0, "trang_thai": "Closed"},
+		{"name": "SOI-2", "item_code": "BAWC00068", "delivery_date": date(2026, 11, 20), "qty": 4, "delivered_qty": 0, "trang_thai": "To Deliver and Bill"},
+	]
+	sql = _sql_gia(dong, {"SOI-1": 8}, hoi)
+	with um.patch.object(dat_banh, "frappe", NS(db=NS(sql=sql))):
+		ra = dat_banh.dong_tieu_thu("2026-11-18", "2026-11-25")
+	dung("câu đọc phiếu đặt không còn cột billed_qty", "billed_qty" not in hoi[0][0])
+	la("hỏi hoá đơn cho đúng hai dòng", sorted(hoi[1][1]["ten"]), ["SOI-1", "SOI-2"])
+	la("mẻ refill ăn: phiếu đóng 8, phiếu mở 4", refill.tieu_thu_phieu_dat(ra, ("BAWC",)), {"2026-11-20": {"BAWC00068": 12}})
+
+	def get_all(dt, filters=None, fields=None, pluck=None, **k):
+		if dt == "Sales Order":
+			return ["SO-1"]
+		dung("dòng phiếu đặt chỉ xin cột có thật", "billed_qty" not in (fields or []) and "name" in (fields or []))
+		return [{"name": "SOI-9", "item_code": "BAWC00001", "delivery_date": "2026-11-20", "qty": 5, "delivered_qty": 0}]
+	with um.patch.object(dat_banh, "frappe", NS(get_all=get_all, db=NS(sql=_sql_gia([], {"SOI-9": 2}, [])))):
+		la("giữ chỗ còn 3", dat_banh.dem_giu_cho("2026-11-20"), {"BAWC00001": 3})
+
+
+@ca("v670 một nguồn số đã xuất hoá đơn: không mã nào trong app đọc cột billed_qty; giữ chỗ và refill cùng đi qua kem_da_xuat_hd")
+def _():
+	import glob
+	import os
+
+	from vagabond import dat_banh
+
+	goc = os.path.dirname(dat_banh.__file__)
+	doc = [p for p in glob.glob(os.path.join(goc, "**", "*.py"), recursive=True)
+		if os.sep + "khung" + os.sep not in p and "billed_qty" in open(p, encoding="utf-8").read()]
+	la("không tệp nào đọc billed_qty", doc, [])
+	import inspect
+	for ten in ("dong_phieu_dat", "dong_tieu_thu"):
+		dung(ten + " đi qua kem_da_xuat_hd", "kem_da_xuat_hd(" in inspect.getsource(getattr(dat_banh, ten)))

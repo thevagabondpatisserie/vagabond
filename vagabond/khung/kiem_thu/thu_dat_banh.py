@@ -93,11 +93,11 @@ def _khong_cong_hai_cot():
 def _gom_theo_ngay_nhan():
 	dong = [
 		{"item_code": "BAWC-01", "delivery_date": "2026-09-20", "qty": 2,
-			"delivered_qty": 0, "billed_qty": 0},
+			"delivered_qty": 0, "da_xuat_hd": 0},
 		{"item_code": "BAWC-01", "delivery_date": "2026-09-22", "qty": 1,
-			"delivered_qty": 0, "billed_qty": 0},
+			"delivered_qty": 0, "da_xuat_hd": 0},
 		{"item_code": "BAWS-07", "delivery_date": "2026-09-20", "qty": 5,
-			"delivered_qty": 2, "billed_qty": 0},
+			"delivered_qty": 2, "da_xuat_hd": 0},
 	]
 	g = gom_giu_cho(dong, TIEN_TO_MA)
 	la("hai ngay", sorted(g), ["2026-09-20", "2026-09-22"])
@@ -110,11 +110,11 @@ def _gom_theo_ngay_nhan():
 def _gom_bo_rac():
 	dong = [
 		{"item_code": "HOP-01", "delivery_date": "2026-09-20", "qty": 9,
-			"delivered_qty": 0, "billed_qty": 0},
+			"delivered_qty": 0, "da_xuat_hd": 0},
 		{"item_code": "BAWC-01", "delivery_date": "", "qty": 2,
-			"delivered_qty": 0, "billed_qty": 0},
+			"delivered_qty": 0, "da_xuat_hd": 0},
 		{"item_code": "BAWC-02", "delivery_date": "2026-09-20", "qty": 2,
-			"delivered_qty": 2, "billed_qty": 0},
+			"delivered_qty": 2, "da_xuat_hd": 0},
 		None, "rac", {},
 	]
 	la("khong giu cho nao", gom_giu_cho(dong, TIEN_TO_MA), {})
@@ -125,9 +125,9 @@ def _gom_bo_rac():
 def _cong_don():
 	dong = [
 		{"item_code": "BAWC-01", "delivery_date": "2026-09-20", "qty": 2,
-			"delivered_qty": 0, "billed_qty": 0},
+			"delivered_qty": 0, "da_xuat_hd": 0},
 		{"item_code": "bawc-01", "delivery_date": "2026-09-20", "qty": 3,
-			"delivered_qty": 0, "billed_qty": 0},
+			"delivered_qty": 0, "da_xuat_hd": 0},
 	]
 	la("cong don va chuan hoa ma", gom_giu_cho(dong, TIEN_TO_MA)["2026-09-20"]["BAWC-01"], 5)
 
@@ -750,13 +750,13 @@ def _do_theo_trang_thai():
 		],
 		"Sales Order Item": [
 			{"parent": "SO-1", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
-				"qty": 2, "delivered_qty": 0, "billed_qty": 0},
+				"qty": 2, "delivered_qty": 0, "da_xuat_hd": 0},
 			{"parent": "SO-2", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
-				"qty": 3, "delivered_qty": 0, "billed_qty": 0},
+				"qty": 3, "delivered_qty": 0, "da_xuat_hd": 0},
 			{"parent": "SO-3", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
-				"qty": 9, "delivered_qty": 0, "billed_qty": 0},
+				"qty": 9, "delivered_qty": 0, "da_xuat_hd": 0},
 			{"parent": "SO-4", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
-				"qty": 7, "delivered_qty": 0, "billed_qty": 0},
+				"qty": 7, "delivered_qty": 0, "da_xuat_hd": 0},
 		],
 	})
 	try:

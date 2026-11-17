@@ -78,3 +78,39 @@ def _khong_lay_item_hien_tai():
 	with patch.object(gv, "_gia_so_kho", return_value=0), patch.object(gv, "_gia_kho_khac", return_value=0), patch.object(gv.frappe.db, "get_value", return_value={"last_purchase_rate": 1500, "valuation_rate": 900}):
 		for ngay, gio in (("2026-09-25", "08:00:00"), ("2026-10-01", "08:00:00"), (None, None)):
 			la("không lấy giá không có mốc", gv.gia_von("M", "Kho", ngay, gio), (None, None))
+
+
+@ca("v670 bench đỏ qua nửa đêm: phiếu không tích sửa ngày giờ thì tra giá theo LÚC LƯU (ERPNext đặt lại về lúc đó), không theo ngày cũ còn trên phiếu; tích sửa hay nhập dữ liệu thì giữ ngày trên phiếu")
+def _moc_luc_luu():
+	import datetime as dt
+	import unittest.mock as um
+	from types import SimpleNamespace as NS
+
+	bay = dt.datetime(2026, 11, 18, 0, 0, 3, 120000)
+	la("không tích: lúc lưu", gv.moc_ghi_so("2026-11-17", "00:00:03", 0, bay), ("2026-11-18", "00:00:03"))
+	la("tích sửa: giữ trên phiếu", gv.moc_ghi_so("2026-11-10", "08:00:00", 1, bay), ("2026-11-10", "08:00:00"))
+
+	hoi = []
+
+	class Dong(dict):
+		def __getattr__(self, k):
+			return self.get(k)
+
+	def phieu(sua, nhap=False):
+		d = Dong(item_code="NVL1", qty=5, valuation_rate=0, warehouse="K1", idx=1)
+		doc = NS(docstatus=0, posting_date="2026-11-17", posting_time="00:00:03", flags=NS(get=lambda k, _d=None: nhap if k == "from_restore" else _d),
+			get=lambda k, _d=None: {"items": [d], "set_posting_time": sua, "set_warehouse": "K1"}.get(k, _d))
+		return doc, d
+	with um.patch.object(gv, "gia_von", lambda ma, kho, ngay, gio: hoi.append((ngay, gio)) or (400.0, "so_kho")), \
+		um.patch("frappe.utils.now_datetime", lambda: bay, create=True), \
+		um.patch.object(gv.frappe.db, "get_value", lambda *a, **k: {}, create=True):
+		doc, d = phieu(0)
+		gv.dien_gia(doc)
+		la("phiếu ngày cũ, không tích: tra giá lúc lưu", hoi[-1], ("2026-11-18", "00:00:03"))
+		la("điền giá", d.valuation_rate, 400.0)
+		doc, d = phieu(1)
+		gv.dien_gia(doc)
+		la("tích sửa ngày giờ: tra đúng ngày giờ trên phiếu", hoi[-1], ("2026-11-17", "00:00:03"))
+		doc, d = phieu(0, nhap=True)
+		gv.dien_gia(doc)
+		la("khôi phục phiếu: giữ ngày trên phiếu như ERPNext", hoi[-1], ("2026-11-17", "00:00:03"))

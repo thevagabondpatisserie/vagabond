@@ -456,7 +456,7 @@ def _bao_ve_suat():
 def _quay_da_giao():
 	ro = dict(ROMAN, so_refill=20)
 	q = lambda tt, sl, giao, hd=0, ngay="2026-11-14": {"item_code": "BAWC00068", "delivery_date": ngay, "qty": sl,
-		"delivered_qty": giao, "billed_qty": hd, "trang_thai": tt}
+		"delivered_qty": giao, "da_xuat_hd": hd, "trang_thai": tt}
 	kq, _ = _dem_that([], D8(2026, 11, 14), [ro], [q("To Deliver and Bill", 20, 0)])
 	la("phiếu quầy 20 còn chờ giao: còn 0", kq["refill"]["BAWC00068"][0]["con"], 0)
 	kq, _ = _dem_that([], D8(2026, 11, 15), [ro], [q("Completed", 20, 20, 20)])
