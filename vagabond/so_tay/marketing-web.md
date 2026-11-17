@@ -195,7 +195,7 @@ Từ khoá: đăng tay, chép và mở app, đã đăng, chờ đăng tay, đế
 |---|---|---|
 | Marketing | Bài đăng mạng xã hội | [[📋 Chép và mở app]] |
 
-Kênh chưa nối và Zalo OA đăng tay. Kênh đã nối thì xem mục Hệ thống tự đăng Facebook, Instagram, Threads. Bài hẹn giờ thì tới giờ nhóm Zalo Marketing nhận tin Đến giờ đăng tay bài đăng.
+Kênh chưa nối thì đăng tay. Kênh đã nối thì xem mục Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA. Bài hẹn giờ thì tới giờ nhóm Zalo Marketing nhận tin Đến giờ đăng tay bài đăng.
 
 **Các bước**
 1. Mở bài có chữ Chờ đăng tay (trên lịch, hoặc chạm dòng "kênh chờ đăng tay" đầu màn).
@@ -208,14 +208,14 @@ Kênh chưa nối và Zalo OA đăng tay. Kênh đã nối thì xem mục Hệ t
 - Muốn sửa bài đã duyệt mà chưa kênh nào lên: bấm [[Trả về nháp để sửa]], rồi duyệt lại.
 - Huỷ bài (biểu tượng thùng rác trên đầu màn) chỉ được khi chưa kênh nào lên.
 
-## Hệ thống tự đăng Facebook, Instagram, Threads
-Từ khoá: tự đăng, đăng tự động, kết nối kênh, thử lại, đang đăng, token Meta, Facebook, Instagram, Threads
+## Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
+Từ khoá: tự đăng, đăng tự động, kết nối kênh, thử lại, đang đăng, token Meta, Facebook, Instagram, Threads, Zalo OA, bài viết OA
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Marketing | Bài đăng mạng xã hội | [[Kiểm lại kết nối]] |
 
-Trước đây mọi kênh đăng tay. Từ nay kênh đã nối thì hệ thống tự đăng đúng giờ hẹn (không hẹn giờ thì đăng ngay khi duyệt). Zalo OA vẫn đăng tay.
+Trước đây mọi kênh đăng tay. Từ nay kênh đã nối thì hệ thống tự đăng đúng giờ hẹn (không hẹn giờ thì đăng ngay khi duyệt). Zalo OA lên thành Bài viết trên trang OA: ảnh đầu làm ảnh bìa, tiêu đề lấy ô tiêu đề Zalo OA, không gửi tin cho khách.
 
 **Các bước**
 1. Soạn, duyệt bài như cũ. Bảng Kiểm ghi kênh nào hệ thống tự đăng, kênh nào đăng tay.
@@ -226,6 +226,25 @@ Trước đây mọi kênh đăng tay. Từ nay kênh đã nối thì hệ thố
 **Lưu ý**
 - Chữ đỏ "chưa rõ bài đã lên chưa": mở kênh kiểm. Đã có bài thì bấm Đã đăng, đừng bấm Thử lại.
 - Nối kênh do quản trị hệ thống làm: dán token ở Cài đặt lõi và API, mục Đăng bài mạng xã hội (Meta). Token Threads hệ thống tự gia hạn.
+- Zalo OA dùng chung kết nối Zalo OA sẵn có. Kết nối kênh báo "Zalo chưa duyệt quyền đăng bài viết" thì quản trị hệ thống vào Zalo for Developers, mục Article API, bấm Nộp xét duyệt; chờ Zalo duyệt thì đăng tay.
+
+## Đăng ngay bài đã hẹn giờ
+Từ khoá: đăng ngay, bỏ giờ hẹn, giờ hẹn đã qua, duyệt và đăng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, chân màn soạn | [[⚡ Đăng ngay]] |
+
+Bài đã chọn Lúc đăng thì chân màn có thêm nút ⚡ Đăng ngay cạnh nút Duyệt.
+
+**Các bước**
+1. Mở bài, sửa xong lỗi đỏ (trừ lỗi về giờ).
+2. Bấm [[⚡ Đăng ngay]], đọc câu hỏi rồi bấm Đăng ngay.
+3. Hệ thống bỏ giờ hẹn, duyệt và đăng ngay các kênh đã nối; kênh chưa nối chuyển Chờ đăng tay.
+
+**Lưu ý**
+- Giờ hẹn đã qua không chặn Đăng ngay. Lỗi đỏ khác (thiếu ảnh, thiếu chữ) vẫn chặn.
+- Bấm Thôi ở câu hỏi thì bài giữ nguyên giờ hẹn.
 
 ## Kho bản thảo thay cho gửi ghi chú qua lại
 Từ khoá: bản thảo, kho bản thảo, ý tưởng bài, Evernote, nhập Word, nhập Excel, lịch nội dung, nội dung gốc

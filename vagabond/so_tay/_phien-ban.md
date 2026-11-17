@@ -12,8 +12,13 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v666
+- Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
+- Đăng ngay bài đã hẹn giờ
+- Đăng tay bài đã duyệt và ghi Đã đăng
+
 ## v665
-- Hệ thống tự đăng Facebook, Instagram, Threads
+- Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
 - Kho bản thảo thay cho gửi ghi chú qua lại
 - Soạn và duyệt bài đăng mạng xã hội
 - Đăng tay bài đã duyệt và ghi Đã đăng
