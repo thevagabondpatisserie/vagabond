@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v667
+- Chuyển lại tiền dư khi khách trả OnePay ở đơn cũ
+
 ## v665
 - Hệ thống tự đăng Facebook, Instagram, Threads
 - Kho bản thảo thay cho gửi ghi chú qua lại
