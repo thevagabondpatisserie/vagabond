@@ -44,6 +44,14 @@ def _don():
 		trang_thai_khop="Không thấy chứng từ"))
 	d.insert(ignore_permissions=True)
 	nen._DA_TAO.append((d.doctype, d.name))
+	# Codex #580 vòng 2: bản đọc cũ của cùng giao dịch, đã được bản đọc lại thay
+	# (giữ làm vết). Câu lọc "Đã thay" trên MariaDB thật phải bỏ nó, dư vẫn 880.000.
+	c = frappe.get_doc(dict(doctype=DT_DONG, company=ct, vendor="OnePay", loai="ban", nhom="ban",
+		ngay=today(), ma_tham_chieu="S67355O97615T100622", ma_don="S67355O97615T100622",
+		tien_hang=flt(hd.grand_total) + DU, khoa="thay:kiem-667-" + frappe.generate_hash(length=10),
+		trang_thai_khop="Đã thay"))
+	c.insert(ignore_permissions=True)
+	nen._DA_TAO.append((c.doctype, c.name))
 	return hd
 
 
@@ -54,7 +62,7 @@ def _gia():
 		_bao_ke_toan=lambda h, s: (0, []))
 
 
-@ca("v667 thật: đơn 97790 chưa chọn đơn cũ thì mời chọn 97615; chọn rồi thấy dư 880.000 từ bảng kê OnePay")
+@ca("v667 thật: đơn 97790 chưa chọn đơn cũ thì mời chọn 97615; chọn rồi thấy dư 880.000 từ bảng kê OnePay, dòng Đã thay không cộng hai lần")
 def _xem_that():
 	hd = khong_nem("dựng đơn", _don)
 	if not hd:
