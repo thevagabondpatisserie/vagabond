@@ -55,6 +55,8 @@ O = {
 	"thanh_mien_phi": "goi_y_thanh_mien_phi", "nhom": "goi_y_nhom", "toi_da": "goi_y_toi_da",
 	"nguong": "goi_y_nguong_ton", "kho_bep": "goi_y_kho_bep", "ly_do_nhom": "goi_y_ly_do_nhom",
 }
+# Công tắc đọc thẳng giá trị ô: cfg_o đổi 0 thành "" nên tắt rồi vẫn hiểu là bật (Codex #581).
+O_BAT = ("bat_gio", "bat_quay", "bat_dbt", "thanh_mien_phi")
 O_MUC_GIU = "vgb_muc_giu_web"
 DA_GIEO = "vgb_goi_y_da_gieo_nhap"
 
@@ -230,6 +232,9 @@ def bao_cao(snaps, toi_da_mon=5):
 			continue
 		dong = s.get("mon") or []
 		tien = sum(int(d.get("gia") or 0) * int(d.get("sl") or 0) for d in dong)
+		if "goi_y" not in s:
+			# Đơn trước bản v668 không có dấu: không tính vào mẫu số (Codex #581).
+			continue
 		so += 1
 		tong += tien
 		gy = set(s.get("goi_y") or [])
@@ -285,6 +290,29 @@ def cau_canh_bao(ds):
 		". Phiếu vẫn lưu được. Bếp cân nhắc giữ lại cho đơn web.")
 
 
+def ngoai_danh_muc(ds, co):
+	"""THUẦN: các tên trong ds không có trong danh mục co (giữ thứ tự, không trùng)."""
+	co = set(co or [])
+	ra = []
+	for x in ds or []:
+		x = str(x or "").strip()
+		if x and x not in co and x not in ra:
+			ra.append(x)
+	return ra
+
+
+def ly_do_tu_dong(v):
+	"""THUẦN: [[nhóm, vn, en]] từ chữ nhiều dòng hoặc danh sách."""
+	if isinstance(v, list):
+		ra = []
+		for x in v:
+			x = list(x) if isinstance(x, (list, tuple)) else [p.strip() for p in str(x).split("|")]
+			if x and str(x[0]).strip():
+				ra.append([str(x[0]).strip()] + [str(p or "").strip() for p in x[1:3]])
+		return ra
+	return [[p.strip() for p in d.split("|")] for d in _dong(v) if d.split("|")[0].strip()]
+
+
 def kiem_cap(d):
 	"""THUẦN: lỗi của một dòng Món đi kèm, hoặc ""."""
 	if not str(d.get("mon_goc") or "").strip() and not d.get("nhom_goc"):
@@ -311,10 +339,18 @@ def kiem_dong(doc):
 	doc.mon_goc = str(doc.mon_goc or "").strip().lower()
 
 
+def _o_tho(ten):
+	"""Giá trị ô Vagabond Settings giữ nguyên số 0; chưa có dòng thì None (dùng mặc định)."""
+	try:
+		return frappe.db.get_single_value("Vagabond Settings", ten)
+	except Exception:
+		return None
+
+
 def cai_dat():
 	from vagabond.lib import cfg_o
 
-	return chuan_cai_dat({k: cfg_o(v) for k, v in O.items()})
+	return chuan_cai_dat({k: (_o_tho(v) if k in O_BAT else cfg_o(v)) for k, v in O.items()})
 
 
 def _hom_nay():
@@ -455,7 +491,8 @@ def man_hinh(trang_thai=None, tim=None):
 	_quyen()
 	loc = {"trang_thai": trang_thai} if trang_thai in TRANG_THAI else {}
 	rows = frappe.get_all(DOCTYPE, filters=loc, fields=["name", "mon_goc", "nhom_goc", "mon_goi_y", "ten_goi_y", "ly_do_vn", "ly_do_en",
-		"trang_thai", "ghim_tu", "ghim_den", "uu_tien", "nguon"], order_by="mon_goc asc, uu_tien asc, modified desc", limit_page_length=0)
+		"trang_thai", "ghim_tu", "ghim_den", "uu_tien", "nguon"], order_by="mon_goc asc, uu_tien asc, modified desc", limit_page_length=0,
+		ignore_permissions=True)
 	q = str(tim or "").strip().lower()
 	if q:
 		rows = [r for r in rows if q in " ".join(str(r.get(k) or "") for k in ("mon_goc", "nhom_goc", "ten_goi_y", "ly_do_vn")).lower()]
@@ -481,11 +518,47 @@ def doi_nhieu(ten=None, trang_thai=None):
 	return {"ok": 1, "doi": doi}
 
 
+def _ten_co(dt, ds):
+	ds = [x for x in ds if x]
+	if not ds:
+		return set()
+	return {x.name for x in frappe.get_all(dt, filters={"name": ["in", ds]}, fields=["name"], limit_page_length=0, ignore_permissions=True)}
+
+
+def _kiem_danh_muc_cap(d):
+	"""QT-31: món gốc, nhóm, món gợi ý phải có trong danh mục, không nhận chữ gõ tay."""
+	from vagabond.banh_web import DT as BANH
+
+	goc = str(d.get("mon_goc") or "").strip().lower()
+	if goc and not frappe.db.exists(BANH, {"khoa": goc}):
+		frappe.throw("Bánh gốc \"%s\" không có trong danh sách bánh trên web. Bấm ô Bánh gốc hoặc nhóm món và chọn trong danh sách." % goc)
+	if d.get("nhom_goc") and not frappe.db.exists("Item Group", d["nhom_goc"]):
+		frappe.throw("Nhóm món \"%s\" không có trong danh mục. Bấm ô Bánh gốc hoặc nhóm món và chọn trong danh sách." % d["nhom_goc"])
+	if d.get("mon_goi_y") and not frappe.db.exists("Item", d["mon_goi_y"]):
+		frappe.throw("Món gợi ý \"%s\" không có trong danh mục món. Bấm ô Món gợi ý và chọn trong danh sách." % d["mon_goi_y"])
+
+
+@frappe.whitelist()
+def danh_muc():
+	"""Danh mục cho các ô chọn của màn Món đi kèm (QT-31: chọn từ danh mục, không gõ)."""
+	_quyen(QUYEN_KHO)
+	from vagabond.banh_web import DT as BANH
+
+	banh = [{"k": x.khoa, "nhan": x.ten or x.khoa} for x in frappe.get_all(BANH, fields=["khoa", "ten"], order_by="ten asc",
+		limit_page_length=0, ignore_permissions=True) if x.khoa]
+	nhom = [x.name for x in frappe.get_all("Item Group", filters={"is_group": 0}, fields=["name"], order_by="name asc",
+		limit_page_length=0, ignore_permissions=True)]
+	kho = [x.name for x in frappe.get_all("Warehouse", filters={"is_group": 0, "disabled": 0}, fields=["name"], order_by="name asc",
+		limit_page_length=0, ignore_permissions=True)]
+	return {"banh": banh, "nhom": nhom, "kho": kho, "nhom_rieng": [n for n, _vn, _en in LY_DO_NHOM_MAC_DINH]}
+
+
 @frappe.whitelist(methods=["POST"])
 def luu_cap(du_lieu=None):
 	"""Thêm hay sửa một dòng (sửa câu, ghim, thứ tự)."""
 	_quyen()
 	d = json.loads(du_lieu) if isinstance(du_lieu, str) else (du_lieu or {})
+	_kiem_danh_muc_cap(d)
 	cho = ("mon_goc", "nhom_goc", "mon_goi_y", "ly_do_vn", "ly_do_en", "trang_thai", "ghim_tu", "ghim_den", "uu_tien")
 	if d.get("name"):
 		doc = frappe.get_doc(DOCTYPE, d["name"])
@@ -504,6 +577,23 @@ def luu_cai_dat(du_lieu=None):
 	"""Marketing, bếp sửa cài đặt gợi ý không cần mở Cài đặt lõi."""
 	_quyen()
 	d = json.loads(du_lieu) if isinstance(du_lieu, str) else (du_lieu or {})
+	# QT-31: nhóm, kho, nhóm của câu lý do phải có trong danh mục (Codex #581).
+	if "nhom" in d:
+		ds = d["nhom"] if isinstance(d["nhom"], list) else _dong(d["nhom"])
+		sai = ngoai_danh_muc(ds, _ten_co("Item Group", ds))
+		if sai:
+			frappe.throw("Nhóm món không có trong danh mục: %s. Bấm Chọn nhóm và chọn trong danh sách." % ", ".join(sai))
+	if "kho_bep" in d:
+		ds = d["kho_bep"] if isinstance(d["kho_bep"], list) else _dong(d["kho_bep"])
+		sai = ngoai_danh_muc(ds, _ten_co("Warehouse", ds))
+		if sai:
+			frappe.throw("Kho không có trong danh mục: %s. Bấm Chọn kho và chọn trong danh sách." % ", ".join(sai))
+	if "ly_do_nhom" in d:
+		d["ly_do_nhom"] = ly_do_tu_dong(d["ly_do_nhom"])
+		ds = [x[0] for x in d["ly_do_nhom"]]
+		sai = ngoai_danh_muc(ds, _ten_co("Item Group", ds) | {n for n, _vn, _en in LY_DO_NHOM_MAC_DINH})
+		if sai:
+			frappe.throw("Câu lý do gắn với nhóm không có trong danh mục: %s. Bấm Thêm câu cho nhóm và chọn trong danh sách." % ", ".join(sai))
 	for k, o in O.items():
 		if k not in d:
 			continue
@@ -523,7 +613,7 @@ def duoi_muc_giu():
 	_quyen(QUYEN_KHO)
 	cd = cai_dat()
 	ds = frappe.get_all("Item", filters={O_MUC_GIU: [">", 0], "disabled": 0}, fields=["item_code", "item_name", O_MUC_GIU],
-		limit_page_length=0)
+		limit_page_length=0, ignore_permissions=True)
 	ton = _ton([x.item_code for x in ds], cd["kho_bep"])
 	ra = [{"ma": x.item_code, "ten": x.item_name, "muc": int(x.get(O_MUC_GIU) or 0), "ton": ton.get(x.item_code, 0)}
 		for x in ds if ton.get(x.item_code, 0) < int(x.get(O_MUC_GIU) or 0)]
