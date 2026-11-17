@@ -94,9 +94,13 @@ def _gia(si, phieu=(), si_cua_don_cu=None, sdt_pancake="0916220439", sql=None):
 			return [_D(p) for p in phieu if p.get("hoa_don") == args[0] and p["trang_thai"] != "Da huy"]
 		return []
 
+	def get_all(dt, filters=None, or_filters=None, fields=None, **k):
+		ghi.setdefault("get_all", []).append((dt, filters, or_filters))
+		if dt == ht.SI:
+			return [_D(r) for r in (si_cua_don_cu or [])]
+		return []
+
 	def get_value(dt, f=None, fields=None, as_dict=False, **k):
-		if dt == ht.SI and isinstance(f, dict):
-			return si_cua_don_cu
 		if dt == ht.DT and isinstance(f, dict):
 			for p in phieu:
 				if p.get("hoa_don") == f.get("hoa_don") and p["trang_thai"] != "Da huy":
@@ -110,7 +114,7 @@ def _gia(si, phieu=(), si_cua_don_cu=None, sdt_pancake="0916220439", sql=None):
 			ghi["insert"].append(self.__dict__)
 
 	fr = SimpleNamespace(
-		throw=throw, get_doc=lambda a, b=None: si if not isinstance(a, dict) else _Doc(flags=SimpleNamespace(), **a),
+		throw=throw, get_all=get_all, get_doc=lambda a, b=None: si if not isinstance(a, dict) else _Doc(flags=SimpleNamespace(), **a),
 		get_meta=lambda dt: SimpleNamespace(has_field=lambda f: True), session=SimpleNamespace(user="loananh@x"),
 		log_error=lambda *a, **k: None, get_traceback=lambda: "",
 		db=SimpleNamespace(sql=sql or db_sql, get_value=get_value, commit=lambda: None, exists=lambda *a: True),
@@ -148,7 +152,11 @@ def _don_cu_sai():
 	for nhan, kw, don, chu in (
 		("khác số điện thoại", dict(sdt_pancake="0909000000"), "97615", "không cùng số điện thoại"),
 		("chính đơn này", {}, "97790", "chính hoá đơn này"),
-		("còn hoá đơn riêng", dict(si_cua_don_cu="HDB-26-11-02000"), "97615", "HDB-26-11-02000"),
+		("còn hoá đơn riêng", dict(si_cua_don_cu=[dict(name="HDB-26-11-02000", custom_pancake_display_id="97615",
+			remarks="")]), "97615", "HDB-26-11-02000"),
+		# Codex #580: hoá đơn cũ chỉ ghi số đơn ở ghi chú vẫn là chủ của khoản đó.
+		("hoá đơn cũ chỉ có ghi chú", dict(si_cua_don_cu=[dict(name="HDB-26-09-00100", custom_pancake_display_id="",
+			remarks="Pancake #97615 - Ms.Hảo - 0916220439")]), "97615", "HDB-26-09-00100"),
 		("đã dùng", dict(phieu=[dict(name="HT-9", hoa_don="HDB-X", don_tra_tien="97615", trang_thai="Cho chi")]),
 			"97615", "HT-9"),
 		("chữ", {}, "abc", "chỉ gồm chữ số"),
@@ -226,3 +234,30 @@ def _man():
 		kq = {"dat": 0, "hong": 1, "loi": [(r.stderr or r.stdout)[:500]]}
 	la("hỏng", kq["loi"], [])
 	la("đạt đủ", kq["dat"], 4)
+
+
+# ---------------------------------------------------------- Codex #580 vòng 1
+
+@ca("Codex #580: OnePay đã hoàn 880.000 qua cổng (dòng hoàn số âm) thì không còn dư; đọc bảng kê lấy cả dòng hoàn")
+def _hoan_qua_cong():
+	hoan = dict(name="h1", ma_tham_chieu="S67355O97615T100622", tien_hang=-880000, sales_invoice="", ngay="2026-11-15")
+	tong, _m = ht.tien_onepay_cua_don(["97790", "97615"], DONG + [hoan], SI_NAME)
+	la("ròng", tong, 770000)
+	la("không còn dư", ht.tran_tien_du(tong, 770000)[0], False)
+	loc = []
+	fr = SimpleNamespace(db=SimpleNamespace(exists=lambda *a: True),
+		get_all=lambda dt, filters=None, **k: loc.append(filters) or [])
+	with patch.object(ht, "frappe", fr):
+		ht._dong_onepay(["97615"], SI_NAME)
+	dung("mọi câu đọc lấy cả mua và hoàn", loc and all(f.get("loai") == ["in", ["ban", "hoan"]] for f in loc))
+
+
+@ca("Codex #580: gợi ý đơn cũ chỉ lấy đơn của chính khách; khoản của khách khác không hiện và không chiếm chỗ gợi ý đúng")
+def _goi_y_pham_vi():
+	khac = [dict(name="k%d" % i, ma_tham_chieu="S67355O9%04dT1" % i, tien_hang=2000000, sales_invoice="",
+		ngay="2026-11-16") for i in range(8)]
+	dong = khac + DONG + [dict(name="h", ma_tham_chieu="S67355O97001T1", tien_hang=900000, sales_invoice="", ngay="2026-11-01")]
+	g = ht.chon_goi_y(dong, ["97615", "97790", "97001"], "97790", 770000, "2026-10-03", 5)
+	la("chỉ đơn của khách, ròng lớn hơn đơn, chưa nối", [(x["so"], x["tien"]) for x in g], [("97615", 1650000), ("97001", 900000)])
+	la("khách không có đơn nào khác", ht.chon_goi_y(dong, ["97790"], "97790", 770000, "2026-10-03"), [])
+	la("đơn quá 45 ngày không gợi ý", ht.chon_goi_y(dong, ["97001"], "97790", 770000, "2026-11-02"), [])
