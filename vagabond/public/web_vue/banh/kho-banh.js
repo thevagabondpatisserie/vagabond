@@ -128,9 +128,22 @@ export function taoKho(moiTruong) {
     const tt = D.trangThaiMon(dotDbt.value, m, lucDbt(), nd.dac_biet_da_dat);
     if (tt !== 'mo') { toast(lyDo(tt === 'chua_mo' ? 'dac_biet_chua_mo' : 'dac_biet_da_chot')); return true; }
     const con = D.conSuat(m, nd.dac_biet_da_dat, trongGioDbt(m, boDong));
-    if (con !== null && them > con) { toast(t('dbt_con_suat', 'Món cuối tuần này chỉ còn nhận {so} bánh.', {so: con})); return true; }
+    if (con !== null && them > con) { toast(cauSuat(con)); return true; }
     return false;
   }
+  const cauSuat = con => con > 0 ? t('dbt_con_suat', 'Món cuối tuần này chỉ còn nhận {so} bánh.', {so: con})
+    : t('dbt_du_suat', 'Món cuối tuần này đã đủ số lượng nhận.');
+  /* Codex #579: món của đợt vượt số lượng ngay trong giỏ (giỏ lưu từ trước,
+     đã đặt tăng lên trong lúc khách chọn). Trả câu nhắc hoặc ''. */
+  function gioVuotSuat() {
+    for (const m of (dotDbt.value && dotDbt.value.mon_dt) || []) {
+      const con = D.conSuat(m, nd.dac_biet_da_dat, 0);
+      if (con !== null && trongGioDbt(m) > con) return cauSuat(con);
+    }
+    return '';
+  }
+  /* Bánh thuộc đợt đang hiện (theo mọi size của bánh). */
+  const laBanhDot = c => c.sizes.some(s => !!D.khoaCuaMa(maDbt.value, s.id));
   /* v649: giỏ có bánh đặt trước thì không nhận hôm nay (tách đơn). */
   const homNayBiChan = computed(() => T.chanHomNay(S.CART));
   const cauTachDon = k => k === 'co_hom_nay'
@@ -227,7 +240,9 @@ export function taoKho(moiTruong) {
   function kichThuocDangBan(c, tab = S.tab) {
     /* v667: món của đợt cuối tuần lấy size đang nhận đặt trước; bánh không có
        trong bảng đặt trước (chỉ làm cho đợt) thì mọi size, số lượng giữ theo đợt. */
-    if (tab === 'dac_biet') { const co = c.sizes.filter(s => S.TRUOC[s.id] > 0); return co.length ? co : c.sizes; }
+    /* Codex #579: MỘT luật cho mọi đường mở bánh của đợt (tab Đặc biệt, Sửa
+       bánh từ giỏ, đường dẫn bánh); riêng tab Có sẵn hôm nay theo hàng có sẵn. */
+    if (tab === 'dac_biet' || (tab !== 'today' && laBanhDot(c))) { const co = c.sizes.filter(s => S.TRUOC[s.id] > 0); return co.length ? co : c.sizes; }
     const bang = tab === 'today' ? S.TODAY : S.TRUOC;
     const loc = tab === 'today' ? Object.keys(bang).length > 0 : coTruoc.value;
     return loc ? c.sizes.filter(s => bang[s.id] > 0) : c.sizes;
@@ -374,6 +389,8 @@ export function taoKho(moiTruong) {
       const m = o.cm === 0 ? (S.MUA.mon || []).find(x => x.ma === o.id) : null;
       if (gh && daCo(o.id) >= gh) { toast(t('dat_banh_abecb98cf', 'Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới.', {gia_tri_a: gh})); return; }
       if (m && daCo(o.id) >= m.con) { toast(t('dat_banh_3b1a7e8cc', 'Mùa này chỉ còn') + ' ' + m.con + ' ' + t('dat_banh_5faac70d7', 'phần. Cần nhiều hơn quý khách gọi 0931 224 334')); return; }
+      /* Codex #579: nút + trong giỏ cũng giữ giờ chốt và số lượng của đợt. */
+      if (chanThemDbt(o.id, 1)) return;
     }
     o.qty += d;
     if (o.qty <= 0) S.CART.splice(i, 1);
@@ -828,6 +845,8 @@ export function taoKho(moiTruong) {
     if (dotDbt.value && D.gioCoMonDot(S.CART, maDbt.value)) {
       const tt = D.trangThaiDot(dotDbt.value, lucDbt());
       if (tt !== 'mo') { toast(lyDo(tt === 'chua_mo' ? 'dac_biet_chua_mo' : 'dac_biet_da_chot')); return {buoc: 'gio'}; }
+      const vuot = gioVuotSuat();
+      if (vuot) { toast(vuot); return {buoc: 'gio'}; }
       if (dbtChan(picked.value)) { S.moLich = true; toast(t('dbt_chi_giao', 'Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.', {ngay: ngayGiaoDbt()})); return {buoc: 'lich'}; }
     }
     const lichHong = !gioHopLe.value;
