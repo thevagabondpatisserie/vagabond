@@ -596,7 +596,7 @@ export function taoKho(moiTruong) {
      kính (bánh một cỡ có cm 0). Món thêm từ gợi ý chỉ để không gợi ý lại. Giỏ có bánh
      Có sẵn hôm nay thì không gợi ý: món gợi ý là hàng đặt trước, thêm vào thành giỏ
      trộn hai loại, bước gửi đơn chặn (Codex #581 vòng 2). */
-  const coHomNay = () => S.CART.some(T.laBanhHomNay);
+  const coHomNay = () => S.CART.some(T.laBanhHomNay) || S.gioCho.banh.some(T.laBanhHomNay);
   const maBanhGio = () => S.CART.filter(o => T.laBanhDatTruoc(o) && !o.goi_y).map(o => o.id);
   async function napGoiY() {
     const goc = maBanhGio(), khoa = goc.slice().sort().join(',') + '|' + S.CART.map(o => o.id + ':' + (o.nguon || '')).sort().join(',');
@@ -617,7 +617,7 @@ export function taoKho(moiTruong) {
     /* Bấm + là thêm NGAY một cái. Món gợi ý không cần chọn size hay tuỳ chọn. */
     if (!u || S.CART.some(o => o.id === u.ma)) return false;
     const o = {k: u.ten, img: u.anh || '', id: u.ma, cm: 0, price: Number(u.gia) || 0, nguon: 'order', wish: '', adds: [], qty: 1, goi_y: 1};
-    const xd = T.xungDotGio(S.CART, o);
+    const xd = T.xungDotGio(S.CART.concat(S.gioCho.banh), o);
     if (xd) { toast(cauTachDon(xd)); return false; }
     S.CART.push(o);
     suKien('AddToCart', {content_ids: [o.id], contents: [{id: o.id, quantity: 1}], content_type: 'product', value: o.price, currency: 'VND'});
@@ -1091,12 +1091,21 @@ export function taoKho(moiTruong) {
     return {k: c.k, img: c.img, id: z.id, cm: z.cm, price: z.p, nguon: o.nguon === 'today' ? 'today' : 'order', qty: o.qty,
       wish: String(o.wish || '').slice(0, 60), adds, dung_cu: T.chuanDungCu(o.dung_cu)};
   }
+  /* v668 (Codex #581 vòng 2, 3): dòng thêm từ gợi ý là hàng đặt trước. Giỏ có bánh Có
+     sẵn hôm nay, kể cả dòng lưu còn chờ danh mục máy chủ, thì bỏ dòng gợi ý để giỏ không
+     trộn hai loại. Gọi ở MỌI đường đưa dòng lưu vào giỏ: phục hồi ngay và gắn sau khi
+     danh mục về. */
+  function boGoiYNeuHomNay() {
+    if (!coHomNay()) return;
+    for (let i = S.CART.length - 1; i >= 0; i--) if (S.CART[i].goi_y) S.CART.splice(i, 1);
+  }
   function ganGioCho() {
     if (!S.gioCho.banh.length) return;
     const con = [];
     S.gioCho.banh.forEach(o => { const d = dongGioTuLuu(o); if (d) S.CART.push(d); else con.push(o); });
     /* Danh mục đã về mà vẫn không có món: món đã ngừng bán, không giữ nữa. */
     S.gioCho.banh = S.tonNapXong ? [] : con;
+    boGoiYNeuHomNay();
   }
   function lamTuoiGiaGio() {
     S.CART.forEach(o => {
@@ -1132,8 +1141,7 @@ export function taoKho(moiTruong) {
         k: String(o.k || o.id).slice(0, 120), img: typeof o.img === 'string' ? o.img : '', id: o.id, cm: 0, price: Number(o.price) || 0,
         nguon: 'order', wish: '', adds: [], qty: o.qty, goi_y: 1}));
       luu.forEach(o => { const x = dongGioTuLuu(o); if (x) S.CART.push(x); else S.gioCho.banh.push(o); });
-      /* Giỏ lưu có bánh Có sẵn hôm nay thì bỏ dòng thêm từ gợi ý (hàng đặt trước), không phục hồi giỏ trộn. */
-      if (S.CART.some(T.laBanhHomNay)) for (let i = S.CART.length - 1; i >= 0; i--) if (S.CART[i].goi_y) S.CART.splice(i, 1);
+      boGoiYNeuHomNay();
       if (S.tonNapXong) ganGioCho();
       if (/^\d{4}-\d{2}-\d{2}$/.test(d.ngay || '')) S.ngayChon = d.ngay;
       if (Number.isInteger(d.slot) && SLOTS[d.slot]) S.pickedSlot = d.slot;
