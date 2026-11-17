@@ -196,7 +196,8 @@ def _tao(dot, luc, ngay, da_dat=None, hang=None, luc_sau=None, dot_sau=None):
 	if hang is not None:
 		don["items"] = hang
 	with um.patch.object(dbt, "dot_cong_khai", lambda: bay_gio["dot"]), \
-			um.patch.object(dbt, "ma_theo_khoa", lambda d: {"candle": {"BAWC00139", "BAWC00140"}}), \
+			um.patch.object(dbt, "ma_theo_khoa", lambda d: {m["khoa"]: {"BAWC00139", "BAWC00140"}
+				for m in (d or {}).get("mon_dt") or [] if m["khoa"] == "candle"}), \
 			um.patch.object(dbt, "luc_vn", lambda: bay_gio["luc"]), um.patch.object(dbt, "khoa_suat", khoa_suat), \
 			um.patch.object(dbt, "da_dat", dem):
 		r = tao_don(json.dumps(don))
@@ -258,3 +259,8 @@ def _xet_lai_duoi_khoa():
 	la("đợt không đổi: ghi", (r.get("ok"), "ghi" in vet.su), (1, True))
 	r, vet, _ = _tao(d, "2026-11-20T19:59", "2026-11-21T10:00:00", hang=co, luc_sau="2026-11-20T20:01", dot_sau=dict(d, id="dot-khac", chot_don="2026-11-27T20:00", ngay_giao=["2026-11-28"]))
 	la("đợt bị thay bằng đợt khác giữa chừng: vẫn xét theo đợt khách đã đặt", (r.get("ok"), r.get("ly_do")), (0, dbt.DA_CHOT))
+	for ten, mon in (("gỡ Candle khỏi đợt", []), ("thay Candle bằng bánh khác", [{"khoa": "bong lan"}])):
+		r, vet, _ = _tao(d, "2026-11-20T19:59", "2026-11-21T10:00:00", hang=co, luc_sau="2026-11-20T20:01", dot_sau=dict(d, mon_dt=mon))
+		la("Codex #579 vòng 2: Marketing " + ten + " lúc đơn chờ khoá, qua giờ chốt: Candle vẫn tính là món của đợt, từ chối",
+			(r.get("ok"), r.get("ly_do"), "ghi" in vet.su, "post" in vet.su), (0, dbt.DA_CHOT, False, False))
+	la("hợp mã: giữ món của bản đầu, thêm món của bản mới", dbt.hop_ma({"a": {"1"}}, {"a": {"2"}, "b": {"3"}}), {"a": {"1", "2"}, "b": {"3"}})
