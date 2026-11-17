@@ -140,7 +140,38 @@ CAU_HINH = {'mien_phi_tu': 0, 'pixel_id': '', 'lien_he': {'dien_thoai': '0931 22
 	'quan': [{'ma': 'Q1', 'ten': 'Quận 1 cũ', 'lat': 10.776, 'lng': 106.700}, {'ma': 'BT', 'ten': 'Bình Thạnh', 'lat': 10.81, 'lng': 106.71}]}
 
 
+# v668 ảnh chụp Gợi ý mua thêm (VGB_GY=1): món gợi ý, cặp quầy, mốc miễn phí giao như site.
+A = '/assets/vagabond/web_order/'
+GY = {'bat': 1, 'toi_da': 4, 'thanh_mien_phi': 1, 'mon': [
+	{'ma': 'BACF00028', 'ten': 'Biscotti Cocoa, Hũ 200 gr', 'anh': A + 'og-banh.jpg', 'gia': 190000, 'ly_do_vn': 'Cacao đắng hợp sô cô la 70%', 'ghim': 1},
+	{'ma': 'BANU00016', 'ten': 'Bánh Triple Chocolatine, Full size', 'anh': A + 'croquembouche.jpg', 'gia': 80000, 'ly_do_vn': 'Ba lớp sô cô la cho người mê', 'ghim': 0},
+	{'ma': 'BANU00004', 'ten': 'Croissant Nhân Kem Tiramisu Cà Phê', 'anh': A + 'tay-lam-banh-minh-hoa.jpg', 'gia': 90000, 'ly_do_vn': 'Tiramisu cà phê hợp mocha', 'ghim': 0},
+	{'ma': 'BACF00008', 'ten': 'Bánh Canelé', 'anh': A + 'anh-bia.png', 'gia': 65000, 'ly_do_vn': 'Giòn thơm, để được nhiều ngày', 'ghim': 0},
+	{'ma': 'BANU00015', 'ten': 'Bánh Plain Croissant, Full size', 'anh': A + 'og-banh.jpg', 'gia': 60000, 'ly_do_vn': 'Croissant bơ cho bữa sáng', 'ghim': 0}]}
+CAP_QUAY = {'bat': 1, 'toi_da': 4, 'nguong': 3, 'thanh_mien_phi': 1, 'mien_phi_tu': 500000, 'ghim': [], 'hom_nay': '2026-11-17',
+	'ly_do_nhom': {'Đồ uống': ['Uống kèm cho hợp', ''], 'Bánh trên tủ': ['Bánh còn trên tủ hôm nay', '']},
+	'cap': [{'mon_goc': '', 'nhom_goc': 'Bánh lạnh', 'mon_goi_y': 'NUCF00007', 'ly_do_vn': 'Caramel muối hợp kem béo', 'uu_tien': 10},
+		{'mon_goc': '', 'nhom_goc': 'Bánh lạnh', 'mon_goi_y': 'NUTR00017', 'ly_do_vn': 'Trà lài thanh vị bánh kem', 'uu_tien': 20},
+		{'mon_goc': '', 'nhom_goc': 'Bánh lạnh', 'mon_goi_y': 'NUMC00008', 'ly_do_vn': 'Matcha đắng nhẹ cân vị ngọt', 'uu_tien': 30}]}
+QUAY_GY = {'cap_nhat': '2026-11-17 16:41:00', 'quay': [{'ma': 'TCV', 'ten': 'The Vagabond Quận 1', 'dia_chi': '9 Trần Cao Vân', 'mon': [
+	{'ma': 'BL01', 'ten': 'Very Berry Mini', 'nhom': 'Bánh lạnh', 'con': 6, 'gia': 95000, 'anh': A + 'croquembouche.jpg', 'giao': 1, 'tai_ban': 1},
+	{'ma': 'BL02', 'ten': 'Tart Chanh Dây', 'nhom': 'Bánh lạnh', 'con': 4, 'gia': 85000, 'anh': A + 'og-banh.jpg', 'giao': 1, 'tai_ban': 1}],
+	'do_uong': [{'ma': 'NUCF00007', 'ten': 'Cà Phê Caramel Muối, Đá/Iced', 'nhom_goc': 'Cà phê', 'gia': 95000, 'anh': '/assets/vagabond/images/quay-tcv.jpg', 'giao': 1},
+		{'ma': 'NUTR00017', 'ten': 'Tách trà Xanh Hoa Lài, Nóng/Hot', 'nhom_goc': 'Trà', 'gia': 75000, 'anh': '/assets/vagabond/images/quay-nvhtn.jpg', 'giao': 1},
+		{'ma': 'NUMC00008', 'ten': 'Matcha Latte, Size M, Đá/Iced', 'nhom_goc': 'Matcha', 'gia': 95000, 'anh': '/assets/vagabond/images/quay-sales.jpg', 'giao': 1}],
+	'topping': []}]}
+
+
 def tra_loi_get(phuong, q):
+	gy = os.environ.get('VGB_GY') == '1'
+	if gy and phuong == 'goi_y_dat_truoc':
+		return GY
+	if gy and phuong == 'cap_quay':
+		return CAP_QUAY
+	if gy and phuong == 'con_tren_quay_web':
+		return QUAY_GY
+	if gy and phuong == 'cau_hinh_web':
+		return dict(CAU_HINH, mien_phi_tu=1000000)
 	if phuong == 'cong_khai':
 		return noi_dung()
 	if phuong == 'vi_tri_cong_khai':
