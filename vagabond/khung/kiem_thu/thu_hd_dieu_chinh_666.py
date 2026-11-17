@@ -522,3 +522,86 @@ def _man_tien_sau():
 	html = _man(t252._xem_mau(), s)["so_sanh"]
 	dung("nêu tờ điều chỉnh", "HDM-DC (số 39339)" in html)
 	dung("tiền sau đúng số máy trả", "7.999.999" in html or "7,999,999" in html)
+
+
+# ---------------------------------------------------------- Codex #578 vòng 1
+
+@ca("Codex #578: tờ điều chỉnh có dòng dịch vụ thì nút ghi sổ mở màn chọn tài khoản, không gửi thẳng thiếu tài khoản")
+def _dc_chi_phi_man():
+	dong = [{"ten": "R1", "idx": 1, "ten_hang": "Phí giao hàng điều chỉnh", "tien": -50000, "sua_duoc": 1, "goi_y": "6417 - Chi phí", "tk": ""}]
+	ra = _man(_xem_dc(ghi_so_duoc=1, ht_dong=dong), bam="dcmGhiDc")
+	dung("đọc dòng hạch toán trước", "vagabond.hach_toan_thang.xem" in ra["api"])
+	la("không gửi thẳng ghi sổ điều chỉnh", [x for x in ra["api"] if x == "vagabond.doi_chieu_mua.ghi_so_dieu_chinh"], [])
+	dung("mở màn Hạch toán có nút ghi sổ với hạch toán", "dcmHtGhi" in ra["footer"])
+	ra = _man(_xem_dc(ghi_so_duoc=1, ht_dong=[dict(dong[0], sua_duoc=0)]), bam="dcmGhiDc")
+	la("tờ chỉ có hàng kho: ghi sổ điều chỉnh thẳng", [x["a"] for x in ra["api_args"]
+		if x["m"] == "vagabond.doi_chieu_mua.ghi_so_dieu_chinh"], [{"name": "HDM-26-11-00218"}])
+
+
+@ca("Codex #578: màn Hạch toán ghi sổ tờ điều chỉnh qua ghi_so_thang thì tài khoản đã chọn tới đúng cửa ghi sổ có hạch toán")
+def _dc_chi_phi_tk():
+	nhan = []
+	doc = SimpleNamespace(name="HDM-DC", docstatus=0, items=[], status="Debit Note Issued", get=lambda k, d=None: "HDM-GOC" if k == "return_against" else d)
+
+	def throw(m, *a, **k):
+		raise ValueError(m)
+
+	with ExitStack() as bo:
+		bo.enter_context(patch.object(dc, "_kiem_quyen", lambda: None))
+		bo.enter_context(patch.object(dc, "_ghi_so_duoc", lambda: True))
+		bo.enter_context(patch.object(dc, "_dieu_chinh", lambda n: {"la_dieu_chinh": 1}))
+		bo.enter_context(patch.object(hdc, "chuan_bi_ghi_so", lambda n: doc))
+		bo.enter_context(patch.object(dc, "_ghi_so_co_hach_toan", lambda d, tk: nhan.append((d.name, tk))))
+		bo.enter_context(patch.object(dc, "frappe", SimpleNamespace(throw=throw, get_doc=lambda dt, n: doc)))
+		kq = dc.ghi_so_thang("HDM-DC", '{"R1": "6417 - Chi phí"}')
+	la("tài khoản tới cửa ghi sổ", nhan, [("HDM-DC", '{"R1": "6417 - Chi phí"}')])
+	la("báo đã ghi sổ vào tờ gốc", (kq["da_ghi_so"], kq["goc"]), (1, "HDM-GOC"))
+
+
+@ca("Codex #578: hoá đơn điều chỉnh TĂNG (không phải tờ trả) cũng không ghi đơn giá phần chênh vào bảng giá nhập")
+def _bang_gia_dc_tang():
+	from vagabond import bang_gia_nhap as bg
+	ghi = []
+	doc = _Dong(name="HDM-DCT", is_return=0, custom_trang_thai_hddt="Điều chỉnh", posting_date="2026-11-13", bill_no="39340",
+		items=[_Dong(item_code="NVLT00021", uom="Kg", conversion_factor=1000, rate=60000, description="")])
+	with patch.object(bg, "_ghi_mot_dong", lambda *a: ghi.append(a) or "sua"), patch.object(bg, "ly_do_bo_qua", lambda *a: None):
+		bg._chay(doc)
+	la("không ghi dòng nào", ghi, [])
+	dung("tờ gốc thường vẫn là giá mua", not hdc.la_to_dieu_chinh_doc(_Dong(is_return=0, custom_trang_thai_hddt="Gốc")))
+
+
+@ca("Codex #578 cùng loại: giá mua gần nhất của nhà cung cấp và của món không lấy từ tờ trả lại hay tờ điều chỉnh")
+def _gia_gan_nhat():
+	from vagabond import ncc
+	cau = []
+
+	class _Db:
+		def sql(self, q, *a, **k):
+			cau.append(q)
+			return []
+
+	with patch.object(hdc, "co_truong", lambda dt, t: True), patch.object(ncc, "frappe", SimpleNamespace(db=_Db())):
+		ncc._ncc_tu_lich_su()
+	cau_hd = [q for q in cau if "Purchase Invoice Item" in q]
+	dung("có câu đọc hoá đơn mua", bool(cau_hd))
+	dung("loại tờ trả lại", all("ifnull(pi.is_return, 0) = 0" in q for q in cau_hd))
+	dung("loại tờ điều chỉnh", all("custom_trang_thai_hddt, '') != 'Điều chỉnh'" in q for q in cau_hd))
+	with patch.object(hdc, "co_truong", lambda dt, t: False):
+		dung("site thiếu ô trạng thái: vẫn loại tờ trả, không đọc ô không có", hdc.sql_bo_to_chenh("pi") == " and ifnull(pi.is_return, 0) = 0")
+
+
+@ca("Codex #578: danh sách tờ điều chỉnh không nối thẳng: 1 và 2 tờ hiện đủ, 5 tờ hiện 2 tờ đầu và 'và 3 tờ nữa' bấm mới mở")
+def _ds_gon():
+	from vagabond.khung.kiem_thu import thu_doi_chieu_252 as t252
+	def cac(n):
+		return [{"name": "HDM-DC%d" % i, "bill_no": str(39339 + i), "total": -1000} for i in range(n)]
+	for n, co_gon in ((1, False), (2, False), (5, True)):
+		s = t252._so_sanh_mau([_dong_kg_man(dvt_hd="Thùng", sl_hd=2, ton_hd=20000, lech_dvt=0)], tien_hd=9200000,
+			tien_pnk=8000000, tien_dieu_chinh=-1000 * n, tien_hd_sau=9200000 - 1000 * n, cac_to_dieu_chinh=cac(n))
+		html = _man(t252._xem_mau(), s)["so_sanh"]
+		la("%d tờ: thu gọn" % n, "tờ nữa</summary>" in html, co_gon)
+		dung("%d tờ: tờ đầu hiện" % n, "HDM-DC0 (số 39339)" in html)
+		if co_gon:
+			dung("đếm đúng phần còn lại", "và 3 tờ nữa" in html)
+	ra = _man(t252._xem_mau(dieu_chinh={"cac_to": cac(5), "tien_sau": 9195000}))
+	dung("thẻ tờ gốc: đếm số và thu gọn", "5 hoá đơn điều chỉnh" in ra["khung"] and "và 3 tờ nữa" in ra["khung"])
