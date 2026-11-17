@@ -56,7 +56,7 @@ K_DANG = "Đang đăng"
 # Kênh kẹt Đang đăng quá lâu (máy chủ khởi động lại giữa chừng): chuyển đăng tay, báo
 # chưa rõ đã lên chưa, không tự đăng lại.
 KET_PHUT = 15
-KENH_TU_DONG = ("fb", "ig", "th")
+KENH_TU_DONG = ("fb", "ig", "th", "zl")
 
 KIEU_BAI = "Bài đăng"
 KIEU_STORY = "Story"
@@ -1241,18 +1241,21 @@ def gui_duyet(ma=None, ban_luu=None):
 
 
 @frappe.whitelist()
-def duyet(ma=None, ban_luu=None, da_doc_nhac=0):
+def duyet(ma=None, ban_luu=None, da_doc_nhac=0, dang_ngay=0):
 	"""Marketing duyệt đúng bản đang thấy. Chỉ đổi bài đang Nháp hoặc Chờ duyệt; bấm hai
-	lần thì lần sau thấy bài đã đổi trạng thái và không làm gì thêm."""
+	lần thì lần sau thấy bài đã đổi trạng thái và không làm gì thêm.
+
+	dang_ngay=1 (nút Đăng ngay, v666): bỏ giờ hẹn rồi duyệt như bài không hẹn, kênh đã
+	nối đăng liền. Giờ hẹn bị bỏ TRƯỚC khi kiểm, nên lỗi "giờ hẹn đã qua" không chặn."""
 	_kiem_soan()
 	_kiem_duyet()
 	# Đọc kết nối (gọi Meta) TRƯỚC khi lấy khoá lịch, không giữ khoá trong lúc chờ mạng.
 	noi = _noi()
 	with _khoa_lich():
-		return _duyet_trong_khoa(ma, ban_luu, da_doc_nhac, noi)
+		return _duyet_trong_khoa(ma, ban_luu, da_doc_nhac, noi, dang_ngay)
 
 
-def _duyet_trong_khoa(ma, ban_luu, da_doc_nhac, noi=None):
+def _duyet_trong_khoa(ma, ban_luu, da_doc_nhac, noi=None, dang_ngay=0):
 	doc = _doc_khoa(ma)
 	if doc.trang_thai not in TT_SUA_DUOC:
 		return _cho_man(doc)
@@ -1260,11 +1263,16 @@ def _duyet_trong_khoa(ma, ban_luu, da_doc_nhac, noi=None):
 		ra = _cho_man(doc)
 		ra["xung_dot"] = 1
 		return ra
+	hen_cu = doc.hen_luc
+	if int(dang_ngay or 0):
+		doc.hen_luc = None
 	kiem = _cho_man(doc)["bai"]["kiem"]
 	if so_chan(kiem):
 		frappe.throw("Còn %d lỗi đỏ trong bảng Kiểm, sửa xong mới duyệt được." % so_chan(kiem))
 	nhac = [x for x in kiem if x["muc"] == "nhac"]
 	if nhac and not int(da_doc_nhac or 0):
+		# Chưa lưu gì: trả bài với giờ hẹn cũ, kẻo người bấm Thôi rồi lưu tiếp làm mất giờ hẹn.
+		doc.hen_luc = hen_cu
 		ra = _cho_man(doc)
 		ra["can_doc_nhac"] = [x["chu"] for x in nhac]
 		return ra
@@ -1485,7 +1493,7 @@ def dang_bai(ma):
 	for k in dang:
 		try:
 			ma_bai, link = mxh.dang(k, doc.name, mxh.chu_cho_kenh((ban.get(k) or {}).get("chu"), KENH[k]["tran"]),
-				anh_cho_kenh(anh, k, kieu), kieu == KIEU_STORY)
+				anh_cho_kenh(anh, k, kieu), kieu == KIEU_STORY, tieu_de=(ban.get(k) or {}).get("tieu_de") or "")
 			kq = (K_XONG, link, ma_bai, "")
 		except mxh.LoiDang as e:
 			kq = (K_TAY, "", "", e.chu)
