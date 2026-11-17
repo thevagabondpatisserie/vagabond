@@ -220,6 +220,8 @@ async function scrHome() {
       card('🤖', 'Tin Zalo tự động', 'Máy tự gửi khách: cảm ơn sau mua hàng, sinh nhật, mời quay lại', 0, 'CRMZL') +
       /* v662 Bài đăng mạng xã hội (75-bai-dang.js): Marketing tải ảnh, AI soạn chữ, duyệt, đăng tay. */
       (coQuyenBaiDang() ? card('🗓️', 'Bài đăng mạng xã hội', 'Lịch đăng Facebook, Instagram, Threads, Zalo OA: tải ảnh, AI soạn chữ, duyệt', 0, 'BAIDANG') : '') +
+      /* v668 Gợi ý mua thêm (78-mon-di-kem.js): duyệt cặp Món đi kèm, mức giữ tại bếp, kết quả. */
+      (coQuyenMonDiKem() ? card('🥐', 'Món đi kèm', 'Duyệt món gợi ý mua thêm trên web, mức giữ bánh khô tại bếp, kết quả', 0, 'MONDK') : '') +
       (isSales() ? card('🎁', 'Tặng quà khách VIP', 'Lên danh sách, chia việc, theo dõi đã tặng và đã liên hệ', 0, 'TQV') : '') + '</div>';
   }
   /* Anh Viet 14/08/2026: doi ten nut 'Hop dong event, catering' thanh
@@ -641,13 +643,14 @@ var VGB_NHOM = [
      mẫu 27/10/2026. */
   {
     k: 'KHG', ten: 'Khách hàng & Marketing', icon: '💝',
-    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'BAIDANG', 'TQV'],
+    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'BAIDANG', 'MONDK', 'TQV'],
     nhom: [
       { t: 'Việc hôm nay', p: '', keys: ['CRMGOI'] },
       { t: 'Hồ sơ khách', p: '', keys: ['KH', 'CRMNHOM', 'CRMDY'] },
       { t: 'Chiến dịch', p: '', keys: ['CRMCD', 'CRMHQ', 'TQV'] },
       { t: 'Tin tự động', p: '', keys: ['CRMZL'] },
-      { t: 'Mạng xã hội', p: '', keys: ['BAIDANG'] }
+      { t: 'Mạng xã hội', p: '', keys: ['BAIDANG'] },
+      { t: 'Web đặt bánh', p: '', keys: ['MONDK'] }
     ]
   },
   {
@@ -1968,6 +1971,7 @@ var VGB_DUONG = {
   'ma-otp': 'OTP',
   'mau-in': 'CDMU',
   'may-in': 'CDMI',
+  'mon-di-kem': 'MONDK',
   'nghien-cuu-phat-trien': 'RND',
   'nguoi-dung': 'QLND',
   'nha-cung-cap': 'NCC',
@@ -2229,6 +2233,7 @@ function vgbGo(k) {
   if (k === 'CRMHQ') return go(scrCrmHqDs);
   if (k === 'CRMZL') return go(scrCrmZalo);
   if (k === 'BAIDANG') return go(function () { return scrBaiDang(); });
+  if (k === 'MONDK') return go(function () { return scrMonDiKem(); });
   if (k === 'HDG') return go(scrHopDongHub);
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);
