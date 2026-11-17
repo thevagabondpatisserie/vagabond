@@ -250,6 +250,16 @@ def chuan_bi_ghi_so(ten_pi):
 			frappe.throw("Dòng %d đang nối phiếu nhập. Tờ điều chỉnh chỉ sửa tiền, bỏ nối trước khi ghi sổ." % d.idx)
 	if doc.is_return:
 		doc.return_against = tt["goc"]["name"]
+		# Bench ERPNext thật (PR #578): phiếu nợ gắn tờ gốc mà để mặc định
+		# "Cập nhật công nợ cho chính phiếu này" thì công nợ tờ gốc vẫn
+		# 9.200.000, phiếu nợ treo -1.200.000 riêng. Tắt ô đó để ERPNext ghi
+		# ngược vào tờ gốc (against_voucher), công nợ tờ gốc còn 8.000.000.
+		try:
+			co = doc.meta.has_field("update_outstanding_for_self")
+		except Exception:
+			co = True
+		if co:
+			doc.update_outstanding_for_self = 0
 	doc.flags.ignore_permissions = True
 	doc.flags.vgb_dieu_chinh = True
 	return doc
