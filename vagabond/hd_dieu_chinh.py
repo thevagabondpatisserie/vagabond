@@ -118,6 +118,22 @@ def co_truong(dt, ten):
 		return True  # Không đọc được khai báo (máy kiểm không Frappe): giữ đường cũ.
 
 
+def la_to_dieu_chinh_doc(doc):
+	"""Tờ hoá đơn mua này là phần CHÊNH (trả lại, điều chỉnh giảm hay tăng),
+	không phải một lần mua với giá đủ. Đơn giá trên tờ là giá phần chênh nên
+	không được làm "giá mua gần nhất" ở bất cứ đâu (Codex #578)."""
+	return bool(doc.get("is_return")) or str(doc.get("custom_trang_thai_hddt") or "").strip() == TT_DIEU_CHINH
+
+
+def sql_bo_to_chenh(bi_danh="pi"):
+	"""Điều kiện SQL loại tờ phần chênh khỏi câu đọc giá mua (cùng luật với
+	la_to_dieu_chinh_doc). Site thiếu ô trạng thái thì chỉ loại tờ trả lại."""
+	s = " and ifnull(%s.is_return, 0) = 0" % bi_danh
+	if co_truong(PI, "custom_trang_thai_hddt"):
+		s += " and ifnull(%s.custom_trang_thai_hddt, '') != '%s'" % (bi_danh, TT_DIEU_CHINH)
+	return s
+
+
 def _mi(ma):
 	frappe = _frappe()
 	ma = str(ma or "").strip()

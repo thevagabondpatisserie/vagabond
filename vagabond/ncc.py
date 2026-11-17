@@ -175,7 +175,7 @@ def chi_tiet(ncc):
 		"""select it.item_code, it.item_name, it.rate, pi.posting_date, pi.name as hoa_don
 		from `tabPurchase Invoice Item` it
 		inner join `tabPurchase Invoice` pi on pi.name = it.parent
-		where pi.supplier = %s and pi.docstatus = 1
+		where pi.supplier = %s and pi.docstatus = 1""" + _bo_to_chenh() + """
 		order by pi.posting_date asc""",
 		(ncc,), as_dict=True,
 	):
@@ -369,7 +369,7 @@ def _ncc_tu_lich_su(ma_mon=None):
 		"""select it.item_code, pi.supplier, it.rate, pi.posting_date
 		from `tabPurchase Invoice Item` it
 		inner join `tabPurchase Invoice` pi on pi.name = it.parent
-		where pi.docstatus = 1""" + loc, tham, as_dict=True), "hoá đơn mua")
+		where pi.docstatus = 1""" + _bo_to_chenh() + loc, tham, as_dict=True), "hoá đơn mua")
 	_nap(frappe.db.sql(
 		"""select it.item_code, po.supplier, it.rate, po.transaction_date as posting_date
 		from `tabPurchase Order Item` it
@@ -553,3 +553,10 @@ def xuat_excel(tu_khoa="", nhom=None, chip=None):
 		"ten_file": "danh-muc-ncc-%s.xlsx" % nowdate(),
 		"b64": base64.b64encode(noi).decode(),
 	}
+
+
+def _bo_to_chenh():
+	"""v666 (Codex #578): giá mua gần nhất không lấy từ tờ trả lại hay hoá đơn
+	điều chỉnh (đơn giá phần chênh 60.000 đ/kg không phải giá mua bơ)."""
+	from vagabond import hd_dieu_chinh
+	return hd_dieu_chinh.sql_bo_to_chenh("pi")
