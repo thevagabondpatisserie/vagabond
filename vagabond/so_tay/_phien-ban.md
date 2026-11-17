@@ -16,6 +16,11 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
 - Đăng ngay bài đã hẹn giờ
 - Đăng tay bài đã duyệt và ghi Đã đăng
+- Sổ chủ đề, thẻ và gắn sao trong Kho bản thảo
+- Chân bài (CTA) theo chủ đề
+- Chữ đậm, nghiêng và biểu tượng trong chữ đăng
+- AI soạn chữ theo giọng văn The Vagabond
+- Gửi giám đốc duyệt bài đăng
 
 ## v665
 - Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
