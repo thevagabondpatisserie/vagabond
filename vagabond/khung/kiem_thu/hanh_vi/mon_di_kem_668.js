@@ -26,13 +26,13 @@ function layHam(src, ten) {
   }
   throw new Error('Ham ' + ten + ' khong dong ngoac');
 }
-var HAM = ['h', 'money'].map(function (t) { return layHam(NEN, t); }).concat([layHam(KHO, 'errMsg')])
+var HAM = ['h', 'money', 'anhMon'].map(function (t) { return layHam(NEN, t); }).concat([layHam(KHO, 'errMsg')])
   .concat(['crmMoSheet', 'crmCongTac', 'crmDatCongTac'].map(function (t) { return layHam(CRM, t); })).join('\n');
 var P = 'vagabond.goi_y_mua.';
 function manMau() {
   return { dem: { 'Nháp': 3, 'Đã duyệt': 1, 'Bỏ': 0 }, hom_nay: '2026-11-17', sua_cai_dat: 1,
     cai_dat: { bat_gio: true, bat_quay: true, bat_dbt: true, thanh_mien_phi: true, toi_da: 4, nguong: 3, nhom: ['Bánh khô', 'Bánh nướng'], kho_bep: ['Pastry - Thành phẩm - TV'], ly_do_nhom: [['Bánh khô', 'Giòn thơm', 'Crisp']] },
-    cap: [{ name: 'c1', mon_goc: 'candle', mon_goi_y: 'BACF00028', ten_goi_y: 'Biscotti Cocoa', ly_do_vn: 'Cacao đắng hợp sô cô la 70%', trang_thai: 'Nháp', uu_tien: 10 },
+    cap: [{ name: 'c1', mon_goc: 'candle', mon_goi_y: 'BACF00028', ten_goi_y: 'Biscotti Cocoa', anh_goi_y: '/files/bis.jpg', ly_do_vn: 'Cacao đắng hợp sô cô la 70%', trang_thai: 'Nháp', uu_tien: 10 },
       { name: 'c2', mon_goc: 'candle', mon_goi_y: 'BANU00016', ten_goi_y: 'Triple Chocolatine', ly_do_vn: 'Ba lớp sô cô la', trang_thai: 'Nháp', uu_tien: 20, ghim_tu: '2026-11-17', ghim_den: '2026-11-30' },
       { name: 'c3', mon_goc: '', nhom_goc: 'Bánh lạnh', mon_goi_y: 'NUCF00007', ten_goi_y: 'Cà Phê Caramel Muối, Đá', ly_do_vn: 'Caramel muối hợp kem béo', trang_thai: 'Nháp', uu_tien: 10 }] };
 }
@@ -116,6 +116,9 @@ var MKT = ['Marketing'];
     dung('ghim', c.indexOf('17/11') >= 0 && c.indexOf('30/11') >= 0);
     dung('chip chờ duyệt có số', c.indexOf('Chờ duyệt') >= 0);
     bang('hỏi máy chủ đúng mục', goiTen(m, 'man_hinh')[0].ts, { trang_thai: 'Nháp', tim: '' });
+    /* Codex #584 (AGENTS.md 2b.4): tên món nào cũng có ảnh, chưa có ảnh thì ô bánh. */
+    dung('dòng có ảnh món', m.goc.querySelectorAll('img').some(function (x) { return x.getAttribute('src') === '/files/bis.jpg'; }));
+    bang('dòng chưa có ảnh dùng ô bánh', m.goc.querySelectorAll('.immp').length, 2);
   });
 
   await ca('chọn nhiều dòng (Chọn cả món + một dòng) rồi Duyệt 3 dòng: gửi MỘT lần đúng ba dòng, chọn dòng không hỏi lại máy chủ', async function () {
@@ -140,6 +143,7 @@ var MKT = ['Marketing'];
     bam(m, mot(m.goc, '[data-mdksua="c1"]'));
     var sh = sheet(m);
     dung('có hộp sửa', !!sh);
+    dung('hộp sửa có ảnh món', sh.querySelectorAll('img').some(function (x) { return x.getAttribute('src') === '/files/bis.jpg'; }));
     mot(sh, '#mdkVn').value = 'Cacao hợp sô cô la';
     bam(m, mot(sh, '[data-mdkluu="Đã duyệt"]'));
     await choDen(function () { return goiTen(m, 'luu_cap').length === 1; });
@@ -148,7 +152,7 @@ var MKT = ['Marketing'];
   });
 
   await ca('Cài đặt: công tắc và ô số, Lưu cài đặt gửi đủ; Mức giữ: món dưới mức hiện đỏ, đặt mức gửi đúng món', async function () {
-    var m = dungMoi(MKT, { man_hinh: manMau(), luu_cai_dat: { ok: 1 }, duoi_muc_giu: { mon: [{ ma: 'BACF00034', ten: 'Canelé Tahitian Vanilla', muc: 20, ton: 12 }], co_muc: 3 }, dat_muc_giu: { ok: 1 } });
+    var m = dungMoi(MKT, { man_hinh: manMau(), luu_cai_dat: { ok: 1 }, duoi_muc_giu: { mon: [{ ma: 'BACF00034', ten: 'Canelé Tahitian Vanilla', anh: '/files/can.jpg', muc: 20, ton: 12 }], co_muc: 3 }, dat_muc_giu: { ok: 1 } });
     m.g.MDK.phan = 'cd';
     await m.g.scrMonDiKem();
     bam(m, mot(m.goc, '[data-mdkbat="bat_quay"]'));
@@ -161,6 +165,7 @@ var MKT = ['Marketing'];
     await m.g.scrMonDiKem();
     await choDen(function () { return chu(m.goc).indexOf('Canelé') >= 0; });
     dung('món dưới mức', chu(m.goc).indexOf('Tồn bếp 12, mức giữ 20') >= 0);
+    dung('món dưới mức có ảnh', m.goc.querySelectorAll('img').some(function (x) { return x.getAttribute('src') === '/files/can.jpg'; }));
     dung('không còn ô gõ mã món', !m.goc.querySelector('#mdkMucMa'));
     m.goc.querySelector('#mdkMucSo').value = '25';
     bam(m, mot(m.goc, '#mdkMucLuu'));
@@ -228,12 +233,13 @@ var MKT = ['Marketing'];
   });
 
   await ca('Kết quả: tỉ lệ, giá trị trung bình, món thêm nhiều nhất từ báo cáo máy chủ', async function () {
-    var m = dungMoi(MKT, { bao_cao_goi_y: { so_don: 40, don_co_goi_y: 10, ti_le: 25, gia_tri_tb: 820000, gia_tri_tb_co_goi_y: 990000, mon: [{ ma: 'A', ten: 'Canelé', sl: 7 }] } });
+    var m = dungMoi(MKT, { bao_cao_goi_y: { so_don: 40, don_co_goi_y: 10, ti_le: 25, gia_tri_tb: 820000, gia_tri_tb_co_goi_y: 990000, mon: [{ ma: 'A', ten: 'Canelé', anh: '/files/a.jpg', sl: 7 }] } });
     m.g.MDK.phan = 'kq';
     await m.g.scrMonDiKem();
     await choDen(function () { return chu(m.goc).indexOf('Canelé') >= 0; });
     var c = chu(m.goc);
     dung('số liệu', c.indexOf('25%') >= 0 && c.indexOf('10/40') >= 0 && c.indexOf('990.000') >= 0);
+    dung('món thêm nhiều nhất có ảnh', m.goc.querySelectorAll('img').some(function (x) { return x.getAttribute('src') === '/files/a.jpg'; }));
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
