@@ -181,14 +181,14 @@ def _():
 	la("Giao: chỉ BK1, cũng trừ 2 đang giữ", {k: v["con"] for k, v in gi.items()}, {"BK1": 3})
 
 
-@ca("v662 khung bốn mã đơn giao: luôn TẮT, mức 0, kênh WEBORDER và nguồn phiếu Web giao; tên tiếng Việt có dấu, không gạch dài")
+@ca("v662 khung bốn mã đơn giao: luôn TẮT, mức 0, kênh WEBORDER (v670: phiếu quầy cũng mang WEBORDER, bỏ Web giao); tên tiếng Việt có dấu, không gạch dài")
 def _():
 	d = _dq()
 	la("bốn mã", [x["ma_ctkm"] for x in d.KHUNG_MA], ["WEB-DON-DAU", "WEB-THE-GRAB", "WEB-DON-HAI", "WEB-GIO-VANG"])
 	for x in d.KHUNG_MA:
 		r = d.dong_khung_ma(x)
 		la(x["ma_ctkm"] + " tắt, mức 0", (r["bat"], r["gia_tri"]), (0, 0))
-		la(x["ma_ctkm"] + " kênh", r["kenh"].split("\n"), ["WEBORDER", "Web giao"])
+		la(x["ma_ctkm"] + " kênh", r["kenh"].split("\n"), ["WEBORDER"])
 		dung(x["ma_ctkm"] + " tên có dấu", any(ord(c) > 127 for c in r["ten"]))
 		dung(x["ma_ctkm"] + " không gạch dài", not any(c in r["ten"] + r.get("web_mo_ta", "") for c in (chr(0x2013), chr(0x2014))))
 	gv = [x for x in d.KHUNG_MA if x["ma_ctkm"] == "WEB-GIO-VANG"][0]
