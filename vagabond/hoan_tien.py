@@ -224,6 +224,169 @@ def tran_huy_nhap(da_nhan, tong_don):
 	return True, round(nhan, 0), ""
 
 
+# ------------------------------------- v667 tiền OnePay cho phiếu nộp thừa
+#
+# Loan Anh 17/11/2026, đơn Pancake 97790 (HDB-26-11-03188, 770.000 đ): khách
+# trả OnePay 1.650.000 đ ở đơn cũ 97615 (2 bánh), huỷ 1 bánh thì bánh còn lại
+# sang số đơn mới. Nút "Chuyển lại tiền dư" chỉ đếm chuyển khoản SePay nên
+# thấy dư 0 đ. Anh Việt chốt: tiền OnePay chỉ tính khi BẢNG KÊ OnePay đã về
+# (dòng đối soát), nối theo số đơn; đơn bị đổi số thì Sales chọn đơn cũ.
+
+def so_don_hop_le(v):
+	"""Số đơn Pancake người gõ: chỉ chữ số, bỏ số 0 đầu; khác thì rỗng. THUẦN."""
+	x = re.sub(r"\s+", "", str(v or "")).lstrip("#")
+	return x.lstrip("0") if x.isdigit() and x.strip("0") else ""
+
+
+def tien_onepay_cua_don(cac_so, dong, si_name):
+	"""Tiền OnePay đã về cho một hoá đơn, từ các dòng bảng kê. THUẦN.
+
+	cac_so: các số đơn Pancake của hoá đơn (số của chính nó và số đơn cũ đã
+	chọn). Dòng nào mang số đơn trong đó, hoặc kế toán đã nối vào chính hoá
+	đơn này, thì tính; dòng đã nối vào hoá đơn KHÁC thì không (tiền của đơn
+	khác). Trả (tổng, các mã giao dịch)."""
+	from vagabond.doi_soat_khop import so_don_onepay
+
+	so = {str(x) for x in cac_so or [] if str(x or "").strip()}
+	tong, ma = 0.0, []
+	for d in dong or []:
+		noi = str(d.get("sales_invoice") or "").strip()
+		if noi and noi != si_name:
+			continue
+		if noi == si_name or so_don_onepay(d.get("ma_tham_chieu")) in so:
+			tong += flt(d.get("tien_hang"))
+			ma.append(str(d.get("ma_tham_chieu") or ""))
+	return round(tong, 0), ma
+
+
+def cung_khach(sdt_a, sdt_b):
+	"""Hai số điện thoại là một khách (so 9 số cuối). Thiếu một bên thì KHÔNG. THUẦN."""
+	a, b = re.sub(r"\D", "", str(sdt_a or "")), re.sub(r"\D", "", str(sdt_b or ""))
+	return len(a) >= 9 and len(b) >= 9 and a[-9:] == b[-9:]
+
+
+def _so_don_cua_si(si):
+	from vagabond.doi_soat_khop import so_don_pancake
+
+	return so_don_pancake(si.get("custom_pancake_display_id"), si.get("remarks"))
+
+
+def _dong_onepay(cac_so, si_name):
+	"""Dòng bảng kê OnePay (đã nhận) mang các số đơn này hoặc đã nối vào hoá
+	đơn này. Đọc đủ, không giới hạn số dòng."""
+	from vagabond.doi_soat_vendor import DT_DONG
+
+	if not frappe.db.exists("DocType", DT_DONG):
+		return []
+	truong = ["name", "ma_tham_chieu", "tien_hang", "sales_invoice", "ngay"]
+	ra, thay = [], set()
+	loc = [{"sales_invoice": si_name}] + [{"ma_tham_chieu": ["like", "%%O%sT%%" % s]} for s in cac_so if s]
+	for f in loc:
+		f.update({"vendor": "OnePay", "loai": "ban"})
+		for r in frappe.get_all(DT_DONG, filters=f, fields=truong, limit_page_length=0):
+			if r.name not in thay:
+				thay.add(r.name)
+				ra.append(r)
+	return ra
+
+
+def _onepay_da_ve(si, don_cu=""):
+	"""(tổng tiền OnePay đã về theo bảng kê, các mã) cho hoá đơn này."""
+	cac_so = [x for x in (_so_don_cua_si(si), so_don_hop_le(don_cu)) if x]
+	try:
+		return tien_onepay_cua_don(cac_so, _dong_onepay(cac_so, si.name), si.name)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc bang ke OnePay")
+		return 0.0, []
+
+
+def _tien_da_nhan_tien_du(si, don_cu=""):
+	"""Tiền khách đã trả cho đơn, dùng cho phiếu NỘP THỪA: SePay cộng OnePay
+	theo bảng kê. MỘT nguồn cho màn xem, lúc lập phiếu và màn kế toán."""
+	the, _ma = _onepay_da_ve(si, don_cu)
+	return round(flt(_tien_da_nhan(si)) + flt(the), 0)
+
+
+def _sdt_don_pancake(ma_don):
+	"""Số điện thoại khách của một đơn Pancake, đọc thẳng từ Pancake. Không đọc
+	được thì ném lỗi (không đoán)."""
+	from vagabond import thanh_toan
+	from vagabond.lib import key
+
+	c = cfg()
+	k = key(c, "pancake_api_key")
+	if not (k and c.pancake_shop_id):
+		frappe.throw("Chưa điền khoá Pancake nên chưa kiểm được đơn cũ.")
+	o = thanh_toan._don_pancake(c, k, ma_don)
+	if not o:
+		frappe.throw("Không tìm thấy đơn %s bên Pancake. Kiểm lại số đơn cũ." % ma_don)
+	return (o.get("shipping_address") or {}).get("phone_number") or o.get("bill_phone_number") or ""
+
+
+def _kiem_don_cu(si, don_cu, khoa=False):
+	"""Số đơn cũ Sales chọn có dùng được cho hoá đơn này không. Ném lỗi nói rõ."""
+	so = so_don_hop_le(don_cu)
+	if not so:
+		frappe.throw("Số đơn cũ chỉ gồm chữ số, ví dụ 97615.")
+	if so == _so_don_cua_si(si):
+		frappe.throw("Đó là số đơn của chính hoá đơn này, không phải đơn cũ.")
+	# Đơn cũ còn hoá đơn của chính nó thì tiền thuộc về hoá đơn đó.
+	if frappe.get_meta(SI).has_field("custom_pancake_display_id"):
+		hd = frappe.db.get_value(SI, {"custom_pancake_display_id": so, "docstatus": ["<", 2],
+			"name": ["!=", si.name], "vgb_huy": 0}, "name")
+		if hd:
+			frappe.throw("Đơn %s còn hoá đơn %s của chính nó, tiền OnePay của đơn đó thuộc hoá đơn ấy."
+				% (so, hd))
+	# Một khoản OnePay chỉ được trả lại một lần. Lúc lập phiếu (khoa) thì đọc
+	# khoá, thấy cả phiếu lần bấm khác vừa ghi.
+	if co_o_don_tra_tien():
+		cu = frappe.db.sql("select name, hoa_don from `tab%s` where don_tra_tien=%%s and trang_thai!='Da huy' "
+			"limit 1%s" % (DT, " for update" if khoa else ""), (so,), as_dict=True)
+		if cu:
+			frappe.throw("Tiền OnePay của đơn %s đã dùng cho phiếu %s (hoá đơn %s)." % (so, cu[0].name, cu[0].hoa_don))
+	# Đúng khách: số điện thoại đơn cũ bên Pancake khớp khách trên hoá đơn.
+	sdt_hd = _khach_tren_don(si.name, si.get("customer")).get("sdt")
+	if not cung_khach(sdt_hd, _sdt_don_pancake(so)):
+		frappe.throw("Đơn %s bên Pancake không cùng số điện thoại với khách của hoá đơn này, "
+			"không lấy tiền của đơn đó được." % so)
+	return so
+
+
+def co_o_don_tra_tien():
+	try:
+		return frappe.get_meta(DT).has_field("don_tra_tien")
+	except Exception:
+		return True
+
+
+def goi_y_don_cu(si, toi_da=5):
+	"""Dòng OnePay chưa nối hoá đơn nào, tiền lớn hơn đơn này, trong 45 ngày
+	trước ngày đơn: gợi ý số đơn cũ cho Sales chạm chọn (vẫn kiểm đủ khi lập)."""
+	from vagabond.doi_soat_khop import so_don_onepay
+	from vagabond.doi_soat_vendor import DT_DONG
+
+	try:
+		if not frappe.db.exists("DocType", DT_DONG):
+			return []
+		ngay = si.get("posting_date")
+		rows = frappe.get_all(DT_DONG, filters={"vendor": "OnePay", "loai": "ban",
+			"sales_invoice": ["is", "not set"], "tien_hang": [">", flt(si.grand_total)],
+			"ngay": ["between", [add_days(ngay, -45), ngay]]},
+			fields=["ma_tham_chieu", "tien_hang", "ngay"], order_by="ngay desc", limit_page_length=50)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: goi y don cu OnePay")
+		return []
+	ra, thay = [], {_so_don_cua_si(si)}
+	for r in rows:
+		so = so_don_onepay(r.get("ma_tham_chieu"))
+		if so and so not in thay:
+			thay.add(so)
+			ra.append({"so": so, "tien": flt(r.get("tien_hang")), "ngay": str(r.get("ngay") or "")})
+		if len(ra) >= toi_da:
+			break
+	return ra
+
+
 def _tien_da_nhan(si):
 	"""Tien SePay da nhan cho mot hoa don. Khong doc duoc thi tra 0."""
 	try:
@@ -314,6 +477,18 @@ TRUONG_MOI = {
 			"description": (
 				"Suy từ quầy trên hoá đơn gốc lúc lập phiếu. Phiếu huỷ đơn "
 				"Pancake luôn thuộc Sales Online vì đơn Pancake không có quầy."
+			),
+		},
+		{
+			# v667 (Loan Anh 17/11/2026, đơn 97790): khách trả OnePay ở đơn
+			# Pancake cũ 97615 (2 bánh), huỷ 1 bánh thì bánh còn lại sang số
+			# đơn mới. Phiếu tiền nộp thừa ghi số đơn cũ đó: là căn cứ tiền về
+			# (bảng kê OnePay) và là dấu đã dùng, một khoản không trả hai lần.
+			"fieldname": "don_tra_tien", "label": "Đơn Pancake khách đã trả tiền",
+			"fieldtype": "Data", "insert_after": "diem_ban", "read_only": 1,
+			"description": (
+				"Chỉ có khi khách trả OnePay ở một số đơn Pancake khác với đơn "
+				"của hoá đơn này (đơn bị tách hoặc làm lại sau khi huỷ bớt món)."
 			),
 		},
 		{
@@ -908,22 +1083,31 @@ def tao(
 
 
 @frappe.whitelist()
-def xem_tien_du(si_name=None):
+def xem_tien_du(si_name=None, don_cu=None):
 	"""Don nay dang du bao nhieu tien. Cho man hinh hoi TRUOC khi mo form.
 
 	Tra ve du con so de man hinh giai thich cho sales hieu vi sao duoc hoac
 	khong duoc, thay vi chi bao mot cau cut ngun.
+
+	v667: tính cả OnePay theo bảng kê. don_cu: số đơn Pancake cũ khách đã trả
+	(đơn bị tách hay làm lại); kiểm đúng khách, chưa dùng, không thuộc hoá
+	đơn khác. Chưa có phần dư mà chưa chọn đơn cũ thì trả gợi ý đơn cũ.
 	"""
 	from vagabond.ban_hang import _kiem_quyen_ban
 
 	_kiem_quyen_ban()
 	si = frappe.get_doc(SI, si_name)
-	nhan = _tien_da_nhan(si)
+	don_cu = _kiem_don_cu(si, don_cu) if str(don_cu or "").strip() else ""
+	nhan = _tien_da_nhan_tien_du(si, don_cu)
 	duoc, tran, nhac = tran_tien_du(nhan, flt(si.grand_total))
 	cu = frappe.db.get_value(
 		DT, {"hoa_don": si.name, "trang_thai": ["!=", "Da huy"]},
 		["name", "trang_thai", "so_tien", "loai_hoan"], as_dict=True,
 	)
+	# Chưa thấy phần dư, chưa chọn đơn cũ, mà đơn trả OnePay hoặc có khoản
+	# OnePay chưa nối hợp với đơn này: cho Sales chọn đơn cũ.
+	goi_y = goi_y_don_cu(si) if not (duoc or cu or don_cu) else []
+	cho_chon = not (duoc or cu or don_cu) and (goi_y or str(si.get("vgb_pt_thanh_toan") or "") == "OnePay")
 	return {
 		"duoc": 1 if duoc and not cu else 0,
 		"tran": tran,
@@ -936,6 +1120,10 @@ def xem_tien_du(si_name=None):
 			 % (cu["name"], cu["trang_thai"])) if cu else nhac
 		),
 		"canh_bao_hddt": (si.get("custom_hddt_so") or "").strip(),
+		"don_cu": don_cu,
+		"onepay": _onepay_da_ve(si, don_cu)[0],
+		"goi_y_don_cu": goi_y,
+		"cho_chon_don_cu": 1 if cho_chon else 0,
 	}
 
 
@@ -950,6 +1138,7 @@ def tao_tien_du(
 	ngan_hang="",
 	sdt_khach="",
 	tep=None,
+	don_cu=None,
 ):
 	"""Sales lap yeu cau CHUYEN LAI TIEN KHACH NOP THUA.
 
@@ -971,8 +1160,35 @@ def tao_tien_du(
 	from vagabond.ban_hang import _kiem_quyen_ban
 
 	_kiem_quyen_ban()
+	# v667: khoá hoá đơn TRƯỚC khi đọc phiếu cũ và tiền đã nhận; hai lần bấm
+	# chồng nhau thì lần sau đợi, đọc lại, gặp phiếu của lần trước và dừng.
+	# Khoá cả số đơn cũ: hai hoá đơn không cùng lấy một khoản OnePay.
+	frappe.db.sql("select name from `tabSales Invoice` where name=%s for update", (si_name,))
+	don_cu = so_don_hop_le(don_cu) if str(don_cu or "").strip() else ""
+	if not don_cu:
+		return _tao_tien_du(si_name, ly_do, dien_giai, so_tien, ten_tk, so_tk, ngan_hang, sdt_khach, tep, "")
+	khoa = "vgb_tien_du_don:%s" % don_cu
+	r = frappe.db.sql("select get_lock(%s, 20)", (khoa,))
+	if not (r and r[0] and r[0][0] == 1):
+		frappe.throw("Đơn %s đang được người khác lập phiếu. Đợi vài giây rồi mở lại." % don_cu)
+	try:
+		return _tao_tien_du(si_name, ly_do, dien_giai, so_tien, ten_tk, so_tk, ngan_hang, sdt_khach, tep, don_cu)
+	finally:
+		frappe.db.sql("select release_lock(%s)", (khoa,))
+
+
+def _tao_tien_du(si_name, ly_do, dien_giai, so_tien, ten_tk, so_tk, ngan_hang, sdt_khach, tep, don_cu):
 	si = frappe.get_doc(SI, si_name)
 	_kiem_tra_duoc(si)
+	# Đọc SAU khoá bằng câu đọc khoá: câu đọc thường của MariaDB có thể thấy
+	# ảnh chụp từ trước khi lần bấm kia ghi phiếu (H8 loại 1).
+	cu = frappe.db.sql("select name, trang_thai from `tab%s` where hoa_don=%%s and trang_thai!='Da huy' "
+		"limit 1 for update" % DT, (si.name,), as_dict=True)
+	if cu:
+		frappe.throw("Đơn %s đã có yêu cầu hoàn tiền %s đang ở trạng thái \"%s\", đừng gửi thêm yêu cầu thứ hai."
+			% (si.name, cu[0].name, cu[0].trang_thai))
+	if don_cu:
+		don_cu = _kiem_don_cu(si, don_cu, khoa=True)
 
 	ly_do = (ly_do or "").strip()
 	if ly_do not in LY_DO_DU:
@@ -981,7 +1197,7 @@ def tao_tien_du(
 		frappe.throw('Lý do "Khác" thì phải ghi rõ vì sao dư. Vui lòng gõ vào ô Diễn giải.')
 
 	# TRAN TINH LAI O MAY CHU (QT-19), khong tin con so man hinh gui len.
-	nhan = _tien_da_nhan(si)
+	nhan = _tien_da_nhan_tien_du(si, don_cu)
 	duoc, tran, nhac = tran_tien_du(nhan, flt(si.grand_total))
 	if not duoc:
 		frappe.throw(nhac)
@@ -1008,8 +1224,10 @@ def tao_tien_du(
 		"khach": si.customer,
 		"so_tien": tien,
 		"loai_hoan": LOAI_TIEN_DU,
+		"don_tra_tien": (don_cu or None) if co_o_don_tra_tien() else None,
 		"ly_do": "Khac",
-		"dien_giai": ("[Tiền nộp thừa] %s. %s" % (ly_do, (dien_giai or "").strip())).strip(),
+		"dien_giai": ("[Tiền nộp thừa] %s. %s%s" % (ly_do, (dien_giai or "").strip(),
+			(" Khách trả OnePay ở đơn Pancake %s." % don_cu) if don_cu else "")).strip(),
 		"trang_thai": "Cho chi",
 		"ten_tk": (ten_tk or "").strip(),
 		"so_tk": tk,
@@ -3183,6 +3401,11 @@ def chi_tiet(ho_so):
 			# hai con so nay chinh la can cu duy nhat, khong co anh chup nao
 			# thay the duoc.
 			"da_nhan_sepay": _tien_da_nhan(si),
+			# v667: tiền OnePay theo bảng kê (cả đơn Pancake cũ ghi trên phiếu)
+			# và phần nộp thừa máy tính, cùng một hàm với lúc Sales lập phiếu.
+			"don_tra_tien": d.get("don_tra_tien") or "",
+			"da_nhan_onepay": _onepay_da_ve(si, d.get("don_tra_tien") or "")[0],
+			"nop_thua": tran_tien_du(_tien_da_nhan_tien_du(si, d.get("don_tra_tien") or ""), flt(si.grand_total))[1],
 			"tong": flt(si.grand_total),
 			"da_thu": flt(si.grand_total) - flt(si.outstanding_amount),
 			# Ma don Pancake (anh Viet 19/08/2026: *"bo sung luon truong ma
