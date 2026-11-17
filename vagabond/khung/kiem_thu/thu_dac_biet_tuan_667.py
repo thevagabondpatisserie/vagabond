@@ -141,7 +141,7 @@ def _node():
 	r = subprocess.run(["node", os.path.join(GOC, "vagabond/khung/kiem_thu/hanh_vi/dac_biet_tuan_667.mjs")],
 		capture_output=True, text=True, timeout=120)
 	la("dac_biet_tuan_667.mjs", (r.returncode, (r.stdout or "")[-600:] if r.returncode else ""), (0, ""))
-	dung("đủ 11 ca", "11 đạt, 0 hỏng" in r.stdout)
+	dung("đủ 14 ca", "14 đạt, 0 hỏng" in r.stdout)
 
 
 @ca("v667 Robin egg tới máy khách: mọi ?v= trên mọi trang www và trang cũ khớp nội dung tệp (trang /banh từng trỏ nen.css, khoi.css cũ nên khách vẫn thấy teal)")
