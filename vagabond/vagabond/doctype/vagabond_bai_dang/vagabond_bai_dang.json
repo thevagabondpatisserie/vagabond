@@ -16,9 +16,21 @@
   "ban_luu",
   "sb1",
   "y_chinh",
+  "yeu_cau_ai",
   "anh",
   "sb2",
-  "kenh"
+  "kenh",
+  "sb3",
+  "chu_de",
+  "the_bai",
+  "gan_sao",
+  "chan_bai",
+  "cb3",
+  "cho_giam_doc",
+  "nguoi_gui_gd",
+  "gui_gd_luc",
+  "gd_dong_y_luc",
+  "ly_do_tra"
  ],
  "fields": [
   {
@@ -97,6 +109,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "yeu_cau_ai",
+   "fieldtype": "Small Text",
+   "label": "Muốn AI viết thế nào",
+   "read_only": 1
+  },
+  {
    "fieldname": "anh",
    "fieldtype": "Table",
    "label": "Ảnh",
@@ -114,10 +132,76 @@
    "label": "Kênh",
    "options": "Vagabond Bai Dang Kenh",
    "read_only": 1
+  },
+  {
+   "fieldname": "sb3",
+   "fieldtype": "Section Break",
+   "label": "Sổ chủ đề và duyệt"
+  },
+  {
+   "fieldname": "chu_de",
+   "fieldtype": "Link",
+   "label": "Chủ đề",
+   "options": "Vagabond Chu De Bai",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "the_bai",
+   "fieldtype": "Small Text",
+   "label": "Thẻ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gan_sao",
+   "fieldtype": "Check",
+   "label": "Gắn sao",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chan_bai",
+   "fieldtype": "Small Text",
+   "label": "Chân bài (CTA)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cho_giam_doc",
+   "fieldtype": "Check",
+   "label": "Đang chờ giám đốc duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_gui_gd",
+   "fieldtype": "Link",
+   "label": "Người gửi giám đốc duyệt",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gui_gd_luc",
+   "fieldtype": "Datetime",
+   "label": "Gửi giám đốc lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gd_dong_y_luc",
+   "fieldtype": "Datetime",
+   "label": "Giám đốc đồng ý nội dung lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_tra",
+   "fieldtype": "Small Text",
+   "label": "Giám đốc trả lại, góp ý",
+   "read_only": 1
   }
  ],
  "links": [],
- "modified": "2026-11-15 22:00:00.000000",
+ "modified": "2026-11-17 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Bai Dang",
