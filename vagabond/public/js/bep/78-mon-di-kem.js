@@ -113,8 +113,22 @@ function mdkNghePhan(b) {
   }, true);
 }
 
+/* Codex #581 (QT-31): bánh gốc, nhóm, món, kho đều CHỌN từ danh mục, không gõ tay.
+   Danh mục tải một lần mỗi lần mở màn. */
+async function mdkDm() {
+  if (!MDK.dm) MDK.dm = await api(MDK_P + 'danh_muc');
+  return MDK.dm;
+}
+function mdkNutChon(thuoc, nhan, gt, phu) {
+  return '<div style="margin:10px 0 0;font-size:14px;font-weight:700">' + nhan +
+    (phu ? '<span style="display:block;font-size:13px;font-weight:500;color:#667085">' + phu + '</span>' : '') +
+    '<button type="button" ' + thuoc + ' style="display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;min-height:52px;margin-top:6px;border:1px solid #d0d5dd;border-radius:12px;background:#fff;padding:6px 12px;font:inherit;font-size:16px;text-align:left">' +
+    '<span style="flex:1;min-width:0;' + (gt ? 'color:#101828;font-weight:600' : 'color:#667085') + '">' + h(gt || 'Bấm để chọn') + '</span><span aria-hidden="true">›</span></button></div>';
+}
+
 function mdkSua(c) {
   c = c || { trang_thai: 'Nháp', uu_tien: 10 };
+  var moi = { mon_goc: '', nhom_goc: '', goc: '', ma: '', ten: '' };
   var o = function (id, nhan, gt, phu, kieu) {
     return '<label style="display:block;margin:10px 0 0;font-size:14px;font-weight:700">' + nhan +
       (phu ? '<span style="display:block;font-size:13px;font-weight:500;color:#667085">' + phu + '</span>' : '') +
@@ -122,8 +136,8 @@ function mdkSua(c) {
   };
   var ov = crmMoSheet('<div style="font-size:17px;font-weight:800">' + (c.name ? h(c.ten_goi_y || c.mon_goi_y) : 'Thêm cặp món đi kèm') + '</div>' +
     (c.name ? '<div style="font-size:13.5px;color:#667085">Đi kèm: <b style="text-transform:capitalize">' + h(c.mon_goc || ('Nhóm ' + (c.nhom_goc || ''))) + '</b></div>'
-      : o('mdkGoc', 'Món gốc', '', 'Tên bánh trên web, viết như thẻ Bánh (ví dụ: candle). Để trống nếu dùng nhóm món.') +
-        o('mdkNhom', 'Nhóm món gốc', '', 'Ví dụ: Bánh lạnh. Dùng cho khung Đặt giao của Tại quầy.') + o('mdkMa', 'Mã món gợi ý', '', 'Mã in trên tem, ví dụ BACF00034.')) +
+      : '<div id="mdkChonGoc">' + mdkNutChon('data-mdkchongoc="1"', 'Bánh gốc hoặc nhóm món', '', 'Bánh trên web cho giỏ đặt trước, nhóm món cho khung Đặt giao của Tại quầy.') + '</div>' +
+        '<div id="mdkChonMa">' + mdkNutChon('data-mdkchonma="1"', 'Món gợi ý', '', 'Món hiện trong khối Gợi ý mua thêm.') + '</div>') +
     o('mdkVn', 'Câu lý do', c.ly_do_vn, 'Dưới 40 ký tự, hiện màu xanh dưới tên món.') + o('mdkEn', 'Câu lý do tiếng Anh', c.ly_do_en) +
     '<div style="display:flex;gap:8px">' + '<div style="flex:1">' + o('mdkTu', 'Ghim từ', c.ghim_tu, '', 'date') + '</div><div style="flex:1">' + o('mdkDen', 'Ghim đến', c.ghim_den, '', 'date') + '</div></div>' +
     '<div style="font-size:13px;color:#667085;margin-top:4px">Trong khoảng ghim, món này luôn đứng đầu khối gợi ý.</div>' +
@@ -132,10 +146,33 @@ function mdkSua(c) {
     '<button class="btn" data-mdkluu="Đã duyệt" style="margin:0;flex:1.4">Lưu và duyệt</button></div>' +
     '<button class="btn gh" data-mdkluu="Nháp" style="margin:8px 0 0">Lưu nháp</button>');
   ov.onclick = async function (e) {
-    var n = e.target.closest('[data-mdkluu]'); if (!n) return;
+    var n = e.target.closest('[data-mdkchongoc]');
+    if (n) {
+      var dm; try { dm = await mdkDm(); } catch (er) { return toast(errMsg(er)); }
+      var lc = (dm.banh || []).map(function (x) { return { k: 'b:' + x.k, nhan: x.nhan, icon: '🎂', mo_ta: 'Bánh trên web, dùng ở giỏ đặt trước' }; })
+        .concat((dm.nhom || []).map(function (x) { return { k: 'n:' + x, nhan: x, icon: '🗂️', mo_ta: 'Nhóm món, dùng ở khung Đặt giao của Tại quầy' }; }));
+      var k = await hoiChon('Chọn bánh gốc hoặc nhóm món', 'Món gợi ý sẽ hiện khi giỏ có bánh này hoặc có món thuộc nhóm này.', lc, moi.mon_goc ? 'b:' + moi.mon_goc : (moi.nhom_goc ? 'n:' + moi.nhom_goc : null));
+      if (!k) return;
+      var x = lc.filter(function (y) { return y.k === k; })[0];
+      moi.mon_goc = k.slice(0, 2) === 'b:' ? k.slice(2) : ''; moi.nhom_goc = k.slice(0, 2) === 'n:' ? k.slice(2) : ''; moi.goc = x ? x.nhan : k.slice(2);
+      ov.querySelector('#mdkChonGoc').innerHTML = mdkNutChon('data-mdkchongoc="1"', 'Bánh gốc hoặc nhóm món', moi.goc, '');
+      return;
+    }
+    if ((n = e.target.closest('[data-mdkchonma]'))) {
+      var ds = await vgbChonMon({ tieu_de: 'Chọn món gợi ý', nhieu: false });
+      if (!ds || !ds.length) return;
+      moi.ma = ds[0].ma; moi.ten = ds[0].ten || ds[0].ma;
+      ov.querySelector('#mdkChonMa').innerHTML = mdkNutChon('data-mdkchonma="1"', 'Món gợi ý', moi.ten, '');
+      return;
+    }
+    n = e.target.closest('[data-mdkluu]'); if (!n) return;
     var v = function (id) { var x = ov.querySelector('#' + id); return x ? x.value.trim() : undefined; };
     var d = { name: c.name || '', ly_do_vn: v('mdkVn'), ly_do_en: v('mdkEn'), ghim_tu: v('mdkTu'), ghim_den: v('mdkDen'), uu_tien: +v('mdkUt') || 10, trang_thai: n.getAttribute('data-mdkluu') };
-    if (!c.name) { d.mon_goc = v('mdkGoc'); d.nhom_goc = v('mdkNhom'); d.mon_goi_y = v('mdkMa'); }
+    if (!c.name) {
+      if (!moi.mon_goc && !moi.nhom_goc) return toast('Chọn bánh gốc hoặc nhóm món trước khi lưu.');
+      if (!moi.ma) return toast('Chọn món gợi ý trước khi lưu.');
+      d.mon_goc = moi.mon_goc; d.nhom_goc = moi.nhom_goc; d.mon_goi_y = moi.ma;
+    }
     n.disabled = true;
     try { await api(MDK_P + 'luu_cap', { du_lieu: JSON.stringify(d) }); ov.remove(); toast('Đã lưu'); scrMonDiKem(); }
     catch (er) { n.disabled = false; toast(errMsg(er)); }
@@ -154,15 +191,23 @@ async function mdkMucGiu(tieuDe) {
           '<div style="font-size:13.5px;color:#b42318">Tồn bếp ' + money(m.ton) + ', mức giữ ' + money(m.muc) + '</div></div></div>';
       }).join('') + '</div>' : '<div class="emp"><div class="e1">✅</div><div>' + (dl.co_muc ? 'Không món nào dưới mức giữ.' : 'Chưa món nào có mức giữ.') + '</div></div>')) +
     '<div class="card" style="padding:10px 12px"><b style="font-size:15px">Đặt mức giữ cho một món</b>' +
-    '<input id="mdkMucMa" placeholder="Mã món, ví dụ BACF00034" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:8px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px">' +
+    '<div id="mdkMucChon">' + mdkNutChon('data-mdkmucchon="1"', '', MDK.mucTen || '', '') + '</div>' +
     '<input id="mdkMucSo" type="number" min="0" placeholder="Số giữ, 0 là bỏ giữ" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:8px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px">' +
     '<button class="btn" id="mdkMucLuu" style="margin:10px 0 0">Lưu mức giữ</button></div>';
   var b = frame(tieuDe, html);
   mdkNghePhan(b);
+  var nc = document.getElementById('mdkMucChon');
+  if (nc) nc.onclick = async function () {
+    var ds = await vgbChonMon({ tieu_de: 'Chọn món đặt mức giữ', nhieu: false });
+    if (!ds || !ds.length) return;
+    MDK.mucMa = ds[0].ma; MDK.mucTen = ds[0].ten || ds[0].ma;
+    nc.innerHTML = mdkNutChon('data-mdkmucchon="1"', '', MDK.mucTen, '');
+  };
   var n = document.getElementById('mdkMucLuu');
   if (n) n.onclick = async function () {
+    if (!MDK.mucMa) return toast('Chọn món trước khi lưu mức giữ.');
     n.disabled = true;
-    try { await api(MDK_P + 'dat_muc_giu', { ma: document.getElementById('mdkMucMa').value.trim(), so: document.getElementById('mdkMucSo').value }); toast('Đã lưu mức giữ'); mdkMucGiu(tieuDe); }
+    try { await api(MDK_P + 'dat_muc_giu', { ma: MDK.mucMa, so: document.getElementById('mdkMucSo').value }); toast('Đã lưu mức giữ'); MDK.mucMa = MDK.mucTen = ''; mdkMucGiu(tieuDe); }
     catch (e) { n.disabled = false; toast(errMsg(e)); }
   };
 }
@@ -200,19 +245,62 @@ function mdkCaiDat(tieuDe, cd) {
     dong('thanh_mien_phi', 'Thanh miễn phí giao', 'Hiện số tiền còn thiếu để được miễn phí giao.') + '</div>' +
     '<div class="card" style="padding:4px 12px 12px">' +
     o('mdkToiDa', 'Số món tối đa', 'Từ 1 tới 6.', cd.toi_da) + o('mdkNguong', 'Ngưỡng tồn tối thiểu', 'Chỉ gợi ý món còn từ số này trở lên ở đúng nơi xuất đơn.', cd.nguong) +
-    o('mdkNhomGy', 'Nhóm món được đem ra gợi ý', 'Mỗi dòng một nhóm món.', (cd.nhom || []).join('\n'), 'vung') +
-    o('mdkKho', 'Kho bếp xuất đơn đặt trước', 'Mỗi dòng một kho.', (cd.kho_bep || []).join('\n'), 'vung') +
-    o('mdkLy', 'Câu lý do chung theo nhóm', 'Mỗi dòng: Nhóm | câu tiếng Việt | câu tiếng Anh.', (cd.ly_do_nhom || []).map(function (x) { return x.join(' | '); }).join('\n'), 'vung') + '</div>';
+    mdkNutChon('data-mdkchonnhomgy="1"', 'Nhóm món được đem ra gợi ý', (cd.nhom || []).join(', '), 'Bấm để chọn một hay nhiều nhóm.') +
+    mdkNutChon('data-mdkchonkho="1"', 'Kho bếp xuất đơn đặt trước', (cd.kho_bep || []).join(', '), 'Tồn ở các kho này quyết định món nào được gợi ý.') +
+    '<div style="margin-top:12px;font-size:15px;font-weight:700">Câu lý do chung theo nhóm<span style="display:block;font-size:13px;font-weight:500;color:#667085">Dùng khi món chưa có cặp Món đi kèm đã duyệt.</span></div>' +
+    (cd.ly_do_nhom || []).map(function (x, i) {
+      var oc = 'display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:6px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px';
+      return '<div style="border-top:1px solid #f2f4f7;margin-top:8px;padding-top:6px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;min-width:0;font-size:14.5px">' + h(x[0]) + '</b>' +
+        '<button type="button" data-mdklybo="' + i + '" aria-label="Bỏ câu của nhóm ' + h(x[0]) + '" style="flex:none;width:44px;height:44px;border:0;background:none;font-size:18px;color:#b42318">✕</button></div>' +
+        '<input data-mdklyvn="' + i + '" value="' + h(x[1] || '') + '" placeholder="Câu tiếng Việt" style="' + oc + '">' +
+        '<input data-mdklyen="' + i + '" value="' + h(x[2] || '') + '" placeholder="Câu tiếng Anh" style="' + oc + '"></div>';
+    }).join('') +
+    '<button type="button" class="btn gh" data-mdklythem="1" style="margin:10px 0 0">＋ Thêm câu cho nhóm</button></div>';
   var b = frame(tieuDe, html, { footer: '<button class="btn" id="mdkLuuCd" style="margin:0">Lưu cài đặt</button>' });
   mdkNghePhan(b);
-  b.onclick = function (e) { var n = e.target.closest('[data-mdkbat]'); if (n) { var k = n.getAttribute('data-mdkbat'); cd[k] = !cd[k]; crmDatCongTac(n, cd[k]); } };
+  /* Câu đang gõ dở phải giữ lại khi vẽ lại màn sau một lần chọn. */
+  var docLy = function () {
+    (cd.ly_do_nhom || []).forEach(function (x, i) {
+      var vn = b.querySelector('[data-mdklyvn="' + i + '"]'), en = b.querySelector('[data-mdklyen="' + i + '"]');
+      if (vn) x[1] = vn.value.trim(); if (en) x[2] = en.value.trim();
+    });
+    ['mdkToiDa', 'mdkNguong'].forEach(function (id) { var x = document.getElementById(id); if (x) cd[id === 'mdkToiDa' ? 'toi_da' : 'nguong'] = x.value; });
+  };
+  b.onclick = async function (e) {
+    var n = e.target.closest('[data-mdkbat]');
+    if (n) { var k = n.getAttribute('data-mdkbat'); cd[k] = !cd[k]; crmDatCongTac(n, cd[k]); return; }
+    var dm, ds;
+    if ((n = e.target.closest('[data-mdkchonnhomgy]')) || e.target.closest('[data-mdkchonkho]') || e.target.closest('[data-mdklythem]')) {
+      try { dm = await mdkDm(); } catch (er) { return toast(errMsg(er)); }
+    }
+    if (e.target.closest('[data-mdkchonnhomgy]')) {
+      ds = await hoiChonNhieu('Nhóm món được đem ra gợi ý', 'Chỉ món thuộc các nhóm này mới vào khối gợi ý.', (dm.nhom || []).map(function (x) { return { k: x, nhan: x }; }), cd.nhom || [], 'Dùng các nhóm này');
+      if (!ds) return; if (!ds.length) return toast('Chọn ít nhất một nhóm.');
+      docLy(); cd.nhom = ds; return mdkCaiDat(tieuDe, cd);
+    }
+    if (e.target.closest('[data-mdkchonkho]')) {
+      ds = await hoiChonNhieu('Kho bếp xuất đơn đặt trước', 'Tồn ở các kho này quyết định món nào được gợi ý.', (dm.kho || []).map(function (x) { return { k: x, nhan: x }; }), cd.kho_bep || [], 'Dùng các kho này');
+      if (!ds) return; if (!ds.length) return toast('Chọn ít nhất một kho.');
+      docLy(); cd.kho_bep = ds; return mdkCaiDat(tieuDe, cd);
+    }
+    if (e.target.closest('[data-mdklythem]')) {
+      var co = (cd.ly_do_nhom || []).map(function (x) { return x[0]; });
+      var lc = (dm.nhom_rieng || []).concat(dm.nhom || []).filter(function (x, i, a) { return a.indexOf(x) === i && co.indexOf(x) < 0; }).map(function (x) { return { k: x, nhan: x }; });
+      var g = await hoiChon('Thêm câu cho nhóm', 'Chọn nhóm món cần câu lý do chung.', lc, null);
+      if (!g) return;
+      docLy(); cd.ly_do_nhom = (cd.ly_do_nhom || []).concat([[g, '', '']]); return mdkCaiDat(tieuDe, cd);
+    }
+    if ((n = e.target.closest('[data-mdklybo]'))) { docLy(); cd.ly_do_nhom.splice(+n.getAttribute('data-mdklybo'), 1); return mdkCaiDat(tieuDe, cd); }
+  };
   var nut = document.getElementById('mdkLuuCd');
   if (nut) nut.onclick = async function () {
     var v = function (id) { return document.getElementById(id).value; };
+    docLy();
     nut.disabled = true;
     try {
       await api(MDK_P + 'luu_cai_dat', { du_lieu: JSON.stringify({ bat_gio: cd.bat_gio ? 1 : 0, bat_quay: cd.bat_quay ? 1 : 0, bat_dbt: cd.bat_dbt ? 1 : 0, thanh_mien_phi: cd.thanh_mien_phi ? 1 : 0,
-        toi_da: v('mdkToiDa'), nguong: v('mdkNguong'), nhom: v('mdkNhomGy'), kho_bep: v('mdkKho'), ly_do_nhom: v('mdkLy') }) });
+        toi_da: v('mdkToiDa'), nguong: v('mdkNguong'), nhom: cd.nhom || [], kho_bep: cd.kho_bep || [],
+        ly_do_nhom: (cd.ly_do_nhom || []).filter(function (x) { return x[1]; }) }) });
       toast('Đã lưu cài đặt gợi ý'); scrMonDiKem();
     } catch (e) { nut.disabled = false; toast(errMsg(e)); }
   };
