@@ -261,3 +261,31 @@ def _goi_y_pham_vi():
 	la("chỉ đơn của khách, ròng lớn hơn đơn, chưa nối", [(x["so"], x["tien"]) for x in g], [("97615", 1650000), ("97001", 900000)])
 	la("khách không có đơn nào khác", ht.chon_goi_y(dong, ["97790"], "97790", 770000, "2026-10-03"), [])
 	la("đơn quá 45 ngày không gợi ý", ht.chon_goi_y(dong, ["97001"], "97790", 770000, "2026-11-02"), [])
+
+
+@ca("Codex #580 vòng 2: bảng kê đọc lại (dòng cũ Đã thay giữ làm vết, dòng thay còn hiệu lực) và tệp giám đốc từ chối thì giao dịch chỉ tính một lần, dư vẫn 880.000")
+def _dong_da_thay():
+	cu = dict(DONG[0], name="cu", trang_thai_khop="Đã thay", nguon=None)
+	moi = dict(DONG[0], name="moi", trang_thai_khop="Không thấy chứng từ", nguon="NG-MOI")
+	bo = dict(DONG[0], name="bo", trang_thai_khop="Không thấy chứng từ", nguon="NG-TU-CHOI")
+	tong, _m = ht.tien_onepay_cua_don(["97790", "97615"], [cu, moi], SI_NAME)
+	la("tính một lần", tong, 1650000)
+	la("phần dư", ht.tran_tien_du(tong, 770000)[:2], (True, 880000))
+	la("gợi ý tính một lần", [(g["so"], g["tien"]) for g in ht.chon_goi_y([cu, moi], ["97615"], "97790", 770000, "2026-10-01")],
+		[("97615", 1650000)])
+	loc, hoi_nguon = [], []
+
+	def get_all(dt, filters=None, **k):
+		# Bản giả cố tình KHÔNG lọc: hàm phải tự bỏ dòng hết hiệu lực.
+		if dt == "Vagabond Doi Soat Nguon":
+			hoi_nguon.append(filters)
+			return ["NG-TU-CHOI"] if filters.get("duong_vao") == "Từ chối" else []
+		loc.append(filters)
+		return [_D(cu), _D(moi), _D(bo)]
+
+	fr = SimpleNamespace(db=SimpleNamespace(exists=lambda *a: True), get_all=get_all)
+	with patch.object(ht, "frappe", fr):
+		ra = ht._dong_onepay(["97615"], SI_NAME)
+	la("chỉ còn dòng thay", [r["name"] for r in ra], ["moi"])
+	dung("mọi câu đọc bỏ dòng Đã thay", loc and all(f.get("trang_thai_khop") == ["!=", "Đã thay"] for f in loc))
+	dung("hỏi tệp bị từ chối", bool(hoi_nguon))
