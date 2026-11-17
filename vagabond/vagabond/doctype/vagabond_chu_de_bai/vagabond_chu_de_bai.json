@@ -1,0 +1,112 @@
+{
+ "actions": [],
+ "autoname": "format:CD-{###}",
+ "creation": "2026-11-17 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ten",
+  "bieu_tuong",
+  "thu_tu",
+  "cta"
+ ],
+ "fields": [
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Tên chủ đề",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "bieu_tuong",
+   "fieldtype": "Data",
+   "label": "Biểu tượng",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "thu_tu",
+   "fieldtype": "Int",
+   "label": "Thứ tự",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cta",
+   "fieldtype": "Small Text",
+   "label": "Chân bài (CTA) mẫu, mỗi dòng một câu",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-17 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Chu De Bai",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "thu_tu",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1,
+ "title_field": "ten",
+ "show_title_field_in_link": 1
+}
