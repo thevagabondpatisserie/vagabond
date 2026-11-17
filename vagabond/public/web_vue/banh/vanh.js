@@ -22,7 +22,7 @@ import {t} from '../kho/chu.js';
 
 /* Thứ tự anh Việt duyệt; tab theo mùa (In season, Tiệc) chen cạnh nhóm mua bánh. */
 /* Tab Vé sự kiện giữ mã nội bộ 'tiec' (tab Tiệc cũ nâng lên, anh Việt chọn A 14/11/2026). */
-export const THU_TU_MUC = ['today', 'order', 'season', 'thiet_ke_rieng', 'tiec', 'store', 'uu_dai', 'tuyen_dung'];
+export const THU_TU_MUC = ['today', 'order', 'season', 'thiet_ke_rieng', 'tiec', 'dac_biet', 'store', 'uu_dai', 'tuyen_dung'];
 export const HINH = {TILT: -11, RX: 150, RY: 44, H: 150, NGUONG: 7, VUOT_NGAN: 140, PX_MOT_MUC: 80, AN_DUOI: 0.2};
 
 /* Xếp mục theo thứ tự đã duyệt; mục lạ (chưa có trong danh sách) đứng cuối, giữ thứ tự gốc. */

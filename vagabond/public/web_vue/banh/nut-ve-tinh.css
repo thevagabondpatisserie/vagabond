@@ -53,23 +53,25 @@ html body .sheet.mua .cta>a.tel{background:var(--amber,#DB7E2A)}
 html body .sheet.mua .cta:has(>a.tel)>button.btn{border-color:var(--amber,#DB7E2A)}
 
 /* ---------- 2. Nút phụ: viên viền xanh mờ, nền xanh 6%, chữ xanh in hoa ---------- */
-html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a,nav.dich-vu a,.quay-chon button){
+html body :is(.cart-add,.sua-gio,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a,nav.dich-vu a){
   border:1px solid rgba(79,219,242,.5);border-radius:999px;background:rgba(79,219,242,.06);color:var(--vt-xanh);
   font:500 12px/1.3 var(--sans,sans-serif);font-style:normal;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;
 }
-html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a){
+html body :is(.cart-add,.sua-gio,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a){
   position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;
 }
 /* v663 (CI ra nút): cao thật 44 (AGENTS.md điều 13). Phần trong suốt nhô ra bằng ::after
    không được máy đo vùng bấm tính, lại làm chữ bị coi là tràn, nên không dùng. */
-html body :is(.cart-add,.sua-gio,.cw-nut a,.store-note a,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a):hover{background:rgba(79,219,242,.12)}
+html body :is(.cart-add,.sua-gio,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a):hover{background:rgba(79,219,242,.12)}
 /* Thanh dịch vụ đầu trang: Đặt bàn, Khách sỉ, Thành viên vừa một hàng ở 390 px. */
 html body nav.dich-vu{gap:6px}
 html body nav.dich-vu a{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:44px;height:44px;min-width:44px;padding:0 11px;font-size:10.5px;white-space:nowrap}
 @media(max-width:374px){html body nav.dich-vu a{padding:0 8px;font-size:10px}}
-/* Thẻ chọn quầy nhiều dòng: chỉ đổi màu, giữ chiều cao theo nội dung, chữ thường cho dễ đọc. */
-html body .quay-chon button{border-radius:18px;text-transform:none;letter-spacing:.02em;color:var(--paper,#fff)}
-html body .quay-chon button[aria-pressed=true]{border-color:var(--vt-xanh);background:rgba(79,219,242,.10);box-shadow:0 0 0 1px rgba(79,219,242,.5)}
+/* v667 (mẫu anh Việt duyệt 17/11/2026): viên nhìn thấy cao 32 px, vùng bấm vẫn 44 px
+   (AGENTS.md điều 13). Viền và nền vẽ bằng ::before lùi 6 px trên dưới. */
+html body nav.dich-vu a{isolation:isolate;border-color:transparent;background:transparent}
+html body nav.dich-vu a::before{content:"";position:absolute;z-index:-1;inset:6px 0;border:1px solid rgba(79,219,242,.5);border-radius:999px;background:rgba(79,219,242,.06)}
+html body nav.dich-vu a:hover::before{background:rgba(79,219,242,.12)}
 /* Áp dụng mã: viên xanh đặc, chữ INK, quầng đen rồi xanh. */
 html body button.btn-xs{
   border:0;border-radius:999px;background:var(--vt-xanh);color:var(--vt-ink);
@@ -157,3 +159,86 @@ html body aside.kenh-noi.thu .kenh-bang{display:none}
 html body .cta button.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){border-radius:999px;min-height:52px;padding:0 60px 0 22px;letter-spacing:.16em;font-size:12.5px}
 html body .cta:has(>a.tel)>button.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){min-height:58px;padding:0 70px 0 22px}
 html body .cta>a.tel:not(.x){border-radius:50%;width:48px;min-height:48px;flex:0 0 48px}
+
+/* ---------- 6. Tab Tại quầy gọn vùng đầu (v667, anh Việt 17/11/2026) ----------
+   Chọn cửa hàng bằng thanh gạt, một dòng nhãn, ô tìm có nút kính lúp tròn,
+   ô lọc một dòng cao 40. Mục tiêu vùng đầu khoảng 210 px ở 390 px. */
+html body .quay-gat{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:16px 0 0;padding:4px;border:1px solid var(--vt-xanh);border-radius:34px}
+html body .quay-gat button{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:54px;padding:6px 8px;border:0;border-radius:28px;
+  background:transparent;color:rgba(255,255,255,.78);font:600 11.5px/1.3 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;font-style:normal;text-align:center;cursor:pointer}
+html body .quay-gat button span{display:block;white-space:nowrap}
+html body .quay-gat button[aria-pressed=true]{background:var(--vt-xanh);color:var(--vt-ink)}
+html body .quay-dong{margin:10px 0 0;font:500 10.5px/1.5 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+html body .quay-dong b{font-weight:500;color:var(--paper,#fff)}
+html body .gb-tim{min-height:50px;margin:14px 0 0;padding:0 4px 0 20px;border:1px solid rgba(79,219,242,.5);border-radius:999px;background:transparent}
+html body .gb-tim input{min-height:48px;font:14.5px var(--qualy,var(--sans))}
+html body .gb-tim-xoa{margin-right:0}
+/* Kính lúp tròn 40 px như mẫu duyệt, vùng bấm vẫn 44 px (AGENTS.md điều 13): nền xanh vẽ
+   bằng gradient tròn bán kính 20 px giữa ô 44 px. */
+html body .gb-tim-nut{flex:none;display:flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;margin-right:-2px;border:0;border-radius:50%;
+  background:radial-gradient(circle closest-side,var(--vt-xanh) 0 19.5px,transparent 20px);cursor:pointer;padding:0}
+html body .gb-tim-nut svg{width:18px;height:18px;fill:none;stroke:var(--vt-ink);stroke-width:2.2;stroke-linecap:round}
+html body .gb-tang{margin-top:12px;gap:8px;padding:5px 4px}
+/* Ô lọc: viên nhìn thấy cao 40 px như mẫu duyệt, vùng bấm 44 px. Viên vẽ bằng ::before lùi 2 px
+   trên dưới; nút trong suốt. */
+html body :is(.gb-tang,.gb-chips) button{position:relative;isolation:isolate;flex:none;flex-direction:row;align-items:center;gap:6px;min-width:0;min-height:44px;height:44px;padding:0 16px;white-space:nowrap;
+  border:0;background:transparent;box-shadow:none}
+html body :is(.gb-tang,.gb-chips) button::before{content:"";position:absolute;z-index:-1;inset:2px 0;border:1px solid rgba(255,255,255,.2);border-radius:999px}
+html body :is(.gb-tang,.gb-chips) button[aria-pressed=true]{background:transparent;box-shadow:none;color:var(--vt-ink)}
+html body :is(.gb-tang,.gb-chips) button[aria-pressed=true]::before{background:var(--vt-xanh);border-color:var(--vt-xanh);box-shadow:0 0 0 3px #000,0 0 0 4px rgba(79,219,242,.5)}
+html body .gb-tang button b{font:600 12px/1 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase}
+html body .gb-tang button span{font-size:12px;opacity:.75}
+html body .gb-chips button{padding:0 14px;display:inline-flex}
+/* Ghi chú cuối danh sách: Messenger và số điện thoại là chữ xanh gạch chân trong câu. */
+html body .store-note a{display:inline;padding:0;border:0;background:none;color:var(--vt-xanh);text-decoration:underline;text-underline-offset:3px;font:inherit;letter-spacing:normal;text-transform:none}
+
+/* ---------- 7. Tab Đặc biệt tuần này (v667, anh Việt duyệt 17/11/2026) ----------
+   Tiêu đề Vagabond Sans, chữ thường Qualy, nhãn và nút phông thanh mục. */
+html body .dbt{padding:28px 0 36px}
+html body .dbt-meta .dbt-nhan-phai{color:rgba(255,255,255,.55)}
+html body .dbt-tieu{margin:14px 0 0;font:400 48px/1.02 'Vagabond Sans',var(--sans,sans-serif);text-transform:uppercase;color:var(--vt-xanh);letter-spacing:.01em}
+html body .dbt-mo-ta{margin:14px 0 0;max-width:520px;font:15px/1.55 var(--qualy,var(--sans));color:rgba(255,255,255,.62)}
+html body .dbt-moc{list-style:none;display:flex;margin:22px 0 0;padding:0;position:relative}
+html body .dbt-moc li{flex:1 1 0;min-width:0;position:relative;padding-top:20px;color:rgba(255,255,255,.5)}
+html body .dbt-moc li::before{content:"";position:absolute;top:6px;left:12px;right:-2px;height:1px;background:rgba(255,255,255,.18)}
+html body .dbt-moc li:last-child::before{display:none}
+html body .dbt-moc li i{position:absolute;top:0;left:0;width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:#000;box-sizing:border-box}
+html body .dbt-moc li.on{color:var(--paper,#fff)}
+html body .dbt-moc li.on i{background:var(--vt-xanh);border-color:var(--vt-xanh);box-shadow:0 0 0 4px rgba(79,219,242,.22)}
+html body .dbt-moc li b{display:block;font:600 10px/1.3 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase}
+html body .dbt-moc li span{display:block;margin-top:3px;font:11px/1.3 var(--sans,sans-serif);letter-spacing:.04em}
+html body .dbt-dem{display:inline-flex;align-items:center;gap:14px;margin:22px 0 0;padding:8px 22px 8px 20px;border:1px solid rgba(79,219,242,.4);border-radius:999px}
+html body .dbt-dem>b{font:400 34px/1 'Vagabond Sans',var(--sans,sans-serif);color:var(--vt-xanh);white-space:nowrap}
+html body .dbt-dem>span{display:flex;flex-direction:column;font:500 10.5px/1.45 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+html body .dbt-dem>span>span:first-child{color:var(--paper,#fff)}
+html body .dbt-ds{margin-top:26px}
+html body .dbt-the{position:relative;flex:0 0 292px;height:440px;border-radius:28px;overflow:hidden;background:#071a1d;scroll-snap-align:start;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+html body .dbt-the.dang{box-shadow:0 0 0 1.5px var(--vt-xanh)}
+html body .dbt-the.dbt-mot{height:520px;box-shadow:0 0 0 1px rgba(79,219,242,.35)}
+html body .dbt-anh{position:absolute;inset:0;cursor:pointer}
+html body .dbt-the.khoa .dbt-anh{cursor:default}
+html body .dbt-anh img{width:100%;height:100%;object-fit:cover;display:block}
+html body .dbt-anh::after{content:"";position:absolute;inset:40% 0 0;background:linear-gradient(to bottom,rgba(0,0,0,0),rgba(0,0,0,.86) 62%,#000)}
+html body .dbt-goc{position:absolute;top:16px;left:16px;padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.55);font:600 10px/1 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--paper,#fff);pointer-events:none}
+html body .dbt-chu{position:absolute;left:0;right:0;bottom:0;padding:0 20px 20px;pointer-events:none}
+html body .dbt-chu :is(button,a){pointer-events:auto}
+html body .dbt-ten{margin:0;font:400 40px/1 'Vagabond Sans',var(--sans,sans-serif);text-transform:uppercase;color:var(--paper,#fff)}
+html body .dbt-mot .dbt-ten{font-size:52px}
+html body .dbt-mo{margin:8px 0 0;font:14px/1.45 var(--qualy,var(--sans));color:rgba(255,255,255,.72)}
+html body .dbt-gia{display:flex;align-items:baseline;gap:10px;margin:10px 0 0}
+html body .dbt-gia span{font:500 10.5px/1 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+html body .dbt-gia b{font:600 15px/1 var(--sans,sans-serif);color:var(--vt-xanh)}
+html body .dbt-tang span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html body .dbt-tang{margin:12px 0 0;font:13px/1.45 var(--qualy,var(--sans));color:rgba(255,255,255,.75)}
+html body .dbt-tang b{display:block;margin-bottom:3px;font:600 10px/1.3 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--vt-xanh)}
+html body .dbt-khoa{display:inline-block;margin:12px 0 0;padding:7px 12px;border:1px solid rgba(255,255,255,.3);border-radius:999px;font:600 10.5px/1 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--paper,#fff)}
+html body .dbt-mot .dbt-khoa{display:none}
+html body .dbt .dbt-dat.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){display:flex;width:100%;margin-top:16px;border-radius:999px;min-height:52px}
+html body .dbt-cong{position:absolute;top:12px;right:12px;width:44px;height:44px;border:0;border-radius:50%;background:var(--vt-xanh);color:var(--vt-ink);display:grid;place-items:center;cursor:pointer;padding:0}
+html body .dbt-cong svg{width:20px;height:20px}
+html body .dbt-bang{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;padding:2px 2px 4px;margin:0 -20px;padding-left:20px;padding-right:20px;scroll-padding-left:20px;touch-action:pan-x pan-y}
+html body .dbt-bang::-webkit-scrollbar{display:none}
+html body .dbt-cham{display:flex;justify-content:center;gap:8px;margin-top:14px}
+html body .dbt-cham i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.28)}
+html body .dbt-cham i.on{width:18px;border-radius:999px;background:var(--vt-xanh)}
+@media(min-width:700px){html body .dbt-the.dbt-mot{max-width:760px}}

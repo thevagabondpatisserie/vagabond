@@ -48,10 +48,6 @@ main,header,footer,.sheet,.co{position:relative;z-index:2}
 .tab.store{color:var(--cyan)}
 .store-hd{padding:4px 0 6px}
 .store-hd .num{color:var(--cyan)}
-.quay{margin:26px 0 6px;padding:0 0 12px;border-bottom:1px solid var(--line-2)}
-.quay .q-ten{font-family:var(--serif,inherit);font-size:24px;color:var(--paper);letter-spacing:.02em}
-.quay .q-dc{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog-2);margin-top:6px}
-.quay .q-con{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-top:6px}
 .store-note{font-family:var(--sans);font-size:12.5px;color:var(--fog-2);line-height:1.7;padding:14px 0 4px}
 .store-note a{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(79,219,242,.5)}
 .store-empty{padding:26px 0 10px;color:var(--fog-2);font-family:var(--sans);font-size:13px;line-height:1.7}
@@ -953,3 +949,5 @@ html body nav.tabs.vanh-ds{position:absolute;width:1px;height:1px;margin:-1px;pa
    phải vẽ lại nó. */
 .sky{contain:strict;transform:translateZ(0)}
 @media (hover:none),(pointer:coarse){.sky .spin{animation:none}}
+/* v667: Bếp trung tâm dưới các cửa hàng ở chân trang, chữ như tiêu đề cột (không ẩn ở máy hẹp). */
+html body .ctr-bep{margin-top:18px}html body .ctr-bep-h{font-family:var(--sans);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:500;line-height:1.4;margin:0 0 6px}

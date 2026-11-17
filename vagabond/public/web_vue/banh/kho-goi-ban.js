@@ -182,6 +182,30 @@ export function khopTim(ten, moTa, q) {
   return tu.every(x => trong.includes(x));
 }
 
+/* v667 (anh Việt 17/11/2026): tên cửa hàng trên thanh gạt Tại quầy ngắt dòng CỐ ĐỊNH,
+   không để chữ tự rớt. Hai cửa hàng đã chốt chữ: "THE VAGABOND / QUẬN 1" (thay
+   "The Vagabond District 1") và "NHÀ VĂN HOÁ / THANH NIÊN". Cửa hàng khác: ngắt ở chỗ
+   hai dòng đều nhau nhất, dòng đầu không ngắn hơn dòng sau. THUẦN, trả 1 đến 2 dòng. */
+export const TEN_QUAY_CHOT = [
+  {khop: ['district 1', 'quan 1', 'tran cao van'], dong: ['THE VAGABOND', 'QUẬN 1']},
+  {khop: ['nha van hoa', 'thanh nien', 'pham ngoc thach'], dong: ['NHÀ VĂN HOÁ', 'THANH NIÊN']}];
+export function tenQuayHaiDong(ten) {
+  const goc = String(ten || '').trim().replace(/\s+/g, ' ');
+  if (!goc) return [];
+  const c = ' ' + chuanTim(goc) + ' ';
+  const chot = TEN_QUAY_CHOT.find(x => x.khop.some(k => c.includes(' ' + k + ' ')));
+  if (chot) return chot.dong.slice();
+  const tu = goc.toLocaleUpperCase('vi').split(' ');
+  if (tu.length < 2) return [tu[0]];
+  /* Chọn chỗ ngắt để dòng dài hơn ngắn nhất; bằng nhau thì dòng đầu dài hơn. */
+  let tot = 1, dai = Infinity;
+  for (let i = 1; i < tu.length; i++) {
+    const a = tu.slice(0, i).join(' ').length, b = tu.slice(i).join(' ').length, m = Math.max(a, b);
+    if (m < dai || (m === dai && a >= b)) { tot = i; dai = m; }
+  }
+  return [tu.slice(0, tot).join(' '), tu.slice(tot).join(' ')];
+}
+
 /* Tách size khỏi tên đồ uống của danh mục: "Hồng Trà Vải Thiều, Size L, Đá/Iced"
    -> {goc: "Hồng Trà Vải Thiều", size: "L", nong: false}. Tên không có size thì
    size rỗng. "Đá/Iced", "Nóng/Hot" là cách pha, bỏ khỏi tên hiện, giữ cờ nóng. THUẦN. */

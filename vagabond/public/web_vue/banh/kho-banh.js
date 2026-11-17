@@ -14,6 +14,7 @@ import {CONFIG, SLOTS, cakesGoc, NUMS, ADDONS, PICKUPS_GOC, LY_DO, TEN_DIEM, NHA
   THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS} from './du-lieu.js';
 import {thuong, dam, mau, lienKet, cauCoSo, noi} from './chu-giau.js';
 import {taoGoiBan, cauDn} from './kho-goi-ban.js';
+import * as D from './dbt-thuan.js';
 
 const KHOA_LUU = 'vgb-gio-v1';
 /* v638: bốn cách thanh toán khách chọn được. */
@@ -111,6 +112,25 @@ export function taoKho(moiTruong) {
     const r = S.TRUOC_RF[id];
     return r && r.chi_refill ? t('refill_co_tu', 'Có từ {ngay}', {ngay: ngayNgan(r.tu)}) : '';
   }
+  /* v667: đợt Đặc biệt tuần này. Giỏ có món của đợt thì chỉ chọn được ngày giao
+     của đợt (máy chủ chặn lại ở don_hang.tao_don). Giờ Việt Nam, không theo máy khách. */
+  const lucDbt = () => D.lucVN(bay());
+  const dotDbt = computed(() => D.dotDangHien(nd.khoi, lucDbt().slice(0, 10)));
+  const maDbt = computed(() => D.maTheoKhoa(dotDbt.value, S.CAKES));
+  const dbtChan = i => D.ngayBiKhoa(dotDbt.value, S.CART, maDbt.value, isoNgayThu(i));
+  const ngayGiaoDbt = () => ((dotDbt.value && dotDbt.value.ngay_giao) || []).map(ngayNgan).join(', ');
+  const monDbtCua = id => { const k = D.khoaCuaMa(maDbt.value, id); return k ? (dotDbt.value.mon_dt || []).find(m => m.khoa === k) : null; };
+  /* Số món của đợt (cùng bánh) đang có trong giỏ, trừ dòng đang sửa. */
+  const trongGioDbt = (m, boDong = -1) => S.CART.reduce((a, o, i) => a + (i !== boDong && D.khoaCuaMa(maDbt.value, o.id) === m.khoa ? o.qty : 0), 0);
+  function chanThemDbt(id, them, boDong = -1) {
+    const m = monDbtCua(id);
+    if (!m) return false;
+    const tt = D.trangThaiMon(dotDbt.value, m, lucDbt(), nd.dac_biet_da_dat);
+    if (tt !== 'mo') { toast(lyDo(tt === 'chua_mo' ? 'dac_biet_chua_mo' : 'dac_biet_da_chot')); return true; }
+    const con = D.conSuat(m, nd.dac_biet_da_dat, trongGioDbt(m, boDong));
+    if (con !== null && them > con) { toast(t('dbt_con_suat', 'Món cuối tuần này chỉ còn nhận {so} bánh.', {so: con})); return true; }
+    return false;
+  }
   /* v649: giỏ có bánh đặt trước thì không nhận hôm nay (tách đơn). */
   const homNayBiChan = computed(() => T.chanHomNay(S.CART));
   const cauTachDon = k => k === 'co_hom_nay'
@@ -120,7 +140,7 @@ export function taoKho(moiTruong) {
       : t('dat_truoc_tu_mai', 'Giỏ có bánh đặt trước nên nhận từ ngày mai. Muốn nhận bánh có sẵn hôm nay thì đặt đơn riêng.');
   const ngayRail = computed(() => {
     const goc = bay(); const ra = [];
-    for (let i = 0; i < 14; i++) { const nh = T.nhanNgay(i, goc, DAYS, t); ra.push({i, ten: nh.ten, ngay: nh.ngay, on: i === picked.value, best: i >= 2, off: !!refillChan(i) || (i === 0 && homNayBiChan.value)}); }
+    for (let i = 0; i < 14; i++) { const nh = T.nhanNgay(i, goc, DAYS, t); ra.push({i, ten: nh.ten, ngay: nh.ngay, on: i === picked.value, best: i >= 2, off: !!refillChan(i) || dbtChan(i) || (i === 0 && homNayBiChan.value)}); }
     return ra;
   });
   /* Lịch của tab Đặt bánh trước bắt đầu từ ngày mai (Loan Anh 11/11/2026: chọn
@@ -143,6 +163,7 @@ export function taoKho(moiTruong) {
   }
   function pick(i) {
     if (i === 0 && homNayBiChan.value) { toast(cauTachDon('')); return; }
+    if (dbtChan(i)) { toast(t('dbt_chi_giao', 'Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.', {ngay: ngayGiaoDbt()})); return; }
     const rc = refillChan(i);
     if (rc) {
       const ds = dsDotRefill(rc);
@@ -204,6 +225,9 @@ export function taoKho(moiTruong) {
   const banhDatTruoc = computed(() => coTruoc.value ? S.CAKES.filter(c => c.sizes.some(s => S.TRUOC[s.id] > 0)) : S.CAKES);
   const tongTon = computed(() => Object.values(S.TODAY).reduce((a, b) => a + b, 0));
   function kichThuocDangBan(c, tab = S.tab) {
+    /* v667: món của đợt cuối tuần lấy size đang nhận đặt trước; bánh không có
+       trong bảng đặt trước (chỉ làm cho đợt) thì mọi size, số lượng giữ theo đợt. */
+    if (tab === 'dac_biet') { const co = c.sizes.filter(s => S.TRUOC[s.id] > 0); return co.length ? co : c.sizes; }
     const bang = tab === 'today' ? S.TODAY : S.TRUOC;
     const loc = tab === 'today' ? Object.keys(bang).length > 0 : coTruoc.value;
     return loc ? c.sizes.filter(s => bang[s.id] > 0) : c.sizes;
@@ -286,6 +310,7 @@ export function taoKho(moiTruong) {
     if (!kichThuocDangBan(c).some(s => s.id === sz.id)) { toast(t('het_size', 'Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.')); return false; }
     const xd = T.xungDotGio(S.CART, {cm: sz.cm, nguon: S.tab === 'today' ? 'today' : 'order'}, S.dongDangSua);
     if (xd) { toast(cauTachDon(xd)); return false; }
+    if (chanThemDbt(sz.id, S.soLuong, S.dongDangSua)) return false;
     const gh = gioiHanNhan(sz.id, S.tab === 'today' ? 'today' : 'order');
     const dangSua = S.dongDangSua >= 0 && S.CART[S.dongDangSua] && S.CART[S.dongDangSua].id === sz.id ? S.CART[S.dongDangSua].qty : 0;
     if (gh && daCo(sz.id) - dangSua + S.soLuong > gh) {
@@ -314,6 +339,7 @@ export function taoKho(moiTruong) {
     const sz = ds[0], gh = gioiHanNhan(sz.id, cheDo === 'today' ? 'today' : 'order');
     const xd = T.xungDotGio(S.CART, {cm: sz.cm, nguon: cheDo === 'today' ? 'today' : 'order'});
     if (xd) { toast(cauTachDon(xd)); return 'chan'; }
+    if (chanThemDbt(sz.id, 1)) return 'chan';
     if (gh && daCo(sz.id) >= gh) {
       toast(t('dat_banh_04267831d', 'Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới. Cần nhiều hơn quý khách gọi 0931 224 334', {gia_tri_a: gh}));
       return 'chan';
@@ -798,6 +824,12 @@ export function taoKho(moiTruong) {
     if (!S.CART.length) { toast(t('dat_banh_28c1cf2d1', 'Giỏ chưa có bánh nào')); return {buoc: 'gio'}; }
     /* v649: giỏ cũ lưu từ trước có cả hai loại bánh thì nhờ khách tách đơn. */
     if (T.gioTron(S.CART)) { toast(cauTachDon('co_hom_nay')); return {buoc: 'gio'}; }
+    /* v667: món của đợt cuối tuần: giờ mở, chốt đơn và ngày giao của đợt. */
+    if (dotDbt.value && D.gioCoMonDot(S.CART, maDbt.value)) {
+      const tt = D.trangThaiDot(dotDbt.value, lucDbt());
+      if (tt !== 'mo') { toast(lyDo(tt === 'chua_mo' ? 'dac_biet_chua_mo' : 'dac_biet_da_chot')); return {buoc: 'gio'}; }
+      if (dbtChan(picked.value)) { S.moLich = true; toast(t('dbt_chi_giao', 'Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.', {ngay: ngayGiaoDbt()})); return {buoc: 'lich'}; }
+    }
     const lichHong = !gioHopLe.value;
     if (!daChot.value || lichHong) {
       S.moLich = true;
@@ -893,6 +925,8 @@ export function taoKho(moiTruong) {
       }
       S.dangGui = false;
       S.goi.gui = loiGui(vi, mxh('messenger', CONFIG.messenger));
+      /* v667: sai ngày giao của đợt cuối tuần thì mở lịch cho khách chọn lại. */
+      if (m && m.ly_do === 'dac_biet_sai_ngay') { S.moLich = true; return {buoc: 'lich', don}; }
       return {buoc: 'loi', don};
     }
     /* Gửi được: khoá nút trong lúc chuyển sang biên nhận, không bấm hai lần. */
@@ -1075,6 +1109,16 @@ export function taoKho(moiTruong) {
     if (fixSlot()) S.daChonGio = false;
   }
   watch(() => [homNayBiChan.value, picked.value, S.tab], tranhHomNay, {flush: 'sync', immediate: true});
+  /* v667: giỏ vừa có món của đợt cuối tuần mà ngày đang chọn không phải ngày giao
+     thì dời sang ngày giao gần nhất còn trên lịch, nhờ khách xác nhận lại lịch. */
+  function theoNgayDot() {
+    if (!dotDbt.value || !D.gioCoMonDot(S.CART, maDbt.value) || !dbtChan(picked.value)) return;
+    const i = ngayRail.value.findIndex(d => d.i > 0 && !d.off);
+    if (i < 0) return;
+    neoNgay(ngayRail.value[i].i); S.daChonNgay = false;
+    if (fixSlot()) S.daChonGio = false;
+  }
+  watch(() => [S.CART.length, dotDbt.value, maDbt.value, picked.value], theoNgayDot, {flush: 'sync'});
 
   /* v638: gọi món tại bàn qua QR, kho riêng (kho-goi-ban.js) dùng chung S. */
   const goiBan = taoGoiBan({t, doc, ghi, luuTru, ngauNhien, hen, huyHen, toast, napQuay,
@@ -1082,6 +1126,7 @@ export function taoKho(moiTruong) {
 
   return {S, T, goiBan, picked, slotOk, firstOk, ngayDangChon, slotDangChon, gioHopLe, daChot, hienTomTat, nhanNgayDangChon,
     ngayRail, ngayRailDatTruoc, homNayBiChan, khungRail, pick, pickSlot, nhanRefill, doiLich, mocGioNhan, ghiChuDatTruoc, ghiChuGio, fixSlot,
+    dotDbt, maDbt, lucDbt,
     coTruoc, banhHomNay, banhDatTruoc, tongTon, kichThuocDangBan, dongTrangThai, ghiChuHomNay, theBanh,
     curSize, moBanh, dongBanh, setSize, doiSoLuong, toggleNum, clearNums, toggleAdd, phuKienChon, tienNutThem,
     gioiHanNhan, addToCart, themNhanh, suaDongGio,

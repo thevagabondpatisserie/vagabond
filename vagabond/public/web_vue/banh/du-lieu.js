@@ -126,7 +126,12 @@ export const LY_DO = {
   thieu_du_lieu: ['dat_banh_cdfac34b3', 'Dữ liệu đơn bị thiếu.'],
   can_tai_lai_trang: ['dat_banh_b608d6713', 'Trang đặt bánh vừa được cập nhật. Quý khách tải lại trang rồi gửi lại, giỏ hàng cần chọn lại.'],
   chua_dong_y_chinh_sach: ['dat_banh_ea9153cee', 'Quý khách chọn ô đồng ý ngay trên nút gửi.'],
-  het_hang_mua_vu: ['dat_banh_b221cfead', 'Một món mùa vụ trong giỏ vừa hết phần. Quý khách bớt số lượng rồi gửi lại.']
+  het_hang_mua_vu: ['dat_banh_b221cfead', 'Một món mùa vụ trong giỏ vừa hết phần. Quý khách bớt số lượng rồi gửi lại.'],
+  /* v667: món của đợt Đặc biệt tuần này (dac_biet_tuan.py). */
+  dac_biet_chua_mo: ['dbt_ly_chua_mo', 'Món cuối tuần chưa mở đơn. Quý khách quay lại khi mở đơn nhé.'],
+  dac_biet_da_chot: ['dbt_ly_da_chot', 'Món cuối tuần đã chốt đơn tuần này. Quý khách bỏ món này khỏi giỏ để gửi phần còn lại.'],
+  dac_biet_sai_ngay: ['dbt_ly_sai_ngay', 'Món cuối tuần chỉ giao, nhận vào ngày giao của đợt. Quý khách chọn lại ngày nhận.'],
+  dac_biet_het_suat: ['dbt_ly_het_suat', 'Món cuối tuần vừa hết số lượng nhận. Quý khách bớt số lượng hoặc bỏ món này rồi gửi lại.']
 };
 
 /* Nhãn câu có số (v532), mặc định TRÙNG noi_dung_web.NHAN. */

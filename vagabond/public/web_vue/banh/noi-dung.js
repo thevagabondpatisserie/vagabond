@@ -8,6 +8,9 @@ import {ghi} from '../kho/api.js';
 import {BieuTuong} from './bieu-tuong.js';
 
 const LOAI_RIENG = ['tieu_de_muc', 'kenh_dat_hang', 'zalo_oa', 'nut_kenh', 'uu_dai', 'tuyen_dung', 'tiec'];
+/* v667 (anh Việt 17/11/2026): trang /banh không còn khối Câu chuyện ở bất kỳ tab nào
+   (chân trang đã có câu thương hiệu). Khối vẫn lưu trong trình biên tập, chỉ không vẽ ở đây. */
+const LOAI_AN_O_BANH = ['cau_chuyen'];
 const lopChon = k => (ND.xemThu && ND.khoiChon === k.id ? ' vgb-dang-chon' : '');
 const bamKhoi = k => (ND.xemThu ? e => { e.preventDefault(); chonKhoi(k.id); } : undefined);
 
@@ -16,7 +19,7 @@ export const KhoiNoiDung = {
   name: 'KhoiNoiDung',
   props: {viTri: String},
   render() {
-    const ds = (ND.khoi || []).filter(k => k.hien && !LOAI_RIENG.includes(k.loai) && (k.vi_tri || 'cuoi_trang') === this.viTri);
+    const ds = (ND.khoi || []).filter(k => k.hien && !LOAI_RIENG.includes(k.loai) && !LOAI_AN_O_BANH.includes(k.loai) && (k.vi_tri || 'cuoi_trang') === this.viTri);
     const hn = ngayVN();
     return ds.map(k => {
       if (k.loai === 'banner') return BannerAnh(k, hn);
@@ -73,25 +76,8 @@ export function cuaHangHien() {
 export function chiDuongAnToan(u) {
   return /^https:\/\/[^\s/@\\]+(\/|$)/.test(u || '') && !/\s/.test(u) ? u : '';
 }
-export const CuaHang = {
-  name: 'CuaHang',
-  render() {
-    const hien = cuaHangHien();
-    if (!hien.length) return null;
-    const lh = ND.lien_he || {};
-    return h('section', {class: 'wrap cw-khung', id: 'cuaHangWeb', 'aria-labelledby': 'cwTieuDe'}, [
-      h('h2', {class: 'cw-tieu-de', id: 'cwTieuDe'}, t('cua_hang_tieu_de', 'Ghé cửa hàng')),
-      h('div', {class: 'cw-ds', id: 'cuaHangDs'}, hien.map(c => {
-        const dt = c.hotline || lh.dien_thoai || '', so = String(dt).replace(/[^0-9+]/g, '');
-        const nut = [];
-        if (so) nut.push(h('a', {href: 'tel:' + so}, t('cua_hang_goi', 'Gọi') + ' ' + dt));
-        if (chiDuongAnToan(c.chi_duong)) nut.push(h('a', {href: c.chi_duong, target: '_blank', rel: 'noopener'}, t('cua_hang_chi_duong', 'Chỉ đường') + ' ↗'));
-        return h('article', {class: 'cw-the'}, [h('h3', null, c.ten), h('p', {class: 'cw-dia-chi'}, c.dia_chi),
-          c.gio_mo_cua ? h('p', {class: 'cw-gio'}, c.gio_mo_cua) : null, h('div', {class: 'cw-nut'}, nut)]);
-      }))
-    ]);
-  }
-};
+/* v667 (anh Việt 17/11/2026): bỏ khối Ghé cửa hàng cuối trang /banh; danh sách cửa hàng
+   chỉ còn ở cột Cửa hàng của chân trang (cuaHangHien, chiDuongAnToan dùng chung). */
 
 /* ---------- nút kênh đặt hàng nổi (kenh-noi.js) ---------- */
 function linkAnToan(v, zalo) {
