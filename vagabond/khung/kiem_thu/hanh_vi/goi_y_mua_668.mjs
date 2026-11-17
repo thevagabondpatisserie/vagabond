@@ -203,5 +203,46 @@ await ca('9. Khối vẽ thật: tiêu đề in hoa, thẻ có ảnh, + (nhãn �
   la('monBay', monBay([BIS, CROI, CAN], ['BANU00015'], 1).map(u => u.ma), ['BACF00027']);
 });
 
+await ca('10. Codex #581 vòng 2: giỏ có bánh Có sẵn hôm nay thì không gợi ý, bấm + cũng không tạo giỏ trộn hai loại; bánh đặt trước một cỡ (cm 0) vẫn là món gốc; giỏ lưu có bánh hôm nay thì bỏ dòng gợi ý', async () => {
+  const {k, goi} = moiTruong(GY([BIS, CROI]));
+  const toasts = [];
+  const c = k.S.CAKES.find(x => x.k === 'CANDLE');
+  k.S.TODAY = {[c.sizes[0].id]: 3};
+  k.S.tab = 'today'; k.moBanh(c); k.S.curSizeId = c.sizes[0].id;
+  la('thêm Candle hôm nay', k.addToCart(), 'them');
+  await cho(); await cho();
+  la('dòng hôm nay', k.S.CART.map(o => o.nguon), ['today']);
+  la('không hỏi máy chủ gợi ý đặt trước', daGoiGoiY(goi).length, 0);
+  la('không bày khối', k.goiYGio.value.length, 0);
+  k.S.GY.mon = [BIS]; k.S.GY.bat = 1;
+  la('kể cả còn món cũ trong bộ nhớ: không bày', k.goiYGio.value.length, 0);
+  la('bấm + (thẻ cũ còn trên màn) không thêm', k.themGoiY(BIS), false);
+  la('giỏ không trộn', [k.S.CART.length, k.S.CART.some(o => o.goi_y)], [1, false]);
+  dung('nhắc tách đơn: ' + k.S.toast.chu, k.S.toast.on && k.S.toast.chu.length > 10);
+
+  const m2 = moiTruong(GY([BIS]));
+  m2.k.S.CART.push({k: 'Mousse một cỡ', img: '', id: 'BAWC09999', cm: 0, price: 500000, nguon: 'order', wish: '', adds: [], qty: 1});
+  await m2.k.napGoiY();
+  const a = daGoiGoiY(m2.goi).pop();
+  dung('bánh đặt trước một cỡ là món gốc', a && JSON.parse(a[1].ma)[0] === 'BAWC09999');
+  la('bày gợi ý', m2.k.goiYGio.value.map(u => u.ma), ['BACF00027']);
+  la('giỏ đặt trước thêm được', m2.k.themGoiY(BIS), true);
+
+  /* Giỏ lưu (ví dụ từ bản trước) có bánh hôm nay lẫn dòng gợi ý: phục hồi bỏ dòng gợi ý. */
+  const kho = {'vgb-gio-v1': JSON.stringify({luc: new Date('2026-11-17T09:00:00+07:00').getTime(),
+    gio: [{id: c.sizes[0].id, cm: c.sizes[0].cm, nguon: 'today', qty: 1}, {id: 'BACF00027', k: 'Biscotti', cm: 0, goi_y: 1, qty: 1, price: 190000}]})};
+  const k3 = taoKho({t: t0, tMon: (ma, tr, d) => d || '', bayGio: () => new Date('2026-11-17T10:00:00+07:00'), hen: () => 0, huyHen: () => {},
+    doc: async () => ({}), ghi: async () => ({}), suKien: () => {}, nd: {nhan: {}, khoi: [], dac_biet_da_dat: {}},
+    luuTru: {getItem: x => kho[x] || null, setItem: () => {}, removeItem: () => {}}});
+  k3.phucHoiGio();
+  la('phục hồi chỉ còn bánh hôm nay', k3.S.CART.map(o => [o.nguon, !!o.goi_y]), [['today', false]]);
+  const kho2 = {'vgb-gio-v1': kho['vgb-gio-v1'].replace('"today"', '"order"')};
+  const k4 = taoKho({t: t0, tMon: (ma, tr, d) => d || '', bayGio: () => new Date('2026-11-17T10:00:00+07:00'), hen: () => 0, huyHen: () => {},
+    doc: async () => ({}), ghi: async () => ({}), suKien: () => {}, nd: {nhan: {}, khoi: [], dac_biet_da_dat: {}},
+    luuTru: {getItem: x => kho2[x] || null, setItem: () => {}, removeItem: () => {}}});
+  k4.phucHoiGio();
+  la('giỏ đặt trước giữ dòng gợi ý', k4.S.CART.map(o => [o.nguon, !!o.goi_y]).sort(), [['order', false], ['order', true]]);
+});
+
 console.log(`\n${dat} đạt, ${hong} hỏng`);
 if (hong) { console.log('Hỏng: ' + loi.join(' | ')); process.exit(1); }
