@@ -30210,6 +30210,8 @@ function kmDsKenh() {
   if (ds.indexOf('Pancake') < 0) ds.unshift('Pancake');
   /* v589: don dat banh tren web mang nguon Website (khuyen_mai.NGUON_WEB). */
   if (ds.indexOf('Website') < 0) ds.push('Website');
+  /* v670 (anh Việt 17/11/2026): kênh khách đặt giao qua tab Tại quầy trên web, một chữ WEBORDER. */
+  if (ds.indexOf('WEBORDER') < 0) ds.push('WEBORDER');
   return ds;
 }
 
@@ -71375,7 +71377,8 @@ function btmCongTac(attr, bat, nhan) {
    nhap.an); "Giao" là đơn WEBORDER từ tab Tại quầy trên trang chủ, quầy giao
    hoặc khách tự lấy (bán khi NẰM trong nhap.giao). Món mới chưa tick gì: Tại
    bàn bật, Giao tắt. Bánh mong manh thì tắt Giao, tại bàn vẫn bán. */
-var BTM_KENH = { tai_ban: 'Tại bàn', giao: 'Giao' };
+/* v670 (anh Việt 17/11/2026): kênh khách đặt giao qua tab Tại quầy gọi một chữ WEBORDER ở mọi chỗ. */
+var BTM_KENH = { tai_ban: 'Tại bàn', giao: 'WEBORDER' };
 /* THUẦN: món có bán ở kênh này trong menu nháp không. */
 function btmCoKenh(nh, ma, kenh) {
   if (kenh === 'giao') return ((nh && nh.giao) || []).indexOf(ma) >= 0;
@@ -71823,7 +71826,7 @@ function scrBtmMon() {
     '<div style="display:flex;gap:12px;align-items:center">' +
     '<div style="flex:1;min-width:0;font-size:13px;color:#8a8f9c;line-height:1.45">Tên lấy từ danh mục món.<br>' + (g ? 'Nhóm ' + h(g.ten) : 'Chưa xếp vào nhóm nào, đang ẩn trên web') + '</div>' +
     '</div>' + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">' + btmChipKenh(m.ma, 'tai_ban', !an && !!g, m.ten) + btmChipKenh(m.ma, 'giao', !!g && btmCoKenh(nh, m.ma, 'giao'), m.ten) + '</div>' +
-    '<div style="font-size:12.5px;color:#8a8f9c;margin-top:4px;line-height:1.45">Tại bàn: khách quét QR trên bàn gọi được món này. Giao: khách đặt qua tab Tại quầy trên trang chủ, quầy giao hoặc khách tự lấy.</div>' +
+    '<div style="font-size:12.5px;color:#8a8f9c;margin-top:4px;line-height:1.45">Tại bàn: khách quét QR trên bàn gọi được món này. WEBORDER: khách đặt giao qua tab Tại quầy trên trang chủ, quầy giao hoặc khách tự lấy.</div>' +
     /* v645: ảnh riêng cho web, khung vuông 1:1 như trang gọi món tại bàn. */
     '<div style="font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Ảnh trên web</div>' +
     '<div id="btmAnhWeb" style="display:flex;gap:12px;align-items:center">' + btmAnh(btmAnhMon(m), 96) +
@@ -71973,7 +71976,7 @@ function scrBtmBanhMon() {
   var html = btmBangHtml() + '<div class="card" style="padding:14px;margin-bottom:12px">' +
     '<div style="font-size:13px;color:#8a8f9c;line-height:1.45">Tên và giá lấy từ danh mục món. Bánh lên menu theo tồn trên tủ trong ngày.</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">' + btmChipKenh(m.ma, 'tai_ban', btmCoKenh(BTM.d.nhap, m.ma, 'tai_ban'), m.ten) + btmChipKenh(m.ma, 'giao', btmCoKenh(BTM.d.nhap, m.ma, 'giao'), m.ten) + '</div>' +
-    '<div style="font-size:12.5px;color:#8a8f9c;margin-top:4px;line-height:1.45">Bánh mong manh, khó giao xa thì tắt Giao; tại bàn vẫn bán.</div>' +
+    '<div style="font-size:12.5px;color:#8a8f9c;margin-top:4px;line-height:1.45">Bánh mong manh, khó giao xa thì tắt WEBORDER; tại bàn vẫn bán.</div>' +
     '<div style="font-size:12px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.3px;margin:14px 0 6px">Ảnh trên menu</div>' +
     '<div id="btmAnhWeb" style="display:flex;gap:12px;align-items:center">' + btmAnh(btmAnhMon(m), 96) +
     '<div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:6px">' +
