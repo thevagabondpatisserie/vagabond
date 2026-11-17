@@ -38,6 +38,7 @@ def _moc():
 	la("giờ thiếu giây", gv.moc("2026-09-25", "08:30"), "2026-09-25 08:30:00")
 	la("thiếu giờ thì cuối ngày", gv.moc("2026-09-25"), "2026-09-25 23:59:59")
 	la("thiếu ngày thì không chặn", gv.moc(None), None)
+	la("giữ phần lẻ giây (sổ kho lưu micro giây)", gv.moc("2026-11-18", "01:12:02.123456"), "2026-11-18 01:12:02.123456")
 
 
 @ca("v547 Codex #401 vòng 3: sổ kho đọc lỗi thì NÉM lỗi, không coi như kho chưa có giá")
@@ -87,7 +88,7 @@ def _moc_luc_luu():
 	from types import SimpleNamespace as NS
 
 	bay = dt.datetime(2026, 11, 18, 0, 0, 3, 120000)
-	la("không tích: lúc lưu", gv.moc_ghi_so("2026-11-17", "00:00:03", 0, bay), ("2026-11-18", "00:00:03"))
+	la("không tích: lúc lưu", gv.moc_ghi_so("2026-11-17", "00:00:03", 0, bay), ("2026-11-18", "00:00:03.120000"))
 	la("tích sửa: giữ trên phiếu", gv.moc_ghi_so("2026-11-10", "08:00:00", 1, bay), ("2026-11-10", "08:00:00"))
 
 	hoi = []
@@ -106,7 +107,7 @@ def _moc_luc_luu():
 		um.patch.object(gv.frappe.db, "get_value", lambda *a, **k: {}, create=True):
 		doc, d = phieu(0)
 		gv.dien_gia(doc)
-		la("phiếu ngày cũ, không tích: tra giá lúc lưu", hoi[-1], ("2026-11-18", "00:00:03"))
+		la("phiếu ngày cũ, không tích: tra giá lúc lưu", hoi[-1], ("2026-11-18", "00:00:03.120000"))
 		la("điền giá", d.valuation_rate, 400.0)
 		doc, d = phieu(1)
 		gv.dien_gia(doc)
