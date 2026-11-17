@@ -166,16 +166,23 @@ def _ma_bam_moi_trang():
 
 # ------------------------------------------------------------ tao_don THẬT
 
-def _tao(dot, luc, ngay, da_dat=None, hang=None):
+def _tao(dot, luc, ngay, da_dat=None, hang=None, luc_sau=None, dot_sau=None):
+	"""luc_sau, dot_sau: giờ và nội dung đợt ĐỔI trong lúc đơn chờ khoá đợt
+	(khách bấm 19:59, lấy được khoá lúc 20:01; Marketing sửa đợt giữa chừng)."""
 	from vagabond.khung.kiem_thu import thu_don_web_367 as t367
 
 	vet, tao_don = t367._moi_truong_tao_don(lambda v: t367._Tra(200, {"data": {"id": "91500"}}))
 	thu_tu = []
+	bay_gio = {"luc": luc, "dot": dot}
 
 	@contextlib.contextmanager
 	def khoa_suat(d):
 		thu_tu.append("khoa_dot")
 		vet.su.append("khoa_dot")
+		if luc_sau:
+			bay_gio["luc"] = luc_sau
+		if dot_sau:
+			bay_gio["dot"] = dot_sau
 		yield
 		thu_tu.append("mo_khoa_dot")
 		vet.su.append("mo_khoa_dot")
@@ -188,9 +195,9 @@ def _tao(dot, luc, ngay, da_dat=None, hang=None):
 	don = t367._don(ngay_nhan=ngay)
 	if hang is not None:
 		don["items"] = hang
-	with um.patch.object(dbt, "dot_cong_khai", lambda: dot), \
+	with um.patch.object(dbt, "dot_cong_khai", lambda: bay_gio["dot"]), \
 			um.patch.object(dbt, "ma_theo_khoa", lambda d: {"candle": {"BAWC00139", "BAWC00140"}}), \
-			um.patch.object(dbt, "luc_vn", lambda: luc), um.patch.object(dbt, "khoa_suat", khoa_suat), \
+			um.patch.object(dbt, "luc_vn", lambda: bay_gio["luc"]), um.patch.object(dbt, "khoa_suat", khoa_suat), \
 			um.patch.object(dbt, "da_dat", dem):
 		r = tao_don(json.dumps(don))
 	return r, vet, thu_tu
@@ -228,4 +235,26 @@ def _suat_duoi_khoa():
 	dung("ghi đơn và commit nằm TRONG khoá đợt, gửi Pancake sau khi mở khoá: " + str(su),
 		su.index("khoa_dot") < su.index("ghi") < su.index("commit", su.index("ghi")) < su.index("mo_khoa_dot") < su.index("post"))
 	r, vet, thu = _tao(dbt.chuan_dot(_dot(mon_dt=[{"khoa": "candle"}])), "2026-11-17T10:00", "2026-11-21T10:00:00", hang=co)
-	la("không giới hạn: không khoá, không đếm", (r.get("ok"), thu), (1, []))
+	la("không giới hạn: vẫn khoá đợt (xét lại giờ chốt), không đếm", (r.get("ok"), thu), (1, ["khoa_dot", "mo_khoa_dot"]))
+
+
+@ca("v667 cửa tạo đơn THẬT (Codex #579): bấm 19:59, chờ khoá tới 20:01 thì từ chối Đã chốt, không ghi, không gửi; có hay không số lượng tối đa; Marketing sửa giờ chốt giữa chừng cũng áp")
+def _xet_lai_duoi_khoa():
+	co = [{"variation_id": "BAWC00139", "quantity": 1}]
+	for ten, mon in (("không giới hạn", [{"khoa": "candle"}]), ("có số tối đa", [{"khoa": "candle", "toi_da": "5"}])):
+		d = dbt.chuan_dot(_dot(mon_dt=mon))
+		r, vet, thu = _tao(d, "2026-11-20T19:59", "2026-11-21T10:00:00", da_dat={"candle": 0}, hang=co, luc_sau="2026-11-20T20:01")
+		la(ten + ": qua giờ chốt lúc lấy được khoá thì từ chối", (r.get("ok"), r.get("ly_do"), r.get("ngay_giao")),
+			(0, dbt.DA_CHOT, ["2026-11-21", "2026-11-22"]))
+		dung(ten + ": không ghi đơn, không gửi Pancake", "ghi" not in vet.su and "post" not in vet.su)
+		dung(ten + ": không đếm suất khi đã chốt", not [x for x in thu if isinstance(x, tuple)])
+		r, vet, _ = _tao(d, "2026-11-20T19:58", "2026-11-21T10:00:00", da_dat={"candle": 0}, hang=co, luc_sau="2026-11-20T19:59")
+		la(ten + ": vẫn trong giờ lúc lấy khoá thì ghi", (r.get("ok"), "ghi" in vet.su), (1, True))
+	d = dbt.chuan_dot(_dot(mon_dt=[{"khoa": "candle"}]))
+	sua = dict(d, chot_don="2026-11-18T12:00")
+	r, vet, _ = _tao(d, "2026-11-18T12:30", "2026-11-21T10:00:00", hang=co, dot_sau=sua)
+	la("Marketing dời giờ chốt sớm hơn giữa chừng: đọc lại đợt dưới khoá, từ chối", (r.get("ok"), r.get("ly_do"), "ghi" in vet.su), (0, dbt.DA_CHOT, False))
+	r, vet, _ = _tao(d, "2026-11-18T12:30", "2026-11-21T10:00:00", hang=co, dot_sau=None)
+	la("đợt không đổi: ghi", (r.get("ok"), "ghi" in vet.su), (1, True))
+	r, vet, _ = _tao(d, "2026-11-20T19:59", "2026-11-21T10:00:00", hang=co, luc_sau="2026-11-20T20:01", dot_sau=dict(d, id="dot-khac", chot_don="2026-11-27T20:00", ngay_giao=["2026-11-28"]))
+	la("đợt bị thay bằng đợt khác giữa chừng: vẫn xét theo đợt khách đã đặt", (r.get("ok"), r.get("ly_do")), (0, dbt.DA_CHOT))
