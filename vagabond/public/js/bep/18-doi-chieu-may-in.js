@@ -120,7 +120,7 @@ async function scrDcmXem(name) {
       '<div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:#374151">Tiền hàng trên hoá đơn</span><b>' + money(s.tien_hd) + ' đ</b></div>' +
       /* v666: tờ gốc có hoá đơn điều chỉnh thì so với phiếu nhập bằng tiền SAU điều chỉnh. */
       (s.tien_dieu_chinh ? '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151">Hoá đơn điều chỉnh ' +
-        h((s.cac_to_dieu_chinh || []).map(function (t) { return t.name + (t.bill_no ? ' (số ' + t.bill_no + ')' : ''); }).join(', ')) +
+        dcmDsDc(s.cac_to_dieu_chinh) +
         '</span><b>' + money(s.tien_dieu_chinh) + ' đ</b></div>' +
         '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151;font-weight:700">Tiền hàng sau điều chỉnh</span><b>' + money(s.tien_hd_sau) + ' đ</b></div>' : '') +
       '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151">Tiền hàng phiếu nhập còn lại' + ((s.hd_da_dung || []).length ? ' (sau ' + h(s.hd_da_dung.join(', ')) + ')' : '') + '</span><b>' + money(s.tien_pnk) + ' đ</b></div>' +
@@ -359,6 +359,19 @@ async function scrDcmXem(name) {
     };
     var nDc = document.getElementById('dcmGhiDc');
     if (nDc) nDc.onclick = async function () {
+      /* Codex #578: tờ điều chỉnh có dòng dịch vụ, phí không qua kho thì phải
+         chọn tài khoản như mọi đường ghi sổ của màn này (AGENTS.md 2b.12).
+         Màn Hạch toán ghi sổ qua ghi_so_thang, cửa đó tự chuyển tờ điều chỉnh
+         sang ghi sổ điều chỉnh và mang theo tài khoản đã chọn. */
+      var ht = null;
+      busy(true);
+      try { ht = await api('vagabond.hach_toan_thang.xem', { name: name }); } catch (e1) { ht = null; }
+      busy(false);
+      if (ht && (ht.dong || []).some(function (x) { return x.sua_duoc; })) {
+        toast('Tờ điều chỉnh có dòng chi phí: chọn tài khoản cho từng dòng rồi ghi sổ.', 5000);
+        dcmHt = null;
+        return go(function () { scrDcmHachToan(name); });
+      }
       var ok = await confirmSheet('Ghi sổ hoá đơn điều chỉnh',
         'Ghi sổ ' + name + ' (' + money(dc.tien) + ' đ) vào tờ gốc ' + (g ? g.name : '') + '.\nCông nợ tờ gốc giảm theo, tồn kho không đổi.',
         'Ghi sổ', false);
@@ -377,11 +390,11 @@ async function scrDcmXem(name) {
   }
   /* Tờ gốc có hoá đơn điều chỉnh: nói ngay từ đầu. */
   if ((dc.cac_to || []).length && d.docstatus === 0) {
+    /* AGENTS.md 2b.17 (Codex #578): khối chỉ đọc tối đa hai dòng, danh sách
+       tờ điều chỉnh là đếm số, vài tờ đầu, phần còn lại bấm mới mở. */
     html += '<div class="card" style="padding:12px 14px;background:#f5f3ff;border:1.5px solid #c4b5fd;font-size:13px;color:#4c1d95;line-height:1.65">' +
-      '🧾 Nhà cung cấp đã xuất hoá đơn điều chỉnh cho tờ này: ' +
-      h(dc.cac_to.map(function (t) { return t.name + (t.bill_no ? ' số ' + t.bill_no : '') + ' (' + money(t.total) + ' đ)'; }).join(', ')) +
-      '. Tiền hàng sau điều chỉnh <b>' + money(dc.tien_sau) + ' đ</b>, máy so với phiếu nhập bằng số này. ' +
-      'Nối phiếu và ghi sổ tờ này trước, rồi ghi sổ tờ điều chỉnh.</div>';
+      '🧾 ' + dc.cac_to.length + ' hoá đơn điều chỉnh: ' + dcmDsDc(dc.cac_to) +
+      '. Máy so phiếu nhập bằng tiền sau điều chỉnh <b>' + money(dc.tien_sau) + ' đ</b>.</div>';
   }
 
   if (d.docstatus === 1) {
@@ -558,6 +571,18 @@ async function scrDcmXem(name) {
   if (n3) n3.onclick = function () { dcmHt = null; go(function () { scrDcmHachToan(name); }); };
   var n2 = document.getElementById('dcmXong');
   if (n2) n2.onclick = function () { chay(1); };
+}
+
+/* v666 (Codex #578, AGENTS.md 2b.17): danh sách tờ điều chỉnh không rõ độ dài
+   không bao giờ nối thẳng. Hai tờ đầu, phần còn lại thu vào "và N tờ nữa",
+   bấm mới mở. */
+function dcmDsDc(cac) {
+  cac = cac || [];
+  function ten(t) { return h(t.name) + (t.bill_no ? ' (số ' + h(t.bill_no) + ')' : ''); }
+  var dau = cac.slice(0, 2).map(ten).join(', ');
+  if (cac.length <= 2) return dau;
+  return dau + ' <details style="display:inline"><summary style="display:inline-flex;align-items:center;min-height:44px;cursor:pointer;font-weight:700">và ' +
+    (cac.length - 2) + ' tờ nữa</summary>' + cac.slice(2).map(ten).join(', ') + '</details>';
 }
 
 function cint0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
