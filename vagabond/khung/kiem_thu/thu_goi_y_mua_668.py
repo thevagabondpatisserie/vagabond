@@ -328,6 +328,6 @@ GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.ab
 
 @ca("v668 chạy thật trang khách (hanh_vi/goi_y_mua_668.mjs: giỏ đặt trước, Tại quầy, khối vẽ) và màn Món đi kèm (hanh_vi/mon_di_kem_668.js) đều đạt")
 def _node():
-	for t, can in (("goi_y_mua_668.mjs", "10 đạt, 0 hỏng"), ("mon_di_kem_668.js", "7 ca đạt, 0 ca hỏng")):
+	for t, can in (("goi_y_mua_668.mjs", "11 đạt, 0 hỏng"), ("mon_di_kem_668.js", "7 ca đạt, 0 ca hỏng")):
 		r = subprocess.run(["node", os.path.join(GOC, "vagabond/khung/kiem_thu/hanh_vi", t)], capture_output=True, text=True, timeout=120)
 		la(t, (r.returncode, can in (r.stdout or ""), (r.stdout or "")[-500:] if r.returncode else ""), (0, True, ""))
