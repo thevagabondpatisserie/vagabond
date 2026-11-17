@@ -110,7 +110,7 @@ Từ khoá: vành nghiêng, thanh mục, tab trang đặt bánh, vuốt ngang, �
 | Khách, Marketing | Trang đặt bánh (/banh), dưới dòng ngày | vuốt ngang trên vành |
 
 **Trước đây:** dải tab chữ hoa kéo ngang, khách dễ sót mục.
-**Từ nay:** các mục nằm trên một vành nghiêng. Khách vuốt ngang để đổi mục, chạm thẳng vào mục để chọn. Từ v659 vùng vành chỉ nhận vuốt ngang (trước đó quẹt bị kéo cả trang xuống), muốn cuộn trang thì đặt ngón tay ngoài vành; vành quay mượt hơn trên iPhone. Thứ tự: Có sẵn hôm nay, Đặt bánh trước, Thiết kế riêng, Vé sự kiện, Tại quầy, Ưu đãi, Tuyển dụng; In season tự hiện khi có hàng mùa vụ. Cuộn xuống quá vành thì đầu màn có thanh gọn chỉ mục đang chọn.
+**Từ nay:** các mục nằm trên một vành nghiêng. Khách vuốt ngang để đổi mục, chạm thẳng vào mục để chọn. Từ v659 vùng vành chỉ nhận vuốt ngang (trước đó quẹt bị kéo cả trang xuống), muốn cuộn trang thì đặt ngón tay ngoài vành; vành quay mượt hơn trên iPhone. Thứ tự: Có sẵn hôm nay, Đặt bánh trước, Thiết kế riêng, Vé sự kiện, Đặc biệt tuần này, Tại quầy, Ưu đãi, Tuyển dụng; In season tự hiện khi có hàng mùa vụ, Đặc biệt tuần này tự hiện khi có đợt cuối tuần (từ v667). Cuộn xuống quá vành thì đầu màn có thanh gọn chỉ mục đang chọn.
 
 **Bạn cần làm:** không cần làm gì. Đổi tên mục ở Trang và chữ như trước.
 
@@ -274,6 +274,34 @@ Trước đây: web dùng xanh teal #29BDB3. Từ nay: màu xanh của cả web 
 
 **Lưu ý**
 - Ảnh tĩnh có màu teal cũ (nếu có) không tự đổi; báo kỹ thuật kèm tên ảnh.
+
+## Đợt món cuối tuần (tab Đặc biệt tuần này)
+Từ khoá: đặc biệt tuần này, cuối tuần, món cuối tuần, mở đơn, chốt đơn, ngày giao, đếm ngược, số lượng tối đa
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập website (/bien-tap-web), thẻ Cuối tuần | nút + Thêm đợt cuối tuần |
+
+**Trước đây:** món chỉ làm cho cuối tuần phải đăng như bánh đặt trước thường, khách chọn được mọi ngày nhận.
+**Từ nay:** trang đặt bánh có tab Đặc biệt tuần này (mục 05, sau Vé sự kiện). Mỗi đợt Marketing tự nhập: nhãn bên phải, tiêu đề hai dòng, câu mô tả, 2 đến 5 mốc lịch, ô đếm ngược, giờ mở đơn, giờ chốt đơn, các ngày giao nhận và các món (chọn bánh ở thẻ Bánh, câu mô tả ngắn, ảnh đứng, nhãn góc, số lượng tối đa). Đợt 1 món hiện một thẻ lớn có nút Đặt món này; đợt 2 món trở lên hiện thẻ vuốt ngang có nút +. Giỏ có món cuối tuần thì khách chỉ chọn được ngày giao của đợt. Chưa tới giờ mở đơn thẻ ghi Mở đơn kèm ngày; qua giờ chốt hay đủ số lượng thẻ ghi Đã chốt đơn tuần này. Không có đợt nào đang hiện thì tab tự ẩn.
+
+**Bạn cần làm**
+1. Mở thẻ Cuối tuần, bấm + Thêm đợt cuối tuần. Lịch điền sẵn: mở thứ hai 8g, chốt thứ sáu 20g, giao thứ bảy và chủ nhật; sửa lại nếu tuần này khác.
+2. Bấm + Thêm món, gõ tên bánh rồi chọn trong danh sách (bánh phải đang hiện ở thẻ Bánh). Điền số lượng tối đa nếu bếp chỉ làm được số đó.
+3. Chọn Hiện từ ngày và Ngừng hiện sau ngày, bật Hiện trên web rồi bấm Lưu đợt.
+4. Lịch đổi giữa tuần thì mở đợt sửa giờ chốt hay ngày giao, lưu là khách thấy ngay. Đơn đã đặt trước đó giữ nguyên.
+
+## Tab Tại quầy gọn hơn và dọn cuối trang đặt bánh
+Từ khoá: tại quầy, chọn cửa hàng, thanh gạt, tìm món, ghé cửa hàng, chân trang, bếp trung tâm
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách, Marketing | Trang đặt bánh /banh, tab Tại quầy và chân trang | thanh gạt chọn cửa hàng |
+
+**Trước đây:** tab Tại quầy có khung chú thích, hai nút cửa hàng lớn và khối tên cửa hàng lớn, món đầu tiên nằm dưới màn đầu. Cuối mọi tab có khối Ghé cửa hàng và khối Từ The Vagabond Pâtisserie. Cột Liên hệ ở chân trang có Nhắn Zalo và địa chỉ bếp.
+**Từ nay:** chọn cửa hàng bằng thanh gạt hai ô (THE VAGABOND / QUẬN 1 và NHÀ VĂN HOÁ / THANH NIÊN), ngay dưới là một dòng địa chỉ, số bánh còn và số loại. Ô tìm món có nút kính lúp tròn, ô lọc một dòng có số món. Bỏ hai khối cuối trang; cột Cửa hàng ở chân trang thêm Bếp trung tâm 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà; cột Liên hệ còn số điện thoại và email (nút Zalo tròn vẫn ở hàng mạng xã hội). Web đổi sang màu Robin egg từ bản trước nay mới thật sự tới máy khách.
+
+**Bạn cần làm:** không cần làm gì. Khối Câu chuyện cũ vẫn lưu trong trình biên tập nhưng không còn hiện trên trang đặt bánh.
 
 ## Gắn Google Analytics cho trang web khách
 Từ khoá: Google Analytics, GA4, mã đo lường, G-, đo lường web, xem bánh, thêm giỏ, thanh toán, gửi đơn, purchase

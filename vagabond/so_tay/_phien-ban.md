@@ -12,6 +12,10 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v667
+- Đợt món cuối tuần (tab Đặc biệt tuần này)
+- Tab Tại quầy gọn hơn và dọn cuối trang đặt bánh
+
 ## v665
 - Hệ thống tự đăng Facebook, Instagram, Threads
 - Kho bản thảo thay cho gửi ghi chú qua lại
