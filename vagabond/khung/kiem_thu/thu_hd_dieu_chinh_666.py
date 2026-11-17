@@ -234,6 +234,7 @@ def _chuan_bi():
 	with patch.object(hdc, "_frappe", lambda: _fr(None, pi, {"HDM-DC": d})):
 		ra = hdc.chuan_bi_ghi_so("HDM-DC")
 	la("gắn tờ gốc", ra.return_against, "HDM-GOC")
+	la("bench thật: công nợ ghi ngược vào tờ gốc, không treo trên phiếu nợ", getattr(ra, "update_outstanding_for_self", None), 0)
 	# Dòng đang nối phiếu nhập thì không ghi sổ điều chỉnh.
 	d = _doc_dc()
 	d.items = [SimpleNamespace(idx=1, get=lambda k, dd=None: "PNK-1" if k == "purchase_receipt" else "")]
