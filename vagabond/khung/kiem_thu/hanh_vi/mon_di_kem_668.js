@@ -68,6 +68,10 @@ function dungMoi(vai, traLoi) {
       if (sai) { that._loiHop = sai; return Promise.resolve(null); }
       return Promise.resolve(v);
     },
+    /* Ô chọn giả (QT-31): ghi lại lựa chọn được bày, trả lời theo hàng đợi that._tra. */
+    hoiChon: function (t, m, lc, dang) { that._bay = { t: t, lc: lc, dang: dang }; return Promise.resolve((that._tra || []).shift() || null); },
+    hoiChonNhieu: function (t, m, lc, dang) { that._bay = { t: t, lc: lc, dang: dang }; return Promise.resolve((that._tra || []).shift() || null); },
+    vgbChonMon: function (o) { that._bayMon = o; return Promise.resolve((that._tra || []).shift() || []); },
     api: function (duong, ts) {
       goi.push({ duong: duong, ts: ts });
       var f = (traLoi || {})[duong.replace(P, '')];
@@ -152,15 +156,75 @@ var MKT = ['Marketing'];
     bam(m, mot(m.goc, '#mdkLuuCd'));
     await choDen(function () { return goiTen(m, 'luu_cai_dat').length === 1; });
     var d = JSON.parse(goiTen(m, 'luu_cai_dat')[0].ts.du_lieu);
-    bang('cài đặt gửi', [d.bat_quay, d.bat_gio, d.toi_da, d.nhom], [0, 1, '5', 'Bánh khô\nBánh nướng']);
+    bang('cài đặt gửi', [d.bat_quay, d.bat_gio, d.toi_da, d.nhom], [0, 1, '5', ['Bánh khô', 'Bánh nướng']]);
     m.g.MDK.phan = 'muc';
     await m.g.scrMonDiKem();
     await choDen(function () { return chu(m.goc).indexOf('Canelé') >= 0; });
     dung('món dưới mức', chu(m.goc).indexOf('Tồn bếp 12, mức giữ 20') >= 0);
-    m.goc.querySelector('#mdkMucMa').value = 'BACF00034'; m.goc.querySelector('#mdkMucSo').value = '25';
+    dung('không còn ô gõ mã món', !m.goc.querySelector('#mdkMucMa'));
+    m.goc.querySelector('#mdkMucSo').value = '25';
+    bam(m, mot(m.goc, '#mdkMucLuu'));
+    await choDen(function () { return m.toast.length > 0; });
+    dung('chưa chọn món thì nhắc, không gửi', m.toast[m.toast.length - 1].indexOf('Chọn món') === 0 && !goiTen(m, 'dat_muc_giu').length);
+    m.g._tra = [[{ ma: 'BACF00034', ten: 'Canelé Tahitian Vanilla' }]];
+    bam(m, mot(m.goc, '[data-mdkmucchon]'));
+    await choDen(function () { return chu(m.goc).indexOf('Canelé Tahitian Vanilla') >= 0 && !!m.goc.querySelector('#mdkMucChon [data-mdkmucchon]'); });
     bam(m, mot(m.goc, '#mdkMucLuu'));
     await choDen(function () { return goiTen(m, 'dat_muc_giu').length === 1; });
     bang('đặt mức', goiTen(m, 'dat_muc_giu')[0].ts, { ma: 'BACF00034', so: '25' });
+  });
+
+  await ca('Codex #581 thêm cặp: bánh gốc, nhóm, món gợi ý CHỌN từ danh mục (không ô gõ); chưa chọn thì nhắc; lưu gửi đúng khoá bánh và mã món', async function () {
+    var dm = { banh: [{ k: 'candle', nhan: 'Candle' }], nhom: ['Bánh lạnh'], kho: ['Pastry - Thành phẩm - TV'], nhom_rieng: ['Bánh trên tủ'] };
+    var m = dungMoi(MKT, { man_hinh: manMau(), danh_muc: dm, luu_cap: { ok: 1, name: 'c9' } });
+    await m.g.scrMonDiKem();
+    bam(m, mot(m.goc, '[data-mdkmoi]'));
+    var sh = sheet(m);
+    dung('không còn ô gõ bánh, nhóm, mã', !sh.querySelector('#mdkGoc') && !sh.querySelector('#mdkNhom') && !sh.querySelector('#mdkMa'));
+    bam(m, mot(sh, '[data-mdkluu="Đã duyệt"]'));
+    await choDen(function () { return m.toast.length > 0; });
+    dung('chưa chọn thì nhắc', m.toast[0].indexOf('Chọn bánh gốc') === 0 && !goiTen(m, 'luu_cap').length);
+    m.g._tra = ['b:candle'];
+    bam(m, mot(sh, '[data-mdkchongoc]'));
+    await choDen(function () { return chu(sh).indexOf('Candle') >= 0; });
+    bang('bày cả bánh trên web lẫn nhóm món', m.g._bay.lc.map(function (x) { return x.k; }), ['b:candle', 'n:Bánh lạnh']);
+    bam(m, mot(sh, '[data-mdkluu="Đã duyệt"]'));
+    await choDen(function () { return m.toast.length > 1; });
+    dung('có bánh gốc mà chưa chọn món gợi ý thì nhắc', m.toast[1].indexOf('Chọn món gợi ý') === 0 && !goiTen(m, 'luu_cap').length);
+    m.g._tra = [[{ ma: 'BACF00034', ten: 'Canelé Tahitian Vanilla' }]];
+    bam(m, mot(sh, '[data-mdkchonma]'));
+    await choDen(function () { return chu(sh).indexOf('Canelé Tahitian Vanilla') >= 0; });
+    dung('mở bảng chọn món một món', m.g._bayMon.nhieu === false);
+    bam(m, mot(sh, '[data-mdkluu="Đã duyệt"]'));
+    await choDen(function () { return goiTen(m, 'luu_cap').length === 1; });
+    var d = JSON.parse(goiTen(m, 'luu_cap')[0].ts.du_lieu);
+    bang('lưu đúng khoá', [d.mon_goc, d.nhom_goc, d.mon_goi_y, d.trang_thai], ['candle', '', 'BACF00034', 'Đã duyệt']);
+  });
+
+  await ca('Codex #581 Cài đặt: nhóm, kho chọn nhiều từ danh mục; câu lý do theo nhóm có nút Thêm câu cho nhóm; câu đang gõ không mất khi vẽ lại; lưu gửi danh sách', async function () {
+    var dm = { banh: [], nhom: ['Bánh khô', 'Bánh lạnh'], kho: ['Pastry - Thành phẩm - TV', 'Baker - Thành phẩm - TV'], nhom_rieng: ['Bánh trên tủ'] };
+    var m = dungMoi(MKT, { man_hinh: manMau(), danh_muc: dm, luu_cai_dat: { ok: 1 } });
+    m.g.MDK.phan = 'cd';
+    await m.g.scrMonDiKem();
+    dung('không còn ô gõ nhóm, kho, câu theo nhóm', !m.goc.querySelector('#mdkNhomGy') && !m.goc.querySelector('#mdkKho') && !m.goc.querySelector('#mdkLy'));
+    m.goc.querySelector('[data-mdklyvn="0"]').value = 'Giòn tan';
+    m.g._tra = [['Bánh khô', 'Bánh lạnh']];
+    bam(m, mot(m.goc, '[data-mdkchonnhomgy]'));
+    await choDen(function () { return chu(m.goc).indexOf('Bánh khô, Bánh lạnh') >= 0; });
+    bang('đánh dấu sẵn nhóm đang dùng', m.g._bay.dang, ['Bánh khô', 'Bánh nướng']);
+    bang('câu đang gõ còn nguyên', m.goc.querySelector('[data-mdklyvn="0"]').value, 'Giòn tan');
+    m.g._tra = [['Baker - Thành phẩm - TV']];
+    bam(m, mot(m.goc, '[data-mdkchonkho]'));
+    await choDen(function () { return chu(m.goc).indexOf('Baker - Thành phẩm - TV') >= 0; });
+    m.g._tra = ['Bánh trên tủ'];
+    bam(m, mot(m.goc, '[data-mdklythem]'));
+    await choDen(function () { return !!m.goc.querySelector('[data-mdklyvn="1"]'); });
+    dung('không bày lại nhóm đã có câu', m.g._bay.lc.map(function (x) { return x.k; }).indexOf('Bánh khô') < 0);
+    m.goc.querySelector('[data-mdklyvn="1"]').value = 'Còn trên tủ hôm nay';
+    bam(m, mot(m.goc, '#mdkLuuCd'));
+    await choDen(function () { return goiTen(m, 'luu_cai_dat').length === 1; });
+    var d = JSON.parse(goiTen(m, 'luu_cai_dat')[0].ts.du_lieu);
+    bang('gửi danh sách', [d.nhom, d.kho_bep, d.ly_do_nhom], [['Bánh khô', 'Bánh lạnh'], ['Baker - Thành phẩm - TV'], [['Bánh khô', 'Giòn tan', 'Crisp'], ['Bánh trên tủ', 'Còn trên tủ hôm nay', '']]]);
   });
 
   await ca('Kết quả: tỉ lệ, giá trị trung bình, món thêm nhiều nhất từ báo cáo máy chủ', async function () {
