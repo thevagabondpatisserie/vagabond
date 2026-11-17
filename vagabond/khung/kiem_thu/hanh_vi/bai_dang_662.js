@@ -1143,6 +1143,34 @@ var MKT = ['Marketing'];
     bang('đổi lại Bài đăng có gửi', nhan[3] && nhan[3].kieu, 'Bài đăng');
   });
 
+  await ca('Codex #585: hộp chọn chủ đề hơn 8 chủ đề có ô tìm; gõ không dấu là lọc, không khớp thì nói rõ, dòng Không thuộc chủ đề nào luôn còn; chọn từ kết quả lọc thì lưu đúng; 8 chủ đề trở xuống không có ô tìm', async function () {
+    var ten = ['Giới thiệu bánh ổ', 'Weekend Set', 'Bánh mùa Trung thu', 'Giáng sinh', 'Tết', 'Valentine', 'Khai trương', 'Tuyển dụng', 'Hậu trường bếp', 'Khách kể chuyện', 'Sự kiện', 'Ưu đãi thành viên'];
+    var cd = { ds: ten.map(function (t, i) { return { ma: 'CD-' + (i + 1), ten: t, bt: '🗂️', cta: [], so: 0 }; }), so_sao: 0, tong: 0, khong_chu_de: 0, sua: true };
+    var nhan = [];
+    var m = dungMoi(MKT, { chu_de_ds: cd, luu: function (ts) { nhan.push(JSON.parse(ts.thay)); return baiMau(); } });
+    await m.g.scrBaiDangSoan('BD-1');
+    bam(m, mot(m.goc, '[data-bdchude]'));
+    await choDen(function () { return sheet(m) && mot(sheet(m), '#bdCdTim'); });
+    var o = mot(sheet(m), '#bdCdTim');
+    dung('12 chủ đề thì có ô tìm', !!o);
+    var hien = function () { return sheet(m).querySelectorAll('[data-bdchoncd]').filter(function (b) { return b.style.display !== 'none'; }).map(function (b) { return b.getAttribute('data-bdchoncd'); }); };
+    go(m, o, 'giang sinh');
+    bang('gõ không dấu: chỉ còn Giáng sinh và dòng Không thuộc chủ đề nào', hien(), ['CD-4', '']);
+    dung('có kết quả thì không hiện câu không khớp', mot(sheet(m), '#bdCdRong').style.display === 'none');
+    go(m, o, 'xyz');
+    bang('không khớp: chỉ còn dòng Không thuộc chủ đề nào', hien(), ['']);
+    dung('không khớp thì nói rõ', mot(sheet(m), '#bdCdRong').style.display === 'block');
+    go(m, o, 'uu dai');
+    bam(m, mot(sheet(m), '[data-bdchoncd="CD-12"]'));
+    await choDen(function () { return nhan.length; });
+    bang('chọn từ kết quả lọc thì lưu đúng chủ đề', nhan[0] && nhan[0].chu_de, 'CD-12');
+    var m2 = dungMoi(MKT, { chu_de_ds: cdMau() });
+    await m2.g.scrBaiDangSoan('BD-1');
+    bam(m2, mot(m2.goc, '[data-bdchude]'));
+    await choDen(function () { return sheet(m2) && mot(sheet(m2), '[data-bdchoncd="CD-001"]'); });
+    dung('2 chủ đề thì không có ô tìm', !mot(sheet(m2), '#bdCdTim'));
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();
