@@ -337,6 +337,10 @@ def kiem_dong(doc):
 	if loi:
 		frappe.throw(loi)
 	doc.mon_goc = str(doc.mon_goc or "").strip().lower()
+	# QT-31 ở MỌI đường lưu (màn app, Desk, nhập dữ liệu): bánh gốc, nhóm, món gợi ý phải có
+	# trong danh mục, không thì cặp duyệt rồi cũng không bao giờ khớp giỏ (Codex #584).
+	if doc.is_new() or any(doc.has_value_changed(k) for k in ("mon_goc", "nhom_goc", "mon_goi_y")):
+		_kiem_danh_muc_cap({"mon_goc": doc.mon_goc, "nhom_goc": doc.nhom_goc, "mon_goi_y": doc.mon_goi_y})
 
 
 def _o_tho(ten):
@@ -496,6 +500,9 @@ def man_hinh(trang_thai=None, tim=None):
 	q = str(tim or "").strip().lower()
 	if q:
 		rows = [r for r in rows if q in " ".join(str(r.get(k) or "") for k in ("mon_goc", "nhom_goc", "ten_goi_y", "ly_do_vn")).lower()]
+	anh = _anh_mon([r.get("mon_goi_y") for r in rows])
+	for r in rows:
+		r["anh_goi_y"] = anh.get(r.get("mon_goi_y")) or ""
 	dem = {t: frappe.db.count(DOCTYPE, {"trang_thai": t}) for t in TRANG_THAI}
 	cd = cai_dat()
 	return {"cap": rows, "dem": dem, "cai_dat": dict(cd, ly_do_nhom=[[k, v[0], v[1]] for k, v in cd["ly_do_nhom"].items()]),
@@ -516,6 +523,15 @@ def doi_nhieu(ten=None, trang_thai=None):
 			frappe.db.set_value(DOCTYPE, n, "trang_thai", trang_thai)
 			doi += 1
 	return {"ok": 1, "doi": doi}
+
+
+def _anh_mon(ds):
+	"""{mã món: đường ảnh} để màn có tên món thì có ảnh món (AGENTS.md 2b.4)."""
+	ds = [x for x in set(ds or []) if x]
+	if not ds:
+		return {}
+	return {x.name: _anh(x.image) for x in frappe.get_all("Item", filters={"name": ["in", ds]}, fields=["name", "image"],
+		limit_page_length=0, ignore_permissions=True)}
 
 
 def _ten_co(dt, ds):
@@ -612,10 +628,10 @@ def duoi_muc_giu():
 	"""Danh sách món bánh khô đang dưới mức giữ tại bếp, để bếp theo dõi."""
 	_quyen(QUYEN_KHO)
 	cd = cai_dat()
-	ds = frappe.get_all("Item", filters={O_MUC_GIU: [">", 0], "disabled": 0}, fields=["item_code", "item_name", O_MUC_GIU],
+	ds = frappe.get_all("Item", filters={O_MUC_GIU: [">", 0], "disabled": 0}, fields=["item_code", "item_name", "image", O_MUC_GIU],
 		limit_page_length=0, ignore_permissions=True)
 	ton = _ton([x.item_code for x in ds], cd["kho_bep"])
-	ra = [{"ma": x.item_code, "ten": x.item_name, "muc": int(x.get(O_MUC_GIU) or 0), "ton": ton.get(x.item_code, 0)}
+	ra = [{"ma": x.item_code, "ten": x.item_name, "anh": _anh(x.get("image")), "muc": int(x.get(O_MUC_GIU) or 0), "ton": ton.get(x.item_code, 0)}
 		for x in ds if ton.get(x.item_code, 0) < int(x.get(O_MUC_GIU) or 0)]
 	return {"mon": sorted(ra, key=lambda x: (x["ton"] - x["muc"], x["ma"])), "co_muc": len(ds)}
 
@@ -634,7 +650,11 @@ def bao_cao_goi_y(ngay=30):
 	"""Báo cáo nhỏ: chỉ đơn mới (đơn trước bản v668 không có dấu thêm từ gợi ý)."""
 	_quyen()
 	n = _so(ngay, 30, 1, 365)
-	return dict(bao_cao(_snap_moi(n)), ngay=n)
+	bc = bao_cao(_snap_moi(n))
+	anh = _anh_mon([m["ma"] for m in bc["mon"]])
+	for m in bc["mon"]:
+		m["anh"] = anh.get(m["ma"]) or ""
+	return dict(bc, ngay=n)
 
 
 def canh_bao_muc_giu(doc, method=None):
@@ -682,10 +702,14 @@ def gieo_nhap():
 	# Gieo MỘT lần trong đời site: Marketing xoá hết dòng thì lần deploy sau không gieo lại.
 	if frappe.db.get_default(DA_GIEO) or frappe.db.count(DOCTYPE):
 		return 0
+	from vagabond.banh_web import DT as BANH
+
 	co = {x.name for x in frappe.get_all("Item", filters={"name": ["in", list({d[1] for d in DS})]}, fields=["name"], limit_page_length=0)}
+	banh = {str(x.khoa or "").strip().lower() for x in frappe.get_all(BANH, fields=["khoa"], limit_page_length=0, ignore_permissions=True)}
 	n = 0
 	for goc, ma, vn, en, ut in DS:
-		if ma not in co:
+		# Bánh gốc không còn thẻ trên web thì bỏ, không gieo cặp không bao giờ khớp giỏ.
+		if ma not in co or (not goc.startswith("@") and goc not in banh):
 			continue
 		doc = frappe.new_doc(DOCTYPE)
 		if goc.startswith("@"):
