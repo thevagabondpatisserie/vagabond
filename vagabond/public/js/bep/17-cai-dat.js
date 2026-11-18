@@ -2063,7 +2063,7 @@ function dmVeXem() {
      noi vao day, kem o tim va phan trang. */
   html += '<div class="card" style="padding:14px;margin-top:12px">' +
     '<div style="font-weight:800;font-size:14px">Tìm mã cũ để đẩy sang Pancake</div>' +
-    '<div style="font-size:12px;color:#6b7280;margin-top:2px">Gõ mã hoặc tên món. Bỏ trống thì hiện mã mới mở gần đây.</div>' +
+    '<div style="font-size:13px;color:#6b7280;margin-top:2px">Gõ mã hoặc tên món. Bỏ trống thì hiện mã mới mở gần đây.</div>' +
     '<input id="dmTimMa" class="inp" style="margin-top:8px" placeholder="Ví dụ BAWC00148 hoặc Very Cherry" value="' + h(dmTimTu) + '">' +
     '<div id="dmTimKq" style="margin-top:8px"></div></div>';
 
@@ -2115,7 +2115,7 @@ async function dmTimChay(trang) {
   var o = document.getElementById('dmTimKq');
   if (!o) return;
   dmTimTrang = Math.max(1, trang || 1);
-  o.innerHTML = '<div style="font-size:12.5px;color:#98a2b3">Đang tìm...</div>';
+  o.innerHTML = '<div style="font-size:13px;color:#98a2b3">Đang tìm...</div>';
   try {
     var ketQua = await api('vagabond.danh_muc.gan_day', {
       tim: dmTimTu, trang: dmTimTrang, so_dong: 20
@@ -2124,33 +2124,41 @@ async function dmTimChay(trang) {
     dmTimDs = ketQua;
   } catch (e) {
     if (luot !== dmTimLuot) return;
-    o.innerHTML = '<div style="font-size:12.5px;color:#b3261e">' + h((e && e.message) || 'Không tìm được.') + '</div>';
+    o.innerHTML = '<div style="font-size:13px;color:#b3261e">' + h((e && e.message) || 'Không tìm được.') + '</div>';
     return;
   }
   var ds = (dmTimDs && dmTimDs.mon) || [];
   if (!ds.length) {
-    o.innerHTML = '<div style="font-size:12.5px;color:#98a2b3">Không có mã nào khớp.</div>';
+    o.innerHTML = '<div style="font-size:13px;color:#98a2b3">Không có mã nào khớp.</div>';
     return;
   }
   o.innerHTML = ds.map(function (x, i) {
+    /* v671 (Minh Vũ 18/11/2026, ảnh chụp combo bánh bò): lớp "sm", "ghost" không có
+       trong app nên ba nút bung to, chồng lệch nhau. Nay một hàng nút cỡ 44 điểm nằm
+       dưới tên món; mã chưa có giá bán thì nói ngay, không hiện nút Lên web (máy chủ
+       chặn), chỉ còn Đẩy và Kiểm lại cho Pancake. */
+    var coGia = Number(x.standard_rate || 0) > 0;
+    var kieuNut = 'style="width:auto;min-height:44px;padding:0 16px;margin:0;font-size:14px;border-radius:12px"';
     var nut = x.day_duoc
-      ? '<button class="btn sm" data-dmday="' + h(x.name) + '">Đẩy</button>' +
-        '<button class="btn sm ghost" data-dmkiem="' + h(x.name) + '" style="margin-left:6px">Kiểm lại</button>' +
-        (x.web ? '' : '<button class="btn sm ghost" data-dmweb="' + h(x.name) + '" style="margin-left:6px">Lên web</button>')
-      : '<span style="font-size:11.5px;color:#98a2b3">ngừng dùng hoặc không bán</span>';
-    return '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-top:' +
+      ? '<button class="btn" data-dmday="' + h(x.name) + '" ' + kieuNut + '>Đẩy</button>' +
+        '<button class="btn gh" data-dmkiem="' + h(x.name) + '" ' + kieuNut + '>Kiểm lại</button>' +
+        (x.web || !coGia ? '' : '<button class="btn gh" data-dmweb="' + h(x.name) + '" ' + kieuNut + '>Lên web</button>')
+      : '<span style="font-size:13px;color:#98a2b3">Ngừng dùng hoặc không phải hàng bán</span>';
+    return '<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:' +
       (i ? '1px solid #eef0f4' : 'none') + '">' + anhMon(x.image) +
       '<div style="flex:1;min-width:0">' +
       '<div style="font-weight:700;font-size:13px">' + h(x.name) + '</div>' +
-      '<div style="font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(x.item_name || '') + '</div>' +
-      '<div style="font-size:11.5px;margin-top:2px">' + dmChuWeb(x.web) + '</div>' +
-      '<div id="dmBao_' + h(x.name) + '" style="font-size:12px;color:#374151;margin-top:2px"></div>' +
-      '<div id="dmWebBao_' + h(x.name) + '" style="font-size:12px;color:#374151;margin-top:2px"></div>' +
-      '</div><div style="flex:none">' + nut + '</div></div>';
+      '<div style="font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(x.item_name || '') + '</div>' +
+      '<div style="font-size:13px;margin-top:2px">' + dmChuWeb(x.web) + '</div>' +
+      (coGia ? '' : '<div style="font-size:13px;color:#b45309;margin-top:2px">Chưa có giá bán: nhờ kế toán đặt giá ở hồ sơ món rồi mới đưa lên web được.</div>') +
+      '<div id="dmBao_' + h(x.name) + '" style="font-size:13px;color:#374151;margin-top:2px"></div>' +
+      '<div id="dmWebBao_' + h(x.name) + '" style="font-size:13px;color:#374151;margin-top:2px"></div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' + nut + '</div>' +
+      '</div></div>';
   }).join('') +
     '<div style="display:flex;gap:8px;margin-top:8px">' +
-    (dmTimTrang > 1 ? '<button class="btn sm ghost" id="dmTruoc">Trang trước</button>' : '') +
-    (dmTimDs.con_nua ? '<button class="btn sm ghost" id="dmSau">Trang sau</button>' : '') +
+    (dmTimTrang > 1 ? '<button class="btn gh" id="dmTruoc" style="width:auto;min-height:44px;padding:0 16px;margin:0;font-size:14px">Trang trước</button>' : '') +
+    (dmTimDs.con_nua ? '<button class="btn gh" id="dmSau" style="width:auto;min-height:44px;padding:0 16px;margin:0;font-size:14px">Trang sau</button>' : '') +
     '</div>';
 
   var tr = document.getElementById('dmTruoc');
