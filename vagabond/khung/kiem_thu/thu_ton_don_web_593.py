@@ -41,23 +41,41 @@ def _():
         dung('không sinh đơn hoặc gọi Pancake', 'ghi' not in vet.su and 'post' not in vet.su)
 
 
-@ca('F21-4 đặt xa ngày không dùng tồn hôm nay; thiếu dòng/phiếu không suy thành0')
+@ca('F21-4 thiếu phiếu không suy thành0; v671 ngày kia trở đi không nhận bánh đặt trước')
 def _():
-    for ngay, fr in [('2026-10-17T13:00:00', nguon(0)), ('2026-10-13T13:00:00', nguon(0,co=False))]:
-        vet, ham, d = gui(2,ngay)
-        with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', fr):
-            la('giữ nhận', ham(d)['ok'], 1)
+    # v671 (Loan Anh 18/11/2026, anh Việt chốt): bánh đặt trước chỉ nhận ngày mai.
+    # Trước v671 đơn 17/10 (ngoài ba ngày decor) được nhận không giới hạn.
+    vet, ham, d = gui(2, '2026-10-17T13:00:00')
+    with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(0)):
+        r = ham(d)
+    la('ngày xa không nhận', (r['ok'], r['ly_do']), (0, 'het_hang'))
+    dung('nhắc nhận ngày mai', 'chỉ nhận vào ngày mai' in r['nhac'][0] and 'CANDLE 12cm' in r['nhac'][0])
+    dung('không gửi Pancake', 'post' not in vet.su)
+    vet, ham, d = gui(2, '2026-10-13T13:00:00')
+    with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(0, co=False)):
+        la('chưa có phiếu hôm nay thì giữ nhận', ham(d)['ok'], 1)
     with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(0)):
         la('mã không trong nguồn', ton.kiem([{'variation_id':'BTPKHAC','quantity':20}], '2026-10-13'), [])
+        la('mã không phải bánh đặt trước, ngày xa vẫn nhận', ton.kiem([{'variation_id':'BTPKHAC','quantity':20}], '2026-10-20'), [])
 
 
-@ca('F21 decor ba ngày tới trừ tổng đã đặt, vẫn thấy dòng đã về0; không cộng nguồn hôm nay')
+@ca('v671 ngày mai theo Có thể bán của phiếu NGÀY MAI, không theo Đủ decor')
 def _():
-    with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(99,decor=4,da_dat=1)):
-        for ng in ('2026-10-14','2026-10-15','2026-10-16'):
-            r=ton.kiem([{'variation_id':'BAWC00139','quantity':2}],ng)
-            dung('chỉ còn1 cho '+ng, 'còn 1 cái' in r[0])
-        la('ngoài ba ngày',ton.kiem([{'variation_id':'BAWC00139','quantity':20}], '2026-10-17'), [])
+    fr = nguon(1, decor=9, da_dat=0)
+    hoi = []
+    goc = fr.get_doc
+    fr.get_doc = lambda dt, ten: hoi.append(ten) or goc(dt, ten)
+    with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', fr):
+        r = ton.kiem([{'variation_id':'BAWC00139','quantity':2}], '2026-10-14')
+        dung('chỉ còn 1 theo Có thể bán (Đủ decor 9 không tính)', 'còn 1 cái' in r[0])
+        la('đọc đúng phiếu ngày mai', hoi[-1], 'KB-2026-10-14')
+        la('đủ số thì nhận', ton.kiem([{'variation_id':'BAWC00139','quantity':1}], '2026-10-14'), [])
+        for ng in ('2026-10-15', '2026-10-16'):
+            r = ton.kiem([{'variation_id':'BAWC00139','quantity':1}], ng)
+            dung('ngày %s không nhận bánh đặt trước' % ng, len(r) == 1 and 'ngày mai' in r[0])
+    # Có thể bán âm (bán lố) vẫn là hết, không phải không giới hạn.
+    with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(-2)):
+        dung('số âm là hết', 'còn 0 cái' in ton.kiem([{'variation_id':'BAWC00139','quantity':1}], '2026-10-14')[0])
 
 
 @ca('F21-5 lỗi đọc tồn vẫn tạo đơn, ghi log và báo Sales')
@@ -108,23 +126,23 @@ def _():
         la('cảnh báo',da_bao,[1])
 
 
-@ca('F21 review: decor0 nhận đơn; decor thật đã đặt hết/thiếu vẫn chặn')
-def _decor_goc():
-    for decor, da_dat, xin, con in [(0,0,2,None),(2,2,1,0),(2,1,2,1)]:
-        fr=nguon(decor=decor,da_dat=da_dat)
-        # Chỉ một ngày có đơn; không nhân số đơn thành ba lần trong fixture.
-        fr.db.exists=lambda dt,ten:ten=='KB-2026-10-14'
-        for ngay in ['2026-10-14','2026-10-15','2026-10-16']:
-            vet,ham,d=gui(xin,ngay+'T13:00:00')
-            with patch.object(ton,'hom_nay',lambda:date(2026,10,13)),patch.object(ton,'frappe',fr):
-                r=ham(d)
-            if con is None:
-                la('decor0 nhận đơn',r['ok'],1)
-                dung('đã gửi Pancake','post' in vet.su)
-            else:
-                la('chặn hết/thiếu',r['ly_do'],'het_hang')
-                dung('đúng số còn','còn %s cái'%con in r['nhac'][0])
-                dung('không gửi','post' not in vet.su)
+@ca('v671 qua cửa tạo đơn: ngày mai đủ, thiếu, hết theo phiếu ngày mai; chưa có phiếu thì nhận')
+def _phieu_mai():
+    for co_the_ban, xin, con in [(2,2,None),(0,1,0),(1,2,1)]:
+        fr = nguon(co_the_ban, decor=0)
+        vet,ham,d=gui(xin,'2026-10-14T13:00:00')
+        with patch.object(ton,'hom_nay',lambda:date(2026,10,13)),patch.object(ton,'frappe',fr):
+            r=ham(d)
+        if con is None:
+            la('đủ số thì nhận',r['ok'],1)
+            dung('đã gửi Pancake','post' in vet.su)
+        else:
+            la('chặn hết/thiếu',r['ly_do'],'het_hang')
+            dung('đúng số còn','còn %s cái'%con in r['nhac'][0])
+            dung('không gửi','post' not in vet.su)
+    vet,ham,d=gui(5,'2026-10-14T13:00:00')
+    with patch.object(ton,'hom_nay',lambda:date(2026,10,13)),patch.object(ton,'frappe',nguon(0,co=False)):
+        la('chưa có phiếu ngày mai là chưa biết tồn, nhận như cũ',ham(d)['ok'],1)
 
 
 @ca('F21 review: hom_nay thật dùng ngày Sài Gòn lúc 23:30 và 00:30')

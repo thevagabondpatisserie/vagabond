@@ -15,6 +15,8 @@ tìm, đều tái hiện được trước khi sửa:
 Mọi chỗ gọi đúng một phép btp.don_con_giu_vo. Ca chạy hàm THẬT (bang_btp,
 _dat_truoc_theo_decor, ton_don_web.kiem, giu_ton_web.kiem_va_giu) trên dữ liệu
 giả, không gọi thêm hàm nào "cho chắc".
+
+v671: web không còn theo Đủ decor (xem ba ca v671 bên dưới); phần bảng BTP giữ nguyên.
 """
 import re
 from datetime import date
@@ -77,14 +79,21 @@ def _kenh_khac():
 	la("kênh khác chỉ lấy 1: 2 đơn đã có bánh", _bang({NAY: [{"ma_hang": KANKIN, "sx": 3, "don_khac": 1, "da_dat": 2}]}), (0, 7, 6))
 
 
-@ca("v649 Codex #552 vòng 7: tab Đặt bánh trước trên web hiện đúng số còn nhận khi bếp đã làm trước bánh cho đơn ngày mai")
+# v671 (Sales góp ý 18/11/2026, giám đốc chốt): web tab Đặt bánh trước, cửa nhận
+# đơn và lượt giữ tồn ngày mai lấy cột Có thể bán của phiếu Kiểm bánh NGÀY MAI.
+# Cột đó máy tính ở KiemBanhNgay.validate (tồn chuyển + Bếp làm - đơn), nên bánh
+# bếp làm trước cho đơn ngày mai tự không bị trừ hai lần; Đủ decor không còn tính.
+# Ba ca dưới thay ba ca v649 cũ theo Đủ decor.
+
+
+@ca("v671 tab Đặt bánh trước trên web: số ngày mai là Có thể bán của phiếu ngày mai, Đủ decor không tính")
 def _tab_dat_truoc():
-	m = rf.du_lieu_web(kankin=SAU_LAM, kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "sx": 3}]}))
+	m = rf.du_lieu_web(kankin=SAU_LAM, kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "sx": 3, "co_the_ban": 4}]}))
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
-	la("Đủ decor 6, 3 đơn đã có bánh: còn 6", s[KANKIN]["con"], 6)
-	m = rf.du_lieu_web(kankin=dict(rf.KANKIN, so_decor=9), kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3}]}))
+	la("Có thể bán 4 (Đủ decor 6 không tính)", s[KANKIN]["con"], 4)
+	m = rf.du_lieu_web(kankin=dict(rf.KANKIN, so_decor=9), kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "co_the_ban": 0}]}))
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
-	la("chưa làm: 9 trừ 3 đơn như cũ", s[KANKIN]["con"], 6)
+	dung("Có thể bán 0 thì không lên, dù Đủ decor 9", KANKIN not in s)
 
 
 def _ton_don(kb_mai, decor=6, lam=3):
@@ -98,11 +107,11 @@ def _ton_don(kb_mai, decor=6, lam=3):
 		return ton.kiem([{"variation_id": KANKIN, "quantity": 6}], "2026-11-11")
 
 
-@ca("v649 Codex #552 vòng 7: cửa nhận đơn web ngày mai nhận 6 bánh khi Đủ decor còn 6 và 3 đơn ngày mai đã có bánh bếp làm")
+@ca("v671 cửa nhận đơn web ngày mai: theo Có thể bán của phiếu ngày mai, Đủ decor không tính")
 def _cua_nhan():
-	la("nhận", _ton_don([{"ma_hang": KANKIN, "da_dat": 3, "sx": 3}]), [])
-	dung("chưa làm: Đủ decor 6 trừ 3 đơn còn 3, đặt 6 thì chặn",
-		"còn 3 cái" in "".join(_ton_don([{"ma_hang": KANKIN, "da_dat": 3}])))
+	la("Có thể bán 6, đặt 6: nhận", _ton_don([{"ma_hang": KANKIN, "ten_banh": "Kankin 16", "da_dat": 3, "sx": 3, "co_the_ban": 6}], decor=0), [])
+	dung("Có thể bán 3, đặt 6: chặn dù Đủ decor 9",
+		"còn 3 cái" in "".join(_ton_don([{"ma_hang": KANKIN, "ten_banh": "Kankin 16", "da_dat": 3, "co_the_ban": 3}], decor=9)))
 
 
 def _giu_ton(kb_mai, decor=6, lam=3):
@@ -127,14 +136,14 @@ def _giu_ton(kb_mai, decor=6, lam=3):
 	return nhac, vet
 
 
-@ca("v649 Codex #552 vòng 7: lượt giữ tồn cuối cùng (giu_ton_web) cũng không giữ vỏ lần hai cho đơn ngày mai đã có bánh, và đọc đủ cột")
+@ca("v671 lượt giữ tồn cuối cùng (giu_ton_web) ngày mai: theo Có thể bán của phiếu ngày mai, khoá dòng phiếu")
 def _giu_ton_web():
-	nhac, vet = _giu_ton([{"ma_hang": KANKIN, "ten_banh": "Kankin 16", "co_the_ban": 0, "da_dat": 3, "sx": 3}])
+	nhac, vet = _giu_ton([{"ma_hang": KANKIN, "ten_banh": "Kankin 16", "co_the_ban": 6, "da_dat": 3, "sx": 3}], decor=0)
 	la("nhận", nhac, [])
-	nhac, vet = _giu_ton([{"ma_hang": KANKIN, "ten_banh": "Kankin 16", "co_the_ban": 0, "da_dat": 3}])
-	dung("chưa làm thì chặn", "còn 3 cái" in "".join(nhac))
+	nhac, vet = _giu_ton([{"ma_hang": KANKIN, "ten_banh": "Kankin 16", "co_the_ban": 3, "da_dat": 3}], decor=9)
+	dung("Có thể bán 3 thì chặn dù Đủ decor 9", "còn 3 cái" in "".join(nhac))
 	cau = [q for q in vet if "tabKiem Banh Dong" in q][0]
-	dung("câu SQL đọc đủ cột phép giữ vỏ cần", all(c in cau for c in ("sx", "huy", "don_khac", "giu_cho", "phat_sinh", "cho_chot")))
+	dung("đọc dòng phiếu dưới khoá", "co_the_ban" in cau and "for update" in cau)
 
 
 @ca("v649 một nguồn: không còn chỗ nào tự trừ đơn đặt vào Đủ decor, BTP sẵn mà không qua btp.don_con_giu_vo")
