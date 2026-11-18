@@ -2,7 +2,7 @@
 
 Google Merchant Center đọc tệp /google-merchant.xml theo lịch (nguồn dữ liệu
 "tìm nạp theo lịch"), bánh hiện miễn phí trên Google Tìm kiếm, Google Mua sắm,
-Google Maps và hồ sơ Google Doanh nghiệp của tiệm. Mỗi bánh có trang riêng
+Google Maps và Google Business Profile của tiệm. Mỗi bánh có trang riêng
 /mon/<mã hàng> do máy chủ dựng sẵn (Google đọc giá và tình trạng còn hàng trên
 trang đích, trang /banh là ứng dụng một trang nên Google không đọc chắc được).
 

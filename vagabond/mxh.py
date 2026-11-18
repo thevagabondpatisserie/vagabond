@@ -28,12 +28,12 @@ Cách nối (không ai phải nhập mật khẩu vào app, Claude không nhập
     Sonneto, không bao giờ tự chọn Trang (kẻo bài Sonneto lên Trang Vagabond).
     Sonneto chưa có Zalo OA.
 
-  - Google Doanh nghiệp (v672, anh Việt 18/11/2026 "làm luôn Google Business"): bài cập
-    nhật trên hồ sơ Google Doanh nghiệp của tiệm (Google Maps, Google Tìm kiếm), qua API
-    localPosts. Nối bằng nút Kết nối Google ở màn Bài đăng (quản trị hệ thống đăng nhập
+  - Google Posts (v672, anh Việt 18/11/2026 "làm luôn Google Business"): bài Google Posts
+    (Cập nhật, Ưu đãi, Sự kiện) trên Google Business Profile của tiệm (Google Maps, Google
+    Tìm kiếm), qua API localPosts. Nối bằng nút Kết nối Google ở màn Bài đăng (quản trị hệ thống đăng nhập
     tài khoản Google quản lý hồ sơ, Google trả mã kết nối dài hạn, hệ thống lưu mã hoá).
     Cần Mã ứng dụng và Khoá ứng dụng Google dán ở Cài đặt lõi và API, và Google duyệt
-    quyền API Google Doanh nghiệp cho dự án (chưa duyệt thì Google trả lỗi hết hạn mức,
+    quyền Google Business Profile API cho dự án (chưa duyệt thì Google trả lỗi hết hạn mức,
     kênh hiện lỗi và bài chuyển đăng tay). Chỉ The Vagabond; Sonneto chưa có hồ sơ đã
     xác minh.
 
@@ -297,7 +297,7 @@ def chu_cho_kenh(chu, tran):
 	return chu[:tran] if tran and len(chu) > tran else chu
 
 
-# ---------- v672 Google Doanh nghiệp (THUẦN)
+# ---------- v672 Google Posts (THUẦN)
 
 GG_TRAN = 1500
 GG_TOKEN = "https://oauth2.googleapis.com/token"
@@ -314,7 +314,7 @@ GG_LINK_DAT = "https://thevagabondpatisserie.com/banh"
 GG_CHO_TIEM = "tran cao van"
 GG_SONG_TOKEN_GIAY = 3000
 GG_SONG_TRANG_THAI_GIAY = 600
-# Số điện thoại Việt Nam: Google gỡ bài cập nhật có số điện thoại trong chữ.
+# Số điện thoại Việt Nam: Google gỡ bài Google Posts có số điện thoại trong chữ.
 RE_SDT = re.compile(r"(?<!\d)(?:\+?84|0)[\s.\-]?\d(?:[\s.\-]?\d){7,9}(?!\d)")
 CAU_NOI_LAI_GG = "Kết nối Google đã hết hiệu lực. Quản trị hệ thống mở Bài đăng, Kết nối kênh, bấm Kết nối Google lại."
 
@@ -331,7 +331,7 @@ def loi_gg_de_hieu(ma_http, tra):
 		if loi == "invalid_grant":
 			return CAU_NOI_LAI_GG
 		if loi in ("invalid_client", "unauthorized_client"):
-			return "Google không nhận Mã ứng dụng hoặc Khoá ứng dụng Google. Quản trị hệ thống kiểm mục Đăng bài Google Doanh nghiệp ở Cài đặt lõi và API."
+			return "Google không nhận Mã ứng dụng hoặc Khoá ứng dụng Google. Quản trị hệ thống kiểm mục Đăng bài Google Posts ở Cài đặt lõi và API."
 		return "Google chưa cấp mã kết nối (%s). Thử lại sau ít phút." % loi[:60]
 	loi = loi if isinstance(loi, dict) else {}
 	trang = str(loi.get("status") or "")
@@ -339,20 +339,49 @@ def loi_gg_de_hieu(ma_http, tra):
 	if ma_http == 401 or trang == "UNAUTHENTICATED":
 		return CAU_NOI_LAI_GG
 	if ma_http == 429 or trang == "RESOURCE_EXHAUSTED":
-		return ("Google chưa mở quyền API Google Doanh nghiệp cho tiệm (đang chờ Google duyệt) hoặc đang giới hạn số lần gọi."
+		return ("Google chưa mở quyền Google Business Profile API cho tiệm (đang chờ Google duyệt) hoặc đang giới hạn số lần gọi."
 			" Đăng tay bài này, vài giờ sau bấm Thử lại.")
 	if ma_http == 403 or trang == "PERMISSION_DENIED":
-		return ("Google chưa cho đăng lên hồ sơ này: tài khoản đã nối không quản lý địa điểm, hoặc API Google Doanh nghiệp"
+		return ("Google chưa cho đăng lên hồ sơ này: tài khoản đã nối không quản lý địa điểm, hoặc Google Business Profile API"
 			" chưa bật cho dự án. Báo quản trị hệ thống; đăng tay bài này.")
 	if tin:
-		return "Google Doanh nghiệp từ chối bài: %s" % tin
-	return "Google Doanh nghiệp chưa nhận bài. Thử lại sau ít phút, vẫn lỗi thì đăng tay."
+		return "Google Posts từ chối bài: %s" % tin
+	return "Google Posts chưa nhận bài. Thử lại sau ít phút, vẫn lỗi thì đăng tay."
 
 
-def than_bai_gg(chu, url_anh, link_dat=GG_LINK_DAT):
-	"""THUẦN: thân bài cập nhật (localPosts) gửi Google: chữ, một ảnh, nút Đặt hàng."""
-	than = {"languageCode": "vi", "summary": str(chu or "")[:GG_TRAN], "topicType": "STANDARD",
-		"callToAction": {"actionType": "ORDER", "url": link_dat}}
+GG_KIEU = {"cap_nhat": "STANDARD", "uu_dai": "OFFER", "su_kien": "EVENT"}
+
+
+def _moc_gg(luc):
+	"""THUẦN: "YYYY-MM-DDTHH:MM" thành (Date, TimeOfDay) của Google. Google hiểu theo múi
+	giờ của địa điểm (Việt Nam), nên gửi đúng giờ người dùng chọn."""
+	n, g = str(luc)[:10].split("-"), str(luc)[11:16].split(":")
+	return ({"year": int(n[0]), "month": int(n[1]), "day": int(n[2])}, {"hours": int(g[0]), "minutes": int(g[1])})
+
+
+def than_bai_gg(chu, url_anh, link_dat=GG_LINK_DAT, ct=None):
+	"""THUẦN: thân bài Google Posts (localPosts) gửi Google: chữ, một ảnh, và theo loại:
+	Cập nhật (STANDARD) có nút Đặt hàng; Sự kiện (EVENT) có tiêu đề, lịch, nút Đặt hàng;
+	Ưu đãi (OFFER) có tiêu đề, lịch, mã giảm giá, điều khoản, đường đặt online, không có
+	nút (Google tự gắn nút của Ưu đãi). ct: {"loai", "tieu_de", "bat_dau", "ket_thuc",
+	"ma_giam", "dieu_khoan"} đã kiểm ở bảng Kiểm."""
+	ct = ct or {}
+	loai = ct.get("loai") if ct.get("loai") in GG_KIEU else "cap_nhat"
+	than = {"languageCode": "vi", "summary": str(chu or "")[:GG_TRAN], "topicType": GG_KIEU[loai]}
+	if loai != "uu_dai":
+		than["callToAction"] = {"actionType": "ORDER", "url": link_dat}
+	if loai != "cap_nhat":
+		nbd, gbd = _moc_gg(ct.get("bat_dau"))
+		nkt, gkt = _moc_gg(ct.get("ket_thuc"))
+		than["event"] = {"title": str(ct.get("tieu_de") or "").strip(),
+			"schedule": {"startDate": nbd, "startTime": gbd, "endDate": nkt, "endTime": gkt}}
+	if loai == "uu_dai":
+		uu = {"redeemOnlineUrl": link_dat}
+		if ct.get("ma_giam"):
+			uu["couponCode"] = ct["ma_giam"]
+		if ct.get("dieu_khoan"):
+			uu["termsConditions"] = ct["dieu_khoan"]
+		than["offer"] = uu
 	if url_anh:
 		than["media"] = [{"mediaFormat": "PHOTO", "sourceUrl": url_anh}]
 	return than
@@ -500,7 +529,7 @@ def trang_thai(lam_moi=False, hieu=HIEU_VGB):
 		"ig": {"ok": 0, "chu": "Chưa nối. Bài lên Instagram phải đăng tay."},
 		"th": {"ok": 0, "chu": "Chưa nối. Bài lên Threads phải đăng tay."},
 		"zl": {"ok": 0, "chu": "Chưa nối Zalo OA. Bài lên Zalo OA phải đăng tay." if h["zl"] else "Sonneto chưa có Zalo OA."},
-		"gg": {"ok": 0, "chu": "Chưa nối Google Doanh nghiệp. Bài lên Google phải đăng tay." if h["gg"] else "Sonneto chưa có hồ sơ Google Doanh nghiệp đã xác minh."}}
+		"gg": {"ok": 0, "chu": "Chưa nối Google Posts. Bài lên Google phải đăng tay." if h["gg"] else "Sonneto chưa có Google Business Profile đã xác minh."}}
 	co_fb = _khoa(c, h["tok"]) or (h["tok_chung"] and (c.get(h["trang"]) or "").strip())
 	if co_fb:
 		try:
@@ -531,7 +560,7 @@ def trang_thai(lam_moi=False, hieu=HIEU_VGB):
 	if h["gg"] and _gg_co_cau_hinh(c):
 		try:
 			_gg_token(c)
-			ra["gg"] = {"ok": 1, "chu": "Tự đăng bài cập nhật lên hồ sơ %s" % _gg_dia_diem(c, lam_moi)["ten"]}
+			ra["gg"] = {"ok": 1, "chu": "Tự đăng bài Google Posts lên hồ sơ %s" % _gg_dia_diem(c, lam_moi)["ten"]}
 		except LoiDang as e:
 			ra["gg"] = {"ok": 0, "chu": e.chu, "loi": 1}
 	try:
@@ -782,7 +811,7 @@ def dang_zl(ma_bai, tieu_de, chu, anh):
 		time.sleep(NHIP_HOI_GIAY)
 
 
-def dang(kenh, ma_bai, chu, anh, story=False, tieu_de="", hieu=HIEU_VGB):
+def dang(kenh, ma_bai, chu, anh, story=False, tieu_de="", hieu=HIEU_VGB, chi_tiet=None):
 	"""Đăng một kênh của một thương hiệu. Trả (mã bài trên kênh, link) hoặc (mã, link,
 	ghi chú) với Threads nhiều phần. Lỗi thì ném LoiDang."""
 	c = _cfg()
@@ -800,7 +829,7 @@ def dang(kenh, ma_bai, chu, anh, story=False, tieu_de="", hieu=HIEU_VGB):
 	if kenh == "zl" and not story and h["zl"]:
 		return dang_zl(ma_bai, tieu_de, chu, anh)
 	if kenh == "gg" and not story and h["gg"]:
-		return dang_gg(ma_bai, chu, anh)
+		return dang_gg(ma_bai, chu, anh, chi_tiet)
 	raise LoiDang("Kênh này đăng tay.")
 
 
@@ -847,7 +876,7 @@ def _gia_han_mot(hieu):
 		frappe.log_error(title="Bài đăng: chưa gia hạn được token Threads %s" % h["ten"], message=giau_khoa(frappe.get_traceback()))
 
 
-# ---------- v672 Google Doanh nghiệp (chạm hệ)
+# ---------- v672 Google Posts (chạm hệ)
 
 GG_KHOA_TOKEN = "vgb_gg_tok"
 GG_KHOA_TRANG_THAI = "vgb_gg_tt:"
@@ -860,7 +889,7 @@ def _gg_co_cau_hinh(c):
 
 def _goi_gg(phuong_thuc, url, tok=None, than=None, params=None, data=None, cong_bo=False):
 	"""Một lần gọi Google. Trả dict khi thành công; ném LoiDang khi không."""
-	ten = "Google Doanh nghiệp"
+	ten = "Google Posts"
 	if frappe.flags.get("vagabond_kiem_that"):
 		raise LoiDang("Đang chạy kiểm thử: không gọi thật Google.")
 	if requests is None:
@@ -872,7 +901,7 @@ def _goi_gg(phuong_thuc, url, tok=None, than=None, params=None, data=None, cong_
 		from vagabond.lib import giau_khoa
 		frappe.log_error(title="Bài đăng: lỗi mạng khi gọi Google", message=giau_khoa(frappe.get_traceback()))
 		if cong_bo:
-			raise LoiDang("Mất kết nối lúc công bố bài lên %s, chưa rõ bài đã lên chưa. Mở hồ sơ Google của tiệm kiểm: đã có bài thì bấm Đã đăng, chưa có thì bấm Thử lại." % ten, ro=False)
+			raise LoiDang("Mất kết nối lúc công bố bài lên %s, chưa rõ bài đã lên chưa. Mở Google Business Profile của tiệm kiểm: đã có bài thì bấm Đã đăng, chưa có thì bấm Thử lại." % ten, ro=False)
 		raise LoiDang("Chưa gọi được %s (mất kết nối). Bấm Thử lại sau ít phút." % ten)
 	try:
 		tra = r.json() if r.content else {}
@@ -948,23 +977,26 @@ def _gg_dia_diem(c, lam_moi=False):
 	return d
 
 
-def dang_gg(ma_bai, chu, anh):
-	"""Đăng bài cập nhật lên hồ sơ Google Doanh nghiệp. Trả (mã bài, link)."""
+def dang_gg(ma_bai, chu, anh, ct=None):
+	"""Đăng bài Google Posts lên Google Business Profile. Trả (mã bài, link)."""
 	c = _cfg()
 	if not _gg_co_cau_hinh(c):
-		raise LoiDang("Chưa nối Google Doanh nghiệp (quản trị hệ thống bấm Kết nối Google ở màn Bài đăng). Đăng tay bài này.")
+		raise LoiDang("Chưa nối Google Posts (quản trị hệ thống bấm Kết nối Google ở màn Bài đăng). Đăng tay bài này.")
 	if co_so_dien_thoai(chu):
-		raise LoiDang("Chữ Google Doanh nghiệp có số điện thoại, Google sẽ gỡ bài. Xoá số điện thoại khỏi chữ Google rồi Thử lại.")
+		raise LoiDang("Chữ Google Posts có số điện thoại, Google sẽ gỡ bài. Xoá số điện thoại khỏi chữ Google rồi Thử lại.")
+	ct = ct or {}
+	if ct.get("loai") in ("uu_dai", "su_kien") and not (str(ct.get("tieu_de") or "").strip() and ct.get("bat_dau") and ct.get("ket_thuc")):
+		raise LoiDang("Ưu đãi, Sự kiện Google Posts thiếu tiêu đề hoặc giờ bắt đầu, kết thúc. Mở bài sửa rồi Thử lại.")
 	d = _gg_dia_diem(c)
 	tok = _gg_token(c)
 	url = ""
 	if anh:
 		a = anh[0]
 		url = url_cong_khai(ma_bai, anh_jpeg(a["url"], a["khung"] if a.get("cat") else None))
-	tra = _goi_gg("POST", "%s/%s/localPosts" % (GG_BAI, d["ma"]), tok, than=than_bai_gg(chu, url), cong_bo=True)
+	tra = _goi_gg("POST", "%s/%s/localPosts" % (GG_BAI, d["ma"]), tok, than=than_bai_gg(chu, url, ct=ct), cong_bo=True)
 	ma = str(tra.get("name") or "")
 	if not ma:
-		raise LoiDang("Google đã nhận bài nhưng không trả mã bài, chưa rõ bài đã lên chưa. Mở hồ sơ Google của tiệm kiểm trước khi đăng lại.", ro=False)
+		raise LoiDang("Google đã nhận bài nhưng không trả mã bài, chưa rõ bài đã lên chưa. Mở Google Business Profile của tiệm kiểm trước khi đăng lại.", ro=False)
 	return ma, str(tra.get("searchUrl") or "")
 
 
@@ -982,7 +1014,7 @@ def gg_bat_dau():
 	c = _cfg()
 	ma = (c.get("gg_client_id") or "").strip()
 	if not ma or not _khoa(c, "gg_client_secret"):
-		frappe.throw("Chưa có Mã ứng dụng và Khoá ứng dụng Google. Dán ở Cài đặt lõi và API, mục Đăng bài Google Doanh nghiệp, rồi bấm lại.")
+		frappe.throw("Chưa có Mã ứng dụng và Khoá ứng dụng Google. Dán ở Cài đặt lõi và API, mục Đăng bài Google Posts, rồi bấm lại.")
 	tt = secrets.token_urlsafe(24)
 	frappe.cache().set_value(GG_KHOA_TRANG_THAI + tt, frappe.session.user, expires_in_sec=600)
 	return {"url": url_duyet_gg(ma, tt)}
@@ -1026,6 +1058,6 @@ def gg_ket_noi_xong(code=None, state=None, error=None, **kw):
 	try:
 		d = _gg_dia_diem(_cfg(), True)
 		frappe.db.commit()
-		return _ve_man("Đã nối Google Doanh nghiệp, hồ sơ %s." % d["ten"])
+		return _ve_man("Đã nối Google Posts, hồ sơ %s." % d["ten"])
 	except LoiDang as e:
 		return _ve_man("Đã lưu kết nối Google nhưng chưa đọc được hồ sơ: %s" % e.chu)

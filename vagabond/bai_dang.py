@@ -77,10 +77,10 @@ KENH = {
 	"ig": {"ten": "Instagram", "tran": 2200, "tong": 2200, "khung": "4:5", "story": True, "toi_da_anh": 10},
 	"th": {"ten": "Threads", "tran": TH_TRAN_PHAN, "tong": 4000, "khung": "4:5", "story": False, "toi_da_anh": 20},
 	"zl": {"ten": "Zalo OA", "tran": 5000, "tong": 5000, "khung": "16:9", "story": False, "toi_da_anh": 10},
-	# v672 (anh Việt duyệt 18/11/2026): bài cập nhật trên hồ sơ Google Doanh nghiệp của tiệm,
+	# v672 (anh Việt duyệt 18/11/2026): bài Google Posts trên Google Business Profile của tiệm,
 	# hiện ở Google Maps và Google Tìm kiếm. Google nhận 1.500 ký tự và MỘT ảnh (khung 4:3
 	# Google khuyên dùng); bài nhiều ảnh thì chỉ đăng ảnh đầu, không chặn duyệt.
-	"gg": {"ten": "Google Doanh nghiệp", "tran": GG_TRAN, "tong": GG_TRAN, "khung": "4:3", "story": False, "toi_da_anh": 20},
+	"gg": {"ten": "Google Posts", "tran": GG_TRAN, "tong": GG_TRAN, "khung": "4:3", "story": False, "toi_da_anh": 20},
 }
 # v672 Thương hiệu: bài thuộc chủ đề Sonneto đi kênh Sonneto. Sonneto chưa có Zalo OA.
 TEN_HIEU = {HIEU_VGB: "The Vagabond", HIEU_SO: "Sonneto"}
@@ -89,9 +89,20 @@ GIA_TRI_HIEU = {HIEU_VGB: "Vagabond", HIEU_SO: "Sonneto"}
 KENH_HIEU = {h: tuple(k for k in ("fb", "ig", "th", "zl", "gg") if (k != "zl" or HIEU[h]["zl"]) and (k != "gg" or HIEU[h]["gg"]))
 	for h in HIEU}
 THU_TU_KENH = ("fb", "ig", "th", "zl", "gg")
-# Bài mới bật sẵn bốn kênh mạng xã hội; Google Doanh nghiệp Marketing tự bật khi cần
+# Bài mới bật sẵn bốn kênh mạng xã hội; Google Posts Marketing tự bật khi cần
 # (bài khuyến mãi, bánh mới, lịch nghỉ), không phải bài nào cũng hợp đăng lên hồ sơ Google.
 KENH_MAC_DINH = ("fb", "ig", "th", "zl")
+# v672 (anh Việt 18/11/2026 "Ưu đãi và Sự kiện em làm luôn"): ba loại Google Posts theo
+# đúng tên của Google (Update, Offer, Event). Ưu đãi và Sự kiện bắt buộc tiêu đề, giờ bắt
+# đầu và kết thúc; Ưu đãi có thêm mã giảm giá, điều khoản (không bắt buộc). Trần tiêu đề 58
+# ký tự theo trình soạn bài của Google.
+GG_LOAI = (("cap_nhat", "Cập nhật"), ("uu_dai", "Ưu đãi"), ("su_kien", "Sự kiện"))
+GG_MA_LOAI = tuple(x[0] for x in GG_LOAI)
+GG_TEN_LOAI = dict(GG_LOAI)
+GG_TRAN_TIEU_DE = 58
+GG_TRAN_MA = 58
+GG_TRAN_DIEU_KHOAN = 1000
+GG_O = ("loai", "bat_dau", "ket_thuc", "ma_giam", "dieu_khoan")
 TRAN_TIEU_DE_ZL = 100
 KHUNG_STORY = "9:16"
 TOI_DA_ANH_BAI = 20
@@ -133,6 +144,68 @@ def chuan_kenh(ds, kieu=KIEU_BAI):
 	if kieu == KIEU_STORY:
 		co = set(k for k in co if KENH[k]["story"])
 	return [k for k in THU_TU_KENH if k in co]
+
+
+def chuan_luc_gg(v):
+	"""THUẦN: "YYYY-MM-DDTHH:MM" từ ô ngày giờ (chấp nhận dấu cách thay T, có giây). Sai thì ""."""
+	s = str(v or "").strip().replace(" ", "T")[:16]
+	try:
+		datetime.strptime(s, "%Y-%m-%dT%H:%M")
+	except ValueError:
+		return ""
+	return s
+
+
+def chuan_gg(ct):
+	"""THUẦN: chi tiết Google Posts đã chuẩn hoá: loại hợp lệ (mặc định Cập nhật), giờ
+	đúng dạng, mã giảm giá và điều khoản cắt trần. ct là dict hoặc chuỗi JSON đã lưu."""
+	if isinstance(ct, str):
+		try:
+			ct = json.loads(ct or "{}")
+		except ValueError:
+			ct = {}
+	ct = ct if isinstance(ct, dict) else {}
+	loai = ct.get("loai") if ct.get("loai") in GG_MA_LOAI else "cap_nhat"
+	return {"loai": loai, "bat_dau": chuan_luc_gg(ct.get("bat_dau")), "ket_thuc": chuan_luc_gg(ct.get("ket_thuc")),
+		"ma_giam": " ".join(str(ct.get("ma_giam") or "").split())[:GG_TRAN_MA],
+		"dieu_khoan": str(ct.get("dieu_khoan") or "").strip()[:GG_TRAN_DIEU_KHOAN]}
+
+
+def ap_gg(cu, moi):
+	"""THUẦN: gộp phần người dùng vừa sửa (chỉ các ô GG_O có trong moi) vào chi tiết đã lưu.
+	Trả chuỗi JSON để lưu. Ô xoá trắng là giá trị người dùng chọn, không lấy lại giá trị cũ."""
+	ra = chuan_gg(cu)
+	for o in GG_O:
+		if o in (moi or {}):
+			ra[o] = moi[o]
+	return json.dumps(chuan_gg(ra), ensure_ascii=False, sort_keys=True)
+
+
+def kiem_gg(ban_gg, bay_gio=None, hen=None):
+	"""THUẦN: lỗi chặn duyệt của Ưu đãi và Sự kiện. ban_gg: {"tieu_de", "loai", "bat_dau",
+	"ket_thuc"...}; hen: giờ bài lên (None là ngay khi duyệt)."""
+	ct = chuan_gg(ban_gg)
+	if ct["loai"] == "cap_nhat":
+		return []
+	ten = GG_TEN_LOAI[ct["loai"]]
+	ra = []
+	td = str((ban_gg or {}).get("tieu_de") or "").strip()
+	if not td:
+		ra.append({"muc": "chan", "chu": "%s Google Posts chưa có tiêu đề" % ten, "nut": ["chu:gg", "Viết tiêu đề"]})
+	elif len(td) > GG_TRAN_TIEU_DE:
+		ra.append({"muc": "chan", "chu": "Tiêu đề %s dài %d/%d ký tự" % (ten.lower(), len(td), GG_TRAN_TIEU_DE), "nut": ["chu:gg", "Rút gọn"]})
+	bd, kt = ct["bat_dau"], ct["ket_thuc"]
+	if not bd or not kt:
+		ra.append({"muc": "chan", "chu": "%s Google Posts chưa có giờ bắt đầu và kết thúc" % ten, "nut": ["chu:gg", "Chọn giờ"]})
+		return ra
+	if kt <= bd:
+		ra.append({"muc": "chan", "chu": "Giờ kết thúc %s phải sau giờ bắt đầu" % ten.lower(), "nut": ["chu:gg", "Sửa giờ"]})
+		return ra
+	moc = _dt(hen) or bay_gio
+	if moc and kt <= moc.strftime("%Y-%m-%dT%H:%M"):
+		ra.append({"muc": "chan", "chu": "%s đã kết thúc trước giờ bài lên" % ten,
+			"goi_y": "Google không nhận %s đã hết hạn. Sửa giờ kết thúc hoặc giờ đăng." % ten.lower(), "nut": ["chu:gg", "Sửa giờ"]})
+	return ra
 
 
 def kenh_cua_hieu(ds, kieu=KIEU_BAI, hieu=HIEU_VGB):
@@ -336,12 +409,14 @@ def kiem_bai(bai, bay_gio, trung_gio=None, anh_cu=None, tu=None):
 			elif len(td) > TRAN_TIEU_DE_ZL:
 				ra.append({"muc": "chan", "chu": "Tiêu đề Zalo OA dài %d/%d ký tự" % (len(td), TRAN_TIEU_DE_ZL), "nut": ["chu:zl", "Rút gọn"]})
 		if k == "gg" and chu and co_so_dien_thoai(chu):
-			ra.append({"muc": "chan", "chu": "Chữ Google Doanh nghiệp có số điện thoại",
-				"goi_y": "Google gỡ bài cập nhật có số điện thoại. Xoá số khỏi chữ Google; khách bấm nút Đặt hàng hoặc gọi từ hồ sơ.",
+			ra.append({"muc": "chan", "chu": "Chữ Google Posts có số điện thoại",
+				"goi_y": "Google gỡ bài Google Posts có số điện thoại. Xoá số khỏi chữ Google; khách bấm nút Đặt hàng hoặc gọi từ hồ sơ.",
 				"nut": ["chu:gg", "Sửa chữ"]})
+		if k == "gg" and kieu == KIEU_BAI:
+			ra.extend(kiem_gg(ban.get(k), bay_gio, bai.get("hen_luc")))
 		if k == "gg" and kieu == KIEU_BAI and len(anh) > 1:
-			ra.append({"muc": "ok", "chu": "Google Doanh nghiệp đăng ảnh đầu tiên",
-				"goi_y": "Google nhận một ảnh mỗi bài cập nhật, hệ thống cắt ảnh đầu về khung 4:3."})
+			ra.append({"muc": "ok", "chu": "Google Posts đăng ảnh đầu tiên",
+				"goi_y": "Google nhận một ảnh mỗi bài Google Posts, hệ thống cắt ảnh đầu về khung 4:3."})
 		if kieu == KIEU_BAI and len(anh) > kn["toi_da_anh"]:
 			ra.append({"muc": "chan", "chu": "%s nhận tối đa %d ảnh một bài, bài có %d ảnh" % (kn["ten"], kn["toi_da_anh"], len(anh)),
 				"goi_y": "Bớt ảnh hoặc bỏ kênh này.", "nut": ["anh", "Sửa ảnh"]})
@@ -592,7 +667,7 @@ _TUNG_KENH = """TỪNG KÊNH
 - ig (Instagram): câu mở đầu đủ sức giữ người đọc, 80 đến 150 chữ trước phần "xem thêm", 5 đến 8 hashtag ở cuối%s. Tối đa 2.000 ký tự.
 - th (Threads): giọng trò chuyện, tối đa 1 hashtag. Ý chính ngắn thì 1 đến 3 câu. Ý chính nhiều chuyện thì viết tới 1.500 ký tự, chia đoạn rõ: hệ thống tự tách thành chuỗi bài nối tiếp, mỗi phần 500 ký tự. Tuyệt đối không quá 3.500 ký tự.
 - zl (Zalo OA): bài viết có "tieu_de" tối đa 90 ký tự và "chu" 2 đến 5 đoạn, rõ ràng, lịch sự. Tối đa 3.000 ký tự.
-- gg (Google Doanh nghiệp): bài cập nhật hiện trên Google Maps cho người đang tìm tiệm bánh, 1 đến 2 đoạn ngắn, nói rõ bánh gì, dịp gì, đặt thế nào. Không hashtag, không số điện thoại (Google gỡ bài có số điện thoại), không đường link trong chữ (hệ thống tự gắn nút Đặt hàng). Tối đa 1.200 ký tự.
+- gg (Google Posts): bài hiện trên Google Maps cho người đang tìm tiệm bánh, 1 đến 2 đoạn ngắn, nói rõ bánh gì, dịp gì, đặt thế nào. Không hashtag, không số điện thoại (Google gỡ bài có số điện thoại), không đường link trong chữ (hệ thống tự gắn nút Đặt hàng). Tối đa 1.200 ký tự.
 - Story: không cần chữ."""
 
 _TRA_LOI = """TRẢ LỜI
@@ -1090,7 +1165,12 @@ def _anh_doc(doc):
 
 
 def _ban_doc(doc):
-	return {r.ma_kenh: {"chu": r.chu or "", "tieu_de": r.tieu_de or "", "ai": int(r.ai_soan or 0)} for r in doc.get("kenh") or []}
+	ra = {}
+	for r in doc.get("kenh") or []:
+		ra[r.ma_kenh] = {"chu": r.chu or "", "tieu_de": r.tieu_de or "", "ai": int(r.ai_soan or 0)}
+		if r.ma_kenh == "gg":
+			ra["gg"].update(chuan_gg(r.get("chi_tiet")))
+	return ra
 
 
 def _dong_kenh(doc, k):
@@ -1441,8 +1521,10 @@ def luu(ma=None, ban_luu=None, thay=None):
 		if "chu" in v:
 			r.chu = str(v["chu"] or "")[:20000]
 			r.ai_soan = 0
-		if "tieu_de" in v and k == "zl":
+		if "tieu_de" in v and k in ("zl", "gg"):
 			r.tieu_de = str(v["tieu_de"] or "")[:300]
+		if k == "gg" and any(o in v for o in GG_O):
+			r.chi_tiet = ap_gg(r.get("chi_tiet"), v)
 	if "chu_de" in t:
 		cd = str(t["chu_de"] or "").strip()
 		if cd and not frappe.db.exists(DT_CHU_DE, cd):
@@ -2241,8 +2323,10 @@ def dang_bai(ma):
 	ban = _ban_doc(doc)
 	for k in dang:
 		try:
+			# Chi tiết Ưu đãi, Sự kiện chỉ kênh Google Posts cần; kênh khác giữ đúng lời gọi cũ.
+			them = {"chi_tiet": ban.get(k)} if k == "gg" else {}
 			tra = mxh.dang(k, doc.name, mxh.chu_cho_kenh((ban.get(k) or {}).get("chu"), KENH[k]["tong"]),
-				anh_cho_kenh(anh, k, kieu), kieu == KIEU_STORY, tieu_de=(ban.get(k) or {}).get("tieu_de") or "", hieu=hieu_bai(doc))
+				anh_cho_kenh(anh, k, kieu), kieu == KIEU_STORY, tieu_de=(ban.get(k) or {}).get("tieu_de") or "", hieu=hieu_bai(doc), **them)
 			# Threads nhiều phần: phần đầu đã lên mà phần sau hỏng thì vẫn Đã đăng, kèm ghi chú.
 			kq = (K_XONG, tra[1], tra[0], tra[2] if len(tra) > 2 else "")
 		except mxh.LoiDang as e:
