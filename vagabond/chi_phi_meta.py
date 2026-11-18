@@ -241,6 +241,21 @@ def chon_giao_dich(gd_thang, quyet_dinh, da_ghi):
 	return vao
 
 
+def nut_tay(g, quyet_dinh):
+	"""Đường làm tay cho một giao dịch đã có trạng thái (Codex #590). THUẦN.
+
+	Vào bút toán: kế toán bỏ ra vì đã ghi ở chứng từ khác (bắt lý do).
+	Kế toán bỏ: đưa lại vào bút toán. Đã ghi sổ, chờ chọn, không thuộc Meta: không có."""
+	tt = g.get("trang_thai")
+	k = "chon:" + g["khoa"]
+	if tt == GD_VAO:
+		return {"khoa_quyet": k, "gia_tri": "bo", "ly_do": 1, "nhan": "Đã ghi ở chứng từ khác"}
+	if tt == GD_BO:
+		return {"khoa_quyet": k, "gia_tri": "vao", "ly_do": 0, "nhan": "Đưa lại vào bút toán",
+			"ly_do_bo": ((quyet_dinh or {}).get(k) or {}).get("ly_do") or ""}
+	return None
+
+
 def dong_but_toan(vao, tk_qc, tk_phi, tk_the, bo_phan, ky):
 	"""Các dòng bút toán Meta của tháng. THUẦN. Hoàn tiền ghi giảm 6417.
 
@@ -487,7 +502,8 @@ def chi_tiet_thang(ky):
 	for g in t["giao_dich"]:
 		gd.append({"khoa": g["khoa"], "the4": g["the4"], "ngay_gd": g["ngay_gd"], "ngay_bt": g["ngay_bt"], "dv": g["dv"],
 			"tien": g["tien"], "phan_loai": g["phan_loai"], "trang_thai": g["trang_thai"], "so_bang_chung": len(g["bang_chung"]),
-			"can_quyet": g.get("can_quyet"), "purchase_invoice": g.get("purchase_invoice") or ""})
+			"can_quyet": g.get("can_quyet"), "purchase_invoice": g.get("purchase_invoice") or "",
+			"nut_tay": nut_tay(g, t.get("quyet_dinh"))})
 	return {
 		"ky": ky, "trang_thai": t["trang_thai"], "da_tieu": t["da_tieu"], "da_tru": t["da_tru"], "da_ghi_so": t["da_ghi_so"],
 		"thieu": t["thieu"], "giao_dich": gd, "chung_tu_khac": t["chung_tu_khac"],
@@ -522,7 +538,7 @@ def quyet(ky, khoa_quyet, gia_tri, ly_do=None):
 		frappe.throw("Giá trị quyết định không hợp lệ.")
 	if loai == "dem" and not gia_tri.isdigit():
 		frappe.throw("Số giao dịch phải là số.")
-	if loai in ("trung", "dem", "ct") and not (ly_do or "").strip():
+	if (loai in ("trung", "dem", "ct") or (loai == "chon" and gia_tri == "bo")) and not (ly_do or "").strip():
 		frappe.throw("Ghi lý do để người sau còn đối chiếu.")
 	cty = _cty()
 	bg = BN.khoa_ban_ghi(BN.LOAI_META, cty, ky)

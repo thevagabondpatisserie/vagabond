@@ -143,13 +143,19 @@ def kiem_khai(so_ky, nguyen_gia, da_truoc, ky_bat_dau):
 		nhac.append("Số tháng phân bổ phải từ 1 tới %d." % SO_KY_TOI_DA)
 	if not BN.ky_hop_le(ky_bat_dau):
 		nhac.append("Chưa chọn tháng bắt đầu phân bổ.")
+	return nhac + kiem_da_truoc(nguyen_gia, da_truoc)
+
+
+def kiem_da_truoc(nguyen_gia, da_truoc):
+	"""Giới hạn ô Đã phân bổ trước: 0 tới nguyên giá. THUẦN. Dùng ở MỌI đường lưu,
+	kể cả khoản chưa khai lịch (Codex #590): số âm làm phần còn lại lớn hơn nguyên giá."""
 	ng = BN.lam_tron_dong(nguyen_gia)
 	dt = BN.lam_tron_dong(da_truoc)
 	if dt < 0:
-		nhac.append("Đã phân bổ trước không được âm.")
-	elif dt > ng:
-		nhac.append("Đã phân bổ trước lớn hơn nguyên giá %s đ." % so_vn(ng))
-	return nhac
+		return ["Đã phân bổ trước không được âm."]
+	if dt > ng:
+		return ["Đã phân bổ trước lớn hơn nguyên giá %s đ." % so_vn(ng)]
+	return []
 
 
 def so_vn(x):

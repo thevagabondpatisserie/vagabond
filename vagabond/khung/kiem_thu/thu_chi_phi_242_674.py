@@ -167,3 +167,26 @@ def _quyen():
 		dung("Accounts User lập được mà không ghi sổ", BN.co_quyen(BN.QUYEN_LAP) and not BN.co_quyen(BN.QUYEN_GHI))
 	with um.patch.object(frappe, "get_roles", lambda *a: ["Accounts Manager"], create=True):
 		dung("Accounts Manager ghi sổ", BN.co_quyen(BN.QUYEN_GHI))
+
+
+class _Co(dict):
+	def __getattr__(self, k):
+		return self.get(k)
+
+
+@ca("Codex #590 P2: khoản Chờ khai số tháng sửa trên Desk với Đã phân bổ trước âm bị chặn; phần còn lại không bao giờ lớn hơn nguyên giá")
+def _da_truoc_am():
+	from vagabond.vagabond.doctype.vagabond_khoan_242 import vagabond_khoan_242 as K
+
+	d = K.VagabondKhoan242.__new__(K.VagabondKhoan242)
+	d.__dict__.update({"flags": _Co(), "trang_thai": C.TT_CHO, "so_ky": None, "ky_bat_dau": None, "nguyen_gia": 1000000,
+		"da_phan_bo_truoc": -1000000, "bo_phan": None, "tk_chi_phi": None, "company": "TV", "name": "CP242-1"})
+	d.is_new = lambda: False
+	d.has_value_changed = lambda k: True
+	with um.patch.object(C, "da_phan_bo_theo_khoan", lambda ds: {}):
+		nem("lưu Desk với số âm bị chặn", d.validate)
+	d.da_phan_bo_truoc = 1500000
+	with um.patch.object(C, "da_phan_bo_theo_khoan", lambda ds: {}):
+		nem("lưu Desk lớn hơn nguyên giá bị chặn", d.validate)
+	la("bộ kiểm chung dùng được khi chưa khai lịch", C.kiem_da_truoc(1000000, -1), ["Đã phân bổ trước không được âm."])
+	la("0 là hợp lệ", C.kiem_da_truoc(1000000, 0), [])

@@ -17,6 +17,7 @@ báo rõ phần chưa đặt được và không cho lập.
 """
 import calendar
 import datetime
+import json
 import re
 from decimal import Decimal
 
@@ -121,17 +122,27 @@ def phan_bo(phi_si, phi_khong_si, can_bu, tk_doi_tac):
 	con = _so(can_bu)
 	ban, tk = {}, {}
 	du = {x["si"]: max(0, _so(x.get("du"))) for x in phi_si}
+	# Codex #589: nhớ phí của NGUỒN nào đã dùng (hoá đơn bán nào, hay phí không gắn
+	# hoá đơn), để hoá đơn phí sau cùng kỳ chỉ lấy phần phí chưa dùng.
+	nguon = {"si": {}, "khong": 0}
 
-	def dat_si(si, a):
+	def ghi_nguon(src, a):
+		if src:
+			nguon["si"][src] = nguon["si"].get(src, 0) + a
+		else:
+			nguon["khong"] += a
+
+	def dat_si(si, a, src):
 		nonlocal con
 		a = min(a, du[si], con)
 		if a > 0:
 			ban[si] = ban.get(si, 0) + a
 			du[si] -= a
 			con -= a
+			ghi_nguon(src, a)
 		return a
 
-	def dat_tk(t, a, ghi):
+	def dat_tk(t, a, ghi, src):
 		nonlocal con
 		a = min(a, con)
 		if a > 0:
@@ -139,6 +150,7 @@ def phan_bo(phi_si, phi_khong_si, can_bu, tk_doi_tac):
 			cu["so"] += a
 			tk[t] = cu
 			con -= a
+			ghi_nguon(src, a)
 		return a
 
 	cho = []
@@ -146,7 +158,7 @@ def phan_bo(phi_si, phi_khong_si, can_bu, tk_doi_tac):
 		f = _so(x["phi"])
 		if f <= 0:
 			continue
-		r = f - dat_si(x["si"], f)
+		r = f - dat_si(x["si"], f, x["si"])
 		if r > 0:
 			cho.append((r, x.get("tk"), x["si"]))
 	for f in phi_khong_si:
@@ -156,18 +168,55 @@ def phan_bo(phi_si, phi_khong_si, can_bu, tk_doi_tac):
 		if con <= 0:
 			break
 		if t:
-			r -= dat_tk(t, r, "Phí hoá đơn đã thu qua hình thức thanh toán")
+			r -= dat_tk(t, r, "Phí hoá đơn đã thu qua hình thức thanh toán", si)
 		else:
 			for x in phi_si:
 				if r <= 0 or con <= 0:
 					break
-				r -= dat_si(x["si"], r)
+				r -= dat_si(x["si"], r, si)
 			if r > 0 and tk_doi_tac:
-				r -= dat_tk(tk_doi_tac, r, "Phí không gắn hoá đơn còn dư")
+				r -= dat_tk(tk_doi_tac, r, "Phí không gắn hoá đơn còn dư", si)
 	# Phần chưa đặt được là đúng phần còn thiếu để đủ số được bù.
 	return dict(ban=[dict(si=k, so_tien=v) for k, v in ban.items()],
 		tk=[dict(tai_khoan=k, so_tien=v["so"], ghi_chu=v["ghi"]) for k, v in tk.items()],
-		da_dat=_so(can_bu) - con, thieu=con)
+		da_dat=_so(can_bu) - con, thieu=con, nguon=nguon)
+
+
+def phi_con_lai(theo_si, khong, da_dung):
+	"""THUẦN. Phí của từng nguồn trừ phần phiếu khác đã dùng (Codex #589).
+
+	da_dung: [dict(si={SI: số}, khong=số)] của các phiếu khác còn hiệu lực."""
+	dung_si, dung_khong = {}, 0
+	for n in da_dung:
+		for k, v in (n.get("si") or {}).items():
+			dung_si[k] = dung_si.get(k, 0) + _so(v)
+		dung_khong += _so(n.get("khong"))
+	con_si = {k: max(0, _so(v) - dung_si.get(k, 0)) for k, v in theo_si.items()}
+	con_khong = max(0, sum(_so(x) for x in khong) - dung_khong)
+	return con_si, ([con_khong] if con_khong else [])
+
+
+def nguon_cua(phieu):
+	"""THUẦN. Nguồn phí đã dùng của một phiếu đối soát. Phiếu chưa ghi nguồn (lập
+	trước bản vá) coi như dùng phí không gắn hoá đơn: không cho dùng lại tổng đó."""
+	import json
+	try:
+		n = json.loads(phieu.get("nguon_phi") or "") or {}
+	except ValueError:
+		n = {}
+	if not n:
+		n = {"si": {}, "khong": _so(phieu.get("tong_bu"))}
+	return n
+
+
+def so_khop_phan_bo(ban, tk, pb):
+	"""THUẦN. Dòng trên phiếu có đúng phân bổ máy tính không. Trả câu khác biệt hoặc ""."""
+	co = sorted((x["hoa_don"], _so(x["so_tien"])) for x in ban) + sorted(("TK " + x["tai_khoan"], _so(x["so_tien"])) for x in tk)
+	mong = sorted((x["si"], _so(x["so_tien"])) for x in pb["ban"]) + sorted(("TK " + x["tai_khoan"], _so(x["so_tien"])) for x in pb["tk"])
+	if co == mong:
+		return ""
+	viet = lambda ds: ", ".join("%s %s" % (a, "{:,}".format(b).replace(",", ".")) for a, b in ds) or "không dòng nào"
+	return "Theo đối soát phải bù: %s. Phiếu đang ghi: %s." % (viet(mong), viet(co))
 
 
 def can_bu(con_no_hd, tong_doi_soat, da_bu_truoc):
@@ -262,13 +311,32 @@ def _dong(cong_ty, doi_tac, loai, tu, den):
 		dict(ct=cong_ty, v=DOI_TAC[doi_tac][1], loai=tuple(LOAI[loai][1]), tu=tu, den=den), as_dict=True)
 
 
-def _da_bu_truoc(cong_ty, doi_tac, loai, tu, den, tru=None):
-	"""Phí của cùng đối tác, loại, kỳ (chồng lấn) đã đưa vào phiếu cấn trừ khác còn hiệu lực."""
+def _phieu_khac(cong_ty, doi_tac, loai, tu, den, tru=None):
+	"""Phiếu cấn trừ từ đối soát khác còn hiệu lực của cùng đối tác, loại, kỳ (chồng lấn)."""
 	f = dict(company=cong_ty, doi_soat=1, san=DOI_TAC[doi_tac][2], loai_phi=LOAI[loai][0], docstatus=["<", 2],
 		tu_ngay=["<=", den], den_ngay=[">=", tu])
 	if tru:
 		f["name"] = ["!=", tru]
-	return sum(_so(x.tong_bu) for x in frappe.get_all(DT, filters=f, fields=["tong_bu"], limit_page_length=0))
+	return frappe.get_all(DT, filters=f, fields=["name", "tong_bu", "nguon_phi"], limit_page_length=0)
+
+
+def _da_bu_truoc(cong_ty, doi_tac, loai, tu, den, tru=None):
+	"""Phí của cùng đối tác, loại, kỳ (chồng lấn) đã đưa vào phiếu cấn trừ khác còn hiệu lực."""
+	return sum(_so(x.tong_bu) for x in _phieu_khac(cong_ty, doi_tac, loai, tu, den, tru))
+
+
+def _giu_131(ten_si, tru=None):
+	"""Dư 131 của từng hoá đơn bán đang được phiếu cấn trừ KHÁC giữ mà chưa ghi sổ
+	(nháp, chờ đối soát, cần kiểm tra): outstanding chưa giảm nên phải trừ ra (Codex #589)."""
+	ten_si = [x for x in ten_si if x]
+	if not ten_si:
+		return {}
+	rows = frappe.db.sql("""select b.hoa_don, sum(b.so_tien) as so
+		from `tabVagabond Can Tru Ban` b join `tabVagabond Can Tru San` s on s.name = b.parent
+		where b.parenttype = 'Vagabond Can Tru San' and s.docstatus < 2 and ifnull(s.but_toan, '') = ''
+		  and b.hoa_don in %(si)s and s.name != %(tru)s
+		group by b.hoa_don""", dict(si=tuple(ten_si), tru=tru or ""), as_dict=True)
+	return {r.hoa_don: _so(r.so) for r in rows}
 
 
 def _hoa_don_ban(cong_ty, ten):
@@ -294,27 +362,47 @@ def _hoa_don_ban(cong_ty, ten):
 	return ra
 
 
-def _tinh(hd, doi_tac, loai, tu, den, tru=None):
+def _si_dich(cong_ty, doi_tac, loai, tu, den, dong):
+	"""Hoá đơn bán của đối tác trong kỳ có thể nhận phí: hoá đơn trên dòng bán, hoàn
+	của đối soát. Phí kỳ (quảng cáo) không gắn hoá đơn nên phải đọc thêm các dòng
+	bán của kỳ (Codex #589), không thì không bao giờ tìm được hoá đơn còn dư."""
+	ds = [d.sales_invoice for d in dong if d.get("sales_invoice")]
+	if loai != "don":
+		ds += [d.sales_invoice for d in _dong(cong_ty, doi_tac, "don", tu, den) if d.get("sales_invoice")]
+	return list(dict.fromkeys(ds))
+
+
+def _tinh(hd, doi_tac, loai, tu, den, tru=None, so_bu=None):
+	"""so_bu: số cần đặt (kiểm phiếu Desk dùng tổng trên phiếu); None thì số được bù."""
 	cong_ty = hd.company
 	dong = _dong(cong_ty, doi_tac, loai, tu, den)
 	theo_si, khong = gop_phi(dong)
 	tong = sum(theo_si.values()) + sum(khong)
-	da_bu = _da_bu_truoc(cong_ty, doi_tac, loai, tu, den, tru)
-	cb = can_bu(hd.outstanding_amount, tong, da_bu)
-	si = _hoa_don_ban(cong_ty, theo_si)
+	khac = _phieu_khac(cong_ty, doi_tac, loai, tu, den, tru)
+	da_bu = sum(_so(x.tong_bu) for x in khac)
+	cb = can_bu(hd.outstanding_amount, tong, da_bu) if so_bu is None else _so(so_bu)
+	dich = _si_dich(cong_ty, doi_tac, loai, tu, den, dong)
+	si = _hoa_don_ban(cong_ty, dich)
+	giu = _giu_131(list(si), tru)
 	# Hoá đơn bán đã huỷ, khác pháp nhân: phí của nó coi như không gắn hoá đơn.
-	phi_si = []
+	theo_si_hl = {}
 	for k, v in theo_si.items():
 		r = si.get(k)
 		if r and r.hop_le:
-			phi_si.append(dict(si=k, phi=v, du=r.du, tk=r.tk, ngay=str(r.posting_date)))
+			theo_si_hl[k] = v
 		else:
 			khong.append(v)
+	con_si, con_khong = phi_con_lai(theo_si_hl, khong, [nguon_cua(x) for x in khac])
+	phi_si = []
+	for k in dich:
+		r = si.get(k)
+		if r and r.hop_le:
+			phi_si.append(dict(si=k, phi=con_si.get(k, 0), du=max(0, r.du - giu.get(k, 0)), tk=r.tk, ngay=str(r.posting_date)))
 	phi_si.sort(key=lambda x: (x["ngay"], x["si"]))
 	tk_dt = _tk_cho(cong_ty, DOI_TAC[doi_tac][3])
-	pb = phan_bo(phi_si, khong, cb, tk_dt)
+	pb = phan_bo(phi_si, con_khong, cb, tk_dt)
 	nguon = {d.nguon: d.xac_nhan_luc for d in dong}
-	return dict(dong=dong, tong=tong, da_bu=da_bu, can_bu=cb, pb=pb, tk_doi_tac=tk_dt, si=si,
+	return dict(dong=dong, tong=tong, da_bu=da_bu, can_bu=cb, pb=pb, tk_doi_tac=tk_dt, si=si, dich=dich,
 		so_nguon=len(nguon), chua_xn=sum(1 for v in nguon.values() if not v))
 
 
@@ -437,6 +525,7 @@ def lap(hoa_don=None, doi_tac=None, loai=None, tu=None, den=None):
 	d.set("phi", [dict(hoa_don=hd.name, so_tien=t["can_bu"])])
 	d.set("ban", [dict(hoa_don=x["si"], so_tien=x["so_tien"]) for x in pb["ban"]])
 	d.set("tk", [dict(tai_khoan=x["tai_khoan"], so_tien=x["so_tien"], ghi_chu=x["ghi_chu"]) for x in pb["tk"]])
+	d.nguon_phi = json.dumps(pb["nguon"], ensure_ascii=False, sort_keys=True)
 	f = frappe.get_doc(dict(doctype="File", file_name="bang-ke-phi-%s-%s.csv" % (doi_tac, hd.name), is_private=1,
 		content=bang_ke_csv(t["dong"]))).insert(ignore_permissions=True)
 	d.can_cu = f.file_url
@@ -474,20 +563,29 @@ def kiem_phieu_doi_soat(d):
 	if len(d.phi or []) != 1:
 		frappe.throw("Phiếu từ đối soát cấn trừ đúng một hoá đơn phí.")
 	tu, den = str(frappe.utils.getdate(d.tu_ngay)), str(frappe.utils.getdate(d.den_ngay))
-	dong = _dong(d.company, doi_tac, loai, tu, den)
-	theo_si, khong = gop_phi(dong)
-	tong = sum(theo_si.values()) + sum(khong)
-	si = _hoa_don_ban(d.company, theo_si)
-	duoc_tk = {x for x in [_tk_cho(d.company, DOI_TAC[doi_tac][3])] + [r.tk for r in si.values()] if x}
+	tru = d.name if not d.is_new() else None
+	hd = frappe._dict(company=d.company, outstanding_amount=d.tong_bu)
+	t = _tinh(hd, doi_tac, loai, tu, den, tru=tru, so_bu=d.tong_bu)
+	si = t["si"]
+	duoc_tk = {x for x in [t["tk_doi_tac"]] + [r.tk for r in si.values()] if x}
 	for x in d.ban or []:
-		if x.hoa_don not in theo_si:
+		if x.hoa_don not in t["dich"]:
 			frappe.throw("Hoá đơn bán %s không có trong đối soát %s của kỳ." % (x.hoa_don, DOI_TAC[doi_tac][0]))
 	for x in d.get("tk") or []:
 		if x.tai_khoan not in duoc_tk:
 			frappe.throw("Tài khoản %s không phải tài khoản chờ tiền về của %s. Lập lại phiếu từ màn Công nợ phải trả." % (
 				x.tai_khoan, DOI_TAC[doi_tac][0]))
-	con = tong - _da_bu_truoc(d.company, doi_tac, loai, tu, den, tru=d.name if not d.is_new() else None)
+	con = t["tong"] - t["da_bu"]
 	if _so(d.tong_bu) > con:
 		frappe.throw("Phiếu bù %s đ, vượt phần phí đối tác đã giữ còn chưa bù (%s đ) theo đối soát." % (
 			_so(d.tong_bu), con))
-	d.tong_doi_soat = tong
+	# Codex #589: kiểm số trên TỪNG hoá đơn bán, tài khoản, không chỉ tổng và tập hợp.
+	if t["pb"]["thieu"] > 0:
+		frappe.throw("Còn %s đ phí chưa đặt được vào hoá đơn bán hay tài khoản chờ nào. Mở lại đề xuất ở màn Công nợ phải trả." % (
+			"{:,}".format(t["pb"]["thieu"]).replace(",", ".")))
+	khac = so_khop_phan_bo(d.ban or [], d.get("tk") or [], t["pb"])
+	if khac:
+		frappe.throw("Phân bổ trên phiếu khác cách tính theo đối soát. %s Lập lại phiếu từ màn Công nợ phải trả, hoặc dùng "
+			"phiếu cấn trừ tay nếu cần hạch toán khác." % khac)
+	d.nguon_phi = json.dumps(t["pb"]["nguon"], ensure_ascii=False, sort_keys=True)
+	d.tong_doi_soat = t["tong"]

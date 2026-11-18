@@ -16,8 +16,11 @@ class VagabondKhoan242(Document):
 			frappe.throw("Chứng từ gốc của khoản này đã huỷ nên không khai được nữa.")
 		if self.so_ky or self.ky_bat_dau:
 			nhac = C.kiem_khai(self.so_ky, self.nguyen_gia, self.da_phan_bo_truoc, self.ky_bat_dau)
-			if nhac:
-				frappe.throw(" ".join(nhac))
+		else:
+			# Chưa khai lịch vẫn kiểm giới hạn số đã phân bổ trước (Codex #590).
+			nhac = C.kiem_da_truoc(self.nguyen_gia, self.da_phan_bo_truoc)
+		if nhac:
+			frappe.throw(" ".join(nhac))
 		if self.bo_phan:
 			C._kiem_cost_center(self.company, self.bo_phan)
 		if self.tk_chi_phi:

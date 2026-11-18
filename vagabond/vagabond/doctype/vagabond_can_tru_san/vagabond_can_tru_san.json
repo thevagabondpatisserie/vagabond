@@ -22,6 +22,7 @@
   "ban",
   "tk",
   "tong_doi_soat",
+  "nguon_phi",
   "tong_bu",
   "trang_thai",
   "ly_do",
@@ -125,7 +126,8 @@
    "label": "Hoá đơn bán được bù",
    "fieldtype": "Table",
    "options": "Vagabond Can Tru Ban",
-   "reqd": 1
+   "reqd": 0,
+   "mandatory_depends_on": "eval:!doc.doi_soat"
   },
   {
    "fieldname": "tong_bu",
@@ -194,6 +196,16 @@
    "depends_on": "doi_soat"
   },
   {
+   "fieldname": "nguon_phi",
+   "fieldtype": "Long Text",
+   "label": "Nguồn phí đã dùng",
+   "hidden": 1,
+   "read_only": 1,
+   "no_copy": 1,
+   "depends_on": "doi_soat",
+   "description": "Máy ghi: phí của hoá đơn bán nào, hay phí không gắn hoá đơn, phiếu này đã dùng. Hoá đơn phí sau cùng kỳ chỉ lấy phần chưa dùng."
+  },
+  {
    "fieldname": "tk",
    "label": "Phí trừ vào tài khoản chờ tiền về",
    "fieldtype": "Table",
@@ -237,5 +249,5 @@
  "track_changes": 1,
  "autoname": "format:CTSAN-{#####}",
  "is_submittable": 1,
- "modified": "2026-11-18 15:00:00.000000"
+ "modified": "2026-11-18 19:00:00.000000"
 }

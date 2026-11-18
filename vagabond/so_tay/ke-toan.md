@@ -273,6 +273,7 @@ Trước đây: hoá đơn phí treo nợ phải trả, phiếu cấn trừ gõ 
 |---|---|
 | Chưa có dòng đối soát ... | Kiểm kỳ, loại phí |
 | Còn ... đ phí chưa biết đang nằm ở đâu | Khai tài khoản cho hình thức thanh toán, hoặc hạch toán tay |
+| Phân bổ trên phiếu khác cách tính theo đối soát | Không sửa dòng trên Desk; lập lại từ Công nợ phải trả, hoặc dùng phiếu cấn trừ tay |
 
 **Hạch toán**
 | Nợ | Có | Khi nào |
@@ -282,6 +283,7 @@ Trước đây: hoá đơn phí treo nợ phải trả, phiếu cấn trừ gõ 
 **Lưu ý**
 - Không chuyển tiền, không sửa chứng từ cũ.
 - Phần hoá đơn không có trong đối soát giữ nguyên dư nợ.
+- Hai hoá đơn phí cùng kỳ: tờ sau chỉ lấy phí chưa dùng.
 - Không dùng [[Đã trả trước khi lên ERP]] cho phí đối tác.
 
 ## Bù trừ công nợ phải thu và phải trả cùng một đối tác
@@ -1397,7 +1399,7 @@ Mỗi tháng ghi chi phí đúng số trừ thẻ Shinhan theo NGÀY GIAO DỊCH
 1. Mở Đối soát chi phí Meta, chạm tháng cần làm.
 2. Xem ba con số: Meta đã tiêu, Đã trừ thẻ, Đã ghi sổ.
 3. Dòng Chờ kế toán chọn: phí không rõ thì bấm [[Là phí Meta]] hoặc [[Không phải]]; nghi trùng thì bấm [[Một giao dịch]] hoặc [[Hai giao dịch]], ghi căn cứ.
-4. Có chứng từ Meta làm bằng đường khác: mở xem, không trùng thì bấm [[Không trùng]].
+4. Có chứng từ Meta khác: giao dịch tờ đó đã ghi thì bấm [[Đã ghi ở chứng từ khác]]; bỏ nhầm thì [[Đưa lại vào bút toán]]. Xong bấm [[Đã đối chiếu]].
 5. Bấm [[Lập bút toán nháp]], kiểm, rồi bấm Ghi sổ bút toán.
 
 **Vì sao bị chặn**
@@ -1405,7 +1407,7 @@ Mỗi tháng ghi chi phí đúng số trừ thẻ Shinhan theo NGÀY GIAO DỊCH
 |---|---|
 | Chưa đủ sao kê | Chờ sao kê thẻ của ngân hàng phủ tới 10 ngày sau cuối tháng |
 | Còn ... dòng chờ kế toán chọn | Chọn xong từng dòng |
-| Tháng này đã có chứng từ Meta khác | Xem chứng từ đó, bấm Không trùng hoặc bỏ giao dịch đã ghi |
+| Tháng này đã có chứng từ Meta khác | Bỏ giao dịch tờ đó đã ghi, rồi bấm Đã đối chiếu |
 
 **Hạch toán**
 | Nợ | Có | Khi nào |

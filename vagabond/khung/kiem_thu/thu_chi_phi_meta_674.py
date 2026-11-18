@@ -266,3 +266,157 @@ def _tt_thang():
 	la("khớp", M.trang_thai_thang(True, [], [], [], 100, 100), M.TH_KHOP)
 	la("lệch", M.trang_thai_thang(True, [], [], [], 100, 0), M.TH_LECH)
 	la("khoá đã ghi chỉ từ bút toán đã ghi sổ", M.khoa_da_ghi([{"je": "JE1", "khoa": ["a"]}, {"je": "JE2", "khoa": ["b"]}], {"JE1"}), {"a"})
+
+
+# ------------------------------------------------------------ Codex #590 vòng 1
+
+
+class _Hang(dict):
+	def __getattr__(self, k):
+		return self.get(k)
+
+
+class _JeGia(object):
+	"""Bút toán nháp giả: chỉ giữ dòng và tên, đủ cho lap_hoac_cap_nhat."""
+
+	dem = [0]
+
+	def __init__(self):
+		self.name = None
+		self.accounts = []
+		self.flags = _Hang()
+
+	def get(self, k, d=None):
+		return getattr(self, k, d)
+
+	def set(self, k, v):
+		setattr(self, k, v)
+
+	def append(self, k, v):
+		getattr(self, k).append(_Hang(v))
+
+	def is_new(self):
+		return self.name is None
+
+	def insert(self, **k):
+		_JeGia.dem[0] += 1
+		self.name = "JE-GIA-%d" % _JeGia.dem[0]
+
+	def save(self, **k):
+		pass
+
+
+class _BgGia(_Hang):
+	def __init__(self, **k):
+		super(_BgGia, self).__init__(**k)
+		self["flags"] = _Hang()
+
+	def __setattr__(self, k, v):
+		self[k] = v
+
+	def save(self, **k):
+		pass
+
+
+def _kho_gia(bg, tinh):
+	"""Bộ vá dùng chung: bản ghi khoá giả, phép tính tháng do ca quyết, bút toán giả.
+	Gọi đúng M.lap thật và BN.lap_hoac_cap_nhat thật (không gọi thêm hàm nào khác)."""
+	from vagabond import but_toan_nhap as BN
+
+	trang = {"je": None}
+
+	def tinh_trang(b):
+		if not trang["je"]:
+			return BN.TT_CHUA, None
+		return trang["tt"], {"doc": trang["je"]}
+
+	def new_doc(dt):
+		je = _JeGia()
+		trang["je"] = je
+		trang["tt"] = BN.TT_NHAP
+		return je
+
+	vá = [
+		um.patch.object(M, "_cty", lambda cty=None: "TV"),
+		um.patch.object(M, "_tk", lambda cty, so: so),
+		um.patch.object(M, "_bo_phan_marketing", lambda cty: ""),
+		um.patch.object(M, "tinh_thang", lambda cty, ky, b=None: tinh(b)),
+		um.patch.object(BN, "kiem_quyen", lambda *a, **k: None),
+		um.patch.object(BN, "khoa_ban_ghi", lambda *a: bg),
+		um.patch.object(BN, "chan_khoa_so", lambda ngay: None),
+		um.patch.object(BN, "tinh_trang", tinh_trang),
+		um.patch.object(BN, "la_thang_tuong_lai", lambda ky: False),
+		um.patch.object(BN.frappe, "new_doc", new_doc, create=True),
+		um.patch.object(BN.frappe, "get_doc", lambda *a: bg, create=True),
+		um.patch.object(BN.frappe, "db", _Hang(get_value=lambda *a, **k: "TV"), create=True),
+		um.patch.object(BN.frappe, "session", _Hang(user="ketoan@tv"), create=True),
+	]
+	return vá, trang
+
+
+@ca("Codex #590 P1: lập nháp Meta bổ sung sau khi tháng đã ghi sổ giữ nguyên lịch sử bút toán trước; lập lại nháp bổ sung không lấy lại giao dịch đã ghi")
+def _lich_su_bo_sung():
+	import contextlib
+
+	from vagabond import but_toan_nhap as BN
+
+	A = {"khoa": "A", "phan_loai": "meta", "tien": 1000, "bang_chung": ["pdf1"]}
+	B = {"khoa": "B", "phan_loai": "meta", "tien": 300, "bang_chung": ["pdf2"]}
+	bg = _BgGia(name="BG", journal_entry=None, ban_ke=None, quyet_dinh=None, dau_ban_may=None)
+
+	def tinh(b):
+		# Đúng như tinh_thang thật: giao dịch đã nằm trong bút toán đã ghi sổ thì không vào nữa.
+		da = M.khoa_da_ghi(M._lich_su(b), set(trang["da_ghi"]))
+		return {"thieu": [], "con_quyet": [], "ct_chua_xem": [], "vao": [g for g in trang["gd"] if g["khoa"] not in da]}
+
+	vá, trang = _kho_gia(bg, tinh)
+	trang["gd"] = [A]
+	trang["da_ghi"] = []
+	with contextlib.ExitStack() as st:
+		for v in vá:
+			st.enter_context(v)
+		kq1 = M.lap("2026-10")
+		trang["da_ghi"] = [kq1["journal_entry"]]
+		trang["je"] = None  # đã ghi sổ: lần lập sau là tờ bổ sung mới
+		trang["gd"] = [A, B]
+		kq2 = M.lap("2026-10")
+		la("tờ bổ sung chỉ phần mới", [r.debit_in_account_currency for r in trang["je"].accounts if r.debit_in_account_currency], [300])
+		la("lịch sử giữ cả hai tờ", [l["je"] for l in M._lich_su(bg)], [kq1["journal_entry"], kq2["journal_entry"]])
+		M.lap("2026-10")  # bấm lập lại tờ bổ sung
+		la("lập lại tờ bổ sung vẫn chỉ phần mới", [r.debit_in_account_currency for r in trang["je"].accounts if r.debit_in_account_currency], [300])
+		la("lịch sử không nhân đôi tờ bổ sung", [l["je"] for l in M._lich_su(bg)], [kq1["journal_entry"], kq2["journal_entry"]])
+		# Hàm chung: không truyền bản kê thì giữ bản kê cũ, không xoá về rỗng.
+		bg.ban_ke = '{"giu": 1}'
+		trang["je"] = None
+		BN.lap_hoac_cap_nhat(BN.LOAI_META, "TV", "2026-10", [{"account": "6417", "debit": 5, "credit": 0}, {"account": "3411", "debit": 0, "credit": 5}], "x")
+		la("hàm chung giữ bản kê khi không truyền", bg.ban_ke, '{"giu": 1}')
+
+
+@ca("Codex #590 P1: giao dịch đang vào bút toán có đường tay 'Đã ghi ở chứng từ khác' (bắt lý do); giao dịch kế toán đã bỏ có đường đưa lại; giao dịch đã ghi sổ thì không")
+def _bo_vi_ct_khac():
+	g = [{"khoa": "A", "phan_loai": "meta", "tien": 100}, {"khoa": "B", "phan_loai": "meta", "tien": 200},
+		{"khoa": "C", "phan_loai": "meta", "tien": 300}]
+	qd = {"chon:B": {"gia_tri": "bo", "ly_do": "Đã ghi ở hoá đơn mua HD-1"}}
+	vao = M.chon_giao_dich(g, qd, {"C"})
+	la("chỉ A vào bút toán", [x["khoa"] for x in vao], ["A"])
+	nA, nB, nC = (M.nut_tay(x, qd) for x in g)
+	la("A: nút bỏ có lý do", (nA or {}).get("khoa_quyet"), "chon:A")
+	la("A: bỏ", ((nA or {}).get("gia_tri"), (nA or {}).get("ly_do")), ("bo", 1))
+	la("B: đưa lại vào bút toán", ((nB or {}).get("gia_tri"), (nB or {}).get("ly_do_bo")), ("vao", "Đã ghi ở hoá đơn mua HD-1"))
+	la("C đã ghi sổ: không có nút", nC, None)
+	# Máy chủ bắt lý do khi bỏ, kể cả khi app quên hỏi.
+	import contextlib
+
+	from vagabond import but_toan_nhap as BN
+
+	bg = _BgGia(name="BG", journal_entry=None, ban_ke=None, quyet_dinh=None, dau_ban_may=None)
+	vá, _ = _kho_gia(bg, lambda b: {})
+	with contextlib.ExitStack() as st:
+		for v in vá:
+			st.enter_context(v)
+		nem("bỏ không lý do bị chặn", lambda: M.quyet("2026-10", "chon:A", "bo"))
+		M.quyet("2026-10", "chon:A", "bo", "Đã ghi ở bút toán tay BT-9")
+		la("lưu lý do", M._quyet_dinh(bg)["chon:A"]["ly_do"], "Đã ghi ở bút toán tay BT-9")
+		M.quyet("2026-10", "chon:A", "vao")
+		la("đưa lại không cần lý do", M._quyet_dinh(bg)["chon:A"]["gia_tri"], "vao")
+	del BN

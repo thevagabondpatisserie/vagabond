@@ -155,6 +155,15 @@ async function scrDsMeta() {
   };
 }
 
+/* Đường tay cho giao dịch đã có trạng thái (Codex #590): bỏ vì đã ghi ở chứng từ khác, hoặc đưa lại. */
+function dsmNutTay(g, duocLap) {
+  var n = g.nut_tay;
+  if (!n) return '';
+  var lyDo = n.ly_do_bo ? '<div style="font-size:13px;color:#667085;margin-top:4px">Lý do bỏ: ' + h(n.ly_do_bo) + '</div>' : '';
+  if (!duocLap) return lyDo;
+  return lyDo + '<div style="margin-top:6px"><button type="button" class="btn gh" data-dsmq="' + h(n.khoa_quyet) + '" data-gt="' + h(n.gia_tri) + '"' +
+    (n.ly_do ? ' data-lydo="1"' : '') + ' style="margin:0;min-height:44px;width:100%">' + h(n.nhan) + '</button></div>';
+}
 async function scrDsMetaThang(ky) {
   var tieuDe = 'Chi phí Meta tháng ' + ky.slice(5, 7) + '/' + ky.slice(0, 4);
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div></div>');
@@ -176,18 +185,18 @@ async function scrDsMetaThang(ky) {
     (d.thieu && d.thieu.length ? '<div style="background:#fef3f2;color:#b42318;border-radius:12px;padding:9px 12px;font-size:13.5px;margin-bottom:8px">Chưa đủ sao kê: chưa có sao kê ngân hàng cho ngày ' +
       d.thieu.slice(0, 2).map(function (x) { return ngayNgan(x[0]) + ' tới ' + ngayNgan(x[1]); }).join('; ') + (d.thieu.length > 2 ? ' và ' + (d.thieu.length - 2) + ' khoảng nữa' : '') + '. Chờ sao kê về rồi lập.</div>' : '') +
     (d.chung_tu_khac && d.chung_tu_khac.length ? '<div class="card" style="padding:10px 12px"><b style="font-size:14.5px">Chứng từ Meta có sẵn bằng đường khác</b>' +
-      '<div style="font-size:13px;color:#667085">Hệ thống không sửa các chứng từ này. Xem từng tờ: nếu nó đã ghi chính các giao dịch dưới đây thì bỏ các giao dịch đó, nếu không thì xác nhận không trùng.</div>' +
+      '<div style="font-size:13px;color:#667085">Hệ thống không sửa các chứng từ này. Xem từng tờ: giao dịch nào dưới đây đã được tờ đó ghi thì bấm Đã ghi ở chứng từ khác ở giao dịch đó; xong thì bấm Đã đối chiếu ở tờ này.</div>' +
       d.chung_tu_khac.map(function (c) {
         return '<div style="border-top:1px solid #f2f4f7;padding:8px 0;font-size:14px"><div style="display:flex;gap:8px;align-items:baseline"><b style="flex:1;min-width:0;word-break:break-all">' + h(c.name) + '</b><b>' + money(c.tien) + ' đ</b></div>' +
           '<div style="color:#667085;font-size:13px">' + ngayNgan(c.ngay) + ' · ' + h((c.mo || '').slice(0, 80)) + '</div>' +
-          '<div style="margin-top:6px">' + (c.da_xem ? qcmChipMau(DSM_GD, 'Đã ghi sổ', 'Đã xem, không trùng') : (d.duoc_lap ? '<button type="button" class="btn gh" data-dsmct="' + h(c.doctype + ':' + c.name) + '" style="margin:0;min-height:44px">Không trùng</button>' : '')) + '</div></div>';
+          '<div style="margin-top:6px">' + (c.da_xem ? qcmChipMau(DSM_GD, 'Đã ghi sổ', 'Đã đối chiếu') : (d.duoc_lap ? '<button type="button" class="btn gh" data-dsmct="' + h(c.doctype + ':' + c.name) + '" style="margin:0;min-height:44px;width:100%">Đã đối chiếu</button>' : '')) + '</div></div>';
       }).join('') + '</div>' : '') +
     '<div style="font-size:15px;font-weight:800;margin:12px 2px 6px">Giao dịch thẻ của tháng (' + gd.length + ')</div>' +
     (gd.length ? '<div class="card" style="padding:4px 12px">' + gd.map(function (g) {
       var q = g.can_quyet;
       var nutQ = '';
       if (q && g.trang_thai === 'Chờ kế toán chọn' && d.duoc_lap) {
-        if (q.loai === 'chon') nutQ = '<button type="button" class="btn gh" data-dsmq="' + h(q.khoa_quyet) + '" data-gt="vao" style="margin:0;min-height:44px;flex:1">Là phí Meta</button><button type="button" class="btn gh" data-dsmq="' + h(q.khoa_quyet) + '" data-gt="bo" style="margin:0;min-height:44px;flex:1">Không phải</button>';
+        if (q.loai === 'chon') nutQ = '<button type="button" class="btn gh" data-dsmq="' + h(q.khoa_quyet) + '" data-gt="vao" style="margin:0;min-height:44px;flex:1">Là phí Meta</button><button type="button" class="btn gh" data-dsmq="' + h(q.khoa_quyet) + '" data-gt="bo" data-lydo="1" style="margin:0;min-height:44px;flex:1">Không phải</button>';
         if (q.loai === 'trung') nutQ = '<button type="button" class="btn gh" data-dsmq="' + h(q.khoa_quyet) + '" data-gt="mot" data-lydo="1" style="margin:0;min-height:44px;flex:1">Một giao dịch</button><button type="button" class="btn gh" data-dsmq="' + h(q.khoa_quyet) + '" data-gt="hai" data-lydo="1" style="margin:0;min-height:44px;flex:1">Hai giao dịch</button>';
         if (q.loai === 'dem') { nutQ = ''; for (var i = q.it; i <= q.nhieu; i++) nutQ += '<button type="button" class="btn gh" data-dsmq="' + h(q.khoa_quyet) + '" data-gt="' + i + '" data-lydo="1" style="margin:0;min-height:44px;flex:1">' + i + ' giao dịch</button>'; }
       }
@@ -195,7 +204,8 @@ async function scrDsMetaThang(ky) {
         '<span style="display:block;font-size:14.5px;font-weight:700">' + h(g.dv) + '</span><span style="display:block;font-size:13px;color:#667085">Thẻ ' + h(g.the4) + ' · giao dịch ' + ngayNgan(g.ngay_gd) +
         ' · ngân hàng ghi ' + ngayNgan(g.ngay_bt) + (g.so_bang_chung > 1 ? ' · có ở ' + g.so_bang_chung + ' bản sao kê' : '') + '</span></span><b style="font-size:14.5px">' + money(g.tien) + ' đ</b></div>' +
         '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' + qcmChipMau(DSM_GD, g.trang_thai) + (g.purchase_invoice ? '<span style="font-size:13px;color:#667085">' + h(g.purchase_invoice) + '</span>' : '') + '</div>' +
-        (q && g.trang_thai === 'Chờ kế toán chọn' ? '<div style="font-size:13px;color:#b42318;margin-top:4px">' + h(q.mo) + '</div><div style="display:flex;gap:6px;margin-top:6px">' + nutQ + '</div>' : '') + '</div>';
+        (q && g.trang_thai === 'Chờ kế toán chọn' ? '<div style="font-size:13px;color:#b42318;margin-top:4px">' + h(q.mo) + '</div><div style="display:flex;gap:6px;margin-top:6px">' + nutQ + '</div>' : '') +
+        dsmNutTay(g, d.duoc_lap) + '</div>';
     }).join('') + '</div>' : '<div class="emp"><div class="e1">📭</div><div>Tháng này chưa có giao dịch Meta nào trên sao kê thẻ.</div></div>') +
     '<div class="card" style="padding:10px 12px;margin-top:10px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:14.5px">Bút toán của tháng</b>' + qcmChipMau(DSM_BT, bt.trang_thai) + '</div>' +
     ((bt.dong || []).length ? bt.dong.map(function (x) {
@@ -211,7 +221,7 @@ async function scrDsMetaThang(ky) {
       if (n) {
         var ly = '';
         if (n.getAttribute('data-lydo')) {
-          ly = await hoiChu('Ghi lý do', 'Ghi căn cứ để người sau còn đối chiếu (ví dụ: đối chiếu ảnh sao kê ngân hàng).', '', { nhieu_dong: 1, bat_buoc: 1, nut: 'Xác nhận' });
+          ly = await hoiChu('Ghi lý do', n.getAttribute('data-gt') === 'bo' ? 'Ghi chứng từ đã ghi giao dịch này hoặc vì sao bỏ (ví dụ: đã ghi ở hoá đơn mua, bút toán tay số ...).' : 'Ghi căn cứ để người sau còn đối chiếu (ví dụ: đối chiếu ảnh sao kê ngân hàng).', '', { nhieu_dong: 1, bat_buoc: 1, nut: 'Xác nhận' });
           if (!ly || !String(ly).trim()) return;
         }
         n.disabled = true;

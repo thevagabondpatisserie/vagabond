@@ -92,8 +92,10 @@ var FX = {
       { ky: '2026-09', trang_thai: 'Khớp', da_tieu: { VND: 38021110 }, da_tru: 37664995, da_ghi_so: 37664995, so_giao_dich: 6, so_cho: 0, thieu: [], but_toan: 'Đã ghi sổ' }] },
   'vagabond.chi_phi_meta.chi_tiet_thang': { ky: '2026-10', trang_thai: 'Lệch', da_tieu: { VND: 21300400 }, da_tru: 20557590, da_ghi_so: 0, thieu: [], cho_duyet_sao_ke: 0, duoc_lap: 1, duoc_ghi: 1,
     chung_tu_khac: [{ doctype: 'Journal Entry', name: 'ACC-JV-2026-00049', ngay: '2026-10-31', mo: 'Chi quảng cáo Facebook tháng 10 (lập tay)', tien: 4057590, da_ghi_so: 0, da_xem: 0 }],
-    giao_dich: [{ khoa: 'a', the4: '0000', ngay_gd: '2026-10-05', ngay_bt: '2026-10-07', dv: 'FACEBK *LRBD57EPJ4', tien: 16500000, phan_loai: 'meta', trang_thai: 'Vào bút toán', so_bang_chung: 2, can_quyet: null },
-      { khoa: 'b', the4: '0000', ngay_gd: '2026-10-18', ngay_bt: '2026-10-21', dv: 'FACEBK *VKZTV66PJ4', tien: 4057590, phan_loai: 'meta', trang_thai: 'Vào bút toán', so_bang_chung: 2, can_quyet: null },
+    giao_dich: [{ khoa: 'a', the4: '0000', ngay_gd: '2026-10-05', ngay_bt: '2026-10-07', dv: 'FACEBK *LRBD57EPJ4', tien: 16500000, phan_loai: 'meta', trang_thai: 'Vào bút toán', so_bang_chung: 2, can_quyet: null,
+        nut_tay: { khoa_quyet: 'chon:a', gia_tri: 'bo', ly_do: 1, nhan: 'Đã ghi ở chứng từ khác' } },
+      { khoa: 'b', the4: '0000', ngay_gd: '2026-10-18', ngay_bt: '2026-10-21', dv: 'FACEBK *VKZTV66PJ4', tien: 4057590, phan_loai: 'meta', trang_thai: 'Kế toán bỏ', so_bang_chung: 2, can_quyet: null,
+        nut_tay: { khoa_quyet: 'chon:b', gia_tri: 'vao', ly_do: 0, nhan: 'Đưa lại vào bút toán', ly_do_bo: 'Đã ghi ở bút toán tay ACC-JV-2026-00049' } },
       { khoa: 'c', the4: '0000', ngay_gd: '2026-10-18', ngay_bt: '2026-10-21', dv: 'FOREIGN TRANSACTION FEE', tien: 33000, phan_loai: 'phi_chua_ro', trang_thai: 'Chờ kế toán chọn', so_bang_chung: 1,
         can_quyet: { loai: 'chon', khoa_quyet: 'chon:c', mo: 'Phí này không ghi rõ của giao dịch nào. Có phải phí đi kèm quảng cáo Meta không?' } }],
     but_toan: { trang_thai: 'Nháp chờ ghi sổ', journal_entry: 'ACC-JV-2026-00057', du_kien_qc: 20557590, du_kien_phi: 0,
@@ -176,6 +178,11 @@ async function chay() {
   await chup('674-5-chi-phi-meta', function () { return scrQcMeta(); });
   await chup('674-6-doi-soat-meta', function () { return scrDsMeta(); });
   await chup('674-7-doi-soat-thang', function () { return scrDsMetaThang('2026-10'); });
+  /* Codex #590: đường tay bỏ giao dịch đã ghi ở chứng từ khác, và đưa lại. */
+  var nutTay = await trang.evaluate(function () {
+    return Array.prototype.slice.call(document.querySelectorAll('[data-dsmq]')).map(function (n) { return n.textContent.trim() + '|' + n.getAttribute('data-gt') + '|' + (n.getAttribute('data-lydo') || ''); });
+  });
+  ['Đã ghi ở chứng từ khác|bo|1', 'Đưa lại vào bút toán|vao|', 'Không phải|bo|1'].forEach(function (m) { if (nutTay.indexOf(m) < 0) hong.push('674-7: thiếu nút ' + m); });
   await chup('674-8-doi-soat-thang-duoi', function () { return scrDsMetaThang('2026-10'); }, function () { window.scrollTo(0, document.body.scrollHeight); });
   await chup('674-9-xuat-ccdc', function () { XKT.nb.mucDich = 'ccdc'; XKT.nb.cachPb = 'nhieu_ky'; XKT.nb.soKy = 12; XKT.nb.kho = 'Kho Tổng - TV'; return scrXkNbNew(); }, function () { var o = document.getElementById('nbpbO'); if (o) o.scrollIntoView({ block: 'start' }); }, '#nbpbO, #nbskO');
   await b.close();

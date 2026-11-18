@@ -87,7 +87,7 @@ def _():
 	la("đúng 2.500", sum(x["so_tien"] for x in kq["ban"]), 2500)
 	la("theo thứ tự ngày", [x["si"] for x in kq["ban"]], ["SI0", "SI1", "SI2"])
 	la("không thiếu", kq["thieu"], 0)
-	la("can_bu 0 thì không đặt gì", P.phan_bo(si, [5], 0, "TK"), dict(ban=[], tk=[], da_dat=0, thieu=0))
+	la("can_bu 0 thì không đặt gì", P.phan_bo(si, [5], 0, "TK"), dict(ban=[], tk=[], da_dat=0, thieu=0, nguon={"si": {}, "khong": 0}))
 
 
 @ca("v673 bảng kê căn cứ có đủ dòng đối soát, mở được bằng Excel (BOM UTF-8)")
@@ -137,6 +137,16 @@ class Kho:
 		if "Vagabond Doi Soat Dong" in q:
 			loai = a["loai"]
 			return [Doc(x) for x in self.dong if x["loai"] in loai and a["tu"] <= x["ngay"] <= a["den"]]
+		if "Vagabond Can Tru Ban" in q:
+			# Đúng điều kiện câu thật: phiếu khác còn hiệu lực, chưa có bút toán.
+			giu = {}
+			for x in self.phieu.values():
+				if x.docstatus >= 2 or x.get("but_toan") or x.name == a["tru"]:
+					continue
+				for b in x.get("ban") or []:
+					if b.hoa_don in a["si"]:
+						giu[b.hoa_don] = giu.get(b.hoa_don, 0) + b.so_tien
+			return [Doc(hoa_don=k, so=v) for k, v in giu.items()]
 		return []
 
 	def get_all(self, dt, filters=None, fields=None, pluck=None, **k):
@@ -374,3 +384,87 @@ def _():
 			nem("phiếu tay không dùng dòng tài khoản", lambda: C.kiem_phieu(tay))
 		la("tay không gọi kiểm đối soát", goi, ["CTSAN-9"])
 	dung("Decimal", isinstance(C.tong_tk([Doc(tai_khoan="A", so_tien=1)]), Decimal))
+
+
+# ------------------------------------------------------------ Codex #589 vòng 1 (gộp vào #590)
+
+def _kho_hai_si(du1=1000, du2=1000):
+	k = Kho()
+	k.pi.update(outstanding_amount=100, name="PI-GRAB-11")
+	k.them_si("SI1", du1, ngay="2026-09-10")
+	k.them_si("SI2", du2, ngay="2026-09-11")
+	k.dong = [_dong("2026-09-10", 100, "SI1"), _dong("2026-09-11", 100, "SI2")]
+	return k
+
+
+def _phieu_cu(k, docstatus, but_toan, ban, nguon):
+	k.phieu["CTSAN-1"] = Doc(name="CTSAN-1", docstatus=docstatus, doi_soat=1, san="GrabFood", loai_phi="Phí theo đơn",
+		tu_ngay="2026-09-01", den_ngay="2026-09-30", tong_bu=sum(x[1] for x in ban), but_toan=but_toan,
+		phi=[Doc(hoa_don="PI-GRAB-10", so_tien=sum(x[1] for x in ban))], ban=[Doc(hoa_don=a, so_tien=b) for a, b in ban],
+		tk=[], nguon_phi=nguon)
+
+
+@ca("Codex #589: hai hoá đơn phí cùng kỳ: phiếu thứ hai bù vào SI2, không bù lại SI1 (phiếu đầu đã ghi sổ hoặc còn nháp giữ phần dư)")
+def _():
+	import json as _j
+	for ten, ds, bt, du1 in (("đã ghi sổ", 1, "JE-1", 900), ("còn nháp", 0, None, 1000), ("chờ đối soát", 1, None, 1000)):
+		k = _kho_hai_si(du1=du1)
+		_phieu_cu(k, ds, bt, [("SI1", 100)], _j.dumps({"si": {"SI1": 100}, "khong": 0}))
+		kq = k.chay(P.de_xuat, hoa_don="PI-GRAB-11", doi_tac="grab", loai="don", tu="2026-09-01", den="2026-09-30")
+		la("phiếu đầu %s: phiếu hai Có SI2" % ten, [(d["ve"], d["so"]) for d in kq.get("dinh_khoan") or []], [("Nợ", 100), ("Có", 100)])
+		t = k.chay(P._tinh, k.pi, "grab", "don", "2026-09-01", "2026-09-30")
+		la("phiếu đầu %s: đúng hoá đơn SI2" % ten, t["pb"]["ban"], [dict(si="SI2", so_tien=100)])
+
+
+@ca("Codex #589: phiếu nháp giữ dư 131 của một hoá đơn bán: phiếu khác không dùng lại phần dư đó")
+def _():
+	import json as _j
+	k = _kho_hai_si(du1=100, du2=0)
+	k.dong = [_dong("2026-09-10", 100, "SI1"), _dong("2026-09-11", 100, "SI2")]
+	k.pt_tk = {"GrabFood": None}
+	_phieu_cu(k, 0, None, [("SI1", 100)], _j.dumps({"si": {"SI1": 100}, "khong": 0}))
+	t = k.chay(P._tinh, k.pi, "grab", "don", "2026-09-01", "2026-09-30")
+	la("SI1 đã bị phiếu nháp giữ hết, SI2 hết dư: báo thiếu, không Có SI1 lần hai", (t["pb"]["ban"], t["pb"]["thieu"]), ([], 100))
+
+
+@ca("Codex #589: sửa phiếu trên Desk khác phân bổ theo đối soát (Có SI1 200 thay vì mỗi tờ 100) bị chặn; đúng phân bổ thì qua và ghi nguồn phí")
+def _():
+	import json as _j
+	k = _kho_hai_si(du1=1000, du2=1000)
+	k.pi.update(outstanding_amount=200)
+	with patch.object(P.frappe.utils, "getdate", lambda v: v, create=True):
+		sai = _phieu(tong_bu=200, phi=[Doc(hoa_don="PI-GRAB-11", so_tien=200)], ban=[Doc(hoa_don="SI1", so_tien=200)], tk=[])
+		nem("Có SI1 toàn bộ bị chặn", lambda: k.chay(P.kiem_phieu_doi_soat, sai))
+		dung_pb = _phieu(tong_bu=200, phi=[Doc(hoa_don="PI-GRAB-11", so_tien=200)],
+			ban=[Doc(hoa_don="SI1", so_tien=100), Doc(hoa_don="SI2", so_tien=100)], tk=[])
+		k.chay(P.kiem_phieu_doi_soat, dung_pb)
+		la("ghi nguồn phí từ máy chủ", _j.loads(dung_pb.nguon_phi), {"si": {"SI1": 100, "SI2": 100}, "khong": 0})
+
+
+@ca("Codex #589: phí quảng cáo không gắn hoá đơn trừ vào hoá đơn bán còn dư của đối tác trong kỳ, không báo thiếu, không chuyển thẳng tài khoản chờ")
+def _():
+	k = Kho()
+	k.pi.update(outstanding_amount=100, name="PI-GRAB-QC", remarks="Phí dịch vụ quảng cáo tháng 09/2026")
+	k.them_si("SI1", 1000, ngay="2026-09-10")
+	k.dong = [_dong("2026-09-10", 25, "SI1"), _dong("2026-09-30", 100, "", loai="phi_ky")]
+	for tk_dt, ten in ((None, "chưa khai tài khoản chờ"), ("1131 - CT", "đã khai tài khoản chờ")):
+		k.pt_tk = {"GrabFood": tk_dt}
+		t = k.chay(P._tinh, k.pi, "grab", "ky", "2026-09-01", "2026-09-30")
+		la("%s: Có SI1 100" % ten, (t["pb"]["ban"], t["pb"]["tk"], t["pb"]["thieu"]), ([dict(si="SI1", so_tien=100)], [], 0))
+	with patch.object(P.frappe.utils, "getdate", lambda v: v, create=True):
+		d = _phieu(loai_phi="Phí kỳ, quảng cáo", tong_bu=100, phi=[Doc(hoa_don="PI-GRAB-QC", so_tien=100)],
+			ban=[Doc(hoa_don="SI1", so_tien=100)], tk=[])
+		k.chay(P.kiem_phieu_doi_soat, d)
+		la("Desk nhận hoá đơn bán của đối tác cho phí kỳ", d.tong_doi_soat, 100)
+
+
+@ca("Codex #589: bảng Hoá đơn bán không bắt buộc ở cấp doctype (phiếu chỉ có tài khoản chờ lưu được); phiếu tay vẫn bắt có hoá đơn bán")
+def _():
+	import json as _j
+	import os
+	from vagabond import can_tru_san as C
+	p = os.path.join(os.path.dirname(P.__file__), "vagabond", "doctype", "vagabond_can_tru_san", "vagabond_can_tru_san.json")
+	f = {x["fieldname"]: x for x in _j.load(open(p, encoding="utf-8"))["fields"]}
+	la("ban không reqd cứng", (f["ban"].get("reqd", 0), f["ban"].get("mandatory_depends_on")), (0, "eval:!doc.doi_soat"))
+	dung("có ô nguồn phí ẩn, chỉ đọc", f.get("nguon_phi", {}).get("hidden") == 1 and f["nguon_phi"].get("read_only") == 1)
+	nem("phiếu tay không hoá đơn bán", lambda: C.tong_dong([]))

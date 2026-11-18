@@ -196,3 +196,7 @@ def _meta():
 		if kq3:
 			dung("tờ bổ sung khác tờ đã ghi sổ", kq3["journal_entry"] != je.name)
 			la("bổ sung chỉ phần mới", sorted(flt(r.debit_in_account_currency) for r in frappe.get_doc("Journal Entry", kq3["journal_entry"]).accounts if flt(r.debit_in_account_currency)), [1100000.0])
+			# Codex #590: bấm lập lại tờ bổ sung không được lấy lại giao dịch của tờ đã ghi sổ.
+			kq4 = khong_nem("lập lại tờ bổ sung", lambda: M.lap(ky))
+			la("lập lại tờ bổ sung cùng tờ", (kq4 or {}).get("journal_entry"), kq3["journal_entry"])
+			la("lập lại tờ bổ sung vẫn chỉ phần mới", sorted(flt(r.debit_in_account_currency) for r in frappe.get_doc("Journal Entry", kq3["journal_entry"]).accounts if flt(r.debit_in_account_currency)), [1100000.0])

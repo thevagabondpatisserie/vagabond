@@ -315,7 +315,10 @@ def lap_hoac_cap_nhat(loai, cty, ky, dong, dien_giai, ban_ke=None, tu_lap=None):
 		je.save(ignore_permissions=True)
 	bg.journal_entry = je.name
 	bg.dau_ban_may = dau_ban(dong_cua_je(je))
-	bg.ban_ke = json.dumps(ban_ke or {}, ensure_ascii=False, default=str)
+	# Không truyền bản kê thì GIỮ bản kê cũ (Codex #590): bản kê của Meta là lịch sử các
+	# tờ đã lập, xoá về rỗng làm tờ bổ sung lấy lại giao dịch đã ghi sổ.
+	if ban_ke is not None:
+		bg.ban_ke = json.dumps(ban_ke, ensure_ascii=False, default=str)
 	bg.lap_boi = frappe.session.user
 	bg.lap_luc = now_datetime()
 	bg.flags.ignore_permissions = True
