@@ -231,3 +231,15 @@ def _meta():
 			kq4 = khong_nem("lập lại tờ bổ sung", lambda: M.lap(ky))
 			la("lập lại tờ bổ sung cùng tờ", (kq4 or {}).get("journal_entry"), kq3["journal_entry"])
 			la("lập lại tờ bổ sung vẫn chỉ phần mới", sorted(flt(r.debit_in_account_currency) for r in frappe.get_doc("Journal Entry", kq3["journal_entry"]).accounts if flt(r.debit_in_account_currency)), [1100000.0])
+
+
+@ca("Deploy 18/11 thật: bản vá v674_meta_doc_lai chạy trên MariaDB thật (bench cài mới không chạy bản vá nên trước đây không ai chạy nó): ô trống gieo 3, ô 0 giữ 0")
+def _ban_va_doc_lai():
+	from vagabond.patches import v674_meta_doc_lai as P
+
+	frappe.db.sql("delete from `tabSingles` where doctype='Vagabond Settings' and field='meta_ads_doc_lai'")
+	khong_nem("chạy bản vá khi ô chưa có dòng", P.execute)
+	la("gieo 3", str(P.doc_o_tho()), "3")
+	frappe.db.set_single_value("Vagabond Settings", "meta_ads_doc_lai", 0)
+	khong_nem("chạy lại khi ô là 0", P.execute)
+	la("giữ 0", str(P.doc_o_tho()), "0")
