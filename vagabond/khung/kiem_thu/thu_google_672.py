@@ -411,3 +411,25 @@ def _luot_gg():
 	la("Google Posts nhận loại, tiêu đề, giờ, mã", (g.get("loai"), g.get("tieu_de"), g.get("bat_dau"), g.get("ma_giam")),
 		("uu_dai", "Giảm 10%", "2026-11-20T08:00", "VGB10"))
 	la("hai kênh Đã đăng", t4._tt(doc), [("fb", x.K_XONG), ("gg", x.K_XONG)])
+
+
+@ca("v672 Merchant (Codex #587): bánh Đặc biệt hết suất khi đợt vẫn mở thì hết hàng trên Google, khớp trang đặt bánh khoá món")
+def _het_suat():
+	la("đợt mở, còn suất", gm.con_theo_suat(gm.CON, "2", 1), gm.CON)
+	la("đợt mở, hết suất", gm.con_theo_suat(gm.CON, "2", 2), gm.HET)
+	la("không giới hạn", gm.con_theo_suat(gm.CON, "", 99), gm.CON)
+	la("đợt chưa mở giữ đặt trước", gm.con_theo_suat(gm.DAT_TRUOC, "2", 0), gm.DAT_TRUOC)
+	from vagabond import banh_web, dac_biet_tuan as dbt
+	dot = {"mo_don": "2026-11-20T08:00", "chot_don": "2026-11-21T20:00",
+		"mon_dt": [{"khoa": "a", "mo_ta": "", "anh": "", "toi_da": "2"}, {"khoa": "b", "mo_ta": "", "anh": "", "toi_da": ""}]}
+	the = [_D(khoa="a", ten="A", trang_thai=banh_web.DANG_HIEN, anh='[{"url": "/files/a.jpg"}]', mo_ta="", ma_hang="A1"),
+		_D(khoa="b", ten="B", trang_thai=banh_web.DANG_HIEN, anh='[{"url": "/files/b.jpg"}]', mo_ta="", ma_hang="B1")]
+	item = [_D(item_code="A1", item_name="A", standard_rate=1, disabled=0, is_sales_item=1),
+		_D(item_code="B1", item_name="B", standard_rate=1, disabled=0, is_sales_item=1)]
+	with um.patch.object(dbt, "dot_cong_khai", lambda: dot), um.patch.object(dbt, "luc_vn", lambda: "2026-11-20T09:00"), \
+			um.patch.object(dbt, "ma_theo_khoa", lambda d: {"a": {"A1"}, "b": {"B1"}}), \
+			um.patch.object(dbt, "da_dat", lambda d, mk: {"a": 2, "b": 50}), \
+			um.patch.object(gm_frappe(), "get_all", lambda dt, **k: the if dt == banh_web.DT else item, create=True), \
+			um.patch.dict("sys.modules", {"vagabond.kiem_banh": types_kiem_banh()}):
+		ds = gm._dac_biet()
+	la("A hết suất, B không giới hạn còn hàng", [(z["ma"], z["con"]) for z in ds], [("A1", gm.HET), ("B1", gm.CON)])
