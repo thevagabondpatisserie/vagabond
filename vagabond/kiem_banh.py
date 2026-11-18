@@ -1665,7 +1665,8 @@ def co_the_ban_hom_nay():
 	ngay = getdate()
 	ma = "KB-%s" % ngay
 	chi_hien = _web_chi_hien()
-	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": [], "dat_truoc": _dat_truoc_theo_decor(), "chi_hien": chi_hien}
+	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": [], "dat_truoc": _dat_truoc_theo_decor(), "chi_hien": chi_hien,
+		"dac_biet": _mon_dac_biet()}
 	if not frappe.db.exists("Kiem Banh Ngay", ma):
 		return rong
 	doc = frappe.get_doc("Kiem Banh Ngay", ma)
@@ -1748,7 +1749,45 @@ def co_the_ban_hom_nay():
 		"nhom": ds_nhom,
 		"dat_truoc": _dat_truoc_theo_decor(),
 		"chi_hien": chi_hien,
+		"dac_biet": rong["dac_biet"],
 	}
+
+
+def _mon_dac_biet():
+	"""v671 (Minh Vũ 18/11/2026): món của đợt "Đặc biệt tuần này" khách đang
+	thấy, theo ĐỢT chứ không theo tồn tủ hay ô Đủ decor (dac_biet_tuan.nhom_cua_dot).
+	Cùng luật mã được bán trên web với hai tab kia (duoc_len_web). Danh sách
+	này KHÔNG vào bảng số của tab Có sẵn hôm nay hay Đặt bánh trước: món chỉ
+	làm cho đợt không lọt sang hai tab đó. Đọc hỏng thì ghi lỗi, trả rỗng,
+	không làm hỏng hai tab kia."""
+	from vagabond import banh_web
+	from vagabond import dac_biet_tuan as dbt
+
+	try:
+		dot = dbt.dot_cong_khai()
+		khoa = [m["khoa"] for m in (dot or {}).get("mon_dt") or []]
+		if not khoa:
+			return []
+		the = frappe.get_all(banh_web.DT, filters={"khoa": ["in", khoa]},
+			fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "ma_hang"],
+			limit_page_length=0, ignore_permissions=True)
+		the_ds = [{"khoa": t.khoa, "ten": t.ten, "trang_thai": t.trang_thai,
+			"anhs": [x["url"] for x in banh_web.doc_anh(t.anh)][:banh_web.SO_ANH_TOI_DA],
+			"mo_ta": banh_web.tach_dong(t.mo_ta), "tang": banh_web.tach_dong(t.tang, banh_web.SO_TANG_TOI_DA),
+			"ma": banh_web.tach_dong(t.ma_hang)} for t in the]
+		ma = sorted({m for t in the_ds for m in t["ma"]
+			if not str(m or "").upper().startswith("BAWS")})
+		if not ma:
+			return []
+		it = frappe.get_all("Item", filters={"item_code": ["in", ma]}, fields=TRUONG_LEN_WEB,
+			limit_page_length=0, ignore_permissions=True)
+		tat = tat_ban_web.bang(ma, getdate())
+		gia_ma = {x["item_code"]: {"cm": _tach_ten_size(x.get("item_name"))[1], "gia": int(x.get("standard_rate") or 0)}
+			for x in it if duoc_len_web(x, tat)}
+		return dbt.nhom_cua_dot(dot, the_ds, gia_ma)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được món Đặc biệt tuần này")
+		return []
 
 
 def _web_chi_hien():
