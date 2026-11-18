@@ -54,7 +54,7 @@ def execute():
 				frappe.db.set_value(bai_dang.DT_CHU_DE, c.name, "cta", moi, update_modified=False)
 	if so:
 		for b in frappe.get_all(bai_dang.DT, filters={"chu_de": ["in", so], "trang_thai": ["in", bai_dang.TT_SUA_DUOC]},
-				fields=["name", "kenh_chon", "thuong_hieu"], limit_page_length=0):
+				fields=["name", "kenh_chon", "thuong_hieu", "ban_luu"], limit_page_length=0):
 			gia_tri = {}
 			if b.thuong_hieu != "Sonneto":
 				gia_tri["thuong_hieu"] = "Sonneto"
@@ -62,5 +62,7 @@ def execute():
 			if k is not None:
 				gia_tri["kenh_chon"] = k
 			if gia_tri:
+				# Tăng ban_luu: màn đang mở bài này phải nạp lại, kẻo duyệt theo đích cũ.
+				gia_tri["ban_luu"] = int(b.ban_luu or 0) + 1
 				frappe.db.set_value(bai_dang.DT, b.name, gia_tri, update_modified=False)
 	frappe.db.commit()
