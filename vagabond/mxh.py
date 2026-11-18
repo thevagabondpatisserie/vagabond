@@ -20,6 +20,18 @@ Cách nối (không ai phải nhập mật khẩu vào app, Claude không nhập
     App Secret, Refresh Token của mục Zalo OA đã có, không dán thêm mã. Ứng dụng Zalo
     phải được Zalo duyệt nhóm "Quản lý bài viết" (Zalo for Developers, Article API,
     Nộp xét duyệt); chưa duyệt thì Zalo trả lỗi -212 và kênh hiện "chưa nối".
+  - Sonneto (v672, anh Việt 18/11/2026 "kết nối với các kênh của Sonneto để đăng, quản
+    lý từ 1 nơi thôi"): Trang Facebook, Instagram, Threads của Sonneto. Bài thuộc chủ đề
+    mang thương hiệu Sonneto đi kênh Sonneto. Token Facebook riêng của doanh nghiệp
+    Sonneto, hoặc để trống và dùng token Vagabond nếu Trang Sonneto đã được chia cho
+    người dùng hệ thống Vagabond ERP; khi dùng chung token thì BẮT BUỘC có Mã Trang
+    Sonneto, không bao giờ tự chọn Trang (kẻo bài Sonneto lên Trang Vagabond).
+    Sonneto chưa có Zalo OA.
+
+Threads (v672, anh Việt 18/11): bài quá 500 ký tự tự tách thành chuỗi bài nối tiếp
+(phần sau trả lời phần trước, như app Threads tự làm khi đăng tay). Cần quyền
+threads_manage_replies trên token Threads. Phần đầu lên rồi mà phần sau hỏng thì kênh
+vẫn là Đã đăng (không đăng lại phần đầu), kèm ghi chú phần nào chưa lên để đăng tay.
 
 Đăng một kênh là một chuỗi gọi Meta. Bước cuối (công bố) mà mất mạng thì KHÔNG
 biết bài đã lên hay chưa: báo "chưa rõ" (LoiDang.ro = False) để người kiểm trên
@@ -29,6 +41,7 @@ Phần THUẦN đứng trước vạch, phần chạm hệ đứng sau.
 """
 
 import json
+import re
 import time
 
 GRAPH = "https://graph.facebook.com/v21.0"
@@ -89,6 +102,108 @@ def loi_de_hieu(ten_kenh, tra):
 		return "%s đang giới hạn số lần gọi. Chờ khoảng 15 phút rồi bấm Thử lại." % ten_kenh
 	tin = str(loi.get("error_user_msg") or loi.get("message") or "").strip()
 	return ("%s từ chối bài: %s" % (ten_kenh, tin[:200])) if tin else ("%s chưa nhận bài. Thử lại sau ít phút, vẫn lỗi thì đăng tay." % ten_kenh)
+
+
+# v672 Thương hiệu: mỗi thương hiệu một bộ ô Cài đặt. tok_chung: ô token dùng thay khi
+# ô token riêng trống (khi đó phải có mã Trang).
+HIEU_VGB = "vagabond"
+HIEU_SO = "sonneto"
+HIEU = {
+	HIEU_VGB: {"ten": "The Vagabond", "tok": "mxh_token", "trang": "mxh_page_id", "th": "th_token",
+		"th_het": "th_het_han", "th_luc": "th_gia_han_luc", "zl": True, "tok_chung": ""},
+	HIEU_SO: {"ten": "Sonneto", "tok": "so_mxh_token", "trang": "so_page_id", "th": "so_th_token",
+		"th_het": "so_th_het_han", "th_luc": "so_th_gia_han_luc", "zl": False, "tok_chung": "mxh_token"},
+}
+
+# Threads: trần một bài 500 ký tự (tài liệu Meta). Đếm theo đơn vị UTF-16 cho an toàn
+# với biểu tượng cảm xúc; chừa chỗ cho số thứ tự "2/3" ở cuối mỗi phần.
+TH_TRAN_PHAN = 500
+TH_TOI_DA_PHAN = 10
+TH_CHUA_SO = 8
+
+
+def chuan_hieu(h):
+	"""THUẦN: mã thương hiệu từ giá trị lưu ("Sonneto", "sonneto", "", None)."""
+	return HIEU_SO if str(h or "").strip().lower().startswith("sonneto") else HIEU_VGB
+
+
+def nguon_fb(hieu, tok_rieng, tok_chung, ma_trang, ma_trang_vgb=""):
+	"""THUẦN: (token, mã Trang, câu lỗi) để đăng Facebook, Instagram của thương hiệu.
+
+	Vagabond: token của mình, mã Trang có thì chọn đúng Trang đó. Sonneto: token riêng
+	nếu có; trống thì mượn token Vagabond nhưng BẮT BUỘC có Mã Trang Sonneto, và Mã Trang
+	Sonneto không được trùng Mã Trang Vagabond."""
+	ma = "".join(ch for ch in str(ma_trang or "") if ch.isdigit())
+	ma_v = "".join(ch for ch in str(ma_trang_vgb or "") if ch.isdigit())
+	if chuan_hieu(hieu) == HIEU_VGB:
+		if not tok_rieng:
+			return None, ma, "Chưa có token Facebook, Instagram ở Cài đặt lõi và API. Đăng tay bài này."
+		return tok_rieng, ma, ""
+	if ma and ma == ma_v:
+		return None, ma, "Mã Trang Facebook Sonneto đang trùng Mã Trang The Vagabond. Sửa ô Mã Trang Facebook Sonneto ở Cài đặt lõi và API."
+	if tok_rieng:
+		return tok_rieng, ma, ""
+	if not tok_chung:
+		return None, ma, "Chưa nối kênh Sonneto. Quản trị hệ thống điền mục Đăng bài kênh Sonneto ở Cài đặt lõi và API."
+	if not ma:
+		return None, ma, "Chưa điền Mã Trang Facebook Sonneto ở Cài đặt lõi và API, nên hệ thống chưa biết Trang nào là của Sonneto."
+	return tok_chung, ma, ""
+
+
+def dai_th(s):
+	"""THUẦN: độ dài theo cách đếm an toàn của Threads (biểu tượng cảm xúc tính 2)."""
+	return len(str(s or "").encode("utf-16-le")) // 2
+
+
+def _diem_cat(s, han):
+	"""Vị trí cắt trong s để phần đầu dài không quá han: ưu tiên chỗ hết đoạn, rồi xuống
+	dòng, rồi hết câu, rồi khoảng trắng. Không cắt quá sớm (dưới 40% han)."""
+	dau = 0
+	n = 0
+	for i, ch in enumerate(s):
+		n += 2 if ord(ch) > 0xFFFF else 1
+		if n > han:
+			break
+		dau = i + 1
+	khuc = s[:dau]
+	san = int(han * 0.4)
+	for mau in ("\n\n", "\n"):
+		i = khuc.rfind(mau)
+		if i >= san:
+			return i + len(mau)
+	tot = -1
+	for m in re.finditer(r"[.!?…:;](?=\s)", khuc):
+		tot = m.end()
+	if tot >= san:
+		return tot
+	i = khuc.rfind(" ")
+	if i >= san:
+		return i + 1
+	return dau or 1
+
+
+def tach_threads(chu, tran=TH_TRAN_PHAN):
+	"""THUẦN: chia chữ Threads thành các bài nối tiếp, mỗi bài không quá `tran` ký tự.
+	Chữ vừa một bài thì giữ nguyên. Nhiều bài thì cắt ở chỗ hết đoạn, xuống dòng hoặc hết
+	câu, mỗi phần có số thứ tự "1/3" ở cuối. Ghép các phần (bỏ số) ra lại đúng chữ."""
+	chu = str(chu or "").strip()
+	if not chu:
+		return []
+	if dai_th(chu) <= tran:
+		return [chu]
+	han = tran - TH_CHUA_SO
+	phan, con = [], chu
+	while con:
+		if dai_th(con) <= han:
+			phan.append(con)
+			break
+		cat = _diem_cat(con, han)
+		dau = con[:cat].rstrip()
+		if dau:
+			phan.append(dau)
+		con = con[cat:].lstrip()
+	n = len(phan)
+	return ["%s\n\n%d/%d" % (p, i + 1, n) for i, p in enumerate(phan)]
 
 
 def hop_cat(rong, cao, khung):
@@ -253,11 +368,28 @@ def _trang_cua_token(tok, ma_cau_hinh):
 		"ig": t.get("instagram_business_account") or None}
 
 
-def trang_thai(lam_moi=False):
-	"""Kết nối từng kênh cho màn (không chứa token). Đọc Meta tối đa 10 phút một lần."""
+def _khoa_cache(hieu):
+	return KHOA_CACHE if chuan_hieu(hieu) == HIEU_VGB else KHOA_CACHE + ":" + chuan_hieu(hieu)
+
+
+def _trang_hieu(c, hieu):
+	"""Trang Facebook (kèm Instagram) của thương hiệu. Lỗi thì ném LoiDang."""
+	h = HIEU[chuan_hieu(hieu)]
+	tok, ma, loi = nguon_fb(hieu, _khoa(c, h["tok"]), _khoa(c, h["tok_chung"]) if h["tok_chung"] else "",
+		c.get(h["trang"]), c.get("mxh_page_id"))
+	if not tok:
+		raise LoiDang(loi)
+	return _trang_cua_token(tok, ma)
+
+
+def trang_thai(lam_moi=False, hieu=HIEU_VGB):
+	"""Kết nối từng kênh của một thương hiệu cho màn (không chứa token). Đọc Meta tối đa
+	10 phút một lần."""
+	hieu = chuan_hieu(hieu)
+	h = HIEU[hieu]
 	if not lam_moi:
 		try:
-			c = frappe.cache().get_value(KHOA_CACHE)
+			c = frappe.cache().get_value(_khoa_cache(hieu))
 			if c:
 				return c
 		except Exception:
@@ -266,11 +398,11 @@ def trang_thai(lam_moi=False):
 	ra = {"fb": {"ok": 0, "chu": "Chưa nối. Bài lên Facebook phải đăng tay."},
 		"ig": {"ok": 0, "chu": "Chưa nối. Bài lên Instagram phải đăng tay."},
 		"th": {"ok": 0, "chu": "Chưa nối. Bài lên Threads phải đăng tay."},
-		"zl": {"ok": 0, "chu": "Chưa nối Zalo OA. Bài lên Zalo OA phải đăng tay."}}
-	tok = _khoa(c, "mxh_token")
-	if tok:
+		"zl": {"ok": 0, "chu": "Chưa nối Zalo OA. Bài lên Zalo OA phải đăng tay." if h["zl"] else "Sonneto chưa có Zalo OA."}}
+	co_fb = _khoa(c, h["tok"]) or (h["tok_chung"] and (c.get(h["trang"]) or "").strip())
+	if co_fb:
 		try:
-			t = _trang_cua_token(tok, c.get("mxh_page_id"))
+			t = _trang_hieu(c, hieu)
 			ra["fb"] = {"ok": 1, "chu": "Tự đăng lên Trang %s" % t["ten"]}
 			if t.get("ig"):
 				ra["ig"] = {"ok": 1, "chu": "Tự đăng lên @%s" % (t["ig"].get("username") or t["ig"].get("id"))}
@@ -279,38 +411,39 @@ def trang_thai(lam_moi=False):
 		except LoiDang as e:
 			ra["fb"] = {"ok": 0, "chu": e.chu, "loi": 1}
 			ra["ig"] = {"ok": 0, "chu": "Chưa nối được vì token Facebook lỗi.", "loi": 1}
-	th = _khoa(c, "th_token")
+	th = _khoa(c, h["th"])
 	if th:
 		try:
 			me = _goi("GET", THREADS + "/me", th, params={"fields": "id,username"}, ten_kenh="Threads")
-			het = str(c.get("th_het_han") or "")[:10]
+			het = str(c.get(h["th_het"]) or "")[:10]
 			ra["th"] = {"ok": 1, "chu": "Tự đăng lên @%s%s" % (me.get("username") or me.get("id"),
 				(" · token dùng tới %s/%s/%s" % (het[8:10], het[5:7], het[:4])) if het else "")}
 		except LoiDang as e:
 			ra["th"] = {"ok": 0, "chu": e.chu, "loi": 1}
-	if _zl_co_cau_hinh(c):
+	if h["zl"] and _zl_co_cau_hinh(c):
 		try:
 			_goi_zl("GET", "getslice", _zl_token(c), params={"offset": 0, "limit": 1, "type": "normal"})
 			ra["zl"] = {"ok": 1, "chu": "Tự đăng Bài viết lên trang Zalo OA"}
 		except LoiDang as e:
 			ra["zl"] = {"ok": 0, "chu": e.chu, "loi": 1}
 	try:
-		frappe.cache().set_value(KHOA_CACHE, ra, expires_in_sec=SONG_CACHE_GIAY)
+		frappe.cache().set_value(_khoa_cache(hieu), ra, expires_in_sec=SONG_CACHE_GIAY)
 	except Exception:
 		pass
 	return ra
 
 
-def kenh_noi(lam_moi=False):
-	"""Tập mã kênh đang tự đăng được."""
-	return set(k for k, v in trang_thai(lam_moi).items() if v.get("ok"))
+def kenh_noi(lam_moi=False, hieu=HIEU_VGB):
+	"""Tập mã kênh đang tự đăng được của thương hiệu."""
+	return set(k for k, v in trang_thai(lam_moi, hieu).items() if v.get("ok"))
 
 
 def xoa_cache():
-	try:
-		frappe.cache().delete_value(KHOA_CACHE)
-	except Exception:
-		pass
+	for h in HIEU:
+		try:
+			frappe.cache().delete_value(_khoa_cache(h))
+		except Exception:
+			pass
 
 
 # ---------- ảnh
@@ -434,22 +567,42 @@ def dang_ig(ma_bai, trang, chu, anh, story=False):
 
 
 def dang_th(ma_bai, tok, chu, anh):
+	"""Đăng Threads. Chữ quá 500 ký tự thành chuỗi bài nối tiếp: phần đầu mang ảnh, mỗi
+	phần sau trả lời phần ngay trước. Trả (mã bài đầu, link bài đầu, ghi chú). Ghi chú
+	khác rỗng khi phần đầu đã lên mà có phần sau chưa lên (không ném lỗi, kẻo bị đăng lại
+	phần đầu)."""
 	ten = "Threads"
 	tao = lambda d: _goi("POST", THREADS + "/me/threads", tok, data=d, ten_kenh=ten).get("id")
 	url = lambda a: url_cong_khai(ma_bai, anh_jpeg(a["url"], a["khung"] if a.get("cat") else None))
+	phan = tach_threads(chu) or [""]
+	dau = phan[0]
 	if not anh:
-		c = tao({"media_type": "TEXT", "text": chu})
+		c = tao({"media_type": "TEXT", "text": dau})
 	elif len(anh) == 1:
-		c = tao({"media_type": "IMAGE", "image_url": url(anh[0]), "text": chu})
+		c = tao({"media_type": "IMAGE", "image_url": url(anh[0]), "text": dau})
 	else:
 		con = [tao({"media_type": "IMAGE", "image_url": url(a), "is_carousel_item": "true"}) for a in anh]
 		for m in con:
 			_cho_xong(THREADS, m, tok, "status", "FINISHED", ("ERROR", "EXPIRED"), ten)
-		c = tao({"media_type": "CAROUSEL", "children": ",".join(con), "text": chu})
+		c = tao({"media_type": "CAROUSEL", "children": ",".join(con), "text": dau})
 	_cho_xong(THREADS, c, tok, "status", "FINISHED", ("ERROR", "EXPIRED"), ten)
 	r = _goi("POST", THREADS + "/me/threads_publish", tok, data={"creation_id": c}, cong_bo=True, ten_kenh=ten)
 	ma = str(r.get("id") or "")
-	return ma, _link(THREADS, ma, "permalink", tok, ten) if ma else ""
+	link = _link(THREADS, ma, "permalink", tok, ten) if ma else ""
+	truoc, ghi = ma, ""
+	for i, p in enumerate(phan[1:], 2):
+		try:
+			c2 = tao({"media_type": "TEXT", "text": p, "reply_to_id": truoc})
+			_cho_xong(THREADS, c2, tok, "status", "FINISHED", ("ERROR", "EXPIRED"), ten)
+			r2 = _goi("POST", THREADS + "/me/threads_publish", tok, data={"creation_id": c2}, cong_bo=True, ten_kenh=ten)
+			truoc = str(r2.get("id") or "") or truoc
+		except LoiDang as e:
+			ghi = ("Phần 1 đã lên Threads nhưng phần %d/%d chưa %s (%s). Mở Threads, đăng tay tiếp từ phần %d"
+				" bằng cách trả lời bài vừa lên.") % (i, len(phan), "rõ đã lên chưa" if not e.ro else "lên", e.chu, i)
+			if "thiếu quyền" in e.chu:
+				ghi += " Token Threads cần quyền threads_manage_replies để tự đăng bài nối tiếp."
+			break
+	return ma, link, ghi
 
 
 def _zl_co_cau_hinh(c):
@@ -521,58 +674,64 @@ def dang_zl(ma_bai, tieu_de, chu, anh):
 		time.sleep(NHIP_HOI_GIAY)
 
 
-def dang(kenh, ma_bai, chu, anh, story=False, tieu_de=""):
-	"""Đăng một kênh. Trả (mã bài trên kênh, link). Lỗi thì ném LoiDang."""
+def dang(kenh, ma_bai, chu, anh, story=False, tieu_de="", hieu=HIEU_VGB):
+	"""Đăng một kênh của một thương hiệu. Trả (mã bài trên kênh, link) hoặc (mã, link,
+	ghi chú) với Threads nhiều phần. Lỗi thì ném LoiDang."""
 	c = _cfg()
+	h = HIEU[chuan_hieu(hieu)]
 	if kenh in ("fb", "ig"):
-		tok = _khoa(c, "mxh_token")
-		if not tok:
-			raise LoiDang("Chưa có token Facebook, Instagram ở Cài đặt lõi và API. Đăng tay bài này.")
-		trang = _trang_cua_token(tok, c.get("mxh_page_id"))
+		trang = _trang_hieu(c, hieu)
 		if kenh == "fb":
 			return dang_fb(trang, chu, anh, story)
 		return dang_ig(ma_bai, trang, chu, anh, story)
 	if kenh == "th":
-		tok = _khoa(c, "th_token")
+		tok = _khoa(c, h["th"])
 		if not tok:
-			raise LoiDang("Chưa có token Threads ở Cài đặt lõi và API. Đăng tay bài này.")
+			raise LoiDang("Chưa có token Threads%s ở Cài đặt lõi và API. Đăng tay bài này." % ("" if h["zl"] else " " + h["ten"]))
 		return dang_th(ma_bai, tok, chu, anh)
-	if kenh == "zl" and not story:
+	if kenh == "zl" and not story and h["zl"]:
 		return dang_zl(ma_bai, tieu_de, chu, anh)
 	raise LoiDang("Kênh này đăng tay.")
 
 
 def gia_han_threads():
-	"""Nhịp mỗi ngày: token Threads sống 60 ngày, gia hạn khi đã quá 6 ngày từ lần trước
-	(Meta chỉ cho gia hạn token đã quá 24 giờ). Lỗi thì ghi Error Log, hôm sau thử lại."""
+	"""Nhịp mỗi ngày: token Threads (mỗi thương hiệu một token) sống 60 ngày, gia hạn khi
+	đã quá 6 ngày từ lần trước (Meta chỉ cho gia hạn token đã quá 24 giờ). Lỗi thì ghi
+	Error Log, hôm sau thử lại; một thương hiệu lỗi không chặn thương hiệu kia."""
+	for hieu in HIEU:
+		_gia_han_mot(hieu)
+
+
+def _gia_han_mot(hieu):
+	h = HIEU[hieu]
 	try:
 		from datetime import timedelta
 		from frappe.utils import now_datetime, get_datetime
 		from frappe.utils.password import set_encrypted_password
 		c = _cfg()
-		tok = _khoa(c, "th_token")
+		tok = _khoa(c, h["th"])
 		if not tok:
 			return
-		luc = c.get("th_gia_han_luc")
+		luc = c.get(h["th_luc"])
 		if luc and get_datetime(luc) > now_datetime() - timedelta(days=GIA_HAN_SAU_NGAY):
 			return
 		tra = _goi("GET", THREADS_GOC + "/refresh_access_token", tok, params={"grant_type": "th_refresh_token"}, ten_kenh="Threads")
 		moi = tra.get("access_token")
 		if not moi:
 			return
-		set_encrypted_password("Vagabond Settings", "Vagabond Settings", moi, "th_token")
+		set_encrypted_password("Vagabond Settings", "Vagabond Settings", moi, h["th"])
 		bay_gio = now_datetime()
-		frappe.db.set_single_value("Vagabond Settings", "th_gia_han_luc", bay_gio)
+		frappe.db.set_single_value("Vagabond Settings", h["th_luc"], bay_gio)
 		try:
 			giay = int(tra.get("expires_in") or 0)
 		except (TypeError, ValueError):
 			giay = 0
 		if giay:
-			frappe.db.set_single_value("Vagabond Settings", "th_het_han", (bay_gio + timedelta(seconds=giay)).strftime("%Y-%m-%d"))
+			frappe.db.set_single_value("Vagabond Settings", h["th_het"], (bay_gio + timedelta(seconds=giay)).strftime("%Y-%m-%d"))
 		frappe.db.commit()
 		xoa_cache()
 	except LoiDang as e:
-		frappe.log_error(title="Bài đăng: chưa gia hạn được token Threads", message=e.chu)
+		frappe.log_error(title="Bài đăng: chưa gia hạn được token Threads %s" % h["ten"], message=e.chu)
 	except Exception:
 		from vagabond.lib import giau_khoa
-		frappe.log_error(title="Bài đăng: chưa gia hạn được token Threads", message=giau_khoa(frappe.get_traceback()))
+		frappe.log_error(title="Bài đăng: chưa gia hạn được token Threads %s" % h["ten"], message=giau_khoa(frappe.get_traceback()))
