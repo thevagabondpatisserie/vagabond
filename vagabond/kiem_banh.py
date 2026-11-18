@@ -32,7 +32,6 @@ from frappe.utils import add_days, getdate, now_datetime
 
 from vagabond import pancake_nhip, tat_ban_web
 from vagabond.anh_web import chon_anh
-from vagabond.giu_vo import don_con_giu_vo
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
 
 
@@ -707,8 +706,8 @@ def _dong_bo_mot_lan(ngay=None):
 		else:
 			frappe.db.set_value("Kiem Banh Ngay", ma_doc, "dong_bo_luc", doc.dong_bo_luc, update_modified=False)
 		chuyen_lai_ton(doc, doi)
-		giu_ton_web.da_dem(ngay, [o.get("id") for o in
-			(giao_hom_nay if str(ngay)[:10] == str(giu_ton_web.hom_nay()) else dd_don)])
+		# v671: cùng luật đếm với nhánh dưới (Có thể bán trừ mọi đơn giao ngày đó).
+		giu_ton_web.da_dem(ngay, [o.get("id") for o in giao_hom_nay])
 		frappe.db.commit()
 		return bang(ngay)
 	ten1.update(ten2)
@@ -784,8 +783,10 @@ def _dong_bo_mot_lan(ngay=None):
 
 	doc.dong_bo_luc = now_datetime()
 	doc.save(ignore_permissions=True)
-	giu_ton_web.da_dem(ngay, [o.get("id") for o in
-		(giao_hom_nay if str(ngay)[:10] == str(giu_ton_web.hom_nay()) else dd_don)])
+	# v671: hôm nay và ngày mai đều là nguồn số của web theo cột Có thể bán, cột
+	# này trừ cả Đã đặt, Phát sinh lẫn Chờ chốt, nên mọi đơn giao ngày đó đã được
+	# đếm (trước v671 ngày sau theo Đủ decor chỉ trừ Đã đặt).
+	giu_ton_web.da_dem(ngay, [o.get("id") for o in giao_hom_nay])
 	frappe.db.commit()
 	return bang(ngay)
 
@@ -1069,6 +1070,15 @@ def dong_bo_tu_dong():
 		dong_bo()
 	except Exception:
 		frappe.log_error(title="Vagabond: dong bo kiem banh loi", message=frappe.get_traceback())
+	# v671: tab Đặt bánh trước của web lấy số theo phiếu NGÀY MAI, nên phiếu
+	# ngày mai (nếu bếp đã mở) cũng phải đếm đơn Pancake mỗi nhịp, không chỉ khi
+	# có người mở màn ngày mai. Chưa có phiếu thì không tự tạo.
+	try:
+		mai = add_days(getdate(), 1)
+		if frappe.db.exists("Kiem Banh Ngay", "KB-%s" % mai):
+			dong_bo(mai)
+	except Exception:
+		frappe.log_error(title="Vagabond: dong bo kiem banh ngay mai loi", message=frappe.get_traceback())
 
 
 @frappe.whitelist()
@@ -1880,51 +1890,70 @@ def duoc_len_web(x, tat=None):
 	return not ((tat or {}).get(x.get("item_code")) or {}).get("tat")
 
 
+def con_dat_truoc_mai(dong_mai, la_ngay_refill=lambda ma: False):
+	"""{mã: số} tab Đặt bánh trước còn nhận cho NGÀY MAI. Phép THUẦN.
+
+	Số là cột Có thể bán của phiếu Kiểm bánh ngày mai (máy tính ở
+	KiemBanhNgay.validate). Bỏ mã bánh sỉ BAWS, dòng không dương, và mã mà ngày
+	mai thuộc khoảng mẻ refill (đơn ngày đó trừ vào mẻ, số theo mẻ). Một mã
+	nhiều dòng thì cộng lại."""
+	ra = {}
+	for d in dong_mai or []:
+		ma = str(getattr(d, "ma_hang", None) or "")
+		if not ma or ma.upper().startswith("BAWS") or la_ngay_refill(ma):
+			continue
+		ra[ma] = ra.get(ma, 0) + int(getattr(d, "co_the_ban", None) or 0)
+	return {m: n for m, n in ra.items() if n > 0}
+
+
 def _dat_truoc_theo_decor():
-	"""Danh muc tab DAT BANH TRUOC cua trang order, lay theo o DU DECOR
-	ma bep dien trong /kiem-banh (kho BTP Banh O). Chot voi anh Viet
-	07/08/2026: so decor la so banh con nhieu, nhan don duoc cho 3 ngay,
-	nen tab dat truoc chi hien dung nhung banh nay kem so luong con nhan.
+	"""Danh mục tab ĐẶT BÁNH TRƯỚC của trang đặt bánh.
+
+	v671 (Loan Anh góp ý 18/11/2026, anh Việt chốt): tab này nhận NGÀY MAI, số
+	theo cột Có thể bán của phiếu Kiểm bánh NGÀY MAI (tồn chuyển qua lúc chốt,
+	Bếp làm cho ngày mai, đã trừ đơn đã đặt, chờ chốt, giữ chỗ của ngày mai),
+	cùng cách tính với tab Có sẵn hôm nay. Trước v671 tab lấy theo ô Đủ decor
+	của bảng BTP (chốt 07/08/2026, nhận 3 ngày tới); ô Đủ decor nay chỉ còn là
+	số nội bộ của bếp. Tên hàm giữ nguyên cho các nơi gọi cũ.
+
+	Bánh có mẻ refill (v646) vẫn theo mẻ: ngày mai nằm trong khoảng của mẻ thì
+	số theo mẻ, và web cho chọn ngày trong khoảng của mẻ (anh Việt chốt giữ).
 	"""
 	try:
 		kho = frappe.get_single("BTP Banh O")
+		dong_btp = list(kho.dong or [])
+		cap_nhat = str(kho.cap_nhat_luc or "") or None
 	except Exception:
-		return {"cap_nhat_luc": None, "nhom": []}
+		dong_btp, cap_nhat = [], None
 	# Trang order ban LE: ma BAWS la banh si, khong duoc bay len (anh Viet
 	# 10/08/2026).
 	# v646 Refill (anh Việt duyệt 09/11): bánh có mẻ refill còn nhận đơn cũng lên
 	# tab này, kèm ngày có bánh và ngày nhận tới để web chỉ cho chọn đúng khoảng.
 	from vagabond import refill
 
+	ngay = getdate()
+	mai = add_days(ngay, 1)
 	rf = {}
-	if refill.hieu_luc_tu_dong(kho.dong, getdate()):
-		so_rf = refill.tinh(dong=kho.dong)
+	if dong_btp and refill.hieu_luc_tu_dong(dong_btp, ngay):
+		so_rf = refill.tinh(dong=dong_btp)
 		# Chưa đếm được đơn (Pancake lỗi) thì KHÔNG mở bán refill: thà ẩn còn hơn nhận lố.
 		# v660: một bánh nhiều đợt, giữ các đợt đã đếm được.
 		rf = {m: [r for r in ds if r.get("con") is not None] for m, ds in (so_rf.get("refill") or {}).items()}
 		rf = {m: ds for m, ds in rf.items() if ds}
-	dong = [
-		b for b in (kho.dong or [])
-		if ((b.so_decor or 0) > 0 or any((r.get("con") or 0) > 0 for r in rf.get(b.ma_hang) or []))
-		and not str(b.ma_hang or "").upper().startswith("BAWS")
-	]
+	ma_kb = "KB-%s" % mai
+	dong_mai = frappe.get_doc("Kiem Banh Ngay", ma_kb).dong if frappe.db.exists("Kiem Banh Ngay", ma_kb) else []
+	con_mai = con_dat_truoc_mai(dong_mai, lambda ma: bool(refill.ngay_cua_refill(rf, ma, mai)))
+	# Mỗi mã một dòng nguồn (tên, ảnh): phiếu ngày mai trước, bảng BTP cho mã chỉ còn refill.
+	nguon = {}
+	for b in dong_btp:
+		if any((r.get("con") or 0) > 0 for r in rf.get(b.ma_hang) or []):
+			nguon[b.ma_hang] = b
+	for d in dong_mai:
+		if d.ma_hang in con_mai:
+			nguon[d.ma_hang] = d
+	dong = [b for b in nguon.values() if not str(b.ma_hang or "").upper().startswith("BAWS")]
 	if not dong:
-		return {"cap_nhat_luc": str(kho.cap_nhat_luc or "") or None, "nhom": []}
-
-	# Tru don DA DAT trong 3 ngay toi (da_dat cua phieu kiem banh ngay mai,
-	# mot va hai ngay sau) de so "con nhan" tren web khong nhan lo.
-	ngay = getdate()
-	da_dat = {}
-	for i in (1, 2, 3):
-		ma_kb = "KB-%s" % add_days(ngay, i)
-		if not frappe.db.exists("Kiem Banh Ngay", ma_kb):
-			continue
-		for d in frappe.get_doc("Kiem Banh Ngay", ma_kb).dong:
-			# Ngày nằm trong khoảng refill của mã: đơn trừ vào refill, không trừ decor.
-			if refill.ngay_cua_refill(rf, d.ma_hang, add_days(ngay, i)):
-				continue
-			# v649 Codex #552 vòng 7: đơn đã có bánh bếp làm trước thì vỏ đã trừ.
-			da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + don_con_giu_vo(d, ("da_dat",))
+		return {"cap_nhat_luc": cap_nhat, "nhom": []}
 
 	ds = frappe.get_all(
 		"Item",
@@ -1944,7 +1973,7 @@ def _dat_truoc_theo_decor():
 			# khong gia (hien "tu 0 d"), ngung dung, hay dang tat ban web:
 			# khong dua len trang khach (v606, xem duoc_len_web).
 			continue
-		con = int(b.so_decor or 0) - int(da_dat.get(b.ma_hang, 0)) if (b.so_decor or 0) > 0 else 0
+		con = con_mai.get(b.ma_hang, 0)
 		# Các đợt còn suất, đợt sớm nhất đứng đầu (v660).
 		ds_rf = [r for r in rf.get(b.ma_hang) or [] if int(r.get("con") or 0) > 0]
 		r = ds_rf[0] if ds_rf else None
@@ -1970,7 +1999,7 @@ def _dat_truoc_theo_decor():
 			}
 		)
 		if con_rf > 0:
-			# Khoảng ngày nhận của refill; chỉ còn refill (decor hết) thì web
+			# Khoảng ngày nhận của refill; chỉ còn refill (phiếu ngày mai hết) thì web
 			# chỉ cho chọn ngày trong khoảng này.
 			# "ds" là mọi đợt còn suất: web cho chọn ngày trong bất kỳ đợt nào và lấy
 			# số còn của đúng đợt chứa ngày đó. tu, den, con là đợt sớm nhất, giữ
@@ -1981,7 +2010,7 @@ def _dat_truoc_theo_decor():
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
 	ra = _anh_noi_dung_web([nhom[k] for k in thu_tu])
 	return {
-		"cap_nhat_luc": str(kho.cap_nhat_luc or "") or None,
+		"cap_nhat_luc": cap_nhat,
 		"nhom": ra,
 	}
 

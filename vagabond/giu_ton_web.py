@@ -7,8 +7,7 @@ Không commit ở đây; lỗi kiểm vẫn đi cách B tại cửa nhận đơn
 import json
 from datetime import datetime, timedelta
 import frappe
-from vagabond.giu_vo import don_con_giu_vo
-from vagabond.ton_don_web import decor_huu_han, hom_nay
+from vagabond.ton_don_web import hom_nay
 
 O = "giu_ton_web"
 # v646 Codex 549 (1eefda8): suất refill đơn web đã giữ, ghi trong snapshot đơn.
@@ -66,39 +65,29 @@ def tinh(hang, ton, giu):
 
 
 def kiem_va_giu(hang, ngay):
-    """Trả cảnh báo và metadata để ghi vào chính đơn sắp tạo, chưa commit."""
+    """Trả cảnh báo và metadata để ghi vào chính đơn sắp tạo, chưa commit.
+
+    v671: hôm nay và ngày mai cùng một luật, số theo cột Có thể bán của phiếu
+    Kiểm bánh ĐÚNG ngày nhận, trừ suất các đơn web cùng ngày nhận mà nhịp đếm
+    chưa có. Ngày xa hơn không giữ: bánh đặt trước chỉ nhận ngày mai
+    (ton_don_web chặn), bánh làm theo mẻ giữ ở kiem_va_giu_refill."""
     if not ngay or not str(ngay).strip():
         return [], None
     ng = datetime.fromisoformat(str(ngay)).date()
     nay = hom_nay()
-    if not nay <= ng <= nay + timedelta(days=3):
+    if not nay <= ng <= nay + timedelta(days=1):
         return [], None
     khoa()
     ton = {}
-    if ng == nay:
-        for d in _dong(ng):
-            ton[str(d.ma_hang)] = (max(0, int(d.co_the_ban or 0)), d.ten_banh or d.ma_hang)
-    else:
-        # v646: mã có ngày nhận nằm trong khoảng refill do ton_don_web kiểm theo
-        # số refill, không giữ theo Đủ decor; đơn ngày refill không trừ decor.
+    for d in _dong(ng):
+        ton[str(d.ma_hang)] = (max(0, int(d.co_the_ban or 0)), d.ten_banh or d.ma_hang)
+    if ng > nay:
+        # Ngày mai thuộc khoảng mẻ refill của mã: đơn trừ vào mẻ (kiem_va_giu_refill).
         from vagabond import refill
-        # Giữ đúng thứ tự khoá cũ: dòng kiểm bánh ba ngày trước, bảng BTP sau.
-        kb = [(nay + timedelta(days=i), _dong(nay + timedelta(days=i))) for i in (1,2,3)]
-        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,decor_da_lam,so_refill,refill_tu,refill_den,refill_dot from `tabBTP Banh O Dong`
+        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,so_refill,refill_tu,refill_den,refill_dot from `tabBTP Banh O Dong`
             where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
         rf = refill.hieu_luc_tu_dong(btp, nay)
-        dd = {}
-        for ngay_kb, dong_kb in kb:
-            for d in dong_kb:
-                ma = str(d.ma_hang)
-                if refill.ngay_cua_refill(rf, ma, ngay_kb):
-                    continue
-                # v649 Codex #552 vòng 7: đơn đã có bánh bếp làm trước thì vỏ đã trừ.
-                dd[ma] = dd.get(ma,0) + don_con_giu_vo(d, ("da_dat",))
-        for d in btp:
-            # v649: decor cạn vì bếp làm hết vẫn chặn (ton_don_web.decor_huu_han).
-            if decor_huu_han(d) and not refill.ngay_cua_refill(rf, str(d.ma_hang), ng):
-                ton[str(d.ma_hang)] = (max(0,int(d.so_decor or 0)-dd.get(str(d.ma_hang),0)),d.ten_banh or d.ma_hang)
+        ton = {m: v for m, v in ton.items() if not refill.ngay_cua_refill(rf, m, ng)}
     giu = {}
     for d in _don():
         snap = json.loads(d.snapshot or '{}')
@@ -106,8 +95,7 @@ def kiem_va_giu(hang, ngay):
         if not b or b.get('da_dem'):
             continue
         ngay_don = datetime.fromisoformat(str(b.get('ngay_nguon') or d.ngay_nhan)).date()
-        cung_nguon = ngay_don == nay if ng == nay else nay < ngay_don <= nay + timedelta(days=3)
-        if cung_nguon:
+        if ngay_don == ng:
             for ma, so in (b.get('dong') or {}).items():
                 giu[ma] = giu.get(ma,0) + int(so)
     thieu, dong = tinh(hang,ton,giu)
@@ -191,8 +179,10 @@ def kiem_va_giu_refill(hang, ngay):
 def da_dem(ngay, cac_id):
     """Đồng bộ KB đã giữ khoa(): đánh dấu trong cùng transaction với số tồn.
 
-    Hôm nay co_the_ban trừ cả Cho chốt; ngày sau nguồn decor chỉ trừ Đã đặt.
-    Bên gọi phải truyền đúng danh sách thực sự dùng để tính cột tương ứng.
+    Có thể bán trừ cả Đã đặt, Phát sinh và Chờ chốt, nên bên gọi truyền mọi
+    đơn giao ngày đó (v671: ngày mai cũng theo Có thể bán, trước đây theo Đủ
+    decor chỉ trừ Đã đặt). Bên gọi phải truyền đúng danh sách thực sự dùng để
+    tính cột tương ứng.
     """
     ids = {str(x) for x in cac_id if x is not None}
     ngay=str(ngay)[:10]
