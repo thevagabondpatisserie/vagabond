@@ -816,6 +816,7 @@ async function scrNoPhaiTra() {
   }
   if (lan !== cntLan) return;
   cntTkCoChon = kq.tk_co_chon || [];
+  cntLanDong = kq.dong;
   cntLoc.cong_ty = kq.cong_ty;
   var html = '<div class="card" style="padding:12px"><b>Dư hóa đơn theo bộ lọc</b><div style="font-size:23px;font-weight:800">' + cntTien(kq,'tong_theo_tien') + '</div>' +
     '<div>' + kq.so_hd + ' hóa đơn · ' + kq.so_ncc + ' NCC</div><div style="font-size:12px">Dư hiện tại ' + ngayNgan(kq.ngay_doc) + '. Chưa bù trả trước/bút toán khác.</div></div>';
@@ -833,7 +834,7 @@ async function scrNoPhaiTra() {
     return '<div class="card" style="padding:12px"><b>' + h(r.supplier_name) + '</b><div style="font-size:12px">' + h(r.ma_ncc) + ' · HĐ ' + h(r.bill_no || 'chưa có số NCC') + '</div>' +
       '<div>' + h(r.name) + ' · ' + ngayNgan(r.ngay) + '</div><b>' + money(r.con_no) + ' ' + h(r.account_currency) + '</b> ' +
       '<span class="badge">' + h(r.trang_thai) + (r.tre_ngay ? ' · trễ ' + r.tre_ngay + ' ngày' : '') + '</span>' + cntBuoc(r) +
-      cntDongCho(r, kq.ke_toan) +
+      cntDongCho(r, kq.ke_toan) + cntDongPhiDt(r) +
       (r.con_no > 0 ? '<button class="btn" data-cntcan="' + i + '">Cấn trừ công nợ</button>' : '') +
       '<button class="btn gh" data-cntdong="' + i + '">Xem chứng từ</button></div>';
   }).join('');
@@ -847,6 +848,8 @@ async function scrNoPhaiTra() {
     if (dy) return cntDuyetTruocErp(dy.getAttribute('data-cntduyet'), dy.getAttribute('data-cntco'));
     var bo = e.target.closest('[data-cntbo]');
     if (bo) return cntBoTruocErp(bo.getAttribute('data-cntbo'));
+    var pd = e.target.closest('[data-cntphidt]');
+    if (pd) return cntMoPhiDt(kq.dong[Number(pd.getAttribute('data-cntphidt'))]);
     var t = e.target.closest('[data-cntdong]');
     if (t) return cntXuLy(kq.dong[Number(t.getAttribute('data-cntdong'))]);
   };
@@ -886,6 +889,125 @@ function cntXuLy(r) {
   });
 }
 
+/* v673: Cấn trừ hoá đơn phí đối tác theo đối soát. Máy tính phí đối tác đã giữ
+   trong kỳ (từ các báo cáo đã nhận ở Đối soát nhà cung cấp), đặt vào đúng hoá
+   đơn bán còn dư hoặc tài khoản chờ tiền về; kế toán lập phiếu, kế toán trưởng
+   xác nhận mới ghi sổ. Một chỗ duy nhất: dòng hoá đơn ở Công nợ phải trả. */
+function cntCoQuyenPhiDt() {
+  return ['Accounts User','Accounts Manager','System Manager'].some(function (v) { return hasRole(v); });
+}
+function cntDongPhiDt(r) {
+  var p = r.phieu_phi || [];
+  if (!p.length) return '';
+  var i = cntLanDong.indexOf(r);
+  return '<div class="card" style="padding:8px 10px;margin:8px 0;background:#fff7e6;font-size:13px">' +
+    '<span class="badge" style="background:#fef0c7;color:#93370d">Chờ xác nhận</span> Phiếu cấn trừ phí ' + h(p[0].name) +
+    ' · ' + money(p[0].tong_bu) + ' đ' + (p.length > 1 ? ' và ' + (p.length - 1) + ' phiếu khác' : '') +
+    '<button class="btn gh" data-cntphidt="' + i + '" style="margin:6px 0 0">Mở phiếu cấn trừ phí</button></div>';
+}
+var cntLanDong = [];
+var CNT_PD_CHIP = 'min-height:44px;display:inline-flex;align-items:center';
+var cntPd = null;
+function cntMoPhiDt(r) {
+  cntPd = {hoa_don: r.name, doi_tac: '', loai: '', tu: '', den: ''};
+  go(scrCntPhiDt);
+}
+function cntPdTien(v) { return money(Math.round(Number(v) || 0)) + ' đ'; }
+function cntPdChip(tt) {
+  var m = {'Nháp': ['#fef0c7', '#93370d', 'Chờ xác nhận'], 'Đã cấn trừ': ['#dcfae6', '#067647', 'Đã cấn trừ'],
+    'Chờ đối soát': ['#fef0c7', '#93370d', 'Chờ hoá đơn bán'], 'Cần kiểm tra': ['#fee4e2', '#b42318', 'Cần kiểm tra'],
+    'Đã hủy': ['#f2f4f7', '#475467', 'Đã huỷ']}[tt] || ['#f2f4f7', '#475467', tt || 'Nháp'];
+  return '<span class="badge" style="background:' + m[0] + ';color:' + m[1] + '">' + h(m[2]) + '</span>';
+}
+async function scrCntPhiDt() {
+  var lan = ++cntLan, kq;
+  frame('Cấn trừ phí đối tác', '<div class="emp">Đang tính phí đối tác đã giữ theo đối soát...</div>');
+  try { kq = await api('vagabond.can_tru_phi.de_xuat', Object.assign({}, cntPd)); }
+  catch (e) {
+    if (lan !== cntLan) return;
+    var l = frame('Cấn trừ phí đối tác', '<div class="card">' + h(e.message || 'Chưa tính được.') + '<button class="btn" id="cntPdLai">Tải lại</button></div>');
+    l.querySelector('#cntPdLai').onclick = function () { go(scrCntPhiDt, true); }; return;
+  }
+  if (lan !== cntLan) return;
+  var hd = kq.hoa_don, ky = kq.ky;
+  cntPd.doi_tac = kq.doi_tac || ''; cntPd.loai = kq.loai; cntPd.tu = ky.tu; cntPd.den = ky.den;
+  var html = '<div class="card" style="padding:12px"><b>HĐ ' + h(hd.bill_no || hd.name) + '</b><div>' + h(hd.ten_ncc) + '</div>' +
+    '<div style="font-size:23px;font-weight:800">' + cntPdTien(hd.con_no) + '</div><div style="font-size:13px;color:#5a6070">Còn nợ · ' + ngayNgan(hd.ngay) + '</div>' +
+    (hd.noi_dung ? '<div style="font-size:13px;color:#5a6070;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(hd.noi_dung) + '</div>' : '') + '</div>';
+  (kq.phieu || []).forEach(function (p) {
+    var tt = p.docstatus === 0 ? 'Nháp' : (p.docstatus === 2 ? 'Đã hủy' : p.trang_thai);
+    html += '<div class="card" style="padding:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(p.name) + '</b>' + cntPdChip(tt) + '</div>' +
+      '<div style="font-size:13px">Bù ' + cntPdTien(p.tong_bu) + ' · kỳ ' + ngayNgan(p.tu) + ' đến ' + ngayNgan(p.den) + (p.but_toan ? ' · bút toán ' + h(p.but_toan) : '') + '</div>' +
+      (p.ly_do ? '<div style="font-size:13px;color:#b42318">' + h(p.ly_do) + '</div>' : '') +
+      (p.docstatus === 0 && kq.quyen.xac_nhan ? '<button class="btn" data-cntpdxn="' + h(p.name) + '">Xác nhận và ghi sổ</button>' : '') +
+      (p.docstatus === 0 && !kq.quyen.xac_nhan ? '<div style="font-size:13px;color:#5a6070">Chờ kế toán trưởng xác nhận.</div>' : '') + '</div>';
+  });
+  var hang = function (nhan, ma, ds, chon, giai) {
+    return '<div style="font-size:13px;color:#5a6070;margin:10px 2px 4px"><b>' + nhan + '</b> · ' + giai + '</div><div class="chips" style="padding:0 2px">' +
+      ds.map(function (x) { return '<div class="chip' + (x.k === chon ? ' on' : '') + '" style="' + CNT_PD_CHIP + '" data-cntpd' + ma + '="' + h(x.k) + '">' + h(x.ten) + '</div>'; }).join('') + '</div>';
+  };
+  /* Kỳ trên hoá đơn trùng một tháng thì chỉ giữ một chip (tô đậm một chỗ). */
+  var kyDs = [];
+  kq.ky_ds.forEach(function (x) {
+    var k = x.tu + '|' + x.den;
+    if (kyDs.some(function (y) { return y.k === k; })) return;
+    kyDs.push({k: k, ten: x.ten === 'Kỳ trên hoá đơn' ? (ngayNgan(x.tu).slice(0, 5) + ' đến ' + ngayNgan(x.den).slice(0, 5)) : x.ten});
+  });
+  html += hang('Đối tác', 'dt', kq.doi_tac_ds, kq.doi_tac, kq.doi_tac ? 'máy nhận ra theo nhà cung cấp, đổi nếu sai' : 'chọn đối tác đã giữ phí');
+  html += hang('Loại phí', 'loai', kq.loai_ds, kq.loai, kq.loai === 'ky' ? 'phí không gắn đơn như quảng cáo' : 'hoa hồng, phí thẻ của từng đơn');
+  html += hang('Kỳ', 'ky', kyDs, ky.tu + '|' + ky.den, 'từ ' + ngayNgan(ky.tu) + ' đến ' + ngayNgan(ky.den) + ' (' + h(ky.doan) + ')');
+  if (kq.so_dong !== undefined) {
+    html += '<div class="card" style="padding:12px;margin-top:12px"><b>Theo đối soát</b>' +
+      '<div style="display:flex;justify-content:space-between"><span>Phí đối tác đã giữ</span><b>' + cntPdTien(kq.tong_doi_soat) + '</b></div>' +
+      '<div style="font-size:13px;color:#5a6070">' + kq.so_dong + ' dòng, ' + kq.so_nguon + ' báo cáo' + (kq.nguon_chua_xn ? ', ' + kq.nguon_chua_xn + ' báo cáo chưa xác nhận đối soát' : '') + '</div>' +
+      (kq.da_bu_truoc ? '<div style="display:flex;justify-content:space-between"><span>Đã bù cho hoá đơn khác</span><span>' + cntPdTien(kq.da_bu_truoc) + '</span></div>' : '') +
+      '<div style="display:flex;justify-content:space-between;margin-top:4px"><span>Số sẽ bù cho hoá đơn này</span><b>' + cntPdTien(kq.can_bu) + '</b></div>' +
+      (Math.abs(kq.lech) >= 1 ? '<div style="font-size:13px;color:#93370d;margin-top:4px">Hoá đơn còn ' + cntPdTien(kq.lech) + ' không có trong đối soát của kỳ: kiểm lại kỳ, loại phí hoặc hỏi đối tác. Phần này giữ nguyên dư nợ.</div>' : '') + '</div>';
+  }
+  if (kq.ly_do) html += '<div class="card" style="padding:12px;background:#fef3f2;font-size:13.5px;color:#b42318">' + h(kq.ly_do) + '</div>';
+  if ((kq.dinh_khoan || []).length) {
+    html += '<div class="card" style="padding:12px"><b>Bút toán khi ghi sổ</b>' + kq.dinh_khoan.map(function (d) {
+      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px;margin-top:4px"><span style="min-width:0;overflow-wrap:anywhere">' +
+        d.ve + ' ' + h(d.tk) + (d.doi ? ' · ' + h(d.doi) : '') + '</span><b style="flex:none">' + cntPdTien(d.so) + '</b></div>';
+    }).join('') + '<div style="font-size:12.5px;color:#5a6070;margin-top:6px">Không chuyển tiền. Kế toán trưởng xác nhận mới ghi sổ.</div></div>';
+  }
+  var nhan = kq.quyen.xac_nhan ? 'Lập phiếu và ghi sổ' : 'Lập phiếu, gửi kế toán trưởng';
+  var b = frame('Cấn trừ phí đối tác', html, {footer: '<button class="btn' + (kq.lap_duoc ? '' : ' gh') + '" id="cntPdLap"' + (kq.lap_duoc ? '' : ' disabled') + '>' + nhan + '</button>'});
+  /* Chip đang chọn nằm khuất bên phải (OnePay, Payoo...) thì cuộn hàng chip tới nó. */
+  b.querySelectorAll('.chip.on').forEach(function (c) { c.parentNode.scrollLeft = Math.max(0, c.offsetLeft - 16); });
+  b.onclick = async function (e) {
+    var c = e.target.closest('[data-cntpddt]');
+    if (c) { cntPd.doi_tac = c.getAttribute('data-cntpddt'); return go(scrCntPhiDt, true); }
+    c = e.target.closest('[data-cntpdloai]');
+    if (c) { cntPd.loai = c.getAttribute('data-cntpdloai'); return go(scrCntPhiDt, true); }
+    c = e.target.closest('[data-cntpdky]');
+    if (c) { var k = c.getAttribute('data-cntpdky').split('|'); cntPd.tu = k[0]; cntPd.den = k[1]; return go(scrCntPhiDt, true); }
+    c = e.target.closest('[data-cntpdxn]');
+    if (c) return cntPdXacNhan(c.getAttribute('data-cntpdxn'));
+  };
+  var nut = document.getElementById('cntPdLap');
+  if (nut && kq.lap_duoc) nut.onclick = async function () {
+    if (!await confirmSheet(nhan + '?', 'Bù ' + cntPdTien(kq.can_bu) + ' phí ' + (kq.doi_tac_ds.filter(function (x) { return x.k === kq.doi_tac; })[0] || {}).ten +
+      ' đã giữ trong kỳ ' + ngayNgan(ky.tu) + ' đến ' + ngayNgan(ky.den) + ' vào hoá đơn ' + (hd.bill_no || hd.name) + '.\n\nBấm là xác nhận đã kiểm phí này đúng là đối tác đã trừ khi chuyển tiền. Không chuyển tiền.', nhan)) return;
+    busy(true);
+    try {
+      var x = await api('vagabond.can_tru_phi.lap', Object.assign({}, cntPd));
+      if (kq.quyen.xac_nhan) { busy(false); return cntPdXacNhan(x.name, true); }
+      toast('Đã lập ' + x.name + '. Chờ kế toán trưởng xác nhận.', 4000);
+    } catch (er) { busy(false); return baoTin(errMsg(er)); }
+    busy(false); go(scrCntPhiDt, true);
+  };
+}
+async function cntPdXacNhan(ten, khongHoi) {
+  if (!khongHoi && !await confirmSheet('Xác nhận phiếu ' + ten + '?', 'Máy kiểm lại phiếu rồi ghi sổ bút toán cấn trừ. Hoá đơn bán chưa có số hoá đơn điện tử thì phiếu chờ, tự ghi sổ khi đủ.', 'Xác nhận và ghi sổ')) return;
+  busy(true);
+  try {
+    var x = await api('vagabond.can_tru_phi.xac_nhan', {ten: ten});
+    toast(x.but_toan ? 'Đã ghi sổ ' + x.but_toan + '. Dư hoá đơn phí đã giảm.' : (x.trang_thai + (x.ly_do ? ': ' + x.ly_do : '')), 6000);
+  } catch (er) { busy(false); return baoTin(errMsg(er)); }
+  busy(false); go(scrCntPhiDt, true);
+}
+
 /* UNC gắn vào khoản đã chi, không dùng ảnh thay cho chứng từ thanh toán. */
 async function cntCanTru(r) {
   /* v549: hóa đơn trả trước khi lên ERP (Printeco 04/04/2026) không có phiếu
@@ -898,9 +1020,13 @@ async function cntCanTru(r) {
   var ds;
   try {ds=await api('vagabond.cong_no_ncc.khoan_da_tra',{hoa_don:r.name});}
   catch(e){return baoTin(e.message || 'Chưa đọc được khoản đã trả. Tải lại rồi thử.');}
-  if (!ds.rows.length) return cntMoTruocErp(r);
+  /* v673 (chị Dung 18/11/2026): hoá đơn phí của Grab, Shopee, OnePay... treo
+     331 dù tiệm không chuyển tiền, vì đối tác đã giữ phí khi chuyển tiền bán. */
+  var phiDt = r.phi_doi_tac && cntCoQuyenPhiDt() ? [{value:'__phi_dt',label:'Phí đối tác đã giữ lại',phu:'Grab, Shopee, Xanh SM, OnePay, Payoo, Shinhan: cấn theo đối soát'}] : [];
+  if (!ds.rows.length && !phiDt.length) return cntMoTruocErp(r);
   sheet('Chọn khoản đã trả',ds.rows.map(function(p){return {value:p.name,label:p.name+' · còn '+money(p.con_coc)+' đ',phu:ngayNgan(p.ngay)+' · '+p.unc.length+' UNC'};})
-    .concat([{value:'__truoc_erp',label:'Đã trả trước khi lên ERP',phu:'Không có phiếu chi trên ERP'}]),'',function(x){
+    .concat(phiDt).concat([{value:'__truoc_erp',label:'Đã trả trước khi lên ERP',phu:'Không có phiếu chi trên ERP'}]),'',function(x){
+    if (x.value === '__phi_dt') return cntMoPhiDt(r);
     if (x.value === '__truoc_erp') return cntMoTruocErp(r);
     var pe=ds.rows.filter(function(p){return p.name===x.value;})[0];
     go(function(){cntManCan(r,ds,pe);});

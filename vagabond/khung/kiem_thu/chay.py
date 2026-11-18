@@ -263,6 +263,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_bai_dang_672,
 	# v672 Google: tệp Merchant và trang từng bánh, kênh Google Posts.
 	thu_google_672,
+	thu_chi_phi_242_674, thu_chi_phi_meta_674,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.
 	thu_quy_tac_chu_657,
 	# v657 máy mở app qua đêm vẫn chạy bản cũ: hỏi số bản máy chủ, tải lại.
@@ -320,6 +321,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_hd_dieu_chinh_666,
 	# v667 tiền nộp thừa trả OnePay ở đơn Pancake cũ (Loan Anh, đơn 97790).
 	thu_tien_du_onepay_667,
+	# v673 (chị Dung 18/11/2026): chọn tiền về khi trùng số tiền; cấn trừ hoá đơn phí đối tác theo đối soát.
+	thu_chon_tien_ve_673, thu_can_tru_phi_673,
 )
 
 

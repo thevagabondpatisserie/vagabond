@@ -354,6 +354,14 @@ def dung():
 	from vagabond import xuat_noi_bo
 
 	_dung_nhom(xuat_noi_bo.TRUONG_MOI, "xuat_noi_bo")
+	# v674: số tháng phân bổ trên phiếu xuất CCDC (chèn sau ô mục đích ở trên),
+	# ô khoản 242 trên dòng bút toán, khoá bút toán máy lập theo tháng, ô Cài
+	# đặt đọc chi phí quảng cáo Meta.
+	from vagabond import but_toan_nhap, chi_phi_242, quang_cao_meta
+
+	_dung_nhom(chi_phi_242.TRUONG_MOI, "chi_phi_242")
+	_dung_nhom(but_toan_nhap.TRUONG_MOI, "but_toan_nhap")
+	_dung_nhom(quang_cao_meta.TRUONG_MOI, "quang_cao_meta")
 	# O ly do tra va anh hang loi tren phieu nhap mua tra lai.
 	from vagabond import tra_ncc
 

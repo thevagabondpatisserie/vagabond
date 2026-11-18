@@ -530,8 +530,11 @@ def _():
 	def co_khoa(f):
 		return any(isinstance(n, ast.With) and any(getattr(getattr(i.context_expr, "func", None), "id", None) == "khoa_doi_chieu"
 			for i in n.items) for n in ast.walk(f))
-	la("ai gọi _tien_ve", sorted(x for x, f in ham.items() if goi(f, "_tien_ve")), ["_doi_chieu", "do_lai_tien_ve"])
-	dung("do_lai_tien_ve giữ khoá", co_khoa(ham["do_lai_tien_ve"]))
+	# v673: kế toán chọn tay tiền về (chon_tien_ve, bo_chon_tien_ve) là hai lối gọi mới, cùng phải giữ khoá.
+	la("ai gọi _tien_ve", sorted(x for x, f in ham.items() if goi(f, "_tien_ve")),
+		["_doi_chieu", "bo_chon_tien_ve", "chon_tien_ve", "do_lai_tien_ve"])
+	for x in ("do_lai_tien_ve", "chon_tien_ve", "bo_chon_tien_ve"):
+		dung(x + " giữ khoá", co_khoa(ham[x]))
 
 
 class KhoDoiGiua(Kho):

@@ -339,6 +339,9 @@ TIN = {
 	# v666 (anh Việt 17/11/2026): Marketing gửi giám đốc duyệt; giám đốc duyệt, đồng ý nội dung hay trả lại.
 	"mkt_bai_gd_duyet": ("Marketing", "Giám đốc duyệt hoặc trả lại bài đăng",
 		"Giám đốc vừa duyệt, đồng ý nội dung hoặc trả lại kèm góp ý một bài đăng gửi giám đốc duyệt.", "viec", "don_web"),
+	# v674 (anh Việt 18/11/2026): đọc chi phí quảng cáo Meta (quang_cao_meta.py) bị dừng.
+	"mkt_meta_loi": ("Marketing", "Đọc chi phí quảng cáo Meta bị dừng",
+		"Mã Meta hết hạn, thiếu quyền hoặc bị từ chối: số chi quảng cáo ngừng cập nhật. Mỗi lỗi báo một lần mỗi ngày.", "canh_bao", "he_thong"),
 	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",

@@ -1,0 +1,189 @@
+{
+ "actions": [],
+ "autoname": "field:khoa",
+ "creation": "2026-11-18 16:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "khoa",
+  "ngay",
+  "tai_khoan",
+  "ten_tai_khoan",
+  "chien_dich",
+  "ten_chien_dich",
+  "col_1",
+  "so_tien",
+  "tien_te",
+  "mui_gio",
+  "dong_bo_luc",
+  "nguon"
+ ],
+ "fields": [
+  {
+   "fieldname": "khoa",
+   "fieldtype": "Data",
+   "label": "Khoá (tài khoản:ngày:chiến dịch)",
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngày (theo múi giờ tài khoản)",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "tai_khoan",
+   "fieldtype": "Data",
+   "label": "Tài khoản quảng cáo",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ten_tai_khoan",
+   "fieldtype": "Data",
+   "label": "Tên tài khoản quảng cáo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chien_dich",
+   "fieldtype": "Data",
+   "label": "Mã chiến dịch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_chien_dich",
+   "fieldtype": "Data",
+   "label": "Tên chiến dịch",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "col_1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Float",
+   "label": "Số đã tiêu",
+   "read_only": 1,
+   "precision": "2",
+   "in_list_view": 1,
+   "description": "Số Meta báo đã tiêu, chưa phải số trừ thẻ."
+  },
+  {
+   "fieldname": "tien_te",
+   "fieldtype": "Data",
+   "label": "Tiền tệ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mui_gio",
+   "fieldtype": "Data",
+   "label": "Múi giờ tài khoản",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dong_bo_luc",
+   "fieldtype": "Datetime",
+   "label": "Đọc lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Data",
+   "label": "Nguồn",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-18 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Chi Phi Quang Cao Ngay",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Kiểm soát (FIN)",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Vagabond Bao cao",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "ngay",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

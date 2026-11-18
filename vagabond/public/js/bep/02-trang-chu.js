@@ -221,6 +221,8 @@ async function scrHome() {
       /* v662 Bài đăng mạng xã hội (75-bai-dang.js): Marketing tải ảnh, AI soạn chữ, duyệt, đăng tay. */
       (coQuyenBaiDang() ? card('🗓️', 'Bài đăng mạng xã hội', 'Lịch đăng Facebook, Instagram, Threads, Zalo OA: tải ảnh, AI soạn chữ, duyệt', 0, 'BAIDANG') : '') +
       /* v668 Gợi ý mua thêm (78-mon-di-kem.js): duyệt cặp Món đi kèm, mức giữ tại bếp, kết quả. */
+      /* v674 Chi phí quảng cáo Meta theo ngày (80-chi-phi-meta.js): số tham khảo cho Marketing. */
+      (coQuyenQcMeta() ? card('📈', 'Chi phí quảng cáo Meta', 'Số Meta đã tiêu theo ngày, cạnh doanh thu web', 0, 'QCMETA') : '') +
       (coQuyenMonDiKem() ? card('🥐', 'Món đi kèm', 'Duyệt món gợi ý mua thêm trên web, mức giữ bánh khô tại bếp, kết quả', 0, 'MONDK') : '') +
       (isSales() ? card('🎁', 'Tặng quà khách VIP', 'Lên danh sách, chia việc, theo dõi đã tặng và đã liên hệ', 0, 'TQV') : '') + '</div>';
   }
@@ -329,6 +331,9 @@ async function scrHome() {
          tai khoan tieng Viet ma chi hai but toan go tay, va khong mot tai
          san nao duoc khai. */
       card('🏗️', 'Tài sản và công cụ dụng cụ', 'Khai tài sản, chạy khấu hao và phân bổ 242 hàng tháng', 0, 'TS') +
+      /* v674 (anh Việt 18/11/2026): Bảng kê 242 và đối soát chi phí Meta (79, 80). */
+      card('📅', 'Bảng kê chi phí trả trước 242', 'Khoản đã vào 242, khai số tháng, bút toán phân bổ hằng tháng', 0, 'CP242') +
+      card('📣', 'Đối soát chi phí Meta', 'Sao kê thẻ, ba con số, bút toán nháp Nợ 6417 Có 3411', 0, 'DSMETA') +
       /* Bien nhan nop tien mat, ban cua KE TOAN: bay phieu cua MOI nguoi,
          loc theo diem ban, xuat Excel. Nhan vien lap phieu o o cung ten
          ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
@@ -643,13 +648,13 @@ var VGB_NHOM = [
      mẫu 27/10/2026. */
   {
     k: 'KHG', ten: 'Khách hàng & Marketing', icon: '💝',
-    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'BAIDANG', 'MONDK', 'TQV'],
+    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'CRMZL', 'BAIDANG', 'QCMETA', 'MONDK', 'TQV'],
     nhom: [
       { t: 'Việc hôm nay', p: '', keys: ['CRMGOI'] },
       { t: 'Hồ sơ khách', p: '', keys: ['KH', 'CRMNHOM', 'CRMDY'] },
       { t: 'Chiến dịch', p: '', keys: ['CRMCD', 'CRMHQ', 'TQV'] },
       { t: 'Tin tự động', p: '', keys: ['CRMZL'] },
-      { t: 'Mạng xã hội', p: '', keys: ['BAIDANG'] },
+      { t: 'Mạng xã hội', p: '', keys: ['BAIDANG', 'QCMETA'] },
       { t: 'Web đặt bánh', p: '', keys: ['MONDK'] }
     ]
   },
@@ -689,12 +694,12 @@ var VGB_NHOM = [
   },
   {
     k: 'KT', ten: 'Kế toán', icon: '🧮',
-    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'DUCHI', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'TCQUY', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
+    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'DUCHI', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'CP242', 'DSMETA', 'NQ', 'TCQUY', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
     nhom: [
       { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'BC:BC05'] },
       { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT', 'DUCHI'] },
       { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ', 'TCQUY'] },
-      { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] },
+      { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'CP242', 'DSMETA', 'DUYETTANG'] },
       { t: 'Giá thành', p: 'định giá bán', keys: ['GVT'] }
     ]
   },
@@ -1907,6 +1912,7 @@ var VGB_DUONG = {
   'bang-bep-hom-nay': 'KIT',
   'bang-gia': 'BGIA',
   'bang-gia-theo-diem-ban': 'BGDB',
+  'bang-ke-chi-phi-tra-truoc': 'CP242',
   'bao-cao': 'BCHUB',
   'bien-nhan-nop-tien-mat': 'BNTM',
   'bien-tap-menu': 'BTM',
@@ -1916,6 +1922,7 @@ var VGB_DUONG = {
   'cai-dat-tai-chinh': 'TCCD',
   'cai-dat-tu-dong-hoa': 'CDTDH',
   'canh-bao-thanh-toan': 'CBTT',
+  'chi-phi-quang-cao-meta': 'QCMETA',
   'chi-phi-van-don': 'CPX',
   'chien-dich': 'CRMCD',
   'chuong-thong-bao': 'CHUONG',
@@ -1929,6 +1936,7 @@ var VGB_DUONG = {
   'diem-ban': 'CDDB',
   'doanh-so': 'DS',
   'doi-chieu-mua': 'DCM',
+  'doi-soat-chi-phi-meta': 'DSMETA',
   'doi-soat-chuyen-khoan': 'DSCK',
   'doi-soat-cod': 'DSCOD',
   'doi-soat-nha-cung-cap': 'DSVN',
@@ -2308,6 +2316,9 @@ function vgbGo(k) {
   if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);
   if (k === 'TS') return go(scrTaiSan);
+  if (k === 'CP242') return go(function () { return scrCp242(); });
+  if (k === 'DSMETA') return go(function () { return scrDsMeta(); });
+  if (k === 'QCMETA') return go(function () { return scrQcMeta(); });
   if (k === 'GVT') return go(scrGiaVonTam);
   if (k === 'BT') return go(scrButToan);
   if (k === 'QLND') return go(scrNguoiDung);

@@ -335,7 +335,7 @@ Hàng ra khỏi kho mà tiệm vẫn dùng. Tồn chỉ trừ khi quản lý kho
 **Các bước**
 1. Mở Xuất dùng nội bộ, bấm nút +.
 2. Chọn kho xuất.
-3. Chọn Mục đích: Marketing chụp ảnh, quay phim; Mẫu thử, nghiên cứu công thức; Mời khách, tặng đối tác; Nhân viên ăn ca; Đào tạo, huấn luyện; Việc nội bộ khác.
+3. Chọn Mục đích: Marketing chụp ảnh, quay phim; Mẫu thử, nghiên cứu công thức; Mời khách, tặng đối tác; Nhân viên ăn ca; Đào tạo, huấn luyện; Đưa công cụ dụng cụ vào dùng; Việc nội bộ khác.
 4. Chọn Bộ phận chịu chi phí (máy gợi ý theo mục đích).
 5. Bấm [[+ Thêm hàng]], chọn món, gõ số lượng.
 6. Ghi chú, bấm [[Lưu phiếu, chờ quản lý ghi sổ]].
@@ -355,6 +355,39 @@ Hàng ra khỏi kho mà tiệm vẫn dùng. Tồn chỉ trừ khi quản lý kho
 
 **Lưu ý**
 - Chọn "Việc nội bộ khác" thì ghi rõ ở Ghi chú. Ảnh không bắt buộc.
+
+## Đưa công cụ dụng cụ vào dùng: phân bổ một lần hay nhiều tháng
+Từ khoá: công cụ dụng cụ, CCDC, xuất dùng CCDC, khuôn, phân bổ nhiều kỳ, 242
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp, Cửa hàng xin; Quản lý kho ghi sổ | Xuất dùng nội bộ (/xuat-dung-noi-bo) | [[Lưu phiếu, chờ quản lý ghi sổ]] |
+
+CCDC mua về nằm ở kho Tổng; bộ phận cần dùng thì lập phiếu này.
+
+**Các bước**
+1. Mở Xuất dùng nội bộ, bấm nút +, chọn kho xuất.
+2. Mục đích chọn Đưa công cụ dụng cụ vào dùng.
+3. Cách phân bổ: Phân bổ một lần (đồ rẻ, dùng nhanh hỏng) hoặc Phân bổ nhiều tháng (khuôn, thiết bị dùng lâu).
+4. Phân bổ nhiều tháng thì chọn Số tháng phân bổ.
+5. Chọn Bộ phận chịu chi phí (bộ phận dùng đồ), bấm [[+ Thêm hàng]], chọn món, gõ số lượng.
+6. Bấm [[Lưu phiếu, chờ quản lý ghi sổ]]. Quản lý kho mở phiếu, bấm [[Ghi sổ phiếu này]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa chọn cách phân bổ công cụ dụng cụ | Chọn Phân bổ một lần hoặc Phân bổ nhiều tháng |
+| Chưa chọn số tháng phân bổ | Chọn số tháng trên hàng chip |
+| Mục đích Đưa công cụ dụng cụ vào dùng chỉ dành cho món nhóm Công cụ Dụng cụ | Bỏ món khác nhóm hoặc chọn mục đích khác |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 6273 (bếp, sản xuất), 6413 (bán hàng), 6423 (quản lý) theo bộ phận | Tài khoản kho xuất | Phân bổ một lần, khi quản lý ghi sổ |
+| 242 | Tài khoản kho xuất | Phân bổ nhiều tháng, khi quản lý ghi sổ; khoản tự lên Bảng kê 242 |
+
+**Lưu ý**
+- Phiếu phân bổ nhiều tháng ghi sổ xong có nút Mở khoản trong Bảng kê 242.
 
 ## Xuất kho phục vụ bán hàng: chốt bao bì, nguyên liệu tại điểm bán
 Từ khoá: xuất kho phục vụ bán hàng, chốt kho điểm bán, chốt bao bì, xuất bao bì, túi hộp ly, nguyên liệu pha chế, đếm còn lại, xuất dùng cửa hàng, công cụ dụng cụ quầy, văn phòng phẩm, PXD

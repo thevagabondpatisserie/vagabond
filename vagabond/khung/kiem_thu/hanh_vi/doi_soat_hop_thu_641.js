@@ -80,8 +80,13 @@ function mayChu(canh) {
           quyen: canh.quyen || { xac_nhan: 1, duyet: 0, cua_minh: 0 },
           can_cu: canh.canCu === false ? null : { name: 'DST-1', nguoi_gui: 'OnePay <no-reply@onepay.vn>', nhan_luc: '2026-11-06 08:02:00',
             ky_boi: 'onepay.vn', sha256: '9f2c…b71a' },
-          them: { tien_ve: '', ban_sua: [], phi_vuot: canh.phiVuot || null }, dong: [], con: 0 };
+          them: Object.assign({ tien_ve: '', ban_sua: [], phi_vuot: canh.phiVuot || null }, canh.them || {}), dong: [], con: 0 };
       }
+      // v673 chọn tiền về khi trùng số tiền.
+      if (m === 'vagabond.doi_soat_vendor.ung_vien_tien_ve') return { can_ve: 5503254, chon: '', ds: [
+        { name: 'BT-1', ngay: '2026-11-17', tien: 5503254, mo_ta: 'GRAB TT NVHTN', cung_so: true },
+        { name: 'BT-2', ngay: '2026-11-17', tien: 5503254, mo_ta: 'GRAB TT SALES', cung_so: true }] };
+      if (m === 'vagabond.doi_soat_vendor.chon_tien_ve' || m === 'vagabond.doi_soat_vendor.bo_chon_tien_ve') return { ok: 1 };
       if (m === 'vagabond.doi_soat_vendor.duyet_nguon') return { ok: 1 };
       if (m === 'vagabond.doi_soat_vendor.tu_choi_nguon') return { ok: 1 };
       if (m === 'vagabond.doi_soat_vendor.xac_nhan_nguon') return { ok: 1 };
@@ -133,6 +138,7 @@ function appMoi(canh) {
     'function errMsg(e) { return String((e && e.message) || e); }',
     'var __hoi = []; function confirmSheet(t, m, ok, nguy) { __hoi.push(t + "|" + m); return Promise.resolve(__canh.dongY !== false); }',
     'function api(m, a) { return __mc.api(m, a); }',
+    'var __sheet = {}; function sheet(t, ds, chon, cb) { __sheet.ds = ds; __sheet.cb = cb; }',
     'async function scrHome() { frame(APPNAME, "<div></div>"); }',
   ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc, __canh: canh }));
   vm.runInContext(doc('01-khung-app.js'), g);
@@ -342,6 +348,31 @@ async function moChiTiet(canh) {
     var app = await moChiTiet({ phiVuot: { tong: 2544, ct: [{ the: 'MASTERCARD', vung: 'DOMESTIC', mdr: 2.5, bieu: 1.44, du: 2544, gop: 240000 }] } });
     var c = app.chu();
     dung('phí', c.indexOf('Phí thu cao hơn biểu phí hợp đồng') >= 0 && c.indexOf('thu 2,5%, hợp đồng 1,44%, dư <b>2544 đ</b>') >= 0);
+  });
+
+  await ca('v673 Trùng số tiền: kế toán bấm Chọn tiền về, chọn BT-2, máy chủ nhận đúng nguồn và giao dịch', async function () {
+    var ct = nguon('DSN-1', { vendor: 'GrabFood', trang_thai_tien: 'Cần chọn tiền về' });
+    var app = await moChiTiet({ ct: ct, them: { chon_tien_ve: true, tien_ve_chon: '' },
+      buoc: { tt: 'xxxvxn', hien: 4, ghi: 'Trùng số tiền, kế toán chọn', nhan: NHAN, xac_nhan_duoc: 0 } });
+    await app.bam(app.mot('#dsvnChonTien'));
+    bang('hỏi ứng viên đúng nguồn', app.mc.cuoi('vagabond.doi_soat_vendor.ung_vien_tien_ve').a, { name: 'DSN-1' });
+    bang('hai giao dịch trong hộp chọn', app.g.__sheet.ds.map(function (x) { return x.value; }), ['BT-1', 'BT-2']);
+    app.g.__sheet.cb(app.g.__sheet.ds[1]); await nghi(); await nghi();
+    bang('chọn đúng', app.mc.cuoi('vagabond.doi_soat_vendor.chon_tien_ve').a, { name: 'DSN-1', gd: 'BT-2' });
+    dung('hỏi trước khi dùng', app.g.__hoi.some(function (t) { return t.indexOf('Dùng giao dịch này?') === 0 && t.indexOf('Nguồn khác không dùng được') > 0; }));
+    bang('busy cân bằng', app.g.__ban, 0);
+  });
+
+  await ca('v673 đã chọn: có nút Đổi và Bỏ lựa chọn; vai không xác nhận được thì không thấy khối chọn', async function () {
+    var app = await moChiTiet({ ct: nguon('DSN-1', { trang_thai_tien: 'Đã thấy tiền về', giao_dich_ngan_hang: 'BT-2' }),
+      them: { chon_tien_ve: true, tien_ve_chon: 'BT-2' } });
+    dung('nói giao dịch đã chọn', app.chu().indexOf('Kế toán đã chọn giao dịch <b>BT-2</b>') >= 0);
+    await app.bam(app.mot('#dsvnBoChonTien'));
+    bang('bỏ chọn đúng nguồn', app.mc.cuoi('vagabond.doi_soat_vendor.bo_chon_tien_ve').a, { name: 'DSN-1' });
+    var app2 = await moChiTiet({ them: { chon_tien_ve: true }, quyen: { xac_nhan: 0, duyet: 0, cua_minh: 0 } });
+    bang('không khối chọn', app2.tim('#dsvnChonTien').length, 0);
+    var app3 = await moChiTiet({});
+    bang('nguồn không cần chọn thì không có khối', app3.tim('#dsvnChonTien').length, 0);
   });
 
   console.log('Doi soat hop thu 641: ' + ket.dat + ' dat, ' + ket.hong + ' hong');

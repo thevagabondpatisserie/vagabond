@@ -137,6 +137,8 @@ MAN = (
 	("BAIDANG", "Bài đăng mạng xã hội", None),
 	# v668 Gợi ý mua thêm: duyệt bảng Món đi kèm, mức giữ tại bếp (goi_y_mua.py, 78-mon-di-kem.js).
 	("MONDK", "Món đi kèm", None),
+	# v674 Chi phí quảng cáo Meta theo ngày cho Marketing (quang_cao_meta.py, 80-chi-phi-meta.js).
+	("QCMETA", "Chi phí quảng cáo Meta", None),
 	("TRUKHO", "Hoá đơn chưa trừ kho", None),
 	# --- Nhan su (HRM). Anh Viet chot 01/09/2026, lam trong app Vagabond
 	# chu chua cai phan he HR cua Frappe.
@@ -174,6 +176,9 @@ MAN = (
 	("PTDON", "Đơn chứng từ thu", None),
 	("NHAPSK", "Nhập sao kê", None),
 	("TS", "Tài sản", None),
+	# v674 Bảng kê 242 và đối soát chi phí Meta (chi_phi_242.py, chi_phi_meta.py, 79-chi-phi-242.js, 80-chi-phi-meta.js).
+	("CP242", "Bảng kê chi phí trả trước", None),
+	("DSMETA", "Đối soát chi phí Meta", None),
 	("BT", "Bút toán", None),
 	("GVT", "Giá vốn tạm tính", None),
 	("DNC", "Thanh toán nội bộ", None),

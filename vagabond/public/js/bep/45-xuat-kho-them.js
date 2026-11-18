@@ -35,7 +35,7 @@ Van dung lai khung san co cua 03: `frame`, `vxTheRow`, `scrXkChonHang`,
 
 var XKT = {
   /* Trang thai man Xuat dung noi bo */
-  nb: { gio: [], kho: '', mucDich: '', boPhan: '', ghiChu: '', anh: '', tab: 'cho', nhom: '', ngay: 30, tim: '' },
+  nb: { gio: [], kho: '', mucDich: '', boPhan: '', ghiChu: '', anh: '', cachPb: null, soKy: null, tab: 'cho', nhom: '', ngay: 30, tim: '' },
   /* Trang thai man Tra nha cung cap */
   tra: { ncc: '', tenNcc: '', phieu: '', tenPhieu: '', lyDo: '', ghiChu: '', anh: '', dong: [], tab: '', nhom: '', ngay: 30, tim: '' },
   /* Trang thai man Xuat ban si */
@@ -121,6 +121,22 @@ function xktOChip(id, ic, nhan, ds, dangChon, opt) {
     '<div id="' + id + '">' + xktChipNhom(ds, dangChon, 'data-' + id) + '</div>' +
     (opt.mo !== undefined ? '<div class="vfm" id="' + id + 'Mo">' + h(opt.mo || '') + '</div>' : '') +
     '</div>';
+}
+
+/* v674: khối chip lựa chọn theo chuẩn chạm mới (AGENTS.md 2b.13): chip cao 44, chữ từ
+   13, dòng giải thích 13. Dùng cho phần chọn phân bổ CCDC; khối xktOChip cũ giữ nguyên để
+   không đổi giao diện các màn xuất kho khác trong PR này. */
+function xktOChipLon(id, ic, nhan, ds, dangChon, mo) {
+  return '<div class="vf" id="' + id + 'O">' +
+    '<div style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:6px"><span>' + ic + '</span><b>' + h(nhan) + '</b></div>' +
+    /* Ít lựa chọn nên xuống dòng thay vì cuộn ngang: chip đang chọn luôn nằm trong tầm nhìn. */
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 8px">' + ds.map(function (n) {
+      var on = dangChon === n.k;
+      return '<button type="button" data-' + id + '="' + h(n.k) + '" aria-pressed="' + (on ? 'true' : 'false') + '" style="flex:0 0 auto;width:auto;min-height:44px;padding:0 14px;border-radius:22px;' +
+        'border:1px solid ' + (on ? '#0B7C93' : '#d0d5dd') + ';background:' + (on ? '#e6f8fb' : '#fff') + ';font:inherit;font-size:14px;font-weight:' + (on ? 800 : 600) +
+        ';color:' + (on ? '#05323C' : '#344054') + '">' + h(n.ten) + '</button>';
+    }).join('') + '</div>' +
+    (mo ? '<div style="font-size:13px;color:#667085;line-height:1.5;margin:0 0 8px">' + h(mo) + '</div>' : '') + '</div>';
 }
 
 function xktCss() {
@@ -528,6 +544,11 @@ async function scrXkNbNew() {
   var mucDichs = (b.muc_dich || []).map(function (m) { return { k: m.ma, ten: m.ten }; });
   var bpItems = xktBoPhanItems(b.bo_phan);
 
+  function moPhanBo() {
+    for (var i = 0; i < (b.cach_phan_bo || []).length; i++) if (b.cach_phan_bo[i].ma === st.cachPb) return b.cach_phan_bo[i].mo;
+    return 'Đồ dùng lâu (khuôn, thiết bị) nên phân bổ nhiều tháng; đồ rẻ dùng nhanh hỏng thì phân bổ một lần.';
+  }
+
   function moMucDich() {
     for (var i = 0; i < b.muc_dich.length; i++) if (b.muc_dich[i].ma === st.mucDich) return b.muc_dich[i].mo;
     return 'Chọn mục đích để máy ghi chi phí vào đúng chỗ.';
@@ -538,6 +559,12 @@ async function scrXkNbNew() {
     return '<div class="vxf">' +
       kho.html +
       xktOChip('nbmd', '🎯', 'Mục đích xuất dùng', mucDichs, st.mucDich, { batBuoc: 1, mo: moMucDich() }) +
+      /* v674 (Khải báo 18/11/2026): đưa công cụ dụng cụ vào dùng thì chọn phân
+         bổ một lần hay nhiều tháng. Máy chủ kiểm lại (thieu_phan_bo). */
+      (st.mucDich === 'ccdc' ? xktOChipLon('nbpb', '🧮', 'Cách phân bổ', (b.cach_phan_bo || []).map(function (c) { return { k: c.ma, ten: c.ten }; }),
+        st.cachPb, moPhanBo()) +
+        (st.cachPb === 'nhieu_ky' ? xktOChipLon('nbsk', '📅', 'Số tháng phân bổ', (b.chon_so_ky || []).map(function (n) { return { k: String(n), ten: n + ' tháng' }; }),
+          st.soKy ? String(st.soKy) : '', st.soKy ? 'Mỗi tháng Kế toán phân bổ khoảng 1/' + st.soKy + ' giá trị hàng xuất vào chi phí của bộ phận.' : 'Chọn số tháng công cụ dùng được.') : '') : '') +
       /* O bo phan la ly do ton tai cua ca man nay. Chon xong thi gia tri hang
          xuat vao dung so cua bo phan do, khong con lan vao hao hut cua Bep. */
       xktOChon('nbbp', '🏛️', 'Bộ phận chịu chi phí',
@@ -603,6 +630,8 @@ async function scrXkNbNew() {
   body.onclick = function (e) {
     var t;
     if ((t = e.target.closest('[data-nbkho]'))) return doiKho(t.getAttribute('data-nbkho'));
+    if ((t = e.target.closest('[data-nbpb]'))) { st.cachPb = t.getAttribute('data-nbpb'); if (st.cachPb !== 'nhieu_ky') st.soKy = null; return veLai(); }
+    if ((t = e.target.closest('[data-nbsk]'))) { st.soKy = parseInt(t.getAttribute('data-nbsk'), 10) || null; return veLai(); }
     if ((t = e.target.closest('[data-nbmd]'))) {
       st.mucDich = t.getAttribute('data-nbmd');
       /* Dien san bo phan hay gap cua muc dich do, nguoi lap doi duoc. Chi
@@ -615,9 +644,13 @@ async function scrXkNbNew() {
   };
 
   async function luu() {
-    if (xktBaoThieu(body, [['nbkho', !st.kho], ['nbmd', !st.mucDich], ['nbbp', !st.boPhan], ['nbgio', !st.gio.length]])) {
+    var laCc = st.mucDich === 'ccdc';
+    if (xktBaoThieu(body, [['nbkho', !st.kho], ['nbmd', !st.mucDich], ['nbpb', laCc && !st.cachPb], ['nbsk', laCc && st.cachPb === 'nhieu_ky' && !st.soKy],
+      ['nbbp', !st.boPhan], ['nbgio', !st.gio.length]])) {
       if (!st.kho) toast('Chưa chọn kho xuất.');
       else if (!st.mucDich) toast('Chưa chọn mục đích xuất dùng.');
+      else if (laCc && !st.cachPb) toast('Chưa chọn cách phân bổ công cụ dụng cụ.');
+      else if (laCc && st.cachPb === 'nhieu_ky' && !st.soKy) toast('Chưa chọn số tháng phân bổ.');
       else if (!st.boPhan) toast('Chưa chọn bộ phận chịu chi phí.');
       else toast('Chưa có món nào.');
       return;
@@ -630,9 +663,10 @@ async function scrXkNbNew() {
       var r = await api('vagabond.xuat_noi_bo.luu', {
         kho: st.kho, muc_dich: st.mucDich, bo_phan_chiu: st.boPhan,
         ghi_chu: st.ghiChu, anh: st.anh,
+        cach_phan_bo: laCc ? st.cachPb : null, so_ky: laCc && st.cachPb === 'nhieu_ky' ? st.soKy : null,
         dong: JSON.stringify(st.gio.map(function (d) { return { ma: d.ma, sl: d.sl }; }))
       });
-      st.gio = []; st.anh = ''; st.ghiChu = ''; st.tab = 'cho';
+      st.gio = []; st.anh = ''; st.ghiChu = ''; st.tab = 'cho'; st.cachPb = null; st.soKy = null;
       toast('Đã lưu ' + r.name + ', phiếu chờ quản lý ghi sổ.');
       go(function () { scrXkNbView(r.name); }, true);
     } catch (e) {
@@ -663,6 +697,9 @@ async function scrXkNbView(name) {
     xktDauPhieu(d, (d.ten_muc_dich || d.muc_dich) + (d.tong_tien ? ' · ' + vxSo(d.tong_tien) + ' đ' : '')) +
     '<div class="vf"><div class="vfh"><span class="ic">🏬</span><b>Kho xuất</b></div><div style="font-size:15px;font-weight:600;padding:2px 0 8px">' + h(d.kho_xuat || '') + '</div>' +
     '<div class="vfh"><span class="ic">🏛️</span><b>Bộ phận chịu chi phí</b></div><div style="font-size:15px;font-weight:600;padding:2px 0 8px">' + h(d.bo_phan || 'chưa ghi') + '</div>' +
+    (d.muc_dich === 'ccdc' ? '<div class="vfh"><span class="ic">🧮</span><b>Cách phân bổ</b></div><div style="font-size:15px;font-weight:600;padding:2px 0 8px">' +
+      (d.so_ky_phan_bo ? 'Phân bổ ' + d.so_ky_phan_bo + ' tháng qua 242' : 'Phân bổ một lần vào chi phí') + '</div>' +
+      (d.khoan_242 ? '<button type="button" class="vxb o" id="nbk242" style="margin:0 0 8px">Mở khoản ' + h(d.khoan_242) + ' trong Bảng kê 242</button>' : '') : '') +
     (d.ghi_chu ? '<div class="vfh"><span class="ic">📝</span><b>Ghi chú</b></div><div style="font-size:14px;padding:2px 0 8px">' + h(d.ghi_chu) + '</div>' : '') +
     '</div>' +
     (d.anh ? '<div class="vf"><div class="vfh"><span class="ic">📷</span><b>Ảnh</b></div><img src="' + h(d.anh) + '" style="width:100%;border-radius:12px;display:block;margin:4px 0 8px"></div>' : '') +
@@ -671,6 +708,8 @@ async function scrXkNbView(name) {
     xktVet(d) +
     (nut ? '<div class="xktnut">' + nut + '</div>' : '') + '</div>');
 
+  var k242 = body.querySelector('#nbk242');
+  if (k242) k242.onclick = function () { go(function () { return scrCp242(d.khoan_242); }); };
   var g = body.querySelector('#nbghi');
   if (g) g.onclick = async function () {
     if (!await xacNhan('Ghi sổ phiếu ' + d.name + '?\n\nTồn kho sẽ trừ thật và không hoàn lại được từ app.', 'Ghi sổ', 'Ghi sổ')) return;

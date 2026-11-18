@@ -109,6 +109,14 @@ def _tk_rieng():
 	# cua tiem con dang hoan thien, khai mot so duy nhat la co ngay ca man
 	# chet vi ke toan chua tao tai khoan do.
 	for m in xuat_noi_bo.MUC_DICH:
+		if m["ma"] == xuat_noi_bo.MA_CCDC:
+			# v674: mục đích Đưa CCDC vào dùng chọn tài khoản theo khối của bộ
+			# phận (phân bổ một lần) hoặc 242 (nhiều tháng), không theo mục đích.
+			from vagabond import chi_phi_242
+
+			for khoi, day in chi_phi_242.TK_THEO_KHOI.items():
+				dung("ccdc khối %s có dãy dự trù" % khoi, len(day) >= 2)
+			continue
 		dung("%s co day du tru" % m["ma"], len(m["tk"]) >= 2)
 
 

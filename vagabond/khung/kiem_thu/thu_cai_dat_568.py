@@ -71,10 +71,12 @@ def _truong_tu_them():
 	from vagabond import do_luong_ga
 	# v668: mục Gợi ý mua thêm, neo sau ô Tắt miễn phí giao đơn giao của quầy.
 	from vagabond import goi_y_mua
+	# v674: mục Chi phí quảng cáo Meta, neo sau ô Phiên bản Graph API.
+	from vagabond import quang_cao_meta
 
 	ra = []
 	for m in (o_cai_dat, tai_khoan, hach_toan_kho, minvoice_tep, sepay, qua_tang_hoa_don, tra_truoc_khach, thanh_toan_web,
-			gioi_thieu, don_quay, do_luong_ga, goi_y_mua):
+			gioi_thieu, don_quay, do_luong_ga, goi_y_mua, quang_cao_meta):
 		for f in m.TRUONG_MOI.get("Vagabond Settings", []):
 			ra.append(dict(f))
 	return ra
@@ -212,7 +214,7 @@ def _():
 			co.add(ten[:-3])
 	la("các module khai trường tự thêm", sorted(co),
 		sorted(["o_cai_dat", "tai_khoan", "hach_toan_kho", "minvoice_tep", "sepay", "qua_tang_hoa_don",
-			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu", "don_quay", "do_luong_ga", "goi_y_mua"]))
+			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu", "don_quay", "do_luong_ga", "goi_y_mua", "quang_cao_meta"]))
 
 
 @ca("cài đặt v568: mọi nhãn và mô tả là tiếng Việt có dấu, không còn số issue trong nhãn")

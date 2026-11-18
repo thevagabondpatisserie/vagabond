@@ -609,3 +609,48 @@ Từ khoá: cỡ ảnh, kích thước ảnh, Facebook, lưới ảnh, ảnh b�
 **Lưu ý**
 - Ảnh lệch ô lưới: bảng Kiểm nhắc "Facebook sẽ cắt ảnh ..." kèm cỡ nên làm. Ảnh dưới 1080 px: nhắc dễ bị mờ. Chỉ nhắc, vẫn duyệt được.
 
+
+## Chi phí quảng cáo Meta theo ngày
+Từ khoá: chi phí quảng cáo, Meta ads, Facebook ads, Instagram ads, chi tiêu quảng cáo, doanh thu web, ad spend
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, giám đốc | Chi phí quảng cáo Meta (/chi-phi-quang-cao-meta) | [[Đọc lại từ Meta]] |
+
+Mỗi sáng hệ thống đọc số Meta đã tiêu hôm qua của từng tài khoản quảng cáo và chiến dịch, đặt cạnh doanh thu web. Đây là số tham khảo, chưa phải số trừ thẻ.
+
+**Các bước**
+1. Mở Chi phí quảng cáo Meta (phân hệ Khách hàng và Marketing).
+2. Chọn khoảng ngày, tài khoản quảng cáo trên hàng chip.
+3. Chạm một ngày để xem chi theo chiến dịch.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Đọc chi phí Meta đang tắt | Quản trị hệ thống bật ở Cài đặt, mục Chi phí quảng cáo Meta |
+| Mã truy cập Meta đã hết hạn hoặc bị thu hồi | Giám đốc tạo mã mới rồi dán lại vào Cài đặt |
+
+**Lưu ý**
+- Chip Còn điều chỉnh: Meta còn sửa số vài ngày gần nhất, hệ thống đọc lại và ghi thay số cũ.
+- Ngày chia theo múi giờ của tài khoản quảng cáo.
+
+## Tạo mã truy cập Meta cho hệ thống
+Từ khoá: mã truy cập Meta, token Meta, người dùng hệ thống, system user, Business Manager, ads_read
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Giám đốc | Cài đặt lõi và API, mục Chi phí quảng cáo Meta | Lưu thay đổi |
+
+Chỉ giám đốc làm, một lần. Hệ thống chỉ cần quyền xem số quảng cáo (ads_read), không đặt hay sửa quảng cáo.
+
+**Các bước**
+1. Vào Business Manager, mục Người dùng, Người dùng hệ thống, thêm một người dùng hệ thống.
+2. Gán tài khoản quảng cáo cho người dùng đó với quyền xem.
+3. Tạo mã truy cập, chọn quyền ads_read.
+4. Mở Cài đặt lõi và API trên app, mục Chi phí quảng cáo Meta: dán mã, điền tài khoản quảng cáo (act_ và dãy số), ngày bắt đầu đọc, số ngày đọc lại.
+5. Bật ô Bật đọc chi phí quảng cáo Meta hằng ngày, bấm nút Lưu thay đổi ở chân màn.
+
+**Lưu ý**
+- Không gửi mã qua Zalo hay email cho ai. Mã chỉ dán vào ô Cài đặt.
+- Phần ảnh chụp màn Business Manager chưa có trong mục này: sẽ bổ sung khi chụp được màn Meta thật.
+

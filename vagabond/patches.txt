@@ -472,3 +472,6 @@ vagabond.patches.v670_kenh_weborder
 vagabond.patches.dong_bo_cau_truc #v670
 vagabond.patches.v672_thuong_hieu_sonneto
 vagabond.patches.dong_bo_cau_truc #v672
+vagabond.patches.dong_bo_cau_truc #v673
+vagabond.patches.v674_meta_doc_lai
+vagabond.patches.dong_bo_cau_truc #v674

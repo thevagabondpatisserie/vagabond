@@ -1184,10 +1184,48 @@ def _tien_ve(nguon):
 		nguon.db_set({"trang_thai_tien": "Chưa đối chiếu", "giao_dich_ngan_hang": ""})
 		_ghi_them(nguon.name, tien_ve="Nguồn còn dòng cần xử lý; đối chiếu tiền về sau khi đọc đủ dòng.")
 		return
-	goc = nguon.ngay_tien_ve or nguon.den_ngay
-	if not goc:
+	x = _vao_tien_ve(nguon)
+	if not x:
 		nguon.db_set({"trang_thai_tien": "Chưa thấy tiền về", "giao_dich_ngan_hang": ""})
 		return
+	can_ve = int(round(nguon.thuc_nhan))
+	# v673 (chị Dung 18/11/2026): kế toán đã chọn giao dịch cho nguồn trùng số
+	# tiền. Lượt dò lại mỗi giờ và Đối chiếu lại giữ lựa chọn khi giao dịch vẫn
+	# qua đủ luật ứng viên; không còn (nguồn khác vừa giữ, giao dịch bị huỷ) thì
+	# bỏ lựa chọn và đối chiếu như máy, ghi rõ lý do.
+	chon = _chon_tien_ve(nguon)
+	bo_chon = ""
+	if chon:
+		g = khop.con_hop_le(nguon.mau, chon.get("gd"), x["tu"], x["den"], x["gd"], x["da_dung"], **x["luat"])
+		if g:
+			tt, ghi = khop.ket_qua_chon(can_ve, g)
+			nguon.db_set({"trang_thai_tien": tt, "giao_dich_ngan_hang": g["name"]})
+			_ghi_them(nguon.name, tien_ve=ghi, lech_tien=dict(gd=g["name"], nhan=g["tien"], bao=can_ve)
+				if tt == "Lệch tiền về" else None)
+			return
+		bo_chon = "Giao dịch %s kế toán đã chọn không còn dùng được (đã gắn cho nguồn khác hoặc bị huỷ); máy đối chiếu lại. " % (
+			chon.get("gd") or "")
+		_ghi_them(nguon.name, tien_ve_chon=None)
+	tt, ds, ghi = khop.khop_ngan_hang(nguon.mau, can_ve, x["tu"], x["den"], x["gd"], x["da_dung"],
+		ly_do_tay=x["ly_do_tay"], **x["luat"])
+	ghi = bo_chon + ghi
+	# Codex #450: chỉ khi khớp đúng một giao dịch mới ghi vào giao_dich_ngan_hang
+	# (trường này là danh sách giao dịch đã dùng cho mọi nguồn khác). Gợi ý của
+	# "Lệch tiền về" nằm trong ghi chú.
+	nguon.db_set({"trang_thai_tien": tt, "giao_dich_ngan_hang": "\n".join(ds) if tt == khop.GIU_GIAO_DICH else ""})
+	# v641: số của lần lệch (tin Zalo "Lệch tiền về" cần hai con số thật).
+	gan = next((g for g in x["gd"] if ds and g["name"] == ds[0]), None) if tt == "Lệch tiền về" else None
+	_ghi_them(nguon.name, tien_ve=ghi, lech_tien=dict(gd=gan["name"], nhan=gan["tien"], bao=int(round(nguon.thuc_nhan)))
+		if gan else None)
+
+
+def _vao_tien_ve(nguon):
+	"""Đầu vào chung của lượt khớp tiền về: cửa sổ ngày, giao dịch tiền vào,
+	giao dịch nguồn khác đã giữ và luật kỳ của nguồn. Máy tự khớp (_tien_ve) và
+	kế toán chọn tay (chon_tien_ve) cùng đọc ở đây. None khi nguồn chưa có ngày."""
+	goc = nguon.ngay_tien_ve or nguon.den_ngay
+	if not goc:
+		return None
 	tu = frappe.utils.add_days(goc, -1)
 	den = frappe.utils.add_days(goc, 6)
 	gd = [dict(name=r.name, ngay=str(r.date), tien=int(round(r.deposit or 0)),
@@ -1205,18 +1243,104 @@ def _tien_ve(nguon):
 		da_dung.update(x for x in (r or "").split("\n") if x)
 	co_tien_mat = bool(frappe.db.count(DT_DONG, {"nguon": nguon.name, "mo_ta": ["like", "%tiền mặt"]}))
 	bi_thay = bool(frappe.db.count(DT_DONG, {"nguon_cu": nguon.name, "thay_bang": ["is", "set"]}))
-	tt, ds, ghi = khop.khop_ngan_hang(nguon.mau, int(round(nguon.thuc_nhan)), str(tu), str(den), gd, da_dung,
+	return dict(tu=str(tu), den=str(den), gd=gd, da_dung=da_dung,
 		ly_do_tay=khop.ly_do_khong_tu_nhan(nguon.mau, co_tien_mat, bi_thay),
-		ky=(str(nguon.tu_ngay or ""), str(nguon.den_ngay or "")) if getattr(nguon, "tu_ngay", None) and nguon.den_ngay else None,
-		ma_chuyen=_ma_chuyen(nguon), tai_khoan=getattr(nguon, "tai_khoan", "") or "")
-	# Codex #450: chỉ khi khớp đúng một giao dịch mới ghi vào giao_dich_ngan_hang
-	# (trường này là danh sách giao dịch đã dùng cho mọi nguồn khác). Gợi ý của
-	# "Lệch tiền về" nằm trong ghi chú.
-	nguon.db_set({"trang_thai_tien": tt, "giao_dich_ngan_hang": "\n".join(ds) if tt == khop.GIU_GIAO_DICH else ""})
-	# v641: số của lần lệch (tin Zalo "Lệch tiền về" cần hai con số thật).
-	gan = next((g for g in gd if ds and g["name"] == ds[0]), None) if tt == "Lệch tiền về" else None
-	_ghi_them(nguon.name, tien_ve=ghi, lech_tien=dict(gd=gan["name"], nhan=gan["tien"], bao=int(round(nguon.thuc_nhan)))
-		if gan else None)
+		luat=dict(ky=(str(nguon.tu_ngay or ""), str(nguon.den_ngay or "")) if getattr(nguon, "tu_ngay", None) and nguon.den_ngay else None,
+			ma_chuyen=_ma_chuyen(nguon), tai_khoan=getattr(nguon, "tai_khoan", "") or ""))
+
+
+def _chon_tien_ve(nguon):
+	"""Lựa chọn giao dịch tiền về kế toán đã lưu ({gd, boi, luc}) hoặc None."""
+	try:
+		d = json.loads(getattr(nguon, "du_lieu", None) or "{}") or {}
+	except (ValueError, TypeError):
+		return None
+	c = d.get("tien_ve_chon") if isinstance(d, dict) else None
+	return c if isinstance(c, dict) and c.get("gd") else None
+
+
+def _ung_vien_cua(nguon):
+	"""Giao dịch kế toán được chọn cho nguồn (đọc trong khoá khi dùng để ghi)."""
+	if nguon.nhom != "Tiền bán" or nguon.trang_thai != "Đã nhận" or not nguon.thuc_nhan:
+		return []
+	x = _vao_tien_ve(nguon)
+	if not x:
+		return []
+	return khop.ung_vien_chon(nguon.mau, int(round(nguon.thuc_nhan)), x["tu"], x["den"], x["gd"], x["da_dung"],
+		**x["luat"])
+
+
+def _chon_duoc(nguon):
+	"""Màn chi tiết có nút Chọn tiền về khi: nguồn đang Cần chọn tiền về, hoặc
+	kế toán đã chọn (để đổi hay bỏ lựa chọn)."""
+	return nguon.trang_thai_tien == "Cần chọn tiền về" or bool(_chon_tien_ve(nguon))
+
+
+@frappe.whitelist()
+def ung_vien_tien_ve(name=None):
+	"""v673: các giao dịch tiền vào kế toán được chọn cho một nguồn trùng số tiền."""
+	_chan()
+	n = frappe.get_doc(DT_NGUON, name)
+	_chan_cong_ty(n.company)
+	if not _chon_duoc(n):
+		frappe.throw("Nguồn này không còn chờ chọn tiền về. Tải lại màn hình.")
+	can_ve = int(round(n.thuc_nhan or 0))
+	chon = _chon_tien_ve(n) or {}
+	return dict(can_ve=can_ve, chon=chon.get("gd") or "", ds=[dict(g, cung_so=g["tien"] == can_ve)
+		for g in _ung_vien_cua(n)][:30])
+
+
+@frappe.whitelist()
+def chon_tien_ve(name=None, gd=None):
+	"""v673 (chị Dung 18/11/2026): kế toán chọn giao dịch tiền về cho nguồn mà
+	máy không tự chọn (nhiều giao dịch cùng số, hoặc có lý do không tự nhận).
+	Đọc lại nguồn và ứng viên SAU khi giữ khoá đối chiếu, để một lượt nhận tệp
+	hay dò lại chạy cùng lúc không làm hai nguồn giữ chung một giao dịch."""
+	_chan(True)
+	_chan_ke_toan()
+	_chan_cong_ty(frappe.db.get_value(DT_NGUON, name, "company"))
+	gd = (gd or "").strip()
+	if not gd:
+		frappe.throw("Chọn một giao dịch tiền vào.")
+	with khoa_doi_chieu():
+		nguon = frappe.get_doc(DT_NGUON, name)
+		if not _chon_duoc(nguon):
+			frappe.throw("Nguồn này không còn chờ chọn tiền về (máy vừa đối chiếu lại). Tải lại màn hình.")
+		if gd not in [g["name"] for g in _ung_vien_cua(nguon)]:
+			frappe.throw("Giao dịch %s không còn chọn được: đã gắn cho nguồn khác hoặc không thuộc đợt này. Tải lại màn hình." % gd)
+		_ghi_them(name, tien_ve_chon=dict(gd=gd, boi=frappe.session.user, luc=str(frappe.utils.now_datetime())[:19]))
+		_tien_ve(frappe.get_doc(DT_NGUON, name))
+		from vagabond import doi_soat_thu
+
+		doi_soat_thu.kiem_xac_nhan(name)
+	return chi_tiet(name)
+
+
+@frappe.whitelist()
+def bo_chon_tien_ve(name=None):
+	"""v673: bỏ giao dịch kế toán đã chọn (chọn nhầm); máy đối chiếu lại như cũ."""
+	_chan(True)
+	_chan_ke_toan()
+	_chan_cong_ty(frappe.db.get_value(DT_NGUON, name, "company"))
+	with khoa_doi_chieu():
+		nguon = frappe.get_doc(DT_NGUON, name)
+		if not _chon_tien_ve(nguon):
+			frappe.throw("Nguồn này chưa có giao dịch kế toán chọn. Tải lại màn hình.")
+		_ghi_them(name, tien_ve_chon=None)
+		_tien_ve(frappe.get_doc(DT_NGUON, name))
+		from vagabond import doi_soat_thu
+
+		doi_soat_thu.kiem_xac_nhan(name)
+	return chi_tiet(name)
+
+
+def _chan_ke_toan():
+	"""Chọn tiền về là quyết định của kế toán (cùng luật nút Xác nhận nguồn)."""
+	from vagabond import doi_soat_thu
+	from vagabond.viec_can_lam import VAI_KE_TOAN
+
+	if not (doi_soat_thu._vai() & VAI_KE_TOAN) and not doi_soat_thu.la_giam_doc():
+		frappe.throw("Chỉ Kế toán chọn được giao dịch tiền về.", frappe.PermissionError)
 
 
 def _ma_chuyen(nguon):
@@ -1548,6 +1672,8 @@ def chi_tiet(name=None, loc=None, trang=0):
 		buoc=_buoc_ct(n), can_cu=_can_cu(n), quyen=_quyen_ct(n),
 		them=dict(loi=d.get("loi") or [], canh_bao=d.get("canh_bao") or [], dong_loi=(d.get("dong_loi") or [])[:100],
 			tien_ve=d.get("tien_ve") or "", ky_the=d.get("ky_the"), doi_bien_ban=d.get("doi_bien_ban"),
+			tien_ve_chon=(d.get("tien_ve_chon") or {}).get("gd") or "" if isinstance(d.get("tien_ve_chon"), dict) else "",
+			chon_tien_ve=_chon_duoc(n),
 			hoa_don_ky=d.get("hoa_don_ky_ghi_chu") or "", ghi_chu_don_vi=d.get("ghi_chu_don_vi") or "",
 			dau_tep=(d.get("them") or {}).get("dau_tep") or [], ban_sua=_ban_sua_hien(n, d),
 			phi_vuot=_phi_vuot_ct(d)),

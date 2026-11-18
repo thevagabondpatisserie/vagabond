@@ -12,6 +12,20 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v674
+- Đưa công cụ dụng cụ vào dùng: phân bổ một lần hay nhiều tháng
+- Bảng kê chi phí trả trước 242
+- Phân bổ chi phí trả trước hằng tháng
+- Đối soát chi phí quảng cáo Meta và bút toán tháng
+- Chi phí quảng cáo Meta theo ngày
+- Tạo mã truy cập Meta cho hệ thống
+
+## v673
+- Chọn tiền về khi trùng số tiền
+- Cấn trừ hoá đơn phí đối tác theo đối soát
+- Cách hạch toán cấn trừ công nợ: chọn đúng đường theo trường hợp
+- Đối chiếu tiền về của đối tác giao đồ ăn
+
 ## v672
 - AI học giọng viết từ Kho bản thảo
 - Bài Threads dài tự tách thành chuỗi bài nối tiếp
