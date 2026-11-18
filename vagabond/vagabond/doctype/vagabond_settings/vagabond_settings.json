@@ -183,6 +183,13 @@
   "so_th_token",
   "so_th_het_han",
   "so_th_gia_han_luc",
+  "sec_gg",
+  "gg_client_id",
+  "gg_client_secret",
+  "col_gg",
+  "gg_refresh_token",
+  "gg_dia_diem",
+  "gg_ten_dia_diem",
   "sec_hd_thu",
   "hd_thu_bat",
   "hd_thu_dia_chi",
@@ -1282,6 +1289,46 @@
    "read_only": 1
   },
   {
+   "fieldname": "sec_gg",
+   "fieldtype": "Section Break",
+   "label": "Đăng bài Google Doanh nghiệp",
+   "description": "Bài cập nhật lên hồ sơ Google Doanh nghiệp của The Vagabond (hiện trên Google Maps và Google Tìm kiếm). Dán hai ô bên trái một lần, rồi mở app, Bài đăng mạng xã hội, Kết nối kênh, bấm Kết nối Google và đăng nhập tài khoản Google quản lý hồ sơ tiệm. Hệ thống không bao giờ hiện lại khoá."
+  },
+  {
+   "fieldname": "gg_client_id",
+   "fieldtype": "Data",
+   "label": "Mã ứng dụng Google (Client ID)",
+   "description": "console.cloud.google.com, dự án Vagabond ERP, Google Auth Platform, Clients, ứng dụng Vagabond ERP, chép Client ID (đuôi .apps.googleusercontent.com)."
+  },
+  {
+   "fieldname": "gg_client_secret",
+   "fieldtype": "Password",
+   "label": "Khoá ứng dụng Google (Client secret)",
+   "description": "Cùng trang với Mã ứng dụng, chép Client secret. URI chuyển hướng được phép của ứng dụng phải là https://app.thevagabondpatisserie.com/api/method/vagabond.mxh.gg_ket_noi_xong"
+  },
+  {
+   "fieldname": "col_gg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gg_refresh_token",
+   "fieldtype": "Password",
+   "label": "Mã kết nối Google (hệ thống tự ghi khi bấm Kết nối Google)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gg_dia_diem",
+   "fieldtype": "Data",
+   "label": "Mã hồ sơ đăng bài (hệ thống tự ghi)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gg_ten_dia_diem",
+   "fieldtype": "Data",
+   "label": "Tên hồ sơ đăng bài (hệ thống tự ghi)",
+   "read_only": 1
+  },
+  {
    "fieldname": "sec_hd_thu",
    "fieldtype": "Section Break",
    "label": "Hộp thư hoá đơn nhà cung cấp",
@@ -1656,7 +1703,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-18 12:00:00.000000",
+ "modified": "2026-11-18 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
