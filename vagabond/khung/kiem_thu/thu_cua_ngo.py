@@ -798,6 +798,20 @@ CUA_NGO = {
 	"xuat_noi_bo.py": [
 		"bo_phieu", "chi_tiet", "ds_phieu", "ghi_so", "khoi_dong", "luu",
 	],
+	# v674 Bảng kê 242 (kế toán khai, lập và ghi sổ bút toán phân bổ tháng; phân bổ tay,
+	# gắn khoản cho dòng Có 242 lập tay). quet, quet_tu_dong, khi_ghi_so_xuat, kiem_je
+	# là nhịp nền và hook: KHÔNG mở ra ngoài.
+	"chi_phi_242.py": [
+		"bo_nhap_thang", "chi_tiet", "danh_muc", "danh_sach", "gan_khoan", "ghi_so_thang",
+		"khai", "lap_thang", "ngung", "phan_bo_tay", "xem_thang",
+	],
+	# v674 Đối soát chi phí Meta theo sao kê thẻ (kế toán). tinh_thang là hàm nội bộ.
+	"chi_phi_meta.py": ["bo_nhap", "chi_tiet_thang", "ds_thang", "ghi_so", "lap", "quyet"],
+	# v674 Chi phí quảng cáo Meta theo ngày (Marketing). dong_bo_tu_dong chạy theo lịch,
+	# dong_bo_tai_khoan đọc mã bí mật: KHÔNG mở ra ngoài.
+	"quang_cao_meta.py": ["chi_tiet_ngay", "doc_lai_ngay", "tong_quan"],
+	# v674 khuôn bút toán nháp theo tháng: chỉ gọi từ hai mô đun trên.
+	"but_toan_nhap.py": [],
 	# v507: chot kho diem ban. Cung de ra Material Issue nhu hai man tren,
 	# phan biet bang `vgb_muc_dich_xuat` = xuat_kho.MA_PHUC_VU_BAN.
 	"xuat_phuc_vu_ban.py": [

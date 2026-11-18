@@ -1267,3 +1267,15 @@ scheduler_events.setdefault("cron", {}).setdefault("7,22,37,52 * * * *", []).app
 
 # v664: token Threads sống 60 ngày, hệ thống tự gia hạn (mxh.py).
 scheduler_events.setdefault("cron", {}).setdefault("17 3 * * *", []).append("vagabond.mxh.gia_han_threads")
+
+# v674 (anh Việt 18/11/2026): Bảng kê 242 và chi phí quảng cáo Meta.
+#  - 07:13 mỗi sáng đọc số Meta đã tiêu hôm qua (quang_cao_meta.py, chỉ đọc).
+#  - 02:47 quét sổ cái 242 dựng dòng Bảng kê cho chứng từ mới (chi_phi_242.py).
+#  - Mọi bút toán có dòng gắn khoản 242 (app, Desk, Hạch toán tay): không cho
+#    phân bổ vượt nguyên giá. Bút toán không gắn khoản thì hook không làm gì.
+scheduler_events.setdefault("cron", {}).setdefault("13 7 * * *", []).append("vagabond.quang_cao_meta.dong_bo_tu_dong")
+scheduler_events.setdefault("cron", {}).setdefault("47 2 * * *", []).append("vagabond.chi_phi_242.quet_tu_dong")
+for _event in ("before_submit", "before_update_after_submit"):
+    _old = doc_events.setdefault("Journal Entry", {}).get(_event, [])
+    doc_events["Journal Entry"][_event] = ([_old] if isinstance(_old, str) else list(_old)) + ["vagabond.chi_phi_242.kiem_je"]
+del _event, _old

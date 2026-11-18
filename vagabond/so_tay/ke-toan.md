@@ -1265,3 +1265,98 @@ Trước đây: duyệt từng APP. Từ nay: duyệt cả đợt một lần; g
 **Lưu ý**
 - Người lập đợt không tự soát; hai cấp duyệt phải là hai người.
 - Không ghi sổ gì ở bước này: ghi sổ khi kế toán xác nhận đã chuyển tiền trên APP như cũ.
+
+
+## Bảng kê chi phí trả trước 242
+Từ khoá: bảng kê 242, chi phí trả trước, CCDC, khai số tháng, phân bổ tay, gắn khoản, prepaid
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Bảng kê chi phí trả trước (/bang-ke-chi-phi-tra-truoc) | [[Khai cách phân bổ]] |
+
+Mỗi chứng từ ghi Nợ 242 là một khoản. Hệ thống đọc sổ cái để dựng dòng, không sửa chứng từ gốc.
+
+**Các bước**
+1. Mở Bảng kê chi phí trả trước, chọn chip Chờ khai.
+2. Chạm một khoản, bấm [[Khai cách phân bổ]].
+3. Chọn số tháng, tháng bắt đầu, bộ phận chịu chi phí, tài khoản chi phí. Khoản đã chia ở sổ cũ thì điền Đã phân bổ trước.
+4. Bấm [[Lưu cách phân bổ]].
+5. Khoản không phân bổ qua bảng kê: bấm [[Không phân bổ khoản này]], ghi lý do.
+6. Muốn phân bổ một khoản với số tự chọn: bấm [[Phân bổ tay khoản này]], rồi [[Lập bút toán nháp]] hoặc [[Lập và ghi sổ ngay]].
+7. Có dòng báo Có 242 chưa gắn khoản: chạm dòng đó, bấm [[Gắn khoản]], chọn đúng khoản.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Số tháng phân bổ phải từ 1 tới 36 | Chọn lại số tháng |
+| Khoản ... chỉ còn ... chưa phân bổ | Bút toán phân bổ quá phần còn lại: sửa số tiền |
+
+**Lưu ý**
+- Số đã phân bổ = các bút toán đã ghi sổ có gắn khoản ở dòng Có 242, cộng Đã phân bổ trước.
+- Bút toán tự lập trên Desk: ở dòng Có 242 chọn ô Khoản chi phí trả trước (242), hệ thống tính vào và không phân bổ trùng.
+
+## Phân bổ chi phí trả trước hằng tháng
+Từ khoá: phân bổ 242 hằng tháng, bút toán phân bổ, chi phí trả trước tháng, ghi sổ phân bổ, monthly allocation
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Bảng kê chi phí trả trước (/bang-ke-chi-phi-tra-truoc) | [[Lập bút toán nháp]] |
+
+Mỗi tháng hệ thống lập MỘT bút toán nháp cho mọi khoản đến kỳ. Kế toán kiểm rồi ghi sổ; hệ thống không tự ghi sổ.
+
+**Các bước**
+1. Ở Bảng kê bấm nút Phân bổ tháng ở chân màn, chọn tháng trên chip.
+2. Xem số cần phân bổ và các khoản. Bấm [[Lập bút toán nháp]].
+3. Kiểm xong bấm Ghi sổ bút toán, đồng ý.
+4. Sau khi lập mà có khoản mới: bấm [[Cập nhật bản nháp]].
+5. Bản nháp đã sửa tay: bấm [[Ghi sổ bản đã sửa]], hoặc [[Bỏ bản nháp]] rồi lập lại.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Có ... dòng Có 242 trên bút toán đã ghi sổ chưa gắn khoản | Gắn khoản cho các dòng đó ở Bảng kê |
+| Sổ đã khoá đến ... | Kế toán trưởng mở khoá ở Cài đặt, mục Khoá sổ |
+| Bút toán nháp ... đã được sửa tay nên hệ thống không ghi đè | Ghi sổ bản đã sửa hoặc bỏ bản nháp |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 6273, 6413, 6423 theo bộ phận của khoản | 242 | Khi kế toán ghi sổ bút toán phân bổ tháng |
+
+**Lưu ý**
+- Tháng lỡ chưa phân bổ thì tháng sau hệ thống tự bù phần thiếu.
+
+## Đối soát chi phí quảng cáo Meta và bút toán tháng
+Từ khoá: chi phí Meta, quảng cáo Facebook, FACEBK, sao kê thẻ Shinhan, 6417, 3411, Meta ads
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Đối soát chi phí Meta (/doi-soat-chi-phi-meta) | [[Lập bút toán nháp]] |
+
+Mỗi tháng ghi chi phí đúng số trừ thẻ Shinhan theo NGÀY GIAO DỊCH, lấy từ sao kê thẻ.
+
+**Các bước**
+1. Mở Đối soát chi phí Meta, chạm tháng cần làm.
+2. Xem ba con số: Meta đã tiêu, Đã trừ thẻ, Đã ghi sổ.
+3. Dòng Chờ kế toán chọn: phí không rõ thì bấm [[Là phí Meta]] hoặc [[Không phải]]; nghi trùng thì bấm [[Một giao dịch]] hoặc [[Hai giao dịch]], ghi căn cứ.
+4. Có chứng từ Meta làm bằng đường khác: mở xem, không trùng thì bấm [[Không trùng]].
+5. Bấm [[Lập bút toán nháp]], kiểm, rồi bấm Ghi sổ bút toán.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa đủ sao kê | Chờ sao kê thẻ của ngân hàng phủ tới 10 ngày sau cuối tháng |
+| Còn ... dòng chờ kế toán chọn | Chọn xong từng dòng |
+| Tháng này đã có chứng từ Meta khác | Xem chứng từ đó, bấm Không trùng hoặc bỏ giao dịch đã ghi |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 6417 chi quảng cáo (hoàn tiền ghi giảm) | 3411 | Khi kế toán ghi sổ bút toán tháng |
+| 6427 phí thẻ đi kèm quảng cáo | 3411 | Cùng bút toán |
+| 3411 | 112 theo ngân hàng thực chuyển | Kế toán tự làm khi trả nợ thẻ |
+
+**Lưu ý**
+- Mỗi giao dịch thường có ở cả PDF ngân hàng và bảng gõ tay: hệ thống chỉ tính một lần.
+- Tự hạch toán ở màn Bút toán thì ghi FACEBK hoặc Meta ở diễn giải để hệ thống nhận ra.
+

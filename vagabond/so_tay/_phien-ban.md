@@ -12,6 +12,14 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v674
+- Đưa công cụ dụng cụ vào dùng: phân bổ một lần hay nhiều tháng
+- Bảng kê chi phí trả trước 242
+- Phân bổ chi phí trả trước hằng tháng
+- Đối soát chi phí quảng cáo Meta và bút toán tháng
+- Chi phí quảng cáo Meta theo ngày
+- Tạo mã truy cập Meta cho hệ thống
+
 ## v670
 - Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
 - Đăng ngay bài đã hẹn giờ

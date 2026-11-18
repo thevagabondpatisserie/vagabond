@@ -266,7 +266,10 @@ def _thu_tu():
 		# bảng hỏi một bước, không có form lập phiếu nháp nhiều ô.
 		"76-don-giao-quay.js",
 		# v664: năm mẫu chuông O2O và chỗ chọn tiếng chuông, không có form lập phiếu.
-		"77-chuong-mau.js", "78-mon-di-kem.js"])
+		"77-chuong-mau.js", "78-mon-di-kem.js",
+		# v674: Bảng kê 242 và đối soát chi phí Meta: danh sách, sheet khai và nút
+		# lập bút toán theo tháng; không có form lập phiếu nhiều ô cần bản nháp.
+		"79-chi-phi-242.js", "80-chi-phi-meta.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

@@ -91,6 +91,17 @@ MUC_DICH = (
 		"bo_phan": "",
 	},
 	{
+		# v674 (Khải báo anh Việt 18/11/2026): CCDC mua về nhập kho Tổng, bếp
+		# xin xuất ra dùng. Không có tài khoản cố định: chọn phân bổ một lần thì
+		# vào thẳng chi phí theo khối của bộ phận (6273, 6413, 6423), phân bổ
+		# nhiều tháng thì vào 242 và lên Bảng kê 242 (chi_phi_242).
+		"ma": "ccdc",
+		"ten": "Đưa công cụ dụng cụ vào dùng",
+		"mo": "Khuôn, dụng cụ, thiết bị lấy từ kho ra dùng. Chọn phân bổ một lần hay nhiều tháng.",
+		"tk": (),
+		"bo_phan": "",
+	},
+	{
 		"ma": "khac",
 		"ten": "Việc nội bộ khác",
 		"mo": "Việc nội bộ chưa có mục nào ở trên. Nhớ ghi rõ ở ô Ghi chú.",
@@ -167,6 +178,47 @@ def ghi_chu_phieu(ten_muc_dich, ten_bo_phan, ghi_chu):
 	return dong
 
 
+MA_CCDC = "ccdc"
+PB_MOT_LAN = "mot_lan"
+PB_NHIEU_KY = "nhieu_ky"
+CACH_PHAN_BO = (
+	{"ma": PB_MOT_LAN, "ten": "Phân bổ một lần",
+		"mo": "Giá trị hàng vào thẳng chi phí tháng này của bộ phận dùng. Hợp với đồ rẻ, dùng nhanh hỏng."},
+	{"ma": PB_NHIEU_KY, "ten": "Phân bổ nhiều tháng",
+		"mo": "Giá trị vào 242, Kế toán chia dần vào chi phí từng tháng theo Bảng kê 242. Hợp với khuôn, thiết bị dùng lâu."},
+)
+
+
+def thieu_phan_bo(ma_muc_dich, cach_phan_bo, so_ky):
+	"""Câu nhắc riêng cho mục đích Đưa CCDC vào dùng. Hàm THUẦN.
+
+	so_ky đọc đúng nghĩa: None hay chuỗi rỗng là chưa chọn, không thay bằng số
+	mặc định nào (H8 loại 14)."""
+	if (ma_muc_dich or "").strip().lower() != MA_CCDC:
+		return []
+	if cach_phan_bo not in (PB_MOT_LAN, PB_NHIEU_KY):
+		return ["Chưa chọn cách phân bổ công cụ dụng cụ."]
+	if cach_phan_bo == PB_NHIEU_KY:
+		from vagabond.chi_phi_242 import SO_KY_TOI_DA
+
+		try:
+			n = int(so_ky)
+		except (TypeError, ValueError):
+			return ["Chưa chọn số tháng phân bổ."]
+		if n < 2 or n > SO_KY_TOI_DA:
+			return ["Số tháng phân bổ phải từ 2 tới %d. Một tháng thì chọn Phân bổ một lần." % SO_KY_TOI_DA]
+	return []
+
+
+def mon_khong_phai_ccdc(dong_mon):
+	"""Các món trong phiếu không thuộc nhóm công cụ dụng cụ. Hàm THUẦN.
+
+	dong_mon: [{ma, ten, nhom}]. Trả danh sách tên để câu báo lỗi kể đúng món."""
+	from vagabond.ccdc_dung_ngay import NHOM_CCDC
+
+	return [d.get("ten") or d.get("ma") for d in dong_mon if (d.get("nhom") or "").strip() not in NHOM_CCDC]
+
+
 def thieu_gi(ma_muc_dich, ten_bo_phan, so_dong):
 	"""Phieu nay con thieu gi truoc khi luu. Ham THUAN.
 
@@ -213,6 +265,47 @@ def _tk_theo_muc_dich(cong_ty, ma_muc_dich):
 	return xuat_kho.chon_tai_khoan(ds, uu_tien) or xuat_kho._tk_chi_phi(cong_ty)
 
 
+def _chon_so_ky():
+	from vagabond.chi_phi_242 import CHON_SO_KY
+
+	return list(CHON_SO_KY)
+
+
+def _tk_ccdc(cong_ty, cach_phan_bo, ten_bo_phan):
+	"""Tài khoản ghi Nợ cho phiếu Đưa CCDC vào dùng."""
+	from vagabond import chi_phi_242
+
+	if cach_phan_bo == PB_NHIEU_KY:
+		return chi_phi_242.tk_242_chinh(cong_ty)
+	ds = frappe.get_all(
+		"Account",
+		filters={"company": cong_ty, "is_group": 0, "disabled": 0, "root_type": "Expense",
+			"account_type": ["not in", ["Stock", "Stock Adjustment"]]},
+		fields=["name", "account_number"],
+		limit_page_length=0,
+	)
+	tk = xuat_kho.chon_tai_khoan(ds, chi_phi_242.tk_uu_tien_theo_khoi(bo_phan.nhom_cua(ten_bo_phan)))
+	if not tk:
+		frappe.throw("Công ty chưa có tài khoản chi phí dụng cụ (6273, 6413 hoặc 6423). Báo Kế toán dựng tài khoản rồi lập lại.")
+	return tk
+
+
+def _kiem_mon_ccdc(sach):
+	"""Máy chủ kiểm món của phiếu CCDC cho mọi đường gọi, không chỉ màn app."""
+	nhom = {}
+	for r in frappe.get_all("Item", filters={"name": ["in", [d["ma"] for d in sach]]},
+			fields=["name", "item_name", "item_group"], limit_page_length=0):
+		nhom[r.name] = r
+	sai = mon_khong_phai_ccdc([{"ma": d["ma"], "ten": (nhom.get(d["ma"]) or {}).get("item_name"),
+		"nhom": (nhom.get(d["ma"]) or {}).get("item_group")} for d in sach])
+	if sai:
+		ke = ", ".join(sai[:5]) + (" và %d món nữa" % (len(sai) - 5) if len(sai) > 5 else "")
+		frappe.throw(
+			"Mục đích Đưa công cụ dụng cụ vào dùng chỉ dành cho món nhóm Công cụ Dụng cụ. Món khác nhóm: %s. "
+			"Bỏ các món đó hoặc chọn mục đích khác." % ke
+		)
+
+
 @frappe.whitelist()
 def khoi_dong():
 	"""Moi thu app can de mo man Xuat dung noi bo, goi mot lan.
@@ -230,21 +323,26 @@ def khoi_dong():
 			for m in MUC_DICH
 		],
 		"bo_phan": bo_phan.danh_sach().get("khoi") or [],
+		"cach_phan_bo": [dict(c) for c in CACH_PHAN_BO],
+		"chon_so_ky": _chon_so_ky(),
 		"duoc_duyet": 1 if xuat_kho.duoc_duyet() else 0,
 		"toi": frappe.session.user,
 	}
 
 
 @frappe.whitelist()
-def luu(kho=None, muc_dich=None, bo_phan_chiu=None, ghi_chu=None, dong=None, anh=None):
+def luu(kho=None, muc_dich=None, bo_phan_chiu=None, ghi_chu=None, dong=None, anh=None, cach_phan_bo=None, so_ky=None):
 	"""Tao phieu xuat dung noi bo o dang BAN NHAP, cho quan ly kho ghi so."""
 	xuat_kho._duoc_xuat()
 	if not kho:
 		frappe.throw("Chưa chọn kho xuất.")
 	sach = xuat_kho._doc_dong(dong)
-	nhac = thieu_gi(muc_dich, bo_phan_chiu, len(sach))
+	nhac = thieu_gi(muc_dich, bo_phan_chiu, len(sach)) + thieu_phan_bo(muc_dich, cach_phan_bo, so_ky)
 	if nhac:
 		frappe.throw(" ".join(nhac))
+	la_ccdc = (muc_dich or "").strip().lower() == MA_CCDC
+	if la_ccdc:
+		_kiem_mon_ccdc(sach)
 	xuat_kho._chan_qua_ton(kho, sach)
 
 	ct = xuat_kho._cong_ty()
@@ -267,8 +365,14 @@ def luu(kho=None, muc_dich=None, bo_phan_chiu=None, ghi_chu=None, dong=None, anh
 	doc.vgb_muc_dich_xuat = m["ma"]
 	if anh:
 		doc.vgb_anh_xuat = anh
-	doc.remarks = ghi_chu_phieu(m["ten"], bo_phan_chiu, ghi_chu)
-	tk = _tk_theo_muc_dich(ct, m["ma"])
+	ten_md = m["ten"]
+	if la_ccdc:
+		doc.vgb_so_ky_phan_bo = int(so_ky) if cach_phan_bo == PB_NHIEU_KY else 0
+		ten_md = "%s, %s" % (ten_md, ("phân bổ %d tháng" % int(so_ky)) if cach_phan_bo == PB_NHIEU_KY else "phân bổ một lần")
+		tk = _tk_ccdc(ct, cach_phan_bo, bo_phan_chiu)
+	else:
+		tk = _tk_theo_muc_dich(ct, m["ma"])
+	doc.remarks = ghi_chu_phieu(ten_md, bo_phan_chiu, ghi_chu)
 	for d in sach:
 		doc.append(
 			"items",
@@ -312,8 +416,21 @@ def ghi_so(name=None):
 		)
 	doc.flags.ignore_permissions = True
 	doc.submit()
+	khoan = ""
+	if ma == MA_CCDC and cint(doc.get("vgb_so_ky_phan_bo")) > 0:
+		# Dựng dòng Bảng kê 242 ngay trong giao dịch ghi sổ. Lỗi ở đây không được
+		# chặn bếp ghi sổ phiếu: nhịp quét đêm dựng lại từ sổ cái, cùng một đường.
+		from vagabond import chi_phi_242
+
+		try:
+			frappe.db.savepoint("vgb_bang_ke_242")
+			chi_phi_242.khi_ghi_so_xuat(doc.name)
+			khoan = frappe.db.get_value(chi_phi_242.DT, {"khoa": "Stock Entry:%s" % doc.name}, "name") or ""
+		except Exception:
+			frappe.db.rollback(save_point="vgb_bang_ke_242")
+			frappe.log_error(frappe.get_traceback(), "Dựng Bảng kê 242 sau phiếu xuất CCDC lỗi")
 	frappe.db.commit()
-	return {"ok": 1, "name": doc.name, "trang_thai": "Đã ghi sổ"}
+	return {"ok": 1, "name": doc.name, "trang_thai": "Đã ghi sổ", "khoan_242": khoan}
 
 
 @frappe.whitelist()
@@ -388,6 +505,8 @@ def chi_tiet(name=None):
 		"kho_xuat": doc.from_warehouse,
 		"muc_dich": doc.get("vgb_muc_dich_xuat") or "",
 		"ten_muc_dich": m["ten"] if m else "",
+		"so_ky_phan_bo": cint(doc.get("vgb_so_ky_phan_bo")),
+		"khoan_242": _khoan_cua(doc) if (doc.get("vgb_muc_dich_xuat") or "") == MA_CCDC else "",
 		"bo_phan": tt,
 		"anh": doc.get("vgb_anh_xuat") or "",
 		"ghi_chu": doc.remarks or "",
@@ -426,3 +545,9 @@ def bo_phieu(name=None, ly_do=None):
 		return {"ok": 1, "da_huy_tu_truoc": 1}
 	chung_tu.danh_dau_huy(doc, ly_do or "Bỏ phiếu nháp sai")
 	return {"ok": 1, "da_huy": 1}
+
+
+def _khoan_cua(doc):
+	if doc.docstatus != 1 or not cint(doc.get("vgb_so_ky_phan_bo")):
+		return ""
+	return frappe.db.get_value("Vagabond Khoan 242", {"khoa": "Stock Entry:%s" % doc.name}, "name") or ""
