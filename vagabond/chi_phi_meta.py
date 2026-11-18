@@ -524,8 +524,7 @@ def chi_tiet_thang(ky):
 		"ky": ky, "trang_thai": t["trang_thai"], "da_tieu": t["da_tieu"], "da_tru": t["da_tru"], "da_ghi_so": t["da_ghi_so"],
 		"thieu": t["thieu"], "giao_dich": gd, "chung_tu_khac": t["chung_tu_khac"],
 		"but_toan": {"trang_thai": tt, "journal_entry": bg.journal_entry if bg else "", "du_kien_qc": qc, "du_kien_phi": phi,
-			"nhap_cu": nhap_da_cu(next((l for l in reversed(_lich_su(bg)) if l.get("je") == bg.journal_entry), None),
-				[g["khoa"] for g in t["vao"]], qc, phi) if tt in (BN.TT_NHAP, BN.TT_SUA_TAY) else "",
+			"nhap_cu": kiem_cu_thang(cty, ky, bg) if tt in (BN.TT_NHAP, BN.TT_SUA_TAY) else "",
 			"dong": [dict(d, debit=BN.lam_tron_dong(d["debit"]), credit=BN.lam_tron_dong(d["credit"])) for d in dong]},
 		"tk": {"qc": _tk(cty, TK_QC), "phi": _tk(cty, TK_PHI), "the": _tk(cty, TK_THE)},
 		"cho_duyet_sao_ke": _sao_ke_cho_duyet(cty),
@@ -580,18 +579,9 @@ def lap(ky):
 	cty = _cty()
 	bg = BN.khoa_ban_ghi(BN.LOAI_META, cty, ky)
 	t = tinh_thang(cty, ky, bg)
-	if t["thieu"]:
-		a, b = t["thieu"][0]
-		frappe.throw("Chưa đủ sao kê: chưa có sao kê thẻ của ngân hàng cho ngày bút toán %s tới %s. Giao dịch tháng %s/%s có thể "
-			"được ghi nợ tới %d ngày sau cuối tháng. Chờ sao kê về rồi bấm lại." % (
-				getdate(a).strftime("%d/%m/%Y"), getdate(b).strftime("%d/%m/%Y"), ky[5:7], ky[:4], NGAY_TRE))
-	if t["con_quyet"]:
-		frappe.throw("Còn %d dòng chờ kế toán chọn. Chọn xong rồi bấm lại." % len(t["con_quyet"]))
-	if t["ct_chua_xem"]:
-		c = t["ct_chua_xem"][0]
-		frappe.throw("Tháng này đã có chứng từ Meta khác (%s %s). Kế toán xem chứng từ đó và xác nhận không trùng trước khi lập." % (c["doctype"], c["name"]))
-	if not t["vao"]:
-		frappe.throw("Tháng %s/%s không còn giao dịch Meta nào chưa ghi sổ." % (ky[5:7], ky[:4]))
+	chan = dieu_kien_lap(t, ky)
+	if chan:
+		frappe.throw(chan)
 	dong, qc, phi = dong_but_toan(t["vao"], _tk(cty, TK_QC), _tk(cty, TK_PHI), _tk(cty, TK_THE), _bo_phan_marketing(cty), ky)
 	kq = BN.lap_hoac_cap_nhat(BN.LOAI_META, cty, ky, dong,
 		"Chi phí quảng cáo Meta tháng %s/%s theo sao kê thẻ Shinhan (hệ thống lập, kế toán ghi sổ)" % (ky[5:7], ky[:4]))
@@ -613,9 +603,32 @@ def ghi_so(ky):
 	return BN.ghi_so(BN.LOAI_META, _cty(), ky)
 
 
+def dieu_kien_lap(t, ky):
+	"""Điều kiện để lập bút toán Meta của tháng: "" là đủ, còn lại là câu chặn.
+	MỘT nguồn cho cả lúc lập và lúc ghi sổ (Codex #590 vòng 3): điều kiện đổi sau
+	khi lập (chứng từ Meta mới, dòng chờ chọn, sao kê) thì nháp không ghi sổ được."""
+	if t["thieu"]:
+		a, b = t["thieu"][0]
+		return ("Chưa đủ sao kê: chưa có sao kê thẻ của ngân hàng cho ngày bút toán %s tới %s. Giao dịch tháng %s/%s có thể "
+			"được ghi nợ tới %d ngày sau cuối tháng. Chờ sao kê về rồi bấm lại." % (
+				getdate(a).strftime("%d/%m/%Y"), getdate(b).strftime("%d/%m/%Y"), ky[5:7], ky[:4], NGAY_TRE))
+	if t["con_quyet"]:
+		return "Còn %d dòng chờ kế toán chọn. Chọn xong rồi bấm lại." % len(t["con_quyet"])
+	if t["ct_chua_xem"]:
+		c = t["ct_chua_xem"][0]
+		return "Tháng này đã có chứng từ Meta khác (%s %s). Kế toán xem chứng từ đó, bỏ giao dịch tờ đó đã ghi, rồi bấm Đã đối chiếu." % (
+			c["doctype"], c["name"])
+	if not t["vao"]:
+		return "Tháng %s/%s không còn giao dịch Meta nào chưa ghi sổ." % (ky[5:7], ky[:4])
+	return ""
+
+
 def kiem_cu_thang(cty, ky, bg):
-	"""Nháp Meta còn khớp giao dịch hiện tại không (hook trước ghi sổ)."""
+	"""Nháp Meta còn đủ điều kiện lập và khớp giao dịch hiện tại không (hook trước ghi sổ)."""
 	t = tinh_thang(cty, ky, bg)
+	chan = dieu_kien_lap(t, ky)
+	if chan:
+		return chan.rstrip(".")
 	lan = [l for l in _lich_su(bg) if l.get("je") == bg.journal_entry]
 	_d, qc, phi = dong_but_toan(t["vao"], "qc", "phi", "the", "", ky)
 	return nhap_da_cu(lan[-1] if lan else None, [g["khoa"] for g in t["vao"]], qc, phi)

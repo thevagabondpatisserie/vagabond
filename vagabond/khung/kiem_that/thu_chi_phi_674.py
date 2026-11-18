@@ -202,6 +202,17 @@ def _meta():
 			dung("hook chặn submit thẳng: %s" % nen.cau_loi(e), "đã cũ" in nen.cau_loi(e))
 		la("nháp chưa ghi sổ", frappe.db.get_value("Journal Entry", je.name, "docstatus"), 0)
 		khong_nem("đưa B lại", lambda: M.quyet(ky, "chon:" + kb, "vao"))
+		# Codex #590 vòng 3: kế toán ghi tay cùng giao dịch (FACEBK) SAU khi lập nháp: ghi sổ nháp bị chặn.
+		tay = _luu(frappe.get_doc(dict(doctype="Journal Entry", company=ct, posting_date=str(dau + timedelta(days=20)), voucher_type="Journal Entry",
+			user_remark="FACEBK KT674 ghi tay", accounts=[dict(account=tkqc, debit_in_account_currency=4057590,
+				cost_center=frappe.get_cached_value("Company", ct, "cost_center")),
+				dict(account=tkthe, credit_in_account_currency=4057590)])))
+		try:
+			M.ghi_so(ky)
+			dung("ghi sổ khi có chứng từ Meta mới phải bị chặn", False)
+		except Exception as e:
+			dung("chặn vì chứng từ Meta mới: %s" % nen.cau_loi(e), "đã cũ" in nen.cau_loi(e) and tay.name in nen.cau_loi(e))
+		khong_nem("đã đối chiếu tờ ghi tay", lambda: M.quyet(ky, "ct:Journal Entry:" + tay.name, "da_xem", "KT674 không trùng, thử"))
 		khong_nem("ghi sổ", lambda: M.ghi_so(ky))
 		la("sổ cái", _so_cai(je.name), sorted([(tkqc, 20557590.0, 0.0), (tkthe, 0.0, 20557590.0)]))
 		ct_thang = khong_nem("đọc đối soát", lambda: M.chi_tiet_thang(ky)) or {}

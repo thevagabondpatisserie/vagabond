@@ -669,7 +669,7 @@ def xem_thang(ky):
 	return {
 		"ky": ky, "trang_thai": tt, "journal_entry": bg.journal_entry if bg else "",
 		"dong": can, "tong": sum(c["so_tien"] for c in can),
-		"nhap_cu": khoan_da_doi(_ban_ke_khoan(bg), can) if tt in (BN.TT_NHAP, BN.TT_SUA_TAY) else "",
+		"nhap_cu": kiem_cu_thang(cty, ky, bg) if tt in (BN.TT_NHAP, BN.TT_SUA_TAY) else "",
 		"cho_khai": [{"name": r.name, "dien_giai": r.dien_giai, "nguyen_gia": BN.lam_tron_dong(r.nguyen_gia)} for r in cho],
 		"co_chua_gan": [dict(x, tien=BN.lam_tron_dong(x["tien"])) for x in chua_gan],
 		"tuong_lai": 1 if BN.la_thang_tuong_lai(ky) else 0,
@@ -690,17 +690,10 @@ def lap_thang(ky):
 	# Khoá bản ghi TRƯỚC khi đọc số đã phân bổ (H8 loại 1): hai người bấm cùng
 	# lúc thì người sau đọc số sau khi người trước đã xong.
 	BN.khoa_ban_ghi(BN.LOAI_242, cty, ky)
-	chua_gan = _co_242_chua_gan(cty)
-	if chua_gan:
-		frappe.throw(
-			"Có %d dòng Có 242 trên bút toán đã ghi sổ chưa gắn khoản (ví dụ %s). Hệ thống không biết khoản nào "
-			"đã được phân bổ nên chưa lập bút toán tháng. Gắn khoản cho các dòng đó ở Bảng kê 242 rồi bấm lại."
-			% (len(chua_gan), chua_gan[0]["je"])
-		)
 	can, cho = _can_thang(cty, ky)
-	if not can:
-		frappe.throw("Tháng %s/%s không còn khoản nào cần phân bổ.%s" % (
-			ky[5:7], ky[:4], (" Còn %d khoản chờ khai số tháng." % len(cho)) if cho else ""))
+	chan = dieu_kien_lap(cty, ky, can, cho)
+	if chan:
+		frappe.throw(chan)
 	dong = dong_but_toan_thang(can, tk_242_chinh(cty), ky)
 	kq = BN.lap_hoac_cap_nhat(BN.LOAI_242, cty, ky, dong,
 		"Phân bổ chi phí trả trước tháng %s/%s (hệ thống lập, kế toán ghi sổ)" % (ky[5:7], ky[:4]),
@@ -716,9 +709,28 @@ def ghi_so_thang(ky):
 	return BN.ghi_so(BN.LOAI_242, cty, ky)
 
 
+def dieu_kien_lap(cty, ky, can, cho):
+	"""Điều kiện lập bút toán phân bổ tháng: "" là đủ. MỘT nguồn cho lúc lập và lúc
+	ghi sổ (Codex #590 vòng 3): Có 242 chưa gắn khoản phát sinh sau khi lập thì nháp
+	không ghi sổ được, vì không biết khoản nào đã được phân bổ."""
+	chua_gan = _co_242_chua_gan(cty)
+	if chua_gan:
+		return ("Có %d dòng Có 242 trên bút toán đã ghi sổ chưa gắn khoản (ví dụ %s). Hệ thống không biết khoản nào "
+			"đã được phân bổ nên chưa lập bút toán tháng. Gắn khoản cho các dòng đó ở Bảng kê 242 rồi bấm lại."
+			% (len(chua_gan), chua_gan[0]["je"]))
+	if not can:
+		return "Tháng %s/%s không còn khoản nào cần phân bổ.%s" % (
+			ky[5:7], ky[:4], (" Còn %d khoản chờ khai số tháng." % len(cho)) if cho else "")
+	return ""
+
+
 def kiem_cu_thang(cty, ky, bg):
-	"""Nháp tháng còn khớp khoản cần phân bổ hiện tại không (hook trước ghi sổ)."""
-	return khoan_da_doi(_ban_ke_khoan(bg), _can_thang(cty, ky)[0])
+	"""Nháp tháng còn đủ điều kiện lập và khớp khoản cần phân bổ hiện tại không (hook trước ghi sổ)."""
+	can, cho = _can_thang(cty, ky)
+	chan = dieu_kien_lap(cty, ky, can, cho)
+	if chan:
+		return chan.rstrip(".")
+	return khoan_da_doi(_ban_ke_khoan(bg), can)
 
 
 @frappe.whitelist(methods=["POST"])

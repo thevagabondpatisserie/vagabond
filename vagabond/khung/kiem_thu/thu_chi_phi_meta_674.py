@@ -522,3 +522,33 @@ def _hook_dang_ky():
 	for duong in BN.KIEM_CU.values():
 		mo, ham = duong.rsplit(".", 1)
 		dung("phép đọc lại %s có thật" % duong, callable(getattr(__import__(mo, fromlist=[ham]), ham, None)))
+
+
+@ca("Codex #590 vòng 3: lập nháp Meta rồi kế toán ghi cùng giao dịch bằng bút toán tay FACEBK: ghi sổ nháp bị chặn vì còn chứng từ chưa đối chiếu (mọi điều kiện lúc lập được kiểm lại)")
+def _ct_moi_sau_lap():
+	import contextlib
+
+	from vagabond import but_toan_nhap as BN
+
+	A = {"khoa": "A", "phan_loai": "meta", "tien": 1000, "bang_chung": ["pdf1"]}
+	bg = _BgGia(name="BG", loai=BN.LOAI_META, company="TV", ky="2026-10", journal_entry=None, ban_ke=None, quyet_dinh=None, dau_ban_may=None)
+
+	def tinh(b):
+		g = [dict(x) for x in trang["gd"]]
+		return {"thieu": [], "con_quyet": [], "ct_chua_xem": list(trang["ct"]), "vao": M.chon_giao_dich(g, M._quyet_dinh(b), set())}
+
+	vá, trang = _kho_gia(bg, tinh)
+	trang["gd"], trang["ct"] = [A], []
+	with contextlib.ExitStack() as st:
+		for v in vá:
+			st.enter_context(v)
+		st.enter_context(um.patch.object(BN, "tinh_trang", lambda b: (trang["tt"], {"doc": trang["je"]}) if trang["je"] else (BN.TT_CHUA, None)))
+		M.lap("2026-10")
+		trang["ct"] = [{"doctype": "Journal Entry", "name": "BT-TAY-1"}]  # kế toán ghi tay FACEBK sau khi lập
+		_JeGia.da_ghi[:] = []
+		try:
+			M.ghi_so("2026-10")
+			dung("ghi sổ phải bị chặn", False)
+		except Exception as e:
+			dung("chặn, nói đúng chứng từ mới: %s" % e, "đã cũ" in str(e) and "BT-TAY-1" in str(e))
+		la("không submit", _JeGia.da_ghi, [])

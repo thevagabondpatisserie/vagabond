@@ -226,3 +226,40 @@ def _nhap_cu_242():
 		hien["can"] = [dict(x) for x in reversed(can_luc_lap)]
 		C.ghi_so_thang("2026-10")
 		la("số không đổi (khác thứ tự) thì ghi được", ghi, [1])
+
+
+@ca("Codex #590 vòng 3 (242): lập nháp tháng rồi có bút toán Có 242 chưa gắn khoản: ghi sổ nháp bị chặn như lúc lập")
+def _chua_gan_sau_lap():
+	can = [{"khoan": "K1", "so_tien": 100, "tk_chi_phi": "6273", "bo_phan": "Bep"}]
+	bg = _Co(name="BG", loai=BN.LOAI_242, company="TV", ky="2026-10", journal_entry="JE1",
+		ban_ke=__import__("json").dumps({"khoan": can}), dau_ban_may="x")
+	je = _Co(name="JE1", posting_date="2026-10-31", vgb_tu_lap="CP242:TV:2026-10")
+	ghi = []
+
+	def submit():
+		BN.kiem_je_tu_lap(je)
+		ghi.append(1)
+	je.submit = submit
+	bg.save = lambda **k: None
+	bg.flags = _Co()
+	je.flags = _Co()
+	chua_gan = {"ds": []}
+	with um.patch.object(C, "_cty", lambda cty=None: "TV"), \
+			um.patch.object(C, "_can_thang", lambda cty, ky: ([dict(x) for x in can], [])), \
+			um.patch.object(C, "_co_242_chua_gan", lambda cty: list(chua_gan["ds"])), \
+			um.patch.object(BN, "kiem_quyen", lambda *a, **k: None), \
+			um.patch.object(BN, "khoa_ban_ghi", lambda *a: bg), \
+			um.patch.object(BN, "tinh_trang", lambda b: (BN.TT_NHAP, {"doc": je})), \
+			um.patch.object(BN, "chan_khoa_so", lambda d: None), \
+			um.patch.object(BN, "_ban_ghi_cua_je", lambda ten: bg if ten == "JE1" else None), \
+			um.patch.object(BN.frappe, "session", _Co(user="kt"), create=True):
+		chua_gan["ds"] = [{"je": "BT-TAY-242", "tien": 50}]
+		try:
+			C.ghi_so_thang("2026-10")
+			dung("phải chặn", False)
+		except Exception as e:
+			dung("chặn, nói đúng bút toán chưa gắn: %s" % e, "đã cũ" in str(e) and "BT-TAY-242" in str(e))
+		la("không submit", ghi, [])
+		chua_gan["ds"] = []
+		C.ghi_so_thang("2026-10")
+		la("gắn xong thì ghi được", ghi, [1])
