@@ -723,6 +723,7 @@ async function scrDsvnCt() {
     return dsvnBuoc((i + 1) + ' · ' + ten, bc.tt.charAt(i) || 'n', (bc.nhan[i] || '') + (them[i + 1] ? '. ' + them[i + 1] : ''));
   }).join('') +
     '<div style="font-size:12.5px;color:#475467;margin-top:6px">Khớp tiền chưa có nghĩa đã hạch toán. Máy chỉ lưu và đối chiếu, không lập phiếu.</div></div>';
+  if (t.chon_tien_ve && q.xac_nhan) html += dsvnKhoiChonTien(n, t);
   html += dsvnKhoiDuyet(n, q) + dsvnCanCu(kq.can_cu, n);
   if (t.phi_vuot && t.phi_vuot.tong > 0) html += dsvnPhiVuot(t.phi_vuot);
   if (t.ky_the) html += dsvnTheTD(t.ky_the);
@@ -823,6 +824,8 @@ async function scrDsvnCt() {
       finally { busy(false); }
       return;
     }
+    if (e.target.closest('#dsvnChonTien')) return dsvnChonTien(n);
+    if (e.target.closest('#dsvnBoChonTien')) return dsvnBoChonTien(n);
     var xn = e.target.closest('[data-dsvnxn]');
     if (xn) {
       busy(true);
@@ -849,6 +852,51 @@ async function scrDsvnCt() {
     catch (e) { baoTin((e && e.message) || 'Chưa đối chiếu được. Thử lại.'); }
     finally { busy(false); }
   };
+}
+
+/* v673 (chị Dung 18/11/2026): nguồn "Trùng số tiền, kế toán chọn" trước đây
+   kẹt ở bước 4 vì không có nút chọn. Kế toán xem sao kê, chọn đúng giao dịch
+   của đợt; chọn nhầm thì Bỏ lựa chọn, máy đối chiếu lại như cũ. */
+function dsvnKhoiChonTien(n, t) {
+  var da = t.tien_ve_chon || '';
+  return '<div class="card" style="padding:12px 14px"><b>Tiền về của đợt này</b>' +
+    '<div style="font-size:13px;color:#475467;margin:4px 0 8px">' + (da ?
+      'Kế toán đã chọn giao dịch <b>' + h(da) + '</b>. Chọn nhầm thì đổi giao dịch hoặc bỏ lựa chọn.' :
+      'Sao kê có nhiều khoản có thể là tiền của đợt này, máy không tự chọn. Xem sao kê rồi chọn đúng khoản.') + '</div>' +
+    '<button class="btn" id="dsvnChonTien" style="margin:0">' + (da ? 'Đổi giao dịch tiền về' : 'Chọn tiền về') + '</button>' +
+    (da ? '<button class="btn gh" id="dsvnBoChonTien" style="margin:8px 0 0">Bỏ lựa chọn</button>' : '') + '</div>';
+}
+function dsvnNgayGd(x) { return x ? String(x).slice(8, 10) + '/' + String(x).slice(5, 7) : ''; }
+async function dsvnChonTien(n) {
+  var kq;
+  busy(true);
+  try { kq = await api('vagabond.doi_soat_vendor.ung_vien_tien_ve', { name: n.name }); }
+  catch (er) { busy(false); return baoTin(errMsg(er)); }
+  busy(false);
+  var ds = (kq && kq.ds) || [];
+  if (!ds.length) return baoTin('Chưa có giao dịch tiền vào nào chọn được cho đợt này (có thể khoản đó đã gắn cho nguồn khác). Bấm Đối chiếu lại sau khi sao kê cập nhật.');
+  sheet('Chọn tiền về · báo cáo ' + money(kq.can_ve) + ' đ', ds.map(function (g) {
+    return { value: g.name, label: money(g.tien) + ' đ · ' + dsvnNgayGd(g.ngay) + (g.cung_so ? ' · cùng số' : ' · khác số'),
+      phu: (g.name + ' · ' + (g.mo_ta || 'Không có nội dung')).slice(0, 140), tim: g.mo_ta || '' };
+  }), kq.chon || '', async function (x) {
+    var g = ds.filter(function (y) { return y.name === x.value; })[0];
+    if (!g) return;
+    var ok = await confirmSheet('Dùng giao dịch này?', money(g.tien) + ' đ ngày ' + dsvnNgayGd(g.ngay) + '\n' + (g.mo_ta || '') +
+      '\n\n' + (g.cung_so ? 'Đúng số báo cáo: bước khớp tiền sẽ xanh.' : 'Khác số báo cáo ' + money(kq.can_ve) + ' đ: nguồn thành Lệch tiền về để hỏi đối tác phần chênh.') +
+      ' Nguồn khác không dùng được giao dịch này nữa.', 'Dùng giao dịch');
+    if (!ok) return;
+    busy(true);
+    try { await api('vagabond.doi_soat_vendor.chon_tien_ve', { name: n.name, gd: g.name }); toast('Đã chọn tiền về.'); go(scrDsvnCt, true); }
+    catch (er) { baoTin(errMsg(er)); }
+    finally { busy(false); }
+  }, ds.length > 8);
+}
+async function dsvnBoChonTien(n) {
+  if (!await confirmSheet('Bỏ lựa chọn tiền về?', 'Máy đối chiếu lại tiền về như lúc chưa chọn. Xác nhận đối soát (nếu có) sẽ phải làm lại.', 'Bỏ lựa chọn', true)) return;
+  busy(true);
+  try { await api('vagabond.doi_soat_vendor.bo_chon_tien_ve', { name: n.name }); toast('Đã bỏ lựa chọn.'); go(scrDsvnCt, true); }
+  catch (er) { baoTin(errMsg(er)); }
+  finally { busy(false); }
 }
 
 // Codex #450 vòng 14: vendor gửi lại sự kiện đã nhận với nội dung khác (ví dụ

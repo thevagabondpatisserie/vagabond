@@ -607,6 +607,61 @@ def tong_duy_nhat(dong, trung, ten):
 	return float(sum(co.values()) + sum(them.values()))
 
 
+def _ung_vien_tien_ve(mau, ngay_tu, ngay_den, giao_dich, da_dung=(), ky=None, ma_chuyen="", tai_khoan=""):
+	"""THUẦN. Một nguồn cho luật "giao dịch nào có thể là tiền của đợt này":
+	đúng khoảng ngày, chưa nguồn khác giữ, nội dung đúng mẫu đối tác, không mang
+	dấu kỳ khác (v647). Trả (đúng kỳ, không ghi kỳ, mẫu nội dung). Máy tự khớp
+	(khop_ngan_hang) và kế toán chọn tay (ung_vien_chon) cùng đọc ở đây, để tập
+	kế toán được chọn không bao giờ rộng hơn tập máy đã xét."""
+	mau_nd = MAU_TIEN_VE.get(nhom_tien_ve(mau), "")
+	cung = [g for g in giao_dich if g["name"] not in da_dung and ngay_tu <= g["ngay"] <= ngay_den
+		and (not mau_nd or re.search(mau_nd, (g["mo_ta"] or "").lower()))]
+	dung_ky, khong_ngay = [], []
+	for g in cung:
+		t = thuoc_ky(mau, g["mo_ta"], ky, ma_chuyen, tai_khoan)
+		if t is True:
+			dung_ky.append(g)
+		elif t is None:
+			khong_ngay.append(g)
+	return dung_ky, khong_ngay, mau_nd
+
+
+def ung_vien_chon(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ky=None, ma_chuyen="", tai_khoan=""):
+	"""THUẦN. Giao dịch kế toán được chọn cho nguồn "Cần chọn tiền về" (v673,
+	chị Dung 18/11/2026: "trùng tiền thì mình làm gì tiếp"). Đúng các giao dịch
+	máy đã nêu trong ghi chú: cùng số tiền nếu có; không có thì mọi giao dịch
+	đúng mẫu nội dung của đối tác. Nguồn không có mẫu nội dung (Shinhan) chỉ
+	được chọn giao dịch cùng số, vì mọi tiền vào khác số đều là ứng viên."""
+	dung_ky, khong_ngay, mau_nd = _ung_vien_tien_ve(mau, ngay_tu, ngay_den, giao_dich, da_dung, ky,
+		ma_chuyen, tai_khoan)
+	cung = dung_ky + khong_ngay
+	dung = [g for g in cung if g["tien"] == can_ve]
+	if dung:
+		return dung
+	return (dung_ky or khong_ngay) if mau_nd else []
+
+
+def con_hop_le(mau, gd_ten, ngay_tu, ngay_den, giao_dich, da_dung=(), ky=None, ma_chuyen="", tai_khoan=""):
+	"""THUẦN. Giao dịch kế toán đã chọn còn dùng được không: vẫn qua đủ luật
+	ứng viên (đúng ngày, chưa nguồn khác giữ, đúng mẫu, không mang dấu kỳ
+	khác). Trả giao dịch hoặc None. Không đòi cùng số tiền: kế toán có thể đã
+	chọn khoản khác số để báo lệch với đối tác."""
+	dung_ky, khong_ngay, _m = _ung_vien_tien_ve(mau, ngay_tu, ngay_den, giao_dich, da_dung, ky,
+		ma_chuyen, tai_khoan)
+	return next((g for g in dung_ky + khong_ngay if g["name"] == gd_ten), None)
+
+
+def ket_qua_chon(can_ve, gd):
+	"""THUẦN. Kế toán đã chọn giao dịch gd cho nguồn. Cùng số: Đã thấy tiền về;
+	khác số: Lệch tiền về để hỏi đối tác phần chênh. Cả hai đều GIỮ giao dịch
+	(nguồn khác không lấy được nữa) vì đó là quyết định của kế toán, không phải
+	gợi ý của máy. Trả (trạng thái, ghi chú)."""
+	if gd["tien"] == can_ve:
+		return "Đã thấy tiền về", "Kế toán chọn giao dịch %s, %s đồng." % (gd["name"], _vn(gd["tien"]))
+	return "Lệch tiền về", "Kế toán chọn giao dịch %s (%s), báo cáo %s (lệch %s); hỏi đối tác phần chênh." % (
+		gd["name"], _vn(gd["tien"]), _vn(can_ve), _vn(gd["tien"] - can_ve))
+
+
 def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_tay="", ky=None,
 		ma_chuyen="", tai_khoan=""):
 	"""Tìm giao dịch tiền vào đúng số tiền vendor phải trả.
@@ -623,16 +678,8 @@ def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_
 	"""
 	if can_ve <= 0:
 		return "Không áp dụng", [], "Không có tiền vendor phải trả trong tệp này."
-	mau_nd = MAU_TIEN_VE.get(nhom_tien_ve(mau), "")
-	cung = [g for g in giao_dich if g["name"] not in da_dung and ngay_tu <= g["ngay"] <= ngay_den
-		and (not mau_nd or re.search(mau_nd, (g["mo_ta"] or "").lower()))]
-	dung_ky, khong_ngay = [], []
-	for g in cung:
-		t = thuoc_ky(mau, g["mo_ta"], ky, ma_chuyen, tai_khoan)
-		if t is True:
-			dung_ky.append(g)
-		elif t is None:
-			khong_ngay.append(g)
+	dung_ky, khong_ngay, mau_nd = _ung_vien_tien_ve(mau, ngay_tu, ngay_den, giao_dich, da_dung, ky,
+		ma_chuyen, tai_khoan)
 	cung = dung_ky + khong_ngay
 	dung = [g for g in cung if g["tien"] == can_ve]
 	if len(dung) == 1:

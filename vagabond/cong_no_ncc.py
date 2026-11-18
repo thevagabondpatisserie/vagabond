@@ -152,8 +152,21 @@ def danh_sach(cong_ty=None, trang_thai="con_no", tu_khoa="", ky="", nhom="", tra
                 "tk_co_ma": (vco.get(je) or [""])[0],
                 "nguoi_gui": frappe.utils.get_fullname(ai), "luc_gui": str(luc)[:16],
                 "ngay_tra": str(ngay_tra or "")[:10], "dien_giai": (dg or "")[len(DAU_TRUOC_ERP):].strip()})
+    # v673: phiếu cấn trừ phí đối tác (lập từ đối soát) còn nháp, chờ kế toán
+    # trưởng xác nhận, để dòng hoá đơn không nói "chưa làm gì".
+    phi_dt = {}
+    if ten:
+        for hd_, ten_, tien_ in frappe.db.sql("""select p.hoa_don, c.name, c.tong_bu
+                from `tabVagabond Can Tru Phi` p join `tabVagabond Can Tru San` c on c.name = p.parent
+                where p.parenttype = 'Vagabond Can Tru San' and c.docstatus = 0 and c.doi_soat = 1
+                  and p.hoa_don in %s order by c.creation desc""", (tuple(ten),)):
+            phi_dt.setdefault(hd_, []).append({"name": ten_, "tong_bu": float(tien_ or 0)})
     for r in kq["dong"]:
         r["cho_duyet"] = cho.get(r["name"], [])
+        r["phieu_phi"] = phi_dt.get(r["name"], [])
+        # v673: hoá đơn của đối tác giữ phí (Grab, Shopee, OnePay...) có lối cấn
+        # trừ theo đối soát; nhà cung cấp thường giữ lối một chạm như cũ.
+        r["phi_doi_tac"] = bool(_doan_doi_tac(r.get("supplier_name")))
     kq["ke_toan"] = _la_ke_toan()
     # v552: danh sách tài khoản Có cho hộp Duyệt ghi sổ (chỉ khi có thẻ chờ).
     kq["tk_co_chon"] = tk_co_chon_duoc(kq.get("cong_ty")) if (cho and kq["ke_toan"] and kq.get("cong_ty")) else []
@@ -306,6 +319,11 @@ def dong_but_toan_truoc_erp(hd, tk_tam, so_tien, ttcp=None):
 def _vai_lap_truoc_erp():
     from vagabond import ho_so_tt as hs
     return hs.VAI_LAP | hs.VAI_FIN
+
+
+def _doan_doi_tac(ten):
+    from vagabond.can_tru_phi import doan_doi_tac
+    return doan_doi_tac(ten)
 
 
 def _la_ke_toan():

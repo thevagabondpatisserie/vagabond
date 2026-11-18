@@ -12,6 +12,12 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v673
+- Chọn tiền về khi trùng số tiền
+- Cấn trừ hoá đơn phí đối tác theo đối soát
+- Cách hạch toán cấn trừ công nợ: chọn đúng đường theo trường hợp
+- Đối chiếu tiền về của đối tác giao đồ ăn
+
 ## v670
 - Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
 - Đăng ngay bài đã hẹn giờ

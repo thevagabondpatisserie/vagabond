@@ -204,6 +204,7 @@ node vagabond/khung/kiem_thu/hanh_vi/ban_soan_do_533.js
 node vagabond/khung/kiem_thu/hanh_vi/cong_cu_ds_534.js
 node vagabond/khung/kiem_thu/hanh_vi/cong_no_ncc.js
 node vagabond/khung/kiem_thu/hanh_vi/cong_no_tra_truoc_erp_549.js
+node vagabond/khung/kiem_thu/hanh_vi/cong_no_phi_doi_tac_673.js
 node vagabond/khung/kiem_thu/hanh_vi/cong_no_tra_truoc_erp_ban_nhap_549.js
 node vagabond/khung/kiem_thu/hanh_vi/gom_mua_ban_nhap_646.js
 node vagabond/khung/kiem_thu/hanh_vi/but_toan_doi_tk_552.js
