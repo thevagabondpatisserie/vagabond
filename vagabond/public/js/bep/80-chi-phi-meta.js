@@ -178,9 +178,9 @@ async function scrDsMetaThang(ky) {
     (d.chung_tu_khac && d.chung_tu_khac.length ? '<div class="card" style="padding:10px 12px"><b style="font-size:14.5px">Chứng từ Meta có sẵn bằng đường khác</b>' +
       '<div style="font-size:13px;color:#667085">Hệ thống không sửa các chứng từ này. Xem từng tờ: nếu nó đã ghi chính các giao dịch dưới đây thì bỏ các giao dịch đó, nếu không thì xác nhận không trùng.</div>' +
       d.chung_tu_khac.map(function (c) {
-        return '<div style="display:flex;gap:8px;align-items:center;min-height:52px;border-top:1px solid #f2f4f7;font-size:14px"><span style="flex:1;min-width:0"><b>' + h(c.name) + '</b> · ' + ngayNgan(c.ngay) +
-          '<span style="display:block;color:#667085;font-size:13px">' + h((c.mo || '').slice(0, 70)) + '</span></span><b>' + money(c.tien) + ' đ</b>' +
-          (c.da_xem ? qcmChipMau(DSM_GD, 'Đã ghi sổ', 'Đã xem') : (d.duoc_lap ? '<button type="button" class="btn gh" data-dsmct="' + h(c.doctype + ':' + c.name) + '" style="margin:0;min-height:44px;padding:0 10px;flex:0 0 auto;width:auto">Không trùng</button>' : '')) + '</div>';
+        return '<div style="border-top:1px solid #f2f4f7;padding:8px 0;font-size:14px"><div style="display:flex;gap:8px;align-items:baseline"><b style="flex:1;min-width:0;word-break:break-all">' + h(c.name) + '</b><b>' + money(c.tien) + ' đ</b></div>' +
+          '<div style="color:#667085;font-size:13px">' + ngayNgan(c.ngay) + ' · ' + h((c.mo || '').slice(0, 80)) + '</div>' +
+          '<div style="margin-top:6px">' + (c.da_xem ? qcmChipMau(DSM_GD, 'Đã ghi sổ', 'Đã xem, không trùng') : (d.duoc_lap ? '<button type="button" class="btn gh" data-dsmct="' + h(c.doctype + ':' + c.name) + '" style="margin:0;min-height:44px">Không trùng</button>' : '')) + '</div></div>';
       }).join('') + '</div>' : '') +
     '<div style="font-size:15px;font-weight:800;margin:12px 2px 6px">Giao dịch thẻ của tháng (' + gd.length + ')</div>' +
     (gd.length ? '<div class="card" style="padding:4px 12px">' + gd.map(function (g) {
@@ -199,7 +199,7 @@ async function scrDsMetaThang(ky) {
     }).join('') + '</div>' : '<div class="emp"><div class="e1">📭</div><div>Tháng này chưa có giao dịch Meta nào trên sao kê thẻ.</div></div>') +
     '<div class="card" style="padding:10px 12px;margin-top:10px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:14.5px">Bút toán của tháng</b>' + qcmChipMau(DSM_BT, bt.trang_thai) + '</div>' +
     ((bt.dong || []).length ? bt.dong.map(function (x) {
-      return '<div style="display:flex;gap:8px;min-height:36px;align-items:center;border-top:1px solid #f2f4f7;font-size:14px"><span style="flex:1;min-width:0">' + (x.debit ? 'Nợ ' : 'Có ') + h(x.account) + '</span><b>' + money(x.debit || x.credit) + ' đ</b></div>';
+      return '<div style="display:flex;gap:8px;min-height:36px;align-items:center;border-top:1px solid #f2f4f7;font-size:14px"><span style="flex:1;min-width:0">' + (x.debit ? 'Nợ ' : 'Có ') + h(cp2BoDuoi(x.account)) + '</span><b>' + money(x.debit || x.credit) + ' đ</b></div>';
     }).join('') : '<div style="font-size:13.5px;color:#667085;margin-top:6px">Không còn giao dịch nào chờ vào bút toán.</div>') +
     (bt.journal_entry ? '<div style="font-size:13px;color:#667085;margin-top:6px">Bút toán đang nối: ' + h(bt.journal_entry) + '</div>' : '') +
     '<div style="font-size:13px;color:#667085;margin-top:6px">Muốn tự hạch toán: lập ở màn Bút toán (Hạch toán tay), ghi rõ FACEBK hoặc Meta ở diễn giải; hệ thống thấy chứng từ đó và dừng lại cho kế toán xem, không ghi trùng.</div>' +

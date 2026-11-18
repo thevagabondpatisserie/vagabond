@@ -110,8 +110,9 @@ def can_phan_bo(khoan, ky, da_phan_bo):
 		return 0
 	ng = BN.lam_tron_dong(khoan.get("nguyen_gia"))
 	da = BN.lam_tron_dong(da_phan_bo)
-	can = luy_ke_toi(ng, khoan.get("so_ky"), khoan.get("ky_bat_dau"), ky) - da
-	return max(0, min(can, ng - da))
+	# Luỹ kế theo lịch không bao giờ vượt nguyên giá (lịch cộng lại đúng nguyên giá),
+	# nên phần cần không vượt phần còn lại; chỉ cần chặn âm khi đã phân bổ tay quá lịch.
+	return max(0, luy_ke_toi(ng, khoan.get("so_ky"), khoan.get("ky_bat_dau"), ky) - da)
 
 
 def trang_thai_hien(khoan, da_phan_bo):
@@ -378,7 +379,7 @@ def quet(cty=None):
 
 def quet_tu_dong():
 	"""Nhịp hằng ngày: mọi công ty có tài khoản 242."""
-	for c in frappe.get_all("Company", pluck="name"):
+	for c in frappe.get_all("Company", pluck="name", limit_page_length=0):
 		try:
 			if tk_242(c):
 				quet(c)
@@ -730,6 +731,8 @@ def gan_khoan(dong, ten):
 	"""Gắn khoản cho một dòng Có 242 đã ghi sổ mà chưa gắn (đường tay quên gắn).
 	Ô vgb_khoan_242 cho sửa sau ghi sổ; hook before_update_after_submit kiểm vượt."""
 	BN.kiem_quyen(BN.QUYEN_LAP, "gắn khoản chi phí trả trước")
+	# Khoá dòng trước khi đọc (H8 loại 1): hai người cùng gắn một dòng thì người sau thấy đã gắn.
+	frappe.db.sql("select name from `tabJournal Entry Account` where name=%s for update", dong)
 	r = frappe.db.get_value("Journal Entry Account", dong, ["parent", "account", "credit_in_account_currency", "vgb_khoan_242"], as_dict=True)
 	if not r:
 		frappe.throw("Không thấy dòng bút toán này.")

@@ -140,6 +140,8 @@ def _loi():
 	s = Q.che("GET https://graph.facebook.com/x?access_token=EAAbimatdai123&after=1 lỗi với mã EAAbimatdai123 và EAA" + "x" * 30, "EAAbimatdai123")
 	dung("không còn mã", "EAAbimatdai123" not in s and "EAAxxxx" not in s)
 	dung("còn phần còn lại", "after=1" in s)
+	s2 = Q.che("lỗi khi gọi https://graph.facebook.com/x?after=2&access_token=ABCxyz123")
+	dung("không biết trước mã vẫn che tham số access_token", "ABCxyz123" not in s2 and "access_token=***" in s2)
 
 
 @ca("v674 Meta trạng thái ngày: Chưa đọc, Còn điều chỉnh trong N ngày gần nhất, Đã chốt, Không chi")

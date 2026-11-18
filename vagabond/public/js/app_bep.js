@@ -57180,6 +57180,22 @@ function xktOChip(id, ic, nhan, ds, dangChon, opt) {
     '</div>';
 }
 
+/* v674: khối chip lựa chọn theo chuẩn chạm mới (AGENTS.md 2b.13): chip cao 44, chữ từ
+   13, dòng giải thích 13. Dùng cho phần chọn phân bổ CCDC; khối xktOChip cũ giữ nguyên để
+   không đổi giao diện các màn xuất kho khác trong PR này. */
+function xktOChipLon(id, ic, nhan, ds, dangChon, mo) {
+  return '<div class="vf" id="' + id + 'O">' +
+    '<div style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:6px"><span>' + ic + '</span><b>' + h(nhan) + '</b></div>' +
+    /* Ít lựa chọn nên xuống dòng thay vì cuộn ngang: chip đang chọn luôn nằm trong tầm nhìn. */
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 8px">' + ds.map(function (n) {
+      var on = dangChon === n.k;
+      return '<button type="button" data-' + id + '="' + h(n.k) + '" aria-pressed="' + (on ? 'true' : 'false') + '" style="flex:0 0 auto;width:auto;min-height:44px;padding:0 14px;border-radius:22px;' +
+        'border:1px solid ' + (on ? '#0B7C93' : '#d0d5dd') + ';background:' + (on ? '#e6f8fb' : '#fff') + ';font:inherit;font-size:14px;font-weight:' + (on ? 800 : 600) +
+        ';color:' + (on ? '#05323C' : '#344054') + '">' + h(n.ten) + '</button>';
+    }).join('') + '</div>' +
+    (mo ? '<div style="font-size:13px;color:#667085;line-height:1.5;margin:0 0 8px">' + h(mo) + '</div>' : '') + '</div>';
+}
+
 function xktCss() {
   vgbCss();
   if (document.getElementById('xktCss')) return;
@@ -57602,10 +57618,10 @@ async function scrXkNbNew() {
       xktOChip('nbmd', '🎯', 'Mục đích xuất dùng', mucDichs, st.mucDich, { batBuoc: 1, mo: moMucDich() }) +
       /* v674 (Khải báo 18/11/2026): đưa công cụ dụng cụ vào dùng thì chọn phân
          bổ một lần hay nhiều tháng. Máy chủ kiểm lại (thieu_phan_bo). */
-      (st.mucDich === 'ccdc' ? xktOChip('nbpb', '🧮', 'Cách phân bổ', (b.cach_phan_bo || []).map(function (c) { return { k: c.ma, ten: c.ten }; }),
-        st.cachPb, { batBuoc: 1, mo: moPhanBo() }) +
-        (st.cachPb === 'nhieu_ky' ? xktOChip('nbsk', '📅', 'Số tháng phân bổ', (b.chon_so_ky || []).map(function (n) { return { k: String(n), ten: n + ' tháng' }; }),
-          st.soKy ? String(st.soKy) : '', { batBuoc: 1, mo: st.soKy ? 'Mỗi tháng Kế toán phân bổ khoảng 1/' + st.soKy + ' giá trị hàng xuất vào chi phí của bộ phận.' : 'Chọn số tháng công cụ dùng được.' }) : '') : '') +
+      (st.mucDich === 'ccdc' ? xktOChipLon('nbpb', '🧮', 'Cách phân bổ', (b.cach_phan_bo || []).map(function (c) { return { k: c.ma, ten: c.ten }; }),
+        st.cachPb, moPhanBo()) +
+        (st.cachPb === 'nhieu_ky' ? xktOChipLon('nbsk', '📅', 'Số tháng phân bổ', (b.chon_so_ky || []).map(function (n) { return { k: String(n), ten: n + ' tháng' }; }),
+          st.soKy ? String(st.soKy) : '', st.soKy ? 'Mỗi tháng Kế toán phân bổ khoảng 1/' + st.soKy + ' giá trị hàng xuất vào chi phí của bộ phận.' : 'Chọn số tháng công cụ dùng được.') : '') : '') +
       /* O bo phan la ly do ton tai cua ca man nay. Chon xong thi gia tri hang
          xuat vao dung so cua bo phan do, khong con lan vao hao hut cua Bep. */
       xktOChon('nbbp', '🏛️', 'Bộ phận chịu chi phí',
@@ -76479,6 +76495,8 @@ var CP2_MAU = {
 var CP2_IC = { 'Phiếu xuất CCDC': '📦', 'Hoá đơn mua': '🧾', 'Bút toán': '📒' };
 
 function cp2Tien(n) { return money(n) + ' đ'; }
+/* Bỏ đuôi viết tắt công ty (" - TV") khi hiện tên bộ phận, tài khoản: không hiện mã nội bộ (2b). */
+function cp2BoDuoi(s) { return String(s || '').replace(/\s-\s[A-Z]{1,5}$/, ''); }
 function cp2Thang(ky) { return ky ? ky.slice(5, 7) + '/' + ky.slice(0, 4) : ''; }
 function cp2KyNay() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 function cp2CongThang(ky, n) {
@@ -76530,7 +76548,7 @@ async function scrCp242(moKhoan) {
   var html =
     '<div class="card" style="padding:12px 14px"><div style="display:flex;gap:8px;text-align:center">' +
     [['Nguyên giá', t.nguyen_gia], ['Đã phân bổ', t.da_phan_bo], ['Còn lại', t.con_lai]].map(function (x) {
-      return '<div style="flex:1;min-width:0"><div style="font-size:13px;color:#667085">' + x[0] + '</div><div style="font-size:16px;font-weight:800;word-break:break-word">' + cp2Tien(x[1] || 0) + '</div></div>';
+      return '<div style="flex:1;min-width:0"><div style="font-size:13px;color:#667085">' + x[0] + '</div><div style="font-size:15px;font-weight:800;white-space:nowrap">' + cp2Tien(x[1] || 0) + '</div></div>';
     }).join('') + '</div>' +
     ((CP2.tt || CP2.nguon || CP2.tim) ? '<div style="font-size:13px;color:#0B7C93;text-align:center;margin-top:6px">Tổng theo bộ lọc đang chọn</div>' : '') + '</div>' +
     cp2HangChip(CP2_TT.map(function (x) { return cp2Chip('data-cp2tt', x[0], x[1], CP2.tt === x[0], dem.trang_thai[x[0]] || 0); }).join('')) +
@@ -76580,7 +76598,7 @@ async function cp2ChiTiet(ten) {
       return '<div style="flex:1;min-width:0;background:#f8fafc;border-radius:10px;padding:8px 4px"><div style="font-size:13px;color:#667085">' + x[0] + '</div><div style="font-size:15px;font-weight:800">' + cp2Tien(x[1]) + '</div></div>';
     }).join('') + '</div>' +
     cp2Dong('Chứng từ gốc', h(d.nguon_loai + ' ' + d.nguon_so)) + cp2Dong('Ngày ghi nhận', ngayNgan(d.ngay)) +
-    cp2Dong('Bộ phận chịu', h(d.bo_phan || 'Chưa chọn')) + cp2Dong('Tài khoản chi phí', h(d.tk_chi_phi || 'Chưa chọn')) +
+    cp2Dong('Bộ phận chịu', h(cp2BoDuoi(d.bo_phan) || 'Chưa chọn')) + cp2Dong('Tài khoản chi phí', h(cp2BoDuoi(d.tk_chi_phi) || 'Chưa chọn')) +
     cp2Dong('Phân bổ', d.so_ky ? h(d.so_ky + ' tháng, từ tháng ' + cp2Thang(d.ky_bat_dau)) : '<span style="color:#b42318">Chưa khai</span>') +
     (d.da_phan_bo_truoc ? cp2Dong('Đã phân bổ trước', cp2Tien(d.da_phan_bo_truoc)) : '') +
     (d.ghi_chu ? cp2Dong('Ghi chú', h(d.ghi_chu)) : '') +
@@ -76637,8 +76655,11 @@ async function cp2SheetKhai(d) {
       '<div style="font-size:14px;font-weight:700;margin-top:10px">Tháng bắt đầu</div>' +
       cp2HangChip(kyChip.map(function (k) { return cp2Chip('data-kky', k, 'Tháng ' + cp2Thang(k), st.kyBd === k); }).join('')) +
       '<label style="display:block;font-size:13.5px;color:#667085">Tháng khác<input id="kKyKhac" type="month" value="' + h(kyChip.indexOf(st.kyBd) < 0 ? st.kyBd : '') + '" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:4px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px"></label>' +
-      '<div style="margin-top:10px">' + crmNutChon('data-kbp="1"', '🏛️', st.boPhan ? h(nhanCua(dm.bo_phan, st.boPhan)) : 'Chọn bộ phận chịu chi phí', 0, 'Bộ phận dùng công cụ này') + '</div>' +
-      '<div style="margin-top:8px">' + crmNutChon('data-ktk="1"', '🧮', st.tk ? h(nhanCua(dm.tai_khoan, st.tk)) : 'Chọn tài khoản chi phí', 0, 'Bếp 6273, bán hàng 6413, quản lý 6423') + '</div>' +
+      '<div style="font-size:14px;font-weight:700;margin-top:10px">Bộ phận chịu chi phí</div>' +
+      '<div style="margin-top:4px">' + crmNutChon('data-kbp="1"', '🏛️', st.boPhan ? h(nhanCua(dm.bo_phan, st.boPhan)) : 'Chọn bộ phận dùng công cụ này') + '</div>' +
+      '<div style="font-size:14px;font-weight:700;margin-top:10px">Tài khoản chi phí</div>' +
+      '<div style="margin-top:4px">' + crmNutChon('data-ktk="1"', '🧮', st.tk ? h(nhanCua(dm.tai_khoan, st.tk)) : 'Chọn tài khoản chi phí') + '</div>' +
+      '<div style="font-size:13px;color:#667085;margin-top:4px">Bếp, sản xuất 6273; bán hàng 6413; quản lý 6423.</div>' +
       '<label style="display:block;margin-top:10px;font-size:14px;font-weight:700">Đã phân bổ trước khi lên bảng kê (đ)<span style="display:block;font-size:13px;font-weight:500;color:#667085">Phần đã chia vào chi phí ở sổ cũ, ngoài hệ thống. Không có thì để 0.</span>' +
       '<input id="kDaTruoc" type="number" inputmode="numeric" min="0" value="' + (st.daTruoc || 0) + '" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:4px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px"></label>' +
       '<label style="display:block;margin-top:10px;font-size:14px;font-weight:700">Ghi chú<input id="kGhiChu" value="' + h(st.ghiChu) + '" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:4px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px"></label>' +
@@ -76678,7 +76699,7 @@ async function cp2SheetTay(d) {
   var ov = crmMoSheet('<div style="font-size:17px;font-weight:800">Phân bổ tay</div><div style="font-size:13.5px;color:#667085">' + h(d.dien_giai || d.nguon_so) + ' · còn ' + cp2Tien(d.con_lai) + '</div>' +
     '<label style="display:block;margin-top:10px;font-size:14px;font-weight:700">Tháng hạch toán<input id="tKy" type="month" value="' + ky + '" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:4px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px"></label>' +
     '<label style="display:block;margin-top:10px;font-size:14px;font-weight:700">Số tiền phân bổ (đ)<input id="tTien" type="number" inputmode="numeric" min="1" value="' + (d.con_lai || '') + '" style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:4px;border:1px solid #d0d5dd;border-radius:12px;padding:0 12px;font:inherit;font-size:16px"></label>' +
-    '<div style="font-size:13px;color:#667085;margin-top:6px">Nợ ' + h(d.tk_chi_phi) + ' / Có 242, bộ phận ' + h(d.bo_phan) + '. Bút toán riêng, không đụng bút toán tháng của máy.</div>' +
+    '<div style="font-size:13px;color:#667085;margin-top:6px">Nợ ' + h(cp2BoDuoi(d.tk_chi_phi)) + ' / Có 242, bộ phận ' + h(cp2BoDuoi(d.bo_phan)) + '. Bút toán riêng, không đụng bút toán tháng của máy.</div>' +
     '<div style="margin-top:14px">' + cp2NutChinh('tLap', 'Lập bút toán nháp') + (d.duoc_ghi ? cp2NutPhu('tGhi', 'Lập và ghi sổ ngay') : '') + '</div>');
   async function lam(ghi) {
     var k = ov.querySelector('#tKy').value, tien = Number(ov.querySelector('#tTien').value || 0);
@@ -76734,7 +76755,7 @@ async function cp2SheetThang(ky) {
     '<div style="font-size:15px;margin:4px 0 6px">Cần phân bổ: <b>' + cp2Tien(d.tong) + '</b> · ' + cac.length + ' khoản' + (d.journal_entry ? ' · bút toán ' + h(d.journal_entry) : '') + '</div>' +
     cac.slice(0, 5).map(function (c) {
       return '<div style="display:flex;gap:8px;min-height:44px;align-items:center;border-top:1px solid #f2f4f7;font-size:14px"><span style="flex:1;min-width:0">' + h((c.dien_giai || c.nguon_so || '').slice(0, 70)) +
-        '<span style="display:block;color:#667085;font-size:13px">' + h(c.tk_chi_phi) + '</span></span><b>' + cp2Tien(c.so_tien) + '</b></div>';
+        '<span style="display:block;color:#667085;font-size:13px">' + h(cp2BoDuoi(c.tk_chi_phi)) + '</span></span><b>' + cp2Tien(c.so_tien) + '</b></div>';
     }).join('') + (cac.length > 5 ? '<div style="font-size:13px;color:#667085;padding:6px 0">và ' + (cac.length - 5) + ' khoản nữa</div>' : '') +
     (d.tuong_lai ? '<div style="font-size:13.5px;color:#b54708;margin-top:6px">Chưa tới tháng này nên chưa lập được.</div>' : '') +
     '<div style="margin-top:12px">' + nut + '</div>' +
@@ -76940,9 +76961,9 @@ async function scrDsMetaThang(ky) {
     (d.chung_tu_khac && d.chung_tu_khac.length ? '<div class="card" style="padding:10px 12px"><b style="font-size:14.5px">Chứng từ Meta có sẵn bằng đường khác</b>' +
       '<div style="font-size:13px;color:#667085">Hệ thống không sửa các chứng từ này. Xem từng tờ: nếu nó đã ghi chính các giao dịch dưới đây thì bỏ các giao dịch đó, nếu không thì xác nhận không trùng.</div>' +
       d.chung_tu_khac.map(function (c) {
-        return '<div style="display:flex;gap:8px;align-items:center;min-height:52px;border-top:1px solid #f2f4f7;font-size:14px"><span style="flex:1;min-width:0"><b>' + h(c.name) + '</b> · ' + ngayNgan(c.ngay) +
-          '<span style="display:block;color:#667085;font-size:13px">' + h((c.mo || '').slice(0, 70)) + '</span></span><b>' + money(c.tien) + ' đ</b>' +
-          (c.da_xem ? qcmChipMau(DSM_GD, 'Đã ghi sổ', 'Đã xem') : (d.duoc_lap ? '<button type="button" class="btn gh" data-dsmct="' + h(c.doctype + ':' + c.name) + '" style="margin:0;min-height:44px;padding:0 10px;flex:0 0 auto;width:auto">Không trùng</button>' : '')) + '</div>';
+        return '<div style="border-top:1px solid #f2f4f7;padding:8px 0;font-size:14px"><div style="display:flex;gap:8px;align-items:baseline"><b style="flex:1;min-width:0;word-break:break-all">' + h(c.name) + '</b><b>' + money(c.tien) + ' đ</b></div>' +
+          '<div style="color:#667085;font-size:13px">' + ngayNgan(c.ngay) + ' · ' + h((c.mo || '').slice(0, 80)) + '</div>' +
+          '<div style="margin-top:6px">' + (c.da_xem ? qcmChipMau(DSM_GD, 'Đã ghi sổ', 'Đã xem, không trùng') : (d.duoc_lap ? '<button type="button" class="btn gh" data-dsmct="' + h(c.doctype + ':' + c.name) + '" style="margin:0;min-height:44px">Không trùng</button>' : '')) + '</div></div>';
       }).join('') + '</div>' : '') +
     '<div style="font-size:15px;font-weight:800;margin:12px 2px 6px">Giao dịch thẻ của tháng (' + gd.length + ')</div>' +
     (gd.length ? '<div class="card" style="padding:4px 12px">' + gd.map(function (g) {
@@ -76961,7 +76982,7 @@ async function scrDsMetaThang(ky) {
     }).join('') + '</div>' : '<div class="emp"><div class="e1">📭</div><div>Tháng này chưa có giao dịch Meta nào trên sao kê thẻ.</div></div>') +
     '<div class="card" style="padding:10px 12px;margin-top:10px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:14.5px">Bút toán của tháng</b>' + qcmChipMau(DSM_BT, bt.trang_thai) + '</div>' +
     ((bt.dong || []).length ? bt.dong.map(function (x) {
-      return '<div style="display:flex;gap:8px;min-height:36px;align-items:center;border-top:1px solid #f2f4f7;font-size:14px"><span style="flex:1;min-width:0">' + (x.debit ? 'Nợ ' : 'Có ') + h(x.account) + '</span><b>' + money(x.debit || x.credit) + ' đ</b></div>';
+      return '<div style="display:flex;gap:8px;min-height:36px;align-items:center;border-top:1px solid #f2f4f7;font-size:14px"><span style="flex:1;min-width:0">' + (x.debit ? 'Nợ ' : 'Có ') + h(cp2BoDuoi(x.account)) + '</span><b>' + money(x.debit || x.credit) + ' đ</b></div>';
     }).join('') : '<div style="font-size:13.5px;color:#667085;margin-top:6px">Không còn giao dịch nào chờ vào bút toán.</div>') +
     (bt.journal_entry ? '<div style="font-size:13px;color:#667085;margin-top:6px">Bút toán đang nối: ' + h(bt.journal_entry) + '</div>' : '') +
     '<div style="font-size:13px;color:#667085;margin-top:6px">Muốn tự hạch toán: lập ở màn Bút toán (Hạch toán tay), ghi rõ FACEBK hoặc Meta ở diễn giải; hệ thống thấy chứng từ đó và dừng lại cho kế toán xem, không ghi trùng.</div>' +

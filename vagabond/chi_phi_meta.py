@@ -394,7 +394,7 @@ def _je_da_ghi(lich_su):
 	ten = [l.get("je") for l in lich_su if l.get("je")]
 	if not ten:
 		return set()
-	return set(frappe.get_all("Journal Entry", filters={"name": ["in", ten], "docstatus": 1}, pluck="name"))
+	return set(frappe.get_all("Journal Entry", filters={"name": ["in", ten], "docstatus": 1}, pluck="name", limit_page_length=0))
 
 
 def _so_da_ghi(cty, ky, je_da_ghi):

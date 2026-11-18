@@ -123,6 +123,22 @@ function xktOChip(id, ic, nhan, ds, dangChon, opt) {
     '</div>';
 }
 
+/* v674: khối chip lựa chọn theo chuẩn chạm mới (AGENTS.md 2b.13): chip cao 44, chữ từ
+   13, dòng giải thích 13. Dùng cho phần chọn phân bổ CCDC; khối xktOChip cũ giữ nguyên để
+   không đổi giao diện các màn xuất kho khác trong PR này. */
+function xktOChipLon(id, ic, nhan, ds, dangChon, mo) {
+  return '<div class="vf" id="' + id + 'O">' +
+    '<div style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:6px"><span>' + ic + '</span><b>' + h(nhan) + '</b></div>' +
+    /* Ít lựa chọn nên xuống dòng thay vì cuộn ngang: chip đang chọn luôn nằm trong tầm nhìn. */
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 8px">' + ds.map(function (n) {
+      var on = dangChon === n.k;
+      return '<button type="button" data-' + id + '="' + h(n.k) + '" aria-pressed="' + (on ? 'true' : 'false') + '" style="flex:0 0 auto;width:auto;min-height:44px;padding:0 14px;border-radius:22px;' +
+        'border:1px solid ' + (on ? '#0B7C93' : '#d0d5dd') + ';background:' + (on ? '#e6f8fb' : '#fff') + ';font:inherit;font-size:14px;font-weight:' + (on ? 800 : 600) +
+        ';color:' + (on ? '#05323C' : '#344054') + '">' + h(n.ten) + '</button>';
+    }).join('') + '</div>' +
+    (mo ? '<div style="font-size:13px;color:#667085;line-height:1.5;margin:0 0 8px">' + h(mo) + '</div>' : '') + '</div>';
+}
+
 function xktCss() {
   vgbCss();
   if (document.getElementById('xktCss')) return;
@@ -545,10 +561,10 @@ async function scrXkNbNew() {
       xktOChip('nbmd', '🎯', 'Mục đích xuất dùng', mucDichs, st.mucDich, { batBuoc: 1, mo: moMucDich() }) +
       /* v674 (Khải báo 18/11/2026): đưa công cụ dụng cụ vào dùng thì chọn phân
          bổ một lần hay nhiều tháng. Máy chủ kiểm lại (thieu_phan_bo). */
-      (st.mucDich === 'ccdc' ? xktOChip('nbpb', '🧮', 'Cách phân bổ', (b.cach_phan_bo || []).map(function (c) { return { k: c.ma, ten: c.ten }; }),
-        st.cachPb, { batBuoc: 1, mo: moPhanBo() }) +
-        (st.cachPb === 'nhieu_ky' ? xktOChip('nbsk', '📅', 'Số tháng phân bổ', (b.chon_so_ky || []).map(function (n) { return { k: String(n), ten: n + ' tháng' }; }),
-          st.soKy ? String(st.soKy) : '', { batBuoc: 1, mo: st.soKy ? 'Mỗi tháng Kế toán phân bổ khoảng 1/' + st.soKy + ' giá trị hàng xuất vào chi phí của bộ phận.' : 'Chọn số tháng công cụ dùng được.' }) : '') : '') +
+      (st.mucDich === 'ccdc' ? xktOChipLon('nbpb', '🧮', 'Cách phân bổ', (b.cach_phan_bo || []).map(function (c) { return { k: c.ma, ten: c.ten }; }),
+        st.cachPb, moPhanBo()) +
+        (st.cachPb === 'nhieu_ky' ? xktOChipLon('nbsk', '📅', 'Số tháng phân bổ', (b.chon_so_ky || []).map(function (n) { return { k: String(n), ten: n + ' tháng' }; }),
+          st.soKy ? String(st.soKy) : '', st.soKy ? 'Mỗi tháng Kế toán phân bổ khoảng 1/' + st.soKy + ' giá trị hàng xuất vào chi phí của bộ phận.' : 'Chọn số tháng công cụ dùng được.') : '') : '') +
       /* O bo phan la ly do ton tai cua ca man nay. Chon xong thi gia tri hang
          xuat vao dung so cua bo phan do, khong con lan vao hao hut cua Bep. */
       xktOChon('nbbp', '🏛️', 'Bộ phận chịu chi phí',
