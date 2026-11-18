@@ -281,7 +281,7 @@ def _():
 	# hạn và lần gia hạn token Threads), thêm mới, không đổi tên ô cũ.
 	# v672: năm ô Đăng bài kênh Sonneto (mã Trang, token Facebook Instagram, token Threads,
 	# hạn và lần gia hạn token Threads Sonneto), thêm mới, không đổi tên ô cũ; năm ô Đăng bài
-	# Google Doanh nghiệp (mã, khoá ứng dụng, mã kết nối, mã và tên hồ sơ).
+	# Google Posts (mã, khoá ứng dụng, mã kết nối, mã và tên hồ sơ).
 	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), sorted(["html_du_lieu_app", "nguon_phi_giao_web",
 		"onepay_access_code", "onepay_bat", "onepay_cong", "onepay_hash_code", "onepay_merchant", "onepay_query_password",
 		"onepay_query_user", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the",

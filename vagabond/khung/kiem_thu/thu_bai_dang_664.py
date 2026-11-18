@@ -167,7 +167,9 @@ def _chay(doc, ham, noi=(), bay_gio=BAY_GIO, dang=None, noi_theo=None, **k):
 	noi_theo (v672): kênh đang nối theo từng thương hiệu, thay cho noi."""
 	nhat = {"luu": [], "xep": [], "bao_tay": [], "bao_loi": [], "commit": 0, "goi": []}
 
-	def _dang(kenh, ma_bai, chu, anh, story=False, tieu_de="", hieu="vagabond"):
+	def _dang(kenh, ma_bai, chu, anh, story=False, tieu_de="", hieu="vagabond", **them):
+		# v672: ghi các tham số thêm (chi_tiet của Google Posts) để ca kiểm đọc.
+		nhat.setdefault("them", []).append((kenh, them))
 		nhat["goi"].append((kenh, chu, len(anh), story))
 		nhat.setdefault("tieu_de", []).append((kenh, tieu_de))
 		nhat.setdefault("hieu", []).append((kenh, hieu))

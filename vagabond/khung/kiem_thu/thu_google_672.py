@@ -10,9 +10,13 @@ Ca chốt:
   - đợt Đặc biệt: chưa mở thì đặt trước kèm giờ mở đơn, đã chốt thì hết; thẻ Bánh đang
     ẩn, món đã tắt không lên Google;
   - đường dẫn: /mon/<mã> mở trên tên miền khách, tệp Google mở trên mọi tên miền;
-  - Google Doanh nghiệp: kênh "gg" chỉ The Vagabond, bài mới không bật sẵn; một ảnh
+  - Google Posts: kênh "gg" chỉ The Vagabond, bài mới không bật sẵn; một ảnh
     khung 4:3; chữ có số điện thoại thì chặn duyệt và không gửi Google; thân bài có nút
     Đặt hàng; lỗi Google thành việc cần làm; chọn đúng hồ sơ 9 Trần Cao Vân;
+  - ba loại Google Posts (Cập nhật, Ưu đãi, Sự kiện, anh Việt 18/11/2026): thân bài đúng
+    topicType của Google, Ưu đãi không có nút (Google tự gắn), Ưu đãi và Sự kiện chặn duyệt
+    khi thiếu tiêu đề, giờ, giờ kết thúc trước giờ bắt đầu hay trước giờ bài lên; lưu chi
+    tiết vào ô riêng, ô xoá trắng giữ trắng; ô Kênh của bảng con nhận mã gg;
   - nối Google: chỉ quản trị hệ thống; mã trạng thái phải của chính người bấm, dùng một
     lần; nối xong lưu mã kết nối mã hoá và hồ sơ.
 """
@@ -183,7 +187,7 @@ def _ten_mien():
 	la("màn Món đi kèm của app không bị nhầm là trang bánh", tm.dich_chuyen_huong(tm.MIEN_CHINH, "/mon-di-kem"), "")
 
 
-@ca("v672 Google Doanh nghiệp: kênh gg chỉ The Vagabond; bài mới không bật sẵn; nhập tệp gõ 'Google' nhận ra kênh")
+@ca("v672 Google Posts: kênh gg chỉ The Vagabond; bài mới không bật sẵn; nhập tệp gõ 'Google' nhận ra kênh")
 def _kenh():
 	dung("The Vagabond có gg", "gg" in x.KENH_HIEU[x.HIEU_VGB])
 	dung("Sonneto không có gg", "gg" not in x.KENH_HIEU[x.HIEU_SO])
@@ -193,11 +197,11 @@ def _kenh():
 	la("ô Kênh gõ tay", x.doc_kenh_chu("Facebook, Google"), ["fb", "gg"])
 	la("Story không có gg", x.chuan_kenh("fb,gg", x.KIEU_STORY), ["fb"])
 	la("AI cắt chữ gg ở 1.500", len(x.doc_tra_loi_ai(json.dumps({"gg": {"chu": "a" * 2000}}), ["gg"])["gg"]["chu"]), 1500)
-	dung("lời dặn AI có luật kênh gg", "gg (Google Doanh nghiệp)" in x.LOI_DAN_AI and "không số điện thoại" in x.LOI_DAN_AI)
-	dung("lời dặn Sonneto không nhắc kênh gg sai thương hiệu? (cùng khối TỪNG KÊNH)", "gg (Google Doanh nghiệp)" in x.LOI_DAN_SO)
+	dung("lời dặn AI có luật kênh gg", "gg (Google Posts)" in x.LOI_DAN_AI and "không số điện thoại" in x.LOI_DAN_AI)
+	dung("lời dặn Sonneto cùng khối TỪNG KÊNH (máy chủ bỏ gg khỏi kênh Sonneto)", "gg (Google Posts)" in x.LOI_DAN_SO)
 
 
-@ca("v672 Google Doanh nghiệp: một ảnh khung 4:3; nhiều ảnh thì báo chỉ đăng ảnh đầu, không chặn; số điện thoại thì chặn duyệt")
+@ca("v672 Google Posts: một ảnh khung 4:3; nhiều ảnh thì báo chỉ đăng ảnh đầu, không chặn; số điện thoại thì chặn duyệt")
 def _kiem():
 	anh = [{"url": "/f/1.jpg", "khung": "4:3"}, {"url": "/f/2.jpg", "khung": "4:5"}, {"url": "/f/3.jpg", "khung": "1:1"}]
 	la("ảnh cho gg", x.anh_cho_kenh(anh, "gg"), [{"ten": None, "url": "/f/1.jpg", "khung": "4:3", "cat": False}])
@@ -208,14 +212,14 @@ def _kiem():
 	k2 = x.kiem_bai({"kieu": x.KIEU_BAI, "kenh_chon": "gg,fb", "anh": anh[:1],
 		"ban": {"gg": {"chu": "Gọi 0901 234 567 đặt bánh"}, "fb": {"chu": "Gọi 0901 234 567 đặt bánh"}}}, None)
 	chan = [z for z in k2 if z["muc"] == "chan"]
-	la("chặn đúng kênh gg", [z["chu"] for z in chan], ["Chữ Google Doanh nghiệp có số điện thoại"])
+	la("chặn đúng kênh gg", [z["chu"] for z in chan], ["Chữ Google Posts có số điện thoại"])
 	la("nút sửa chữ gg", chan[0]["nut"], ["chu:gg", "Sửa chữ"])
 	for chu, mong in (("Hotline +84 28 3822 1234", True), ("0283.822.1234", True), ("Giá 350000 đồng", False),
 			("Ngày 20/11/2026, size 16cm", False), ("Mã BAWC00104", False)):
 		la("số điện thoại: %s" % chu, m.co_so_dien_thoai(chu), mong)
 
 
-@ca("v672 Google Doanh nghiệp đăng: thân bài có nút Đặt hàng và một ảnh; số điện thoại không gửi Google; Sonneto không có kênh gg")
+@ca("v672 Google Posts đăng: thân bài có nút Đặt hàng và một ảnh; số điện thoại không gửi Google; Sonneto không có kênh gg")
 def _dang():
 	cfg = {"gg_client_id": "ID", "gg_client_secret": "S", "gg_refresh_token": "R", "gg_dia_diem": "accounts/1/locations/2",
 		"gg_ten_dia_diem": "The Vagabond"}
@@ -244,7 +248,7 @@ def _dang():
 		nem("chưa nối thì đăng tay", lambda: m.dang("gg", "BD-1", "x", []), m.LoiDang)
 
 
-@ca("v672 Google Doanh nghiệp: lỗi Google thành việc cần làm; chọn đúng hồ sơ 9 Trần Cao Vân")
+@ca("v672 Google Posts: lỗi Google thành việc cần làm; chọn đúng hồ sơ 9 Trần Cao Vân")
 def _loi_chon():
 	dung("mã kết nối hết hiệu lực", "Kết nối Google lại" in m.loi_gg_de_hieu(400, {"error": "invalid_grant"}))
 	dung("sai khoá ứng dụng", "Khoá ứng dụng" in m.loi_gg_de_hieu(401, {"error": "invalid_client"}))
@@ -302,7 +306,7 @@ def _noi():
 		la("mã trạng thái dùng một lần", len(luu), 1)
 
 
-@ca("v672 Google Doanh nghiệp trạng thái kết nối: chưa dán mã thì đăng tay; nối được thì tự đăng; token hỏng thì báo lỗi")
+@ca("v672 Google Posts trạng thái kết nối: chưa dán mã thì đăng tay; nối được thì tự đăng; token hỏng thì báo lỗi")
 def _trang_thai():
 	cfg = {"gg_client_id": "ID", "gg_client_secret": "S", "gg_refresh_token": "R", "gg_dia_diem": "accounts/1/locations/2",
 		"gg_ten_dia_diem": "The Vagabond Pâtisserie"}
@@ -318,3 +322,92 @@ def _trang_thai():
 		la("lỗi có câu nối lại", m.trang_thai(True)["gg"], {"ok": 0, "chu": m.CAU_NOI_LAI_GG, "loi": 1})
 	with um.patch.object(m, "_cfg", lambda: cfg), um.patch.object(m, "_khoa", lambda c, o: c.get(o) or ""):
 		dung("Sonneto: gg không nối", m.trang_thai(True, "sonneto")["gg"]["ok"] == 0)
+
+
+@ca("v672 Google Posts ba loại: thân bài đúng topicType, lịch theo giờ Việt Nam, Ưu đãi không gắn nút và có mã giảm giá")
+def _ba_loai():
+	la("Cập nhật", (m.than_bai_gg("a", "", ct={"loai": "cap_nhat"})["topicType"], "event" in m.than_bai_gg("a", "")), ("STANDARD", False))
+	ev = m.than_bai_gg("a", "", ct={"loai": "su_kien", "tieu_de": "Workshop bánh Trung thu", "bat_dau": "2026-11-20T08:00",
+		"ket_thuc": "2026-11-21T17:30"})
+	la("Sự kiện", ev["topicType"], "EVENT")
+	la("lịch sự kiện", ev["event"], {"title": "Workshop bánh Trung thu", "schedule": {
+		"startDate": {"year": 2026, "month": 11, "day": 20}, "startTime": {"hours": 8, "minutes": 0},
+		"endDate": {"year": 2026, "month": 11, "day": 21}, "endTime": {"hours": 17, "minutes": 30}}})
+	dung("Sự kiện có nút Đặt hàng", ev["callToAction"]["actionType"] == "ORDER")
+	uu = m.than_bai_gg("a", "", ct={"loai": "uu_dai", "tieu_de": "Giảm 10% bánh ổ", "bat_dau": "2026-11-20T08:00",
+		"ket_thuc": "2026-11-30T22:00", "ma_giam": "VGB10", "dieu_khoan": "Áp dụng đơn online"})
+	la("Ưu đãi", uu["topicType"], "OFFER")
+	dung("Ưu đãi không có nút (Google tự gắn)", "callToAction" not in uu)
+	la("mã và điều khoản", uu["offer"], {"redeemOnlineUrl": m.GG_LINK_DAT, "couponCode": "VGB10", "termsConditions": "Áp dụng đơn online"})
+	dung("Ưu đãi không mã thì không gửi mã rỗng", "couponCode" not in m.than_bai_gg("a", "", ct={"loai": "uu_dai", "tieu_de": "x",
+		"bat_dau": "2026-11-20T08:00", "ket_thuc": "2026-11-21T08:00"})["offer"])
+	la("loại lạ thành Cập nhật", m.than_bai_gg("a", "", ct={"loai": "abc"})["topicType"], "STANDARD")
+
+
+@ca("v672 Google Posts Ưu đãi, Sự kiện: bảng Kiểm chặn thiếu tiêu đề, thiếu giờ, giờ ngược, đã kết thúc trước giờ bài lên, tiêu đề quá 58")
+def _kiem_loai():
+	import datetime as dtm
+	now = dtm.datetime(2026, 11, 18, 10, 0)
+	def k(gg, hen=None):
+		return [z["chu"] for z in x.kiem_gg(gg, now, hen)]
+	la("Cập nhật không cần gì", k({"loai": "cap_nhat"}), [])
+	la("thiếu tiêu đề và giờ", k({"loai": "su_kien"}), ["Sự kiện Google Posts chưa có tiêu đề", "Sự kiện Google Posts chưa có giờ bắt đầu và kết thúc"])
+	la("giờ ngược", k({"loai": "uu_dai", "tieu_de": "x", "bat_dau": "2026-11-21T08:00", "ket_thuc": "2026-11-20T08:00"}),
+		["Giờ kết thúc ưu đãi phải sau giờ bắt đầu"])
+	la("đã kết thúc trước giờ hẹn đăng", k({"loai": "su_kien", "tieu_de": "x", "bat_dau": "2026-11-19T08:00", "ket_thuc": "2026-11-20T08:00"},
+		"2026-11-20 09:00"), ["Sự kiện đã kết thúc trước giờ bài lên"])
+	la("hợp lệ", k({"loai": "su_kien", "tieu_de": "x", "bat_dau": "2026-11-19T08:00", "ket_thuc": "2026-11-20T08:00"}), [])
+	la("tiêu đề quá 58", k({"loai": "uu_dai", "tieu_de": "a" * 59, "bat_dau": "2026-11-19T08:00", "ket_thuc": "2026-11-20T08:00"}),
+		["Tiêu đề ưu đãi dài 59/58 ký tự"])
+	b = x.kiem_bai({"kieu": x.KIEU_BAI, "kenh_chon": "gg", "anh": [{"url": "/f/1.jpg", "khung": "4:3"}],
+		"ban": {"gg": {"chu": "Bánh mới", "loai": "su_kien"}}}, now)
+	dung("bảng Kiểm của bài chặn Sự kiện thiếu giờ", any(z["muc"] == "chan" and "chưa có giờ" in z["chu"] for z in b))
+
+
+@ca("v672 Google Posts lưu chi tiết: gộp ô vừa sửa, ô xoá trắng giữ trắng, giờ sai dạng bỏ, đọc lại đúng loại")
+def _luu_gg():
+	cu = x.ap_gg("", {"loai": "uu_dai", "bat_dau": "2026-11-20 08:00:00", "ket_thuc": "2026-11-21T08:00", "ma_giam": "  VGB 10 "})
+	la("chuẩn hoá", json.loads(cu), {"loai": "uu_dai", "bat_dau": "2026-11-20T08:00", "ket_thuc": "2026-11-21T08:00", "ma_giam": "VGB 10", "dieu_khoan": ""})
+	moi = json.loads(x.ap_gg(cu, {"ma_giam": ""}))
+	la("xoá trắng mã giữ trắng, ô khác giữ nguyên", (moi["ma_giam"], moi["loai"], moi["bat_dau"]), ("", "uu_dai", "2026-11-20T08:00"))
+	la("giờ sai dạng bỏ", json.loads(x.ap_gg(cu, {"ket_thuc": "mai"}))["ket_thuc"], "")
+	la("chi tiết hỏng đọc ra Cập nhật", x.chuan_gg("{hỏng")["loai"], "cap_nhat")
+	r = _D(ma_kenh="gg", chu="c", tieu_de="Giảm 10%", ai_soan=0, chi_tiet=cu)
+	r.get = lambda k, d=None: dict.get(r, k, d)
+	doc = _D(kenh=[r]); doc.get = lambda k, d=None: dict.get(doc, k, d)
+	ban = x._ban_doc(doc)["gg"]
+	la("đọc lại cho màn", (ban["loai"], ban["tieu_de"], ban["ma_giam"]), ("uu_dai", "Giảm 10%", "VGB 10"))
+	la("đăng gửi đủ chi tiết", m.than_bai_gg(ban["chu"], "", ct=ban)["offer"]["couponCode"], "VGB 10")
+
+
+@ca("v672 Google Posts: ô Kênh của bảng con nhận mọi mã kênh (Frappe từ chối mã ngoài danh sách khi lưu); JS và máy chủ cùng ba loại")
+def _cot_kenh():
+	d = json.loads(_tep("vagabond/vagabond/doctype/vagabond_bai_dang_kenh/vagabond_bai_dang_kenh.json"))
+	o = [f for f in d["fields"] if f["fieldname"] == "ma_kenh"][0]["options"].split("\n")
+	la("mọi mã trong KENH có trong ô Kênh", sorted(set(x.KENH) - set(o)), [])
+	dung("có cột chi tiết", any(f["fieldname"] == "chi_tiet" for f in d["fields"]) and "chi_tiet" in d["field_order"])
+	js = _tep("vagabond/public/js/bep/75-bai-dang.js")
+	import re
+	la("ba loại JS trùng máy chủ", re.findall(r"\{ k: '(cap_nhat|uu_dai|su_kien)', ten: '([^']+)'", js), list(x.GG_LOAI))
+	m2 = um.MagicMock()
+	with um.patch.object(m, "_cfg", lambda: {"gg_client_id": "I", "gg_client_secret": "S", "gg_refresh_token": "R"}), \
+			um.patch.object(m, "_khoa", lambda c, o: c.get(o) or ""), um.patch.object(m, "_goi_gg", m2):
+		nem("Sự kiện thiếu giờ không gửi Google", lambda: m.dang("gg", "BD", "x", [], chi_tiet={"loai": "su_kien", "tieu_de": "t"}), m.LoiDang)
+	dung("không gọi Google", not m2.called)
+
+
+
+@ca("v672 lượt đăng Google Posts: kênh gg nhận đủ chi tiết Ưu đãi đã lưu; kênh khác không nhận thêm gì")
+def _luot_gg():
+	from vagabond.khung.kiem_thu import thu_bai_dang_664 as t4
+	ct = x.ap_gg("", {"loai": "uu_dai", "bat_dau": "2026-11-20T08:00", "ket_thuc": "2026-11-21T08:00", "ma_giam": "VGB10"})
+	doc = t4._da_duyet(kenh_chon="fb,gg", kenh=[
+		t4._Dong(ma_kenh="fb", chu="Bánh fb", trang_thai=x.K_HEN, tu_dong=1),
+		t4._Dong(ma_kenh="gg", chu="Bánh gg", tieu_de="Giảm 10%", chi_tiet=ct, trang_thai=x.K_HEN, tu_dong=1)])
+	_, n = t4._chay(doc, x.dang_bai, noi={"fb", "gg"}, ma=doc.name)
+	them = dict(n.get("them") or [])
+	la("Facebook không nhận chi tiết", them.get("fb"), {})
+	g = (them.get("gg") or {}).get("chi_tiet") or {}
+	la("Google Posts nhận loại, tiêu đề, giờ, mã", (g.get("loai"), g.get("tieu_de"), g.get("bat_dau"), g.get("ma_giam")),
+		("uu_dai", "Giảm 10%", "2026-11-20T08:00", "VGB10"))
+	la("hai kênh Đã đăng", t4._tt(doc), [("fb", x.K_XONG), ("gg", x.K_XONG)])
