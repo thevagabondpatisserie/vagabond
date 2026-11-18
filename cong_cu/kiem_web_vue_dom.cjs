@@ -153,7 +153,8 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
   });
   await test('F19/F20 DOM mạng lỗi giữ giỏ, thử lại cùng nonce và chuyển biên nhận',async()=>{
     await page.locator('#m-pick').click(); await page.locator('#pickList button').first().click();
-    await page.locator('#c-days button').nth(2).click();
+    /* v671: bánh đặt trước chỉ nhận ngày mai (ô 1); ô 2 trở đi mờ. */
+    await page.locator('#c-days button').nth(1).click();
     await page.locator('#c-slots button:not([disabled])').first().click();
     await page.locator('#c-dongy').click();
     await page.locator('#f-ma').fill('GIAM10'); await page.locator('#btnMa').click();
@@ -303,7 +304,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       await p.locator('#s-wish').fill('Giữ lời chúc');await p.locator('#s-cta').click();await p.locator('#bar .go').click();
       await p.locator('#f-name').fill('Khách thử');await p.locator('#f-phone').fill('0900000000');
       await p.locator('#m-pick').click();await p.locator('#pickList button').first().click();
-      await p.locator('#c-days button').nth(2).click();await p.locator('#c-slots button:not([disabled])').first().click();
+      await p.locator('#c-days button').nth(1).click();await p.locator('#c-slots button:not([disabled])').first().click();
       await p.locator('#c-dongy').click();
       const truoc=await p.locator('#cartList').innerText(),cu=nap;
       await p.locator('#btnSend').click();await p.waitForFunction(()=>document.querySelector('#sendHint').innerText.includes('chỉ còn 0'));
@@ -364,7 +365,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       assert.match(gio,/1 nĩa gỗ, 0 dĩa bã mía, 2 thiệp nhỏ/,ten+': giỏ phải ghi thiệp nhỏ');
       await p.locator('#f-name').fill('Khách thử');await p.locator('#f-phone').fill('0900000000');
       await p.locator('#m-pick').click();await p.locator('#pickList button').first().click();
-      await p.locator('#c-days button').nth(2).click();await p.locator('#c-slots button:not([disabled])').first().click();
+      await p.locator('#c-days button').nth(1).click();await p.locator('#c-slots button:not([disabled])').first().click();
       await p.locator('#c-dongy').click();
       await p.locator('#btnSend').click();await p.waitForTimeout(300);
       assert.equal(gui.length,1,ten);
@@ -403,7 +404,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
     await p.locator('#f-name').fill('Khách thử'); await p.locator('#f-phone').fill('0900000000');
     await p.locator('#m-pick').click(); await p.locator('#pickList button').first().click();
-    await p.locator('#c-days button').nth(2).click(); await p.locator('#c-slots button:not([disabled])').first().click();
+    await p.locator('#c-days button').nth(1).click(); await p.locator('#c-slots button:not([disabled])').first().click();
     await p.locator('#c-dongy').click();
     await p.locator('#btnSend').click(); await p.waitForURL(u=>new URL(String(u)).pathname.startsWith('/banh/xong/')||new URL(String(u)).pathname.startsWith('/web_moi/banh/xong'));
     assert.deepEqual(di.map(x=>x.split('/').slice(0,3).join('/')),['/banh/xong']);
@@ -520,7 +521,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await p.locator('#s-sizes button').first().click();await p.locator('#s-cta').click();await p.locator('#bar .go').click();
     await p.locator('#f-name').fill('Khách thử');await p.locator('#f-phone').fill('0900000000');
     await p.locator('#m-pick').click();await p.locator('#pickList button').first().click();
-    await p.locator('#c-days button').nth(2).click();await p.locator('#c-slots button:not([disabled])').first().click();
+    await p.locator('#c-days button').nth(1).click();await p.locator('#c-slots button:not([disabled])').first().click();
     await p.locator('#c-dongy').click();
     await p.locator('#btnSend').click();await p.waitForURL(u=>new URL(String(u)).pathname.startsWith('/banh/xong/'));
     assert.deepEqual(den,['/banh/xong/thu0001?ban=cu']);
