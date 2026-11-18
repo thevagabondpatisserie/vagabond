@@ -74140,7 +74140,10 @@ var BD_KENH = [
   { k: 'th', ten: 'Threads', anh: '/assets/vagabond/images/kenh-mxh/threads.svg', cham: '#101828', tran: 500, tong: 4000, web: 'https://www.threads.net/',
     giai: 'Giọng trò chuyện, tối đa 20 ảnh. Chữ quá 500 ký tự thì hệ thống tự tách thành chuỗi bài nối tiếp. Threads không có Story.' },
   { k: 'zl', ten: 'Zalo OA', anh: '/assets/vagabond/web_order/logo-kenh/zalo.png', cham: '#0068FF', tran: 5000, web: 'https://oa.zalo.me/',
-    giai: 'Bài viết trên trang Zalo OA, có tiêu đề. Không gửi tin cho khách, không tốn phí tin. Zalo OA không có Story.' }
+    giai: 'Bài viết trên trang Zalo OA, có tiêu đề. Không gửi tin cho khách, không tốn phí tin. Zalo OA không có Story.' },
+  /* v672 (anh Việt duyệt 18/11/2026): bài cập nhật trên hồ sơ Google của tiệm. Bài mới không bật sẵn. */
+  { k: 'gg', ten: 'Google Doanh nghiệp', anh: '/assets/vagabond/images/kenh-mxh/google.svg', cham: '#4285F4', tran: 1500, web: 'https://business.google.com/',
+    giai: 'Bài cập nhật trên hồ sơ Google của tiệm, hiện ở Google Maps và Google Tìm kiếm, kèm nút Đặt hàng mở trang đặt bánh. Một ảnh, không ghi số điện thoại.' }
 ];
 /* Màu trạng thái dùng chung mọi màn: thanh trái của thẻ, chấm trên ảnh kênh, chú thích lịch tháng. */
 var BD_TT = {
@@ -74187,11 +74190,11 @@ var BD_LOGO_TIEM = '/assets/vagabond/images/logo-vagabond-vuong.jpg';
 /* v672 Thương hiệu (anh Việt 18/11/2026): bài thuộc chủ đề Sonneto đi kênh Sonneto.
    Kênh của thương hiệu lấy từ máy chủ (bai.kenh_hieu), Sonneto không có Zalo OA. */
 var BD_HIEU = [
-  { k: 'vagabond', ten: 'The Vagabond', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads, Zalo OA của tiệm The Vagabond.' },
-  { k: 'sonneto', ten: 'Sonneto', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads của Sonneto. Sonneto chưa có Zalo OA.' }
+  { k: 'vagabond', ten: 'The Vagabond', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads, Zalo OA, hồ sơ Google Doanh nghiệp của tiệm The Vagabond.' },
+  { k: 'sonneto', ten: 'Sonneto', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads của Sonneto. Sonneto chưa có Zalo OA và hồ sơ Google Doanh nghiệp.' }
 ];
 function bdKenhBai(bai) {
-  var co = (bai && bai.kenh_hieu) || ['fb', 'ig', 'th', 'zl'];
+  var co = (bai && bai.kenh_hieu) || ['fb', 'ig', 'th', 'zl', 'gg'];
   return BD_KENH.filter(function (x) { return co.indexOf(x.k) >= 0; });
 }
 function bdTranKenh(kn) { return kn.tong || kn.tran; }
@@ -74448,6 +74451,7 @@ async function bdNhapTep(f) {
 async function scrBaiDang(dl) {
   var tieuDe = 'Bài đăng mạng xã hội';
   bdCss();
+  bdBaoKetNoiGg();
   if (!dl) {
     /* Bấm đổi Tuần, Tháng, lọc kênh liên tiếp: lượt trả lời cũ đến muộn không được vẽ đè lượt mới. */
     var luot = BD.luot = (BD.luot || 0) + 1;
@@ -74612,6 +74616,8 @@ async function bdSheetCaiDat(kiemLai) {
     '<div style="font-size:13.5px;color:#667085;line-height:1.5;margin:0 2px 8px">' + (dl.quan_tri ? 'Token dán ở Cài đặt lõi và API, mục Đăng bài mạng xã hội (Meta) và mục Đăng bài kênh Sonneto (Meta). Hệ thống không bao giờ hiện lại token.' : 'Nối kênh do quản trị hệ thống làm.') + '</div>' +
     '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn gh" data-bdkiemkn="1" style="margin:0;flex:1;min-height:44px;font-size:14px">Kiểm lại kết nối</button>' +
     (dl.quan_tri ? '<button class="btn gh" data-bdcdloi="1" style="margin:0;flex:1;min-height:44px;font-size:14px">Mở Cài đặt lõi</button>' : '') + '</div>' +
+    (dl.quan_tri ? '<button class="btn gh" data-bdggnoi="1" style="margin:0 0 6px;min-height:44px;font-size:14px">' + ((dl.ket_noi || {}).gg && dl.ket_noi.gg.ok ? 'Kết nối Google lại' : 'Kết nối Google') + '</button>' +
+      '<div style="font-size:13px;color:#667085;line-height:1.5;margin:0 2px 16px">Mở trang Google để đăng nhập tài khoản quản lý hồ sơ tiệm và bấm Cho phép. Cần dán Mã và Khoá ứng dụng Google ở Cài đặt lõi trước.</div>' : '') +
     '<div style="font-size:17px;font-weight:800;margin:0 2px 6px">Giờ vàng đăng bài</div>' +
     '<div style="font-size:13.5px;color:#667085;line-height:1.5;margin:0 2px 10px">Lịch tuần hiện sẵn khung trống ở các giờ này để soạn bài nhanh. Ghi giờ cách nhau bằng dấu phẩy, ví dụ 07:30, 11:30, 19:30.</div>' +
     '<input class="tin" id="bdGioVang" value="' + h((dl.gio_vang || []).join(', ')) + '" style="font-size:17px;text-align:left;padding:0 12px"' + (dl.sua ? '' : ' disabled') + '>' +
@@ -74626,6 +74632,19 @@ async function bdSheetCaiDat(kiemLai) {
   if (kl) kl.onclick = function () { ov.remove(); bdSheetCaiDat(1); };
   var cd = ov.querySelector('[data-bdcdloi]');
   if (cd) cd.onclick = function () { ov.remove(); go(scrCaiDatLoi); };
+  var gg = ov.querySelector('[data-bdggnoi]');
+  if (gg) gg.onclick = async function () {
+    var r; try { r = await api('vagabond.mxh.gg_bat_dau', {}); } catch (e) { return bdLoi(e); }
+    if (r && r.url) location.href = r.url;
+  };
+}
+/* v672: Google trả về màn Bài đăng kèm ?gg=<kết quả nối>; báo một lần rồi gỡ khỏi địa chỉ. */
+function bdBaoKetNoiGg() {
+  var kq = '';
+  try { kq = new URLSearchParams(location.search).get('gg') || ''; } catch (e) { return; }
+  if (!kq) return;
+  try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* trình duyệt cũ */ }
+  toast(kq);
 }
 
 /* ------------------------------------------------------------ soạn bài */
@@ -74696,10 +74715,12 @@ function bdTheXem(bai, k, on) {
     nutK('d', 'Đậm', 'font-weight:800') + nutK('n', 'Nghiêng', 'font-style:italic') + nutK('dn', 'Đậm nghiêng', 'font-weight:800;font-style:italic') + nutK('bo', 'Bỏ kiểu', 'color:#667085') +
     '<button data-bdbieutuong="' + k + '" style="min-height:44px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;font:inherit;font-size:14px;padding:0 12px;cursor:pointer">✨ Biểu tượng</button></div>';
   chu = thanhKieu + chu;
-  var anhHtml = k === 'fb' ? bdAnhFb(anh) : bdAnhBang(anh, k === 'zl' ? '16:9' : '4:5');
+  var anhHtml = k === 'fb' ? bdAnhFb(anh) : bdAnhBang(anh, k === 'zl' ? '16:9' : k === 'gg' ? '4:3' : '4:5');
   var tieuDeZl = k === 'zl' ? '<input data-bdtieude="zl"' + (khoa ? ' readonly' : '') + ' value="' + h(ban.tieu_de || '') + '" placeholder="Tiêu đề bài viết Zalo OA" style="display:block;width:100%;box-sizing:border-box;border:0;padding:10px 12px 0;font:inherit;font-size:16px;font-weight:800;min-height:44px">' : '';
-  /* Facebook: chữ trên ảnh; Instagram: ảnh trước chữ; Threads: chữ trước ảnh; Zalo OA: ảnh bìa, tiêu đề, chữ. */
-  var than = k === 'ig' ? anhHtml + chu : k === 'zl' ? anhHtml + tieuDeZl + chu : chu + anhHtml;
+  /* Facebook: chữ trên ảnh; Instagram: ảnh trước chữ; Threads: chữ trước ảnh; Zalo OA: ảnh bìa, tiêu đề, chữ;
+     Google Doanh nghiệp: ảnh, chữ, nút Đặt hàng. */
+  var nutGg = k === 'gg' ? '<div style="margin:2px 12px 8px;min-height:44px;border:1px solid #dadce0;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1a73e8">Đặt hàng</div>' : '';
+  var than = k === 'ig' || k === 'gg' ? anhHtml + chu + nutGg : k === 'zl' ? anhHtml + tieuDeZl + chu : chu + anhHtml;
   return '<div data-bdthe="' + k + '"' + (on ? ' class="on"' : '') + ' style="flex:0 0 86%;scroll-snap-align:center;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(20,25,40,.12);border:1px solid #eef0f5">' +
     dau + than +
     '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px 8px 12px;border-top:1px solid #f2f4f7">' +
@@ -75399,7 +75420,7 @@ function bdSheetKenh() {
   var story = bdGt('kieu') === 'Story', chon = (bdGt('kenh_chon') || []).slice(), dsK = bdKenhBai(BD.bai);
   var ve = function () {
     return '<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Đăng lên kênh' + (BD.bai && BD.bai.hieu === 'sonneto' ? ' Sonneto' : '') + '</div>' +
-      '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Bật kênh nào thì bài có bản xem trước và chữ riêng cho kênh đó.' + (BD.bai && BD.bai.hieu === 'sonneto' ? ' Sonneto chưa có Zalo OA.' : '') + '</div>' +
+      '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Bật kênh nào thì bài có bản xem trước và chữ riêng cho kênh đó.' + (BD.bai && BD.bai.hieu === 'sonneto' ? ' Sonneto chưa có Zalo OA và hồ sơ Google Doanh nghiệp.' : '') + '</div>' +
       dsK.map(function (x) {
         var duoc = !story || x.k === 'fb' || x.k === 'ig', bat = chon.indexOf(x.k) >= 0;
         /* Cả dòng là nút bật tắt (cao từ 52 điểm), công tắc chỉ để nhìn trạng thái. */
