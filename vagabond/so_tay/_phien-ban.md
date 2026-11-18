@@ -26,6 +26,13 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Cách hạch toán cấn trừ công nợ: chọn đúng đường theo trường hợp
 - Đối chiếu tiền về của đối tác giao đồ ăn
 
+## v672
+- AI học giọng viết từ Kho bản thảo
+- Bài Threads dài tự tách thành chuỗi bài nối tiếp
+- Đăng bài kênh Sonneto trên cùng màn Bài đăng
+- Đăng Google Posts: Cập nhật, Ưu đãi, Sự kiện
+- Bánh nổi bật và bánh theo mùa lên Google
+
 ## v670
 - Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
 - Đăng ngay bài đã hẹn giờ

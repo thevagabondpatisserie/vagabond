@@ -22,6 +22,7 @@
   "kenh",
   "sb3",
   "chu_de",
+  "thuong_hieu",
   "the_bai",
   "gan_sao",
   "chan_bai",
@@ -75,7 +76,7 @@
    "fieldtype": "Data",
    "label": "Kênh",
    "read_only": 1,
-   "description": "Mã kênh: fb Facebook, ig Instagram, th Threads, zl Zalo OA."
+   "description": "Mã kênh: fb Facebook, ig Instagram, th Threads, zl Zalo OA, gg Google Posts."
   },
   {
    "fieldname": "nguoi_duyet",
@@ -147,6 +148,14 @@
    "in_standard_filter": 1
   },
   {
+   "fieldname": "thuong_hieu",
+   "fieldtype": "Data",
+   "label": "Thương hiệu",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "description": "Theo chủ đề của bài: Sonneto thì bài đi kênh Sonneto, trống hoặc Vagabond thì đi kênh The Vagabond."
+  },
+  {
    "fieldname": "the_bai",
    "fieldtype": "Small Text",
    "label": "Thẻ",
@@ -201,7 +210,7 @@
   }
  ],
  "links": [],
- "modified": "2026-11-17 12:00:00.000000",
+ "modified": "2026-11-18 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Bai Dang",

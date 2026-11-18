@@ -7,6 +7,7 @@
  "field_order": [
   "ten",
   "bieu_tuong",
+  "thuong_hieu",
   "thu_tu",
   "cta"
  ],
@@ -28,6 +29,16 @@
    "read_only": 1
   },
   {
+   "fieldname": "thuong_hieu",
+   "fieldtype": "Select",
+   "label": "Thương hiệu",
+   "options": "Vagabond\nSonneto",
+   "default": "Vagabond",
+   "in_list_view": 1,
+   "read_only": 1,
+   "description": "Bài trong chủ đề này đăng lên kênh của thương hiệu nào. Sửa trên màn Bài đăng mạng xã hội của app."
+  },
+  {
    "fieldname": "thu_tu",
    "fieldtype": "Int",
    "label": "Thứ tự",
@@ -41,7 +52,7 @@
   }
  ],
  "links": [],
- "modified": "2026-11-17 12:00:00.000000",
+ "modified": "2026-11-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Chu De Bai",

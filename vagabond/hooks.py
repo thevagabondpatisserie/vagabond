@@ -1250,6 +1250,10 @@ for _gio_v641, _ham_v641 in (
 # trang khách trên tên miền chính (so_do_web.py).
 website_route_rules = list(website_route_rules) + [
 	{"from_route": "/sitemap.xml", "to_route": "vgb-sitemap.xml"},
+	# v672 (anh Việt duyệt 18/11/2026): tệp bánh nổi bật và theo mùa cho Google Merchant
+	# Center, và trang từng bánh làm trang đích (google_merchant.py).
+	{"from_route": "/google-merchant.xml", "to_route": "vgb-google-merchant.xml"},
+	{"from_route": "/mon/<ma>", "to_route": "mon"},
 ]
 
 # v644 (anh Việt duyệt 07/11/2026): nhắc Marketing bánh đã đưa lên web mà còn Chờ ảnh.
