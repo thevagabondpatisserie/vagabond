@@ -123,6 +123,18 @@ def xml_tep(ds, goc=GOC):
 	return "\n".join(dong) + "\n"
 
 
+def con_theo_suat(con_dot, toi_da, da_dat):
+	"""THUẦN: tình trạng một bánh của đợt Đặc biệt. Đợt đang mở mà bánh đã hết suất
+	(số tối đa trừ số đã đặt còn 0) thì hết, đúng như trang đặt bánh khoá món đó (Codex
+	#587). Để trống số tối đa là không giới hạn."""
+	if con_dot != CON or not str(toi_da or "").strip():
+		return con_dot
+	try:
+		return CON if int(toi_da) - int(da_dat or 0) > 0 else HET
+	except (TypeError, ValueError):
+		return con_dot
+
+
 def chu_gia(gia):
 	return "{:,}".format(int(gia)).replace(",", ".") + " ₫"
 
@@ -188,6 +200,8 @@ def _dac_biet():
 	khoa = [m["khoa"] for m in dot.get("mon_dt") or []]
 	the = {x.khoa: x for x in frappe.get_all(banh_web.DT, filters={"khoa": ["in", khoa]},
 		fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "ma_hang"], limit_page_length=0, ignore_permissions=True)} if khoa else {}
+	# Số đã đặt từng bánh: cùng hàm trang đặt bánh dùng để khoá món hết suất (MỘT nguồn).
+	dat = dbt.da_dat(dot, dbt.ma_theo_khoa(dot)) if con == CON else {}
 	ma_all = [ma for x in the.values() for ma in banh_web.tach_dong(x.ma_hang)]
 	it = {x.item_code: x for x in frappe.get_all("Item", filters={"item_code": ["in", ma_all]},
 		fields=["item_code", "item_name", "standard_rate", "disabled", "is_sales_item"], limit_page_length=0,
@@ -198,13 +212,14 @@ def _dac_biet():
 		if not x or not banh_web.hien_duoc(x):
 			continue
 		anh = (banh_web.doc_anh(x.anh) or [{}])[0].get("url") or m.get("anh")
+		con_mon = con_theo_suat(con, m.get("toi_da"), dat.get(m["khoa"]))
 		for ma in banh_web.tach_dong(x.ma_hang):
 			i = it.get(ma)
 			if not i or i.disabled or not i.is_sales_item:
 				continue
 			cm = _tach_ten_size(i.item_name)[1]
 			ra.append({"ma": ma, "ten": ("%s %dcm" % (x.ten, cm)) if cm else x.ten, "mo_ta": m.get("mo_ta") or x.mo_ta or "",
-				"anh": m.get("anh") or anh, "gia": i.standard_rate, "con": con,
+				"anh": m.get("anh") or anh, "gia": i.standard_rate, "con": con_mon,
 				"tu_luc": dot.get("mo_don") if con == DAT_TRUOC else "", "nguon": NGUON_DAC_BIET})
 	return ra
 
