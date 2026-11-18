@@ -470,3 +470,5 @@ vagabond.patches.dong_bo_cau_truc #v669
 vagabond.patches.v670_so_chu_de_bai
 vagabond.patches.v670_kenh_weborder
 vagabond.patches.dong_bo_cau_truc #v670
+vagabond.patches.v672_thuong_hieu_sonneto
+vagabond.patches.dong_bo_cau_truc #v672
