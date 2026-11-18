@@ -215,9 +215,8 @@ chín điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn
    chờ, đỏ cần xử, xám huỷ; màu luôn đi kèm chữ. Chip thêm ngoài ba hàng này
    phải hợp với tính năng của màn: chip tiến độ (bước mấy trên mấy) chỉ dùng
    cho màn theo dõi việc nhiều bước, không gắn cho đủ. Ngoại lệ bỏ ba hàng
-   chip chỉ cho sheet chọn dưới 8 lựa chọn, hoặc danh sách thật sự chỉ có một
-   trạng thái và một nguồn; ghi lý do trong bàn giao. Tránh lặp cùng ý ở chip,
-   tiêu đề và dòng phụ.
+   chip chỉ cho sheet chọn dưới 8 lựa chọn; ghi lý do trong bàn giao. Tránh
+   lặp cùng ý ở chip, tiêu đề và dòng phụ.
 4. **Chỗ nào có tên món thì có ảnh món** qua `anhMon(url)`; chưa có ảnh thì
    ô 🍰 giữ hàng. Ảnh thật từ danh mục, không ô chữ cái thay ảnh. Khách và
    nhà cung cấp có logo thì hiện logo, không thì biểu tượng nhóm. Ảnh cùng
