@@ -339,14 +339,23 @@ def bo_nhap(loai, cty, ky, ly_do=None):
 	return {"ok": 1, "da_bo": info["doc"].name}
 
 
-def ghi_so(loai, cty, ky):
-	"""Kế toán ghi sổ bút toán nháp của tháng."""
+def ghi_so(loai, cty, ky, kiem_cu=None):
+	"""Kế toán ghi sổ bút toán nháp của tháng.
+
+	kiem_cu(bg): đọc lại số hiện tại (sau khoá) và trả câu nói phần đã đổi so với
+	lúc lập, hoặc "" (Codex #590 vòng 2): quyết định, khai báo, sao kê đổi sau khi
+	lập thì nháp đã cũ, ghi sổ nó là ghi số sai hoặc ghi trùng."""
 	kiem_quyen(QUYEN_GHI, "ghi sổ bút toán")
 	bg = khoa_ban_ghi(loai, cty, ky)
 	tt, info = tinh_trang(bg)
 	if tt not in (TT_NHAP, TT_SUA_TAY):
 		frappe.throw("Tháng này không có bút toán nháp nào chờ ghi sổ.")
 	je = info["doc"]
+	doi = kiem_cu(bg) if kiem_cu else ""
+	if doi:
+		frappe.throw("Bản nháp %s đã cũ so với số hiện tại: %s. %s" % (je.name, doi,
+			"Bản nháp đã được sửa tay nên bấm Bỏ bản nháp rồi Lập lại." if tt == TT_SUA_TAY
+			else "Bấm Lập lại để cập nhật bản nháp rồi ghi sổ."))
 	chan_khoa_so(je.posting_date)
 	je.flags.ignore_permissions = True
 	je.submit()

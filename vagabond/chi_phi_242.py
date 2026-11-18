@@ -158,6 +158,27 @@ def kiem_da_truoc(nguyen_gia, da_truoc):
 	return []
 
 
+def khoan_da_doi(cu, moi):
+	"""THUẦN. Khoản cần phân bổ lúc lập nháp so với hiện tại (Codex #590 vòng 2:
+	khoản bị ngừng, khai lại, phân bổ tay sau khi lập). "" là còn đúng."""
+	if cu is None:
+		return "không còn bản kê khoản lúc lập"
+	gon = lambda ds: sorted((str(x.get("khoan")), BN.lam_tron_dong(x.get("so_tien")), str(x.get("tk_chi_phi") or ""),
+		str(x.get("bo_phan") or "")) for x in ds)
+	a, b = gon(cu), gon(moi)
+	if a == b:
+		return ""
+	ka, kb = {x[0] for x in a}, {x[0] for x in b}
+	ra = []
+	if ka - kb:
+		ra.append("%d khoản không còn cần phân bổ" % len(ka - kb))
+	if kb - ka:
+		ra.append("%d khoản mới cần phân bổ" % len(kb - ka))
+	if not ra:
+		ra.append("số tiền, tài khoản hoặc bộ phận của khoản đã đổi")
+	return "; ".join(ra)
+
+
 def so_vn(x):
 	return "{:,}".format(BN.lam_tron_dong(x)).replace(",", ".")
 
@@ -219,6 +240,8 @@ def vuot_nguyen_gia(nguyen_gia, da_truoc, da_ghi, them):
 
 
 # ------------------------------------------------ phần chạm Frappe
+
+import json  # noqa: E402
 
 import frappe  # noqa: E402
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate  # noqa: E402
@@ -624,6 +647,13 @@ def _can_thang(cty, ky):
 	return can, cho
 
 
+def _ban_ke_khoan(bg):
+	try:
+		return (json.loads((bg.get("ban_ke") if bg else "") or "{}") or {}).get("khoan")
+	except ValueError:
+		return None
+
+
 @frappe.whitelist()
 def xem_thang(ky):
 	"""Xem trước bút toán phân bổ tháng ky và tình trạng bản nháp."""
@@ -639,6 +669,7 @@ def xem_thang(ky):
 	return {
 		"ky": ky, "trang_thai": tt, "journal_entry": bg.journal_entry if bg else "",
 		"dong": can, "tong": sum(c["so_tien"] for c in can),
+		"nhap_cu": khoan_da_doi(_ban_ke_khoan(bg), can) if tt in (BN.TT_NHAP, BN.TT_SUA_TAY) else "",
 		"cho_khai": [{"name": r.name, "dien_giai": r.dien_giai, "nguyen_gia": BN.lam_tron_dong(r.nguyen_gia)} for r in cho],
 		"co_chua_gan": [dict(x, tien=BN.lam_tron_dong(x["tien"])) for x in chua_gan],
 		"tuong_lai": 1 if BN.la_thang_tuong_lai(ky) else 0,
@@ -682,7 +713,11 @@ def lap_thang(ky):
 @frappe.whitelist(methods=["POST"])
 def ghi_so_thang(ky):
 	cty = _cty()
-	return BN.ghi_so(BN.LOAI_242, cty, ky)
+
+	def kiem_cu(bg):
+		return khoan_da_doi(_ban_ke_khoan(bg), _can_thang(cty, ky)[0])
+
+	return BN.ghi_so(BN.LOAI_242, cty, ky, kiem_cu=kiem_cu)
 
 
 @frappe.whitelist(methods=["POST"])

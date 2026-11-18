@@ -256,6 +256,22 @@ def nut_tay(g, quyet_dinh):
 	return None
 
 
+def nhap_da_cu(lan_lap, khoa_moi, qc_moi, phi_moi):
+	"""THUẦN. So giao dịch và số tiền lúc lập nháp với hiện tại. "" là còn đúng."""
+	if not lan_lap:
+		return "không còn bản kê giao dịch lúc lập"
+	bot = sorted(set(lan_lap.get("khoa") or []) - set(khoa_moi))
+	them = sorted(set(khoa_moi) - set(lan_lap.get("khoa") or []))
+	ra = []
+	if bot:
+		ra.append("%d giao dịch không còn vào bút toán (kế toán bỏ, hoặc đã ghi ở chứng từ khác)" % len(bot))
+	if them:
+		ra.append("%d giao dịch mới vào bút toán" % len(them))
+	if not ra and (int(lan_lap.get("qc") or 0), int(lan_lap.get("phi") or 0)) != (int(qc_moi), int(phi_moi)):
+		ra.append("số tiền đổi")
+	return "; ".join(ra)
+
+
 def dong_but_toan(vao, tk_qc, tk_phi, tk_the, bo_phan, ky):
 	"""Các dòng bút toán Meta của tháng. THUẦN. Hoàn tiền ghi giảm 6417.
 
@@ -508,6 +524,8 @@ def chi_tiet_thang(ky):
 		"ky": ky, "trang_thai": t["trang_thai"], "da_tieu": t["da_tieu"], "da_tru": t["da_tru"], "da_ghi_so": t["da_ghi_so"],
 		"thieu": t["thieu"], "giao_dich": gd, "chung_tu_khac": t["chung_tu_khac"],
 		"but_toan": {"trang_thai": tt, "journal_entry": bg.journal_entry if bg else "", "du_kien_qc": qc, "du_kien_phi": phi,
+			"nhap_cu": nhap_da_cu(next((l for l in reversed(_lich_su(bg)) if l.get("je") == bg.journal_entry), None),
+				[g["khoa"] for g in t["vao"]], qc, phi) if tt in (BN.TT_NHAP, BN.TT_SUA_TAY) else "",
 			"dong": [dict(d, debit=BN.lam_tron_dong(d["debit"]), credit=BN.lam_tron_dong(d["credit"])) for d in dong]},
 		"tk": {"qc": _tk(cty, TK_QC), "phi": _tk(cty, TK_PHI), "the": _tk(cty, TK_THE)},
 		"cho_duyet_sao_ke": _sao_ke_cho_duyet(cty),
@@ -592,7 +610,15 @@ def lap(ky):
 
 @frappe.whitelist(methods=["POST"])
 def ghi_so(ky):
-	return BN.ghi_so(BN.LOAI_META, _cty(), ky)
+	cty = _cty()
+
+	def kiem_cu(bg):
+		t = tinh_thang(cty, ky, bg)
+		lan = [l for l in _lich_su(bg) if l.get("je") == bg.journal_entry]
+		_d, qc, phi = dong_but_toan(t["vao"], "qc", "phi", "the", "", ky)
+		return nhap_da_cu(lan[-1] if lan else None, [g["khoa"] for g in t["vao"]], qc, phi)
+
+	return BN.ghi_so(BN.LOAI_META, cty, ky, kiem_cu=kiem_cu)
 
 
 @frappe.whitelist(methods=["POST"])

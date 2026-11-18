@@ -76916,11 +76916,13 @@ async function cp2SheetThang(ky) {
   var m = mauTT[d.trang_thai] || mauTT['Chưa lập'];
   var nut = '';
   if (d.trang_thai === 'Nháp đã sửa tay') {
-    nut = '<div style="font-size:13.5px;color:#b42318;margin:6px 0">Bút toán nháp ' + h(d.journal_entry) + ' đã được sửa tay nên hệ thống không ghi đè. Ghi sổ bản đã sửa, hoặc bỏ bản nháp rồi lập lại.</div>' +
-      (d.duoc_ghi ? cp2NutChinh('thGhi', 'Ghi sổ bản đã sửa') : '') + (d.duoc_lap ? cp2NutPhu('thBo', 'Bỏ bản nháp', 1) : '');
+    nut = '<div style="font-size:13.5px;color:#b42318;margin:6px 0">Bút toán nháp ' + h(d.journal_entry) + ' đã được sửa tay nên hệ thống không ghi đè. ' +
+      (d.nhap_cu ? 'Bản nháp đã cũ so với số hiện tại: ' + h(d.nhap_cu) + '. Bỏ bản nháp rồi lập lại.' : 'Ghi sổ bản đã sửa, hoặc bỏ bản nháp rồi lập lại.') + '</div>' +
+      (d.duoc_ghi && !d.nhap_cu ? cp2NutChinh('thGhi', 'Ghi sổ bản đã sửa') : '') + (d.duoc_lap ? cp2NutPhu('thBo', 'Bỏ bản nháp', 1) : '');
   } else {
     if (d.duoc_lap && cac.length && !d.tuong_lai) nut += cp2NutChinh('thLap', d.trang_thai === 'Nháp chờ ghi sổ' ? 'Cập nhật bản nháp' : 'Lập bút toán nháp', 'Hệ thống không tự ghi sổ.');
-    if (d.duoc_ghi && d.trang_thai === 'Nháp chờ ghi sổ') nut += cp2NutPhu('thGhi', 'Ghi sổ bút toán ' + d.journal_entry);
+    if (d.nhap_cu && d.trang_thai === 'Nháp chờ ghi sổ') nut += '<div style="font-size:13.5px;color:#b42318;margin:6px 0">Bản nháp ' + h(d.journal_entry) + ' đã cũ so với số hiện tại: ' + h(d.nhap_cu) + '. Bấm Cập nhật bản nháp rồi mới ghi sổ.</div>';
+    if (d.duoc_ghi && !d.nhap_cu && d.trang_thai === 'Nháp chờ ghi sổ') nut += cp2NutPhu('thGhi', 'Ghi sổ bút toán ' + d.journal_entry);
     if (d.duoc_lap && d.trang_thai === 'Nháp chờ ghi sổ') nut += cp2NutPhu('thBo', 'Bỏ bản nháp', 1);
   }
   var ov = crmMoSheet('<div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:17px">Phân bổ tháng ' + cp2Thang(ky) + '</b>' +
@@ -77132,7 +77134,9 @@ async function scrDsMetaThang(ky) {
   if (d.duoc_lap && bt.trang_thai !== 'Nháp đã sửa tay' && d.trang_thai !== 'Chưa đủ chứng từ' && (bt.dong || []).length)
     nut += cp2NutChinh('dsmLap', bt.trang_thai === 'Nháp chờ ghi sổ' ? 'Cập nhật bản nháp' : 'Lập bút toán nháp', 'Hệ thống không tự ghi sổ. Kế toán kiểm rồi bấm Ghi sổ.');
   if (bt.trang_thai === 'Nháp đã sửa tay') nut += '<div style="font-size:13.5px;color:#b42318;margin-bottom:6px">Bút toán nháp ' + h(bt.journal_entry) + ' đã được sửa tay nên hệ thống không ghi đè.</div>';
-  if (d.duoc_ghi && (bt.trang_thai === 'Nháp chờ ghi sổ' || bt.trang_thai === 'Nháp đã sửa tay')) nut += cp2NutPhu('dsmGhi', 'Ghi sổ bút toán ' + bt.journal_entry);
+  if (bt.nhap_cu) nut += '<div style="font-size:13.5px;color:#b42318;margin-bottom:6px">Bản nháp ' + h(bt.journal_entry) + ' đã cũ so với số hiện tại: ' + h(bt.nhap_cu) + '. ' +
+    (bt.trang_thai === 'Nháp đã sửa tay' ? 'Bỏ bản nháp rồi lập lại.' : 'Bấm Cập nhật bản nháp rồi mới ghi sổ.') + '</div>';
+  if (d.duoc_ghi && !bt.nhap_cu && (bt.trang_thai === 'Nháp chờ ghi sổ' || bt.trang_thai === 'Nháp đã sửa tay')) nut += cp2NutPhu('dsmGhi', 'Ghi sổ bút toán ' + bt.journal_entry);
   if (d.duoc_lap && (bt.trang_thai === 'Nháp chờ ghi sổ' || bt.trang_thai === 'Nháp đã sửa tay')) nut += cp2NutPhu('dsmBoNhap', 'Bỏ bản nháp', 1);
   var html =
     '<div class="card" style="padding:12px 14px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1">Ba con số của tháng</b>' + qcmChipMau(DSM_TT, d.trang_thai, DSM_TT_NHAN[d.trang_thai]) + '</div>' +

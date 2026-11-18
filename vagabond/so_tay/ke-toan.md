@@ -1377,6 +1377,7 @@ Mỗi tháng hệ thống lập MỘT bút toán nháp cho mọi khoản đến 
 | Có ... dòng Có 242 trên bút toán đã ghi sổ chưa gắn khoản | Gắn khoản cho các dòng đó ở Bảng kê |
 | Sổ đã khoá đến ... | Kế toán trưởng mở khoá ở Cài đặt, mục Khoá sổ |
 | Bút toán nháp ... đã được sửa tay nên hệ thống không ghi đè | Ghi sổ bản đã sửa hoặc bỏ bản nháp |
+| Bản nháp ... đã cũ so với số hiện tại | Cập nhật bản nháp rồi ghi sổ |
 
 **Hạch toán**
 | Nợ | Có | Khi nào |
@@ -1398,7 +1399,7 @@ Mỗi tháng ghi chi phí đúng số trừ thẻ Shinhan theo NGÀY GIAO DỊCH
 **Các bước**
 1. Mở Đối soát chi phí Meta, chạm tháng cần làm.
 2. Xem ba con số: Meta đã tiêu, Đã trừ thẻ, Đã ghi sổ.
-3. Dòng Chờ kế toán chọn: phí không rõ thì bấm [[Là phí Meta]] hoặc [[Không phải]]; nghi trùng thì bấm [[Một giao dịch]] hoặc [[Hai giao dịch]], ghi căn cứ.
+3. Dòng Chờ kế toán chọn: bấm [[Là phí Meta]] / [[Không phải]], hoặc [[Một giao dịch]] / [[Hai giao dịch]], ghi căn cứ.
 4. Có chứng từ Meta khác: giao dịch tờ đó đã ghi thì bấm [[Đã ghi ở chứng từ khác]]; bỏ nhầm thì [[Đưa lại vào bút toán]]. Xong bấm [[Đã đối chiếu]].
 5. Bấm [[Lập bút toán nháp]], kiểm, rồi bấm Ghi sổ bút toán.
 
@@ -1408,6 +1409,7 @@ Mỗi tháng ghi chi phí đúng số trừ thẻ Shinhan theo NGÀY GIAO DỊCH
 | Chưa đủ sao kê | Chờ sao kê thẻ của ngân hàng phủ tới 10 ngày sau cuối tháng |
 | Còn ... dòng chờ kế toán chọn | Chọn xong từng dòng |
 | Tháng này đã có chứng từ Meta khác | Bỏ giao dịch tờ đó đã ghi, rồi bấm Đã đối chiếu |
+| Bản nháp ... đã cũ | Cập nhật bản nháp rồi ghi sổ |
 
 **Hạch toán**
 | Nợ | Có | Khi nào |
@@ -1417,6 +1419,6 @@ Mỗi tháng ghi chi phí đúng số trừ thẻ Shinhan theo NGÀY GIAO DỊCH
 | 3411 | 112 theo ngân hàng thực chuyển | Kế toán tự làm khi trả nợ thẻ |
 
 **Lưu ý**
-- Mỗi giao dịch thường có ở cả PDF ngân hàng và bảng gõ tay: hệ thống chỉ tính một lần.
+- Giao dịch có ở cả PDF và bảng gõ tay chỉ tính một lần.
 - Tự hạch toán ở màn Bút toán thì ghi FACEBK hoặc Meta ở diễn giải để hệ thống nhận ra.
 

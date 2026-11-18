@@ -183,6 +183,17 @@ async function chay() {
     return Array.prototype.slice.call(document.querySelectorAll('[data-dsmq]')).map(function (n) { return n.textContent.trim() + '|' + n.getAttribute('data-gt') + '|' + (n.getAttribute('data-lydo') || ''); });
   });
   ['Đã ghi ở chứng từ khác|bo|1', 'Đưa lại vào bút toán|vao|', 'Không phải|bo|1'].forEach(function (m) { if (nutTay.indexOf(m) < 0) hong.push('674-7: thiếu nút ' + m); });
+  /* Codex #590 vòng 2: nháp đã cũ thì báo và ẩn nút Ghi sổ. */
+  var cu = await trang.evaluate(function () {
+    var co = !!document.getElementById('dsmGhi');
+    FX['vagabond.chi_phi_meta.chi_tiet_thang'].but_toan.nhap_cu = '1 giao dịch không còn vào bút toán';
+    return scrDsMetaThang('2026-10').then(function () {
+      var r = { truoc: co, sau: !!document.getElementById('dsmGhi'), bao: document.body.textContent.indexOf('đã cũ so với số hiện tại') >= 0 };
+      delete FX['vagabond.chi_phi_meta.chi_tiet_thang'].but_toan.nhap_cu;
+      return r;
+    });
+  });
+  if (!cu.truoc || cu.sau || !cu.bao) hong.push('674-7: nháp cũ chưa ẩn nút Ghi sổ hoặc chưa báo ' + JSON.stringify(cu));
   await chup('674-8-doi-soat-thang-duoi', function () { return scrDsMetaThang('2026-10'); }, function () { window.scrollTo(0, document.body.scrollHeight); });
   await chup('674-9-xuat-ccdc', function () { XKT.nb.mucDich = 'ccdc'; XKT.nb.cachPb = 'nhieu_ky'; XKT.nb.soKy = 12; XKT.nb.kho = 'Kho Tổng - TV'; return scrXkNbNew(); }, function () { var o = document.getElementById('nbpbO'); if (o) o.scrollIntoView({ block: 'start' }); }, '#nbpbO, #nbskO');
   await b.close();

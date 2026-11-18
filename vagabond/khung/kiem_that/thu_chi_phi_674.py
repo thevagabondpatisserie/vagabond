@@ -182,6 +182,18 @@ def _meta():
 			sorted([(tkqc, 20557590.0, 0.0), (tkthe, 0.0, 20557590.0)]))
 		kq2 = khong_nem("lập lại", lambda: M.lap(ky))
 		la("lập lại cùng tờ", (kq2 or {}).get("journal_entry"), je.name)
+		# Codex #590 vòng 2: bỏ một giao dịch sau khi lập thì nháp đã cũ, ghi sổ bị chặn.
+		gd = (khong_nem("đọc tháng", lambda: M.chi_tiet_thang(ky)) or {}).get("giao_dich") or []
+		kb = next((g["khoa"] for g in gd if "KT674B" in g["dv"]), None)
+		dung("có giao dịch B", bool(kb))
+		khong_nem("bỏ B vì đã ghi ở chứng từ khác", lambda: M.quyet(ky, "chon:" + kb, "bo", "KT674 thử nháp cũ"))
+		try:
+			M.ghi_so(ky)
+			dung("ghi sổ nháp cũ phải bị chặn", False)
+		except Exception as e:
+			dung("chặn vì nháp đã cũ: %s" % nen.cau_loi(e), "đã cũ" in nen.cau_loi(e))
+		la("nháp chưa ghi sổ", frappe.db.get_value("Journal Entry", je.name, "docstatus"), 0)
+		khong_nem("đưa B lại", lambda: M.quyet(ky, "chon:" + kb, "vao"))
 		khong_nem("ghi sổ", lambda: M.ghi_so(ky))
 		la("sổ cái", _so_cai(je.name), sorted([(tkqc, 20557590.0, 0.0), (tkthe, 0.0, 20557590.0)]))
 		ct_thang = khong_nem("đọc đối soát", lambda: M.chi_tiet_thang(ky)) or {}

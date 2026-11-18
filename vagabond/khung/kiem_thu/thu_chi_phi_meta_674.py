@@ -305,6 +305,13 @@ class _JeGia(object):
 	def save(self, **k):
 		pass
 
+	def submit(self):
+		self.docstatus = 1
+		_JeGia.da_ghi.append(self.name)
+
+
+_JeGia.da_ghi = []
+
 
 class _BgGia(_Hang):
 	def __init__(self, **k):
@@ -420,3 +427,42 @@ def _bo_vi_ct_khac():
 		M.quyet("2026-10", "chon:A", "vao")
 		la("đưa lại không cần lý do", M._quyet_dinh(bg)["chon:A"]["gia_tri"], "vao")
 	del BN
+
+
+@ca("Codex #590 vòng 2: lập nháp Meta rồi bấm Đã ghi ở chứng từ khác: Ghi sổ bị chặn vì nháp đã cũ; Lập lại rồi mới ghi được (cả bản nháp kế toán sửa tay)")
+def _nhap_cu_meta():
+	import contextlib
+
+	from vagabond import but_toan_nhap as BN
+
+	A = {"khoa": "A", "phan_loai": "meta", "tien": 1000, "bang_chung": ["pdf1"]}
+	B = {"khoa": "B", "phan_loai": "meta", "tien": 400, "bang_chung": ["pdf1"]}
+	bg = _BgGia(name="BG", journal_entry=None, ban_ke=None, quyet_dinh=None, dau_ban_may=None)
+
+	def tinh(b):
+		g = [dict(x) for x in trang["gd"]]
+		vao = M.chon_giao_dich(g, M._quyet_dinh(b), set())
+		return {"thieu": [], "con_quyet": [], "ct_chua_xem": [], "vao": vao}
+
+	vá, trang = _kho_gia(bg, tinh)
+	trang["gd"] = [A, B]
+	with contextlib.ExitStack() as st:
+		for v in vá:
+			st.enter_context(v)
+		st.enter_context(um.patch.object(BN, "tinh_trang", lambda b: (trang["tt"], {"doc": trang["je"]}) if trang["je"] else (BN.TT_CHUA, None)))
+		M.lap("2026-10")
+		M.quyet("2026-10", "chon:A", "bo", "Đã ghi ở hoá đơn mua HD-1")
+		_JeGia.da_ghi[:] = []
+		try:
+			M.ghi_so("2026-10")
+			dung("ghi sổ nháp cũ phải bị chặn", False)
+		except Exception as e:
+			dung("chặn vì nháp đã cũ, nói đúng giao dịch bị bỏ: %s" % e, "đã cũ" in str(e) and "1 giao dịch không còn vào bút toán" in str(e))
+		la("không submit gì", _JeGia.da_ghi, [])
+		trang["tt"] = BN.TT_SUA_TAY
+		nem("nháp sửa tay cũng chặn", lambda: M.ghi_so("2026-10"))
+		trang["tt"] = BN.TT_NHAP
+		M.lap("2026-10")
+		la("lập lại chỉ còn B", [r.debit_in_account_currency for r in trang["je"].accounts if r.debit_in_account_currency], [400])
+		M.ghi_so("2026-10")
+		la("ghi sổ được sau khi lập lại", len(_JeGia.da_ghi), 1)

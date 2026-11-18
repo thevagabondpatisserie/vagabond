@@ -175,7 +175,9 @@ async function scrDsMetaThang(ky) {
   if (d.duoc_lap && bt.trang_thai !== 'Nháp đã sửa tay' && d.trang_thai !== 'Chưa đủ chứng từ' && (bt.dong || []).length)
     nut += cp2NutChinh('dsmLap', bt.trang_thai === 'Nháp chờ ghi sổ' ? 'Cập nhật bản nháp' : 'Lập bút toán nháp', 'Hệ thống không tự ghi sổ. Kế toán kiểm rồi bấm Ghi sổ.');
   if (bt.trang_thai === 'Nháp đã sửa tay') nut += '<div style="font-size:13.5px;color:#b42318;margin-bottom:6px">Bút toán nháp ' + h(bt.journal_entry) + ' đã được sửa tay nên hệ thống không ghi đè.</div>';
-  if (d.duoc_ghi && (bt.trang_thai === 'Nháp chờ ghi sổ' || bt.trang_thai === 'Nháp đã sửa tay')) nut += cp2NutPhu('dsmGhi', 'Ghi sổ bút toán ' + bt.journal_entry);
+  if (bt.nhap_cu) nut += '<div style="font-size:13.5px;color:#b42318;margin-bottom:6px">Bản nháp ' + h(bt.journal_entry) + ' đã cũ so với số hiện tại: ' + h(bt.nhap_cu) + '. ' +
+    (bt.trang_thai === 'Nháp đã sửa tay' ? 'Bỏ bản nháp rồi lập lại.' : 'Bấm Cập nhật bản nháp rồi mới ghi sổ.') + '</div>';
+  if (d.duoc_ghi && !bt.nhap_cu && (bt.trang_thai === 'Nháp chờ ghi sổ' || bt.trang_thai === 'Nháp đã sửa tay')) nut += cp2NutPhu('dsmGhi', 'Ghi sổ bút toán ' + bt.journal_entry);
   if (d.duoc_lap && (bt.trang_thai === 'Nháp chờ ghi sổ' || bt.trang_thai === 'Nháp đã sửa tay')) nut += cp2NutPhu('dsmBoNhap', 'Bỏ bản nháp', 1);
   var html =
     '<div class="card" style="padding:12px 14px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1">Ba con số của tháng</b>' + qcmChipMau(DSM_TT, d.trang_thai, DSM_TT_NHAN[d.trang_thai]) + '</div>' +
