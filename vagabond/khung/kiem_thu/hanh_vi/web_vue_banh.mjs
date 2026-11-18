@@ -709,12 +709,23 @@ await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; gi�
   la('số còn nhận', [k.S.TRUOC.BAWC00068, k.S.TRUOC.BAWC00123], [13, 3]);
   la('nhãn refill', [k.nhanRefill('BAWC00068'), k.nhanRefill('BAWC00123')], ['Có từ 14/11', '']);
   la('giỏ trống: không ngày nào mờ', k.ngayRail.value.filter(d => d.off).length, 0);
+  /* v671 (Sales góp ý 18/11/2026, giám đốc chốt): bánh đặt trước thường chỉ nhận
+     ngày mai. Lịch tab Đặt trước: ngày mai và các ngày của mẻ refill đang nhận. */
+  la('lịch tab Đặt trước: ngày mai và 14 tới 20/11 của mẻ', k.ngayRailDatTruoc.value.map(d => d.i), [1, 4, 5, 6, 7, 8, 9, 10]);
   coThem(k, 'Kankin');
-  /* v649 (anh Việt chọn tách đơn 11/11/2026): giỏ có bánh đặt trước thì ô Hôm nay
-     mờ; các ngày khác không mờ vì bánh decor không bị khoá theo refill. */
-  la('giỏ chỉ có bánh decor: chỉ mờ Hôm nay', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0]);
+  la('giỏ có bánh đặt trước thường: chỉ còn ngày mai', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+  k.pick(5);
+  dung('bấm ngày xa: báo nhận ngày mai', /nhận vào ngày mai/.test(k.S.toast.chu));
+  /* Thêm bánh chỉ có mẻ 14 tới 20/11 vào giỏ đang có bánh nhận ngày mai: không có
+     ngày chung, báo đặt đơn riêng, không thêm. */
+  const dai = k.S.CART.length;
+  k.moBanh(k.S.CAKES.find(c => c.k === 'Roman de la Rose')); k.S.soLuong = 1;
+  la('không thêm được', k.addToCart(), false);
+  dung('báo không có chung ngày', /không có chung ngày nhận/.test(k.S.toast.chu));
+  la('giỏ giữ nguyên', k.S.CART.length, dai);
+  k.S.CART.splice(0);
   coThem(k, 'Roman de la Rose');
-  la('mờ 10 tới 13/11 và 21 tới 23/11', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 1, 2, 3, 11, 12, 13]);
+  la('giỏ chỉ có bánh của mẻ: mờ 10 tới 13/11 và 21 tới 23/11', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 1, 2, 3, 11, 12, 13]);
   const truoc = k.S.ngayChon;
   k.pick(1);
   la('không đổi ngày', k.S.ngayChon, truoc);

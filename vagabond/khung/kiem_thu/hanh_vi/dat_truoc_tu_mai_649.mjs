@@ -65,7 +65,9 @@ await ca('1. Tab Đặt bánh trước: lịch bắt đầu từ Ngày mai 12/11
   const ngay = tim(goc, n => n.the === 'button' && /\bday\b/.test(n.props.class || '')).map(n => chu(n));
   la('ô đầu là Ngày mai 12/11', ngay[0], 'Ngày mai12/11');
   dung('không còn Hôm nay', !ngay.some(x => x.includes('Hôm nay') || x.includes('11/11')));
-  la('đủ 13 ngày', ngay.length, 13);
+  /* v671 (Sales góp ý 18/11/2026, giám đốc chốt): bánh đặt trước chỉ nhận ngày mai;
+     không có mẻ refill hay đợt thì lịch chỉ còn đúng một ô (trước v671: 13 ngày). */
+  la('chỉ còn ngày mai', ngay.length, 1);
   const a = tim(goc, n => n.the === 'a')[0];
   dung('có dòng dẫn', a && chu(a).includes('Cần bánh hôm nay? Xem tab Có sẵn hôm nay'));
   la('dẫn sang tab Có sẵn hôm nay', a.props.href, '#/');
@@ -154,6 +156,34 @@ await ca('7. Codex #552 vòng 4: bánh một cỡ (cm 0) đặt trước vẫn k
   k3.S.CART.push(Object.assign({}, k3.S.CART[0], {id: 'BAWC09001', cm: 0, nguon: 'order'}));
   k3.pick(1); k3.pickSlot(8); k3.S.f.name = 'Khách thử'; k3.S.f.phone = '0900000000';
   la('giỏ trộn có bánh một cỡ: không gửi', (await k3.submitOrder()).buoc, 'gio');
+});
+
+/* v671 (Sales góp ý 18/11/2026, giám đốc chốt): bánh đặt trước chỉ nhận ngày mai. */
+await ca('8. v671 giỏ lưu hôm trước có bánh đặt trước, ngày nhận 15/11: mở lại trang thì dời sang ngày mai 12/11 và nhờ chọn lại', async () => {
+  const {mt} = moiTruong();
+  const k1 = taoKho(mt);
+  if (k1.phucHoiGio) k1.phucHoiGio();
+  la('thêm bánh đặt trước', them(k1, 'order'), 'them');
+  const luu = JSON.parse(mt.luuTru.getItem('vgb-gio-v1'));
+  Object.assign(luu, {ngay: '2026-11-15', daChonNgay: true, daChonGio: true});
+  const {mt: mt2} = moiTruong('2026-11-11T10:00:00', JSON.stringify(luu));
+  const k = taoKho(mt2);
+  if (k.phucHoiGio) k.phucHoiGio();
+  la('giỏ còn bánh', k.S.CART.length, 1);
+  la('dời sang ngày mai', k.S.ngayChon, '2026-11-12');
+  la('nhờ khách xác nhận lại ngày', k.S.daChonNgay, false);
+});
+
+await ca('9. v671 giỏ có bánh đặt trước: bấm ngày 15/11 ở bước Ngày và giờ nhận thì báo nhận ngày mai, không đổi ngày; ngày mai chọn được', async () => {
+  const {mt} = moiTruong();
+  const k = taoKho(mt);
+  them(k, 'order');
+  k.pick(1);
+  la('ngày mai', k.S.ngayChon, '2026-11-12');
+  k.pick(4);
+  la('không đổi ngày', k.S.ngayChon, '2026-11-12');
+  dung('báo nhận ngày mai', /nhận vào ngày mai/.test(k.S.toast.chu));
+  la('ngày 15/11 mờ trên lịch giỏ', k.ngayRail.value.find(d => d.i === 4).off, true);
 });
 
 console.log('\n' + dat + ' dat, ' + hong + ' hong');
