@@ -292,7 +292,7 @@ var VGB_CD = (function () {
 			canMot: [['so_mxh_token'], ['so_page_id', 'mxh_token']], toi: 'so_page_id', muc: 'sec_mxh_so' },
 		{ hau: 'Bài Sonneto đã duyệt không tự lên Threads của Sonneto; Marketing phải đăng tay.', ten: 'Đăng bài Threads Sonneto', can: ['so_th_token'], toi: 'so_th_token', muc: 'sec_mxh_so' },
 		// v672 mxh.dang_gg: Mã, Khoá ứng dụng Google dán tay; Mã kết nối hệ thống ghi khi bấm Kết nối Google.
-		{ hau: 'Bài đã duyệt không tự lên hồ sơ Google Doanh nghiệp; Marketing phải đăng tay.', ten: 'Đăng bài Google Doanh nghiệp',
+		{ hau: 'Bài đã duyệt không tự lên Google Business Profile; Marketing phải đăng tay.', ten: 'Đăng bài Google Posts',
 			can: ['gg_client_id', 'gg_client_secret', 'gg_refresh_token'], toi: 'gg_client_id', muc: 'sec_gg' },
 		// thong_bao.py gửi bằng khoá riêng VAPID; thiếu là "chua co khoa VAPID".
 		{ hau: 'Điện thoại nhân viên không nhận thông báo đẩy.', ten: 'Thông báo đẩy', can: ['push_khoa_cong_khai', 'push_khoa_rieng'], toi: 'push_khoa_cong_khai', muc: 'sec_push' },
