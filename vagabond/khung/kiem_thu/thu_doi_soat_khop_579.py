@@ -349,7 +349,8 @@ def _():
 	from vagabond import doi_soat_vendor as V
 	src = inspect.getsource(V)
 	for ham, can in (("_dk_hd", '"s.company=%(ct)s"'),
-			("_tien_ve", '{"company": nguon.company}'), ("_noi_chuyen", '"company": nguon.company'),
+			("_vao_tien_ve", '{"company": nguon.company}'), ("chon_tien_ve", "_chan_cong_ty("),
+			("bo_chon_tien_ve", "_chan_cong_ty("), ("ung_vien_tien_ve", "_chan_cong_ty(n.company)"), ("_noi_chuyen", '"company": nguon.company'),
 			("_ky_the", '"company": nguon.company'), ("_tong_hop", "company=%%s"), ("ds", '"company": ["in", ct]'),
 			("chi_tiet", "_chan_cong_ty(n.company)"), ("suc_khoe", "company in %%(ct)s"), ("cua_hoa_don", '"company": ["in", _cong_ty_xem()]'),
 			("doi_chieu_lai", "_chan_cong_ty("), ("nhan", "cong_ty = _cong_ty_nhan(cong_ty)"),

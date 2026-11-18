@@ -42,6 +42,19 @@ def tong_dong(ds):
     return tong
 
 
+def tong_tk(ds):
+    """v673: dòng bù vào tài khoản chờ tiền về (phiếu lập từ đối soát). Có thể rỗng."""
+    tong = Decimal(0)
+    for d in ds:
+        if not d.get('tai_khoan'):
+            raise ValueError('Dòng bù vào tài khoản phải có tài khoản.')
+        so = tien(d.get('so_tien'))
+        if so <= 0 or so != so.to_integral_value():
+            raise ValueError('Tiền bù VND phải là số nguyên lớn hơn 0.')
+        tong += so
+    return tong
+
+
 import frappe
 from frappe.utils import getdate
 
@@ -57,8 +70,16 @@ def kiem_quyen_duyet():
 
 def kiem_phieu(d):
     from vagabond import diem_ban
-    if not diem_ban.theo_ma(d.diem_ban):
-        frappe.throw('Chọn điểm bán trong danh mục hiện hành.')
+    # v673: phiếu lập từ Đối soát nhà cung cấp gom mọi điểm bán và mọi khách
+    # công nợ của đối tác trong kỳ; điểm bán và khách lấy theo từng hoá đơn.
+    tu_doi_soat = bool(d.get('doi_soat'))
+    if not tu_doi_soat:
+        if not diem_ban.theo_ma(d.diem_ban):
+            frappe.throw('Chọn điểm bán trong danh mục hiện hành.')
+        if not d.khach_hang:
+            frappe.throw('Chọn khách hàng công nợ sàn.')
+    elif d.get('tk') is None:
+        d.tk = []
     if getdate(d.tu_ngay) > getdate(d.den_ngay) or getdate(d.ngay_bu) < getdate(d.den_ngay):
         frappe.throw('Kiểm lại kỳ đối soát và ngày bù: ngày bù không trước cuối kỳ.')
     if frappe.db.get_value('Company',d.company,'default_currency') != 'VND':
@@ -67,12 +88,19 @@ def kiem_phieu(d):
     if not d.mst:
         frappe.throw('Nhà cung cấp phí chưa có mã số thuế. Bổ sung trước khi duyệt.')
     try:
-        a, b = tong_dong(d.phi), tong_dong(d.ban)
+        a = tong_dong(d.phi)
+        b = tong_dong(d.ban) if (d.ban or not tu_doi_soat) else Decimal(0)
+        c = tong_tk(d.get('tk') or []) if tu_doi_soat else Decimal(0)
     except ValueError as e:
         frappe.throw(str(e))
-    if a != b:
+    if not tu_doi_soat and d.get('tk'):
+        frappe.throw('Dòng bù vào tài khoản chỉ dùng cho phiếu lập từ Đối soát nhà cung cấp.')
+    if a != b + c:
         frappe.throw('Tổng phí đã gồm VAT phải bằng tổng công nợ được bù. Kiểm các dòng, không tự xóa chênh lệch.')
     d.tong_bu = float(a)
+    if tu_doi_soat:
+        from vagabond import can_tru_phi
+        can_tru_phi.kiem_phieu_doi_soat(d)
     # Không giải phóng khoá khi huỷ: dùng amend cùng căn cứ, không tạo phiếu thứ hai.
     goc = d.amended_from
     while goc:
@@ -83,7 +111,7 @@ def kiem_phieu(d):
     d.tham_chieu = str(d.tham_chieu or '').strip()
     if not d.tham_chieu:
         frappe.throw('Nhập mã bảng đối soát của sàn.')
-    d.khoa = sha256('\n'.join([d.company,d.san,d.diem_ban,d.nha_cung_cap,d.tham_chieu]).encode()).hexdigest()
+    d.khoa = sha256('\n'.join([d.company,d.san,d.diem_ban or '',d.nha_cung_cap,d.tham_chieu]).encode()).hexdigest()
     if d.amended_from:
         cu = frappe.get_doc(DT,d.amended_from)
         if cu.khoa.split(':')[0] != d.khoa:
@@ -107,14 +135,16 @@ def _doc_nguon(d, khoa=True):
                 frappe.db.sql('select name from `tab%s` where name=%%s for update' % dt, (ma,))
         for x in bang:
             hd = frappe.get_doc(dt,x.hoa_don)
-            if hd.company != d.company or hd.get(truong) != doi_tac:
+            if hd.company != d.company or (hd.get(truong) != doi_tac and not (dt == 'Sales Invoice' and d.get('doi_soat'))):
                 frappe.throw('Hoá đơn %s khác công ty hoặc pháp nhân đã chọn.' % hd.name)
             if hd.currency != 'VND' or hd.get('is_return'):
                 frappe.throw('Hoá đơn %s phải là VND và không phải phiếu trả/điều chỉnh.' % hd.name)
             if dt == 'Sales Invoice':
                 if hd.get('vgb_huy') or hd.get('vgb_tam_tinh'):
                     frappe.throw('Hoá đơn %s đã hủy hoặc còn tạm tính, không dùng để cấn trừ.' % hd.name)
-                if hd.get('custom_nguon') != d.san or diem_ban.ma_theo_quay(hd.get('vgb_quay')) != d.diem_ban:
+                # v673: phiếu từ đối soát kiểm hoá đơn thuộc đúng đối soát của đối
+                # tác trong kỳ (can_tru_phi.kiem_phieu_doi_soat), không theo nguồn đơn.
+                if not d.get('doi_soat') and (hd.get('custom_nguon') != d.san or diem_ban.ma_theo_quay(hd.get('vgb_quay')) != d.diem_ban):
                     frappe.throw('Hoá đơn %s khác sàn hoặc điểm bán.' % hd.name)
                 if not getdate(d.tu_ngay) <= getdate(hd.posting_date) <= getdate(d.den_ngay):
                     frappe.throw('Hoá đơn %s ngoài kỳ đối soát.' % hd.name)
@@ -175,6 +205,11 @@ def thu_bu(ten):
             party=hd.supplier if mua else hd.customer,reference_type=hd.doctype,reference_name=hd.name,
             debit_in_account_currency=float(x.so_tien) if mua else 0,
             credit_in_account_currency=0 if mua else float(x.so_tien),exchange_rate=1))
+    # v673: phần phí nằm ở tài khoản chờ tiền về của đối tác (hoá đơn đã thu qua
+    # hình thức thanh toán, hoặc phí kỳ không gắn hoá đơn): Có đúng tài khoản đó.
+    for x in (d.get('tk') or []) if d.get('doi_soat') else []:
+        je.append('accounts',dict(account=x.tai_khoan,debit_in_account_currency=0,
+            credit_in_account_currency=float(x.so_tien),exchange_rate=1,user_remark=x.get('ghi_chu') or None))
     # Không catch lỗi submit để request rollback cả PI/JE, không commit phần dở.
     co_cu = frappe.flags.get('vgb_dang_bu_san')
     try:
@@ -355,7 +390,9 @@ def kiem_but_toan(doc, method=None):
         mua=hd.doctype=='Purchase Invoice'
         mong.append((hd.doctype,hd.name,hd.get(tk),'Supplier' if mua else 'Customer',
             hd.supplier if mua else hd.customer,tien(x.so_tien) if mua else Decimal(0),Decimal(0) if mua else tien(x.so_tien)))
-    that=[(x.reference_type,x.reference_name,x.account,x.party_type,x.party,
+    for x in (d.get('tk') or []) if d.get('doi_soat') else []:
+        mong.append(('','',x.tai_khoan,'','',Decimal(0),tien(x.so_tien)))
+    that=[(x.reference_type or '',x.reference_name or '',x.account,x.party_type or '',x.party or '',
         tien(x.debit_in_account_currency or 0),tien(x.credit_in_account_currency or 0)) for x in doc.accounts]
     if sorted(mong) != sorted(that):
         frappe.throw('Dòng bút toán khác căn cứ. Hủy/sửa phiếu đối soát thay vì sửa riêng bút toán.')
