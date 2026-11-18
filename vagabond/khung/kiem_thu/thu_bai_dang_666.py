@@ -376,7 +376,7 @@ def _cau_truc():
 		dung("trường " + f, f in ten and f in bd["field_order"])
 	dung("mốc modified mới", bd["modified"] >= "2026-11-17")
 	cd = json.loads(_tep("vagabond/vagabond/doctype/vagabond_chu_de_bai/vagabond_chu_de_bai.json"))
-	la("chủ đề", (cd["name"], [f["fieldname"] for f in cd["fields"]]), ("Vagabond Chu De Bai", ["ten", "bieu_tuong", "thu_tu", "cta"]))
+	la("chủ đề", (cd["name"], [f["fieldname"] for f in cd["fields"]]), ("Vagabond Chu De Bai", ["ten", "bieu_tuong", "thuong_hieu", "thu_tu", "cta"]))
 	dung("tên không trùng", [f for f in cd["fields"] if f["fieldname"] == "ten"][0].get("unique") == 1)
 	dung("chặn sửa ngoài app", "vgb_bai_dang" in _tep("vagabond/vagabond/doctype/vagabond_chu_de_bai/vagabond_chu_de_bai.py"))
 	dung("tin máy chủ", '"mkt_bai_gd_duyet": ("Marketing",' in _tep("vagabond/kenh_zalo.py"))

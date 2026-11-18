@@ -110,19 +110,23 @@ def _muc(kiem, muc):
 	return [z["chu"] for z in kiem if z["muc"] == muc]
 
 
-@ca("v662 bảng Kiểm: đủ thì không chặn; Threads 519 ký tự, Zalo OA thiếu tiêu đề, chưa có ảnh, chưa chọn kênh thì chặn")
+@ca("v662 bảng Kiểm: đủ thì không chặn; Threads quá trần cả bài, Zalo OA thiếu tiêu đề, chưa có ảnh, chưa chọn kênh thì chặn")
 def _kiem():
 	la("đủ thì không chặn", _muc(x.kiem_bai(_bai(), BAY_GIO), "chan"), [])
 	ban = _bai()["ban"]
+	# v672 (anh Việt 18/11/2026): Threads quá 500 ký tự không còn chặn, hệ thống tách
+	# thành chuỗi bài nối tiếp; chỉ chặn khi quá trần cả bài (KENH["th"]["tong"]).
 	ban["th"] = {"chu": "x" * 519}
-	la("Threads quá trần", _muc(x.kiem_bai(_bai(ban=ban), BAY_GIO), "chan"), ["Threads dài 519/500 ký tự"])
+	la("Threads 519 không chặn (tách chuỗi)", _muc(x.kiem_bai(_bai(ban=ban), BAY_GIO), "chan"), [])
+	ban["th"] = {"chu": "x" * (x.KENH["th"]["tong"] + 1)}
+	la("Threads quá trần cả bài", _muc(x.kiem_bai(_bai(ban=ban), BAY_GIO), "chan"), ["Threads dài %d/%d ký tự" % (x.KENH["th"]["tong"] + 1, x.KENH["th"]["tong"])])
 	la("Threads đúng 500 không chặn", _muc(x.kiem_bai(_bai(ban=dict(ban, th={"chu": "x" * 500})), BAY_GIO), "chan"), [])
 	la("Zalo OA thiếu tiêu đề", _muc(x.kiem_bai(_bai(ban=dict(ban, th={"chu": "c"}, zl={"chu": "d"})), BAY_GIO), "chan"), ["Zalo OA chưa có tiêu đề bài viết"])
 	la("chưa có ảnh", _muc(x.kiem_bai(_bai(anh=[]), BAY_GIO), "chan"), ["Chưa có ảnh"])
 	la("chưa chọn kênh", _muc(x.kiem_bai(_bai(kenh_chon=[]), BAY_GIO), "chan"), ["Chưa chọn kênh nào"])
 	la("kênh thiếu chữ", _muc(x.kiem_bai(_bai(kenh_chon=["fb"], ban={}), BAY_GIO), "chan"), ["Facebook chưa có chữ"])
 	k = x.kiem_bai(_bai(), BAY_GIO)
-	dung("nút sửa trỏ đúng kênh", all(z["nut"][0].startswith("chu:") for z in x.kiem_bai(_bai(ban=dict(ban, th={"chu": "x" * 600})), BAY_GIO) if z["muc"] == "chan"))
+	dung("nút sửa trỏ đúng kênh", all(z["nut"][0].startswith("chu:") for z in x.kiem_bai(_bai(ban=dict(ban, th={"chu": "x" * 6000})), BAY_GIO) if z["muc"] == "chan"))
 	dung("có dòng xanh đủ ảnh và chữ", "Đủ ảnh và chữ cho 4 kênh" in _muc(k, "ok"))
 
 
@@ -200,7 +204,8 @@ def _ai():
 	k = x.doc_tra_loi_ai(tra, ["fb", "th", "zl"])
 	la("chỉ kênh yêu cầu", sorted(k), ["fb", "th", "zl"])
 	la("bỏ dấu gạch dài", k["fb"]["chu"], "Bánh - mới")
-	la("Threads cắt ở 500", len(k["th"]["chu"]), 500)
+	# v672: Threads giữ chữ dài (hệ thống tách chuỗi), chỉ cắt ở trần cả bài.
+	la("Threads 600 giữ nguyên", len(k["th"]["chu"]), 600)
 	la("Zalo OA có tiêu đề", k["zl"], {"chu": "Z", "tieu_de": "T"})
 	la("không có JSON", x.doc_tra_loi_ai("xin lỗi", ["fb"]), {})
 	la("JSON hỏng", x.doc_tra_loi_ai("{fb: 1", ["fb"]), {})

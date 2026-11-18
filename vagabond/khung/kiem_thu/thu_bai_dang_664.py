@@ -162,13 +162,15 @@ class _KhoaGia(object):
 		return False
 
 
-def _chay(doc, ham, noi=(), bay_gio=BAY_GIO, dang=None, **k):
-	"""Chạy một hàm của bai_dang với bản giả. dang: hàm thay mxh.dang (ghi lại lời gọi)."""
+def _chay(doc, ham, noi=(), bay_gio=BAY_GIO, dang=None, noi_theo=None, **k):
+	"""Chạy một hàm của bai_dang với bản giả. dang: hàm thay mxh.dang (ghi lại lời gọi).
+	noi_theo (v672): kênh đang nối theo từng thương hiệu, thay cho noi."""
 	nhat = {"luu": [], "xep": [], "bao_tay": [], "bao_loi": [], "commit": 0, "goi": []}
 
-	def _dang(kenh, ma_bai, chu, anh, story=False, tieu_de=""):
+	def _dang(kenh, ma_bai, chu, anh, story=False, tieu_de="", hieu="vagabond"):
 		nhat["goi"].append((kenh, chu, len(anh), story))
 		nhat.setdefault("tieu_de", []).append((kenh, tieu_de))
+		nhat.setdefault("hieu", []).append((kenh, hieu))
 		if dang:
 			return dang(kenh)
 		return ("ID-" + kenh, "https://x.com/" + kenh)
@@ -177,13 +179,16 @@ def _chay(doc, ham, noi=(), bay_gio=BAY_GIO, dang=None, **k):
 		nhat["commit"] += 1
 	with um.patch.object(x, "_kiem_soan", lambda: None), um.patch.object(x, "_kiem_duyet", lambda: None), \
 			um.patch.object(x, "_la_duyet", lambda: True), um.patch.object(x, "_doc_khoa", lambda ma: doc), \
-			um.patch.object(x, "_khoa_lich", lambda: _KhoaGia()), um.patch.object(x, "_noi", lambda *a: set(noi)), \
+			um.patch.object(x, "_khoa_lich", lambda: _KhoaGia()), um.patch.object(x, "_noi", lambda *a: (nhat.setdefault("noi_hieu", []).append(a[1] if len(a) > 1 else "vagabond"),
+				set(noi_theo.get(a[1] if len(a) > 1 else "vagabond", ()) if noi_theo else noi))[1]), \
+			um.patch.object(x, "_hieu_ma", lambda ma: x.hieu_bai(doc)), \
 			um.patch.object(x, "_luu", lambda d: nhat["luu"].append([(r.ma_kenh, r.trang_thai) for r in d.kenh])), \
 			um.patch.object(x, "_bay_gio", lambda: bay_gio), um.patch.object(x, "_trung_gio", lambda d: []), \
 			um.patch.object(x, "_anh_cu", lambda d: []), um.patch.object(x, "gio_vang", lambda: list(x.GIO_VANG_MAC_DINH)), \
 			um.patch.object(x, "_xep_dang", lambda ma: nhat["xep"].append(ma)), \
 			um.patch.object(x, "_bao_den_gio", lambda d, ten: nhat["bao_tay"].append(ten)), \
-			um.patch.object(x, "_bao_loi_dang", lambda d, kenh, chu: nhat["bao_loi"].append((kenh, chu))), \
+			um.patch.object(x, "_bao_loi_dang", lambda d, kenh, chu, mot_phan=False: (nhat["bao_loi"].append((kenh, chu)),
+				nhat.setdefault("mot_phan", []).append((kenh, mot_phan)))), \
 			um.patch.object(m, "dang", _dang), \
 			um.patch.object(x.frappe.db, "commit", _commit, create=True), um.patch.object(x.frappe.db, "rollback", lambda: None, create=True), \
 			um.patch.object(x.frappe, "log_error", lambda *a, **kk: None, create=True), \
