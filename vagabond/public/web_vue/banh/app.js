@@ -129,7 +129,8 @@ export function khoiDong(goc = '#app') {
       const kichThuocDong = computed(() => kichThuoc.value.map(s => {
         const n = S.TODAY[s.id] || 0, tr = S.TRUOC[s.id] || 0, banh = t('dat_banh_3556aabb5', 'bánh');
         const kp = tMon(s.id, 'khau_phan', s.serve);
-        return {s, gia: kho.T.tienVN(s.p), nhan: t('dat_banh_2540d6d0f', 'Ø {gia_tri_a}cm{gia_tri_b}', {gia_tri_a: s.cm, gia_tri_b: kp ? ' · ' + kp : ''}),
+        return {s, gia: kho.T.tienVN(s.p), nhan: s.cm ? t('dat_banh_2540d6d0f', 'Ø {gia_tri_a}cm{gia_tri_b}', {gia_tri_a: s.cm, gia_tri_b: kp ? ' · ' + kp : ''})
+          : t('dat_banh_8a6c6356d', '1 cỡ') + (kp ? ' · ' + kp : ''),
           em: n ? kho.T.nhanTon(n, banh, t) : (tr ? (kho.nhanRefill(s.id) || t('san_pham_dat_truoc', 'Đặt trước')) + ' · ' + kho.T.nhanTon(tr, banh, t) : '')};
       }));
       const tomTatLich = computed(() => { const nh = kho.nhanNgayDangChon(); return nh.ten + ', ' + nh.ngay + ' · ' + kho.slotDangChon.value.t; });
@@ -137,7 +138,7 @@ export function khoiDong(goc = '#app') {
         const ra = [];
         S.CART.forEach(o => {
           const x = o.qty > 1 ? ' ' + t('dat_banh_67fba2f35', '×') + ' ' + o.qty : '';
-          ra.push({k: o.id + 'b' + ra.length, nhan: tMon(o.id, 'ten', o.k) + ' · Ø ' + o.cm + 'cm' + x, gia: kho.T.tienVN(o.price * o.qty)});
+          ra.push({k: o.id + 'b' + ra.length, nhan: tMon(o.id, 'ten', o.k) + (o.cm ? ' · Ø ' + o.cm + 'cm' : '') + x, gia: kho.T.tienVN(o.price * o.qty)});
           o.adds.forEach(a => ra.push({k: a.id + 'a' + ra.length, nhan: '+ ' + a.n + x, gia: kho.T.tienVN(a.p * o.qty)}));
         });
         return ra;
