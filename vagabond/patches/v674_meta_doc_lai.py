@@ -14,11 +14,24 @@ def gia_tri_gieo(hien_tai):
 	return None
 
 
+def doc_o_tho():
+	"""Giá trị thô của ô trong bảng Singles, None nếu chưa có dòng.
+
+	Không dùng frappe.db.get_value("Singles", ...): câu đó tự thêm ORDER BY creation
+	mà bảng Singles không có cột creation, migrate thật ném lỗi 1054 và Frappe Cloud
+	khôi phục site (deploy 18/11/2026). Không dùng get_single_value vì nó đổi ô rỗng
+	thành 0, mất phân biệt "chưa điền" với "đã chọn 0"."""
+	import frappe
+
+	r = frappe.db.sql("select value from `tabSingles` where doctype=%s and field=%s",
+		("Vagabond Settings", "meta_ads_doc_lai"))
+	return r[0][0] if r else None
+
+
 def execute():
 	import frappe
 
-	hien = frappe.db.get_value("Singles", {"doctype": "Vagabond Settings", "field": "meta_ads_doc_lai"}, "value")
-	moi = gia_tri_gieo(hien)
+	moi = gia_tri_gieo(doc_o_tho())
 	if moi is not None:
+		# Không commit ở đây: trình chạy bản vá của Frappe tự commit sau mỗi bản vá.
 		frappe.db.set_single_value("Vagabond Settings", "meta_ads_doc_lai", moi)
-		frappe.db.commit()

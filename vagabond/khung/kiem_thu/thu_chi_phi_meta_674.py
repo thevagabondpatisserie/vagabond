@@ -552,3 +552,35 @@ def _ct_moi_sau_lap():
 		except Exception as e:
 			dung("chặn, nói đúng chứng từ mới: %s" % e, "đã cũ" in str(e) and "BT-TAY-1" in str(e))
 		la("không submit", _JeGia.da_ghi, [])
+
+
+@ca("Deploy 18/11: bản vá gieo số ngày đọc lại không đọc bảng Singles bằng get_value (Frappe thêm ORDER BY creation, migrate thật ném 1054); không tự commit")
+def _ban_va_singles():
+	class Db(object):
+		def __init__(self, dong):
+			self.dong, self.dat, self.commit_goi = dong, [], 0
+
+		def get_value(self, dt, *a, **k):
+			if dt == "Singles":
+				raise RuntimeError("(1054, Unknown column 'creation' in 'ORDER BY')")
+			return None
+
+		def get_single_value(self, *a, **k):
+			return 0  # như Frappe thật: ô Int rỗng đọc ra 0, mất phân biệt
+
+		def sql(self, q, a=None, **k):
+			return [(self.dong,)] if self.dong is not None else []
+
+		def set_single_value(self, dt, f, v):
+			self.dat.append((dt, f, v))
+
+		def commit(self):
+			self.commit_goi += 1
+
+	for dong, mong in ((None, [("Vagabond Settings", "meta_ads_doc_lai", 3)]), ("", [("Vagabond Settings", "meta_ads_doc_lai", 3)]),
+			("0", []), ("5", [])):
+		db = Db(dong)
+		with um.patch.object(P.frappe if hasattr(P, "frappe") else __import__("frappe"), "db", db, create=True):
+			P.execute()
+		la("ô thô %r" % (dong,), db.dat, mong)
+		la("không tự commit (%r)" % (dong,), db.commit_goi, 0)
