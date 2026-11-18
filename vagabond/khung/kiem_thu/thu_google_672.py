@@ -433,3 +433,34 @@ def _het_suat():
 			um.patch.dict("sys.modules", {"vagabond.kiem_banh": types_kiem_banh()}):
 		ds = gm._dac_biet()
 	la("A hết suất, B không giới hạn còn hàng", [(z["ma"], z["con"]) for z in ds], [("A1", gm.HET), ("B1", gm.CON)])
+
+
+@ca("v672 sơ đồ trang: /sitemap.xml có trang /mon/<mã> của từng bánh lên Google, cùng nguồn mon_dua_google; nguồn hỏng vẫn trả trang khách cố định")
+def _so_do_mon():
+	import frappe
+	from vagabond import so_do_web as sd
+	from vagabond.www import vgb_sitemap as vs
+	ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+	ds = [{"ma": "MOCHI/1"}, {"ma": "MOCHI/1"}, {"ma": " "}, {"ma": "TART"}]
+	la("trang bánh không trùng, bỏ mã rỗng", sd.trang_mon(ds), (("/mon/MOCHI%2F1", sd.UU_TIEN_MON), ("/mon/TART", sd.UU_TIEN_MON)))
+	la("đường trang khớp link trong tệp Google", [gm.GOC + d for d, _ in sd.trang_mon(ds)], [gm.duong_mon("MOCHI/1"), gm.duong_mon("TART")])
+	ctx = frappe._dict() if hasattr(frappe, "_dict") else type("C", (), {})()
+	with um.patch.object(gm, "mon_dua_google", lambda lam_moi=False: ds), um.patch.object(vs, "nowdate", lambda: "2026-11-18"):
+		vs.get_context(ctx)
+	loc = [e.text for e in ET.fromstring(ctx.so_do.encode()).findall("s:url/s:loc", ns)]
+	dung("vẫn có trang đặt bánh", gm.GOC + "/banh" in loc)
+	la("có hai trang bánh", [u for u in loc if "/mon/" in u], [gm.duong_mon("MOCHI/1"), gm.duong_mon("TART")])
+	duong = [u[len(gm.GOC):] for u in loc]
+	dung("mọi trang là trang khách", all(any(d == a or d.startswith(a + "/") for a in tm.DAU_KHACH) for d in duong))
+	ghi = []
+
+	def hong(lam_moi=False):
+		raise RuntimeError("Pancake hỏng")
+	ctx2 = frappe._dict() if hasattr(frappe, "_dict") else type("C", (), {})()
+	with um.patch.object(gm, "mon_dua_google", hong), um.patch.object(vs, "nowdate", lambda: "2026-11-18"), \
+			um.patch.object(frappe, "log_error", lambda **k: ghi.append(k), create=True), \
+			um.patch.object(frappe, "get_traceback", lambda: "", create=True):
+		vs.get_context(ctx2)
+	loc2 = [e.text for e in ET.fromstring(ctx2.so_do.encode()).findall("s:url/s:loc", ns)]
+	la("nguồn hỏng: đủ trang khách cố định, không trang bánh", len(loc2), len(sd.TRANG_CONG_KHAI))
+	la("nguồn hỏng: ghi một lỗi cho kỹ thuật", len(ghi), 1)
