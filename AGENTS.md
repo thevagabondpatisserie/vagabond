@@ -1,3 +1,12 @@
+## Quy tắc chung cập nhật 17/11/2026
+
+Mục 2b, 2c và H10 là nguồn chung về giao diện, nghiệm thu và review cho cả
+Codex lẫn Claude. Các mục này ưu tiên hướng dẫn cũ mâu thuẫn cùng chủ đề
+trong repo và trong skill. Chỉ dẫn trực tiếp của anh Việt và instruction
+project do anh dán luôn thắng; ai thấy hai nguồn mâu thuẫn thì ghi trong bàn
+giao để anh chốt một nguồn. Phạm vi anh giao quyết định ai làm, ai duyệt và
+quyền phát hành.
+
 ## Phân công và báo review ngay (anh Việt chốt 15/10/2026)
 
 Mục này ưu tiên mọi phân công cũ mâu thuẫn bên dưới và trong tài liệu liên kết.
@@ -29,7 +38,7 @@ Ngay khi kết thúc mỗi vòng rà, trước khi chuyển việc hoặc kết 
 3. **Vòng sau chỉ rà phần đã đổi và phần có thể bị ảnh hưởng.** Ghi SHA nền, SHA đã rà và SHA mới. Đọc các lỗi còn mở, thay đổi từ lần trước và các luồng dùng lại đoạn vừa sửa. Khi có rebase hoặc ghép nhánh, so cả nền mới. Mở rộng rà nếu quy tắc chung, quyền, thuế, ghi kho hoặc ranh giới giao dịch thay đổi. Có thể chốt một lỗi khi ca kiểm phân biệt được hành vi cũ với mới. Nếu cách sửa khác dự kiến nhưng đạt yêu cầu, chấp nhận kết quả.
 4. **Mốc hai vòng dùng để tìm nguyên nhân chậm.** Nếu vòng sau mới phát hiện lỗi cùng nguyên nhân ở đoạn đã có từ vòng đầu, ghi cả phần Codex đã rà sót. Nếu lỗi do thay đổi mới, ghi commit đưa lỗi vào. Phần còn tranh luận cần một ca phân xử hoặc một quyết định nghiệp vụ. Lỗi tác động tiền, kho, quyền hoặc số liệu tiếp tục chặn cho tới khi có bằng chứng. Quyền merge/deploy theo chỉ định riêng.
 5. **Cổng kế toán kiểm ý nghĩa bút toán.** Với thay đổi thuế, giá vốn hoặc thanh toán, ca bench đối chiếu từ chứng từ nguồn đến số tiền, chiều Nợ/Có và đúng TK theo nghiệp vụ. Kiểm hoàn nguyên hoặc gửi lại khi luồng cho phép. Bất kỳ đường mới nào có thể ghi sổ đều phải chỉ ra thao tác duyệt của kế toán hoặc chính sách tự động đã được anh Việt duyệt cho đúng nghiệp vụ. Dùng dữ liệu giả trong PR công khai.
-6. **Mỗi lần bàn giao gọi review một lần trên SHA cuối.** Các lô tải lên có thể tạo nhiều commit. CI vẫn chạy theo cổng hiện có. Khi SHA và nền đã rà không đổi, chỉ mở lại nếu có bằng chứng mới hoặc cổng kiểm đổi kết quả. Theo dõi ba số qua mười PR tiếp theo: số SHA bàn giao đã được rà, lỗi có sẵn bị phát hiện muộn, lỗi mới phát sinh sau lần sửa. Ghi riêng thời gian chờ bench nếu muốn đánh giá tốc độ.
+6. **Mỗi lần bàn giao gọi review một lần trên SHA cuối.** Các lô tải lên có thể tạo nhiều commit. CI vẫn chạy theo cổng hiện có. Khi SHA và nền đã rà không đổi, chỉ mở lại nếu có bằng chứng mới hoặc cổng kiểm đổi kết quả. Số liệu đo hiệu quả ghi ở mục 2c.8.
 
 ### Hướng dẫn áp dụng H3, H5 và H8.1
 
@@ -200,17 +209,26 @@ chín điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn
    `scrXkChonHang`), hàng hoá có thêm nút quét mã. TUYỆT ĐỐI không dùng
    `<select>`. Dưới 8 lựa chọn thì dùng hàng chip. Giá trị đang chọn hiện
    dạng thẻ (ảnh, tên đậm, dòng phụ xám, mũi tên), chạm vào là mở sheet.
-3. **Ba hàng chip trên mọi màn danh sách:** trạng thái có đếm số, nhóm hoặc
-   nguồn, khoảng ngày. Chip đang chọn tô đậm. Hàng chip cuộn ngang. Trên
-   từng dòng có chip trạng thái: xanh xong, vàng chờ, đỏ cần xử, xám huỷ.
+3. **Ba hàng chip trên mọi màn danh sách** (anh Việt chốt 17/11/2026):
+   trạng thái có đếm số, nhóm hoặc nguồn, khoảng ngày. Chip đang chọn tô đậm.
+   Hàng chip cuộn ngang. Trên từng dòng có chip trạng thái: xanh xong, vàng
+   chờ, đỏ cần xử, xám huỷ; màu luôn đi kèm chữ. Chip thêm ngoài ba hàng này
+   phải hợp với tính năng của màn: chip tiến độ (bước mấy trên mấy) chỉ dùng
+   cho màn theo dõi việc nhiều bước, không gắn cho đủ. Ngoại lệ bỏ ba hàng
+   chip chỉ cho sheet chọn dưới 8 lựa chọn; ghi lý do trong bàn giao. Tránh
+   lặp cùng ý ở chip, tiêu đề và dòng phụ.
 4. **Chỗ nào có tên món thì có ảnh món** qua `anhMon(url)`; chưa có ảnh thì
    ô 🍰 giữ hàng. Ảnh thật từ danh mục, không ô chữ cái thay ảnh. Khách và
-   nhà cung cấp có logo thì hiện logo, không thì biểu tượng nhóm.
+   nhà cung cấp có logo thì hiện logo, không thì biểu tượng nhóm. Ảnh cùng
+   loại có kích thước thống nhất và giữ chỗ khi tải, lỗi hoặc thiếu ảnh;
+   tải theo phần đang xem để danh sách dài vẫn thao tác được.
 5. **Ô tìm nhanh ở đầu mọi danh sách,** gõ là lọc, có mã thì có nút quét.
 6. **Thẻ tóm tắt đầu màn danh sách:** số phiếu, tổng tiền, chia theo trạng
    thái và nguồn; bấm số là lọc; đang lọc thì có thanh "Tổng theo bộ lọc".
-7. **Ba trạng thái phụ phải có câu chữ:** đang tải, rỗng (câu chỉ đường), lỗi
-   (câu người đọc biết làm gì tiếp, không lỗi máy, không để trắng).
+7. **Trạng thái phụ chỉ đúng việc cần làm:** đang tải; chưa có dữ liệu với
+   nút tạo cho người có quyền; lọc ra rỗng với cách bỏ lọc; thiếu quyền;
+   tải lỗi với cách thử lại. Trang khách có thể ẩn khối chưa có nội dung.
+   Màn quản trị phải giúp người phụ trách biết tạo gì, ở đâu để khối xuất hiện.
 8. **Nút hành động:** một nút chính to dính đáy, nói rõ việc; nút phụ dạng
    viền; nút nguy hiểm màu đỏ và hỏi `confirmSheet`; không có nút xoá vĩnh
    viễn chứng từ (QT-20). Bấm xong phải có phản hồi.
@@ -246,8 +264,9 @@ chín điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn
     nằm trong màn đầu khi có ít nhất một dòng.
 18. **Nhãn trên chip và trên dòng phải gọn.** Chip tối đa khoảng 16 ký tự
     nhìn thấy; tên dài rút thành mã ngắn cộng bốn số cuối, ví dụ "MB · 0615",
-    tên đầy đủ để trong title. Hàng chip cuộn ngang phải chừa lề hai bên để
-    chữ không bị cắt ở mép.
+    tên đầy đủ đọc được khi chạm hoặc mở chi tiết trên điện thoại; title
+    chỉ bổ sung cho desktop. Hàng chip cuộn ngang chừa lề hai bên. Tên món
+    dài phải giữ phần giúp phân biệt món, cho xuống dòng khi cần.
 19. **Chữ trên màn theo [quy tắc chữ ERP](docs/quy-tac-chu-erp.md)** (anh
     Việt duyệt 14/11/2026). Không gọi tên người, chỉ gọi bộ phận hoặc chức
     danh (Kế toán, kế toán trưởng, Thu mua, Bếp, giám đốc, quản trị hệ
@@ -257,11 +276,73 @@ chín điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn
     rồi chữ tiệm đang dùng, rồi Odoo và MISA; không lấy bản dịch máy của
     ERPNext. Ca kiểm `thu_quy_tac_chu_657.py` chặn tên người.
 
-Khi giao việc có đổi màn hình cho Codex, áp
-[skill dẫn giao diện](.agents/skills/vagabond-uxui-giao-viec/SKILL.md): issue
-phải có khối "Giao diện" với thứ tự khối, nhãn chính xác, ba trạng thái 0 và 1
-và nhiều dòng, phép đo ở 390x844 và ảnh chụp site thật. Codex dựng đúng cái
-được mô tả; phần không mô tả thì ra bản thô.
+Khi giao việc có đổi màn hình, dùng
+[skill dẫn giao diện](.agents/skills/vagabond-uxui-giao-viec/SKILL.md) để ghi
+thứ tự khối, nhãn, thành phần dùng lại và trạng thái dữ liệu. Mục 2c quy định
+bằng chứng trước bàn giao và sau triển khai. Người làm chủ động dùng màn
+mẫu đã duyệt để hoàn thiện phần mô tả còn thiếu trong phạm vi được giao.
+
+## 2c. Nghiệm thu nghiệp vụ, giao diện và bàn giao (17/11/2026)
+
+1. **Chốt việc người dùng cần hoàn thành.** Trước khi code, ghi ngắn vai
+   thao tác, kết quả cần đạt, trạng thái đổi và việc có ghi sổ/trừ kho hay
+   không. Chỉ rõ người duyệt hoặc chính sách tự động đã được anh Việt duyệt
+   cho nghiệp vụ đó. Áp H10.5 cho kế toán; kiểm từ chứng từ nguồn tới số tiền,
+   tài khoản và bước quyết định. Thay đổi luồng ghi nhận cần nêu rõ trong PR.
+2. **Bố cục giúp thao tác.** Dùng màn mẫu đã duyệt và thành phần chung ở 2b:
+   ưu tiên thông tin để quyết định, một hành động chính, cùng thứ tự khối,
+   khoảng cách, màu trạng thái, vị trí nút và cách căn số. Khi sửa thành phần
+   dùng chung, rà các màn chịu ảnh hưởng. Ghi số bước hoặc phần nhập lại đã
+   giảm nếu PR thay luồng. Mục 2b vẫn giữ chuẩn 44 điểm và chữ từ 13 điểm.
+3. **Mọi ngoại lệ có đường giải quyết.** Với đồng bộ, thiếu quy đổi, tài
+   khoản hay đối soát, hiển thị bản ghi đã nhận, lý do chờ, bộ phận xử lý và
+   đường sửa/chạy lại phù hợp quyền. Xử lý xong phải cập nhật trạng thái.
+   Bộ lọc có cách mở rộng phạm vi. Giữ bộ lọc và vị trí cuộn khi quay lại,
+   trong phạm vi quyền hiện hành. Máy chủ kiểm mã danh mục tại mọi đường ghi,
+   gồm app, Desk, import và tác vụ nền. Giữ 0/False/rỗng nếu hợp lệ theo từng
+   trường; phân biệt thiếu khóa với giá trị đã chọn, kiểm lưu rồi đọc lại.
+4. **Dữ liệu cũ và thao tác đang dở.** Khi đổi lưu dữ liệu, kho, thanh toán
+   hoặc giao thức, kiểm phiếu cũ, tab mở từ phiên bản trước, gửi lại do mất
+   phản hồi và phản hồi đến muộn. Giữ dữ liệu đã nhập, khóa chống trùng và
+   đọc lại kết quả lần trước. Quyền và phạm vi phải được kiểm tại máy chủ.
+5. **Cổng giao diện trước bàn giao.** Liệt kê các màn/sheet mới hoặc sửa và
+   kết quả theo 2b; ghi mục không áp dụng cùng lý do. Chạy chuỗi từ nút vào
+   đến lưu và mở lại bằng vai nhân viên tương ứng trong môi trường kiểm,
+   trên điện thoại 390x844 và desktop. Kiểm 0/1/nhiều dòng, tên dài, thiếu ảnh,
+   bàn phím mở, mạng chậm/lỗi khi liên quan; nút không che nội dung hay bị
+   lớp khác chặn. Chụp và tự mở ảnh có CSS thật, ghi SHA, vai, viewport và
+   nguồn dữ liệu. DOM giả không có CSS chỉ kiểm hành vi. Dùng fixture giả
+   để đưa ảnh lên PR công khai; thiếu bằng chứng thì ghi rõ phần chưa đạt.
+   Dùng lại bộ kiểm và dữ liệu mẫu; tự động đo các lỗi lặp như tràn, che nút,
+   cỡ chạm, còn người rà xem bố cục và luồng. Codex rà gộp ngay vòng đầu.
+6. **Sau triển khai.** Kiểm SHA live, migrate và luồng bị đổi theo vai và
+   thiết bị phù hợp trong quyền đã cấp; tài khoản admin không đại diện mọi
+   vai. Đối chiếu lỗi với baseline, cùng thao tác và bằng chứng nguyên nhân;
+   thời điểm xuất hiện chỉ giúp khoanh vùng. Lỗi cũ tái xuất hiện nhiều hơn
+   cũng cần điều tra. Ghi rõ lỗi còn tồn, người xử lý và hạn chế nghiệm thu.
+   Gửi anh Việt bản tin sẵn để dán Zalo, chỉ gồm bộ phận có việc: màn nào,
+   nút nào, kết quả mong đợi và dữ liệu cần tạo để tính năng hiện. Bàn giao
+   phải mở được trên điện thoại trong phạm vi chia sẻ đã duyệt; tránh chỉ
+   dẫn đường dẫn local khi anh đang dùng mobile. Gửi tới bộ phận theo quyền.
+7. **Một đầu mối và một bản bàn giao hiện hành.** Mỗi việc có owner, PR,
+   base/head SHA, phần đã đạt, phần còn thiếu và bước tiếp. Trước nhận việc,
+   kiểm phiên khác đang sửa; nhận nguyên diff/patch trên đúng nền, áp một lần.
+   PR giữ trạng thái code/review; instruction project giữ công cụ theo môi
+   trường và dẫn về luật chung này. Ghi trở ngại kèm môi trường/thời điểm,
+   kiểm lại khả năng công cụ hiện tại, ưu tiên CLI/API được phép khi có.
+   Không suy lỗi một phiên thành lỗi mọi phiên hay vượt hạn chế truy cập.
+8. **Ghi chép gọn và đo hiệu quả.** Đầu phiên tìm theo việc/PR rồi đọc bản
+   bàn giao mới nhất; không nạp toàn bộ lịch sử. Ghi chép Claude theo
+   instruction project vào Drive, có mục lục theo việc, PR, SHA và bước tiếp;
+   Codex giữ nhật ký workspace theo instruction được giao. Chỉ dẫn nội bộ và
+   dữ liệu kế toán/khách lưu ở nơi có quyền phù hợp, không đưa lên repo công
+   khai. Dọn tài liệu cũ theo luật lưu trữ trong instruction project: chép
+   phần còn việc mở sang Drive trước khi xoá. Ghi mốc bàn giao khi đổi phần
+   việc, gom bài học tái sử dụng khi chốt PR. Áp H10 để rà delta và báo gộp.
+   Đo hiệu quả qua mười PR tiếp theo: số vòng bàn giao và review, số SHA bàn
+   giao đã được rà, lỗi có sẵn phát hiện muộn, lỗi mới sau lần sửa, thời gian
+   chờ bench. Người bàn giao ghi số của PR mình trong comment bàn giao cuối;
+   Codex gom sau PR thứ mười và gửi anh Việt một bản tổng để chỉnh quy tắc.
 
 ---
 

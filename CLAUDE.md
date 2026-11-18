@@ -1,3 +1,13 @@
+## Quy tắc dùng chung cập nhật 17/11/2026
+
+Đọc [AGENTS.md](AGENTS.md), mục 2b và 2c,
+về giao diện, luồng nghiệp vụ và bằng chứng nghiệm thu;
+[H10](AGENTS.md#h10-trách-nhiệm-của-người-rà) về review và H3/H5/H8.1.
+Đây là nguồn chung ưu tiên hướng dẫn cũ mâu thuẫn cùng chủ đề trong repo và
+trong skill. Chỉ dẫn trực tiếp của anh Việt và instruction project do anh dán
+luôn thắng; ai thấy hai nguồn mâu thuẫn thì ghi trong bàn giao để anh chốt
+một nguồn. Instruction project quản lý công cụ và nơi ghi chép của phiên.
+
 ## Phân công và báo review ngay (anh Việt chốt 15/10/2026)
 
 Mục này ưu tiên mọi phân công cũ mâu thuẫn bên dưới và trong tài liệu liên kết.
@@ -196,8 +206,10 @@ Codex trên PR đang mở cùng phạm vi. Chi tiết ở AGENTS.md mục 10b v�
 
 ## Khi Codex báo lỗi
 
-Tái hiện TRƯỚC, đừng phản biện trước. Qua bốn vòng của issue #205, mọi finding
-của Codex đều tái hiện được, kể cả những cái ban đầu nghe như bắt bẻ.
+Xác minh nhận xét trên đúng SHA bằng chuỗi thao tác và bằng chứng nghiệp vụ.
+Áp H10 và hướng dẫn H3/H5/H8.1 trong AGENTS.md: sau khoảng 15 phút chưa chứng
+minh được thì nêu điều kiện còn thiếu và chọn phép kiểm quyết định. Chỉ phá
+thử trong bản kiểm cô lập; ghi nhận lớp bảo vệ khác vẫn giữ đúng kết quả.
 
 Trình tự bắt buộc: dựng lại đúng chuỗi thao tác Codex mô tả trên đúng SHA họ nói,
 chạy và ghi số liệu thật, sửa, rồi trả lời kèm số liệu TRƯỚC và SAU khi sửa.
@@ -215,10 +227,23 @@ nếu thiếu. Chi tiết ở AGENTS.md mục 7.
 
 ## Cổng kiểm bắt buộc trước khi bàn giao
 
+PR đổi màn hình phải đạt bảng kiểm và chuỗi thao tác ở AGENTS.md mục 2c.5.
+Bàn giao ghi màn đã kiểm, vai, SHA, kích thước, ảnh có CSS và phần chưa đạt.
+PR chỉ tài liệu ghi cổng giao diện không áp dụng. Sau triển khai áp mục 2c.6
+và chuẩn bị bản tin việc cần làm theo bộ phận cho anh Việt.
+
 ```
 python3 vagabond/khung/kiem_thu/chay.py -im
 python3 dung_app_bep.py --kiem
 sh kiem_truoc_deploy.sh
+```
+
+PR đụng trang khách (web_vue, www, web_order, trang/banh.html) chạy thêm hai
+bộ mà chay.py không gồm nhưng CI có (bài học v663):
+
+```
+node cong_cu/kiem_web_vue_dom.cjs
+python3 cong_cu/ra_nut_web.py
 ```
 
 Và giả lập CI tay không, vì máy chạy CI không có sẵn `requests`:
