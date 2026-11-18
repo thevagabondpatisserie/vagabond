@@ -41,10 +41,37 @@ var BD_KENH = [
     giai: 'Giọng trò chuyện, tối đa 20 ảnh. Chữ quá 500 ký tự thì hệ thống tự tách thành chuỗi bài nối tiếp. Threads không có Story.' },
   { k: 'zl', ten: 'Zalo OA', anh: '/assets/vagabond/web_order/logo-kenh/zalo.png', cham: '#0068FF', tran: 5000, web: 'https://oa.zalo.me/',
     giai: 'Bài viết trên trang Zalo OA, có tiêu đề. Không gửi tin cho khách, không tốn phí tin. Zalo OA không có Story.' },
-  /* v672 (anh Việt duyệt 18/11/2026): bài cập nhật trên hồ sơ Google của tiệm. Bài mới không bật sẵn. */
-  { k: 'gg', ten: 'Google Doanh nghiệp', anh: '/assets/vagabond/images/kenh-mxh/google.svg', cham: '#4285F4', tran: 1500, web: 'https://business.google.com/',
-    giai: 'Bài cập nhật trên hồ sơ Google của tiệm, hiện ở Google Maps và Google Tìm kiếm, kèm nút Đặt hàng mở trang đặt bánh. Một ảnh, không ghi số điện thoại.' }
+  /* v672 (anh Việt duyệt 18/11/2026): bài Google Posts trên Google Business Profile của tiệm. Bài mới không bật sẵn. */
+  { k: 'gg', ten: 'Google Posts', anh: '/assets/vagabond/images/kenh-mxh/google.svg', cham: '#4285F4', tran: 1500, web: 'https://business.google.com/',
+    giai: 'Bài Google Posts (Cập nhật, Ưu đãi, Sự kiện) trên Google Business Profile của tiệm, hiện ở Google Maps và Google Tìm kiếm. Một ảnh, không ghi số điện thoại.' }
 ];
+/* v672: ba loại Google Posts theo đúng tên của Google; trùng tuyệt đối bai_dang.GG_LOAI. */
+var BD_GG_LOAI = [
+  { k: 'cap_nhat', ten: 'Cập nhật', giai: 'Tin mới, bánh mới, lịch nghỉ. Có nút Đặt hàng mở trang đặt bánh.' },
+  { k: 'uu_dai', ten: 'Ưu đãi', giai: 'Có tiêu đề, giờ bắt đầu, kết thúc, mã giảm giá và điều khoản. Google tự gắn nút của Ưu đãi.' },
+  { k: 'su_kien', ten: 'Sự kiện', giai: 'Có tiêu đề, giờ bắt đầu, kết thúc. Google hiện bài tới khi sự kiện kết thúc.' }
+];
+/* Khối chọn loại và các ô của Ưu đãi, Sự kiện trong thẻ xem trước Google Posts. */
+function bdKhoiGg(ban, khoa) {
+  var loai = ban.loai || 'cap_nhat', chon = BD_GG_LOAI.filter(function (x) { return x.k === loai; })[0] || BD_GG_LOAI[0];
+  var o = 'display:block;width:100%;box-sizing:border-box;min-height:44px;border:1px solid #e4e7ec;border-radius:10px;padding:8px 12px;font:inherit;font-size:15px;margin:0 0 8px;background:#fff';
+  var nhan = function (t) { return '<div style="font-size:13px;font-weight:700;color:#475467;margin:0 0 4px">' + t + '</div>'; };
+  var dis = khoa ? ' disabled' : '';
+  var html = '<div style="padding:10px 12px 2px"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' + BD_GG_LOAI.map(function (x) {
+    var on = x.k === loai;
+    return '<button data-bdggloai="' + x.k + '"' + dis + ' style="min-height:44px;padding:0 14px;border-radius:999px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;' +
+      (on ? 'background:#1a73e8;color:#fff;border:1px solid #1a73e8' : 'background:#fff;color:#344054;border:1px solid #d0d5dd') + '">' + x.ten + '</button>';
+  }).join('') + '</div><div style="font-size:13px;color:#667085;line-height:1.45;margin:0 0 8px">' + chon.giai + '</div>';
+  if (loai !== 'cap_nhat') {
+    html += nhan('Tiêu đề ' + chon.ten.toLowerCase() + ' (tối đa 58 ký tự)') +
+      '<input data-bdgg="tieu_de"' + dis + ' maxlength="80" value="' + h(ban.tieu_de || '') + '" style="' + o + ';font-weight:800">' +
+      nhan('Bắt đầu') + '<input type="datetime-local" data-bdgg="bat_dau"' + dis + ' value="' + h(ban.bat_dau || '') + '" style="' + o + '">' +
+      nhan('Kết thúc') + '<input type="datetime-local" data-bdgg="ket_thuc"' + dis + ' value="' + h(ban.ket_thuc || '') + '" style="' + o + '">';
+    if (loai === 'uu_dai') html += nhan('Mã giảm giá (không bắt buộc)') + '<input data-bdgg="ma_giam"' + dis + ' maxlength="58" value="' + h(ban.ma_giam || '') + '" style="' + o + '">' +
+      nhan('Điều khoản (không bắt buộc)') + '<textarea data-bdgg="dieu_khoan"' + dis + ' rows="2" maxlength="1000" style="' + o + ';resize:none">' + h(ban.dieu_khoan || '') + '</textarea>';
+  }
+  return html + '</div>';
+}
 /* Màu trạng thái dùng chung mọi màn: thanh trái của thẻ, chấm trên ảnh kênh, chú thích lịch tháng. */
 var BD_TT = {
   'Nháp': { ten: 'Nháp', mau: '#98a2b3', nen: '#f2f4f7' },
@@ -90,8 +117,8 @@ var BD_LOGO_TIEM = '/assets/vagabond/images/logo-vagabond-vuong.jpg';
 /* v672 Thương hiệu (anh Việt 18/11/2026): bài thuộc chủ đề Sonneto đi kênh Sonneto.
    Kênh của thương hiệu lấy từ máy chủ (bai.kenh_hieu), Sonneto không có Zalo OA. */
 var BD_HIEU = [
-  { k: 'vagabond', ten: 'The Vagabond', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads, Zalo OA, hồ sơ Google Doanh nghiệp của tiệm The Vagabond.' },
-  { k: 'sonneto', ten: 'Sonneto', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads của Sonneto. Sonneto chưa có Zalo OA và hồ sơ Google Doanh nghiệp.' }
+  { k: 'vagabond', ten: 'The Vagabond', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads, Zalo OA, Google Business Profile của tiệm The Vagabond.' },
+  { k: 'sonneto', ten: 'Sonneto', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads của Sonneto. Sonneto chưa có Zalo OA và Google Business Profile.' }
 ];
 function bdKenhBai(bai) {
   var co = (bai && bai.kenh_hieu) || ['fb', 'ig', 'th', 'zl', 'gg'];
@@ -618,9 +645,9 @@ function bdTheXem(bai, k, on) {
   var anhHtml = k === 'fb' ? bdAnhFb(anh) : bdAnhBang(anh, k === 'zl' ? '16:9' : k === 'gg' ? '4:3' : '4:5');
   var tieuDeZl = k === 'zl' ? '<input data-bdtieude="zl"' + (khoa ? ' readonly' : '') + ' value="' + h(ban.tieu_de || '') + '" placeholder="Tiêu đề bài viết Zalo OA" style="display:block;width:100%;box-sizing:border-box;border:0;padding:10px 12px 0;font:inherit;font-size:16px;font-weight:800;min-height:44px">' : '';
   /* Facebook: chữ trên ảnh; Instagram: ảnh trước chữ; Threads: chữ trước ảnh; Zalo OA: ảnh bìa, tiêu đề, chữ;
-     Google Doanh nghiệp: ảnh, chữ, nút Đặt hàng. */
-  var nutGg = k === 'gg' ? '<div style="margin:2px 12px 8px;min-height:44px;border:1px solid #dadce0;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1a73e8">Đặt hàng</div>' : '';
-  var than = k === 'ig' || k === 'gg' ? anhHtml + chu + nutGg : k === 'zl' ? anhHtml + tieuDeZl + chu : chu + anhHtml;
+     Google Posts: ảnh, chữ, nút Đặt hàng. */
+  var nutGg = k === 'gg' && ban.loai !== 'uu_dai' ? '<div style="margin:2px 12px 8px;min-height:44px;border:1px solid #dadce0;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1a73e8">Đặt hàng</div>' : '';
+  var than = k === 'gg' ? anhHtml + bdKhoiGg(ban, khoa) + chu + nutGg : k === 'ig' ? anhHtml + chu : k === 'zl' ? anhHtml + tieuDeZl + chu : chu + anhHtml;
   return '<div data-bdthe="' + k + '"' + (on ? ' class="on"' : '') + ' style="flex:0 0 86%;scroll-snap-align:center;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(20,25,40,.12);border:1px solid #eef0f5">' +
     dau + than +
     '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px 8px 12px;border-top:1px solid #f2f4f7">' +
@@ -887,11 +914,13 @@ async function scrBaiDangSoan(ma, dl) {
       return bdHenLuu(thay);
     }
     if (t.getAttribute('data-bdtieude')) return bdHenLuu({ ban: { zl: { tieu_de: t.value } } });
+    if ((k = t.getAttribute('data-bdgg'))) { var tg = { ban: { gg: {} } }; tg.ban.gg[k] = t.value; return bdHenLuu(tg); }
   };
   b.addEventListener('focusout', function () { bdLuuNgay(); });
   b.onclick = async function (e) {
     var t;
     if ((t = e.target.closest('[data-bdxemk]'))) return bdChonXem(b, t.getAttribute('data-bdxemk'));
+    if ((t = e.target.closest('[data-bdggloai]'))) { BD.xemK = 'gg'; bdHenLuu({ ban: { gg: { loai: t.getAttribute('data-bdggloai') } } }); return bdLuuNgay(true); }
     if ((t = e.target.closest('[data-bdthulai]'))) { var kt = t.getAttribute('data-bdthulai'); return bdMotLan(function () { return bdThuLai(kt); }); }
     if ((t = e.target.closest('[data-bdtaianh]'))) return bdChonAnh();
     if ((t = e.target.closest('[data-bdanh]'))) return bdSheetAnh(t.getAttribute('data-bdanh'));
@@ -1320,7 +1349,7 @@ function bdSheetKenh() {
   var story = bdGt('kieu') === 'Story', chon = (bdGt('kenh_chon') || []).slice(), dsK = bdKenhBai(BD.bai);
   var ve = function () {
     return '<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Đăng lên kênh' + (BD.bai && BD.bai.hieu === 'sonneto' ? ' Sonneto' : '') + '</div>' +
-      '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Bật kênh nào thì bài có bản xem trước và chữ riêng cho kênh đó.' + (BD.bai && BD.bai.hieu === 'sonneto' ? ' Sonneto chưa có Zalo OA và hồ sơ Google Doanh nghiệp.' : '') + '</div>' +
+      '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Bật kênh nào thì bài có bản xem trước và chữ riêng cho kênh đó.' + (BD.bai && BD.bai.hieu === 'sonneto' ? ' Sonneto chưa có Zalo OA và Google Business Profile.' : '') + '</div>' +
       dsK.map(function (x) {
         var duoc = !story || x.k === 'fb' || x.k === 'ig', bat = chon.indexOf(x.k) >= 0;
         /* Cả dòng là nút bật tắt (cao từ 52 điểm), công tắc chỉ để nhìn trạng thái. */
