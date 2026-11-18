@@ -436,6 +436,7 @@ Trước đây bánh của tiệm không hiện trong mục sản phẩm của G
 - Bánh không lên Google khi: thẻ Bánh đang Chờ ảnh hoặc Đã ẩn, món đã tắt, chưa có giá bán, chưa có ảnh thật (ảnh nền thương hiệu không tính).
 - Đợt Đặc biệt chưa tới giờ mở đơn thì Google ghi "Đặt trước" kèm giờ mở; đã chốt đơn thì ghi hết hàng. Bánh theo mùa hết suất thì ghi hết hàng.
 - Danh sách chỉ có bánh nổi bật và theo mùa, không đưa cả thực đơn lên Google.
+- Trang từng bánh tự có trong sơ đồ trang /sitemap.xml cho Google Tìm kiếm.
 - Không có đợt Đặc biệt và không có mùa vụ đang chạy thì danh sách trống, Google tạm không hiện bánh nào.
 
 ## Gửi giám đốc duyệt bài đăng
