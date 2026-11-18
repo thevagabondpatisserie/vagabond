@@ -15,6 +15,9 @@ class VagabondBaiDang(Document):
 		# và đếm lần lưu của màn. Chỉ bai_dang.py được lưu.
 		if not self.flags.get("vgb_bai_dang"):
 			frappe.throw("Chỉ sửa trên màn Bài đăng mạng xã hội của app. Form này chỉ để xem.", frappe.PermissionError)
+		# v672: thương hiệu theo chủ đề, bỏ kênh thương hiệu không có (mọi đường ghi).
+		from vagabond.bai_dang import dong_bo_hieu
+		dong_bo_hieu(self)
 
 	def on_trash(self):
 		if not frappe.flags.get("vgb_xoa_bai_dang"):
