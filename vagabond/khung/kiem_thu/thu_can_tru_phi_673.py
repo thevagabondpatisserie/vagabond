@@ -427,16 +427,39 @@ def _():
 	la("SI1 đã bị phiếu nháp giữ hết, SI2 hết dư: báo thiếu, không Có SI1 lần hai", (t["pb"]["ban"], t["pb"]["thieu"]), ([], 100))
 
 
+class Dong(object):
+	"""Dòng bảng con giống Document thật của Frappe: đọc bằng thuộc tính hoặc .get(),
+	KHÔNG đọc được bằng ["khoá"] (bench #590 vòng 2 bắt lỗi này mà bản giả dict che)."""
+
+	def __init__(self, **k):
+		self.__dict__.update(k)
+
+	def get(self, k, d=None):
+		return self.__dict__.get(k, d)
+
+
 @ca("Codex #589: sửa phiếu trên Desk khác phân bổ theo đối soát (Có SI1 200 thay vì mỗi tờ 100) bị chặn; đúng phân bổ thì qua và ghi nguồn phí")
 def _():
 	import json as _j
 	k = _kho_hai_si(du1=1000, du2=1000)
 	k.pi.update(outstanding_amount=200)
 	with patch.object(P.frappe.utils, "getdate", lambda v: v, create=True):
-		sai = _phieu(tong_bu=200, phi=[Doc(hoa_don="PI-GRAB-11", so_tien=200)], ban=[Doc(hoa_don="SI1", so_tien=200)], tk=[])
-		nem("Có SI1 toàn bộ bị chặn", lambda: k.chay(P.kiem_phieu_doi_soat, sai))
+		sai = _phieu(tong_bu=200, phi=[Doc(hoa_don="PI-GRAB-11", so_tien=200)], ban=[Dong(hoa_don="SI1", so_tien=200)], tk=[])
+		try:
+			k.chay(P.kiem_phieu_doi_soat, sai)
+			dung("Có SI1 toàn bộ bị chặn", False)
+		except Exception as e:
+			dung("chặn vì khác cách tính, không vì lỗi khác: %r" % e, "khác cách tính" in str(e))
 		dung_pb = _phieu(tong_bu=200, phi=[Doc(hoa_don="PI-GRAB-11", so_tien=200)],
-			ban=[Doc(hoa_don="SI1", so_tien=100), Doc(hoa_don="SI2", so_tien=100)], tk=[])
+			ban=[Dong(hoa_don="SI1", so_tien=100), Dong(hoa_don="SI2", so_tien=100)], tk=[Dong(tai_khoan="X", so_tien=0)][:0])
+		k.chay(P.kiem_phieu_doi_soat, dung_pb)
+		tk_dong = _phieu(tong_bu=200, phi=[Doc(hoa_don="PI-GRAB-11", so_tien=200)],
+			ban=[Dong(hoa_don="SI1", so_tien=100)], tk=[Dong(tai_khoan="1131 - CT", so_tien=100)])
+		try:
+			k.chay(P.kiem_phieu_doi_soat, tk_dong)
+			dung("dòng tài khoản sai chỗ bị chặn", False)
+		except Exception as e:
+			dung("dòng tài khoản đọc được như Document thật: %r" % e, "khác cách tính" in str(e))
 		k.chay(P.kiem_phieu_doi_soat, dung_pb)
 		la("ghi nguồn phí từ máy chủ", _j.loads(dung_pb.nguon_phi), {"si": {"SI1": 100, "SI2": 100}, "khong": 0})
 

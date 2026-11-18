@@ -211,7 +211,8 @@ def nguon_cua(phieu):
 
 def so_khop_phan_bo(ban, tk, pb):
 	"""THUẦN. Dòng trên phiếu có đúng phân bổ máy tính không. Trả câu khác biệt hoặc ""."""
-	co = sorted((x["hoa_don"], _so(x["so_tien"])) for x in ban) + sorted(("TK " + x["tai_khoan"], _so(x["so_tien"])) for x in tk)
+	# Dòng bảng con là Document của Frappe: đọc bằng .get(), không bằng ["khoá"].
+	co = sorted((x.get("hoa_don"), _so(x.get("so_tien"))) for x in ban) + sorted(("TK " + x.get("tai_khoan"), _so(x.get("so_tien"))) for x in tk)
 	mong = sorted((x["si"], _so(x["so_tien"])) for x in pb["ban"]) + sorted(("TK " + x["tai_khoan"], _so(x["so_tien"])) for x in pb["tk"])
 	if co == mong:
 		return ""

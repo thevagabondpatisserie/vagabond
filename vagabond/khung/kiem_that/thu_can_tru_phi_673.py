@@ -20,14 +20,14 @@ from vagabond.khung.kiem_that.nen import _DA_TAO, ca, dung, la
 from vagabond.khung.kiem_that.thu_cua_thue_243 import _app, _mon, _nen
 from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _hoa_don_mua
 
-DT = "payoo"
+DT = "grab"  # đơn thử của _app mang nguồn GrabFood, phương thức phải khớp nguồn đơn
 PT = P.DOI_TAC[DT][3]
 
 
 def _tk_cho(ct):
 	cha = frappe.db.get_value("Account", {"company": ct, "root_type": "Asset", "is_group": 1}, "name", order_by="lft desc")
 	dung("có nhóm tài sản", bool(cha))
-	return _luu(frappe.get_doc(dict(doctype="Account", company=ct, account_name="KT673 Chờ tiền về Payoo " + frappe.generate_hash(length=6),
+	return _luu(frappe.get_doc(dict(doctype="Account", company=ct, account_name="KT673 Chờ tiền về đối tác " + frappe.generate_hash(length=6),
 		parent_account=cha, account_currency="VND", is_group=0))).name
 
 
@@ -39,7 +39,7 @@ def _cau_hinh(tk):
 
 
 def _ncc():
-	ncc = frappe.get_doc(dict(doctype="Supplier", supplier_name="NCC phí Payoo kiểm 673 " + frappe.generate_hash(length=8),
+	ncc = frappe.get_doc(dict(doctype="Supplier", supplier_name="NCC phí đối tác kiểm 673 " + frappe.generate_hash(length=8),
 		supplier_group=frappe.db.get_value("Supplier Group", {"is_group": 0}, "name"), supplier_type="Company", tax_id="KIEM673"))
 	return _luu(ncc).name
 
