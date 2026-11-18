@@ -339,6 +339,65 @@ AI viết theo giọng văn của tiệm (chép từ skill viết bài The Vagab
 - AI không tự thêm giá, ưu đãi, ngày giờ; không bịa trích dẫn hay số liệu. Vẫn phải đọc lại trước khi duyệt.
 - Mỗi lượt soạn tính tiền theo tài khoản API của tiệm (khoảng 1.000 đồng một bài), tối đa 300 lượt một tháng.
 
+## AI học giọng viết từ Kho bản thảo
+Từ khoá: AI soạn chữ, giọng viết, bài mẫu, Evernote, Kho bản thảo, học giọng, không bịa lịch sử
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, thẻ Nội dung gốc | [[✨ AI soạn chữ]] |
+
+Trước đây AI viết theo giọng văn chung. Từ nay AI viết theo bảy điểm rút từ các bài cũ của tiệm (mở bằng tên bánh viết hoa kèm biểu tượng, tả lớp bánh từ trên xuống, tên lớp giữ tiếng Anh hoặc Pháp, khối thông tin có biểu tượng ở cuối) và mỗi lần soạn đọc thêm hai bài cũ cùng chủ đề trong Kho bản thảo để bắt giọng.
+
+**Các bước**
+1. Chọn đúng Chủ đề cho bài (Giới thiệu bánh ổ, Giới thiệu entremet...). AI lấy bài mẫu từ chủ đề đó.
+2. Muốn bài có đoạn lịch sử, nguồn gốc tên bánh thì gõ vài ý đó vào Nội dung gốc. AI viết thành đoạn theo giọng của tiệm.
+3. Bấm [[✨ AI soạn chữ]], đọc lại, sửa từng kênh.
+
+**Lưu ý**
+- AI không tự bịa lịch sử, nguồn gốc chữ, số liệu: Nội dung gốc không có thì AI bỏ đoạn kể gốc gác, chỉ tả bánh, nguyên liệu, vị.
+- AI chỉ học cách viết từ bài mẫu, không chép tên bánh, giá, ngày của bài mẫu.
+- Bài mẫu lấy từ các chủ đề: bánh ổ, entremet, bánh nướng, món nước, Seasonal Item, khuyến mãi, Story, Weekend Set. Bài gắn sao được ưu tiên làm mẫu. Tin tuyển dụng và ghi chú ý tưởng không dùng làm mẫu.
+
+## Bài Threads dài tự tách thành chuỗi bài nối tiếp
+Từ khoá: Threads, quá dài, 500 ký tự, chuỗi bài, bài nối tiếp, 1/3, trả lời
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, xem trước Threads | [[Duyệt]] |
+
+Trước đây chữ Threads quá 500 ký tự bị chặn đỏ, phải rút gọn. Từ nay không chặn nữa: bảng Kiểm ghi xanh "Threads đăng thành N bài nối tiếp", hệ thống tách ở chỗ xuống dòng hoặc hết câu, đánh số 1/N ở cuối mỗi phần, phần sau trả lời phần trước giống app Threads tự làm khi đăng tay.
+
+**Các bước**
+1. Viết chữ Threads dài như bình thường. Dưới thẻ xem trước ghi "tách thành chuỗi bài nối tiếp".
+2. Muốn chỗ tách đẹp thì xuống dòng giữa các đoạn.
+3. Duyệt như cũ.
+
+**Lưu ý**
+- Tối đa 4.000 ký tự và 10 phần. Quá thì bảng Kiểm chặn đỏ.
+- Phần đầu đã lên mà phần sau chưa lên: kênh vẫn Đã đăng kèm ghi chú vàng ghi phần nào chưa lên, nhóm Zalo Marketing nhận tin Bài mới lên một phần. Mở Threads, trả lời bài vừa lên bằng phần còn thiếu.
+- Token Threads cần thêm quyền threads_manage_replies (quản trị hệ thống tạo lại token ở Cài đặt lõi và API). Chưa có quyền thì chỉ phần đầu tự lên.
+
+## Đăng bài kênh Sonneto trên cùng màn Bài đăng
+Từ khoá: Sonneto, thương hiệu, Sonneto Social, Trang Sonneto, kênh Sonneto, chủ đề Sonneto
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng mạng xã hội, sheet Chủ đề | [[Lưu chủ đề]] |
+
+Trước đây bài Sonneto phải soạn và đăng ở chỗ khác. Từ nay bài thuộc chủ đề mang thương hiệu Sonneto (sẵn có: Sonneto Social) đăng lên Trang Facebook, Instagram, Threads của Sonneto, AI viết theo giọng các bài Sonneto cũ. Thẻ bài Sonneto trên lịch và Kho bản thảo có chip Sonneto.
+
+**Các bước**
+1. Soạn bài, chọn Chủ đề Sonneto Social. Dòng Chủ đề hiện chip Sonneto, Kênh chỉ còn Facebook, Instagram, Threads.
+2. Tạo chủ đề Sonneto mới: bấm Chủ đề mới, mục Thương hiệu chọn Sonneto, bấm [[Lưu chủ đề]].
+3. Duyệt như cũ. Kênh Sonneto đã nối thì hệ thống tự đăng, chưa nối thì đăng tay.
+4. Xem kênh Sonneto đã nối chưa: bánh răng góc trên màn lịch, mục Kết nối kênh, khối Sonneto.
+
+**Lưu ý**
+- Sonneto chưa có Zalo OA.
+- Lịch chỉ báo trùng giờ giữa các bài cùng thương hiệu. Bài Sonneto và bài The Vagabond cùng giờ không bị báo trùng.
+- Chủ đề Sonneto Social không còn chân bài đặt bánh của The Vagabond. Thêm chân bài Sonneto ở sheet Sửa chủ đề.
+- Nối kênh do quản trị hệ thống làm, ở Cài đặt lõi và API, mục Đăng bài kênh Sonneto (Meta): điền Mã Trang Facebook Sonneto, token Facebook Sonneto (hoặc dùng chung token The Vagabond nếu Trang Sonneto đã được chia cho người dùng hệ thống Vagabond ERP), token Threads Sonneto. Khi dùng chung token, nhớ điền cả Mã Trang The Vagabond.
+
 ## Gửi giám đốc duyệt bài đăng
 Từ khoá: gửi giám đốc duyệt, duyệt nội dung, trả lại, góp ý, việc cần làm
 
