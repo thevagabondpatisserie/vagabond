@@ -1291,8 +1291,8 @@
   {
    "fieldname": "sec_gg",
    "fieldtype": "Section Break",
-   "label": "Đăng bài Google Doanh nghiệp",
-   "description": "Bài cập nhật lên hồ sơ Google Doanh nghiệp của The Vagabond (hiện trên Google Maps và Google Tìm kiếm). Dán hai ô bên trái một lần, rồi mở app, Bài đăng mạng xã hội, Kết nối kênh, bấm Kết nối Google và đăng nhập tài khoản Google quản lý hồ sơ tiệm. Hệ thống không bao giờ hiện lại khoá."
+   "label": "Đăng bài Google Posts",
+   "description": "Bài Google Posts lên Google Business Profile của The Vagabond (hiện trên Google Maps và Google Tìm kiếm). Dán hai ô bên trái một lần, rồi mở app, Bài đăng mạng xã hội, Kết nối kênh, bấm Kết nối Google và đăng nhập tài khoản Google quản lý hồ sơ tiệm. Hệ thống không bao giờ hiện lại khoá."
   },
   {
    "fieldname": "gg_client_id",
