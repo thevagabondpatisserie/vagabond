@@ -27405,7 +27405,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '670';
+var APPVER = '672';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -74137,11 +74137,41 @@ var BD_KENH = [
     giai: 'Bài trên Trang Facebook của tiệm. Nhiều ảnh thì Facebook tự xếp lưới theo ảnh đầu.' },
   { k: 'ig', ten: 'Instagram', anh: '/assets/vagabond/images/kenh-mxh/instagram.svg', cham: '#DD2A7B', tran: 2200, web: 'https://www.instagram.com/',
     giai: 'Bài hoặc Story trên tài khoản Instagram của tiệm. Nhiều ảnh thành băng chuyền 4:5, tối đa 10 ảnh.' },
-  { k: 'th', ten: 'Threads', anh: '/assets/vagabond/images/kenh-mxh/threads.svg', cham: '#101828', tran: 500, web: 'https://www.threads.net/',
-    giai: 'Một đến ba câu, tối đa 500 ký tự, tối đa 20 ảnh. Threads không có Story.' },
+  { k: 'th', ten: 'Threads', anh: '/assets/vagabond/images/kenh-mxh/threads.svg', cham: '#101828', tran: 500, tong: 4000, web: 'https://www.threads.net/',
+    giai: 'Giọng trò chuyện, tối đa 20 ảnh. Chữ quá 500 ký tự thì hệ thống tự tách thành chuỗi bài nối tiếp. Threads không có Story.' },
   { k: 'zl', ten: 'Zalo OA', anh: '/assets/vagabond/web_order/logo-kenh/zalo.png', cham: '#0068FF', tran: 5000, web: 'https://oa.zalo.me/',
-    giai: 'Bài viết trên trang Zalo OA, có tiêu đề. Không gửi tin cho khách, không tốn phí tin. Zalo OA không có Story.' }
+    giai: 'Bài viết trên trang Zalo OA, có tiêu đề. Không gửi tin cho khách, không tốn phí tin. Zalo OA không có Story.' },
+  /* v672 (anh Việt duyệt 18/11/2026): bài Google Posts trên Google Business Profile của tiệm. Bài mới không bật sẵn. */
+  { k: 'gg', ten: 'Google Posts', anh: '/assets/vagabond/images/kenh-mxh/google.svg', cham: '#4285F4', tran: 1500, web: 'https://business.google.com/',
+    giai: 'Bài Google Posts (Cập nhật, Ưu đãi, Sự kiện) trên Google Business Profile của tiệm, hiện ở Google Maps và Google Tìm kiếm. Một ảnh, không ghi số điện thoại.' }
 ];
+/* v672: ba loại Google Posts theo đúng tên của Google; trùng tuyệt đối bai_dang.GG_LOAI. */
+var BD_GG_LOAI = [
+  { k: 'cap_nhat', ten: 'Cập nhật', giai: 'Tin mới, bánh mới, lịch nghỉ. Có nút Đặt hàng mở trang đặt bánh.' },
+  { k: 'uu_dai', ten: 'Ưu đãi', giai: 'Có tiêu đề, giờ bắt đầu, kết thúc, mã giảm giá và điều khoản. Google tự gắn nút của Ưu đãi.' },
+  { k: 'su_kien', ten: 'Sự kiện', giai: 'Có tiêu đề, giờ bắt đầu, kết thúc. Google hiện bài tới khi sự kiện kết thúc.' }
+];
+/* Khối chọn loại và các ô của Ưu đãi, Sự kiện trong thẻ xem trước Google Posts. */
+function bdKhoiGg(ban, khoa) {
+  var loai = ban.loai || 'cap_nhat', chon = BD_GG_LOAI.filter(function (x) { return x.k === loai; })[0] || BD_GG_LOAI[0];
+  var o = 'display:block;width:100%;box-sizing:border-box;min-height:44px;border:1px solid #e4e7ec;border-radius:10px;padding:8px 12px;font:inherit;font-size:15px;margin:0 0 8px;background:#fff';
+  var nhan = function (t) { return '<div style="font-size:13px;font-weight:700;color:#475467;margin:0 0 4px">' + t + '</div>'; };
+  var dis = khoa ? ' disabled' : '';
+  var html = '<div style="padding:10px 12px 2px"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' + BD_GG_LOAI.map(function (x) {
+    var on = x.k === loai;
+    return '<button data-bdggloai="' + x.k + '"' + dis + ' style="min-height:44px;padding:0 14px;border-radius:999px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;' +
+      (on ? 'background:#1a73e8;color:#fff;border:1px solid #1a73e8' : 'background:#fff;color:#344054;border:1px solid #d0d5dd') + '">' + x.ten + '</button>';
+  }).join('') + '</div><div style="font-size:13px;color:#667085;line-height:1.45;margin:0 0 8px">' + chon.giai + '</div>';
+  if (loai !== 'cap_nhat') {
+    html += nhan('Tiêu đề ' + chon.ten.toLowerCase() + ' (tối đa 58 ký tự)') +
+      '<input data-bdgg="tieu_de"' + dis + ' maxlength="80" value="' + h(ban.tieu_de || '') + '" style="' + o + ';font-weight:800">' +
+      nhan('Bắt đầu') + '<input type="datetime-local" data-bdgg="bat_dau"' + dis + ' value="' + h(ban.bat_dau || '') + '" style="' + o + '">' +
+      nhan('Kết thúc') + '<input type="datetime-local" data-bdgg="ket_thuc"' + dis + ' value="' + h(ban.ket_thuc || '') + '" style="' + o + '">';
+    if (loai === 'uu_dai') html += nhan('Mã giảm giá (không bắt buộc)') + '<input data-bdgg="ma_giam"' + dis + ' maxlength="58" value="' + h(ban.ma_giam || '') + '" style="' + o + '">' +
+      nhan('Điều khoản (không bắt buộc)') + '<textarea data-bdgg="dieu_khoan"' + dis + ' rows="2" maxlength="1000" style="' + o + ';resize:none">' + h(ban.dieu_khoan || '') + '</textarea>';
+  }
+  return html + '</div>';
+}
 /* Màu trạng thái dùng chung mọi màn: thanh trái của thẻ, chấm trên ảnh kênh, chú thích lịch tháng. */
 var BD_TT = {
   'Nháp': { ten: 'Nháp', mau: '#98a2b3', nen: '#f2f4f7' },
@@ -74184,6 +74214,25 @@ function bdTtMau(tt) { return BD_TT[tt] || BD_TT['Nháp']; }
 /* Logo của kênh, dùng đúng tệp logo gốc của hãng (images/kenh-mxh), không vẽ lại.
    tt: trạng thái của kênh trong bài, hiện thành chấm góc. */
 var BD_LOGO_TIEM = '/assets/vagabond/images/logo-vagabond-vuong.jpg';
+/* v672 Thương hiệu (anh Việt 18/11/2026): bài thuộc chủ đề Sonneto đi kênh Sonneto.
+   Kênh của thương hiệu lấy từ máy chủ (bai.kenh_hieu), Sonneto không có Zalo OA. */
+var BD_HIEU = [
+  { k: 'vagabond', ten: 'The Vagabond', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads, Zalo OA, Google Business Profile của tiệm The Vagabond.' },
+  { k: 'sonneto', ten: 'Sonneto', giai: 'Bài đăng lên Trang Facebook, Instagram, Threads của Sonneto. Sonneto chưa có Zalo OA và Google Business Profile.' }
+];
+function bdKenhBai(bai) {
+  var co = (bai && bai.kenh_hieu) || ['fb', 'ig', 'th', 'zl', 'gg'];
+  return BD_KENH.filter(function (x) { return co.indexOf(x.k) >= 0; });
+}
+function bdTranKenh(kn) { return kn.tong || kn.tran; }
+function bdDemChu(kn, n) {
+  var tong = bdTranKenh(kn), qua = n > tong;
+  return { chu: money(n) + '/' + money(tong) + (qua ? ' · quá dài' : kn.k === 'th' && n > kn.tran ? ' · tách thành chuỗi bài nối tiếp' : ''), mau: qua ? '#b42318' : '#667085' };
+}
+/* Chip thương hiệu cho bài Sonneto (bài The Vagabond không gắn, để thẻ gọn). */
+function bdChipHieu(hieu) {
+  return hieu === 'sonneto' ? '<span style="flex:none;font-size:13px;font-weight:800;color:#fff;background:#3b2a20;border-radius:999px;padding:2px 9px">Sonneto</span>' : '';
+}
 function bdAvatar(k, co, tt, tat) {
   var kn = bdKenh(k); co = co || 28;
   var cham = tt ? '<span style="position:absolute;right:-2px;bottom:-2px;width:' + Math.round(co * .42) + 'px;height:' + Math.round(co * .42) + 'px;border-radius:50%;' +
@@ -74230,7 +74279,7 @@ function bdTheLich(b) {
     '<div style="flex:0 0 48px;height:48px;border-radius:10px;background:#f2f4f7 center/cover no-repeat' + (b.anh ? ' url(' + h(b.anh) + ')' : '') + '"></div>' +
     '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + h(b.tieu_de || 'Bài chưa có ý chính') + '</div>' +
     '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">' + bdChongAvatar(b.kenh) +
-    '<span style="font-size:13px;color:' + tt.mau + ';font-weight:700">' + h(tt.ten) + '</span></div>' +
+    '<span style="font-size:13px;color:' + tt.mau + ';font-weight:700">' + h(tt.ten) + '</span>' + bdChipHieu(b.hieu) + '</div>' +
     (b.trung ? '<div style="font-size:13px;color:#b42318;margin-top:3px">⚠️ ' + h(b.trung) + '</div>' : '') + '</div></div>';
 }
 function bdOTrong(gio, ngay) {
@@ -74348,7 +74397,7 @@ function bdTheBanThao(b) {
     '<button data-bdbai="' + h(b.name) + '" class="card" style="display:flex;flex-direction:row;gap:12px;width:100%;box-sizing:border-box;text-align:left;border:0;font:inherit;color:inherit;cursor:pointer;padding:12px 52px 12px 12px;align-items:flex-start;margin:0">' +
     (b.anh ? '<span style="flex:0 0 56px;height:56px;border-radius:10px;background:#f2f4f7 center/cover no-repeat url(' + h(b.anh) + ')"></span>'
       : '<span style="flex:0 0 56px;height:56px;border-radius:10px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font-size:22px">📝</span>') +
-    '<span style="flex:1;min-width:0"><b style="display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(b.tieu_de) + '</b>' +
+    '<span style="flex:1;min-width:0"><span style="display:flex;align-items:center;gap:6px;min-width:0"><b style="flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(b.tieu_de) + '</b>' + bdChipHieu(b.hieu) + '</span>' +
     (b.trich ? '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;color:#475467;line-height:1.4;margin-top:2px">' + h(b.trich) + '</span>' : '') +
     ((b.the || []).length ? '<span style="display:block;font-size:13px;font-weight:700;color:#0B7C93;margin-top:4px;line-height:1.5">' + b.the.map(function (t) { return '#' + h(t); }).join(' ') + '</span>' : '') +
     '<span style="display:block;font-size:13px;color:#98a2b3;margin-top:4px">Sửa ' + h(bdLucChu(b.luc)) + ' · ' + h(b.nguoi || '') + (b.so_anh ? ' · ' + b.so_anh + ' ảnh' : ' · chưa có ảnh') +
@@ -74429,6 +74478,7 @@ async function bdNhapTep(f) {
 async function scrBaiDang(dl) {
   var tieuDe = 'Bài đăng mạng xã hội';
   bdCss();
+  bdBaoKetNoiGg();
   if (!dl) {
     /* Bấm đổi Tuần, Tháng, lọc kênh liên tiếp: lượt trả lời cũ đến muộn không được vẽ đè lượt mới. */
     var luot = BD.luot = (BD.luot || 0) + 1;
@@ -74510,18 +74560,31 @@ async function bdSheetChuDe(ma, xong) {
   var cdl;
   try { cdl = await api(BD_P + 'chu_de_ds', {}); } catch (e) { return bdLoi(e); }
   var cd = (cdl.ds || []).filter(function (x) { return x.ma === ma; })[0] || { ten: '', bt: '🗂️', cta: [] };
-  var chon = cd.bt || '🗂️';
-  var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 10px">' + (ma ? 'Sửa chủ đề' : 'Chủ đề mới') + '</div>' +
+  var chon = cd.bt || '🗂️', hieu = cd.hieu || 'vagabond';
+  var veHieu = function () {
+    return BD_HIEU.map(function (x) {
+      var on = x.k === hieu;
+      return '<button type="button" data-bdcdhieu="' + x.k + '" aria-pressed="' + on + '" style="display:block;width:100%;text-align:left;min-height:52px;border-radius:12px;padding:8px 12px;font:inherit;cursor:pointer;margin:0 0 6px;border:' +
+        (on ? '2px solid #05323C' : '1px solid #e4e7ec') + ';background:' + (on ? '#E4F9FD' : '#fff') + '"><b style="font-size:15px">' + x.ten + (on ? ' ✓' : '') + '</b>' +
+        '<span style="display:block;font-size:13px;color:#667085;line-height:1.4">' + x.giai + '</span></button>';
+    }).join('');
+  };
+  /* v672: thêm mục Thương hiệu làm sheet dài hơn màn; bọc trong vùng cuộn (.shl). */
+  var ov = crmMoSheet('<div class="shl" style="flex:1 1 auto;min-height:0;margin:0 -16px;padding:0 16px">' +
+    '<div style="font-size:17px;font-weight:800;margin:0 2px 10px">' + (ma ? 'Sửa chủ đề' : 'Chủ đề mới') + '</div>' +
     '<div style="font-size:14px;font-weight:700;margin:0 2px 6px">Tên chủ đề</div>' +
     '<input class="tin" id="bdCdTen" value="' + h(cd.ten) + '" placeholder="Ví dụ: Giới thiệu bánh ổ" style="font-size:16px;text-align:left;padding:0 12px">' +
     '<div style="font-size:14px;font-weight:700;margin:12px 2px 6px">Biểu tượng</div>' +
     '<div id="bdCdBt" style="display:flex;flex-wrap:wrap;gap:4px">' + BD_BT.map(function (x) {
       return '<button data-bdcdbt="' + x + '" aria-pressed="' + (x === chon) + '" style="width:44px;height:44px;border-radius:10px;font-size:22px;cursor:pointer;border:' + (x === chon ? '2px solid #05323C' : '1px solid #e4e7ec') + ';background:' + (x === chon ? '#E4F9FD' : '#fff') + '">' + x + '</button>';
     }).join('') + '</div>' +
+    '<div style="font-size:14px;font-weight:700;margin:12px 2px 2px">Thương hiệu</div>' +
+    '<div style="font-size:13px;color:#667085;margin:0 2px 6px;line-height:1.45">Bài trong chủ đề này đăng lên kênh của thương hiệu nào, và AI viết theo giọng của thương hiệu đó.</div>' +
+    '<div id="bdCdHieu">' + veHieu() + '</div>' +
     '<div style="font-size:14px;font-weight:700;margin:12px 2px 2px">Chân bài (CTA) mẫu</div>' +
     '<div style="font-size:13px;color:#667085;margin:0 2px 6px;line-height:1.45">Mỗi dòng một câu. Khi soạn bài thuộc chủ đề này, các câu hiện sẵn để tích thêm vào cuối chữ mọi kênh.</div>' +
     '<textarea class="nt" id="bdCdCta" rows="5" style="font-size:15px">' + h((cd.cta || []).join('\n')) + '</textarea>' +
-    '<button class="btn" data-bdcdluu="1" style="margin:12px 0 0">' + (ma ? 'Lưu chủ đề' : 'Tạo chủ đề') + '</button>');
+    '<button class="btn" data-bdcdluu="1" style="margin:12px 0 0">' + (ma ? 'Lưu chủ đề' : 'Tạo chủ đề') + '</button></div>');
   ov.onclick = async function (e) {
     var t;
     if (e.target === ov) return ov.remove();
@@ -74530,11 +74593,16 @@ async function bdSheetChuDe(ma, xong) {
       ov.querySelectorAll('[data-bdcdbt]').forEach(function (b) { var on = b === t; b.setAttribute('aria-pressed', on); b.style.border = on ? '2px solid #05323C' : '1px solid #e4e7ec'; b.style.background = on ? '#E4F9FD' : '#fff'; });
       return;
     }
+    if ((t = e.target.closest('[data-bdcdhieu]'))) {
+      hieu = t.getAttribute('data-bdcdhieu');
+      ov.querySelector('#bdCdHieu').innerHTML = veHieu();
+      return;
+    }
     if (!e.target.closest('[data-bdcdluu]')) return;
     var ten = ov.querySelector('#bdCdTen').value.trim();
     if (!ten) return toast('Ghi tên chủ đề.');
     var kq;
-    try { kq = await api(BD_P + 'chu_de_luu', { ma: ma || '', ten: ten, bieu_tuong: chon, cta: JSON.stringify(ov.querySelector('#bdCdCta').value.split('\n')) }); }
+    try { kq = await api(BD_P + 'chu_de_luu', { ma: ma || '', ten: ten, bieu_tuong: chon, thuong_hieu: hieu, cta: JSON.stringify(ov.querySelector('#bdCdCta').value.split('\n')) }); }
     catch (er) { return bdLoi(er); }
     ov.remove();
     toast(ma ? 'Đã lưu chủ đề' : 'Đã tạo chủ đề ' + ten);
@@ -74557,21 +74625,30 @@ async function bdTaoBai(hen) {
 async function bdSheetCaiDat(kiemLai) {
   var dl;
   try { dl = await api(BD_P + 'cai_dat', kiemLai ? { kiem_lai: 1 } : {}); } catch (e) { return bdLoi(e); }
-  var kn = dl.ket_noi || {};
-  var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 6px">Kết nối kênh</div>' +
-    '<div class="card" style="padding:2px 14px;margin:0 0 8px">' + BD_KENH.map(function (x, i) {
+  var khoi = function (ten, kn, ds) {
+    return '<div style="font-size:14px;font-weight:800;color:#344054;margin:4px 2px 6px">' + ten + '</div>' +
+      '<div class="card" style="padding:2px 14px;margin:0 0 10px">' + ds.map(function (x, i) {
       var v = kn[x.k] || {}, mau = v.ok ? '#067647' : v.loi ? '#b42318' : '#667085';
       return '<div style="display:flex;gap:10px;align-items:center;padding:10px 0;' + (i ? 'border-top:1px solid #f2f4f7' : '') + '">' + bdAvatar(x.k, 32) +
         '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700">' + x.ten + '</div><div style="font-size:13.5px;color:' + mau + ';line-height:1.4">' + h(v.chu || 'Đăng tay') + '</div></div>' +
         '<span style="flex:0 0 auto;font-size:13px;font-weight:800;border-radius:999px;padding:4px 10px;background:' + (v.ok ? '#ecfdf3' : v.loi ? '#fef3f2' : '#f2f4f7') + ';color:' + mau + '">' + (v.ok ? 'Tự đăng' : v.loi ? 'Lỗi' : 'Đăng tay') + '</span></div>';
-    }).join('') + '</div>' +
-    '<div style="font-size:13.5px;color:#667085;line-height:1.5;margin:0 2px 8px">' + (dl.quan_tri ? 'Token dán ở Cài đặt lõi và API, mục Đăng bài mạng xã hội (Meta). Hệ thống không bao giờ hiện lại token.' : 'Nối kênh do quản trị hệ thống làm.') + '</div>' +
+    }).join('') + '</div>';
+  };
+  /* v672: hai khối kênh làm sheet cao hơn màn; bọc trong vùng cuộn (.shl), kẻo .shb
+     (flex cột, overflow ẩn) bóp dẹt các thẻ và ô giờ vàng. */
+  var ov = crmMoSheet('<div class="shl" style="flex:1 1 auto;min-height:0;margin:0 -16px;padding:0 16px">' +
+    '<div style="font-size:17px;font-weight:800;margin:0 2px 6px">Kết nối kênh</div>' +
+    khoi('The Vagabond', dl.ket_noi || {}, BD_KENH) +
+    khoi('Sonneto (bài thuộc chủ đề Sonneto)', dl.ket_noi_so || {}, bdKenhBai({ kenh_hieu: dl.kenh_so || ['fb', 'ig', 'th'] })) +
+    '<div style="font-size:13.5px;color:#667085;line-height:1.5;margin:0 2px 8px">' + (dl.quan_tri ? 'Token dán ở Cài đặt lõi và API, mục Đăng bài mạng xã hội (Meta) và mục Đăng bài kênh Sonneto (Meta). Hệ thống không bao giờ hiện lại token.' : 'Nối kênh do quản trị hệ thống làm.') + '</div>' +
     '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn gh" data-bdkiemkn="1" style="margin:0;flex:1;min-height:44px;font-size:14px">Kiểm lại kết nối</button>' +
     (dl.quan_tri ? '<button class="btn gh" data-bdcdloi="1" style="margin:0;flex:1;min-height:44px;font-size:14px">Mở Cài đặt lõi</button>' : '') + '</div>' +
+    (dl.quan_tri ? '<button class="btn gh" data-bdggnoi="1" style="margin:0 0 6px;min-height:44px;font-size:14px">' + ((dl.ket_noi || {}).gg && dl.ket_noi.gg.ok ? 'Kết nối Google lại' : 'Kết nối Google') + '</button>' +
+      '<div style="font-size:13px;color:#667085;line-height:1.5;margin:0 2px 16px">Mở trang Google để đăng nhập tài khoản quản lý hồ sơ tiệm và bấm Cho phép. Cần dán Mã và Khoá ứng dụng Google ở Cài đặt lõi trước.</div>' : '') +
     '<div style="font-size:17px;font-weight:800;margin:0 2px 6px">Giờ vàng đăng bài</div>' +
     '<div style="font-size:13.5px;color:#667085;line-height:1.5;margin:0 2px 10px">Lịch tuần hiện sẵn khung trống ở các giờ này để soạn bài nhanh. Ghi giờ cách nhau bằng dấu phẩy, ví dụ 07:30, 11:30, 19:30.</div>' +
     '<input class="tin" id="bdGioVang" value="' + h((dl.gio_vang || []).join(', ')) + '" style="font-size:17px;text-align:left;padding:0 12px"' + (dl.sua ? '' : ' disabled') + '>' +
-    (dl.sua ? '<button class="btn" data-bdluugv="1" style="margin:12px 0 0">Lưu giờ vàng</button>' : '<div style="font-size:13.5px;color:#667085;margin-top:8px">Chỉ Marketing sửa được giờ vàng.</div>'));
+    (dl.sua ? '<button class="btn" data-bdluugv="1" style="margin:12px 0 0">Lưu giờ vàng</button>' : '<div style="font-size:13.5px;color:#667085;margin-top:8px">Chỉ Marketing sửa được giờ vàng.</div>') + '</div>');
   var nut = ov.querySelector('[data-bdluugv]');
   if (nut) nut.onclick = async function () {
     try { await api(BD_P + 'cai_dat', { gio_vang_moi: document.getElementById('bdGioVang').value }); }
@@ -74582,6 +74659,19 @@ async function bdSheetCaiDat(kiemLai) {
   if (kl) kl.onclick = function () { ov.remove(); bdSheetCaiDat(1); };
   var cd = ov.querySelector('[data-bdcdloi]');
   if (cd) cd.onclick = function () { ov.remove(); go(scrCaiDatLoi); };
+  var gg = ov.querySelector('[data-bdggnoi]');
+  if (gg) gg.onclick = async function () {
+    var r; try { r = await api('vagabond.mxh.gg_bat_dau', {}); } catch (e) { return bdLoi(e); }
+    if (r && r.url) location.href = r.url;
+  };
+}
+/* v672: Google trả về màn Bài đăng kèm ?gg=<kết quả nối>; báo một lần rồi gỡ khỏi địa chỉ. */
+function bdBaoKetNoiGg() {
+  var kq = '';
+  try { kq = new URLSearchParams(location.search).get('gg') || ''; } catch (e) { return; }
+  if (!kq) return;
+  try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* trình duyệt cũ */ }
+  toast(kq);
 }
 
 /* ------------------------------------------------------------ soạn bài */
@@ -74631,10 +74721,11 @@ function bdAnhBang(anh, khung, story) {
 /* Xem trước một kênh, dựng giống bài thật trên kênh đó. Chữ sửa thẳng tại chỗ. */
 function bdTheXem(bai, k, on) {
   var kn = bdKenh(k), ban = (bai.ban || {})[k] || {}, anh = (bai.cho_kenh || {})[k] || [], story = bai.kieu === 'Story';
-  var dai = String(ban.chu || '').length, qua = dai > kn.tran, khoa = !bai.sua;
+  var dai = String(ban.chu || '').length, dem = bdDemChu(kn, dai), khoa = !bai.sua, so = bai.hieu === 'sonneto';
   var dau = '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px">' +
-    '<img src="' + BD_LOGO_TIEM + '" alt="The Vagabond Pâtisserie" width="34" height="34" style="flex:0 0 34px;width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #eaecf0">' +
-    '<div style="flex:1;min-width:0;line-height:1.25"><div style="font-size:14px;font-weight:700">' + (k === 'ig' || k === 'th' ? 'thevagabondpatisserie' : 'The Vagabond Pâtisserie') + '</div>' +
+    (so ? '<span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:#3b2a20;color:#f5e6d3;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center">S</span>'
+      : '<img src="' + BD_LOGO_TIEM + '" alt="The Vagabond Pâtisserie" width="34" height="34" style="flex:0 0 34px;width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #eaecf0">') +
+    '<div style="flex:1;min-width:0;line-height:1.25"><div style="font-size:14px;font-weight:700">' + (so ? 'Sonneto' : k === 'ig' || k === 'th' ? 'thevagabondpatisserie' : 'The Vagabond Pâtisserie') + '</div>' +
     '<div style="font-size:13px;color:#667085">' + h(story ? 'Story · 24 giờ' : (bdLucChu(bai.hen_luc) || 'Ngay khi duyệt')) + '</div></div>' + bdAvatar(k, 26) + '</div>';
   if (story) {
     return '<div data-bdthe="' + k + '"' + (on ? ' class="on"' : '') + ' style="flex:0 0 62%;scroll-snap-align:center;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(20,25,40,.12);border:1px solid #eef0f5">' +
@@ -74651,14 +74742,16 @@ function bdTheXem(bai, k, on) {
     nutK('d', 'Đậm', 'font-weight:800') + nutK('n', 'Nghiêng', 'font-style:italic') + nutK('dn', 'Đậm nghiêng', 'font-weight:800;font-style:italic') + nutK('bo', 'Bỏ kiểu', 'color:#667085') +
     '<button data-bdbieutuong="' + k + '" style="min-height:44px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;font:inherit;font-size:14px;padding:0 12px;cursor:pointer">✨ Biểu tượng</button></div>';
   chu = thanhKieu + chu;
-  var anhHtml = k === 'fb' ? bdAnhFb(anh) : bdAnhBang(anh, k === 'zl' ? '16:9' : '4:5');
+  var anhHtml = k === 'fb' ? bdAnhFb(anh) : bdAnhBang(anh, k === 'zl' ? '16:9' : k === 'gg' ? '4:3' : '4:5');
   var tieuDeZl = k === 'zl' ? '<input data-bdtieude="zl"' + (khoa ? ' readonly' : '') + ' value="' + h(ban.tieu_de || '') + '" placeholder="Tiêu đề bài viết Zalo OA" style="display:block;width:100%;box-sizing:border-box;border:0;padding:10px 12px 0;font:inherit;font-size:16px;font-weight:800;min-height:44px">' : '';
-  /* Facebook: chữ trên ảnh; Instagram: ảnh trước chữ; Threads: chữ trước ảnh; Zalo OA: ảnh bìa, tiêu đề, chữ. */
-  var than = k === 'ig' ? anhHtml + chu : k === 'zl' ? anhHtml + tieuDeZl + chu : chu + anhHtml;
+  /* Facebook: chữ trên ảnh; Instagram: ảnh trước chữ; Threads: chữ trước ảnh; Zalo OA: ảnh bìa, tiêu đề, chữ;
+     Google Posts: ảnh, chữ, nút Đặt hàng. */
+  var nutGg = k === 'gg' && ban.loai !== 'uu_dai' ? '<div style="margin:2px 12px 8px;min-height:44px;border:1px solid #dadce0;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1a73e8">Đặt hàng</div>' : '';
+  var than = k === 'gg' ? anhHtml + bdKhoiGg(ban, khoa) + chu + nutGg : k === 'ig' ? anhHtml + chu : k === 'zl' ? anhHtml + tieuDeZl + chu : chu + anhHtml;
   return '<div data-bdthe="' + k + '"' + (on ? ' class="on"' : '') + ' style="flex:0 0 86%;scroll-snap-align:center;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(20,25,40,.12);border:1px solid #eef0f5">' +
     dau + than +
     '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px 8px 12px;border-top:1px solid #f2f4f7">' +
-    '<span data-bddem="' + k + '" style="flex:1;font-size:13px;font-weight:700;color:' + (qua ? '#b42318' : '#667085') + '">' + money(dai) + '/' + money(kn.tran) + (qua ? ' · quá dài' : '') + '</span>' +
+    '<span data-bddem="' + k + '" style="flex:1;font-size:13px;font-weight:700;color:' + dem.mau + '">' + dem.chu + '</span>' +
     (khoa ? '' : '<button data-bdsoanlai="' + k + '" style="min-height:44px;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:#0B7C93;padding:0 8px">✨ Soạn lại</button>') +
     '<button data-bdchep="' + k + '" style="min-height:44px;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:#0B7C93;padding:0 8px">📋 Chép</button></div></div>';
 }
@@ -74699,6 +74792,8 @@ function bdViecDangTay(bai) {
         (x.link ? '<a href="' + h(x.link) + '" target="_blank" rel="noopener" style="min-height:44px;display:flex;align-items:center;flex:none;font-size:14px;font-weight:700;color:#0B7C93;text-decoration:none">Xem bài ›</a>' :
           x.tt === 'Đã đăng' ? '<button class="btn gh" data-bdthemlink="' + x.k + '" style="margin:0;width:auto;flex:none;min-height:44px;padding:0 12px;font-size:14px">Thêm link</button>' : '') + '</div>' +
         (x.loi && x.tt === 'Chờ đăng tay' ? '<div style="margin:0 0 8px 42px;background:#fef3f2;color:#b42318;border-radius:10px;padding:8px 10px;font-size:13.5px;line-height:1.45">' + h(x.loi) + '</div>' : '') +
+        /* v672: Threads nhiều phần, phần đầu đã lên mà phần sau chưa: kênh vẫn Đã đăng, ghi chú vàng. */
+        (x.loi && x.tt === 'Đã đăng' ? '<div style="margin:0 0 8px 42px;background:#fffaeb;color:#93370d;border-radius:10px;padding:8px 10px;font-size:13.5px;line-height:1.45">' + h(x.loi) + '</div>' : '') +
         (x.tt === 'Chờ đăng tay' && x.dang_duoc ? '<div style="padding:0 0 8px 42px"><button class="btn" data-bdthulai="' + x.k + '" style="margin:0;width:100%;min-height:44px;font-size:14px">' +
           (x.loi ? '🔁 Thử lại: hệ thống đăng lên ' : '⚡ Để hệ thống đăng lên ') + kn.ten + '</button></div>' : '') +
         (x.tt === 'Chờ đăng tay' ? '<div style="display:flex;gap:8px;padding:0 0 10px 42px">' +
@@ -74804,7 +74899,7 @@ async function bdSheetChonChuDe() {
     /* Codex #585: hơn 8 chủ đề thì phải có ô tìm (AGENTS mục 2b.2). Lọc tại chỗ, bỏ dấu,
        khớp mọi từ; dòng "Không thuộc chủ đề nào" luôn hiện. */
     ((cdl.ds || []).length > 8 ? '<input class="tin" id="bdCdTim" type="search" placeholder="Tìm chủ đề" style="font-size:16px;text-align:left;padding:0 12px;margin:0 0 8px">' : '') +
-    '<div id="bdCdDs" style="max-height:56vh;overflow:auto">' + (cdl.ds || []).map(function (x) { return nut(x.ma, x.bt || '🗂️', x.ten, x.cta.length ? x.cta.length + ' câu chân bài mẫu' : ''); }).join('') +
+    '<div id="bdCdDs" style="max-height:56vh;overflow:auto">' + (cdl.ds || []).map(function (x) { return nut(x.ma, x.bt || '🗂️', x.ten, [x.hieu === 'sonneto' ? 'Đăng kênh Sonneto' : '', x.cta.length ? x.cta.length + ' câu chân bài mẫu' : ''].filter(Boolean).join(' · ')); }).join('') +
     '<div id="bdCdRong" style="display:none;font-size:14px;color:#667085;padding:8px 4px 12px">Không thấy chủ đề nào khớp.</div>' +
     nut('', '📂', 'Không thuộc chủ đề nào', '') + '</div>' +
     (cdl.sua ? '<button class="btn gh" data-bdcdmoi2="1" style="margin:8px 0 0;min-height:44px">＋ Chủ đề mới</button>' : ''));
@@ -74870,9 +74965,10 @@ async function scrBaiDangSoan(ma, dl) {
     '<span id="bdLuuChu" style="margin-left:auto;font-size:13px;color:#98a2b3">' + (khoa ? '' : 'Đã tự lưu ' + h(bai.luu_luc || '')) + '</span></div>' +
     bdDongTinh(khoa, '🖼️', 'Kiểu bài', h(bai.kieu || 'Bài đăng'), 'data-bdkieu="1"') +
     bdDongTinh(khoa, '📅', 'Lúc đăng', bai.hen_luc ? h(bdLucChu(bai.hen_luc)) : '<span style="color:#98a2b3;font-weight:600">Ngay khi duyệt</span>', 'data-bdgio="1"') +
-    bdDongTinh(khoa, '📣', 'Kênh', BD_KENH.filter(function (x) { return !story || x.k === 'fb' || x.k === 'ig'; }).map(function (x) { return bdAvatar(x.k, 28, '', chon.indexOf(x.k) < 0); }).join('') +
+    bdDongTinh(khoa, '📣', 'Kênh', bdKenhBai(bai).filter(function (x) { return !story || x.k === 'fb' || x.k === 'ig'; }).map(function (x) { return bdAvatar(x.k, 28, '', chon.indexOf(x.k) < 0); }).join('') +
       '<span style="font-size:13px;color:#667085;font-weight:600">' + chon.length + ' kênh' + (tuDong.length ? ', ' + tuDong.length + ' tự đăng' : '') + '</span>', 'data-bdchonkenh="1"') +
-    bdDongTinh(khoa, '📁', 'Chủ đề', bai.chu_de ? h((bai.chu_de.bt || '') + ' ' + bai.chu_de.ten) : '<span style="color:#98a2b3;font-weight:600">Chưa chọn</span>', 'data-bdchude="1"') +
+    bdDongTinh(khoa, '📁', 'Chủ đề', (bai.chu_de ? h((bai.chu_de.bt || '') + ' ' + bai.chu_de.ten) : '<span style="color:#98a2b3;font-weight:600">Chưa chọn</span>') + bdChipHieu(bai.hieu), 'data-bdchude="1"') +
+    (bai.hieu === 'sonneto' ? '<div style="font-size:13px;color:#667085;line-height:1.45;margin:-4px 0 8px 32px">Chủ đề của Sonneto: bài đăng lên Trang Facebook, Instagram, Threads của Sonneto.</div>' : '') +
     '<label style="display:flex;align-items:center;gap:10px;min-height:50px;border-top:1px solid #f2f4f7"><span style="flex:0 0 22px;font-size:17px">#</span><span style="flex:0 0 86px;font-size:14px;color:#667085">Thẻ</span>' +
     '<input data-bdthevao="1"' + (khoa ? ' readonly' : '') + ' value="' + h((bai.the || []).map(function (t) { return '#' + t; }).join(' ')) + '" placeholder="#peachruby #millecrepes" ' +
     'style="flex:1;min-width:0;min-height:44px;border:0;font:inherit;font-size:15px;font-weight:700;color:#0B7C93;background:transparent"></label>' +
@@ -74885,7 +74981,7 @@ async function scrBaiDangSoan(ma, dl) {
       '<div style="border-top:1px solid #f2f4f7;margin:4px 6px 0;padding-top:6px"><div style="font-size:13px;font-weight:700;color:#667085;padding:0 4px">Muốn AI viết thế nào (không bắt buộc)</div>' +
       '<textarea id="bdYc" rows="2" placeholder="Ví dụ: giọng khoa học, kể nguồn gốc Ruby Chocolate; Facebook dài, Threads một câu." style="display:block;width:100%;box-sizing:border-box;border:0;padding:6px 4px;font:inherit;font-size:15px;line-height:1.5;resize:vertical">' + h(bai.yeu_cau_ai || '') + '</textarea></div>' +
       '<button class="btn' + (Object.keys(bai.ban || {}).some(function (k) { return (bai.ban[k] || {}).chu; }) ? ' gh' : '') + '" data-bdsoan="1" style="margin:0 6px;width:calc(100% - 12px);min-height:44px;font-size:15px">✨ AI soạn chữ cho ' + chon.length + ' kênh</button>' +
-      '<div style="font-size:13px;color:#667085;margin:6px 8px 0;line-height:1.45">AI viết theo giọng văn The Vagabond' + (bai.chu_de ? ', đúng chủ đề ' + h(bai.chu_de.ten) : '') + ((bai.chan_bai || []).length ? ', rồi gắn chân bài đã tích' : '') + '.</div></div>' +
+      '<div style="font-size:13px;color:#667085;margin:6px 8px 0;line-height:1.45">AI viết theo giọng văn ' + h(bai.ten_hieu || 'The Vagabond') + ', học cách viết từ hai bài cũ ' + (bai.chu_de ? 'của chủ đề ' + h(bai.chu_de.ten) : 'của tiệm') + ' trong Kho bản thảo' + ((bai.chan_bai || []).length ? ', rồi gắn chân bài đã tích' : '') + '.</div></div>' +
       bdTheCta(bai) + '</div>' : '') +
     (khoa ? '' : '<div id="bdKiemO" style="order:6">' + bdBangKiem(bai.kiem) + '</div>') +
     (khoa || bai.cho_gd || BD.laGd ? '' : '<div style="order:7;margin-top:12px"><button class="btn gh" data-bdguigd="1" style="margin:0;min-height:44px;font-size:15px">👔 Gửi giám đốc duyệt</button>' +
@@ -74913,16 +75009,18 @@ async function scrBaiDangSoan(ma, dl) {
     if (t.getAttribute('data-bdthevao')) return bdHenLuu({ the_bai: t.value });
     if ((k = t.getAttribute('data-bdchu'))) {
       var kn = bdKenh(k), n = t.value.length, dem = b.querySelector('[data-bddem="' + k + '"]');
-      if (dem) { dem.textContent = money(n) + '/' + money(kn.tran) + (n > kn.tran ? ' · quá dài' : ''); dem.style.color = n > kn.tran ? '#b42318' : '#667085'; }
+      if (dem) { var dc = bdDemChu(kn, n); dem.textContent = dc.chu; dem.style.color = dc.mau; }
       var thay = { ban: {} }; thay.ban[k] = { chu: t.value };
       return bdHenLuu(thay);
     }
     if (t.getAttribute('data-bdtieude')) return bdHenLuu({ ban: { zl: { tieu_de: t.value } } });
+    if ((k = t.getAttribute('data-bdgg'))) { var tg = { ban: { gg: {} } }; tg.ban.gg[k] = t.value; return bdHenLuu(tg); }
   };
   b.addEventListener('focusout', function () { bdLuuNgay(); });
   b.onclick = async function (e) {
     var t;
     if ((t = e.target.closest('[data-bdxemk]'))) return bdChonXem(b, t.getAttribute('data-bdxemk'));
+    if ((t = e.target.closest('[data-bdggloai]'))) { BD.xemK = 'gg'; bdHenLuu({ ban: { gg: { loai: t.getAttribute('data-bdggloai') } } }); return bdLuuNgay(true); }
     if ((t = e.target.closest('[data-bdthulai]'))) { var kt = t.getAttribute('data-bdthulai'); return bdMotLan(function () { return bdThuLai(kt); }); }
     if ((t = e.target.closest('[data-bdtaianh]'))) return bdChonAnh();
     if ((t = e.target.closest('[data-bdanh]'))) return bdSheetAnh(t.getAttribute('data-bdanh'));
@@ -75348,11 +75446,11 @@ function bdSheetKieu() {
   };
 }
 function bdSheetKenh() {
-  var story = bdGt('kieu') === 'Story', chon = (bdGt('kenh_chon') || []).slice();
+  var story = bdGt('kieu') === 'Story', chon = (bdGt('kenh_chon') || []).slice(), dsK = bdKenhBai(BD.bai);
   var ve = function () {
-    return '<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Đăng lên kênh</div>' +
-      '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Bật kênh nào thì bài có bản xem trước và chữ riêng cho kênh đó.</div>' +
-      BD_KENH.map(function (x) {
+    return '<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Đăng lên kênh' + (BD.bai && BD.bai.hieu === 'sonneto' ? ' Sonneto' : '') + '</div>' +
+      '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Bật kênh nào thì bài có bản xem trước và chữ riêng cho kênh đó.' + (BD.bai && BD.bai.hieu === 'sonneto' ? ' Sonneto chưa có Zalo OA và Google Business Profile.' : '') + '</div>' +
+      dsK.map(function (x) {
         var duoc = !story || x.k === 'fb' || x.k === 'ig', bat = chon.indexOf(x.k) >= 0;
         /* Cả dòng là nút bật tắt (cao từ 52 điểm), công tắc chỉ để nhìn trạng thái. */
         return '<button type="button" role="switch" aria-checked="' + bat + '"' + (duoc ? ' data-bdbatkenh="' + x.k + '"' : ' disabled') +
@@ -75372,7 +75470,7 @@ function bdSheetKenh() {
     }
     if (e.target.closest('[data-bdxongkenh]') || e.target === ov) {
       ov.remove();
-      var cu = (bdGt('kenh_chon') || []).join(','), moi = BD_KENH.filter(function (x) { return chon.indexOf(x.k) >= 0; }).map(function (x) { return x.k; });
+      var cu = (bdGt('kenh_chon') || []).join(','), moi = dsK.filter(function (x) { return chon.indexOf(x.k) >= 0; }).map(function (x) { return x.k; });
       if (moi.join(',') !== cu) bdLuuVeLai({ kenh_chon: moi });
     }
   };

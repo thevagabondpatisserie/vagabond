@@ -176,6 +176,20 @@
   "th_token",
   "th_het_han",
   "th_gia_han_luc",
+  "sec_mxh_so",
+  "so_page_id",
+  "so_mxh_token",
+  "col_mxh_so",
+  "so_th_token",
+  "so_th_het_han",
+  "so_th_gia_han_luc",
+  "sec_gg",
+  "gg_client_id",
+  "gg_client_secret",
+  "col_gg",
+  "gg_refresh_token",
+  "gg_dia_diem",
+  "gg_ten_dia_diem",
   "sec_hd_thu",
   "hd_thu_bat",
   "hd_thu_dia_chi",
@@ -1220,7 +1234,7 @@
    "fieldname": "th_token",
    "fieldtype": "Password",
    "label": "Token Threads (sống 60 ngày, hệ thống tự gia hạn)",
-   "description": "developers.facebook.com, ứng dụng Vagabond ERP, Trường hợp sử dụng, Truy cập vào API Threads, Cài đặt, Trình tạo mã người dùng, Tạo mã truy cập cho tài khoản Threads của tiệm."
+   "description": "developers.facebook.com, ứng dụng Vagabond ERP, Trường hợp sử dụng, Truy cập vào API Threads, Cài đặt, Trình tạo mã người dùng, Tạo mã truy cập cho tài khoản Threads của tiệm. Tích thêm quyền threads_manage_replies để hệ thống tự đăng bài dài thành chuỗi bài nối tiếp."
   },
   {
    "fieldname": "th_het_han",
@@ -1232,6 +1246,86 @@
    "fieldname": "th_gia_han_luc",
    "fieldtype": "Datetime",
    "label": "Lần gia hạn token Threads gần nhất",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_mxh_so",
+   "fieldtype": "Section Break",
+   "label": "Đăng bài kênh Sonneto (Meta)",
+   "description": "Bài thuộc chủ đề mang thương hiệu Sonneto tự đăng lên Trang Facebook, Instagram, Threads của Sonneto. Sonneto chưa có Zalo OA. Ô trống thì kênh Sonneto đăng tay. Hệ thống không bao giờ hiện lại token."
+  },
+  {
+   "fieldname": "so_page_id",
+   "fieldtype": "Data",
+   "label": "Mã Trang Facebook Sonneto (bắt buộc nếu dùng chung token The Vagabond)",
+   "description": "Mở Trang Sonneto trên Facebook, Giới thiệu, Minh bạch về Trang, chép ID Trang. Dán cả dấu cách cũng được, hệ thống chỉ lấy chữ số. Không được trùng Mã Trang The Vagabond."
+  },
+  {
+   "fieldname": "so_mxh_token",
+   "fieldtype": "Password",
+   "label": "Token đăng bài Facebook, Instagram Sonneto (để trống nếu dùng chung token The Vagabond)",
+   "description": "Cách 1: trong doanh nghiệp Sonneto Pâtisserie Lab, tạo người dùng hệ thống, gán Trang và Instagram Sonneto, tạo mã vĩnh viễn với các quyền như token The Vagabond, dán vào đây. Cách 2: chia Trang Sonneto cho doanh nghiệp TVB, gán cho người dùng hệ thống Vagabond ERP, để trống ô này và điền Mã Trang Sonneto ở trên (khi đó nhớ điền cả Mã Trang The Vagabond)."
+  },
+  {
+   "fieldname": "col_mxh_so",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_th_token",
+   "fieldtype": "Password",
+   "label": "Token Threads Sonneto (sống 60 ngày, hệ thống tự gia hạn)",
+   "description": "developers.facebook.com, ứng dụng Vagabond ERP, Truy cập vào API Threads, thêm tài khoản Threads của Sonneto làm người thử, Trình tạo mã người dùng, tạo mã cho tài khoản Threads Sonneto. Tích threads_basic, threads_content_publish, threads_manage_replies (để tự đăng bài dài thành chuỗi nối tiếp)."
+  },
+  {
+   "fieldname": "so_th_het_han",
+   "fieldtype": "Date",
+   "label": "Token Threads Sonneto dùng tới",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_th_gia_han_luc",
+   "fieldtype": "Datetime",
+   "label": "Lần gia hạn token Threads Sonneto gần nhất",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_gg",
+   "fieldtype": "Section Break",
+   "label": "Đăng bài Google Posts",
+   "description": "Bài Google Posts lên Google Business Profile của The Vagabond (hiện trên Google Maps và Google Tìm kiếm). Dán hai ô bên trái một lần, rồi mở app, Bài đăng mạng xã hội, Kết nối kênh, bấm Kết nối Google và đăng nhập tài khoản Google quản lý hồ sơ tiệm. Hệ thống không bao giờ hiện lại khoá."
+  },
+  {
+   "fieldname": "gg_client_id",
+   "fieldtype": "Data",
+   "label": "Mã ứng dụng Google (Client ID)",
+   "description": "console.cloud.google.com, dự án Vagabond ERP, Google Auth Platform, Clients, ứng dụng Vagabond ERP, chép Client ID (đuôi .apps.googleusercontent.com)."
+  },
+  {
+   "fieldname": "gg_client_secret",
+   "fieldtype": "Password",
+   "label": "Khoá ứng dụng Google (Client secret)",
+   "description": "Cùng trang với Mã ứng dụng, chép Client secret. URI chuyển hướng được phép của ứng dụng phải là https://app.thevagabondpatisserie.com/api/method/vagabond.mxh.gg_ket_noi_xong"
+  },
+  {
+   "fieldname": "col_gg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gg_refresh_token",
+   "fieldtype": "Password",
+   "label": "Mã kết nối Google (hệ thống tự ghi khi bấm Kết nối Google)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gg_dia_diem",
+   "fieldtype": "Data",
+   "label": "Mã hồ sơ đăng bài (hệ thống tự ghi)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gg_ten_dia_diem",
+   "fieldtype": "Data",
+   "label": "Tên hồ sơ đăng bài (hệ thống tự ghi)",
    "read_only": 1
   },
   {
@@ -1609,7 +1703,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-16 14:00:00.000000",
+ "modified": "2026-11-18 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

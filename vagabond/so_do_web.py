@@ -9,6 +9,8 @@ Phần dựng chuỗi XML là THUẦN để kiểm không cần site.
 """
 from xml.sax.saxutils import escape
 
+from vagabond.google_merchant import duong_mon
+
 GOC = "https://thevagabondpatisserie.com"
 
 # (đường dẫn, độ ưu tiên). Chỉ trang khách công khai. Thêm trang khách mới thì
@@ -23,6 +25,24 @@ TRANG_CONG_KHAI = (
 	("/dieu-khoan", "0.3"),
 	("/giao-hang-doi-tra", "0.3"),
 )
+
+
+UU_TIEN_MON = "0.6"
+
+
+def trang_mon(ds):
+	"""THUẦN: trang /mon/<mã> của từng bánh đang đưa lên Google (v672).
+
+	ds là kết quả google_merchant.mon_dua_google(), cùng nguồn với tệp
+	/google-merchant.xml và trang /mon, nên sơ đồ không tự giữ danh sách bánh
+	riêng. Mã trùng hoặc rỗng chỉ ghi một lần."""
+	ra, da = [], set()
+	for m in ds or ():
+		ma = str((m or {}).get("ma") or "").strip()
+		if ma and ma not in da:
+			da.add(ma)
+			ra.append((duong_mon(ma, goc=""), UU_TIEN_MON))
+	return tuple(ra)
 
 
 def xml_so_do(ngay, goc=GOC, trang=TRANG_CONG_KHAI):
