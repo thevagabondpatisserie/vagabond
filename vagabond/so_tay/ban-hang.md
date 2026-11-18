@@ -1238,6 +1238,28 @@ Từ v649 (Sales báo, giám đốc duyệt 11/11/2026) bánh đặt trước nh
 **Lưu ý**
 - Máy chủ cũng chặn: đơn nhận hôm nay chỉ nhận bánh có trong Kiểm bánh hôm nay, đủ số.
 
+## Tab Đặt bánh trước nhận ngày mai, số theo Có thể bán của phiếu ngày mai
+Từ khoá: đặt bánh trước, nhận ngày mai, bán được ngày mai, có thể bán, số lượng trên web, đủ decor không lên web, phiếu kiểm bánh ngày mai
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp nhập; Sales xem; khách đặt | Kiểm bánh (/kiem-banh) chọn ngày mai; trang đặt bánh | Ô Bếp làm ngày mai, cột Bán được, tab Đặt bánh trước |
+
+Từ v671 (Sales góp ý, giám đốc duyệt 18/11/2026).
+
+**Trước đây:** tab Đặt bánh trước theo ô Đủ decor, nhận 3 ngày tới, lịch tới 2 tuần.
+**Từ nay:** tab chỉ nhận ngày mai. Số còn nhận là cột Bán được (Có thể bán) của phiếu Kiểm bánh ngày mai, đúng số trong hộp "Bánh còn bán ngày ...". Đủ decor không còn đưa bánh lên web.
+
+**Bạn cần làm**
+1. Bếp: trước giờ chốt hôm nay, mở Kiểm bánh ngày mai, nhập ô Bếp làm. Chưa nhập thì bánh đó không hiện ở tab.
+2. Cuối ngày bấm Chốt ngày như cũ: tồn còn lại cộng vào phiếu ngày mai.
+
+**Lưu ý**
+- Chưa có phiếu ngày mai thì tab ghi "Danh mục đặt trước đang được bếp cập nhật".
+- Bánh làm theo mẻ (refill) vẫn chọn ngày trong khoảng của mẻ; món cuối tuần theo ngày giao của đợt.
+- Giỏ có bánh nhận ngày mai mà thêm bánh không nhận được ngày mai, web nhờ đặt đơn riêng. Giỏ lưu hôm trước còn ngày xa hơn thì web dời về ngày mai.
+- Máy chủ cũng chặn đơn bánh đặt trước chọn ngày xa hơn ngày mai, hay quá số Bán được.
+
 ## Kiểm bánh theo mùa (Trung thu, Tết, panettone)
 Từ khoá: kiểm bánh theo mùa, bánh theo mùa, mùa vụ, trung thu, bánh Tết, panettone, bán lố, sắp hết, còn bán, hạn mức, ngưng nhận đơn, seasonal
 

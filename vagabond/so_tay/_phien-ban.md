@@ -12,6 +12,11 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v671
+- Món chỉ làm cho đợt cuối tuần không cần Đủ decor
+- Tab Đặt bánh trước nhận ngày mai, số theo Có thể bán của phiếu ngày mai
+- Đợt món cuối tuần (tab Đặc biệt tuần này)
+
 ## v670
 - Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
 - Đăng ngay bài đã hẹn giờ
