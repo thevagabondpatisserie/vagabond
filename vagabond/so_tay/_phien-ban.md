@@ -16,7 +16,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - AI học giọng viết từ Kho bản thảo
 - Bài Threads dài tự tách thành chuỗi bài nối tiếp
 - Đăng bài kênh Sonneto trên cùng màn Bài đăng
-- Đăng bài lên hồ sơ Google Doanh nghiệp
+- Đăng Google Posts: Cập nhật, Ưu đãi, Sự kiện
 - Bánh nổi bật và bánh theo mùa lên Google
 
 ## v670

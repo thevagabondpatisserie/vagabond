@@ -398,28 +398,27 @@ Trước đây bài Sonneto phải soạn và đăng ở chỗ khác. Từ nay b
 - Chủ đề Sonneto Social không còn chân bài đặt bánh của The Vagabond. Thêm chân bài Sonneto ở sheet Sửa chủ đề.
 - Nối kênh do quản trị hệ thống làm, ở Cài đặt lõi và API, mục Đăng bài kênh Sonneto (Meta): điền Mã Trang Facebook Sonneto, token Facebook Sonneto (hoặc dùng chung token The Vagabond nếu Trang Sonneto đã được chia cho người dùng hệ thống Vagabond ERP), token Threads Sonneto. Khi dùng chung token, nhớ điền cả Mã Trang The Vagabond.
 
-## Đăng bài lên hồ sơ Google Doanh nghiệp
-Từ khoá: Google Doanh nghiệp, Google Business, Google Maps, bài cập nhật, hồ sơ Google, Kết nối Google
+## Đăng Google Posts: Cập nhật, Ưu đãi, Sự kiện
+Từ khoá: Google Posts, Google Business Profile, Google Maps, Ưu đãi, Sự kiện, mã giảm giá, Kết nối Google
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Marketing | Bài đăng mạng xã hội, dòng Kênh | [[Duyệt]] |
+| Marketing | Bài đăng mạng xã hội, thẻ xem trước Google Posts | [[Duyệt]] |
 | Quản trị hệ thống | Bài đăng, bánh răng, Kết nối kênh | [[Kết nối Google]] |
 
-Trước đây bài cập nhật trên hồ sơ Google của tiệm (Google Maps, Google Tìm kiếm) phải đăng tay. Từ nay bài The Vagabond bật thêm kênh Google Doanh nghiệp là hệ thống tự đăng đúng giờ hẹn, kèm nút Đặt hàng mở trang đặt bánh.
+Trước đây Google Posts trên Google Business Profile của tiệm (Google Maps, Google Tìm kiếm) phải đăng tay. Từ nay bài The Vagabond bật kênh Google Posts là hệ thống tự đăng đúng giờ hẹn, theo ba loại của Google: Cập nhật, Ưu đãi, Sự kiện.
 
 **Các bước**
-1. Soạn bài như bình thường. Ở dòng Kênh bật Google Doanh nghiệp (bài mới không bật sẵn kênh này: chỉ bật cho bài bánh mới, bánh theo mùa, khuyến mãi, lịch nghỉ).
-2. Bấm [[✨ AI soạn chữ]] hoặc tự viết chữ cho Google: 1 đến 2 đoạn ngắn, không hashtag, không số điện thoại.
-3. Duyệt như cũ.
+1. Ở dòng Kênh bật Google Posts (bài mới không bật sẵn).
+2. Trên thẻ Google Posts chọn chip Cập nhật, Ưu đãi hoặc Sự kiện. Ưu đãi, Sự kiện: điền tiêu đề (tối đa 58 ký tự), giờ Bắt đầu, Kết thúc; Ưu đãi điền thêm mã giảm giá, điều khoản nếu có.
+3. Viết chữ: 1 đến 2 đoạn ngắn, không hashtag, không số điện thoại. Duyệt như cũ.
 
 **Lưu ý**
-- Google nhận một ảnh mỗi bài: hệ thống lấy ảnh đầu, cắt về khung 4:3 nếu ảnh khác khung. Bảng Kiểm ghi xanh "Google Doanh nghiệp đăng ảnh đầu tiên".
-- Chữ Google có số điện thoại thì bảng Kiểm chặn đỏ, vì Google gỡ bài có số điện thoại. Xoá số khỏi chữ Google; khách gọi bằng nút Gọi sẵn có trên hồ sơ.
-- Chỉ The Vagabond. Sonneto chưa có hồ sơ Google đã xác minh.
-- Nối kênh (quản trị hệ thống, một lần): dán Mã và Khoá ứng dụng Google ở Cài đặt lõi và API, mục Đăng bài Google Doanh nghiệp; rồi ở Kết nối kênh bấm [[Kết nối Google]], đăng nhập tài khoản quản lý hồ sơ tiệm, bấm Cho phép.
-- Google chưa duyệt quyền API cho tiệm thì dòng Google ở Kết nối kênh báo lỗi, bài lên Google chuyển đăng tay.
-
+- Một ảnh mỗi bài: hệ thống lấy ảnh đầu, cắt về khung 4:3.
+- Bảng Kiểm chặn đỏ khi chữ có số điện thoại (Google gỡ bài), Ưu đãi, Sự kiện thiếu tiêu đề hoặc giờ, hay đã kết thúc trước giờ bài lên.
+- Cập nhật và Sự kiện có nút Đặt hàng; Ưu đãi do Google tự gắn nút.
+- Facebook, Instagram không cho hệ thống tạo Ưu đãi, Sự kiện. Sự kiện tạo tay trên Trang Facebook.
+- Chỉ The Vagabond. Nối kênh (quản trị hệ thống, một lần): dán Mã và Khoá ứng dụng Google ở Cài đặt lõi và API, rồi bấm [[Kết nối Google]] ở Kết nối kênh.
 ## Bánh nổi bật và bánh theo mùa lên Google
 Từ khoá: Google Merchant, Google Mua sắm, Google Shopping, sản phẩm trên Google, trang từng bánh, /mon
 
@@ -427,7 +426,7 @@ Từ khoá: Google Merchant, Google Mua sắm, Google Shopping, sản phẩm tr�
 |---|---|---|
 | Marketing | Biên tập web, mục Đặc biệt tuần này; Mùa vụ | [[Xuất bản]] |
 
-Trước đây bánh của tiệm không hiện trong mục sản phẩm của Google. Từ nay bánh của đợt Đặc biệt tuần này đang hiện trên trang đặt bánh và bánh của mùa vụ đang chạy tự lên Google Merchant Center: hiện miễn phí trên Google Tìm kiếm, Google Mua sắm, Google Maps và hồ sơ Google của tiệm, kèm giá, ảnh, tình trạng còn hàng. Mỗi bánh có trang riêng thevagabondpatisserie.com/mon/<mã hàng>, bấm nút trên trang để sang trang đặt bánh.
+Trước đây bánh của tiệm không hiện trong mục sản phẩm của Google. Từ nay bánh của đợt Đặc biệt tuần này đang hiện trên trang đặt bánh và bánh của mùa vụ đang chạy tự lên Google Merchant Center: hiện miễn phí trên Google Tìm kiếm, Google Mua sắm, Google Maps và Google Business Profile của tiệm, kèm giá, ảnh, tình trạng còn hàng. Mỗi bánh có trang riêng thevagabondpatisserie.com/mon/<mã hàng>, bấm nút trên trang để sang trang đặt bánh.
 
 **Các bước**
 1. Không cần thao tác thêm: mở đợt Đặc biệt tuần này hoặc chạy mùa vụ như bình thường. Google đọc lại danh sách mỗi ngày.
