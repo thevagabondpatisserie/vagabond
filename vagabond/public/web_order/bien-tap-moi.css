@@ -156,6 +156,23 @@ body.bt-che-do-moi header a{color:#fff}
 .bt-ds-dong{display:flex;flex-direction:column;gap:10px}
 .bt-dong-o{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;padding:10px;border:1px solid var(--bt-vien,#d0d5dd);border-radius:10px}
 .bt-dong-o .bt-nut{min-height:44px}
+/* v671 (Minh Vũ 18/11/2026): dòng món của đợt cuối tuần. Ô Bánh, Mô tả, Ảnh đứng rộng hết dòng;
+   Nhãn góc và Số tối đa chia đôi, canh đầu (nhãn hai dòng không đẩy lệch ô bên cạnh). */
+.bt-dong-mon{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:14px;padding:14px}
+.bt-dong-mon>.bt-o-banh-dot,.bt-dong-mon>.rong{grid-column:1/-1}
+.bt-dong-mon>.bt-nut{grid-column:1/-1;justify-self:start}
+#bt-moi .bt-dong-mon>.bt-nut{min-height:44px;width:auto;padding:0 18px}
+.bt-dong-mon>*,.bt-o-banh-dot,.bt-hop-banh,.bt-hop-banh .bt-banh-ds{min-width:0}
+#bt-moi .bt-hop-banh .bt-banh-mon{min-width:0;max-width:100%}
+.bt-hop-banh .bt-tim{min-width:0;width:100%;box-sizing:border-box}
+#bt-moi .bt-chon-banh{width:100%}
+.bt-mui-ten{margin-left:auto;color:var(--bt-mo);font-size:18px;flex:0 0 auto}
+.bt-hop-banh{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--bt-vien-2);background:var(--bt-the-2,#111)}
+.bt-hop-banh[hidden]{display:none}
+.bt-hop-banh .bt-tim{max-width:none}
+.bt-hop-banh .bt-banh-ds{max-height:340px}
+.bt-tt-dot{font-size:14px}.bt-tt-dot.do{color:#f97066}.bt-tt-dot.cho{color:var(--bt-cam)}.bt-tt-dot.dang{color:var(--bt-luc)}
+@media(max-width:700px){.bt-dong-mon{grid-template-columns:1fr}}
 /* v644: thẻ Bánh (ảnh, mô tả, tầng hương vị từng bánh). */
 .bt-banh .bt-chips{margin-bottom:16px}
 .bt-banh-khung{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:24px;align-items:start}

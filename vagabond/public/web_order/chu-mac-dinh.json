@@ -7967,5 +7967,41 @@
     "ten": "Gợi ý mua thêm: Giao kèm cùng chuyến, mã {ma}",
     "mac_dinh": "Giao kèm cùng chuyến, mã {ma}",
     "nhom": "Gợi ý mua thêm"
+  },
+  "gio_ma_mot_co": {
+    "ten": "Giỏ hàng: dòng phụ của món một cỡ (hũ, hộp, không có size cm)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Một cỡ, mã {ma}",
+    "nhieu_dong": true
+  },
+  "dat_truoc_chi_mai": {
+    "ten": "Đặt bánh trước: nhắc khi khách chọn ngày xa hơn ngày mai",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh đặt trước nhận vào ngày mai. Cần nhận ngày khác quý khách gọi 0931 224 334.",
+    "nhieu_dong": true
+  },
+  "dat_truoc_ngay_me": {
+    "ten": "Đặt bánh trước: ghi chú khi ngày nhận là ngày của mẻ refill hay của đợt",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày này dành cho bánh làm theo mẻ hoặc món cuối tuần trong giỏ.",
+    "nhieu_dong": true
+  },
+  "dat_truoc_con_mai": {
+    "ten": "Đặt bánh trước: nhắc khi khách chọn quá số còn nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Size này chỉ còn nhận {gia_tri_a} bánh. Cần nhiều hơn quý khách gọi 0931 224 334",
+    "nhieu_dong": true
+  },
+  "dat_truoc_con_mai_ngan": {
+    "ten": "Đặt bánh trước: nhắc ngắn khi khách bấm thêm quá số còn nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Size này chỉ còn nhận {gia_tri_a} bánh.",
+    "nhieu_dong": true
+  },
+  "dat_truoc_khac_ngay": {
+    "ten": "Đặt bánh trước: nhắc khi bánh mới và bánh trong giỏ không có chung ngày nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh này và bánh trong giỏ không có chung ngày nhận (bánh đặt trước nhận ngày mai, bánh làm theo mẻ nhận trong khoảng của mẻ). Quý khách gửi đơn đang có trước rồi đặt tiếp.",
+    "nhieu_dong": true
   }
 }

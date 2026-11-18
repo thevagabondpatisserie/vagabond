@@ -768,28 +768,86 @@
     return g;
   }
   /* Món của đợt: chọn bánh ở thẻ Bánh (gõ tìm theo tên), mô tả, nhãn góc, số tối đa, ảnh đứng. */
+  /* v671 (Minh Vũ 18/11/2026): khách thấy món của đợt theo ĐỢT (không cần tồn tủ hay
+     Đủ decor) khi thẻ Bánh không Đã ẩn, có mã có giá bán và có ảnh (ảnh thẻ hoặc Ảnh
+     đứng). Cùng luật máy chủ dac_biet_tuan.nhom_cua_dot; dòng dưới tên bánh nói rõ
+     món đang được thấy hay vì sao chưa, và sửa ở đâu. */
+  function tinhTrangMonDot(x, d) {
+    if (!x) return ['an', 'Chưa chọn bánh.'];
+    if (x.trang_thai === DA_AN) return ['do', 'Thẻ Bánh đang Đã ẩn: khách không thấy món này. Bật lại ở thẻ Bánh.'];
+    if (!(x.sizes || []).some(z => z.gia > 0 && !z.ngung)) return ['do', 'Chưa có size nào có giá bán: nhờ kế toán đặt giá ở hồ sơ món trên app.'];
+    if (!(x.anh || []).length && !d.anh) return ['cho', 'Thẻ Bánh chưa có ảnh: thêm ảnh ở thẻ Bánh hoặc tải Ảnh đứng bên dưới, nếu không khách chưa thấy món này.'];
+    return ['dang', 'Khách thấy món này trong đợt. Không cần bếp điền Đủ decor.'];
+  }
+  const boDauBt = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+  function oChonBanhDot(d, i, xem, dsBanh) {
+    const g = tao('div', 'bt-o bt-o-banh-dot'); g.append(tao('span', 'bt-nhan', 'Bánh'));
+    const nut = tao('button', 'bt-banh-mon bt-chon-banh'); nut.type = 'button'; nut.dataset.chonBanh = String(i);
+    nut.setAttribute('aria-expanded', 'false');
+    const phu = tao('span', 'bt-goi-y');
+    const hop = tao('div', 'bt-hop-banh'); hop.hidden = true; hop.dataset.hopBanh = String(i);
+    const tim = tao('input', 'bt-tim'); tim.type = 'search'; tim.placeholder = 'Gõ tên bánh, không cần dấu';
+    tim.setAttribute('name', 'mon_dt_tim_' + i); tim.setAttribute('aria-label', 'Tìm bánh cho món của đợt');
+    const ds = tao('div', 'bt-banh-ds');
+    const anhBanh = (x, el) => {
+      const u = (x && x.anh && x.anh[0] && x.anh[0].url) || (x ? d.anh : '');
+      if (u) { const im = tao('img'); im.src = u; im.alt = ''; el.append(im); } else el.append(tao('span', 'bt-banh-trong', '🎂'));
+    };
+    function veNut() {
+      nut.replaceChildren();
+      const x = (BB.banh || []).find(b => b.khoa === d.khoa) || null;
+      anhBanh(x, nut);
+      const chu = tao('span', 'bt-banh-chu');
+      chu.append(tao('b', '', x ? x.ten : (d.khoa ? d.khoa : 'Chọn bánh cho món này')), tao('small', '', x ? chuSize(x) : 'Chạm để tìm trong danh sách bánh trên web'));
+      nut.append(chu, tao('span', 'bt-mui-ten', hop.hidden ? '▾' : '▴'));
+      const [tt, cau] = tinhTrangMonDot(x, d);
+      phu.className = 'bt-goi-y bt-tt-dot ' + tt; phu.textContent = cau;
+    }
+    function veDs() {
+      ds.replaceChildren();
+      const q = boDauBt(tim.value).split(/\s+/).filter(Boolean);
+      const loc = dsBanh().filter(x => { const t = boDauBt(x.ten + ' ' + (x.ma_hang || []).join(' ')); return q.every(w => t.includes(w)); });
+      if (!loc.length) {
+        ds.append(tao('p', 'bt-rong', tim.value ? 'Không thấy bánh nào khớp.' : 'Chưa có bánh nào trên web.'));
+      }
+      loc.forEach(x => {
+        const b = tao('button', 'bt-banh-mon' + (x.khoa === d.khoa ? ' dang' : '')); b.type = 'button'; b.dataset.banhDot = x.khoa;
+        b.setAttribute('aria-pressed', String(x.khoa === d.khoa));
+        anhBanh(x, b);
+        const chu = tao('span', 'bt-banh-chu'); chu.append(tao('b', '', x.ten), tao('small', '', chuSize(x)));
+        b.append(chu, tao('span', 'bt-tt ' + (TT_BANH[x.trang_thai] || 'an'), x.trang_thai));
+        b.onclick = () => { d.khoa = x.khoa; hop.hidden = true; nut.setAttribute('aria-expanded', 'false'); veNut(); xem(); };
+        ds.append(b);
+      });
+      ds.append(tao('p', 'bt-goi-y', 'Không thấy bánh? Bánh phải có giá bán và được bấm Đưa lên web ở màn Danh mục sản phẩm trên app. Bánh Đã ẩn ở thẻ Bánh không có trong danh sách.'));
+    }
+    nut.onclick = () => {
+      hop.hidden = !hop.hidden; nut.setAttribute('aria-expanded', String(!hop.hidden)); veNut();
+      if (!hop.hidden) { veDs(); try { tim.focus(); } catch (e) { /* trình duyệt chặn focus: bỏ qua */ } }
+    };
+    tim.oninput = veDs;
+    hop.append(tim, ds);
+    veNut();
+    g.append(nut, phu, hop);
+    g._veLai = veNut;
+    return g;
+  }
   function dsMonDot(m, xem) {
     const g = tao('div', 'bt-ds-dong'); g.dataset.dsDong = 'mon_dt';
-    const dsBanh = () => ((BB && BB.banh) || []).filter(x => x.trang_thai !== 'Đã ẩn');
-    const tenCua = khoa => (dsBanh().find(x => x.khoa === khoa) || {}).ten || khoa;
+    const dsBanh = () => ((BB && BB.banh) || []).filter(x => x.trang_thai !== DA_AN);
     function ve() {
       g.replaceChildren();
       if (!BB) { g.append(tao('p', 'bt-rong', 'Đang tải danh sách bánh...')); taiBanh().then(ve); return; }
-      const dl = tao('datalist'); dl.id = 'bt-dl-banh-dot';
-      dsBanh().forEach(x => { const op = tao('option'); op.value = x.ten; dl.append(op); });
-      g.append(dl);
       (m.mon_dt || []).forEach((d, i) => {
-        const hang = tao('div', 'bt-dong-o'); hang.dataset.dongO = 'mon_dt-' + i;
-        const chon = o('Bánh', tenCua(d.khoa), v => {
-          const x = dsBanh().find(b => b.ten.toLocaleLowerCase('vi') === v.trim().toLocaleLowerCase('vi'));
-          d.khoa = x ? x.khoa : ''; xem();
-        }, {ten: 'mon_dt_khoa_' + i, goi: 'Gõ tên bánh', chu: 'Gõ rồi chọn trong danh sách. Giá, size, tầng hương lấy từ thẻ Bánh.'});
-        chon.querySelector('input').setAttribute('list', 'bt-dl-banh-dot');
+        const hang = tao('div', 'bt-dong-o bt-dong-mon'); hang.dataset.dongO = 'mon_dt-' + i;
+        const chon = oChonBanhDot(d, i, xem, dsBanh);
+        const anhDung = oAnh(d, () => { chon._veLai(); xem(); }, 'anh', 'Ảnh đứng (không bắt buộc)', 'Ảnh dọc 3:4 hoặc 2:3. Để trống thì dùng ảnh đầu tiên của bánh ở thẻ Bánh.');
+        anhDung.className += ' rong';
         hang.append(chon,
-          o('Mô tả ngắn', d.mo_ta, v => { d.mo_ta = v; xem(); }, {ten: 'mon_dt_mo_ta_' + i, goi: 'Vani Tahiti, caramel muối'}),
+          o('Mô tả ngắn', d.mo_ta, v => { d.mo_ta = v; xem(); }, {ten: 'mon_dt_mo_ta_' + i, goi: 'Vani Tahiti, caramel muối', rong: true}),
           o('Nhãn góc (không bắt buộc)', d.nhan_goc, v => { d.nhan_goc = v; xem(); }, {ten: 'mon_dt_nhan_goc_' + i, goi: 'CHỈ CUỐI TUẦN', chu: 'Để trống là CHỈ CUỐI TUẦN.'}),
-          o('Số lượng tối đa của đợt (không bắt buộc)', d.toi_da, v => { d.toi_da = v; xem(); }, {so: true, ten: 'mon_dt_toi_da_' + i, goi: '30', chu: 'Đủ số này web tự chuyển sang Đã chốt đơn. Để trống là không giới hạn.'}),
-          oAnh(d, xem, 'anh', 'Ảnh đứng (không bắt buộc)', 'Ảnh dọc 3:4 hoặc 2:3. Để trống thì dùng ảnh đầu tiên của bánh ở thẻ Bánh.'));
+          o('Số lượng tối đa của đợt (không bắt buộc)', d.toi_da, v => { d.toi_da = v; xem(); }, {so: true, ten: 'mon_dt_toi_da_' + i, goi: '30', chu: 'Đủ số này web tự chuyển sang Đã chốt đơn. Để trống là không giới hạn. Món của đợt không dùng ô Đủ decor của bếp.'}),
+          anhDung);
         const bo = tao('button', 'bt-nut chu-do nho', 'Bỏ món'); bo.type = 'button'; bo.dataset.boDong = 'mon_dt-' + i;
         bo.onclick = () => { m.mon_dt.splice(i, 1); ve(); xem(); };
         hang.append(bo); g.append(hang);
