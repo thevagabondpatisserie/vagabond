@@ -306,6 +306,10 @@ class _JeGia(object):
 		pass
 
 	def submit(self):
+		# Như Frappe thật: doc_events before_submit (hooks.py) chạy trước khi ghi sổ.
+		from vagabond import but_toan_nhap as BN
+
+		BN.kiem_je_tu_lap(self)
 		self.docstatus = 1
 		_JeGia.da_ghi.append(self.name)
 
@@ -357,6 +361,7 @@ def _kho_gia(bg, tinh):
 		um.patch.object(BN.frappe, "get_doc", lambda *a: bg, create=True),
 		um.patch.object(BN.frappe, "db", _Hang(get_value=lambda *a, **k: "TV"), create=True),
 		um.patch.object(BN.frappe, "session", _Hang(user="ketoan@tv"), create=True),
+		um.patch.object(BN, "_ban_ghi_cua_je", lambda ten: bg if ten and bg.get("journal_entry") == ten else None),
 	]
 	return vá, trang
 
@@ -437,7 +442,7 @@ def _nhap_cu_meta():
 
 	A = {"khoa": "A", "phan_loai": "meta", "tien": 1000, "bang_chung": ["pdf1"]}
 	B = {"khoa": "B", "phan_loai": "meta", "tien": 400, "bang_chung": ["pdf1"]}
-	bg = _BgGia(name="BG", journal_entry=None, ban_ke=None, quyet_dinh=None, dau_ban_may=None)
+	bg = _BgGia(name="BG", loai=BN.LOAI_META, company="TV", ky="2026-10", journal_entry=None, ban_ke=None, quyet_dinh=None, dau_ban_may=None)
 
 	def tinh(b):
 		g = [dict(x) for x in trang["gd"]]
@@ -466,3 +471,54 @@ def _nhap_cu_meta():
 		la("lập lại chỉ còn B", [r.debit_in_account_currency for r in trang["je"].accounts if r.debit_in_account_currency], [400])
 		M.ghi_so("2026-10")
 		la("ghi sổ được sau khi lập lại", len(_JeGia.da_ghi), 1)
+
+
+@ca("Codex #590 vòng 2 lần 2: nháp Meta đã cũ không ghi sổ được qua MỌI đường: submit thẳng bút toán (Hạch toán tay, Desk) cũng bị chặn ở hook trước ghi sổ")
+def _nhap_cu_moi_duong():
+	import contextlib
+
+	from vagabond import but_toan_nhap as BN
+
+	A = {"khoa": "A", "phan_loai": "meta", "tien": 1000, "bang_chung": ["pdf1"]}
+	bg = _BgGia(name="BG", loai=BN.LOAI_META, company="TV", ky="2026-10", journal_entry=None, ban_ke=None, quyet_dinh=None, dau_ban_may=None)
+
+	def tinh(b):
+		g = [dict(x) for x in trang["gd"]]
+		return {"thieu": [], "con_quyet": [], "ct_chua_xem": [], "vao": M.chon_giao_dich(g, M._quyet_dinh(b), set())}
+
+	vá, trang = _kho_gia(bg, tinh)
+	trang["gd"] = [A]
+	with contextlib.ExitStack() as st:
+		for v in vá:
+			st.enter_context(v)
+		st.enter_context(um.patch.object(BN, "tinh_trang", lambda b: (trang["tt"], {"doc": trang["je"]}) if trang["je"] else (BN.TT_CHUA, None)))
+		M.lap("2026-10")
+		je = trang["je"]
+		je.vgb_tu_lap = "META:TV:2026-10"
+		BN.kiem_je_tu_lap(je)  # còn đúng thì qua
+		M.quyet("2026-10", "chon:A", "bo", "Đã ghi ở hoá đơn mua HD-1")
+		try:
+			BN.kiem_je_tu_lap(je)  # đúng như submit từ Hạch toán tay hay Desk
+			dung("submit thẳng nháp cũ phải bị chặn", False)
+		except Exception as e:
+			dung("hook chặn vì nháp đã cũ: %s" % e, "đã cũ" in str(e))
+		khac = _JeGia()
+		khac.name, khac.vgb_tu_lap = "JE-KHAC", ""
+		BN.kiem_je_tu_lap(khac)  # bút toán không do máy lập: không đụng
+
+
+@ca("Codex #590 vòng 2: hook kiểm nháp cũ đã gắn vào bước ghi sổ của Journal Entry (đọc hooks.py thật), cùng hook chặn vượt 242")
+def _hook_dang_ky():
+	import os
+	import runpy
+
+	from vagabond import but_toan_nhap as BN
+
+	ev = runpy.run_path(os.path.join(os.path.dirname(BN.__file__), "hooks.py"))["doc_events"]["Journal Entry"]
+	bs = ev["before_submit"]
+	bs = [bs] if isinstance(bs, str) else list(bs)
+	dung("hook nháp cũ gắn trước ghi sổ", "vagabond.but_toan_nhap.kiem_je_tu_lap" in bs)
+	dung("hook chặn vượt 242 vẫn còn", "vagabond.chi_phi_242.kiem_je" in bs)
+	for duong in BN.KIEM_CU.values():
+		mo, ham = duong.rsplit(".", 1)
+		dung("phép đọc lại %s có thật" % duong, callable(getattr(__import__(mo, fromlist=[ham]), ham, None)))

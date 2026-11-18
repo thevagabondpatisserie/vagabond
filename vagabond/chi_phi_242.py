@@ -713,11 +713,12 @@ def lap_thang(ky):
 @frappe.whitelist(methods=["POST"])
 def ghi_so_thang(ky):
 	cty = _cty()
+	return BN.ghi_so(BN.LOAI_242, cty, ky)
 
-	def kiem_cu(bg):
-		return khoan_da_doi(_ban_ke_khoan(bg), _can_thang(cty, ky)[0])
 
-	return BN.ghi_so(BN.LOAI_242, cty, ky, kiem_cu=kiem_cu)
+def kiem_cu_thang(cty, ky, bg):
+	"""Nháp tháng còn khớp khoản cần phân bổ hiện tại không (hook trước ghi sổ)."""
+	return khoan_da_doi(_ban_ke_khoan(bg), _can_thang(cty, ky)[0])
 
 
 @frappe.whitelist(methods=["POST"])

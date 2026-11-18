@@ -1278,4 +1278,7 @@ scheduler_events.setdefault("cron", {}).setdefault("47 2 * * *", []).append("vag
 for _event in ("before_submit", "before_update_after_submit"):
     _old = doc_events.setdefault("Journal Entry", {}).get(_event, [])
     doc_events["Journal Entry"][_event] = ([_old] if isinstance(_old, str) else list(_old)) + ["vagabond.chi_phi_242.kiem_je"]
+# Codex #590 vòng 2: bút toán nháp máy lập (242, Meta) đã cũ thì không ghi sổ được ở mọi đường.
+_old = doc_events["Journal Entry"].get("before_submit", [])
+doc_events["Journal Entry"]["before_submit"] = ([_old] if isinstance(_old, str) else list(_old)) + ["vagabond.but_toan_nhap.kiem_je_tu_lap"]
 del _event, _old

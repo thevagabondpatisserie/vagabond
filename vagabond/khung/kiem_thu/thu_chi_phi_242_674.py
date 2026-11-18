@@ -195,10 +195,15 @@ def _da_truoc_am():
 @ca("Codex #590 vòng 2 (cùng loại ở 242): lập nháp tháng rồi khoản bị ngừng hoặc khai lại: Ghi sổ bị chặn vì nháp đã cũ; số không đổi thì ghi được")
 def _nhap_cu_242():
 	can_luc_lap = [{"khoan": "K1", "so_tien": 100, "tk_chi_phi": "6273", "bo_phan": "Bep"}, {"khoan": "K2", "so_tien": 50, "tk_chi_phi": "6273", "bo_phan": "Bep"}]
-	bg = _Co(name="BG", journal_entry="JE1", ban_ke=__import__("json").dumps({"khoan": can_luc_lap}), dau_ban_may="x")
-	je = _Co(name="JE1", posting_date="2026-10-31")
+	bg = _Co(name="BG", loai=BN.LOAI_242, company="TV", ky="2026-10", journal_entry="JE1",
+		ban_ke=__import__("json").dumps({"khoan": can_luc_lap}), dau_ban_may="x")
+	je = _Co(name="JE1", posting_date="2026-10-31", vgb_tu_lap="CP242:TV:2026-10")
 	ghi = []
-	je.submit = lambda: ghi.append(1)
+
+	def submit():
+		BN.kiem_je_tu_lap(je)  # như Frappe thật: hook before_submit trong hooks.py
+		ghi.append(1)
+	je.submit = submit
 	bg.save = lambda **k: None
 	bg.flags = _Co()
 	je.flags = _Co()
@@ -209,6 +214,7 @@ def _nhap_cu_242():
 			um.patch.object(BN, "khoa_ban_ghi", lambda *a: bg), \
 			um.patch.object(BN, "tinh_trang", lambda b: (BN.TT_NHAP, {"doc": je})), \
 			um.patch.object(BN, "chan_khoa_so", lambda d: None), \
+			um.patch.object(BN, "_ban_ghi_cua_je", lambda ten: bg if ten == "JE1" else None), \
 			um.patch.object(BN.frappe, "session", _Co(user="kt"), create=True):
 		hien["can"] = [can_luc_lap[0]]  # K2 bị ngừng sau khi lập
 		try:

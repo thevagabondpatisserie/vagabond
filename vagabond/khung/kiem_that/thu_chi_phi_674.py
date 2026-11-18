@@ -192,6 +192,14 @@ def _meta():
 			dung("ghi sổ nháp cũ phải bị chặn", False)
 		except Exception as e:
 			dung("chặn vì nháp đã cũ: %s" % nen.cau_loi(e), "đã cũ" in nen.cau_loi(e))
+		# Đường Hạch toán tay / Desk: submit thẳng bút toán cũng qua hook, bị chặn như nhau.
+		try:
+			tt = frappe.get_doc("Journal Entry", je.name)
+			tt.flags.ignore_permissions = True
+			tt.submit()
+			dung("submit thẳng nháp cũ phải bị chặn", False)
+		except Exception as e:
+			dung("hook chặn submit thẳng: %s" % nen.cau_loi(e), "đã cũ" in nen.cau_loi(e))
 		la("nháp chưa ghi sổ", frappe.db.get_value("Journal Entry", je.name, "docstatus"), 0)
 		khong_nem("đưa B lại", lambda: M.quyet(ky, "chon:" + kb, "vao"))
 		khong_nem("ghi sổ", lambda: M.ghi_so(ky))

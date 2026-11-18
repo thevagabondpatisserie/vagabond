@@ -339,23 +339,52 @@ def bo_nhap(loai, cty, ky, ly_do=None):
 	return {"ok": 1, "da_bo": info["doc"].name}
 
 
-def ghi_so(loai, cty, ky, kiem_cu=None):
-	"""Kế toán ghi sổ bút toán nháp của tháng.
+# Phép đọc lại số hiện tại của từng loại (cty, ky, bản ghi) -> câu phần đã đổi, "" là còn đúng.
+KIEM_CU = {
+	LOAI_242: "vagabond.chi_phi_242.kiem_cu_thang",
+	LOAI_META: "vagabond.chi_phi_meta.kiem_cu_thang",
+}
 
-	kiem_cu(bg): đọc lại số hiện tại (sau khoá) và trả câu nói phần đã đổi so với
-	lúc lập, hoặc "" (Codex #590 vòng 2): quyết định, khai báo, sao kê đổi sau khi
-	lập thì nháp đã cũ, ghi sổ nó là ghi số sai hoặc ghi trùng."""
+
+def _ban_ghi_cua_je(ten):
+	"""Bản ghi tháng đang nối với bút toán này (khoá dòng), None nếu không có."""
+	n = frappe.db.get_value(DT, {"journal_entry": ten}, "name")
+	if not n:
+		return None
+	frappe.db.sql("select name from `tabVagabond But Toan Tu Lap` where name=%s for update", n)
+	return frappe.get_doc(DT, n)
+
+
+def kiem_je_tu_lap(doc, method=None):
+	"""Hook Journal Entry before_submit (Codex #590 vòng 2): bút toán nháp máy lập
+	chỉ ghi sổ được khi còn khớp số hiện tại, ở MỌI đường ghi (màn tháng, Hạch toán
+	tay, Desk). Quyết định, khai báo, sao kê đổi sau khi lập thì nháp đã cũ; ghi sổ
+	nó là ghi số sai hoặc ghi trùng. Bút toán không do máy lập thì không đụng."""
+	if not doc.get("vgb_tu_lap") or not doc.name:
+		return
+	bg = _ban_ghi_cua_je(doc.name)
+	if not bg or bg.get("loai") not in KIEM_CU:
+		return
+	import importlib
+
+	mo, ham = KIEM_CU[bg.loai].rsplit(".", 1)
+	doi = getattr(importlib.import_module(mo), ham)(bg.company, bg.ky, bg)
+	if doi:
+		tt, _i = tinh_trang(bg)
+		frappe.throw("Bản nháp %s đã cũ so với số hiện tại: %s. %s" % (doc.name, doi,
+			"Bản nháp đã được sửa tay nên bấm Bỏ bản nháp rồi Lập lại." if tt == TT_SUA_TAY
+			else "Bấm Lập lại (Cập nhật bản nháp) ở màn của tháng rồi ghi sổ."))
+
+
+def ghi_so(loai, cty, ky):
+	"""Kế toán ghi sổ bút toán nháp của tháng. Kiểm nháp cũ nằm ở hook trước ghi
+	sổ (kiem_je_tu_lap) để mọi đường ghi đều qua cùng một chỗ."""
 	kiem_quyen(QUYEN_GHI, "ghi sổ bút toán")
 	bg = khoa_ban_ghi(loai, cty, ky)
 	tt, info = tinh_trang(bg)
 	if tt not in (TT_NHAP, TT_SUA_TAY):
 		frappe.throw("Tháng này không có bút toán nháp nào chờ ghi sổ.")
 	je = info["doc"]
-	doi = kiem_cu(bg) if kiem_cu else ""
-	if doi:
-		frappe.throw("Bản nháp %s đã cũ so với số hiện tại: %s. %s" % (je.name, doi,
-			"Bản nháp đã được sửa tay nên bấm Bỏ bản nháp rồi Lập lại." if tt == TT_SUA_TAY
-			else "Bấm Lập lại để cập nhật bản nháp rồi ghi sổ."))
 	chan_khoa_so(je.posting_date)
 	je.flags.ignore_permissions = True
 	je.submit()

@@ -610,15 +610,15 @@ def lap(ky):
 
 @frappe.whitelist(methods=["POST"])
 def ghi_so(ky):
-	cty = _cty()
+	return BN.ghi_so(BN.LOAI_META, _cty(), ky)
 
-	def kiem_cu(bg):
-		t = tinh_thang(cty, ky, bg)
-		lan = [l for l in _lich_su(bg) if l.get("je") == bg.journal_entry]
-		_d, qc, phi = dong_but_toan(t["vao"], "qc", "phi", "the", "", ky)
-		return nhap_da_cu(lan[-1] if lan else None, [g["khoa"] for g in t["vao"]], qc, phi)
 
-	return BN.ghi_so(BN.LOAI_META, cty, ky, kiem_cu=kiem_cu)
+def kiem_cu_thang(cty, ky, bg):
+	"""Nháp Meta còn khớp giao dịch hiện tại không (hook trước ghi sổ)."""
+	t = tinh_thang(cty, ky, bg)
+	lan = [l for l in _lich_su(bg) if l.get("je") == bg.journal_entry]
+	_d, qc, phi = dong_but_toan(t["vao"], "qc", "phi", "the", "", ky)
+	return nhap_da_cu(lan[-1] if lan else None, [g["khoa"] for g in t["vao"]], qc, phi)
 
 
 @frappe.whitelist(methods=["POST"])
