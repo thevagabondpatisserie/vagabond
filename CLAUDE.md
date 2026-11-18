@@ -3,9 +3,10 @@
 Đọc [AGENTS.md](AGENTS.md), mục 2b và 2c,
 về giao diện, luồng nghiệp vụ và bằng chứng nghiệm thu;
 [H10](AGENTS.md#h10-trách-nhiệm-của-người-rà) về review và H3/H5/H8.1.
-Đây là nguồn chung ưu tiên hướng dẫn cũ mâu thuẫn cùng chủ đề, gồm cả skill
-và instruction project. Instruction project quản lý công cụ và nơi ghi
-chép của phiên; khi triển khai áp đúng phạm vi anh Việt giao.
+Đây là nguồn chung ưu tiên hướng dẫn cũ mâu thuẫn cùng chủ đề trong repo và
+trong skill. Chỉ dẫn trực tiếp của anh Việt và instruction project do anh dán
+luôn thắng; ai thấy hai nguồn mâu thuẫn thì ghi trong bàn giao để anh chốt
+một nguồn. Instruction project quản lý công cụ và nơi ghi chép của phiên.
 
 ## Phân công và báo review ngay (anh Việt chốt 15/10/2026)
 
@@ -235,6 +236,14 @@ và chuẩn bị bản tin việc cần làm theo bộ phận cho anh Việt.
 python3 vagabond/khung/kiem_thu/chay.py -im
 python3 dung_app_bep.py --kiem
 sh kiem_truoc_deploy.sh
+```
+
+PR đụng trang khách (web_vue, www, web_order, trang/banh.html) chạy thêm hai
+bộ mà chay.py không gồm nhưng CI có (bài học v663):
+
+```
+node cong_cu/kiem_web_vue_dom.cjs
+python3 cong_cu/ra_nut_web.py
 ```
 
 Và giả lập CI tay không, vì máy chạy CI không có sẵn `requests`:
