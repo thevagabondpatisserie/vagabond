@@ -6,8 +6,9 @@
  *   3. sheet Kết nối kênh hai khối The Vagabond, Sonneto;
  *   4. Kho bản thảo và lịch có chip Sonneto trên thẻ;
  *   5. bài đã đăng mà Threads mới lên một phần (ghi chú vàng);
- *   6. bài The Vagabond bật Google Doanh nghiệp: xem trước một ảnh 4:3 có nút Đặt hàng,
- *      bảng Kiểm chặn chữ có số điện thoại và báo chỉ đăng ảnh đầu (v672 Google).
+ *   6. bài The Vagabond bật Google Posts: xem trước một ảnh 4:3 có nút Đặt hàng,
+ *      bảng Kiểm chặn chữ có số điện thoại và báo chỉ đăng ảnh đầu (v672 Google);
+ *   7. Google Posts loại Ưu đãi: chip loại, ô tiêu đề, giờ, mã giảm giá, điều khoản, không có nút Đặt hàng.
  * Dữ liệu bảng Kiểm dựng bằng chính bai_dang.kiem_bai (python).
  *
  * Đo: không cuộn ngang, không ô nào lòi mép, chữ từ 13px, nút và ô bấm cao từ 44px.
@@ -77,16 +78,19 @@ var py = [
   '  "kenh": [{"k": "fb", "tt": "Đã hẹn giờ"}, {"k": "ig", "tt": "Đã hẹn giờ"}, {"k": "th", "tt": "Đã hẹn giờ"}]}]',
   'kn = {"fb": {"ok": 1, "chu": "Tự đăng lên Trang The Vagabond Pâtisserie"}, "ig": {"ok": 1, "chu": "Tự đăng lên @thevagabondpatisserie"},',
   '  "th": {"ok": 1, "chu": "Tự đăng lên @thevagabond.patisserie · token dùng tới 15/01/2027"}, "zl": {"ok": 0, "chu": "Zalo chưa duyệt quyền đăng bài viết. Bài lên Zalo OA phải đăng tay."},',
-  '  "gg": {"ok": 0, "chu": "Google chưa mở quyền API Google Doanh nghiệp cho tiệm (đang chờ Google duyệt) hoặc đang giới hạn số lần gọi. Đăng tay bài này, vài giờ sau bấm Thử lại.", "loi": 1}}',
+  '  "gg": {"ok": 0, "chu": "Google chưa mở quyền Google Business Profile API cho tiệm (đang chờ Google duyệt) hoặc đang giới hạn số lần gọi. Đăng tay bài này, vài giờ sau bấm Thử lại.", "loi": 1}}',
   'anh2 = anh + [{"name": "a2", "ten": "quay.jpg", "url": "/assets/vagabond/images/quay-sales.jpg", "khung": "1:1", "rong": 1080, "cao": 1080}]',
   'chu_gg = "🎂 MONSOON\\n\\nBánh ổ Monsoon mới ra lò cuối tuần này: lớp mousse xoài chín, insert chanh dây, đế sablé giòn. Đặt trước 48 tiếng, hotline 0901 234 567."',
   'gg = dict(bai, name="BD-26-11-7601", tieu_de="MONSOON", hieu="vagabond", ten_hieu="The Vagabond", kenh_hieu=["fb", "ig", "th", "zl", "gg"], kenh_chon=["fb", "gg"],',
   '  chu_de={"ma": "CD-7494", "ten": "Giới thiệu bánh ổ", "bt": "🎂", "cta": []}, anh=anh2, ban={"fb": {"chu": chu_gg}, "gg": {"chu": chu_gg}})',
   'gg["kiem"] = x.kiem_bai(gg, dt.datetime(2026, 11, 18, 10, 46), [], [], {"fb"})',
   'gg["cho_kenh"] = {k: x.anh_cho_kenh(anh2, k) for k in gg["kenh_chon"]}',
+  'uu = dict(gg, name="BD-26-11-7602", ban={"fb": {"chu": chu_gg}, "gg": {"chu": "Giảm 10% bánh ổ Monsoon cho đơn đặt online tuần này.", "loai": "uu_dai", "tieu_de": "Giảm 10% bánh ổ Monsoon",',
+  '  "bat_dau": "2026-11-20T08:00", "ket_thuc": "2026-11-23T22:00", "ma_giam": "MONSOON10", "dieu_khoan": "Áp dụng đơn online, không cộng ưu đãi khác."}})',
+  'uu["kiem"] = x.kiem_bai(uu, dt.datetime(2026, 11, 18, 10, 46), [], [], {"fb"})',
   'so = {"fb": {"ok": 0, "chu": "Chưa điền Mã Trang Facebook Sonneto ở Cài đặt lõi và API, nên hệ thống chưa biết Trang nào là của Sonneto.", "loi": 1},',
   '  "ig": {"ok": 0, "chu": "Chưa nối được vì token Facebook lỗi.", "loi": 1}, "th": {"ok": 0, "chu": "Chưa nối. Bài lên Threads phải đăng tay."}, "zl": {"ok": 0, "chu": "Sonneto chưa có Zalo OA."}}',
-  'sys.stdout.write(json.dumps({"bai": bai, "xong": xong, "cd": cd, "bt": bt, "lich": lich, "kn": kn, "so": so, "gg": gg}, ensure_ascii=False, default=str))'
+  'sys.stdout.write(json.dumps({"bai": bai, "xong": xong, "cd": cd, "bt": bt, "lich": lich, "kn": kn, "so": so, "gg": gg, "uu": uu}, ensure_ascii=False, default=str))'
 ].join('\n');
 var DL = JSON.parse(cp.execFileSync('python3', ['-c', py, GOC], { encoding: 'utf8' }));
 
@@ -192,7 +196,7 @@ var STUB = [
 
   await pg.evaluate(function () { BD.xemK = 'gg'; return scrBaiDangSoan(DL.gg.name, { bai: DL.gg, duyet: true, gio_vang: [], la_gd: false }); });
   await pg.waitForTimeout(400);
-  await doMan('6. Bài bật Google Doanh nghiệp', '#vgb');
+  await doMan('6. Bài bật Google Posts', '#vgb');
   await pg.screenshot({ path: path.join(RA, 'bd672-6-google.png'), fullPage: true });
   var kgg = await pg.$('[data-bdkiem]');
   if (kgg) await kgg.screenshot({ path: path.join(RA, 'bd672-6b-bang-kiem-google.png') });
@@ -207,6 +211,21 @@ var STUB = [
   if (!theGg || !theGg.nut || !/1\.500/.test(theGg.dem || '')) hong.push('thẻ xem trước Google');
   var tg = await pg.$('[data-bdthe="gg"]');
   if (tg) await tg.screenshot({ path: path.join(RA, 'bd672-6c-the-google.png') });
+  await pg.evaluate(function () { BD.xemK = 'gg'; return scrBaiDangSoan(DL.uu.name, { bai: DL.uu, duyet: true, gio_vang: [], la_gd: false }); });
+  await pg.waitForTimeout(400);
+  await doMan('7. Google Posts loại Ưu đãi', '#vgb');
+  var tu = await pg.evaluate(function () {
+    var t = document.querySelector('[data-bdthe="gg"]'); if (!t) return null;
+    var c = document.querySelector('[data-bdcuon]'); if (c) { c.style.scrollSnapType = 'none'; c.scrollLeft = t.offsetLeft - 12; }
+    return { chon: (t.querySelector('[data-bdggloai="uu_dai"]') || {}).style.background, o: t.querySelectorAll('[data-bdgg]').length, nut: /Đặt hàng/.test(t.textContent) };
+  });
+  console.log('   Thẻ Ưu đãi: ' + JSON.stringify(tu));
+  if (!tu || tu.o !== 5 || tu.nut) hong.push('thẻ Ưu đãi Google Posts');
+  /* Thẻ nằm trong dải cuộn ngang: tách riêng ra khung đầy bề ngang mới chụp trọn được. */
+  await pg.evaluate(function () { var t = document.querySelector('[data-bdthe="gg"]'), v = document.getElementById('vgbBody');
+    if (t && v) { var c = t.cloneNode(true); c.style.flex = 'none'; c.style.width = '100%'; c.id = 'bdGgChup'; v.innerHTML = ''; v.appendChild(c); } });
+  var tg2 = await pg.$('#bdGgChup');
+  if (tg2) await tg2.screenshot({ path: path.join(RA, 'bd672-7-uu-dai.png') });
   await b.close();
   console.log(hong.length ? 'HỎNG: ' + hong.join(', ') : 'ĐẠT HẾT');
   process.exit(hong.length ? 1 : 0);
