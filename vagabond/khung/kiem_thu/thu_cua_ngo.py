@@ -92,7 +92,9 @@ CUA_NGO = {
 		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh",
 		# v666 Sổ chủ đề, gắn sao, gửi giám đốc duyệt.
 		"gui_giam_doc", "gd_dong_y", "gd_tra_lai", "gan_sao", "chu_de_ds", "chu_de_luu"],
-	"mxh.py": [],
+	# v672 Google Doanh nghiệp: nút Kết nối Google và đường Google trả về (cả hai chỉ
+	# quản trị hệ thống, đường trả về đòi mã trạng thái gắn với người bấm).
+	"mxh.py": ["gg_bat_dau", "gg_ket_noi_xong"],
 	"zalo_kich_ban.py": ["ds_kich_ban", "luu_kich_ban", "kiem_mau_zalo", "ds_tin", "gui_thu"],
 	# v621: trang thành viên. Mọi hàm mở cho khách vãng lai, tự xác thực bằng
 	# cookie phiên OTP; luu_ho_so, doi_anh, nhan_qua chỉ sửa hồ sơ của số đã xác thực.

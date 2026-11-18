@@ -198,16 +198,17 @@ def _theo_hieu():
 	la("Thử lại đọc kết nối Sonneto", n3["noi_hieu"][0], x.HIEU_SO)
 
 
-@ca("v672 Duyệt bài Sonneto: đọc kết nối Sonneto, Zalo OA bị bỏ; chủ đề vừa đổi thương hiệu giữa lúc đọc và lúc khoá thì đọc lại đúng thương hiệu")
+@ca("v672 Duyệt bài Sonneto: đọc kết nối Sonneto, Zalo OA bị bỏ; đọc trước khoá ra thương hiệu khác thì trong khoá đọc lại đúng thương hiệu của bài")
 def _duyet():
-	doc = t4._Bai(chu_de="CD-S", kenh_chon="fb,ig,th,zl")
+	# Bài đã mang Sonneto (chủ đề đổi thương hiệu đã ghi và tăng ban_luu, màn đã nạp lại).
+	doc = t4._Bai(chu_de="CD-S", kenh_chon="fb,ig,th,zl", thuong_hieu="Sonneto")
 	doc.kenh.append(t4._Dong(ma_kenh="zl", chu="Bánh zl", tieu_de="T", trang_thai=x.K_CHUA))
 	with um.patch.object(x, "hieu_chu_de", lambda ma: x.HIEU_SO if ma == "CD-S" else x.HIEU_VGB), \
 			um.patch.object(x.frappe.db, "get_value", lambda dt, ma, o=None, **k: "CD-S" if o == "chu_de" else None, create=True):
 		_, n = t4._chay(doc, x.duyet, noi={"fb", "ig", "th"}, ma=doc.name, ban_luu=3)
 	la("đọc kết nối Sonneto", set(n["noi_hieu"]), {x.HIEU_SO})
 	la("ghi Sonneto, kênh không có Zalo OA", (doc.thuong_hieu, [k for k, _ in t4._tt(doc)]), ("Sonneto", ["fb", "ig", "th"]))
-	doc2 = t4._Bai(chu_de="CD-S")
+	doc2 = t4._Bai(chu_de="CD-S", thuong_hieu="Sonneto")
 	with um.patch.object(x, "hieu_chu_de", lambda ma: x.HIEU_SO if ma == "CD-S" else x.HIEU_VGB), \
 			um.patch.object(x.frappe.db, "get_value", lambda dt, ma, o=None, **k: "CD-CU" if o == "chu_de" else None, create=True):
 		_, n2 = t4._chay(doc2, x.duyet, noi_theo={x.HIEU_VGB: {"fb"}, x.HIEU_SO: {"fb", "ig", "th"}}, ma=doc2.name, ban_luu=3)
@@ -337,3 +338,41 @@ def _ban_va():
 	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 	dong = [z.strip() for z in io.open(os.path.join(goc, "vagabond", "patches.txt"), encoding="utf-8")]
 	dung("bản vá đứng sau phần đồng bộ cấu trúc của doctype (post_model_sync)", dong.index("[post_model_sync]") < dong.index("vagabond.patches.v672_thuong_hieu_sonneto"))
+
+
+@ca("v672 Codex #587: chủ đề đổi thương hiệu thì bài còn sửa được đổi theo VÀ tăng ban_luu (màn cũ không duyệt được sang đích mới); bài cũ trống thương hiệu không tính là đổi")
+def _doi_hieu_tang_ban():
+	cau = []
+	with um.patch.object(x.frappe.db, "sql", lambda q, gt=None, **k: cau.append((q, gt)), create=True):
+		x._doi_hieu_bai_cua_chu_de("CD-S", "Sonneto")
+		x._doi_hieu_bai_cua_chu_de("CD-V", "Vagabond")
+	q, gt = cau[0]
+	dung("tăng ban_luu cùng lượt đổi", "b.ban_luu = coalesce(b.ban_luu, 0) + 1" in q)
+	dung("chỉ bài chưa mang Sonneto", "not (coalesce(b.thuong_hieu, '') = 'Sonneto')" in q)
+	dung("về The Vagabond: chỉ bài đang mang Sonneto (bài trống không bị tăng)", "not (coalesce(b.thuong_hieu, '') != 'Sonneto')" in cau[1][0])
+	la("chỉ bài còn sửa được của đúng chủ đề", gt, ("Sonneto", "CD-S", x.TT_SUA_DUOC))
+
+
+@ca("v672 Codex #587: Duyệt từ màn cũ khi chủ đề vừa đổi thương hiệu (đường ghi không tăng ban_luu): ghi thương hiệu mới, tăng ban_luu, trả xung đột, KHÔNG duyệt")
+def _duyet_doi_hieu():
+	doc = t4._Bai(chu_de="CD-S", thuong_hieu="Vagabond")
+	ban = int(doc.ban_luu or 0)
+	with um.patch.object(x, "hieu_chu_de", lambda ma: x.HIEU_SO if ma == "CD-S" else x.HIEU_VGB), \
+			um.patch.object(x.frappe.db, "get_value", lambda dt, ma, o=None, **k: "CD-S" if o == "chu_de" else None, create=True):
+		ra, n = t4._chay(doc, x.duyet, noi={"fb", "ig", "th"}, ma=doc.name, ban_luu=ban)
+	la("trả xung đột", ra.get("xung_dot"), 1)
+	la("chưa duyệt", doc.trang_thai, x.TT_NHAP)
+	la("đã ghi thương hiệu mới và tăng ban_luu", (doc.thuong_hieu, int(doc.ban_luu)), ("Sonneto", ban + 1))
+
+
+@ca("v672 Codex #587: bài mẫu chỉ lấy bài mang đúng thương hiệu (chủ đề đổi sang Sonneto, bài The Vagabond đã duyệt không thành mẫu Sonneto)")
+def _mau_dung_hieu():
+	cds = [x.frappe._dict(name="CD-S", ten="Sonneto Social", thuong_hieu="Sonneto")]
+	cau = []
+
+	def sql(q, gt=None, as_dict=False):
+		cau.append(q)
+		return []
+	with um.patch.object(x.frappe, "get_all", lambda *a, **k: cds, create=True), um.patch.object(x.frappe.db, "sql", sql, create=True):
+		x._bai_mau(t4._Bai(chu_de="CD-S"), x.HIEU_SO)
+	dung("lọc thương hiệu lưu trên bài", "coalesce(b.thuong_hieu, '') = 'Sonneto'" in cau[0])

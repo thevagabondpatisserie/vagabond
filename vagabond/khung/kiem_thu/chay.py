@@ -261,6 +261,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_bai_dang_662, thu_bai_dang_664, thu_bai_dang_666, thu_bai_dang_668, thu_bai_dang_670, thu_don_quay_670,
 	# v672 Bài đăng: giọng viết, bài mẫu cho AI, Threads tách chuỗi, kênh Sonneto.
 	thu_bai_dang_672,
+	# v672 Google: tệp Merchant và trang từng bánh, kênh Google Doanh nghiệp.
+	thu_google_672,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.
 	thu_quy_tac_chu_657,
 	# v657 máy mở app qua đêm vẫn chạy bản cũ: hỏi số bản máy chủ, tải lại.
