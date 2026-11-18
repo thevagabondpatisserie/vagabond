@@ -46,7 +46,7 @@ NHA = {
 # Duong dan KHONG BAO GIO bi dinh vao, du o mien nao. Xem dieu 3 o tren.
 CHUA_RA = (
 	"/api/", "/assets/", "/files/", "/private/", "/socket.io/",
-	"/.well-known/", "/robots.txt", "/favicon.ico", "/sitemap.xml",
+	"/.well-known/", "/robots.txt", "/favicon.ico", "/sitemap.xml", "/google-merchant.xml",
 	"/manifest.json", "/sw.js", "/login", "/update-password",
 )
 
@@ -63,6 +63,8 @@ DAU_KHACH = ("/dat-ban", "/thanh-vien", "/banh", "/tt", "/xhd", "/ong-trang", "/
 	"/tra-the",
 	# v630: trang Bánh sỉ cho quán (bản Vue web_moi/banh-si.html).
 	"/banh-si", "/web_moi/banh-si",
+	# v672: trang từng bánh /mon/<mã hàng>, trang đích của Google Merchant.
+	"/mon",
 	"/web_moi/banh", "/web_moi/chinh-sach-bao-mat", "/web_moi/dieu-khoan", "/web_moi/giao-hang-doi-tra")
 # Mien Desk: khong khai o day, xem `_la_desk`.
 

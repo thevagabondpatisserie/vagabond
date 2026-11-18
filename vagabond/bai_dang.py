@@ -32,7 +32,7 @@ import random
 import re
 from datetime import datetime, timedelta
 
-from vagabond.mxh import HIEU, HIEU_SO, HIEU_VGB, TH_TOI_DA_PHAN, TH_TRAN_PHAN, chuan_hieu, tach_threads
+from vagabond.mxh import GG_TRAN, HIEU, co_so_dien_thoai, HIEU_SO, HIEU_VGB, TH_TOI_DA_PHAN, TH_TRAN_PHAN, chuan_hieu, tach_threads
 
 # ------------------------------------------------------------ phần thuần
 
@@ -59,7 +59,7 @@ K_DANG = "Đang đăng"
 # Kênh kẹt Đang đăng quá lâu (máy chủ khởi động lại giữa chừng): chuyển đăng tay, báo
 # chưa rõ đã lên chưa, không tự đăng lại.
 KET_PHUT = 15
-KENH_TU_DONG = ("fb", "ig", "th", "zl")
+KENH_TU_DONG = ("fb", "ig", "th", "zl", "gg")
 
 KIEU_BAI = "Bài đăng"
 KIEU_STORY = "Story"
@@ -77,20 +77,28 @@ KENH = {
 	"ig": {"ten": "Instagram", "tran": 2200, "tong": 2200, "khung": "4:5", "story": True, "toi_da_anh": 10},
 	"th": {"ten": "Threads", "tran": TH_TRAN_PHAN, "tong": 4000, "khung": "4:5", "story": False, "toi_da_anh": 20},
 	"zl": {"ten": "Zalo OA", "tran": 5000, "tong": 5000, "khung": "16:9", "story": False, "toi_da_anh": 10},
+	# v672 (anh Việt duyệt 18/11/2026): bài cập nhật trên hồ sơ Google Doanh nghiệp của tiệm,
+	# hiện ở Google Maps và Google Tìm kiếm. Google nhận 1.500 ký tự và MỘT ảnh (khung 4:3
+	# Google khuyên dùng); bài nhiều ảnh thì chỉ đăng ảnh đầu, không chặn duyệt.
+	"gg": {"ten": "Google Doanh nghiệp", "tran": GG_TRAN, "tong": GG_TRAN, "khung": "4:3", "story": False, "toi_da_anh": 20},
 }
 # v672 Thương hiệu: bài thuộc chủ đề Sonneto đi kênh Sonneto. Sonneto chưa có Zalo OA.
 TEN_HIEU = {HIEU_VGB: "The Vagabond", HIEU_SO: "Sonneto"}
 GIA_TRI_HIEU = {HIEU_VGB: "Vagabond", HIEU_SO: "Sonneto"}
 # Một nguồn: thương hiệu có Zalo OA hay không ghi ở mxh.HIEU.
-KENH_HIEU = {h: tuple(k for k in ("fb", "ig", "th", "zl") if k != "zl" or HIEU[h]["zl"]) for h in HIEU}
-THU_TU_KENH = ("fb", "ig", "th", "zl")
+KENH_HIEU = {h: tuple(k for k in ("fb", "ig", "th", "zl", "gg") if (k != "zl" or HIEU[h]["zl"]) and (k != "gg" or HIEU[h]["gg"]))
+	for h in HIEU}
+THU_TU_KENH = ("fb", "ig", "th", "zl", "gg")
+# Bài mới bật sẵn bốn kênh mạng xã hội; Google Doanh nghiệp Marketing tự bật khi cần
+# (bài khuyến mãi, bánh mới, lịch nghỉ), không phải bài nào cũng hợp đăng lên hồ sơ Google.
+KENH_MAC_DINH = ("fb", "ig", "th", "zl")
 TRAN_TIEU_DE_ZL = 100
 KHUNG_STORY = "9:16"
 TOI_DA_ANH_BAI = 20
 
 # Khung ảnh nhận ra được, sai số 3% (Meta để sai số 3% cho tỷ lệ ảnh quảng cáo).
 KHUNG = (("1:1", 1.0), ("4:5", 0.8), ("9:16", 0.5625), ("16:9", 1.7778), ("1.91:1", 1.91), ("3:4", 0.75), ("2:3", 0.6667),
-	("2:1", 2.0), ("1:2", 0.5), ("3:2", 1.5))
+	("2:1", 2.0), ("1:2", 0.5), ("3:2", 1.5), ("4:3", 1.3333))
 TY_KHUNG = dict(KHUNG)
 
 # v668: cỡ ảnh Facebook theo bảng anh Việt gửi 17/11/2026 (khung ô lưới -> cỡ
@@ -197,6 +205,8 @@ def anh_cho_kenh(anh, kenh, kieu=KIEU_BAI):
 	if kieu == KIEU_STORY:
 		dung = [a for a in ds if a.get("khung") == can]
 		ds = dung[:1] or ds[:1]
+	elif kenh == "gg":
+		ds = ds[:1]
 	# v668: Facebook theo lưới đúng số ảnh, không còn cắt mọi ảnh thành vuông.
 	o = bo_cuc_fb(ds) if kenh == "fb" and kieu == KIEU_BAI else [can] * len(ds)
 	ra = []
@@ -325,6 +335,13 @@ def kiem_bai(bai, bay_gio, trung_gio=None, anh_cu=None, tu=None):
 				ra.append({"muc": "chan", "chu": "Zalo OA chưa có tiêu đề bài viết", "nut": ["chu:zl", "Viết tiêu đề"]})
 			elif len(td) > TRAN_TIEU_DE_ZL:
 				ra.append({"muc": "chan", "chu": "Tiêu đề Zalo OA dài %d/%d ký tự" % (len(td), TRAN_TIEU_DE_ZL), "nut": ["chu:zl", "Rút gọn"]})
+		if k == "gg" and chu and co_so_dien_thoai(chu):
+			ra.append({"muc": "chan", "chu": "Chữ Google Doanh nghiệp có số điện thoại",
+				"goi_y": "Google gỡ bài cập nhật có số điện thoại. Xoá số khỏi chữ Google; khách bấm nút Đặt hàng hoặc gọi từ hồ sơ.",
+				"nut": ["chu:gg", "Sửa chữ"]})
+		if k == "gg" and kieu == KIEU_BAI and len(anh) > 1:
+			ra.append({"muc": "ok", "chu": "Google Doanh nghiệp đăng ảnh đầu tiên",
+				"goi_y": "Google nhận một ảnh mỗi bài cập nhật, hệ thống cắt ảnh đầu về khung 4:3."})
 		if kieu == KIEU_BAI and len(anh) > kn["toi_da_anh"]:
 			ra.append({"muc": "chan", "chu": "%s nhận tối đa %d ảnh một bài, bài có %d ảnh" % (kn["ten"], kn["toi_da_anh"], len(anh)),
 				"goi_y": "Bớt ảnh hoặc bỏ kênh này.", "nut": ["anh", "Sửa ảnh"]})
@@ -575,11 +592,12 @@ _TUNG_KENH = """TỪNG KÊNH
 - ig (Instagram): câu mở đầu đủ sức giữ người đọc, 80 đến 150 chữ trước phần "xem thêm", 5 đến 8 hashtag ở cuối%s. Tối đa 2.000 ký tự.
 - th (Threads): giọng trò chuyện, tối đa 1 hashtag. Ý chính ngắn thì 1 đến 3 câu. Ý chính nhiều chuyện thì viết tới 1.500 ký tự, chia đoạn rõ: hệ thống tự tách thành chuỗi bài nối tiếp, mỗi phần 500 ký tự. Tuyệt đối không quá 3.500 ký tự.
 - zl (Zalo OA): bài viết có "tieu_de" tối đa 90 ký tự và "chu" 2 đến 5 đoạn, rõ ràng, lịch sự. Tối đa 3.000 ký tự.
+- gg (Google Doanh nghiệp): bài cập nhật hiện trên Google Maps cho người đang tìm tiệm bánh, 1 đến 2 đoạn ngắn, nói rõ bánh gì, dịp gì, đặt thế nào. Không hashtag, không số điện thoại (Google gỡ bài có số điện thoại), không đường link trong chữ (hệ thống tự gắn nút Đặt hàng). Tối đa 1.200 ký tự.
 - Story: không cần chữ."""
 
 _TRA_LOI = """TRẢ LỜI
 Chỉ trả về MỘT khối JSON, không giải thích, dạng:
-{"fb": {"chu": "..."}, "ig": {"chu": "..."}, "th": {"chu": "..."}, "zl": {"tieu_de": "...", "chu": "..."}}
+{"fb": {"chu": "..."}, "ig": {"chu": "..."}, "th": {"chu": "..."}, "zl": {"tieu_de": "...", "chu": "..."}, "gg": {"chu": "..."}}
 Chỉ có các kênh được yêu cầu."""
 
 
@@ -854,7 +872,7 @@ COT = (
 	("kenh", ("kenh", "channel", "nen tang")),
 )
 TU_KENH = (("fb", ("facebook", "fb", "face")), ("ig", ("instagram", "insta", "ig")), ("th", ("threads", "thread", "th")),
-	("zl", ("zalo oa", "zalo", "zl")))
+	("zl", ("zalo oa", "zalo", "zl")), ("gg", ("google doanh nghiep", "google business", "google", "gg", "gbp")))
 
 
 def chu_docx(noi_dung):
@@ -1369,7 +1387,7 @@ def tao(hen_luc=None, kieu=None, chu_de=None):
 	hen = chuan_hen(hen_luc)
 	kieu = kieu if kieu in KIEU else KIEU_BAI
 	doc = frappe.get_doc({"doctype": DT, "trang_thai": TT_NHAP, "kieu": kieu, "hen_luc": hen or None,
-		"kenh_chon": ",".join(chuan_kenh(THU_TU_KENH, kieu)), "ban_luu": 1,
+		"kenh_chon": ",".join(chuan_kenh(KENH_MAC_DINH, kieu)), "ban_luu": 1,
 		"chu_de": chu_de if chu_de and frappe.db.exists(DT_CHU_DE, chu_de) else None})
 	doc.flags.vgb_bai_dang = True
 	doc.insert(ignore_permissions=True)
@@ -1571,7 +1589,8 @@ def _giong_van():
 
 def _bai_mau(doc, hieu):
 	"""v672 B, D: hai bài mẫu cho AI học giọng. Cùng chủ đề với bài nếu chủ đề đó được
-	dùng làm mẫu; không thì từ mọi chủ đề làm mẫu của thương hiệu. Đọc 40 bài gắn sao và
+	dùng làm mẫu; không thì từ mọi chủ đề làm mẫu của thương hiệu. Chỉ bài mang đúng
+	thương hiệu (chủ đề đổi thương hiệu thì bài đã duyệt vẫn giữ thương hiệu cũ, Codex #587). Đọc 40 bài gắn sao và
 	mới sửa trước (chỉ để chọn mẫu, không tính tiền nên không cần đọc đủ). Lỗi thì không
 	có bài mẫu, AI vẫn soạn được."""
 	try:
@@ -1583,7 +1602,8 @@ def _bai_mau(doc, hieu):
 		nguon = [cd] if cd in dung else dung
 		dong = frappe.db.sql("""select b.y_chinh, (select k.chu from `tab%s` k where k.parent = b.name and k.parenttype = %%s
 			and k.ma_kenh = 'fb' limit 1) as fb from `tab%s` b where b.chu_de in %%s and b.name != %%s and b.trang_thai != %%s
-			order by b.gan_sao desc, b.modified desc limit 40""" % (DT_KENH, DT), (DT, tuple(nguon), doc.name, TT_HUY), as_dict=True)
+			and %s order by b.gan_sao desc, b.modified desc limit 40""" % (DT_KENH, DT, _dk_hieu(hieu)),
+			(DT, tuple(nguon), doc.name, TT_HUY), as_dict=True)
 		return chon_bai_mau([max(str(d.fb or ""), str(d.y_chinh or ""), key=len) for d in dong])
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "bai_dang: đọc bài mẫu cho AI")
@@ -1880,13 +1900,21 @@ def chu_de_luu(ma=None, ten=None, bieu_tuong=None, cta=None, thuong_hieu=None):
 		doc.save(ignore_permissions=True)
 	else:
 		doc.insert(ignore_permissions=True)
-	# Bài còn sửa được của chủ đề này đổi thương hiệu theo ngay (bài đã duyệt giữ nguyên);
-	# kênh thương hiệu mới không có được bỏ ở lần lưu sau, và chắc chắn bỏ lúc duyệt.
-	frappe.db.sql("update `tab%s` set thuong_hieu = %%s where chu_de = %%s and trang_thai in %%s" % DT,
-		(doc.thuong_hieu, doc.name, TT_SUA_DUOC))
+	_doi_hieu_bai_cua_chu_de(doc.name, doc.thuong_hieu)
 	ra = chu_de_ds()
 	ra["ma"] = doc.name
 	return ra
+
+
+def _doi_hieu_bai_cua_chu_de(chu_de, gia_tri):
+	"""Bài còn sửa được của chủ đề đổi thương hiệu theo ngay (bài đã duyệt giữ nguyên).
+	Bài THỰC SỰ đổi thương hiệu thì tăng ban_luu: màn đang mở bài đó (người duyệt đang
+	thấy The Vagabond) phải nạp lại trước khi Duyệt hay nhận chữ AI (Codex #587). Bài cũ
+	trống thương hiệu mà chủ đề vẫn là The Vagabond thì không tính là đổi. Kênh thương
+	hiệu mới không có được bỏ ở lần lưu sau, và chắc chắn bỏ lúc duyệt."""
+	frappe.db.sql("""update `tab%s` b set b.thuong_hieu = %%s, b.ban_luu = coalesce(b.ban_luu, 0) + 1
+		where b.chu_de = %%s and b.trang_thai in %%s and not (%s)""" % (DT, _dk_hieu(gia_tri)),
+		(gia_tri, chu_de, TT_SUA_DUOC))
 
 
 def viec(vai):
@@ -1957,7 +1985,16 @@ def _duyet_trong_khoa(ma, ban_luu, da_doc_nhac, noi=None, dang_ngay=0, hieu_noi=
 	if doc.trang_thai not in TT_SUA_DUOC:
 		return _cho_man(doc)
 	# Chốt thương hiệu theo chủ đề ngay lúc duyệt (chủ đề có thể vừa đổi thương hiệu).
+	# Đổi thương hiệu ngay lúc này (đường ghi không qua chu_de_luu) thì người duyệt chưa
+	# thấy đích đăng mới: ghi lại, tăng ban_luu, trả xung đột để màn nạp lại (Codex #587).
+	hieu_cu = hieu_bai(doc)
 	dong_bo_hieu(doc)
+	if hieu_bai(doc) != hieu_cu:
+		doc.ban_luu = int(doc.ban_luu or 0) + 1
+		_luu(doc)
+		ra = _cho_man(doc)
+		ra["xung_dot"] = 1
+		return ra
 	if hieu_bai(doc) != chuan_hieu(hieu_noi):
 		noi = _noi(False, hieu_bai(doc))
 	if _xung_dot(doc, ban_luu):
@@ -2373,7 +2410,7 @@ def nhap_tep(file_url=None, chu_de=None):
 		frappe.throw("Tệp có %d dòng nội dung; mỗi lần nhập tối đa %d. Chia tệp nhỏ hơn." % (len(muc), TOI_DA_NHAP))
 	tao = []
 	for m in muc:
-		kenh = m.get("kenh") or chuan_kenh(THU_TU_KENH)
+		kenh = m.get("kenh") or chuan_kenh(KENH_MAC_DINH)
 		doc = frappe.get_doc({"doctype": DT, "trang_thai": TT_NHAP, "kieu": KIEU_BAI, "hen_luc": m.get("hen_luc") or None,
 			"kenh_chon": ",".join(kenh), "y_chinh": m["y_chinh"], "ban_luu": 1, "chu_de": chu_de,
 			"tieu_de": m.get("tieu_de") or tieu_de_tu(m["y_chinh"], {})})
