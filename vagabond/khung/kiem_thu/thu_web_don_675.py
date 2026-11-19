@@ -26,15 +26,63 @@ def _o():
 	la("điền 0 là không giới hạn", [mk.tu_o(0), mk.tu_o("0"), mk.tu_o(0.0)], [0.0, 0.0, 0.0])
 	la("điền số", [mk.tu_o("5"), mk.tu_o(9.5)], [5.0, 9.5])
 	la("âm, chữ lạ", [mk.tu_o(-3), mk.tu_o("abc")], [7.0, 7.0])
-	with patch("vagabond.lib.cfg_o", side_effect=RuntimeError("DB")):
+	with patch("frappe.db.sql", side_effect=RuntimeError("DB"), create=True):
 		la("đọc hỏng về 7", mk.doc(), 7.0)
+
+
+def _bang(hang):
+	"""Bảng Singles giả: `hang` là danh sách [giá trị] của ô; ghi thì thêm vào."""
+	def sql(cau, th=None, **_k):
+		if cau.lstrip().lower().startswith("insert"):
+			hang.append(th[2])
+			return []
+		return [(v,) for v in hang[:1]]
+	return patch("frappe.db.sql", side_effect=sql, create=True)
+
+
+@ca("Codex #594 tái hiện: ô bán kính lưu 0 (không giới hạn) đọc từ bảng Singles vẫn là 0, đơn đủ mức tiền ở 30 km được miễn phí giao; trước bản sửa đọc qua cfg_o thành 7 km và bị tính phí")
+def _doc_so_0():
+	bp = {"ok": 1, "total_fee": 52000, "phi_goc": 52000, "phu_thu": 0, "km_thang": 30}
+	q = lambda: don_web.quyet_phi_giao(1200000, 1000000, False, mk.gan_co(dict(bp), mk.doc()))["trang_thai"]
+	for luu in ("0.0", "0", 0, 0.0):
+		with _bang([luu]):
+			la("đọc %r" % (luu,), mk.doc(), 0.0)
+			la("30 km vẫn miễn khi lưu %r" % (luu,), q(), "mien_phi")
+	with _bang([]):
+		la("chưa từng lưu: 7 km", mk.doc(), 7.0)
+		la("chưa lưu, 30 km: trả phí", q(), "chinh_xac")
+	with _bang(["5"]):
+		la("lưu 5", mk.doc(), 5.0)
+	with _bang([None]):
+		la("dòng có mà giá trị rỗng: 7 km", mk.doc(), 7.0)
+
+
+@ca("Codex #594 bước nâng một lần: site chưa có dòng của ô thì ghi 7; ô đã lưu (kể cả 0) giữ nguyên; chạy lại không ghi thêm")
+def _gieo():
+	hang = []
+	with _bang(hang):
+		la("lần đầu ghi", mk.gieo_mac_dinh(), True)
+		la("giá trị ghi", hang, ["7.0"])
+		la("chạy lại không ghi", (mk.gieo_mac_dinh(), hang), (False, ["7.0"]))
+		la("đọc lại", mk.doc(), 7.0)
+	hang0 = ["0.0"]
+	with _bang(hang0):
+		la("đã lưu 0 thì giữ", (mk.gieo_mac_dinh(), hang0, mk.doc()), (False, ["0.0"], 0.0))
+	from vagabond.patches import v675_mien_phi_km as P
+	h2 = []
+	with _bang(h2):
+		P.execute()
+	la("bản vá gọi đúng bước nâng", h2, ["7.0"])
+	ds = [d.strip() for d in (GOC / "vagabond/patches.txt").read_text(encoding="utf-8").splitlines()]
+	dung("bản vá có trong patches.txt, đứng trước dòng đồng bộ v675",
+		ds.index("vagabond.patches.v675_mien_phi_km") < ds.index("vagabond.patches.dong_bo_cau_truc #v675"))
 
 
 @ca("v675 trong hay ngoài bán kính: đúng mép 7 km vẫn miễn, 7,01 km thì không; không giới hạn hay chưa biết khoảng cách thì coi là trong")
 def _trong():
 	la("mép", [mk.trong({"km_thang": 7.0}, 7), mk.trong({"km_thang": 7.01}, 7), mk.trong({"km_thang": 0.2}, 7)], [True, False, True])
 	la("không giới hạn", [mk.trong({"km_thang": 30}, 0), mk.trong({"km_thang": 30}, None)], [True, True])
-	la("chưa biết khoảng cách", [mk.trong({}, 7), mk.trong(None, 7), mk.trong({"km_thang": "x"}, 7)], [True, True, True])
+	la("Codex #594: chưa biết khoảng cách thì không coi là trong (không hứa miễn phí)", [mk.trong({}, 7), mk.trong(None, 7), mk.trong({"km_thang": "x"}, 7), mk.trong({}, 0)], [False, False, False, True])
 	la("gắn cờ", [mk.gan_co({"ok": 1, "km_thang": 9}, 7)["ngoai_km_mien_phi"], mk.gan_co({"ok": 1, "km_thang": 3}, 7)["ngoai_km_mien_phi"]], [True, False])
 	la("đơn tự lấy không có báo phí", mk.gan_co(None, 7), None)
 
@@ -49,6 +97,8 @@ def _quyet():
 	la("9 km, hãng lỗi: chưa rõ", (r["trang_thai"], r["phi_khach"]), ("chua_ro", None))
 	la("không giới hạn bán kính: 9 km vẫn miễn", don_web.quyet_phi_giao(1200000, 1000000, False, mk.gan_co(dict(bp, km_thang=9), 0))["trang_thai"], "mien_phi")
 	la("dưới ngưỡng, trong 7 km: trả phí như cũ", don_web.quyet_phi_giao(900000, 1000000, False, mk.gan_co(dict(bp, km_thang=3), 7))["trang_thai"], "chinh_xac")
+	la("Codex #594: không định vị được địa chỉ (không có khoảng cách), đơn đủ mức tiền: phí chưa rõ, không hứa miễn phí",
+		don_web.quyet_phi_giao(1200000, 1000000, False, mk.gan_co({"ok": 0, "ly_do": "khong_tim_thay_dia_chi"}, 7))["trang_thai"], "chua_ro")
 	la("báo phí không có cờ (nơi gọi cũ): như trước v675", don_web.quyet_phi_giao(1200000, 1000000, False, dict(bp))["trang_thai"], "mien_phi")
 
 

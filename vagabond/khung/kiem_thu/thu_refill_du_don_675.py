@@ -186,3 +186,37 @@ def _thuong():
 	la("phép thuần con_decor: bếp đã làm cho đơn thì không trừ vỏ lần hai",
 		ton_don_web.con_decor([Doi(ka)], [(D8(2026, 11, 11), [Doi(ma_hang="BAWC00123", da_dat=2, sx=2)])], D8(2026, 11, 10)),
 		{"BAWC00123": (5, "Kankin 16")})
+
+
+@ca("Codex #594 tái hiện: đợt 5 bánh nhận 6 đơn, Bếp đã làm cả 6 (Đủ decor đã bị trừ, còn 1): ngày kia còn 1 suất, không trừ phần vượt lần hai; chưa làm bánh nào thì trừ 1; còn 1 đơn chưa làm thì vẫn giữ 1 vỏ")
+def _vuot_da_lam():
+	from vagabond import ton_don_web as tw
+
+	nay = D8(2026, 11, 19)
+	btp = [Doi(ma_hang="BAWC00201", ten_banh="Tira 12", so_decor=1, decor_da_lam=0)]
+	so = {"refill": {"BAWC00201": [{"tu": "2026-11-17", "den": "2026-11-23", "so": 5, "da_dat": 6, "con": -1}]}, "loi": ""}
+
+	def con(phieu, truyen=True):
+		dl = tw.da_lam_dot_vuot(so, nay, doc_dong=lambda ng: phieu.get(ng.isoformat())) if truyen else None
+		return tw.con_decor(btp, [], nay, {}, so, dl)["BAWC00201"][0]
+
+	dong = lambda dat, sx, **k: [Doi(ma_hang="BAWC00201", da_dat=dat, sx=sx, **k)]
+	la("cả 6 đơn đã làm (2 hôm qua, 4 ngày mai): còn 1", con({"2026-11-18": dong(2, 2), "2026-11-20": dong(4, 4)}), 1)
+	la("chưa làm bánh nào: trừ 1 phần vượt, còn 0", con({"2026-11-20": dong(6, 0)}), 0)
+	la("làm 5, còn 1 đơn chưa có bánh: vẫn giữ 1 vỏ", con({"2026-11-20": dong(6, 5)}), 0)
+	la("bánh làm xong bị kênh khác lấy thì không tính cho đơn", con({"2026-11-20": dong(6, 6, don_khac=2)}), 0)
+	la("chưa có phiếu nào của đợt: coi như chưa làm", con({}), 0)
+	la("nơi gọi không truyền số đã làm: trừ cả phần vượt như trước", con({"2026-11-20": dong(6, 6)}, truyen=False), 0)
+	la("mã khác trên cùng phiếu không tính", con({"2026-11-20": [Doi(ma_hang="BAWC00999", da_dat=6, sx=6)]}), 0)
+	la("đợt chưa vượt hay Pancake lỗi: không đọc phiếu", (tw.da_lam_dot_vuot({"refill": {"X": [{"tu": "2026-11-17", "den": "2026-11-23", "con": 2}]}}, nay, doc_dong=lambda ng: 1 / 0),
+		tw.da_lam_dot_vuot({"loi": "x", "refill": {}}, nay), tw.da_lam_dot_vuot(None, nay)), ({}, {}, {}))
+
+
+@ca("Codex #594 một nguồn: thẻ web, cửa nhận đơn và cửa giữ hàng đều truyền số đã làm của đợt vượt vào con_decor")
+def _mot_nguon():
+	import inspect
+	from vagabond import giu_ton_web, kiem_banh, ton_don_web
+
+	for ten, ham in (("cửa nhận đơn", ton_don_web._con_decor_web), ("cửa giữ hàng", giu_ton_web.kiem_va_giu), ("thẻ web", kiem_banh._dat_truoc_theo_decor)):
+		dung(ten, "da_lam_dot_vuot(" in inspect.getsource(ham))
+
