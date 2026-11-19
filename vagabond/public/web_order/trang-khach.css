@@ -55,3 +55,9 @@ body.trang-khach{font-family:var(--sans);font-size:16px;line-height:1.65;backgro
 .ct-chinh-sach{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px}
 .ct-chinh-sach a{display:inline-flex;align-items:center;min-height:44px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* v675: ba bước của đơn web (Đã gửi yêu cầu, Chờ thanh toán, Đã xác nhận). */
+.bn-buoc{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px;padding:0}
+.bn-buoc li{min-height:44px;display:flex;align-items:center;padding:0 14px;border:1px solid rgba(255,255,255,.18);border-radius:22px;font-size:13px;opacity:.55}
+.bn-buoc li.xong{opacity:1;border-color:#3fbf7f;color:#3fbf7f}
+.bn-buoc li.dang{opacity:1;border-color:#e0b24a;color:#e0b24a}
