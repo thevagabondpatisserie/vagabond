@@ -756,6 +756,23 @@ await ca('Codex #594: giỏ lưu bánh đặt trước nhận ngày kia (12/11),
   dung('ngày kia hết: dời khỏi 12/11 và bỏ cờ đã chọn ngày', k3.S.ngayChon !== '2026-11-12' && k3.S.daChonNgay === false);
 });
 
+await ca('Codex #594 vòng 2: khách chọn 14/11 thuộc mẻ refill (Đủ decor lúc đó 0, ngày mai còn 1); lần làm tươi sau mẻ đã đủ đơn nhưng Đủ decor còn 5: giữ 14/11, không dời giữa lúc đang gán bảng số', async () => {
+  let lan = 0;
+  /* Ngày mai (13/11) còn 1 theo phiếu, nên giữa chừng có chỗ để dời sai. */
+  const dau = JSON.parse(JSON.stringify(RF_MAY));
+  dau.nhom.forEach(g => g.sizes.forEach(y => { if (y.ma === 'BAWC00068') y.con_mai = 1; }));
+  const day = JSON.parse(JSON.stringify(dau));
+  day.nhom.forEach(g => g.sizes.forEach(y => { if (y.ma === 'BAWC00068') { delete y.refill; y.con = 5; y.con_xa = 5; } }));
+  const a = moiTruong('2026-11-12T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: lan++ ? day : dau})});
+  const k = taoKho(a.mt);
+  k.phucHoiGio(); await k.napTon();
+  k.S.tab = 'order'; coThem(k, 'Roman de la Rose'); k.pick(2); k.pickSlot(6);
+  la('chọn 14/11 trong mẻ', k.S.ngayChon, '2026-11-14');
+  await k.napTon();
+  la('mẻ đủ đơn, Đủ decor còn 5: vẫn 14/11', [k.S.ngayChon, k.S.TRUOC_XA.BAWC00068], ['2026-11-14', 5]);
+  dung('nháp lưu vẫn 14/11', JSON.parse(a.kho.get('vgb-gio-v1')).ngay === '2026-11-14');
+});
+
 await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; giỏ có bánh đó thì lịch mờ ngày ngoài 14/11 tới 20/11, bấm ngày mờ thì báo và không đổi ngày', async () => {
   const {mt} = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: RF_MAY})});
   const k = taoKho(mt);
