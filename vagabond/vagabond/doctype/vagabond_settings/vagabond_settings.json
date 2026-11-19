@@ -216,6 +216,7 @@
   "web_ban_vue",
   "web_ten_mien_chinh",
   "mien_phi_giao_tu",
+  "mien_phi_giao_km",
   "web_dien_thoai",
   "web_email",
   "web_zalo",
@@ -1477,10 +1478,17 @@
    "label": "Dùng tên miền chính cho web khách"
   },
   {
-   "description": "Tiền bánh (chưa gồm phí giao, máy chủ tự tính) từ mức này trở lên thì khách không trả phí giao, tiệm chịu phí Ahamove. Để trống hoặc 0 là tắt miễn phí giao.",
+   "description": "Tiền bánh (chưa gồm phí giao, hệ thống tự tính) từ mức này trở lên thì khách không trả phí giao, The Vagabond chịu phí của đối tác giao hàng. Để trống hoặc 0 là tắt miễn phí giao.",
    "fieldname": "mien_phi_giao_tu",
    "fieldtype": "Currency",
    "label": "Miễn phí giao từ (đ)"
+  },
+  {
+   "default": "7",
+   "description": "Chỉ miễn phí giao khi địa chỉ nhận nằm trong bán kính này, tính đường thẳng từ điểm xuất hàng gần nhất (bếp hoặc cửa hàng). Đơn đủ mức tiền nhưng xa hơn thì khách trả phí giao như thường. Để trống là 7 km. Điền 0 là không giới hạn bán kính.",
+   "fieldname": "mien_phi_giao_km",
+   "fieldtype": "Float",
+   "label": "Miễn phí giao trong bán kính (km)"
   },
   {
    "fieldname": "web_dien_thoai",
@@ -1703,7 +1711,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-18 18:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
