@@ -133,7 +133,7 @@ export function taoTrang(D, mt = {}) {
     if (m && typeof m.url === 'string' && /^https:\/\//.test(m.url)) { dieuHuong(m.url); return; }
     let cau = '';
     try { cau = JSON.parse(JSON.parse(m._server_messages)[0]).message || ''; } catch (_) {}
-    st.loiThe = String(cau || chu('bien_nhan_tt_loi_the', 'Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn chúng tôi.'));
+    st.loiThe = String(cau || chu('bien_nhan_tt_loi_the', 'Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn The Vagabond.'));
     st.dangTra = false;
   }
   async function chepNoiDung() {
@@ -201,8 +201,8 @@ export function taoTrang(D, mt = {}) {
         h('h1', D.ten), h('p', {class:'cs-mo'}, D.mo || ''), ...veCay(D.cay)])]);
       if (!bn) return h('main', {class:'bn'}, [h('div', {class:'bn-in'}, [
         h('p', {class:'bn-nhan'}, chu('bien_nhan_fae8f9966', 'BIÊN NHẬN')),
-        h('h1', chu('bien_nhan_37a6f269e', 'Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.')),
-        h('p', {class:'bn-cau'}, chu('bien_nhan_bbd687e19', 'Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối trang.')),
+        h('h1', chu('bien_nhan_37a6f269e', 'Biên nhận chỉ mở được từ đường dẫn The Vagabond hiện ngay sau khi đặt.')),
+        h('p', {class:'bn-cau'}, chu('bien_nhan_bbd687e19', 'Quý khách xem lại mã yêu cầu trong tin nhắn của The Vagabond, hoặc nhắn The Vagabond qua Zalo, Messenger ở cuối trang.')),
         h('div', {class:'bn-nut'}, [h('a', {class:'nut chinh', href:D.trang_chu || '/web_moi/banh'}, chu('bien_nhan_6be58a5f5', 'Về trang đặt bánh'))])])]);
       const tt = bn.dang_xac_nhan ? 'cho' : (bn.da_huy ? 'huy' : 'nhan');
       const cau = {cho:'Chúng tôi đã tiếp nhận yêu cầu và đang kiểm tra. Quý khách không cần đặt lại.',
@@ -227,7 +227,7 @@ export function taoTrang(D, mt = {}) {
         khoiThanhToan(),
         ...veBanner(D.banner),
         /* Nút Nhắn Zalo, Messenger, Gọi giữ làm phụ (hỗ trợ), không còn là bước bắt buộc. */
-        lienHe.length ? h('p', {class:'bn-luu-y'}, chu('bien_nhan_tt_ho_tro', 'Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:')) : null,
+        lienHe.length ? h('p', {class:'bn-luu-y'}, chu('bien_nhan_tt_ho_tro', 'Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi The Vagabond:')) : null,
         h('div', {class:'bn-nut'}, [
           ...lienHe.map(a => h('a', {class:a.lop === 'phu' ? 'nut phu' : 'nut',href:a.href,rel:'noopener noreferrer'},a.khoa ? chu(a.khoa, a.ten) : a.ten)),
           h('a', {class:'nut chinh', href:D.trang_chu || '/web_moi/banh'}, chu('bien_nhan_3f197d985','Đặt thêm bánh'))])
