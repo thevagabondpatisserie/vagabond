@@ -133,13 +133,28 @@ export function taoTrang(D, mt = {}) {
     if (m && typeof m.url === 'string' && /^https:\/\//.test(m.url)) { dieuHuong(m.url); return; }
     let cau = '';
     try { cau = JSON.parse(JSON.parse(m._server_messages)[0]).message || ''; } catch (_) {}
-    st.loiThe = String(cau || chu('bien_nhan_tt_loi_the', 'Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn chúng tôi.'));
+    st.loiThe = String(cau || chu('bien_nhan_tt_loi_the', 'Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn The Vagabond.'));
     st.dangTra = false;
   }
   async function chepNoiDung() {
     const nd = st.tt && st.tt.ck && st.tt.ck.noi_dung;
     if (!nd) return;
     try { await chep(nd); st.daChep = true; } catch (_) { st.daChep = false; }
+  }
+  /* v675 (tester 19/11/2026): tách rõ ba bước của một đơn web trả trước: Đã gửi
+     yêu cầu, Chờ thanh toán, Đã xác nhận. Đơn được xác nhận khi tiền đã về đủ
+     (đơn web chỉ nhận thanh toán trước). Đơn cũ trả tiền mặt dừng ở bước 1. */
+  function buoc() {
+    const k = st.tt;
+    if (!k || !k.trang_thai || k.trang_thai === 'tien_mat') return 1;
+    return k.trang_thai === 'da_thu' ? 3 : 2;
+  }
+  function buocDon(tt) {
+    if (tt !== 'nhan' || (st.tt && st.tt.trang_thai === 'huy')) return null;
+    const b = buoc();
+    const ten = [chu('bien_nhan_buoc_1', 'Đã gửi yêu cầu'), chu('bien_nhan_buoc_2', 'Chờ thanh toán'), chu('bien_nhan_buoc_3', 'Đã xác nhận')];
+    return h('ol', {class: 'bn-buoc', id: 'bn-buoc', 'aria-label': chu('bien_nhan_buoc_nhan', 'Tiến độ đơn')},
+      ten.map((x, i) => h('li', {class: i + 1 < b || (b === 3 && i === 2) ? 'xong' : (i + 1 === b ? 'dang' : ''), 'aria-current': i + 1 === b ? 'step' : null}, x)));
   }
   function khoiThanhToan() {
     const k = st.tt;
@@ -186,19 +201,20 @@ export function taoTrang(D, mt = {}) {
         h('h1', D.ten), h('p', {class:'cs-mo'}, D.mo || ''), ...veCay(D.cay)])]);
       if (!bn) return h('main', {class:'bn'}, [h('div', {class:'bn-in'}, [
         h('p', {class:'bn-nhan'}, chu('bien_nhan_fae8f9966', 'BIÊN NHẬN')),
-        h('h1', chu('bien_nhan_37a6f269e', 'Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.')),
-        h('p', {class:'bn-cau'}, chu('bien_nhan_bbd687e19', 'Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối trang.')),
+        h('h1', chu('bien_nhan_37a6f269e', 'Biên nhận chỉ mở được từ đường dẫn The Vagabond hiện ngay sau khi đặt.')),
+        h('p', {class:'bn-cau'}, chu('bien_nhan_bbd687e19', 'Quý khách xem lại mã yêu cầu trong tin nhắn của The Vagabond, hoặc nhắn The Vagabond qua Zalo, Messenger ở cuối trang.')),
         h('div', {class:'bn-nut'}, [h('a', {class:'nut chinh', href:D.trang_chu || '/web_moi/banh'}, chu('bien_nhan_6be58a5f5', 'Về trang đặt bánh'))])])]);
       const tt = bn.dang_xac_nhan ? 'cho' : (bn.da_huy ? 'huy' : 'nhan');
       const cau = {cho:'Chúng tôi đã tiếp nhận yêu cầu và đang kiểm tra. Quý khách không cần đặt lại.',
         huy:'Đơn này đã được huỷ. Quý khách có thể đặt đơn mới hoặc liên hệ để được hỗ trợ.',
-        nhan:'Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận đơn.'};
+        nhan:'The Vagabond đã nhận yêu cầu. Đơn được xác nhận sau khi quý khách thanh toán.'};
       const lienHe = D.lien_he || [];
       return h('main', {class:'bn'}, [h('div', {class:'bn-in'}, [
         h('p', {class:'bn-nhan'}, chu('bien_nhan_ee537c03e','ĐÃ TIẾP NHẬN YÊU CẦU')),
         h('h1', [chu('bien_nhan_65781f4fe','Mã yêu cầu '), h('b', bn.ma)]),
-        h('p', {class:'bn-trang-thai ' + tt}, chu('bien_nhan_tt_'+tt, {cho:'Đang xác nhận',huy:'Đã huỷ',nhan:'Đã nhận'}[tt])),
-        h('p', {class:'bn-cau'}, chu('bien_nhan_'+tt,cau[tt])),
+        tt === 'nhan' ? null : h('p', {class:'bn-trang-thai ' + tt}, chu('bien_nhan_tt_'+tt, {cho:'Đang xác nhận',huy:'Đã huỷ'}[tt])),
+        buocDon(tt),
+        h('p', {class:'bn-cau'}, tt === 'nhan' && buoc() === 3 ? chu('bien_nhan_da_xac_nhan', 'The Vagabond đã nhận thanh toán và xác nhận đơn của quý khách.') : chu('bien_nhan_'+tt,cau[tt])),
         h('dl', {class:'bn-dong'}, [
           bn.ten ? dong(chu('bien_nhan_bd76ef893','Người đặt'), bn.ten) : null,
           dong(chu('bien_nhan_c3baf86a6','Nhận bánh'), [bn.ngay_nhan,bn.khung_gio].filter(Boolean).join(' · ')),
@@ -211,7 +227,7 @@ export function taoTrang(D, mt = {}) {
         khoiThanhToan(),
         ...veBanner(D.banner),
         /* Nút Nhắn Zalo, Messenger, Gọi giữ làm phụ (hỗ trợ), không còn là bước bắt buộc. */
-        lienHe.length ? h('p', {class:'bn-luu-y'}, chu('bien_nhan_tt_ho_tro', 'Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:')) : null,
+        lienHe.length ? h('p', {class:'bn-luu-y'}, chu('bien_nhan_tt_ho_tro', 'Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi The Vagabond:')) : null,
         h('div', {class:'bn-nut'}, [
           ...lienHe.map(a => h('a', {class:a.lop === 'phu' ? 'nut phu' : 'nut',href:a.href,rel:'noopener noreferrer'},a.khoa ? chu(a.khoa, a.ten) : a.ten)),
           h('a', {class:'nut chinh', href:D.trang_chu || '/web_moi/banh'}, chu('bien_nhan_3f197d985','Đặt thêm bánh'))])

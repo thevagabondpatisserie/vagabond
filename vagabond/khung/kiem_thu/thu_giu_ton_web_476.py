@@ -49,21 +49,47 @@ def _():
     la('không trừ hai lần',nhac,[]);la('giữ mới',giu['dong'],{'A':1})
 
 
-@ca('#476 giữ tồn: decor0 nhận làm theo đơn; decor dùng chung ba ngày')
+@ca('v671 giữ tồn ngày mai: theo Có thể bán của phiếu NGÀY MAI, chỉ đơn cùng ngày nhận trừ giữ; ngày kia không giữ')
 def _():
-    for decor,thieu in ((0,False),(1,True),(2,False)):
-        f,_=moi([doc(ngay='2026-10-15')],decor=decor)
+    # Trước v671: ngày mai, ngày kia theo Đủ decor dùng chung ba ngày.
+    for ngay_don, thieu in (('2026-10-15', True), ('2026-10-14', False), ('2026-10-16', False)):
+        f,vet=moi([doc(ngay=ngay_don)],ton=1,decor=9)
+        hoi=[]
+        goc=f.db.sql
+        f.db.sql=lambda q,args=None,goc=goc,hoi=hoi,**kw: hoi.append((q,args)) or goc(q,args,**kw)
         with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
-            nhac,giu=g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-16')
-        la('thiếu theo nguồn',bool(nhac),thieu)
-        if decor==0:la('không giữ nguồn không biết',giu,None)
+            nhac,giu=g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-15')
+        la('đơn giữ ngày %s: thiếu' % ngay_don,bool(nhac),thieu)
+        la('giữ cho đơn mới',giu,{'dong':{'A':1},'da_dem':False})
+        dung('đọc đúng phiếu ngày mai',any('tabKiem Banh Dong' in q and args==('KB-2026-10-15',) for q,args in hoi))
+    f,_=moi([],ton=0)
+    with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+        dung('Có thể bán 0 thì hết','còn 0' in g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-15')[0][0])
 
 
-@ca('#476 giữ tồn: không ngày hoặc ngoài ba ngày không khoá và không cảnh báo giả')
+@ca('#476 giữ tồn: không ngày hoặc xa hơn 3 ngày tới (v675) không khoá và không cảnh báo giả')
 def _():
     with patch.object(g,'frappe',D()),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
-        for ngay in ('',None,'2026-10-18'):
+        for ngay in ('',None,'2026-10-18','2026-10-20'):
             la('không áp',g.kiem_va_giu([{'variation_id':'A','quantity':1}],ngay),([],None))
+
+
+@ca('v675 giữ tồn ngày kia: theo Đủ decor, trừ đơn web chưa đếm của cả ba ngày tới (cùng ăn vào Đủ decor), không trừ đơn ngày khác')
+def _():
+    for ngay_don, so, thieu in (('2026-10-15', 2, True), ('2026-10-17', 2, True), ('2026-10-15', 1, False), ('2026-10-18', 2, False), ('2026-10-14', 2, False)):
+        f,_=moi([doc(ngay=ngay_don)],ton=9,decor=2)
+        with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+            nhac,giu=g.kiem_va_giu([{'variation_id':'A','quantity':so}],'2026-10-16')
+        la('đơn giữ ngày %s, đặt %s: thiếu' % (ngay_don, so),bool(nhac),thieu)
+        if not thieu:
+            la('giữ cho đơn mới',giu,{'dong':{'A':so},'da_dem':False})
+    f,_=moi([],ton=9,decor=2,dd=1)
+    with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+        dung('Đủ decor 2 trừ đơn chưa làm của ba ngày (1 mỗi ngày): hết, Có thể bán 9 không tính','còn 0' in g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-16')[0][0])
+    f,_=moi([],ton=9,decor=0)
+    with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+        n,giu=g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-16')
+    dung('bánh đặt trước không có Đủ decor: ngày kia hết',bool(n) and 'còn 0' in n[0])
 
 
 @ca('#476 giữ tồn: đồng bộ chỉ đánh dấu đúng đơn được tính, không đụng đơn cũ')
@@ -111,7 +137,7 @@ def _():
     dung('đã gửi','post' in vet.su)
 
 
-@ca('#476 dời ngày Pancake: nhận ID ngày mới, đồng bộ ngày cũ không trừ decor hai lần')
+@ca('#476 dời ngày Pancake: nhận ID ngày mới, đồng bộ ngày cũ không trừ hai lần')
 def _():
     d=doc(dem=True,ngay='2026-10-15');f,_=moi([d],decor=2)
     def luu(dt,name,fields,**kw):d.snapshot=fields['snapshot']
@@ -121,12 +147,15 @@ def _():
         la('nguồn mới',json.loads(d.snapshot)[g.O].get('ngay_nguon'),'2026-10-16')
         g.da_dem('2026-10-15',[])
         dung('ngày cũ không xóa dấu',json.loads(d.snapshot)[g.O]['da_dem'])
-        # KB của ngày mới đã trừ một decor, chỉ còn một. Không trừ giữ nữa.
-        f.db.sql=lambda q,*a,**kw: [('pancake_shop_id',)] if 'tabSingles' in q else (
-            [D(ma_hang='A',ten_banh='A',so_decor=1)] if 'tabBTP Banh O Dong' in q else (
-            [d] if 'tabVagabond Don Web' in q else []))
-        nhac,_giu=g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-17')
+    # v671: phiếu ngày 16 (ngày mai của 15/10) đã trừ đơn này ở Có thể bán, còn 1.
+    # Đơn đã đếm thì không trừ giữ lần nữa.
+    f.db.sql=lambda q,*a,**kw: [('pancake_shop_id',)] if 'tabSingles' in q else (
+        [D(ma_hang='A',ten_banh='A',co_the_ban=1)] if 'tabKiem Banh Dong' in q else (
+        [] if 'tabBTP Banh O Dong' in q else ([d] if 'tabVagabond Don Web' in q else [])))
+    with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,15)):
+        nhac,_giu=g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-16')
         la('vẫn bán được phần còn lại',nhac,[])
+    with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
         g.da_dem('2026-10-16',[])
         dung('chỉ ngày nguồn mất ID mới nhả dấu',not json.loads(d.snapshot)[g.O]['da_dem'])
 

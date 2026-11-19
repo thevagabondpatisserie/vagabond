@@ -32,7 +32,6 @@ from frappe.utils import add_days, getdate, now_datetime
 
 from vagabond import pancake_nhip, tat_ban_web
 from vagabond.anh_web import chon_anh
-from vagabond.giu_vo import don_con_giu_vo
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
 
 
@@ -707,8 +706,8 @@ def _dong_bo_mot_lan(ngay=None):
 		else:
 			frappe.db.set_value("Kiem Banh Ngay", ma_doc, "dong_bo_luc", doc.dong_bo_luc, update_modified=False)
 		chuyen_lai_ton(doc, doi)
-		giu_ton_web.da_dem(ngay, [o.get("id") for o in
-			(giao_hom_nay if str(ngay)[:10] == str(giu_ton_web.hom_nay()) else dd_don)])
+		# v671: cùng luật đếm với nhánh dưới (Có thể bán trừ mọi đơn giao ngày đó).
+		giu_ton_web.da_dem(ngay, [o.get("id") for o in giao_hom_nay])
 		frappe.db.commit()
 		return bang(ngay)
 	ten1.update(ten2)
@@ -784,8 +783,10 @@ def _dong_bo_mot_lan(ngay=None):
 
 	doc.dong_bo_luc = now_datetime()
 	doc.save(ignore_permissions=True)
-	giu_ton_web.da_dem(ngay, [o.get("id") for o in
-		(giao_hom_nay if str(ngay)[:10] == str(giu_ton_web.hom_nay()) else dd_don)])
+	# v671: hôm nay và ngày mai đều là nguồn số của web theo cột Có thể bán, cột
+	# này trừ cả Đã đặt, Phát sinh lẫn Chờ chốt, nên mọi đơn giao ngày đó đã được
+	# đếm (trước v671 ngày sau theo Đủ decor chỉ trừ Đã đặt).
+	giu_ton_web.da_dem(ngay, [o.get("id") for o in giao_hom_nay])
 	frappe.db.commit()
 	return bang(ngay)
 
@@ -1069,6 +1070,15 @@ def dong_bo_tu_dong():
 		dong_bo()
 	except Exception:
 		frappe.log_error(title="Vagabond: dong bo kiem banh loi", message=frappe.get_traceback())
+	# v671: tab Đặt bánh trước của web lấy số theo phiếu NGÀY MAI, nên phiếu
+	# ngày mai (nếu bếp đã mở) cũng phải đếm đơn Pancake mỗi nhịp, không chỉ khi
+	# có người mở màn ngày mai. Chưa có phiếu thì không tự tạo.
+	try:
+		mai = add_days(getdate(), 1)
+		if frappe.db.exists("Kiem Banh Ngay", "KB-%s" % mai):
+			dong_bo(mai)
+	except Exception:
+		frappe.log_error(title="Vagabond: dong bo kiem banh ngay mai loi", message=frappe.get_traceback())
 
 
 @frappe.whitelist()
@@ -1665,7 +1675,8 @@ def co_the_ban_hom_nay():
 	ngay = getdate()
 	ma = "KB-%s" % ngay
 	chi_hien = _web_chi_hien()
-	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": [], "dat_truoc": _dat_truoc_theo_decor(), "chi_hien": chi_hien}
+	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": [], "dat_truoc": _dat_truoc_theo_decor(), "chi_hien": chi_hien,
+		"dac_biet": _mon_dac_biet()}
 	if not frappe.db.exists("Kiem Banh Ngay", ma):
 		return rong
 	doc = frappe.get_doc("Kiem Banh Ngay", ma)
@@ -1748,7 +1759,46 @@ def co_the_ban_hom_nay():
 		"nhom": ds_nhom,
 		"dat_truoc": _dat_truoc_theo_decor(),
 		"chi_hien": chi_hien,
+		"dac_biet": rong["dac_biet"],
 	}
+
+
+def _mon_dac_biet():
+	"""v671 (Minh Vũ 18/11/2026): món của đợt "Đặc biệt tuần này" khách đang
+	thấy, theo ĐỢT chứ không theo tồn tủ hay ô Đủ decor (dac_biet_tuan.nhom_cua_dot).
+	Cùng luật mã được bán trên web với hai tab kia (duoc_len_web). Danh sách
+	này KHÔNG vào bảng số của tab Có sẵn hôm nay hay Đặt bánh trước: món chỉ
+	làm cho đợt không lọt sang hai tab đó. Đọc hỏng thì ghi lỗi, trả rỗng,
+	không làm hỏng hai tab kia."""
+	from vagabond import banh_web
+	from vagabond import dac_biet_tuan as dbt
+
+	try:
+		dot = dbt.dot_cong_khai()
+		khoa = [m["khoa"] for m in (dot or {}).get("mon_dt") or []]
+		if not khoa:
+			return []
+		the = frappe.get_all(banh_web.DT, filters={"khoa": ["in", khoa]},
+			fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang"],
+			limit_page_length=0, ignore_permissions=True)
+		the_ds = [{"khoa": t.khoa, "ten": t.ten, "trang_thai": t.trang_thai,
+			"anhs": [x["url"] for x in banh_web.doc_anh(t.anh)][:banh_web.SO_ANH_TOI_DA],
+			"mo_ta": banh_web.tach_dong(t.mo_ta), "tang": banh_web.tach_dong(t.tang, banh_web.SO_TANG_TOI_DA),
+			"di_ung": banh_web.tach_dong(t.get("di_ung")), "bao_quan": banh_web.tach_dong(t.get("bao_quan")),
+			"ma": banh_web.tach_dong(t.ma_hang)} for t in the]
+		ma = sorted({m for t in the_ds for m in t["ma"]
+			if not str(m or "").upper().startswith("BAWS")})
+		if not ma:
+			return []
+		it = frappe.get_all("Item", filters={"item_code": ["in", ma]}, fields=TRUONG_LEN_WEB,
+			limit_page_length=0, ignore_permissions=True)
+		tat = tat_ban_web.bang(ma, getdate())
+		gia_ma = {x["item_code"]: {"cm": _tach_ten_size(x.get("item_name"))[1], "gia": int(x.get("standard_rate") or 0)}
+			for x in it if duoc_len_web(x, tat)}
+		return dbt.nhom_cua_dot(dot, the_ds, gia_ma)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được món Đặc biệt tuần này")
+		return []
 
 
 def _web_chi_hien():
@@ -1841,51 +1891,86 @@ def duoc_len_web(x, tat=None):
 	return not ((tat or {}).get(x.get("item_code")) or {}).get("tat")
 
 
+def con_dat_truoc_mai(dong_mai, la_ngay_refill=lambda ma: False):
+	"""{mã: số} tab Đặt bánh trước còn nhận cho NGÀY MAI. Phép THUẦN.
+
+	Số là cột Có thể bán của phiếu Kiểm bánh ngày mai (máy tính ở
+	KiemBanhNgay.validate). Bỏ mã bánh sỉ BAWS, dòng không dương, và mã mà ngày
+	mai thuộc khoảng mẻ refill (đơn ngày đó trừ vào mẻ, số theo mẻ). Một mã
+	nhiều dòng thì cộng lại."""
+	ra = {}
+	for d in dong_mai or []:
+		ma = str(getattr(d, "ma_hang", None) or "")
+		if not ma or ma.upper().startswith("BAWS") or la_ngay_refill(ma):
+			continue
+		ra[ma] = ra.get(ma, 0) + int(getattr(d, "co_the_ban", None) or 0)
+	return {m: n for m, n in ra.items() if n > 0}
+
+
 def _dat_truoc_theo_decor():
-	"""Danh muc tab DAT BANH TRUOC cua trang order, lay theo o DU DECOR
-	ma bep dien trong /kiem-banh (kho BTP Banh O). Chot voi anh Viet
-	07/08/2026: so decor la so banh con nhieu, nhan don duoc cho 3 ngay,
-	nen tab dat truoc chi hien dung nhung banh nay kem so luong con nhan.
+	"""Danh mục tab ĐẶT BÁNH TRƯỚC của trang đặt bánh.
+
+	v671 (Loan Anh góp ý 18/11/2026, anh Việt chốt): tab này nhận NGÀY MAI, số
+	theo cột Có thể bán của phiếu Kiểm bánh NGÀY MAI (tồn chuyển qua lúc chốt,
+	Bếp làm cho ngày mai, đã trừ đơn đã đặt, chờ chốt, giữ chỗ của ngày mai),
+	cùng cách tính với tab Có sẵn hôm nay. Trước v671 tab lấy theo ô Đủ decor
+	của bảng BTP (chốt 07/08/2026, nhận 3 ngày tới); ô Đủ decor nay chỉ còn là
+	số nội bộ của bếp. Tên hàm giữ nguyên cho các nơi gọi cũ.
+
+	Bánh có mẻ refill (v646) vẫn theo mẻ: ngày mai nằm trong khoảng của mẻ thì
+	số theo mẻ, và web cho chọn ngày trong khoảng của mẻ (anh Việt chốt giữ).
 	"""
 	try:
 		kho = frappe.get_single("BTP Banh O")
+		dong_btp = list(kho.dong or [])
+		cap_nhat = str(kho.cap_nhat_luc or "") or None
 	except Exception:
-		return {"cap_nhat_luc": None, "nhom": []}
+		dong_btp, cap_nhat = [], None
 	# Trang order ban LE: ma BAWS la banh si, khong duoc bay len (anh Viet
 	# 10/08/2026).
 	# v646 Refill (anh Việt duyệt 09/11): bánh có mẻ refill còn nhận đơn cũng lên
 	# tab này, kèm ngày có bánh và ngày nhận tới để web chỉ cho chọn đúng khoảng.
 	from vagabond import refill
 
-	rf = {}
-	if refill.hieu_luc_tu_dong(kho.dong, getdate()):
-		so_rf = refill.tinh(dong=kho.dong)
+	ngay = getdate()
+	mai = add_days(ngay, 1)
+	rf, so_rf = {}, None
+	if dong_btp and refill.hieu_luc_tu_dong(dong_btp, ngay):
+		so_rf = refill.tinh(dong=dong_btp)
 		# Chưa đếm được đơn (Pancake lỗi) thì KHÔNG mở bán refill: thà ẩn còn hơn nhận lố.
 		# v660: một bánh nhiều đợt, giữ các đợt đã đếm được.
 		rf = {m: [r for r in ds if r.get("con") is not None] for m, ds in (so_rf.get("refill") or {}).items()}
 		rf = {m: ds for m, ds in rf.items() if ds}
-	dong = [
-		b for b in (kho.dong or [])
-		if ((b.so_decor or 0) > 0 or any((r.get("con") or 0) > 0 for r in rf.get(b.ma_hang) or []))
-		and not str(b.ma_hang or "").upper().startswith("BAWS")
-	]
-	if not dong:
-		return {"cap_nhat_luc": str(kho.cap_nhat_luc or "") or None, "nhom": []}
+	ma_kb = "KB-%s" % mai
+	dong_mai = frappe.get_doc("Kiem Banh Ngay", ma_kb).dong if frappe.db.exists("Kiem Banh Ngay", ma_kb) else []
+	# v675: đợt đã nhận đủ đơn không giữ ngày mai nữa, bánh bán theo phiếu ngày mai
+	# (cùng phép bo_dot_du_don với cửa nhận đơn và cửa tạo đơn).
+	rf_mo = refill.bo_dot_du_don(rf, so_rf) if rf else {}
+	con_mai = con_dat_truoc_mai(dong_mai, lambda ma: bool(refill.ngay_cua_refill(rf_mo, ma, mai)))
+	# v675 (Sales 19/11/2026, giám đốc chốt): ngày kia và ngày thứ ba theo Đủ decor
+	# còn nhận, cùng phép ton_don_web.con_decor với cửa nhận đơn và cửa tạo đơn.
+	from vagabond import ton_don_web
 
-	# Tru don DA DAT trong 3 ngay toi (da_dat cua phieu kiem banh ngay mai,
-	# mot va hai ngay sau) de so "con nhan" tren web khong nhan lo.
-	ngay = getdate()
-	da_dat = {}
-	for i in (1, 2, 3):
-		ma_kb = "KB-%s" % add_days(ngay, i)
-		if not frappe.db.exists("Kiem Banh Ngay", ma_kb):
-			continue
-		for d in frappe.get_doc("Kiem Banh Ngay", ma_kb).dong:
-			# Ngày nằm trong khoảng refill của mã: đơn trừ vào refill, không trừ decor.
-			if refill.ngay_cua_refill(rf, d.ma_hang, add_days(ngay, i)):
-				continue
-			# v649 Codex #552 vòng 7: đơn đã có bánh bếp làm trước thì vỏ đã trừ.
-			da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + don_con_giu_vo(d, ("da_dat",))
+	kb3 = [(mai, dong_mai)]
+	for i in range(2, ton_don_web.SO_NGAY_DAT_TRUOC + 1):
+		ng_i = add_days(ngay, i)
+		if frappe.db.exists("Kiem Banh Ngay", "KB-%s" % ng_i):
+			kb3.append((ng_i, frappe.get_doc("Kiem Banh Ngay", "KB-%s" % ng_i).dong))
+	con_xa = {m: n for m, (n, _t) in ton_don_web.con_decor(dong_btp, kb3, ngay, refill.hieu_luc_tu_dong(dong_btp, ngay),
+		so_rf, ton_don_web.da_lam_dot_vuot(so_rf, ngay)).items() if n > 0 and not m.upper().startswith("BAWS")
+		# Ngày kia và ngày thứ ba đều thuộc đợt refill còn nhận thì hai ngày đó theo đợt.
+		and any(not refill.ngay_cua_refill(rf_mo, m, add_days(ngay, i)) for i in range(2, ton_don_web.SO_NGAY_DAT_TRUOC + 1))}
+	# Mỗi mã một dòng nguồn (tên, ảnh): phiếu ngày mai trước, bảng BTP cho mã chỉ còn refill hay Đủ decor.
+	nguon = {}
+	for b in dong_btp:
+		if any((r.get("con") or 0) > 0 for r in rf.get(b.ma_hang) or []) or b.ma_hang in con_xa:
+			nguon[b.ma_hang] = b
+	for d in dong_mai:
+		if d.ma_hang in con_mai:
+			nguon[d.ma_hang] = d
+	dong = [b for b in nguon.values() if not str(b.ma_hang or "").upper().startswith("BAWS")]
+	if not dong:
+		return {"cap_nhat_luc": cap_nhat, "nhom": []}
 
 	ds = frappe.get_all(
 		"Item",
@@ -1905,12 +1990,13 @@ def _dat_truoc_theo_decor():
 			# khong gia (hien "tu 0 d"), ngung dung, hay dang tat ban web:
 			# khong dua len trang khach (v606, xem duoc_len_web).
 			continue
-		con = int(b.so_decor or 0) - int(da_dat.get(b.ma_hang, 0)) if (b.so_decor or 0) > 0 else 0
+		con = con_mai.get(b.ma_hang, 0)
 		# Các đợt còn suất, đợt sớm nhất đứng đầu (v660).
 		ds_rf = [r for r in rf.get(b.ma_hang) or [] if int(r.get("con") or 0) > 0]
 		r = ds_rf[0] if ds_rf else None
 		con_rf = int((r or {}).get("con") or 0)
-		if con <= 0 and con_rf <= 0:
+		xa = con_xa.get(b.ma_hang, 0)
+		if con <= 0 and con_rf <= 0 and xa <= 0:
 			continue
 		ten_day = x.get("item_name") or b.ten_banh or b.ma_hang
 		goc, cm = _tach_ten_size(ten_day)
@@ -1925,24 +2011,28 @@ def _dat_truoc_theo_decor():
 				"ma": b.ma_hang,
 				"cm": cm,
 				"gia": int(x.get("standard_rate") or 0),
-				"con": con if con > 0 else con_rf,
+				# v675: con giữ cho trang cũ (số đầu tiên còn nhận); con_mai là ngày mai
+				# theo phiếu, con_xa là ngày kia và ngày thứ ba theo Đủ decor.
+				"con": con if con > 0 else (xa if xa > 0 else con_rf),
+				"con_mai": con,
+				"con_xa": xa,
 				"_anh_erp": x.get("image") or "",
 				"_anh_dong": b.hinh or "",
 			}
 		)
 		if con_rf > 0:
-			# Khoảng ngày nhận của refill; chỉ còn refill (decor hết) thì web
+			# Khoảng ngày nhận của refill; chỉ còn refill (phiếu ngày mai hết) thì web
 			# chỉ cho chọn ngày trong khoảng này.
 			# "ds" là mọi đợt còn suất: web cho chọn ngày trong bất kỳ đợt nào và lấy
 			# số còn của đúng đợt chứa ngày đó. tu, den, con là đợt sớm nhất, giữ
 			# cho trang khách còn mở bản cũ.
-			g["sizes"][-1]["refill"] = {"tu": r["tu"], "den": r["den"], "con": con_rf, "chi_refill": 0 if con > 0 else 1,
+			g["sizes"][-1]["refill"] = {"tu": r["tu"], "den": r["den"], "con": con_rf, "chi_refill": 0 if (con > 0 or xa > 0) else 1,
 				"ds": [{"tu": x["tu"], "den": x["den"], "con": int(x.get("con") or 0)} for x in ds_rf]}
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
 	ra = _anh_noi_dung_web([nhom[k] for k in thu_tu])
 	return {
-		"cap_nhat_luc": str(kho.cap_nhat_luc or "") or None,
+		"cap_nhat_luc": cap_nhat,
 		"nhom": ra,
 	}
 

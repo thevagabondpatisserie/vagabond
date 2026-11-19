@@ -169,7 +169,7 @@
     });
     datKhach(Math.min(2, toiDa())); datTre(0);
     capNhat();
-    tim('dat-ban').hidden = false; bao((chuWeb("dat_ban_f33d5c7c4", "Chúng tôi sẽ liên hệ xác nhận sau khi nhận yêu cầu.")));
+    tim('dat-ban').hidden = false; bao((chuWeb("dat_ban_f33d5c7c4", "The Vagabond sẽ liên hệ xác nhận. Bàn chỉ được giữ sau khi quý khách nhận xác nhận.")));
   } catch (_) { bao((chuWeb("dat_ban_13864d971", "Chưa tải được lịch. Tải lại trang hoặc gọi cho chúng tôi để đặt bàn.")), true); return; }
   tim('dat-ban').onsubmit = async e => {
     e.preventDefault(); if (dangGui) return;

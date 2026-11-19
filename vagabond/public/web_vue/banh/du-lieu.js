@@ -94,14 +94,15 @@ export const PICKUPS_GOC = [
   {id: 'cua-hang-sai-gon', n: 'Cửa hàng Sài Gòn', a: '9 Trần Cao Vân, P. Sài Gòn'}
 ];
 
-/* v638 (anh Việt 04/11/2026): khách trả ngay trên web, bốn cách. `the`: đi qua
+/* v638 (anh Việt 04/11/2026): khách trả ngay trên web (v675: ba cách, không còn tiền mặt). `the`: đi qua
    cổng OnePay (cổng tắt thì ẩn). Giá trị gửi máy chủ đúng như `k`. */
 export const PAYS = [
   {k: 'bank', kn: 'dat_banh_983bba817', n: 'Chuyển khoản', kd: 'dat_banh_d2684b2c6', d: 'Hiện mã VietQR, quét là xong, nội dung đã điền sẵn mã đơn'},
   {k: 'card', the: true, kn: 'dat_banh_pt_the_qt', n: 'Thẻ tín dụng, ghi nợ quốc tế', kd: 'dat_banh_pt_the_qt_mo', d: 'Visa, Mastercard, JCB. Trả ngay trên trang bảo mật OnePay sau khi gửi đơn'},
-  {k: 'atm', the: true, kn: 'dat_banh_pt_atm', n: 'Thẻ ATM nội địa', kd: 'dat_banh_pt_atm_mo', d: 'Thẻ ngân hàng Việt Nam (Napas) đã mở thanh toán trực tuyến, qua cổng OnePay'},
-  {k: 'cash', kn: 'dat_banh_pt_tien_mat', n: 'Tiền mặt khi nhận bánh', kd: 'dat_banh_pt_tien_mat_mo', d: 'Trả khi lấy bánh tại quầy hoặc trả cho người giao'}
+  {k: 'atm', the: true, kn: 'dat_banh_pt_atm', n: 'Thẻ ATM nội địa', kd: 'dat_banh_pt_atm_mo', d: 'Thẻ ngân hàng Việt Nam (Napas) đã mở thanh toán trực tuyến, qua cổng OnePay'}
 ];
+/* v675 (anh Việt 19/11/2026): đơn web chỉ nhận thanh toán trước, bỏ Tiền mặt khi
+   nhận bánh. Đơn cũ đã chọn tiền mặt vẫn đọc được ở biên nhận (máy chủ giữ nhãn). */
 
 /* Điểm lấy hàng máy chủ trả về (diem_lay) -> tên cho khách. */
 export const TEN_DIEM = {
@@ -117,7 +118,7 @@ export const LY_DO = {
   gio_hang_rong: ['dat_banh_d3470ca1b', 'Giỏ hàng trống hoặc món đã hết mã.'],
   thieu_ten_hoac_so_dien_thoai: ['dat_banh_3261b803a', 'Thiếu tên hoặc số điện thoại.'],
   thieu_dia_chi_giao: ['dat_banh_1c040d123', 'Thiếu địa chỉ giao.'],
-  ngoai_vung_giao: ['dat_banh_f578cc0d6', 'Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng'],
+  ngoai_vung_giao: ['dat_banh_f578cc0d6', 'Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng'],
   khong_tim_thay_ma_hang: ['dat_banh_35ec19a18', 'Một món trong giỏ không tra được mã bán hàng, chúng tôi sẽ kiểm tra lại ngay.'],
   chua_dien_toa_do_diem_lay: ['dat_banh_dda0df2c0', 'Hệ thống của chúng tôi đang trục trặc.'],
   pancake_tu_choi: ['dat_banh_3baaae33b', 'Hệ thống bán hàng của chúng tôi từ chối đơn này.'],

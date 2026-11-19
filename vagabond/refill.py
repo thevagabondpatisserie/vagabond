@@ -155,6 +155,28 @@ def ngay_cua_refill(refill, ma, ngay_giao):
 	return dot_cua(refill, ma, ngay_giao) is not None
 
 
+def bo_dot_du_don(refill, so):
+	"""v675 (Sales báo 19/11/2026, giám đốc chốt): bỏ các đợt đã nhận đủ đơn. THUẦN.
+
+	refill: {mã: [đợt {id, so, tu, den}]} hiệu lực (hieu_luc_tu_dong); so: kết quả
+	`tinh`. Đợt có số còn (đã đếm) bằng 0 hay âm không còn giữ các ngày của nó:
+	ngày đó bánh bán theo luật bánh đặt trước thường (phiếu Kiểm bánh ngày mai).
+	Đợt chưa đếm được (con None) giữ nguyên, Pancake lỗi thì giữ mọi đợt như cũ.
+	Mọi chỗ quyết "ngày này theo đợt hay theo phiếu" (thẻ web, cửa nhận đơn, cửa
+	tạo đơn) gọi đúng hàm này để cùng một kết quả."""
+	if not so or so.get("loi"):
+		return refill
+	dem = {(ma, r.get("id")): r.get("con") for ma, ds in (so.get("refill") or {}).items() for r in ds or []}
+	ra = {}
+	for ma, ds in (refill or {}).items():
+		if isinstance(ds, dict):
+			ds = [ds]
+		giu = [r for r in ds or [] if dem.get((ma, r.get("id"))) is None or int(dem[(ma, r.get("id"))]) > 0]
+		if giu:
+			ra[ma] = giu
+	return ra
+
+
 def theo_ngay(refill, ngay_giao):
 	"""{mã: đợt chứa ngày giao}: dùng cho cửa nhận đơn của MỘT ngày nhận. THUẦN."""
 	ra = {}

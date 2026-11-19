@@ -786,9 +786,9 @@
     "nhieu_dong": true
   },
   "dat_banh_f578cc0d6": {
-    "ten": "Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng",
+    "ten": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng",
     "nhom": "dat_banh",
-    "mac_dinh": "Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng",
+    "mac_dinh": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng",
     "nhieu_dong": true
   },
   "dat_banh_35ec19a18": {
@@ -882,9 +882,9 @@
     "nhieu_dong": true
   },
   "dat_banh_0e39768bd": {
-    "ten": "Địa chỉ ngoài vùng giao. Quý khách chọn \"Tự lấy tại cửa hàng\"",
+    "ten": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng",
     "nhom": "gio_hang",
-    "mac_dinh": "Địa chỉ ngoài vùng giao. Quý khách chọn \"Tự lấy tại cửa hàng\"",
+    "mac_dinh": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng",
     "nhieu_dong": true
   },
   "dat_banh_5db00ac93": {
@@ -1128,9 +1128,9 @@
     "nhieu_dong": true
   },
   "dat_ban_f33d5c7c4": {
-    "ten": "Chúng tôi sẽ liên hệ xác nhận sau khi nhận yêu cầu.",
+    "ten": "The Vagabond sẽ liên hệ xác nhận. Bàn chỉ được giữ sau khi quý khách nhận xác nhận.",
     "nhom": "dat_ban",
-    "mac_dinh": "Chúng tôi sẽ liên hệ xác nhận sau khi nhận yêu cầu.",
+    "mac_dinh": "The Vagabond sẽ liên hệ xác nhận. Bàn chỉ được giữ sau khi quý khách nhận xác nhận.",
     "nhieu_dong": true
   },
   "dat_ban_13864d971": {
@@ -1368,15 +1368,15 @@
     "nhieu_dong": true
   },
   "bien_nhan_37a6f269e": {
-    "ten": "Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.",
+    "ten": "Biên nhận chỉ mở được từ đường dẫn The Vagabond hiện ngay sau khi đặt.",
     "nhom": "bien_nhan",
-    "mac_dinh": "Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.",
+    "mac_dinh": "Biên nhận chỉ mở được từ đường dẫn The Vagabond hiện ngay sau khi đặt.",
     "nhieu_dong": true
   },
   "bien_nhan_bbd687e19": {
     "ten": "Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối tran",
     "nhom": "bien_nhan",
-    "mac_dinh": "Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối trang.",
+    "mac_dinh": "Quý khách xem lại mã yêu cầu trong tin nhắn của The Vagabond, hoặc nhắn The Vagabond qua Zalo, Messenger ở cuối trang.",
     "nhieu_dong": true
   },
   "bien_nhan_6be58a5f5": {
@@ -1890,9 +1890,9 @@
     "nhieu_dong": true
   },
   "dat_banh_05faf7b4b": {
-    "ten": "/60 ký tự. Nội dung sẽ được in thành cờ, khi vào tiệc thì cắm lên bánh.",
+    "ten": "/60 ký tự. The Vagabond in lời chúc lên cờ cắm bánh.",
     "nhom": "dat_banh",
-    "mac_dinh": "/60 ký tự. Nội dung sẽ được in thành cờ, khi vào tiệc thì cắm lên bánh.",
+    "mac_dinh": "/60 ký tự. The Vagabond in lời chúc lên cờ cắm bánh.",
     "nhieu_dong": true
   },
   "dat_banh_2320148b6": {
@@ -2274,9 +2274,9 @@
     "nhieu_dong": true
   },
   "bien_nhan_nhan": {
-    "ten": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận đơn.",
+    "ten": "The Vagabond đã nhận yêu cầu. Đơn được xác nhận sau khi quý khách thanh toán.",
     "nhom": "bien_nhan",
-    "mac_dinh": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận đơn.",
+    "mac_dinh": "The Vagabond đã nhận yêu cầu. Đơn được xác nhận sau khi quý khách thanh toán.",
     "nhieu_dong": true
   },
   "bien_nhan_tt_cho": {
@@ -2438,7 +2438,7 @@
   "giao_ngoai_vung": {
     "ten": "Địa chỉ ngoài vùng giao",
     "nhom": "gio_hang",
-    "mac_dinh": "Chúng tôi chưa hỗ trợ giao đến địa chỉ này. Bánh kem chỉ giao trong bán kính {km} km quanh bếp và cửa hàng. Quý khách có thể chọn tự đến lấy tại cửa hàng.",
+    "mac_dinh": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng.",
     "nhieu_dong": true
   },
   "don_da_tiep_nhan": {
@@ -3208,12 +3208,12 @@
   "huong_size_nut": {
     "ten": "Nút Cách chọn size",
     "nhom": "dat_banh",
-    "mac_dinh": "Cách chọn size"
+    "mac_dinh": "Chọn cỡ bánh"
   },
   "huong_size_tieu_de": {
     "ten": "Hộp chọn size: tiêu đề",
     "nhom": "dat_banh",
-    "mac_dinh": "Chọn size bánh"
+    "mac_dinh": "Chọn cỡ bánh"
   },
   "huong_size_mo_ta": {
     "ten": "Hộp chọn size: câu đầu",
@@ -3258,7 +3258,7 @@
   "pk_co_san_tieu_de": {
     "ten": "Mục 03: tiêu đề khung",
     "nhom": "dat_banh",
-    "mac_dinh": "Tặng kèm mọi bánh ổ"
+    "mac_dinh": "Kèm theo mỗi bánh"
   },
   "pk_co_san_mo_ta": {
     "ten": "Mục 03: câu dưới tiêu đề",
@@ -4747,9 +4747,9 @@
     "mac_dinh": "Bánh sỉ"
   },
   "bsi_tieu_de": {
-    "ten": "Bánh sỉ: Bánh cho quán của bạn",
+    "ten": "Bánh sỉ: Bánh cho quán của quý khách",
     "nhom": "banh_si",
-    "mac_dinh": "Bánh cho quán của bạn"
+    "mac_dinh": "Bánh cho quán của quý khách"
   },
   "bsi_tieu_de_phu": {
     "ten": "Bánh sỉ: Quán cà phê, khách sạn, nhà hàng",
@@ -5439,9 +5439,9 @@
     "nhieu_dong": true
   },
   "bien_nhan_tt_ho_tro": {
-    "ten": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:",
+    "ten": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi The Vagabond:",
     "nhom": "bien_nhan",
-    "mac_dinh": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:",
+    "mac_dinh": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi The Vagabond:",
     "nhieu_dong": true
   },
   "bien_nhan_tt_dang_chuyen": {
@@ -5451,9 +5451,9 @@
     "nhieu_dong": true
   },
   "bien_nhan_tt_loi_the": {
-    "ten": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn chúng tôi.",
+    "ten": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn The Vagabond.",
     "nhom": "bien_nhan",
-    "mac_dinh": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn chúng tôi.",
+    "mac_dinh": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn The Vagabond.",
     "nhieu_dong": true
   },
   "dat_banh_pt_the_qt": {
@@ -6225,9 +6225,9 @@
     "nhieu_dong": true
   },
   "goi_ban_ud_vi": {
-    "ten": "Gọi món tại bàn: Ví quà của bạn",
+    "ten": "Gọi món tại bàn: Ví quà của quý khách",
     "nhom": "dat_banh",
-    "mac_dinh": "Ví quà của bạn",
+    "mac_dinh": "Ví quà của quý khách",
     "nhieu_dong": true
   },
   "goi_ban_ud_ct": {
@@ -7053,9 +7053,9 @@
     "nhieu_dong": true
   },
   "tv658_ban_o_day": {
-    "ten": "The Vagabond Club: Bạn ở đây",
+    "ten": "The Vagabond Club: Đang ở hạng này",
     "nhom": "thanh_vien",
-    "mac_dinh": "Bạn ở đây",
+    "mac_dinh": "Đang ở hạng này",
     "nhieu_dong": true
   },
   "tv658_ht_aria": {
@@ -7065,9 +7065,9 @@
     "nhieu_dong": true
   },
   "tv658_ht_aria_la": {
-    "ten": "The Vagabond Club: Bạn đang ở hạng {hang}.",
+    "ten": "The Vagabond Club: Quý khách đang ở hạng {hang}.",
     "nhom": "thanh_vien",
-    "mac_dinh": "Bạn đang ở hạng {hang}.",
+    "mac_dinh": "Quý khách đang ở hạng {hang}.",
     "nhieu_dong": true
   },
   "tv658_chi_12": {
@@ -7089,9 +7089,9 @@
     "nhieu_dong": true
   },
   "tv658_cao_nhat": {
-    "ten": "The Vagabond Club: Bạn đang ở vòng cao nhất",
+    "ten": "The Vagabond Club: Đã ở vòng cao nhất",
     "nhom": "thanh_vien",
-    "mac_dinh": "Bạn đang ở vòng cao nhất",
+    "mac_dinh": "Đã ở vòng cao nhất",
     "nhieu_dong": true
   },
   "tv658_hang_ql": {
@@ -7125,9 +7125,9 @@
     "nhieu_dong": true
   },
   "tv658_hang_cua_ban": {
-    "ten": "The Vagabond Club: Hạng của bạn",
+    "ten": "The Vagabond Club: Hạng hiện tại",
     "nhom": "thanh_vien",
-    "mac_dinh": "Hạng của bạn",
+    "mac_dinh": "Hạng hiện tại",
     "nhieu_dong": true
   },
   "tv658_tich_diem": {
@@ -7311,9 +7311,9 @@
     "nhieu_dong": true
   },
   "tv658_khong_dung": {
-    "ten": "The Vagabond Club: Hạng của bạn được giảm thẳng trên mỗi ho",
+    "ten": "The Vagabond Club: Hạng hiện tại được giảm thẳng trên mỗi ho",
     "nhom": "thanh_vien",
-    "mac_dinh": "Hạng của bạn được giảm thẳng trên mỗi hoá đơn, không dùng điểm.",
+    "mac_dinh": "Hạng của quý khách được giảm thẳng trên mỗi hoá đơn, không dùng điểm.",
     "nhieu_dong": true
   },
   "tv658_sap_het": {
@@ -7347,15 +7347,15 @@
     "nhieu_dong": true
   },
   "tv658_cau_2": {
-    "ten": "The Vagabond Club: điểm và quà của bạn.",
+    "ten": "The Vagabond Club: điểm và quà của quý khách.",
     "nhom": "thanh_vien",
-    "mac_dinh": "điểm và quà của bạn.",
+    "mac_dinh": "điểm và quà của quý khách.",
     "nhieu_dong": true
   },
   "tv658_o_sdt": {
-    "ten": "The Vagabond Club: Số điện thoại của bạn",
+    "ten": "The Vagabond Club: Số điện thoại của quý khách",
     "nhom": "thanh_vien",
-    "mac_dinh": "Số điện thoại của bạn",
+    "mac_dinh": "Số điện thoại của quý khách",
     "nhieu_dong": true
   },
   "tv658_nut_otp": {
@@ -7389,9 +7389,9 @@
     "nhieu_dong": true
   },
   "tv658_diem_cua_ban": {
-    "ten": "The Vagabond Club: Điểm của bạn",
+    "ten": "The Vagabond Club: Điểm của quý khách",
     "nhom": "thanh_vien",
-    "mac_dinh": "Điểm của bạn",
+    "mac_dinh": "Điểm của quý khách",
     "nhieu_dong": true
   },
   "tv658_dat_dung_diem": {
@@ -7602,6 +7602,11 @@
   "vsk_rong": {
     "ten": "Vé sự kiện: chưa có sự kiện",
     "mac_dinh": "Chưa có sự kiện nào mở đăng ký. Theo dõi The Vagabond để nhận tin sự kiện mới:",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_rong_zalo": {
+    "ten": "Vé sự kiện: nút theo dõi Zalo OA khi chưa có sự kiện",
+    "mac_dinh": "Theo dõi Zalo OA",
     "nhom": "Vé sự kiện"
   },
   "tab_ve_su_kien": {
@@ -7967,5 +7972,147 @@
     "ten": "Gợi ý mua thêm: Giao kèm cùng chuyến, mã {ma}",
     "mac_dinh": "Giao kèm cùng chuyến, mã {ma}",
     "nhom": "Gợi ý mua thêm"
+  },
+  "gio_ma_mot_co": {
+    "ten": "Giỏ hàng: dòng phụ của món một cỡ (hũ, hộp, không có size cm)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Một cỡ, mã {ma}",
+    "nhieu_dong": true
+  },
+  "dat_truoc_chi_mai": {
+    "ten": "Đặt bánh trước: nhắc khi khách chọn ngày không còn nhận bánh trong giỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày này không còn nhận bánh đặt trước trong giỏ. Bánh đặt trước nhận trong 3 ngày tới, quý khách chọn ngày còn sáng hoặc gọi 0931 224 334.",
+    "nhieu_dong": true
+  },
+  "dat_truoc_ngay_me": {
+    "ten": "Đặt bánh trước: ghi chú khi ngày nhận là ngày của mẻ refill hay của đợt",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày này dành cho bánh làm theo mẻ hoặc món cuối tuần trong giỏ.",
+    "nhieu_dong": true
+  },
+  "dat_truoc_con_mai": {
+    "ten": "Đặt bánh trước: nhắc khi khách chọn quá số còn nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Size này chỉ còn nhận {gia_tri_a} bánh. Cần nhiều hơn quý khách gọi 0931 224 334",
+    "nhieu_dong": true
+  },
+  "dat_truoc_con_mai_ngan": {
+    "ten": "Đặt bánh trước: nhắc ngắn khi khách bấm thêm quá số còn nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Size này chỉ còn nhận {gia_tri_a} bánh.",
+    "nhieu_dong": true
+  },
+  "dat_truoc_khac_ngay": {
+    "ten": "Đặt bánh trước: nhắc khi bánh mới và bánh trong giỏ không có chung ngày nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh này và bánh trong giỏ không có chung ngày nhận (bánh đặt trước nhận trong 3 ngày tới theo số còn của từng ngày, bánh làm theo mẻ nhận trong khoảng của mẻ). Quý khách gửi đơn đang có trước rồi đặt tiếp.",
+    "nhieu_dong": true
+  },
+  "hom_nay_het_khung": {
+    "ten": "Giỏ hàng: thêm bánh có sẵn hôm nay khi hôm nay đã hết khung giờ nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Hôm nay đã hết khung giờ nhận. Quý khách chọn ngày nhận khác ở bước Ngày và giờ nhận.",
+    "nhieu_dong": true
+  },
+  "chot_tu_lay": {
+    "ten": "Dòng chốt trên nút gửi đơn: tự đến lấy",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tự đến lấy tại {diem}",
+    "nhieu_dong": true
+  },
+  "chot_tu_lay_chua": {
+    "ten": "Dòng chốt trên nút gửi đơn: tự lấy, chưa chọn điểm",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tự đến lấy, chưa chọn điểm nhận",
+    "nhieu_dong": true
+  },
+  "chot_giao": {
+    "ten": "Dòng chốt trên nút gửi đơn: giao tận nơi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giao tới {dia_chi}",
+    "nhieu_dong": true
+  },
+  "chot_giao_chua": {
+    "ten": "Dòng chốt trên nút gửi đơn: giao, chưa có địa chỉ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giao tận nơi, chưa có địa chỉ",
+    "nhieu_dong": true
+  },
+  "chot_chua_gio": {
+    "ten": "Dòng chốt trên nút gửi đơn: chưa chọn khung giờ",
+    "nhom": "gio_hang",
+    "mac_dinh": "chưa chọn khung giờ",
+    "nhieu_dong": true
+  },
+  "mien_phi_ngoai_km": {
+    "ten": "Phí giao: địa chỉ ngoài bán kính miễn phí",
+    "nhom": "gio_hang",
+    "mac_dinh": "Địa chỉ ngoài bán kính {km} km nên đơn tính phí giao",
+    "nhieu_dong": true
+  },
+  "mien_phi_tu_trong_km": {
+    "ten": "Phí giao: miễn phí từ mức tiền, trong bán kính",
+    "nhom": "gio_hang",
+    "mac_dinh": "Miễn phí giao cho đơn từ {tien} trong bán kính {km} km",
+    "nhieu_dong": true
+  },
+  "ct675_mien_phi_km": {
+    "ten": "Chân trang: miễn phí giao từ mức tiền, trong bán kính",
+    "nhom": "dat_banh",
+    "mac_dinh": "Miễn phí giao cho đơn từ {tien} trong bán kính {km} km",
+    "nhieu_dong": true
+  },
+  "pay675_xem_lai": {
+    "ten": "Giỏ hàng: cách thanh toán đã lưu không còn áp dụng",
+    "nhom": "gio_hang",
+    "mac_dinh": "Cách thanh toán đã chọn trước đây không còn áp dụng. Quý khách xem lại cách thanh toán trước khi gửi đơn.",
+    "nhieu_dong": true
+  },
+  "ct675_di_ung": {
+    "ten": "Chi tiết bánh: tiêu đề mục dị ứng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thành phần dễ gây dị ứng"
+  },
+  "ct675_bao_quan": {
+    "ten": "Chi tiết bánh: tiêu đề mục bảo quản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bảo quản và sử dụng"
+  },
+  "db675_bao_mat": {
+    "ten": "Đặt bàn: đường dẫn chính sách bảo mật cạnh biểu mẫu",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đọc chính sách bảo mật",
+    "nhieu_dong": true
+  },
+  "bien_nhan_da_xac_nhan": {
+    "ten": "Biên nhận: câu khi tiền đã về đủ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "The Vagabond đã nhận thanh toán và xác nhận đơn của quý khách.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_buoc_1": {
+    "ten": "Biên nhận: bước 1",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã gửi yêu cầu",
+    "nhieu_dong": true
+  },
+  "bien_nhan_buoc_2": {
+    "ten": "Biên nhận: bước 2",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chờ thanh toán",
+    "nhieu_dong": true
+  },
+  "bien_nhan_buoc_3": {
+    "ten": "Biên nhận: bước 3",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã xác nhận",
+    "nhieu_dong": true
+  },
+  "bien_nhan_buoc_nhan": {
+    "ten": "Biên nhận: nhãn đọc màn hình của dãy bước",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Tiến độ đơn",
+    "nhieu_dong": true
   }
 }

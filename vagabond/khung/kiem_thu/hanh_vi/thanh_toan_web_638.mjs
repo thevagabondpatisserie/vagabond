@@ -81,8 +81,8 @@ async function veBuocDat(kho) {
 const cauHinh = onepay => ({mien_phi_tu: 1000000, onepay, lien_he: {}, chinh_sach: [], quan: []});
 const nutPt = goc => tim(theoId(goc, 'payList'), n => n.the === 'button').map(b => b.props['data-pt']);
 
-await ca('Bước đặt bánh: cổng thẻ tắt thì chỉ Chuyển khoản, Tiền mặt; bật thì đủ 4 cách, mỗi cách một dòng giải thích; mặc định Chuyển khoản', async () => {
-  for (const [bat, can] of [[0, ['bank', 'cash']], [1, ['bank', 'card', 'atm', 'cash']]]) {
+await ca('Bước đặt bánh (v675 chỉ trả trước, không còn Tiền mặt): cổng thẻ tắt thì chỉ Chuyển khoản; bật thì đủ 3 cách, mỗi cách một dòng giải thích; mặc định Chuyển khoản', async () => {
+  for (const [bat, can] of [[0, ['bank']], [1, ['bank', 'card', 'atm']]]) {
     const {mt} = moiTruong({'vagabond.don_web.cau_hinh_web': () => cauHinh(bat)});
     const kho = taoKho(mt); await kho.napCauHinh();
     const goc = await veBuocDat(kho);
@@ -95,7 +95,7 @@ await ca('Bước đặt bánh: cổng thẻ tắt thì chỉ Chuyển khoản, 
   }
   const {mt} = moiTruong();
   const kho = taoKho(mt);
-  la('chưa nạp cấu hình: chưa hứa cách thẻ', nutPt(await veBuocDat(kho)), ['bank', 'cash']);
+  la('chưa nạp cấu hình: chưa hứa cách thẻ', nutPt(await veBuocDat(kho)), ['bank']);
 });
 
 await ca('Bước đặt bánh: bấm Thẻ ATM nội địa là chọn, câu dưới tổng nói đúng việc sau khi gửi (không còn hứa 15 phút, tự huỷ); cổng tắt giữa chừng thì về Chuyển khoản', async () => {
@@ -110,15 +110,16 @@ await ca('Bước đặt bánh: bấm Thẻ ATM nội địa là chọn, câu d�
   const canh = chu(theoId(goc, 'warn'));
   dung('nói bấm Thanh toán bằng thẻ trên biên nhận', canh.includes('Thanh toán bằng thẻ') && canh.includes('OnePay'));
   dung('không hứa 15 phút, tự huỷ', !/15 phút|tự huỷ/.test(canh));
-  tim(theoId(goc, 'payList'), n => n.props['data-pt'] === 'cash')[0].props.onClick(); await cho();
-  dung('tiền mặt', chu(theoId(goc, 'warn')).includes('tiền mặt khi nhận bánh'));
+  la('v675: không còn nút Tiền mặt', tim(theoId(goc, 'payList'), n => n.props['data-pt'] === 'cash').length, 0);
+  kho.S.CO.pay = 'cash'; await cho();
+  la('v675: giỏ lưu cũ còn chọn tiền mặt thì về chuyển khoản', kho.S.CO.pay, 'bank');
   tim(theoId(goc, 'payList'), n => n.props['data-pt'] === 'bank')[0].props.onClick(); await cho();
   dung('chuyển khoản: VietQR trên biên nhận, tự xác nhận', /VietQR/.test(chu(theoId(goc, 'warn'))) && /tự xác nhận/.test(chu(theoId(goc, 'warn'))));
   kho.S.CO.ship = null; kho.S.CO.shipTrangThai = 'chua_ro'; await cho();
   la('phí chưa rõ: thêm câu phí giao trả khi nhận', kho.cauThanhToan.value.length, 2);
   tim(theoId(goc, 'payList'), n => n.props['data-pt'] === 'card')[0].props.onClick(); await cho();
   ch.v = cauHinh(0); await kho.napCauHinh(); await cho();
-  la('cổng tắt: cách đang chọn về chuyển khoản', [kho.S.CO.pay, nutPt(goc)], ['bank', ['bank', 'cash']]);
+  la('cổng tắt: cách đang chọn về chuyển khoản', [kho.S.CO.pay, nutPt(goc)], ['bank', ['bank']]);
 });
 
 await ca('Mã giới thiệu: gõ số nhân viên rồi rời ô thì hiện tên; không thấy thì câu nhẹ; cửa lỗi hay chưa có thì im lặng; số sai độ dài không hỏi', async () => {
@@ -264,6 +265,18 @@ await ca('Biên nhận thẻ: nút Thanh toán bằng thẻ tạo giao dịch đ
   la('chưa chuyển trang, nút bấm lại được', [b.di, !!theoId(b.goc, 'nut-the').props.disabled], [[], false]);
   theoId(b.goc, 'nut-the').props.onClick(); await cho();
   la('chuyển sang OnePay', b.di, ['https://mtf.onepay.vn/paygate/vpcpay.op?vpc_CardList=DOMESTIC']);
+});
+
+await ca('v675 biên nhận tách ba bước: chưa trả tiền thì đang ở Chờ thanh toán và nói rõ đơn chỉ xác nhận sau khi thanh toán; tiền về đủ thì Đã xác nhận; đơn huỷ không vẽ bước', async () => {
+  const lop = goc => tim(theoId(goc, 'bn-buoc'), n => n.the === 'li').map(n => [chu(n), n.props.class]);
+  const c = await veBienNhan(bienNhan(ttCho()));
+  la('chờ tiền', lop(c.goc), [['Đã gửi yêu cầu', 'xong'], ['Chờ thanh toán', 'dang'], ['Đã xác nhận', '']]);
+  dung('câu nói rõ điều kiện xác nhận', chu(c.goc).includes('Đơn được xác nhận sau khi quý khách thanh toán'));
+  const x = await veBienNhan(bienNhan(ttCho({trang_thai: 'da_thu', da_thu_chu: '936.000 đ', cach_thu: 'Chuyển khoản', ck: undefined})));
+  la('tiền về đủ', lop(x.goc), [['Đã gửi yêu cầu', 'xong'], ['Chờ thanh toán', 'xong'], ['Đã xác nhận', 'xong']]);
+  dung('câu đã xác nhận', chu(x.goc).includes('đã nhận thanh toán và xác nhận đơn'));
+  const h = await veBienNhan(bienNhan({cach: 'bank', trang_thai: 'huy'}, {da_huy: true}));
+  la('đơn huỷ: không vẽ bước', !!theoId(h.goc, 'bn-buoc'), false);
 });
 
 await ca('Biên nhận tiền mặt: một câu, không QR, không nút thẻ, không hỏi lại; đơn huỷ không đòi tiền', async () => {

@@ -250,6 +250,20 @@ await ca('Giới hạn số còn nhận theo ô Dư decor, kể cả khi bấm +
   dung('báo khách', /chỉ còn nhận 2/.test(k.S.toast.chu));
 });
 
+await ca('Codex #594: giỏ đã lưu cách Tiền mặt (nay không còn) mở lại thì về Chuyển khoản VÀ có dòng báo khách xem lại; giỏ lưu cách còn hợp lệ thì không báo', async () => {
+  const a = moiTruong('2026-11-19T08:00:00');
+  const k = taoKho(a.mt);
+  k.phucHoiGio(); coThem(k); k.pick(3); k.pickSlot(6);
+  const luu = JSON.parse(a.kho.get('vgb-gio-v1'));
+  la('giỏ mới lưu chuyển khoản, không báo', [luu.co.pay, k.S.CO.payBao], ['bank', false]);
+  luu.co.pay = 'cash'; a.kho.set('vgb-gio-v1', JSON.stringify(luu));
+  const k2 = taoKho(a.mt); k2.phucHoiGio();
+  la('tiền mặt cũ: về chuyển khoản, có báo', [k2.S.CO.pay, k2.S.CO.payBao], ['bank', true]);
+  luu.co.pay = 'bank'; a.kho.set('vgb-gio-v1', JSON.stringify(luu));
+  const k3 = taoKho(a.mt); k3.phucHoiGio();
+  la('cách còn hợp lệ: không báo', [k3.S.CO.pay, k3.S.CO.payBao], ['bank', false]);
+});
+
 await ca('Lưu giỏ trong phiên rồi tải lại trang: giỏ, lịch, ô nhập về đủ, giá lấy từ danh mục', async () => {
   const a = moiTruong('2026-10-11T08:00:00');
   const k = taoKho(a.mt);
@@ -512,6 +526,16 @@ await ca('v644 bánh có bộ nội dung web: mô tả, tầng chỉ lấy từ 
   la('Kankin (đường cũ) giữ chữ tĩnh khi máy chủ không gửi', [cakes[1].tuWeb, cakes[1].desc], [undefined, 'Kankin tĩnh']);
 });
 
+await ca('v675 dị ứng và bảo quản: bánh có thẻ Bánh nhận hai mục từ máy chủ, để trống thì rỗng (trang ẩn mục)', async () => {
+  const cakes = [{k: 'Very Berry', img: '', desc: '', layers: [], sizes: [{cm: 12, p: 1, id: 'BAWC00086'}]},
+    {k: 'Kankin', img: '', desc: '', layers: [], sizes: [{cm: 16, p: 1, id: 'BAWC00124'}]}];
+  tronMon(cakes, [
+    {ten: 'Very Berry', anh: '/a.png', anhs: ['/a.png'], mo_ta: '', tang: [], di_ung: 'Sữa, trứng', bao_quan: 'Giữ lạnh', tu_web: 1, sizes: [{cm: 12, ma: 'BAWC00086', gia: 1}]},
+    {ten: 'Kankin', anh: '/k.png', anhs: ['/k.png'], mo_ta: '', tang: [], di_ung: '', bao_quan: '', tu_web: 1, sizes: [{cm: 16, ma: 'BAWC00124', gia: 1}]}]);
+  la('đã điền', [cakes[0].diUng, cakes[0].baoQuan], ['Sữa, trứng', 'Giữ lạnh']);
+  la('chưa điền', [cakes[1].diUng, cakes[1].baoQuan], ['', '']);
+});
+
 /* Codex PR #547 (1c8d221f): máy chủ lọc hết bánh bị ẩn khỏi hai danh sách, kho
    Vue cũ coi đặt trước rỗng là chưa có dữ liệu và đưa ra 8/8 bánh mặc định. */
 await ca('Codex 547: bảng Bánh trên web đang dùng, hai danh sách rỗng thì tab đặt trước không còn bánh mặc định nào', async () => {
@@ -701,6 +725,54 @@ from vagabond.khung.kiem_thu import thu_refill_646 as t
 print(json.dumps(t.du_lieu_web(), ensure_ascii=False, default=str))
 `, GOC_REPO]).toString());
 
+await ca('Codex #594: giỏ lưu bánh đặt trước nhận ngày kia (12/11), mở lại khi số tồn về chậm: giữ ngày 12/11 suốt lúc chờ và sau khi số về (con_xa 3); số về mà ngày đó hết thì mới dời', async () => {
+  const doi = [];
+  const tra = () => new Promise(r => doi.push(r));
+  const a = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: RF_MAY})});
+  const k = taoKho(a.mt);
+  k.phucHoiGio(); await k.napTon();
+  k.S.tab = 'order'; coThem(k, 'Kankin'); k.pick(2); k.pickSlot(6);
+  la('ngày đã chọn', k.S.ngayChon, '2026-11-12');
+  /* Mở lại: máy chủ trả số chậm. */
+  const cham = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': tra});
+  cham.kho.set('vgb-gio-v1', a.kho.get('vgb-gio-v1'));
+  const k2 = taoKho(cham.mt);
+  k2.phucHoiGio();
+  const dang = k2.napTon();
+  la('đang chờ số: giữ 12/11', k2.S.ngayChon, '2026-11-12');
+  dung('bản lưu không bị ghi đè sang ngày khác', JSON.parse(cham.kho.get('vgb-gio-v1')).ngay === '2026-11-12');
+  doi.shift()({banh: {}, nhom: [], dat_truoc: RF_MAY}); await dang;
+  la('số về, ngày kia còn 3: vẫn 12/11', [k2.S.ngayChon, k2.S.CART.map(o => o.id)], ['2026-11-12', ['BAWC00123']]);
+  /* Số về mà ngày kia đã hết: lúc đó mới dời và nhờ khách chọn lại. */
+  const het = JSON.parse(JSON.stringify(RF_MAY));
+  het.nhom.forEach(g => g.sizes.forEach(y => { if (y.ma === 'BAWC00123') y.con_xa = 0; }));
+  const c3 = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': tra});
+  c3.kho.set('vgb-gio-v1', a.kho.get('vgb-gio-v1'));
+  const k3 = taoKho(c3.mt);
+  k3.phucHoiGio();
+  const d3 = k3.napTon();
+  la('chờ số: giữ', k3.S.ngayChon, '2026-11-12');
+  doi.shift()({banh: {}, nhom: [], dat_truoc: het}); await d3;
+  dung('ngày kia hết: dời khỏi 12/11 và bỏ cờ đã chọn ngày', k3.S.ngayChon !== '2026-11-12' && k3.S.daChonNgay === false);
+});
+
+await ca('Codex #594 vòng 2: khách chọn 14/11 thuộc mẻ refill (Đủ decor lúc đó 0, ngày mai còn 1); lần làm tươi sau mẻ đã đủ đơn nhưng Đủ decor còn 5: giữ 14/11, không dời giữa lúc đang gán bảng số', async () => {
+  let lan = 0;
+  /* Ngày mai (13/11) còn 1 theo phiếu, nên giữa chừng có chỗ để dời sai. */
+  const dau = JSON.parse(JSON.stringify(RF_MAY));
+  dau.nhom.forEach(g => g.sizes.forEach(y => { if (y.ma === 'BAWC00068') y.con_mai = 1; }));
+  const day = JSON.parse(JSON.stringify(dau));
+  day.nhom.forEach(g => g.sizes.forEach(y => { if (y.ma === 'BAWC00068') { delete y.refill; y.con = 5; y.con_xa = 5; } }));
+  const a = moiTruong('2026-11-12T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: lan++ ? day : dau})});
+  const k = taoKho(a.mt);
+  k.phucHoiGio(); await k.napTon();
+  k.S.tab = 'order'; coThem(k, 'Roman de la Rose'); k.pick(2); k.pickSlot(6);
+  la('chọn 14/11 trong mẻ', k.S.ngayChon, '2026-11-14');
+  await k.napTon();
+  la('mẻ đủ đơn, Đủ decor còn 5: vẫn 14/11', [k.S.ngayChon, k.S.TRUOC_XA.BAWC00068], ['2026-11-14', 5]);
+  dung('nháp lưu vẫn 14/11', JSON.parse(a.kho.get('vgb-gio-v1')).ngay === '2026-11-14');
+});
+
 await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; giỏ có bánh đó thì lịch mờ ngày ngoài 14/11 tới 20/11, bấm ngày mờ thì báo và không đổi ngày', async () => {
   const {mt} = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: RF_MAY})});
   const k = taoKho(mt);
@@ -709,18 +781,116 @@ await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; gi�
   la('số còn nhận', [k.S.TRUOC.BAWC00068, k.S.TRUOC.BAWC00123], [13, 3]);
   la('nhãn refill', [k.nhanRefill('BAWC00068'), k.nhanRefill('BAWC00123')], ['Có từ 14/11', '']);
   la('giỏ trống: không ngày nào mờ', k.ngayRail.value.filter(d => d.off).length, 0);
+  /* v675 (Sales nhắn 19/11/2026, giám đốc chốt nhận tới 3 ngày tới): ngày mai theo
+     phiếu Kiểm bánh ngày mai, ngày kia và ngày thứ ba theo Đủ decor (Kankin: 5 trừ 2
+     đơn ngày mai còn 3). Lịch tab Đặt trước: ba ngày tới và các ngày của mẻ refill. */
+  la('số ngày mai và ngày kia của Kankin', [k.S.TRUOC_MAI.BAWC00123, k.S.TRUOC_XA.BAWC00123], [3, 3]);
+  la('lịch tab Đặt trước: ba ngày tới và 14 tới 20/11 của mẻ', k.ngayRailDatTruoc.value.map(d => d.i), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   coThem(k, 'Kankin');
-  /* v649 (anh Việt chọn tách đơn 11/11/2026): giỏ có bánh đặt trước thì ô Hôm nay
-     mờ; các ngày khác không mờ vì bánh decor không bị khoá theo refill. */
-  la('giỏ chỉ có bánh decor: chỉ mờ Hôm nay', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0]);
+  la('giỏ có bánh đặt trước thường: còn ba ngày tới', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+  k.pick(5);
+  dung('bấm ngày xa: báo nhận trong 3 ngày tới', /trong 3 ngày tới/.test(k.S.toast.chu));
+  /* Thêm bánh chỉ có mẻ 14 tới 20/11 vào giỏ đang có bánh nhận ngày mai: không có
+     ngày chung, báo đặt đơn riêng, không thêm. */
+  const dai = k.S.CART.length;
+  k.moBanh(k.S.CAKES.find(c => c.k === 'Roman de la Rose')); k.S.soLuong = 1;
+  la('không thêm được', k.addToCart(), false);
+  dung('báo không có chung ngày', /không có chung ngày nhận/.test(k.S.toast.chu));
+  la('giỏ giữ nguyên', k.S.CART.length, dai);
+  k.S.CART.splice(0);
   coThem(k, 'Roman de la Rose');
-  la('mờ 10 tới 13/11 và 21 tới 23/11', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 1, 2, 3, 11, 12, 13]);
+  la('giỏ chỉ có bánh của mẻ: mờ 10 tới 13/11 và 21 tới 23/11', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 1, 2, 3, 11, 12, 13]);
   const truoc = k.S.ngayChon;
   k.pick(1);
   la('không đổi ngày', k.S.ngayChon, truoc);
   dung('báo khách khoảng ngày', /từ 14\/11 tới 20\/11/.test(k.S.toast.chu));
   k.pick(5);
   la('chọn được 15/11', k.S.ngayChon, '2026-11-15');
+});
+
+/* v675 ca gốc (Sales báo 19/11/2026): Tira-Missing-U 12cm, đợt refill 17 tới 23/11 đã nhận đủ đơn,
+   đợt 24 tới 30/11 còn 10, phiếu ngày mai 20/11 Còn bán 2, Đủ decor 6. Dựng THẬT từ máy chủ. */
+const TIRA_MAY = JSON.parse(execFileSync('python3', ['-B', '-c', `
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from vagabond.khung.kiem_thu import nen
+nen.gia_lap()
+from vagabond.khung.kiem_thu import thu_refill_du_don_675 as t
+print(json.dumps(t.du_lieu_web(), ensure_ascii=False, default=str))
+`, GOC_REPO]).toString());
+
+await ca('v675 ca gốc: đợt refill đủ đơn thì ngày mai 20/11 đặt được theo phiếu (tối đa 2), ngày kia theo Đủ decor (tối đa 6), ngày 23/11 mờ, 24/11 theo đợt còn nhận', async () => {
+  const {mt} = moiTruong('2026-11-19T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: TIRA_MAY})});
+  const k = taoKho(mt);
+  await k.napTon();
+  k.S.tab = 'order';
+  k.pick(1);
+  la('chọn được ngày mai 20/11', k.S.ngayChon, '2026-11-20');
+  const banh = k.S.CAKES.find(c => c.sizes.some(z => z.id === 'BAWC00077'));
+  k.moBanh(banh); k.S.curSizeId = 'BAWC00077'; k.S.soLuong = 3;
+  la('ngày mai đặt 3: chặn (còn 2)', k.addToCart(), false);
+  dung('báo còn 2', /chỉ còn nhận 2/.test(k.S.toast.chu));
+  k.S.soLuong = 1;
+  la('ngày mai đặt 1: thêm được', k.addToCart(), 'them');
+  la('giỏ: 20 tới 22/11 mở, 23/11 mờ, 24 tới 30/11 theo đợt 2, sau đó mờ', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0, 4, 12, 13]);
+  k.pick(2);
+  la('ngày kia 21/11 chọn được', k.S.ngayChon, '2026-11-21');
+  for (let j = 0; j < 9; j++) k.cartQty(0, 1);
+  la('ngày kia: bấm + tới tối đa 6 theo Đủ decor', k.S.CART[0].qty, 6);
+  const truoc = k.S.ngayChon;
+  k.pick(4);
+  la('23/11 không đổi ngày', k.S.ngayChon, truoc);
+});
+
+await ca('v675 thêm bánh Có sẵn hôm nay: ngày nhận về HÔM NAY với khung giờ gần nhất (trước: giữ ngày kia mặc định); đã tự chọn ngày thì giữ; hôm nay hết giờ thì báo, không tự nhảy ngày', async () => {
+  const {mt} = moiTruong('2026-11-19T08:00:00');
+  const k = taoKho(mt);
+  k.S.TODAY = {BAWC00139: 3, BAWC00140: 2}; k.S.tab = 'today';
+  la('giỏ trống: ngày mặc định là ngày kia', k.picked.value, 2);
+  la('thêm bánh hôm nay', coThem(k), 'them');
+  la('ngày nhận về hôm nay 19/11', [k.picked.value, k.S.ngayChon], [0, '2026-11-19']);
+  dung('khung giờ còn nhận hôm nay', k.slotOk(0, k.slotDangChon.value));
+  la('dòng chốt trên nút gửi: đúng ngày', /19\/11/.test(k.chotDon.value.ngay), true);
+  /* Quý khách đã tự chọn ngày mai rồi mới thêm bánh: giữ ngày đã chọn. */
+  const a = moiTruong('2026-11-19T08:00:00'); const k2 = taoKho(a.mt);
+  k2.S.TODAY = {BAWC00139: 3}; k2.S.tab = 'today';
+  k2.pick(1);
+  coThem(k2);
+  la('đã tự chọn ngày mai: giữ', k2.S.ngayChon, '2026-11-20');
+  /* 22 giờ: hôm nay hết khung giờ nhận. */
+  const b = moiTruong('2026-11-19T22:00:00'); const k3 = taoKho(b.mt);
+  k3.S.TODAY = {BAWC00139: 3}; k3.S.tab = 'today';
+  const truoc = k3.picked.value;
+  coThem(k3);
+  la('hết giờ: không tự nhảy ngày', k3.picked.value, truoc);
+  dung('báo hết khung giờ và mở lịch', /hết khung giờ nhận/.test(k3.S.toast.chu) && k3.S.moLich === true);
+});
+
+await ca('v675 miễn phí giao trong bán kính 7 km: đơn đủ 1 triệu ở 3 km miễn phí, ở 9 km tính phí và nói rõ lý do; không giới hạn (0) thì như cũ; thẻ hôm nay nhiều cỡ ghi "từ"', async () => {
+  const {mt} = moiTruong('2026-11-19T08:00:00');
+  const k = taoKho(mt);
+  k.S.mienPhiTu = 1000000; k.S.mienPhiKm = 7; k.S.tab = 'order';
+  k.S.CART.push({k: 'CANDLE', id: 'BAWC00139', cm: 12, price: 1200000, nguon: 'order', wish: '', adds: [], qty: 1});
+  la('Codex #594: chưa có địa chỉ thì chưa hứa miễn phí', k.mienPhi.value, false);
+  dung('chỉ nêu điều kiện, không nói đơn này được miễn', /Miễn phí giao cho đơn từ .* trong bán kính 7 km/.test(k.dongMienPhi.value) && !/Đơn này được miễn phí/.test(k.dongMienPhi.value));
+  k.apPhiGiao({ok: 0, ly_do: 'khong_tim_thay_dia_chi'}, 'chinh_xac');
+  la('không định vị được địa chỉ: không hứa miễn phí, phí chưa rõ', [k.mienPhi.value, k.S.CO.ship, k.S.CO.shipTrangThai], [false, null, 'chua_ro']);
+  k.S.CO.mode = 'pick';
+  la('tự lấy không cần khoảng cách', k.tong.value.tt.phi, 0);
+  k.S.CO.mode = 'ship';
+  k.apPhiGiao({ok: 1, total_fee: 42000, km_thang: 3.2, diem_lay: 'bep'}, 'chinh_xac');
+  la('3,2 km: miễn phí', k.mienPhi.value, true);
+  k.apPhiGiao({ok: 1, total_fee: 42000, km_thang: 9.1, diem_lay: 'bep'}, 'chinh_xac');
+  la('9,1 km: tính phí', [k.mienPhi.value, k.S.CO.ship], [false, 42000]);
+  dung('nói rõ ngoài bán kính 7 km', /ngoài bán kính 7 km/.test(k.dongMienPhi.value));
+  k.S.mienPhiKm = 0;
+  la('không giới hạn bán kính: 9,1 km vẫn miễn', k.mienPhi.value, true);
+  la('phép thuần', [k.T.trongKmMienPhi(7, 7), k.T.trongKmMienPhi(7.01, 7), k.T.trongKmMienPhi(null, 7), k.T.trongKmMienPhi(50, 0)], [true, false, true, true]);
+  k.S.TODAY = {BAWC00139: 3, BAWC00140: 2};
+  const c = k.S.CAKES.find(x => x.k === 'CANDLE');
+  dung('thẻ hôm nay hai cỡ khác giá: ghi từ', /^từ /.test(k.theBanh(c, 'today').gia));
+  k.S.TODAY = {BAWC00139: 3};
+  dung('một cỡ: không ghi từ', !/^từ /.test(k.theBanh(c, 'today').gia));
 });
 
 /* v660 (Loan Anh, bếp báo 15/11/2026): một bánh HAI đợt refill, 14/11 tới 17/11 (20 bánh) và 20/11 tới 23/11

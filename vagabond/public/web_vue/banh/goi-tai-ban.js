@@ -367,7 +367,7 @@ export const GoiTaiBanNoi = {
     const udDangNhap = computed(() => G.ud.buoc === 'sdt' || G.ud.buoc === 'ma');
     const udDau = computed(() => (G.ud.sdtCo ? t('goi_ban_ud_so', 'Số {sdt}', {sdt: G.ud.sdtCo}) : gb.nhanBan.value));
     /* Ví quà trước, chương trình sau; dòng không dùng được mờ kèm lý do. */
-    const nhomUd = computed(() => [['vi', t('goi_ban_ud_vi', 'Ví quà của bạn')], ['ctkm', t('goi_ban_ud_ct', 'Chương trình đang chạy')]]
+    const nhomUd = computed(() => [['vi', t('goi_ban_ud_vi', 'Ví quà của quý khách')], ['ctkm', t('goi_ban_ud_ct', 'Chương trình đang chạy')]]
       .map(([ma, ten]) => ({ma, ten, ds: G.ud.ds.filter(x => x.nhom === ma).map(x => ({...x, dung: !!Number(x.dung_duoc),
         tag: x.giam == null ? t('goi_ban_ud_sau_nhan', 'Tính khi quầy nhận món')
           : (Number(x.dung_duoc) ? t('goi_ban_ud_giam', 'Giảm {tien}', {tien: tien(x.giam)}) : (x.ly_do || t('goi_ban_ud_chua_du', 'chưa đủ điều kiện')))}))}))

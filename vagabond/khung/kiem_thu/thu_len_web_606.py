@@ -43,16 +43,17 @@ def _get_all(dt, filters=None, fields=None, **kw):
 	return ra
 
 
-def _chay(ham, kiem_hom_nay=None, decor=None):
+def _chay(ham, kiem_hom_nay=None, decor=None, kiem_mai=None):
 	f = kb.frappe
 	kho = types.SimpleNamespace(dong=decor or [], cap_nhat_luc="2026-10-20 08:00")
-	ngay_kb = "KB-%s" % NGAY
+	# v671: tab Đặt bánh trước đọc phiếu Kiểm bánh NGÀY MAI.
+	phieu = {"KB-%s" % NGAY: kiem_hom_nay, "KB-%s" % (NGAY + datetime.timedelta(days=1)): kiem_mai}
 
 	def exists(dt, ten):
-		return kiem_hom_nay is not None and ten == ngay_kb
+		return phieu.get(ten) is not None
 
 	def get_doc(dt, ten):
-		return types.SimpleNamespace(dong=kiem_hom_nay or [])
+		return types.SimpleNamespace(dong=phieu.get(ten) or [])
 	with patch.object(f, "get_all", _get_all, create=True), \
 			patch.object(kb.tat_ban_web.frappe, "get_all", _get_all, create=True), \
 			patch.object(f, "get_single", lambda dt: kho, create=True), \
@@ -78,22 +79,23 @@ def _luat():
 	la("tắt mã khác không ảnh hưởng", kb.duoc_len_web(ITEM["BAWC00089"], {"BAWC00124": {"tat": 1}}), True)
 
 
-DECOR = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", so_decor=1, hinh=""),
-	_dong(ma_hang="BAWC00124", ten_banh="Kankin", so_decor=1, hinh=""),
-	_dong(ma_hang="BAWC00080L20CM", ten_banh="Tira", so_decor=1, hinh=""),
-	_dong(ma_hang="BAWC00099", ten_banh="Cũ", so_decor=2, hinh="")]
+# v671: tab Đặt bánh trước theo Có thể bán của phiếu ngày mai (trước v671: Đủ decor).
+DECOR = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=1, hinh=""),
+	_dong(ma_hang="BAWC00124", ten_banh="Kankin", co_the_ban=1, hinh=""),
+	_dong(ma_hang="BAWC00080L20CM", ten_banh="Tira", co_the_ban=1, hinh=""),
+	_dong(ma_hang="BAWC00099", ten_banh="Cũ", co_the_ban=2, hinh="")]
 
 
 @ca("v606 tái hiện Minh Vũ: tab Đặt bánh trước không hiện Kankin đang tắt bán web, Tira mã phụ giá 0, mã ngừng dùng")
 def _dat_truoc():
 	# Trước bản sửa (98cfa887a, site thật 20/10): tab này trả Kankin BAWC00124 và
 	# "Tira-Missing-U 3.0" BAWC00080L20CM giá 0 kèm ảnh nền.
-	kq = _chay(kb._dat_truoc_theo_decor, decor=DECOR)
+	kq = _chay(kb._dat_truoc_theo_decor, kiem_mai=DECOR)
 	la("chỉ còn Very Berry", [(g["ten"], [s["ma"] for s in g["sizes"]]) for g in kq["nhom"]], [("Very Berry", ["BAWC00089"])])
 	dung("không size nào giá 0", all(s["gia"] > 0 for g in kq["nhom"] for s in g["sizes"]))
 	TAT.pop("BAWC00124")
 	try:
-		kq = _chay(kb._dat_truoc_theo_decor, decor=DECOR)
+		kq = _chay(kb._dat_truoc_theo_decor, kiem_mai=DECOR)
 	finally:
 		TAT["BAWC00124"] = NGAY
 	la("bật bán lại thì Kankin hiện lại", sorted(g["ten"] for g in kq["nhom"]), ["Kankin", "Very Berry"])

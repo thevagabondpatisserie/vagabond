@@ -288,7 +288,8 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
 		}
 
 	moc = _luc_giao_unix(luc_giao)
-	ck = "vgb:fee:%s:%s,%s,%s,%s" % (
+	# v675: khoá mới để báo phí còn trong bộ nhớ đệm từ bản trước (chưa có km_thang) không được dùng lại.
+	ck = "vgb:fee675:%s:%s,%s,%s,%s" % (
 		nguon, round(diem["lat"], 5), round(diem["lng"], 5), moc // 1800, gan_nhat["ten"]
 	)
 	hit = cache_get(ck)
@@ -312,7 +313,9 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
 		data, loi = hoi(c, gan_nhat, diem, 0)
 		theo_gio = False
 	if loi:
-		return {"ok": 0, "ly_do": loi}
+		# v675: giữ khoảng cách đường thẳng để luật miễn phí giao theo bán kính
+		# vẫn xét được khi hãng giao không báo được phí.
+		return {"ok": 0, "ly_do": loi, "km_thang": round(gan_nhat["_km"], 2)}
 
 	goc = int(data["total_fee"])
 	phu = int(c.phu_thu or 0)
@@ -322,6 +325,9 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
 		"phu_thu": phu,
 		"total_fee": goc + phu,
 		"distance": data.get("distance"),
+		# v675: khoảng cách đường thẳng từ điểm xuất hàng gần nhất (km), cho luật
+		# miễn phí giao trong bán kính (don_web.quyet_phi_giao).
+		"km_thang": round(gan_nhat["_km"], 2),
 		"dia_chi": diem.get("dia_chi"),
 		"diem_lay": gan_nhat["ten"],
 		"theo_gio": theo_gio,

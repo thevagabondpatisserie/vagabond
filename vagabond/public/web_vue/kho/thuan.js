@@ -92,10 +92,24 @@ export function laMienPhi(tienBanh, nguong) {
   return g > 0 && (Number(tienBanh) || 0) >= g;
 }
 
-export function dongMienPhi(tienBanh, nguong, t = t0) {
+/* v675 (giám đốc chốt 19/11/2026): miễn phí giao chỉ trong bán kính `kmMien` km
+   tính đường thẳng từ điểm xuất hàng. kmMien 0 là không giới hạn; chưa biết
+   khoảng cách (chưa có địa chỉ) thì chưa loại. Cùng luật don_web.trong_km_mien_phi. */
+export function trongKmMienPhi(km, kmMien) {
+  const gh = Number(kmMien) || 0;
+  if (gh <= 0 || km === null || km === undefined || km === '') return true;
+  const x = Number(km);
+  return !Number.isFinite(x) || x <= gh;
+}
+export function dongMienPhi(tienBanh, nguong, t = t0, kmMien = 0, trongKm = true, chuaBietKm = false) {
   const g = Number(nguong) || 0;
+  const km = Number(kmMien) || 0;
   if (g <= 0) return t('dat_banh_8b2c2134b', 'chưa gồm phí giao');
+  /* Codex #594: chưa biết khoảng cách thì chỉ nêu điều kiện, không hứa đơn này miễn phí. */
+  if (km > 0 && chuaBietKm) return t('mien_phi_tu_trong_km', 'Miễn phí giao cho đơn từ {tien} trong bán kính {km} km', {tien: tienVN(g), km});
+  if (km > 0 && !trongKm) return t('mien_phi_ngoai_km', 'Địa chỉ ngoài bán kính {km} km nên đơn tính phí giao', {km});
   if (laMienPhi(tienBanh, g)) return t('dat_banh_7cdc938e9', 'Đơn này được miễn phí giao');
+  if (km > 0) return t('mien_phi_tu_trong_km', 'Miễn phí giao cho đơn từ {tien} trong bán kính {km} km', {tien: tienVN(g), km});
   return t('dat_banh_d6d862911', 'Miễn phí giao cho đơn từ') + ' ' + tienVN(g);
 }
 
@@ -242,7 +256,12 @@ export function tronMon(cakes, nhom) {
     if (g.anhs && g.anhs.length) c.anhs = g.anhs;
     /* v644: bánh có bộ nội dung web (Marketing sửa ở trình biên tập, thẻ Bánh)
        thì mô tả, tầng hương vị chỉ lấy từ đó, kể cả khi để trống. */
-    if (g.tu_web) { c.tuWeb = 1; c.desc = g.mo_ta || ''; c.layers = []; }
+    if (g.tu_web) {
+      c.tuWeb = 1; c.desc = g.mo_ta || ''; c.layers = [];
+      /* Codex #594: nhóm không mang hai khoá này (nguồn cũ) thì giữ giá trị đã có, không xoá. */
+      if ('di_ung' in g) c.diUng = g.di_ung || '';
+      if ('bao_quan' in g) c.baoQuan = g.bao_quan || '';
+    }
     else if (g.mo_ta) c.desc = g.mo_ta;
     if (g.tang && g.tang.length) {
       c.layers = g.tang.map(x => {

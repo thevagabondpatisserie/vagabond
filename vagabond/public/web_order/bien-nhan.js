@@ -32,8 +32,8 @@
     }
     if (o) {
       o.innerHTML = cu || (("<main class=\"bn\">" + "<div class=\"bn-in\">" + "<p class=\"bn-nhan\">" + chu("bien_nhan_fae8f9966", "BIÊN NHẬN") + "</p>")
-        + ("<h1>" + chu("bien_nhan_37a6f269e", "Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.") + "</h1>")
-        + ("<p class=\"bn-cau\">" + chu("bien_nhan_bbd687e19", "Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối trang.") + "</p>")
+        + ("<h1>" + chu("bien_nhan_37a6f269e", "Biên nhận chỉ mở được từ đường dẫn The Vagabond hiện ngay sau khi đặt.") + "</h1>")
+        + ("<p class=\"bn-cau\">" + chu("bien_nhan_bbd687e19", "Quý khách xem lại mã yêu cầu trong tin nhắn của The Vagabond, hoặc nhắn The Vagabond qua Zalo, Messenger ở cuối trang.") + "</p>")
         + ("<div class=\"bn-nut\">" + "<a class=\"nut chinh\" href=\"/banh\">" + chu("bien_nhan_6be58a5f5", "Về trang đặt bánh") + "</a>" + "</div>" + "</div>" + "</main>"));
     }
     return;

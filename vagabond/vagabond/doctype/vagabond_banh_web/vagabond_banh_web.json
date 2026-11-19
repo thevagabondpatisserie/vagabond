@@ -12,7 +12,7 @@
  "search_fields": "ten,ma_hang",
  "sort_field": "modified",
  "sort_order": "DESC",
- "modified": "2026-11-07 21:00:00.000000",
+ "modified": "2026-11-19 14:00:00.000000",
  "description": "v644: ảnh, mô tả và tầng hương vị của MỘT bánh trên web (mọi size dùng chung). Sửa ở trình biên tập web, thẻ Bánh.",
  "field_order": [
   "khoa",
@@ -22,6 +22,8 @@
   "anh",
   "mo_ta",
   "tang",
+  "di_ung",
+  "bao_quan",
   "dua_boi",
   "dua_luc",
   "nhac_luc"
@@ -78,6 +80,18 @@
    "label": "Tầng hương vị",
    "fieldtype": "Small Text",
    "description": "Mỗi dòng một tầng."
+  },
+  {
+   "fieldname": "di_ung",
+   "label": "Thành phần dễ gây dị ứng",
+   "fieldtype": "Small Text",
+   "description": "Ví dụ: sữa, trứng, gluten, các loại hạt. Để trống thì trang đặt bánh không hiện mục này."
+  },
+  {
+   "fieldname": "bao_quan",
+   "label": "Bảo quản và sử dụng",
+   "fieldtype": "Small Text",
+   "description": "Ví dụ: giữ lạnh 2 đến 6 độ C, dùng trong ngày. Để trống thì trang đặt bánh không hiện mục này."
   },
   {
    "fieldname": "dua_boi",

@@ -141,7 +141,7 @@ def bien_nhan_html(tt, lien_he):
 		'<div class="tong"><dt><span data-vgb-chu="bien_nhan_de995d836">Tổng</span></dt><dd>%s</dd></div>' % _chu_bien_nhan(tt.get("tong")),
 		'</dl>',
 		khoi_thanh_toan_html(tt.get("tt")),
-		('<p class="bn-luu-y">%s</p>' % _chu("bien_nhan_tt_ho_tro", "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:")) if nut else "",
+		('<p class="bn-luu-y">%s</p>' % _chu("bien_nhan_tt_ho_tro", "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi The Vagabond:")) if nut else "",
 		'<div class="bn-nut">%s<a class="nut chinh" href="/banh"><span data-vgb-chu="bien_nhan_3f197d985">Đặt thêm bánh</span></a></div>' % "".join(nut),
 		'</div></main>',
 	])

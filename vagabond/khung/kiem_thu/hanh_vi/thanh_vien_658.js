@@ -64,17 +64,17 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     bang('lời chào', t.tim('tab-chinh').querySelector('.cl-chao-ten').children.map(chu), ['Chào', 'Minh Anh']);
   });
 
-  await ca('J1c: lõi ở góc, hạng cao gần lõi nhất; khách VOYAGER nằm đúng vòng giữa có chip Bạn ở đây; khung chi tiêu 12 tháng đúng số còn thiếu và hạng kế tiếp', async function () {
+  await ca('J1c: lõi ở góc, hạng cao gần lõi nhất; khách VOYAGER nằm đúng vòng giữa có chip Đang ở hạng này; khung chi tiêu 12 tháng đúng số còn thiếu và hạng kế tiếp', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: toi(), cap_vi_tv: { ok: 1, moi: [] } }, '');
     dung('hiện khối', !K.an(t.tim('hanh-trinh')));
     var nhan = t.tim('ht-ve').querySelectorAll('.ht-ten-khoi');
     bang('thứ tự từ lõi ra', nhan.map(function (x) { return chu(x.querySelector('.ht-ten')); }), ['VAGABONDER', 'VOYAGER', 'EXPLORER']);
     bang('vòng của khách', nhan.map(function (x) { return lop(x).replace('ht-ten-khoi ', ''); }), ['tren', 'la', 'duoi']);
-    dung('chip Bạn ở đây chỉ ở VOYAGER', chu(nhan[1]).indexOf('Bạn ở đây') >= 0 && chu(nhan[0]).indexOf('Bạn ở đây') < 0 && chu(nhan[2]).indexOf('Bạn ở đây') < 0);
+    dung('chip Đang ở hạng này chỉ ở VOYAGER', chu(nhan[1]).indexOf('Đang ở hạng này') >= 0 && chu(nhan[0]).indexOf('Đang ở hạng này') < 0 && chu(nhan[2]).indexOf('Đang ở hạng này') < 0);
     bang('điều kiện từng vòng', nhan.map(function (x) { return chu(x.querySelector('.ht-dk')); }), ['từ 20 triệu · tích 5%', 'từ 10 triệu · tích 3%', 'từ 0đ · tích 2%']);
     var cung = t.tim('ht-ve').querySelectorAll('.ht-cung');
     bang('bán kính ba cung', cung.map(function (x) { return x.style.width; }), ['300px', '520px', '740px']);
-    dung('mô tả cho trình đọc màn hình', /Bạn đang ở hạng VOYAGER/.test(t.tim('ht-ve').getAttribute('aria-label')));
+    dung('mô tả cho trình đọc màn hình', /Quý khách đang ở hạng VOYAGER/.test(t.tim('ht-ve').getAttribute('aria-label')));
     dung('khung chi tiêu', !K.an(t.tim('ht-chi')));
     bang('tiêu đề khung', chu(t.tim('ht-tieu')), 'Chi tiêu 12 tháng');
     bang('số đã chi / mốc', chu(t.tim('ht-so')), tien(13750000) + ' / ' + tien(20000000));
@@ -86,7 +86,7 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     var t = await K.dungTrang({ san_sang: SS, toi: toi({ hang: { ten_hang: 'VAGABONDER', giam_gia: 0, tich_diem: 5 },
       tien_do: { da_mua: 25000000, so_thang: 12, hang_tiep: '', con_thieu: 0, ty_le: 1 } }), cap_vi_tv: { ok: 1, moi: [] } }, '');
     bang('thanh đầy', t.tim('ht-thanh').style.width, '100%');
-    bang('chip', chu(t.tim('ht-chips')), 'Bạn đang ở vòng cao nhất');
+    bang('chip', chu(t.tim('ht-chips')), 'Đã ở vòng cao nhất');
     bang('chỉ số đã chi', chu(t.tim('ht-so')), tien(25000000));
     var a = await K.dungTrang({ san_sang: SS, toi: toi({ hang: { ten_hang: 'AMBASSADOR', giam_gia: 10, tich_diem: 0 }, diem_dung_duoc: 0, diem: 0,
       tien_do: { da_mua: 4000000, so_thang: 12, hang_tiep: 'VOYAGER', con_thieu: 6000000, ty_le: 0.4 } }), cap_vi_tv: { ok: 1, moi: [] } }, '');
@@ -103,7 +103,7 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
       ['Từ đơn đầu tiên', 'Chi từ 10 triệu trong 12 tháng', 'Chi từ 20 triệu trong 12 tháng', 'Do Vagabond mời']);
     dung('điều kiện không ngắt giữa số và đơn vị', the[1].querySelector('.t1-dk').querySelectorAll('.cum').map(chu).join('|') === '10 triệu|12 tháng');
     bang('kiểu thẻ', the.map(function (x) { return lop(x); }), ['t1-the', 't1-the la', 't1-the tiep', 't1-the moi-hang']);
-    dung('Hạng của bạn chỉ ở VOYAGER', chu(the[1]).indexOf('Hạng của bạn') >= 0 && the.filter(function (x) { return chu(x).indexOf('Hạng của bạn') >= 0; }).length === 1);
+    dung('Hạng hiện tại chỉ ở VOYAGER', chu(the[1]).indexOf('Hạng hiện tại') >= 0 && the.filter(function (x) { return chu(x).indexOf('Hạng hiện tại') >= 0; }).length === 1);
     dung('VAGABONDER: còn 6.250.000đ', chu(the[2]).indexOf('Còn ' + tien(6250000)) >= 0);
     bang('chip quà sinh nhật', the.map(function (x) { return chu(x).indexOf('Quà sinh nhật') >= 0; }), [false, true, true, true]);
     dung('không lặp tên chương trình dài', chu(the[1]).indexOf(QSN_TEN) < 0);
@@ -195,14 +195,14 @@ var tien = function (v) { return v.toLocaleString('vi-VN') + 'đ'; };
     var g = await K.dungTrang({ san_sang: SS, toi: { ok: 0, ly_do: 'chua_dang_nhap' }, the_le: { the_le: theLe({ sap_het: null, lan_tich: null }) } }, '');
     dung('màn đăng nhập', !K.an(g.tim('dang-nhap')) && !K.an(g.tim('mo-dau-tv')));
     bang('tên khối', g.tim('mo-dau-tv').querySelector('.cl-ten').children.map(chu), ['THE VAGABOND', 'CLUB']);
-    bang('câu', g.tim('mo-dau-tv').querySelector('.cl-cau').querySelectorAll('.cum').map(chu), ['Đăng nhập để xem hạng,', 'điểm và quà của bạn.']);
+    bang('câu', g.tim('mo-dau-tv').querySelector('.cl-cau').querySelectorAll('.cum').map(chu), ['Đăng nhập để xem hạng,', 'điểm và quà của quý khách.']);
     dung('không ghi quà sinh nhật trong câu', chu(g.tim('mo-dau-tv').querySelector('.cl-cau')).indexOf('sinh nhật') < 0);
     dung('ô Tích đến 5%', !K.an(g.tim('cl-tich')) && chu(g.tim('cl-tich-so')) === '5%');
     bang('nút đăng ký', g.tim('nut-dang-ky').querySelectorAll('.cum').map(chu).concat([chu(g.tim('nut-dang-ky').querySelector('.cl-chip'))]), ['Đăng ký thành viên tại đây', 'Đăng ký']);
-    bang('nhãn ô số', chu(g.tim('gui-ma').querySelector('label').children[0]), 'Số điện thoại của bạn');
+    bang('nhãn ô số', chu(g.tim('gui-ma').querySelector('label').children[0]), 'Số điện thoại của quý khách');
     bang('nút nhận mã', chu(g.tim('nut-gui')), 'Nhận mã đăng nhập');
     var k = g.tim('the-le-dn');
-    dung('thẻ hạng cho khách', k.querySelectorAll('.t1-the').length === 4 && chu(k).indexOf('Hạng của bạn') < 0);
+    dung('thẻ hạng cho khách', k.querySelectorAll('.t1-the').length === 4 && chu(k).indexOf('Hạng hiện tại') < 0);
     dung('luật điểm không có tổng riêng', !K.an(g.tim('u3-dn')) && g.tim('u3-dn').querySelectorAll('.u3-tong').length === 0 && g.tim('u3-dn').querySelectorAll('.u3-moc').length === 0);
     g.tim('nut-dang-ky').onclick();
     dung('bấm Đăng ký: con trỏ vào ô số', g.tim('sdt')._daFocus === true);

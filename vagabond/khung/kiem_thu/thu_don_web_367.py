@@ -314,7 +314,8 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 		don_web=dw, PANCAKE="https://pancake.invalid", TIMEOUT=1,
 		cfg=cauhinh or (lambda: D(pancake_shop_id="67355", pancake_order_source_id="")),
 		key=lambda c, f: "khoa-thu",
-		phi_giao=phi or (lambda **k: {"ok": 1, "total_fee": 36000}),
+		# v675: báo phí thật luôn kèm khoảng cách đường thẳng (giao_hang.phi_giao), bản giả cũng vậy.
+		phi_giao=phi or (lambda **k: {"ok": 1, "total_fee": 36000, "km_thang": 3.0}),
 		_uuid_tu_ma=lambda c, k, ma: "uuid-" + ma,
 		_gia_va_ten=lambda ds: ({m: 450000 for m in ds}, {m: "Bánh " + m for m in ds}),
 		_ip_va_trinh_duyet=lambda: ("203.0.113.9", "Trinh duyet thu"),

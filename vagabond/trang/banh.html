@@ -2081,7 +2081,7 @@ function apPhiGiao(m, kieu, q){
       return;
     }
     CO.ngoaiVung=true;
-    $('#shipHint').innerHTML=htmlChuWeb('giao_ngoai_vung', 'Chúng tôi chưa hỗ trợ giao đến địa chỉ này. Bánh kem chỉ giao trong bán kính {km} km quanh bếp và cửa hàng. Quý khách có thể chọn tự đến lấy tại cửa hàng.', {km:m.ban_kinh||12});
+    $('#shipHint').innerHTML=htmlChuWeb('giao_ngoai_vung', 'Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng.', {km:m.ban_kinh||12});
     return;
   }
   if(!m || !m.ok || !(m.total_fee>0)){
@@ -2220,7 +2220,7 @@ const LY_DO = {
   get gio_hang_rong() { return chuWeb("dat_banh_d3470ca1b", "Giỏ hàng trống hoặc món đã hết mã."); },
   get thieu_ten_hoac_so_dien_thoai() { return chuWeb("dat_banh_3261b803a", "Thiếu tên hoặc số điện thoại."); },
   get thieu_dia_chi_giao() { return chuWeb("dat_banh_1c040d123", "Thiếu địa chỉ giao."); },
-  get ngoai_vung_giao() { return chuWeb("dat_banh_f578cc0d6", "Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng"); },
+  get ngoai_vung_giao() { return chuWeb("dat_banh_f578cc0d6", "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng"); },
   get khong_tim_thay_ma_hang() { return chuWeb("dat_banh_35ec19a18", "Một món trong giỏ không tra được mã bán hàng, chúng tôi sẽ kiểm tra lại ngay."); },
   get chua_dien_toa_do_diem_lay() { return chuWeb("dat_banh_dda0df2c0", "Hệ thống của chúng tôi đang trục trặc."); },
   get pancake_tu_choi() { return chuWeb("dat_banh_3baaae33b", "Hệ thống bán hàng của chúng tôi từ chối đơn này."); },
@@ -2278,7 +2278,7 @@ async function submitOrder(){
   /* Ngoai vung giao thi chan ngay o day. May chu chan lai lan nua, nhung chan
      som thi khach doi sang tu lay duoc luon, khoi bam gui vo ich. */
   if(!tuLay && CO.ngoaiVung){
-    toast((chuWeb("dat_banh_0e39768bd", "Địa chỉ ngoài vùng giao. Quý khách chọn \"Tự lấy tại cửa hàng\"")));
+    toast((chuWeb("dat_banh_0e39768bd", "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng")));
     $('#m-pick').scrollIntoView({behavior:'smooth',block:'center'});
     return;
   }

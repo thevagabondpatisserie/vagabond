@@ -121,7 +121,7 @@ export function khoiDong(goc = '#app') {
         /* v644: bánh có bộ nội dung web thì chữ riêng từng mã ở mục Nội dung bánh (Nâng cao) không đè lên. */
         const tang = !c.tuWeb && tangChu ? tangChu.split('\n').filter(x => x.trim()).map(x => [x, '']) : c.layers;
         const anhs = (c.anhs && c.anhs.length ? c.anhs : (c.img ? [c.img] : [])).slice(0, 5);
-        return {c, ten: tMon(ma, 'ten', c.k), vi: kho.T.laChuViet(c.k), moTa: c.tuWeb ? c.desc : tMon(ma, 'mo_ta', c.desc), tang, anhs,
+        return {c, ten: tMon(ma, 'ten', c.k), vi: kho.T.laChuViet(c.k), moTa: c.tuWeb ? c.desc : tMon(ma, 'mo_ta', c.desc), tang, anhs, diUng: c.diUng || '', baoQuan: c.baoQuan || '',
           tinhTrang: avail.length ? 'co' : (nhanMua ? 'mua' : 'truoc'), nhanMua,
           tonChu: avail.length ? kho.T.nhanTon(avail.reduce((a, s) => a + S.TODAY[s.id], 0), banh, t) : ''};
       });
@@ -129,7 +129,8 @@ export function khoiDong(goc = '#app') {
       const kichThuocDong = computed(() => kichThuoc.value.map(s => {
         const n = S.TODAY[s.id] || 0, tr = S.TRUOC[s.id] || 0, banh = t('dat_banh_3556aabb5', 'bánh');
         const kp = tMon(s.id, 'khau_phan', s.serve);
-        return {s, gia: kho.T.tienVN(s.p), nhan: t('dat_banh_2540d6d0f', 'Ø {gia_tri_a}cm{gia_tri_b}', {gia_tri_a: s.cm, gia_tri_b: kp ? ' · ' + kp : ''}),
+        return {s, gia: kho.T.tienVN(s.p), nhan: s.cm ? t('dat_banh_2540d6d0f', 'Ø {gia_tri_a}cm{gia_tri_b}', {gia_tri_a: s.cm, gia_tri_b: kp ? ' · ' + kp : ''})
+          : t('dat_banh_8a6c6356d', '1 cỡ') + (kp ? ' · ' + kp : ''),
           em: n ? kho.T.nhanTon(n, banh, t) : (tr ? (kho.nhanRefill(s.id) || t('san_pham_dat_truoc', 'Đặt trước')) + ' · ' + kho.T.nhanTon(tr, banh, t) : '')};
       }));
       const tomTatLich = computed(() => { const nh = kho.nhanNgayDangChon(); return nh.ten + ', ' + nh.ngay + ' · ' + kho.slotDangChon.value.t; });
@@ -137,7 +138,7 @@ export function khoiDong(goc = '#app') {
         const ra = [];
         S.CART.forEach(o => {
           const x = o.qty > 1 ? ' ' + t('dat_banh_67fba2f35', '×') + ' ' + o.qty : '';
-          ra.push({k: o.id + 'b' + ra.length, nhan: tMon(o.id, 'ten', o.k) + ' · Ø ' + o.cm + 'cm' + x, gia: kho.T.tienVN(o.price * o.qty)});
+          ra.push({k: o.id + 'b' + ra.length, nhan: tMon(o.id, 'ten', o.k) + (o.cm ? ' · Ø ' + o.cm + 'cm' : '') + x, gia: kho.T.tienVN(o.price * o.qty)});
           o.adds.forEach(a => ra.push({k: a.id + 'a' + ra.length, nhan: '+ ' + a.n + x, gia: kho.T.tienVN(a.p * o.qty)}));
         });
         return ra;
@@ -203,7 +204,9 @@ export function khoiDong(goc = '#app') {
          xong thì GIỮ đường dẫn, napTon().then(apDuongDanNeuBanh) mở lại sau. */
       if (!c) { if (S.tonDaThu) nav('#/', true); return; }
       /* Link chia sẻ mở mới: bánh không còn hôm nay vẫn cho chọn cỡ đặt trước. */
-      if (S.tab === 'today' && !c.sizes.some(s => S.TODAY[s.id] > 0)) S.tab = 'order';
+      /* v675: chỉ kết luận "không còn hôm nay" SAU khi đã nạp tồn. Trước: mở thẳng link bánh thì tồn chưa
+         về, bánh có sẵn hôm nay bị thêm vào giỏ thành bánh đặt trước nhận ngày mai dù trang ghi Có sẵn hôm nay. */
+      if (S.tab === 'today' && S.tonDaThu && !c.sizes.some(s => S.TODAY[s.id] > 0)) S.tab = 'order';
       if (!(S.dongDangSua >= 0 && S.cur === c)) { S.dongDangSua = -1; kho.moBanh(c); }
       S.anhChon = 0;
       if (truocDo === 'gio') kho.roiGio();
@@ -329,7 +332,11 @@ export function khoiDong(goc = '#app') {
     const px = ch ? String(ch.pixel_id || '').replace(/\D/g, '') : '';
     if (px && !pixel.id && !ND.xemThu) { pixel.id = px; napPixel(px); }
   });
-  function apDuongDanNeuBanh() { if (/^#\/banh\//.test(location.hash || '') && !S.cur) apDuongDan(); }
+  function apDuongDanNeuBanh() {
+    if (!/^#\/banh\//.test(location.hash || '')) return;
+    if (!S.cur) { apDuongDan(); return; }
+    if (S.tab === 'today' && !S.cur.sizes.some(s => S.TODAY[s.id] > 0)) S.tab = 'order';
+  }
   window.addEventListener('pagehide', kho.luuGio);
   return {app, vm, kho};
 }

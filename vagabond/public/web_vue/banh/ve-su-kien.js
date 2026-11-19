@@ -161,10 +161,9 @@ export const VeSuKien = {
     let than;
     if (!ND.daTai && !ND.xemThu) than = [h('p', {class: 'cm-rong', role: 'status'}, ND.loiTai ? t('vsk_loi_tai', 'Chưa tải được sự kiện. Tải lại trang hoặc gọi cho chúng tôi.') : t('vsk_dang_tai', 'Đang tải sự kiện...'))];
     else if (!ds.length) {
-      const zalo = mxh('zalo'), ig = mxh('instagram');
+      const zalo = mxh('zalo');
       than = [h('p', {class: 'cm-rong vsk-rong'}, [t('vsk_rong', 'Chưa có sự kiện nào mở đăng ký. Theo dõi The Vagabond để nhận tin sự kiện mới:'), ' ',
-        zalo ? h('a', {href: zalo, target: '_blank', rel: 'noopener noreferrer'}, 'Zalo OA') : null, zalo && ig ? ' · ' : '',
-        ig ? h('a', {href: ig, target: '_blank', rel: 'noopener noreferrer'}, 'Instagram') : null])];
+        zalo ? h('a', {href: zalo, target: '_blank', rel: 'noopener noreferrer'}, t('vsk_rong_zalo', 'Theo dõi Zalo OA')) : null])];
     } else {
       than = [
         coLoai.length > 1 ? h('div', {class: 'cm-chips vsk-chips'}, ['', ...coLoai].map(l => h('button', {type: 'button', 'aria-pressed': String(l === VSK.loai), onClick: () => { VSK.loai = l; }},

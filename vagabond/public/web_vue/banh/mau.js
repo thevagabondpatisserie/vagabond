@@ -280,7 +280,8 @@ export const MAU = `
     </div>
 
     <div class="sec"><span class="n">09</span><h3><span>{{ t('dat_banh_9d5a6614c','Thanh toán') }}</span></h3><i class="rule"></i></div>
-    <div id="payList"><button v-for="x in kho.paysHien.value" :key="x.k" class="pick" :class="{on: S.CO.pay===x.k}" :data-pt="x.k" @click="S.CO.pay=x.k"><b>{{ t(x.kn, x.n) }}</b><span>{{ t(x.kd, x.d) }}</span></button></div>
+    <div id="payList"><button v-for="x in kho.paysHien.value" :key="x.k" class="pick" :class="{on: S.CO.pay===x.k}" :data-pt="x.k" @click="S.CO.pay=x.k; S.CO.payBao=false"><b>{{ t(x.kn, x.n) }}</b><span>{{ t(x.kd, x.d) }}</span></button></div>
+    <p class="pay-bao" id="payBao" role="status" v-if="S.CO.payBao">{{ t('pay675_xem_lai','Cách thanh toán đã chọn trước đây không còn áp dụng. Quý khách xem lại cách thanh toán trước khi gửi đơn.') }}</p>
 
     <div class="dd-the" id="donDau" v-if="kho.theDonDau.value" :class="'dd-' + kho.theDonDau.value.kieu" role="group" :aria-label="kho.theDonDau.value.tieu">
       <div class="dd-dau"><span class="dd-ic" aria-hidden="true">{{ kho.theDonDau.value.kieu === 'da_ap' ? '✓' : kho.theDonDau.value.ic }}</span>
@@ -339,6 +340,7 @@ export const MAU = `
     <button class="chk" id="c-uudai" :class="{on: S.CO.uudai}" @click="tgl('uudai')" role="checkbox" :aria-checked="S.CO.uudai ? 'true' : 'false'"><span class="bx">{{ S.CO.uudai ? '✓' : '' }}</span>
       <span class="tx"><span>{{ t('uu_dai_nhan_tin','Tôi muốn nhận tin món mới và ưu đãi dịp lễ của The Vagabond Pâtisserie qua Zalo hoặc gọi điện. Tôi đổi ý lúc nào cũng được.') }}</span><small>{{ t('uu_dai_khong_bat_buoc','Không bắt buộc, không tích vẫn đặt bánh bình thường.') }}</small></span></button>
 
+    <p class="chot-don" id="chotDon"><b>{{ kho.chotDon.value.ngay }}</b> · <b>{{ kho.chotDon.value.gio }}</b><br>{{ kho.chotDon.value.noi }}<br>{{ kho.tong.value.tt.tong_nhan }}: <b>{{ tienTom(kho.tong.value.total) }}</b></p>
     <div class="cta">
       <button class="btn" id="btnSend" style="width:100%" v-show="!S.guiXong || S.dangGui" :disabled="S.dangGui" :style="{opacity: S.dangGui ? .55 : 1, pointerEvents: S.dangGui ? 'none' : 'auto'}" @click="guiDon()">{{ S.dangGui ? t('dat_banh_848d6282f','Đang gửi đơn...') : t('dat_banh_df2154067','Gửi yêu cầu đặt bánh') }}</button>
       <div id="sendHint" style="margin-top:12px;font-size:13px;line-height:1.6"><dong-chu v-if="S.goi.gui" :phan="S.goi.gui"/></div>
@@ -385,25 +387,27 @@ export const MAU = `
     <details class="tuy-chon" id="s-thong-tin" :key="'tt' + chiTiet.c.k">
       <summary><span>{{ t('chi_tiet_huong_vi','Mô tả và hương vị') }}</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></summary>
       <div class="desc" id="s-desc">{{ chiTiet.moTa }}</div><div id="s-layers">
-        <template v-if="chiTiet.tang"><h3 class="h-sec">{{ t('dat_banh_f84afdac6','Tầng hương') }}<em>{{ t('dat_banh_17a765496','lớp vị') }}</em></h3><div class="layers"><div class="layer" v-for="(l,i) in chiTiet.tang" :key="i"><span class="i">{{ String(i+1).padStart(2,'0') }}</span><div><b>{{ l[0] }}</b><i>{{ l[1] }}</i></div></div></div></template>
+        <template v-if="chiTiet.tang"><h3 class="h-sec">{{ t('dat_banh_f84afdac6','Tầng hương') }} <em>{{ t('dat_banh_17a765496','lớp vị') }}</em></h3><div class="layers"><div class="layer" v-for="(l,i) in chiTiet.tang" :key="i"><span class="i">{{ String(i+1).padStart(2,'0') }}</span><div><b>{{ l[0] }}</b><i>{{ l[1] }}</i></div></div></div></template>
         <div v-else class="fine" style="margin-top:20px">{{ t('dat_banh_b96013446','Mô tả và tầng hương lớp vị của món này đang được cập nhật.') }}</div></div>
+      <div class="them-tt" id="s-di-ung" v-if="chiTiet.diUng"><h3 class="h-sec">{{ t('ct675_di_ung','Thành phần dễ gây dị ứng') }}</h3><p>{{ chiTiet.diUng }}</p></div>
+      <div class="them-tt" id="s-bao-quan" v-if="chiTiet.baoQuan"><h3 class="h-sec">{{ t('ct675_bao_quan','Bảo quản và sử dụng') }}</h3><p>{{ chiTiet.baoQuan }}</p></div>
     </details>
 
-    <div class="sec"><span class="n">01</span><h3><span>{{ t('dat_banh_0e619c4c4','Giá bánh') }}</span></h3><i class="rule"></i><button type="button" class="huong-size" id="s-huongsize" @click="moHuongSize" aria-haspopup="dialog" aria-controls="huongSize"><i aria-hidden="true">?</i><span>{{ t('huong_size_nut','Cách chọn size') }}</span></button></div>
+    <div class="sec"><span class="n">01</span><h3><span>{{ t('dat_banh_0e619c4c4','Giá bánh') }}</span></h3><i class="rule"></i><button type="button" class="huong-size" id="s-huongsize" @click="moHuongSize" aria-haspopup="dialog" aria-controls="huongSize"><i aria-hidden="true">?</i><span>{{ t('huong_size_nut','Chọn cỡ bánh') }}</span></button></div>
     <div class="sizes" id="s-sizes"><button v-for="z in kichThuocDong" :key="z.s.id" class="size" :class="{on: z.s.id===S.curSizeId}" @click="kho.setSize(z.s.id)"><b>{{ z.gia }}</b><span>{{ z.nhan }}</span><em v-if="z.em">{{ z.em }}</em></button></div>
     <div class="fine"><span>{{ t('dat_banh_c02f89b47','Giá đã gồm thuế GTGT. Chưa gồm phí vận chuyển nếu có.') }}</span></div>
 
     <div class="chon-so-luong"><span id="s-qty-label">{{ t('so_luong_banh','Số lượng bánh') }}</span><div class="qty"><button type="button" id="s-minus" :disabled="S.soLuong<=1" @click="kho.doiSoLuong(-1)" :aria-label="t('giam_so_luong','Giảm số lượng')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><output id="s-qty" aria-labelledby="s-qty-label" aria-live="polite">{{ S.soLuong }}</output><button type="button" @click="kho.doiSoLuong(1)" :aria-label="t('tang_so_luong','Tăng số lượng')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button></div></div>
     <div class="sec"><span class="n">02</span><h3 id="s-wish-label"><span>{{ t('dat_banh_970e693a8','Lời chúc in trên cờ') }}</span></h3><i class="rule"></i></div>
     <div class="fld"><input id="s-wish" aria-labelledby="s-wish-label" maxlength="60" :placeholder="t('dat_banh_ed04b0946','Happy Birthday...')" v-model="S.wish">
-      <div class="hint"><span id="s-wishN">{{ (S.wish||'').length }}</span><span>{{ t('dat_banh_05faf7b4b','/60 ký tự. Nội dung sẽ được in thành cờ, khi vào tiệc thì cắm lên bánh.') }}</span></div>
+      <div class="hint"><span id="s-wishN">{{ (S.wish||'').length }}</span><span>{{ t('dat_banh_05faf7b4b','/60 ký tự. The Vagabond in lời chúc lên cờ cắm bánh.') }}</span></div>
     </div>
 
     <!-- v598 (port v597): khách tưởng phải mua thêm hộp, túi (Minh Vũ báo). Khung này luôn hiện, không gấp, nói rõ đồ đã có sẵn trong giá bánh. -->
-    <div class="sec"><span class="n">03</span><h3><span>{{ t('pk_co_san_muc','Đã có sẵn trong hộp bánh') }}</span></h3><i class="rule"></i></div>
-    <div class="co-san"><div class="co-san-tit">{{ t('pk_co_san_tieu_de','Tặng kèm mọi bánh ổ') }}</div>
+    <div class="sec"><span class="n">03</span><h3><span>{{ t('pk_co_san_tieu_de','Kèm theo mỗi bánh') }}</span></h3><i class="rule"></i></div>
+    <div class="co-san">
       <div class="co-san-mo">{{ t('pk_co_san_mo_ta','Đã nằm trong giá bánh, quý khách không phải mua thêm.') }}</div>
-      <ul class="acc" id="s-acc"><li v-for="a in ACC" :key="a.k"><img :src="a.i" alt=""><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span><span class="tag-co-san">{{ t('pk_co_san_nhan','Có sẵn') }}</span></li></ul></div>
+      <ul class="acc" id="s-acc"><li v-for="a in ACC" :key="a.k"><img :src="a.i" alt=""><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul></div>
 
     <details class="tuy-chon" id="s-phu-kien" :key="'pk' + chiTiet.c.k">
       <summary><span>{{ t('phu_kien_cho_banh','Phụ kiện cho bánh') }}</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></summary>
@@ -444,7 +448,7 @@ export const MAU = `
 <div class="hs-nen" id="huongSize" :hidden="!S.huongSize" @click.self="dongHuongSize">
   <div class="hs-hop" role="dialog" aria-modal="true" aria-labelledby="hs-tieu-de">
     <button type="button" class="hs-x" id="hs-dong" @click="dongHuongSize" :aria-label="t('huong_size_dong','Đóng')">×</button>
-    <h3 class="hs-tieu-de" id="hs-tieu-de">{{ t('huong_size_tieu_de','Chọn size bánh') }}</h3>
+    <h3 class="hs-tieu-de" id="hs-tieu-de">{{ t('huong_size_tieu_de','Chọn cỡ bánh') }}</h3>
     <p class="hs-mo-ta">{{ t('huong_size_mo_ta','Mọi bánh cao 5 cm. Số miếng tính theo cách cắt thường, mỗi miếng vừa một người ăn tráng miệng.') }}</p>
     <div class="hs-luoi" id="hs-luoi"><div class="hs-o" v-for="(z, i) in HUONG_SIZE" :key="z.cm"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44"/><line v-for="l in kho.T.duongCat(z.lat)" :key="l.x2 + ',' + l.y2" x1="50" y1="50" :x2="l.x2" :y2="l.y2"/></svg>
       <div class="hs-so">{{ t('huong_size_so','Size {so}',{so: i + 1}) }}</div><div class="hs-cm">Ø {{ z.cm }} cm</div>

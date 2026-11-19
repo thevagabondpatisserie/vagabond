@@ -255,6 +255,11 @@ for n in cay.body:
   la('mục khi có mùa và tiệc', tim(tim(goc0, n => n.props['data-muc'] === 'mua')[0], n => n.the === 'a').map(n => n.props.href),
     ['#/', '#/dat-truoc', '#/in-season', '#/uu-dai', '#/tiec', '/thanh-vien', '/banh-si', '#/tuyen-dung']);
   ND.khoi = [];
+  /* v675: miễn phí giao trong bán kính thì chân trang nói rõ số km. */
+  const {kho: khoKm} = dungKho({...CAU_HINH, mien_phi_km: 7});
+  await khoKm.napCauHinh();
+  const {goc: gocKm} = await gan(khoKm);
+  dung('chân trang ghi bán kính 7 km', /trong bán kính 7 km/.test(chu(gocKm)));
   const thieu = [...doc].filter(k => macDinh(k) == null);
   la('khoá thiếu trong sổ nhãn', thieu, []);
   dung('đọc đủ khoá mới', ['ct630_moi_tieu_de', 'ct630_chon_banh', 'ct630_mien_phi', 'ct630_hoa_don', 'ct630_cua_hang'].every(k => doc.has(k)));

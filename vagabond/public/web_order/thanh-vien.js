@@ -214,13 +214,13 @@
         { tien: moc > 0 ? (moc % 1000000 === 0 ? so(moc / 1000000) + ' ' + C('tv658_trieu', 'triệu') : dong(moc)) : '0đ' }), chuTho(' · '),
         ghepCum(tao('span', ''), C('tv658_tich_pt', 'tích {pt}'), { pt: pt(h.tich_diem) }));
       nhan.append(dk);
-      if (loai === 'la') nhan.append(chip(C('tv658_ban_o_day', 'Bạn ở đây'), 'trang'));
+      if (loai === 'la') nhan.append(chip(C('tv658_ban_o_day', 'Đang ở hạng này'), 'trang'));
       ve.append(cung, ht, nhan);
       day = Math.max(day, y + 70);
     });
     ve.style.height = Math.max(300, day) + 'px';
     ve.setAttribute('aria-label', C('tv658_ht_aria', 'Hành trình hạng: {ds}.', { ds: cao.map(h => h.ten_hang).join(', ') })
-      + (viTri >= 0 ? ' ' + C('tv658_ht_aria_la', 'Bạn đang ở hạng {hang}.', { hang: tenHien }) : ''));
+      + (viTri >= 0 ? ' ' + C('tv658_ht_aria_la', 'Quý khách đang ở hạng {hang}.', { hang: tenHien }) : ''));
     /* Khung chi tiêu 12 tháng (J1b): chỉ cho hạng xét theo chi tiêu. */
     const khung = tim('ht-chi');
     an(khung, !(viTri >= 0 && td));
@@ -235,7 +235,7 @@
     if (td.hang_tiep) {
       c.append(chip(C('tv658_con', 'Còn {tien}', { tien: dong(td.con_thieu) }), 'vien'));
       c.append(chip(C('tv658_vao_vong', 'Vào vòng {hang}', { hang: td.hang_tiep }) + (tiep ? ' · ' + C('tv658_tich_pt', 'tích {pt}', { pt: pt(tiep.tich_diem) }) : ''), 'trang'));
-    } else c.append(chip(C('tv658_cao_nhat', 'Bạn đang ở vòng cao nhất'), 'trang'));
+    } else c.append(chip(C('tv658_cao_nhat', 'Đã ở vòng cao nhất'), 'trang'));
   }
 
   /* T1: mỗi hạng một thẻ, vuốt ngang. Hạng của khách nền xanh, hạng kế tiếp
@@ -260,7 +260,7 @@
       the.append(ghepCum(tao('p', '', 't1-dk'), h.moi ? C('tv658_do_moi', 'Do Vagabond mời')
         : moc > 0 ? C('tv658_chi_tu', 'Chi từ {tien} trong {thang}') : C('tv658_tu_dau', 'Từ đơn đầu tiên'),
         { tien: moc % 1000000 === 0 ? so(moc / 1000000) + ' ' + C('tv658_trieu', 'triệu') : dong(moc), thang: (h.so_thang_xet || 12) + ' ' + C('tv7_thang', 'tháng') }));
-      if (la) the.append(chip(C('tv658_hang_cua_ban', 'Hạng của bạn'), 'den'));
+      if (la) the.append(chip(C('tv658_hang_cua_ban', 'Hạng hiện tại'), 'den'));
       else if (tiep && Number(td.con_thieu) > 0) the.append(chip(C('tv658_con', 'Còn {tien}', { tien: dong(td.con_thieu) }), 'vien'));
       const tich = Number(h.tich_diem) || 0, giam = Number(h.giam_gia) || 0;
       const lon = tao('p', '', 't1-so');
@@ -439,7 +439,7 @@
       dc.replaceChildren(ghepCum(tao('span', '', 'dong'), C('tv658_tuong_duong', 'Tương đương {tien}.'), { tien: dong(d.diem) }));
       dc.append(ghepCum(tao('span', '', 'dong'), C('tv658_tran', 'Áp dụng thanh toán {tran} {gia_tri}'),
         { tran: C('tv658_toi_da', 'tối đa {pt}', { pt: pt(lu.tran_pt || 50) }), gia_tri: C('tv658_gia_tri', 'giá trị đơn hàng') + '.' }));
-    } else dc.textContent = C('tv658_khong_dung', 'Hạng của bạn được giảm thẳng trên mỗi hoá đơn, không dùng điểm.');
+    } else dc.textContent = C('tv658_khong_dung', 'Hạng của quý khách được giảm thẳng trên mỗi hoá đơn, không dùng điểm.');
     an(tim('nut-dung-diem'), !dungDuoc);
     const sh = tl && tl.sap_het;
     an(tim('diem-het'), !(dungDuoc && sh && Number(sh.diem) > 0));

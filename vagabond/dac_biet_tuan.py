@@ -37,6 +37,10 @@ DA_CHOT = "dac_biet_da_chot"
 SAI_NGAY = "dac_biet_sai_ngay"
 HET_SUAT = "dac_biet_het_suat"
 
+# Trạng thái thẻ Bánh mà khách không được thấy (trùng banh_web.DA_AN; không
+# import vì banh_web chạm Frappe).
+THE_AN = "Đã ẩn"
+
 
 # ------------------------------------------------------------------ THUẦN
 
@@ -246,6 +250,52 @@ def vuot_suat(dot, hang, ma_theo_khoa, da_dat):
         if them[m["khoa"]] > con:
             ra.append({"khoa": m["khoa"], "con": max(con, 0)})
     return ra
+
+
+def nhom_cua_dot(dot, the_ds, gia_ma):
+    """THUẦN. v671 (Minh Vũ 18/11/2026): danh sách món của đợt cho trang khách,
+    theo ĐỢT chứ không theo tồn tủ hay ô Đủ decor của Kiểm bánh.
+
+    Trước bản này tab chỉ thấy bánh có trong tủ hôm nay hoặc bếp đã điền Đủ
+    decor, nên món chỉ làm cho đợt (chưa có trên tủ, chưa có decor) không hiện
+    ("Món của tuần này đang được cập nhật"); muốn hiện thì bếp phải điền decor,
+    làm món lọt luôn sang tab Đặt bánh trước.
+
+    the_ds: thẻ Bánh [{khoa, ten, trang_thai, anhs: [url], mo_ta: [dòng], tang: [dòng], di_ung: [dòng], bao_quan: [dòng], ma: [mã]}].
+    gia_ma: {mã: {"cm", "gia"}} chỉ gồm mã được bán trên web (có giá, đang dùng,
+    là hàng bán, không tắt bán web). Món hiện khi thẻ không Đã ẩn, còn ít nhất
+    một mã bán được và có ảnh (ảnh thẻ hoặc ảnh đứng của đợt). Trả các nhóm cùng
+    khuôn danh mục đặt bánh (ten, anh, anhs, mo_ta, tang, tu_web, sizes)."""
+    the = {t.get("khoa"): t for t in the_ds or []}
+    ra = []
+    for m in (dot or {}).get("mon_dt") or []:
+        t = the.get(m.get("khoa"))
+        if not t or t.get("trang_thai") == THE_AN:
+            continue
+        sizes = [{"ma": ma, "cm": gia_ma[ma].get("cm"), "gia": int(gia_ma[ma].get("gia") or 0)}
+            for ma in t.get("ma") or [] if ma in (gia_ma or {})]
+        if not sizes:
+            continue
+        anhs = [u for u in t.get("anhs") or [] if u] or ([m["anh"]] if m.get("anh") else [])
+        if not anhs:
+            continue
+        sizes.sort(key=lambda z: (int(z["cm"] or 0) or 999, z["gia"]))
+        ra.append({"ten": t.get("ten") or m.get("khoa"), "anh": anhs[0], "anhs": anhs,
+            "mo_ta": " ".join(t.get("mo_ta") or []), "tang": list(t.get("tang") or []),
+            # v676 (Codex #594): dị ứng, bảo quản của thẻ Bánh đi cùng món của đợt.
+            "di_ung": " ".join(t.get("di_ung") or []), "bao_quan": " ".join(t.get("bao_quan") or []),
+            "tu_web": 1, "sizes": sizes})
+    return ra
+
+
+def bo_mon_dot(hang, ma_khoa):
+    """THUẦN. v671: dòng đơn KHÔNG thuộc món của đợt. Món của đợt giữ số theo
+    đợt (giờ mở, giờ chốt, ngày giao, số lượng tối đa xét ở kiem_don và
+    vuot_suat), không xét tồn tủ hay Đủ decor như bánh đặt trước thường."""
+    cua_dot = set()
+    for ds in (ma_khoa or {}).values():
+        cua_dot.update(ds)
+    return [h for h in hang or [] if h.get("variation_id") not in cua_dot]
 
 
 # ------------------------------------------------------------------ Frappe

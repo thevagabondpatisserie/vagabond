@@ -87,15 +87,21 @@ await ca('2. Giỏ có món cuối tuần: lịch chỉ còn ngày giao của đ
   la('bấm 22/11: chọn được', [iso(k), k.S.daChonNgay], ['2026-11-22', true]);
 });
 
-await ca('3. Bánh không thuộc đợt không bị khoá ngày; bỏ món cuối tuần khỏi giỏ thì lịch mở lại', async () => {
+await ca('3. Bánh không thuộc đợt không bị khoá ngày vì đợt; bỏ món cuối tuần khỏi giỏ thì lịch mở lại', async () => {
   const {k} = moiTruong('2026-11-17T10:00:00+07:00');
   la('thêm Phi Tử Tiếu ở tab Đặt bánh trước', them(k, 'order', 'Phi Tử Tiếu'), 'them');
-  la('không ngày nào bị khoá vì đợt', k.ngayRail.value.filter(d => d.off).map(d => d.i), [0]);
-  them(k);
+  /* v671 (Sales góp ý 18/11/2026, giám đốc chốt): bánh đặt trước thường chỉ nhận
+     ngày mai 18/11, các ngày sau mờ vì luật đó, không phải vì đợt. */
+  la('chỉ còn ngày mai', k.ngayRail.value.filter(d => !d.off).map(d => d.i), [1]);
+  la('thêm món của đợt (giao 21, 22/11) vào giỏ nhận ngày mai: báo đặt đơn riêng', them(k), false);
+  dung('câu nhắc không có chung ngày', /không có chung ngày nhận/.test(k.S.toast.chu));
+  k.S.CART.splice(0);
+  la('giỏ chỉ có món của đợt', them(k), 'them');
   dung('có Candle: 19/11 bị khoá', k.ngayRail.value.find(d => d.i === 2).off);
   k.S.CART.splice(k.S.CART.findIndex(o => o.k === 'CANDLE'), 1);
   la('bỏ Candle: 19/11 mở lại', k.ngayRail.value.find(d => d.i === 2).off, false);
 });
+
 
 await ca('4. Số lượng tối đa của đợt: đã đặt 1 trên 2 thì chỉ thêm được 1; thêm qua tab Đặt bánh trước cũng bị giữ', async () => {
   const {k} = moiTruong('2026-11-17T10:00:00+07:00', dotMau(), {candle: 1});

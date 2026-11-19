@@ -73,7 +73,8 @@ def _tuyen_dung():
 
 def _dot_mau():
 	"""v667: đợt Đặc biệt tuần này mẫu, theo biến VGB_DBT: mot (1 món), hai (2 món),
-	chot (đã chốt đơn), chua_mo (chưa mở đơn), het (món có giới hạn đã đủ suất).
+	chot (đã chốt đơn), chua_mo (chưa mở đơn), het (món có giới hạn đã đủ suất),
+	stollen (v671: món chỉ làm cho đợt, máy chủ trả trong dac_biet).
 	Không đặt biến thì không có đợt (tab ẩn), giữ nguyên các ảnh mốc cũ."""
 	import datetime as _dt
 	kieu = os.environ.get('VGB_DBT') or ''
@@ -84,7 +85,10 @@ def _dot_mau():
 	thu = lambda d: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][(hn + _dt.timedelta(days=d)).weekday()] + ' ' + (hn + _dt.timedelta(days=d)).strftime('%d/%m')
 	mo, chot = (1, 4) if kieu == 'chua_mo' else ((-4, -1) if kieu == 'chot' else (-1, 3))
 	mon = [{'khoa': 'candle', 'mo_ta': 'Vani Tahiti, caramel muối, lớp giòn hạnh nhân.', 'anh': '', 'nhan_goc': '', 'toi_da': '3' if kieu == 'het' else ''}]
-	if kieu != 'mot':
+	if kieu == 'stollen':
+		# v671 (Minh Vũ 18/11): món chỉ làm cho đợt, không có trên tủ, chưa có Đủ decor.
+		mon = [{'khoa': 'bánh stollen cookie, hũ 200 gr', 'mo_ta': 'Bơ, quế, hạnh nhân, trái cây ngâm rượu.', 'anh': '', 'nhan_goc': '', 'toi_da': '30'}]
+	elif kieu != 'mot':
 		mon.append({'khoa': 'phi tử tiếu', 'mo_ta': 'Vải thiều, hoa hồng, kem phô mai.', 'anh': '', 'nhan_goc': 'Số lượng có hạn', 'toi_da': ''})
 	return {'id': 'dbt-mau', 'loai': 'dac_biet_tuan', 'vi_tri': 'dac_biet_tuan', 'hien': True, 'nhan': 'CHỈ CUỐI TUẦN',
 		'tieu_de': 'CUỐI TUẦN\n' + (hn + _dt.timedelta(days=chot + 1)).strftime('%d') + ' · ' + (hn + _dt.timedelta(days=chot + 2)).strftime('%d/%m'),
@@ -179,6 +183,17 @@ def tra_loi_get(phuong, q):
 		return {'vi_tri': the, 'cau_dong_y': td.CAU_DONG_Y, 'thang_luu': td.THANG_LUU, 'cau_hoi': form['cau_hoi'],
 			'phuc_loi': form['phuc_loi'], 'gioi_thieu': form['gioi_thieu'], 'buoc': tf.BUOC, 'cv_toi_da_mb': 8}
 	if phuong == 'co_the_ban_hom_nay':
+		if os.environ.get('VGB_DBT') == 'stollen':
+			# v671: máy chủ trả món của đợt riêng (kiem_banh._mon_dac_biet), không qua tồn hay Đủ decor.
+			return dict(TON, dac_biet=[{'ten': 'Bánh Stollen Cookie, Hũ 200 gr', 'anh': '/assets/vagabond/web_order/og-banh.jpg',
+				'anhs': ['/assets/vagabond/web_order/og-banh.jpg'], 'mo_ta': 'Bánh quy Stollen giòn bơ.', 'tang': [], 'tu_web': 1,
+				'sizes': [{'ma': 'BACF00051', 'cm': 0, 'gia': 180000}]}])
+		if os.environ.get('VGB_DT') == '675':
+			# v675: ngày mai theo phiếu (con_mai), ngày kia và ngày thứ ba theo Đủ decor (con_xa).
+			return dict(TON, dat_truoc={'nhom': [{'ten': 'CANDLE', 'tu_web': 1, 'mo_ta': 'Bánh mẫu để chụp ảnh xem thử.', 'tang': ['Mousse - lớp kem'],
+				'di_ung': 'Sữa, trứng, gluten, hạt hạnh nhân.', 'bao_quan': 'Giữ lạnh 2 đến 6 độ C, dùng trong ngày.', 'sizes': [
+				{'cm': 12, 'ma': 'BAWC00139', 'gia': 650000, 'con': 2, 'con_mai': 2, 'con_xa': 6},
+				{'cm': 16, 'ma': 'BAWC00140', 'gia': 880000, 'con': 3, 'con_mai': 0, 'con_xa': 3}]}]})
 		return TON
 	if phuong == 'hang_theo_mua':
 		return MUA
