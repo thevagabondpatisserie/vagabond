@@ -71,7 +71,7 @@ function veDangKy() {
 function veNgoai() {
   return h('main', {class: 'wrap si-main', id: 'siNgoai'}, [
     h('div', {class: 'meta'}, [h('span', null, t('bsi_meta_trai', 'Hợp tác')), h('span', null, t('bsi_meta_phai', 'Bánh sỉ'))]),
-    h('h1', {class: 'h1 si-h1'}, [t('bsi_tieu_de', 'Bánh cho quán của bạn'), h('em', null, t('bsi_tieu_de_phu', 'Quán cà phê, khách sạn, nhà hàng'))]),
+    h('h1', {class: 'h1 si-h1'}, [t('bsi_tieu_de', 'Bánh cho quán của quý khách'), h('em', null, t('bsi_tieu_de_phu', 'Quán cà phê, khách sạn, nhà hàng'))]),
     veDangNhap(),
     h('p', {class: 'si-lbl'}, t('bsi_vi_sao', 'Vì sao chọn Vagabond')),
     h('ul', {class: 'si-li'}, [
