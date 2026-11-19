@@ -958,3 +958,5 @@ html body .ctr-bep{margin-top:18px}html body .ctr-bep-h{font-family:var(--sans);
 
 /* v675: dị ứng, bảo quản dưới mô tả bánh; chỉ hiện khi Marketing đã điền */
 .them-tt{margin-top:22px}.them-tt p{margin-top:8px;font-size:15px;line-height:1.8;color:var(--fog);max-width:62ch;white-space:pre-line}
+/* Codex #594: báo cách thanh toán đã lưu không còn áp dụng */
+.pay-bao{margin-top:12px;font-size:13px;line-height:1.6;color:#e0b24a}

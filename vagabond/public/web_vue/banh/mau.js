@@ -280,7 +280,8 @@ export const MAU = `
     </div>
 
     <div class="sec"><span class="n">09</span><h3><span>{{ t('dat_banh_9d5a6614c','Thanh toán') }}</span></h3><i class="rule"></i></div>
-    <div id="payList"><button v-for="x in kho.paysHien.value" :key="x.k" class="pick" :class="{on: S.CO.pay===x.k}" :data-pt="x.k" @click="S.CO.pay=x.k"><b>{{ t(x.kn, x.n) }}</b><span>{{ t(x.kd, x.d) }}</span></button></div>
+    <div id="payList"><button v-for="x in kho.paysHien.value" :key="x.k" class="pick" :class="{on: S.CO.pay===x.k}" :data-pt="x.k" @click="S.CO.pay=x.k; S.CO.payBao=false"><b>{{ t(x.kn, x.n) }}</b><span>{{ t(x.kd, x.d) }}</span></button></div>
+    <p class="pay-bao" id="payBao" role="status" v-if="S.CO.payBao">{{ t('pay675_xem_lai','Cách thanh toán đã chọn trước đây không còn áp dụng. Quý khách xem lại cách thanh toán trước khi gửi đơn.') }}</p>
 
     <div class="dd-the" id="donDau" v-if="kho.theDonDau.value" :class="'dd-' + kho.theDonDau.value.kieu" role="group" :aria-label="kho.theDonDau.value.tieu">
       <div class="dd-dau"><span class="dd-ic" aria-hidden="true">{{ kho.theDonDau.value.kieu === 'da_ap' ? '✓' : kho.theDonDau.value.ic }}</span>

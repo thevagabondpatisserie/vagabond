@@ -45,7 +45,7 @@ export function taoKho(moiTruong) {
     cur: null, curSizeId: '', soLuong: 1, wish: '', nia: 0, dia: 0, thiep: 0, nums: [], adds: [], dongDangSua: -1, huongSize: false,
     muaDangXem: null,
     CO: {mode: 'ship', pickupId: 'bep-tan-son-hoa', pay: 'bank', other: false, gift: false, vat: false, dongy: false, uudai: false,
-      ship: null, shipTrangThai: null, shipKm: null, quan: '', nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
+      ship: null, shipTrangThai: null, shipKm: null, payBao: false, quan: '', nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
       ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null,
       /* v645 ưu đãi đơn đầu tiên trên web: bước xác thực số qua Zalo. */
       dd: {buoc: 'nut', ma: '', loi: '', bao: '', dangGui: false, lan: 0},
@@ -692,7 +692,10 @@ export function taoKho(moiTruong) {
   const tienDiem = computed(() => (uuHienTai.value && uuHienTai.value.diem ? (Number(uuHienTai.value.diem.tien) || 0) : 0));
   /* v675: đủ mức tiền VÀ địa chỉ trong bán kính miễn phí (máy chủ quyết lại ở don_web.quyet_phi_giao). */
   const trongKmMien = computed(() => T.trongKmMienPhi(S.CO.shipKm, S.mienPhiKm));
-  const mienPhi = computed(() => T.laMienPhi(tienBanh.value - (giam.value - tienDiem.value), S.mienPhiTu) && trongKmMien.value);
+  /* Codex #594: có luật bán kính mà CHƯA biết khoảng cách (chưa gõ địa chỉ, mới có
+     phí dự kiến theo khu vực, chưa định vị được) thì không hứa miễn phí giao. */
+  const chuaBietKm = computed(() => S.mienPhiKm > 0 && S.CO.mode !== 'pick' && (S.CO.shipKm === null || S.CO.shipKm === undefined));
+  const mienPhi = computed(() => T.laMienPhi(tienBanh.value - (giam.value - tienDiem.value), S.mienPhiTu) && trongKmMien.value && !chuaBietKm.value);
   /* ---------------- v668 gợi ý mua thêm ---------------- */
   /* Món gốc là BÁNH ĐẶT TRƯỚC khách chọn, phân theo NGUỒN dòng giỏ, không theo đường
      kính (bánh một cỡ có cm 0). Món thêm từ gợi ý chỉ để không gợi ý lại. Giỏ có bánh
@@ -812,7 +815,7 @@ export function taoKho(moiTruong) {
     const tt = T.trangThaiPhi(S.CO.mode === 'pick', mienPhi.value, S.CO.ship, S.CO.shipTrangThai, t);
     return {items: tienBanh.value, giam: giam.value, ship: tt.phi || 0, total: tienBanh.value - giam.value + (tt.phi || 0), tt};
   });
-  const dongMienPhi = computed(() => T.dongMienPhi(tienBanh.value, S.mienPhiTu, t, S.mienPhiKm, trongKmMien.value));
+  const dongMienPhi = computed(() => T.dongMienPhi(tienBanh.value, S.mienPhiTu, t, S.mienPhiKm, trongKmMien.value, chuaBietKm.value));
 
   /* ---------------- thanh toán (v638) ---------------- */
   /* Cách thanh toán hiện cho khách: hai cách thẻ chỉ hiện khi máy chủ báo cổng
@@ -822,7 +825,8 @@ export function taoKho(moiTruong) {
   /* Cách đang chọn mà vừa bị ẩn (cổng tắt) thì về chuyển khoản. Chỉ xét khi đã
      có cấu hình: giỏ phục hồi chọn thẻ không bị đổi trước lúc biết cổng. */
   watch(() => [S.cauHinh, S.CO.pay], () => {
-    if (S.cauHinh && !paysHien.value.some(p => p.k === S.CO.pay)) S.CO.pay = 'bank';
+    /* Codex #594: không đổi cách thanh toán âm thầm, báo khách xem lại. */
+    if (S.cauHinh && !paysHien.value.some(p => p.k === S.CO.pay)) { S.CO.pay = 'bank'; S.CO.payBao = true; }
   }, {flush: 'sync'});
   /* Câu dưới tổng tiền nói đúng điều sẽ xảy ra sau khi gửi đơn (trước v638 câu
      này hứa link OnePay, mã 15 phút, tự huỷ mà máy chủ không làm gì). */
@@ -1273,6 +1277,8 @@ export function taoKho(moiTruong) {
       const c = d.co || {};
       S.CO.mode = c.mode === 'pick' ? 'pick' : 'ship';
       S.CO.pay = PT_HOP_LE.includes(c.pay) ? c.pay : 'bank';
+      /* Codex #594: giỏ lưu cách thanh toán nay không còn (tiền mặt) thì báo khách xem lại. */
+      if (typeof c.pay === 'string' && c.pay && !PT_HOP_LE.includes(c.pay)) S.CO.payBao = true;
       S.CO.pickupId = typeof c.pickupId === 'string' ? c.pickupId : '';
       if (S.CO.pickupId && !S.PICKUPS.some(x => x.id === S.CO.pickupId)) S.CO.pickupId = '';
       if (!S.PICKUPS.length) S.CO.mode = 'ship';
