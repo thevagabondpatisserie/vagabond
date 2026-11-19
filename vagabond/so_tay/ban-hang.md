@@ -1245,7 +1245,7 @@ Từ khoá: đặt bánh trước, nhận ngày mai, ngày kia, 3 ngày tới, c
 |---|---|---|
 | Bếp nhập; Sales xem; khách đặt | Kiểm bánh (/kiem-banh), bảng BTP; trang đặt bánh | Ô Bếp làm, ô Đủ decor, tab Đặt bánh trước |
 
-Từ v675 (Sales đề xuất, giám đốc duyệt 18 và 19/11/2026).
+Từ v676 (Sales đề xuất, giám đốc duyệt 18 và 19/11/2026).
 
 **Trước đây:** tab Đặt bánh trước theo ô Đủ decor cho cả 3 ngày tới.
 **Từ nay:** ngày mai lấy cột Còn bán (Có thể bán) của phiếu Kiểm bánh ngày mai, không tính Đủ decor. Ngày kia và ngày thứ ba lấy Đủ decor trừ các đơn chưa làm của 3 ngày tới. Xa hơn không nhận bánh đặt trước.
@@ -1266,7 +1266,7 @@ Từ khoá: thanh toán trước, tiền mặt, miễn phí giao, bán kính 7 k
 |---|---|---|
 | Sales xem; quản trị hệ thống cài; khách đặt | Trang đặt bánh; Cài đặt lõi, ô Miễn phí giao trong bán kính (km) | Gửi yêu cầu đặt bánh |
 
-Từ v675 (giám đốc duyệt 19/11/2026).
+Từ v676 (giám đốc duyệt 19/11/2026).
 
 **Trước đây:** web có cách Tiền mặt khi nhận bánh; đơn đủ mức tiền được miễn phí giao ở mọi địa chỉ trong vùng giao; thêm bánh Có sẵn hôm nay thì giỏ vẫn để ngày kia.
 **Từ nay:**

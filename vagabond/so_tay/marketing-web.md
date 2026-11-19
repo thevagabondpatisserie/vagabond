@@ -678,7 +678,7 @@ Từ khoá: dị ứng, bảo quản, thành phần, thẻ Bánh, biên tập we
 |---|---|---|
 | Marketing điền; Bếp cung cấp nội dung; khách đọc | Biên tập web, thẻ Bánh | Lưu |
 
-Từ v675 (giám đốc duyệt 19/11/2026).
+Từ v676 (giám đốc duyệt 19/11/2026).
 
 **Trước đây:** trang đặt bánh không có chỗ ghi thành phần dễ gây dị ứng và cách bảo quản.
 **Từ nay:**
