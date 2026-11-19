@@ -1128,9 +1128,9 @@
     "nhieu_dong": true
   },
   "dat_ban_f33d5c7c4": {
-    "ten": "Chúng tôi sẽ liên hệ xác nhận sau khi nhận yêu cầu.",
+    "ten": "The Vagabond sẽ liên hệ xác nhận. Bàn chỉ được giữ sau khi quý khách nhận xác nhận.",
     "nhom": "dat_ban",
-    "mac_dinh": "Chúng tôi sẽ liên hệ xác nhận sau khi nhận yêu cầu.",
+    "mac_dinh": "The Vagabond sẽ liên hệ xác nhận. Bàn chỉ được giữ sau khi quý khách nhận xác nhận.",
     "nhieu_dong": true
   },
   "dat_ban_13864d971": {
@@ -1890,9 +1890,9 @@
     "nhieu_dong": true
   },
   "dat_banh_05faf7b4b": {
-    "ten": "/60 ký tự. Nội dung sẽ được in thành cờ, khi vào tiệc thì cắm lên bánh.",
+    "ten": "/60 ký tự. The Vagabond in lời chúc lên cờ cắm bánh.",
     "nhom": "dat_banh",
-    "mac_dinh": "/60 ký tự. Nội dung sẽ được in thành cờ, khi vào tiệc thì cắm lên bánh.",
+    "mac_dinh": "/60 ký tự. The Vagabond in lời chúc lên cờ cắm bánh.",
     "nhieu_dong": true
   },
   "dat_banh_2320148b6": {
@@ -2274,9 +2274,9 @@
     "nhieu_dong": true
   },
   "bien_nhan_nhan": {
-    "ten": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận đơn.",
+    "ten": "The Vagabond đã nhận yêu cầu. Đơn được xác nhận sau khi quý khách thanh toán.",
     "nhom": "bien_nhan",
-    "mac_dinh": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận đơn.",
+    "mac_dinh": "The Vagabond đã nhận yêu cầu. Đơn được xác nhận sau khi quý khách thanh toán.",
     "nhieu_dong": true
   },
   "bien_nhan_tt_cho": {
@@ -3208,12 +3208,12 @@
   "huong_size_nut": {
     "ten": "Nút Cách chọn size",
     "nhom": "dat_banh",
-    "mac_dinh": "Cách chọn size"
+    "mac_dinh": "Chọn cỡ bánh"
   },
   "huong_size_tieu_de": {
     "ten": "Hộp chọn size: tiêu đề",
     "nhom": "dat_banh",
-    "mac_dinh": "Chọn size bánh"
+    "mac_dinh": "Chọn cỡ bánh"
   },
   "huong_size_mo_ta": {
     "ten": "Hộp chọn size: câu đầu",
@@ -3258,7 +3258,7 @@
   "pk_co_san_tieu_de": {
     "ten": "Mục 03: tiêu đề khung",
     "nhom": "dat_banh",
-    "mac_dinh": "Tặng kèm mọi bánh ổ"
+    "mac_dinh": "Kèm theo mỗi bánh"
   },
   "pk_co_san_mo_ta": {
     "ten": "Mục 03: câu dưới tiêu đề",
@@ -7975,9 +7975,9 @@
     "nhieu_dong": true
   },
   "dat_truoc_chi_mai": {
-    "ten": "Đặt bánh trước: nhắc khi khách chọn ngày xa hơn ngày mai",
+    "ten": "Đặt bánh trước: nhắc khi khách chọn ngày không còn nhận bánh trong giỏ",
     "nhom": "dat_banh",
-    "mac_dinh": "Bánh đặt trước nhận vào ngày mai. Cần nhận ngày khác quý khách gọi 0931 224 334.",
+    "mac_dinh": "Ngày này không còn nhận bánh đặt trước trong giỏ. Bánh đặt trước nhận trong 3 ngày tới, quý khách chọn ngày còn sáng hoặc gọi 0931 224 334.",
     "nhieu_dong": true
   },
   "dat_truoc_ngay_me": {
@@ -8001,7 +8001,97 @@
   "dat_truoc_khac_ngay": {
     "ten": "Đặt bánh trước: nhắc khi bánh mới và bánh trong giỏ không có chung ngày nhận",
     "nhom": "dat_banh",
-    "mac_dinh": "Bánh này và bánh trong giỏ không có chung ngày nhận (bánh đặt trước nhận ngày mai, bánh làm theo mẻ nhận trong khoảng của mẻ). Quý khách gửi đơn đang có trước rồi đặt tiếp.",
+    "mac_dinh": "Bánh này và bánh trong giỏ không có chung ngày nhận (bánh đặt trước nhận trong 3 ngày tới theo số còn của từng ngày, bánh làm theo mẻ nhận trong khoảng của mẻ). Quý khách gửi đơn đang có trước rồi đặt tiếp.",
+    "nhieu_dong": true
+  },
+  "hom_nay_het_khung": {
+    "ten": "Giỏ hàng: thêm bánh có sẵn hôm nay khi hôm nay đã hết khung giờ nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Hôm nay đã hết khung giờ nhận. Quý khách chọn ngày nhận khác ở bước Ngày và giờ nhận.",
+    "nhieu_dong": true
+  },
+  "chot_tu_lay": {
+    "ten": "Dòng chốt trên nút gửi đơn: tự đến lấy",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tự đến lấy tại {diem}",
+    "nhieu_dong": true
+  },
+  "chot_tu_lay_chua": {
+    "ten": "Dòng chốt trên nút gửi đơn: tự lấy, chưa chọn điểm",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tự đến lấy, chưa chọn điểm nhận",
+    "nhieu_dong": true
+  },
+  "chot_giao": {
+    "ten": "Dòng chốt trên nút gửi đơn: giao tận nơi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giao tới {dia_chi}",
+    "nhieu_dong": true
+  },
+  "chot_giao_chua": {
+    "ten": "Dòng chốt trên nút gửi đơn: giao, chưa có địa chỉ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giao tận nơi, chưa có địa chỉ",
+    "nhieu_dong": true
+  },
+  "chot_chua_gio": {
+    "ten": "Dòng chốt trên nút gửi đơn: chưa chọn khung giờ",
+    "nhom": "gio_hang",
+    "mac_dinh": "chưa chọn khung giờ",
+    "nhieu_dong": true
+  },
+  "mien_phi_ngoai_km": {
+    "ten": "Phí giao: địa chỉ ngoài bán kính miễn phí",
+    "nhom": "gio_hang",
+    "mac_dinh": "Địa chỉ ngoài bán kính {km} km nên đơn tính phí giao",
+    "nhieu_dong": true
+  },
+  "mien_phi_tu_trong_km": {
+    "ten": "Phí giao: miễn phí từ mức tiền, trong bán kính",
+    "nhom": "gio_hang",
+    "mac_dinh": "Miễn phí giao cho đơn từ {tien} trong bán kính {km} km",
+    "nhieu_dong": true
+  },
+  "ct675_mien_phi_km": {
+    "ten": "Chân trang: miễn phí giao từ mức tiền, trong bán kính",
+    "nhom": "dat_banh",
+    "mac_dinh": "Miễn phí giao cho đơn từ {tien} trong bán kính {km} km",
+    "nhieu_dong": true
+  },
+  "db675_bao_mat": {
+    "ten": "Đặt bàn: đường dẫn chính sách bảo mật cạnh biểu mẫu",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đọc chính sách bảo mật",
+    "nhieu_dong": true
+  },
+  "bien_nhan_da_xac_nhan": {
+    "ten": "Biên nhận: câu khi tiền đã về đủ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "The Vagabond đã nhận thanh toán và xác nhận đơn của quý khách.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_buoc_1": {
+    "ten": "Biên nhận: bước 1",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã gửi yêu cầu",
+    "nhieu_dong": true
+  },
+  "bien_nhan_buoc_2": {
+    "ten": "Biên nhận: bước 2",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chờ thanh toán",
+    "nhieu_dong": true
+  },
+  "bien_nhan_buoc_3": {
+    "ten": "Biên nhận: bước 3",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã xác nhận",
+    "nhieu_dong": true
+  },
+  "bien_nhan_buoc_nhan": {
+    "ten": "Biên nhận: nhãn đọc màn hình của dãy bước",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Tiến độ đơn",
     "nhieu_dong": true
   }
 }
