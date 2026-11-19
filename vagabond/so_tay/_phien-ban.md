@@ -13,12 +13,8 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 
 ## v675
-- Món chỉ làm cho đợt cuối tuần không cần Đủ decor
-- Tab Đặt bánh trước: ngày mai theo phiếu, ngày kia theo Đủ decor
-- Đợt món cuối tuần (tab Đặc biệt tuần này)
-- Nhập mẻ refill và xem đơn đặt xa ngày
-- Đơn web: chỉ thanh toán trước, miễn phí giao trong bán kính 7 km
-- Thẻ Bánh: dị ứng và bảo quản
+- Dọn tin tiền vào, tiền ra chưa có chứng từ
+- Đối soát chi phí quảng cáo Meta và bút toán tháng
 
 ## v674
 - Đưa công cụ dụng cụ vào dùng: phân bổ một lần hay nhiều tháng
