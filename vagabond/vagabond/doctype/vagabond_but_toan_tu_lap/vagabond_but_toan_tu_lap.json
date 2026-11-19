@@ -1,0 +1,196 @@
+{
+ "actions": [],
+ "autoname": "field:khoa",
+ "creation": "2026-11-18 16:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "khoa",
+  "loai",
+  "company",
+  "ky",
+  "journal_entry",
+  "dau_ban_may",
+  "col_1",
+  "lap_boi",
+  "lap_luc",
+  "ghi_so_boi",
+  "ghi_so_luc",
+  "sec_1",
+  "ban_ke",
+  "quyet_dinh"
+ ],
+ "fields": [
+  {
+   "fieldname": "khoa",
+   "fieldtype": "Data",
+   "label": "Khoá (loại:công ty:tháng)",
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "label": "Loại",
+   "options": "Phân bổ 242\nChi phí Meta",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Công ty",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ky",
+   "fieldtype": "Data",
+   "label": "Tháng (YYYY-MM)",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Bút toán nháp đang nối",
+   "options": "Journal Entry",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "dau_ban_may",
+   "fieldtype": "Data",
+   "label": "Dấu các dòng máy lập",
+   "read_only": 1,
+   "description": "So với bút toán hiện tại để biết kế toán đã sửa tay hay chưa."
+  },
+  {
+   "fieldname": "col_1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "lap_boi",
+   "fieldtype": "Link",
+   "label": "Lập bởi",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lap_luc",
+   "fieldtype": "Datetime",
+   "label": "Lập lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_so_boi",
+   "fieldtype": "Link",
+   "label": "Ghi sổ bởi",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_so_luc",
+   "fieldtype": "Datetime",
+   "label": "Ghi sổ lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_1",
+   "fieldtype": "Section Break",
+   "label": "Bản kê và quyết định của kế toán"
+  },
+  {
+   "fieldname": "ban_ke",
+   "fieldtype": "Long Text",
+   "label": "Bản kê lúc lập",
+   "read_only": 1
+  },
+  {
+   "fieldname": "quyet_dinh",
+   "fieldtype": "Long Text",
+   "label": "Quyết định tay của kế toán",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-18 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond But Toan Tu Lap",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Kiểm soát (FIN)",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Vagabond Bao cao",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
