@@ -112,3 +112,14 @@ def _luong():
 	la("thẻ Bánh của trình biên tập", (x["trang_thai"], [s["cm"] for s in x["sizes"]]), (bw.DANG_HIEN, [12, 16]))
 	la("trạng thái web từng mã trên màn Danh mục", bw.trang_thai_theo_ma([{"name": m16, "item_name": "Bánh Ổ Thử Web %s, size 16cm" % duoi}]),
 		{m16: bw.DANG_HIEN})
+	# v675: dị ứng, bảo quản. Điền thì khách thấy; màn cũ không gửi (None) thì giữ; gửi rỗng là xoá.
+	anh_luu = json.dumps([{"url": u3}, {"url": u1}])
+	bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN, di_ung="Sữa, trứng,\ngluten", bao_quan="Giữ lạnh 2 đến 6 độ C")
+	g = kb._anh_noi_dung_web(nhom())
+	la("v675 khách thấy dị ứng, bảo quản", (g[0]["di_ung"], g[0]["bao_quan"]), ("Sữa, trứng, gluten", "Giữ lạnh 2 đến 6 độ C"))
+	bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN)
+	x = next(b for b in bw.ds_bien_tap()["banh"] if b["khoa"] == khoa)
+	la("v675 màn cũ không gửi hai ô thì giữ nguyên", (x["di_ung"], x["bao_quan"]), ("Sữa, trứng,\ngluten", "Giữ lạnh 2 đến 6 độ C"))
+	bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN, di_ung="", bao_quan="")
+	g = kb._anh_noi_dung_web(nhom())
+	la("v675 gửi rỗng là xoá, khách không còn thấy", (g[0]["di_ung"], g[0]["bao_quan"]), ("", ""))
