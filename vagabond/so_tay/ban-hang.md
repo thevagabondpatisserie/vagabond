@@ -1273,7 +1273,8 @@ Từ v675 (giám đốc duyệt 19/11/2026).
 - Web chỉ nhận thanh toán trước: Chuyển khoản, Thẻ tín dụng hoặc ghi nợ quốc tế, Thẻ ATM nội địa.
 - Miễn phí giao chỉ khi địa chỉ nằm trong bán kính 7 km, đo đường thẳng từ điểm xuất hàng gần nhất. Xa hơn thì khách trả phí giao dù đơn đủ mức tiền.
 - Thêm bánh Có sẵn hôm nay thì ngày nhận là hôm nay. Trên nút gửi đơn có dòng chốt ngày, giờ, nơi nhận, tổng tiền.
-- Địa chỉ xa hơn ô Bán kính giao (km) trong Cài đặt lõi thì web và đơn giao của quầy không nhận giao, khách thấy câu "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng".
+- Địa chỉ xa hơn ô Bán kính giao (km): web, quầy không nhận giao, báo "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng".
+- Chưa định vị được địa chỉ: không hứa miễn phí giao.
 - Biên nhận hiện ba bước: Đã gửi yêu cầu, Chờ thanh toán, Đã xác nhận. Đơn sang Đã xác nhận khi tiền về đủ.
 
 **Bạn cần làm**
