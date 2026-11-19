@@ -26,6 +26,8 @@ export function taoKho(moiTruong) {
     ngauNhien = null, hen = (f, ms) => setTimeout(f, ms), huyHen = id => clearTimeout(id),
     xemThu = () => false, mxh = (k, d) => d, nd = {}} = moiTruong;
 
+  /* Codex #594 vòng 2: đang gán bảng số của một phản hồi tồn (xem napTon). */
+  let dangApTon = false;
   const S = reactive({
     /* nhịp đồng hồ: tăng mỗi 30 giây và sau mỗi thao tác, để computed đọc
        giờ HIỆN TẠI (bài học #205: không dùng bản chụp giờ lúc tải trang). */
@@ -1108,6 +1110,10 @@ export function taoKho(moiTruong) {
   async function napTon() {
     try {
       const m = await doc('vagabond.kiem_banh.co_the_ban_hom_nay') || {};
+      /* Codex #594 vòng 2: mỗi phản hồi gán nhiều bảng số lần lượt; các watch đồng bộ
+         đổi ngày không được xét giữa chừng (bảng refill mới với số Đủ decor cũ). Chặn
+         tới khi gán xong cả phản hồi rồi mới xét một lần. */
+      dangApTon = true;
       S.TODAY = m.banh || {};
       T.tronMon(S.CAKES, m.nhom);
       const dt = (m.dat_truoc && m.dat_truoc.nhom) || [];
@@ -1148,6 +1154,7 @@ export function taoKho(moiTruong) {
       S.gioTon = String(b.getHours()).padStart(2, '0') + ':' + String(b.getMinutes()).padStart(2, '0');
       ganGioCho(); lamTuoiGiaGio();
     } catch (e) { S.tonLoi = true; /* Giữ số cũ và báo chưa cập nhật được. */ }
+    if (dangApTon) { dangApTon = false; theoNgayDot(); theoNgayMai(); }
     /* Codex #462: đã hỏi máy chủ ít nhất một lần (được hay lỗi), link chia sẻ
        tới bánh không có mới được coi là link hỏng. */
     S.tonDaThu = true;
@@ -1312,6 +1319,7 @@ export function taoKho(moiTruong) {
   /* v667: giỏ vừa có món của đợt cuối tuần mà ngày đang chọn không phải ngày giao
      thì dời sang ngày giao gần nhất còn trên lịch, nhờ khách xác nhận lại lịch. */
   function theoNgayDot() {
+    if (dangApTon) return;
     if (!dotDbt.value || !D.gioCoMonDot(S.CART, maDbt.value) || !dbtChan(picked.value)) return;
     const i = ngayRail.value.findIndex(d => d.i > 0 && !d.off);
     if (i < 0) return;
@@ -1327,7 +1335,7 @@ export function taoKho(moiTruong) {
     /* Đang phục hồi giỏ lưu thì chờ xong (cờ đã chọn ngày được phục hồi sau ngày).
        Codex #594: chưa áp xong số tồn (bảng số còn rỗng) thì chưa xét, giữ ngày khách
        đã chọn; tải tồn lỗi thì cũng giữ, máy chủ kiểm lại lúc gửi đơn. */
-    if (!S.daPhucHoi || !S.tonNapXong) return;
+    if (!S.daPhucHoi || !S.tonNapXong || dangApTon) return;
     const p = picked.value;
     if (!(datTruocChan(p) || (S.tab === 'order' && p > 1 && !ngayCuaTabTruoc(p)))) return;
     const d = ngayRail.value.find(x => x.i > 0 && !x.off && (S.tab !== 'order' || ngayCuaTabTruoc(x.i)));
