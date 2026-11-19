@@ -1324,8 +1324,10 @@ export function taoKho(moiTruong) {
      giỏ) thì dời về ngày còn nhận gần nhất và nhờ khách xác nhận lại lịch.
      Ngày cũ có thể đến từ giỏ lưu hôm trước. */
   function theoNgayMai() {
-    /* Đang phục hồi giỏ lưu thì chờ xong (cờ đã chọn ngày được phục hồi sau ngày). */
-    if (!S.daPhucHoi) return;
+    /* Đang phục hồi giỏ lưu thì chờ xong (cờ đã chọn ngày được phục hồi sau ngày).
+       Codex #594: chưa áp xong số tồn (bảng số còn rỗng) thì chưa xét, giữ ngày khách
+       đã chọn; tải tồn lỗi thì cũng giữ, máy chủ kiểm lại lúc gửi đơn. */
+    if (!S.daPhucHoi || !S.tonNapXong) return;
     const p = picked.value;
     if (!(datTruocChan(p) || (S.tab === 'order' && p > 1 && !ngayCuaTabTruoc(p)))) return;
     const d = ngayRail.value.find(x => x.i > 0 && !x.off && (S.tab !== 'order' || ngayCuaTabTruoc(x.i)));
@@ -1333,7 +1335,7 @@ export function taoKho(moiTruong) {
     neoNgay(d.i); S.daChonNgay = false;
     if (fixSlot()) S.daChonGio = false;
   }
-  watch(() => [S.CART.map(o => o.id + ':' + (o.goi_y ? 1 : 0)).join(','), maDbt.value, picked.value, S.tab, S.TRUOC_RF, S.daPhucHoi], theoNgayMai, {flush: 'sync', immediate: true});
+  watch(() => [S.CART.map(o => o.id + ':' + (o.goi_y ? 1 : 0)).join(','), maDbt.value, picked.value, S.tab, S.TRUOC_RF, S.daPhucHoi, S.tonNapXong], theoNgayMai, {flush: 'sync', immediate: true});
   /* v668: giỏ đổi bánh thì hỏi lại khối gợi ý (không gọi dịch vụ ngoài, máy chủ tự xếp). */
   watch(() => S.CART.map(o => o.id).join(','), () => { void napGoiY(); });
 
