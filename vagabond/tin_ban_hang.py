@@ -17,7 +17,7 @@ Error Log: tin báo không bao giờ làm hỏng việc ghi sổ.
 import re
 
 import frappe
-from frappe.utils import add_days, add_to_date, flt, now_datetime, nowdate
+from frappe.utils import add_to_date, flt, now_datetime, nowdate
 
 from vagabond import kenh_zalo
 
@@ -26,7 +26,6 @@ DAU_LOI_MINVOICE = "Chưa tạo được hoá đơn Chờ ký trên m-invoice"
 DAU_THONG_TIN_SAI = ("không hợp lệ", "khong hop le", "invalid", "email", "mã số thuế", "ma so thue", "mst",
 	"tên người mua", "ten nguoi mua", "địa chỉ", "dia chi")
 GIO_CHUA_GAN = 24
-NGAY_XET_TIEN = 14
 TOI_DA_DONG_TIEN = 10
 RE_DON_PANCAKE = re.compile(r"S\d+O(\d+)T", re.IGNORECASE)
 
@@ -137,14 +136,22 @@ def nhac_tien_chua_gan():
 	"""Lịch 08:00: khoản tiền vào tài khoản chính công ty quá GIO_CHUA_GAN giờ chưa thuộc chứng từ nào."""
 	try:
 		from vagabond import ban_hang, doi_soat_ck
+		from vagabond import tien_chua_chung_tu as tcc
+		from vagabond.tin_tai_chinh import _tk_cong_ty
 
+		# Anh Việt 19/11/2026: chỉ tài khoản chính công ty (quỹ tạm ứng có luồng
+		# hoàn ứng riêng, trước đây lọt vào tin này), và chỉ khoản từ mốc
+		# MOC_NHAC; khoản cũ hơn kế toán bỏ qua.
+		tk = _tk_cong_ty()
+		if not tk:
+			return
 		moc = add_to_date(now_datetime(), hours=-GIO_CHUA_GAN)
 		rows = frappe.db.sql(
 			"""select name, description, reference_number, deposit, date, unallocated_amount
 			from `tabBank Transaction`
 			where docstatus < 2 and deposit > 0 and date >= %s and creation <= %s
-			and ifnull(unallocated_amount, deposit) > 1""",
-			(add_days(nowdate(), -NGAY_XET_TIEN), moc), as_dict=True)
+			and ifnull(unallocated_amount, deposit) > 1 and bank_account in %s""",
+			(tcc.MOC_NHAC, moc, tuple(tk)), as_dict=True)
 		if not rows:
 			return
 		bang = doi_soat_ck.bang_dau_he()
@@ -168,10 +175,10 @@ def nhac_tien_chua_gan():
 		ds = loc_tien_chua_gan(cty, co_chu or {}, don_co_bill)
 		if not ds:
 			return
-		dong = ["%d khoản, tổng %s, vào tài khoản chính quá %d giờ" % (len(ds), tien(sum(flt(g["tien"]) for g in ds)), GIO_CHUA_GAN)]
-		dong += dong_tien_chua_gan(ds)
-		dong.append("Kế toán mở Đối soát chuyển khoản hoặc Đối chiếu ngân hàng để gắn cho đúng đơn, phiếu.")
-		kenh_zalo.bao("viec", "cong_no", "Tiền vào tài khoản công ty chưa gắn chứng từ", dong,
+		kq = tcc.soan_vao(ds, GIO_CHUA_GAN)
+		if not kq:
+			return
+		kenh_zalo.bao("viec", "cong_no", kq[0], kq[1],
 			link=_url("/doi-soat-chuyen-khoan"), khoa="tien-chua-gan:%s" % nowdate(), ma_tin="kt_tien_chua_gan")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tin_ban_hang: tien chua gan")

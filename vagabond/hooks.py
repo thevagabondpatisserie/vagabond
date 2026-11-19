@@ -1286,3 +1286,7 @@ for _event in ("before_submit", "before_update_after_submit"):
 _old = doc_events["Journal Entry"].get("before_submit", [])
 doc_events["Journal Entry"]["before_submit"] = ([_old] if isinstance(_old, str) else list(_old)) + ["vagabond.but_toan_nhap.kiem_je_tu_lap"]
 del _event, _old
+
+# Anh Việt 19/11/2026: nối đối chiếu lõi cho phiếu chi đã có mã dòng sao kê,
+# chạy trước tin "Tiền ra chưa có chứng từ" 08:00.
+scheduler_events.setdefault("cron", {}).setdefault("40 7 * * *", []).append("vagabond.duyet_chi.noi_sao_ke_con_thieu")

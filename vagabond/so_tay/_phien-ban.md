@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v675
+- Dọn tin tiền vào, tiền ra chưa có chứng từ
+
 ## v674
 - Đưa công cụ dụng cụ vào dùng: phân bổ một lần hay nhiều tháng
 - Bảng kê chi phí trả trước 242
