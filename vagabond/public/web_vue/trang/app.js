@@ -141,6 +141,21 @@ export function taoTrang(D, mt = {}) {
     if (!nd) return;
     try { await chep(nd); st.daChep = true; } catch (_) { st.daChep = false; }
   }
+  /* v675 (tester 19/11/2026): tách rõ ba bước của một đơn web trả trước: Đã gửi
+     yêu cầu, Chờ thanh toán, Đã xác nhận. Đơn được xác nhận khi tiền đã về đủ
+     (đơn web chỉ nhận thanh toán trước). Đơn cũ trả tiền mặt dừng ở bước 1. */
+  function buoc() {
+    const k = st.tt;
+    if (!k || !k.trang_thai || k.trang_thai === 'tien_mat') return 1;
+    return k.trang_thai === 'da_thu' ? 3 : 2;
+  }
+  function buocDon(tt) {
+    if (tt !== 'nhan' || (st.tt && st.tt.trang_thai === 'huy')) return null;
+    const b = buoc();
+    const ten = [chu('bien_nhan_buoc_1', 'Đã gửi yêu cầu'), chu('bien_nhan_buoc_2', 'Chờ thanh toán'), chu('bien_nhan_buoc_3', 'Đã xác nhận')];
+    return h('ol', {class: 'bn-buoc', id: 'bn-buoc', 'aria-label': chu('bien_nhan_buoc_nhan', 'Tiến độ đơn')},
+      ten.map((x, i) => h('li', {class: i + 1 < b || (b === 3 && i === 2) ? 'xong' : (i + 1 === b ? 'dang' : ''), 'aria-current': i + 1 === b ? 'step' : null}, x)));
+  }
   function khoiThanhToan() {
     const k = st.tt;
     if (!k || !k.trang_thai || k.trang_thai === 'huy') return null;
@@ -192,13 +207,14 @@ export function taoTrang(D, mt = {}) {
       const tt = bn.dang_xac_nhan ? 'cho' : (bn.da_huy ? 'huy' : 'nhan');
       const cau = {cho:'Chúng tôi đã tiếp nhận yêu cầu và đang kiểm tra. Quý khách không cần đặt lại.',
         huy:'Đơn này đã được huỷ. Quý khách có thể đặt đơn mới hoặc liên hệ để được hỗ trợ.',
-        nhan:'Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận đơn.'};
+        nhan:'The Vagabond đã nhận yêu cầu. Đơn được xác nhận sau khi quý khách thanh toán.'};
       const lienHe = D.lien_he || [];
       return h('main', {class:'bn'}, [h('div', {class:'bn-in'}, [
         h('p', {class:'bn-nhan'}, chu('bien_nhan_ee537c03e','ĐÃ TIẾP NHẬN YÊU CẦU')),
         h('h1', [chu('bien_nhan_65781f4fe','Mã yêu cầu '), h('b', bn.ma)]),
-        h('p', {class:'bn-trang-thai ' + tt}, chu('bien_nhan_tt_'+tt, {cho:'Đang xác nhận',huy:'Đã huỷ',nhan:'Đã nhận'}[tt])),
-        h('p', {class:'bn-cau'}, chu('bien_nhan_'+tt,cau[tt])),
+        tt === 'nhan' ? null : h('p', {class:'bn-trang-thai ' + tt}, chu('bien_nhan_tt_'+tt, {cho:'Đang xác nhận',huy:'Đã huỷ'}[tt])),
+        buocDon(tt),
+        h('p', {class:'bn-cau'}, tt === 'nhan' && buoc() === 3 ? chu('bien_nhan_da_xac_nhan', 'The Vagabond đã nhận thanh toán và xác nhận đơn của quý khách.') : chu('bien_nhan_'+tt,cau[tt])),
         h('dl', {class:'bn-dong'}, [
           bn.ten ? dong(chu('bien_nhan_bd76ef893','Người đặt'), bn.ten) : null,
           dong(chu('bien_nhan_c3baf86a6','Nhận bánh'), [bn.ngay_nhan,bn.khung_gio].filter(Boolean).join(' · ')),
