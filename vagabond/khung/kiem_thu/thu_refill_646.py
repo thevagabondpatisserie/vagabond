@@ -111,7 +111,8 @@ class Kho:
 		return ten in self.kb
 
 	def get_doc(self, dt_, ten=None):
-		return Doi(tinh_trang="Dang ban", dong=[Doi(x) for x in self.kb[ten]])
+		# Dòng đủ cột như Frappe trả (ô trống là rỗng hay 0); v671 đọc thêm hinh, co_the_ban.
+		return Doi(tinh_trang="Dang ban", dong=[Doi(dict({"ten_banh": "", "hinh": "", "co_the_ban": 0}, **x)) for x in self.kb[ten]])
 
 
 def _vá(kho, nay=HN):
@@ -198,7 +199,8 @@ def du_lieu_web(loi=False, kankin=None, kb=None):
 	import frappe
 	from vagabond import kiem_banh, tat_ban_web
 
-	kho = Kho([ROMAN, kankin or KANKIN], kb or {"KB-2026-11-11": [{"ma_hang": "BAWC00123", "da_dat": 2}]})
+	# v671: tab Đặt bánh trước theo Có thể bán của phiếu NGÀY MAI (11/11), đã trừ đơn.
+	kho = Kho([ROMAN, kankin or KANKIN], kb or {"KB-2026-11-11": [{"ma_hang": "BAWC00123", "da_dat": 2, "co_the_ban": 3}]})
 	item = [{"item_code": "BAWC00068", "item_name": "Bánh Ổ Roman de la Rose, size 18cm", "image": "", "standard_rate": 1060000, "disabled": 0,
 		"is_sales_item": 1}, {"item_code": "BAWC00123", "item_name": "Bánh Ổ Kankin, size 16cm", "image": "", "standard_rate": 910000,
 		"disabled": 0, "is_sales_item": 1}]
@@ -208,14 +210,15 @@ def du_lieu_web(loi=False, kankin=None, kb=None):
 		return _chay(kho, kiem_banh._dat_truoc_theo_decor, _tinh_that(loi=loi))
 
 
-@ca("v646 web tab Đặt trước: bánh chỉ có refill lên kèm khoảng ngày và số còn; Pancake lỗi thì ẩn refill (không nhận lố); decor không đổi")
+@ca("v646 web tab Đặt trước: bánh chỉ có refill lên kèm khoảng ngày và số còn; Pancake lỗi thì ẩn refill (không nhận lố); bánh thường theo phiếu ngày mai")
 def _web():
 	m = du_lieu_web()
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
 	la("Roman: còn 13, khoảng 14 tới 20, chỉ refill", (s["BAWC00068"]["con"], s["BAWC00068"]["refill"]),
 		(13, {"tu": "2026-11-14", "den": "2026-11-20", "con": 13, "chi_refill": 1,
 			"ds": [{"tu": "2026-11-14", "den": "2026-11-20", "con": 13}]}))
-	la("Kankin decor 5 trừ 2 đơn", (s["BAWC00123"]["con"], "refill" in s["BAWC00123"]), (3, False))
+	# v671: Có thể bán 3 của phiếu ngày mai (trước v671: Đủ decor 5 trừ 2 đơn).
+	la("Kankin theo Có thể bán phiếu ngày mai", (s["BAWC00123"]["con"], "refill" in s["BAWC00123"]), (3, False))
 	m = du_lieu_web(loi=True)
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
 	dung("Pancake lỗi: Roman không lên", "BAWC00068" not in s)
@@ -238,7 +241,11 @@ def _cua_nhan():
 			["Roman De La Rose 18 nhận giao từ 14/11 tới 20/11, quý khách chọn ngày nhận trong khoảng này."])
 		la("Pancake lỗi: không chặn", k(h(30), "2026-11-15", loi=True), [])
 		la("và báo Sales", bao, [D8(2026, 11, 15)])
-		la("bánh không refill, ngày xa: như cũ", k([{"variation_id": "BAWC00123", "quantity": 9}], "2026-11-25"), [])
+		# v671: bánh đặt trước thường chỉ nhận ngày mai (trước v671: ngày xa không kiểm).
+		la("mã không phải bánh đặt trước (không có ở bảng BTP, phiếu ngày mai), ngày xa: không đụng",
+			k([{"variation_id": "BAWC00123", "quantity": 9}], "2026-11-25"), [])
+		r = _chay(Kho([ROMAN, KANKIN]), lambda: ton_don_web.kiem([{"variation_id": "BAWC00123", "quantity": 9}], "2026-11-25"), _tinh_that())
+		dung("bánh đặt trước không refill, ngày xa: nhắc nhận trong 3 ngày tới (v675)", len(r) == 1 and "nhận trong 3 ngày tới" in r[0])
 
 
 @ca("v646 lưu refill: chỉ bếp; ô trống báo; lưu đủ ba ô; 0 thì xoá ngày; đang có refill thì không xoá mã khỏi bảng BTP")
@@ -281,27 +288,32 @@ def _mot_nguon():
 	la("ba ô mới trên bảng BTP", [f["fieldname"] for f in j["fields"]][-4:], ["so_refill", "refill_tu", "refill_den", "refill_dot"])
 
 
-@ca("v646 web tab Đặt trước: bánh có cả decor lẫn refill thì đơn ngày nằm trong refill không trừ decor (Kankin decor 5, đơn 11/11 thuộc refill)")
+@ca("v671 web tab Đặt trước: bánh có cả phiếu ngày mai lẫn refill; ngày mai thuộc mẻ thì số theo mẻ, ngoài mẻ thì theo Có thể bán")
 def _web_ca_hai():
+	# Ngày mai 11/11 nằm trong mẻ 11/11 tới 17/11: đơn ngày mai trừ vào mẻ (10 suất, chưa đơn).
 	ka = dict(KANKIN, so_refill=10, refill_tu=D8(2026, 11, 11), refill_den=D8(2026, 11, 17))
 	m = du_lieu_web(kankin=ka)
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
-	la("decor nguyên 5 (đơn 11/11 trừ vào refill)", s["BAWC00123"]["con"], 5)
-	la("refill của Kankin còn nhận cả khi còn decor", s["BAWC00123"]["refill"]["chi_refill"], 0)
+	la("theo mẻ, chỉ chọn ngày trong mẻ", (s["BAWC00123"]["con"], s["BAWC00123"]["refill"]["chi_refill"]), (10, 1))
+	# Mẻ bắt đầu 12/11: ngày mai ngoài mẻ, số ngày mai theo phiếu (3), mẻ vẫn mở cho ngày sau.
+	ka = dict(KANKIN, so_refill=10, refill_tu=D8(2026, 11, 12), refill_den=D8(2026, 11, 18))
+	m = du_lieu_web(kankin=ka)
+	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
+	la("ngày mai theo phiếu, refill còn mở", (s["BAWC00123"]["con"], s["BAWC00123"]["refill"]["chi_refill"]), (3, 0))
 
 
-@ca("v646 giữ tồn web: ngày nhận trong khoảng refill thì không giữ theo Đủ decor; đơn ngày refill không trừ decor của ngày khác")
+@ca("v671 giữ tồn web: ngày mai theo Có thể bán của phiếu ngày mai; ngày mai thuộc mẻ refill thì không giữ theo phiếu; ngày kia không giữ")
 def _giu_ton():
 	from types import SimpleNamespace as NS
 
 	from vagabond import giu_ton_web as g
 
-	def moi(refill_tu, dd=2):
+	def moi(refill_tu, ctb=0):
 		def sql(q, args=None, **kw):
 			if "tabSingles" in q:
 				return [("pancake_shop_id",)]
 			if "tabKiem Banh Dong" in q:
-				return [NS(ma_hang="A", ten_banh="Bánh A", co_the_ban=0, da_dat=dd)]
+				return [NS(ma_hang="A", ten_banh="Bánh A", co_the_ban=ctb, da_dat=2)]
 			if "tabBTP Banh O Dong" in q:
 				return [NS(ma_hang="A", ten_banh="Bánh A", so_decor=3, so_refill=10 if refill_tu else 0,
 					refill_tu=refill_tu, refill_den=(refill_tu + dt.timedelta(days=6)) if refill_tu else None)]
@@ -313,12 +325,13 @@ def _giu_ton():
 	nay = D8(2026, 10, 14)
 	with um.patch.object(g, "hom_nay", lambda: nay):
 		with um.patch.object(g, "frappe", moi(None)):
-			la("không refill: decor 3 trừ 3 ngày x 2 đơn = hết", bool(g.kiem_va_giu(h, "2026-10-16")[0]), True)
+			la("không refill: Có thể bán ngày mai 0 là hết (Đủ decor 3 không tính)", bool(g.kiem_va_giu(h, "2026-10-15")[0]), True)
 		with um.patch.object(g, "frappe", moi(D8(2026, 10, 15))):
-			la("ngày 16/10 thuộc refill: không giữ theo decor", g.kiem_va_giu(h, "2026-10-16"), ([], None))
-		with um.patch.object(g, "frappe", moi(D8(2026, 10, 16))):
+			la("ngày mai 15/10 thuộc refill: không giữ theo phiếu", g.kiem_va_giu(h, "2026-10-15"), ([], None))
+		with um.patch.object(g, "frappe", moi(D8(2026, 10, 16), ctb=1)):
 			n, giu = g.kiem_va_giu(h, "2026-10-15")
-			la("15/10 ngoài refill: decor 3 chỉ trừ đơn 15/10 (2), còn 1, nhận", (n, giu["dong"]), ([], {"A": 1}))
+			la("15/10 ngoài refill: Có thể bán 1, nhận và giữ", (n, giu["dong"]), ([], {"A": 1}))
+			la("ngày kia không giữ", g.kiem_va_giu(h, "2026-10-16"), ([], None))
 
 
 # ------------------------------------------------- Codex 549 vòng 1eefda8 (Refill)
@@ -430,7 +443,7 @@ def _cua_tao_don():
 	import os
 	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 	src = io.open(os.path.join(goc, "don_hang.py"), encoding="utf-8").read()
-	i, j = src.index("giu_ton_web.kiem_va_giu(hang_goc, ngay)"), src.index("giu_ton_web.kiem_va_giu_refill(hang_goc, ngay)")
+	i, j = src.index("giu_ton_web.kiem_va_giu(hang_ton, ngay)"), src.index("giu_ton_web.kiem_va_giu_refill(hang_ton, ngay)")
 	dung("giữ refill ngay sau giữ decor, trong cùng savepoint", 0 < j - i < 400)
 	dung("ghi suất vào snapshot đơn", "snapshot[giu_ton_web.O_RF] = giu_rf" in src)
 	# Dò chuỗi chỉ chốt đường nối; hành vi giữ suất nằm ở ca _giu_suat_refill.

@@ -128,10 +128,11 @@ def _():
 @ca("v644 tab Đặt bánh trước cũng theo thẻ Bánh")
 def _():
 	sg = {x["khoa"]: x for x in (_bg("Very Berry", bw.DA_AN, [("/files/vb.png", B_VB)]), _bg("Kankin", bw.DANG_HIEN, [("/files/k2.png", "")]))}
-	decor = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", so_decor=3, hinh=""),
-		_dong(ma_hang="BAWC00124X", ten_banh="Kankin", so_decor=2, hinh="")]
+	# v671: tab Đặt bánh trước theo Có thể bán của phiếu ngày mai (trước v671: Đủ decor).
+	mai = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=3, hinh=""),
+		_dong(ma_hang="BAWC00124X", ten_banh="Kankin", co_the_ban=2, hinh="")]
 	with patch.dict(ITEM, ITEM2, clear=False), patch.object(bw, "so_ghi", lambda: sg):
-		kq = _chay(kb._dat_truoc_theo_decor, decor=decor)
+		kq = _chay(kb._dat_truoc_theo_decor, kiem_mai=mai)
 	la("chỉ Kankin", [(g["ten"], g["anh"]) for g in kq["nhom"]], [("Kankin", "/files/k2.png")])
 
 
