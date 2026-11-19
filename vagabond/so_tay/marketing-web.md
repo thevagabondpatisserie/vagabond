@@ -670,3 +670,20 @@ Chỉ giám đốc làm, một lần. Hệ thống chỉ cần quyền xem số 
 - Không gửi mã qua Zalo hay email cho ai. Mã chỉ dán vào ô Cài đặt.
 - Phần ảnh chụp màn Business Manager chưa có trong mục này: sẽ bổ sung khi chụp được màn Meta thật.
 
+
+## Thẻ Bánh: dị ứng và bảo quản
+Từ khoá: dị ứng, bảo quản, thành phần, thẻ Bánh, biên tập web, mô tả bánh, sự kiện, Zalo OA
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing điền; Bếp cung cấp nội dung; khách đọc | Biên tập web, thẻ Bánh | Lưu |
+
+Từ v675 (giám đốc duyệt 19/11/2026).
+
+**Trước đây:** trang đặt bánh không có chỗ ghi thành phần dễ gây dị ứng và cách bảo quản.
+**Từ nay:**
+- Thẻ Bánh có thêm hai ô: Thành phần dễ gây dị ứng, Bảo quản và sử dụng. Mọi cỡ của cùng một bánh dùng chung.
+- Điền ô nào thì khách thấy mục đó dưới phần Mô tả và hương vị của bánh. Ô để trống thì trang không hiện mục đó, nên lúc mới cập nhật chưa thấy gì trên web là đúng.
+- Trang Sự kiện khi chưa có sự kiện mở đăng ký chỉ còn một nút Theo dõi Zalo OA.
+
+**Bạn cần làm:** Marketing lấy nội dung từ Bếp, mở Biên tập web, thẻ Bánh, chọn từng bánh, điền hai ô rồi bấm Lưu.
