@@ -339,6 +339,106 @@ AI viết theo giọng văn của tiệm (chép từ skill viết bài The Vagab
 - AI không tự thêm giá, ưu đãi, ngày giờ; không bịa trích dẫn hay số liệu. Vẫn phải đọc lại trước khi duyệt.
 - Mỗi lượt soạn tính tiền theo tài khoản API của tiệm (khoảng 1.000 đồng một bài), tối đa 300 lượt một tháng.
 
+## AI học giọng viết từ Kho bản thảo
+Từ khoá: AI soạn chữ, giọng viết, bài mẫu, Evernote, Kho bản thảo, học giọng, không bịa lịch sử
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, thẻ Nội dung gốc | [[✨ AI soạn chữ]] |
+
+Trước đây AI viết theo giọng văn chung. Từ nay AI viết theo bảy điểm rút từ các bài cũ của tiệm (mở bằng tên bánh viết hoa kèm biểu tượng, tả lớp bánh từ trên xuống, tên lớp giữ tiếng Anh hoặc Pháp, khối thông tin có biểu tượng ở cuối) và mỗi lần soạn đọc thêm hai bài cũ cùng chủ đề trong Kho bản thảo để bắt giọng.
+
+**Các bước**
+1. Chọn đúng Chủ đề cho bài (Giới thiệu bánh ổ, Giới thiệu entremet...). AI lấy bài mẫu từ chủ đề đó.
+2. Muốn bài có đoạn lịch sử, nguồn gốc tên bánh thì gõ vài ý đó vào Nội dung gốc. AI viết thành đoạn theo giọng của tiệm.
+3. Bấm [[✨ AI soạn chữ]], đọc lại, sửa từng kênh.
+
+**Lưu ý**
+- AI không tự bịa lịch sử, nguồn gốc chữ, số liệu: Nội dung gốc không có thì AI bỏ đoạn kể gốc gác, chỉ tả bánh, nguyên liệu, vị.
+- AI chỉ học cách viết từ bài mẫu, không chép tên bánh, giá, ngày của bài mẫu.
+- Bài mẫu lấy từ các chủ đề: bánh ổ, entremet, bánh nướng, món nước, Seasonal Item, khuyến mãi, Story, Weekend Set. Bài gắn sao được ưu tiên làm mẫu. Tin tuyển dụng và ghi chú ý tưởng không dùng làm mẫu.
+
+## Bài Threads dài tự tách thành chuỗi bài nối tiếp
+Từ khoá: Threads, quá dài, 500 ký tự, chuỗi bài, bài nối tiếp, 1/3, trả lời
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng, xem trước Threads | [[Duyệt]] |
+
+Trước đây chữ Threads quá 500 ký tự bị chặn đỏ, phải rút gọn. Từ nay không chặn nữa: bảng Kiểm ghi xanh "Threads đăng thành N bài nối tiếp", hệ thống tách ở chỗ xuống dòng hoặc hết câu, đánh số 1/N ở cuối mỗi phần, phần sau trả lời phần trước giống app Threads tự làm khi đăng tay.
+
+**Các bước**
+1. Viết chữ Threads dài như bình thường. Dưới thẻ xem trước ghi "tách thành chuỗi bài nối tiếp".
+2. Muốn chỗ tách đẹp thì xuống dòng giữa các đoạn.
+3. Duyệt như cũ.
+
+**Lưu ý**
+- Tối đa 4.000 ký tự và 10 phần. Quá thì bảng Kiểm chặn đỏ.
+- Phần đầu đã lên mà phần sau chưa lên: kênh vẫn Đã đăng kèm ghi chú vàng ghi phần nào chưa lên, nhóm Zalo Marketing nhận tin Bài mới lên một phần. Mở Threads, trả lời bài vừa lên bằng phần còn thiếu.
+- Token Threads cần thêm quyền threads_manage_replies (quản trị hệ thống tạo lại token ở Cài đặt lõi và API). Chưa có quyền thì chỉ phần đầu tự lên.
+
+## Đăng bài kênh Sonneto trên cùng màn Bài đăng
+Từ khoá: Sonneto, thương hiệu, Sonneto Social, Trang Sonneto, kênh Sonneto, chủ đề Sonneto
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng mạng xã hội, sheet Chủ đề | [[Lưu chủ đề]] |
+
+Trước đây bài Sonneto phải soạn và đăng ở chỗ khác. Từ nay bài thuộc chủ đề mang thương hiệu Sonneto (sẵn có: Sonneto Social) đăng lên Trang Facebook, Instagram, Threads của Sonneto, AI viết theo giọng các bài Sonneto cũ. Thẻ bài Sonneto trên lịch và Kho bản thảo có chip Sonneto.
+
+**Các bước**
+1. Soạn bài, chọn Chủ đề Sonneto Social. Dòng Chủ đề hiện chip Sonneto, Kênh chỉ còn Facebook, Instagram, Threads.
+2. Tạo chủ đề Sonneto mới: bấm Chủ đề mới, mục Thương hiệu chọn Sonneto, bấm [[Lưu chủ đề]].
+3. Duyệt như cũ. Kênh Sonneto đã nối thì hệ thống tự đăng, chưa nối thì đăng tay.
+4. Xem kênh Sonneto đã nối chưa: bánh răng góc trên màn lịch, mục Kết nối kênh, khối Sonneto.
+
+**Lưu ý**
+- Sonneto chưa có Zalo OA.
+- Lịch chỉ báo trùng giờ giữa các bài cùng thương hiệu. Bài Sonneto và bài The Vagabond cùng giờ không bị báo trùng.
+- Chủ đề Sonneto Social không còn chân bài đặt bánh của The Vagabond. Thêm chân bài Sonneto ở sheet Sửa chủ đề.
+- Nối kênh do quản trị hệ thống làm, ở Cài đặt lõi và API, mục Đăng bài kênh Sonneto (Meta): điền Mã Trang Facebook Sonneto, token Facebook Sonneto (hoặc dùng chung token The Vagabond nếu Trang Sonneto đã được chia cho người dùng hệ thống Vagabond ERP), token Threads Sonneto. Khi dùng chung token, nhớ điền cả Mã Trang The Vagabond.
+
+## Đăng Google Posts: Cập nhật, Ưu đãi, Sự kiện
+Từ khoá: Google Posts, Google Business Profile, Google Maps, Ưu đãi, Sự kiện, mã giảm giá, Kết nối Google
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Bài đăng mạng xã hội, thẻ xem trước Google Posts | [[Duyệt]] |
+| Quản trị hệ thống | Bài đăng, bánh răng, Kết nối kênh | [[Kết nối Google]] |
+
+Trước đây Google Posts trên Google Business Profile của tiệm (Google Maps, Google Tìm kiếm) phải đăng tay. Từ nay bài The Vagabond bật kênh Google Posts là hệ thống tự đăng đúng giờ hẹn, theo ba loại của Google: Cập nhật, Ưu đãi, Sự kiện.
+
+**Các bước**
+1. Ở dòng Kênh bật Google Posts (bài mới không bật sẵn).
+2. Trên thẻ Google Posts chọn chip Cập nhật, Ưu đãi hoặc Sự kiện. Ưu đãi, Sự kiện: điền tiêu đề (tối đa 58 ký tự), giờ Bắt đầu, Kết thúc; Ưu đãi điền thêm mã giảm giá, điều khoản nếu có.
+3. Viết chữ: 1 đến 2 đoạn ngắn, không hashtag, không số điện thoại. Duyệt như cũ.
+
+**Lưu ý**
+- Một ảnh mỗi bài: hệ thống lấy ảnh đầu, cắt về khung 4:3.
+- Bảng Kiểm chặn đỏ khi chữ có số điện thoại (Google gỡ bài), Ưu đãi, Sự kiện thiếu tiêu đề hoặc giờ, hay đã kết thúc trước giờ bài lên.
+- Cập nhật và Sự kiện có nút Đặt hàng; Ưu đãi do Google tự gắn nút.
+- Facebook, Instagram không cho hệ thống tạo Ưu đãi, Sự kiện. Sự kiện tạo tay trên Trang Facebook.
+- Chỉ The Vagabond. Nối kênh (quản trị hệ thống, một lần): dán Mã và Khoá ứng dụng Google ở Cài đặt lõi và API, rồi bấm [[Kết nối Google]] ở Kết nối kênh.
+## Bánh nổi bật và bánh theo mùa lên Google
+Từ khoá: Google Merchant, Google Mua sắm, Google Shopping, sản phẩm trên Google, trang từng bánh, /mon
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập web, mục Đặc biệt tuần này; Mùa vụ | [[Xuất bản]] |
+
+Trước đây bánh của tiệm không hiện trong mục sản phẩm của Google. Từ nay bánh của đợt Đặc biệt tuần này đang hiện trên trang đặt bánh và bánh của mùa vụ đang chạy tự lên Google Merchant Center: hiện miễn phí trên Google Tìm kiếm, Google Mua sắm, Google Maps và Google Business Profile của tiệm, kèm giá, ảnh, tình trạng còn hàng. Mỗi bánh có trang riêng thevagabondpatisserie.com/mon/<mã hàng>, bấm nút trên trang để sang trang đặt bánh.
+
+**Các bước**
+1. Không cần thao tác thêm: mở đợt Đặc biệt tuần này hoặc chạy mùa vụ như bình thường. Google đọc lại danh sách mỗi ngày.
+2. Muốn đổi tên, mô tả bánh trên Google: sửa ở Biên tập web, mục Trang từng bánh, rồi bấm [[Xuất bản]].
+
+**Lưu ý**
+- Bánh không lên Google khi: thẻ Bánh đang Chờ ảnh hoặc Đã ẩn, món đã tắt, chưa có giá bán, chưa có ảnh thật (ảnh nền thương hiệu không tính).
+- Đợt Đặc biệt chưa tới giờ mở đơn thì Google ghi "Đặt trước" kèm giờ mở; đã chốt đơn thì ghi hết hàng. Bánh theo mùa hết suất thì ghi hết hàng.
+- Danh sách chỉ có bánh nổi bật và theo mùa, không đưa cả thực đơn lên Google.
+- Trang từng bánh tự có trong sơ đồ trang /sitemap.xml cho Google Tìm kiếm.
+- Không có đợt Đặc biệt và không có mùa vụ đang chạy thì danh sách trống, Google tạm không hiện bánh nào.
+
 ## Gửi giám đốc duyệt bài đăng
 Từ khoá: gửi giám đốc duyệt, duyệt nội dung, trả lại, góp ý, việc cần làm
 
@@ -524,4 +624,49 @@ Từ khoá: cỡ ảnh, kích thước ảnh, Facebook, lưới ảnh, ảnh b�
 
 **Lưu ý**
 - Ảnh lệch ô lưới: bảng Kiểm nhắc "Facebook sẽ cắt ảnh ..." kèm cỡ nên làm. Ảnh dưới 1080 px: nhắc dễ bị mờ. Chỉ nhắc, vẫn duyệt được.
+
+
+## Chi phí quảng cáo Meta theo ngày
+Từ khoá: chi phí quảng cáo, Meta ads, Facebook ads, Instagram ads, chi tiêu quảng cáo, doanh thu web, ad spend
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, giám đốc | Chi phí quảng cáo Meta (/chi-phi-quang-cao-meta) | [[Đọc lại từ Meta]] |
+
+Mỗi sáng hệ thống đọc số Meta đã tiêu hôm qua của từng tài khoản quảng cáo và chiến dịch, đặt cạnh doanh thu web. Đây là số tham khảo, chưa phải số trừ thẻ.
+
+**Các bước**
+1. Mở Chi phí quảng cáo Meta (phân hệ Khách hàng và Marketing).
+2. Chọn khoảng ngày, tài khoản quảng cáo trên hàng chip.
+3. Chạm một ngày để xem chi theo chiến dịch.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Đọc chi phí Meta đang tắt | Quản trị hệ thống bật ở Cài đặt, mục Chi phí quảng cáo Meta |
+| Mã truy cập Meta đã hết hạn hoặc bị thu hồi | Giám đốc tạo mã mới rồi dán lại vào Cài đặt |
+
+**Lưu ý**
+- Chip Còn điều chỉnh: Meta còn sửa số vài ngày gần nhất, hệ thống đọc lại và ghi thay số cũ.
+- Ngày chia theo múi giờ của tài khoản quảng cáo.
+
+## Tạo mã truy cập Meta cho hệ thống
+Từ khoá: mã truy cập Meta, token Meta, người dùng hệ thống, system user, Business Manager, ads_read
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Giám đốc | Cài đặt lõi và API, mục Chi phí quảng cáo Meta | Lưu thay đổi |
+
+Chỉ giám đốc làm, một lần. Hệ thống chỉ cần quyền xem số quảng cáo (ads_read), không đặt hay sửa quảng cáo.
+
+**Các bước**
+1. Vào Business Manager, mục Người dùng, Người dùng hệ thống, thêm một người dùng hệ thống.
+2. Gán tài khoản quảng cáo cho người dùng đó với quyền xem.
+3. Tạo mã truy cập, chọn quyền ads_read.
+4. Mở Cài đặt lõi và API trên app, mục Chi phí quảng cáo Meta: dán mã, điền tài khoản quảng cáo (act_ và dãy số), ngày bắt đầu đọc, số ngày đọc lại.
+5. Bật ô Bật đọc chi phí quảng cáo Meta hằng ngày, bấm nút Lưu thay đổi ở chân màn.
+
+**Lưu ý**
+- Không gửi mã qua Zalo hay email cho ai. Mã chỉ dán vào ô Cài đặt.
+- Phần ảnh chụp màn Business Manager chưa có trong mục này: sẽ bổ sung khi chụp được màn Meta thật.
 

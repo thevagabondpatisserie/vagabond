@@ -12,6 +12,34 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v675
+- Món chỉ làm cho đợt cuối tuần không cần Đủ decor
+- Tab Đặt bánh trước: ngày mai theo phiếu, ngày kia theo Đủ decor
+- Đợt món cuối tuần (tab Đặc biệt tuần này)
+- Nhập mẻ refill và xem đơn đặt xa ngày
+- Đơn web: chỉ thanh toán trước, miễn phí giao trong bán kính 7 km
+
+## v674
+- Đưa công cụ dụng cụ vào dùng: phân bổ một lần hay nhiều tháng
+- Bảng kê chi phí trả trước 242
+- Phân bổ chi phí trả trước hằng tháng
+- Đối soát chi phí quảng cáo Meta và bút toán tháng
+- Chi phí quảng cáo Meta theo ngày
+- Tạo mã truy cập Meta cho hệ thống
+
+## v673
+- Chọn tiền về khi trùng số tiền
+- Cấn trừ hoá đơn phí đối tác theo đối soát
+- Cách hạch toán cấn trừ công nợ: chọn đúng đường theo trường hợp
+- Đối chiếu tiền về của đối tác giao đồ ăn
+
+## v672
+- AI học giọng viết từ Kho bản thảo
+- Bài Threads dài tự tách thành chuỗi bài nối tiếp
+- Đăng bài kênh Sonneto trên cùng màn Bài đăng
+- Đăng Google Posts: Cập nhật, Ưu đãi, Sự kiện
+- Bánh nổi bật và bánh theo mùa lên Google
+
 ## v670
 - Hệ thống tự đăng Facebook, Instagram, Threads, Zalo OA
 - Đăng ngay bài đã hẹn giờ

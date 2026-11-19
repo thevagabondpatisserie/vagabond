@@ -14,7 +14,7 @@ Không có một nút cấn trừ chung. Tuỳ khoản tiền đã đi đường
 | Đã có phiếu chi hoặc phiếu cọc trên ERP, nay có hoá đơn | Công nợ phải trả, [[Cấn trừ công nợ]], chọn khoản đã trả |
 | Tiền đã trả trước khi lên ERP | Công nợ phải trả, [[Cấn trừ công nợ]], chọn [[Đã trả trước khi lên ERP]] |
 | Chi trước trên hồ sơ thanh toán, hoá đơn về sau | Hồ sơ thanh toán, [[Nối hoá đơn đến sau]] |
-| Phí sàn Grab, Shopee, Be đã bị sàn giữ | Phiếu Vagabond Can Tru San trên Desk |
+| Hoá đơn phí Grab, Shopee, OnePay... (đối tác đã giữ phí) | Công nợ phải trả, [[Phí đối tác đã giữ lại]] |
 | Một đối tác vừa là khách vừa là nhà cung cấp | Bút toán Nợ 331 / Có 131, rồi Đối chiếu thanh toán trên Desk |
 
 **Hạch toán**
@@ -22,7 +22,7 @@ Không có một nút cấn trừ chung. Tuỳ khoản tiền đã đi đường
 |---|---|---|
 | Không sinh bút toán mới | | Cấn phiếu chi có sẵn vào hoá đơn: máy chỉ phân bổ |
 | 331 (đúng hoá đơn) | 11211 hoặc tài khoản kế toán chọn | Duyệt khoản đã trả trước khi lên ERP |
-| 331 (NCC xuất phí) | 131 (khách công nợ sàn) | Xác nhận phiếu cấn trừ phí sàn |
+| 331 (NCC xuất phí) | 131 hoặc tài khoản chờ tiền về | Xác nhận phiếu cấn trừ phí đối tác |
 
 **Lưu ý**
 - Không lập thêm phiếu chi hay chuyển tiền thêm chỉ để công nợ về 0.
@@ -252,6 +252,39 @@ Bù phần phí (gồm VAT) sàn đã giữ vào công nợ phải thu của sà
 **Lưu ý**
 - Một phiếu một nhà cung cấp (một mã số thuế); Grab và GrabVN lập riêng.
 - Muốn bỏ thì huỷ phiếu đối soát để đảo bút toán, không huỷ riêng bút toán.
+
+## Cấn trừ hoá đơn phí đối tác theo đối soát
+Từ khoá: phí đối tác, phí sàn, hoa hồng Grab, quảng cáo Grab, phí OnePay, phí thẻ, treo nợ phải trả, cấn trừ phí, 331 131, tài khoản chờ tiền về
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán lập, kế toán trưởng xác nhận | Công nợ phải trả | [[Phí đối tác đã giữ lại]], [[Xác nhận và ghi sổ]] |
+
+Trước đây: hoá đơn phí treo nợ phải trả, phiếu cấn trừ gõ tay trên Desk. Từ nay máy lấy phí từng đơn từ Đối soát nhà cung cấp, lập sẵn bút toán.
+
+**Các bước**
+1. Ở dòng hoá đơn phí bấm [[Cấn trừ công nợ]], chọn [[Phí đối tác đã giữ lại]].
+2. Kiểm chip Đối tác, Loại phí, Kỳ máy chọn sẵn.
+3. Xem khối Theo đối soát và Bút toán khi ghi sổ.
+4. Kế toán bấm [[Lập phiếu, gửi kế toán trưởng]]. Kế toán trưởng bấm [[Xác nhận và ghi sổ]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa có dòng đối soát ... | Kiểm kỳ, loại phí |
+| Còn ... đ phí chưa biết đang nằm ở đâu | Khai tài khoản cho hình thức thanh toán, hoặc hạch toán tay |
+| Phân bổ trên phiếu khác cách tính theo đối soát | Không sửa dòng trên Desk; lập lại từ Công nợ phải trả, hoặc dùng phiếu cấn trừ tay |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 331 (đúng hoá đơn phí) | 131 (hoá đơn bán còn dư) hoặc tài khoản chờ tiền về | Kế toán trưởng xác nhận |
+
+**Lưu ý**
+- Không chuyển tiền, không sửa chứng từ cũ.
+- Phần hoá đơn không có trong đối soát giữ nguyên dư nợ.
+- Hai hoá đơn phí cùng kỳ: tờ sau chỉ lấy phí chưa dùng.
+- Không dùng [[Đã trả trước khi lên ERP]] cho phí đối tác.
 
 ## Bù trừ công nợ phải thu và phải trả cùng một đối tác
 Từ khoá: bù trừ công nợ, cấn trừ 131 331, đối trừ công nợ, cấn trừ giữa khách và nhà cung cấp, netting, offset, set-off, bút toán bù trừ, biên bản bù trừ, Journal Entry, Payment Reconciliation
@@ -1175,12 +1208,39 @@ Mỗi báo cáo đối tác có số "báo chuyển". Máy tìm giao dịch ti�
 1. Mở Đối soát nhà cung cấp, bấm thẻ Chờ tiền về.
 2. Chưa thấy tiền về: đối tác chưa chuyển, hoặc tiền chưa lên sao kê. Chờ lượt dò sau, quá hạn thì hỏi đối tác.
 3. Lệch tiền về: đã có tiền đúng đợt nhưng khác số. Mở nguồn xem hai con số, hỏi đối tác phần chênh.
-4. Cần chọn tiền về: có nhiều giao dịch có thể là của đợt này. Xem sao kê rồi xác nhận giao dịch đúng.
+4. Cần chọn tiền về (chip Trùng số tiền): có nhiều giao dịch có thể là của đợt này. Mở nguồn, bấm [[Chọn tiền về]].
 
 **Lưu ý**
 - Máy chỉ so với tiền của ĐÚNG đợt, nhận ra qua nội dung chuyển khoản: ShopeeFood ghi ngày của đợt, Payoo ghi ngày từ đến của kỳ, OnePay ghi mã đợt trả PVS và khung giờ kỳ, GrabFood ghi tên cửa hàng. Tiền của đợt khác hay cửa hàng khác không bao giờ được lấy để báo lệch, kể cả trùng số tiền.
 - Nội dung không ghi gì để nhận ra đợt (Xanh SM Ngon, hoặc khi ngân hàng cắt mất nội dung): máy chỉ báo Lệch tiền về khi có đúng một giao dịch của đối tác đó; nhiều giao dịch thì để kế toán chọn.
 - Tin Lệch tiền về chỉ gửi một lần cho mỗi đợt.
+
+## Chọn tiền về khi trùng số tiền
+Từ khoá: trùng số tiền, cần chọn tiền về, kế toán chọn, chọn giao dịch, chọn tiền về, đổi giao dịch, bỏ lựa chọn, GrabFood, Shinhan, sao kê
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Đối soát nhà cung cấp, mở nguồn | [[Chọn tiền về]] |
+
+Trước đây: nguồn ghi "Trùng số tiền, kế toán chọn" nằm vàng mãi ở bước Khớp tiền vì không có nút chọn. Từ nay kế toán chọn đúng giao dịch, máy giữ giao dịch đó cho nguồn.
+
+**Các bước**
+1. Mở Đối soát nhà cung cấp, bấm nguồn có chip Trùng số tiền.
+2. Ở khối Tiền về của đợt này bấm [[Chọn tiền về]]. Danh sách chỉ có giao dịch máy đã xét: cùng số tiền, chưa nguồn khác giữ.
+3. Xem sao kê, chọn đúng giao dịch, bấm [[Dùng giao dịch]].
+4. Cùng số tiền: bước Khớp tiền xanh. Khác số: nguồn thành Lệch tiền về, hỏi đối tác phần chênh.
+5. Chọn nhầm: bấm [[Đổi giao dịch tiền về]] hoặc [[Bỏ lựa chọn]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Giao dịch ... không còn chọn được | Nguồn khác vừa giữ giao dịch đó. Tải lại, chọn lại |
+| Chỉ Kế toán chọn được giao dịch tiền về. | Nhờ kế toán |
+
+**Lưu ý**
+- Mỗi giờ máy dò lại vẫn giữ lựa chọn của kế toán. Giao dịch bị huỷ hay đã gắn cho nguồn khác thì máy bỏ lựa chọn và ghi lý do ở bước Khớp tiền.
+- Chọn hay bỏ lựa chọn làm mất xác nhận đối soát cũ (nếu có): bấm [[Xác nhận đã đối soát]] lại.
+- Chỉ đối chiếu, không tạo chứng từ.
 
 ## OnePay nối theo số đơn Pancake và tự đối chiếu lại mỗi giờ
 Từ khoá: OnePay, số đơn Pancake, không thấy chứng từ, nối theo tiền, đối chiếu lại, khách trả trước, đơn nhận sau, Đã hoàn tất, Đã khép
@@ -1265,3 +1325,100 @@ Trước đây: duyệt từng APP. Từ nay: duyệt cả đợt một lần; g
 **Lưu ý**
 - Người lập đợt không tự soát; hai cấp duyệt phải là hai người.
 - Không ghi sổ gì ở bước này: ghi sổ khi kế toán xác nhận đã chuyển tiền trên APP như cũ.
+
+
+## Bảng kê chi phí trả trước 242
+Từ khoá: bảng kê 242, chi phí trả trước, CCDC, khai số tháng, phân bổ tay, gắn khoản, prepaid
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Bảng kê chi phí trả trước (/bang-ke-chi-phi-tra-truoc) | [[Khai cách phân bổ]] |
+
+Mỗi chứng từ ghi Nợ 242 là một khoản. Hệ thống đọc sổ cái để dựng dòng, không sửa chứng từ gốc.
+
+**Các bước**
+1. Mở Bảng kê chi phí trả trước, chọn chip Chờ khai.
+2. Chạm một khoản, bấm [[Khai cách phân bổ]].
+3. Chọn số tháng, tháng bắt đầu, bộ phận chịu chi phí, tài khoản chi phí. Khoản đã chia ở sổ cũ thì điền Đã phân bổ trước.
+4. Bấm [[Lưu cách phân bổ]].
+5. Khoản không phân bổ qua bảng kê: bấm [[Không phân bổ khoản này]], ghi lý do.
+6. Muốn phân bổ một khoản với số tự chọn: bấm [[Phân bổ tay khoản này]], rồi [[Lập bút toán nháp]] hoặc [[Lập và ghi sổ ngay]].
+7. Có dòng báo Có 242 chưa gắn khoản: chạm dòng đó, bấm [[Gắn khoản]], chọn đúng khoản.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Số tháng phân bổ phải từ 1 tới 36 | Chọn lại số tháng |
+| Khoản ... chỉ còn ... chưa phân bổ | Bút toán phân bổ quá phần còn lại: sửa số tiền |
+
+**Lưu ý**
+- Số đã phân bổ = các bút toán đã ghi sổ có gắn khoản ở dòng Có 242, cộng Đã phân bổ trước.
+- Bút toán tự lập trên Desk: ở dòng Có 242 chọn ô Khoản chi phí trả trước (242), hệ thống tính vào và không phân bổ trùng.
+
+## Phân bổ chi phí trả trước hằng tháng
+Từ khoá: phân bổ 242 hằng tháng, bút toán phân bổ, chi phí trả trước tháng, ghi sổ phân bổ, monthly allocation
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Bảng kê chi phí trả trước (/bang-ke-chi-phi-tra-truoc) | [[Lập bút toán nháp]] |
+
+Mỗi tháng hệ thống lập MỘT bút toán nháp cho mọi khoản đến kỳ. Kế toán kiểm rồi ghi sổ; hệ thống không tự ghi sổ.
+
+**Các bước**
+1. Ở Bảng kê bấm nút Phân bổ tháng ở chân màn, chọn tháng trên chip.
+2. Xem số cần phân bổ và các khoản. Bấm [[Lập bút toán nháp]].
+3. Kiểm xong bấm Ghi sổ bút toán, đồng ý.
+4. Sau khi lập mà có khoản mới: bấm [[Cập nhật bản nháp]].
+5. Bản nháp đã sửa tay: bấm [[Ghi sổ bản đã sửa]], hoặc [[Bỏ bản nháp]] rồi lập lại.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Có ... dòng Có 242 trên bút toán đã ghi sổ chưa gắn khoản | Gắn khoản cho các dòng đó ở Bảng kê |
+| Sổ đã khoá đến ... | Kế toán trưởng mở khoá ở Cài đặt, mục Khoá sổ |
+| Bút toán nháp ... đã được sửa tay nên hệ thống không ghi đè | Ghi sổ bản đã sửa hoặc bỏ bản nháp |
+| Bản nháp ... đã cũ so với số hiện tại | Cập nhật bản nháp rồi ghi sổ |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 6273, 6413, 6423 theo bộ phận của khoản | 242 | Khi kế toán ghi sổ bút toán phân bổ tháng |
+
+**Lưu ý**
+- Tháng lỡ chưa phân bổ thì tháng sau hệ thống tự bù phần thiếu.
+
+## Đối soát chi phí quảng cáo Meta và bút toán tháng
+Từ khoá: chi phí Meta, quảng cáo Facebook, FACEBK, sao kê thẻ Shinhan, 6417, 3411, Meta ads
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Đối soát chi phí Meta (/doi-soat-chi-phi-meta) | [[Lập bút toán nháp]] |
+
+Mỗi tháng ghi chi phí đúng số trừ thẻ Shinhan theo NGÀY GIAO DỊCH, lấy từ sao kê thẻ.
+
+**Các bước**
+1. Mở Đối soát chi phí Meta, chạm tháng cần làm.
+2. Xem ba con số: Meta đã tiêu, Đã trừ thẻ, Đã ghi sổ.
+3. Dòng Chờ kế toán chọn: bấm [[Là phí Meta]] / [[Không phải]], hoặc [[Một giao dịch]] / [[Hai giao dịch]], ghi căn cứ.
+4. Có chứng từ Meta khác: giao dịch tờ đó đã ghi thì bấm [[Đã ghi ở chứng từ khác]]; bỏ nhầm thì [[Đưa lại vào bút toán]]. Xong bấm [[Đã đối chiếu]].
+5. Bấm [[Lập bút toán nháp]], kiểm, rồi bấm Ghi sổ bút toán.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa đủ sao kê | Chờ sao kê thẻ của ngân hàng phủ tới 10 ngày sau cuối tháng |
+| Còn ... dòng chờ kế toán chọn | Chọn xong từng dòng |
+| Tháng này đã có chứng từ Meta khác | Bỏ giao dịch tờ đó đã ghi, rồi bấm Đã đối chiếu |
+| Bản nháp ... đã cũ | Cập nhật bản nháp rồi ghi sổ |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 6417 chi quảng cáo (hoàn tiền ghi giảm) | 3411 | Khi kế toán ghi sổ bút toán tháng |
+| 6427 phí thẻ đi kèm quảng cáo | 3411 | Cùng bút toán |
+| 3411 | 112 theo ngân hàng thực chuyển | Kế toán tự làm khi trả nợ thẻ |
+
+**Lưu ý**
+- Giao dịch có ở cả PDF và bảng gõ tay chỉ tính một lần.
+- Tự hạch toán ở màn Bút toán thì ghi FACEBK hoặc Meta ở diễn giải để hệ thống nhận ra.
+
