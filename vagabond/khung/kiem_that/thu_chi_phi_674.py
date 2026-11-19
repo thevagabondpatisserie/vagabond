@@ -22,6 +22,60 @@ from vagabond.khung.kiem_that.he_so_252 import _luu
 from vagabond.khung.kiem_that.nen import ca, dung, khong_nem, la
 
 
+def _anh_ban_ghi(hau):
+	"""Bản ghi tháng (không thuộc ca) và bút toán của chúng, để so trước, sau."""
+	ra = {}
+	for r in frappe.get_all(BN.DT, fields=["name", "modified", "journal_entry", "ban_ke", "quyet_dinh"], limit_page_length=0):
+		if r.name.endswith(hau):
+			continue
+		je = frappe.db.get_value("Journal Entry", r.journal_entry, ["docstatus", "modified"]) if r.journal_entry else None
+		ra[r.name] = (str(r.modified), r.journal_entry, r.ban_ke, r.quyet_dinh, tuple(str(x) for x in (je or ())))
+	return ra
+
+
+def _cach_ly(ham):
+	"""Codex #592: ca bút toán tháng chạy trên site thật không được đụng bản ghi tháng
+	thật (nháp Meta, nháp phân bổ 242) và bút toán của chúng. Mọi khoá bản ghi tháng
+	trong ca mang hậu tố riêng; xong ca kiểm lại mọi bản ghi tháng khác còn nguyên."""
+	import functools
+
+	@functools.wraps(ham)
+	def boc():
+		hau = ":KT" + frappe.generate_hash(length=6)
+		goc = BN.ten_ban_ghi
+		truoc = _anh_ban_ghi(hau)
+		_GIA_THAT.clear()
+		with patch.object(BN, "ten_ban_ghi", lambda loai, vt, ky: goc(loai, vt, ky) + hau):
+			ham()
+		sau = _anh_ban_ghi(hau)
+		la("bản ghi tháng thật và bút toán của chúng không đổi", {k: v for k, v in sau.items() if k in truoc}, truoc)
+		la("ca không dựng bản ghi tháng nào ngoài phạm vi riêng", sorted(set(sau) - set(truoc) - _GIA_THAT), [])
+	return boc
+
+
+_GIA_THAT = set()
+
+
+def _nhap_that_gia(ct, ky, tkqc, tkthe):
+	"""Dựng một nháp Meta mang khoá THẬT của tháng (như site đã có sẵn), để ca chứng
+	minh mình không cập nhật, không ghi sổ nó."""
+	ten = "%s:%s:%s" % (BN.MA_LOAI[BN.LOAI_META], frappe.db.get_value("Company", ct, "abbr") or ct, ky)
+	if frappe.db.exists(BN.DT, ten):
+		return ten, frappe.db.get_value(BN.DT, ten, "journal_entry")
+	cc = frappe.get_cached_value("Company", ct, "cost_center")
+	je = _luu(frappe.get_doc(dict(doctype="Journal Entry", company=ct, posting_date=str(BN.ngay_cuoi_thang(ky)),
+		voucher_type="Journal Entry", user_remark="KT675 nháp Meta thật có sẵn", vgb_tu_lap=ten, accounts=[
+			dict(account=tkqc, debit_in_account_currency=1234000, cost_center=cc),
+			dict(account=tkthe, credit_in_account_currency=1234000)])))
+	d = frappe.new_doc(BN.DT)
+	d.khoa, d.loai, d.company, d.ky, d.journal_entry = ten, BN.LOAI_META, ct, ky, je.name
+	d.flags.ignore_permissions = True
+	d.flags.vgb_tu_lap = True
+	_luu(d)
+	_GIA_THAT.add(d.name)
+	return d.name, je.name
+
+
 def _tk(ct, so, goc, ten):
 	"""Tài khoản lá theo số hiệu; bench dựng từ sơ đồ chuẩn có thể thiếu thì dựng
 	trong điểm lưu, lùi cùng mọi thứ khác. Site thật đã có sẵn."""
@@ -62,6 +116,7 @@ def _khoan_242(ct, so_tien):
 
 
 @ca("v674 thật: khoản 242 khai 3 tháng, lập nháp tháng (lập lại cập nhật tại chỗ), ghi sổ Nợ 6273 / Có 242; tháng đó không phân bổ trùng; phân bổ tay vượt bị chặn ở ghi sổ")
+@_cach_ly
 def _phan_bo():
 	ct = nen.cong_ty()
 	ky = BN.ky_cua(nowdate())
@@ -111,6 +166,7 @@ def _phan_bo():
 
 
 @ca("v674 thật: bút toán nháp phân bổ bị kế toán sửa tay thì lập lại không ghi đè; bỏ nháp rồi lập lại được")
+@_cach_ly
 def _sua_tay():
 	ct = nen.cong_ty()
 	ky = BN.ky_cua(nowdate())
@@ -156,6 +212,7 @@ def _dong_the(ct, nguon, ngd, nbt, dv, tien, n=1):
 
 
 @ca("v674 thật: chi phí Meta tháng từ hai bản sao kê vào sổ MỘT lần, Nợ 6417 / Có 3411; lập lại cập nhật tại chỗ; giao dịch về sau lập bút toán bổ sung chỉ phần mới")
+@_cach_ly
 def _meta():
 	ct = nen.cong_ty()
 	ky = BN.cong_thang(BN.ky_cua(nowdate()), -2)
@@ -246,12 +303,15 @@ def _ban_va_doc_lai():
 
 
 @ca("v675 thật: Meta trừ thẻ Visa MB từ dòng sao kê ngân hàng: chưa hết tháng không lập; hết tháng lập Nợ 6417, Nợ 6427 phí, Có tiền gửi (không chờ sao kê thẻ Shinhan); ghi sổ xong dòng sao kê được đối chiếu hết")
+@_cach_ly
 def _meta_the_mb():
 	ct = nen.cong_ty()
 	ky = "2026-11"
 	tkqc = _tk(ct, "6417", "Expense", "KT674 Chi phí dịch vụ mua ngoài bán hàng")
 	tkphi = _tk(ct, "6427", "Expense", "KT674 Chi phí dịch vụ mua ngoài quản lý")
-	_tk(ct, "3411", "Liability", "KT674 Các khoản đi vay")
+	tkthe = _tk(ct, "3411", "Liability", "KT674 Các khoản đi vay")
+	_bg_that, je_that = _nhap_that_gia(ct, ky, tkqc, tkthe)
+	dong_that = _so_dong_je(je_that)
 	tknh = frappe.db.get_value("Account", {"company": ct, "account_number": "11219", "is_group": 0}, "name")
 	if not tknh:
 		cha = frappe.db.get_value("Account", {"company": ct, "root_type": "Asset", "is_group": 1}, "name", order_by="lft desc")
@@ -282,6 +342,14 @@ def _meta_the_mb():
 	finally:
 		for x in rieng:
 			x.stop()
+	la("nháp Meta thật có sẵn của tháng không bị cập nhật, không bị ghi sổ",
+		(frappe.db.get_value("Journal Entry", je_that, "docstatus"), _so_dong_je(je_that)), (0, dong_that))
+
+
+def _so_dong_je(je):
+	return sorted((r.account, flt(r.debit_in_account_currency), flt(r.credit_in_account_currency))
+		for r in frappe.get_all("Journal Entry Account", filters={"parent": je},
+			fields=["account", "debit_in_account_currency", "credit_in_account_currency"]))
 
 
 def _meta_the_mb_chay(ct, ky, bt, tkqc, tkphi, tknh):
