@@ -244,6 +244,10 @@ def dung():
 	cu = json.loads((Path(__file__).resolve().parents[1] / "staging" / "cau_truc_cu.json").read_text())
 	_truong("Payment Entry", [{k: v for k, v in f.items() if k != "dt"}
 		for f in cu["fields"] if f["dt"] == "Payment Entry" and f["fieldname"].startswith("vgb_huy")])
+	# v674: bút toán nháp máy lập (phân bổ 242, chi phí Meta) bỏ bằng huỷ mềm và
+	# mọi câu đọc bút toán lọc vgb_huy; site có bốn ô này trên Journal Entry.
+	_truong("Journal Entry", [{k: v for k, v in f.items() if k != "dt"}
+		for f in cu["fields"] if f["dt"] == "Journal Entry" and f["fieldname"].startswith("vgb_huy")])
 	_truong("Purchase Invoice Item", [
 		{"fieldname": "ten_hang_ncc", "fieldtype": "Data", "label": "Ten hang NCC", "insert_after": "item_name"},
 		# v518: đơn vị nhà cung cấp ghi và Món máy đoán có ô riêng. Khai luôn
