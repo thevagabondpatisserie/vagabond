@@ -1306,7 +1306,7 @@
   const TT_BANH = {'Chờ ảnh': 'sap', 'Đang hiện': 'dang', 'Đã ẩn': 'an'};
   let BB = null, bTai = false, banhChon = '', banhLoc = '', banhTim = '', bSua = null, bGoc = '', bBao = '';
   function banhDangChon() { return BB && BB.banh.find(x => x.khoa === banhChon) || null; }
-  function banSua(x) { return x ? {anh: x.anh.map(a => ({url: a.url})), mo_ta: x.mo_ta || '', tang: x.tang || '', hien: x.trang_thai === DANG_HIEN} : null; }
+  function banSua(x) { return x ? {anh: x.anh.map(a => ({url: a.url})), mo_ta: x.mo_ta || '', tang: x.tang || '', di_ung: x.di_ung || '', bao_quan: x.bao_quan || '', hien: x.trang_thai === DANG_HIEN} : null; }
   function moBanh(x) {
     banhChon = x ? x.khoa : ''; bBao = '';
     bSua = banSua(x);
@@ -1422,6 +1422,11 @@
       o('Mô tả', bSua.mo_ta, v => { bSua.mo_ta = v; }, {nhieuDong: true, dong: 5, ten: 'mo_ta_banh', chu: 'Vài câu khách đọc khi mở bánh.'}),
       o('Tầng hương vị', bSua.tang, v => { bSua.tang = v; }, {nhieuDong: true, dong: 5, ten: 'tang_banh', goi: 'Vỏ sô cô la đen - Dark chocolate shell', chu: 'Mỗi dòng một tầng: tên tầng - giải thích. Tối đa 12 dòng.'}));
     g.append(hai);
+    const haiThem = tao('div', 'bt-hai-cot');
+    haiThem.append(
+      o('Thành phần dễ gây dị ứng', bSua.di_ung, v => { bSua.di_ung = v; }, {nhieuDong: true, dong: 3, ten: 'di_ung_banh', goi: 'Sữa, trứng, gluten, các loại hạt', chu: 'Khách thấy dưới phần mô tả bánh. Để trống thì trang đặt bánh không hiện mục này.'}),
+      o('Bảo quản và sử dụng', bSua.bao_quan, v => { bSua.bao_quan = v; }, {nhieuDong: true, dong: 3, ten: 'bao_quan_banh', goi: 'Giữ lạnh 2 đến 6 độ C, dùng trong ngày', chu: 'Khách thấy dưới phần mô tả bánh. Để trống thì trang đặt bánh không hiện mục này.'}));
+    g.append(haiThem);
     const ct = congTac('Hiện trên web', bSua.hien, v => {
       if (v && !bSua.anh.length) { bSua.hien = false; bBao = 'Thêm ít nhất một ảnh trước khi bật Hiện trên web.'; ve(); return; }
       bSua.hien = v;
@@ -1484,7 +1489,7 @@
        mốc "đã lưu" sang bản máy chủ vừa nhận; không thay cả bản sửa. */
     const sua = bSua, gui = JSON.stringify(bSua);
     try {
-      BB = await api('luu', {khoa: khoaBanh, anh: sua.anh, mo_ta: sua.mo_ta, tang: sua.tang, trang_thai: sua.hien ? DANG_HIEN : DA_AN}, 'banh_web');
+      BB = await api('luu', {khoa: khoaBanh, anh: sua.anh, mo_ta: sua.mo_ta, tang: sua.tang, di_ung: sua.di_ung, bao_quan: sua.bao_quan, trang_thai: sua.hien ? DANG_HIEN : DA_AN}, 'banh_web');
       if (B) B.banh_cho_anh = (BB.dem || {})[CHO_ANH] || 0;
       const x = BB.banh.find(y => y.khoa === khoaBanh) || null;
       const hien = x && x.trang_thai === DANG_HIEN;

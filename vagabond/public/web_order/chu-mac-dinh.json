@@ -786,9 +786,9 @@
     "nhieu_dong": true
   },
   "dat_banh_f578cc0d6": {
-    "ten": "Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng",
+    "ten": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng",
     "nhom": "dat_banh",
-    "mac_dinh": "Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng",
+    "mac_dinh": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng",
     "nhieu_dong": true
   },
   "dat_banh_35ec19a18": {
@@ -882,9 +882,9 @@
     "nhieu_dong": true
   },
   "dat_banh_0e39768bd": {
-    "ten": "Địa chỉ ngoài vùng giao. Quý khách chọn \"Tự lấy tại cửa hàng\"",
+    "ten": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng",
     "nhom": "gio_hang",
-    "mac_dinh": "Địa chỉ ngoài vùng giao. Quý khách chọn \"Tự lấy tại cửa hàng\"",
+    "mac_dinh": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng",
     "nhieu_dong": true
   },
   "dat_banh_5db00ac93": {
@@ -1368,15 +1368,15 @@
     "nhieu_dong": true
   },
   "bien_nhan_37a6f269e": {
-    "ten": "Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.",
+    "ten": "Biên nhận chỉ mở được từ đường dẫn The Vagabond hiện ngay sau khi đặt.",
     "nhom": "bien_nhan",
-    "mac_dinh": "Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.",
+    "mac_dinh": "Biên nhận chỉ mở được từ đường dẫn The Vagabond hiện ngay sau khi đặt.",
     "nhieu_dong": true
   },
   "bien_nhan_bbd687e19": {
     "ten": "Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối tran",
     "nhom": "bien_nhan",
-    "mac_dinh": "Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối trang.",
+    "mac_dinh": "Quý khách xem lại mã yêu cầu trong tin nhắn của The Vagabond, hoặc nhắn The Vagabond qua Zalo, Messenger ở cuối trang.",
     "nhieu_dong": true
   },
   "bien_nhan_6be58a5f5": {
@@ -2438,7 +2438,7 @@
   "giao_ngoai_vung": {
     "ten": "Địa chỉ ngoài vùng giao",
     "nhom": "gio_hang",
-    "mac_dinh": "Chúng tôi chưa hỗ trợ giao đến địa chỉ này. Bánh kem chỉ giao trong bán kính {km} km quanh bếp và cửa hàng. Quý khách có thể chọn tự đến lấy tại cửa hàng.",
+    "mac_dinh": "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng.",
     "nhieu_dong": true
   },
   "don_da_tiep_nhan": {
@@ -4747,9 +4747,9 @@
     "mac_dinh": "Bánh sỉ"
   },
   "bsi_tieu_de": {
-    "ten": "Bánh sỉ: Bánh cho quán của bạn",
+    "ten": "Bánh sỉ: Bánh cho quán của quý khách",
     "nhom": "banh_si",
-    "mac_dinh": "Bánh cho quán của bạn"
+    "mac_dinh": "Bánh cho quán của quý khách"
   },
   "bsi_tieu_de_phu": {
     "ten": "Bánh sỉ: Quán cà phê, khách sạn, nhà hàng",
@@ -5439,9 +5439,9 @@
     "nhieu_dong": true
   },
   "bien_nhan_tt_ho_tro": {
-    "ten": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:",
+    "ten": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi The Vagabond:",
     "nhom": "bien_nhan",
-    "mac_dinh": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi chúng tôi:",
+    "mac_dinh": "Cần hỗ trợ thanh toán? Quý khách nhắn hoặc gọi The Vagabond:",
     "nhieu_dong": true
   },
   "bien_nhan_tt_dang_chuyen": {
@@ -5451,9 +5451,9 @@
     "nhieu_dong": true
   },
   "bien_nhan_tt_loi_the": {
-    "ten": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn chúng tôi.",
+    "ten": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn The Vagabond.",
     "nhom": "bien_nhan",
-    "mac_dinh": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn chúng tôi.",
+    "mac_dinh": "Chưa tạo được giao dịch thẻ. Quý khách thử lại sau ít phút hoặc nhắn The Vagabond.",
     "nhieu_dong": true
   },
   "dat_banh_pt_the_qt": {
@@ -6225,9 +6225,9 @@
     "nhieu_dong": true
   },
   "goi_ban_ud_vi": {
-    "ten": "Gọi món tại bàn: Ví quà của bạn",
+    "ten": "Gọi món tại bàn: Ví quà của quý khách",
     "nhom": "dat_banh",
-    "mac_dinh": "Ví quà của bạn",
+    "mac_dinh": "Ví quà của quý khách",
     "nhieu_dong": true
   },
   "goi_ban_ud_ct": {
@@ -7053,9 +7053,9 @@
     "nhieu_dong": true
   },
   "tv658_ban_o_day": {
-    "ten": "The Vagabond Club: Bạn ở đây",
+    "ten": "The Vagabond Club: Đang ở hạng này",
     "nhom": "thanh_vien",
-    "mac_dinh": "Bạn ở đây",
+    "mac_dinh": "Đang ở hạng này",
     "nhieu_dong": true
   },
   "tv658_ht_aria": {
@@ -7065,9 +7065,9 @@
     "nhieu_dong": true
   },
   "tv658_ht_aria_la": {
-    "ten": "The Vagabond Club: Bạn đang ở hạng {hang}.",
+    "ten": "The Vagabond Club: Quý khách đang ở hạng {hang}.",
     "nhom": "thanh_vien",
-    "mac_dinh": "Bạn đang ở hạng {hang}.",
+    "mac_dinh": "Quý khách đang ở hạng {hang}.",
     "nhieu_dong": true
   },
   "tv658_chi_12": {
@@ -7089,9 +7089,9 @@
     "nhieu_dong": true
   },
   "tv658_cao_nhat": {
-    "ten": "The Vagabond Club: Bạn đang ở vòng cao nhất",
+    "ten": "The Vagabond Club: Đã ở vòng cao nhất",
     "nhom": "thanh_vien",
-    "mac_dinh": "Bạn đang ở vòng cao nhất",
+    "mac_dinh": "Đã ở vòng cao nhất",
     "nhieu_dong": true
   },
   "tv658_hang_ql": {
@@ -7125,9 +7125,9 @@
     "nhieu_dong": true
   },
   "tv658_hang_cua_ban": {
-    "ten": "The Vagabond Club: Hạng của bạn",
+    "ten": "The Vagabond Club: Hạng hiện tại",
     "nhom": "thanh_vien",
-    "mac_dinh": "Hạng của bạn",
+    "mac_dinh": "Hạng hiện tại",
     "nhieu_dong": true
   },
   "tv658_tich_diem": {
@@ -7311,9 +7311,9 @@
     "nhieu_dong": true
   },
   "tv658_khong_dung": {
-    "ten": "The Vagabond Club: Hạng của bạn được giảm thẳng trên mỗi ho",
+    "ten": "The Vagabond Club: Hạng hiện tại được giảm thẳng trên mỗi ho",
     "nhom": "thanh_vien",
-    "mac_dinh": "Hạng của bạn được giảm thẳng trên mỗi hoá đơn, không dùng điểm.",
+    "mac_dinh": "Hạng của quý khách được giảm thẳng trên mỗi hoá đơn, không dùng điểm.",
     "nhieu_dong": true
   },
   "tv658_sap_het": {
@@ -7347,15 +7347,15 @@
     "nhieu_dong": true
   },
   "tv658_cau_2": {
-    "ten": "The Vagabond Club: điểm và quà của bạn.",
+    "ten": "The Vagabond Club: điểm và quà của quý khách.",
     "nhom": "thanh_vien",
-    "mac_dinh": "điểm và quà của bạn.",
+    "mac_dinh": "điểm và quà của quý khách.",
     "nhieu_dong": true
   },
   "tv658_o_sdt": {
-    "ten": "The Vagabond Club: Số điện thoại của bạn",
+    "ten": "The Vagabond Club: Số điện thoại của quý khách",
     "nhom": "thanh_vien",
-    "mac_dinh": "Số điện thoại của bạn",
+    "mac_dinh": "Số điện thoại của quý khách",
     "nhieu_dong": true
   },
   "tv658_nut_otp": {
@@ -7389,9 +7389,9 @@
     "nhieu_dong": true
   },
   "tv658_diem_cua_ban": {
-    "ten": "The Vagabond Club: Điểm của bạn",
+    "ten": "The Vagabond Club: Điểm của quý khách",
     "nhom": "thanh_vien",
-    "mac_dinh": "Điểm của bạn",
+    "mac_dinh": "Điểm của quý khách",
     "nhieu_dong": true
   },
   "tv658_dat_dung_diem": {
@@ -7602,6 +7602,11 @@
   "vsk_rong": {
     "ten": "Vé sự kiện: chưa có sự kiện",
     "mac_dinh": "Chưa có sự kiện nào mở đăng ký. Theo dõi The Vagabond để nhận tin sự kiện mới:",
+    "nhom": "Vé sự kiện"
+  },
+  "vsk_rong_zalo": {
+    "ten": "Vé sự kiện: nút theo dõi Zalo OA khi chưa có sự kiện",
+    "mac_dinh": "Theo dõi Zalo OA",
     "nhom": "Vé sự kiện"
   },
   "tab_ve_su_kien": {
@@ -8057,6 +8062,16 @@
     "nhom": "dat_banh",
     "mac_dinh": "Miễn phí giao cho đơn từ {tien} trong bán kính {km} km",
     "nhieu_dong": true
+  },
+  "ct675_di_ung": {
+    "ten": "Chi tiết bánh: tiêu đề mục dị ứng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thành phần dễ gây dị ứng"
+  },
+  "ct675_bao_quan": {
+    "ten": "Chi tiết bánh: tiêu đề mục bảo quản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bảo quản và sử dụng"
   },
   "db675_bao_mat": {
     "ten": "Đặt bàn: đường dẫn chính sách bảo mật cạnh biểu mẫu",
