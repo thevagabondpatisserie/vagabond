@@ -714,13 +714,13 @@ def dieu_kien_lap(t, ky):
 	"""Điều kiện để lập bút toán Meta của tháng: "" là đủ, còn lại là câu chặn.
 	MỘT nguồn cho cả lúc lập và lúc ghi sổ (Codex #590 vòng 3): điều kiện đổi sau
 	khi lập (chứng từ Meta mới, dòng chờ chọn, sao kê) thì nháp không ghi sổ được."""
+	if not t.get("vao_lap") and not t.get("het_thang") and any(g.get("nguon") == NGUON_MB for g in t["vao"]):
+		return "Tháng %s/%s chưa hết. Phần trừ thẻ Visa MB lập sau ngày cuối tháng." % (ky[5:7], ky[:4])
 	if t["thieu"] and not t.get("vao_lap"):
 		a, b = t["thieu"][0]
 		return ("Chưa đủ sao kê: chưa có sao kê thẻ của ngân hàng cho ngày bút toán %s tới %s. Giao dịch tháng %s/%s có thể "
 			"được ghi nợ tới %d ngày sau cuối tháng. Chờ sao kê về rồi bấm lại." % (
 				getdate(a).strftime("%d/%m/%Y"), getdate(b).strftime("%d/%m/%Y"), ky[5:7], ky[:4], NGAY_TRE))
-	if not t.get("vao_lap") and not t.get("het_thang") and any(g.get("nguon") == NGUON_MB for g in t["vao"]):
-		return "Tháng %s/%s chưa hết. Phần trừ thẻ Visa MB lập sau ngày cuối tháng." % (ky[5:7], ky[:4])
 	if t["con_quyet"]:
 		return "Còn %d dòng chờ kế toán chọn. Chọn xong rồi bấm lại." % len(t["con_quyet"])
 	if t["ct_chua_xem"]:

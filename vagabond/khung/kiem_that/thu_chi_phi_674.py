@@ -310,6 +310,6 @@ def _meta_the_mb_chay(ct, ky, bt, tkqc, tkphi, tknh):
 		la("đã trừ bằng đã ghi sổ", (ct_thang.get("da_tru"), ct_thang.get("da_ghi_so")), (6066000, 6066000))
 		try:
 			M.lap(ky)
-			dung("không còn giao dịch mới thì không lập", False)
+			dung("phần thẻ MB đã ghi, chưa có sao kê thẻ Shinhan thì không lập thêm", False)
 		except Exception as e:
-			dung("báo không còn giao dịch: %s" % nen.cau_loi(e), "không còn giao dịch" in nen.cau_loi(e))
+			dung("báo còn chờ sao kê thẻ Shinhan: %s" % nen.cau_loi(e), "Chưa đủ sao kê" in nen.cau_loi(e))

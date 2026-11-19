@@ -191,5 +191,7 @@ def _mb_chon_lap():
 	la("chưa hết tháng: chỉ Shinhan nếu đủ", M.chon_lap([mb, shin], [], False), [shin])
 	t = {"thieu": [], "het_thang": False, "vao": [mb], "vao_lap": [], "con_quyet": [], "ct_chua_xem": []}
 	dung("chưa hết tháng có câu rõ", "chưa hết" in M.dieu_kien_lap(t, "2026-11"))
+	t = dict(t, thieu=[("2026-11-01", "2026-12-10")])
+	dung("chưa hết tháng nói chưa hết, không nói thiếu sao kê thẻ", "chưa hết" in M.dieu_kien_lap(t, "2026-11"))
 	t = {"thieu": [("2026-11-01", "2026-12-10")], "het_thang": True, "vao": [mb], "vao_lap": [mb], "con_quyet": [], "ct_chua_xem": []}
 	la("thiếu sao kê thẻ không chặn phần MB", M.dieu_kien_lap(t, "2026-11"), "")
