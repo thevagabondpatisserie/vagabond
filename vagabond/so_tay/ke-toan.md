@@ -1388,37 +1388,39 @@ Mỗi tháng hệ thống lập MỘT bút toán nháp cho mọi khoản đến 
 - Tháng lỡ chưa phân bổ thì tháng sau hệ thống tự bù phần thiếu.
 
 ## Đối soát chi phí quảng cáo Meta và bút toán tháng
-Từ khoá: chi phí Meta, quảng cáo Facebook, FACEBK, sao kê thẻ Shinhan, 6417, 3411, Meta ads
+Từ khoá: chi phí Meta, quảng cáo Facebook, FACEBK, thẻ Shinhan, thẻ Visa MB, 6417, 3411
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
 | Kế toán | Đối soát chi phí Meta (/doi-soat-chi-phi-meta) | [[Lập bút toán nháp]] |
 
-Mỗi tháng ghi chi phí đúng số trừ thẻ Shinhan theo NGÀY GIAO DỊCH, lấy từ sao kê thẻ.
+Ghi chi phí đúng số trừ thẻ theo ngày giao dịch: thẻ Shinhan từ sao kê thẻ, thẻ Visa MB từ sao kê tài khoản MB (từ 01/11/2026).
 
 **Các bước**
 1. Mở Đối soát chi phí Meta, chạm tháng cần làm.
-2. Xem ba con số: Meta đã tiêu, Đã trừ thẻ, Đã ghi sổ.
-3. Dòng Chờ kế toán chọn: bấm [[Là phí Meta]] / [[Không phải]], hoặc [[Một giao dịch]] / [[Hai giao dịch]], ghi căn cứ.
-4. Có chứng từ Meta khác: giao dịch tờ đó đã ghi thì bấm [[Đã ghi ở chứng từ khác]]; bỏ nhầm thì [[Đưa lại vào bút toán]]. Xong bấm [[Đã đối chiếu]].
+2. Xem ba số: Meta đã tiêu, Đã trừ thẻ, Đã ghi sổ.
+3. Dòng Chờ kế toán chọn: bấm [[Là phí Meta]] / [[Không phải]] hoặc [[Một giao dịch]] / [[Hai giao dịch]].
+4. Có chứng từ Meta khác: bấm [[Đã ghi ở chứng từ khác]] cho giao dịch tờ đó đã ghi, rồi [[Đã đối chiếu]].
 5. Bấm [[Lập bút toán nháp]], kiểm, rồi bấm Ghi sổ bút toán.
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
-| Chưa đủ sao kê | Chờ sao kê thẻ của ngân hàng phủ tới 10 ngày sau cuối tháng |
+| Chưa đủ sao kê | Chờ sao kê thẻ Shinhan; thẻ MB vẫn lập |
+| Tháng chưa hết | Phần thẻ MB lập sau ngày cuối tháng |
 | Còn ... dòng chờ kế toán chọn | Chọn xong từng dòng |
-| Tháng này đã có chứng từ Meta khác | Bỏ giao dịch tờ đó đã ghi, rồi bấm Đã đối chiếu |
-| Bản nháp ... đã cũ | Cập nhật bản nháp rồi ghi sổ |
+| Tháng này đã có chứng từ Meta khác | Làm bước 4 |
+| Bản nháp ... đã cũ | Cập nhật nháp rồi ghi sổ |
 
 **Hạch toán**
 | Nợ | Có | Khi nào |
 |---|---|---|
 | 6417 chi quảng cáo (hoàn tiền ghi giảm) | 3411 | Khi kế toán ghi sổ bút toán tháng |
 | 6427 phí thẻ đi kèm quảng cáo | 3411 | Cùng bút toán |
-| 3411 | 112 theo ngân hàng thực chuyển | Kế toán tự làm khi trả nợ thẻ |
+| 6417, 6427 phần thẻ Visa MB | 1121 MB | Cùng bút toán; máy tự đối chiếu sao kê |
+| 3411 | 112 | Kế toán tự làm khi trả nợ thẻ |
 
 **Lưu ý**
-- Giao dịch có ở cả PDF và bảng gõ tay chỉ tính một lần.
-- Tự hạch toán ở màn Bút toán thì ghi FACEBK hoặc Meta ở diễn giải để hệ thống nhận ra.
+- Giao dịch có ở cả PDF và bảng gõ tay tính một lần.
+- Tự hạch toán thì ghi FACEBK hoặc Meta ở diễn giải để hệ thống nhận ra.
 

@@ -243,6 +243,25 @@ Từ khoá: tin tài chính, tiền cuối ngày, két lệch, tiền ra chưa c
 
 **Lưu ý**
 - Két lệch: báo khi tiền mặt lệch từ 50.000 đ (dư hay thiếu), hoặc ca mở quá 24 giờ mới chốt.
-- Tiền ra chưa có chứng từ: khoản đã đi qua phiếu chi, bút toán trên app thì không báo. Lập phiếu chi hoặc bút toán cho từng khoản trong tin.
+- Tiền ra chưa có chứng từ: khoản đã đi qua phiếu chi, bút toán trên app thì không báo. Từ bản 675 tin chỉ nhắc khoản từ 01/11/2026 và gom theo nhóm việc, xem mục Dọn tin tiền vào, tiền ra chưa có chứng từ.
 - Nhóm nào nhận tin nào: Cài đặt lõi, mục Thông báo, tích ở phần Tin nhận.
 - Nhóm cửa hàng không nhận tin có số tiền.
+
+## Dọn tin tiền vào, tiền ra chưa có chứng từ
+Từ khoá: tiền vào chưa gắn chứng từ, tiền ra chưa có chứng từ, dọn tin kế toán, khoản cũ, tiền đối tác, chuyển nội bộ, thẻ Visa, nộp thuế
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Nhóm Zalo kế toán; Đối chiếu ngân hàng trên Desk | [[Đối chiếu]] |
+
+Hai tin 08:00 chỉ nhắc khoản từ 01/11/2026. Khoản cũ hơn không nhắc nữa, cần thì xem ở Đối chiếu ngân hàng. Tin gom theo nhóm việc, nhóm nhiều tiền đứng trước, mỗi nhóm ghi sẵn việc cần làm. Nhóm Chưa rõ nguồn, Chưa rõ nội dung đứng cuối, kể 5 khoản lớn nhất.
+
+**Các nhóm**
+- Tiền vào: Chuyển nội bộ giữa tài khoản công ty; Tiền đối tác về (Grab, ShopeeFood, OnePay, Xanh SM, beFood, Payoo); Khách chuyển cho đơn Pancake chưa có bill; Chưa rõ nguồn.
+- Tiền ra: Trả nhà cung cấp chưa nối phiếu chi; Trừ thẻ Visa (Meta, phần mềm, phí ngoại tệ); Nộp thuế, phí nhà nước; Chưa rõ nội dung.
+
+**Lưu ý**
+- Tin tiền vào chỉ tính tài khoản chính. Tiền vào quỹ tạm ứng đi luồng hoàn ứng riêng.
+- Phiếu chi trả nhà cung cấp đã xác nhận đã chuyển, đã chọn đúng dòng sao kê thì máy tự nối vào Đối chiếu ngân hàng (lúc xác nhận và lúc 07:40). Máy chỉ đối chiếu, không đổi bút toán.
+- Máy không nối khi dòng sao kê khác tài khoản chi, ít tiền hơn phiếu, hoặc đã thuộc chứng từ khác. Lý do ghi một lần trên dòng thời gian của phiếu chi; kế toán nối tay ở Đối chiếu ngân hàng.
+

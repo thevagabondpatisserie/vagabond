@@ -39,6 +39,16 @@ nhà cung cấp Meta, bút toán tay ghi 6417 có chữ FACEBK, Meta, Facebook) 
 dừng lại cho kế toán xem: không sửa chứng từ đó, không ghi chi phí hai lần.
 """
 
+# Thẻ Visa MB trừ thẳng tài khoản (anh Việt chốt 19/11/2026)
+# --------------------------------------------------------------------
+# Quảng cáo Meta còn trừ qua thẻ Visa ghi nợ của MB: tiền rời tài khoản MB ngay,
+# dòng sao kê SePay dạng "RetailVISADN-<số>-<tiền gốc>-<tiền tệ>-<mã>-FACEBK ...-The <thẻ>",
+# mỗi lần trừ có một dòng tiền quảng cáo và một dòng phí (cùng mã giao dịch). Định
+# khoản Nợ 6417 / Có 1121 (phí đi kèm Nợ 6427 như thẻ Shinhan), cùng bút toán Meta
+# của tháng. Chỉ lấy khoản từ 01/11/2026. Sao kê MB có hằng ngày nên không chờ sao
+# kê thẻ Shinhan, nhưng chờ hết tháng. Ghi sổ xong máy nối từng dòng sao kê MB vào
+# bút toán ở Đối chiếu ngân hàng. Dòng đã có chứng từ khác đối chiếu thì để nguyên.
+
 import json
 import re
 from datetime import timedelta
@@ -56,6 +66,10 @@ MAU_PHI_NGOAI = re.compile(r"FOREIGN|NGOAI\s*TE|NGOẠI\s*TỆ|CONVERSION|CROSS\
 MAU_KHONG = re.compile(r"ANNUAL|THUONG\s*NIEN|THƯỜNG\s*NIÊN|INTEREST|\bLAI\b|\bLÃI\b|LATE|CHAM\s*TRA|CHẬM\s*TRẢ", re.I)
 
 # Trạng thái từng giao dịch trên màn đối soát
+MOC_MB = "2026-11-01"
+MAU_MB = re.compile(r"RETAIL\s*VISA\w*-(\d+)-([\d.,]+)-([A-Z]{3})-(\d+)-(.*?)-\s*THE\s*(\d+)\s*$", re.I)
+NGUON_MB = "mb"
+
 GD_VAO = "Vào bút toán"
 GD_DA_GHI = "Đã ghi sổ"
 GD_CT_KHAC = "Đã có chứng từ khác"
@@ -113,6 +127,50 @@ def phan_loai(loai, dv):
 		if MAU_PHI_NGOAI.search(str(dv or "")):
 			return "phi_chua_ro"
 	return "khong"
+
+
+def tach_mb(mo_ta):
+	"""Đọc một dòng sao kê thẻ Visa MB. THUẦN. None nếu không phải dạng đó."""
+	m = MAU_MB.search(str(mo_ta or "").strip())
+	if not m:
+		return None
+	return {"so": m.group(1), "tien_goc": m.group(2), "tien_te": m.group(3).upper(), "ma": m.group(4),
+		"dv": chuan_dv(m.group(5)), "the4": m.group(6)[-4:]}
+
+
+def giao_dich_mb(dong):
+	"""Dòng sao kê MB (Bank Transaction) thành giao dịch của luồng Meta. THUẦN.
+
+	dong: [{name, ngay, tien, mo_ta, bank_account, tk_gl, da_doi_chieu}]; da_doi_chieu là số
+	đã đối chiếu với chứng từ KHÁC bút toán Meta máy lập. Cùng mã giao dịch: dòng lớn
+	nhất là tiền quảng cáo, các dòng còn lại là phí đi kèm (ngân hàng trừ phí ngoại tệ
+	thành dòng riêng cùng mô tả)."""
+	theo_ma = {}
+	for d in dong:
+		p = tach_mb(d.get("mo_ta"))
+		if not p or not la_meta(p["dv"]):
+			continue
+		theo_ma.setdefault((p["ma"], p["so"]), []).append((d, p))
+	ra = []
+	for _k, ds in sorted(theo_ma.items()):
+		ds = sorted(ds, key=lambda x: (-int(x[0]["tien"]), x[0]["name"]))
+		for i, (d, p) in enumerate(ds):
+			ra.append({"khoa": "mb:" + d["name"], "nguon": NGUON_MB, "the4": p["the4"], "ngay_gd": str(d["ngay"]),
+				"ngay_bt": str(d["ngay"]), "dv": p["dv"] + " (thẻ Visa MB, trừ thẳng tài khoản)", "tien": int(d["tien"]),
+				"phan_loai": "meta" if i == 0 else "phi_meta", "bang_chung": [d["name"]], "can_quyet": None,
+				"purchase_invoice": "", "bank_transaction": d["name"], "tk_gl": d.get("tk_gl") or "",
+				"da_co_ct": 1 if int(d.get("da_doi_chieu") or 0) > 0 else 0})
+	return ra
+
+
+def chon_lap(vao, thieu, het_thang):
+	"""Giao dịch được đưa vào bút toán lần bấm này. THUẦN.
+
+	Phần thẻ Shinhan chờ sao kê thẻ phủ đủ; phần thẻ MB có sao kê hằng ngày nên chỉ
+	chờ hết tháng. Phần nào chưa đủ thì để lần lập sau (bút toán bổ sung)."""
+	shinhan = [g for g in vao if g.get("nguon") != NGUON_MB]
+	mb = [g for g in vao if g.get("nguon") == NGUON_MB]
+	return ([] if thieu else shinhan) + (mb if het_thang else [])
 
 
 def gop_giao_dich(dong, quyet_dinh=None):
@@ -227,6 +285,9 @@ def chon_giao_dich(gd_thang, quyet_dinh, da_ghi):
 			g["trang_thai"] = GD_CT_KHAC
 		elif g["khoa"] in da_ghi:
 			g["trang_thai"] = GD_DA_GHI
+		elif g.get("da_co_ct"):
+			# Dòng sao kê MB đã đối chiếu với chứng từ khác: kế toán đã ghi tay, không ghi lần hai.
+			g["trang_thai"] = GD_CT_KHAC
 		elif g.get("can_quyet"):
 			g["trang_thai"] = GD_CHO
 		elif pl == "phi_chua_ro" and chon not in ("vao", "bo"):
@@ -280,10 +341,18 @@ def dong_but_toan(vao, tk_qc, tk_phi, tk_the, bo_phan, ky):
 	qc = sum(int(g["tien"]) for g in vao if g["phan_loai"] == "meta")
 	phi = sum(int(g["tien"]) for g in vao if g["phan_loai"] in ("phi_meta", "phi_chua_ro"))
 	thang = "%s/%s" % (ky[5:7], ky[:4])
+	# Có: phần thẻ Shinhan vào nợ thẻ, phần thẻ MB vào đúng tài khoản ngân hàng đã bị trừ.
+	co_the = sum(int(g["tien"]) for g in vao if g.get("nguon") != NGUON_MB)
+	co_nh = {}
+	for g in vao:
+		if g.get("nguon") == NGUON_MB:
+			co_nh[g.get("tk_gl") or ""] = co_nh.get(g.get("tk_gl") or "", 0) + int(g["tien"])
 	ra = []
-	for tk, so, cc, nhan in ((tk_qc, qc, bo_phan, "Chi quảng cáo Meta tháng %s theo sao kê thẻ" % thang),
-			(tk_phi, phi, bo_phan, "Phí thẻ đi kèm quảng cáo Meta tháng %s" % thang),
-			(tk_the, -(qc + phi), "", "Nợ thẻ tín dụng Shinhan, quảng cáo Meta tháng %s" % thang)):
+	cac = [(tk_qc, qc, bo_phan, "Chi quảng cáo Meta tháng %s theo sao kê thẻ" % thang),
+		(tk_phi, phi, bo_phan, "Phí thẻ đi kèm quảng cáo Meta tháng %s" % thang),
+		(tk_the, -co_the, "", "Nợ thẻ tín dụng Shinhan, quảng cáo Meta tháng %s" % thang)]
+	cac += [(tk, -so, "", "Thẻ Visa MB trừ thẳng tài khoản, quảng cáo Meta tháng %s" % thang) for tk, so in sorted(co_nh.items())]
+	for tk, so, cc, nhan in cac:
 		if not so:
 			continue
 		ra.append({"account": tk, "cost_center": cc, "debit": so if so > 0 else 0, "credit": -so if so < 0 else 0,
@@ -368,6 +437,40 @@ def _doc_dong_the(cty):
 			"dv": sk["dv"], "tien": BN.lam_tron_dong(r.thuc_nhan), "n": sk["n"], "phan_loai": phan_loai(r.loai, sk["dv"]),
 			"purchase_invoice": r.purchase_invoice})
 	return ra
+
+
+def _doc_dong_mb(cty, ky):
+	"""Dòng sao kê thẻ Visa MB có FACEBK của tháng, trên tài khoản ngân hàng công ty
+	(nhóm 112, không lấy quỹ tạm ứng), từ mốc MOC_MB."""
+	from vagabond import chung_tu_tien
+
+	a, b = max(BN.ngay_dau_thang(ky), getdate(MOC_MB)), BN.ngay_cuoi_thang(ky)
+	if a > b:
+		return []
+	tk = {}
+	for r in frappe.get_all("Bank Account", filters={"is_company_account": 1, "company": cty, "disabled": 0},
+			fields=["name", "account"], limit_page_length=0):
+		so = frappe.db.get_value("Account", r.account, "account_number") if r.account else ""
+		if chung_tu_tien.la_ngan_hang(so):
+			tk[r.name] = r.account
+	if not tk:
+		return []
+	rows = frappe.db.sql(
+		"""select name, date, withdrawal, description, bank_account from `tabBank Transaction`
+		where docstatus = 1 and withdrawal > 0 and bank_account in %s and date between %s and %s
+			and (description like '%%FACEBK%%' or description like '%%FACEBOOK%%')""",
+		(tuple(tk), a, b), as_dict=True)
+	if not rows:
+		return []
+	# Phần đã đối chiếu với chứng từ KHÁC bút toán Meta máy lập (kế toán ghi tay).
+	khac = dict(frappe.db.sql(
+		"""select btp.parent, sum(btp.allocated_amount) from `tabBank Transaction Payments` btp
+		left join `tabJournal Entry` je on btp.payment_document = 'Journal Entry' and je.name = btp.payment_entry
+		where btp.parent in %s and coalesce(je.vgb_tu_lap, '') not like 'META:%%'
+		group by btp.parent""", (tuple(r.name for r in rows),)))
+	return [{"name": r.name, "ngay": str(r.date), "tien": BN.lam_tron_dong(r.withdrawal), "mo_ta": r.description or "",
+		"bank_account": r.bank_account, "tk_gl": tk.get(r.bank_account) or "", "da_doi_chieu": BN.lam_tron_dong(khac.get(r.name) or 0)}
+		for r in rows]
 
 
 def _chu_ky(cty):
@@ -458,9 +561,12 @@ def tinh_thang(cty, ky, bg=None):
 	dong = _doc_dong_the(cty)
 	gd = gop_giao_dich(dong, qd)
 	gd_thang = [g for g in gd if g["ngay_gd"][:7] == ky and g["phan_loai"] != "khong"]
+	gd_thang += giao_dich_mb(_doc_dong_mb(cty, ky))
 	vao = chon_giao_dich(gd_thang, qd, da_ghi_khoa)
 	chu_ky = _chu_ky(cty)
 	thieu = thieu_sao_ke(chu_ky, ky, getdate(nowdate()))
+	het_thang = getdate(nowdate()) > BN.ngay_cuoi_thang(ky)
+	vao_lap = chon_lap(vao, thieu, het_thang)
 	ct = _chung_tu_khac(cty, ky, tk_qc)
 	ct_chua_xem = [c for c in ct if ("ct:%s:%s" % (c["doctype"], c["name"])) not in qd]
 	da_tru = sum(int(g["tien"]) for g in gd_thang if g["trang_thai"] in (GD_VAO, GD_DA_GHI))
@@ -468,7 +574,8 @@ def tinh_thang(cty, ky, bg=None):
 	con_quyet = [g for g in gd_thang if g["trang_thai"] == GD_CHO]
 	co_sk = bool(gd_thang) or any(y >= BN.ngay_dau_thang(ky) and x <= BN.ngay_cuoi_thang(ky) for x, y in chu_ky)
 	return {
-		"ky": ky, "giao_dich": gd_thang, "vao": vao, "thieu": [(str(a), str(b)) for a, b in thieu],
+		"ky": ky, "giao_dich": gd_thang, "vao": vao, "vao_lap": vao_lap, "het_thang": het_thang,
+		"thieu": [(str(a), str(b)) for a, b in thieu],
 		"chung_tu_khac": [dict(c, da_xem=1 if ("ct:%s:%s" % (c["doctype"], c["name"])) in qd else 0) for c in ct],
 		"ct_chua_xem": ct_chua_xem, "con_quyet": con_quyet, "da_tru": da_tru, "da_ghi_so": da_ghi_so,
 		"da_tieu": _da_tieu_meta(ky), "trang_thai": trang_thai_thang(co_sk, thieu, con_quyet, ct_chua_xem, da_tru, da_ghi_so),
@@ -513,7 +620,7 @@ def chi_tiet_thang(ky):
 	bg = BN.doc_ban_ghi(BN.LOAI_META, cty, ky)
 	t = tinh_thang(cty, ky, bg)
 	tt, info = BN.tinh_trang(bg)
-	dong, qc, phi = dong_but_toan(t["vao"], _tk(cty, TK_QC), _tk(cty, TK_PHI), _tk(cty, TK_THE), _bo_phan_marketing(cty), ky)
+	dong, qc, phi = dong_but_toan(t["vao_lap"], _tk(cty, TK_QC), _tk(cty, TK_PHI), _tk(cty, TK_THE), _bo_phan_marketing(cty), ky)
 	gd = []
 	for g in t["giao_dich"]:
 		gd.append({"khoa": g["khoa"], "the4": g["the4"], "ngay_gd": g["ngay_gd"], "ngay_bt": g["ngay_bt"], "dv": g["dv"],
@@ -582,19 +689,19 @@ def lap(ky):
 	chan = dieu_kien_lap(t, ky)
 	if chan:
 		frappe.throw(chan)
-	dong, qc, phi = dong_but_toan(t["vao"], _tk(cty, TK_QC), _tk(cty, TK_PHI), _tk(cty, TK_THE), _bo_phan_marketing(cty), ky)
+	dong, qc, phi = dong_but_toan(t["vao_lap"], _tk(cty, TK_QC), _tk(cty, TK_PHI), _tk(cty, TK_THE), _bo_phan_marketing(cty), ky)
 	kq = BN.lap_hoac_cap_nhat(BN.LOAI_META, cty, ky, dong,
-		"Chi phí quảng cáo Meta tháng %s/%s theo sao kê thẻ Shinhan (hệ thống lập, kế toán ghi sổ)" % (ky[5:7], ky[:4]))
+		"Chi phí quảng cáo Meta tháng %s/%s theo sao kê thẻ (hệ thống lập, kế toán ghi sổ)" % (ky[5:7], ky[:4]))
 	# Lịch sử: mỗi bút toán nhớ khoá giao dịch của nó, để bút toán bổ sung sau này
 	# không lấy lại giao dịch đã ghi sổ.
 	bg = frappe.get_doc(BN.DT, bg.name)
-	ls = [l for l in _lich_su(bg) if l.get("je") != kq["journal_entry"]] + [{"je": kq["journal_entry"], "khoa": [g["khoa"] for g in t["vao"]],
-		"bang_chung": sorted({b for g in t["vao"] for b in g["bang_chung"]}), "qc": qc, "phi": phi, "luc": str(now_datetime())}]
+	ls = [l for l in _lich_su(bg) if l.get("je") != kq["journal_entry"]] + [{"je": kq["journal_entry"], "khoa": [g["khoa"] for g in t["vao_lap"]],
+		"bang_chung": sorted({b for g in t["vao_lap"] for b in g["bang_chung"]}), "qc": qc, "phi": phi, "luc": str(now_datetime())}]
 	bg.ban_ke = json.dumps({"lan": ls}, ensure_ascii=False)
 	bg.flags.vgb_tu_lap = True
 	bg.flags.ignore_permissions = True
 	bg.save(ignore_permissions=True)
-	kq.update({"qc": qc, "phi": phi, "so_giao_dich": len(t["vao"])})
+	kq.update({"qc": qc, "phi": phi, "so_giao_dich": len(t["vao_lap"])})
 	return kq
 
 
@@ -607,7 +714,9 @@ def dieu_kien_lap(t, ky):
 	"""Điều kiện để lập bút toán Meta của tháng: "" là đủ, còn lại là câu chặn.
 	MỘT nguồn cho cả lúc lập và lúc ghi sổ (Codex #590 vòng 3): điều kiện đổi sau
 	khi lập (chứng từ Meta mới, dòng chờ chọn, sao kê) thì nháp không ghi sổ được."""
-	if t["thieu"]:
+	if not t.get("vao_lap") and not t.get("het_thang") and any(g.get("nguon") == NGUON_MB for g in t["vao"]):
+		return "Tháng %s/%s chưa hết. Phần trừ thẻ Visa MB lập sau ngày cuối tháng." % (ky[5:7], ky[:4])
+	if t["thieu"] and not t.get("vao_lap"):
 		a, b = t["thieu"][0]
 		return ("Chưa đủ sao kê: chưa có sao kê thẻ của ngân hàng cho ngày bút toán %s tới %s. Giao dịch tháng %s/%s có thể "
 			"được ghi nợ tới %d ngày sau cuối tháng. Chờ sao kê về rồi bấm lại." % (
@@ -618,7 +727,7 @@ def dieu_kien_lap(t, ky):
 		c = t["ct_chua_xem"][0]
 		return "Tháng này đã có chứng từ Meta khác (%s %s). Kế toán xem chứng từ đó, bỏ giao dịch tờ đó đã ghi, rồi bấm Đã đối chiếu." % (
 			c["doctype"], c["name"])
-	if not t["vao"]:
+	if not t.get("vao_lap"):
 		return "Tháng %s/%s không còn giao dịch Meta nào chưa ghi sổ." % (ky[5:7], ky[:4])
 	return ""
 
@@ -630,8 +739,59 @@ def kiem_cu_thang(cty, ky, bg):
 	if chan:
 		return chan.rstrip(".")
 	lan = [l for l in _lich_su(bg) if l.get("je") == bg.journal_entry]
-	_d, qc, phi = dong_but_toan(t["vao"], "qc", "phi", "the", "", ky)
-	return nhap_da_cu(lan[-1] if lan else None, [g["khoa"] for g in t["vao"]], qc, phi)
+	_d, qc, phi = dong_but_toan(t["vao_lap"], "qc", "phi", "the", "", ky)
+	return nhap_da_cu(lan[-1] if lan else None, [g["khoa"] for g in t["vao_lap"]], qc, phi)
+
+
+def noi_sao_ke_mb(doc, method=None):
+	"""Hook Journal Entry on_submit: bút toán Meta máy lập vừa ghi sổ thì nối từng dòng
+	sao kê thẻ Visa MB của nó vào Đối chiếu ngân hàng, để dòng đó không còn hiện trong
+	tin "Tiền ra khỏi tài khoản công ty chưa có chứng từ". Chỉ đối chiếu, không đổi bút
+	toán. Không nối được thì ghi lý do lên dòng thời gian, không chặn ghi sổ."""
+	if not str(doc.get("vgb_tu_lap") or "").startswith(BN.MA_LOAI[BN.LOAI_META] + ":"):
+		return
+	bg = frappe.db.get_value(BN.DT, {"journal_entry": doc.name}, ["name", "ban_ke"], as_dict=True)
+	if not bg:
+		return
+	lan = [l for l in _lich_su(bg) if l.get("je") == doc.name]
+	ten_bt = [k[3:] for k in ((lan[-1].get("khoa") if lan else None) or []) if str(k).startswith(NGUON_MB + ":")]
+	loi = []
+	for ten in ten_bt:
+		ly = _noi_mot_bt(ten, doc.name)
+		if ly:
+			loi.append("%s: %s" % (ten, ly))
+	if loi:
+		doc.add_comment("Comment", "Chưa nối được dòng sao kê MB vào Đối chiếu ngân hàng (kế toán nối tay): " + "; ".join(loi))
+
+
+def _noi_mot_bt(ten, je):
+	frappe.db.savepoint("vgb_meta_mb")
+	try:
+		if not frappe.db.exists("Bank Transaction", ten):
+			return "không còn dòng sao kê"
+		frappe.db.sql("select name from `tabBank Transaction` where name=%s for update", ten)
+		g = frappe.get_doc("Bank Transaction", ten)
+		if g.docstatus != 1:
+			return "dòng sao kê chưa xác nhận"
+		if any(r.payment_document == "Journal Entry" and r.payment_entry == je for r in g.payment_entries):
+			return ""
+		can = BN.lam_tron_dong(g.withdrawal)
+		if BN.lam_tron_dong(g.unallocated_amount) + 1 < can:
+			return "dòng sao kê đã đối chiếu một phần với chứng từ khác"
+		g.add_payment_entries([{"payment_doctype": "Journal Entry", "payment_name": je}])
+		g.flags.ignore_permissions = True
+		g.save(ignore_permissions=True)
+		g.reload()
+		da = sum(BN.lam_tron_dong(r.allocated_amount) for r in g.payment_entries
+			if r.payment_document == "Journal Entry" and r.payment_entry == je)
+		if da + 1 < can:
+			frappe.db.rollback(save_point="vgb_meta_mb")
+			return "đối chiếu chỉ cấp được %s trên %s" % (da, can)
+		return ""
+	except Exception as e:
+		frappe.db.rollback(save_point="vgb_meta_mb")
+		frappe.clear_messages()
+		return str(e)[:140] or "lỗi đối chiếu"
 
 
 @frappe.whitelist(methods=["POST"])

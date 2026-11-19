@@ -329,6 +329,13 @@ class _BgGia(_Hang):
 		pass
 
 
+def _co_lap(t):
+	"""v675: tinh_thang thật trả thêm phần được lập lần bấm này (tháng đã hết)."""
+	t.setdefault("het_thang", True)
+	t.setdefault("vao_lap", M.chon_lap(t["vao"], t["thieu"], t["het_thang"]))
+	return t
+
+
 def _kho_gia(bg, tinh):
 	"""Bộ vá dùng chung: bản ghi khoá giả, phép tính tháng do ca quyết, bút toán giả.
 	Gọi đúng M.lap thật và BN.lap_hoac_cap_nhat thật (không gọi thêm hàm nào khác)."""
@@ -351,7 +358,7 @@ def _kho_gia(bg, tinh):
 		um.patch.object(M, "_cty", lambda cty=None: "TV"),
 		um.patch.object(M, "_tk", lambda cty, so: so),
 		um.patch.object(M, "_bo_phan_marketing", lambda cty: ""),
-		um.patch.object(M, "tinh_thang", lambda cty, ky, b=None: tinh(b)),
+		um.patch.object(M, "tinh_thang", lambda cty, ky, b=None: _co_lap(tinh(b))),
 		um.patch.object(BN, "kiem_quyen", lambda *a, **k: None),
 		um.patch.object(BN, "khoa_ban_ghi", lambda *a: bg),
 		um.patch.object(BN, "chan_khoa_so", lambda ngay: None),

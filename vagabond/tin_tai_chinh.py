@@ -30,7 +30,6 @@ from datetime import datetime
 NGUONG_KET = 50000.0
 GIO_CA_TOI_DA = 24
 GIO_CHUA_GAN = 24
-NGAY_XET_TIEN_RA = 30
 TOI_DA_DONG = 8
 MON_DEM_SANG = 10
 HAN_DEM_SANG = "11:00 hôm nay"
@@ -394,23 +393,25 @@ def _tk_cong_ty():
 def nhac_tien_ra():
 	"""Lịch 08:00: tiền ra khỏi tài khoản công ty quá 24 giờ chưa thuộc chứng từ nào."""
 	import frappe
-	from frappe.utils import add_days, add_to_date, now_datetime, nowdate
+	from frappe.utils import add_to_date, now_datetime, nowdate
 
 	from vagabond import kenh_zalo
+	from vagabond import tien_chua_chung_tu as tcc
 
 	try:
 		tk = _tk_cong_ty()
 		if not tk:
 			return
 		moc = add_to_date(now_datetime(), hours=-GIO_CHUA_GAN)
+		# Anh Việt 19/11/2026: chỉ khoản từ mốc MOC_NHAC, tin gom theo nhóm việc.
 		rows = frappe.db.sql("""select name, bank_account, withdrawal, unallocated_amount, date, description
 			from `tabBank Transaction` where docstatus = 1 and withdrawal > 0 and date >= %s and creation <= %s
 			and ifnull(unallocated_amount, withdrawal) > 1 and bank_account in %s""",
-			(add_days(nowdate(), -NGAY_XET_TIEN_RA), moc, tuple(tk)), as_dict=True)
+			(tcc.MOC_NHAC, moc, tuple(tk)), as_dict=True)
 		gds = [{"ten": r.name, "tk": r.bank_account, "ra": r.withdrawal,
 			"con": r.unallocated_amount if r.unallocated_amount is not None else r.withdrawal,
 			"ngay": str(r.date), "mo_ta": r.description} for r in rows]
-		kq = soan_tien_ra(loc_tien_ra(gds, tk))
+		kq = tcc.soan_ra([dict(g, tien=g["con"]) for g in loc_tien_ra(gds, tk)], GIO_CHUA_GAN)
 		if not kq:
 			return
 		kenh_zalo.bao_hoac_ghi_loi("viec", "cong_no", kq[0], kq[1], link=_link("/doi-soat-chuyen-khoan"),
