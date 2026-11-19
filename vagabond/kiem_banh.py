@@ -1933,7 +1933,7 @@ def _dat_truoc_theo_decor():
 
 	ngay = getdate()
 	mai = add_days(ngay, 1)
-	rf = {}
+	rf, so_rf = {}, None
 	if dong_btp and refill.hieu_luc_tu_dong(dong_btp, ngay):
 		so_rf = refill.tinh(dong=dong_btp)
 		# Chưa đếm được đơn (Pancake lỗi) thì KHÔNG mở bán refill: thà ẩn còn hơn nhận lố.
@@ -1942,11 +1942,27 @@ def _dat_truoc_theo_decor():
 		rf = {m: ds for m, ds in rf.items() if ds}
 	ma_kb = "KB-%s" % mai
 	dong_mai = frappe.get_doc("Kiem Banh Ngay", ma_kb).dong if frappe.db.exists("Kiem Banh Ngay", ma_kb) else []
-	con_mai = con_dat_truoc_mai(dong_mai, lambda ma: bool(refill.ngay_cua_refill(rf, ma, mai)))
-	# Mỗi mã một dòng nguồn (tên, ảnh): phiếu ngày mai trước, bảng BTP cho mã chỉ còn refill.
+	# v675: đợt đã nhận đủ đơn không giữ ngày mai nữa, bánh bán theo phiếu ngày mai
+	# (cùng phép bo_dot_du_don với cửa nhận đơn và cửa tạo đơn).
+	rf_mo = refill.bo_dot_du_don(rf, so_rf) if rf else {}
+	con_mai = con_dat_truoc_mai(dong_mai, lambda ma: bool(refill.ngay_cua_refill(rf_mo, ma, mai)))
+	# v675 (Sales 19/11/2026, giám đốc chốt): ngày kia và ngày thứ ba theo Đủ decor
+	# còn nhận, cùng phép ton_don_web.con_decor với cửa nhận đơn và cửa tạo đơn.
+	from vagabond import ton_don_web
+
+	kb3 = [(mai, dong_mai)]
+	for i in range(2, ton_don_web.SO_NGAY_DAT_TRUOC + 1):
+		ng_i = add_days(ngay, i)
+		if frappe.db.exists("Kiem Banh Ngay", "KB-%s" % ng_i):
+			kb3.append((ng_i, frappe.get_doc("Kiem Banh Ngay", "KB-%s" % ng_i).dong))
+	con_xa = {m: n for m, (n, _t) in ton_don_web.con_decor(dong_btp, kb3, ngay, refill.hieu_luc_tu_dong(dong_btp, ngay),
+		so_rf).items() if n > 0 and not m.upper().startswith("BAWS")
+		# Ngày kia và ngày thứ ba đều thuộc đợt refill còn nhận thì hai ngày đó theo đợt.
+		and any(not refill.ngay_cua_refill(rf_mo, m, add_days(ngay, i)) for i in range(2, ton_don_web.SO_NGAY_DAT_TRUOC + 1))}
+	# Mỗi mã một dòng nguồn (tên, ảnh): phiếu ngày mai trước, bảng BTP cho mã chỉ còn refill hay Đủ decor.
 	nguon = {}
 	for b in dong_btp:
-		if any((r.get("con") or 0) > 0 for r in rf.get(b.ma_hang) or []):
+		if any((r.get("con") or 0) > 0 for r in rf.get(b.ma_hang) or []) or b.ma_hang in con_xa:
 			nguon[b.ma_hang] = b
 	for d in dong_mai:
 		if d.ma_hang in con_mai:
@@ -1978,7 +1994,8 @@ def _dat_truoc_theo_decor():
 		ds_rf = [r for r in rf.get(b.ma_hang) or [] if int(r.get("con") or 0) > 0]
 		r = ds_rf[0] if ds_rf else None
 		con_rf = int((r or {}).get("con") or 0)
-		if con <= 0 and con_rf <= 0:
+		xa = con_xa.get(b.ma_hang, 0)
+		if con <= 0 and con_rf <= 0 and xa <= 0:
 			continue
 		ten_day = x.get("item_name") or b.ten_banh or b.ma_hang
 		goc, cm = _tach_ten_size(ten_day)
@@ -1993,7 +2010,11 @@ def _dat_truoc_theo_decor():
 				"ma": b.ma_hang,
 				"cm": cm,
 				"gia": int(x.get("standard_rate") or 0),
-				"con": con if con > 0 else con_rf,
+				# v675: con giữ cho trang cũ (số đầu tiên còn nhận); con_mai là ngày mai
+				# theo phiếu, con_xa là ngày kia và ngày thứ ba theo Đủ decor.
+				"con": con if con > 0 else (xa if xa > 0 else con_rf),
+				"con_mai": con,
+				"con_xa": xa,
 				"_anh_erp": x.get("image") or "",
 				"_anh_dong": b.hinh or "",
 			}
@@ -2004,7 +2025,7 @@ def _dat_truoc_theo_decor():
 			# "ds" là mọi đợt còn suất: web cho chọn ngày trong bất kỳ đợt nào và lấy
 			# số còn của đúng đợt chứa ngày đó. tu, den, con là đợt sớm nhất, giữ
 			# cho trang khách còn mở bản cũ.
-			g["sizes"][-1]["refill"] = {"tu": r["tu"], "den": r["den"], "con": con_rf, "chi_refill": 0 if con > 0 else 1,
+			g["sizes"][-1]["refill"] = {"tu": r["tu"], "den": r["den"], "con": con_rf, "chi_refill": 0 if (con > 0 or xa > 0) else 1,
 				"ds": [{"tu": x["tu"], "den": x["den"], "con": int(x.get("con") or 0)} for x in ds_rf]}
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
