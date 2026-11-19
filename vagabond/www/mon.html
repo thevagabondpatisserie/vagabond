@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- v672: trang từng bánh cho Google Merchant. Chữ đã thoát HTML ở mon.py. -->
+<html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{{ ten }} · The Vagabond Pâtisserie</title>
+<meta name="description" content="{{ mo_ta_ngan }}">
+<link rel="canonical" href="{{ duong }}">
+<meta property="og:type" content="product"><meta property="og:title" content="{{ ten }}"><meta property="og:image" content="{{ anh }}"><meta property="og:url" content="{{ duong }}">
+<link rel="stylesheet" href="/assets/vagabond/web_order/nen.css?v=38259d8903d5">
+<link rel="stylesheet" href="/assets/vagabond/web_order/trang-khach.css?v=50dbd17b8334">
+<script type="application/ld+json">{{ json_ld }}</script>
+<style>
+.mon{max-width:720px;margin:0 auto;padding:16px 16px 40px}
+.mon-anh{display:block;width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;border-radius:16px;background:#f2ece4}
+.mon-nhom{display:inline-block;margin:16px 0 0;font-size:13px;font-weight:700;color:var(--ink-on-cyan,#1a1a1a);background:var(--cyan-bright,#8eeaf8);border-radius:999px;padding:4px 12px}
+.mon h1{font-size:24px;line-height:1.3;margin:10px 0 6px}
+.mon-gia{font-size:20px;font-weight:800;margin:0 0 6px}
+.mon-tt{display:inline-block;font-size:14px;font-weight:700;border-radius:999px;padding:4px 12px;margin:0 0 14px}
+.mon-tt.in_stock{color:#067647;background:#ecfdf3}.mon-tt.out_of_stock{color:#475467;background:#f2f4f7}.mon-tt.preorder{color:#b54708;background:#fffaeb}
+.mon-mt{font-size:16px;line-height:1.6;white-space:pre-line;margin:0 0 20px;color:var(--fog,#ccc)}
+.mon-nut{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:12px;background:var(--cyan,#4fdbf2);color:var(--ink-on-cyan,#1a1a1a);font-size:16px;font-weight:800;text-decoration:none}
+</style>{{ vgb_ga_head or "" }}</head><body class="trang-khach">
+<header class="tk-dau"><a href="/banh" class="tk-logo"><img src="/assets/vagabond/web_order/logo-trang.png?v=2c3ec718e8df" alt="The Vagabond Pâtisserie" width="63" height="26"></a></header>
+<main class="mon">
+<img class="mon-anh" src="{{ anh }}" alt="{{ ten }}" width="720" height="720">
+{% if nhom %}<span class="mon-nhom">{{ nhom }}</span>{% endif %}
+<h1>{{ ten }}</h1>
+<p class="mon-gia">{{ gia }}</p>
+<span class="mon-tt {{ con }}">{{ tinh_trang }}</span>
+<p class="mon-mt">{{ mo_ta }}</p>
+<a class="mon-nut" href="/banh">Đặt bánh trên trang của tiệm</a>
+</main>
+{{ chan_trang }}
+</body></html>
