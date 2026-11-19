@@ -92,10 +92,22 @@ export function laMienPhi(tienBanh, nguong) {
   return g > 0 && (Number(tienBanh) || 0) >= g;
 }
 
-export function dongMienPhi(tienBanh, nguong, t = t0) {
+/* v675 (giám đốc chốt 19/11/2026): miễn phí giao chỉ trong bán kính `kmMien` km
+   tính đường thẳng từ điểm xuất hàng. kmMien 0 là không giới hạn; chưa biết
+   khoảng cách (chưa có địa chỉ) thì chưa loại. Cùng luật don_web.trong_km_mien_phi. */
+export function trongKmMienPhi(km, kmMien) {
+  const gh = Number(kmMien) || 0;
+  if (gh <= 0 || km === null || km === undefined || km === '') return true;
+  const x = Number(km);
+  return !Number.isFinite(x) || x <= gh;
+}
+export function dongMienPhi(tienBanh, nguong, t = t0, kmMien = 0, trongKm = true) {
   const g = Number(nguong) || 0;
+  const km = Number(kmMien) || 0;
   if (g <= 0) return t('dat_banh_8b2c2134b', 'chưa gồm phí giao');
+  if (km > 0 && !trongKm) return t('mien_phi_ngoai_km', 'Địa chỉ ngoài bán kính {km} km nên đơn tính phí giao', {km});
   if (laMienPhi(tienBanh, g)) return t('dat_banh_7cdc938e9', 'Đơn này được miễn phí giao');
+  if (km > 0) return t('mien_phi_tu_trong_km', 'Miễn phí giao cho đơn từ {tien} trong bán kính {km} km', {tien: tienVN(g), km});
   return t('dat_banh_d6d862911', 'Miễn phí giao cho đơn từ') + ' ' + tienVN(g);
 }
 
