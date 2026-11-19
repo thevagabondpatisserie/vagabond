@@ -250,6 +250,20 @@ await ca('Giới hạn số còn nhận theo ô Dư decor, kể cả khi bấm +
   dung('báo khách', /chỉ còn nhận 2/.test(k.S.toast.chu));
 });
 
+await ca('Codex #594: giỏ đã lưu cách Tiền mặt (nay không còn) mở lại thì về Chuyển khoản VÀ có dòng báo khách xem lại; giỏ lưu cách còn hợp lệ thì không báo', async () => {
+  const a = moiTruong('2026-11-19T08:00:00');
+  const k = taoKho(a.mt);
+  k.phucHoiGio(); coThem(k); k.pick(3); k.pickSlot(6);
+  const luu = JSON.parse(a.kho.get('vgb-gio-v1'));
+  la('giỏ mới lưu chuyển khoản, không báo', [luu.co.pay, k.S.CO.payBao], ['bank', false]);
+  luu.co.pay = 'cash'; a.kho.set('vgb-gio-v1', JSON.stringify(luu));
+  const k2 = taoKho(a.mt); k2.phucHoiGio();
+  la('tiền mặt cũ: về chuyển khoản, có báo', [k2.S.CO.pay, k2.S.CO.payBao], ['bank', true]);
+  luu.co.pay = 'bank'; a.kho.set('vgb-gio-v1', JSON.stringify(luu));
+  const k3 = taoKho(a.mt); k3.phucHoiGio();
+  la('cách còn hợp lệ: không báo', [k3.S.CO.pay, k3.S.CO.payBao], ['bank', false]);
+});
+
 await ca('Lưu giỏ trong phiên rồi tải lại trang: giỏ, lịch, ô nhập về đủ, giá lấy từ danh mục', async () => {
   const a = moiTruong('2026-10-11T08:00:00');
   const k = taoKho(a.mt);
@@ -809,7 +823,13 @@ await ca('v675 miễn phí giao trong bán kính 7 km: đơn đủ 1 triệu ở
   const k = taoKho(mt);
   k.S.mienPhiTu = 1000000; k.S.mienPhiKm = 7; k.S.tab = 'order';
   k.S.CART.push({k: 'CANDLE', id: 'BAWC00139', cm: 12, price: 1200000, nguon: 'order', wish: '', adds: [], qty: 1});
-  la('chưa có địa chỉ: chưa loại', k.mienPhi.value, true);
+  la('Codex #594: chưa có địa chỉ thì chưa hứa miễn phí', k.mienPhi.value, false);
+  dung('chỉ nêu điều kiện, không nói đơn này được miễn', /Miễn phí giao cho đơn từ .* trong bán kính 7 km/.test(k.dongMienPhi.value) && !/Đơn này được miễn phí/.test(k.dongMienPhi.value));
+  k.apPhiGiao({ok: 0, ly_do: 'khong_tim_thay_dia_chi'}, 'chinh_xac');
+  la('không định vị được địa chỉ: không hứa miễn phí, phí chưa rõ', [k.mienPhi.value, k.S.CO.ship, k.S.CO.shipTrangThai], [false, null, 'chua_ro']);
+  k.S.CO.mode = 'pick';
+  la('tự lấy không cần khoảng cách', k.tong.value.tt.phi, 0);
+  k.S.CO.mode = 'ship';
   k.apPhiGiao({ok: 1, total_fee: 42000, km_thang: 3.2, diem_lay: 'bep'}, 'chinh_xac');
   la('3,2 km: miễn phí', k.mienPhi.value, true);
   k.apPhiGiao({ok: 1, total_fee: 42000, km_thang: 9.1, diem_lay: 'bep'}, 'chinh_xac');
