@@ -12,6 +12,13 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v675
+- Món chỉ làm cho đợt cuối tuần không cần Đủ decor
+- Tab Đặt bánh trước: ngày mai theo phiếu, ngày kia theo Đủ decor
+- Đợt món cuối tuần (tab Đặc biệt tuần này)
+- Nhập mẻ refill và xem đơn đặt xa ngày
+- Đơn web: chỉ thanh toán trước, miễn phí giao trong bán kính 7 km
+
 ## v674
 - Đưa công cụ dụng cụ vào dùng: phân bổ một lần hay nhiều tháng
 - Bảng kê chi phí trả trước 242

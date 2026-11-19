@@ -516,9 +516,25 @@ Từ khoá: đặc biệt tuần này, cuối tuần, món cuối tuần, mở �
 
 **Bạn cần làm**
 1. Mở thẻ Cuối tuần, bấm + Thêm đợt cuối tuần. Lịch điền sẵn: mở thứ hai 8g, chốt thứ sáu 20g, giao thứ bảy và chủ nhật; sửa lại nếu tuần này khác.
-2. Bấm + Thêm món, gõ tên bánh rồi chọn trong danh sách (bánh phải đang hiện ở thẻ Bánh). Điền số lượng tối đa nếu bếp chỉ làm được số đó.
+2. Bấm + Thêm món, chạm ô Bánh, gõ tên (không cần dấu) rồi chọn trong danh sách. Dòng dưới tên bánh nói khách đã thấy món chưa và sửa ở đâu. Điền số lượng tối đa nếu bếp chỉ làm được số đó.
 3. Chọn Hiện từ ngày và Ngừng hiện sau ngày, bật Hiện trên web rồi bấm Lưu đợt.
 4. Lịch đổi giữa tuần thì mở đợt sửa giờ chốt hay ngày giao, lưu là khách thấy ngay. Đơn đã đặt trước đó giữ nguyên.
+
+## Món chỉ làm cho đợt cuối tuần không cần Đủ decor
+Từ khoá: đặc biệt tuần này, món của tuần đang được cập nhật, đủ decor, hũ stollen, combo, món chỉ làm cho đợt, chưa có giá
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập website, thẻ Cuối tuần; app, Danh mục sản phẩm | ô Bánh của món; [[Lên web]] |
+
+**Trước đây:** tab Đặc biệt tuần này chỉ hiện bánh đang có trên tủ hoặc bếp đã điền Đủ decor ở Kiểm bánh. Món chỉ làm cho đợt thì web ghi "Món của tuần này đang được cập nhật"; nhờ bếp điền decor thì món lọt sang tab Đặt bánh trước.
+**Từ nay:** món của đợt hiện theo đợt: số lượng theo ô Số lượng tối đa của đợt, mọi size đã có giá của bánh. Không cần bếp điền Đủ decor, món không lọt sang tab Đặt bánh trước. Món hiện khi bánh đã đưa lên web, có giá bán, không Đã ẩn ở thẻ Bánh và có ảnh (ảnh thẻ Bánh hoặc Ảnh đứng của món).
+
+**Bạn cần làm**
+1. App, màn Danh mục sản phẩm, khối Tìm mã cũ: gõ tên món. Dòng "Chưa có giá bán" thì nhờ kế toán đặt giá trước; có giá rồi bấm [[Lên web]].
+2. Biên tập website, thẻ Cuối tuần, mở đợt, chạm ô Bánh của món và chọn bánh.
+3. Đọc dòng dưới tên bánh: "Khách thấy món này trong đợt" là xong; dòng vàng hay đỏ thì làm đúng việc ghi trong đó (thêm ảnh, bật lại thẻ Bánh, đặt giá).
+4. Lưu đợt, mở trang đặt bánh, tab Đặc biệt tuần này để xem.
 
 ## Tab Tại quầy gọn hơn và dọn cuối trang đặt bánh
 Từ khoá: tại quầy, chọn cửa hàng, thanh gạt, tìm món, ghé cửa hàng, chân trang, bếp trung tâm

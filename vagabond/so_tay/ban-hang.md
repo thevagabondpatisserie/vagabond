@@ -1169,7 +1169,7 @@ Bếp làm một mẻ lớn (BTP sẵn và đủ decor) để nhận đơn giao 
 
 **Lưu ý**
 - Hai đợt của cùng một bánh không được trùng ngày. Làm thêm bánh cho khoảng ngày đang chạy thì sửa số của chính đợt đó.
-- Đơn giao ngày nào trừ vào đợt chứa ngày đó, không trừ Đủ decor.
+- Đơn giao ngày nào trừ vào đợt chứa ngày đó. Đợt đã đủ đơn thì ngày mai bán theo cột Bán được của phiếu ngày mai.
 - Web chỉ cho chọn ngày thuộc một đợt, đặt quá số còn của đợt thì máy chặn.
 - Ô hiện "?" là chưa đếm được đơn từ Pancake; lúc đó web tạm ẩn bánh refill.
 
@@ -1237,6 +1237,50 @@ Từ v649 (Sales báo, giám đốc duyệt 11/11/2026) bánh đặt trước nh
 
 **Lưu ý**
 - Máy chủ cũng chặn: đơn nhận hôm nay chỉ nhận bánh có trong Kiểm bánh hôm nay, đủ số.
+
+## Tab Đặt bánh trước: ngày mai theo phiếu, ngày kia theo Đủ decor
+Từ khoá: đặt bánh trước, nhận ngày mai, ngày kia, 3 ngày tới, còn bán, có thể bán, đủ decor, số lượng trên web, phiếu kiểm bánh ngày mai
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp nhập; Sales xem; khách đặt | Kiểm bánh (/kiem-banh), bảng BTP; trang đặt bánh | Ô Bếp làm, ô Đủ decor, tab Đặt bánh trước |
+
+Từ v675 (Sales đề xuất, giám đốc duyệt 18 và 19/11/2026).
+
+**Trước đây:** tab Đặt bánh trước theo ô Đủ decor cho cả 3 ngày tới.
+**Từ nay:** ngày mai lấy cột Còn bán (Có thể bán) của phiếu Kiểm bánh ngày mai, không tính Đủ decor. Ngày kia và ngày thứ ba lấy Đủ decor trừ các đơn chưa làm của 3 ngày tới. Xa hơn không nhận bánh đặt trước.
+
+**Bạn cần làm**
+1. Bếp: trước giờ chốt hôm nay, mở Kiểm bánh ngày mai, nhập ô Bếp làm. Chưa nhập thì ngày mai bánh đó chưa nhận.
+2. Bếp giữ ô Đủ decor đúng số vỏ đã decor để web nhận ngày kia.
+
+**Lưu ý**
+- Mỗi ngày trên lịch web hiện số của chính ngày đó; ngày hết số thì mờ.
+- Bánh làm theo mẻ (refill) chọn ngày trong khoảng của mẻ; món cuối tuần theo ngày giao của đợt.
+- Máy chủ chặn lại đơn quá số của ngày nhận hay chọn ngày xa hơn 3 ngày tới.
+
+## Đơn web: chỉ thanh toán trước, miễn phí giao trong bán kính 7 km
+Từ khoá: thanh toán trước, tiền mặt, miễn phí giao, bán kính 7 km, phí giao, ngày nhận hôm nay, biên nhận, chờ thanh toán, đã xác nhận
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales xem; quản trị hệ thống cài; khách đặt | Trang đặt bánh; Cài đặt lõi, ô Miễn phí giao trong bán kính (km) | Gửi yêu cầu đặt bánh |
+
+Từ v675 (giám đốc duyệt 19/11/2026).
+
+**Trước đây:** web có cách Tiền mặt khi nhận bánh; đơn đủ mức tiền được miễn phí giao ở mọi địa chỉ trong vùng giao; thêm bánh Có sẵn hôm nay thì giỏ vẫn để ngày kia.
+**Từ nay:**
+- Web chỉ nhận thanh toán trước: Chuyển khoản, Thẻ tín dụng hoặc ghi nợ quốc tế, Thẻ ATM nội địa.
+- Miễn phí giao chỉ khi địa chỉ nằm trong bán kính 7 km, đo đường thẳng từ điểm xuất hàng gần nhất. Xa hơn thì khách trả phí giao dù đơn đủ mức tiền.
+- Thêm bánh Có sẵn hôm nay thì ngày nhận là hôm nay. Trên nút gửi đơn có dòng chốt ngày, giờ, nơi nhận, tổng tiền.
+- Biên nhận hiện ba bước: Đã gửi yêu cầu, Chờ thanh toán, Đã xác nhận. Đơn sang Đã xác nhận khi tiền về đủ.
+
+**Bạn cần làm**
+1. Sales: khách hỏi trả tiền mặt thì hướng dẫn chuyển khoản theo mã VietQR trên biên nhận.
+2. Quản trị hệ thống: muốn đổi bán kính thì sửa ô Miễn phí giao trong bán kính (km). Để trống là 7, điền 0 là không giới hạn.
+
+**Lưu ý**
+- Đơn cũ đã chọn tiền mặt vẫn giữ nguyên trên biên nhận.
 
 ## Kiểm bánh theo mùa (Trung thu, Tết, panettone)
 Từ khoá: kiểm bánh theo mùa, bánh theo mùa, mùa vụ, trung thu, bánh Tết, panettone, bán lố, sắp hết, còn bán, hạn mức, ngưng nhận đơn, seasonal
