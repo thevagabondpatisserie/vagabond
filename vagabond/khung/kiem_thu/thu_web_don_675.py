@@ -74,8 +74,8 @@ def _gieo():
 		P.execute()
 	la("bản vá gọi đúng bước nâng", h2, ["7.0"])
 	ds = [d.strip() for d in (GOC / "vagabond/patches.txt").read_text(encoding="utf-8").splitlines()]
-	dung("bản vá có trong patches.txt, đứng trước dòng đồng bộ v675",
-		ds.index("vagabond.patches.v675_mien_phi_km") < ds.index("vagabond.patches.dong_bo_cau_truc #v675"))
+	dung("bản vá có trong patches.txt, đứng trước dòng đồng bộ v676",
+		ds.index("vagabond.patches.v675_mien_phi_km") < ds.index("vagabond.patches.dong_bo_cau_truc #v676"))
 
 
 @ca("v675 trong hay ngoài bán kính: đúng mép 7 km vẫn miễn, 7,01 km thì không; không giới hạn hay chưa biết khoảng cách thì coi là trong")

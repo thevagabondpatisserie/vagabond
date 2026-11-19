@@ -42,7 +42,7 @@ def _nhom():
 	ra = dbt.nhom_cua_dot(dot, the, gia)
 	la("lên a và b theo thứ tự đợt; c Đã ẩn, d không mã bán được, e không có thẻ: bỏ", [g["ten"] for g in ra], ["A", "B"])
 	la("khuôn một nhóm", ra[0], {"ten": "A", "anh": "/files/a.jpg", "anhs": ["/files/a.jpg"], "mo_ta": "Dòng một Dòng hai",
-		"tang": ["Bơ"], "tu_web": 1, "sizes": [{"ma": "A1", "cm": 16, "gia": 650000}]})
+		"tang": ["Bơ"], "di_ung": "", "bao_quan": "", "tu_web": 1, "sizes": [{"ma": "A1", "cm": 16, "gia": 650000}]})
 	la("không có đợt", [dbt.nhom_cua_dot(None, the, gia), dbt.nhom_cua_dot(_dot([]), the, gia)], [[], []])
 
 
@@ -72,7 +72,9 @@ def _may_chu():
 
 	dot = {"id": "dbt-28", "mon_dt": [{"khoa": STOLLEN, "anh": ""}]}
 	the = [NS(khoa=STOLLEN, ten="Bánh Stollen Cookie, Hũ 200 gr", trang_thai="Chờ ảnh",
-		anh='[{"url": "/files/stollen.jpg", "bam": ""}]', mo_ta="Bánh quy", tang="", ma_hang="BACF00051\nBACF00052\nBAWS00001")]
+		anh='[{"url": "/files/stollen.jpg", "bam": ""}]', mo_ta="Bánh quy", tang="", ma_hang="BACF00051\nBACF00052\nBAWS00001",
+		di_ung="Bơ,\nbột mì", bao_quan="Nơi khô ráo",
+		get=lambda k, d=None: {"di_ung": "Bơ,\nbột mì", "bao_quan": "Nơi khô ráo"}.get(k, d))]
 	item = [{"item_code": "BACF00051", "item_name": "Bánh Stollen Cookie, Hũ 200 gr", "standard_rate": 180000, "disabled": 0, "is_sales_item": 1},
 		{"item_code": "BACF00052", "item_name": "Bánh Stollen Cookie, Hũ 400 gr", "standard_rate": 0, "disabled": 0, "is_sales_item": 1}]
 	hoi = []
@@ -86,6 +88,7 @@ def _may_chu():
 		ra = kiem_banh._mon_dac_biet()
 	la("một nhóm Hũ Stollen, chỉ mã có giá", [(g["ten"], [z["ma"] for z in g["sizes"]], g["anh"]) for g in ra],
 		[("Bánh Stollen Cookie, Hũ 200 gr", ["BACF00051"], "/files/stollen.jpg")])
+	la("Codex #594: dị ứng, bảo quản của thẻ Bánh đi cùng món của đợt", (ra[0]["di_ung"], ra[0]["bao_quan"]), ("Bơ, bột mì", "Nơi khô ráo"))
 	dung("không hỏi Item mã bánh sỉ BAWS", all("BAWS00001" not in (f or {}).get("item_code", ["", []])[1] for dt, f in hoi if dt == "Item"))
 	with um.patch.object(dbt, "dot_cong_khai", lambda: dot), um.patch.object(kiem_banh.tat_ban_web, "bang", lambda ma, ngay: {"BACF00051": {"tat": 1}}), \
 			um.patch.object(kiem_banh.frappe, "get_all", get_all, create=True), um.patch.object(kiem_banh, "getdate", lambda *a: "2026-11-18"):
@@ -173,7 +176,7 @@ def _node():
 	r = subprocess.run(["node", os.path.join(GOC, "vagabond/khung/kiem_thu/hanh_vi/dac_biet_tuan_671.mjs")],
 		capture_output=True, text=True, timeout=120)
 	la("dac_biet_tuan_671.mjs", (r.returncode, (r.stdout or "")[-600:] if r.returncode else ""), (0, ""))
-	dung("đủ 5 ca", "5 đạt, 0 hỏng" in r.stdout)
+	dung("đủ 6 ca", "6 đạt, 0 hỏng" in r.stdout)
 
 
 
