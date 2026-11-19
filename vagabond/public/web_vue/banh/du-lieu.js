@@ -118,7 +118,7 @@ export const LY_DO = {
   gio_hang_rong: ['dat_banh_d3470ca1b', 'Giỏ hàng trống hoặc món đã hết mã.'],
   thieu_ten_hoac_so_dien_thoai: ['dat_banh_3261b803a', 'Thiếu tên hoặc số điện thoại.'],
   thieu_dia_chi_giao: ['dat_banh_1c040d123', 'Thiếu địa chỉ giao.'],
-  ngoai_vung_giao: ['dat_banh_f578cc0d6', 'Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng'],
+  ngoai_vung_giao: ['dat_banh_f578cc0d6', 'Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng'],
   khong_tim_thay_ma_hang: ['dat_banh_35ec19a18', 'Một món trong giỏ không tra được mã bán hàng, chúng tôi sẽ kiểm tra lại ngay.'],
   chua_dien_toa_do_diem_lay: ['dat_banh_dda0df2c0', 'Hệ thống của chúng tôi đang trục trặc.'],
   pancake_tu_choi: ['dat_banh_3baaae33b', 'Hệ thống bán hàng của chúng tôi từ chối đơn này.'],

@@ -955,3 +955,6 @@ html body .ctr-bep{margin-top:18px}html body .ctr-bep-h{font-family:var(--sans);
 /* v675: dòng chốt ngày, giờ, nơi nhận và tổng tiền ngay trên nút gửi đơn. */
 .chot-don{margin:18px 0 0;padding:14px 16px;border:1px solid var(--line,rgba(255,255,255,.14));border-radius:14px;font-size:14px;line-height:1.7;overflow-wrap:anywhere}
 .chot-don b{font-weight:600}
+
+/* v675: dị ứng, bảo quản dưới mô tả bánh; chỉ hiện khi Marketing đã điền */
+.them-tt{margin-top:22px}.them-tt p{margin-top:8px;font-size:15px;line-height:1.8;color:var(--fog);max-width:62ch;white-space:pre-line}

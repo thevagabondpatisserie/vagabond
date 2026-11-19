@@ -388,6 +388,8 @@ export const MAU = `
       <div class="desc" id="s-desc">{{ chiTiet.moTa }}</div><div id="s-layers">
         <template v-if="chiTiet.tang"><h3 class="h-sec">{{ t('dat_banh_f84afdac6','Tầng hương') }} <em>{{ t('dat_banh_17a765496','lớp vị') }}</em></h3><div class="layers"><div class="layer" v-for="(l,i) in chiTiet.tang" :key="i"><span class="i">{{ String(i+1).padStart(2,'0') }}</span><div><b>{{ l[0] }}</b><i>{{ l[1] }}</i></div></div></div></template>
         <div v-else class="fine" style="margin-top:20px">{{ t('dat_banh_b96013446','Mô tả và tầng hương lớp vị của món này đang được cập nhật.') }}</div></div>
+      <div class="them-tt" id="s-di-ung" v-if="chiTiet.diUng"><h3 class="h-sec">{{ t('ct675_di_ung','Thành phần dễ gây dị ứng') }}</h3><p>{{ chiTiet.diUng }}</p></div>
+      <div class="them-tt" id="s-bao-quan" v-if="chiTiet.baoQuan"><h3 class="h-sec">{{ t('ct675_bao_quan','Bảo quản và sử dụng') }}</h3><p>{{ chiTiet.baoQuan }}</p></div>
     </details>
 
     <div class="sec"><span class="n">01</span><h3><span>{{ t('dat_banh_0e619c4c4','Giá bánh') }}</span></h3><i class="rule"></i><button type="button" class="huong-size" id="s-huongsize" @click="moHuongSize" aria-haspopup="dialog" aria-controls="huongSize"><i aria-hidden="true">?</i><span>{{ t('huong_size_nut','Chọn cỡ bánh') }}</span></button></div>

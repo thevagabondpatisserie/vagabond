@@ -761,7 +761,7 @@ export function taoKho(moiTruong) {
         return;
       }
       S.CO.ngoaiVung = true;
-      S.goi.ship = [thuong(t('giao_ngoai_vung', 'Chúng tôi chưa hỗ trợ giao đến địa chỉ này. Bánh kem chỉ giao trong bán kính {km} km quanh bếp và cửa hàng. Quý khách có thể chọn tự đến lấy tại cửa hàng.', {km: m.ban_kinh || 12}))];
+      S.goi.ship = [thuong(t('giao_ngoai_vung', 'Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng.', {km: m.ban_kinh || 12}))];
       return;
     }
     if (!m || !m.ok || !(m.total_fee > 0)) {
@@ -1002,7 +1002,7 @@ export function taoKho(moiTruong) {
     if (tuLay && !diemNhanChon.value) { toast(t('dat_banh_chua_chon_diem_gui', 'Quý khách chọn điểm nhận bánh trước khi gửi.')); return {buoc: 'diem_nhan'}; }
     const diaChi = tuLay ? diemNhanChon.value.a : (S.f.addr || '').trim();
     if (!tuLay && diaChi.length < 8) { toast(t('dat_banh_147c2c4a9', 'Quý khách điền địa chỉ giao')); return {buoc: 'dia_chi'}; }
-    if (!tuLay && S.CO.ngoaiVung) { toast(t('dat_banh_0e39768bd', 'Địa chỉ ngoài vùng giao. Quý khách chọn "Tự lấy tại cửa hàng"')); return {buoc: 'cach_nhan'}; }
+    if (!tuLay && S.CO.ngoaiVung) { toast(t('dat_banh_0e39768bd', 'Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng')); return {buoc: 'cach_nhan'}; }
     if (!S.CO.dongy) { toast(t('dat_banh_ea9153cee', 'Quý khách chọn ô đồng ý ngay trên nút gửi.')); return {buoc: 'dong_y'}; }
     if (!S.CO.nonce) S.CO.nonce = T.taoNonce(ngauNhien);
 
