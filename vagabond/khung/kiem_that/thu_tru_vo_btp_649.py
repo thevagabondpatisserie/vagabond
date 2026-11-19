@@ -64,7 +64,7 @@ def _():
 	la("lưu lại không trừ thêm", _o(rieng), (7, 6))
 
 
-@ca("v649 thật Codex #552 vòng 7: bếp làm trước 3 bánh trên bảng ngày mai cho 3 đơn ngày mai: vỏ trừ 3 một lần, cửa nhận đơn ngày mai vẫn nhận đủ Đủ decor còn lại; câu giữ tồn đọc đủ cột")
+@ca("v649 thật Codex #552 vòng 7: bếp làm trước 3 bánh trên bảng ngày mai cho 3 đơn ngày mai: vỏ trừ 3 một lần, cửa nhận đơn ngày mai theo Có thể bán của phiếu ngày mai (v671); câu giữ tồn đọc đủ cột")
 def _():
 	from datetime import timedelta
 	from unittest.mock import patch
@@ -87,7 +87,8 @@ def _():
 	la("làm trước 3: trừ vỏ một lần", _o(rieng), (7, 6))
 	mai = getdate(b.ngay)
 	with patch.object(ton_don_web, "hom_nay", lambda: mai - timedelta(days=1)):
-		la("ngày mai nhận 6 (Đủ decor 6, 3 đơn đã có bánh)", ton_don_web.kiem([{"variation_id": rieng, "quantity": 6}], mai), [])
-		dung("đặt 7 thì chặn, còn 6", "còn 6 cái" in "".join(ton_don_web.kiem([{"variation_id": rieng, "quantity": 7}], mai)))
+		# v671: cửa nhận đơn ngày mai theo Có thể bán của phiếu ngày mai (3 làm trừ
+		# 3 đơn = 0), không theo Đủ decor 6 như v649.
+		dung("ngày mai: Có thể bán 0, đặt 1 thì chặn", "còn 0 cái" in "".join(ton_don_web.kiem([{"variation_id": rieng, "quantity": 1}], mai)))
 	d = giu_ton_web._dong(mai)[0]
 	la("câu giữ tồn đọc đủ cột trên CSDL thật", (int(d.sx), int(d.da_dat), int(d.don_khac or 0), int(d.giu_cho or 0)), (3, 3, 0, 0))
