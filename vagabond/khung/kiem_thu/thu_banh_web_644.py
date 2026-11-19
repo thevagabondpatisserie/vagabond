@@ -104,6 +104,15 @@ def _():
 	dung("không lộ khoá riêng ở mọi nhóm, kể cả nhóm bị ẩn", all("_anh_erp" not in s and "_anh_dong" not in s for x in nhom for s in x["sizes"]))
 
 
+@ca("v675 dị ứng và bảo quản: thẻ Bánh đã điền thì gửi cho trang khách (gộp dòng), chưa điền thì gửi rỗng để trang ẩn mục")
+def _():
+	co = dict(_bg("Very Berry", bw.DANG_HIEN, [("/files/vb.png", B_VB)]), di_ung="Sữa, trứng,\n gluten ", bao_quan="Giữ lạnh 2 đến 6 độ C.\nDùng trong ngày.")
+	trong = _bg("Candle", bw.DANG_HIEN, [("/files/c.png", "")])
+	ra = bw.ap_nhom([{"ten": "Very Berry", "sizes": []}, {"ten": "Candle", "sizes": []}], {co["khoa"]: co, trong["khoa"]: trong})
+	la("đã điền", (ra[0]["di_ung"], ra[0]["bao_quan"]), ("Sữa, trứng, gluten", "Giữ lạnh 2 đến 6 độ C. Dùng trong ngày."))
+	la("chưa điền", (ra[1]["di_ung"], ra[1]["bao_quan"]), ("", ""))
+
+
 def _vb_dong():
 	return [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=2, hinh=""),
 		_dong(ma_hang="BAWC00124X", ten_banh="Kankin", co_the_ban=1, hinh="")]
