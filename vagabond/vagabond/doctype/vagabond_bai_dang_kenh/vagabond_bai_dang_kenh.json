@@ -4,7 +4,7 @@
  "module": "Vagabond",
  "engine": "InnoDB",
  "creation": "2026-11-15 22:00:00.000000",
- "modified": "2026-11-16 14:00:00.000000",
+ "modified": "2026-11-18 20:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "istable": 1,
@@ -14,6 +14,7 @@
   "ma_kenh",
   "trang_thai",
   "tieu_de",
+  "chi_tiet",
   "chu",
   "ai_soan",
   "dang_luc",
@@ -27,7 +28,7 @@
    "fieldname": "ma_kenh",
    "fieldtype": "Select",
    "label": "Kênh",
-   "options": "fb\nig\nth\nzl",
+   "options": "fb\nig\nth\nzl\ngg",
    "in_list_view": 1,
    "read_only": 1
   },
@@ -43,7 +44,13 @@
   {
    "fieldname": "tieu_de",
    "fieldtype": "Data",
-   "label": "Tiêu đề (Zalo OA)",
+   "label": "Tiêu đề (Zalo OA; Ưu đãi, Sự kiện Google Posts)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chi_tiet",
+   "fieldtype": "Small Text",
+   "label": "Chi tiết Google Posts (loại, giờ, mã giảm giá, điều khoản)",
    "read_only": 1
   },
   {
