@@ -261,7 +261,7 @@ def nhom_cua_dot(dot, the_ds, gia_ma):
     ("Món của tuần này đang được cập nhật"); muốn hiện thì bếp phải điền decor,
     làm món lọt luôn sang tab Đặt bánh trước.
 
-    the_ds: thẻ Bánh [{khoa, ten, trang_thai, anhs: [url], mo_ta: [dòng], tang: [dòng], ma: [mã]}].
+    the_ds: thẻ Bánh [{khoa, ten, trang_thai, anhs: [url], mo_ta: [dòng], tang: [dòng], di_ung: [dòng], bao_quan: [dòng], ma: [mã]}].
     gia_ma: {mã: {"cm", "gia"}} chỉ gồm mã được bán trên web (có giá, đang dùng,
     là hàng bán, không tắt bán web). Món hiện khi thẻ không Đã ẩn, còn ít nhất
     một mã bán được và có ảnh (ảnh thẻ hoặc ảnh đứng của đợt). Trả các nhóm cùng
@@ -281,7 +281,10 @@ def nhom_cua_dot(dot, the_ds, gia_ma):
             continue
         sizes.sort(key=lambda z: (int(z["cm"] or 0) or 999, z["gia"]))
         ra.append({"ten": t.get("ten") or m.get("khoa"), "anh": anhs[0], "anhs": anhs,
-            "mo_ta": " ".join(t.get("mo_ta") or []), "tang": list(t.get("tang") or []), "tu_web": 1, "sizes": sizes})
+            "mo_ta": " ".join(t.get("mo_ta") or []), "tang": list(t.get("tang") or []),
+            # v676 (Codex #594): dị ứng, bảo quản của thẻ Bánh đi cùng món của đợt.
+            "di_ung": " ".join(t.get("di_ung") or []), "bao_quan": " ".join(t.get("bao_quan") or []),
+            "tu_web": 1, "sizes": sizes})
     return ra
 
 

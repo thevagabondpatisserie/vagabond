@@ -49,7 +49,7 @@ def doc():
 
 
 def gieo_mac_dinh():
-	"""Bước nâng chạy một lần (bản vá v675): site đã có Cài đặt từ trước thì ô mới
+	"""Bước nâng chạy một lần (bản vá v676): site đã có Cài đặt từ trước thì ô mới
 	chưa có dòng nào trong bảng Singles. Ghi sẵn 7 để lần lưu Cài đặt trên Desk
 	không biến ô trống thành 0 (không giới hạn). Ô đã có giá trị (kể cả 0) thì
 	giữ nguyên. Trả True khi vừa ghi."""

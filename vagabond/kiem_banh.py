@@ -1779,11 +1779,12 @@ def _mon_dac_biet():
 		if not khoa:
 			return []
 		the = frappe.get_all(banh_web.DT, filters={"khoa": ["in", khoa]},
-			fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "ma_hang"],
+			fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang"],
 			limit_page_length=0, ignore_permissions=True)
 		the_ds = [{"khoa": t.khoa, "ten": t.ten, "trang_thai": t.trang_thai,
 			"anhs": [x["url"] for x in banh_web.doc_anh(t.anh)][:banh_web.SO_ANH_TOI_DA],
 			"mo_ta": banh_web.tach_dong(t.mo_ta), "tang": banh_web.tach_dong(t.tang, banh_web.SO_TANG_TOI_DA),
+			"di_ung": banh_web.tach_dong(t.get("di_ung")), "bao_quan": banh_web.tach_dong(t.get("bao_quan")),
 			"ma": banh_web.tach_dong(t.ma_hang)} for t in the]
 		ma = sorted({m for t in the_ds for m in t["ma"]
 			if not str(m or "").upper().startswith("BAWS")})
