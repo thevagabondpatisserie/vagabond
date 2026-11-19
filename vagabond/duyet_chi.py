@@ -676,15 +676,25 @@ def noi_sao_ke(ten_pe):
 		return "lỗi khi nối: %s" % str(e)[:160]
 
 
-def noi_sao_ke_con_thieu():
+def noi_sao_ke_con_thieu(chi_phieu=None):
 	"""Lịch 07:40 (trước tin 08:00): nối lại các phiếu chi từ MOC_NOI_SAO_KE đã
 	có mã dòng sao kê mà chưa nối đối chiếu lõi. Mỗi phiếu một lượt, commit
-	riêng; phiếu không nối được ghi lý do vào dòng thời gian của phiếu một lần."""
+	riêng; phiếu không nối được ghi lý do vào dòng thời gian của phiếu một lần.
+
+	Không đặt trần số phiếu (Codex #592): phiếu cũ không nối được nằm lại mỗi
+	ngày, trần sẽ chặn phiếu mới. Phiếu tính từ mốc nên số lượng nhỏ.
+	chi_phieu: chỉ xét đúng các phiếu này (ca kiểm tích hợp, không đụng phiếu thật)."""
+	dk, ts = "", [MOC_NOI_SAO_KE]
+	if chi_phieu is not None:
+		if not chi_phieu:
+			return
+		dk = " and pe.name in %s"
+		ts.append(tuple(chi_phieu))
 	rows = frappe.db.sql("""select pe.name from `tabPayment Entry` pe
 		where pe.docstatus = 1 and pe.payment_type = 'Pay' and ifnull(pe.vgb_chi_ma_gd, '') != ''
 		and pe.posting_date >= %s and not exists (select 1 from `tabBank Transaction Payments` b
-			where b.payment_document = 'Payment Entry' and b.payment_entry = pe.name)
-		order by pe.posting_date, pe.name limit 300""", (MOC_NOI_SAO_KE,))
+			where b.payment_document = 'Payment Entry' and b.payment_entry = pe.name)""" + dk + """
+		order by pe.posting_date desc, pe.name""", tuple(ts))
 	for (ten,) in rows:
 		try:
 			ly = noi_sao_ke(ten)

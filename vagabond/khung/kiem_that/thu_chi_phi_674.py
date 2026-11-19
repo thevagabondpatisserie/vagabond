@@ -243,3 +243,73 @@ def _ban_va_doc_lai():
 	frappe.db.set_single_value("Vagabond Settings", "meta_ads_doc_lai", 0)
 	khong_nem("chạy lại khi ô là 0", P.execute)
 	la("giữ 0", str(P.doc_o_tho()), "0")
+
+
+@ca("v675 thật: Meta trừ thẻ Visa MB từ dòng sao kê ngân hàng: chưa hết tháng không lập; hết tháng lập Nợ 6417, Nợ 6427 phí, Có tiền gửi (không chờ sao kê thẻ Shinhan); ghi sổ xong dòng sao kê được đối chiếu hết")
+def _meta_the_mb():
+	ct = nen.cong_ty()
+	ky = "2026-11"
+	tkqc = _tk(ct, "6417", "Expense", "KT674 Chi phí dịch vụ mua ngoài bán hàng")
+	tkphi = _tk(ct, "6427", "Expense", "KT674 Chi phí dịch vụ mua ngoài quản lý")
+	_tk(ct, "3411", "Liability", "KT674 Các khoản đi vay")
+	tknh = frappe.db.get_value("Account", {"company": ct, "account_number": "11219", "is_group": 0}, "name")
+	if not tknh:
+		cha = frappe.db.get_value("Account", {"company": ct, "root_type": "Asset", "is_group": 1}, "name", order_by="lft desc")
+		tknh = _luu(frappe.get_doc(dict(doctype="Account", company=ct, account_name="KT675 Tiền gửi MB thẻ", account_number="11219",
+			parent_account=cha, account_currency="VND", account_type="Bank", is_group=0))).name
+	from vagabond.ngan_hang import chuan_hoa_hoac_bao
+
+	ba = _luu(frappe.get_doc({"doctype": "Bank Account", "account_name": "KT675 MB " + frappe.generate_hash(length=6),
+		"bank": chuan_hoa_hoac_bao("MB"), "company": ct, "is_company_account": 1, "account": tknh,
+		"bank_account_no": "675" + frappe.generate_hash(length=9)})).name
+	mo = "RetailVISADN-800001-6000000-VND-600000000001-FACEBK  KT675ABCD-The 000000001"
+	bt = []
+	for tien, mt in ((6000000, mo), (66000, mo), (1000000, "RetailVISADN-800003-1000000-VND-600000000003-OPENAI  KIEM THU SUB-The 000000001")):
+		g = frappe.get_doc({"doctype": "Bank Transaction", "date": "2026-11-16", "bank_account": ba, "withdrawal": tien, "deposit": 0,
+			"description": mt, "reference_number": "FT-KT675-" + frappe.generate_hash(length=5)})
+		_luu(g)
+		khong_nem("xác nhận dòng sao kê", g.submit)
+		bt.append(g.name)
+	# Codex #592: ca chỉ xét dòng sao kê của chính ca. Chạy trên site thật thì tháng 11 đã có
+	# dòng FACEBK, sao kê thẻ và chứng từ Meta thật; không để ca đọc hay đối chiếu chúng.
+	goc_mb = M._doc_dong_mb
+	rieng = [patch.object(M, "_doc_dong_mb", lambda c, k: [d for d in goc_mb(c, k) if d["name"] in bt]),
+		patch.object(M, "_doc_dong_the", lambda c: []), patch.object(M, "_chung_tu_khac", lambda c, k, t: [])]
+	for x in rieng:
+		x.start()
+	try:
+		_meta_the_mb_chay(ct, ky, bt, tkqc, tkphi, tknh)
+	finally:
+		for x in rieng:
+			x.stop()
+
+
+def _meta_the_mb_chay(ct, ky, bt, tkqc, tkphi, tknh):
+	with patch.object(M, "_cty", lambda cty=None: ct), patch.object(M, "nowdate", lambda: "2026-11-20"):
+		try:
+			M.lap(ky)
+			dung("chưa hết tháng phải chưa lập phần thẻ MB", False)
+		except Exception as e:
+			dung("báo chưa hết tháng: %s" % nen.cau_loi(e), "chưa hết" in nen.cau_loi(e))
+	with patch.object(M, "_cty", lambda cty=None: ct), patch.object(M, "nowdate", lambda: "2026-12-15"):
+		kq = khong_nem("lập nháp Meta tháng 11 (chưa có sao kê thẻ Shinhan)", lambda: M.lap(ky))
+		if not kq:
+			return
+		je = frappe.get_doc("Journal Entry", kq["journal_entry"])
+		la("nháp: Nợ 6417, Nợ 6427, Có tiền gửi; không có dòng OpenAI, không có 3411",
+			sorted((r.account, flt(r.debit_in_account_currency), flt(r.credit_in_account_currency)) for r in je.accounts),
+			sorted([(tkqc, 6000000.0, 0.0), (tkphi, 66000.0, 0.0), (tknh, 0.0, 6066000.0)]))
+		khong_nem("ghi sổ", lambda: M.ghi_so(ky))
+		la("sổ cái", _so_cai(je.name), sorted([(tkqc, 6000000.0, 0.0), (tkphi, 66000.0, 0.0), (tknh, 0.0, 6066000.0)]))
+		for ten, tien in zip(bt[:2], (6000000.0, 66000.0)):
+			g = frappe.get_doc("Bank Transaction", ten)
+			la("dòng %s đã đối chiếu hết với bút toán Meta" % tien, (flt(g.unallocated_amount),
+				[(r.payment_document, r.payment_entry) for r in g.payment_entries]), (0.0, [("Journal Entry", je.name)]))
+		la("dòng OpenAI không đụng", flt(frappe.db.get_value("Bank Transaction", bt[2], "unallocated_amount")), 1000000.0)
+		ct_thang = khong_nem("đọc đối soát", lambda: M.chi_tiet_thang(ky)) or {}
+		la("đã trừ bằng đã ghi sổ", (ct_thang.get("da_tru"), ct_thang.get("da_ghi_so")), (6066000, 6066000))
+		try:
+			M.lap(ky)
+			dung("không còn giao dịch mới thì không lập", False)
+		except Exception as e:
+			dung("báo không còn giao dịch: %s" % nen.cau_loi(e), "không còn giao dịch" in nen.cau_loi(e))

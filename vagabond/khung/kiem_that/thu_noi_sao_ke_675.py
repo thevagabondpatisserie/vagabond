@@ -61,8 +61,9 @@ def _lich():
 	pe_ok, g_ok = _dung(2222000, 2222000)
 	pe_sai, _g = _dung(3000000, 1000000)
 	with um.patch.object(frappe.db, "rollback", lambda *a, **k: None):
-		DC.noi_sao_ke_con_thieu()
-		DC.noi_sao_ke_con_thieu()
+		# Codex #592: chỉ xét phiếu của ca, không đụng phiếu thật khi ca chạy trên site.
+		DC.noi_sao_ke_con_thieu([pe_ok.name, pe_sai.name])
+		DC.noi_sao_ke_con_thieu([pe_ok.name, pe_sai.name])
 	la("phiếu đủ được nối", len(_dong_noi(g_ok, pe_ok)[1]), 1)
 	vet = frappe.get_all("Comment", filters={"reference_doctype": "Payment Entry", "reference_name": pe_sai.name,
 		"content": ["like", "Chưa nối được dòng sao kê%"]}, pluck="name")

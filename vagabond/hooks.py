@@ -1290,3 +1290,8 @@ del _event, _old
 # Anh Việt 19/11/2026: nối đối chiếu lõi cho phiếu chi đã có mã dòng sao kê,
 # chạy trước tin "Tiền ra chưa có chứng từ" 08:00.
 scheduler_events.setdefault("cron", {}).setdefault("40 7 * * *", []).append("vagabond.duyet_chi.noi_sao_ke_con_thieu")
+
+# v675: bút toán Meta máy lập ghi sổ xong thì nối dòng sao kê thẻ Visa MB vào Đối chiếu ngân hàng.
+_cu_meta_mb = doc_events.setdefault("Journal Entry", {}).get("on_submit", [])
+doc_events["Journal Entry"]["on_submit"] = ([_cu_meta_mb] if isinstance(_cu_meta_mb, str) else list(_cu_meta_mb)) + [
+	"vagabond.chi_phi_meta.noi_sao_ke_mb"]

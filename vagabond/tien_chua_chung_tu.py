@@ -32,6 +32,9 @@ NHOM_VAO = (
 		re.compile(r"S\d+O\d+T", re.I)),
 )
 NHOM_RA = (
+	("meta_the", "Quảng cáo Meta trừ thẻ Visa MB",
+		"Máy gom vào bút toán Meta sau cuối tháng; kế toán ghi sổ ở Đối soát chi phí Meta.",
+		re.compile(r"RETAIL\s*VISA.*(FACEBK|FACEBOOK)", re.I)),
 	("the", "Trừ thẻ Visa (Meta, phần mềm, phí ngoại tệ)",
 		"Kế toán lập phiếu chi hoặc bút toán theo sao kê thẻ.",
 		re.compile(r"RETAIL\s*VISA|VISADN|MASTERCARD|\bPOS\b", re.I)),

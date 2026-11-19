@@ -14,6 +14,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 ## v675
 - Dọn tin tiền vào, tiền ra chưa có chứng từ
+- Đối soát chi phí quảng cáo Meta và bút toán tháng
 
 ## v674
 - Đưa công cụ dụng cụ vào dùng: phân bổ một lần hay nhiều tháng
