@@ -512,6 +512,16 @@ await ca('v644 bánh có bộ nội dung web: mô tả, tầng chỉ lấy từ 
   la('Kankin (đường cũ) giữ chữ tĩnh khi máy chủ không gửi', [cakes[1].tuWeb, cakes[1].desc], [undefined, 'Kankin tĩnh']);
 });
 
+await ca('v675 dị ứng và bảo quản: bánh có thẻ Bánh nhận hai mục từ máy chủ, để trống thì rỗng (trang ẩn mục)', async () => {
+  const cakes = [{k: 'Very Berry', img: '', desc: '', layers: [], sizes: [{cm: 12, p: 1, id: 'BAWC00086'}]},
+    {k: 'Kankin', img: '', desc: '', layers: [], sizes: [{cm: 16, p: 1, id: 'BAWC00124'}]}];
+  tronMon(cakes, [
+    {ten: 'Very Berry', anh: '/a.png', anhs: ['/a.png'], mo_ta: '', tang: [], di_ung: 'Sữa, trứng', bao_quan: 'Giữ lạnh', tu_web: 1, sizes: [{cm: 12, ma: 'BAWC00086', gia: 1}]},
+    {ten: 'Kankin', anh: '/k.png', anhs: ['/k.png'], mo_ta: '', tang: [], tu_web: 1, sizes: [{cm: 16, ma: 'BAWC00124', gia: 1}]}]);
+  la('đã điền', [cakes[0].diUng, cakes[0].baoQuan], ['Sữa, trứng', 'Giữ lạnh']);
+  la('chưa điền', [cakes[1].diUng, cakes[1].baoQuan], ['', '']);
+});
+
 /* Codex PR #547 (1c8d221f): máy chủ lọc hết bánh bị ẩn khỏi hai danh sách, kho
    Vue cũ coi đặt trước rỗng là chưa có dữ liệu và đưa ra 8/8 bánh mặc định. */
 await ca('Codex 547: bảng Bánh trên web đang dùng, hai danh sách rỗng thì tab đặt trước không còn bánh mặc định nào', async () => {

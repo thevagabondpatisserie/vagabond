@@ -42,7 +42,7 @@ function toi(them) {
 (async function () {
   /* v658: khối Thể lệ cũ (bốn ô luật) thay bằng T1 thẻ hạng và U3 dòng thời gian hạn điểm.
      Ba ca dưới giữ nguyên ý của v652 trên giao diện mới; ca kỹ ở thanh_vien_658.js. */
-  await ca('thành viên đăng nhập: thẻ hạng đúng số máy chủ, chỉ Ambassador giảm 10%, chip Hạng của bạn, luật điểm, câu nhân điểm, dòng điểm sắp hết hạn, nút Đặt bánh và dùng điểm', async function () {
+  await ca('thành viên đăng nhập: thẻ hạng đúng số máy chủ, chỉ Ambassador giảm 10%, chip Hạng hiện tại, luật điểm, câu nhân điểm, dòng điểm sắp hết hạn, nút Đặt bánh và dùng điểm', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: toi(), cap_vi_tv: { ok: 1, moi: [] } }, '');
     var k = t.tim('the-le');
     dung('hiện thẻ hạng', !K.an(k));
@@ -50,7 +50,7 @@ function toi(them) {
     bang('hai hạng', the.map(function (x) { return chu(x.querySelector('.t1-ten')); }), ['VAGABONDER', 'AMBASSADOR']);
     dung('Vagabonder không giảm', chu(the[0]).indexOf('Giảm') < 0);
     dung('Ambassador giảm 10%', chu(the[1]).indexOf('Giảm 10% mỗi hoá đơn') >= 0);
-    dung('chip Hạng của bạn ở Vagabonder', chu(the[0]).indexOf('Hạng của bạn') >= 0 && chu(the[1]).indexOf('Hạng của bạn') < 0);
+    dung('chip Hạng hiện tại ở Vagabonder', chu(the[0]).indexOf('Hạng hiện tại') >= 0 && chu(the[1]).indexOf('Hạng hiện tại') < 0);
     dung('quyền lợi lấy từ chương trình', chu(the[1]).indexOf('Quà sinh nhật Ambassador') >= 0);
     var u = chu(t.tim('dung-diem'));
     dung('câu nhân điểm', u.indexOf('Thứ Năm hằng tuần, đặt bánh trên web được x2 điểm.') >= 0);
@@ -72,7 +72,7 @@ function toi(them) {
     var k = t.tim('the-le-dn');
     dung('hiện ở màn đăng nhập', !K.an(k) && !K.an(t.tim('dang-nhap')));
     bang('hai hạng', k.querySelectorAll('.t1-ten').map(chu), ['VAGABONDER', 'AMBASSADOR']);
-    dung('không chip Hạng của bạn', chu(k).indexOf('Hạng của bạn') < 0);
+    dung('không chip Hạng hiện tại', chu(k).indexOf('Hạng hiện tại') < 0);
     bang('gọi the_le một lần', t.cac('the_le').length, 1);
     var t2 = await K.dungTrang({ san_sang: SS, toi: { ok: 0, ly_do: 'chua_dang_nhap' }, the_le: function () { throw new Error('mạng'); } }, '');
     dung('lỗi thì ẩn', K.an(t2.tim('the-le-dn')));
