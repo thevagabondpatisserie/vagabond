@@ -204,7 +204,9 @@ export function khoiDong(goc = '#app') {
          xong thì GIỮ đường dẫn, napTon().then(apDuongDanNeuBanh) mở lại sau. */
       if (!c) { if (S.tonDaThu) nav('#/', true); return; }
       /* Link chia sẻ mở mới: bánh không còn hôm nay vẫn cho chọn cỡ đặt trước. */
-      if (S.tab === 'today' && !c.sizes.some(s => S.TODAY[s.id] > 0)) S.tab = 'order';
+      /* v675: chỉ kết luận "không còn hôm nay" SAU khi đã nạp tồn. Trước: mở thẳng link bánh thì tồn chưa
+         về, bánh có sẵn hôm nay bị thêm vào giỏ thành bánh đặt trước nhận ngày mai dù trang ghi Có sẵn hôm nay. */
+      if (S.tab === 'today' && S.tonDaThu && !c.sizes.some(s => S.TODAY[s.id] > 0)) S.tab = 'order';
       if (!(S.dongDangSua >= 0 && S.cur === c)) { S.dongDangSua = -1; kho.moBanh(c); }
       S.anhChon = 0;
       if (truocDo === 'gio') kho.roiGio();
@@ -330,7 +332,11 @@ export function khoiDong(goc = '#app') {
     const px = ch ? String(ch.pixel_id || '').replace(/\D/g, '') : '';
     if (px && !pixel.id && !ND.xemThu) { pixel.id = px; napPixel(px); }
   });
-  function apDuongDanNeuBanh() { if (/^#\/banh\//.test(location.hash || '') && !S.cur) apDuongDan(); }
+  function apDuongDanNeuBanh() {
+    if (!/^#\/banh\//.test(location.hash || '')) return;
+    if (!S.cur) { apDuongDan(); return; }
+    if (S.tab === 'today' && !S.cur.sizes.some(s => S.TODAY[s.id] > 0)) S.tab = 'order';
+  }
   window.addEventListener('pagehide', kho.luuGio);
   return {app, vm, kho};
 }
