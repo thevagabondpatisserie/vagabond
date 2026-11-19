@@ -8063,6 +8063,12 @@
     "mac_dinh": "Miễn phí giao cho đơn từ {tien} trong bán kính {km} km",
     "nhieu_dong": true
   },
+  "pay675_xem_lai": {
+    "ten": "Giỏ hàng: cách thanh toán đã lưu không còn áp dụng",
+    "nhom": "gio_hang",
+    "mac_dinh": "Cách thanh toán đã chọn trước đây không còn áp dụng. Quý khách xem lại cách thanh toán trước khi gửi đơn.",
+    "nhieu_dong": true
+  },
   "ct675_di_ung": {
     "ten": "Chi tiết bánh: tiêu đề mục dị ứng",
     "nhom": "dat_banh",
