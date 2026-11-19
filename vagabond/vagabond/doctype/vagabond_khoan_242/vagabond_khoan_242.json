@@ -1,0 +1,228 @@
+{
+ "actions": [],
+ "autoname": "format:CP242-{#####}",
+ "creation": "2026-11-18 16:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "dien_giai",
+  "khoa",
+  "company",
+  "nguon_loai",
+  "nguon_doctype",
+  "nguon_so",
+  "ngay",
+  "nguyen_gia",
+  "col_1",
+  "trang_thai",
+  "so_ky",
+  "ky_bat_dau",
+  "bo_phan",
+  "tk_chi_phi",
+  "da_phan_bo_truoc",
+  "ghi_chu",
+  "khai_boi",
+  "khai_luc"
+ ],
+ "fields": [
+  {
+   "fieldname": "dien_giai",
+   "fieldtype": "Data",
+   "label": "Diễn giải",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "khoa",
+   "fieldtype": "Data",
+   "label": "Khoá chứng từ gốc",
+   "read_only": 1,
+   "unique": 1,
+   "description": "Loại chứng từ:số chứng từ đã ghi Nợ 242. Mỗi chứng từ một khoản."
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Công ty",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguon_loai",
+   "fieldtype": "Select",
+   "label": "Nguồn",
+   "options": "Phiếu xuất CCDC\nHoá đơn mua\nBút toán\nChứng từ khác",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "nguon_doctype",
+   "fieldtype": "Data",
+   "label": "Loại chứng từ gốc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguon_so",
+   "fieldtype": "Dynamic Link",
+   "label": "Số chứng từ gốc",
+   "options": "nguon_doctype",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngày ghi nhận vào 242",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "nguyen_gia",
+   "fieldtype": "Currency",
+   "label": "Nguyên giá",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Tổng Nợ trừ Có 242 của chứng từ gốc, đọc từ sổ cái."
+  },
+  {
+   "fieldname": "col_1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái lưu",
+   "options": "\nKhông phân bổ\nChứng từ gốc đã huỷ",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "description": "Trống là đang theo lịch; trạng thái hiện trên app (Chờ khai số tháng, Đang phân bổ, Đã phân bổ xong) tính lại mỗi lần mở."
+  },
+  {
+   "fieldname": "so_ky",
+   "fieldtype": "Int",
+   "label": "Số tháng phân bổ",
+   "description": "Từ 1 tới 36."
+  },
+  {
+   "fieldname": "ky_bat_dau",
+   "fieldtype": "Data",
+   "label": "Tháng bắt đầu phân bổ",
+   "description": "Dạng YYYY-MM, ví dụ 2026-11."
+  },
+  {
+   "fieldname": "bo_phan",
+   "fieldtype": "Link",
+   "label": "Bộ phận chịu chi phí",
+   "options": "Cost Center"
+  },
+  {
+   "fieldname": "tk_chi_phi",
+   "fieldtype": "Link",
+   "label": "Tài khoản chi phí khi phân bổ",
+   "options": "Account"
+  },
+  {
+   "fieldname": "da_phan_bo_truoc",
+   "fieldtype": "Currency",
+   "label": "Đã phân bổ trước khi lên bảng kê",
+   "description": "Phần đã phân bổ bên ngoài hệ thống (sổ cũ). Số đã phân bổ trên sổ do hệ thống tự đọc từ bút toán."
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  },
+  {
+   "fieldname": "khai_boi",
+   "fieldtype": "Link",
+   "label": "Khai bởi",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "khai_luc",
+   "fieldtype": "Datetime",
+   "label": "Khai lúc",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-18 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Khoan 242",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "write": 1,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Kiểm soát (FIN)",
+   "read": 1,
+   "write": 1,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Vagabond Bao cao",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "ngay",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "title_field": "dien_giai",
+ "show_title_field_in_link": 1
+}
