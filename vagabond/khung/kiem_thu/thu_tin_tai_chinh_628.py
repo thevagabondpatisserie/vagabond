@@ -326,7 +326,10 @@ def _tien_ra_that():
 	g = z.goi[0]
 	la("mã tin", g["ma_tin"], "kt_tien_ra_chua_gan")
 	la("khoá theo ngày", g["khoa"], "tien-ra-chua-gan:2026-11-02")
-	la("dòng tổng: ô trống coi như cả khoản chưa gắn", g["dong"][0], "2 khoản, tổng 8.053.933 đ, ra khỏi tài khoản quá 24 giờ")
+	# v675: chỉ hỏi khoản từ mốc 01/11/2026 (anh Việt chốt 19/11); dòng tổng ghi mốc.
+	la("mốc ngày nhắc", hoi[0][1][0], "2026-11-01")
+	la("dòng tổng: ô trống coi như cả khoản chưa gắn", g["dong"][0],
+		"2 khoản, tổng 8.053.933 đ, ra khỏi tài khoản công ty từ 01/11/2026, quá 24 giờ chưa có chứng từ")
 
 
 @ca("v628 tin 3 chạy thật: chot_ca ghi tin két lệch SAU khi lưu ca và TRƯỚC commit")

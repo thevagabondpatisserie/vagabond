@@ -577,7 +577,134 @@ def xac_nhan_da_chuyen(name, ma_giao_dich=None, ly_do_som=None, unc=None):
 			(" - ghi sổ sớm: " + ly_do) if (ly_do and not sepay_du(flt(doc.paid_amount), da_chi)) else "",
 		),
 	)
+	# Anh Việt 19/11/2026: phiếu chi xác nhận ở đây chỉ GHI mã dòng sao kê vào
+	# vgb_chi_ma_gd mà không nối đối chiếu lõi ERPNext, nên dòng sao kê vẫn
+	# "chưa phân bổ" và mỗi sáng hiện ở tin tiền ra chưa có chứng từ (7 phiếu
+	# APP tháng 11, 39,7 tr). Nối ngay sau khi ghi sổ; hỏng thì lượt 07:40 nối lại.
+	ly = noi_sao_ke(doc.name)
+	if ly:
+		_ghi_vet(doc.name, "Chưa nối được dòng sao kê vào Đối chiếu ngân hàng: %s" % ly)
+	frappe.db.commit()
 	return {"ok": 1, "buoc": doc.get("workflow_state") or "", "ma_gd": doc.vgb_chi_ma_gd}
+
+
+# ---------------------------------------------- nối đối chiếu lõi (19/11/2026)
+
+MOC_NOI_SAO_KE = "2026-11-01"
+LECH_NOI = 1.0
+
+
+def ly_do_khong_noi(pe, g, ba_account, da_noi):
+	"""Vì sao chưa nối phiếu chi `pe` với dòng sao kê `g`. THUẦN.
+
+	"" là nối được; "da_noi" là đã nối rồi (không làm gì). pe cần docstatus,
+	paid_amount, paid_from; g cần docstatus, withdrawal, deposit,
+	unallocated_amount; ba_account là tài khoản sổ cái của Bank Account của g."""
+	if da_noi:
+		return "da_noi"
+	if cint(pe.get("docstatus")) != 1:
+		return "phiếu chi chưa ghi sổ"
+	if not g:
+		return "không xác định được một dòng sao kê"
+	if cint(g.get("docstatus")) != 1 or flt(g.get("withdrawal")) <= 0 or flt(g.get("deposit")) > 0:
+		return "dòng sao kê không phải tiền ra đã xác nhận"
+	if not ba_account or ba_account != pe.get("paid_from"):
+		return "dòng sao kê thuộc tài khoản khác tài khoản chi của phiếu"
+	if flt(g.get("unallocated_amount")) + LECH_NOI < flt(pe.get("paid_amount")):
+		return "dòng sao kê không còn đủ tiền chưa đối chiếu"
+	return ""
+
+
+def _bt_cua(ma):
+	"""Tên Bank Transaction từ mã đã lưu (tên dòng hoặc số tham chiếu duy nhất)."""
+	ma = (ma or "").strip()
+	if not ma:
+		return None
+	if frappe.db.exists("Bank Transaction", ma):
+		return ma
+	ds = frappe.get_all("Bank Transaction", filters={"reference_number": ma, "docstatus": 1},
+		pluck="name", limit_page_length=2)
+	return ds[0] if len(ds) == 1 else None
+
+
+def noi_sao_ke(ten_pe):
+	"""Nối phiếu chi đã ghi sổ vào dòng sao kê đã chọn (vgb_chi_ma_gd) trong
+	Đối chiếu ngân hàng của ERPNext. Trả "" nếu đã nối (hoặc nối rồi từ trước),
+	còn lại là câu lý do. Không đổi bút toán: lõi chỉ thêm dòng đối chiếu và
+	ngày thanh toán bù trừ, đúng như kế toán bấm tay ở màn Đối chiếu ngân hàng.
+
+	Lõi ERPNext (đọc ở thu_tien.ghi_so_thu): add_payment_entries thêm dòng
+	allocated 0, save() trên giao dịch đã xác nhận chạy allocate_payment_entries
+	cấp min(allocable từ GL, phần còn lại). Vì vậy đọc lại và đòi cấp đủ số
+	phiếu; thiếu là lùi về điểm lưu, không để nối dở."""
+	pe = frappe.db.get_value(PE, ten_pe, ["name", "docstatus", "paid_amount", "paid_from", "vgb_chi_ma_gd"], as_dict=True)
+	if not pe:
+		return "không thấy phiếu chi"
+	bt = _bt_cua(pe.vgb_chi_ma_gd)
+	if not bt:
+		return ly_do_khong_noi(pe, None, None, False)
+	frappe.db.savepoint("vgb_noi_sao_ke")
+	try:
+		g = frappe.get_doc("Bank Transaction", bt, for_update=True)
+		da_noi = any(r.payment_document == PE and r.payment_entry == pe.name for r in (g.payment_entries or []))
+		ba_account = frappe.db.get_value("Bank Account", g.bank_account, "account")
+		ly = ly_do_khong_noi(pe, g.as_dict(), ba_account, da_noi)
+		if not ly:
+			# Dòng đang nằm trong bộ sao kê của chứng từ khác (hồ sơ APP, phiếu
+			# thu...) thì không nối chồng; kế toán xử ở Đối chiếu ngân hàng.
+			from vagabond import bo_sao_ke_db as bs
+			if bs._cac_bo(g.name, True):
+				ly = "dòng sao kê đang thuộc bộ sao kê của chứng từ khác"
+		if ly == "da_noi":
+			return ""
+		if ly:
+			return ly
+		g.flags.ignore_permissions = True
+		g.add_payment_entries([{"payment_doctype": PE, "payment_name": pe.name}])
+		g.save(ignore_permissions=True)
+		g.reload()
+		dong = [r for r in (g.payment_entries or []) if r.payment_document == PE and r.payment_entry == pe.name]
+		if not dong or flt(dong[0].allocated_amount) + LECH_NOI < flt(pe.paid_amount):
+			frappe.db.rollback(save_point="vgb_noi_sao_ke")
+			return "Đối chiếu ngân hàng chỉ nhận %s đ cho phiếu %s đ" % (
+				"{:,.0f}".format(flt(dong[0].allocated_amount) if dong else 0).replace(",", "."),
+				"{:,.0f}".format(flt(pe.paid_amount)).replace(",", "."))
+		return ""
+	except Exception as e:
+		frappe.db.rollback(save_point="vgb_noi_sao_ke")
+		frappe.clear_messages()
+		return "lỗi khi nối: %s" % str(e)[:160]
+
+
+def noi_sao_ke_con_thieu(chi_phieu=None):
+	"""Lịch 07:40 (trước tin 08:00): nối lại các phiếu chi từ MOC_NOI_SAO_KE đã
+	có mã dòng sao kê mà chưa nối đối chiếu lõi. Mỗi phiếu một lượt, commit
+	riêng; phiếu không nối được ghi lý do vào dòng thời gian của phiếu một lần.
+
+	Không đặt trần số phiếu (Codex #592): phiếu cũ không nối được nằm lại mỗi
+	ngày, trần sẽ chặn phiếu mới. Phiếu tính từ mốc nên số lượng nhỏ.
+	chi_phieu: chỉ xét đúng các phiếu này (ca kiểm tích hợp, không đụng phiếu thật)."""
+	dk, ts = "", [MOC_NOI_SAO_KE]
+	if chi_phieu is not None:
+		if not chi_phieu:
+			return
+		dk = " and pe.name in %s"
+		ts.append(tuple(chi_phieu))
+	rows = frappe.db.sql("""select pe.name from `tabPayment Entry` pe
+		where pe.docstatus = 1 and pe.payment_type = 'Pay' and ifnull(pe.vgb_chi_ma_gd, '') != ''
+		and pe.posting_date >= %s and not exists (select 1 from `tabBank Transaction Payments` b
+			where b.payment_document = 'Payment Entry' and b.payment_entry = pe.name)""" + dk + """
+		order by pe.posting_date desc, pe.name""", tuple(ts))
+	for (ten,) in rows:
+		try:
+			ly = noi_sao_ke(ten)
+			if ly and not frappe.db.exists("Comment", {"reference_doctype": PE, "reference_name": ten,
+					"content": ["like", "Chưa nối được dòng sao kê%"]}):
+				_ghi_vet(ten, "Chưa nối được dòng sao kê vào Đối chiếu ngân hàng: %s" % ly)
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(frappe.get_traceback(), "duyet_chi: noi sao ke %s" % ten)
 
 
 @frappe.whitelist(methods=["POST"])
