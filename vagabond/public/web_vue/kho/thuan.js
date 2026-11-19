@@ -254,7 +254,7 @@ export function tronMon(cakes, nhom) {
     if (g.anhs && g.anhs.length) c.anhs = g.anhs;
     /* v644: bánh có bộ nội dung web (Marketing sửa ở trình biên tập, thẻ Bánh)
        thì mô tả, tầng hương vị chỉ lấy từ đó, kể cả khi để trống. */
-    if (g.tu_web) { c.tuWeb = 1; c.desc = g.mo_ta || ''; c.layers = []; }
+    if (g.tu_web) { c.tuWeb = 1; c.desc = g.mo_ta || ''; c.layers = []; c.diUng = g.di_ung || ''; c.baoQuan = g.bao_quan || ''; }
     else if (g.mo_ta) c.desc = g.mo_ta;
     if (g.tang && g.tang.length) {
       c.layers = g.tang.map(x => {
