@@ -159,7 +159,7 @@ await ca('7. Codex #552 vòng 4: bánh một cỡ (cm 0) đặt trước vẫn k
 });
 
 /* v671 (Sales góp ý 18/11/2026, giám đốc chốt): bánh đặt trước chỉ nhận ngày mai. */
-await ca('8. v671 giỏ lưu hôm trước có bánh đặt trước, ngày nhận 15/11: mở lại trang thì dời sang ngày mai 12/11 và nhờ chọn lại', async () => {
+await ca('8. v671 giỏ lưu hôm trước có bánh đặt trước, ngày nhận 15/11: mở lại trang, số tồn về thì dời sang ngày mai 12/11 và nhờ chọn lại', async () => {
   const {mt} = moiTruong();
   const k1 = taoKho(mt);
   if (k1.phucHoiGio) k1.phucHoiGio();
@@ -170,6 +170,9 @@ await ca('8. v671 giỏ lưu hôm trước có bánh đặt trước, ngày nh�
   const k = taoKho(mt2);
   if (k.phucHoiGio) k.phucHoiGio();
   la('giỏ còn bánh', k.S.CART.length, 1);
+  /* Codex #594: chưa có số tồn thì giữ ngày khách đã chọn, chờ số về mới quyết. */
+  la('chưa có số tồn: giữ 15/11', k.S.ngayChon, '2026-11-15');
+  await k.napTon();
   la('dời sang ngày mai', k.S.ngayChon, '2026-11-12');
   la('nhờ khách xác nhận lại ngày', k.S.daChonNgay, false);
 });

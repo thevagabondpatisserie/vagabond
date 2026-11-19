@@ -531,7 +531,7 @@ await ca('v675 dị ứng và bảo quản: bánh có thẻ Bánh nhận hai m�
     {k: 'Kankin', img: '', desc: '', layers: [], sizes: [{cm: 16, p: 1, id: 'BAWC00124'}]}];
   tronMon(cakes, [
     {ten: 'Very Berry', anh: '/a.png', anhs: ['/a.png'], mo_ta: '', tang: [], di_ung: 'Sữa, trứng', bao_quan: 'Giữ lạnh', tu_web: 1, sizes: [{cm: 12, ma: 'BAWC00086', gia: 1}]},
-    {ten: 'Kankin', anh: '/k.png', anhs: ['/k.png'], mo_ta: '', tang: [], tu_web: 1, sizes: [{cm: 16, ma: 'BAWC00124', gia: 1}]}]);
+    {ten: 'Kankin', anh: '/k.png', anhs: ['/k.png'], mo_ta: '', tang: [], di_ung: '', bao_quan: '', tu_web: 1, sizes: [{cm: 16, ma: 'BAWC00124', gia: 1}]}]);
   la('đã điền', [cakes[0].diUng, cakes[0].baoQuan], ['Sữa, trứng', 'Giữ lạnh']);
   la('chưa điền', [cakes[1].diUng, cakes[1].baoQuan], ['', '']);
 });
@@ -724,6 +724,37 @@ nen.gia_lap()
 from vagabond.khung.kiem_thu import thu_refill_646 as t
 print(json.dumps(t.du_lieu_web(), ensure_ascii=False, default=str))
 `, GOC_REPO]).toString());
+
+await ca('Codex #594: giỏ lưu bánh đặt trước nhận ngày kia (12/11), mở lại khi số tồn về chậm: giữ ngày 12/11 suốt lúc chờ và sau khi số về (con_xa 3); số về mà ngày đó hết thì mới dời', async () => {
+  const doi = [];
+  const tra = () => new Promise(r => doi.push(r));
+  const a = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: RF_MAY})});
+  const k = taoKho(a.mt);
+  k.phucHoiGio(); await k.napTon();
+  k.S.tab = 'order'; coThem(k, 'Kankin'); k.pick(2); k.pickSlot(6);
+  la('ngày đã chọn', k.S.ngayChon, '2026-11-12');
+  /* Mở lại: máy chủ trả số chậm. */
+  const cham = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': tra});
+  cham.kho.set('vgb-gio-v1', a.kho.get('vgb-gio-v1'));
+  const k2 = taoKho(cham.mt);
+  k2.phucHoiGio();
+  const dang = k2.napTon();
+  la('đang chờ số: giữ 12/11', k2.S.ngayChon, '2026-11-12');
+  dung('bản lưu không bị ghi đè sang ngày khác', JSON.parse(cham.kho.get('vgb-gio-v1')).ngay === '2026-11-12');
+  doi.shift()({banh: {}, nhom: [], dat_truoc: RF_MAY}); await dang;
+  la('số về, ngày kia còn 3: vẫn 12/11', [k2.S.ngayChon, k2.S.CART.map(o => o.id)], ['2026-11-12', ['BAWC00123']]);
+  /* Số về mà ngày kia đã hết: lúc đó mới dời và nhờ khách chọn lại. */
+  const het = JSON.parse(JSON.stringify(RF_MAY));
+  het.nhom.forEach(g => g.sizes.forEach(y => { if (y.ma === 'BAWC00123') y.con_xa = 0; }));
+  const c3 = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': tra});
+  c3.kho.set('vgb-gio-v1', a.kho.get('vgb-gio-v1'));
+  const k3 = taoKho(c3.mt);
+  k3.phucHoiGio();
+  const d3 = k3.napTon();
+  la('chờ số: giữ', k3.S.ngayChon, '2026-11-12');
+  doi.shift()({banh: {}, nhom: [], dat_truoc: het}); await d3;
+  dung('ngày kia hết: dời khỏi 12/11 và bỏ cờ đã chọn ngày', k3.S.ngayChon !== '2026-11-12' && k3.S.daChonNgay === false);
+});
 
 await ca('v646 refill: bánh chỉ có mẻ refill hiện "Có từ 14/11"; giỏ có bánh đó thì lịch mờ ngày ngoài 14/11 tới 20/11, bấm ngày mờ thì báo và không đổi ngày', async () => {
   const {mt} = moiTruong('2026-11-10T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: RF_MAY})});

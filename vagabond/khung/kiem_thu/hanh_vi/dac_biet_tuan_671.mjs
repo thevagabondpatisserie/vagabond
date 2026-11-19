@@ -133,5 +133,17 @@ await ca('5. Giỏ lưu có Hũ Stollen (cỡ 0, có nguồn đặt trước): m
   la('không nằm trong hàng mùa vụ chờ', k2.S.gioCho.mua.length, 0);
 });
 
+await ca('Codex #594: dị ứng, bảo quản của thẻ Bánh còn nguyên sau khi trộn món của đợt (napTon): nhóm hôm nay và nhóm của đợt cùng mang hai mục; nguồn cũ không gửi hai khoá thì không xoá', async () => {
+  const NHOM = {ten: 'Bánh Stollen Cookie, Hũ 200 gr', anh: '/files/stollen.jpg', anhs: ['/files/stollen.jpg'], mo_ta: 'Bánh quy Stollen', tang: [],
+    di_ung: 'Bơ, bột mì, hạnh nhân', bao_quan: 'Nơi khô ráo, dùng trong 30 ngày', tu_web: 1, sizes: [{ma: 'BACF00051', cm: 0, gia: 180000}]};
+  const k = await khoMoi('2026-11-18T10:00:00+07:00', dotMau(), mayChu({nhom: [NHOM], dac_biet: [NHOM]}));
+  const c = k.S.CAKES.find(x => x.sizes.some(z => z.id === 'BACF00051'));
+  la('hai mục còn sau khi trộn', [c.diUng, c.baoQuan], ['Bơ, bột mì, hạnh nhân', 'Nơi khô ráo, dùng trong 30 ngày']);
+  const cu = Object.assign({}, NHOM); delete cu.di_ung; delete cu.bao_quan;
+  const k2 = await khoMoi('2026-11-18T10:00:00+07:00', dotMau(), mayChu({nhom: [NHOM], dac_biet: [cu]}));
+  const c2 = k2.S.CAKES.find(x => x.sizes.some(z => z.id === 'BACF00051'));
+  la('nhóm của đợt không mang khoá: giữ giá trị nhóm hôm nay', [c2.diUng, c2.baoQuan], ['Bơ, bột mì, hạnh nhân', 'Nơi khô ráo, dùng trong 30 ngày']);
+});
+
 console.log(`\n${dat} đạt, ${hong} hỏng`);
 if (hong) { console.log('Hỏng: ' + loi.join(' | ')); process.exit(1); }
