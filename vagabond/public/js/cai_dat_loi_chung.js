@@ -175,6 +175,7 @@ var VGB_ZALO_TIN = {
 	mkt_bai_cho_duyet: ['Marketing', 'Bài đăng chờ Marketing duyệt', 'Người soạn không có quyền duyệt vừa gửi một bài đăng mạng xã hội cho Marketing duyệt.'],
 	mkt_bai_dang_den_gio: ['Marketing', 'Đến giờ đăng tay bài đăng', 'Bài đã duyệt và hẹn giờ tới giờ đăng: các kênh chưa tự đăng được chờ Marketing đăng tay.'],
 	mkt_bai_gd_duyet: ['Marketing', 'Giám đốc duyệt hoặc trả lại bài đăng', 'Giám đốc vừa duyệt, đồng ý nội dung hoặc trả lại kèm góp ý một bài đăng gửi giám đốc duyệt.'],
+	mkt_meta_loi: ['Marketing', 'Đọc chi phí quảng cáo Meta bị dừng', 'Mã Meta hết hạn, thiếu quyền hoặc bị từ chối: số chi quảng cáo ngừng cập nhật. Mỗi lỗi báo một lần mỗi ngày.'],
 	ht_email_loi: ['Hệ thống', 'Email của tiệm không gửi được', 'Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.'],
 	ht_phat_hanh: ['Hệ thống', 'Bản tin cập nhật app sau mỗi deploy', 'App vừa lên bản mới: thêm gì, bộ phận cần làm gì.'],
 	ht_ds_hop_thu_loi: ['Hệ thống', 'Không đọc được hộp thư đối soát doisoat@', 'Đọc hộp thư đối soát lỗi 2 lần liên tiếp (sai mật khẩu, hộp thư đầy, mất kết nối).'],
@@ -287,6 +288,13 @@ var VGB_CD = (function () {
 		// v664 mxh.dang: Facebook, Instagram cần token người dùng hệ thống; Threads cần token Threads.
 		{ hau: 'Bài đã duyệt không tự lên Facebook, Instagram; Marketing phải đăng tay.', ten: 'Đăng bài Facebook, Instagram', can: ['mxh_token'], toi: 'mxh_token', muc: 'sec_mxh' },
 		{ hau: 'Bài đã duyệt không tự lên Threads; Marketing phải đăng tay.', ten: 'Đăng bài Threads', can: ['th_token'], toi: 'th_token', muc: 'sec_mxh' },
+		// v672 mxh.nguon_fb: Sonneto dùng token riêng, hoặc mượn token The Vagabond kèm Mã Trang Sonneto.
+		{ hau: 'Bài Sonneto đã duyệt không tự lên Facebook, Instagram của Sonneto; Marketing phải đăng tay.', ten: 'Đăng bài Sonneto Facebook, Instagram',
+			canMot: [['so_mxh_token'], ['so_page_id', 'mxh_token']], toi: 'so_page_id', muc: 'sec_mxh_so' },
+		{ hau: 'Bài Sonneto đã duyệt không tự lên Threads của Sonneto; Marketing phải đăng tay.', ten: 'Đăng bài Threads Sonneto', can: ['so_th_token'], toi: 'so_th_token', muc: 'sec_mxh_so' },
+		// v672 mxh.dang_gg: Mã, Khoá ứng dụng Google dán tay; Mã kết nối hệ thống ghi khi bấm Kết nối Google.
+		{ hau: 'Bài đã duyệt không tự lên Google Business Profile; Marketing phải đăng tay.', ten: 'Đăng bài Google Posts',
+			can: ['gg_client_id', 'gg_client_secret', 'gg_refresh_token'], toi: 'gg_client_id', muc: 'sec_gg' },
 		// thong_bao.py gửi bằng khoá riêng VAPID; thiếu là "chua co khoa VAPID".
 		{ hau: 'Điện thoại nhân viên không nhận thông báo đẩy.', ten: 'Thông báo đẩy', can: ['push_khoa_cong_khai', 'push_khoa_rieng'], toi: 'push_khoa_cong_khai', muc: 'sec_push' },
 		{ hau: 'Quảng cáo Meta không đo được đơn từ web.', ten: 'Meta Pixel', can: ['meta_pixel_id'], toi: 'meta_pixel_id', muc: 'sec_meta_pixel' },
