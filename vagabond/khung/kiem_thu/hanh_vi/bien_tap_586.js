@@ -582,11 +582,20 @@ function appMoi(tuy) {
     bang('thieu mon: bao, khong goi may chu', [app.bao(), app.dem('luu_muc')], ['Thêm ít nhất một món cho đợt.', 0]);
     await app.bam(app.mot('[data-them-dong="mon_dt"]'));
     await nghi(); await nghi();
-    var tuyChon = app.tim('option').map(function (x) { return x.value; });
-    bang('chi banh dang hien trong goi y', tuyChon, ['Candle']);
+    /* v671: ô chọn bánh có tìm (ảnh, tên, trạng thái), không còn ô gõ tên thả. */
+    dung('o chon banh bao chua chon', String(app.mot('[data-chon-banh="0"]').textContent).indexOf('Chọn bánh cho món này') >= 0);
     await app.luu();
     bang('chua chon banh: bao', app.bao(), 'Chọn bánh cho từng món của đợt.');
-    await app.go(app.oTen('mon_dt_khoa_0'), 'candle');
+    await app.bam(app.mot('[data-chon-banh="0"]'));
+    bang('chi banh khong Da an trong hop chon', app.tim('[data-banh-dot]').map(function (x) { return x.dataset.banhDot; }), ['candle']);
+    await app.go(app.oTen('mon_dt_tim_0'), 'xyz');
+    bang('go khong khop: khong con banh', app.tim('[data-banh-dot]').length, 0);
+    await app.go(app.oTen('mon_dt_tim_0'), 'CANDL');
+    await app.bam(app.mot('[data-banh-dot="candle"]'));
+    dung('nut hien ten banh da chon', String(app.mot('[data-chon-banh="0"]').textContent).indexOf('Candle') >= 0);
+    /* Thẻ Candle mẫu chưa có size nào có giá (sizes rỗng): dòng đỏ chỉ đúng việc cần làm. */
+    bang('dong trang thai noi viec can lam', [app.mot('.bt-tt-dot').className, String(app.mot('.bt-tt-dot').textContent)],
+      ['bt-goi-y bt-tt-dot do', 'Chưa có size nào có giá bán: nhờ kế toán đặt giá ở hồ sơ món trên app.']);
     await app.go(app.oTen('mon_dt_toi_da_0'), '30 cái');
     await app.bam(app.mot('[data-bo-ngay="2026-10-18"]'));
     await app.go(app.oTen('tieu_de_2'), '17/10');
