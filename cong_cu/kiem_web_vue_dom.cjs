@@ -342,7 +342,9 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       assert(await p.locator('#s-acc').isVisible(),ten+': khung đồ có sẵn phải hiện');
       const acc=await p.locator('#s-acc').innerText();
       for(const chu of ['Hộp bánh','Túi vải đen','Dao gỗ','Nến xoắn','Cờ cắm']) assert.match(acc,new RegExp(chu),ten+': thiếu '+chu);
-      assert.equal(await p.locator('#s-acc .tag-co-san').count(),5,ten);
+      /* v675: bản Vue gộp nhãn Có sẵn, Tặng kèm thành một tiêu đề Kèm theo mỗi bánh; bản cũ giữ nguyên. */
+      assert.equal(await p.locator('#s-acc .tag-co-san').count(),route.includes('web_moi')?0:5,ten);
+      if(route.includes('web_moi')) assert.match(await p.locator('#sheet, body').first().innerText(),/Kèm theo mỗi bánh/i,ten+': tiêu đề Kèm theo mỗi bánh');
       /* Hộp Cách chọn size: mở bằng nút, Escape đóng hộp nhưng bảng bánh vẫn mở, con trỏ về nút. */
       await p.locator('#s-huongsize').click();
       await p.locator('#huongSize').waitFor({state:'visible'});

@@ -188,6 +188,11 @@ def tra_loi_get(phuong, q):
 			return dict(TON, dac_biet=[{'ten': 'Bánh Stollen Cookie, Hũ 200 gr', 'anh': '/assets/vagabond/web_order/og-banh.jpg',
 				'anhs': ['/assets/vagabond/web_order/og-banh.jpg'], 'mo_ta': 'Bánh quy Stollen giòn bơ.', 'tang': [], 'tu_web': 1,
 				'sizes': [{'ma': 'BACF00051', 'cm': 0, 'gia': 180000}]}])
+		if os.environ.get('VGB_DT') == '675':
+			# v675: ngày mai theo phiếu (con_mai), ngày kia và ngày thứ ba theo Đủ decor (con_xa).
+			return dict(TON, dat_truoc={'nhom': [{'ten': 'CANDLE', 'sizes': [
+				{'cm': 12, 'ma': 'BAWC00139', 'gia': 650000, 'con': 2, 'con_mai': 2, 'con_xa': 6},
+				{'cm': 16, 'ma': 'BAWC00140', 'gia': 880000, 'con': 3, 'con_mai': 0, 'con_xa': 3}]}]})
 		return TON
 	if phuong == 'hang_theo_mua':
 		return MUA
