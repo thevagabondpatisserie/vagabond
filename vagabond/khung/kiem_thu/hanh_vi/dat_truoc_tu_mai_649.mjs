@@ -174,7 +174,7 @@ await ca('8. v671 giỏ lưu hôm trước có bánh đặt trước, ngày nh�
   la('nhờ khách xác nhận lại ngày', k.S.daChonNgay, false);
 });
 
-await ca('9. v671 giỏ có bánh đặt trước: bấm ngày 15/11 ở bước Ngày và giờ nhận thì báo nhận ngày mai, không đổi ngày; ngày mai chọn được', async () => {
+await ca('9. v671, v675 giỏ có bánh đặt trước: bấm ngày 15/11 (sau 3 ngày tới) ở bước Ngày và giờ nhận thì báo, không đổi ngày; ngày mai chọn được', async () => {
   const {mt} = moiTruong();
   const k = taoKho(mt);
   them(k, 'order');
@@ -182,7 +182,7 @@ await ca('9. v671 giỏ có bánh đặt trước: bấm ngày 15/11 ở bước
   la('ngày mai', k.S.ngayChon, '2026-11-12');
   k.pick(4);
   la('không đổi ngày', k.S.ngayChon, '2026-11-12');
-  dung('báo nhận ngày mai', /nhận vào ngày mai/.test(k.S.toast.chu));
+  dung('báo bánh đặt trước nhận trong 3 ngày tới (v675)', /trong 3 ngày tới/.test(k.S.toast.chu));
   la('ngày 15/11 mờ trên lịch giỏ', k.ngayRail.value.find(d => d.i === 4).off, true);
 });
 
