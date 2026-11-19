@@ -7,8 +7,7 @@ Không commit ở đây; lỗi kiểm vẫn đi cách B tại cửa nhận đơn
 import json
 from datetime import datetime, timedelta
 import frappe
-from vagabond.giu_vo import don_con_giu_vo
-from vagabond.ton_don_web import decor_huu_han, hom_nay
+from vagabond.ton_don_web import SO_NGAY_DAT_TRUOC, con_decor, hom_nay
 
 O = "giu_ton_web"
 # v646 Codex 549 (1eefda8): suất refill đơn web đã giữ, ghi trong snapshot đơn.
@@ -66,39 +65,57 @@ def tinh(hang, ton, giu):
 
 
 def kiem_va_giu(hang, ngay):
-    """Trả cảnh báo và metadata để ghi vào chính đơn sắp tạo, chưa commit."""
+    """Trả cảnh báo và metadata để ghi vào chính đơn sắp tạo, chưa commit.
+
+    v671: hôm nay và ngày mai cùng một luật, số theo cột Có thể bán của phiếu
+    Kiểm bánh ĐÚNG ngày nhận, trừ suất các đơn web cùng ngày nhận mà nhịp đếm
+    chưa có. Bánh làm theo mẻ giữ ở kiem_va_giu_refill.
+
+    v675: ngày kia và ngày thứ ba giữ theo Đủ decor (ton_don_web.con_decor, cùng
+    phép với thẻ web), trừ suất các đơn web ba ngày tới mà nhịp đếm chưa có, vì
+    các đơn đó cùng ăn vào Đủ decor. Xa hơn không giữ (ton_don_web chặn)."""
     if not ngay or not str(ngay).strip():
         return [], None
     ng = datetime.fromisoformat(str(ngay)).date()
     nay = hom_nay()
-    if not nay <= ng <= nay + timedelta(days=3):
+    if not nay <= ng <= nay + timedelta(days=SO_NGAY_DAT_TRUOC):
         return [], None
     khoa()
     ton = {}
-    if ng == nay:
-        for d in _dong(ng):
-            ton[str(d.ma_hang)] = (max(0, int(d.co_the_ban or 0)), d.ten_banh or d.ma_hang)
-    else:
-        # v646: mã có ngày nhận nằm trong khoảng refill do ton_don_web kiểm theo
-        # số refill, không giữ theo Đủ decor; đơn ngày refill không trừ decor.
+    xa = ng > nay + timedelta(days=1)
+    if xa:
         from vagabond import refill
         # Giữ đúng thứ tự khoá cũ: dòng kiểm bánh ba ngày trước, bảng BTP sau.
-        kb = [(nay + timedelta(days=i), _dong(nay + timedelta(days=i))) for i in (1,2,3)]
+        kb = [(nay + timedelta(days=i), _dong(nay + timedelta(days=i))) for i in range(1, SO_NGAY_DAT_TRUOC + 1)]
         btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,decor_da_lam,so_refill,refill_tu,refill_den,refill_dot from `tabBTP Banh O Dong`
             where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
         rf = refill.hieu_luc_tu_dong(btp, nay)
-        dd = {}
-        for ngay_kb, dong_kb in kb:
-            for d in dong_kb:
-                ma = str(d.ma_hang)
-                if refill.ngay_cua_refill(rf, ma, ngay_kb):
-                    continue
-                # v649 Codex #552 vòng 7: đơn đã có bánh bếp làm trước thì vỏ đã trừ.
-                dd[ma] = dd.get(ma,0) + don_con_giu_vo(d, ("da_dat",))
-        for d in btp:
-            # v649: decor cạn vì bếp làm hết vẫn chặn (ton_don_web.decor_huu_han).
-            if decor_huu_han(d) and not refill.ngay_cua_refill(rf, str(d.ma_hang), ng):
-                ton[str(d.ma_hang)] = (max(0,int(d.so_decor or 0)-dd.get(str(d.ma_hang),0)),d.ten_banh or d.ma_hang)
+        so = refill.tinh(nay, dong=btp) if rf else None
+        mo = refill.bo_dot_du_don(rf, so)
+        ten_dt = {str(d.ma_hang): d.ten_banh or d.ma_hang for d in btp}
+        for d in kb[0][1]:
+            ten_dt.setdefault(str(d.ma_hang), d.ten_banh or d.ma_hang)
+        ton = {m: (max(0, c), t) for m, (c, t) in con_decor(btp, kb, nay, rf, so).items()}
+        # Bánh đặt trước không có Đủ decor thì hết chỗ ngày này (như ton_don_web).
+        for h in hang or []:
+            m = str(h["variation_id"])
+            if m in ten_dt and m not in ton:
+                ton[m] = (0, ten_dt[m])
+        ton = {m: v for m, v in ton.items() if not refill.ngay_cua_refill(mo, m, ng)}
+    for d in ([] if xa else _dong(ng)):
+        ton[str(d.ma_hang)] = (max(0, int(d.co_the_ban or 0)), d.ten_banh or d.ma_hang)
+    if nay < ng and not xa:
+        # Ngày mai thuộc khoảng mẻ refill của mã: đơn trừ vào mẻ (kiem_va_giu_refill).
+        from vagabond import refill
+        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,so_refill,refill_tu,refill_den,refill_dot from `tabBTP Banh O Dong`
+            where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
+        rf = refill.hieu_luc_tu_dong(btp, nay)
+        ma_don = {str(h["variation_id"]) for h in hang or []}
+        if any(refill.ngay_cua_refill(rf, m, ng) for m in ma_don):
+            # v675: đợt đã nhận đủ đơn không giữ ngày của nó, bánh bán theo phiếu
+            # ngày mai (cùng phép với thẻ web và cửa nhận đơn).
+            rf = refill.bo_dot_du_don(rf, refill.tinh(nay, dong=btp))
+        ton = {m: v for m, v in ton.items() if not refill.ngay_cua_refill(rf, m, ng)}
     giu = {}
     for d in _don():
         snap = json.loads(d.snapshot or '{}')
@@ -106,7 +123,7 @@ def kiem_va_giu(hang, ngay):
         if not b or b.get('da_dem'):
             continue
         ngay_don = datetime.fromisoformat(str(b.get('ngay_nguon') or d.ngay_nhan)).date()
-        cung_nguon = ngay_don == nay if ng == nay else nay < ngay_don <= nay + timedelta(days=3)
+        cung_nguon = nay < ngay_don <= nay + timedelta(days=SO_NGAY_DAT_TRUOC) if xa else ngay_don == ng
         if cung_nguon:
             for ma, so in (b.get('dong') or {}).items():
                 giu[ma] = giu.get(ma,0) + int(so)
@@ -173,6 +190,15 @@ def kiem_va_giu_refill(hang, ngay):
     so = refill.tinh(nay, dong=btp)
     if so.get("loi"):
         return [], giu
+    if ng <= nay + timedelta(days=SO_NGAY_DAT_TRUOC):
+        # v675: ngày thuộc đợt đã nhận đủ đơn thì bánh bán như bánh đặt trước
+        # thường (ngày mai theo phiếu, ngày kia và ngày thứ ba theo Đủ decor;
+        # kiem_va_giu giữ), không giữ suất mẻ. Ngày xa hơn vẫn chặn theo đợt.
+        mo = refill.bo_dot_du_don(rf, so)
+        can = {m: n for m, n in can.items() if refill.ngay_cua_refill(mo, m, ng)}
+        if not can:
+            return [], None
+        giu = {"dong": can, "ngay": ng.isoformat()}
     # v660: chỉ xét đợt CHỨA ngày nhận của đơn này (một bánh nhiều đợt).
     rf_ng = refill.theo_ngay(rf, ng)
     tu = min(rf_ng[m]["tu"] for m in can)
@@ -191,8 +217,10 @@ def kiem_va_giu_refill(hang, ngay):
 def da_dem(ngay, cac_id):
     """Đồng bộ KB đã giữ khoa(): đánh dấu trong cùng transaction với số tồn.
 
-    Hôm nay co_the_ban trừ cả Cho chốt; ngày sau nguồn decor chỉ trừ Đã đặt.
-    Bên gọi phải truyền đúng danh sách thực sự dùng để tính cột tương ứng.
+    Có thể bán trừ cả Đã đặt, Phát sinh và Chờ chốt, nên bên gọi truyền mọi
+    đơn giao ngày đó (v671: ngày mai cũng theo Có thể bán, trước đây theo Đủ
+    decor chỉ trừ Đã đặt). Bên gọi phải truyền đúng danh sách thực sự dùng để
+    tính cột tương ứng.
     """
     ids = {str(x) for x in cac_id if x is not None}
     ngay=str(ngay)[:10]

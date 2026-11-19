@@ -605,7 +605,9 @@ def tao_don(don=None):
 	# không đọc được thì nhận như cũ, nhưng phải báo Sales đối chiếu.
 	from vagabond import ton_don_web
 	try:
-		nhac_ton = ton_don_web.kiem(hang, ngay)
+		# v671 (Minh Vũ 18/11/2026): món của đợt giữ số theo đợt (đã xét ở trên và
+		# dưới khoá đợt), không xét tồn tủ hay Đủ decor như bánh đặt trước thường.
+		nhac_ton = ton_don_web.kiem(dbt.bo_mon_dot(hang, ma_dbt), ngay)
 	except Exception:
 		ton_don_web.bao_loi(ngay)
 		nhac_ton = []
@@ -639,6 +641,8 @@ def tao_don(don=None):
 	# Tien banh TINH LAI o day theo gia ho so mon (QT-19). Con so trinh duyet
 	# hien cho khach khong duoc dung de quyet mien phi giao.
 	hang_goc = [dict(h) for h in hang]
+	# v671: dòng đem đi kiểm và giữ tồn tủ, Đủ decor, refill (món của đợt giữ số theo đợt).
+	hang_ton = dbt.bo_mon_dot(hang_goc, ma_dbt)
 	gia, ten_mon = _gia_va_ten([h["variation_id"] for h in hang_goc])
 	tien_banh, _thieu_gia = don_web.tinh_tien_banh(hang_goc, gia)
 
@@ -702,6 +706,9 @@ def tao_don(don=None):
 				"ban_kinh": bao_phi.get("ban_kinh"),
 			}
 	# Ngưỡng miễn phí giao xét trên tiền bánh SAU ưu đãi.
+	# v675: miễn phí giao chỉ trong bán kính (mặc định 7 km từ điểm xuất hàng).
+	from vagabond import mien_phi_km
+	bao_phi = mien_phi_km.gan_co(bao_phi, mien_phi_km.doc())
 	phi = don_web.quyet_phi_giao(tien_banh - giam, don_web.nguong_mien_phi(), tu_lay, bao_phi)
 
 	# Doi ma hang sang UUID truoc khi gui. Thieu mot ma la dung lai bao ngay,
@@ -781,13 +788,14 @@ def tao_don(don=None):
 	if hd_pancake:
 		body["invoice_info_list"] = hd_pancake
 
-	# v638: bốn cách (chuyển khoản, thẻ quốc tế, ATM nội địa, tiền mặt). Giá trị lạ,
+	# v638, v675: ba cách trả trước (chuyển khoản, thẻ quốc tế, ATM nội địa); tiền
+	# mặt khi nhận bánh đã bỏ (giám đốc chốt 19/11/2026). Giá trị lạ, tiền mặt,
 	# hoặc chọn thẻ khi cổng OnePay đang tắt (trang khách giữ danh sách cũ), về
 	# chuyển khoản: biên nhận vẫn có mã VietQR để khách trả ngay.
 	from vagabond import onepay as _op
 	from vagabond import thanh_toan_web_thuan as ttt
 
-	thanh_toan = ttt.chuan_pt(don.get("thanh_toan"), the_dung=_op.dung_duoc())
+	thanh_toan = ttt.chuan_pt_don_moi(don.get("thanh_toan"), the_dung=_op.dung_duoc())
 	from vagabond import goi_y_mua
 
 	snapshot = {
@@ -848,6 +856,7 @@ def tao_don(don=None):
 			except Exception:
 				frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc lại được đợt Đặc biệt tuần này")
 				dot_x, ma_x = dot, ma_dbt
+			hang_ton = dbt.bo_mon_dot(hang_goc, ma_x)
 			ly_dbt = dbt.kiem_don(dot_x, hang_dbt, ma_x, ngay, dbt.luc_vn())
 			if ly_dbt:
 				return {"ok": 0, "ly_do": ly_dbt, "ngay_giao": list(dot_x.get("ngay_giao") or [])}
@@ -891,10 +900,10 @@ def tao_don(don=None):
 		from vagabond import giu_ton_web
 		frappe.db.savepoint("giu_ton_web")
 		try:
-			nhac_ton, giu_ton = giu_ton_web.kiem_va_giu(hang_goc, ngay)
+			nhac_ton, giu_ton = giu_ton_web.kiem_va_giu(hang_ton, ngay)
 			# v646 Codex 549: suất refill kiểm và giữ cùng transaction, không để
 			# hai khách cùng lấy suất cuối (cửa ngoài chỉ đếm từ xa).
-			nhac_rf, giu_rf = giu_ton_web.kiem_va_giu_refill(hang_goc, ngay)
+			nhac_rf, giu_rf = giu_ton_web.kiem_va_giu_refill(hang_ton, ngay)
 			nhac_ton = list(nhac_ton or []) + list(nhac_rf or [])
 		except Exception:
 			frappe.db.rollback(save_point="giu_ton_web")

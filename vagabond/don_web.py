@@ -210,7 +210,9 @@ def quyet_phi_giao(tien_banh, nguong, tu_lay, bao_phi):
 			phi = None
 		if not phi or phi <= 0:
 			phi = None
-	if nguong > 0 and tien_banh >= nguong:
+	# v675: đủ ngưỡng tiền nhưng ngoài bán kính miễn phí thì trả phí như đơn thường.
+	# Cờ ngoai_km_mien_phi do cửa tạo đơn gắn vào báo phí (mien_phi_km.gan_co).
+	if nguong > 0 and tien_banh >= nguong and not (bao_phi or {}).get("ngoai_km_mien_phi"):
 		return {"phi_khach": 0, "phi_ahamove": phi, "tiem_chiu": phi or 0, "mien_phi": True, "trang_thai": "mien_phi"}
 	if phi:
 		return {"phi_khach": phi, "phi_ahamove": phi, "tiem_chiu": 0, "mien_phi": False, "trang_thai": "chinh_xac"}
@@ -546,6 +548,7 @@ except Exception:  # pragma: no cover
 		yield
 
 from vagabond.lib import cfg, cfg_o, key
+from vagabond import mien_phi_km
 
 
 def _khoa_bi_mat():
@@ -649,6 +652,8 @@ def cau_hinh_web():
 		"gioi_thieu": 1 if gioi_thieu.bat() else 0,
 		"pixel_id": pixel_id(),
 		"mien_phi_tu": nguong_mien_phi(),
+		# v675: miễn phí giao chỉ trong bán kính này (km), 0 là không giới hạn.
+		"mien_phi_km": mien_phi_km.doc(),
 		"lien_he": lien_he(),
 		"phap_nhan": PHAP_NHAN,
 		"chinh_sach": noi_dung_web.chinh_sach_dang_hien(),

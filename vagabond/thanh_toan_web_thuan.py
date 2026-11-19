@@ -20,6 +20,8 @@ import json
 import re
 
 PT_HOP_LE = ("bank", "card", "atm", "cash")
+# Cách còn nhận cho đơn MỚI (v675). PT_HOP_LE giữ "cash" để đọc đơn cũ.
+PT_NHAN_DON = ("bank", "card", "atm")
 PT_MAC_DINH = "bank"
 # Cách nào đi qua cổng OnePay, và loại thẻ gửi cổng (vpc_CardList).
 CARD_LIST = {"card": "INTERNATIONAL", "atm": "DOMESTIC"}
@@ -63,6 +65,15 @@ def chuan_pt(v, the_dung=True):
 	if x in CARD_LIST and not the_dung:
 		return PT_MAC_DINH
 	return x
+
+
+def chuan_pt_don_moi(v, the_dung=True):
+	"""Cách thanh toán cho đơn web MỚI. v675 (giám đốc chốt 19/11/2026): chỉ nhận
+	thanh toán trước, không còn tiền mặt khi nhận bánh. Trang khách còn mở bản
+	cũ gửi "cash" thì về chuyển khoản, biên nhận có mã VietQR. Đơn cũ đã chọn
+	tiền mặt vẫn đọc bằng chuan_pt. THUẦN."""
+	x = chuan_pt(v, the_dung=the_dung)
+	return x if x in PT_NHAN_DON else PT_MAC_DINH
 
 
 def nhan_pt(v):

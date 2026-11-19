@@ -312,7 +312,9 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
 		data, loi = hoi(c, gan_nhat, diem, 0)
 		theo_gio = False
 	if loi:
-		return {"ok": 0, "ly_do": loi}
+		# v675: giữ khoảng cách đường thẳng để luật miễn phí giao theo bán kính
+		# vẫn xét được khi hãng giao không báo được phí.
+		return {"ok": 0, "ly_do": loi, "km_thang": round(gan_nhat["_km"], 2)}
 
 	goc = int(data["total_fee"])
 	phu = int(c.phu_thu or 0)
@@ -322,6 +324,9 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
 		"phu_thu": phu,
 		"total_fee": goc + phu,
 		"distance": data.get("distance"),
+		# v675: khoảng cách đường thẳng từ điểm xuất hàng gần nhất (km), cho luật
+		# miễn phí giao trong bán kính (don_web.quyet_phi_giao).
+		"km_thang": round(gan_nhat["_km"], 2),
 		"dia_chi": diem.get("dia_chi"),
 		"diem_lay": gan_nhat["ten"],
 		"theo_gio": theo_gio,
