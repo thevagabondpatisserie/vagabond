@@ -7,7 +7,7 @@ Không commit ở đây; lỗi kiểm vẫn đi cách B tại cửa nhận đơn
 import json
 from datetime import datetime, timedelta
 import frappe
-from vagabond.ton_don_web import SO_NGAY_DAT_TRUOC, con_decor, hom_nay
+from vagabond.ton_don_web import SO_NGAY_DAT_TRUOC, con_decor, da_lam_dot_vuot, hom_nay
 
 O = "giu_ton_web"
 # v646 Codex 549 (1eefda8): suất refill đơn web đã giữ, ghi trong snapshot đơn.
@@ -95,7 +95,7 @@ def kiem_va_giu(hang, ngay):
         ten_dt = {str(d.ma_hang): d.ten_banh or d.ma_hang for d in btp}
         for d in kb[0][1]:
             ten_dt.setdefault(str(d.ma_hang), d.ten_banh or d.ma_hang)
-        ton = {m: (max(0, c), t) for m, (c, t) in con_decor(btp, kb, nay, rf, so).items()}
+        ton = {m: (max(0, c), t) for m, (c, t) in con_decor(btp, kb, nay, rf, so, da_lam_dot_vuot(so, nay)).items()}
         # Bánh đặt trước không có Đủ decor thì hết chỗ ngày này (như ton_don_web).
         for h in hang or []:
             m = str(h["variation_id"])

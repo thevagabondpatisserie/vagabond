@@ -288,7 +288,8 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
 		}
 
 	moc = _luc_giao_unix(luc_giao)
-	ck = "vgb:fee:%s:%s,%s,%s,%s" % (
+	# v675: khoá mới để báo phí còn trong bộ nhớ đệm từ bản trước (chưa có km_thang) không được dùng lại.
+	ck = "vgb:fee675:%s:%s,%s,%s,%s" % (
 		nguon, round(diem["lat"], 5), round(diem["lng"], 5), moc // 1800, gan_nhat["ten"]
 	)
 	hit = cache_get(ck)

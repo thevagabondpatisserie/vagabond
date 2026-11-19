@@ -1956,7 +1956,7 @@ def _dat_truoc_theo_decor():
 		if frappe.db.exists("Kiem Banh Ngay", "KB-%s" % ng_i):
 			kb3.append((ng_i, frappe.get_doc("Kiem Banh Ngay", "KB-%s" % ng_i).dong))
 	con_xa = {m: n for m, (n, _t) in ton_don_web.con_decor(dong_btp, kb3, ngay, refill.hieu_luc_tu_dong(dong_btp, ngay),
-		so_rf).items() if n > 0 and not m.upper().startswith("BAWS")
+		so_rf, ton_don_web.da_lam_dot_vuot(so_rf, ngay)).items() if n > 0 and not m.upper().startswith("BAWS")
 		# Ngày kia và ngày thứ ba đều thuộc đợt refill còn nhận thì hai ngày đó theo đợt.
 		and any(not refill.ngay_cua_refill(rf_mo, m, add_days(ngay, i)) for i in range(2, ton_don_web.SO_NGAY_DAT_TRUOC + 1))}
 	# Mỗi mã một dòng nguồn (tên, ảnh): phiếu ngày mai trước, bảng BTP cho mã chỉ còn refill hay Đủ decor.

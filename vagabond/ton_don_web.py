@@ -78,7 +78,48 @@ def decor_huu_han(d):
     return int(lay("so_decor") or 0) + int(lay("decor_da_lam") or 0) > 0
 
 
-def con_decor(dong_btp, kb_ngay, nay, rf=None, so=None):
+def da_lam_dot_vuot(so, nay, doc_dong=None):
+    """{(mã, ngày đầu đợt): số đơn của đợt đã có bánh Bếp làm}, cho các đợt refill
+    nhận vượt số còn chạm ba ngày tới (Codex #594).
+
+    Bếp nhập Bếp làm là máy đã trừ Đủ decor (btp.tru_vo_theo_sx), nên phần vượt
+    đã làm không được trừ lần nữa trong con_decor. Đọc phiếu Kiểm bánh của MỌI
+    ngày thuộc đợt (kể cả hôm nay và các ngày đã qua); ngày chưa có phiếu thì
+    chưa ai nhập Bếp làm. `doc_dong(ngày)` trả dòng phiếu hoặc None (tiêm cho ca
+    kiểm). Một nguồn cho thẻ web, cửa nhận đơn và cửa tạo đơn."""
+    from vagabond import refill
+    from vagabond.giu_vo import DON_GIU, _o_so
+
+    if not so or so.get("loi"):
+        return {}
+    if doc_dong is None:
+        def doc_dong(ng):
+            ten = "KB-%s" % ng
+            return frappe.get_doc("Kiem Banh Ngay", ten).dong if frappe.db.exists("Kiem Banh Ngay", ten) else None
+    cuoi = nay + timedelta(days=SO_NGAY_DAT_TRUOC)
+    nho, ra = {}, {}
+    for ma, ds in (so.get("refill") or {}).items():
+        for r in ds or []:
+            c = r.get("con")
+            tu, den = refill.ngay(r.get("tu")), refill.ngay(r.get("den"))
+            if c is None or int(c) >= 0 or not tu or not den or tu > cuoi or den <= nay:
+                continue
+            lam, ng = 0, tu
+            while ng <= den and (ng - tu).days < 62:
+                if ng not in nho:
+                    nho[ng] = doc_dong(ng) or []
+                for d in nho[ng]:
+                    ma_d = d.get("ma_hang") if hasattr(d, "get") else getattr(d, "ma_hang", None)
+                    if str(ma_d or "") == str(ma):
+                        don = sum(_o_so(d, o) for o in DON_GIU)
+                        if don > 0:
+                            lam += don - don_con_giu_vo(d)
+                ng += timedelta(days=1)
+            ra[(str(ma), tu.isoformat())] = lam
+    return ra
+
+
+def con_decor(dong_btp, kb_ngay, nay, rf=None, so=None, da_lam=None):
     """{mã: (Đủ decor còn nhận, tên)} cho ngày kia và ngày thứ ba (v675). THUẦN.
 
     MỘT phép cho thẻ web, cửa nhận đơn và cửa tạo đơn. Đủ decor trừ các đơn chưa
@@ -86,7 +127,10 @@ def con_decor(dong_btp, kb_ngay, nay, rf=None, so=None):
     với Có thể bán qua don_con_giu_vo). Ngày thuộc đợt refill (`rf` hiệu lực)
     thì đơn trừ vào mẻ, không trừ Đủ decor; riêng đợt đã nhận đủ đơn (`so` của
     refill.tinh, con âm) thì phần vượt số của đợt lấy từ Đủ decor nên trừ vào
-    đây. Chỉ dòng có Đủ decor hữu hạn (decor_huu_han)."""
+    đây. Codex #594: chỉ trừ phần vượt CHƯA được Bếp làm (`da_lam` của
+    da_lam_dot_vuot), vì bánh đã làm thì Đủ decor đã bị trừ rồi; không truyền
+    `da_lam` thì trừ cả phần vượt (thận trọng). Chỉ dòng có Đủ decor hữu hạn
+    (decor_huu_han)."""
     from vagabond import refill
 
     def lay(d, k):
@@ -105,7 +149,11 @@ def con_decor(dong_btp, kb_ngay, nay, rf=None, so=None):
                 c = r.get("con")
                 tu, den = refill.ngay(r.get("tu")), refill.ngay(r.get("den"))
                 if c is not None and int(c) < 0 and tu and den and tu <= cuoi and den > nay:
-                    dd[str(ma)] = dd.get(str(ma), 0) - int(c)
+                    vuot = -int(c)
+                    if da_lam is not None and r.get("da_dat") is not None:
+                        chua_lam = max(0, int(r["da_dat"]) - int(da_lam.get((str(ma), tu.isoformat()), 0)))
+                        vuot = min(vuot, chua_lam)
+                    dd[str(ma)] = dd.get(str(ma), 0) + vuot
     ra = {}
     for d in dong_btp or []:
         ma = str(lay(d, "ma_hang") or "")
@@ -124,7 +172,7 @@ def _con_decor_web(dong_btp, nay, so=None):
         ten = "KB-%s" % ng
         if frappe.db.exists("Kiem Banh Ngay", ten):
             kb.append((ng, frappe.get_doc("Kiem Banh Ngay", ten).dong))
-    return con_decor(dong_btp, kb, nay, refill.hieu_luc_tu_dong(dong_btp, nay), so)
+    return con_decor(dong_btp, kb, nay, refill.hieu_luc_tu_dong(dong_btp, nay), so, da_lam_dot_vuot(so, nay))
 
 
 def _ton_phieu(ng):
