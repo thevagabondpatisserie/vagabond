@@ -61,6 +61,8 @@ def _nhap_that_gia(ct, ky, tkqc, tkthe):
 	minh mình không cập nhật, không ghi sổ nó."""
 	ten = "%s:%s:%s" % (BN.MA_LOAI[BN.LOAI_META], frappe.db.get_value("Company", ct, "abbr") or ct, ky)
 	if frappe.db.exists(BN.DT, ten):
+		# Site đã có bản ghi tháng thật (nháp, đã ghi sổ hay chưa nối bút toán): chính nó là
+		# bằng chứng; ca so với trạng thái ban đầu của nó, không đòi phải là nháp (Codex #592 P2).
 		return ten, frappe.db.get_value(BN.DT, ten, "journal_entry")
 	cc = frappe.get_cached_value("Company", ct, "cost_center")
 	je = _luu(frappe.get_doc(dict(doctype="Journal Entry", company=ct, posting_date=str(BN.ngay_cuoi_thang(ky)),
@@ -311,7 +313,7 @@ def _meta_the_mb():
 	tkphi = _tk(ct, "6427", "Expense", "KT674 Chi phí dịch vụ mua ngoài quản lý")
 	tkthe = _tk(ct, "3411", "Liability", "KT674 Các khoản đi vay")
 	_bg_that, je_that = _nhap_that_gia(ct, ky, tkqc, tkthe)
-	dong_that = _so_dong_je(je_that)
+	ban_dau = _trang_thai_je(je_that)
 	tknh = frappe.db.get_value("Account", {"company": ct, "account_number": "11219", "is_group": 0}, "name")
 	if not tknh:
 		cha = frappe.db.get_value("Account", {"company": ct, "root_type": "Asset", "is_group": 1}, "name", order_by="lft desc")
@@ -342,8 +344,14 @@ def _meta_the_mb():
 	finally:
 		for x in rieng:
 			x.stop()
-	la("nháp Meta thật có sẵn của tháng không bị cập nhật, không bị ghi sổ",
-		(frappe.db.get_value("Journal Entry", je_that, "docstatus"), _so_dong_je(je_that)), (0, dong_that))
+	la("bản ghi Meta thật của tháng giữ nguyên trạng thái ban đầu (nháp không bị cập nhật, không bị ghi sổ)",
+		_trang_thai_je(je_that), ban_dau)
+
+
+def _trang_thai_je(je):
+	if not je:
+		return None
+	return (frappe.db.get_value("Journal Entry", je, "docstatus"), _so_dong_je(je))
 
 
 def _so_dong_je(je):
