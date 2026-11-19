@@ -190,7 +190,8 @@ def tra_loi_get(phuong, q):
 				'sizes': [{'ma': 'BACF00051', 'cm': 0, 'gia': 180000}]}])
 		if os.environ.get('VGB_DT') == '675':
 			# v675: ngày mai theo phiếu (con_mai), ngày kia và ngày thứ ba theo Đủ decor (con_xa).
-			return dict(TON, dat_truoc={'nhom': [{'ten': 'CANDLE', 'sizes': [
+			return dict(TON, dat_truoc={'nhom': [{'ten': 'CANDLE', 'tu_web': 1, 'mo_ta': 'Bánh mẫu để chụp ảnh xem thử.', 'tang': ['Mousse - lớp kem'],
+				'di_ung': 'Sữa, trứng, gluten, hạt hạnh nhân.', 'bao_quan': 'Giữ lạnh 2 đến 6 độ C, dùng trong ngày.', 'sizes': [
 				{'cm': 12, 'ma': 'BAWC00139', 'gia': 650000, 'con': 2, 'con_mai': 2, 'con_xa': 6},
 				{'cm': 16, 'ma': 'BAWC00140', 'gia': 880000, 'con': 3, 'con_mai': 0, 'con_xa': 3}]}]})
 		return TON

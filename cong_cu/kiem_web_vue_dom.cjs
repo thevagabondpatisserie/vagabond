@@ -243,7 +243,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     const p2=await c.newPage(); await p2.goto(url+'/web_moi/banh/xong'); await p2.locator('.bn-in').waitFor();
     assert.equal(await p2.locator('h1').innerText(),'Mở lại từ tin nhắn nhé');
     assert.equal(await p2.locator('.bn-nut a').innerText(),'Quay về đặt bánh');
-    assert.match(await p2.locator('.bn-cau').innerText(),/tin nhắn của chúng tôi/);
+    assert.match(await p2.locator('.bn-cau').innerText(),/tin nhắn của The Vagabond/);
     await c.close();
   });
   await test('F27 chính sách DOM giữ chữ như text, không thực thi ngoặc Vue',async()=>{
