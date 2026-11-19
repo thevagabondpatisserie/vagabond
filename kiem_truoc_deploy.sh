@@ -312,6 +312,9 @@ node vagabond/khung/kiem_thu/hanh_vi/bai_dang_662.js
 node vagabond/khung/kiem_thu/hanh_vi/mon_di_kem_668.js
 # v668: goi y mua them tren trang /banh (kho-banh.js, kho-goi-ban.js, goi-y-mua.js that).
 node vagabond/khung/kiem_thu/hanh_vi/goi_y_mua_668.mjs
+# v671: Dac biet tuan nay theo dot (kho-banh.js, dac-biet-tuan.js that) va o Tim ma cu cua man Danh muc san pham (17-cai-dat.js that).
+node vagabond/khung/kiem_thu/hanh_vi/dac_biet_tuan_671.mjs
+node vagabond/khung/kiem_thu/hanh_vi/tim_ma_web_671.js
 # v621: ma qua chao mung tai quay (13-khuyen-mai.js that): gan nguoi nhan, khong ap cho khach khac.
 node vagabond/khung/kiem_thu/hanh_vi/qua_quay_621.js
 # v621: trang thanh vien moi va qua chao mung tai quay (www/thanh-vien.html + thanh-vien.js that).
