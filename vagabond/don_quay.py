@@ -535,7 +535,7 @@ def _tinh(don, chi_xem=False):
 			return None, "Quý khách điền địa chỉ giao."
 		bao_phi = _bao_phi(d, dia_chi, don.get("lat"), don.get("lng"))
 		if bao_phi.get("ly_do") == "ngoai_vung_giao":
-			return None, "Địa chỉ ngoài vùng giao của quầy. Quý khách chọn Tự lấy tại quầy."
+			return None, "Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng."
 	phi = don_web.quyet_phi_giao(tien_hang - giam, nguong_mien_phi(), tu_lay, bao_phi)
 	if not tu_lay and phi.get("trang_thai") == "chua_ro" and not chi_xem:
 		# Trả trước thì phải biết đúng số: không nhận đơn giao khi chưa báo được phí.

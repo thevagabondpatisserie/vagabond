@@ -141,6 +141,9 @@ def ap_nhom(ds_nhom, so_ghi):
 		g["anh"], g["anhs"] = anhs[0], anhs
 		g["mo_ta"] = " ".join(dong)
 		g["tang"] = tach_dong(bg.get("tang"), SO_TANG_TOI_DA)
+		# v675: dị ứng, bảo quản do Marketing điền ở thẻ Bánh; trống thì trang khách ẩn mục.
+		g["di_ung"] = " ".join(tach_dong(bg.get("di_ung")))
+		g["bao_quan"] = " ".join(tach_dong(bg.get("bao_quan")))
 		g["tu_web"] = 1
 		ra.append(g)
 	return ra
@@ -245,7 +248,7 @@ def so_ghi():
 	if not dang_dung():
 		return None
 	try:
-		ds = frappe.get_all(DT, fields=["name", "khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "ma_hang"],
+		ds = frappe.get_all(DT, fields=["name", "khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang"],
 			limit_page_length=0, ignore_permissions=True)
 	except Exception:
 		frappe.log_error(title="Bánh trên web: không đọc được bảng", message=frappe.get_traceback())
@@ -382,7 +385,8 @@ def _kiem_marketing():
 
 def _the(bg, sizes=None):
 	return {"khoa": bg["khoa"], "ten": bg["ten"], "trang_thai": bg["trang_thai"], "anh": doc_anh(bg.get("anh")),
-		"mo_ta": bg.get("mo_ta") or "", "tang": bg.get("tang") or "", "ma_hang": tach_dong(bg.get("ma_hang")),
+		"mo_ta": bg.get("mo_ta") or "", "tang": bg.get("tang") or "",
+		"di_ung": bg.get("di_ung") or "", "bao_quan": bg.get("bao_quan") or "", "ma_hang": tach_dong(bg.get("ma_hang")),
 		"sizes": sizes or [], "dua_luc": str(bg.get("dua_luc") or "")}
 
 
@@ -406,7 +410,7 @@ def ds_bien_tap():
 	_kiem_marketing()
 	if not _bang_co():
 		return {"banh": [], "dem": {}}
-	ds = frappe.get_all(DT, fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "ma_hang", "dua_luc"],
+	ds = frappe.get_all(DT, fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang", "dua_luc"],
 		limit_page_length=0, ignore_permissions=True)
 	sz = _sizes({m for x in ds for m in tach_dong(x.ma_hang)})
 	thu = {CHO_ANH: 0, DANG_HIEN: 1, DA_AN: 2}
@@ -448,7 +452,7 @@ def them_anh(khoa=None, url=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def luu(khoa=None, anh=None, mo_ta="", tang="", trang_thai=None):
+def luu(khoa=None, anh=None, mo_ta="", tang="", trang_thai=None, di_ung=None, bao_quan=None):
 	"""Lưu một bánh: thứ tự ảnh (ảnh đầu là ảnh bìa), mô tả, tầng hương vị,
 	Hiện trên web. Lưu là khách thấy ngay."""
 	_kiem_marketing()
@@ -471,6 +475,13 @@ def luu(khoa=None, anh=None, mo_ta="", tang="", trang_thai=None):
 	bg.anh = json.dumps(moi, ensure_ascii=False)
 	bg.mo_ta = str(mo_ta or "").strip()
 	bg.tang = "\n".join(tach_dong(tang, SO_TANG_TOI_DA))
+	# v675: màn cũ chưa gửi hai ô này (None) thì giữ nguyên; gửi chuỗi rỗng là xoá.
+	for o_ten, gia_tri in (("di_ung", di_ung), ("bao_quan", bao_quan)):
+		if gia_tri is None:
+			continue
+		if len(str(gia_tri)) > 1000:
+			frappe.throw("Dị ứng và Bảo quản mỗi ô tối đa 1.000 ký tự.")
+		bg.set(o_ten, str(gia_tri).strip())
 	bg.trang_thai = tt if moi else CHO_ANH
 	bg.flags.ignore_permissions = True
 	bg.save()
