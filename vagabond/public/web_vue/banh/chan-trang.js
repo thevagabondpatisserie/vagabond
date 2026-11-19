@@ -121,7 +121,7 @@ export const ChanTrang = {
     const tien = n => (kho.T && kho.T.tienVN ? kho.T.tienVN(n) : String(n));
     const mienPhi = Number(S.mienPhiTu) || 0;
     const camKet = mienPhi > 0
-      ? [{chu: t('ct630_gtgt', 'Giá đã gồm thuế GTGT')}, {chu: t('ct630_mien_phi', 'Miễn phí giao cho đơn từ {tien}', {tien: tien(mienPhi)}), id: 'fNotePhi'}]
+      ? [{chu: t('ct630_gtgt', 'Giá đã gồm thuế GTGT')}, {chu: (Number(S.mienPhiKm) || 0) > 0 ? t('ct675_mien_phi_km', 'Miễn phí giao cho đơn từ {tien} trong bán kính {km} km', {tien: tien(mienPhi), km: Number(S.mienPhiKm)}) : t('ct630_mien_phi', 'Miễn phí giao cho đơn từ {tien}', {tien: tien(mienPhi)}), id: 'fNotePhi'}]
       : [{chu: t('dat_banh_8b550092a', 'Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển'), id: 'fNotePhi'}];
     camKet.push({chu: t('ct630_hoa_don', 'Xuất hoá đơn điện tử theo yêu cầu')});
     camKet.push({chu: t('dat_banh_4c203e5ec', 'Giá và tồn kho thay đổi theo mùa và nguyên liệu nhập khẩu')});
