@@ -34,17 +34,22 @@ def _thuan():
 	la("phiếu rỗng", kb.con_dat_truoc_mai(None), {})
 
 
-@ca("v671 tab Đặt bánh trước đọc phiếu NGÀY MAI (không phải hôm nay), Đủ decor không đưa bánh lên web")
+@ca("v671 tab Đặt bánh trước: ngày mai đọc phiếu NGÀY MAI (không phải hôm nay); v675 Đủ decor chỉ cho ngày kia và ngày thứ ba")
 def _phieu_mai():
 	nay = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=7, hinh="")]
 	mai = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=2, hinh="")]
 	decor = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", so_decor=9, hinh="", so_refill=0, refill_tu=None, refill_den=None)]
 	kq = _chay(kb._dat_truoc_theo_decor, kiem_hom_nay=nay, decor=decor, kiem_mai=mai)
-	la("số của phiếu ngày mai", [(s["ma"], s["con"]) for g in kq["nhom"] for s in g["sizes"]], [("BAWC00089", 2)])
+	la("ngày mai theo phiếu (2), ngày kia theo Đủ decor (9)", [(s["ma"], s["con"], s["con_mai"], s["con_xa"]) for g in kq["nhom"] for s in g["sizes"]],
+		[("BAWC00089", 2, 2, 9)])
 	kq = _chay(kb._dat_truoc_theo_decor, kiem_hom_nay=nay, decor=decor)
-	la("chưa có phiếu ngày mai: tab trống dù Đủ decor 9 và tủ hôm nay 7", kq["nhom"], [])
+	la("chưa có phiếu ngày mai: ngày mai 0 (tủ hôm nay 7 không tính), ngày kia theo Đủ decor 9",
+		[(s["con_mai"], s["con_xa"]) for g in kq["nhom"] for s in g["sizes"]], [(0, 9)])
 	kq = _chay(kb._dat_truoc_theo_decor, kiem_mai=[_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=0, hinh="")], decor=decor)
-	la("phiếu ngày mai hết (0): không lên", kq["nhom"], [])
+	la("phiếu ngày mai hết (0): ngày mai 0, ngày kia vẫn theo Đủ decor", [(s["con_mai"], s["con_xa"]) for g in kq["nhom"] for s in g["sizes"]], [(0, 9)])
+	kq = _chay(kb._dat_truoc_theo_decor, kiem_mai=[_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=0, hinh="")],
+		decor=[_dong(ma_hang="BAWC00089", ten_banh="Very Berry", so_decor=0, hinh="", so_refill=0, refill_tu=None, refill_den=None)])
+	la("phiếu ngày mai hết và không có Đủ decor: không lên", kq["nhom"], [])
 
 
 @ca("v671 nhịp 5 phút đếm cả phiếu ngày mai khi bếp đã mở; chưa có phiếu thì không tự tạo; lỗi ngày mai không làm hỏng ngày hôm nay")
@@ -120,7 +125,7 @@ def _ngay_xa():
 	ten = {"BAWC00019": "Bánh Ổ Epi 12cm"}
 	r = ton.chan_dat_truoc_ngay_xa([{"variation_id": "BAWC00019", "quantity": 1}, {"variation_id": "PKNEN", "quantity": 2}], ten, datetime.date(2026, 11, 20))
 	la("một câu", len(r), 1)
-	dung("nói rõ ngày mai và ngày khách chọn", "chỉ nhận vào ngày mai" in r[0] and "20/11/2026" in r[0] and "Bánh Ổ Epi 12cm" in r[0])
+	dung("nói rõ 3 ngày tới và ngày khách chọn (v675)", "nhận trong 3 ngày tới" in r[0] and "20/11/2026" in r[0] and "Bánh Ổ Epi 12cm" in r[0])
 	la("hàng rỗng", ton.chan_dat_truoc_ngay_xa(None, ten, datetime.date(2026, 11, 20)), [])
 
 

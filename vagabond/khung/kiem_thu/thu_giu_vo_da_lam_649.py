@@ -86,14 +86,14 @@ def _kenh_khac():
 # Ba ca dưới thay ba ca v649 cũ theo Đủ decor.
 
 
-@ca("v671 tab Đặt bánh trước trên web: số ngày mai là Có thể bán của phiếu ngày mai, Đủ decor không tính")
+@ca("v671 tab Đặt bánh trước trên web: số ngày mai là Có thể bán của phiếu ngày mai, Đủ decor không tính cho ngày mai (v675: chỉ cho ngày kia)")
 def _tab_dat_truoc():
 	m = rf.du_lieu_web(kankin=SAU_LAM, kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "sx": 3, "co_the_ban": 4}]}))
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
 	la("Có thể bán 4 (Đủ decor 6 không tính)", s[KANKIN]["con"], 4)
 	m = rf.du_lieu_web(kankin=dict(rf.KANKIN, so_decor=9), kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "co_the_ban": 0}]}))
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
-	dung("Có thể bán 0 thì không lên, dù Đủ decor 9", KANKIN not in s)
+	la("Có thể bán 0: ngày mai 0, ngày kia theo Đủ decor 9 trừ 3 đơn ngày mai", (s[KANKIN]["con_mai"], s[KANKIN]["con_xa"]), (0, 6))
 
 
 def _ton_don(kb_mai, decor=6, lam=3):

@@ -71,10 +71,12 @@ def _truong_tu_them():
 	from vagabond import do_luong_ga
 	# v668: mục Gợi ý mua thêm, neo sau ô Tắt miễn phí giao đơn giao của quầy.
 	from vagabond import goi_y_mua
+	# v674: mục Chi phí quảng cáo Meta, neo sau ô Phiên bản Graph API.
+	from vagabond import quang_cao_meta
 
 	ra = []
 	for m in (o_cai_dat, tai_khoan, hach_toan_kho, minvoice_tep, sepay, qua_tang_hoa_don, tra_truoc_khach, thanh_toan_web,
-			gioi_thieu, don_quay, do_luong_ga, goi_y_mua):
+			gioi_thieu, don_quay, do_luong_ga, goi_y_mua, quang_cao_meta):
 		for f in m.TRUONG_MOI.get("Vagabond Settings", []):
 			ra.append(dict(f))
 	return ra
@@ -212,7 +214,7 @@ def _():
 			co.add(ten[:-3])
 	la("các module khai trường tự thêm", sorted(co),
 		sorted(["o_cai_dat", "tai_khoan", "hach_toan_kho", "minvoice_tep", "sepay", "qua_tang_hoa_don",
-			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu", "don_quay", "do_luong_ga", "goi_y_mua"]))
+			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu", "don_quay", "do_luong_ga", "goi_y_mua", "quang_cao_meta"]))
 
 
 @ca("cài đặt v568: mọi nhãn và mô tả là tiếng Việt có dấu, không còn số issue trong nhãn")
@@ -279,7 +281,11 @@ def _():
 	# Secret, Verify token), thêm mới, không đổi tên ô cũ; sáu ô Hộp thư hoá đơn hoadon@.
 	# v664: năm ô Đăng bài mạng xã hội (token Facebook, Instagram, mã Trang, token Threads,
 	# hạn và lần gia hạn token Threads), thêm mới, không đổi tên ô cũ.
-	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), sorted(["html_du_lieu_app", "nguon_phi_giao_web",
+	# v672: năm ô Đăng bài kênh Sonneto (mã Trang, token Facebook Instagram, token Threads,
+	# hạn và lần gia hạn token Threads Sonneto), thêm mới, không đổi tên ô cũ; năm ô Đăng bài
+	# Google Posts (mã, khoá ứng dụng, mã kết nối, mã và tên hồ sơ).
+	# v675: ô Miễn phí giao trong bán kính (km), thêm mới.
+	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), sorted(["html_du_lieu_app", "nguon_phi_giao_web", "mien_phi_giao_km",
 		"onepay_access_code", "onepay_bat", "onepay_cong", "onepay_hash_code", "onepay_merchant", "onepay_query_password",
 		"onepay_query_user", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the",
 		"zalo_oa_anh", "zalo_oa_bat", "zalo_oa_id", "zalo_oa_khoa_webhook", "zalo_oa_uid_thu", "zalo_tac_vu",
@@ -288,7 +294,9 @@ def _():
 		"ds_thu_mat_khau", "ds_thu_may_chu", "ds_thu_noi_bo", "ds_thu_thu_muc", "viec_tu_dong",
 		"wa_app_secret", "wa_pin", "wa_template_otp", "wa_template_uu_dai", "wa_verify_token", "wa_waba_id",
 		"hd_thu_bat", "hd_thu_cong", "hd_thu_dia_chi", "hd_thu_mat_khau", "hd_thu_may_chu", "hd_thu_moc",
-		"mxh_page_id", "mxh_token", "th_gia_han_luc", "th_het_han", "th_token"]))
+		"mxh_page_id", "mxh_token", "th_gia_han_luc", "th_het_han", "th_token",
+		"so_mxh_token", "so_page_id", "so_th_gia_han_luc", "so_th_het_han", "so_th_token",
+		"gg_client_id", "gg_client_secret", "gg_dia_diem", "gg_refresh_token", "gg_ten_dia_diem"]))
 
 
 def _o_cu():

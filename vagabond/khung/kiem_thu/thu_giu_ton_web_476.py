@@ -67,11 +67,29 @@ def _():
         dung('Có thể bán 0 thì hết','còn 0' in g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-15')[0][0])
 
 
-@ca('#476 giữ tồn: không ngày hoặc xa hơn ngày mai không khoá và không cảnh báo giả')
+@ca('#476 giữ tồn: không ngày hoặc xa hơn 3 ngày tới (v675) không khoá và không cảnh báo giả')
 def _():
     with patch.object(g,'frappe',D()),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
-        for ngay in ('',None,'2026-10-16','2026-10-18'):
+        for ngay in ('',None,'2026-10-18','2026-10-20'):
             la('không áp',g.kiem_va_giu([{'variation_id':'A','quantity':1}],ngay),([],None))
+
+
+@ca('v675 giữ tồn ngày kia: theo Đủ decor, trừ đơn web chưa đếm của cả ba ngày tới (cùng ăn vào Đủ decor), không trừ đơn ngày khác')
+def _():
+    for ngay_don, so, thieu in (('2026-10-15', 2, True), ('2026-10-17', 2, True), ('2026-10-15', 1, False), ('2026-10-18', 2, False), ('2026-10-14', 2, False)):
+        f,_=moi([doc(ngay=ngay_don)],ton=9,decor=2)
+        with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+            nhac,giu=g.kiem_va_giu([{'variation_id':'A','quantity':so}],'2026-10-16')
+        la('đơn giữ ngày %s, đặt %s: thiếu' % (ngay_don, so),bool(nhac),thieu)
+        if not thieu:
+            la('giữ cho đơn mới',giu,{'dong':{'A':so},'da_dem':False})
+    f,_=moi([],ton=9,decor=2,dd=1)
+    with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+        dung('Đủ decor 2 trừ đơn chưa làm của ba ngày (1 mỗi ngày): hết, Có thể bán 9 không tính','còn 0' in g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-16')[0][0])
+    f,_=moi([],ton=9,decor=0)
+    with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+        n,giu=g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-16')
+    dung('bánh đặt trước không có Đủ decor: ngày kia hết',bool(n) and 'còn 0' in n[0])
 
 
 @ca('#476 giữ tồn: đồng bộ chỉ đánh dấu đúng đơn được tính, không đụng đơn cũ')

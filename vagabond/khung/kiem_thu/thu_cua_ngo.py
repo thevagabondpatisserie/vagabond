@@ -92,7 +92,9 @@ CUA_NGO = {
 		"tao", "them_anh", "thu_lai", "tra_ve", "xem", "xoa_anh",
 		# v666 Sổ chủ đề, gắn sao, gửi giám đốc duyệt.
 		"gui_giam_doc", "gd_dong_y", "gd_tra_lai", "gan_sao", "chu_de_ds", "chu_de_luu"],
-	"mxh.py": [],
+	# v672 Google Posts: nút Kết nối Google và đường Google trả về (cả hai chỉ
+	# quản trị hệ thống, đường trả về đòi mã trạng thái gắn với người bấm).
+	"mxh.py": ["gg_bat_dau", "gg_ket_noi_xong"],
 	"zalo_kich_ban.py": ["ds_kich_ban", "luu_kich_ban", "kiem_mau_zalo", "ds_tin", "gui_thu"],
 	# v621: trang thành viên. Mọi hàm mở cho khách vãng lai, tự xác thực bằng
 	# cookie phiên OTP; luu_ho_so, doi_anh, nhan_qua chỉ sửa hồ sơ của số đã xác thực.
@@ -115,12 +117,14 @@ CUA_NGO = {
 		"dinh_bien_ban_thay_the", "go_bien_ban_thay_the", "tai_bien_ban_thay_the", "tim_don",
 	],
 	"can_tru_san.py": ["diem_ban", "doi_chieu", "thu_lai"],
+	# v673 cấn trừ hoá đơn phí đối tác theo đối soát (chị Dung 18/11/2026).
+	"can_tru_phi.py": ["de_xuat", "lap", "xac_nhan"],
 	# v565: ghim nghiep vu hay dung tren trang chu, cat theo tung nguoi.
 	# `chuan` va `doc_chuoi` la phep thuan, KHONG mo ra ngoai.
 	"ghim.py": ["lay", "luu"],
 	# v570: trang Cài đặt lõi và API trên app. Phép thuần (bo_cuc, gia_tri,
 	# ep_kieu, kiem_thay_doi, kiem_dong_bang) KHÔNG mở ra ngoài.
-	"doi_soat_vendor.py": ["bill_doi_tac", "chi_tiet", "cua_hoa_don", "doc_hop_thu_ngay", "doc_lai_thu", "doi_chieu_lai", "ds", "ds_thu", "dung_ban_sua", "duyet_nguon", "hop_thu", "nhan", "quet_email", "suc_khoe", "tai_len", "tai_thu_goc", "thu_ket_noi", "tu_choi_nguon", "xac_nhan_noi", "xac_nhan_nguon", "xem_truoc"],
+	"doi_soat_vendor.py": ["bill_doi_tac", "bo_chon_tien_ve", "chi_tiet", "chon_tien_ve", "cua_hoa_don", "doc_hop_thu_ngay", "doc_lai_thu", "doi_chieu_lai", "ds", "ds_thu", "dung_ban_sua", "duyet_nguon", "hop_thu", "nhan", "quet_email", "suc_khoe", "tai_len", "tai_thu_goc", "thu_ket_noi", "tu_choi_nguon", "ung_vien_tien_ve", "xac_nhan_noi", "xac_nhan_nguon", "xem_truoc"],
 	"cai_dat_loi.py": ["lay", "luu", "tim_lien_ket"],
 	# v550: trừ kho từng món và trừ bù. tru_bu, tru_bu_kho, xuat_ds là nội bộ
 	# (hook, việc nền, adapter Excel), không mở ra ngoài.
@@ -798,6 +802,20 @@ CUA_NGO = {
 	"xuat_noi_bo.py": [
 		"bo_phieu", "chi_tiet", "ds_phieu", "ghi_so", "khoi_dong", "luu",
 	],
+	# v674 Bảng kê 242 (kế toán khai, lập và ghi sổ bút toán phân bổ tháng; phân bổ tay,
+	# gắn khoản cho dòng Có 242 lập tay). quet, quet_tu_dong, khi_ghi_so_xuat, kiem_je
+	# là nhịp nền và hook: KHÔNG mở ra ngoài.
+	"chi_phi_242.py": [
+		"bo_nhap_thang", "chi_tiet", "danh_muc", "danh_sach", "gan_khoan", "ghi_so_thang",
+		"khai", "lap_thang", "ngung", "phan_bo_tay", "xem_thang",
+	],
+	# v674 Đối soát chi phí Meta theo sao kê thẻ (kế toán). tinh_thang là hàm nội bộ.
+	"chi_phi_meta.py": ["bo_nhap", "chi_tiet_thang", "ds_thang", "ghi_so", "lap", "quyet"],
+	# v674 Chi phí quảng cáo Meta theo ngày (Marketing). dong_bo_tu_dong chạy theo lịch,
+	# dong_bo_tai_khoan đọc mã bí mật: KHÔNG mở ra ngoài.
+	"quang_cao_meta.py": ["chi_tiet_ngay", "doc_lai_ngay", "tong_quan"],
+	# v674 khuôn bút toán nháp theo tháng: chỉ gọi từ hai mô đun trên.
+	"but_toan_nhap.py": [],
 	# v507: chot kho diem ban. Cung de ra Material Issue nhu hai man tren,
 	# phan biet bang `vgb_muc_dich_xuat` = xuat_kho.MA_PHUC_VU_BAN.
 	"xuat_phuc_vu_ban.py": [

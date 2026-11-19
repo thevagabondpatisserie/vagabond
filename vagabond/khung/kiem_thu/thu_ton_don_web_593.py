@@ -41,15 +41,15 @@ def _():
         dung('không sinh đơn hoặc gọi Pancake', 'ghi' not in vet.su and 'post' not in vet.su)
 
 
-@ca('F21-4 thiếu phiếu không suy thành0; v671 ngày kia trở đi không nhận bánh đặt trước')
+@ca('F21-4 thiếu phiếu không suy thành0; v675 sau 3 ngày tới không nhận bánh đặt trước')
 def _():
-    # v671 (Loan Anh 18/11/2026, anh Việt chốt): bánh đặt trước chỉ nhận ngày mai.
+    # v671, v675 (Sales 18 và 19/11/2026, giám đốc chốt): bánh đặt trước nhận tới ngày thứ ba.
     # Trước v671 đơn 17/10 (ngoài ba ngày decor) được nhận không giới hạn.
     vet, ham, d = gui(2, '2026-10-17T13:00:00')
     with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(0)):
         r = ham(d)
     la('ngày xa không nhận', (r['ok'], r['ly_do']), (0, 'het_hang'))
-    dung('nhắc nhận ngày mai', 'chỉ nhận vào ngày mai' in r['nhac'][0] and 'CANDLE 12cm' in r['nhac'][0])
+    dung('nhắc nhận trong 3 ngày tới', 'nhận trong 3 ngày tới' in r['nhac'][0] and 'CANDLE 12cm' in r['nhac'][0])
     dung('không gửi Pancake', 'post' not in vet.su)
     vet, ham, d = gui(2, '2026-10-13T13:00:00')
     with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(0, co=False)):
@@ -59,7 +59,7 @@ def _():
         la('mã không phải bánh đặt trước, ngày xa vẫn nhận', ton.kiem([{'variation_id':'BTPKHAC','quantity':20}], '2026-10-20'), [])
 
 
-@ca('v671 ngày mai theo Có thể bán của phiếu NGÀY MAI, không theo Đủ decor')
+@ca('v671 ngày mai theo Có thể bán của phiếu NGÀY MAI, không theo Đủ decor; v675 ngày kia và ngày thứ ba theo Đủ decor')
 def _():
     fr = nguon(1, decor=9, da_dat=0)
     hoi = []
@@ -71,8 +71,8 @@ def _():
         la('đọc đúng phiếu ngày mai', hoi[-1], 'KB-2026-10-14')
         la('đủ số thì nhận', ton.kiem([{'variation_id':'BAWC00139','quantity':1}], '2026-10-14'), [])
         for ng in ('2026-10-15', '2026-10-16'):
-            r = ton.kiem([{'variation_id':'BAWC00139','quantity':1}], ng)
-            dung('ngày %s không nhận bánh đặt trước' % ng, len(r) == 1 and 'ngày mai' in r[0])
+            la('ngày %s theo Đủ decor 9: nhận' % ng, ton.kiem([{'variation_id':'BAWC00139','quantity':9}], ng), [])
+            dung('ngày %s đặt 10: còn 9' % ng, 'còn 9 cái' in ton.kiem([{'variation_id':'BAWC00139','quantity':10}], ng)[0])
     # Có thể bán âm (bán lố) vẫn là hết, không phải không giới hạn.
     with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(-2)):
         dung('số âm là hết', 'còn 0 cái' in ton.kiem([{'variation_id':'BAWC00139','quantity':1}], '2026-10-14')[0])

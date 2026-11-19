@@ -91,6 +91,10 @@ def _pt():
 	la("bốn giá trị", [ttt.chuan_pt(x) for x in ("bank", "card", "atm", "cash")], ["bank", "card", "atm", "cash"])
 	la("giá trị lạ", [ttt.chuan_pt(x) for x in ("", None, "momo", "<b>", 5, "CASH ")], ["bank"] * 5 + ["cash"])
 	la("cổng tắt", [ttt.chuan_pt(x, the_dung=False) for x in ("card", "atm", "cash", "bank")], ["bank", "bank", "cash", "bank"])
+	# v675 (giám đốc chốt 19/11/2026): đơn MỚI chỉ nhận thanh toán trước; đơn cũ tiền mặt vẫn đọc được ở trên.
+	la("đơn mới: tiền mặt về chuyển khoản", [ttt.chuan_pt_don_moi(x) for x in ("bank", "card", "atm", "cash", "CASH ", "momo")],
+		["bank", "card", "atm", "bank", "bank", "bank"])
+	la("đơn mới, cổng tắt", [ttt.chuan_pt_don_moi(x, the_dung=False) for x in ("card", "atm", "cash")], ["bank", "bank", "bank"])
 	la("vpc_CardList", (ttt.CARD_LIST["card"], ttt.CARD_LIST["atm"]), ("INTERNATIONAL", "DOMESTIC"))
 	la("nhãn biên nhận một nguồn với trang cũ", [trang_khach.GIA_TRI_BIEN_NHAN[ttt.nhan_pt(x)][0] for x in ttt.PT_HOP_LE],
 		["bien_nhan_chuyen_khoan", "bien_nhan_the_qt", "bien_nhan_the_atm", "bien_nhan_tien_mat"])
@@ -626,12 +630,14 @@ def _tao_don():
 				patch.dict(sys.modules, {"vagabond.tin_kho": tk}), patch.object(vagabond, "tin_kho", tk, create=True):
 			tao_don(_don(**them))
 		return vet.truong["thanh_toan"], json.loads(vet.truong["snapshot"])
-	for pt in ("bank", "card", "atm", "cash"):
+	for pt in ("bank", "card", "atm"):
 		la("nhận " + pt, gui(True, thanh_toan=pt)[0], pt)
+	# v675 (giám đốc chốt 19/11/2026): đơn web chỉ nhận thanh toán trước.
+	la("tiền mặt về chuyển khoản", gui(True, thanh_toan="cash")[0], "bank")
 	la("lạ", gui(True, thanh_toan="momo")[0], "bank")
-	la("cổng tắt", [gui(False, thanh_toan=x)[0] for x in ("card", "atm", "cash")], ["bank", "bank", "cash"])
+	la("cổng tắt", [gui(False, thanh_toan=x)[0] for x in ("card", "atm", "cash")], ["bank", "bank", "bank"])
 	_t, snap = gui(True, thanh_toan="cash", ma_gioi_thieu="0909 123 456")
-	la("ảnh chụp", (snap["thanh_toan"], snap["gioi_thieu_sdt"]), ("cash", "0909123456"))
+	la("ảnh chụp", (snap["thanh_toan"], snap["gioi_thieu_sdt"]), ("bank", "0909123456"))
 	la("mã sai bỏ", gui(True, ma_gioi_thieu="12ab")[1]["gioi_thieu_sdt"], "")
 
 

@@ -245,7 +245,7 @@ def _cua_nhan():
 		la("mã không phải bánh đặt trước (không có ở bảng BTP, phiếu ngày mai), ngày xa: không đụng",
 			k([{"variation_id": "BAWC00123", "quantity": 9}], "2026-11-25"), [])
 		r = _chay(Kho([ROMAN, KANKIN]), lambda: ton_don_web.kiem([{"variation_id": "BAWC00123", "quantity": 9}], "2026-11-25"), _tinh_that())
-		dung("bánh đặt trước không refill, ngày xa: nhắc nhận ngày mai", len(r) == 1 and "chỉ nhận vào ngày mai" in r[0])
+		dung("bánh đặt trước không refill, ngày xa: nhắc nhận trong 3 ngày tới (v675)", len(r) == 1 and "nhận trong 3 ngày tới" in r[0])
 
 
 @ca("v646 lưu refill: chỉ bếp; ô trống báo; lưu đủ ba ô; 0 thì xoá ngày; đang có refill thì không xoá mã khỏi bảng BTP")
