@@ -6,6 +6,8 @@
  "field_order": [
   "company",
   "san",
+  "doi_soat",
+  "loai_phi",
   "diem_ban",
   "khach_hang",
   "nha_cung_cap",
@@ -18,6 +20,9 @@
   "xac_nhan",
   "phi",
   "ban",
+  "tk",
+  "tong_doi_soat",
+  "nguon_phi",
   "tong_bu",
   "trang_thai",
   "ly_do",
@@ -35,9 +40,9 @@
   },
   {
    "fieldname": "san",
-   "label": "Sàn",
+   "label": "Sàn hoặc đối tác thanh toán",
    "fieldtype": "Select",
-   "options": "GrabFood\nShopeeFood\nBeFood\nGreenSM Food",
+   "options": "GrabFood\nShopeeFood\nBeFood\nGreenSM Food\nOnePay\nPayoo\nShinhan POS",
    "reqd": 1,
    "in_list_view": 1
   },
@@ -46,14 +51,18 @@
    "label": "Điểm bán",
    "fieldtype": "Select",
    "options": "\nSALES\nTCV\nNVHTN",
-   "reqd": 1
+   "reqd": 0,
+   "mandatory_depends_on": "eval:!doc.doi_soat",
+   "depends_on": "eval:!doc.doi_soat"
   },
   {
    "fieldname": "khach_hang",
    "label": "Khách hàng công nợ sàn",
    "fieldtype": "Link",
    "options": "Customer",
-   "reqd": 1
+   "reqd": 0,
+   "mandatory_depends_on": "eval:!doc.doi_soat",
+   "depends_on": "eval:!doc.doi_soat"
   },
   {
    "fieldname": "nha_cung_cap",
@@ -88,7 +97,7 @@
   },
   {
    "fieldname": "tham_chieu",
-   "label": "Mã bảng đối soát sàn",
+   "label": "Mã bảng đối soát",
    "fieldtype": "Data",
    "reqd": 1,
    "in_list_view": 1
@@ -117,7 +126,8 @@
    "label": "Hoá đơn bán được bù",
    "fieldtype": "Table",
    "options": "Vagabond Can Tru Ban",
-   "reqd": 1
+   "reqd": 0,
+   "mandatory_depends_on": "eval:!doc.doi_soat"
   },
   {
    "fieldname": "tong_bu",
@@ -163,6 +173,45 @@
    "options": "Vagabond Can Tru San",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "doi_soat",
+   "label": "Lập từ Đối soát nhà cung cấp",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "description": "Máy lập từ các nguồn đối soát đã nhận; hoá đơn bán và tài khoản được bù do máy tính, kế toán trưởng xác nhận."
+  },
+  {
+   "fieldname": "loai_phi",
+   "label": "Loại phí",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "depends_on": "doi_soat"
+  },
+  {
+   "fieldname": "tong_doi_soat",
+   "label": "Tổng phí đối tác đã giữ theo đối soát",
+   "fieldtype": "Currency",
+   "read_only": 1,
+   "depends_on": "doi_soat"
+  },
+  {
+   "fieldname": "nguon_phi",
+   "fieldtype": "Long Text",
+   "label": "Nguồn phí đã dùng",
+   "hidden": 1,
+   "read_only": 1,
+   "no_copy": 1,
+   "depends_on": "doi_soat",
+   "description": "Máy ghi: phí của hoá đơn bán nào, hay phí không gắn hoá đơn, phiếu này đã dùng. Hoá đơn phí sau cùng kỳ chỉ lấy phần chưa dùng."
+  },
+  {
+   "fieldname": "tk",
+   "label": "Phí trừ vào tài khoản chờ tiền về",
+   "fieldtype": "Table",
+   "options": "Vagabond Can Tru Tk",
+   "depends_on": "doi_soat",
+   "description": "Phần phí của hoá đơn bán đã thu qua hình thức thanh toán (tiền nằm ở tài khoản chờ tiền về của đối tác), hoặc phí kỳ không gắn hoá đơn."
   }
  ],
  "permissions": [
@@ -199,5 +248,6 @@
  ],
  "track_changes": 1,
  "autoname": "format:CTSAN-{#####}",
- "is_submittable": 1
+ "is_submittable": 1,
+ "modified": "2026-11-18 19:00:00.000000"
 }
