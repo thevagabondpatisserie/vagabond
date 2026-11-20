@@ -507,7 +507,7 @@ ca('v660 bang da chot: ghi gio chot, noi ro la so luc chot; dong co ban sau chot
 function btpHaiDot() {
   return { cap_nhat_luc: '', dat_xa: {}, refill_loi: '', dot_xong: [
     { ma_hang: 'BAWC00055', ten: 'Bánh thử', so: 12, tu: '2026-11-01', den: '2026-11-07', da_dat: 9, con: 3 }],
-    lich_refill: [], dong: [{ ma_hang: 'BAWC00055', ten_banh: 'Bánh thử', so_btp: 0, so_decor: 0, dang_giu: 0, con_nhan: 0, giao_mai: 0, doi: {},
+    lich_refill: [], dong: [{ ma_hang: 'BAWC00055', ten_banh: 'Bánh thử', so_btp: 0, so_decor: 0, dang_giu: 0, con_nhan: 0, doi: {},
       refill: [{ id: 'd1', so: 20, tu: '2026-11-14', den: '2026-11-20', da_dat: 7, con: 13, mo_ta: 'có từ T7 14/11, nhận tới 20/11' },
         { id: 'd2', so: 15, tu: '2026-11-21', den: '2026-11-27', da_dat: 3, con: 12, mo_ta: 'có từ T7 21/11, nhận tới 27/11' }] }] };
 }
@@ -547,6 +547,26 @@ ca('v660 refill nhieu dot: o Refill va Con nhan refill ghi tung dot; bam mo danh
   await choToi('goi luu dot moi', function () { return m.goi.some(function (g2, i) { return i >= truoc && g2.ten === 'btp.luu_refill'; }); });
   g = m.goi.filter(function (x, i) { return i >= truoc && x.ten === 'btp.luu_refill'; })[0];
   bang('them dot: ma dot trong', [g.ts.dot, g.ts.so_refill, g.ts.refill_tu, g.ts.refill_den].join('|'), '|10|2026-11-28|2026-12-04');
+});
+
+ca('v677 (Loan Anh 20/11): ba o Web nhan ghi ngay, so va nguon (phieu ngay mai, BTP san, dot refill); chua biet hien dau hoi; so am to do; khong con o Con nhan mai, Con nhan 3 ngay', async function () {
+  var btp = function () {
+    return { cap_nhat_luc: '', dat_xa: {}, refill_loi: '', dot_xong: [], lich_refill: [], dong: [{ ma_hang: 'BAWC00055', ten_banh: 'Bánh thử', so_btp: 7, so_decor: 0,
+      dang_giu: 0, con_nhan: 7, doi: {}, refill: [], web: [['2026-11-21', 1, 'phieu'], ['2026-11-22', 7, 'btp'], ['2026-11-23', -2, 'refill']] }] };
+  };
+  var m = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 2 })]); }, btp: btp });
+  var luoi = function (x) { return x.tai.getElementById('kb-luoi').textContent || ''; };
+  await choToi('co o Web nhan', function () { return luoi(m).indexOf('Web nhận 22/11') >= 0; });
+  var chu = luoi(m);
+  dung('ba ngay dung thu tu', chu.indexOf('Web nhận 21/11') < chu.indexOf('Web nhận 22/11') && chu.indexOf('Web nhận 22/11') < chu.indexOf('Web nhận 23/11'));
+  dung('ghi nguon tung o', chu.indexOf('theo phiếu ngày mai') >= 0 && chu.indexOf('theo BTP sẵn') >= 0 && chu.indexOf('theo đợt refill') >= 0);
+  dung('bo hai o cu', chu.indexOf('CÒN NHẬN MAI') < 0 && chu.indexOf('CÒN NHẬN 3 NGÀY') < 0);
+  bang('so am to do', m.tai.querySelectorAll('.kb-nh2.am').length >= 1, true);
+  var m2 = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 2 })]); }, btp: function () {
+    var b = btp(); b.dong[0].web = [['2026-11-21', null, 'phieu'], ['2026-11-22', 7, 'btp'], ['2026-11-23', null, 'refill']]; return b; } });
+  await choToi('co o Web nhan (2)', function () { return luoi(m2).indexOf('Web nhận 21/11') >= 0; });
+  dung('chua co phieu ngay mai: dau hoi va loi giai thich', luoi(m2).indexOf('chưa có phiếu ngày mai') >= 0);
+  dung('dot chua dem duoc', luoi(m2).indexOf('chưa đếm được đơn') >= 0);
 });
 
 ca('v660 Codex #569 bang ngay da qua chi xem, ke ca bang QUEN CHOT va tai khoan bep: khong con o nao bam sua duoc, khong mo duoc o Huy, khong mo duoc tam Refill, khong nut xoa dong, cong tac ban web thanh chu; ve hom nay thi sua lai duoc', async function () {
