@@ -376,3 +376,32 @@ html body .gb-ck-tt>div:last-child{border-bottom:0}
 html body .gb-ck-tt dt{font-size:13px;color:var(--fog);flex:none}
 html body .gb-ck-tt dd{margin:0;display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;font-size:14px;text-align:right;overflow-wrap:anywhere}
 html body .gb-ck-chep{flex:none;min-height:44px;min-width:56px;padding:0 12px;border:1px solid rgba(79,219,242,.5);border-radius:999px;background:transparent;color:var(--vt-xanh);font:500 13px/1 var(--sans);cursor:pointer}
+
+/* ---------- Giỏ (anh Việt duyệt 20/11/2026 trên ảnh trang thật) ---------- */
+/* Bộ số lượng DÙNG CHUNG .sl-vien, phương án A "Viên gộp viền mảnh": mọi bộ − số +
+   trong giỏ (dòng bánh, khối Dụng cụ ăn tặng kèm) dùng lớp này, không làm kiểu riêng.
+   Viên cao 44, viền vẽ bằng box-shadow inset để không lòi ra ngoài, rộng 120. */
+html body .sl-vien{display:inline-flex;align-items:center;height:44px;border-radius:999px;flex:none;
+  box-shadow:inset 0 0 0 1px rgba(79,219,242,.5);background:rgba(79,219,242,.06)}
+html body .sl-vien button{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:999px;
+  background:transparent;box-shadow:none;color:var(--vt-xanh);display:inline-grid;place-items:center;cursor:pointer}
+html body .sl-vien button:disabled{color:rgba(255,255,255,.28);opacity:1;cursor:not-allowed}
+html body .sl-vien output{min-width:32px;text-align:center;font-size:17px;font-weight:600;line-height:1;color:#fff;
+  font-variant-numeric:tabular-nums}
+html body :is(.sl-vien,.nut-tron) svg{display:block;width:20px;height:20px;flex:0 0 20px;fill:none;
+  stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+/* Dòng bánh hai hàng (phương án 3 "Hai nút tròn biểu tượng cạnh tên"):
+   hàng 1 ảnh, tên, nút bút chì, nút thùng rác; hàng 2 bộ số lượng và giá. */
+html body .cart li.dg{display:block;padding:16px 0}
+html body .cart .dg-tren{display:grid;grid-template-columns:66px minmax(0,1fr) 44px 44px;gap:12px;align-items:center}
+html body .cart .dg-tren .bd{min-width:0;overflow-wrap:anywhere}
+html body .cart .dg-duoi{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+html body .cart .dg-duoi .p{font-size:15px;font-weight:600;white-space:nowrap}
+html body .nut-tron{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:50%;
+  display:inline-grid;place-items:center;cursor:pointer}
+html body .nut-sua{box-shadow:inset 0 0 0 1px rgba(79,219,242,.5);background:rgba(79,219,242,.06);color:var(--vt-xanh)}
+html body .nut-bo{box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);background:transparent;color:rgba(255,255,255,.78)}
+html body .nut-cho{width:44px;height:44px}
+/* Chữ chỉ cho máy đọc màn hình (nút chỉ có biểu tượng vẫn giữ chữ trong HTML). */
+html body .chi-may-doc{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0}

@@ -68,6 +68,14 @@ export const ACC = [
   {k: 'phu_kien_8034a0777', n: 'Cờ cắm in lời chúc', ks: 'pk_co_cam_mo', sub: 'in đúng lời chúc quý khách ghi ở mục 02', i: ANH_DUNG_CU[1]}
 ];
 
+/* Dĩa, nĩa tặng kèm cho cả đơn ở trang Thông tin đơn hàng (anh Việt 20/11/2026).
+   Mã món lấy từ kho/thuan.js (một nguồn với danh sách gửi máy chủ). Ảnh là ảnh
+   dụng cụ đang dùng trên web. */
+export const DUNG_CU_DON = [
+  {k: 'dia', kt: 'dc_don_dia', n: 'Dĩa giấy bã mía', i: ANH_DUNG_CU[4]},
+  {k: 'nia', kt: 'dc_don_nia', n: 'Nĩa gỗ', i: ANH_DUNG_CU[3]}
+];
+
 /* Hướng dẫn chọn size (poster Serving & Cutting Guide của bếp). Chữ sửa trong Editor. */
 export const HUONG_SIZE = [
   {cm: 12, lat: 4, mieng: '4', nguoi: '2 - 4'},

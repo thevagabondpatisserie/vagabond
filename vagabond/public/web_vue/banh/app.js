@@ -12,7 +12,7 @@ import {createApp, computed, watch, nextTick} from '../lib/vue.esm-browser.prod.
 import {ND, t, tMon, napNoiDung, laXemThu, telChu, telSo, mxh} from '../kho/chu.js';
 import {doc, ghi} from '../kho/api.js';
 import {taoKho} from './kho-banh.js';
-import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE} from './du-lieu.js';
+import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE, DUNG_CU_DON} from './du-lieu.js';
 import {LOGO} from './anh.js';
 import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
 import {KhoiNoiDung, TieuDeMuc, KenhNoi, ChuyenMuc, dsMuc, TD, UD} from './noi-dung.js';
@@ -165,7 +165,7 @@ export function khoiDong(goc = '#app') {
           tinh: m.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)};
       });
       const tienTom = n => kho.T.tienVN(n);
-      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
+      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, DUNG_CU_DON, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
         moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh};
