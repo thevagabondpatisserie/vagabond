@@ -219,6 +219,8 @@ node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
 # tung xanh o may UTC nhung hong 7/7 khi may o mui gio da sang ngay khac.
 TZ=Pacific/Kiritimati node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
 TZ=Pacific/Pago_Pago node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
+# v677 Codex #596: bảng BTP (/btp) ghi ba ô Web nhận theo từng ngày, ngày refill theo đợt.
+node vagabond/khung/kiem_thu/hanh_vi/btp_web_677.js
 # Man tao lenh san xuat (#206, PR #215).
 node vagabond/khung/kiem_thu/hanh_vi/kiem_san_xuat_206.js
 node vagabond/khung/kiem_thu/hanh_vi/chay_san_xuat.js
