@@ -757,6 +757,9 @@ MIEN = {
 	# v662: đơn giao của quầy trong 24 giờ (máy chủ đã giới hạn), thẻ việc để
 	# xác nhận, gọi xe; sổ để tra là Vagabond Don Web và hoá đơn quầy.
 	"scrDonGiaoQuay": KHONG_PHAI,
+	# v678: màn chi tiết một bill; ds_quay chỉ là sheet chọn chương trình
+	# khuyến mãi đang bật cho quầy (vài dòng), không phải sổ để tra.
+	"scrPosBill": KHONG_PHAI,
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 

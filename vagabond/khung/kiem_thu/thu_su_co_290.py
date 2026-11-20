@@ -18,6 +18,12 @@ def nap(tep, ten, g):
         # thanh toán chỉ đòi phần Chuyển khoản, Loan Anh 14/11/2026). Hàm nạp lẻ
         # nào gọi tới thì nạp kèm hai hàm này, với flt nếu ca chưa đưa.
         g.setdefault('flt', lambda x: float(x or 0))
+        # v678: phép thuần pt_ck (hai phương thức chuyển khoản). _kiem_tk_ck đọc
+        # bảng sao kê thật; ca thu_shinhan_o2o_678 chạy hàm thật, ca cũ nạp lẻ thì
+        # cho qua để giữ đúng điều mình đang kiểm.
+        from vagabond import pt_ck as _pt_ck
+        g.setdefault('pt_ck', _pt_ck)
+        g.setdefault('_kiem_tk_ck', lambda si, pt, gd: None)
         for phu in ('_can_ck','_gan_can_ck'):
             if phu not in g:
                 nap(tep, phu, g)

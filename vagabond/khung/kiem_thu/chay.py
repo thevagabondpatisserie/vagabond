@@ -303,6 +303,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	# v667 Đặc biệt tuần này: đợt cuối tuần, luật ngày giao, giờ chốt, số lượng dưới khoá.
 	thu_dac_biet_tuan_667, thu_dac_biet_tuan_671, thu_dat_truoc_mai_671, thu_refill_du_don_675, thu_web_don_675,
 	thu_tich_diem_ban_677,
+	# v678 Chuyển khoản - Shinhan, chuyển khoản ngay tại bàn, tự chốt bill khi tiền về.
+	thu_shinhan_o2o_678,
 	# v668 Gợi ý mua thêm: luật tồn, ghép, xếp hạng, đo, mức giữ tại bếp, bản nháp.
 	thu_goi_y_mua_668,
 	# v659 tờ chia nhiều cách trả: chỉ đòi ngân hàng phần Chuyển khoản (Loan Anh 14/11, đơn 97492).
