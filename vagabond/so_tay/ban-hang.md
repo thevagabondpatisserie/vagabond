@@ -1321,9 +1321,11 @@ Từ v678 (cửa hàng báo 20/11/2026).
 **Từ nay:**
 - Bill Tạm tính chưa có ưu đãi nào có khối Khuyến mãi với hai nút Chương trình và Nhập mã.
 - Chương trình: danh sách chương trình đang bật cho quầy, kèm số giảm tính theo món đang có; chương trình không áp được thì ghi lý do.
-- Nhập mã: gõ mã khách đọc. Chương trình cần quản lý duyệt thì hệ thống hỏi mã OTP.
+- Nhập mã: gõ mã khách đọc.
+- Bill đã in tạm tính: hỏi mã OTP quản lý ca theo quyền quầy trong Cài đặt (trừ mức Tự do). Chương trình cần quản lý duyệt thì luôn hỏi.
 - Hệ thống trừ ngay vào bill. Khách gọi thêm món thì số giảm tính lại; lượt dùng ghi khi chốt bill.
 - Mỗi hoá đơn một ưu đãi: bill đã có ưu đãi khách chọn tại bàn hay khuyến mãi lúc tạo đơn thì không áp thêm. Muốn đổi thì bấm Bỏ ưu đãi này trước.
+- Bill đã chốt (máy khác chốt, hoặc tự chốt khi tiền về) thì không áp, không bỏ được nữa.
 
 **Bạn cần làm**
 1. Đang Sửa hoá đơn mà muốn áp khuyến mãi: lưu thay đổi món trước, rồi bấm Chương trình hoặc Nhập mã.
