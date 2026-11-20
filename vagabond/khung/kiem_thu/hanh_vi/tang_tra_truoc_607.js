@@ -908,6 +908,10 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     await app.g.scrPosBill('SI-95631'); await nghi();
     dung('không có nút Bỏ', !app.tl.getElementById('pbBoUd'));
     dung('đã ghi lượt', app.tl.getElementById('pbUdBan').textContent.indexOf('Đã ghi lượt dùng') >= 0);
+    /* Codex PR #597 vòng 3: bill đã chốt (hết tạm tính) mà ưu đãi chưa ghi lượt cũng không còn nút Bỏ, khớp cửa máy chủ. */
+    var app3 = manBill(donUd({ vgb_tam_tinh: 0 }));
+    await app3.g.scrPosBill('SI-95631'); await nghi();
+    dung('bill đã chốt, chưa ghi lượt: không có nút Bỏ', !!app3.tl.getElementById('pbUdBan') && !app3.tl.getElementById('pbBoUd'));
     var app2 = manBill(donUd({ discount_amount: 0, vgb_giam_ud: 0, grand_total: 700000,
       vgb_ud_ban: JSON.stringify(Object.assign(JSON.parse(UD), { giam: 0, ly_do: 'hoá đơn chưa đủ 150.000 đ' })) }));
     await app2.g.scrPosBill('SI-95631'); await nghi();
