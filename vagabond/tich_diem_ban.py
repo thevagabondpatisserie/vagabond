@@ -53,6 +53,29 @@ def ud_cua_so_khac(ud, sdt):
 	return bool(cu) and cu != _so(sdt)
 
 
+def lech_chu_ud(ud, khach_moi):
+	"""THUẦN (Codex #596 vòng 2). Hoá đơn đã dùng ưu đãi của một khách, gắn khách
+	tích điểm KHÁC thì điểm và ưu đãi thuộc hai người. Ưu đãi chưa có khách
+	(khach rỗng) cũng coi là lệch với mọi khách thật, để không đoán."""
+	if not ud or not khach_moi:
+		return False
+	return (ud.get("khach") or "") != khach_moi
+
+
+CAU_UD_KHAC = ("Bill đang dùng ưu đãi của số %s. Bấm Bỏ ưu đãi này trên bill trước, "
+	"rồi mới gắn khách khác để tích điểm.")
+
+
+def kiem_cung_chu(si, khach_moi):
+	"""Cửa ghi khách nào cũng gọi (gan_quay, ban_hang.luu_khach_no): khách mới
+	phải là chủ của ưu đãi đang dùng trên hoá đơn, nếu có."""
+	from vagabond import uu_dai_ban
+
+	ud = uu_dai_ban.doc_ud(si.get("vgb_ud_ban"))
+	if lech_chu_ud(ud, khach_moi):
+		frappe.throw(CAU_UD_KHAC % uu_dai_ban.che_sdt(ud.get("sdt")))
+
+
 def the_tv(tt, sdt):
 	"""THUẦN. Phần tích điểm trả cho trang khách: không lộ mã khách."""
 	from vagabond.uu_dai_ban import che_sdt
@@ -145,6 +168,8 @@ def gan_quay(name=None, khach=None, sdt=None, ten=None):
 		frappe.throw("Không có khách hàng %s trong danh mục." % ma)
 	if ma and _la_gop(ma):
 		frappe.throw("\"%s\" là khách chung của quầy, không tích điểm được. Chọn đúng khách thành viên." % ma)
+	if ma:
+		kiem_cung_chu(si, ma)
 	cu = (si.get("customer") or "").strip()
 	moi = ma or ban_hang._khach_le()
 	if moi != cu:
