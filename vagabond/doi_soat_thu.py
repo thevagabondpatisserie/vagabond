@@ -68,8 +68,7 @@ NGUON_NOI_BO = "Chuyển tiếp nội bộ"
 # Cài đặt một lần khi bảng còn trống; anh sửa trên app.
 NGUOI_GUI_MAC_DINH = (
 	("OnePay", "onepay.vn", 1),
-	# v678: Payoo gửi từ tên miền công ty chủ quản VietUnion (thư 16/11/2026 bị chặn).
-	("Payoo", "payoo.com.vn, vietunion.com.vn", 1),
+	("Payoo", "payoo.com.vn", 1),
 	# v651 (anh Việt 12/11/2026): thư Shinhan do BC Card Việt Nam ký (d=bccardvn.com).
 	("Shinhan (POS và thẻ tín dụng)", "shinhan.com.vn, bccardvn.com", 1),
 	("Grab", "grab.com, grabtaxi.com", 1),
@@ -89,7 +88,7 @@ TAN_SUAT = ("Hằng ngày", "Hằng tháng", "Không theo lịch")
 LICH_MAC_DINH = (
 	("OnePay", "Hằng ngày", 12, 0, 1),
 	("Shinhan POS", "Hằng ngày", 12, 0, 1),
-	("Payoo", "Hằng ngày", 12, 0, 1),
+	# v678 (anh Việt 20/11/2026): tiệm không dùng Payoo nữa, không chờ thư Payoo.
 	("GrabFood", "Hằng ngày", 18, 0, 0),
 	("ShopeeFood", "Hằng ngày", 12, 0, 0),
 	("Thẻ tín dụng Shinhan", "Hằng tháng", 0, 5, 0),
@@ -837,16 +836,10 @@ def nang_mac_dinh_v651(nguoi_gui, lich):
 	return ra
 
 
-def nang_payoo_v678(ng):
-	"""THUẦN (v678). Dòng Người gửi tin cậy có tên miền payoo.com.vn mà chưa có
-	vietunion.com.vn: [(tên dòng, tên miền mới)]. Payoo gửi báo cáo từ tên miền
-	công ty chủ quản; thư 16/11/2026 bị chặn vì thiếu tên miền này."""
-	ra = []
-	for r in ng or []:
-		mien = tach_mien(r.get("ten_mien"))
-		if "payoo.com.vn" in mien and "vietunion.com.vn" not in mien:
-			ra.append((r["name"], ", ".join(mien + ["vietunion.com.vn"])))
-	return ra
+def bo_payoo_v678(lich):
+	"""THUẦN (v678). Dòng Lịch thư dự kiến của Payoo cần bỏ: [tên dòng]. Anh Việt
+	20/11/2026: tiệm không dùng Payoo nữa, không báo "thư Payoo chưa về" nữa."""
+	return [r["name"] for r in lich or [] if (r.get("nguon") or "").strip().lower() == "payoo"]
 
 
 def _nang_mac_dinh():
@@ -854,10 +847,10 @@ def _nang_mac_dinh():
 	nâng dòng Cài đặt còn mặc định cũ. Quản trị đặt lại giá trị cũ sau đó thì không đè."""
 	frappe = _frappe()
 	if not frappe.db.get_global("vgb_ds_thu_v678"):
-		ng = frappe.get_all("Vagabond Doi Soat Nguoi Gui", filters={"parent": CAI_DAT, "parentfield": "ds_nguoi_gui"},
-			fields=["name", "ten_mien"])
-		for ten, mien in nang_payoo_v678(ng):
-			frappe.db.set_value("Vagabond Doi Soat Nguoi Gui", ten, "ten_mien", mien, update_modified=False)
+		li = frappe.get_all("Vagabond Doi Soat Lich Thu", filters={"parent": CAI_DAT, "parentfield": "ds_lich_thu"},
+			fields=["name", "nguon"])
+		for ten in bo_payoo_v678(li):
+			frappe.db.delete("Vagabond Doi Soat Lich Thu", {"name": ten})
 		frappe.db.set_global("vgb_ds_thu_v678", "1")
 		frappe.clear_document_cache(CAI_DAT, CAI_DAT)
 	if frappe.db.get_global("vgb_ds_thu_v651"):
