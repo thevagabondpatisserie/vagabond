@@ -194,15 +194,27 @@ export const MAU_GOI_BAN_NOI = `
       <header class="gb-dau-bang"><div class="gb-dau-chu"><small>{{ gb.nhanBan.value }}</small><h2 id="gb-don-tieu">{{ t('goi_ban_don_ban','Đơn của bàn') }}</h2></div>
         <button class="gb-x" type="button" :aria-label="t('goi_ban_dong','Đóng')" @click="gb.dongDon()"><bieu-tuong ten="dong"/></button></header>
       <div class="gb-than">
+        <div class="sec gb-sec"><span class="n">01</span><h3><span>{{ t('goi_ban_sec_mon','Món đã gọi') }}</span></h3><i class="rule"></i></div>
         <div class="gb-luot" v-for="l in luot" :key="l.ma" :data-luot="l.ma" :data-tt="l.trangThai" :class="{tat: l.khongTinh}">
-          <div class="gb-luot-dau"><b>{{ l.tieuDe }}</b><span class="gb-tt" :class="l.lop">{{ l.cau }}</span></div>
+          <div class="gb-luot-dau"><b>{{ l.tieuDe }}</b><span class="gb-tt" :class="l.lop">{{ ({'Chờ nhận': t('goi_ban_chip_cho','Chờ quầy nhận'), 'Đã nhận': t('goi_ban_chip_nhan','Quầy đã nhận'), 'Từ chối': t('goi_ban_chip_tu_choi','Quầy từ chối'), 'Hết hạn': t('goi_ban_chip_het','Hết hạn')})[l.trangThai] || l.cau }}</span></div>
+          <p class="gb-luot-cau" v-if="l.trangThai !== 'Chờ nhận'">{{ l.cau }}</p>
           <div class="gb-luot-dong" v-for="(x, i) in l.mon" :key="i"><span>{{ x.sl }} × {{ x.ten }}<small v-if="(x.tc || []).length">{{ x.tc.join(' · ') }}</small></span><em>{{ tien(x.tien) }}</em></div>
         </div>
-        <button type="button" class="gb-ud" id="gbUdO" :class="{co: !!udO.co}" @click="gb.moUd()">
-          <i class="gb-ud-ic" aria-hidden="true">%</i>
-          <span><b>{{ udO.ten }}</b><small>{{ udO.phu }}</small></span>
-          <em>{{ udO.nut }}</em>
-        </button>
+        <div class="sec gb-sec"><span class="n">02</span><h3><span>{{ t('goi_ban_sec_club','The Vagabond Club') }}</span></h3><i class="rule"></i></div>
+        <div class="gb-club" id="gbClub" :class="{gan: G.tv.trang_thai === 'gan'}" :data-tv="G.tv.trang_thai">
+          <template v-if="G.ud.sdtCo">
+            <div class="gb-club-dau"><i class="gb-club-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="10.5" ry="4" transform="rotate(-24 12 12)"/></svg></i><span><b>{{ G.ud.sdtCo }}</b><small>{{ tvCau }}</small></span><i class="gb-chip" :class="tvChip.lop" v-if="tvChip.chu">{{ tvChip.chu }}</i></div>
+            <p class="gb-loi" id="gbTvLoi" role="status" v-if="G.tv.loi">{{ G.tv.loi }}</p>
+            <button type="button" class="gb-club-nut" id="gbTvGan" v-if="tvNutGan" @click="gb.ganTv()">{{ t('goi_ban_club_tich','Tích điểm cho hoá đơn này') }}</button>
+            <p class="gb-phu" v-if="G.tv.trang_thai === 'gan'">{{ t('goi_ban_club_khi_chot','Điểm vào tài khoản khi quầy chốt bill. Xem điểm và hạng ở trang Thành viên.') }}</p>
+            <button type="button" class="gb-ud" id="gbUdO" :class="{dung: !!udO.co}" @click="gb.moUd()"><i class="gb-ud-ic" aria-hidden="true">%</i><span><b>{{ udO.co ? udO.ten : t('goi_ban_ud_dung_duoc','Ưu đãi dùng được') }}</b><small>{{ udO.co ? udO.phu : t('goi_ban_club_so_ud','{n} ưu đãi trong Ví quà và chương trình',{n: G.ud.ds.filter(x => Number(x.dung_duoc)).length}) }}</small></span><em>{{ udO.nut }}</em></button>
+          </template>
+          <template v-else>
+            <div class="gb-club-dau"><i class="gb-club-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="10.5" ry="4" transform="rotate(-24 12 12)"/></svg></i><span><b>{{ t('goi_ban_club_moi','Tích điểm cho hoá đơn này') }}</b><small>{{ t('goi_ban_club_moi_phu','Đăng nhập bằng mã Zalo một lần, dùng 30 ngày. Hoá đơn bàn {ban} tự tích điểm và mở Ví quà.',{ban: soBan}) }}</small></span></div>
+            <button type="button" class="gb-club-nut" id="gbUdO" @click="gb.moUd()">{{ t('goi_ban_club_dn','Đăng nhập Zalo') }}</button>
+          </template>
+        </div>
+        <div class="sec gb-sec"><span class="n">03</span><h3><span>{{ t('goi_ban_sec_tam','Tạm tính') }}</span></h3><i class="rule"></i></div>
         <div class="gb-tong-ban" id="gbTongBan">
           <div><span>{{ t('goi_ban_may_nay','Món gọi từ máy này ({n} món)',{n: gb.tom.value.soMon}) }}</span><span>{{ tien(gb.tom.value.tamTinh) }}</span></div>
           <div v-if="gb.tom.value.coHoaDon" id="gbHoaDonBan"><span>{{ t('goi_ban_hd_ban','Hoá đơn của bàn') }}</span><span>{{ tien(gb.tom.value.hoaDon) }}</span></div>
@@ -243,7 +255,7 @@ export const MAU_GOI_BAN_NOI = `
         </template>
         <template v-if="G.ud.buoc==='ds'">
           <div v-for="n in nhomUd" :key="n.ma" class="gb-ud-nhom">
-            <h3 class="gb-ud-sec">{{ n.ten }}</h3>
+            <div class="sec gb-sec"><span class="n">0{{ nhomUd.indexOf(n) + 1 }}</span><h3><span>{{ n.ten }}</span></h3><i class="rule"></i></div>
             <button v-for="x in n.ds" :key="x.khoa" type="button" class="gb-ly gb-ud-k" :class="{on: G.ud.chon===x.khoa, tat: !x.dung}" :data-ud="x.khoa"
               :aria-pressed="String(G.ud.chon===x.khoa)" :disabled="!x.dung" @click="G.ud.chon=x.khoa">
               <span><b>{{ x.ten }}</b><small v-if="x.phu">{{ x.phu }}</small><i class="gb-ud-tag">{{ x.tag }}</i></span><i class="gb-ly-chon" aria-hidden="true"></i></button>
@@ -273,9 +285,12 @@ export const MAU_GOI_BAN_NOI = `
             <span>{{ t('goi_ban_tra_bill_moi','Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.') }}</span></div>
         </template>
         <template v-else>
-          <div class="gb-tong-ban"><div class="lon"><span>{{ t('goi_ban_can_tra','Cần thanh toán') }}</span><b>{{ tien(gb.tom.value.canTra) }}</b></div></div>
+          <div class="gb-so-lon"><small>{{ t('goi_ban_can_tra','Cần thanh toán') }}</small><b>{{ tien(gb.tom.value.canTra) }}</b>
+            <span v-if="G.tv.trang_thai === 'gan'" class="gb-chip ok" id="gbTraTich">{{ t('goi_ban_tra_tich','Tích điểm cho {sdt}',{sdt: G.ud.sdtCo}) }}</span></div>
+          <div class="sec gb-sec"><span class="n">01</span><h3><span>{{ t('goi_ban_sec_cach','Cách thanh toán') }}</span></h3><i class="rule"></i></div>
           <button v-for="c in CACH_TRA" :key="c.ma" type="button" class="gb-ly" :class="{on: G.tra.cach===c.ma}" :data-cach="c.ma" :aria-pressed="String(G.tra.cach===c.ma)" @click="G.tra.cach=c.ma">
             <i class="gb-ly-ic" aria-hidden="true"><bieu-tuong :ten="c.ma==='ban' ? 'hoaDon' : 'cuaHang'"/></i><span><b>{{ c.ten }}</b><small>{{ c.phu }}</small></span><i class="gb-ly-chon" aria-hidden="true"></i></button>
+          <div class="sec gb-sec"><span class="n">02</span><h3><span>{{ t('goi_ban_sec_hd','Hoá đơn điện tử') }}</span></h3><i class="rule"></i></div>
           <div class="fld"><label for="gb-tra-hd"><span>{{ t('goi_ban_tra_hd','Xuất hoá đơn điện tử (không bắt buộc)') }}</span></label>
             <input id="gb-tra-hd" maxlength="80" autocomplete="off" :placeholder="t('goi_ban_tra_hd_goi','Mã số thuế hoặc email nhận hoá đơn')" v-model="G.tra.hd">
             <div class="hint">{{ t('goi_ban_tra_hd_phu','Có mã số thuế thì thu ngân hỏi thêm tên công ty khi in bill.') }}</div></div>
@@ -365,6 +380,18 @@ export const GoiTaiBanNoi = {
         phu: t('goi_ban_ud_moi', 'Đăng nhập bằng Zalo để dùng mã trong Ví quà')};
     });
     const udDangNhap = computed(() => G.ud.buoc === 'sdt' || G.ud.buoc === 'ma');
+    /* v677 tích điểm: câu và chip theo trạng thái máy chủ báo (tich_diem_ban). */
+    const tvCau = computed(() => ({
+      gan: t('goi_ban_club_gan', 'Hoá đơn bàn {ban} đang tích điểm cho số này', {ban: soBan.value}),
+      cho: t('goi_ban_club_cho', 'Quầy nhận món xong thì hoá đơn bàn {ban} tự tích điểm cho số này', {ban: soBan.value}),
+      khac: t('goi_ban_club_khac', 'Hoá đơn bàn đã tích điểm cho một số khác. Cần đổi thì báo nhân viên.'),
+    })[G.tv.trang_thai] || (G.tv.dangGan ? t('goi_ban_club_dang', 'Đang gắn số này vào hoá đơn của bàn...') : t('goi_ban_club_chua', 'Hoá đơn của bàn chưa tích điểm cho số này')));
+    const tvNutGan = computed(() => G.tv.trang_thai === 'trong' && !G.tv.dangGan);
+    const tvChip = computed(() => ({
+      gan: {lop: 'ok', chu: t('goi_ban_club_da_gan', 'Đã gắn')},
+      cho: {lop: 'cho', chu: t('goi_ban_club_chip_cho', 'Chờ quầy')},
+      khac: {lop: 'tat', chu: t('goi_ban_club_chip_khac', 'Số khác')},
+    })[G.tv.trang_thai] || {lop: '', chu: ''});
     const udDau = computed(() => (G.ud.sdtCo ? t('goi_ban_ud_so', 'Số {sdt}', {sdt: G.ud.sdtCo}) : gb.nhanBan.value));
     /* Ví quà trước, chương trình sau; dòng không dùng được mờ kèm lý do. */
     const nhomUd = computed(() => [['vi', t('goi_ban_ud_vi', 'Ví quà của quý khách')], ['ctkm', t('goi_ban_ud_ct', 'Chương trình đang chạy')]]
@@ -391,6 +418,6 @@ export const GoiTaiBanNoi = {
       return m;
     }
     return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, ICON_LY_DO, phuLyDo, moChuong, chuDong, luot, goiThem, CACH_TRA,
-      udO, udDangNhap, udDau, nhomUd, udDungDuoc, ptWeb, phiWebChu, datWeb, giamWeb};
+      udO, udDangNhap, udDau, nhomUd, udDungDuoc, tvCau, tvChip, tvNutGan, ptWeb, phiWebChu, datWeb, giamWeb};
   }
 };

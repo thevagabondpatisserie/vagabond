@@ -848,7 +848,7 @@ html body .bar.gb-bar .go{border-radius:999px;min-height:48px;padding:0 22px}
 
 /* v643 ưu đãi khách tự chọn tại bàn (mẫu anh Việt duyệt 07/11/2026). */
 .gb-ud{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;margin:4px 0 12px;padding:10px 14px;border:1.5px dashed var(--cyan);background:transparent;color:var(--paper);text-align:left;font-family:var(--sans);cursor:pointer}
-.gb-ud.co{border-style:solid;background:rgba(79,219,242,.08)}
+.gb-ud.dung{border-style:solid;background:rgba(79,219,242,.08)}
 .gb-ud-ic{flex:none;width:36px;height:36px;border-radius:50%;background:#0B383F;color:var(--cyan-bright);display:grid;place-items:center;font-style:normal;font-weight:700;font-size:15px}
 .gb-ud span{flex:1;min-width:0;font-size:14px;line-height:1.4}
 .gb-ud span b{display:block;font-weight:600}
