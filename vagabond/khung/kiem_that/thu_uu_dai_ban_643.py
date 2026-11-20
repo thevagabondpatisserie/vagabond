@@ -60,8 +60,13 @@ def _vong_doi():
 	ban = 86
 	k = g.khoa_ban(g._bi_mat(), quay["ma"], ban)
 	kh = frappe.db.get_value("Customer", {"disabled": 0, "is_internal_customer": 0}, "name")
+	# v677: kh đóng vai khách lẻ chung của quầy, nên KHACH_LE cũng phải là kh để
+	# khach_hang.la_khach_gop nhận ra hoá đơn chưa tích điểm cho ai (như site thật,
+	# nơi _khach_le trả KHACH_LE). Thiếu dòng này thì uu_dai_ban.chon tưởng hoá đơn
+	# đã tích điểm cho một khách thật khác và từ chối.
 	with patch.object(g, "_gio_mo_cua", return_value={"dang_mo": True, "gio": "7:00 - 22:00"}), \
 			patch.object(ban_hang, "_cong_ty", return_value=cty), patch.object(ban_hang, "_khach_le", return_value=kh), \
+			patch.object(ban_hang, "KHACH_LE", kh), \
 			patch.object(u, "_phien", return_value=(SDT, None)):
 		r1 = _khach(lambda: g.goi(diem=quay["ma"], ban=ban, k=k, nonce="KT643" + frappe.generate_hash(length=24),
 			mon=json.dumps([{"ma": ma, "sl": 4}])))
