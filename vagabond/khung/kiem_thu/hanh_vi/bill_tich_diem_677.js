@@ -146,6 +146,18 @@ async function go(m, chu1) {
     bang('hai lượt tìm', m.goi.map(function (x) { return x.ts.tu_khoa; }), ['Chị', '0909']);
   });
 
+  await ca('Codex #596 vòng 2: câu trả lời của từ khoá cũ về trong lúc chờ gõ tiếp: không hiện, không bấm được', async function () {
+    var m = mo(BILL_CHUNG, { tre: { '0909': 350, '0988': 0 } });
+    var i = id(m, 'pbTvTim');
+    i.value = '0909'; i.oninput();
+    await nghi(500);
+    i.value = '0988'; i.oninput();
+    await nghi(200);
+    bang('kết quả cũ không hiện trong lúc chờ', m.vb.querySelectorAll('[data-tvkh]').length, 0);
+    await nghi(400);
+    bang('chỉ khách của 0988', m.vb.querySelectorAll('[data-tvkh]').map(function (x) { return x.getAttribute('data-tvkh'); }), ['CUST-0003']);
+  });
+
   await ca('bill đã có khách thành viên: hiện tên, Gỡ khách hỏi lại rồi gửi khách rỗng; Đổi khách mở ô tìm', async function () {
     var m = mo(BILL_TV);
     dung('tên', chu(m.vb).indexOf('Chị Lan') >= 0 && chu(m.vb).indexOf('cộng điểm cho khách này') >= 0);
