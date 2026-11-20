@@ -1328,25 +1328,25 @@ Từ v678 (cửa hàng báo 20/11/2026).
 **Bạn cần làm**
 1. Đang Sửa hoá đơn mà muốn áp khuyến mãi: lưu thay đổi món trước, rồi bấm Chương trình hoặc Nhập mã.
 
-## Voucher Grab Dine-Out là tiền Grab trả, không phải giảm giá
-Từ khoá: voucher Grab, Grab Dine-Out, GD-, voucher 200.000, voucher 300.000, giảm giá Grab, đối soát Grab
+## Voucher Grab Dine-Out: giảm đúng phần tiệm chịu
+Từ khoá: voucher Grab, Grab Dine-Out, GD-, voucher 200.000, voucher 300.000, giảm giá Grab, đối soát Grab, tiệm chịu
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Quầy; Kế toán đối soát | Tính tiền, bill Tạm tính | Ô Grab Dine-Out |
+| Quầy; Kế toán đối soát | Tính tiền, bill Tạm tính (Khuyến mãi); Đối soát nhà cung cấp | Chương trình voucher Grab; ô Grab Dine-Out |
 
-Từ v678 (giám đốc chốt 20/11/2026: Grab trả tiền voucher).
+Từ v678 (giám đốc chốt 20/11/2026).
 
-**Trước đây:** voucher Grab Dine-Out 200.000 đ, 300.000 đ được chọn như một chương trình khuyến mãi, nên bill ghi thành giảm giá và doanh thu thấp hơn số Grab trả.
+**Trước đây:** hai chương trình voucher Grab Dine-Out giảm đủ 200.000 đ hoặc 300.000 đ, trong khi Grab chỉ trừ của tiệm 40.000 đ hoặc 60.000 đ (phần còn lại Grab trả). Bill thấp hơn tiền Grab trả.
 **Từ nay:**
-- Chương trình mang tên Grab Dine-Out không áp được thành giảm giá ở bất kỳ màn nào; danh sách ghi lý do và chỉ cách ghi đúng.
-- Khách trả bằng Grab Dine-Out (có voucher hay không): chọn phương thức Grab Dine-Out cho cả bill và nhập mã GD- trên máy khách. Bill giữ đủ giá món.
-- Khách trả một phần bằng cách khác: chia thanh toán, phần Grab Dine-Out kèm mã GD-.
+- Hai chương trình chỉ giảm phần tiệm chịu: voucher 200.000 đ giảm 40.000 đ, voucher 300.000 đ giảm 60.000 đ. Tên chương trình ghi rõ "tiệm chịu".
+- Mã GD- không cho biết loại voucher: xem dòng "Voucher 200.000đ" hay "300.000đ" trên màn hình khách, cùng màn có mã GD-.
+- Phần còn lại của bill chốt bằng Grab Dine-Out kèm mã GD-.
+- Khi báo cáo Grab về, hệ thống so phần giảm trên bill với phần tiệm chịu Grab báo. Lệch thì dòng đó là Lệch tiền, ghi rõ bill giảm bao nhiêu, Grab báo bao nhiêu.
 
 **Bạn cần làm**
-1. Quầy: không tìm voucher Grab trong Chương trình nữa, chọn ô Grab Dine-Out khi chốt.
-2. Kế toán: các bill cũ đã ghi voucher Grab thành giảm giá giữ nguyên, đối chiếu riêng với báo cáo Grab.
-
+1. Quầy: chọn đúng chương trình theo màn hình khách, rồi chốt bằng Grab Dine-Out và nhập mã GD-.
+2. Kế toán: bill cũ đã giảm đủ giá voucher giữ nguyên, chỉ đối chiếu với báo cáo Grab.
 ## Khách chuyển khoản ngay tại bàn, bill tự chốt
 Từ khoá: chuyển khoản ngay, app ngân hàng, tự chốt bill, O2O, gọi món tại bàn, thanh toán tại bàn, đối soát tay, bàn đã chuyển khoản
 

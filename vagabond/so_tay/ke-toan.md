@@ -1424,3 +1424,22 @@ Ghi chi phí đúng số trừ thẻ theo ngày giao dịch: thẻ Shinhan từ 
 - Giao dịch có ở cả PDF và bảng gõ tay tính một lần.
 - Tự hạch toán thì ghi FACEBK hoặc Meta ở diễn giải để hệ thống nhận ra.
 
+
+## Tin Zalo đối soát: tệp đọc lỗi gửi nhóm Hệ thống
+Từ khoá: tin Zalo đối soát, tệp đối soát không đọc được, thư đối soát chưa về, OnePay thông báo nghỉ lễ, Payoo, GrabFood dòng lỗi
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán; quản trị hệ thống | Đối soát nhà cung cấp; nhóm Zalo | Đọc lại |
+
+Từ v678 (giám đốc yêu cầu 20/11/2026).
+
+**Trước đây:** nhóm Kế toán nhận tin "Tệp đối soát ... không đọc được" và "báo kỹ thuật viết mẫu đọc mới", kể cả khi thư chỉ là thông báo lịch nghỉ lễ của OnePay. Thư báo cáo của Payoo gửi từ tên miền công ty chủ quản bị chặn, nên ngày nào cũng báo Payoo chưa về.
+**Từ nay:**
+- Tệp đọc lỗi là việc sửa mẫu đọc: tin gửi nhóm Hệ thống, nhóm Kế toán không nhận nữa.
+- Thư thông báo lịch nghỉ lễ của đối tác không còn bị coi là thư báo cáo.
+- Báo cáo GrabFood có dòng Grab Dine-Out bị ngắt mã ("GD-" dính giờ) đọc được.
+- Thư Payoo gửi từ tên miền vietunion.com.vn (công ty chủ quản của Payoo) được nhận, vẫn bắt buộc chữ ký số.
+
+**Bạn cần làm**
+1. Kế toán: tin "Còn N thư đối soát chưa về" vẫn gửi như cũ; đối tác chưa gửi thật thì hỏi đối tác hoặc tải tay.

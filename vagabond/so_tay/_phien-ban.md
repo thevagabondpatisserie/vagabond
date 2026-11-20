@@ -16,7 +16,8 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Chuyển khoản - Shinhan tại quầy
 - Khách chuyển khoản ngay tại bàn, bill tự chốt
 - Khuyến mãi trên bill Tạm tính
-- Voucher Grab Dine-Out là tiền Grab trả, không phải giảm giá
+- Voucher Grab Dine-Out: giảm đúng phần tiệm chịu
+- Tin Zalo đối soát: tệp đọc lỗi gửi nhóm Hệ thống
 
 ## v677
 - Bảng Kiểm bánh: ba ô Web nhận, ngày kia theo BTP sẵn
