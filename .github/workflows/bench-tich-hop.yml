@@ -2,7 +2,7 @@ name: Bench tich hop SHA
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, ui-nghe-si]
   workflow_dispatch:
 
 permissions:
