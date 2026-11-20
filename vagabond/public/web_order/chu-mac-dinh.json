@@ -8261,5 +8261,161 @@
     "nhom": "dat_banh",
     "mac_dinh": "Chưa tích điểm được. Quý khách thử lại hoặc báo nhân viên.",
     "nhieu_dong": true
+  },
+  "goi_ban_ck_loi": {
+    "ten": "Gọi món tại bàn: Chưa lấy được thông tin chuyển khoản. Quý khách thử lại hoặc chọn cách khác.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa lấy được thông tin chuyển khoản. Quý khách thử lại hoặc chọn cách khác.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_da_chep_stk": {
+    "ten": "Gọi món tại bàn: Đã chép số tài khoản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã chép số tài khoản",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_da_chep_nd": {
+    "ten": "Gọi món tại bàn: Đã chép nội dung chuyển khoản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã chép nội dung chuyển khoản",
+    "nhieu_dong": true
+  },
+  "goi_ban_sec_ck": {
+    "ten": "Gọi món tại bàn: Chuyển khoản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chuyển khoản",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_buoc": {
+    "ten": "Gọi món tại bàn: Chọn app ngân hàng của quý khách. App mở ra với số tiền và nội dung điền sẵn, quý khách chỉ cần xác nhận.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn app ngân hàng của quý khách. App mở ra với số tiền và nội dung điền sẵn, quý khách chỉ cần xác nhận.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_dien_san": {
+    "ten": "Gọi món tại bàn: Điền sẵn số tiền",
+    "nhom": "dat_banh",
+    "mac_dinh": "Điền sẵn số tiền",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_dan": {
+    "ten": "Gọi món tại bàn: Mở app, dán nội dung",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mở app, dán nội dung",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_them": {
+    "ten": "Gọi món tại bàn: Ngân hàng khác",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngân hàng khác",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_qr_alt": {
+    "ten": "Gọi món tại bàn: Mã VietQR chuyển khoản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã VietQR chuyển khoản",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_qr": {
+    "ten": "Gọi món tại bàn: Hoặc quét mã này bằng app ngân hàng bất kỳ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hoặc quét mã này bằng app ngân hàng bất kỳ",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_nh": {
+    "ten": "Gọi món tại bàn: Ngân hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngân hàng",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_stk": {
+    "ten": "Gọi món tại bàn: Số tài khoản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số tài khoản",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_da_chep": {
+    "ten": "Gọi món tại bàn: Đã chép",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã chép",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_chep": {
+    "ten": "Gọi món tại bàn: Chép",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chép",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_chu": {
+    "ten": "Gọi món tại bàn: Chủ tài khoản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chủ tài khoản",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_nd": {
+    "ten": "Gọi món tại bàn: Nội dung",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nội dung",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_cho": {
+    "ten": "Gọi món tại bàn: Tiền về là bill tự thanh toán, quý khách không cần ra quầy. Giữ nguyên nội dung để hệ thống nhận ra bàn.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tiền về là bill tự thanh toán, quý khách không cần ra quầy. Giữ nguyên nội dung để hệ thống nhận ra bàn.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_chip_da": {
+    "ten": "Gọi món tại bàn: Đã nhận tiền",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã nhận tiền",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_chip_chot": {
+    "ten": "Gọi món tại bàn: Quầy đã tính tiền",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy đã tính tiền",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_chip_huy": {
+    "ten": "Gọi món tại bàn: Bill đã huỷ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bill đã huỷ",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_chip_cho": {
+    "ten": "Gọi món tại bàn: Chờ tiền về",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chờ tiền về",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_huy": {
+    "ten": "Gọi món tại bàn: Bill của bàn đã huỷ. Quý khách hỏi nhân viên trước khi chuyển khoản.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bill của bàn đã huỷ. Quý khách hỏi nhân viên trước khi chuyển khoản.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_chot": {
+    "ten": "Gọi món tại bàn: Quầy đã tính tiền bill bàn {ban}. Quý khách không cần chuyển khoản nữa.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy đã tính tiền bill bàn {ban}. Quý khách không cần chuyển khoản nữa.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_xong": {
+    "ten": "Gọi món tại bàn: Đã nhận đủ tiền. Bill bàn {ban} đã thanh toán, cảm ơn quý khách.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã nhận đủ tiền. Bill bàn {ban} đã thanh toán, cảm ơn quý khách.",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_kiem": {
+    "ten": "Gọi món tại bàn: Kiểm tra tiền về",
+    "nhom": "dat_banh",
+    "mac_dinh": "Kiểm tra tiền về",
+    "nhieu_dong": true
+  },
+  "goi_ban_ck_lay": {
+    "ten": "Gọi món tại bàn: Hiện cách chuyển khoản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hiện cách chuyển khoản",
+    "nhieu_dong": true
   }
 }
