@@ -8114,5 +8114,20 @@
     "nhom": "bien_nhan",
     "mac_dinh": "Tiến độ đơn",
     "nhieu_dong": true
+  },
+  "dat_truoc_het_ngay": {
+    "ten": "Đặt bánh trước: chip cỡ bánh hết đúng ngày nhận đang chọn",
+    "nhom": "dat_banh",
+    "mac_dinh": "hết ngày {ngay}"
+  },
+  "ct677_dat_truoc_ngay": {
+    "ten": "Chi tiết bánh: dòng trạng thái khi mở từ tab Đặt bánh trước",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đặt trước, nhận {ngay}"
+  },
+  "ct677_het_ngay_nay": {
+    "ten": "Chi tiết bánh: cỡ đang chọn hết đúng ngày nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "hết ngày này, quý khách chọn ngày khác"
   }
 }
