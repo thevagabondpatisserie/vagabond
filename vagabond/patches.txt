@@ -480,4 +480,5 @@ vagabond.patches.v675_mien_phi_km
 vagabond.patches.dong_bo_cau_truc #v676
 vagabond.patches.dong_bo_cau_truc #v677
 vagabond.patches.v678_tin_chuyen_khoan
+vagabond.patches.v678_voucher_grab
 vagabond.patches.dong_bo_cau_truc #v678
