@@ -198,14 +198,42 @@ export function xungDotGio(gio, o, boQua = -1) {
   return '';
 }
 
-export function hangGui(gio) {
+/* Anh Việt 20/11/2026: dĩa, nĩa tặng kèm theo yêu cầu chọn MỘT lần cho cả đơn ở
+   trang Thông tin đơn hàng, gửi thành dòng món giá 0 để Pancake in đơn. Mã món
+   có sẵn trên hệ thống, anh chọn dùng Nĩa gỗ (không tạo món Nĩa giấy). Trần 20
+   mỗi loại, bằng MAX_SL của máy chủ (don_hang.py). */
+export const MA_DIA_TANG = 'BAPK00020', MA_NIA_TANG = 'BAPK00018', DC_TOI_DA = 20;
+export function chuanDcDon(d) {
+  const so = x => Math.min(DC_TOI_DA, Math.max(0, parseInt(x) || 0));
+  d = d || {};
+  return {dia: so(d.dia), nia: so(d.nia)};
+}
+/* Giỏ lưu từ bản trước (nĩa, dĩa ghi theo từng bánh): cộng về số của đơn, nhân số
+   bánh, rồi xoá số ở dòng để không gửi hai lần. Trả số mới của đơn. */
+export function gomDcCu(gio, dc) {
+  const ra = chuanDcDon(dc);
+  (gio || []).forEach(o => {
+    const d = o && o.dung_cu;
+    if (!d) return;
+    const q = Math.max(1, parseInt(o.qty) || 1);
+    ra.dia += (parseInt(d.dia) || 0) * q; ra.nia += (parseInt(d.nia) || 0) * q;
+    if (d.dia || d.nia) o.dung_cu = Object.assign({}, d, {nia: 0, dia: 0});
+  });
+  return chuanDcDon(ra);
+}
+export function hangGui(gio, dc) {
   /* v589: MỘT nguồn cho danh sách món gửi máy chủ, dùng chung lúc gửi đơn và
-     lúc hỏi ưu đãi. Gộp dòng trùng mã. */
+     lúc hỏi ưu đãi. Gộp dòng trùng mã. Dĩa, nĩa tặng chỉ đi kèm khi giỏ có món. */
   const qty = {};
   gio.forEach(o => {
     qty[o.id] = (qty[o.id] || 0) + o.qty;
     (o.adds || []).forEach(a => { qty[a.id] = (qty[a.id] || 0) + o.qty; });
   });
+  if (gio.length) {
+    const x = chuanDcDon(dc);
+    if (x.dia) qty[MA_DIA_TANG] = (qty[MA_DIA_TANG] || 0) + x.dia;
+    if (x.nia) qty[MA_NIA_TANG] = (qty[MA_NIA_TANG] || 0) + x.nia;
+  }
   return Object.keys(qty).map(id => ({variation_id: id, quantity: qty[id]}));
 }
 
