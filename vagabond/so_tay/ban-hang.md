@@ -1286,6 +1286,90 @@ Từ v677 (Sales báo 20/11/2026, giám đốc chọn hướng A).
 - "?" là chưa biết (chưa có phiếu ngày mai, chưa đếm được đơn refill). Số đỏ là đã nhận quá.
 - Đơn hôm nay không trừ vào số ngày kia.
 
+## Chuyển khoản - Shinhan tại quầy
+Từ khoá: chuyển khoản Shinhan, tài khoản Shinhan, mã QR Shinhan, phương thức thanh toán, đối soát SePay, tiền về sai ngân hàng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy; Kế toán theo dõi | Tính tiền, bill Tạm tính trên app | Ô Chuyển khoản - Shinhan |
+
+Từ v678 (giám đốc yêu cầu 20/11/2026: vài khách muốn chuyển vào tài khoản Shinhan).
+
+**Trước đây:** chuyển khoản chỉ có một ô, mã QR vào tài khoản MB của điểm bán; khách muốn chuyển Shinhan thì phải xin số tài khoản và quầy đối soát tay.
+**Từ nay:**
+- Ở mọi điểm bán có thêm ô Chuyển khoản - Shinhan (logo Shinhan), ngay sau ô Chuyển khoản.
+- Chọn ô này thì mã QR vào tài khoản Shinhan công ty, nội dung là mã bill; SePay tự khớp như Chuyển khoản, màn hình tự báo khi tiền về đủ.
+- Ghi sổ vào tài khoản tiền gửi Shinhan. Bill ghi Chuyển khoản mà tiền lại về Shinhan (hoặc ngược lại) thì hệ thống chặn ghi sổ, câu báo nói đổi sang phương thức nào.
+
+**Bạn cần làm**
+1. Quầy: khách chuyển vào Shinhan thì chọn ô Chuyển khoản - Shinhan trước khi đưa mã QR.
+2. Gặp câu "tiền về tài khoản của Chuyển khoản - Shinhan": mở bill, đổi phương thức đúng như câu báo rồi lưu lại.
+
+**Lưu ý**
+- Mã QR Shinhan lấy số tài khoản từ Hình thức thanh toán Chuyển khoản - Shinhan (tài khoản 11212). Kế toán đổi tài khoản ở đó thì mã QR đổi theo.
+
+## Khuyến mãi trên bill Tạm tính
+Từ khoá: khuyến mãi bill tạm tính, chương trình, nhập mã, voucher, bill gọi QR, sửa hoá đơn, áp khuyến mãi tại quầy, OTP quản lý
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy | Bill Tạm tính trên app (cả bill gọi món qua QR) | Chương trình; Nhập mã |
+
+Từ v678 (cửa hàng báo 20/11/2026).
+
+**Trước đây:** khuyến mãi chỉ chọn được ở màn Tính tiền lúc tạo đơn. Bill khách gọi qua QR, hay bill Tạm tính đã lưu, không có mục Chương trình, Nhập mã; Sửa hoá đơn cũng không có, nên phải biết khách có voucher ngay từ đầu.
+**Từ nay:**
+- Bill Tạm tính chưa có ưu đãi nào có khối Khuyến mãi với hai nút Chương trình và Nhập mã.
+- Chương trình: danh sách chương trình đang bật cho quầy, kèm số giảm tính theo món đang có; chương trình không áp được thì ghi lý do.
+- Nhập mã: gõ mã khách đọc. Chương trình cần quản lý duyệt thì hệ thống hỏi mã OTP.
+- Hệ thống trừ ngay vào bill. Khách gọi thêm món thì số giảm tính lại; lượt dùng ghi khi chốt bill.
+- Mỗi hoá đơn một ưu đãi: bill đã có ưu đãi khách chọn tại bàn hay khuyến mãi lúc tạo đơn thì không áp thêm. Muốn đổi thì bấm Bỏ ưu đãi này trước.
+
+**Bạn cần làm**
+1. Đang Sửa hoá đơn mà muốn áp khuyến mãi: lưu thay đổi món trước, rồi bấm Chương trình hoặc Nhập mã.
+
+## Voucher Grab Dine-Out là tiền Grab trả, không phải giảm giá
+Từ khoá: voucher Grab, Grab Dine-Out, GD-, voucher 200.000, voucher 300.000, giảm giá Grab, đối soát Grab
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy; Kế toán đối soát | Tính tiền, bill Tạm tính | Ô Grab Dine-Out |
+
+Từ v678 (giám đốc chốt 20/11/2026: Grab trả tiền voucher).
+
+**Trước đây:** voucher Grab Dine-Out 200.000 đ, 300.000 đ được chọn như một chương trình khuyến mãi, nên bill ghi thành giảm giá và doanh thu thấp hơn số Grab trả.
+**Từ nay:**
+- Chương trình mang tên Grab Dine-Out không áp được thành giảm giá ở bất kỳ màn nào; danh sách ghi lý do và chỉ cách ghi đúng.
+- Khách trả bằng Grab Dine-Out (có voucher hay không): chọn phương thức Grab Dine-Out cho cả bill và nhập mã GD- trên máy khách. Bill giữ đủ giá món.
+- Khách trả một phần bằng cách khác: chia thanh toán, phần Grab Dine-Out kèm mã GD-.
+
+**Bạn cần làm**
+1. Quầy: không tìm voucher Grab trong Chương trình nữa, chọn ô Grab Dine-Out khi chốt.
+2. Kế toán: các bill cũ đã ghi voucher Grab thành giảm giá giữ nguyên, đối chiếu riêng với báo cáo Grab.
+
+## Khách chuyển khoản ngay tại bàn, bill tự chốt
+Từ khoá: chuyển khoản ngay, app ngân hàng, tự chốt bill, O2O, gọi món tại bàn, thanh toán tại bàn, đối soát tay, bàn đã chuyển khoản
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách tại bàn; Quầy | Trang gọi món tại bàn (Thanh toán); danh sách bill trên app | Chuyển khoản ngay; Hiện cách chuyển khoản |
+
+Từ v678 (giám đốc chốt 20/11/2026: hệ thống tự chốt).
+
+**Trước đây:** khách gọi món qua QR muốn chuyển khoản thì phải báo quầy, thu ngân mở bill đưa mã QR rồi chờ và tự chốt bill.
+**Từ nay:**
+- Bảng Thanh toán trên trang gọi món có cách Chuyển khoản ngay: khách chọn app ngân hàng, app mở ra với số tiền và nội dung điền sẵn (MB, VietinBank, BIDV, ACB, OCB); app khác thì nội dung đã chép sẵn để dán. Có cả mã QR và nút chép.
+- Tiền về đủ, nội dung có mã bill, thì hệ thống tự chốt bill tạm tính: phương thức theo ngân hàng tiền về. Trang của khách báo Đã nhận tiền.
+- Cũng áp cho bill tạm tính ở quầy: khách quét mã QR trên tờ tạm tính, tiền về là bill tự chốt.
+- Nhóm Zalo của quầy nhận tin "Bàn N đã chuyển khoản, bill tự chốt" (nhóm đang nhận tin gọi món tại bàn được tích sẵn).
+
+**Bạn cần làm**
+1. Quầy: thấy tin bàn đã chuyển khoản thì không thu nữa.
+2. Bill không tự chốt (chuyển thiếu, thiếu mã bill, bill chia nhiều cách trả): bấm Dò tiền chuyển khoản rồi chốt như cũ.
+
+**Lưu ý**
+- Hệ thống chỉ chốt, ghi sổ vẫn theo nhịp và kiểm tiền lại lần nữa. Khách gọi thêm món sau khi lấy mã thì trang tự lấy số tiền mới.
+
 ## Tích điểm cho bill gọi món tại bàn
 Từ khoá: tích điểm, thành viên, khách bàn, bill QR, tạm tính, gắn khách, gỡ khách, The Vagabond Club, đăng nhập Zalo
 
