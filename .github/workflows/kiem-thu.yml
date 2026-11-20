@@ -11,9 +11,9 @@ name: Kiem thu truoc deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, ui-nghe-si]
   pull_request:
-    branches: [main]
+    branches: [main, ui-nghe-si]
   workflow_dispatch:
 
 jobs:
