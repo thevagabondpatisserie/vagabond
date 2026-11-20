@@ -436,6 +436,14 @@ export function taoKho(moiTruong) {
   }
   const daCo = id => T.daCoTrongGio(S.CART, id);
   const tenMonGio = o => tmon(o.id, 'ten', o.k);
+  /* #463 (Codex, anh Việt 20/11/2026): khách đã xác nhận ngày nhận mà cỡ bánh hết
+     ĐÚNG ngày đó thì không thêm. Trước đây số 0 bị hiểu là "không giới hạn" nên
+     bánh vẫn vào giỏ, rồi giỏ tự dời ngày nhận sang ngày còn bánh. Giữ ngày, giữ
+     giỏ, nhờ khách tự chọn ngày khác. Không đổi luật tồn (soDatTruoc). */
+  function hetNgayDaChon(id, nguon) {
+    return nguon !== 'today' && !!S.daChonNgay && soDatTruoc(id) === 0;
+  }
+  const cauHetNgayDaChon = () => t('dat_truoc_het_ngay_chon', 'Cỡ bánh này {het}. Quý khách chọn ngày nhận khác rồi thêm lại.', {het: chuHetNgay()});
   function addToCart() {
     const c = S.cur, sz = curSize.value;
     if (!c || !sz) return false;
@@ -444,6 +452,7 @@ export function taoKho(moiTruong) {
     if (xd) { toast(cauTachDon(xd)); return false; }
     if (chanThemDbt(sz.id, S.soLuong, S.dongDangSua)) return false;
     if (!conNgayChung({id: sz.id, nguon: S.tab === 'today' ? 'today' : 'order'}, S.dongDangSua)) { toast(cauKhongNgayChung()); return false; }
+    if (hetNgayDaChon(sz.id, S.tab === 'today' ? 'today' : 'order')) { toast(cauHetNgayDaChon()); return false; }
     const gh = gioiHanNhan(sz.id, S.tab === 'today' ? 'today' : 'order');
     const dangSua = S.dongDangSua >= 0 && S.CART[S.dongDangSua] && S.CART[S.dongDangSua].id === sz.id ? S.CART[S.dongDangSua].qty : 0;
     if (gh && daCo(sz.id) - dangSua + S.soLuong > gh) {
@@ -475,6 +484,7 @@ export function taoKho(moiTruong) {
     if (xd) { toast(cauTachDon(xd)); return 'chan'; }
     if (chanThemDbt(sz.id, 1)) return 'chan';
     if (!conNgayChung({id: sz.id, nguon: cheDo === 'today' ? 'today' : 'order'})) { toast(cauKhongNgayChung()); return 'chan'; }
+    if (hetNgayDaChon(sz.id, cheDo === 'today' ? 'today' : 'order')) { toast(cauHetNgayDaChon()); return 'chan'; }
     if (gh && daCo(sz.id) >= gh) {
       toast(t('dat_truoc_con_mai', 'Size này chỉ còn nhận {gia_tri_a} bánh. Cần nhiều hơn quý khách gọi 0931 224 334', {gia_tri_a: gh}));
       return 'chan';
@@ -508,6 +518,8 @@ export function taoKho(moiTruong) {
     if (d > 0) {
       const gh = o.cm === 0 ? 0 : gioiHanNhan(o.id, o.nguon);
       const m = o.cm === 0 ? (S.MUA.mon || []).find(x => x.ma === o.id) : null;
+      /* #463 cùng loại: số 0 không phải "không giới hạn" khi ngày đã xác nhận đã hết. */
+      if (o.cm !== 0 && hetNgayDaChon(o.id, o.nguon)) { toast(cauHetNgayDaChon()); return; }
       if (gh && daCo(o.id) >= gh) { toast(t('dat_truoc_con_mai_ngan', 'Size này chỉ còn nhận {gia_tri_a} bánh.', {gia_tri_a: gh})); return; }
       if (m && daCo(o.id) >= m.con) { toast(t('dat_banh_3b1a7e8cc', 'Mùa này chỉ còn') + ' ' + m.con + ' ' + t('dat_banh_5faac70d7', 'phần. Cần nhiều hơn quý khách gọi 0931 224 334')); return; }
       /* Codex #579: nút + trong giỏ cũng giữ giờ chốt và số lượng của đợt. */
