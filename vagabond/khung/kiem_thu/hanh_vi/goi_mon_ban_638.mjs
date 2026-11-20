@@ -634,7 +634,8 @@ await ca('v642 gọi xong (anh Việt 06/11/2026: màn co lại, không xem đư
   dung('tạm tính bỏ lượt bị từ chối', chu(theoId(goc, 'gbTongBan')).includes('Món gọi từ máy này (1 món)') && chu(theoId(goc, 'gbDonTra')) === 'Thanh toán · 45.000 đ');
   await bam(theoId(goc, 'gbDonTra'));
   dung('mở Thanh toán, đóng màn đơn', mo('gbTra') && !mo('gbDonBan'));
-  la('hai cách trả, chưa mở trả online', tim(theoId(goc, 'gbTra'), n => n.props['data-cach']).map(n => n.props['data-cach']), ['ban', 'quay']);
+  /* v678: Chuyển khoản ngay đứng đầu (anh Việt 20/11/2026), hai cách cũ giữ nguyên. */
+  la('ba cách trả, chuyển khoản ngay đứng đầu', tim(theoId(goc, 'gbTra'), n => n.props['data-cach']).map(n => n.props['data-cach']), ['ck', 'ban', 'quay']);
   dung('chưa chọn cách thì khoá nút', theoId(goc, 'gbTraGui').props.disabled === true);
   await bam(tim(goc, n => n.props['data-cach'] === 'ban')[0]);
   go(theoId(goc, 'gb-tra-hd'), '12345'); await cho();
@@ -1039,6 +1040,78 @@ await ca('v655 (Dễ báo 13/11, anh Việt chọn A): hai tầng Bánh và Đ�
   await bamTang(goc, 'nuoc');
   la('đổi tầng: chip nhỏ về Tất cả đồ uống', [tim(theoId(goc, 'storeChip'), n => n.props['aria-pressed'] === 'true').map(n => n.props['data-nhom']), nutThem(goc).length], [[''], 2]);
   la('chip nhỏ Đồ uống theo thứ tự menu', tim(theoId(goc, 'storeChip'), n => n.the === 'button').map(n => n.props['data-nhom']), ['', 'g:n-tra-sua', 'g:n-ca-phe']);
+});
+
+await ca('v678 chuyển khoản ngay tại bàn (anh Việt 20/11/2026): chọn Chuyển khoản ngay, bấm Hiện cách chuyển khoản thì máy chủ trả số tiền, mã QR, năm app tự điền đứng đầu, Ngân hàng khác mở thêm; app không tự điền thì chép sẵn nội dung; trả lời cũ đến muộn bị bỏ; nhịp hỏi thấy số tiền đổi thì lấy mã mới; tiền về thì chip Đã nhận tiền, nút Đóng, hỏi lại trạng thái đơn', async () => {
+  const theoMa = {'TQ-1': {ok: 1, trang_thai: 'Đã nhận', luc: '10:00', nhan_luc: '10:01', tam_tinh: 45000,
+    mon: [{ten: 'Trà Hoa Lài', sl: 1, tc: [], gia: 45000, tien: 45000}], bill: {khoa: 'b1', tong: 45000}}};
+  const APP = [{ma: 'mb', ten: 'MB Bank', tu_dien: 1, link: 'https://dl.vietqr.io/pay?app=mb'},
+    {ma: 'icb', ten: 'VietinBank', tu_dien: 1, link: 'https://dl.vietqr.io/pay?app=icb'},
+    {ma: 'vcb', ten: 'Vietcombank', tu_dien: 0, link: 'https://dl.vietqr.io/pay?app=vcb'}];
+  let soTien = 45000, tt = 'cho';
+  const tin = {ok: 1, ma: 'TCVQ4PFX', tien: 45000, noi_dung: 'TCVQ4PFX', ngan_hang: 'MB Bank', stk: 'VQRQ00033k5p6', chu_tk: 'PATISSERIE VAGABOND', anh: 'data:image/svg+xml,x', app: APP};
+  const {goc, kho, vet, chayHen, mang, mt} = await moTrang({tt: th => theoMa[th.ma], goi: () => ({ok: 1, ma: 'TQ-1', token: '1'.repeat(32)})});
+  const chep = [];
+  mt.chep = s => chep.push(s);
+  let treo = null;
+  mang['vagabond.ck_ban.thong_tin'] = () => (treo ? treo : Object.assign({}, tin, {tien: soTien}));
+  mang['vagabond.ck_ban.trang_thai'] = () => ({ok: 1, tt, tien: tt === 'cho' ? soTien : undefined});
+  const G = kho.goiBan.G;
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'NUTR00021'));
+  await bam(tim(goc, n => n.props['data-tc'] === 'Đá=Ít đá')[0]);
+  await bam(theoId(goc, 'gbThemLy'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  await bam(theoId(goc, 'gbXemDon'));
+  await bam(theoId(goc, 'gbDonTra'));
+  await bam(tim(goc, n => n.props['data-cach'] === 'ck')[0]);
+  la('chưa lấy mã: chưa gọi máy chủ, nút mời hiện cách chuyển khoản', [vet.filter(x => x[1] === 'vagabond.ck_ban.thong_tin').length, chu(theoId(goc, 'gbTraGui'))],
+    [0, 'Hiện cách chuyển khoản']);
+  go(theoId(goc, 'gb-tra-hd'), '0311 638 525'); await cho();
+  await bam(theoId(goc, 'gbTraGui'));
+  const gui = vet.filter(x => x[1] === 'vagabond.ck_ban.thong_tin').map(x => x[2]);
+  la('gửi đúng link bàn và mã số thuế đã chuẩn', gui.map(x => [x.diem, x.ban, x.k, x.hd]), [['TCV', 5, K, '0311638525']]);
+  dung('không gọi chuông Xin tính tiền', !vet.some(x => x[1] === 'vagabond.goi_mon_ban.goi_nhan_vien'));
+  const ck = theoId(goc, 'gbCk');
+  dung('khối chuyển khoản có số tiền, chip Chờ tiền về', chu(ck).includes('45.000 đ') && chu(theoId(goc, 'gbCkChip')) === 'Chờ tiền về');
+  la('chỉ app tự điền đứng đầu', tim(theoId(goc, 'gbCkApp'), n => n.props['data-app']).map(n => n.props['data-app']), ['mb', 'icb']);
+  la('nút mở app là liên kết thật', tim(theoId(goc, 'gbCkApp'), n => n.props['data-app'] === 'mb')[0].props.href, APP[0].link);
+  await bam(theoId(goc, 'gbCkThem'));
+  la('Ngân hàng khác: đủ app', tim(theoId(goc, 'gbCkApp'), n => n.props['data-app']).map(n => n.props['data-app']), ['mb', 'icb', 'vcb']);
+  await bam(tim(theoId(goc, 'gbCkApp'), n => n.props['data-app'] === 'mb')[0]);
+  la('app tự điền: không chép', chep, []);
+  await bam(tim(theoId(goc, 'gbCkApp'), n => n.props['data-app'] === 'vcb')[0]);
+  la('app không tự điền: chép sẵn nội dung', chep, ['TCVQ4PFX']);
+  await bam(theoId(goc, 'gbCkChepStk'));
+  la('chép số tài khoản', [chep[1], chu(theoId(goc, 'gbCkChepStk'))], ['VQRQ00033k5p6', 'Đã chép']);
+  la('nút đáy: kiểm tra tiền về', chu(theoId(goc, 'gbTraGui')), 'Kiểm tra tiền về');
+  /* Bàn gọi thêm món: nhịp hỏi thấy số tiền mới thì lấy mã mới. */
+  soTien = 75000;
+  await chayHen();
+  const gui2 = vet.filter(x => x[1] === 'vagabond.ck_ban.thong_tin');
+  dung('số tiền đổi: lấy lại mã ' + gui2.length, gui2.length === 2 && chu(theoId(goc, 'gbCk')).includes('75.000 đ'));
+  /* Sổ mẫu lỗi loại 8: lượt lấy mã cũ đến muộn không ghi đè lượt mới. */
+  let mo1 = null;
+  treo = new Promise(r => { mo1 = r; });
+  G.tra.ck.info = null;
+  const p1 = kho.goiBan.napCk();
+  treo = null; G.tra.ck.dang = false;
+  const p2 = kho.goiBan.napCk();
+  await p2;
+  mo1(Object.assign({}, tin, {tien: 1}));
+  await p1; await cho();
+  la('trả lời cũ bị bỏ', G.tra.ck.info.tien, 75000);
+  /* Tiền về: máy chủ báo đã trả. */
+  tt = 'da_tra';
+  const truoc = vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').length;
+  await bam(theoId(goc, 'gbTraGui'));
+  await cho();
+  dung('chip Đã nhận tiền và câu đã thanh toán', chu(theoId(goc, 'gbCkChip')) === 'Đã nhận tiền' && chu(theoId(goc, 'gbCkXong')).includes('Bill bàn 5 đã thanh toán'));
+  dung('nút đáy thành Đóng, không còn nút kiểm tra', !theoId(goc, 'gbTraGui'));
+  dung('hỏi lại trạng thái đơn để bỏ lượt đã trả', vet.filter(x => x[1] === 'vagabond.goi_mon_ban.trang_thai').length > truoc);
+  kho.goiBan.dongTra();
+  dung('đóng bảng: thôi hẹn hỏi', !G.tra.mo);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong');

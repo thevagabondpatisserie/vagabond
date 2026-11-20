@@ -60,7 +60,7 @@ function donMau(them) {
 var GIA_RONG = [/* v617: thanh bước nằm ở 15-khuon-danh-sach.js, ca này không nạp phần đó */ 'veBuoc', 'khachTrenDon', 'khachMotDong', 'veKhachNo', 'dsvTaiHt', 'dsvVeHt', 'dsvKhoiHt', 'dsvVeQr', 'dsvVeThayThe',
   'dsvVeThu', 'dsvVeDiem', 'dsvVeTruDiem', 'dsvTheAnh', 'dsvHoiHt', 'dsvGanTruDiem', 'dsvGanHt', 'dsvChayDongHo', 'dsvTuPancake',
   'dsvnNapKhoiHd', 'dsvnKhoiHd', 'dsvOSo', 'dsvNapLai', 'dsvTaiThe', 'ttnVe', 'tkNapKhoi', 'tkKhoiChiTiet', 'sheetTimKhach',
-  'promptSheet', 'posXinPhep', 'posTaiKhoan', 'posQrUrl', 'posNoiDungCk', 'hopKhung', 'hoanMoFormHuy', 'hoanMoFormDu', 'hoanMoForm',
+  'promptSheet', 'posXinPhep', 'posTaiKhoan', 'posQrUrl', 'posNoiDungCk', /* v678 */ 'posLaCk', 'posTkCk', 'hopKhung', 'hoanMoFormHuy', 'hoanMoFormDu', 'hoanMoForm',
   'hddtChoXuatChu', 'hdGanBind', 'hdAiLamGi', 'dstGanNganCach', 'dstDiemDs', 'dstSoThuan', 'dstNganCach', 'dsTayDoc', 'cfgBanHang',
   'ptTheoNguon', 'nguonBH', 'veOMtc', 'xacNhan', 'confirmSheet', 'dsvGanThe', 'veTruDiem',
   /* v607: khối Hàng tặng và khối Số dư trả trước nằm ở 54, 55. */

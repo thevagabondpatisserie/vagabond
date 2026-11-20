@@ -20,7 +20,7 @@ function nap(c){
   vm.runInContext(src,c);
  }
  const pos=doc('vagabond/public/js/bep/09-tinh-tien-quay.js');
- for(const ten of ['posDiemCua','posTaiKhoan','posQrTao','posQrUrl','posQrAnhIn','posQrLoi','posKhoiQr'])vm.runInContext(ham(pos,ten),c);
+ for(const ten of ['posDiemCua','posTaiKhoan','posCfgCk','posLaCk','posTkCk','posQrTao','posQrUrl','posQrAnhIn','posQrLoi','posKhoiQr'])vm.runInContext(ham(pos,ten),c);
  return c;
 }
 module.exports={root,doc,ham,nap};

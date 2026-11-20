@@ -313,6 +313,7 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     vm.runInContext(doc('01-khung-app.js'), g);
     /* v617: màn Chi tiết đơn vẽ thanh bước bằng veBuoc THẬT của 15-khuon-danh-sach.js. */
     vm.runInContext((function () { var s = doc('15-khuon-danh-sach.js'), i = s.indexOf('function veBuoc('); return s.slice(i, s.indexOf('\nfunction ', i + 10)); })(), g);
+    ['posCfgCk', 'posLaCk'].forEach(function (t) { vm.runInContext(layHam(t), g); });
     vm.runInContext(doc('08-doanh-so-sales.js'), g);
     vm.runInContext(doc('54-ly-do-tang.js'), g);
     vm.runInContext(doc('55-so-du-tra-truoc.js'), g);
@@ -702,7 +703,7 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     vm.runInContext(doc('49-tru-kho-bu.js'), g);
     vm.runInContext(doc('54-ly-do-tang.js'), g);
     vm.runInContext(doc('55-so-du-tra-truoc.js'), g);
-    ['khachMotDong', 'khachTrenDon', 'posSoTien', 'posNutPt', 'posONhan'].forEach(function (t) { vm.runInContext(layHam(t), g); });
+    ['khachMotDong', 'khachTrenDon', 'posSoTien', 'posNutPt', 'posONhan', 'posCfgCk', 'posLaCk'].forEach(function (t) { vm.runInContext(layHam(t), g); });
     /* Chốt xong màn quay về danh sách bill; danh sách không phải phần đang kiểm. */
     g.scrPosDs = async function () {};
     return { g: g, tl: tl, mc: mc, tin: tin,
@@ -894,7 +895,8 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     dung('có khối ưu đãi', !!k);
     var c = k.textContent;
     dung('tên, mã, số che: ' + c, c.indexOf('Giảm 10% hoá đơn') >= 0 && c.indexOf('Mã VC-8K2Q') >= 0 && c.indexOf('0909 *** 412') >= 0);
-    dung('máy đã trừ, không cần OTP', c.indexOf('Máy đã trừ 18500 đ') >= 0 && c.indexOf('không cần OTP') >= 0);
+    /* v678: chữ "Máy" đổi thành "Hệ thống" theo quy tắc chữ ERP. */
+    dung('hệ thống đã trừ, không cần OTP', c.indexOf('Hệ thống đã trừ 18500 đ') >= 0 && c.indexOf('không cần OTP') >= 0);
     dung('không lộ số đầy đủ', c.indexOf('0909123412') < 0);
     await app.bam(app.mot('#pbBoUd')); await nghi();
     var b = app.mc.cac('vagabond.uu_dai_ban.bo_quay');
@@ -910,6 +912,45 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
       vgb_ud_ban: JSON.stringify(Object.assign(JSON.parse(UD), { giam: 0, ly_do: 'hoá đơn chưa đủ 150.000 đ' })) }));
     await app2.g.scrPosBill('SI-95631'); await nghi();
     dung('chưa trừ kèm lý do', app2.tl.getElementById('pbUdBan').textContent.indexOf('Chưa trừ: hoá đơn chưa đủ 150.000 đ') >= 0);
+  });
+
+  /* v678 Dễ báo 20/11/2026: bill gọi QR không có mục Chương trình, Nhập mã. */
+  await ca('v678 Bill Tạm tính chưa có ưu đãi: khối Khuyến mãi; Chương trình mở danh sách, bấm dòng áp được thì gọi ap_quay, dòng không áp được thì báo lý do; cần OTP thì hỏi rồi gọi lại', async function () {
+    var lan = 0;
+    var app = manBill(donBill({ vgb_tam_tinh: 1 }), {
+      'vagabond.uu_dai_ban.ds_quay': function () {
+        return { ok: 1, ds: [{ ma: 'CTKM-10', ten: 'Giảm 10%', giam: 70000, dung_duoc: 1 },
+          { ma: 'CTKM-OTP', ten: 'Giảm sâu', giam: 210000, dung_duoc: 1, can_otp: 1 },
+          { ma: 'GRAB', ten: 'VOUCHER 200.000 GRAB DINE OUT', giam: 0, dung_duoc: 0, ly_do: 'voucher Grab Dine-Out do Grab trả tiền' }] };
+      },
+      'vagabond.uu_dai_ban.ap_quay': function (a) {
+        lan++;
+        if (a.ma === 'CTKM-OTP' && !a.otp) return { ok: 0, can_otp: 1, cau: 'cần OTP' };
+        return { ok: 1, ten: a.ma, giam: 70000 };
+      }
+    });
+    app.g.promptSheet = function () { return Promise.resolve('123456'); };
+    await app.g.scrPosBill('SI-95631'); await nghi();
+    dung('có khối Khuyến mãi, chưa có khối ưu đãi', !!app.tl.getElementById('pbKm') && !app.tl.getElementById('pbUdBan'));
+    await app.bam(app.mot('#pbKmCt')); await nghi();
+    var dong = app.tl.querySelectorAll('[data-kmq]');
+    bang('ba dòng', dong.length, 3);
+    await app.bam(dong[2]); await nghi();
+    bang('dòng Grab không gọi áp', app.mc.cac('vagabond.uu_dai_ban.ap_quay').length, 0);
+    await app.bam(dong[1]); await nghi(); await nghi();
+    bang('cần OTP: gọi lại kèm mã', app.mc.cac('vagabond.uu_dai_ban.ap_quay').map(function (x) { return [x.a.name, x.a.loai, x.a.ma, x.a.otp]; }),
+      [['SI-95631', 'ctkm', 'CTKM-OTP', ''], ['SI-95631', 'ctkm', 'CTKM-OTP', '123456']]);
+    var app2 = manBill(donBill({ vgb_tam_tinh: 1 }), { 'vagabond.uu_dai_ban.ap_quay': function () { return { ok: 1, giam: 1 }; } });
+    app2.g.promptSheet = function () { return Promise.resolve(' vc-8k2q '); };
+    await app2.g.scrPosBill('SI-95631'); await nghi();
+    await app2.bam(app2.mot('#pbKmMa')); await nghi();
+    bang('Nhập mã: gửi mã in hoa', app2.mc.cac('vagabond.uu_dai_ban.ap_quay').map(function (x) { return [x.a.loai, x.a.ma]; }), [['ma', 'VC-8K2Q']]);
+    var app3 = manBill(donUd());
+    await app3.g.scrPosBill('SI-95631'); await nghi();
+    dung('đã có ưu đãi: không hiện khối Khuyến mãi', !app3.tl.getElementById('pbKm'));
+    var app4 = manBill(donBill({ vgb_tam_tinh: 1, vgb_km: '[{"ten":"X"}]' }));
+    await app4.g.scrPosBill('SI-95631'); await nghi();
+    dung('có khuyến mãi lúc tạo: không hiện', !app4.tl.getElementById('pbKm'));
   });
 
   await ca('v643 Bill quầy Sửa hoá đơn có ưu đãi khách chọn và giảm điểm: ô Giảm giá chỉ phần tay, Lưu gửi đúng phần tay, tổng xem trước không đổi', async function () {
