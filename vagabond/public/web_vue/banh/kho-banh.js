@@ -1364,8 +1364,10 @@ export function taoKho(moiTruong) {
   watch(() => S.CART.map(o => o.id).join(','), () => { void napGoiY(); });
 
   /* v638: gọi món tại bàn qua QR, kho riêng (kho-goi-ban.js) dùng chung S. */
+  /* v678: chep (chép vào bộ nhớ tạm) đọc lúc gọi, để bộ kiểm cấp được. */
   const goiBan = taoGoiBan({t, doc, ghi, luuTru, ngauNhien, hen, huyHen, toast, napQuay,
-    timKiem: moiTruong.timKiem || (() => '')}, S);
+    timKiem: moiTruong.timKiem || (() => ''), chep: s => (moiTruong.chep ? moiTruong.chep(s) : (typeof navigator !== 'undefined'
+      && navigator.clipboard ? navigator.clipboard.writeText(s) : null))}, S);
 
   return {S, T, goiBan, picked, slotOk, firstOk, ngayDangChon, slotDangChon, gioHopLe, daChot, hienTomTat, nhanNgayDangChon, chotDon, veHomNay,
     ngayRail, ngayRailDatTruoc, homNayBiChan, khungRail, pick, pickSlot, nhanRefill, doiLich, mocGioNhan, ghiChuDatTruoc, ghiChuGio, fixSlot,
