@@ -57,7 +57,8 @@
 					+ "<b>" + d.ma_hang + "</b><span>" + chuSach(d.ten_banh) + "</span></div>"
 					+ '<div class="bt-so">' + oBtp
 					+ '<div class="bt-o"><label>Đơn đang giữ</label><b>' + (d.dang_giu || 0) + "</b></div>"
-					+ '<div class="bt-o bt-nhan ' + (d.con_nhan > 0 ? "duong" : (d.con_nhan < 0 ? "am" : "")) + '"><label>CÒN NHẬN</label><b>' + d.con_nhan + "</b></div>"
+					/* v677: đúng số web nhận cho ngày kia và ngày thứ ba (chung một số). */
+					+ '<div class="bt-o bt-nhan ' + (d.con_nhan > 0 ? "duong" : (d.con_nhan < 0 ? "am" : "")) + '"><label>Web nhận</label><b>' + d.con_nhan + '</b><div class="bt-ai">ngày kia, ngày thứ ba</div></div>'
 					+ "</div></div>";
 			});
 		g.innerHTML = h;

@@ -153,7 +153,7 @@ var KB_LOC = (function () {
 		ve();
 	}
 	var NGHI_DEN = 0;   // moc thoi gian duoc phep goi dong bo lai
-	var BTP = {}; // ma -> {so_btp, con_nhan} tu bang BTP cua bep
+	var BTP = {}; // ma -> {so_btp, con_nhan, web} tu bang BTP cua bep (v677: web = ba ngày web nhận)
 	var BTP_SUA = false; // chi bep duoc sua (server quyet qua quyen_btp)
 	/* v646 Refill (anh Việt duyệt 09/11): đơn đặt xa ngày theo mã, lịch refill sắp tới. */
 	var BTP_XA = {}, LICH_RF = [], RF_LOI = "", DOT_XONG = [];
@@ -362,8 +362,8 @@ var KB_LOC = (function () {
 					+ (d.ban_sau_chot ? '<div class="kb-o kb-sau-chot"><label>Bán sau chốt</label><b>' + d.ban_sau_chot + "</b></div>" : "")
 					+ oBTP(d.ma_hang, "so_btp", "BTP sẵn")
 					+ oBTP(d.ma_hang, "so_decor", "Đủ decor")
-					+ oGiaoMai(d.ma_hang)
-					+ oNhan2(d.ma_hang)
+					/* v677 (Loan Anh 20/11/2026): ba ô Web nhận thay Còn nhận mai, Còn nhận 3 ngày. */
+					+ oWeb(d.ma_hang)
 					+ oDatXa(d.ma_hang)
 					+ oRefill(d.ma_hang)
 					+ oConRefill(d.ma_hang)
@@ -757,7 +757,8 @@ var KB_LOC = (function () {
 				ma: d.ma_hang, ten: d.ten_banh || d.ma_hang, anh: d.hinh || "",
 				ban: d.co_the_ban || 0,
 				cho: d.cho_chot || 0,
-				mai: Math.max(0, b.giao_mai || 0),
+				/* v677: số web nhận ngày mai (ô Web nhận đầu tiên), BTP sẵn còn nhận. */
+				mai: Math.max(0, ((b.web || [])[0] || [])[1] || 0),
 				btp: b.con_nhan || 0
 			};
 			if (o.ban > 0) conBan.push(o);
@@ -899,16 +900,25 @@ var KB_LOC = (function () {
 			.catch(function (e) { var el = document.getElementById("kb-ls-ds"); if (el) el.textContent = loiNguoiDoc(e.message); });
 	}
 
-	function oGiaoMai(ma) {
-		var b = BTP[ma];
-		var gm = b ? (b.giao_mai || 0) : 0;
-		return '<div class="kb-o kb-nh2 ' + (gm > 0 ? "duong" : (gm < 0 ? "am" : "")) + '"><label>CÒN NHẬN MAI</label><b>' + gm + "</b></div>";
-	}
-
-	function oNhan2(ma) {
-		var b = BTP[ma];
-		var cn = b ? b.con_nhan : 0;
-		return '<div class="kb-o kb-nh2 ' + (cn > 0 ? "duong" : (cn < 0 ? "am" : "")) + '"><label>CÒN NHẬN 3 NGÀY</label><b>' + cn + "</b></div>";
+	/* v677 (Loan Anh báo 20/11/2026: số bánh đặt trước không khớp cột nào trên bảng;
+	   anh Việt chọn hướng A): ba ô ĐÚNG số web nhận cho ngày mai, ngày kia, ngày thứ
+	   ba, máy chủ tính bằng chính phép của trang đặt bánh (btp.bang_btp, trường web).
+	   Dòng nhỏ ghi số lấy từ đâu: phiếu ngày mai, BTP sẵn (chung cho ngày kia và
+	   ngày thứ ba), hay đợt refill. Số âm là đã nhận quá, web hiện hết. */
+	var NGUON_WEB = { phieu: "theo phiếu ngày mai", btp: "theo BTP sẵn", refill: "theo đợt refill" };
+	function oWeb(ma) {
+		var ds = (BTP[ma] && BTP[ma].web) || [];
+		if (!ds.length) return '<div class="kb-o kb-nh2 kb-wn dau"><label>Web nhận</label><b>-</b><div class="kb-nguon">chưa có trên bảng BTP</div></div>';
+		return ds.map(function (p, i) {
+			var lop = "kb-o kb-nh2 kb-wn" + (i ? "" : " dau");
+			var nhan = "Web nhận " + p[0].slice(8, 10) + "/" + p[0].slice(5, 7), n = p[1];
+			if (n === null || n === undefined) {
+				return '<div class="' + lop + '"><label>' + nhan + '</label><b>?</b><div class="kb-nguon xn">'
+					+ (p[2] === "phieu" ? "chưa có phiếu ngày mai" : "chưa đếm được đơn") + "</div></div>";
+			}
+			return '<div class="' + lop + " " + (n > 0 ? "duong" : (n < 0 ? "am" : "")) + '"><label>' + nhan + "</label><b>" + n
+				+ '</b><div class="kb-nguon">' + (NGUON_WEB[p[2]] || "") + "</div></div>";
+		}).join("");
 	}
 
 	/* ---------- v646 Refill ---------- */
@@ -949,15 +959,15 @@ var KB_LOC = (function () {
 
 	function oConRefill(ma) {
 		var ds = dsRefill(ma);
-		if (!ds.length) return '<div class="kb-o kb-nh2"><label>Còn nhận refill</label><b>0</b></div>';
-		if (ds.some(function (r) { return r.con === null || r.con === undefined; })) return '<div class="kb-o kb-nh2"><label>Còn nhận refill</label><b>?</b><div class="kb-nguon xn">chưa đếm được đơn</div></div>';
+		if (!ds.length) return '<div class="kb-o kb-nh2 kb-crf"><label>Còn nhận refill</label><b>0</b></div>';
+		if (ds.some(function (r) { return r.con === null || r.con === undefined; })) return '<div class="kb-o kb-nh2 kb-crf"><label>Còn nhận refill</label><b>?</b><div class="kb-nguon xn">chưa đếm được đơn</div></div>';
 		if (ds.length === 1) {
 			var r = ds[0];
-			return '<div class="kb-o kb-nh2 ' + (r.con > 0 ? "duong" : (r.con < 0 ? "am" : "")) + '"><label>Còn nhận refill</label><b>' + r.con + '</b><div class="kb-nguon">= ' + r.so + ' trừ ' + r.da_dat + ' đơn</div></div>';
+			return '<div class="kb-o kb-nh2 kb-crf ' + (r.con > 0 ? "duong" : (r.con < 0 ? "am" : "")) + '"><label>Còn nhận refill</label><b>' + r.con + '</b><div class="kb-nguon">= ' + r.so + ' trừ ' + r.da_dat + ' đơn</div></div>';
 		}
 		/* Nhiều đợt: số lớn là tổng còn, dòng dưới ghi còn của TỪNG đợt để không cộng nhầm. */
 		var tong = ds.reduce(function (a, r) { return a + r.con; }, 0), am = ds.some(function (r) { return r.con < 0; });
-		return '<div class="kb-o kb-nh2 ' + (am ? "am" : (tong > 0 ? "duong" : "")) + '"><label>Còn nhận refill</label><b>' + tong + '</b><div class="kb-nguon">'
+		return '<div class="kb-o kb-nh2 kb-crf ' + (am ? "am" : (tong > 0 ? "duong" : "")) + '"><label>Còn nhận refill</label><b>' + tong + '</b><div class="kb-nguon">'
 			+ gonDot(ds, function (r) { return "đợt " + r.tu.slice(8, 10) + "/" + r.tu.slice(5, 7) + ": còn " + r.con; }, " · ") + '</div></div>';
 	}
 
