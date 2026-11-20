@@ -166,8 +166,8 @@ export function taoKho(moiTruong) {
     && !(S.TRUOC_RF[o.id] && S.TRUOC_RF[o.id].chi_refill);
   /* v675 (Loan Anh nhắn 19/11/2026, anh Việt chốt nhận tới 3 ngày tới): số bánh
      đặt trước thường còn nhận cho ngày i. Ngày mai theo cột Còn bán của phiếu
-     Kiểm bánh ngày mai (TRUOC_MAI), ngày kia và ngày thứ ba theo Đủ decor còn
-     nhận (TRUOC_XA), xa hơn không nhận. Mã máy chủ không trả (null) thì ngày mai
+     Kiểm bánh ngày mai (TRUOC_MAI), ngày kia và ngày thứ ba theo BTP sẵn còn
+     nhận (TRUOC_XA, v677; trước đó Đủ decor), xa hơn không nhận. Mã máy chủ không trả (null) thì ngày mai
      để máy chủ quyết như v671. Cùng luật ton_don_web.kiem. */
   const SO_NGAY_DAT_TRUOC = 3;
   function soThuong(id, i) {
@@ -360,8 +360,11 @@ export function taoKho(moiTruong) {
     const chips = homNay
       ? avail.map(s => ({chu: (s.cm ? s.cm + 'cm' : t('dat_banh_8a6c6356d', '1 cỡ')) + ' · ' + T.nhanTon(S.TODAY[s.id], banh, t), co: true}))
       : truocSz.map(s => {
-        const nh = coTruoc.value ? T.nhanTon(S.TRUOC[s.id], banh, t) : '';
-        return {chu: (s.cm ? s.cm + 'cm' : t('dat_banh_8a6c6356d', '1 cỡ')) + (nh ? ' · ' + nh : ''), co: coTruoc.value};
+        /* v677: số của ĐÚNG ngày đang chọn (soDatTruoc), cùng số với màn chi tiết và giỏ. */
+        const n = coTruoc.value ? soDatTruoc(s.id) : null;
+        const het = n !== null && n <= 0;
+        const nh = n === null ? '' : (het ? chuHetNgay() : T.nhanTon(n, banh, t));
+        return {chu: (s.cm ? s.cm + 'cm' : t('dat_banh_8a6c6356d', '1 cỡ')) + (nh ? ' · ' + nh : ''), co: coTruoc.value && !het};
       });
     /* v675: nhiều cỡ khác giá thì ghi "từ" (trước: chỉ hiện giá cỡ nhỏ nhất, khách tưởng là giá duy nhất). */
     const giaHN = avail.map(s => s.p);
@@ -393,17 +396,18 @@ export function taoKho(moiTruong) {
     return ra;
   });
   const tienNutThem = computed(() => curSize.value ? (curSize.value.p + phuKienChon.value.reduce((a, x) => a + x.p, 0)) * S.soLuong : 0);
-  function gioiHanNhan(id, nguon) {
-    /* v671: số còn nhận cho ngày mai theo cột Có thể bán của phiếu Kiểm bánh
-       ngày mai (trước đây theo ô Dư decor); mã ngoài danh mục thì không giới hạn.
-       Codex 549 (1eefda8): bánh có mẻ refill thì ngày nhận đang chọn nằm trong
-       khoảng refill (hoặc bánh chỉ còn refill) lấy số còn của refill.
-       Codex 549 (58ba797): dòng lấy từ tab Hôm nay giới hạn theo số có sẵn hôm
-       nay, không theo mẻ refill tương lai. */
-    if (nguon === 'today') return S.TODAY[id] || 0;
-    /* v671: món của đợt giữ số theo đợt (chanThemDbt), không theo Đủ decor, cùng luật máy chủ (bo_mon_dot). */
-    if (D.khoaCuaMa(maDbt.value, id)) return 0;
-    if (!coTruoc.value) return 0;
+  /* v677 (Codex và anh Việt 19/11/2026: chọn nhận 20/11, thẻ Tira-Missing-U ghi
+     còn 10, mở chi tiết ghi 1): số bánh đặt trước còn nhận của mã `id` cho ĐÚNG
+     ngày đang chọn. MỘT phép cho thẻ, danh sách cỡ, màn chi tiết và giới hạn giỏ.
+     null: mã không theo bảng đặt trước (món của đợt, trang chưa có bảng). */
+  /* Chữ "hết ngày 21/11" cho cỡ không còn nhận đúng ngày đang chọn (v677). */
+  function chuHetNgay() {
+    const iso = isoNgayThu(picked.value);
+    return t('dat_truoc_het_ngay', 'hết ngày {ngay}', {ngay: iso.slice(8, 10) + '/' + iso.slice(5, 7)});
+  }
+  function soDatTruoc(id) {
+    if (D.khoaCuaMa(maDbt.value, id)) return null;
+    if (!coTruoc.value) return null;
     const r = S.TRUOC_RF[id];
     if (r) {
       const iso = isoNgayThu(picked.value);
@@ -413,10 +417,22 @@ export function taoKho(moiTruong) {
       if (r.chi_refill) return r.con || 0;
     }
     /* v675: số của đúng ngày đang chọn (ngày mai theo phiếu, ngày kia và ngày
-       thứ ba theo Đủ decor); chưa chọn ngày của tab thì số đầu tiên còn nhận. */
+       thứ ba theo BTP sẵn); chưa chọn ngày của tab thì số đầu tiên còn nhận. */
     const n = soThuong(id, picked.value);
     if (n !== null && picked.value >= 1 && picked.value <= SO_NGAY_DAT_TRUOC) return n;
     return S.TRUOC[id] || 0;
+  }
+  function gioiHanNhan(id, nguon) {
+    /* v671: số còn nhận cho ngày mai theo cột Có thể bán của phiếu Kiểm bánh
+       ngày mai (trước đây theo ô Dư decor); mã ngoài danh mục thì không giới hạn.
+       Codex 549 (1eefda8): bánh có mẻ refill thì ngày nhận đang chọn nằm trong
+       khoảng refill (hoặc bánh chỉ còn refill) lấy số còn của refill.
+       Codex 549 (58ba797): dòng lấy từ tab Hôm nay giới hạn theo số có sẵn hôm
+       nay, không theo mẻ refill tương lai. v677: phần đặt trước là soDatTruoc.
+       v671: món của đợt giữ số theo đợt (chanThemDbt), cùng luật máy chủ (bo_mon_dot). */
+    if (nguon === 'today') return S.TODAY[id] || 0;
+    const n = soDatTruoc(id);
+    return n === null ? 0 : n;
   }
   const daCo = id => T.daCoTrongGio(S.CART, id);
   const tenMonGio = o => tmon(o.id, 'ten', o.k);
@@ -1356,7 +1372,7 @@ export function taoKho(moiTruong) {
     dotDbt, maDbt, lucDbt, goiYGio, thanhMienPhiGio, themGoiY, napGoiY,
     coTruoc, banhHomNay, banhDatTruoc, tongTon, kichThuocDangBan, dongTrangThai, ghiChuHomNay, theBanh,
     curSize, moBanh, dongBanh, setSize, doiSoLuong, toggleNum, clearNums, toggleAdd, phuKienChon, tienNutThem,
-    gioiHanNhan, addToCart, themNhanh, suaDongGio,
+    gioiHanNhan, soDatTruoc, chuHetNgay, addToCart, themNhanh, suaDongGio,
     soBanh, tienBanh, cartQty, cartRemove, dongGio, khoaUuDai, uuHienTai, giam, xemUuDai, apMaUuDai, goiYMa,
     theDonDau, guiMaDonDau, xacThucDonDau, theDiem, dungDiem, tienDiem,
     mienPhi, quoteShip, apPhiGiao, chonQuan, setMode, diemNhanChon, setPickup, capNhatDiemNhan, tong, dongMienPhi,

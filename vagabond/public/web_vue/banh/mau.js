@@ -382,6 +382,7 @@ export const MAU = `
     <div class="thumbs" id="s-thumbs" v-if="chiTiet.anhs.length >= 2"><button v-for="(u,i) in chiTiet.anhs" :key="i" class="th" :class="{on: i===anhChon}" @click="anhChon=i" :aria-label="t('anh_thu_tu','Ảnh {so}',{so:i+1})"><img loading="lazy" :src="u" alt=""></button></div>
     <div class="s-head"><h2 id="s-name" :class="{vi: chiTiet.vi}">{{ chiTiet.ten }}</h2><div id="s-avail">
       <div class="avail" v-if="chiTiet.tinhTrang==='co'"><i class="dot"></i>{{ t('san_pham_co_san','Có sẵn hôm nay') }} · {{ chiTiet.tonChu }}</div>
+      <div class="avail" v-else-if="chiTiet.tinhTrang==='dat'">{{ chiTiet.datChu }}</div>
       <div class="avail" v-else-if="chiTiet.tinhTrang==='mua'">{{ chiTiet.nhanMua }}</div>
       <div class="avail" v-else>{{ t('dat_banh_786f9ed52','Đặt trước · bếp làm theo đơn') }}</div></div></div>
     <details class="tuy-chon" id="s-thong-tin" :key="'tt' + chiTiet.c.k">
