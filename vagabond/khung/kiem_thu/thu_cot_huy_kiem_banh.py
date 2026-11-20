@@ -584,23 +584,28 @@ def _nen_theo_o(css, so_o=20):
 	return mau
 
 
-@ca("lưới đủ 20 cột (v646 thêm ba ô refill) và MỖI ô nhận đúng màu nhóm của nó")
+@ca("lưới đủ 21 cột (v646 ba ô refill, v677 ba ô Web nhận) và MỖI ô nhận đúng màu nhóm của nó")
 def _():
 	css = _doc("trang", "kiem-banh.html")
-	dung("lưới 20 cột", "grid-template-columns:repeat(20,1fr)" in css)
-	dung("không còn lưới 16, 17 cột", "repeat(16,1fr)" not in css and "repeat(17,1fr)" not in css)
-	mau = _nen_theo_o(css)
+	dung("lưới 21 cột", "grid-template-columns:repeat(21,1fr)" in css)
+	dung("không còn lưới 16, 17, 20 cột", all("repeat(%d,1fr)" % n not in css for n in (16, 17, 20)))
+	mau = _nen_theo_o(css, 21)
 	MONG = {
 		4: "#fefce8",                                    # Bếp làm
 		6: "#eff6ff", 7: "#eff6ff", 8: "#eff6ff",        # khối đơn máy đếm
 		9: "#eff6ff", 10: "#eff6ff", 11: "#eff6ff", 12: "#eff6ff",
 		13: "#fff",                                      # BÁN ĐƯỢC
 		14: "#fefce8", 15: "#fefce8",                    # BTP sẵn, Đủ decor
-		16: "#effbf8", 17: "#effbf8",                    # hai ô CÒN NHẬN
-		18: "#fff7ed", 19: "#fff7ed", 20: "#fff7ed",     # v646 Đặt xa ngày, Refill, Còn nhận refill
 	}
 	for n, nen in sorted(MONG.items()):
 		la("ô %d đúng màu nhóm" % n, mau.get(n), nen)
+	# v677: từ ô 16 tô theo LỚP (ba ô Web nhận, ba ô refill), không theo thứ tự cột.
+	for n in range(16, 22):
+		dung("ô %d không còn tô theo thứ tự cột" % n, n not in mau)
+	dung("ba ô Web nhận tô theo lớp kb-wn", "#kb .kb-so .kb-o.kb-wn{background:#effbf8}" in css)
+	dung("ba ô refill tô theo lớp", "#kb .kb-so .kb-o.kb-xa,#kb .kb-so .kb-o.kb-rf,#kb .kb-so .kb-o.kb-crf{background:#fff7ed}" in css)
+	js = _doc("trang", "kiem-banh.js")
+	dung("ô Web nhận và Còn nhận refill mang đúng lớp", '"kb-o kb-nh2 kb-wn"' in js and "kb-o kb-nh2 kb-crf" in js)
 	for n in (1, 2, 3):
 		dung("ô %d không bị nhóm nào tô" % n, n not in mau)
 	# Ô Huỷ tô bằng lớp riêng chứ không bằng nth-child, để còn đổi chỗ được.

@@ -29,8 +29,9 @@ def _nguon(dong_kb, co_kb=True):
 	"""Kiểm bánh hôm nay và bảng BTP giả, đúng hình dạng ton_don_web đọc."""
 	return D(db=D(exists=lambda *a: co_kb),
 		get_doc=lambda *a: D(dong=[D(**x) for x in dong_kb]),
-		get_single=lambda *a: D(dong=[D(ma_hang=EPI, ten_banh="Bánh Ổ Epi 12cm", so_decor=9),
-			D(ma_hang=CANDLE, ten_banh="CANDLE 12cm", so_decor=2)]))
+		# v677: ngày kia theo BTP sẵn; Epi Đủ decor 0 để chứng minh Đủ decor không chặn.
+		get_single=lambda *a: D(dong=[D(ma_hang=EPI, ten_banh="Bánh Ổ Epi 12cm", so_btp=9, so_decor=0),
+			D(ma_hang=CANDLE, ten_banh="CANDLE 12cm", so_btp=2, so_decor=2)]))
 
 
 def _kiem(hang, nguon, ngay="2026-11-11"):
@@ -76,13 +77,13 @@ def _thuan():
 # v671 (Sales góp ý 18/11/2026, giám đốc chốt): hai ca v649 vòng 4 theo Đủ decor
 # (bếp làm hết decor vẫn chặn) thay bằng ca dưới: ngày mai theo Có thể bán của
 # phiếu ngày mai, bếp làm hết hay bán lố (0, âm) là hết; Đủ decor không tính.
-@ca("v671 ngày mai: Có thể bán của phiếu ngày mai 0 hay âm thì chặn; không theo Đủ decor; v675 ngày kia theo Đủ decor, sau 3 ngày tới không nhận")
+@ca("v671 ngày mai: Có thể bán của phiếu ngày mai 0 hay âm thì chặn; không theo Đủ decor; v677 ngày kia theo BTP sẵn, sau 3 ngày tới không nhận")
 def _het_ngay_mai():
 	h = [{"variation_id": EPI, "quantity": 1}]
 	for ctb, chan in ((0, True), (-1, True), (1, False)):
 		r = _kiem(h, _nguon([{"ma_hang": EPI, "ten_banh": "Bánh Ổ Epi 12cm", "co_the_ban": ctb}]), "2026-11-12")
 		la("Có thể bán %s: chặn" % ctb, bool(r), chan)
 	r = _kiem(h, _nguon([{"ma_hang": EPI, "ten_banh": "Bánh Ổ Epi 12cm", "co_the_ban": 5}]), "2026-11-13")
-	la("ngày kia: theo Đủ decor 9, nhận", r, [])
+	la("ngày kia: theo BTP sẵn 9 (Đủ decor 0), nhận", r, [])
 	r = _kiem(h, _nguon([{"ma_hang": EPI, "ten_banh": "Bánh Ổ Epi 12cm", "co_the_ban": 5}]), "2026-11-15")
 	dung("sau 3 ngày tới: nhắc nhận trong 3 ngày tới", len(r) == 1 and "nhận trong 3 ngày tới" in r[0])

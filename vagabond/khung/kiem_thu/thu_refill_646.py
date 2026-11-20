@@ -178,20 +178,26 @@ def _bang_btp():
 	dung("có câu báo", "Chưa đếm được" in m["refill_loi"])
 
 
-@ca("v646 đơn giao trong khoảng refill KHÔNG trừ Đủ decor (Còn nhận 3 ngày, Còn nhận mai); ngoài khoảng vẫn trừ như cũ")
+@ca("v646, v677 đơn giao trong khoảng refill KHÔNG trừ BTP sẵn; ngoài khoảng trừ đơn chưa làm từ ngày mai tới ngày thứ ba; ba ô Web nhận ghi đúng nguồn")
 def _decor():
 	from vagabond import btp
 
 	ro = dict(ROMAN, so_btp=10, so_decor=6, refill_tu=D8(2026, 11, 11), refill_den=D8(2026, 11, 17))
 	kb = {"KB-2026-11-10": [{"ma_hang": "BAWC00068", "da_dat": 1, "phat_sinh": 0, "cho_chot": 0}],
-		"KB-2026-11-11": [{"ma_hang": "BAWC00068", "da_dat": 4, "phat_sinh": 0, "cho_chot": 0}],
+		"KB-2026-11-11": [{"ma_hang": "BAWC00068", "da_dat": 4, "phat_sinh": 0, "cho_chot": 0, "co_the_ban": 3}],
 		"KB-2026-11-12": [{"ma_hang": "BAWC00068", "da_dat": 2, "phat_sinh": 0, "cho_chot": 0}]}
 	m = _chay(Kho([ro], kb), btp.bang_btp, _tinh_that(don=[]))
 	d = m["dong"][0]
-	la("còn nhận 3 ngày chỉ trừ đơn 10/11", d["con_nhan"], 9)
-	la("còn nhận mai không trừ đơn 11/11 (thuộc refill)", d["giao_mai"], 6)
+	la("ba ngày đều thuộc refill: không trừ đơn nào vào BTP sẵn", d["con_nhan"], 10)
+	la("ba ô Web nhận theo đợt refill", d["web"], [["2026-11-11", 20, "refill"], ["2026-11-12", 20, "refill"], ["2026-11-13", 20, "refill"]])
 	m = _chay(Kho([dict(ro, so_refill=0)], kb), btp.bang_btp, _tinh_that(don=[]))
-	la("không refill: trừ đủ như cũ", (m["dong"][0]["con_nhan"], m["dong"][0]["giao_mai"]), (3, 2))
+	d = m["dong"][0]
+	# v677: đơn hôm nay (10/11) không trừ: hôm nay bán theo tủ (phiếu hôm nay).
+	la("không refill: BTP 10 trừ đơn 11/11 và 12/11", d["con_nhan"], 4)
+	la("ngày mai theo phiếu, ngày kia và ngày thứ ba theo BTP sẵn (Đủ decor 6 không tính)", d["web"],
+		[["2026-11-11", 3, "phieu"], ["2026-11-12", 4, "btp"], ["2026-11-13", 4, "btp"]])
+	la("chưa có phiếu ngày mai: ô ngày mai chưa biết", _chay(Kho([dict(ro, so_refill=0)], {}), btp.bang_btp, _tinh_that(don=[]))["dong"][0]["web"][0],
+		["2026-11-11", None, "phieu"])
 
 
 def du_lieu_web(loi=False, kankin=None, kb=None):
@@ -275,13 +281,14 @@ def _luu():
 			la("0 trên đúng đợt thì bỏ đợt đó", rf.doc_dot(d), [])
 
 
-@ca("v646 một phép cho 'ngày này thuộc refill của mã': bốn chỗ trừ decor đều gọi refill.ngay_cua_refill")
+@ca("v646 một phép cho 'ngày này thuộc refill của mã': mọi chỗ trừ đơn vào vỏ đều gọi refill.ngay_cua_refill")
 def _mot_nguon():
 	import io
 	import os
 
 	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-	for tep, so in (("btp.py", 2), ("kiem_banh.py", 1), ("ton_don_web.py", 1), ("giu_ton_web.py", 2)):
+	# v677: bảng BTP tính qua ton_don_web (con_btp, so_web_ba_ngay), không tự trừ đơn.
+	for tep, so in (("kiem_banh.py", 1), ("ton_don_web.py", 3), ("giu_ton_web.py", 2)):
 		n = io.open(os.path.join(goc, tep), encoding="utf-8").read().count("refill.ngay_cua_refill(")
 		dung("%s gọi đủ %d lần (được %d)" % (tep, so, n), n >= so)
 	j = json.load(io.open(os.path.join(goc, "vagabond", "doctype", "btp_banh_o_dong", "btp_banh_o_dong.json"), encoding="utf-8"))

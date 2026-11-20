@@ -9,10 +9,12 @@ from vagabond import ton_don_web as ton
 from vagabond.khung.kiem_thu.thu_don_web_367 import _moi_truong_tao_don, _don, _Tra
 
 
-def nguon(sl=1, decor=2, da_dat=0, co=True):
+def nguon(sl=1, decor=2, da_dat=0, co=True, btp=None):
+    # v677: ngày kia và ngày thứ ba theo BTP sẵn; mặc định BTP sẵn bằng Đủ decor.
     return D(db=D(exists=lambda *a: co),
              get_doc=lambda *a: D(dong=[D(ma_hang='BAWC00139', ten_banh='CANDLE 12cm', co_the_ban=sl, da_dat=da_dat)]),
-             get_single=lambda *a: D(dong=[D(ma_hang='BAWC00139', ten_banh='CANDLE 12cm', so_decor=decor)]))
+             get_single=lambda *a: D(dong=[D(ma_hang='BAWC00139', ten_banh='CANDLE 12cm', so_decor=decor,
+                                             so_btp=decor if btp is None else btp)]))
 
 
 def gui(sl=1, ngay='2026-10-13T13:00:00', **kw):
@@ -59,20 +61,23 @@ def _():
         la('mã không phải bánh đặt trước, ngày xa vẫn nhận', ton.kiem([{'variation_id':'BTPKHAC','quantity':20}], '2026-10-20'), [])
 
 
-@ca('v671 ngày mai theo Có thể bán của phiếu NGÀY MAI, không theo Đủ decor; v675 ngày kia và ngày thứ ba theo Đủ decor')
+@ca('v671 ngày mai theo Có thể bán của phiếu NGÀY MAI, không theo Đủ decor; v677 ngày kia và ngày thứ ba theo BTP sẵn (Đủ decor 0 không chặn)')
 def _():
-    fr = nguon(1, decor=9, da_dat=0)
+    fr = nguon(1, decor=0, da_dat=0, btp=9)
     hoi = []
     goc = fr.get_doc
     fr.get_doc = lambda dt, ten: hoi.append(ten) or goc(dt, ten)
     with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', fr):
         r = ton.kiem([{'variation_id':'BAWC00139','quantity':2}], '2026-10-14')
-        dung('chỉ còn 1 theo Có thể bán (Đủ decor 9 không tính)', 'còn 1 cái' in r[0])
+        dung('chỉ còn 1 theo Có thể bán (BTP sẵn 9 không tính cho ngày mai)', 'còn 1 cái' in r[0])
         la('đọc đúng phiếu ngày mai', hoi[-1], 'KB-2026-10-14')
         la('đủ số thì nhận', ton.kiem([{'variation_id':'BAWC00139','quantity':1}], '2026-10-14'), [])
         for ng in ('2026-10-15', '2026-10-16'):
-            la('ngày %s theo Đủ decor 9: nhận' % ng, ton.kiem([{'variation_id':'BAWC00139','quantity':9}], ng), [])
+            la('ngày %s theo BTP sẵn 9: nhận' % ng, ton.kiem([{'variation_id':'BAWC00139','quantity':9}], ng), [])
             dung('ngày %s đặt 10: còn 9' % ng, 'còn 9 cái' in ton.kiem([{'variation_id':'BAWC00139','quantity':10}], ng)[0])
+    # v677: Đủ decor 9 mà BTP sẵn chỉ 2 thì ngày kia còn 2 (Đủ decor không còn là nguồn).
+    with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(1, decor=9, btp=2)):
+        dung('Đủ decor 9, BTP sẵn 2: ngày kia còn 2', 'còn 2 cái' in ton.kiem([{'variation_id':'BAWC00139','quantity':3}], '2026-10-15')[0])
     # Có thể bán âm (bán lố) vẫn là hết, không phải không giới hạn.
     with patch.object(ton, 'hom_nay', lambda: date(2026,10,13)), patch.object(ton, 'frappe', nguon(-2)):
         dung('số âm là hết', 'còn 0 cái' in ton.kiem([{'variation_id':'BAWC00139','quantity':1}], '2026-10-14')[0])

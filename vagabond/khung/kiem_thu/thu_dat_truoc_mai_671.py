@@ -34,22 +34,22 @@ def _thuan():
 	la("phiếu rỗng", kb.con_dat_truoc_mai(None), {})
 
 
-@ca("v671 tab Đặt bánh trước: ngày mai đọc phiếu NGÀY MAI (không phải hôm nay); v675 Đủ decor chỉ cho ngày kia và ngày thứ ba")
+@ca("v671 tab Đặt bánh trước: ngày mai đọc phiếu NGÀY MAI (không phải hôm nay); v677 ngày kia và ngày thứ ba theo BTP sẵn, Đủ decor không tính")
 def _phieu_mai():
 	nay = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=7, hinh="")]
 	mai = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=2, hinh="")]
-	decor = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", so_decor=9, hinh="", so_refill=0, refill_tu=None, refill_den=None)]
+	decor = [_dong(ma_hang="BAWC00089", ten_banh="Very Berry", so_btp=9, so_decor=0, hinh="", so_refill=0, refill_tu=None, refill_den=None)]
 	kq = _chay(kb._dat_truoc_theo_decor, kiem_hom_nay=nay, decor=decor, kiem_mai=mai)
-	la("ngày mai theo phiếu (2), ngày kia theo Đủ decor (9)", [(s["ma"], s["con"], s["con_mai"], s["con_xa"]) for g in kq["nhom"] for s in g["sizes"]],
+	la("ngày mai theo phiếu (2), ngày kia theo BTP sẵn (9), Đủ decor 0 không chặn", [(s["ma"], s["con"], s["con_mai"], s["con_xa"]) for g in kq["nhom"] for s in g["sizes"]],
 		[("BAWC00089", 2, 2, 9)])
 	kq = _chay(kb._dat_truoc_theo_decor, kiem_hom_nay=nay, decor=decor)
-	la("chưa có phiếu ngày mai: ngày mai 0 (tủ hôm nay 7 không tính), ngày kia theo Đủ decor 9",
+	la("chưa có phiếu ngày mai: ngày mai 0 (tủ hôm nay 7 không tính), ngày kia theo BTP sẵn 9",
 		[(s["con_mai"], s["con_xa"]) for g in kq["nhom"] for s in g["sizes"]], [(0, 9)])
 	kq = _chay(kb._dat_truoc_theo_decor, kiem_mai=[_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=0, hinh="")], decor=decor)
-	la("phiếu ngày mai hết (0): ngày mai 0, ngày kia vẫn theo Đủ decor", [(s["con_mai"], s["con_xa"]) for g in kq["nhom"] for s in g["sizes"]], [(0, 9)])
+	la("phiếu ngày mai hết (0): ngày mai 0, ngày kia vẫn theo BTP sẵn", [(s["con_mai"], s["con_xa"]) for g in kq["nhom"] for s in g["sizes"]], [(0, 9)])
 	kq = _chay(kb._dat_truoc_theo_decor, kiem_mai=[_dong(ma_hang="BAWC00089", ten_banh="Very Berry", co_the_ban=0, hinh="")],
-		decor=[_dong(ma_hang="BAWC00089", ten_banh="Very Berry", so_decor=0, hinh="", so_refill=0, refill_tu=None, refill_den=None)])
-	la("phiếu ngày mai hết và không có Đủ decor: không lên", kq["nhom"], [])
+		decor=[_dong(ma_hang="BAWC00089", ten_banh="Very Berry", so_btp=0, so_decor=9, hinh="", so_refill=0, refill_tu=None, refill_den=None)])
+	la("phiếu ngày mai hết và BTP sẵn 0 (Đủ decor 9 không tính): không lên", kq["nhom"], [])
 
 
 @ca("v671 nhịp 5 phút đếm cả phiếu ngày mai khi bếp đã mở; chưa có phiếu thì không tự tạo; lỗi ngày mai không làm hỏng ngày hôm nay")
