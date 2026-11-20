@@ -921,7 +921,7 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
       'vagabond.uu_dai_ban.ds_quay': function () {
         return { ok: 1, ds: [{ ma: 'CTKM-10', ten: 'Giảm 10%', giam: 70000, dung_duoc: 1 },
           { ma: 'CTKM-OTP', ten: 'Giảm sâu', giam: 210000, dung_duoc: 1, can_otp: 1 },
-          { ma: 'GRAB', ten: 'VOUCHER 200.000 GRAB DINE OUT', giam: 0, dung_duoc: 0, ly_do: 'voucher Grab Dine-Out do Grab trả tiền' }] };
+          { ma: 'MIN', ten: 'Giảm 15% hoá đơn từ 1.000.000 đ', giam: 0, dung_duoc: 0, ly_do: 'hoá đơn chưa đủ 1.000.000 đ' }] };
       },
       'vagabond.uu_dai_ban.ap_quay': function (a) {
         lan++;
@@ -936,7 +936,7 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     var dong = app.tl.querySelectorAll('[data-kmq]');
     bang('ba dòng', dong.length, 3);
     await app.bam(dong[2]); await nghi();
-    bang('dòng Grab không gọi áp', app.mc.cac('vagabond.uu_dai_ban.ap_quay').length, 0);
+    bang('dòng không áp được không gọi áp', app.mc.cac('vagabond.uu_dai_ban.ap_quay').length, 0);
     await app.bam(dong[1]); await nghi(); await nghi();
     bang('cần OTP: gọi lại kèm mã', app.mc.cac('vagabond.uu_dai_ban.ap_quay').map(function (x) { return [x.a.name, x.a.loai, x.a.ma, x.a.otp]; }),
       [['SI-95631', 'ctkm', 'CTKM-OTP', ''], ['SI-95631', 'ctkm', 'CTKM-OTP', '123456']]);
