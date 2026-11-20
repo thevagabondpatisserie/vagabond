@@ -243,3 +243,14 @@ def _so_web():
 		[(D8(2026, 11, 20), -1, "phieu"), (D8(2026, 11, 21), -2, "btp")])
 	la("đợt chưa đếm được đơn: ô đợt chưa biết", tw.so_web_ba_ngay(MA, nay, {MA: 2}, {MA: 5}, rf, {"loi": "Pancake 429"})[2],
 		(D8(2026, 11, 22), None, "refill"))
+
+
+@ca("v677 Codex #596: bảng BTP (/btp) ghi ba ô Web nhận theo từng ngày (ngày refill theo đợt); ca hành vi chạy thật trong node đều đạt")
+def _btp_web_node():
+	import subprocess
+	from pathlib import Path
+
+	tep = Path(__file__).parent / "hanh_vi" / "btp_web_677.js"
+	r = subprocess.run(["node", str(tep)], capture_output=True, text=True, timeout=120)
+	dung("chạy được: " + (r.stdout[-1200:] + r.stderr[-400:]), r.returncode == 0)
+	dung("đủ 2 ca", "2 ca dat, 0 ca hong" in r.stdout)

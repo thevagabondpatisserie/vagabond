@@ -198,6 +198,13 @@ def _decor():
 		[["2026-11-11", 3, "phieu"], ["2026-11-12", 4, "btp"], ["2026-11-13", 4, "btp"]])
 	la("chưa có phiếu ngày mai: ô ngày mai chưa biết", _chay(Kho([dict(ro, so_refill=0)], {}), btp.bang_btp, _tinh_that(don=[]))["dong"][0]["web"][0],
 		["2026-11-11", None, "phieu"])
+	# Codex #596: Pancake lỗi (chưa đếm được đơn của đợt) thì ngày thuộc đợt là CHƯA BIẾT, không hiện
+	# BTP sẵn như số nhận chắc (trước bản sửa: ba ô ghi [10, "btp"]).
+	d = _chay(Kho([ro], kb), btp.bang_btp, _tinh_that(don=[], loi=True))["dong"][0]
+	la("Pancake lỗi: ba ngày thuộc đợt hiện chưa biết", [x[1:] for x in d["web"]], [[None, "refill"], [None, "refill"], [None, "refill"]])
+	ro2 = dict(ro, refill_tu=D8(2026, 11, 12), refill_den=D8(2026, 11, 18))
+	d = _chay(Kho([ro2], kb), btp.bang_btp, _tinh_that(don=[], loi=True))["dong"][0]
+	la("Pancake lỗi, đợt từ 12/11: ngày mai theo phiếu, hai ngày sau chưa biết", [x[1:] for x in d["web"]], [[3, "phieu"], [None, "refill"], [None, "refill"]])
 
 
 def du_lieu_web(loi=False, kankin=None, kb=None):
