@@ -8129,5 +8129,137 @@
     "ten": "Chi tiết bánh: cỡ đang chọn hết đúng ngày nhận",
     "nhom": "dat_banh",
     "mac_dinh": "hết ngày này, quý khách chọn ngày khác"
+  },
+  "goi_ban_sec_mon": {
+    "ten": "Gọi món tại bàn: mục 01 của Đơn của bàn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Món đã gọi"
+  },
+  "goi_ban_chip_cho": {
+    "ten": "Gọi món tại bàn: chip lượt chờ quầy nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chờ quầy nhận"
+  },
+  "goi_ban_chip_nhan": {
+    "ten": "Gọi món tại bàn: chip lượt quầy đã nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy đã nhận"
+  },
+  "goi_ban_chip_tu_choi": {
+    "ten": "Gọi món tại bàn: chip lượt quầy từ chối",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy từ chối"
+  },
+  "goi_ban_chip_het": {
+    "ten": "Gọi món tại bàn: chip lượt hết hạn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hết hạn"
+  },
+  "goi_ban_sec_club": {
+    "ten": "Gọi món tại bàn: mục 02 tích điểm và ưu đãi",
+    "nhom": "dat_banh",
+    "mac_dinh": "The Vagabond Club"
+  },
+  "goi_ban_club_tich": {
+    "ten": "Gọi món tại bàn: nút tích điểm lại",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tích điểm cho hoá đơn này"
+  },
+  "goi_ban_club_khi_chot": {
+    "ten": "Gọi món tại bàn: câu khi đã gắn số",
+    "nhom": "dat_banh",
+    "mac_dinh": "Điểm vào tài khoản khi quầy chốt bill. Xem điểm và hạng ở trang Thành viên.",
+    "nhieu_dong": true
+  },
+  "goi_ban_club_so_ud": {
+    "ten": "Gọi món tại bàn: số ưu đãi dùng được",
+    "nhom": "dat_banh",
+    "mac_dinh": "{n} ưu đãi trong Ví quà và chương trình"
+  },
+  "goi_ban_club_moi": {
+    "ten": "Gọi món tại bàn: tiêu đề khi chưa đăng nhập",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tích điểm cho hoá đơn này"
+  },
+  "goi_ban_club_moi_phu": {
+    "ten": "Gọi món tại bàn: câu mời đăng nhập Zalo",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đăng nhập bằng mã Zalo một lần, dùng 30 ngày. Hoá đơn bàn {ban} tự tích điểm và mở Ví quà.",
+    "nhieu_dong": true
+  },
+  "goi_ban_club_dn": {
+    "ten": "Gọi món tại bàn: nút Đăng nhập Zalo",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đăng nhập Zalo"
+  },
+  "goi_ban_sec_tam": {
+    "ten": "Gọi món tại bàn: mục 03 tạm tính",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tạm tính"
+  },
+  "goi_ban_tra_tich": {
+    "ten": "Gọi món tại bàn: chip tích điểm ở Thanh toán",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tích điểm cho {sdt}"
+  },
+  "goi_ban_sec_cach": {
+    "ten": "Gọi món tại bàn: mục 01 của Thanh toán",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cách thanh toán"
+  },
+  "goi_ban_sec_hd": {
+    "ten": "Gọi món tại bàn: mục 02 của Thanh toán",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hoá đơn điện tử"
+  },
+  "goi_ban_club_gan": {
+    "ten": "Gọi món tại bàn: câu đã gắn số",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hoá đơn bàn {ban} đang tích điểm cho số này",
+    "nhieu_dong": true
+  },
+  "goi_ban_club_cho": {
+    "ten": "Gọi món tại bàn: câu chờ quầy nhận món",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy nhận món xong thì hoá đơn bàn {ban} tự tích điểm cho số này",
+    "nhieu_dong": true
+  },
+  "goi_ban_club_khac": {
+    "ten": "Gọi món tại bàn: câu hoá đơn của số khác",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hoá đơn bàn đã tích điểm cho một số khác. Cần đổi thì báo nhân viên.",
+    "nhieu_dong": true
+  },
+  "goi_ban_club_dang": {
+    "ten": "Gọi món tại bàn: câu đang gắn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đang gắn số này vào hoá đơn của bàn..."
+  },
+  "goi_ban_club_chua": {
+    "ten": "Gọi món tại bàn: câu chưa gắn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hoá đơn của bàn chưa tích điểm cho số này",
+    "nhieu_dong": true
+  },
+  "goi_ban_club_da_gan": {
+    "ten": "Gọi món tại bàn: chip Đã gắn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã gắn"
+  },
+  "goi_ban_club_chip_cho": {
+    "ten": "Gọi món tại bàn: chip chờ quầy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chờ quầy"
+  },
+  "goi_ban_club_chip_khac": {
+    "ten": "Gọi món tại bàn: chip số khác",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số khác"
+  },
+  "goi_ban_club_loi": {
+    "ten": "Gọi món tại bàn: câu lỗi tích điểm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa tích điểm được. Quý khách thử lại hoặc báo nhân viên.",
+    "nhieu_dong": true
   }
 }
