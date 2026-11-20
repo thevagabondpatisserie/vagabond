@@ -1026,7 +1026,7 @@ Khách đặt trên web, đơn vào Pancake xong máy nhắn nhóm Zalo Bán hà
 **Lưu ý**
 - Web không báo được phí thì khách thấy "Chúng tôi báo phí khi xác nhận". Khi GreenSM còn chạy thử, web chưa báo phí cho mọi đơn giao.
 - Tin đơn hàng không ghi tiền. Xem tiền trên Pancake hoặc Doanh số.
-- Khách chọn số nĩa gỗ, dĩa bã mía, thiệp nhỏ ngay trên web. <!-- kiểm: số nĩa, dĩa, thiệp hiện ở ô nào trên Pancake và phiếu bếp -->
+- Dĩa, nĩa tặng kèm về Pancake thành dòng món 0 đ; thiệp nhỏ vẫn ở ghi chú.
 - Khách mất trang biên nhận: biên nhận chỉ mở được từ đường dẫn hiện ngay sau khi đặt; tra đơn theo số điện thoại trên Pancake.
 - Mức miễn phí giao, đơn vị báo phí: việc này do giám đốc quyết.
 
@@ -1349,6 +1349,24 @@ Từ v678 (giám đốc chốt 20/11/2026).
 **Bạn cần làm**
 1. Quầy: chọn đúng chương trình theo màn hình khách, rồi chốt bằng Grab Dine-Out và nhập mã GD-.
 2. Kế toán: bill cũ đã giảm đủ giá voucher giữ nguyên, chỉ đối chiếu với báo cáo Grab.
+## Web đặt bánh: dĩa, nĩa tặng kèm thành món trên Pancake
+Từ khoá: dĩa giấy, nĩa gỗ, dụng cụ ăn, tặng kèm, BAPK00020, BAPK00018, web đặt bánh, đồ dùng một lần
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales; Bếp | Trang đặt bánh, Thông tin đơn hàng; đơn Pancake | Nút − và + ở khối Dụng cụ ăn tặng kèm |
+
+Từ v678 (giám đốc chốt 20/11/2026).
+
+**Trước đây:** ô Số nĩa gỗ, Số dĩa bã mía nằm trong mục thu gọn Phụ kiện cho bánh của từng bánh, nhiều khách không thấy. Số khách ghi chỉ vào ghi chú đơn.
+**Từ nay:**
+- Trang Thông tin đơn hàng, dưới nút Chọn thêm bánh, có khối Dụng cụ ăn tặng kèm: Dĩa giấy bã mía và Nĩa gỗ, mặc định 0, bấm + theo số khách cần (tối đa 20 mỗi loại), chọn một lần cho cả đơn.
+- Đơn về Pancake có thêm dòng món BAPK00020 Dĩa giấy bã mía và BAPK00018 Nĩa gỗ, giá 0 đ, đúng số khách chọn. Hai món không theo dõi tồn kho.
+- Ô Số thiệp nhỏ vẫn ở chi tiết bánh như cũ.
+
+**Bạn cần làm**
+1. Sales, Bếp: soạn dĩa, nĩa theo dòng món trên đơn Pancake, không cần đọc ghi chú.
+
 ## Web đặt bánh: ngày đã chọn hết bánh thì báo hết, không tự đổi ngày
 Từ khoá: hết bánh ngày đã chọn, tự đổi ngày nhận, web đặt bánh, nút thêm vào giỏ, đặt trước
 
