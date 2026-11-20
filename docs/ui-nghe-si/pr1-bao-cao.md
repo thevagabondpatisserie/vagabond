@@ -58,6 +58,7 @@ Kết quả máy chụp: `pr1-ket-qua-chup.md`.
 | V8 | Ca v533 chỉ cho các phần đã duyệt đứng sau phần 48 | Đã thêm 81 vào danh sách: phần này không có màn lập phiếu, không gán lại frame hay api |
 | V9 | Máy làm việc không cài được WebKit | Ghi Chưa kiểm; đề nghị chạy WebKit trên CI ở PR sau |
 | V11 | Codex vòng 1: phép so chế độ tắt vẫn báo đạt khi máy chụp lỗi; tuỳ chọn cỡ chữ của máy chụp không làm chữ to lên | Đã sửa cả loại: phép so đòi hai lượt chụp trả 0, thư mục sạch, đủ tập ảnh mong đợi; bỏ tuỳ chọn cỡ chữ giả (điện thoại ghi Chưa kiểm, máy quầy phóng 200% chụp bằng khung 683x384); gõ sai tên màn thì trượt; CSS rỗng không được coi là đạt |
+| V12 | Codex vòng 2: máy chụp chỉ đọc tên phông khai trong CSS, tệp phông hỏng vẫn báo đạt | Đã sửa cả loại "đọc khai báo thay vì kết quả thật": đòi mỗi cặp phông và độ đậm đang dùng có mặt phông đã tải xong; tài nguyên của app tải hỏng thành lỗi của ô; mở rộng danh sách vùng bấm và chỗ soi emoji; in số chỗ chữ nằm trên gradient phải mở ảnh xem. Chứng minh: chặn thư mục phông thì 39 trên 39 ô trượt (`--chan /fonts/ui/`) |
 | V10 | Số Doto 30 nét chấm mảnh, đặt trên quầng màu nhóm nhìn nhạt hơn chữ thường dù phép đo tương phản đạt | Xem ảnh; nếu anh thấy khó đọc thì chuyển số lên nền trắng của đĩa hoặc tăng lên Doto 40 |
 
 ## Việc chưa làm

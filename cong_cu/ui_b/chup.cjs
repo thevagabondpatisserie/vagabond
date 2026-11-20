@@ -21,6 +21,7 @@ var cp = require('child_process');
 var GOC = path.resolve(__dirname, '..', '..');
 var CONG = path.join(GOC, 'vagabond', 'public');
 var DL = require('./du_lieu_thu.cjs');
+var DO = require('./do.cjs');
 var MAN = require('./kich_ban.cjs');
 
 function thamSo(ten, macDinh) {
@@ -41,6 +42,9 @@ if (process.argv.indexOf('--co-chu') > 0) {
   console.log('KHÔNG HỖ TRỢ --co-chu: máy chụp không giả lập được cỡ chữ của điện thoại. Dùng khung 683x384 cho máy tính quầy phóng 200%.');
   process.exit(1);
 }
+/* --chan <chuỗi>: chặn mọi tài nguyên có đường dẫn chứa chuỗi này (trả 404). Chỉ để chứng minh
+   phép đo biết đỏ, ví dụ --chan /fonts/ui/ thì các ô giao diện mới PHẢI trượt vì phông không tải. */
+var CHAN = thamSo('chan', '');
 /* --app <tệp>: chạy một bản app_bep.js khác (ví dụ bản của main) để so chế độ tắt. */
 var APP = thamSo('app', '');
 var ORIGIN = 'http://vgb.thu';
@@ -63,7 +67,7 @@ function trangHtml(bat) {
 var LOAI = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json' };
 var ANH_TRONG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
-async function moTrang(trinh, khung, bat, thieu) {
+async function moTrang(trinh, khung, bat, thieu, taiHong) {
   var ctx = await trinh.newContext({ viewport: { width: khung.w, height: khung.h }, deviceScaleFactor: 2, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh',
     isMobile: MAY !== 'firefox' && khung.w < 700, hasTouch: khung.w < 700, reducedMotion: 'reduce' });
   var trang = await ctx.newPage();
@@ -86,6 +90,8 @@ async function moTrang(trinh, khung, bat, thieu) {
     if (p.indexOf('/assets/vagabond/') === 0) {
       var tep = path.join(CONG, p.slice('/assets/vagabond/'.length));
       if (APP && p === '/assets/vagabond/js/app_bep.js') tep = APP;
+      if (CHAN && p.indexOf(CHAN) >= 0) { taiHong.push({ duong: p, ma: 404 }); return route.fulfill({ status: 404, body: '' }); }
+      if (!fs.existsSync(tep)) taiHong.push({ duong: p, ma: 404 });
       if (fs.existsSync(tep)) return route.fulfill({ status: 200, contentType: LOAI[path.extname(tep)] || 'application/octet-stream', body: fs.readFileSync(tep) });
       return route.fulfill({ status: 404, body: '' });
     }
@@ -107,7 +113,8 @@ async function moTrang(trinh, khung, bat, thieu) {
 /* Phép đo trên màn. Chạy trong trang. */
 function doTrongTrang(thamSo) {
   var bat = thamSo.bat, chiDau = thamSo.chiDau;
-  var r = { tran: false, nhoNut: [], nhoChu: [], che: [], phong: {}, emoji: [], tuongPhan: [], xemAnh: 0 };
+  var r = { tran: false, nhoNut: [], nhoChu: [], che: [], phong: {}, phongDung: [], phongMat: [], emoji: [], tuongPhan: [], xemAnh: 0 };
+  var daGhiPhong = {};
   var de = document.scrollingElement || document.documentElement;
   r.tran = de.scrollWidth > window.innerWidth + 1;
   var vgb = document.getElementById('vgb');
@@ -117,7 +124,9 @@ function doTrongTrang(thamSo) {
     return rc.width > 0 && rc.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && +cs.opacity > 0.01;
   }
   function nhan(n) { return ((n.getAttribute('aria-label') || n.textContent || n.id || n.className || '') + '').replace(/\s+/g, ' ').trim().slice(0, 32) || n.tagName; }
-  var bam = Array.prototype.slice.call(document.querySelectorAll('#vgb button, #vgb [data-go], #vgb [data-nhom], #vgb .chip, #vgb a[href], #vgb input, #vgb textarea, #vgb select, #vgb [role=button], .sh button, .sh .chip, .sh input'));
+  var bam = Array.prototype.slice.call(document.querySelectorAll('#vgb button, #vgb [data-go], #vgb [data-nhom], #vgb .chip, #vgb a[href], #vgb input, #vgb textarea, #vgb select, #vgb [role=button], ' +
+    '#vgb .hub, #vgb .gt, #vgb .vgbgo, #vgb .vgbgs, #vgb .vgbgb, #vgb [data-suaghim], #vgb [data-themghim], #vgb .lgfp, .sh button, .sh .chip, .sh input, .sh textarea, .sh .shi, .sh .x'));
+  bam = bam.filter(function (n, i) { return bam.indexOf(n) === i; });
   /* Có bảng trượt hay hộp thoại đang mở thì chỉ đo trong lớp trên cùng: phần bên dưới bị lớp mờ che là có chủ ý. */
   var lopTren = document.querySelectorAll('.sh');
   lopTren = lopTren.length ? lopTren[lopTren.length - 1] : null;
@@ -166,7 +175,9 @@ function doTrongTrang(thamSo) {
     if (co < 12.95) r.nhoChu.push(chu.slice(0, 28) + ' ' + co);
     var ho = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim();
     r.phong[ho] = (r.phong[ho] || 0) + 1;
-    if (/[\u{1F000}-\u{1FAFF}☀-➿]/u.test(chu) && cha.closest('button, .vh, .sec, .chip, .h1, .gn')) r.emoji.push(chu.slice(0, 28));
+    var khoaPhong = ho + '|' + cs.fontWeight;
+    if (!daGhiPhong[khoaPhong]) { daGhiPhong[khoaPhong] = 1; r.phongDung.push({ ho: ho, dam: cs.fontWeight }); }
+    if (/[\u{1F000}-\u{1FAFF}☀-➿]/u.test(chu) && cha.closest('button, .vh, .sec, .chip, .h1, .h2, .gn, .gs, .vgbgh, .vgbgs, .vgbgm, .vgbgn, .shh, .lgl, label')) r.emoji.push(chu.slice(0, 28));
     if (bat) {
       var fg = mau(cs.color), nn = nenCua(cha);
       if (fg) {
@@ -178,6 +189,12 @@ function doTrongTrang(thamSo) {
       }
     }
   }
+  /* Mặt phông của trang và trạng thái tải THẬT (không phải tên khai trong CSS). */
+  try {
+    document.fonts.forEach(function (f) {
+      r.phongMat.push({ ho: String(f.family).replace(/["']/g, ''), dam: String(f.weight), trang_thai: f.status });
+    });
+  } catch (e) { }
   return r;
 }
 
@@ -206,7 +223,8 @@ async function chay() {
   for (var c = 0; c < CHE_DO.length; c++) for (var k = 0; k < KHUNG.length; k++) for (var i = 0; i < ds.length; i++) {
     var m = ds[i], bat = CHE_DO[c] === 'bat', khung = KHUNG[k];
     if (m.chi && m.chi.indexOf(khung.ten) < 0) continue;
-    var o = await moTrang(trinh, khung, bat, thieu);
+    var taiHong = [];
+    var o = await moTrang(trinh, khung, bat, thieu, taiHong);
     var thieuTruoc = JSON.stringify(thieu);
     var dong = { man: m.ten, che_do: CHE_DO[c], khung: khung.ten, may: MAY, vai: m.vai || VAI, loi: [] };
     try {
@@ -225,6 +243,7 @@ async function chay() {
       dong.do = d;
       if (d.tran) dong.loi.push('cuộn ngang cả trang');
       if (o.loi.length) dong.loi.push('lỗi JS: ' + o.loi.slice(0, 2).join(' | '));
+      DO.danhGiaTaiNguyen(taiHong).forEach(function (x) { dong.loi.push(x); });
       if (bat) {
         /* Chỉ phần ĐÃ CHUYỂN phải đạt chuẩn mới (bản 4 mục 7). Màn chưa chuyển thì phép đo ở trên đã
            chỉ lấy phần đầu trang (khung chung đã chuyển). */
@@ -232,8 +251,8 @@ async function chay() {
         if (d.nhoChu.length) dong.loi.push('chữ dưới 13: ' + d.nhoChu.slice(0, 4).join('; ') + (d.nhoChu.length > 4 ? ' (+' + (d.nhoChu.length - 4) + ')' : ''));
         if (d.che.length) dong.loi.push('bị che: ' + d.che.slice(0, 3).join('; '));
         if (d.emoji.length) dong.loi.push('còn emoji: ' + d.emoji.slice(0, 4).join('; '));
-        var la = Object.keys(d.phong).filter(function (p) { return p !== 'Be Vietnam Pro' && p !== 'Doto'; });
-        if (la.length) dong.loi.push('phông lạ: ' + la.join(', '));
+        DO.danhGiaPhong(d.phongDung, d.phongMat).forEach(function (x) { dong.loi.push(x); });
+        dong.xem_anh = d.xemAnh;
         if (d.tuongPhan.length) dong.loi.push('tương phản thấp: ' + d.tuongPhan.slice(0, 4).join('; ') + (d.tuongPhan.length > 4 ? ' (+' + (d.tuongPhan.length - 4) + ')' : ''));
       }
     } catch (e) {
@@ -255,6 +274,8 @@ async function chay() {
   if (tt.length) console.log('API giả chưa có dữ liệu (đã trả rỗng): ' + tt.map(function (t) { return t.replace('/api/method/', '') + ' x' + thieu[t]; }).join(', '));
   if (!bang.length) { console.log('KHÔNG có ô nào được chụp.'); process.exit(1); }
   fs.writeFileSync(path.join(RA, 'ket-qua.json'), JSON.stringify({ may: MAY, bang: bang, api_thieu: thieu }, null, 1));
+  var canXem = bang.reduce(function (t, b) { return t + (b.xem_anh || 0); }, 0);
+  if (canXem) console.log('Chữ nằm trên gradient hoặc ảnh nền: ' + canXem + ' chỗ. Phép đo tương phản ở các chỗ này chỉ là ước lượng trên màu nền đặc, PHẢI mở ảnh xem (bản 4 mục 7).');
   console.log(bang.length + ' ô: ' + bang.filter(function (b) { return b.ket_qua === 'Đạt'; }).length + ' Đạt, ' + truot + ' Trượt, ' +
     bang.filter(function (b) { return b.ket_qua === 'Chưa chuyển'; }).length + ' Chưa chuyển.');
   process.exit(truot ? 1 : 0);

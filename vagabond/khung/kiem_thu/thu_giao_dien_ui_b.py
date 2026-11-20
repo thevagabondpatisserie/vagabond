@@ -404,3 +404,35 @@ def _():
 	dung("CSS rỗng: có lỗi", len(k.kiem("")) == 1)
 	dung("chỉ có @font-face: có lỗi", len(k.kiem("@font-face{font-family:X}")) == 1)
 	dung("có danh sách luật khung chung phải có", "html.ui-b .vh" in k.PHAI_CO and "html.ui-b .gt" in k.PHAI_CO)
+
+
+@ca("ui-b máy chụp (Codex #599 vòng 2): tên phông khai trong CSS chưa đủ, phải có mặt phông ĐÃ TẢI; tệp phông hỏng thì trượt")
+def _():
+	kich = (
+		"var D=require(process.argv[1]);"
+		"var dung=[{ho:'Be Vietnam Pro',dam:'400'},{ho:'Doto',dam:'800'}];"
+		"var du=[{ho:'Be Vietnam Pro',dam:'400',trang_thai:'loaded'},{ho:'Doto',dam:'800',trang_thai:'loaded'},{ho:'Be Vietnam Pro',dam:'700',trang_thai:'unloaded'}];"
+		"var hong=[{ho:'Be Vietnam Pro',dam:'400',trang_thai:'error'},{ho:'Doto',dam:'800',trang_thai:'loaded'}];"
+		"var chua=[{ho:'Be Vietnam Pro',dam:'400',trang_thai:'unloaded'},{ho:'Doto',dam:'800',trang_thai:'loaded'}];"
+		"console.log(JSON.stringify({"
+		"du:D.danhGiaPhong(dung,du),hong:D.danhGiaPhong(dung,hong),chua:D.danhGiaPhong(dung,chua),"
+		"khong_mat:D.danhGiaPhong(dung,[]),rong:D.danhGiaPhong([],du),"
+		"la:D.danhGiaPhong([{ho:'Arial',dam:'400'}],du),"
+		"tn0:D.danhGiaTaiNguyen([]),tn1:D.danhGiaTaiNguyen([{duong:'/assets/vagabond/fonts/ui/x.woff2',ma:404}])}));"
+	)
+	r = subprocess.run(["node", "-e", kich, os.path.join(GOC, "cong_cu", "ui_b", "do.cjs")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	kq = json.loads(r.stdout.decode("utf-8"))
+	la("phông tải đủ: không lỗi (mặt chưa dùng chưa tải không tính)", kq["du"], [])
+	dung("tệp phông lỗi: trượt, nêu tên", any("tải lỗi" in x and "Be Vietnam Pro 400" in x for x in kq["hong"]))
+	dung("tên khai đúng nhưng phông chưa tải: trượt", any("chưa tải được" in x for x in kq["chua"]) and len(kq["chua"]) == 1)
+	dung("trang không có mặt phông nào: trượt", len(kq["khong_mat"]) == 1)
+	dung("không đo được chữ nào: trượt, không coi là đạt", len(kq["rong"]) == 1)
+	dung("phông lạ vẫn bị bắt", any("phông lạ: Arial" in x for x in kq["la"]))
+	la("không tài nguyên hỏng: không lỗi", kq["tn0"], [])
+	dung("tài nguyên 404: có lỗi kèm đường dẫn", len(kq["tn1"]) == 1 and "x.woff2 (404)" in kq["tn1"][0])
+	nguon = _doc(GOC, "cong_cu", "ui_b", "chup.cjs")
+	dung("máy chụp dùng phép chấm chung, không tự so tên phông", "DO.danhGiaPhong(d.phongDung, d.phongMat)" in nguon and "p !== 'Be Vietnam Pro'" not in nguon)
+	dung("máy chụp đọc trạng thái tải thật của từng mặt phông", "document.fonts.forEach" in nguon and "f.status" in nguon)
+	dung("tài nguyên của app tải hỏng được ghi thành lỗi của ô", "DO.danhGiaTaiNguyen(taiHong)" in nguon)
+	dung("có lựa chọn chặn tài nguyên để chứng minh phép đo biết đỏ", "thamSo('chan'" in nguon)
