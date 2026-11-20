@@ -1212,7 +1212,7 @@ Từ v649 (Sales đề xuất, giám đốc duyệt 11/11/2026) bánh bếp làm
 3. Bếp đếm lại tủ thì nhập lại ô BTP sẵn và Đủ decor: số đếm là gốc mới, chỉ bánh làm sau đó mới trừ tiếp.
 4. Cuối ngày bấm Chốt ngày như cũ: chốt sổ chỉ chuyển tồn, KHÔNG trừ BTP nữa.
 
-**Ví dụ**: Bánh Ổ Epi 12cm, sáng BTP sẵn 10, Đủ decor 9, đơn hôm nay 2. Bếp làm 1 thì BTP sẵn còn 9, Đủ decor còn 8, Còn nhận mai 8, Còn nhận 3 ngày vẫn 8 (đơn đã có bánh làm xong không giữ vỏ lần nữa).
+**Ví dụ**: Bánh Ổ Epi 12cm, sáng BTP sẵn 10, Đủ decor 9, đơn ngày mai 2. Bếp làm 1 cho ngày mai thì BTP sẵn còn 9, Đủ decor còn 8, ô Web nhận ngày kia 8 (đơn đã có bánh làm xong không giữ vỏ lần nữa).
 
 **Lưu ý**
 - Ngày đầu áp dụng bếp đếm lại tủ và nhập lại hai ô một lần.
@@ -1248,16 +1248,67 @@ Từ khoá: đặt bánh trước, nhận ngày mai, ngày kia, 3 ngày tới, c
 Từ v676 (Sales đề xuất, giám đốc duyệt 18 và 19/11/2026).
 
 **Trước đây:** tab Đặt bánh trước theo ô Đủ decor cho cả 3 ngày tới.
-**Từ nay:** ngày mai lấy cột Còn bán (Có thể bán) của phiếu Kiểm bánh ngày mai, không tính Đủ decor. Ngày kia và ngày thứ ba lấy Đủ decor trừ các đơn chưa làm của 3 ngày tới. Xa hơn không nhận bánh đặt trước.
+**Từ nay:** ngày mai lấy cột Còn bán (Có thể bán) của phiếu Kiểm bánh ngày mai, không tính Đủ decor. Từ v677 ngày kia và ngày thứ ba lấy BTP sẵn (không còn theo Đủ decor), xem mục "Bảng Kiểm bánh: ba ô Web nhận, ngày kia theo BTP sẵn". Xa hơn không nhận bánh đặt trước.
 
 **Bạn cần làm**
 1. Bếp: trước giờ chốt hôm nay, mở Kiểm bánh ngày mai, nhập ô Bếp làm. Chưa nhập thì ngày mai bánh đó chưa nhận.
-2. Bếp giữ ô Đủ decor đúng số vỏ đã decor để web nhận ngày kia.
+2. Bếp giữ ô BTP sẵn đúng số vỏ trong tủ để web nhận ngày kia và ngày thứ ba.
 
 **Lưu ý**
 - Mỗi ngày trên lịch web hiện số của chính ngày đó; ngày hết số thì mờ.
 - Bánh làm theo mẻ (refill) chọn ngày trong khoảng của mẻ; món cuối tuần theo ngày giao của đợt.
 - Máy chủ chặn lại đơn quá số của ngày nhận hay chọn ngày xa hơn 3 ngày tới.
+
+## Bảng Kiểm bánh: ba ô Web nhận, ngày kia theo BTP sẵn
+Từ khoá: web nhận, còn nhận mai, còn nhận 3 ngày, BTP sẵn, đủ decor, số web không khớp bảng, ngày kia, hết ngày
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales xem; Bếp nhập; khách đặt | Kiểm bánh (/kiem-banh), bảng BTP (/btp); trang đặt bánh | Ô Web nhận, ô BTP sẵn |
+
+Từ v677 (Sales báo 20/11/2026, giám đốc chọn hướng A).
+
+**Trước đây:** hai ô Còn nhận mai, Còn nhận 3 ngày không khớp số web; web ngày kia theo Đủ decor nên hay báo hết dù tủ còn vỏ; thẻ bánh và màn chi tiết có lúc ghi hai số khác nhau.
+**Từ nay:**
+- Ba ô Web nhận (ví dụ Web nhận 21/11) là đúng số web đang nhận; dòng nhỏ ghi số lấy từ đâu.
+- Ngày mai: Bán được của phiếu ngày mai.
+- Ngày kia và ngày thứ ba: BTP sẵn trừ đơn chưa làm từ ngày mai tới ngày thứ ba, chung một số.
+- Ngày thuộc đợt refill: số còn của đợt.
+- Đủ decor chỉ để bếp theo dõi. Bảng BTP (/btp) cũng có ba ô Web nhận như trên.
+- Đặt xa ngày chỉ đếm đơn sau ngày thứ ba.
+- Web: thẻ, chi tiết, giỏ cùng số của ngày đang chọn; cỡ hết ghi "hết ngày 21/11".
+
+**Bạn cần làm**
+1. Sales: hứa số theo ô Web nhận của đúng ngày nhận.
+2. Bếp: giữ BTP sẵn đúng số vỏ trong tủ; nhập Bếp làm ở phiếu ngày mai trước giờ chốt.
+
+**Lưu ý**
+- "?" là chưa biết (chưa có phiếu ngày mai, chưa đếm được đơn refill). Số đỏ là đã nhận quá.
+- Đơn hôm nay không trừ vào số ngày kia.
+
+## Tích điểm cho bill gọi món tại bàn
+Từ khoá: tích điểm, thành viên, khách bàn, bill QR, tạm tính, gắn khách, gỡ khách, The Vagabond Club, đăng nhập Zalo
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy; khách tại bàn | Bill Tạm tính trên app; trang gọi món của khách (Đơn của bàn) | Khách thành viên; Đăng nhập Zalo |
+
+Từ v677 (Quầy báo 20/11/2026, giám đốc chọn hướng A).
+
+**Trước đây:** bill gọi qua QR đứng tên khách chung (hiện "Khách bàn B8"), chốt bill không cộng điểm cho ai; Sửa hoá đơn chỉ có ô xuất hoá đơn; trang gọi món không có chỗ nhập thành viên.
+**Từ nay:**
+- Khách: Đơn của bàn có mục The Vagabond Club. Đăng nhập Zalo một lần (mã 6 số, giữ 30 ngày) là hoá đơn bàn tự tích điểm cho số đó, hiện chip Đã gắn.
+- Bàn chưa có hoá đơn thì chip Chờ quầy; quầy nhận món xong là tự gắn.
+- Bill Tạm tính trên app có khối Khách thành viên: gõ số hoặc tên rồi bấm Gắn; số chưa có thì bấm Tạo khách mới với số đó. Không cần OTP.
+- Một bill một khách tích điểm: số khác đăng nhập sau chỉ thấy câu báo.
+- Chốt bill thì điểm tự cộng như bill tại quầy.
+
+**Bạn cần làm**
+1. Quầy: khách đưa số thì gắn ngay ở khối Khách thành viên trước khi chốt bill.
+2. Cần đổi khách thì bấm Đổi khách hoặc Gỡ khách khi bill còn Tạm tính.
+
+**Lưu ý**
+- Bill đã chốt giữ nguyên khách, không gắn lại.
 
 ## Đơn web: chỉ thanh toán trước, miễn phí giao trong bán kính 7 km
 Từ khoá: thanh toán trước, tiền mặt, miễn phí giao, bán kính 7 km, phí giao, ngày nhận hôm nay, biên nhận, chờ thanh toán, đã xác nhận

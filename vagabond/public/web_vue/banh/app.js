@@ -115,23 +115,36 @@ export function khoiDong(goc = '#app') {
         const c = S.cur, sz = kho.curSize.value;
         if (!c || !sz) return null;
         const ma = sz.id, banh = t('dat_banh_3556aabb5', 'bánh');
-        const avail = c.sizes.filter(s => S.TODAY[s.id] > 0);
+        /* v677 (Codex và anh Việt 19/11/2026): mở bánh từ tab Đặt bánh trước thì
+           không ghi "Có sẵn hôm nay" theo tủ hôm nay; ghi số của ngày nhận đang
+           chọn, cùng số với thẻ và giỏ (kho.soDatTruoc). */
+        const homNay = S.tab === 'today';
+        const avail = homNay ? c.sizes.filter(s => S.TODAY[s.id] > 0) : [];
+        const nTruoc = homNay ? null : kho.soDatTruoc(ma);
+        const nh = kho.nhanNgayDangChon();
         const nhanMua = tMon(c.sizes[0].id, 'theo_mua', c.seasonal);
         const tangChu = tMon(ma, 'tang', '');
         /* v644: bánh có bộ nội dung web thì chữ riêng từng mã ở mục Nội dung bánh (Nâng cao) không đè lên. */
         const tang = !c.tuWeb && tangChu ? tangChu.split('\n').filter(x => x.trim()).map(x => [x, '']) : c.layers;
         const anhs = (c.anhs && c.anhs.length ? c.anhs : (c.img ? [c.img] : [])).slice(0, 5);
         return {c, ten: tMon(ma, 'ten', c.k), vi: kho.T.laChuViet(c.k), moTa: c.tuWeb ? c.desc : tMon(ma, 'mo_ta', c.desc), tang, anhs, diUng: c.diUng || '', baoQuan: c.baoQuan || '',
-          tinhTrang: avail.length ? 'co' : (nhanMua ? 'mua' : 'truoc'), nhanMua,
+          tinhTrang: avail.length ? 'co' : (nTruoc !== null ? 'dat' : (nhanMua ? 'mua' : 'truoc')), nhanMua,
+          datChu: nTruoc === null ? '' : t('ct677_dat_truoc_ngay', 'Đặt trước, nhận {ngay}', {ngay: nh.ngay}) + ' · '
+            + (nTruoc > 0 ? kho.T.nhanTon(nTruoc, banh, t) : t('ct677_het_ngay_nay', 'hết ngày này, quý khách chọn ngày khác')),
           tonChu: avail.length ? kho.T.nhanTon(avail.reduce((a, s) => a + S.TODAY[s.id], 0), banh, t) : ''};
       });
       const anhChon = computed({get: () => S.anhChon || 0, set: v => { S.anhChon = v; }});
       const kichThuocDong = computed(() => kichThuoc.value.map(s => {
-        const n = S.TODAY[s.id] || 0, tr = S.TRUOC[s.id] || 0, banh = t('dat_banh_3556aabb5', 'bánh');
+        /* v677: tab Có sẵn hôm nay theo tủ; tab khác theo số của ngày đang chọn (kho.soDatTruoc). */
+        const homNay = S.tab === 'today', banh = t('dat_banh_3556aabb5', 'bánh');
+        const n = homNay ? (S.TODAY[s.id] || 0) : 0;
+        const so = homNay ? null : kho.soDatTruoc(s.id);
+        const tr = so === null ? (homNay ? 0 : (S.TRUOC[s.id] || 0)) : so;
         const kp = tMon(s.id, 'khau_phan', s.serve);
         return {s, gia: kho.T.tienVN(s.p), nhan: s.cm ? t('dat_banh_2540d6d0f', 'Ø {gia_tri_a}cm{gia_tri_b}', {gia_tri_a: s.cm, gia_tri_b: kp ? ' · ' + kp : ''})
           : t('dat_banh_8a6c6356d', '1 cỡ') + (kp ? ' · ' + kp : ''),
-          em: n ? kho.T.nhanTon(n, banh, t) : (tr ? (kho.nhanRefill(s.id) || t('san_pham_dat_truoc', 'Đặt trước')) + ' · ' + kho.T.nhanTon(tr, banh, t) : '')};
+          em: n ? kho.T.nhanTon(n, banh, t) : (tr > 0 ? (kho.nhanRefill(s.id) || t('san_pham_dat_truoc', 'Đặt trước')) + ' · ' + kho.T.nhanTon(tr, banh, t)
+            : (so !== null ? kho.chuHetNgay() : ''))};
       }));
       const tomTatLich = computed(() => { const nh = kho.nhanNgayDangChon(); return nh.ten + ', ' + nh.ngay + ' · ' + kho.slotDangChon.value.t; });
       const hangTomTat = computed(() => {

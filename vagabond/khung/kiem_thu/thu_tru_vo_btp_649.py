@@ -141,16 +141,19 @@ def _bang(cua, kb):
 	return rf._chay(kho, btp.bang_btp, rf._tinh_that(don=[]))["dong"][0]
 
 
-@ca("v649 ví dụ trong ảnh duyệt: Bánh Ổ Epi 12cm, đơn hôm nay 2, bếp làm 1: BTP 9, decor 8, Còn nhận mai 8, Còn nhận 3 ngày 8")
+@ca("v649, v677 ví dụ trong ảnh duyệt: Bánh Ổ Epi 12cm, đơn ngày mai 2, bếp làm 1: BTP 9, decor 8, Còn nhận (web ngày kia) 8")
 def _vi_du():
+	from datetime import timedelta
+
 	from vagabond.khung.kiem_thu.thu_refill_646 import HN
 
 	nay, cua = _kho(ton_d1=1, da_dat=1, phat_sinh=1)
 	with _chay(cua):
 		kiem_banh.luu_o("2026-08-15", EPI, "sx", 1)
-	kb = {"KB-%s" % HN: [{"ma_hang": EPI, "da_dat": 1, "phat_sinh": 1, "cho_chot": 0, "sx": 1}]}
+	# v677: đơn hôm nay bán theo tủ, không trừ vỏ; ví dụ đặt hai đơn vào phiếu ngày mai.
+	kb = {"KB-%s" % (HN + timedelta(days=1)): [{"ma_hang": EPI, "da_dat": 1, "phat_sinh": 1, "cho_chot": 0, "sx": 1}]}
 	d = _bang(cua, kb)
-	la("bốn ô", (d["so_btp"], d["so_decor"], d["giao_mai"], d["con_nhan"]), (9, 8, 8, 8))
+	la("ba ô và web ngày kia", (d["so_btp"], d["so_decor"], d["con_nhan"], d["web"][1][1:]), (9, 8, 8, [8, "btp"]))
 	# Trước v649 (chưa trừ lúc làm, giữ đủ 2 đơn): Còn nhận 3 ngày cũng là 8. Không trừ trùng.
 	kb[next(iter(kb))][0]["sx"] = 0
 	cua.btp.dong[0].update(so_btp=10, so_decor=9)

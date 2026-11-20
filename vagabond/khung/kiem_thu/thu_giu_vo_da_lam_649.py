@@ -49,7 +49,8 @@ def _du_cot(kb):
 def _bang(kb, dong=SAU_LAM):
 	m = rf._chay(rf.Kho([dong], _du_cot(kb)), btp.bang_btp, rf._tinh_that(don=[]))
 	d = m["dong"][0]
-	return d["dang_giu"], d["con_nhan"], d["giao_mai"]
+	# v677: ô Còn nhận mai cũ bỏ; số thứ ba là ô Web nhận ngày kia (BTP sẵn).
+	return d["dang_giu"], d["con_nhan"], d["web"][1][1]
 
 
 @ca("v649 thuần don_con_giu_vo: đơn có bánh làm xong thôi giữ vỏ; bánh làm xong bị kênh khác, giữ chỗ, huỷ, đơn khác lấy trước thì đơn vẫn giữ")
@@ -66,17 +67,19 @@ def _thuan():
 	la("đọc được dòng Frappe kiểu thuộc tính", g(D(da_dat=3, sx=1, phat_sinh=None)), 2)
 
 
-@ca("v649 Codex #552 vòng 7 (btp.py:106): bếp làm trước 3 bánh trên bảng ngày mai cho 3 đơn ngày mai: không giữ vỏ lần hai (Còn nhận 7, Giao ngày mai 6)")
+@ca("v649 Codex #552 vòng 7 (btp.py:106): bếp làm trước 3 bánh trên bảng ngày mai cho 3 đơn ngày mai: không giữ vỏ lần hai (Còn nhận 7, v677 web ngày kia 7)")
 def _ngay_mai():
-	la("bảng BTP", _bang({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "sx": 3}]}), (0, 7, 6))
-	la("chưa làm thì giữ đủ 3 như cũ", _bang({MAI: [{"ma_hang": KANKIN, "da_dat": 3}]}, dict(rf.KANKIN, so_btp=10, so_decor=9)), (3, 7, 6))
-	la("ngày kia cũng vậy", _bang({"KB-2026-11-12": [{"ma_hang": KANKIN, "da_dat": 2, "sx": 2}]}), (0, 7, 6))
+	la("bảng BTP", _bang({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "sx": 3}]}), (0, 7, 7))
+	la("chưa làm thì giữ đủ 3 như cũ", _bang({MAI: [{"ma_hang": KANKIN, "da_dat": 3}]}, dict(rf.KANKIN, so_btp=10, so_decor=9)), (3, 7, 7))
+	la("ngày kia cũng vậy", _bang({"KB-2026-11-12": [{"ma_hang": KANKIN, "da_dat": 2, "sx": 2}]}), (0, 7, 7))
 
 
-@ca("v649 Codex #552 vòng 7 (btp.py:181): hôm nay bếp làm 3, kênh khác bán cả 3, còn 2 đơn Pancake: vẫn giữ 2 vỏ (Còn nhận 5, không phải 7)")
+@ca("v649 Codex #552 vòng 7 (btp.py:181): ngày mai bếp làm 3, kênh khác bán cả 3, còn 2 đơn Pancake: vẫn giữ 2 vỏ (Còn nhận 5, không phải 7)")
 def _kenh_khac():
-	la("bảng BTP", _bang({NAY: [{"ma_hang": KANKIN, "sx": 3, "don_khac": 3, "da_dat": 2}]}), (2, 5, 6))
-	la("kênh khác chỉ lấy 1: 2 đơn đã có bánh", _bang({NAY: [{"ma_hang": KANKIN, "sx": 3, "don_khac": 1, "da_dat": 2}]}), (0, 7, 6))
+	# v677: đơn hôm nay bán theo tủ, không trừ vỏ; ca đặt vào phiếu ngày mai.
+	la("bảng BTP", _bang({MAI: [{"ma_hang": KANKIN, "sx": 3, "don_khac": 3, "da_dat": 2}]}), (2, 5, 5))
+	la("kênh khác chỉ lấy 1: 2 đơn đã có bánh", _bang({MAI: [{"ma_hang": KANKIN, "sx": 3, "don_khac": 1, "da_dat": 2}]}), (0, 7, 7))
+	la("v677: đơn hôm nay không trừ vào số ngày kia", _bang({NAY: [{"ma_hang": KANKIN, "sx": 0, "da_dat": 2}]}), (0, 7, 7))
 
 
 # v671 (Sales góp ý 18/11/2026, giám đốc chốt): web tab Đặt bánh trước, cửa nhận
@@ -86,14 +89,14 @@ def _kenh_khac():
 # Ba ca dưới thay ba ca v649 cũ theo Đủ decor.
 
 
-@ca("v671 tab Đặt bánh trước trên web: số ngày mai là Có thể bán của phiếu ngày mai, Đủ decor không tính cho ngày mai (v675: chỉ cho ngày kia)")
+@ca("v671 tab Đặt bánh trước trên web: số ngày mai là Có thể bán của phiếu ngày mai; v677 ngày kia theo BTP sẵn, Đủ decor không tính")
 def _tab_dat_truoc():
 	m = rf.du_lieu_web(kankin=SAU_LAM, kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "sx": 3, "co_the_ban": 4}]}))
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
 	la("Có thể bán 4 (Đủ decor 6 không tính)", s[KANKIN]["con"], 4)
-	m = rf.du_lieu_web(kankin=dict(rf.KANKIN, so_decor=9), kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "co_the_ban": 0}]}))
+	m = rf.du_lieu_web(kankin=dict(rf.KANKIN, so_btp=9, so_decor=0), kb=_du_cot({MAI: [{"ma_hang": KANKIN, "da_dat": 3, "co_the_ban": 0}]}))
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
-	la("Có thể bán 0: ngày mai 0, ngày kia theo Đủ decor 9 trừ 3 đơn ngày mai", (s[KANKIN]["con_mai"], s[KANKIN]["con_xa"]), (0, 6))
+	la("Có thể bán 0: ngày mai 0, ngày kia theo BTP sẵn 9 trừ 3 đơn ngày mai (Đủ decor 0 không chặn)", (s[KANKIN]["con_mai"], s[KANKIN]["con_xa"]), (0, 6))
 
 
 def _ton_don(kb_mai, decor=6, lam=3):

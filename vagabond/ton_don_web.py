@@ -13,6 +13,12 @@ ngày mai theo cột Có thể bán (Còn bán) của phiếu Kiểm bánh đún
 ngày thứ ba theo Đủ decor trừ các đơn chưa làm (con_decor); xa hơn không nhận
 bánh đặt trước thường. Đợt refill đã nhận đủ đơn không giữ ngày của nó nữa
 (refill.bo_dot_du_don): ngày đó bán theo đúng luật trên.
+
+v677 (Loan Anh báo 20/11/2026, anh Việt chọn hướng A): ngày kia và ngày thứ ba
+theo BTP sẵn (không còn theo Đủ decor) trừ các đơn chưa làm của ba ngày tới, vì
+còn một, hai ngày thì bếp kịp decor từ vỏ. Ngày mai vẫn theo phiếu. Đủ decor chỉ
+còn là số theo dõi của bếp, không chặn web. Một phép con_btp cho thẻ web, cửa
+nhận đơn, cửa giữ hàng và bảng Kiểm bánh (so_web_ba_ngay).
 """
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -22,7 +28,7 @@ import frappe
 from vagabond.giu_vo import don_con_giu_vo
 
 # v675: bánh đặt trước thường nhận tới ngày thứ ba kể từ hôm nay (giám đốc chốt
-# 19/11/2026); ngày kia và ngày thứ ba theo Đủ decor.
+# 19/11/2026); v677: ngày kia và ngày thứ ba theo BTP sẵn.
 SO_NGAY_DAT_TRUOC = 3
 
 def hom_nay():
@@ -32,7 +38,7 @@ def hom_nay():
 def _kiem_refill(hang, ng, nay):
     """v646 Refill: (mã đã xét, câu nhắc). Mã có refill còn nhận đơn: ngày nhận
     trong khoảng thì kiểm số còn (đếm MỚI, không dùng số giữ 5 phút); ngoài
-    khoảng mà không còn decor 3 ngày tới thì nhắc chọn ngày trong khoảng."""
+    khoảng mà không còn số ba ngày tới thì nhắc chọn ngày trong khoảng."""
     from vagabond import refill
 
     if ng <= nay:
@@ -56,34 +62,24 @@ def _kiem_refill(hang, ng, nay):
     con = {m: (c or 0) for m, c in refill.con_theo_ngay(so, ng).items()}
     # v671: ngoài khoảng mẻ, bánh chỉ nhận được NGÀY MAI theo phiếu Kiểm bánh
     # ngày mai (trước v671: theo Đủ decor ba ngày tới).
-    # v675: ngày kia và ngày thứ ba theo Đủ decor còn nhận.
+    # v675, v677: ngày kia và ngày thứ ba theo BTP sẵn còn nhận.
     mai = {}
     if ng == nay + timedelta(days=1):
         # Codex #588: chưa có phiếu ngày mai thì coi như phiếu rỗng, vẫn nhắc chọn
         # ngày trong khoảng đợt (trước bản sửa: nổ lỗi, đơn ngoài khoảng lọt qua).
         mai = {m: n for m, (n, _ten) in (_ton_phieu(ng) or {}).items() if n > 0}
     elif ng <= nay + timedelta(days=SO_NGAY_DAT_TRUOC):
-        mai = {m: n for m, (n, _ten) in _con_decor_web(dong_btp, nay, so).items() if n > 0}
+        mai = {m: n for m, (n, _ten) in _con_btp_web(dong_btp, nay, so).items() if n > 0}
     xet = {m for m in set(rf) & ma_hang if refill.ngay_cua_refill(rf, m, ng) or m not in mai}
     return xet, refill.kiem_don([h for h in hang if h["variation_id"] in xet], ng, rf, con, mai)
-
-
-def decor_huu_han(d):
-    """Dòng bảng BTP có nguồn Đủ decor hữu hạn không (F21 review 13/10: decor gốc
-    bằng 0 là dòng giữ chỗ, không chặn). v649, Codex #552 vòng 4: Đủ decor nay
-    trừ ngay theo Bếp làm, nên decor về 0 hay âm vì bếp làm hết vẫn là nguồn
-    hữu hạn đã cạn. Gốc = Đủ decor hiện còn + phần đã trừ theo Bếp làm kể từ lần
-    bếp nhập decor gần nhất. Thuần."""
-    lay = (lambda k: d.get(k)) if hasattr(d, "get") else (lambda k: getattr(d, k, 0))
-    return int(lay("so_decor") or 0) + int(lay("decor_da_lam") or 0) > 0
 
 
 def da_lam_dot_vuot(so, nay, doc_dong=None):
     """{(mã, ngày đầu đợt): số đơn của đợt đã có bánh Bếp làm}, cho các đợt refill
     nhận vượt số còn chạm ba ngày tới (Codex #594).
 
-    Bếp nhập Bếp làm là máy đã trừ Đủ decor (btp.tru_vo_theo_sx), nên phần vượt
-    đã làm không được trừ lần nữa trong con_decor. Đọc phiếu Kiểm bánh của MỌI
+    Bếp nhập Bếp làm là máy đã trừ BTP sẵn và Đủ decor (btp.tru_vo_theo_sx), nên
+    phần vượt đã làm không được trừ lần nữa trong con_btp. Đọc phiếu Kiểm bánh của MỌI
     ngày thuộc đợt (kể cả hôm nay và các ngày đã qua); ngày chưa có phiếu thì
     chưa ai nhập Bếp làm. `doc_dong(ngày)` trả dòng phiếu hoặc None (tiêm cho ca
     kiểm). Một nguồn cho thẻ web, cửa nhận đơn và cửa tạo đơn."""
@@ -119,18 +115,20 @@ def da_lam_dot_vuot(so, nay, doc_dong=None):
     return ra
 
 
-def con_decor(dong_btp, kb_ngay, nay, rf=None, so=None, da_lam=None):
-    """{mã: (Đủ decor còn nhận, tên)} cho ngày kia và ngày thứ ba (v675). THUẦN.
+def con_btp(dong_btp, kb_ngay, nay, rf=None, so=None, da_lam=None):
+    """{mã: (BTP sẵn còn nhận, tên)} cho ngày kia và ngày thứ ba (v677). THUẦN.
 
-    MỘT phép cho thẻ web, cửa nhận đơn và cửa tạo đơn. Đủ decor trừ các đơn chưa
-    làm của ba ngày tới (`kb_ngay` = [(ngày, dòng phiếu Kiểm bánh)], cùng cột
-    với Có thể bán qua don_con_giu_vo). Ngày thuộc đợt refill (`rf` hiệu lực)
-    thì đơn trừ vào mẻ, không trừ Đủ decor; riêng đợt đã nhận đủ đơn (`so` của
-    refill.tinh, con âm) thì phần vượt số của đợt lấy từ Đủ decor nên trừ vào
-    đây. Codex #594: chỉ trừ phần vượt CHƯA được Bếp làm (`da_lam` của
-    da_lam_dot_vuot), vì bánh đã làm thì Đủ decor đã bị trừ rồi; không truyền
-    `da_lam` thì trừ cả phần vượt (thận trọng). Chỉ dòng có Đủ decor hữu hạn
-    (decor_huu_han)."""
+    MỘT phép cho thẻ web, cửa nhận đơn, cửa giữ hàng và bảng Kiểm bánh. BTP sẵn
+    trừ các đơn chưa làm của ba ngày tới (`kb_ngay` = [(ngày, dòng phiếu Kiểm
+    bánh)], cùng cột với Có thể bán qua don_con_giu_vo: bánh Bếp làm đã trừ thẳng
+    vào BTP sẵn nên không trừ lần hai). Ngày thuộc đợt refill (`rf` hiệu lực) thì
+    đơn trừ vào mẻ, không trừ BTP; riêng đợt đã nhận đủ đơn (`so` của
+    refill.tinh, con âm) thì phần vượt số của đợt lấy từ BTP nên trừ vào đây,
+    chỉ phần vượt CHƯA được Bếp làm (`da_lam` của da_lam_dot_vuot); không truyền
+    `da_lam` thì trừ cả phần vượt (thận trọng).
+
+    v675 tới v676 phép này đọc Đủ decor (tên cũ con_decor). v677: đọc BTP sẵn,
+    mọi dòng của bảng BTP (BTP 0 là hết vỏ, không phải chưa biết)."""
     from vagabond import refill
 
     def lay(d, k):
@@ -157,22 +155,55 @@ def con_decor(dong_btp, kb_ngay, nay, rf=None, so=None, da_lam=None):
     ra = {}
     for d in dong_btp or []:
         ma = str(lay(d, "ma_hang") or "")
-        if ma and decor_huu_han(d):
-            ra[ma] = (int(lay(d, "so_decor") or 0) - dd.get(ma, 0), lay(d, "ten_banh") or ma)
+        if ma:
+            ra[ma] = (int(lay(d, "so_btp") or 0) - dd.get(ma, 0), lay(d, "ten_banh") or ma)
     return ra
 
 
-def _con_decor_web(dong_btp, nay, so=None):
-    """Đủ decor còn nhận theo dữ liệu trên site (đọc phiếu ba ngày tới)."""
-    from vagabond import refill
-
+def kb_ba_ngay(nay):
+    """[(ngày, dòng phiếu Kiểm bánh)] của ngày mai tới ngày thứ ba có phiếu."""
     kb = []
     for i in range(1, SO_NGAY_DAT_TRUOC + 1):
         ng = nay + timedelta(days=i)
         ten = "KB-%s" % ng
         if frappe.db.exists("Kiem Banh Ngay", ten):
             kb.append((ng, frappe.get_doc("Kiem Banh Ngay", ten).dong))
-    return con_decor(dong_btp, kb, nay, refill.hieu_luc_tu_dong(dong_btp, nay), so, da_lam_dot_vuot(so, nay))
+    return kb
+
+
+def _con_btp_web(dong_btp, nay, so=None):
+    """BTP sẵn còn nhận theo dữ liệu trên site (đọc phiếu ba ngày tới)."""
+    from vagabond import refill
+
+    return con_btp(dong_btp, kb_ba_ngay(nay), nay, refill.hieu_luc_tu_dong(dong_btp, nay), so, da_lam_dot_vuot(so, nay))
+
+
+def so_web_ba_ngay(ma, nay, phieu_mai, pool, rf_mo=None, so=None):
+    """[(ngày, số, nguồn)] web nhận cho mã `ma` từ ngày mai tới ngày thứ ba (v677). THUẦN.
+
+    Cùng luật với thẻ web (kho-banh.js soThuong, gioiHanNhan) và cửa nhận đơn:
+    ngày thuộc một đợt refill đang mở (`rf_mo` sau bo_dot_du_don) theo số còn
+    của đợt đó; ngày mai theo Có thể bán của phiếu ngày mai (`phieu_mai` {mã: số},
+    None khi chưa có phiếu: số None là chưa biết); ngày kia và ngày thứ ba theo
+    `pool` của con_btp. Số âm giữ nguyên để bảng Kiểm bánh báo đã nhận quá; web
+    hiện 0. Nguồn: "refill", "phieu" hay "btp", để bảng ghi số lấy từ đâu. Dùng
+    cho bảng Kiểm bánh để Sales thấy đúng số khách thấy."""
+    from vagabond import refill
+
+    ra = []
+    con_dot = {}
+    for i in range(1, SO_NGAY_DAT_TRUOC + 1):
+        ng = nay + timedelta(days=i)
+        if rf_mo and refill.ngay_cua_refill(rf_mo, ma, ng):
+            if ng not in con_dot:
+                con_dot[ng] = refill.con_theo_ngay(so or {}, ng) if so and not so.get("loi") else {}
+            c = con_dot[ng].get(ma)
+            ra.append((ng, int(c) if c is not None else None, "refill"))
+        elif i == 1:
+            ra.append((ng, None if phieu_mai is None else int(phieu_mai.get(ma, 0)), "phieu"))
+        else:
+            ra.append((ng, int(pool.get(ma, 0)), "btp"))
+    return ra
 
 
 def _ton_phieu(ng):
@@ -225,7 +256,7 @@ def kiem(hang, ngay):
         return nhac_rf
     nhac_truoc = []
     if mai < ng <= nay + timedelta(days=SO_NGAY_DAT_TRUOC):
-        # v675: ngày kia và ngày thứ ba theo Đủ decor trừ đơn chưa làm. Đếm
+        # v675, v677: ngày kia và ngày thứ ba theo BTP sẵn trừ đơn chưa làm. Đếm
         # refill hỏng thì không trừ phần vượt đợt (như mọi lỗi đếm: không chặn).
         if not hang:
             return nhac_rf
@@ -234,8 +265,8 @@ def kiem(hang, ngay):
         so = None
         if refill.hieu_luc_tu_dong(dong_btp, nay):
             so = refill.tinh(nay, dong=dong_btp)
-        ton = _con_decor_web(dong_btp, nay, so)
-        # Bánh đặt trước (bảng BTP, phiếu ngày mai) không có Đủ decor thì hết
+        ton = _con_btp_web(dong_btp, nay, so)
+        # Bánh đặt trước (phiếu ngày mai) không có dòng BTP thì hết
         # chỗ cho ngày này, không phải chưa biết.
         ten_dt = {d.ma_hang: (d.ten_banh or d.ma_hang) for d in (dong_btp or [])}
         for m, (_n, t) in (_ton_phieu(mai) or {}).items():

@@ -1,4 +1,4 @@
-/* BTP banh o - bep nhap so BTP cho finish, sales xem CON NHAN.
+/* BTP banh o - bep nhap so BTP cho finish, sales xem Web nhan ba ngay (v677).
    Chay trong truong `javascript` cua Web Page /btp. Boot trong window load. */
 (function () {
 	var DL = null, DANG_SUA = null, VE_TRUOC = null;
@@ -57,10 +57,20 @@
 					+ "<b>" + d.ma_hang + "</b><span>" + chuSach(d.ten_banh) + "</span></div>"
 					+ '<div class="bt-so">' + oBtp
 					+ '<div class="bt-o"><label>Đơn đang giữ</label><b>' + (d.dang_giu || 0) + "</b></div>"
-					+ '<div class="bt-o bt-nhan ' + (d.con_nhan > 0 ? "duong" : (d.con_nhan < 0 ? "am" : "")) + '"><label>CÒN NHẬN</label><b>' + d.con_nhan + "</b></div>"
+					/* v677 (Codex #596): ba ô Web nhận theo từng ngày (trường web của máy chủ,
+					   cùng phép trang đặt bánh); ngày thuộc đợt refill theo đợt, không theo BTP. */
+					+ oWeb(d)
 					+ "</div></div>";
 			});
 		g.innerHTML = h;
+	}
+
+	function oWeb(d) {
+		return (d.web || []).map(function (p) {
+			var n = p[1], nhanO = "Web " + p[0].slice(8, 10) + "/" + p[0].slice(5, 7);
+			if (n === null || n === undefined) return '<div class="bt-o bt-nhan bt-web"><label>' + nhanO + "</label><b>?</b></div>";
+			return '<div class="bt-o bt-nhan bt-web ' + (n > 0 ? "duong" : (n < 0 ? "am" : "")) + '"><label>' + nhanO + "</label><b>" + n + "</b></div>";
+		}).join("");
 	}
 
 	function nhan(m) {

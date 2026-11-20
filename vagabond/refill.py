@@ -20,7 +20,7 @@ from datetime import date, datetime, timedelta
 TOI_DA_TRUOC = 30  # ngày có bánh xa nhất tính từ hôm nay
 TOI_DA_KHOANG = 13  # nhận tới xa nhất tính từ ngày có bánh (web hiện 14 ngày)
 MAC_DINH_KHOANG = 6  # nhận tới = có bánh + 6 ngày
-SO_NGAY_GIU = 3  # hôm nay + 2 ngày kế: ô Còn nhận 3 ngày (btp.SO_NGAY_GIU)
+SO_NGAY_GIU = 4  # v677: ô Đặt xa ngày là đơn giao SAU ngày thứ ba (sau ba ngày web nhận đặt trước)
 BO_QUA_TT = frozenset({6, 7})  # đơn Pancake huỷ, trả (lib.PANCAKE_BO_QUA)
 GIU_GIAY = 300  # đếm đơn tương lai giữ 5 phút, không gọi Pancake mỗi 30 giây
 
@@ -128,7 +128,7 @@ def da_dat_trong(theo_ngay, tu, den):
 
 
 def dat_xa(theo_ngay, hom_nay):
-	"""Đơn giao SAU cửa sổ Còn nhận 3 ngày: (tổng, [(ngày iso, số)]). THUẦN."""
+	"""Đơn giao SAU ba ngày web nhận đặt trước (từ hôm nay + 4): (tổng, [(ngày iso, số)]). THUẦN."""
 	moc = hom_nay + timedelta(days=SO_NGAY_GIU)
 	ds = sorted((g, n) for g, n in (theo_ngay or {}).items() if n and ngay(g) and ngay(g) >= moc)
 	return sum(n for _, n in ds), ds

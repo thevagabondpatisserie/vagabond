@@ -305,7 +305,12 @@ def ds(diem=None, ban=None, k=None):
 			x["giam"], x["ly_do"] = int(round(giam)), ly
 		x["dung_duoc"] = 1 if (x["giam"] or 0) > 0 else 0
 	ra.sort(key=lambda x: (0 if x["nhom"] == "vi" else 1, -x["dung_duoc"], -(x["giam"] or 0)))
-	return {"ok": 1, "dang_nhap": 1, "sdt": che_sdt(nd), "co_hoa_don": 1 if si else 0, "chon": chon, "ds": ra}
+	# v677: trạng thái tích điểm của hoá đơn bàn (tich_diem_ban), để trang khách
+	# hiện Đã gắn, hay tự gắn khi hoá đơn còn đứng tên khách chung.
+	from vagabond import tich_diem_ban
+
+	return {"ok": 1, "dang_nhap": 1, "sdt": che_sdt(nd), "co_hoa_don": 1 if si else 0, "chon": chon, "ds": ra,
+		"tv": tich_diem_ban.tv_cho_ds(si, nd, khach)}
 
 
 class _luu_bang_quyen_he_thong(object):
@@ -359,6 +364,13 @@ def chon(diem=None, ban=None, k=None, loai=None, ma=None):
 	cu = doc_ud(si.get("vgb_ud_ban"))
 	if cu and re.sub(r"\D", "", str(cu.get("sdt"))) != re.sub(r"\D", "", nd):
 		return {"ok": 0, "cau": "Bàn đã dùng ưu đãi của số %s. Mỗi hoá đơn một ưu đãi." % che_sdt(cu.get("sdt"))}
+	# Codex #596 vòng 2: hoá đơn đã tích điểm cho một khách thật khác thì không
+	# chọn ưu đãi của số này, để điểm và ưu đãi không thuộc hai người.
+	from vagabond import tich_diem_ban
+
+	kh_bill = (si.get("customer") or "").strip()
+	if not tich_diem_ban._la_gop(kh_bill) and kh_bill != (khach or ""):
+		return {"ok": 0, "cau": "Hoá đơn bàn đang tích điểm cho một số khác. Cần dùng ưu đãi của số này thì báo nhân viên đổi khách trước."}
 	if loai == "ctkm" and not any(c["name"] == ma for c in _ds_ctkm(d, si)):
 		return {"ok": 0, "cau": "Chương trình này không dùng được tại bàn."}
 	if loai == "ma" and not any(v["ma"] == ma for v in _vi(khach)):

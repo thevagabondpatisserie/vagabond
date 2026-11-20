@@ -749,6 +749,114 @@ function posKhoiUdBan(u, boDuoc) {
     '</div>';
 }
 
+/* v677: khối Khách thành viên của bill Tạm tính. Khách thật (không phải khách
+   chung của quầy) thì hiện tên kèm Đổi khách, Gỡ; chưa có thì ô tìm như ô
+   Khách ở màn Tính tiền. Gõ đủ 10 số mà không ai có số đó thì nút tạo khách
+   mới bằng số đó. THUẦN với d. */
+function pbLaKhachChung(ma) {
+  var m = String(ma || '').trim();
+  return !m || m.indexOf('Khách lẻ') === 0 || m === 'Khách bán lẻ';
+}
+function pbKhoiTv(d) {
+  var ma = String(d.customer || '').trim();
+  var html = '<div class="sec">Khách thành viên</div><div class="card" id="pbTv" style="padding:12px 14px">';
+  if (!pbLaKhachChung(ma)) {
+    html += '<div style="display:flex;align-items:center;gap:10px">' +
+      '<span style="width:40px;height:40px;flex:none;border-radius:50%;background:#e0f7fb;color:#0b7c93;display:grid;place-items:center;font-size:18px">👤</span>' +
+      '<div style="flex:1;min-width:0"><b style="font-size:15px">' + h(d.customer_name || ma) + '</b>' +
+      '<div style="font-size:13px;color:#0b7c93">Chốt bill thì cộng điểm cho khách này</div></div></div>' +
+      '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button class="btn gh" id="pbTvDoi" style="flex:1;margin:0;min-height:44px">Đổi khách</button>' +
+      '<button class="btn gh" id="pbTvGo" style="flex:1;margin:0;min-height:44px;color:#b3261e">Gỡ khách</button></div>';
+  } else {
+    html += '<div style="font-size:13px;color:#6b7280;line-height:1.5;margin-bottom:8px">Bill đang đứng tên khách chung nên chốt bill không cộng điểm. ' +
+      'Hỏi số điện thoại của khách rồi chọn, hoặc nhờ khách bấm Tích điểm trên trang gọi món.</div>';
+  }
+  html += '<div style="position:relative' + (pbLaKhachChung(ma) ? '' : ';display:none;margin-top:10px') + '" id="pbTvTimO">' +
+    '<input class="tin" id="pbTvTim" placeholder="Số điện thoại hoặc tên khách" autocomplete="off" inputmode="search" style="min-height:44px">' +
+    '<div id="pbTvGoi" style="margin-top:6px"></div></div></div>';
+  return html;
+}
+/* Số điện thoại Việt Nam đủ 10 số bắt đầu bằng 0 (bỏ dấu cách, +84). THUẦN. */
+function pbSoMoi(q) {
+  var s = String(q || '').replace(/[^0-9+]/g, '');
+  if (s.indexOf('+84') === 0) s = '0' + s.slice(3);
+  else if (s.indexOf('84') === 0 && s.length === 11) s = '0' + s.slice(2);
+  return /^0[0-9]{9}$/.test(s) ? s : '';
+}
+function pbNoiTv(d, veLai) {
+  var o = document.getElementById('pbTv');
+  if (!o) return;
+  var dangGan = false;
+  async function gan(than, bao) {
+    if (dangGan) return;
+    dangGan = true;
+    try {
+      var r = await api('vagabond.tich_diem_ban.gan_quay', Object.assign({ name: d.name }, than));
+      toast(r && r.khach ? 'Đã gắn ' + (r.ten || r.khach) + '. Chốt bill là cộng điểm.' : (bao || 'Đã gỡ khách, bill về khách chung.'), 3800);
+      veLai();
+    } catch (e) {
+      toast((e && e.message) || 'Chưa gắn được khách. Thử lại.', 4800);
+    } finally { dangGan = false; }
+  }
+  var nDoi = document.getElementById('pbTvDoi');
+  if (nDoi) nDoi.onclick = function () {
+    var tO = document.getElementById('pbTvTimO');
+    if (tO) tO.style.display = '';
+    var i = document.getElementById('pbTvTim');
+    if (i) i.focus();
+  };
+  var nGo = document.getElementById('pbTvGo');
+  if (nGo) nGo.onclick = async function () {
+    if (!await confirmSheet('Gỡ khách khỏi bill này?', 'Bill về khách chung, chốt bill sẽ không cộng điểm cho ai.', 'Gỡ khách', true)) return;
+    gan({ khach: '' });
+  };
+  var inp = document.getElementById('pbTvTim'), hop = document.getElementById('pbTvGoi');
+  if (!inp || !hop) return;
+  var tre = null, lan = 0;
+  function ve(ds, q) {
+    var moi = pbSoMoi(q);
+    var khop = ds.slice(0, 8).map(function (k) {
+      return '<div class="shi" data-tvkh="' + h(k.name) + '" style="min-height:44px;font-size:14px;border:1px solid #eef0f4;border-radius:10px;margin-top:6px">' +
+        '<span>👤</span><div style="flex:1;min-width:0"><b>' + h(k.customer_name || k.name) + '</b>' +
+        '<div style="font-size:12.5px;color:#6b7280">' + h(k.mobile_no || k.name) + '</div></div>' +
+        '<span style="color:#0b7c93;font-size:13px;font-weight:600">Gắn</span></div>';
+    }).join('');
+    var trung = moi && ds.some(function (k) { return pbSoMoi(k.mobile_no) === moi; });
+    hop.innerHTML = khop + (moi && !trung
+      ? '<button class="btn gh" id="pbTvTao" data-so="' + h(moi) + '" style="width:100%;margin:8px 0 0;min-height:44px">➕ Tạo khách mới với số ' + h(moi) + '</button>'
+      : '') + (!khop && !moi && q ? '<div style="font-size:13px;color:#98a2b3;margin-top:6px">Không có khách nào khớp. Gõ đủ 10 số điện thoại để tạo khách mới.</div>' : '');
+  }
+  async function tim(q) {
+    var toi = ++lan;
+    var kq = null;
+    try { kq = await api('vagabond.cong_no.tim_khach', { tu_khoa: q }); } catch (e) { kq = null; }
+    /* Câu trả lời của lần gõ cũ về sau lần gõ mới thì bỏ (loại 8). */
+    if (toi !== lan) return;
+    ve(((kq && kq.khach) || []).filter(function (k) { return !pbLaKhachChung(k.name); }), q);
+  }
+  /* Codex #596 vòng 2 (loại 8): gõ là bỏ ngay kết quả của từ khoá cũ, kể cả
+     câu trả lời về trong lúc chờ debounce, để không bấm nhầm khách. */
+  inp.oninput = function () {
+    if (tre) clearTimeout(tre);
+    lan++;
+    hop.innerHTML = '';
+    var q = inp.value.trim();
+    if (!q) return;
+    tre = setTimeout(function () { tim(q); }, 260);
+  };
+  hop.onclick = async function (e) {
+    var k = e.target.closest('[data-tvkh]');
+    if (k) return gan({ khach: k.getAttribute('data-tvkh') });
+    var t = e.target.closest('#pbTvTao');
+    if (t) {
+      var ten = await promptSheet('Tên khách (không bắt buộc)', 'Ví dụ: Chị Lan');
+      if (ten === null) return;
+      gan({ sdt: t.getAttribute('data-so'), ten: ten || '' });
+    }
+  };
+}
+
 async function scrPosBill(name) {
   frame('Hoá đơn ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -849,6 +957,14 @@ async function scrPosBill(name) {
   if (giam) html += '<div style="display:flex;justify-content:space-between;padding:7px 0;color:#b45309"><span>Giảm giá</span><b>-' + money(giam) + '</b></div>';
   if (udBan) html += posKhoiUdBan(udBan, nhap && !udBan.da_ghi);
   html += '<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:16px"><b>' + (tamTinh ? 'TẠM TÍNH' : 'PHẢI THU') + '</b><b>' + money(phaiThu) + ' đ</b></div></div>';
+
+  /* ----- khach thanh vien (v677) -----
+     Dễ báo 20/11/2026: bill gọi qua QR đứng tên khách chung nên chốt bill
+     không cộng điểm cho ai, màn Sửa hoá đơn lại chỉ có ô xuất hoá đơn. Bill
+     Tạm tính chưa chốt nay có khối này ngay trên màn bill (không cần OTP vì
+     không đổi tiền): tìm khách, hoặc gõ số mới để tạo khách, gỡ được. Khách
+     tự đăng nhập Zalo trên trang gọi món thì khối hiện sẵn tên khách. */
+  if (tamTinh && nhap && !d.vgb_huy) html += pbKhoiTv(d);
 
   /* ----- khoi thong tin xuat hoa don khach da dien ----- */
   var coXhd = d.vgb_xhd_mst && String(d.vgb_xhd_mst).trim();
@@ -1031,6 +1147,7 @@ async function scrPosBill(name) {
 
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
   tkNapKhoi(b);
+  pbNoiTv(d, function () { go(function () { scrPosBill(d.name); }, true); });
   var nutLinkXhd = document.getElementById('pbLinkXhd');
   if (nutLinkXhd) nutLinkXhd.onclick = async function () {
     nutLinkXhd.disabled = true;

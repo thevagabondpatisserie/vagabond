@@ -2845,6 +2845,12 @@ def luu_khach_no(si_name, khach=None):
 	if ma and not frappe.db.exists("Customer", ma):
 		frappe.throw("Không có khách hàng %s trong danh mục." % ma)
 	if si.docstatus == 0:
+		# Codex #596 vòng 2: bill đang dùng ưu đãi khách chọn tại bàn thì khách mới
+		# phải là chủ ưu đãi (cùng cửa với tich_diem_ban.gan_quay).
+		if ma and si.get("vgb_ud_ban"):
+			from vagabond import tich_diem_ban
+
+			tich_diem_ban.kiem_cung_chu(si, ma)
 		si.customer = ma or _khach_le()
 		si.vgb_khach_no = ma
 		si.flags.ignore_permissions = True

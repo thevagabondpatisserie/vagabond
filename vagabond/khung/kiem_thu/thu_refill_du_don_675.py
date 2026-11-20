@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""v675 (Sales báo 19/11/2026, giám đốc chốt "Đợt đủ đơn thì bán Đủ decor"):
+"""v675 (Sales báo 19/11/2026, giám đốc chốt "Đợt đủ đơn thì bán Đủ decor";
+v677: nguồn đó nay là BTP sẵn, anh Việt chọn hướng A 20/11/2026):
 đợt refill đã nhận đủ đơn (Còn nhận refill bằng 0) không còn giữ các ngày của nó.
 Các ngày đó bánh bán theo luật bánh đặt trước thường: ngày mai theo cột Có thể bán
 của phiếu Kiểm bánh ngày mai (v671), ngày xa hơn thì nhắc chọn ngày của đợt còn nhận.
@@ -105,14 +106,14 @@ def _ca_goc():
 	dung("phiếu ngày mai hết: cửa tạo đơn chặn", bool(n) and "chỉ còn 0 cái" in n[0])
 
 
-@ca("v675 đợt 1 đủ đơn: ngày kia 21/11 bán theo Đủ decor (6, trừ đơn chưa làm và phần vượt đợt); ngày 23/11 (sau 3 ngày tới) nhắc chọn ngày của đợt 2")
+@ca("v675, v677 đợt 1 đủ đơn: ngày kia 21/11 bán theo BTP sẵn (6, trừ đơn chưa làm và phần vượt đợt); ngày 23/11 (sau 3 ngày tới) nhắc chọn ngày của đợt 2")
 def _ngay_xa():
-	la("21/11 đặt 1: nhận theo Đủ decor", _kiem(1, "2026-11-21"), [])
+	la("21/11 đặt 1: nhận theo BTP sẵn", _kiem(1, "2026-11-21"), [])
 	dung("21/11 đặt 7: còn 6", "chỉ còn 6 cái" in "".join(_kiem(7, "2026-11-21")))
 	vuot = DON_DU + [t646._don(MA, "2026-11-23T03:00:00", 1)]
-	dung("đợt 1 nhận vượt 1 đơn: phần vượt trừ vào Đủ decor (còn 5)", "chỉ còn 5 cái" in "".join(_kiem(7, "2026-11-21", don=vuot)))
+	dung("đợt 1 nhận vượt 1 đơn: phần vượt trừ vào BTP sẵn (còn 5)", "chỉ còn 5 cái" in "".join(_kiem(7, "2026-11-21", don=vuot)))
 	(n, giu), (n_rf, giu_rf) = _giu(1, "2026-11-21")
-	la("cửa tạo đơn 21/11: giữ theo Đủ decor, không giữ suất mẻ", (n, giu and giu["dong"], n_rf, giu_rf), ([], {MA: 1}, [], None))
+	la("cửa tạo đơn 21/11: giữ theo BTP sẵn, không giữ suất mẻ", (n, giu and giu["dong"], n_rf, giu_rf), ([], {MA: 1}, [], None))
 	(n, _g), _ = _giu(7, "2026-11-21")
 	dung("cửa tạo đơn 21/11 đặt 7: chặn (còn 6)", bool(n) and "chỉ còn 6 cái" in n[0])
 	r = _kiem(1, "2026-11-23")
@@ -152,7 +153,7 @@ def du_lieu_web():
 def _the_web():
 	m = du_lieu_web()
 	s = {x["ma"]: x for g in m["nhom"] for x in g["sizes"]}
-	la("ngày mai theo phiếu (2), ngày kia theo Đủ decor (6), đợt 2 để chọn ngày sau",
+	la("ngày mai theo phiếu (2), ngày kia theo BTP sẵn (6), đợt 2 để chọn ngày sau",
 		(s[MA]["con"], s[MA]["con_mai"], s[MA]["con_xa"], s[MA]["refill"]["chi_refill"], [(d["tu"], d["con"]) for d in s[MA]["refill"]["ds"]]),
 		(2, 2, 6, 0, [("2026-11-24", 10)]))
 
@@ -166,11 +167,11 @@ def _chua_co_phieu():
 	la("nhắc chọn ngày trong mẻ", r, ["Roman De La Rose 18 nhận giao từ 14/11 tới 20/11, quý khách chọn ngày nhận trong khoảng này."])
 
 
-@ca("v675 bánh đặt trước thường (Sales 19/11): ngày mai theo phiếu, ngày kia và ngày thứ ba theo Đủ decor trừ đơn chưa làm của ba ngày tới, ngày thứ tư nhắc 3 ngày tới; không có Đủ decor thì hết")
+@ca("v675, v677 bánh đặt trước thường: ngày mai theo phiếu, ngày kia và ngày thứ ba theo BTP sẵn trừ đơn chưa làm của ba ngày tới, ngày thứ tư nhắc 3 ngày tới; BTP sẵn 0 thì hết dù Đủ decor còn")
 def _thuong():
 	from vagabond import ton_don_web
 
-	ka = dict(t646.KANKIN, so_decor=5, decor_da_lam=0)
+	ka = dict(t646.KANKIN, so_btp=5, so_decor=0, decor_da_lam=0)
 	kb = {"KB-2026-11-11": [{"ma_hang": "BAWC00123", "ten_banh": "Kankin 16", "co_the_ban": 1, "da_dat": 1, "sx": 0}],
 		"KB-2026-11-12": [{"ma_hang": "BAWC00123", "ten_banh": "Kankin 16", "co_the_ban": 0, "da_dat": 2, "sx": 0}]}
 
@@ -178,27 +179,27 @@ def _thuong():
 		return t646._chay(t646.Kho([dong], kho_kb), lambda: ton_don_web.kiem([{"variation_id": "BAWC00123", "quantity": sl}], ngay),
 			t646._tinh_that(don=[]))
 	dung("ngày mai 11/11: theo phiếu (còn 1)", "chỉ còn 1 cái" in "".join(k(2, "2026-11-11")))
-	la("ngày kia 12/11: Đủ decor 5 trừ 3 đơn chưa làm, đặt 2 nhận", k(2, "2026-11-12"), [])
+	la("ngày kia 12/11: BTP sẵn 5 trừ 3 đơn chưa làm (Đủ decor 0 không chặn), đặt 2 nhận", k(2, "2026-11-12"), [])
 	dung("ngày thứ ba 13/11 đặt 3: còn 2", "chỉ còn 2 cái" in "".join(k(3, "2026-11-13")))
 	r = k(1, "2026-11-14")
 	dung("ngày thứ tư: nhắc nhận trong 3 ngày tới", len(r) == 1 and "nhận trong 3 ngày tới" in r[0])
-	dung("không có Đủ decor (decor gốc 0): ngày kia hết", "chỉ còn 0 cái" in "".join(k(1, "2026-11-12", dong=dict(ka, so_decor=0))))
-	la("phép thuần con_decor: bếp đã làm cho đơn thì không trừ vỏ lần hai",
-		ton_don_web.con_decor([Doi(ka)], [(D8(2026, 11, 11), [Doi(ma_hang="BAWC00123", da_dat=2, sx=2)])], D8(2026, 11, 10)),
+	dung("BTP sẵn 0 (Đủ decor 9): ngày kia hết", "chỉ còn 0 cái" in "".join(k(1, "2026-11-12", dong=dict(ka, so_btp=0, so_decor=9))))
+	la("phép thuần con_btp: bếp đã làm cho đơn thì không trừ vỏ lần hai",
+		ton_don_web.con_btp([Doi(ka)], [(D8(2026, 11, 11), [Doi(ma_hang="BAWC00123", da_dat=2, sx=2)])], D8(2026, 11, 10)),
 		{"BAWC00123": (5, "Kankin 16")})
 
 
-@ca("Codex #594 tái hiện: đợt 5 bánh nhận 6 đơn, Bếp đã làm cả 6 (Đủ decor đã bị trừ, còn 1): ngày kia còn 1 suất, không trừ phần vượt lần hai; chưa làm bánh nào thì trừ 1; còn 1 đơn chưa làm thì vẫn giữ 1 vỏ")
+@ca("Codex #594 tái hiện (v677 theo BTP sẵn): đợt 5 bánh nhận 6 đơn, Bếp đã làm cả 6 (BTP sẵn đã bị trừ, còn 1): ngày kia còn 1 suất, không trừ phần vượt lần hai; chưa làm bánh nào thì trừ 1; còn 1 đơn chưa làm thì vẫn giữ 1 vỏ")
 def _vuot_da_lam():
 	from vagabond import ton_don_web as tw
 
 	nay = D8(2026, 11, 19)
-	btp = [Doi(ma_hang="BAWC00201", ten_banh="Tira 12", so_decor=1, decor_da_lam=0)]
+	btp = [Doi(ma_hang="BAWC00201", ten_banh="Tira 12", so_btp=1, so_decor=0, decor_da_lam=0)]
 	so = {"refill": {"BAWC00201": [{"tu": "2026-11-17", "den": "2026-11-23", "so": 5, "da_dat": 6, "con": -1}]}, "loi": ""}
 
 	def con(phieu, truyen=True):
 		dl = tw.da_lam_dot_vuot(so, nay, doc_dong=lambda ng: phieu.get(ng.isoformat())) if truyen else None
-		return tw.con_decor(btp, [], nay, {}, so, dl)["BAWC00201"][0]
+		return tw.con_btp(btp, [], nay, {}, so, dl)["BAWC00201"][0]
 
 	dong = lambda dat, sx, **k: [Doi(ma_hang="BAWC00201", da_dat=dat, sx=sx, **k)]
 	la("cả 6 đơn đã làm (2 hôm qua, 4 ngày mai): còn 1", con({"2026-11-18": dong(2, 2), "2026-11-20": dong(4, 4)}), 1)
@@ -212,11 +213,44 @@ def _vuot_da_lam():
 		tw.da_lam_dot_vuot({"loi": "x", "refill": {}}, nay), tw.da_lam_dot_vuot(None, nay)), ({}, {}, {}))
 
 
-@ca("Codex #594 một nguồn: thẻ web, cửa nhận đơn và cửa giữ hàng đều truyền số đã làm của đợt vượt vào con_decor")
+@ca("Codex #594 một nguồn: thẻ web, cửa nhận đơn, cửa giữ hàng và bảng Kiểm bánh đều truyền số đã làm của đợt vượt vào con_btp")
 def _mot_nguon():
 	import inspect
 	from vagabond import giu_ton_web, kiem_banh, ton_don_web
 
-	for ten, ham in (("cửa nhận đơn", ton_don_web._con_decor_web), ("cửa giữ hàng", giu_ton_web.kiem_va_giu), ("thẻ web", kiem_banh._dat_truoc_theo_decor)):
+	from vagabond import btp
+	for ten, ham in (("cửa nhận đơn", ton_don_web._con_btp_web), ("cửa giữ hàng", giu_ton_web.kiem_va_giu), ("thẻ web", kiem_banh._dat_truoc_theo_decor)):
 		dung(ten, "da_lam_dot_vuot(" in inspect.getsource(ham))
+	# v677: bảng Kiểm bánh (bang_btp) đi qua đúng hàm của cửa nhận đơn.
+	dung("bảng Kiểm bánh", "_con_btp_web(" in inspect.getsource(btp.bang_btp) and "so_web_ba_ngay(" in inspect.getsource(btp.bang_btp))
+	dung("không còn chỗ nào đọc Đủ decor để tính số web", all("so_decor" not in inspect.getsource(h)
+		for h in (ton_don_web.con_btp, ton_don_web.so_web_ba_ngay, ton_don_web.kiem)))
 
+
+
+@ca("v677 phép thuần so_web_ba_ngay (ba ô Web nhận của bảng Kiểm bánh): ngày mai theo phiếu, chưa có phiếu là chưa biết; ngày kia, ngày thứ ba theo BTP sẵn; ngày thuộc đợt đang mở theo số còn của đợt, chưa đếm được là chưa biết")
+def _so_web():
+	from vagabond import ton_don_web as tw
+
+	nay = D8(2026, 11, 19)
+	rf = {MA: [{"so": 10, "tu": D8(2026, 11, 22), "den": D8(2026, 11, 28)}]}
+	so = {"refill": {MA: [{"tu": "2026-11-22", "den": "2026-11-28", "so": 10, "da_dat": 3, "con": 7}]}, "loi": ""}
+	la("phiếu ngày mai, BTP sẵn, đợt", tw.so_web_ba_ngay(MA, nay, {MA: 2}, {MA: 5}, rf, so),
+		[(D8(2026, 11, 20), 2, "phieu"), (D8(2026, 11, 21), 5, "btp"), (D8(2026, 11, 22), 7, "refill")])
+	la("chưa có phiếu ngày mai: chưa biết, không phải 0", tw.so_web_ba_ngay(MA, nay, None, {MA: 5})[0], (D8(2026, 11, 20), None, "phieu"))
+	la("mã không trên phiếu, không trên BTP: 0", [x[1] for x in tw.so_web_ba_ngay("KHAC", nay, {}, {})], [0, 0, 0])
+	la("số âm giữ nguyên để bảng báo nhận quá", tw.so_web_ba_ngay(MA, nay, {MA: -1}, {MA: -2})[:2],
+		[(D8(2026, 11, 20), -1, "phieu"), (D8(2026, 11, 21), -2, "btp")])
+	la("đợt chưa đếm được đơn: ô đợt chưa biết", tw.so_web_ba_ngay(MA, nay, {MA: 2}, {MA: 5}, rf, {"loi": "Pancake 429"})[2],
+		(D8(2026, 11, 22), None, "refill"))
+
+
+@ca("v677 Codex #596: bảng BTP (/btp) ghi ba ô Web nhận theo từng ngày (ngày refill theo đợt); ca hành vi chạy thật trong node đều đạt")
+def _btp_web_node():
+	import subprocess
+	from pathlib import Path
+
+	tep = Path(__file__).parent / "hanh_vi" / "btp_web_677.js"
+	r = subprocess.run(["node", str(tep)], capture_output=True, text=True, timeout=120)
+	dung("chạy được: " + (r.stdout[-1200:] + r.stderr[-400:]), r.returncode == 0)
+	dung("đủ 2 ca", "2 ca dat, 0 ca hong" in r.stdout)

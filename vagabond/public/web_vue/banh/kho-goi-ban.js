@@ -454,6 +454,9 @@ export function taoGoiBan(moiTruong, S) {
     tra: {mo: false, cach: '', hd: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
     /* v643 ưu đãi tại bàn: buoc '' | 'dang' | 'sdt' | 'ma' | 'ds'. */
     ud: {mo: false, buoc: '', sdt: '', ma: '', ds: [], chon: '', hienTai: null, sdtCo: '', coHoaDon: 0, dangGui: false, loi: '', bao: ''},
+    /* v677 tích điểm (tich_diem_ban): trang_thai '' chưa biết | 'cho' bàn chưa có
+       hoá đơn | 'trong' hoá đơn còn đứng tên khách chung | 'gan' | 'khac'. */
+    tv: {trang_thai: '', dangGan: false, loi: '', hoi: 0},
     /* v662 WEBORDER: đặt từ tab Tại quầy trên trang chủ, quầy giao hoặc khách tự lấy.
        diem: quầy của giỏ (đổi quầy thì giỏ cũ bỏ). gia: số máy chủ báo lần gần nhất. */
     web: {diem: '', tuLay: false, ten: '', sdt: '', diaChi: '', lat: null, lng: null, goiY: [], ma: '', pt: 'bank',
@@ -703,6 +706,10 @@ export function taoGoiBan(moiTruong, S) {
       if (m && m.ok) { m.hoi = ++soHoi; d.tt = m; d.xong = m.trang_thai !== 'Chờ nhận'; }
     }
     boLuotDaTra();
+    /* v677: số đã đăng nhập đang chờ quầy nhận món; quầy vừa nhận (bàn có hoá
+       đơn) thì hỏi lại để tự gắn số vào hoá đơn. */
+    if (G.tv.trang_thai === 'cho' && !G.ud.mo && G.don.some(d => d.tt && d.tt.trang_thai === 'Đã nhận')
+      && Date.now() - G.tv.hoi > 60000) { G.tv.hoi = Date.now(); void napUd(); }
     if (G.don.some(d => !d.tt || d.tt.trang_thai === 'Chờ nhận')) henTt = hen(() => hoiTrangThai(), NHIP_TRANG_THAI);
     else if (luotDaiDien().size) henTt = hen(() => hoiTrangThai(), NHIP_HOA_DON);
   }
@@ -729,7 +736,7 @@ export function taoGoiBan(moiTruong, S) {
   }
 
   /* ---------------- đơn của bàn và thanh toán (v642) ---------------- */
-  function moDon() { if (cheDo.value !== 'goi' || !G.don.length) return false; G.moDon = true; void hoiTrangThai(true); return true; }
+  function moDon() { if (cheDo.value !== 'goi' || !G.don.length) return false; G.moDon = true; void hoiTrangThai(true); void napUd(); return true; }
   function dongDon() { G.moDon = false; }
   function moTra() {
     if (cheDo.value !== 'goi' || !G.don.length) return false;
@@ -776,11 +783,29 @@ export function taoGoiBan(moiTruong, S) {
     let m = null;
     try { m = await doc('vagabond.uu_dai_ban.ds', thamBan()); } catch (e) { m = null; }
     if (!m || !m.ok) { c.buoc = 'ds'; c.ds = []; c.loi = (m && m.cau) || t('goi_ban_ud_loi_tai', 'Chưa tải được ưu đãi. Quý khách thử lại.'); return m; }
-    if (!Number(m.dang_nhap)) { c.buoc = c.buoc === 'ma' ? 'ma' : 'sdt'; return m; }
+    if (!Number(m.dang_nhap)) { c.buoc = c.buoc === 'ma' ? 'ma' : 'sdt'; c.sdtCo = ''; G.tv.trang_thai = ''; return m; }
     c.buoc = 'ds';
     c.ds = Array.isArray(m.ds) ? m.ds.map(x => ({...x, khoa: khoaUd(x)})) : [];
     c.hienTai = m.chon || null; c.sdtCo = m.sdt || ''; c.coHoaDon = Number(m.co_hoa_don) || 0;
     c.chon = chonSanUd(c.ds, c.hienTai);
+    /* v677 (anh Việt chọn phương án A 20/11/2026): đăng nhập Zalo rồi thì hoá
+       đơn bàn còn đứng tên khách chung tự gắn số này để tích điểm. */
+    G.tv.trang_thai = (m.tv && m.tv.trang_thai) || '';
+    if (G.tv.trang_thai === 'trong') void ganTv();
+    return m;
+  }
+  async function ganTv() {
+    const v = G.tv;
+    if (v.dangGan || cheDo.value !== 'goi') return null;
+    v.dangGan = true; v.loi = '';
+    let m = null;
+    try { m = await ghi('vagabond.tich_diem_ban.gan', thamBan()); } catch (e) { m = null; }
+    v.dangGan = false;
+    if (m && m.ok) { v.trang_thai = 'gan'; return m; }
+    if (m && m.dang_nhap === 0) { v.trang_thai = ''; G.ud.sdtCo = ''; return m; }
+    if (m && m.cho) v.trang_thai = 'cho';
+    else if (m && m.tv && m.tv.trang_thai) v.trang_thai = m.tv.trang_thai;
+    if (v.trang_thai !== 'cho' && v.trang_thai !== 'khac') v.loi = (m && m.cau) || t('goi_ban_club_loi', 'Chưa tích điểm được. Quý khách thử lại hoặc báo nhân viên.');
     return m;
   }
   function moUd() {
@@ -1015,5 +1040,5 @@ export function taoGoiBan(moiTruong, S) {
     xemGiaWeb, goiYDiaChiWeb, chonGoiYWeb, tongWeb, datWeb, goiYQuayHien, thanhMienPhiQuay, themGoiYQuay, napGoiYQuay,
     chonTc, chonTp, doiSlChon, giaChon, tongChon, xongChon, them, doiSl, kiemGt, goiMon, hoiTrangThai, cauDon, chuTuyChon,
     moChuong, dongChuong, goiNhanVien, tom, barDon, moDon, dongDon, moTra, dongTra, guiTra,
-    moUd, dongUd, napUd, guiMaUd, suaSoUd, xacThucUd, dungUd, boUd, udHienTai};
+    moUd, dongUd, napUd, ganTv, guiMaUd, suaSoUd, xacThucUd, dungUd, boUd, udHienTai};
 }

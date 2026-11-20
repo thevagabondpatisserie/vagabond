@@ -7,7 +7,7 @@ Không commit ở đây; lỗi kiểm vẫn đi cách B tại cửa nhận đơn
 import json
 from datetime import datetime, timedelta
 import frappe
-from vagabond.ton_don_web import SO_NGAY_DAT_TRUOC, con_decor, da_lam_dot_vuot, hom_nay
+from vagabond.ton_don_web import SO_NGAY_DAT_TRUOC, con_btp, da_lam_dot_vuot, hom_nay
 
 O = "giu_ton_web"
 # v646 Codex 549 (1eefda8): suất refill đơn web đã giữ, ghi trong snapshot đơn.
@@ -71,9 +71,10 @@ def kiem_va_giu(hang, ngay):
     Kiểm bánh ĐÚNG ngày nhận, trừ suất các đơn web cùng ngày nhận mà nhịp đếm
     chưa có. Bánh làm theo mẻ giữ ở kiem_va_giu_refill.
 
-    v675: ngày kia và ngày thứ ba giữ theo Đủ decor (ton_don_web.con_decor, cùng
-    phép với thẻ web), trừ suất các đơn web ba ngày tới mà nhịp đếm chưa có, vì
-    các đơn đó cùng ăn vào Đủ decor. Xa hơn không giữ (ton_don_web chặn)."""
+    v675: ngày kia và ngày thứ ba giữ theo số còn nhận chung của ba ngày tới, trừ
+    suất các đơn web ba ngày tới mà nhịp đếm chưa có, vì các đơn đó cùng ăn vào
+    một nguồn. v677: nguồn là BTP sẵn (ton_don_web.con_btp, cùng phép với thẻ
+    web), trước đó là Đủ decor. Xa hơn không giữ (ton_don_web chặn)."""
     if not ngay or not str(ngay).strip():
         return [], None
     ng = datetime.fromisoformat(str(ngay)).date()
@@ -87,7 +88,7 @@ def kiem_va_giu(hang, ngay):
         from vagabond import refill
         # Giữ đúng thứ tự khoá cũ: dòng kiểm bánh ba ngày trước, bảng BTP sau.
         kb = [(nay + timedelta(days=i), _dong(nay + timedelta(days=i))) for i in range(1, SO_NGAY_DAT_TRUOC + 1)]
-        btp = frappe.db.sql("""select ma_hang,ten_banh,so_decor,decor_da_lam,so_refill,refill_tu,refill_den,refill_dot from `tabBTP Banh O Dong`
+        btp = frappe.db.sql("""select ma_hang,ten_banh,so_btp,so_decor,decor_da_lam,so_refill,refill_tu,refill_den,refill_dot from `tabBTP Banh O Dong`
             where parent='BTP Banh O' and parenttype='BTP Banh O' for update""", as_dict=True)
         rf = refill.hieu_luc_tu_dong(btp, nay)
         so = refill.tinh(nay, dong=btp) if rf else None
@@ -95,8 +96,8 @@ def kiem_va_giu(hang, ngay):
         ten_dt = {str(d.ma_hang): d.ten_banh or d.ma_hang for d in btp}
         for d in kb[0][1]:
             ten_dt.setdefault(str(d.ma_hang), d.ten_banh or d.ma_hang)
-        ton = {m: (max(0, c), t) for m, (c, t) in con_decor(btp, kb, nay, rf, so, da_lam_dot_vuot(so, nay)).items()}
-        # Bánh đặt trước không có Đủ decor thì hết chỗ ngày này (như ton_don_web).
+        ton = {m: (max(0, c), t) for m, (c, t) in con_btp(btp, kb, nay, rf, so, da_lam_dot_vuot(so, nay)).items()}
+        # Bánh đặt trước không có dòng BTP thì hết chỗ ngày này (như ton_don_web).
         for h in hang or []:
             m = str(h["variation_id"])
             if m in ten_dt and m not in ton:
