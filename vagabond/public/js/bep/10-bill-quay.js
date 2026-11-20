@@ -762,7 +762,7 @@ function pbKhoiKm(suaMo) {
     (suaMo ? '<div style="font-size:13px;color:#6b7280;line-height:1.5">Lưu thay đổi món trước, rồi áp khuyến mãi.</div>' :
       '<div style="display:flex;gap:8px"><button class="btn gh" id="pbKmCt" style="' + nut + '">Chương trình</button>' +
       '<button class="btn gh" id="pbKmMa" style="' + nut + '">Nhập mã</button></div>' +
-      '<div style="font-size:13px;color:#6b7280;margin-top:7px;line-height:1.5">Mỗi hoá đơn một ưu đãi. Voucher Grab Dine-Out không áp ở đây: chọn phương thức Grab Dine-Out khi chốt.</div>') +
+      '<div style="font-size:13px;color:#6b7280;margin-top:7px;line-height:1.5">Mỗi hoá đơn một ưu đãi. Voucher Grab: chọn đúng loại 200.000 hay 300.000 như màn hình khách, chốt bằng Grab Dine-Out kèm mã GD-.</div>') +
     '</div>';
 }
 function pbDongKm(x) {
