@@ -1916,6 +1916,8 @@ def _dat_truoc_theo_decor():
 	cùng cách tính với tab Có sẵn hôm nay. Trước v671 tab lấy theo ô Đủ decor
 	của bảng BTP (chốt 07/08/2026, nhận 3 ngày tới); ô Đủ decor nay chỉ còn là
 	số nội bộ của bếp. Tên hàm giữ nguyên cho các nơi gọi cũ.
+	v675: thêm ngày kia và ngày thứ ba; v677 số hai ngày đó theo BTP sẵn còn
+	nhận (ton_don_web.con_btp), không theo Đủ decor.
 
 	Bánh có mẻ refill (v646) vẫn theo mẻ: ngày mai nằm trong khoảng của mẻ thì
 	số theo mẻ, và web cho chọn ngày trong khoảng của mẻ (anh Việt chốt giữ).
@@ -1947,8 +1949,9 @@ def _dat_truoc_theo_decor():
 	# (cùng phép bo_dot_du_don với cửa nhận đơn và cửa tạo đơn).
 	rf_mo = refill.bo_dot_du_don(rf, so_rf) if rf else {}
 	con_mai = con_dat_truoc_mai(dong_mai, lambda ma: bool(refill.ngay_cua_refill(rf_mo, ma, mai)))
-	# v675 (Sales 19/11/2026, giám đốc chốt): ngày kia và ngày thứ ba theo Đủ decor
-	# còn nhận, cùng phép ton_don_web.con_decor với cửa nhận đơn và cửa tạo đơn.
+	# v675 (Sales 19/11/2026, giám đốc chốt): ngày kia và ngày thứ ba nhận đặt trước.
+	# v677 (Loan Anh 20/11/2026, anh Việt chọn A): số theo BTP sẵn còn nhận, cùng phép
+	# ton_don_web.con_btp với cửa nhận đơn, cửa giữ hàng và bảng Kiểm bánh.
 	from vagabond import ton_don_web
 
 	kb3 = [(mai, dong_mai)]
@@ -1956,11 +1959,11 @@ def _dat_truoc_theo_decor():
 		ng_i = add_days(ngay, i)
 		if frappe.db.exists("Kiem Banh Ngay", "KB-%s" % ng_i):
 			kb3.append((ng_i, frappe.get_doc("Kiem Banh Ngay", "KB-%s" % ng_i).dong))
-	con_xa = {m: n for m, (n, _t) in ton_don_web.con_decor(dong_btp, kb3, ngay, refill.hieu_luc_tu_dong(dong_btp, ngay),
+	con_xa = {m: n for m, (n, _t) in ton_don_web.con_btp(dong_btp, kb3, ngay, refill.hieu_luc_tu_dong(dong_btp, ngay),
 		so_rf, ton_don_web.da_lam_dot_vuot(so_rf, ngay)).items() if n > 0 and not m.upper().startswith("BAWS")
 		# Ngày kia và ngày thứ ba đều thuộc đợt refill còn nhận thì hai ngày đó theo đợt.
 		and any(not refill.ngay_cua_refill(rf_mo, m, add_days(ngay, i)) for i in range(2, ton_don_web.SO_NGAY_DAT_TRUOC + 1))}
-	# Mỗi mã một dòng nguồn (tên, ảnh): phiếu ngày mai trước, bảng BTP cho mã chỉ còn refill hay Đủ decor.
+	# Mỗi mã một dòng nguồn (tên, ảnh): phiếu ngày mai trước, bảng BTP cho mã chỉ còn refill hay BTP sẵn.
 	nguon = {}
 	for b in dong_btp:
 		if any((r.get("con") or 0) > 0 for r in rf.get(b.ma_hang) or []) or b.ma_hang in con_xa:
@@ -2012,7 +2015,7 @@ def _dat_truoc_theo_decor():
 				"cm": cm,
 				"gia": int(x.get("standard_rate") or 0),
 				# v675: con giữ cho trang cũ (số đầu tiên còn nhận); con_mai là ngày mai
-				# theo phiếu, con_xa là ngày kia và ngày thứ ba theo Đủ decor.
+				# theo phiếu, con_xa là ngày kia và ngày thứ ba theo BTP sẵn (v677).
 				"con": con if con > 0 else (xa if xa > 0 else con_rf),
 				"con_mai": con,
 				"con_xa": xa,
