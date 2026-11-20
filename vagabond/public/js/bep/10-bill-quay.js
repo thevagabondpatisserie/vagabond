@@ -835,10 +835,14 @@ function pbNoiTv(d, veLai) {
     if (toi !== lan) return;
     ve(((kq && kq.khach) || []).filter(function (k) { return !pbLaKhachChung(k.name); }), q);
   }
+  /* Codex #596 vòng 2 (loại 8): gõ là bỏ ngay kết quả của từ khoá cũ, kể cả
+     câu trả lời về trong lúc chờ debounce, để không bấm nhầm khách. */
   inp.oninput = function () {
     if (tre) clearTimeout(tre);
+    lan++;
+    hop.innerHTML = '';
     var q = inp.value.trim();
-    if (!q) { lan++; hop.innerHTML = ''; return; }
+    if (!q) return;
     tre = setTimeout(function () { tim(q); }, 260);
   };
   hop.onclick = async function (e) {
