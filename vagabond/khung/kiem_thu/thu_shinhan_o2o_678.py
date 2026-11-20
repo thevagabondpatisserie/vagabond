@@ -582,7 +582,7 @@ def _grab_dong_dinh():
 		"2:01 PM GD-QPJRSHRM Trả thẻ / Ví 400.000 0 - -60.000 -50.050 0 289.950")
 
 
-@ca("v678 tin Zalo đối soát: thư lịch nghỉ lễ OnePay không là thư báo cáo; Payoo gửi từ vietunion.com.vn được nhận (mặc định và bước nâng); tệp đọc lỗi gửi nhóm Hệ thống, không gửi nhóm Kế toán")
+@ca("v678 tin Zalo đối soát: thư lịch nghỉ lễ OnePay không là thư báo cáo; bỏ lịch thư Payoo (mặc định và bước nâng); tệp đọc lỗi gửi nhóm Hệ thống, không gửi nhóm Kế toán")
 def _tin_doi_soat():
 	from vagabond import doi_soat_thu as T
 	from vagabond import doi_soat_vendor as dsv
@@ -592,13 +592,10 @@ def _tin_doi_soat():
 			("[OnePay Thong bao]: Lich nghi le Ngay Van hoa Viet Nam 24/11/2026", "thanh toan")):
 		la("không phải báo cáo: " + td[:30], dsv.thu_co_bao_cao(td, than), False)
 	la("báo cáo thật vẫn nhận", dsv.thu_co_bao_cao("Payoo-POS-Card_ĐỐI SOÁT KỲ 13.11_15.11.2026", ""), True)
-	payoo = [m for t, m, b in T.NGUOI_GUI_MAC_DINH if t == "Payoo"][0]
-	la("mặc định có vietunion.com.vn, vẫn bắt chữ ký", ("vietunion.com.vn" in payoo,
-		[b for t, m, b in T.NGUOI_GUI_MAC_DINH if t == "Payoo"][0]), (True, 1))
-	la("tên miền ra Payoo", dsv.VENDOR_THEO_MIEN.get("vietunion.com.vn"), "Payoo")
-	la("bước nâng chỉ dòng Payoo còn thiếu", T.nang_payoo_v678([
-		dict(name="r1", ten_mien="payoo.com.vn"), dict(name="r2", ten_mien="onepay.vn"),
-		dict(name="r3", ten_mien="payoo.com.vn, vietunion.com.vn")]), [("r1", "payoo.com.vn, vietunion.com.vn")])
+	# Anh Việt 20/11/2026: không dùng Payoo nữa, không chờ thư Payoo, không báo động.
+	la("lịch mặc định không còn Payoo", [v for v, *_ in T.LICH_MAC_DINH if v == "Payoo"], [])
+	la("bước nâng bỏ đúng dòng lịch Payoo", T.bo_payoo_v678([dict(name="r1", nguon="Payoo"), dict(name="r2", nguon="OnePay"),
+		dict(name="r3", nguon=" payoo ")]), ["r1", "r3"])
 	cay = ast.parse((GOC / "vagabond/doi_soat_thu.py").read_text(encoding="utf-8"))
 	goi = [n for n in ast.walk(cay) if isinstance(n, ast.Call) and any(k.arg == "ma_tin" and getattr(k.value, "value", "") == "ht_ds_tep_loi" for k in n.keywords)]
 	la("gửi nhóm Hệ thống", [(n.args[0].value, n.args[1].value) for n in goi], [("canh_bao", "he_thong")])
