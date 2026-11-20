@@ -222,7 +222,7 @@ def _danh_muc():
 	# v662: thêm 2 tin Marketing cho bài đăng mạng xã hội (anh Việt 15/11/2026).
 	# v666: thêm 1 tin Marketing: giám đốc duyệt hoặc trả lại bài đăng (anh Việt 17/11/2026).
 	la("đủ 113 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622, "
-		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641, 1 tin v644, 1 tin v645, 10 tin v646, 1 tin v647, 2 tin v653 dự chi và bánh có sẵn, 2 tin v656 đề xuất công thức, 2 tin v662 bài đăng mạng xã hội, 1 tin v663 đơn giao của quầy, 1 tin v666 giám đốc duyệt bài đăng, 1 tin v674 đọc chi phí Meta dừng, 1 tin v678 bàn đã chuyển khoản)", len(kz.TIN), 124)
+		"6 tin v628, 2 tin quỹ tiền mặt v628, 8 tin v630, 1 tin v633, 2 tin v638, 2 tin v639, 9 tin v641, 1 tin v644, 1 tin v645, 10 tin v646, 1 tin v647, 2 tin v653 dự chi và bánh có sẵn, 2 tin v656 đề xuất công thức, 2 tin v662 bài đăng mạng xã hội, 1 tin v663 đơn giao của quầy, 1 tin v666 giám đốc duyệt bài đăng, 1 tin v674 đọc chi phí Meta dừng, 1 tin v678 bàn đã chuyển khoản; v678 tin tệp đối soát đọc lỗi chuyển từ Kế toán sang Hệ thống, không đổi số)", len(kz.TIN), 124)
 	la("chín bộ phận đúng thứ tự (v622 thêm Nhân sự, v644 thêm Marketing)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Marketing", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -626,7 +626,7 @@ def _patch_map():
 		# v678: bàn đã chuyển khoản, bill tự chốt; bản vá v678 tích cho nhóm đang nhận tin gọi món.
 		"bh_ban_da_chuyen_khoan",
 		# v641: tin đối soát qua hộp thư doisoat@, chưa có bản vá; anh Việt tích tay cho nhóm Kế toán.
-		"kt_ds_thu_gia_danh", "kt_ds_thieu_thu", "kt_ds_tep_loi", "kt_ds_lech_tien", "kt_ds_chua_thay_tien",
+		"kt_ds_thu_gia_danh", "kt_ds_thieu_thu", "kt_ds_lech_tien", "kt_ds_chua_thay_tien",
 		"kt_ds_phi_cao", "kt_ds_don_thieu_erp",
 		# v647: bill thẻ, sàn không khớp báo cáo đối tác, chưa có bản vá; anh Việt tích tay cho nhóm Kế toán.
 		"kt_ds_bill_lech",

@@ -57,10 +57,10 @@ def _thuan():
 	la("mã ngân hàng vietqr", [pt_ck.ma_nh_vietqr(x) for x in ("MB", "shbvn", "XYZ", None)], ["mb", "shbvn", "", ""])
 	la("tiền về đâu là phương thức nào", [pt_ck.ck_cua_tk(BA_SH, BA_SH), pt_ck.ck_cua_tk(BA_MB, BA_SH), pt_ck.ck_cua_tk(BA_SH, ""),
 		pt_ck.ck_cua_tk("", BA_SH)], ["Chuyển khoản - Shinhan", "Chuyển khoản", "Chuyển khoản", ""])
-	la("lệch tài khoản", [pt_ck.lech_tk("Chuyển khoản", [BA_SH], BA_SH), pt_ck.lech_tk("Chuyển khoản - Shinhan", [BA_MB], BA_SH),
-		pt_ck.lech_tk("Chuyển khoản", [BA_MB], BA_SH), pt_ck.lech_tk("Chuyển khoản", [BA_MB, BA_SH], BA_SH),
-		pt_ck.lech_tk("Chuyển khoản", [], BA_SH), pt_ck.lech_tk("Tiền mặt", [BA_SH], BA_SH)],
-		["Chuyển khoản - Shinhan", "Chuyển khoản", "", "", "", ""])
+	la("lệch tài khoản", [pt_ck.soat_tk_ck("Chuyển khoản", [(BA_SH, 1)], BA_SH), pt_ck.soat_tk_ck("Chuyển khoản - Shinhan", [(BA_MB, 1)], BA_SH),
+		pt_ck.soat_tk_ck("Chuyển khoản", [(BA_MB, 1)], BA_SH), pt_ck.soat_tk_ck("Chuyển khoản", [], BA_SH),
+		pt_ck.soat_tk_ck("Tiền mặt", [(BA_SH, 1)], BA_SH)],
+		[("doi", "Chuyển khoản - Shinhan"), ("doi", "Chuyển khoản"), ("", None), ("", None), ("", None)])
 	la("năm app tự điền đứng đầu", [a for a, _t, d in pt_ck.APP_NGAN_HANG if d], ["mb", "icb", "bidv", "acb", "ocb"])
 	la("tên ngân hàng trên Bank Account ra mã", [tai_khoan.ma_theo_ten_ngan_hang(x) for x in ("Shinhan Bank", "mb bank", "SHBVN", "970424", "Ngân hàng lạ", "")],
 		["SHBVN", "MB", "SHBVN", "SHBVN", "", ""])
@@ -147,8 +147,12 @@ def _tu_chot_thuan():
 		tu_chot_ck.ly_do_khong_chot(b, 100000, 0, mot, False),
 		tu_chot_ck.ly_do_khong_chot(b, 9e9, 0, mot, True),
 		tu_chot_ck.ly_do_khong_chot(b, 9e9, 0, {"Chuyển khoản", "Chuyển khoản - Shinhan"}, False),
-		tu_chot_ck.ly_do_khong_chot(b, 9e9, 0, set(), False)],
-		["khong_mo", "khong_mo", "da_chot", "chia_dong", "khong_tien", "chua_du", "gd_co_chu", "nhieu_tk", "nhieu_tk"])
+		tu_chot_ck.ly_do_khong_chot(b, 9e9, 0, set(), False),
+		# Codex #597 vòng 1 (quét cùng loại): một giao dịch thiếu tài khoản thì không tự chốt.
+		tu_chot_ck.ly_do_khong_chot(b, 9e9, 0, {"Chuyển khoản", ""}, False),
+		tu_chot_ck.ly_do_khong_chot(b, 9e9, 0, {""}, False)],
+		["khong_mo", "khong_mo", "da_chot", "chia_dong", "khong_tien", "chua_du", "gd_co_chu", "nhieu_tk", "nhieu_tk",
+			"nhieu_tk", "nhieu_tk"])
 	dung("ghi chú không tên người, có giao dịch", tu_chot_ck.ghi_chu_chot(180000, ["ACC-BTN-1"], "10:05")
 		== "Hệ thống tự chốt lúc 10:05: ngân hàng nhận đủ 180.000 đ (giao dịch ACC-BTN-1).")
 
@@ -265,13 +269,14 @@ def _kiem_tk_ck():
 	from vagabond import chiem_sao_ke
 
 	ptt = types.SimpleNamespace(ba_shinhan=lambda: BA_SH)
-	g = {"frappe": _fr, "chiem_sao_ke": chiem_sao_ke, "pt_ck": pt_ck, "pt_thanh_toan": ptt}
+	g = {"frappe": _fr, "chiem_sao_ke": chiem_sao_ke, "pt_ck": pt_ck, "pt_thanh_toan": ptt, "flt": _fr.utils.flt}
 	exec(compile(m, "ban_hang._kiem_tk_ck", "exec"), g)
 	kiem = g["_kiem_tk_ck"]
 	si = _hd(custom_pancake_display_id=MA)
 	loi = []
 	for pt, tk in (("Chuyển khoản", BA_SH), ("Chuyển khoản - Shinhan", BA_MB), ("Chuyển khoản", BA_MB), ("Chuyển khoản - Shinhan", BA_SH)):
-		with patch.object(_fr.db, "sql", side_effect=lambda q, p=None, **k: [(tk,)], create=True):
+		with patch.object(_fr.db, "sql", side_effect=lambda q, p=None, **k: [(tk, 100000)], create=True), \
+				patch.object(ttn, "dong_cua", lambda n: []):
 			try:
 				kiem(si, pt, ["ACC-BTN-1"])
 				loi.append("")
@@ -396,8 +401,8 @@ def _quay(si, sep=False, otp_dung="123456"):
 	bh = types.SimpleNamespace(_kiem_quyen_ban=lambda: None, _otp_la_sep=lambda: sep, _otp_kiem=otp_kiem)
 	tdb = types.SimpleNamespace(_la_gop=lambda kh: not kh or kh.startswith("Khách lẻ"))
 	ds = {"km": [dict(c, dung_duoc=1, ly_do="") for c in CTKM if c.name in ("CTKM-10", "CTKM-OTP", "CTKM-MA")]
-		+ [dict(name="CTKM-GRAB-DO", ten="VOUCHER 200.000 GRAB DINE OUT", cach_ma="Khong can ma", can_otp=0, dung_duoc=0,
-			ly_do=khuyen_mai.LY_DO_VOUCHER_GRAB)]}
+		+ [dict(name="CTKM-HET", ten="Giảm 15% hoá đơn từ 1.000.000 đ", cach_ma="Khong can ma", can_otp=0, dung_duoc=0,
+			ly_do="hoá đơn chưa đủ 1.000.000 đ")]}
 	with patch.dict(sys.modules, {"vagabond.ban_hang": bh, "vagabond.tich_diem_ban": tdb}), \
 			patch.object(vagabond, "ban_hang", bh, create=True), patch.object(vagabond, "tich_diem_ban", tdb, create=True), \
 			patch.object(_fr, "get_doc", return_value=si), \
@@ -408,21 +413,6 @@ def _quay(si, sep=False, otp_dung="123456"):
 			patch.object(khuyen_mai, "tinh_co_khoa", side_effect=ma_hay_ctkm), \
 			patch.object(_fr, "session", _fr._dict(user="thungan@vgb"), create=True):
 		yield
-
-
-@ca("v678 voucher Grab Dine-Out không áp thành giảm giá ở bất kỳ đường nào: chương trình tên Grab Dine-Out bị chặn ngay ở cổng thời gian, kèm câu chỉ đường Grab Dine-Out và mã GD-")
-def _grab_dineout():
-	for ten in ("VOUCHER 200.000 GRAB DINE OUT", "Voucher 300k Grab Dine-Out", "grab_dineout 50k"):
-		la("nhận ra: " + ten, khuyen_mai.la_voucher_doi_tac({"ten": ten}), True)
-	for ten in ("Grab giảm 20%", "Giảm 10% tại bàn", "Dine in tối thứ 6"):
-		la("không nhầm: " + ten, khuyen_mai.la_voucher_doi_tac({"ten": ten}), False)
-	ok, ly = khuyen_mai._hop_thoi_gian({"ten": "VOUCHER 200.000 GRAB DINE OUT"})
-	la("bị chặn kèm hướng dẫn", (ok, "Grab Dine-Out" in ly and "GD-" in ly), (False, True))
-	ok, _ly = khuyen_mai._hop_thoi_gian({"ten": "Giảm 10% tại bàn"})
-	la("chương trình thường vẫn qua", ok, True)
-	src = (GOC / "vagabond/khuyen_mai.py").read_text()
-	# Mọi đường áp (danh sách, tra mã cố định, mã ví, tinh) đều đi qua _hop_thoi_gian.
-	la("bốn đường gọi cổng thời gian", len(re.findall(r"ok, ly_do = _hop_thoi_gian\(km\)", src)) >= 4, True)
 
 
 @ca("v678 phép thuần quầy áp khuyến mãi: chỉ bill nháp chưa huỷ, chưa có khuyến mãi lúc tạo, chưa có ưu đãi khác; OTP quầy đã nhập thì chương trình cần OTP vẫn trừ")
@@ -443,7 +433,7 @@ def _ap_quay_that():
 	si = _hd()
 	with _quay(si):
 		r = u.ds_quay(si.name)
-		la("danh sách: có giảm dự kiến, Grab không dùng được", [(x["ma"], x["dung_duoc"]) for x in r["ds"]][-1], ("CTKM-GRAB-DO", 0))
+		la("danh sách: có giảm dự kiến, chương trình chưa đủ điều kiện xếp cuối", [(x["ma"], x["dung_duoc"]) for x in r["ds"]][-1], ("CTKM-HET", 0))
 		la("CTKM-10 dự kiến 18.500 đ", [x["giam"] for x in r["ds"] if x["ma"] == "CTKM-10"], [18500])
 		r = u.ap_quay(si.name, "ctkm", "CTKM-10")
 	la("áp xong", (r["ok"], r["giam"], si.vgb_giam_ud, si.grand_total), (1, 18500, 18500.0, 166500.0))
@@ -517,3 +507,143 @@ def _man_bill_km():
 	la("điều kiện hiện khối", m and m.group(1), "tamTinh && nhap && !d.vgb_huy && !pbCoKm(d)")
 	la("gọi đúng hai hàm", ("vagabond.uu_dai_ban.ds_quay" in js, "vagabond.uu_dai_ban.ap_quay" in js), (True, True))
 	la("nút đủ 44 điểm", "min-height:44px" in js[js.index("function pbKhoiKm"):js.index("function pbDongKm")], True)
+
+
+# ----------------------------------------- voucher Grab Dine-Out, phương án A (v678)
+# Anh Việt chốt 20/11/2026: chương trình voucher Grab chỉ giảm PHẦN TIỆM CHỊU (đo
+# trên site: voucher 200.000 đ tiệm chịu 40.000 đ, 300.000 đ chịu 60.000 đ), đối
+# soát so phần giảm trên bill với cột khuyến mãi của báo cáo Grab.
+
+import importlib  # noqa: E402
+
+from vagabond import doi_soat_khop as dk  # noqa: E402
+
+
+def _gd(ma, tien_hang, giam_gia, ngay="2026-11-21"):
+	return dict(loai="ban", ngay=ngay, ma_tham_chieu=ma, ma_don=ma, tien_hang=tien_hang, giam_gia=giam_gia,
+		thuc_nhan=int(tien_hang * 0.85), phi=0)
+
+
+def _bill(name, tien_goc, giam, ma, ngay="2026-11-21"):
+	return dict(name=name, ngay=ngay, tien=tien_goc - giam, tien_goc=tien_goc, ma=[ma])
+
+
+@ca("v678 bước nâng voucher Grab: chỉ chương trình Grab Dine-Out còn đúng giá cũ 200.000/300.000 đổi thành phần tiệm chịu 40.000/60.000, tên ghi rõ; chạy lại không đổi")
+def _grab_nang():
+	vg = importlib.import_module("vagabond.patches.v678_voucher_grab")
+	a = dict(ten="VOUCHER 200.000 GRAB DINE OUT", kieu_giam="So tien", gia_tri=200000.0)
+	b = dict(ten="VOUCHER 300.000 GRAB DINE OUT", kieu_giam="So tien", gia_tri=300000.0)
+	la("200k -> 40k", vg.nang(a), {"gia_tri": 40000, "ten": "VOUCHER 200.000 GRAB DINE OUT (tiệm chịu 40.000)"})
+	la("300k -> 60k", vg.nang(b)["gia_tri"], 60000)
+	la("đã nâng thì thôi", vg.nang(dict(a, gia_tri=40000, ten=vg.nang(a)["ten"])), None)
+	la("có người sửa giá khác thì để nguyên", vg.nang(dict(a, gia_tri=180000)), None)
+	la("không phải Grab Dine-Out", vg.nang(dict(a, ten="Giảm 200.000 sinh nhật")), None)
+	la("giảm theo % thì để nguyên", vg.nang(dict(a, kieu_giam="Phan tram", gia_tri=200000)), None)
+
+
+@ca("v678 đối soát Grab Dine-Out (khop_hoa_don thật): từ 21/11 bill phải giảm đúng phần tiệm chịu; giảm đủ giá voucher là Lệch tiền kèm số; bill thấp hơn giá voucher vẫn nối, ghi Grab trả thêm; bill trước 21/11 giữ luật cũ")
+def _grab_doi_soat():
+	dong = [_gd("GD-AAA", 195000, 40000), _gd("GD-BBB", 195000, 40000), _gd("GD-CCC", 160000, 40000),
+		_gd("GD-DDD", 195000, 40000, ngay="2026-11-20"), _gd("GD-EEE", 205000, 0)]
+	ung = [_bill("SI-A", 235000, 40000, "GD-AAA"), _bill("SI-B", 235000, 200000, "GD-BBB"),
+		_bill("SI-C", 195000, 40000, "GD-CCC"), _bill("SI-D", 235000, 200000, "GD-DDD", ngay="2026-11-20"),
+		_bill("SI-E", 205000, 0, "GD-EEE")]
+	kq = dk.khop_hoa_don("grab", dong, ung)
+	la("giảm đúng 40.000: Đã nối", (kq[0]["trang_thai"], kq[0]["ghi_chu"]), ("Đã nối", ""))
+	la("giảm đủ 200.000: Lệch tiền", kq[1]["trang_thai"], "Lệch tiền")
+	dung("ghi chú nói bill giảm và phần tiệm chịu: " + kq[1]["ghi_chu"], "200.000" in kq[1]["ghi_chu"] and "40.000" in kq[1]["ghi_chu"])
+	la("bill 195.000 dùng voucher 200.000: Đã nối", kq[2]["trang_thai"], "Đã nối")
+	dung("ghi chú Grab trả thêm 5.000: " + kq[2]["ghi_chu"], "5.000" in kq[2]["ghi_chu"])
+	la("bill trước 21/11 giữ luật cũ", kq[3]["trang_thai"], "Đã nối")
+	la("Grab Dine-Out không voucher", kq[4]["trang_thai"], "Đã nối")
+	# Một nguồn (loại 3): màn Bill chưa khớp đối tác dùng chung cung_tien, không
+	# xếp dòng Lệch tiền vì voucher thành khớp.
+	b = dict(ung[1], kieu="grab", diem="TCV")
+	d = dict(dong[1], trang_thai_khop="Lệch tiền", tien=235000)
+	r = dk.doi_chieu_bill([b], {("SI-B", "grab"): d}, {}, hom_nay="2026-11-22")
+	dung("màn bill vẫn lệch: " + r[0]["trang_thai"], r[0]["trang_thai"] != dk.TT_BILL_KHOP)
+	# Nới "bill thấp hơn giá voucher" chỉ cho bill mang mã GD-: không nối theo tiền vào bill khác.
+	la("bill không mã GD- không cùng tiền theo luật nới",
+		dk.cung_tien("grab", _gd("GD-ZZZ", 160000, 40000), _bill("SI-X", 195000, 40000, "")), False)
+
+
+@ca("v678 báo cáo GrabFood: dòng Grab Dine-Out mã dính giờ ('GD-2:01 PM ... QPJRSHRM', site 20/11 DSN-2611-07964 bốn dòng) đọc đủ mã và 7 cột tiền")
+def _grab_dong_dinh():
+	from vagabond import doi_soat_mau as m
+
+	tho = ["GD-2:01 PM                    Trả thẻ / Ví       400.000      0                     -         -60.000          -50.050                0   289.950            QPJRSHRM",
+		"GD-10:05 AM                  Trả thẻ / Ví       205.000      0                     -         -40.000          -24.289                0   140.711             I277C4ES",
+		"GD-10:03 AM                  Trả thẻ / Ví       205.000      0                     -              0          -30.177                0   174.823             SBXFJS6X",
+		"GD-9:35 AM                    Trả thẻ / Ví       205.000      0                     -         -40.000          -24.289                0   140.711           H5BN2GLV"]
+	ra = [m.chuan_dong_don_grab(x) for x in tho]
+	la("bốn dòng thành dòng đủ mã", [m.loai_manh_grab(x) for x in ra], ["du"] * 4)
+	la("mã đúng", [m._RE_DON.match(x).group(2).replace(" ", "") for x in ra], ["GD-QPJRSHRM", "GD-I277C4ES", "GD-SBXFJS6X", "GD-H5BN2GLV"])
+	la("dòng chuẩn không đổi", m.chuan_dong_don_grab("2:01 PM GD-QPJRSHRM Trả thẻ / Ví 400.000 0 - -60.000 -50.050 0 289.950"),
+		"2:01 PM GD-QPJRSHRM Trả thẻ / Ví 400.000 0 - -60.000 -50.050 0 289.950")
+
+
+@ca("v678 tin Zalo đối soát: thư lịch nghỉ lễ OnePay không là thư báo cáo; Payoo gửi từ vietunion.com.vn được nhận (mặc định và bước nâng); tệp đọc lỗi gửi nhóm Hệ thống, không gửi nhóm Kế toán")
+def _tin_doi_soat():
+	from vagabond import doi_soat_thu as T
+	from vagabond import doi_soat_vendor as dsv
+	from vagabond import kenh_zalo as kz
+
+	for td, than in (("OnePay - Thông báo lịch tạm ứng doanh số dịp nghỉ lễ Ngày văn hóa Việt Nam", "tạm ứng doanh số thanh toán"),
+			("[OnePay Thong bao]: Lich nghi le Ngay Van hoa Viet Nam 24/11/2026", "thanh toan")):
+		la("không phải báo cáo: " + td[:30], dsv.thu_co_bao_cao(td, than), False)
+	la("báo cáo thật vẫn nhận", dsv.thu_co_bao_cao("Payoo-POS-Card_ĐỐI SOÁT KỲ 13.11_15.11.2026", ""), True)
+	payoo = [m for t, m, b in T.NGUOI_GUI_MAC_DINH if t == "Payoo"][0]
+	la("mặc định có vietunion.com.vn, vẫn bắt chữ ký", ("vietunion.com.vn" in payoo,
+		[b for t, m, b in T.NGUOI_GUI_MAC_DINH if t == "Payoo"][0]), (True, 1))
+	la("tên miền ra Payoo", dsv.VENDOR_THEO_MIEN.get("vietunion.com.vn"), "Payoo")
+	la("bước nâng chỉ dòng Payoo còn thiếu", T.nang_payoo_v678([
+		dict(name="r1", ten_mien="payoo.com.vn"), dict(name="r2", ten_mien="onepay.vn"),
+		dict(name="r3", ten_mien="payoo.com.vn, vietunion.com.vn")]), [("r1", "payoo.com.vn, vietunion.com.vn")])
+	cay = ast.parse((GOC / "vagabond/doi_soat_thu.py").read_text(encoding="utf-8"))
+	goi = [n for n in ast.walk(cay) if isinstance(n, ast.Call) and any(k.arg == "ma_tin" and getattr(k.value, "value", "") == "ht_ds_tep_loi" for k in n.keywords)]
+	la("gửi nhóm Hệ thống", [(n.args[0].value, n.args[1].value) for n in goi], [("canh_bao", "he_thong")])
+	ma = {k.value.value for n in ast.walk(cay) if isinstance(n, ast.Call) for k in n.keywords if k.arg == "ma_tin" and isinstance(k.value, ast.Constant)}
+	la("không còn gửi kt_ds_tep_loi", "kt_ds_tep_loi" in ma, False)
+	la("tin có trong danh mục, mốc nhóm hộp thư lỗi", (kz.TIN["ht_ds_tep_loi"][4], kz.TIN_MOC["ht_ds_tep_loi"]), ("he_thong", "ht_ds_hop_thu_loi"))
+	vt = importlib.import_module("vagabond.patches.v678_tin_chuyen_khoan")
+	la("bản vá tích tin mới", "ht_ds_tep_loi" in vt.TIN_MOI, True)
+	dung("tin không bảo Kế toán báo kỹ thuật", "Kế toán" not in " ".join(T.tin_tep_loi("A", "b", "c")[1]))
+
+
+@ca("Codex #597 vòng 1: tiền về CẢ MB và Shinhan cho một bill thì cửa ghi sổ chặn, trừ khi dòng thanh toán chia đúng số từng ngân hàng (ban_hang._kiem_tk_ck thật)")
+def _codex597_hai_ngan_hang():
+	src = (GOC / "vagabond/ban_hang.py").read_text()
+	fn = next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "_kiem_tk_ck")
+	from vagabond import chiem_sao_ke
+
+	g = {"frappe": _fr, "chiem_sao_ke": chiem_sao_ke, "pt_ck": pt_ck, "pt_thanh_toan": types.SimpleNamespace(ba_shinhan=lambda: BA_SH),
+		"thanh_toan_nhieu": ttn, "flt": _fr.utils.flt}
+	exec(compile(ast.Module(body=[fn], type_ignores=[]), "ban_hang._kiem_tk_ck", "exec"), g)
+	kiem = g["_kiem_tk_ck"]
+	si = _hd(custom_pancake_display_id=MA, items=[{"item_code": "BANH", "qty": 1, "rate": 100000}])
+	gd = [(BA_MB, 60000), (BA_SH, 40000)]
+
+	def chay(pt, dong):
+		with patch.object(_fr.db, "sql", side_effect=lambda q, p=None, **k: list(gd), create=True), \
+				patch.object(ttn, "dong_cua", lambda n: dong):
+			try:
+				kiem(si, pt, ["ACC-BTN-1", "ACC-BTN-2"])
+				return ""
+			except _fr.ValidationError as e:
+				return str(e)
+
+	loi = chay("Chuyển khoản", [])
+	dung("một phương thức mà tiền về hai ngân hàng: chặn, nói số từng nơi " + loi,
+		"hai ngân hàng" in loi and "60.000" in loi and "40.000" in loi and MA in loi)
+	la("dòng thanh toán chia đúng: qua", chay("Chuyển khoản", [{"pt": "Chuyển khoản", "so_tien": 60000},
+		{"pt": "Chuyển khoản - Shinhan", "so_tien": 40000}]), "")
+	dung("dòng chia sai số: chặn", chay("Chuyển khoản", [{"pt": "Chuyển khoản", "so_tien": 50000},
+		{"pt": "Chuyển khoản - Shinhan", "so_tien": 50000}]) != "")
+	la("phép thuần", [pt_ck.soat_tk_ck("Chuyển khoản", [(BA_MB, 1), (BA_SH, 2)], BA_SH, {})[0],
+		pt_ck.soat_tk_ck("Chuyển khoản", [(BA_SH, 5)], BA_SH, {})[0], pt_ck.soat_tk_ck("Chuyển khoản", [(BA_MB, 5)], BA_SH, {})[0],
+		pt_ck.soat_tk_ck("Tiền mặt", [(BA_SH, 5)], BA_SH, {})[0], pt_ck.soat_tk_ck("Chuyển khoản", [("", 5)], BA_SH, {})[0]],
+		["nhieu", "doi", "", "", ""])
+	la("tiền về một ngân hàng mà dòng chia hai phương thức chuyển khoản: chặn",
+		pt_ck.soat_tk_ck("Chuyển khoản", [(BA_MB, 100000)], BA_SH, {"Chuyển khoản": 60000, "Chuyển khoản - Shinhan": 40000})[0], "nhieu")
+	la("tiền về Shinhan, dòng chuyển khoản là Shinhan cạnh tiền mặt: qua",
+		pt_ck.soat_tk_ck("Chuyển khoản - Shinhan", [(BA_SH, 40000)], BA_SH, {"Tiền mặt": 60000, "Chuyển khoản - Shinhan": 40000}), ("", None))
