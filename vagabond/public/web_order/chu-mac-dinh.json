@@ -8125,6 +8125,51 @@
     "nhom": "dat_banh",
     "mac_dinh": "Cỡ bánh này {het}. Quý khách chọn ngày nhận khác rồi thêm lại."
   },
+  "so_luong_cua": {
+    "ten": "Giỏ: nhãn đọc màn hình của bộ số lượng từng dòng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số lượng {ten}"
+  },
+  "sl_bot_1": {
+    "ten": "Giỏ: nhãn đọc màn hình của nút − trong bộ số lượng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bớt 1"
+  },
+  "sl_them_1": {
+    "ten": "Giỏ: nhãn đọc màn hình của nút + trong bộ số lượng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm 1"
+  },
+  "dc_don_tieu": {
+    "ten": "Thông tin đơn hàng: tiêu đề khối dĩa, nĩa tặng kèm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Dụng cụ ăn tặng kèm"
+  },
+  "dc_don_mo": {
+    "ten": "Thông tin đơn hàng: câu dẫn của khối dĩa, nĩa tặng kèm",
+    "nhom": "dat_banh",
+    "mac_dinh": "The Vagabond gửi kèm chỉ khi quý khách cần nhằm hạn chế dụng cụ ăn uống sử dụng một lần. Quý khách cần bao nhiêu vui lòng nhập số lượng."
+  },
+  "dc_don_tang": {
+    "ten": "Thông tin đơn hàng: dòng phụ dưới tên dĩa, nĩa tặng kèm",
+    "nhom": "dat_banh",
+    "mac_dinh": "tặng kèm, 0 đ"
+  },
+  "dc_don_dia": {
+    "ten": "Thông tin đơn hàng: tên dĩa tặng kèm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Dĩa giấy bã mía"
+  },
+  "dc_don_nia": {
+    "ten": "Thông tin đơn hàng: tên nĩa tặng kèm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nĩa gỗ"
+  },
+  "pk_dc_o_gio": {
+    "ten": "Chi tiết bánh: nhắc dĩa, nĩa chọn ở trang Thông tin đơn hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Dĩa, nĩa chọn một lần cho cả đơn ở trang Thông tin đơn hàng."
+  },
   "ct677_dat_truoc_ngay": {
     "ten": "Chi tiết bánh: dòng trạng thái khi mở từ tab Đặt bánh trước",
     "nhom": "dat_banh",
