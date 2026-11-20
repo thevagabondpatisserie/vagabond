@@ -981,7 +981,7 @@ async function scrPosBill(name) {
   });
   if (suaMon) html += '<div style="padding:9px 0"><button class="btn gh" id="pbThemMon" style="width:100%;margin:0">➕ Thêm món</button></div>';
   if (giam) html += '<div style="display:flex;justify-content:space-between;padding:7px 0;color:#b45309"><span>Giảm giá</span><b>-' + money(giam) + '</b></div>';
-  if (udBan) html += posKhoiUdBan(udBan, nhap && !udBan.da_ghi);
+  if (udBan) html += posKhoiUdBan(udBan, nhap && tamTinh && !udBan.da_ghi);
   else if (tamTinh && nhap && !d.vgb_huy && !pbCoKm(d)) html += pbKhoiKm(suaMo);
   html += '<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:16px"><b>' + (tamTinh ? 'TẠM TÍNH' : 'PHẢI THU') + '</b><b>' + money(phaiThu) + ' đ</b></div></div>';
 
@@ -1661,7 +1661,7 @@ async function scrPosBill(name) {
         return go(function () { scrPosBill(name); }, true);
       }
       if (r && r.can_otp && !otp) {
-        otp = await promptSheet('Mã OTP của quản lý', 'Chương trình này cần quản lý duyệt. Nhập mã OTP 6 số');
+        otp = await promptSheet('Mã OTP của quản lý', ((r.cau || 'Cần quản lý duyệt.') + ' Nhập mã OTP 6 số').trim());
         if (!otp) return;
         continue;
       }
