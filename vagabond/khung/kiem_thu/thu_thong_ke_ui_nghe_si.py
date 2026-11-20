@@ -133,3 +133,57 @@ def _():
 	for ten in sorted(trong_dm):
 		dung("bảng in ra phải có dòng của " + ten, ("| %s |" % ten) in van_ban)
 	dung("tài liệu sinh ra không có gạch dài", chr(0x2014) not in van_ban and chr(0x2013) not in van_ban)
+
+
+# Codex #598 vòng 1: màn dựng nội dung qua HÀM VẼ PHỤ (scrDanhMuc gọi dmDraw,
+# scrKhachChiTiet gọi khCtVe) từng bị ghi Thành phần "-", nên PR sửa khung
+# chung tra bảng sẽ bỏ sót màn đó. Ca này dựng đúng tình huống: màn không có
+# gì trong thân, mọi thứ nằm ở hàm phụ và hàm phụ của hàm phụ.
+MAU_PHU = OrderedDict([
+	("01-a.js", "function vgbGo(k) {\n  if (k === 'P') return go(scrPhu);\n}\n"),
+	("02-b.js", "function scrPhu() { vePhu(); }\n"
+		"function vePhu() { frame('Màn phụ', '<div class=\"card\">' + oNhap() + '</div>', { footer: 'x' }); if (hasRole('Kho')) hoiCo('a', 'b'); }\n"
+		"function oNhap() { return '<input id=\"q\">'; }\n"
+		"function scrKhac() { frame('Khác', ''); }\n"
+		"function scrTrong() { khongCoGi(); }\n"
+		"function khongCoGi() { return 1; }\n"),
+])
+
+
+@ca("thống kê UI (Codex #598): màn dựng qua hàm vẽ phụ vẫn ra đủ thành phần, hộp thoại, vai, trạng thái, tiêu đề")
+def _():
+	m = _cong_cu()
+	dm = m.lap_danh_muc(MAU_PHU)
+	man = dict((x["ten"], x) for x in dm["man"])
+	p = man["scrPhu"]
+	for tp in ("thẻ", "ô nhập", "thanh đáy"):
+		dung("scrPhu phải có " + tp, tp in p["co"])
+	la("hộp thoại qua hàm phụ", p["hop"], ["hoiCo"])
+	la("vai qua hàm phụ", p["vai"], ["Kho"])
+	la("tiêu đề qua hàm phụ", p["tieu_de"], ["Màn phụ"])
+	dung("phải kiểm bàn phím ảo", "bàn phím ảo" in p["trang_thai"])
+	dung("phải kiểm hộp thoại mở", "hộp thoại mở" in p["trang_thai"])
+	dung("ghi rõ có đọc qua hàm phụ", p["qua_ham_phu"] >= 2)
+
+
+@ca("thống kê UI (Codex #598): không lan sang màn khác, và màn không dò ra gì thì ghi chưa xác định chứ không ghi là không có")
+def _():
+	m = _cong_cu()
+	dm = m.lap_danh_muc(MAU_PHU)
+	man = dict((x["ten"], x) for x in dm["man"])
+	la("scrKhac không nhận thành phần của màn khác", man["scrKhac"]["co"], [])
+	van_ban = m.viet_danh_muc(dm)
+	dong = [d for d in van_ban.split("\n") if d.startswith("| scrTrong |")][0]
+	dung("scrTrong ghi chưa xác định", "chưa xác định" in dong)
+	dung("không còn ô nào ghi gạch trơn ở cột Thành phần của scrTrong", "| - | - |" not in dong)
+
+
+@ca("thống kê UI (Codex #598): trên mã thật, scrDanhMuc và scrKhachChiTiet có thành phần")
+def _():
+	m = _cong_cu()
+	dm = m.lap_danh_muc(m.doc_cac_phan())
+	man = dict((x["ten"], x) for x in dm["man"])
+	for ten in ("scrDanhMuc", "scrKhachChiTiet"):
+		dung(ten + " phải có thẻ", "thẻ" in man[ten]["co"])
+	dung("scrDanhMuc phải kiểm bàn phím ảo", "bàn phím ảo" in man["scrDanhMuc"]["trang_thai"])
+

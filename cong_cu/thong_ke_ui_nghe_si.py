@@ -145,6 +145,37 @@ def xep_nhom(ham, nhom, tuyen, canh, tong_dai):
 	return dict((t, v[2]) for t, v in tot.items())
 
 
+# Hàm hạ tầng: ai cũng gọi, thân của chúng không nói gì về riêng một màn.
+HA_TANG = ("frame", "go", "api", "toast", "h", "vgbGomNhom", "scrHome")
+SAU_TOI_DA = 4
+
+
+def than_gop(ten, ham, canh, tong_dai):
+	"""Thân màn CỘNG thân các hàm vẽ phụ nó gọi (Codex #598).
+
+	Màn hay dựng nội dung qua hàm phụ (scrDanhMuc gọi dmDraw). Chỉ đọc thân
+	hàm scr thì ghi sót thành phần, PR sửa khung chung tra bảng sẽ bỏ sót màn.
+	Đi theo lời gọi tới hàm KHÔNG phải màn, sâu tối đa SAU_TOI_DA tầng; dừng ở
+	màn khác (đó là màn riêng, có dòng riêng), ở hàm tổng đài, ở bộ hộp thoại
+	chung và ở hàm hạ tầng. Thà ghi dư một thành phần còn hơn ghi sót: dư thì
+	kiểm thừa một màn, sót thì lọt một màn hỏng.
+	"""
+	da = [ten]
+	hang = deque([(ten, 0)])
+	while hang:
+		t, d = hang.popleft()
+		if d >= SAU_TOI_DA:
+			continue
+		for g in sorted(canh.get(t, ())):
+			if g in da or g in tong_dai or g in HOP_THOAI_CHUNG or g in HA_TANG:
+				continue
+			if g.startswith("scr") and len(g) > 3 and g[3].isupper():
+				continue
+			da.append(g)
+			hang.append((g, d + 1))
+	return "\n".join(ham[t]["than"] for t in da), len(da) - 1
+
+
 def thanh_phan(than):
 	"""Thành phần dùng chung và dấu hiệu trạng thái trong thân một màn."""
 	co = []
@@ -212,18 +243,20 @@ def lap_danh_muc(cac_phan):
 	for ten, h in ham.items():
 		if not re.match(r"^scr[A-Z]", ten):
 			continue
-		co, hop, rieng = thanh_phan(h["than"])
+		than, so_phu = than_gop(ten, ham, canh, tong_dai)
+		co, hop, rieng = thanh_phan(than)
 		k = cua_nhom.get(ten)
 		if ten in MAN_NEN:
 			k, pr = None, 1
 		else:
 			pr = PR_THEO_NHOM.get(k)
 		man.append({
-			"ten": ten, "tep": h["tep"], "dong": h["dong"], "tieu_de": tieu_de(h["than"]),
+			"ten": ten, "tep": h["tep"], "dong": h["dong"], "tieu_de": tieu_de(h["than"]) or tieu_de(than),
+			"qua_ham_phu": so_phu,
 			"nhom": k, "pr": pr, "khoa": khoa_cua_man.get(ten, []),
-			"vai": sorted(set(RE_VAI.findall(h["than"]))),
+			"vai": sorted(set(RE_VAI.findall(than))),
 			"co": co, "hop": hop, "rieng": rieng,
-			"trang_thai": trang_thai(h["than"], co, hop, rieng),
+			"trang_thai": trang_thai(than, co, hop, rieng),
 		})
 	hop_rieng = []
 	for ten, h in ham.items():
@@ -294,6 +327,7 @@ def viet_danh_muc(dm):
 	theo_pr = Counter(m["pr"] for m in man)
 	d.append("- Số phần nguồn: %d. Số hàm màn (scr...): %d. Hộp thoại riêng ngoài bộ dùng chung: %d hàm." % (
 		dm["so_phan"], len(man), len(dm["hop_rieng"])))
+	d.append("- Màn máy chưa dò ra thành phần nào (ghi chưa xác định): %d." % len([m for m in man if not m["co"]]))
 	d.append("- Số ô trang chủ có định tuyến trong vgbGo: %d. Số nhóm trang chủ: %d." % (len(dm["tuyen"]), len(dm["nhom"])))
 	for pr, ten in ((1, "PR 1 nền"), (2, "PR 2 Bán hàng và Quầy"), (3, "PR 3 Kho, Sản xuất, Thu mua"),
 			(4, "PR 4 Kế toán, Tài chính"), (5, "PR 5 Marketing và các màn còn lại"), (None, "Chưa xếp, cần xếp tay")):
@@ -301,7 +335,9 @@ def viet_danh_muc(dm):
 	d.append("")
 	d.append("Cách đọc cột: **Thành phần** là khung dùng chung màn đó dùng (PR nào sửa khung thì phải kiểm lại màn này). "
 		"**Hộp thoại** là bộ hỏi dùng chung màn gọi, số trong ngoặc là số bảng trượt tự dựng trong màn. "
-		"**Vai nhắc trong mã** chỉ để gợi ý chỗ giao diện đổi theo quyền; quyền thật xem docs/quyen-theo-phan-he.md.")
+		"Ba cột này đọc cả thân màn lẫn các hàm vẽ phụ màn gọi (sâu tối đa %d tầng, không sang màn khác). "
+		"Ô ghi **chưa xác định** nghĩa là máy không dò ra gì, KHÔNG có nghĩa là màn không dùng: người làm phải mở màn xem và coi như màn chịu ảnh hưởng của mọi khung chung. "
+		"**Vai nhắc trong mã** chỉ để gợi ý chỗ giao diện đổi theo quyền; quyền thật xem docs/quyen-theo-phan-he.md." % SAU_TOI_DA)
 	d.append("")
 	for pr, ten in ((1, "PR 1 nền"), (2, "PR 2 Bán hàng và Quầy"), (3, "PR 3 Kho, Sản xuất, Thu mua"),
 			(4, "PR 4 Kế toán, Tài chính"), (5, "PR 5 Marketing và các màn còn lại"), (None, "Chưa xếp, cần xếp tay")):
@@ -316,7 +352,7 @@ def viet_danh_muc(dm):
 			hop = ", ".join(m["hop"]) + (" (+%d)" % m["rieng"] if m["rieng"] else "")
 			d.append("| %s | %s | %s | %s | %s | %s | %s | %s |" % (
 				m["ten"], "; ".join(m["tieu_de"]).replace("|", "/") or "(không gọi frame)",
-				ten_nhom.get(m["nhom"], "-"), m["tep"][:2], ", ".join(m["co"]) or "-", hop or "-",
+				ten_nhom.get(m["nhom"], "-"), m["tep"][:2], ", ".join(m["co"]) or "chưa xác định", hop or ("-" if m["co"] else "chưa xác định"),
 				", ".join(m["trang_thai"]), ", ".join(m["vai"]) or "-"))
 		d.append("")
 	d.append("## Hộp thoại")

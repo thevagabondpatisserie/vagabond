@@ -18,7 +18,7 @@ Ngày 20/11/2026. Nền: main `2ae8e6a35` (v677). PR này KHÔNG đổi một d�
 | `docs/ui-nghe-si/thong-ke-kieu.md` | Số đếm màu, emoji, cỡ chữ, bo góc, khoảng cách, kiểu viết trong thẻ (máy sinh) |
 | `docs/ui-nghe-si/pr0-bao-cao.md` | Tệp này |
 | `cong_cu/thong_ke_ui_nghe_si.py` | Công cụ thống kê, có `--kiem` |
-| `vagabond/khung/kiem_thu/thu_thong_ke_ui_nghe_si.py` | 7 ca kiểm cho công cụ, đã đăng ký trong `chay.py` |
+| `vagabond/khung/kiem_thu/thu_thong_ke_ui_nghe_si.py` | 10 ca kiểm cho công cụ, đã đăng ký trong `chay.py` |
 | `.github/workflows/kiem-thu.yml`, `bench-tich-hop.yml` | Thêm nhánh `ui-nghe-si` để PR con được CI kiểm (xem V1) |
 
 ## Con số chính
@@ -40,6 +40,7 @@ Công cụ đọc bảng nhóm trang chủ (`VGB_NHOM`) và bảng định tuy�
 Giới hạn, ghi thật:
 
 - Đọc tĩnh, không chạy app. Màn có tiêu đề dựng bằng biến ghi "(động)".
+- Cột Thành phần, Hộp thoại, Trạng thái và Vai đọc cả thân màn lẫn các hàm vẽ phụ màn gọi (sâu tối đa 4 tầng, không sang màn khác), vì nhiều màn dựng nội dung qua hàm phụ (Codex chỉ ở vòng 1: scrDanhMuc, scrKhachChiTiet). Máy thà ghi dư còn hơn ghi sót. Ô ghi "chưa xác định" (hiện 1 màn) phải coi là chịu ảnh hưởng của mọi khung chung.
 - Màn mở được từ hai nhóm (ví dụ Công nợ phải thu có ở Bán hàng và Kế toán) chỉ đứng ở MỘT PR, PR đến trước. PR sau đụng khung chung vẫn phải kiểm lại theo cột Thành phần.
 - Cột vai chỉ là vai nhắc tên trong thân hàm màn. Bảng "màn x quyền" theo luật rút gọn của bản 4 mục 6 (chỉ nhân ở nơi giao diện khác theo quyền) lập ở PR 1 cùng máy chụp, vì phải chạy app với từng vai mới biết chỗ nào khác thật.
 - Danh mục và thống kê đổi theo mã. Mỗi báo cáo PR ghi SHA lúc sinh; chạy `python3 cong_cu/thong_ke_ui_nghe_si.py --kiem` để biết bản trong docs còn khớp mã không.
@@ -48,7 +49,7 @@ Giới hạn, ghi thật:
 
 | Cổng | Chạy ở đâu | Bắt được gì | Liên quan việc này |
 |---|---|---|---|
-| `vagabond/khung/kiem_thu/chay.py` (6.534 ca, 412 tệp ca) | máy làm việc, CI | phép thuần nghiệp vụ, luật màn soi bằng chuỗi | phải xanh ở cả hai chế độ ui-b |
+| `vagabond/khung/kiem_thu/chay.py` (6.537 ca, 412 tệp ca) | máy làm việc, CI | phép thuần nghiệp vụ, luật màn soi bằng chuỗi | phải xanh ở cả hai chế độ ui-b |
 | `hanh_vi/chay.js` (130 tệp ca node, DOM giả) | CI, cổng 10 | chuỗi bấm thật trên màn | DOM giả không có CSS: không bắt được xếp lớp, tràn, màu |
 | `dung_app_bep.py --kiem` | CI, cổng 9 | tệp ghép lệch nguồn | PR con đụng bep/ phải dựng lại tệp ghép |
 | `kiem_truoc_deploy.sh` (10 công đoạn) | máy làm việc | cú pháp, định tuyến, đường dẫn, phiên bản | giữ nguyên |
