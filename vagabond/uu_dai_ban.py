@@ -305,7 +305,12 @@ def ds(diem=None, ban=None, k=None):
 			x["giam"], x["ly_do"] = int(round(giam)), ly
 		x["dung_duoc"] = 1 if (x["giam"] or 0) > 0 else 0
 	ra.sort(key=lambda x: (0 if x["nhom"] == "vi" else 1, -x["dung_duoc"], -(x["giam"] or 0)))
-	return {"ok": 1, "dang_nhap": 1, "sdt": che_sdt(nd), "co_hoa_don": 1 if si else 0, "chon": chon, "ds": ra}
+	# v677: trạng thái tích điểm của hoá đơn bàn (tich_diem_ban), để trang khách
+	# hiện Đã gắn, hay tự gắn khi hoá đơn còn đứng tên khách chung.
+	from vagabond import tich_diem_ban
+
+	return {"ok": 1, "dang_nhap": 1, "sdt": che_sdt(nd), "co_hoa_don": 1 if si else 0, "chon": chon, "ds": ra,
+		"tv": tich_diem_ban.tv_cho_ds(si, nd, khach)}
 
 
 class _luu_bang_quyen_he_thong(object):

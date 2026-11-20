@@ -349,7 +349,9 @@ def bang_btp():
 	# lỗi thì như web: không trừ phần vượt đợt, ngày của đợt hiện "?".
 	so = so_rf if rf and not so_rf.get("loi") else None
 	pool = {m: n for m, (n, _t) in ton_don_web._con_btp_web(doc.dong, nay, so).items()}
-	rf_mo = refill.bo_dot_du_don(rf, so) if so else {}
+	# Codex #596: đếm refill lỗi thì GIỮ mọi đợt đang hiệu lực (chưa biết đợt nào đã
+	# đủ đơn): ngày thuộc đợt hiện "chưa biết", không hiện BTP sẵn như số nhận chắc.
+	rf_mo = refill.bo_dot_du_don(rf, so) if so else rf
 	phieu_mai = ton_don_web._ton_phieu(nay + timedelta(days=1))
 	phieu_mai = None if phieu_mai is None else {m: n for m, (n, _t) in phieu_mai.items()}
 	doi = _gan_doi([{"ma_hang": d.ma_hang} for d in doc.dong], getdate())
