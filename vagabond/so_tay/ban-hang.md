@@ -1347,6 +1347,23 @@ Từ v678 (giám đốc chốt 20/11/2026).
 **Bạn cần làm**
 1. Quầy: chọn đúng chương trình theo màn hình khách, rồi chốt bằng Grab Dine-Out và nhập mã GD-.
 2. Kế toán: bill cũ đã giảm đủ giá voucher giữ nguyên, chỉ đối chiếu với báo cáo Grab.
+## Web đặt bánh: ngày đã chọn hết bánh thì báo hết, không tự đổi ngày
+Từ khoá: hết bánh ngày đã chọn, tự đổi ngày nhận, web đặt bánh, nút thêm vào giỏ, đặt trước
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales | Trang đặt bánh, tab Đặt bánh trước | Nút + trên thẻ bánh; Thêm vào giỏ |
+
+Từ v678 (giám đốc yêu cầu 20/11/2026).
+
+**Trước đây:** khách đã chọn ngày nhận, bấm thêm một cỡ bánh đã hết đúng ngày đó thì bánh vẫn vào giỏ và trang tự dời ngày nhận của cả giỏ sang ngày còn bánh.
+**Từ nay:**
+- Nút + trên thẻ, Thêm vào giỏ trong chi tiết và nút + trong giỏ đều báo "Cỡ bánh này hết ngày ...", giữ nguyên ngày và giỏ.
+- Khách tự chọn ngày khác còn bánh thì thêm được như thường. Số tồn và luật nhận đặt trước không đổi.
+
+**Bạn cần làm**
+1. Sales: khách hỏi vì sao không thêm được bánh thì kiểm ngày nhận khách đã chọn, gợi ý ngày còn bánh.
+
 ## Khách chuyển khoản ngay tại bàn, bill tự chốt
 Từ khoá: chuyển khoản ngay, app ngân hàng, tự chốt bill, O2O, gọi món tại bàn, thanh toán tại bàn, đối soát tay, bàn đã chuyển khoản
 

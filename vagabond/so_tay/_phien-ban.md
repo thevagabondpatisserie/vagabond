@@ -18,6 +18,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Khuyến mãi trên bill Tạm tính
 - Voucher Grab Dine-Out: giảm đúng phần tiệm chịu
 - Tin Zalo đối soát: tệp đọc lỗi gửi nhóm Hệ thống
+- Web đặt bánh: ngày đã chọn hết bánh thì báo hết, không tự đổi ngày
 
 ## v677
 - Bảng Kiểm bánh: ba ô Web nhận, ngày kia theo BTP sẵn
