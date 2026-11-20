@@ -172,6 +172,24 @@ def kiem_cap_ngan_hang(bin_, ten):
 	return None
 
 
+# Mã đầu tên trong danh mục ngân hàng chung khác mã bảng NGAN_HANG ở trên.
+# Đối chiếu từng dòng với du_lieu/napas.json (tên pháp lý) trước khi ghi vào.
+MA_DANH_MUC = {
+	"VIETINBANK": "ICB",
+	"ABBANK": "ABB",
+	"NAMABANK": "NAB",
+	"CO-OPBANK": "COOPBANK",
+	"WOORI": "WVN",
+	"HLB": "HLBVN",
+	"SGB": "SGICB",
+	"NASB": "BAB",
+	"CAKEVPB": "CAKE",
+	"UBANKVPB": "UBANK",
+	"VIETTELM": "VIETTELMONEY",
+	"VNPTM": "VNPTMONEY",
+}
+
+
 def bin_cho(ma):
 	"""Một bảng ngân hàng duy nhất; mã lạ không mặc định sang MB."""
 	ma = str(ma or "").strip()
@@ -193,6 +211,16 @@ def ma_theo_ten_ngan_hang(ten):
 	for nh in NGAN_HANG:
 		if t in (nh["ten"].lower(), nh["ma"].lower(), nh["bin"]):
 			return nh["ma"]
+	# Codex PR #597 vòng 3: Bank Account trỏ tới tên trong danh mục ngân hàng
+	# chung (du_lieu/napas.json), dạng "<MÃ> - <tên pháp lý>", ví dụ "SHBVN -
+	# Ngân hàng TNHH MTV Shinhan Việt Nam". Lấy mã đầu tên, đổi qua bí danh khi
+	# danh mục dùng mã khác bảng QR. Mã lạ thì rỗng, không đoán.
+	if " - " in t:
+		dau = t.split(" - ", 1)[0].strip().upper()
+		dau = MA_DANH_MUC.get(dau, dau)
+		for nh in NGAN_HANG:
+			if dau == nh["ma"].upper():
+				return nh["ma"]
 	return ""
 
 

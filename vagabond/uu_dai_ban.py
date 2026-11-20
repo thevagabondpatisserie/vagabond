@@ -433,6 +433,10 @@ def bo_quay(name=None, ly_do=""):
 	si = frappe.get_doc(SI, name, for_update=True)
 	if si.docstatus != 0:
 		frappe.throw("Hoá đơn đã ghi sổ rồi, không bỏ ưu đãi ở đây được.")
+	# Codex PR #597 vòng 3 (cùng loại với ap_quay): bill đã chốt thì số phải thu
+	# đã chốt với khách, bỏ ưu đãi lúc này là đổi số sau khi khách trả.
+	if not cint(si.get("vgb_tam_tinh")):
+		frappe.throw("Hoá đơn đã chốt, không bỏ ưu đãi được nữa. Tải lại màn bill.")
 	cu = doc_ud(si.get("vgb_ud_ban"))
 	if not cu:
 		return {"ok": 1}
@@ -464,12 +468,24 @@ def chan_ap_quay(si):
 		return "Hoá đơn đã ghi sổ, không áp khuyến mãi ở đây được."
 	if cint(si.get("vgb_huy")):
 		return "Hoá đơn đã huỷ."
+	# Codex PR #597 vòng 3: bill đã chốt ở máy khác hay tự chốt khi tiền về
+	# (hết tạm tính, vẫn nháp chờ ghi sổ) thì số phải thu đã chốt với khách.
+	if not cint(si.get("vgb_tam_tinh")):
+		return "Hoá đơn đã chốt, không áp khuyến mãi được nữa. Tải lại màn bill."
 	if (si.get("vgb_km") or "").strip() not in ("", "[]"):
 		return "Hoá đơn đã có khuyến mãi áp lúc tạo đơn. Mỗi hoá đơn một ưu đãi."
 	cu = doc_ud(si.get("vgb_ud_ban"))
 	if cu:
 		return "Hoá đơn đã có ưu đãi %s. Bỏ ưu đãi đó trước rồi áp cái khác." % (cu.get("ten") or cu.get("ma"))
 	return ""
+
+
+def can_otp_quay(si, muc):
+	"""THUẦN: quầy áp khuyến mãi lên bill đã in tạm tính là THÊM giảm giá cho
+	bill khách đã cầm, nên theo đúng cửa quyền quầy như pos_chot
+	(quyen_quay.them_giam_gia): mức gioi_han và duyet cần OTP quản lý ca,
+	tu_do thì không (Codex PR #597 vòng 3)."""
+	return bool(cint(si.get("vgb_tam_tinh"))) and muc != "tu_do"
 
 
 def _khach_bill(si):
@@ -514,7 +530,7 @@ def ds_quay(name=None):
 @frappe.whitelist(methods=["POST"])
 def ap_quay(name=None, loai=None, ma=None, otp=None):
 	"""Thu ngân áp một chương trình hay một mã ưu đãi lên bill tạm tính."""
-	from vagabond import ban_hang
+	from vagabond import ban_hang, quyen_quay
 
 	ban_hang._kiem_quyen_ban()
 	loai, ma = chuan_chon(loai, ma)
@@ -532,9 +548,13 @@ def ap_quay(name=None, loai=None, ma=None, otp=None):
 	except Exception as e:
 		return {"ok": 0, "cau": str(getattr(e, "message", "") or e)[:200] or "Chưa áp được ưu đãi này."}
 	ap = [a for a in kq.get("ap") or [] if a.get("loai") != "hang"]
-	if any(cint(a.get("can_otp")) for a in ap):
+	can_ct = any(cint(a.get("can_otp")) for a in ap)
+	can_q = can_otp_quay(si, quyen_quay.muc())
+	if can_ct or can_q:
 		if not (otp or "").strip() and not ban_hang._otp_la_sep():
-			return {"ok": 0, "can_otp": 1, "cau": "Chương trình này cần mã OTP của quản lý."}
+			cau = ("Chương trình này cần mã OTP của quản lý." if can_ct else
+				"Bill đã in tạm tính, thêm khuyến mãi cần mã OTP của quản lý ca. Bấm xin mã rồi nhập vào.")
+			return {"ok": 0, "can_otp": 1, "cau": cau}
 		ud["cach"] = CACH_QUAY + " (" + ban_hang._otp_kiem(otp, "áp khuyến mãi") + ")"
 		ud["otp"] = 1
 	giam, ly = giam_tu_kq(kq, cho_otp=cint(ud.get("otp")))
