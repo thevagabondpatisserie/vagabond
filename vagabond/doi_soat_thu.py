@@ -68,7 +68,8 @@ NGUON_NOI_BO = "Chuyển tiếp nội bộ"
 # Cài đặt một lần khi bảng còn trống; anh sửa trên app.
 NGUOI_GUI_MAC_DINH = (
 	("OnePay", "onepay.vn", 1),
-	("Payoo", "payoo.com.vn", 1),
+	# v678: Payoo gửi từ tên miền công ty chủ quản VietUnion (thư 16/11/2026 bị chặn).
+	("Payoo", "payoo.com.vn, vietunion.com.vn", 1),
 	# v651 (anh Việt 12/11/2026): thư Shinhan do BC Card Việt Nam ký (d=bccardvn.com).
 	("Shinhan (POS và thẻ tín dụng)", "shinhan.com.vn, bccardvn.com", 1),
 	("Grab", "grab.com, grabtaxi.com", 1),
@@ -653,9 +654,14 @@ def ten_vendor_diem(vendor, ten_diem=""):
 
 
 def tin_tep_loi(vendor, ky, ly_do):
-	"""THUẦN. Tin 4: tệp đối soát từ thư đọc không được."""
+	"""THUẦN. Tin 4: tệp đối soát từ thư đọc không được.
+
+	v678 (anh Việt 20/11/2026 "sửa luôn mấy cái thông báo Zalo này"): đọc lỗi là
+	việc của quản trị hệ thống (sửa mẫu đọc), Kế toán không làm gì được, nên tin
+	đi nhóm Hệ thống (ht_ds_tep_loi), không đi nhóm Kế toán nữa."""
 	return ("Tệp đối soát %s %s không đọc được" % (vendor, ky), [
-		(ly_do or "Tệp lỗi.")[:300], "Có thể đối tác đổi mẫu báo cáo. Kế toán mở nguồn để xem dòng lỗi."])
+		(ly_do or "Tệp lỗi.")[:300],
+		"Dòng đọc được đã nhận. Mở nguồn xem chữ gốc của dòng lỗi rồi sửa mẫu đọc; sửa xong bấm Đọc lại."])
 
 
 def tin_lech_tien(vendor, ky, bao, nhan):
@@ -831,10 +837,29 @@ def nang_mac_dinh_v651(nguoi_gui, lich):
 	return ra
 
 
+def nang_payoo_v678(ng):
+	"""THUẦN (v678). Dòng Người gửi tin cậy có tên miền payoo.com.vn mà chưa có
+	vietunion.com.vn: [(tên dòng, tên miền mới)]. Payoo gửi báo cáo từ tên miền
+	công ty chủ quản; thư 16/11/2026 bị chặn vì thiếu tên miền này."""
+	ra = []
+	for r in ng or []:
+		mien = tach_mien(r.get("ten_mien"))
+		if "payoo.com.vn" in mien and "vietunion.com.vn" not in mien:
+			ra.append((r["name"], ", ".join(mien + ["vietunion.com.vn"])))
+	return ra
+
+
 def _nang_mac_dinh():
-	"""after_migrate, MỘT lần (cờ vgb_ds_thu_v651): nâng dòng Cài đặt còn mặc định
-	cũ. Quản trị đặt lại giá trị cũ sau đó thì không đè."""
+	"""after_migrate, MỘT lần cho mỗi bản (cờ vgb_ds_thu_v651, vgb_ds_thu_v678):
+	nâng dòng Cài đặt còn mặc định cũ. Quản trị đặt lại giá trị cũ sau đó thì không đè."""
 	frappe = _frappe()
+	if not frappe.db.get_global("vgb_ds_thu_v678"):
+		ng = frappe.get_all("Vagabond Doi Soat Nguoi Gui", filters={"parent": CAI_DAT, "parentfield": "ds_nguoi_gui"},
+			fields=["name", "ten_mien"])
+		for ten, mien in nang_payoo_v678(ng):
+			frappe.db.set_value("Vagabond Doi Soat Nguoi Gui", ten, "ten_mien", mien, update_modified=False)
+		frappe.db.set_global("vgb_ds_thu_v678", "1")
+		frappe.clear_document_cache(CAI_DAT, CAI_DAT)
 	if frappe.db.get_global("vgb_ds_thu_v651"):
 		return
 	ng = frappe.get_all("Vagabond Doi Soat Nguoi Gui", filters={"parent": CAI_DAT, "parentfield": "ds_nguoi_gui"},
@@ -876,6 +901,7 @@ def gieo_mac_dinh():
 		frappe.db.set_global("vgb_ds_thu_gieo", "1")
 		# Gieo bằng mặc định mới rồi: không cần nâng (Codex #554).
 		frappe.db.set_global("vgb_ds_thu_v651", "1")
+		frappe.db.set_global("vgb_ds_thu_v678", "1")
 		frappe.clear_document_cache(CAI_DAT, CAI_DAT)
 	except Exception:
 		frappe.log_error(title="Đối soát hộp thư: gieo cài đặt mặc định")
@@ -1234,7 +1260,7 @@ def _ghi_thu_khong_tep(thu, t, cong_ty, them):
 			return []
 		kq = mau_bc.ket_qua("", "", dsv.vendor_theo_thu(t["dia_chi"]) or thu.doi_tac, "")
 		kq["loi"].append("Thư báo cáo của đối tác không có tệp đọc được (báo cáo nằm trong thân thư hoặc tệp chưa có mẫu). "
-			"Báo kỹ thuật viết mẫu đọc mới.")
+			"Cần viết mẫu đọc mới.")
 		tt = dict(ten=(t["tieu_de"] or "Thư đối tác không có tệp")[:140], sha256=sha, loai="")
 		return [dsv._ghi_nguon(cong_ty, tt, kq, khop.xem_truoc(kq, cong_ty), KENH, None, None, them=them)]
 
@@ -1281,8 +1307,8 @@ def sau_khi_ghi(name, moi=True):
 				ma_tin="bgd_ds_tai_tay")
 		if n.kenh_nhan == KENH and n.trang_thai in ("Lỗi tệp", "Cần xử lý"):
 			t, d = tin_tep_loi(n.vendor, ky_hien(n), n.ly_do)
-			kenh_zalo.bao_hoac_ghi_loi("viec", "cong_no", t, d, link=_link(), khoa="ds_tep_loi:%s" % name,
-				ma_tin="kt_ds_tep_loi")
+			kenh_zalo.bao_hoac_ghi_loi("canh_bao", "he_thong", t, d, link=_link(), khoa="ds_tep_loi:%s" % name,
+				ma_tin="ht_ds_tep_loi")
 	except Exception:
 		frappe.log_error(title="Đối soát hộp thư: báo sau khi nhận %s" % name)
 

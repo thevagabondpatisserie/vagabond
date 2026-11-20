@@ -1102,6 +1102,7 @@ _RE_DUOI_MA = re.compile(r"^\s*([A-Z0-9]{2,20})\s*$")
 _RE_GIO_DON = re.compile(r"(?<!\S)(\d{1,2}:\d{2}\s?[AP]M|Đã hủy)(?!\S)")
 _RE_PT_DON = re.compile(r"(?<!\S)(Trả thẻ / Ví|Tiền mặt)(?!\S)")
 _RE_MA_DON = re.compile(r"^(G[A-Z]-)([A-Z0-9]*),?$")
+_RE_MA_DINH_GIO = re.compile(r"(?<!\S)(G[A-Z]-)(\d{1,2}:\d{2}\s?[AP]M)(?!\S)")
 _RE_TIEN_DON = re.compile(r"^(?:-?\d{1,3}(?:\.\d{3})*|-)$")
 
 
@@ -1113,6 +1114,10 @@ def chuan_dong_don_grab(s):
 	Nhận: giờ (hoặc Đã hủy) đúng một lần; một hay nhiều mã G?- ở bất kỳ đâu;
 	mã cụt "GF-" ghép với đúng một mảnh đuôi chữ số (không phải số tiền);
 	phương thức (đơn huỷ dùng "-" đầu tiên); đúng 7 cột tiền."""
+	# v678 (site thật 20/11, DSN-2611-07964 bốn dòng): tiền tố mã dính liền giờ,
+	# phần sau của mã nằm cuối dòng: "GD-2:01 PM  Trả thẻ / Ví  400.000 ... QPJRSHRM".
+	# Tách tiền tố ra để đi đúng đường "mã cụt + một mảnh đuôi" bên dưới.
+	s = _RE_MA_DINH_GIO.sub(r"\1 \2", s)
 	gio_ds = _RE_GIO_DON.findall(s)
 	if len(gio_ds) != 1:
 		return s

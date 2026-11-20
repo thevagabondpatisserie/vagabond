@@ -152,8 +152,7 @@ TIN = {
 		"Ngay khi hộp thư doisoat@ nhận thư tự xưng đối tác mà không có chữ ký số đúng tên miền: không nhận số liệu.", "canh_bao", "cong_no"),
 	"kt_ds_thieu_thu": ("Hoá đơn, kế toán", "Thư đối soát chưa về (12:30, nhắc 18:30)",
 		"12:30 mỗi ngày: thư đối tác dự kiến đã quá hạn mà chưa về; 18:30 nhắc lại nếu vẫn chưa về.", "viec", "cong_no"),
-	"kt_ds_tep_loi": ("Hoá đơn, kế toán", "Tệp đối soát từ thư không đọc được",
-		"Ngay khi tệp trong thư đối tác đọc lỗi hoặc tổng tính lại khác tổng in trên tệp.", "viec", "cong_no"),
+	# v678: "kt_ds_tep_loi" (tệp đối soát đọc lỗi gửi Kế toán) bỏ, thay bằng ht_ds_tep_loi.
 	"kt_ds_lech_tien": ("Hoá đơn, kế toán", "Tiền về khác số đối tác báo chuyển",
 		"Ngay khi tiền về ngân hàng (SePay) khác số đối tác báo chuyển, từ ngưỡng khai trong Cài đặt.", "canh_bao", "cong_no"),
 	"kt_ds_chua_thay_tien": ("Hoá đơn, kế toán", "Chưa thấy tiền đối tác chuyển về (08:30)",
@@ -352,6 +351,10 @@ TIN = {
 	# v641 (anh Việt duyệt 06/11/2026): đối soát qua hộp thư doisoat@ (doi_soat_thu.py).
 	"ht_ds_hop_thu_loi": ("Hệ thống", "Không đọc được hộp thư đối soát doisoat@",
 		"Đọc hộp thư đối soát lỗi 2 lần liên tiếp (sai mật khẩu, hộp thư đầy, mất kết nối).", "canh_bao", "he_thong"),
+	# v678 (anh Việt 20/11/2026): tệp đối soát đọc lỗi là việc sửa mẫu đọc, chuyển từ
+	# nhóm Kế toán (kt_ds_tep_loi, đã bỏ) sang nhóm Hệ thống.
+	"ht_ds_tep_loi": ("Hệ thống", "Tệp đối soát đọc lỗi, cần sửa mẫu đọc",
+		"Ngay khi tệp trong thư đối tác đọc lỗi hoặc thư báo cáo không có tệp đọc được.", "canh_bao", "he_thong"),
 }
 
 # Codex #413 P2: tin "việc cần làm" phải kiểm lại việc còn mở ngay trước khi
@@ -435,6 +438,8 @@ TIN_MOC = {
 	"bh_weborder_moi": "bh_goi_mon_tai_ban",
 	# v678: nhóm quầy đang nhận tin gọi món tại bàn nhận thêm tin bàn đã chuyển khoản.
 	"bh_ban_da_chuyen_khoan": "bh_goi_mon_tai_ban",
+	# v678: nhóm đang nhận tin hộp thư đối soát lỗi nhận thêm tin tệp đối soát đọc lỗi.
+	"ht_ds_tep_loi": "ht_ds_hop_thu_loi",
 }
 
 

@@ -190,28 +190,8 @@ def _gio_hang(items):
 THU_TRONG_TUAN = ["thu_2", "thu_3", "thu_4", "thu_5", "thu_6", "thu_7", "thu_cn"]
 
 
-# v678: anh Việt chốt 20/11/2026 "Grab trả tiền voucher". Voucher Grab
-# Dine-Out là tiền Grab trả cho tiệm, nên ghi bằng phương thức Grab Dine-Out
-# kèm mã GD-, KHÔNG ghi thành giảm giá (ghi giảm giá làm doanh thu hụt và
-# đối soát Grab lệch số). Mọi đường áp chương trình đều qua _hop_thoi_gian,
-# nên chặn ở đây là chặn hết, kể cả chương trình tạo lại sau này.
-LY_DO_VOUCHER_GRAB = (
-	"voucher Grab Dine-Out do Grab trả tiền, không áp thành giảm giá: chọn phương "
-	"thức Grab Dine-Out và nhập mã GD- của khách"
-)
-
-
-def la_voucher_doi_tac(km):
-	"""THUẦN: chương trình này là voucher Grab Dine-Out (đối tác trả tiền)."""
-	chu = " ".join(str(km.get(k) or "") for k in ("ten", "ma_ctkm", "name"))
-	return bool(re.search(r"grab[\s_-]*dine[\s_-]*out", chu, re.I))
-
-
 def _hop_thoi_gian(km, luc=None):
-	"""Ngay, thu trong tuan va khung gio. Voucher Grab Dine-Out thi khong ap
-	o bat ky khung gio nao (v678)."""
-	if la_voucher_doi_tac(km):
-		return False, LY_DO_VOUCHER_GRAB
+	"""Ngay, thu trong tuan va khung gio."""
 	luc = get_datetime(luc) if luc else now_datetime()
 	ngay = luc.date()
 	if km.get("tu_ngay") and ngay < getdate(km["tu_ngay"]):

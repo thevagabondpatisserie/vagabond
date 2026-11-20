@@ -129,16 +129,36 @@ def ck_cua_tk(ba, tk_shinhan):
 	return TEN_CK
 
 
-def lech_tk(pt, ds_ba, tk_shinhan):
-	"""Phương thức đúng theo nơi tiền về, khi KHÁC phương thức đang ghi. THUẦN.
+def soat_tk_ck(pt, gd, tk_shinhan, tach=None):
+	"""Phương thức chuyển khoản trên bill có đúng ngân hàng tiền về không. THUẦN.
 
-	Trả rỗng khi khớp, khi không biết tài khoản, hoặc khi tiền về hai nơi khác
-	nhau (để màn Đối soát xử lý tay, không đoán). Dùng ở cửa ghi sổ: bill ghi
-	"Chuyển khoản" mà tiền về Shinhan thì sổ cái ghi nhầm 11211."""
+	pt          phương thức chính của bill
+	gd          [(Bank Account, số tiền)] của các dòng sao kê bill đang gạch
+	tk_shinhan  Bank Account của "Chuyển khoản - Shinhan" (rỗng là chưa khai)
+	tach        {phương thức: tiền} của dòng thanh toán (thanh_toan_nhieu.tach_theo_pt),
+	            rỗng khi bill không chia dòng
+
+	Trả (loại, chi tiết):
+	  ("", None)      khớp, hoặc không kết luận được (dòng thiếu Bank Account)
+	  ("doi", pt)     tiền về MỘT ngân hàng khác phương thức đang ghi: đổi sang pt
+	  ("nhieu", {pt: tiền})  Codex #597 vòng 1: tiền về nhiều ngân hàng mà dòng
+	                  thanh toán không chia đúng số từng ngân hàng (trước đây cho qua)."""
 	if not la_ck(pt):
-		return ""
-	dung = {ck_cua_tk(b, tk_shinhan) for b in (ds_ba or []) if str(b or "").strip()}
-	if len(dung) != 1:
-		return ""
-	d = dung.pop()
-	return d if d != str(pt or "").strip() else ""
+		return "", None
+	nhan = {}
+	for ba, tien in gd or []:
+		k = ck_cua_tk(ba, tk_shinhan)
+		if not k:
+			return "", None
+		nhan[k] = nhan.get(k, 0) + float(tien or 0)
+	if not nhan:
+		return "", None
+	ck = {p: float(t or 0) for p, t in (tach or {}).items() if la_ck(p) and float(t or 0) > 0}
+	if len(nhan) == 1:
+		dung = next(iter(nhan))
+		if ck and set(ck) != {dung}:
+			return "nhieu", nhan
+		return ("", None) if dung == (next(iter(ck)) if ck else str(pt or "").strip()) else ("doi", dung)
+	if set(ck) == set(nhan) and all(abs(ck[p] - nhan[p]) <= 0.5 for p in nhan):
+		return "", None
+	return "nhieu", nhan

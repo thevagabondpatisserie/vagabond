@@ -80,7 +80,7 @@ def ly_do_khong_chot(b, nhan, so_dong_tach, pts, co_chu):
 		return "chua_du"
 	if co_chu:
 		return "gd_co_chu"
-	if len(pts or ()) != 1:
+	if len(pts or ()) != 1 or "" in pts:
 		return "nhieu_tk"
 	return ""
 
@@ -158,7 +158,9 @@ def thu_chot(ten):
 	ds_gd = list(g.get("gd") or [])
 	chu = doi_soat_sepay.chu_cua_giao_dich(ds_gd, bo_qua_hoa_don=si.name) if ds_gd else {}
 	ba_sh = pt_thanh_toan.ba_shinhan()
-	pts = {pt_ck.ck_cua_tk(b, ba_sh) for b in _ba_cua_gd(ds_gd) if b}
+	# Codex #597 vòng 1 (cùng loại, quét thêm): giao dịch thiếu tài khoản thì
+	# không biết tiền về đâu, giữ "" để ly_do_khong_chot không tự chốt.
+	pts = {pt_ck.ck_cua_tk(b, ba_sh) for b in _ba_cua_gd(ds_gd)}
 	b = {k: si.get(k) for k in ("docstatus", "vgb_tam_tinh", "vgb_huy", "grand_total")}
 	ly = ly_do_khong_chot(b, g.get("nhan"), len(ttn.dong_cua(si.name)), pts, bool(chu))
 	if ly:

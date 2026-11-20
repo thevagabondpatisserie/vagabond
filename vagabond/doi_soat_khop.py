@@ -234,6 +234,8 @@ def cung_tien(kieu, d, u):
 	    giảm giá, và GrabFood thì tiền bill sau giảm = tiền hàng;
 	  - ghi thực nhận (ShopeeFood, Xanh SM trừ cả phí sàn): tiền bill = thực nhận.
 	Số 0 không bao giờ là bằng chứng cùng tiền ở các cách so phụ."""
+	if _la_gd(kieu, d, u):
+		return _cung_tien_gd(d, u)
 	g = tien_so_sanh(kieu, d)
 	tien = u.get("tien")
 	if tien == g:
@@ -246,6 +248,46 @@ def cung_tien(kieu, d, u):
 	if not tien:
 		return False
 	return tien == int(d.get("tien_hang") or 0) or tien == int(d.get("thuc_nhan") or 0)
+
+
+# v678 (anh Việt chốt 20/11/2026, phương án A): bill Grab Dine-Out (mã GD-) từ
+# ngày này phải giảm ĐÚNG phần tiệm chịu mà báo cáo Grab ghi ở cột khuyến mãi
+# (voucher 200.000 đ: 40.000 đ, 300.000 đ: 60.000 đ). Bill trước ngày này giữ
+# luật cũ, không đổi trạng thái dòng đã đối chiếu.
+NGAY_GRAB_TIEM_CHIU = "2026-11-21"
+
+
+def _la_gd(kieu, d, u):
+	return (kieu == "grab" and str(d.get("ma_tham_chieu") or "").upper().startswith("GD-")
+		and str(u.get("ngay") or "") >= NGAY_GRAB_TIEM_CHIU and u.get("tien_goc") is not None)
+
+
+def _cung_tien_gd(d, u):
+	"""THUẦN (v678). Phép so tiền của bill Grab Dine-Out từ NGAY_GRAB_TIEM_CHIU:
+	bill phải giảm ĐÚNG phần tiệm chịu (cột khuyến mãi của báo cáo) VÀ cùng tiền.
+	Grab tính đủ giá voucher khi bill thấp hơn giá voucher (bill 195.000 đ dùng
+	voucher 200.000 đ, trị giá Grab ghi 200.000 đ): giảm đúng mà tổng bill thấp
+	hơn trị giá thì vẫn cùng tiền, nhưng chỉ với bill mang mã GD- (không nối
+	theo tiền vào bill khác)."""
+	tg, tien = int(u["tien_goc"]), int(u.get("tien") or 0)
+	if tg - tien != int(d.get("giam_gia") or 0):
+		return False
+	gop = tien_so_sanh("grab", d)
+	if tien == int(d.get("tien_hang") or 0) or tg == gop:
+		return True
+	return tg < gop and any(str(m or "").upper().startswith("GD-") for m in u.get("ma") or [])
+
+
+def ghi_chu_gd(d, u):
+	"""THUẦN (v678). Ghi chú cho dòng Grab Dine-Out đã nối theo mã: lệch phần
+	tiệm chịu, hay Grab trả thêm vì bill thấp hơn giá voucher. "" khi không có gì."""
+	tg, tien = int(u["tien_goc"]), int(u.get("tien") or 0)
+	giam, chiu, gop = tg - tien, int(d.get("giam_gia") or 0), tien_so_sanh("grab", d)
+	if giam != chiu:
+		return "Voucher Grab Dine-Out: bill giảm %s, Grab báo tiệm chịu %s; chọn đúng loại voucher." % (_vn(giam), _vn(chiu))
+	if tg < gop:
+		return "Bill %s thấp hơn giá voucher; Grab tính %s, trả thêm %s." % (_vn(tg), _vn(gop), _vn(gop - tg))
+	return ""
 
 
 def _lech_ngay(a, b):
@@ -281,11 +323,12 @@ def khop_hoa_don(kieu, dong_ds, ung_vien):
 		if len(hop) == 1:
 			u = hop[0]
 			da_dung.add(u["name"])
+			gd = ghi_chu_gd(d, u) if _la_gd(kieu, d, u) else ""
 			if cung_tien(kieu, d, u):
-				kq[i] = dict(trang_thai="Đã nối", hoa_don=u["name"], ghi_chu="")
+				kq[i] = dict(trang_thai="Đã nối", hoa_don=u["name"], ghi_chu=gd)
 			else:
 				kq[i] = dict(trang_thai="Lệch tiền", hoa_don=u["name"],
-					ghi_chu="Hoá đơn %s, báo cáo %s." % (_vn(u["tien"]), _vn(tien)))
+					ghi_chu=gd or "Hoá đơn %s, báo cáo %s." % (_vn(u["tien"]), _vn(tien)))
 		elif len(hop) > 1:
 			kq[i] = dict(trang_thai="Nhiều chứng từ", hoa_don="",
 				ghi_chu="Trùng mã: " + ", ".join(u["name"] for u in hop[:5]))

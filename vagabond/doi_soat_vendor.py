@@ -41,16 +41,21 @@ DT_TRUNG = "Vagabond Doi Soat Trung"
 DUOI = (".csv", ".txt", ".xlsx", ".xlsm", ".xls", ".pdf", ".zip")
 
 # Tên miền người gửi báo cáo, theo sheet Doi_Soat_Tong_Hop của tiệm.
+# v678: Payoo gửi báo cáo từ tên miền công ty chủ quản VietUnion (vietunion.com.vn),
+# thư 16/11/2026 bị chặn vì tên miền này chưa có trong danh sách.
 TEN_MIEN_VENDOR = ("greensm.com", "xanhsm.com", "grab.com", "grabtaxi.com", "onepay.vn", "payoo.com.vn",
-	"shopeefood.vn", "shopee.vn", "shinhan.com.vn", "be.com.vn")
+	"vietunion.com.vn", "shopeefood.vn", "shopee.vn", "shinhan.com.vn", "be.com.vn")
 VENDOR_THEO_MIEN = {"greensm.com": "Xanh SM", "xanhsm.com": "Xanh SM", "grab.com": "Grab", "grabtaxi.com": "Grab",
-	"onepay.vn": "OnePay", "payoo.com.vn": "Payoo", "shopeefood.vn": "ShopeeFood", "shopee.vn": "ShopeeFood",
+	"onepay.vn": "OnePay", "payoo.com.vn": "Payoo", "vietunion.com.vn": "Payoo", "shopeefood.vn": "ShopeeFood", "shopee.vn": "ShopeeFood",
 	"shinhan.com.vn": "Shinhan", "be.com.vn": "Be for Business"}
 _TU_BAO_CAO = ("bao cao", "sao ke", "doi soat", "bien ban", "statement", "settlement", "report", "tam ung",
 	"thanh toan")
 # v649: thông báo kỹ thuật của đối tác (bảo trì, nâng cấp, gián đoạn) không phải báo cáo.
 _TU_THONG_BAO_KY_THUAT = ("bao tri", "maintenance", "nang cap he thong", "gian doan", "tam ngung dich vu",
-	"ngung dich vu")
+	"ngung dich vu",
+	# v678 (site thật 19/11, 20/11): OnePay "Lich nghi le Ngay Van hoa Viet Nam",
+	# "Thông báo lịch tạm ứng doanh số dịp nghỉ lễ" là lịch nghỉ, không phải báo cáo.
+	"nghi le", "lich nghi")
 _TU_BAO_CAO_MANH = ("bao cao", "sao ke", "doi soat", "bien ban", "statement", "settlement", "report")
 
 # Mode of Payment / nguồn đơn trên hoá đơn bán ứng với từng kiểu nối.

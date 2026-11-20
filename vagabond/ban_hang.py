@@ -7106,19 +7106,28 @@ def _kiem_tk_ck(si, pt, ds_gd):
 	Bill ghi "Chuyển khoản" (hạch toán 11211 MB) mà khách chuyển vào Shinhan
 	(11212), hay ngược lại, thì sổ cái ghi tiền nằm sai ngân hàng và cuối
 	tháng hai tài khoản cùng lệch. Thu ngân đổi phương thức là xong, nên chặn
-	kèm câu chỉ đúng nút. Không biết tài khoản (dòng thiếu Bank Account) thì
-	không chặn: pt_ck.lech_tk trả rỗng."""
+	kèm câu chỉ đúng nút. Codex #597 vòng 1: tiền về CẢ hai ngân hàng thì dòng
+	thanh toán phải chia đúng số từng ngân hàng, không thì chặn. Không biết tài
+	khoản (dòng thiếu Bank Account) thì không chặn (pt_ck.soat_tk_ck)."""
 	ds_gd = chiem_sao_ke.tach_gd("\n".join(str(x or "") for x in (ds_gd or [])))
 	if not ds_gd:
 		return
-	ds_ba = [r[0] for r in frappe.db.sql(
-		"select bank_account from `tabBank Transaction` where name in %(ds)s", {"ds": tuple(ds_gd)})]
-	dung = pt_ck.lech_tk(pt, ds_ba, pt_thanh_toan.ba_shinhan())
-	if dung:
+	gd = [(r[0], r[1]) for r in frappe.db.sql(
+		"select bank_account, deposit from `tabBank Transaction` where name in %(ds)s", {"ds": tuple(ds_gd)})]
+	from vagabond import thanh_toan_nhieu
+
+	tach = thanh_toan_nhieu.tach_theo_pt(thanh_toan_nhieu.dong_cua(si.name), flt(si.get("grand_total")))
+	loai, ct = pt_ck.soat_tk_ck(pt, gd, pt_thanh_toan.ba_shinhan(), tach)
+	ma = si.get("custom_pancake_display_id") or si.name
+	if loai == "doi":
 		frappe.throw(
 			"Bill %s ghi %s nhưng tiền về tài khoản của %s. Mở bill, đổi phương thức "
-			"thanh toán sang %s rồi lưu lại để sổ ghi đúng ngân hàng."
-			% (si.get("custom_pancake_display_id") or si.name, pt, dung, dung))
+			"thanh toán sang %s rồi lưu lại để sổ ghi đúng ngân hàng." % (ma, pt, ct, ct))
+	if loai == "nhieu":
+		frappe.throw(
+			"Bill %s nhận chuyển khoản vào hai ngân hàng: %s. Mở bill, chia thanh toán thành "
+			"từng dòng đúng số đó rồi ghi sổ." % (ma, ", ".join(
+				"%s %s đ" % (p, "{:,.0f}".format(t).replace(",", ".")) for p, t in sorted(ct.items()))))
 
 
 def _chiem_gd_bill(si, ds_gd):
