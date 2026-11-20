@@ -196,4 +196,63 @@ def _bill_js():
 	r = subprocess.run(["node", "vagabond/khung/kiem_thu/hanh_vi/bill_tich_diem_677.js"], cwd=GOC, capture_output=True, text=True, timeout=90)
 	la("bill_tich_diem_677.js\n" + r.stdout[-2500:] + r.stderr[-1500:], r.returncode, 0)
 	m = re.search(r"(\d+) đạt, 0 hỏng", r.stdout)
-	dung("đủ 7 ca", m and int(m.group(1)) >= 7)
+	dung("đủ 8 ca", m and int(m.group(1)) >= 8)
+
+
+UD_A = '{"loai":"ma","ma":"VC-8K2Q","sdt":"0909123412","khach":"CUST-0001","giam":18500}'
+
+
+@ca("Codex #596 vòng 2: điểm và ưu đãi không thuộc hai người: quầy gắn khách khác chủ ưu đãi bị chặn (gợi bỏ ưu đãi trước); cùng chủ thì gắn; gỡ về khách chung vẫn được")
+def _ud_cung_chu_quay():
+	la("thuần", [t.lech_chu_ud({"khach": "CUST-0001"}, "CUST-0002"), t.lech_chu_ud({"khach": "CUST-0001"}, "CUST-0001"),
+		t.lech_chu_ud({"khach": ""}, "CUST-0001"), t.lech_chu_ud({}, "CUST-0002"), t.lech_chu_ud({"khach": "CUST-0001"}, "")],
+		[True, False, True, False, False])
+	si = _hd(customer=KHACH_LE, vgb_ud_ban=UD_A)
+	with _quay(si):
+		try:
+			t.gan_quay(si.name, khach="CUST-0002")
+			la("phải chặn", 1, 0)
+		except _Loi as e:
+			la("câu gợi bỏ ưu đãi, che số", ("Bỏ ưu đãi" in str(e), "0909 *** 412" in str(e)), (True, True))
+		la("không đổi", (si.customer, si.luu), (KHACH_LE, 0))
+		t.gan_quay(si.name, khach=KHACH)
+		la("cùng chủ thì gắn", (si.customer, si.luu), (KHACH, 1))
+		t.gan_quay(si.name)
+		la("gỡ về khách chung được", si.customer, KHACH_LE)
+	si2 = _hd(customer=KHACH_LE, vgb_ud_ban=UD_A)
+	with _quay(si2, tao="CUST-MOI"):
+		nem("tạo khách mới bằng số khác chủ ưu đãi cũng chặn", lambda: t.gan_quay(si2.name, sdt="0912345678"), _Loi)
+	la("không đổi", si2.customer, KHACH_LE)
+
+
+@ca("Codex #596 vòng 2: chiều ngược lại: hoá đơn bàn đã tích điểm cho khách A thì số B không chọn được ưu đãi; khách chung hay chính A thì chọn được")
+def _ud_cung_chu_khach():
+	si = _hd(customer="CUST-0002")
+	with _ban(si), patch.object(t, "_la_gop", side_effect=_gop):
+		r = u.chon("TCV", 5, "k", "ma", "VC-8K2Q")
+	la("số khác bị từ chối, không lưu", (r["ok"], "số khác" in r.get("cau", ""), si.luu, si.vgb_ud_ban), (0, True, 0, ""))
+	for kh in (KHACH, KHACH_LE):
+		si = _hd(customer=kh)
+		with _ban(si), patch.object(t, "_la_gop", side_effect=_gop):
+			r = u.chon("TCV", 5, "k", "ma", "VC-8K2Q")
+		la("chọn được khi bill của %s" % kh, (r["ok"], si.luu), (1, 1))
+
+
+@ca("Codex #596 vòng 2: cửa ghi khách thứ ba (ban_hang.luu_khach_no) cũng giữ cùng chủ ưu đãi")
+def _ud_cung_chu_cong_no():
+	import ast
+	cay = ast.parse((GOC / "vagabond/ban_hang.py").read_text())
+	m = types.ModuleType("bh_677")
+	gl = m.__dict__
+	gl.update(frappe=_fr)
+	for n in cay.body:
+		if isinstance(n, ast.FunctionDef) and n.name == "luu_khach_no":
+			n.decorator_list = []
+			exec(compile(ast.Module(body=[n], type_ignores=[]), "ban_hang.py", "exec"), gl)
+	gl.update(_kiem_quyen_doc_luu_don=lambda: None, _khach_le=lambda: KHACH_LE, _ghi_vet=lambda *a: None)
+	si = _hd(customer=KHACH_LE, vgb_ud_ban=UD_A)
+	with _quay(si):
+		nem("công nợ gắn khách khác chủ ưu đãi", lambda: m.luu_khach_no(si.name, "CUST-0002"), _Loi)
+		la("không đổi", si.customer, KHACH_LE)
+		m.luu_khach_no(si.name, KHACH)
+		la("cùng chủ được", si.customer, KHACH)
