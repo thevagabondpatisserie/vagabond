@@ -1274,7 +1274,7 @@ Từ v677 (Sales báo 20/11/2026, giám đốc chọn hướng A).
 - Ngày mai: Bán được của phiếu ngày mai.
 - Ngày kia và ngày thứ ba: BTP sẵn trừ đơn chưa làm từ ngày mai tới ngày thứ ba, chung một số.
 - Ngày thuộc đợt refill: số còn của đợt.
-- Đủ decor chỉ để bếp theo dõi. Bảng BTP: ô Còn nhận đổi tên Web nhận.
+- Đủ decor chỉ để bếp theo dõi. Bảng BTP (/btp) cũng có ba ô Web nhận như trên.
 - Đặt xa ngày chỉ đếm đơn sau ngày thứ ba.
 - Web: thẻ, chi tiết, giỏ cùng số của ngày đang chọn; cỡ hết ghi "hết ngày 21/11".
 
@@ -1285,6 +1285,30 @@ Từ v677 (Sales báo 20/11/2026, giám đốc chọn hướng A).
 **Lưu ý**
 - "?" là chưa biết (chưa có phiếu ngày mai, chưa đếm được đơn refill). Số đỏ là đã nhận quá.
 - Đơn hôm nay không trừ vào số ngày kia.
+
+## Tích điểm cho bill gọi món tại bàn
+Từ khoá: tích điểm, thành viên, khách bàn, bill QR, tạm tính, gắn khách, gỡ khách, The Vagabond Club, đăng nhập Zalo
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy; khách tại bàn | Bill Tạm tính trên app; trang gọi món của khách (Đơn của bàn) | Khách thành viên; Đăng nhập Zalo |
+
+Từ v677 (Quầy báo 20/11/2026, giám đốc chọn hướng A).
+
+**Trước đây:** bill gọi qua QR đứng tên khách chung (hiện "Khách bàn B8"), chốt bill không cộng điểm cho ai; Sửa hoá đơn chỉ có ô xuất hoá đơn; trang gọi món không có chỗ nhập thành viên.
+**Từ nay:**
+- Khách: Đơn của bàn có mục The Vagabond Club. Đăng nhập Zalo một lần (mã 6 số, giữ 30 ngày) là hoá đơn bàn tự tích điểm cho số đó, hiện chip Đã gắn.
+- Bàn chưa có hoá đơn thì chip Chờ quầy; quầy nhận món xong là tự gắn.
+- Bill Tạm tính trên app có khối Khách thành viên: gõ số hoặc tên rồi bấm Gắn; số chưa có thì bấm Tạo khách mới với số đó. Không cần OTP.
+- Một bill một khách tích điểm: số khác đăng nhập sau chỉ thấy câu báo.
+- Chốt bill thì điểm tự cộng như bill tại quầy.
+
+**Bạn cần làm**
+1. Quầy: khách đưa số thì gắn ngay ở khối Khách thành viên trước khi chốt bill.
+2. Cần đổi khách thì bấm Đổi khách hoặc Gỡ khách khi bill còn Tạm tính.
+
+**Lưu ý**
+- Bill đã chốt giữ nguyên khách, không gắn lại.
 
 ## Đơn web: chỉ thanh toán trước, miễn phí giao trong bán kính 7 km
 Từ khoá: thanh toán trước, tiền mặt, miễn phí giao, bán kính 7 km, phí giao, ngày nhận hôm nay, biên nhận, chờ thanh toán, đã xác nhận

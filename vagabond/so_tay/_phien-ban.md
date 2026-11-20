@@ -14,6 +14,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 ## v677
 - Bảng Kiểm bánh: ba ô Web nhận, ngày kia theo BTP sẵn
+- Tích điểm cho bill gọi món tại bàn
 
 ## v676
 - Món chỉ làm cho đợt cuối tuần không cần Đủ decor
