@@ -71,8 +71,14 @@ def tach_luat(css):
 	return kq
 
 
+# Luật khung chung PHẢI có. Thiếu là chuỗi CSS lấy ra không phải lớp vẽ thật.
+PHAI_CO = ("html.ui-b .vh", "html.ui-b .vf", "html.ui-b .card", "html.ui-b .btn", "html.ui-b .gt")
+
+
 def kiem(css):
 	loi = []
+	if not tach_luat(css):
+		loi.append("không đọc được luật CSS nào: chưa kiểm được gì")
 	for chon, kb in tach_luat(css):
 		for c in chon.split(","):
 			if not c.strip().startswith("html.ui-b"):
@@ -115,6 +121,10 @@ def kiem(css):
 def main():
 	css = lay_css()
 	loi = kiem(css)
+	chon = [c for c, _ in tach_luat(css)]
+	for can in PHAI_CO:
+		if not any(can in c for c in chon):
+			loi.append("thiếu luật khung chung " + can + ": chuỗi CSS lấy ra không đủ")
 	for x in loi:
 		print("TRƯỢT  " + x)
 	print("%d luật, %d khai báo trượt." % (len(tach_luat(css)), len(loi)))

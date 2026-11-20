@@ -44,12 +44,18 @@ def _dong(frappe, luu=True):
 
 
 def _dung_nen():
+	"""Dựng trang /bep và hai tài khoản. Trả về tên Web Page nếu CHÍNH ca này tạo ra, để dọn lại.
+
+	Bench CI trắng chưa có trang /bep; bước sau của workflow (phuc_vu_ci.tao_trang) tự dựng và
+	sẽ dừng nếu thấy trang đã có. Nên ca này tạo gì thì phải gỡ đúng thứ đó khi xong.
+	"""
 	frappe = _mo()
+	trang_tao = None
 	try:
 		from frappe.utils.password import update_password
 		if not frappe.db.exists("Web Page", {"route": "bep"}):
-			frappe.get_doc({"doctype": "Web Page", "title": "Màn hình nghiệp vụ", "route": "bep", "published": 1,
-				"content_type": "HTML", "main_section_html": '<div id="vgb"></div>'}).insert(ignore_permissions=True)
+			trang_tao = frappe.get_doc({"doctype": "Web Page", "title": "Màn hình nghiệp vụ", "route": "bep", "published": 1,
+				"content_type": "HTML", "main_section_html": '<div id="vgb"></div>'}).insert(ignore_permissions=True).name
 		for email in (A, B):
 			if not frappe.db.exists("User", email):
 				frappe.get_doc({"doctype": "User", "email": email, "first_name": "UI B", "send_welcome_email": 0,
@@ -58,6 +64,30 @@ def _dung_nen():
 		frappe.clear_cache()
 	finally:
 		_dong(frappe)
+	return trang_tao
+
+
+def _don(trang_tao):
+	"""Trả bench về như trước: công tắc tắt hết, gỡ trang và hai tài khoản ca này tạo."""
+	_dat(0, 0, {})
+	frappe = _mo()
+	con = {}
+	try:
+		if trang_tao and frappe.db.exists("Web Page", trang_tao):
+			frappe.delete_doc("Web Page", trang_tao, force=1, ignore_permissions=True)
+		for email in (A, B):
+			try:
+				if frappe.db.exists("User", email):
+					frappe.delete_doc("User", email, force=1, ignore_permissions=True)
+			except Exception:
+				# Không xoá được (còn bản ghi trỏ tới) thì khoá tài khoản, không để lại tài khoản thử đăng nhập được.
+				frappe.db.set_value("User", email, "enabled", 0)
+		frappe.clear_cache()
+		con["trang_bep"] = bool(frappe.db.exists("Web Page", {"route": "bep"}))
+		con["tai_khoan_con_bat"] = [e for e in (A, B) if frappe.db.get_value("User", e, "enabled")]
+	finally:
+		_dong(frappe)
+	return con
 
 
 def _dat(khan_cap, chung, rieng):
@@ -113,8 +143,9 @@ def chay():
 	def ca(ten, dk, chi_tiet=None):
 		ket["ca"].append({"ten": ten, "dat": bool(dk), "chi_tiet": chi_tiet})
 
+	trang_tao = None
 	try:
-		_dung_nen()
+		trang_tao = _dung_nen()
 
 		# 1. Cả tiệm tắt, không ai có lựa chọn riêng: khách vãng lai ra giao diện cũ.
 		_dat(0, 0, {})
@@ -166,14 +197,20 @@ def chay():
 		r = _khach().get("/login", headers=DAU)
 		ca("trang khác (/login) không mang khối trạng thái", "__VGB_UI" not in r.get_data(as_text=True), {"ma": r.status_code})
 
-		ket["dat"] = all(c["dat"] for c in ket["ca"])
+		ket["dat"] = bool(ket["ca"]) and all(c["dat"] for c in ket["ca"])
 	except Exception:
 		ket["loi"] = traceback.format_exc()
 	finally:
 		try:
-			_dat(0, 0, {})
+			con = _don(trang_tao)
+			ket["sau_don"] = con
+			# Ca này tạo trang thì sau khi dọn không được còn trang, để bước dựng nền sau của workflow chạy được.
+			if (trang_tao and con.get("trang_bep")) or con.get("tai_khoan_con_bat"):
+				ket["dat"] = False
+				ket["loi_don"] = "Dọn chưa sạch: %s" % con
 		except Exception:
-			ket.setdefault("loi_don", traceback.format_exc())
+			ket["dat"] = False
+			ket["loi_don"] = traceback.format_exc()
 	(ra / "giao-dien-ui-b.json").write_text(json.dumps(ket, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
 	print("Giao diện ui-b: " + json.dumps(ket, ensure_ascii=False, default=str), flush=True)
 	if not ket["dat"]:

@@ -41,7 +41,7 @@ Ngày 21/11/2026. Nền: `ui-nghe-si` tại `f2fbb8db1` (main `2ae8e6a35`, v677)
 | `cong_cu/ui_b/chup.cjs` | Máy chụp và đo: chạy app thật với máy chủ giả, 4 khung, hai chế độ; đo cuộn ngang, vùng bấm 44, chữ 13, bị che, emoji sót, phông thực dùng, tương phản |
 | `cong_cu/ui_b/so_che_do_tat.py` | So chế độ tắt với main từng điểm ảnh, cùng một môi trường |
 | `cong_cu/ui_b/kiem_khai_bao.py` | Kiểm khai báo CSS của lớp vẽ: màu, cỡ chữ, bo góc, khoảng cách, phông |
-| `vagabond/khung/kiem_thu/thu_giao_dien_ui_b.py` | 19 ca: công tắc, hook, quyền, doctype, đường về giao diện cũ, tệp máy sinh |
+| `vagabond/khung/kiem_thu/thu_giao_dien_ui_b.py` | 22 ca: công tắc, hook, quyền, doctype, đường về giao diện cũ, tệp máy sinh |
 | `vagabond/khung/bench_thu/giao_dien_ui_b.py` | Trên Frappe thật: trạng thái theo từng tài khoản, không qua bộ nhớ đệm, khẩn cấp thắng |
 
 Kết quả máy chụp: `pr1-ket-qua-chup.md`.
@@ -57,6 +57,7 @@ Kết quả máy chụp: `pr1-ket-qua-chup.md`.
 | V7 | 26 bộ kiểm hành vi nạp `01-khung-app.js` một mình, không có phần 81 | Các chỗ gọi lớp vẽ mới ở phần cũ viết kiểu "có thì dùng" (`typeof uiB === 'function'`), không sửa 26 bộ kiểm |
 | V8 | Ca v533 chỉ cho các phần đã duyệt đứng sau phần 48 | Đã thêm 81 vào danh sách: phần này không có màn lập phiếu, không gán lại frame hay api |
 | V9 | Máy làm việc không cài được WebKit | Ghi Chưa kiểm; đề nghị chạy WebKit trên CI ở PR sau |
+| V11 | Codex vòng 1: phép so chế độ tắt vẫn báo đạt khi máy chụp lỗi; tuỳ chọn cỡ chữ của máy chụp không làm chữ to lên | Đã sửa cả loại: phép so đòi hai lượt chụp trả 0, thư mục sạch, đủ tập ảnh mong đợi; bỏ tuỳ chọn cỡ chữ giả (điện thoại ghi Chưa kiểm, máy quầy phóng 200% chụp bằng khung 683x384); gõ sai tên màn thì trượt; CSS rỗng không được coi là đạt |
 | V10 | Số Doto 30 nét chấm mảnh, đặt trên quầng màu nhóm nhìn nhạt hơn chữ thường dù phép đo tương phản đạt | Xem ảnh; nếu anh thấy khó đọc thì chuyển số lên nền trắng của đĩa hoặc tăng lên Doto 40 |
 
 ## Việc chưa làm

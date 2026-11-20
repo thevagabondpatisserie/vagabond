@@ -20,10 +20,6 @@ var path = require('path');
 var cp = require('child_process');
 var GOC = path.resolve(__dirname, '..', '..');
 var CONG = path.join(GOC, 'vagabond', 'public');
-var pw;
-try { pw = require('playwright'); } catch (e) {
-  try { pw = require('/opt/npm-tools/node_modules/playwright'); } catch (e2) { console.log('THIẾU Playwright, chưa chụp được'); process.exit(2); }
-}
 var DL = require('./du_lieu_thu.cjs');
 var MAN = require('./kich_ban.cjs');
 
@@ -37,7 +33,14 @@ var KHUNG = thamSo('khung', '360x780,390x844,1366x768').split(',').map(function 
 var CHON = thamSo('man', '');
 var MAY = thamSo('may', 'chromium');
 var VAI = thamSo('vai', 'quan-tri');
-var CO_CHU = +thamSo('co-chu', '100');
+/* KHÔNG có tuỳ chọn phóng cỡ chữ (Codex #599): app khai chữ bằng px nên đổi cỡ chữ gốc của trang
+   không làm chữ to lên, ảnh chụp sẽ đạt giả. Máy tính quầy phóng 200% chụp bằng khung 683x384
+   (đúng bằng 1366x768 phóng đôi). Cỡ chữ 150% và 200% trên điện thoại là cài đặt của máy, phải
+   chụp trên máy thật: ghi Chưa kiểm. */
+if (process.argv.indexOf('--co-chu') > 0) {
+  console.log('KHÔNG HỖ TRỢ --co-chu: máy chụp không giả lập được cỡ chữ của điện thoại. Dùng khung 683x384 cho máy tính quầy phóng 200%.');
+  process.exit(1);
+}
 /* --app <tệp>: chạy một bản app_bep.js khác (ví dụ bản của main) để so chế độ tắt. */
 var APP = thamSo('app', '');
 var ORIGIN = 'http://vgb.thu';
@@ -53,7 +56,6 @@ function trangHtml(bat) {
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' +
     '<title>Màn hình nghiệp vụ</title>' + dauTrang(bat) +
-    (CO_CHU !== 100 ? '<style>html{font-size:' + (16 * CO_CHU / 100) + 'px}</style>' : '') +
     '<script>window.frappe={csrf_token:"thu",session:{user:' + JSON.stringify(DL.tra('/api/method/frappe.auth.get_logged_user', {}, VAI).message) + '},boot:{}};</script></head><body><div id="vgb"></div>' +
     '<script src="/assets/vagabond/js/app_bep.js"></script></body></html>';
 }
@@ -179,16 +181,33 @@ function doTrongTrang(thamSo) {
   return r;
 }
 
+/* Kiểm tham số TRƯỚC khi cần tới trình duyệt: gõ sai tên màn hay khung thì trượt ngay, không
+   được chạy 0 ô rồi báo xong (Codex #599: cổng kiểm không được xanh khi chưa kiểm gì). */
+function chonMan() {
+  var ten = CHON ? CHON.split(',') : [];
+  var la = ten.filter(function (t) { return !MAN.some(function (m) { return m.ten === t; }); });
+  if (la.length) { console.log('KHÔNG CÓ màn: ' + la.join(', ') + '. Màn có sẵn: ' + MAN.map(function (m) { return m.ten; }).join(', ')); process.exit(1); }
+  if (KHUNG.some(function (k) { return !(k.w > 0 && k.h > 0); })) { console.log('Khung không hợp lệ, viết dạng 390x844.'); process.exit(1); }
+  var ds = MAN.filter(function (m) { return !ten.length || ten.indexOf(m.ten) >= 0; });
+  if (!ds.length) { console.log('KHÔNG CÓ màn nào để chụp.'); process.exit(1); }
+  return ds;
+}
+
 async function chay() {
+  var ds = chonMan();
+  var pw;
+  try { pw = require('playwright'); } catch (e) {
+    try { pw = require('/opt/npm-tools/node_modules/playwright'); } catch (e2) { console.log('THIẾU Playwright, chưa chụp được'); process.exit(2); }
+  }
   var trinh;
   try { trinh = await pw[MAY].launch(); } catch (e) { console.log('THIẾU trình duyệt ' + MAY + ': ' + String(e.message).split('\n')[0]); process.exit(2); }
   fs.mkdirSync(RA, { recursive: true });
-  var ds = MAN.filter(function (m) { return !CHON || CHON.split(',').indexOf(m.ten) >= 0; });
   var bang = [], thieu = {}, truot = 0;
   for (var c = 0; c < CHE_DO.length; c++) for (var k = 0; k < KHUNG.length; k++) for (var i = 0; i < ds.length; i++) {
     var m = ds[i], bat = CHE_DO[c] === 'bat', khung = KHUNG[k];
     if (m.chi && m.chi.indexOf(khung.ten) < 0) continue;
     var o = await moTrang(trinh, khung, bat, thieu);
+    var thieuTruoc = JSON.stringify(thieu);
     var dong = { man: m.ten, che_do: CHE_DO[c], khung: khung.ten, may: MAY, vai: m.vai || VAI, loi: [] };
     try {
       DL.dat(m.du_lieu || {});
@@ -199,7 +218,7 @@ async function chay() {
       await o.trang.waitForTimeout(250);
       var coUi = await o.trang.evaluate(function () { return document.documentElement.classList.contains('ui-b'); });
       if (coUi !== bat) dong.loi.push('class ui-b ' + (coUi ? 'CÓ' : 'KHÔNG CÓ') + ' trong khi chế độ là ' + CHE_DO[c]);
-      var ten = [m.ten, CHE_DO[c], khung.ten, MAY].join('__') + (CO_CHU !== 100 ? '__chu' + CO_CHU : '') + '.png';
+      var ten = [m.ten, CHE_DO[c], khung.ten, MAY].join('__') + '.png';
       await o.trang.screenshot({ path: path.join(RA, ten), fullPage: false });
       dong.anh = ten;
       var d = await o.trang.evaluate(doTrongTrang, { bat: bat, chiDau: bat && !!m.chua_chuyen });
@@ -222,6 +241,9 @@ async function chay() {
       if (o.loi.length) dong.loi.push('lỗi JS: ' + o.loi.slice(0, 3).join(' | '));
       try { dong.loi.push('màn đang hiện: ' + (await o.trang.evaluate(function () { return (document.body.innerText || '').slice(0, 160); }))); } catch (e2) { }
     }
+    /* Lời gọi máy chủ mà dữ liệu thử chưa có (đã trả rỗng) trong đúng ô này: ghi lại để người đọc biết màn chụp trong điều kiện nào. */
+    var truoc = JSON.parse(thieuTruoc);
+    dong.api_thieu = Object.keys(thieu).filter(function (k) { return thieu[k] !== (truoc[k] || 0); }).map(function (k) { return k.replace('/api/method/', ''); });
     dong.ket_qua = dong.loi.length ? 'Trượt' : (bat && m.chua_chuyen ? 'Chưa chuyển' : 'Đạt');
     if (dong.ket_qua === 'Trượt') truot++;
     bang.push(dong);
@@ -231,6 +253,7 @@ async function chay() {
   await trinh.close();
   var tt = Object.keys(thieu);
   if (tt.length) console.log('API giả chưa có dữ liệu (đã trả rỗng): ' + tt.map(function (t) { return t.replace('/api/method/', '') + ' x' + thieu[t]; }).join(', '));
+  if (!bang.length) { console.log('KHÔNG có ô nào được chụp.'); process.exit(1); }
   fs.writeFileSync(path.join(RA, 'ket-qua.json'), JSON.stringify({ may: MAY, bang: bang, api_thieu: thieu }, null, 1));
   console.log(bang.length + ' ô: ' + bang.filter(function (b) { return b.ket_qua === 'Đạt'; }).length + ' Đạt, ' + truot + ' Trượt, ' +
     bang.filter(function (b) { return b.ket_qua === 'Chưa chuyển'; }).length + ' Chưa chuyển.');

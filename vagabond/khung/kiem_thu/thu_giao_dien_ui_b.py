@@ -347,3 +347,60 @@ def _():
 	for ten in re.findall(r"uiBSvg\('([a-z0-9-]+)'", "\n".join(_phan().values())):
 		dung("biểu tượng %s có nét" % ten, ('"%s": "' % ten) in ui)
 	dung("Doto chỉ nhận chữ số và dấu của số", "unicode-range:U+0020,U+0025,U+002B-002E,U+0030-0039,U+2212" in ui)
+
+
+# ------------------------------- Codex #599 vòng 1: cổng kiểm không được xanh khi chưa kiểm đủ
+
+def _nap(ten):
+	import importlib.util
+	spec = importlib.util.spec_from_file_location(ten, os.path.join(GOC, "cong_cu", "ui_b", ten + ".py"))
+	m = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(m)
+	return m
+
+
+@ca("ui-b so chế độ tắt (Codex #599): máy chụp trả lỗi, thiếu ảnh hay thừa ảnh thì không được kết luận giống nhau")
+def _():
+	s = _nap("so_che_do_tat")
+	mong = ["a__tat__390x844__chromium.png", "b__tat__390x844__chromium.png"]
+	la("đủ ảnh, hai lượt trả 0, không khác", s.ket_luan(0, 0, mong, mong, mong, []), [])
+	# Đúng tình huống Codex dựng: cả hai lượt chụp trả 1 nhưng còn một cặp ảnh giống nhau.
+	dung("hai lượt chụp trả 1 mà còn một cặp ảnh giống nhau: phải chặn", len(s.ket_luan(1, 1, mong[:1], mong[:1], mong[:1], [])) == 2)
+	dung("lượt gốc trả 1: chặn", s.ket_luan(1, 0, mong, mong, mong, []) != [])
+	dung("lượt mới trả 1: chặn", s.ket_luan(0, 1, mong, mong, mong, []) != [])
+	dung("bản mới thiếu một màn: chặn", s.ket_luan(0, 0, mong, mong[:1], mong, []) != [])
+	dung("bản gốc thiếu một màn: chặn", s.ket_luan(0, 0, mong[:1], mong, mong, []) != [])
+	dung("ảnh cũ còn sót trong thư mục (thừa so với mong đợi): chặn", s.ket_luan(0, 0, mong + ["cu.png"], mong + ["cu.png"], mong, []) != [])
+	dung("không có ảnh mong đợi nào: chặn", s.ket_luan(0, 0, [], [], [], []) != [])
+	dung("có ảnh khác: chặn", s.ket_luan(0, 0, mong, mong, mong, [("a", "3 điểm ảnh")]) != [])
+	la("tên ảnh mong đợi đọc từ bảng kết quả", s.anh_mong_doi([{"man": "a", "che_do": "tat", "khung": "390x844", "may": "chromium"}]), mong[:1])
+	ma = _doc(GOC, "cong_cu", "ui_b", "so_che_do_tat.py")
+	dung("dọn thư mục đầu ra trước khi chụp", "shutil.rmtree(os.path.join(ra, ten), ignore_errors=True)" in ma)
+
+
+@ca("ui-b máy chụp (Codex #599): không còn tuỳ chọn cỡ chữ giả; gõ sai tên màn thì trượt, không chạy 0 ô rồi báo xong")
+def _():
+	chup = os.path.join(GOC, "cong_cu", "ui_b", "chup.cjs")
+
+	def node(*them):
+		r = subprocess.run(["node", chup] + list(them), capture_output=True, cwd=GOC)
+		return r.returncode, r.stdout.decode("utf-8", "replace")
+	ma, ra = node("--co-chu", "200", "--man", "trang-chu")
+	la("--co-chu bị từ chối", ma, 1)
+	dung("nói rõ lý do và cách thay", "KHÔNG HỖ TRỢ --co-chu" in ra and "683x384" in ra)
+	ma, ra = node("--man", "man-khong-co")
+	la("tên màn lạ: mã 1", ma, 1)
+	dung("nêu tên màn lạ", "man-khong-co" in ra)
+	ma, ra = node("--man", "trang-chu", "--khung", "to")
+	la("khung sai dạng: mã 1", ma, 1)
+	nguon = _doc(chup)
+	dung("không còn đổi cỡ chữ gốc của trang", "html{font-size:" not in nguon)
+	dung("không ô nào được chụp thì trượt", "KHÔNG có ô nào được chụp" in nguon)
+
+
+@ca("ui-b khai báo (Codex #599, cùng loại): chuỗi CSS rỗng không được coi là đạt")
+def _():
+	k = _nap("kiem_khai_bao")
+	dung("CSS rỗng: có lỗi", len(k.kiem("")) == 1)
+	dung("chỉ có @font-face: có lỗi", len(k.kiem("@font-face{font-family:X}")) == 1)
+	dung("có danh sách luật khung chung phải có", "html.ui-b .vh" in k.PHAI_CO and "html.ui-b .gt" in k.PHAI_CO)
