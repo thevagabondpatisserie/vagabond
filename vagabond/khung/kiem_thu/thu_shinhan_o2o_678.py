@@ -381,7 +381,7 @@ from vagabond.khung.kiem_thu.thu_uu_dai_ban_643 import CTKM, _nap_pos_chot, _nem
 
 
 @contextlib.contextmanager
-def _quay(si, sep=False, otp_dung="123456"):
+def _quay(si, sep=False, otp_dung="123456", muc="tu_do"):
 	"""Thu ngân trên màn bill: get_doc trả hoá đơn giả, ban_hang giả có cổng
 	quyền, OTP; khuyến mãi giả của ca 643 (CTKM-10 giảm 10%, CTKM-OTP cần OTP)."""
 	def otp_kiem(otp, viec=""):
@@ -411,6 +411,7 @@ def _quay(si, sep=False, otp_dung="123456"):
 			patch.object(khuyen_mai, "ds_ctkm", return_value=ds), \
 			patch.object(khuyen_mai, "tinh", side_effect=ma_hay_ctkm), \
 			patch.object(khuyen_mai, "tinh_co_khoa", side_effect=ma_hay_ctkm), \
+			patch.object(vagabond.quyen_quay, "muc", return_value=muc), \
 			patch.object(_fr, "session", _fr._dict(user="thungan@vgb"), create=True):
 		yield
 
@@ -472,6 +473,38 @@ def _ap_quay_that():
 		(166500.0, 0, u.CACH_QUAY, "Bàn 5"))
 
 
+@ca("Codex PR #597 vòng 3 (loại 4, 7): bill đã chốt (hết tạm tính) thì quầy không áp, không bỏ ưu đãi được; quyền quầy gioi_han, duyet bắt OTP khi áp lên bill tạm tính, tu_do thì không")
+def _codex597_v3_ap_quay():
+	la("phép thuần: hết tạm tính thì chặn", "đã chốt" in u.chan_ap_quay(_hd(vgb_tam_tinh=0)), True)
+	si = _hd(vgb_tam_tinh=0)
+	with _quay(si):
+		r = u.ap_quay(si.name, "ma", "VC-QUAY")
+	la("sheet cũ áp sau khi bill đã chốt: từ chối, không trừ", (r["ok"], si.vgb_giam_ud, si.luu), (0, 0, 0))
+	sb = _hd()
+	with _quay(sb):
+		u.ap_quay(sb.name, "ctkm", "CTKM-10")
+	sb["vgb_tam_tinh"] = 0
+	with _quay(sb):
+		nem("bỏ ưu đãi sau khi bill đã chốt: chặn", lambda: u.bo_quay(sb.name, "khách đổi ý"), _fr.ValidationError)
+	la("bỏ bị chặn: ưu đãi còn nguyên", sb.vgb_giam_ud, 18500.0)
+	for muc in ("duyet", "gioi_han"):
+		s1 = _hd()
+		with _quay(s1, muc=muc):
+			r = u.ap_quay(s1.name, "ctkm", "CTKM-10")
+			la(muc + ": chương trình thường, thiếu OTP: hỏi, chưa trừ", (r["ok"], r.get("can_otp"), "quản lý ca" in r["cau"], s1.vgb_giam_ud), (0, 1, True, 0))
+			nem(muc + ": OTP sai: chặn", lambda: u.ap_quay(s1.name, "ctkm", "CTKM-10", otp="000000"), _fr.ValidationError)
+			r = u.ap_quay(s1.name, "ctkm", "CTKM-10", otp="123456")
+		la(muc + ": OTP đúng: trừ, ghi OTP", (r["ok"], s1.vgb_giam_ud, u.doc_ud(s1.vgb_ud_ban)["cach"]), (1, 18500.0, u.CACH_QUAY + " (OTP)"))
+	s2 = _hd()
+	with _quay(s2, sep=True, muc="duyet"):
+		r = u.ap_quay(s2.name, "ctkm", "CTKM-10")
+	la("duyet: quản lý tự áp khỏi OTP", (r["ok"], s2.vgb_giam_ud), (1, 18500.0))
+	s3 = _hd()
+	with _quay(s3, muc="tu_do"):
+		r = u.ap_quay(s3.name, "ctkm", "CTKM-10")
+	la("tu_do: thu ngân áp không cần OTP", (r["ok"], s3.vgb_giam_ud), (1, 18500.0))
+
+
 @ca("v678 quầy nhập mã và chương trình cần OTP: thiếu OTP thì hỏi, OTP sai thì chặn, đúng thì trừ và GIỮ khi gọi thêm món hay chốt (không về 0 vì cờ OTP)")
 def _ap_quay_otp():
 	si = _hd()
@@ -503,7 +536,7 @@ def _ap_quay_otp():
 @ca("v678 màn bill Tạm tính: khối Khuyến mãi (Chương trình, Nhập mã) hiện ở bill nháp chưa có ưu đãi, cả lúc Sửa hoá đơn (nhắc lưu món trước); khối ưu đãi quầy áp nói rõ quầy áp")
 def _man_bill_km():
 	js = (GOC / "vagabond/public/js/bep/10-bill-quay.js").read_text()
-	m = re.search(r"\n  if \(udBan\) html \+= posKhoiUdBan\(udBan, nhap && !udBan\.da_ghi\);\n  else if \(([^\n]+)\) html \+= pbKhoiKm\(suaMo\);", js)
+	m = re.search(r"\n  if \(udBan\) html \+= posKhoiUdBan\(udBan, nhap && tamTinh && !udBan\.da_ghi\);\n  else if \(([^\n]+)\) html \+= pbKhoiKm\(suaMo\);", js)
 	la("điều kiện hiện khối", m and m.group(1), "tamTinh && nhap && !d.vgb_huy && !pbCoKm(d)")
 	la("gọi đúng hai hàm", ("vagabond.uu_dai_ban.ds_quay" in js, "vagabond.uu_dai_ban.ap_quay" in js), (True, True))
 	la("nút đủ 44 điểm", "min-height:44px" in js[js.index("function pbKhoiKm"):js.index("function pbDongKm")], True)
@@ -644,3 +677,29 @@ def _codex597_hai_ngan_hang():
 		pt_ck.soat_tk_ck("Chuyển khoản", [(BA_MB, 100000)], BA_SH, {"Chuyển khoản": 60000, "Chuyển khoản - Shinhan": 40000})[0], "nhieu")
 	la("tiền về Shinhan, dòng chuyển khoản là Shinhan cạnh tiền mặt: qua",
 		pt_ck.soat_tk_ck("Chuyển khoản - Shinhan", [(BA_SH, 40000)], BA_SH, {"Tiền mặt": 60000, "Chuyển khoản - Shinhan": 40000}), ("", None))
+
+
+@ca("Codex PR #597 vòng 3 (loại 5, 12): Bank Account khai theo tên chuẩn trong danh mục ngân hàng chung (SHBVN - Ngân hàng TNHH MTV Shinhan Việt Nam) vẫn ra mã, qr_pt() thật vẽ QR Shinhan; mọi tên trong danh mục có cùng ngân hàng trong bảng QR đều ra đúng mã")
+def _codex597_v3_ten_napas():
+	import io
+	import json as _json
+	import os
+	from vagabond import pt_thanh_toan
+	ten = "SHBVN - Ngân hàng TNHH MTV Shinhan Việt Nam"
+	with io.open(os.path.join(os.path.dirname(tai_khoan.__file__), "du_lieu", "napas.json"), encoding="utf-8") as f:
+		ds = [x[0] for x in _json.load(f)]
+	dung("tên lấy thật từ danh mục", ten in ds)
+	la("tên chuẩn Shinhan ra mã", tai_khoan.ma_theo_ten_ngan_hang(ten), "SHBVN")
+	la("tên chuẩn có mã khác bảng QR", [tai_khoan.ma_theo_ten_ngan_hang(x) for x in (
+		"VIETINBANK - Ngân hàng TMCP Công thương Việt Nam", "ABBANK - Ngân hàng TMCP An Bình", "MB - Ngân hàng TMCP Quân đội",
+		"SGB - Ngân hàng TMCP Sài Gòn Công Thương", "NASB - Ngân hàng TMCP Bắc Á", "  shbvn - ngân hàng tnhh mtv shinhan việt nam ")],
+		["ICB", "ABB", "MB", "SGICB", "BAB", "SHBVN"])
+	la("tên lạ có dấu gạch: không đoán", [tai_khoan.ma_theo_ten_ngan_hang(x) for x in ("XYZ - Ngân hàng lạ", " - ", "PVCOMBANK PAY - PVcomBank Pay")], ["", "", ""])
+	# Mọi tên trong danh mục mà mã đầu tên trùng mã hay bí danh của bảng QR đều ra đúng BIN.
+	lech = [x for x in ds if tai_khoan.ma_theo_ten_ngan_hang(x) and not tai_khoan.bin_cho(tai_khoan.ma_theo_ten_ngan_hang(x))]
+	la("không tên nào ra mã mà thiếu BIN", lech, [])
+	with patch.object(pt_thanh_toan, "ba_cua_pt", side_effect=lambda pt, *a: "BA-SH" if pt == "Chuyển khoản - Shinhan" else ""), \
+			patch.object(_fr.db, "get_value", return_value=_fr._dict(bank_account_no="700012345678", bank=ten)), \
+			patch.object(tai_khoan, "cai", return_value={"mac_dinh": {"ten": "THE VAGABOND"}}):
+		q = pt_thanh_toan.qr_pt()
+	la("qr_pt thật: có QR Shinhan đúng BIN", (q.get("Chuyển khoản - Shinhan") or {}).get("bin"), "970424")
