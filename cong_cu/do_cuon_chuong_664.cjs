@@ -42,7 +42,7 @@ function cssNen() {
 function dungHtml() {
   var NEN = doc('00-nen.js'), POS = doc('09-tinh-tien-quay.js');
   var MA = ['h', 'money'].map(function (t) { return layHam(NEN, t); }).join('\n') + '\n' +
-    'var posPollId = null, posSepayNhan = 0, posSepayGoiY = 0;\n' + layHam(POS, 'posQrSheet') + '\n' +
+    'var posPollId = null, posSepayNhan = 0, posSepayGoiY = 0;\n' + layHam(POS, 'posCfgCk') + '\n' + layHam(POS, 'posTkCk') + '\n' + layHam(POS, 'posQrSheet') + '\n' +
     doc('66-goi-mon-tai-ban.js') + '\n' + doc('77-chuong-mau.js');
   var tai = dg.taiLieuGia();
   var g = {
