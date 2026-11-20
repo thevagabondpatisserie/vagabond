@@ -892,7 +892,10 @@ await ca('v643 ưu đãi tại bàn (mẫu anh Việt duyệt 07/11/2026, "Máy 
   mang['vagabond.thanh_vien.xac_thuc'] = th => (th.ma === '482913' ? (dangNhap = 1, {ok: 1}) : {ok: 0, ly_do: 'ma_khong_dung'});
   await bam(theoId(goc, 'gbBarDonChu'));
   const o = chu(theoId(goc, 'gbUdO'));
-  dung('ô Ưu đãi mời đăng nhập: ' + o, o.includes('Ưu đãi thành viên') && o.includes('Đăng nhập bằng Zalo') && o.includes('Chọn'));
+  /* v677 (anh Việt duyệt 20/11/2026): chưa đăng nhập thì thẻ The Vagabond Club mời
+     đăng nhập Zalo, cùng một cửa cho tích điểm và ưu đãi. */
+  const club = chu(theoId(goc, 'gbClub'));
+  dung('thẻ Club mời đăng nhập: ' + club, o === 'Đăng nhập Zalo' && club.includes('Tích điểm cho hoá đơn này') && club.includes('Đăng nhập bằng mã Zalo'));
   await bam(theoId(goc, 'gbUdO'));
   dung('màn ưu đãi mở, Đơn của bàn đóng', String(theoId(goc, 'gbUd').props.class).includes('open') && !String(theoId(goc, 'gbDonBan').props.class).includes('open'));
   dung('bước số điện thoại', theoId(goc, 'gb-ud-sdt') && theoId(goc, 'gbUdGuiMa') && !theoId(goc, 'gb-ud-ma'));
@@ -949,6 +952,60 @@ await ca('v643 ưu đãi tại bàn (mẫu anh Việt duyệt 07/11/2026, "Máy 
   la('bỏ qua đúng cửa', vet.filter(x => x[1] === 'vagabond.uu_dai_ban.bo').map(x => [x[0], x[2]]).pop(), ['POST', {diem: 'TCV', ban: 5, k: K}]);
   dung('về 185.000 đ, không còn dòng ưu đãi', chu(theoId(goc, 'gbTongBan')).includes('Cần thanh toán185.000 đ') && !theoId(goc, 'gbUdTru'));
   dung('ô Ưu đãi mời chọn lại', chu(theoId(goc, 'gbUdO')).includes('Chọn'));
+});
+
+await ca('v677 tích điểm tại bàn (Dễ báo 20/11/2026, anh Việt chọn A): đã đăng nhập Zalo thì mở Đơn của bàn là tự gắn số vào hoá đơn bàn còn đứng tên khách chung, chip Đã gắn, Thanh toán ghi tích điểm cho số đó; bàn chưa có hoá đơn thì chờ, quầy nhận món là tự gắn; hoá đơn của số khác thì báo, không gửi; gắn lỗi thì có nút thử lại', async () => {
+  let tt1 = 'Chờ nhận';
+  const tt = () => ({ok: 1, trang_thai: tt1, nhan_luc: '10:02', luc: '10:00', tam_tinh: 95000, bill: tt1 === 'Đã nhận' ? {khoa: 'b1', tong: 95000} : null,
+    mon: [{ten: 'Mousse Chanh Dây', sl: 1, tc: [], gia: 95000, tien: 95000}]});
+  const {goc, vet, mang, chayHen} = await moTrang({tt});
+  await bam(nutThem(goc).find(n => n.props['data-them'] === 'BAWC00115'));
+  await bam(theoId(goc, 'gbXemGio'));
+  await bam(theoId(goc, 'gbGoi'));
+  await chayHen();
+  let tv = 'cho', ganTra = {ok: 1, tv: {trang_thai: 'gan', sdt: '0909 *** 412'}};
+  mang['vagabond.uu_dai_ban.ds'] = () => ({ok: 1, dang_nhap: 1, sdt: '0909 *** 412', co_hoa_don: tv === 'cho' ? 0 : 1, chon: null, ds: [], tv: {trang_thai: tv, sdt: '0909 *** 412'}});
+  mang['vagabond.tich_diem_ban.gan'] = () => ganTra;
+  const gan = () => vet.filter(x => x[1] === 'vagabond.tich_diem_ban.gan');
+  await bam(theoId(goc, 'gbBarDonChu'));
+  await cho();
+  const c1 = chu(theoId(goc, 'gbClub'));
+  dung('chờ quầy: ' + c1, c1.includes('0909 *** 412') && c1.includes('Quầy nhận món xong') && c1.includes('Chờ quầy'));
+  la('chưa gửi gắn', gan().length, 0);
+  /* Quầy nhận món: nhịp hỏi trạng thái thấy lượt đã nhận thì hỏi lại ưu đãi, hoá đơn còn trống là tự gắn. */
+  tt1 = 'Đã nhận'; tv = 'trong';
+  await chayHen();
+  await cho();
+  la('tự gắn đúng bàn', gan().map(x => [x[0], x[2]]), [['POST', {diem: 'TCV', ban: 5, k: K}]]);
+  const c2 = chu(theoId(goc, 'gbClub'));
+  dung('đã gắn: ' + c2, c2.includes('Đã gắn') && c2.includes('đang tích điểm cho số này') && c2.includes('Điểm vào tài khoản khi quầy chốt bill'));
+  dung('thẻ sáng', String(theoId(goc, 'gbClub').props.class).includes('gan'));
+  await bam(theoId(goc, 'gbDonTra'));
+  dung('Thanh toán ghi tích điểm', chu(theoId(goc, 'gbTraTich')).includes('Tích điểm cho 0909 *** 412'));
+  await bam(tim(theoId(goc, 'gbTra'), n => n.props.class === 'gb-x')[0]);
+  /* Mở lại Đơn: máy chủ báo đã gắn thì không gửi lại. */
+  tv = 'gan';
+  await bam(theoId(goc, 'gbBarDonChu'));
+  await cho();
+  la('không gửi lại', gan().length, 1);
+  await bam(tim(theoId(goc, 'gbDonBan'), n => n.props.class === 'gb-x')[0]);
+  /* Hoá đơn của số khác: báo, không gửi. */
+  tv = 'khac';
+  await bam(theoId(goc, 'gbBarDonChu'));
+  await cho();
+  const c3 = chu(theoId(goc, 'gbClub'));
+  dung('số khác: ' + c3, c3.includes('Số khác') && c3.includes('một số khác') && !theoId(goc, 'gbTraTich') && !theoId(goc, 'gbTvGan'));
+  la('vẫn một lần gửi', gan().length, 1);
+  await bam(tim(theoId(goc, 'gbDonBan'), n => n.props.class === 'gb-x')[0]);
+  /* Gắn lỗi: câu của máy chủ, nút thử lại; thử lại được thì Đã gắn. */
+  tv = 'trong'; ganTra = {ok: 0, cau: 'Số này cần quầy đối chiếu hồ sơ trước khi tích điểm. Quý khách báo nhân viên giúp.'};
+  await bam(theoId(goc, 'gbBarDonChu'));
+  await cho();
+  dung('lỗi có câu', chu(theoId(goc, 'gbTvLoi')).includes('đối chiếu hồ sơ') && theoId(goc, 'gbTvGan'));
+  ganTra = {ok: 1, tv: {trang_thai: 'gan', sdt: '0909 *** 412'}};
+  await bam(theoId(goc, 'gbTvGan'));
+  dung('thử lại được', chu(theoId(goc, 'gbClub')).includes('Đã gắn') && !theoId(goc, 'gbTvLoi') && !theoId(goc, 'gbTvGan'));
+  la('ba lần gửi', gan().length, 3);
 });
 
 await ca('v643 ưu đãi tại bàn phép thuần: Cần thanh toán = hoá đơn sau ưu đãi + lượt chưa vào hoá đơn; chọn sẵn; số điện thoại; câu lỗi đăng nhập', async () => {
