@@ -189,7 +189,7 @@ def tra_loi_get(phuong, q):
 				'anhs': ['/assets/vagabond/web_order/og-banh.jpg'], 'mo_ta': 'Bánh quy Stollen giòn bơ.', 'tang': [], 'tu_web': 1,
 				'sizes': [{'ma': 'BACF00051', 'cm': 0, 'gia': 180000}]}])
 		if os.environ.get('VGB_DT') == '675':
-			# v675: ngày mai theo phiếu (con_mai), ngày kia và ngày thứ ba theo Đủ decor (con_xa).
+			# v675: ngày mai theo phiếu (con_mai), ngày kia và ngày thứ ba theo BTP sẵn (con_xa, v677).
 			return dict(TON, dat_truoc={'nhom': [{'ten': 'CANDLE', 'tu_web': 1, 'mo_ta': 'Bánh mẫu để chụp ảnh xem thử.', 'tang': ['Mousse - lớp kem'],
 				'di_ung': 'Sữa, trứng, gluten, hạt hạnh nhân.', 'bao_quan': 'Giữ lạnh 2 đến 6 độ C, dùng trong ngày.', 'sizes': [
 				{'cm': 12, 'ma': 'BAWC00139', 'gia': 650000, 'con': 2, 'con_mai': 2, 'con_xa': 6},
