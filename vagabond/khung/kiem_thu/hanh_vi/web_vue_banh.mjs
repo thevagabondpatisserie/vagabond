@@ -497,23 +497,58 @@ await ca('F21 máy chủ hết hàng giữ giỏ, nonce, tải lại tồn và c
   dung('tải lại',nap>0);dung('nói số và cách xử lý',JSON.stringify(k.S.goi.gui).includes('còn 0 cái')&&JSON.stringify(k.S.goi.gui).includes('đổi ngày'));
 });
 
-await ca('v598 port v597: thiệp nhỏ đi cùng dòng giỏ qua cộng dồn, sửa dòng và tải lại trang; số kẹp 0 tới 30', async () => {
+await ca('v598 port v597: thiệp nhỏ đi cùng dòng giỏ qua cộng dồn, sửa dòng và tải lại trang; số kẹp 0 tới 30 (20/11: nĩa, dĩa không còn theo từng bánh)', async () => {
   const a = moiTruong('2026-10-11T08:00:00');
   const k = taoKho(a.mt);
   k.phucHoiGio();
   const ban = k.S.CAKES.find(c => c.k === 'CANDLE');
   k.moBanh(ban); k.S.nia = 1; k.S.thiep = 2; k.addToCart();
-  k.moBanh(ban); la('mở bánh mới thì ô thiệp về 0', k.S.thiep, 0); k.S.nia = 1; k.S.thiep = 3; k.addToCart();
-  la('khác số thiệp là hai dòng, không cộng dồn', k.S.CART.map(o => [o.qty, o.dung_cu]), [[1, {nia: 1, dia: 0, thiep: 2}], [1, {nia: 1, dia: 0, thiep: 3}]]);
-  k.moBanh(ban); k.S.nia = 1; k.S.thiep = 2; k.addToCart();
+  k.moBanh(ban); la('mở bánh mới thì ô thiệp về 0', k.S.thiep, 0); k.S.thiep = 3; k.addToCart();
+  la('khác số thiệp là hai dòng; nĩa không ghi theo bánh nữa', k.S.CART.map(o => [o.qty, o.dung_cu]), [[1, {nia: 0, dia: 0, thiep: 2}], [1, {nia: 0, dia: 0, thiep: 3}]]);
+  k.moBanh(ban); k.S.thiep = 2; k.addToCart();
   la('cùng cấu hình thì cộng dồn', k.S.CART.map(o => o.qty), [2, 1]);
-  la('phiếu bếp nhân số lượng', k.T.chuDungCu(k.S.CART[0]), '2 nĩa gỗ, 0 dĩa bã mía, 4 thiệp nhỏ');
-  la('chỉ thiệp thì không ghi nĩa dĩa', k.T.chuDungCu({qty: 1, dung_cu: {nia: 0, dia: 0, thiep: 1}}), '1 thiệp nhỏ');
+  la('phiếu bếp nhân số lượng', k.T.chuDungCu(k.S.CART[0]), '4 thiệp nhỏ');
+  la('dòng giỏ bản trước có nĩa vẫn in đúng', k.T.chuDungCu({qty: 2, dung_cu: {nia: 1, dia: 0, thiep: 2}}), '2 nĩa gỗ, 0 dĩa bã mía, 4 thiệp nhỏ');
   la('kẹp số', k.T.chuanDungCu({nia: -3, dia: '99', thiep: 'x'}), {nia: 0, dia: 30, thiep: 0});
-  k.suaDongGio(1); la('sửa dòng giỏ mở lại đúng số thiệp', [k.S.nia, k.S.thiep], [1, 3]);
+  k.suaDongGio(1); la('sửa dòng giỏ mở lại đúng số thiệp', k.S.thiep, 3);
   k.luuGio();
   const k2 = taoKho(a.mt); k2.phucHoiGio();
   la('tải lại trang giữ thiệp', k2.S.CART.map(o => o.dung_cu.thiep), [2, 3]);
+});
+
+await ca('Dĩa, nĩa tặng kèm (anh Việt 20/11/2026): chọn một lần cho cả đơn, gửi thành dòng món giá 0, kẹp 0 tới 20, giữ qua tải lại, giỏ bản trước dồn số về đơn, gửi xong về 0', async () => {
+  const {mt, kho} = moiTruong('2026-10-11T08:00:00', {'vagabond.don_hang.tao_don': () => ({ok: true, duong_dan: '/banh/xong/dc1'})});
+  const k = taoKho(mt); k.phucHoiGio();
+  la('mặc định không gửi', [k.S.DC.dia, k.S.DC.nia], [0, 0]);
+  la('giỏ trống: không gửi dĩa, nĩa dù đã bấm', (k.doiDc('dia', 1), k.T.hangGui(k.S.CART, k.S.DC)), []);
+  coThem(k); coThem(k);
+  k.doiDc('dia', 3); k.doiDc('nia', 1); k.doiDc('nia', -1); k.doiDc('nia', -1); k.doiDc('nia', 2);
+  la('nút − không xuống dưới 0', [k.S.DC.dia, k.S.DC.nia], [4, 2]);
+  for (let i = 0; i < 40; i++) k.doiDc('nia', 1);
+  la('kẹp 20 (bằng trần số lượng của máy chủ)', k.S.DC.nia, 20);
+  k.doiDc('nia', -18); k.doiDc('khac', 5);
+  la('mã lạ bỏ qua', Object.keys(k.S.DC).sort(), ['dia', 'nia']);
+  la('món gửi: bánh rồi dĩa, nĩa, không nhân số bánh', k.T.hangGui(k.S.CART, k.S.DC),
+    [{variation_id: 'BAWC00139', quantity: 2}, {variation_id: 'BAPK00020', quantity: 4}, {variation_id: 'BAPK00018', quantity: 2}]);
+  la('khoá ưu đãi đổi khi đổi số dĩa', (() => { const a = k.khoaUuDai.value; k.doiDc('dia', 1); const b = k.khoaUuDai.value; k.doiDc('dia', -1); return a !== b; })(), true);
+  /* Tải lại trang giữ số. */
+  const k2 = taoKho(mt); k2.phucHoiGio();
+  la('tải lại giữ số', [k2.S.DC.dia, k2.S.DC.nia], [4, 2]);
+  /* Giỏ lưu bản trước: nĩa, dĩa theo từng bánh, nhân số bánh, dồn về đơn. */
+  const luu = JSON.parse(kho.get([...kho.keys()][0]));
+  luu.gio[0].dung_cu = {nia: 2, dia: 1, thiep: 1}; luu.gio[0].qty = 2; delete luu.dc;
+  kho.set([...kho.keys()][0], JSON.stringify(luu));
+  const k3 = taoKho(mt); k3.phucHoiGio();
+  la('giỏ bản trước: dồn số về đơn', [k3.S.DC.dia, k3.S.DC.nia], [2, 4]);
+  la('dòng bánh không còn nĩa, dĩa; giữ thiệp', k3.S.CART[0].dung_cu, {nia: 0, dia: 0, thiep: 1});
+  la('không gửi hai lần', k3.T.hangGui(k3.S.CART, k3.S.DC).filter(x => x.variation_id.startsWith('BAPK')), [{variation_id: 'BAPK00020', quantity: 2}, {variation_id: 'BAPK00018', quantity: 4}]);
+  dung('ghi chú bếp không còn nĩa, dĩa theo bánh', !/nĩa/.test(k3.T.chuDungCu(k3.S.CART[0])));
+  /* Gửi đơn. */
+  k.pick(3); k.pickSlot(6);
+  Object.assign(k.S.f, {name: 'Khách', phone: '0901234567', addr: '12 Nguyễn Huệ Quận 1'}); k.S.CO.dongy = true;
+  const kq = await k.submitOrder();
+  la('đơn gửi có dòng dĩa, nĩa', kq.don.items.filter(x => x.variation_id.startsWith('BAPK')), [{variation_id: 'BAPK00020', quantity: 4}, {variation_id: 'BAPK00018', quantity: 2}]);
+  la('gửi xong về 0', [k.S.DC.dia, k.S.DC.nia], [0, 0]);
 });
 
 await ca('v644 bánh có bộ nội dung web: mô tả, tầng chỉ lấy từ thẻ Bánh, kể cả khi để trống; bánh cũ giữ đường cũ', async () => {
