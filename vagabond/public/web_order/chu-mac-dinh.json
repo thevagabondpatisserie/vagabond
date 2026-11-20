@@ -8120,6 +8120,11 @@
     "nhom": "dat_banh",
     "mac_dinh": "hết ngày {ngay}"
   },
+  "dat_truoc_het_ngay_chon": {
+    "ten": "Đặt bánh trước: báo khi thêm cỡ bánh đã hết đúng ngày nhận khách đã chọn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cỡ bánh này {het}. Quý khách chọn ngày nhận khác rồi thêm lại."
+  },
   "ct677_dat_truoc_ngay": {
     "ten": "Chi tiết bánh: dòng trạng thái khi mở từ tab Đặt bánh trước",
     "nhom": "dat_banh",
