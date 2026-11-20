@@ -119,7 +119,7 @@ async function scrDoanhSo() {
        15/08/2026 sau khi đo thấy suy kiểu này ra 16 đơn trong khi sales chỉ
        đánh dấu 3 đơn là công nợ thật. */
     { k: 'nghi_no', nhan: '🧾 Nghi công nợ', loc: function (r) { return !!r.vgb_nghi_cong_no && !r.vgb_pt_thanh_toan; } },
-    { k: 'chua_tien', nhan: '⏳ Chuyển khoản chưa về tiền', loc: function (r) { return r.vgb_pt_thanh_toan === 'Chuyển khoản' && !r.sepay_du; } },
+    { k: 'chua_tien', nhan: '⏳ Chuyển khoản chưa về tiền', loc: function (r) { return posLaCk(r.vgb_pt_thanh_toan) && !r.sepay_du; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so; } },
     { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!(r.vgb_xhd_mst || r.can_hddt); } },
@@ -466,7 +466,7 @@ function veOMtc(pt, idO, idNhan) {
     nh.innerHTML = '<b style="color:#374151;font-size:12.5px">' + h(ten) + '</b>' +
       (q.bat
         ? ' · <b style="color:#b45309">bắt buộc</b> để đối soát'
-        : (pt === 'Chuyển khoản' ? ' · SePay tự khớp, để trống cũng được' : ' · không bắt buộc'));
+        : (posLaCk(pt) ? ' · SePay tự khớp, để trống cũng được' : ' · không bắt buộc'));
   }
 }
 /* Khối "tiền của tờ này": tổng đơn, đã thu theo từng phương thức, còn nợ,
@@ -849,7 +849,7 @@ async function scrDsView(name, can) {
   function dsvVeQr() {
     var o = document.getElementById('dsvQr');
     if (!o) return;
-    if (DSV_PT !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (!posLaCk(DSV_PT)) { o.innerHTML = ''; return; }
     if (dsvTuPancake()) {
       o.innerHTML = '<div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;' +
         'padding:12px 13px;font-size:13px;color:#075985;line-height:1.6">' +
@@ -862,12 +862,14 @@ async function scrDsView(name, can) {
       return;
     }
     var tien = d.grand_total || 0;
-    var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '', dsvDiem);
+    /* v678: nội dung và tài khoản theo phương thức đang chọn (Shinhan có tài khoản riêng). */
+    dsvNoiDung = posNoiDungCk(d.name, dsvDiem, d.custom_nguon || '', DSV_PT);
+    var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '', dsvDiem, DSV_PT);
     if (!url) {
-      o.innerHTML = posQrLoi(posTaiKhoan(d.custom_nguon || '', dsvDiem), dsvNoiDung, tien);
+      o.innerHTML = posQrLoi(posTkCk(DSV_PT, d.custom_nguon || '', dsvDiem), dsvNoiDung, tien);
       return;
     }
-    var tk = posTaiKhoan(d.custom_nguon || '', dsvDiem);
+    var tk = posTkCk(DSV_PT, d.custom_nguon || '', dsvDiem);
     o.innerHTML = '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
       '<div style="font-size:12.5px;color:#6b7280">Khách quét mã này, máy tự điền số tiền và nội dung</div>' +
       '<img src="' + url + '" alt="Mã QR chuyển khoản" style="width:min(240px,62vw);aspect-ratio:1;margin:10px auto 6px;display:block;border-radius:10px;background:#fff">' +
@@ -1600,17 +1602,17 @@ async function scrDsNhapTay() {
   function dstVeQr() {
     var o = document.getElementById('dstQr');
     if (!o) return;
-    if (dsTay.pt !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (!posLaCk(dsTay.pt)) { o.innerHTML = ''; return; }
     var giam = parseFloat(dsTay.giam || 0) || 0, ship = parseFloat(dsTay.ship || 0) || 0;
     var thu = dsTay.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0) - giam + ship;
     var diem = dsTay.quay || (nguonBH(dsTay.nguon) || {}).diem || '';
-    var nd = posNoiDungCk(dsTay.bill, diem, dsTay.nguon);
-    var url = posQrUrl(nd, thu, dsTay.nguon, diem);
+    var nd = posNoiDungCk(dsTay.bill, diem, dsTay.nguon, dsTay.pt);
+    var url = posQrUrl(nd, thu, dsTay.nguon, diem, dsTay.pt);
     if (!url) {
-      o.innerHTML = posQrLoi(posTaiKhoan(dsTay.nguon, diem), nd, thu);
+      o.innerHTML = posQrLoi(posTkCk(dsTay.pt, dsTay.nguon, diem), nd, thu);
       return;
     }
-    var tk = posTaiKhoan(dsTay.nguon, diem);
+    var tk = posTkCk(dsTay.pt, dsTay.nguon, diem);
     o.innerHTML = '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
       '<div style="font-size:12.5px;color:#6b7280">Khách quét mã này, máy tự điền số tiền và nội dung</div>' +
       '<img src="' + url + '" alt="Mã QR chuyển khoản" style="width:min(230px,60vw);aspect-ratio:1;margin:10px auto 6px;display:block;border-radius:10px;background:#fff">' +
@@ -1742,7 +1744,7 @@ async function dsTayLuu() {
       /* Chuyen khoan ma thu ngan khong go gi thi lay chinh ma bill in tren
          QR lam ma tham chieu, de SePay doi soat dung to khach da chuyen. */
       pt: dsTay.pt || '',
-      ma_tham_chieu: (dsTay.mtc || '').trim() || (dsTay.pt === 'Chuyển khoản' ? dsTay.bill : ''),
+      ma_tham_chieu: (dsTay.mtc || '').trim() || (posLaCk(dsTay.pt) ? dsTay.bill : ''),
       items: JSON.stringify(dsTay.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate }; })),
       giam_gia: giam, phi_ship: ship, quay: dsTay.quay || '',
       /* May chu da co san tham so nay tu lau (tao_don_tay), chi la man nay

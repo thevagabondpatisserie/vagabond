@@ -12,6 +12,15 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v678
+- Chuyển khoản - Shinhan tại quầy
+- Khách chuyển khoản ngay tại bàn, bill tự chốt
+- Khuyến mãi trên bill Tạm tính
+- Voucher Grab Dine-Out: giảm đúng phần tiệm chịu
+- Tin Zalo đối soát: tệp đọc lỗi gửi nhóm Hệ thống
+- Web đặt bánh: ngày đã chọn hết bánh thì báo hết, không tự đổi ngày
+- Web đặt bánh: dĩa, nĩa tặng kèm thành món trên Pancake
+
 ## v677
 - Bảng Kiểm bánh: ba ô Web nhận, ngày kia theo BTP sẵn
 - Tích điểm cho bill gọi món tại bàn

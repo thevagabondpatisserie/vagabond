@@ -74,7 +74,8 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await page.locator('#s-sizes button').last().click();
     await page.locator('#s-sizes button').first().click();
     await page.locator('#s-phu-kien > summary').click();
-    await page.locator('#s-nia').fill('2'); await page.locator('#s-dia').fill('3');
+    /* 20/11/2026: ô nĩa, dĩa không còn trong chi tiết bánh, chuyển ra trang Thông tin đơn hàng. */
+    assert.equal(await page.locator('#s-nia, #s-dia').count(),0);
     await page.getByRole('button',{name:'Nến số 2',exact:true}).click();
     /* v598: hộp, túi, nến xoắn chuyển vào dòng gấp dự phòng, món mua thêm đầu tiên là Thiệp BAPK00002. */
     await page.locator('#s-addons button').first().click();
@@ -82,10 +83,23 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await page.locator('#bar .go').click();
     await page.locator('#checkout.open').waitFor();
     assert.match(await page.locator('#cartList').innerText(),/Chúc vui/);
+    /* Dĩa, nĩa tặng kèm: hai dòng có ảnh, bấm + 2 dĩa, 1 nĩa; nút − ở 0 bị khoá. */
+    await page.locator('#c-dc').waitFor({state:'visible'});
+    assert.equal(await page.locator('#c-dc li img').count(),2);
+    assert.equal(await page.locator('#c-dc-nia button[aria-label="Bớt 1"]').isDisabled(),true);
+    await page.locator('#c-dc-dia button[aria-label="Thêm 1"]').click();
+    await page.locator('#c-dc-dia button[aria-label="Thêm 1"]').click();
+    await page.locator('#c-dc-nia button[aria-label="Thêm 1"]').click();
+    assert.equal(await page.locator('#c-dc-dia output').innerText(),'2');
+    assert.equal(await page.locator('#c-dc-nia output').innerText(),'1');
     const before=await page.locator('#sum').innerText();
-    await page.getByRole('button',{name:'Tăng số lượng',exact:true}).click();
+    /* 20/11/2026: bộ số lượng chung .sl-vien, nút đọc "Thêm 1", "Bớt 1"; Sửa bánh, Bỏ khỏi giỏ là nút tròn có nhãn. */
+    assert.equal(await page.locator('#cartList .sl-vien').count(),1);
+    assert.equal(await page.getByRole('button',{name:'Sửa bánh',exact:true}).count(),1);
+    assert.equal(await page.getByRole('button',{name:'Bỏ khỏi giỏ',exact:true}).count(),1);
+    await page.locator('#cartList .sl-vien button[aria-label="Thêm 1"]').click();
     assert.notEqual(await page.locator('#sum').innerText(),before);
-    await page.getByRole('button',{name:'Giảm số lượng',exact:true}).click();
+    await page.locator('#cartList .sl-vien button[aria-label="Bớt 1"]').click();
     assert.equal(await page.locator('#sum').innerText(),before);
     const ev=await page.evaluate(()=>Array.from(window.fbq?.queue||[],a=>Array.from(a)[1]));
     for(const e of ['PageView','ViewContent','AddToCart','InitiateCheckout']) assert(ev.includes(e),e);
@@ -181,7 +195,9 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert(calls[0].nonce); assert.equal(calls[0].tu_lay,true);
     assert.equal(calls[0].hoa_don.tax_code,'0312345678001');
     assert.equal(calls[0].nguoi_nhan.ho_ten,'Người nhận');
-    assert.match(calls[0].note,/2.*nĩa|nĩa.*2/i);
+    const dcGui=calls[2].items.filter(x=>/^BAPK0001[8]|^BAPK00020/.test(x.variation_id));
+    assert.deepEqual(dcGui,[{variation_id:'BAPK00020',quantity:2},{variation_id:'BAPK00018',quantity:1}]);
+    assert.doesNotMatch(String(calls[2].note||''),/nĩa/i);
   });
   await test('F22/F23 biên nhận DOM, gỡ token, reload cùng biên nhận, Pixel một GuiDon',async()=>{
     const fs=require('node:fs');
@@ -360,18 +376,18 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       assert.equal(await p.locator('#s-duphong').evaluate(d=>d.open),false,ten);
       assert.doesNotMatch(await p.locator('#s-addons').innerText(),/Hộp bánh kem|Túi vải/,ten);
       assert.equal(await p.locator('#s-addons-dp li').count(),3,ten);
-      await p.locator('#s-nia').fill('1');await p.locator('#s-thiep').fill('2');
+      await p.locator('#s-thiep').fill('2');
       await p.locator('#s-cta').click();await p.locator('#bar .go').click();
       await p.locator('#checkout.open').waitFor();
       const gio=await p.locator('#cartList').innerText();
-      assert.match(gio,/1 nĩa gỗ, 0 dĩa bã mía, 2 thiệp nhỏ/,ten+': giỏ phải ghi thiệp nhỏ');
+      assert.match(gio,/2 thiệp nhỏ/,ten+': giỏ phải ghi thiệp nhỏ');
       await p.locator('#f-name').fill('Khách thử');await p.locator('#f-phone').fill('0900000000');
       await p.locator('#m-pick').click();await p.locator('#pickList button').first().click();
       await p.locator('#c-days button').nth(1).click();await p.locator('#c-slots button:not([disabled])').first().click();
       await p.locator('#c-dongy').click();
       await p.locator('#btnSend').click();await p.waitForTimeout(300);
       assert.equal(gui.length,1,ten);
-      assert.match(String(gui[0].note||''),/1 nĩa gỗ, 0 dĩa bã mía, 2 thiệp nhỏ/,ten+': ghi chú bếp phải có thiệp nhỏ');
+      assert.match(String(gui[0].note||''),/2 thiệp nhỏ/,ten+': ghi chú bếp phải có thiệp nhỏ');
       assert.deepEqual(loi,[],ten);
       await c.close();
     }

@@ -574,6 +574,14 @@ def _webhook():
 		de_nghi_chi.khi_co_giao_dich(bt.name)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "sepay: goi doi soat TTNB loi")
+	# v678: tiền vào mang mã bill tạm tính thì máy tự chốt bill (xếp hàng đợi
+	# sau commit, khi_co_giao_dich không bao giờ ném lỗi ra đây).
+	try:
+		from vagabond import tu_chot_ck
+
+		tu_chot_ck.khi_co_giao_dich(bt.name)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "sepay: goi tu chot bill loi")
 	return {"success": True, "message": "Da ghi %s." % bt.name}
 
 

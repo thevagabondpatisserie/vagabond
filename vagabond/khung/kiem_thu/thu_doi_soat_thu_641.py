@@ -363,7 +363,7 @@ def _():
 	ma = sorted({k.value.value for n in ast.walk(cay) if isinstance(n, ast.Call) for k in n.keywords
 		if k.arg == "ma_tin" and isinstance(k.value, ast.Constant)})
 	la("mười mã (v647 thêm bill không khớp đối tác)", ma, sorted(["bgd_ds_tai_tay", "kt_ds_thu_gia_danh", "kt_ds_thieu_thu",
-		"kt_ds_tep_loi", "kt_ds_lech_tien", "kt_ds_chua_thay_tien", "kt_ds_phi_cao", "kt_ds_don_thieu_erp", "ht_ds_hop_thu_loi",
+		"ht_ds_tep_loi", "kt_ds_lech_tien", "kt_ds_chua_thay_tien", "kt_ds_phi_cao", "kt_ds_don_thieu_erp", "ht_ds_hop_thu_loi",
 		"kt_ds_bill_lech"]))
 	dung("đều có trong danh mục", all(m in kz.TIN for m in ma))
 	la("điều kiện thư chưa về", kz.DIEU_KIEN.get("ds_thieu_thu"), "vagabond.doi_soat_thu.con_thieu_thu")

@@ -88,7 +88,7 @@ TAN_SUAT = ("Hằng ngày", "Hằng tháng", "Không theo lịch")
 LICH_MAC_DINH = (
 	("OnePay", "Hằng ngày", 12, 0, 1),
 	("Shinhan POS", "Hằng ngày", 12, 0, 1),
-	("Payoo", "Hằng ngày", 12, 0, 1),
+	# v678 (anh Việt 20/11/2026): tiệm không dùng Payoo nữa, không chờ thư Payoo.
 	("GrabFood", "Hằng ngày", 18, 0, 0),
 	("ShopeeFood", "Hằng ngày", 12, 0, 0),
 	("Thẻ tín dụng Shinhan", "Hằng tháng", 0, 5, 0),
@@ -653,9 +653,14 @@ def ten_vendor_diem(vendor, ten_diem=""):
 
 
 def tin_tep_loi(vendor, ky, ly_do):
-	"""THUẦN. Tin 4: tệp đối soát từ thư đọc không được."""
+	"""THUẦN. Tin 4: tệp đối soát từ thư đọc không được.
+
+	v678 (anh Việt 20/11/2026 "sửa luôn mấy cái thông báo Zalo này"): đọc lỗi là
+	việc của quản trị hệ thống (sửa mẫu đọc), Kế toán không làm gì được, nên tin
+	đi nhóm Hệ thống (ht_ds_tep_loi), không đi nhóm Kế toán nữa."""
 	return ("Tệp đối soát %s %s không đọc được" % (vendor, ky), [
-		(ly_do or "Tệp lỗi.")[:300], "Có thể đối tác đổi mẫu báo cáo. Kế toán mở nguồn để xem dòng lỗi."])
+		(ly_do or "Tệp lỗi.")[:300],
+		"Dòng đọc được đã nhận. Mở nguồn xem chữ gốc của dòng lỗi rồi sửa mẫu đọc; sửa xong bấm Đọc lại."])
 
 
 def tin_lech_tien(vendor, ky, bao, nhan):
@@ -831,10 +836,23 @@ def nang_mac_dinh_v651(nguoi_gui, lich):
 	return ra
 
 
+def bo_payoo_v678(lich):
+	"""THUẦN (v678). Dòng Lịch thư dự kiến của Payoo cần bỏ: [tên dòng]. Anh Việt
+	20/11/2026: tiệm không dùng Payoo nữa, không báo "thư Payoo chưa về" nữa."""
+	return [r["name"] for r in lich or [] if (r.get("nguon") or "").strip().lower() == "payoo"]
+
+
 def _nang_mac_dinh():
-	"""after_migrate, MỘT lần (cờ vgb_ds_thu_v651): nâng dòng Cài đặt còn mặc định
-	cũ. Quản trị đặt lại giá trị cũ sau đó thì không đè."""
+	"""after_migrate, MỘT lần cho mỗi bản (cờ vgb_ds_thu_v651, vgb_ds_thu_v678):
+	nâng dòng Cài đặt còn mặc định cũ. Quản trị đặt lại giá trị cũ sau đó thì không đè."""
 	frappe = _frappe()
+	if not frappe.db.get_global("vgb_ds_thu_v678"):
+		li = frappe.get_all("Vagabond Doi Soat Lich Thu", filters={"parent": CAI_DAT, "parentfield": "ds_lich_thu"},
+			fields=["name", "nguon"])
+		for ten in bo_payoo_v678(li):
+			frappe.db.delete("Vagabond Doi Soat Lich Thu", {"name": ten})
+		frappe.db.set_global("vgb_ds_thu_v678", "1")
+		frappe.clear_document_cache(CAI_DAT, CAI_DAT)
 	if frappe.db.get_global("vgb_ds_thu_v651"):
 		return
 	ng = frappe.get_all("Vagabond Doi Soat Nguoi Gui", filters={"parent": CAI_DAT, "parentfield": "ds_nguoi_gui"},
@@ -876,6 +894,7 @@ def gieo_mac_dinh():
 		frappe.db.set_global("vgb_ds_thu_gieo", "1")
 		# Gieo bằng mặc định mới rồi: không cần nâng (Codex #554).
 		frappe.db.set_global("vgb_ds_thu_v651", "1")
+		frappe.db.set_global("vgb_ds_thu_v678", "1")
 		frappe.clear_document_cache(CAI_DAT, CAI_DAT)
 	except Exception:
 		frappe.log_error(title="Đối soát hộp thư: gieo cài đặt mặc định")
@@ -1234,7 +1253,7 @@ def _ghi_thu_khong_tep(thu, t, cong_ty, them):
 			return []
 		kq = mau_bc.ket_qua("", "", dsv.vendor_theo_thu(t["dia_chi"]) or thu.doi_tac, "")
 		kq["loi"].append("Thư báo cáo của đối tác không có tệp đọc được (báo cáo nằm trong thân thư hoặc tệp chưa có mẫu). "
-			"Báo kỹ thuật viết mẫu đọc mới.")
+			"Cần viết mẫu đọc mới.")
 		tt = dict(ten=(t["tieu_de"] or "Thư đối tác không có tệp")[:140], sha256=sha, loai="")
 		return [dsv._ghi_nguon(cong_ty, tt, kq, khop.xem_truoc(kq, cong_ty), KENH, None, None, them=them)]
 
@@ -1281,8 +1300,8 @@ def sau_khi_ghi(name, moi=True):
 				ma_tin="bgd_ds_tai_tay")
 		if n.kenh_nhan == KENH and n.trang_thai in ("Lỗi tệp", "Cần xử lý"):
 			t, d = tin_tep_loi(n.vendor, ky_hien(n), n.ly_do)
-			kenh_zalo.bao_hoac_ghi_loi("viec", "cong_no", t, d, link=_link(), khoa="ds_tep_loi:%s" % name,
-				ma_tin="kt_ds_tep_loi")
+			kenh_zalo.bao_hoac_ghi_loi("canh_bao", "he_thong", t, d, link=_link(), khoa="ds_tep_loi:%s" % name,
+				ma_tin="ht_ds_tep_loi")
 	except Exception:
 		frappe.log_error(title="Đối soát hộp thư: báo sau khi nhận %s" % name)
 

@@ -13,7 +13,7 @@ import {t} from '../kho/chu.js';
 import {computed, ref, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 import {AnhMon} from './thanh-phan.js';
-import {giaDong, LY_DO_GOI, CACH_TRA, TT_KHONG_TINH, moTaCombo} from './kho-goi-ban.js';
+import {giaDong, LY_DO_GOI, CACH_TRA, TT_KHONG_TINH, moTaCombo, appCk} from './kho-goi-ban.js';
 import {BieuTuong, ICON_LY_DO} from './bieu-tuong.js';
 import {PAYS} from './du-lieu.js';
 import {GoiYMua} from './goi-y-mua.js';
@@ -288,19 +288,41 @@ export const MAU_GOI_BAN_NOI = `
           <div class="gb-so-lon"><small>{{ t('goi_ban_can_tra','Cần thanh toán') }}</small><b>{{ tien(gb.tom.value.canTra) }}</b>
             <span v-if="G.tv.trang_thai === 'gan'" class="gb-chip ok" id="gbTraTich">{{ t('goi_ban_tra_tich','Tích điểm cho {sdt}',{sdt: G.ud.sdtCo}) }}</span></div>
           <div class="sec gb-sec"><span class="n">01</span><h3><span>{{ t('goi_ban_sec_cach','Cách thanh toán') }}</span></h3><i class="rule"></i></div>
-          <button v-for="c in CACH_TRA" :key="c.ma" type="button" class="gb-ly" :class="{on: G.tra.cach===c.ma}" :data-cach="c.ma" :aria-pressed="String(G.tra.cach===c.ma)" @click="G.tra.cach=c.ma">
-            <i class="gb-ly-ic" aria-hidden="true"><bieu-tuong :ten="c.ma==='ban' ? 'hoaDon' : 'cuaHang'"/></i><span><b>{{ c.ten }}</b><small>{{ c.phu }}</small></span><i class="gb-ly-chon" aria-hidden="true"></i></button>
+          <button v-for="c in CACH_TRA" :key="c.ma" type="button" class="gb-ly" :class="{on: G.tra.cach===c.ma}" :data-cach="c.ma" :aria-pressed="String(G.tra.cach===c.ma)" @click="gb.chonCach(c.ma)">
+            <i class="gb-ly-ic" aria-hidden="true"><bieu-tuong :ten="icCach(c.ma)"/></i><span><b>{{ c.ten }}</b><small>{{ c.phu }}</small></span><i class="gb-ly-chon" aria-hidden="true"></i></button>
           <div class="sec gb-sec"><span class="n">02</span><h3><span>{{ t('goi_ban_sec_hd','Hoá đơn điện tử') }}</span></h3><i class="rule"></i></div>
           <div class="fld"><label for="gb-tra-hd"><span>{{ t('goi_ban_tra_hd','Xuất hoá đơn điện tử (không bắt buộc)') }}</span></label>
             <input id="gb-tra-hd" maxlength="80" autocomplete="off" :placeholder="t('goi_ban_tra_hd_goi','Mã số thuế hoặc email nhận hoá đơn')" v-model="G.tra.hd">
             <div class="hint">{{ t('goi_ban_tra_hd_phu','Có mã số thuế thì thu ngân hỏi thêm tên công ty khi in bill.') }}</div></div>
-          <p class="gb-phu">{{ t('goi_ban_tra_chua_online','Thanh toán online ngay tại bàn sẽ mở sau. Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.') }}</p>
+          <template v-if="ckHien">
+            <div class="sec gb-sec"><span class="n">03</span><h3><span>{{ t('goi_ban_sec_ck','Chuyển khoản') }}</span></h3><i class="rule"></i></div>
+            <div class="gb-ck" id="gbCk" :data-tt="G.tra.ck.tt">
+              <div class="gb-ck-dau"><span class="gb-chip" :class="ckChip.lop" id="gbCkChip">{{ ckChip.chu }}</span><b>{{ tien(G.tra.ck.info.tien) }}</b></div>
+              <template v-if="ckCho">
+                <p class="gb-phu">{{ t('goi_ban_ck_buoc','Chọn app ngân hàng của quý khách. App mở ra với số tiền và nội dung điền sẵn, quý khách chỉ cần xác nhận.') }}</p>
+                <div class="gb-ck-app" id="gbCkApp">
+                  <a v-for="a in ckApp" :key="a.ma" class="gb-ck-nut" :href="a.link" rel="noopener" :data-app="a.ma" @click="gb.moApp(a)"><b>{{ a.ten }}</b><small>{{ Number(a.tu_dien) ? t('goi_ban_ck_dien_san','Điền sẵn số tiền') : t('goi_ban_ck_dan','Mở app, dán nội dung') }}</small></a>
+                </div>
+                <button v-if="!G.tra.ck.them" type="button" class="gb-ck-them" id="gbCkThem" @click="G.tra.ck.them=true">{{ t('goi_ban_ck_them','Ngân hàng khác') }}</button>
+                <div class="gb-ck-qr"><img :src="G.tra.ck.info.anh" :alt="t('goi_ban_ck_qr_alt','Mã VietQR chuyển khoản')" v-if="G.tra.ck.info.anh"><small>{{ t('goi_ban_ck_qr','Hoặc quét mã này bằng app ngân hàng bất kỳ') }}</small></div>
+                <dl class="gb-ck-tt">
+                  <div><dt>{{ t('goi_ban_ck_nh','Ngân hàng') }}</dt><dd>{{ G.tra.ck.info.ngan_hang }}</dd></div>
+                  <div><dt>{{ t('goi_ban_ck_stk','Số tài khoản') }}</dt><dd><b>{{ G.tra.ck.info.stk }}</b><button type="button" class="gb-ck-chep" id="gbCkChepStk" @click="gb.chepCk('stk')">{{ G.tra.ck.chep==='stk' ? t('goi_ban_ck_da_chep','Đã chép') : t('goi_ban_ck_chep','Chép') }}</button></dd></div>
+                  <div><dt>{{ t('goi_ban_ck_chu','Chủ tài khoản') }}</dt><dd>{{ G.tra.ck.info.chu_tk }}</dd></div>
+                  <div><dt>{{ t('goi_ban_ck_nd','Nội dung') }}</dt><dd><b>{{ G.tra.ck.info.noi_dung }}</b><button type="button" class="gb-ck-chep" id="gbCkChepNd" @click="gb.chepCk('nd')">{{ G.tra.ck.chep==='nd' ? t('goi_ban_ck_da_chep','Đã chép') : t('goi_ban_ck_chep','Chép') }}</button></dd></div>
+                </dl>
+                <p class="gb-phu" role="status" id="gbCkCho">{{ t('goi_ban_ck_cho','Tiền về là bill tự thanh toán, quý khách không cần ra quầy. Giữ nguyên nội dung để hệ thống nhận ra bàn.') }}</p>
+              </template>
+              <div v-else class="gb-xong" id="gbCkXong"><b>{{ ckXong }}</b><span>{{ t('goi_ban_tra_bill_moi','Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.') }}</span></div>
+            </div>
+          </template>
+          <p class="gb-phu" v-else>{{ t('goi_ban_tra_bill_moi','Gọi thêm món sau khi đã thanh toán sẽ thành một bill mới.') }}</p>
         </template>
       </div>
       <footer class="gb-day gb-day-doc">
-        <p class="gb-loi" id="gbTraLoi" role="status" v-if="G.tra.loi">{{ G.tra.loi }}</p>
-        <button v-if="G.tra.xong" type="button" class="gb-cta" @click="gb.dongTra()">{{ t('goi_ban_dong','Đóng') }}</button>
-        <button v-else type="button" class="gb-cta" id="gbTraGui" :disabled="G.tra.dangGui || !G.tra.cach" @click="gb.guiTra()">{{ G.tra.dangGui ? t('goi_ban_dang_gui','Đang gửi...') : t('goi_ban_tra_gui','Báo quầy tính tiền') }}</button>
+        <p class="gb-loi" id="gbTraLoi" role="status" v-if="traLoi">{{ traLoi }}</p>
+        <button v-if="traDong" type="button" class="gb-cta" @click="gb.dongTra()">{{ t('goi_ban_dong','Đóng') }}</button>
+        <button v-else type="button" class="gb-cta" id="gbTraGui" :disabled="traKhoa" @click="gb.guiTra()">{{ traNut }}</button>
       </footer>
     </div>
   </section>
@@ -417,7 +439,36 @@ export const GoiTaiBanNoi = {
       }
       return m;
     }
+    /* v678 chuyển khoản ngay. Biểu thức && để ngoài khuôn (bộ kiểm node). */
+    const icCach = ma => (ma === 'ck' ? 'theNganHang' : (ma === 'ban' ? 'hoaDon' : 'cuaHang'));
+    const ckHien = computed(() => G.tra.cach === 'ck' && !!G.tra.ck.info);
+    const ckCho = computed(() => G.tra.ck.tt === 'cho' || !G.tra.ck.tt);
+    const ckApp = computed(() => appCk(G.tra.ck.info && G.tra.ck.info.app, G.tra.ck.them));
+    const ckChip = computed(() => {
+      const tt = G.tra.ck.tt;
+      if (tt === 'da_tra') return {lop: 'ok', chu: t('goi_ban_ck_chip_da', 'Đã nhận tiền')};
+      if (tt === 'da_chot') return {lop: 'ok', chu: t('goi_ban_ck_chip_chot', 'Quầy đã tính tiền')};
+      if (tt === 'huy') return {lop: 'xam', chu: t('goi_ban_ck_chip_huy', 'Bill đã huỷ')};
+      return {lop: 'cho', chu: t('goi_ban_ck_chip_cho', 'Chờ tiền về')};
+    });
+    const ckXong = computed(() => {
+      const tt = G.tra.ck.tt;
+      if (tt === 'huy') return t('goi_ban_ck_huy', 'Bill của bàn đã huỷ. Quý khách hỏi nhân viên trước khi chuyển khoản.');
+      if (tt === 'da_chot') return t('goi_ban_ck_chot', 'Quầy đã tính tiền bill bàn {ban}. Quý khách không cần chuyển khoản nữa.', {ban: soBan.value});
+      return t('goi_ban_ck_xong', 'Đã nhận đủ tiền. Bill bàn {ban} đã thanh toán, cảm ơn quý khách.', {ban: soBan.value});
+    });
+    const traLoi = computed(() => G.tra.loi || (G.tra.cach === 'ck' ? G.tra.ck.loi : ''));
+    const traDong = computed(() => !!G.tra.xong || (G.tra.cach === 'ck' && !!G.tra.ck.info && !ckCho.value));
+    const traKhoa = computed(() => G.tra.dangGui || !G.tra.cach || (G.tra.cach === 'ck' && G.tra.ck.dang));
+    const traNut = computed(() => {
+      if (G.tra.cach === 'ck') {
+        if (G.tra.ck.dang) return t('goi_ban_dang_gui', 'Đang gửi...');
+        return G.tra.ck.info ? t('goi_ban_ck_kiem', 'Kiểm tra tiền về') : t('goi_ban_ck_lay', 'Hiện cách chuyển khoản');
+      }
+      return G.tra.dangGui ? t('goi_ban_dang_gui', 'Đang gửi...') : t('goi_ban_tra_gui', 'Báo quầy tính tiền');
+    });
     return {gb, G, t, tien, soBan, giaDong, LY_DO_GOI, ICON_LY_DO, phuLyDo, moChuong, chuDong, luot, goiThem, CACH_TRA,
-      udO, udDangNhap, udDau, nhomUd, udDungDuoc, tvCau, tvChip, tvNutGan, ptWeb, phiWebChu, datWeb, giamWeb};
+      udO, udDangNhap, udDau, nhomUd, udDungDuoc, tvCau, tvChip, tvNutGan, ptWeb, phiWebChu, datWeb, giamWeb,
+      icCach, ckHien, ckCho, ckApp, ckChip, ckXong, traLoi, traDong, traKhoa, traNut};
   }
 };

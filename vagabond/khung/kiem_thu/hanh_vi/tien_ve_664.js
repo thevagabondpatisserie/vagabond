@@ -34,7 +34,7 @@ function layHam(src, ten) {
 
 var MA = ['h', 'money'].map(function (t) { return layHam(NEN, t); }).join('\n') + '\n' +
   'var posPollId = null, posSepayNhan = 0, posSepayGoiY = 0;\n' +
-  ['posPollTat', 'posPollBat', 'flt0', 'posQrSheet'].map(function (t) { return layHam(POS, t); }).join('\n') + '\n' +
+  ['posPollTat', 'posPollBat', 'flt0', 'posQrSheet', 'posCfgCk', 'posLaCk', 'posTkCk'].map(function (t) { return layHam(POS, t); }).join('\n') + '\n' +
   doc('66-goi-mon-tai-ban.js') + '\n' + doc('77-chuong-mau.js');
 
 var ket = { dat: 0, hong: 0 };

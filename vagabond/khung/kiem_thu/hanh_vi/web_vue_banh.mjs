@@ -497,23 +497,58 @@ await ca('F21 máy chủ hết hàng giữ giỏ, nonce, tải lại tồn và c
   dung('tải lại',nap>0);dung('nói số và cách xử lý',JSON.stringify(k.S.goi.gui).includes('còn 0 cái')&&JSON.stringify(k.S.goi.gui).includes('đổi ngày'));
 });
 
-await ca('v598 port v597: thiệp nhỏ đi cùng dòng giỏ qua cộng dồn, sửa dòng và tải lại trang; số kẹp 0 tới 30', async () => {
+await ca('v598 port v597: thiệp nhỏ đi cùng dòng giỏ qua cộng dồn, sửa dòng và tải lại trang; số kẹp 0 tới 30 (20/11: nĩa, dĩa không còn theo từng bánh)', async () => {
   const a = moiTruong('2026-10-11T08:00:00');
   const k = taoKho(a.mt);
   k.phucHoiGio();
   const ban = k.S.CAKES.find(c => c.k === 'CANDLE');
   k.moBanh(ban); k.S.nia = 1; k.S.thiep = 2; k.addToCart();
-  k.moBanh(ban); la('mở bánh mới thì ô thiệp về 0', k.S.thiep, 0); k.S.nia = 1; k.S.thiep = 3; k.addToCart();
-  la('khác số thiệp là hai dòng, không cộng dồn', k.S.CART.map(o => [o.qty, o.dung_cu]), [[1, {nia: 1, dia: 0, thiep: 2}], [1, {nia: 1, dia: 0, thiep: 3}]]);
-  k.moBanh(ban); k.S.nia = 1; k.S.thiep = 2; k.addToCart();
+  k.moBanh(ban); la('mở bánh mới thì ô thiệp về 0', k.S.thiep, 0); k.S.thiep = 3; k.addToCart();
+  la('khác số thiệp là hai dòng; nĩa không ghi theo bánh nữa', k.S.CART.map(o => [o.qty, o.dung_cu]), [[1, {nia: 0, dia: 0, thiep: 2}], [1, {nia: 0, dia: 0, thiep: 3}]]);
+  k.moBanh(ban); k.S.thiep = 2; k.addToCart();
   la('cùng cấu hình thì cộng dồn', k.S.CART.map(o => o.qty), [2, 1]);
-  la('phiếu bếp nhân số lượng', k.T.chuDungCu(k.S.CART[0]), '2 nĩa gỗ, 0 dĩa bã mía, 4 thiệp nhỏ');
-  la('chỉ thiệp thì không ghi nĩa dĩa', k.T.chuDungCu({qty: 1, dung_cu: {nia: 0, dia: 0, thiep: 1}}), '1 thiệp nhỏ');
+  la('phiếu bếp nhân số lượng', k.T.chuDungCu(k.S.CART[0]), '4 thiệp nhỏ');
+  la('dòng giỏ bản trước có nĩa vẫn in đúng', k.T.chuDungCu({qty: 2, dung_cu: {nia: 1, dia: 0, thiep: 2}}), '2 nĩa gỗ, 0 dĩa bã mía, 4 thiệp nhỏ');
   la('kẹp số', k.T.chuanDungCu({nia: -3, dia: '99', thiep: 'x'}), {nia: 0, dia: 30, thiep: 0});
-  k.suaDongGio(1); la('sửa dòng giỏ mở lại đúng số thiệp', [k.S.nia, k.S.thiep], [1, 3]);
+  k.suaDongGio(1); la('sửa dòng giỏ mở lại đúng số thiệp', k.S.thiep, 3);
   k.luuGio();
   const k2 = taoKho(a.mt); k2.phucHoiGio();
   la('tải lại trang giữ thiệp', k2.S.CART.map(o => o.dung_cu.thiep), [2, 3]);
+});
+
+await ca('Dĩa, nĩa tặng kèm (anh Việt 20/11/2026): chọn một lần cho cả đơn, gửi thành dòng món giá 0, kẹp 0 tới 20, giữ qua tải lại, giỏ bản trước dồn số về đơn, gửi xong về 0', async () => {
+  const {mt, kho} = moiTruong('2026-10-11T08:00:00', {'vagabond.don_hang.tao_don': () => ({ok: true, duong_dan: '/banh/xong/dc1'})});
+  const k = taoKho(mt); k.phucHoiGio();
+  la('mặc định không gửi', [k.S.DC.dia, k.S.DC.nia], [0, 0]);
+  la('giỏ trống: không gửi dĩa, nĩa dù đã bấm', (k.doiDc('dia', 1), k.T.hangGui(k.S.CART, k.S.DC)), []);
+  coThem(k); coThem(k);
+  k.doiDc('dia', 3); k.doiDc('nia', 1); k.doiDc('nia', -1); k.doiDc('nia', -1); k.doiDc('nia', 2);
+  la('nút − không xuống dưới 0', [k.S.DC.dia, k.S.DC.nia], [4, 2]);
+  for (let i = 0; i < 40; i++) k.doiDc('nia', 1);
+  la('kẹp 20 (bằng trần số lượng của máy chủ)', k.S.DC.nia, 20);
+  k.doiDc('nia', -18); k.doiDc('khac', 5);
+  la('mã lạ bỏ qua', Object.keys(k.S.DC).sort(), ['dia', 'nia']);
+  la('món gửi: bánh rồi dĩa, nĩa, không nhân số bánh', k.T.hangGui(k.S.CART, k.S.DC),
+    [{variation_id: 'BAWC00139', quantity: 2}, {variation_id: 'BAPK00020', quantity: 4}, {variation_id: 'BAPK00018', quantity: 2}]);
+  la('khoá ưu đãi đổi khi đổi số dĩa', (() => { const a = k.khoaUuDai.value; k.doiDc('dia', 1); const b = k.khoaUuDai.value; k.doiDc('dia', -1); return a !== b; })(), true);
+  /* Tải lại trang giữ số. */
+  const k2 = taoKho(mt); k2.phucHoiGio();
+  la('tải lại giữ số', [k2.S.DC.dia, k2.S.DC.nia], [4, 2]);
+  /* Giỏ lưu bản trước: nĩa, dĩa theo từng bánh, nhân số bánh, dồn về đơn. */
+  const luu = JSON.parse(kho.get([...kho.keys()][0]));
+  luu.gio[0].dung_cu = {nia: 2, dia: 1, thiep: 1}; luu.gio[0].qty = 2; delete luu.dc;
+  kho.set([...kho.keys()][0], JSON.stringify(luu));
+  const k3 = taoKho(mt); k3.phucHoiGio();
+  la('giỏ bản trước: dồn số về đơn', [k3.S.DC.dia, k3.S.DC.nia], [2, 4]);
+  la('dòng bánh không còn nĩa, dĩa; giữ thiệp', k3.S.CART[0].dung_cu, {nia: 0, dia: 0, thiep: 1});
+  la('không gửi hai lần', k3.T.hangGui(k3.S.CART, k3.S.DC).filter(x => x.variation_id.startsWith('BAPK')), [{variation_id: 'BAPK00020', quantity: 2}, {variation_id: 'BAPK00018', quantity: 4}]);
+  dung('ghi chú bếp không còn nĩa, dĩa theo bánh', !/nĩa/.test(k3.T.chuDungCu(k3.S.CART[0])));
+  /* Gửi đơn. */
+  k.pick(3); k.pickSlot(6);
+  Object.assign(k.S.f, {name: 'Khách', phone: '0901234567', addr: '12 Nguyễn Huệ Quận 1'}); k.S.CO.dongy = true;
+  const kq = await k.submitOrder();
+  la('đơn gửi có dòng dĩa, nĩa', kq.don.items.filter(x => x.variation_id.startsWith('BAPK')), [{variation_id: 'BAPK00020', quantity: 4}, {variation_id: 'BAPK00018', quantity: 2}]);
+  la('gửi xong về 0', [k.S.DC.dia, k.S.DC.nia], [0, 0]);
 });
 
 await ca('v644 bánh có bộ nội dung web: mô tả, tầng chỉ lấy từ thẻ Bánh, kể cả khi để trống; bánh cũ giữ đường cũ', async () => {
@@ -865,6 +900,58 @@ await ca('v677 (Codex, anh Việt 19/11): thẻ bánh, cỡ và giới hạn gi�
   dung('25/11: chip ghi 10', /12cm · .*10 bánh/.test(chip().chu));
   k.S.tab = 'today';
   la('tab Có sẵn hôm nay: giới hạn theo tủ, không theo ngày đặt trước', k.gioiHanNhan('BAWC00077', 'today'), 0);
+});
+
+await ca('#463 (Codex, anh Việt 20/11): ngày đã xác nhận mà cỡ bánh hết ngày đó thì cả nút + trên thẻ và Thêm vào giỏ đều báo hết, GIỮ ngày và giỏ; khách tự chọn ngày còn bánh thì thêm được; sửa món trong giỏ không đổi ngày', async () => {
+  /* Tira-Missing-U 12cm: phiếu ngày mai 20/11 hết (0), ngày kia 21/11 còn 6 theo BTP sẵn.
+     Bản cũ: hai nút vẫn thêm rồi tự dời ngày nhận sang 21/11. Không đổi luật tồn. */
+  const may = JSON.parse(JSON.stringify(TIRA_MAY));
+  may.nhom.forEach(g => g.sizes.forEach(y => { if (y.ma === 'BAWC00077') { y.con_mai = 0; y.con = 6; } }));
+  /* Bánh khác còn cả hai ngày, để thử giỏ đã có món. */
+  may.nhom.push({...may.nhom[0], ten: 'Bánh còn hai ngày', sizes: [{ma: 'BAWC09001', cm: 16, gia: 600000, con: 3, con_mai: 3, con_xa: 3}]});
+  const dung1 = async () => {
+    const {mt} = moiTruong('2026-11-19T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: may})});
+    const k = taoKho(mt); await k.napTon(); k.S.tab = 'order'; return k;
+  };
+  const tira = k => k.S.CAKES.find(c => c.sizes.some(z => z.id === 'BAWC00077'));
+  for (const coSan of [false, true]) {
+    const k = await dung1();
+    if (coSan) { k.S.CART.push({k: 'Bánh còn hai ngày', id: 'BAWC09001', cm: 16, price: 600000, nguon: 'order', wish: '', adds: [], qty: 1}); }
+    k.pick(1);
+    la((coSan ? 'giỏ có món' : 'giỏ trống') + ': đã xác nhận 20/11', [k.S.ngayChon, k.S.daChonNgay], ['2026-11-20', true]);
+    const gio = JSON.stringify(k.S.CART);
+    /* Nút Thêm vào giỏ trong chi tiết. */
+    k.moBanh(tira(k)); k.S.curSizeId = 'BAWC00077'; k.S.soLuong = 1;
+    la('chi tiết: không thêm', k.addToCart(), false);
+    dung('chi tiết: báo hết ngày 20/11, chỉ chọn ngày khác: ' + k.S.toast.chu, /hết ngày 20\/11/.test(k.S.toast.chu));
+    la('chi tiết: giữ ngày và giỏ', [k.S.ngayChon, k.S.daChonNgay, JSON.stringify(k.S.CART)], ['2026-11-20', true, gio]);
+    /* Nút + trên thẻ (bánh một cỡ đang bán thì thêm thẳng). */
+    const c1 = {...tira(k), sizes: tira(k).sizes.filter(z => z.id === 'BAWC00077')};
+    k.S.toast.chu = '';
+    la('nút +: không thêm', k.themNhanh(c1, 'order'), 'chan');
+    dung('nút +: báo hết ngày 20/11', /hết ngày 20\/11/.test(k.S.toast.chu));
+    la('nút +: giữ ngày và giỏ', [k.S.ngayChon, JSON.stringify(k.S.CART)], ['2026-11-20', gio]);
+    /* Khách tự chọn 21/11: thêm được, ngày là 21/11. */
+    k.pick(2);
+    k.moBanh(tira(k)); k.S.curSizeId = 'BAWC00077'; k.S.soLuong = 1;
+    la('chọn 21/11 rồi thêm được', [k.addToCart(), k.S.ngayChon], ['them', '2026-11-21']);
+  }
+  /* Khách CHƯA xác nhận ngày (ngày do hệ thống đặt, ví dụ giỏ lưu hôm trước): luật
+     này không chặn, giữ như cũ (lịch vẫn chờ khách xác nhận trước khi gửi đơn). */
+  const k0 = await dung1();
+  k0.pick(1); k0.S.daChonNgay = false;
+  k0.moBanh(tira(k0)); k0.S.curSizeId = 'BAWC00077'; k0.S.soLuong = 1;
+  la('chưa xác nhận ngày: không chặn, lịch chờ xác nhận', [k0.addToCart(), k0.S.daChonNgay], ['them', false]);
+  /* Sửa món từ giỏ: còn bánh ngày đang chọn thì lưu, không đổi ngày. */
+  const k = await dung1();
+  k.pick(2);
+  k.moBanh(tira(k)); k.S.curSizeId = 'BAWC00077'; k.S.soLuong = 1; k.addToCart();
+  k.suaDongGio(0); k.S.soLuong = 2;
+  la('sửa món trong giỏ: lưu, giữ 21/11', [k.addToCart(), k.S.ngayChon, k.S.CART[0].qty], ['sua', '2026-11-21', 2]);
+  /* Cùng loại (H2): số còn của ngày đã chọn về 0 khi bánh đã trong giỏ thì nút + trong giỏ báo hết, không tăng. */
+  k.S.TRUOC_XA.BAWC00077 = 0;
+  k.cartQty(0, 1);
+  la('nút + trong giỏ: không tăng, báo hết ngày 21/11', [k.S.CART[0].qty, /hết ngày 21\/11/.test(k.S.toast.chu), k.S.ngayChon], [2, true, '2026-11-21']);
 });
 
 await ca('v675 thêm bánh Có sẵn hôm nay: ngày nhận về HÔM NAY với khung giờ gần nhất (trước: giữ ngày kia mặc định); đã tự chọn ngày thì giữ; hôm nay hết giờ thì báo, không tự nhảy ngày', async () => {

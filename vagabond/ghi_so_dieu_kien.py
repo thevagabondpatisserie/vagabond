@@ -66,6 +66,9 @@ THU_TU = [
 ]
 
 CHUYEN_KHOAN = "Chuyển khoản"
+# v678: mọi phương thức chuyển khoản đối soát SePay. CHÉP TỪ pt_ck.DS_CK vì
+# tệp này không import gì; ca thu_shinhan_o2o_678 đối chiếu hai bản.
+CHUYEN_KHOAN_DS = ("Chuyển khoản", "Chuyển khoản - Shinhan")
 CONG_NO = "Công nợ"
 
 # Ba chuoi duoi day CHEP TU `vagabond/hang_tang.py`, co y va bat dac di:
@@ -124,7 +127,7 @@ def ly_do(b, pt_hop_le=None, pt_can_ma=None, trong_chuoi=True, khach_le=""):
 
 	ma = _chu(b.get("vgb_ma_tham_chieu"))
 	du_tien = _so(b.get("sepay_du"))
-	if pt == CHUYEN_KHOAN:
+	if pt in CHUYEN_KHOAN_DS:
 		# SePay nhận đủ tiền thì máy tự điền mã giao dịch lúc ghi sổ, nên
 		# đủ tiền cũng là đủ điều kiện dù ô mã đang trống.
 		if not ma and not du_tien:

@@ -22,6 +22,14 @@ export const NHIP_TRANG_THAI = 10000;
 /* v643: không còn lượt chờ mà bàn còn hoá đơn mở thì vẫn hỏi lại tổng hoá đơn
    (món máy khác gọi, món quầy thêm) theo nhịp thưa này. */
 export const NHIP_HOA_DON = 30000;
+/* v678: hỏi tiền chuyển khoản đã về chưa, vài giây một lần khi bảng Thanh toán mở. */
+export const NHIP_CK = 5000;
+/* Năm app tự điền sẵn số tiền và nội dung đứng đầu (pt_ck.APP_NGAN_HANG); app
+   khác ẩn sau nút Ngân hàng khác. THUẦN. */
+export function appCk(ds, them) {
+  const a = Array.isArray(ds) ? ds : [];
+  return them ? a : a.filter(x => Number(x.tu_dien));
+}
 export const SL_TOI_DA = 20;
 export const TOPPING_TOI_DA = 5;
 /* Thứ tự chip đồ uống, trùng goi_mon_ban.NHOM_NUOC; nhãn ngắn cho chip. */
@@ -33,7 +41,11 @@ export const LY_DO_GOI = ['Gọi nhân viên tới bàn', 'Xin tính tiền', 'X
    chưa mở trả online tại bàn. Khách chọn một, máy báo quầy qua đúng chuông
    "Xin tính tiền" (lý do LY_DO_GOI[1]); phần chi tiết nói cách trả và thông
    tin xuất hoá đơn để thu ngân chuẩn bị bill. */
+/* v678 (anh Việt 20/11/2026): "Chuyển khoản ngay" mở app ngân hàng của khách với
+   số tiền, nội dung điền sẵn (ck_ban.thong_tin); tiền về đủ thì máy tự chốt bill
+   (tu_chot_ck). Hai cách cũ vẫn báo quầy như trước. */
 export const CACH_TRA = [
+  {ma: 'ck', ten: 'Chuyển khoản ngay', phu: 'Chọn app ngân hàng, số tiền và nội dung điền sẵn', chi: 'Khách chuyển khoản'},
   {ma: 'ban', ten: 'Nhân viên mang bill ra bàn', phu: 'Tiền mặt, chuyển khoản hoặc quẹt thẻ ngay tại bàn', chi: 'Mang bill ra bàn'},
   {ma: 'quay', ten: 'Trả tại quầy', phu: 'Quý khách ra quầy, báo số bàn với thu ngân', chi: 'Khách ra quầy trả'}];
 /* Đơn còn tính tiền: bỏ đơn quầy từ chối hoặc hết hạn (quầy chưa nhận nên
@@ -451,7 +463,9 @@ export function taoGoiBan(moiTruong, S) {
     don: [],             // [{ma, token, tt}]
     chuong: {mo: false, lyDo: '', chiTiet: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
     moDon: false,        // v642: màn "Đơn của bàn"
-    tra: {mo: false, cach: '', hd: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: ''},
+    tra: {mo: false, cach: '', hd: '', dangGui: false, loi: '', xong: null, nonce: '', nonceNd: '',
+      /* v678 chuyển khoản ngay: info từ ck_ban.thong_tin, tt 'cho' | 'da_tra' | 'da_chot' | 'huy'. */
+      ck: {info: null, dang: false, loi: '', tt: '', chep: '', them: false, lan: 0}},
     /* v643 ưu đãi tại bàn: buoc '' | 'dang' | 'sdt' | 'ma' | 'ds'. */
     ud: {mo: false, buoc: '', sdt: '', ma: '', ds: [], chon: '', hienTai: null, sdtCo: '', coHoaDon: 0, dangGui: false, loi: '', bao: ''},
     /* v677 tích điểm (tich_diem_ban): trang_thai '' chưa biết | 'cho' bàn chưa có
@@ -743,13 +757,80 @@ export function taoGoiBan(moiTruong, S) {
     const c = G.tra;
     G.moDon = false;
     c.mo = true; c.loi = ''; c.xong = null;
+    /* Mở lại bảng là đọc lại số tiền: bàn có thể vừa gọi thêm món. */
+    c.ck.lan++; c.ck.info = null; c.ck.loi = ''; c.ck.tt = ''; c.ck.chep = ''; c.ck.dang = false;
     void hoiTrangThai(true);
     return true;
   }
-  function dongTra() { G.tra.mo = false; }
+  function dongTra() { G.tra.mo = false; huyHen(henCk); henCk = null; }
+  function chonCach(ma) {
+    G.tra.cach = ma; G.tra.loi = '';
+    if (ma !== 'ck') { huyHen(henCk); henCk = null; } else henHoiCk();
+  }
+
+  /* ---------------- chuyển khoản ngay tại bàn (v678) ---------------- */
+  let henCk = null;
+  async function napCk() {
+    const c = G.tra, k = c.ck;
+    if (k.dang || cheDo.value !== 'goi') return null;
+    const hd = chuanHoaDon(c.hd);
+    if (!hd.ok) { k.loi = hd.cau; return null; }
+    /* Sổ mẫu lỗi loại 8: mỗi lần bấm một lượt; trả lời của lượt cũ đến muộn bị bỏ. */
+    const lan = ++k.lan;
+    k.dang = true; k.loi = '';
+    let m = null;
+    try { m = await ghi('vagabond.ck_ban.thong_tin', Object.assign(thamBan(), {hd: hd.gt})); } catch (e) { m = null; }
+    if (lan !== k.lan) return null;
+    k.dang = false;
+    if (!m || !m.ok) {
+      k.info = null;
+      k.loi = (m && m.cau) || t('goi_ban_ck_loi', 'Chưa lấy được thông tin chuyển khoản. Quý khách thử lại hoặc chọn cách khác.');
+      return m;
+    }
+    k.info = m; k.tt = 'cho'; k.chep = '';
+    henHoiCk();
+    return m;
+  }
+  function henHoiCk() {
+    huyHen(henCk); henCk = null;
+    const c = G.tra;
+    if (c.mo && c.cach === 'ck' && c.ck.info && c.ck.tt === 'cho') henCk = hen(() => hoiCk(), NHIP_CK);
+  }
+  async function hoiCk() {
+    const k = G.tra.ck;
+    huyHen(henCk); henCk = null;
+    if (!k.info) return null;
+    const lan = k.lan, ma = k.info.ma;
+    let m = null;
+    try { m = await doc('vagabond.ck_ban.trang_thai', Object.assign(thamBan(), {ma})); } catch (e) { m = null; }
+    if (lan !== k.lan || !k.info) return null;
+    if (m && m.ok && m.tt) {
+      k.tt = m.tt;
+      /* Bàn gọi thêm món sau khi lấy mã: số tiền đổi thì lấy mã mới. */
+      if (m.tt === 'cho' && m.tien != null && Number(m.tien) !== Number(k.info.tien)) { k.info = null; return napCk(); }
+      if (m.tt !== 'cho') void hoiTrangThai(true);
+    }
+    henHoiCk();
+    return m;
+  }
+  function chepCk(loai) {
+    const k = G.tra.ck;
+    if (!k.info) return false;
+    const gt = loai === 'stk' ? k.info.stk : k.info.noi_dung;
+    try {
+      if (moiTruong.chep) void Promise.resolve(moiTruong.chep(String(gt || ''))).catch(() => {});
+    } catch (e) { /* trình duyệt chặn chép: khách vẫn đọc được trên màn */ }
+    k.chep = loai;
+    toast(loai === 'stk' ? t('goi_ban_ck_da_chep_stk', 'Đã chép số tài khoản') : t('goi_ban_ck_da_chep_nd', 'Đã chép nội dung chuyển khoản'));
+    return true;
+  }
+  /* App không tự điền thì chép sẵn nội dung trước khi mở, để khách dán vào. */
+  function moApp(a) { if (a && !Number(a.tu_dien)) chepCk('nd'); return true; }
+
   async function guiTra() {
     const c = G.tra;
     if (c.dangGui || cheDo.value !== 'goi') return null;
+    if (c.cach === 'ck') return c.ck.info ? hoiCk() : napCk();
     if (!CACH_TRA.some(x => x.ma === c.cach)) { c.loi = t('goi_ban_tra_chon', 'Quý khách chọn cách thanh toán.'); return null; }
     const hd = chuanHoaDon(c.hd);
     if (!hd.ok) { c.loi = hd.cau; return null; }
@@ -1040,5 +1121,6 @@ export function taoGoiBan(moiTruong, S) {
     xemGiaWeb, goiYDiaChiWeb, chonGoiYWeb, tongWeb, datWeb, goiYQuayHien, thanhMienPhiQuay, themGoiYQuay, napGoiYQuay,
     chonTc, chonTp, doiSlChon, giaChon, tongChon, xongChon, them, doiSl, kiemGt, goiMon, hoiTrangThai, cauDon, chuTuyChon,
     moChuong, dongChuong, goiNhanVien, tom, barDon, moDon, dongDon, moTra, dongTra, guiTra,
+    chonCach, napCk, hoiCk, chepCk, moApp,
     moUd, dongUd, napUd, ganTv, guiMaUd, suaSoUd, xacThucUd, dungUd, boUd, udHienTai};
 }

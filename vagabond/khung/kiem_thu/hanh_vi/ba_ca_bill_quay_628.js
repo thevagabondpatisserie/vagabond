@@ -170,7 +170,7 @@ var NVH = { ma: 'NVHTN', ten: 'Nhà Văn Hóa Thanh Niên' };
   });
 
   /* ---------------- TH3: huỷ bill đã nhận tiền ---------------- */
-  var HAM_HUY = NEN3 + '\n' + layHam(POS, 'posChipNut') + '\n' + layHam(BILL, 'posHuyCoTien');
+  var HAM_HUY = NEN3 + '\n' + layHam(POS, 'posChipNut') + '\n' + layHam(POS, 'posCfgCk') + '\n' + layHam(POS, 'posLaCk') + '\n' + layHam(BILL, 'posHuyCoTien');
   var DIEM = [{ ma: 'SALES', ten: 'Sales Online', ten_ngan: 'Sales Online' },
     { ma: 'TCV', ten: 'The Vagabond District 1', ten_ngan: 'District 1' },
     { ma: 'NVHTN', ten: 'Nhà Văn Hóa Thanh Niên', ten_ngan: 'NVHTN' }];

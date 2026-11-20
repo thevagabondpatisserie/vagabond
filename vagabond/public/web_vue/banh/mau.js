@@ -197,17 +197,27 @@ export const MAU = `
     <div class="sec"><span class="n">01</span><h3><span>{{ t('dat_banh_f257f0ff4','Giỏ bánh') }}</span></h3><i class="rule"></i></div>
     <ul class="cart" id="cartList">
       <li v-if="!S.CART.length" class="cart-empty">{{ t('dat_banh_b5f223212','Giỏ chưa có bánh nào.') }}</li>
-      <li v-for="d in kho.dongGio.value" :key="d.i + '|' + d.o.id"><div class="im"><img :src="d.o.img" alt=""></div>
-        <div class="bd"><div class="t">{{ d.ten }}</div>
-          <div class="s">{{ d.phu }}</div><div class="ex" v-if="d.ex.length"><template v-for="(e,j) in d.ex" :key="j"><br v-if="j">
-            <dong-chu :phan="e"/></template></div></div>
-        <div class="rt"><button v-if="d.o.cm" class="sua-gio" @click="suaDongGio(d.i)"><bieu-tuong loai="sua"/>{{ t('sua_banh','Sửa bánh') }}</button>
-          <div class="p">{{ d.tien }}</div><div class="qty">
-            <button :disabled="d.o.qty<=1" :aria-label="t('giam_so_luong','Giảm số lượng')" @click="kho.cartQty(d.i,-1)"><bieu-tuong loai="tru"/></button>
-            <span>{{ d.o.qty }}</span><button :aria-label="t('tang_so_luong','Tăng số lượng')" @click="kho.cartQty(d.i,1)"><bieu-tuong loai="cong"/></button></div>
-          <button class="rm" @click="kho.cartRemove(d.i); if(!S.CART.length) nav('#/',true)"><bieu-tuong loai="bo"/>{{ t('bo_khoi_gio','Bỏ khỏi giỏ') }}</button></div></li>
+      <li v-for="d in kho.dongGio.value" :key="d.i + '|' + d.o.id" class="dg">
+        <div class="dg-tren"><div class="im"><img :src="d.o.img" alt=""></div>
+          <div class="bd"><div class="t">{{ d.ten }}</div>
+            <div class="s">{{ d.phu }}</div><div class="ex" v-if="d.ex.length"><template v-for="(e,j) in d.ex" :key="j"><br v-if="j">
+              <dong-chu :phan="e"/></template></div></div>
+          <button v-if="d.o.cm" type="button" class="nut-tron nut-sua" :aria-label="t('sua_banh','Sửa bánh')" :title="t('sua_banh','Sửa bánh')" @click="suaDongGio(d.i)"><bieu-tuong loai="sua"/><span class="chi-may-doc">{{ t('sua_banh','Sửa bánh') }}</span></button>
+          <span v-else class="nut-cho" aria-hidden="true"></span>
+          <button type="button" class="nut-tron nut-bo" :aria-label="t('bo_khoi_gio','Bỏ khỏi giỏ')" :title="t('bo_khoi_gio','Bỏ khỏi giỏ')" @click="kho.cartRemove(d.i); if(!S.CART.length) nav('#/',true)"><bieu-tuong loai="bo"/><span class="chi-may-doc">{{ t('bo_khoi_gio','Bỏ khỏi giỏ') }}</span></button></div>
+        <div class="dg-duoi"><div class="sl-vien" role="group" :aria-label="t('so_luong_cua','Số lượng {ten}',{ten:d.ten})">
+            <button type="button" :disabled="d.o.qty<=1" :aria-label="t('sl_bot_1','Bớt 1')" @click="kho.cartQty(d.i,-1)"><bieu-tuong loai="tru"/></button>
+            <output aria-live="polite">{{ d.o.qty }}</output><button type="button" :aria-label="t('sl_them_1','Thêm 1')" @click="kho.cartQty(d.i,1)"><bieu-tuong loai="cong"/></button></div>
+          <div class="p">{{ d.tien }}</div></div></li>
     </ul>
     <button class="cart-add" @click="navBack()"><bieu-tuong loai="cong"/><span>{{ t('dat_banh_7ddb8bc3b','Chọn thêm bánh') }}</span></button>
+    <div class="dc-don" id="c-dc" v-if="S.CART.length">
+      <div class="dc-tieu">{{ t('dc_don_tieu','Dụng cụ ăn tặng kèm') }}</div>
+      <div class="dc-mo">{{ t('dc_don_mo','The Vagabond gửi kèm chỉ khi quý khách cần nhằm hạn chế dụng cụ ăn uống sử dụng một lần. Quý khách cần bao nhiêu vui lòng nhập số lượng.') }}</div>
+      <ul class="acc dc-ds"><li v-for="x in DUNG_CU_DON" :key="x.k" :id="'c-dc-' + x.k"><img :src="x.i" alt=""><span class="nm">{{ t(x.kt, x.n) }}<small>{{ t('dc_don_tang','tặng kèm, 0 đ') }}</small></span>
+        <div class="sl-vien" role="group" :aria-label="t('so_luong_cua','Số lượng {ten}',{ten:t(x.kt, x.n)})"><button type="button" :disabled="!S.DC[x.k]" :aria-label="t('sl_bot_1','Bớt 1')" @click="kho.doiDc(x.k,-1)"><bieu-tuong loai="tru"/></button>
+          <output aria-live="polite">{{ S.DC[x.k] }}</output><button type="button" :disabled="S.DC[x.k]>=20" :aria-label="t('sl_them_1','Thêm 1')" @click="kho.doiDc(x.k,1)"><bieu-tuong loai="cong"/></button></div></li></ul>
+    </div>
     <goi-y-mua id-khoi="gyGio" :tieu="t('gy_tieu_gio','GIAO KÈM CÙNG CHUYẾN')" :ds="kho.goiYGio.value" :them="kho.themGoiY" :thanh="kho.thanhMienPhiGio.value"/>
 
     <div class="sec"><span class="n">02</span><h3><span>{{ t('dat_banh_73b0921c0','Ngày và giờ nhận') }}</span></h3><i class="rule"></i></div>
@@ -413,8 +423,8 @@ export const MAU = `
     <details class="tuy-chon" id="s-phu-kien" :key="'pk' + chiTiet.c.k">
       <summary><span>{{ t('phu_kien_cho_banh','Phụ kiện cho bánh') }}</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></summary>
     <h4 class="theo-yeu-cau">{{ t('pk_theo_yeu_cau','Thêm miễn phí khi quý khách cần') }}</h4>
-    <div class="hint">{{ t('pk_theo_yeu_cau_mo','Mặc định chúng tôi không gửi để bớt đồ dùng một lần. Cần bao nhiêu thì ghi số.') }}</div>
-    <div class="dung-cu"><label><span>{{ t('so_nia','Số nĩa gỗ') }}</span><input id="s-nia" type="number" inputmode="numeric" min="0" max="30" v-model.number="S.nia"></label><label><span>{{ t('so_dia_ba_mia','Số dĩa bã mía') }}</span><input id="s-dia" type="number" inputmode="numeric" min="0" max="30" v-model.number="S.dia"></label><label><span>{{ t('so_thiep_nho','Số thiệp nhỏ') }}</span><input id="s-thiep" type="number" inputmode="numeric" min="0" max="30" v-model.number="S.thiep"></label></div>
+    <div class="hint">{{ t('pk_theo_yeu_cau_mo','Mặc định chúng tôi không gửi để bớt đồ dùng một lần. Cần bao nhiêu thì ghi số.') }} {{ t('pk_dc_o_gio','Dĩa, nĩa chọn một lần cho cả đơn ở trang Thông tin đơn hàng.') }}</div>
+    <div class="dung-cu"><label><span>{{ t('so_thiep_nho','Số thiệp nhỏ') }}</span><input id="s-thiep" type="number" inputmode="numeric" min="0" max="30" v-model.number="S.thiep"></label></div>
 
     <div class="sec"><span class="n">04</span><h3><span>{{ t('pk_mua_them_muc','Mua thêm, không bắt buộc') }}</span></h3><i class="rule"></i></div>
     <div class="addon-lead"><b>{{ t('pk_mua_them_dan','Bánh đã có đủ hộp, túi, nến và dao.') }}</b> <span>{{ t('pk_mua_them_mo','Mục này dành cho quý khách muốn thêm đồ trang trí.') }}</span></div>

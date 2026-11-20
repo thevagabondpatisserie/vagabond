@@ -879,6 +879,8 @@ def _chay_ds_bill_ck(hd, theo_don=None, diem=""):
 				return (x or 0) < gt
 			if op == "is":
 				return bool(x) if gt == "set" else not x
+			if op == "in":  # v678: mọi phương thức chuyển khoản (pt_ck.DS_CK)
+				return x in gt
 		return x == v
 
 	class _R(dict):

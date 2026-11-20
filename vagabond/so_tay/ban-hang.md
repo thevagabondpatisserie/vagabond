@@ -1026,7 +1026,7 @@ Khách đặt trên web, đơn vào Pancake xong máy nhắn nhóm Zalo Bán hà
 **Lưu ý**
 - Web không báo được phí thì khách thấy "Chúng tôi báo phí khi xác nhận". Khi GreenSM còn chạy thử, web chưa báo phí cho mọi đơn giao.
 - Tin đơn hàng không ghi tiền. Xem tiền trên Pancake hoặc Doanh số.
-- Khách chọn số nĩa gỗ, dĩa bã mía, thiệp nhỏ ngay trên web. <!-- kiểm: số nĩa, dĩa, thiệp hiện ở ô nào trên Pancake và phiếu bếp -->
+- Dĩa, nĩa tặng kèm về Pancake thành dòng món 0 đ; thiệp nhỏ vẫn ở ghi chú.
 - Khách mất trang biên nhận: biên nhận chỉ mở được từ đường dẫn hiện ngay sau khi đặt; tra đơn theo số điện thoại trên Pancake.
 - Mức miễn phí giao, đơn vị báo phí: việc này do giám đốc quyết.
 
@@ -1285,6 +1285,127 @@ Từ v677 (Sales báo 20/11/2026, giám đốc chọn hướng A).
 **Lưu ý**
 - "?" là chưa biết (chưa có phiếu ngày mai, chưa đếm được đơn refill). Số đỏ là đã nhận quá.
 - Đơn hôm nay không trừ vào số ngày kia.
+
+## Chuyển khoản - Shinhan tại quầy
+Từ khoá: chuyển khoản Shinhan, tài khoản Shinhan, mã QR Shinhan, phương thức thanh toán, đối soát SePay, tiền về sai ngân hàng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy; Kế toán theo dõi | Tính tiền, bill Tạm tính trên app | Ô Chuyển khoản - Shinhan |
+
+Từ v678 (giám đốc yêu cầu 20/11/2026: vài khách muốn chuyển vào tài khoản Shinhan).
+
+**Trước đây:** chuyển khoản chỉ có một ô, mã QR vào tài khoản MB của điểm bán; khách muốn chuyển Shinhan thì phải xin số tài khoản và quầy đối soát tay.
+**Từ nay:**
+- Ở mọi điểm bán có thêm ô Chuyển khoản - Shinhan (logo Shinhan), ngay sau ô Chuyển khoản.
+- Chọn ô này thì mã QR vào tài khoản Shinhan công ty, nội dung là mã bill; SePay tự khớp như Chuyển khoản, màn hình tự báo khi tiền về đủ.
+- Ghi sổ vào tài khoản tiền gửi Shinhan. Bill ghi Chuyển khoản mà tiền lại về Shinhan (hoặc ngược lại) thì hệ thống chặn ghi sổ, câu báo nói đổi sang phương thức nào.
+
+**Bạn cần làm**
+1. Quầy: khách chuyển vào Shinhan thì chọn ô Chuyển khoản - Shinhan trước khi đưa mã QR.
+2. Gặp câu "tiền về tài khoản của Chuyển khoản - Shinhan": mở bill, đổi phương thức đúng như câu báo rồi lưu lại.
+
+**Lưu ý**
+- Mã QR Shinhan lấy số tài khoản từ Hình thức thanh toán Chuyển khoản - Shinhan (tài khoản 11212). Kế toán đổi tài khoản ở đó thì mã QR đổi theo.
+
+## Khuyến mãi trên bill Tạm tính
+Từ khoá: khuyến mãi bill tạm tính, chương trình, nhập mã, voucher, bill gọi QR, sửa hoá đơn, áp khuyến mãi tại quầy, OTP quản lý
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy | Bill Tạm tính trên app (cả bill gọi món qua QR) | Chương trình; Nhập mã |
+
+Từ v678 (cửa hàng báo 20/11/2026).
+
+**Trước đây:** khuyến mãi chỉ chọn được ở màn Tính tiền lúc tạo đơn. Bill khách gọi qua QR, hay bill Tạm tính đã lưu, không có mục Chương trình, Nhập mã; Sửa hoá đơn cũng không có, nên phải biết khách có voucher ngay từ đầu.
+**Từ nay:**
+- Bill Tạm tính chưa có ưu đãi nào có khối Khuyến mãi với hai nút Chương trình và Nhập mã.
+- Chương trình: danh sách chương trình đang bật cho quầy, kèm số giảm tính theo món đang có; chương trình không áp được thì ghi lý do.
+- Nhập mã: gõ mã khách đọc.
+- Bill đã in tạm tính: hỏi mã OTP quản lý ca theo quyền quầy trong Cài đặt (trừ mức Tự do). Chương trình cần quản lý duyệt thì luôn hỏi.
+- Hệ thống trừ ngay vào bill. Khách gọi thêm món thì số giảm tính lại; lượt dùng ghi khi chốt bill.
+- Mỗi hoá đơn một ưu đãi: bill đã có ưu đãi khách chọn tại bàn hay khuyến mãi lúc tạo đơn thì không áp thêm. Muốn đổi thì bấm Bỏ ưu đãi này trước.
+- Bill đã chốt (máy khác chốt, hoặc tự chốt khi tiền về) thì không áp, không bỏ được nữa.
+
+**Bạn cần làm**
+1. Đang Sửa hoá đơn mà muốn áp khuyến mãi: lưu thay đổi món trước, rồi bấm Chương trình hoặc Nhập mã.
+
+## Voucher Grab Dine-Out: giảm đúng phần tiệm chịu
+Từ khoá: voucher Grab, Grab Dine-Out, GD-, voucher 200.000, voucher 300.000, giảm giá Grab, đối soát Grab, tiệm chịu
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy; Kế toán đối soát | Tính tiền, bill Tạm tính (Khuyến mãi); Đối soát nhà cung cấp | Chương trình voucher Grab; ô Grab Dine-Out |
+
+Từ v678 (giám đốc chốt 20/11/2026).
+
+**Trước đây:** hai chương trình voucher Grab Dine-Out giảm đủ 200.000 đ hoặc 300.000 đ, trong khi Grab chỉ trừ của tiệm 40.000 đ hoặc 60.000 đ (phần còn lại Grab trả). Bill thấp hơn tiền Grab trả.
+**Từ nay:**
+- Hai chương trình chỉ giảm phần tiệm chịu: voucher 200.000 đ giảm 40.000 đ, voucher 300.000 đ giảm 60.000 đ. Tên chương trình ghi rõ "tiệm chịu".
+- Mã GD- không cho biết loại voucher: xem dòng "Voucher 200.000đ" hay "300.000đ" trên màn hình khách, cùng màn có mã GD-.
+- Phần còn lại của bill chốt bằng Grab Dine-Out kèm mã GD-.
+- Khi báo cáo Grab về, hệ thống so phần giảm trên bill với phần tiệm chịu Grab báo. Lệch thì dòng đó là Lệch tiền, ghi rõ bill giảm bao nhiêu, Grab báo bao nhiêu.
+
+**Bạn cần làm**
+1. Quầy: chọn đúng chương trình theo màn hình khách, rồi chốt bằng Grab Dine-Out và nhập mã GD-.
+2. Kế toán: bill cũ đã giảm đủ giá voucher giữ nguyên, chỉ đối chiếu với báo cáo Grab.
+## Web đặt bánh: dĩa, nĩa tặng kèm thành món trên Pancake
+Từ khoá: dĩa giấy, nĩa gỗ, dụng cụ ăn, tặng kèm, BAPK00020, BAPK00018, web đặt bánh, đồ dùng một lần
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales; Bếp | Trang đặt bánh, Thông tin đơn hàng; đơn Pancake | Nút − và + ở khối Dụng cụ ăn tặng kèm |
+
+Từ v678 (giám đốc chốt 20/11/2026).
+
+**Trước đây:** ô Số nĩa gỗ, Số dĩa bã mía nằm trong mục thu gọn Phụ kiện cho bánh của từng bánh, nhiều khách không thấy. Số khách ghi chỉ vào ghi chú đơn.
+**Từ nay:**
+- Trang Thông tin đơn hàng, dưới nút Chọn thêm bánh, có khối Dụng cụ ăn tặng kèm: Dĩa giấy bã mía và Nĩa gỗ, mặc định 0, bấm + theo số khách cần (tối đa 20 mỗi loại), chọn một lần cho cả đơn.
+- Đơn về Pancake có thêm dòng món BAPK00020 Dĩa giấy bã mía và BAPK00018 Nĩa gỗ, giá 0 đ, đúng số khách chọn. Hai món không theo dõi tồn kho.
+- Ô Số thiệp nhỏ vẫn ở chi tiết bánh như cũ.
+
+**Bạn cần làm**
+1. Sales, Bếp: soạn dĩa, nĩa theo dòng món trên đơn Pancake, không cần đọc ghi chú.
+
+## Web đặt bánh: ngày đã chọn hết bánh thì báo hết, không tự đổi ngày
+Từ khoá: hết bánh ngày đã chọn, tự đổi ngày nhận, web đặt bánh, nút thêm vào giỏ, đặt trước
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales | Trang đặt bánh, tab Đặt bánh trước | Nút + trên thẻ bánh; Thêm vào giỏ |
+
+Từ v678 (giám đốc yêu cầu 20/11/2026).
+
+**Trước đây:** khách đã chọn ngày nhận, bấm thêm một cỡ bánh đã hết đúng ngày đó thì bánh vẫn vào giỏ và trang tự dời ngày nhận của cả giỏ sang ngày còn bánh.
+**Từ nay:**
+- Nút + trên thẻ, Thêm vào giỏ trong chi tiết và nút + trong giỏ đều báo "Cỡ bánh này hết ngày ...", giữ nguyên ngày và giỏ.
+- Khách tự chọn ngày khác còn bánh thì thêm được như thường. Số tồn và luật nhận đặt trước không đổi.
+
+**Bạn cần làm**
+1. Sales: khách hỏi vì sao không thêm được bánh thì kiểm ngày nhận khách đã chọn, gợi ý ngày còn bánh.
+
+## Khách chuyển khoản ngay tại bàn, bill tự chốt
+Từ khoá: chuyển khoản ngay, app ngân hàng, tự chốt bill, O2O, gọi món tại bàn, thanh toán tại bàn, đối soát tay, bàn đã chuyển khoản
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách tại bàn; Quầy | Trang gọi món tại bàn (Thanh toán); danh sách bill trên app | Chuyển khoản ngay; Hiện cách chuyển khoản |
+
+Từ v678 (giám đốc chốt 20/11/2026: hệ thống tự chốt).
+
+**Trước đây:** khách gọi món qua QR muốn chuyển khoản thì phải báo quầy, thu ngân mở bill đưa mã QR rồi chờ và tự chốt bill.
+**Từ nay:**
+- Bảng Thanh toán trên trang gọi món có cách Chuyển khoản ngay: khách chọn app ngân hàng, app mở ra với số tiền và nội dung điền sẵn (MB, VietinBank, BIDV, ACB, OCB); app khác thì nội dung đã chép sẵn để dán. Có cả mã QR và nút chép.
+- Tiền về đủ, nội dung có mã bill, thì hệ thống tự chốt bill tạm tính: phương thức theo ngân hàng tiền về. Trang của khách báo Đã nhận tiền.
+- Cũng áp cho bill tạm tính ở quầy: khách quét mã QR trên tờ tạm tính, tiền về là bill tự chốt.
+- Nhóm Zalo của quầy nhận tin "Bàn N đã chuyển khoản, bill tự chốt" (nhóm đang nhận tin gọi món tại bàn được tích sẵn).
+
+**Bạn cần làm**
+1. Quầy: thấy tin bàn đã chuyển khoản thì không thu nữa.
+2. Bill không tự chốt (chuyển thiếu, thiếu mã bill, bill chia nhiều cách trả): bấm Dò tiền chuyển khoản rồi chốt như cũ.
+
+**Lưu ý**
+- Hệ thống chỉ chốt, ghi sổ vẫn theo nhịp và kiểm tiền lại lần nữa. Khách gọi thêm món sau khi lấy mã thì trang tự lấy số tiền mới.
 
 ## Tích điểm cho bill gọi món tại bàn
 Từ khoá: tích điểm, thành viên, khách bàn, bill QR, tạm tính, gắn khách, gỡ khách, The Vagabond Club, đăng nhập Zalo
