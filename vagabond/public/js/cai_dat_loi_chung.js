@@ -103,6 +103,7 @@ var VGB_ZALO_TIN = {
 	bh_ahamove_huy: ['Bán hàng, cửa hàng', 'Tài xế Ahamove huỷ hoặc giao thất bại', 'Tài xế huỷ hoặc giao không được, vận đơn về Chờ giao để phân công lại.'],
 	bh_goi_mon_tai_ban: ['Bán hàng, cửa hàng', 'Khách gọi món tại bàn qua QR', 'Khách quét QR trên bàn và gọi món; quầy nhận đơn trên màn Tính tiền trong 10 phút.'],
 	bh_weborder_moi: ['Bán hàng, cửa hàng', 'Đơn giao của quầy đã trả tiền, chờ xác nhận', 'Khách đặt qua tab Tại quầy trên web và đã trả online; quầy xác nhận ở màn Đơn giao của quầy.'],
+	bh_ban_da_chuyen_khoan: ['Bán hàng, cửa hàng', 'Bàn đã chuyển khoản, bill tự chốt', 'Khách chuyển khoản đủ tiền bill tạm tính (tại bàn hoặc quầy); hệ thống tự chốt bill, quầy không thu nữa.'],
 	bh_khach_can_tro_giup: ['Bán hàng, cửa hàng', 'Khách cần trợ giúp tại bàn', 'Khách bấm chuông trên trang bàn: gọi nhân viên, xin tính tiền, xin nước đá; quầy tới bàn rồi bấm Đã tới bàn.'],
 	bh_dat_ban: ['Bán hàng, cửa hàng', 'Đặt bàn mới', 'Khách vừa gửi yêu cầu đặt bàn, chờ cửa hàng xác nhận.'],
 	bh_dat_ban_xac_nhan: ['Bán hàng, cửa hàng', 'Đặt bàn đã xác nhận', 'Quản lý vừa xác nhận một đặt bàn: ngày giờ, tên, số điện thoại, số khách.'],
