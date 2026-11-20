@@ -34,7 +34,7 @@ import re
 
 import frappe
 
-from vagabond import diem_ban
+from vagabond import diem_ban, pt_ck
 from frappe.utils import add_days, add_months, flt, getdate, nowdate
 
 # Ai duoc xem. Anh Viet chot 12/08/2026: ban giam doc, Loan Anh (quan ly
@@ -865,7 +865,7 @@ def _bc_ke_thanh_toan(hd, **kw):
 		elif (
 			not m
 			and not r.get("_nhap")
-			and (r.vgb_pt_thanh_toan or "").strip() in ("Chuyển khoản", "Thẻ")
+			and ((r.vgb_pt_thanh_toan or "").strip() == "Thẻ" or pt_ck.la_ck(r.vgb_pt_thanh_toan))
 		):
 			# Don CHUA ghi so ma chua co ma tham chieu la binh thuong: tien
 			# co the chua ve. Bao thieu o day thi ca ngay ban hang dong nao

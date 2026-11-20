@@ -53,7 +53,7 @@ except Exception:  # pragma: no cover
 		yield
 
 from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nhip, pt_thanh_toan, quyen_quay, so_do_ban, tai_khoan
-from vagabond import ghi_so_dieu_kien, hddt_bu, hddt_cho_xuat, khop_tien, luat_thanh_toan, ma_bill
+from vagabond import ghi_so_dieu_kien, hddt_bu, hddt_cho_xuat, khop_tien, luat_thanh_toan, ma_bill, pt_ck
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, cfg_o, giau_khoa, key
@@ -974,6 +974,11 @@ def cau_hinh_ban_hang():
 		# Tai khoan ao rieng cua tung nguon don, de man tinh tien sinh QR
 		# vao dung tai khoan cua nguon do.
 		"qr_nguon": tai_khoan.bang_theo_nguon(nguon),
+		# v678: các phương thức chuyển khoản đối soát SePay (pt_ck.DS_CK) và
+		# tài khoản QR riêng của phương thức (Chuyển khoản - Shinhan). Màn tính
+		# tiền đọc hai khoá này, không so chữ "Chuyển khoản" nữa.
+		"pt_ck": list(pt_ck.DS_CK),
+		"qr_pt": pt_thanh_toan.qr_pt(),
 		"thu_tu_nhom": THU_TU_NHOM,
 		# v638: nhóm món nước MỘT nguồn (goi_mon_ban.NHOM_NUOC); màn quầy đọc lại
 		# để in phiếu pha chế. Nguồn của phiếu lập từ QR tại bàn và phương thức
@@ -2745,7 +2750,7 @@ def _soat_sepay(si, sepay=None):
 	sao ke, go ma vao o Ma tham chieu, ghi so se qua. Nguoc lai, don nao SePay
 	khop san thi may tu dien ma giao dich vao, khoi go tay.
 	"""
-	if (si.vgb_pt_thanh_toan or "").strip() != "Chuyển khoản":
+	if not pt_ck.la_ck(si.vgb_pt_thanh_toan):
 		return
 	if sepay is None:
 		sepay = _sepay_theo_don(cfg().pancake_shop_id, [si.custom_pancake_display_id])
@@ -2788,13 +2793,14 @@ def _chuan_bi_ghi_so(si, sepay=None, cho_cho_duyet=False):
 			% (si.custom_pancake_display_id or si.name)
 		)
 	si.vgb_pt_thanh_toan = pt
-	if pt == "Chuyển khoản" and si.get("vgb_quay"):
+	if pt_ck.la_ck(pt) and si.get("vgb_quay"):
 		g = _sepay_cho_bill(si)
 		nhan = flt(g.get("nhan"))
 		can = _can_ck(si)
 		if nhan < can - 1:
 			frappe.throw("Bill %s: ngân hàng mới nhận %s đ trên %s đ phải chuyển khoản. Chờ tiền về hoặc kiểm lại mã tham chiếu."
 				% (si.name, _tien(nhan), _tien(can)))
+		_kiem_tk_ck(si, pt, g.get("gd") or [])
 		_chiem_gd_bill(si, g.get("gd") or [])
 	else:
 		_soat_sepay(si, sepay)
@@ -4129,7 +4135,7 @@ def _ly_do_treo(r, sepay):
 			return "pt_sai_nguon"
 	except Exception:
 		pass
-	if pt != "Chuyển khoản":
+	if not pt_ck.la_ck(pt):
 		return "san_sang"
 	if (r.get("vgb_ma_tham_chieu") or "").strip():
 		return "san_sang"
@@ -5821,7 +5827,7 @@ def _khop_theo_tien(ds, ngay, theo_ma=None):
 		return []
 	bills = []
 	for r in ds or []:
-		if (r.get("vgb_pt_thanh_toan") or "") != "Chuyển khoản":
+		if not pt_ck.la_ck(r.get("vgb_pt_thanh_toan")):
 			continue
 		if r.get("vgb_huy") or r.get("sepay_du"):
 			continue
@@ -5869,7 +5875,7 @@ def _gd_chua_ai_nhan(ngay=None):
 		return cu
 	ds = frappe.get_all(
 		"Sales Invoice",
-		filters={"posting_date": ngay, "docstatus": ["<", 2], "vgb_pt_thanh_toan": "Chuyển khoản"},
+		filters={"posting_date": ngay, "docstatus": ["<", 2], "vgb_pt_thanh_toan": ["in", list(pt_ck.DS_CK)]},
 		fields=["name", "creation", "grand_total", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "vgb_huy"],
 		limit_page_length=0,
 	)
@@ -6605,13 +6611,13 @@ def pos_ds_bill(quay=None, ngay=None):
 		limit_page_length=0,
 	)
 	sepay, _bo_qua = _sepay_theo_ma_bill(
-		[r.vgb_ma_tham_chieu for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"]
+		[r.vgb_ma_tham_chieu for r in ds if pt_ck.la_ck(r.vgb_pt_thanh_toan)]
 	)
 	# Don Pancake khop bang mach S<shop>O<don>T chu khong bang ma bill VGB.
 	# Doc mot lan cho ca ngay, dung hoi tung dong.
 	don_ck = [
 		str(r.custom_pancake_display_id or "").strip() for r in ds
-		if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"
+		if pt_ck.la_ck(r.vgb_pt_thanh_toan)
 		and str(r.custom_pancake_display_id or "").strip()
 	]
 	theo_don = {}
@@ -7094,6 +7100,27 @@ def pos_sua_don(
 	return {"ok": 1, "name": si.name, "grand_total": si.grand_total}
 
 
+def _kiem_tk_ck(si, pt, ds_gd):
+	"""v678: tiền về tài khoản của phương thức chuyển khoản khác thì chặn ghi sổ.
+
+	Bill ghi "Chuyển khoản" (hạch toán 11211 MB) mà khách chuyển vào Shinhan
+	(11212), hay ngược lại, thì sổ cái ghi tiền nằm sai ngân hàng và cuối
+	tháng hai tài khoản cùng lệch. Thu ngân đổi phương thức là xong, nên chặn
+	kèm câu chỉ đúng nút. Không biết tài khoản (dòng thiếu Bank Account) thì
+	không chặn: pt_ck.lech_tk trả rỗng."""
+	ds_gd = chiem_sao_ke.tach_gd("\n".join(str(x or "") for x in (ds_gd or [])))
+	if not ds_gd:
+		return
+	ds_ba = [r[0] for r in frappe.db.sql(
+		"select bank_account from `tabBank Transaction` where name in %(ds)s", {"ds": tuple(ds_gd)})]
+	dung = pt_ck.lech_tk(pt, ds_ba, pt_thanh_toan.ba_shinhan())
+	if dung:
+		frappe.throw(
+			"Bill %s ghi %s nhưng tiền về tài khoản của %s. Mở bill, đổi phương thức "
+			"thanh toán sang %s rồi lưu lại để sổ ghi đúng ngân hàng."
+			% (si.get("custom_pancake_display_id") or si.name, pt, dung, dung))
+
+
 def _chiem_gd_bill(si, ds_gd):
 	"""Ghi nhan cac dong sao ke ma bill nay dang gach, sau khi chac chan
 	khong dong nao da co chu.
@@ -7293,11 +7320,11 @@ def pos_chot_ca(quay=None, ngay=None):
 	# ham cung khong dinh phai no.
 	ds = [r for r in ds if not frappe.utils.cint(r.get("vgb_huy"))]
 	sepay, _bo_qua = _sepay_theo_ma_bill(
-		[r.vgb_ma_tham_chieu for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"]
+		[r.vgb_ma_tham_chieu for r in ds if pt_ck.la_ck(r.vgb_pt_thanh_toan)]
 	)
 	# #290 D2: Sales khớp theo mã đơn Pancake, cùng nguồn với cửa ghi sổ.
 	ma_don = sorted({str(r.get("custom_pancake_display_id")) for r in ds
-		if r.get("custom_pancake_display_id") and r.vgb_pt_thanh_toan == "Chuyển khoản"
+		if r.get("custom_pancake_display_id") and pt_ck.la_ck(r.vgb_pt_thanh_toan)
 		and not frappe.utils.cint(r.vgb_tam_tinh)})
 	theo_don = _sepay_theo_don(cfg().pancake_shop_id, ma_don) if ma_don else {}
 	pt_tong = {}
@@ -7320,7 +7347,7 @@ def pos_chot_ca(quay=None, ngay=None):
 		o = pt_tong.setdefault(pt, {"so": 0, "tien": 0.0})
 		o["so"] += 1
 		o["tien"] += flt(r.grand_total)
-		if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản":
+		if pt_ck.la_ck(r.vgb_pt_thanh_toan):
 			# Một giao dịch xuất hiện ở hai cách khớp không được cộng hai lần.
 			_duong, g = chiem_sao_ke.chon_duong_khop([
 				("ma_bill", sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}),

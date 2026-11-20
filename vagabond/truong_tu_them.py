@@ -310,6 +310,13 @@ def dung():
 		pt_thanh_toan.bo_sung_mac_dinh()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: bo sung phuong thuc")
+	# v678: dòng tài khoản 11212 cho Chuyển khoản - Shinhan, khi kế toán chưa khai.
+	try:
+		from vagabond import pt_thanh_toan
+
+		pt_thanh_toan.khai_tk_shinhan()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: khai tài khoản Shinhan")
 	try:
 		ke_hoach_sx.dung_mau_in()
 	except Exception:

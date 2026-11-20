@@ -20,6 +20,7 @@ import frappe
 from frappe.utils import cint
 
 from vagabond.lib import cfg, cfg_o
+from vagabond.pt_ck import DS_CK, STK_SHINHAN, TEN_CK, TEN_CK_SHINHAN
 
 TRUONG = "vgb_pt_thanh_toan_ds"
 
@@ -65,7 +66,10 @@ MA_THUE = ("", "TM", "CK", "TM/CK")
 # Ten phuong thuc bi CHOT CUNG vi con cho khac trong phan mem goi thang ten
 # nay ra so sanh. Doi ten o day thi cho kia im lang hong, khong bao loi.
 TEN_KHOA = {
-	"Chuyển khoản": "đối soát SePay dò theo đúng tên này",
+	TEN_CK: "đối soát SePay dò theo đúng tên này",
+	# v678: tài khoản Shinhan. Đối soát SePay và tài khoản hạch toán 11212 dò
+	# theo đúng tên này (pt_ck.DS_CK).
+	TEN_CK_SHINHAN: "đối soát SePay và tài khoản Shinhan dò theo đúng tên này",
 	"Công nợ": "phân hệ Công nợ phải thu lọc hoá đơn theo đúng tên này",
 	"Hàng tặng": "luồng duyệt đơn tặng của giám đốc dò theo đúng tên này",
 	"Số dư trả trước": "luồng cấn số dư khách trả trước dò theo đúng tên này",
@@ -118,6 +122,15 @@ MAC_DINH = [
 	{
 		"ten": "Chuyển khoản", "lg": "/files/pt-mb.png",
 		"quay": 1, "online": 1, "tien_ve": TIEN_NGAY, "minvoice": "CK",
+		"nhan": "Nội dung chuyển khoản (SePay tự khớp, để trống cũng được)",
+	},
+	{
+		# v678 (anh Việt 20/11/2026): khách muốn chuyển vào tài khoản Shinhan
+		# công ty. Mã QR và hạch toán theo dòng tài khoản của Hình thức thanh
+		# toán này (11212), đối soát SePay như Chuyển khoản. Chỉ ở quầy: đơn
+		# Pancake trả theo khoá ví của Pancake, không có Shinhan.
+		"ten": TEN_CK_SHINHAN, "lg": "/files/pt-shinhan5.png",
+		"quay": 1, "online": 0, "tien_ve": TIEN_NGAY, "minvoice": "CK",
 		"nhan": "Nội dung chuyển khoản (SePay tự khớp, để trống cũng được)",
 	},
 	{
@@ -584,6 +597,10 @@ def luu(pt=None):
 	return danh_sach()
 
 
+# v678: phương thức mới của mã nguồn đứng cạnh phương thức nào trên màn tính tiền.
+CANH = {TEN_CK_SHINHAN: TEN_CK}
+
+
 def bo_sung_mac_dinh():
 	"""Nhet cac phuong thuc MOI cua ma nguon vao cau hinh DA LUU tren site.
 
@@ -624,9 +641,16 @@ def bo_sung_mac_dinh():
 
 	sau = cint(max([cint((d or {}).get("thu_tu") or 0) for d in dang] or [0]))
 	ra = [_chuan(d, i) for i, d in enumerate(dang)]
+	theo_ten = {d["ten"]: d for d in ra}
 	for j, d in enumerate(them):
 		m = _chuan(d, 0)
 		m["thu_tu"] = sau + j + 1
+		# v678: phương thức mới đứng ngay sau phương thức cùng loại (Chuyển
+		# khoản - Shinhan sau Chuyển khoản). Cùng số thứ tự, sắp theo tên thì
+		# "Chuyển khoản" đứng trước. Không đổi số của dòng nào đang có.
+		canh = theo_ten.get(CANH.get(m["ten"]) or "")
+		if canh:
+			m["thu_tu"] = canh["thu_tu"]
 		ra.append(m)
 	try:
 		_mo_loi_next(ra)
@@ -639,6 +663,88 @@ def bo_sung_mac_dinh():
 	_ghi_vet("Bổ sung phương thức thanh toán mới của mã nguồn: %s"
 		% ", ".join(d["ten"] for d in them))
 	return len(them)
+
+
+def _cty():
+	try:
+		return frappe.db.get_single_value("Global Defaults", "default_company") or ""
+	except Exception:
+		return ""
+
+
+def ba_cua_pt(pt, cong_ty=None):
+	"""Bank Account công ty nhận tiền của một phương thức, theo dòng tài khoản
+	của Hình thức thanh toán (cùng nguồn hạch toán với thu_tien.tk_tien_thu).
+	Rỗng khi chưa khai."""
+	cong_ty = cong_ty or _cty()
+	if not (cong_ty and pt):
+		return ""
+	tk = frappe.db.get_value("Mode of Payment Account", {"parent": pt, "company": cong_ty}, "default_account")
+	if not tk:
+		return ""
+	return frappe.db.get_value(
+		"Bank Account", {"account": tk, "company": cong_ty, "is_company_account": 1, "disabled": 0}, "name") or ""
+
+
+def ba_shinhan():
+	"""Bank Account nhận tiền của Chuyển khoản - Shinhan (pt_ck.ck_cua_tk)."""
+	try:
+		return ba_cua_pt(TEN_CK_SHINHAN)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "pt_thanh_toan: đọc tài khoản Shinhan")
+		return ""
+
+
+def qr_pt():
+	"""Tài khoản nhận cho mã QR của các phương thức chuyển khoản CÓ TÀI KHOẢN
+	RIÊNG (mọi phương thức trong pt_ck.DS_CK trừ "Chuyển khoản", vốn theo tài
+	khoản ảo của điểm bán). Khuôn giống tai_khoan.tk_cho để màn tính tiền dùng
+	chung một phép vẽ QR. Chưa khai tài khoản thì không có khoá, màn tính tiền
+	báo chuyển tay chứ không vẽ QR vào tài khoản đoán."""
+	from vagabond import tai_khoan
+
+	ra = {}
+	for pt in DS_CK:
+		if pt == TEN_CK:
+			continue
+		try:
+			ba = ba_cua_pt(pt)
+			if not ba:
+				continue
+			b = frappe.db.get_value("Bank Account", ba, ["bank_account_no", "bank"], as_dict=True) or {}
+			ma = tai_khoan.ma_theo_ten_ngan_hang(b.get("bank"))
+			stk = str(b.get("bank_account_no") or "").strip()
+			if not (ma and stk):
+				continue
+			ra[pt] = {"bank": ma, "bin": tai_khoan.bin_cho(ma), "stk": stk,
+				"ten": tai_khoan.cai()["mac_dinh"]["ten"], "rieng": 1, "nguon": pt}
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "pt_thanh_toan: tài khoản QR của %s" % pt)
+	return ra
+
+
+def khai_tk_shinhan():
+	"""after_migrate (v678): khai dòng tài khoản cho Chuyển khoản - Shinhan.
+
+	CHỈ THÊM khi Hình thức thanh toán chưa có dòng của công ty mặc định, lấy
+	đúng tài khoản sổ cái của Bank Account Shinhan công ty (số STK_SHINHAN).
+	Kế toán đã khai thì để nguyên. Không có Bank Account đó thì không làm gì:
+	màn tính tiền báo chưa khai tài khoản, không vẽ QR."""
+	cty = _cty()
+	if not cty or not frappe.db.exists("Mode of Payment", TEN_CK_SHINHAN):
+		return 0
+	if frappe.db.exists("Mode of Payment Account", {"parent": TEN_CK_SHINHAN, "company": cty}):
+		return 0
+	b = frappe.db.get_value("Bank Account", {"bank_account_no": STK_SHINHAN, "company": cty,
+		"is_company_account": 1}, ["name", "account"], as_dict=True)
+	if not b or not b.get("account"):
+		return 0
+	mp = frappe.get_doc("Mode of Payment", TEN_CK_SHINHAN)
+	mp.append("accounts", {"company": cty, "default_account": b["account"]})
+	mp.flags.ignore_permissions = True
+	mp.save(ignore_permissions=True)
+	_ghi_vet("Khai tài khoản %s cho phương thức %s" % (b["account"], TEN_CK_SHINHAN))
+	return 1
 
 
 def _ghi_vet(viec):

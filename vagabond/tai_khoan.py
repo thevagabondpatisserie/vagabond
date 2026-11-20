@@ -183,6 +183,19 @@ def bin_cho(ma):
 	return ""
 
 
+def ma_theo_ten_ngan_hang(ten):
+	"""Mã viết tắt (SHBVN, MB...) từ tên ngân hàng trên Bank Account ("Shinhan
+	Bank", "MB Bank"). Nhận cả khi người khai gõ đúng mã. Rỗng khi không có
+	trong bảng: không đoán ngân hàng cho mã QR. THUẦN."""
+	t = str(ten or "").strip().lower()
+	if not t:
+		return ""
+	for nh in NGAN_HANG:
+		if t in (nh["ten"].lower(), nh["ma"].lower(), nh["bin"]):
+			return nh["ma"]
+	return ""
+
+
 def _ten_ngan_hang(ma):
 	m = str(ma or "").strip()
 	for nh in NGAN_HANG:

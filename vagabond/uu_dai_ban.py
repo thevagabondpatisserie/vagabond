@@ -92,8 +92,9 @@ def che_sdt(so):
 	return (s[:4] + " *** " + s[-3:]) if len(s) >= 9 else ""
 
 
-def giam_tu_kq(kq):
+def giam_tu_kq(kq, cho_otp=False):
 	"""THUẦN: (số giảm, lý do không áp) từ kết quả khuyen_mai.tinh của MỘT ưu đãi.
+	cho_otp: quầy đã nhập OTP quản lý lúc áp (v678), chương trình cần OTP vẫn trừ.
 	Ưu đãi chính không áp được (nằm ở bo, không ở ap) thì giảm 0 kèm lý do,
 	kể cả khi ưu đãi hạng thành viên vẫn áp (không tính hạng thành ưu đãi
 	khách chọn)."""
@@ -105,7 +106,7 @@ def giam_tu_kq(kq):
 	# Codex PR #546 vòng 1: khuyen_mai.tinh chỉ BÁO cờ can_otp, không chặn. Mã
 	# trong Ví quà của chương trình cần OTP quản lý đi qua đây được, nên mọi
 	# đường (danh sách, chọn, gọi thêm, chốt) đều về 0 ở đúng một chỗ này.
-	if any(cint(a.get("can_otp")) for a in ap):
+	if not cho_otp and any(cint(a.get("can_otp")) for a in ap):
 		return 0, CAU_CAN_OTP
 	giam = sum(flt(a.get("giam")) for a in ap)
 	if kq.get("tong_hd") is not None:
@@ -202,7 +203,7 @@ def tinh_lai(si):
 	if not ud or ud.get("da_ghi"):
 		return
 	try:
-		giam, ly_do = giam_tu_kq(_tinh(si, ud))
+		giam, ly_do = giam_tu_kq(_tinh(si, ud), cho_otp=cint(ud.get("otp")))
 	except Exception as e:
 		giam, ly_do = 0, str(e)[:140]
 	ud.update(giam=int(round(dat_giam(si, giam))), ly_do=ly_do)
@@ -362,6 +363,8 @@ def chon(diem=None, ban=None, k=None, loai=None, ma=None):
 	if not si:
 		return {"ok": 0, "cau": "Bàn chưa có hoá đơn. Quý khách gọi món và chờ quầy nhận rồi chọn ưu đãi."}
 	cu = doc_ud(si.get("vgb_ud_ban"))
+	if cu and cu.get("cach"):
+		return {"ok": 0, "cau": "Quầy đã áp khuyến mãi %s cho hoá đơn này. Mỗi hoá đơn một ưu đãi." % (cu.get("ten") or cu.get("ma"))}
 	if cu and re.sub(r"\D", "", str(cu.get("sdt"))) != re.sub(r"\D", "", nd):
 		return {"ok": 0, "cau": "Bàn đã dùng ưu đãi của số %s. Mỗi hoá đơn một ưu đãi." % che_sdt(cu.get("sdt"))}
 	# Codex #596 vòng 2: hoá đơn đã tích điểm cho một khách thật khác thì không
@@ -406,6 +409,8 @@ def bo(diem=None, ban=None, k=None):
 	cu = doc_ud(si.get("vgb_ud_ban")) if si else {}
 	if not cu:
 		return {"ok": 1}
+	if cu.get("cach"):
+		return {"ok": 0, "cau": "Khuyến mãi này do quầy áp, nhờ thu ngân bỏ giúp."}
 	if re.sub(r"\D", "", str(cu.get("sdt"))) != re.sub(r"\D", "", nd or ""):
 		return {"ok": 0, "cau": "Chỉ số đã chọn ưu đãi mới bỏ được."}
 	_go(si)
@@ -441,6 +446,111 @@ def bo_quay(name=None, ly_do=""):
 	return {"ok": 1, "grand_total": flt(si.grand_total)}
 
 
+# ------------------------------------------------- QUẦY ÁP TRÊN BILL TẠM TÍNH
+# v678, Dễ báo 20/11/2026: bill gọi qua QR (và bill Tạm tính nói chung) không
+# có mục Chương trình, Nhập mã như màn Tính tiền, nên khách đưa voucher lúc
+# thanh toán thì quầy không áp được. Quầy áp đi CHUNG đường với ưu đãi khách
+# chọn tại bàn (vgb_ud_ban, vgb_giam_ud, ghi lượt lúc chốt bằng truoc_chot và
+# sau_chot), nên vẫn đúng luật một ưu đãi mỗi hoá đơn và gọi thêm món thì
+# tính lại. Khác ở chỗ: ud có "cach" (thu ngân áp), và chương trình cần OTP
+# thì quầy nhập OTP quản lý một lần lúc áp (ud "otp" = 1).
+
+CACH_QUAY = "Thu ngân áp tại quầy"
+
+
+def chan_ap_quay(si):
+	"""THUẦN: lý do quầy chưa áp khuyến mãi được trên hoá đơn này, "" khi được."""
+	if cint(si.get("docstatus")) != 0:
+		return "Hoá đơn đã ghi sổ, không áp khuyến mãi ở đây được."
+	if cint(si.get("vgb_huy")):
+		return "Hoá đơn đã huỷ."
+	if (si.get("vgb_km") or "").strip() not in ("", "[]"):
+		return "Hoá đơn đã có khuyến mãi áp lúc tạo đơn. Mỗi hoá đơn một ưu đãi."
+	cu = doc_ud(si.get("vgb_ud_ban"))
+	if cu:
+		return "Hoá đơn đã có ưu đãi %s. Bỏ ưu đãi đó trước rồi áp cái khác." % (cu.get("ten") or cu.get("ma"))
+	return ""
+
+
+def _khach_bill(si):
+	from vagabond import tich_diem_ban
+
+	kh = (si.get("customer") or "").strip()
+	if tich_diem_ban._la_gop(kh):
+		return "", ""
+	return kh, frappe.db.get_value("Customer", kh, "mobile_no") or ""
+
+
+@frappe.whitelist()
+def ds_quay(name=None):
+	"""Chương trình quầy áp được cho bill tạm tính, kèm số giảm dự kiến."""
+	from vagabond import ban_hang, khuyen_mai
+
+	ban_hang._kiem_quyen_ban()
+	si = frappe.get_doc(SI, name)
+	chan = chan_ap_quay(si)
+	if chan:
+		return {"ok": 0, "cau": chan}
+	kh, sdt = _khach_bill(si)
+	kq = khuyen_mai.ds_ctkm(quay=si.get("vgb_quay"), nguon=si.get("custom_nguon"), khach=kh, sdt=sdt)
+	ra = []
+	for c in (kq or {}).get("km") or []:
+		if c.get("cach_ma") == "Ma dung mot lan":
+			continue  # chương trình phát mã một lần chỉ áp qua mã
+		x = {"ma": c["name"], "ten": c.get("ten") or c["name"], "can_otp": cint(c.get("can_otp")),
+			"giam": 0, "ly_do": c.get("ly_do") or ""}
+		if cint(c.get("dung_duoc")):
+			try:
+				g, ly = giam_tu_kq(_tinh(si, {"loai": "ctkm", "ma": c["name"], "khach": kh, "sdt": sdt}), cho_otp=True)
+			except Exception as e:
+				g, ly = 0, str(getattr(e, "message", "") or e)[:140]
+			x["giam"], x["ly_do"] = int(round(g)), ly
+		x["dung_duoc"] = 1 if x["giam"] > 0 else 0
+		ra.append(x)
+	ra.sort(key=lambda x: (-x["dung_duoc"], -x["giam"]))
+	return {"ok": 1, "ds": ra}
+
+
+@frappe.whitelist(methods=["POST"])
+def ap_quay(name=None, loai=None, ma=None, otp=None):
+	"""Thu ngân áp một chương trình hay một mã ưu đãi lên bill tạm tính."""
+	from vagabond import ban_hang
+
+	ban_hang._kiem_quyen_ban()
+	loai, ma = chuan_chon(loai, ma)
+	if not loai:
+		return {"ok": 0, "cau": "Mã hay chương trình không đúng, chọn lại."}
+	si = frappe.get_doc(SI, name, for_update=True)
+	chan = chan_ap_quay(si)
+	if chan:
+		return {"ok": 0, "cau": chan}
+	kh, sdt = _khach_bill(si)
+	ud = {"loai": loai, "ma": ma, "sdt": sdt, "khach": kh, "luc": str(now_datetime()),
+		"cach": CACH_QUAY, "nguoi": frappe.session.user}
+	try:
+		kq = _tinh(si, ud)
+	except Exception as e:
+		return {"ok": 0, "cau": str(getattr(e, "message", "") or e)[:200] or "Chưa áp được ưu đãi này."}
+	ap = [a for a in kq.get("ap") or [] if a.get("loai") != "hang"]
+	if any(cint(a.get("can_otp")) for a in ap):
+		if not (otp or "").strip() and not ban_hang._otp_la_sep():
+			return {"ok": 0, "can_otp": 1, "cau": "Chương trình này cần mã OTP của quản lý."}
+		ud["cach"] = CACH_QUAY + " (" + ban_hang._otp_kiem(otp, "áp khuyến mãi") + ")"
+		ud["otp"] = 1
+	giam, ly = giam_tu_kq(kq, cho_otp=cint(ud.get("otp")))
+	if giam <= 0:
+		return {"ok": 0, "cau": "Ưu đãi chưa dùng được cho hoá đơn này: %s." % ly}
+	ud["ten"] = next((a.get("ten") for a in ap), "") or ma
+	ud["ly_do"] = ""
+	ud["giam"] = int(round(dat_giam(si, giam)))
+	si.vgb_ud_ban = json.dumps(ud, ensure_ascii=False)
+	si.add_comment("Comment", "Quầy áp khuyến mãi %s, giảm %s đ (%s)." % (ud["ten"], "{:,.0f}".format(ud["giam"]).replace(",", "."), ud["cach"]))
+	si.flags.ignore_permissions = True
+	si.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ok": 1, "ten": ud["ten"], "giam": ud["giam"], "grand_total": flt(si.grand_total)}
+
+
 class UuDaiDoi(frappe.ValidationError):
 	pass
 
@@ -466,7 +576,7 @@ def truoc_chot(si, giam_tay=None):
 		si.discount_amount = flt(giam_tay) + flt(si.get("vgb_giam_diem") or 0) + giam_ud(si)
 	try:
 		kq = _tinh(si, ud, co_khoa=True)
-		giam, ly = giam_tu_kq(kq)
+		giam, ly = giam_tu_kq(kq, cho_otp=cint(ud.get("otp")))
 	except frappe.ValidationError as e:
 		kq, giam = None, 0
 		ly = (str(getattr(e, "message", "") or e) or "ưu đãi không còn dùng được").strip()[:140]
@@ -497,6 +607,7 @@ def sau_chot(si, kq):
 
 	kq = dict(kq, ap=[a for a in kq.get("ap") or [] if a.get("loai") != "hang"])
 	khuyen_mai.ghi_su_dung(kq, si.name, quay=si.get("vgb_quay"), nguon=si.get("custom_nguon"),
-		khach=ud.get("khach"), sdt=ud.get("sdt"), cach_duyet=CACH_DUYET, ghi_chu="Bàn %s" % (si.get("vgb_so_ban") or ""))
+		khach=ud.get("khach"), sdt=ud.get("sdt"), cach_duyet=ud.get("cach") or CACH_DUYET,
+		ghi_chu=("Bàn %s" % si.get("vgb_so_ban")) if si.get("vgb_so_ban") else "Áp tại quầy")
 	ud["da_ghi"] = 1
 	frappe.db.set_value(SI, si.name, "vgb_ud_ban", json.dumps(ud, ensure_ascii=False), update_modified=False)

@@ -181,6 +181,9 @@ TIN = {
 	"bh_weborder_moi": ("Bán hàng, cửa hàng", "Đơn giao của quầy đã trả tiền, chờ xác nhận",
 		"Khách đặt qua tab Tại quầy trên web và đã trả online; quầy xác nhận ở màn Đơn giao của quầy.", "viec", "ban_hang"),
 	# v639 (anh Việt duyệt mẫu 05/11/2026): khách bấm chuông Gọi nhân viên trên trang bàn.
+	# v678 (anh Việt 20/11/2026): tiền chuyển khoản về đủ, máy tự chốt bill tạm tính.
+	"bh_ban_da_chuyen_khoan": ("Bán hàng, cửa hàng", "Bàn đã chuyển khoản, bill tự chốt",
+		"Khách chuyển khoản đủ tiền bill tạm tính (tại bàn hoặc quầy); hệ thống tự chốt bill, quầy không thu nữa.", "thong_bao", "ban_hang"),
 	"bh_khach_can_tro_giup": ("Bán hàng, cửa hàng", "Khách cần trợ giúp tại bàn",
 		"Khách bấm chuông trên trang bàn: gọi nhân viên, xin tính tiền, xin nước đá; quầy tới bàn rồi bấm Đã tới bàn.", "viec", "ban_hang"),
 	"bh_dat_ban": ("Bán hàng, cửa hàng", "Đặt bàn mới",
@@ -430,6 +433,8 @@ def chu_chua_nhom(loai, chu_de, nguon=None, ma_tin=None):
 TIN_MOC = {
 	"mkt_bai_gd_duyet": "mkt_bai_cho_duyet",
 	"bh_weborder_moi": "bh_goi_mon_tai_ban",
+	# v678: nhóm quầy đang nhận tin gọi món tại bàn nhận thêm tin bàn đã chuyển khoản.
+	"bh_ban_da_chuyen_khoan": "bh_goi_mon_tai_ban",
 }
 
 

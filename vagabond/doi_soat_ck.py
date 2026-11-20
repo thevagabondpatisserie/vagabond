@@ -30,6 +30,8 @@ import re
 import frappe
 from frappe.utils import cint, flt, getdate, nowdate
 
+from vagabond.pt_ck import DS_CK
+
 # Ba nguồn của chip lọc trong nút Dò tiền.
 NGUON_DIEM = "diem"      # tiền vào tài khoản ảo của chính điểm bán này
 NGUON_CTY = "cty"        # tiền vào thẳng tài khoản chính, không qua tài khoản ảo nào
@@ -476,7 +478,8 @@ def ds_bill_ck(ngay=None, diem=""):
 	loc = {
 		"posting_date": ngay,
 		"docstatus": ["<", 2],
-		"vgb_pt_thanh_toan": "Chuyển khoản",
+		# v678: mọi phương thức chuyển khoản đối soát SePay (pt_ck.DS_CK).
+		"vgb_pt_thanh_toan": ["in", list(DS_CK)],
 		"vgb_huy": 0,
 		"vgb_tam_tinh": 0,
 	}
