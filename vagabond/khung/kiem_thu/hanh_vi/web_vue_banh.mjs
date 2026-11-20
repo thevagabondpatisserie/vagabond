@@ -867,6 +867,58 @@ await ca('v677 (Codex, anh Việt 19/11): thẻ bánh, cỡ và giới hạn gi�
   la('tab Có sẵn hôm nay: giới hạn theo tủ, không theo ngày đặt trước', k.gioiHanNhan('BAWC00077', 'today'), 0);
 });
 
+await ca('#463 (Codex, anh Việt 20/11): ngày đã xác nhận mà cỡ bánh hết ngày đó thì cả nút + trên thẻ và Thêm vào giỏ đều báo hết, GIỮ ngày và giỏ; khách tự chọn ngày còn bánh thì thêm được; sửa món trong giỏ không đổi ngày', async () => {
+  /* Tira-Missing-U 12cm: phiếu ngày mai 20/11 hết (0), ngày kia 21/11 còn 6 theo BTP sẵn.
+     Bản cũ: hai nút vẫn thêm rồi tự dời ngày nhận sang 21/11. Không đổi luật tồn. */
+  const may = JSON.parse(JSON.stringify(TIRA_MAY));
+  may.nhom.forEach(g => g.sizes.forEach(y => { if (y.ma === 'BAWC00077') { y.con_mai = 0; y.con = 6; } }));
+  /* Bánh khác còn cả hai ngày, để thử giỏ đã có món. */
+  may.nhom.push({...may.nhom[0], ten: 'Bánh còn hai ngày', sizes: [{ma: 'BAWC09001', cm: 16, gia: 600000, con: 3, con_mai: 3, con_xa: 3}]});
+  const dung1 = async () => {
+    const {mt} = moiTruong('2026-11-19T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {}, nhom: [], dat_truoc: may})});
+    const k = taoKho(mt); await k.napTon(); k.S.tab = 'order'; return k;
+  };
+  const tira = k => k.S.CAKES.find(c => c.sizes.some(z => z.id === 'BAWC00077'));
+  for (const coSan of [false, true]) {
+    const k = await dung1();
+    if (coSan) { k.S.CART.push({k: 'Bánh còn hai ngày', id: 'BAWC09001', cm: 16, price: 600000, nguon: 'order', wish: '', adds: [], qty: 1}); }
+    k.pick(1);
+    la((coSan ? 'giỏ có món' : 'giỏ trống') + ': đã xác nhận 20/11', [k.S.ngayChon, k.S.daChonNgay], ['2026-11-20', true]);
+    const gio = JSON.stringify(k.S.CART);
+    /* Nút Thêm vào giỏ trong chi tiết. */
+    k.moBanh(tira(k)); k.S.curSizeId = 'BAWC00077'; k.S.soLuong = 1;
+    la('chi tiết: không thêm', k.addToCart(), false);
+    dung('chi tiết: báo hết ngày 20/11, chỉ chọn ngày khác: ' + k.S.toast.chu, /hết ngày 20\/11/.test(k.S.toast.chu));
+    la('chi tiết: giữ ngày và giỏ', [k.S.ngayChon, k.S.daChonNgay, JSON.stringify(k.S.CART)], ['2026-11-20', true, gio]);
+    /* Nút + trên thẻ (bánh một cỡ đang bán thì thêm thẳng). */
+    const c1 = {...tira(k), sizes: tira(k).sizes.filter(z => z.id === 'BAWC00077')};
+    k.S.toast.chu = '';
+    la('nút +: không thêm', k.themNhanh(c1, 'order'), 'chan');
+    dung('nút +: báo hết ngày 20/11', /hết ngày 20\/11/.test(k.S.toast.chu));
+    la('nút +: giữ ngày và giỏ', [k.S.ngayChon, JSON.stringify(k.S.CART)], ['2026-11-20', gio]);
+    /* Khách tự chọn 21/11: thêm được, ngày là 21/11. */
+    k.pick(2);
+    k.moBanh(tira(k)); k.S.curSizeId = 'BAWC00077'; k.S.soLuong = 1;
+    la('chọn 21/11 rồi thêm được', [k.addToCart(), k.S.ngayChon], ['them', '2026-11-21']);
+  }
+  /* Khách CHƯA xác nhận ngày (ngày do hệ thống đặt, ví dụ giỏ lưu hôm trước): luật
+     này không chặn, giữ như cũ (lịch vẫn chờ khách xác nhận trước khi gửi đơn). */
+  const k0 = await dung1();
+  k0.pick(1); k0.S.daChonNgay = false;
+  k0.moBanh(tira(k0)); k0.S.curSizeId = 'BAWC00077'; k0.S.soLuong = 1;
+  la('chưa xác nhận ngày: không chặn, lịch chờ xác nhận', [k0.addToCart(), k0.S.daChonNgay], ['them', false]);
+  /* Sửa món từ giỏ: còn bánh ngày đang chọn thì lưu, không đổi ngày. */
+  const k = await dung1();
+  k.pick(2);
+  k.moBanh(tira(k)); k.S.curSizeId = 'BAWC00077'; k.S.soLuong = 1; k.addToCart();
+  k.suaDongGio(0); k.S.soLuong = 2;
+  la('sửa món trong giỏ: lưu, giữ 21/11', [k.addToCart(), k.S.ngayChon, k.S.CART[0].qty], ['sua', '2026-11-21', 2]);
+  /* Cùng loại (H2): số còn của ngày đã chọn về 0 khi bánh đã trong giỏ thì nút + trong giỏ báo hết, không tăng. */
+  k.S.TRUOC_XA.BAWC00077 = 0;
+  k.cartQty(0, 1);
+  la('nút + trong giỏ: không tăng, báo hết ngày 21/11', [k.S.CART[0].qty, /hết ngày 21\/11/.test(k.S.toast.chu), k.S.ngayChon], [2, true, '2026-11-21']);
+});
+
 await ca('v675 thêm bánh Có sẵn hôm nay: ngày nhận về HÔM NAY với khung giờ gần nhất (trước: giữ ngày kia mặc định); đã tự chọn ngày thì giữ; hôm nay hết giờ thì báo, không tự nhảy ngày', async () => {
   const {mt} = moiTruong('2026-11-19T08:00:00');
   const k = taoKho(mt);
