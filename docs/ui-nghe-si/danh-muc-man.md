@@ -5,30 +5,26 @@ Tệp này do `cong_cu/thong_ke_ui_nghe_si.py` sinh ra. Đừng sửa tay: sửa
 
 ## Tóm tắt
 
-- Số phần nguồn: 82. Số hàm màn (scr...): 280. Hộp thoại riêng ngoài bộ dùng chung: 83 hàm.
+- Số phần nguồn: 83. Số hàm màn (scr...): 280. Hộp thoại riêng ngoài bộ dùng chung: 83 hàm.
 - Màn máy chưa dò ra thành phần nào (ghi chưa xác định): 1.
 - Số ô trang chủ có định tuyến trong vgbGo: 136. Số nhóm trang chủ: 15.
-- PR 1 nền: 8 màn.
+- PR 1 nền: 4 màn.
 - PR 2 Bán hàng và Quầy: 72 màn.
 - PR 3 Kho, Sản xuất, Thu mua: 82 màn.
 - PR 4 Kế toán, Tài chính: 44 màn.
-- PR 5 Marketing và các màn còn lại: 69 màn.
+- PR 5 Marketing và các màn còn lại: 73 màn.
 - Chưa xếp, cần xếp tay: 5 màn.
 
 Cách đọc cột: **Thành phần** là khung dùng chung màn đó dùng (PR nào sửa khung thì phải kiểm lại màn này). **Hộp thoại** là bộ hỏi dùng chung màn gọi, số trong ngoặc là số bảng trượt tự dựng trong màn. Ba cột này đọc cả thân màn lẫn các hàm vẽ phụ màn gọi (sâu tối đa 4 tầng, không sang màn khác). Ô ghi **chưa xác định** nghĩa là máy không dò ra gì, KHÔNG có nghĩa là màn không dùng: người làm phải mở màn xem và coi như màn chịu ảnh hưởng của mọi khung chung. **Vai nhắc trong mã** chỉ để gợi ý chỗ giao diện đổi theo quyền; quyền thật xem docs/quyen-theo-phan-he.md.
 
-## PR 1 nền (8 màn)
+## PR 1 nền (4 màn)
 
 | Màn | Tiêu đề | Nhóm | Phần | Thành phần | Hộp thoại | Trạng thái cần kiểm | Vai nhắc trong mã |
 |---|---|---|---|---|---|---|---|
 | scrHome | (động) | - | 02 | nút đầu trang, thẻ, dòng hub, ô nhập, tiền | confirmSheet | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, số lớn, âm, 0, hộp thoại mở, bàn phím ảo | AP Giám đốc, AP Kiểm soát (FIN), AP Officer, Accounts Manager, Accounts User, Bếp phó, Bếp trưởng, Giám đốc, Kế toán, Manufacturing Manager, Manufacturing User, Mua hàng R&D, Purchase Manager, Purchase User, Quản lý cửa hàng, Quản lý người dùng, Quầy Bar, Sales Manager, Sales User, Shipper, Stock Manager, Stock User, System Manager, Thu mua, VGB - Quản lý công thức, VGB - Quản lý cửa hàng |
-| scrVclList | Việc cần làm | - | 02 | thanh đáy, thẻ, ô nhập, tiền | baoTin, confirmSheet, hoiChu, hoiCo (+1) | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, số lớn, âm, 0, hộp thoại mở, bàn phím ảo | - |
 | scrNhom | (động) | - | 02 | thẻ | - | có dữ liệu, tên dài, cỡ chữ 150% và 200% | - |
 | scrLogin | (không gọi frame) | - | 06 | ô nhập | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, bàn phím ảo | - |
 | scrAccount | Tài khoản | - | 06 | thanh đáy, thẻ | confirmSheet | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, hộp thoại mở | - |
-| scrHuongDan | Hướng dẫn chế biến | - | 32 | thẻ | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi | - |
-| scrSoTay | Sổ tay | - | 50 | chip, ô nhập, bảng | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, bàn phím ảo | - |
-| scrChuong | Chuông thông báo | - | 59 | thẻ, chip | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi | - |
 
 ## PR 2 Bán hàng và Quầy (72 màn)
 
@@ -243,7 +239,7 @@ Cách đọc cột: **Thành phần** là khung dùng chung màn đó dùng (PR 
 | scrTcTiLe | (động) | Tài chính | 61 | thẻ, tiền | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, số lớn, âm, 0 | - |
 | scrTcCaiDat | (động) | Tài chính | 61 | thẻ, ô nhập, tiền | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, số lớn, âm, 0, bàn phím ảo | - |
 
-## PR 5 Marketing và các màn còn lại (69 màn)
+## PR 5 Marketing và các màn còn lại (73 màn)
 
 | Màn | Tiêu đề | Nhóm | Phần | Thành phần | Hộp thoại | Trạng thái cần kiểm | Vai nhắc trong mã |
 |---|---|---|---|---|---|---|---|
@@ -316,6 +312,10 @@ Cách đọc cột: **Thành phần** là khung dùng chung màn đó dùng (PR 
 | scrTdViTri | (động) | Nhân sự | 60 | thanh đáy, thẻ, ô nhập | baoTin, confirmSheet, sheet | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, hộp thoại mở, bàn phím ảo | - |
 | scrTdThemHs | (động) | Nhân sự | 60 | thanh đáy, thẻ, ô nhập | confirmSheet, sheet | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, hộp thoại mở, bàn phím ảo | - |
 | scrHhgt | (động) | Nhân sự | 67 | thanh đáy, thẻ, ô tìm, ô nhập, tiền | baoTin, hoiChu, hoiCo, sheet | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, số lớn, âm, 0, hộp thoại mở, bàn phím ảo | - |
+| scrVclList | Việc cần làm | - | 02 | thanh đáy, thẻ, ô nhập, tiền | baoTin, confirmSheet, hoiChu, hoiCo (+1) | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, số lớn, âm, 0, hộp thoại mở, bàn phím ảo | - |
+| scrHuongDan | Hướng dẫn chế biến | - | 32 | thẻ | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi | - |
+| scrSoTay | Sổ tay | - | 50 | chip, ô nhập, bảng | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi, bàn phím ảo | - |
+| scrChuong | Chuông thông báo | - | 59 | thẻ, chip | - | có dữ liệu, tên dài, cỡ chữ 150% và 200%, rỗng, đang tải, lỗi | - |
 
 ## Chưa xếp, cần xếp tay (5 màn)
 

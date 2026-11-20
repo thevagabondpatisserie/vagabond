@@ -1085,10 +1085,10 @@ function confirmSheet(title, msg, okLabel, danger) {
   return new Promise(function (res) {
     var ov = document.createElement('div'); ov.className = 'sh';
     ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
-      '<div style="font-size:17.5px;font-weight:700;margin-bottom:8px">' + h(title) + '</div>' +
-      '<div style="font-size:15px;color:#5a6070;line-height:1.5;margin-bottom:18px;white-space:pre-line">' + h(msg) + '</div>' +
+      '<div style="font-size:var(--ui-fs-17,17.5px);font-weight:700;margin-bottom:8px">' + h(title) + '</div>' +
+      '<div style="font-size:15px;color:var(--ui-text-2,#5a6070);line-height:1.5;margin-bottom:var(--ui-kh-16,18px);white-space:pre-line">' + h(msg) + '</div>' +
       '<button class="btn ' + (danger ? 'dg' : '') + '" data-y>' + h(okLabel || 'Đồng ý') + '</button>' +
-      '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
+      '<button class="btn gh" data-n style="margin-top:var(--ui-kh-8,9px)">Huỷ</button></div>';
     document.body.appendChild(ov);
     ov.onclick = function (e) {
       if (e.target === ov || e.target.hasAttribute('data-n')) { ov.remove(); res(false); }
@@ -1100,10 +1100,10 @@ function promptSheet(title, placeholder) {
   return new Promise(function (res) {
     var ov = document.createElement('div'); ov.className = 'sh';
     ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
-      '<div style="font-size:17.5px;font-weight:700;margin-bottom:12px">' + h(title) + '</div>' +
+      '<div style="font-size:var(--ui-fs-17,17.5px);font-weight:700;margin-bottom:12px">' + h(title) + '</div>' +
       '<textarea class="nt" rows="3" placeholder="' + h(placeholder || '') + '"></textarea>' +
       '<button class="btn" data-y style="margin-top:12px">Xác nhận</button>' +
-      '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
+      '<button class="btn gh" data-n style="margin-top:var(--ui-kh-8,9px)">Huỷ</button></div>';
     document.body.appendChild(ov);
     var ta = ov.querySelector('textarea'); setTimeout(function () { ta.focus(); }, 120);
     ov.onclick = function (e) {
