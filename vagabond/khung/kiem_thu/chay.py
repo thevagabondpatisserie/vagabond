@@ -305,6 +305,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_tich_diem_ban_677,
 	# v678 Chuyển khoản - Shinhan, chuyển khoản ngay tại bàn, tự chốt bill khi tiền về.
 	thu_shinhan_o2o_678,
+	# v678 dĩa, nĩa tặng kèm chọn một lần cho cả đơn ở trang Thông tin đơn hàng.
+	thu_dia_nia_678,
 	# v668 Gợi ý mua thêm: luật tồn, ghép, xếp hạng, đo, mức giữ tại bếp, bản nháp.
 	thu_goi_y_mua_668,
 	# v659 tờ chia nhiều cách trả: chỉ đòi ngân hàng phần Chuyển khoản (Loan Anh 14/11, đơn 97492).
