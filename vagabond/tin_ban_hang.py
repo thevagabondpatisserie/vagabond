@@ -49,7 +49,8 @@ def chi_tiet_hd_sai(loi):
 		return ""
 	ct = s.split("Chi tiết:", 1)[1] if "Chi tiết:" in s else ""
 	ct = re.sub(r"^[\s\[\]'\"]+|[\s\[\]'\"]+$", "", ct)
-	ct = re.sub(r"^[A-Z]{2,5}-\d{2}-\d{2}-\d+:\s*", "", ct)
+	# v680: mã hoá đơn kiểu cũ HDB-26-10-04205 và kiểu chung HDB-261201-000001.
+	ct = re.sub(r"^[A-Z]{2,5}-(?:\d{2}-\d{2}|\d{6})-\d+:\s*", "", ct)
 	ct = re.sub(r"Mã chưa rõ \d+\s*", "", ct)
 	ct = re.split(r"\s*Nội dung:", ct)[0].strip()
 	thuong = ct.lower()

@@ -176,8 +176,16 @@ def _quyen():
 
 
 def _sinh_ma():
-	"""Mã phiếu PTHD-yy-mm-nnnnn, đếm lại từ 1 mỗi tháng."""
+	"""Mã phiếu PTHD-yy-mm-nnnnn, đếm lại từ 1 mỗi tháng.
+
+	v680 (anh Việt chốt 21/11/2026): từ 01/12/2026 theo chuẩn chung
+	PTHD-yymmdd-nnnnnn, số liên tục. Xem vagabond/ma_chung_tu.py.
+	"""
 	h = getdate()
+	from vagabond import ma_chung_tu
+
+	if ma_chung_tu.da_ap(h):
+		return ma_chung_tu.cap_ma("PTHD", DT, h)
 	dau = "%s-%02d-%02d-" % (TIEN_TO, h.year % 100, h.month)
 	cu = frappe.db.sql(
 		"select name from `tab%s` where name like %%s order by name desc limit 1" % DT,

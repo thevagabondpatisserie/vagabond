@@ -1298,3 +1298,15 @@ scheduler_events.setdefault("cron", {}).setdefault("40 7 * * *", []).append("vag
 _cu_meta_mb = doc_events.setdefault("Journal Entry", {}).get("on_submit", [])
 doc_events["Journal Entry"]["on_submit"] = ([_cu_meta_mb] if isinstance(_cu_meta_mb, str) else list(_cu_meta_mb)) + [
 	"vagabond.chi_phi_meta.noi_sao_ke_mb"]
+
+# v680 (anh Việt chốt 21/11/2026): mã chứng từ chung MÃ-yymmdd-nnnnnn từ
+# 01/12/2026, số liên tục theo tiền tố. Danh sách doctype MỘT nguồn trong
+# vagabond/ma_chung_tu.py. Nối vào chuỗi autoname sẵn có, không thay hook cũ.
+from vagabond.ma_chung_tu import DT_THEO_CHUOI as _dt_ma_ct, DT_TIEN_TO as _dt_tt_ct
+
+for _dt_ma in tuple(_dt_ma_ct) + tuple(_dt_tt_ct):
+	_cu_ma = doc_events.setdefault(_dt_ma, {}).get("autoname", [])
+	doc_events[_dt_ma]["autoname"] = ([_cu_ma] if isinstance(_cu_ma, str) else list(_cu_ma)) + [
+		"vagabond.ma_chung_tu.dat_ten"]
+after_migrate.append("vagabond.ma_chung_tu.dung")
+del _dt_ma, _cu_ma, _dt_ma_ct, _dt_tt_ct

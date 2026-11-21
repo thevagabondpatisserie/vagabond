@@ -43,7 +43,8 @@ NHOM_RA = (
 		re.compile(r"\bMTC\s*:|\bCQT\s*:|NOP\s*THUE|THUE\s*CO\s*SO|NSNN", re.I)),
 	("ncc", "Trả nhà cung cấp chưa nối phiếu chi",
 		"Kế toán mở phiếu chi tương ứng, chọn đúng dòng sao kê.",
-		re.compile(r"TT\s*HD\s*NCC|\bAPP[\s.\-]*\d{2}[\s.\-]*\d{2}[\s.\-]*\d{3}", re.I)),
+		# v680: mã chuẩn chung APP-261201-000099 (ma_chung_tu), có gạch, khoảng trắng hay viết liền.
+		re.compile(r"TT\s*HD\s*NCC|\bAPP[\s.\-]*(?:\d{6}[\s.\-]*\d{6}|\d{2}[\s.\-]*\d{2}[\s.\-]*\d{3})", re.I)),
 )
 KHAC_VAO = ("khac", "Chưa rõ nguồn", "Kế toán xác định từng khoản:")
 KHAC_RA = ("khac", "Chưa rõ nội dung", "Kế toán xác định từng khoản:")

@@ -175,7 +175,7 @@ def _lenh_theo_ngay():
 	if not wo:
 		return
 	dung("mã theo kiểu ngày: " + wo.name, mp.la_ma_theo_ngay(wo.name, "LSX"))
-	la("ngày trong mã là ngày máy chủ", mp.ngay_tao_trong_ma(wo.name, "LSX"), str(nowdate()))
+	la("ngày trong mã là ngày máy chủ", mp.ngay_tao_trong_ma(wo.name, "LSX", nowdate()), str(nowdate()))
 	la("đuôi số nối tiếp dòng đếm", mp.duoi_so_cua(wo.name), int(truoc) + 1)
 	la("dòng đếm tăng đúng một", _dang_o(mp.KHOA_LENH), int(truoc) + 1)
 	dung("đuôi ít nhất sáu chữ số", len(wo.name.split("-")[-1]) >= mp.SO_CHU_SO)

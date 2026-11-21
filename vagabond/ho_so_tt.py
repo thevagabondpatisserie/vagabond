@@ -169,6 +169,13 @@ def _sinh_ma(ngay=None):
 	tháng sau sinh trùng mã, mà mã này đi vào nội dung chuyển khoản.
 	"""
 	d = getdate(ngay or nowdate())
+	# v680 (anh Việt chốt 21/11/2026): từ 01/12/2026 theo chuẩn chung
+	# APP-yymmdd-nnnnnn, CHUNG một dãy số với phiếu chi APP (Payment Entry) để
+	# không bao giờ có hai chứng từ cùng một chuỗi trên sao kê. Xem ma_chung_tu.
+	from vagabond import ma_chung_tu
+
+	if ma_chung_tu.da_ap(d):
+		return ma_chung_tu.cap_ma("APP", "Vagabond Ho So TT", d, truong="ma")
 	tien_to = "APP.%02d.%02d." % (d.year % 100, d.month)
 	da_co = frappe.get_all(
 		"Vagabond Ho So TT",

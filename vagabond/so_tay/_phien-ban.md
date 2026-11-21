@@ -12,6 +12,10 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v680
+- Hoá đơn in: mã voucher Grab, lề hai bên, mã QR nhỏ hơn
+- Mã chứng từ từ 01/12/2026: tiền tố, năm tháng ngày, số thứ tự
+
 ## v679
 - Bật giao diện mới Nghệ sĩ công nghệ cho một tài khoản (đang thử)
 

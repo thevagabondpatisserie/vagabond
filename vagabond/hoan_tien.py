@@ -886,6 +886,10 @@ def noi_dung_ck(ma_hoa_don):
 # de "HDB-2026-0160" khong an nham giao dich cua "HDB-2026-01604" - dung
 # cai bay da gap voi ma WOO.
 RX_MA_HD = re.compile(r"(?<![0-9A-Za-z])(HDB-[0-9]+(?:-[0-9]+){1,3})(?![0-9A-Za-z])", re.IGNORECASE)
+# v680 (ma_chung_tu): HDB-261201-000123 viết "HDB 261201 000123" hay liền
+# "HDB261201000123". Đuôi ít nhất sáu số nên mã tháng cũ viết liền (mười một
+# số) không lọt vào đây.
+RX_MA_HD_MOI = re.compile(r"(?<![0-9A-Za-z])HDB[\s.\-]*(\d{6})[\s.\-]*(\d{6,})(?![0-9])", re.IGNORECASE)
 
 
 def _got(chu):
@@ -907,7 +911,12 @@ def tim_ma_hoa_don(mo_ta):
 	dong tien roi tu tim xem no thuoc phieu nao, khong can biet truoc.
 	"""
 	m = RX_MA_HD.search(str(mo_ta or ""))
-	return m.group(1).upper() if m else ""
+	if m:
+		return m.group(1).upper()
+	# v680: mã chuẩn chung HDB-yymmdd-nnnnnn mà ngân hàng tách bằng khoảng
+	# trắng hoặc viết liền. Trả về dạng có gạch, đúng tên hoá đơn.
+	m = RX_MA_HD_MOI.search(str(mo_ta or ""))
+	return ("HDB-%s-%s" % (m.group(1), m.group(2))) if m else ""
 
 
 def khop_giao_dich(mo_ta, ma_hoa_don):
