@@ -850,12 +850,15 @@ export function taoKho(moiTruong) {
      Ưu đãi đơn đầu và điểm chuyển từ mục Thanh toán lên ngay dưới ô số điện
      thoại. Dùng lại luật và API đang có (xem_uu_dai, gui_ma, xac_thuc); thẻ
      chỉ ghép trạng thái. Một lần xác thực dùng chung cho ưu đãi, điểm, địa chỉ. */
-  /* Codex #605: xác thực theo SỐ, không theo từng lượt hỏi ưu đãi: máy chủ báo đúng số đã xác
-     thực thì giữ cho tới khi đổi số; lượt hỏi mới của cùng số báo hết phiên thì mới bỏ. */
+  /* Codex #605: xác thực theo SỐ, không theo từng lượt hỏi ưu đãi: trong lúc chờ lượt hỏi lại
+     thì giữ nguyên. Lượt hỏi MỚI (đúng giỏ, đúng số) báo hết phiên, ví dụ đã đăng xuất ở tab
+     khác, thì bỏ cả hai dấu (máy chủ báo và trang tự ghi) để thẻ mời xác thực lại. */
   watch(uuHienTai, u => {
     const so = sdtUuDai();
     if (!u || !u.khach || u.sdt !== so) return;
-    S.CO.dd.xacSo = Number(u.khach.xac_thuc) ? so : (S.CO.dd.xacSo === so && S.CO.dd.daXac !== so ? '' : S.CO.dd.xacSo);
+    if (Number(u.khach.xac_thuc)) { S.CO.dd.xacSo = so; return; }
+    if (S.CO.dd.xacSo === so) S.CO.dd.xacSo = '';
+    if (S.CO.dd.daXac === so) S.CO.dd.daXac = '';
   });
   const daXacThuc = computed(() => {
     const so = sdtUuDai();
@@ -896,8 +899,12 @@ export function taoKho(moiTruong) {
     return {kieu: 'cu', dia: '★', tieu: t('tv682_tich_tieu', 'Tích điểm thành viên cho số này'),
       phu: t('tv682_tich_phu', 'Xác thực qua Zalo để tích điểm và lưu địa chỉ cho lần sau.'), nut: true};
   });
-  /* Xác thực xong thì đọc địa chỉ đã lưu của đúng số này. */
-  watch(daXacThuc, co => { if (co) lookupPhone(); });
+  /* Xác thực xong thì đọc địa chỉ đã lưu của đúng số này. Mất xác thực (hết phiên) thì bỏ
+     địa chỉ đã lấy và công tắc điểm, như khi đổi số (Codex #605 vòng 2, quét cùng loại). */
+  watch(daXacThuc, co => {
+    if (co) { lookupPhone(); return; }
+    S.CO.addrList = []; S.CO.addrSel = -1; S.CO.dungDiem = false;
+  });
 
   /* ---------------- phí giao ---------------- */
   /* v652: điểm thành viên là phần trả bằng điểm, không làm đơn mất miễn phí giao
