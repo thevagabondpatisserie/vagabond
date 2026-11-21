@@ -103,3 +103,27 @@ def _():
 		la("chưa có món", don_web.gia_thiep_ep_kim(), None)
 	finally:
 		frappe.db.get_value = cu
+
+
+@ca("v681 ô ảnh trong sổ nhãn: chỉ nhận ảnh /files/ PNG, JPG, WebP đã tải lên; để trống là về ảnh có sẵn; ô chữ không bị luật ảnh ảnh hưởng; lưu qua luu_nhan và chuan_hoa đều chặn")
+def _():
+	from vagabond import noi_dung_web as ndw
+	o_anh = sorted(k for k, v in ndw.NHAN.items() if v.get("anh"))
+	la("25 ô ảnh, nhóm Ảnh trên trang", (len(o_anh), {ndw.NHAN[k]["nhom"] for k in o_anh}, ndw._nhom_nhan()["anh"]), (25, {"anh"}, "Ảnh trên trang"))
+	nd = {"khoi": [], "nhan": {}}
+	moi = ndw.ap_nhan(nd, {"anh_co_mau": ["", "/files/web-1a2b3c.webp"], "anh_thiep_nho": ["", "/files/thiep.JPG".lower()]})
+	la("nhận ảnh đã tải lên", (moi["nhan"]["anh_co_mau"], moi["nhan"]["anh_thiep_nho"]), ("/files/web-1a2b3c.webp", "/files/thiep.jpg"))
+	ve = ndw.ap_nhan(moi, {"anh_co_mau": ["/files/web-1a2b3c.webp", ""]})
+	dung("để trống là về ảnh có sẵn", "anh_co_mau" not in ve["nhan"] and ndw.nhan_day_du(ve)["anh_co_mau"] == "")
+	for xau in ["https://evil.example/a.png", "/files/a.svg", "/files/../private/files/x.png", "/private/files/x.png", "javascript:alert(1)", "/files/a.png?x=1", "/files/ a.png", "/files/" + "a" * 200 + ".png"]:
+		for cach in ("ap_nhan", "chuan_hoa"):
+			try:
+				if cach == "ap_nhan":
+					ndw.ap_nhan(nd, {"anh_co_mau": ["", xau]})
+				else:
+					ndw.chuan_hoa({"khoi": [], "nhan": {"anh_co_mau": xau}})
+				dung("phải chặn %s qua %s" % (xau, cach), False)
+			except ValueError as e:
+				dung("câu lỗi nói rõ ảnh", "PNG, JPG hoặc WebP" in str(e))
+	# ô chữ thường vẫn như cũ (chữ có dấu cách, không phải đường dẫn)
+	dung("ô chữ không bị luật ảnh", ndw.ap_nhan(nd, {"lc_thiep_nho": ["", "Thiệp mini"]})["nhan"]["lc_thiep_nho"] == "Thiệp mini")
