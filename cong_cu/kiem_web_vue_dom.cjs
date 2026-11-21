@@ -513,6 +513,8 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       if(so==='0922222222') return r.fulfill({status:500,json:{exc_type:'Loi'}});
       return r.fulfill({json:{message:{addresses:[]}}});
     });
+    /* v682: máy chủ không trả phần đơn đầu thì không có thẻ Thành viên, dòng gợi ý cũ vẫn hiện. */
+    await c.route('**/api/method/vagabond.don_hang.xem_uu_dai*',r=>r.fulfill({json:{message:{ok:1,giam:0,ap:[]}}}));
     const p=await c.newPage();
     await p.goto(url+'/web_moi/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
     await p.locator('#s-sizes button').first().click(); await p.locator('#s-cta').click();
@@ -625,7 +627,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(anh,['/assets/vagabond/web_order/anh-bia.png','/assets/vagabond/web_order/og-banh.jpg']);
     await c.close();
   });
-  await test('F43 v645 đơn đầu tiên trên web: gõ số, bấm Gửi mã, nhập mã 6 số, Xác nhận thì thẻ báo Đã giảm và tổng trừ 50.000',async()=>{
+  await test('F43 v645/v682 đơn đầu tiên trên web trong thẻ Thành viên: gõ số, Gửi mã, sáu ô mã, dán mã sai rồi mã đúng tự xác nhận, thẻ Đã xác thực và tổng trừ 50.000',async()=>{
     const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
     await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
     const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
@@ -646,22 +648,28 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await p.locator('#s-sizes button').first().click(); await p.locator('#s-cta').click();
     await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
     await p.locator('#f-phone').fill('0931224334');
-    await p.locator('#donDau').waitFor({state:'visible',timeout:8000});
-    assert.match(await p.locator('#donDau').innerText(),/50\.000/);
+    /* v682: ưu đãi đơn đầu nằm trong thẻ Thành viên ngay dưới ô số điện thoại. */
+    await p.locator('#theTv').waitFor({state:'visible',timeout:8000});
+    assert.match(await p.locator('#theTv').innerText(),/50\.000/);
+    assert.ok(await p.evaluate(()=>{const a=document.getElementById('f-phone'),b=document.getElementById('theTv'),c=document.getElementById('f-name');return a.compareDocumentPosition(b)&4&&b.compareDocumentPosition(c)&4}),'thẻ nằm giữa ô số và ô họ tên');
+    assert.equal(await p.locator('#phoneHint').count(),0,'thẻ hiện thì ẩn dòng gợi ý cũ');
     const truoc=Number((await p.locator('#ttTong').innerText()).replace(/\D/g,''));
     await p.locator('#ddGuiMa').click();
     await p.locator('#ddMa').waitFor({state:'visible'});
+    assert.equal(await p.locator('#theTv .tv-o').count(),6,'sáu ô mã');
+    assert.match(await p.locator('#ddGuiLai').innerText(),/Gửi lại sau [01]:[0-9]{2}/);
     assert.deepEqual(gui.map(x=>x.sdt),['0931224334']);
-    await p.locator('#ddMa').fill('111111'); await p.locator('#ddXacNhan').click();
-    await p.waitForFunction(()=>document.querySelector('#donDau .dd-loi'));
-    assert.match(await p.locator('#donDau .dd-loi').innerText(),/Mã chưa đúng/);
-    await p.locator('#ddMa').fill('123456'); await p.locator('#ddMa').press('Enter');
-    await p.waitForFunction(()=>document.querySelector('#donDau.dd-da_ap'),null,{timeout:8000});
-    assert.match(await p.locator('#donDau').innerText(),/Đã giảm 50\.000/);
+    await p.locator('#ddMa').fill('111111');
+    await p.waitForFunction(()=>document.querySelector('#theTv .tv-loi'));
+    assert.match(await p.locator('#theTv .tv-loi').innerText(),/Mã chưa đúng/);
+    await p.locator('#ddMa').fill('123456');
+    await p.waitForFunction(()=>document.querySelector('#theTv.tv-xac'),null,{timeout:8000});
+    assert.match(await p.locator('#theTv').innerText(),/ĐÃ XÁC THỰC SỐ 0931224334/i);
+    assert.match(await p.locator('#theTv').innerText(),/Đã giảm 50\.000/);
     await p.waitForFunction(t=>Number(document.querySelector('#ttTong').innerText.replace(/\D/g,''))===t-50000,truoc,{timeout:8000});
     assert.equal(await p.locator('#ddGuiMa').count(),0,'đã áp thì không còn nút gửi mã');
     assert.equal(xac.length,2);
-    if(process.env.VGB_ANH) await p.locator('#donDau').screenshot({path:process.env.VGB_ANH});
+    if(process.env.VGB_ANH) await p.locator('#theTv').screenshot({path:process.env.VGB_ANH});
     assert.deepEqual(loi,[]);
     await c.close();
   });
@@ -897,6 +905,39 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.match(await p.locator('[data-thiep="nho"] .th-anh img').first().getAttribute('src'),/\/files\/thiep-moi\.png$/);
     await p.locator('.lc-mau').first().click();await p.locator('#mauCo').waitFor({state:'visible'});
     assert.match(await p.locator('#mauCo .mc-anh').getAttribute('src'),/\/files\/co-moi\.webp$/);
+    await c.close();
+  });
+  await test('F53 v682 thẻ Thành viên: gõ từng số con trỏ tự sang ô kế, xoá lùi về ô trước, Đổi số đưa con trỏ về ô số điện thoại; đổi số thì mất xác thực',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const p=await c.newPage();let phien='';
+    await p.route('**/api/method/vagabond.don_hang.xem_uu_dai*',r=>{const d=JSON.parse(JSON.parse(r.request().postData()||'{}').don||'{}');const so=String(d.dien_thoai||'').replace(/\D/g,'');
+      return r.fulfill({json:{message:{ok:1,giam:0,ap:[],don_dau:{giam:50000,toi_thieu:300000,trang_thai:'khong',ap_dung:0,bo_ma:0},khach:{da_dat:1,xac_thuc:phien===so?1:0},diem:phien===so?{trang_thai:'dung_duoc',so_du:900,toi_da:300,tien_toi_da:300000,dung:0,tien:0}:{trang_thai:'can_xac_thuc'}}}});});
+    await p.route('**/api/method/vagabond.thanh_vien.gui_ma*',r=>r.fulfill({json:{message:{ok:1}}}));
+    await p.route('**/api/method/vagabond.thanh_vien.xac_thuc*',r=>{const b=JSON.parse(r.request().postData()||'{}');phien=String(b.sdt);return r.fulfill({json:{message:{ok:1}}});});
+    await p.goto(url+'/web_moi/banh#/banh/candle');await p.locator('#s-cta').waitFor({state:'visible'});
+    await p.locator('#s-cta').click();await p.locator('#bar .go').click();await p.locator('#checkout.open').waitFor();
+    await p.locator('#f-phone').fill('0909111222');
+    await p.locator('#theTv').waitFor({state:'visible',timeout:8000});
+    assert.match(await p.locator('#theTv').innerText(),/Chào mừng quý khách quay lại/);
+    await p.locator('#ddGuiMa').click();await p.locator('#ddMa').waitFor({state:'visible'});
+    await p.locator('#ddMa').focus();await p.keyboard.type('12');
+    assert.equal(await p.evaluate(()=>document.activeElement.id),'ddMa3','gõ 2 số thì con trỏ ở ô 3');
+    await p.keyboard.press('Backspace');
+    assert.equal(await p.evaluate(()=>document.activeElement.id),'ddMa2','xoá lùi về ô 2');
+    assert.equal(await p.locator('#ddMa2').inputValue(),'');
+    await p.locator('#ddDoiSo').click();
+    assert.equal(await p.evaluate(()=>document.activeElement.id),'f-phone','Đổi số: con trỏ về ô số');
+    assert.equal(await p.locator('#ddMa').count(),0);
+    await p.locator('#ddGuiMa').click();await p.locator('#ddMa').waitFor({state:'visible'});
+    await p.locator('#ddMa').fill('123456');
+    await p.waitForFunction(()=>document.querySelector('#theTv.tv-xac'),null,{timeout:8000});
+    await p.locator('#dvDung').waitFor({state:'visible',timeout:8000});
+    assert.equal(await p.locator('#dvDung').getAttribute('role'),'switch');
+    assert.equal(await p.locator('#dvDung').getAttribute('aria-checked'),'false');
+    await p.locator('#f-phone').fill('0909111333');
+    await p.waitForFunction(()=>{const t=document.querySelector('#theTv');return t&&!t.classList.contains('tv-xac')},null,{timeout:8000});
+    assert.equal(await p.locator('#dvDung').count(),0,'đổi số: không còn công tắc điểm của số cũ');
     await c.close();
   });
   await test('F48 v658 Vé sự kiện: trả lời muộn của sự kiện A không hiện mã vé ở sheet sự kiện B; mở lại A thấy đúng mã',async()=>{
