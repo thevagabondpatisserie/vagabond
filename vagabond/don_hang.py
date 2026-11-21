@@ -431,7 +431,23 @@ def xem_uu_dai(don=None):
 	if dv and dv["tien"]:
 		ap.append({"ten": TEN_DIEM, "giam": dv["tien"]})
 	return {"ok": 1, "giam": giam_uu + int((dv or {}).get("tien") or 0), "ap": ap, "don_dau": dd,
-		"diem": _diem_hien(dv)}
+		"diem": _diem_hien(dv), "khach": _khach_web(sdt)}
+
+
+def _khach_web(sdt):
+	"""v682 (BẢN 2 mục 2.2): thẻ Thành viên dưới ô số điện thoại cần biết số đã
+	từng đặt web chưa (lời chào) và trình duyệt này đã xác thực đúng số chưa
+	(phiên Thành viên). Không trả tên, điểm, địa chỉ. Lỗi phụ thì coi như chưa
+	đặt, chưa xác thực (thẻ chỉ mời xác thực, không lộ gì)."""
+	x = don_dau_web.chin_so(sdt)
+	if not x:
+		return None
+	try:
+		xac = don_dau_web.chin_so(don_dau_web.sdt_phien()) == x
+		return {"da_dat": 1 if don_dau_web.da_dat_web(sdt) else 0, "xac_thuc": 1 if xac else 0}
+	except Exception:
+		frappe.log_error(title="Vagabond: thẻ Thành viên đơn web", message=frappe.get_traceback())
+		return {"da_dat": 0, "xac_thuc": 0}
 
 
 def _gan_giam_pancake(hang, hang_goc, gia, giam):
