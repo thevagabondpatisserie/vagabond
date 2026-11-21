@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v683
+- Không đổi thao tác: sửa hiển thị giao diện mới đang thử (màu vùng đồng hồ, số trên ô nhóm, thanh nút đáy, hộp chọn, nút đóng); trên máy tính có bàn phím, phím Esc đóng hộp đang mở
+
 ## v682
 - Web đặt bánh: thẻ Thành viên dưới ô số điện thoại
 

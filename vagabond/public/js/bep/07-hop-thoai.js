@@ -15,7 +15,7 @@
 function hopKhung(tuaDe, thanHtml, chanHtml) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || '') + '</b><div class="x">&times;</div></div>' +
+  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || '') + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>' +
     '<div class="shl" style="padding:14px 16px 16px">' + thanHtml +
     (chanHtml ? '<div style="display:flex;gap:8px;margin-top:14px">' + chanHtml + '</div>' : '') +
     '</div>';
@@ -28,21 +28,21 @@ function hopKhung(tuaDe, thanHtml, chanHtml) {
    luaChon: [{k, nhan, mo_ta}]. Tra ve k, hoac null neu thoi. */
 function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
   return new Promise(function (xong) {
-    var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    var than = (moTa ? '<div style="font-size:var(--ui-fs-15,13.5px);line-height:1.6;color:var(--ui-text-2,#4b5563);margin-bottom:12px">' + moTa + '</div>' : '');
     /* Danh sach dai thi them o tim. Hop chon tai khoan, chon nha cung cap,
        chon nhom tai san deu di qua day, nen mot cho nay lo cho nhieu man. */
     than += vgbOTim('hcTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
       var chon = kDangChon != null && x.k === kDangChon;
-      than += '<div data-hc="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;'
-        + (chon ? 'background:#0f766e;color:#fff' : 'background:#f4f6f9;color:#20242e') + '">'
+      than += '<div data-hc="' + h(String(x.k)) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;'
+        + (chon ? 'background:var(--ui-hc-chon,#0f766e);color:#fff' : 'background:var(--ui-hc-nen,#f4f6f9);color:var(--ui-ink,#20242e)') + '">'
         /* v530: chi ve o bieu tuong khi muc CO bieu tuong. Dau cham mac dinh
            khong noi gi voi nguoi dung (anh Viet 25/09/2026: "nhin mat tham mi
            va khong ro rang"). */
-        + (x.icon ? '<div style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
+        + (x.icon ? '<div class="hcic" style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
         + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:15px;font-weight:700">' + h(x.nhan) + '</div>'
-        + (x.mo_ta ? '<div style="font-size:12.5px;line-height:1.5;margin-top:3px;' + (chon ? 'color:#d6f5f0' : 'color:#6b7280') + '">' + h(x.mo_ta) + '</div>' : '')
+        + (x.mo_ta ? '<div style="font-size:var(--ui-fs-13,12.5px);line-height:1.5;margin-top:3px;' + (chon ? 'color:var(--ui-hc-mo-chon,#d6f5f0)' : 'color:var(--ui-text-3,#6b7280)') + '">' + h(x.mo_ta) + '</div>' : '')
         + '</div></div>';
     });
     var k = hopKhung(tuaDe, than, '<button class="btn gh" data-hcx style="flex:1;margin:0">Thôi</button>');
@@ -68,17 +68,17 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
   return new Promise(function (xong) {
     var dang = {};
     (dsDangChon || []).forEach(function (k) { dang[String(k)] = 1; });
-    var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    var than = (moTa ? '<div style="font-size:var(--ui-fs-15,13.5px);line-height:1.6;color:var(--ui-text-2,#4b5563);margin-bottom:12px">' + moTa + '</div>' : '');
     /* Codex #449 P2: hon 8 muc thi phai co o tim (AGENTS.md "Chon la tim"),
        giong hoiChon. Loc theo ten lan mo ta. */
     than += vgbOTim('hcnTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
-      than += '<div data-hcn="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
+      than += '<div data-hcn="' + h(String(x.k)) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
         + '<div data-hcn-o style="flex:0 0 auto;width:22px;height:22px;border-radius:7px;border:2px solid #0f766e;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px"></div>'
-        + (x.icon ? '<div style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
+        + (x.icon ? '<div class="hcic" style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
         + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:15px;font-weight:700">' + h(x.nhan) + '</div>'
-        + (x.mo_ta ? '<div data-hcn-m style="font-size:12.5px;line-height:1.5;margin-top:3px">' + h(x.mo_ta) + '</div>' : '')
+        + (x.mo_ta ? '<div data-hcn-m style="font-size:var(--ui-fs-13,12.5px);line-height:1.5;margin-top:3px">' + h(x.mo_ta) + '</div>' : '')
         + '</div></div>';
     });
     var k = hopKhung(tuaDe, than,
@@ -89,12 +89,12 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
       Array.prototype.forEach.call(k.box.querySelectorAll('[data-hcn]'), function (el) {
         var co = !!dang[el.getAttribute('data-hcn')];
         if (co) so++;
-        el.style.background = co ? '#0f766e' : '#f4f6f9';
-        el.style.color = co ? '#fff' : '#20242e';
+        el.style.background = co ? 'var(--ui-hc-chon,#0f766e)' : 'var(--ui-hc-nen,#f4f6f9)';
+        el.style.color = co ? '#fff' : 'var(--ui-ink,#20242e)';
         var o = el.querySelector('[data-hcn-o]');
         if (o) { o.textContent = co ? '✓' : ''; o.style.background = co ? '#fff' : 'transparent'; o.style.color = '#0f766e'; }
         var m = el.querySelector('[data-hcn-m]');
-        if (m) m.style.color = co ? '#d6f5f0' : '#6b7280';
+        if (m) m.style.color = co ? 'var(--ui-hc-mo-chon,#d6f5f0)' : 'var(--ui-text-3,#6b7280)';
       });
       var nut = k.box.querySelector('[data-hcn-xong]');
       if (nut) { nut.style.opacity = so ? '1' : '.45'; nut.textContent = (nhanNut || 'Lưu') + (so ? ' (' + so + ')' : ''); }
