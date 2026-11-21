@@ -1349,6 +1349,25 @@ Từ v678 (giám đốc chốt 20/11/2026).
 **Bạn cần làm**
 1. Quầy: chọn đúng chương trình theo màn hình khách, rồi chốt bằng Grab Dine-Out và nhập mã GD-.
 2. Kế toán: bill cũ đã giảm đủ giá voucher giữ nguyên, chỉ đối chiếu với báo cáo Grab.
+## Hoá đơn in: mã voucher Grab, lề hai bên, mã QR nhỏ hơn
+Từ khoá: in hoá đơn, mẫu in, lệch trái, sát mép, lề, mã QR, Grab Dine-Out, GD-, mã voucher, tiệm chịu, tốn giấy
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy; quản lý cửa hàng | Tờ hoá đơn in cho khách; Cài đặt, Mẫu in ấn | In hoá đơn; ô Lề trái (mm), Lề phải (mm), Cỡ mã QR (mm); In thử hoá đơn cho khách |
+
+Từ v679 (giám đốc chốt 21/11/2026).
+
+**Trước đây:** dòng voucher Grab in kèm "(tiệm chịu 40.000)", tờ hoá đơn không có mã GD- của khách, chữ in sát mép trái, mã QR cuối tờ rộng 34mm.
+**Từ nay:**
+- Dòng voucher Grab chỉ in tên voucher và số giảm, không còn "(tiệm chịu ...)".
+- Ngay dưới dòng voucher Grab có dòng "Mã voucher: GD-..." đúng mã quầy nhập lúc chốt. Bill chốt Grab Dine-Out mà không có dòng voucher thì dòng mã nằm dưới dòng Thanh toán.
+- In lại từ chi tiết bill cũng có dòng khuyến mãi và dòng mã GD-.
+- Thân hoá đơn có lề 3mm mỗi bên, mã QR còn 26mm, tờ giấy ngắn hơn.
+
+**Bạn cần làm**
+1. Quầy: chốt bill Grab Dine-Out vẫn nhập mã GD- như cũ, hoá đơn tự in mã.
+2. Quản lý cửa hàng: tờ in vẫn lệch một bên thì vào Cài đặt, Mẫu in ấn, chọn đúng điểm bán, tăng ô Lề trái (mm) hoặc Lề phải (mm), bấm In thử hoá đơn cho khách tới khi hai bên bằng nhau, rồi bấm Lưu mẫu in.
 ## Web đặt bánh: dĩa, nĩa tặng kèm thành món trên Pancake
 Từ khoá: dĩa giấy, nĩa gỗ, dụng cụ ăn, tặng kèm, BAPK00020, BAPK00018, web đặt bánh, đồ dùng một lần
 

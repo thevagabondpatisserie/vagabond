@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v679
+- Hoá đơn in: mã voucher Grab, lề hai bên, mã QR nhỏ hơn
+
 ## v678
 - Chuyển khoản - Shinhan tại quầy
 - Khách chuyển khoản ngay tại bàn, bill tự chốt
