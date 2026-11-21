@@ -9,6 +9,13 @@ from frappe.model.document import Document
 from frappe.utils import flt, getdate, nowdate
 
 
+def _ma_moi():
+	"""Hôm nay đã dùng mã chứng từ chung chưa (từ 01/12/2026)."""
+	from vagabond import ma_chung_tu
+
+	return ma_chung_tu.da_ap(nowdate())
+
+
 class BaoGiaBanHang(Document):
 	def autoname(self):
 		"""Danh so VGB-PQ-YYYY-NNNN, dem lai tu 1 moi nam.
@@ -32,6 +39,14 @@ class BaoGiaBanHang(Document):
 		# nhay so, Loan Anh nhin vao tuong mat to).
 		if self.get("la_mau"):
 			tien_to = "MAU-BG-"
+		elif _ma_moi():
+			# v680 (anh Việt chốt 21/11/2026): từ 01/12/2026 theo chuẩn chung
+			# VGB-PQ-yymmdd-nnnnnn, số liên tục. Mẫu và bản thương lượng giữ
+			# cách cũ ở hai nhánh trên. Xem vagabond/ma_chung_tu.py.
+			from vagabond import ma_chung_tu
+
+			self.name = ma_chung_tu.cap_ma("VGB-PQ", "Bao Gia Ban Hang")
+			return
 		else:
 			nam = getdate(self.ngay_bao_gia or nowdate()).year
 			tien_to = "VGB-PQ-%d-" % nam
