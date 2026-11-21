@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v682
+- Web đặt bánh: thẻ Thành viên dưới ô số điện thoại
+
 ## v681
 - Web đặt bánh: lời chúc và thiệp chọn cho từng chiếc bánh
 - Web đặt bánh: ghi chú chọn nhanh cho bếp và người giao

@@ -157,7 +157,7 @@ def _xem(ap_giam=0, ly_do="", dau=None, xet_loi=False):
 		_gia_va_ten=lambda ds: ({m: 450000 for m in ds}, {m: "Bánh " + m for m in ds}),
 		MAX_DONG=30, MAX_SL=20,
 	)
-	for ten in ("_so", "_lam_sach_hang", "_ngay_iso", "_uu_dai_don", "_don_dau", "_diem_don", "_diem_hien"):
+	for ten in ("_so", "_lam_sach_hang", "_ngay_iso", "_uu_dai_don", "_don_dau", "_diem_don", "_diem_hien", "_khach_web"):
 		nap("don_hang.py", ten, g)
 	# v652: điểm thành viên web; ca đơn đầu không dùng điểm.
 	g["TEN_DIEM"] = "Điểm thành viên"
@@ -190,6 +190,29 @@ def _():
 	r = xem({"items": [{"variation_id": "A", "quantity": 1}], "dien_thoai": SO})
 	la("không giảm, thẻ ẩn", (r["ok"], r["giam"], r["don_dau"]["trang_thai"]), (1, 0, dd.KHONG))
 	la("một Error Log", len(log), 1)
+
+
+@ca("v682 xem_uu_dai trả khach cho thẻ Thành viên: số đã đặt web, phiên đúng số là đã xác thực; phiên số khác, số hỏng, không số thì không; đọc site hỏng thì coi như chưa, có Error Log")
+def _():
+	xem, dau, _k, _l = _xem(dau=_dau_gia(da_dat=True, phien=SO84))
+	r = xem({"items": [{"variation_id": "A", "quantity": 1}], "dien_thoai": SO})
+	la("đã đặt, đã xác thực (84... và 0... là một số)", r["khach"], {"da_dat": 1, "xac_thuc": 1})
+	xem, dau, _k, _l = _xem(dau=_dau_gia(da_dat=False, phien="0901234567"))
+	r = xem({"items": [{"variation_id": "A", "quantity": 1}], "dien_thoai": SO})
+	la("phiên của số khác: chưa xác thực", r["khach"], {"da_dat": 0, "xac_thuc": 0})
+	xem, dau, _k, _l = _xem(dau=_dau_gia(phien=""))
+	r = xem({"items": [{"variation_id": "A", "quantity": 1}], "dien_thoai": "12"})
+	la("số hỏng: không có khối khach (không so rỗng với rỗng)", r.get("khach"), None)
+	r = xem({"items": [{"variation_id": "A", "quantity": 1}]})
+	la("không số", r.get("khach"), None)
+	d = _dau_gia(phien=SO)
+	def hong(sdt):
+		raise RuntimeError("site hỏng")
+	d.da_dat_web = hong
+	xem, _d, _k, log = _xem(dau=d)
+	r = xem({"items": [{"variation_id": "A", "quantity": 1}], "dien_thoai": SO})
+	la("site hỏng: chưa đặt, chưa xác thực, không lộ gì", r["khach"], {"da_dat": 0, "xac_thuc": 0})
+	dung("có Error Log thẻ Thành viên", "Vagabond: thẻ Thành viên đơn web" in log)
 
 
 # ------------------------------------------------------------------ tao_don
