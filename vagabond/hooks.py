@@ -897,6 +897,9 @@ update_website_context = [
 	"vagabond.lib.og_theo_ten_mien",
 	# v664: thẻ Google Analytics cho các trang khách (chỉ trang chèn {{ vgb_ga_head }}).
 	"vagabond.do_luong_ga.ngu_canh",
+	# UI Nghệ sĩ công nghệ (PR 1): trạng thái giao diện mới của trang app /bep,
+	# quyết định trước lần vẽ đầu. Chỉ đụng trang app, hỏng thì ra giao diện cũ.
+	"vagabond.giao_dien.ngu_canh",
 ]
 
 # Thu moi nhan vien: thay thu chao mung mac dinh cua Frappe (dan vao ban quan

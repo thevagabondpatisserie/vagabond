@@ -808,8 +808,8 @@ async function scrAccount() {
     '<div class="kv"><span>Bộ phận</span><b>' + h(shortDep(S.me.bo_phan) || 'Chưa gắn') + '</b></div>' +
     '</div>' +
     '<div class="sec">Vai trò được cấp</div><div class="card">' +
-    '<div style="padding:13px 14px;font-size:13.5px;color:#5a6070;line-height:1.6">' + h(rl || 'Chưa gắn vai trò nào') + '</div></div>' +
-    '<div style="text-align:center;color:#a0a6b4;font-size:12px;padding:10px 10px 4px;line-height:1.6">' + h(APPNAME) + '</div>',
+    '<div style="padding:var(--ui-pad-the,13px 14px);font-size:var(--ui-fs-15,13.5px);color:var(--ui-text-2,#5a6070);line-height:1.6">' + h(rl || 'Chưa gắn vai trò nào') + '</div></div>' +
+    '<div style="text-align:center;color:var(--ui-text-3,#a0a6b4);font-size:var(--ui-fs-13,12px);padding:var(--ui-pad-chan,10px 10px 4px);line-height:1.6">' + h(APPNAME) + '</div>',
     { footer: '<button class="btn gh" id="acOut">Đăng xuất</button>' });
   var o = document.getElementById('acOut');
   if (o) o.onclick = async function () {

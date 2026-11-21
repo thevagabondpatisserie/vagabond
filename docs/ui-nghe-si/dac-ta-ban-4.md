@@ -37,6 +37,8 @@ Không mở được bản thử thì làm theo đặc tả này. Đặc tả l�
   - PR 4: Kế toán, Tài chính.
   - PR 5: Marketing và các màn còn lại (Khách hàng, Báo cáo, Nhân sự, Danh mục, Cài đặt).
   - PR 6: Gộp `ui-nghe-si` vào main, công tắc ĐANG TẮT. Chờ anh Việt duyệt.
+- (anh Việt chốt 20/11/2026) THỬ SỚM SAU PR 1: sau khi PR 1 được duyệt, phần nền được gộp riêng vào main và deploy với Tắt khẩn cấp không bật, tầng chung TẮT, chỉ đặt "Luôn bật" cho tài khoản anh Việt (và tài khoản anh chỉ định). Anh chấp nhận thấy app nửa mới nửa cũ trên tài khoản của mình trong lúc PR 2 đến 5 chưa xong; nhân viên không thấy gì khác. Bước gộp này là một PR riêng vào main, đủ cổng kiểm, bench, sổ tay, số phiên bản và dòng patch do người tích hợp đặt; merge và deploy vẫn chờ anh cho phép riêng. Từ đó mỗi PR 2 đến 5 sau khi duyệt cũng được gộp vào main theo cùng cách nếu anh muốn thử tiếp.
+- (anh Việt chốt 20/11/2026) Hai trang nằm ngoài app mở từ ô trang chủ, Kiểm bánh (`/kiem-banh`) và BTP (`/btp`), ĐỂ ĐỢT SAU. Không thuộc PR 2 và PR 3.
 
 ## 2. Công tắc (ba tầng; tầng trên thắng tầng dưới)
 
@@ -313,7 +315,8 @@ Lập bảng gồm:
 ## 7. Máy chụp và đo (làm trong PR 1, chạy cho mọi PR)
 
 - Chạy trên SITE THỬ hoặc dữ liệu thử có kiểm soát. KHÔNG mở hàng loạt màn trên site thật.
-- Khung kiểm: 360x780 điện thoại hẹp; 390x844 điện thoại chuẩn; 1366x768 máy tính quầy Windows (màn Tính tiền đang chạy ở quầy trên Windows); WebKit (Safari điện thoại) cho các màn chính: Trang chủ, Bán hàng, Tính tiền, Đơn giao, Kho.
+- Khung kiểm: 360x780 điện thoại hẹp; 390x844 điện thoại chuẩn; 1366x768 máy tính quầy Windows (màn Tính tiền đang chạy ở quầy trên Windows); 683x384 là máy tính quầy phóng to 200%; WebKit (Safari điện thoại) cho các màn chính: Trang chủ, Bán hàng, Tính tiền, Đơn giao, Kho.
+- (PR 1) Tăng cỡ chữ 150% và 200% trên ĐIỆN THOẠI là cài đặt của hệ điều hành và trình duyệt, máy chụp tự động không giả lập đúng được: ghi "Chưa kiểm" cho tới khi chụp trên máy thật.
 
 ### Hai loại kiểm tách riêng (bản 4)
 
@@ -393,6 +396,7 @@ Thêm vào cổng kiểm giao diện. Áp cho phần `ui-b`, và cho toàn app k
 2. PR 6 gộp vào main, chạy toàn bộ danh mục. (bản 4) Bộ kiểm tự động phải đạt trên đúng SHA của PR 6 trước khi deploy thử. Trạng thái khi gộp: Tắt khẩn cấp không bật; Tầng chung TẮT; mọi lựa chọn riêng "Theo chung". Anh Việt duyệt, deploy. Nhân viên chưa thấy gì khác.
 3. Quản trị đặt "Luôn bật" cho tài khoản anh Việt (và tài khoản thử anh Việt chỉ định). Tầng chung vẫn TẮT. Dùng thật vài ngày. Hoàn tất kiểm máy thật (mục 7).
 4. Kiểm máy thật đã đủ và anh Việt đồng ý thì quản trị hệ thống bật tầng chung. Mỗi nhân viên thấy giao diện mới ở lần mở trang kế tiếp. Không ép tải lại khi đang làm việc.
+   Riêng đợt thử sớm (mục 1): bước 3 bắt đầu ngay sau khi phần nền của PR 1 lên main, không chờ PR 6; bước 4 vẫn chỉ làm sau PR 6 và sau khi kiểm máy thật đã đủ.
 5. Có sự cố: bật TẮT KHẨN CẤP. Mọi tài khoản về giao diện cũ ở lần mở trang kế tiếp; tab đang mở nhận lời nhắc tải lại theo mục 2.
 
 BÁO CÁO TRONG CHAT: ngắn, nói kết quả nghiệp vụ (bao nhiêu màn đã đổi; bao nhiêu Đạt, Trượt, Chưa kiểm). Chi tiết kỹ thuật để trong PR.

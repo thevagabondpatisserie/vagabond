@@ -116,5 +116,7 @@ if __name__ == "__main__":
 	don_dep = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.don_dep_284"], check=False)
 	tra_truoc = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.tra_truoc_336"], check=False)
 	cong_thuc = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.cong_thuc_334"], check=False)
-	if thu476.returncode or ton476.returncode or bo476.returncode or qr474.returncode or cong_thuc.returncode or tra_truoc.returncode or not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode or can_tru.returncode or don_dep.returncode:
+	# UI Nghệ sĩ công nghệ PR 1: công tắc giao diện trên trang /bep thật, theo từng tài khoản, không qua bộ nhớ đệm.
+	ui_b = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.giao_dien_ui_b"], check=False)
+	if ui_b.returncode or thu476.returncode or ton476.returncode or bo476.returncode or qr474.returncode or cong_thuc.returncode or tra_truoc.returncode or not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode or can_tru.returncode or don_dep.returncode:
 		raise RuntimeError("Có cửa tích hợp đỏ. Đọc JSON từng lượt, M-Invoice và kho; không phát hành.")

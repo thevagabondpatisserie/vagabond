@@ -994,6 +994,8 @@ function pwaSauDangNhap() {
 }
 
 async function __boot(){
+  /* UI Nghe si cong nghe: nap lop ve moi (neu trang nay duoc bat) TRUOC lan ve dau. */
+  try { uiBNap(); } catch (e) { }
   clearFresh();
   try {
     var real = await whoAmI();

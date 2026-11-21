@@ -1,0 +1,63 @@
+{
+ "actions": [],
+ "creation": "2026-11-20 23:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Giao Dien",
+ "modified": "2026-11-20 23:30:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Cài đặt giao diện app nghiệp vụ: công tắc ba tầng cho giao diện mới. Chỉ đổi cách hiển thị, không đổi quyền hay dữ liệu.",
+ "issingle": 1,
+ "field_order": [
+  "tat_khan_cap",
+  "sec_chung",
+  "bat_chung",
+  "sec_rieng",
+  "rieng"
+ ],
+ "fields": [
+  {
+   "fieldname": "tat_khan_cap",
+   "fieldtype": "Check",
+   "label": "Tắt khẩn cấp (cả tiệm về giao diện cũ)",
+   "default": "0",
+   "description": "Bật ô này thì MỌI tài khoản về giao diện cũ ở lần mở trang kế tiếp, kể cả tài khoản đang đặt Luôn bật. Dùng khi giao diện mới có sự cố."
+  },
+  {
+   "fieldname": "sec_chung",
+   "fieldtype": "Section Break",
+   "label": "Cả tiệm"
+  },
+  {
+   "fieldname": "bat_chung",
+   "fieldtype": "Check",
+   "label": "Bật giao diện mới cho cả tiệm",
+   "default": "0",
+   "description": "Mỗi nhân viên thấy giao diện mới ở lần mở hoặc tải lại trang kế tiếp. App không tự tải lại khi đang làm việc."
+  },
+  {
+   "fieldname": "sec_rieng",
+   "fieldtype": "Section Break",
+   "label": "Lựa chọn riêng theo tài khoản"
+  },
+  {
+   "fieldname": "rieng",
+   "fieldtype": "Table",
+   "label": "Tài khoản có lựa chọn riêng",
+   "options": "Vagabond Giao Dien Rieng",
+   "description": "Tài khoản không có trong bảng thì Theo chung. Trong thời gian thử chỉ đặt Luôn bật cho tài khoản thử nghiệm."
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

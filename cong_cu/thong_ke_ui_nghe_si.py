@@ -42,7 +42,9 @@ PR_THEO_NHOM = OrderedDict([
 ])
 
 # Màn thuộc khung nền, PR 1 chuyển cùng khung chung.
-MAN_NEN = ("scrHome", "scrNhom", "scrLogin", "scrAccount", "scrChuong", "scrSoTay", "scrHuongDan", "scrVclList")
+MAN_NEN = ("scrHome", "scrNhom", "scrLogin", "scrAccount")
+# Màn mở từ ô riêng trên trang chủ hoặc từ chuông, không thuộc nhóm nào: đi cùng "các màn còn lại".
+MAN_CON_LAI = ("scrChuong", "scrSoTay", "scrHuongDan", "scrVclList")
 
 HOP_THOAI_CHUNG = ("hopKhung", "hoiChon", "hoiChonNhieu", "hoiChu", "hoiSo", "hoiNgay", "hoiCo",
 	"baoTin", "hoiNhap", "xacNhan", "pickDate", "sheet", "confirmSheet")
@@ -248,6 +250,8 @@ def lap_danh_muc(cac_phan):
 		k = cua_nhom.get(ten)
 		if ten in MAN_NEN:
 			k, pr = None, 1
+		elif ten in MAN_CON_LAI:
+			k, pr = None, 5
 		else:
 			pr = PR_THEO_NHOM.get(k)
 		man.append({

@@ -209,6 +209,7 @@ def _thu_tu():
 		dung("%s sau 48 không gán lại frame/api" % f,
 			not re.search(r"^\s*(frame|api)\s*=", m, re.M))
 	# v554: 50-so-tay.js (màn Sổ tay, chỉ đọc) qua đủ ba điều kiện trên.
+	# UI Nghệ sĩ công nghệ PR 1: 81-ui-b.js (lớp vẽ giao diện mới, không có màn lập phiếu) qua đủ ba điều kiện trên.
 	# v570: 51-cai-dat-loi.js (màn Cài đặt lõi và API, không lập phiếu) qua đủ ba điều kiện trên.
 	# v579: 52-doi-soat-vendor.js (màn Đối soát nhà cung cấp, chỉ đọc và nhận tệp, không lập phiếu) qua đủ ba điều kiện trên.
 	# #482: 53-gia-von-tam.js (màn Giá vốn tạm tính, chỉ đọc và chốt bảng giá riêng, không lập phiếu) qua đủ ba điều kiện trên.
@@ -269,7 +270,7 @@ def _thu_tu():
 		"77-chuong-mau.js", "78-mon-di-kem.js",
 		# v674: Bảng kê 242 và đối soát chi phí Meta: danh sách, sheet khai và nút
 		# lập bút toán theo tháng; không có form lập phiếu nhiều ô cần bản nháp.
-		"79-chi-phi-242.js", "80-chi-phi-meta.js"])
+		"79-chi-phi-242.js", "80-chi-phi-meta.js", "81-ui-b.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:
