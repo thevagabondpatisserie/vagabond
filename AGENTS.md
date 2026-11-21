@@ -198,7 +198,7 @@ trình biên tập web) chuyển sang Vue 3, mã ở `vagabond/public/web_vue/`:
 Anh Việt đã yêu cầu nhiều lần, lần cuối 03/09/2026 với ảnh hai màn xuất kho
 "rất thô sơ, không đồng bộ với giao diện đẹp của app". Bản đầy đủ nằm ở
 project doc `nguyen-tac-thiet-ke-man-hinh-app-va-de-xuat-kho-theo-sap`. Mười
-chín điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn sửa; ca kiểm
+chín điều dưới đây (cùng điều 20 cho web chính) là bắt buộc cho MỌI màn mới và MỌI màn sửa; ca kiểm
 `thu_nguyen_tac_man_hinh.py` canh những điều soi được bằng chuỗi.
 
 1. **Dùng khung có sẵn, không tự vẽ.** `frame`, `card`, hàng chip, bottom
@@ -275,6 +275,17 @@ chín điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn
     tắt NCC, BTP, BOM trên nhãn. Chọn chữ theo mẫu chứng từ Thông tư 99,
     rồi chữ tiệm đang dùng, rồi Odoo và MISA; không lấy bản dịch máy của
     ERPNext. Ca kiểm `thu_quy_tac_chu_657.py` chặn tên người.
+20. **Mọi nội dung trên web chính sửa được trong trình biên tập** (anh Việt
+    chốt 21/11/2026). Chữ khách thấy đi qua `t('khoá', 'mặc định')` và có
+    trong sổ nhãn `web_order/chu-mac-dinh.json`. Ảnh nhỏ của trang (mẫu cờ,
+    thiệp, phụ kiện, nến số...) là một ô ảnh trong cùng sổ (cờ `"anh": true`),
+    trang gọi `anhWeb('khoá', ảnh có sẵn)`, ảnh có sẵn khai trong
+    `ANH_O_MAC_DINH` (web_vue/banh/du-lieu.js); Marketing thay ở thẻ Trang và
+    chữ, nhóm Ảnh trên trang. Ảnh món, banner, ưu đãi, sự kiện sửa ở thẻ
+    riêng của chúng. Ngoại lệ duy nhất: logo thương hiệu và logo đơn vị thanh
+    toán. Thêm ô, chữ hay ảnh mới mà không vào trình biên tập là chưa xong;
+    ca "luật mọi ảnh trên web chính" trong `hanh_vi/web_vue_banh.mjs` đỏ khi
+    có `<img :src>` gắn cứng mới.
 
 Khi giao việc có đổi màn hình, dùng
 [skill dẫn giao diện](.agents/skills/vagabond-uxui-giao-viec/SKILL.md) để ghi
