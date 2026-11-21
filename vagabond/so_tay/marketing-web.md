@@ -687,3 +687,20 @@ Từ v676 (giám đốc duyệt 19/11/2026).
 - Trang Sự kiện khi chưa có sự kiện mở đăng ký chỉ còn một nút Theo dõi Zalo OA.
 
 **Bạn cần làm:** Marketing lấy nội dung từ Bếp, mở Biên tập web, thẻ Bánh, chọn từng bánh, điền hai ô rồi bấm Lưu.
+
+## Trang chọn bánh: dòng Mua thêm phụ kiện và chữ mới của trang Thông tin đơn hàng
+Từ khoá: mua thêm phụ kiện, nến số, nón, sash, màu giao ngẫu nhiên, nhãn chữ, ghi chú chọn nhanh, lời chúc và thiệp
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập web, Nhãn và câu chữ | Lưu |
+
+Từ v681 (giám đốc duyệt 21/11/2026).
+
+**Trước đây:** trang chọn bánh có mục Lời chúc in trên cờ, ô Số thiệp nhỏ và dòng gấp Phụ kiện cho bánh.
+**Từ nay:**
+- Trang chọn bánh còn: Giá bánh, Số lượng, 02 Kèm theo mỗi bánh, dòng Mua thêm phụ kiện (nến số, nón, sash sinh nhật, kèm câu "Màu nón và sash giao ngẫu nhiên."). Dòng này lấp lánh một lần khi khách cuộn tới.
+- Mọi chữ mới (Lời chúc và thiệp, năm viên ghi chú chọn nhanh, thẻ tóm tắt, Người nhận) sửa được ở Biên tập web, Nhãn và câu chữ, tìm theo chữ đang hiện.
+- Đổi chữ trên viên ghi chú không làm mất chức năng: hệ thống nhận viên theo mã, không theo chữ.
+
+**Bạn cần làm:** Marketing xem lại chữ trên trang đặt bánh sau khi lên bản, sửa nếu muốn rồi bấm Lưu.
