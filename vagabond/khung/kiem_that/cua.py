@@ -70,6 +70,7 @@ from vagabond.khung.kiem_that import thu_ho_so_tt_v445  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_san_xuat_206  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_tai_khoan_chi_phi  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ma_cap_so  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_ma_chung_tu_680  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_mau_in  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_nhan_nvl  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_kiem_banh_document  # noqa: F401,E402
