@@ -436,3 +436,64 @@ def _():
 	dung("máy chụp đọc trạng thái tải thật của từng mặt phông", "document.fonts.forEach" in nguon and "f.status" in nguon)
 	dung("tài nguyên của app tải hỏng được ghi thành lỗi của ô", "DO.danhGiaTaiNguyen(taiHong)" in nguon)
 	dung("có lựa chọn chặn tài nguyên để chứng minh phép đo biết đỏ", "thamSo('chan'" in nguon)
+
+
+def _nap_app(trang_thai, che_do=""):
+	"""Chạy NGUYÊN app_bep.js đã ghép trong node (hanh_vi/ui_b_nap_sau_load.js)."""
+	kich = os.path.join(GOC, "vagabond", "khung", "kiem_thu", "hanh_vi", "ui_b_nap_sau_load.js")
+	app = os.path.join(GOC, "vagabond", "public", "js", "app_bep.js")
+	r = subprocess.run(["node", kich, app, trang_thai] + ([che_do] if che_do else []), capture_output=True, cwd=GOC)
+	if r.returncode != 0:
+		raise AssertionError("node hỏng: " + r.stderr.decode("utf-8", "replace")[:300])
+	return json.loads(r.stdout.decode("utf-8"))
+
+
+@ca("ui-b nạp app (Codex #600): trang đã nạp xong trước khi app chạy (đường của trang /bep thật) vẫn gắn đủ bảng kiểu, một bộ theo dõi")
+def _():
+	sau = _nap_app("complete")
+	truoc = _nap_app("loading")
+	for ten, d in (("nạp sau load", sau), ("nạp trước load", truoc)):
+		la(ten + ": không lỗi khi chạy tệp", d["loi"], None)
+		la(ten + ": đúng một bảng kiểu", d["so_the"], 1)
+		la(ten + ": đúng một bộ theo dõi biểu tượng", d["so_theo_doi"], 1)
+		dung(ten + ": vẫn mang lớp giao diện mới", d["co_lop"])
+	la("hai đường nạp ra CÙNG một bảng kiểu", sau["css"], truoc["css"])
+	css = sau["css"]
+	for k in ("DH", "SX", "NK", "XK", "KK", "BH", "KHG", "GH", "BC", "TM", "KT", "TC"):
+		dung("nhóm cố định " + k + " có luật màu", '[data-uinhom="' + k + '"]' in css)
+	lech = _nap_app("complete", "lech")
+	dung("HTML khác phiên bản app: gỡ lớp ngay, không gắn bảng kiểu", (not lech["co_lop"]) and lech["so_the"] == 0 and lech["so_theo_doi"] == 0)
+
+
+@ca("ui-b màu nhóm (Codex #600, cùng loại): nhóm ngoài 12 nhóm cố định (Nhân sự, Danh mục, Cài đặt) lấy màu và hoạ tiết theo vòng, không thành mảng xám")
+def _():
+	css = _nap_app("complete")["css"]
+	nguon = _doc(GOC, "vagabond", "public", "js", "bep", "02-trang-chu.js")
+	khoi = nguon[nguon.index("var VGB_NHOM = ["):]
+	khoi = khoi[:khoi.index("\n];")]
+	nhom = re.findall(r"\bk: '([A-Z]+)'", khoi)
+	dung("đọc được danh sách nhóm trang chủ", len(nhom) >= 15 and "NS" in nhom and "DM" in nhom and "KHAC" in nhom)
+	for k in nhom:
+		dung("nhóm " + k + " có luật màu và hoạ tiết", re.search(r'\[data-uinhom="' + k + r'"\]\{[^}]*--ui-hoa:url\(', css) is not None)
+	dung("giá trị mặc định có hoạ tiết và màu đậm, nhóm lạ không thành mảng vuông", re.search(r"html\.ui-b\{[^}]*--ui-hoa:url\(", css) is not None and re.search(r"html\.ui-b\{[^}]*--ui-nhom-dam:#", css) is not None)
+
+
+@ca("ui-b máy chụp (Codex #600): đo bảng kiểu thật trên màn; nạp app như trang /bep thật")
+def _():
+	kich = (
+		"var D=require(process.argv[1]);"
+		"var c='html.ui-b{--a:1}html.ui-b [data-uinhom=\"DH\"]{--x:1}';"
+		"console.log(JSON.stringify({du:D.danhGiaLopVe(1,c,['DH','VCL','SOTAY']),thieu:D.danhGiaLopVe(1,c,['DH','NS']),"
+		"khong:D.danhGiaLopVe(0,'',['DH']),hai:D.danhGiaLopVe(2,c,[]),rong:D.danhGiaLopVe(1,'',[])}));"
+	)
+	r = subprocess.run(["node", "-e", kich, os.path.join(GOC, "cong_cu", "ui_b", "do.cjs")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	kq = json.loads(r.stdout.decode("utf-8"))
+	la("đủ: không lỗi (hai ô đặc biệt không cần màu nhóm)", kq["du"], [])
+	dung("thiếu màu nhóm NS: trượt, nêu tên", any("NS" in x for x in kq["thieu"]))
+	dung("không có bảng kiểu: trượt", len(kq["khong"]) == 1)
+	dung("hai bảng kiểu: trượt", len(kq["hai"]) == 1)
+	dung("bảng kiểu thiếu biến chung: trượt", len(kq["rong"]) == 1)
+	nguon = _doc(GOC, "cong_cu", "ui_b", "chup.cjs")
+	dung("máy chụp mặc định nạp app sau sự kiện load", "thamSo('nap', 'sau-load')" in nguon and 'addEventListener("load"' in nguon)
+	dung("máy chụp chấm lớp vẽ", "DO.danhGiaLopVe(d.lopVe.soThe, d.lopVe.css, d.lopVe.nhom)" in nguon)

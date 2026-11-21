@@ -45,6 +45,10 @@ if (process.argv.indexOf('--co-chu') > 0) {
 /* --chan <chuỗi>: chặn mọi tài nguyên có đường dẫn chứa chuỗi này (trả 404). Chỉ để chứng minh
    phép đo biết đỏ, ví dụ --chan /fonts/ui/ thì các ô giao diện mới PHẢI trượt vì phông không tải. */
 var CHAN = thamSo('chan', '');
+/* --nap sau-load (mặc định) | thang. Trang /bep thật chèn app_bep.js bằng thẻ script động
+   (vagabond/trang/bep.js), lúc đó trang đã nạp xong và __boot chạy ngay giữa tệp. Mặc định đi
+   đúng đường đó (Codex #600). "thang" là thẻ script viết thẳng trong HTML, chỉ để so. */
+var NAP = thamSo('nap', 'sau-load');
 /* --app <tệp>: chạy một bản app_bep.js khác (ví dụ bản của main) để so chế độ tắt. */
 var APP = thamSo('app', '');
 var ORIGIN = 'http://vgb.thu';
@@ -61,7 +65,9 @@ function trangHtml(bat) {
     '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' +
     '<title>Màn hình nghiệp vụ</title>' + dauTrang(bat) +
     '<script>window.frappe={csrf_token:"thu",session:{user:' + JSON.stringify(DL.tra('/api/method/frappe.auth.get_logged_user', {}, VAI).message) + '},boot:{}};</script></head><body><div id="vgb"></div>' +
-    '<script src="/assets/vagabond/js/app_bep.js"></script></body></html>';
+    (NAP === 'thang' ? '<script src="/assets/vagabond/js/app_bep.js"></script>' :
+      '<script>window.addEventListener("load",function(){var s=document.createElement("script");' +
+      's.src="/assets/vagabond/js/app_bep.js";document.body.appendChild(s);});</script>') + '</body></html>';
 }
 
 var LOAI = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json' };
@@ -189,6 +195,13 @@ function doTrongTrang(thamSo) {
       }
     }
   }
+  /* Lớp vẽ: số thẻ bảng kiểu, nội dung, các nhóm đang hiện trên màn. */
+  var the = document.querySelectorAll('style#vgbUiB');
+  r.lopVe = { soThe: the.length, css: the.length ? the[0].textContent : '', nhom: [] };
+  document.querySelectorAll('[data-nhom], [data-uinhom]').forEach(function (n) {
+    var k = n.getAttribute('data-uinhom') || n.getAttribute('data-nhom');
+    if (k && r.lopVe.nhom.indexOf(k) < 0) r.lopVe.nhom.push(k);
+  });
   /* Mặt phông của trang và trạng thái tải THẬT (không phải tên khai trong CSS). */
   try {
     document.fonts.forEach(function (f) {
@@ -204,6 +217,7 @@ function chonMan() {
   var ten = CHON ? CHON.split(',') : [];
   var la = ten.filter(function (t) { return !MAN.some(function (m) { return m.ten === t; }); });
   if (la.length) { console.log('KHÔNG CÓ màn: ' + la.join(', ') + '. Màn có sẵn: ' + MAN.map(function (m) { return m.ten; }).join(', ')); process.exit(1); }
+  if (NAP !== 'sau-load' && NAP !== 'thang') { console.log('--nap chỉ nhận sau-load hoặc thang.'); process.exit(1); }
   if (KHUNG.some(function (k) { return !(k.w > 0 && k.h > 0); })) { console.log('Khung không hợp lệ, viết dạng 390x844.'); process.exit(1); }
   var ds = MAN.filter(function (m) { return !ten.length || ten.indexOf(m.ten) >= 0; });
   if (!ds.length) { console.log('KHÔNG CÓ màn nào để chụp.'); process.exit(1); }
@@ -237,6 +251,8 @@ async function chay() {
       var coUi = await o.trang.evaluate(function () { return document.documentElement.classList.contains('ui-b'); });
       if (coUi !== bat) dong.loi.push('class ui-b ' + (coUi ? 'CÓ' : 'KHÔNG CÓ') + ' trong khi chế độ là ' + CHE_DO[c]);
       var ten = [m.ten, CHE_DO[c], khung.ten, MAY].join('__') + '.png';
+      /* App cuộn trong khung riêng nên fullPage không lấy thêm được gì. Muốn xem phần dưới
+         màn đầu thì chụp bằng khung cao, ví dụ --khung 390x2600 (Codex #600). */
       await o.trang.screenshot({ path: path.join(RA, ten), fullPage: false });
       dong.anh = ten;
       var d = await o.trang.evaluate(doTrongTrang, { bat: bat, chiDau: bat && !!m.chua_chuyen });
@@ -252,6 +268,7 @@ async function chay() {
         if (d.che.length) dong.loi.push('bị che: ' + d.che.slice(0, 3).join('; '));
         if (d.emoji.length) dong.loi.push('còn emoji: ' + d.emoji.slice(0, 4).join('; '));
         DO.danhGiaPhong(d.phongDung, d.phongMat).forEach(function (x) { dong.loi.push(x); });
+        DO.danhGiaLopVe(d.lopVe.soThe, d.lopVe.css, d.lopVe.nhom).forEach(function (x) { dong.loi.push(x); });
         dong.xem_anh = d.xemAnh;
         if (d.tuongPhan.length) dong.loi.push('tương phản thấp: ' + d.tuongPhan.slice(0, 4).join('; ') + (d.tuongPhan.length > 4 ? ' (+' + (d.tuongPhan.length - 4) + ')' : ''));
       }

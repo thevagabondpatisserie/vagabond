@@ -77568,7 +77568,17 @@ async function scrDsMetaThang(ky) {
 
    Phan nay dung o so 81 nhung cac ham khai bang `function` nen phan dung
    truoc goi duoc (cung mot vo ham). uiBNap() duoc goi trong __boot
-   (12-van-don.js), truoc lan ve dau cua app. */
+   (12-van-don.js), truoc lan ve dau cua app.
+
+   BAY THU TU NAP (Codex #600): trang /bep chen app_bep.js bang the script dong,
+   luc do readyState thuong da la 'complete' nen __boot() chay NGAY trong phan
+   12, khi cac cau `var X = ...` cua phan nay CHUA chay (ten co, gia tri
+   undefined). Vi vay: ham goi tu __boot chi duoc doc APPVER va the html; phan
+   can bang mau, bieu tuong, bo theo doi thi cho toi cuoi phan nay (uiBSan),
+   van trong cung mot luot chay tep, truoc lan ve dau. Bien can giu qua hai
+   thoi diem thi khai bao KHONG gan gia tri dau (`var X;`), de cau khai bao
+   chay sau khong xoa mat gia tri da gan. Ca: thu_giao_dien_ui_b.py,
+   hanh_vi/ui_b_nap_sau_load.js. */
 
 function uiB() {
   try { return document.documentElement.classList.contains('ui-b'); } catch (e) { return false; }
@@ -78082,7 +78092,8 @@ function uiBQuet(goc) {
   } catch (e) { }
 }
 
-var UIB_MAT = null;
+/* Khong gan null o day: uiBTheoDoi co the da chay truoc cau nay (xem BAY THU TU NAP). */
+var UIB_MAT;
 function uiBTheoDoi() {
   if (UIB_MAT || !uiB() || typeof MutationObserver === 'undefined') return;
   var goc = document.getElementById('vgb');
@@ -78119,9 +78130,28 @@ function uiBMauNhom(k, thuTu) {
   return UIB_MAU[ten];
 }
 
+/* Thu tu nhom: 12 nhom co dinh cua ban 4 truoc, roi moi nhom khac cua trang
+   chu (VGB_NHOM) theo thu tu hien, lay mau theo vong (ban 4 muc 3 "Nhom moi
+   sau nay"). Doc VGB_NHOM luc dung bang kieu: bang kieu chi dung sau khi ca
+   tep da chay (xem BAY THU TU NAP), nen phan 02 da gan xong. */
+function uiBDsNhom() {
+  var ds = [];
+  for (var k in UIB_NHOM) ds.push(k);
+  try {
+    if (typeof VGB_NHOM !== 'undefined' && VGB_NHOM && VGB_NHOM.length) {
+      for (var i = 0; i < VGB_NHOM.length; i++) {
+        var kk = VGB_NHOM[i] && VGB_NHOM[i].k;
+        if (kk && ds.indexOf(kk) < 0) ds.push(kk);
+      }
+    }
+  } catch (e) { }
+  return ds;
+}
+
 function uiBCssNhom() {
-  var s = '', i = 0;
-  for (var k in UIB_NHOM) {
+  var s = '', ds = uiBDsNhom();
+  for (var i = 0; i < ds.length;) {
+    var k = ds[i];
     var m = uiBMauNhom(k, i);
     i++;
     s += 'html.ui-b [data-nhom="' + k + '"],html.ui-b [data-uinhom="' + k + '"]{--ui-nhom:' + m[0] + ';--ui-nhom-rgb:' + m[1] +
@@ -78157,7 +78187,10 @@ function uiBCss() {
     '--ui-robin:#4FDBF2;--ui-robin-text:#0A7186;--ui-midnight:#23245C;' +
     '--ui-line:rgba(18,22,25,.10);' +
     '--ui-xong:#116B4A;--ui-cho:#9C4A08;--ui-loi:#C2361F;--ui-huy:#656D73;' +
-    '--ui-nhom:#4FDBF2;--ui-nhom-rgb:79,219,242;' +
+    /* Mac dinh cho moi nhom: thieu --ui-hoa thi mask khong hop le va hoa tiet
+       thanh mot mang vuong mau dam (Codex #600, anh chup Nhan su, Danh muc). */
+    '--ui-nhom:#4FDBF2;--ui-nhom-rgb:79,219,242;--ui-nhom-dam:#0A7186;' +
+    '--ui-hoa:url(/assets/vagabond/images/ui/hoa-tiet-10c.svg);' +
     '--ui-font:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;' +
     '--ui-dot:"Doto","Be Vietnam Pro",system-ui,sans-serif;' +
     '--ui-r-14:14px;--ui-r-16:16px;--ui-r-18:18px;--ui-r-24:24px;--ui-r-26:26px;--ui-r-999:999px;' +
@@ -78380,6 +78413,14 @@ function uiBNap() {
     try { console.warn('[ui-b] lech phien ban: HTML ' + (ui.v || '?') + ', app ' + APPVER + '. Dung giao dien cu cho lan tai nay.'); } catch (e) { }
     return false;
   }
+  /* Phan 81 chua chay xong (nap sau load): hen toi cuoi phan 81. */
+  if (UIB_SAN !== true) { UIB_CHO = true; return true; }
+  uiBGan();
+  return true;
+}
+
+/* Gan bang kieu va bo theo doi. CHI goi khi phan 81 da khai bao xong. */
+function uiBGan() {
   if (!document.getElementById('vgbUiB')) {
     var st = document.createElement('style');
     st.id = 'vgbUiB';
@@ -78387,7 +78428,6 @@ function uiBNap() {
     document.head.appendChild(st);
   }
   uiBTheoDoi();
-  return true;
 }
 
 /* Nhan doc cho nut dau trang chi co hinh (ban 4 muc 3: nut chi co bieu tuong
@@ -78457,6 +78497,13 @@ function uiBDauTrang(vh) {
     }
   } catch (e) { }
 }
+
+/* Cuoi phan 81: moi cau khai bao cua phan nay da chay. uiBNap() goi som (nap sau
+   load) thi gan bay gio, van trong luot chay tep nen truoc lan ve dau.
+   UIB_CHO khai bao khong gia tri dau de khong xoa co uiBNap() da dat. */
+var UIB_CHO;
+var UIB_SAN = true;
+if (UIB_CHO === true) { UIB_CHO = false; try { if (uiB()) uiBGan(); } catch (e) { } }
 })();
 
 /* Phan DONG VO, luon la phan CUOI CUNG cua ban ghep.

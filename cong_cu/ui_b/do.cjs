@@ -33,4 +33,20 @@ function danhGiaTaiNguyen(taiHong) {
   return (taiHong || []).length ? ['tài nguyên tải hỏng: ' + taiHong.slice(0, 4).map(function (t) { return t.duong + ' (' + t.ma + ')'; }).join('; ')] : [];
 }
 
-module.exports = { danhGiaPhong: danhGiaPhong, danhGiaTaiNguyen: danhGiaTaiNguyen, PHONG_CHUAN: PHONG_CHUAN };
+/* Lớp vẽ đã gắn đủ chưa (Codex #600). soThe: số thẻ style#vgbUiB; css: nội dung của nó;
+ * nhomDom: các mã nhóm đang có trên màn (data-nhom, data-uinhom). Phải đúng một thẻ, có bảng
+ * biến chung, và mỗi nhóm đang hiện phải có luật màu riêng: nạp sai thứ tự thì bảng kiểu vẫn
+ * có nhưng mất phần sinh từ dữ liệu, mắt thường chỉ thấy nhóm nào cũng một màu. */
+function danhGiaLopVe(soThe, css, nhomDom) {
+  var loi = [];
+  if (soThe !== 1) loi.push('số bảng kiểu giao diện mới là ' + soThe + ', phải đúng 1');
+  if (soThe >= 1 && String(css || '').indexOf('html.ui-b{') < 0) loi.push('bảng kiểu thiếu bảng biến chung');
+  /* Hai ô đặc biệt của trang chủ có kiểu riêng, không dùng màu nhóm: Việc cần làm (thẻ
+     Midnight) và Sổ tay. */
+  var RIENG = ['VCL', 'SOTAY'];
+  var thieu = (nhomDom || []).filter(function (k) { return RIENG.indexOf(k) < 0 &&  String(css || '').indexOf('[data-uinhom="' + k + '"]') < 0; });
+  if (soThe >= 1 && thieu.length) loi.push('bảng kiểu thiếu màu của nhóm: ' + thieu.join(', '));
+  return loi;
+}
+
+module.exports = { danhGiaPhong: danhGiaPhong, danhGiaTaiNguyen: danhGiaTaiNguyen, danhGiaLopVe: danhGiaLopVe, PHONG_CHUAN: PHONG_CHUAN };
