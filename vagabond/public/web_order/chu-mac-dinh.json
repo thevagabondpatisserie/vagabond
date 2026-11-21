@@ -8887,5 +8887,155 @@
     "nhom": "dat_banh",
     "mac_dinh": "Mở app ngân hàng hoặc quét mã QR để chuyển khoản.",
     "nhieu_dong": false
+  },
+  "anh_co_mau": {
+    "ten": "Mẫu cờ cắm lời chúc: hình cạnh ô lời chúc và hộp Xem mẫu cờ",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_thiep_nho": {
+    "ten": "Thiệp nhỏ miễn phí: hình ở ô chọn thiệp của từng chiếc bánh",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_thiep_ep_kim": {
+    "ten": "Thiệp sinh nhật ép kim: hình ở ô chọn thiệp của từng chiếc bánh",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_hop_banh": {
+    "ten": "Kèm theo mỗi bánh: Hộp bánh",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_tui_vai": {
+    "ten": "Kèm theo mỗi bánh: Túi vải đen",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_dao": {
+    "ten": "Kèm theo mỗi bánh: Dao gỗ cắt bánh",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_nen_xoan": {
+    "ten": "Kèm theo mỗi bánh: Nến xoắn",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_co_cam": {
+    "ten": "Kèm theo mỗi bánh: Cờ cắm in lời chúc",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_dc_dia": {
+    "ten": "Dụng cụ ăn tặng kèm: Dĩa giấy bã mía",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_dc_nia": {
+    "ten": "Dụng cụ ăn tặng kèm: Nĩa gỗ",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_0": {
+    "ten": "Mua thêm: Nến số 0",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_1": {
+    "ten": "Mua thêm: Nến số 1",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_2": {
+    "ten": "Mua thêm: Nến số 2",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_3": {
+    "ten": "Mua thêm: Nến số 3",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_4": {
+    "ten": "Mua thêm: Nến số 4",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_5": {
+    "ten": "Mua thêm: Nến số 5",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_6": {
+    "ten": "Mua thêm: Nến số 6",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_7": {
+    "ten": "Mua thêm: Nến số 7",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_8": {
+    "ten": "Mua thêm: Nến số 8",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_9": {
+    "ten": "Mua thêm: Nến số 9",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00001": {
+    "ten": "Mua thêm: Nến xoắn (vỉ 6 cây)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00024": {
+    "ten": "Mua thêm: Nón sinh nhật",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00025": {
+    "ten": "Mua thêm: Sash sinh nhật",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00016": {
+    "ten": "Mua thêm: Hộp bánh kem",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00015": {
+    "ten": "Mua thêm: Túi vải đen The Vagabond",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
   }
 }

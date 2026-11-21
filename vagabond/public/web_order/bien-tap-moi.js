@@ -34,7 +34,7 @@
     {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Lấy từ app ERP, đổi ảnh từng vị trí ở đây', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
     {k: 'cau_hoi', ten: 'Câu hỏi ứng tuyển', mo: 'Câu hỏi trong form ứng tuyển, phúc lợi chung'},
     {k: 'cua_hang', ten: 'Cửa hàng', mo: 'Địa chỉ, giờ mở cửa, hotline, chỉ đường', them: '+ Thêm cửa hàng', luu: 'Lưu cửa hàng', ten_muc: 'cửa hàng', dau: 'Danh sách cửa hàng'},
-    {k: 'chu', ten: 'Trang và chữ', mo: 'Tiêu đề từng trang, khẩu hiệu, chân trang, câu nhắc'},
+    {k: 'chu', ten: 'Trang và chữ', mo: 'Tiêu đề từng trang, khẩu hiệu, chân trang, câu nhắc, ảnh nhỏ trên trang'},
     {k: 'lien_he', ten: 'Liên hệ', mo: 'Điện thoại, email, mạng xã hội, công ty'},
   ];
   const LOAI_MUC = ['uu_dai', 'tiec', 'tuyen_dung', 'thiet_ke_rieng', 'banner', 'dac_biet_tuan'];
@@ -1034,6 +1034,14 @@
   }
 
   /* ------------------------------------------------------------ trang và chữ */
+  /* v681: ảnh có sẵn của từng ô ảnh, nạp từ CHÍNH dữ liệu trang đặt bánh (một nguồn). */
+  let ANH_CO_SAN = {}, ANH_CO_SAN_XONG = false;
+  function napAnhCoSan() {
+    ANH_CO_SAN_XONG = true;
+    return import('/assets/vagabond/web_vue/banh/du-lieu.js')
+      .then(m => { ANH_CO_SAN = m.ANH_O_MAC_DINH || {}; })
+      .catch(() => { /* không nạp được thì chỉ hiện chữ, vẫn tải ảnh được */ });
+  }
   const choDien = s => (String(s || '').match(/\{[a-z_]+\}/g) || []).sort();
   function loiChu(khoa, chu) {
     if (!chu.trim()) return '';
@@ -1047,7 +1055,7 @@
   function theChu() {
     const g = tao('section', 'bt-chu');
     const nhomTen = B.nhom_nhan || {};
-    const tatCa = Object.entries(B.nhan_mau).map(([k, v]) => ({k, ten: v.ten, mac_dinh: v.mac_dinh, nhom: nhomTen[v.nhom || ''] || 'Khác', nhieu: !!v.nhieu_dong || k.indexOf('dat_ban_') === 0}));
+    const tatCa = Object.entries(B.nhan_mau).map(([k, v]) => ({k, ten: v.ten, mac_dinh: v.mac_dinh, nhom: nhomTen[v.nhom || ''] || 'Khác', nhieu: !!v.nhieu_dong || k.indexOf('dat_ban_') === 0, anh: !!v.anh}));
     const dau = tao('div', 'bt-dau-ds');
     const tim = tao('input', 'bt-tim'); tim.type = 'search'; tim.placeholder = 'Gõ câu đang thấy trên web, ví dụ Đặt bánh trước'; tim.value = timChu;
     tim.setAttribute('aria-label', 'Tìm câu chữ trên web');
@@ -1072,6 +1080,7 @@
       loc.sort((a, b) => (B.nhan[b.k] ? 1 : 0) - (B.nhan[a.k] ? 1 : 0));
       if (!loc.length) { hang.append(tao('p', 'bt-rong', 'Không thấy câu nào khớp "' + timChu + '".')); return; }
       loc.slice(0, TOI_DA).forEach(x => {
+        if (x.anh) { hang.append(dongAnh(x)); return; }
         const d = tao('div', 'bt-dong-chu'); d.dataset.khoa = x.k;
         const dangCo = Object.prototype.hasOwnProperty.call(chuSua, x.k) ? chuSua[x.k] : (B.nhan[x.k] || '');
         const dau2 = tao('div', 'bt-nhan-hang');
@@ -1095,6 +1104,45 @@
       });
       if (loc.length > TOI_DA) hang.append(tao('p', 'bt-rong', 'Còn ' + (loc.length - TOI_DA) + ' câu nữa. Gõ vào ô tìm để thu hẹp.'));
     }
+    /* v681 (anh Việt 21/11/2026): ô ẢNH trong sổ nhãn (mẫu cờ, thiệp, phụ kiện, nến số).
+       Hiện ảnh đang dùng trên web; tải ảnh mới hay về ảnh có sẵn rồi bấm Lưu như câu chữ. */
+    function dongAnh(x) {
+      const d = tao('div', 'bt-dong-chu bt-dong-anh'); d.dataset.khoa = x.k;
+      const dangCo = Object.prototype.hasOwnProperty.call(chuSua, x.k) ? chuSua[x.k] : (B.nhan[x.k] || '');
+      const dau2 = tao('div', 'bt-nhan-hang');
+      dau2.append(tao('b', '', x.ten), tao('span', 'bt-tt an', x.nhom));
+      if (B.nhan[x.k]) dau2.append(tao('span', 'bt-tt dang', 'Đã đổi ảnh'));
+      const hangAnh = tao('div', 'bt-hang-anh');
+      const anh = tao('img', 'bt-anh-nho'); anh.alt = x.ten;
+      const chu = tao('span', 'bt-goi-y');
+      const tep = tao('input'); tep.type = 'file'; tep.accept = 'image/png,image/jpeg,image/webp'; tep.setAttribute('aria-label', 'Tải ảnh mới cho ' + x.ten); tep.dataset.oAnhNhan = x.k;
+      tep.hidden = true;
+      const chon = tao('button', 'bt-nut vien', 'Tải ảnh mới'); chon.type = 'button'; chon.dataset.chonAnhNhan = x.k;
+      chon.onclick = () => tep.click();
+      const ve2 = tao('button', 'bt-nut vien', 'Về ảnh có sẵn'); ve2.type = 'button';
+      function veAnh(v) {
+        const coSan = ANH_CO_SAN[x.k] || '';
+        anh.src = v || coSan; anh.hidden = !(v || coSan);
+        chu.textContent = v ? 'Đang dùng ảnh bạn tải lên.' : (coSan ? 'Đang dùng ảnh có sẵn của web.' : 'Chưa có ảnh, web hiện khung chữ.');
+        ve2.hidden = !v;
+      }
+      function dat(v) {
+        if (v === (B.nhan[x.k] || '')) delete chuSua[x.k]; else chuSua[x.k] = v;
+        veAnh(v); veChan();
+      }
+      tep.onchange = async () => {
+        const f = tep.files && tep.files[0]; if (!f) return;
+        bao('Đang tải ảnh...');
+        try { dat(await taiAnhLen(f)); bao('Đã tải ảnh. Bấm Lưu để khách thấy ảnh mới.'); } catch (e) { bao(e.message, true); }
+        tep.value = '';
+      };
+      ve2.onclick = () => dat('');
+      veAnh(dangCo);
+      hangAnh.append(anh, tep, chon, ve2);
+      d.append(dau2, hangAnh, chu);
+      return d;
+    }
+    if (!ANH_CO_SAN_XONG) napAnhCoSan().then(() => veHang());
     tim.oninput = () => { timChu = tim.value; veHang(); };
     const chan = tao('div', 'bt-chan-luu'); chan.hidden = true;
     const dem = tao('span', '');
@@ -1102,8 +1150,8 @@
     const bo = tao('button', 'bt-nut vien', 'Bỏ thay đổi'); bo.type = 'button';
     function veChan() {
       const n = Object.keys(chuSua).length;
-      chan.hidden = !n; dem.textContent = n + ' câu đã sửa, chưa lưu';
-      luu.textContent = 'Lưu ' + n + ' câu';
+      chan.hidden = !n; dem.textContent = n + ' mục đã sửa, chưa lưu';
+      luu.textContent = 'Lưu ' + n + ' mục';
     }
     bo.onclick = () => { chuSua = {}; ve(); };
     luu.onclick = async () => {
@@ -1111,7 +1159,7 @@
       if (loi.length) { bao('Còn câu chưa hợp lệ: ' + loi[0], true); return; }
       const thay = {}; Object.keys(chuSua).forEach(k => { thay[k] = [B.nhan[k] || '', chuSua[k]]; });
       const n = Object.keys(thay).length;
-      const ok = await ghi('luu_nhan', {thay: thay}, 'Đã lưu ' + n + ' câu. Khách thấy ngay khi tải lại trang.');
+      const ok = await ghi('luu_nhan', {thay: thay}, 'Đã lưu ' + n + ' mục. Khách thấy ngay khi tải lại trang.');
       if (ok) { chuSua = {}; ve(); }
     };
     chan.append(dem, luu, bo);
