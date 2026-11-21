@@ -82,6 +82,12 @@ O = {
 		{"k": "dia_chi", "loai": "bat", "ten": "In tên quầy và địa chỉ"},
 		{"k": "co_chu", "loai": "so", "ten": "Cỡ chữ", "min": 9, "max": 16, "buoc": 0.5,
 		 "mo": "Chữ to thì dễ đọc nhưng tờ giấy dài ra."},
+		{"k": "le_trai", "loai": "so", "ten": "Lề trái (mm)", "min": 0, "max": 8, "buoc": 0.5,
+		 "mo": "Chữ in sát mép trái thì tăng số này. Bấm In thử rồi chỉnh tới khi hai bên lề bằng nhau."},
+		{"k": "le_phai", "loai": "so", "ten": "Lề phải (mm)", "min": 0, "max": 8, "buoc": 0.5,
+		 "mo": "Chữ in sát mép phải thì tăng số này."},
+		{"k": "co_qr", "loai": "so", "ten": "Cỡ mã QR (mm)", "min": 20, "max": 34, "buoc": 1,
+		 "mo": "Mã nhỏ thì tờ giấy ngắn hơn. Từ 24mm trở lên điện thoại vẫn quét dễ."},
 		{"k": "gop_mon", "loai": "bat", "ten": "Gộp các dòng cùng một món",
 		 "mo": "Bấm ba lần một món thì in một dòng số lượng 3, thay vì ba dòng."},
 		{"k": "an_mon_0d", "loai": "bat", "ten": "Ẩn món giá 0 đồng",
@@ -121,6 +127,13 @@ MAC_DINH = {
 		"logo": 1,
 		"dia_chi": 1,
 		"co_chu": 11.5,
+		# v680 (anh Việt 21/11/2026, tờ HDB-26-11-03963): ba ô này CỐ Ý khác
+		# hành vi cũ, vì chính hành vi cũ là lỗi anh báo. Trước đây thân hoá
+		# đơn không có lề ngang nên chữ in sát mép trái, và mã QR rộng 34mm
+		# tốn giấy. Quầy nào in vẫn lệch thì chỉnh hai ô lề ở màn Mẫu in.
+		"le_trai": 3,
+		"le_phai": 3,
+		"co_qr": 26,
 		"gop_mon": 0,
 		"an_mon_0d": 0,
 		"hien_tuy_chon": 1,

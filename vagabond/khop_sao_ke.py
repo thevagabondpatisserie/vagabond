@@ -282,7 +282,8 @@ def khop_tu_khoa(tu_khoa, dong):
 	return len(so) >= 4 and so.isdigit() and int(so) == int(round(_so(dong.get("tien"))))
 
 
-_MA_APP = re.compile(r"APP[.\-]?\d{2}[.\-]?\d{2}[.\-]?\d{3,}", re.I)
+# v680: thêm mã chuẩn chung từ 01/12/2026, APP-261201-000123 (ma_chung_tu).
+_MA_APP = re.compile(r"APP[.\-]?(?:\d{6}[.\-]?\d{6,}|\d{2}[.\-]?\d{2}[.\-]?\d{3,})", re.I)
 
 
 def co_ma_app_khac(mo_ta, ma_minh):

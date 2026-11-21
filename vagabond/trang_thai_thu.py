@@ -72,8 +72,9 @@ THEO_HANG_DOI = {
 CUA_SO_SOAT_PHUT = 45
 
 # Mẫu mã chứng từ nằm trong thân thư: DMH-2026-00146, MAT-MR-2026-00007, và
-# bản sửa đổi có đuôi số như DMH-2026-00133-1.
-MAU_MA = re.compile(r"\b[A-Z]{2,6}(?:-[A-Z]{2,6}){0,2}-\d{4}-\d{4,6}(?:-\d{1,2})?\b")
+# bản sửa đổi có đuôi số như DMH-2026-00133-1. v680: thêm mã chuẩn chung từ
+# 01/12/2026, DMH-261201-000146 (ma_chung_tu).
+MAU_MA = re.compile(r"\b[A-Z]{2,6}(?:-[A-Z]{2,6}){0,2}-(?:\d{4}-\d{4,6}|\d{6}-\d{6,})(?:-\d{1,2})?\b")
 
 # Quét lùi bao nhiêu ngày khi màn hình hỏi một chứng từ đã gửi thư tới đâu.
 # Có mốc thì câu lệnh dò thân thư không phải quét cả bảng Communication.

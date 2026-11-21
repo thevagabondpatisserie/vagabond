@@ -87,6 +87,7 @@ trị không hợp lệ, sửa một ô bất kỳ cũng không lưu được. N
 
 # ------------------------------------------------------------ phần thuần
 
+import datetime
 import re
 
 # Doctype -> tien to moi. Chi hai cai nay, dung them cho vui.
@@ -208,8 +209,16 @@ def yymmdd(x):
 
 
 def ma_lenh(ngay, so):
-	"""Mã lệnh sản xuất: LSX-060926-000057. THUẦN."""
-	return "%s-%s-%s" % (TIEN_TO["Work Order"], ddmmyy(ngay), duoi_so(so))
+	"""Mã lệnh sản xuất: LSX-060926-000057. THUẦN.
+
+	v680: từ 01/12/2026 phần ngày theo chuẩn chung năm-tháng-ngày
+	(LSX-261201-000700, anh Việt chốt 21/11/2026, `ma_chung_tu`). Đuôi số
+	vẫn nối tiếp dãy cũ, không đánh lại.
+	"""
+	from vagabond.ma_chung_tu import da_ap
+
+	phan_ngay = yymmdd(ngay) if da_ap(ngay) else ddmmyy(ngay)
+	return "%s-%s-%s" % (TIEN_TO["Work Order"], phan_ngay, duoi_so(so))
 
 
 def ma_lo(ngay, so):
@@ -283,7 +292,11 @@ def la_ma_theo_ngay(ten, tien_to):
 	return bool(re.match(r"^%s-\d{6}-\d+$" % re.escape(tien_to), ten))
 
 
-def ngay_tao_trong_ma(ten, tien_to):
+# Mã lệnh theo ngày kiểu ddmmyy bắt đầu từ 06/09/2026 (#206).
+DAU_NGAY_CU = datetime.date(2026, 9, 6)
+
+
+def ngay_tao_trong_ma(ten, tien_to, hom_nay=None):
 	"""Đọc ngày tạo từ mã kiểu ngày: LSX-060926-000057 -> "2026-09-06". THUẦN.
 
 	Mã không theo kiểu ngày, hoặc sáu số không phải một ngày có thật
@@ -293,12 +306,30 @@ def ngay_tao_trong_ma(ten, tien_to):
 	if not la_ma_theo_ngay(ten, tien_to):
 		return ""
 	so = ten.strip().upper().split("-")[1]
-	dd, mm, yy = int(so[0:2]), int(so[2:4]), int(so[4:6])
 	import datetime
-	try:
-		return datetime.date(2000 + yy, mm, dd).isoformat()
-	except ValueError:
+
+	from vagabond.ma_chung_tu import NGAY_AP
+
+	def _doc(y, m, d):
+		try:
+			return datetime.date(2000 + y, m, d)
+		except ValueError:
+			return None
+
+	# v680: từ 06/09 tới 30/11/2026 mã ghi ddmmyy, từ 01/12/2026 ghi yymmdd.
+	# Cùng sáu số nên đọc cả hai: ddmmyy chỉ đúng khi rơi vào khoảng cũ, yymmdd
+	# chỉ đúng khi rơi vào từ mốc tới `hom_nay` (mã không thể mang ngày tương
+	# lai). Cả hai cùng đúng thì không đoán.
+	moc = datetime.date.fromisoformat(NGAY_AP)
+	cu = _doc(int(so[4:6]), int(so[2:4]), int(so[0:2]))
+	moi = _doc(int(so[0:2]), int(so[2:4]), int(so[4:6]))
+	cu = cu if cu and DAU_NGAY_CU <= cu < moc else None
+	# Không truyền hôm nay thì lấy ngày của máy đang chạy.
+	tran = datetime.date.fromisoformat(str(hom_nay)[:10]) if hom_nay else datetime.date.today()
+	moi = moi if moi and moc <= moi <= tran else None
+	if cu and moi:
 		return ""
+	return (cu or moi).isoformat() if (cu or moi) else ""
 
 
 def la_ma_kieu_moi(ten, tien_to):
