@@ -283,7 +283,9 @@ def khop_tu_khoa(tu_khoa, dong):
 
 
 # v680: thêm mã chuẩn chung từ 01/12/2026, APP-261201-000123 (ma_chung_tu).
-_MA_APP = re.compile(r"APP[.\-]?(?:\d{6}[.\-]?\d{6,}|\d{2}[.\-]?\d{2}[.\-]?\d{3,})", re.I)
+# Codex #602: `ho_so_tt._noi_dung_ck` thay gạch bằng khoảng trắng và ngân hàng
+# hay tách mã, nên giữa các phần nhận cả khoảng trắng, chấm, gạch.
+_MA_APP = re.compile(r"APP[\s.\-]*(?:\d{6}[\s.\-]*\d{6,}|\d{2}[\s.\-]*\d{2}[\s.\-]*\d{3,})", re.I)
 
 
 def co_ma_app_khac(mo_ta, ma_minh):
