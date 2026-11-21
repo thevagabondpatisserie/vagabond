@@ -272,10 +272,13 @@ def _nap_ht():
 	# song trong mot tep, va chung lech nhau luc nao khong hay. Chep regex
 	# vao bo kiem la de ra dung cai bay do: sua regex ben kia ma quen ben
 	# nay thi bo kiem van xanh trong khi luong that da hong.
-	m_rx = re.search(r"^RX_MA_HD = .*$", src, re.M)
-	if not m_rx:
-		print("KHONG THAY RX_MA_HD trong hoan_tien.py"); sys.exit(1)
-	exec(compile(m_rx.group(0), "hoan_tien:RX_MA_HD", "exec"), mt, mt)
+	# v680: thêm RX_MA_HD_MOI (mã chuẩn chung HDB-yymmdd-nnnnnn khi ngân hàng
+	# tách bằng khoảng trắng hay viết liền); nạp cả hai, thiếu cái nào là dừng.
+	for ten_rx in ("RX_MA_HD", "RX_MA_HD_MOI"):
+		m_rx = re.search(r"^%s = .*$" % ten_rx, src, re.M)
+		if not m_rx:
+			print("KHONG THAY %s trong hoan_tien.py" % ten_rx); sys.exit(1)
+		exec(compile(m_rx.group(0), "hoan_tien:" + ten_rx, "exec"), mt, mt)
 	for ten in ("noi_dung_ck", "_got", "tim_ma_hoa_don", "khop_giao_dich", "chon_ma_khop", "ty_le_hop_le", "tach_ghi_chu_don"):
 		# Cat toi khi gap "def", mot trang tri, hay mot khoi chu thich o dau
 		# dong: cac ham nay xen ke voi hang so va chu thich dai.
@@ -316,6 +319,9 @@ la("mo ta rong", tim(""), "")
 la("ma viet thuong van doc duoc", tim("the vagabond hoan tien hdb-2026-01593"), "HDB-2026-01593")
 la("ma nam cuoi cau", tim("NGUYEN VAN A CK " + CK + "HDB-26-08-00323"), "HDB-26-08-00323")
 la("ma dinh lien chu cai thi khong nhan", tim("XHDB-2026-01593"), "")
+# v680: mã chuẩn chung, ngân hàng tách khoảng trắng hoặc viết liền.
+la("ma chung tach khoang trang", tim(CK + "HDB 261201 000123"), "HDB-261201-000123")
+la("ma chung viet lien", tim(CK + "HDB261201000123"), "HDB-261201-000123")
 
 # Ngan hang lam mat dau gach la chuyen thuong. Duong got phai bat duoc.
 la("mat dau gach van khop", khop("THE VAGABOND HOAN TIEN HDB 2026 01593", "HDB-2026-01593"), True)
