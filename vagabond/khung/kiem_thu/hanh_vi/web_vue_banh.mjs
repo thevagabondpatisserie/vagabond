@@ -1333,6 +1333,124 @@ await ca('v681 luật mọi ảnh trên web chính sửa được ở trình bi�
   ND.nhan = cu;
 });
 
+/* ---------------- v682 thẻ Thành viên dưới ô số điện thoại (BẢN 2 mục 2.2) ----------------
+   Máy chủ giả giữ luật của xem_uu_dai: số đã đặt web thì don_dau khong; khach.da_dat, khach.xac_thuc
+   theo phiên; điểm chỉ lộ sau xác thực. Gửi mã, xác thực có thể trả chậm (hứa tự giải). */
+function mayChuTv({daDat = [], phienSan = '', diem = true, uuDai = true} = {}) {
+  const v = {hoi: [], gui: [], xac: [], tra: [], phien: phienSan, cho: null};
+  const mang = {
+    'vagabond.don_hang.xem_uu_dai': th => {
+      const d = JSON.parse(th.don); v.hoi.push(d);
+      const so = String(d.dien_thoai || '').replace(/\D/g, '');
+      const cu = daDat.includes(so), xac = !!so && v.phien === so;
+      const dd = {giam: 50000, toi_thieu: 300000, ap_dung: 0, bo_ma: 0,
+        trang_thai: !uuDai || cu ? 'khong' : (xac ? 'du' : 'can_xac_thuc')};
+      if (dd.trang_thai === 'du') dd.ap_dung = 1;
+      const dv = !diem ? null : (!xac ? {trang_thai: 'can_xac_thuc'}
+        : {trang_thai: 'dung_duoc', so_du: 1200, toi_da: 400, tien_toi_da: 400000, dung: d.dung_diem ? 400 : 0, tien: d.dung_diem ? 400000 : 0});
+      return {ok: 1, giam: (dd.ap_dung ? 50000 : 0) + (dv && dv.tien || 0), ap: [], don_dau: dd, diem: dv, khach: so ? {da_dat: cu ? 1 : 0, xac_thuc: xac ? 1 : 0} : null};
+    },
+    'vagabond.thanh_vien.gui_ma': th => { v.gui.push(th); if (v.cho) return new Promise(res => { v.cho.push(() => res({ok: 1})); }); return {ok: 1, song_giay: 300}; },
+    'vagabond.thanh_vien.xac_thuc': th => { v.xac.push(th); const lam = () => { if (th.ma !== '123456') return {ok: 0, ly_do: 'ma_khong_dung'}; v.phien = String(th.sdt); return {ok: 1}; };
+      if (v.cho) return new Promise(res => { v.cho.push(() => res(lam())); }); return lam(); },
+    'vagabond.api.tra_khach': p => { v.tra.push(p.phone); return v.phien === p.phone ? {addresses: [{ho_ten: 'Khách', phone: p.phone, dia_chi: '12 Nguyễn Huệ'}]} : {addresses: [], ly_do: 'can_xac_thuc'}; },
+  };
+  return {v, mang};
+}
+
+await ca('v682 thẻ Thành viên: chưa đủ số thì ẩn; số mới mời giảm 50.000; số đã đặt chào quay lại; tắt ưu đãi đơn đầu thì mời tích điểm, không nói "quay lại" với số mới', async () => {
+  const {mang} = mayChuTv({daDat: ['0909111222'], uuDai: true});
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931'; await chayHen();
+  la('chưa đủ số: ẩn', k.theThanhVien.value, null);
+  k.S.f.phone = '0931224334'; await chayHen();
+  let th = k.theThanhVien.value;
+  la('số mới', [th.kieu, th.dia, th.nut], ['moi', '-50K', true]);
+  dung('tiêu đề nói mức giảm', /50\.000/.test(th.tieu) && /đơn đầu tiên/.test(th.tieu));
+  dung('dòng phụ nói ưu đãi, điểm, địa chỉ', /tích điểm/.test(th.phu) && /địa chỉ/.test(th.phu));
+  k.S.f.phone = '0909111222'; await chayHen();
+  th = k.theThanhVien.value;
+  la('số đã đặt', [th.kieu, th.dia, th.tieu], ['cu', '★', 'Chào mừng quý khách quay lại']);
+  const tat = mayChuTv({uuDai: false});
+  const m2 = moiTruong('2026-11-21T08:00:00', tat.mang);
+  const k2 = taoKho(m2.mt); coThem(k2); k2.moGio(); k2.S.f.phone = '0931224334'; await m2.chayHen();
+  la('tắt ưu đãi, số mới: mời tích điểm', [k2.theThanhVien.value.kieu, k2.theThanhVien.value.tieu], ['cu', 'Tích điểm thành viên cho số này']);
+});
+
+await ca('v682 thẻ Thành viên: gửi mã thì sang 6 ô và đếm 60 giây; dán đủ 6 số vào ô đầu thì tự xác nhận; xác thực xong một lần dùng chung ưu đãi, điểm, địa chỉ đã lưu', async () => {
+  const {v, mang} = mayChuTv();
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  await k.guiMaDonDau();
+  la('bước nhập mã', [k.theThanhVien.value.kieu, k.theThanhVien.value.tieu, k.S.CO.dd.cho], ['ma', 'Nhập mã 6 số Zalo vừa gửi', 60]);
+  await chayHen();
+  la('đếm lùi từng giây tới 0 thì gửi lại được', k.S.CO.dd.cho, 0);
+  la('gõ ô đầu: con trỏ sang ô 2', k.nhapMa(0, '1'), 1);
+  la('gõ ô 2', [k.nhapMa(1, '9'), k.S.CO.dd.ma], [2, '19']);
+  la('xoá lùi ô 3 trống: bỏ số ô 2', [k.xoaLuiMa(2), k.S.CO.dd.ma], [1, '1']);
+  la('dán 6 số vào ô đầu: đủ mã', k.nhapMa(0, '123 456'), 5);
+  await chayHen(); await chayHen();
+  la('tự xác nhận đúng số, đúng mã', v.xac[v.xac.length - 1], {sdt: '0931224334', ma: '123456'});
+  const th = k.theThanhVien.value;
+  la('đã xác thực', [th.kieu, th.tieu], ['xac', '✓ ĐÃ XÁC THỰC SỐ 0931224334']);
+  dung('ưu đãi đơn đầu nằm trong thẻ', /Đã giảm 50\.000/.test(th.phu));
+  la('công tắc điểm', [th.diem.co, th.diem.so, th.diem.tien], [false, (400).toLocaleString('vi-VN'), '400.000 đ']);
+  la('đọc địa chỉ của đúng số sau xác thực', v.tra[v.tra.length - 1], '0931224334');
+  await chayHen();
+  la('dòng địa chỉ đã lưu', k.theThanhVien.value.soDc, 1);
+  k.dungDiem(true); await chayHen(); await k.xemUuDai(); await chayHen();
+  la('bật công tắc: dùng 400 điểm', [k.theThanhVien.value.diem.co, k.theThanhVien.value.diem.tien], [true, '400.000 đ']);
+  la('chỉ gửi mã một lần cho cả ba thứ', v.gui.length, 1);
+});
+
+await ca('v682 đổi số: xoá ngay xác thực, ưu đãi, điểm, địa chỉ của số cũ; phản hồi chậm của số cũ (gửi mã, xác thực) bị bỏ qua; nút Đổi số về bước đầu', async () => {
+  const {v, mang} = mayChuTv();
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123456';
+  await k.xacThucDonDau(); await chayHen(); await chayHen();
+  la('số cũ đã xác thực, có địa chỉ, bật điểm', [k.theThanhVien.value.kieu, k.S.CO.addrList.length], ['xac', 1]);
+  k.dungDiem(true);
+  k.S.f.phone = '0901234567'; k.lookupPhone(); await chayHen();
+  la('đổi số: không còn xác thực, điểm, địa chỉ', [k.theThanhVien.value.kieu, k.S.CO.dungDiem, k.S.CO.addrList.length, k.S.CO.dd.daXac], ['moi', false, 0, '']);
+  /* Phản hồi chậm: gửi mã cho số B, đổi sang số C trước khi máy trả. */
+  v.cho = [];
+  const p1 = k.guiMaDonDau();
+  k.S.f.phone = '0912345678'; await chayHen();
+  v.cho.shift()(); await p1; await chayHen();
+  la('gửi mã trả muộn của số cũ: không sang bước nhập mã', k.S.CO.dd.buoc, 'nut');
+  v.cho = null; await k.guiMaDonDau(); v.cho = [];
+  k.S.CO.dd.ma = '123456';
+  const p2 = k.xacThucDonDau();
+  k.S.f.phone = '0987654321'; await chayHen();
+  v.cho.shift()(); await p2; await chayHen();
+  dung('xác thực trả muộn của số cũ: số mới không thành đã xác thực', k.S.CO.dd.daXac !== '0987654321' && k.theThanhVien.value.kieu !== 'xac');
+  /* Mã sai của số cũ trả muộn: không hiện câu lỗi dưới số mới. */
+  v.cho = null; await k.guiMaDonDau(); v.cho = [];
+  k.S.CO.dd.ma = '000000';
+  const p3 = k.xacThucDonDau();
+  k.S.f.phone = '0977777777'; await chayHen();
+  v.cho.shift()(); await p3; await chayHen();
+  la('lỗi mã của số cũ không hiện dưới số mới', k.S.CO.dd.loi, '');
+  v.cho = null; await k.guiMaDonDau();
+  la('đang nhập mã', k.S.CO.dd.buoc, 'ma');
+  k.doiSo();
+  la('Đổi số: về bước đầu', [k.S.CO.dd.buoc, k.S.CO.dd.ma, k.S.CO.dd.cho], ['nut', '', 0]);
+});
+
+await ca('v682 mở lại checkout (đã xác thực trong phiên trước, cookie còn): thẻ hiện Đã xác thực ngay, không bắt gửi mã lại', async () => {
+  const {v, mang} = mayChuTv({phienSan: '0931224334'});
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  la('đã xác thực theo máy chủ', k.theThanhVien.value.kieu, 'xac');
+  la('không gửi mã', v.gui.length, 0);
+  dung('mẫu trang: thẻ ngay dưới ô số, hai thẻ cũ ở Thanh toán đã bỏ', MAU.indexOf('id="theTv"') > MAU.indexOf('id="f-phone"') && MAU.indexOf('id="theTv"') < MAU.indexOf('id="f-name"') && !MAU.includes('id="donDau"') && !MAU.includes('id="theDiem"'));
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');
