@@ -665,7 +665,8 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await p.locator('#ddMa').fill('123456');
     await p.waitForFunction(()=>document.querySelector('#theTv.tv-xac'),null,{timeout:8000});
     assert.match(await p.locator('#theTv').innerText(),/ĐÃ XÁC THỰC SỐ 0931224334/i);
-    assert.match(await p.locator('#theTv').innerText(),/Đã giảm 50\.000/);
+    /* Dòng ưu đãi hiện khi máy chủ trả lượt hỏi lại sau xác thực. */
+    await p.waitForFunction(()=>/Đã giảm 50\.000/.test(document.querySelector('#theTv').innerText),null,{timeout:8000});
     await p.waitForFunction(t=>Number(document.querySelector('#ttTong').innerText.replace(/\D/g,''))===t-50000,truoc,{timeout:8000});
     assert.equal(await p.locator('#ddGuiMa').count(),0,'đã áp thì không còn nút gửi mã');
     assert.equal(xac.length,2);
