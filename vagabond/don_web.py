@@ -658,7 +658,21 @@ def cau_hinh_web():
 		"phap_nhan": PHAP_NHAN,
 		"chinh_sach": noi_dung_web.chinh_sach_dang_hien(),
 		"quan": [{"ma": q["ma"], "ten": q["ten"], "lat": q["lat"], "lng": q["lng"]} for q in QUAN],
+		# v681: giá hiện hành của thiệp ép kim (món BAPK00002 trên ERPNext). Trang
+		# khách chỉ hiện số này; tiền thật máy chủ tính lại ở tao_don.
+		"gia_thiep_ep_kim": gia_thiep_ep_kim(),
 	}
+
+
+def gia_thiep_ep_kim():
+	"""Giá bán hiện hành của thiệp ép kim, None khi chưa có món (trang dùng số tạm)."""
+	from vagabond.chiec_banh import MA_THIEP_EP_KIM
+
+	try:
+		g = frappe.db.get_value("Item", MA_THIEP_EP_KIM, "standard_rate")
+	except Exception:
+		return None
+	return int(float(g)) if g is not None else None
 
 
 def tim_trung(khoa):
