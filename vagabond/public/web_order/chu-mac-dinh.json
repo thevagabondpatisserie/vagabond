@@ -9037,5 +9037,85 @@
     "nhom": "anh",
     "mac_dinh": "",
     "anh": true
+  },
+  "tv682_nhap_ma": {
+    "ten": "Thẻ Thành viên: tiêu đề khi nhập mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Nhập mã 6 số Zalo vừa gửi"
+  },
+  "tv682_da_xac": {
+    "ten": "Thẻ Thành viên: tiêu đề đã xác thực ({so} là số điện thoại)",
+    "nhom": "gio_hang",
+    "mac_dinh": "ĐÃ XÁC THỰC SỐ {so}"
+  },
+  "tv682_moi_tieu": {
+    "ten": "Thẻ Thành viên: tiêu đề số chưa từng đặt web ({tien} là mức giảm)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số này được giảm {tien} cho đơn đầu tiên trên web"
+  },
+  "tv682_moi_phu": {
+    "ten": "Thẻ Thành viên: dòng phụ số chưa từng đặt web",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác thực qua Zalo để nhận ưu đãi, tích điểm và lưu địa chỉ cho lần sau."
+  },
+  "tv682_cu_tieu": {
+    "ten": "Thẻ Thành viên: tiêu đề số đã từng đặt",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chào mừng quý khách quay lại"
+  },
+  "tv682_cu_phu": {
+    "ten": "Thẻ Thành viên: dòng phụ số đã từng đặt",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác thực qua Zalo để xem và dùng điểm, lấy địa chỉ đã lưu."
+  },
+  "tv682_tich_tieu": {
+    "ten": "Thẻ Thành viên: tiêu đề khi không có ưu đãi đơn đầu",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tích điểm thành viên cho số này"
+  },
+  "tv682_tich_phu": {
+    "ten": "Thẻ Thành viên: dòng phụ khi không có ưu đãi đơn đầu",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác thực qua Zalo để tích điểm và lưu địa chỉ cho lần sau."
+  },
+  "tv682_nhan": {
+    "ten": "Thẻ Thành viên: tên vùng (máy đọc màn hình)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Thành viên The Vagabond Club"
+  },
+  "tv682_o_so": {
+    "ten": "Thẻ Thành viên: tên từng ô mã ({so} là thứ tự ô)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số thứ {so} của mã"
+  },
+  "tv682_gui_lai_sau": {
+    "ten": "Thẻ Thành viên: chờ gửi lại mã ({thoi} là thời gian)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi lại sau {thoi}"
+  },
+  "tv682_doi_so": {
+    "ten": "Thẻ Thành viên: chữ Đổi số",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đổi số"
+  },
+  "tv682_gui_ma": {
+    "ten": "Thẻ Thành viên: nút gửi mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi mã qua Zalo"
+  },
+  "tv682_dung_diem": {
+    "ten": "Thẻ Thành viên: công tắc dùng điểm ({diem} là số điểm)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Dùng {diem} điểm cho đơn này"
+  },
+  "tv682_dung_diem_phu": {
+    "ten": "Thẻ Thành viên: dòng phụ công tắc dùng điểm ({tien} là số tiền giảm)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giảm {tien}. Dùng tối đa một nửa tiền bánh."
+  },
+  "tv682_dia_chi": {
+    "ten": "Thẻ Thành viên: dòng địa chỉ đã lưu ({so} là số địa chỉ)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Địa chỉ đã lưu: {so} địa chỉ"
   }
 }
