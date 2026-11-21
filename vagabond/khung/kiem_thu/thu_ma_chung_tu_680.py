@@ -245,3 +245,45 @@ def _():
 	finally:
 		mct.cap_ma, thd.getdate = goc
 	la("tiền tố và doctype", goi, [("PTHD", thd.DT)])
+
+
+@ca("mã chung v680 (Codex #602): nội dung chuyển khoản hồ sơ APP mới qua tới chặn mã APP khác")
+def _():
+	from types import SimpleNamespace as NS
+
+	from vagabond import ho_so_tt, khop_sao_ke
+
+	def nd(ten):
+		return ho_so_tt._noi_dung_ck(NS(name=ten, loai="NCC", dong=[NS(so_hd_ncc="26957", hoa_don=None)],
+			ten_nhan="Cong ty A", ten_ncc="", nha_cung_cap=""))
+
+	cua_khac = nd("APP-261201-000099")
+	dung("nội dung có mã hồ sơ: " + cua_khac, "APP" in cua_khac and "261201" in cua_khac)
+	dung("dòng của hồ sơ khác bị loại khi đối chiếu hồ sơ của mình",
+		khop_sao_ke.co_ma_app_khac(cua_khac, "APP-261201-000100"))
+	dung("dòng của chính mình không bị loại", not khop_sao_ke.co_ma_app_khac(nd("APP-261201-000100"), "APP-261201-000100"))
+	dung("dòng có khoảng trắng do ngân hàng tách",
+		khop_sao_ke.co_ma_app_khac("TT APP 261201 000099 CTY A", "APP-261201-000100"))
+	dung("dạng cũ có dấu chấm vẫn nhận", khop_sao_ke.co_ma_app_khac(nd("APP.26.11.099"), "APP.26.11.100"))
+	dung("dạng cũ có khoảng trắng", khop_sao_ke.co_ma_app_khac("TT APP 26 11 099", "APP.26.11.100"))
+
+
+@ca("mã chung v680: đọc mã hoá đơn mới trong dòng sao kê dù ngân hàng tách bằng khoảng trắng hay viết liền")
+def _():
+	from vagabond import hoan_tien
+
+	for mo_ta in ("THE VAGABOND HOAN TIEN HDB-261201-000123", "THE VAGABOND HOAN TIEN HDB 261201 000123",
+			"THE VAGABOND HOAN TIEN HDB261201000123"):
+		la(mo_ta, hoan_tien.tim_ma_hoa_don(mo_ta), "HDB-261201-000123")
+	la("dạng tháng cũ giữ nguyên", hoan_tien.tim_ma_hoa_don("HOAN TIEN HDB-26-11-03963"), "HDB-26-11-03963")
+	la("số dài hơn không bị cắt", hoan_tien.tim_ma_hoa_don("HOAN TIEN HDB 261201 1000000"), "HDB-261201-1000000")
+	la("không có mã", hoan_tien.tim_ma_hoa_don("HOAN TIEN 261201000123"), "")
+
+
+@ca("mã chung v680: tin Tiền ra chưa có chứng từ xếp dòng mang mã APP mới vào nhóm trả nhà cung cấp")
+def _():
+	from vagabond import tien_chua_chung_tu as t
+
+	for mo_ta in ("TT APP-261201-000099 CTY A", "TT APP 261201 000099 CTY A", "TT APP261201000099", "TT APP.26.11.027"):
+		nhom = t.nhom_cua(mo_ta, t.NHOM_RA)
+		la(mo_ta, nhom, "ncc")
