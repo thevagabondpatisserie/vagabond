@@ -90,7 +90,11 @@ def _noi_tiep():
 	la("06/09 số 10", mps.ma_lenh("2026-09-06", 10), "LSX-060926-000010")
 	la("07/09 số 11", mps.ma_lenh("2026-09-07", 11), "LSX-070926-000011")
 	la("sang tháng số 12", mps.ma_lenh("2026-10-01", 12), "LSX-011026-000012")
-	la("sang năm số 13", mps.ma_lenh("2027-01-01", 13), "LSX-010127-000013")
+	# v680 (anh Việt chốt 21/11/2026): từ 01/12/2026 phần ngày theo chuẩn chung
+	# năm-tháng-ngày; đuôi số vẫn nối tiếp.
+	la("30/11 còn kiểu cũ", mps.ma_lenh("2026-11-30", 13), "LSX-301126-000013")
+	la("01/12 theo chuẩn chung", mps.ma_lenh("2026-12-01", 14), "LSX-261201-000014")
+	la("sang năm số 15", mps.ma_lenh("2027-01-01", 15), "LSX-270101-000015")
 	la("lô sang ngày", mps.ma_lo("2026-09-07", 752), "LO-260907-000752")
 	la("lô sang năm", mps.ma_lo("2027-01-01", 900), "LO-270101-000900")
 
