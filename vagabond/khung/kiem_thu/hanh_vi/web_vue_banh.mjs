@@ -1460,6 +1460,21 @@ await ca('Codex #605: đã xác thực, chọn địa chỉ đã lưu rồi bậ
   la('không tra lại khách', v.tra.length - traTruoc, 0);
 });
 
+await ca('Codex #605 vòng 2: xác thực ngay trong checkout rồi hết phiên (đăng xuất ở tab khác): lượt hỏi lại báo chưa xác thực thì thẻ bỏ Đã xác thực, hiện lại nút gửi mã', async () => {
+  const {v, mang} = mayChuTv();
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123456'; await k.xacThucDonDau(); await chayHen(); await chayHen();
+  la('đã xác thực', k.theThanhVien.value.kieu, 'xac');
+  k.selAddr(0); k.dungDiem(true); await chayHen(); await chayHen();
+  v.phien = '';
+  k.cartQty(0, 1); await chayHen(); await chayHen();
+  const th = k.theThanhVien.value;
+  la('hết phiên: không còn Đã xác thực, có nút gửi mã', [th.kieu !== 'xac', !!th.nut, k.daXacThuc.value], [true, true, false]);
+  la('hết phiên: bỏ địa chỉ đã lấy và công tắc điểm', [k.S.CO.addrList.length, k.S.CO.addrSel, k.S.CO.dungDiem], [0, -1, false]);
+});
+
 await ca('v682 mở lại checkout (đã xác thực trong phiên trước, cookie còn): thẻ hiện Đã xác thực ngay, không bắt gửi mã lại', async () => {
   const {v, mang} = mayChuTv({phienSan: '0931224334'});
   const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
