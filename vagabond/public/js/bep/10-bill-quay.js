@@ -59,6 +59,23 @@ function posCanInKemPhieuMon(d) {
   return !posPmDaIn(d.bill || d.name || '');
 }
 
+/* v679: tên chương trình in cho khách. Phần "(tiệm chịu 40.000)" chỉ để thu
+   ngân và kế toán hiểu số giảm, khách không cần đọc. THUẦN. */
+function posTenKmIn(ten) {
+  return String(ten || '').replace(/\s*\(\s*ti[eệ]m\s+ch[iị]u[^)]*\)/gi, '').trim();
+}
+/* Chương trình voucher Grab Dine-Out (cùng mẫu với la_voucher_grab của bản
+   vá v678). THUẦN. */
+function posLaKmGrab(ten) {
+  return /grab[\s_-]*dine[\s_-]*out/i.test(String(ten || ''));
+}
+/* Số mi li mét của mẫu in: ngoài khoảng hay không phải số thì về mặc định.
+   Đọc bằng Number chứ không "|| mặc định", vì 0 là giá trị hợp lệ. THUẦN. */
+function inSoMm(v, nho, lon, md) {
+  var x = (v === null || v === undefined || v === '') ? NaN : Number(v);
+  return (isFinite(x) && x >= nho && x <= lon) ? x : md;
+}
+
 /* Mau in kho 80mm, in qua trinh duyet (AirPrint / may in nhiet co driver).
    Logo den tren nen trang de hop in nhiet; thieu anh thi tu an, van in chu. */
 async function posInBill(d) {
@@ -157,11 +174,17 @@ async function posInBill(d) {
      nhau hai lien roi bat nhan vien cam keo cat giua - khong thong minh.
      Can lien thu hai thi bam In lai them mot lan, may tu ra to nua. */
   var lien2 = '';
+  /* v679: mã Grab Dine-Out (GD-...) thu ngân nhập lúc chốt. Có dòng voucher
+     Grab thì in ngay dưới dòng đó; không có thì in dưới dòng Thanh toán. */
+  var gdMa = (!d.tam_tinh && /^GD-/i.test(String(d.mtc || '').trim())) ? String(d.mtc).trim().toUpperCase() : '';
+  var gdDuoiKm = !!gdMa && (d.kmAp || []).some(function (a) { return posLaKmGrab(a.ten); });
   var inTieuDe = h(d.bill || d.name || 'Hoá đơn');
   var inToBill = ('<html><head><meta charset="utf-8"><title>' + inTieuDe + '</title><style>' +
     '@page{size:' + inKho('hoa_don').css + ';margin:0}' +
     '*{margin:0;padding:0;box-sizing:border-box}' +
-    'body{width:' + inKho('hoa_don').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;font-size:' + M.co_chu + 'px;color:#000;padding:4mm 0 6mm}' +
+    /* v679: lề ngang của thân hoá đơn (anh Việt 21/11/2026, chữ in sát mép
+       trái). box-sizing border-box nên tờ vẫn rộng đúng khổ, chữ thụt vào. */
+    'body{width:' + inKho('hoa_don').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;font-size:' + M.co_chu + 'px;color:#000;padding:4mm ' + inSoMm(M.le_phai, 0, 8, 3) + 'mm 6mm ' + inSoMm(M.le_trai, 0, 8, 3) + 'mm}' +
     '.lg{display:block;width:44mm;margin:0 auto 2mm}' +
     'h1{font-size:13px;text-align:center;letter-spacing:.06em}' +
     '.ph{text-align:center;font-size:10px;line-height:1.45}' +
@@ -175,7 +198,7 @@ async function posInBill(d) {
     '.d b.to{font-size:15px}' +
     '.gc{font-size:11px;border:1px solid #000;padding:1.5mm;margin-top:1.5mm}' +
     '.qr{text-align:center;margin-top:3mm;font-size:10px;line-height:1.5}' +
-    '.qr img{width:34mm;height:34mm;display:block;margin:0 auto 1mm}' +
+    '.qr img{width:' + inSoMm(M.co_qr, 20, 34, 26) + 'mm;height:' + inSoMm(M.co_qr, 20, 34, 26) + 'mm;display:block;margin:0 auto 1mm}' +
     '.ft{text-align:center;font-size:10px;margin-top:3mm;line-height:1.5}' +
     '</style></head><body>' +
     /* Tat logo thi in thang ten tiem bang chu: to giay ngan lai vai mi
@@ -213,11 +236,15 @@ async function posInBill(d) {
        KHONG in - chi in ten combo cho nguoi doc, con mon thi da nam
        thanh tung dong o tren roi. */
     ((d.kmAp || []).map(function (a) {
-      return '<div class="d"><span>' + h(a.ten) + '</span><b>-' + money(a.giam) + '</b></div>';
+      /* v679: bỏ phần "(tiệm chịu ...)" của tên chương trình trên tờ khách,
+         và in mã GD- thu ngân đã nhập ngay dưới dòng voucher Grab. */
+      return '<div class="d"><span>' + h(posTenKmIn(a.ten)) + '</span><b>-' + money(a.giam) + '</b></div>' +
+        (gdDuoiKm && posLaKmGrab(a.ten) ? '<div class="d"><span>Mã voucher: ' + h(gdMa) + '</span></div>' : '');
     }).join('')) +
     (d.giamTay ? '<div class="d"><span>Giảm giá</span><b>-' + money(d.giamTay) + '</b></div>' : '') +
     '<div class="d"><span style="font-size:13px;font-weight:bold">' + (d.tam_tinh ? 'TẠM TÍNH' : 'PHẢI THU') + '</span><b class="to">' + money(d.thu) + ' đ</b></div>' +
     (d.pt && !d.tam_tinh ? '<div class="d"><span>Thanh toán</span><b>' + h(d.pt) + '</b></div>' : '') +
+    (gdMa && !gdDuoiKm ? '<div class="d"><span>Mã voucher: ' + h(gdMa) + '</span></div>' : '') +
     /* Khoi diem thanh vien (anh Viet 13/08/2026): khach cam bill la biet
        ngay don nay duoc bao nhieu diem va tong con bao nhieu, khong phai
        ra quay hoi. Chi in tren bill THAT - phieu tam tinh chua thanh
@@ -728,6 +755,21 @@ function hdGanBind() {
 /* v643 ưu đãi khách tự chọn tại bàn (uu_dai_ban.py). THUẦN. */
 function pbCoKm(d) { var v = String((d && d.vgb_km) || '').trim(); return !!v && v !== '[]'; }
 function posGiamRieng(d) { return (Number(d && d.vgb_giam_diem) || 0) + (Number(d && d.vgb_giam_ud) || 0); }
+/* v679: dòng khuyến mãi của một bill đã lưu, cho đường in lại: chương trình
+   trong vgb_km cộng ưu đãi áp tại bàn hoặc tại quầy (vgb_ud_ban, chỉ khi đã
+   trừ tiền). Hai nguồn không chồng nhau: uu_dai_ban từ chối bill đã có
+   vgb_km. THUẦN. */
+function posKmTuBill(d) {
+  var ra = [];
+  var v = d && d.vgb_km;
+  try { v = typeof v === 'string' ? JSON.parse(v || '[]') : (v || []); } catch (e) { v = []; }
+  (Array.isArray(v) ? v : []).forEach(function (a) {
+    if (a && (Number(a.giam) || 0) > 0) ra.push({ ten: a.ten || a.ma || 'Khuyến mãi', giam: Number(a.giam) });
+  });
+  var u = posUdBan(d);
+  if (u && (Number(u.giam) || 0) > 0) ra.push({ ten: u.ten || u.ma, giam: Number(u.giam) });
+  return ra;
+}
 function posUdBan(d) {
   var v = d && d.vgb_ud_ban;
   if (!v) return null;
@@ -1709,6 +1751,8 @@ async function scrPosBill(name) {
       mon: monTuDoc(),
       tong: (d.items || []).reduce(function (t, m) { return t + (m.amount || 0); }, 0),
       giam: d.discount_amount || 0, thu: d.grand_total,
+      /* v679: in lại cũng có dòng khuyến mãi và mã GD- như lúc in lúc chốt. */
+      kmAp: posKmTuBill(d), mtc: d.vgb_ma_tham_chieu || '',
       pt: d.vgb_pt_thanh_toan || '', ghi_chu: d.vgb_ghi_chu || '', ten: ''
     };
   }
@@ -1839,6 +1883,7 @@ function inKho(vaiTro) {
 var IN_MAU_MD = {
   hoa_don: {
     logo: 1, dia_chi: 1, co_chu: 11.5, gop_mon: 0, an_mon_0d: 0,
+    le_trai: 3, le_phai: 3, co_qr: 26,
     hien_tuy_chon: 1, qr_xhd: 1, khoi_diem: 1,
     chan_trang: 'Cảm ơn quý khách!', web: 'thevagabondpatisserie.com'
   },
