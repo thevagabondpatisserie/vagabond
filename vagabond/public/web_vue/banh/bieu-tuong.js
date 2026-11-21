@@ -24,6 +24,9 @@ export const ICON = {
     ['circle', {cx: '15.4', cy: '10.5', r: '1', fill: 'currentColor', stroke: 'none'}]],
   cuaHang: [['path', {d: 'M4 9.5L5.5 4h13L20 9.5'}], ['path', {d: 'M4 9.5h16v1a2.7 2.7 0 0 1-5.3 0 2.7 2.7 0 0 1-5.4 0A2.7 2.7 0 0 1 4 10.5z'}],
     ['path', {d: 'M5.5 13v7h13v-7M10 20v-4.5h4V20'}]],
+  /* v678: chuyển khoản ngay (ngân hàng: mái và cột). */
+  theNganHang: [['path', {d: 'M3.5 9L12 4l8.5 5'}], ['path', {d: 'M5 9.5h14'}],
+    ['path', {d: 'M6.5 10v7M10 10v7M14 10v7M17.5 10v7'}], ['path', {d: 'M4 19.5h16'}]],
   cong: [['path', {d: 'M12 5v14M5 12h14'}]],
   tru: [['path', {d: 'M5 12h14'}]],
   dong: [['path', {d: 'M6 6l12 12M18 6L6 18'}]],

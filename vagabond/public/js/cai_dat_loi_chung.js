@@ -91,7 +91,6 @@ var VGB_ZALO_TIN = {
 	kt_the_onepay: ['Hoá đơn, kế toán', 'Khách trả thẻ OnePay cho phiếu đề nghị thanh toán', 'Khách quét mã trên phiếu và trả thẻ thành công; máy đã ghi sổ phiếu thu. Trả dư thì tin ghi số cần hoàn.'],
 	kt_ds_thu_gia_danh: ['Hoá đơn, kế toán', 'Thư đối soát giả danh đối tác bị chặn', 'Ngay khi hộp thư doisoat@ nhận thư tự xưng đối tác mà không có chữ ký số đúng tên miền: không nhận số liệu.'],
 	kt_ds_thieu_thu: ['Hoá đơn, kế toán', 'Thư đối soát chưa về (12:30, nhắc 18:30)', '12:30 mỗi ngày: thư đối tác dự kiến đã quá hạn mà chưa về; 18:30 nhắc lại nếu vẫn chưa về.'],
-	kt_ds_tep_loi: ['Hoá đơn, kế toán', 'Tệp đối soát từ thư không đọc được', 'Ngay khi tệp trong thư đối tác đọc lỗi hoặc tổng tính lại khác tổng in trên tệp.'],
 	kt_ds_lech_tien: ['Hoá đơn, kế toán', 'Tiền về khác số đối tác báo chuyển', 'Ngay khi tiền về ngân hàng (SePay) khác số đối tác báo chuyển, từ ngưỡng khai trong Cài đặt.'],
 	kt_ds_chua_thay_tien: ['Hoá đơn, kế toán', 'Chưa thấy tiền đối tác chuyển về (08:30)', '08:30 mỗi sáng: đợt đối tác báo đã chuyển, quá ngày tiền về mà ngân hàng chưa thấy tiền.'],
 	kt_ds_phi_cao: ['Hoá đơn, kế toán', 'Đối tác thu phí cao hơn biểu phí hợp đồng', 'Ngay khi báo cáo Shinhan POS có giao dịch bị thu phí cao hơn biểu phí khai trong Cài đặt.'],
@@ -103,6 +102,7 @@ var VGB_ZALO_TIN = {
 	bh_ahamove_huy: ['Bán hàng, cửa hàng', 'Tài xế Ahamove huỷ hoặc giao thất bại', 'Tài xế huỷ hoặc giao không được, vận đơn về Chờ giao để phân công lại.'],
 	bh_goi_mon_tai_ban: ['Bán hàng, cửa hàng', 'Khách gọi món tại bàn qua QR', 'Khách quét QR trên bàn và gọi món; quầy nhận đơn trên màn Tính tiền trong 10 phút.'],
 	bh_weborder_moi: ['Bán hàng, cửa hàng', 'Đơn giao của quầy đã trả tiền, chờ xác nhận', 'Khách đặt qua tab Tại quầy trên web và đã trả online; quầy xác nhận ở màn Đơn giao của quầy.'],
+	bh_ban_da_chuyen_khoan: ['Bán hàng, cửa hàng', 'Bàn đã chuyển khoản, bill tự chốt', 'Khách chuyển khoản đủ tiền bill tạm tính (tại bàn hoặc quầy); hệ thống tự chốt bill, quầy không thu nữa.'],
 	bh_khach_can_tro_giup: ['Bán hàng, cửa hàng', 'Khách cần trợ giúp tại bàn', 'Khách bấm chuông trên trang bàn: gọi nhân viên, xin tính tiền, xin nước đá; quầy tới bàn rồi bấm Đã tới bàn.'],
 	bh_dat_ban: ['Bán hàng, cửa hàng', 'Đặt bàn mới', 'Khách vừa gửi yêu cầu đặt bàn, chờ cửa hàng xác nhận.'],
 	bh_dat_ban_xac_nhan: ['Bán hàng, cửa hàng', 'Đặt bàn đã xác nhận', 'Quản lý vừa xác nhận một đặt bàn: ngày giờ, tên, số điện thoại, số khách.'],
@@ -179,6 +179,7 @@ var VGB_ZALO_TIN = {
 	ht_email_loi: ['Hệ thống', 'Email của tiệm không gửi được', 'Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.'],
 	ht_phat_hanh: ['Hệ thống', 'Bản tin cập nhật app sau mỗi deploy', 'App vừa lên bản mới: thêm gì, bộ phận cần làm gì.'],
 	ht_ds_hop_thu_loi: ['Hệ thống', 'Không đọc được hộp thư đối soát doisoat@', 'Đọc hộp thư đối soát lỗi 2 lần liên tiếp (sai mật khẩu, hộp thư đầy, mất kết nối).'],
+	ht_ds_tep_loi: ['Hệ thống', 'Tệp đối soát đọc lỗi, cần sửa mẫu đọc', 'Ngay khi tệp trong thư đối tác đọc lỗi hoặc thư báo cáo không có tệp đọc được.'],
 };
 // ====================================================================
 // v568: quy hoạch lại trang Cài đặt Vagabond.

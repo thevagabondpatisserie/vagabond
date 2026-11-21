@@ -14826,7 +14826,7 @@ async function scrDoanhSo() {
        15/08/2026 sau khi đo thấy suy kiểu này ra 16 đơn trong khi sales chỉ
        đánh dấu 3 đơn là công nợ thật. */
     { k: 'nghi_no', nhan: '🧾 Nghi công nợ', loc: function (r) { return !!r.vgb_nghi_cong_no && !r.vgb_pt_thanh_toan; } },
-    { k: 'chua_tien', nhan: '⏳ Chuyển khoản chưa về tiền', loc: function (r) { return r.vgb_pt_thanh_toan === 'Chuyển khoản' && !r.sepay_du; } },
+    { k: 'chua_tien', nhan: '⏳ Chuyển khoản chưa về tiền', loc: function (r) { return posLaCk(r.vgb_pt_thanh_toan) && !r.sepay_du; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so; } },
     { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!(r.vgb_xhd_mst || r.can_hddt); } },
@@ -15173,7 +15173,7 @@ function veOMtc(pt, idO, idNhan) {
     nh.innerHTML = '<b style="color:#374151;font-size:12.5px">' + h(ten) + '</b>' +
       (q.bat
         ? ' · <b style="color:#b45309">bắt buộc</b> để đối soát'
-        : (pt === 'Chuyển khoản' ? ' · SePay tự khớp, để trống cũng được' : ' · không bắt buộc'));
+        : (posLaCk(pt) ? ' · SePay tự khớp, để trống cũng được' : ' · không bắt buộc'));
   }
 }
 /* Khối "tiền của tờ này": tổng đơn, đã thu theo từng phương thức, còn nợ,
@@ -15556,7 +15556,7 @@ async function scrDsView(name, can) {
   function dsvVeQr() {
     var o = document.getElementById('dsvQr');
     if (!o) return;
-    if (DSV_PT !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (!posLaCk(DSV_PT)) { o.innerHTML = ''; return; }
     if (dsvTuPancake()) {
       o.innerHTML = '<div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;' +
         'padding:12px 13px;font-size:13px;color:#075985;line-height:1.6">' +
@@ -15569,12 +15569,14 @@ async function scrDsView(name, can) {
       return;
     }
     var tien = d.grand_total || 0;
-    var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '', dsvDiem);
+    /* v678: nội dung và tài khoản theo phương thức đang chọn (Shinhan có tài khoản riêng). */
+    dsvNoiDung = posNoiDungCk(d.name, dsvDiem, d.custom_nguon || '', DSV_PT);
+    var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '', dsvDiem, DSV_PT);
     if (!url) {
-      o.innerHTML = posQrLoi(posTaiKhoan(d.custom_nguon || '', dsvDiem), dsvNoiDung, tien);
+      o.innerHTML = posQrLoi(posTkCk(DSV_PT, d.custom_nguon || '', dsvDiem), dsvNoiDung, tien);
       return;
     }
-    var tk = posTaiKhoan(d.custom_nguon || '', dsvDiem);
+    var tk = posTkCk(DSV_PT, d.custom_nguon || '', dsvDiem);
     o.innerHTML = '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
       '<div style="font-size:12.5px;color:#6b7280">Khách quét mã này, máy tự điền số tiền và nội dung</div>' +
       '<img src="' + url + '" alt="Mã QR chuyển khoản" style="width:min(240px,62vw);aspect-ratio:1;margin:10px auto 6px;display:block;border-radius:10px;background:#fff">' +
@@ -16307,17 +16309,17 @@ async function scrDsNhapTay() {
   function dstVeQr() {
     var o = document.getElementById('dstQr');
     if (!o) return;
-    if (dsTay.pt !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (!posLaCk(dsTay.pt)) { o.innerHTML = ''; return; }
     var giam = parseFloat(dsTay.giam || 0) || 0, ship = parseFloat(dsTay.ship || 0) || 0;
     var thu = dsTay.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0) - giam + ship;
     var diem = dsTay.quay || (nguonBH(dsTay.nguon) || {}).diem || '';
-    var nd = posNoiDungCk(dsTay.bill, diem, dsTay.nguon);
-    var url = posQrUrl(nd, thu, dsTay.nguon, diem);
+    var nd = posNoiDungCk(dsTay.bill, diem, dsTay.nguon, dsTay.pt);
+    var url = posQrUrl(nd, thu, dsTay.nguon, diem, dsTay.pt);
     if (!url) {
-      o.innerHTML = posQrLoi(posTaiKhoan(dsTay.nguon, diem), nd, thu);
+      o.innerHTML = posQrLoi(posTkCk(dsTay.pt, dsTay.nguon, diem), nd, thu);
       return;
     }
-    var tk = posTaiKhoan(dsTay.nguon, diem);
+    var tk = posTkCk(dsTay.pt, dsTay.nguon, diem);
     o.innerHTML = '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
       '<div style="font-size:12.5px;color:#6b7280">Khách quét mã này, máy tự điền số tiền và nội dung</div>' +
       '<img src="' + url + '" alt="Mã QR chuyển khoản" style="width:min(230px,60vw);aspect-ratio:1;margin:10px auto 6px;display:block;border-radius:10px;background:#fff">' +
@@ -16449,7 +16451,7 @@ async function dsTayLuu() {
       /* Chuyen khoan ma thu ngan khong go gi thi lay chinh ma bill in tren
          QR lam ma tham chieu, de SePay doi soat dung to khach da chuyen. */
       pt: dsTay.pt || '',
-      ma_tham_chieu: (dsTay.mtc || '').trim() || (dsTay.pt === 'Chuyển khoản' ? dsTay.bill : ''),
+      ma_tham_chieu: (dsTay.mtc || '').trim() || (posLaCk(dsTay.pt) ? dsTay.bill : ''),
       items: JSON.stringify(dsTay.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate }; })),
       giam_gia: giam, phi_ship: ship, quay: dsTay.quay || '',
       /* May chu da co san tham so nay tu lau (tao_don_tay), chi la man nay
@@ -17471,7 +17473,7 @@ async function scrPosQuay() {
   /* v628 TH1: bill đang hiện mã QR chuyển khoản được giữ trên máy, app tải
      lại thì vẫn mở lại được đúng giỏ và đúng mã bill. Giỏ trống là bỏ dấu
      của mã bill đang mở (thu ngân đã xoá hết món). */
-  if (!laApp && posDon.pt === 'Chuyển khoản' && phaiThu > 0 && posDon.mon.length) posChoCkGhi(posDon, posQuay, phaiThu);
+  if (!laApp && posLaCk(posDon.pt) && phaiThu > 0 && posDon.mon.length) posChoCkGhi(posDon, posQuay, phaiThu);
   else if (!posDon.mon.length) posChoCkXoa(posDon.bill);
   var qApp = laApp ? (quyPt(posDon.pt) || {}) : {};
   var html = '<div class="card" style="padding:8px 14px">' +
@@ -17607,8 +17609,8 @@ async function scrPosQuay() {
       ? (dsPt.length > 1
           ? '<div style="font-size:12px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' đi được ' + dsPt.length + ' phương thức, chọn đúng cách khách đã trả.</div>'
           : '<div style="font-size:12px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' chỉ đi một phương thức này.</div>')
-      : (posDon.pt === 'Chuyển khoản'
-          ? posKhoiQr(posNoiDungCk(posDon.bill, '', posNguonThuc()), phaiThu, posNguonThuc())
+      : (posLaCk(posDon.pt)
+          ? posKhoiQr(posNoiDungCk(posDon.bill, '', posNguonThuc(), posDon.pt), phaiThu, posNguonThuc(), '', posDon.pt)
           : '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
             '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>')) +
     posKhoiKm() +
@@ -17702,7 +17704,7 @@ async function scrPosQuay() {
     '<button class="btn" id="posLuu" style="flex:1;margin:0">' +
     (laApp ? '🧾 Lưu hoá đơn ' : '💰 Thu tiền ') + money(phaiThu) + ' đ</button>';
   var b = frame('Tính tiền · ' + (posQuay.ma || ''), html, { footer: '<div style="display:flex;gap:8px">' + footer + '</div>' });
-  if (!laApp && posDon.pt !== 'Chuyển khoản') veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
+  if (!laApp && !posLaCk(posDon.pt)) veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
   posDemHomNay();
   posCaVe();
   cfdGan();
@@ -17815,7 +17817,7 @@ async function scrPosQuay() {
     if (o) o.onblur = function () { posDoc(); };
   });
   /* Chuyen khoan dang cho tien: poll SePay de bao ngay khi tien ve. */
-  if (!laApp && posDon.pt === 'Chuyển khoản' && phaiThu > 0 && posSepayNhan < phaiThu - 1) posPollBat(posDon.bill, phaiThu);
+  if (!laApp && posLaCk(posDon.pt) && phaiThu > 0 && posSepayNhan < phaiThu - 1) posPollBat(posDon.bill, phaiThu);
   /* Man hinh khach bam theo man nay: moi lan ve lai la mot lan day. */
   /* LY DO GIAM GIA, tinh O DAY chu khong ben man hinh khach.
 
@@ -18561,10 +18563,10 @@ async function posMoTuyChon(i) {
    Nguon CHUA khai tai khoan ao thi van giu ma diem ban o dau, khong thi
    tien ba noi do chung mot tai khoan ma noi dung khong con dau vet nao de
    ke toan lan ra. Khai du tai khoan ao la moi noi tu dong gon lai. */
-function posNoiDungCk(maBill, maDiem, nguon) {
+function posNoiDungCk(maBill, maDiem, nguon, pt) {
   var b = String(maBill || '').trim();
   var d = posDiemCua(maDiem);
-  var tk = posTaiKhoan(nguon, d);
+  var tk = posTkCk(pt, nguon, d);
   if (tk && tk.rieng) return b;
   /* Tu 31/08/2026 chinh MA BILL da mang tien to cua diem (TCVQ4PFX), nen
      dan them ma diem o dau nua la thua va con lam noi dung dai ra. Chi bill
@@ -18616,20 +18618,39 @@ function posTaiKhoan(nguon, maDiem) {
   }
   return c.qr_quay || {};
 }
+/* v678 (anh Việt 20/11/2026): có hai phương thức chuyển khoản đối soát SePay,
+   "Chuyển khoản" (tài khoản ảo MB của điểm) và "Chuyển khoản - Shinhan".
+   Máy chủ gửi danh sách (CFGBH.pt_ck, một nguồn pt_ck.DS_CK) nên màn hình không
+   so chữ "Chuyển khoản" nữa. Ca kiểm thu_shinhan_o2o_678 dò không còn chỗ so. */
+function posCfgCk() { return (typeof CFGBH !== 'undefined' && CFGBH) || {}; }
+function posLaCk(pt) {
+  var ds = posCfgCk().pt_ck || ['Chuyển khoản'];
+  return ds.indexOf(String(pt || '').trim()) >= 0;
+}
+/* Tài khoản nhận của mã QR theo phương thức. Phương thức chuyển khoản đầu danh
+   sách theo tài khoản của điểm bán như trước; phương thức có tài khoản riêng
+   (Shinhan) lấy từ CFGBH.qr_pt. Chưa khai thì trả rỗng để màn báo chuyển tay,
+   KHÔNG rơi về tài khoản MB: bill ghi Shinhan mà tiền về MB là sổ sai ngân hàng. */
+function posTkCk(pt, nguon, maDiem) {
+  var p = String(pt || '').trim();
+  var ds = posCfgCk().pt_ck || ['Chuyển khoản'];
+  if (p && ds.indexOf(p) > 0) return (posCfgCk().qr_pt || {})[p] || {};
+  return posTaiKhoan(nguon, maDiem);
+}
 function posQrTao(q, noiDung, tien) {
   q = q || {};
   if (typeof VgbQr === 'undefined') return {anh:'',loi:'Chưa tải được thư viện mã QR. Vui lòng tải lại trang hoặc chuyển tay.'};
   return VgbQr.tao({bin:q.bin || q.bank,stk:q.stk,tien:tien,noi_dung:noiDung,qr_text:q.qr_text});
 }
-function posQrUrl(noiDung, tien, nguon, maDiem) {
-  return posQrTao(posTaiKhoan(nguon, maDiem),noiDung,tien).anh;
+function posQrUrl(noiDung, tien, nguon, maDiem, pt) {
+  return posQrTao(posTkCk(pt, nguon, maDiem),noiDung,tien).anh;
 }
 /* v655: mã QR chuyển khoản để IN lên giấy. Ảnh SVG co giãn (posQrUrl) chỉ hợp
    màn hình; đường in chụp bằng html2canvas phóng to rồi cắt nó (phiếu
    HDB-26-11-02558). In thì vẽ ảnh điểm từ CÙNG chuỗi VietQR. Rỗng khi không vẽ
    được, bên gọi tự in dòng chuyển tay. */
-async function posQrAnhIn(noiDung, tien, nguon, maDiem) {
-  var r = posQrTao(posTaiKhoan(nguon, maDiem), noiDung, tien);
+async function posQrAnhIn(noiDung, tien, nguon, maDiem, pt) {
+  var r = posQrTao(posTkCk(pt, nguon, maDiem), noiDung, tien);
   if (!r.chuoi) return '';
   try { return (await inQrAnh(r.chuoi)) || ''; } catch (e) { return ''; }
 }
@@ -18639,9 +18660,9 @@ function posQrLoi(q, noiDung, tien) {
     '<br>Ngân hàng: '+h(q.bank || 'chưa khai')+' · Số tài khoản: '+h(q.stk || 'chưa khai')+
     '<br>Số tiền: '+money(tien)+' đ · Nội dung: '+h(noiDung || '')+'</div>';
 }
-function posKhoiQr(noiDung, tien, nguon, maDiem) {
-  var q = posTaiKhoan(nguon, maDiem);
-  var url = posQrUrl(noiDung, tien, nguon, maDiem);
+function posKhoiQr(noiDung, tien, nguon, maDiem, pt) {
+  var q = posTkCk(pt, nguon, maDiem);
+  var url = posQrUrl(noiDung, tien, nguon, maDiem, pt);
   if (!url) return posQrLoi(q,noiDung,tien);
   if (!tien) return '<div style="font-size:13px;color:#6b7280">Thêm món vào hoá đơn rồi mã QR chuyển khoản sẽ hiện ra đây.</div>';
   /* Tien ve du la khoi nay tu doi mau xanh - poll SePay 5 giay mot lan. */
@@ -18828,9 +18849,9 @@ async function posSheetDoTien(tien, siName, sauKhiGan, tuyChon) {
   };
 }
 
-function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
-  var q = posTaiKhoan(nguon, maDiem);
-  var url = posQrUrl(soPhieu, tien, nguon, maDiem);
+function posQrSheet(soPhieu, tien, siName, nguon, maDiem, pt) {
+  var q = posTkCk(pt, nguon, maDiem);
+  var url = posQrUrl(soPhieu, tien, nguon, maDiem, pt);
   var ov = document.createElement('div'); ov.className = 'sh';
   /* Codex #575: bảng QR cao hơn màn điện thoại nằm ngang; tự cuộn dọc để
      với tới Đổi âm báo, In hoá đơn, Hoá đơn mới. */
@@ -18933,7 +18954,7 @@ async function posLuuDon() {
     var qp = quyPt(posDon.pt) || {};
     if (qp.bat && !(posDon.mtc || '').trim()) return toast('Phương thức ' + posDon.pt + ' bắt buộc nhập ' + (qp.nhan || 'mã tham chiếu') + '.');
     /* Chuyen khoan: noi dung khach chuyen chinh la ma bill in trong QR. */
-    if (posDon.pt === 'Chuyển khoản' && !(posDon.mtc || '').trim()) posDon.mtc = posDon.bill || '';
+    if (posLaCk(posDon.pt) && !(posDon.mtc || '').trim()) posDon.mtc = posDon.bill || '';
   }
   var canhBao = (!laApp && posDon.pt === 'Tiền mặt' && dua && dua < phaiThu) ? '\n⚠ Khách mới đưa ' + money(dua) + ' đ, còn thiếu ' + money(phaiThu - dua) + ' đ.' : '';
   /* Hai bill giong het nhau trong vong hai phut thuong la bam trung. */
@@ -19003,7 +19024,8 @@ async function posLuuDon() {
      la thu chi chu the moi can biet, con so vua cong thi ai nhin cung chi
      suy ra duoc tu tong tien tren man, khong lo them gi. */
   cfdCamOn(thu, (r && r.diem && r.diem.tich) || 0);
-  var laCK = !laApp && posDon.pt === 'Chuyển khoản';
+  var laCK = !laApp && posLaCk(posDon.pt);
+  var ptCk = posDon.pt;
   var thoi = !laApp && posDon.pt === 'Tiền mặt' && dua >= thu ? dua - thu : 0;
   var maCk = posDon.mtc || posDon.bill || '';
   /* Nguon phai doc TRUOC khi mo bill moi: posMoi() dat lai che_do ve
@@ -19045,7 +19067,7 @@ async function posLuuDon() {
   }
   /* Van la ma QR khach da quet luc nay, khong doi sang so phieu - de neu
      khach chua chuyen kip thi quet lai van ra dung noi dung. */
-  if (laCK) return posQrSheet(maCk, thu, (r && r.name) || '', nguonCk);
+  if (laCK) return posQrSheet(maCk, thu, (r && r.name) || '', nguonCk, '', ptCk);
   /* Đơn hàng tặng: đưa thẳng sang màn bill để khai loại tặng và lý do. Bỏ
      qua bảng "đã thu" vì đơn tặng không thu đồng nào, và việc còn dở là
      khai chứ không phải in. */
@@ -19410,7 +19432,7 @@ function posChipBill(r) {
      Nay chip noi dung mot viec: DOI SOAT den dau. Con viec "co ghi so duoc
      khong" da co chip rieng ben duoi, do `ghi_so_dieu_kien` tinh. Chi khi
      may chu that su chan vi chua ve tien thi chip nay moi do. */
-  if ((r.vgb_pt_thanh_toan || '') === 'Chuyển khoản') {
+  if (posLaCk(r.vgb_pt_thanh_toan)) {
     if (r.sepay_du) c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
     else if (r.ly_do_treo === 'chua_ve_tien') c.push(the('#fee2e2', '#991b1b', '⏳ Chờ tiền về'));
     else c.push(the('#eef2ff', '#3730a3', '· Chưa đối soát được'));
@@ -19543,7 +19565,7 @@ async function scrPosDs() {
        chan vi chua ve tien. Muon nhin cac bill chua doi soat duoc thi dung
        chip ke ben. */
     { k: 'cho_tien', nhan: '⏳ Chờ tiền về', loc: function (r) { return r.ly_do_treo === 'chua_ve_tien'; } },
-    { k: 'chua_soat', nhan: '· Chưa đối soát được', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du && r.ly_do_treo !== 'chua_ve_tien'; } },
+    { k: 'chua_soat', nhan: '· Chưa đối soát được', loc: function (r) { return posLaCk(r.vgb_pt_thanh_toan) && !r.sepay_du && r.ly_do_treo !== 'chua_ve_tien'; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!r.vgb_xhd_mst; } },
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !!r.vgb_xhd_mst && !r.custom_hddt_so; } },
@@ -19804,6 +19826,7 @@ function hdGanBind() {
 }
 
 /* v643 ưu đãi khách tự chọn tại bàn (uu_dai_ban.py). THUẦN. */
+function pbCoKm(d) { var v = String((d && d.vgb_km) || '').trim(); return !!v && v !== '[]'; }
 function posGiamRieng(d) { return (Number(d && d.vgb_giam_diem) || 0) + (Number(d && d.vgb_giam_ud) || 0); }
 function posUdBan(d) {
   var v = d && d.vgb_ud_ban;
@@ -19818,13 +19841,38 @@ function posCheSo(so) {
 }
 function posKhoiUdBan(u, boDuoc) {
   var giam = Number(u.giam) || 0;
+  /* v678: u.cach có giá trị là quầy áp (uu_dai_ban.ap_quay), không phải khách chọn. */
+  var quay = !!u.cach;
   return '<div id="pbUdBan" style="margin:4px 0 6px;padding:10px 12px;border:1.5px solid #6ce9a6;background:#ecfdf3;border-radius:12px;font-size:13.5px;line-height:1.5;color:#05603a">' +
-    '<b>🎟 Ưu đãi khách chọn tại bàn: ' + h(u.ten || u.ma) + '</b><br>' +
-    h((u.loai === 'ma' ? 'Mã ' + u.ma + ' · ' : '') + 'số ' + posCheSo(u.sdt) + ' (đã xác minh Zalo)') + '<br>' +
-    (giam > 0 ? 'Máy đã trừ ' + money(giam) + ' đ vào bill, không cần OTP quản lý.' : 'Chưa trừ: ' + h(u.ly_do || 'chưa đủ điều kiện') + '. Đủ điều kiện thì máy tự trừ.') +
+    '<b>🎟 ' + (quay ? 'Khuyến mãi áp tại quầy: ' : 'Ưu đãi khách chọn tại bàn: ') + h(u.ten || u.ma) + '</b><br>' +
+    h((u.loai === 'ma' ? 'Mã ' + u.ma + ' · ' : '') + (quay ? u.cach : 'số ' + posCheSo(u.sdt) + ' (đã xác minh Zalo)')) + '<br>' +
+    (giam > 0 ? 'Hệ thống đã trừ ' + money(giam) + ' đ vào bill' + (quay ? '.' : ', không cần OTP quản lý.') : 'Chưa trừ: ' + h(u.ly_do || 'chưa đủ điều kiện') + '. Đủ điều kiện thì hệ thống tự trừ.') +
     (u.da_ghi ? '<br>Đã ghi lượt dùng lúc chốt bill.' : '<br>Mã được tính là đã dùng khi chốt bill.') +
     (boDuoc ? '<button class="btn gh" id="pbBoUd" style="margin:8px 0 0;width:100%;min-height:44px;font-size:13.5px">Bỏ ưu đãi này</button>' : '') +
     '</div>';
+}
+
+/* v678: khối Khuyến mãi của bill Tạm tính (Dễ báo 20/11/2026: bill gọi qua
+   QR không có mục Chương trình, Nhập mã nên khách đưa voucher lúc thanh toán
+   thì quầy không áp được). THUẦN. Chỉ hiện khi bill chưa có ưu đãi nào. */
+function pbKhoiKm(suaMo) {
+  var nut = 'flex:1;min-width:0;min-height:44px;margin:0;font-size:14px';
+  return '<div id="pbKm" style="margin:4px 0 6px;padding:10px 12px;border:1.5px dashed #7FE5F6;background:#f5fdff;border-radius:12px">' +
+    '<div style="font-size:13.5px;font-weight:600;color:#0B7C93;margin-bottom:8px">🎫 Khuyến mãi</div>' +
+    (suaMo ? '<div style="font-size:13px;color:#6b7280;line-height:1.5">Lưu thay đổi món trước, rồi áp khuyến mãi.</div>' :
+      '<div style="display:flex;gap:8px"><button class="btn gh" id="pbKmCt" style="' + nut + '">Chương trình</button>' +
+      '<button class="btn gh" id="pbKmMa" style="' + nut + '">Nhập mã</button></div>' +
+      '<div style="font-size:13px;color:#6b7280;margin-top:7px;line-height:1.5">Mỗi hoá đơn một ưu đãi. Voucher Grab: chọn đúng loại 200.000 hay 300.000 như màn hình khách, chốt bằng Grab Dine-Out kèm mã GD-.</div>') +
+    '</div>';
+}
+function pbDongKm(x) {
+  var duoc = !!x.dung_duoc;
+  return '<div data-kmq="' + h(x.ma) + '" style="display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 0;border-bottom:1px solid #f2f4f7;cursor:' + (duoc ? 'pointer' : 'default') + ';opacity:' + (duoc ? '1' : '.6') + '">' +
+    '<span style="width:34px;height:34px;flex:none;border-radius:9px;background:#f0fdfa;display:flex;align-items:center;justify-content:center;font-size:17px">🎫</span>' +
+    '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600">' + h(x.ten) + '</div>' +
+    '<div style="font-size:13px;color:' + (duoc ? '#05603a' : '#9a3412') + ';margin-top:2px">' +
+    (duoc ? 'Giảm ' + money(x.giam) + ' đ' + (x.can_otp ? ' · cần OTP quản lý' : '') : 'Không áp được: ' + h(x.ly_do || 'chưa đủ điều kiện')) +
+    '</div></div></div>';
 }
 
 /* v677: khối Khách thành viên của bill Tạm tính. Khách thật (không phải khách
@@ -20033,7 +20081,8 @@ async function scrPosBill(name) {
   });
   if (suaMon) html += '<div style="padding:9px 0"><button class="btn gh" id="pbThemMon" style="width:100%;margin:0">➕ Thêm món</button></div>';
   if (giam) html += '<div style="display:flex;justify-content:space-between;padding:7px 0;color:#b45309"><span>Giảm giá</span><b>-' + money(giam) + '</b></div>';
-  if (udBan) html += posKhoiUdBan(udBan, nhap && !udBan.da_ghi);
+  if (udBan) html += posKhoiUdBan(udBan, nhap && tamTinh && !udBan.da_ghi);
+  else if (tamTinh && nhap && !d.vgb_huy && !pbCoKm(d)) html += pbKhoiKm(suaMo);
   html += '<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:16px"><b>' + (tamTinh ? 'TẠM TÍNH' : 'PHẢI THU') + '</b><b>' + money(phaiThu) + ' đ</b></div></div>';
 
   /* ----- khach thanh vien (v677) -----
@@ -20302,7 +20351,7 @@ async function scrPosBill(name) {
   function veQr() {
     var o = document.getElementById('pbQr');
     if (!o) return;
-    if (PB_PT !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (!posLaCk(PB_PT)) { o.innerHTML = ''; return; }
     if (pbTuPancake()) {
       o.innerHTML = '<div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;' +
         'padding:12px 13px;font-size:13px;color:#075985;line-height:1.6">' +
@@ -20312,7 +20361,7 @@ async function scrPosBill(name) {
         '</div>';
       return;
     }
-    o.innerHTML = posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '', d.vgb_quay);
+    o.innerHTML = posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || '', PB_PT), phaiThu, d.custom_nguon || '', d.vgb_quay, PB_PT);
     /* Nut "Do tien chuyen khoan" nam san trong khoi QR. O day bill DA LUU
        nen truyen ten hoa don vao: thu ngan chon duoc khoan nao la cua bill
        nay, va may ghi so tham chieu ngan hang vao hoa don. */
@@ -20334,7 +20383,7 @@ async function scrPosBill(name) {
         x.style.color = on ? '#0f766e' : '#374151';
       });
       var mo = document.getElementById('pbMtc');
-      if (mo && PB_PT === 'Chuyển khoản' && !mo.value.trim()) mo.value = maBill || '';
+      if (mo && posLaCk(PB_PT) && !mo.value.trim()) mo.value = maBill || '';
       var ot = document.getElementById('pbTang');
       if (ot) ot.style.display = (PB_PT === 'Hàng tặng') ? 'block' : 'none';
       pbAnNutTang();
@@ -20398,7 +20447,7 @@ async function scrPosBill(name) {
     var nb = document.getElementById('pbTraDu');
     if (nb) nb.onclick = function () { hoanMoFormDu(d); };
   }
-  if (!tamTinh && !d.vgb_huy && d.name && (d.vgb_pt_thanh_toan === 'Chuyển khoản' || PB_PT === 'Chuyển khoản')) {
+  if (!tamTinh && !d.vgb_huy && d.name && (posLaCk(d.vgb_pt_thanh_toan) || posLaCk(PB_PT))) {
     api('vagabond.ban_hang.pos_tien_bill', { name: d.name })
       .then(function (t) { pbTien = t || null; pbVeThua(); })
       .catch(function () { pbTien = null; });
@@ -20696,6 +20745,60 @@ async function scrPosBill(name) {
     busy(false);
     toast('Đã bỏ ưu đãi, bill về số trước ưu đãi.');
     go(function () { scrPosBill(name); }, true);
+  };
+
+  /* v678: quầy áp khuyến mãi trên bill tạm tính (uu_dai_ban.ap_quay). */
+  async function pbApKm(loai, ma) {
+    var otp = '';
+    for (var lan = 0; lan < 2; lan++) {
+      busy(true);
+      var r;
+      try { r = await api('vagabond.uu_dai_ban.ap_quay', { name: d.name, loai: loai, ma: ma, otp: otp }); }
+      catch (e) { busy(false); return toast((e && e.message) || 'Chưa áp được, thử lại.', 5000); }
+      busy(false);
+      if (r && r.ok) {
+        toast('Đã áp ' + (r.ten || ma) + ', giảm ' + money(r.giam) + ' đ.');
+        return go(function () { scrPosBill(name); }, true);
+      }
+      if (r && r.can_otp && !otp) {
+        otp = await promptSheet('Mã OTP của quản lý', ((r.cau || 'Cần quản lý duyệt.') + ' Nhập mã OTP 6 số').trim());
+        if (!otp) return;
+        continue;
+      }
+      return toast((r && r.cau) || 'Chưa áp được ưu đãi này.', 5000);
+    }
+  }
+  var nkc = document.getElementById('pbKmCt');
+  if (nkc) nkc.onclick = async function () {
+    busy(true);
+    var r;
+    try { r = await api('vagabond.uu_dai_ban.ds_quay', { name: d.name }); }
+    catch (e) { busy(false); return toast((e && e.message) || 'Không tải được chương trình.', 5000); }
+    busy(false);
+    if (!r || !r.ok) return toast((r && r.cau) || 'Không tải được chương trình.', 5000);
+    var ds = r.ds || [];
+    if (!ds.length) return toast('Chưa có chương trình khuyến mãi nào đang bật cho quầy này.', 4500);
+    var ov = document.createElement('div'); ov.className = 'sh';
+    ov.innerHTML = '<div class="shb"><div class="shh"><b>Chương trình khuyến mãi</b><div class="x">&times;</div></div>' +
+      '<div style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 14px);max-height:74vh;overflow:auto">' +
+      '<div style="font-size:13px;color:#6b7280;padding:6px 0 4px">Bấm một chương trình để áp lên bill này. Số giảm tính theo món đang có.</div>' +
+      ds.map(pbDongKm).join('') + '</div></div>';
+    document.body.appendChild(ov);
+    ov.onclick = function (e) { if (e.target === ov || e.target.classList.contains('x')) ov.remove(); };
+    ov.querySelectorAll('[data-kmq]').forEach(function (o) {
+      o.onclick = function () {
+        var x = ds.filter(function (y) { return y.ma === o.getAttribute('data-kmq'); })[0] || {};
+        if (!x.dung_duoc) return toast(x.ly_do || 'Chương trình không áp được lúc này.', 4500);
+        ov.remove();
+        pbApKm('ctkm', x.ma);
+      };
+    });
+  };
+  var nkm = document.getElementById('pbKmMa');
+  if (nkm) nkm.onclick = async function () {
+    var ma = await promptSheet('Mã ưu đãi của khách', 'Khách đọc mã, gõ vào đây. Ví dụ K7M2QP');
+    if (!ma) return;
+    pbApKm('ma', ma.trim().toUpperCase());
   };
 
   /* ----- in ----- */
@@ -21162,7 +21265,8 @@ async function posHuyCoTien(d, maBill, mon, tien) {
        của bill cũ; khuyến mãi tự áp thì máy tính lại ở điểm mới. */
     posQuay = diem;
     posDon = posMoi();
-    posDon.pt = 'Chuyển khoản';
+    /* v678: giữ đúng phương thức chuyển khoản của bill cũ (MB hay Shinhan). */
+    posDon.pt = posLaCk(d.vgb_pt_thanh_toan) ? d.vgb_pt_thanh_toan : 'Chuyển khoản';
     posDon.mon = (mon || []).map(function (m) {
       return { item_code: m.item_code, ten: m.ten, qty: m.qty, rate: m.rate, anh: '', nhom: '', tc: m.tc || [], gc: m.gc || '' };
     });
@@ -27549,7 +27653,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '677';
+var APPVER = '678';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -48952,15 +49056,15 @@ function cfdNhipBat() {
 function cfdDay(don, quay, phaiThu, nguon, laApp, giamVi) {
   if (!cfdCo()) return;
   var qr = null;
-  if (!laApp && don && don.pt === 'Chuyển khoản' && phaiThu > 0) {
+  if (!laApp && don && posLaCk(don.pt) && phaiThu > 0) {
     /* Truyen ma diem vao ca ba cho. De rong la ba ham roi ve tai khoan
        mac dinh, nen man hinh khach bay ma QR vao TAI KHOAN CHUNG trong khi
        man thu ngan bay ma QR vao tai khoan rieng cua diem - hai man mot
        ben mot neo, khach quet cai nao cung duoc va tien ve sai cho. */
     var maDiem = (quay && quay.ma) || '';
-    var nd = posNoiDungCk(don.bill, maDiem, nguon);
-    var tk = posTaiKhoan(nguon, maDiem) || {};
-    var anhQr = posQrUrl(nd, phaiThu, nguon, maDiem);
+    var nd = posNoiDungCk(don.bill, maDiem, nguon, don.pt);
+    var tk = posTkCk(don.pt, nguon, maDiem) || {};
+    var anhQr = posQrUrl(nd, phaiThu, nguon, maDiem, don.pt);
     // Tab khách cũ chỉ hiểu ảnh; không gửi khối QR nếu dựng ảnh thất bại.
     if (anhQr) qr = {
         url: anhQr,

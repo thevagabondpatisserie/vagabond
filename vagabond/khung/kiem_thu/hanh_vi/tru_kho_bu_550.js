@@ -138,6 +138,8 @@ function appMoi(canh) {
   vm.runInContext(doc('15-khuon-danh-sach.js'), g);
   vm.runInContext(doc('49-tru-kho-bu.js'), g);
   vm.runInContext(layHam(doc('10-bill-quay.js'), 'posChipBill'), g);
+  /* v678: chip đối soát hỏi posLaCk (hai phương thức chuyển khoản). */
+  vm.runInContext(layHam(doc('09-tinh-tien-quay.js'), 'posCfgCk') + '\n' + layHam(doc('09-tinh-tien-quay.js'), 'posLaCk'), g);
   var s08 = doc('08-doanh-so-sales.js');
   vm.runInContext(layHam(s08, 'dsChip') + '\n' + layHam(s08, 'dsChips'), g);
   return {

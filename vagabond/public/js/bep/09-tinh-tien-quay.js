@@ -754,7 +754,7 @@ async function scrPosQuay() {
   /* v628 TH1: bill đang hiện mã QR chuyển khoản được giữ trên máy, app tải
      lại thì vẫn mở lại được đúng giỏ và đúng mã bill. Giỏ trống là bỏ dấu
      của mã bill đang mở (thu ngân đã xoá hết món). */
-  if (!laApp && posDon.pt === 'Chuyển khoản' && phaiThu > 0 && posDon.mon.length) posChoCkGhi(posDon, posQuay, phaiThu);
+  if (!laApp && posLaCk(posDon.pt) && phaiThu > 0 && posDon.mon.length) posChoCkGhi(posDon, posQuay, phaiThu);
   else if (!posDon.mon.length) posChoCkXoa(posDon.bill);
   var qApp = laApp ? (quyPt(posDon.pt) || {}) : {};
   var html = '<div class="card" style="padding:8px 14px">' +
@@ -890,8 +890,8 @@ async function scrPosQuay() {
       ? (dsPt.length > 1
           ? '<div style="font-size:12px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' đi được ' + dsPt.length + ' phương thức, chọn đúng cách khách đã trả.</div>'
           : '<div style="font-size:12px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' chỉ đi một phương thức này.</div>')
-      : (posDon.pt === 'Chuyển khoản'
-          ? posKhoiQr(posNoiDungCk(posDon.bill, '', posNguonThuc()), phaiThu, posNguonThuc())
+      : (posLaCk(posDon.pt)
+          ? posKhoiQr(posNoiDungCk(posDon.bill, '', posNguonThuc(), posDon.pt), phaiThu, posNguonThuc(), '', posDon.pt)
           : '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
             '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>')) +
     posKhoiKm() +
@@ -985,7 +985,7 @@ async function scrPosQuay() {
     '<button class="btn" id="posLuu" style="flex:1;margin:0">' +
     (laApp ? '🧾 Lưu hoá đơn ' : '💰 Thu tiền ') + money(phaiThu) + ' đ</button>';
   var b = frame('Tính tiền · ' + (posQuay.ma || ''), html, { footer: '<div style="display:flex;gap:8px">' + footer + '</div>' });
-  if (!laApp && posDon.pt !== 'Chuyển khoản') veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
+  if (!laApp && !posLaCk(posDon.pt)) veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
   posDemHomNay();
   posCaVe();
   cfdGan();
@@ -1098,7 +1098,7 @@ async function scrPosQuay() {
     if (o) o.onblur = function () { posDoc(); };
   });
   /* Chuyen khoan dang cho tien: poll SePay de bao ngay khi tien ve. */
-  if (!laApp && posDon.pt === 'Chuyển khoản' && phaiThu > 0 && posSepayNhan < phaiThu - 1) posPollBat(posDon.bill, phaiThu);
+  if (!laApp && posLaCk(posDon.pt) && phaiThu > 0 && posSepayNhan < phaiThu - 1) posPollBat(posDon.bill, phaiThu);
   /* Man hinh khach bam theo man nay: moi lan ve lai la mot lan day. */
   /* LY DO GIAM GIA, tinh O DAY chu khong ben man hinh khach.
 
@@ -1844,10 +1844,10 @@ async function posMoTuyChon(i) {
    Nguon CHUA khai tai khoan ao thi van giu ma diem ban o dau, khong thi
    tien ba noi do chung mot tai khoan ma noi dung khong con dau vet nao de
    ke toan lan ra. Khai du tai khoan ao la moi noi tu dong gon lai. */
-function posNoiDungCk(maBill, maDiem, nguon) {
+function posNoiDungCk(maBill, maDiem, nguon, pt) {
   var b = String(maBill || '').trim();
   var d = posDiemCua(maDiem);
-  var tk = posTaiKhoan(nguon, d);
+  var tk = posTkCk(pt, nguon, d);
   if (tk && tk.rieng) return b;
   /* Tu 31/08/2026 chinh MA BILL da mang tien to cua diem (TCVQ4PFX), nen
      dan them ma diem o dau nua la thua va con lam noi dung dai ra. Chi bill
@@ -1899,20 +1899,39 @@ function posTaiKhoan(nguon, maDiem) {
   }
   return c.qr_quay || {};
 }
+/* v678 (anh Việt 20/11/2026): có hai phương thức chuyển khoản đối soát SePay,
+   "Chuyển khoản" (tài khoản ảo MB của điểm) và "Chuyển khoản - Shinhan".
+   Máy chủ gửi danh sách (CFGBH.pt_ck, một nguồn pt_ck.DS_CK) nên màn hình không
+   so chữ "Chuyển khoản" nữa. Ca kiểm thu_shinhan_o2o_678 dò không còn chỗ so. */
+function posCfgCk() { return (typeof CFGBH !== 'undefined' && CFGBH) || {}; }
+function posLaCk(pt) {
+  var ds = posCfgCk().pt_ck || ['Chuyển khoản'];
+  return ds.indexOf(String(pt || '').trim()) >= 0;
+}
+/* Tài khoản nhận của mã QR theo phương thức. Phương thức chuyển khoản đầu danh
+   sách theo tài khoản của điểm bán như trước; phương thức có tài khoản riêng
+   (Shinhan) lấy từ CFGBH.qr_pt. Chưa khai thì trả rỗng để màn báo chuyển tay,
+   KHÔNG rơi về tài khoản MB: bill ghi Shinhan mà tiền về MB là sổ sai ngân hàng. */
+function posTkCk(pt, nguon, maDiem) {
+  var p = String(pt || '').trim();
+  var ds = posCfgCk().pt_ck || ['Chuyển khoản'];
+  if (p && ds.indexOf(p) > 0) return (posCfgCk().qr_pt || {})[p] || {};
+  return posTaiKhoan(nguon, maDiem);
+}
 function posQrTao(q, noiDung, tien) {
   q = q || {};
   if (typeof VgbQr === 'undefined') return {anh:'',loi:'Chưa tải được thư viện mã QR. Vui lòng tải lại trang hoặc chuyển tay.'};
   return VgbQr.tao({bin:q.bin || q.bank,stk:q.stk,tien:tien,noi_dung:noiDung,qr_text:q.qr_text});
 }
-function posQrUrl(noiDung, tien, nguon, maDiem) {
-  return posQrTao(posTaiKhoan(nguon, maDiem),noiDung,tien).anh;
+function posQrUrl(noiDung, tien, nguon, maDiem, pt) {
+  return posQrTao(posTkCk(pt, nguon, maDiem),noiDung,tien).anh;
 }
 /* v655: mã QR chuyển khoản để IN lên giấy. Ảnh SVG co giãn (posQrUrl) chỉ hợp
    màn hình; đường in chụp bằng html2canvas phóng to rồi cắt nó (phiếu
    HDB-26-11-02558). In thì vẽ ảnh điểm từ CÙNG chuỗi VietQR. Rỗng khi không vẽ
    được, bên gọi tự in dòng chuyển tay. */
-async function posQrAnhIn(noiDung, tien, nguon, maDiem) {
-  var r = posQrTao(posTaiKhoan(nguon, maDiem), noiDung, tien);
+async function posQrAnhIn(noiDung, tien, nguon, maDiem, pt) {
+  var r = posQrTao(posTkCk(pt, nguon, maDiem), noiDung, tien);
   if (!r.chuoi) return '';
   try { return (await inQrAnh(r.chuoi)) || ''; } catch (e) { return ''; }
 }
@@ -1922,9 +1941,9 @@ function posQrLoi(q, noiDung, tien) {
     '<br>Ngân hàng: '+h(q.bank || 'chưa khai')+' · Số tài khoản: '+h(q.stk || 'chưa khai')+
     '<br>Số tiền: '+money(tien)+' đ · Nội dung: '+h(noiDung || '')+'</div>';
 }
-function posKhoiQr(noiDung, tien, nguon, maDiem) {
-  var q = posTaiKhoan(nguon, maDiem);
-  var url = posQrUrl(noiDung, tien, nguon, maDiem);
+function posKhoiQr(noiDung, tien, nguon, maDiem, pt) {
+  var q = posTkCk(pt, nguon, maDiem);
+  var url = posQrUrl(noiDung, tien, nguon, maDiem, pt);
   if (!url) return posQrLoi(q,noiDung,tien);
   if (!tien) return '<div style="font-size:13px;color:#6b7280">Thêm món vào hoá đơn rồi mã QR chuyển khoản sẽ hiện ra đây.</div>';
   /* Tien ve du la khoi nay tu doi mau xanh - poll SePay 5 giay mot lan. */
@@ -2111,9 +2130,9 @@ async function posSheetDoTien(tien, siName, sauKhiGan, tuyChon) {
   };
 }
 
-function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
-  var q = posTaiKhoan(nguon, maDiem);
-  var url = posQrUrl(soPhieu, tien, nguon, maDiem);
+function posQrSheet(soPhieu, tien, siName, nguon, maDiem, pt) {
+  var q = posTkCk(pt, nguon, maDiem);
+  var url = posQrUrl(soPhieu, tien, nguon, maDiem, pt);
   var ov = document.createElement('div'); ov.className = 'sh';
   /* Codex #575: bảng QR cao hơn màn điện thoại nằm ngang; tự cuộn dọc để
      với tới Đổi âm báo, In hoá đơn, Hoá đơn mới. */
@@ -2216,7 +2235,7 @@ async function posLuuDon() {
     var qp = quyPt(posDon.pt) || {};
     if (qp.bat && !(posDon.mtc || '').trim()) return toast('Phương thức ' + posDon.pt + ' bắt buộc nhập ' + (qp.nhan || 'mã tham chiếu') + '.');
     /* Chuyen khoan: noi dung khach chuyen chinh la ma bill in trong QR. */
-    if (posDon.pt === 'Chuyển khoản' && !(posDon.mtc || '').trim()) posDon.mtc = posDon.bill || '';
+    if (posLaCk(posDon.pt) && !(posDon.mtc || '').trim()) posDon.mtc = posDon.bill || '';
   }
   var canhBao = (!laApp && posDon.pt === 'Tiền mặt' && dua && dua < phaiThu) ? '\n⚠ Khách mới đưa ' + money(dua) + ' đ, còn thiếu ' + money(phaiThu - dua) + ' đ.' : '';
   /* Hai bill giong het nhau trong vong hai phut thuong la bam trung. */
@@ -2286,7 +2305,8 @@ async function posLuuDon() {
      la thu chi chu the moi can biet, con so vua cong thi ai nhin cung chi
      suy ra duoc tu tong tien tren man, khong lo them gi. */
   cfdCamOn(thu, (r && r.diem && r.diem.tich) || 0);
-  var laCK = !laApp && posDon.pt === 'Chuyển khoản';
+  var laCK = !laApp && posLaCk(posDon.pt);
+  var ptCk = posDon.pt;
   var thoi = !laApp && posDon.pt === 'Tiền mặt' && dua >= thu ? dua - thu : 0;
   var maCk = posDon.mtc || posDon.bill || '';
   /* Nguon phai doc TRUOC khi mo bill moi: posMoi() dat lai che_do ve
@@ -2328,7 +2348,7 @@ async function posLuuDon() {
   }
   /* Van la ma QR khach da quet luc nay, khong doi sang so phieu - de neu
      khach chua chuyen kip thi quet lai van ra dung noi dung. */
-  if (laCK) return posQrSheet(maCk, thu, (r && r.name) || '', nguonCk);
+  if (laCK) return posQrSheet(maCk, thu, (r && r.name) || '', nguonCk, '', ptCk);
   /* Đơn hàng tặng: đưa thẳng sang màn bill để khai loại tặng và lý do. Bỏ
      qua bảng "đã thu" vì đơn tặng không thu đồng nào, và việc còn dở là
      khai chứ không phải in. */

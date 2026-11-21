@@ -400,8 +400,9 @@ def _qr_dung_tk():
 	# bày QR vào tài khoản chung trong khi màn thu ngân bày QR vào tài khoản
 	# riêng của điểm. Hai màn một bên một nẻo, tiền về sai chỗ.
 	j = _js("25-man-hinh-khach.js")
-	dung("nội dung chuyển khoản theo điểm", "posNoiDungCk(don.bill, maDiem, nguon)" in j)
-	dung("tài khoản theo điểm", "posTaiKhoan(nguon, maDiem)" in j)
+	# v678: thêm phương thức (Chuyển khoản - Shinhan có tài khoản riêng); vẫn theo điểm.
+	dung("nội dung chuyển khoản theo điểm", "posNoiDungCk(don.bill, maDiem, nguon, don.pt)" in j)
+	dung("tài khoản theo điểm", "posTkCk(don.pt, nguon, maDiem)" in j)
 	dung("đường dẫn QR theo điểm", "tien: phaiThu" in j and "bin: tk.bin" in j)
 
 

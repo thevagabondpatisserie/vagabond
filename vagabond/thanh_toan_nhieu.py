@@ -219,7 +219,11 @@ def so_can_ck(dong, tong_don):
 	dong = gom_dong(dong)
 	if not dong:
 		return round(_so(tong_don), 2)
-	return round(_so(tach_theo_pt(dong, tong_don).get(CHUYEN_KHOAN)), 2)
+	# v678: cộng mọi phương thức chuyển khoản đối soát SePay (pt_ck.DS_CK).
+	from vagabond.pt_ck import DS_CK
+
+	tach = tach_theo_pt(dong, tong_don)
+	return round(sum(_so(tach.get(p)) for p in DS_CK), 2)
 
 
 # ------------------------------------------------------- phần cần Frappe

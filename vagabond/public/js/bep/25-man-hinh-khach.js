@@ -192,15 +192,15 @@ function cfdNhipBat() {
 function cfdDay(don, quay, phaiThu, nguon, laApp, giamVi) {
   if (!cfdCo()) return;
   var qr = null;
-  if (!laApp && don && don.pt === 'Chuyển khoản' && phaiThu > 0) {
+  if (!laApp && don && posLaCk(don.pt) && phaiThu > 0) {
     /* Truyen ma diem vao ca ba cho. De rong la ba ham roi ve tai khoan
        mac dinh, nen man hinh khach bay ma QR vao TAI KHOAN CHUNG trong khi
        man thu ngan bay ma QR vao tai khoan rieng cua diem - hai man mot
        ben mot neo, khach quet cai nao cung duoc va tien ve sai cho. */
     var maDiem = (quay && quay.ma) || '';
-    var nd = posNoiDungCk(don.bill, maDiem, nguon);
-    var tk = posTaiKhoan(nguon, maDiem) || {};
-    var anhQr = posQrUrl(nd, phaiThu, nguon, maDiem);
+    var nd = posNoiDungCk(don.bill, maDiem, nguon, don.pt);
+    var tk = posTkCk(don.pt, nguon, maDiem) || {};
+    var anhQr = posQrUrl(nd, phaiThu, nguon, maDiem, don.pt);
     // Tab khách cũ chỉ hiểu ảnh; không gửi khối QR nếu dựng ảnh thất bại.
     if (anhQr) qr = {
         url: anhQr,

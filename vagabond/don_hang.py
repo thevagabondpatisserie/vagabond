@@ -38,8 +38,13 @@ def _so(s):
 	return "".join(ch for ch in str(s or "") if ch.isdigit())
 
 
-def _lam_sach_hang(items):
-	"""Bo dong rac, gop dong trung ma, chan so luong vo ly."""
+def _lam_sach_hang(items, tang=("BAPK00020", "BAPK00018")):
+	"""Bo dong rac, gop dong trung ma, chan so luong vo ly.
+
+	tang: dĩa, nĩa tặng kèm theo yêu cầu (anh Việt 20/11/2026), trang đặt bánh gửi
+	thành dòng giá 0. Đơn CHỈ có các mã này là đơn rỗng: ai cũng gọi thẳng cửa
+	tạo đơn được. Trùng MA_DIA_TANG, MA_NIA_TANG ở web_vue/kho/thuan.js (ca
+	thu_dia_nia_678 chốt hai bên khớp)."""
 	gom = {}
 	for it in (items or [])[:MAX_DONG]:
 		ma = str((it or {}).get("variation_id") or "").strip()
@@ -50,6 +55,8 @@ def _lam_sach_hang(items):
 		if not ma or sl < 1:
 			continue
 		gom[ma] = min(gom.get(ma, 0) + sl, MAX_SL)
+	if not [ma for ma in gom if ma not in tang]:
+		return []
 	return [{"variation_id": ma, "quantity": sl} for ma, sl in gom.items()]
 
 
@@ -437,10 +444,13 @@ def _gan_giam_pancake(hang, hang_goc, gia, giam):
 	tong = sum(int(float(gia.get(goc["variation_id"]) or 0)) * int(goc["quantity"])
 		for goc in hang_goc)
 	con_giam, con_tien, ra = int(giam or 0), tong, []
+	# v678: dòng giá 0 (dĩa, nĩa tặng kèm) đứng sau mọi dòng có tiền thì con_tien
+	# đã về 0: không chia cho 0, dòng 0 đ không nhận giảm (dòng có tiền cuối cùng
+	# đã nhận đủ phần còn lại vì tỷ lệ của nó là 1).
 	for i, (dong, goc) in enumerate(zip(hang, hang_goc)):
 		sl = int(dong["quantity"])
 		thanh_tien = int(float(gia.get(goc["variation_id"]) or 0)) * sl
-		phan = con_giam if i == len(hang) - 1 else round(con_giam * thanh_tien / con_tien)
+		phan = con_giam if i == len(hang) - 1 else (round(con_giam * thanh_tien / con_tien) if con_tien > 0 else 0)
 		phan = max(0, min(phan, thanh_tien))
 		moi_don_vi, du = divmod(phan, sl)
 		for so_luong, muc in ((sl - du, moi_don_vi), (du, moi_don_vi + 1)):

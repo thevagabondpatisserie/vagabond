@@ -35,7 +35,7 @@ function layHam(src, ten) {
 }
 var NEN = doc('00-nen.js'), POS = doc('09-tinh-tien-quay.js'), BQ = doc('10-bill-quay.js'), DS = doc('08-doanh-so-sales.js');
 var HAM = ['h', 'money'].map(function (t) { return layHam(NEN, t); })
-  .concat(['posNgayVn', 'locTim', 'posChipNut', 'locHddt', 'locKhoiTong', 'locHang', 'locNguonPt'].map(function (t) { return layHam(POS, t); }))
+  .concat(['posNgayVn', 'locTim', 'posChipNut', 'locHddt', 'locKhoiTong', 'locHang', 'locNguonPt', 'posCfgCk', 'posLaCk'].map(function (t) { return layHam(POS, t); }))
   .concat(['chipNgay', 'timDonO', 'ngayCong'].map(function (t) { return layHam(DS, t); }))
   .concat(['posChipBill', 'scrPosDs'].map(function (t) { return layHam(BQ, t); }))
   .concat(["var posLocTt = 'tat_ca', posLocNg = '', posLocHd = '', posDsNgay = '', posQuay = null, DS_MAU_HD = {};"]).join('\n');

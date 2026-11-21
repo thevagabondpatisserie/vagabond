@@ -50,7 +50,10 @@ _TU_BAO_CAO = ("bao cao", "sao ke", "doi soat", "bien ban", "statement", "settle
 	"thanh toan")
 # v649: thông báo kỹ thuật của đối tác (bảo trì, nâng cấp, gián đoạn) không phải báo cáo.
 _TU_THONG_BAO_KY_THUAT = ("bao tri", "maintenance", "nang cap he thong", "gian doan", "tam ngung dich vu",
-	"ngung dich vu")
+	"ngung dich vu",
+	# v678 (site thật 19/11, 20/11): OnePay "Lich nghi le Ngay Van hoa Viet Nam",
+	# "Thông báo lịch tạm ứng doanh số dịp nghỉ lễ" là lịch nghỉ, không phải báo cáo.
+	"nghi le", "lich nghi")
 _TU_BAO_CAO_MANH = ("bao cao", "sao ke", "doi soat", "bien ban", "statement", "settlement", "report")
 
 # Mode of Payment / nguồn đơn trên hoá đơn bán ứng với từng kiểu nối.

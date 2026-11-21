@@ -251,8 +251,11 @@ CUA_NGO = {
 	# v643: ưu đãi khách tự chọn tại bàn. Ba cửa khách (allow_guest, rate_limit,
 	# kiểm link bàn + phiên Thành viên): `ds`, `chon`, `bo`. Một cửa quầy
 	# (_kiem_quyen_ban): `bo_quay`. truoc_chot, sau_chot, tinh_lai là nội bộ.
-	"uu_dai_ban.py": ["ds", "chon", "bo", "bo_quay"],
+	"uu_dai_ban.py": ["ds", "chon", "bo", "bo_quay", "ds_quay", "ap_quay"],
 	"tich_diem_ban.py": ["gan", "gan_quay"],
+	# v678: khách chuyển khoản ngay tại bàn. Hai cửa khách (allow_guest, rate_limit,
+	# đòi link bàn ký). tu_chot_ck không mở cửa nào: chỉ webhook SePay và ck_ban gọi.
+	"ck_ban.py": ["thong_tin", "trang_thai"],
 	# v644: bánh trên web (nút Đưa lên web ở app, thẻ Bánh của trình biên tập).
 	"banh_web.py": ["dua_len_web", "ds_bien_tap", "them_anh", "luu"],
 	# v640: Biên tập menu theo điểm bán (chỉ quản lý cửa hàng).

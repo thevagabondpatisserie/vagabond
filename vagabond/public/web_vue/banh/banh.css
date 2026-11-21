@@ -293,6 +293,14 @@ body.has-bar .sheet,body.has-bar main{padding-bottom:86px}
 .cart .qty span{min-width:26px;text-align:center;font-size:13px}
 .cart .rm{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--fog-2)}
 .cart .rm:hover{color:#E8705F}
+.dc-don{margin-top:22px;border:1px solid var(--line-2);padding:14px 16px 4px}
+.dc-tieu{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--fog)}
+.dc-mo{font-size:13.5px;line-height:1.5;color:var(--fog);margin-top:8px}
+.dc-ds{margin-top:10px}
+.dc-ds li:last-child{border-bottom:0}
+.dc-ds .nm small{font-size:13px}
+.dc-ds img{width:48px;height:48px}
+.dc-ds li{gap:10px}
 .cart-add{margin-top:16px;width:100%;border:1px dashed var(--line);padding:14px;font-size:12px;
  letter-spacing:.14em;text-transform:uppercase;color:var(--fog)}
 .cart-add:hover{border-color:var(--cyan-dim);color:var(--cyan)}
