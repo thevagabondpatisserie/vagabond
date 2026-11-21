@@ -3395,7 +3395,7 @@ async function itemByBarcode(code) {
 function sheet(title, items, cur, onPick, searchable) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x">&times;</div></div>';
+  var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>';
   if (searchable) hd += '<div style="padding:10px 14px 4px;display:flex;gap:8px"><input class="nt" placeholder="Tìm nhanh..." style="height:46px;padding:0 12px;flex:1"><button class="nt" id="shQuet" title="Quét mã vạch" style="height:46px;width:54px;flex:none;font-size:20px;cursor:pointer">&#128247;</button></div>';
   box.innerHTML = hd + '<div class="shl"></div>';
   var lst = box.querySelector('.shl');
@@ -3404,7 +3404,7 @@ function sheet(title, items, cur, onPick, searchable) {
     var f = items.filter(function (it) { return vgbKhop([it.label, it.tim, it.value], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (it, i) {
       return '<div class="shi' + (it.value === cur ? ' on' : '') + '" data-i="' + items.indexOf(it) + '">' +
-        (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span>' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
+        (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span class="shic">' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
         (it.value === cur ? '<span>&#10003;</span>' : '') + '</div>';
     }).join('') : '<div class="emp"><div class="e2">Không tìm thấy</div></div>';
   }
@@ -3472,6 +3472,28 @@ Trang /bep không nằm trong git (nó là một Page trên site), nên không c
 JavaScript - hiệu lực y hệt, mà mã nguồn vẫn nằm trong git. */
 
 var PWA_MAU = '#50DBF2';   /* nen that cua tep logo 2025, trung .vh cua app */
+/* Mau vo app (vung dong ho, thanh trinh duyet) khi bat giao dien moi: TRUNG
+   mau dau trang ui-b (--ui-header-tint) va giao_dien.MAU_VO_APP. Dat o day,
+   khong o phan 81, vi pwaGan chay luc nap phan 00 (xem BAY THU TU NAP o 81). */
+var PWA_MAU_UIB = '#EAF4F3';
+
+/* Dat meta theme-color theo giao dien DANG HIEN (Codex UI01). May chu da chen
+   meta mau ui-b khi bat; lech phien ban thi uiBNap go lop ui-b va goi lai ham
+   nay de vo app ve mau cu. */
+function pwaDatMau() {
+  var laUiB = false;
+  try { laUiB = document.documentElement.classList.contains('ui-b'); } catch (e) { }
+  try {
+    var mau = laUiB ? PWA_MAU_UIB : PWA_MAU;
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (!m) {
+      m = document.createElement('meta');
+      m.name = 'theme-color';
+      document.head.appendChild(m);
+    }
+    if (m.content !== mau) m.content = mau;
+  } catch (e) { }
+}
 var PWA_DA_GAN = 0;         /* de bo kiem thu doc duoc rang ham DA CHAY */
 
 function pwaGan() {
@@ -3484,12 +3506,7 @@ function pwaGan() {
       document.head.appendChild(l);
     }
     /* Màu thanh trạng thái trên điện thoại, cho khớp thanh tiêu đề app. */
-    if (!document.querySelector('meta[name="theme-color"]')) {
-      var m = document.createElement('meta');
-      m.name = 'theme-color';
-      m.content = PWA_MAU;
-      document.head.appendChild(m);
-    }
+    pwaDatMau();
     /* iOS không đọc manifest cho biểu tượng, nó đọc apple-touch-icon, và nó
        muốn đúng 180x180. Thiếu thẻ này là iPhone tự chụp màn hình trang làm
        biểu tượng, và đó chính là cái "mất logo" anh Việt thấy.
@@ -3533,6 +3550,158 @@ function pwaGan() {
    nhanh thoat som (reset(scrLogin)) nen dat trong do la mat luon o man
    dang nhap. */
 if (typeof document !== 'undefined' && document.head) pwaGan();
+
+/* HOP THOAI DUNG CHUNG: ban phim, ten nut dong, focus (Codex UI05).
+
+   Moi lop phu .sh (bang truot sheet, hopKhung, confirmSheet, promptSheet va
+   cac hop rieng cua tung man) di qua MOT cho nay, khong sua 83 ham hop thoai:
+   - lop phu la role=dialog co ten lay tu tieu de;
+   - nut dong (.x, chu x) co role=button, ten "Đóng", bam duoc bang Enter/Space;
+   - focus vao khung hop khi mo (KHONG vao o nhap: tren dien thoai la bat ban
+     phim ao), tra ve nut da mo khi dong;
+   - Escape chi dong LOP TREN CUNG, va KHONG dong hop dang co o nhap da sua
+     (khong lam mat chu nguoi dung vua go);
+   - Tab di vong trong hop tren cung.
+   Khong doi hinh: chi them thuoc tinh va xu ly phim. */
+var HOP_MO = [];
+/* Phan tu vua bam (chuot, cham): nhieu nut mo hop la the span khong nhan focus, nen
+   document.activeElement van la body. Lay phan tu do lam "nut da mo" de tra focus. */
+var HOP_BAM = null;
+function hopTren() {
+  var ds = document.querySelectorAll('.sh');
+  for (var i = ds.length - 1; i >= 0; i--) if (ds[i].isConnected && ds[i].style.display !== 'none') return ds[i];
+  return null;
+}
+function hopDanhDau(ov) {
+  if (!ov || ov.nodeType !== 1 || ov.getAttribute('data-hop')) return;
+  ov.setAttribute('data-hop', '1');
+  try {
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-modal', 'true');
+    var td = ov.querySelector('.shh b, .shb > div > b, .shb > div:first-child');
+    var ten = td ? (td.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+    if (ten) ov.setAttribute('aria-label', ten);
+    hopTenNutDong(ov);
+    /* Hop co the da tu dat focus vao o tim cua no truoc khi toi day: khi do focus dang O TRONG
+       hop, khong phai nut da mo. Lay phan tu vua bam hay vua nhan phim ben ngoai hop. */
+    var mo = document.activeElement;
+    if (!mo || mo === document.body || ov.contains(mo)) {
+      mo = (HOP_BAM && HOP_BAM.isConnected && !ov.contains(HOP_BAM)) ?
+        (HOP_BAM.closest('button, a, [role=button], [data-go], [tabindex]') || HOP_BAM) : null;
+    }
+    HOP_MO.push({ ov: ov, mo: (mo && mo !== document.body) ? mo : null });
+    var box = ov.querySelector('.shb') || ov;
+    if (!ov.contains(document.activeElement)) {
+      if (!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+      try { box.focus({ preventScroll: true }); } catch (e) { }
+    }
+  } catch (e) { }
+}
+/* Nut dong ve bang div chu x: cho no ten va vai tro nut. */
+function hopTenNutDong(goc) {
+  var ds = goc.querySelectorAll('.x, .shh .x');
+  for (var i = 0; i < ds.length; i++) {
+    var x = ds[i];
+    /* data-phim: phan tu do bo nay gan vai tro nut, nen bo nay lo phim Enter, Space cho no. */
+    if (x.tagName !== 'BUTTON' && !x.getAttribute('role')) { x.setAttribute('role', 'button'); x.setAttribute('data-phim', '1'); }
+    if (x.tagName !== 'BUTTON' && !x.hasAttribute('tabindex')) x.setAttribute('tabindex', '0');
+    if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', 'Đóng');
+  }
+}
+function hopDaDong(ov) {
+  for (var i = HOP_MO.length - 1; i >= 0; i--) {
+    if (HOP_MO[i].ov !== ov) continue;
+    var mo = HOP_MO[i].mo;
+    HOP_MO.splice(i, 1);
+    var dangO = document.activeElement;
+    if (mo && mo.isConnected && (!dangO || dangO === document.body || !dangO.isConnected)) {
+      try {
+        if (!mo.hasAttribute('tabindex') && !/^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(mo.tagName)) mo.setAttribute('tabindex', '-1');
+        mo.focus({ preventScroll: true });
+      } catch (e) { }
+    }
+    return;
+  }
+}
+/* Hop co o nhap nguoi dung DA SUA thi Escape khong dong. */
+function hopDangSua(ov) {
+  var o = ov.querySelectorAll('input, textarea');
+  for (var i = 0; i < o.length; i++) {
+    var t = o[i].type;
+    if (t === 'checkbox' || t === 'radio' || t === 'search' || t === 'hidden') continue;
+    if (o[i].id === 'hcTim' || o[i].classList.contains('tim')) continue;
+    if (o[i].value !== o[i].defaultValue) return true;
+  }
+  return false;
+}
+function hopDong(ov) {
+  var x = ov.querySelector('.x, [data-hcx], [data-n]');
+  if (x) { x.click(); return; }
+  /* Khong co nut dong: bam ra ngoai khung, dung duong dong cua chinh hop. */
+  try { ov.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch (e) { }
+}
+function hopPhim(e) {
+  var ov = hopTren();
+  if (e.key === 'Escape' || e.key === 'Esc') {
+    if (ov) {
+      if (hopDangSua(ov)) return;
+      e.preventDefault(); e.stopPropagation();
+      hopDong(ov);
+      return;
+    }
+    var tl = document.getElementById('tlKhung');
+    if (tl && tl.style.display !== 'none' && tl.style.display !== '' && typeof tlDong === 'function') { e.preventDefault(); tlDong(); }
+    return;
+  }
+  var dich = e.target;
+  /* Codex #604: chi bam ho phan tu mang data-phim (khong co xu ly phim rieng). Phan tu co
+     onkeydown rieng (vi du tieu de dai o dau trang ui-b) tu lo, bam ho la doi trang thai hai lan. */
+  if ((e.key === 'Enter' || e.key === ' ') && dich && dich.hasAttribute && dich.hasAttribute('data-phim') && dich.tagName !== 'BUTTON') {
+    e.preventDefault(); dich.click(); return;
+  }
+  if (e.key === 'Tab' && ov) {
+    var f = Array.prototype.filter.call(ov.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'), function (n) {
+      return !n.disabled && n.offsetParent !== null;
+    });
+    if (!f.length) return;
+    var dau = f[0], cuoi = f[f.length - 1];
+    if (!ov.contains(document.activeElement)) { e.preventDefault(); dau.focus(); }
+    else if (e.shiftKey && document.activeElement === dau) { e.preventDefault(); cuoi.focus(); }
+    else if (!e.shiftKey && document.activeElement === cuoi) { e.preventDefault(); dau.focus(); }
+  }
+}
+function hopGan() {
+  if (typeof MutationObserver === 'undefined' || !document.body || hopGan.da) return;
+  hopGan.da = 1;
+  new MutationObserver(function (ds) {
+    for (var i = 0; i < ds.length; i++) {
+      var them = ds[i].addedNodes, bot = ds[i].removedNodes, j;
+      for (j = 0; j < them.length; j++) {
+        var n = them[j];
+        if (n.nodeType !== 1) continue;
+        if (n.classList.contains('sh')) hopDanhDau(n);
+        else if (n.querySelectorAll) {
+          var t = n.querySelectorAll('.sh');
+          for (var k = 0; k < t.length; k++) hopDanhDau(t[k]);
+          var ov = n.closest && n.closest('.sh');
+          if (ov) hopTenNutDong(ov);
+        }
+      }
+      for (j = 0; j < bot.length; j++) if (bot[j].nodeType === 1 && bot[j].getAttribute && bot[j].getAttribute('data-hop')) hopDaDong(bot[j]);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('keydown', hopPhim, true);
+  document.addEventListener('pointerdown', function (e) { HOP_BAM = e.target && e.target.nodeType === 1 ? e.target : null; }, true);
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.nodeType === 1) HOP_BAM = e.target;
+  }, true);
+}
+try {
+  if (typeof document !== 'undefined') {
+    if (document.body) hopGan();
+    else if (document.addEventListener) document.addEventListener('DOMContentLoaded', hopGan);
+  }
+} catch (e) { }
 
 /* Xin quyền thông báo. CỐ Ý không gọi ngay lúc mở app.
 
@@ -5607,7 +5776,7 @@ function vgbVeGhim() {
     VGB_SUA_GHIM = false;
     w.innerHTML = '<div class="vgbghim vgbgtrong" data-themghim="1">' +
       '<div class="vgbgh"><b>' + vgbUiKy('\ud83d\udccc', 16) + ' Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
-      '<span class="vgbgs vgbgthemn">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
+      '<span class="vgbgs vgbgthemn" role="button" tabindex="0" data-phim="1">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
       '<div class="vgbgm">Ghim t\u1ed1i \u0111a ' + VGB_GHIM_TOI_DA +
       ' \u00f4 b\u1ea1n hay m\u1edf l\u00ean \u0111\u1ea7u trang ch\u1ee7. ' +
       'C\u0169ng ghim \u0111\u01b0\u1ee3c b\u1eb1ng n\u00fat ' + vgbUiKy('\ud83d\udccc', 14) + ' trong k\u1ebft qu\u1ea3 \u00f4 t\u00ecm.</div></div>';
@@ -5632,7 +5801,7 @@ function vgbVeGhim() {
   }
   w.innerHTML = '<div class="vgbghim"><div class="vgbgh">' +
     '<b>' + vgbUiKy('\ud83d\udccc', 16) + ' Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
-    '<span class="vgbgs" data-suaghim="1">' +
+    '<span class="vgbgs" data-suaghim="1" role="button" tabindex="0" data-phim="1">' +
     (VGB_SUA_GHIM ? 'Xong' : 'S\u1eeda ghim') + '</span></div>' +
     '<div class="vgbgl">' + o + '</div></div>';
 }
@@ -13802,7 +13971,7 @@ function isSales() { return hasRole('Sales User') || hasRole('Sales Manager') ||
 function hopKhung(tuaDe, thanHtml, chanHtml) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || '') + '</b><div class="x">&times;</div></div>' +
+  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || '') + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>' +
     '<div class="shl" style="padding:14px 16px 16px">' + thanHtml +
     (chanHtml ? '<div style="display:flex;gap:8px;margin-top:14px">' + chanHtml + '</div>' : '') +
     '</div>';
@@ -13815,21 +13984,21 @@ function hopKhung(tuaDe, thanHtml, chanHtml) {
    luaChon: [{k, nhan, mo_ta}]. Tra ve k, hoac null neu thoi. */
 function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
   return new Promise(function (xong) {
-    var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    var than = (moTa ? '<div style="font-size:var(--ui-fs-15,13.5px);line-height:1.6;color:var(--ui-text-2,#4b5563);margin-bottom:12px">' + moTa + '</div>' : '');
     /* Danh sach dai thi them o tim. Hop chon tai khoan, chon nha cung cap,
        chon nhom tai san deu di qua day, nen mot cho nay lo cho nhieu man. */
     than += vgbOTim('hcTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
       var chon = kDangChon != null && x.k === kDangChon;
-      than += '<div data-hc="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;'
-        + (chon ? 'background:#0f766e;color:#fff' : 'background:#f4f6f9;color:#20242e') + '">'
+      than += '<div data-hc="' + h(String(x.k)) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;'
+        + (chon ? 'background:var(--ui-hc-chon,#0f766e);color:#fff' : 'background:var(--ui-hc-nen,#f4f6f9);color:var(--ui-ink,#20242e)') + '">'
         /* v530: chi ve o bieu tuong khi muc CO bieu tuong. Dau cham mac dinh
            khong noi gi voi nguoi dung (anh Viet 25/09/2026: "nhin mat tham mi
            va khong ro rang"). */
-        + (x.icon ? '<div style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
+        + (x.icon ? '<div class="hcic" style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
         + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:15px;font-weight:700">' + h(x.nhan) + '</div>'
-        + (x.mo_ta ? '<div style="font-size:12.5px;line-height:1.5;margin-top:3px;' + (chon ? 'color:#d6f5f0' : 'color:#6b7280') + '">' + h(x.mo_ta) + '</div>' : '')
+        + (x.mo_ta ? '<div style="font-size:var(--ui-fs-13,12.5px);line-height:1.5;margin-top:3px;' + (chon ? 'color:var(--ui-hc-mo-chon,#d6f5f0)' : 'color:var(--ui-text-3,#6b7280)') + '">' + h(x.mo_ta) + '</div>' : '')
         + '</div></div>';
     });
     var k = hopKhung(tuaDe, than, '<button class="btn gh" data-hcx style="flex:1;margin:0">Thôi</button>');
@@ -13855,17 +14024,17 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
   return new Promise(function (xong) {
     var dang = {};
     (dsDangChon || []).forEach(function (k) { dang[String(k)] = 1; });
-    var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    var than = (moTa ? '<div style="font-size:var(--ui-fs-15,13.5px);line-height:1.6;color:var(--ui-text-2,#4b5563);margin-bottom:12px">' + moTa + '</div>' : '');
     /* Codex #449 P2: hon 8 muc thi phai co o tim (AGENTS.md "Chon la tim"),
        giong hoiChon. Loc theo ten lan mo ta. */
     than += vgbOTim('hcnTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
-      than += '<div data-hcn="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
+      than += '<div data-hcn="' + h(String(x.k)) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
         + '<div data-hcn-o style="flex:0 0 auto;width:22px;height:22px;border-radius:7px;border:2px solid #0f766e;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px"></div>'
-        + (x.icon ? '<div style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
+        + (x.icon ? '<div class="hcic" style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
         + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:15px;font-weight:700">' + h(x.nhan) + '</div>'
-        + (x.mo_ta ? '<div data-hcn-m style="font-size:12.5px;line-height:1.5;margin-top:3px">' + h(x.mo_ta) + '</div>' : '')
+        + (x.mo_ta ? '<div data-hcn-m style="font-size:var(--ui-fs-13,12.5px);line-height:1.5;margin-top:3px">' + h(x.mo_ta) + '</div>' : '')
         + '</div></div>';
     });
     var k = hopKhung(tuaDe, than,
@@ -13876,12 +14045,12 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
       Array.prototype.forEach.call(k.box.querySelectorAll('[data-hcn]'), function (el) {
         var co = !!dang[el.getAttribute('data-hcn')];
         if (co) so++;
-        el.style.background = co ? '#0f766e' : '#f4f6f9';
-        el.style.color = co ? '#fff' : '#20242e';
+        el.style.background = co ? 'var(--ui-hc-chon,#0f766e)' : 'var(--ui-hc-nen,#f4f6f9)';
+        el.style.color = co ? '#fff' : 'var(--ui-ink,#20242e)';
         var o = el.querySelector('[data-hcn-o]');
         if (o) { o.textContent = co ? '✓' : ''; o.style.background = co ? '#fff' : 'transparent'; o.style.color = '#0f766e'; }
         var m = el.querySelector('[data-hcn-m]');
-        if (m) m.style.color = co ? '#d6f5f0' : '#6b7280';
+        if (m) m.style.color = co ? 'var(--ui-hc-mo-chon,#d6f5f0)' : 'var(--ui-text-3,#6b7280)';
       });
       var nut = k.box.querySelector('[data-hcn-xong]');
       if (nut) { nut.style.opacity = so ? '1' : '.45'; nut.textContent = (nhanNut || 'Lưu') + (so ? ' (' + so + ')' : ''); }
@@ -27698,7 +27867,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '680';
+var APPVER = '681';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -53740,7 +53909,7 @@ function tlGan() {
   k.innerHTML =
     '<div id="tlDau"><b>Trợ lý hướng dẫn</b>' +
     '<button id="tlSoTay">Sổ tay</button>' +
-    '<button id="tlDong" aria-label="Dong">&#10005;</button></div>' +
+    '<button id="tlDong" aria-label="Đóng">&#10005;</button></div>' +
     '<div id="tlThan"><div class="tlGoi">Hệ thống trả lời dựa trên tài liệu ' +
     'của chính phần mềm này, về cách dùng từng màn hình và ý nghĩa các câu ' +
     'chặn.<br><br>Hệ thống chưa đọc dữ liệu thật của tiệm, nên không trả lời ' +
@@ -77829,6 +77998,7 @@ var UIB_NET = {
   "zap": "<path d=\"M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z\"/>"
 };
 var UIB_EMOJI = {
+  "×": "x",
   "←": "arrow-left",
   "↑": "arrow-up",
   "→": "arrow-right",
@@ -78054,6 +78224,7 @@ var UIB_EMOJI = {
   "🧍": "person-standing",
   "🧑": "user",
   "🧑‍🍳": "chef-hat",
+  "🧑‍💼": "briefcase",
   "🧩": "puzzle",
   "🧪": "flask-conical",
   "🧭": "compass",
@@ -78113,7 +78284,8 @@ function uiBGiaiThucThe(s) {
 /* Cac o CHI chua mot bieu tuong. May quet thay emoji trong cac o nay bang
    SVG. Chu lan emoji (nut, nhan, tieu de) khong thuoc may quet: tung nhom man
    chuyen o PR 2 den 5. */
-var UIB_O_ICON = '.hi, .gi, .e1, .vgbgi, .vgbgb, .vh .ic';
+/* .shic, .hcic: o bieu tuong cua bang truot sheet() va hop chon hoiChon (Codex UI04). */
+var UIB_O_ICON = '.hi, .gi, .e1, .vgbgi, .vgbgb, .vh .ic, .shic, .hcic, .shh .x, #tlDong';
 
 function uiBThayMot(el) {
   if (!el || el.nodeType !== 1 || el.getAttribute('data-uib')) return;
@@ -78134,7 +78306,118 @@ function uiBQuet(goc) {
     if (goc.matches && goc.matches(UIB_O_ICON)) uiBThayMot(goc);
     var ds = goc.querySelectorAll(UIB_O_ICON);
     for (var i = 0; i < ds.length; i++) uiBThayMot(ds[i]);
+    /* Chu goi y trong o tim bat dau bang emoji kinh lup: bo emoji, ve kinh lup bang
+       bieu tuong chung (lop uitim). Khong doi gia tri o, chi doi chu goi y. */
+    var o = goc.querySelectorAll('input[placeholder], textarea[placeholder]');
+    if (goc.matches && goc.matches('input[placeholder], textarea[placeholder]')) o = [goc].concat(Array.prototype.slice.call(o));
+    for (var j = 0; j < o.length; j++) uiBGoiY(o[j]);
+    var nut = goc.querySelectorAll('.btn, .chip');
+    if (goc.matches && goc.matches('.btn, .chip')) uiBDauNut(goc);
+    for (var q = 0; q < nut.length; q++) uiBDauNut(nut[q]);
   } catch (e) { }
+}
+function uiBGoiY(o) {
+  if (o.getAttribute('data-uib-goi')) return;
+  var g = o.getAttribute('placeholder') || '';
+  var m = /^\s*([\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])\uFE0F?\s*/.exec(g);
+  if (!m) return;
+  o.setAttribute('data-uib-goi', '1');
+  o.setAttribute('placeholder', g.slice(m[0].length));
+  var ten = UIB_EMOJI[m[1]];
+  if (ten === 'search') o.classList.add('uitim');
+}
+
+/* Codex UI02: dat so tren o nhom vao dung cho, theo thu tu buoc cua ban 4 muc 4.
+   Do THAT bang hinh hoc, khong doan theo so ky tu: be rong o doi theo khung may. */
+function uiBSoChong(o, gb) {
+  var r = gb.getBoundingClientRect(), t = o.getBoundingClientRect();
+  if (!r.width) return false;
+  /* So gay dong cung la khong vua: con buoc sau thi thu buoc sau. */
+  if (uiBSoDong(gb) > 1) return true;
+  if (r.left < t.left + 2 || r.right > t.right - 2) return true;
+  var vat = o.classList.contains('vcl') ? (o.querySelector('.gn') || {}).parentElement : o.querySelector('.gi');
+  if (!vat || !vat.getBoundingClientRect) return false;
+  var v = vat.getBoundingClientRect();
+  var chongDoc = r.top < v.bottom && r.bottom > v.top;
+  var chongNgang = r.left < v.right + 8 && r.right > v.left - 8;
+  return chongDoc && chongNgang;
+}
+var UIB_BUOC_SO = ['', 'ui-so-24', 'ui-so-hang', 'ui-so-hang ui-so-24'];
+var UIB_BUOC_SO_VCL = ['', 'ui-so-40', 'ui-so-30', 'ui-so-24', 'ui-so-hang ui-so-24'];
+function uiBVuaSo() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('#vgb .gt .gb');
+  for (var i = 0; i < ds.length; i++) {
+    var gb = ds[i], o = gb.closest('.gt');
+    if (!o) continue;
+    var buoc = o.classList.contains('vcl') ? UIB_BUOC_SO_VCL : UIB_BUOC_SO;
+    var tat = 'ui-so-40 ui-so-30 ui-so-24 ui-so-hang'.split(' ');
+    for (var k = 0; k < buoc.length; k++) {
+      for (var q = 0; q < tat.length; q++) o.classList.remove(tat[q]);
+      if (buoc[k]) buoc[k].split(' ').forEach(function (c) { o.classList.add(c); });
+      if (!gb.textContent.trim() || !uiBSoChong(o, gb)) break;
+    }
+  }
+}
+/* Codex UI03: thanh day co hai nut tro len. Nhan ngan (toi 24 ky tu) phai mot dong;
+   nhan co so tien lon (6 chu so tro len) duoc hai dong. Khong vua thi xep chong. */
+function uiBSoDong(el) {
+  /* Dem dong theo DAI DOC chong nhau, khong theo toa do dinh: bieu tuong canh chu
+     lech vai diem van cung mot dong. */
+  var rg = document.createRange(); rg.selectNodeContents(el);
+  var q = Array.prototype.filter.call(rg.getClientRects(), function (x) { return x.width > 1 && x.height > 4; })
+    .sort(function (a, b) { return a.top - b.top; });
+  var n = 0, day = -1e9;
+  for (var i = 0; i < q.length; i++) {
+    var giua = (q[i].top + q[i].bottom) / 2;
+    if (giua > day) { n++; day = q[i].bottom; } else if (q[i].bottom > day) day = q[i].bottom;
+  }
+  return n;
+}
+function uiBNhanGay(b) {
+  var t = (b.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!t) return false;
+  var n = uiBSoDong(b);
+  if (/\d[\d.,]{5,}/.test(t)) return n > 2;
+  return t.length <= 24 && n > 1;
+}
+function uiBVuaDay() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('.vf');
+  for (var i = 0; i < ds.length; i++) {
+    var hang = ds[i].querySelectorAll('.btn');
+    if (hang.length < 2) continue;
+    var cha = hang[0].parentElement;
+    if (!cha || cha.querySelectorAll(':scope > .btn').length < 2) continue;
+    cha.classList.remove('ui-vf-doc');
+    for (var j = 0; j < hang.length; j++) {
+      if (hang[j].offsetParent !== null && uiBNhanGay(hang[j])) { cha.classList.add('ui-vf-doc'); break; }
+    }
+  }
+}
+/* Emoji dau nhan cua nut va chip (ban 4: khong con emoji trong nut): doi thanh bieu tuong
+   chung, giu nguyen chu. Ma dat lai chu cua nut thi bo theo doi quet lai. */
+var UIB_RE_DAU = /^(\s*)((?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*)\s*/;
+function uiBDauNut(b) {
+  var t = b.firstChild;
+  while (t && t.nodeType === 3 && !t.nodeValue.trim()) t = t.nextSibling;
+  if (!t || t.nodeType !== 3) return;
+  var m = UIB_RE_DAU.exec(t.nodeValue);
+  if (!m) return;
+  var ten = UIB_EMOJI[m[2].replace(/\uFE0F/g, '')];
+  if (!ten) return;
+  var sp = document.createElement('span');
+  sp.className = 'uik uidau';
+  sp.innerHTML = uiBSvg(ten, 20);
+  t.nodeValue = t.nodeValue.slice(m[0].length);
+  b.insertBefore(sp, t);
+}
+var UIB_HEN_SO = 0;
+function uiBHenVuaSo() {
+  if (UIB_HEN_SO) return;
+  UIB_HEN_SO = 1;
+  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(f); else setTimeout(f, 16);
 }
 
 /* Khong gan null o day: uiBTheoDoi co the da chay truoc cau nay (xem BAY THU TU NAP). */
@@ -78146,11 +78429,21 @@ function uiBTheoDoi() {
   UIB_MAT = new MutationObserver(function (ds) {
     for (var i = 0; i < ds.length; i++) {
       var them = ds[i].addedNodes;
-      for (var j = 0; j < them.length; j++) if (them[j].nodeType === 1) uiBQuet(them[j]);
+      for (var j = 0; j < them.length; j++) {
+        if (them[j].nodeType === 1) uiBQuet(them[j]);
+        /* Ma dat lai chu cua nut bang textContent: nut con mot nut chu moi. */
+        else if (them[j].nodeType === 3 && them[j].parentElement) uiBQuet(them[j].parentElement);
+      }
+      if (ds[i].type === 'characterData' && ds[i].target.parentElement) uiBQuet(ds[i].target.parentElement);
     }
+    uiBHenVuaSo();
   });
-  UIB_MAT.observe(goc, { childList: true, subtree: true });
-  uiBQuet(goc);
+  /* Theo doi CA body (Codex UI04): bang truot, hop chon gan vao body, ngoai #vgb. */
+  UIB_MAT.observe(document.body || goc, { childList: true, subtree: true, characterData: true });
+  uiBQuet(document.body || goc);
+  uiBHenVuaSo();
+  try { window.addEventListener('resize', uiBHenVuaSo); } catch (e) { }
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(uiBHenVuaSo); } catch (e) { }
 }
 
 /* Mau nhom trang chu (ban 4 muc 3): co dinh theo nhom, khong luan phien.
@@ -78245,6 +78538,8 @@ function uiBCss() {
     '--ui-fs-13:13px;--ui-fs-15:15px;--ui-fs-17:17px;--ui-fs-20:20px;--ui-fs-24:24px;' +
     '--ui-pad-the:12px 16px;--ui-pad-chan:12px 12px 4px;--ui-kh-8:8px;--ui-kh-16:16px;' +
     '--ui-tap:44px;--ui-btn-h:52px;--ui-moon:40px;--ui-disc:46px;--ui-hbtn:42px;' +
+    /* Hop chon dung chung (07-hop-thoai.js hoiChon, hoiChonNhieu): dong thuong, dong da chon. */
+    '--ui-hc-nen:rgba(255,255,255,.78);--ui-hc-chon:#121619;--ui-hc-mo-chon:rgba(255,255,255,.82);' +
     'color-scheme:light}';
 
   var nen =
@@ -78327,11 +78622,25 @@ function uiBCss() {
     'background:var(--ui-bar);border-top:1px solid rgba(18,22,25,.08);box-shadow:none;' +
     '-webkit-backdrop-filter:blur(var(--ui-blur-bar));backdrop-filter:blur(var(--ui-blur-bar))}' +
     /* "Mat trang" tren nut chinh cua thanh day. */
-    'html.ui-b .vf .btn:not(.gh):not(.dg):not(.gr):not([disabled]){position:relative;padding-left:56px;padding-right:56px}' +
+    /* Codex UI03: vung chu va mat trang tach rieng. Dem trai thuong, dem phai = mat trang + khe;
+       truoc day dem 56 ca hai ben lam hep vung chu, "Thu tien 0 d" xuong dong o 390. */
+    'html.ui-b .vf .btn:not(.gh):not(.dg):not(.gr):not([disabled]){position:relative;padding-left:16px;' +
+    'padding-right:calc(var(--ui-moon) + var(--ui-moon-inset) + 8px)}' +
     'html.ui-b .vf .btn:not(.gh):not(.dg):not(.gr):not([disabled])::after{content:"";position:absolute;right:var(--ui-moon-inset);top:50%;' +
     'width:var(--ui-moon);height:var(--ui-moon);margin-top:-20px;border-radius:var(--ui-r-999);background-color:var(--ui-robin);' +
     'background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23121619\' stroke-width=\'1.8\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'M7 7h10v10\'/%3E%3Cpath d=\'M7 17 17 7\'/%3E%3C/svg%3E");' +
     'background-repeat:no-repeat;background-position:center;background-size:20px 20px}' +
+    /* Thanh day chung (ban 4 muc 4): nut phu rong 38%, nhan dai hon thi no toi 50% roi
+       xuong dong, khong cat; nut chinh lay phan con lai. Mot !important co chu y: 37
+       thanh day dat flex ngay tren the nut (vi du "flex:0 0 34%"), CSS thuong khong de duoc. */
+    'html.ui-b .vf .btn{min-width:0;overflow-wrap:break-word;text-wrap:balance}' +
+    'html.ui-b .vf .btn.gh:not(:only-child){flex:0 1 auto!important;width:auto;min-width:38%;max-width:50%;padding-left:12px;padding-right:12px}' +
+    /* Thieu cho cho nhan mot dong thi xep chong: nut phu tren, nut chinh duoi (gan ngon cai),
+       moi nut rong ca hang. uiBVuaDay() do that va gan lop ui-vf-doc. */
+    'html.ui-b .ui-vf-doc{flex-direction:column!important}' +
+    'html.ui-b .ui-vf-doc>.btn{flex:0 0 auto!important;width:100%;max-width:none!important;min-width:0}' +
+    'html.ui-b .ui-vf-doc>.btn.gh{order:-1}' +
+    'html.ui-b .vf .btn:not(.gh):not(:only-child){flex:1 1 0%!important}' +
     'html.ui-b .fab{background:var(--ui-ink);color:#fff;box-shadow:0 10px 24px rgba(18,22,25,.28);width:56px;height:56px;border-radius:var(--ui-r-999)}';
 
   /* Chip, o nhap, bang truot, tin nhanh */
@@ -78393,7 +78702,18 @@ function uiBCss() {
     'html.ui-b .gt.vcl .gi{position:static;flex:none;background:rgba(255,255,255,.16);color:#fff;box-shadow:none}' +
     'html.ui-b .gt.vcl .gn{color:#fff;font-size:20px;font-weight:700}' +
     'html.ui-b .gt.vcl .gs{color:rgba(255,255,255,.82)}' +
-    'html.ui-b .gt.vcl .gb{right:var(--ui-todo-inset);top:0;bottom:0;height:auto;color:var(--ui-robin);font-size:48px}';
+    'html.ui-b .gt.vcl .gb{right:var(--ui-todo-inset);top:0;bottom:0;height:auto;color:var(--ui-robin);font-size:48px}' +
+    /* Codex UI02: so khong vua cho thi xuong co theo ban 4 muc 4 (Doto 48, 40, 30, roi Be Vietnam
+       Pro 24 dam), van khong vua thi dua so xuong hang rieng rong ca the. KHONG cat so, khong
+       thu nho duoi 24, khong ep chu. uiBVuaSo() do that va gan lop. */
+    'html.ui-b .gt .gb{white-space:nowrap}' +
+    'html.ui-b .gt.ui-so-40 .gb{font-size:40px}html.ui-b .gt.ui-so-30 .gb{font-size:30px}' +
+    'html.ui-b .gt.ui-so-24 .gb{font-family:var(--ui-font);font-size:24px;font-weight:700;letter-spacing:0}' +
+    'html.ui-b .gt.ui-so-hang:not(.vcl){padding-top:calc(var(--ui-tile-title-top) + 36px)}' +
+    'html.ui-b .gt.ui-so-hang .gb{left:var(--ui-tile-inset);top:calc(var(--ui-tile-icon-top) + var(--ui-disc) + 8px);' +
+    'height:auto;justify-content:flex-end;text-align:right;white-space:normal;overflow-wrap:anywhere}' +
+    'html.ui-b .gt.vcl.ui-so-hang{padding-bottom:64px}' +
+    'html.ui-b .gt.vcl.ui-so-hang .gb{top:auto;bottom:14px;left:20px}';
 
   /* Trang chu: o tim, khoi ghim, ket qua tim */
   var ghim =
@@ -78442,7 +78762,24 @@ function uiBCss() {
     'html.ui-b.ui-b-dac .card,html.ui-b.ui-b-dac .gt,html.ui-b.ui-b-dac .vf{-webkit-backdrop-filter:none;backdrop-filter:none}' +
     '@media (prefers-reduced-motion:reduce){html.ui-b #vgb *{transition:none!important;animation:none!important}}';
 
-  return f + bien + nen + dau + than + nut + khac + chu + ghim + uiBCssNhom() + may + dac;
+  /* Hop dung chung (Codex UI04, UI05): bieu tuong trong hop chon, o tim, nut dong, focus. */
+  var hop =
+    'html.ui-b .shic,html.ui-b .hcic{display:inline-flex;align-items:center;justify-content:center;width:24px;flex:none;color:var(--ui-ink)}' +
+    'html.ui-b input.uitim,html.ui-b input.uitim:focus{padding-left:44px;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23596169\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'8\'/%3E%3Cpath d=\'m21 21-4.34-4.34\'/%3E%3C/svg%3E");' +
+    'background-repeat:no-repeat;background-position:14px center;background-size:20px 20px}' +
+    'html.ui-b #tlDong{width:var(--ui-tap);height:var(--ui-tap);border-radius:var(--ui-r-999);font-size:20px;flex:none}' +
+    'html.ui-b #tlSoTay{height:var(--ui-tap);border-radius:var(--ui-r-999);font-size:15px;padding:0 16px}' +
+    'html.ui-b #tlGui{min-height:var(--ui-tap);border-radius:var(--ui-r-999);font-size:15px;padding:0 20px}' +
+    'html.ui-b .sh .x:focus-visible,html.ui-b #tlDong:focus-visible,html.ui-b .btn:focus-visible,html.ui-b .chip:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}' +
+    'html.ui-b .shb:focus{outline:0}' +
+    'html.ui-b .uidau{margin-right:8px;vertical-align:-4px}' +
+    /* Codex #604: bieu tuong lop ve chen vao nut, o, chip KHONG nhan cu bam. 43 ham bam kiem
+       thang e.target (vi du e.target.hasAttribute("data-y")); truoc day emoji la nut chu nen
+       dich van la phan tu cha. Bieu tuong khong nhan cu bam thi dich giu nguyen nhu cu. */
+    'html.ui-b .uii,html.ui-b .uik,html.ui-b .uidau,html.ui-b .uicham{pointer-events:none}' +
+    'html.ui-b [data-hc]:focus-visible,html.ui-b [data-hcn]:focus-visible,html.ui-b [role=button]:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}';
+
+  return f + bien + nen + dau + than + nut + khac + chu + ghim + hop + uiBCssNhom() + may + dac;
 }
 
 /* Goi MOT lan trong __boot, truoc lan ve dau. Doi chieu phien ban HTML voi
@@ -78455,6 +78792,8 @@ function uiBNap() {
   var ui = window.__VGB_UI || {};
   if (String(ui.v || '') !== String(APPVER)) {
     html.classList.remove('ui-b');
+    /* Vo app (vung dong ho) ve mau cu cung luc (Codex UI01). pwaDatMau o phan 00, da gan. */
+    try { if (typeof pwaDatMau === 'function') pwaDatMau(); } catch (e) { }
     try { console.warn('[ui-b] lech phien ban: HTML ' + (ui.v || '?') + ', app ' + APPVER + '. Dung giao dien cu cho lan tai nay.'); } catch (e) { }
     return false;
   }

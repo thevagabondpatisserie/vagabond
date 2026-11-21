@@ -1461,7 +1461,7 @@ function vgbVeGhim() {
     VGB_SUA_GHIM = false;
     w.innerHTML = '<div class="vgbghim vgbgtrong" data-themghim="1">' +
       '<div class="vgbgh"><b>' + vgbUiKy('\ud83d\udccc', 16) + ' Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
-      '<span class="vgbgs vgbgthemn">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
+      '<span class="vgbgs vgbgthemn" role="button" tabindex="0" data-phim="1">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
       '<div class="vgbgm">Ghim t\u1ed1i \u0111a ' + VGB_GHIM_TOI_DA +
       ' \u00f4 b\u1ea1n hay m\u1edf l\u00ean \u0111\u1ea7u trang ch\u1ee7. ' +
       'C\u0169ng ghim \u0111\u01b0\u1ee3c b\u1eb1ng n\u00fat ' + vgbUiKy('\ud83d\udccc', 14) + ' trong k\u1ebft qu\u1ea3 \u00f4 t\u00ecm.</div></div>';
@@ -1486,7 +1486,7 @@ function vgbVeGhim() {
   }
   w.innerHTML = '<div class="vgbghim"><div class="vgbgh">' +
     '<b>' + vgbUiKy('\ud83d\udccc', 16) + ' Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
-    '<span class="vgbgs" data-suaghim="1">' +
+    '<span class="vgbgs" data-suaghim="1" role="button" tabindex="0" data-phim="1">' +
     (VGB_SUA_GHIM ? 'Xong' : 'S\u1eeda ghim') + '</span></div>' +
     '<div class="vgbgl">' + o + '</div></div>';
 }

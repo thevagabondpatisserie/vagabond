@@ -53,7 +53,13 @@ function phanTu(ten) {
 }
 const vgb = phanTu('div'); vgb.id = 'vgb';
 const head = phanTu('head');
-head.appendChild = function (c) { if (c.id === 'vgbUiB') theStyle.push(c); this.children.push(c); return c; };
+/* Máy chủ đã chèn meta màu vỏ app của giao diện mới (giao_dien.dau_trang_html). */
+let metaVo = phanTu('meta'); metaVo.name = 'theme-color'; metaVo.content = '#EAF4F3';
+head.appendChild = function (c) {
+  if (c.id === 'vgbUiB') theStyle.push(c);
+  if (c.name === 'theme-color') metaVo = c;
+  this.children.push(c); return c;
+};
 const html = phanTu('html');
 html.classList = { contains: (c) => lop.has(c), add: (c) => lop.add(c), remove: (c) => lop.delete(c), toggle: () => { } };
 const document = new Proxy({
@@ -61,12 +67,22 @@ const document = new Proxy({
   documentElement: html, head: head, body: phanTu('body'),
   createElement: phanTu, createElementNS: (n, t) => phanTu(t),
   getElementById: (id) => id === 'vgb' ? vgb : (id === 'vgbUiB' ? (theStyle[0] || null) : null),
-  querySelector: () => null, querySelectorAll: () => [],
+  querySelector: (q) => (/theme-color/.test(q) ? metaVo : null), querySelectorAll: () => [],
   addEventListener() { }, removeEventListener() { },
   cookie: '', title: '', visibilityState: 'visible', hidden: false,
 }, { get(t, k) { return k in t ? t[k] : bong(); } });
 
-class MutationObserver { constructor() { soTheoDoi++; } observe() { } disconnect() { } }
+/* Đếm riêng bộ theo dõi của giao diện mới (tạo trong uiBTheoDoi). Bộ theo dõi hộp dùng chung
+   (hopGan, phần 00) chạy ở cả hai giao diện, đếm riêng để ca biết nó cũng chỉ một. */
+let soTheoDoiHop = 0;
+class MutationObserver {
+  constructor() {
+    const ngan = String(new Error().stack || '');
+    if (/uiBTheoDoi/.test(ngan)) soTheoDoi++;
+    else if (/hopGan/.test(ngan)) soTheoDoiHop++;
+  }
+  observe() { } disconnect() { }
+}
 const cuaSo = {
   document, MutationObserver, console: { log() { }, warn() { }, error() { }, info() { } },
   __VGB_UI: { b: 1, v: cheDo === 'lech' ? '1' : appver },
@@ -90,5 +106,5 @@ catch (e) { loi = String(e && e.message || e); }
 choLoad.forEach((f) => { try { f(); } catch (e) { loi = loi || String(e && e.message || e); } });
 Promise.resolve().then(() => Promise.resolve()).then(() => {
   const css = theStyle.map((s) => s.textContent).join('');
-  console.log(JSON.stringify({ loi, appver, so_the: theStyle.length, so_theo_doi: soTheoDoi, co_lop: lop.has('ui-b'), css_dai: css.length, css }));
+  console.log(JSON.stringify({ loi, appver, so_the: theStyle.length, so_theo_doi: soTheoDoi, co_lop: lop.has('ui-b'), so_theo_doi_hop: soTheoDoiHop, mau_vo: metaVo && metaVo.content, css_dai: css.length, css }));
 });
