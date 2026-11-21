@@ -93,5 +93,56 @@ module.exports = [
       var v = document.getElementById('vgbSoVCL');
       if (v) { v.textContent = '99+'; v.style.display = ''; }
     });
-    await t.waitForTimeout(200); } }
+    await t.waitForTimeout(200); } },
+  /* Codex #604: biểu tượng lớp vẽ chèn vào nút không được đổi đích cú bấm. Dựng hộp giống
+     mfgSheetHoanTat (05-san-xuat.js): hàm bấm kiểm THẲNG e.target.hasAttribute('data-y'). Bấm
+     đúng vào biểu tượng rồi vào chữ, cả hai phải chạy hành động. */
+  { ten: 'bam-bieu-tuong', cho: '.gwrap', pham_vi: '#thuBam', mo: async function (t) {
+    await t.evaluate(function () {
+      window.__bam = 0;
+      var ov = document.createElement('div'); ov.className = 'sh'; ov.id = 'thuBam';
+      ov.innerHTML = '<div class="shb" style="padding:18px 16px"><div style="font-weight:700;margin-bottom:8px">Hoàn tất lệnh</div>' +
+        '<button class="btn gr" data-y>✅ Hoàn tất</button></div>';
+      ov.onclick = function (e) { if (e.target.hasAttribute('data-y')) window.__bam++; };
+      document.body.appendChild(ov);
+    });
+    await t.waitForTimeout(150); },
+    kiem: async function (t, bat) {
+      var loi = [];
+      var bt = await t.evaluate(function () {
+        var b = document.querySelector('#thuBam [data-y]'), ic = b.querySelector('.uidau'), rb = b.getBoundingClientRect();
+        var ri = ic ? ic.getBoundingClientRect() : null;
+        return { coIc: !!ic, ix: ri ? ri.left + ri.width / 2 : rb.left + 30, iy: ri ? ri.top + ri.height / 2 : rb.top + rb.height / 2, cx: rb.right - 20, cy: rb.top + rb.height / 2 };
+      });
+      if (bat && !bt.coIc) loi.push('emoji đầu nút chưa đổi thành biểu tượng');
+      await t.mouse.click(bt.ix, bt.iy);
+      var n1 = await t.evaluate(function () { return window.__bam; });
+      await t.mouse.click(bt.cx, bt.cy);
+      var n2 = await t.evaluate(function () { return window.__bam; });
+      if (n1 !== 1) loi.push('bấm vào biểu tượng của nút không chạy hành động (đếm ' + n1 + ')');
+      if (n2 !== 2) loi.push('bấm vào chữ của nút không chạy hành động (đếm ' + n2 + ')');
+      return loi;
+    } },
+  /* Codex #604: phần tử vai trò nút có xử lý phím RIÊNG (như tiêu đề dài của đầu trang ui-b,
+     uiBDauTrang ở 81-ui-b.js) thì bộ phím chung của hộp không được bấm hộ thêm. Dựng lại đúng
+     cách uiBDauTrang gắn: role=button, tabindex, aria-expanded, onclick và onkeydown cùng đổi. */
+  { ten: 'phim-rieng', cho: '.gwrap', pham_vi: '#thuPhim', mo: async function (t) {
+    await t.evaluate(function () {
+      var w = document.createElement('div'); w.id = 'thuPhim';
+      w.setAttribute('style', 'position:fixed;left:12px;right:12px;top:120px;z-index:60;background:#fff;padding:12px');
+      w.innerHTML = '<b role="button" tabindex="0" aria-expanded="false" style="display:block;min-height:44px;font-size:17px">Tiêu đề dài bấm để mở</b>';
+      var b = w.querySelector('b');
+      var doi = function () { var mo = b.classList.toggle('mo'); b.setAttribute('aria-expanded', mo ? 'true' : 'false'); };
+      b.onclick = doi;
+      b.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); doi(); } };
+      document.body.appendChild(w);
+    }); },
+    kiem: async function (t) {
+      await t.focus('#thuPhim b');
+      await t.keyboard.press('Enter');
+      var a1 = await t.getAttribute('#thuPhim b', 'aria-expanded');
+      await t.keyboard.press('Enter');
+      var a2 = await t.getAttribute('#thuPhim b', 'aria-expanded');
+      return (a1 === 'true' && a2 === 'false') ? [] : ['Enter trên nút có phím riêng: lần 1 ' + a1 + ', lần 2 ' + a2 + ' (phải true rồi false)'];
+    } }
 ];

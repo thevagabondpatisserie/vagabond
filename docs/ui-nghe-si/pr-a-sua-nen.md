@@ -31,12 +31,16 @@ Kịch bản thêm trong `cong_cu/ui_b/kich_ban.cjs`:
 | `tro-ly` | Hộp Trợ lý: nút đóng 44, tên "Đóng" | Mở bằng nút đầu trang (mới) hoặc nút nổi (cũ) |
 | `thanh-day` | Bốn thanh đáy dựng lại đúng markup Tính tiền 0 đ, Tính tiền 12.345.000 đ, Đối soát, một nút | Phép thử thành phần, không thay kịch bản màn Tính tiền (PR 2) |
 | `so-tren-o` | Số 0, 9, 99, 999, 1339, 12345, 99999, 1234567 trên ô nhóm, 99+ trên Việc cần làm | |
+| `bam-bieu-tuong` | Codex #604: hộp giống Hoàn tất lệnh sản xuất, hàm bấm kiểm thẳng `data-y`; bấm vào biểu tượng rồi vào chữ đều chạy hành động | Biểu tượng lớp vẽ không nhận cú bấm (43 hàm bấm kiểm thẳng đích sự kiện) |
+| `phim-rieng` | Codex #604: phần tử vai trò nút có xử lý phím riêng (như tiêu đề dài ở đầu trang): mỗi lần Enter đổi trạng thái đúng một lần | Bộ phím chung chỉ bấm hộ phần tử mang `data-phim` |
 
 Phép đo thêm trong `cong_cu/ui_b/chup.cjs`: màu vỏ app theo chế độ; số chồng biểu tượng, ra khỏi ô, gãy dòng; chữ bị cắt trong lớp cha có cắt tràn; nhãn ngắn của nút, chip xuống dòng; nút đóng thiếu vai trò hoặc tên; emoji ở mọi chữ của app và hộp; vùng bấm của thành phần dựng thử. Máy chụp mặc định nạp app sau sự kiện load như trang thật.
 
 Thử phá máy kiểm (21/11, khung 390): nút cao 38, chữ 12, chip tràn tới x446 trong thẻ: máy báo đủ ba lỗi. Trên mã main v680 các kịch bản mới trượt đúng lỗi Codex báo (1339 chồng 2,4px ở 360; "Thu tiền 0 đ" hai dòng; nút đóng Trợ lý "Dong"; màu vỏ `#50DBF2`).
 
 ## Còn lại, ghi thật
+
+- Ảnh màn Tài khoản chế độ tắt ở 1366 chập chờn sẵn trên main: chụp năm lần bản main ra một lần khác (nút Đăng xuất lệch 2px). Không do PR này; cần làm máy chụp chờ ổn định hơn ở PR sau.
 
 - Chưa kiểm máy thật: Safari và app ngoài màn hình chính trên iPhone (UI01), Android, bàn phím ảo, vùng an toàn, cỡ chữ hệ thống.
 - Chưa kiểm vai quầy, bếp, kho, kế toán: kịch bản PR A dùng vai quản trị.

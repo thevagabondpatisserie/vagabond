@@ -282,6 +282,8 @@ function chonMan() {
   var la = ten.filter(function (t) { return !MAN.some(function (m) { return m.ten === t; }); });
   if (la.length) { console.log('KHÔNG CÓ màn: ' + la.join(', ') + '. Màn có sẵn: ' + MAN.map(function (m) { return m.ten; }).join(', ')); process.exit(1); }
   if (NAP !== 'sau-load' && NAP !== 'thang') { console.log('--nap chỉ nhận sau-load hoặc thang.'); process.exit(1); }
+  /* Chế độ lạ (ví dụ "bat,tat") từng chạy như chế độ tắt và báo Đạt mà không kiểm gì của giao diện mới. */
+  if (CHE_DO.some(function (c) { return c !== 'bat' && c !== 'tat'; })) { console.log('--che-do chỉ nhận bat, tat hoặc ca-hai, nhận được: ' + CHE_DO.join(',')); process.exit(1); }
   if (KHUNG.some(function (k) { return !(k.w > 0 && k.h > 0); })) { console.log('Khung không hợp lệ, viết dạng 390x844.'); process.exit(1); }
   var ds = MAN.filter(function (m) { return !ten.length || ten.indexOf(m.ten) >= 0; });
   if (!ds.length) { console.log('KHÔNG CÓ màn nào để chụp.'); process.exit(1); }

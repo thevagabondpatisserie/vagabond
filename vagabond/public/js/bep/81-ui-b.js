@@ -1005,6 +1005,10 @@ function uiBCss() {
     'html.ui-b .sh .x:focus-visible,html.ui-b #tlDong:focus-visible,html.ui-b .btn:focus-visible,html.ui-b .chip:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}' +
     'html.ui-b .shb:focus{outline:0}' +
     'html.ui-b .uidau{margin-right:8px;vertical-align:-4px}' +
+    /* Codex #604: bieu tuong lop ve chen vao nut, o, chip KHONG nhan cu bam. 43 ham bam kiem
+       thang e.target (vi du e.target.hasAttribute("data-y")); truoc day emoji la nut chu nen
+       dich van la phan tu cha. Bieu tuong khong nhan cu bam thi dich giu nguyen nhu cu. */
+    'html.ui-b .uii,html.ui-b .uik,html.ui-b .uidau,html.ui-b .uicham{pointer-events:none}' +
     'html.ui-b [data-hc]:focus-visible,html.ui-b [data-hcn]:focus-visible,html.ui-b [role=button]:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}';
 
   return f + bien + nen + dau + than + nut + khac + chu + ghim + hop + uiBCssNhom() + may + dac;

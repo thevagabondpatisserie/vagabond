@@ -3395,7 +3395,7 @@ async function itemByBarcode(code) {
 function sheet(title, items, cur, onPick, searchable) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng">&times;</div></div>';
+  var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>';
   if (searchable) hd += '<div style="padding:10px 14px 4px;display:flex;gap:8px"><input class="nt" placeholder="Tìm nhanh..." style="height:46px;padding:0 12px;flex:1"><button class="nt" id="shQuet" title="Quét mã vạch" style="height:46px;width:54px;flex:none;font-size:20px;cursor:pointer">&#128247;</button></div>';
   box.innerHTML = hd + '<div class="shl"></div>';
   var lst = box.querySelector('.shl');
@@ -3602,7 +3602,8 @@ function hopTenNutDong(goc) {
   var ds = goc.querySelectorAll('.x, .shh .x');
   for (var i = 0; i < ds.length; i++) {
     var x = ds[i];
-    if (x.tagName !== 'BUTTON' && !x.getAttribute('role')) x.setAttribute('role', 'button');
+    /* data-phim: phan tu do bo nay gan vai tro nut, nen bo nay lo phim Enter, Space cho no. */
+    if (x.tagName !== 'BUTTON' && !x.getAttribute('role')) { x.setAttribute('role', 'button'); x.setAttribute('data-phim', '1'); }
     if (x.tagName !== 'BUTTON' && !x.hasAttribute('tabindex')) x.setAttribute('tabindex', '0');
     if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', 'Đóng');
   }
@@ -3653,7 +3654,9 @@ function hopPhim(e) {
     return;
   }
   var dich = e.target;
-  if ((e.key === 'Enter' || e.key === ' ') && dich && dich.getAttribute && dich.getAttribute('role') === 'button' && dich.tagName !== 'BUTTON') {
+  /* Codex #604: chi bam ho phan tu mang data-phim (khong co xu ly phim rieng). Phan tu co
+     onkeydown rieng (vi du tieu de dai o dau trang ui-b) tu lo, bam ho la doi trang thai hai lan. */
+  if ((e.key === 'Enter' || e.key === ' ') && dich && dich.hasAttribute && dich.hasAttribute('data-phim') && dich.tagName !== 'BUTTON') {
     e.preventDefault(); dich.click(); return;
   }
   if (e.key === 'Tab' && ov) {
@@ -5773,7 +5776,7 @@ function vgbVeGhim() {
     VGB_SUA_GHIM = false;
     w.innerHTML = '<div class="vgbghim vgbgtrong" data-themghim="1">' +
       '<div class="vgbgh"><b>' + vgbUiKy('\ud83d\udccc', 16) + ' Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
-      '<span class="vgbgs vgbgthemn" role="button" tabindex="0">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
+      '<span class="vgbgs vgbgthemn" role="button" tabindex="0" data-phim="1">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
       '<div class="vgbgm">Ghim t\u1ed1i \u0111a ' + VGB_GHIM_TOI_DA +
       ' \u00f4 b\u1ea1n hay m\u1edf l\u00ean \u0111\u1ea7u trang ch\u1ee7. ' +
       'C\u0169ng ghim \u0111\u01b0\u1ee3c b\u1eb1ng n\u00fat ' + vgbUiKy('\ud83d\udccc', 14) + ' trong k\u1ebft qu\u1ea3 \u00f4 t\u00ecm.</div></div>';
@@ -5798,7 +5801,7 @@ function vgbVeGhim() {
   }
   w.innerHTML = '<div class="vgbghim"><div class="vgbgh">' +
     '<b>' + vgbUiKy('\ud83d\udccc', 16) + ' Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
-    '<span class="vgbgs" data-suaghim="1" role="button" tabindex="0">' +
+    '<span class="vgbgs" data-suaghim="1" role="button" tabindex="0" data-phim="1">' +
     (VGB_SUA_GHIM ? 'Xong' : 'S\u1eeda ghim') + '</span></div>' +
     '<div class="vgbgl">' + o + '</div></div>';
 }
@@ -13968,7 +13971,7 @@ function isSales() { return hasRole('Sales User') || hasRole('Sales Manager') ||
 function hopKhung(tuaDe, thanHtml, chanHtml) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || '') + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng">&times;</div></div>' +
+  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || '') + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>' +
     '<div class="shl" style="padding:14px 16px 16px">' + thanHtml +
     (chanHtml ? '<div style="display:flex;gap:8px;margin-top:14px">' + chanHtml + '</div>' : '') +
     '</div>';
@@ -13987,7 +13990,7 @@ function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
     than += vgbOTim('hcTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
       var chon = kDangChon != null && x.k === kDangChon;
-      than += '<div data-hc="' + h(String(x.k)) + '" role="button" tabindex="0" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;'
+      than += '<div data-hc="' + h(String(x.k)) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;'
         + (chon ? 'background:var(--ui-hc-chon,#0f766e);color:#fff' : 'background:var(--ui-hc-nen,#f4f6f9);color:var(--ui-ink,#20242e)') + '">'
         /* v530: chi ve o bieu tuong khi muc CO bieu tuong. Dau cham mac dinh
            khong noi gi voi nguoi dung (anh Viet 25/09/2026: "nhin mat tham mi
@@ -14026,7 +14029,7 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
        giong hoiChon. Loc theo ten lan mo ta. */
     than += vgbOTim('hcnTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
-      than += '<div data-hcn="' + h(String(x.k)) + '" role="button" tabindex="0" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
+      than += '<div data-hcn="' + h(String(x.k)) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
         + '<div data-hcn-o style="flex:0 0 auto;width:22px;height:22px;border-radius:7px;border:2px solid #0f766e;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px"></div>'
         + (x.icon ? '<div class="hcic" style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
         + '<div style="flex:1;min-width:0">'
@@ -78770,6 +78773,10 @@ function uiBCss() {
     'html.ui-b .sh .x:focus-visible,html.ui-b #tlDong:focus-visible,html.ui-b .btn:focus-visible,html.ui-b .chip:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}' +
     'html.ui-b .shb:focus{outline:0}' +
     'html.ui-b .uidau{margin-right:8px;vertical-align:-4px}' +
+    /* Codex #604: bieu tuong lop ve chen vao nut, o, chip KHONG nhan cu bam. 43 ham bam kiem
+       thang e.target (vi du e.target.hasAttribute("data-y")); truoc day emoji la nut chu nen
+       dich van la phan tu cha. Bieu tuong khong nhan cu bam thi dich giu nguyen nhu cu. */
+    'html.ui-b .uii,html.ui-b .uik,html.ui-b .uidau,html.ui-b .uicham{pointer-events:none}' +
     'html.ui-b [data-hc]:focus-visible,html.ui-b [data-hcn]:focus-visible,html.ui-b [role=button]:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}';
 
   return f + bien + nen + dau + than + nut + khac + chu + ghim + hop + uiBCssNhom() + may + dac;

@@ -1049,7 +1049,7 @@ async function itemByBarcode(code) {
 function sheet(title, items, cur, onPick, searchable) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng">&times;</div></div>';
+  var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>';
   if (searchable) hd += '<div style="padding:10px 14px 4px;display:flex;gap:8px"><input class="nt" placeholder="Tìm nhanh..." style="height:46px;padding:0 12px;flex:1"><button class="nt" id="shQuet" title="Quét mã vạch" style="height:46px;width:54px;flex:none;font-size:20px;cursor:pointer">&#128247;</button></div>';
   box.innerHTML = hd + '<div class="shl"></div>';
   var lst = box.querySelector('.shl');
@@ -1256,7 +1256,8 @@ function hopTenNutDong(goc) {
   var ds = goc.querySelectorAll('.x, .shh .x');
   for (var i = 0; i < ds.length; i++) {
     var x = ds[i];
-    if (x.tagName !== 'BUTTON' && !x.getAttribute('role')) x.setAttribute('role', 'button');
+    /* data-phim: phan tu do bo nay gan vai tro nut, nen bo nay lo phim Enter, Space cho no. */
+    if (x.tagName !== 'BUTTON' && !x.getAttribute('role')) { x.setAttribute('role', 'button'); x.setAttribute('data-phim', '1'); }
     if (x.tagName !== 'BUTTON' && !x.hasAttribute('tabindex')) x.setAttribute('tabindex', '0');
     if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', 'Đóng');
   }
@@ -1307,7 +1308,9 @@ function hopPhim(e) {
     return;
   }
   var dich = e.target;
-  if ((e.key === 'Enter' || e.key === ' ') && dich && dich.getAttribute && dich.getAttribute('role') === 'button' && dich.tagName !== 'BUTTON') {
+  /* Codex #604: chi bam ho phan tu mang data-phim (khong co xu ly phim rieng). Phan tu co
+     onkeydown rieng (vi du tieu de dai o dau trang ui-b) tu lo, bam ho la doi trang thai hai lan. */
+  if ((e.key === 'Enter' || e.key === ' ') && dich && dich.hasAttribute && dich.hasAttribute('data-phim') && dich.tagName !== 'BUTTON') {
     e.preventDefault(); dich.click(); return;
   }
   if (e.key === 'Tab' && ov) {

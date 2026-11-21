@@ -15,7 +15,7 @@
 function hopKhung(tuaDe, thanHtml, chanHtml) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || '') + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng">&times;</div></div>' +
+  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || '') + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>' +
     '<div class="shl" style="padding:14px 16px 16px">' + thanHtml +
     (chanHtml ? '<div style="display:flex;gap:8px;margin-top:14px">' + chanHtml + '</div>' : '') +
     '</div>';
@@ -34,7 +34,7 @@ function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
     than += vgbOTim('hcTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
       var chon = kDangChon != null && x.k === kDangChon;
-      than += '<div data-hc="' + h(String(x.k)) + '" role="button" tabindex="0" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;'
+      than += '<div data-hc="' + h(String(x.k)) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;'
         + (chon ? 'background:var(--ui-hc-chon,#0f766e);color:#fff' : 'background:var(--ui-hc-nen,#f4f6f9);color:var(--ui-ink,#20242e)') + '">'
         /* v530: chi ve o bieu tuong khi muc CO bieu tuong. Dau cham mac dinh
            khong noi gi voi nguoi dung (anh Viet 25/09/2026: "nhin mat tham mi
@@ -73,7 +73,7 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
        giong hoiChon. Loc theo ten lan mo ta. */
     than += vgbOTim('hcnTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
-      than += '<div data-hcn="' + h(String(x.k)) + '" role="button" tabindex="0" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
+      than += '<div data-hcn="' + h(String(x.k)) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:var(--ui-r-18,14px);margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
         + '<div data-hcn-o style="flex:0 0 auto;width:22px;height:22px;border-radius:7px;border:2px solid #0f766e;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px"></div>'
         + (x.icon ? '<div class="hcic" style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
         + '<div style="flex:1;min-width:0">'
