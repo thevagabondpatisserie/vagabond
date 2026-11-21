@@ -846,6 +846,59 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.ok(quyTac>0,'luật chung cho mọi ô nhập có mặt');
     await c.close();
   });
+  await test('F51 Codex #603: hộp Mẫu cờ và hộp Hỏi bỏ chiếc giữ con trỏ trong hộp, Tab quay vòng, Escape đóng hộp mà bảng vẫn mở, con trỏ về đúng nút đã mở',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const p=await c.newPage();const loi=[];p.on('pageerror',e=>loi.push(e.message));
+    await p.goto(url+'/web_moi/banh#/banh/candle');await p.locator('#s-cta').waitFor({state:'visible'});
+    await p.locator('#s-cta').click();await p.locator('#bar .go').click();
+    await p.locator('#checkout.open').waitFor();
+    const hien=()=>p.evaluate(()=>{const a=document.activeElement;return {id:a&&a.id,hop:a?(a.closest('#mauCo,#hoiBo')||{}).id||'':'',lop:a&&a.className}});
+    /* Mẫu cờ: bấm hình cờ, con trỏ vào hộp, Tab và Shift+Tab không lọt ra bảng phía sau. */
+    const nutMau=p.locator('.lc-mau').first();
+    await nutMau.focus();await nutMau.press('Enter');
+    await p.locator('#mauCo').waitFor({state:'visible'});
+    assert.equal((await hien()).hop,'mauCo','mở hộp Mẫu cờ thì con trỏ vào hộp');
+    for(let i=0;i<4;i++){await p.keyboard.press('Tab');assert.equal((await hien()).hop,'mauCo','Tab lần '+(i+1)+' vẫn trong hộp');}
+    await p.keyboard.press('Shift+Tab');assert.equal((await hien()).hop,'mauCo','Shift+Tab vẫn trong hộp');
+    await p.keyboard.press('Escape');await p.locator('#mauCo').waitFor({state:'hidden'});
+    assert.equal(await p.locator('#checkout.open').count(),1,'Escape chỉ đóng hộp, bảng thanh toán vẫn mở');
+    assert.match(String((await hien()).lop),/lc-mau/,'con trỏ về đúng hình cờ đã mở hộp');
+    /* Hỏi bỏ chiếc: chiếc thứ hai có lời chúc, bấm Bớt 1 thì hộp hỏi lại; Escape là Giữ lại. */
+    await p.getByRole('button',{name:'Thêm 1'}).first().click();
+    await p.locator('.lc-the').nth(1).waitFor();
+    await p.locator('.lc-the').nth(1).locator('.lc-o input').fill('Mừng sinh nhật');
+    const bot=p.getByRole('button',{name:'Bớt 1'}).first();
+    await bot.focus();await bot.press('Enter');
+    await p.locator('#hoiBo').waitFor({state:'visible'});
+    assert.equal((await hien()).hop,'hoiBo','mở hộp hỏi thì con trỏ vào hộp');
+    for(let i=0;i<3;i++){await p.keyboard.press('Tab');assert.equal((await hien()).hop,'hoiBo','Tab vẫn trong hộp hỏi');}
+    await p.keyboard.press('Escape');await p.locator('#hoiBo').waitFor({state:'hidden'});
+    assert.equal(await p.locator('#checkout.open').count(),1,'Escape ở hộp hỏi không đóng bảng thanh toán');
+    assert.equal(await p.locator('.lc-the').count(),2,'Escape là Giữ lại, chiếc thứ hai còn nguyên');
+    assert.equal(await p.evaluate(()=>document.activeElement&&document.activeElement.getAttribute('aria-label')),'Bớt 1','con trỏ về nút Bớt 1');
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
+  await test('F52 v681 ảnh trên trang đổi ở trình biên tập: mẫu cờ và thiệp nhỏ hiện ảnh Marketing tải lên, ảnh lạ không lọt',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const p=await c.newPage();
+    await p.route('**/api/method/vagabond.noi_dung_web.cong_khai*',async r=>{
+      const d=await (await r.fetch()).json();
+      Object.assign(d.message.nhan,{anh_co_mau:'/files/co-moi.webp',anh_thiep_nho:'/files/thiep-moi.png',anh_pk_hop_banh:'https://la.example/x.png'});
+      return r.fulfill({json:d});
+    });
+    await p.goto(url+'/web_moi/banh#/banh/candle');await p.locator('#s-cta').waitFor({state:'visible'});
+    assert.doesNotMatch(await p.locator('#s-acc img').first().getAttribute('src'),/la\.example/,'link ngoài không lọt vào ảnh Hộp bánh');
+    await p.locator('#s-cta').click();await p.locator('#bar .go').click();await p.locator('#checkout.open').waitFor();
+    assert.match(await p.locator('.lc-mau img').first().getAttribute('src'),/\/files\/co-moi\.webp$/);
+    await p.getByRole('radio',{name:'Cần thiệp',exact:true}).first().click();
+    assert.match(await p.locator('[data-thiep="nho"] .th-anh img').first().getAttribute('src'),/\/files\/thiep-moi\.png$/);
+    await p.locator('.lc-mau').first().click();await p.locator('#mauCo').waitFor({state:'visible'});
+    assert.match(await p.locator('#mauCo .mc-anh').getAttribute('src'),/\/files\/co-moi\.webp$/);
+    await c.close();
+  });
   await test('F48 v658 Vé sự kiện: trả lời muộn của sự kiện A không hiện mã vé ở sheet sự kiện B; mở lại A thấy đúng mã',async()=>{
     const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,timezoneId:'Asia/Ho_Chi_Minh'});
     await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
