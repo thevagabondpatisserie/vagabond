@@ -483,3 +483,4 @@ vagabond.patches.v678_tin_chuyen_khoan
 vagabond.patches.v678_voucher_grab
 vagabond.patches.dong_bo_cau_truc #v678
 vagabond.patches.dong_bo_cau_truc #v679
+vagabond.patches.dong_bo_cau_truc #v680
