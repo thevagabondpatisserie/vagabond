@@ -56,6 +56,14 @@ export function t(khoa, macDinh, thay) {
     (thay && Object.prototype.hasOwnProperty.call(thay, k) ? String(thay[k]) : goc)));
 }
 
+/* v681 (anh Việt 21/11/2026): ảnh nhỏ của trang sửa ở trình biên tập (ô ảnh trong
+   sổ nhãn, cờ "anh"). Chỉ nhận đường dẫn /files/ PNG, JPG, WebP; còn lại dùng ảnh có sẵn. */
+const RE_ANH_WEB = /^\/files\/[A-Za-z0-9][A-Za-z0-9._-]{0,150}\.(?:png|jpe?g|webp)$/;
+export function anhWeb(khoa, macDinh) {
+  const v = ND.nhan[khoa];
+  return typeof v === 'string' && RE_ANH_WEB.test(v) ? v : (macDinh || '');
+}
+
 /* Chữ riêng của một món (tên, mô tả, tầng hương, khẩu phần, nhãn mùa). */
 export function tMon(ma, truong, macDinh) {
   const nd = ND.san_pham || {};

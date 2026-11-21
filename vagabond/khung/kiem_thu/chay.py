@@ -313,6 +313,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_in_hoa_don_680,
 	# v680 mã chứng từ chung MÃ-yymmdd-nnnnnn từ 01/12/2026.
 	thu_ma_chung_tu_680,
+	# v681 lời chúc, cờ, thiệp theo từng chiếc bánh và ghi chú chọn nhanh của đơn web.
+	thu_chiec_banh_681,
 	# v668 Gợi ý mua thêm: luật tồn, ghép, xếp hạng, đo, mức giữ tại bếp, bản nháp.
 	thu_goi_y_mua_668,
 	# v659 tờ chia nhiều cách trả: chỉ đòi ngân hàng phần Chuyển khoản (Loan Anh 14/11, đơn 97492).

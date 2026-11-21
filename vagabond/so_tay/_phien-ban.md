@@ -12,6 +12,13 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v681
+- Web đặt bánh: lời chúc và thiệp chọn cho từng chiếc bánh
+- Web đặt bánh: ghi chú chọn nhanh cho bếp và người giao
+- Web đặt bánh: thẻ tóm tắt đơn và cách thanh toán
+- Biên tập web: thay ảnh mẫu cờ, thiệp, phụ kiện và nến số
+- Trang chọn bánh: dòng Mua thêm phụ kiện và chữ mới của trang Thông tin đơn hàng
+
 ## v680
 - Hoá đơn in: mã voucher Grab, lề hai bên, mã QR nhỏ hơn
 - Mã chứng từ từ 01/12/2026: tiền tố, năm tháng ngày, số thứ tự

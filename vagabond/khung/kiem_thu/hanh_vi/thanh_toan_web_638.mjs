@@ -12,7 +12,7 @@
    Chạy: node vagabond/khung/kiem_thu/hanh_vi/thanh_toan_web_638.mjs */
 import {createRenderer, nextTick} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
-import {PAYS} from '../../../public/web_vue/banh/du-lieu.js';
+import {PAYS, LOGO_TT} from '../../../public/web_vue/banh/du-lieu.js';
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
 import {DongChu} from '../../../public/web_vue/banh/thanh-phan.js';
 import {t, tMon} from '../../../public/web_vue/kho/chu.js';
@@ -56,7 +56,8 @@ const cho = async () => { for (let i = 0; i < 4; i++) { await nextTick(); await 
 function go(n, gt) { n.value = gt; (n.nghe.input || []).forEach(f => f({target: n})); }
 
 /* ---------- bước đặt bánh: cắt đúng khuôn MAU ---------- */
-const TT = MAU.slice(MAU.indexOf('<div id="payList">'), MAU.indexOf('<div class="sum" id="sum">'));
+/* v681: dòng thanh toán mới (biểu tượng, tên, logo, nút tròn) và thẻ tóm tắt mới. */
+const TT = MAU.slice(MAU.indexOf('<div id="payList"'), MAU.indexOf('<div class="sum the-tt" id="sum">'));
 const CANH = MAU.match(/<div class="warn" id="warn">[\s\S]*?<\/div>/)[0];
 dung('cắt được khối thanh toán', TT.includes('payList') && TT.includes('f-gt'));
 
@@ -74,7 +75,7 @@ function moiTruong(mang = {}, gio = '2026-10-11T08:00:00') {
 }
 async function veBuocDat(kho) {
   const goc = nut('goc');
-  createApp({template: '<div>' + TT + CANH + '</div>', components: {DongChu}, setup: () => ({S: kho.S, kho, t, PAYS})}).mount(goc);
+  createApp({template: '<div>' + TT + CANH + '</div>', components: {DongChu}, setup: () => ({S: kho.S, kho, t, PAYS, LOGO_TT})}).mount(goc);
   await cho();
   return goc;
 }
@@ -88,8 +89,11 @@ await ca('Bước đặt bánh (v675 chỉ trả trước, không còn Tiền m�
     const goc = await veBuocDat(kho);
     la('các cách khi onepay=' + bat, nutPt(goc), can);
     tim(theoId(goc, 'payList'), n => n.the === 'button').forEach(b => {
-      la('mỗi nút có tên và dòng giải thích', [tim(b, n => n.the === 'b').length, tim(b, n => n.the === 'span').length], [1, 1]);
-      dung('dòng giải thích có chữ', chu(tim(b, n => n.the === 'span')[0]).length > 10);
+      la('mỗi nút có tên và dòng giải thích', [tim(b, n => n.the === 'b').length, tim(b, n => n.the === 'small').length], [1, 1]);
+      dung('dòng giải thích có chữ', chu(tim(b, n => n.the === 'small')[0]).length > 10);
+      /* v681: mỗi dòng có logo (tệp trong repo, có chữ thay) và vòng chọn. */
+      dung('có logo có chữ thay', tim(b, n => n.the === 'img').length >= 1 && tim(b, n => n.the === 'img').every(i => i.props.alt && /\/logo-tt\/[a-z]+\.svg$/.test(i.props.src)));
+      la('vai radio', b.props.role, 'radio');
     });
     la('mặc định', kho.S.CO.pay, 'bank');
   }
@@ -114,7 +118,8 @@ await ca('Bước đặt bánh: bấm Thẻ ATM nội địa là chọn, câu d�
   kho.S.CO.pay = 'cash'; await cho();
   la('v675: giỏ lưu cũ còn chọn tiền mặt thì về chuyển khoản', kho.S.CO.pay, 'bank');
   tim(theoId(goc, 'payList'), n => n.props['data-pt'] === 'bank')[0].props.onClick(); await cho();
-  dung('chuyển khoản: VietQR trên biên nhận, tự xác nhận', /VietQR/.test(chu(theoId(goc, 'warn'))) && /tự xác nhận/.test(chu(theoId(goc, 'warn'))));
+  /* v681 (BẢN 2 mục 2.8): câu dưới thẻ khi chọn chuyển khoản. */
+  dung('chuyển khoản: mở app ngân hàng hoặc quét QR sau khi gửi', /mở app ngân hàng hoặc quét mã QR/.test(chu(theoId(goc, 'warn'))));
   kho.S.CO.ship = null; kho.S.CO.shipTrangThai = 'chua_ro'; await cho();
   la('phí chưa rõ: thêm câu phí giao trả khi nhận', kho.cauThanhToan.value.length, 2);
   tim(theoId(goc, 'payList'), n => n.props['data-pt'] === 'card')[0].props.onClick(); await cho();
@@ -158,7 +163,7 @@ await ca('v638 công tắc Hoa hồng giới thiệu tắt (cau_hinh_web.gioi_th
   dung('tắt: không còn ô', !theoId(goc0, 'f-gt') && !chu(goc0).includes('Mã giới thiệu'));
   kho.S.f.gt = '0909123456'; await kho.kiemGioiThieu(); await cho();
   la('tắt: không hỏi cửa kiem', vet.filter(x => x[1] === 'vagabond.gioi_thieu.kiem').length, 0);
-  kho.moBanh(kho.S.CAKES.find(c => c.k === 'CANDLE')); kho.addToCart(); kho.pick(3); kho.pickSlot(6);
+  kho.moBanh(kho.S.CAKES.find(c => c.k === 'CANDLE')); kho.addToCart(); kho.S.CART[0].chiec.forEach(c => { c.co = false; }); kho.pick(3); kho.pickSlot(6);
   Object.assign(kho.S.f, {name: 'Khách', phone: '0901234567', addr: '12 Nguyễn Huệ'});
   kho.S.CO.dongy = true;
   await kho.submitOrder();
@@ -173,7 +178,7 @@ await ca('Gửi đơn: thân gửi máy chủ mang đúng thanh_toan khách ch�
     'vagabond.don_hang.tao_don': th => { gui.push(JSON.parse(th.don)); return {ok: 1, duong_dan: '/banh/xong/' + 'a'.repeat(43)}; }});
   const kho = taoKho(mt); await kho.napCauHinh();
   const goc = await veBuocDat(kho);
-  kho.moBanh(kho.S.CAKES.find(c => c.k === 'CANDLE')); kho.addToCart(); kho.pick(3); kho.pickSlot(6);
+  kho.moBanh(kho.S.CAKES.find(c => c.k === 'CANDLE')); kho.addToCart(); kho.S.CART[0].chiec.forEach(c => { c.co = false; }); kho.pick(3); kho.pickSlot(6);
   Object.assign(kho.S.f, {name: 'Khách', phone: '0901234567', addr: '12 Nguyễn Huệ'});
   kho.S.CO.dongy = true;
   tim(theoId(goc, 'payList'), n => n.props['data-pt'] === 'atm')[0].props.onClick();
@@ -182,7 +187,7 @@ await ca('Gửi đơn: thân gửi máy chủ mang đúng thanh_toan khách ch�
   la('thân gửi', [gui[0].thanh_toan, gui[0].ma_gioi_thieu], ['atm', '0909123456']);
   const {mt: mt2} = moiTruong({'vagabond.don_hang.tao_don': th => { gui.push(JSON.parse(th.don)); return {ok: 1}; }});
   const k2 = taoKho(mt2);
-  k2.moBanh(k2.S.CAKES.find(c => c.k === 'CANDLE')); k2.addToCart(); k2.pick(3); k2.pickSlot(6);
+  k2.moBanh(k2.S.CAKES.find(c => c.k === 'CANDLE')); k2.addToCart(); k2.S.CART[0].chiec.forEach(c => { c.co = false; }); k2.pick(3); k2.pickSlot(6);
   Object.assign(k2.S.f, {name: 'Khách', phone: '0901234567', addr: '12 Nguyễn Huệ', gt: '12'});
   k2.S.CO.dongy = true; k2.S.CO.pay = 'card';
   await k2.submitOrder();

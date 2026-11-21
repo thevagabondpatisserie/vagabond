@@ -145,9 +145,10 @@ await ca('6b. (Codex #579) Bảng đặt trước đang lọc, Candle chỉ làm
   const c = k.suaDongGio(0);
   dung('mở lại đúng bánh', c && c.k === 'CANDLE');
   dung('size đang sửa nằm trong các size đang nhận', k.kichThuocDangBan(c).some(s => s.id === k.S.CART[0].id));
-  k.S.wish = 'Mừng sinh nhật';
+  /* v681: lời chúc nằm ở từng chiếc (bước Thông tin đơn hàng); Sửa bánh rồi Lưu giữ nguyên lời chúc. */
+  k.S.CART[0].chiec[0].wish = 'Mừng sinh nhật';
   la('Lưu thay đổi', k.addToCart(), 'sua');
-  la('giỏ vẫn 1 dòng, đã có lời chúc', [k.S.CART.length, k.S.CART[0].wish, k.S.CART[0].qty], [1, 'Mừng sinh nhật', 1]);
+  la('giỏ vẫn 1 dòng, đã có lời chúc', [k.S.CART.length, k.S.CART[0].chiec[0].wish, k.S.CART[0].qty], [1, 'Mừng sinh nhật', 1]);
   la('mở chi tiết từ tab Đặt bánh trước (đường dẫn bánh) cũng thấy size của đợt', k.kichThuocDangBan(c, 'order').length > 0, true);
   la('tab Có sẵn hôm nay không đổi luật: chỉ size có sẵn', k.kichThuocDangBan(c, 'today').length, c.sizes.length);
   const b = moiTruong('2026-11-17T10:00:00+07:00', null).k;
