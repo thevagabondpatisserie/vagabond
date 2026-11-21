@@ -330,7 +330,14 @@ function frame(title, bodyHtml, opt) {
   VGB_TD = title;
   var giuCuon = (!doiMan && VGB_CUON > 0);
   var showBack = S.stack.length > 1;
-  root.innerHTML =
+  /* UI Nghe si cong nghe (PR 1): giao dien moi co dau trang rieng (bieu tuong
+     net, nhan doc cho nut chi co hinh, nut Tro ly len dau trang). Nhanh cu ben
+     duoi giu nguyen tung ky tu: tat cong tac la ve dung khung cu. */
+  var uiDau = (typeof uiB === 'function' && uiB()) ? uiBKhungDau(title, showBack, opt) : '';
+  root.innerHTML = uiDau ? uiDau +
+    '<div class="vb" id="vgbBody">' + bodyHtml + '</div>' +
+    (opt.footer ? '<div class="vf">' + opt.footer + '</div>' : '') +
+    (opt.fab ? '<button class="fab" id="vgbFab" aria-label="Thêm mới">+</button>' : '') :
     '<div class="vh">' +
       (showBack ? '<button class="ic" id="vgbBack">&#8249;</button>' :
         /* v619: màn gốc đeo chuông thông báo ở góc trái (59-chuong.js). */
@@ -373,6 +380,7 @@ function frame(title, bodyHtml, opt) {
   var a = document.getElementById('vgbAct'); if (a && opt.onAction) a.onclick = opt.onAction;
   var f = document.getElementById('vgbFab'); if (f && opt.onFab) f.onclick = opt.onFab;
   dSkin(root);
+  if (uiDau) uiBDauTrang(root.querySelector('.vh'));
   var moiOb = document.getElementById('vgbBody');
   vgbTheoDoiCuon(moiOb);
   if (giuCuon) vgbTraCuon(moiOb, VGB_CUON);

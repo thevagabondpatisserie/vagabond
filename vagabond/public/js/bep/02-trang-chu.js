@@ -1438,6 +1438,11 @@ function vgbVeLaiGhim() {
   if (oTim && oTim.value) vgbVeTim(oTim.value);
 }
 
+/* ui-b (PR 1): hai cua hoi lop ve moi. Viet kieu "co thi dung" de phan nay van
+   chay mot minh trong cac bo kiem hanh vi khong nap 81-ui-b.js. */
+function vgbUiB() { return typeof uiB === 'function' && uiB(); }
+function vgbUiKy(chu, co) { return typeof uiBKy === 'function' ? uiBKy(chu, co) : chu; }
+
 function vgbVeGhim() {
   var w = document.getElementById('vgbGhimW');
   if (!w) return;
@@ -1455,11 +1460,11 @@ function vgbVeGhim() {
   if (!ds.length) {
     VGB_SUA_GHIM = false;
     w.innerHTML = '<div class="vgbghim vgbgtrong" data-themghim="1">' +
-      '<div class="vgbgh"><b>\ud83d\udccc Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
+      '<div class="vgbgh"><b>' + vgbUiKy('\ud83d\udccc', 16) + ' Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
       '<span class="vgbgs vgbgthemn">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
       '<div class="vgbgm">Ghim t\u1ed1i \u0111a ' + VGB_GHIM_TOI_DA +
       ' \u00f4 b\u1ea1n hay m\u1edf l\u00ean \u0111\u1ea7u trang ch\u1ee7. ' +
-      'C\u0169ng ghim \u0111\u01b0\u1ee3c b\u1eb1ng n\u00fat \ud83d\udccc trong k\u1ebft qu\u1ea3 \u00f4 t\u00ecm.</div></div>';
+      'C\u0169ng ghim \u0111\u01b0\u1ee3c b\u1eb1ng n\u00fat ' + vgbUiKy('\ud83d\udccc', 14) + ' trong k\u1ebft qu\u1ea3 \u00f4 t\u00ecm.</div></div>';
     return;
   }
   var o = '';
@@ -1476,11 +1481,11 @@ function vgbVeGhim() {
   /* Codex #437 vong 10: dem theo o CON QUYEN khi danh ba da biet, de mot o
      mat quyen chua kip go khong an mat o "+ Them". */
   if (!VGB_SUA_GHIM && (VGB_KHUNG_CO ? vgbLocGhim(ds).length : ds.length) < VGB_GHIM_TOI_DA) {
-    o += '<div class="vgbgthem" data-themghim="1"><div class="vgbgi">\uff0b</div>' +
+    o += '<div class="vgbgthem" data-themghim="1"><div class="vgbgi">' + (vgbUiB() ? uiBSvg('plus', 24) : '\uff0b') + '</div>' +
       '<div class="vgbgn">Th\u00eam</div></div>';
   }
   w.innerHTML = '<div class="vgbghim"><div class="vgbgh">' +
-    '<b>\ud83d\udccc Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
+    '<b>' + vgbUiKy('\ud83d\udccc', 16) + ' Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
     '<span class="vgbgs" data-suaghim="1">' +
     (VGB_SUA_GHIM ? 'Xong' : 'S\u1eeda ghim') + '</span></div>' +
     '<div class="vgbgl">' + o + '</div></div>';
@@ -1876,6 +1881,9 @@ function scrNhom(nh) {
     }
     html += '<div class="card">' + rows + '</div>';
   }
+  /* ui-b: boc mot lop de to mau dong nghiep vu theo NHOM (ban 4 muc 3) va de
+     may tinh quay xep hai cot. Chi boc khi bat giao dien moi. */
+  if (vgbUiB()) html = '<div class="uicot" data-uinhom="' + h(nh.k) + '">' + html + '</div>';
   var body = frame(nh.ten, html);
   root.onclick = null;
   body.onclick = function (e) {

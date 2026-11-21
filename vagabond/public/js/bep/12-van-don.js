@@ -947,7 +947,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '678';
+var APPVER = '679';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -994,6 +994,8 @@ function pwaSauDangNhap() {
 }
 
 async function __boot(){
+  /* UI Nghe si cong nghe: nap lop ve moi (neu trang nay duoc bat) TRUOC lan ve dau. */
+  try { uiBNap(); } catch (e) { }
   clearFresh();
   try {
     var real = await whoAmI();

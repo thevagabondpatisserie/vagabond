@@ -1,0 +1,41 @@
+{
+ "actions": [],
+ "creation": "2026-11-20 23:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Giao Dien Rieng",
+ "modified": "2026-11-20 23:30:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Một dòng lựa chọn giao diện riêng cho một tài khoản (bảng con của Cài đặt giao diện).",
+ "istable": 1,
+ "editable_grid": 1,
+ "field_order": [
+  "nguoi_dung",
+  "lua_chon"
+ ],
+ "fields": [
+  {
+   "fieldname": "nguoi_dung",
+   "fieldtype": "Link",
+   "label": "Tài khoản",
+   "options": "User",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "lua_chon",
+   "fieldtype": "Select",
+   "label": "Lựa chọn riêng",
+   "options": "Theo chung\nLuôn bật\nLuôn tắt",
+   "default": "Theo chung",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Theo chung: theo công tắc cả tiệm. Luôn bật: thấy giao diện mới kể cả khi cả tiệm đang tắt. Luôn tắt: luôn thấy giao diện cũ."
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

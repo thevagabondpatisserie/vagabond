@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v679
+- Bật giao diện mới Nghệ sĩ công nghệ cho một tài khoản (đang thử)
+
 ## v678
 - Chuyển khoản - Shinhan tại quầy
 - Khách chuyển khoản ngay tại bàn, bill tự chốt
