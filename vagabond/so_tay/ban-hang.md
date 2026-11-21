@@ -1933,3 +1933,21 @@ Từ v681 (giám đốc duyệt 21/11/2026).
 - Số trên thẻ chỉ để khách xem; số phải trả do hệ thống tính lại lúc nhận đơn như trước.
 
 **Bạn cần làm:** không đổi thao tác của Sales.
+
+## Web đặt bánh: thẻ Thành viên dưới ô số điện thoại
+Từ khoá: thẻ thành viên, xác thực Zalo, mã 6 số, ưu đãi đơn đầu, dùng điểm, địa chỉ đã lưu, đổi số
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales | Trang đặt bánh, Thông tin đơn hàng, mục 05 Người đặt | Gửi mã qua Zalo; Xác nhận; Đổi số |
+
+Từ v682 (giám đốc duyệt 21/11/2026).
+
+**Trước đây:** ưu đãi đơn đầu tiên và Dùng điểm thành viên là hai thẻ riêng ở mục Thanh toán, mỗi thẻ có nút gửi mã riêng.
+**Từ nay:**
+- Gõ đủ số điện thoại là hiện thẻ Thành viên ngay dưới ô số. Số chưa từng đặt web thấy "Số này được giảm 50.000 đ cho đơn đầu tiên trên web"; số đã đặt thấy "Chào mừng quý khách quay lại".
+- Bấm Gửi mã qua Zalo, nhập mã vào 6 ô (dán cả mã vào ô đầu cũng được, đủ 6 số là tự xác nhận). Gửi lại mã sau 1 phút; chữ Đổi số đưa về ô số điện thoại.
+- Xác thực một lần dùng chung cho ưu đãi đơn đầu, công tắc Dùng ... điểm cho đơn này, và dòng Địa chỉ đã lưu.
+- Đổi sang số khác thì xác thực, ưu đãi, điểm, địa chỉ của số cũ mất ngay.
+
+**Bạn cần làm:** khách hỏi chưa nhận được mã thì nhờ khách kiểm tin nhắn Zalo của đúng số đã gõ, chờ hết 1 phút rồi bấm Gửi lại mã.
