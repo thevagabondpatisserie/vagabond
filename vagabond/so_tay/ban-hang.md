@@ -1873,3 +1873,81 @@ Mỗi món nước, mỗi bánh trên tủ có hai chip ngay trên dòng. Tại 
 
 **Lưu ý**
 - Link QR đã dán trên bàn vẫn dùng được, không phải in lại. Mở từ QR thì trang chỉ còn menu của đúng quầy đó.
+
+## Web đặt bánh: lời chúc và thiệp chọn cho từng chiếc bánh
+Từ khoá: lời chúc, cờ cắm, không cần cờ, thiệp nhỏ, thiệp sinh nhật ép kim, BAPK00002, từng chiếc, ghi chú in, phiếu bếp
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales; Bếp | Trang đặt bánh, Thông tin đơn hàng, mục 02 Lời chúc và thiệp; đơn Pancake | Cần cờ / Không cần cờ; Không cần thiệp / Cần thiệp |
+
+Từ v681 (giám đốc duyệt 21/11/2026).
+
+**Trước đây:** lời chúc gõ một lần cho cả dòng bánh ở trang chọn bánh; thiệp là ô Số thiệp nhỏ hoặc món mua thêm.
+**Từ nay:**
+- Trang chọn bánh không còn ô lời chúc và ô Số thiệp nhỏ. Thiệp ép kim không còn trong Mua thêm phụ kiện.
+- Trang Thông tin đơn hàng có mục 02 Lời chúc và thiệp: mỗi CHIẾC bánh một thẻ. Mặc định Cần cờ; khách gõ lời chúc (tối đa 60 ký tự) hoặc chọn Không cần cờ. Bấm hình cờ xem mẫu.
+- Cần thiệp thì chọn Thiệp nhỏ (miễn phí) hoặc Thiệp sinh nhật ép kim (giá món BAPK00002 trên hệ thống), viết lời thiệp tối đa 80 ký tự; để trống là gửi thiệp trắng.
+- Đơn Pancake có đúng một dòng BAPK00002 cho mỗi chiếc chọn ép kim; hệ thống tự đếm lại, không cộng hai lần.
+- Ghi chú in ghi mỗi chiếc một dòng, ví dụ "1. Epi Ø12cm | lời chúc: Happy 30 | thiệp ép kim: Thương em"; "không cắm cờ" là chiếc không cần cờ. Có lời thiệp thì đơn có thẻ Viết thiệp.
+
+**Bạn cần làm**
+1. Bếp: đọc ghi chú in theo từng dòng chiếc bánh; dòng "không cắm cờ" thì không cắm cờ.
+2. Sales: đơn có thẻ Viết thiệp thì nhắc người viết thiệp theo đúng dòng của chiếc đó.
+
+## Web đặt bánh: ghi chú chọn nhanh cho bếp và người giao
+Từ khoá: gọi trước khi giao, gửi lễ tân, chụp hình bánh, giờ trễ nhất, dị ứng, ghi chú cho bếp và người giao, chọn nhanh
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales; Bếp; người giao | Trang đặt bánh, Thông tin đơn hàng, mục 08 Ghi chú cho bếp và người giao | Các viên chọn nhanh; Giao trễ nhất lúc |
+
+Từ v681 (giám đốc duyệt 21/11/2026).
+
+**Trước đây:** khách chỉ có một ô ghi chú chung, nhiều khách không ghi yêu cầu giao.
+**Từ nay:**
+- Có năm viên bấm chọn: Gọi trước khi giao, Không ai nghe máy thì gửi lễ tân, Chụp hình bánh gửi trước, Có giờ trễ nhất, Có người dị ứng. Bốn viên đầu chỉ hiện khi Giao tận nơi.
+- Có giờ trễ nhất: khách chọn giờ trong đúng khung giờ nhận đã chọn; đổi khung giờ thì phải chọn lại.
+- Có người dị ứng: bắt buộc ghi rõ dị ứng với gì; ghi chú in có dòng "DỊ ỨNG: ..." ở đầu.
+- Ghi chú đơn Pancake có dòng đầu là các viên đã chọn, ví dụ "Gọi trước khi giao · Trễ nhất 15:30", rồi tới chữ khách gõ. Gọi trước khi giao và Chụp hình bánh gửi trước gắn thêm thẻ Pancake cùng tên như khi Sales gắn tay.
+- Mục Người nhận chọn một: Tôi là người nhận bánh (chọn sẵn) hoặc Người khác nhận bánh. Bánh tặng là ô riêng.
+
+**Bạn cần làm**
+1. Bếp: đơn có dòng DỊ ỨNG thì báo bếp trưởng trước khi làm.
+2. Người giao, Sales: đọc dòng đầu ghi chú đơn để gọi trước, gửi lễ tân hay chụp hình đúng yêu cầu.
+
+## Web đặt bánh: thẻ tóm tắt đơn và cách thanh toán
+Từ khoá: tóm tắt đơn, tạm tính, tổng cộng, phí giao dự kiến, chưa tính được, chuyển khoản, thẻ quốc tế, ATM, mã ưu đãi
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales | Trang đặt bánh, Thông tin đơn hàng, cuối trang | Áp dụng; Gửi yêu cầu đặt bánh |
+
+Từ v681 (giám đốc duyệt 21/11/2026).
+
+**Trước đây:** bảng tổng có dòng Tiền bánh trùng lặp và một ô nhắc ngày giờ ngay trên nút gửi.
+**Từ nay:**
+- Thẻ tóm tắt có ảnh từng bánh, các món mua thêm có giá (gồm thiệp ép kim), dòng Nhận (ngày, khung giờ) và dòng Giao (địa chỉ, phí). Thiếu giờ hay địa chỉ thì hiện chữ vàng Chọn giờ, Nhập địa chỉ, bấm là về đúng mục.
+- Phí giao ghi rõ một trong ba: 0 đ (miễn phí thật), dự kiến ... đ, hoặc chưa tính được. Chưa tính được thì đáy thẻ ghi Tạm tính, chưa gồm phí giao.
+- Mỗi cách thanh toán một dòng có biểu tượng, logo VietQR, Visa, Mastercard, JCB, Napas. Ô Mã ưu đãi và nút Áp dụng cùng một hàng.
+- Số trên thẻ chỉ để khách xem; số phải trả do hệ thống tính lại lúc nhận đơn như trước.
+
+**Bạn cần làm:** không đổi thao tác của Sales.
+
+## Web đặt bánh: thẻ Thành viên dưới ô số điện thoại
+Từ khoá: thẻ thành viên, xác thực Zalo, mã 6 số, ưu đãi đơn đầu, dùng điểm, địa chỉ đã lưu, đổi số
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales | Trang đặt bánh, Thông tin đơn hàng, mục 05 Người đặt | Gửi mã qua Zalo; Xác nhận; Đổi số |
+
+Từ v682 (giám đốc duyệt 21/11/2026).
+
+**Trước đây:** ưu đãi đơn đầu tiên và Dùng điểm thành viên là hai thẻ riêng ở mục Thanh toán, mỗi thẻ có nút gửi mã riêng.
+**Từ nay:**
+- Gõ đủ số điện thoại là hiện thẻ Thành viên ngay dưới ô số. Số chưa từng đặt web thấy "Số này được giảm 50.000 đ cho đơn đầu tiên trên web"; số đã đặt thấy "Chào mừng quý khách quay lại".
+- Bấm Gửi mã qua Zalo, nhập mã vào 6 ô (dán cả mã vào ô đầu cũng được, đủ 6 số là tự xác nhận). Gửi lại mã sau 1 phút; chữ Đổi số đưa về ô số điện thoại.
+- Xác thực một lần dùng chung cho ưu đãi đơn đầu, công tắc Dùng ... điểm cho đơn này, và dòng Địa chỉ đã lưu.
+- Đổi sang số khác thì xác thực, ưu đãi, điểm, địa chỉ của số cũ mất ngay.
+
+**Bạn cần làm:** khách hỏi chưa nhận được mã thì nhờ khách kiểm tin nhắn Zalo của đúng số đã gõ, chờ hết 1 phút rồi bấm Gửi lại mã.

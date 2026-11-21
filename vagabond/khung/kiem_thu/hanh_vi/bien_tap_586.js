@@ -49,8 +49,10 @@ function duLieu() {
       tab_today: { ten: 'Tab bánh có sẵn hôm nay', mac_dinh: 'Có sẵn hôm nay' },
       cau_co_san: { ten: 'Dòng số bánh có sẵn', mac_dinh: '{so} bánh có sẵn' },
       dat_ban_tieu_de: { ten: 'Đặt bàn: tiêu đề', mac_dinh: 'Đặt bàn tại Vagabond.', nhom: 'dat_ban' },
+      anh_co_mau: { ten: 'Mẫu cờ cắm lời chúc', mac_dinh: '', nhom: 'anh', anh: true },
+      anh_thiep_nho: { ten: 'Thiệp nhỏ miễn phí', mac_dinh: '', nhom: 'anh', anh: true },
     },
-    nhom_nhan: { '': 'Thanh chọn và đầu trang', dat_ban: 'Trang đặt bàn' },
+    nhom_nhan: { '': 'Thanh chọn và đầu trang', dat_ban: 'Trang đặt bàn', anh: 'Ảnh trên trang' },
     ve: { 'tiec-1': 12 }, hom_nay: '2026-10-07',
     phap_nhan: { ten: 'Công ty TNHH Patisserie Vagabond', mst: '0318561568', dia_chi: [{ ten: 'Cửa hàng Sài Gòn', dia_chi: '9 Trần Cao Vân' }] },
     nhap_chua_xuat_ban: 0, phien_ban: 7,
@@ -698,6 +700,31 @@ function appMoi(tuy) {
     dung('nhan Chua toi ngay hien: ' + dong.textContent, String(dong.textContent).indexOf('Chưa tới ngày hiện') >= 0);
     dung('cong tac noi ro: ' + dong.textContent, String(dong.textContent).indexOf('Chưa tới ngày, khách chưa thấy') >= 0);
     dung('mo ta co Gio hang va dung chung anh: ' + dong.textContent, String(dong.textContent).indexOf('Giỏ hàng') >= 0 && String(dong.textContent).indexOf('dùng chung ảnh máy tính') >= 0);
+  });
+
+  await ca('v681 Trang va chu: o anh hien anh dang dung, tai anh moi roi Luu gui cap [cu, duong dan]; Ve anh co san gui chuoi trong', async function () {
+    var app = appMoi(); await nghi();
+    await app.the('chu');
+    var dong = app.mot('[data-khoa="anh_thiep_nho"]');
+    dung('o anh chi co o chon tep, khong co o go chu', dong.querySelectorAll('input').length === 1 && dong.querySelector('[data-o-anh-nhan]') !== null);
+    dung('chua co anh thi noi ro: ' + dong.textContent, String(dong.textContent).indexOf('Chưa có ảnh, web hiện khung chữ.') >= 0);
+    var tep = dong.querySelector('[data-o-anh-nhan]'), mo = 0;
+    tep.click = function () { mo++; };
+    await app.bam(dong.querySelector('[data-chon-anh-nhan]'));
+    bang('nut Tai anh moi mo hop chon tep', mo, 1);
+    tep.files = [{ name: 'thiep.png', size: 200000 }];
+    await tep.onchange(); await nghi();
+    bang('anh xem truoc la anh vua tai', app.mot('[data-khoa="anh_thiep_nho"]').querySelector('img').src, '/files/web-moi.png');
+    dung('nut Luu dem muc', String(app.mot('.bt-chan-luu').textContent).indexOf('Lưu 1 mục') >= 0);
+    await app.bam(app.mot('.bt-chan-luu').querySelector('[data-luu]'));
+    bang('gui cap', app.cuoi('luu_nhan').thay, { anh_thiep_nho: ['', '/files/web-moi.png'] });
+    await app.the('chu');
+    dong = app.mot('[data-khoa="anh_thiep_nho"]');
+    dung('da doi anh: ' + dong.textContent, String(dong.textContent).indexOf('Đã đổi ảnh') >= 0 && String(dong.textContent).indexOf('Đang dùng ảnh bạn tải lên.') >= 0);
+    var ve = Array.prototype.filter.call(dong.querySelectorAll('button'), function (b) { return b.textContent === 'Về ảnh có sẵn'; })[0];
+    await app.bam(ve);
+    await app.bam(app.mot('.bt-chan-luu').querySelector('[data-luu]'));
+    bang('ve anh co san', app.cuoi('luu_nhan').thay, { anh_thiep_nho: ['/files/web-moi.png', ''] });
   });
 
   console.log('Bo ca kiem HANH VI v586: trinh bien tap theo the va the Tiec');

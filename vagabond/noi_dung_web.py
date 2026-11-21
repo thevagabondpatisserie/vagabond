@@ -134,10 +134,26 @@ def cho_dien(chu):
     return sorted(set(RE_CHO_DIEN.findall(str(chu or ""))))
 
 
+# v681 (anh Việt 21/11/2026): MỌI nội dung trên web chính sửa được trong trình
+# biên tập. Ảnh nhỏ của trang (mẫu cờ, thiệp, phụ kiện, nến số) là một ô trong sổ
+# nhãn có cờ "anh": giá trị là đường dẫn ảnh đã tải lên (tai_anh), để trống là
+# dùng ảnh có sẵn của web. Chỉ nhận tệp công khai /files/ dạng PNG, JPG, WebP.
+RE_ANH_NHAN = re.compile(r"/files/[A-Za-z0-9][A-Za-z0-9._-]{0,150}\.(?:png|jpe?g|webp)")
+
+
+def anh_nhan_hop_le(v):
+    """Đường dẫn ảnh của một ô ảnh trong sổ nhãn có hợp lệ không. THUẦN."""
+    return isinstance(v, str) and bool(RE_ANH_NHAN.fullmatch(v))
+
+
 def _chuan_hoa_nhan(nhan):
     if not isinstance(nhan, dict) or set(nhan) - set(NHAN):
         raise ValueError("Nhãn không có trong danh sách cho phép. Tải lại trang biên tập.")
     for khoa, chu in nhan.items():
+        if NHAN[khoa].get("anh"):
+            if not isinstance(chu, str) or (chu.strip() and not anh_nhan_hop_le(chu)):
+                raise ValueError("Ảnh %s phải là ảnh PNG, JPG hoặc WebP tải lên từ trình biên tập." % NHAN[khoa]["ten"])
+            continue
         gioi_han = 4000 if NHAN[khoa].get("nhieu_dong") else DAI_NHAN
         if not isinstance(chu, str) or len(chu) > gioi_han:
             raise ValueError("Nhãn %s quá dài hoặc không hợp lệ (tối đa %d ký tự)." % (NHAN[khoa]["ten"], gioi_han))
@@ -703,6 +719,8 @@ def ap_nhan(nd, thay, soat=True):
             nhan[khoa] = moi
         else:
             nhan.pop(khoa, None)
+    # v681: kiểm ngay các ô vừa đổi (ảnh phải là tệp /files/ đã tải lên).
+    _chuan_hoa_nhan({k: nhan[k] for k in thay if k in nhan})
     nd["nhan"] = nhan
     return nd
 
@@ -1253,6 +1271,8 @@ def _nhom_nhan():
         "thiet_ke_rieng": "Bánh thiết kế riêng",
         # v630: trang /banh-si cho quán, khách sạn, nhà hàng.
         "banh_si": "Trang bánh sỉ",
+        # v681: ảnh nhỏ của trang (mẫu cờ, thiệp, phụ kiện, nến số).
+        "anh": "Ảnh trên trang",
     }
 
 

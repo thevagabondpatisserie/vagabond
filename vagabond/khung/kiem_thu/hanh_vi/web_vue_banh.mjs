@@ -54,7 +54,10 @@ function moiTruong(gio, mang = {}) {
   };
   return {mt, dong, hen, vet, kho, chayHen};
 }
-const coThem = (k, ten = 'CANDLE') => { k.moBanh(k.S.CAKES.find(c => c.k === ten)); return k.addToCart(); };
+/* v681: bánh mới mặc định Cần cờ, lời chúc trống, bước gửi nhắc nhập lời chúc. Các ca
+   cũ không nói về cờ thì chọn Không cần cờ (đúng một thao tác của khách) cho mọi chiếc. */
+const khongCo = k => k.S.CART.forEach(o => (o.chiec || []).forEach(c => { c.co = false; }));
+const coThem = (k, ten = 'CANDLE') => { k.moBanh(k.S.CAKES.find(c => c.k === ten)); const kq = k.addToCart(); khongCo(k); return kq; };
 
 await ca('#471 Pixel biên nhận gỡ token trước PageView, GuiDon khớp event_id CAPI, reload không bắn lại', async () => {
   const events = [], storage = new Map();
@@ -216,7 +219,7 @@ await ca('Đang có ưu đãi mà giỏ vừa đổi: hỏi lại trước khi g
   Object.assign(k.S.f, {name: 'A', phone: '0901234567', addr: '12 Nguyễn Huệ Q1'}); k.S.CO.dongy = true;
   k.S.f.ma = 'X'; k.apMaUuDai(); await k.xemUuDai();
   la('đang giảm', k.giam.value, 50000);
-  k.cartQty(0, 1); giam = 80000;
+  k.cartQty(0, 1); khongCo(k); giam = 80000;
   const kq = await k.submitOrder();
   la('dừng cho khách xem', kq.buoc, 'uu_dai');
   la('chưa gửi đơn', vet.filter(v => v[1] === 'vagabond.don_hang.tao_don').length, 0);
@@ -465,7 +468,8 @@ await ca('v590: gợi ý mã hiện tổng sau giảm và nút Áp dụng không
   k.S.f.ma = 'SN50'; k.S.CO.uuMa = 'SN50'; await k.xemUuDai();
   la('tổng = bánh - giảm + phí', k.tong.value.total, 610000);
   dung('gợi ý có số giảm và tổng mới', JSON.stringify(k.goiYMa.value).includes('50.000') && JSON.stringify(k.goiYMa.value).includes('610.000'));
-  dung('nút là nút chính, không phải thẻ chọn giả ô nhập', MAU.includes('class="btn btn-xs" id="btnMa"'));
+  /* v681 (BẢN 2 mục 2.7): nút viên viền Robin cùng hàng ô mã, không phải thẻ chọn giả ô nhập. */
+  dung('nút Áp dụng là nút viên cùng hàng ô mã', MAU.includes('<div class="ma-hang"><input id="f-ma"') && MAU.includes('class="nut-vien" id="btnMa"'));
   dung('đáy chừa đủ nút dính', MAU.includes('padding-bottom:140px'));
 });
 
@@ -497,23 +501,18 @@ await ca('F21 máy chủ hết hàng giữ giỏ, nonce, tải lại tồn và c
   dung('tải lại',nap>0);dung('nói số và cách xử lý',JSON.stringify(k.S.goi.gui).includes('còn 0 cái')&&JSON.stringify(k.S.goi.gui).includes('đổi ngày'));
 });
 
-await ca('v598 port v597: thiệp nhỏ đi cùng dòng giỏ qua cộng dồn, sửa dòng và tải lại trang; số kẹp 0 tới 30 (20/11: nĩa, dĩa không còn theo từng bánh)', async () => {
+await ca('v598 sang v681: thiệp nhỏ giỏ bản trước chuyển thành thiệp nhỏ theo từng chiếc; chữ phiếu bếp đếm đúng số chiếc', async () => {
   const a = moiTruong('2026-10-11T08:00:00');
-  const k = taoKho(a.mt);
-  k.phucHoiGio();
-  const ban = k.S.CAKES.find(c => c.k === 'CANDLE');
-  k.moBanh(ban); k.S.nia = 1; k.S.thiep = 2; k.addToCart();
-  k.moBanh(ban); la('mở bánh mới thì ô thiệp về 0', k.S.thiep, 0); k.S.thiep = 3; k.addToCart();
-  la('khác số thiệp là hai dòng; nĩa không ghi theo bánh nữa', k.S.CART.map(o => [o.qty, o.dung_cu]), [[1, {nia: 0, dia: 0, thiep: 2}], [1, {nia: 0, dia: 0, thiep: 3}]]);
-  k.moBanh(ban); k.S.thiep = 2; k.addToCart();
-  la('cùng cấu hình thì cộng dồn', k.S.CART.map(o => o.qty), [2, 1]);
-  la('phiếu bếp nhân số lượng', k.T.chuDungCu(k.S.CART[0]), '4 thiệp nhỏ');
-  la('dòng giỏ bản trước có nĩa vẫn in đúng', k.T.chuDungCu({qty: 2, dung_cu: {nia: 1, dia: 0, thiep: 2}}), '2 nĩa gỗ, 0 dĩa bã mía, 4 thiệp nhỏ');
+  a.kho.set('vgb-gio-v1', JSON.stringify({luc: new Date('2026-10-11T07:00:00').getTime(), gio: [
+    {k: 'CANDLE', id: 'BAWC00139', cm: 12, price: 1, nguon: 'order', qty: 2, wish: '', adds: [], dung_cu: {nia: 0, dia: 0, thiep: 2}},
+    {k: 'CANDLE', id: 'BAWC00139', cm: 12, price: 1, nguon: 'order', qty: 1, wish: '', adds: [], dung_cu: {nia: 0, dia: 0, thiep: 0}}]}));
+  const k = taoKho(a.mt); k.phucHoiGio();
+  la('dòng có thiệp: mỗi chiếc thiệp nhỏ', k.S.CART.map(o => o.chiec.map(c => c.thiep)), [['nho', 'nho'], ['khong']]);
+  la('số thiệp của dòng không còn nằm ở dung_cu', k.S.CART.map(o => o.dung_cu.thiep), [0, 0]);
+  la('phiếu bếp đếm số chiếc chọn thiệp nhỏ', k.T.chuDungCu(k.S.CART[0]), '2 thiệp nhỏ');
+  la('dòng giỏ bản trước (chưa có chiếc) vẫn in đúng', k.T.chuDungCu({qty: 2, dung_cu: {nia: 1, dia: 0, thiep: 2}}), '2 nĩa gỗ, 0 dĩa bã mía, 4 thiệp nhỏ');
   la('kẹp số', k.T.chuanDungCu({nia: -3, dia: '99', thiep: 'x'}), {nia: 0, dia: 30, thiep: 0});
-  k.suaDongGio(1); la('sửa dòng giỏ mở lại đúng số thiệp', k.S.thiep, 3);
-  k.luuGio();
-  const k2 = taoKho(a.mt); k2.phucHoiGio();
-  la('tải lại trang giữ thiệp', k2.S.CART.map(o => o.dung_cu.thiep), [2, 3]);
+  dung('trang chọn bánh không còn ô Số thiệp nhỏ và ô lời chúc', !MAU.includes('id="s-thiep"') && !MAU.includes('id="s-wish"'));
 });
 
 await ca('Dĩa, nĩa tặng kèm (anh Việt 20/11/2026): chọn một lần cho cả đơn, gửi thành dòng món giá 0, kẹp 0 tới 20, giữ qua tải lại, giỏ bản trước dồn số về đơn, gửi xong về 0', async () => {
@@ -536,11 +535,12 @@ await ca('Dĩa, nĩa tặng kèm (anh Việt 20/11/2026): chọn một lần cho
   la('tải lại giữ số', [k2.S.DC.dia, k2.S.DC.nia], [4, 2]);
   /* Giỏ lưu bản trước: nĩa, dĩa theo từng bánh, nhân số bánh, dồn về đơn. */
   const luu = JSON.parse(kho.get([...kho.keys()][0]));
-  luu.gio[0].dung_cu = {nia: 2, dia: 1, thiep: 1}; luu.gio[0].qty = 2; delete luu.dc;
+  luu.gio[0].dung_cu = {nia: 2, dia: 1, thiep: 1}; luu.gio[0].qty = 2; delete luu.dc; delete luu.gio[0].chiec;
   kho.set([...kho.keys()][0], JSON.stringify(luu));
   const k3 = taoKho(mt); k3.phucHoiGio();
   la('giỏ bản trước: dồn số về đơn', [k3.S.DC.dia, k3.S.DC.nia], [2, 4]);
-  la('dòng bánh không còn nĩa, dĩa; giữ thiệp', k3.S.CART[0].dung_cu, {nia: 0, dia: 0, thiep: 1});
+  la('dòng bánh không còn nĩa, dĩa', k3.S.CART[0].dung_cu, {nia: 0, dia: 0, thiep: 0});
+  la('v681: thiệp giỏ bản trước chuyển sang từng chiếc', k3.S.CART[0].chiec.map(c => c.thiep), ['nho', 'nho']);
   la('không gửi hai lần', k3.T.hangGui(k3.S.CART, k3.S.DC).filter(x => x.variation_id.startsWith('BAPK')), [{variation_id: 'BAPK00020', quantity: 2}, {variation_id: 'BAPK00018', quantity: 4}]);
   dung('ghi chú bếp không còn nĩa, dĩa theo bánh', !/nĩa/.test(k3.T.chuDungCu(k3.S.CART[0])));
   /* Gửi đơn. */
@@ -1131,6 +1131,389 @@ await ca('v652 điểm thành viên: số chưa xác thực thì thẻ mời xá
   const kq = await k2.submitOrder(); await chayHen();
   la('diem_doi: dừng cho khách xem, bỏ chọn', [kq && kq.buoc, k2.S.CO.dungDiem], ['uu_dai', false]);
   dung('hỏi lại tổng không dùng điểm', hoi.length > n && hoi[hoi.length - 1].dung_diem === 0);
+});
+
+/* ===== v681 (BẢN 2): lời chúc, cờ, thiệp theo TỪNG CHIẾC; ghi chú chọn nhanh ===== */
+const gioThu = (k, f = {}) => { k.pick(3); k.pickSlot(6); Object.assign(k.S.f, {name: 'Khách', phone: '0901234567', addr: '12 Nguyễn Huệ Quận 1'}, f); k.S.CO.dongy = true; };
+const moiChiec = k => k.S.CART.flatMap(o => (o.chiec || []).map(c => [o.id, c.id, c.wish, c.thiep, c.loi_thiep]));
+
+await ca('v681 thêm bánh mới: Cần cờ, lời chúc trống, không thiệp; thêm lần hai cùng bánh là chiếc MỚI nối sau, không đè chiếc cũ', async () => {
+  const {mt} = moiTruong('2026-10-11T08:00:00');
+  const k = taoKho(mt); k.phucHoiGio();
+  const ban = k.S.CAKES.find(c => c.k === 'CANDLE');
+  k.moBanh(ban); k.addToCart();
+  la('một chiếc mặc định', k.S.CART[0].chiec.map(c => [c.co, c.wish, c.thiep]), [[true, '', 'khong']]);
+  k.S.CART[0].chiec[0].wish = 'Mừng mẹ';
+  k.moBanh(ban); k.addToCart();
+  la('một dòng hai chiếc', [k.S.CART.length, k.S.CART[0].qty, k.S.CART[0].chiec.length], [1, 2, 2]);
+  la('chiếc cũ giữ lời chúc, chiếc mới trống', k.S.CART[0].chiec.map(c => c.wish), ['Mừng mẹ', '']);
+  dung('hai định danh khác nhau', k.S.CART[0].chiec[0].id !== k.S.CART[0].chiec[1].id);
+});
+
+await ca('v681 một dòng số lượng 2, hai lời chúc và hai loại thiệp: tăng, giảm, sửa bánh, bỏ dòng khác, tải lại không chuyển nhầm nội dung', async () => {
+  const a = moiTruong('2026-10-11T08:00:00');
+  const k = taoKho(a.mt); k.phucHoiGio();
+  const ban = k.S.CAKES.find(c => c.k === 'CANDLE');
+  k.moBanh(ban); k.doiSoLuong(1); k.addToCart();
+  k.moBanh(k.S.CAKES.find(c => c.k !== 'CANDLE' && c.sizes.length)); k.addToCart();
+  const [c1, c2] = k.S.CART[0].chiec;
+  c1.wish = 'Chúc A'; k.batThiep(c1.id, true); k.datThiep(c1.id, 'ep_kim'); c1.loi_thiep = 'Thương A';
+  c2.wish = 'Chúc B'; k.batThiep(c2.id, true);
+  la('chiếc 2 bật thiệp thì chọn sẵn thiệp nhỏ', c2.thiep, 'nho');
+  const truoc = moiChiec(k);
+  k.cartQty(0, 1);
+  la('tăng: thêm chiếc thứ ba trống ở cuối', moiChiec(k).slice(0, 2), truoc.slice(0, 2));
+  la('chiếc ba mặc định', [k.S.CART[0].chiec[2].wish, k.S.CART[0].chiec[2].thiep], ['', 'khong']);
+  la('giảm chiếc trống: bỏ ngay, không hỏi', [k.cartQty(0, -1), k.S.CART[0].qty, k.S.hoiBo], [undefined, 2, null]);
+  la('sau giảm còn đúng hai chiếc cũ', moiChiec(k).slice(0, 2), truoc.slice(0, 2));
+  /* Bỏ dòng bánh khác: chiếc của dòng này không đổi. */
+  k.cartRemove(1);
+  la('bỏ dòng khác', moiChiec(k), truoc.slice(0, 2));
+  /* Sửa bánh (đổi phụ kiện, giữ số lượng): giữ nguyên chiếc. */
+  k.suaDongGio(0); k.toggleNum(2); la('lưu sửa', k.addToCart(), 'sua');
+  la('sửa bánh giữ lời chúc, thiệp từng chiếc', moiChiec(k), truoc.slice(0, 2));
+  /* Tải lại trang. */
+  k.luuGio();
+  const k2 = taoKho(a.mt); k2.phucHoiGio();
+  la('tải lại giữ định danh và nội dung', moiChiec(k2), truoc.slice(0, 2));
+  la('thiệp ép kim: đúng một BAPK00002', k2.T.hangGui(k2.S.CART, k2.S.DC).filter(x => x.variation_id === 'BAPK00002'), [{variation_id: 'BAPK00002', quantity: 1}]);
+});
+
+await ca('v681 giảm số lượng mà chiếc cuối đã có lời chúc hoặc thiệp: hỏi lại; Giữ lại không đổi gì, Đồng ý bỏ đúng chiếc cuối', async () => {
+  const {mt} = moiTruong('2026-10-11T08:00:00');
+  const k = taoKho(mt); k.phucHoiGio();
+  k.moBanh(k.S.CAKES.find(c => c.k === 'CANDLE')); k.doiSoLuong(2); k.addToCart();
+  const ds = k.S.CART[0].chiec; ds[0].wish = 'Một'; ds[2].wish = 'Ba';
+  la('hỏi lại', k.cartQty(0, -1), 'hoi');
+  dung('câu hỏi nói chiếc 3', /3/.test(k.S.hoiBo.chu));
+  k.giuLai();
+  la('Giữ lại: vẫn ba chiếc', k.S.CART[0].chiec.map(c => c.wish), ['Một', '', 'Ba']);
+  k.cartQty(0, -1); k.dongYBo();
+  la('Đồng ý: bỏ chiếc cuối', k.S.CART[0].chiec.map(c => c.wish), ['Một', '']);
+  /* Sửa bánh mà giảm số lượng làm mất chiếc có nội dung: hỏi trước khi lưu. */
+  k.S.CART[0].chiec[1].thiep = 'nho';
+  k.suaDongGio(0); k.doiSoLuong(-1);
+  la('sửa giảm: hỏi', k.addToCart(), 'hoi');
+  la('chưa đổi giỏ', k.S.CART[0].qty, 2);
+  la('đồng ý thì lưu', k.dongYBo(), 'sua');
+  la('còn một chiếc', k.S.CART[0].chiec.map(c => c.wish), ['Một']);
+});
+
+await ca('v681 thiệp ép kim đổi qua lại nhiều lần, mở lại checkout: số BAPK00002 và tiền luôn bằng số chiếc ép kim; giá theo máy chủ', async () => {
+  const {mt} = moiTruong('2026-10-11T08:00:00', {'vagabond.don_web.cau_hinh_web': () => ({gia_thiep_ep_kim: 19000, onepay: 0})});
+  const k = taoKho(mt); k.phucHoiGio(); await k.napCauHinh();
+  la('giá thiệp máy chủ trả', k.giaThiep.value, 19000);
+  k.moBanh(k.S.CAKES.find(c => c.k === 'CANDLE')); k.doiSoLuong(2); k.addToCart();
+  const goc = k.tienBanh.value, ds = k.S.CART[0].chiec;
+  for (let i = 0; i < 5; i++) { ds.forEach(c => { k.batThiep(c.id, true); k.datThiep(c.id, 'ep_kim'); }); k.datThiep(ds[1].id, 'nho'); k.batThiep(ds[2].id, false); }
+  k.moGio(); k.roiGio(); k.moGio();
+  const ek = () => (k.T.hangGui(k.S.CART, k.S.DC).find(x => x.variation_id === 'BAPK00002') || {quantity: 0}).quantity;
+  la('một chiếc ép kim', ek(), 1);
+  la('tiền cộng đúng một thiệp', k.tienBanh.value - goc, 19000);
+  k.cartQty(0, -1); k.dongYBo();
+  la('bỏ chiếc cuối (không thiệp): vẫn một', ek(), 1);
+  k.datThiep(ds[0].id, 'nho');
+  la('đổi sang thiệp nhỏ: không còn ép kim', [ek(), k.tienBanh.value - goc + k.S.CART[0].price], [0, 0]);
+  dung('thiệp ép kim không còn là món mua thêm ở trang chọn bánh', !k.T.hangGui([{id: 'X', qty: 1, adds: [], nguon: 'order', chiec: []}], {}).some(x => x.variation_id === 'BAPK00002'));
+});
+
+await ca('v681 giỏ lưu bản trước: lời chúc theo dòng và thiệp ép kim mua thêm chuyển sang từng chiếc, không tính tiền hai lần', async () => {
+  const a = moiTruong('2026-10-11T08:00:00');
+  a.kho.set('vgb-gio-v1', JSON.stringify({luc: new Date('2026-10-11T07:00:00').getTime(), gio: [
+    {k: 'CANDLE', id: 'BAWC00139', cm: 12, price: 1, nguon: 'order', qty: 2, wish: 'Mừng thọ', adds: [{id: 'BAPK00002', n: 'Thiệp', p: 17000}, {id: 'BAPK00005', n: 'Nến số 2', p: 17000}]}]}));
+  const k = taoKho(a.mt); k.phucHoiGio();
+  la('mỗi chiếc giữ lời chúc và thiệp ép kim', k.S.CART[0].chiec.map(c => [c.co, c.wish, c.thiep]), [[true, 'Mừng thọ', 'ep_kim'], [true, 'Mừng thọ', 'ep_kim']]);
+  la('phụ kiện còn nến số, bỏ thiệp khỏi phụ kiện', k.S.CART[0].adds.map(x => x.id), ['BAPK00005']);
+  la('BAPK00002 đúng hai, không bốn', k.T.hangGui(k.S.CART, k.S.DC).find(x => x.variation_id === 'BAPK00002').quantity, 2);
+});
+
+await ca('v681 gửi đơn: Cần cờ mà trống lời chúc thì nhắc và chỉ đúng thẻ; ghi chú in mỗi chiếc một dòng; máy chủ nhận danh sách từng chiếc', async () => {
+  const {mt, vet} = moiTruong('2026-10-11T08:00:00', {'vagabond.don_hang.tao_don': () => ({ok: true, duong_dan: '/banh/xong/lc1'})});
+  const k = taoKho(mt); k.phucHoiGio();
+  k.moBanh(k.S.CAKES.find(c => c.k === 'CANDLE')); k.doiSoLuong(1); k.toggleNum(2); k.addToCart();
+  gioThu(k);
+  const [c1, c2] = k.S.CART[0].chiec;
+  const kq1 = await k.submitOrder();
+  la('nhắc lời chúc', [kq1.buoc, kq1.sel], ['loi_chuc', '#lc-' + c1.id + ' input']);
+  la('chưa gửi', vet.filter(v => v[1] === 'vagabond.don_hang.tao_don').length, 0);
+  c1.wish = 'Happy 30'; k.batThiep(c1.id, true); k.datThiep(c1.id, 'ep_kim'); c1.loi_thiep = 'Thương em';
+  const kq2 = await k.submitOrder();
+  la('chiếc hai còn thiếu: chỉ đúng chiếc hai', kq2.sel, '#lc-' + c2.id + ' input');
+  k.datCo(c2.id, false); k.batThiep(c2.id, true);
+  const kq = await k.submitOrder();
+  la('gửi được', kq.buoc, 'xong');
+  la('ghi chú in mỗi chiếc một dòng', kq.don.note_print.split('\n'), [
+    '1. CANDLE Ø12cm | lời chúc: Happy 30 | thiệp ép kim: Thương em | kèm: Nến số 2',
+    '2. CANDLE Ø12cm | không cắm cờ | thiệp nhỏ: để trắng | kèm: Nến số 2']);
+  la('từng chiếc gửi máy chủ', kq.don.chiec.map(c => [c.ma, c.co, c.loi_chuc, c.thiep, c.loi_thiep]),
+    [['BAWC00139', true, 'Happy 30', 'ep_kim', 'Thương em'], ['BAWC00139', false, '', 'nho', '']]);
+  la('thiệp ép kim một dòng đúng một cái', kq.don.items.filter(x => x.variation_id === 'BAPK00002'), [{variation_id: 'BAPK00002', quantity: 1}]);
+  dung('thẻ Viết thiệp vì có lời thiệp', kq.don.tags.includes(98));
+  la('tên web lúc đặt', kq.don.chiec[0].ten, 'CANDLE · Ø 12cm');
+});
+
+await ca('v681 ghi chú chọn nhanh: 0, 1, nhiều viên; giờ trễ nhất theo khung; đổi sang Tự lấy không gửi viên giao hàng; dị ứng trống thì nhắc; đổi nhãn không mất chức năng', async () => {
+  let nhan = {};
+  const {mt} = moiTruong('2026-10-11T08:00:00', {'vagabond.don_hang.tao_don': () => ({ok: true, duong_dan: '/banh/xong/gc1'})});
+  mt.t = (key, d, thay) => t0(key, nhan[key] || d, thay);
+  const k = taoKho(mt); k.phucHoiGio();
+  coThem(k); gioThu(k);
+  la('mặc định không viên nào', k.S.CO.gc, []);
+  la('năm viên khi giao', k.gcHien.value.map(x => x.ma), ['goi_truoc', 'gui_le_tan', 'chup_hinh', 'gio_tre_nhat', 'di_ung']);
+  let kq = await k.submitOrder();
+  la('0 viên: ghi chú chung không có dòng chọn nhanh', [kq.buoc, kq.don.note, kq.don.ghi_chu_nhanh], ['xong', '', []]);
+  const k2 = taoKho(mt); coThem(k2); gioThu(k2, {note: 'Để trước cửa'});
+  k2.doiGc('goi_truoc'); k2.doiGc('gui_le_tan'); k2.doiGc('gio_tre_nhat');
+  la('giờ trễ nhất chỉ trong khung 13h - 15h', k2.gioTreChon.value, ['13:30', '14:00', '14:30']);
+  la('chưa chọn giờ thì nhắc', (await k2.submitOrder()).buoc, 'ghi_chu');
+  k2.chonGioTre('14:30'); k2.chonGioTre('19:00');
+  la('giờ ngoài khung bỏ qua', k2.S.CO.gcGio, '14:30');
+  k2.pickSlot(8);
+  la('đổi khung giờ: giờ không còn hợp lệ thì xoá và nhắc', [k2.S.CO.gcGio, !!k2.S.goi.gcGio], ['', true]);
+  k2.chonGioTre('15:30');
+  nhan = {gc_goi_truoc: 'Alo trước nhé'};
+  kq = await k2.submitOrder();
+  la('ghi chú: dòng đầu là các viên nối bằng chấm giữa, rồi chữ khách gõ', kq.don.note.split('\n'), ['Alo trước nhé · Không ai nghe máy thì gửi lễ tân · Trễ nhất 15:30', 'Để trước cửa']);
+  la('mã viên lưu kèm', [kq.don.ghi_chu_nhanh, kq.don.gio_tre_nhat], [['goi_truoc', 'gui_le_tan', 'gio_tre_nhat'], '15:30']);
+  dung('đổi nhãn vẫn gắn thẻ Gọi trước khi giao theo mã', kq.don.tags.includes(33));
+  /* Tự lấy: bốn viên giao hàng ẩn và không gửi; dị ứng luôn hiện, trống thì nhắc. */
+  const k3 = taoKho(mt); coThem(k3); gioThu(k3);
+  k3.doiGc('goi_truoc'); k3.doiGc('chup_hinh'); k3.doiGc('di_ung'); k3.setMode('pick'); k3.setPickup(k3.S.PICKUPS[0].id);
+  la('tự lấy chỉ còn viên dị ứng', k3.gcHien.value.map(x => x.ma), ['di_ung']);
+  la('dị ứng trống: nhắc', [(await k3.submitOrder()).buoc], ['ghi_chu']);
+  k3.S.f.note = 'Dị ứng hạt điều';
+  kq = await k3.submitOrder();
+  la('không gửi viên giao hàng đang ẩn', [kq.don.ghi_chu_nhanh, kq.don.tags.includes(33), kq.don.tags.includes(32)], [['di_ung'], false, false]);
+  la('phiếu bếp có dòng dị ứng', kq.don.note_print.split('\n')[0], 'DỊ ỨNG: Dị ứng hạt điều');
+  la('ghi chú chung', kq.don.note.split('\n'), ['Có người dị ứng', 'Dị ứng hạt điều']);
+});
+
+await ca('v681 thẻ tóm tắt: phí giao ba trạng thái tách rõ, thiếu giờ, thiếu địa chỉ hiện chữ nhắc; không còn ô nhắc trên nút gửi', async () => {
+  const {mt} = moiTruong('2026-10-11T08:00:00');
+  const k = taoKho(mt); k.phucHoiGio(); coThem(k);
+  let tt = k.theTomTat.value;
+  la('chưa chọn giờ, chưa địa chỉ', [tt.nhan, tt.giao, tt.kieuPhi, tt.dayNhan], ['', '', 'chua', 'Tạm tính']);
+  gioThu(k);
+  k.S.CO.ship = 30000; k.S.CO.shipTrangThai = 'du_kien';
+  tt = k.theTomTat.value;
+  la('phí dự kiến', [tt.kieuPhi, tt.phi, tt.dayNhan, tt.dayPhu], ['du_kien', 'dự kiến 30.000 đ', 'Tổng cộng', 'đã gồm phí giao dự kiến']);
+  k.S.CO.shipTrangThai = 'chua_ro';
+  la('chưa tính được (không hiện 0 đ)', [k.theTomTat.value.kieuPhi, k.theTomTat.value.phi], ['chua', 'chưa tính được']);
+  dung('có dòng nhận', /13h - 15h/.test(k.theTomTat.value.nhan));
+  dung('bỏ ô nhắc lại trên nút gửi', !MAU.includes('id="chotDon"'));
+  dung('bỏ dòng Tiền bánh trùng lặp', !MAU.includes("t('gio_hang_tien_banh'"));
+});
+
+await ca('v681 luật mọi ảnh trên web chính sửa được ở trình biên tập: mỗi ô ảnh trong sổ nhãn có ảnh có sẵn, trang dùng anhWeb; ảnh đã tải lên thay ảnh có sẵn, giá trị lạ không lọt', async () => {
+  const {ANH_O_MAC_DINH} = await import('../../../public/web_vue/banh/du-lieu.js');
+  const {ND, anhWeb} = await import('../../../public/web_vue/kho/chu.js');
+  const SO = JSON.parse(readFileSync(new URL('../../../public/web_order/chu-mac-dinh.json', import.meta.url), 'utf8'));
+  const oAnh = Object.keys(SO).filter(k => SO[k].anh).sort();
+  la('sổ nhãn và bảng ảnh có sẵn cùng một bộ khoá', Object.keys(ANH_O_MAC_DINH).sort(), oAnh);
+  dung('đủ 25 ô ảnh', oAnh.length === 25);
+  /* Mọi khoá anhWeb('...') viết thẳng trong trang đều có trong sổ, và ngược lại mọi ô đều được trang dùng. */
+  const nguon = MAU + readFileSync(new URL('../../../public/web_vue/banh/du-lieu.js', import.meta.url), 'utf8');
+  const dung1 = [...nguon.matchAll(/anhWeb\('([a-z0-9_]+)'/g)].map(m => m[1]);
+  dung1.forEach(k => dung('khoá ' + k + ' có trong sổ', oAnh.includes(k)));
+  /* Luật: mọi <img :src> trong mẫu trang hoặc đi qua anhWeb, hoặc là ảnh lấy từ dữ liệu máy chủ đã sửa được
+     ở thẻ Bánh, Banner, Món (danh sách dưới), hoặc logo thương hiệu, logo đơn vị thanh toán. Thêm ảnh gắn cứng mới thì ca đỏ. */
+  const TU_MAY_CHU = new Set(['x.m.anh', 'm.anh', 'x.c.img', 'd.o.img', 'x.o.img', 'b.img', 'muaXem.m.anh', 'chiTiet.anhs[anhChon] || chiTiet.c.img', 'u', 'LOGO', 'LOGO_TT[l].src']);
+  const src = [...MAU.matchAll(/:src="([^"]+)"/g)].map(m => m[1]);
+  const la1 = src.filter(e => !e.startsWith('anhWeb(') && !TU_MAY_CHU.has(e));
+  la('ảnh gắn cứng chưa vào trình biên tập', la1, []);
+  dung('trang có dùng anhWeb', src.filter(e => e.startsWith('anhWeb(')).length >= 8);
+  /* anhWeb: ảnh đã tải lên thay ảnh có sẵn; trống, link ngoài, svg, đi lùi thư mục thì về ảnh có sẵn. */
+  const cu = ND.nhan; ND.nhan = {anh_co_mau: '/files/web-abc123.webp'};
+  la('ảnh đã tải lên', anhWeb('anh_co_mau', 'co-san'), '/files/web-abc123.webp');
+  for (const v of ['', '  ', 'https://evil.example/a.png', '/files/a.svg', '/files/../private/files/x.png', 'javascript:alert(1)', '/private/files/x.png', 12]) {
+    ND.nhan = {anh_co_mau: v};
+    la('giá trị lạ ' + JSON.stringify(v), anhWeb('anh_co_mau', 'co-san'), 'co-san');
+  }
+  ND.nhan = {}; la('chưa sửa thì ảnh có sẵn', anhWeb('anh_thiep_nho', ''), '');
+  ND.nhan = cu;
+});
+
+/* ---------------- v682 thẻ Thành viên dưới ô số điện thoại (BẢN 2 mục 2.2) ----------------
+   Máy chủ giả giữ luật của xem_uu_dai: số đã đặt web thì don_dau khong; khach.da_dat, khach.xac_thuc
+   theo phiên; điểm chỉ lộ sau xác thực. Gửi mã, xác thực có thể trả chậm (hứa tự giải). */
+function mayChuTv({daDat = [], phienSan = '', diem = true, uuDai = true} = {}) {
+  const v = {hoi: [], gui: [], xac: [], tra: [], phien: phienSan, cho: null, choTra: null};
+  const mang = {
+    'vagabond.don_hang.xem_uu_dai': th => {
+      const d = JSON.parse(th.don); v.hoi.push(d);
+      const so = String(d.dien_thoai || '').replace(/\D/g, '');
+      const cu = daDat.includes(so), xac = !!so && v.phien === so;
+      const dd = {giam: 50000, toi_thieu: 300000, ap_dung: 0, bo_ma: 0,
+        trang_thai: !uuDai || cu ? 'khong' : (xac ? 'du' : 'can_xac_thuc')};
+      if (dd.trang_thai === 'du') dd.ap_dung = 1;
+      const dv = !diem ? null : (!xac ? {trang_thai: 'can_xac_thuc'}
+        : {trang_thai: 'dung_duoc', so_du: 1200, toi_da: 400, tien_toi_da: 400000, dung: d.dung_diem ? 400 : 0, tien: d.dung_diem ? 400000 : 0});
+      return {ok: 1, giam: (dd.ap_dung ? 50000 : 0) + (dv && dv.tien || 0), ap: [], don_dau: dd, diem: dv, khach: so ? {da_dat: cu ? 1 : 0, xac_thuc: xac ? 1 : 0} : null};
+    },
+    'vagabond.thanh_vien.gui_ma': th => { v.gui.push(th); if (v.cho) return new Promise(res => { v.cho.push(() => res({ok: 1})); }); return {ok: 1, song_giay: 300}; },
+    'vagabond.thanh_vien.xac_thuc': th => { v.xac.push(th); const lam = () => { if (th.ma !== '123456') return {ok: 0, ly_do: 'ma_khong_dung'}; v.phien = String(th.sdt); return {ok: 1}; };
+      if (v.cho) return new Promise(res => { v.cho.push(() => res(lam())); }); return lam(); },
+    'vagabond.api.tra_khach': p => { v.tra.push(p.phone); const kq = v.phien === p.phone ? {addresses: [{ho_ten: 'Khách', phone: p.phone, dia_chi: '12 Nguyễn Huệ'}]} : {addresses: [], ly_do: 'can_xac_thuc'};
+      /* choTra: máy chủ đã đọc xong lúc phiên còn hạn nhưng trả muộn (Codex #605 vòng 3). */
+      if (v.choTra) return new Promise((res, rej) => { v.choTra.push(loi => loi ? rej(new Error('mạng rớt')) : res(kq)); }); return kq; },
+  };
+  return {v, mang};
+}
+
+await ca('v682 thẻ Thành viên: chưa đủ số thì ẩn; số mới mời giảm 50.000; số đã đặt chào quay lại; tắt ưu đãi đơn đầu thì mời tích điểm, không nói "quay lại" với số mới', async () => {
+  const {mang} = mayChuTv({daDat: ['0909111222'], uuDai: true});
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931'; await chayHen();
+  la('chưa đủ số: ẩn', k.theThanhVien.value, null);
+  k.S.f.phone = '0931224334'; await chayHen();
+  let th = k.theThanhVien.value;
+  la('số mới', [th.kieu, th.dia, th.nut], ['moi', '-50K', true]);
+  dung('tiêu đề nói mức giảm', /50\.000/.test(th.tieu) && /đơn đầu tiên/.test(th.tieu));
+  dung('dòng phụ nói ưu đãi, điểm, địa chỉ', /tích điểm/.test(th.phu) && /địa chỉ/.test(th.phu));
+  k.S.f.phone = '0909111222'; await chayHen();
+  th = k.theThanhVien.value;
+  la('số đã đặt', [th.kieu, th.dia, th.tieu], ['cu', '★', 'Chào mừng quý khách quay lại']);
+  const tat = mayChuTv({uuDai: false});
+  const m2 = moiTruong('2026-11-21T08:00:00', tat.mang);
+  const k2 = taoKho(m2.mt); coThem(k2); k2.moGio(); k2.S.f.phone = '0931224334'; await m2.chayHen();
+  la('tắt ưu đãi, số mới: mời tích điểm', [k2.theThanhVien.value.kieu, k2.theThanhVien.value.tieu], ['cu', 'Tích điểm thành viên cho số này']);
+});
+
+await ca('v682 thẻ Thành viên: gửi mã thì sang 6 ô và đếm 60 giây; dán đủ 6 số vào ô đầu thì tự xác nhận; xác thực xong một lần dùng chung ưu đãi, điểm, địa chỉ đã lưu', async () => {
+  const {v, mang} = mayChuTv();
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  await k.guiMaDonDau();
+  la('bước nhập mã', [k.theThanhVien.value.kieu, k.theThanhVien.value.tieu, k.S.CO.dd.cho], ['ma', 'Nhập mã 6 số Zalo vừa gửi', 60]);
+  await chayHen();
+  la('đếm lùi từng giây tới 0 thì gửi lại được', k.S.CO.dd.cho, 0);
+  la('gõ ô đầu: con trỏ sang ô 2', k.nhapMa(0, '1'), 1);
+  la('gõ ô 2', [k.nhapMa(1, '9'), k.S.CO.dd.ma], [2, '19']);
+  la('xoá lùi ô 3 trống: bỏ số ô 2', [k.xoaLuiMa(2), k.S.CO.dd.ma], [1, '1']);
+  la('dán 6 số vào ô đầu: đủ mã', k.nhapMa(0, '123 456'), 5);
+  await chayHen(); await chayHen();
+  la('tự xác nhận đúng số, đúng mã', v.xac[v.xac.length - 1], {sdt: '0931224334', ma: '123456'});
+  const th = k.theThanhVien.value;
+  la('đã xác thực', [th.kieu, th.tieu], ['xac', '✓ ĐÃ XÁC THỰC SỐ 0931224334']);
+  dung('ưu đãi đơn đầu nằm trong thẻ', /Đã giảm 50\.000/.test(th.phu));
+  la('công tắc điểm', [th.diem.co, th.diem.so, th.diem.tien], [false, (400).toLocaleString('vi-VN'), '400.000 đ']);
+  la('đọc địa chỉ của đúng số sau xác thực', v.tra[v.tra.length - 1], '0931224334');
+  await chayHen();
+  la('dòng địa chỉ đã lưu', k.theThanhVien.value.soDc, 1);
+  k.dungDiem(true); await chayHen(); await k.xemUuDai(); await chayHen();
+  la('bật công tắc: dùng 400 điểm', [k.theThanhVien.value.diem.co, k.theThanhVien.value.diem.tien], [true, '400.000 đ']);
+  la('chỉ gửi mã một lần cho cả ba thứ', v.gui.length, 1);
+});
+
+await ca('v682 đổi số: xoá ngay xác thực, ưu đãi, điểm, địa chỉ của số cũ; phản hồi chậm của số cũ (gửi mã, xác thực) bị bỏ qua; nút Đổi số về bước đầu', async () => {
+  const {v, mang} = mayChuTv();
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123456';
+  await k.xacThucDonDau(); await chayHen(); await chayHen();
+  la('số cũ đã xác thực, có địa chỉ, bật điểm', [k.theThanhVien.value.kieu, k.S.CO.addrList.length], ['xac', 1]);
+  k.dungDiem(true);
+  k.S.f.phone = '0901234567'; k.lookupPhone(); await chayHen();
+  la('đổi số: không còn xác thực, điểm, địa chỉ', [k.theThanhVien.value.kieu, k.S.CO.dungDiem, k.S.CO.addrList.length, k.S.CO.dd.daXac], ['moi', false, 0, '']);
+  /* Phản hồi chậm: gửi mã cho số B, đổi sang số C trước khi máy trả. */
+  v.cho = [];
+  const p1 = k.guiMaDonDau();
+  k.S.f.phone = '0912345678'; await chayHen();
+  v.cho.shift()(); await p1; await chayHen();
+  la('gửi mã trả muộn của số cũ: không sang bước nhập mã', k.S.CO.dd.buoc, 'nut');
+  v.cho = null; await k.guiMaDonDau(); v.cho = [];
+  k.S.CO.dd.ma = '123456';
+  const p2 = k.xacThucDonDau();
+  k.S.f.phone = '0987654321'; await chayHen();
+  v.cho.shift()(); await p2; await chayHen();
+  dung('xác thực trả muộn của số cũ: số mới không thành đã xác thực', k.S.CO.dd.daXac !== '0987654321' && k.theThanhVien.value.kieu !== 'xac');
+  /* Mã sai của số cũ trả muộn: không hiện câu lỗi dưới số mới. */
+  v.cho = null; await k.guiMaDonDau(); v.cho = [];
+  k.S.CO.dd.ma = '000000';
+  const p3 = k.xacThucDonDau();
+  k.S.f.phone = '0977777777'; await chayHen();
+  v.cho.shift()(); await p3; await chayHen();
+  la('lỗi mã của số cũ không hiện dưới số mới', k.S.CO.dd.loi, '');
+  v.cho = null; await k.guiMaDonDau();
+  la('đang nhập mã', k.S.CO.dd.buoc, 'ma');
+  k.doiSo();
+  la('Đổi số: về bước đầu', [k.S.CO.dd.buoc, k.S.CO.dd.ma, k.S.CO.dd.cho], ['nut', '', 0]);
+});
+
+await ca('Codex #605: đã xác thực, chọn địa chỉ đã lưu rồi bật Dùng điểm hay sửa giỏ: địa chỉ đang chọn giữ nguyên, không tra lại khách, thẻ không nháy mất trong lúc hỏi lại ưu đãi', async () => {
+  const {v, mang} = mayChuTv({phienSan: '0931224334'});
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen(); await chayHen();
+  la('đã xác thực, có địa chỉ', [k.theThanhVien.value.kieu, k.S.CO.addrList.length], ['xac', 1]);
+  k.selAddr(0);
+  const traTruoc = v.tra.length;
+  k.dungDiem(true);
+  la('đang hỏi lại: thẻ vẫn là Đã xác thực', k.theThanhVien.value && k.theThanhVien.value.kieu, 'xac');
+  await chayHen(); await chayHen();
+  la('bật điểm: địa chỉ đang chọn giữ nguyên', k.S.CO.addrSel, 0);
+  k.cartQty(0, 1);
+  la('sửa giỏ, đang hỏi lại: thẻ vẫn còn', k.theThanhVien.value && k.theThanhVien.value.kieu, 'xac');
+  await chayHen(); await chayHen();
+  la('sửa giỏ: địa chỉ giữ nguyên', k.S.CO.addrSel, 0);
+  la('không tra lại khách', v.tra.length - traTruoc, 0);
+});
+
+await ca('Codex #605 vòng 2: xác thực ngay trong checkout rồi hết phiên (đăng xuất ở tab khác): lượt hỏi lại báo chưa xác thực thì thẻ bỏ Đã xác thực, hiện lại nút gửi mã', async () => {
+  const {v, mang} = mayChuTv();
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123456'; await k.xacThucDonDau(); await chayHen(); await chayHen();
+  la('đã xác thực', k.theThanhVien.value.kieu, 'xac');
+  k.selAddr(0); k.dungDiem(true); await chayHen(); await chayHen();
+  v.phien = '';
+  k.cartQty(0, 1); await chayHen(); await chayHen();
+  const th = k.theThanhVien.value;
+  la('hết phiên: không còn Đã xác thực, có nút gửi mã', [th.kieu !== 'xac', !!th.nut, k.daXacThuc.value], [true, true, false]);
+  la('hết phiên: bỏ địa chỉ đã lấy và công tắc điểm', [k.S.CO.addrList.length, k.S.CO.addrSel, k.S.CO.dungDiem], [0, -1, false]);
+});
+
+await ca('Codex #605 vòng 3: lượt tra địa chỉ bắt đầu lúc phiên còn hạn nhưng trả muộn, giữa chừng hết phiên: phản hồi muộn bị bỏ, danh sách địa chỉ vẫn rỗng', async () => {
+  const {v, mang} = mayChuTv();
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  v.choTra = [];
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123456'; await k.xacThucDonDau(); await chayHen(); await chayHen();
+  la('đã xác thực, lượt tra địa chỉ đang chờ', [k.daXacThuc.value, v.choTra.length, k.S.CO.addrList.length], [true, 1, 0]);
+  v.phien = '';
+  k.cartQty(0, 1); await chayHen(); await chayHen();
+  la('hết phiên', k.daXacThuc.value, false);
+  v.choTra.shift()(); await chayHen(); await chayHen();
+  la('phản hồi muộn không ghi lại địa chỉ', [k.S.CO.addrList.length, k.S.CO.addrSel, k.daXacThuc.value], [0, -1, false]);
+  la('không hiện câu "Tìm thấy N địa chỉ"', k.S.goi.phone, null);
+  /* Xác thực lại thì vẫn tra được bình thường. */
+  v.choTra = null;
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123456'; await k.xacThucDonDau(); await chayHen(); await chayHen();
+  la('xác thực lại: địa chỉ trở lại', [k.daXacThuc.value, k.S.CO.addrList.length], [true, 1]);
+  /* Lượt tra cũ báo lỗi mạng sau khi lượt mới đã trả: không xoá danh sách của lượt mới. */
+  v.choTra = [];
+  k.lookupPhone(); await chayHen();
+  k.lookupPhone(); await chayHen();
+  la('hai lượt tra đang chờ', v.choTra.length, 2);
+  v.choTra[1](); await chayHen();
+  la('lượt mới trả: có địa chỉ', k.S.CO.addrList.length, 1);
+  v.choTra[0](true); await chayHen();
+  la('lượt cũ báo lỗi muộn: danh sách của lượt mới giữ nguyên', k.S.CO.addrList.length, 1);
+});
+
+await ca('v682 mở lại checkout (đã xác thực trong phiên trước, cookie còn): thẻ hiện Đã xác thực ngay, không bắt gửi mã lại', async () => {
+  const {v, mang} = mayChuTv({phienSan: '0931224334'});
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  la('đã xác thực theo máy chủ', k.theThanhVien.value.kieu, 'xac');
+  la('không gửi mã', v.gui.length, 0);
+  dung('mẫu trang: thẻ ngay dưới ô số, hai thẻ cũ ở Thanh toán đã bỏ', MAU.indexOf('id="theTv"') > MAU.indexOf('id="f-phone"') && MAU.indexOf('id="theTv"') < MAU.indexOf('id="f-name"') && !MAU.includes('id="donDau"') && !MAU.includes('id="theDiem"'));
 });
 
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');

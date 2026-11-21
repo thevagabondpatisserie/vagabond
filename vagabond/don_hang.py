@@ -431,7 +431,23 @@ def xem_uu_dai(don=None):
 	if dv and dv["tien"]:
 		ap.append({"ten": TEN_DIEM, "giam": dv["tien"]})
 	return {"ok": 1, "giam": giam_uu + int((dv or {}).get("tien") or 0), "ap": ap, "don_dau": dd,
-		"diem": _diem_hien(dv)}
+		"diem": _diem_hien(dv), "khach": _khach_web(sdt)}
+
+
+def _khach_web(sdt):
+	"""v682 (BẢN 2 mục 2.2): thẻ Thành viên dưới ô số điện thoại cần biết số đã
+	từng đặt web chưa (lời chào) và trình duyệt này đã xác thực đúng số chưa
+	(phiên Thành viên). Không trả tên, điểm, địa chỉ. Lỗi phụ thì coi như chưa
+	đặt, chưa xác thực (thẻ chỉ mời xác thực, không lộ gì)."""
+	x = don_dau_web.chin_so(sdt)
+	if not x:
+		return None
+	try:
+		xac = don_dau_web.chin_so(don_dau_web.sdt_phien()) == x
+		return {"da_dat": 1 if don_dau_web.da_dat_web(sdt) else 0, "xac_thuc": 1 if xac else 0}
+	except Exception:
+		frappe.log_error(title="Vagabond: thẻ Thành viên đơn web", message=frappe.get_traceback())
+		return {"da_dat": 0, "xac_thuc": 0}
 
 
 def _gan_giam_pancake(hang, hang_goc, gia, giam):
@@ -550,6 +566,13 @@ def tao_don(don=None):
 	hang = _lam_sach_hang(don.get("items"))
 	if not hang:
 		return {"ok": 0, "ly_do": "gio_hang_rong"}
+	# v681: lời chúc, cờ, thiệp theo từng chiếc. Số thiệp ép kim BAPK00002 máy
+	# chủ CHỐT bằng đúng số chiếc chọn ép kim, trước mọi phép tính tiền, ưu đãi
+	# và khoá chống trùng. Trang cũ không gửi khoá chiec thì giữ giỏ như cũ.
+	from vagabond import chiec_banh
+
+	chiec = chiec_banh.chuan_chiec(don.get("chiec"), hang)
+	hang = chiec_banh.chot_thiep_ep_kim(hang, chiec)
 
 	ten = (don.get("ho_ten") or "").strip()
 	dien_thoai = _so(don.get("dien_thoai"))
@@ -557,6 +580,7 @@ def tao_don(don=None):
 		return {"ok": 0, "ly_do": "thieu_ten_hoac_so_dien_thoai"}
 
 	tu_lay = bool(don.get("tu_lay"))
+	ghi_chu_nhanh = chiec_banh.chuan_ghi_chu_nhanh(don.get("ghi_chu_nhanh"), tu_lay)
 	dia_chi = (don.get("dia_chi") or "").strip()
 	if not tu_lay and len(dia_chi) < 8:
 		return {"ok": 0, "ly_do": "thieu_dia_chi_giao"}
@@ -816,6 +840,11 @@ def tao_don(don=None):
 		],
 		# v668: món khách thêm từ khối Gợi ý mua thêm (để đo, chỉ đơn mới có).
 		"goi_y": goi_y_mua.ma_goi_y(don.get("goi_y"), [h["variation_id"] for h in hang_goc]),
+		# v681: từng chiếc bánh (lời chúc, cờ, thiệp) và mã viên ghi chú chọn nhanh,
+		# chốt lúc đặt để biên nhận và đối soát đọc lại. Trang cũ không gửi thì không có khoá.
+		**({"chiec": chiec_banh.anh_chup_chiec(chiec, ten_mon)} if chiec is not None else {}),
+		"ghi_chu_nhanh": ghi_chu_nhanh,
+		"gio_tre_nhat": chiec_banh.chuan_gio_tre(don.get("gio_tre_nhat"), ghi_chu_nhanh),
 		"nguoi_dat": {"ho_ten": ten, "dien_thoai": dien_thoai, "email": (don.get("email") or "").strip()},
 		"nguoi_nhan": {"ho_ten": (nguoi_nhan.get("ho_ten") or "").strip(),
 			"dien_thoai": _so(nguoi_nhan.get("dien_thoai"))} if nguoi_nhan else None,

@@ -8467,5 +8467,655 @@
     "nhom": "dat_banh",
     "mac_dinh": "Hiện cách chuyển khoản",
     "nhieu_dong": true
+  },
+  "hoi_bo_chiec_sua": {
+    "ten": "Hỏi bỏ chiếc: Giảm số lượng sẽ bỏ {so} chiếc cuối đã có lời chúc hoặc thiệp. Bỏ các chiếc ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giảm số lượng sẽ bỏ {so} chiếc cuối đã có lời chúc hoặc thiệp. Bỏ các chiếc này?",
+    "nhieu_dong": true
+  },
+  "hoi_bo_chiec_nut_sua": {
+    "ten": "Hỏi bỏ chiếc: Bỏ và lưu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bỏ và lưu",
+    "nhieu_dong": false
+  },
+  "them_nhanh_681": {
+    "ten": "Đã thêm {gia_tri_a}{gia_tri_b}. Lời chúc và thiệp chọn ở bước Thông tin đơn hàng.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã thêm {gia_tri_a}{gia_tri_b}. Lời chúc và thiệp chọn ở bước Thông tin đơn hàng.",
+    "nhieu_dong": true
+  },
+  "hoi_bo_chiec": {
+    "ten": "Hỏi bỏ chiếc: Bỏ chiếc {so}? Lời chúc và thiệp của chiếc này sẽ mất.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bỏ chiếc {so}? Lời chúc và thiệp của chiếc này sẽ mất.",
+    "nhieu_dong": true
+  },
+  "hoi_bo_chiec_nut": {
+    "ten": "Hỏi bỏ chiếc: Bỏ chiếc này",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bỏ chiếc này",
+    "nhieu_dong": false
+  },
+  "chiec_phu": {
+    "ten": "Lời chúc, thiệp: số thứ tự chiếc bánh (bánh 1/2)",
+    "nhom": "dat_banh",
+    "mac_dinh": "bánh {so}/{tong}",
+    "nhieu_dong": false
+  },
+  "gc_gio_doi": {
+    "ten": "Ghi chú nhanh: Khung giờ nhận vừa đổi. Quý khách chọn lại giờ trễ nhất.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Khung giờ nhận vừa đổi. Quý khách chọn lại giờ trễ nhất.",
+    "nhieu_dong": true
+  },
+  "gc_tre_nhat_gui": {
+    "ten": "Ghi chú nhanh: Trễ nhất {gio}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Trễ nhất {gio}",
+    "nhieu_dong": false
+  },
+  "tt_tu_lay_tai": {
+    "ten": "Tóm tắt đơn: Tự lấy tại {ten}",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tự lấy tại {ten}",
+    "nhieu_dong": false
+  },
+  "tt_phi_tu_lay": {
+    "ten": "Tóm tắt đơn: không tính phí",
+    "nhom": "dat_banh",
+    "mac_dinh": "không tính phí",
+    "nhieu_dong": false
+  },
+  "tt_phi_du_kien": {
+    "ten": "Tóm tắt đơn: dự kiến {tien}",
+    "nhom": "dat_banh",
+    "mac_dinh": "dự kiến {tien}",
+    "nhieu_dong": false
+  },
+  "tt_phi_chua_tinh": {
+    "ten": "Tóm tắt đơn: chưa tính được",
+    "nhom": "dat_banh",
+    "mac_dinh": "chưa tính được",
+    "nhieu_dong": false
+  },
+  "tt_tong_cong": {
+    "ten": "Tóm tắt đơn: Tổng cộng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tổng cộng",
+    "nhieu_dong": false
+  },
+  "tt_tam_tinh": {
+    "ten": "Tóm tắt đơn: Tạm tính",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tạm tính",
+    "nhieu_dong": false
+  },
+  "tt_gom_phi_du_kien": {
+    "ten": "Tóm tắt đơn: đã gồm phí giao dự kiến",
+    "nhom": "dat_banh",
+    "mac_dinh": "đã gồm phí giao dự kiến",
+    "nhieu_dong": false
+  },
+  "tt_gom_phi": {
+    "ten": "Tóm tắt đơn: đã gồm phí giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "đã gồm phí giao",
+    "nhieu_dong": false
+  },
+  "tt_chua_gom_phi": {
+    "ten": "Tóm tắt đơn: chưa gồm phí giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "chưa gồm phí giao",
+    "nhieu_dong": false
+  },
+  "tt_ck_681": {
+    "ten": "Tóm tắt đơn: Sau khi gửi đơn, quý khách có thể mở app ngân hàng hoặc quét mã QR để thanh t",
+    "nhom": "dat_banh",
+    "mac_dinh": "Sau khi gửi đơn, quý khách có thể mở app ngân hàng hoặc quét mã QR để thanh toán.",
+    "nhieu_dong": true
+  },
+  "lc_thieu": {
+    "ten": "Lời chúc, thiệp: Nhập lời chúc hoặc chọn Không cần cờ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhập lời chúc hoặc chọn Không cần cờ",
+    "nhieu_dong": false
+  },
+  "gc_thieu_gio": {
+    "ten": "Ghi chú nhanh: Quý khách chọn giờ trễ nhất trong khung giờ đã chọn.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách chọn giờ trễ nhất trong khung giờ đã chọn.",
+    "nhieu_dong": true
+  },
+  "gc_thieu_di_ung": {
+    "ten": "Ghi chú nhanh: Quý khách ghi rõ dị ứng với gì để bếp chuẩn bị đúng.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách ghi rõ dị ứng với gì để bếp chuẩn bị đúng.",
+    "nhieu_dong": true
+  },
+  "lc_tieu_de": {
+    "ten": "Lời chúc, thiệp: Lời chúc và thiệp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lời chúc và thiệp",
+    "nhieu_dong": false
+  },
+  "lc_co_nhan": {
+    "ten": "Lời chúc, thiệp: Cờ cắm lời chúc",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cờ cắm lời chúc",
+    "nhieu_dong": false
+  },
+  "lc_can_co": {
+    "ten": "Lời chúc, thiệp: Cần cờ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cần cờ",
+    "nhieu_dong": false
+  },
+  "lc_khong_co": {
+    "ten": "Lời chúc, thiệp: Không cần cờ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Không cần cờ",
+    "nhieu_dong": false
+  },
+  "lc_o_chuc": {
+    "ten": "Lời chúc, thiệp: Lời chúc in trên cờ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lời chúc in trên cờ",
+    "nhieu_dong": false
+  },
+  "lc_xem_mau": {
+    "ten": "Lời chúc, thiệp: Xem mẫu cờ chúc",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xem mẫu cờ chúc",
+    "nhieu_dong": false
+  },
+  "lc_bam_mau": {
+    "ten": "Lời chúc, thiệp: Bấm hình cờ để xem mẫu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bấm hình cờ để xem mẫu",
+    "nhieu_dong": false
+  },
+  "lc_thiep_nhan": {
+    "ten": "Lời chúc, thiệp: Thiệp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thiệp",
+    "nhieu_dong": false
+  },
+  "lc_khong_thiep": {
+    "ten": "Lời chúc, thiệp: Không cần thiệp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Không cần thiệp",
+    "nhieu_dong": false
+  },
+  "lc_can_thiep": {
+    "ten": "Lời chúc, thiệp: Cần thiệp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cần thiệp",
+    "nhieu_dong": false
+  },
+  "lc_loai_thiep": {
+    "ten": "Lời chúc, thiệp: Loại thiệp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Loại thiệp",
+    "nhieu_dong": false
+  },
+  "lc_thiep_nho": {
+    "ten": "Lời chúc, thiệp: Thiệp nhỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thiệp nhỏ",
+    "nhieu_dong": false
+  },
+  "lc_mien_phi": {
+    "ten": "Lời chúc, thiệp: miễn phí",
+    "nhom": "dat_banh",
+    "mac_dinh": "miễn phí",
+    "nhieu_dong": false
+  },
+  "thiep_ep_kim_ten": {
+    "ten": "Thiệp sinh nhật ép kim",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thiệp sinh nhật ép kim",
+    "nhieu_dong": false
+  },
+  "lc_loi_thiep": {
+    "ten": "Lời chúc, thiệp: Lời viết trên thiệp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lời viết trên thiệp",
+    "nhieu_dong": false
+  },
+  "lc_thiep_goi": {
+    "ten": "Lời chúc, thiệp: Ngắn gọn, tối đa 80 ký tự",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngắn gọn, tối đa 80 ký tự",
+    "nhieu_dong": false
+  },
+  "nn_ai_nhan": {
+    "ten": "Người nhận: AI NHẬN BÁNH",
+    "nhom": "dat_banh",
+    "mac_dinh": "AI NHẬN BÁNH",
+    "nhieu_dong": false
+  },
+  "nn_toi_nhan": {
+    "ten": "Người nhận: Tôi là người nhận bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tôi là người nhận bánh",
+    "nhieu_dong": false
+  },
+  "nn_toi_nhan_mo": {
+    "ten": "Người nhận: Sử dụng số điện thoại đã nhập ở trên",
+    "nhom": "dat_banh",
+    "mac_dinh": "Sử dụng số điện thoại đã nhập ở trên",
+    "nhieu_dong": false
+  },
+  "nn_khac_mo": {
+    "ten": "Người nhận: Nhập thông tin người nhận thay",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhập thông tin người nhận thay",
+    "nhieu_dong": false
+  },
+  "nn_gui_tang": {
+    "ten": "Người nhận: GỬI TẶNG",
+    "nhom": "dat_banh",
+    "mac_dinh": "GỬI TẶNG",
+    "nhieu_dong": false
+  },
+  "gc_tieu_de": {
+    "ten": "Ghi chú nhanh: Ghi chú cho bếp và người giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ghi chú cho bếp và người giao",
+    "nhieu_dong": false
+  },
+  "gc_chon_nhanh": {
+    "ten": "Ghi chú nhanh: CHỌN NHANH, CHỌN NHIỀU CŨNG ĐƯỢC",
+    "nhom": "dat_banh",
+    "mac_dinh": "CHỌN NHANH, CHỌN NHIỀU CŨNG ĐƯỢC",
+    "nhieu_dong": false
+  },
+  "gc_gio_nhan": {
+    "ten": "Ghi chú nhanh: Giao trễ nhất lúc",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giao trễ nhất lúc",
+    "nhieu_dong": false
+  },
+  "gc_khac_di_ung": {
+    "ten": "Ghi chú nhanh: GHI RÕ DỊ ỨNG VÀ GHI CHÚ KHÁC (BẮT BUỘC)",
+    "nhom": "dat_banh",
+    "mac_dinh": "GHI RÕ DỊ ỨNG VÀ GHI CHÚ KHÁC (BẮT BUỘC)",
+    "nhieu_dong": false
+  },
+  "gc_khac": {
+    "ten": "Ghi chú nhanh: GHI CHÚ KHÁC (KHÔNG BẮT BUỘC)",
+    "nhom": "dat_banh",
+    "mac_dinh": "GHI CHÚ KHÁC (KHÔNG BẮT BUỘC)",
+    "nhieu_dong": false
+  },
+  "gc_goi_di_ung": {
+    "ten": "Ghi chú nhanh: Ghi rõ dị ứng với gì…",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ghi rõ dị ứng với gì…",
+    "nhieu_dong": false
+  },
+  "gc_goi_khac": {
+    "ten": "Ghi chú nhanh: Yêu cầu khác cho bếp hoặc người giao...",
+    "nhom": "dat_banh",
+    "mac_dinh": "Yêu cầu khác cho bếp hoặc người giao...",
+    "nhieu_dong": false
+  },
+  "pt_ck_logo_chu": {
+    "ten": "Thanh toán: 40+ ngân hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "40+ ngân hàng",
+    "nhieu_dong": false
+  },
+  "tt_nhan": {
+    "ten": "Tóm tắt đơn: Nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhận",
+    "nhieu_dong": false
+  },
+  "tt_chon_gio": {
+    "ten": "Tóm tắt đơn: Chọn giờ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn giờ",
+    "nhieu_dong": false
+  },
+  "tt_lay": {
+    "ten": "Tóm tắt đơn: Lấy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lấy",
+    "nhieu_dong": false
+  },
+  "tt_giao": {
+    "ten": "Tóm tắt đơn: Giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giao",
+    "nhieu_dong": false
+  },
+  "tt_chon_diem": {
+    "ten": "Tóm tắt đơn: Chọn điểm nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn điểm nhận",
+    "nhieu_dong": false
+  },
+  "tt_nhap_dc": {
+    "ten": "Tóm tắt đơn: Nhập địa chỉ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhập địa chỉ",
+    "nhieu_dong": false
+  },
+  "pk_mua_them_681": {
+    "ten": "Phụ kiện: Mua thêm phụ kiện",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mua thêm phụ kiện",
+    "nhieu_dong": false
+  },
+  "pk_mua_them_phu_681": {
+    "ten": "Phụ kiện: Nến số, nón và sash sinh nhật",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nến số, nón và sash sinh nhật",
+    "nhieu_dong": false
+  },
+  "pk_mau_ngau_nhien": {
+    "ten": "Phụ kiện: Màu nón và sash giao ngẫu nhiên.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Màu nón và sash giao ngẫu nhiên.",
+    "nhieu_dong": false
+  },
+  "mc_mo_ta": {
+    "ten": "Mẫu cờ: Ảnh minh hoạ. Màu cờ có thể khác, lời chúc in đúng nội dung quý khách ghi.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ảnh minh hoạ. Màu cờ có thể khác, lời chúc in đúng nội dung quý khách ghi.",
+    "nhieu_dong": true
+  },
+  "mc_se_in": {
+    "ten": "Mẫu cờ: LỜI CHÚC SẼ IN",
+    "nhom": "dat_banh",
+    "mac_dinh": "LỜI CHÚC SẼ IN",
+    "nhieu_dong": false
+  },
+  "mc_chua_nhap": {
+    "ten": "Mẫu cờ: Chưa nhập lời chúc",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa nhập lời chúc",
+    "nhieu_dong": false
+  },
+  "hoi_bo_giu": {
+    "ten": "Hỏi bỏ chiếc: Giữ lại",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giữ lại",
+    "nhieu_dong": false
+  },
+  "gc_goi_truoc": {
+    "ten": "Ghi chú nhanh: Gọi trước khi giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi trước khi giao",
+    "nhieu_dong": false
+  },
+  "gc_gui_le_tan": {
+    "ten": "Ghi chú nhanh: Không ai nghe máy thì gửi lễ tân",
+    "nhom": "dat_banh",
+    "mac_dinh": "Không ai nghe máy thì gửi lễ tân",
+    "nhieu_dong": false
+  },
+  "gc_chup_hinh": {
+    "ten": "Ghi chú nhanh: Chụp hình bánh gửi trước",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chụp hình bánh gửi trước",
+    "nhieu_dong": false
+  },
+  "gc_gio_tre_nhat": {
+    "ten": "Ghi chú nhanh: Có giờ trễ nhất",
+    "nhom": "dat_banh",
+    "mac_dinh": "Có giờ trễ nhất",
+    "nhieu_dong": false
+  },
+  "gc_di_ung": {
+    "ten": "Ghi chú nhanh: Có người dị ứng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Có người dị ứng",
+    "nhieu_dong": false
+  },
+  "pk_co_cam_mo_681": {
+    "ten": "Phụ kiện: lời chúc chọn ở bước Thông tin đơn hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "lời chúc chọn ở bước Thông tin đơn hàng",
+    "nhieu_dong": false
+  },
+  "pt_ck_mo_681": {
+    "ten": "Thanh toán: Mở app ngân hàng hoặc quét mã QR để chuyển khoản.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mở app ngân hàng hoặc quét mã QR để chuyển khoản.",
+    "nhieu_dong": false
+  },
+  "anh_co_mau": {
+    "ten": "Mẫu cờ cắm lời chúc: hình cạnh ô lời chúc và hộp Xem mẫu cờ",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_thiep_nho": {
+    "ten": "Thiệp nhỏ miễn phí: hình ở ô chọn thiệp của từng chiếc bánh",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_thiep_ep_kim": {
+    "ten": "Thiệp sinh nhật ép kim: hình ở ô chọn thiệp của từng chiếc bánh",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_hop_banh": {
+    "ten": "Kèm theo mỗi bánh: Hộp bánh",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_tui_vai": {
+    "ten": "Kèm theo mỗi bánh: Túi vải đen",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_dao": {
+    "ten": "Kèm theo mỗi bánh: Dao gỗ cắt bánh",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_nen_xoan": {
+    "ten": "Kèm theo mỗi bánh: Nến xoắn",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_pk_co_cam": {
+    "ten": "Kèm theo mỗi bánh: Cờ cắm in lời chúc",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_dc_dia": {
+    "ten": "Dụng cụ ăn tặng kèm: Dĩa giấy bã mía",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_dc_nia": {
+    "ten": "Dụng cụ ăn tặng kèm: Nĩa gỗ",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_0": {
+    "ten": "Mua thêm: Nến số 0",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_1": {
+    "ten": "Mua thêm: Nến số 1",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_2": {
+    "ten": "Mua thêm: Nến số 2",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_3": {
+    "ten": "Mua thêm: Nến số 3",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_4": {
+    "ten": "Mua thêm: Nến số 4",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_5": {
+    "ten": "Mua thêm: Nến số 5",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_6": {
+    "ten": "Mua thêm: Nến số 6",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_7": {
+    "ten": "Mua thêm: Nến số 7",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_8": {
+    "ten": "Mua thêm: Nến số 8",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_nen_so_9": {
+    "ten": "Mua thêm: Nến số 9",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00001": {
+    "ten": "Mua thêm: Nến xoắn (vỉ 6 cây)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00024": {
+    "ten": "Mua thêm: Nón sinh nhật",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00025": {
+    "ten": "Mua thêm: Sash sinh nhật",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00016": {
+    "ten": "Mua thêm: Hộp bánh kem",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "anh_mua_bapk00015": {
+    "ten": "Mua thêm: Túi vải đen The Vagabond",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "tv682_nhap_ma": {
+    "ten": "Thẻ Thành viên: tiêu đề khi nhập mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Nhập mã 6 số Zalo vừa gửi"
+  },
+  "tv682_da_xac": {
+    "ten": "Thẻ Thành viên: tiêu đề đã xác thực ({so} là số điện thoại)",
+    "nhom": "gio_hang",
+    "mac_dinh": "ĐÃ XÁC THỰC SỐ {so}"
+  },
+  "tv682_moi_tieu": {
+    "ten": "Thẻ Thành viên: tiêu đề số chưa từng đặt web ({tien} là mức giảm)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số này được giảm {tien} cho đơn đầu tiên trên web"
+  },
+  "tv682_moi_phu": {
+    "ten": "Thẻ Thành viên: dòng phụ số chưa từng đặt web",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác thực qua Zalo để nhận ưu đãi, tích điểm và lưu địa chỉ cho lần sau."
+  },
+  "tv682_cu_tieu": {
+    "ten": "Thẻ Thành viên: tiêu đề số đã từng đặt",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chào mừng quý khách quay lại"
+  },
+  "tv682_cu_phu": {
+    "ten": "Thẻ Thành viên: dòng phụ số đã từng đặt",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác thực qua Zalo để xem và dùng điểm, lấy địa chỉ đã lưu."
+  },
+  "tv682_tich_tieu": {
+    "ten": "Thẻ Thành viên: tiêu đề khi không có ưu đãi đơn đầu",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tích điểm thành viên cho số này"
+  },
+  "tv682_tich_phu": {
+    "ten": "Thẻ Thành viên: dòng phụ khi không có ưu đãi đơn đầu",
+    "nhom": "gio_hang",
+    "mac_dinh": "Xác thực qua Zalo để tích điểm và lưu địa chỉ cho lần sau."
+  },
+  "tv682_nhan": {
+    "ten": "Thẻ Thành viên: tên vùng (máy đọc màn hình)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Thành viên The Vagabond Club"
+  },
+  "tv682_o_so": {
+    "ten": "Thẻ Thành viên: tên từng ô mã ({so} là thứ tự ô)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số thứ {so} của mã"
+  },
+  "tv682_gui_lai_sau": {
+    "ten": "Thẻ Thành viên: chờ gửi lại mã ({thoi} là thời gian)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi lại sau {thoi}"
+  },
+  "tv682_doi_so": {
+    "ten": "Thẻ Thành viên: chữ Đổi số",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đổi số"
+  },
+  "tv682_gui_ma": {
+    "ten": "Thẻ Thành viên: nút gửi mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi mã qua Zalo"
+  },
+  "tv682_dung_diem": {
+    "ten": "Thẻ Thành viên: công tắc dùng điểm ({diem} là số điểm)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Dùng {diem} điểm cho đơn này"
+  },
+  "tv682_dung_diem_phu": {
+    "ten": "Thẻ Thành viên: dòng phụ công tắc dùng điểm ({tien} là số tiền giảm)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giảm {tien}. Dùng tối đa một nửa tiền bánh."
+  },
+  "tv682_dia_chi": {
+    "ten": "Thẻ Thành viên: dòng địa chỉ đã lưu ({so} là số địa chỉ)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Địa chỉ đã lưu: {so} địa chỉ"
   }
 }
