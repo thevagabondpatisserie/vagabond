@@ -276,7 +276,29 @@ export const MAU = `
     <div class="sec"><span class="n">05</span><h3><span>{{ t('dat_banh_bd76ef893','Người đặt') }}</span></h3><i class="rule"></i></div>
     <div class="fld"><label><span>{{ t('dat_banh_58f52301a','Số điện thoại') }}</span></label>
       <input id="f-phone" type="tel" inputmode="numeric" :placeholder="t('dat_banh_639307e29','09xx xxx xxx')" v-model="S.f.phone" @input="kho.lookupPhone()">
-      <div class="hint" id="phoneHint"><dong-chu v-if="S.goi.phone" :phan="S.goi.phone"/><template v-else>{{ t('dat_banh_4602d2995','Quý khách có thể nhập địa chỉ mới. Địa chỉ đã lưu chỉ hiện sau khi xác thực thành viên.') }}</template></div>
+      <div class="hint" id="phoneHint" v-if="!kho.theThanhVien.value"><dong-chu v-if="S.goi.phone" :phan="S.goi.phone"/><template v-else>{{ t('dat_banh_4602d2995','Quý khách có thể nhập địa chỉ mới. Địa chỉ đã lưu chỉ hiện sau khi xác thực thành viên.') }}</template></div>
+    </div>
+    <!-- v682 (BẢN 2 mục 2.2): thẻ Thành viên ngay dưới ô số điện thoại. Ưu đãi đơn đầu và điểm chuyển từ mục Thanh toán lên đây; một lần xác thực Zalo dùng chung cho ưu đãi, điểm, địa chỉ đã lưu. -->
+    <div class="tv-the" id="theTv" v-if="kho.theThanhVien.value" :class="'tv-' + kho.theThanhVien.value.kieu" role="group" :aria-label="t('tv682_nhan','Thành viên The Vagabond Club')">
+      <div class="tv-dau"><span class="tv-dia" aria-hidden="true" v-if="kho.theThanhVien.value.dia">{{ kho.theThanhVien.value.dia }}</span>
+        <div><b class="tv-tieu">{{ kho.theThanhVien.value.tieu }}</b><small class="tv-phu" v-if="kho.theThanhVien.value.phu">{{ kho.theThanhVien.value.phu }}</small></div></div>
+      <template v-if="kho.theThanhVien.value.kieu === 'ma'">
+        <div class="tv-o-ma" role="group" :aria-label="t('dat_banh_dd_o_ma','Mã 6 số trong tin nhắn Zalo')">
+          <input v-for="i in 6" :key="i" :id="i === 1 ? 'ddMa' : 'ddMa' + i" class="tv-o" inputmode="numeric" :autocomplete="i === 1 ? 'one-time-code' : 'off'" maxlength="6"
+            :aria-label="t('tv682_o_so','Số thứ {so} của mã',{so: i})" :value="(S.CO.dd.ma || '')[i - 1] || ''" @input="nhapOMa(i - 1, $event)" @keydown="phimOMa(i - 1, $event)"></div>
+        <button type="button" class="tv-nut" id="ddXacNhan" :disabled="S.CO.dd.dangGui" @click="kho.xacThucDonDau()">{{ t('dat_banh_dd_xac_nhan','Xác nhận') }}</button>
+        <div class="tv-duoi"><button type="button" class="tv-lai" id="ddGuiLai" :disabled="S.CO.dd.dangGui || S.CO.dd.cho > 0" @click="kho.guiMaDonDau()">{{ S.CO.dd.cho > 0 ? t('tv682_gui_lai_sau','Gửi lại sau {thoi}',{thoi: Math.floor(S.CO.dd.cho / 60) + ':' + String(S.CO.dd.cho % 60).padStart(2, '0')}) : t('dat_banh_dd_gui_lai','Gửi lại mã') }}</button>
+          <button type="button" class="tv-doi" id="ddDoiSo" @click="doiSoDt()">{{ t('tv682_doi_so','Đổi số') }}</button></div>
+      </template>
+      <button v-else-if="kho.theThanhVien.value.nut" type="button" class="tv-nut" id="ddGuiMa" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ S.CO.dd.dangGui ? t('dat_banh_dd_dang_gui','Đang gửi...') : t('tv682_gui_ma','Gửi mã qua Zalo') }}</button>
+      <template v-if="kho.theThanhVien.value.kieu === 'xac'">
+        <button v-if="kho.theThanhVien.value.diem" type="button" role="switch" class="tv-cong-tac" id="dvDung" :aria-checked="S.CO.dungDiem ? 'true' : 'false'" @click="kho.dungDiem(!S.CO.dungDiem)">
+          <span class="tv-ct-chu"><b>{{ t('tv682_dung_diem','Dùng {diem} điểm cho đơn này',{diem: kho.theThanhVien.value.diem.so}) }}</b><small>{{ t('tv682_dung_diem_phu','Giảm {tien}. Dùng tối đa một nửa tiền bánh.',{tien: kho.theThanhVien.value.diem.tien}) }}</small></span>
+          <span class="ct" aria-hidden="true"><i></i></span></button>
+        <p class="tv-ghi" v-else-if="kho.theThanhVien.value.diemChu">{{ kho.theThanhVien.value.diemChu }}</p>
+        <button v-if="kho.theThanhVien.value.soDc && S.CO.mode === 'ship'" type="button" class="tv-dc" id="tvDiaChi" @click="cuonToi('', '#savedAddr')">{{ t('tv682_dia_chi','Địa chỉ đã lưu: {so} địa chỉ',{so: kho.theThanhVien.value.soDc}) }}<span aria-hidden="true">›</span></button>
+      </template>
+      <p class="tv-loi" v-if="S.CO.dd.loi" role="alert">{{ S.CO.dd.loi }}</p>
     </div>
     <div class="two">
       <div class="fld"><label><span>{{ t('dat_banh_3da3c8c27','Họ tên') }}</span></label><input id="f-name" :placeholder="t('dat_banh_5bef63904','Họ và tên người đặt')" v-model="S.f.name"></div>
@@ -347,38 +369,10 @@ export const MAU = `
       <span class="tron" aria-hidden="true"></span></button></div>
     <p class="pay-bao" id="payBao" role="status" v-if="S.CO.payBao">{{ t('pay675_xem_lai','Cách thanh toán đã chọn trước đây không còn áp dụng. Quý khách xem lại cách thanh toán trước khi gửi đơn.') }}</p>
 
-    <div class="dd-the" id="donDau" v-if="kho.theDonDau.value" :class="'dd-' + kho.theDonDau.value.kieu" role="group" :aria-label="kho.theDonDau.value.tieu">
-      <div class="dd-dau"><span class="dd-ic" aria-hidden="true">{{ kho.theDonDau.value.kieu === 'da_ap' ? '✓' : kho.theDonDau.value.ic }}</span>
-        <div><b class="dd-tieu">{{ kho.theDonDau.value.tieu }}</b><small class="dd-phu">{{ kho.theDonDau.value.phu }}</small></div></div>
-      <template v-if="kho.theDonDau.value.kieu === 'xac_thuc'">
-        <button v-if="S.CO.dd.buoc !== 'ma'" type="button" class="dd-nut" id="ddGuiMa" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ S.CO.dd.dangGui ? t('dat_banh_dd_dang_gui','Đang gửi...') : t('dat_banh_dd_gui_ma','Gửi mã xác thực qua Zalo') }}</button>
-        <div v-else class="dd-otp"><input id="ddMa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" :aria-label="t('dat_banh_dd_o_ma','Mã 6 số trong tin nhắn Zalo')" v-model="S.CO.dd.ma" @keydown.enter.prevent="kho.xacThucDonDau()">
-          <button type="button" class="dd-nut" id="ddXacNhan" :disabled="S.CO.dd.dangGui" @click="kho.xacThucDonDau()">{{ t('dat_banh_dd_xac_nhan','Xác nhận') }}</button></div>
-        <button v-if="S.CO.dd.buoc === 'ma'" type="button" class="dd-lai" id="ddGuiLai" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ t('dat_banh_dd_gui_lai','Gửi lại mã') }}</button>
-        <p class="dd-loi" v-if="S.CO.dd.loi" role="alert">{{ S.CO.dd.loi }}</p>
-        <p class="dd-ghi" v-else-if="S.CO.dd.bao">{{ S.CO.dd.bao }}</p>
-        <p class="dd-ghi" v-else-if="S.CO.dd.buoc !== 'ma'">{{ t('dat_banh_dd_mot_lan','Mỗi số điện thoại dùng được một lần. Không cần nhập mã ưu đãi.') }}</p>
-      </template>
-    </div>
     <div class="fld"><label><span>{{ t('dat_banh_ma_uu_dai','Mã ưu đãi') }}</span></label>
       <div class="ma-hang"><input id="f-ma" autocomplete="off" autocapitalize="characters" maxlength="40" :aria-label="t('dat_banh_ma_uu_dai','Mã ưu đãi')" :placeholder="t('dat_banh_ma_uu_dai_goi','Ví dụ SINHNHAT10')" v-model="S.f.ma" @keydown.enter.prevent="kho.apMaUuDai()">
       <button class="nut-vien" id="btnMa" type="button" @click="kho.apMaUuDai()"><span>{{ t('dat_banh_ap_ma','Áp dụng') }}</span></button></div>
       <div class="hint" id="maHint"><dong-chu :phan="kho.goiYMa.value"/></div>
-    </div>
-    <div class="dd-the" id="theDiem" v-if="kho.theDiem.value" :class="'dd-' + (kho.theDiem.value.kieu === 'dung' ? 'goi_y' : kho.theDiem.value.kieu)" role="group" :aria-label="kho.theDiem.value.tieu">
-      <div class="dd-dau"><span class="dd-ic" aria-hidden="true">{{ kho.theDiem.value.kieu === 'da_ap' ? '✓' : '★' }}</span>
-        <div><b class="dd-tieu">{{ kho.theDiem.value.tieu }}</b><small class="dd-phu">{{ kho.theDiem.value.phu }}</small></div></div>
-      <template v-if="kho.theDiem.value.kieu === 'xac_thuc'">
-        <button v-if="S.CO.dd.buoc !== 'ma'" type="button" class="dd-nut" id="dvGuiMa" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ S.CO.dd.dangGui ? t('dat_banh_dd_dang_gui','Đang gửi...') : t('dat_banh_dd_gui_ma','Gửi mã xác thực qua Zalo') }}</button>
-        <div v-else class="dd-otp"><input id="dvMa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" :aria-label="t('dat_banh_dd_o_ma','Mã 6 số trong tin nhắn Zalo')" v-model="S.CO.dd.ma" @keydown.enter.prevent="kho.xacThucDonDau()">
-          <button type="button" class="dd-nut" id="dvXacNhan" :disabled="S.CO.dd.dangGui" @click="kho.xacThucDonDau()">{{ t('dat_banh_dd_xac_nhan','Xác nhận') }}</button></div>
-        <button v-if="S.CO.dd.buoc === 'ma'" type="button" class="dd-lai" id="dvGuiLai" :disabled="S.CO.dd.dangGui" @click="kho.guiMaDonDau()">{{ t('dat_banh_dd_gui_lai','Gửi lại mã') }}</button>
-        <p class="dd-loi" v-if="S.CO.dd.loi" role="alert">{{ S.CO.dd.loi }}</p>
-        <p class="dd-ghi" v-else-if="S.CO.dd.bao">{{ S.CO.dd.bao }}</p>
-      </template>
-      <button v-if="kho.theDiem.value.kieu === 'dung'" type="button" class="dd-nut" id="dvDung" @click="kho.dungDiem(true)">{{ t('dat_banh_dv_nut', 'Dùng điểm cho đơn này') }}</button>
-      <button v-if="kho.theDiem.value.bo" type="button" class="dd-lai" id="dvBo" @click="kho.dungDiem(false)">{{ t('dat_banh_dv_bo', 'Bỏ dùng điểm') }}</button>
-      <p class="dd-ghi" v-if="kho.theDiem.value.lh">{{ kho.theDiem.value.lh }}</p>
     </div>
     <div class="fld" id="gtKhoi" v-if="kho.coGioiThieu.value"><label for="f-gt"><span>{{ t('dat_banh_ma_gt','Mã giới thiệu (không bắt buộc)') }}</span></label>
       <input id="f-gt" inputmode="tel" autocomplete="off" maxlength="20" :placeholder="t('dat_banh_ma_gt_goi','Số điện thoại nhân viên giới thiệu')" v-model="S.f.gt" @blur="kho.kiemGioiThieu()" @keydown.enter.prevent="kho.kiemGioiThieu()">

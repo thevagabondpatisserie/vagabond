@@ -170,7 +170,7 @@ export function khoiDong(goc = '#app') {
       return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, DUNG_CU_DON, PAYS, HUONG_SIZE, THIEP_EP_KIM, ANH_CO, LOGO_TT, anhWeb, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
-        moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh, chonNguoiNhan, cuonToi, dongYBo};
+        moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh, chonNguoiNhan, cuonToi, dongYBo, nhapOMa, phimOMa, doiSoDt};
     }
   });
 
@@ -266,6 +266,20 @@ export function khoiDong(goc = '#app') {
   }
   function nhichThanh() { S.nhich = (S.nhich || 0) + 1; }
   /* v681: Người nhận chọn MỘT (nút tròn). Chọn Người khác nhận thì mở ô và đưa con trỏ vào. */
+  /* v682 (BẢN 2 mục 2.2): sáu ô mã Zalo. Kho giữ mã, ở đây chỉ dời con trỏ giữa các ô. */
+  const oMa = i => document.getElementById(i === 0 ? 'ddMa' : 'ddMa' + (i + 1));
+  function nhapOMa(i, e) {
+    const toi = kho.nhapMa(i, e.target.value);
+    e.target.value = (S.CO.dd.ma || '')[i] || '';
+    nextTick(() => { const o = oMa(toi); if (o && S.CO.dd.buoc === 'ma') o.focus(); });
+  }
+  function phimOMa(i, e) {
+    if (e.key === 'Backspace' && !e.target.value && i > 0) { e.preventDefault(); const toi = kho.xoaLuiMa(i); nextTick(() => { const o = oMa(toi); if (o) o.focus(); }); }
+    else if (e.key === 'ArrowLeft' && i > 0) { e.preventDefault(); oMa(i - 1).focus(); }
+    else if (e.key === 'ArrowRight' && i < 5) { e.preventDefault(); oMa(i + 1).focus(); }
+    else if (e.key === 'Enter') { e.preventDefault(); kho.xacThucDonDau(); }
+  }
+  function doiSoDt() { kho.doiSo(); nextTick(() => { const o = document.getElementById('f-phone'); if (o) { o.focus(); if (o.select) o.select(); } }); }
   function chonNguoiNhan(khac) {
     S.CO.other = !!khac;
     if (khac) nextTick(() => { const o = document.querySelector('#otherBlock input'); if (o) o.focus(); });
