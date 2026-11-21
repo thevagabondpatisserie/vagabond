@@ -903,7 +903,7 @@ export function taoKho(moiTruong) {
      địa chỉ đã lấy và công tắc điểm, như khi đổi số (Codex #605 vòng 2, quét cùng loại). */
   watch(daXacThuc, co => {
     if (co) { lookupPhone(); return; }
-    S.CO.addrList = []; S.CO.addrSel = -1; S.CO.dungDiem = false;
+    boLuotTra(); S.CO.addrList = []; S.CO.addrSel = -1; S.CO.dungDiem = false; S.goi.phone = null;
   });
 
   /* ---------------- phí giao ---------------- */
@@ -1121,9 +1121,13 @@ export function taoKho(moiTruong) {
   }
 
   /* ---------------- tra số điện thoại, địa chỉ, MST ---------------- */
-  let phHen = null, gyHen = null, mstHen = null;
+  let phHen = null, gyHen = null, mstHen = null, lanTra = 0;
+  /* Mỗi lượt tra địa chỉ có số lượt riêng; đổi số hay mất xác thực thì tăng số lượt để
+     phản hồi muộn của lượt cũ bị bỏ (Codex #605 vòng 3). */
+  function boLuotTra() { lanTra++; huyHen(phHen); }
   function lookupPhone() {
-    huyHen(phHen);
+    boLuotTra();
+    const lan = lanTra;
     const v = (S.f.phone || '').replace(/\D/g, '');
     /* v603 (F34): đổi số là bỏ ngay câu "Tìm thấy N địa chỉ" của số cũ, kể cả
        khi số mới chưa đủ dài để tra; không để khách đọc kết quả của số khác. */
@@ -1133,9 +1137,9 @@ export function taoKho(moiTruong) {
       let ds = [];
       try {
         const m = await doc('vagabond.api.tra_khach', {phone: v});
-        if (v !== (S.f.phone || '').replace(/\D/g, '')) return;
+        if (lan !== lanTra || v !== (S.f.phone || '').replace(/\D/g, '')) return;
         ds = (m.addresses || []).map(a => ({full_name: a.ho_ten, phone_number: a.phone, full_address: a.dia_chi}));
-      } catch (e) { ds = []; }
+      } catch (e) { if (lan !== lanTra) return; ds = []; }
       S.CO.addrList = ds;
       S.goi.phone = ds.length
         ? noi(thuong(t('dat_banh_1a6a68ddf', 'Tìm thấy') + ' '), dam(t('dat_banh_ed129760c', '{gia_tri_a} địa chỉ', {gia_tri_a: ds.length}), 'cyan'), thuong(' ' + t('dat_banh_55044016e', 'đã lưu của số này.')))
