@@ -1103,3 +1103,33 @@ html body .tuy-chon.mua-pk>:last-child:not(summary){margin-bottom:16px}
 html body .tuy-chon.mua-pk .mua-pk-nut svg{width:20px;height:20px}
 .lc-o input{background:var(--bg-2);border:1px solid var(--line);color:var(--paper);padding:12px 14px;font-family:var(--sans);font-size:15px;outline:none;border-radius:12px}
 .lc-o input:focus{border-color:var(--cyan)}
+
+/* v682 (BẢN 2 mục 2.2): thẻ Thành viên dưới ô số điện thoại. Màu Robin, không thêm màu mới. */
+html body .tv-the{border-radius:20px;border:1px solid rgba(79,219,242,.45);background:linear-gradient(135deg,rgba(79,219,242,.14),rgba(79,219,242,.04));padding:16px;margin:4px 0 18px;color:var(--ink,#e9e4da)}
+html body .tv-dau{display:flex;gap:14px;align-items:flex-start}
+html body .tv-dia{flex:none;width:48px;height:48px;border-radius:50%;background:var(--cyan,#4FDBF2);color:var(--ink-on-cyan,#1A1A1A);display:flex;align-items:center;justify-content:center;font:700 14px var(--sans)}
+html body .tv-tieu{display:block;font-size:16px;line-height:1.35;color:#fff;font-weight:600}
+html body .tv-phu{display:block;font-size:13px;line-height:1.5;color:var(--fog,#b9b3a8);margin-top:4px}
+html body .tv-nut{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;margin-top:14px;border-radius:999px;border:1px solid var(--cyan,#4FDBF2);background:transparent;color:var(--cyan,#4FDBF2);font:700 13px var(--sans);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+html body .tv-nut:disabled{opacity:.55}
+html body .tv-o-ma{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:14px}
+html body .tv-o{min-width:0;width:100%;height:52px;border-radius:14px;border:1px solid rgba(79,219,242,.45);background:#0b0b0b;color:#fff;text-align:center;font:600 22px var(--sans);padding:0}
+html body .tv-o:focus{outline:none;border-color:var(--cyan,#4FDBF2);box-shadow:0 0 0 1px var(--cyan,#4FDBF2) inset}
+html body .tv-duoi{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:6px}
+html body .tv-lai,html body .tv-doi{min-height:44px;background:none;border:0;padding:0;color:var(--fog,#b9b3a8);font:13px var(--sans);cursor:pointer}
+html body .tv-lai:not(:disabled){color:var(--cyan,#4FDBF2)}
+html body .tv-doi{color:#fff;text-decoration:underline;text-underline-offset:3px}
+html body .tv-xac .tv-tieu{color:var(--cyan,#4FDBF2);font-size:14px;letter-spacing:.08em}
+html body .tv-cong-tac{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;margin-top:14px;padding:10px 0;background:none;border:0;border-top:1px solid rgba(79,219,242,.25);color:inherit;text-align:left;cursor:pointer}
+html body .tv-ct-chu{flex:1}
+html body .tv-ct-chu b{display:block;font-size:15px;color:#fff;font-weight:600}
+html body .tv-ct-chu small{display:block;font-size:13px;color:var(--fog,#b9b3a8);margin-top:2px}
+html body .tv-cong-tac .ct{flex:none;width:48px;height:28px;border-radius:999px;background:#3a3a3a;position:relative;transition:background .2s}
+html body .tv-cong-tac .ct i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s}
+html body .tv-cong-tac[aria-checked="true"] .ct{background:var(--cyan,#4FDBF2)}
+html body .tv-cong-tac[aria-checked="true"] .ct i{left:23px}
+html body .tv-ghi{font-size:13px;color:var(--fog,#b9b3a8);margin:12px 0 0;line-height:1.5}
+html body .tv-dc{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:44px;margin-top:8px;background:none;border:0;border-top:1px solid rgba(79,219,242,.25);color:#fff;font:14px var(--sans);text-align:left;cursor:pointer;padding:0}
+html body .tv-dc span{color:var(--cyan,#4FDBF2);font-size:20px}
+html body .tv-loi{color:#FDB738;font-size:13px;margin:10px 0 0}
+@media (prefers-reduced-motion:reduce){html body .tv-cong-tac .ct,html body .tv-cong-tac .ct i{transition:none}}
