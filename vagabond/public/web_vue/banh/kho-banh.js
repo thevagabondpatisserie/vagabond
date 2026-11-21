@@ -52,7 +52,7 @@ export function taoKho(moiTruong) {
       ship: null, shipTrangThai: null, shipKm: null, payBao: false, quan: '', nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
       ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null,
       /* v645 ưu đãi đơn đầu tiên trên web: bước xác thực số qua Zalo. */
-      dd: {buoc: 'nut', ma: '', loi: '', bao: '', dangGui: false, lan: 0, cho: 0, daXac: ''},
+      dd: {buoc: 'nut', ma: '', loi: '', bao: '', dangGui: false, lan: 0, cho: 0, daXac: '', xacSo: ''}, uuTv: null,
       /* v652: khách bấm Dùng điểm thành viên (máy chủ quyết số điểm, diem_web). */
       dungDiem: false,
       /* v681: mã các viên Ghi chú chọn nhanh đang chọn và giờ trễ nhất (HH:MM). */
@@ -636,9 +636,17 @@ export function taoKho(moiTruong) {
   /* v645: thêm lượt xác thực số (S.CO.dd.lan): xác thực xong thì hỏi lại để máy chủ thấy phiên. */
   const khoaUuDai = computed(() => JSON.stringify([T.hangGui(S.CART, S.DC), S.CO.uuMa || '', sdtUuDai(), ngayUuDai(), S.CO.dd.lan, !!S.CO.dungDiem]));
   const uuHienTai = computed(() => (S.CO.uu && S.CO.uu.khoa === khoaUuDai.value ? S.CO.uu : null));
+  /* Codex #605: thẻ Thành viên, ưu đãi đơn đầu, điểm chỉ để HIỆN; trong lúc hỏi lại (bật điểm,
+     sửa giỏ) giữ phản hồi gần nhất của CÙNG số, không để thẻ nháy mất hay coi như chưa xác thực.
+     Tiền giảm vẫn chỉ lấy từ uuHienTai (đúng giỏ, đúng mã, đúng điểm). */
+  const uuGanNhat = computed(() => {
+    if (uuHienTai.value) return uuHienTai.value;
+    const so = sdtUuDai(), u = S.CO.uuTv;
+    return so && u && u.sdt === so ? u : null;
+  });
   const giam = computed(() => (uuHienTai.value ? (Number(uuHienTai.value.giam) || 0) : 0));
   async function xemUuDai() {
-    const khoa = khoaUuDai.value;
+    const khoa = khoaUuDai.value, soHoi = sdtUuDai();
     S.CO.uuDangHoi = khoa;
     if (!S.CART.length) return;
     let m = null;
@@ -646,10 +654,10 @@ export function taoKho(moiTruong) {
       m = await ghi('vagabond.don_hang.xem_uu_dai', {don: JSON.stringify({items: T.hangGui(S.CART, S.DC), ma_uu_dai: S.CO.uuMa || '', dien_thoai: sdtUuDai(), ngay_nhan: ngayUuDai(), dung_diem: S.CO.dungDiem ? 1 : 0})});
     } catch (e) { m = null; }
     if (S.CO.uuDangHoi !== khoa) return; /* đã có lần hỏi mới hơn */
-    S.CO.uu = {khoa, giam: (m && m.ok) ? (Number(m.giam) || 0) : 0, ap: (m && m.ok && m.ap) || [],
+    S.CO.uuTv = S.CO.uu = {khoa, giam: (m && m.ok) ? (Number(m.giam) || 0) : 0, ap: (m && m.ok && m.ap) || [],
       dd: (m && m.don_dau && typeof m.don_dau === 'object') ? m.don_dau : null,
       diem: (m && m.ok && m.diem && typeof m.diem === 'object') ? m.diem : null,
-      khach: (m && m.khach && typeof m.khach === 'object') ? m.khach : null,
+      khach: (m && m.khach && typeof m.khach === 'object') ? m.khach : null, sdt: soHoi,
       loi: (m && !m.ok && m.ly_do === 'ma_uu_dai') ? String(m.chi_tiet || '') : ((!m && S.CO.uuMa) ? t('dat_banh_ma_chua_kiem', 'Chưa kiểm được mã lúc này, quý khách thử lại sau ít phút.') : '')};
   }
   let uuHen = null;
@@ -685,7 +693,7 @@ export function taoKho(moiTruong) {
      thì ưu đãi vẫn trừ vào tổng tiền như mọi ưu đãi khác, chỉ không có thẻ.
      Thiếu hai cờ (máy chủ cũ) thì hiểu như bản duyệt mẫu: hiện, bắt mã. */
   const theDonDau = computed(() => {
-    const u = uuHienTai.value;
+    const u = uuGanNhat.value;
     const dd = u && u.dd;
     if (!dd || !sdtUuDai() || dd.hien === 0 || dd.hien === '0') return null;
     const giam = Number(dd.giam) || 0;
@@ -790,7 +798,7 @@ export function taoKho(moiTruong) {
   /* Đổi số điện thoại thì quay về bước đầu (mã đã gửi là của số cũ). */
   /* v682 (mục 2.2): đổi số là xoá NGAY xác thực, ưu đãi, điểm, địa chỉ đã lấy của số cũ
      (địa chỉ: lookupPhone; ưu đãi, điểm: uuHienTai theo khoá có số). */
-  watch(sdtUuDai, () => { const c = S.CO.dd; luotDem++; c.buoc = 'nut'; c.ma = ''; c.loi = ''; c.bao = ''; c.cho = 0; c.daXac = ''; S.CO.dungDiem = false; });
+  watch(sdtUuDai, () => { const c = S.CO.dd; luotDem++; c.buoc = 'nut'; c.ma = ''; c.loi = ''; c.bao = ''; c.cho = 0; c.daXac = ''; S.CO.uuTv = null; S.CO.dungDiem = false; });
 
   /* ---------------- điểm thành viên (v652) ----------------
      Anh Việt chốt 12/11/2026: khách online dùng điểm ở bước thanh toán, xác thực
@@ -799,7 +807,7 @@ export function taoKho(moiTruong) {
      Xác thực xong thì máy chủ mới trả số dư: không cho đọc điểm của số khác. */
   const soDiem = v => (Number(v) || 0).toLocaleString('vi-VN');
   const theDiem = computed(() => {
-    const u = uuHienTai.value;
+    const u = uuGanNhat.value;
     const so = sdtUuDai();
     if (!so || !u || !u.diem) return null;
     const d = u.diem;
@@ -842,14 +850,19 @@ export function taoKho(moiTruong) {
      Ưu đãi đơn đầu và điểm chuyển từ mục Thanh toán lên ngay dưới ô số điện
      thoại. Dùng lại luật và API đang có (xem_uu_dai, gui_ma, xac_thuc); thẻ
      chỉ ghép trạng thái. Một lần xác thực dùng chung cho ưu đãi, điểm, địa chỉ. */
+  /* Codex #605: xác thực theo SỐ, không theo từng lượt hỏi ưu đãi: máy chủ báo đúng số đã xác
+     thực thì giữ cho tới khi đổi số; lượt hỏi mới của cùng số báo hết phiên thì mới bỏ. */
+  watch(uuHienTai, u => {
+    const so = sdtUuDai();
+    if (!u || !u.khach || u.sdt !== so) return;
+    S.CO.dd.xacSo = Number(u.khach.xac_thuc) ? so : (S.CO.dd.xacSo === so && S.CO.dd.daXac !== so ? '' : S.CO.dd.xacSo);
+  });
   const daXacThuc = computed(() => {
-    const so = sdtUuDai(), u = uuHienTai.value;
-    if (!so) return false;
-    if (S.CO.dd.daXac === so) return true;
-    return !!(u && u.khach && Number(u.khach.xac_thuc));
+    const so = sdtUuDai();
+    return !!so && (S.CO.dd.daXac === so || S.CO.dd.xacSo === so);
   });
   const theThanhVien = computed(() => {
-    const so = sdtUuDai(), u = uuHienTai.value;
+    const so = sdtUuDai(), u = uuGanNhat.value;
     if (!so || !u) return null;
     const dd = u.dd || {}, dk = theDonDau.value;
     /* Máy chủ không trả phần đơn đầu (bản cũ, lỗi) hay chưa mở gửi mã Zalo: không mời xác thực. */
