@@ -288,7 +288,7 @@ function tlGan() {
   k.innerHTML =
     '<div id="tlDau"><b>Trợ lý hướng dẫn</b>' +
     '<button id="tlSoTay">Sổ tay</button>' +
-    '<button id="tlDong" aria-label="Dong">&#10005;</button></div>' +
+    '<button id="tlDong" aria-label="Đóng">&#10005;</button></div>' +
     '<div id="tlThan"><div class="tlGoi">Hệ thống trả lời dựa trên tài liệu ' +
     'của chính phần mềm này, về cách dùng từng màn hình và ý nghĩa các câu ' +
     'chặn.<br><br>Hệ thống chưa đọc dữ liệu thật của tiệm, nên không trả lời ' +

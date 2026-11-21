@@ -5,7 +5,7 @@ Bộ nét: Lucide (lucide-static 1.77.0, giấy phép ISC), nét 1.6, nhúng tro
 
 Việc thay chỉ làm ở LỚP VẼ giao diện. Chuỗi dữ liệu, tin gửi đi và mẫu in giữ nguyên emoji.
 
-## Bảng gốc anh Việt đã duyệt (48 ký tự)
+## Bảng gốc anh Việt đã duyệt (49 ký tự)
 
 | Emoji | Biểu tượng |
 |---|---|
@@ -51,6 +51,7 @@ Việc thay chỉ làm ở LỚP VẼ giao diện. Chuỗi dữ liệu, tin gử
 | 🔎 | search |
 | 🔍 | search |
 | ✕ | x |
+| × | x |
 | ✓ | check |
 | 📷 | image |
 | 🖼 | image |
@@ -58,7 +59,7 @@ Việc thay chỉ làm ở LỚP VẼ giao diện. Chuỗi dữ liệu, tin gử
 | 🔒 | lock |
 | 📦 | package |
 
-## Đề xuất cho phần còn lại (189 ký tự, chờ duyệt)
+## Đề xuất cho phần còn lại (190 ký tự, chờ duyệt)
 
 Một số ký tự (trái cây, hoa, lá cờ) chỉ xuất hiện trong tên món hoặc nội dung, không phải biểu tượng chức năng; vẫn có dòng để không sót.
 
@@ -175,6 +176,7 @@ Một số ký tự (trái cây, hoa, lá cờ) chỉ xuất hiện trong tên m
 | ⇄ | arrow-left-right |
 | 🏗 | hard-hat |
 | 💼 | briefcase |
+| 🧑‍💼 | briefcase |
 | 🧹 | paintbrush |
 | 🥚 | egg |
 | 🧂 | flask-round |

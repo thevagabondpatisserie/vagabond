@@ -20,7 +20,7 @@ GOC = {
 	"🎫": "ticket", "🎟": "ticket-percent", "⏳": "hourglass", "🏦": "landmark",
 	"🛵": "bike", "💬": "message-circle", "⚠": "triangle-alert",
 	"✎": "pencil", "✏": "pencil", "📝": "pencil", "🔎": "search", "🔍": "search",
-	"✕": "x", "✓": "check", "📷": "image", "🖼": "image",
+	"✕": "x", "×": "x", "✓": "check", "📷": "image", "🖼": "image",
 	"👥": "users", "🔒": "lock", "📦": "package",
 }
 
@@ -47,7 +47,7 @@ DE_XUAT = {
 	"🚕": "car-taxi-front", "🕒": "clock-3", "📮": "mailbox", "✋": "hand", "⏩": "fast-forward",
 	"➖": "minus", "🔧": "wrench", "▴": "chevron-up", "💌": "heart", "⏸": "pause",
 	"✂": "scissors", "🔮": "wand-sparkles", "⇄": "arrow-left-right", "🏗": "hard-hat",
-	"💼": "briefcase", "🧹": "paintbrush", "🥚": "egg", "🧂": "flask-round", "⚖": "scale",
+	"💼": "briefcase", "🧑‍💼": "briefcase", "🧹": "paintbrush", "🥚": "egg", "🧂": "flask-round", "⚖": "scale",
 	"⌛": "hourglass", "🧍": "person-standing", "🌑": "moon", "✔": "check", "❔": "circle-question-mark",
 	"🔓": "lock-open", "🍵": "cup-soda", "🌾": "wheat", "👁": "eye", "👀": "eye", "↑": "arrow-up",
 	"👋": "hand", "📂": "folder-open", "☕": "coffee", "🌸": "flower-2", "🍓": "cherry",

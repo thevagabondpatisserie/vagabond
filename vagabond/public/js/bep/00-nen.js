@@ -1049,7 +1049,7 @@ async function itemByBarcode(code) {
 function sheet(title, items, cur, onPick, searchable) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x">&times;</div></div>';
+  var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng">&times;</div></div>';
   if (searchable) hd += '<div style="padding:10px 14px 4px;display:flex;gap:8px"><input class="nt" placeholder="Tìm nhanh..." style="height:46px;padding:0 12px;flex:1"><button class="nt" id="shQuet" title="Quét mã vạch" style="height:46px;width:54px;flex:none;font-size:20px;cursor:pointer">&#128247;</button></div>';
   box.innerHTML = hd + '<div class="shl"></div>';
   var lst = box.querySelector('.shl');
@@ -1058,7 +1058,7 @@ function sheet(title, items, cur, onPick, searchable) {
     var f = items.filter(function (it) { return vgbKhop([it.label, it.tim, it.value], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (it, i) {
       return '<div class="shi' + (it.value === cur ? ' on' : '') + '" data-i="' + items.indexOf(it) + '">' +
-        (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span>' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
+        (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span class="shic">' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
         (it.value === cur ? '<span>&#10003;</span>' : '') + '</div>';
     }).join('') : '<div class="emp"><div class="e2">Không tìm thấy</div></div>';
   }
@@ -1126,6 +1126,28 @@ Trang /bep không nằm trong git (nó là một Page trên site), nên không c
 JavaScript - hiệu lực y hệt, mà mã nguồn vẫn nằm trong git. */
 
 var PWA_MAU = '#50DBF2';   /* nen that cua tep logo 2025, trung .vh cua app */
+/* Mau vo app (vung dong ho, thanh trinh duyet) khi bat giao dien moi: TRUNG
+   mau dau trang ui-b (--ui-header-tint) va giao_dien.MAU_VO_APP. Dat o day,
+   khong o phan 81, vi pwaGan chay luc nap phan 00 (xem BAY THU TU NAP o 81). */
+var PWA_MAU_UIB = '#EAF4F3';
+
+/* Dat meta theme-color theo giao dien DANG HIEN (Codex UI01). May chu da chen
+   meta mau ui-b khi bat; lech phien ban thi uiBNap go lop ui-b va goi lai ham
+   nay de vo app ve mau cu. */
+function pwaDatMau() {
+  var laUiB = false;
+  try { laUiB = document.documentElement.classList.contains('ui-b'); } catch (e) { }
+  try {
+    var mau = laUiB ? PWA_MAU_UIB : PWA_MAU;
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (!m) {
+      m = document.createElement('meta');
+      m.name = 'theme-color';
+      document.head.appendChild(m);
+    }
+    if (m.content !== mau) m.content = mau;
+  } catch (e) { }
+}
 var PWA_DA_GAN = 0;         /* de bo kiem thu doc duoc rang ham DA CHAY */
 
 function pwaGan() {
@@ -1138,12 +1160,7 @@ function pwaGan() {
       document.head.appendChild(l);
     }
     /* Màu thanh trạng thái trên điện thoại, cho khớp thanh tiêu đề app. */
-    if (!document.querySelector('meta[name="theme-color"]')) {
-      var m = document.createElement('meta');
-      m.name = 'theme-color';
-      m.content = PWA_MAU;
-      document.head.appendChild(m);
-    }
+    pwaDatMau();
     /* iOS không đọc manifest cho biểu tượng, nó đọc apple-touch-icon, và nó
        muốn đúng 180x180. Thiếu thẻ này là iPhone tự chụp màn hình trang làm
        biểu tượng, và đó chính là cái "mất logo" anh Việt thấy.
@@ -1187,6 +1204,155 @@ function pwaGan() {
    nhanh thoat som (reset(scrLogin)) nen dat trong do la mat luon o man
    dang nhap. */
 if (typeof document !== 'undefined' && document.head) pwaGan();
+
+/* HOP THOAI DUNG CHUNG: ban phim, ten nut dong, focus (Codex UI05).
+
+   Moi lop phu .sh (bang truot sheet, hopKhung, confirmSheet, promptSheet va
+   cac hop rieng cua tung man) di qua MOT cho nay, khong sua 83 ham hop thoai:
+   - lop phu la role=dialog co ten lay tu tieu de;
+   - nut dong (.x, chu x) co role=button, ten "Đóng", bam duoc bang Enter/Space;
+   - focus vao khung hop khi mo (KHONG vao o nhap: tren dien thoai la bat ban
+     phim ao), tra ve nut da mo khi dong;
+   - Escape chi dong LOP TREN CUNG, va KHONG dong hop dang co o nhap da sua
+     (khong lam mat chu nguoi dung vua go);
+   - Tab di vong trong hop tren cung.
+   Khong doi hinh: chi them thuoc tinh va xu ly phim. */
+var HOP_MO = [];
+/* Phan tu vua bam (chuot, cham): nhieu nut mo hop la the span khong nhan focus, nen
+   document.activeElement van la body. Lay phan tu do lam "nut da mo" de tra focus. */
+var HOP_BAM = null;
+function hopTren() {
+  var ds = document.querySelectorAll('.sh');
+  for (var i = ds.length - 1; i >= 0; i--) if (ds[i].isConnected && ds[i].style.display !== 'none') return ds[i];
+  return null;
+}
+function hopDanhDau(ov) {
+  if (!ov || ov.nodeType !== 1 || ov.getAttribute('data-hop')) return;
+  ov.setAttribute('data-hop', '1');
+  try {
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-modal', 'true');
+    var td = ov.querySelector('.shh b, .shb > div > b, .shb > div:first-child');
+    var ten = td ? (td.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+    if (ten) ov.setAttribute('aria-label', ten);
+    hopTenNutDong(ov);
+    /* Hop co the da tu dat focus vao o tim cua no truoc khi toi day: khi do focus dang O TRONG
+       hop, khong phai nut da mo. Lay phan tu vua bam hay vua nhan phim ben ngoai hop. */
+    var mo = document.activeElement;
+    if (!mo || mo === document.body || ov.contains(mo)) {
+      mo = (HOP_BAM && HOP_BAM.isConnected && !ov.contains(HOP_BAM)) ?
+        (HOP_BAM.closest('button, a, [role=button], [data-go], [tabindex]') || HOP_BAM) : null;
+    }
+    HOP_MO.push({ ov: ov, mo: (mo && mo !== document.body) ? mo : null });
+    var box = ov.querySelector('.shb') || ov;
+    if (!ov.contains(document.activeElement)) {
+      if (!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+      try { box.focus({ preventScroll: true }); } catch (e) { }
+    }
+  } catch (e) { }
+}
+/* Nut dong ve bang div chu x: cho no ten va vai tro nut. */
+function hopTenNutDong(goc) {
+  var ds = goc.querySelectorAll('.x, .shh .x');
+  for (var i = 0; i < ds.length; i++) {
+    var x = ds[i];
+    if (x.tagName !== 'BUTTON' && !x.getAttribute('role')) x.setAttribute('role', 'button');
+    if (x.tagName !== 'BUTTON' && !x.hasAttribute('tabindex')) x.setAttribute('tabindex', '0');
+    if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', 'Đóng');
+  }
+}
+function hopDaDong(ov) {
+  for (var i = HOP_MO.length - 1; i >= 0; i--) {
+    if (HOP_MO[i].ov !== ov) continue;
+    var mo = HOP_MO[i].mo;
+    HOP_MO.splice(i, 1);
+    var dangO = document.activeElement;
+    if (mo && mo.isConnected && (!dangO || dangO === document.body || !dangO.isConnected)) {
+      try {
+        if (!mo.hasAttribute('tabindex') && !/^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(mo.tagName)) mo.setAttribute('tabindex', '-1');
+        mo.focus({ preventScroll: true });
+      } catch (e) { }
+    }
+    return;
+  }
+}
+/* Hop co o nhap nguoi dung DA SUA thi Escape khong dong. */
+function hopDangSua(ov) {
+  var o = ov.querySelectorAll('input, textarea');
+  for (var i = 0; i < o.length; i++) {
+    var t = o[i].type;
+    if (t === 'checkbox' || t === 'radio' || t === 'search' || t === 'hidden') continue;
+    if (o[i].id === 'hcTim' || o[i].classList.contains('tim')) continue;
+    if (o[i].value !== o[i].defaultValue) return true;
+  }
+  return false;
+}
+function hopDong(ov) {
+  var x = ov.querySelector('.x, [data-hcx], [data-n]');
+  if (x) { x.click(); return; }
+  /* Khong co nut dong: bam ra ngoai khung, dung duong dong cua chinh hop. */
+  try { ov.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch (e) { }
+}
+function hopPhim(e) {
+  var ov = hopTren();
+  if (e.key === 'Escape' || e.key === 'Esc') {
+    if (ov) {
+      if (hopDangSua(ov)) return;
+      e.preventDefault(); e.stopPropagation();
+      hopDong(ov);
+      return;
+    }
+    var tl = document.getElementById('tlKhung');
+    if (tl && tl.style.display !== 'none' && tl.style.display !== '' && typeof tlDong === 'function') { e.preventDefault(); tlDong(); }
+    return;
+  }
+  var dich = e.target;
+  if ((e.key === 'Enter' || e.key === ' ') && dich && dich.getAttribute && dich.getAttribute('role') === 'button' && dich.tagName !== 'BUTTON') {
+    e.preventDefault(); dich.click(); return;
+  }
+  if (e.key === 'Tab' && ov) {
+    var f = Array.prototype.filter.call(ov.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'), function (n) {
+      return !n.disabled && n.offsetParent !== null;
+    });
+    if (!f.length) return;
+    var dau = f[0], cuoi = f[f.length - 1];
+    if (!ov.contains(document.activeElement)) { e.preventDefault(); dau.focus(); }
+    else if (e.shiftKey && document.activeElement === dau) { e.preventDefault(); cuoi.focus(); }
+    else if (!e.shiftKey && document.activeElement === cuoi) { e.preventDefault(); dau.focus(); }
+  }
+}
+function hopGan() {
+  if (typeof MutationObserver === 'undefined' || !document.body || hopGan.da) return;
+  hopGan.da = 1;
+  new MutationObserver(function (ds) {
+    for (var i = 0; i < ds.length; i++) {
+      var them = ds[i].addedNodes, bot = ds[i].removedNodes, j;
+      for (j = 0; j < them.length; j++) {
+        var n = them[j];
+        if (n.nodeType !== 1) continue;
+        if (n.classList.contains('sh')) hopDanhDau(n);
+        else if (n.querySelectorAll) {
+          var t = n.querySelectorAll('.sh');
+          for (var k = 0; k < t.length; k++) hopDanhDau(t[k]);
+          var ov = n.closest && n.closest('.sh');
+          if (ov) hopTenNutDong(ov);
+        }
+      }
+      for (j = 0; j < bot.length; j++) if (bot[j].nodeType === 1 && bot[j].getAttribute && bot[j].getAttribute('data-hop')) hopDaDong(bot[j]);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('keydown', hopPhim, true);
+  document.addEventListener('pointerdown', function (e) { HOP_BAM = e.target && e.target.nodeType === 1 ? e.target : null; }, true);
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.nodeType === 1) HOP_BAM = e.target;
+  }, true);
+}
+try {
+  if (typeof document !== 'undefined') {
+    if (document.body) hopGan();
+    else if (document.addEventListener) document.addEventListener('DOMContentLoaded', hopGan);
+  }
+} catch (e) { }
 
 /* Xin quyền thông báo. CỐ Ý không gọi ngay lúc mở app.
 

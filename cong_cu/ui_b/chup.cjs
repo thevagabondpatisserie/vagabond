@@ -119,7 +119,10 @@ async function moTrang(trinh, khung, bat, thieu, taiHong) {
 /* Phép đo trên màn. Chạy trong trang. */
 function doTrongTrang(thamSo) {
   var bat = thamSo.bat, chiDau = thamSo.chiDau;
-  var r = { tran: false, nhoNut: [], nhoChu: [], che: [], phong: {}, phongDung: [], phongMat: [], emoji: [], tuongPhan: [], xemAnh: 0 };
+  var r = { tran: false, nhoNut: [], nhoChu: [], che: [], phong: {}, phongDung: [], phongMat: [], emoji: [], tuongPhan: [], xemAnh: 0,
+    chongSo: [], cat: [], xuongDong: [], tenDong: [], mauVo: '' };
+  var meta = document.querySelector('meta[name="theme-color"]');
+  r.mauVo = meta ? String(meta.content || '').toUpperCase() : '';
   var daGhiPhong = {};
   var de = document.scrollingElement || document.documentElement;
   r.tran = de.scrollWidth > window.innerWidth + 1;
@@ -132,10 +135,18 @@ function doTrongTrang(thamSo) {
   function nhan(n) { return ((n.getAttribute('aria-label') || n.textContent || n.id || n.className || '') + '').replace(/\s+/g, ' ').trim().slice(0, 32) || n.tagName; }
   var bam = Array.prototype.slice.call(document.querySelectorAll('#vgb button, #vgb [data-go], #vgb [data-nhom], #vgb .chip, #vgb a[href], #vgb input, #vgb textarea, #vgb select, #vgb [role=button], ' +
     '#vgb .hub, #vgb .gt, #vgb .vgbgo, #vgb .vgbgs, #vgb .vgbgb, #vgb [data-suaghim], #vgb [data-themghim], #vgb .lgfp, .sh button, .sh .chip, .sh input, .sh textarea, .sh .shi, .sh .x'));
+  /* Thành phần dựng thử ngoài #vgb (pham_vi) cũng phải đo vùng bấm (Codex 21/11: thử phá bằng nút 38). */
+  if (thamSo.phamVi) bam = bam.concat(Array.prototype.slice.call(document.querySelectorAll(
+    thamSo.phamVi + ' button, ' + thamSo.phamVi + ' .chip, ' + thamSo.phamVi + ' [role=button], ' + thamSo.phamVi + ' input')));
   bam = bam.filter(function (n, i) { return bam.indexOf(n) === i; });
   /* Có bảng trượt hay hộp thoại đang mở thì chỉ đo trong lớp trên cùng: phần bên dưới bị lớp mờ che là có chủ ý. */
   var lopTren = document.querySelectorAll('.sh');
   lopTren = lopTren.length ? lopTren[lopTren.length - 1] : null;
+  /* Trợ lý không phải .sh nhưng cũng là lớp phủ trên cùng khi đang mở. */
+  var tl = document.getElementById('tlKhung');
+  if (!lopTren && tl && getComputedStyle(tl).display !== 'none') lopTren = tl;
+  /* Kịch bản dựng thử một thành phần (pham_vi) thì chỉ đo trong thành phần đó. */
+  if (thamSo.phamVi) lopTren = document.querySelector(thamSo.phamVi) || lopTren;
   bam.forEach(function (n) {
     if (!hien(n) || n.type === 'file' || n.type === 'hidden') return;
     if (lopTren && !lopTren.contains(n)) return;
@@ -183,7 +194,20 @@ function doTrongTrang(thamSo) {
     r.phong[ho] = (r.phong[ho] || 0) + 1;
     var khoaPhong = ho + '|' + cs.fontWeight;
     if (!daGhiPhong[khoaPhong]) { daGhiPhong[khoaPhong] = 1; r.phongDung.push({ ho: ho, dam: cs.fontWeight }); }
-    if (/[\u{1F000}-\u{1FAFF}☀-➿]/u.test(chu) && cha.closest('button, .vh, .sec, .chip, .h1, .h2, .gn, .gs, .vgbgh, .vgbgs, .vgbgm, .vgbgn, .shh, .lgl, label')) r.emoji.push(chu.slice(0, 28));
+    /* Codex UI04: soi emoji ở MỌI chữ của app và hộp đang mở, không chỉ nút và tiêu đề. */
+    if (/[\u{1F000}-\u{1FAFF}☀-➿]/u.test(chu) && cha.closest('#vgb, .sh, #tlKhung, .vf')) r.emoji.push(chu.slice(0, 28));
+    /* Codex UI07: chữ bị cắt TRONG thẻ dù cả trang không cuộn ngang. Tìm lớp cha gần nhất có
+       cắt tràn (hidden hoặc clip, không tính lớp cuộn được), không có thì lấy khung màn. */
+    if (!lopTren || lopTren.contains(cha)) {
+      var rcc = cha.getBoundingClientRect(), ke = { left: 0, right: window.innerWidth }, kn = 'khung màn';
+      for (var pa = cha.parentElement; pa && pa !== document.body; pa = pa.parentElement) {
+        var ox = getComputedStyle(pa).overflowX;
+        if (ox === 'hidden' || ox === 'clip') { ke = pa.getBoundingClientRect(); kn = nhan(pa); break; }
+        if (ox === 'auto' || ox === 'scroll') { ke = null; break; }
+      }
+      if (ke && (rcc.right > ke.right + 0.5 || rcc.left < ke.left - 0.5)) r.cat.push(chu.slice(0, 24) + ' tới x' + rcc.right.toFixed(1) + ' trong ' + kn + ' tới x' + ke.right.toFixed(1));
+      if (cs.textOverflow === 'ellipsis' && cha.scrollWidth > cha.clientWidth + 1) r.cat.push(chu.slice(0, 24) + ' bị cắt bằng dấu ba chấm');
+    }
     if (bat) {
       var fg = mau(cs.color), nn = nenCua(cha);
       if (fg) {
@@ -195,6 +219,46 @@ function doTrongTrang(thamSo) {
       }
     }
   }
+  /* Codex UI02: số trên ô nhóm không chồng biểu tượng (hay chữ của ô Việc cần làm), không ra khỏi ô. */
+  document.querySelectorAll('#vgb .gt .gb').forEach(function (gb) {
+    if (!hien(gb) || !gb.textContent.trim()) return;
+    var o = gb.closest('.gt'), r1 = gb.getBoundingClientRect(), t1 = o.getBoundingClientRect();
+    var vat = o.classList.contains('vcl') ? (o.querySelector('.gn') || {}).parentElement : o.querySelector('.gi');
+    var ten = (o.querySelector('.gn') || {}).textContent || '';
+    if (r1.left < t1.left || r1.right > t1.right) r.chongSo.push('số ' + gb.textContent + ' ra khỏi ô ' + ten);
+    var rgs = document.createRange(); rgs.selectNodeContents(gb);
+    var qs = Array.prototype.filter.call(rgs.getClientRects(), function (x) { return x.width > 1; }).sort(function (a, b) { return a.top - b.top; });
+    var nd = 0, dy = -1e9;
+    qs.forEach(function (x) { var g = (x.top + x.bottom) / 2; if (g > dy) { nd++; dy = x.bottom; } else if (x.bottom > dy) dy = x.bottom; });
+    if (nd > 1) r.chongSo.push('số ' + gb.textContent + ' gãy ' + nd + ' dòng ở ô ' + ten);
+    if (vat && vat.getBoundingClientRect) {
+      var v = vat.getBoundingClientRect();
+      if (r1.top < v.bottom && r1.bottom > v.top && r1.left < v.right && r1.right > v.left) {
+        r.chongSo.push('số ' + gb.textContent + ' chồng ' + (o.classList.contains('vcl') ? 'chữ' : 'biểu tượng') + ' ô ' + ten + ' ' + (Math.min(r1.right, v.right) - Math.max(r1.left, v.left)).toFixed(1) + 'px');
+      }
+    }
+  });
+  /* Codex UI03: nhãn ngắn của nút, chip xuống dòng. Nhãn dài hơn 24 ký tự được xuống dòng. */
+  document.querySelectorAll('#vgb .btn, #vgb .chip, .vf .btn, .sh .btn, .sh .chip').forEach(function (b) {
+    if (!hien(b) || (lopTren && !lopTren.contains(b)) || (chiDau && !b.closest('.vh'))) return;
+    var t = (b.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 24) return;
+    var rg = document.createRange(); rg.selectNodeContents(b);
+    /* Đếm dòng theo dải dọc chồng nhau: biểu tượng lệch vài điểm cạnh chữ vẫn là cùng dòng. */
+    var qs = Array.prototype.filter.call(rg.getClientRects(), function (x) { return x.width > 1 && x.height > 4; })
+      .sort(function (a, b) { return a.top - b.top; });
+    var soDong = 0, day = -1e9;
+    qs.forEach(function (x) { var g = (x.top + x.bottom) / 2; if (g > day) { soDong++; day = x.bottom; } else if (x.bottom > day) day = x.bottom; });
+    /* Nhãn có số tiền lớn (6 chữ số trở lên) được hai dòng (bản 4 mục 4, tiền lớn có bố cục rõ). */
+    if (soDong > (/\d[\d.,]{5,}/.test(t) ? 2 : 1)) r.xuongDong.push(t + ' (' + soDong + ' dòng)');
+  });
+  /* Codex UI05: nút đóng của hộp đang mở có vai trò nút và tên "Đóng". */
+  document.querySelectorAll('.sh .x, #tlDong').forEach(function (x) {
+    if (!hien(x) || (lopTren && !lopTren.contains(x) && x.id !== 'tlDong')) return;
+    var vaiTro = x.tagName === 'BUTTON' || x.getAttribute('role') === 'button';
+    var ten = x.getAttribute('aria-label') || '';
+    if (!vaiTro || ten !== 'Đóng') r.tenDong.push((x.id || x.className) + ' vai trò ' + (vaiTro ? 'nút' : 'không') + ', tên "' + ten + '"');
+  });
   /* Lớp vẽ: số thẻ bảng kiểu, nội dung, các nhóm đang hiện trên màn. */
   var the = document.querySelectorAll('style#vgbUiB');
   r.lopVe = { soThe: the.length, css: the.length ? the[0].textContent : '', nhom: [] };
@@ -246,6 +310,7 @@ async function chay() {
       await o.trang.goto(ORIGIN + '/bep');
       await o.trang.waitForSelector(m.cho || '#vgb .vh, #vgb .lgw', { timeout: 15000 });
       if (m.mo) await m.mo(o.trang);
+      if (m.kiem) (await m.kiem(o.trang, bat)).forEach(function (x) { dong.loi.push(x); });
       await o.trang.evaluate(function () { return document.fonts && document.fonts.ready; });
       await o.trang.waitForTimeout(250);
       var coUi = await o.trang.evaluate(function () { return document.documentElement.classList.contains('ui-b'); });
@@ -255,9 +320,14 @@ async function chay() {
          màn đầu thì chụp bằng khung cao, ví dụ --khung 390x2600 (Codex #600). */
       await o.trang.screenshot({ path: path.join(RA, ten), fullPage: false });
       dong.anh = ten;
-      var d = await o.trang.evaluate(doTrongTrang, { bat: bat, chiDau: bat && !!m.chua_chuyen });
+      var d = await o.trang.evaluate(doTrongTrang, { bat: bat, chiDau: bat && !!m.chua_chuyen, phamVi: m.pham_vi || '' });
       dong.do = d;
       if (d.tran) dong.loi.push('cuộn ngang cả trang');
+      /* Codex UI01: màu vỏ app theo giao diện đang hiện. */
+      var mauVo = bat ? '#EAF4F3' : '#50DBF2';
+      if (d.mauVo !== mauVo) dong.loi.push('màu vỏ app (theme-color) là ' + (d.mauVo || 'không có') + ', phải là ' + mauVo);
+      /* Nút đóng dùng chung cho hai giao diện: kiểm ở chế độ bật là đủ, chế độ tắt chỉ so điểm ảnh với main. */
+      if (bat && d.tenDong.length) dong.loi.push('nút đóng thiếu tên hoặc vai trò: ' + d.tenDong.slice(0, 3).join('; '));
       if (o.loi.length) dong.loi.push('lỗi JS: ' + o.loi.slice(0, 2).join(' | '));
       DO.danhGiaTaiNguyen(taiHong).forEach(function (x) { dong.loi.push(x); });
       if (bat) {
@@ -266,7 +336,10 @@ async function chay() {
         if (d.nhoNut.length) dong.loi.push('vùng bấm dưới 44: ' + d.nhoNut.slice(0, 4).join('; ') + (d.nhoNut.length > 4 ? ' (+' + (d.nhoNut.length - 4) + ')' : ''));
         if (d.nhoChu.length) dong.loi.push('chữ dưới 13: ' + d.nhoChu.slice(0, 4).join('; ') + (d.nhoChu.length > 4 ? ' (+' + (d.nhoChu.length - 4) + ')' : ''));
         if (d.che.length) dong.loi.push('bị che: ' + d.che.slice(0, 3).join('; '));
-        if (d.emoji.length) dong.loi.push('còn emoji: ' + d.emoji.slice(0, 4).join('; '));
+        if (d.emoji.length) dong.loi.push('còn emoji: ' + d.emoji.slice(0, 4).join('; ') + (d.emoji.length > 4 ? ' (+' + (d.emoji.length - 4) + ')' : ''));
+        if (d.chongSo.length) dong.loi.push('số chồng: ' + d.chongSo.slice(0, 4).join('; '));
+        if (d.cat.length) dong.loi.push('chữ bị cắt: ' + d.cat.slice(0, 4).join('; ') + (d.cat.length > 4 ? ' (+' + (d.cat.length - 4) + ')' : ''));
+        if (d.xuongDong.length) dong.loi.push('nhãn ngắn xuống dòng: ' + d.xuongDong.slice(0, 4).join('; '));
         DO.danhGiaPhong(d.phongDung, d.phongMat).forEach(function (x) { dong.loi.push(x); });
         DO.danhGiaLopVe(d.lopVe.soThe, d.lopVe.css, d.lopVe.nhom).forEach(function (x) { dong.loi.push(x); });
         dong.xem_anh = d.xemAnh;

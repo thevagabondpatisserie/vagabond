@@ -48,6 +48,9 @@ PHONG_TAI_SOM = (
 	"/assets/vagabond/fonts/ui/be-vietnam-pro-vietnamese-600-normal.woff2",
 )
 MAU_GIAY = "#F3EFE7"
+# Màu vỏ app (vùng đồng hồ, thanh trình duyệt) khi bật: trùng màu đầu trang ui-b
+# (--ui-header-tint) và PWA_MAU_UIB ở 00-nen.js. Codex UI01.
+MAU_VO_APP = "#EAF4F3"
 
 _GOC = os.path.dirname(os.path.abspath(__file__))
 _TEP_APPVER = os.path.join(_GOC, "public", "js", "bep", "12-van-don.js")
@@ -127,6 +130,7 @@ def dau_trang_html(bat, appver):
 		1 if bat else 0, v, "document.documentElement.classList.add('ui-b');" if bat else "")]
 	if bat:
 		dong.append("<style>html.ui-b,html.ui-b body{background:%s!important}</style>" % MAU_GIAY)
+		dong.append('<meta name="theme-color" content="%s">' % MAU_VO_APP)
 		for p in PHONG_TAI_SOM:
 			dong.append('<link rel="preload" as="font" type="font/woff2" crossorigin href="%s">' % p)
 	return "\n".join(dong)

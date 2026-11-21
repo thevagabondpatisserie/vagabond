@@ -456,6 +456,7 @@ def _():
 		la(ten + ": không lỗi khi chạy tệp", d["loi"], None)
 		la(ten + ": đúng một bảng kiểu", d["so_the"], 1)
 		la(ten + ": đúng một bộ theo dõi biểu tượng", d["so_theo_doi"], 1)
+		la(ten + ": đúng một bộ theo dõi hộp dùng chung", d["so_theo_doi_hop"], 1)
 		dung(ten + ": vẫn mang lớp giao diện mới", d["co_lop"])
 	la("hai đường nạp ra CÙNG một bảng kiểu", sau["css"], truoc["css"])
 	css = sau["css"]
@@ -497,3 +498,22 @@ def _():
 	nguon = _doc(GOC, "cong_cu", "ui_b", "chup.cjs")
 	dung("máy chụp mặc định nạp app sau sự kiện load", "thamSo('nap', 'sau-load')" in nguon and 'addEventListener("load"' in nguon)
 	dung("máy chụp chấm lớp vẽ", "DO.danhGiaLopVe(d.lopVe.soThe, d.lopVe.css, d.lopVe.nhom)" in nguon)
+
+
+@ca("ui-b màu vỏ app (Codex UI01): vùng đồng hồ theo giao diện đang hiện; lệch phiên bản về màu cũ")
+def _():
+	from vagabond import giao_dien as G
+	bat = G.dau_trang_html(1, "680")
+	tat = G.dau_trang_html(0, "680")
+	dung("bật: máy chủ chèn meta màu vỏ của giao diện mới", '<meta name="theme-color" content="%s">' % G.MAU_VO_APP in bat)
+	dung("tắt: máy chủ không chèn meta, app dùng màu cũ của nó", "theme-color" not in tat)
+	dung("không có số phiên bản thì không bật, không chèn meta", "theme-color" not in G.dau_trang_html(1, ""))
+	nen0 = _doc(GOC, "vagabond", "public", "js", "bep", "00-nen.js")
+	b81 = _doc(GOC, "vagabond", "public", "js", "bep", "81-ui-b.js")
+	m = re.search(r"var PWA_MAU_UIB = '(#[0-9A-Fa-f]{6})'", nen0)
+	t = re.search(r"--ui-header-tint:(#[0-9A-Fa-f]{6})", b81)
+	dung("một màu cho máy chủ, phần 00 và đầu trang ui-b", bool(m and t) and m.group(1).upper() == G.MAU_VO_APP.upper() == t.group(1).upper())
+	la("nạp sau load, bật: màu vỏ giữ màu mới", _nap_app("complete")["mau_vo"].upper(), G.MAU_VO_APP.upper())
+	la("nạp trước load, bật: màu vỏ giữ màu mới", _nap_app("loading")["mau_vo"].upper(), G.MAU_VO_APP.upper())
+	la("HTML lệch phiên bản: gỡ giao diện mới thì vỏ về màu cũ", _nap_app("complete", "lech")["mau_vo"].upper(), "#50DBF2")
+

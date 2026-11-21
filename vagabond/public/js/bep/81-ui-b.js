@@ -230,6 +230,7 @@ var UIB_NET = {
   "zap": "<path d=\"M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z\"/>"
 };
 var UIB_EMOJI = {
+  "×": "x",
   "←": "arrow-left",
   "↑": "arrow-up",
   "→": "arrow-right",
@@ -455,6 +456,7 @@ var UIB_EMOJI = {
   "🧍": "person-standing",
   "🧑": "user",
   "🧑‍🍳": "chef-hat",
+  "🧑‍💼": "briefcase",
   "🧩": "puzzle",
   "🧪": "flask-conical",
   "🧭": "compass",
@@ -514,7 +516,8 @@ function uiBGiaiThucThe(s) {
 /* Cac o CHI chua mot bieu tuong. May quet thay emoji trong cac o nay bang
    SVG. Chu lan emoji (nut, nhan, tieu de) khong thuoc may quet: tung nhom man
    chuyen o PR 2 den 5. */
-var UIB_O_ICON = '.hi, .gi, .e1, .vgbgi, .vgbgb, .vh .ic';
+/* .shic, .hcic: o bieu tuong cua bang truot sheet() va hop chon hoiChon (Codex UI04). */
+var UIB_O_ICON = '.hi, .gi, .e1, .vgbgi, .vgbgb, .vh .ic, .shic, .hcic, .shh .x, #tlDong';
 
 function uiBThayMot(el) {
   if (!el || el.nodeType !== 1 || el.getAttribute('data-uib')) return;
@@ -535,7 +538,118 @@ function uiBQuet(goc) {
     if (goc.matches && goc.matches(UIB_O_ICON)) uiBThayMot(goc);
     var ds = goc.querySelectorAll(UIB_O_ICON);
     for (var i = 0; i < ds.length; i++) uiBThayMot(ds[i]);
+    /* Chu goi y trong o tim bat dau bang emoji kinh lup: bo emoji, ve kinh lup bang
+       bieu tuong chung (lop uitim). Khong doi gia tri o, chi doi chu goi y. */
+    var o = goc.querySelectorAll('input[placeholder], textarea[placeholder]');
+    if (goc.matches && goc.matches('input[placeholder], textarea[placeholder]')) o = [goc].concat(Array.prototype.slice.call(o));
+    for (var j = 0; j < o.length; j++) uiBGoiY(o[j]);
+    var nut = goc.querySelectorAll('.btn, .chip');
+    if (goc.matches && goc.matches('.btn, .chip')) uiBDauNut(goc);
+    for (var q = 0; q < nut.length; q++) uiBDauNut(nut[q]);
   } catch (e) { }
+}
+function uiBGoiY(o) {
+  if (o.getAttribute('data-uib-goi')) return;
+  var g = o.getAttribute('placeholder') || '';
+  var m = /^\s*([\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])\uFE0F?\s*/.exec(g);
+  if (!m) return;
+  o.setAttribute('data-uib-goi', '1');
+  o.setAttribute('placeholder', g.slice(m[0].length));
+  var ten = UIB_EMOJI[m[1]];
+  if (ten === 'search') o.classList.add('uitim');
+}
+
+/* Codex UI02: dat so tren o nhom vao dung cho, theo thu tu buoc cua ban 4 muc 4.
+   Do THAT bang hinh hoc, khong doan theo so ky tu: be rong o doi theo khung may. */
+function uiBSoChong(o, gb) {
+  var r = gb.getBoundingClientRect(), t = o.getBoundingClientRect();
+  if (!r.width) return false;
+  /* So gay dong cung la khong vua: con buoc sau thi thu buoc sau. */
+  if (uiBSoDong(gb) > 1) return true;
+  if (r.left < t.left + 2 || r.right > t.right - 2) return true;
+  var vat = o.classList.contains('vcl') ? (o.querySelector('.gn') || {}).parentElement : o.querySelector('.gi');
+  if (!vat || !vat.getBoundingClientRect) return false;
+  var v = vat.getBoundingClientRect();
+  var chongDoc = r.top < v.bottom && r.bottom > v.top;
+  var chongNgang = r.left < v.right + 8 && r.right > v.left - 8;
+  return chongDoc && chongNgang;
+}
+var UIB_BUOC_SO = ['', 'ui-so-24', 'ui-so-hang', 'ui-so-hang ui-so-24'];
+var UIB_BUOC_SO_VCL = ['', 'ui-so-40', 'ui-so-30', 'ui-so-24', 'ui-so-hang ui-so-24'];
+function uiBVuaSo() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('#vgb .gt .gb');
+  for (var i = 0; i < ds.length; i++) {
+    var gb = ds[i], o = gb.closest('.gt');
+    if (!o) continue;
+    var buoc = o.classList.contains('vcl') ? UIB_BUOC_SO_VCL : UIB_BUOC_SO;
+    var tat = 'ui-so-40 ui-so-30 ui-so-24 ui-so-hang'.split(' ');
+    for (var k = 0; k < buoc.length; k++) {
+      for (var q = 0; q < tat.length; q++) o.classList.remove(tat[q]);
+      if (buoc[k]) buoc[k].split(' ').forEach(function (c) { o.classList.add(c); });
+      if (!gb.textContent.trim() || !uiBSoChong(o, gb)) break;
+    }
+  }
+}
+/* Codex UI03: thanh day co hai nut tro len. Nhan ngan (toi 24 ky tu) phai mot dong;
+   nhan co so tien lon (6 chu so tro len) duoc hai dong. Khong vua thi xep chong. */
+function uiBSoDong(el) {
+  /* Dem dong theo DAI DOC chong nhau, khong theo toa do dinh: bieu tuong canh chu
+     lech vai diem van cung mot dong. */
+  var rg = document.createRange(); rg.selectNodeContents(el);
+  var q = Array.prototype.filter.call(rg.getClientRects(), function (x) { return x.width > 1 && x.height > 4; })
+    .sort(function (a, b) { return a.top - b.top; });
+  var n = 0, day = -1e9;
+  for (var i = 0; i < q.length; i++) {
+    var giua = (q[i].top + q[i].bottom) / 2;
+    if (giua > day) { n++; day = q[i].bottom; } else if (q[i].bottom > day) day = q[i].bottom;
+  }
+  return n;
+}
+function uiBNhanGay(b) {
+  var t = (b.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!t) return false;
+  var n = uiBSoDong(b);
+  if (/\d[\d.,]{5,}/.test(t)) return n > 2;
+  return t.length <= 24 && n > 1;
+}
+function uiBVuaDay() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('.vf');
+  for (var i = 0; i < ds.length; i++) {
+    var hang = ds[i].querySelectorAll('.btn');
+    if (hang.length < 2) continue;
+    var cha = hang[0].parentElement;
+    if (!cha || cha.querySelectorAll(':scope > .btn').length < 2) continue;
+    cha.classList.remove('ui-vf-doc');
+    for (var j = 0; j < hang.length; j++) {
+      if (hang[j].offsetParent !== null && uiBNhanGay(hang[j])) { cha.classList.add('ui-vf-doc'); break; }
+    }
+  }
+}
+/* Emoji dau nhan cua nut va chip (ban 4: khong con emoji trong nut): doi thanh bieu tuong
+   chung, giu nguyen chu. Ma dat lai chu cua nut thi bo theo doi quet lai. */
+var UIB_RE_DAU = /^(\s*)((?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*)\s*/;
+function uiBDauNut(b) {
+  var t = b.firstChild;
+  while (t && t.nodeType === 3 && !t.nodeValue.trim()) t = t.nextSibling;
+  if (!t || t.nodeType !== 3) return;
+  var m = UIB_RE_DAU.exec(t.nodeValue);
+  if (!m) return;
+  var ten = UIB_EMOJI[m[2].replace(/\uFE0F/g, '')];
+  if (!ten) return;
+  var sp = document.createElement('span');
+  sp.className = 'uik uidau';
+  sp.innerHTML = uiBSvg(ten, 20);
+  t.nodeValue = t.nodeValue.slice(m[0].length);
+  b.insertBefore(sp, t);
+}
+var UIB_HEN_SO = 0;
+function uiBHenVuaSo() {
+  if (UIB_HEN_SO) return;
+  UIB_HEN_SO = 1;
+  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(f); else setTimeout(f, 16);
 }
 
 /* Khong gan null o day: uiBTheoDoi co the da chay truoc cau nay (xem BAY THU TU NAP). */
@@ -547,11 +661,21 @@ function uiBTheoDoi() {
   UIB_MAT = new MutationObserver(function (ds) {
     for (var i = 0; i < ds.length; i++) {
       var them = ds[i].addedNodes;
-      for (var j = 0; j < them.length; j++) if (them[j].nodeType === 1) uiBQuet(them[j]);
+      for (var j = 0; j < them.length; j++) {
+        if (them[j].nodeType === 1) uiBQuet(them[j]);
+        /* Ma dat lai chu cua nut bang textContent: nut con mot nut chu moi. */
+        else if (them[j].nodeType === 3 && them[j].parentElement) uiBQuet(them[j].parentElement);
+      }
+      if (ds[i].type === 'characterData' && ds[i].target.parentElement) uiBQuet(ds[i].target.parentElement);
     }
+    uiBHenVuaSo();
   });
-  UIB_MAT.observe(goc, { childList: true, subtree: true });
-  uiBQuet(goc);
+  /* Theo doi CA body (Codex UI04): bang truot, hop chon gan vao body, ngoai #vgb. */
+  UIB_MAT.observe(document.body || goc, { childList: true, subtree: true, characterData: true });
+  uiBQuet(document.body || goc);
+  uiBHenVuaSo();
+  try { window.addEventListener('resize', uiBHenVuaSo); } catch (e) { }
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(uiBHenVuaSo); } catch (e) { }
 }
 
 /* Mau nhom trang chu (ban 4 muc 3): co dinh theo nhom, khong luan phien.
@@ -646,6 +770,8 @@ function uiBCss() {
     '--ui-fs-13:13px;--ui-fs-15:15px;--ui-fs-17:17px;--ui-fs-20:20px;--ui-fs-24:24px;' +
     '--ui-pad-the:12px 16px;--ui-pad-chan:12px 12px 4px;--ui-kh-8:8px;--ui-kh-16:16px;' +
     '--ui-tap:44px;--ui-btn-h:52px;--ui-moon:40px;--ui-disc:46px;--ui-hbtn:42px;' +
+    /* Hop chon dung chung (07-hop-thoai.js hoiChon, hoiChonNhieu): dong thuong, dong da chon. */
+    '--ui-hc-nen:rgba(255,255,255,.78);--ui-hc-chon:#121619;--ui-hc-mo-chon:rgba(255,255,255,.82);' +
     'color-scheme:light}';
 
   var nen =
@@ -728,11 +854,25 @@ function uiBCss() {
     'background:var(--ui-bar);border-top:1px solid rgba(18,22,25,.08);box-shadow:none;' +
     '-webkit-backdrop-filter:blur(var(--ui-blur-bar));backdrop-filter:blur(var(--ui-blur-bar))}' +
     /* "Mat trang" tren nut chinh cua thanh day. */
-    'html.ui-b .vf .btn:not(.gh):not(.dg):not(.gr):not([disabled]){position:relative;padding-left:56px;padding-right:56px}' +
+    /* Codex UI03: vung chu va mat trang tach rieng. Dem trai thuong, dem phai = mat trang + khe;
+       truoc day dem 56 ca hai ben lam hep vung chu, "Thu tien 0 d" xuong dong o 390. */
+    'html.ui-b .vf .btn:not(.gh):not(.dg):not(.gr):not([disabled]){position:relative;padding-left:16px;' +
+    'padding-right:calc(var(--ui-moon) + var(--ui-moon-inset) + 8px)}' +
     'html.ui-b .vf .btn:not(.gh):not(.dg):not(.gr):not([disabled])::after{content:"";position:absolute;right:var(--ui-moon-inset);top:50%;' +
     'width:var(--ui-moon);height:var(--ui-moon);margin-top:-20px;border-radius:var(--ui-r-999);background-color:var(--ui-robin);' +
     'background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23121619\' stroke-width=\'1.8\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'M7 7h10v10\'/%3E%3Cpath d=\'M7 17 17 7\'/%3E%3C/svg%3E");' +
     'background-repeat:no-repeat;background-position:center;background-size:20px 20px}' +
+    /* Thanh day chung (ban 4 muc 4): nut phu rong 38%, nhan dai hon thi no toi 50% roi
+       xuong dong, khong cat; nut chinh lay phan con lai. Mot !important co chu y: 37
+       thanh day dat flex ngay tren the nut (vi du "flex:0 0 34%"), CSS thuong khong de duoc. */
+    'html.ui-b .vf .btn{min-width:0;overflow-wrap:break-word;text-wrap:balance}' +
+    'html.ui-b .vf .btn.gh:not(:only-child){flex:0 1 auto!important;width:auto;min-width:38%;max-width:50%;padding-left:12px;padding-right:12px}' +
+    /* Thieu cho cho nhan mot dong thi xep chong: nut phu tren, nut chinh duoi (gan ngon cai),
+       moi nut rong ca hang. uiBVuaDay() do that va gan lop ui-vf-doc. */
+    'html.ui-b .ui-vf-doc{flex-direction:column!important}' +
+    'html.ui-b .ui-vf-doc>.btn{flex:0 0 auto!important;width:100%;max-width:none!important;min-width:0}' +
+    'html.ui-b .ui-vf-doc>.btn.gh{order:-1}' +
+    'html.ui-b .vf .btn:not(.gh):not(:only-child){flex:1 1 0%!important}' +
     'html.ui-b .fab{background:var(--ui-ink);color:#fff;box-shadow:0 10px 24px rgba(18,22,25,.28);width:56px;height:56px;border-radius:var(--ui-r-999)}';
 
   /* Chip, o nhap, bang truot, tin nhanh */
@@ -794,7 +934,18 @@ function uiBCss() {
     'html.ui-b .gt.vcl .gi{position:static;flex:none;background:rgba(255,255,255,.16);color:#fff;box-shadow:none}' +
     'html.ui-b .gt.vcl .gn{color:#fff;font-size:20px;font-weight:700}' +
     'html.ui-b .gt.vcl .gs{color:rgba(255,255,255,.82)}' +
-    'html.ui-b .gt.vcl .gb{right:var(--ui-todo-inset);top:0;bottom:0;height:auto;color:var(--ui-robin);font-size:48px}';
+    'html.ui-b .gt.vcl .gb{right:var(--ui-todo-inset);top:0;bottom:0;height:auto;color:var(--ui-robin);font-size:48px}' +
+    /* Codex UI02: so khong vua cho thi xuong co theo ban 4 muc 4 (Doto 48, 40, 30, roi Be Vietnam
+       Pro 24 dam), van khong vua thi dua so xuong hang rieng rong ca the. KHONG cat so, khong
+       thu nho duoi 24, khong ep chu. uiBVuaSo() do that va gan lop. */
+    'html.ui-b .gt .gb{white-space:nowrap}' +
+    'html.ui-b .gt.ui-so-40 .gb{font-size:40px}html.ui-b .gt.ui-so-30 .gb{font-size:30px}' +
+    'html.ui-b .gt.ui-so-24 .gb{font-family:var(--ui-font);font-size:24px;font-weight:700;letter-spacing:0}' +
+    'html.ui-b .gt.ui-so-hang:not(.vcl){padding-top:calc(var(--ui-tile-title-top) + 36px)}' +
+    'html.ui-b .gt.ui-so-hang .gb{left:var(--ui-tile-inset);top:calc(var(--ui-tile-icon-top) + var(--ui-disc) + 8px);' +
+    'height:auto;justify-content:flex-end;text-align:right;white-space:normal;overflow-wrap:anywhere}' +
+    'html.ui-b .gt.vcl.ui-so-hang{padding-bottom:64px}' +
+    'html.ui-b .gt.vcl.ui-so-hang .gb{top:auto;bottom:14px;left:20px}';
 
   /* Trang chu: o tim, khoi ghim, ket qua tim */
   var ghim =
@@ -843,7 +994,20 @@ function uiBCss() {
     'html.ui-b.ui-b-dac .card,html.ui-b.ui-b-dac .gt,html.ui-b.ui-b-dac .vf{-webkit-backdrop-filter:none;backdrop-filter:none}' +
     '@media (prefers-reduced-motion:reduce){html.ui-b #vgb *{transition:none!important;animation:none!important}}';
 
-  return f + bien + nen + dau + than + nut + khac + chu + ghim + uiBCssNhom() + may + dac;
+  /* Hop dung chung (Codex UI04, UI05): bieu tuong trong hop chon, o tim, nut dong, focus. */
+  var hop =
+    'html.ui-b .shic,html.ui-b .hcic{display:inline-flex;align-items:center;justify-content:center;width:24px;flex:none;color:var(--ui-ink)}' +
+    'html.ui-b input.uitim,html.ui-b input.uitim:focus{padding-left:44px;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23596169\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'8\'/%3E%3Cpath d=\'m21 21-4.34-4.34\'/%3E%3C/svg%3E");' +
+    'background-repeat:no-repeat;background-position:14px center;background-size:20px 20px}' +
+    'html.ui-b #tlDong{width:var(--ui-tap);height:var(--ui-tap);border-radius:var(--ui-r-999);font-size:20px;flex:none}' +
+    'html.ui-b #tlSoTay{height:var(--ui-tap);border-radius:var(--ui-r-999);font-size:15px;padding:0 16px}' +
+    'html.ui-b #tlGui{min-height:var(--ui-tap);border-radius:var(--ui-r-999);font-size:15px;padding:0 20px}' +
+    'html.ui-b .sh .x:focus-visible,html.ui-b #tlDong:focus-visible,html.ui-b .btn:focus-visible,html.ui-b .chip:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}' +
+    'html.ui-b .shb:focus{outline:0}' +
+    'html.ui-b .uidau{margin-right:8px;vertical-align:-4px}' +
+    'html.ui-b [data-hc]:focus-visible,html.ui-b [data-hcn]:focus-visible,html.ui-b [role=button]:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}';
+
+  return f + bien + nen + dau + than + nut + khac + chu + ghim + hop + uiBCssNhom() + may + dac;
 }
 
 /* Goi MOT lan trong __boot, truoc lan ve dau. Doi chieu phien ban HTML voi
@@ -856,6 +1020,8 @@ function uiBNap() {
   var ui = window.__VGB_UI || {};
   if (String(ui.v || '') !== String(APPVER)) {
     html.classList.remove('ui-b');
+    /* Vo app (vung dong ho) ve mau cu cung luc (Codex UI01). pwaDatMau o phan 00, da gan. */
+    try { if (typeof pwaDatMau === 'function') pwaDatMau(); } catch (e) { }
     try { console.warn('[ui-b] lech phien ban: HTML ' + (ui.v || '?') + ', app ' + APPVER + '. Dung giao dien cu cho lan tai nay.'); } catch (e) { }
     return false;
   }
