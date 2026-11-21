@@ -12,7 +12,7 @@ import {createApp, computed, watch, nextTick} from '../lib/vue.esm-browser.prod.
 import {ND, t, tMon, napNoiDung, laXemThu, telChu, telSo, mxh} from '../kho/chu.js';
 import {doc, ghi} from '../kho/api.js';
 import {taoKho} from './kho-banh.js';
-import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE, DUNG_CU_DON} from './du-lieu.js';
+import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE, DUNG_CU_DON, THIEP_EP_KIM, ANH_CO, LOGO_TT} from './du-lieu.js';
 import {LOGO} from './anh.js';
 import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
 import {KhoiNoiDung, TieuDeMuc, KenhNoi, ChuyenMuc, dsMuc, TD, UD} from './noi-dung.js';
@@ -165,10 +165,10 @@ export function khoiDong(goc = '#app') {
           tinh: m.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)};
       });
       const tienTom = n => kho.T.tienVN(n);
-      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, DUNG_CU_DON, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
+      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, DUNG_CU_DON, PAYS, HUONG_SIZE, THIEP_EP_KIM, ANH_CO, LOGO_TT, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
-        moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh};
+        moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh, chonNguoiNhan, cuonToi, dongYBo};
     }
   });
 
@@ -251,6 +251,7 @@ export function khoiDong(goc = '#app') {
   function themNhanh(c, cheDo) { if (kho.themNhanh(c, cheDo) === 'mo') nav('#/banh/' + kho.T.slug(c.k)); else nhichThanh(); }
   function themVaoGio() {
     const kq = kho.addToCart();
+    /* v681: 'hoi' là đang hỏi lại khách trước khi bỏ chiếc có lời chúc (hộp #hoiBo). */
     if (kq === 'sua') nav('#/gio-hang', true);
     else if (kq === 'them') { nhichThanh(); navBack(); }
   }
@@ -262,18 +263,43 @@ export function khoiDong(goc = '#app') {
     if ((k === 'other' || k === 'vat') && S.CO[k]) nextTick(() => { const o = document.querySelector(k === 'other' ? '#otherBlock input' : '#vatBlock input'); if (o) o.focus(); });
   }
   function nhichThanh() { S.nhich = (S.nhich || 0) + 1; }
+  /* v681: Người nhận chọn MỘT (nút tròn). Chọn Người khác nhận thì mở ô và đưa con trỏ vào. */
+  function chonNguoiNhan(khac) {
+    S.CO.other = !!khac;
+    if (khac) nextTick(() => { const o = document.querySelector('#otherBlock input'); if (o) o.focus(); });
+  }
+  function dongYBo() { if (kho.dongYBo() === 'sua') nav('#/gio-hang', true); }
 
-  const CHO = {lich: '#c-days', ten: '#f-name', sdt: '#f-phone', diem_nhan: '#pickList', dia_chi: '#f-addr', cach_nhan: '#m-pick', dong_y: '#c-dongy', uu_dai: '#sum'};
+  const CHO = {lich: '#c-days', ten: '#f-name', sdt: '#f-phone', diem_nhan: '#pickList', dia_chi: '#f-addr', cach_nhan: '#m-pick', dong_y: '#c-dongy', uu_dai: '#sum', ghi_chu: '#f-note'};
   async function guiDon() {
     const kq = await kho.submitOrder();
     if (kq.buoc === 'xong' && kq.duong_dan) { location.assign(location.pathname.startsWith('/web_moi/') ? '/web_moi' + kq.duong_dan : kq.duong_dan); return; }
-    const sel = CHO[kq.buoc]; if (!sel) return;
+    await cuonToi(kq.buoc, kq.sel);
+  }
+  /* Cuộn tới ô cần sửa. v681: thẻ tóm tắt bấm "Chọn giờ", "Nhập địa chỉ" cũng về đây;
+     bước gửi đơn có thể chỉ đúng ô (kq.sel, ví dụ thẻ lời chúc của một chiếc). */
+  async function cuonToi(buoc, selRieng) {
+    if (buoc === 'lich') kho.doiLich();
+    const sel = selRieng || CHO[buoc]; if (!sel) return;
     await nextTick();
     const o = document.querySelector(sel); if (!o) return;
     if (o.scrollIntoView) o.scrollIntoView({behavior: 'smooth', block: 'center'});
-    const f = kq.buoc === 'lich' ? (o.querySelector('.day.on') || o.querySelector('.day')) : o;
+    const f = buoc === 'lich' ? (o.querySelector('.day.on') || o.querySelector('.day')) : o;
     if (f && f.focus) f.focus();
   }
+  /* v681 (BẢN 2 mục 1.2): dòng Mua thêm phụ kiện lấp lánh MỘT lần khi lần đầu lọt vào
+     màn hình rồi đứng yên. Máy đặt giảm chuyển động thì không chạy. */
+  const giamChuyenDong = () => { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return true; } };
+  watch(() => S.cur, () => nextTick(() => {
+    const el = document.getElementById('s-phu-kien');
+    if (!el || el.dataset.daLap || giamChuyenDong() || typeof IntersectionObserver !== 'function') return;
+    el.dataset.daLap = '1';
+    const ob = new IntersectionObserver(ds => {
+      if (!ds.some(d => d.isIntersecting)) return;
+      el.classList.add('lap'); ob.disconnect();
+    }, {threshold: 0.6});
+    ob.observe(el);
+  }), {flush: 'post'});
 
   /* Bàn phím trong bảng đang mở (thao-tac.js #460): mở bảng thì đưa con trỏ
      vào nút đầu tiên, Tab quay vòng trong bảng, đóng bảng thì trả con trỏ về

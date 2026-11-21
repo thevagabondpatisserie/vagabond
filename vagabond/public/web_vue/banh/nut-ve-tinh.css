@@ -116,8 +116,9 @@ html body :is(.close,.hs-x,.kenh-dong,.bk,a.td-lui){
 html body :is(.close,.bk) svg{stroke:var(--vt-xanh)}
 /* Mạng xã hội chân trang: tròn 46, kiểu nút phụ. */
 html body a.ctr-mxh-nut{width:46px;height:46px;min-width:46px;min-height:46px;border:1px solid rgba(79,219,242,.5);border-radius:50%;background:rgba(79,219,242,.06);color:var(--vt-xanh);display:inline-grid;place-items:center}
-/* Ô đánh dấu: tròn, viền xanh, chọn thì đặc xanh. */
-html body button.chk .bx{border:1px solid var(--vt-xanh);border-radius:50%;color:var(--vt-ink)}
+/* Ô đánh dấu bật tắt độc lập: ô vuông bo 6, cỡ 22, viền xanh, chọn thì đặc xanh
+   (v681, BẢN 2 mục 2.6 anh Việt duyệt 21/11/2026: chọn một là nút tròn, bật tắt là ô vuông). */
+html body button.chk .bx{width:22px;height:22px;border:1px solid var(--vt-xanh);border-radius:6px;color:var(--vt-ink)}
 html body button.chk.on .bx{background:var(--vt-xanh)}
 
 /* ---------- 5. Trụ Zalo, Grab nổi ---------- */

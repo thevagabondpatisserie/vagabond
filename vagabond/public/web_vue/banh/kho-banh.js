@@ -11,7 +11,7 @@
 import {reactive, computed, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 import {CONFIG, SLOTS, cakesGoc, NUMS, ADDONS, PICKUPS_GOC, LY_DO, TEN_DIEM, NHAN_MAC_DINH,
-  THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS} from './du-lieu.js';
+  THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS, THIEP_EP_KIM, GHI_CHU_NHANH, THE_VIET_THIEP} from './du-lieu.js';
 import {thuong, dam, mau, lienKet, cauCoSo, noi} from './chu-giau.js';
 import {taoGoiBan, cauDn} from './kho-goi-ban.js';
 import * as D from './dbt-thuan.js';
@@ -54,10 +54,14 @@ export function taoKho(moiTruong) {
       /* v645 ưu đãi đơn đầu tiên trên web: bước xác thực số qua Zalo. */
       dd: {buoc: 'nut', ma: '', loi: '', bao: '', dangGui: false, lan: 0},
       /* v652: khách bấm Dùng điểm thành viên (máy chủ quyết số điểm, diem_web). */
-      dungDiem: false},
+      dungDiem: false,
+      /* v681: mã các viên Ghi chú chọn nhanh đang chọn và giờ trễ nhất (HH:MM). */
+      gc: [], gcGio: ''},
     f: {phone: '', name: '', mail: '', addr: '', rname: '', rphone: '', note: '', mst: '', cname: '', cmail: '', caddr: '', ma: '', gt: ''},
     goiY: [],
-    goi: {phone: null, ship: null, mst: null, gui: null, phiThuLai: false, gt: null},
+    goi: {phone: null, ship: null, mst: null, gui: null, phiThuLai: false, gt: null, gcGio: ''},
+    /* v681: hộp hỏi lại trước khi bỏ một chiếc đã có lời chúc, thiệp ({chu, lam}); chiếc đang xem mẫu cờ. */
+    hoiBo: null, mauCo: '',
     dangGui: false, guiXong: false,
     PICKUPS: PICKUPS_GOC.slice(),
     cauHinh: null, mienPhiTu: 0, mienPhiKm: 0,
@@ -379,7 +383,7 @@ export function taoKho(moiTruong) {
   /* ---------------- bảng chi tiết bánh ---------------- */
   const curSize = computed(() => S.cur ? (S.cur.sizes.find(s => s.id === S.curSizeId) || null) : null);
   function moBanh(c) {
-    S.cur = c; S.soLuong = 1; S.wish = ''; S.nia = 0; S.dia = 0; S.thiep = 0; S.nums = []; S.adds = []; S.huongSize = false;
+    S.cur = c; S.soLuong = 1; S.nums = []; S.adds = []; S.huongSize = false;
     const avail = kichThuocDangBan(c);
     S.curSizeId = (avail[0] || c.sizes[0]).id;
     suKien('ViewContent', {content_ids: c.sizes.map(s => s.id), content_type: 'product', content_name: c.k,
@@ -461,12 +465,27 @@ export function taoKho(moiTruong) {
       toast(t('dat_truoc_con_mai', 'Size này chỉ còn nhận {gia_tri_a} bánh. Cần nhiều hơn quý khách gọi 0931 224 334', {gia_tri_a: gh}));
       return false;
     }
+    /* v681: lời chúc, cờ, thiệp chọn theo từng chiếc ở bước Thông tin đơn hàng.
+       Bánh thêm mới: chiếc mặc định (Cần cờ, lời chúc trống, không thiệp). Sửa
+       bánh đã có: GIỮ chiếc cũ của dòng, số lượng giảm thì bỏ chiếc cuối. */
     const o = {k: c.k, img: c.img, id: sz.id, cm: sz.cm, price: sz.p, nguon: S.tab === 'today' ? 'today' : 'order',
-      wish: (S.wish || '').trim(), adds: phuKienChon.value.map(x => ({...x})), qty: S.soLuong,
-      dung_cu: T.chuanDungCu({thiep: S.thiep})};
+      wish: '', adds: phuKienChon.value.map(x => ({...x})), qty: S.soLuong,
+      dung_cu: T.chuanDungCu({}), chiec: []};
     if (S.dongDangSua >= 0) {
-      S.CART.splice(S.dongDangSua, 1, o); S.dongDangSua = -1;
-      toast(t('gio_da_sua', 'Đã cập nhật bánh trong giỏ'));
+      const cu = S.CART[S.dongDangSua];
+      o.chiec = cu && Array.isArray(cu.chiec) ? cu.chiec.slice() : [];
+      const mat = o.chiec.slice(o.qty).filter(T.chiecCoNoiDung).length;
+      const luu = () => {
+        T.dongBoChiec(o);
+        S.CART.splice(S.dongDangSua, 1, o); S.dongDangSua = -1;
+        toast(t('gio_da_sua', 'Đã cập nhật bánh trong giỏ'));
+      };
+      if (mat && !S.hoiBo) {
+        S.hoiBo = {chu: t('hoi_bo_chiec_sua', 'Giảm số lượng sẽ bỏ {so} chiếc cuối đã có lời chúc hoặc thiệp. Bỏ các chiếc này?', {so: mat}),
+          nut: t('hoi_bo_chiec_nut_sua', 'Bỏ và lưu'), lam: () => { luu(); return 'sua'; }};
+        return 'hoi';
+      }
+      luu();
       return 'sua';
     }
     const hit = T.themVaoGio(S.CART, o);
@@ -491,10 +510,10 @@ export function taoKho(moiTruong) {
       toast(t('dat_truoc_con_mai', 'Size này chỉ còn nhận {gia_tri_a} bánh. Cần nhiều hơn quý khách gọi 0931 224 334', {gia_tri_a: gh}));
       return 'chan';
     }
-    const o = {k: c.k, img: c.img, id: sz.id, cm: sz.cm, price: sz.p, nguon: cheDo === 'today' ? 'today' : 'order', wish: '', adds: [], qty: 1};
+    const o = {k: c.k, img: c.img, id: sz.id, cm: sz.cm, price: sz.p, nguon: cheDo === 'today' ? 'today' : 'order', wish: '', adds: [], qty: 1, chiec: []};
     T.themVaoGio(S.CART, o);
     suKien('AddToCart', {content_ids: [o.id], contents: [{id: o.id, quantity: o.qty}], content_type: 'product', value: T.lineUnit(o) * o.qty, currency: 'VND'});
-    toast(t('dat_banh_7e42d2e7b', 'Đã thêm {gia_tri_a}{gia_tri_b}. Vào giỏ, chọn Sửa bánh để thêm lời chúc, phụ kiện.', {gia_tri_a: tenMonGio(o), gia_tri_b: sz.cm ? ' ' + sz.cm + 'cm' : ''}));
+    toast(t('them_nhanh_681', 'Đã thêm {gia_tri_a}{gia_tri_b}. Lời chúc và thiệp chọn ở bước Thông tin đơn hàng.', {gia_tri_a: tenMonGio(o), gia_tri_b: sz.cm ? ' ' + sz.cm + 'cm' : ''}));
     if (o.nguon === 'today') veHomNay();
     return 'them';
   }
@@ -506,7 +525,6 @@ export function taoKho(moiTruong) {
     S.tab = o.nguon || (S.TODAY[o.id] > 0 ? 'today' : 'order');
     moBanh(c);
     S.dongDangSua = i; S.soLuong = o.qty; S.curSizeId = o.id;
-    S.wish = o.wish || ''; const dc = T.chuanDungCu(o.dung_cu); S.nia = dc.nia; S.dia = dc.dia; S.thiep = dc.thiep;
     S.nums = o.adds.map(a => NUMS.find(n => n.id === a.id)?.n).filter(n => n !== undefined);
     S.adds = o.adds.filter(a => !NUMS.some(n => n.id === a.id)).map(a => a.id);
     return c;
@@ -514,9 +532,20 @@ export function taoKho(moiTruong) {
 
   /* ---------------- giỏ ---------------- */
   const soBanh = computed(() => T.cartCount(S.CART));
-  const tienBanh = computed(() => T.cartTotal(S.CART));
+  /* v681: giá thiệp ép kim máy chủ trả (giá hiện hành của BAPK00002 trên ERPNext). */
+  const giaThiep = computed(() => {
+    const g = S.cauHinh ? Number(S.cauHinh.gia_thiep_ep_kim) : NaN;
+    return Number.isFinite(g) && g >= 0 ? g : THIEP_EP_KIM.p;
+  });
+  const tienBanh = computed(() => T.cartTotal(S.CART, giaThiep.value));
   function cartQty(i, d) {
     const o = S.CART[i]; if (!o) return;
+    /* v681: giảm là bỏ chiếc CUỐI. Chiếc đó có lời chúc hoặc thiệp thì hỏi lại. */
+    if (d < 0 && T.laDongBanh(o) && Array.isArray(o.chiec) && T.chiecCoNoiDung(o.chiec[o.qty - 1]) && !S.hoiBo) {
+      S.hoiBo = {chu: t('hoi_bo_chiec', 'Bỏ chiếc {so}? Lời chúc và thiệp của chiếc này sẽ mất.', {so: o.qty}),
+        nut: t('hoi_bo_chiec_nut', 'Bỏ chiếc này'), lam: () => { o.qty -= 1; if (o.qty <= 0) S.CART.splice(S.CART.indexOf(o), 1); else T.dongBoChiec(o); }};
+      return 'hoi';
+    }
     if (d > 0) {
       const gh = o.cm === 0 ? 0 : gioiHanNhan(o.id, o.nguon);
       const m = o.cm === 0 ? (S.MUA.mon || []).find(x => x.ma === o.id) : null;
@@ -529,6 +558,57 @@ export function taoKho(moiTruong) {
     }
     o.qty += d;
     if (o.qty <= 0) S.CART.splice(i, 1);
+    else T.dongBoChiec(o);
+  }
+  /* Hộp hỏi lại: Đồng ý thì làm việc đã hẹn, Giữ lại thì đóng hộp, không đổi gì. */
+  function dongYBo() { const h = S.hoiBo; S.hoiBo = null; return h && typeof h.lam === 'function' ? h.lam() : null; }
+  function giuLai() { S.hoiBo = null; }
+  /* Mọi đường đổi số lượng (gồm các phép kẹp số theo tồn) giữ o.chiec dài đúng o.qty. */
+  watch(() => S.CART.map(o => o.qty), () => S.CART.forEach(o => T.dongBoChiec(o)), {flush: 'sync'});
+
+  /* ---------------- lời chúc và thiệp từng chiếc (v681) ---------------- */
+  const dsChiec = computed(() => {
+    const ra = [];
+    S.CART.forEach((o, i) => {
+      if (!T.laDongBanh(o) || !Array.isArray(o.chiec)) return;
+      o.chiec.forEach((c, j) => ra.push({o, c, i, j, ten: tenMonGio(o),
+        phu: (o.cm ? 'Ø ' + o.cm + 'cm · ' : '') + t('chiec_phu', 'bánh {so}/{tong}', {so: j + 1, tong: o.qty})}));
+    });
+    return ra;
+  });
+  const timChiec = id => { for (const o of S.CART) { const c = (o.chiec || []).find(x => x.id === id); if (c) return c; } return null; };
+  function datCo(id, co) { const c = timChiec(id); if (c) c.co = !!co; }
+  function datThiep(id, loai) { const c = timChiec(id); if (c && T.LOAI_THIEP.includes(loai)) c.thiep = loai; }
+  /* Công tắc Cần thiệp: bật thì chọn sẵn Thiệp nhỏ (miễn phí), khách đổi được sang ép kim. */
+  function batThiep(id, bat) { const c = timChiec(id); if (c) c.thiep = bat ? (c.thiep === 'khong' ? 'nho' : c.thiep) : 'khong'; }
+  function moMauCo(id) { S.mauCo = id || ''; }
+  const chiecMauCo = computed(() => (S.mauCo ? timChiec(S.mauCo) : null));
+  const soThiepEpKim = computed(() => S.CART.reduce((a, o) => a + T.soEpKim(o), 0));
+
+  /* ---------------- ghi chú chọn nhanh (v681) ---------------- */
+  const gcHien = computed(() => GHI_CHU_NHANH.filter(x => !x.giao || S.CO.mode !== 'pick'));
+  const gioTreChon = computed(() => T.gioTreTrongKhung(slotDangChon.value));
+  function doiGc(ma) {
+    if (!GHI_CHU_NHANH.some(x => x.ma === ma)) return;
+    const i = S.CO.gc.indexOf(ma);
+    if (i >= 0) { S.CO.gc.splice(i, 1); if (ma === 'gio_tre_nhat') { S.CO.gcGio = ''; S.goi.gcGio = ''; } } else S.CO.gc.push(ma);
+  }
+  function chonGioTre(g) { if (gioTreChon.value.includes(g)) { S.CO.gcGio = g; S.goi.gcGio = ''; } }
+  /* Đổi ngày hoặc khung giờ: giờ trễ nhất không còn trong khung thì xoá và nhắc chọn lại. */
+  watch(() => [S.pickedSlot, S.ngayChon], () => {
+    if (S.CO.gcGio && !gioTreChon.value.includes(S.CO.gcGio)) {
+      S.CO.gcGio = '';
+      S.goi.gcGio = t('gc_gio_doi', 'Khung giờ nhận vừa đổi. Quý khách chọn lại giờ trễ nhất.');
+    }
+  }, {flush: 'sync'});
+  /* Mã các viên đang hiện và đang chọn: viên giao hàng đang ẩn (Tự lấy) KHÔNG gửi. */
+  const gcGui = () => gcHien.value.filter(x => S.CO.gc.includes(x.ma)).map(x => x.ma);
+  function dongGhiChuNhanh() {
+    return gcGui().map(ma => {
+      if (ma === 'gio_tre_nhat') return t('gc_tre_nhat_gui', 'Trễ nhất {gio}', {gio: S.CO.gcGio});
+      const x = GHI_CHU_NHANH.find(z => z.ma === ma);
+      return t(x.k, x.n);
+    }).join(' · ');
   }
   function cartRemove(i) { S.CART.splice(i, 1); }
   /* Nút − và + của dĩa, nĩa tặng kèm, kẹp 0 tới 30. */
@@ -542,11 +622,10 @@ export function taoKho(moiTruong) {
     const chuDc = [(dc.nia || dc.dia) ? t('dung_cu_gio', '{nia} nĩa gỗ, {dia} dĩa bã mía', {nia: dc.nia || 0, dia: dc.dia || 0}) : '',
       dc.thiep ? t('dung_cu_thiep_gio', '{so} thiệp nhỏ', {so: dc.thiep}) : ''].filter(Boolean).join(', ');
     if (chuDc) ex.push([thuong(chuDc)]);
-    if (o.wish) ex.push([thuong(t('dat_banh_1970655ae', 'Lời chúc:') + ' '), {chu: o.wish, nghieng: true}]);
     if (o.adds.length) ex.push([thuong(t('dat_banh_2c04193c6', 'Thêm: {gia_tri_a}', {gia_tri_a: o.adds.map(a => a.n).join(', ')}))]);
     return {i, o, ten: tenMonGio(o), phu: o.goi_y ? t('gy_dong_phu', 'Giao kèm cùng chuyến, mã {ma}', {ma: o.id})
       : (o.cm ? t('dat_banh_7498bc8a8', 'Ø {gia_tri_a}cm · mã {gia_tri_b}', {gia_tri_a: o.cm, gia_tri_b: o.id}) : t('gio_ma_mot_co', 'Một cỡ, mã {ma}', {ma: o.id})),
-      ex, tien: T.tienVN(T.lineUnit(o) * o.qty)};
+      ex, tien: T.tienVN(T.tienDong(o, giaThiep.value))};
   }));
 
   /* ---------------- ưu đãi (v589) ---------------- */
@@ -750,7 +829,8 @@ export function taoKho(moiTruong) {
     if (S.GY.khoa !== khoa) return; /* giỏ đã đổi, chờ lượt mới */
     if (!m || typeof m !== 'object') { S.GY.mon = []; return; }
     S.GY.bat = Number(m.bat) ? 1 : 0; S.GY.toi_da = Number(m.toi_da) || 4; S.GY.thanh = Number(m.thanh_mien_phi) ? 1 : 0;
-    S.GY.mon = Array.isArray(m.mon) ? m.mon.filter(u => u && typeof u.ma === 'string' && Number(u.gia) > 0) : [];
+    /* v681: thiệp ép kim chọn theo từng chiếc, không gợi ý thành dòng riêng (máy chủ chốt số BAPK00002 theo chiếc). */
+    S.GY.mon = Array.isArray(m.mon) ? m.mon.filter(u => u && typeof u.ma === 'string' && Number(u.gia) > 0 && u.ma !== T.MA_THIEP_EP_KIM) : [];
   }
   const goiYGio = computed(() => (S.GY.bat && !coHomNay() ? monBay(S.GY.mon, S.CART.map(o => o.id), S.GY.toi_da) : []));
   const thanhMienPhiGio = computed(() => (S.CART.length ? thanhMienPhi(tienBanh.value - (giam.value - tienDiem.value), S.mienPhiTu,
@@ -852,6 +932,39 @@ export function taoKho(moiTruong) {
     const tt = T.trangThaiPhi(S.CO.mode === 'pick', mienPhi.value, S.CO.ship, S.CO.shipTrangThai, t);
     return {items: tienBanh.value, giam: giam.value, ship: tt.phi || 0, total: tienBanh.value - giam.value + (tt.phi || 0), tt};
   });
+  /* v681 (BẢN 2 mục 2.8): thẻ tóm tắt đơn. Chỉ để HIỆN, máy chủ chốt mọi con số. */
+  const theTomTat = computed(() => {
+    const banh = S.CART.map((o, i) => ({k: o.id + '|' + i, img: o.img, ten: tenMonGio(o),
+      phu: [o.cm ? 'Ø ' + o.cm + 'cm' : '', '× ' + o.qty].filter(Boolean).join(' · '), gia: T.tienVN(o.price * o.qty)}));
+    const gom = {};
+    S.CART.forEach(o => (o.adds || []).forEach(a => {
+      const x = gom[a.id] || (gom[a.id] = {ten: a.n, sl: 0, p: a.p}); x.sl += o.qty;
+    }));
+    const them = Object.keys(gom).map(id => ({k: id, ten: gom[id].ten, sl: gom[id].sl, gia: T.tienVN(gom[id].p * gom[id].sl)}));
+    const ek = soThiepEpKim.value;
+    if (ek) them.unshift({k: THIEP_EP_KIM.id, ten: t(THIEP_EP_KIM.k, THIEP_EP_KIM.n), sl: ek, gia: T.tienVN(ek * giaThiep.value)});
+    const nh = nhanNgayDangChon();
+    const nhan = daChot.value && gioHopLe.value ? nh.ten + ', ' + nh.ngay + ' · ' + slotDangChon.value.t : '';
+    const tuLay = S.CO.mode === 'pick';
+    const dc = (S.f.addr || '').trim();
+    const giao = tuLay ? (diemNhanChon.value ? t('tt_tu_lay_tai', 'Tự lấy tại {ten}', {ten: diemNhanChon.value.n}) : '')
+      : (dc.length >= 8 ? dc : '');
+    /* Phí giao ba trạng thái tách rõ: 0 đ (miễn phí thật), dự kiến, chưa tính được. */
+    const p = Number(S.CO.ship) || 0;
+    let phi, kieuPhi;
+    if (tuLay) { phi = t('tt_phi_tu_lay', 'không tính phí'); kieuPhi = 'tu_lay'; }
+    else if (mienPhi.value) { phi = T.tienVN(0); kieuPhi = 'mien'; }
+    else if (S.CO.shipTrangThai === 'chinh_xac' && p > 0) { phi = T.tienVN(p); kieuPhi = 'chinh_xac'; }
+    else if (S.CO.shipTrangThai === 'du_kien' && p > 0) { phi = t('tt_phi_du_kien', 'dự kiến {tien}', {tien: T.tienVN(p)}); kieuPhi = 'du_kien'; }
+    else { phi = t('tt_phi_chua_tinh', 'chưa tính được'); kieuPhi = 'chua'; }
+    const daGom = kieuPhi !== 'chua';
+    return {banh, them, nhan, giao, tuLay, phi, kieuPhi,
+      uuDai: tong.value.giam - tienDiem.value > 0 ? T.tienVN(tong.value.giam - tienDiem.value) : '',
+      diem: tienDiem.value > 0 ? T.tienVN(tienDiem.value) : '',
+      dayNhan: daGom ? t('tt_tong_cong', 'Tổng cộng') : t('tt_tam_tinh', 'Tạm tính'),
+      dayPhu: tuLay ? '' : kieuPhi === 'du_kien' ? t('tt_gom_phi_du_kien', 'đã gồm phí giao dự kiến') : daGom ? t('tt_gom_phi', 'đã gồm phí giao') : t('tt_chua_gom_phi', 'chưa gồm phí giao'),
+      tong: T.tienVN(tong.value.total)};
+  });
   const dongMienPhi = computed(() => T.dongMienPhi(tienBanh.value, S.mienPhiTu, t, S.mienPhiKm, trongKmMien.value, chuaBietKm.value));
 
   /* ---------------- thanh toán (v638) ---------------- */
@@ -870,7 +983,7 @@ export function taoKho(moiTruong) {
   const cauThanhToan = computed(() => {
     const p = S.CO.pay;
     const cau = (p === 'card' || p === 'atm') ? t('dat_banh_tt_the', 'Gửi đơn xong, quý khách bấm Thanh toán bằng thẻ trên trang biên nhận và nhập thẻ trên trang bảo mật OnePay.')
-      : t('dat_banh_tt_ck', 'Gửi đơn xong, trang biên nhận hiện mã VietQR đúng số tiền. Quý khách quét để chuyển khoản, hệ thống tự xác nhận khi tiền về.');
+      : t('tt_ck_681', 'Sau khi gửi đơn, quý khách có thể mở app ngân hàng hoặc quét mã QR để thanh toán.');
     const ds = [cau];
     if (S.CO.mode !== 'pick' && !mienPhi.value && S.CO.shipTrangThai === 'chua_ro') {
       ds.push(t('dat_banh_tt_phi_sau', 'Phí giao chưa tính được lúc này: số thu online là tiền bánh, phí giao quý khách trả khi nhận.'));
@@ -1029,6 +1142,9 @@ export function taoKho(moiTruong) {
       if (vuot) { toast(vuot); return {buoc: 'gio'}; }
       if (dbtChan(picked.value)) { S.moLich = true; toast(t('dbt_chi_giao', 'Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.', {ngay: ngayGiaoDbt()})); return {buoc: 'lich'}; }
     }
+    /* v681: chiếc chọn Cần cờ mà chưa có lời chúc thì nhắc và cuộn tới đúng thẻ. */
+    const thieuChuc = dsChiec.value.find(x => x.c.co !== false && !String(x.c.wish || '').trim());
+    if (thieuChuc) { toast(t('lc_thieu', 'Nhập lời chúc hoặc chọn Không cần cờ')); return {buoc: 'loi_chuc', sel: '#lc-' + thieuChuc.c.id + ' input'}; }
     const lichHong = !gioHopLe.value;
     if (!daChot.value || lichHong) {
       S.moLich = true;
@@ -1044,23 +1160,53 @@ export function taoKho(moiTruong) {
     const diaChi = tuLay ? diemNhanChon.value.a : (S.f.addr || '').trim();
     if (!tuLay && diaChi.length < 8) { toast(t('dat_banh_147c2c4a9', 'Quý khách điền địa chỉ giao')); return {buoc: 'dia_chi'}; }
     if (!tuLay && S.CO.ngoaiVung) { toast(t('dat_banh_0e39768bd', 'Địa chỉ này chưa hỗ trợ giao hàng đảm bảo, vui lòng nhận tại cửa hàng')); return {buoc: 'cach_nhan'}; }
+    /* v681: ghi chú chọn nhanh. Dị ứng phải ghi rõ; giờ trễ nhất phải chọn trong khung. */
+    const gcMa = gcGui();
+    if (gcMa.includes('gio_tre_nhat') && !gioTreChon.value.includes(S.CO.gcGio)) {
+      toast(t('gc_thieu_gio', 'Quý khách chọn giờ trễ nhất trong khung giờ đã chọn.')); return {buoc: 'ghi_chu', sel: '#gcGio'};
+    }
+    if (gcMa.includes('di_ung') && !(S.f.note || '').trim()) {
+      toast(t('gc_thieu_di_ung', 'Quý khách ghi rõ dị ứng với gì để bếp chuẩn bị đúng.')); return {buoc: 'ghi_chu', sel: '#f-note'};
+    }
     if (!S.CO.dongy) { toast(t('dat_banh_ea9153cee', 'Quý khách chọn ô đồng ý ngay trên nút gửi.')); return {buoc: 'dong_y'}; }
     if (!S.CO.nonce) S.CO.nonce = T.taoNonce(ngauNhien);
 
     /* note_print bếp đọc khi in phiếu: lời chúc, phụ kiện, dụng cụ từng bánh. */
+    /* v681: mỗi CHIẾC bánh một dòng (lời chúc, cờ, thiệp của đúng chiếc đó), giữ
+       định dạng "1. Tên Ø12cm | ..." bếp đang đọc. Dòng không phải bánh giữ như cũ. */
     const lines = [];
     if (S.CO.gift) lines.push('BÁNH TẶNG - KHÔNG KÈM HOÁ ĐƠN');
-    S.CART.forEach((o, i) => {
-      const bits = [`${o.k}${o.cm ? ' Ø' + o.cm + 'cm' : ''}${o.qty > 1 ? ' x' + o.qty : ''}`];
+    if (gcMa.includes('di_ung')) lines.push('DỊ ỨNG: ' + (S.f.note || '').trim().replace(/\s+/g, ' ').slice(0, 300));
+    let soDong = 0;
+    S.CART.forEach(o => {
+      const ten = `${o.k}${o.cm ? ' Ø' + o.cm + 'cm' : ''}`;
+      const kem = o.adds.length ? `kèm: ${o.adds.map(a => a.n).join(', ')}` : '';
+      if (T.laDongBanh(o) && Array.isArray(o.chiec) && o.chiec.length) {
+        const dc = T.chuDungCuNiaDia(o);
+        o.chiec.forEach((c, j) => {
+          const bits = [ten];
+          bits.push(c.co === false ? 'không cắm cờ' : `lời chúc: ${String(c.wish || '').trim()}`);
+          if (c.thiep !== 'khong') {
+            const loai = c.thiep === 'ep_kim' ? 'thiệp ép kim' : 'thiệp nhỏ';
+            bits.push(`${loai}: ${String(c.loi_thiep || '').trim() || 'để trắng'}`);
+          }
+          if (kem) bits.push(kem);
+          if (dc && j === 0) bits.push(`dụng cụ: ${dc}`);
+          lines.push(`${++soDong}. ${bits.join(' | ')}`);
+        });
+        return;
+      }
+      const bits = [`${ten}${o.qty > 1 ? ' x' + o.qty : ''}`];
       if (o.wish) bits.push(`lời chúc: ${o.wish}`);
-      if (o.adds.length) bits.push(`kèm: ${o.adds.map(a => a.n).join(', ')}`);
+      if (kem) bits.push(kem);
       const dc = T.chuDungCu(o); if (dc) bits.push(`dụng cụ: ${dc}`);
-      lines.push(`${i + 1}. ${bits.join(' | ')}`);
+      lines.push(`${++soDong}. ${bits.join(' | ')}`);
     });
     const vat = S.CO.vat ? {tax_code: (S.f.mst || '').replace(/[^0-9]/g, ''), name: (S.f.cname || '').trim(), address: (S.f.caddr || '').trim(), email: (S.f.cmail || '').trim()} : null;
     const vatLine = vat ? `[HOÁ ĐƠN] MST ${vat.tax_code} · ${vat.name} · ${vat.address} · mail ${vat.email}` : '';
     const dungCu = S.CART.filter(o => T.chuDungCu(o)).map(o => `${tenMonGio(o)} x${o.qty}: ${T.chuDungCu(o)}`).join('; ');
-    const note = [(S.f.note || '').trim(), dungCu, vatLine].filter(Boolean).join('\n');
+    /* v681: dòng đầu ghi chú chung là các viên chọn nhanh nối bằng " · ", rồi tới chữ khách gõ. */
+    const note = [dongGhiChuNhanh(), (S.f.note || '').trim(), dungCu, vatLine].filter(Boolean).join('\n');
 
     /* Ưu đãi đang hiện chưa tính cho đúng giỏ, mã, số, ngày hiện tại thì hỏi
        lại trước; số giảm đổi thì dừng cho khách xem tổng mới (Codex #460). */
@@ -1073,6 +1219,8 @@ export function taoKho(moiTruong) {
     const tags = [slotDangChon.value.id];
     if (vat) tags.push(THE_XUAT_HOA_DON);
     if (S.CO.gift) tags.push(THE_BANH_TANG);
+    GHI_CHU_NHANH.forEach(x => { if (x.the && gcMa.includes(x.ma)) tags.push(x.the); });
+    if (S.CART.some(o => (o.chiec || []).some(c => c.thiep !== 'khong' && String(c.loi_thiep || '').trim()))) tags.push(THE_VIET_THIEP);
     const fb = T.docFb(moiTruong.cookie ? moiTruong.cookie() : '', moiTruong.timKiem ? moiTruong.timKiem() : '', bayGio().getTime());
     const don = {
       ho_ten: ten, dien_thoai: sdt, email: (S.f.mail || '').trim(),
@@ -1081,6 +1229,8 @@ export function taoKho(moiTruong) {
       lat: S.CO.pickedLoc ? S.CO.pickedLoc.lat : null, lng: S.CO.pickedLoc ? S.CO.pickedLoc.lng : null,
       items: T.hangGui(S.CART, S.DC), tags, ngay_nhan: mocGioNhan(),
       goi_y: S.CART.filter(o => o.goi_y).map(o => o.id),
+      /* v681: từng chiếc bánh và mã viên ghi chú (máy chủ lưu vào bản ghi đơn web, chốt số thiệp ép kim). */
+      chiec: T.chiecGui(S.CART, tenMonGio), ghi_chu_nhanh: gcMa, gio_tre_nhat: gcMa.includes('gio_tre_nhat') ? S.CO.gcGio : '',
       note_print: lines.join('\n'), note, hoa_don: vat,
       nonce: S.CO.nonce, dong_y: true, nhan_uu_dai: S.CO.uudai === true,
       thanh_toan: paysHien.value.some(p => p.k === S.CO.pay) ? S.CO.pay : 'bank', ma_gioi_thieu: soGioiThieu(),
@@ -1131,7 +1281,7 @@ export function taoKho(moiTruong) {
     }
     /* Gửi được: khoá nút trong lúc chuyển sang biên nhận, không bấm hai lần. */
     S.guiXong = true;
-    S.CART.splice(0); S.CO.nonce = ''; S.CO.uuMa = ''; S.CO.uu = null; S.CO.dungDiem = false;
+    S.CART.splice(0); S.CO.nonce = ''; S.CO.uuMa = ''; S.CO.uu = null; S.CO.dungDiem = false; S.CO.gc = []; S.CO.gcGio = '';
     S.DC.dia = 0; S.DC.nia = 0;
     if (m.duong_dan && /^\/banh\/xong\/[A-Za-z0-9_-]+$/.test(m.duong_dan)) {
       S.goi.gui = noi(dam(t('dat_banh_01d9e68a4', 'Chúng tôi đã nhận yêu cầu.'), 'cyan'), thuong(' ' + t('dat_banh_f977b08ed', 'Đang mở biên nhận...')));
@@ -1251,11 +1401,12 @@ export function taoKho(moiTruong) {
     const adds = (o.adds || []).slice(0, 20).map(a => {
       const n = NUMS.find(x => x.id === a.id);
       if (n) return {id: n.id, n: 'Nến số ' + n.n, p: n.p};
-      const x = ADDONS.find(y => y.id === a.id);
+      const x = ADDONS.find(y => y.id === a.id) || (a.id === THIEP_EP_KIM.id ? THIEP_EP_KIM : null);
       return x ? {id: x.id, n: t(x.k, x.n), p: x.p} : null;
     }).filter(Boolean);
-    return {k: c.k, img: c.img, id: z.id, cm: z.cm, price: z.p, nguon: o.nguon === 'today' ? 'today' : 'order', qty: o.qty,
-      wish: String(o.wish || '').slice(0, 60), adds, dung_cu: T.chuanDungCu(o.dung_cu)};
+    /* v681: giữ nguyên lời chúc, cờ, thiệp từng chiếc; giỏ bản trước thì chuyển sang từng chiếc. */
+    return T.chiecTuDongCu({k: c.k, img: c.img, id: z.id, cm: z.cm, price: z.p, nguon: o.nguon === 'today' ? 'today' : 'order', qty: o.qty,
+      wish: String(o.wish || '').slice(0, 60), adds, dung_cu: T.chuanDungCu(o.dung_cu), chiec: Array.isArray(o.chiec) ? o.chiec : undefined});
   }
   /* v668 (Codex #581 vòng 2, 3): dòng thêm từ gợi ý là hàng đặt trước. Giỏ có bánh Có
      sẵn hôm nay, kể cả dòng lưu còn chờ danh mục máy chủ, thì bỏ dòng gợi ý để giỏ không
@@ -1289,9 +1440,12 @@ export function taoKho(moiTruong) {
       /* Trang /banh cũ đọc id DOM. Tiếp tục ghi dạng đó để nếu phải quay lại
          trang cũ thì thông tin khách vừa nhập ở Vue vẫn còn nguyên. */
       Object.keys(S.f).forEach(k => { truong['f-' + k] = S.f[k]; });
-      luuTru.setItem(KHOA_LUU, JSON.stringify({luc: bayGio().getTime(), gio: S.CART.concat(S.gioCho.mua, S.gioCho.banh),
+      /* v681: trang /banh cũ (dự phòng) chỉ đọc lời chúc theo dòng: ghi kèm lời chúc chiếc đầu. */
+      const gioLuu = S.CART.map(o => (Array.isArray(o.chiec) ? Object.assign({}, o, {wish: (o.chiec.find(c => c.co !== false && c.wish) || {}).wish || ''}) : o));
+      luuTru.setItem(KHOA_LUU, JSON.stringify({luc: bayGio().getTime(), gio: gioLuu.concat(S.gioCho.mua, S.gioCho.banh),
         ngay: S.ngayChon, slot: S.pickedSlot, daChonNgay: S.daChonNgay, daChonGio: S.daChonGio, truong, dc: {...S.DC},
-        co: {mode: S.CO.mode, pickupId: S.CO.pickupId, pay: S.CO.pay, other: S.CO.other, gift: S.CO.gift, vat: S.CO.vat, quan: S.CO.quan, nonce: S.CO.nonce}}));
+        co: {mode: S.CO.mode, pickupId: S.CO.pickupId, pay: S.CO.pay, other: S.CO.other, gift: S.CO.gift, vat: S.CO.vat, quan: S.CO.quan, nonce: S.CO.nonce,
+          gc: S.CO.gc.slice(), gcGio: S.CO.gcGio}}));
     } catch (e) { /* kho phiên bị chặn: bỏ qua */ }
   }
   function phucHoiGio() {
@@ -1329,6 +1483,8 @@ export function taoKho(moiTruong) {
       if (!S.PICKUPS.length) S.CO.mode = 'ship';
       ['other', 'gift', 'vat'].forEach(k => { S.CO[k] = c[k] === true; });
       S.CO.quan = typeof c.quan === 'string' ? c.quan : '';
+      S.CO.gc = Array.isArray(c.gc) ? c.gc.filter(ma => GHI_CHU_NHANH.some(x => x.ma === ma)).slice(0, 10) : [];
+      S.CO.gcGio = typeof c.gcGio === 'string' && gioTreChon.value.includes(c.gcGio) ? c.gcGio : '';
       S.CO.nonce = /^[A-Za-z0-9_-]{32}$/.test(c.nonce || '') ? c.nonce : '';
       /* Nháp Vue đời đầu dùng tên kho, còn trang cũ dùng id DOM f-*. Ưu tiên
          tên mới nếu một bản nháp hiếm gặp chứa cả hai kiểu. */
@@ -1341,7 +1497,7 @@ export function taoKho(moiTruong) {
   }
   /* Lưu sau mỗi thay đổi giỏ, lịch, lựa chọn và ô nhập. Theo dõi sâu thay cho
      việc nhớ gọi luuGioDangSoan() ở từng chỗ như trang cũ. */
-  watch(() => [S.CART, S.DC, S.f, S.CO.mode, S.CO.pickupId, S.CO.pay, S.CO.other, S.CO.gift, S.CO.vat, S.CO.quan, S.CO.nonce,
+  watch(() => [S.CART, S.DC, S.f, S.CO.mode, S.CO.pickupId, S.CO.pay, S.CO.other, S.CO.gift, S.CO.vat, S.CO.quan, S.CO.nonce, S.CO.gc, S.CO.gcGio,
     S.ngayChon, S.pickedSlot, S.daChonNgay, S.daChonGio, S.gioCho], luuGio, {deep: true, flush: 'sync'});
   /* v649: ngày nhận đang là hôm nay mà giỏ có bánh đặt trước (hay khách đang ở
      tab Đặt bánh trước, giỏ không có bánh Có sẵn hôm nay) thì dời sang ngày mai
@@ -1397,7 +1553,9 @@ export function taoKho(moiTruong) {
     coTruoc, banhHomNay, banhDatTruoc, tongTon, kichThuocDangBan, dongTrangThai, ghiChuHomNay, theBanh,
     curSize, moBanh, dongBanh, setSize, doiSoLuong, toggleNum, clearNums, toggleAdd, phuKienChon, tienNutThem,
     gioiHanNhan, soDatTruoc, chuHetNgay, addToCart, themNhanh, suaDongGio,
-    soBanh, tienBanh, cartQty, cartRemove, doiDc, dongGio, khoaUuDai, uuHienTai, giam, xemUuDai, apMaUuDai, goiYMa,
+    soBanh, tienBanh, cartQty, cartRemove, doiDc, dongGio,
+    giaThiep, dsChiec, datCo, datThiep, batThiep, moMauCo, chiecMauCo, soThiepEpKim, dongYBo, giuLai,
+    gcHien, gioTreChon, doiGc, chonGioTre, theTomTat, khoaUuDai, uuHienTai, giam, xemUuDai, apMaUuDai, goiYMa,
     theDonDau, guiMaDonDau, xacThucDonDau, theDiem, dungDiem, tienDiem,
     mienPhi, quoteShip, apPhiGiao, chonQuan, setMode, diemNhanChon, setPickup, capNhatDiemNhan, tong, dongMienPhi,
     paysHien, cauThanhToan, kiemGioiThieu, coGioiThieu,

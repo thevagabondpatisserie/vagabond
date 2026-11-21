@@ -65,7 +65,7 @@ export const ACC = [
   {k: 'pk_tui_vai', n: 'Túi vải đen The Vagabond', ks: 'pk_tui_vai_mo', sub: 'xách đi tiện, dùng lại được', i: ANH_PHU_KIEN.BAPK00015},
   {k: 'phu_kien_262b4eaaa', n: 'Dao gỗ cắt bánh', ks: '', sub: '', i: ANH_DUNG_CU[2]},
   {k: 'phu_kien_e0fe21772', n: 'Nến xoắn', ks: 'pk_nen_xoan_mo', sub: 'vỉ 6 cây', i: ANH_DUNG_CU[0]},
-  {k: 'phu_kien_8034a0777', n: 'Cờ cắm in lời chúc', ks: 'pk_co_cam_mo', sub: 'in đúng lời chúc quý khách ghi ở mục 02', i: ANH_DUNG_CU[1]}
+  {k: 'phu_kien_8034a0777', n: 'Cờ cắm in lời chúc', ks: 'pk_co_cam_mo_681', sub: 'lời chúc chọn ở bước Thông tin đơn hàng', i: ANH_DUNG_CU[1]}
 ];
 
 /* Dĩa, nĩa tặng kèm cho cả đơn ở trang Thông tin đơn hàng (anh Việt 20/11/2026).
@@ -88,12 +88,40 @@ export const HUONG_SIZE = [
 export const NUMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => ({n, id: 'BAPK000' + String(3 + n).padStart(2, '0'), p: 17000, img: ANH_NEN_SO[n]}));
 export const ADDONS = [
   {k: 'phu_kien_9908ba265', n: 'Nến xoắn (vỉ 6 cây)', id: 'BAPK00001', p: 11000, du_phong: true},
-  {k: 'phu_kien_91d4d0b6f', n: 'Thiệp chúc mừng sinh nhật', id: 'BAPK00002', p: 17000},
   {k: 'phu_kien_f5af63739', n: 'Nón sinh nhật', id: 'BAPK00024', p: 20000},
   {k: 'phu_kien_55065e4f5', n: 'Sash sinh nhật', id: 'BAPK00025', p: 40000},
   {k: 'phu_kien_9ed7b3e1a', n: 'Hộp bánh kem', id: 'BAPK00016', p: 22000, du_phong: true},
   {k: 'phu_kien_4decf2ff4', n: 'Túi vải đen The Vagabond', id: 'BAPK00015', p: 17000, du_phong: true}
 ].map(a => ({...a, img: ANH_PHU_KIEN[a.id]}));
+/* v681 (BẢN 2 mục 1.2, 2.1): thiệp ép kim không còn là món mua thêm ở trang chọn
+   bánh; khách chọn cho TỪNG CHIẾC ở bước Thông tin đơn hàng. Mã món giữ nguyên
+   trên ERPNext, chỉ đổi tên hiện trên web. Giá thật máy chủ trả (cau_hinh_web
+   gia_thiep_ep_kim); số dưới đây chỉ dùng tới lúc nạp xong cấu hình. */
+export const THIEP_EP_KIM = {id: 'BAPK00002', k: 'thiep_ep_kim_ten', n: 'Thiệp sinh nhật ép kim', p: 17000, img: ANH_PHU_KIEN.BAPK00002};
+
+/* v681 (BẢN 2 mục 2.5): viên chọn nhanh của Ghi chú cho bếp và người giao. Chức
+   năng chạy theo MÃ (ma), nhãn marketing sửa ở trình biên tập (khoá k). giao:
+   chỉ hiện khi Giao tận nơi. the: thẻ Pancake gắn kèm (van_don đọc ra cờ Gọi
+   trước, Chụp ảnh trước). */
+export const GHI_CHU_NHANH = [
+  {ma: 'goi_truoc', k: 'gc_goi_truoc', n: 'Gọi trước khi giao', giao: true, the: 33},
+  {ma: 'gui_le_tan', k: 'gc_gui_le_tan', n: 'Không ai nghe máy thì gửi lễ tân', giao: true},
+  {ma: 'chup_hinh', k: 'gc_chup_hinh', n: 'Chụp hình bánh gửi trước', giao: true, the: 32},
+  {ma: 'gio_tre_nhat', k: 'gc_gio_tre_nhat', n: 'Có giờ trễ nhất', giao: true},
+  {ma: 'di_ung', k: 'gc_di_ung', n: 'Có người dị ứng', giao: false}
+];
+/* Thẻ Pancake "Viết thiệp" (TEN_THE ở don_hang.py): gắn khi có chiếc cần viết lời lên thiệp. */
+export const THE_VIET_THIEP = 98;
+/* Ảnh mẫu cờ cắm lời chúc (ảnh web đang dùng, 240 x 166). */
+export const ANH_CO = ANH_DUNG_CU[1];
+/* v681 (BẢN 2 mục 2.7): logo cách thanh toán là tệp trong repo, không gọi link ngoài
+   lúc chạy. Visa, Mastercard, JCB: payrexx/payment-logos (CC0). Napas, VietQR: chữ
+   tạm, thay bằng logo chính thức chỉ cần chép đè tệp cùng tên. */
+const logo = ten => new URL('./logo-tt/' + ten + '.svg', import.meta.url).href;
+export const LOGO_TT = {
+  vietqr: {src: logo('vietqr'), ten: 'VietQR'}, visa: {src: logo('visa'), ten: 'Visa'},
+  mastercard: {src: logo('mastercard'), ten: 'Mastercard'}, jcb: {src: logo('jcb'), ten: 'JCB'}, napas: {src: logo('napas'), ten: 'Napas'}
+};
 
 export const DAYS = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
 
@@ -105,9 +133,9 @@ export const PICKUPS_GOC = [
 /* v638 (anh Việt 04/11/2026): khách trả ngay trên web (v675: ba cách, không còn tiền mặt). `the`: đi qua
    cổng OnePay (cổng tắt thì ẩn). Giá trị gửi máy chủ đúng như `k`. */
 export const PAYS = [
-  {k: 'bank', kn: 'dat_banh_983bba817', n: 'Chuyển khoản', kd: 'dat_banh_d2684b2c6', d: 'Hiện mã VietQR, quét là xong, nội dung đã điền sẵn mã đơn'},
-  {k: 'card', the: true, kn: 'dat_banh_pt_the_qt', n: 'Thẻ tín dụng, ghi nợ quốc tế', kd: 'dat_banh_pt_the_qt_mo', d: 'Visa, Mastercard, JCB. Trả ngay trên trang bảo mật OnePay sau khi gửi đơn'},
-  {k: 'atm', the: true, kn: 'dat_banh_pt_atm', n: 'Thẻ ATM nội địa', kd: 'dat_banh_pt_atm_mo', d: 'Thẻ ngân hàng Việt Nam (Napas) đã mở thanh toán trực tuyến, qua cổng OnePay'}
+  {k: 'bank', kn: 'dat_banh_983bba817', n: 'Chuyển khoản', kd: 'pt_ck_mo_681', d: 'Mở app ngân hàng hoặc quét mã QR để chuyển khoản.', ic: 'landmark', logo: ['vietqr'], logoChu: 'pt_ck_logo_chu'},
+  {k: 'card', the: true, ic: 'credit-card', logo: ['visa', 'mastercard', 'jcb'], kn: 'dat_banh_pt_the_qt', n: 'Thẻ tín dụng, ghi nợ quốc tế', kd: 'dat_banh_pt_the_qt_mo', d: 'Visa, Mastercard, JCB. Trả ngay trên trang bảo mật OnePay sau khi gửi đơn'},
+  {k: 'atm', the: true, ic: 'wallet-cards', logo: ['napas'], kn: 'dat_banh_pt_atm', n: 'Thẻ ATM nội địa', kd: 'dat_banh_pt_atm_mo', d: 'Thẻ ngân hàng Việt Nam (Napas) đã mở thanh toán trực tuyến, qua cổng OnePay'}
 ];
 /* v675 (anh Việt 19/11/2026): đơn web chỉ nhận thanh toán trước, bỏ Tiền mặt khi
    nhận bánh. Đơn cũ đã chọn tiền mặt vẫn đọc được ở biên nhận (máy chủ giữ nhãn). */
