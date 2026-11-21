@@ -1443,3 +1443,24 @@ Từ v678 (giám đốc yêu cầu 20/11/2026).
 
 **Bạn cần làm**
 1. Kế toán: tin "Còn N thư đối soát chưa về" vẫn gửi như cũ; đối tác chưa gửi thật thì hỏi đối tác hoặc tải tay.
+
+## Mã chứng từ từ 01/12/2026: tiền tố, năm tháng ngày, số thứ tự
+Từ khoá: mã chứng từ, mã phiếu, số phiếu, HDB, HDM, APP, PKT, PNK, PXD, LSX, đánh số, yymmdd
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi bộ phận; Kế toán đối chiếu | Mọi màn lập phiếu trên app và Desk | Không có nút mới |
+
+Từ v680 (giám đốc chốt 21/11/2026).
+
+**Trước đây:** mỗi loại phiếu một kiểu mã: theo năm (PXD-2026-03322), theo tháng (HDB-26-11-03963, APP.26.11.027), lệnh sản xuất theo ngày-tháng-năm (LSX-060926-000057).
+**Từ nay:**
+- Phiếu lập từ 01/12/2026 mang mã chung: tiền tố, ngày tạo năm-tháng-ngày, sáu chữ số. Ví dụ HDB-261201-000001, PXD-261201-000045, LSX-261201-000700.
+- Số thứ tự chạy liên tục theo từng tiền tố, sang ngày không về 1.
+- Hồ sơ thanh toán và phiếu chi APP dùng chung một dãy số, không bao giờ trùng mã.
+- Phiếu lập trước 01/12/2026 giữ nguyên mã cũ.
+- Giữ nguyên: mã đơn web, gọi món tại bàn, mã yêu cầu thanh toán công nợ (DNTT), mã lô.
+
+**Bạn cần làm**
+1. Không cần làm gì khi lập phiếu.
+2. Kế toán: tra phiếu tháng 12 theo mã mới; ngày trong mã là ngày lập phiếu, không phải ngày chứng từ.
