@@ -1304,6 +1304,35 @@ await ca('v681 thẻ tóm tắt: phí giao ba trạng thái tách rõ, thiếu g
   dung('bỏ dòng Tiền bánh trùng lặp', !MAU.includes("t('gio_hang_tien_banh'"));
 });
 
+await ca('v681 luật mọi ảnh trên web chính sửa được ở trình biên tập: mỗi ô ảnh trong sổ nhãn có ảnh có sẵn, trang dùng anhWeb; ảnh đã tải lên thay ảnh có sẵn, giá trị lạ không lọt', async () => {
+  const {ANH_O_MAC_DINH} = await import('../../../public/web_vue/banh/du-lieu.js');
+  const {ND, anhWeb} = await import('../../../public/web_vue/kho/chu.js');
+  const SO = JSON.parse(readFileSync(new URL('../../../public/web_order/chu-mac-dinh.json', import.meta.url), 'utf8'));
+  const oAnh = Object.keys(SO).filter(k => SO[k].anh).sort();
+  la('sổ nhãn và bảng ảnh có sẵn cùng một bộ khoá', Object.keys(ANH_O_MAC_DINH).sort(), oAnh);
+  dung('đủ 25 ô ảnh', oAnh.length === 25);
+  /* Mọi khoá anhWeb('...') viết thẳng trong trang đều có trong sổ, và ngược lại mọi ô đều được trang dùng. */
+  const nguon = MAU + readFileSync(new URL('../../../public/web_vue/banh/du-lieu.js', import.meta.url), 'utf8');
+  const dung1 = [...nguon.matchAll(/anhWeb\('([a-z0-9_]+)'/g)].map(m => m[1]);
+  dung1.forEach(k => dung('khoá ' + k + ' có trong sổ', oAnh.includes(k)));
+  /* Luật: mọi <img :src> trong mẫu trang hoặc đi qua anhWeb, hoặc là ảnh lấy từ dữ liệu máy chủ đã sửa được
+     ở thẻ Bánh, Banner, Món (danh sách dưới), hoặc logo thương hiệu, logo đơn vị thanh toán. Thêm ảnh gắn cứng mới thì ca đỏ. */
+  const TU_MAY_CHU = new Set(['x.m.anh', 'm.anh', 'x.c.img', 'd.o.img', 'x.o.img', 'b.img', 'muaXem.m.anh', 'chiTiet.anhs[anhChon] || chiTiet.c.img', 'u', 'LOGO', 'LOGO_TT[l].src']);
+  const src = [...MAU.matchAll(/:src="([^"]+)"/g)].map(m => m[1]);
+  const la1 = src.filter(e => !e.startsWith('anhWeb(') && !TU_MAY_CHU.has(e));
+  la('ảnh gắn cứng chưa vào trình biên tập', la1, []);
+  dung('trang có dùng anhWeb', src.filter(e => e.startsWith('anhWeb(')).length >= 8);
+  /* anhWeb: ảnh đã tải lên thay ảnh có sẵn; trống, link ngoài, svg, đi lùi thư mục thì về ảnh có sẵn. */
+  const cu = ND.nhan; ND.nhan = {anh_co_mau: '/files/web-abc123.webp'};
+  la('ảnh đã tải lên', anhWeb('anh_co_mau', 'co-san'), '/files/web-abc123.webp');
+  for (const v of ['', '  ', 'https://evil.example/a.png', '/files/a.svg', '/files/../private/files/x.png', 'javascript:alert(1)', '/private/files/x.png', 12]) {
+    ND.nhan = {anh_co_mau: v};
+    la('giá trị lạ ' + JSON.stringify(v), anhWeb('anh_co_mau', 'co-san'), 'co-san');
+  }
+  ND.nhan = {}; la('chưa sửa thì ảnh có sẵn', anhWeb('anh_thiep_nho', ''), '');
+  ND.nhan = cu;
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');
