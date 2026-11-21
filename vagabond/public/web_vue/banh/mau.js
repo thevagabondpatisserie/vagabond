@@ -214,7 +214,7 @@ export const MAU = `
     <div class="dc-don" id="c-dc" v-if="S.CART.length">
       <div class="dc-tieu">{{ t('dc_don_tieu','Dụng cụ ăn tặng kèm') }}</div>
       <div class="dc-mo">{{ t('dc_don_mo','The Vagabond gửi kèm chỉ khi quý khách cần nhằm hạn chế dụng cụ ăn uống sử dụng một lần. Quý khách cần bao nhiêu vui lòng nhập số lượng.') }}</div>
-      <ul class="acc dc-ds"><li v-for="x in DUNG_CU_DON" :key="x.k" :id="'c-dc-' + x.k"><img :src="x.i" alt=""><span class="nm">{{ t(x.kt, x.n) }}<small>{{ t('dc_don_tang','tặng kèm, 0 đ') }}</small></span>
+      <ul class="acc dc-ds"><li v-for="x in DUNG_CU_DON" :key="x.k" :id="'c-dc-' + x.k"><img :src="anhWeb(x.ka, x.i)" alt=""><span class="nm">{{ t(x.kt, x.n) }}<small>{{ t('dc_don_tang','tặng kèm, 0 đ') }}</small></span>
         <div class="sl-vien" role="group" :aria-label="t('so_luong_cua','Số lượng {ten}',{ten:t(x.kt, x.n)})"><button type="button" :disabled="!S.DC[x.k]" :aria-label="t('sl_bot_1','Bớt 1')" @click="kho.doiDc(x.k,-1)"><bieu-tuong loai="tru"/></button>
           <output aria-live="polite">{{ S.DC[x.k] }}</output><button type="button" :disabled="S.DC[x.k]>=20" :aria-label="t('sl_them_1','Thêm 1')" @click="kho.doiDc(x.k,1)"><bieu-tuong loai="cong"/></button></div></li></ul>
     </div>
@@ -233,7 +233,7 @@ export const MAU = `
         </div>
         <div class="lc-co" v-if="x.c.co !== false">
           <div class="lc-o"><input :id="'lcw-' + x.c.id" maxlength="60" autocomplete="off" :aria-label="t('lc_o_chuc','Lời chúc in trên cờ')" :placeholder="t('dat_banh_ed04b0946','Happy Birthday...')" v-model="x.c.wish">
-            <button type="button" class="lc-mau" :aria-label="t('lc_xem_mau','Xem mẫu cờ chúc')" @click="kho.moMauCo(x.c.id)"><img :src="ANH_CO" alt=""><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></i></button></div>
+            <button type="button" class="lc-mau" :aria-label="t('lc_xem_mau','Xem mẫu cờ chúc')" @click="kho.moMauCo(x.c.id)"><img :src="anhWeb('anh_co_mau', ANH_CO)" alt=""><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></i></button></div>
           <div class="lc-dem"><span>{{ t('lc_bam_mau','Bấm hình cờ để xem mẫu') }}</span><span>{{ (x.c.wish || '').length }}/60</span></div>
         </div>
         <div class="lc-nhan" :id="'lctn-' + x.c.id">{{ t('lc_thiep_nhan','Thiệp') }}</div>
@@ -244,10 +244,10 @@ export const MAU = `
         <template v-if="x.c.thiep !== 'khong'">
           <div class="th-luoi" role="radiogroup" :aria-label="t('lc_loai_thiep','Loại thiệp')">
             <button type="button" role="radio" class="th-the" data-thiep="nho" :class="{on: x.c.thiep === 'nho'}" :aria-checked="x.c.thiep === 'nho' ? 'true' : 'false'" @click="kho.datThiep(x.c.id, 'nho')">
-              <span class="th-anh"><span class="th-trong">{{ t('lc_thiep_nho','Thiệp nhỏ') }}</span></span>
+              <span class="th-anh"><img v-if="anhWeb('anh_thiep_nho', '')" :src="anhWeb('anh_thiep_nho', '')" alt=""><span v-else class="th-trong">{{ t('lc_thiep_nho','Thiệp nhỏ') }}</span></span>
               <b>{{ t('lc_thiep_nho','Thiệp nhỏ') }}</b><span class="th-gia">{{ t('lc_mien_phi','miễn phí') }}</span><i class="th-chon" v-if="x.c.thiep === 'nho'" aria-hidden="true">✓</i></button>
             <button type="button" role="radio" class="th-the" data-thiep="ep_kim" :class="{on: x.c.thiep === 'ep_kim'}" :aria-checked="x.c.thiep === 'ep_kim' ? 'true' : 'false'" @click="kho.datThiep(x.c.id, 'ep_kim')">
-              <span class="th-anh"><img :src="THIEP_EP_KIM.img" alt=""></span>
+              <span class="th-anh"><img :src="anhWeb(THIEP_EP_KIM.ka, THIEP_EP_KIM.img)" alt=""></span>
               <b>{{ t('thiep_ep_kim_ten','Thiệp sinh nhật ép kim') }}</b><span class="th-gia">{{ tienTom(kho.giaThiep.value) }}</span><i class="th-chon" v-if="x.c.thiep === 'ep_kim'" aria-hidden="true">✓</i></button>
           </div>
           <div class="fld lc-thiep-o"><label :for="'lct-' + x.c.id"><span>{{ t('lc_loi_thiep','Lời viết trên thiệp') }}</span></label>
@@ -471,13 +471,13 @@ export const MAU = `
     <div class="sec"><span class="n">02</span><h3><span>{{ t('pk_co_san_tieu_de','Kèm theo mỗi bánh') }}</span></h3><i class="rule"></i></div>
     <div class="co-san">
       <div class="co-san-mo">{{ t('pk_co_san_mo_ta','Đã nằm trong giá bánh, quý khách không phải mua thêm.') }}</div>
-      <ul class="acc" id="s-acc"><li v-for="a in ACC" :key="a.k"><img :src="a.i" alt=""><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul></div>
+      <ul class="acc" id="s-acc"><li v-for="a in ACC" :key="a.k"><img :src="anhWeb(a.ka, a.i)" alt=""><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul></div>
 
     <!-- v681 (BẢN 2 mục 1.2): dòng Mua thêm phụ kiện, lấp lánh MỘT lần khi lần đầu lọt vào màn hình. -->
     <details class="tuy-chon mua-pk" id="s-phu-kien" :key="'pk' + chiTiet.c.k">
       <summary><span class="mua-pk-chu"><b>{{ t('pk_mua_them_681','Mua thêm phụ kiện') }}</b><small>{{ t('pk_mua_them_phu_681','Nến số, nón và sash sinh nhật') }}</small></span><span class="mua-pk-nut" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></span></summary>
     <div class="numlab"><span>{{ t('dat_banh_909dfa9ae','Nến số') }}</span> <b><span>{{ t('dat_banh_87aff9ee8','17.000 đ / số') }}</span></b></div>
-    <div class="nums" id="s-nums"><button v-for="x in NUMS" :key="x.n" class="numbtn" :class="{on: S.nums.includes(x.n)}" @click="kho.toggleNum(x.n)" :aria-label="t('nen_so','Nến số {so}',{so:x.n})"><img :src="x.img" :alt="t('nen_so','Nến số {so}',{so:x.n})"></button></div>
+    <div class="nums" id="s-nums"><button v-for="x in NUMS" :key="x.n" class="numbtn" :class="{on: S.nums.includes(x.n)}" @click="kho.toggleNum(x.n)" :aria-label="t('nen_so','Nến số {so}',{so:x.n})"><img :src="anhWeb(x.ka, x.img)" :alt="t('nen_so','Nến số {so}',{so:x.n})"></button></div>
     <div class="numpick" id="s-numpick">
       <template v-if="S.nums.length"><span>{{ t('dat_banh_21e08aca8','Số trên bánh') }}</span><span class="big">{{ S.nums.join('') }}</span>
         <button class="x" @click="kho.clearNums()"><bieu-tuong loai="bo"/>{{ t('dat_banh_82339c0a8','Xoá') }}</button></template>
@@ -485,14 +485,14 @@ export const MAU = `
     </div>
     <ul class="addons" id="s-addons"><li v-for="a in ADDONS.filter(x => !x.du_phong)" :key="a.id"><button :class="{on: S.adds.includes(a.id)}" @click="kho.toggleAdd(a.id)">
       <span class="bx"><bieu-tuong v-if="S.adds.includes(a.id)" loai="chon"/></span>
-      <span class="ph"><img :src="a.img" alt=""></span>
+      <span class="ph"><img :src="anhWeb(a.ka, a.img)" alt=""></span>
       <span class="nm">{{ t(a.k, a.n) }}</span><span class="pr">{{ tienTom(a.p) }}</span></button></li></ul>
     <p class="hint" id="s-mau-ngau-nhien">{{ t('pk_mau_ngau_nhien','Màu nón và sash giao ngẫu nhiên.') }}</p>
     <!-- Hộp, túi, nến dự phòng thu vào dòng gấp vì bánh đã có sẵn một bộ. Đã chọn món dự phòng (sửa dòng giỏ) thì mở sẵn. -->
     <details class="du-phong" id="s-duphong" :key="'dp' + chiTiet.c.k" :open="ADDONS.some(x => x.du_phong && S.adds.includes(x.id))"><summary><span>{{ t('pk_du_phong_hoi','Cần thêm hộp, túi hay nến dự phòng?') }}</span> <small>{{ t('pk_du_phong_mo','Mỗi bánh đã có sẵn một bộ.') }}</small></summary>
     <ul class="addons" id="s-addons-dp"><li v-for="a in ADDONS.filter(x => x.du_phong)" :key="a.id"><button :class="{on: S.adds.includes(a.id)}" @click="kho.toggleAdd(a.id)">
       <span class="bx"><bieu-tuong v-if="S.adds.includes(a.id)" loai="chon"/></span>
-      <span class="ph"><img :src="a.img" alt=""></span>
+      <span class="ph"><img :src="anhWeb(a.ka, a.img)" alt=""></span>
       <span class="nm">{{ t(a.k, a.n) }}</span><span class="pr">{{ tienTom(a.p) }}</span></button></li></ul></details>
     </details>
     <div class="addsum" id="s-addsum" aria-live="polite" :style="{display: kho.phuKienChon.value.length ? 'block' : 'none'}"><template v-if="kho.phuKienChon.value.length">{{ t('dat_banh_fc2a93d57','Đã chọn thêm:') }} <b>{{ kho.phuKienChon.value.map(x=>x.n).join(', ') }}</b> {{ t('dat_banh_b6d0a562d','· cộng thêm') }} <b>{{ tienTom(kho.phuKienChon.value.reduce((a,x)=>a+x.p,0)) }}</b></template></div>
@@ -522,7 +522,7 @@ export const MAU = `
 <div class="hs-nen" id="mauCo" :hidden="!kho.chiecMauCo.value" @click.self="kho.moMauCo('')">
   <div class="hs-hop mc-hop" role="dialog" aria-modal="true" aria-labelledby="mc-tieu-de">
     <button type="button" class="hs-x" id="mc-dong" @click="kho.moMauCo('')" :aria-label="t('huong_size_dong','Đóng')">✕</button>
-    <img class="mc-anh" :src="ANH_CO" alt="">
+    <img class="mc-anh" :src="anhWeb('anh_co_mau', ANH_CO)" alt="">
     <h3 class="hs-tieu-de" id="mc-tieu-de">{{ t('phu_kien_8034a0777','Cờ cắm in lời chúc') }}</h3>
     <p class="hs-mo-ta">{{ t('mc_mo_ta','Ảnh minh hoạ. Màu cờ có thể khác, lời chúc in đúng nội dung quý khách ghi.') }}</p>
     <div class="mc-in"><small>{{ t('mc_se_in','LỜI CHÚC SẼ IN') }}</small><b>{{ kho.chiecMauCo.value && kho.chiecMauCo.value.wish ? kho.chiecMauCo.value.wish : t('mc_chua_nhap','Chưa nhập lời chúc') }}</b></div>
