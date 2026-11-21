@@ -704,3 +704,21 @@ Từ v681 (giám đốc duyệt 21/11/2026).
 - Đổi chữ trên viên ghi chú không làm mất chức năng: hệ thống nhận viên theo mã, không theo chữ.
 
 **Bạn cần làm:** Marketing xem lại chữ trên trang đặt bánh sau khi lên bản, sửa nếu muốn rồi bấm Lưu.
+
+## Biên tập web: thay ảnh mẫu cờ, thiệp, phụ kiện và nến số
+Từ khoá: ảnh trên trang, ảnh mẫu cờ, ảnh thiệp nhỏ, thiệp ép kim, ảnh phụ kiện, nến số, dĩa nĩa, về ảnh có sẵn
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Biên tập web, thẻ Trang và chữ, nhóm Ảnh trên trang | Lưu |
+
+Từ v681 (giám đốc chốt 21/11/2026: mọi nội dung trên web chính sửa được trong trình biên tập).
+
+**Trước đây:** ảnh mẫu cờ, thiệp, đồ kèm theo bánh, phụ kiện mua thêm và nến số gắn cứng trong trang, muốn đổi phải nhờ kỹ thuật.
+**Từ nay:**
+- Thẻ Trang và chữ có nhóm Ảnh trên trang, 25 ô ảnh. Mỗi ô hiện ảnh khách đang thấy.
+- Bấm chọn tệp để tải ảnh PNG, JPG hoặc WebP dưới 10 MB, rồi bấm Lưu. Khách thấy ngay khi tải lại trang.
+- Bấm Về ảnh có sẵn rồi Lưu để quay lại ảnh cũ của web.
+- Ô Thiệp nhỏ chưa có ảnh thì web hiện khung chữ "Thiệp nhỏ"; tải ảnh lên là hiện ảnh.
+
+**Bạn cần làm:** Marketing chụp ảnh mẫu cờ có lời chúc và ảnh thiệp nhỏ, tải vào hai ô Mẫu cờ cắm lời chúc và Thiệp nhỏ miễn phí rồi bấm Lưu.

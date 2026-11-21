@@ -16,6 +16,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Web đặt bánh: lời chúc và thiệp chọn cho từng chiếc bánh
 - Web đặt bánh: ghi chú chọn nhanh cho bếp và người giao
 - Web đặt bánh: thẻ tóm tắt đơn và cách thanh toán
+- Biên tập web: thay ảnh mẫu cờ, thiệp, phụ kiện và nến số
 - Trang chọn bánh: dòng Mua thêm phụ kiện và chữ mới của trang Thông tin đơn hàng
 
 ## v680
