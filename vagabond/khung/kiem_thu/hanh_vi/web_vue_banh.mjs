@@ -1337,7 +1337,7 @@ await ca('v681 luật mọi ảnh trên web chính sửa được ở trình bi�
    Máy chủ giả giữ luật của xem_uu_dai: số đã đặt web thì don_dau khong; khach.da_dat, khach.xac_thuc
    theo phiên; điểm chỉ lộ sau xác thực. Gửi mã, xác thực có thể trả chậm (hứa tự giải). */
 function mayChuTv({daDat = [], phienSan = '', diem = true, uuDai = true} = {}) {
-  const v = {hoi: [], gui: [], xac: [], tra: [], phien: phienSan, cho: null};
+  const v = {hoi: [], gui: [], xac: [], tra: [], phien: phienSan, cho: null, choTra: null};
   const mang = {
     'vagabond.don_hang.xem_uu_dai': th => {
       const d = JSON.parse(th.don); v.hoi.push(d);
@@ -1353,7 +1353,9 @@ function mayChuTv({daDat = [], phienSan = '', diem = true, uuDai = true} = {}) {
     'vagabond.thanh_vien.gui_ma': th => { v.gui.push(th); if (v.cho) return new Promise(res => { v.cho.push(() => res({ok: 1})); }); return {ok: 1, song_giay: 300}; },
     'vagabond.thanh_vien.xac_thuc': th => { v.xac.push(th); const lam = () => { if (th.ma !== '123456') return {ok: 0, ly_do: 'ma_khong_dung'}; v.phien = String(th.sdt); return {ok: 1}; };
       if (v.cho) return new Promise(res => { v.cho.push(() => res(lam())); }); return lam(); },
-    'vagabond.api.tra_khach': p => { v.tra.push(p.phone); return v.phien === p.phone ? {addresses: [{ho_ten: 'Khách', phone: p.phone, dia_chi: '12 Nguyễn Huệ'}]} : {addresses: [], ly_do: 'can_xac_thuc'}; },
+    'vagabond.api.tra_khach': p => { v.tra.push(p.phone); const kq = v.phien === p.phone ? {addresses: [{ho_ten: 'Khách', phone: p.phone, dia_chi: '12 Nguyễn Huệ'}]} : {addresses: [], ly_do: 'can_xac_thuc'};
+      /* choTra: máy chủ đã đọc xong lúc phiên còn hạn nhưng trả muộn (Codex #605 vòng 3). */
+      if (v.choTra) return new Promise((res, rej) => { v.choTra.push(loi => loi ? rej(new Error('mạng rớt')) : res(kq)); }); return kq; },
   };
   return {v, mang};
 }
@@ -1473,6 +1475,35 @@ await ca('Codex #605 vòng 2: xác thực ngay trong checkout rồi hết phiên
   const th = k.theThanhVien.value;
   la('hết phiên: không còn Đã xác thực, có nút gửi mã', [th.kieu !== 'xac', !!th.nut, k.daXacThuc.value], [true, true, false]);
   la('hết phiên: bỏ địa chỉ đã lấy và công tắc điểm', [k.S.CO.addrList.length, k.S.CO.addrSel, k.S.CO.dungDiem], [0, -1, false]);
+});
+
+await ca('Codex #605 vòng 3: lượt tra địa chỉ bắt đầu lúc phiên còn hạn nhưng trả muộn, giữa chừng hết phiên: phản hồi muộn bị bỏ, danh sách địa chỉ vẫn rỗng', async () => {
+  const {v, mang} = mayChuTv();
+  const {mt, chayHen} = moiTruong('2026-11-21T08:00:00', mang);
+  const k = taoKho(mt);
+  coThem(k); k.moGio(); k.S.f.phone = '0931224334'; await chayHen();
+  v.choTra = [];
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123456'; await k.xacThucDonDau(); await chayHen(); await chayHen();
+  la('đã xác thực, lượt tra địa chỉ đang chờ', [k.daXacThuc.value, v.choTra.length, k.S.CO.addrList.length], [true, 1, 0]);
+  v.phien = '';
+  k.cartQty(0, 1); await chayHen(); await chayHen();
+  la('hết phiên', k.daXacThuc.value, false);
+  v.choTra.shift()(); await chayHen(); await chayHen();
+  la('phản hồi muộn không ghi lại địa chỉ', [k.S.CO.addrList.length, k.S.CO.addrSel, k.daXacThuc.value], [0, -1, false]);
+  la('không hiện câu "Tìm thấy N địa chỉ"', k.S.goi.phone, null);
+  /* Xác thực lại thì vẫn tra được bình thường. */
+  v.choTra = null;
+  await k.guiMaDonDau(); k.S.CO.dd.ma = '123456'; await k.xacThucDonDau(); await chayHen(); await chayHen();
+  la('xác thực lại: địa chỉ trở lại', [k.daXacThuc.value, k.S.CO.addrList.length], [true, 1]);
+  /* Lượt tra cũ báo lỗi mạng sau khi lượt mới đã trả: không xoá danh sách của lượt mới. */
+  v.choTra = [];
+  k.lookupPhone(); await chayHen();
+  k.lookupPhone(); await chayHen();
+  la('hai lượt tra đang chờ', v.choTra.length, 2);
+  v.choTra[1](); await chayHen();
+  la('lượt mới trả: có địa chỉ', k.S.CO.addrList.length, 1);
+  v.choTra[0](true); await chayHen();
+  la('lượt cũ báo lỗi muộn: danh sách của lượt mới giữ nguyên', k.S.CO.addrList.length, 1);
 });
 
 await ca('v682 mở lại checkout (đã xác thực trong phiên trước, cookie còn): thẻ hiện Đã xác thực ngay, không bắt gửi mã lại', async () => {
