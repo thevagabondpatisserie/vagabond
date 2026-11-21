@@ -85,6 +85,8 @@ function dung(canh) {
   vm.createContext(ctx);
   vm.runInContext(
     layBien(IN, 'IN_VENDOR') + '\nvar inDaNap = {};\n' + layHam(IN, 'inNapJs') + '\n' + layHam(IN, 'inQrAnh') + '\n' +
+    /* v680: posInBill gọi thêm ba hàm thuần (lề, cỡ QR, tên khuyến mãi). */
+    layHam(BILL, 'inSoMm') + '\n' + layHam(BILL, 'posTenKmIn') + '\n' + layHam(BILL, 'posLaKmGrab') + '\n' +
     layHam(BILL, 'posInBill'), ctx, { filename: 'bill.js' });
   return { ctx: ctx, ket: ket };
 }
