@@ -32,7 +32,7 @@ def cho_may_chu(cong):
 def ban_nhap(kieu='ship', ma=''):
 	return json.dumps({'luc': int(time.time() * 1000), 'gio': [{
 		'k': 'CANDLE', 'img': '', 'id': 'BAWC00139', 'cm': 12,
-		'price': 650000, 'nguon': 'today', 'qty': 1, 'wish': '',
+		'price': 650000, 'nguon': 'today', 'qty': 1, 'wish': 'Mừng sinh nhật',
 		'adds': [], 'dung_cu': {'nia': 0, 'dia': 0}}],
 		'ngay': None, 'slot': 6, 'daChonNgay': False, 'daChonGio': False,
 		'truong': {'f-ma': ma, 'f-phone': '0900000000', 'f-name': 'Khách fixture', 'f-addr': '12 Nguyễn Huệ, Quận 1'},
