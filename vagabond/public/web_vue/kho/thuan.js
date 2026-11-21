@@ -172,11 +172,89 @@ export function chuanDungCu(d) {
   return {nia: so(d.nia), dia: so(d.dia), thiep: so(d.thiep)};
 }
 export function cartKey(o) {
-  return [o.id, o.wish, (o.adds || []).map(a => a.id).join('+'), [o.dung_cu?.nia || 0, o.dung_cu?.dia || 0, o.dung_cu?.thiep || 0].join(',')].join('|');
+  /* v681: dòng có từng chiếc thì lời chúc nằm ở chiếc, không làm hai dòng khác nhau. */
+  return [o.id, Array.isArray(o.chiec) ? '' : o.wish, (o.adds || []).map(a => a.id).join('+'), [o.dung_cu?.nia || 0, o.dung_cu?.dia || 0, o.dung_cu?.thiep || 0].join(',')].join('|');
 }
 export function lineUnit(o) { return o.price + (o.adds || []).reduce((a, x) => a + x.p, 0); }
 export function cartCount(gio) { return gio.reduce((a, x) => a + x.qty, 0); }
-export function cartTotal(gio) { return gio.reduce((a, x) => a + lineUnit(x) * x.qty, 0); }
+/* v681: tiền một dòng giỏ gồm thiệp ép kim của từng chiếc (giá máy chủ trả, cau_hinh_web). */
+export function tienDong(o, giaThiep = 0) { return lineUnit(o) * o.qty + soEpKim(o) * (Number(giaThiep) || 0); }
+export function cartTotal(gio, giaThiep = 0) { return gio.reduce((a, x) => a + tienDong(x, giaThiep), 0); }
+
+/* ---------------- Từng chiếc bánh (v681, BẢN 2 mục 2.0, 2.1) ----------------
+   Mỗi CHIẾC bánh (không phải mỗi dòng giỏ) giữ lời chúc, cờ, loại thiệp, lời
+   thiệp của riêng nó trong o.chiec, dài đúng o.qty. Định danh id ổn định qua
+   tăng giảm số lượng, sửa bánh, tải lại trang. Chỉ dòng bánh (có nguồn hôm nay
+   hoặc đặt trước, không phải món gợi ý) mới có chiếc. */
+export const MA_THIEP_EP_KIM = 'BAPK00002';
+export const LOAI_THIEP = ['khong', 'nho', 'ep_kim'];
+export const LOI_CHUC_TOI_DA = 60, LOI_THIEP_TOI_DA = 80;
+export function laDongBanh(o) { return !!o && (o.nguon === 'today' || o.nguon === 'order') && !o.goi_y; }
+let demChiec = 0;
+export function taoIdChiec(luc = Date.now()) {
+  demChiec = (demChiec + 1) % 1679616;
+  return 'c' + Number(luc).toString(36) + demChiec.toString(36) + Math.floor(Math.random() * 1296).toString(36);
+}
+export function chiecMoi(id) { return {id: id || taoIdChiec(), co: true, wish: '', thiep: 'khong', loi_thiep: ''}; }
+export function chuanChiec(x) {
+  /* Một chiếc đọc từ giỏ lưu hay từ đâu không tin được: kẹp độ dài, loại thiệp hợp lệ. */
+  x = x && typeof x === 'object' ? x : {};
+  const id = typeof x.id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(x.id) ? x.id : taoIdChiec();
+  return {id, co: x.co !== false, wish: String(x.wish || '').slice(0, LOI_CHUC_TOI_DA),
+    thiep: LOAI_THIEP.includes(x.thiep) ? x.thiep : 'khong', loi_thiep: String(x.loi_thiep || '').slice(0, LOI_THIEP_TOI_DA)};
+}
+/* Chiếc đã có lời chúc hoặc thiệp: bỏ chiếc này phải hỏi lại khách. */
+export function chiecCoNoiDung(c) { return !!c && (!!String(c.wish || '').trim() || c.thiep !== 'khong' || !!String(c.loi_thiep || '').trim()); }
+export function dongBoChiec(o, taoId = taoIdChiec) {
+  /* Giữ o.chiec dài đúng o.qty: thừa thì bỏ chiếc CUỐI, thiếu thì thêm chiếc mới. */
+  if (!laDongBanh(o)) return o;
+  if (!Array.isArray(o.chiec)) o.chiec = [];
+  if (o.chiec.length > o.qty) o.chiec.splice(o.qty);
+  while (o.chiec.length < o.qty) o.chiec.push(chiecMoi(taoId()));
+  return o;
+}
+export function soEpKim(o) { return laDongBanh(o) && Array.isArray(o.chiec) ? o.chiec.filter(c => c.thiep === 'ep_kim').length : 0; }
+export function soThiepNho(o) { return laDongBanh(o) && Array.isArray(o.chiec) ? o.chiec.filter(c => c.thiep === 'nho').length : 0; }
+export function chiecTuDongCu(o) {
+  /* Giỏ lưu trước v681: lời chúc ghi theo dòng, thiệp ép kim là món mua thêm
+     BAPK00002 nhân số bánh, thiệp nhỏ là số theo từng bánh. Chuyển sang từng
+     chiếc để không mất gì khách đã nhập. Dòng đã có chiếc thì chỉ chuẩn hoá. */
+  if (!laDongBanh(o)) return o;
+  if (Array.isArray(o.chiec)) {
+    o.chiec = o.chiec.slice(0, 99).map(chuanChiec);
+  } else {
+    const epKim = (o.adds || []).some(a => a.id === MA_THIEP_EP_KIM);
+    const nho = !!(o.dung_cu && parseInt(o.dung_cu.thiep) > 0);
+    const wish = String(o.wish || '').slice(0, LOI_CHUC_TOI_DA);
+    o.chiec = [];
+    for (let i = 0; i < o.qty; i++) o.chiec.push(Object.assign(chiecMoi(), {wish, thiep: epKim ? 'ep_kim' : nho ? 'nho' : 'khong'}));
+  }
+  o.adds = (o.adds || []).filter(a => a.id !== MA_THIEP_EP_KIM);
+  o.wish = '';
+  if (o.dung_cu) o.dung_cu = Object.assign({}, o.dung_cu, {thiep: 0});
+  return dongBoChiec(o);
+}
+export function chiecGui(gio, tenFn = o => o.k) {
+  /* Danh sách từng chiếc gửi máy chủ (tao_don kiểm lại và chốt số thiệp ép kim).
+     ten: tên như trên web lúc đặt, biên nhận hiện lại đúng tên này. */
+  const ra = [];
+  (gio || []).forEach(o => {
+    if (!laDongBanh(o) || !Array.isArray(o.chiec)) return;
+    const ten = String(tenFn(o) || o.k || '') + (o.cm ? ' · Ø ' + o.cm + 'cm' : '');
+    o.chiec.forEach(c => ra.push({ma: o.id, ten, co: c.co !== false, loi_chuc: c.co === false ? '' : String(c.wish || '').trim(),
+      thiep: c.thiep, loi_thiep: c.thiep === 'khong' ? '' : String(c.loi_thiep || '').trim()}));
+  });
+  return ra;
+}
+/* Ghi chú chọn nhanh (BẢN 2 mục 2.5): giờ trễ nhất chỉ trong khung giờ đã chọn,
+   bước 30 phút, sau giờ bắt đầu và trước giờ kết thúc khung. */
+export function gioTreTrongKhung(slot) {
+  if (!slot || !Number.isFinite(slot.from)) return [];
+  const hh = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  const ra = [];
+  for (let m = slot.from * 60 + 30; m < (slot.from + 2) * 60; m += 30) ra.push(hh(m));
+  return ra;
+}
 export function daCoTrongGio(gio, id) { return gio.filter(x => x.id === id).reduce((a, x) => a + x.qty, 0); }
 
 /* v649 (Loan Anh báo, anh Việt chọn tách đơn 11/11/2026): bánh đặt trước nhận
@@ -228,6 +306,9 @@ export function hangGui(gio, dc) {
   gio.forEach(o => {
     qty[o.id] = (qty[o.id] || 0) + o.qty;
     (o.adds || []).forEach(a => { qty[a.id] = (qty[a.id] || 0) + o.qty; });
+    /* v681: thiệp ép kim TÍNH LẠI TỪ ĐẦU theo số chiếc đang chọn, không cộng dồn. */
+    const ek = soEpKim(o);
+    if (ek) qty[MA_THIEP_EP_KIM] = (qty[MA_THIEP_EP_KIM] || 0) + ek;
   });
   if (gio.length) {
     const x = chuanDcDon(dc);
@@ -241,7 +322,11 @@ export function themVaoGio(gio, o) {
   /* Cấu hình giống hệt thì cộng dồn số lượng. Trả về dòng trùng (nếu có). */
   const key = cartKey(o);
   const hit = gio.find(x => cartKey(x) === key);
-  if (hit) hit.qty += o.qty; else gio.push(o);
+  if (hit) {
+    hit.qty += o.qty;
+    /* v681: chiếc mới nối sau các chiếc đã có, không đè lời chúc của chiếc cũ. */
+    if (laDongBanh(hit)) { hit.chiec = (Array.isArray(hit.chiec) ? hit.chiec : []).concat(Array.isArray(o.chiec) ? o.chiec : []); dongBoChiec(hit); }
+  } else { dongBoChiec(o); gio.push(o); }
   return hit || null;
 }
 
@@ -255,12 +340,19 @@ export function duongCat(n) {
   }
   return ra;
 }
+/* v681: nĩa, dĩa của dòng giỏ bản cũ (thiệp nay theo từng chiếc, ghi ở dòng của chiếc). */
+export function chuDungCuNiaDia(o) {
+  const d = (o && o.dung_cu) || {};
+  return (d.nia || d.dia) ? `${(d.nia || 0) * o.qty} nĩa gỗ, ${(d.dia || 0) * o.qty} dĩa bã mía` : '';
+}
 export function chuDungCu(o) {
   /* Chữ in phiếu bếp: nhân số lượng bánh, cùng chữ với banh.html v597. */
   if (!o || !o.dung_cu) return '';
   const d = o.dung_cu;
+  /* v681: dòng có từng chiếc thì thiệp nhỏ đếm đúng số chiếc chọn thiệp nhỏ. */
+  const thiep = Array.isArray(o.chiec) ? soThiepNho(o) : (d.thiep || 0) * o.qty;
   return [(d.nia || d.dia) ? `${(d.nia || 0) * o.qty} nĩa gỗ, ${(d.dia || 0) * o.qty} dĩa bã mía` : '',
-    d.thiep ? `${d.thiep * o.qty} thiệp nhỏ` : ''].filter(Boolean).join(', ');
+    thiep ? `${thiep} thiệp nhỏ` : ''].filter(Boolean).join(', ');
 }
 
 /* ---------------- Danh mục ---------------- */
