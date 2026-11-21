@@ -784,3 +784,31 @@ Từ khoá: miễn phí giao, ngưỡng miễn phí, weborder, phí giao tại q
 Đơn đặt qua tab Tại quầy đạt mức này (sau ưu đãi) thì khách không trả phí giao, tiệm trả cước GreenSM. Để trống hoặc 0 là 500.000 đ. Gõ 500000, 500.000 hay 500k đều được.
 
 Muốn bỏ hẳn miễn phí giao (mọi đơn đều tính phí): bật ô Tắt miễn phí giao đơn giao của quầy ngay dưới, bấm Lưu. Tắt ô đó là áp lại mức ở trên.
+
+## Bật giao diện mới Nghệ sĩ công nghệ cho một tài khoản (đang thử)
+Từ khoá: giao diện mới, Nghệ sĩ công nghệ, ui-b, đổi giao diện, bật giao diện, tắt giao diện, giao diện cũ, thử giao diện, Vagabond Giao Dien
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị viên (System Manager) | Desk, trang Vagabond Giao Dien (/app/vagabond-giao-dien) | [[Lưu]] |
+
+Giao diện mới đang thử. Mặc định cả tiệm vẫn dùng giao diện cũ; chỉ tài khoản được đặt Luôn bật mới thấy giao diện mới.
+
+**Các bước**
+1. Trên Desk, mở trang Vagabond Giao Dien.
+2. Ở bảng Tài khoản có lựa chọn riêng, bấm [[Thêm dòng]].
+3. Chọn Tài khoản, chọn Lựa chọn riêng là Luôn bật.
+4. Bấm [[Lưu]].
+5. Trên máy của tài khoản đó, mở lại hoặc tải lại trang app. App không tự đổi khi đang làm việc.
+
+**Vì sao chưa thấy**
+| Máy báo hoặc hiện tượng | Cách gỡ |
+|---|---|
+| Đã lưu mà app vẫn giao diện cũ | Tải lại trang app; nếu vẫn cũ, kiểm ô Tắt khẩn cấp đang không được bật |
+| Một số màn vẫn kiểu cũ | Bình thường trong thời gian thử: mới đổi trang chủ, các nhóm, đăng nhập, tài khoản và khung chung; các màn khác đổi dần ở các bản sau |
+| Trang báo không có quyền | Chỉ quản trị viên mở được trang này |
+
+**Lưu ý**
+- Muốn về giao diện cũ cho riêng mình: đổi Lựa chọn riêng thành Luôn tắt hoặc xoá dòng, rồi tải lại trang.
+- Có sự cố trên giao diện mới: bật ô Tắt khẩn cấp (cả tiệm về giao diện cũ), bấm [[Lưu]]; mọi máy về giao diện cũ ở lần mở trang kế tiếp.
+- Chưa bật ô Bật giao diện mới cho cả tiệm khi chưa có quyết định chính thức.
