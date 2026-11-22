@@ -958,14 +958,16 @@ export function taoKho(moiTruong) {
   const dsPhuong = () => (S.cauHinh && S.cauHinh.phuong) || [];
   const timPhuong = ma => (!ma ? null : dsPhuong().find(p => p.ma === ma) || null);
   const phuongDangChon = computed(() => timPhuong(S.CO.phuong));
+  /* Máy chủ trả tên quận cũ ('Quận 3'); chữ 'cũ' lấy từ bảng chữ (Codex #606). */
+  const chuQuanCu = p => (p.quan_cu ? p.quan_cu + ' ' + t('ph684_cu', 'cũ') : '');
   const goiYPhuong = computed(() => {
     if (!S.CO.phMo) return [];
     return T.locPhuong(dsPhuong(), S.CO.phTim).map(p => ({ma: p.ma, ten: p.ten, khop: p.khop || '',
-      phu: p.quan_cu + (p.cu && p.cu.length ? ' · ' + (p.khop && p.khop !== p.quan_cu ? p.khop : p.cu.slice(0, 3).join(', ')) : ''),
+      phu: chuQuanCu(p) + (p.cu && p.cu.length ? ' · ' + (p.khop && p.khop !== p.quan_cu ? p.khop : p.cu.slice(0, 3).join(', ')) : ''),
       ngoai: p.loai === 'mot_phan'}));
   });
   /* Chữ hiện trong ô khi đã chọn: "Phường … · Quận X cũ". */
-  const theoPhuong = computed(() => { const p = phuongDangChon.value; return p ? {chu: p.ten + ' · ' + p.quan_cu} : null; });
+  const theoPhuong = computed(() => { const p = phuongDangChon.value; return p ? {chu: p.ten + ' · ' + chuQuanCu(p)} : null; });
   function moPhuong() { S.CO.phMo = true; S.CO.phTim = ''; }
   function goPhuong(v) { S.CO.phTim = String(v || ''); S.CO.phMo = true; }
   function dongPhuong() { S.CO.phMo = false; S.CO.phTim = ''; }
@@ -974,6 +976,9 @@ export function taoKho(moiTruong) {
   /* Địa chỉ chọn từ gợi ý hay địa chỉ đã lưu: ghi đúng một phường mới thì tự điền;
      ghi một phường không khớp phường đang chọn thì bỏ chọn để khách chọn lại, không đoán. */
   function phuongTheoDiaChi(diaChi) {
+    /* Địa chỉ kiểu cũ: tên phường cũ có thể trùng phường mới ở nơi khác, nên không
+       tự chọn cũng không bỏ phường khách đã chọn (Codex #606). */
+    if (T.laDiaChiCu(diaChi)) return;
     const p = T.phuongTrongDiaChi(dsPhuong(), diaChi);
     if (p) { S.CO.phuong = p.ma; return; }
     const dang = phuongDangChon.value, a = T.boDauPhuong(diaChi);
@@ -1005,6 +1010,9 @@ export function taoKho(moiTruong) {
       try {
         const p = S.CO.pickedLoc ? {lat: S.CO.pickedLoc.lat, lng: S.CO.pickedLoc.lng, addr: a} : {addr: a};
         p.luc_giao = mocGioNhan();
+        /* Codex #606: gửi kèm mã phường, máy chủ ghép phường vào địa chỉ bằng đúng
+           hàm lúc gửi đơn, nên đổi phường là đổi nơi hỏi phí. */
+        if (ph) p.phuong = ph.ma;
         m = await doc('vagabond.giao_hang.phi_giao', p);
       } catch (e) { m = null; }
       if (so !== soPhi) return; /* kết quả của lần hỏi cũ về muộn: bỏ */
