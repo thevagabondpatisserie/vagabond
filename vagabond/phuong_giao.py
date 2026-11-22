@@ -26,6 +26,7 @@ Mỗi dòng: (mã Pancake, tên phường mới, khu vực giao, quận cũ, ph�
   Bình Phú, Bình Hưng Hòa nằm trên hai quận cũ nhưng trọn trong vùng giao.
 """
 
+import re
 import unicodedata
 
 TIEN_TO = "84_VN129"
@@ -162,7 +163,9 @@ def ten_day_du(ten):
 
 
 def nhan_quan_cu(quan):
-	return quan + " cũ"
+	"""Tên quận cũ (dữ liệu, ví dụ 'Quận 3'). Chữ ' cũ' khách thấy do trang ghép từ
+	bảng chữ Marketing sửa được (Codex #606), máy chủ không trả câu chữ."""
+	return quan
 
 
 def danh_sach():
@@ -188,6 +191,13 @@ def tim(ma):
 	return None
 
 
+def la_dia_chi_cu(dia_chi):
+	"""Địa chỉ còn ghi Quận, Huyện, TP Thủ Đức (kiểu trước 7/2025). THUẦN.
+	Cùng luật với laDiaChiCu ở web_vue/kho/thuan.js."""
+	a = " " + " ".join(re.sub(r"[^a-z0-9 ]+", " ", bo_dau(dia_chi)).split()) + " "
+	return bool(re.search(r" (quan|huyen) ", a) or re.search(r" (thanh pho|tp) thu duc ", a))
+
+
 def dia_chi_co_phuong(dia_chi, p):
 	"""Địa chỉ gửi Pancake mang tên phường mới (mục 2.3). THUẦN.
 
@@ -199,7 +209,9 @@ def dia_chi_co_phuong(dia_chi, p):
 	if not p:
 		return dia_chi
 	ten = p["ten"]
-	if bo_dau(ten.split(" ", 1)[1]) in bo_dau(dia_chi):
+	# Địa chỉ kiểu cũ (còn Quận, Huyện): tên phường trong đó là phường CŨ, có thể
+	# trùng tên phường mới ở nơi khác, nên vẫn ghi rõ phường mới (Codex #606).
+	if not la_dia_chi_cu(dia_chi) and bo_dau(ten.split(" ", 1)[1]) in bo_dau(dia_chi):
 		return dia_chi
 	return (dia_chi.rstrip(" ,") + ", " + ten) if dia_chi else ten
 
