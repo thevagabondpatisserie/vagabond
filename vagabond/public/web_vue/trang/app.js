@@ -246,11 +246,25 @@ export function taoTrang(D, mt = {}) {
       h('p', {class: 'bn6-dong-i ghim'}, dongNoi),
       nb.nguoi_nhan || bn.ten ? h('p', {class: 'bn6-dong-i nguoi'}, (nb.nguoi_nhan || bn.ten) + (nb.la_nguoi_dat ? ' · ' + chu('bn684_nguoi_dat', 'người đặt') : '')) : null]);
   }
+  /* Codex #606: máy chủ chỉ trả lựa chọn đã lưu (có cờ không, mã thiệp, mã quà);
+     chữ khách thấy lấy từ bảng chữ Marketing sửa được. Lời chúc, lời thiệp là
+     chữ của khách nên giữ nguyên. */
+  function chuChiec(c) {
+    const co = c.co === false ? chu('bn684_khong_co', 'Không cờ')
+      : (c.loi_chuc ? chu('bn684_co', 'Cờ') + ': “' + c.loi_chuc + '”' : chu('bn684_co_trong', 'Cờ chưa ghi lời chúc'));
+    const thiep = c.thiep === 'nho' ? chu('bn684_thiep_nho', 'Thiệp nhỏ')
+      : (c.thiep === 'ep_kim' ? chu('bn684_thiep_ep_kim', 'Thiệp ép kim') : chu('bn684_khong_thiep', 'Không thiệp'));
+    return [co, thiep + (c.thiep && c.loi_thiep ? ': “' + c.loi_thiep + '”' : '')].join(' · ');
+  }
+  function chuTang(muc) {
+    const s = (muc || []).map(m => (m.ma === 'dia' ? chu('bn684_dia', 'dĩa giấy bã mía') : chu('bn684_nia', 'nĩa gỗ')) + ' x' + m.sl).join(', ');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
   function theDon() {
     const anh = bn.anh || {}, ds = bn.dong;
     const dong = Array.isArray(ds) && ds.length ? ds.map((d, i) => {
       if (d.loai === 'banh') {
-        const phu = (d.chiec || []).map(c => [c.co, c.thiep + (c.loi_thiep ? ': “' + c.loi_thiep + '”' : '')].join(' · ')).join(' / ');
+        const phu = (d.chiec || []).map(chuChiec).join(' / ');
         const du = !!st.xemDu[i];
         return h('li', {class: 'bn6-mon'}, [anh[d.ma] ? h('img', {src: anh[d.ma], alt: '', width: 52, height: 52, loading: 'lazy'}) : h('i', {class: 'bn6-anh-trong'}),
           h('div', {class: 'bn6-mon-chu'}, [h('b', d.ten + (d.sl > 1 ? ' x' + d.sl : '')),
@@ -258,6 +272,7 @@ export function taoTrang(D, mt = {}) {
             phu && phu.length > 48 && !du ? h('button', {type: 'button', class: 'bn6-gach', onClick: () => { st.xemDu = Object.assign({}, st.xemDu, {[i]: true}); }}, chu('bn684_xem_du', 'Xem đủ')) : null]),
           h('span', {class: 'tien'}, d.gia)]);
       }
+      if (d.loai === 'tang') return h('li', {class: 'bn6-mon tang'}, [h('div', {class: 'bn6-mon-chu'}, [h('b', chuTang(d.muc))]), h('span', {class: 'tien'}, chu('bn684_tang_kem', 'tặng kèm'))]);
       return h('li', {class: 'bn6-mon ' + d.loai}, [h('div', {class: 'bn6-mon-chu'}, [h('b', d.ten + (d.sl > 1 ? ' x' + d.sl : ''))]), h('span', {class: 'tien'}, d.gia)]);
     }) : (bn.mon || []).map(m => h('li', {class: 'bn6-mon'}, [h('div', {class: 'bn6-mon-chu'}, [h('b', m.ten + ' x' + m.sl)]), h('span', {class: 'tien'}, m.thanh_tien)]));
     const k = st.tt || {};
