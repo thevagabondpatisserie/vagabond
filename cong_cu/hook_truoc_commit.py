@@ -8,7 +8,10 @@ cong_cu/chot_chan.py trên đúng thứ lệnh sẽ ghi hay đẩy đi.
   - có đường dẫn (mặc định `--only`): HEAD cộng bản làm việc của đúng các đường dẫn đó;
   - `-i`, `--include` kèm đường dẫn: index hiện tại cộng bản làm việc của các đường dẫn đó.
   Không xét HEAD, để commit sửa lỗi của commit cũ (kể cả --amend) đi được.
-  Không đọc được lệnh (heredoc lạ, dấu nháy hở) thì xét cả index lẫn bản làm việc.
+  Các `git add` đứng trước commit trong cùng lệnh được chạy lại trên index tạm;
+  `cd` được theo. Có lệnh khác đứng trước (có thể đổi tệp), không đọc được lệnh
+  (dấu nháy hở, --pathspec-from-file) hay dựng index tạm hỏng thì xét chặt cả
+  index lẫn bản làm việc.
 - `git push` (không kèm commit trong cùng lệnh): HEAD.
 
 Từ ngày CHAN_TU, có lỗi thì trả mã 2 để Claude Code chặn lệnh và đưa lỗi cho
@@ -41,23 +44,63 @@ def tach_lenh(lenh):
 	return list(l)
 
 
-def doc_commit(lenh):
-	"""Đọc lần `git commit` đầu tiên trong lệnh shell.
-	Trả None khi lệnh không có commit, "?" khi không đọc được,
-	còn lại là dict {all, include, duong_dan}."""
+AN_TOAN = {"cd", "pwd", "ls", "echo", "true", ":"}
+GIT_CHI_DOC = {"status", "diff", "log", "fetch", "show", "rev-parse", "branch"}
+ADD_TUONG_TAC = {"-p", "--patch", "-i", "--interactive", "-e", "--edit"}
+
+
+def tach_cau(tu):
+	"""Chia các từ thành từng lệnh theo toán tử."""
+	ra, cau = [], []
+	for t in tu:
+		if t in TOAN_TU:
+			if cau:
+				ra.append(cau)
+			cau = []
+		else:
+			cau.append(t)
+	if cau:
+		ra.append(cau)
+	return ra
+
+
+def doc_commit(lenh, cwd=None):
+	"""Đọc lần `git commit` đầu tiên trong lệnh shell và các lệnh đứng trước nó.
+	Trả None khi lệnh không có commit, "?" khi không đọc được, còn lại là dict:
+	all, include, duong_dan (của commit); truoc: [(thư mục, tham số)] của các
+	`git add` đứng trước; chat: có lệnh đứng trước có thể đổi tệp mà hook không
+	mô phỏng được; cwd: thư mục sau các lệnh cd."""
 	try:
 		tu = tach_lenh(lenh)
 	except ValueError:
 		return "?" if "git commit" in lenh else None
-	for i in range(len(tu) - 1):
-		if tu[i] == "git" and tu[i + 1] == "commit":
-			break
-	else:
-		return None
+	cwd = cwd or os.getcwd()
+	truoc, chat = [], False
+	for cau in tach_cau(tu):
+		if cau[:2] == ["git", "commit"]:
+			kq = _doc_tham_so_commit(cau[2:])
+			if kq != "?":
+				kq.update(truoc=truoc, chat=chat, cwd=cwd)
+			return kq
+		if cau[0] == "cd":
+			dich = os.path.expandvars(os.path.expanduser(cau[1] if len(cau) > 1 else "~"))
+			cwd = os.path.normpath(os.path.join(cwd, dich))
+		elif cau[0] in AN_TOAN:
+			pass
+		elif cau[0] == "git" and len(cau) > 1 and cau[1] == "add" and not ADD_TUONG_TAC.intersection(cau[2:]):
+			truoc.append((cwd, cau[2:]))
+		elif cau[0] == "git" and len(cau) > 1 and cau[1] in GIT_CHI_DOC:
+			pass
+		else:
+			chat = True
+	return None
+
+
+def _doc_tham_so_commit(ts):
 	kq = {"all": False, "include": False, "duong_dan": []}
-	j, het_tham_so = i + 2, False
-	while j < len(tu) and tu[j] not in TOAN_TU:
-		t = tu[j]
+	j, het_tham_so = 0, False
+	while j < len(ts):
+		t = ts[j]
 		j += 1
 		if het_tham_so or not t.startswith("-") or t == "-":
 			kq["duong_dan"].append(t)
@@ -91,25 +134,32 @@ def _git(env, *a):
 
 
 def dung_muc_tam(pt):
-	"""Dựng index tạm giống index `git commit` sẽ ghi. Trả đường dẫn tệp tạm, hoặc
-	None khi index hiện tại đã đúng là thứ sẽ ghi."""
-	if not pt["all"] and not pt["duong_dan"]:
+	"""Dựng index tạm giống index `git commit` sẽ ghi, sau cả các `git add` đứng
+	trước trong cùng lệnh. Trả đường dẫn tệp tạm, hoặc None khi index hiện tại đã
+	đúng là thứ sẽ ghi. Lỗi git thì ném ngoại lệ để nơi gọi chuyển sang xét chặt."""
+	if not pt["all"] and not pt["duong_dan"] and not pt["truoc"]:
 		return None
-	goc = subprocess.run(("git", "rev-parse", "--git-path", "index"), capture_output=True, text=True, check=True).stdout.strip()
+	goc = os.path.abspath(subprocess.run(("git", "rev-parse", "--git-path", "index"),
+		capture_output=True, text=True, check=True).stdout.strip())
 	thu_muc = tempfile.mkdtemp(prefix="chot_chan_")
 	tam = os.path.join(thu_muc, "index")
+	if os.path.exists(goc):
+		shutil.copyfile(goc, tam)
 	env = dict(os.environ, GIT_INDEX_FILE=tam)
+	for noi, ts in pt["truoc"]:
+		subprocess.run(("git", "add") + tuple(ts), cwd=noi, env=env, capture_output=True, text=True, check=True)
 	dd = pt["duong_dan"]
 	if pt["all"]:
-		shutil.copyfile(goc, tam)
 		_git(env, "add", "-u")
-	elif pt["include"]:
-		shutil.copyfile(goc, tam)
+	elif dd and pt["include"]:
 		_git(env, "add", "-u", "--", *dd)
-	else:
+	elif dd:
 		# --only: HEAD, cộng tệp mới đã stage khớp đường dẫn, cộng bản làm việc của các đường dẫn.
-		moi = subprocess.run(("git", "diff", "--cached", "--name-only", "--diff-filter=A", "--", *dd),
-			capture_output=True, text=True, check=True).stdout.split("\n")
+		# -z: tên tệp có dấu ra nguyên chữ, không bị đặt trong dấu nháy.
+		moi = subprocess.run(("git", "diff", "--cached", "--name-only", "-z", "--diff-filter=A", "--", *dd),
+			env=env, capture_output=True, text=True, check=True).stdout.split("\0")
+		tam = os.path.join(thu_muc, "index-only")
+		env = dict(os.environ, GIT_INDEX_FILE=tam)
 		_git(env, "read-tree", "HEAD")
 		moi = [x for x in moi if x]
 		if moi:
@@ -120,11 +170,18 @@ def dung_muc_tam(pt):
 
 def kieu_can_xet(lenh):
 	"""[(tham số cho chot_chan.chay, index tạm hoặc None)] cho một lệnh shell."""
+	chat = [({"muc": True}, None), ({"cay": True}, None)]
 	pt = doc_commit(lenh)
 	if pt == "?":
-		return [({"muc": True}, None), ({"cay": True}, None)]
+		return chat
 	if pt is not None:
-		return [({"muc": True}, dung_muc_tam(pt))]
+		if os.path.isdir(pt["cwd"]):
+			os.chdir(pt["cwd"])
+		try:
+			tam = dung_muc_tam(pt)
+		except Exception:
+			return chat
+		return [({"muc": True}, tam)] + ([({"cay": True}, None)] if pt["chat"] else [])
 	if "git push" in lenh:
 		return [({}, None)]
 	return []
@@ -160,6 +217,7 @@ def main():
 		lenh = (json.load(sys.stdin).get("tool_input") or {}).get("command") or ""
 	except Exception:
 		return 0
+	cu = os.getcwd()
 	try:
 		import chot_chan as cc
 		kieu_xet = kieu_can_xet(lenh)
@@ -168,6 +226,8 @@ def main():
 		loi = xet(cc, kieu_xet)
 	except Exception:
 		return 0
+	finally:
+		os.chdir(cu)
 	if not loi:
 		return 0
 	chu = "\n".join("%s:%d %s" % x for x in loi)

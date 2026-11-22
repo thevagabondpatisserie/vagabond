@@ -152,7 +152,9 @@ def _hook():
 
 @ca("hook đọc đúng lệnh git commit: -a, --all, -i, đường dẫn, tham số có giá trị, heredoc, nhiều lệnh nối nhau")
 def _doc_commit():
-	dc = HK.doc_commit
+	def dc(lenh):
+		r = HK.doc_commit(lenh, cwd="/kho")
+		return {k: r[k] for k in ("all", "include", "duong_dan")} if isinstance(r, dict) else r
 	la("không có commit", dc("git push origin HEAD:x"), None)
 	la("commit thường", dc("git commit -m 'sua -- x'"), {"all": False, "include": False, "duong_dan": []})
 	la("-am", dc("git commit -am x"), {"all": True, "include": False, "duong_dan": []})
@@ -166,6 +168,13 @@ def _doc_commit():
 	la("--message giá trị tách", dc("git commit --message x --all")["all"], True)
 	la("hở dấu nháy", dc("git commit -m 'don"), "?")
 	la("đường dẫn trong tệp thì xét chặt", dc("git commit -m x --pathspec-from-file=ds.txt"), "?")
+	# Lệnh đứng trước commit trong cùng chuỗi (Codex #609 vòng 4).
+	r = HK.doc_commit("cd /kho/con && git status && git add -A docs && git commit -m x", cwd="/kho")
+	la("git add đứng trước, theo cd", (r["truoc"], r["chat"], r["cwd"]), ([("/kho/con", ["-A", "docs"])], False, "/kho/con"))
+	r = HK.doc_commit("sed -i s/a/b/ docs/a.md && git commit -am x", cwd="/kho")
+	la("lệnh lạ đứng trước thì xét chặt", r["chat"], True)
+	r = HK.doc_commit("git add -p && git commit -m x", cwd="/kho")
+	la("git add tương tác thì xét chặt", (r["truoc"], r["chat"]), ([], True))
 
 
 def _git_tam(thu_muc, *a):
@@ -259,6 +268,24 @@ def _git_that():
 			# Không đọc được lệnh: xét cả index lẫn bản làm việc.
 			io.open(os.path.join(tam, "docs", "a.md"), "a", encoding="utf-8").write("ma: %s\n" % token)
 			la("lệnh hở dấu nháy thì xét chặt", hook("git commit -m 'don"), 2)
+			# Codex #609 vòng 4. git add đứng trước commit trong cùng lệnh.
+			dung("bản làm việc đang có token", bool(CC.chay(nen, cay=True)[0]) and not CC.chay(nen, muc=True)[0])
+			la("git add rồi commit, token chỉ ở bản làm việc", hook("git add docs/a.md && git commit -m update"), 2)
+			la("cd rồi git add rồi commit", hook("cd %s && git add -A && git commit -m update" % tam), 2)
+			la("index thật vẫn sạch", _git_tam(tam, "diff", "--cached", "--name-only"), "")
+			la("lệnh lạ đứng trước thì xét chặt", hook("touch docs/c.md && git commit -m x"), 2)
+			la("dựng index tạm hỏng thì xét chặt", hook("git add khong-co.md; git commit -m x"), 2)
+			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
+			io.open(os.path.join(tam, "docs", "a.md"), "a", encoding="utf-8").write("ma: %s\n" % token)
+			_git_tam(tam, "add", "docs/a.md")
+			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
+			la("git add -A sửa lỗi đã stage thì cho qua", hook("git add -A && git commit -m fix"), 0)
+			_git_tam(tam, "reset", "-q")
+			# Tệp mới tên có dấu đã stage, commit theo đường dẫn.
+			io.open(os.path.join(tam, "docs", "ghi-chú.md"), "w", encoding="utf-8").write("ma: %s\n" % token)
+			_git_tam(tam, "add", "docs/ghi-chú.md")
+			la("tệp mới tên có dấu, commit theo đường dẫn", hook("git commit -m update -- docs/ghi-chú.md"), 2)
+			_git_tam(tam, "rm", "-q", "-f", "docs/ghi-chú.md")
 			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
 			# 4. APPVER lùi chỉ ở bản đã stage: đọc đúng tệp trong index.
 			io.open(tep_ver, "w", encoding="utf-8").write("var APPVER = '699';\n")
