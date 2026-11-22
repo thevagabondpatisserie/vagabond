@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Hook PreToolUse của Claude Code: trước `git commit` hoặc `git push` chạy
-cong_cu/chot_chan.py trên cả phần chưa commit.
+cong_cu/chot_chan.py trên ba bản: HEAD (thứ `git push` đẩy đi), bản đã stage
+(thứ `git commit` ghi) và bản làm việc (thứ `git commit -a` ghi).
 
 Từ ngày CHAN_TU, có lỗi thì trả mã 2 để Claude Code chặn lệnh và đưa lỗi cho
 model sửa. Trước ngày đó, hoặc khi chính hook gặp trục trặc, luôn cho lệnh
@@ -23,7 +24,11 @@ def main():
 		return 0
 	try:
 		import chot_chan as cc
-		loi, _canh = cc.chay(cay=True)
+		loi = []
+		for kieu in ({}, {"muc": True}, {"cay": True}):
+			for x in cc.chay(**kieu)[0]:
+				if x not in loi:
+					loi.append(x)
 	except Exception:
 		return 0
 	if not loi:

@@ -120,12 +120,35 @@ def kiem_patches(nen_chu, pr_chu, appver_nen, appver_pr):
 	return loi
 
 
+def giai_ten_git(ten):
+	"""Tên tệp trong tiêu đề diff. Git đặt tên có dấu, dấu nháy, tab trong dấu nháy
+	và mã hoá bát phân theo byte UTF-8 ("b/ghi-ch\\303\\272.md")."""
+	if not (len(ten) >= 2 and ten[0] == ten[-1] == '"'):
+		return ten
+	thoat = {"n": b"\n", "t": b"\t", '"': b'"', "\\": b"\\", "a": b"\a", "b": b"\b", "f": b"\f", "r": b"\r", "v": b"\v"}
+	ra, i, s = bytearray(), 0, ten[1:-1]
+	while i < len(s):
+		c = s[i]
+		if c == "\\" and i + 1 < len(s):
+			if s[i + 1:i + 4].isdigit() and len(s[i + 1:i + 4]) == 3:
+				ra.append(int(s[i + 1:i + 4], 8))
+				i += 4
+				continue
+			ra += thoat.get(s[i + 1], s[i + 1].encode("utf-8"))
+			i += 2
+			continue
+		ra += c.encode("utf-8")
+		i += 1
+	return ra.decode("utf-8", "replace")
+
+
 def dong_them(diff):
 	"""[(tệp, số dòng, nội dung)] từ `git diff -U0`."""
 	ra, tep, so = [], None, 0
 	for d in diff.splitlines():
 		if d.startswith("+++ "):
-			tep = d[6:] if d.startswith("+++ b/") else None
+			ten = giai_ten_git(d[4:].rstrip("\t"))
+			tep = ten[2:] if ten.startswith("b/") else None
 		elif d.startswith("@@"):
 			m = re.search(r"\+(\d+)", d)
 			so = int(m.group(1)) if m else 0
@@ -197,8 +220,8 @@ def tim_du_lieu_that(dong):
 		if not ly:
 			for mau, ten in ((MAU_SDT, "số điện thoại"), (MAU_MST, "mã số thuế"), (MAU_STK, "số tài khoản"),
 					(MAU_SAO_KE, "số tài khoản hoặc số thẻ trong mô tả sao kê")):
-				m = mau.search(c)
-				if m and not la_so_gia(m.group(1)):
+				# Xét MỌI số trên dòng: số giả đứng trước không được che số thật phía sau.
+				if any(not la_so_gia(m.group(1)) for m in mau.finditer(c)):
 					ly = ten
 					break
 		if not ly:
@@ -232,7 +255,8 @@ def dang_chan(hom_nay, chan_tu=CHAN_TU):
 # --------------------------------------------------------------- phần chạm git
 
 def _git(*a, kiem=True):
-	r = subprocess.run(("git",) + a, capture_output=True, text=True)
+	# core.quotePath=false: tên tệp có dấu ra nguyên chữ, không bị đặt trong dấu nháy.
+	r = subprocess.run(("git", "-c", "core.quotePath=false") + a, capture_output=True, text=True)
 	if kiem and r.returncode:
 		raise RuntimeError("git %s: %s" % (" ".join(a), r.stderr.strip()))
 	return r.stdout
@@ -249,23 +273,28 @@ def _tim_nen(ep):
 	return _git("merge-base", "origin/main", "HEAD").strip()
 
 
+MUC = ":"  # bản đã stage (index)
+
+
 def _doc(rev, tep):
 	if rev is None:
 		try:
 			return open(tep, encoding="utf-8").read()
 		except OSError:
 			return ""
-	return _git("show", "%s:%s" % (rev, tep), kiem=False)
+	return _git("show", (":" + tep) if rev == MUC else "%s:%s" % (rev, tep), kiem=False)
 
 
-def chay(base=None, cay=False):
-	"""Trả (lỗi, cảnh báo): lỗi là danh sách (tệp, dòng, câu)."""
+def chay(base=None, cay=False, muc=False):
+	"""Trả (lỗi, cảnh báo): lỗi là danh sách (tệp, dòng, câu).
+	Mặc định so HEAD; cay=True so bản làm việc; muc=True so bản đã stage, là thứ `git commit` sẽ ghi."""
 	nen = _tim_nen(base)
-	dich = [] if cay else ["HEAD"]
-	diff = _git("diff", "-U0", "--no-color", "--no-ext-diff", nen, *dich)
-	ten = [t for t in _git("diff", "--name-only", nen, *dich).splitlines() if t]
-	numstat = _git("diff", "--numstat", nen, *dich)
-	pr_rev = None if cay else "HEAD"
+	# Thứ tự đối số: luôn nền trước, bản PR sau.
+	doi = ["--cached", nen] if muc else ([nen] if cay else [nen, "HEAD"])
+	diff = _git("diff", "-U0", "--no-color", "--no-ext-diff", *doi)
+	ten = [giai_ten_git(t) for t in _git("diff", "--name-only", *doi).splitlines() if t]
+	numstat = _git("diff", "--numstat", *doi)
+	pr_rev = MUC if muc else (None if cay else "HEAD")
 	loi = []
 	an, ap = doc_appver(_doc(nen, TEP_APPVER)), doc_appver(_doc(pr_rev, TEP_APPVER))
 	loi += [(TEP_APPVER, 0, c) for c in kiem_appver(an, ap, any(la_ma_app(t) for t in ten))]

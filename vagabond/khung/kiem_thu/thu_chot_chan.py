@@ -60,6 +60,10 @@ Binary files differ
 @ca("chốt chặn: đọc đúng dòng thêm mới và số dòng từ git diff -U0")
 def _dong_them():
 	la("dòng thêm", CC.dong_them(DIFF), [("docs/a.md", 4, "dòng một"), ("docs/a.md", 5, "dòng hai")])
+	# Git đặt tên có dấu trong dấu nháy và mã hoá bát phân khi core.quotePath bật (Codex #609).
+	nhay = '+++ "b/docs/ghi-ch\\303\\272 \\"x\\".md"\n@@ -0,0 +1 @@\n+dòng có dấu\n'
+	la("tên tệp trong dấu nháy", CC.dong_them(nhay), [('docs/ghi-chú "x".md', 1, "dòng có dấu")])
+	la("tệp bị xoá thì không có dòng thêm", CC.dong_them("+++ /dev/null\n@@ -1 +0,0 @@\n"), [])
 
 
 @ca("chốt chặn C7: em dash, en dash trên dòng thêm mới của tệp chữ")
@@ -100,6 +104,14 @@ def _du_lieu():
 		[True, True, True, True, True, False, False])
 	la("hotline viết kiểu +84 vẫn là định danh công khai", CC.la_so_gia("+84" + "931224334"), True)
 	la("Luhn", (CC.luhn(the), CC.luhn("4" + "5391488" + "03436468")), (True, False))
+	# Số giả hay định danh công khai đứng trước không được che số thật cùng loại phía sau (Codex #609).
+	sau = [
+		("docs/a.md", 1, "'0909111222, ' + '%s'" % dt),
+		("docs/a.md", 2, "'MST 0318561568, MST %s'" % ("03" + "17294856")),
+		("docs/a.md", 3, "'CT tu 00000001 toi %s'" % so_tk),
+		("docs/a.md", 4, "'STK %s, STK %s'" % ("1234567890", so_tk)),
+	]
+	la("mọi số trên một dòng đều được xét", [s for _, s, _ in CC.tim_du_lieu_that(sau)], [1, 2, 3, 4])
 
 
 @ca("chốt chặn C10: chỉ cảnh báo khi PR xoá nhiều dòng một tệp")
@@ -121,7 +133,7 @@ def _hook():
 	that = datetime.date
 
 	def chay(lenh, loi, ngay, hong=False):
-		def gia_chay(cay=False):
+		def gia_chay(base=None, cay=False, muc=False):
 			if hong:
 				raise RuntimeError("git hỏng")
 			return loi, []
@@ -136,6 +148,73 @@ def _hook():
 	la("git push cũng chặn", chay("git push origin HEAD:x", l1, (2026, 12, 1)), 2)
 	la("không lỗi thì cho chạy", chay("git commit -m x", [], (2026, 12, 1)), 0)
 	la("chốt chặn hỏng thì cho chạy", chay("git commit -m x", l1, (2026, 12, 1), hong=True), 0)
+
+
+def _git_tam(thu_muc, *a):
+	import subprocess
+	return subprocess.run(("git", "-C", thu_muc, "-c", "user.email=kiem@vi.du", "-c", "user.name=kiem",
+		"-c", "commit.gpgsign=false") + a, capture_output=True, text=True, check=True).stdout
+
+
+@ca("chốt chặn chạy thật trên git: tên tệp có dấu, bản đã stage khác bản làm việc, hook chặn đúng nội dung sắp commit (Codex #609)")
+def _git_that():
+	import datetime
+	import shutil
+	import tempfile
+	if not shutil.which("git"):
+		return
+	that = datetime.date
+	tam = tempfile.mkdtemp()
+	cu = os.getcwd()
+	token = "gh" + "p_" + "A1b2C3d4" * 5
+	try:
+		_git_tam(tam, "init", "-q")
+		os.makedirs(os.path.join(tam, "docs"))
+		io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
+		tep_ver = os.path.join(tam, *CC.TEP_APPVER.split("/"))
+		os.makedirs(os.path.dirname(tep_ver))
+		io.open(tep_ver, "w", encoding="utf-8").write("var APPVER = '700';\n")
+		_git_tam(tam, "add", "-A")
+		_git_tam(tam, "commit", "-q", "-m", "nen")
+		nen = _git_tam(tam, "rev-parse", "HEAD").strip()
+		_git_tam(tam, "update-ref", "refs/remotes/origin/main", nen)
+		os.chdir(tam)
+		with um.patch.dict(os.environ, {"GITHUB_ACTIONS": ""}):
+			# 1. Tên tệp có dấu.
+			io.open(os.path.join(tam, "docs", "ghi-chú.md"), "w", encoding="utf-8").write("ma: %s\n" % token)
+			_git_tam(tam, "add", "docs/ghi-chú.md")
+			for kieu in ({"cay": True}, {"muc": True}):
+				loi, _ = CC.chay(nen, **kieu)
+				dung("tệp tên có dấu vẫn bị quét (%s): %s" % (kieu, loi), any(t == "docs/ghi-chú.md" and "C9" in c for t, _, c in loi))
+			_git_tam(tam, "rm", "-q", "-f", "docs/ghi-chú.md")
+			# 2. Stage token rồi khôi phục riêng bản làm việc.
+			io.open(os.path.join(tam, "docs", "a.md"), "a", encoding="utf-8").write("ma: %s\n" % token)
+			_git_tam(tam, "add", "docs/a.md")
+			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
+			la("bản làm việc sạch", CC.chay(nen, cay=True)[0], [])
+			loi, _ = CC.chay(nen, muc=True)
+			dung("bản đã stage bị bắt: %s" % loi, any(t == "docs/a.md" and "C9" in c for t, _, c in loi))
+
+			def hook(lenh):
+				with um.patch.object(sys, "stdin", io.StringIO(json.dumps({"tool_input": {"command": lenh}}))), \
+						um.patch.object(sys, "stderr", io.StringIO()), \
+						um.patch.object(HK.datetime, "date", um.Mock(today=lambda: that(2026, 12, 1))):
+					return HK.main()
+			la("hook chặn commit nội dung đã stage", hook("git commit -m x"), 2)
+			# 3. Đã commit token, rồi đưa index và bản làm việc về như nhánh nền:
+			# git push vẫn phải bị chặn vì HEAD có token.
+			_git_tam(tam, "commit", "-q", "-m", "co token")
+			_git_tam(tam, "reset", "-q", nen, "--", "docs/a.md")
+			la("index và bản làm việc sạch", (CC.chay(nen, muc=True)[0], CC.chay(nen, cay=True)[0]), ([], []))
+			la("hook chặn push commit có token", hook("git push origin HEAD:x"), 2)
+			# 4. APPVER lùi chỉ ở bản đã stage: đọc đúng tệp trong index.
+			io.open(tep_ver, "w", encoding="utf-8").write("var APPVER = '699';\n")
+			_git_tam(tam, "add", CC.TEP_APPVER)
+			io.open(tep_ver, "w", encoding="utf-8").write("var APPVER = '700';\n")
+			dung("APPVER lùi trong bản đã stage bị bắt", any("C4" in c or "lùi" in c for _, _, c in CC.chay(nen, muc=True)[0]))
+	finally:
+		os.chdir(cu)
+		shutil.rmtree(tam, ignore_errors=True)
 
 
 @ca("luật ba tầng: AGENTS.md gốc gọn, CLAUDE.md dẫn về nó, mọi đường dẫn trong luật gốc có thật")
