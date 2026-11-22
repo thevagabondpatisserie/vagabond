@@ -722,7 +722,7 @@ Từ khoá: số đỏ, con số trên ô, huy hiệu, số phiếu chờ, trang
 |---|---|---|
 | Mọi nhân viên | Trang chủ app | [[Trang chủ]] |
 
-Con số trên mỗi ô lớn là số việc đang chờ trong phân hệ đó (phiếu chờ duyệt, đơn treo, đặt bàn chờ xác nhận...). Từ bản 684, bấm Trang chủ là lưới hiện ngay, con số tự cập nhật sau đó khoảng một giây.
+Con số trên mỗi ô lớn là số việc đang chờ trong phân hệ đó (phiếu chờ duyệt, đơn treo, đặt bàn chờ xác nhận...). Từ bản 685, bấm Trang chủ là lưới hiện ngay, con số tự cập nhật sau đó khoảng một giây.
 
 **Các bước**
 1. Bấm [[Trang chủ]] ở đầu màn bất kỳ: lưới ô hiện ngay với con số của lần xem trước.
