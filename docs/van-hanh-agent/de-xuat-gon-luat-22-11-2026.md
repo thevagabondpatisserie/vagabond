@@ -71,6 +71,8 @@ M5 nằm trong instruction project do anh dán, nên em chỉ ghi lại để an
 
 ## 4. Anh cần chốt
 
+**Anh Việt đã chốt ngày 22/11/2026: đồng ý cả 4 ý dưới đây.**
+
 1. **Phân vai (M1).** Em đề xuất theo thực tế và instruction 18/11: Claude viết code và điều phối, Codex rà PR, anh duyệt. Bỏ phân công 12/10.
 2. **Lệnh mời rà (M2).** Theo câu 1: Claude gọi `@codex review`, kèm `@codex fix` khi muốn Codex sửa. Lệnh `@claude review delta` chỉ dùng khi Codex là người viết.
 3. **Bộ nhãn (M4).** Em đề xuất đúng năm nhãn:
