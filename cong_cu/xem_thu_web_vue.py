@@ -141,7 +141,9 @@ QUAY = {'cap_nhat': '2026-10-11 09:41:00', 'quay': [
 	{'ma': 'NVHTN', 'ten': 'Nhà Văn hoá Thanh Niên', 'dia_chi': '21 Phạm Ngọc Thạch', 'mon': []}]}
 CAU_HINH = {'mien_phi_tu': 0, 'pixel_id': '', 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334'},
 	'chinh_sach': [{'duong': '/chinh-sach', 'ten': 'Chính sách bảo mật', 'khoa': 'chinh_sach_bao_mat'}],
-	'quan': [{'ma': 'Q1', 'ten': 'Quận 1 cũ', 'lat': 10.776, 'lng': 106.700}, {'ma': 'BT', 'ten': 'Bình Thạnh', 'lat': 10.81, 'lng': 106.71}]}
+	'quan': [{'ma': 'Q1', 'ten': 'Quận 1 cũ', 'lat': 10.776, 'lng': 106.700}, {'ma': 'BT', 'ten': 'Bình Thạnh', 'lat': 10.81, 'lng': 106.71}],
+	# v684: bảng phường mới THẬT (mô đun thuần), cho ô Phường giao.
+	'phuong': (sys.path.insert(0, str(GOC)), __import__('vagabond.phuong_giao', fromlist=['x']))[1].danh_sach()}
 
 
 # v668 ảnh chụp Gợi ý mua thêm (VGB_GY=1): món gợi ý, cặp quầy, mốc miễn phí giao như site.

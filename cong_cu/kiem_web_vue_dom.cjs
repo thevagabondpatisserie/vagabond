@@ -225,14 +225,14 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     });
     await page.goto(url+'/web_moi/banh/xong/TOKEN'); await page.locator('.bn-in').waitFor();
     assert.equal(new URL(page.url()).pathname,'/web_moi/banh/xong');
-    assert.match(await page.locator('.bn-tien .tong').innerText(),/642.000/);
+    assert.match(await page.locator('.bn6-tong').innerText(),/642.000/);
     assert.equal(await page.locator('.bn-nut a.nut').first().innerText(),'Chat Zalo nhé');
     const events=await page.evaluate(()=>window.suKienThu);
     assert.equal(events.filter(x=>x.args[1]==='GuiDon').length,1);
     assert.equal(events.find(x=>x.args[1]==='GuiDon').args[3].eventID,'ev-capi-fixture');
     assert(events.every(x=>!x.path.includes('TOKEN')));
     await page.reload(); await page.locator('.bn-in').waitFor();
-    assert.match(await page.locator('h1').innerText(),/DW-FIXTURE/);
+    assert.match(await page.locator('#bn-ma').innerText(),/DW-FIXTURE/);
     assert.equal((await page.evaluate(()=>window.suKienThu)).length,0);
   });
   await test('F37 Codex #484: biên nhận Vue đọc nhãn Editor cho câu nghiệp vụ, trang hết token, tiêu đề tab, nút Gọi',async()=>{
@@ -257,7 +257,8 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
         .replace('{{ du_lieu }}',JSON.stringify(d)).replace('{{ csrf_token }}','fixture').replace('{{ chan_trang }}','')});
     });
     await p.goto(url+'/web_moi/banh/xong/TOKEN'); await p.locator('.bn-in').waitFor({timeout:8000}).catch(e=>{throw new Error('F37 trang co token: '+loiF37.join(' | ')+' '+e.message.slice(0,80));});
-    const dong=await p.locator('.bn-dong').innerText(), tien=await p.locator('.bn-tien').innerText();
+    /* v684: biên nhận mới, cách nhận ở thẻ NHẬN BÁNH, cách trả và phí ở thẻ ĐƠN HÀNG. */
+    const dong=(await p.locator('#bn-nhan').innerText())+' '+(await p.locator('#bn-don').innerText()), tien=await p.locator('#bn-don .bn6-tien').innerText();
     assert.match(dong,/Lấy ở Cửa hàng Sài Gòn/); assert.match(dong,/Chuyển khoản QR/);
     assert.doesNotMatch(dong,/Tự lấy tại|mã VietQR/);
     assert.match(tien,/Không tính phí giao/);
@@ -445,7 +446,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await p.locator('#btnSend').click(); await p.waitForURL(u=>new URL(String(u)).pathname.startsWith('/banh/xong/')||new URL(String(u)).pathname.startsWith('/web_moi/banh/xong'));
     assert.deepEqual(di.map(x=>x.split('/').slice(0,3).join('/')),['/banh/xong']);
     await p.locator('.bn-in').waitFor({timeout:8000});
-    assert.match(await p.locator('h1').innerText(),/YC-THU-0001/);
+    assert.match(await p.locator('#bn-ma').innerText(),/YC-THU-0001/);
     assert.equal(new URL(p.url()).pathname,'/banh/xong','gỡ token khỏi đường dẫn');
     /* Logo ở đầu trang và hai nút về trang đặt bánh: về /banh, không lọt về /web_moi. */
     assert.equal(await p.locator('header.tk-dau a.tk-logo img').count(),1);
@@ -583,7 +584,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     den.length=0;
     await p2.evaluate(()=>sessionStorage.setItem('vgb_bien_nhan_vue',JSON.stringify({ma:'DW-F40',mon:[]})));
     await p2.goto(url+'/banh/xong'); await p2.locator('.bn-in').waitFor({timeout:8000});
-    assert.match(await p2.locator('h1').innerText(),/DW-F40/);
+    assert.match(await p2.locator('#bn-ma').innerText(),/DW-F40/);
     assert.deepEqual(den,['/banh/xong']);
     assert.deepEqual(loi,[]);
     await c.close();
