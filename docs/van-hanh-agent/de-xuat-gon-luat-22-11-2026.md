@@ -4,7 +4,7 @@
 
 - **Vấn đề.** Mỗi phiên Claude hoặc Codex phải đọc khoảng 4.800 dòng luật: CLAUDE.md, AGENTS.md, INSTRUCTION_VAGABOND.md, 4 tệp vận hành agent và 3.207 dòng bài học sự cố, cộng instruction của project. Luật chồng theo ngày (14/09, 16/09, 12/10, 15/10, 17/11) và có chỗ đá nhau, nhất là chuyện ai viết code, ai rà. Nhiều luật quan trọng chỉ dựa vào việc agent tự nhớ, trong khi nhánh main chưa có lớp bảo vệ nào, nên PR vẫn merge được khi bench đỏ.
 - **Việc đề xuất.**
-  1. Gom về một bộ luật gốc ngắn (khoảng 110 dòng) dùng chung cho cả Claude lẫn Codex. Quy ước riêng của từng phần mã đặt ở CLAUDE.md của thư mục đó. Quy trình dài chuyển thành tài liệu tra khi cần.
+  1. Gom về một bộ luật gốc ngắn (khoảng 120 dòng) dùng chung cho cả Claude lẫn Codex. Quy ước riêng của từng phần mã đặt ở CLAUDE.md của thư mục đó. Quy trình dài chuyển thành tài liệu tra khi cần.
   2. Đổi các luật "phải nhớ" thành chốt chặn máy tự kiểm trong CI, kèm bảo vệ nhánh main.
 - **Kết quả sẽ thấy.** Phiên nào cũng đọc ít hơn mà làm đúng hơn. Lỗi như hai PR cùng đặt v675, hay dữ liệu sao kê thật lọt vào ca kiểm, bị máy chặn ngay trên PR thay vì chờ Codex hoặc anh phát hiện.
 - **Anh cần chốt.** Bốn câu hỏi ở mục 4. Sau đó em làm theo lộ trình ở mục 5. PR này chỉ có tài liệu, chưa đổi luật đang chạy.
@@ -34,20 +34,21 @@ CLAUDE.md bắt đầu phiên bằng `cat AGENTS.md` và `cat docs/bai-hoc-su-co
 
 | # | Chủ đề | Nguồn A | Nguồn B | Thực tế gần đây |
 |---|---|---|---|---|
-| M1 | Ai viết code | CLAUDE.md "Claude là lead (12/10)", AGENTS.md mục 10, INSTRUCTION_VAGABOND.md mục 1, van-hanh-chung.md mục 2: Codex viết code, Claude rà | CLAUDE.md và AGENTS.md đầu tệp "Phân công 15/10": Codex rà, Claude sửa. Instruction project 18/11 mục B: Claude viết code, Codex rà | PR #590 tới #605: Claude viết, Codex rà |
+| M1 | Ai viết code | CLAUDE.md "Claude là lead (12/10)", AGENTS.md mục 10, INSTRUCTION_VAGABOND.md mục 1, tai_lieu/INSTRUCTION_VAGABOND.md đầu tệp, van-hanh-chung.md mục 2: Codex viết code, Claude rà | CLAUDE.md và AGENTS.md đầu tệp "Phân công 15/10": Codex rà, Claude sửa. Instruction project 18/11 mục B: Claude viết code, Codex rà | PR #590 tới #605: Claude viết, Codex rà |
 | M2 | Lệnh mời rà | `@claude review delta <SHA>` (14/09, INSTRUCTION mục 6, van-hanh-chung mục 3) | `@codex review` (CLAUDE.md, instruction project H9) | Claude viết thì gọi `@codex review` |
 | M3 | Ai bấm deploy | AGENTS.md mục 7: "Không bao giờ để trợ lý tự động bấm" | CLAUDE.md: anh cho phép đúng PR thì tự merge, deploy | Claude deploy khi anh cho phép (18/11) |
 | M4 | Bộ nhãn | `[ĐÃ SỬA XONG]`, `[SẴN SÀNG DEPLOY]` (CLAUDE.md phần Telegram) | `[ĐÃ ĐẨY - CHỜ KIỂM]` (INSTRUCTION mục 3, instruction project H9); 15/10 cấm gọi review xong là `[ĐÃ SỬA XONG]` | Dùng `[CẦN DUYỆT]`, `[BỊ CHẶN]`, `[ĐÃ DEPLOY]` |
 | M5 | Đường đẩy code | Instruction project mục C: "git push luôn hỏng, đẩy qua trình duyệt" | Phiên 19/11 đẩy thẳng bằng git được | git push chạy |
 | M6 | Đầu phiên đọc gì | `cat` toàn bộ AGENTS.md và bài học | van-hanh-chung mục 4: tra theo nghiệp vụ, không nạp toàn bộ | Mỗi phiên tự chọn |
-| M7 | Tệp dẫn tới | AGENTS.md mục 9 trỏ `vgb-control-tower/README.md`; CLAUDE.md trỏ `tai_lieu/INSTRUCTION_VAGABOND.md` | `vgb-control-tower/` không có trong repo; INSTRUCTION ở gốc là bản khác với bản trong `tai_lieu/` | Đường dẫn chết hoặc hai bản |
 
 M5 nằm trong instruction project do anh dán, nên em chỉ ghi lại để anh sửa bên project.
+
+Đính chính sau lượt rà của Codex: bản đầu có mục M7 ghi `vgb-control-tower/` không có trong repo. Ghi vậy là sai, thư mục có thật và là đầu mối claim, preflight chống sửa chồng; bộ luật mới giữ đường dẫn tới nó. Hai tệp INSTRUCTION (gốc và `tai_lieu/`) có vai khác nhau: một tệp là quy trình chung, một tệp là nghiệp vụ. Chúng chỉ dính M1.
 
 ## 3. Bố cục mới: ba tầng
 
 **Tầng 1. Một bộ luật gốc cho cả hai agent.**
-- AGENTS.md là bản duy nhất, khoảng 110 dòng (bản nháp kèm theo).
+- AGENTS.md là bản duy nhất, khoảng 120 dòng (bản nháp kèm theo).
 - CLAUDE.md gốc chỉ còn dòng `@AGENTS.md`: Claude Code nạp tệp được dẫn bằng `@`. Codex đọc AGENTS.md theo mặc định. Hai agent đọc đúng một nội dung, hết cảnh chép hai nơi rồi lệch nhau.
 - Chỉ giữ: bối cảnh, thứ tự ưu tiên nguồn, phân vai, việc tuyệt đối không làm, đầu phiên, luật phiên bản, cổng kiểm, gọi bên kia, bàn giao, trình bày, bản đồ tài liệu.
 
@@ -56,13 +57,13 @@ M5 nằm trong instruction project do anh dán, nên em chỉ ghi lại để an
 | Thư mục | Lấy từ | Nội dung chính |
 |---|---|---|
 | `vagabond/public/js/bep/` | AGENTS.md mục 2, 2b; phần màn của 2c | Vỏ hàm, app_bep.js ghép, APPVER, chuẩn màn hình, cổng giao diện, gia_lap_trang.js |
-| `vagabond/web_vue/` (và www, web_order) | Bài học v663, cổng trang khách | Hai bộ kiểm CI có mà chay.py không có, mã băm trang, tên miền trang khách |
+| `vagabond/public/web_vue/` (banh, kho, trang, si), `vagabond/public/web_order/`, `vagabond/www/` | Bài học v663, cổng trang khách, AGENTS.md mục 2 phần trang khách | Hai bộ kiểm CI có mà chay.py không có, mã băm trang, tên miền trang khách |
 | `vagabond/khung/kiem_thu/` | AGENTS.md mục 6 tầng một; CLAUDE.md "ca kiểm tự che lỗi" | Đăng ký chay.py, thu_cua_ngo, CI không requests, đột biến đọc trung thực |
-| `vagabond/khung/kiem_that/` | AGENTS.md mục 6 tầng hai | Bench, ca không đụng dữ liệu thật (bài học #592), dữ liệu giả |
+| `vagabond/khung/kiem_that/` | AGENTS.md mục 6 tầng hai, H10.5 | Bench, ca không đụng dữ liệu thật (bài học #592), dữ liệu giả, cổng kế toán H10.5 |
 | `vagabond/patches/` | Bài học "thiếu dòng patch", v674 Singles | patches.txt, bản vá phải có ca bench chạy execute() |
 | Mô đun kế toán, kho | AGENTS.md mục 4, 5 | Quy tắc nghiệp vụ đã chốt theo mảng, soi mã lõi trước khi can thiệp |
 
-**Tầng 3. Quy trình tra khi cần.** Gồm làm việc với Codex, bàn giao cloud, Telegram, deploy, email phát hành. Mỗi quy trình một tệp trong `docs/van-hanh-agent/` (hoặc skill trong `.agents/skills/`, nơi đã có 2 skill). Tầng 1 chỉ giữ một dòng dẫn tới.
+**Tầng 3. Quy trình tra khi cần.** Gồm nghiệm thu và trách nhiệm người rà (AGENTS.md 2c, H10, hướng dẫn H3/H5/H8.1, chuyển nguyên văn sang `docs/van-hanh-agent/nghiem-thu-va-ra.md`), làm việc với Codex, bàn giao cloud, Telegram, deploy, email phát hành. Mỗi quy trình một tệp trong `docs/van-hanh-agent/` (hoặc skill trong `.agents/skills/`, nơi đã có 2 skill). Tầng 1 chỉ giữ một dòng dẫn tới.
 - Skill hiện chỉ nằm trong tài khoản Claude của anh ("thiết kế tiện lợi", "chống ghi đè", "thông báo phát hành") chép vào `.agents/skills/`, để Codex và bot GitHub cùng đọc.
 - Bài học sự cố chia theo mảng thành `docs/bai-hoc/<mảng>.md`. `docs/bai-hoc-su-co.md` còn là mục lục, mỗi mục một dòng. Đầu phiên chỉ đọc mảng mình sửa.
 

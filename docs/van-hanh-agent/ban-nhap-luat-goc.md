@@ -1,6 +1,6 @@
 # Bản nháp luật gốc (AGENTS.md mới, CLAUDE.md gốc chỉ còn `@AGENTS.md`)
 
-Bản nháp kèm đề xuất 22/11/2026. Chưa có hiệu lực. Các chỗ `[CHỜ CHỐT]` theo mục 4 của đề xuất.
+Bản nháp kèm đề xuất 22/11/2026. Chưa có hiệu lực. Các chỗ `[CHỜ CHỐT]` theo mục 4 của đề xuất. Các tệp `docs/nghiep-vu/`, `docs/bai-hoc/`, `docs/van-hanh-agent/{nghiem-thu-va-ra,deploy,so-mau-loi,luat-cu}.md`, `cong_cu/chot_chan.py` và AGENTS.md theo thư mục chưa có, sẽ tạo ở PR B và C.
 
 ---
 
@@ -24,7 +24,7 @@ Thấy mâu thuẫn thì ghi trong bàn giao để anh chốt một nguồn, kh�
 - Claude viết code và điều phối.
 - Codex rà PR và góp ý.
 - Anh Việt duyệt.
-- Mỗi phạm vi một người ghi code; không sửa chồng nhánh người khác đang làm.
+- Mỗi phạm vi một người ghi code; không sửa chồng nhánh người khác đang làm. Claim và preflight theo `vgb-control-tower/README.md`.
 
 Merge và deploy chỉ khi anh cho phép trong phiên, cho đúng PR đó, và Codex đã rà đạt. Quyền không suy ra cho PR khác.
 
@@ -61,6 +61,7 @@ CI chặn APPVER lùi, mất dòng patches.txt, thiếu sổ tay, thiếu đăng
 ## Viết code
 - Tách phép thuần (không chạm Frappe) khỏi phần chạm hệ. Tính năng mới có ca kiểm trong `vagabond/khung/kiem_thu/`, đăng ký trong `chay.py`.
 - Chạm ghi sổ, kho, quyền thì có ca bench trong `vagabond/khung/kiem_that/`.
+- Cổng kế toán (H10.5, bắt buộc): đổi thuế, giá vốn, thanh toán thì ca bench đối chiếu chứng từ nguồn tới số tiền, chiều Nợ/Có và đúng tài khoản. Mọi đường mới có thể ghi sổ phải chỉ ra thao tác duyệt của kế toán hoặc chính sách tự động anh Việt đã duyệt. Bench xanh chưa đủ để bàn giao một đường ghi sổ mới. Chi tiết: `docs/van-hanh-agent/nghiem-thu-va-ra.md`.
 - Thêm `@frappe.whitelist()` thì thêm tên vào `vagabond/khung/kiem_thu/thu_cua_ngo.py`.
 - Cùng một con số tính ở nhiều nơi thì gom về một hàm.
 - Giá trị 0, chuỗi rỗng, False người dùng chọn đọc bằng `is None`, không bằng `or mặc định`.
@@ -72,7 +73,8 @@ python3 vagabond/khung/kiem_thu/chay.py -im
 python3 dung_app_bep.py --kiem
 sh kiem_truoc_deploy.sh
 ```
-- Giả lập CI không có `requests` và các bộ riêng của trang khách: xem AGENTS.md của `vagabond/khung/kiem_thu/` và `vagabond/web_vue/`.
+- Giả lập CI không có `requests` và các bộ riêng của trang khách: xem AGENTS.md của `vagabond/khung/kiem_thu/` và `vagabond/public/web_vue/`.
+- Màn hình và luồng nghiệp vụ: nghiệm thu theo `docs/van-hanh-agent/nghiem-thu-va-ra.md` (2c), người rà theo H10 cùng tệp.
 - Chạy pyflakes trên tệp Python đã đụng.
 - Đột biến: cố tình làm hỏng chỗ vừa sửa, ghi đúng số bắt được.
 - Bench CI đỏ thì đọc đúng ca đỏ trước khi kết luận.
@@ -106,10 +108,12 @@ sh kiem_truoc_deploy.sh
 | Cần | Đọc |
 |---|---|
 | App /bep, màn hình | `vagabond/public/js/bep/AGENTS.md` |
-| Trang khách | `vagabond/web_vue/AGENTS.md` |
+| Trang khách | `vagabond/public/web_vue/AGENTS.md` (cùng nội dung ở `vagabond/public/web_order/`, `vagabond/www/`) |
 | Ca kiểm khung | `vagabond/khung/kiem_thu/AGENTS.md` |
 | Ca bench | `vagabond/khung/kiem_that/AGENTS.md` |
 | Bản vá | `vagabond/patches/AGENTS.md` |
+| Nghiệm thu, trách nhiệm người rà (2c, H10) | `docs/van-hanh-agent/nghiem-thu-va-ra.md` |
+| Claim, preflight chống sửa chồng | `vgb-control-tower/README.md` |
 | Quy tắc nghiệp vụ kế toán, kho | `docs/nghiep-vu/` |
 | Deploy Frappe Cloud | `docs/van-hanh-agent/deploy.md` |
 | Telegram, bản tin phát hành | `docs/thong-bao-telegram.md`, `docs/mau-tin-phat-hanh.md` |
