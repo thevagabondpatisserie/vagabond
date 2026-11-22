@@ -99,9 +99,10 @@ def _da_chuan():
 		dung(ten + " không vẽ ô chữ cái thay ảnh", "charAt(0).toUpperCase()" not in j)
 
 
-@ca("nguyên tắc màn hình: AGENTS.md còn mục 2b với đủ ba ý cốt lõi")
+@ca("nguyên tắc màn hình: luật app /bep còn mục 2b với đủ ba ý cốt lõi")
 def _agents():
-	s = io.open(os.path.join(_goc(), "AGENTS.md"), encoding="utf-8").read()
+	# Từ 22/11/2026 mục 2b chuyển nguyên văn sang AGENTS.md của thư mục app /bep (luật ba tầng).
+	s = io.open(os.path.join(_goc(), "vagabond", "public", "js", "bep", "AGENTS.md"), encoding="utf-8").read()
 	dung("có mục 2b", "## 2b. Nguyên tắc thiết kế màn hình app" in s)
 	dung("chọn là tìm", "Chọn là tìm" in s)
 	dung("ảnh món", "có tên món thì có ảnh món" in s)
