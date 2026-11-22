@@ -982,7 +982,7 @@ export function taoKho(moiTruong) {
     const p = T.phuongTrongDiaChi(dsPhuong(), diaChi);
     if (p) { S.CO.phuong = p.ma; return; }
     const dang = phuongDangChon.value, a = T.boDauPhuong(diaChi);
-    if (dang && /\b(phuong|xa)\b/.test(a) && !a.includes(T.boDauPhuong(dang.ten))) S.CO.phuong = '';
+    if (dang && /\b(phuong|xa)\b/.test(a) && !T.coPhuong(diaChi, dang)) S.CO.phuong = '';
   }
   let soPhi = 0, phiHen = null;
   const goiYPhiGoc = () => [thuong(t('ph684_goi_y_goc', 'Gõ địa chỉ, hệ thống báo phí giao.'))];
