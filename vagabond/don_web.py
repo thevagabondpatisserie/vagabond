@@ -46,6 +46,8 @@ import uuid
 from urllib.parse import urlsplit
 
 from vagabond import thanh_toan_web_thuan as ttt
+from vagabond import phuong_giao
+from vagabond import bien_nhan_web
 
 DOCTYPE = "Vagabond Don Web"
 
@@ -351,6 +353,10 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 		# mã QR, khoá trang thẻ.
 		"tt": ttt.khoi_bien_nhan(ban_ghi.get("thanh_toan") or snap.get("thanh_toan"), tien,
 			ban_ghi.get("vgb_tt_trang_thai"), ban_ghi.get("vgb_tt_da_thu"), ban_ghi.get("vgb_tt_cach"), tt == "Da huy"),
+		# v684 (BẢN 2 mục 3): thẻ ĐƠN HÀNG và NHẬN BÁNH của biên nhận mới, chốt từ
+		# ảnh chụp đơn. Vẫn không có số điện thoại, địa chỉ (chỉ phường, tên viết tắt).
+		"dong": bien_nhan_web.dong_don(snap),
+		"nhan_banh": bien_nhan_web.nhan_banh(snap, viet_tat_ten),
 	}
 
 
@@ -658,6 +664,9 @@ def cau_hinh_web():
 		"phap_nhan": PHAP_NHAN,
 		"chinh_sach": noi_dung_web.chinh_sach_dang_hien(),
 		"quan": [{"ma": q["ma"], "ten": q["ten"], "lat": q["lat"], "lng": q["lng"]} for q in QUAN],
+		# v684 (BẢN 2 mục 2.3): bảng phường mới cho ô Phường giao (tên, quận cũ,
+		# phường cũ để gõ tìm). Không có phí: phí dự kiến hỏi riêng theo phường.
+		"phuong": phuong_giao.danh_sach(),
 		# v681: giá hiện hành của thiệp ép kim (món BAPK00002 trên ERPNext). Trang
 		# khách chỉ hiện số này; tiền thật máy chủ tính lại ở tao_don.
 		"gia_thiep_ep_kim": gia_thiep_ep_kim(),
@@ -981,6 +990,11 @@ def bien_nhan_theo_token(token):
 			frappe.log_error(frappe.get_traceback(), "don_web: khối thanh toán biên nhận")
 		except Exception:
 			pass
+	# v684: ảnh món cho thẻ ĐƠN HÀNG; đọc hỏng thì chỉ mất ảnh, không mất biên nhận.
+	try:
+		tt["anh"] = anh_mon_bien_nhan([x.get("ma") for x in tt.get("dong") or [] if x.get("loai") == "banh"])
+	except Exception:
+		tt["anh"] = {}
 	return {
 		"bien_nhan": tt,
 		"su_kien": {
@@ -992,6 +1006,22 @@ def bien_nhan_theo_token(token):
 			"ban": b.get("trang_thai") != "Da huy",
 		},
 	}
+
+
+RE_ANH_MON = re.compile(r"^/files/[A-Za-z0-9][A-Za-z0-9._ ()%-]{0,150}\.(?:png|jpe?g|webp)$", re.I)
+
+
+def anh_mon_bien_nhan(ma_mon):
+	"""{mã món: ảnh} cho thẻ ĐƠN HÀNG của biên nhận (v684). Chỉ nhận ảnh /files/ của
+	danh mục; ảnh lạ hay trống thì bỏ, trang hiện ô trống."""
+	ma = [str(m) for m in ma_mon or [] if m][:30]
+	if not ma:
+		return {}
+	ra = {}
+	for r in frappe.get_all("Item", filters={"name": ["in", ma]}, fields=["name", "image"], ignore_permissions=True):
+		if RE_ANH_MON.match(str(r.get("image") or "")):
+			ra[r["name"]] = r["image"]
+	return ra
 
 
 def mon_su_kien(snap):
