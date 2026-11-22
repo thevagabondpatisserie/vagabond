@@ -191,7 +191,15 @@ export function locPhuong(ds, q, toiDa = 8) {
 }
 /* Phường mới ghi trong một địa chỉ (gợi ý Goong, địa chỉ đã lưu). Chỉ trả khi chắc chắn:
    đúng MỘT phường trong bảng có tên đứng sau chữ "Phường"/"Xã" trong địa chỉ. Không đoán. */
+/* Địa chỉ ghi theo kiểu cũ (còn Quận, Huyện, TP Thủ Đức): tên phường trong đó là
+   phường CŨ, có thể trùng tên một phường mới ở nơi khác (Phường Tân Phú, Quận 7 cũ
+   nay là Tân Mỹ, không phải phường Tân Phú mới). Codex #606. */
+export function laDiaChiCu(diaChi) {
+  const a = ' ' + boDauPhuong(diaChi) + ' ';
+  return / (quan|huyen) /.test(a) || / (thanh pho|tp) thu duc /.test(a);
+}
 export function phuongTrongDiaChi(ds, diaChi) {
+  if (laDiaChiCu(diaChi)) return null;
   const a = ' ' + boDauPhuong(diaChi) + ' ';
   const thay = (ds || []).filter(p => {
     const ten = tenTran(p);
