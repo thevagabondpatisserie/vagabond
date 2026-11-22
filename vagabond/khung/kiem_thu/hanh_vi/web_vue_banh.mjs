@@ -1604,6 +1604,14 @@ await ca('v684 Codex #606: địa chỉ đã lưu kiểu cũ (Phường Tân Ph�
   la('kiểu mới vẫn tự điền', phuongTrongDiaChi(PH2, '7 Lũy Bán Bích, Phường Tân Phú, Thành phố Hồ Chí Minh').ma, '84_VN12965');
 });
 
+await ca('v684 Codex #606 vòng 2: phường là MỘT phần riêng của địa chỉ, cùng luật máy chủ: đường trùng tên không tính, Tân Sơn khác Tân Sơn Nhì, P. viết tắt được', async () => {
+  const {phuongTrongDiaChi, coPhuong} = await import('../../../public/web_vue/kho/thuan.js');
+  const ds = [{ma: 'ts', ten: 'Phường Tân Sơn'}, {ma: 'tsn', ten: 'Phường Tân Sơn Nhì'}];
+  la('đường trùng tên', [coPhuong('10 Tân Sơn', ds[0]), phuongTrongDiaChi(ds, '10 Tân Sơn')], [false, null]);
+  la('phường dài hơn', phuongTrongDiaChi(ds, '7 Lũy Bán Bích, Phường Tân Sơn Nhì, Thành phố Hồ Chí Minh').ma, 'tsn');
+  la('viết tắt', ['10 Tân Sơn, P. Tân Sơn', '10 x, p tan son', '10 x, P.Tân Sơn'].map(a => (phuongTrongDiaChi(ds, a) || {}).ma), ['ts', 'ts', 'ts']);
+});
+
 await ca('v684 phường có phần ngoài vùng giao: không nhận nguyên phường, phí "chưa tính được", mời gõ địa chỉ; không bao giờ thành 0 đ', async () => {
   const {v, mang} = mayChuPh();
   const {mt, chayHen} = moiTruong('2026-11-22T08:00:00', mang);
