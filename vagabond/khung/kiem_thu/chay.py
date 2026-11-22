@@ -319,6 +319,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_phuong_giao_684,
 	# v684 biên nhận đơn web mới: thẻ Đơn hàng, Nhận bánh chốt từ ảnh chụp đơn.
 	thu_bien_nhan_684,
+	# v684 tin Zalo xác nhận đơn web, nút Xem trạng thái đơn hàng.
+	thu_xac_nhan_don_684,
 	# v668 Gợi ý mua thêm: luật tồn, ghép, xếp hạng, đo, mức giữ tại bếp, bản nháp.
 	thu_goi_y_mua_668,
 	# v659 tờ chia nhiều cách trả: chỉ đòi ngân hàng phần Chuyển khoản (Loan Anh 14/11, đơn 97492).

@@ -73,10 +73,12 @@ def _truong_tu_them():
 	from vagabond import goi_y_mua
 	# v674: mục Chi phí quảng cáo Meta, neo sau ô Phiên bản Graph API.
 	from vagabond import quang_cao_meta
+	# v684: mã mẫu ZNS xác nhận đơn đặt bánh trên web, neo sau mã mẫu OTP.
+	from vagabond import tin_xac_nhan_don
 
 	ra = []
 	for m in (o_cai_dat, tai_khoan, hach_toan_kho, minvoice_tep, sepay, qua_tang_hoa_don, tra_truoc_khach, thanh_toan_web,
-			gioi_thieu, don_quay, do_luong_ga, goi_y_mua, quang_cao_meta):
+			gioi_thieu, don_quay, do_luong_ga, goi_y_mua, quang_cao_meta, tin_xac_nhan_don):
 		for f in m.TRUONG_MOI.get("Vagabond Settings", []):
 			ra.append(dict(f))
 	return ra
@@ -214,7 +216,8 @@ def _():
 			co.add(ten[:-3])
 	la("các module khai trường tự thêm", sorted(co),
 		sorted(["o_cai_dat", "tai_khoan", "hach_toan_kho", "minvoice_tep", "sepay", "qua_tang_hoa_don",
-			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu", "don_quay", "do_luong_ga", "goi_y_mua", "quang_cao_meta"]))
+			"tra_truoc_khach", "thanh_toan_web", "gioi_thieu", "don_quay", "do_luong_ga", "goi_y_mua", "quang_cao_meta",
+			"tin_xac_nhan_don"]))
 
 
 @ca("cài đặt v568: mọi nhãn và mô tả là tiếng Việt có dấu, không còn số issue trong nhãn")

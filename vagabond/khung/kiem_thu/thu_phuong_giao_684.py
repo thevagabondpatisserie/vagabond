@@ -117,3 +117,15 @@ def _():
 		cu + ", Phường Tân Phú")
 	la("chọn Tân Mỹ: ghi Tân Mỹ", g.dia_chi_co_phuong(cu, g.tim("84_VN12920")), cu + ", Phường Tân Mỹ")
 	la("địa chỉ kiểu mới đã có tên: giữ nguyên", g.dia_chi_co_phuong("5 Hai Bà Trưng, Phường Tân Định", g.tim("84_VN12902")), "5 Hai Bà Trưng, Phường Tân Định")
+
+
+@ca("v684 Codex #606 vòng 2: phường chỉ tính là đã có khi là MỘT phần riêng của địa chỉ; đường trùng tên phường (10 Tân Sơn) hay phường dài hơn (Tân Sơn Nhì) không tính")
+def _():
+	from vagabond import phuong_giao as g
+	ts, tsn = g.tim("84_VN12961"), [p for p in g.danh_sach() if p["ten"] == "Phường Tân Sơn Nhì"][0]
+	la("đường trùng tên: vẫn ghi phường", g.dia_chi_co_phuong("10 Tân Sơn", ts), "10 Tân Sơn, Phường Tân Sơn")
+	la("phường dài hơn không tính là có", g.dia_chi_co_phuong("7 Lũy Bán Bích, Phường Tân Sơn Nhì", ts),
+		"7 Lũy Bán Bích, Phường Tân Sơn Nhì, Phường Tân Sơn")
+	la("viết tắt P. là có", [g.dia_chi_co_phuong(a, ts) for a in ("10 Tân Sơn, P. Tân Sơn", "10 x, p tan son", "10 x, P.Tân Sơn")],
+		["10 Tân Sơn, P. Tân Sơn", "10 x, p tan son", "10 x, P.Tân Sơn"])
+	la("đúng phường dài hơn thì giữ", g.dia_chi_co_phuong("7 Lũy Bán Bích, Phường Tân Sơn Nhì", tsn), "7 Lũy Bán Bích, Phường Tân Sơn Nhì")
