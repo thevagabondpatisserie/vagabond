@@ -1133,3 +1133,20 @@ html body .tv-dc{display:flex;justify-content:space-between;align-items:center;w
 html body .tv-dc span{color:var(--cyan,#4FDBF2);font-size:20px}
 html body .tv-loi{color:#FDB738;font-size:13px;margin:10px 0 0}
 @media (prefers-reduced-motion:reduce){html body .tv-cong-tac .ct,html body .tv-cong-tac .ct i{transition:none}}
+/* v684 (BẢN 2 mục 2.3): ô Phường giao (chỉ chọn phường, không phí dự kiến). Ô bo tròn cao 48, ghim, viền Robin nhạt; danh sách thẻ bo 18. */
+html body .ph-o{position:relative;display:flex;align-items:center;gap:8px;min-height:48px;border-radius:24px;border:1px solid rgba(79,219,242,.45);background:rgba(79,219,242,.05);padding:0 6px 0 14px}
+html body .ph-o.mo{border-color:var(--cyan,#4FDBF2)}
+html body .ph-ghim{flex:none;width:20px;height:20px;fill:none;stroke:var(--cyan,#4FDBF2);stroke-width:1.6}
+html body .ph-o input{flex:1;min-width:0;min-height:46px;border:0;background:transparent;color:inherit;font-size:15px;padding:0;outline:none;box-shadow:none}
+html body .ph-bo{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:inherit;display:flex;align-items:center;justify-content:center;cursor:pointer}
+html body .ph-bo svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8}
+html body .ph-ds{margin-top:8px;border-radius:18px;border:1px solid rgba(79,219,242,.35);background:var(--bg-2,#141414);overflow:hidden}
+html body .ph-dong{display:flex;width:100%;align-items:center;gap:12px;min-height:56px;padding:8px 16px;border:0;border-bottom:1px solid rgba(255,255,255,.06);background:transparent;color:inherit;text-align:left;cursor:pointer}
+html body .ph-dong:last-child{border-bottom:0}
+html body .ph-dong:focus-visible{outline:2px solid var(--cyan,#4FDBF2);outline-offset:-2px}
+html body .ph-chu{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+html body .ph-chu b{font-size:15px;font-weight:600}
+html body .ph-chu small{font-size:13px;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html body .ph-chu em{font-style:normal;color:var(--cyan,#4FDBF2);opacity:1}
+html body .ph-tien{flex:none;font-size:14px;color:var(--cyan,#4FDBF2);white-space:nowrap}
+html body .ph-rong{margin:0;padding:14px 16px;font-size:14px;line-height:1.45}

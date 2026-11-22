@@ -229,8 +229,12 @@ def _hoi_greensm(c, diem_lay, diem_khach, luc_giao):
 
 @frappe.whitelist(allow_guest=True)
 @rate_limit(limit=40, seconds=60)
-def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
+def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None, phuong=None):
 	"""Phi giao cho mot dia chi, tai dung khung gio khach chon.
+
+	v684 (Codex #606): `phuong` là mã phường khách chọn ở ô Phường giao. Địa chỉ
+	được ghép phường bằng ĐÚNG hàm mà lúc gửi đơn dùng (phuong_giao.dia_chi_co_phuong),
+	nên phí báo trên trang và phí chốt lúc gửi đơn hỏi cùng một nơi. Mã lạ bị bỏ.
 
 	Truyen san lat/lng thi khong ton mot luot goi Goong.
 	`luc_giao` la moc gio khach muon nhan banh, dang ISO. Co no thi phi sat
@@ -252,6 +256,12 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None, diem_lay=None):
 	elif not key(c, "ahamove_api_key") or not c.ahamove_base or not c.ahamove_mobile:
 		return {"ok": 0, "ly_do": "chua_dien_khoa_ahamove"}
 
+	if addr and phuong:
+		from vagabond import phuong_giao
+
+		p = phuong_giao.tim(phuong)
+		if p:
+			addr = phuong_giao.dia_chi_co_phuong(addr, p)
 	if lat and lng:
 		diem = {"lat": float(lat), "lng": float(lng), "dia_chi": addr or ""}
 	elif addr:

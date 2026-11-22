@@ -9117,5 +9117,295 @@
     "ten": "Thẻ Thành viên: dòng địa chỉ đã lưu ({so} là số địa chỉ)",
     "nhom": "gio_hang",
     "mac_dinh": "Địa chỉ đã lưu: {so} địa chỉ"
+  },
+  "ph684_nhan": {
+    "ten": "Phường giao: nhãn ô",
+    "nhom": "gio_hang",
+    "mac_dinh": "Phường giao"
+  },
+  "ph684_goi": {
+    "ten": "Phường giao: chữ mờ trong ô",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gõ tên phường, quận cũ hoặc phường cũ"
+  },
+  "ph684_bo": {
+    "ten": "Phường giao: nút bỏ phường đã chọn (cho máy đọc màn hình)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Bỏ phường đã chọn"
+  },
+  "ph684_rong": {
+    "ten": "Phường giao: không tìm thấy phường",
+    "nhom": "gio_hang",
+    "mac_dinh": "Không thấy phường này trong vùng giao. Quý khách gõ địa chỉ bên dưới hoặc gọi cho chúng tôi."
+  },
+  "ph684_chua_tinh": {
+    "ten": "Phường giao: chữ bên phải phường có phần ngoài vùng giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "chưa tính được"
+  },
+  "ph684_goi_y_goc": {
+    "ten": "Phường giao: gợi ý khi chưa chọn phường, chưa có địa chỉ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gõ địa chỉ, hệ thống báo phí giao."
+  },
+  "ph684_mot_phan": {
+    "ten": "Phường giao: phường có phần ngoài vùng giao (sau tên phường)",
+    "nhom": "gio_hang",
+    "mac_dinh": "có một phần nằm ngoài vùng giao, phí giao chưa tính được. Quý khách gõ địa chỉ để có phí."
+  },
+  "ph684_go_dia_chi": {
+    "ten": "Phường giao: đầu câu khi đã chọn phường, chưa có địa chỉ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách gõ địa chỉ trong"
+  },
+  "ph684_de_co_phi": {
+    "ten": "Phường giao: cuối câu khi đã chọn phường, chưa có địa chỉ",
+    "nhom": "gio_hang",
+    "mac_dinh": "để có phí giao."
+  },
+  "bn684_da_huy": {
+    "ten": "Biên nhận mới: Đơn này đã huỷ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đơn này đã huỷ"
+  },
+  "bn684_nhan_tiem": {
+    "ten": "Biên nhận mới: nút Nhắn The Vagabond",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Nhắn The Vagabond"
+  },
+  "bn684_buoc_1": {
+    "ten": "Biên nhận mới: Nhận đơn",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Nhận đơn"
+  },
+  "bn684_buoc_2": {
+    "ten": "Biên nhận mới: Thanh toán",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thanh toán"
+  },
+  "bn684_buoc_3": {
+    "ten": "Biên nhận mới: Nhận bánh",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Nhận bánh"
+  },
+  "bn684_da_chep": {
+    "ten": "Biên nhận mới: Đã chép",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã chép"
+  },
+  "bn684_chep": {
+    "ten": "Biên nhận mới: Chép",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chép"
+  },
+  "bn684_da_tt": {
+    "ten": "Biên nhận mới: ĐÃ THANH TOÁN",
+    "nhom": "bien_nhan",
+    "mac_dinh": "ĐÃ THANH TOÁN"
+  },
+  "bn684_cho_tt": {
+    "ten": "Biên nhận mới: CÒN CHỜ THANH TOÁN",
+    "nhom": "bien_nhan",
+    "mac_dinh": "CÒN CHỜ THANH TOÁN"
+  },
+  "bn684_thieu": {
+    "ten": "Biên nhận mới: Đã nhận {da}, còn thiếu {con}",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã nhận {da}, còn thiếu {con}"
+  },
+  "bn684_nut_onepay": {
+    "ten": "Biên nhận mới: THANH TOÁN QUA ONEPAY",
+    "nhom": "bien_nhan",
+    "mac_dinh": "THANH TOÁN QUA ONEPAY"
+  },
+  "bn684_chon_app": {
+    "ten": "Biên nhận mới: CHỌN APP NGÂN HÀNG CỦA QUÝ KHÁCH",
+    "nhom": "bien_nhan",
+    "mac_dinh": "CHỌN APP NGÂN HÀNG CỦA QUÝ KHÁCH"
+  },
+  "bn684_lan_truoc": {
+    "ten": "Biên nhận mới: Lần trước",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Lần trước"
+  },
+  "bn684_khac": {
+    "ten": "Biên nhận mới: Khác",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Khác"
+  },
+  "bn684_khac_tieu": {
+    "ten": "Biên nhận mới: Chọn app ngân hàng",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chọn app ngân hàng"
+  },
+  "bn684_khac_tim": {
+    "ten": "Biên nhận mới: Tìm tên ngân hàng",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Tìm tên ngân hàng"
+  },
+  "bn684_tu_dien": {
+    "ten": "Biên nhận mới: tự điền",
+    "nhom": "bien_nhan",
+    "mac_dinh": "tự điền"
+  },
+  "bn684_dong": {
+    "ten": "Biên nhận mới: Đóng",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đóng"
+  },
+  "bn684_mo_app": {
+    "ten": "Biên nhận mới: MỞ APP {ten}",
+    "nhom": "bien_nhan",
+    "mac_dinh": "MỞ APP {ten}"
+  },
+  "bn684_tu_dien_cau": {
+    "ten": "Biên nhận mới: Số tiền và nội dung đã điền sẵn trong app. Quý khách chỉ cần",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Số tiền và nội dung đã điền sẵn trong app. Quý khách chỉ cần xác nhận."
+  },
+  "bn684_chi_mo_cau": {
+    "ten": "Biên nhận mới: App sẽ mở, quý khách dán số tài khoản, số tiền và nội dung đ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "App sẽ mở, quý khách dán số tài khoản, số tiền và nội dung đã chép bên dưới."
+  },
+  "bn684_chua_chon_app": {
+    "ten": "Biên nhận mới: Chọn app ngân hàng để mở và chuyển khoản.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chọn app ngân hàng để mở và chuyển khoản."
+  },
+  "bn684_giu_nd": {
+    "ten": "Biên nhận mới: Vui lòng giữ nguyên nội dung chuyển khoản.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Vui lòng giữ nguyên nội dung chuyển khoản."
+  },
+  "bn684_hien_qr": {
+    "ten": "Biên nhận mới: Mở trên máy tính? Hiện mã QR để quét",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Mở trên máy tính? Hiện mã QR để quét"
+  },
+  "bn684_so_tien": {
+    "ten": "Biên nhận mới: Số tiền",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Số tiền"
+  },
+  "bn684_cho_tien": {
+    "ten": "Biên nhận mới: Đang chờ tiền về. Trang này tự báo khi nhận được.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đang chờ tiền về. Trang này tự báo khi nhận được."
+  },
+  "bn684_chi_duong": {
+    "ten": "Biên nhận mới: Chỉ đường",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chỉ đường"
+  },
+  "bn684_nhan_banh": {
+    "ten": "Biên nhận mới: NHẬN BÁNH",
+    "nhom": "bien_nhan",
+    "mac_dinh": "NHẬN BÁNH"
+  },
+  "bn684_nguoi_dat": {
+    "ten": "Biên nhận mới: người đặt",
+    "nhom": "bien_nhan",
+    "mac_dinh": "người đặt"
+  },
+  "bn684_xem_du": {
+    "ten": "Biên nhận mới: Xem đủ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Xem đủ"
+  },
+  "bn684_don_hang": {
+    "ten": "Biên nhận mới: ĐƠN HÀNG",
+    "nhom": "bien_nhan",
+    "mac_dinh": "ĐƠN HÀNG"
+  },
+  "bn684_tong": {
+    "ten": "Biên nhận mới: Tổng cộng",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Tổng cộng"
+  },
+  "bn684_da_tra": {
+    "ten": "Biên nhận mới: Đã trả",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã trả"
+  },
+  "bn684_con_thieu": {
+    "ten": "Biên nhận mới: Còn thiếu",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Còn thiếu"
+  },
+  "bn684_tieu_de": {
+    "ten": "Biên nhận mới: Đã nhận yêu cầu đặt bánh",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã nhận yêu cầu đặt bánh"
+  },
+  "bn684_chep_ma": {
+    "ten": "Biên nhận mới: Chép mã đơn",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chép mã đơn"
+  },
+  "bn684_da_chep_ma": {
+    "ten": "Biên nhận mới: Đã chép mã đơn",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã chép mã đơn"
+  },
+  "bn684_luu": {
+    "ten": "Biên nhận mới: Lưu biên nhận",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Lưu biên nhận"
+  },
+  "bn684_nhan_kem_ma": {
+    "ten": "Biên nhận mới: câu dưới nút Nhắn The Vagabond",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Bấm Nhắn The Vagabond, mã đơn được chép sẵn để quý khách dán vào tin nhắn."
+  },
+  "bn684_khong_co": {
+    "ten": "Biên nhận mới: chiếc bánh không cắm cờ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Không cờ"
+  },
+  "bn684_co": {
+    "ten": "Biên nhận mới: chữ Cờ trước lời chúc",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Cờ"
+  },
+  "bn684_co_trong": {
+    "ten": "Biên nhận mới: có cờ mà chưa ghi lời chúc",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Cờ chưa ghi lời chúc"
+  },
+  "bn684_thiep_nho": {
+    "ten": "Biên nhận mới: thiệp nhỏ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thiệp nhỏ"
+  },
+  "bn684_thiep_ep_kim": {
+    "ten": "Biên nhận mới: thiệp ép kim",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thiệp ép kim"
+  },
+  "bn684_khong_thiep": {
+    "ten": "Biên nhận mới: không kèm thiệp",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Không thiệp"
+  },
+  "bn684_dia": {
+    "ten": "Biên nhận mới: dĩa tặng kèm",
+    "nhom": "bien_nhan",
+    "mac_dinh": "dĩa giấy bã mía"
+  },
+  "bn684_nia": {
+    "ten": "Biên nhận mới: nĩa tặng kèm",
+    "nhom": "bien_nhan",
+    "mac_dinh": "nĩa gỗ"
+  },
+  "bn684_tang_kem": {
+    "ten": "Biên nhận mới: chữ tặng kèm ở cột tiền",
+    "nhom": "bien_nhan",
+    "mac_dinh": "tặng kèm"
+  },
+  "ph684_cu": {
+    "ten": "Ô Phường giao: chữ cũ sau tên quận cũ (Quận 3 cũ)",
+    "nhom": "gio_hang",
+    "mac_dinh": "cũ"
   }
 }

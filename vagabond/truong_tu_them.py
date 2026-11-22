@@ -277,6 +277,11 @@ def dung():
 	from vagabond import don_quay
 
 	_dung_nhom(don_quay.TRUONG_MOI, "don_quay")
+	# v684: tin Zalo xác nhận đơn web (ô trạng thái tin trên Don Web neo sau ô
+	# cước GreenSM của nhóm don_quay; mã mẫu trong Cài đặt neo sau mã mẫu OTP).
+	from vagabond import tin_xac_nhan_don
+
+	_dung_nhom(tin_xac_nhan_don.TRUONG_MOI, "tin_xac_nhan_don")
 	# v664: ô Google Analytics ID ngay dưới ô Meta Pixel ID trong Cài đặt.
 	from vagabond import do_luong_ga
 

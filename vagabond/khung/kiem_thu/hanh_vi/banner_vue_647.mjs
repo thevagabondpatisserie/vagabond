@@ -165,7 +165,7 @@ await ca('Biên nhận mount thật: banner Đặt xong máy chủ gửi hiện 
   la('một banner, link trang thành viên', bn.map(n => [n.the, n.props.href]), [['a', '/thanh-vien']]);
   la('ảnh máy tính', timR(bn[0], n => n.the === 'img').map(n => n.props.src), ['/files/xong-pc.png']);
   const vo = timR(goc, n => String(n.props.class || '') === 'bn-in')[0];
-  const i = vo.con.indexOf(bn[0]), j = vo.con.findIndex(n => String(n.props && n.props.class || '') === 'bn-nut');
+  const i = vo.con.indexOf(bn[0]), j = vo.con.findIndex(n => String(n.props && n.props.class || '').split(' ').includes('bn-nut'));
   dung('banner trước hàng nút', i >= 0 && j > i);
   la('rỗng thì không vẽ', timR(await moBienNhan([]), n => n.props['data-banner']).length, 0);
 });
@@ -178,7 +178,8 @@ await ca('Tải lại biên nhận (không còn token): biên nhận khôi phụ
   const kho = new Map();
   await moBienNhan(MAY.xong, kho);
   const lai = await moBienNhan(MAY.xong, kho, true);
-  dung('khôi phục đúng biên nhận', JSON.stringify(timR(lai, n => n.the === 'b').map(n => n.con.map(x => x.chu).join(''))).includes('DW-2611-00123'));
+  /* v684: mã đơn nằm ở viên bấm để chép (#bn-ma). */
+  dung('khôi phục đúng biên nhận', JSON.stringify(timR(lai, n => n.props && n.props.id === 'bn-ma').map(n => n.con.map(x => x.chu).join(''))).includes('DW-2611-00123'));
   la('banner vẫn hiện', timR(lai, n => n.props['data-banner'] === 'dat_xong').map(n => n.props.href), ['/thanh-vien']);
   const trong = await moBienNhan(MAY.xong, new Map(), true);
   la('không có biên nhận trong phiên: không vẽ banner', timR(trong, n => n.props['data-banner']).length, 0);

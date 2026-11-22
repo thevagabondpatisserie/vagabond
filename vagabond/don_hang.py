@@ -26,7 +26,7 @@ import frappe
 import requests
 from frappe.rate_limiter import rate_limit
 
-from vagabond import diem_web, don_dau_web, don_web, khuyen_mai
+from vagabond import diem_web, don_dau_web, don_web, khuyen_mai, phuong_giao
 from vagabond.giao_hang import phi_giao
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
 
@@ -584,6 +584,11 @@ def tao_don(don=None):
 	dia_chi = (don.get("dia_chi") or "").strip()
 	if not tu_lay and len(dia_chi) < 8:
 		return {"ok": 0, "ly_do": "thieu_dia_chi_giao"}
+	# v684 (BẢN 2 mục 2.3): khách chọn phường mới ở ô Phường giao thì địa chỉ gửi
+	# Pancake mang tên phường mới. Mã phường lạ (không có trong bảng) bị bỏ qua,
+	# địa chỉ giữ đúng như khách gõ. Tự lấy thì không có phường.
+	phuong = None if tu_lay else phuong_giao.tim(don.get("phuong"))
+	dia_chi = phuong_giao.dia_chi_co_phuong(dia_chi, phuong) if phuong else dia_chi
 	ma_diem = str(don.get("diem_lay_id") or "").strip()
 	ngay = _ngay_iso(don.get("ngay_nhan"))
 
@@ -850,6 +855,8 @@ def tao_don(don=None):
 			"dien_thoai": _so(nguoi_nhan.get("dien_thoai"))} if nguoi_nhan else None,
 		"tu_lay": tu_lay,
 		"dia_chi": dia_chi,
+		# v684: phường mới khách chọn (biên nhận hiện tên phường, không hiện địa chỉ).
+		**({"phuong": {"ma": phuong["ma"], "ten": phuong["ten"]}} if phuong else {}),
 		"diem_lay_ten": (don.get("diem_lay_ten") or "").strip()[:80] if tu_lay else "",
 		"ngay_nhan": ngay,
 		"ghi_chu": body["note"],
@@ -1041,6 +1048,11 @@ def tao_don(don=None):
 		tin_kho.bao_don_web_moi(ban_ghi.name, ten, ngay, tu_lay, don.get("diem_lay_ten"), dia_chi, snapshot["mon"],
 			tien_banh - giam_tong, phi, kq.get("pancake_display_id") or kq.get("pancake_id"))
 		frappe.db.commit()
+		# v684 (anh Việt 22/11/2026): tin Zalo xác nhận đơn cho khách, nút mở
+		# đúng trang biên nhận. Chưa khai mã mẫu thì thôi; không bao giờ chặn đơn.
+		from vagabond import tin_xac_nhan_don
+
+		tin_xac_nhan_don.xep(ban_ghi, nonce)
 
 	if giam_tong and kq["ket_qua"] == "da_nhan":
 		ma_don = kq.get("pancake_id")

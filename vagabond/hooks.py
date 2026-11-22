@@ -1235,6 +1235,8 @@ scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("v
 # v638: khách đặt bánh trên web trả ngay. Mỗi 5 phút khớp sao kê cho đơn chọn
 # chuyển khoản, làm nốt việc sau thu (ghi Pancake, báo Sales) nếu lượt trước hỏng.
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.thanh_toan_web.quet")
+# v684: tin Zalo xác nhận đơn web chờ giờ gửi (22h tới 6h) hay lần trước hỏng mạng.
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.tin_xac_nhan_don.quet")
 # v638: đơn gọi món tại bàn chờ quá 10 phút không ai nhận thì chuyển Hết hạn.
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.goi_mon_ban.quet_het_han")
 
