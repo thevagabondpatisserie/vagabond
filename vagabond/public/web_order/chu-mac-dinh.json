@@ -9357,5 +9357,55 @@
     "ten": "Biên nhận mới: câu dưới nút Nhắn The Vagabond",
     "nhom": "bien_nhan",
     "mac_dinh": "Bấm Nhắn The Vagabond, mã đơn được chép sẵn để quý khách dán vào tin nhắn."
+  },
+  "bn684_khong_co": {
+    "ten": "Biên nhận mới: chiếc bánh không cắm cờ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Không cờ"
+  },
+  "bn684_co": {
+    "ten": "Biên nhận mới: chữ Cờ trước lời chúc",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Cờ"
+  },
+  "bn684_co_trong": {
+    "ten": "Biên nhận mới: có cờ mà chưa ghi lời chúc",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Cờ chưa ghi lời chúc"
+  },
+  "bn684_thiep_nho": {
+    "ten": "Biên nhận mới: thiệp nhỏ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thiệp nhỏ"
+  },
+  "bn684_thiep_ep_kim": {
+    "ten": "Biên nhận mới: thiệp ép kim",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thiệp ép kim"
+  },
+  "bn684_khong_thiep": {
+    "ten": "Biên nhận mới: không kèm thiệp",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Không thiệp"
+  },
+  "bn684_dia": {
+    "ten": "Biên nhận mới: dĩa tặng kèm",
+    "nhom": "bien_nhan",
+    "mac_dinh": "dĩa giấy bã mía"
+  },
+  "bn684_nia": {
+    "ten": "Biên nhận mới: nĩa tặng kèm",
+    "nhom": "bien_nhan",
+    "mac_dinh": "nĩa gỗ"
+  },
+  "bn684_tang_kem": {
+    "ten": "Biên nhận mới: chữ tặng kèm ở cột tiền",
+    "nhom": "bien_nhan",
+    "mac_dinh": "tặng kèm"
+  },
+  "ph684_cu": {
+    "ten": "Ô Phường giao: chữ cũ sau tên quận cũ (Quận 3 cũ)",
+    "nhom": "gio_hang",
+    "mac_dinh": "cũ"
   }
 }
