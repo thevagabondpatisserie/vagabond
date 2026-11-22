@@ -1516,6 +1516,96 @@ await ca('v682 mở lại checkout (đã xác thực trong phiên trước, cook
   dung('mẫu trang: thẻ ngay dưới ô số, hai thẻ cũ ở Thanh toán đã bỏ', MAU.indexOf('id="theTv"') > MAU.indexOf('id="f-phone"') && MAU.indexOf('id="theTv"') < MAU.indexOf('id="f-name"') && !MAU.includes('id="donDau"') && !MAU.includes('id="theDiem"'));
 });
 
+/* ---------------- v684 (BẢN 2 mục 2.3): ô Phường giao ---------------- */
+const PH = [
+  {ma: '84_VN12901', ten: 'Phường Sài Gòn', khu: 'q1', quan_cu: 'Quận 1 cũ', cu: ['Bến Nghé', 'Đa Kao', 'Nguyễn Thái Bình'], loai: ''},
+  {ma: '84_VN12902', ten: 'Phường Tân Định', khu: 'q1', quan_cu: 'Quận 1 cũ', cu: ['Tân Định', 'Đa Kao'], loai: ''},
+  {ma: '84_VN12903', ten: 'Phường Bến Thành', khu: 'q1', quan_cu: 'Quận 1 cũ', cu: ['Bến Thành', 'Phạm Ngũ Lão'], loai: ''},
+  {ma: '84_VN129015', ten: 'Phường Bàn Cờ', khu: 'q3', quan_cu: 'Quận 3 cũ', cu: ['Phường 1', 'Phường 2', 'Phường 5'], loai: ''},
+  {ma: '84_VN12924', ten: 'Phường Bình Đông', khu: 'q8', quan_cu: 'Quận 8 cũ', cu: ['Phường 6', 'An Phú Tây (Bình Chánh)'], loai: 'mot_phan'},
+];
+function mayChuPh(them = {}) {
+  const v = {phiGiao: 0, gui: []};
+  const mang = Object.assign({
+    'vagabond.don_web.cau_hinh_web': () => ({phuong: PH, mien_phi_tu: 0}),
+    'vagabond.giao_hang.phi_giao': () => { v.phiGiao++; return {ok: 1, total_fee: 41000, diem_lay: 'tan-son-hoa'}; },
+    'vagabond.don_hang.tao_don': p => { v.gui.push(JSON.parse(p.don)); return {ok: 1}; },
+  }, them);
+  return {v, mang};
+}
+
+await ca('v684 ô Phường giao: gõ tên phường mới, quận cũ, phường cũ, không dấu đều tìm được; phường cũ khớp được tô; không có phí dự kiến', async () => {
+  const {mang} = mayChuPh();
+  const {mt, chayHen} = moiTruong('2026-11-22T08:00:00', mang);
+  const k = taoKho(mt); await k.napCauHinh();
+  k.moPhuong(); await chayHen();
+  k.goPhuong('sai gon');
+  la('không dấu: tên mới', k.goiYPhuong.value.map(p => p.ten), ['Phường Sài Gòn']);
+  k.goPhuong('Đa Kao');
+  la('phường cũ: cả hai phường mới có phần Đa Kao', k.goiYPhuong.value.map(p => [p.ten, p.khop]), [['Phường Sài Gòn', 'Đa Kao'], ['Phường Tân Định', 'Đa Kao']]);
+  dung('dòng phụ ghi quận cũ và phường cũ', k.goiYPhuong.value[0].phu.startsWith('Quận 1 cũ · ') && k.goiYPhuong.value[0].phu.includes('Đa Kao'));
+  k.goPhuong('quan 3');
+  la('quận cũ', k.goiYPhuong.value.map(p => p.ten), ['Phường Bàn Cờ']);
+  dung('dòng không mang phí', !('phi' in k.goiYPhuong.value[0]));
+  k.goPhuong('binh dong');
+  la('phường có phần ngoài vùng được đánh dấu', k.goiYPhuong.value[0].ngoai, true);
+  k.goPhuong('Thủ Thiêm');
+  la('không có trong vùng: danh sách rỗng', k.goiYPhuong.value.length, 0);
+});
+
+await ca('v684 chọn phường: chưa có địa chỉ thì không có phí (không dự kiến, không gọi hãng giao); ô hiện "Phường … · Quận X cũ"; gõ đủ địa chỉ thì ra phí chính xác', async () => {
+  const {v, mang} = mayChuPh();
+  const {mt, chayHen} = moiTruong('2026-11-22T08:00:00', mang);
+  const k = taoKho(mt); await k.napCauHinh();
+  coThem(k); k.moPhuong(); await chayHen();
+  k.chonPhuong('84_VN12903'); await chayHen();
+  la('chưa có phí', [k.S.CO.shipTrangThai, k.S.CO.ship], [null, null]);
+  la('ô hiện tên và quận cũ', k.theoPhuong.value.chu, 'Phường Bến Thành · Quận 1 cũ');
+  dung('câu mời gõ địa chỉ nêu đúng phường', JSON.stringify(k.S.goi.ship).includes('Phường Bến Thành') && JSON.stringify(k.S.goi.ship).includes('gõ địa chỉ'));
+  la('không gọi hãng giao', v.phiGiao, 0);
+  k.S.f.addr = '12 Nguyễn Huệ, Phường Sài Gòn'; k.quoteShip(); await chayHen(); await chayHen();
+  la('đủ địa chỉ: phí chính xác', [k.S.CO.shipTrangThai, k.S.CO.ship, v.phiGiao], ['chinh_xac', 41000, 1]);
+});
+
+await ca('v684 phường có phần ngoài vùng giao: không nhận nguyên phường, phí "chưa tính được", mời gõ địa chỉ; không bao giờ thành 0 đ', async () => {
+  const {v, mang} = mayChuPh();
+  const {mt, chayHen} = moiTruong('2026-11-22T08:00:00', mang);
+  const k = taoKho(mt); await k.napCauHinh();
+  coThem(k); k.moPhuong(); await chayHen();
+  k.chonPhuong('84_VN12924'); await chayHen();
+  la('chưa tính được', [k.S.CO.shipTrangThai, k.S.CO.ship], ['chua_ro', null]);
+  dung('câu nói rõ phần ngoài vùng', JSON.stringify(k.S.goi.ship).includes('ngoài vùng giao') && JSON.stringify(k.S.goi.ship).includes('chưa tính được'));
+  la('không gọi hãng giao', v.phiGiao, 0);
+});
+
+await ca('v684 địa chỉ chọn từ gợi ý ghi đúng một phường mới thì tự điền phường; ghi phường khác thì bỏ chọn để khách chọn lại; gửi đơn mang mã phường, tự lấy thì không', async () => {
+  const {v, mang} = mayChuPh({
+    'vagabond.dia_chi.goi_y_dia_chi': () => ({suggestions: [{mo_ta: '10 Lê Lợi, Phường Bến Thành, Thành phố Hồ Chí Minh', place_id: 'A'}, {mo_ta: '5 Hai Bà Trưng, Phường Tân Định, Thành phố Hồ Chí Minh', place_id: 'B'}]}),
+    'vagabond.dia_chi.chi_tiet_dia_chi': p => ({lat: 10.77, lng: 106.7, dia_chi: p.place_id === 'A' ? '10 Lê Lợi, Phường Bến Thành, Thành phố Hồ Chí Minh' : '5 Hai Bà Trưng, Phường Tân Định, Thành phố Hồ Chí Minh'}),
+  });
+  const {mt, chayHen} = moiTruong('2026-11-22T08:00:00', mang);
+  const k = taoKho(mt); await k.napCauHinh();
+  coThem(k); k.pick(3); k.pickSlot(6);
+  k.S.f.addr = '10 Lê Lợi'; k.goiYDiaChi(); await chayHen();
+  await k.chonGoiY(0); await chayHen();
+  la('tự điền phường theo địa chỉ', k.S.CO.phuong, '84_VN12903');
+  k.S.f.addr = '5 Hai Bà'; k.goiYDiaChi(); await chayHen();
+  await k.chonGoiY(1); await chayHen();
+  la('địa chỉ mới ghi phường khác: đổi theo', k.S.CO.phuong, '84_VN12902');
+  Object.assign(k.S.f, {name: 'A', phone: '0901234567'}); k.S.CO.dongy = true;
+  await k.submitOrder();
+  la('gửi đơn mang mã phường', v.gui[v.gui.length - 1].phuong, '84_VN12902');
+  /* Tự lấy: giỏ mới (đơn trước đã gửi xong). */
+  const e2 = moiTruong('2026-11-22T08:00:00', mang);
+  const k2 = taoKho(e2.mt); await k2.napCauHinh();
+  coThem(k2); k2.pick(3); k2.pickSlot(6);
+  k2.S.CO.phuong = '84_VN12902'; k2.setMode('pick'); await e2.chayHen();
+  Object.assign(k2.S.f, {name: 'A', phone: '0901234567'}); k2.S.CO.dongy = true;
+  const kq = await k2.submitOrder();
+  la('tự lấy gửi được', kq.buoc, 'xong');
+  la('tự lấy: không gửi phường', [v.gui.length, v.gui[v.gui.length - 1].tu_lay, v.gui[v.gui.length - 1].phuong], [2, true, '']);
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');

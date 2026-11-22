@@ -196,7 +196,7 @@ await ca('Gửi đơn: thân gửi máy chủ mang đúng thanh_toan khách ch�
 
 /* ---------- biên nhận Vue ---------- */
 const TOKEN = 'T'.repeat(43);
-const CK = {ngan_hang: 'MB Bank', stk: '0931224334', ten: 'CONG TY VAGABOND', noi_dung: 'S67355O91853T DW261100123',
+const CK = {ma_nh: 'MB', ngan_hang: 'MB Bank', stk: '0931224334', ten: 'CONG TY VAGABOND', noi_dung: 'S67355O91853T DW261100123',
   anh: 'data:image/svg+xml;base64,QUJD'};
 function bienNhan(tt, them = {}) {
   return Object.assign({loai: 'bien_nhan', nhan: {}, bang: {gia_tri: {}, tien_to: []}, lien_he: [{href: 'https://zalo.me/thevagabondsaigon', khoa: '', ten: 'Nhắn Zalo'}],
@@ -225,15 +225,15 @@ await ca('Biên nhận chuyển khoản: hiện VietQR, tài khoản, nội dung
   const b = await veBienNhan(bienNhan(ttCho()));
   const khoi = theoId(b.goc, 'bn-tt');
   dung('có khối thanh toán', khoi);
-  la('ảnh QR', tim(khoi, n => n.the === 'img').map(n => n.props.src), [CK.anh]);
+  la('ảnh QR (v684: logo cách trả là ảnh khác)', tim(khoi, n => n.the === 'img' && n.props.id === 'bn-qr').map(n => n.props.src), [CK.anh]);
   const s = chu(khoi);
   dung('số tiền, số tài khoản, nội dung', s.includes('936.000 đ') && s.includes(CK.stk) && s.includes(CK.noi_dung));
   dung('không còn câu chưa thu tiền', !chu(b.goc).includes('chưa thu tiền'));
   theoId(b.goc, 'nut-chep').props.onClick(); await cho();
   la('chép đúng nội dung', b.chep, [CK.noi_dung]);
-  dung('báo đã chép', chu(theoId(b.goc, 'nut-chep')) === 'Đã chép nội dung');
+  dung('báo đã chép', chu(theoId(b.goc, 'nut-chep')).endsWith('Đã chép'));
   dung('câu hỗ trợ đứng trước nút Zalo', chu(b.goc).indexOf('Cần hỗ trợ thanh toán') < chu(b.goc).indexOf('Nhắn Zalo'));
-  const img = tim(khoi, n => n.the === 'img')[0];
+  const img = theoId(b.goc, 'bn-qr');
   la('ảnh có kích thước', [img.props.width, img.props.height], [220, 220]);
 });
 
@@ -246,14 +246,14 @@ await ca('Biên nhận chuyển khoản: hỏi lại mỗi 5 giây bằng token 
   await b.chayHen();
   la('hỏi đúng cửa, đúng token', b.vet, [['vagabond.thanh_toan_web.trang_thai', {token: TOKEN}]]);
   la('còn chờ: hẹn tiếp', b.hen.length, 1);
-  dung('vẫn có QR', tim(b.goc, n => n.the === 'img').length === 1);
+  dung('vẫn có QR', !!theoId(b.goc, 'bn-qr'));
   await b.chayHen();
   const s = chu(theoId(b.goc, 'bn-tt'));
-  dung('đã nhận', s.includes('Đã nhận tiền') && s.includes('936.000 đ · Chuyển khoản'));
-  la('bỏ QR', tim(b.goc, n => n.the === 'img').length, 0);
+  dung('đã nhận (v684: thẻ Đã thanh toán)', s.includes('ĐÃ THANH TOÁN') && s.includes('936.000 đ') && s.includes('Chuyển khoản'));
+  la('bỏ QR', !!theoId(b.goc, 'bn-qr'), false);
   la('thôi hỏi', b.hen.length, 0);
   const r = await veBienNhan({loai: 'bien_nhan', khong_token: 1, nhan: {}, bang: {}}, {}, cuaSo('/banh/xong', cs.kho).win);
-  dung('tải lại không token: đọc bản đã nhận trong tab', chu(theoId(r.goc, 'bn-tt')).includes('Đã nhận tiền'));
+  dung('tải lại không token: đọc bản đã nhận trong tab', chu(theoId(r.goc, 'bn-tt')).includes('ĐÃ THANH TOÁN'));
   la('không hỏi nữa', r.hen.length, 0);
 });
 
@@ -263,7 +263,7 @@ await ca('Biên nhận thẻ: nút Thanh toán bằng thẻ tạo giao dịch đ
   const b = await veBienNhan(bienNhan(ttCho({cach: 'atm', ck: undefined, the})), {'vagabond.onepay.tao_gd': () => (++lan === 1
     ? {_server_messages: JSON.stringify([JSON.stringify({message: 'Thanh toán thẻ đang tạm ngưng. Quý khách vui lòng chuyển khoản theo mã trên biên nhận.'})])}
     : {url: 'https://mtf.onepay.vn/paygate/vpcpay.op?vpc_CardList=DOMESTIC'})});
-  la('không QR', tim(b.goc, n => n.the === 'img').length, 0);
+  la('không QR', !!theoId(b.goc, 'bn-qr'), false);
   theoId(b.goc, 'nut-the').props.onClick(); await cho();
   la('gửi đúng mã, khoá', b.vet.filter(x => x[0] === 'vagabond.onepay.tao_gd').map(x => x[1]), [{ma: the.ma, k: the.k}]);
   dung('hiện câu máy chủ', chu(theoId(b.goc, 'bn-tt')).includes('Thanh toán thẻ đang tạm ngưng'));
@@ -273,12 +273,13 @@ await ca('Biên nhận thẻ: nút Thanh toán bằng thẻ tạo giao dịch đ
 });
 
 await ca('v675 biên nhận tách ba bước: chưa trả tiền thì đang ở Chờ thanh toán và nói rõ đơn chỉ xác nhận sau khi thanh toán; tiền về đủ thì Đã xác nhận; đơn huỷ không vẽ bước', async () => {
+  /* v684 (BẢN 2 mục 3.1): ba bước mới Nhận đơn, Thanh toán, Nhận bánh. */
   const lop = goc => tim(theoId(goc, 'bn-buoc'), n => n.the === 'li').map(n => [chu(n), n.props.class]);
   const c = await veBienNhan(bienNhan(ttCho()));
-  la('chờ tiền', lop(c.goc), [['Đã gửi yêu cầu', 'xong'], ['Chờ thanh toán', 'dang'], ['Đã xác nhận', '']]);
+  la('chờ tiền', lop(c.goc), [['Nhận đơn', 'xong'], ['Thanh toán', 'dang'], ['Nhận bánh', '']]);
   dung('câu nói rõ điều kiện xác nhận', chu(c.goc).includes('Đơn được xác nhận sau khi quý khách thanh toán'));
   const x = await veBienNhan(bienNhan(ttCho({trang_thai: 'da_thu', da_thu_chu: '936.000 đ', cach_thu: 'Chuyển khoản', ck: undefined})));
-  la('tiền về đủ', lop(x.goc), [['Đã gửi yêu cầu', 'xong'], ['Chờ thanh toán', 'xong'], ['Đã xác nhận', 'xong']]);
+  la('tiền về đủ: đang ở Nhận bánh', lop(x.goc), [['Nhận đơn', 'xong'], ['Thanh toán', 'xong'], ['Nhận bánh', 'dang']]);
   dung('câu đã xác nhận', chu(x.goc).includes('đã nhận thanh toán và xác nhận đơn'));
   const h = await veBienNhan(bienNhan({cach: 'bank', trang_thai: 'huy'}, {da_huy: true}));
   la('đơn huỷ: không vẽ bước', !!theoId(h.goc, 'bn-buoc'), false);
@@ -303,5 +304,89 @@ await ca('Biên nhận phí giao chưa rõ: QR đòi tiền bánh, nói phí gia
 
 console.log('Bo ca kiem thanh toan ngay tren web (v638)');
 loi.forEach(d => console.log('  HONG  ' + d));
+
+/* ---------- v684 (BẢN 2 mục 3): biên nhận mới, mở app ngân hàng ---------- */
+function cuaSoDt(ua, luu = new Map()) {
+  const {win} = cuaSo();
+  win.navigator = {userAgent: ua};
+  win.location.origin = 'https://thevagabondpatisserie.com';
+  win.localStorage = {getItem: k => (luu.has(k) ? luu.get(k) : null), setItem: (k, v) => luu.set(k, v)};
+  return win;
+}
+const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148';
+await ca('v684 điện thoại: lưới 7 app và ô Khác; chọn MB thì nút MỞ APP MB BANK đi qua VietQR deeplink đúng tài khoản Vagabond, số còn phải trả, nội dung; link không có thông tin khách; app tự điền nói đã điền sẵn', async () => {
+  const luu = new Map();
+  const D = bienNhan(ttCho({con: 500000, con_chu: '500.000 đ'}));
+  D.bien_nhan.ten = 'N. V. An';
+  const b = await veBienNhan(D, {}, cuaSoDt(IPHONE, luu));
+  const app = tim(b.goc, n => n.props && n.props['data-app']).map(n => n.props['data-app']);
+  la('lưới', app, ['mb', 'vcb', 'tcb', 'bidv', 'icb', 'acb', 'tpb', 'khac']);
+  dung('chưa chọn app: chưa có nút mở', !theoId(b.goc, 'nut-mo-app'));
+  la('điện thoại: mã QR ẩn tới khi bấm', !!theoId(b.goc, 'bn-qr'), false);
+  tim(b.goc, n => n.props && n.props['data-app'] === 'mb')[0].props.onClick(); await cho();
+  const nut = theoId(b.goc, 'nut-mo-app');
+  la('chữ nút', chu(nut), 'MỞ APP MB BANK');
+  const u = new URL(nut.props.href);
+  la('VietQR deeplink', [u.origin + u.pathname, u.searchParams.get('app'), u.searchParams.get('ba'), u.searchParams.get('am'), u.searchParams.get('tn')],
+    ['https://dl.vietqr.io/pay', 'mb', '0931224334@mb', '500000', CK.noi_dung]);
+  la('quay về biên nhận không token', u.searchParams.get('url'), 'https://thevagabondpatisserie.com/banh/xong');
+  dung('link không có tên, số điện thoại của khách', !nut.props.href.includes('An') && !nut.props.href.includes('0901234567') && !nut.props.href.includes(TOKEN));
+  dung('MB tự điền', chu(theoId(b.goc, 'bn-cau-app')).includes('đã điền sẵn'));
+  la('nhớ app trên máy', luu.get('vgb_app_nh'), 'mb');
+  theoId(b.goc, 'nut-hien-qr').props.onClick(); await cho();
+  dung('bấm thì hiện QR dự phòng', !!theoId(b.goc, 'bn-qr'));
+  const c = await veBienNhan(D, {}, cuaSoDt(IPHONE, luu));
+  const mb = tim(c.goc, n => n.props && n.props['data-app'] === 'mb')[0];
+  dung('mở lại: đánh dấu Lần trước và chọn sẵn', chu(mb).includes('Lần trước') && !!theoId(c.goc, 'nut-mo-app'));
+  tim(c.goc, n => n.props && n.props['data-app'] === 'vcb')[0].props.onClick(); await cho();
+  dung('Vietcombank chỉ mở app: dặn dán thông tin đã chép', chu(theoId(c.goc, 'bn-cau-app')).includes('dán số tài khoản'));
+  dung('luôn có câu giữ nguyên nội dung', chu(c.goc).includes('Vui lòng giữ nguyên nội dung chuyển khoản'));
+});
+
+await ca('v684 ô Khác: bảng đủ app theo iOS, có ô tìm; chọn app ngoài lưới thì nút mở đúng app đó', async () => {
+  const b = await veBienNhan(bienNhan(ttCho()), {}, cuaSoDt(IPHONE));
+  tim(b.goc, n => n.props && n.props['data-app'] === 'khac')[0].props.onClick(); await cho();
+  const ma = () => tim(b.goc, n => n.props && n.props.class === 'bn6-dong').map(n => n.props['data-app']);
+  dung('iOS không có app chỉ chạy Android', !ma().includes('nab') && ma().includes('shbvn'));
+  tim(b.goc, n => n.the === 'input' && n.props.class === 'bn6-tim')[0].props.onInput({target: {value: 'shinhan'}}); await cho();
+  la('tìm không dấu', ma(), ['shbvn']);
+  tim(b.goc, n => n.props && n.props['data-app'] === 'shbvn' && n.props.class === 'bn6-dong')[0].props.onClick(); await cho();
+  la('nút mở Shinhan', new URL(theoId(b.goc, 'nut-mo-app').props.href).searchParams.get('app'), 'shbvn');
+});
+
+await ca('v684 trả một phần: thẻ ghi Đã nhận và Còn thiếu, số yêu cầu là số còn phải trả; ĐƠN HÀNG có dòng Đã trả, Còn thiếu', async () => {
+  const b = await veBienNhan(bienNhan(ttCho({trang_thai: 'thieu', da_thu_chu: '400.000 đ', con: 536000, con_chu: '536.000 đ'})));
+  const s = chu(theoId(b.goc, 'bn-tt'));
+  dung('thẻ', s.includes('536.000 đ') && s.includes('Đã nhận 400.000 đ, còn thiếu 536.000 đ'));
+  la('số tiền chép là số còn phải trả', chu(tim(b.goc, n => n.props && n.props['data-chep'] === 'so')[0]).includes('536000'), true);
+  const d = chu(theoId(b.goc, 'bn-don'));
+  dung('đơn hàng', d.includes('Đã trả') && d.includes('400.000 đ') && d.includes('Còn thiếu'));
+});
+
+await ca('v684 thẻ ĐƠN HÀNG và NHẬN BÁNH: từng chiếc có cờ, thiệp; dĩa nĩa một dòng tặng kèm; nhận bánh chỉ có phường, tên viết tắt, không số điện thoại', async () => {
+  const D = bienNhan(ttCho());
+  Object.assign(D.bien_nhan, {ngay_nhan: 'Thứ 3, 24/11', khung_gio: '14h - 16h', cach_nhan: 'Giao tận nơi', ten: 'N. V. An',
+    nhan_banh: {tu_lay: false, noi: 'Phường Bến Thành', nguoi_nhan: 'T. Bình', la_nguoi_dat: false},
+    dong: [{loai: 'banh', ma: 'BAWC00139', ten: 'Epi · Ø 12cm', sl: 2, gia: '900.000 đ', chiec: [{co: 'Cờ: “Happy 30”', thiep: 'Thiệp ép kim', loi_thiep: 'Thương em'}, {co: 'Không cờ', thiep: 'Không thiệp', loi_thiep: ''}]},
+      {loai: 'them', ma: 'BAPK00010', ten: 'Nến số 3', sl: 1, gia: '10.000 đ'}, {loai: 'tang', ten: 'Dĩa giấy bã mía x5, nĩa gỗ x5', gia: 'tặng kèm'}],
+    anh: {BAWC00139: '/files/epi.webp'}});
+  const b = await veBienNhan(D);
+  const d = chu(theoId(b.goc, 'bn-don'));
+  dung('tên web lúc đặt, cờ, thiệp', d.includes('Epi · Ø 12cm x2') && d.includes('Happy 30') && d.includes('Thiệp ép kim: “Thương em”') && d.includes('Không cờ'));
+  dung('mua thêm và tặng kèm', d.includes('Nến số 3') && d.includes('Dĩa giấy bã mía x5, nĩa gỗ x5') && d.includes('tặng kèm'));
+  la('ảnh món', tim(theoId(b.goc, 'bn-don'), n => n.the === 'img').map(n => n.props.src), ['/files/epi.webp']);
+  const n = chu(theoId(b.goc, 'bn-nhan'));
+  dung('nhận bánh', n.includes('Thứ 3, 24/11 · 14h - 16h') && n.includes('Giao tận nơi · Phường Bến Thành') && n.includes('T. Bình'));
+  dung('không số điện thoại', !/\d{9,}/.test(n));
+  theoId(b.goc, 'bn-ma').props.onClick(); await cho();
+  la('bấm mã đơn: chép, báo đã chép', [b.chep[b.chep.length - 1], chu(theoId(b.goc, 'bn-ma'))], ['DW-2611-00123', 'Đã chép mã đơn']);
+});
+
+await ca('v684 đơn huỷ: dải xám thay tiến trình, có Nhắn The Vagabond, không nút trả tiền', async () => {
+  const h = await veBienNhan(bienNhan({cach: 'bank', trang_thai: 'huy'}));
+  dung('dải xám', !!theoId(h.goc, 'bn-huy') && !theoId(h.goc, 'bn-buoc') && chu(theoId(h.goc, 'bn-huy')).includes('Nhắn The Vagabond'));
+  la('không nút trả tiền', [!!theoId(h.goc, 'bn-tt'), !!theoId(h.goc, 'nut-mo-app'), !!theoId(h.goc, 'nut-the')], [false, false, false]);
+});
+
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');
 process.exit(hong ? 1 : 0);
