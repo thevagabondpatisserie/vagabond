@@ -198,13 +198,20 @@ export function laDiaChiCu(diaChi) {
   const a = ' ' + boDauPhuong(diaChi) + ' ';
   return / (quan|huyen) /.test(a) || / (thanh pho|tp) thu duc /.test(a);
 }
+/* Địa chỉ đã ghi phường `p` như MỘT phần riêng giữa hai dấu phẩy ("Phường Tân Sơn",
+   "P. Tân Sơn", "p tan son"), không phải chữ trùng tên nằm trong tên đường hay trong
+   tên phường dài hơn (Tân Sơn và Tân Sơn Nhì). Cùng luật với phuong_giao.co_phuong. */
+export function coPhuong(diaChi, p) {
+  const ten = tenTran(p);
+  if (!ten) return false;
+  return String(diaChi || '').split(',').some(phan => {
+    const c = boDauPhuong(phan);
+    return ['phuong ', 'xa ', 'p ', 'p'].some(t => c === t + ten);
+  });
+}
 export function phuongTrongDiaChi(ds, diaChi) {
   if (laDiaChiCu(diaChi)) return null;
-  const a = ' ' + boDauPhuong(diaChi) + ' ';
-  const thay = (ds || []).filter(p => {
-    const ten = tenTran(p);
-    return a.includes(' phuong ' + ten + ' ') || a.includes(' xa ' + ten + ' ');
-  });
+  const thay = (ds || []).filter(p => coPhuong(diaChi, p));
   return thay.length === 1 ? thay[0] : null;
 }
 
