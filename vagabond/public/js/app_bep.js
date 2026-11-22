@@ -3997,7 +3997,25 @@ function reset(fn) {
    Ngay 23/08/2026 dinh dung loi do: __boot goi reset(scrHome) roi mo ngay
    man theo dia chi, nhung scrHome ve THAT muon hon va de len man vua mo,
    nen F5 tai /don-da-huy van ra trang chu. */
-function render() { var f = S.stack[S.stack.length - 1]; if (f) return f(); }
+function render() { var f = S.stack[S.stack.length - 1]; VGB_SO_VE++; if (f) return f(); }
+
+/* PR B (vòng 2 kiểm giao diện, 22/11/2026): MÀN CŨ KHÔNG ĐƯỢC VẼ ĐÈ MÀN MỚI.
+
+   Màn async vẽ khung chờ, `await` máy chủ rồi mới vẽ thật. Người dùng bấm
+   sang màn khác (hoặc lùi, hoặc đổi ngày làm màn vẽ lại) trong lúc chờ thì
+   lượt vẽ thật của lần mở cũ về SAU và ghi đè màn đang đứng: Codex thấy đang
+   ở Đối soát COD thì màn Vận đơn quay lại.
+
+   Gọi vgbManNay() ngay đầu màn (phần chạy đồng bộ trong render), sau mỗi
+   `await` hỏi lại hàm nó trả về: false là đã có lần điều hướng khác, bỏ lượt
+   vẽ. Đếm theo số lần render() chứ không theo tiêu đề: một màn có thể gọi
+   thẳng màn khác để hiện kết quả (chốt ca xong hiện Đối soát ca), những lần
+   đó không qua render nên không bị chặn nhầm. */
+var VGB_SO_VE = 0;
+function vgbManNay() {
+  var n = VGB_SO_VE;
+  return function () { return n === VGB_SO_VE; };
+}
 
 /* GIU VI TRI CUON, dung chung cho MOI man hinh.
 
@@ -4313,15 +4331,96 @@ function nenDemDanhSach(dt, args) {
   if (S.quyenNen && S.quyenNen.doc && S.quyenNen.doc[dt] === false) return Promise.resolve([]);
   return getList(dt, args);
 }
-/* ---------- 5. Home ---------- */
+/* ---------- 5. Home ----------
+
+   PR B (vòng 2 kiểm giao diện, 22/11/2026): bấm Trang chủ từ màn nào cũng
+   phải chờ 2,3 tới 3,6 giây mới thấy lưới, vì trang chủ đợi LẦN LƯỢT khoảng
+   20 lượt đếm số (phiếu chờ, đơn treo, đặt bàn...) rồi mới vẽ. Nút lùi nhanh
+   vì nó về màn phân hệ, màn đó không đếm gì.
+
+   Nay mỗi lượt đếm đi qua tcGoi: nó trả NGAY số của lần đếm trước (lần đầu
+   chưa có thì trả rỗng, ô không đeo số) và ghi lại việc phải đếm. Vẽ xong
+   trang chủ mới chạy hết các lượt đếm SONG SONG ở nền, rồi chỉ thay con số
+   trên ô (vgbCapNhatSo), không vẽ lại cả màn, nên ô tìm đang gõ không mất.
+
+   Bộ nhớ đếm chỉ nằm trong phiên của trang và gắn với tài khoản: đổi người
+   đăng nhập là bỏ hết. Con số trên ô chỉ để HIỆN, không dùng quyết định quyền,
+   tiền hay ghi sổ; màn nào cũng tự đọc lại máy chủ khi mở. Số còn mới dưới
+   TC_GIU_MS thì không đếm lại, bấm Trang chủ liền tay không tốn lượt gọi. */
+var TC_GIU_MS = 15000;
+var TC_DEM = { user: null, kq: {}, luc: 0 };
+var TC_LUOT = 0;
+var TC_DANG = null;
+var TC_NEN = null;
+
+function tcDemCua() {
+  var u = (typeof S !== 'undefined' && S && S.user) || '';
+  if (TC_DEM.user !== u) { TC_DEM = { user: u, kq: {}, luc: 0 }; TC_DANG = null; }
+  return TC_DEM;
+}
+function tcGoi(can, k, fn, macDinh) {
+  var d = tcDemCua();
+  can[k] = fn;
+  return Promise.resolve(Object.prototype.hasOwnProperty.call(d.kq, k) ? d.kq[k] : macDinh);
+}
+/* Đếm hết các lượt trong `can` cùng lúc. Lượt nào hỏng thì giữ số cũ chứ
+   không xoá về 0, một phép đếm hỏng không được làm mất số của các ô khác. */
+function tcDemHet(can) {
+  var d = tcDemCua();
+  d.luc = Date.now();
+  var ks = Object.keys(can);
+  return Promise.all(ks.map(function (k) {
+    try {
+      return Promise.resolve(can[k]()).then(function (v) { return { ok: 1, v: v }; }, function () { return { ok: 0 }; });
+    } catch (e) { return Promise.resolve({ ok: 0 }); }
+  })).then(function (kq) {
+    if (TC_DEM !== d) return;
+    for (var i = 0; i < ks.length; i++) if (kq[i].ok) d.kq[ks[i]] = kq[i].v;
+  });
+}
+function tcConO(luot) {
+  return luot === TC_LUOT && S.stack[S.stack.length - 1] === scrHome;
+}
+async function tcNapNen(can) {
+  var d = tcDemCua();
+  var thieu = Object.keys(can).some(function (k) { return !Object.prototype.hasOwnProperty.call(d.kq, k); });
+  if (!TC_DANG && (thieu || Date.now() - d.luc >= TC_GIU_MS)) {
+    var p = tcDemHet(can);
+    TC_DANG = p;
+    p.then(function () { if (TC_DANG === p) TC_DANG = null; });
+  }
+  var dang = TC_DANG;
+  if (!dang) return;
+  await dang;
+  /* Không hỏi người dùng còn đứng ở trang chủ: đang ở màn phân hệ hay màn khác
+     thì VẪN ghi số vào bảng ô (màn phân hệ mở sau đọc đúng số mới); vgbCapNhatSo
+     chỉ sửa ô lớn nào đang hiện, màn khác không có ô đó. Hai lượt mở trang chủ
+     chồng nhau cùng đọc một bộ nhớ đếm nên ra cùng một số, không cần chặn. */
+  vgbCapNhatSo(await tcDungHtml({}));
+}
 async function scrHome() {
+  var luot = ++TC_LUOT;
   frame(APPNAME, '<div class="emp"><div class="e1">⏳</div></div>');
   await loadMasters();
+  /* PR B: dựng trang chủ bằng số đếm lần trước (tcGoi trả ngay), vẽ xong mới
+     đếm lại ở nền. Bấm đi màn khác trong lúc chờ thì không vẽ đè. */
+  var can = {};
+  var html = await tcDungHtml(can);
+  /* Lần mở trang chủ sau đã chạy, hoặc người dùng đã sang màn khác trong lúc
+     nạp danh mục lần đầu: không vẽ đè. */
+  if (!tcConO(luot)) return;
+  scrHomeVe(html);
+  TC_NEN = tcNapNen(can);
+}
+
+/* Dựng HTML trang chủ. `can` gom các lượt đếm gặp trên đường dựng: chỉ
+   những ô tài khoản này thấy mới được đếm, đúng như các điều kiện quyền. */
+async function tcDungHtml(can) {
   var apRoles = hasRole('AP Kiểm soát (FIN)') || hasRole('AP Giám đốc') || hasRole('AP Officer');
   var q = [
-    nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Purchase', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }),
-    nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Material Transfer', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }),
-    nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Manufacture', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 })
+    tcGoi(can, 'mr_mua', function () { return nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Purchase', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }); }, []),
+    tcGoi(can, 'mr_chuyen', function () { return nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Material Transfer', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }); }, []),
+    tcGoi(can, 'mr_sx', function () { return nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Manufacture', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }); }, [])
   ];
   /* Con so tren the phai dem DUNG cai man hinh se bay ra.
      Workflow "Duyet phieu chi APP" dat tren CA doctype Payment Entry, nen
@@ -4329,8 +4428,10 @@ async function scrHome() {
      khach do may tu tao luc doi soat sao ke, va phieu hoan tien cho khach.
      Man Duyet phieu chi da loc ca hai loai do ra tu lau; the o trang chu thi
      chua, nen the bao 12 ma vao thay 7. */
-  if (apRoles) q.push(nenDemDanhSach('Payment Entry', { fields: ['name', 'party_type'], filters: { payment_type: 'Pay', workflow_state: ['in', myPayStates()] }, limit_page_length: 0 })
-    .then(function (ds) { return ds.filter(function (d) { return (d.party_type || '') !== 'Customer'; }); }));
+  if (apRoles) q.push(tcGoi(can, 'pe_chi', function () {
+    return nenDemDanhSach('Payment Entry', { fields: ['name', 'party_type'], filters: { payment_type: 'Pay', workflow_state: ['in', myPayStates()] }, limit_page_length: 0 })
+      .then(function (ds) { return ds.filter(function (d) { return (d.party_type || '') !== 'Customer'; }); });
+  }, []));
   var c = await Promise.all(q.map(function (p) { return (p && p.catch) ? p.catch(function () { return []; }) : p; }));
   var n = c.map(function (x) { return x.length; });
 
@@ -4375,12 +4476,12 @@ async function scrHome() {
   if (isBep()) {
     var kcn = 0;
     try {
-      var kdd = await nenDemDanhSach('Material Request', { fields: ['name', 'trang_thai_bep'], filters: { material_request_type: 'Manufacture', docstatus: 1, schedule_date: ['<=', today()] }, limit_page_length: 0 });
+      var kdd = await tcGoi(can, 'mr_bep_hom_nay', function () { return nenDemDanhSach('Material Request', { fields: ['name', 'trang_thai_bep'], filters: { material_request_type: 'Manufacture', docstatus: 1, schedule_date: ['<=', today()] }, limit_page_length: 0 }); }, []);
       kcn = kdd.filter(function (x) { return x.trang_thai_bep !== 'Đã xong'; }).length;
     } catch (e) { }
     var wcn = 0;
     try {
-      var wdd = await nenDemDanhSach('Work Order', { fields: ['name', 'status'], filters: { docstatus: 1 }, limit_page_length: 0 });
+      var wdd = await tcGoi(can, 'ds_Work_Order', function () { return nenDemDanhSach('Work Order', { fields: ['name', 'status'], filters: { docstatus: 1 }, limit_page_length: 0 }); }, []);
       wcn = wdd.filter(function (x) { return WODONE.indexOf(x.status) < 0; }).length;
     } catch (e) { }
     html += '<div class="sec">Bếp</div><div class="card">' +
@@ -4415,7 +4516,7 @@ async function scrHome() {
   html += '<div id="mvCanhBao"></div>';
   if (isKho()) {
     var rcn = 0;
-    try { rcn = (await nenDemDanhSach('Purchase Receipt', { fields: ['name'], filters: { docstatus: 0 }, limit_page_length: 0 })).length; } catch (e) { }
+    try { rcn = (await tcGoi(can, 'ds_Purchase_Receipt', function () { return nenDemDanhSach('Purchase Receipt', { fields: ['name'], filters: { docstatus: 0 }, limit_page_length: 0 }); }, [])).length; } catch (e) { }
     html += '<div class="sec">Kho</div><div class="card">' +
       card('\ud83d\udce5', 'Nhập kho', 'Quét mã phiếu, đếm hàng rồi nhập máy', rcn, 'RCV') + '</div>';
   }
@@ -4426,25 +4527,25 @@ async function scrHome() {
     card('🥐', 'Nhận bánh đầu ngày', 'Bếp giao bao nhiêu, quầy còn bao nhiêu. Thay bảng Excel gửi Zalo', 0, 'NBANH') + '</div>';
   if (isRnd()) {
     var rdn = 0;
-    try { rdn = (await nenDemDanhSach('RnD Purchase Request', { fields: ['name'], filters: { trang_thai: ['in', ['Mới tạo', 'Đang xử lý']] }, limit_page_length: 0 })).length; } catch (e) { }
+    try { rdn = (await tcGoi(can, 'ds_RnD_Purchase_Request', function () { return nenDemDanhSach('RnD Purchase Request', { fields: ['name'], filters: { trang_thai: ['in', ['Mới tạo', 'Đang xử lý']] }, limit_page_length: 0 }); }, [])).length; } catch (e) { }
     html += '<div class="sec">Mua hàng phát sinh (R&amp;D)</div><div class="card">' +
       card('🧪', 'Yêu cầu mua hàng phát sinh', 'Hàng ngoài danh mục hoặc trên 500.000 một hoá đơn', rdn, 'RND') + '</div>';
   }
   var kkn = 0;
-  try { kkn = (await nenDemDanhSach('Phieu Kiem Ke', { fields: ['name'], filters: { trang_thai: 'Đang kiểm' }, limit_page_length: 0 })).length; } catch (e) { }
+  try { kkn = (await tcGoi(can, 'ds_Phieu_Kiem_Ke', function () { return nenDemDanhSach('Phieu Kiem Ke', { fields: ['name'], filters: { trang_thai: 'Đang kiểm' }, limit_page_length: 0 }); }, [])).length; } catch (e) { }
   html += '<div class="sec">Kiểm kê</div><div class="card">' +
     card('\ud83d\udccb', 'Kiểm kê kho', 'Quét mã, đếm hàng thực tế trong kho', kkn, 'KK') + '</div>';
   if (isSales()) {
     var dsn = 0, dtn = 0, phCho = 0, phTreo = 0, dbn = 0;
     /* v611: số đặt bàn còn chờ xác nhận, máy chủ đếm (dat_ban.dem_cho_xac_nhan). */
-    if (coQuyenDatBan()) { try { dbn = (await api('vagabond.dat_ban.dem_cho_xac_nhan', {})).so || 0; } catch (e) { } }
+    if (coQuyenDatBan()) { try { dbn = (await tcGoi(can, 'dat_ban.dem_cho_xac_nhan', function () { return api('vagabond.dat_ban.dem_cho_xac_nhan', {}); }, {})).so || 0; } catch (e) { } }
     /* So badge lay tu MAY CHU, khong dem o day: man hinh chi duoc HIEN so,
        khong duoc tu tinh so. Cung nguyen tac voi badge o Ke toan. */
     try {
-      var pc = await api('vagabond.don_huy.dem_phieu_cho', {});
+      var pc = await tcGoi(can, 'don_huy.dem_phieu_cho', function () { return api('vagabond.don_huy.dem_phieu_cho', {}); }, {});
       phCho = pc.cho_chi || 0; phTreo = pc.treo || 0;
     } catch (e) { }
-    try { dsn = (await nenDemDanhSach('Sales Invoice', { fields: ['name'], filters: { posting_date: today(), docstatus: 0, custom_pancake_id: ['!=', ''] }, limit_page_length: 0 })).length; } catch (e) { }
+    try { dsn = (await tcGoi(can, 'si_hom_nay', function () { return nenDemDanhSach('Sales Invoice', { fields: ['name'], filters: { posting_date: today(), docstatus: 0, custom_pancake_id: ['!=', ''] }, limit_page_length: 0 }); }, [])).length; } catch (e) { }
     try {
       /* Ba cho lech voi man Don con treo, sua cho khop het:
          1. Man hinh mac dinh nhin 14 ngay gan day, the thi khong co moc duoi
@@ -4457,11 +4558,11 @@ async function scrHome() {
          Loi ghi chu ngay tren day tu truoc van noi "lay theo 14 ngay gan day",
          tuc y dinh ban dau la vay, chi la code khong lam. */
       var mocTreo = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
-      dtn = (await nenDemDanhSach('Sales Invoice', {
+      dtn = (await tcGoi(can, 'si_treo', function () { return nenDemDanhSach('Sales Invoice', {
         fields: ['name'],
         filters: { posting_date: ['>=', mocTreo], docstatus: 0, custom_pancake_id: ['!=', ''], vgb_quay: ['in', ['', null]], vgb_huy: 0, vgb_tam_tinh: 0 },
         limit_page_length: 0
-      })).length;
+      }); }, [])).length;
     } catch (e) { }
     html += '<div class="sec">Bán hàng</div><div class="card">' +
       /* Ba diem ban gio nam chung mot cua: bam vao la chon D1, NVHTN hay
@@ -4524,7 +4625,7 @@ async function scrHome() {
      theo quyền bán hàng. */
   if (coQuyenCrm()) {
     var crmn = 0;
-    try { crmn = (await api('vagabond.crm.tong_quan', {})).viec_toi || 0; } catch (e) { }
+    try { crmn = (await tcGoi(can, 'crm.tong_quan', function () { return api('vagabond.crm.tong_quan', {}); }, {})).viec_toi || 0; } catch (e) { }
     html += '<div class="sec">Khách hàng &amp; Marketing</div><div class="card">' +
       card('📞', 'Danh sách gọi của tôi', 'Khách được chia cho bạn: gọi, chép tin Zalo, ghi kết quả', crmn, 'CRMGOI') +
       (isSales() ? card('👤', 'Tra cứu khách hàng', 'Hồ sơ đầy đủ: món hay mua, dịp đã mua, nhật ký liên hệ, đồng ý nhận tin', 0, 'KH') : '') +
@@ -4607,17 +4708,17 @@ async function scrHome() {
        Hong thi bang 0 chu khong chan trang chu: mot phep dem hong khong
        duoc lam ca man hinh trang. Cung mot nep voi bcSoHomNay. */
     var htChoChi = 0;
-    try { if (nenCoQuyen('ban_hang')) htChoChi = (await api('vagabond.hoan_tien.dem_cho_chi', {})).cho_chi || 0; } catch (e) { }
+    try { if (nenCoQuyen('ban_hang')) htChoChi = (await tcGoi(can, 'hoan_tien.dem_cho_chi', function () { return api('vagabond.hoan_tien.dem_cho_chi', {}); }, {})).cho_chi || 0; } catch (e) { }
     /* Don hang tang cho giam doc duyet. So lay tu MAY CHU, cung nguyen tac
        voi badge phieu hoan: man hinh chi duoc HIEN so, khong tu dem. */
     var tgCho = 0, tgQuaHan = 0;
     try {
-      var tg = nenCoQuyen('ban_hang') ? await api('vagabond.hang_tang.dem_cho_duyet', {}) : {};
+      var tg = nenCoQuyen('ban_hang') ? await tcGoi(can, 'hang_tang.dem_cho_duyet', function () { return api('vagabond.hang_tang.dem_cho_duyet', {}); }, {}) : {};
       tgCho = tg.cho || 0; tgQuaHan = tg.qua_han || 0;
     } catch (e) { }
     /* v550: so hoa don ghi so luc kho chua co hang, lay tu may chu. */
     var tkCho = 0;
-    try { tkCho = (await api('vagabond.tru_kho_bu.dem_chua_tru_kho', {})).so || 0; } catch (e) { }
+    try { tkCho = (await tcGoi(can, 'tru_kho_bu.dem_chua_tru_kho', function () { return api('vagabond.tru_kho_bu.dem_chua_tru_kho', {}); }, {})).so || 0; } catch (e) { }
     html += '<div class="sec">Kế toán</div><div class="card">' +
       card('🧾', 'Hoá đơn bán ra', 'Lọc theo điểm bán và trạng thái hoá đơn điện tử', 0, 'HDBAN') +
       (coQuyenDsck() ? card('🏦', 'Đối soát chuyển khoản', 'Bill quầy chuyển khoản chưa khớp tiền, gắn cả khoản khách chuyển thẳng vào tài khoản công ty', 0, 'DSCK') : '') +
@@ -4677,7 +4778,7 @@ async function scrHome() {
   /* v622 (anh Việt 30/10/2026): ô Tuyển dụng cho mọi quản lý bộ phận; số trên
      ô là hồ sơ mới chưa ai liên hệ, máy chủ đếm (tuyen_dung.dem_cho_goi). */
   var tdn = 0;
-  if (coQuyenTuyenDung()) { try { tdn = (await api('vagabond.tuyen_dung.dem_cho_goi', {})).so || 0; } catch (e) { } }
+  if (coQuyenTuyenDung()) { try { tdn = (await tcGoi(can, 'tuyen_dung.dem_cho_goi', function () { return api('vagabond.tuyen_dung.dem_cho_goi', {}); }, {})).so || 0; } catch (e) { } }
   if (coQuyenHRM() || coQuyenTuyenDung()) {
     html += '<div class="sec">Nhân sự</div><div class="card">' +
       (coQuyenTuyenDung() ? card('🧑‍💼', 'Tuyển dụng',
@@ -4760,6 +4861,10 @@ async function scrHome() {
     '<br>' + h(S.user) +
     '<br>Bấm chia sẻ trên trình duyệt rồi chọn "Thêm vào MH chính" để dùng như app</div>';
 
+  return html;
+}
+
+function scrHomeVe(html) {
   var b = frame(APPNAME, html);
   b.onclick = function (e) {
     var r = e.target.closest('[data-go]'); if (!r) return;
@@ -5440,6 +5545,43 @@ function vgbSoNhom(nh) {
    lưới sẽ trống trơn. Bắt được lúc dựng phân hệ Danh mục 18/08/2026, khi
    danh bạ máy chủ về muộn và cần gom lại lượt hai. */
 var VGB_DONG_GOC = null;
+
+/* PR B: số đếm ở nền về sau khi trang chủ đã vẽ. Chỉ thay con số: cập nhật
+   bản chụp dòng gốc và VGB_HUB (màn phân hệ mở sau sẽ đọc), rồi sửa huy hiệu
+   trên từng ô lớn đang hiện. Không vẽ lại lưới, nên ô tìm, ô ghim và các dòng
+   chữ máy đã điền sau (doanh thu hôm nay) giữ nguyên. */
+function vgbCapNhatSo(html) {
+  var body = document.getElementById('vgbBody');
+  if (!body || !VGB_DONG_GOC) return;
+  var tam = document.createElement('div');
+  tam.innerHTML = html;
+  var rows = tam.querySelectorAll('[data-go]');
+  for (var i = 0; i < rows.length; i++) {
+    var el = rows[i], go = el.dataset.go;
+    var b = el.querySelector('.bdg');
+    var n = b ? parseInt((b.textContent || '').replace(/\D/g, ''), 10) || 0 : 0;
+    var cu = VGB_DONG_GOC[go];
+    if (cu && cu.cnt === n) continue;
+    VGB_DONG_GOC[go] = { html: el.outerHTML, cnt: n };
+    if (VGB_HUB[go]) { VGB_HUB[go].cnt = n; VGB_HUB[go].html = el.outerHTML; }
+  }
+  var oLon = {};
+  var dsO = body.querySelectorAll('[data-nhom]');
+  for (var q = 0; q < dsO.length; q++) {
+    if (dsO[q].classList.contains('gt')) oLon[dsO[q].getAttribute('data-nhom')] = dsO[q];
+  }
+  for (var j = 0; j < VGB_NHOM.length; j++) {
+    var nh = VGB_NHOM[j];
+    var o = oLon[nh.k];
+    if (!o) continue;
+    var so = vgbSoNhom(nh);
+    var gb = o.querySelector('.gb');
+    if (so) {
+      if (!gb) { gb = document.createElement('span'); gb.className = 'gb'; o.insertBefore(gb, o.firstChild); }
+      if (gb.textContent !== String(so)) gb.textContent = String(so);
+    } else if (gb) gb.parentNode.removeChild(gb);
+  }
+}
 
 function vgbGomNhom() {
   vgbCss();
@@ -27022,6 +27164,7 @@ async function scrVanDon() {
   vdTuLamMoi();
   if (!vdNgay) vdNgay = today();
   frame('Vận đơn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải vận đơn...</div></div>');
+  var conMan = vgbManNay();
   var ds;
   if (vdVeSuong && vdDs && vdDsNgay === vdNgay) {
     vdVeSuong = 0;
@@ -27032,7 +27175,9 @@ async function scrVanDon() {
       var nap = await vdNapDanhSach();
       ds = nap[0]; vdBoLoc = nap[1]; vtShipper = nap[2];
     }
-    catch (e) { frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+    catch (e) { if (conMan()) frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+    /* Đã sang màn khác hoặc đã đổi ngày: danh sách này là của lần mở cũ. */
+    if (!conMan()) return;
     vdDs = ds; vdDsNgay = vdNgay;
   }
   var chonMode = !!window.vdChon;
@@ -27233,10 +27378,12 @@ async function scrVanDon() {
 
 async function scrVdCod() {
   frame('Đối soát COD', '<div class="emp"><div class="e1">⏳</div></div>');
+  var conMan = vgbManNay();
   var ng = vdNgay || today();
   var ds;
   try { ds = await api('vagabond.van_don.doi_soat_cod', { ngay: ng }); }
-  catch (e) { frame('Đối soát COD', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  catch (e) { if (conMan()) frame('Đối soát COD', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (!conMan()) return;
   var html = '<div class="card" style="padding:12px 14px"><input type="date" class="hin" id="codDate" value="' + ng + '" style="margin:0"></div>';
   if (!ds.length) html += '<div class="emp"><div class="e1">💵</div><div>Chưa có đơn Đã giao nào trong ngày này.</div></div>';
   ds.forEach(function (g) {
@@ -27349,9 +27496,11 @@ function vdCanAnhGiao(d) {
 }
 async function scrVdView(name) {
   frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⏳</div></div>');
+  var conMan = vgbManNay();
   var d;
   try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } await vdNapDiem(); }
-  catch (e) { frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
+  catch (e) { if (conMan()) frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
+  if (!conMan()) return;
   /* v617: thanh tiến độ 1-2-3-4 của vận đơn, ngay đầu màn (anh Việt 28/10/2026). */
   var vdB = buocVanDon(d);
   var html = '<div class="card" data-vdbuoc="1" style="padding:12px 10px 10px">' + veBuoc(vdB.buoc, vdB.hienTai, 'Tiến độ vận đơn') + '</div>' +
@@ -27867,7 +28016,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '683';
+var APPVER = '684';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -32177,6 +32326,7 @@ function kgRong() {
 async function scrKhungDs() {
   var ma = kgMa, ts = kgTs(ma);
   frame('Danh sách', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc dữ liệu...</div></div>');
+  var conMan = vgbManNay();
   var goi = { ma: ma };
   Object.keys(ts).forEach(function (k) {
     if (ts[k] !== '' && ts[k] != null) goi[k] = ts[k];
@@ -32184,9 +32334,11 @@ async function scrKhungDs() {
   var kq;
   try { kq = await api('vagabond.khung.ds.chay', goi); }
   catch (e) {
-    frame('Danh sách', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    if (conMan()) frame('Danh sách', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
+  /* PR B: đã sang màn khác trong lúc chờ thì không vẽ đè (vgbManNay, phần 01). */
+  if (!conMan()) return;
 
   var xem = kgXem[ma] || 'the';
   var html = kgTheTomTat(kq) +
