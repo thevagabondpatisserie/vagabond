@@ -150,6 +150,24 @@ def _hook():
 	la("chốt chặn hỏng thì cho chạy", chay("git commit -m x", l1, (2026, 12, 1), hong=True), 0)
 
 
+@ca("hook đọc đúng lệnh git commit: -a, --all, -i, đường dẫn, tham số có giá trị, heredoc, nhiều lệnh nối nhau")
+def _doc_commit():
+	dc = HK.doc_commit
+	la("không có commit", dc("git push origin HEAD:x"), None)
+	la("commit thường", dc("git commit -m 'sua -- x'"), {"all": False, "include": False, "duong_dan": []})
+	la("-am", dc("git commit -am x"), {"all": True, "include": False, "duong_dan": []})
+	la("--amend không phải -a", dc("git commit --amend -m x")["all"], False)
+	la("-qF - heredoc, lệnh sau", dc("git add -A && git commit -q -F - <<'EOF'\nSua a\nEOF\ngit push origin HEAD:x"),
+		{"all": False, "include": False, "duong_dan": []})
+	la("đường dẫn sau --", dc("git commit -m 'a b' -- docs/a.md docs/b.md")["duong_dan"], ["docs/a.md", "docs/b.md"])
+	la("đường dẫn không có --, lệnh sau xuống dòng", dc('git commit -m x docs/a.md\ngit push')["duong_dan"], ["docs/a.md"])
+	la("-i, --author=, -mgiá trị dính", dc("git commit -i --author='A <a@vi.du>' -mabc docs/a.md"),
+		{"all": False, "include": True, "duong_dan": ["docs/a.md"]})
+	la("--message giá trị tách", dc("git commit --message x --all")["all"], True)
+	la("hở dấu nháy", dc("git commit -m 'don"), "?")
+	la("đường dẫn trong tệp thì xét chặt", dc("git commit -m x --pathspec-from-file=ds.txt"), "?")
+
+
 def _git_tam(thu_muc, *a):
 	import subprocess
 	return subprocess.run(("git", "-C", thu_muc, "-c", "user.email=kiem@vi.du", "-c", "user.name=kiem",
@@ -217,6 +235,30 @@ def _git_that():
 			la("commit thường bỏ qua phần chưa stage", hook("git commit -m x"), 0)
 			la("commit -a xét cả bản làm việc", hook("git commit -am x"), 2)
 			la("commit --all xét cả bản làm việc", hook("git commit --all -m x"), 2)
+			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
+			# Codex #609 vòng 3. A: commit có đường dẫn ghi bản làm việc của đường dẫn đó.
+			io.open(os.path.join(tam, "docs", "a.md"), "a", encoding="utf-8").write("ma: %s\n" % token)
+			la("commit -- đường dẫn xét bản làm việc của tệp đó", hook("git commit -m update -- docs/a.md"), 2)
+			la("commit đường dẫn không có --", hook("git commit -m update docs/a.md"), 2)
+			la("commit --only", hook("git commit --only -m update docs/a.md"), 2)
+			io.open(os.path.join(tam, "docs", "b.md"), "w", encoding="utf-8").write("sạch\n")
+			_git_tam(tam, "add", "docs/b.md")
+			la("commit đường dẫn khác thì không ghi tệp có token", hook("git commit -m b -- docs/b.md"), 0)
+			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
+			# B: đã stage token, bản làm việc đã sửa sạch: commit -a và commit đường dẫn ghi bản sạch.
+			io.open(os.path.join(tam, "docs", "a.md"), "a", encoding="utf-8").write("ma: %s\n" % token)
+			_git_tam(tam, "add", "docs/a.md")
+			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
+			la("commit -am sửa lỗi không bị chặn", hook("git commit -am fix"), 0)
+			la("commit đường dẫn sửa lỗi không bị chặn", hook("git commit -m fix -- docs/a.md"), 0)
+			la("commit thường vẫn ghi index có token", hook("git commit -m x"), 2)
+			la("commit --only tệp khác bỏ qua index có token", hook("git commit -m b -- docs/b.md"), 0)
+			la("commit -i tệp khác vẫn ghi index có token", hook("git commit -i -m x -- docs/b.md"), 2)
+			la("index thật không bị hook đổi", _git_tam(tam, "diff", "--cached", "--name-only").split(), ["docs/a.md", "docs/b.md"])
+			_git_tam(tam, "reset", "-q")
+			# Không đọc được lệnh: xét cả index lẫn bản làm việc.
+			io.open(os.path.join(tam, "docs", "a.md"), "a", encoding="utf-8").write("ma: %s\n" % token)
+			la("lệnh hở dấu nháy thì xét chặt", hook("git commit -m 'don"), 2)
 			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
 			# 4. APPVER lùi chỉ ở bản đã stage: đọc đúng tệp trong index.
 			io.open(tep_ver, "w", encoding="utf-8").write("var APPVER = '699';\n")
