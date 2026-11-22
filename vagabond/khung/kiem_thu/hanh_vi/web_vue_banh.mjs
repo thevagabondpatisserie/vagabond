@@ -1518,11 +1518,11 @@ await ca('v682 mở lại checkout (đã xác thực trong phiên trước, cook
 
 /* ---------------- v684 (BẢN 2 mục 2.3): ô Phường giao ---------------- */
 const PH = [
-  {ma: '84_VN12901', ten: 'Phường Sài Gòn', khu: 'q1', quan_cu: 'Quận 1 cũ', cu: ['Bến Nghé', 'Đa Kao', 'Nguyễn Thái Bình'], loai: ''},
-  {ma: '84_VN12902', ten: 'Phường Tân Định', khu: 'q1', quan_cu: 'Quận 1 cũ', cu: ['Tân Định', 'Đa Kao'], loai: ''},
-  {ma: '84_VN12903', ten: 'Phường Bến Thành', khu: 'q1', quan_cu: 'Quận 1 cũ', cu: ['Bến Thành', 'Phạm Ngũ Lão'], loai: ''},
-  {ma: '84_VN129015', ten: 'Phường Bàn Cờ', khu: 'q3', quan_cu: 'Quận 3 cũ', cu: ['Phường 1', 'Phường 2', 'Phường 5'], loai: ''},
-  {ma: '84_VN12924', ten: 'Phường Bình Đông', khu: 'q8', quan_cu: 'Quận 8 cũ', cu: ['Phường 6', 'An Phú Tây (Bình Chánh)'], loai: 'mot_phan'},
+  {ma: '84_VN12901', ten: 'Phường Sài Gòn', khu: 'q1', quan_cu: 'Quận 1', cu: ['Bến Nghé', 'Đa Kao', 'Nguyễn Thái Bình'], loai: ''},
+  {ma: '84_VN12902', ten: 'Phường Tân Định', khu: 'q1', quan_cu: 'Quận 1', cu: ['Tân Định', 'Đa Kao'], loai: ''},
+  {ma: '84_VN12903', ten: 'Phường Bến Thành', khu: 'q1', quan_cu: 'Quận 1', cu: ['Bến Thành', 'Phạm Ngũ Lão'], loai: ''},
+  {ma: '84_VN129015', ten: 'Phường Bàn Cờ', khu: 'q3', quan_cu: 'Quận 3', cu: ['Phường 1', 'Phường 2', 'Phường 5'], loai: ''},
+  {ma: '84_VN12924', ten: 'Phường Bình Đông', khu: 'q8', quan_cu: 'Quận 8', cu: ['Phường 6', 'An Phú Tây (Bình Chánh)'], loai: 'mot_phan'},
 ];
 function mayChuPh(them = {}) {
   const v = {phiGiao: 0, gui: []};
@@ -1565,6 +1565,43 @@ await ca('v684 chọn phường: chưa có địa chỉ thì không có phí (kh
   la('không gọi hãng giao', v.phiGiao, 0);
   k.S.f.addr = '12 Nguyễn Huệ, Phường Sài Gòn'; k.quoteShip(); await chayHen(); await chayHen();
   la('đủ địa chỉ: phí chính xác', [k.S.CO.shipTrangThai, k.S.CO.ship, v.phiGiao], ['chinh_xac', 41000, 1]);
+});
+
+await ca('v684 Codex #606: hỏi phí gửi kèm mã phường đang chọn (máy chủ ghép phường như lúc gửi đơn); đổi phường là hỏi lại với phường mới; bỏ phường thì không gửi', async () => {
+  const hoi = [];
+  const {mang} = mayChuPh({'vagabond.giao_hang.phi_giao': p => { hoi.push(Object.assign({}, p)); return {ok: 1, total_fee: 41000}; }});
+  const {mt, chayHen} = moiTruong('2026-11-22T08:00:00', mang);
+  const k = taoKho(mt); await k.napCauHinh();
+  coThem(k); k.moPhuong(); await chayHen();
+  k.chonPhuong('84_VN12903'); await chayHen();
+  k.S.f.addr = '12 Nguyễn Huệ'; k.quoteShip(); await chayHen(); await chayHen();
+  la('lần một: phường Bến Thành', [hoi.length, hoi[0].addr, hoi[0].phuong], [1, '12 Nguyễn Huệ', '84_VN12903']);
+  k.moPhuong(); k.chonPhuong('84_VN12901'); await chayHen(); await chayHen();
+  la('đổi phường: hỏi lại với phường mới', [hoi.length, hoi[hoi.length - 1].phuong], [2, '84_VN12901']);
+  k.boPhuong(); await chayHen(); await chayHen();
+  dung('bỏ phường: không gửi mã phường', !('phuong' in hoi[hoi.length - 1]));
+  /* Marketing sửa chữ "cũ" ở bảng chữ thì dòng quận cũ đổi theo (Codex #606). */
+  const e2 = moiTruong('2026-11-22T08:00:00', mayChuPh().mang);
+  e2.mt.t = (key, d, thay) => t0(key, key === 'ph684_cu' ? '(trước 7/2025)' : d, thay);
+  const k2 = taoKho(e2.mt); await k2.napCauHinh();
+  k2.chonPhuong('84_VN12903'); await e2.chayHen();
+  la('chữ "cũ" theo bảng chữ', k2.theoPhuong.value.chu, 'Phường Bến Thành · Quận 1 (trước 7/2025)');
+});
+
+await ca('v684 Codex #606: địa chỉ đã lưu kiểu cũ (Phường Tân Phú, Quận 7) không tự đổi phường khách đã chọn sang phường Tân Phú mới, cũng không bỏ chọn; luật thuần khớp máy chủ', async () => {
+  const PH2 = PH.concat([{ma: '84_VN12920', ten: 'Phường Tân Mỹ', khu: 'q7', quan_cu: 'Quận 7', cu: ['Tân Phú', 'Phú Mỹ'], loai: ''},
+    {ma: '84_VN12965', ten: 'Phường Tân Phú', khu: 'tan-phu', quan_cu: 'Tân Phú', cu: ['Phú Trung'], loai: ''}]);
+  const {mang} = mayChuPh({'vagabond.don_web.cau_hinh_web': () => ({phuong: PH2, mien_phi_tu: 0})});
+  const {mt, chayHen} = moiTruong('2026-11-22T08:00:00', mang);
+  const k = taoKho(mt); await k.napCauHinh();
+  coThem(k); k.moPhuong(); await chayHen();
+  k.chonPhuong('84_VN12920'); await chayHen();
+  const cu = '10 Nguyễn Lương Bằng, Phường Tân Phú, Quận 7, TP. Hồ Chí Minh';
+  const {phuongTrongDiaChi, laDiaChiCu} = await import('../../../public/web_vue/kho/thuan.js');
+  la('kiểu cũ: không đoán phường', [laDiaChiCu(cu), phuongTrongDiaChi(PH2, cu)], [true, null]);
+  k.S.CO.addrList = [{full_address: cu}]; k.selAddr(0); await chayHen();
+  la('giữ Tân Mỹ khách đã chọn', k.S.CO.phuong, '84_VN12920');
+  la('kiểu mới vẫn tự điền', phuongTrongDiaChi(PH2, '7 Lũy Bán Bích, Phường Tân Phú, Thành phố Hồ Chí Minh').ma, '84_VN12965');
 });
 
 await ca('v684 phường có phần ngoài vùng giao: không nhận nguyên phường, phí "chưa tính được", mời gõ địa chỉ; không bao giờ thành 0 đ', async () => {

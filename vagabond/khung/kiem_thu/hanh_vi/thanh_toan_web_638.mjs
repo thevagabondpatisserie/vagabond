@@ -367,8 +367,8 @@ await ca('v684 thẻ ĐƠN HÀNG và NHẬN BÁNH: từng chiếc có cờ, thi�
   const D = bienNhan(ttCho());
   Object.assign(D.bien_nhan, {ngay_nhan: 'Thứ 3, 24/11', khung_gio: '14h - 16h', cach_nhan: 'Giao tận nơi', ten: 'N. V. An',
     nhan_banh: {tu_lay: false, noi: 'Phường Bến Thành', nguoi_nhan: 'T. Bình', la_nguoi_dat: false},
-    dong: [{loai: 'banh', ma: 'BAWC00139', ten: 'Epi · Ø 12cm', sl: 2, gia: '900.000 đ', chiec: [{co: 'Cờ: “Happy 30”', thiep: 'Thiệp ép kim', loi_thiep: 'Thương em'}, {co: 'Không cờ', thiep: 'Không thiệp', loi_thiep: ''}]},
-      {loai: 'them', ma: 'BAPK00010', ten: 'Nến số 3', sl: 1, gia: '10.000 đ'}, {loai: 'tang', ten: 'Dĩa giấy bã mía x5, nĩa gỗ x5', gia: 'tặng kèm'}],
+    dong: [{loai: 'banh', ma: 'BAWC00139', ten: 'Epi · Ø 12cm', sl: 2, gia: '900.000 đ', chiec: [{co: true, loi_chuc: 'Happy 30', thiep: 'ep_kim', loi_thiep: 'Thương em'}, {co: false, loi_chuc: '', thiep: '', loi_thiep: ''}]},
+      {loai: 'them', ma: 'BAPK00010', ten: 'Nến số 3', sl: 1, gia: '10.000 đ'}, {loai: 'tang', muc: [{ma: 'dia', sl: 5}, {ma: 'nia', sl: 5}]}],
     anh: {BAWC00139: '/files/epi.webp'}});
   const b = await veBienNhan(D);
   const d = chu(theoId(b.goc, 'bn-don'));
@@ -380,6 +380,13 @@ await ca('v684 thẻ ĐƠN HÀNG và NHẬN BÁNH: từng chiếc có cờ, thi�
   dung('không số điện thoại', !/\d{9,}/.test(n));
   theoId(b.goc, 'bn-ma').props.onClick(); await cho();
   la('bấm mã đơn: chép, báo đã chép', [b.chep[b.chep.length - 1], chu(theoId(b.goc, 'bn-ma'))], ['DW-2611-00123', 'Đã chép mã đơn']);
+  /* Codex #606: Marketing sửa chữ ở bảng chữ thì biên nhận đổi theo; lựa chọn đã lưu và lời của khách giữ nguyên. */
+  D.nhan = Object.assign({}, D.nhan, {bn684_khong_co: 'Không gắn cờ', bn684_co: 'Cờ ghi', bn684_khong_thiep: 'Không kèm thiệp',
+    bn684_thiep_ep_kim: 'Thiệp vàng', bn684_dia: 'đĩa giấy', bn684_nia: 'nĩa tre', bn684_tang_kem: 'quà kèm'});
+  const s2 = chu(theoId((await veBienNhan(D)).goc, 'bn-don'));
+  dung('chữ theo bảng chữ', s2.includes('Không gắn cờ') && s2.includes('Cờ ghi: “Happy 30”') && s2.includes('Thiệp vàng: “Thương em”')
+    && s2.includes('Không kèm thiệp') && s2.includes('Đĩa giấy x5, nĩa tre x5') && s2.includes('quà kèm'));
+  dung('không còn chữ mặc định', !s2.includes('Không cờ') && !s2.includes('tặng kèm') && !s2.includes('bã mía'));
 });
 
 await ca('v684 đơn huỷ: dải xám thay tiến trình, có Nhắn The Vagabond, không nút trả tiền', async () => {
