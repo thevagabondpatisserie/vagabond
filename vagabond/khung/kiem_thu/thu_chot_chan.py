@@ -207,6 +207,17 @@ def _git_that():
 			_git_tam(tam, "reset", "-q", nen, "--", "docs/a.md")
 			la("index và bản làm việc sạch", (CC.chay(nen, muc=True)[0], CC.chay(nen, cay=True)[0]), ([], []))
 			la("hook chặn push commit có token", hook("git push origin HEAD:x"), 2)
+			# Codex #609 vòng 2: HEAD còn lỗi nhưng bản sắp commit đã sạch thì commit sửa lỗi phải đi được.
+			la("commit sửa lỗi không bị chặn", hook("git commit -m sua"), 0)
+			la("amend sửa lỗi không bị chặn", hook("git commit --amend -m sua"), 0)
+			_git_tam(tam, "commit", "-q", "-m", "sua")
+			la("đã sửa thì push đi được", hook("git push origin HEAD:x"), 0)
+			# Token chỉ ở bản làm việc: commit thường không ghi nó, commit -a thì có.
+			io.open(os.path.join(tam, "docs", "a.md"), "a", encoding="utf-8").write("ma: %s\n" % token)
+			la("commit thường bỏ qua phần chưa stage", hook("git commit -m x"), 0)
+			la("commit -a xét cả bản làm việc", hook("git commit -am x"), 2)
+			la("commit --all xét cả bản làm việc", hook("git commit --all -m x"), 2)
+			io.open(os.path.join(tam, "docs", "a.md"), "w", encoding="utf-8").write("dòng cũ\n")
 			# 4. APPVER lùi chỉ ở bản đã stage: đọc đúng tệp trong index.
 			io.open(tep_ver, "w", encoding="utf-8").write("var APPVER = '699';\n")
 			_git_tam(tam, "add", CC.TEP_APPVER)
