@@ -1048,6 +1048,11 @@ def tao_don(don=None):
 		tin_kho.bao_don_web_moi(ban_ghi.name, ten, ngay, tu_lay, don.get("diem_lay_ten"), dia_chi, snapshot["mon"],
 			tien_banh - giam_tong, phi, kq.get("pancake_display_id") or kq.get("pancake_id"))
 		frappe.db.commit()
+		# v684 (anh Việt 22/11/2026): tin Zalo xác nhận đơn cho khách, nút mở
+		# đúng trang biên nhận. Chưa khai mã mẫu thì thôi; không bao giờ chặn đơn.
+		from vagabond import tin_xac_nhan_don
+
+		tin_xac_nhan_don.xep(ban_ghi, nonce)
 
 	if giam_tong and kq["ket_qua"] == "da_nhan":
 		ma_don = kq.get("pancake_id")

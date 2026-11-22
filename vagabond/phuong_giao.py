@@ -198,6 +198,19 @@ def la_dia_chi_cu(dia_chi):
 	return bool(re.search(r" (quan|huyen) ", a) or re.search(r" (thanh pho|tp) thu duc ", a))
 
 
+def co_phuong(dia_chi, p):
+	"""Địa chỉ đã ghi phường `p` như MỘT phần riêng ("..., Phường Tân Sơn",
+	"P. Tân Sơn", "p tan son"), không phải chữ trùng tên nằm trong tên đường
+	("10 Tân Sơn" là đường Tân Sơn, Codex #606). THUẦN."""
+	ten = bo_dau(p["ten"].split(" ", 1)[1])
+	mau = re.compile(r"^(phuong|xa|p)\s*" + re.escape(ten) + r"$")
+	for phan in str(dia_chi or "").split(","):
+		c = " ".join(re.sub(r"[^a-z0-9 ]+", " ", bo_dau(phan)).split())
+		if mau.match(c):
+			return True
+	return False
+
+
 def dia_chi_co_phuong(dia_chi, p):
 	"""Địa chỉ gửi Pancake mang tên phường mới (mục 2.3). THUẦN.
 
@@ -211,7 +224,7 @@ def dia_chi_co_phuong(dia_chi, p):
 	ten = p["ten"]
 	# Địa chỉ kiểu cũ (còn Quận, Huyện): tên phường trong đó là phường CŨ, có thể
 	# trùng tên phường mới ở nơi khác, nên vẫn ghi rõ phường mới (Codex #606).
-	if not la_dia_chi_cu(dia_chi) and bo_dau(ten.split(" ", 1)[1]) in bo_dau(dia_chi):
+	if not la_dia_chi_cu(dia_chi) and co_phuong(dia_chi, p):
 		return dia_chi
 	return (dia_chi.rstrip(" ,") + ", " + ten) if dia_chi else ten
 
