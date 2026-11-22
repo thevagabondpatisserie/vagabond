@@ -162,6 +162,44 @@ export function vgbChuan(s) {
   return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
 }
 
+/* ---------------- Phường giao (v684, BẢN 2 mục 2.3) ---------------- */
+/* Chữ thường, bỏ dấu, đ thành d, gom khoảng trắng. */
+export function boDauPhuong(s) {
+  return String(s || '').toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+const tenTran = p => boDauPhuong(String(p.ten || '').replace(/^(Phường|Xã) /, ''));
+/* Lọc bảng phường theo chữ khách gõ: tên phường mới, quận cũ, phường cũ; không dấu cũng khớp.
+   Thứ tự: khớp đầu tên mới, khớp trong tên mới, rồi khớp quận cũ hay phường cũ.
+   `khop` là chữ cũ đã khớp (để tô Robin). */
+export function locPhuong(ds, q, toiDa = 8) {
+  let k = boDauPhuong(q).replace(/^(phuong|xa|p) /, '');
+  if (!k) return [];
+  const so = /^\d+$/.test(k) ? 'phuong ' + k : '';
+  const hang = [];
+  (ds || []).forEach(p => {
+    const ten = tenTran(p);
+    if (ten.startsWith(k)) { hang.push([0, p, '']); return; }
+    if (ten.includes(k)) { hang.push([1, p, '']); return; }
+    const qc = boDauPhuong(p.quan_cu);
+    if (qc.includes(k) || ('quan ' + qc).includes(k)) { hang.push([2, p, p.quan_cu]); return; }
+    const c = (p.cu || []).find(x => { const b = boDauPhuong(x); return so ? b === so || b.startsWith(so + ' ') : b.includes(k); });
+    if (c) hang.push([3, p, c]);
+  });
+  hang.sort((a, b) => a[0] - b[0] || String(a[1].ten).localeCompare(String(b[1].ten), 'vi'));
+  return hang.slice(0, toiDa).map(([, p, khop]) => Object.assign({}, p, {khop}));
+}
+/* Phường mới ghi trong một địa chỉ (gợi ý Goong, địa chỉ đã lưu). Chỉ trả khi chắc chắn:
+   đúng MỘT phường trong bảng có tên đứng sau chữ "Phường"/"Xã" trong địa chỉ. Không đoán. */
+export function phuongTrongDiaChi(ds, diaChi) {
+  const a = ' ' + boDauPhuong(diaChi) + ' ';
+  const thay = (ds || []).filter(p => {
+    const ten = tenTran(p);
+    return a.includes(' phuong ' + ten + ' ') || a.includes(' xa ' + ten + ' ');
+  });
+  return thay.length === 1 ? thay[0] : null;
+}
+
 /* ---------------- Giỏ ---------------- */
 
 /* v598: MỘT nguồn cho dụng cụ tặng theo yêu cầu (nĩa gỗ, dĩa bã mía, thiệp nhỏ),
