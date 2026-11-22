@@ -1,0 +1,67 @@
+/* v684 (BẢN 2 mục 3): biên nhận đơn web mới. Màu Robin #4FDBF2, vàng nhắc việc #FDB738. */
+.bn6 .bn-in{max-width:560px}
+.bn6-dau{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;margin:8px 0 18px}
+.bn6-dia{width:44px;height:44px;border-radius:50%;background:#4FDBF2;color:#0e0e0e;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}
+.bn6-dau h1{font-size:22px;margin:0}
+.bn6-ma{min-height:44px;padding:0 18px;border-radius:999px;border:1px solid rgba(79,219,242,.6);background:transparent;color:inherit;font-family:inherit;font-weight:600;font-size:15px;line-height:1;letter-spacing:.04em;cursor:pointer}
+.bn6-buoc{list-style:none;display:flex;margin:0 0 18px;padding:0;counter-reset:b}
+.bn6-buoc li{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;opacity:.6}
+.bn6-buoc li i{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:transparent;position:relative;z-index:1}
+.bn6-buoc li+li::before{content:"";position:absolute;top:7px;right:50%;width:100%;height:2px;background:rgba(255,255,255,.2)}
+.bn6-buoc li.xong{opacity:1}.bn6-buoc li.xong i{background:#4FDBF2;border-color:#4FDBF2}
+.bn6-buoc li.xong+li::before,.bn6-buoc li.xong::before{background:#4FDBF2}
+.bn6-buoc li.dang{opacity:1;color:#FDB738}.bn6-buoc li.dang i{border-color:#FDB738;box-shadow:0 0 0 5px rgba(253,183,56,.22)}
+.bn6-xam{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.08);margin:0 0 18px;font-size:15px}
+.bn6-tt{border-radius:24px;border:1px solid rgba(79,219,242,.6);background:linear-gradient(160deg,rgba(79,219,242,.16),rgba(79,219,242,.03));padding:18px;margin:0 0 16px}
+.bn6-tt.ok{border-color:rgba(79,219,242,.4)}
+.bn6-nhan,.bn6-nho{font-size:13px;letter-spacing:.08em;font-weight:600;opacity:.85;margin:0 0 6px}
+.bn6-nho{margin-top:14px}
+.bn6-so{font-size:32px;font-weight:700;color:#4FDBF2;margin:0 0 10px}
+.bn6-cach{display:flex;align-items:center;gap:10px;font-size:14px;margin:0 0 12px}
+.bn6-logo-tt{height:20px;width:auto;background:#fff;border-radius:4px;padding:2px 4px}
+.bn6-phu{font-size:13px;line-height:1.5;opacity:.85;margin:8px 0}
+.bn6-loi{font-size:14px;color:#FDB738;margin:8px 0}
+.bn6-nut{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;border:0;border-radius:999px;background:#4FDBF2;color:#0e0e0e;font-family:inherit;font-weight:700;font-size:15px;line-height:1.2;letter-spacing:.04em;text-decoration:none;cursor:pointer;margin:12px 0 4px}
+.bn6-nut svg{width:20px;height:20px;fill:#0e0e0e}
+.bn6-nut[disabled]{opacity:.6}
+.bn6-luoi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.bn6-app{min-width:0;font-family:inherit;min-height:64px;border-radius:14px;border:2px solid transparent;background:#fff;color:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 2px;cursor:pointer;position:relative}
+.bn6-app img{width:30px;height:30px;border-radius:8px}
+.bn6-app span{font-size:13px;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bn6-app small{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#FDB738;color:#1a1a1a;font-size:13px;line-height:1;padding:2px 6px;border-radius:999px;white-space:nowrap}
+.bn6-app.on{border-color:#4FDBF2;box-shadow:0 0 0 2px rgba(79,219,242,.5)}
+.bn6-app.khac b{font-size:18px;line-height:30px}
+.bn6-bang{margin:10px 0;border-radius:18px;border:1px solid rgba(79,219,242,.35);background:#141414;padding:10px}
+.bn6-tim{width:100%;min-height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;padding:0 12px;font-size:15px;box-sizing:border-box}
+.bn6-ds{max-height:280px;overflow:auto;margin:8px 0}
+.bn6-dong{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:44px;border:0;border-bottom:1px solid rgba(255,255,255,.06);background:transparent;color:inherit;font-size:15px;text-align:left;padding:0 6px;cursor:pointer}
+.bn6-dong small{font-size:13px;color:#4FDBF2}
+.bn6-gach{display:inline-flex;align-items:center;min-height:44px;border:0;background:transparent;color:inherit;text-decoration:underline;text-underline-offset:3px;font-size:14px;cursor:pointer;padding:0}
+.bn6-chep-ds{margin-top:10px}
+.bn6-chep{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;border:0;border-top:1px solid rgba(255,255,255,.08);background:transparent;color:inherit;text-align:left;padding:4px 0;cursor:pointer}
+.bn6-chep span{font-size:13px;opacity:.75;flex:none;width:30%}
+.bn6-chep b{flex:1;min-width:0;font-size:15px;overflow-wrap:anywhere}
+.bn6-chep em{font-style:normal;font-size:13px;color:#4FDBF2;flex:none}
+.bn6-cho{margin:12px 0 0;padding:10px 12px;border-radius:12px;background:rgba(253,183,56,.14);color:#FDB738;font-size:14px}
+.bn6-the{border-radius:20px;border:1px solid rgba(255,255,255,.12);padding:16px 18px;margin:0 0 16px;overflow:hidden}
+.bn6-the h2{font-size:13px;letter-spacing:.08em;margin:0 0 10px;opacity:.85}
+.bn6-dong-i{margin:6px 0;font-size:15px;line-height:1.45;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.bn6-ds-mon{list-style:none;padding:0;margin:0}
+.bn6-mon{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.bn6-mon img,.bn6-anh-trong{flex:none;width:52px;height:52px;border-radius:12px;object-fit:cover;background:rgba(255,255,255,.06);display:block}
+.bn6-mon-chu{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.bn6-mon-chu b{font-size:15px;font-weight:600}
+.bn6-mon-chu small{font-size:13px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bn6-mon-chu small.du{white-space:normal}
+.bn6-mon .tien{flex:none;font-size:15px}
+.bn6-mon.tang .tien{font-size:13px;opacity:.8}
+.bn6-tien{margin:10px 0 0}
+.bn6-tien div{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin:6px 0}
+.bn6-tien dd{margin:0;text-align:right}
+.bn6-tien .giam dd{color:#4FDBF2}.bn6-tien .thieu dd{color:#FDB738}
+.bn6-tong{display:flex;justify-content:space-between;align-items:baseline;margin:12px -18px -16px;padding:14px 18px;background:linear-gradient(90deg,rgba(79,219,242,.18),rgba(79,219,242,.05))}
+.bn6-tong b{font-size:24px;color:#4FDBF2}
+.bn6-cuoi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+.bn6-vien{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:999px;border:1px solid rgba(79,219,242,.6);background:transparent;color:inherit;font-family:inherit;font-weight:600;font-size:15px;line-height:1;text-decoration:none;cursor:pointer}
+@media print{.in-an,.bn6-cuoi,.bn6-luoi,.bn6-nut,.bn6-bang,.bn6-gach,.bn6-chep em,.bn-banner,header,footer{display:none!important}
+  body{background:#fff!important;color:#000!important}.bn6-tt,.bn6-the{border-color:#999;background:none}.bn6-so,.bn6-tong b{color:#000}}

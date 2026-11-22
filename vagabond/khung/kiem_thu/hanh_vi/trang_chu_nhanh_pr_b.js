@@ -12,7 +12,8 @@
         (màn phân hệ mở sau đọc đúng). Bấm sang màn khác ngay lúc trang chủ đang dựng: trang chủ
         không vẽ đè.
      6. Đổi tài khoản: không mượn số của người trước.
-     7. Một lượt đếm hỏng: các ô khác vẫn cập nhật, ô hỏng giữ số cũ.
+     7. Một lượt đếm hỏng: các ô khác vẫn cập nhật, ô hỏng giữ số cũ. Tổng trên ô giữ nguyên mà
+        dòng cảnh báo trong ô đổi (phiếu treo quá lâu): màn phân hệ vẫn thấy cảnh báo mới.
      8. vgbManNay: màn async về muộn sau khi đã sang màn khác thì không vẽ; màn tự gọi thẳng
         màn kết quả (không qua điều hướng) vẫn vẽ; đổi ngày (vẽ lại chính màn) bỏ lượt cũ.
 
@@ -59,7 +60,7 @@ function appMoi() {
       if (may.hong[k]) throw new Error('hong ' + k);
       if (loai === 'ds') return dong(may.dat[k] != null ? may.dat[k] : (SO[ten] || 0));
       if (ten === 'vagabond.dat_ban.dem_cho_xac_nhan') return { so: may.dat[k] != null ? may.dat[k] : 2 };
-      if (ten === 'vagabond.don_huy.dem_phieu_cho') return { cho_chi: 1, treo: 0 };
+      if (ten === 'vagabond.don_huy.dem_phieu_cho') return may.dat[k] || { cho_chi: 1, treo: 0 };
       if (ten === 'vagabond.crm.tong_quan') return { viec_toi: 5 };
       if (ten === 'vagabond.ghim.lay') return { ghim: [], toi_da: 5 };
       if (ten === 'vagabond.khung.ds.danh_ba') return [];
@@ -217,6 +218,20 @@ async function ca(ten, f) {
     await a.tha();
     assert.equal(a.g.VGB_HUB.RCV.cnt, 9, 'bảng ô chưa có số mới');
     assert(String(a.g.VGB_HUB.RCV.html).indexOf('>9<') > 0, 'dòng ô Nhập kho chưa đeo số mới');
+  });
+
+  await ca('số trên ô giữ nguyên nhưng cảnh báo trong ô đổi (Codex #608): màn phân hệ thấy cảnh báo mới', async () => {
+    const a = appMoi();
+    await a.trangChu(); await a.tha();
+    assert(String(a.g.VGB_HUB.PHHUY.html).indexOf('treo quá lâu') < 0);
+    a.g.go(function () { a.g.frame('Khác', '<div></div>'); }); await nghi();
+    a.tua(16000);
+    /* Tổng phiếu chờ chi giữ 1, chỉ số phiếu treo quá lâu tăng. */
+    a.may.dat['vagabond.don_huy.dem_phieu_cho'] = { cho_chi: 1, treo: 1 };
+    await a.trangChu(); await a.tha();
+    assert.equal(a.g.VGB_HUB.PHHUY.cnt, 1);
+    assert(String(a.g.VGB_HUB.PHHUY.html).indexOf('1 phiếu treo quá lâu') > 0, 'màn phân hệ vẫn không có cảnh báo phiếu treo');
+    assert(String(a.g.VGB_DONG_GOC.PHHUY.html).indexOf('1 phiếu treo quá lâu') > 0, 'bản chụp dòng gốc vẫn cũ');
   });
 
   await ca('đổi tài khoản: không mượn số của người trước', async () => {

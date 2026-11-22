@@ -308,13 +308,29 @@ export const MAU = `
     <div id="addrBlock" :style="{display: S.CO.mode==='ship' ? 'block' : 'none'}">
       <div class="sec"><span class="n">06</span><h3><span>{{ t('dat_banh_19d05166b','Địa chỉ nhận') }}</span></h3><i class="rule"></i></div>
       <div id="savedAddr"><button v-for="a in kho.diaChiLuu.value" :key="a.i" class="pick" :class="{on: a.on}" @click="kho.selAddr(a.i)"><b>{{ a.dau }}</b><span>{{ a.duoi }}</span></button></div>
-      <div class="fld" id="quanBlock" v-show="(S.cauHinh && S.cauHinh.quan || []).length"><label for="f-quan"><span>{{ t('dat_banh_d754706bf','Khu vực giao') }}</span></label>
-        <select id="f-quan" :value="S.CO.quan" @change="kho.chonQuan($event.target.value)"><option value="">{{ t('dat_banh_cda7716cd','Chọn khu vực để xem phí giao dự kiến') }}</option><option v-for="q in (S.cauHinh && S.cauHinh.quan) || []" :key="q.ma" :value="q.ma">{{ q.ten }}</option></select>
+      <!-- v684 (BẢN 2 mục 2.3): ô gõ tìm phường mới thay ô chọn 20 khu vực. Gõ tên phường mới,
+           tên quận cũ hay phường cũ, không dấu cũng tìm được. Không có phí dự kiến: phí tính theo địa chỉ. -->
+      <div class="fld" id="phuongBlock" v-show="(S.cauHinh && S.cauHinh.phuong || []).length"><label for="f-phuong"><span>{{ t('ph684_nhan','Phường giao') }}</span></label>
+        <div class="ph-o" :class="{mo: S.CO.phMo, da: !!kho.theoPhuong.value && !S.CO.phMo}">
+          <svg class="ph-ghim" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>
+          <input id="f-phuong" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="phuongDs" :aria-expanded="S.CO.phMo ? 'true' : 'false'"
+            :placeholder="t('ph684_goi','Gõ tên phường, quận cũ hoặc phường cũ')"
+            :value="S.CO.phMo ? S.CO.phTim : (kho.theoPhuong.value ? kho.theoPhuong.value.chu : '')"
+            @focus="kho.moPhuong()" @input="kho.goPhuong($event.target.value)" @keydown.esc="kho.dongPhuong()">
+          <button v-if="!S.CO.phMo && kho.theoPhuong.value" type="button" class="ph-bo" :aria-label="t('ph684_bo','Bỏ phường đã chọn')" @click="kho.boPhuong()"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="ph-ds" id="phuongDs" role="listbox" v-if="S.CO.phMo && S.CO.phTim.trim()">
+          <button v-for="p in kho.goiYPhuong.value" :key="p.ma" type="button" role="option" class="ph-dong" @mousedown.prevent @click="kho.chonPhuong(p.ma)">
+            <span class="ph-chu"><b>{{ p.ten }}</b><small><template v-for="(m, i) in p.phu.split(p.khop || '\u0000')" :key="i"><template v-if="i"><em>{{ p.khop }}</em></template>{{ m }}</template></small></span>
+            <span class="ph-tien" v-if="p.ngoai">{{ t('ph684_chua_tinh','chưa tính được') }}</span>
+          </button>
+          <p class="ph-rong" v-if="!kho.goiYPhuong.value.length">{{ t('ph684_rong','Không thấy phường này trong vùng giao. Quý khách gõ địa chỉ bên dưới hoặc gọi cho chúng tôi.') }}</p>
+        </div>
       </div>
       <div class="fld"><label><span>{{ t('dat_banh_c67579097','Địa chỉ chi tiết') }}</span></label>
         <input id="f-addr" :placeholder="t('dat_banh_dd58bee7e','Gõ số nhà và tên đường, rồi chọn trong danh sách')" autocomplete="off" v-model="S.f.addr" @input="kho.goiYDiaChi()">
         <div id="addrGoiY"><div class="goiy" v-if="S.goiY.length"><div class="lbl">{{ t('dat_banh_3e7887810','Chọn đúng địa chỉ bên dưới') }}</div><button v-for="(g,i) in S.goiY" :key="i" type="button" @click="kho.chonGoiY(i)">{{ g.mo_ta }}</button></div></div>
-        <div class="hint" id="shipHint"><dong-chu :phan="S.goi.ship || [thuong(t('dat_banh_e347a8e6c','Chọn khu vực hoặc gõ địa chỉ, hệ thống báo phí giao dự kiến.'))]"/><button v-if="S.goi.phiThuLai" class="cm-nut" @click="kho.quoteShip()">{{ t('thu_phi','Thử lại phí giao') }}</button></div>
+        <div class="hint" id="shipHint"><dong-chu :phan="S.goi.ship || [thuong(t('ph684_goi_y_goc','Gõ địa chỉ, hệ thống báo phí giao.'))]"/><button v-if="S.goi.phiThuLai" class="cm-nut" @click="kho.quoteShip()">{{ t('thu_phi','Thử lại phí giao') }}</button></div>
       </div>
     </div>
 

@@ -32,6 +32,7 @@ TEN_CAM = re.compile(
 # Công cụ chạy một lần đã xong: chuỗi nằm trong mã xác nhận hay nhật ký đã
 # ghi, đổi chữ là làm lệch hash hoặc sai lịch sử. Giữ nguyên, có lý do.
 MIEN_TEP = {
+	"vagabond/phuong_giao.py": "v684: tên phường theo Nghị quyết 1685 (Linh Đông, Linh Xuân...), không phải tên người",
 	"vagabond/doi_chieu_tang_cu.py": "công cụ #225, chuỗi nằm trong mã xác nhận sha256",
 	"vagabond/public/js/sua_pkt_tang.js": "màn của công cụ #225 đã chạy xong",
 	"vagabond/gram_bom_252.py": "công cụ #252 đã chạy, câu căn cứ đã ghi vào bình luận",

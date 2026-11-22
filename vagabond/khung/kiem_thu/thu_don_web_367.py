@@ -325,6 +325,8 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 		# v645: ưu đãi đơn đầu tiên trên web. Mặc định số đã có đơn web (không
 		# giảm) để các ca cũ giữ nguyên; ca v645 truyền `dau` riêng.
 		contextlib=contextlib, don_dau_web=dau or _dau_gia(),
+		# v684: bảng phường mới là mô đun THUẦN, dùng bản thật.
+		phuong_giao=__import__("vagabond.phuong_giao", fromlist=["x"]),
 	)
 	vet.km = g["khuyen_mai"]
 	vet.km.vet.su = vet.su

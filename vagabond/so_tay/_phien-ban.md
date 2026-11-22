@@ -15,6 +15,11 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 ## v685
 - Con số trên ô Trang chủ
 
+## v684
+- Web đặt bánh: ô Phường giao theo phường mới
+- Web đặt bánh: biên nhận mới và nút Mở app ngân hàng
+- Web đặt bánh: tin Zalo xác nhận đơn cho khách
+
 ## v683
 - Không đổi thao tác: sửa hiển thị giao diện mới đang thử (màu vùng đồng hồ, số trên ô nhóm, thanh nút đáy, hộp chọn, nút đóng); trên máy tính có bàn phím, phím Esc đóng hộp đang mở
 

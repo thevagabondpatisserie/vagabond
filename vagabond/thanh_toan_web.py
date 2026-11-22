@@ -147,7 +147,9 @@ def khoi_thanh_toan(d, snap=None):
 
 		tk = _tk()
 		nd = ttt.noi_dung_ck(_shop(), d.get("name"), d.get("pancake_display_id"))
-		k["ck"] = {"ngan_hang": cong_no.TEN_NGAN_HANG_DAY_DU.get(tk.get("bank") or "", tk.get("bank") or ""),
+		# v684: ma_nh (mã ngân hàng VietQR, ví dụ MB) để nút Mở app ngân hàng dựng link
+		# VietQR deeplink; link chỉ mang tài khoản Vagabond, số tiền, nội dung có mã đơn.
+		k["ck"] = {"ma_nh": tk.get("bank") or "", "ngan_hang": cong_no.TEN_NGAN_HANG_DAY_DU.get(tk.get("bank") or "", tk.get("bank") or ""),
 			"stk": tk.get("stk") or "", "ten": tk.get("ten") or "", "noi_dung": nd,
 			"anh": qr_chuyen_khoan.anh_qr(tk, k["con"], nd)}
 	except Exception:

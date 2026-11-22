@@ -5561,7 +5561,10 @@ function vgbCapNhatSo(html) {
     var b = el.querySelector('.bdg');
     var n = b ? parseInt((b.textContent || '').replace(/\D/g, ''), 10) || 0 : 0;
     var cu = VGB_DONG_GOC[go];
-    if (cu && cu.cnt === n) continue;
+    /* So cả dòng chứ không chỉ con số: tổng giữ nguyên mà dòng cảnh báo trong ô
+       đổi (phiếu treo quá lâu, đơn tặng quá hạn) vẫn phải tới màn phân hệ
+       (Codex #608). */
+    if (cu && cu.cnt === n && cu.html === el.outerHTML) continue;
     VGB_DONG_GOC[go] = { html: el.outerHTML, cnt: n };
     if (VGB_HUB[go]) { VGB_HUB[go].cnt = n; VGB_HUB[go].html = el.outerHTML; }
   }
