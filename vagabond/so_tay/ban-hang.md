@@ -1990,3 +1990,21 @@ Từ v684 (giám đốc duyệt 21/11 và 22/11/2026).
 - Nút Lưu biên nhận mở hộp in của trình duyệt (chọn Lưu thành PDF). Nút Nhắn The Vagabond mở Zalo và chép sẵn mã đơn.
 
 **Bạn cần làm:** khách báo đã mở app mà biên nhận chưa đổi thì kiểm nội dung chuyển khoản có đúng mã đơn không; đúng mà chưa về thì chờ vài phút rồi xem Đối soát.
+
+## Web đặt bánh: tin Zalo xác nhận đơn cho khách
+Từ khoá: tin Zalo xác nhận đơn, Xem trạng thái đơn hàng, mã mẫu ZNS, ZBS, tin chưa gửi
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales; quản trị hệ thống | Tin Zalo của khách; Desk Vagabond Don Web, mục Tin Zalo xác nhận đơn; Vagabond Settings | Xem trạng thái đơn hàng |
+
+Từ v684 (giám đốc duyệt 22/11/2026).
+
+**Trước đây:** khách đặt bánh trên web chỉ thấy biên nhận trên trình duyệt; đóng trang là khó tìm lại để trả tiền hay xem đơn.
+**Từ nay:**
+- Pancake nhận đơn xong, hệ thống gửi khách một tin Zalo: mã đơn, ngày nhận, cách nhận, số tiền thanh toán, trạng thái (Chờ thanh toán hay Đã thanh toán) và nút **Xem trạng thái đơn hàng** mở đúng biên nhận của đơn, khách trả tiếp từ đó.
+- Zalo không nhận tin từ 22h tới 6h: đơn đặt lúc đó nhận tin sau 6h sáng, trạng thái thanh toán tính lúc gửi.
+- Mỗi đơn một tin. Desk Vagabond Don Web, mục Tin Zalo xác nhận đơn ghi Đã gửi, Lỗi hay Bỏ qua kèm lý do.
+- Tin chỉ chạy khi ô **Mã mẫu ZNS xác nhận đơn đặt bánh trên web** trong Vagabond Settings có mã mẫu Zalo đã duyệt. Để trống là không gửi, đơn vẫn chạy như cũ.
+
+**Bạn cần làm:** khách báo không nhận tin thì mở đơn trên Desk, xem Lý do chưa gửi (số sai, khách không dùng Zalo); gửi khách đường dẫn biên nhận qua kênh khác nếu cần.
