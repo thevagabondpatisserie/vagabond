@@ -60,3 +60,60 @@ def _():
 	tao_don2(_don(phuong="84_VN_LA"))
 	sn2 = json.loads(vet2.truong["snapshot"])
 	dung("mã lạ: không có phường, địa chỉ giữ nguyên", "phuong" not in sn2 and vet2.body["shipping_address"]["address"] == goc)
+
+
+@ca("v684 Codex #606: báo phí trên trang hỏi ĐÚNG nơi lúc gửi đơn hỏi: phi_giao nhận mã phường và ghép phường bằng cùng hàm; đổi phường là đổi nơi hỏi; mã lạ bị bỏ")
+def _():
+	import sys
+	import types
+
+	import vagabond.giao_hang as gh
+	from vagabond import phuong_giao as g
+	from vagabond.khung.kiem_thu.nen import Doi
+
+	hoi = []
+	dc = types.ModuleType("vagabond.dia_chi")
+	dc.geocode = lambda c, addr: (hoi.append(addr), None)[1]
+	cu_mod, cu = sys.modules.get("vagabond.dia_chi"), (gh.cfg, gh.key)
+	sys.modules["vagabond.dia_chi"] = dc
+	gh.cfg = lambda: Doi({"nguon_phi_giao_web": "Ahamove", "ahamove_api_key": "k",
+		"ahamove_base": "https://x", "ahamove_mobile": "84900000000"})
+	gh.key = lambda doc, f: str(doc.get(f) or "")
+	try:
+		for ma in ("84_VN12903", "84_VN12901", "84_VN_LA", None):
+			kq = gh.phi_giao(addr="10 Lê Lợi", phuong=ma)
+			la("không tìm thấy địa chỉ giả", kq.get("ly_do"), "khong_tim_thay_dia_chi")
+	finally:
+		gh.cfg, gh.key = cu
+		if cu_mod is None:
+			sys.modules.pop("vagabond.dia_chi", None)
+		else:
+			sys.modules["vagabond.dia_chi"] = cu_mod
+	la("nơi hỏi phí theo phường", hoi, [
+		g.dia_chi_co_phuong("10 Lê Lợi", g.tim("84_VN12903")),
+		g.dia_chi_co_phuong("10 Lê Lợi", g.tim("84_VN12901")),
+		"10 Lê Lợi", "10 Lê Lợi"])
+	dung("hai phường khác nhau là hai nơi hỏi khác nhau", hoi[0] != hoi[1])
+
+
+@ca("v684 Codex #606: chữ khách thấy không do máy chủ ghép: tên quận cũ không kèm chữ cũ, thẻ ĐƠN HÀNG chỉ trả lựa chọn đã lưu")
+def _():
+	from vagabond import bien_nhan_web as b, phuong_giao as g
+	dung("quận cũ là dữ liệu", all(not p["quan_cu"].endswith(" cũ") for p in g.danh_sach()))
+	import json as _j
+	s = _j.dumps(b.dong_don({"mon": [{"ma": "B1", "sl": 1, "gia": 1}, {"ma": "BAPK00020", "sl": 2, "gia": 0}],
+		"chiec": [{"ma": "B1", "ten": "Epi", "co": False, "thiep": "nho", "loi_thiep": "Yêu"}]}), ensure_ascii=False)
+	for chu in ("Không cờ", "Cờ chưa", "Thiệp nhỏ", "Không thiệp", "tặng kèm", "Dĩa", "dĩa", "nĩa"):
+		dung("máy chủ không trả chữ " + chu, chu not in s)
+
+
+@ca("v684 Codex #606: địa chỉ kiểu cũ (còn Quận, Huyện) mang tên phường CŨ: Phường Tân Phú, Quận 7 cũ nay là Tân Mỹ; máy chủ vẫn ghi rõ phường mới, không coi là đã có")
+def _():
+	from vagabond import phuong_giao as g
+	cu = "10 Nguyễn Lương Bằng, Phường Tân Phú, Quận 7, TP. Hồ Chí Minh"
+	la("nhận ra kiểu cũ", [g.la_dia_chi_cu(cu), g.la_dia_chi_cu("12 Võ Văn Ngân, TP. Thủ Đức"),
+		g.la_dia_chi_cu("5 Hai Bà Trưng, Phường Tân Định, Thành phố Hồ Chí Minh")], [True, True, False])
+	la("chọn phường Tân Phú mới mà địa chỉ ghi Tân Phú cũ: vẫn ghi rõ phường mới", g.dia_chi_co_phuong(cu, g.tim("84_VN12965")),
+		cu + ", Phường Tân Phú")
+	la("chọn Tân Mỹ: ghi Tân Mỹ", g.dia_chi_co_phuong(cu, g.tim("84_VN12920")), cu + ", Phường Tân Mỹ")
+	la("địa chỉ kiểu mới đã có tên: giữ nguyên", g.dia_chi_co_phuong("5 Hai Bà Trưng, Phường Tân Định", g.tim("84_VN12902")), "5 Hai Bà Trưng, Phường Tân Định")
