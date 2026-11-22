@@ -139,9 +139,21 @@ QUAY = {'cap_nhat': '2026-10-11 09:41:00', 'quay': [
 	{'ma': 'TCV', 'ten': 'Trần Cao Vân', 'dia_chi': '9 Trần Cao Vân', 'mon': [
 		{'ma': 'TEST1', 'ten': 'Biscotti', 'nhom': 'Bánh nhẹ', 'con': 12, 'gia': 90000, 'anh': '/assets/vagabond/web_order/anh-bia.png'}]},
 	{'ma': 'NVHTN', 'ten': 'Nhà Văn hoá Thanh Niên', 'dia_chi': '21 Phạm Ngọc Thạch', 'mon': []}]}
+def _phuong_giao():
+	"""Bảng phường của cây đang chụp. Cây chưa có phuong_giao (main trước v684, ảnh mốc
+	của CI chụp main bằng công cụ của PR) thì trả rỗng, máy chủ fixture vẫn mở."""
+	sys.path.insert(0, str(GOC))
+	try:
+		return __import__('vagabond.phuong_giao', fromlist=['x']).danh_sach()
+	except ImportError:
+		return []
+
+
 CAU_HINH = {'mien_phi_tu': 0, 'pixel_id': '', 'lien_he': {'dien_thoai': '0931 224 334', 'dien_thoai_so': '0931224334'},
 	'chinh_sach': [{'duong': '/chinh-sach', 'ten': 'Chính sách bảo mật', 'khoa': 'chinh_sach_bao_mat'}],
-	'quan': [{'ma': 'Q1', 'ten': 'Quận 1 cũ', 'lat': 10.776, 'lng': 106.700}, {'ma': 'BT', 'ten': 'Bình Thạnh', 'lat': 10.81, 'lng': 106.71}]}
+	'quan': [{'ma': 'Q1', 'ten': 'Quận 1 cũ', 'lat': 10.776, 'lng': 106.700}, {'ma': 'BT', 'ten': 'Bình Thạnh', 'lat': 10.81, 'lng': 106.71}],
+	# v684: bảng phường mới THẬT (mô đun thuần), cho ô Phường giao.
+	'phuong': _phuong_giao()}
 
 
 # v668 ảnh chụp Gợi ý mua thêm (VGB_GY=1): món gợi ý, cặp quầy, mốc miễn phí giao như site.

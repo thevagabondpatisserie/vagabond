@@ -49,7 +49,7 @@ export function taoKho(moiTruong) {
     cur: null, curSizeId: '', soLuong: 1, wish: '', nia: 0, dia: 0, thiep: 0, nums: [], adds: [], dongDangSua: -1, huongSize: false,
     muaDangXem: null,
     CO: {mode: 'ship', pickupId: 'bep-tan-son-hoa', pay: 'bank', other: false, gift: false, vat: false, dongy: false, uudai: false,
-      ship: null, shipTrangThai: null, shipKm: null, payBao: false, quan: '', nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
+      ship: null, shipTrangThai: null, shipKm: null, payBao: false, phuong: '', phTim: '', phMo: false, nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
       ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null,
       /* v645 ưu đãi đơn đầu tiên trên web: bước xác thực số qua Zalo. */
       dd: {buoc: 'nut', ma: '', loi: '', bao: '', dangGui: false, lan: 0, cho: 0, daXac: '', xacSo: ''}, uuTv: null,
@@ -950,30 +950,74 @@ export function taoKho(moiTruong) {
     toast(t('gy_da_them', 'Đã thêm {ten} vào giỏ', {ten: u.ten}));
     return true;
   }
-  const timQuan = ma => (!ma ? null : (((S.cauHinh && S.cauHinh.quan) || []).find(q => q.ma === ma) || null));
+  /* ---------------- Phường giao (v684, BẢN 2 mục 2.3) ----------------
+     Ô gõ tìm thay ô chọn 20 khu vực theo quận cũ. Bảng phường đến từ máy chủ
+     (cau_hinh_web.phuong). Ô chỉ để CHỌN phường: không có phí dự kiến (anh Việt
+     bỏ 22/11/2026), phí giao chỉ tính theo địa chỉ khách gõ. Phường có phần
+     ngoài vùng giao thì báo "chưa tính được", không nhận nguyên phường. */
+  const dsPhuong = () => (S.cauHinh && S.cauHinh.phuong) || [];
+  const timPhuong = ma => (!ma ? null : dsPhuong().find(p => p.ma === ma) || null);
+  const phuongDangChon = computed(() => timPhuong(S.CO.phuong));
+  /* Máy chủ trả tên quận cũ ('Quận 3'); chữ 'cũ' lấy từ bảng chữ (Codex #606). */
+  const chuQuanCu = p => (p.quan_cu ? p.quan_cu + ' ' + t('ph684_cu', 'cũ') : '');
+  const goiYPhuong = computed(() => {
+    if (!S.CO.phMo) return [];
+    return T.locPhuong(dsPhuong(), S.CO.phTim).map(p => ({ma: p.ma, ten: p.ten, khop: p.khop || '',
+      phu: chuQuanCu(p) + (p.cu && p.cu.length ? ' · ' + (p.khop && p.khop !== p.quan_cu ? p.khop : p.cu.slice(0, 3).join(', ')) : ''),
+      ngoai: p.loai === 'mot_phan'}));
+  });
+  /* Chữ hiện trong ô khi đã chọn: "Phường … · Quận X cũ". */
+  const theoPhuong = computed(() => { const p = phuongDangChon.value; return p ? {chu: p.ten + ' · ' + chuQuanCu(p)} : null; });
+  function moPhuong() { S.CO.phMo = true; S.CO.phTim = ''; }
+  function goPhuong(v) { S.CO.phTim = String(v || ''); S.CO.phMo = true; }
+  function dongPhuong() { S.CO.phMo = false; S.CO.phTim = ''; }
+  function chonPhuong(ma) { const p = timPhuong(ma); if (!p) return; S.CO.phuong = p.ma; dongPhuong(); quoteShip(); }
+  function boPhuong() { S.CO.phuong = ''; dongPhuong(); quoteShip(); }
+  /* Địa chỉ chọn từ gợi ý hay địa chỉ đã lưu: ghi đúng một phường mới thì tự điền;
+     ghi một phường không khớp phường đang chọn thì bỏ chọn để khách chọn lại, không đoán. */
+  function phuongTheoDiaChi(diaChi) {
+    /* Địa chỉ kiểu cũ: tên phường cũ có thể trùng phường mới ở nơi khác, nên không
+       tự chọn cũng không bỏ phường khách đã chọn (Codex #606). */
+    if (T.laDiaChiCu(diaChi)) return;
+    const p = T.phuongTrongDiaChi(dsPhuong(), diaChi);
+    if (p) { S.CO.phuong = p.ma; return; }
+    const dang = phuongDangChon.value, a = T.boDauPhuong(diaChi);
+    if (dang && /\b(phuong|xa)\b/.test(a) && !T.coPhuong(diaChi, dang)) S.CO.phuong = '';
+  }
   let soPhi = 0, phiHen = null;
-  const goiYPhiGoc = () => [thuong(t('dat_banh_e347a8e6c', 'Chọn khu vực hoặc gõ địa chỉ, hệ thống báo phí giao dự kiến.'))];
+  const goiYPhiGoc = () => [thuong(t('ph684_goi_y_goc', 'Gõ địa chỉ, hệ thống báo phí giao.'))];
   function quoteShip() {
     const a = (S.f.addr || '').trim();
     S.CO.ngoaiVung = false; S.goi.phiThuLai = false;
     if (S.CO.mode !== 'ship') { S.CO.ship = 0; S.CO.shipTrangThai = null; return; }
-    const q = timQuan(S.CO.quan), duDai = a.length >= 8;
-    if (!duDai && !q) { soPhi++; S.CO.ship = null; S.CO.shipTrangThai = null; S.CO.shipKm = null; S.goi.ship = goiYPhiGoc(); return; }
-    const kieu = duDai ? 'chinh_xac' : 'du_kien';
+    const ph = phuongDangChon.value, duDai = a.length >= 8;
+    if (!duDai && !ph) { soPhi++; S.CO.ship = null; S.CO.shipTrangThai = null; S.CO.shipKm = null; S.goi.ship = goiYPhiGoc(); return; }
+    if (!duDai) {
+      /* Đã chọn phường, chưa gõ đủ địa chỉ: chưa có phí (không có phí dự kiến). */
+      soPhi++; huyHen(phiHen); S.CO.ship = null; S.CO.shipKm = null;
+      S.CO.shipTrangThai = ph.loai === 'mot_phan' ? 'chua_ro' : null;
+      S.goi.ship = ph.loai === 'mot_phan'
+        ? noi(dam(ph.ten), thuong(' ' + t('ph684_mot_phan', 'có một phần nằm ngoài vùng giao, phí giao chưa tính được. Quý khách gõ địa chỉ để có phí.')))
+        : noi(thuong(t('ph684_go_dia_chi', 'Quý khách gõ địa chỉ trong') + ' '), dam(ph.ten), thuong(' ' + t('ph684_de_co_phi', 'để có phí giao.')));
+      return;
+    }
+    const q = null, kieu = 'chinh_xac';
     const so = ++soPhi;
     S.goi.ship = [mau(t('dat_banh_9e52d8e6b', 'Đang hỏi phí giao...'), 'cyan')];
     huyHen(phiHen);
     phiHen = hen(async () => {
       let m = null;
       try {
-        const p = duDai ? (S.CO.pickedLoc ? {lat: S.CO.pickedLoc.lat, lng: S.CO.pickedLoc.lng, addr: a} : {addr: a})
-          : {lat: q.lat, lng: q.lng, addr: q.ten + t('dat_banh_ddfe89cb9', ', TP. Hồ Chí Minh')};
+        const p = S.CO.pickedLoc ? {lat: S.CO.pickedLoc.lat, lng: S.CO.pickedLoc.lng, addr: a} : {addr: a};
         p.luc_giao = mocGioNhan();
+        /* Codex #606: gửi kèm mã phường, máy chủ ghép phường vào địa chỉ bằng đúng
+           hàm lúc gửi đơn, nên đổi phường là đổi nơi hỏi phí. */
+        if (ph) p.phuong = ph.ma;
         m = await doc('vagabond.giao_hang.phi_giao', p);
       } catch (e) { m = null; }
       if (so !== soPhi) return; /* kết quả của lần hỏi cũ về muộn: bỏ */
       apPhiGiao(m, kieu, q);
-    }, duDai ? 700 : 0);
+    }, 700);
   }
   function apPhiGiao(m, kieu, q) {
     S.CO.shipKm = m && typeof m.km_thang === 'number' && kieu !== 'du_kien' ? m.km_thang : null;
@@ -1013,7 +1057,6 @@ export function taoKho(moiTruong) {
           : thuong(t('dat_banh_13d8a57e8', '. Đây là giá giờ hiện tại, khung giờ cao điểm có thể cao hơn.')),
         thuong(' ' + t('dat_banh_5956a13dc', 'Chúng tôi gọi xác nhận lại trước khi giao.')));
   }
-  function chonQuan(ma) { S.CO.quan = String(ma || ''); quoteShip(); }
   function setMode(m) {
     S.CO.mode = m;
     if (m === 'pick') { S.CO.ship = 0; S.CO.shipKm = null; } else { S.CO.ship = null; S.CO.shipTrangThai = null; S.CO.shipKm = null; quoteShip(); }
@@ -1150,7 +1193,7 @@ export function taoKho(moiTruong) {
     const on = S.CO.addrSel === i;
     return {i, on, dau: a.full_name + ' · ' + (on ? a.phone_number : T.maskPhone(a.phone_number)), duoi: on ? a.full_address : T.maskAddr(a.full_address)};
   }));
-  function selAddr(i) { S.CO.addrSel = i; S.CO.pickedLoc = null; S.goiY = []; S.f.addr = S.CO.addrList[i].full_address; quoteShip(); }
+  function selAddr(i) { S.CO.addrSel = i; S.CO.pickedLoc = null; S.goiY = []; S.f.addr = S.CO.addrList[i].full_address; phuongTheoDiaChi(S.f.addr); quoteShip(); }
   let lanDiaChi = 0;
   function goiYDiaChi() {
     const lan = ++lanDiaChi;
@@ -1175,6 +1218,7 @@ export function taoKho(moiTruong) {
       if (m.lat && m.lng) { S.CO.pickedLoc = {lat: m.lat, lng: m.lng}; if (m.dia_chi) S.f.addr = m.dia_chi; }
     } catch (e) { if (lan !== lanDiaChi) return; S.CO.pickedLoc = null; }
     S.CO.addrSel = null;
+    phuongTheoDiaChi(S.f.addr);
     quoteShip();
   }
   function lookupMst() {
@@ -1333,7 +1377,7 @@ export function taoKho(moiTruong) {
     const don = {
       ho_ten: ten, dien_thoai: sdt, email: (S.f.mail || '').trim(),
       nguoi_nhan: S.CO.other ? {ho_ten: (S.f.rname || '').trim(), dien_thoai: (S.f.rphone || '').trim()} : null,
-      tu_lay: tuLay, dia_chi: diaChi,
+      tu_lay: tuLay, dia_chi: diaChi, phuong: tuLay ? '' : (S.CO.phuong || ''),
       lat: S.CO.pickedLoc ? S.CO.pickedLoc.lat : null, lng: S.CO.pickedLoc ? S.CO.pickedLoc.lng : null,
       items: T.hangGui(S.CART, S.DC), tags, ngay_nhan: mocGioNhan(),
       goi_y: S.CART.filter(o => o.goi_y).map(o => o.id),
@@ -1552,7 +1596,7 @@ export function taoKho(moiTruong) {
       const gioLuu = S.CART.map(o => (Array.isArray(o.chiec) ? Object.assign({}, o, {wish: (o.chiec.find(c => c.co !== false && c.wish) || {}).wish || ''}) : o));
       luuTru.setItem(KHOA_LUU, JSON.stringify({luc: bayGio().getTime(), gio: gioLuu.concat(S.gioCho.mua, S.gioCho.banh),
         ngay: S.ngayChon, slot: S.pickedSlot, daChonNgay: S.daChonNgay, daChonGio: S.daChonGio, truong, dc: {...S.DC},
-        co: {mode: S.CO.mode, pickupId: S.CO.pickupId, pay: S.CO.pay, other: S.CO.other, gift: S.CO.gift, vat: S.CO.vat, quan: S.CO.quan, nonce: S.CO.nonce,
+        co: {mode: S.CO.mode, pickupId: S.CO.pickupId, pay: S.CO.pay, other: S.CO.other, gift: S.CO.gift, vat: S.CO.vat, phuong: S.CO.phuong, nonce: S.CO.nonce,
           gc: S.CO.gc.slice(), gcGio: S.CO.gcGio}}));
     } catch (e) { /* kho phiên bị chặn: bỏ qua */ }
   }
@@ -1590,7 +1634,8 @@ export function taoKho(moiTruong) {
       if (S.CO.pickupId && !S.PICKUPS.some(x => x.id === S.CO.pickupId)) S.CO.pickupId = '';
       if (!S.PICKUPS.length) S.CO.mode = 'ship';
       ['other', 'gift', 'vat'].forEach(k => { S.CO[k] = c[k] === true; });
-      S.CO.quan = typeof c.quan === 'string' ? c.quan : '';
+      /* v684: giỏ lưu từ trước bản này có khoá quan (khu vực cũ): bỏ, khách chọn lại phường. */
+      S.CO.phuong = typeof c.phuong === 'string' && timPhuong(c.phuong) ? c.phuong : '';
       S.CO.gc = Array.isArray(c.gc) ? c.gc.filter(ma => GHI_CHU_NHANH.some(x => x.ma === ma)).slice(0, 10) : [];
       S.CO.gcGio = typeof c.gcGio === 'string' && gioTreChon.value.includes(c.gcGio) ? c.gcGio : '';
       S.CO.nonce = /^[A-Za-z0-9_-]{32}$/.test(c.nonce || '') ? c.nonce : '';
@@ -1605,7 +1650,7 @@ export function taoKho(moiTruong) {
   }
   /* Lưu sau mỗi thay đổi giỏ, lịch, lựa chọn và ô nhập. Theo dõi sâu thay cho
      việc nhớ gọi luuGioDangSoan() ở từng chỗ như trang cũ. */
-  watch(() => [S.CART, S.DC, S.f, S.CO.mode, S.CO.pickupId, S.CO.pay, S.CO.other, S.CO.gift, S.CO.vat, S.CO.quan, S.CO.nonce, S.CO.gc, S.CO.gcGio,
+  watch(() => [S.CART, S.DC, S.f, S.CO.mode, S.CO.pickupId, S.CO.pay, S.CO.other, S.CO.gift, S.CO.vat, S.CO.phuong, S.CO.nonce, S.CO.gc, S.CO.gcGio,
     S.ngayChon, S.pickedSlot, S.daChonNgay, S.daChonGio, S.gioCho], luuGio, {deep: true, flush: 'sync'});
   /* v649: ngày nhận đang là hôm nay mà giỏ có bánh đặt trước (hay khách đang ở
      tab Đặt bánh trước, giỏ không có bánh Có sẵn hôm nay) thì dời sang ngày mai
@@ -1665,7 +1710,7 @@ export function taoKho(moiTruong) {
     giaThiep, dsChiec, datCo, datThiep, batThiep, moMauCo, chiecMauCo, soThiepEpKim, dongYBo, giuLai,
     gcHien, gioTreChon, doiGc, chonGioTre, theTomTat, khoaUuDai, uuHienTai, giam, xemUuDai, apMaUuDai, goiYMa,
     theDonDau, guiMaDonDau, xacThucDonDau, theDiem, dungDiem, tienDiem, theThanhVien, daXacThuc, nhapMa, xoaLuiMa, doiSo,
-    mienPhi, quoteShip, apPhiGiao, chonQuan, setMode, diemNhanChon, setPickup, capNhatDiemNhan, tong, dongMienPhi,
+    mienPhi, quoteShip, apPhiGiao, setMode, phuongDangChon, goiYPhuong, theoPhuong, moPhuong, goPhuong, dongPhuong, chonPhuong, boPhuong, diemNhanChon, setPickup, capNhatDiemNhan, tong, dongMienPhi,
     paysHien, cauThanhToan, kiemGioiThieu, coGioiThieu,
     lookupPhone, diaChiLuu, selAddr, goiYDiaChi, chonGoiY, lookupMst,
     moGio, roiGio, submitOrder,

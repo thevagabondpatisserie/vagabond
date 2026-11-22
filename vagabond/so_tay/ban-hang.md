@@ -1951,3 +1951,60 @@ Từ v682 (giám đốc duyệt 21/11/2026).
 - Đổi sang số khác thì xác thực, ưu đãi, điểm, địa chỉ của số cũ mất ngay.
 
 **Bạn cần làm:** khách hỏi chưa nhận được mã thì nhờ khách kiểm tin nhắn Zalo của đúng số đã gõ, chờ hết 1 phút rồi bấm Gửi lại mã.
+
+## Web đặt bánh: ô Phường giao theo phường mới
+Từ khoá: phường giao, phường mới, sáp nhập phường, quận cũ, phí giao, khu vực giao, ngoài vùng giao
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales | Trang đặt bánh, Thông tin đơn hàng, mục 06 Địa chỉ nhận | Ô Phường giao |
+
+Từ v684 (giám đốc duyệt 22/11/2026).
+
+**Trước đây:** ô Khu vực giao chọn 1 trong 20 khu vực theo quận cũ, chọn xong hiện phí dự kiến.
+**Từ nay:**
+- Ô Phường giao: khách gõ tên phường mới, tên quận cũ hoặc tên phường cũ (không dấu cũng được), chọn trong danh sách. Ô hiện "Phường … · Quận X cũ".
+- Không còn phí dự kiến. Phí giao chỉ tính khi khách gõ địa chỉ, theo luật bán kính như cũ; ngoài bán kính thì mời khách nhận tại cửa hàng.
+- Năm phường, xã có một phần ngoài vùng giao (Bình Đông, Tân Tạo, Tân Vĩnh Lộc, Tân Nhựt, Bình Hưng) hiện "chưa tính được", khách phải gõ địa chỉ.
+- Khách chọn địa chỉ trong gợi ý hay địa chỉ đã lưu có ghi phường mới thì ô tự điền phường.
+- Đơn gửi về Pancake mang tên phường mới ở cuối địa chỉ (nếu khách chưa gõ). Đơn cũ không đổi.
+
+**Bạn cần làm:** đọc tên phường mới ở cuối địa chỉ đơn web; phường lạ hay địa chỉ mơ hồ thì gọi khách xác nhận trước khi đặt giao.
+
+## Web đặt bánh: biên nhận mới và nút Mở app ngân hàng
+Từ khoá: biên nhận, mở app ngân hàng, chuyển khoản, VietQR, OnePay, còn thiếu, lưu biên nhận, chép mã đơn
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales | Trang biên nhận sau khi gửi đơn | MỞ APP [ngân hàng]; THANH TOÁN QUA ONEPAY; Lưu biên nhận; Nhắn The Vagabond |
+
+Từ v684 (giám đốc duyệt 21/11 và 22/11/2026).
+
+**Trước đây:** biên nhận là bảng hai cột, chuyển khoản chỉ có mã QR và nút chép nội dung.
+**Từ nay:**
+- Thanh ba bước Nhận đơn, Thanh toán, Nhận bánh. Thẻ thanh toán ghi số CÒN phải trả do hệ thống tính; trả thiếu thì ghi "Đã nhận …, còn thiếu …".
+- Trên điện thoại, khách chọn app ngân hàng (MB, Vietcombank, Techcombank, BIDV, VietinBank, ACB, TPBank, ô Khác) rồi bấm MỞ APP. VietinBank, BIDV, OCB, ACB, MB tự điền số tiền và nội dung; app khác chỉ mở app, khách dán số tài khoản, số tiền, nội dung đã chép. Máy nhớ app đã chọn lần trước.
+- Luôn có mã VietQR (trên điện thoại bấm "Mở trên máy tính? Hiện mã QR để quét") và các nút chép số tài khoản, số tiền, nội dung.
+- Mở app hay quay về từ OnePay chưa phải là đã trả: trang chỉ đổi sang Đã thanh toán khi tiền về hệ thống.
+- Thẻ Nhận bánh có ngày giờ, cách nhận, phường (không địa chỉ, số điện thoại); thẻ Đơn hàng có từng chiếc với cờ, thiệp.
+- Nút Lưu biên nhận mở hộp in của trình duyệt (chọn Lưu thành PDF). Nút Nhắn The Vagabond mở Zalo và chép sẵn mã đơn.
+
+**Bạn cần làm:** khách báo đã mở app mà biên nhận chưa đổi thì kiểm nội dung chuyển khoản có đúng mã đơn không; đúng mà chưa về thì chờ vài phút rồi xem Đối soát.
+
+## Web đặt bánh: tin Zalo xác nhận đơn cho khách
+Từ khoá: tin Zalo xác nhận đơn, Xem trạng thái đơn hàng, mã mẫu ZNS, ZBS, tin chưa gửi
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales; quản trị hệ thống | Tin Zalo của khách; Desk Vagabond Don Web, mục Tin Zalo xác nhận đơn; Vagabond Settings | Xem trạng thái đơn hàng |
+
+Từ v684 (giám đốc duyệt 22/11/2026).
+
+**Trước đây:** khách đặt bánh trên web chỉ thấy biên nhận trên trình duyệt; đóng trang là khó tìm lại để trả tiền hay xem đơn.
+**Từ nay:**
+- Pancake nhận đơn xong, hệ thống gửi khách một tin Zalo: mã đơn, ngày nhận, cách nhận, số tiền thanh toán, trạng thái (Chờ thanh toán hay Đã thanh toán) và nút **Xem trạng thái đơn hàng** mở đúng biên nhận của đơn, khách trả tiếp từ đó.
+- Zalo không nhận tin từ 22h tới 6h: đơn đặt lúc đó nhận tin sau 6h sáng, trạng thái thanh toán tính lúc gửi.
+- Mỗi đơn một tin. Desk Vagabond Don Web, mục Tin Zalo xác nhận đơn ghi Đã gửi, Lỗi hay Bỏ qua kèm lý do.
+- Tin chỉ chạy khi ô **Mã mẫu ZNS xác nhận đơn đặt bánh trên web** trong Vagabond Settings có mã mẫu Zalo đã duyệt. Để trống là không gửi, đơn vẫn chạy như cũ.
+
+**Bạn cần làm:** khách báo không nhận tin thì mở đơn trên Desk, xem Lý do chưa gửi (số sai, khách không dùng Zalo); gửi khách đường dẫn biên nhận qua kênh khác nếu cần.
