@@ -467,8 +467,6 @@ def _nhac_hoa_don_tu_0111():
 	la("23/11: từ 01/11 tới 20/11", tk.khoang_nhac_hoa_don("2026-11-23"), ("2026-11-01", "2026-11-20"))
 	la("qua năm: 02/01/2027", tk.khoang_nhac_hoa_don(datetime.date(2027, 1, 2)), ("2026-11-01", "2026-12-30"))
 	la("tiêu đề", tk.tieu_de_nhac_hoa_don(5), "5 phiếu nhập từ 01/11 quá 3 ngày chưa có hoá đơn")
-	la("đường mở danh sách lọc cùng mốc", tk.duong_nhac_hoa_don(),
-		"/app/purchase-receipt?status=To%20Bill&posting_date=%5B%22%3E%3D%22%2C%222026-11-01%22%5D")
 
 	# Chạy thật hàm lịch ngày 23/11: bộ lọc gửi xuống đúng khoảng, phiếu trả về được báo.
 	bo_loc = []
@@ -485,7 +483,11 @@ def _nhac_hoa_don_tu_0111():
 		(1, 0, ["<", 99.99], ["!=", "Closed"]))
 	la("một tin", [(g.ma_tin, g.loai, g.khoa) for g in goi], [("tm_hang_ve_chua_hoa_don", "viec", "pnk-chua-hd:2026-11-23")])
 	la("tiêu đề có mốc", goi[0].tieu_de, "1 phiếu nhập từ 01/11 quá 3 ngày chưa có hoá đơn")
-	dung("đường dẫn lọc mốc", goi[0].link.endswith(tk.duong_nhac_hoa_don()))
+	# Codex #611: đường gửi thật đổi mọi link phiếu nhập về màn Nhập kho của app, bỏ hết
+	# tham số; nên không hứa lọc ngày ở đường dẫn. Kiểm sau bước đổi link thật.
+	from vagabond import lien_ket_app
+	la("đường dẫn sau bước đổi link thật: màn Nhập kho",
+		lien_ket_app.doi_link(goi[0].link, "https://app.vagabond.test", {"vagabond.test"}), "https://app.vagabond.test/nhap-kho")
 
 	# Trước ngày đủ hạn: không đọc, không gửi.
 	bo_loc[:] = []

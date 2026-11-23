@@ -57,13 +57,6 @@ def tieu_de_nhac_hoa_don(so_phieu, tu=None):
 		so_phieu, ngay_vn(tu or NHAC_HOA_DON_TU), NGAY_CHO_HOA_DON)
 
 
-def duong_nhac_hoa_don(tu=None):
-	"""Đường mở danh sách phiếu nhập chờ hoá đơn, lọc sẵn cùng mốc với tin. THUẦN."""
-	from urllib.parse import quote
-	return "/app/purchase-receipt?status=To%%20Bill&posting_date=%s" % quote(
-		'[">=","%s"]' % str(getdate(tu or NHAC_HOA_DON_TU)), safe="")
-
-
 def ten_kho(kho):
 	"""Bỏ đuôi công ty: "Kho D1 - TV" thành "Kho D1"."""
 	t = str(kho or "").strip()
@@ -359,7 +352,7 @@ def nhac_hang_ve_chua_hoa_don():
 		dong = ["%s: %s, nhập %s" % (d.name, d.supplier_name or "", ngay_vn(d.posting_date)) for d in ds]
 		dong = kenh_zalo.cat_dong(dong, 8, "phiếu")
 		kenh_zalo.bao_hoac_ghi_loi("viec", "kho", tieu_de_nhac_hoa_don(len(ds), khoang[0]), dong,
-			link=_url(duong_nhac_hoa_don(khoang[0])), khoa="pnk-chua-hd:%s" % hom_nay,
+			link=_url("/app/purchase-receipt?status=To%20Bill"), khoa="pnk-chua-hd:%s" % hom_nay,
 			ma_tin="tm_hang_ve_chua_hoa_don", nguon="Purchase Receipt")
 	except Exception:
 		_ghi_loi("hàng về chưa hoá đơn")

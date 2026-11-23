@@ -455,14 +455,14 @@ Từ khoá: phiếu nhập chưa có hoá đơn, hàng về chưa hoá đơn, ti
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Thu mua, Kế toán | Tin Zalo "VIỆC CẦN LÀM: … phiếu nhập từ 01/11 quá 3 ngày chưa có hoá đơn"; danh sách Phiếu nhập kho (Desk) | Đường dẫn trong tin |
+| Thu mua, Kế toán | Tin Zalo "VIỆC CẦN LÀM: … phiếu nhập từ 01/11 quá 3 ngày chưa có hoá đơn"; màn Nhập kho | Mở (trong tin) |
 
 Từ v686 (giám đốc chốt 23/11/2026).
 
 **Trước đây:** tin 08:25 liệt kê mọi phiếu nhập quá 3 ngày chưa có hoá đơn, kể cả phiếu từ tháng 8, tháng 9, nên tin rất dài.
 **Từ nay:**
 - Tin chỉ tính phiếu nhập có ngày nhập từ 01/11/2026 trở đi. Phiếu cũ hơn không còn trong tin; phiếu vẫn giữ nguyên, không bị sửa hay xoá.
-- Đường dẫn trong tin mở danh sách phiếu nhập chờ hoá đơn, lọc sẵn ngày nhập từ 01/11/2026.
+- Bấm Mở trong tin vẫn vào màn Nhập kho như cũ; màn này không lọc theo ngày 01/11.
 
 **Bạn cần làm**
 1. Mỗi sáng đọc tin, nhận hoá đơn của từng phiếu trong danh sách.
