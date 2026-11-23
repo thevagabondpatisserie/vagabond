@@ -746,7 +746,8 @@ def _giam_combo(cb, gio, so_bo, chon=None, con_lai=None):
 # Ba diem ban. Don Sales online khong mang ma quay nen quy uoc la SALES.
 def _quay_ds():
 	"""Quay/diem ban doc tu Cai dat, xem vagabond/diem_ban.py."""
-	return [{"ma": d["ma"], "ten": d["ten_ngan"]} for d in diem_ban.ds(chi_bat=True)]
+	# v689: đặt khuyến mãi cho điểm đang tắt trước ngày mở (hội chợ) được.
+	return [{"ma": d["ma"], "ten": d["ten_ngan"]} for d in diem_ban.ds()]
 
 
 @frappe.whitelist()

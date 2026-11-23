@@ -319,7 +319,8 @@ def diem_ban():
     if not set(frappe.get_roles()) & {'Accounts User','Accounts Manager','System Manager'}:
         frappe.throw('Chỉ kế toán được đọc danh mục đối soát.')
     from vagabond.diem_ban import ds
-    return ds(chi_bat=True)
+    # v689: danh mục đối soát gồm cả điểm đang tắt, số cũ của điểm đó vẫn phải đối soát.
+    return ds()
 
 
 @frappe.whitelist()

@@ -170,9 +170,14 @@ def _chuan(d, i=0):
 def ds(chi_bat=False):
 	"""Toan bo diem ban, da chuan hoa va sap theo thu tu.
 
-	chi_bat: chi lay diem dang bat. Cac man nghiep vu nen dung chi_bat=True;
-	rieng bao cao va man Cai dat thi lay het, vi so lieu cu cua mot diem da
-	dong van phai xem lai duoc.
+	chi_bat: chi lay diem dang bat. CHI dung cho man dang BAN hoac NHAN DON
+	(tinh tien, goi mon, may in, menu web, diem nhan banh). Moi nghiep vu
+	sau ban (bien nhan nop tien, quy tien mat, doi soat, hoa don ban ra,
+	tru kho, khuyen mai, menu, tai khoan nhan tien, bao cao, Cai dat) lay
+	HET: diem vua tat (hoi cho xong) van con tien, bill, kho can xu ly.
+	Anh Viet 23/11/2026: "co them diem ban thi tat ca nghiep vu lien quan
+	phai chon duoc diem ban do". Ca kiem thu_diem_ban_689 giu danh sach cho
+	duoc goi chi_bat=True; them cho moi phai ghi ly do vao do.
 	"""
 	try:
 		tho = json.loads((cfg_o(TRUONG) or "").strip() or "[]")

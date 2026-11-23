@@ -651,7 +651,7 @@ Từ khoá: hoá đơn mua, hoá đơn mua vào, purchase invoice, hoá đơn b�
 3. Mỗi dòng ghi còn nháp, đã huỷ, hạn trả, quá hạn bao nhiêu ngày, số còn nợ.
 
 **Các bước (hoá đơn bán)**
-1. Chọn [[7 ngày]], [[30 ngày]], [[3 tháng]], [[1 năm]] và điểm bán ([[Cả ba điểm]], Sales Online, District 1, NVHTN).
+1. Chọn [[7 ngày]], [[30 ngày]], [[3 tháng]], [[1 năm]] và điểm bán ([[Mọi điểm bán]] hoặc từng điểm đã khai trong Cài đặt điểm bán, kể cả điểm đang tắt như Hội chợ).
 2. Gõ mã phiếu, tên khách hoặc số hoá đơn điện tử.
 3. Mỗi dòng ghi số và trạng thái hoá đơn điện tử, phương thức thanh toán, người bán, trạng thái kho, số còn phải thu.
 

@@ -673,7 +673,7 @@ def ds_chua_tru_kho(diem=None, chang="cho", ky=None, tu=None, den=None, tim=None
 	return {"hd": [o for o in tap if thuoc_chang(o, chang)], "dem": dem_chang(tap), "bi_cat": 1 if bi_cat else 0,
 		"chang": [{"k": k, "ten": t, "ic": ic} for k, t, ic in CHANG],
 		"duoc_tru": 1 if duoc(_vai(), QUYEN_TRU) else 0,
-		"diem": [{"ma": d["ma"], "ten": d["ten_ngan"]} for d in diem_ban.ds(chi_bat=True)]}
+		"diem": [{"ma": d["ma"], "ten": d["ten_ngan"]} for d in diem_ban.ds()]}
 
 
 def xuat_ds(diem=None, chang="cho", ky=None, tu=None, den=None, tim=None, **khac):
