@@ -4753,7 +4753,7 @@ async function tcDungHtml(can) {
       /* Bien nhan nop tien mat, ban cua KE TOAN: bay phieu cua MOI nguoi,
          loc theo diem ban, xuat Excel. Nhan vien lap phieu o o cung ten
          ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
-      card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
+      card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của mọi điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
       /* v628 Quỹ tiền mặt công ty (anh Việt duyệt 02/11/2026): chị Dung kiểm quỹ, ghi nộp ngân hàng.
          Người xem Tài chính mà không thuộc khối này mở từ dòng Quỹ công ty ở màn Tiền hiện có. */
       card('🪙', 'Quỹ tiền mặt công ty', 'Tiền trong quỹ, kiểm quỹ, nộp tiền mặt vào ngân hàng', 0, 'TCQUY') +
@@ -19112,7 +19112,7 @@ async function posSheetDoTien(tien, siName, sauKhiGan, tuyChon) {
       : trang.nguon === 'tat_ca' ? 'Mọi khoản tiền về trong ngày, ghi rõ vào tài khoản nào.'
         : (kq.tk_rieng
           ? 'Tiền về tài khoản <b>' + h(kq.tk_stk || '') + '</b> của điểm này.'
-          : '<span style="color:#b45309">⚠ Điểm này chưa khai tài khoản riêng nên đây là sao kê chung của cả ba điểm. Vào Cài đặt · Tài khoản nhận tiền để khai.</span>');
+          : '<span style="color:#b45309">⚠ Điểm này chưa khai tài khoản riêng nên đây là sao kê chung của mọi điểm bán. Vào Cài đặt · Tài khoản nhận tiền để khai.</span>');
     ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
       '<div style="font-size:19px;font-weight:800">Dò tiền chuyển khoản</div>' +
       '<div style="font-size:12.5px;color:#6b7280;margin:2px 0 8px">Cần thu ' + money(tien || kq.tien || 0) + ' đ' +
@@ -28019,7 +28019,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '688';
+var APPVER = '689';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -29785,13 +29785,19 @@ function kmDoiDong(giaTri, ma) {
   return da.join('\n');
 }
 
-/* Ba diem ban. Don Sales online khong mang ma quay nen quy uoc la SALES,
-   may chu cung hieu quy uoc nay (khuyen_mai._hop_kenh). */
-var KM_QUAY = [
-  { ma: 'SALES', ten: 'Sales Online' },
-  { ma: 'TCV', ten: 'District 1' },
-  { ma: 'NVHTN', ten: 'NVHTN' }
-];
+/* Diem ban lay tu danh muc may chu (khuyen_mai.danh_muc -> _quay_ds), gom
+   ca diem dang tat: them diem ban la co chip, khong go tay danh sach o day
+   (v689, anh Viet 23/11/2026). Don Sales online khong mang ma quay nen quy
+   uoc la SALES, may chu cung hieu quy uoc nay (khuyen_mai._hop_kenh). */
+function kmQuayDs() { return (kmDm && kmDm.quay) || []; }
+
+/* Codex #617: sheet chuong trinh mo thang tu CRM Zalo (58-crm.js) khi chua ghe
+   man Khuyen mai thi kmDm con null, chip QUAY, nhom mon, hang khach rong het.
+   Moi cua vao sheet nap danh muc tai day, khong dua vao man danh sach. */
+async function kmNapDm() {
+  if (!kmDm) { try { kmDm = await api('vagabond.khuyen_mai.danh_muc', {}); } catch (e) { kmDm = null; } }
+  return kmDm;
+}
 
 var KM_CACH = [
   { k: 'Giam tong hoa don', nhan: 'Giảm tổng hoá đơn', ic: '🧾', mo: 'Giảm % hoặc số tiền trên cả hoá đơn' },
@@ -29826,7 +29832,7 @@ async function scrKhuyenMai() {
     cb = await api('vagabond.khuyen_mai.ds_combo', { tat_ca: 1 });
     /* Hang khach, nhom khach, nhom mon va quay lay tu may de bay ra thanh
        chip cho bam, khoi go tay (anh Viet 12/08/2026). */
-    if (!kmDm) { try { kmDm = await api('vagabond.khuyen_mai.danh_muc', {}); } catch (e2) { kmDm = null; } }
+    await kmNapDm();
   } catch (e) {
     frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
@@ -30186,11 +30192,11 @@ function kmChipPhamVi(x) {
   if (quay.length) {
     quay.forEach(function (q) {
       var ten = q;
-      for (var i = 0; i < KM_QUAY.length; i++) if (KM_QUAY[i].ma === q) ten = KM_QUAY[i].ten;
+      kmQuayDs().forEach(function (d) { if (d.ma === q) ten = d.ten; });
       out += kmChipNho('🏪 ' + h(ten), '#f5f3ff', '#5b21b6');
     });
   } else {
-    out += kmChipNho('🏪 cả ba điểm', '#f6f7f9', '#6b7280');
+    out += kmChipNho('🏪 mọi điểm bán', '#f6f7f9', '#6b7280');
   }
   return out;
 }
@@ -30341,6 +30347,7 @@ function kmN(id) { var o = document.getElementById(id); return o ? (parseFloat(o
 
 async function kmSheetCtkm(ma) {
   var km = null;
+  await kmNapDm();
   if (ma) {
     try { var r = await api('vagabond.khuyen_mai.xem_ctkm', { ma: ma }); km = r.km; }
     catch (e) { toast((e && e.message) || 'Không mở được'); return; }
@@ -30457,8 +30464,8 @@ async function kmSheetCtkm(ma) {
       }).join('') + '</div>' +
       '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px">Không chọn kênh nào = áp dụng mọi kênh.</div>' +
       '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">QUẦY</div>' +
-      kmChipNhieu('data-kmquay', (kmDm && kmDm.quay) || KM_QUAY, k.quay) +
-      '<div style="font-size:11.5px;color:#98a2b3;margin:-6px 0 10px">Không chọn quầy nào = áp dụng cả ba điểm bán.</div>';
+      kmChipNhieu('data-kmquay', kmQuayDs(), k.quay) +
+      '<div style="font-size:11.5px;color:#98a2b3;margin:-6px 0 10px">Không chọn quầy nào = áp dụng mọi điểm bán.</div>';
 
     /* --- doi tuong --- */
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">ĐỐI TƯỢNG KHÁCH</div>' +
@@ -30834,6 +30841,7 @@ function kmDsKenh() {
 /* ---------- Sheet cau hinh combo ---------- */
 async function kmSheetCombo(ma) {
   var cb = null;
+  await kmNapDm();
   if (ma) {
     cb = (kmData.cb || []).filter(function (x) { return x.name === ma; })[0];
     if (cb) cb = JSON.parse(JSON.stringify(cb));
@@ -31000,8 +31008,8 @@ async function kmSheetCombo(ma) {
       '<div style="flex:1">' + kmO('ĐẾN NGÀY', 'cbDenNgay', s.den_ngay, '', 'date') + '</div></div>';
 
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">QUẦY</div>' +
-      kmChipNhieu('data-cbquay', (kmDm && kmDm.quay) || KM_QUAY, s.quay) +
-      '<div style="font-size:11.5px;color:#98a2b3;margin:-6px 0 10px">Không chọn quầy nào = bán ở cả ba điểm.</div>';
+      kmChipNhieu('data-cbquay', kmQuayDs(), s.quay) +
+      '<div style="font-size:11.5px;color:#98a2b3;margin:-6px 0 10px">Không chọn quầy nào = bán ở mọi điểm bán.</div>';
 
     html += '<div style="font-size:12.5px;color:#b3261e;font-weight:700;margin:8px 0 6px">CHỐNG GIAN LẬN</div>' +
       '<div style="display:flex;gap:7px;margin-bottom:10px">' +
@@ -31758,7 +31766,7 @@ function bcNoiThanh(b, veLai) {
 
 /* ---------- man chinh: danh sach bao cao ---------- */
 async function scrBaoCao() {
-  frame('Báo cáo', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ ba điểm bán...</div></div>');
+  frame('Báo cáo', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ các điểm bán...</div></div>');
   var kq;
   try { kq = await api('vagabond.bao_cao.danh_sach', bcThamSo()); }
   catch (e) {
@@ -33980,6 +33988,7 @@ async function scrHdBan() {
     return;
   }
   var ds = kq.hd || [];
+  (kq.diem_ds || []).forEach(function (d) { TEN_DIEM_BAN[d.ma] = d.ten; });
 
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">HOÁ ĐƠN BÁN RA · ' + ngayNgan(kq.tu) + ' - ' + ngayNgan(kq.den) + '</div>' +
@@ -33991,7 +34000,8 @@ async function scrHdBan() {
   html += '<div class="card" style="padding:10px 12px">' +
     mkChipNgay([[7, '7 ngày'], [30, '30 ngày'], [90, '3 tháng'], [365, '1 năm']], ktBanNgay, 'data-ktbngay') + '</div>';
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
-    [['', 'Cả ba điểm'], ['SALES', 'Sales Online'], ['TCV', 'District 1'], ['NVHTN', 'NVHTN']]
+    /* v689: chip điểm bán lấy từ danh mục điểm bán trên máy chủ, thêm điểm là có chip. */
+    [['', 'Mọi điểm bán']].concat((kq.diem_ds || []).map(function (d) { return [d.ma, d.ten]; }))
       .map(function (q) { return posChipNut('data-ktbquay="' + q[0] + '"', q[1], ktBanQuay === q[0]); }).join('')) + '</div>';
   html += '<div class="card" style="padding:10px 12px">' + mkChipNhom(kq.nhom, kq.dem, ktBanNhom, 'data-ktbnhom') + '</div>';
   html += mkOTim('ktBanTim', ktBanTim, 'Tìm theo mã phiếu, tên khách, số hoá đơn điện tử...');
@@ -34012,7 +34022,8 @@ async function scrHdBan() {
   if (o) o.onchange = function () { ktBanTim = o.value; go(scrHdBan, true); };
 }
 
-var TEN_DIEM_BAN = { SALES: 'Sales Online', TCV: 'District 1', NVHTN: 'NVHTN' };
+/* v689: tên điểm bán theo danh mục máy chủ trả về cùng danh sách hoá đơn. */
+var TEN_DIEM_BAN = {};
 
 function mkBangHd(ds, loai) {
   if (!ds.length) return '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🫙</div><div>Không có hoá đơn nào ở nhóm này.</div></div></div>';

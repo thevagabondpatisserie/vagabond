@@ -12,6 +12,10 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v689
+- Lập biên nhận nộp tiền mặt
+- Xem hoá đơn mua vào và hoá đơn bán ra
+
 ## v688
 - Tin nhắc hàng về chưa có hoá đơn chỉ tính phiếu từ 01/11/2026
 - Xem tiền hiện có từng tài khoản, từng két

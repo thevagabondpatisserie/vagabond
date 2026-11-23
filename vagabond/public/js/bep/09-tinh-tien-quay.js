@@ -2079,7 +2079,7 @@ async function posSheetDoTien(tien, siName, sauKhiGan, tuyChon) {
       : trang.nguon === 'tat_ca' ? 'Mọi khoản tiền về trong ngày, ghi rõ vào tài khoản nào.'
         : (kq.tk_rieng
           ? 'Tiền về tài khoản <b>' + h(kq.tk_stk || '') + '</b> của điểm này.'
-          : '<span style="color:#b45309">⚠ Điểm này chưa khai tài khoản riêng nên đây là sao kê chung của cả ba điểm. Vào Cài đặt · Tài khoản nhận tiền để khai.</span>');
+          : '<span style="color:#b45309">⚠ Điểm này chưa khai tài khoản riêng nên đây là sao kê chung của mọi điểm bán. Vào Cài đặt · Tài khoản nhận tiền để khai.</span>');
     ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
       '<div style="font-size:19px;font-weight:800">Dò tiền chuyển khoản</div>' +
       '<div style="font-size:12.5px;color:#6b7280;margin:2px 0 8px">Cần thu ' + money(tien || kq.tien || 0) + ' đ' +

@@ -586,7 +586,8 @@ def _kiem_quyen():
 def _diem_co_quay():
 	from vagabond import diem_ban
 
-	return [d for d in diem_ban.ds(chi_bat=True) if d.get("quay")]
+	# v689: soạn menu cho điểm đang tắt trước ngày mở bán được.
+	return [d for d in diem_ban.ds() if d.get("quay")]
 
 
 def _chon_diem(diem):
