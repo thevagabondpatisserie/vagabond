@@ -149,6 +149,7 @@ from vagabond.khung.kiem_that import thu_tru_vo_btp_649  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_thue_mua_hai_lan_650  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hd_dieu_chinh_666  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_tien_du_onepay_667  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_zalo_tin_da_bo_687  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_don_quay_670  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_dac_biet_tuan_671  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_chi_phi_674  # noqa: F401,E402
