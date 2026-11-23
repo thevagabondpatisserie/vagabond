@@ -31,11 +31,37 @@ from vagabond import kenh_zalo
 TOI_DA_MON = 5
 NGAY_SAP_HET_HAN = 3
 NGAY_CHO_HOA_DON = 3
+# Tin nhắc hàng về chưa có hoá đơn chỉ xét phiếu nhập từ ngày này (anh Việt chốt
+# 23/11/2026, #610): phiếu cũ hơn không nhắc nữa, dữ liệu phiếu giữ nguyên.
+NHAC_HOA_DON_TU = "2026-11-01"
 GIO_CHUA_NHAN_TU = 2
 GIO_CHUA_NHAN_DEN = 48
 MUC_DICH_PHUC_VU_BAN = "phuc_vu_ban"
 
 # ----------------------------------------------------------------- THUẦN
+
+
+def khoang_nhac_hoa_don(hom_nay, tu=None):
+	"""Khoảng ngày nhập của phiếu cần nhắc hoá đơn: (từ, đến) hoặc None. THUẦN.
+
+	Từ: NHAC_HOA_DON_TU. Đến: hôm nay lùi NGAY_CHO_HOA_DON ngày. Chưa có phiếu nào
+	vừa đủ mới vừa đủ quá hạn thì None (không gửi tin)."""
+	tu = str(getdate(tu or NHAC_HOA_DON_TU))
+	den = str(add_days(getdate(hom_nay), -NGAY_CHO_HOA_DON))
+	return None if den < tu else (tu, den)
+
+
+def tieu_de_nhac_hoa_don(so_phieu, tu=None):
+	"""Tiêu đề tin nhắc. THUẦN."""
+	return "%d phiếu nhập từ %s quá %d ngày chưa có hoá đơn" % (
+		so_phieu, ngay_vn(tu or NHAC_HOA_DON_TU), NGAY_CHO_HOA_DON)
+
+
+def duong_nhac_hoa_don(tu=None):
+	"""Đường mở danh sách phiếu nhập chờ hoá đơn, lọc sẵn cùng mốc với tin. THUẦN."""
+	from urllib.parse import quote
+	return "/app/purchase-receipt?status=To%%20Bill&posting_date=%s" % quote(
+		'[">=","%s"]' % str(getdate(tu or NHAC_HOA_DON_TU)), safe="")
 
 
 def ten_kho(kho):
@@ -319,19 +345,21 @@ def nhac_don_mua_tre_hen():
 
 
 def nhac_hang_ve_chua_hoa_don():
-	"""Lịch 08:25: phiếu nhập đã ghi sổ quá NGAY_CHO_HOA_DON ngày mà chưa có hoá đơn mua."""
+	"""Lịch 08:25: phiếu nhập từ NHAC_HOA_DON_TU, đã ghi sổ quá NGAY_CHO_HOA_DON ngày mà chưa có hoá đơn mua."""
 	try:
 		hom_nay = nowdate()
-		moc = add_days(hom_nay, -NGAY_CHO_HOA_DON)
-		ds = frappe.get_all("Purchase Receipt", filters={"docstatus": 1, "is_return": 0, "per_billed": ["<", 99.99], "posting_date": ["<=", moc],
-			"status": ["!=", "Closed"]}, fields=["name", "supplier_name", "posting_date"],
+		khoang = khoang_nhac_hoa_don(hom_nay)
+		if not khoang:
+			return
+		ds = frappe.get_all("Purchase Receipt", filters={"docstatus": 1, "is_return": 0, "per_billed": ["<", 99.99],
+			"posting_date": ["between", list(khoang)], "status": ["!=", "Closed"]}, fields=["name", "supplier_name", "posting_date"],
 			order_by="posting_date asc", limit_page_length=0)
 		if not ds:
 			return
 		dong = ["%s: %s, nhập %s" % (d.name, d.supplier_name or "", ngay_vn(d.posting_date)) for d in ds]
 		dong = kenh_zalo.cat_dong(dong, 8, "phiếu")
-		kenh_zalo.bao_hoac_ghi_loi("viec", "kho", "%d phiếu nhập quá %d ngày chưa có hoá đơn" % (len(ds), NGAY_CHO_HOA_DON), dong,
-			link=_url("/app/purchase-receipt?status=To%20Bill"), khoa="pnk-chua-hd:%s" % hom_nay,
+		kenh_zalo.bao_hoac_ghi_loi("viec", "kho", tieu_de_nhac_hoa_don(len(ds), khoang[0]), dong,
+			link=_url(duong_nhac_hoa_don(khoang[0])), khoa="pnk-chua-hd:%s" % hom_nay,
 			ma_tin="tm_hang_ve_chua_hoa_don", nguon="Purchase Receipt")
 	except Exception:
 		_ghi_loi("hàng về chưa hoá đơn")

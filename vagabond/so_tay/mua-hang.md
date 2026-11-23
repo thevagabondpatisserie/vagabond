@@ -449,3 +449,21 @@ Trước đây: tải tay PDF hoá đơn nhà cung cấp về đính vào APP. T
 **Bạn cần làm**
 1. Việc cần làm hiện dòng Hoá đơn nhà cung cấp trong hộp thư khi thư chỉ có đường dẫn tra cứu, chỉ có PDF, hay 3 ngày chưa khớp.
 2. Bấm dòng đó, mở đường dẫn trong thư, tải hoá đơn, đính tay vào hoá đơn mua như trước.
+
+## Tin nhắc hàng về chưa có hoá đơn chỉ tính phiếu từ 01/11/2026
+Từ khoá: phiếu nhập chưa có hoá đơn, hàng về chưa hoá đơn, tin nhắc 08:25, nhóm Đặt hàng Nhận hàng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua, Kế toán | Tin Zalo "VIỆC CẦN LÀM: … phiếu nhập từ 01/11 quá 3 ngày chưa có hoá đơn"; danh sách Phiếu nhập kho (Desk) | Đường dẫn trong tin |
+
+Từ v686 (giám đốc chốt 23/11/2026).
+
+**Trước đây:** tin 08:25 liệt kê mọi phiếu nhập quá 3 ngày chưa có hoá đơn, kể cả phiếu từ tháng 8, tháng 9, nên tin rất dài.
+**Từ nay:**
+- Tin chỉ tính phiếu nhập có ngày nhập từ 01/11/2026 trở đi. Phiếu cũ hơn không còn trong tin; phiếu vẫn giữ nguyên, không bị sửa hay xoá.
+- Đường dẫn trong tin mở danh sách phiếu nhập chờ hoá đơn, lọc sẵn ngày nhập từ 01/11/2026.
+
+**Bạn cần làm**
+1. Mỗi sáng đọc tin, nhận hoá đơn của từng phiếu trong danh sách.
+2. Phiếu cũ trước 01/11 còn treo thì Kế toán tự rà trên danh sách Phiếu nhập kho (bỏ lọc ngày), máy không nhắc nữa.

@@ -117,7 +117,8 @@ def _noi_phat_khong_tien():
 	gia, goi = _zalo()
 	po = D(name="PO-1", supplier_name="Bơ Sữa", schedule_date="2026-10-29", grand_total=12500000, vgb_huy=0,
 		items=[D(item_code="BO", item_name="Bơ lạt", qty=2, uom="Thùng")])
-	with um.patch.object(tk, "kenh_zalo", gia):
+	# #610: mốc nhắc hoá đơn 01/11/2026 sau ngày giả của bộ kiểm; lùi mốc để tin còn chạy.
+	with um.patch.object(tk, "kenh_zalo", gia), um.patch.object(tk, "NHAC_HOA_DON_TU", "2026-07-01"):
 		tk.khi_ghi_so_don_mua(po)
 		with um.patch.object(tk.frappe, "get_all", lambda dt, **k: [D(name="PO-9", supplier_name="NCC", schedule_date="2026-10-20",
 				posting_date="2026-10-20", per_received=50, grand_total=7000000)], create=True):
