@@ -732,7 +732,7 @@ Con số trên mỗi ô lớn là số việc đang chờ trong phân hệ đó 
 **Lưu ý**
 - Mở lại Trang chủ trong vòng 15 giây thì máy không đếm lại, con số là của lần vừa xem. Vừa duyệt xong một phiếu mà số chưa giảm thì chờ 15 giây rồi bấm Trang chủ lại.
 - Mở app lần đầu sau khi đăng nhập, các ô chưa có số trong một nhịp đầu rồi số mới hiện.
-- Từ bản 689, số trên ô Đơn còn treo đếm đúng như màn Đơn còn treo mở sẵn (14 ngày, Tất cả): chỉ đơn từ 14 ngày trước tới hôm qua. Đơn hôm nay không tính vào ô, xem ở màn bán hàng của điểm bán.
+- Từ bản 690, số trên ô Đơn còn treo đếm đúng như màn Đơn còn treo mở sẵn (14 ngày, Tất cả): chỉ đơn từ 14 ngày trước tới hôm qua. Đơn hôm nay không tính vào ô, xem ở màn bán hàng của điểm bán.
 - Đang chờ một màn tải mà bấm sang màn khác hay bấm Quay lại thì màn cũ không còn tự hiện đè lên màn đang xem.
 - Con số chỉ để nhắc việc. Muốn biết chắc còn bao nhiêu phiếu, mở màn danh sách trong phân hệ.
 

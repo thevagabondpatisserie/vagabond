@@ -83,7 +83,7 @@ function dungMoi(vai, loi) {
       khung.innerHTML = html; khung._nghe = {}; khung.onclick = null; that._t = t; return khung;
     },
     go: function (fn) { return fn(); },
-    /* v689: màn hỏi vgbManNay (phần 01) trước khi vẽ; ca nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
+    /* v690: màn hỏi vgbManNay (phần 01) trước khi vẽ; ca nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
     vgbManNay: function () { return function () { return true; }; },
     busy: function () {},
     toast: function (m) { toastDs.push(m); },

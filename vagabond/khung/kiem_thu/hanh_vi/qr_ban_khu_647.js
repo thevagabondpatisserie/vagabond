@@ -76,7 +76,7 @@ function khoi(o) {
     document: tai, console: console, Math: Math, JSON: JSON, String: String, Array: Array, Object: Object, Error: Error,
     RegExp: RegExp, Promise: Promise, Number: Number, Date: Date, isNaN: isNaN, parseInt: parseInt, Uint8Array: Uint8Array,
     setTimeout: setTimeout, clearTimeout: clearTimeout, location: { origin: 'https://vagabond.s.frappe.cloud' },
-    /* v689: màn async hỏi vgbManNay (phần 01) trước khi vẽ; ca này nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
+    /* v690: màn async hỏi vgbManNay (phần 01) trước khi vẽ; ca này nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
     vgbManNay: function () { return function () { return true; }; },
     busy: function () {}, toast: function (s) { tin.push(String(s)); },
     hoiCo: function (t, nd, ok) { hoi.push({ t: t, nd: nd, ok: ok }); return Promise.resolve(o.traLoi !== undefined ? o.traLoi : true); },

@@ -72,7 +72,7 @@ function khoi(o) {
   g.window = g;
   vm.createContext(g);
   vm.runInContext([
-    /* v689: màn hỏi vgbManNay (phần 01) trước khi vẽ; giả hàm đó luôn còn đứng. */
+    /* v690: màn hỏi vgbManNay (phần 01) trước khi vẽ; giả hàm đó luôn còn đứng. */
     'function vgbManNay() { return function () { return true; }; }',
     'var __stack = []; var posDon = { khach_ma: "", maVc: "" }; var posQuay = { ma: "TCV" };',
     'function frame(t, html, opt) { document.body.children = []; var vb = document.createElement("div"); vb.setAttribute("id", "vgbBody"); vb.innerHTML = html; document.body.appendChild(vb); return vb; }',

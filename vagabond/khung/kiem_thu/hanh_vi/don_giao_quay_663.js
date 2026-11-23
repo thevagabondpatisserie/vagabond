@@ -52,7 +52,7 @@ function app(traDs) {
     console: console, JSON: JSON, Math: Math, Number: Number, String: String, Object: Object, Array: Array, Promise: Promise, Error: Error,
     posQuay: { ma: 'TCV' },
     h: function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); },
-    /* v689: màn hỏi vgbManNay (phần 01) trước khi vẽ; ca nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
+    /* v690: màn hỏi vgbManNay (phần 01) trước khi vẽ; ca nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
     vgbManNay: function () { return function () { return true; }; },
     busy: function () {}, toast: function () {}, go: function () {},
     api: function (m, a) { goi.push([m, a]); return Promise.resolve(JSON.parse(JSON.stringify(traDs ? traDs(a) : { ds: DS, diem: 'TCV', ten_diem: 'District 1', cac_diem: [], hen: [10, 15, 20], ly_do: ['Hết món'] }))); },

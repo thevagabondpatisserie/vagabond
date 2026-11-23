@@ -225,7 +225,7 @@ def _the_phieu_chi_khop_man():
 
 @ca("trang chu: the Don con treo dem dung cai man Don con treo bay ra")
 def _the_don_treo_khop_man():
-	# v689 (Codex kiểm v685, UI15): ô không còn tự dựng bộ lọc ở trình duyệt
+	# v690 (Codex kiểm v685, UI15): ô không còn tự dựng bộ lọc ở trình duyệt
 	# (mốc UTC, lấy cả hôm nay nên lệch màn). Máy chủ đếm bằng đúng bộ lọc
 	# của màn: hành vi chạy thật ở thu_don_treo_mot_nguon.py và
 	# hanh_vi/trang_chu_nhanh_pr_b.js; ở đây chỉ giữ dấu để không ai đưa

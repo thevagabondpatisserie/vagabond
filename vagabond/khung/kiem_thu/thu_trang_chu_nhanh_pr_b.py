@@ -34,7 +34,7 @@ def _cong_cu():
 	la("node --check do_dieu_huong.cjs", (r.returncode, r.stderr), (0, ""))
 
 
-@ca("v689 Codex kiểm v685 UI16: 25 màn async Bán hàng, Giao hàng không vẽ đè hay ghi đè màn đang đứng khi lời đáp về muộn (node, thân hàm thật)")
+@ca("v690 Codex kiểm v685 UI16: 25 màn async Bán hàng, Giao hàng không vẽ đè hay ghi đè màn đang đứng khi lời đáp về muộn (node, nạp nguyên app_bep.js)")
 def _man_cu_ve_muon():
 	r = subprocess.run(["node", os.path.join(GOC, "hanh_vi", "man_cu_ve_muon_ui16.js")],
 		capture_output=True, text=True, timeout=180)
