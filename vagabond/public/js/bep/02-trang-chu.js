@@ -421,7 +421,7 @@ async function tcDungHtml(can) {
       /* Bien nhan nop tien mat, ban cua KE TOAN: bay phieu cua MOI nguoi,
          loc theo diem ban, xuat Excel. Nhan vien lap phieu o o cung ten
          ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
-      card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
+      card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của mọi điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
       /* v628 Quỹ tiền mặt công ty (anh Việt duyệt 02/11/2026): chị Dung kiểm quỹ, ghi nộp ngân hàng.
          Người xem Tài chính mà không thuộc khối này mở từ dòng Quỹ công ty ở màn Tiền hiện có. */
       card('🪙', 'Quỹ tiền mặt công ty', 'Tiền trong quỹ, kiểm quỹ, nộp tiền mặt vào ngân hàng', 0, 'TCQUY') +

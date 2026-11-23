@@ -263,7 +263,7 @@ function bcNoiThanh(b, veLai) {
 
 /* ---------- man chinh: danh sach bao cao ---------- */
 async function scrBaoCao() {
-  frame('Báo cáo', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ ba điểm bán...</div></div>');
+  frame('Báo cáo', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ các điểm bán...</div></div>');
   var kq;
   try { kq = await api('vagabond.bao_cao.danh_sach', bcThamSo()); }
   catch (e) {

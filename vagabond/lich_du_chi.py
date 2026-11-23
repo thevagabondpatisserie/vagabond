@@ -347,6 +347,13 @@ def du_kien_ve(hd_no, tre_theo_khach, hom_nay, den):
 	return {"ve": ve, "trong_khung": sum((v["so_tien"] for v in ve), Decimal(0)), "qua_han": qua, "sau_khung": sau, "tre_chung": chung}
 
 
+def lay_so_sepay(d):
+	"""Dòng tiền ngân hàng này lấy thẳng số SePay báo (chưa trừ khoản ghi sổ sau giờ
+	đọc). THUẦN. Tài khoản không đồng bộ giao dịch, hay đồng bộ mà chưa chốt số dư
+	đầu (cờ so_sepay, #610), và SePay có báo số."""
+	return bool((d.get("so_sepay") or not d.get("dong_bo")) and _tien(d.get("so_bao") or 0) > 0)
+
+
 def kha_dung_tai_chinh(dong, chi_sau_theo_ba):
 	"""Tiền khả dụng = số dư NGÂN HÀNG đúng như mục Tài chính (anh Việt 13/11). THUẦN.
 
@@ -366,7 +373,7 @@ def kha_dung_tai_chinh(dong, chi_sau_theo_ba):
 			continue
 		co += 1
 		tong += _tien_am(d.get("so_du"))
-		if not d.get("dong_bo") and _tien(d.get("so_bao") or 0) > 0:
+		if lay_so_sepay(d):
 			chi += _tien((chi_sau_theo_ba or {}).get(d.get("bank_account")) or 0)
 	if hong or chua or not co:
 		return {"so_tien": None, "so_du_tk": None, "chi_sau": Decimal(0), "hong": hong, "chua_chot": chua}
@@ -494,7 +501,7 @@ def so_du_kha_dung():
 	chi_sau = {}
 	for d in dong:
 		ba = d.get("bank_account")
-		if d.get("loai") != tai_chinh.LOAI_NH or d.get("dong_bo") or not ba or flt(d.get("so_bao")) <= 0:
+		if d.get("loai") != tai_chinh.LOAI_NH or not ba or not lay_so_sepay(d):
 			continue
 		tk_gl = frappe.db.get_value("Bank Account", ba, "account")
 		if not tk_gl:

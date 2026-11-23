@@ -713,6 +713,7 @@ Từ khoá: nộp tiền, nộp quỹ, nộp tiền mặt, giao tiền kế toá
 
 **Lưu ý**
 - Màn chỉ hiện phiếu của chính mình. Trạng thái: Nháp, Chờ ký nhận, Đã nộp quỹ, Đã huỷ.
+- Ô chọn điểm bán có mọi điểm đã khai trong Cài đặt điểm bán, kể cả điểm đang tắt (ví dụ Hội chợ sau khi xong sự kiện), để nộp nốt tiền mặt của điểm đó.
 
 ## Tra cứu khách hàng, hạng khách và điểm thành viên
 Từ khoá: khách hàng, tra khách, khách sỉ, khách lẻ, hạng khách, hạng thành viên, VIP, xếp hạng, lên hạng, điểm, tích điểm, khách thân thiết, membership, CRM, customer

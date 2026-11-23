@@ -1199,6 +1199,7 @@ async function scrHdBan() {
     return;
   }
   var ds = kq.hd || [];
+  (kq.diem_ds || []).forEach(function (d) { TEN_DIEM_BAN[d.ma] = d.ten; });
 
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">HOÁ ĐƠN BÁN RA · ' + ngayNgan(kq.tu) + ' - ' + ngayNgan(kq.den) + '</div>' +
@@ -1210,7 +1211,8 @@ async function scrHdBan() {
   html += '<div class="card" style="padding:10px 12px">' +
     mkChipNgay([[7, '7 ngày'], [30, '30 ngày'], [90, '3 tháng'], [365, '1 năm']], ktBanNgay, 'data-ktbngay') + '</div>';
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
-    [['', 'Cả ba điểm'], ['SALES', 'Sales Online'], ['TCV', 'District 1'], ['NVHTN', 'NVHTN']]
+    /* v689: chip điểm bán lấy từ danh mục điểm bán trên máy chủ, thêm điểm là có chip. */
+    [['', 'Mọi điểm bán']].concat((kq.diem_ds || []).map(function (d) { return [d.ma, d.ten]; }))
       .map(function (q) { return posChipNut('data-ktbquay="' + q[0] + '"', q[1], ktBanQuay === q[0]); }).join('')) + '</div>';
   html += '<div class="card" style="padding:10px 12px">' + mkChipNhom(kq.nhom, kq.dem, ktBanNhom, 'data-ktbnhom') + '</div>';
   html += mkOTim('ktBanTim', ktBanTim, 'Tìm theo mã phiếu, tên khách, số hoá đơn điện tử...');
@@ -1231,7 +1233,8 @@ async function scrHdBan() {
   if (o) o.onchange = function () { ktBanTim = o.value; go(scrHdBan, true); };
 }
 
-var TEN_DIEM_BAN = { SALES: 'Sales Online', TCV: 'District 1', NVHTN: 'NVHTN' };
+/* v689: tên điểm bán theo danh mục máy chủ trả về cùng danh sách hoá đơn. */
+var TEN_DIEM_BAN = {};
 
 function mkBangHd(ds, loai) {
   if (!ds.length) return '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🫙</div><div>Không có hoá đơn nào ở nhóm này.</div></div></div>';
