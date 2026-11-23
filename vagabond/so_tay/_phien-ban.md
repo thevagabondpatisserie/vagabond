@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v687
+- Không đổi thao tác: máy làm mới mã kết nối Zalo OA mỗi lần một lượt, Zalo từ chối mã thì nghỉ 10 phút thay vì gọi lại liên tục; dán Refresh token mới trong Cài đặt thì máy thử ngay; mỗi lần cập nhật app máy tự gỡ loại tin Zalo đã bỏ khỏi các nhóm nhận tin, để một tin cũ không chặn lưu trang Cài đặt
+
 ## v685
 - Con số trên ô Trang chủ
 
