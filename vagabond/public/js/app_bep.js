@@ -28019,7 +28019,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '685';
+var APPVER = '688';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -61784,6 +61784,18 @@ function cdlDatThay(fn, v) {
   if (a === b) delete CDL.thay[fn]; else CDL.thay[fn] = v;
 }
 
+/* Dòng giá trị + thao tác: giao diện cũ giữ nguyên markup; giao diện mới dùng
+   cùng khuôn co giãn, không cho giá trị dài ép nút thành cột từng ký tự (#613).
+   Hai tham số là HTML đã escape tại nơi gọi, không nhận chữ thô từ máy chủ. */
+function cdlGiaTri(noiDung, thaoTac) {
+  if (typeof uiB === 'function' && uiB()) {
+    return '<div class="cdl-val ui-dong-chon"><div class="ui-dong-chon-noi-dung">' + noiDung +
+      '</div><div class="ui-dong-chon-thao-tac">' + thaoTac + '</div></div>';
+  }
+  return '<div class="cdl-val">' + noiDung +
+    '<span style="margin-left:auto"></span>' + thaoTac + '</div>';
+}
+
 function cdlCss() {
   if (document.getElementById('cdl-css')) return;
   var s = document.createElement('style'); s.id = 'cdl-css';
@@ -62110,9 +62122,10 @@ function cdlVeO(o, doc, loi) {
     var co = v && String(v).trim() !== '';
     var dangGo = Object.prototype.hasOwnProperty.call(CDL.thay, o.fn) || CDL['go_' + o.fn];
     return '<div class="cdl-f"' + id + '>' + nhan +
-      '<div class="cdl-val">' + cdlChip(co ? 'ok' : 'no', co ? 'Đã khai' : 'Chưa khai') +
-      (o.chi_doc ? '' : '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldoikhoa="' + h(o.fn) + '">' + (co ? 'Đổi khoá' : 'Khai khoá') + '</button>' +
-        (co ? '<button class="cdl-lnk" data-cdlgokhoa="' + h(o.fn) + '" style="color:#a42424">Gỡ</button>' : '')) + '</div>' +
+      (o.chi_doc ? '<div class="cdl-val">' + cdlChip(co ? 'ok' : 'no', co ? 'Đã khai' : 'Chưa khai') + '</div>' :
+        cdlGiaTri(cdlChip(co ? 'ok' : 'no', co ? 'Đã khai' : 'Chưa khai'),
+          '<button class="cdl-lnk" data-cdldoikhoa="' + h(o.fn) + '">' + (co ? 'Đổi khoá' : 'Khai khoá') + '</button>' +
+          (co ? '<button class="cdl-lnk" data-cdlgokhoa="' + h(o.fn) + '" style="color:#a42424">Gỡ</button>' : ''))) +
       (dangGo ? '<input class="tin" type="password" autocomplete="new-password" data-cdlo="' + h(o.fn) + '" placeholder="Dán khoá mới vào đây" value="' + h(CDL.thay[o.fn] || '') + '" style="margin-top:6px">' : '') +
       '<div class="cdl-mo">Khoá bí mật không hiện lên máy. Muốn đổi thì gõ khoá mới.' + (o.mo ? ' ' + h(o.mo) : '') + '</div></div>';
   }
@@ -62124,9 +62137,9 @@ function cdlVeO(o, doc, loi) {
   }
   if (o.fn === 'ngan_hang_bin') {
     var nh = CDL.nganHang ? VGB_CD.nganHangTheoBin(CDL.nganHang, v) : null;
-    return '<div class="cdl-f"' + id + '>' + nhan + '<div class="cdl-val">' +
-      (nh ? cdlChip('ok', nh.ten) : (v ? cdlChip('err', 'Mã BIN ' + v + ' chưa có trong danh mục') : cdlChip('no', 'Chưa chọn'))) +
-      '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdlnganhang="1">Đổi</button></div>' + mo + '</div>';
+    return '<div class="cdl-f"' + id + '>' + nhan + cdlGiaTri(
+      (nh ? cdlChip('ok', nh.ten) : (v ? cdlChip('err', 'Mã BIN ' + v + ' chưa có trong danh mục') : cdlChip('no', 'Chưa chọn'))),
+      '<button class="cdl-lnk" data-cdlnganhang="1">Đổi</button>') + mo + '</div>';
   }
   if (o.kieu === 'Select') {
     var nhanChon = VGB_CD.NHAN_CHON[o.fn];
@@ -62136,13 +62149,12 @@ function cdlVeO(o, doc, loi) {
     }).join('') + '</div>' + mo + '</div>';
   }
   if (o.kieu === 'Link') {
-    return '<div class="cdl-f"' + id + '>' + nhan + '<div class="cdl-val">' +
-      (v ? h(v) : '<span style="color:#9aa1a8">Chưa chọn</span>') +
-      '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdllk="' + h(o.fn) + '">Chọn</button>' +
+    return '<div class="cdl-f"' + id + '>' + nhan + cdlGiaTri(
+      (v ? h(v) : '<span style="color:#9aa1a8">Chưa chọn</span>'),
+      '<button class="cdl-lnk" data-cdllk="' + h(o.fn) + '">Chọn</button>' +
       /* Codex #439 (V2): ô không bắt buộc thì bỏ chọn được, về lối mặc định an toàn
          (ví dụ Tài khoản chi hoàn tiền trống thì máy tự tìm tài khoản công ty). */
-      (v && !o.bat_buoc ? '<button class="cdl-lnk" data-cdlbo="' + h(o.fn) + '" style="color:#a42424">Bỏ chọn</button>' : '') +
-      '</div>' + mo + '</div>';
+      (v && !o.bat_buoc ? '<button class="cdl-lnk" data-cdlbo="' + h(o.fn) + '" style="color:#a42424">Bỏ chọn</button>' : '')) + mo + '</div>';
   }
   var giaTri = v == null ? '' : String(v);
   if (o.kieu === 'Small Text' || o.kieu === 'Text' || o.kieu === 'Long Text' || o.kieu === 'Code') {
@@ -62535,20 +62547,20 @@ function cdlVeDong(fnBang, i, nhap) {
       return '<div class="cdl-row"><div class="cdl-x"><b>' + h(c.nhan) + '</b></div><button class="cdl-tg' + (b ? ' on' : '') + '" data-cdldbat="' + h(c.fn) + '"></button></div>';
     }
     if (fnBang === 'zalo_nhom' && c.fn === 'tin_nhan') {
-      return '<div class="cdl-f">' + nhan + '<div class="cdl-val"><span>' + h(VGB_CD['tomTatTin'](v) || 'Chưa tích tin nào') + '</span>' +
-        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldtin="1">Chọn tin nhận</button></div>' +
+      return '<div class="cdl-f">' + nhan + cdlGiaTri('<span>' + h(VGB_CD['tomTatTin'](v) || 'Chưa tích tin nào') + '</span>',
+        '<button class="cdl-lnk" data-cdldtin="1">Chọn tin nhận</button>') +
         '<div class="cdl-mo">' + h(VGB_CD.GHI_CHU_TIN) + '</div></div>';
     }
     if (fnBang === 'zalo_nhom' && (c.fn === 'loai_tin' || c.fn === 'chu_de')) {
       var tach = String(v || '').split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean);
       var N = VGB_CD.ZALO_NHAN[c.fn];
-      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + h(tach.length ? tach.map(function (x) { return (N[x] || ['', x])[1]; }).join(', ') : 'Tất cả') +
-        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldchon="' + h(c.fn) + '">Chọn</button></div>' +
+      return '<div class="cdl-f">' + nhan + cdlGiaTri(h(tach.length ? tach.map(function (x) { return (N[x] || ['', x])[1]; }).join(', ') : 'Tất cả'),
+        '<button class="cdl-lnk" data-cdldchon="' + h(c.fn) + '">Chọn</button>') +
         (coTin ? '<div class="cdl-mo">Không dùng: nhóm đã chọn Tin nhận.</div>' : '') + '</div>';
     }
     if (fnBang === 'zalo_nhom' && c.fn === 'chat_id') {
-      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + (v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b><div class="cdl-mo">' + h(v) + '</div></span>' : '<span style="color:#9aa1a8">Chưa chọn</span>') +
-        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldnhom="1">Chọn nhóm đã nhắn bot</button></div>' + mo + '</div>';
+      return '<div class="cdl-f">' + nhan + cdlGiaTri((v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b><div class="cdl-mo">' + h(v) + '</div></span>' : '<span style="color:#9aa1a8">Chưa chọn</span>'),
+        '<button class="cdl-lnk" data-cdldnhom="1">Chọn nhóm đã nhắn bot</button>') + mo + '</div>';
     }
     if (c.chi_doc && choGhi.indexOf(c.fn) < 0) {
       return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + h(v == null ? '' : v) + '</div>' + mo + '</div>';
@@ -62657,7 +62669,7 @@ function cdlChonTinZalo(nhap, xong) {
       '<span class="cdl-mo" style="margin:0">' + ((tu || chiDaTich) ? 'Đang hiện ' + soHien + ' trên ' + TONG + ' tin' : '') + '</span>';
     ds.innerHTML = cac.length ? cac.map(function (bp) {
       var k = BP.map(function (x) { return x.bo_phan; }).indexOf(bp.bo_phan);
-      return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
+      return '<div' + (typeof uiB === 'function' && uiB() ? ' class="ui-dong-chon"' : '') + ' style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
         '<button class="cdl-lnk" data-cdltca="' + k + '">' + ((tu || chiDaTich) ? 'Chọn cả ' + bp.tin.length + ' tin đang hiện' : 'Chọn cả mục') + '</button></div>' +
         bp.tin.map(function (t) {
           return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
@@ -62899,9 +62911,9 @@ function dsvnKhoiHop(ht) {
     (ht.doc_luc ? 'Đọc lần cuối ' + h(String(ht.doc_luc).slice(11, 16)) + ' ' + dmy(String(ht.doc_luc).slice(0, 10)).slice(0, 5) + ' · tự đọc mỗi 15 phút' :
       'Chưa đọc lần nào.');
   return '<div class="card" style="padding:13px 14px;border:1.5px solid #68d5e7">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:16px">Hộp thư ' +
-    h(ht.dia_chi || 'doisoat@') + '</b><span style="background:' + trang[1] + ';color:' + trang[2] +
-    ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(trang[0]) + '</span></div>' +
+    '<div' + (typeof uiB === 'function' && uiB() ? ' class="ui-dong-chon"' : '') + ' style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:16px">Hộp thư ' +
+    h(ht.dia_chi || 'doisoat@') + '</b><span class="ui-dong-chon-trang-thai" style="background:' + trang[1] + ';color:' + trang[2] +
+    ';border-radius:999px;padding:3px 9px;font-size:' + (typeof uiB === 'function' && uiB() ? '13' : '12') + 'px;font-weight:600;white-space:nowrap">' + h(trang[0]) + '</span></div>' +
     '<div style="font-size:13px;color:' + (ht.trang === 'loi' ? '#b42318' : '#667085') + ';margin-top:4px">' + h(dong) + '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
     o('ve', 'Thư về hôm nay', ht.ve_hom_nay, '#067647') + o('chua_ve', 'Thư chưa về', ht.chua_ve, '#b42318') +
@@ -78752,6 +78764,16 @@ function uiBCss() {
     'html.ui-b .hub:active,html.ui-b .hub.chon{background:rgba(255,255,255,.6)}' +
     'html.ui-b .hub .hi,html.ui-b .li .hi{width:var(--ui-disc);height:var(--ui-disc);flex:0 0 var(--ui-disc);border-radius:var(--ui-r-16);' +
     'color:var(--ui-ink);background:radial-gradient(120% 120% at 25% 20%,#fff 0,rgba(var(--ui-nhom-rgb),.85) 78%)}' +
+    /* #613: một khuôn cho giá trị dài + nút/chip. Flex wrap dựa trên bề rộng
+       thực của thẻ, dùng được cả hộp thoại và khi phóng chữ, không đoán thiết bị. */
+    'html.ui-b .ui-dong-chon{display:flex;flex-wrap:wrap;align-items:center;gap:8px;word-break:normal;overflow-wrap:anywhere}' +
+    'html.ui-b .ui-dong-chon-noi-dung{flex:1 1 240px;min-width:0;max-width:100%}' +
+    'html.ui-b .ui-dong-chon-thao-tac{display:flex;flex:0 1 auto;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%;min-width:0;margin-left:auto}' +
+    'html.ui-b .ui-dong-chon .cdl-lnk{flex:0 1 auto;min-width:44px;min-height:44px;max-width:100%;word-break:normal;overflow-wrap:anywhere;white-space:normal;font-size:15px;padding:8px}' +
+    'html.ui-b .ui-dong-chon .cdl-chip{max-width:100%;min-width:0;white-space:normal}' +
+    'html.ui-b .ui-dong-chon>.cdl-lnk{margin-left:auto}' +
+    'html.ui-b .ui-dong-chon>b{min-width:0;flex:1 1 240px!important;overflow-wrap:anywhere}' +
+    'html.ui-b .ui-dong-chon>.ui-dong-chon-trang-thai{flex:0 1 auto;max-width:100%;white-space:normal!important}' +
     'html.ui-b .hub .h1{font-size:15px;font-weight:600;color:var(--ui-ink);margin-bottom:4px;overflow-wrap:anywhere}' +
     'html.ui-b .hub .h2{font-size:13px;color:var(--ui-text-3);line-height:1.4;overflow-wrap:anywhere}' +
     'html.ui-b .hub .fc{color:var(--ui-text-3)!important}' +

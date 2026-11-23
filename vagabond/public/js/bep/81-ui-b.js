@@ -829,6 +829,16 @@ function uiBCss() {
     'html.ui-b .hub:active,html.ui-b .hub.chon{background:rgba(255,255,255,.6)}' +
     'html.ui-b .hub .hi,html.ui-b .li .hi{width:var(--ui-disc);height:var(--ui-disc);flex:0 0 var(--ui-disc);border-radius:var(--ui-r-16);' +
     'color:var(--ui-ink);background:radial-gradient(120% 120% at 25% 20%,#fff 0,rgba(var(--ui-nhom-rgb),.85) 78%)}' +
+    /* #613: một khuôn cho giá trị dài + nút/chip. Flex wrap dựa trên bề rộng
+       thực của thẻ, dùng được cả hộp thoại và khi phóng chữ, không đoán thiết bị. */
+    'html.ui-b .ui-dong-chon{display:flex;flex-wrap:wrap;align-items:center;gap:8px;word-break:normal;overflow-wrap:anywhere}' +
+    'html.ui-b .ui-dong-chon-noi-dung{flex:1 1 240px;min-width:0;max-width:100%}' +
+    'html.ui-b .ui-dong-chon-thao-tac{display:flex;flex:0 1 auto;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%;min-width:0;margin-left:auto}' +
+    'html.ui-b .ui-dong-chon .cdl-lnk{flex:0 1 auto;min-width:44px;min-height:44px;max-width:100%;word-break:normal;overflow-wrap:anywhere;white-space:normal;font-size:15px;padding:8px}' +
+    'html.ui-b .ui-dong-chon .cdl-chip{max-width:100%;min-width:0;white-space:normal}' +
+    'html.ui-b .ui-dong-chon>.cdl-lnk{margin-left:auto}' +
+    'html.ui-b .ui-dong-chon>b{min-width:0;flex:1 1 240px!important;overflow-wrap:anywhere}' +
+    'html.ui-b .ui-dong-chon>.ui-dong-chon-trang-thai{flex:0 1 auto;max-width:100%;white-space:normal!important}' +
     'html.ui-b .hub .h1{font-size:15px;font-weight:600;color:var(--ui-ink);margin-bottom:4px;overflow-wrap:anywhere}' +
     'html.ui-b .hub .h2{font-size:13px;color:var(--ui-text-3);line-height:1.4;overflow-wrap:anywhere}' +
     'html.ui-b .hub .fc{color:var(--ui-text-3)!important}' +

@@ -74,6 +74,7 @@ function dungMan() {
   var goi = [], toastDs = [], sheetDs = [], diToi = [];
   var S = { stack: [] };
   var that = {
+    uiB: function () { return process.env.VGB_UI_B === '1'; },
     document: tai, console: console, Math: Math, JSON: JSON, String: String, Array: Array, Object: Object,
     RegExp: RegExp, Promise: Promise, parseInt: parseInt, isNaN: isNaN, setTimeout: setTimeout, APPVER: 570, S: S,
     frame: function (t, html, opt) {
@@ -911,4 +912,12 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
   if (ket.hong) process.exit(1);
+  // #613: cổng hiện có phải đi qua cả nhánh markup cũ và mới.
+  if (process.env.VGB_UI_B === undefined) {
+    console.log('Chạy lại chuỗi thao tác với giao diện mới:');
+    var moi = cp.spawnSync(process.execPath, [__filename], {
+      env: Object.assign({}, process.env, { VGB_UI_B: '1' }), stdio: 'inherit'
+    });
+    if (moi.status !== 0) process.exit(1);
+  }
 })();

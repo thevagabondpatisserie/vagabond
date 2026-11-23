@@ -831,3 +831,14 @@ Giao diện mới đang thử. Mặc định cả tiệm vẫn dùng giao diện
 - Muốn về giao diện cũ cho riêng mình: đổi Lựa chọn riêng thành Luôn tắt hoặc xoá dòng, rồi tải lại trang.
 - Có sự cố trên giao diện mới: bật ô Tắt khẩn cấp (cả tiệm về giao diện cũ), bấm [[Lưu]]; mọi máy về giao diện cũ ở lần mở trang kế tiếp.
 - Chưa bật ô Bật giao diện mới cho cả tiệm khi chưa có quyết định chính thức.
+
+## Ô chọn không bị ép chữ trên điện thoại
+Từ khoá: chọn tin nhận, nhóm Zalo, chữ vỡ, nút hẹp, ngân hàng, tài khoản, đổi khoá
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị | Cài đặt lõi và API | Chọn tin nhận, Chọn nhóm đã nhắn bot |
+
+Trong giao diện mới, phần đã chọn dài sẽ xuống dòng theo từ; nút Chọn vẫn đủ rộng để bấm. Khi khung hẹp, nút chuyển xuống hàng dưới. Áp dụng cho tin nhận, nhóm Zalo, loại tin, chủ đề, ngân hàng, tài khoản và nút khai hoặc đổi khoá.
+
+Thao tác chọn và lưu giữ nguyên. Thẻ Hộp thư đối soát cũng tự xuống hàng để địa chỉ dài không đẩy trạng thái ra ngoài thẻ.

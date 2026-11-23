@@ -12,6 +12,10 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v688
+
+- Ô chọn không bị ép chữ trên điện thoại
+
 ## v685
 - Con số trên ô Trang chủ
 
