@@ -1720,3 +1720,52 @@ def xem_truoc(loai="viec"):
 	return {"tin": soan_tin(loai if loai in LOAI else "viec", "Khoản trả trước ERP chờ duyệt: PKT-2026-00000",
 		["HĐ 8 của Công ty mẫu, 37.584.000 đ", "Gửi bởi Thu mua lúc 09:30"],
 		get_url("/cong-no-phai-tra"), nguoi="Kế toán", han="Trong ngày")}
+
+
+# v687 (anh Việt 23/11/2026): bản v678 bỏ mã tin "kt_ds_tep_loi" nhưng nhóm
+# Kế toán trên site còn tích mã đó. kiem_bo_loc chặn lưu, nên CẢ trang Cài đặt
+# không lưu được; token Zalo vừa làm mới cũng không ghi được, tin Zalo ngừng
+# từ 22/11. Từ nay mỗi lần cập nhật app (after_migrate) máy tự gỡ các mã tin
+# không còn trong danh mục khỏi ô Tin nhận của mọi nhóm. Chặn lúc lưu vẫn giữ
+# cho mã gõ sai mới. Chỉ đụng ô tin_nhan, không đụng Loại tin, Chủ đề.
+def go_ma_da_bo(tin_nhan, danh_muc=None):
+	"""THUẦN: (chuỗi Tin nhận mới, [mã đã gỡ]). Giữ thứ tự và các mã còn trong
+	danh mục; không có mã nào bị gỡ thì trả nguyên chuỗi cũ."""
+	dm = set(TIN if danh_muc is None else danh_muc)
+	ma = [x.strip() for x in str(tin_nhan or "").replace(";", ",").split(",") if x.strip()]
+	bo = [x for x in ma if x not in dm]
+	if not bo:
+		return (tin_nhan, [])
+	giu = []
+	for x in ma:
+		if x in dm and x not in giu:
+			giu.append(x)
+	return (", ".join(giu), bo)
+
+
+def don_tin_da_bo(cha="Vagabond Settings"):
+	"""after_migrate: gỡ mã tin đã bỏ khỏi danh mục ra khỏi ô Tin nhận của các
+	nhóm Zalo. Ghi thẳng từng dòng con, không qua lưu cả trang Cài đặt (chính
+	lần lưu đó đang bị mã cũ chặn). Chạy lại được: lần sau không còn gì để gỡ.
+	`cha` để ca bench chỉ đụng dòng của chính ca."""
+	ra = []
+	try:
+		if not frappe.db.has_column("Vagabond Kenh Zalo", "tin_nhan"):
+			return ra
+		# limit_page_length=0: get_all mặc định chỉ trả 20 dòng (loại 2, đọc thiếu).
+		hang = frappe.get_all("Vagabond Kenh Zalo", filters={
+			"parent": cha, "parenttype": "Vagabond Settings", "parentfield": "zalo_nhom"},
+			fields=["name", "ten_nhom", "tin_nhan"], order_by="idx asc", limit_page_length=0)
+		for r in hang:
+			moi, bo = go_ma_da_bo(r.get("tin_nhan"))
+			if not bo:
+				continue
+			frappe.db.set_value("Vagabond Kenh Zalo", r["name"], "tin_nhan", moi, update_modified=False)
+			ra.append({"nhom": r.get("ten_nhom") or r["name"], "bo": bo})
+		if ra:
+			frappe.clear_cache(doctype="Vagabond Settings")
+			frappe.logger().info("kenh_zalo.don_tin_da_bo: %s" % json.dumps(ra, ensure_ascii=False))
+	except Exception:
+		# Cập nhật app không được ngã vì bước dọn này.
+		frappe.log_error(frappe.get_traceback(), "kenh_zalo: gỡ mã tin đã bỏ")
+	return ra

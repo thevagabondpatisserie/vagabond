@@ -694,3 +694,49 @@ def _dong_tien_thu_quay():
 	h = next(x for x in kq["ngay"] if x["ngay"] == "2026-08-15")
 	la("ngày 15/08: vào gồm két 1.000.000 và thu quỹ 80.000, ra gồm chi quỹ", (h["vao"], h["ra"]), (1080000.0, 30000.0))
 	la("tổng kỳ", (kq["vao"], kq["ra"], kq["rong"]), (1080000.0, 30000.0, 1050000.0))
+
+
+@ca("#610 tiền hiện có: tài khoản đồng bộ giao dịch mà chưa chốt số dư đầu thì lấy số SePay báo (Shinhan, anh Việt 23/11/2026)")
+def _dong_bo_chua_chot_lay_sepay():
+	from vagabond import lich_du_chi as ldc
+	from vagabond import tin_tai_chinh as ttc
+	this = sys.modules[__name__]
+	# Tài khoản giả cùng dạng: đồng bộ giao dịch (có trong bản đồ SePay), tài khoản công ty.
+	stk, ten = "888800001234", "SHB-GIA-1234 - Shinhan Bank"
+	tk_gia = {"name": ten, "account": "11212 - Tiền gửi Shinhan giả - TV", "bank": "Shinhan Bank",
+		"bank_account_no": stk, "is_company_account": 1}
+	nguon = "nh:" + stk
+
+	def chay(so_bao, moc):
+		with um.patch.dict(BAN_DO, {stk: ten}), um.patch.dict(SO_BAO, {stk: so_bao}), \
+			um.patch.object(this, "TK", TK + [tk_gia]):
+			return _tinh(moc)
+
+	kq = chay(150000000.0, MOC)
+	d = {x["nguon"]: x for x in kq["dong"]}[nguon]
+	la("đồng bộ giao dịch", d["dong_bo"], 1)
+	la("chưa chốt: lấy số SePay báo", d["so_du"], 150000000.0)
+	la("ghi rõ nguồn số", d["ghi"], ["Số dư SePay báo, chưa chốt số dư đầu"])
+	la("cờ lấy số SePay", d.get("so_sepay"), 1)
+	la("tổng cộng cả tài khoản này", kq["tong"]["tong"], 1180000000.0 + 242995597.0 + 6500000.0 + 101500000.0 + 150000000.0)
+	# Bản tin cuối ngày: có dòng số, không còn trong dòng "Chưa chốt số dư đầu".
+	_tieu, dong_tin = ttc.soan_cuoi_ngay("2026-08-15", kq, {"vao": 0, "ra": 0, "rong": 0, "thieu": [], "ngay": [], "lon_nhat": {"ra": []}})
+	dung("bản tin có số Shinhan", "Shinhan Bank ···1234: 150.000.000 đ" in dong_tin)
+	cc = [x for x in dong_tin if x.startswith(ttc.CHUA_CHOT)]
+	dung("bản tin không xếp Shinhan vào chưa chốt", not any("···1234" in x for x in cc))
+	# Lịch dự chi: dòng lấy số SePay thì trừ tiếp khoản chi ghi sổ sau giờ đọc.
+	dung("lịch dự chi coi là dòng số SePay", ldc.lay_so_sepay(d))
+	kd = ldc.kha_dung_tai_chinh([dict(d, loai="Ngân hàng")], {ten: 20000000})
+	la("khả dụng = số SePay - chi sau giờ đọc", (kd["so_du_tk"], kd["chi_sau"], kd["so_tien"]),
+		(ldc.Decimal(150000000), ldc.Decimal(20000000), ldc.Decimal(130000000)))
+
+	# Đã chốt số dư đầu: tính từ mốc như cũ, không lấy số SePay.
+	moc = MOC + [{"name": "MSD-9", "nguon": nguon, "ngay_chot": "2026-08-01", "so_du": 90000000, "luc": "2026-08-02 08:00"}]
+	d = {x["nguon"]: x for x in chay(150000000.0, moc)["dong"]}[nguon]
+	la("có mốc: mốc + phát sinh", d["so_du"], 90000000.0)
+	la("có mốc: không cờ SePay", d.get("so_sepay"), None)
+	dung("có mốc: lịch dự chi không trừ chi sau", not ldc.lay_so_sepay(d))
+
+	# SePay không báo số: vẫn là chưa chốt, không đoán.
+	d = {x["nguon"]: x for x in chay(0.0, MOC)["dong"]}[nguon]
+	la("SePay 0: chưa có số", (d["so_du"], d["ghi"], d.get("so_sepay")), (None, ["Chưa chốt số dư đầu"], None))

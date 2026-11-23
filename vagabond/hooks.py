@@ -1311,4 +1311,7 @@ for _dt_ma in tuple(_dt_ma_ct) + tuple(_dt_tt_ct):
 	doc_events[_dt_ma]["autoname"] = ([_cu_ma] if isinstance(_cu_ma, str) else list(_cu_ma)) + [
 		"vagabond.ma_chung_tu.dat_ten"]
 after_migrate.append("vagabond.ma_chung_tu.dung")
+# v687 (anh Việt 23/11/2026): gỡ mã tin Zalo đã bỏ khỏi các nhóm, để một mã cũ
+# không chặn lưu cả trang Cài đặt (sự cố tin Zalo ngừng từ 22/11).
+after_migrate.append("vagabond.kenh_zalo.don_tin_da_bo")
 del _dt_ma, _cu_ma, _dt_ma_ct, _dt_tt_ct
