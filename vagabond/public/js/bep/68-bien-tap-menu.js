@@ -378,8 +378,14 @@ async function scrBienTapMenu() {
   if (!coQuyenBtm()) { frame('Biên tập menu', '<div class="emp"><div class="e1">🔒</div><div>Chỉ quản lý cửa hàng mới biên tập menu được.</div></div>'); return; }
   if (BTM && BTM.d && (!BTM_DIEM || BTM.d.diem === BTM_DIEM)) return btmVe();
   frame('Biên tập menu', '<div class="emp"><div class="e1">⏳</div><div>Đang tải menu...</div></div>');
-  try { BTM = { d: await api('vagabond.bien_tap_menu.mo', { diem: BTM_DIEM || '' }), loi: '' }; }
-  catch (e) { frame('Biên tập menu', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được menu. Thử lại sau.') + '</div></div>'); return; }
+  var conMan = vgbManNay(scrBienTapMenu);
+  var btmKq;
+  try { btmKq = await api('vagabond.bien_tap_menu.mo', { diem: BTM_DIEM || '' }); }
+  catch (e) { if (!conMan()) return; frame('Biên tập menu', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được menu. Thử lại sau.') + '</div></div>'); return; }
+  /* Lượt mở cũ về muộn (đã đổi điểm hay sang màn khác) không được ghi đè menu
+     đang sửa, không vẽ (vgbManNay, phần 01). */
+  if (!conMan()) return;
+  BTM = { d: btmKq, loi: '' };
   BTM_DIEM = BTM.d.diem;
   btmVe();
 }

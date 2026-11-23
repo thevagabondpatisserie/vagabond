@@ -1775,15 +1775,18 @@ async function scrPosBill(name) {
 var otpDem = null;
 async function scrOtp() {
   frame('Mã OTP quản lý', '<div class="emp"><div class="e1">⏳</div><div>Đang lấy mã...</div></div>');
+  var conMan = vgbManNay(scrOtp);
   var k;
   try { k = await api('vagabond.ban_hang.otp_hien_tai'); }
   catch (e) {
+    if (!conMan()) return;
     frame('Mã OTP quản lý', '<div class="card" style="padding:22px 18px;text-align:center">' +
       '<div style="font-size:40px">🔒</div>' +
       '<div style="font-size:15px;font-weight:700;margin-top:8px">Chỉ quản lý được cấp mã</div>' +
       '<div style="font-size:13.5px;color:#6b7280;margin-top:8px;line-height:1.6">' + h((e && e.message) || '') + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var html = '<div class="card" style="padding:20px 18px;text-align:center">' +
     '<div style="font-size:12.5px;color:#6b7280;font-weight:600;letter-spacing:.06em">MÃ ĐANG CÓ HIỆU LỰC</div>' +
     '<div id="otpMa" style="font-size:46px;font-weight:800;letter-spacing:.16em;color:#0f766e;margin:8px 0 2px;font-variant-numeric:tabular-nums">' + h(k.ma) + '</div>' +
@@ -1796,6 +1799,7 @@ async function scrOtp() {
     '2. Sửa cái gì, vì sao phải sửa?<br>' +
     '3. Khách đã trả tiền chưa, tiền chênh xử lý thế nào?<br>' +
     '<span style="color:#98a2b3">Mỗi lần sửa hoặc xoá máy đều ghi lại tên người thao tác vào hoá đơn.</span></div>';
+  if (!conMan()) return;
   frame('Mã OTP quản lý', html, { footer: '<button class="btn" id="otpMoi">🔄 Lấy mã mới nhất</button>' });
   document.getElementById('otpMoi').onclick = function () { go(scrOtp, true); };
   if (otpDem) clearInterval(otpDem);

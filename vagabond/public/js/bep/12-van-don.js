@@ -102,8 +102,8 @@ async function scrVanDon() {
   vdTuLamMoi();
   if (!vdNgay) vdNgay = today();
   frame('Vận đơn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải vận đơn...</div></div>');
-  var conMan = vgbManNay();
-  var ds;
+  var conMan = vgbManNay(scrVanDon);
+  var ds, boLoc;
   if (vdVeSuong && vdDs && vdDsNgay === vdNgay) {
     vdVeSuong = 0;
     ds = vdDs;
@@ -111,13 +111,16 @@ async function scrVanDon() {
     vdVeSuong = 0;
     try {
       var nap = await vdNapDanhSach();
-      ds = nap[0]; vdBoLoc = nap[1]; vtShipper = nap[2];
+      ds = nap[0]; boLoc = nap[1]; vtShipper = nap[2];
     }
     catch (e) { if (conMan()) frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
-    /* Đã sang màn khác hoặc đã đổi ngày: danh sách này là của lần mở cũ. */
+    /* Đã sang màn khác hoặc đã đổi ngày: danh sách và bộ lọc (số đơn thiếu thẻ
+       khung giờ) là của lần mở cũ, không ghi đè ngày đang xem. Danh sách shipper
+       là danh mục chung nên vẫn giữ. */
     if (!conMan()) return;
-    vdDs = ds; vdDsNgay = vdNgay;
+    vdDs = ds; vdDsNgay = vdNgay; vdBoLoc = boLoc;
   }
+  if (!conMan()) return;
   var chonMode = !!window.vdChon;
   /* Hai nut lui/toi mot ngay: tren dien thoai bam nhanh hon mo bang chon
      ngay, va khong dinh loi bang chon ngay lam trang bi ve lai. */
@@ -316,7 +319,7 @@ async function scrVanDon() {
 
 async function scrVdCod() {
   frame('Đối soát COD', '<div class="emp"><div class="e1">⏳</div></div>');
-  var conMan = vgbManNay();
+  var conMan = vgbManNay(scrVdCod);
   var ng = vdNgay || today();
   var ds;
   try { ds = await api('vagabond.van_don.doi_soat_cod', { ngay: ng }); }
@@ -434,7 +437,7 @@ function vdCanAnhGiao(d) {
 }
 async function scrVdView(name) {
   frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⏳</div></div>');
-  var conMan = vgbManNay();
+  var conMan = vgbManNay(scrVdView);
   var d;
   try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } await vdNapDiem(); }
   catch (e) { if (conMan()) frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
@@ -807,9 +810,11 @@ function cpKhoangNgay() {
 async function scrVdChiPhi() {
   if (!cpTay) cpTay = { loai: 'Đổ xăng', tien: '', shd: '', noi: '', ghichu: '' };
   frame('Chi phí xăng xe - sửa xe', '<div class="emp"><div class="e1">⏳</div><div>Đang tải chi phí...</div></div>');
+  var conMan = vgbManNay(scrVdChiPhi);
   var kq;
   try { kq = await api('vagabond.van_don.chi_phi_danh_sach', cpKhoangNgay()); }
-  catch (e) { frame('Chi phí xăng xe - sửa xe', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame('Chi phí xăng xe - sửa xe', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (!conMan()) return;
   var ds = kq.rows || [];
   var laKt = !!kq.la_ke_toan;
 
@@ -881,6 +886,7 @@ async function scrVdChiPhi() {
   });
   html += '</div>';
 
+  if (!conMan()) return;
   var b = frame('Chi phí xăng xe - sửa xe', html, {});
   Array.prototype.forEach.call(document.querySelectorAll('[data-cpng]'), function (el) {
     el.onclick = function () { cpKhoang = +el.getAttribute('data-cpng'); cpTu = null; cpDen = null; go(scrVdChiPhi, true); };
@@ -954,7 +960,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '689';
+var APPVER = '690';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -2058,15 +2064,18 @@ function paThangChu(t) {
 
 async function scrVdPhiApp() {
   frame('Phí giao hàng book app', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng phí giao...</div></div>');
+  var conMan = vgbManNay(scrVdPhiApp);
   var kq;
   var ts = paKhoangNgay();
   if (paApp) ts.app = paApp;
   try { kq = await api('vagabond.van_don.phi_book_app', ts); }
   catch (e) {
+    if (!conMan()) return;
     frame('Phí giao hàng book app', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
   }
+  if (!conMan()) return;
 
   var html = '<div class="card" style="padding:10px 12px">' + kmHangChip(
     [[30, '30 ngày'], [90, '3 tháng'], [180, '6 tháng'], [365, '1 năm']].map(function (x) {
@@ -2149,6 +2158,7 @@ async function scrVdPhiApp() {
     'Chỉ tính vận đơn đã giao xong và đặt qua app ngoài. Đơn huỷ, đơn giao không được, ' +
     'shipper nội bộ và khách tự lấy không nằm trong bảng này.</div>';
 
+  if (!conMan()) return;
   var b = frame('Phí giao hàng book app', html);
 
   function doiNgay() {

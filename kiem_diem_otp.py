@@ -6516,8 +6516,13 @@ _bh52 = open("vagabond/ban_hang.py", encoding="utf-8").read()
 # mot to hoa don dien tu da gui co quan thue cho cai banh chua bao gio lam.
 # Do la vung cam anh Viet chot 13/08.
 _quet52 = _bh52.split("def _quet_don_treo(")[1].split("\ndef ")[0]
-la("lượt quét đơn treo vẫn chừa ra đơn có cờ huỷ", '"vgb_huy": 0' in _quet52, True)
-la("lượt quét vẫn chừa ra phiếu tạm tính", '"vgb_tam_tinh": 0' in _quet52, True)
+# v689: bộ lọc tách ra _loc_don_treo để ô Trang chủ đếm cùng một bộ lọc (Codex
+# kiểm v685, UI15). Lượt quét phải đi qua đúng hàm đó, và hàm đó vẫn chừa ra
+# đơn có cờ huỷ và phiếu tạm tính.
+_loc52 = _bh52.split("def _loc_don_treo(")[1].split("\ndef ")[0]
+la("lượt quét đơn treo lọc bằng _loc_don_treo", "filters=_loc_don_treo(so_ngay)" in _quet52, True)
+la("lượt quét đơn treo vẫn chừa ra đơn có cờ huỷ", '"vgb_huy": 0' in _loc52, True)
+la("lượt quét vẫn chừa ra phiếu tạm tính", '"vgb_tam_tinh": 0' in _loc52, True)
 _ly52 = _bh52.split("def _ly_do_treo(")[1].split("\ndef ")[0]
 la("chuyển khoản đã về đủ tiền là ĐỦ ĐIỀU KIỆN ghi sổ",
    'return "san_sang"' in _ly52 and 'flt(g.get("nhan")) >= _can_ck(r)' in _ly52, True)

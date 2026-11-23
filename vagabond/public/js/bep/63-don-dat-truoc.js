@@ -117,9 +117,11 @@ async function scrDonDatTruoc() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc đơn đặt trước...</div></div>');
+  var conMan = vgbManNay(scrDonDatTruoc);
   var kq;
   try { kq = await api('vagabond.thiet_ke_rieng.ds_don', {}); }
-  catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  if (!conMan()) return;
   /* Lọc điểm nhận và ngày nhận áp cả thẻ tóm tắt lẫn danh sách; mỗi hàng chip
      đếm theo các hàng còn lại để số trên chip khớp số thẻ hiện ra. */
   var goc = kq.rows || [], homNay = kq.hom_nay;
@@ -140,6 +142,7 @@ async function scrDonDatTruoc() {
   };
   var html = dsCongCu(cc) + ddtTomTat(kqLoc) + '<div id="ddtDs">' + ddtVeDs(kqLoc) + '</div>' +
     '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Khách đặt và cọc 50% trên web. Tiền cọc về thì máy lập phiếu thu chờ kế toán ghi sổ. Ngày nhận: thu phần còn lại, rồi giao bánh và xuất hoá đơn ở đây.</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') { ddtTt = k || ''; ddtTim = ''; }

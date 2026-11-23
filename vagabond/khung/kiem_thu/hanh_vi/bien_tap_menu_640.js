@@ -93,6 +93,8 @@ function moApp(o) {
     RegExp: RegExp, Promise: Promise, Number: Number, Date: Date, isNaN: isNaN, parseInt: parseInt,
     setTimeout: function (f, ms) { return setTimeout(f, ms > 100 ? 5 : ms); }, clearTimeout: clearTimeout,
     hasRole: function (r) { return (o.vai || ['VGB - Quản lý cửa hàng']).indexOf(r) >= 0; },
+    /* v690: màn async hỏi vgbManNay (phần 01) trước khi vẽ; ca này nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
+    vgbManNay: function () { return function () { return true; }; },
     busy: function () {}, toast: function (s) { tin.push(String(s)); },
     hoiChu: function () { return Promise.resolve(hoi.length ? hoi.shift() : null); },
     confirmSheet: function () { return Promise.resolve(o.xacNhan !== false); },

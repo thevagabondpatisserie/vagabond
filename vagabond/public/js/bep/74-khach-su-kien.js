@@ -57,9 +57,11 @@ async function scrKhachSuKien() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc các sự kiện...</div></div>');
+  var conMan = vgbManNay(scrKhachSuKien);
   var kq;
   try { kq = await api('vagabond.tiec_web.ds_su_kien', {}); }
-  catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  if (!conMan()) return;
   var ds = kq.su_kien || [];
   var html = ds.length ? ds.map(function (s) {
     var cho = s.tong_cho ? s.so_ve + ' / ' + s.tong_cho + ' chỗ' : s.so_ve + ' vé';
@@ -70,6 +72,7 @@ async function scrKhachSuKien() {
       '<div style="font-size:13.5px;margin-top:6px"><b>' + s.da_vao + '</b> / ' + s.so_ve + ' vé đã vào cửa' + (s.hien ? '' : ' · <span style="color:#98a2b3">đang ẩn trên web</span>') + '</div></button>';
   }).join('') : '<div class="emp"><div class="e1">🎟️</div><div>Chưa có sự kiện nào. Marketing tạo sự kiện ở Biên tập website, thẻ Sự kiện.</div></div>';
   html += '<div style="font-size:13px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Khách đăng ký trên web nhận mã vé. Sales gọi xác nhận và thu tiền. Ở cửa, tìm mã vé hoặc số điện thoại rồi bấm Đã vào cửa.</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   than.addEventListener('click', function (e) {
     var t = e.target.closest('[data-skmo]');

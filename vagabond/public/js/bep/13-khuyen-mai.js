@@ -536,6 +536,7 @@ function kmTheChip(t, nhan) { return posChipNut('data-kmthe="' + t + '"', nhan, 
 
 async function scrKhuyenMai() {
   frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chương trình...</div></div>');
+  var conMan = vgbManNay(scrKhuyenMai);
   var ct, cb;
   try {
     ct = await api('vagabond.khuyen_mai.ds_ctkm', { tat_ca: 1 });
@@ -544,13 +545,18 @@ async function scrKhuyenMai() {
        chip cho bam, khoi go tay (anh Viet 12/08/2026). */
     await kmNapDm();
   } catch (e) {
+    if (!conMan()) return;
     frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
   }
   /* v645: ưu đãi đơn đầu tiên trên web (không phải chương trình ERP). Đọc hỏng
      thì màn vẫn chạy và thẻ báo chưa tải được kèm nút Thử lại (Codex #548). */
-  try { kmDonDau = await api('vagabond.don_dau_web.doc_cai_dat', {}); }
-  catch (e3) { kmDonDau = { loi: (e3 && e3.message) || 'Không tải được' }; }
+  var kmDd;
+  try { kmDd = await api('vagabond.don_dau_web.doc_cai_dat', {}); }
+  catch (e3) { kmDd = { loi: (e3 && e3.message) || 'Không tải được' }; }
+  /* Lượt mở cũ về muộn không ghi đè dữ liệu của lượt đang hiện (vgbManNay, phần 01). */
+  if (!conMan()) return;
+  kmDonDau = kmDd;
   kmData = { ct: (ct && ct.km) || [], cb: (cb && cb.combo) || [] };
   var dsCt = kmData.ct, dsCb = kmData.cb;
   var dangBat = dsCt.filter(function (x) { return x.bat; }).length;
@@ -575,6 +581,7 @@ async function scrKhuyenMai() {
   else if (kmThe === 'lo') html += '<div class="card" id="kmLoBox" style="padding:6px 14px"><div class="emp" style="padding:22px"><div class="e1">⏳</div><div>Đang đọc lô mã...</div></div></div>';
   else html += '<div class="card" id="kmBcBox" style="padding:6px 14px"><div class="emp" style="padding:22px"><div class="e1">⏳</div><div>Đang cộng sổ...</div></div></div>';
 
+  if (!conMan()) return;
   var b = frame('Khuyến mãi - combo', html, {
     fab: (kmThe === 'ct' || kmThe === 'cb'),
     onFab: function () { kmThe === 'cb' ? kmSheetCombo(null) : kmSheetCtkm(null); }

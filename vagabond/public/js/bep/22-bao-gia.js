@@ -237,11 +237,13 @@ async function vgbChonMon(o) {
 /* ---------- Cua vao: Quan ly hop dong mua ban ---------- */
 async function scrHopDongHub() {
   frame('Quản lý hợp đồng mua bán', '<div class="emp"><div class="e1">⏳</div><div>Đang đếm...</div></div>');
+  var conMan = vgbManNay(scrHopDongHub);
   var dem = {}, shd = 0, stv = 0, smau = 0;
   try { dem = (await api('vagabond.bao_gia.danh_sach', {})).dem || {}; } catch (e) { }
   try { shd = (await api('vagabond.hop_dong.danh_sach', {})).length; } catch (e) { }
   try { stv = (await api('vagabond.bao_gia.tv_danh_sach', {})).ds.length; } catch (e) { }
   try { smau = (await api('vagabond.bao_gia.mau_ds', {})).length; } catch (e) { }
+  if (!conMan()) return;
   var o = function (icon, t1, t2, cnt, k) {
     return '<div class="hub" data-k="' + k + '"><div class="hi">' + icon + '</div>' +
       '<div class="ht"><div class="h1">' + h(t1) + '</div><div class="h2">' + h(t2) + '</div></div>' +
@@ -264,6 +266,7 @@ async function scrHopDongHub() {
     '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Đang chờ khách trả lời</span><b style="color:#b45309">' + (dem.cho_khach || 0) + '</b></div>' +
     '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Khách đã duyệt</span><b style="color:#0a8a4a">' + (dem.duyet || 0) + '</b></div>' +
     '<div style="display:flex;justify-content:space-between"><span>Hợp đồng</span><b>' + shd + '</b></div></div>';
+  if (!conMan()) return;
   var b = frame('Quản lý hợp đồng mua bán', html);
   b.addEventListener('click', function (e) {
     var c = e.target.closest('[data-k]'); if (!c) return;

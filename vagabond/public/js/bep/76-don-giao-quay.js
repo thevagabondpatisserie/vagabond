@@ -66,11 +66,17 @@ function dqChip(attr, chu, chon) {
 async function scrDonGiaoQuay(diem) {
   if (diem) DQ_DIEM = diem;
   if (!DQ_DIEM && typeof posQuay !== 'undefined' && posQuay) DQ_DIEM = posQuay.ma || '';
+  var conMan = vgbManNay(scrDonGiaoQuay);
   busy(true);
-  DQ_LOI = '';
-  try { DQ = await api('vagabond.don_quay.danh_sach', { diem: DQ_DIEM, ngay: DQ_NGAY }); }
-  catch (e) { DQ_LOI = (e && e.message) || ''; }
+  var kq = null, loi = '';
+  try { kq = await api('vagabond.don_quay.danh_sach', { diem: DQ_DIEM, ngay: DQ_NGAY }); }
+  catch (e) { loi = (e && e.message) || ''; }
   busy(false);
+  /* Lượt mở cũ về muộn (đã đổi ngày, đổi điểm hay sang màn khác): không ghi
+     đè danh sách đang hiện, không vẽ (vgbManNay, phần 01). */
+  if (!conMan()) return;
+  DQ_LOI = loi;
+  if (!loi) DQ = kq;
   if (DQ && DQ.diem) DQ_DIEM = DQ.diem;
   dqVe();
 }

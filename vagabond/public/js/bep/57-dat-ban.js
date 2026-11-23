@@ -331,12 +331,15 @@ async function scrDatBan() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc đặt bàn...</div></div>');
+  var conMan = vgbManNay(scrDatBan);
   var kq;
   try { kq = await api('vagabond.dat_ban.ds_dat_ban', { khoang: dbKhoang }); }
   catch (e) {
+    if (!conMan()) return;
     frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var tatCa = kq.rows || [], dem = kq.dem || {}, homNay = kq.hom_nay || today();
   /* Thanh công cụ chung (AGENTS 2b.6): hàng chip khoảng ngày, kèm số bàn còn
      giữ của từng khoảng, và ô tìm. Không có chip "tất cả": mỗi lần xem đúng
@@ -352,6 +355,7 @@ async function scrDatBan() {
   html += dbTheTomTat(tatCa, dbKhoang, homNay);
   html += '<div id="dbDs">' + dbVeDs(tatCa, homNay) + '</div>';
   html += '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Đặt bàn khách gửi từ trang web. Xác nhận hoặc huỷ thì máy gửi email cho khách (nếu bật) và nhắn nhóm Zalo Bán hàng.</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   var veLai = function () { var o = document.getElementById('dbDs'); if (o) o.innerHTML = dbVeDs(tatCa, homNay); };
   dsCongCuNoi(than, cc, function (ho, k) {

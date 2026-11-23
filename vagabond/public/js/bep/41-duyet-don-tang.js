@@ -82,14 +82,17 @@ function dtgCongCu(kq) {
 
 async function scrDuyetTang() {
   frame(DTG_TEN, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
+  var conMan = vgbManNay(scrDuyetTang);
   var kq;
   try {
     kq = await api('vagabond.hang_tang.ds_don', dtgLoc());
   } catch (e) {
+    if (!conMan()) return;
     frame(DTG_TEN, '<div class="emp"><div class="e1">⚠️</div><div>' +
       h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var dong = kq.dong || [];
 
   var html = '<div class="card" style="padding:12px 13px">' +
@@ -163,6 +166,7 @@ async function scrDuyetTang() {
   });
   html += '</div>';
 
+  if (!conMan()) return;
   var than = frame(DTG_TEN, html, {
     footer: '<button class="btn gh" data-dtgbc="1" style="width:100%;margin:0">' +
       '📊 Báo cáo hàng tặng</button>',

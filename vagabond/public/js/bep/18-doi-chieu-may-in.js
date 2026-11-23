@@ -1591,9 +1591,11 @@ var DT_MAU = {
 
 async function scrDonTreo() {
   frame('Đơn còn treo', '<div class="emp"><div class="e1">⏳</div><div>Đang soát đơn chưa ghi sổ...</div></div>');
+  var conMan = vgbManNay(scrDonTreo);
   var d;
   try { d = await api('vagabond.ban_hang.don_treo', { so_ngay: dtNgay }); }
-  catch (e) { frame('Đơn còn treo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame('Đơn còn treo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (!conMan()) return;
   var rows = d.rows || [];
   var LD = d.ly_do || {};
 
@@ -1665,6 +1667,7 @@ async function scrDonTreo() {
   });
   html += '</div>';
 
+  if (!conMan()) return;
   frame('Đơn còn treo', html);
   Array.prototype.forEach.call(document.querySelectorAll('[data-dtng]'), function (el) {
     el.onclick = function () { dtNgay = +el.getAttribute('data-dtng'); go(scrDonTreo, true); };

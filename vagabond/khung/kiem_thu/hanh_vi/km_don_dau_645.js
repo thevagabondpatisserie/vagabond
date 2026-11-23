@@ -72,6 +72,8 @@ function khoi(o) {
   g.window = g;
   vm.createContext(g);
   vm.runInContext([
+    /* v690: màn hỏi vgbManNay (phần 01) trước khi vẽ; giả hàm đó luôn còn đứng. */
+    'function vgbManNay() { return function () { return true; }; }',
     'var __stack = [];',
     'function frame(t, html, opt) { document.body.children = []; var vb = document.createElement("div"); vb.setAttribute("id", "vgbBody"); vb.innerHTML = html; document.body.appendChild(vb); return vb; }',
     'function go(fn) { __stack.push(fn); return fn(); } function toast(s) { __tin.push(String(s)); }',

@@ -346,7 +346,9 @@ async function posSuaGiaVuaDoi(e, quay) {
 function posDiemVua() { try { return localStorage.getItem('vgb_diem_vua') || ''; } catch (e) { return ''; } }
 
 async function scrPosChonQuay() {
+  var conMan = vgbManNay(scrPosChonQuay);
   await cfgBanHang();
+  if (!conMan()) return;
   /* Thumbnail la anh cua hang that (anh Viet gui 09/08), nhin phat biet
      ngay minh dang chon quay nao. Anh nam trong repo, thieu thi lui ve
      bieu tuong cu. */
@@ -392,6 +394,7 @@ async function scrPosChonQuay() {
       '</div>';
   });
   html += '<div style="text-align:center;color:#a0a6b4;font-size:12px;padding:4px 10px 10px">Chọn đúng điểm bán mình đang đứng - doanh thu và đối soát tách riêng từng điểm, không gộp chung</div>';
+  if (!conMan()) return;
   var b = frame('Tính tiền - hoá đơn bán hàng', html);
   b.onclick = function (e) {
     var a = e.target.closest('[data-anh]');

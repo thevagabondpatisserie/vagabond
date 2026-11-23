@@ -4012,9 +4012,14 @@ function render() { var f = S.stack[S.stack.length - 1]; VGB_SO_VE++; if (f) ret
    thẳng màn khác để hiện kết quả (chốt ca xong hiện Đối soát ca), những lần
    đó không qua render nên không bị chặn nhầm. */
 var VGB_SO_VE = 0;
-function vgbManNay() {
-  var n = VGB_SO_VE;
-  return function () { return n === VGB_SO_VE; };
+/* Truyền chính hàm màn (vgbManNay(scrDonTreo)) khi màn còn được gọi thẳng để
+   vẽ lại tại chỗ (bấm chip đổi kỳ, gõ tìm, đổi điểm bán) mà không qua
+   render(): lần gọi mới nhất của cùng màn thắng, lời đáp của lần trước về sau
+   cũng bị bỏ (Codex kiểm v685, UI16). */
+function vgbManNay(man) {
+  var n = VGB_SO_VE, m = 0;
+  if (man) m = man.vgbLuot = (man.vgbLuot || 0) + 1;
+  return function () { return n === VGB_SO_VE && (!man || man.vgbLuot === m); };
 }
 
 /* GIU VI TRI CUON, dung chung cho MOI man hinh.
@@ -4557,12 +4562,13 @@ async function tcDungHtml(can) {
          3. Man hinh co ca don HOM NAY, the thi cat hom nay di.
          Loi ghi chu ngay tren day tu truoc van noi "lay theo 14 ngay gan day",
          tuc y dinh ban dau la vay, chi la code khong lam. */
-      var mocTreo = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
-      dtn = (await tcGoi(can, 'si_treo', function () { return nenDemDanhSach('Sales Invoice', {
-        fields: ['name'],
-        filters: { posting_date: ['>=', mocTreo], docstatus: 0, custom_pancake_id: ['!=', ''], vgb_quay: ['in', ['', null]], vgb_huy: 0, vgb_tam_tinh: 0 },
-        limit_page_length: 0
-      }); }, [])).length;
+      /* Codex kiểm v685 (UI15): ô từng đếm từ ngày 14 ngày trước theo giờ UTC
+         của trình duyệt tới hết hôm nay, còn màn lấy theo ngày của site từ 14
+         ngày trước tới hôm qua, nên ô hiện 11 mà màn chỉ có 3. Nay máy chủ
+         đếm bằng đúng bộ lọc của màn (ban_hang._loc_don_treo). */
+      dtn = Number((await tcGoi(can, 'si_treo', function () {
+        return api('vagabond.ban_hang.dem_don_treo', { so_ngay: 14 });
+      }, {})).so) || 0;
     } catch (e) { }
     html += '<div class="sec">Bán hàng</div><div class="card">' +
       /* Ba diem ban gio nam chung mot cua: bam vao la chon D1, NVHTN hay
@@ -17379,7 +17385,9 @@ async function posSuaGiaVuaDoi(e, quay) {
 function posDiemVua() { try { return localStorage.getItem('vgb_diem_vua') || ''; } catch (e) { return ''; } }
 
 async function scrPosChonQuay() {
+  var conMan = vgbManNay(scrPosChonQuay);
   await cfgBanHang();
+  if (!conMan()) return;
   /* Thumbnail la anh cua hang that (anh Viet gui 09/08), nhin phat biet
      ngay minh dang chon quay nao. Anh nam trong repo, thieu thi lui ve
      bieu tuong cu. */
@@ -17425,6 +17433,7 @@ async function scrPosChonQuay() {
       '</div>';
   });
   html += '<div style="text-align:center;color:#a0a6b4;font-size:12px;padding:4px 10px 10px">Chọn đúng điểm bán mình đang đứng - doanh thu và đối soát tách riêng từng điểm, không gộp chung</div>';
+  if (!conMan()) return;
   var b = frame('Tính tiền - hoá đơn bán hàng', html);
   b.onclick = function (e) {
     var a = e.target.closest('[data-anh]');
@@ -21189,15 +21198,18 @@ async function scrPosBill(name) {
 var otpDem = null;
 async function scrOtp() {
   frame('Mã OTP quản lý', '<div class="emp"><div class="e1">⏳</div><div>Đang lấy mã...</div></div>');
+  var conMan = vgbManNay(scrOtp);
   var k;
   try { k = await api('vagabond.ban_hang.otp_hien_tai'); }
   catch (e) {
+    if (!conMan()) return;
     frame('Mã OTP quản lý', '<div class="card" style="padding:22px 18px;text-align:center">' +
       '<div style="font-size:40px">🔒</div>' +
       '<div style="font-size:15px;font-weight:700;margin-top:8px">Chỉ quản lý được cấp mã</div>' +
       '<div style="font-size:13.5px;color:#6b7280;margin-top:8px;line-height:1.6">' + h((e && e.message) || '') + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var html = '<div class="card" style="padding:20px 18px;text-align:center">' +
     '<div style="font-size:12.5px;color:#6b7280;font-weight:600;letter-spacing:.06em">MÃ ĐANG CÓ HIỆU LỰC</div>' +
     '<div id="otpMa" style="font-size:46px;font-weight:800;letter-spacing:.16em;color:#0f766e;margin:8px 0 2px;font-variant-numeric:tabular-nums">' + h(k.ma) + '</div>' +
@@ -21210,6 +21222,7 @@ async function scrOtp() {
     '2. Sửa cái gì, vì sao phải sửa?<br>' +
     '3. Khách đã trả tiền chưa, tiền chênh xử lý thế nào?<br>' +
     '<span style="color:#98a2b3">Mỗi lần sửa hoặc xoá máy đều ghi lại tên người thao tác vào hoá đơn.</span></div>';
+  if (!conMan()) return;
   frame('Mã OTP quản lý', html, { footer: '<button class="btn" id="otpMoi">🔄 Lấy mã mới nhất</button>' });
   document.getElementById('otpMoi').onclick = function () { go(scrOtp, true); };
   if (otpDem) clearInterval(otpDem);
@@ -21677,6 +21690,7 @@ function cnLocVe() { return { nguon: cnNguon, ky: cnKy, tu: cnTu, den: cnDen, ti
 
 async function scrCongNo() {
   frame('Công nợ phải thu', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ công nợ...</div></div>');
+  var conMan = vgbManNay(scrCongNo);
   var kq, kp, kv = null;
   try {
     kq = await api('vagabond.cong_no.ds_khach_no', { tim: cnTimNo });
@@ -21689,9 +21703,11 @@ async function scrCongNo() {
       try { kv = await api('vagabond.cong_no.ds_tien_da_ve', cnLocVe()); } catch (e2) { kv = null; }
     }
   } catch (e) {
+    if (!conMan()) return;
     frame('Công nợ phải thu', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var khach = (kq && kq.khach) || [], phieu = (kp && kp.phieu) || [];
   var choThu = phieu.filter(function (p) { return p.trang_thai === 'Cho thu' || p.trang_thai === 'Thu thieu'; });
   var tienChoThu = choThu.reduce(function (t, p) { return t + (p.con_thieu || 0); }, 0);
@@ -21832,6 +21848,7 @@ async function scrCongNo() {
     });
   }
 
+  if (!conMan()) return;
   var b = frame('Công nợ phải thu', html);
   if (cc) dsCongCuNoi(b, cc, function (ho, k) {
     if (cnTab === 'no') { if (ho === 'tim') cnTimNo = k; }
@@ -24828,11 +24845,17 @@ var MV = { ds: null, mua: null, data: null, xem: 'sp', loc: 'all', tim: '',
 
 async function scrMuaVuDs() {
   frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc các mùa vụ...</div></div>');
-  try { MV.ds = await api('vagabond.mua_vu.danh_sach', {}); }
+  var conMan = vgbManNay(scrMuaVuDs);
+  var mvKq;
+  try { mvKq = await api('vagabond.mua_vu.danh_sach', {}); }
   catch (e) {
+    if (!conMan()) return;
     return frame('Kiểm bánh theo mùa',
       '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
   }
+  /* Lượt mở cũ về muộn không được ghi đè danh sách của lượt đang hiện. */
+  if (!conMan()) return;
+  MV.ds = mvKq;
   var ds = (MV.ds && MV.ds.ds) || [];
   var html = '<div style="font-size:11.5px;color:#98a2b3;padding:2px 2px 10px;line-height:1.6">' +
     'Dành cho hàng sản xuất một lô có số lượng giới hạn: bánh trung thu, bánh Tết, ' +
@@ -24854,6 +24877,7 @@ async function scrMuaVuDs() {
     }).join('') + '</div>';
   }
 
+  if (!conMan()) return;
   var b = frame('Kiểm bánh theo mùa', html, { footer: '<button class="btn" id="mvMoi" style="margin:0">➕ Lập mùa vụ mới</button>' });
   b.querySelectorAll('[data-mv]').forEach(function (n) {
     n.onclick = function () { MV.mua = n.getAttribute('data-mv'); go(scrMuaVu); };
@@ -27167,8 +27191,8 @@ async function scrVanDon() {
   vdTuLamMoi();
   if (!vdNgay) vdNgay = today();
   frame('Vận đơn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải vận đơn...</div></div>');
-  var conMan = vgbManNay();
-  var ds;
+  var conMan = vgbManNay(scrVanDon);
+  var ds, boLoc;
   if (vdVeSuong && vdDs && vdDsNgay === vdNgay) {
     vdVeSuong = 0;
     ds = vdDs;
@@ -27176,13 +27200,16 @@ async function scrVanDon() {
     vdVeSuong = 0;
     try {
       var nap = await vdNapDanhSach();
-      ds = nap[0]; vdBoLoc = nap[1]; vtShipper = nap[2];
+      ds = nap[0]; boLoc = nap[1]; vtShipper = nap[2];
     }
     catch (e) { if (conMan()) frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
-    /* Đã sang màn khác hoặc đã đổi ngày: danh sách này là của lần mở cũ. */
+    /* Đã sang màn khác hoặc đã đổi ngày: danh sách và bộ lọc (số đơn thiếu thẻ
+       khung giờ) là của lần mở cũ, không ghi đè ngày đang xem. Danh sách shipper
+       là danh mục chung nên vẫn giữ. */
     if (!conMan()) return;
-    vdDs = ds; vdDsNgay = vdNgay;
+    vdDs = ds; vdDsNgay = vdNgay; vdBoLoc = boLoc;
   }
+  if (!conMan()) return;
   var chonMode = !!window.vdChon;
   /* Hai nut lui/toi mot ngay: tren dien thoai bam nhanh hon mo bang chon
      ngay, va khong dinh loi bang chon ngay lam trang bi ve lai. */
@@ -27381,7 +27408,7 @@ async function scrVanDon() {
 
 async function scrVdCod() {
   frame('Đối soát COD', '<div class="emp"><div class="e1">⏳</div></div>');
-  var conMan = vgbManNay();
+  var conMan = vgbManNay(scrVdCod);
   var ng = vdNgay || today();
   var ds;
   try { ds = await api('vagabond.van_don.doi_soat_cod', { ngay: ng }); }
@@ -27499,7 +27526,7 @@ function vdCanAnhGiao(d) {
 }
 async function scrVdView(name) {
   frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⏳</div></div>');
-  var conMan = vgbManNay();
+  var conMan = vgbManNay(scrVdView);
   var d;
   try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } await vdNapDiem(); }
   catch (e) { if (conMan()) frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
@@ -27872,9 +27899,11 @@ function cpKhoangNgay() {
 async function scrVdChiPhi() {
   if (!cpTay) cpTay = { loai: 'Đổ xăng', tien: '', shd: '', noi: '', ghichu: '' };
   frame('Chi phí xăng xe - sửa xe', '<div class="emp"><div class="e1">⏳</div><div>Đang tải chi phí...</div></div>');
+  var conMan = vgbManNay(scrVdChiPhi);
   var kq;
   try { kq = await api('vagabond.van_don.chi_phi_danh_sach', cpKhoangNgay()); }
-  catch (e) { frame('Chi phí xăng xe - sửa xe', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame('Chi phí xăng xe - sửa xe', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (!conMan()) return;
   var ds = kq.rows || [];
   var laKt = !!kq.la_ke_toan;
 
@@ -27946,6 +27975,7 @@ async function scrVdChiPhi() {
   });
   html += '</div>';
 
+  if (!conMan()) return;
   var b = frame('Chi phí xăng xe - sửa xe', html, {});
   Array.prototype.forEach.call(document.querySelectorAll('[data-cpng]'), function (el) {
     el.onclick = function () { cpKhoang = +el.getAttribute('data-cpng'); cpTu = null; cpDen = null; go(scrVdChiPhi, true); };
@@ -28019,7 +28049,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '689';
+var APPVER = '690';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -29123,15 +29153,18 @@ function paThangChu(t) {
 
 async function scrVdPhiApp() {
   frame('Phí giao hàng book app', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng phí giao...</div></div>');
+  var conMan = vgbManNay(scrVdPhiApp);
   var kq;
   var ts = paKhoangNgay();
   if (paApp) ts.app = paApp;
   try { kq = await api('vagabond.van_don.phi_book_app', ts); }
   catch (e) {
+    if (!conMan()) return;
     frame('Phí giao hàng book app', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
   }
+  if (!conMan()) return;
 
   var html = '<div class="card" style="padding:10px 12px">' + kmHangChip(
     [[30, '30 ngày'], [90, '3 tháng'], [180, '6 tháng'], [365, '1 năm']].map(function (x) {
@@ -29214,6 +29247,7 @@ async function scrVdPhiApp() {
     'Chỉ tính vận đơn đã giao xong và đặt qua app ngoài. Đơn huỷ, đơn giao không được, ' +
     'shipper nội bộ và khách tự lấy không nằm trong bảng này.</div>';
 
+  if (!conMan()) return;
   var b = frame('Phí giao hàng book app', html);
 
   function doiNgay() {
@@ -29826,6 +29860,7 @@ function kmTheChip(t, nhan) { return posChipNut('data-kmthe="' + t + '"', nhan, 
 
 async function scrKhuyenMai() {
   frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chương trình...</div></div>');
+  var conMan = vgbManNay(scrKhuyenMai);
   var ct, cb;
   try {
     ct = await api('vagabond.khuyen_mai.ds_ctkm', { tat_ca: 1 });
@@ -29834,13 +29869,18 @@ async function scrKhuyenMai() {
        chip cho bam, khoi go tay (anh Viet 12/08/2026). */
     await kmNapDm();
   } catch (e) {
+    if (!conMan()) return;
     frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
   }
   /* v645: ưu đãi đơn đầu tiên trên web (không phải chương trình ERP). Đọc hỏng
      thì màn vẫn chạy và thẻ báo chưa tải được kèm nút Thử lại (Codex #548). */
-  try { kmDonDau = await api('vagabond.don_dau_web.doc_cai_dat', {}); }
-  catch (e3) { kmDonDau = { loi: (e3 && e3.message) || 'Không tải được' }; }
+  var kmDd;
+  try { kmDd = await api('vagabond.don_dau_web.doc_cai_dat', {}); }
+  catch (e3) { kmDd = { loi: (e3 && e3.message) || 'Không tải được' }; }
+  /* Lượt mở cũ về muộn không ghi đè dữ liệu của lượt đang hiện (vgbManNay, phần 01). */
+  if (!conMan()) return;
+  kmDonDau = kmDd;
   kmData = { ct: (ct && ct.km) || [], cb: (cb && cb.combo) || [] };
   var dsCt = kmData.ct, dsCb = kmData.cb;
   var dangBat = dsCt.filter(function (x) { return x.bat; }).length;
@@ -29865,6 +29905,7 @@ async function scrKhuyenMai() {
   else if (kmThe === 'lo') html += '<div class="card" id="kmLoBox" style="padding:6px 14px"><div class="emp" style="padding:22px"><div class="e1">⏳</div><div>Đang đọc lô mã...</div></div></div>';
   else html += '<div class="card" id="kmBcBox" style="padding:6px 14px"><div class="emp" style="padding:22px"><div class="e1">⏳</div><div>Đang cộng sổ...</div></div></div>';
 
+  if (!conMan()) return;
   var b = frame('Khuyến mãi - combo', html, {
     fab: (kmThe === 'ct' || kmThe === 'cb'),
     onFab: function () { kmThe === 'cb' ? kmSheetCombo(null) : kmSheetCtkm(null); }
@@ -32337,7 +32378,7 @@ function kgRong() {
 async function scrKhungDs() {
   var ma = kgMa, ts = kgTs(ma);
   frame('Danh sách', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc dữ liệu...</div></div>');
-  var conMan = vgbManNay();
+  var conMan = vgbManNay(scrKhungDs);
   var goi = { ma: ma };
   Object.keys(ts).forEach(function (k) {
     if (ts[k] !== '' && ts[k] != null) goi[k] = ts[k];
@@ -39714,9 +39755,11 @@ var DT_MAU = {
 
 async function scrDonTreo() {
   frame('Đơn còn treo', '<div class="emp"><div class="e1">⏳</div><div>Đang soát đơn chưa ghi sổ...</div></div>');
+  var conMan = vgbManNay(scrDonTreo);
   var d;
   try { d = await api('vagabond.ban_hang.don_treo', { so_ngay: dtNgay }); }
-  catch (e) { frame('Đơn còn treo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame('Đơn còn treo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (!conMan()) return;
   var rows = d.rows || [];
   var LD = d.ly_do || {};
 
@@ -39788,6 +39831,7 @@ async function scrDonTreo() {
   });
   html += '</div>';
 
+  if (!conMan()) return;
   frame('Đơn còn treo', html);
   Array.prototype.forEach.call(document.querySelectorAll('[data-dtng]'), function (el) {
     el.onclick = function () { dtNgay = +el.getAttribute('data-dtng'); go(scrDonTreo, true); };
@@ -45710,9 +45754,11 @@ var cbNgay = 7, cbLoai = null;
 
 async function scrCanhBaoTT() {
   frame('Cảnh báo thanh toán', '<div class="emp"><div class="e1">⏳</div><div>Đang soát hoá đơn...</div></div>');
+  var conMan = vgbManNay(scrCanhBaoTT);
   var d;
   try { d = await api('vagabond.van_don.canh_bao_thanh_toan', { so_ngay: cbNgay }); }
-  catch (e) { frame('Cảnh báo thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame('Cảnh báo thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (!conMan()) return;
   var rows = d.rows || [], dem = d.dem || {};
 
   var MAU = {
@@ -45758,6 +45804,7 @@ async function scrCanhBaoTT() {
     (d.bo_qua_nhap_lieu ? '<br><br>Đã bỏ qua ' + d.bo_qua_nhap_lieu + ' tờ nhập từ đợt chuyển dữ liệu Fabi. Những tờ đó không có phương thức vì bên Fabi không có trường này, không phải Sales chọn thiếu.' : '') +
     '</div>';
 
+  if (!conMan()) return;
   var b = frame('Cảnh báo thanh toán', html, {});
   Array.prototype.forEach.call(document.querySelectorAll('[data-cbn]'), function (el) {
     el.onclick = function () { cbNgay = +el.getAttribute('data-cbn'); go(scrCanhBaoTT, true); };
@@ -46874,11 +46921,13 @@ async function vgbChonMon(o) {
 /* ---------- Cua vao: Quan ly hop dong mua ban ---------- */
 async function scrHopDongHub() {
   frame('Quản lý hợp đồng mua bán', '<div class="emp"><div class="e1">⏳</div><div>Đang đếm...</div></div>');
+  var conMan = vgbManNay(scrHopDongHub);
   var dem = {}, shd = 0, stv = 0, smau = 0;
   try { dem = (await api('vagabond.bao_gia.danh_sach', {})).dem || {}; } catch (e) { }
   try { shd = (await api('vagabond.hop_dong.danh_sach', {})).length; } catch (e) { }
   try { stv = (await api('vagabond.bao_gia.tv_danh_sach', {})).ds.length; } catch (e) { }
   try { smau = (await api('vagabond.bao_gia.mau_ds', {})).length; } catch (e) { }
+  if (!conMan()) return;
   var o = function (icon, t1, t2, cnt, k) {
     return '<div class="hub" data-k="' + k + '"><div class="hi">' + icon + '</div>' +
       '<div class="ht"><div class="h1">' + h(t1) + '</div><div class="h2">' + h(t2) + '</div></div>' +
@@ -46901,6 +46950,7 @@ async function scrHopDongHub() {
     '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Đang chờ khách trả lời</span><b style="color:#b45309">' + (dem.cho_khach || 0) + '</b></div>' +
     '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Khách đã duyệt</span><b style="color:#0a8a4a">' + (dem.duyet || 0) + '</b></div>' +
     '<div style="display:flex;justify-content:space-between"><span>Hợp đồng</span><b>' + shd + '</b></div></div>';
+  if (!conMan()) return;
   var b = frame('Quản lý hợp đồng mua bán', html);
   b.addEventListener('click', function (e) {
     var c = e.target.closest('[data-k]'); if (!c) return;
@@ -55265,6 +55315,7 @@ function bntSo(o) {
 async function scrBntDs() {
   var tua = bntTuaDe();
   frame(tua, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc phiếu...</div></div>');
+  var conMan = vgbManNay(scrBntDs);
   var kq, dsDiem = [];
   try {
     kq = await api('vagabond.nop_quy.danh_sach', {
@@ -55272,12 +55323,14 @@ async function scrBntDs() {
       tim: bntTim, diem: bntDiem, chi_toi: BNT_TOI
     });
   } catch (e) {
+    if (!conMan()) return;
     frame(tua, '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
   /* Danh sach diem ban lay tu chinh cua doanh thu, khong go tay ba diem
      vao day: them diem thu tu ma man nay khong biet la bat dau lech. */
   try { dsDiem = (await api('vagabond.nop_quy.doanh_thu_diem', {})).diem || []; } catch (e) { }
+  if (!conMan()) return;
   var ds = kq.ds || [], dem = kq.dem || {};
 
   var html = '';
@@ -55330,6 +55383,7 @@ async function scrBntDs() {
     }).join('') + '</div>';
   }
 
+  if (!conMan()) return;
   var b = frame(tua, html);
   b.onclick = function (e) {
     var t = e.target.closest('[data-bntdiem]');
@@ -55763,16 +55817,19 @@ function phDay(r, buoc) {
 
 async function scrPhieuHoanHuy() {
   frame('Danh sách phiếu hoàn tiền', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
+  var conMan = vgbManNay(scrPhieuHoanHuy);
   var kq;
   try {
     kq = await api('vagabond.don_huy.ds_phieu', {
       diem: phDiem, loai: phLoai, trang_thai: phLoc, tim: phTim,
     });
   } catch (e) {
+    if (!conMan()) return;
     frame('Danh sách phiếu hoàn tiền', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var dong = kq.dong || [], buoc = kq.buoc || [];
 
   var html = '<div class="card" style="padding:12px 13px">' +
@@ -55848,6 +55905,7 @@ async function scrPhieuHoanHuy() {
     '<button class="btn gh" data-phb="don" style="flex:1">↩️ Đơn đã huỷ</button>' +
     '<button class="btn gh" data-phb="excel" style="flex:1">📄 Xuất Excel</button></div>';
 
+  if (!conMan()) return;
   frame('Danh sách phiếu hoàn tiền', html, { footer: foot });
   var o = document.getElementById('phTim');
   if (o) {
@@ -56280,14 +56338,17 @@ function dtgCongCu(kq) {
 
 async function scrDuyetTang() {
   frame(DTG_TEN, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
+  var conMan = vgbManNay(scrDuyetTang);
   var kq;
   try {
     kq = await api('vagabond.hang_tang.ds_don', dtgLoc());
   } catch (e) {
+    if (!conMan()) return;
     frame(DTG_TEN, '<div class="emp"><div class="e1">⚠️</div><div>' +
       h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var dong = kq.dong || [];
 
   var html = '<div class="card" style="padding:12px 13px">' +
@@ -56361,6 +56422,7 @@ async function scrDuyetTang() {
   });
   html += '</div>';
 
+  if (!conMan()) return;
   var than = frame(DTG_TEN, html, {
     footer: '<button class="btn gh" data-dtgbc="1" style="width:100%;margin:0">' +
       '📊 Báo cáo hàng tặng</button>',
@@ -65179,12 +65241,15 @@ function sdtTtCua(x) {
 }
 async function scrSoDuTraTruoc() {
   frame('Số dư trả trước của khách', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng số dư...</div></div>');
+  var conMan = vgbManNay(scrSoDuTraTruoc);
   var kq;
   try { kq = await api('vagabond.tra_truoc_khach.ds', { tim: sdtTim }); }
   catch (e) {
+    if (!conMan()) return;
     frame('Số dư trả trước của khách', '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var tatCa = kq.khach || [];
   var dem = { tat_ca: tatCa.length };
   tatCa.forEach(function (x) {
@@ -65225,6 +65290,7 @@ async function scrSoDuTraTruoc() {
       '<b style="white-space:nowrap;color:#0f766e">' + money(x.kha_dung_tam || 0) + '</b></div>';
   });
   html += '</div>';
+  if (!conMan()) return;
   var than = frame('Số dư trả trước của khách', html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') sdtTt = k;
@@ -65612,12 +65678,15 @@ async function scrDoiSoatCk() {
   var tieuDe = 'Đối soát chuyển khoản';
   if (!dsckNgay) dsckNgay = today();
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc bill chuyển khoản...</div></div>');
+  var conMan = vgbManNay(scrDoiSoatCk);
   var kq;
   try { kq = await api('vagabond.doi_soat_ck.ds_bill_ck', { ngay: dsckNgay }); }
   catch (e) {
+    if (!conMan()) return;
     frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var tatCa = kq.rows || [];
   var dem = { tat_ca: tatCa.length, chua_xong: 0, du: 0 };
   var diemDs = dsckDsDiem(kq, tatCa), demDiem = { tat_ca: tatCa.length };
@@ -65681,6 +65750,7 @@ async function scrDoiSoatCk() {
       '</div></div>';
   });
   html += '</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') dsckTt = k;
@@ -66046,12 +66116,15 @@ async function scrDatBan() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc đặt bàn...</div></div>');
+  var conMan = vgbManNay(scrDatBan);
   var kq;
   try { kq = await api('vagabond.dat_ban.ds_dat_ban', { khoang: dbKhoang }); }
   catch (e) {
+    if (!conMan()) return;
     frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var tatCa = kq.rows || [], dem = kq.dem || {}, homNay = kq.hom_nay || today();
   /* Thanh công cụ chung (AGENTS 2b.6): hàng chip khoảng ngày, kèm số bàn còn
      giữ của từng khoảng, và ô tìm. Không có chip "tất cả": mỗi lần xem đúng
@@ -66067,6 +66140,7 @@ async function scrDatBan() {
   html += dbTheTomTat(tatCa, dbKhoang, homNay);
   html += '<div id="dbDs">' + dbVeDs(tatCa, homNay) + '</div>';
   html += '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Đặt bàn khách gửi từ trang web. Xác nhận hoặc huỷ thì máy gửi email cho khách (nếu bật) và nhắn nhóm Zalo Bán hàng.</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   var veLai = function () { var o = document.getElementById('dbDs'); if (o) o.innerHTML = dbVeDs(tatCa, homNay); };
   dsCongCuNoi(than, cc, function (ho, k) {
@@ -69930,9 +70004,11 @@ async function scrDonDatTruoc() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc đơn đặt trước...</div></div>');
+  var conMan = vgbManNay(scrDonDatTruoc);
   var kq;
   try { kq = await api('vagabond.thiet_ke_rieng.ds_don', {}); }
-  catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  if (!conMan()) return;
   /* Lọc điểm nhận và ngày nhận áp cả thẻ tóm tắt lẫn danh sách; mỗi hàng chip
      đếm theo các hàng còn lại để số trên chip khớp số thẻ hiện ra. */
   var goc = kq.rows || [], homNay = kq.hom_nay;
@@ -69953,6 +70029,7 @@ async function scrDonDatTruoc() {
   };
   var html = dsCongCu(cc) + ddtTomTat(kqLoc) + '<div id="ddtDs">' + ddtVeDs(kqLoc) + '</div>' +
     '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Khách đặt và cọc 50% trên web. Tiền cọc về thì máy lập phiếu thu chờ kế toán ghi sổ. Ngày nhận: thu phần còn lại, rồi giao bánh và xuất hoá đơn ở đây.</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') { ddtTt = k || ''; ddtTim = ''; }
@@ -70354,9 +70431,11 @@ async function scrDonSiWeb() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc đơn sỉ...</div></div>');
+  var conMan = vgbManNay(scrDonSiWeb);
   var kq;
   try { kq = await api('vagabond.banh_si.ds_don', {}); }
-  catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  if (!conMan()) return;
   /* Lọc khách và ngày giao áp cả thẻ tóm tắt lẫn danh sách; mỗi hàng chip đếm
      theo các hàng còn lại để số trên chip khớp số thẻ hiện ra. */
   var goc = kq.rows || [], homNay = kq.hom_nay;
@@ -70377,6 +70456,7 @@ async function scrDonSiWeb() {
   };
   var html = dsCongCu(cc) + bsiTomTat(kqLoc) + '<div id="bsiDs">' + bsiVeDs(kqLoc) + '</div>' +
     '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Ngày giao sớm nhất là ngày đặt + 3. Khách trả cuối kỳ: giao được ngay, hoá đơn ghi công nợ hạn 15 ngày. Khách trả trước: tiền về và kế toán ghi sổ phiếu thu rồi mới giao.</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') { bsiTt = k || ''; bsiTim = ''; }
@@ -70711,11 +70791,13 @@ async function scrKhachSiWeb() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc...</div></div>');
+  var conMan = vgbManNay(scrKhachSiWeb);
   var dk, kh;
   try {
     dk = await api('vagabond.banh_si.ds_dang_ky', { trang_thai: bsiKhTab === 'dk' ? bsiDkTt : '' });
     kh = await api('vagabond.banh_si.ds_khach', { tim: bsiKhTab === 'kh' ? bsiKhTim : '' });
-  } catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  } catch (e) { if (!conMan()) return; frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  if (!conMan()) return;
   var dem = dk.dem || {};
   /* Thanh công cụ chung (v534): hàng thẻ Đăng ký / Khách đang đặt, hàng trạng
      thái đăng ký có đếm, ô tìm khách ở thẻ Khách đang đặt. */
@@ -70733,6 +70815,7 @@ async function scrKhachSiWeb() {
     html += ks.length ? ks.map(bsiTheKhach).join('') : '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🏢</div><div>' +
       (bsiKhTim ? 'Không có khách nào khớp ô tìm.' : 'Chưa có khách nào mở đặt sỉ trên web. Duyệt một đăng ký ở thẻ Đăng ký.') + '</div></div></div>';
   }
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tab') bsiKhTab = k || 'dk';
@@ -71627,9 +71710,11 @@ function gmbMoTaDong(d) {
 
 async function scrGmbInQr() {
   frame('In QR tại bàn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải các điểm bán...</div></div>');
+  var conMan = vgbManNay(scrGmbInQr);
   var ds;
   try { ds = await api('vagabond.goi_mon_ban.diem_in_qr', {}); }
-  catch (e) { frame('In QR tại bàn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được điểm bán. Kéo xuống để thử lại.') + '</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame('In QR tại bàn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được điểm bán. Kéo xuống để thử lại.') + '</div></div>'); return; }
+  if (!conMan()) return;
   ds = ds || [];
   if (!ds.length) { frame('In QR tại bàn', '<div class="emp"><div class="e1">🏬</div><div>Chưa có điểm bán nào có quầy. Bật quầy ở Cài đặt, Điểm bán.</div></div>'); return; }
   if (!ds.some(function (d) { return d.ma === gqDiem; })) gmbDoiDiem(ds[0]);
@@ -72382,8 +72467,14 @@ async function scrBienTapMenu() {
   if (!coQuyenBtm()) { frame('Biên tập menu', '<div class="emp"><div class="e1">🔒</div><div>Chỉ quản lý cửa hàng mới biên tập menu được.</div></div>'); return; }
   if (BTM && BTM.d && (!BTM_DIEM || BTM.d.diem === BTM_DIEM)) return btmVe();
   frame('Biên tập menu', '<div class="emp"><div class="e1">⏳</div><div>Đang tải menu...</div></div>');
-  try { BTM = { d: await api('vagabond.bien_tap_menu.mo', { diem: BTM_DIEM || '' }), loi: '' }; }
-  catch (e) { frame('Biên tập menu', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được menu. Thử lại sau.') + '</div></div>'); return; }
+  var conMan = vgbManNay(scrBienTapMenu);
+  var btmKq;
+  try { btmKq = await api('vagabond.bien_tap_menu.mo', { diem: BTM_DIEM || '' }); }
+  catch (e) { if (!conMan()) return; frame('Biên tập menu', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được menu. Thử lại sau.') + '</div></div>'); return; }
+  /* Lượt mở cũ về muộn (đã đổi điểm hay sang màn khác) không được ghi đè menu
+     đang sửa, không vẽ (vgbManNay, phần 01). */
+  if (!conMan()) return;
+  BTM = { d: btmKq, loi: '' };
   BTM_DIEM = BTM.d.diem;
   btmVe();
 }
@@ -74885,9 +74976,11 @@ async function scrKhachSuKien() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc các sự kiện...</div></div>');
+  var conMan = vgbManNay(scrKhachSuKien);
   var kq;
   try { kq = await api('vagabond.tiec_web.ds_su_kien', {}); }
-  catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  if (!conMan()) return;
   var ds = kq.su_kien || [];
   var html = ds.length ? ds.map(function (s) {
     var cho = s.tong_cho ? s.so_ve + ' / ' + s.tong_cho + ' chỗ' : s.so_ve + ' vé';
@@ -74898,6 +74991,7 @@ async function scrKhachSuKien() {
       '<div style="font-size:13.5px;margin-top:6px"><b>' + s.da_vao + '</b> / ' + s.so_ve + ' vé đã vào cửa' + (s.hien ? '' : ' · <span style="color:#98a2b3">đang ẩn trên web</span>') + '</div></button>';
   }).join('') : '<div class="emp"><div class="e1">🎟️</div><div>Chưa có sự kiện nào. Marketing tạo sự kiện ở Biên tập website, thẻ Sự kiện.</div></div>';
   html += '<div style="font-size:13px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Khách đăng ký trên web nhận mã vé. Sales gọi xác nhận và thu tiền. Ở cửa, tìm mã vé hoặc số điện thoại rồi bấm Đã vào cửa.</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   than.addEventListener('click', function (e) {
     var t = e.target.closest('[data-skmo]');
@@ -76621,11 +76715,17 @@ function dqChip(attr, chu, chon) {
 async function scrDonGiaoQuay(diem) {
   if (diem) DQ_DIEM = diem;
   if (!DQ_DIEM && typeof posQuay !== 'undefined' && posQuay) DQ_DIEM = posQuay.ma || '';
+  var conMan = vgbManNay(scrDonGiaoQuay);
   busy(true);
-  DQ_LOI = '';
-  try { DQ = await api('vagabond.don_quay.danh_sach', { diem: DQ_DIEM, ngay: DQ_NGAY }); }
-  catch (e) { DQ_LOI = (e && e.message) || ''; }
+  var kq = null, loi = '';
+  try { kq = await api('vagabond.don_quay.danh_sach', { diem: DQ_DIEM, ngay: DQ_NGAY }); }
+  catch (e) { loi = (e && e.message) || ''; }
   busy(false);
+  /* Lượt mở cũ về muộn (đã đổi ngày, đổi điểm hay sang màn khác): không ghi
+     đè danh sách đang hiện, không vẽ (vgbManNay, phần 01). */
+  if (!conMan()) return;
+  DQ_LOI = loi;
+  if (!loi) DQ = kq;
   if (DQ && DQ.diem) DQ_DIEM = DQ.diem;
   dqVe();
 }

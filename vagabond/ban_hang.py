@@ -4145,23 +4145,45 @@ def _ly_do_treo(r, sepay):
 	return "chua_ve_tien"
 
 
+def _loc_don_treo(so_ngay=14, hom_nay=None):
+	"""Bo loc DUY NHAT cua 'Don con treo': man danh sach va con so tren o
+	Trang chu cung doc o day (Codex kiem v685, UI15: o dem tu ngay 14 ngay
+	truoc toi het hom nay theo gio UTC cua trinh duyet, man lai dung ngay
+	site tu 14 ngay truoc toi hom qua, nen o hien 11 ma man chi co 3).
+
+	Ngay lay theo ngay cua site (nowdate), tu so_ngay ngay truoc toi HOM QUA:
+	don hom nay xem o man ban hang cua diem ban.
+	"""
+	hom_nay = hom_nay or nowdate()
+	tu = add_days(hom_nay, -int(so_ngay or 14))
+	return {
+		"posting_date": ["between", [tu, add_days(hom_nay, -1)]],
+		"custom_pancake_id": ["!=", ""],
+		"docstatus": 0,
+		"vgb_quay": ["in", ["", None]],
+		"vgb_huy": 0,
+		"vgb_tam_tinh": 0,
+	}
+
+
+@frappe.whitelist()
+def dem_don_treo(so_ngay=14):
+	"""So tren o 'Don con treo' o Trang chu: dem dung bo loc cua man danh
+	sach (_loc_don_treo), khong tu dung bo loc rieng o trinh duyet."""
+	_kiem_quyen_doc_luu_don()
+	return {"so": frappe.db.count("Sales Invoice", _loc_don_treo(so_ngay)), "so_ngay": int(so_ngay or 14)}
+
+
 def _quet_don_treo(so_ngay=14):
 	"""Cac don Pancake con nhap trong so_ngay ngay gan day, kem ly do.
 
 	KHONG lay hoa don tam tinh (phieu giu mon, khach chua tra tien) va
-	khong lay don da huy mem.
+	khong lay don da huy mem. Bo loc o _loc_don_treo, dung chung voi
+	dem_don_treo.
 	"""
-	tu = add_days(nowdate(), -int(so_ngay or 14))
 	ds = frappe.db.get_all(
 		"Sales Invoice",
-		filters={
-			"posting_date": ["between", [tu, add_days(nowdate(), -1)]],
-			"custom_pancake_id": ["!=", ""],
-			"docstatus": 0,
-			"vgb_quay": ["in", ["", None]],
-			"vgb_huy": 0,
-			"vgb_tam_tinh": 0,
-		},
+		filters=_loc_don_treo(so_ngay),
 		fields=[
 			"name", "posting_date", "grand_total", "customer",
 			"custom_nguon", "custom_pancake_display_id",
