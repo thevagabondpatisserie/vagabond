@@ -15,6 +15,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 ## v686
 - Tin nhắc hàng về chưa có hoá đơn chỉ tính phiếu từ 01/11/2026
 
+## v685
+- Con số trên ô Trang chủ
+
 ## v684
 - Web đặt bánh: ô Phường giao theo phường mới
 - Web đặt bánh: biên nhận mới và nút Mở app ngân hàng

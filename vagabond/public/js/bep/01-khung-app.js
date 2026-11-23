@@ -243,7 +243,25 @@ function reset(fn) {
    Ngay 23/08/2026 dinh dung loi do: __boot goi reset(scrHome) roi mo ngay
    man theo dia chi, nhung scrHome ve THAT muon hon va de len man vua mo,
    nen F5 tai /don-da-huy van ra trang chu. */
-function render() { var f = S.stack[S.stack.length - 1]; if (f) return f(); }
+function render() { var f = S.stack[S.stack.length - 1]; VGB_SO_VE++; if (f) return f(); }
+
+/* PR B (vòng 2 kiểm giao diện, 22/11/2026): MÀN CŨ KHÔNG ĐƯỢC VẼ ĐÈ MÀN MỚI.
+
+   Màn async vẽ khung chờ, `await` máy chủ rồi mới vẽ thật. Người dùng bấm
+   sang màn khác (hoặc lùi, hoặc đổi ngày làm màn vẽ lại) trong lúc chờ thì
+   lượt vẽ thật của lần mở cũ về SAU và ghi đè màn đang đứng: Codex thấy đang
+   ở Đối soát COD thì màn Vận đơn quay lại.
+
+   Gọi vgbManNay() ngay đầu màn (phần chạy đồng bộ trong render), sau mỗi
+   `await` hỏi lại hàm nó trả về: false là đã có lần điều hướng khác, bỏ lượt
+   vẽ. Đếm theo số lần render() chứ không theo tiêu đề: một màn có thể gọi
+   thẳng màn khác để hiện kết quả (chốt ca xong hiện Đối soát ca), những lần
+   đó không qua render nên không bị chặn nhầm. */
+var VGB_SO_VE = 0;
+function vgbManNay() {
+  var n = VGB_SO_VE;
+  return function () { return n === VGB_SO_VE; };
+}
 
 /* GIU VI TRI CUON, dung chung cho MOI man hinh.
 
