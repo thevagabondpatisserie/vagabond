@@ -258,9 +258,14 @@ function render() { var f = S.stack[S.stack.length - 1]; VGB_SO_VE++; if (f) ret
    thẳng màn khác để hiện kết quả (chốt ca xong hiện Đối soát ca), những lần
    đó không qua render nên không bị chặn nhầm. */
 var VGB_SO_VE = 0;
-function vgbManNay() {
-  var n = VGB_SO_VE;
-  return function () { return n === VGB_SO_VE; };
+/* Truyền chính hàm màn (vgbManNay(scrDonTreo)) khi màn còn được gọi thẳng để
+   vẽ lại tại chỗ (bấm chip đổi kỳ, gõ tìm, đổi điểm bán) mà không qua
+   render(): lần gọi mới nhất của cùng màn thắng, lời đáp của lần trước về sau
+   cũng bị bỏ (Codex kiểm v685, UI16). */
+function vgbManNay(man) {
+  var n = VGB_SO_VE, m = 0;
+  if (man) m = man.vgbLuot = (man.vgbLuot || 0) + 1;
+  return function () { return n === VGB_SO_VE && (!man || man.vgbLuot === m); };
 }
 
 /* GIU VI TRI CUON, dung chung cho MOI man hinh.

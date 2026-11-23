@@ -81,7 +81,7 @@ def treo():
     loc=[]
     def doc(dt,**kw):loc.append(kw['filters']);return []
     g=dict(frappe=NS(db=NS(get_all=doc)),getdate=lambda x:x,add_days=lambda d,n:'2026-09-11' if n==-1 else '2026-08-29',nowdate=lambda:'2026-09-12')
-    nap('ban_hang.py','_quet_don_treo',g)()
+    nap('ban_hang.py','_loc_don_treo',g);nap('ban_hang.py','_quet_don_treo',g)()
     la('chặn trên ngày hôm qua',loc[0]['posting_date'],['between',['2026-08-29','2026-09-11']])
 
 @ca('#290 B1 đồng bộ lại giữ lý do, loại, dấu duyệt người đã nhập')

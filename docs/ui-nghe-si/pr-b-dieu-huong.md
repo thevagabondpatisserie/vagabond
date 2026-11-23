@@ -40,3 +40,9 @@ lời gọi cùng lúc có thể xếp hàng ở máy chủ. Lưới không còn
 
 - Đo lại trên site thật sau deploy, cùng 5 màn, cùng cách đo của Codex (EventTiming, LCP).
 - Vuốt lùi trên iPhone thật.
+
+## PR B bổ sung (v689, theo kiểm độc lập v685 của Codex)
+
+- UI15: ô Đơn còn treo nay hỏi máy chủ `ban_hang.dem_don_treo`, đếm bằng đúng bộ lọc của màn (`_loc_don_treo`: ngày site, từ 14 ngày trước tới hôm qua). Ca `thu_don_treo_mot_nguon.py` dựng bảng giả có đơn hôm nay, tương lai, đúng biên 14 ngày, ngoài biên, cuối tháng 2 năm thường và năm nhuận, chốt số ô bằng số dòng màn.
+- UI16: `vgbManNay(hàm màn)` gắn cho 25 màn async của Bán hàng và Giao hàng, chặn ngay sau lần chờ máy chủ cuối và trước mỗi lần vẽ. Ca `hanh_vi/man_cu_ve_muon_ui16.js` chạy thân thật từng màn qua ba cảnh (sang màn khác, Quay lại, lỗi máy chủ) cộng đổi kỳ ngược thứ tự và gọi thẳng hai lần: mã mới 77/77 đạt, mã main 10/77 (67 hỏng).
+- Chưa kiểm: các màn con mở từ trong hai phân hệ (chi tiết đơn, sheet), màn async của các phân hệ khác.

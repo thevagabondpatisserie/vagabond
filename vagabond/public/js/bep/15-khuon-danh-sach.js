@@ -266,7 +266,7 @@ function kgRong() {
 async function scrKhungDs() {
   var ma = kgMa, ts = kgTs(ma);
   frame('Danh sách', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc dữ liệu...</div></div>');
-  var conMan = vgbManNay();
+  var conMan = vgbManNay(scrKhungDs);
   var goi = { ma: ma };
   Object.keys(ts).forEach(function (k) {
     if (ts[k] !== '' && ts[k] != null) goi[k] = ts[k];

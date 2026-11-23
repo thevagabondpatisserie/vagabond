@@ -62,6 +62,7 @@ function appMoi() {
       if (ten === 'vagabond.dat_ban.dem_cho_xac_nhan') return { so: may.dat[k] != null ? may.dat[k] : 2 };
       if (ten === 'vagabond.don_huy.dem_phieu_cho') return may.dat[k] || { cho_chi: 1, treo: 0 };
       if (ten === 'vagabond.crm.tong_quan') return { viec_toi: 5 };
+      if (ten === 'vagabond.ban_hang.dem_don_treo') return { so: may.dat[k] != null ? may.dat[k] : 3, so_ngay: 14 };
       if (ten === 'vagabond.ghim.lay') return { ghim: [], toi_da: 5 };
       if (ten === 'vagabond.khung.ds.danh_ba') return [];
       if (/\.dem_|tong_quan/.test(ten)) return { so: 0 };
@@ -232,6 +233,17 @@ async function ca(ten, f) {
     assert.equal(a.g.VGB_HUB.PHHUY.cnt, 1);
     assert(String(a.g.VGB_HUB.PHHUY.html).indexOf('1 phiếu treo quá lâu') > 0, 'màn phân hệ vẫn không có cảnh báo phiếu treo');
     assert(String(a.g.VGB_DONG_GOC.PHHUY.html).indexOf('1 phiếu treo quá lâu') > 0, 'bản chụp dòng gốc vẫn cũ');
+  });
+
+  await ca('ô Đơn còn treo lấy số máy chủ đếm bằng bộ lọc của màn (Codex kiểm v685, UI15)', async () => {
+    const a = appMoi();
+    await a.trangChu(); await a.tha();
+    assert.equal(a.g.VGB_HUB.DTREO.cnt, 3, 'ô Đơn còn treo không lấy số máy chủ');
+    assert(a.may.goi.indexOf('vagabond.ban_hang.dem_don_treo') >= 0, 'Trang chủ không hỏi máy chủ số đơn treo');
+    /* Hoá đơn Sales Invoice vẫn còn lượt đếm hoá đơn hôm nay; không còn lượt nào
+       tự dựng bộ lọc đơn treo ở trình duyệt. */
+    const lan = a.may.goi.filter(k => k === 'Sales Invoice').length;
+    assert.equal(lan, 1, 'còn ' + lan + ' lượt đọc Sales Invoice thẳng, mong 1 (hoá đơn hôm nay)');
   });
 
   await ca('đổi tài khoản: không mượn số của người trước', async () => {

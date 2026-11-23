@@ -40,6 +40,7 @@ function cnLocVe() { return { nguon: cnNguon, ky: cnKy, tu: cnTu, den: cnDen, ti
 
 async function scrCongNo() {
   frame('Công nợ phải thu', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ công nợ...</div></div>');
+  var conMan = vgbManNay(scrCongNo);
   var kq, kp, kv = null;
   try {
     kq = await api('vagabond.cong_no.ds_khach_no', { tim: cnTimNo });
@@ -52,9 +53,11 @@ async function scrCongNo() {
       try { kv = await api('vagabond.cong_no.ds_tien_da_ve', cnLocVe()); } catch (e2) { kv = null; }
     }
   } catch (e) {
+    if (!conMan()) return;
     frame('Công nợ phải thu', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var khach = (kq && kq.khach) || [], phieu = (kp && kp.phieu) || [];
   var choThu = phieu.filter(function (p) { return p.trang_thai === 'Cho thu' || p.trang_thai === 'Thu thieu'; });
   var tienChoThu = choThu.reduce(function (t, p) { return t + (p.con_thieu || 0); }, 0);
@@ -195,6 +198,7 @@ async function scrCongNo() {
     });
   }
 
+  if (!conMan()) return;
   var b = frame('Công nợ phải thu', html);
   if (cc) dsCongCuNoi(b, cc, function (ho, k) {
     if (cnTab === 'no') { if (ho === 'tim') cnTimNo = k; }
@@ -3191,11 +3195,17 @@ var MV = { ds: null, mua: null, data: null, xem: 'sp', loc: 'all', tim: '',
 
 async function scrMuaVuDs() {
   frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc các mùa vụ...</div></div>');
-  try { MV.ds = await api('vagabond.mua_vu.danh_sach', {}); }
+  var conMan = vgbManNay(scrMuaVuDs);
+  var mvKq;
+  try { mvKq = await api('vagabond.mua_vu.danh_sach', {}); }
   catch (e) {
+    if (!conMan()) return;
     return frame('Kiểm bánh theo mùa',
       '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
   }
+  /* Lượt mở cũ về muộn không được ghi đè danh sách của lượt đang hiện. */
+  if (!conMan()) return;
+  MV.ds = mvKq;
   var ds = (MV.ds && MV.ds.ds) || [];
   var html = '<div style="font-size:11.5px;color:#98a2b3;padding:2px 2px 10px;line-height:1.6">' +
     'Dành cho hàng sản xuất một lô có số lượng giới hạn: bánh trung thu, bánh Tết, ' +
@@ -3217,6 +3227,7 @@ async function scrMuaVuDs() {
     }).join('') + '</div>';
   }
 
+  if (!conMan()) return;
   var b = frame('Kiểm bánh theo mùa', html, { footer: '<button class="btn" id="mvMoi" style="margin:0">➕ Lập mùa vụ mới</button>' });
   b.querySelectorAll('[data-mv]').forEach(function (n) {
     n.onclick = function () { MV.mua = n.getAttribute('data-mv'); go(scrMuaVu); };
