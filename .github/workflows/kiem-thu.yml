@@ -35,6 +35,12 @@ jobs:
       - name: 3. Bo kiem thu tang khung
         run: python3 vagabond/khung/kiem_thu/chay.py
 
+      # Chot chan tu dong (#607, anh Viet chot 22/11/2026): APPVER lui, mat dong
+      # patches.txt, em dash, du lieu that, bi mat tren dong them moi. Truoc ngay
+      # CHAN_TU trong cong_cu/chot_chan.py chi canh bao, tu ngay do lam do CI.
+      - name: 3b. Chot chan tu dong
+        run: python3 cong_cu/chot_chan.py
+
       - name: 4. Nap thu khai bao cac man danh sach
         run: |
           python3 - <<'PY'
