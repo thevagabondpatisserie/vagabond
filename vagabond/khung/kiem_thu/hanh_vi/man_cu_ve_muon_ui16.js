@@ -7,9 +7,10 @@
    hệ Bán hàng.
 
    Ca này chạy THẬT khung điều hướng (go, back, render, vgbManNay của phần 01) và
-   THÂN THẬT của từng màn async thuộc Bán hàng và Giao hàng, tách khỏi tệp nguồn.
-   Mọi tên khác màn dùng (hàm vẽ phụ, biến bộ lọc) được thay bằng một bản giả trơ,
-   để màn chạy hết đường mà không cần dựng cả app. Máy chủ giả GIỮ mọi lời đáp tới
+   NGUYÊN TỆP của từng màn async thuộc Bán hàng và Giao hàng (biến cấp tệp giữ
+   giá trị đầu thật). Tên của tệp khác mà màn dùng được thay bằng một bản giả
+   trơ, để màn chạy hết đường mà không cần dựng cả app. Mỗi cảnh chốt màn ĐANG
+   chờ máy chủ trước khi người dùng rời đi (Codex #616). Máy chủ giả GIỮ mọi lời đáp tới
    khi ca cho trả. Với mỗi màn, ba cảnh:
      1. Mở màn, sang màn khác (Đối soát COD) trước khi lời đáp về, rồi trả lời đáp.
      2. Mở màn, bấm Quay lại trước khi lời đáp về, rồi trả lời đáp.
@@ -103,17 +104,32 @@ function appMoi() {
     'globalThis.troMoi = function () { return new Proxy(function () {}, TRO_XU); };',
     'var GHI = {};',
     'globalThis.TRO = TRO;',
-    'var THIEU = new Proxy({}, { has: function (t, k) { return typeof k === "string" && !(k in globalThis); }, get: function (t, k) { if (k === Symbol.unscopables) return undefined; return Object.prototype.hasOwnProperty.call(GHI, k) ? GHI[k] : TRO; }, set: function (t, k, v) { GHI[k] = v; return true; } });'
+    /* Tên tệp tự khai (biến, hàm cấp tệp) thì để tệp tự giữ, giá trị đầu thật;
+       chỉ tên của tệp KHÁC mới rơi vào bản giả trơ. */
+    'function thieuCua(khai) { return new Proxy({}, { has: function (t, k) { return typeof k === "string" && !(k in globalThis) && !khai[k]; }, get: function (t, k) { if (k === Symbol.unscopables) return undefined; return Object.prototype.hasOwnProperty.call(GHI, k) ? GHI[k] : TRO; }, set: function (t, k, v) { GHI[k] = v; return true; } }); }'
   ].join('\n'), g);
+  /* Codex #616 (P1): bản trước chỉ tách thân hàm, mọi biến cấp tệp thành bản giả
+     trơ (vdVeSuong, vdDs có giá trị), nên Vận đơn đi nhánh bộ nhớ, không chờ máy
+     chủ, ca xanh mà không kiểm gì. Nay nạp NGUYÊN tệp của màn, biến cấp tệp giữ
+     giá trị đầu thật như khi app mới mở; ca còn chốt mỗi màn PHẢI đang chờ máy
+     chủ trước khi người dùng rời đi. */
   const man = {};
-  for (const [ten, tep] of MAN) {
-    const than = layHam(doc(tep), ten);
-    /* Biểu thức hàm có tên: hàm thấy chính nó (vgbManNay(scrDonTreo)). */
-    man[ten] = vm.runInContext('(function () { with (THIEU) { return (' + than + '); } })()', g);
+  const tepDs = Array.from(new Set(MAN.map(x => x[1])));
+  for (const tep of tepDs) {
+    const src = doc(tep);
+    const tenTep = MAN.filter(x => x[1] === tep).map(x => x[0]);
+    const khai = {};
+    for (const m of src.matchAll(/^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)) khai[m[1]] = 1;
+    for (const m of src.matchAll(/^(?:var|let|const)\s+([^\n]*)/gm)) {
+      for (const n of m[1].matchAll(/(?:^|,)\s*([A-Za-z_$][\w$]*)\s*(?==|,|;|$)/g)) khai[n[1]] = 1;
+    }
+    vm.runInContext('var __khai = ' + JSON.stringify(khai) + ';', g);
+    const ra = vm.runInContext('(function () { var __th = thieuCua(__khai); with (__th) {\n' + src +
+      '\n; return {' + tenTep.map(t => JSON.stringify(t) + ': ' + t).join(', ') + '}; } })()', g);
+    Object.assign(man, ra);
   }
-  /* Vài tên phải là thật để màn đi tới chỗ chờ máy chủ: cấu hình bán hàng đọc
-     qua máy chủ; Biên tập menu chưa có menu trong bộ nhớ và người mở có quyền. */
-  vm.runInContext('GHI.cfgBanHang = function () { return __api(); }; GHI.BTM = null; GHI.coQuyenBtm = function () { return true; };', g);
+  /* Tên của tệp khác mà màn chờ máy chủ qua nó: cấu hình bán hàng. */
+  vm.runInContext('GHI.cfgBanHang = function () { return __api(); }; GHI.coQuyenBtm = function () { return true; };', g);
   const khac = vm.runInContext('(function manKhac() { frame("Đối soát COD", "<div></div>"); })', g);
   const cha = vm.runInContext('(function manCha() { frame("Bán hàng", "<div></div>"); })', g);
   return {
@@ -146,6 +162,7 @@ async function ca(ten, f) {
       const a = appMoi();
       a.g.reset(a.cha); await nghi();
       a.g.go(a.man[ten]); await nghi();
+      assert(a.may.cho.length > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
       const moc = a.ve().length;
       a.g.go(a.khac); await nghi();
       const truoc = a.bien();
@@ -160,6 +177,7 @@ async function ca(ten, f) {
       const a = appMoi();
       a.g.reset(a.cha); await nghi();
       a.g.go(a.man[ten]); await nghi();
+      assert(a.may.cho.length > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
       a.g.back(); await nghi();
       const moc = a.ve().length;
       await a.tha();
@@ -170,6 +188,7 @@ async function ca(ten, f) {
       const a = appMoi(); a.may.loi = true;
       a.g.reset(a.cha); await nghi();
       a.g.go(a.man[ten]); await nghi();
+      assert(a.may.cho.length > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
       const moc = a.ve().length;
       a.g.go(a.khac); await nghi();
       await a.tha();
