@@ -103,7 +103,7 @@ async function scrVanDon() {
   if (!vdNgay) vdNgay = today();
   frame('Vận đơn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải vận đơn...</div></div>');
   var conMan = vgbManNay(scrVanDon);
-  var ds;
+  var ds, boLoc;
   if (vdVeSuong && vdDs && vdDsNgay === vdNgay) {
     vdVeSuong = 0;
     ds = vdDs;
@@ -111,12 +111,14 @@ async function scrVanDon() {
     vdVeSuong = 0;
     try {
       var nap = await vdNapDanhSach();
-      ds = nap[0]; vdBoLoc = nap[1]; vtShipper = nap[2];
+      ds = nap[0]; boLoc = nap[1]; vtShipper = nap[2];
     }
     catch (e) { if (conMan()) frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
-    /* Đã sang màn khác hoặc đã đổi ngày: danh sách này là của lần mở cũ. */
+    /* Đã sang màn khác hoặc đã đổi ngày: danh sách và bộ lọc (số đơn thiếu thẻ
+       khung giờ) là của lần mở cũ, không ghi đè ngày đang xem. Danh sách shipper
+       là danh mục chung nên vẫn giữ. */
     if (!conMan()) return;
-    vdDs = ds; vdDsNgay = vdNgay;
+    vdDs = ds; vdDsNgay = vdNgay; vdBoLoc = boLoc;
   }
   if (!conMan()) return;
   var chonMode = !!window.vdChon;

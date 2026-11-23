@@ -6,12 +6,10 @@
    treo về và vẽ đè: tiêu đề, nội dung đổi thành Đơn còn treo, địa chỉ vẫn là phân
    hệ Bán hàng.
 
-   Ca này chạy THẬT khung điều hướng (go, back, render, vgbManNay của phần 01) và
-   NGUYÊN TỆP của từng màn async thuộc Bán hàng và Giao hàng (biến cấp tệp giữ
-   giá trị đầu thật). Tên của tệp khác mà màn dùng được thay bằng một bản giả
-   trơ, để màn chạy hết đường mà không cần dựng cả app. Mỗi cảnh chốt màn ĐANG
-   chờ máy chủ trước khi người dùng rời đi (Codex #616). Máy chủ giả GIỮ mọi lời đáp tới
-   khi ca cho trả. Với mỗi màn, ba cảnh:
+   Ca này nạp NGUYÊN app_bep.js như trang /bep (khung điều hướng, màn, biến cấp
+   tệp đều thật), chỉ thay cửa ra mạng rawCall bằng máy chủ giả GIỮ mọi lời đáp
+   tới khi ca cho trả. Mỗi cảnh chốt màn ĐANG chờ máy chủ trước khi người dùng
+   rời đi, và đọc biến thật của màn để bắt lời đáp cũ ghi đè (Codex #616). Với mỗi màn, ba cảnh:
      1. Mở màn, sang màn khác (Đối soát COD) trước khi lời đáp về, rồi trả lời đáp.
      2. Mở màn, bấm Quay lại trước khi lời đáp về, rồi trả lời đáp.
      3. Như cảnh 1 nhưng máy chủ trả LỖI (nhánh lỗi cũng không được vẽ đè).
@@ -21,12 +19,12 @@
    đáp về ngược thứ tự, và gọi thẳng màn hai lần không qua điều hướng.
 
    Chạy:  node vagabond/khung/kiem_thu/hanh_vi/man_cu_ve_muon_ui16.js
-   Chạy trên mã cũ để thấy đỏ:  NGUON_BEP=/tmp/bep-main node ... (thư mục chứa các
-   phần bep/ của main). */
+   Chạy trên mã cũ để thấy đỏ:  NGUON_APP=/tmp/app_bep_main.js node ... (app_bep.js
+   ghép của main). */
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('assert');
 const dom = require('./dom_gia.js');
-const BEP = process.env.NGUON_BEP || path.resolve(__dirname, '../../../public/js/bep');
+const BEP = path.resolve(__dirname, '../../../public/js/bep');
 const doc = n => fs.readFileSync(path.join(BEP, n), 'utf8');
 
 /* Màn async của phân hệ Bán hàng và Giao hàng: tên hàm và tệp chứa. */
@@ -44,101 +42,116 @@ const MAN = [
 
 /* Bộ nhớ đệm danh mục, cấu hình dùng chung (không thuộc riêng lượt mở nào): lời
    đáp về muộn vẫn được giữ, vì đó là cùng một dữ liệu cho lần mở sau. */
-const GHI_BO_NHO = [];
+const GHI_BO_NHO = [
+  'vtShipper', 'vtDiem',  /* danh sách shipper, điểm lấy hàng (Vận đơn) */
+  'kmDm'                  /* danh mục hạng khách, nhóm món, quầy (Khuyến mãi) */
+];
+/* Lời gọi nền của vỏ app (chuông đếm việc, gọi trong frame), không phải của màn. */
+const NEN = ['vagabond.chuong.dem'];
+function choCuaMan(a) { return a.may.cho.filter(f => NEN.indexOf(f.m) < 0).length; }
+/* Lấy riêng các lời gọi đang chờ của một hàm máy chủ, theo thứ tự gọi. */
+function layCho(a, m) {
+  const c = a.may.cho.filter(f => f.m === m);
+  const con = a.may.cho.filter(f => f.m !== m);
+  a.may.cho.splice(0, a.may.cho.length, ...con);
+  return c;
+}
 
-function layHam(src, ten) {
-  const dau = src.search(new RegExp('\\n(?:async )?function ' + ten + '\\s*\\('));
-  if (dau < 0) throw new Error('Không thấy hàm ' + ten);
-  let i = src.indexOf('{', dau), sau = 0, q = null;
-  for (let j = i; j < src.length; j++) {
-    const c = src[j];
-    if (q) { if (c === '\\') { j++; continue; } if (c === q) q = null; continue; }
-    if (c === '\'' || c === '"' || c === '`') { q = c; continue; }
-    if (c === '{') sau++;
-    else if (c === '}') { sau--; if (!sau) return src.slice(dau + 1, j + 1); }
-  }
-  throw new Error('Hàm ' + ten + ' không đóng ngoặc');
+/* Bộ chọn mà DOM giả không hiểu (meta[name=viewport], input[type="date"]) thì
+   coi như không có phần tử, CHỈ trong ca này: ca chốt chuyện vẽ đè và biến của
+   màn, không chốt phần tử con. Lỗi khác của DOM giả vẫn nổ như cũ. */
+{
+  const qsa = dom.ElementGia.prototype.querySelectorAll;
+  dom.ElementGia.prototype.querySelectorAll = function (q) {
+    try { return qsa.call(this, q); } catch (e) { if (/khong hieu/.test(e.message)) return []; throw e; }
+  };
 }
 
 async function nghi() { for (let i = 0; i < 40; i++) await Promise.resolve(); await new Promise(r => setImmediate(r)); }
 
+/* Codex #616 vòng 2 (P2): nạp từng tệp trong một hàm bọc riêng thì biến cấp tệp
+   (DQ, MV, BTM...) nằm trong bao đóng, ca không đọc được trạng thái thật và hai
+   lần đọc đều ra undefined. Nay nạp NGUYÊN app_bep.js như trang /bep nạp nó, chèn
+   một cửa eval ngay trong vỏ app (cách của ban_soan_do_533) để đọc, đặt đúng biến
+   thật. Chỉ thay một chỗ: rawCall, cửa ra mạng duy nhất, thành máy chủ giả GIỮ
+   lời đáp. api(), getList(), loadMasters(), cfgBanHang()... đều là mã thật. */
+const APP = process.env.NGUON_APP || path.resolve(__dirname, '../../../public/js/app_bep.js');
+let KICH = null;
+function kichBan() {
+  if (KICH) return KICH;
+  let src = fs.readFileSync(APP, 'utf8');
+  const k = src.lastIndexOf('\n})();');
+  src = src.slice(0, k) + '\nwindow.__k = { chay: function (c) { return eval(c); } };' + src.slice(k);
+  KICH = new vm.Script(src, { filename: 'app_bep.js' });
+  return KICH;
+}
+/* Tên biến cấp tệp của từng màn: ảnh chụp trước, sau khi trả lời đáp để bắt lời
+   đáp cũ ghi đè (cả thuộc tính một tầng, như MV.ds). */
+const BIEN = {};
+for (const [ten, tep] of MAN) {
+  const ds = [];
+  for (const m of doc(tep).matchAll(/^(?:var|let)\s+([^\n]*)/gm)) {
+    for (const n of m[1].replace(/(['"`])(?:\\.|(?!\1).)*\1/g, '""').replace(/[[{(][^\]})]*[\]})]/g, '0')
+      .matchAll(/(?:^|,)\s*([A-Za-z_$][\w$]*)\s*(?==|,|;|$)/g)) ds.push(n[1]);
+  }
+  BIEN[ten] = ds;
+}
+
 function appMoi() {
   const tl = dom.taiLieuGia();
-  tl.addEventListener = () => {};
+  tl.addEventListener = () => {}; tl.readyState = 'loading';
   if (!tl.head) tl.head = tl.createElement('head');
+  if (!tl.documentElement) tl.documentElement = tl.createElement('html');
   const vgb = tl.createElement('div'); vgb.id = 'vgb'; tl.body.appendChild(vgb);
-  const may = { cho: [], loi: false };
-  const g = { console, JSON, Math, Number, String, Object, Array, Promise, Error, RegExp, Date, parseFloat, parseInt, isNaN,
-    document: tl, frappe: { session: { user: 'thu@vagabond.invalid' } },
-    location: { href: 'https://app.x/bep', pathname: '/bep', hostname: 'app.x', search: '', hash: '', replace() {} },
-    history: { pushState() {}, replaceState() {}, back() {} }, requestAnimationFrame: f => f(),
-    setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0, clearInterval: () => {} };
-  g.window = g; g.localStorage = { getItem: () => null, setItem() {}, removeItem() {} }; g.sessionStorage = g.localStorage; g.addEventListener = () => {};
+  const may = { cho: [], loi: false, goi: [] };
+  const kho = () => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; };
+  const g = {
+    console: { log() {}, warn() {}, error() {}, info() {} }, document: tl,
+    navigator: { userAgent: 'node', onLine: true },
+    location: { href: 'https://app.x/bep', pathname: '/bep', hostname: 'app.x', search: '', hash: '', origin: 'https://app.x', replace() {}, reload() {} },
+    history: { pushState() {}, replaceState() {}, back() {}, state: null },
+    frappe: { session: { user: 'thu@vagabond.invalid' }, csrf_token: 'x' },
+    localStorage: kho(), sessionStorage: kho(),
+    fetch: () => new Promise(() => {}),
+    setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
+    requestAnimationFrame: f => f(), matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
+    addEventListener() {}, removeEventListener() {}, getComputedStyle: () => ({}),
+    URL, URLSearchParams, Blob, Intl, TextEncoder
+  };
+  g.window = g; g.self = g;
+  /* Lời đáp thành công là một bản giả trơ RIÊNG mỗi lần (đọc trường nào cũng
+     được, phân biệt được lời đáp nào đã được lưu); may.loi thì trả lỗi. */
+  g.__api = (m) => new Promise((r, j) => { may.goi.push(m); const f = () => (may.loi ? j(new Error('Máy chủ lỗi thử')) : r(g.troMoi())); f.m = m; may.cho.push(f); });
   vm.createContext(g);
-  /* Máy chủ giả: mọi lời gọi đều chờ tới khi ca cho trả; may.loi thì trả lỗi. */
-  /* Lời đáp thành công là bản giả trơ TRO (dựng ở dưới): màn đọc trường nào
-     cũng được, để đi tới lần vẽ thật. */
-  g.__api = () => new Promise((r, j) => may.cho.push(() => (may.loi ? j(new Error('Máy chủ lỗi thử')) : r(g.troMoi()))));
-  vm.runInContext([
-    'var root = document.getElementById("vgb");',
-    'var VE = [];',
-    'function h(s) { return String(s == null ? "" : s); }',
-    'function toast() {} function busy() {} function dSkin() {} function money(x) { return String(x); }',
-    'function today() { return "2026-11-23"; } function errMsg(e) { return String((e && e.message) || e); }',
-    'function api(m, a) { return __api(m, a); }',
-    'function getList() { return __api(); } function nenDemDanhSach() { return __api(); }'
-  ].join('\n'), g);
-  vm.runInContext(doc('01-khung-app.js'), g);
-  /* Ghi lại mọi lần vẽ kèm màn đang đứng đầu chồng lúc vẽ; vẽ thật vẫn chạy. */
-  vm.runInContext([
-    'var __frameThat = frame;',
-    'frame = function (t, html, opt) { VE.push({ t: String(t), dau: S.stack[S.stack.length - 1] }); return __frameThat(t, "", opt); };',
-    'getList = function () { return __api(); }; nenDemDanhSach = function () { return __api(); };',
-    'loadMasters = function () { return Promise.resolve(); };',
+  kichBan().runInContext(g);
+  const chay = c => g.__k.chay(c);
+  chay([
+    'window.VE = [];',
+    'frame = (function (f) { return function (t, html, opt) { window.VE.push({ t: String(t), dau: S.stack[S.stack.length - 1] }); return f(t, html, opt); }; })(frame);',
+    'rawCall = function (m, a) { return window.__api(m, a); };',
     'S.user = "thu@vagabond.invalid"; S.wh = ["Kho"]; S.roles = ["System Manager"];',
-    /* Bản giả trơ cho mọi tên màn dùng mà ca không dựng: gọi được, đọc thuộc
-       tính được, nối chuỗi ra rỗng, không phải lời hứa. */
-    'var TRO_XU = { get: function (t, k) { if (k === "then") return undefined; if (k === Symbol.toPrimitive) return function () { return ""; }; if (k === "length") return 0; if (k === Symbol.iterator) return [][Symbol.iterator]; return TRO; }, apply: function () { return TRO; }, construct: function () { return TRO; } };',
-    'var TRO = new Proxy(function () {}, TRO_XU);',
-    /* Mỗi lời đáp là một bản giả RIÊNG, để phân biệt lời đáp nào đã được ghi. */
-    'globalThis.troMoi = function () { return new Proxy(function () {}, TRO_XU); };',
-    'var GHI = {};',
-    'globalThis.TRO = TRO;',
-    /* Tên tệp tự khai (biến, hàm cấp tệp) thì để tệp tự giữ, giá trị đầu thật;
-       chỉ tên của tệp KHÁC mới rơi vào bản giả trơ. */
-    'function thieuCua(khai) { return new Proxy({}, { has: function (t, k) { return typeof k === "string" && !(k in globalThis) && !khai[k]; }, get: function (t, k) { if (k === Symbol.unscopables) return undefined; return Object.prototype.hasOwnProperty.call(GHI, k) ? GHI[k] : TRO; }, set: function (t, k, v) { GHI[k] = v; return true; } }); }'
-  ].join('\n'), g);
-  /* Codex #616 (P1): bản trước chỉ tách thân hàm, mọi biến cấp tệp thành bản giả
-     trơ (vdVeSuong, vdDs có giá trị), nên Vận đơn đi nhánh bộ nhớ, không chờ máy
-     chủ, ca xanh mà không kiểm gì. Nay nạp NGUYÊN tệp của màn, biến cấp tệp giữ
-     giá trị đầu thật như khi app mới mở; ca còn chốt mỗi màn PHẢI đang chờ máy
-     chủ trước khi người dùng rời đi. */
+    'window.troMoi = (function () { var XU = { get: function (t, k) { if (k === "then") return undefined; if (k === Symbol.toPrimitive) return function () { return ""; }; if (k === "length") return 0; if (k === Symbol.iterator) return [][Symbol.iterator]; return new Proxy(function () {}, XU); }, apply: function () { return new Proxy(function () {}, XU); }, construct: function () { return new Proxy(function () {}, XU); } }; return function () { return new Proxy(function () {}, XU); }; })();'
+  ].join('\n'));
   const man = {};
-  const tepDs = Array.from(new Set(MAN.map(x => x[1])));
-  for (const tep of tepDs) {
-    const src = doc(tep);
-    const tenTep = MAN.filter(x => x[1] === tep).map(x => x[0]);
-    const khai = {};
-    for (const m of src.matchAll(/^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)) khai[m[1]] = 1;
-    for (const m of src.matchAll(/^(?:var|let|const)\s+([^\n]*)/gm)) {
-      for (const n of m[1].matchAll(/(?:^|,)\s*([A-Za-z_$][\w$]*)\s*(?==|,|;|$)/g)) khai[n[1]] = 1;
-    }
-    vm.runInContext('var __khai = ' + JSON.stringify(khai) + ';', g);
-    const ra = vm.runInContext('(function () { var __th = thieuCua(__khai); with (__th) {\n' + src +
-      '\n; return {' + tenTep.map(t => JSON.stringify(t) + ': ' + t).join(', ') + '}; } })()', g);
-    Object.assign(man, ra);
-  }
-  /* Tên của tệp khác mà màn chờ máy chủ qua nó: cấu hình bán hàng. */
-  vm.runInContext('GHI.cfgBanHang = function () { return __api(); }; GHI.coQuyenBtm = function () { return true; };', g);
-  const khac = vm.runInContext('(function manKhac() { frame("Đối soát COD", "<div></div>"); })', g);
-  const cha = vm.runInContext('(function manCha() { frame("Bán hàng", "<div></div>"); })', g);
+  for (const [ten] of MAN) man[ten] = chay(ten);
+  const khac = chay('(function manKhac() { frame("Đối soát COD", "<div></div>"); })');
+  const cha = chay('(function manCha() { frame("Bán hàng", "<div></div>"); })');
   return {
-    g, may, man, khac, cha,
-    async tha() { for (let i = 0; i < 20 && may.cho.length; i++) { const c = may.cho.splice(0); c.forEach(f => f()); await nghi(); } },
-    ve() { return vm.runInContext('VE', g); },
-    /* Ảnh chụp các biến của màn (tên ngoài phần 01) để bắt lời đáp cũ ghi đè. */
-    bien() { return Object.assign({}, vm.runInContext('GHI', g)); },
-    dau() { return vm.runInContext('S.stack[S.stack.length - 1]', g); }
+    g, may, man, khac, cha, chay,
+    go: (f, x) => chay('go')(f, x), back: () => chay('back')(), reset: f => chay('reset')(f),
+    async tha() { for (let i = 0; i < 30 && may.cho.length; i++) { const c = may.cho.splice(0); c.forEach(f => f()); await nghi(); } },
+    ve() { return chay('window.VE'); },
+    /* Ảnh chụp biến cấp tệp THẬT của màn và thuộc tính một tầng của chúng. */
+    bien(ten) {
+      const o = {};
+      for (const b of BIEN[ten]) {
+        let v; try { v = chay(b); } catch (e) { continue; }
+        o[b] = v;
+        if (v && typeof v === 'object' && !Array.isArray(v)) for (const k of Object.keys(v)) o[b + '.' + k] = v[k];
+      }
+      return o;
+    },
+    dau() { return chay('S.stack[S.stack.length - 1]'); }
   };
 }
 
@@ -160,25 +173,26 @@ async function ca(ten, f) {
   for (const [ten] of MAN) {
     await ca(ten + ': sang màn khác trước khi lời đáp về', async () => {
       const a = appMoi();
-      a.g.reset(a.cha); await nghi();
-      a.g.go(a.man[ten]); await nghi();
-      assert(a.may.cho.length > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
+      a.reset(a.cha); await nghi();
+      a.go(a.man[ten]); await nghi();
+      assert(choCuaMan(a) > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
       const moc = a.ve().length;
-      a.g.go(a.khac); await nghi();
-      const truoc = a.bien();
+      a.go(a.khac); await nghi();
+      const truoc = a.bien(ten);
       await a.tha();
       const sau = a.ve().slice(moc + 1).filter(v => v.t !== 'Đối soát COD');
       assert.equal(sau.length, 0, 'màn đã rời vẫn vẽ: ' + sau.map(v => v.t).join(', '));
       assert.strictEqual(a.dau(), a.khac, 'chồng màn không còn đứng ở màn mới');
-      const ghiDe = Object.keys(a.bien()).filter(k => a.bien()[k] !== truoc[k] && GHI_BO_NHO.indexOf(k) < 0);
+      const sauB = a.bien(ten);
+      const ghiDe = Object.keys(sauB).filter(k => sauB[k] !== truoc[k] && GHI_BO_NHO.indexOf(k) < 0);
       assert.equal(ghiDe.length, 0, 'lời đáp của màn đã rời vẫn ghi đè: ' + ghiDe.join(', '));
     });
     await ca(ten + ': bấm Quay lại trước khi lời đáp về', async () => {
       const a = appMoi();
-      a.g.reset(a.cha); await nghi();
-      a.g.go(a.man[ten]); await nghi();
-      assert(a.may.cho.length > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
-      a.g.back(); await nghi();
+      a.reset(a.cha); await nghi();
+      a.go(a.man[ten]); await nghi();
+      assert(choCuaMan(a) > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
+      a.back(); await nghi();
       const moc = a.ve().length;
       await a.tha();
       const sau = a.ve().slice(moc).filter(v => v.t !== 'Bán hàng');
@@ -186,11 +200,11 @@ async function ca(ten, f) {
     });
     await ca(ten + ': máy chủ trả lỗi sau khi đã sang màn khác', async () => {
       const a = appMoi(); a.may.loi = true;
-      a.g.reset(a.cha); await nghi();
-      a.g.go(a.man[ten]); await nghi();
-      assert(a.may.cho.length > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
+      a.reset(a.cha); await nghi();
+      a.go(a.man[ten]); await nghi();
+      assert(choCuaMan(a) > 0, 'màn không chờ máy chủ nên ca không kiểm được gì (đi nhánh bộ nhớ hay nổ trước khi gọi)');
       const moc = a.ve().length;
-      a.g.go(a.khac); await nghi();
+      a.go(a.khac); await nghi();
       await a.tha();
       const sau = a.ve().slice(moc + 1).filter(v => v.t !== 'Đối soát COD');
       assert.equal(sau.length, 0, 'nhánh lỗi của màn đã rời vẫn vẽ: ' + sau.map(v => v.t).join(', '));
@@ -199,12 +213,12 @@ async function ca(ten, f) {
 
   await ca('Đơn còn treo: bấm chip đổi kỳ, hai lời đáp về ngược thứ tự, chỉ lượt mới vẽ', async () => {
     const a = appMoi();
-    a.g.reset(a.cha); await nghi();
-    a.g.go(a.man.scrDonTreo); await nghi();
-    a.g.go(a.man.scrDonTreo, true); await nghi();
+    a.reset(a.cha); await nghi();
+    a.go(a.man.scrDonTreo); await nghi();
+    a.go(a.man.scrDonTreo, true); await nghi();
     const moc = a.ve().length;
-    const c = a.may.cho.splice(0);
-    assert.equal(c.length, 2, 'mong hai lời gọi đang chờ, có ' + c.length);
+    const c = layCho(a, 'vagabond.ban_hang.don_treo');
+    assert.equal(c.length, 2, 'mong hai lời gọi đang chờ, có ' + c.length + ': ' + a.may.goi.join(', '));
     c[1](); await nghi();
     const sauMoi = a.ve().length;
     c[0](); await nghi(); await a.tha();
@@ -214,15 +228,18 @@ async function ca(ten, f) {
 
   await ca('Đơn giao quầy: gọi thẳng màn hai lần không qua điều hướng, lượt cũ về sau không ghi đè', async () => {
     const a = appMoi();
-    a.g.reset(a.cha); await nghi();
-    a.g.go(function () { a.man.scrDonGiaoQuay(); }); await nghi();
+    a.reset(a.cha); await nghi();
+    a.go(function () { a.man.scrDonGiaoQuay(); }); await nghi();
     a.man.scrDonGiaoQuay(); await nghi();
-    const c = a.may.cho.splice(0);
-    assert.equal(c.length, 2, 'mong hai lời gọi đang chờ, có ' + c.length);
+    const c = layCho(a, 'vagabond.don_quay.danh_sach');
+    assert.equal(c.length, 2, 'mong hai lời gọi đang chờ, có ' + c.length + ': ' + a.may.goi.join(', '));
+    const dau = a.chay('DQ');
     c[1](); await nghi();
-    const sauMoi = vm.runInContext('GHI.DQ', a.g);
+    const sauMoi = a.chay('DQ');
+    assert.notStrictEqual(sauMoi, dau, 'lời đáp của lượt mới chưa được lưu vào DQ, ca không đọc được trạng thái thật');
+    assert(sauMoi != null, 'DQ của lượt mới rỗng');
     c[0](); await nghi();
-    assert.strictEqual(vm.runInContext('GHI.DQ', a.g), sauMoi, 'lời đáp cũ ghi đè danh sách của lượt mới');
+    assert.strictEqual(a.chay('DQ'), sauMoi, 'lời đáp cũ ghi đè danh sách của lượt mới');
   });
 
   hongDs.forEach(s => console.log('  HỎNG  ' + s));
