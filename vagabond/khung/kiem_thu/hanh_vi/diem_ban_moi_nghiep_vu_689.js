@@ -61,8 +61,11 @@ function dungMoi() {
           diem_ds: DIEM, tong_dong: 1, bi_cat: 0, dem: {}, nhom: [], tu: '2026-10-24', den: '2026-11-23', tong: 105000, con_thu: 0,
         });
       }
+      if (duong === 'vagabond.khuyen_mai.danh_muc') return Promise.resolve({ quay: DIEM, nhom_mon: [], hang: [], nhom_khach: [] });
+      if (duong === 'vagabond.khuyen_mai.xem_ctkm') return Promise.resolve({ km: { name: 'CTKM-GIA-1', ten: 'Giảm thử', cach: 'Giam tong hoa don', quay: 'SUKIEN', kenh: '', dong: [] } });
       return Promise.resolve({});
     },
+    toast: function () {}, sdGhep: function (a) { return a; }, CFGBH: null,
   };
   that.window = that;
   vm.runInNewContext(HAM, that, { filename: 'ham-689.js' });
@@ -104,6 +107,15 @@ function chu(el) { var s = el._chu || ''; (el.children || []).forEach(function (
     dung('có tên Hội chợ và District 1: ' + t, t.indexOf('Hội chợ') >= 0 && t.indexOf('District 1') >= 0);
     var rong = m.g.kmChipPhamVi({ kenh: [], quay_ds: [] });
     dung('không chọn quầy: mọi điểm bán', rong.indexOf('mọi điểm bán') >= 0 && rong.indexOf('ba điểm') < 0);
+  });
+
+  await ca('Codex #617: mở sheet chương trình thẳng từ CRM Zalo (chưa vào màn Khuyến mãi) vẫn có chip QUẦY đủ điểm', async function () {
+    var m = dungMoi();
+    bang('phiên mới: danh mục chưa nạp', vm.runInNewContext('kmDm', m.g), null);
+    await m.g.kmSheetCtkm('CTKM-GIA-1'); await tick();
+    dung('sheet tự gọi danh mục điểm bán', m.goi.some(function (x) { return x.duong === 'vagabond.khuyen_mai.danh_muc'; }));
+    var chip = m.g.document.querySelectorAll('[data-kmquay]').map(function (x) { return x.getAttribute('data-kmquay'); });
+    bang('đủ chip QUẦY, có điểm đang tắt', chip, ['SALES', 'TCV', 'NVHTN', 'SUKIEN']);
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');

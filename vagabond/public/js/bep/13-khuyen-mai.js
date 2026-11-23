@@ -501,6 +501,14 @@ function kmDoiDong(giaTri, ma) {
    uoc la SALES, may chu cung hieu quy uoc nay (khuyen_mai._hop_kenh). */
 function kmQuayDs() { return (kmDm && kmDm.quay) || []; }
 
+/* Codex #617: sheet chuong trinh mo thang tu CRM Zalo (58-crm.js) khi chua ghe
+   man Khuyen mai thi kmDm con null, chip QUAY, nhom mon, hang khach rong het.
+   Moi cua vao sheet nap danh muc tai day, khong dua vao man danh sach. */
+async function kmNapDm() {
+  if (!kmDm) { try { kmDm = await api('vagabond.khuyen_mai.danh_muc', {}); } catch (e) { kmDm = null; } }
+  return kmDm;
+}
+
 var KM_CACH = [
   { k: 'Giam tong hoa don', nhan: 'Giảm tổng hoá đơn', ic: '🧾', mo: 'Giảm % hoặc số tiền trên cả hoá đơn' },
   { k: 'Giam gia mon', nhan: 'Giảm giá món', ic: '🍰', mo: 'Chỉ giảm trên món hoặc nhóm món chỉ định' },
@@ -534,7 +542,7 @@ async function scrKhuyenMai() {
     cb = await api('vagabond.khuyen_mai.ds_combo', { tat_ca: 1 });
     /* Hang khach, nhom khach, nhom mon va quay lay tu may de bay ra thanh
        chip cho bam, khoi go tay (anh Viet 12/08/2026). */
-    if (!kmDm) { try { kmDm = await api('vagabond.khuyen_mai.danh_muc', {}); } catch (e2) { kmDm = null; } }
+    await kmNapDm();
   } catch (e) {
     frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
@@ -1049,6 +1057,7 @@ function kmN(id) { var o = document.getElementById(id); return o ? (parseFloat(o
 
 async function kmSheetCtkm(ma) {
   var km = null;
+  await kmNapDm();
   if (ma) {
     try { var r = await api('vagabond.khuyen_mai.xem_ctkm', { ma: ma }); km = r.km; }
     catch (e) { toast((e && e.message) || 'Không mở được'); return; }
@@ -1542,6 +1551,7 @@ function kmDsKenh() {
 /* ---------- Sheet cau hinh combo ---------- */
 async function kmSheetCombo(ma) {
   var cb = null;
+  await kmNapDm();
   if (ma) {
     cb = (kmData.cb || []).filter(function (x) { return x.name === ma; })[0];
     if (cb) cb = JSON.parse(JSON.stringify(cb));
