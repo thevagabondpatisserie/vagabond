@@ -82,6 +82,8 @@ echo "      va $(ls vagabond/public/web_order/*.js | wc -l | tr -d ' ') tep tran
 
 echo "[3/10] Bo kiem thu tang khung..."
 python3 vagabond/khung/kiem_thu/chay.py -im
+echo "[3b/10] Chot chan tu dong (cong_cu/chot_chan.py)..."
+python3 cong_cu/chot_chan.py
 
 echo "[4/10] Bo kiem thu phien ban bao gia..."
 python3 kiem_phien_ban.py

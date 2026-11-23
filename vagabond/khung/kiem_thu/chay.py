@@ -266,6 +266,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	# v672 Google: tệp Merchant và trang từng bánh, kênh Google Posts.
 	thu_google_672,
 	thu_chi_phi_242_674, thu_chi_phi_meta_674, thu_tien_chua_chung_tu_675,
+	# 22/11/2026 chốt chặn tự động và luật ba tầng (#607).
+	thu_chot_chan,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.
 	thu_quy_tac_chu_657,
 	# v657 máy mở app qua đêm vẫn chạy bản cũ: hỏi số bản máy chủ, tải lại.

@@ -3205,3 +3205,10 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 
 - `kiem_diem_otp.py` cắt `00-nen.js` từ `var PWA_MAU =` tới hết tệp và chạy bằng node với một DOM chỉ có `head`, `querySelector`, `createElement`. Mọi câu lệnh cấp ngoài cùng thêm SAU mốc đó (ví dụ gắn bộ theo dõi hộp, `document.addEventListener`) phải bọc lỗi và chịu được đối tượng thiếu, không thì cả khối PWA không chạy và 7 ca PWA đỏ. Hàm đặt màu vỏ app đọc lớp của thẻ html trong một `try` riêng, để thiếu `documentElement` vẫn tạo được meta màu cũ.
 - Phép đo tự động chỉ thấy cái nó được dạy nhìn: số 1234567 gãy hai dòng nhưng vẫn nằm trong ô thì phép "ra khỏi ô" vẫn xanh. Mở ảnh khung cao (390x1500) mới thấy, sau đó mới thêm phép đo "gãy dòng". Mỗi phép đo mới phải kèm một lần thử phá có chủ ý (nút 38, chữ 12, chip tràn) và một lần mở ảnh nhìn.
+
+## 22/11/2026 (#592, #607): dữ liệu thật lọt vào ca kiểm, lệnh kiểm bị cắt kết quả, luật chỉ dựa vào trí nhớ
+
+- #592: ca kiểm tin tiền chưa có chứng từ lấy mô tả sao kê thật từ site (tên người chuyển, số tài khoản, số thẻ) làm dữ liệu mẫu. Repo công khai nên ai cũng đọc được, và commit cũ vẫn nằm trong lịch sử nhánh dù đã thay. Ca kiểm chỉ dùng dữ liệu giả cùng dạng. Từ 22/11 chốt chặn C8 trong `cong_cu/chot_chan.py` dò số thẻ, số điện thoại, mã số thuế, số tài khoản trong mô tả sao kê, email cá nhân trên dòng thêm mới.
+- #592: ca bench chạy được trên site thật nên không được gọi hàm lịch không giới hạn hay lập nháp tháng thật. Truyền danh sách bản ghi của ca vào hàm lịch, cách ly khoá bản ghi tháng bằng hậu tố riêng, rồi kiểm bản ghi thật giữ nguyên trạng thái ban đầu.
+- #607: `ls a b 2>&1 | head` cắt mất phần kết quả của thư mục thứ hai, dẫn tới kết luận sai "thư mục không có". Kiểm sự thật trong repo (tệp có hay không) bằng lệnh đầy đủ như `test -e` cho từng đường dẫn, không cắt kết quả.
+- Lỗi lặp lại nhiều nhất trước đây (APPVER lùi, hai PR cùng số, mất dòng patches.txt, em dash) đều là luật chỉ nằm trong tài liệu. Từ 22/11 chúng chạy thành chốt chặn trong CI. Nhánh main có bảo vệ: phải xanh `kiem-thu`, `bench` và cập nhật với main mới merge được. Thêm luật mới thì nghĩ trước xem máy có kiểm được không.

@@ -1,780 +1,127 @@
-## Quy tắc chung cập nhật 17/11/2026
+# Luật chung cho mọi agent trên repo vagabond
 
-Mục 2b, 2c và H10 là nguồn chung về giao diện, nghiệm thu và review cho cả
-Codex lẫn Claude. Các mục này ưu tiên hướng dẫn cũ mâu thuẫn cùng chủ đề
-trong repo và trong skill. Chỉ dẫn trực tiếp của anh Việt và instruction
-project do anh dán luôn thắng; ai thấy hai nguồn mâu thuẫn thì ghi trong bàn
-giao để anh chốt một nguồn. Phạm vi anh giao quyết định ai làm, ai duyệt và
-quyền phát hành.
+Luật gốc dùng chung cho Claude và Codex, anh Việt chốt 22/11/2026 (đề xuất trong [#607](docs/van-hanh-agent/de-xuat-gon-luat-22-11-2026.md)). CLAUDE.md ở gốc chỉ dẫn về tệp này.
 
-## Phân công và báo review ngay (anh Việt chốt 15/10/2026)
+Luật riêng của từng phần mã nằm trong AGENTS.md (và CLAUDE.md) của thư mục đó. Quy trình dài đọc khi cần, theo bản đồ cuối tệp. Luật cũ đã thay được giữ nguyên văn ở [luat-cu.md](docs/van-hanh-agent/luat-cu.md).
 
-Mục này ưu tiên mọi phân công cũ mâu thuẫn bên dưới và trong tài liệu liên kết.
-Codex rà PR; anh Việt nhận kết luận rồi giao Claude sửa và làm tiếp. Codex
-không tự chuyển từ review sang sửa hoặc gọi vòng review trả qua lại, trừ khi
-anh Việt giao rõ. Quyền merge/deploy vẫn theo lệnh riêng và đủ cổng.
+## Bối cảnh
+- Repo này là app ERPNext v16 đang chạy thật cho The Vagabond Pâtisserie (TP HCM). Hệ có tiền, có kho, có hoá đơn điện tử gửi cơ quan thuế.
+- Chủ repo là anh Việt. Hai agent cùng làm trên repo: Claude và Codex.
+- Ngôn ngữ làm việc là tiếng Việt có dấu.
+- Repo để công khai.
 
-Ngay khi kết thúc mỗi vòng rà, trước khi chuyển việc hoặc kết thúc phiên:
-- Đăng kết luận trên đúng PR, ghi full SHA đã rà, đạt/chưa đạt, finding còn
-  lại, link bằng chứng và người cần làm tiếp. CI/bench xanh không thay review.
-- Dùng `[BỊ CHẶN]` khi còn finding chặn; dùng `[CẦN DUYỆT]` khi rà đạt và cần
-  anh giao bước tiếp. Không gọi review xong là `[ĐÃ SỬA XONG]`.
-- Kèm đúng một khối `telegram-tomtat`: nói rõ kết luận bằng lời nghiệp vụ và
-  "Anh Việt giao Claude làm tiếp" cùng việc cụ thể. Gửi ngay cả khi chưa đạt;
-  không chờ Claude, bản phát hành, merge hoặc deploy mới báo.
-- Kiểm workflow Telegram và biên nhận `message_id` của đúng comment. Hễ chưa
-  có biên nhận cho đúng comment đó thì dispatch `telegram.yml` chế độ
-  `doi-soat`, kể cả khi đã có lượt chạy xong và báo thành công: lượt đó có thể
-  không thu được gì vì một lượt khác vừa đẩy con trỏ dưới 180 giây trước
-  (Codex #478). Cơ chế chống trùng sẵn có lo phần gửi lặp; không gửi tay lặp
-  hoặc đợi lịch 15 phút.
-- Chỉ báo đã gửi khi có biên nhận. Nếu gửi lỗi, báo trực tiếp anh kèm link
-  kết luận và lỗi gửi. Không coi biên nhận là anh đã đọc hoặc đã duyệt.
+## Thứ tự ưu tiên khi hai nguồn khác nhau
+1. Chỉ dẫn trực tiếp mới nhất của anh Việt.
+2. Instruction project anh dán cho phiên.
+3. Tệp này và AGENTS.md/CLAUDE.md của thư mục đang sửa.
+4. Tài liệu trong `docs/` và skill.
 
-## H10. Trách nhiệm của người rà
+Thấy mâu thuẫn thì ghi trong bàn giao để anh chốt một nguồn, không tự chọn.
 
-1. **Vòng đầu rà theo nghiệp vụ từ đầu đến cuối.** Đọc yêu cầu và toàn bộ thay đổi so với nền. Với mỗi nghiệp vụ bị đổi, lần từ nút/API tới nơi quyết định và nơi ghi kết quả. Kiểm các lối vào dùng chung như Desktop, app, nhập tệp hoặc tác vụ nền nếu có. Khi thấy lỗi, chính Codex phải tìm các chỗ cùng nguyên nhân trong phạm vi thay đổi và các hàm gọi liên quan. Gộp các vị trí vào một nhận xét. Chỗ chưa chứng minh được ghi rõ là câu hỏi.
-2. **Nêu điều kiện để khép từng lỗi.** Ghi ai thao tác, trong tình huống nào, kết quả nào sai, bằng chứng ở đâu, và sau khi sửa cần quan sát điều gì. Một lỗi chặn cần dẫn tới sai nghiệp vụ hoặc vi phạm yêu cầu cụ thể. Góp ý dễ đọc và cải tiến ngoài phạm vi để riêng. Gom tóm tắt một lần ở cuối vòng, dẫn tới nhận xét theo dòng nếu có.
-3. **Vòng sau chỉ rà phần đã đổi và phần có thể bị ảnh hưởng.** Ghi SHA nền, SHA đã rà và SHA mới. Đọc các lỗi còn mở, thay đổi từ lần trước và các luồng dùng lại đoạn vừa sửa. Khi có rebase hoặc ghép nhánh, so cả nền mới. Mở rộng rà nếu quy tắc chung, quyền, thuế, ghi kho hoặc ranh giới giao dịch thay đổi. Có thể chốt một lỗi khi ca kiểm phân biệt được hành vi cũ với mới. Nếu cách sửa khác dự kiến nhưng đạt yêu cầu, chấp nhận kết quả.
-4. **Mốc hai vòng dùng để tìm nguyên nhân chậm.** Nếu vòng sau mới phát hiện lỗi cùng nguyên nhân ở đoạn đã có từ vòng đầu, ghi cả phần Codex đã rà sót. Nếu lỗi do thay đổi mới, ghi commit đưa lỗi vào. Phần còn tranh luận cần một ca phân xử hoặc một quyết định nghiệp vụ. Lỗi tác động tiền, kho, quyền hoặc số liệu tiếp tục chặn cho tới khi có bằng chứng. Quyền merge/deploy theo chỉ định riêng.
-5. **Cổng kế toán kiểm ý nghĩa bút toán.** Với thay đổi thuế, giá vốn hoặc thanh toán, ca bench đối chiếu từ chứng từ nguồn đến số tiền, chiều Nợ/Có và đúng TK theo nghiệp vụ. Kiểm hoàn nguyên hoặc gửi lại khi luồng cho phép. Bất kỳ đường mới nào có thể ghi sổ đều phải chỉ ra thao tác duyệt của kế toán hoặc chính sách tự động đã được anh Việt duyệt cho đúng nghiệp vụ. Dùng dữ liệu giả trong PR công khai.
-6. **Mỗi lần bàn giao gọi review một lần trên SHA cuối.** Các lô tải lên có thể tạo nhiều commit. CI vẫn chạy theo cổng hiện có. Khi SHA và nền đã rà không đổi, chỉ mở lại nếu có bằng chứng mới hoặc cổng kiểm đổi kết quả. Số liệu đo hiệu quả ghi ở mục 2c.8.
+## Phân vai (anh Việt chốt 15/10, xác nhận 22/11/2026)
+- Claude viết code và điều phối.
+- Codex rà PR và góp ý.
+- Anh Việt duyệt.
+- Mỗi phạm vi một người ghi code; không sửa chồng nhánh người khác đang làm. Claim và preflight theo [vgb-control-tower/README.md](vgb-control-tower/README.md).
 
-### Hướng dẫn áp dụng H3, H5 và H8.1
+Merge và deploy chỉ khi anh cho phép trong phiên, cho đúng PR đó, và Codex đã rà đạt. Quyền không suy ra cho PR khác. Nhánh main có bảo vệ: PR chỉ merge được khi check `kiem-thu` và `bench` xanh và nhánh đã cập nhật với main. Không tìm cách vượt bảo vệ nhánh.
 
-- H3: Sau khoảng 15 phút, nếu chưa chứng minh được, ghi điều kiện còn thiếu và chọn phép kiểm quyết định. Với lỗi đồng thời hoặc giao dịch cần cho hai phiên bench chạy đan xen thực sự khi hành vi phụ thuộc cơ sở dữ liệu.
-- H5: Chạy từng thay đổi cố tình phá hành vi trong bản thử cô lập. Nếu một lớp khác vẫn bảo vệ đúng kết quả, ghi lớp đó. Khi cần kiểm hợp đồng của từng lớp, viết ca riêng. Chỉ kết luận một lỗi có thể đến tay người dùng khi có bằng chứng trên đường thao tác tương ứng.
-- H8.1: Khóa phần đọc quyết định lần ghi trên tài nguyên dùng chung. Đọc lại trạng thái quyết định trong cùng giao dịch sau khi lấy khóa. Báo cáo chỉ đọc có thể dùng ảnh chụp nhất quán. Thêm khóa dàn trải gây chờ mà chưa chắc ngăn được sai tiền.
+## Tuyệt đối không
+1. Merge hoặc deploy khi anh chưa cho phép trong phiên.
+2. Đề xuất sửa hay xoá dữ liệu quá khứ đã ghi sổ, nhất là hoá đơn điện tử. Thấy sai thì liệt kê cho anh.
+3. Sửa Server Script trên Desk (không có lịch sử, mất không khôi phục được).
+4. Đưa dữ liệu thật (tên, số tài khoản, số thẻ, mã giao dịch, mã số thuế, số điện thoại khách) hay bí mật (token, mật khẩu, khoá) vào repo, kể cả trong ca kiểm. Dùng dữ liệu giả cùng dạng. Ca bench không được đụng bản ghi thật trên site ([luật bench](vagabond/khung/kiem_that/AGENTS.md)).
+5. Đặt hook trên `"*"` mà không chừa hạ tầng Frappe (16/08 cả tiệm mất email bốn ngày).
+6. Force push, viết đè nhánh hay tệp của phiên khác.
 
-## Cửa vào chung từ 12/10/2026
-
-Đọc [Instruction chung](INSTRUCTION_VAGABOND.md) trước. Quy trình nhận việc,
-commit, push, bàn giao cloud và model ở tài liệu đó là nguồn chuẩn; mục cũ
-mâu thuẫn bên dưới không được dùng để bỏ bước push hoặc quay về Astra low.
-
-## Quy tắc hiệu lực 16/09/2026
-
-Đọc [quy tắc chung](docs/van-hanh-agent/van-hanh-chung.md). Sáu thay đổi đã
-được anh Việt duyệt; mục đó ưu tiên các luật cũ mâu thuẫn về model/tag/vòng.
-
-## Quy tắc mới 14/09/2026: tiết kiệm token và gọi bot đúng việc
-
-Đọc [quy tắc dùng chung](docs/van-hanh-agent/tiet-kiem-token.md). Mục này thay
-luật 13/09 yêu cầu mọi comment đều tag đối ứng: chỉ tag khi có yêu cầu hành
-động. Review dùng `@claude review delta <FULL_HEAD_SHA>`, ghi SHA đã review,
-base, phạm vi và bằng chứng. Nếu đạt thì chốt SHA không tag lại; có finding
-cần sửa mới tag Codex. Không review trùng, không tự tạo lịch polling chờ sửa.
-Giữ nguyên quyền, owner và cổng phát hành; đây chưa phải khóa chi phí bằng máy.
-
-# Đọc trước khi sửa một dòng nào
-
-Tệp này dành cho MỌI trợ lý lập trình làm việc trên repo này: Roo Code,
-Claude Code, Cline, Gemini CLI, Cursor, hoặc người mới. Đọc hết rồi hãy gõ.
-
-Đây là hệ đang chạy thật của một tiệm bánh: có tiền, có kho, có hoá đơn
-điện tử gửi cơ quan thuế. Một lỗi ở đây không phải là một bug, nó là một
-ca bán hàng sai số hoặc một kho lệch không đối chiếu lại được.
-
-## Đầu phiên: đọc quy ước và bài học chung
-
-Trước khi sửa, đọc hết tệp này, `tai_lieu/INSTRUCTION_VAGABOND.md` và
-`docs/bai-hoc-su-co.md`; dùng `rg --files docs` rồi tìm từ khoá nghiệp vụ
-trong `docs/` để đọc tài liệu liên quan. Áp dụng cả phiên local lẫn cloud.
-Không tạo bản bài học riêng cho Codex rồi để lệch bản của Claude.
-
-Cuối phiên có công việc thực chất, bổ sung bài học mới đã có bằng chứng vào
-`docs/bai-hoc-su-co.md` trong PR đang làm: triệu chứng, nguyên nhân, cách phòng
-và Issue/PR nguồn. Không thêm mục trùng; không ghi bí mật hoặc dữ liệu cá nhân.
-Nhật ký chi tiết local vẫn theo mục 10. Nếu cloud không có thư mục nhật ký
-trên máy anh Việt, ghi bàn giao trên PR và nói rõ chưa cập nhật nhật ký local;
-không tạo database hoặc giả nhận đã ghi trên máy.
-
-## Model mặc định dành cho Codex
-
-Cấu hình mặc định dự án từ 12/10/2026: **Astra medium**,
-`model = "gpt-6-astra"`, `model_reasoning_effort = "medium"`.
-Đọc `docs/codex-trong-repo.md` để phân biệt cấu hình yêu cầu với runtime thật.
-Không tự nhận bot GitHub đã đổi model chỉ vì sửa tệp cấu hình.
-
-
-
----
-
-## 1. Bốn điều chống ghi đè, bắt buộc
-
-Repo này được nhiều phiên làm song song và độc lập, không phiên nào nhìn
-thấy phiên nào. Đã mất code thật hai lần vì đúng lý do này.
-
-**Điều 1. Không code trên nền cũ.** Mở phiên là chạy:
-
+## Đầu phiên
 ```
 git fetch origin
-git log origin/main -n 5 --oneline
+git log origin/main -n 10 --oneline
 git status -sb
+grep APPVER vagabond/public/js/bep/12-van-don.js && tail -3 vagabond/patches.txt
 ```
+- Đứng trên hoặc bằng `origin/main` rồi mới sửa. Không dựa vào trí nhớ về cấu trúc tệp.
+- Đọc AGENTS.md (hoặc CLAUDE.md) của thư mục sắp sửa.
+- Tìm bài học của mảng đó: `grep -n <từ khoá> docs/bai-hoc-su-co.md`, rồi chỉ đọc mục liên quan, không đọc cả tệp. `grep -rl <từ khoá> docs/` trước khi sửa một nghiệp vụ.
+- GitHub là trạng thái hiện tại; ghi chú cũ không phải bằng chứng.
 
-Không dựa vào trí nhớ về cấu trúc tệp. Riêng `vagabond/public/js/app_bep.js`
-thì không bao giờ được tin bản trong đầu, vì đó là tệp máy ghép ra.
+## Phiên bản, bản vá, sổ tay
+- Đặt số theo `origin/main` đọc ngay trước khi đặt:
+  - `APPVER` trong `vagabond/public/js/bep/12-van-don.js` chỉ tăng;
+  - mỗi lần phát hành thêm một dòng `vagabond.patches.dong_bo_cau_truc #vNNN` vào `vagabond/patches.txt`, giữ mọi dòng cũ ([luật bản vá](vagabond/patches/AGENTS.md)).
+- Hai PR đang mở có thể cùng đặt một số. PR merge sau phải nâng số mới.
+- Mỗi APPVER có mục `## vNNN` trong `vagabond/so_tay/_phien-ban.md` và mục sổ tay tương ứng. Bản sửa ngầm ghi `- Không đổi thao tác: <lý do>`.
+- `app_bep.js` là tệp máy ghép từ `vagabond/public/js/bep/`. Sửa nguồn rồi chạy `python3 dung_app_bep.py`.
+- Sửa tài liệu không cần số phiên bản.
 
-**Điều 2. Đồng bộ khắt khe ngay trước khi đẩy.** Ngay trước lúc push, chạy
-lại `git fetch origin` và `git log origin/main -n 3`. Có commit mới thì
-merge main vào nhánh PR đã công bố, theo lệnh trên PR. Không rebase nhánh chung,
-không `push --force`, không ghi đè.
+## Viết code
+- Tách phép thuần (không chạm Frappe) khỏi phần chạm hệ. Tính năng mới có ca kiểm trong `vagabond/khung/kiem_thu/`, đăng ký trong `chay.py`.
+- Chạm ghi sổ, kho, quyền thì có ca bench trong `vagabond/khung/kiem_that/`.
+- Cổng kế toán (H10.5, bắt buộc): đổi thuế, giá vốn, thanh toán thì ca bench đối chiếu chứng từ nguồn tới số tiền, chiều Nợ/Có và đúng tài khoản. Mọi đường mới có thể ghi sổ phải chỉ ra thao tác duyệt của kế toán hoặc chính sách tự động anh Việt đã duyệt. Bench xanh chưa đủ để bàn giao một đường ghi sổ mới. Chi tiết: [nghiem-thu-va-ra.md](docs/van-hanh-agent/nghiem-thu-va-ra.md).
+- Thêm `@frappe.whitelist()` thì thêm tên vào `vagabond/khung/kiem_thu/thu_cua_ngo.py`.
+- Cùng một con số tính ở nhiều nơi thì gom về một hàm.
+- Giá trị 0, chuỗi rỗng, False người dùng chọn đọc bằng `is None`, không bằng `or mặc định`.
+- Quy ước đầy đủ: [quy-uoc-code.md](docs/van-hanh-agent/quy-uoc-code.md). Quy tắc nghiệp vụ đã chốt: [docs/nghiep-vu/](docs/nghiep-vu/quy-tac-da-chot.md).
 
-**Điều 3. Kiểm chéo trước khi deploy.** Hai phép kiểm bắt buộc:
-
+## Cổng kiểm trước bàn giao
 ```
+python3 vagabond/khung/kiem_thu/chay.py -im
 python3 dung_app_bep.py --kiem
 sh kiem_truoc_deploy.sh
 ```
+- Giả lập CI không có `requests`: xem [luật kiểm thử](vagabond/khung/kiem_thu/AGENTS.md). Trang khách có thêm bộ riêng: xem [luật trang khách](vagabond/public/web_vue/AGENTS.md).
+- Màn hình và luồng nghiệp vụ: nghiệm thu theo 2c, người rà theo H10, cùng trong [nghiem-thu-va-ra.md](docs/van-hanh-agent/nghiem-thu-va-ra.md).
+- Chạy pyflakes trên tệp Python đã đụng.
+- Đột biến: cố tình làm hỏng chỗ vừa sửa, ghi đúng số bắt được.
+- Bench CI đỏ thì đọc đúng ca đỏ trước khi kết luận.
+- Chốt chặn tự động `cong_cu/chot_chan.py` chạy trong CI. Nó kiểm APPVER lùi, mất dòng patches.txt, em dash, dữ liệu thật và bí mật trên dòng thêm mới. Từ ngày `CHAN_TU` ghi trong tệp đó, lỗi làm đỏ CI; trước ngày đó chỉ cảnh báo.
 
-Mã trả về 0 mới được deploy. Số phiên bản app chỉ được tăng, không bao giờ
-được lùi:
+## Làm việc với bên rà
+- Gọi bằng comment trên đúng PR, không trong issue.
+- Lệnh:
+  - `@codex review` chỉ để rà;
+  - muốn Codex sửa thì `@codex fix <finding, PR, SHA, phạm vi, ca hồi quy>`, rồi fetch nhánh kiểm có commit mới chưa.
+- Tự rà theo [sổ mẫu lỗi](docs/van-hanh-agent/so-mau-loi.md) trước khi gọi. Sửa theo loại lỗi: quét cả PR tìm mọi chỗ cùng loại, sửa trong một lượt đẩy.
+- Luật dừng: cùng một finding đã gọi 3 vòng trong 24 giờ mà không có bằng chứng mới thì không gọi nữa; viết ngắn chỗ bất đồng, mời anh phân xử.
+- Không trả lời comment chỉ cảm ơn. Không tự hẹn giờ chờ bên kia.
+- Chi tiết lệnh và xác nhận bàn giao: [lam-viec-voi-codex.md](docs/van-hanh-agent/lam-viec-voi-codex.md).
 
-```
-grep APPVER vagabond/public/js/bep/12-van-don.js
-tail -2 vagabond/patches.txt
-```
+## Bàn giao
+- Một comment trên PR. Dòng đầu là một trong năm nhãn: `[CẦN DUYỆT]`, `[BỊ CHẶN]`, `[ĐÃ ĐẨY - CHỜ KIỂM]`, `[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Không dùng `[ĐÃ SỬA XONG]`.
+- Comment ghi:
+  - SHA cuối và SHA nền;
+  - tự rà;
+  - kết quả kiểm;
+  - việc chưa làm;
+  - đúng một khối `telegram-tomtat` (tối đa hai câu nghiệp vụ);
+  - câu chốt không merge, không deploy.
+- Kiểm biên nhận Telegram cho đúng comment. Chi tiết: [ban-giao.md](docs/van-hanh-agent/ban-giao.md), [thong-bao-telegram.md](docs/thong-bao-telegram.md).
+- Chỉ tính bàn giao khi SHA đã có trên GitHub.
+- Sau deploy: kiểm site thật, đăng `[ĐÃ DEPLOY]` theo [mau-tin-phat-hanh.md](docs/mau-tin-phat-hanh.md), soạn tin việc cần làm theo bộ phận cho anh. Chi tiết: [deploy.md](docs/van-hanh-agent/deploy.md).
 
-**Điều 4. Ưu tiên Pull Request.** Tạo nhánh, push, mở PR để git tự quét
-xung đột. Chỉ commit thẳng vào `main` khi không còn cách nào khác.
+## Trình bày
+- Không dùng em dash, en dash ở bất kỳ đâu (comment, tệp, nội dung ghi vào ERPNext); chỉ dùng gạch ngang thường.
+- Issue, PR, comment viết tiếng Việt có dấu, mở đầu bằng tóm tắt nghiệp vụ.
+- Chữ trên màn hình, sổ tay, tin nhắn theo [quy tắc chữ ERP](docs/quy-tac-chu-erp.md): đúng thuật ngữ, không gọi tên người.
 
-**Gặp xung đột thì DỪNG.** Hai phiên cùng sửa một hàm thì mô tả xung đột
-cho anh Việt, không tự chọn giữ bên nào.
-
----
-
-## 2. App `/bep` nằm trong MỘT vỏ hàm
-
-Toàn bộ app điện thoại nằm trong `vagabond/public/js/bep/`, gồm các phần
-đánh số. `00-nen.js` mở vỏ hàm bằng `(function () {` và **`99-dong-vo.js`
-đóng lại** bằng `})();`. `dung_app_bep.py` nối các phần theo thứ tự tên tệp
-thành `app_bep.js`.
-
-Ba hệ quả không được quên:
-
-- **Phần mới thêm phải mang số nhỏ hơn 99.** Ghép sau phần đóng vỏ thì
-  đoạn đó nằm ngoài vỏ hàm, không thấy `frame`, `api`, `go`, và màn hình
-  của nó chết ngay khi bấm. Chuyện này đã xảy ra thật tối 20/08/2026 với
-  `24-phantom.js`. `dung_app_bep.py` nay tự chặn, nhưng đừng để nó phải
-  chặn.
-- **`node --check` trên một phần riêng lẻ sẽ báo lỗi cú pháp.** Đó là cố
-  ý. Chỉ kiểm trên tệp ghép.
-- **KHÔNG sửa tay vào `app_bep.js`.** Sửa trong `bep/` rồi chạy
-  `python3 dung_app_bep.py`. Phép `--kiem` đối chiếu từng byte và sẽ bắt
-  được.
-- **Màn lập phiếu mới phải có bản nháp tự lưu (v533).** Khai một dòng
-  `sdKhai` và một dòng `sdBoc` trong `48-ban-soan-do.js`. Phần 48 bọc lại
-  `api`, `frame`, `vgbGomNhom` và các hàm màn lúc nạp, nên nó phải đứng sau
-  mọi phần có màn lập phiếu. Màn dựng trạng thái ngay trong hàm của nó thì
-  thêm móc `sdGhep` ngay sau chỗ dựng.
-
-Không có framework, không có build step, không có React. Màn hình là các
-hàm `scr...` gọi `frame(tiêu_đề, html, tuỳ_chọn)` và điều hướng bằng
-`go(hàm)`. **Đừng đề nghị viết lại bằng React.** Đó không phải là cải
-tiến, đó là bỏ đi hai năm.
-
-**Ngoại lệ đã duyệt: web KHÁCH dựng lại bằng Vue (anh Việt chốt 11/10/2026).**
-Luật "không framework" ở trên là cho app nội bộ `/bep`, giữ nguyên. Riêng web
-khách (đặt bánh, biên nhận, thành viên, đặt bàn, chính sách, màn hình khách,
-trình biên tập web) chuyển sang Vue 3, mã ở `vagabond/public/web_vue/`:
-- Vue để thẳng trong repo (`web_vue/lib/`), KHÔNG thêm bước build vào Frappe
-  Cloud. Mô đun ES nạp qua import map; chạy `python3 cong_cu/ma_bam_web_vue.py`
-  sau mỗi lần sửa để đóng dấu `?v=` (ca `thu_web_vue.py` chặn nếu quên).
-- Giao diện giữ ĐÚNG Rocca đã duyệt: dùng lại nguyên CSS, cùng thẻ và lớp. Đổi
-  giao diện thì so ảnh với bản cũ (`cong_cu/xem_thu_web_vue.py`) trước khi bàn giao.
-- Mọi con số trên màn là computed từ MỘT nguồn trong kho (`banh/kho-banh.js`),
-  không viết hàm "vẽ lại". Phép thuần ở `kho/thuan.js`, ca hành vi node ở
-  `hanh_vi/web_vue_banh.mjs` chạy kho thật với Vue thật.
-- Chữ marketing qua `t(khoá, mặc định)`, khoá phải có trong sổ nhãn và mặc định
-  trùng sổ nhãn. Không `v-html`, không `innerHTML`.
-- Bản Vue chạy song song ở `/web_moi/...` tới đêm tráo; trang cũ vẫn là trang
-  khách dùng cho tới khi anh Việt duyệt tráo.
-
----
-
-## 2b. Nguyên tắc thiết kế màn hình app, bắt buộc (anh Việt duyệt 03/09/2026)
-
-Anh Việt đã yêu cầu nhiều lần, lần cuối 03/09/2026 với ảnh hai màn xuất kho
-"rất thô sơ, không đồng bộ với giao diện đẹp của app". Bản đầy đủ nằm ở
-project doc `nguyen-tac-thiet-ke-man-hinh-app-va-de-xuat-kho-theo-sap`. Mười
-chín điều dưới đây (cùng điều 20 cho web chính) là bắt buộc cho MỌI màn mới và MỌI màn sửa; ca kiểm
-`thu_nguyen_tac_man_hinh.py` canh những điều soi được bằng chuỗi.
-
-1. **Dùng khung có sẵn, không tự vẽ.** `frame`, `card`, hàng chip, bottom
-   sheet, `anhMon`, `toast`, `confirmSheet`, khuôn danh sách B3. Không viết
-   HTML form thô. Màn mới phải giống màn Hoá đơn hôm nay và Tính tiền.
-2. **Chọn là tìm. Không xổ danh sách để kéo.** Ô chọn có hơn 8 lựa chọn thì
-   mở bottom sheet có ô tìm (`sheet(..., searchable)`, `sheetTimKhach`,
-   `scrXkChonHang`), hàng hoá có thêm nút quét mã. TUYỆT ĐỐI không dùng
-   `<select>`. Dưới 8 lựa chọn thì dùng hàng chip. Giá trị đang chọn hiện
-   dạng thẻ (ảnh, tên đậm, dòng phụ xám, mũi tên), chạm vào là mở sheet.
-3. **Ba hàng chip trên mọi màn danh sách** (anh Việt chốt 17/11/2026):
-   trạng thái có đếm số, nhóm hoặc nguồn, khoảng ngày. Chip đang chọn tô đậm.
-   Hàng chip cuộn ngang. Trên từng dòng có chip trạng thái: xanh xong, vàng
-   chờ, đỏ cần xử, xám huỷ; màu luôn đi kèm chữ. Chip thêm ngoài ba hàng này
-   phải hợp với tính năng của màn: chip tiến độ (bước mấy trên mấy) chỉ dùng
-   cho màn theo dõi việc nhiều bước, không gắn cho đủ. Ngoại lệ bỏ ba hàng
-   chip chỉ cho sheet chọn dưới 8 lựa chọn; ghi lý do trong bàn giao. Tránh
-   lặp cùng ý ở chip, tiêu đề và dòng phụ.
-4. **Chỗ nào có tên món thì có ảnh món** qua `anhMon(url)`; chưa có ảnh thì
-   ô 🍰 giữ hàng. Ảnh thật từ danh mục, không ô chữ cái thay ảnh. Khách và
-   nhà cung cấp có logo thì hiện logo, không thì biểu tượng nhóm. Ảnh cùng
-   loại có kích thước thống nhất và giữ chỗ khi tải, lỗi hoặc thiếu ảnh;
-   tải theo phần đang xem để danh sách dài vẫn thao tác được.
-5. **Ô tìm nhanh ở đầu mọi danh sách,** gõ là lọc, có mã thì có nút quét.
-6. **Thẻ tóm tắt đầu màn danh sách:** số phiếu, tổng tiền, chia theo trạng
-   thái và nguồn; bấm số là lọc; đang lọc thì có thanh "Tổng theo bộ lọc".
-7. **Trạng thái phụ chỉ đúng việc cần làm:** đang tải; chưa có dữ liệu với
-   nút tạo cho người có quyền; lọc ra rỗng với cách bỏ lọc; thiếu quyền;
-   tải lỗi với cách thử lại. Trang khách có thể ẩn khối chưa có nội dung.
-   Màn quản trị phải giúp người phụ trách biết tạo gì, ở đâu để khối xuất hiện.
-8. **Nút hành động:** một nút chính to dính đáy, nói rõ việc; nút phụ dạng
-   viền; nút nguy hiểm màu đỏ và hỏi `confirmSheet`; không có nút xoá vĩnh
-   viễn chứng từ (QT-20). Bấm xong phải có phản hồi.
-9. **Mặc định thông minh và nhớ lựa chọn** (kho, điểm bán, quầy, ca) theo tài
-   khoản và lần chọn gần nhất, ở mọi màn.
-10. **Dòng hàng trong phiếu:** ảnh, tên đậm, dòng phụ (mã, đơn vị, tồn, lô
-    hoặc hạn dùng), ô số lượng có nút trừ cộng và bàn phím số; vượt tồn thì
-    viền đỏ tại chỗ; tổng cập nhật ngay khi gõ.
-11. **Dấu vết trên mọi phiếu:** ai lập, ai ghi sổ, lúc nào, chip "Đã sửa N
-    lần". Câu lý do treo lấy từ MỘT nguồn phía máy chủ (QT-19).
-12. **Mọi tính năng có ở mọi màn cùng loại:** dựng cho một màn tính tiền thì
-    có ở mọi màn tính tiền; dựng cho một màn phiếu kho thì có ở mọi màn phiếu
-    kho (ảnh chứng từ, ghi chú, chip trạng thái, dấu vết, tìm hàng).
-13. **Chạm và cuộn:** nút, chip, dòng cao ít nhất 44 điểm; không cuộn ngang
-    cả trang; chừa vùng an toàn đáy máy; chữ tối thiểu 13 điểm.
-14. **Số liệu và ngôn ngữ:** tiền có dấu chấm nghìn và chữ đ, khối lượng qua
-    `kl()`, ngày dd/mm, giờ HH:MM, tiếng Việt có dấu, không dấu gạch dài.
-15. **Có ca kiểm giữ nguyên tắc.** Số ô `<select` trong từng tệp `bep/` chỉ
-    được GIẢM so với mốc ghi trong `thu_nguyen_tac_man_hinh.py`; tệp mới
-    không được có ô nào. Nguyên tắc không có ca kiểm thì ba tuần sau lại bị bỏ.
-16. **Danh sách phải lọc đúng phạm vi trước khi bày ra.** Trước khi đổ một
-    bảng dùng chung ra màn hình, hỏi "bảng này có chứa dòng của bên khác
-    không". Bank Account chứa tài khoản nhà cung cấp và khách; Contact và
-    Address chứa khách; Item chứa cả nguyên liệu lẫn thành phẩm. Bày nhầm
-    phạm vi thì màn dài gấp mười và người dùng hết tin số. Ca kiểm phải chốt
-    phạm vi bằng một phép đếm, không chỉ bằng chuỗi. Sự cố v495, màn Khớp
-    SePay thủ công liệt kê hơn sáu chục tài khoản của nhà cung cấp.
-17. **Khối chỉ để đọc không được lấn chỗ của khối để bấm.** Cảnh báo, giải
-    thích, danh sách ngoài lề: tối đa hai dòng; dài hơn thì thu về một dòng
-    đếm số, bấm mới mở, và đặt XUỐNG DƯỚI khối hành động. Không bao giờ nối
-    một danh sách không rõ độ dài bằng join rồi in thẳng: luôn là đếm số,
-    vài mục đầu, rồi "và N nữa". Ở 390x844, thứ người dùng đến để bấm phải
-    nằm trong màn đầu khi có ít nhất một dòng.
-18. **Nhãn trên chip và trên dòng phải gọn.** Chip tối đa khoảng 16 ký tự
-    nhìn thấy; tên dài rút thành mã ngắn cộng bốn số cuối, ví dụ "MB · 0615",
-    tên đầy đủ đọc được khi chạm hoặc mở chi tiết trên điện thoại; title
-    chỉ bổ sung cho desktop. Hàng chip cuộn ngang chừa lề hai bên. Tên món
-    dài phải giữ phần giúp phân biệt món, cho xuống dòng khi cần.
-19. **Chữ trên màn theo [quy tắc chữ ERP](docs/quy-tac-chu-erp.md)** (anh
-    Việt duyệt 14/11/2026). Không gọi tên người, chỉ gọi bộ phận hoặc chức
-    danh (Kế toán, kế toán trưởng, Thu mua, Bếp, giám đốc, quản trị hệ
-    thống). Một việc một chữ: Lưu nháp, Gửi + bộ phận, Duyệt, Trả lại, Ghi
-    sổ, Hoàn tất, Huỷ chứng từ, Xoá. Gọi phần mềm là "hệ thống". Không viết
-    tắt NCC, BTP, BOM trên nhãn. Chọn chữ theo mẫu chứng từ Thông tư 99,
-    rồi chữ tiệm đang dùng, rồi Odoo và MISA; không lấy bản dịch máy của
-    ERPNext. Ca kiểm `thu_quy_tac_chu_657.py` chặn tên người.
-20. **Mọi nội dung trên web chính sửa được trong trình biên tập** (anh Việt
-    chốt 21/11/2026). Chữ khách thấy đi qua `t('khoá', 'mặc định')` và có
-    trong sổ nhãn `web_order/chu-mac-dinh.json`. Ảnh nhỏ của trang (mẫu cờ,
-    thiệp, phụ kiện, nến số...) là một ô ảnh trong cùng sổ (cờ `"anh": true`),
-    trang gọi `anhWeb('khoá', ảnh có sẵn)`, ảnh có sẵn khai trong
-    `ANH_O_MAC_DINH` (web_vue/banh/du-lieu.js); Marketing thay ở thẻ Trang và
-    chữ, nhóm Ảnh trên trang. Ảnh món, banner, ưu đãi, sự kiện sửa ở thẻ
-    riêng của chúng. Ngoại lệ duy nhất: logo thương hiệu và logo đơn vị thanh
-    toán. Thêm ô, chữ hay ảnh mới mà không vào trình biên tập là chưa xong;
-    ca "luật mọi ảnh trên web chính" trong `hanh_vi/web_vue_banh.mjs` đỏ khi
-    có `<img :src>` gắn cứng mới.
-
-Khi giao việc có đổi màn hình, dùng
-[skill dẫn giao diện](.agents/skills/vagabond-uxui-giao-viec/SKILL.md) để ghi
-thứ tự khối, nhãn, thành phần dùng lại và trạng thái dữ liệu. Mục 2c quy định
-bằng chứng trước bàn giao và sau triển khai. Người làm chủ động dùng màn
-mẫu đã duyệt để hoàn thiện phần mô tả còn thiếu trong phạm vi được giao.
-
-## 2c. Nghiệm thu nghiệp vụ, giao diện và bàn giao (17/11/2026)
-
-1. **Chốt việc người dùng cần hoàn thành.** Trước khi code, ghi ngắn vai
-   thao tác, kết quả cần đạt, trạng thái đổi và việc có ghi sổ/trừ kho hay
-   không. Chỉ rõ người duyệt hoặc chính sách tự động đã được anh Việt duyệt
-   cho nghiệp vụ đó. Áp H10.5 cho kế toán; kiểm từ chứng từ nguồn tới số tiền,
-   tài khoản và bước quyết định. Thay đổi luồng ghi nhận cần nêu rõ trong PR.
-2. **Bố cục giúp thao tác.** Dùng màn mẫu đã duyệt và thành phần chung ở 2b:
-   ưu tiên thông tin để quyết định, một hành động chính, cùng thứ tự khối,
-   khoảng cách, màu trạng thái, vị trí nút và cách căn số. Khi sửa thành phần
-   dùng chung, rà các màn chịu ảnh hưởng. Ghi số bước hoặc phần nhập lại đã
-   giảm nếu PR thay luồng. Mục 2b vẫn giữ chuẩn 44 điểm và chữ từ 13 điểm.
-3. **Mọi ngoại lệ có đường giải quyết.** Với đồng bộ, thiếu quy đổi, tài
-   khoản hay đối soát, hiển thị bản ghi đã nhận, lý do chờ, bộ phận xử lý và
-   đường sửa/chạy lại phù hợp quyền. Xử lý xong phải cập nhật trạng thái.
-   Bộ lọc có cách mở rộng phạm vi. Giữ bộ lọc và vị trí cuộn khi quay lại,
-   trong phạm vi quyền hiện hành. Máy chủ kiểm mã danh mục tại mọi đường ghi,
-   gồm app, Desk, import và tác vụ nền. Giữ 0/False/rỗng nếu hợp lệ theo từng
-   trường; phân biệt thiếu khóa với giá trị đã chọn, kiểm lưu rồi đọc lại.
-4. **Dữ liệu cũ và thao tác đang dở.** Khi đổi lưu dữ liệu, kho, thanh toán
-   hoặc giao thức, kiểm phiếu cũ, tab mở từ phiên bản trước, gửi lại do mất
-   phản hồi và phản hồi đến muộn. Giữ dữ liệu đã nhập, khóa chống trùng và
-   đọc lại kết quả lần trước. Quyền và phạm vi phải được kiểm tại máy chủ.
-5. **Cổng giao diện trước bàn giao.** Liệt kê các màn/sheet mới hoặc sửa và
-   kết quả theo 2b; ghi mục không áp dụng cùng lý do. Chạy chuỗi từ nút vào
-   đến lưu và mở lại bằng vai nhân viên tương ứng trong môi trường kiểm,
-   trên điện thoại 390x844 và desktop. Kiểm 0/1/nhiều dòng, tên dài, thiếu ảnh,
-   bàn phím mở, mạng chậm/lỗi khi liên quan; nút không che nội dung hay bị
-   lớp khác chặn. Chụp và tự mở ảnh có CSS thật, ghi SHA, vai, viewport và
-   nguồn dữ liệu. DOM giả không có CSS chỉ kiểm hành vi. Dùng fixture giả
-   để đưa ảnh lên PR công khai; thiếu bằng chứng thì ghi rõ phần chưa đạt.
-   Dùng lại bộ kiểm và dữ liệu mẫu; tự động đo các lỗi lặp như tràn, che nút,
-   cỡ chạm, còn người rà xem bố cục và luồng. Codex rà gộp ngay vòng đầu.
-6. **Sau triển khai.** Kiểm SHA live, migrate và luồng bị đổi theo vai và
-   thiết bị phù hợp trong quyền đã cấp; tài khoản admin không đại diện mọi
-   vai. Đối chiếu lỗi với baseline, cùng thao tác và bằng chứng nguyên nhân;
-   thời điểm xuất hiện chỉ giúp khoanh vùng. Lỗi cũ tái xuất hiện nhiều hơn
-   cũng cần điều tra. Ghi rõ lỗi còn tồn, người xử lý và hạn chế nghiệm thu.
-   Gửi anh Việt bản tin sẵn để dán Zalo, chỉ gồm bộ phận có việc: màn nào,
-   nút nào, kết quả mong đợi và dữ liệu cần tạo để tính năng hiện. Bàn giao
-   phải mở được trên điện thoại trong phạm vi chia sẻ đã duyệt; tránh chỉ
-   dẫn đường dẫn local khi anh đang dùng mobile. Gửi tới bộ phận theo quyền.
-7. **Một đầu mối và một bản bàn giao hiện hành.** Mỗi việc có owner, PR,
-   base/head SHA, phần đã đạt, phần còn thiếu và bước tiếp. Trước nhận việc,
-   kiểm phiên khác đang sửa; nhận nguyên diff/patch trên đúng nền, áp một lần.
-   PR giữ trạng thái code/review; instruction project giữ công cụ theo môi
-   trường và dẫn về luật chung này. Ghi trở ngại kèm môi trường/thời điểm,
-   kiểm lại khả năng công cụ hiện tại, ưu tiên CLI/API được phép khi có.
-   Không suy lỗi một phiên thành lỗi mọi phiên hay vượt hạn chế truy cập.
-8. **Ghi chép gọn và đo hiệu quả.** Đầu phiên tìm theo việc/PR rồi đọc bản
-   bàn giao mới nhất; không nạp toàn bộ lịch sử. Ghi chép Claude theo
-   instruction project vào Drive, có mục lục theo việc, PR, SHA và bước tiếp;
-   Codex giữ nhật ký workspace theo instruction được giao. Chỉ dẫn nội bộ và
-   dữ liệu kế toán/khách lưu ở nơi có quyền phù hợp, không đưa lên repo công
-   khai. Dọn tài liệu cũ theo luật lưu trữ trong instruction project: chép
-   phần còn việc mở sang Drive trước khi xoá. Ghi mốc bàn giao khi đổi phần
-   việc, gom bài học tái sử dụng khi chốt PR. Áp H10 để rà delta và báo gộp.
-   Đo hiệu quả qua mười PR tiếp theo: số vòng bàn giao và review, số SHA bàn
-   giao đã được rà, lỗi có sẵn phát hiện muộn, lỗi mới sau lần sửa, thời gian
-   chờ bench. Người bàn giao ghi số của PR mình trong comment bàn giao cuối;
-   Codex gom sau PR thứ mười và gửi anh Việt một bản tổng để chỉnh quy tắc.
-
----
-
-## 3. Quy ước viết code của repo này
-
-- **Tên hàm, biến, tệp: tiếng Việt không dấu.** `chia_theo_lo`,
-  `cau_thieu_lo`, `scrDonChungTuThu`. Không đặt tên tiếng Anh.
-- **Chú thích và chuỗi hiện ra màn hình: tiếng Việt có dấu.** Chú thích
-  phải nói **VÌ SAO**, không nói lại cái code đã nói. Đầu mỗi tệp mới là
-  một đoạn kể lại sự cố hoặc nhu cầu đã sinh ra tệp đó.
-- **Tách phần thuần và phần cần Frappe.** Đặt các hàm không đụng cơ sở dữ
-  liệu lên đầu tệp, dưới tiêu đề `# phần thuần`, rồi mới `import frappe`.
-  Bộ kiểm thử tầng khung chạy được phần thuần mà không cần site.
-- **Tiền tố cho mỗi màn.** Kiểm và chạm tên trước khi đặt tiền tố mới, để
-  không đụng tên hàm của phần khác.
-- **Không dùng dấu em dash hay en dash** trong bất kỳ nội dung nào, kể cả
-  chú thích và chuỗi hiển thị. Chỉ dùng dấu gạch ngang thường.
-
----
-
-## 4. Các quy tắc nghiệp vụ đã chốt
-
-- **QT-19. Máy chủ chốt số.** Mọi con số tiền và số lượng đều tính lại ở
-  máy chủ. Màn hình chỉ hiển thị, không được là nguồn của sự thật.
-- **QT-20. Không xoá vĩnh viễn.** Huỷ mềm, đóng, gỡ liên kết - giữ nguyên
-  vết để tra lại. Không `delete_doc` trên dữ liệu nghiệp vụ.
-- **QT-24. Câu báo lỗi phải nói việc làm tiếp.** "Không đủ hàng" là câu
-  hỏng. "Kho Pastry còn thiếu 78 Gram men tươi, kho Baker đang còn 13.000,
-  anh chị chuyển kho rồi bấm lại" mới là câu đạt.
-- **QT-28. Kiểm tên trước khi đặt tiền tố mới.**
-- **QT-31. Chọn từ danh mục thì phải là Ô CHỌN, không được là ô gõ.**
-  Tên gọi trong phiên làm việc: `SKILL_BANK_ROUTING`. Anh Việt chốt
-  23/08/2026, sau khi cùng một lỗi quay lại lần thứ hai.
-
-  Mọi trường mà giá trị hợp lệ đến từ một danh mục có sẵn - ngân hàng,
-  nhà cung cấp, kho, tài khoản sổ cái, loại chứng từ - đều phải là ô chọn
-  có tìm nhanh, trỏ thẳng vào danh mục đó. **Tuyệt đối không dùng ô nhập
-  tự do.** Ô gõ tự do sinh ra rác trong cơ sở dữ liệu và làm hỏng đồng bộ.
-
-  Riêng ngân hàng thì danh mục là 581 dòng Napas trong
-  `vagabond/du_lieu/napas.json`, một nguồn duy nhất. Màn hình gọi
-  `nhChon()`, máy chủ gọi `ngan_hang.chuan_hoa_hoac_bao()` ngay trước khi
-  ghi vào bất kỳ ô `Link -> Bank` nào.
-
-  Vì sao phải chặn ở CẢ HAI tầng chứ không chỉ sửa giao diện: sửa giao
-  diện là hết lỗi hôm nay, nhưng một màn khác mai mốt lại dựng một ô
-  `Data` là lỗi quay lại y nguyên. Đã quay lại đúng như vậy hai lần:
-  17/08/2026 gõ "MB", 22/08/2026 gõ "VietinBank", cùng một câu báo lỗi
-  "Không tìm thấy Ngan hang". Tầng máy chủ mới là tầng giữ được dữ liệu
-  sạch, vì nó đúng kể cả khi một phiên khác viết lại màn hình.
-
-  Ca kiểm `thu_dinh_tuyen_ngan_hang.py` soi mã nguồn `bep/` và sẽ đỏ nếu
-  có ai dựng lại một ô nhập tự do cho ngân hàng.
-- **Không dùng AI hay công cụ tự động đọc tệp của khách để ghi đè số liệu
-  xuống cơ sở dữ liệu.** Đọc để trình ra cho người xác nhận thì được.
-- **Người mua không có mã số thuế Việt Nam (anh Việt chốt 08/10/2026, #456).**
-  Công đoàn, trường, hội và khách nước ngoài xuất hoá đơn được mà không cần
-  MST: màn Chi tiết đơn Sales có nút "Không có MST Việt Nam", bắt buộc tên và
-  địa chỉ ghi đúng như khách đưa. Mã số thuế nước ngoài (nếu có) ghi kèm sau
-  tên dạng `TÊN (MST nước ngoài: X)`, không ghi vào ô MST. Máy chủ `luu_xhd`
-  vốn đã nhận tên không MST; tờ m-invoice đi vào `inv_buyerDisplayName`, ô
-  mã số thuế để trống. Nút "Công ty / HKD" vẫn bắt buộc MST 10/12/13 số.
-- **Hoá đơn điện tử đã gửi cơ quan thuế là vùng cấm.** Không tự động sửa,
-  không tự động huỷ, không tự động gửi lại. Rất khó sửa chữa.
-- **Trang Vagabond Settings: Desk và app luôn đủ cả hai (anh Việt 04/10/2026).**
-  *"Mỗi lần em thêm gì trong trang này thì phải thêm cả trên bản desk và bản
-  app."* Màn app "Cài đặt lõi và API" (`bep/51-cai-dat-loi.js`) KHÔNG giữ danh
-  sách ô: máy chủ (`vagabond/cai_dat_loi.py`) đọc cấu trúc doctype, gồm cả
-  Custom Field, rồi gửi xuống. Thêm ô vào trang (JSON hoặc TRUONG_MOI) là app
-  tự có, nhưng phải tự kiểm ba việc:
-  1. Ô kiểu mới mà `ep_kieu` chưa biết thì app không sửa được: thêm nhánh và ca kiểm.
-  2. Ô cần hộp chọn riêng (như ngân hàng, nhóm Zalo) thì làm cả hai bên; phần
-     dùng chung (nhãn, giải thích, chip tình trạng, tóm tắt, tìm) đặt trong
-     `public/js/cai_dat_loi_chung.js`, không chép sang từng bên.
-  3. Ô chỉ đọc trên Desk mà app phải ghi được thì khai trong
-     `GHI_QUA_HOP_CHON` / `GHI_QUA_HOP_CHON_TRANG`, đừng bỏ read_only.
-  Khoá bí mật không bao giờ gửi xuống máy. Ca chốt: `thu_cai_dat_loi_570.py`
-  (app phủ đủ mọi ô Desk, đúng tab, đúng mục) và `hanh_vi/cai_dat_loi_570.js`.
-- **Ưu đãi trên website: ERP là nguồn duy nhất (anh Việt 09/10/2026).**
-  *"Anh muốn erp là nguồn duy nhất, các nơi khác chỉ việc đồng bộ theo thôi."*
-  Ưu đãi tạo, sửa, bật tắt trong Chương trình khuyến mãi (mục Website). Trang
-  khách đọc thẳng từ đó; màn biên tập web chỉ XEM, máy chủ chặn ghi khối
-  ưu đãi gõ tay. Đặt bánh trên web dùng CHUNG `khuyen_mai.tinh` của quầy, không
-  viết bộ tính riêng. Luật "dùng được trên web" có hai bản (`ly_do_khong_web`
-  ở Python và `kmLyDoWeb` ở app) và ca chốt đối chiếu hai bản trên cùng bảng
-  ca; sửa một bên phải sửa bên kia. Mã dùng một lần phải giữ (khoá hàng, đặt
-  Đã dùng) TRƯỚC khi gửi Pancake. Ca chốt: `thu_uu_dai_web_589.py`.
-
----
-
-## 5. Soi mã nguồn gốc trước khi can thiệp vào lõi
-
-**Không có tài liệu nào tốt bằng chính mã nguồn.** Quy tắc này sinh ra ngày
-21/08/2026, sau khi cả tiệm không nhập được hàng vì một hook đúng đề bài
-nhưng sai với luật của ERPNext.
-
-Trước khi viết bất kỳ hook, lớp thay thế hay bản vá nào can thiệp vào các
-doctype lõi của ERPNext - **Kế toán (GL Entry, Journal Entry, Payment
-Entry), Tồn kho (Stock Ledger Entry, Bin, Stock Entry), Mua (Purchase
-Receipt, Purchase Invoice, Purchase Order), Bán (Sales Invoice, Delivery
-Note, Sales Order)** - bắt buộc làm hai bước sau, không được bỏ:
-
-**Bước 1. Kéo mã nguồn gốc về máy.** Đúng nhánh mà site đang chạy:
-
-```
-mkdir -p /tmp/reference_repos
-git clone --depth 1 -b version-16 https://github.com/frappe/frappe.git   /tmp/reference_repos/frappe
-git clone --depth 1 -b version-16 https://github.com/frappe/erpnext.git  /tmp/reference_repos/erpnext
-```
-
-Đây là repo công khai, `--depth 1` nên chỉ mất chừng nửa phút. Số nhánh
-phải khớp với phiên bản đang chạy, đọc ở Frappe Cloud, đừng đoán.
-
-**Bước 2. Đọc thẳng vào hàm kiểm tra, trước khi đề xuất giải pháp.** Các
-tệp phải soi tuỳ chỗ mình định chạm:
-
-| Chạm vào | Đọc tệp |
+## Bản đồ tài liệu
+| Cần | Đọc |
 |---|---|
-| Bút toán, sổ cái | `erpnext/accounts/general_ledger.py`, `erpnext/accounts/doctype/gl_entry/gl_entry.py`, `erpnext/accounts/party.py` |
-| Công nợ, cấn trừ | `erpnext/accounts/utils.py` (`get_payment_ledger_entries`), `erpnext/accounts/doctype/payment_entry/` |
-| Chứng từ mua, bán | `erpnext/controllers/accounts_controller.py`, `erpnext/controllers/buying_controller.py`, `erpnext/controllers/selling_controller.py` |
-| Tồn kho | `erpnext/stock/stock_ledger.py`, `erpnext/controllers/stock_controller.py` |
-| Cơ chế nền | `frappe/model/document.py`, `frappe/database/database.py` |
-
-Cách dò nhanh một câu báo lỗi thật đã gặp trên màn hình:
-
-```
-grep -rn "Receivable / Payable" --include=*.py /tmp/reference_repos/erpnext
-grep -rn "def validate_" -A 12 /tmp/reference_repos/erpnext/accounts/doctype/gl_entry/gl_entry.py
-```
-
-**Câu phải tự hỏi và phải trả lời được bằng trích dẫn mã nguồn:** không
-phải "code của mình có đúng không", mà **"hệ lõi có CHO PHÉP làm việc này
-không"**. Hai câu đó khác nhau, và ngày 21/08/2026 mình chỉ hỏi câu thứ
-nhất.
-
-Ví dụ thật, chép nguyên từ `erpnext/accounts/party.py`:
-
-```python
-def validate_account_party_type(self):
-	if self.party_type and self.party:
-		account_type = frappe.get_cached_value("Account", self.account, "account_type")
-		if account_type and (account_type not in ["Receivable", "Payable", "Equity"]):
-			frappe.throw(_("Party Type and Party can only be set for Receivable / Payable account..."))
-```
-
-Mười một dòng này, đọc mất ba mươi giây, đáng lẽ đã tiết kiệm được một
-buổi chiều cả tiệm không nhập được hàng.
-
-Đọc xong thì **chép đoạn điều kiện vào chú thích đầu hàm của mình**, kèm
-đường dẫn tệp. Sáu tháng nữa ERPNext đổi luật thì người sau còn biết chỗ
-mà đối chiếu.
-
----
-
-## 6. Bộ kiểm thử, HAI TẦNG
-
-### Tầng một: kiểm thử phép thuần, chạy tay không
-
-```
-python3 vagabond/khung/kiem_thu/chay.py -im   # tầng khung, hơn 300 ca
-python3 kiem_diem_otp.py                      # hơn 2000 ca
-python3 kiem_phien_ban.py
-sh kiem_truoc_deploy.sh                        # cổng 8 công đoạn
-```
-
-Chạy được ở mọi nơi, kể cả máy chạy CI của GitHub: không Frappe, không
-site, không thư viện mạng. Ca kiểm nào kéo theo `requests` là ca kiểm đặt
-sai chỗ. Tái hiện môi trường CI ngay tại máy:
-
-```
-mkdir -p /tmp/chanreq
-printf 'raise ImportError("gia lap CI")\n' > /tmp/chanreq/requests.py
-PYTHONPATH=/tmp/chanreq python3 vagabond/khung/kiem_thu/chay.py -im
-```
-
-Thêm tính năng thì thêm ca kiểm cho nó, trong cùng lần sửa. Ca kiểm phải
-chốt lại **cái bẫy đã làm hỏng**, không chỉ chốt đường đi đúng. Đọc các ca
-sẵn có để thấy văn phong: mỗi ca có một câu tiếng Việt nói rõ nó giữ điều
-gì.
-
-### Tầng hai: KIỂM THỬ TÍCH HỢP, bắt buộc với sổ cái và tồn kho
-
-**Tầng một không bao giờ chứng minh được rằng hệ lõi chấp thuận việc mình
-làm.** Ngày 21/08/2026 nó trả về 0 trong khi cả tiệm không nhập được hàng:
-hàm `gan_doi_tac` chạy đúng răm rắp, chỉ có điều ERPNext từ chối cái nó
-vừa điền. Mock và unit test thuần mù trước loại lỗi đó.
-
-Nên: **mọi thay đổi chạm tới GL Entry hoặc Stock Ledger Entry tuyệt đối
-không được chỉ có unit test.** Bắt buộc có ca kiểm tích hợp trong
-`vagabond/khung/kiem_that/`, và ca đó phải:
-
-1. Dựng chứng từ thật (Purchase Receipt, Stock Entry, Sales Invoice...).
-2. Gọi `insert()` rồi `submit()` **ghi thẳng xuống cơ sở dữ liệu**, để
-   ERPNext chạy trọn chuỗi validation của nó.
-3. **Frappe hay ERPNext ném lỗi thì ca kiểm ĐỎ**, kèm nguyên văn câu lỗi.
-4. Đọc lại sổ cái vừa sinh ra và chốt từng điều kiện mình cần.
-
-Chạy nó trên site thật:
-
-```
-bench --site <site> execute vagabond.khung.kiem_that.cua.chay
-```
-
-hoặc gọi cửa `vagabond.khung.kiem_that.cua.chay` từ Desk. Chỉ giám đốc và
-System Manager mở được.
-
-**Ba lớp bảo vệ dữ liệu thật, không được gỡ cái nào:**
-
-- **Điểm lưu.** Mỗi ca chạy trong một `frappe.db.savepoint`, xong thì
-  `frappe.db.rollback(save_point=...)`. Chứng từ ảo tồn tại thật lúc chạy
-  rồi biến mất hoàn toàn.
-- **Khoá tay lái giao dịch.** `frappe.db._disable_transaction_control` bật
-  suốt lúc chạy, để một lời gọi `commit()` lạc trong hook nào đó không ghi
-  chứng từ ảo vào sổ thật. Ca kiểm tự gọi `commit` là phá hỏng cả tầng
-  này, và có ca kiểm tầng khung dò bằng AST để chặn.
-- **Cấm gửi ra ngoài.** Cờ `frappe.flags.vagabond_kiem_that` bật suốt lúc
-  chạy; `thong_bao.gui` đọc cờ đó rồi im lặng. Điểm lưu lùi được một dòng
-  cơ sở dữ liệu, không lùi được một cái chuông đã kêu trên điện thoại
-  người thật.
-
-Kết quả trả về có hai khoá **phải luôn rỗng**: `chung_tu_con_sot` và
-`so_luong_lech`. Không rỗng nghĩa là có chứng từ thử nằm lại trong sổ
-thật, phải đi dọn ngay và báo anh Việt, không được bỏ qua.
-
-**Không ca kiểm tích hợp nào được chạm tới hoá đơn điện tử đã gửi cơ quan
-thuế, và không ca nào được sửa dữ liệu quá khứ.**
-
----
-
-## 7. Deploy
-
-Chỉ anh Việt hoặc phiên đang trực tiếp làm mới được bấm deploy. Không bao
-giờ để trợ lý tự động bấm.
-
-Frappe Cloud, bench `bench-44405`, site `erpnext-qwy-acq.s.frappe.cloud`,
-app thật ở `https://app.thevagabondpatisserie.com/bep`.
-
-Trình tự: Apps, dấu "...", **Fetch Latest Updates trước**, rồi Update
-Available, chỉ tích app Vagabond, Next, **phải tích cả site** ở bước Select
-sites to update (có tích thì migrate mới chạy), Deploy and update site.
-Chờ khoảng năm phút.
-
-Deploy xong **phải kiểm trên site thật**, không chỉ tin trạng thái Success:
-Patch Log đã có số phiên bản mới chưa, và bấm thử đúng cái màn vừa sửa.
-Trạng thái Success không nói được rằng màn hình bấm được.
-
-**Mỗi bản deploy phải kèm hướng dẫn trong sổ tay** (anh Việt chốt 08/11/2026).
-Sổ tay đã từng đứng ở v631 trong khi app lên v644: nhân viên hỏi trợ lý về
-OnePay, gọi món tại bàn, Biên tập menu thì trợ lý không biết. Trong CÙNG PR:
-
-1. Thêm hoặc sửa mục trong `vagabond/so_tay/<chương>.md` theo khuôn
-   `vagabond/so_tay/_quy-uoc.md` (bảng Ai dùng, nút `[[...]]` đúng chữ trên app).
-2. Ghi bản vào `vagabond/so_tay/_phien-ban.md`: mục `## vNNN` liệt kê đúng tên
-   các mục vừa thêm hoặc sửa. Bản chỉ sửa lỗi ngầm thì ghi một dòng
-   `- Không đổi thao tác: <lý do>`.
-3. Ca `thu_so_tay_phien_ban_645` chặn bàn giao khi APPVER chưa có mục ở đó.
-4. Bản tin `[ĐÃ DEPLOY]` nêu tên mục sổ tay để nhân viên mở đọc.
-
----
-
-## 8. Cách làm việc mong đợi
-
-Đọc trước khi sửa. Sửa nhỏ, sửa đúng chỗ gốc thay vì vá ở ba nơi. Khi hai
-đường cùng chạy được thì chọn đường mà sáu tháng nữa đọc lại vẫn hiểu.
-
-Không đoán. Số liệu thật đọc được từ site thì đi đọc, đừng ước lượng. Một
-câu "khoảng chừng" trong repo này là một lần đối chiếu kho sai.
-
-Không im lặng nuốt lỗi. Nuốt lỗi là cách hệ này mất 26 đơn mua hàng hồi
-16/08 mà không ai biết cho tới khi Uyên đi hỏi.
-
----
-
-## 9. Phối hợp Claude và Codex
-
-Khi có nhiều agent, đọc `vgb-control-tower/README.md` trước khi nhận việc.
-GitHub Issue đang `In progress`, có owner, branch và phạm vi tệp là nguồn
-khóa chung. Không sửa vào phạm vi agent khác đã claim. Chạy preflight trước
-khi sửa, bàn giao theo docs/van-hanh-agent/README.md (thay mẫu handoff
-cũ), và review chéo trước khi tạo PR.
-
-### 9b. Luật gọi bot giữa hai agent
-
-Đối xứng cho cả hai chiều: Claude gọi Codex bằng `@codex`, Codex gọi Claude
-bằng `@claude`. Cùng một bộ luật, không bên nào có ngoại lệ. Nguồn đầy đủ về
-bàn giao và luật dừng là `CLAUDE.md`; mục này nêu phần đối ứng để Codex đọc
-được mà không phải nạp `CLAUDE.md`. Bổ sung sau review PR #281, 12/09/2026.
-
-**Chọn đúng loại lời gọi.** Rà soát và giao sửa là hai việc khác nhau.
-`@codex review` hoặc `@claude review` CHỈ yêu cầu rà soát, không giao sửa gì.
-Muốn bên kia sửa thì viết yêu cầu tác vụ rõ ràng, kèm đủ năm ô: số PR, SHA
-hiện tại, link hoặc ID finding, phạm vi tệp, ca tái hiện hoặc hồi quy. Nêu
-finding rồi kết bằng `review` là việc sửa không ai nhận. Đã xảy ra thật ngày
-11/09/2026 trên PR #281.
-
-**Đặt lời gọi trong comment của đúng PR chứa code cần sửa.** Finding nằm ở
-issue thì dẫn link nó sang comment trên PR, không dựa vào mention trong issue
-để giao việc tự động. Bộ nhận issue ở `.github/codex-issue-inbox/` là cơ chế
-khác và mặc định đang tắt; biên nhận `queued` không phải là bên kia đã bắt
-đầu làm.
-
-**KHÔNG tag lại khi** comment mới nhất của bên kia chỉ là xác nhận, cảm ơn
-hoặc không mang finding mới; khi đó là câu hỏi thuần thông tin của anh Việt;
-hoặc khi việc đang chờ anh Việt quyết chứ không chờ kỹ thuật. Im lặng cũng là
-một lựa chọn đúng.
-
-**Xác nhận bàn giao, không chỉ gửi lệnh.** Gửi xong thì ghi link comment yêu
-cầu rồi đi tìm xác nhận nhận việc, phân biệt bốn trạng thái: chưa nhận, đang
-làm, bị chặn, đã có commit. Review hoàn tất không chứng minh tác vụ sửa đã
-chạy hay có quyền push. Mất phản hồi cũng không chứng minh lượt trước chưa ghi
-commit; đọc lại nhánh trước khi giao lại. Đang có người làm cùng finding hoặc
-cùng phạm vi thì bổ sung bằng chứng vào đầu mối hiện tại, không mở tác vụ sửa
-thứ hai.
-
-**Luật dừng đếm theo từng việc.** Đếm số vòng trên CÙNG một finding hoặc cùng
-một điểm bất đồng trong 24 giờ mà lượt sau không mang thêm số liệu hay bằng
-chứng mới. Đủ 3 vòng như vậy thì dừng gọi và mời anh Việt phân xử. Mỗi finding
-độc lập có bộ đếm riêng: ba finding khác nhau không cộng thành ba vòng, và
-việc thứ tư vẫn được giao bình thường. Giữ ID hoặc link finding nhất quán để
-đối chiếu, không đổi tên cùng một việc để né bộ đếm. Đây là giới hạn mềm do
-agent tự đếm, không phải khoá trong workflow và không phải trần token; không
-có bằng chứng workflow thì không nhận là đã chặn cứng.
-
-**Lỗi khởi chạy không phải bất đồng kỹ thuật.** Bị chặn mạng, thiếu quyền hoặc
-không dựng được môi trường thì báo đúng là lỗi khởi chạy, kèm bằng chứng còn
-thiếu. Không mô tả thành hai bên bất đồng, và không tự kết luận là hết token
-hay lỗi đồng bộ khi chưa đọc log.
-
-
-## 10. Phân công cập nhật 12/10/2026 - ưu tiên so với mọi phân công cũ
-
-Codex viết code, kiểm thử, tích hợp bench trên SHA, sửa qua review, tự push
-lên nhánh PR và bàn giao. Claude là lead: chốt hướng, giao việc, rà độc lập.
-Merge và deploy chỉ khi anh Việt cho phép trong phiên, cho đúng PR đó; người
-được cho phép tự làm và kiểm site thật. Đọc `tai_lieu/INSTRUCTION_VAGABOND.md`
-đầu phiên; bản 12/10/2026 thay phân công 09/09/2026.
-
-### 10b. Claude lead: tự giao việc, không chờ anh Việt nhắc
-
-- Rà xong một bản Codex đẩy lên, Claude tự đăng ngay lệnh cho bước kế tiếp
-  trên đúng PR: có lỗi thì `@codex fix` kèm finding, số liệu tái hiện, tệp,
-  ca kiểm và tiêu chí đạt; đạt mà PR còn giai đoạn thì giao giai đoạn kế; đạt
-  và đủ cổng thì báo anh Việt duyệt, hoặc tự merge/deploy nếu đã được phép.
-- Anh Việt báo lỗi: Claude đọc dữ liệu thật trên site để khoanh nguyên nhân,
-  rồi giao Codex trên PR đang mở cùng phạm vi, không mở PR mới. Lỗi cấu hình
-  hay dữ liệu thì nói rõ ai làm gì trong Cài đặt, không giao sửa code.
-- Mỗi lệnh có: PR và SHA nền, số liệu thật, việc theo thứ tự, ca kiểm bắt
-  buộc, nhắc tự push và bàn giao `[ĐÃ SỬA XONG]` hoặc `[BỊ CHẶN]` kèm khối
-  telegram-tomtat, câu chốt không merge, không deploy.
-- Trước khi báo trạng thái PR, kiểm SHA nhánh trên GitHub và comment mới nhất
-  của Codex. Không kết luận "chưa đẩy" hay "đã xong" khi chưa kiểm remote.
-- Codex bàn giao một vòng sửa thì câu chốt là "không merge, không deploy, mời
-  Claude rà".
-
-Quyền deploy không bỏ cổng kiểm hoặc cho phép sửa chứng từ cũ/HĐĐT thật.
-Xung đột phiên bản/patch đơn thuần: giữ đủ hai bên, tăng số và dựng bundle;
-xung đột logic chưa rõ thì mô tả phương án, không âm thầm bỏ code.
-
-**Đẩy code là một phần của hoàn thành (anh Việt chốt 12/10/2026).** Làm xong
-bản sửa phải tự đẩy ngay lên nhánh GitHub của PR, không chờ ai nhắc; bàn giao
-chỉ được tính khi SHA đã có trên GitHub. Codex cloud không có quyền đẩy không
-được báo "đã xong": comment phải có dòng đầu `[BỊ CHẶN]` và khối
-`telegram-tomtat` nói rõ "bản sửa nằm ở cloud, chưa lên GitHub". Codex local
-thấy bản cloud chưa đẩy phải tự gom nguyên diff, kiểm và đẩy, không chờ anh Việt.
-
-Trước phản hồi cuối mỗi phiên thực chất, cập nhật Markdown tại workspace
-`/Users/jin/Documents/ChatGPT/ERP/nhat-ky-du-an/`, gồm mục lục, nhật ký phiên
-và bài học. Đọc mẫu trong instruction. Không thêm database cho nhật ký.
-Bàn giao file cho anh Việt bằng link mobile khi có thể, giữ bản local.
-
-## 11. Email sau phát hành (anh Việt yêu cầu 09/09/2026)
-
-Sau mỗi deploy thành công và kiểm site thật, tự áp dụng skill
-[Email phát hành](.agents/skills/vagabond-email-phat-hanh/SKILL.md): soạn email
-ngắn, xưng hệ thống, dùng branding chung, chọn đúng nhân sự liên quan.
-Mặc định nháp; gửi theo quyền anh Việt đã cấp, không suy ra quyền gửi từ quyền
-deploy. Lưu bằng chứng gửi để không lặp. Khi sửa template phải kiểm mobile
-không tràn ngang và desktop; không nhận browser preview là kiểm Outlook thật.
-
-
-## Báo việc cần anh Việt xem qua Telegram
-
-Theo Issue #287 và [hướng dẫn Telegram](docs/thong-bao-telegram.md), khi cần
-anh duyệt, bị chặn, sẵn sàng phát hành hoặc đã kiểm deploy thật, đăng comment
-ngắn trên đúng Issue/PR với dòng đầu tương ứng `[CẦN DUYỆT]`, `[BỊ CHẶN]`,
-`[ĐÃ SỬA XONG]`, `[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Kèm việc cụ thể, bằng chứng/SHA và link
-nơi duyệt. Không tag agent chỉ để báo tin. Không coi Telegram là native
-approval; nếu không đăng được comment thì báo trực tiếp và ghi rõ giới hạn.
-Chỉ báo kênh đang hoạt động sau khi đã xác minh bật và gửi thật; lời dặn này
-không tự bật hệ thống hoặc chứng minh anh đã nhận tin.
-
-Mọi comment bàn giao sửa xong, review đạt hoặc không đạt, bị chặn hay cần duyệt
-phải có nhãn ở dòng đầu và đúng một khối `telegram-tomtat` theo
-`docs/thong-bao-telegram.md`. Viết tóm tắt tiếng Việt theo nghiệp vụ, không tên
-hàm hoặc tệp, tối đa hai câu. Comment không cần anh đọc thì không gắn nhãn.
-
-
-Sau mỗi đợt deploy đã kiểm site thật, tự soạn 1-5 ý tính năng bằng tiếng Việt
-và thêm khối `telegram-release` theo docs/thong-bao-telegram.md vào biên nhận
-`[ĐÃ DEPLOY]`, dùng SHA thực tế đã lên site. Đây là nội dung dành riêng cho
-Telegram của anh Việt, không chép log/chứng từ; cùng đợt chỉ một bản tin,
-không gọi model trong sender. Quyền này không phải quyền gửi email nhân viên.
-Biên nhận `[ĐÃ DEPLOY]` viết theo docs/mau-tin-phat-hanh.md: mỗi bộ phận một
-khối Trước đây / Từ nay / Bạn cần làm, phần Đã kiểm trên site thật ghi tên
-màn và con số, phần Còn tồn ghi thật; không tên hàm, tệp, trường, nhánh.
-
-Khối chỉ được gửi khi comment do tài khoản chủ repo đăng với association
-OWNER. Codex local dùng kết nối GitHub của chủ repo đã được xác minh, có thể
-đăng trực tiếp trong quyền đã giao. Phiên chạy bằng tài khoản bot chỉ soạn
-khối và chuyển cho phiên phát hành có kết nối phù hợp; không nhận là đã gửi.
-Sau đăng phải kiểm dấu release trong trạng thái sender hoặc phản hồi gửi,
-không coi comment được tạo là tin Telegram đã tới.
-
-## Bàn giao bền cho phiên cloud
-
-Đọc [mục lục công việc](docs/van-hanh-agent/README.md) trước khi làm; tìm
-đúng issue và chỉ đọc tài liệu liên quan. Sau lượt có thay đổi thực chất,
-cập nhật một bản bàn giao ngắn cho issue trong PR hiện tại, kèm SHA code,
-bằng chứng, finding còn lại và bước tiếp. Theo mẫu và quy tắc dung lượng
-trong mục lục; không đưa transcript/log/secret vào git. Repo là nguồn bàn
-giao chung với Claude, không thay trạng thái GitHub hoặc nhật ký local.
-
-Theo yêu cầu anh Việt 14/09/2026: mỗi PR vừa đủ cổng deploy phải chủ động đăng `[SẴN SÀNG DEPLOY]` trên PR để báo Telegram, kể cả đang gom đợt. Áp dụng điều kiện, chống lặp và xác minh gửi trong docs/thong-bao-telegram.md; không chờ cả đợt mới báo.
+| App /bep, vỏ hàm, chuẩn màn hình (mục cũ 2, 2b) | [vagabond/public/js/bep/AGENTS.md](vagabond/public/js/bep/AGENTS.md) |
+| Trang khách | [vagabond/public/web_vue/AGENTS.md](vagabond/public/web_vue/AGENTS.md) |
+| Ca kiểm khung (mục cũ 6, tầng một) | [vagabond/khung/kiem_thu/AGENTS.md](vagabond/khung/kiem_thu/AGENTS.md) |
+| Ca bench (mục cũ 6, tầng hai) | [vagabond/khung/kiem_that/AGENTS.md](vagabond/khung/kiem_that/AGENTS.md) |
+| Bản vá | [vagabond/patches/AGENTS.md](vagabond/patches/AGENTS.md) |
+| Nghiệm thu, người rà (mục cũ 2c, H10) | [docs/van-hanh-agent/nghiem-thu-va-ra.md](docs/van-hanh-agent/nghiem-thu-va-ra.md) |
+| Chống ghi đè (mục cũ 1) | [docs/van-hanh-agent/chong-ghi-de.md](docs/van-hanh-agent/chong-ghi-de.md) |
+| Claim, preflight chống sửa chồng | [vgb-control-tower/README.md](vgb-control-tower/README.md) |
+| Quy ước code (mục cũ 3, 8) | [docs/van-hanh-agent/quy-uoc-code.md](docs/van-hanh-agent/quy-uoc-code.md) |
+| Quy tắc nghiệp vụ, soi mã lõi (mục cũ 4, 5) | [docs/nghiep-vu/](docs/nghiep-vu/quy-tac-da-chot.md) |
+| Deploy, email phát hành (mục cũ 7, 11) | [docs/van-hanh-agent/deploy.md](docs/van-hanh-agent/deploy.md) |
+| Làm việc với Codex (mục cũ 9, 9b) | [docs/van-hanh-agent/lam-viec-voi-codex.md](docs/van-hanh-agent/lam-viec-voi-codex.md) |
+| Sổ mẫu lỗi Codex | [docs/van-hanh-agent/so-mau-loi.md](docs/van-hanh-agent/so-mau-loi.md) |
+| Telegram, bàn giao cloud | [docs/van-hanh-agent/ban-giao.md](docs/van-hanh-agent/ban-giao.md) |
+| Quy trình chung, cloud, mẫu bàn giao | [INSTRUCTION_VAGABOND.md](INSTRUCTION_VAGABOND.md), [docs/van-hanh-agent/README.md](docs/van-hanh-agent/README.md) |
+| Bài học sự cố | [docs/bai-hoc-su-co.md](docs/bai-hoc-su-co.md) (grep theo từ khoá) |
+| Luật cũ đã thay | [docs/van-hanh-agent/luat-cu.md](docs/van-hanh-agent/luat-cu.md) |
