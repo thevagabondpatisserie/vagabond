@@ -216,3 +216,72 @@ def _thuan():
 	la("đang nghỉ", [zalo.dang_nghi({"van_tay": v}, v), zalo.dang_nghi({"van_tay": v}, zalo.van_tay("rt-khac")),
 		zalo.dang_nghi(None, v), zalo.dang_nghi("rac", v)], [True, False, False, False])
 	la("hạn rỗng là chưa có hạn, datetime giữ nguyên", (zalo._han(""), zalo._han(None), zalo._han(HET)), (None, None, HET))
+
+
+# --- Gỡ mã tin Zalo đã bỏ khỏi các nhóm (anh Việt 23/11/2026) ---------------
+# Bản Frappe giả chung chưa có get_url khi chạy lẻ tệp này (cùng cách thu_tin_zalo_604).
+if not hasattr(sys.modules["frappe"].utils, "get_url"):
+	sys.modules["frappe"].utils.get_url = lambda *a, **k: "https://vagabond.test"
+
+from vagabond import kenh_zalo as kz  # noqa: E402
+
+
+@ca("Zalo v687: gỡ mã tin đã bỏ khỏi Tin nhận, giữ thứ tự và mã còn dùng; không có gì để gỡ thì giữ nguyên chuỗi")
+def _go_ma():
+	dm = {"ht_ds_tep_loi", "kt_cong_no", "mkt_meta_loi"}
+	la("gỡ đúng mã cũ", kz.go_ma_da_bo("kt_cong_no, kt_ds_tep_loi, mkt_meta_loi", dm),
+		("kt_cong_no, mkt_meta_loi", ["kt_ds_tep_loi"]))
+	la("chuỗi dùng dấu chấm phẩy, mã trùng", kz.go_ma_da_bo("kt_cong_no;ma_cu_1; kt_cong_no", dm),
+		("kt_cong_no", ["ma_cu_1"]))
+	la("không có gì để gỡ thì giữ nguyên chuỗi gốc", kz.go_ma_da_bo("mkt_meta_loi ,kt_cong_no", dm),
+		("mkt_meta_loi ,kt_cong_no", []))
+	la("rỗng", (kz.go_ma_da_bo("", dm), kz.go_ma_da_bo(None, dm)), (("", []), (None, [])))
+	la("chỉ còn mã cũ thì về rỗng", kz.go_ma_da_bo("kt_ds_tep_loi", dm), ("", ["kt_ds_tep_loi"]))
+	# Mặc định dùng đúng danh mục của app: mã kt_ds_tep_loi (bỏ ở v678) bị gỡ, mã thay thế được giữ.
+	moi, bo = kz.go_ma_da_bo("ht_ds_tep_loi, kt_ds_tep_loi")
+	la("danh mục thật của app", (moi, bo), ("ht_ds_tep_loi", ["kt_ds_tep_loi"]))
+	dung("sau khi gỡ, bảng nhóm lưu được (kiem_bo_loc không chặn)",
+		kz.kiem_bo_loc([{"ten_nhom": "Nhóm giả", "tin_nhan": moi}]) == "")
+	dung("trước khi gỡ thì bị chặn, đúng như sự cố 22/11",
+		"kt_ds_tep_loi" in kz.kiem_bo_loc([{"ten_nhom": "Nhóm giả", "tin_nhan": "ht_ds_tep_loi, kt_ds_tep_loi"}]))
+
+
+@ca("Zalo v687: bước dọn lúc cập nhật app chỉ ghi dòng có mã cũ, chỉ ô Tin nhận, không ngã khi lỗi; đăng ký ở after_migrate")
+def _don():
+	fr = sys.modules["frappe"]
+	# 21 nhóm sạch đứng trước: nhóm có mã cũ là dòng thứ 22, ngoài trang đầu 20 dòng.
+	hang = [{"name": "sach-%d" % i, "ten_nhom": "Nhóm sạch %d" % i, "tin_nhan": "ht_ds_tep_loi"} for i in range(21)]
+	hang += [{"name": "dong-1", "ten_nhom": "Nhóm giả A", "tin_nhan": "ht_ds_tep_loi, kt_ds_tep_loi"},
+		{"name": "dong-2", "ten_nhom": "Nhóm giả B", "tin_nhan": "ht_ds_tep_loi"},
+		{"name": "dong-3", "ten_nhom": "", "tin_nhan": ""}]
+	loc, ghi, xoa, loi = [], [], [], []
+
+	def get_all(dt_, filters=None, fields=None, order_by=None, limit_page_length=20):
+		loc.append((dt_, filters, limit_page_length))
+		# Như Frappe thật: không truyền limit_page_length thì chỉ trả 20 dòng đầu.
+		return [dict(r) for r in hang][:limit_page_length or None]
+
+	with um.patch.object(fr, "get_all", get_all, create=True), \
+			um.patch.object(fr, "db", um.Mock(set_value=lambda *a, **k: ghi.append((a, k)),
+				has_column=lambda *a: True)), \
+			um.patch.object(fr, "clear_cache", lambda **k: xoa.append(k), create=True), \
+			um.patch.object(fr, "logger", lambda *a, **k: um.Mock(), create=True), \
+			um.patch.object(fr, "log_error", lambda *a, **k: loi.append(a), create=True):
+		ra = kz.don_tin_da_bo(cha="ca-gia-687")
+		la("chỉ đọc dòng con của đúng bảng nhóm, đọc hết", loc, [("Vagabond Kenh Zalo",
+			{"parent": "ca-gia-687", "parenttype": "Vagabond Settings", "parentfield": "zalo_nhom"}, 0)])
+		la("ghi đúng một dòng, đúng ô, không đổi mốc sửa", ghi,
+			[(("Vagabond Kenh Zalo", "dong-1", "tin_nhan", "ht_ds_tep_loi"), {"update_modified": False})])
+		la("báo lại nhóm và mã đã gỡ", ra, [{"nhom": "Nhóm giả A", "bo": ["kt_ds_tep_loi"]}])
+		la("xoá bản đệm Cài đặt", xoa, [{"doctype": "Vagabond Settings"}])
+		# Chạy lại: dòng đã sạch thì không ghi gì.
+		hang[21]["tin_nhan"] = "ht_ds_tep_loi"
+		del ghi[:]
+		la("chạy lại không ghi gì", (kz.don_tin_da_bo(cha="ca-gia-687"), ghi), ([], []))
+
+		def hong(*a, **k):
+			raise RuntimeError("csdl giả hỏng")
+		with um.patch.object(fr, "get_all", hong, create=True):
+			la("lỗi thì không ngã, ghi một Error Log", (kz.don_tin_da_bo(), len(loi)), ([], 1))
+	import vagabond.hooks as hk
+	dung("đăng ký chạy sau mỗi lần cập nhật app", "vagabond.kenh_zalo.don_tin_da_bo" in hk.after_migrate)
