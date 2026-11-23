@@ -270,6 +270,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_chi_phi_242_674, thu_chi_phi_meta_674, thu_tien_chua_chung_tu_675,
 	# 22/11/2026 chốt chặn tự động và luật ba tầng (#607).
 	thu_chot_chan,
+	# v687 làm mới token Zalo OA có khoá, nghỉ sau khi bị từ chối (sự cố 22/11/2026).
+	thu_zalo_token_687,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.
 	thu_quy_tac_chu_657,
 	# v657 máy mở app qua đêm vẫn chạy bản cũ: hỏi số bản máy chủ, tải lại.
