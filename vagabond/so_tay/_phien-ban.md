@@ -14,6 +14,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 ## v686
 - Tin nhắc hàng về chưa có hoá đơn chỉ tính phiếu từ 01/11/2026
+- Xem tiền hiện có từng tài khoản, từng két
 
 ## v685
 - Con số trên ô Trang chủ
