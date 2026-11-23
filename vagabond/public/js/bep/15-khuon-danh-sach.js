@@ -266,6 +266,7 @@ function kgRong() {
 async function scrKhungDs() {
   var ma = kgMa, ts = kgTs(ma);
   frame('Danh sách', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc dữ liệu...</div></div>');
+  var conMan = vgbManNay();
   var goi = { ma: ma };
   Object.keys(ts).forEach(function (k) {
     if (ts[k] !== '' && ts[k] != null) goi[k] = ts[k];
@@ -273,9 +274,11 @@ async function scrKhungDs() {
   var kq;
   try { kq = await api('vagabond.khung.ds.chay', goi); }
   catch (e) {
-    frame('Danh sách', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    if (conMan()) frame('Danh sách', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
+  /* PR B: đã sang màn khác trong lúc chờ thì không vẽ đè (vgbManNay, phần 01). */
+  if (!conMan()) return;
 
   var xem = kgXem[ma] || 'the';
   var html = kgTheTomTat(kq) +

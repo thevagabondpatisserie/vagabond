@@ -102,6 +102,7 @@ async function scrVanDon() {
   vdTuLamMoi();
   if (!vdNgay) vdNgay = today();
   frame('Vận đơn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải vận đơn...</div></div>');
+  var conMan = vgbManNay();
   var ds;
   if (vdVeSuong && vdDs && vdDsNgay === vdNgay) {
     vdVeSuong = 0;
@@ -112,7 +113,9 @@ async function scrVanDon() {
       var nap = await vdNapDanhSach();
       ds = nap[0]; vdBoLoc = nap[1]; vtShipper = nap[2];
     }
-    catch (e) { frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+    catch (e) { if (conMan()) frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+    /* Đã sang màn khác hoặc đã đổi ngày: danh sách này là của lần mở cũ. */
+    if (!conMan()) return;
     vdDs = ds; vdDsNgay = vdNgay;
   }
   var chonMode = !!window.vdChon;
@@ -313,10 +316,12 @@ async function scrVanDon() {
 
 async function scrVdCod() {
   frame('Đối soát COD', '<div class="emp"><div class="e1">⏳</div></div>');
+  var conMan = vgbManNay();
   var ng = vdNgay || today();
   var ds;
   try { ds = await api('vagabond.van_don.doi_soat_cod', { ngay: ng }); }
-  catch (e) { frame('Đối soát COD', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  catch (e) { if (conMan()) frame('Đối soát COD', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (!conMan()) return;
   var html = '<div class="card" style="padding:12px 14px"><input type="date" class="hin" id="codDate" value="' + ng + '" style="margin:0"></div>';
   if (!ds.length) html += '<div class="emp"><div class="e1">💵</div><div>Chưa có đơn Đã giao nào trong ngày này.</div></div>';
   ds.forEach(function (g) {
@@ -429,9 +434,11 @@ function vdCanAnhGiao(d) {
 }
 async function scrVdView(name) {
   frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⏳</div></div>');
+  var conMan = vgbManNay();
   var d;
   try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } await vdNapDiem(); }
-  catch (e) { frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
+  catch (e) { if (conMan()) frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
+  if (!conMan()) return;
   /* v617: thanh tiến độ 1-2-3-4 của vận đơn, ngay đầu màn (anh Việt 28/10/2026). */
   var vdB = buocVanDon(d);
   var html = '<div class="card" data-vdbuoc="1" style="padding:12px 10px 10px">' + veBuoc(vdB.buoc, vdB.hienTai, 'Tiến độ vận đơn') + '</div>' +
@@ -947,7 +954,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '684';
+var APPVER = '685';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

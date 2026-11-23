@@ -715,6 +715,25 @@ Trang chủ là lưới ô lớn, mỗi ô một phân hệ: Việc cần làm, 
 - App chỉ hiện ô bạn có quyền dùng. Thiếu ô cần thiết là tài khoản thiếu gói chức vụ, báo quản lý người dùng.
 - Tải lại trang vẫn ở đúng màn. Desk của ERPNext nằm ở địa chỉ riêng erp.thevagabondpatisserie.com.
 
+## Con số trên ô Trang chủ
+Từ khoá: số đỏ, con số trên ô, huy hiệu, số phiếu chờ, trang chủ chậm, số chưa cập nhật, số nhảy, đếm số
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi nhân viên | Trang chủ app | [[Trang chủ]] |
+
+Con số trên mỗi ô lớn là số việc đang chờ trong phân hệ đó (phiếu chờ duyệt, đơn treo, đặt bàn chờ xác nhận...). Từ bản 685, bấm Trang chủ là lưới hiện ngay, con số tự cập nhật sau đó khoảng một giây.
+
+**Các bước**
+1. Bấm [[Trang chủ]] ở đầu màn bất kỳ: lưới ô hiện ngay với con số của lần xem trước.
+2. Chờ một nhịp: máy đếm lại ở nền và thay con số mới vào ô, không cần tải lại trang.
+3. Bấm ô để mở phân hệ. Màn bên trong luôn đọc số mới nhất từ máy chủ.
+
+**Lưu ý**
+- Mở lại Trang chủ trong vòng 15 giây thì máy không đếm lại, con số là của lần vừa xem. Vừa duyệt xong một phiếu mà số chưa giảm thì chờ 15 giây rồi bấm Trang chủ lại.
+- Mở app lần đầu sau khi đăng nhập, các ô chưa có số trong một nhịp đầu rồi số mới hiện.
+- Con số chỉ để nhắc việc. Muốn biết chắc còn bao nhiêu phiếu, mở màn danh sách trong phân hệ.
+
 ## Mở app trên điện thoại
 Từ khoá: mở app, cài app, tải app, điện thoại, iPhone, Android, thêm vào màn hình chính, add to home screen, đường dẫn app, link app, PWA
 
