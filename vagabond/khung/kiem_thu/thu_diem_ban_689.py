@@ -140,3 +140,11 @@ def _node():
 	r = subprocess.run(["node", str(Path(__file__).parent / "hanh_vi" / "diem_ban_moi_nghiep_vu_689.js")],
 		capture_output=True, text=True, timeout=120)
 	dung("node: " + (r.stdout + r.stderr)[-600:], r.returncode == 0)
+
+
+@ca("v689: cửa máy chủ của màn Hoá đơn bán ra vẫn mở; hàm phụ chip_diem_hd không thành cửa (bench 23/11: 403)")
+def _cua_mo():
+	cay = ast.parse((APP / "ke_toan.py").read_text(encoding="utf-8"))
+	mo = {n.name for n in cay.body if isinstance(n, ast.FunctionDef) and any(
+		"whitelist" in ast.unparse(d) for d in n.decorator_list)}
+	la("ds_hoa_don_ban mở, chip_diem_hd không", ("ds_hoa_don_ban" in mo, "chip_diem_hd" in mo), (True, False))

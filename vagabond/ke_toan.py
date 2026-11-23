@@ -113,7 +113,6 @@ def _tt_kho(r):
 _TT_CHUA_TRU = ("chua_tru", "mot_phan")
 
 
-@frappe.whitelist()
 def chip_diem_hd(cac_diem=None):
 	"""Chip lọc điểm bán của màn Hoá đơn bán ra: [{ma, ten}], mã là mã quầy,
 	điểm không có quầy là "SALES" (cùng quy ước dòng hoá đơn ở dưới). THUẦN khi
@@ -132,6 +131,7 @@ def chip_diem_hd(cac_diem=None):
 	return ra
 
 
+@frappe.whitelist()
 def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=None):
 	_kiem_quyen()
 	t, d = _khoang(so_ngay, tu, den)
