@@ -613,7 +613,9 @@ export function taoKho(moiTruong) {
   function cartRemove(i) { S.CART.splice(i, 1); }
   /* Nút − và + của dĩa, nĩa tặng kèm. v692: trần theo cỡ bánh trong giỏ (T.tranDcGio);
      bớt bánh làm trần thấp xuống thì số đã chọn tự hạ theo. */
-  const tranDc = computed(() => T.tranDcGio(S.CART));
+  /* Codex #619 P2: tính cả món đang chờ đưa lại vào giỏ (hàng mùa vụ chờ nạp, bánh chờ tồn),
+     để lúc khôi phục giỏ không kẹp mất số khách đã chọn. */
+  const tranDc = computed(() => T.tranDcGio(S.CART.concat(S.gioCho.mua, S.gioCho.banh)));
   function doiDc(k, d) {
     if (k !== 'dia' && k !== 'nia') return;
     S.DC[k] = T.chuanDcDon({...S.DC, [k]: (S.DC[k] || 0) + d}, tranDc.value)[k];
@@ -1616,9 +1618,10 @@ export function taoKho(moiTruong) {
       const luu = d.gio.slice(0, 50).filter(o => (o.cm !== 0 || (o.nguon && !o.goi_y)) && hop(o));
       S.CART.splice(0); S.gioCho.banh = [];
       /* Giỏ lưu bản trước ghi nĩa, dĩa theo từng bánh: dồn về số của đơn, không mất yêu cầu của khách. */
-      Object.assign(S.DC, T.gomDcCu(luu, d.dc));
       /* v668: món thêm từ gợi ý giữ nguyên dòng; máy chủ tính lại giá khi gửi. */
-      d.gio.slice(0, 50).filter(o => o.cm === 0 && o.goi_y && hop(o) && /^[A-Z0-9-]{3,40}$/.test(o.id)).forEach(o => S.CART.push({
+      const goiY = d.gio.slice(0, 50).filter(o => o.cm === 0 && o.goi_y && hop(o) && /^[A-Z0-9-]{3,40}$/.test(o.id));
+      Object.assign(S.DC, T.gomDcCu(luu, d.dc, luu.concat(goiY, S.gioCho.mua)));
+      goiY.forEach(o => S.CART.push({
         k: String(o.k || o.id).slice(0, 120), img: typeof o.img === 'string' ? o.img : '', id: o.id, cm: 0, price: Number(o.price) || 0,
         nguon: 'order', wish: '', adds: [], qty: o.qty, goi_y: 1}));
       luu.forEach(o => { const x = dongGioTuLuu(o); if (x) S.CART.push(x); else S.gioCho.banh.push(o); });

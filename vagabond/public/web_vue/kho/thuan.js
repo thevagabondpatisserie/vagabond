@@ -358,8 +358,11 @@ export function chuanDcDon(d, tran) {
 }
 /* Giỏ lưu từ bản trước (nĩa, dĩa ghi theo từng bánh): cộng về số của đơn, nhân số
    bánh, rồi xoá số ở dòng để không gửi hai lần. Trả số mới của đơn. */
-export function gomDcCu(gio, dc) {
-  const ra = chuanDcDon(dc, tranDcGio(gio));
+/* v692 (Codex #619 P2): tranGio là MỌI dòng sẽ được khôi phục (kể cả hàng mùa vụ và
+   món gợi ý được thêm lại sau), để trần không tính thiếu rồi làm mất số khách đã chọn. */
+export function gomDcCu(gio, dc, tranGio) {
+  const tr = tranDcGio(tranGio || gio);
+  const ra = chuanDcDon(dc, tr);
   (gio || []).forEach(o => {
     const d = o && o.dung_cu;
     if (!d) return;
@@ -367,7 +370,7 @@ export function gomDcCu(gio, dc) {
     ra.dia += (parseInt(d.dia) || 0) * q; ra.nia += (parseInt(d.nia) || 0) * q;
     if (d.dia || d.nia) o.dung_cu = Object.assign({}, d, {nia: 0, dia: 0});
   });
-  return chuanDcDon(ra, tranDcGio(gio));
+  return chuanDcDon(ra, tr);
 }
 export function hangGui(gio, dc) {
   /* v589: MỘT nguồn cho danh sách món gửi máy chủ, dùng chung lúc gửi đơn và
