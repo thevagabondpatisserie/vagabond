@@ -16,6 +16,11 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 - Link trang đặt bánh không còn chữ banh#
 - Web đặt bánh: số dĩa, nĩa tặng tối đa theo cỡ bánh
 
+## v691
+- Ô chọn không bị ép chữ trên điện thoại
+- Biểu tượng thay emoji và nút đủ to trong giao diện mới
+- Ô chọn, hàng nút và chữ nhỏ trong giao diện mới
+
 ## v690
 - Con số trên ô Trang chủ
 

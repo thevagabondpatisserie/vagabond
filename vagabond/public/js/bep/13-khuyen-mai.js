@@ -69,7 +69,7 @@ function posKhoiKm() {
         /* Uu dai hang di theo khach, khong phai chuong trinh thu ngan chon:
            khong co nut bo. Muon bo thi bo chon khach. */
         (a.loai === 'hang' ? '' :
-          '<button data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button>') + '</div>';
+          '<button aria-label="Bỏ ' + h(a.ten || a.ma) + '" data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button>') + '</div>';
     });
     html += '</div>';
   }

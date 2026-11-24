@@ -369,7 +369,7 @@ function timDonO() {
   return '<div style="display:flex;gap:7px;margin-top:9px">' +
     '<input id="tdO" placeholder="Nhập mã đơn Pancake, mã đơn ERP, SĐT, tên khách, địa chỉ..." ' +
     'style="flex:1;min-width:0;border:1.5px solid #e5e7eb;border-radius:9px;padding:9px 12px;font-size:13px">' +
-    '<button id="tdNut" class="btn gh" style="margin:0;width:auto;padding:8px 14px;flex:0 0 auto">🔍</button>' +
+    '<button id="tdNut" aria-label="Tìm" class="btn gh" style="margin:0;width:auto;padding:8px 14px;flex:0 0 auto">🔍</button>' +
     '</div>';
 }
 
@@ -945,7 +945,7 @@ async function scrDsView(name, can) {
           '<div style="font-size:11.5px;color:#6b7280">mã ' + h(dsvKhach.ma) +
           (dsvThe && dsvThe.ten_hang ? ' · hạng ' + h(dsvThe.ten_hang) : '') +
           (dsvThe && dsvThe.giam_gia ? ' · <b style="color:#b45309">ưu đãi giảm ' + dsvThe.giam_gia + '%</b>' : '') + '</div></div>' +
-          '<button id="dsvKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>' +
+          '<button id="dsvKhachBo" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>' +
           dsvVeDiem() + dsvVeHt()
         : '<button class="btn gh" id="dsvKhachChon" style="margin:0">🎫 Chọn khách hàng thân thiết</button>') +
       (d.docstatus === 1
@@ -1534,7 +1534,7 @@ async function scrDsNhapTay() {
         '<b style="font-size:14px">' + h(dsTay.khach_ten || dsTay.khach_ma) + '</b>' +
         '<div style="font-size:11.5px;color:#6b7280">mã ' + h(dsTay.khach_ma) +
         (dsTay.khach_hang ? ' · hạng ' + h(dsTay.khach_hang) : '') + '</div></div>' +
-        '<button id="dstKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
+        '<button id="dstKhachBo" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
       : '<button class="btn gh" id="dstKhachChon" style="margin:0">🎫 Chọn khách hàng thân thiết</button>') +
     '</div>' +
     '</div>';
@@ -1556,7 +1556,7 @@ async function scrDsNhapTay() {
         ? '<img src="' + h(m.anh) + '" style="width:42px;height:42px;flex:none;border-radius:9px;object-fit:cover;background:#f2f4f7" onerror="this.style.visibility=\'hidden\'">'
         : '<div style="width:42px;height:42px;flex:none;border-radius:9px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font-size:19px">🎂</div>') +
       '<div style="flex:1;min-width:0">' + h(m.ten) + '<div style="color:#a0a6b4;font-size:12px">' + money(m.qty) + ' x ' + money(m.rate) + ' đ</div></div>' +
-      '<b>' + money(m.qty * m.rate) + '</b><button class="ic" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
+      '<b>' + money(m.qty * m.rate) + '</b><button class="ic" aria-label="Xoá dòng" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="dstThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Giảm giá và phí giao</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +

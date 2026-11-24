@@ -833,3 +833,43 @@ Giao diện mới đang thử. Mặc định cả tiệm vẫn dùng giao diện
 - Muốn về giao diện cũ cho riêng mình: đổi Lựa chọn riêng thành Luôn tắt hoặc xoá dòng, rồi tải lại trang.
 - Có sự cố trên giao diện mới: bật ô Tắt khẩn cấp (cả tiệm về giao diện cũ), bấm [[Lưu]]; mọi máy về giao diện cũ ở lần mở trang kế tiếp.
 - Chưa bật ô Bật giao diện mới cho cả tiệm khi chưa có quyết định chính thức.
+
+## Ô chọn không bị ép chữ trên điện thoại
+Từ khoá: chọn tin nhận, nhóm Zalo, chữ vỡ, nút hẹp, ngân hàng, tài khoản, đổi khoá
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản trị | Cài đặt lõi và API | Chọn tin nhận, Chọn nhóm đã nhắn bot |
+
+Trong giao diện mới, phần đã chọn dài sẽ xuống dòng theo từ; nút Chọn vẫn đủ rộng để bấm. Khi khung hẹp, nút chuyển xuống hàng dưới. Áp dụng cho tin nhận, nhóm Zalo, loại tin, chủ đề, ngân hàng, tài khoản và nút khai hoặc đổi khoá.
+
+Thao tác chọn và lưu giữ nguyên. Thẻ Hộp thư đối soát cũng tự xuống hàng để địa chỉ dài không đẩy trạng thái ra ngoài thẻ.
+
+## Ô chọn, hàng nút và chữ nhỏ trong giao diện mới
+Từ khoá: ô chọn, hộp chọn, nút gãy chữ, chữ nhỏ, công tắc, mã nhóm Zalo, bot gửi, giao diện mới
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi người đang bật giao diện mới | Mọi màn có ô chọn, hàng nút | Bấm ô chọn để mở hộp chọn |
+
+- Ô chọn (ngân hàng, nhóm món, loại...) là một nút cao đủ một ngón tay. Bấm vào mở hộp chọn có ô Tìm nhanh, chạm một dòng là xong.
+- Hai nút đứng cạnh nhau mà chữ gãy hai dòng (Tải mẫu Excel ở Bảng giá mua, Mời tài khoản mới ở Quản lý người dùng) tự xếp thành hai nút rộng chồng nhau.
+- Chữ dưới 13 điểm (nhãn ô, dòng phụ, trạng thái phiếu) lên 13 điểm.
+- Công tắc ở Cài đặt lõi có vùng bấm rộng hơn hình công tắc.
+- Ba ô tóm tắt ở Tuyển dụng xếp một cột, số bên phải.
+- Nhóm Zalo ở Cài đặt lõi gập mã đầy đủ, bấm Xem mã đầy đủ mới mở. Ô Bot gửi hiện tên bot; chưa lưu thì ghi Máy tự chọn khi lưu.
+
+Ở cả hai giao diện: ô Title riêng của phiếu tặng quà đổi thành Chức danh riêng; ô số tiền lịch chi ghi đơn vị (đ); nút chọn nhà cung cấp của lịch chi rút gọn thành Chọn nhà cung cấp.
+
+## Biểu tượng thay emoji và nút đủ to trong giao diện mới
+Từ khoá: emoji, biểu tượng, nút nhỏ, chip, ép chữ, giao diện mới, Nghệ sĩ công nghệ
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi người đang bật giao diện mới | Mọi màn của app | Không có nút mới |
+
+Trong giao diện mới, emoji cũ trên nút, chip, nhãn, dòng cảnh báo và dòng trống đều hiện thành biểu tượng nét mảnh cùng bộ. Emoji trong lựa chọn của ô chọn được bỏ, chỉ còn chữ.
+
+Chip lọc, ô nhập và ô chọn cao đủ một ngón tay. Thẻ có một nút bên cạnh đoạn giải thích (ví dụ Đền bù khách gặp sự cố ở Khuyến mãi): khi màn hẹp, nút xuống một hàng riêng để đoạn chữ không bị ép thành cột.
+
+Những chỗ giữ nguyên emoji: nội dung tin nhắn, kịch bản, xem trước bài đăng và ô đang soạn, vì đó là chữ sẽ gửi đi đúng như đang thấy. Giao diện cũ không đổi gì.

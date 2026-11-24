@@ -570,7 +570,7 @@ function mfgPickItem(title, groups, onPick) {
   box.innerHTML = '<div class="shh"><b>' + h(title) + '</b><div class="x">&times;</div></div>' +
     '<div style="padding:10px 14px 6px;display:flex;gap:8px;align-items:center">' +
     '<input class="nt" id="mpq" placeholder="Gõ tên hoặc mã (từ 2 ký tự)" style="height:46px;padding:0 12px;flex:1">' +
-    '<button class="sbtn" id="mpsc" style="width:46px;height:46px;flex:0 0 46px">&#128247;</button></div>' +
+    '<button class="sbtn" id="mpsc" aria-label="Quét mã" style="width:46px;height:46px;flex:0 0 46px">&#128247;</button></div>' +
     '<div class="shl" style="min-height:170px"></div>';
   ov.appendChild(box); document.body.appendChild(ov);
   var lst = box.querySelector('.shl'), inp = box.querySelector('#mpq'), seq = 0, tmr = null;
@@ -700,7 +700,7 @@ async function scrMfgList() {
       mfgDongSo(kl(w.so_da, w.dvt) + ' / ' + kl(w.so_can, w.dvt),
         '<span class="st ' + mauTt(w) + '">' + h(w.ten_trang_thai) + '</span>') +
       noiChip(w) + '</div>' +
-      '<button class="lok" data-ok="' + h(w.ten) + '"' + (coLam(w) ? '' : ' disabled') + '>✓</button></div>';
+      '<button class="lok" aria-label="Hoàn tất lệnh" data-ok="' + h(w.ten) + '"' + (coLam(w) ? '' : ' disabled') + '>✓</button></div>';
   }
   function theGop(g) {
     var mo = !!mfgMo[g.ma_mon];
@@ -712,7 +712,7 @@ async function scrMfgList() {
       mfgDongSo(kl(g.so_da, g.dvt) + ' / ' + kl(g.so_can, g.dvt),
         '<span class="lsl">' + (mo ? 'Thu lại' : 'Xem ' + g.so_lenh + ' lệnh') + '</span>') +
       noiChip({ chip: gopChip(g), ngay_can: g.ngay_can, xong: 0 }) + '</div>' +
-      '<button class="lok" data-gok="' + h(g.ma_mon) + '"' + (conLai > 0.0001 ? '' : ' disabled') + '>✓</button></div>' +
+      '<button class="lok" aria-label="Hoàn tất các lệnh của món" data-gok="' + h(g.ma_mon) + '"' + (conLai > 0.0001 ? '' : ' disabled') + '>✓</button></div>' +
       (mo ? '<div class="lcon">' + g.con.map(function (c) { return hangLenh(c, 1); }).join('') +
         '<button class="btn gh" data-gin="' + h(g.ma_mon) + '" style="margin-top:2px">🖨️ In tem cả ' + g.so_lenh + ' lệnh</button></div>' : '') +
       '</div>';

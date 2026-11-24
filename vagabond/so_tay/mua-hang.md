@@ -404,7 +404,7 @@ Trước đây: chỉ có hai đợt 10 và 20. Từ nay: máy lấy số dư ng
 **Các bước**
 1. Mở Dự chi công nợ, bấm [[＋ Thêm dự chi]].
 2. Chọn Ngày cần chi (ngày nào cũng được), gõ Nội dung, Số tiền, Lý do.
-3. Trả nhà cung cấp thì bấm [[🔎 Chọn nhà cung cấp trong danh mục]]. Bên nhận không có trong danh mục (chợ, thợ) thì ghi ở ô Người nhận khác.
+3. Trả nhà cung cấp thì bấm [[🔎 Chọn nhà cung cấp]]. Bên nhận không có trong danh mục (chợ, thợ) thì ghi ở ô Người nhận khác.
 4. Có hoá đơn công nợ thì gõ tên hay số hoá đơn, bấm [[Tìm]] và chọn trong kết quả; không có hoá đơn vẫn lưu được.
 5. Bấm [[Lưu dự chi nháp]]. Khoản mới hiện trên Lịch dự chi đúng ngày, chip Nhập tay.
 6. Chi thật: lập hồ sơ thanh toán (APP) và duyệt như cũ, rồi mở lại dự chi, bấm [[🔎 Chọn hồ sơ thanh toán để nối]]. Khoản không chi nữa thì bấm [[🗑 Xoá dự chi nháp]].

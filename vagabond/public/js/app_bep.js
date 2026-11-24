@@ -3397,13 +3397,15 @@ function sheet(title, items, cur, onPick, searchable) {
   var box = document.createElement('div'); box.className = 'shb';
   var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>';
   if (searchable) hd += '<div style="padding:10px 14px 4px;display:flex;gap:8px"><input class="nt" placeholder="Tìm nhanh..." style="height:46px;padding:0 12px;flex:1"><button class="nt" id="shQuet" title="Quét mã vạch" style="height:46px;width:54px;flex:none;font-size:20px;cursor:pointer">&#128247;</button></div>';
-  box.innerHTML = hd + '<div class="shl"></div>';
+  box.innerHTML = hd + '<div class="shl" role="listbox" aria-label="' + h(title) + '"></div>';
   var lst = box.querySelector('.shl');
   function draw(q) {
     q = (q || '').toLowerCase();
     var f = items.filter(function (it) { return vgbKhop([it.label, it.tim, it.value], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (it, i) {
-      return '<div class="shi' + (it.value === cur ? ' on' : '') + '" data-i="' + items.indexOf(it) + '">' +
+      /* v691 (Codex #614 P2): dong chon bam duoc bang ban phim. tabindex va data-phim de hopPhim bam ho
+         Enter, Space; mui ten len xuong o lst.onkeydown. Click giu nguyen. */
+      return '<div class="shi' + (it.value === cur ? ' on' : '') + '" role="option" tabindex="0" data-phim="1" aria-selected="' + (it.value === cur) + '" data-i="' + items.indexOf(it) + '">' +
         (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span class="shic">' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
         (it.value === cur ? '<span>&#10003;</span>' : '') + '</div>';
     }).join('') : '<div class="emp"><div class="e2">Không tìm thấy</div></div>';
@@ -3424,6 +3426,14 @@ function sheet(title, items, cur, onPick, searchable) {
   lst.onclick = function (e) {
     var r = e.target.closest('.shi'); if (!r) return;
     close(); onPick(items[+r.dataset.i]);
+  };
+  lst.onkeydown = function (e) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    var ds = Array.prototype.slice.call(lst.querySelectorAll('.shi'));
+    if (!ds.length) return;
+    var i = ds.indexOf(document.activeElement);
+    i = e.key === 'ArrowDown' ? Math.min(ds.length - 1, i + 1) : Math.max(0, i < 0 ? 0 : i - 1);
+    e.preventDefault(); ds[i].focus();
   };
   return close;
 }
@@ -9946,7 +9956,7 @@ function mfgPickItem(title, groups, onPick) {
   box.innerHTML = '<div class="shh"><b>' + h(title) + '</b><div class="x">&times;</div></div>' +
     '<div style="padding:10px 14px 6px;display:flex;gap:8px;align-items:center">' +
     '<input class="nt" id="mpq" placeholder="Gõ tên hoặc mã (từ 2 ký tự)" style="height:46px;padding:0 12px;flex:1">' +
-    '<button class="sbtn" id="mpsc" style="width:46px;height:46px;flex:0 0 46px">&#128247;</button></div>' +
+    '<button class="sbtn" id="mpsc" aria-label="Quét mã" style="width:46px;height:46px;flex:0 0 46px">&#128247;</button></div>' +
     '<div class="shl" style="min-height:170px"></div>';
   ov.appendChild(box); document.body.appendChild(ov);
   var lst = box.querySelector('.shl'), inp = box.querySelector('#mpq'), seq = 0, tmr = null;
@@ -10076,7 +10086,7 @@ async function scrMfgList() {
       mfgDongSo(kl(w.so_da, w.dvt) + ' / ' + kl(w.so_can, w.dvt),
         '<span class="st ' + mauTt(w) + '">' + h(w.ten_trang_thai) + '</span>') +
       noiChip(w) + '</div>' +
-      '<button class="lok" data-ok="' + h(w.ten) + '"' + (coLam(w) ? '' : ' disabled') + '>✓</button></div>';
+      '<button class="lok" aria-label="Hoàn tất lệnh" data-ok="' + h(w.ten) + '"' + (coLam(w) ? '' : ' disabled') + '>✓</button></div>';
   }
   function theGop(g) {
     var mo = !!mfgMo[g.ma_mon];
@@ -10088,7 +10098,7 @@ async function scrMfgList() {
       mfgDongSo(kl(g.so_da, g.dvt) + ' / ' + kl(g.so_can, g.dvt),
         '<span class="lsl">' + (mo ? 'Thu lại' : 'Xem ' + g.so_lenh + ' lệnh') + '</span>') +
       noiChip({ chip: gopChip(g), ngay_can: g.ngay_can, xong: 0 }) + '</div>' +
-      '<button class="lok" data-gok="' + h(g.ma_mon) + '"' + (conLai > 0.0001 ? '' : ' disabled') + '>✓</button></div>' +
+      '<button class="lok" aria-label="Hoàn tất các lệnh của món" data-gok="' + h(g.ma_mon) + '"' + (conLai > 0.0001 ? '' : ' disabled') + '>✓</button></div>' +
       (mo ? '<div class="lcon">' + g.con.map(function (c) { return hangLenh(c, 1); }).join('') +
         '<button class="btn gh" data-gin="' + h(g.ma_mon) + '" style="margin-top:2px">🖨️ In tem cả ' + g.so_lenh + ' lệnh</button></div>' : '') +
       '</div>';
@@ -15396,7 +15406,7 @@ function timDonO() {
   return '<div style="display:flex;gap:7px;margin-top:9px">' +
     '<input id="tdO" placeholder="Nhập mã đơn Pancake, mã đơn ERP, SĐT, tên khách, địa chỉ..." ' +
     'style="flex:1;min-width:0;border:1.5px solid #e5e7eb;border-radius:9px;padding:9px 12px;font-size:13px">' +
-    '<button id="tdNut" class="btn gh" style="margin:0;width:auto;padding:8px 14px;flex:0 0 auto">🔍</button>' +
+    '<button id="tdNut" aria-label="Tìm" class="btn gh" style="margin:0;width:auto;padding:8px 14px;flex:0 0 auto">🔍</button>' +
     '</div>';
 }
 
@@ -15972,7 +15982,7 @@ async function scrDsView(name, can) {
           '<div style="font-size:11.5px;color:#6b7280">mã ' + h(dsvKhach.ma) +
           (dsvThe && dsvThe.ten_hang ? ' · hạng ' + h(dsvThe.ten_hang) : '') +
           (dsvThe && dsvThe.giam_gia ? ' · <b style="color:#b45309">ưu đãi giảm ' + dsvThe.giam_gia + '%</b>' : '') + '</div></div>' +
-          '<button id="dsvKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>' +
+          '<button id="dsvKhachBo" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>' +
           dsvVeDiem() + dsvVeHt()
         : '<button class="btn gh" id="dsvKhachChon" style="margin:0">🎫 Chọn khách hàng thân thiết</button>') +
       (d.docstatus === 1
@@ -16561,7 +16571,7 @@ async function scrDsNhapTay() {
         '<b style="font-size:14px">' + h(dsTay.khach_ten || dsTay.khach_ma) + '</b>' +
         '<div style="font-size:11.5px;color:#6b7280">mã ' + h(dsTay.khach_ma) +
         (dsTay.khach_hang ? ' · hạng ' + h(dsTay.khach_hang) : '') + '</div></div>' +
-        '<button id="dstKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
+        '<button id="dstKhachBo" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
       : '<button class="btn gh" id="dstKhachChon" style="margin:0">🎫 Chọn khách hàng thân thiết</button>') +
     '</div>' +
     '</div>';
@@ -16583,7 +16593,7 @@ async function scrDsNhapTay() {
         ? '<img src="' + h(m.anh) + '" style="width:42px;height:42px;flex:none;border-radius:9px;object-fit:cover;background:#f2f4f7" onerror="this.style.visibility=\'hidden\'">'
         : '<div style="width:42px;height:42px;flex:none;border-radius:9px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font-size:19px">🎂</div>') +
       '<div style="flex:1;min-width:0">' + h(m.ten) + '<div style="color:#a0a6b4;font-size:12px">' + money(m.qty) + ' x ' + money(m.rate) + ' đ</div></div>' +
-      '<b>' + money(m.qty * m.rate) + '</b><button class="ic" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
+      '<b>' + money(m.qty * m.rate) + '</b><button class="ic" aria-label="Xoá dòng" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="dstThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Giảm giá và phí giao</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
@@ -17913,7 +17923,7 @@ async function scrPosQuay() {
       '<b style="min-width:22px;text-align:center;font-size:15px">' + money(m.qty) + '</b>' +
       '<button data-cong="' + i + '" style="' + NUT + '">+</button>' +
       '<b style="min-width:70px;text-align:right;font-size:15px">' + money(m.qty * m.rate) + '</b>' +
-      '<button data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
+      '<button aria-label="Xoá dòng" data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="posThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Thanh toán</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
@@ -17975,7 +17985,7 @@ async function scrPosQuay() {
         '<span style="font-size:17px">👤</span>' +
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(posDon.ten || posDon.khach_ma) + '</b>' +
         '<div style="font-size:11.5px;color:#0b7c93">mã ' + h(posDon.khach_ma) + (posDon.khach_hang ? ' · hạng ' + h(posDon.khach_hang) : '') + '</div></div>' +
-        '<button id="posBoKhach" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
+        '<button id="posBoKhach" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
       : '') +
     '<input class="tin" id="posTen" placeholder="Tên khách, mã khách, MST hoặc số điện thoại" autocomplete="off" value="' + h(posDon.ten || '') + '">' +
     '<div id="posTenGoi"></div></div>' +
@@ -18410,14 +18420,15 @@ function locHang(ds, dangChon, attr, rows) {
     var n = rows.filter(c.loc).length;
     if (!n && c.k !== '') return '';
     var on = c.k === dangChon;
-    return '<button ' + attr + '="' + h(c.k) + '" style="flex:0 0 auto;border:1.5px solid ' +
+    /* v691: lớp posc chung với posChipNut để giao diện mới tô theo ui-b, cao 44. */
+    return '<button class="posc' + (on ? ' posc-on' : '') + '" ' + attr + '="' + h(c.k) + '"' + (on ? ' aria-pressed="true"' : '') + ' style="flex:0 0 auto;border:1.5px solid ' +
       (on ? '#0d9488' : '#d7dce5') + ';background:' + (on ? '#0d9488' : '#fff') +
       ';color:' + (on ? '#fff' : '#374151') + ';border-radius:999px;padding:7px 13px;font-size:12.5px;' +
       'font-weight:' + (on ? '800' : '600') + ';cursor:pointer;white-space:nowrap;font-family:inherit">' +
       c.nhan + ' <span style="opacity:.75">' + n + '</span></button>';
   }).join('');
   /* v618: lớp cuon-ngang (00-nen.js) giấu thanh cuộn xám dưới hàng chip. */
-  return '<div class="cuon-ngang" style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+  return '<div class="cuon-ngang lochang" style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
 }
 
 /* Chip nguon don + phuong thuc thanh toan sinh theo du lieu that cua ngay,
@@ -18464,7 +18475,9 @@ function posChipNut(attr, chu, dangChon, laXoa, mau) {
   var chuMau = dangChon ? '#fff' : (laXoa ? '#b3261e' : '#374151');
   /* v617: chip đang chọn mang data-chipchon để màn cuộn nó vào tầm nhìn
      (hàng chip cuộn ngang không còn cắt mất chip đang chọn ở mép). */
-  return '<button ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
+  /* v691: lớp posc để giao diện mới đặt vùng bấm 44 cho cả 259 chỗ gọi (giao diện cũ không đổi). */
+  /* v691: posc-on, posc-xoa để giao diện mới tô chip theo bộ màu ui-b (giao diện cũ giữ style viết thẳng). */
+  return '<button class="posc' + (dangChon ? ' posc-on' : '') + (laXoa ? ' posc-xoa' : '') + '" ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
     ';color:' + chuMau + ';border-radius:999px;padding:9px 15px;font-size:14px;font-weight:' +
     (dangChon ? '800' : '600') + ';cursor:pointer;white-space:nowrap;line-height:1.2">' + chu + '</button>';
 }
@@ -18587,7 +18600,7 @@ function posKhoiKhachNo() {
       '<span style="font-size:18px">📒</span>' +
       '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(k.ten) + '</b>' +
       '<div style="font-size:12px;color:#92400e">Ghi nợ cho khách này · mã ' + h(k.ma) + (k.mst ? ' · MST ' + h(k.mst) : '') + '</div></div>' +
-      '<button id="posBoKhachNo" style="border:0;background:transparent;color:#b3261e;font-size:18px;cursor:pointer">✕</button></div></div>';
+      '<button id="posBoKhachNo" aria-label="Bỏ khách ghi nợ" style="border:0;background:transparent;color:#b3261e;font-size:18px;cursor:pointer">✕</button></div></div>';
   }
   return '<button id="posChonKhachNo" class="btn gh" style="margin:0;border-color:#fcd34d;color:#92400e">📒 Chọn khách công nợ (bắt buộc)</button>';
 }
@@ -20440,7 +20453,7 @@ async function scrPosBill(name) {
           '<b style="min-width:20px;text-align:center">' + money(m.qty) + '</b>' +
           '<button data-scong="' + i + '" style="' + NUT + '">+</button>' +
           '<b style="min-width:66px;text-align:right">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</b>' +
-          '<button data-sxoa="' + i + '" style="' + NUT + ';color:#b3261e">✕</button>'
+          '<button aria-label="Xoá dòng" data-sxoa="' + i + '" style="' + NUT + ';color:#b3261e">✕</button>'
         : '<b style="white-space:nowrap">x' + money(m.qty) + '</b><b style="min-width:76px;text-align:right">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</b>') +
       '</div>';
   });
@@ -27214,9 +27227,9 @@ async function scrVanDon() {
   /* Hai nut lui/toi mot ngay: tren dien thoai bam nhanh hon mo bang chon
      ngay, va khong dinh loi bang chon ngay lam trang bi ve lai. */
   var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:8px">' +
-    '<button class="btn gh" id="vdLui" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">◀</button>' +
+    '<button class="btn gh" id="vdLui" aria-label="Ngày trước" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">◀</button>' +
     '<input type="date" class="hin" id="vdDate" value="' + vdNgay + '" style="flex:1;margin:0;min-width:0">' +
-    '<button class="btn gh" id="vdToi" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">▶</button></div>';
+    '<button class="btn gh" id="vdToi" aria-label="Ngày sau" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">▶</button></div>';
   if (isSales() || vdLaKeToan()) html += '<button class="btn gh" id="vdDongBo" style="margin:0 0 10px">🔄 Đồng bộ đơn Pancake ngày ' + vdNgay.split('-').reverse().join('/') + '</button>';
   var ICON = VD_TT_ICON;
   /* THU TU LOC, doi cho la sai so tren tab: o tim truoc, roi tab, roi chip.
@@ -27971,7 +27984,7 @@ async function scrVdChiPhi() {
       '<div class="h2">' + vn + ' · ' + h((r.shipper || '').split('@')[0]) + ' · ' + h(r.trang_thai) + (r.so_hoa_don ? ' · HĐ ' + h(r.so_hoa_don) : '') + '</div>' +
       (r.nha_cung_cap ? '<div class="h2">' + h(r.nha_cung_cap) + '</div>' : '') +
       (r.ghi_chu_duyet ? '<div class="h2" style="color:#b3261e">' + h(r.ghi_chu_duyet) + '</div>' : '') + '</div>' +
-      (r.anh_hoa_don ? '<a href="' + h(r.anh_hoa_don) + '" target="_blank">📷</a>' : '') + '</div>';
+      (r.anh_hoa_don ? '<a href="' + h(r.anh_hoa_don) + '" target="_blank" aria-label="Xem ảnh hoá đơn">📷</a>' : '') + '</div>';
   });
   html += '</div>';
 
@@ -29393,7 +29406,7 @@ function posKhoiKm() {
         /* Uu dai hang di theo khach, khong phai chuong trinh thu ngan chon:
            khong co nut bo. Muon bo thi bo chon khach. */
         (a.loai === 'hang' ? '' :
-          '<button data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button>') + '</div>';
+          '<button aria-label="Bỏ ' + h(a.ten || a.ma) + '" data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button>') + '</div>';
     });
     html += '</div>';
   }
@@ -43123,7 +43136,7 @@ async function scrNoiDungCK(hs, ck) {
       '<div style="font-size:11.5px;color:#6b7280;font-weight:700;letter-spacing:.3px">' + nhan + '</div>' +
       '<div style="display:flex;gap:8px;align-items:center;margin-top:3px">' +
       '<b style="flex:1 1 auto;min-width:0;font-size:14.5px;word-break:break-word;overflow-wrap:anywhere">' + h(gt || '(chưa có)') + '</b>' +
-      (gt ? '<button class="btn gh" data-ckc="' + khoa + '" style="flex:0 0 auto;width:auto;margin:0;padding:5px 11px;font-size:12px;white-space:nowrap">📋</button>' : '') +
+      (gt ? '<button class="btn gh" aria-label="Chép" data-ckc="' + khoa + '" style="flex:0 0 auto;width:auto;margin:0;padding:5px 11px;font-size:12px;white-space:nowrap">📋</button>' : '') +
       '</div></div>';
   };
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
@@ -48121,7 +48134,7 @@ async function scrBgSua(name) {
        Thong tu 86/2024 va co bo nho dem bay ngay. */
     '<div style="display:flex;flex-direction:row;gap:6px">' +
     oi('ma_so_thue', 'Mã số thuế khách, gõ xong máy tự điền tên', d.ma_so_thue) +
-    '<button class="btn gh" data-t="tramst" style="flex:none;width:46px;height:44px;margin:0;padding:0;font-size:17px">🔍</button></div>' +
+    '<button class="btn gh" data-t="tramst" aria-label="Tra mã số thuế" style="flex:none;width:46px;height:44px;margin:0;padding:0;font-size:17px">🔍</button></div>' +
     (d._mst_bao ? '<div ' + BGNHAN + '>' + h(d._mst_bao) + '</div>' : '') +
     '<textarea ' + BGTA + ' id="bgf_dia_chi" rows="2" placeholder="Địa chỉ khách">' + h(d.dia_chi) + '</textarea>' +
     '</div>';
@@ -48150,7 +48163,7 @@ async function scrBgSua(name) {
       '<div data-anh="' + i + '" style="cursor:pointer">' + bgAnhO(x.hinh, 46) + '</div>' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dg_' + i + '_ten_mon', x.ten_mon, 'Tên sản phẩm') +
-      '<button data-xoa="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;font-size:16px;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá dòng" data-xoa="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;font-size:16px;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dg_' + i + '_ten_en', x.ten_en, 'Name in English') + '</div>' : '') +
       '<div style="display:flex;flex-direction:row;gap:6px;flex-wrap:wrap;align-items:center">' +
       '<span style="font-size:12px;color:#8a8f9c">SL</span>' + bgOSo('dg_' + i + '_so_luong', x.so_luong, 62) +
@@ -48227,7 +48240,7 @@ async function scrBgSua(name) {
   d.dich_vu.forEach(function (x, i) {
     html += '<div style="border:1.5px solid #eef0f4;border-radius:12px;padding:8px;margin-bottom:7px;display:grid;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_ten_vi', x.ten_vi, 'Hạng mục') +
-      '<button data-xdv="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá hạng mục" data-xdv="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_ten_en', x.ten_en, 'Description in English') + '</div>' : '') +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_gia_vi', x.gia_vi, 'Đơn giá, vd Miễn phí') + (d.song_ngu ? bgOChu('dv_' + i + '_gia_en', x.gia_en, 'vd Free of charge') : '') + '</div></div>';
   });
@@ -48238,7 +48251,7 @@ async function scrBgSua(name) {
   d.moc.forEach(function (x, i) {
     html += '<div style="border:1.5px solid #eef0f4;border-radius:12px;padding:8px;margin-bottom:7px;display:grid;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('mc_' + i + '_moc_vi', x.moc_vi, 'Mốc thời gian') +
-      '<button data-xmc="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá mốc" data-xmc="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? bgOChu('mc_' + i + '_moc_en', x.moc_en, 'Timeline in English') : '') +
       '<textarea ' + BGTA + ' id="mc_' + i + '_noi_dung_vi" rows="2" placeholder="Nội dung">' + h(x.noi_dung_vi) + '</textarea>' +
       (d.song_ngu ? '<textarea ' + BGTA + ' id="mc_' + i + '_noi_dung_en" rows="2" placeholder="Action in English">' + h(x.noi_dung_en) + '</textarea>' : '') +
@@ -52090,7 +52103,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.dinh_luong || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="dinh_luong" data-i="' + i + '">' +
       '<div class="hd-so">Nguyên liệu ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       '<div class="row2">' + hdO('Tên nguyên liệu', 'ten', x.ten) +
       hdO('Mã hàng', 'ma_hang', x.ma_hang, 'text', 'không bắt buộc') + '</div>' +
       '<div class="row2">' + hdO('Số lượng', 'so_luong', x.so_luong, 'number') +
@@ -52105,7 +52118,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.buoc || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="buoc" data-i="' + i + '">' +
       '<div class="hd-so">Bước ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       hdO('Công đoạn', 'cong_doan', x.cong_doan, 'text', 'vd: Đánh bông lòng trắng') +
       hdODai('Cách làm', 'mo_ta', x.mo_ta, 'Viết như đang cầm tay chỉ việc', 3) +
       '<div class="row2">' + hdO('Thời gian (phút)', 'thoi_gian_phut', x.thoi_gian_phut, 'number') +
@@ -52132,7 +52145,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.tieu_chi || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="tieu_chi" data-i="' + i + '">' +
       '<div class="hd-so">Tiêu chí ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       hdO('Tiêu chí', 'tieu_chi', x.tieu_chi, 'text', 'vd: Màu ruột bánh') +
       hdODai('Đạt khi', 'dat_khi', x.dat_khi, '', 2) +
       hdODai('Không đạt khi', 'khong_dat_khi', x.khong_dat_khi, '', 2) +
@@ -52557,7 +52570,7 @@ function scrTiecXuat() {
       ? '<div class="lst hd-bang">' + d.dong.map(function (m, i) {
         return '<div class="card hd-dong hd-form" data-i="' + i + '">' +
           '<div class="hd-so">' + h(m.ten || m.ma) +
-          '<button class="hd-xoa" data-xoa>✕</button></div>' +
+          '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
           '<div class="l2" style="margin-bottom:8px">' + h(m.ma) +
           ' · tồn ' + num(m.ton) + ' ' + h(m.dvt) + '</div>' +
           '<div class="row2">' +
@@ -53022,7 +53035,8 @@ function tqVeForm(dm, p) {
     tqChon('Khách trong hệ (bỏ qua được)', 'tqKhach', p.khach, 'Chưa liên kết khách nào') +
     tqO('Tên khách', 'tqTen', p.ten_khach, 'Tên in lên thiệp') +
     tqChon('Phân loại', 'tqNhom', p.phan_loai) +
-    tqO('Title riêng', 'tqTitle', p.title_rieng, 'Đạo diễn, Nhà Thiết Kế, Doanh nhân...') +
+    /* v691 (rà độc lập UI88): nhãn tiếng Việt theo nghĩa, ô vẫn ghi trường title_rieng. */
+    tqO('Chức danh riêng', 'tqTitle', p.title_rieng, 'Đạo diễn, Nhà Thiết Kế, Doanh nhân...') +
     tqO('Đơn vị', 'tqDonVi', p.don_vi, 'ELLE Tạp Chí, Manki Coffee...') +
 
     '<div class="vxl" style="margin-top:18px">2. AI LO</div>' +
@@ -53042,7 +53056,8 @@ function tqVeForm(dm, p) {
 
     '<div class="vxl" style="margin-top:18px">5. LỜI CHÚC</div>' +
     tqChon('Mẫu lời chúc', 'tqMau', p.mau_loi_chuc, 'Lấy mẫu mặc định của đợt') +
-    '<div class="tqlc" id="tqXemLc">' + (lc ? h(lc) : 'Chọn mẫu rồi lời chúc sẽ hiện ở đây') + '</div>' +
+    /* v691 (Codex #614): lời chúc in ra thiệp, xem trước phải giữ nguyên emoji ở giao diện mới. */
+    '<div class="tqlc" id="tqXemLc" data-giu-emoji>' + (lc ? h(lc) : 'Chọn mẫu rồi lời chúc sẽ hiện ở đây') + '</div>' +
     '<div class="vxl" style="margin-top:12px">' +
     '<label><input type="checkbox" id="tqSuaTay"' + (p.sua_tay ? ' checked' : '') + '> ' +
     'Sửa tay lời chúc này</label></div>' +
@@ -61857,6 +61872,18 @@ function cdlDatThay(fn, v) {
   if (a === b) delete CDL.thay[fn]; else CDL.thay[fn] = v;
 }
 
+/* Dòng giá trị + thao tác: giao diện cũ giữ nguyên markup; giao diện mới dùng
+   cùng khuôn co giãn, không cho giá trị dài ép nút thành cột từng ký tự (#613).
+   Hai tham số là HTML đã escape tại nơi gọi, không nhận chữ thô từ máy chủ. */
+function cdlGiaTri(noiDung, thaoTac) {
+  if (typeof uiB === 'function' && uiB()) {
+    return '<div class="cdl-val ui-dong-chon"><div class="ui-dong-chon-noi-dung">' + noiDung +
+      '</div><div class="ui-dong-chon-thao-tac">' + thaoTac + '</div></div>';
+  }
+  return '<div class="cdl-val">' + noiDung +
+    '<span style="margin-left:auto"></span>' + thaoTac + '</div>';
+}
+
 function cdlCss() {
   if (document.getElementById('cdl-css')) return;
   var s = document.createElement('style'); s.id = 'cdl-css';
@@ -61872,6 +61899,7 @@ function cdlCss() {
     '.cdl-row:first-child{border-top:0}' +
     '.cdl-x{flex:1;min-width:0}.cdl-x b{display:block;font-size:14px;font-weight:500}' +
     '.cdl-x small{display:block;font-size:13px;color:#6b737b;line-height:1.4}' +
+    '.cdl-ma summary{cursor:pointer;min-height:44px;display:flex;align-items:center}' +
     '.cdl-tg{width:48px;height:30px;border-radius:15px;background:#cfd6db;position:relative;flex:none;border:0;cursor:pointer}' +
     '.cdl-tg:after{content:"";position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;top:3px;left:3px;box-shadow:0 1px 2px rgba(0,0,0,.2)}' +
     '.cdl-tg.on{background:#22a05a}.cdl-tg.on:after{left:21px}' +
@@ -62183,9 +62211,10 @@ function cdlVeO(o, doc, loi) {
     var co = v && String(v).trim() !== '';
     var dangGo = Object.prototype.hasOwnProperty.call(CDL.thay, o.fn) || CDL['go_' + o.fn];
     return '<div class="cdl-f"' + id + '>' + nhan +
-      '<div class="cdl-val">' + cdlChip(co ? 'ok' : 'no', co ? 'Đã khai' : 'Chưa khai') +
-      (o.chi_doc ? '' : '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldoikhoa="' + h(o.fn) + '">' + (co ? 'Đổi khoá' : 'Khai khoá') + '</button>' +
-        (co ? '<button class="cdl-lnk" data-cdlgokhoa="' + h(o.fn) + '" style="color:#a42424">Gỡ</button>' : '')) + '</div>' +
+      (o.chi_doc ? '<div class="cdl-val">' + cdlChip(co ? 'ok' : 'no', co ? 'Đã khai' : 'Chưa khai') + '</div>' :
+        cdlGiaTri(cdlChip(co ? 'ok' : 'no', co ? 'Đã khai' : 'Chưa khai'),
+          '<button class="cdl-lnk" data-cdldoikhoa="' + h(o.fn) + '">' + (co ? 'Đổi khoá' : 'Khai khoá') + '</button>' +
+          (co ? '<button class="cdl-lnk" data-cdlgokhoa="' + h(o.fn) + '" style="color:#a42424">Gỡ</button>' : ''))) +
       (dangGo ? '<input class="tin" type="password" autocomplete="new-password" data-cdlo="' + h(o.fn) + '" placeholder="Dán khoá mới vào đây" value="' + h(CDL.thay[o.fn] || '') + '" style="margin-top:6px">' : '') +
       '<div class="cdl-mo">Khoá bí mật không hiện lên máy. Muốn đổi thì gõ khoá mới.' + (o.mo ? ' ' + h(o.mo) : '') + '</div></div>';
   }
@@ -62197,9 +62226,9 @@ function cdlVeO(o, doc, loi) {
   }
   if (o.fn === 'ngan_hang_bin') {
     var nh = CDL.nganHang ? VGB_CD.nganHangTheoBin(CDL.nganHang, v) : null;
-    return '<div class="cdl-f"' + id + '>' + nhan + '<div class="cdl-val">' +
-      (nh ? cdlChip('ok', nh.ten) : (v ? cdlChip('err', 'Mã BIN ' + v + ' chưa có trong danh mục') : cdlChip('no', 'Chưa chọn'))) +
-      '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdlnganhang="1">Đổi</button></div>' + mo + '</div>';
+    return '<div class="cdl-f"' + id + '>' + nhan + cdlGiaTri(
+      (nh ? cdlChip('ok', nh.ten) : (v ? cdlChip('err', 'Mã BIN ' + v + ' chưa có trong danh mục') : cdlChip('no', 'Chưa chọn'))),
+      '<button class="cdl-lnk" data-cdlnganhang="1">Đổi</button>') + mo + '</div>';
   }
   if (o.kieu === 'Select') {
     var nhanChon = VGB_CD.NHAN_CHON[o.fn];
@@ -62209,13 +62238,12 @@ function cdlVeO(o, doc, loi) {
     }).join('') + '</div>' + mo + '</div>';
   }
   if (o.kieu === 'Link') {
-    return '<div class="cdl-f"' + id + '>' + nhan + '<div class="cdl-val">' +
-      (v ? h(v) : '<span style="color:#9aa1a8">Chưa chọn</span>') +
-      '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdllk="' + h(o.fn) + '">Chọn</button>' +
+    return '<div class="cdl-f"' + id + '>' + nhan + cdlGiaTri(
+      (v ? h(v) : '<span style="color:#9aa1a8">Chưa chọn</span>'),
+      '<button class="cdl-lnk" data-cdllk="' + h(o.fn) + '">Chọn</button>' +
       /* Codex #439 (V2): ô không bắt buộc thì bỏ chọn được, về lối mặc định an toàn
          (ví dụ Tài khoản chi hoàn tiền trống thì máy tự tìm tài khoản công ty). */
-      (v && !o.bat_buoc ? '<button class="cdl-lnk" data-cdlbo="' + h(o.fn) + '" style="color:#a42424">Bỏ chọn</button>' : '') +
-      '</div>' + mo + '</div>';
+      (v && !o.bat_buoc ? '<button class="cdl-lnk" data-cdlbo="' + h(o.fn) + '" style="color:#a42424">Bỏ chọn</button>' : '')) + mo + '</div>';
   }
   var giaTri = v == null ? '' : String(v);
   if (o.kieu === 'Small Text' || o.kieu === 'Text' || o.kieu === 'Long Text' || o.kieu === 'Code') {
@@ -62608,20 +62636,28 @@ function cdlVeDong(fnBang, i, nhap) {
       return '<div class="cdl-row"><div class="cdl-x"><b>' + h(c.nhan) + '</b></div><button class="cdl-tg' + (b ? ' on' : '') + '" data-cdldbat="' + h(c.fn) + '"></button></div>';
     }
     if (fnBang === 'zalo_nhom' && c.fn === 'tin_nhan') {
-      return '<div class="cdl-f">' + nhan + '<div class="cdl-val"><span>' + h(VGB_CD['tomTatTin'](v) || 'Chưa tích tin nào') + '</span>' +
-        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldtin="1">Chọn tin nhận</button></div>' +
+      return '<div class="cdl-f">' + nhan + cdlGiaTri('<span>' + h(VGB_CD['tomTatTin'](v) || 'Chưa tích tin nào') + '</span>',
+        '<button class="cdl-lnk" data-cdldtin="1">Chọn tin nhận</button>') +
         '<div class="cdl-mo">' + h(VGB_CD.GHI_CHU_TIN) + '</div></div>';
     }
     if (fnBang === 'zalo_nhom' && (c.fn === 'loai_tin' || c.fn === 'chu_de')) {
       var tach = String(v || '').split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean);
       var N = VGB_CD.ZALO_NHAN[c.fn];
-      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + h(tach.length ? tach.map(function (x) { return (N[x] || ['', x])[1]; }).join(', ') : 'Tất cả') +
-        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldchon="' + h(c.fn) + '">Chọn</button></div>' +
+      return '<div class="cdl-f">' + nhan + cdlGiaTri(h(tach.length ? tach.map(function (x) { return (N[x] || ['', x])[1]; }).join(', ') : 'Tất cả'),
+        '<button class="cdl-lnk" data-cdldchon="' + h(c.fn) + '">Chọn</button>') +
         (coTin ? '<div class="cdl-mo">Không dùng: nhóm đã chọn Tin nhận.</div>' : '') + '</div>';
     }
     if (fnBang === 'zalo_nhom' && c.fn === 'chat_id') {
-      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + (v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b><div class="cdl-mo">' + h(v) + '</div></span>' : '<span style="color:#9aa1a8">Chưa chọn</span>') +
-        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldnhom="1">Chọn nhóm đã nhắn bot</button></div>' + mo + '</div>';
+      /* v691 (rà độc lập UI83): tên nhóm đã có mã ngắn của tệp chung; giao diện mới gập mã đầy đủ, bấm mới mở. */
+      var maHien = uiB() && v ?
+        '<details class="cdl-ma"><summary class="cdl-mo">Xem mã đầy đủ</summary><div class="cdl-mo" style="word-break:break-all">' + h(v) + '</div></details>' :
+        '<div class="cdl-mo">' + h(v) + '</div>';
+      return '<div class="cdl-f">' + nhan + cdlGiaTri((v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b>' + maHien + '</span>' : '<span style="color:#9aa1a8">Chưa chọn</span>'),
+        '<button class="cdl-lnk" data-cdldnhom="1">Chọn nhóm đã nhắn bot</button>') + mo + '</div>';
+    }
+    if (fnBang === 'zalo_nhom' && c.fn === 'bot' && uiB()) {
+      /* v691 (rà độc lập UI84): máy tự điền số bot khi lưu; giao diện mới hiện TÊN bot thay số trơn. */
+      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + h(cdlBotNhom(v)) + '</div>' + mo + '</div>';
     }
     if (c.chi_doc && choGhi.indexOf(c.fn) < 0) {
       return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + h(v == null ? '' : v) + '</div>' + mo + '</div>';
@@ -62663,6 +62699,13 @@ function cdlVeDong(fnBang, i, nhap) {
   };
 }
 
+/* v691 (Codex #614): bảng vẽ lại sau mỗi lần tích, dòng cũ mất đi. Đưa focus về đúng dòng vừa
+   đổi để người dùng bàn phím, trình đọc màn hình không bị ném về đầu trang. */
+function cdlGiuFocus(box, thuoc, ma) {
+  var ds = box.querySelectorAll('[' + thuoc + ']');
+  for (var i = 0; i < ds.length; i++) if (ds[i].getAttribute(thuoc) === ma) { try { ds[i].focus(); } catch (e) { } return; }
+}
+
 /* Hộp chọn loại tin, chủ đề: mỗi lựa chọn có tên, biểu tượng và một dòng giải
    thích (cùng nguồn với Desk). Không tích gì là nhận tất cả. */
 function cdlChonZalo(cot, nhap, xong) {
@@ -62675,7 +62718,9 @@ function cdlChonZalo(cot, nhap, xong) {
       '<div class="cdl-mo" style="padding:6px 14px">Không tích ô nào là nhóm nhận <b>tất cả</b> ' + (cot === 'loai_tin' ? 'loại tin.' : 'chủ đề.') + '</div>' +
       '<div class="shl">' + DM.map(function (m) {
         var n = N[m] || ['', m, ''];
-        return '<div class="shi" data-cdlz="' + h(m) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(m) >= 0 ? '☑' : '☐') +
+        /* v691 (Codex #614): trạng thái chọn đọc được bằng trình đọc màn hình, không chỉ bằng ký tự;
+           data-phim để bộ phím chung (hopPhim, 00-nen.js) đổi Space, Enter thành bấm. */
+        return '<div class="shi" data-cdlz="' + h(m) + '" role="checkbox" tabindex="0" data-phim="1" aria-checked="' + (dang.indexOf(m) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(m) >= 0 ? '☑' : '☐') +
           '</span><span style="font-size:18px">' + h(n[0]) + '</span><span style="flex:1"><b>' + h(n[1]) + '</b><div class="cdl-mo">' + h(n[2]) + '</div></span></div>';
       }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdlzxong="1" style="width:100%;margin:0">Xong</button></div>';
   }
@@ -62686,7 +62731,8 @@ function cdlChonZalo(cot, nhap, xong) {
     if (r) {
       var m = r.getAttribute('data-cdlz'), k = dang.indexOf(m);
       if (k >= 0) dang.splice(k, 1); else dang.push(m);
-      return ve();
+      ve();
+      return cdlGiuFocus(box, 'data-cdlz', m);
     }
     if (e.target.closest('[data-cdlzxong]') || e.target.closest('.x')) {
       if (e.target.closest('[data-cdlzxong]')) nhap[cot] = DM.filter(function (m) { return dang.indexOf(m) >= 0; }).join(', ');
@@ -62730,10 +62776,10 @@ function cdlChonTinZalo(nhap, xong) {
       '<span class="cdl-mo" style="margin:0">' + ((tu || chiDaTich) ? 'Đang hiện ' + soHien + ' trên ' + TONG + ' tin' : '') + '</span>';
     ds.innerHTML = cac.length ? cac.map(function (bp) {
       var k = BP.map(function (x) { return x.bo_phan; }).indexOf(bp.bo_phan);
-      return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
+      return '<div' + (typeof uiB === 'function' && uiB() ? ' class="ui-dong-chon"' : '') + ' style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
         '<button class="cdl-lnk" data-cdltca="' + k + '">' + ((tu || chiDaTich) ? 'Chọn cả ' + bp.tin.length + ' tin đang hiện' : 'Chọn cả mục') + '</button></div>' +
         bp.tin.map(function (t) {
-          return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
+          return '<div class="shi" data-cdlt="' + h(t.ma) + '" role="checkbox" tabindex="0" data-phim="1" aria-checked="' + (dang.indexOf(t.ma) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
             '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
         }).join('');
     }).join('') : '<div class="cdl-mo" data-cdltrong="1" style="padding:16px 14px">' +
@@ -62753,7 +62799,8 @@ function cdlChonTinZalo(nhap, xong) {
     if (r) {
       var m = r.getAttribute('data-cdlt'), k = dang.indexOf(m);
       if (k >= 0) dang.splice(k, 1); else dang.push(m);
-      return ve();
+      ve();
+      return cdlGiuFocus(box, 'data-cdlt', m);
     }
     var chi = e.target.closest('[data-cdltchi]');
     if (chi) {
@@ -62785,6 +62832,12 @@ function cdlChonTinZalo(nhap, xong) {
  * bản tải lúc mở màn nên nhóm vừa nhắc bot không hiện. Từ nay: đọc danh sách mới
  * từ máy chủ mỗi lần bấm, gọi nhóm bằng MÃ NHÓM (bot cũng trả lời mã này trong
  * nhóm), báo nhóm nào đang gán cho dòng nào, và không tự lấy tên người làm tên nhóm. */
+function cdlBotNhom(ma) {
+  /* v691 (UI84): ô bot của nhóm Zalo. Trống là máy chọn khi lưu, 1 là bot chính, số khác đọc tên ở cdlTenBot. */
+  var m = String(ma == null ? '' : ma).trim();
+  if (!m) return 'Máy tự chọn khi lưu';
+  return m === '1' ? 'Bot chính (số 1)' : cdlTenBot(m);
+}
 function cdlNhanNhomZalo(x) {
   // Dùng ngoặc vuông để bộ tách hàm của ca DOM không hiểu nhầm phương thức
   // module chung là một hàm toàn cục nằm trong app_bep.js.
@@ -62972,9 +63025,9 @@ function dsvnKhoiHop(ht) {
     (ht.doc_luc ? 'Đọc lần cuối ' + h(String(ht.doc_luc).slice(11, 16)) + ' ' + dmy(String(ht.doc_luc).slice(0, 10)).slice(0, 5) + ' · tự đọc mỗi 15 phút' :
       'Chưa đọc lần nào.');
   return '<div class="card" style="padding:13px 14px;border:1.5px solid #68d5e7">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:16px">Hộp thư ' +
-    h(ht.dia_chi || 'doisoat@') + '</b><span style="background:' + trang[1] + ';color:' + trang[2] +
-    ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(trang[0]) + '</span></div>' +
+    '<div' + (typeof uiB === 'function' && uiB() ? ' class="ui-dong-chon"' : '') + ' style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:16px">Hộp thư ' +
+    h(ht.dia_chi || 'doisoat@') + '</b><span class="ui-dong-chon-trang-thai" style="background:' + trang[1] + ';color:' + trang[2] +
+    ';border-radius:999px;padding:3px 9px;font-size:' + (typeof uiB === 'function' && uiB() ? '13' : '12') + 'px;font-weight:600;white-space:nowrap">' + h(trang[0]) + '</span></div>' +
     '<div style="font-size:13px;color:' + (ht.trang === 'loi' ? '#b42318' : '#667085') + ';margin-top:4px">' + h(dong) + '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
     o('ve', 'Thư về hôm nay', ht.ve_hom_nay, '#067647') + o('chua_ve', 'Thư chưa về', ht.chua_ve, '#b42318') +
@@ -74101,7 +74154,7 @@ function ldcLichMo(x) {
 /* THUẦN: ô chọn nhà cung cấp (AGENTS QT-31: chọn từ danh mục, không gõ tự do). */
 function ldcONcc(id, f) {
   return '<button type="button" class="btn gh" id="' + id + '" style="margin:0;min-height:44px;font-size:14px;text-align:left;width:100%">' +
-    (f.nha_cung_cap ? '🏭 ' + h(f.ten_ncc || f.nha_cung_cap) + ' <span style="color:#667085">· bấm để đổi</span>' : '🔎 Chọn nhà cung cấp trong danh mục') + '</button>';
+    (f.nha_cung_cap ? '🏭 ' + h(f.ten_ncc || f.nha_cung_cap) + ' <span style="color:#667085">· bấm để đổi</span>' : '🔎 Chọn nhà cung cấp') + '</button>';
 }
 
 /* Mở ô chọn nhà cung cấp: gõ một phần tên, mã hay MST, chọn trong danh mục.
@@ -74246,7 +74299,7 @@ function scrLichChi() {
     ldcO('Nhà cung cấp', 'Chọn trong danh mục để máy biết tháng nào đã có hoá đơn, hồ sơ thanh toán của nhà đó.', ldcONcc('lcNcc', f)) +
     (f.nha_cung_cap ? '' : ldcO('Người nhận khác', 'Chỉ ghi khi bên nhận không có trong danh mục nhà cung cấp.',
       '<input id="lcNhan" value="' + h(f.nguoi_nhan || '') + '" style="' + LDC_O + '">')) +
-    ldcO('Số tiền mỗi tháng', '', '<input id="lcTien" inputmode="numeric" value="' + h(f.so_tien ? money(f.so_tien) : '') + '" style="' + LDC_O + '">') +
+    ldcO('Số tiền mỗi tháng (đ)', '', '<input id="lcTien" inputmode="numeric" value="' + h(f.so_tien ? money(f.so_tien) : '') + '" style="' + LDC_O + '">') +
     ldcO('Ngày chi trong tháng', 'Tháng ngắn hơn thì máy lùi về ngày cuối tháng. Tháng đã có hồ sơ thanh toán hay hoá đơn mua của đúng người nhận thì máy không tính thêm.',
       '<input id="lcNgay" type="number" min="1" max="31" value="' + h(String(f.ngay_trong_thang || 20)) + '" style="' + LDC_O + '">') +
     '<button type="button" class="btn gh" id="lcBat" style="margin:0;min-height:44px;font-size:14px;text-align:left">' + ldcChuBat(f.bat) + '</button>' +
@@ -76095,7 +76148,9 @@ var BD_BIEU_TUONG = ['✨', '🌸', '🍓', '🍑', '🍋', '🥭', '🍫', '☕
 function bdSheetBieuTuong(b, k) {
   var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Biểu tượng</div>' +
     '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Chạm để chèn vào chỗ con trỏ trong chữ ' + h(bdKenh(k).ten) + '.</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:4px">' + BD_BIEU_TUONG.map(function (x) {
+    /* v691 (Codex #614): bảng chèn giữ nguyên emoji ở giao diện mới, vì ❤️ và 🤍 cùng thành một hình
+       tim thì người soạn không phân biệt được ký tự sẽ chèn. */
+    '<div data-giu-emoji style="display:flex;flex-wrap:wrap;gap:4px">' + BD_BIEU_TUONG.map(function (x) {
       return '<button data-bdchen="' + h(x) + '" style="width:48px;height:48px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;font-size:22px;cursor:pointer">' + h(x) + '</button>';
     }).join('') + '</div>');
   ov.onclick = function (e) {
@@ -78466,12 +78521,15 @@ var UIB_EMOJI = {
   "🗺": "map",
   "🙅": "user-x",
   "🙋": "hand",
+  "🚀": "megaphone",
   "🚕": "car-taxi-front",
   "🚚": "truck",
   "🚧": "construction",
+  "🚨": "circle-alert",
   "🚫": "ban",
   "🛍": "shopping-bag",
   "🛒": "shopping-cart",
+  "🛠": "wrench",
   "🛡": "shield",
   "🛵": "bike",
   "🤍": "heart",
@@ -78562,8 +78620,11 @@ function uiBThayMot(el) {
   var cham = UIB_CHAM[chu];
   if (!ten && !cham) return;
   el.setAttribute('data-uib', '1');
-  if (ten) el.innerHTML = uiBSvg(ten, el.classList.contains('e1') ? 40 : 24);
+  var chuCu = el.textContent;
+  var ttMot = uiBTrangThai(chuCu.trim(), el, true);
+  if (ten) el.innerHTML = uiBSvg(ten, el.classList.contains('e1') ? 40 : 24) + (ttMot ? '<span class="uisr">' + ttMot + '</span>' : '');
   else el.innerHTML = '<span class="uicham uicham-' + cham + '"></span>';
+  uiBGiuTen(el, chuCu);
 }
 
 function uiBQuet(goc) {
@@ -78580,7 +78641,100 @@ function uiBQuet(goc) {
     var nut = goc.querySelectorAll('.btn, .chip');
     if (goc.matches && goc.matches('.btn, .chip')) uiBDauNut(goc);
     for (var q = 0; q < nut.length; q++) uiBDauNut(nut[q]);
+    uiBQuetChu(goc);
+    uiBChon(goc);
   } catch (e) { }
+}
+
+/* v691 (#614, anh Viet 24/11 "con nhieu emoji cu bi lan"): may quet chi phu o mot bieu tuong
+   va dau nhan .btn/.chip, nen emoji trong nut tron, chip tu ve, nhan, dong canh bao, dong trong
+   van con: quet 134 man bang cong_cu/ui_b/quet_man.cjs ra 206 cho o 58 man. Nay quet MOI chu
+   trong vung app va hop: emoji co trong bang doi chieu thanh bieu tuong cung co chu, cham mau
+   thanh cham. Emoji ngoai bang giu nguyen (cong cu quet bao ra de bo sung bang).
+   KHONG dung toi: o nhap, vung soan, va noi dung hien nguyen van da danh dau [data-giu-emoji]
+   (xem truoc loi chuc, bang chen bieu tuong) hay xem truoc bai dang: do la chu se gui di, se in
+   ra, phai thay dung nhu vay (dac ta ban 4 muc 1). */
+var UIB_RE_KY = /(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*/g;
+/* Codex #614: KHONG doan theo white-space pre. Khung pre dat qua lop CSS (loi chuc .tqlc) thi lot,
+   con hop thoai, ghi chu cung dung pre-line ma la lop ve. Vung can giu thi danh dau ro bang
+   data-giu-emoji ngay trong nguon: xem truoc loi chuc, bang chen bieu tuong, xem truoc bai dang. */
+var UIB_GIU_CHU = 'svg, script, style, textarea, input, [contenteditable], [data-giu-emoji], .bd-phai';
+function uiBTenKy(ky) {
+  var s = ky.replace(/\uFE0F/g, '');
+  if (UIB_EMOJI[s]) return { ten: UIB_EMOJI[s] };
+  if (UIB_CHAM[s]) return { cham: UIB_CHAM[s] };
+  /* Chuoi ghep (ZWJ): lay ky dau, vi du nguoi + do nghe. */
+  var dau = s.split('\u200D')[0];
+  if (dau !== s && UIB_EMOJI[dau]) return { ten: UIB_EMOJI[dau] };
+  return null;
+}
+/* Codex #614 vong 2: nut chi co ky tu hinh (✓, ✕, 📷) lay ky tu do lam ten truy cap. Doi thanh
+   SVG aria-hidden thi nut thanh khong ten voi trinh doc man hinh. Nut nao het chu va chua co ten
+   thi giu ky tu cu lam aria-label (bang ten cu). Nut thuong dung da co ten thao tac dat trong
+   nguon (aria-label "Xoá dòng", "Quét mã"...), lop nay chi la luoi do cho nut moi them sau. */
+function uiBGiuTen(el, chuCu) {
+  var nut = el.closest && el.closest('button, a[href], [role=button], [role=link], summary, .chip, .posc');
+  if (!nut || nut.hasAttribute('aria-label') || nut.hasAttribute('aria-labelledby') || nut.hasAttribute('title')) return;
+  if (/[0-9A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/.test(nut.textContent || '')) return;
+  var ten = String(chuCu || '').trim();
+  if (ten) nut.setAttribute('aria-label', ten);
+}
+/* Codex #614 vong 3: ky tu danh dau (☑ ☐ ⬜, ✅ dung mot minh) la TRANG THAI chon cua dong. Doi
+   thanh SVG aria-hidden thi trinh doc man hinh khong con phan biet dong da tich. Kem chu an
+   "da danh dau"/"chua danh dau" ngay cho ky tu, tru khi phan tu da noi trang thai bang
+   aria-checked/aria-pressed, hoac ky tu chi la trang tri dau nhan cua mot nut co chu. */
+var UIB_TT_KY = { '\u2611': 1, '\u2612': 1, '\u2705': 1, '\u2610': 0, '\u2B1C': 0 };
+function uiBTrangThai(ky, el, mot) {
+  var s = String(ky || '').replace(/\uFE0F/g, '');
+  if (!(s in UIB_TT_KY)) return '';
+  if (s === '\u2705' && !mot) return '';
+  if (el.closest('[aria-checked], [aria-pressed], [role=checkbox], [role=switch]')) return '';
+  var nut = el.closest('button, .btn, .chip, .posc');
+  if (nut && /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/.test((nut.textContent || '').replace(ky, ''))) return '';
+  return UIB_TT_KY[s] ? 'đã đánh dấu' : 'chưa đánh dấu';
+}
+function uiBQuetChu(goc) {
+  if (!goc || !document.createTreeWalker) return;
+  if (goc.nodeType === 1 && goc.closest && goc.closest(UIB_GIU_CHU)) return;
+  var w = document.createTreeWalker(goc, 4 /* NodeFilter.SHOW_TEXT */), ds = [];
+  /* Chi nut chu that (nodeType 3): moi truong khong co TreeWalker that thi dung ngay, khong lap mai. */
+  for (var n = w.nextNode(); n && n.nodeType === 3; n = w.nextNode()) {
+    UIB_RE_KY.lastIndex = 0;
+    if (UIB_RE_KY.test(n.nodeValue)) ds.push(n);
+  }
+  for (var i = 0; i < ds.length; i++) uiBThayChu(ds[i]);
+}
+function uiBThayChu(n) {
+  var cha = n.parentNode;
+  if (!cha || cha.nodeType !== 1 || cha.closest(UIB_GIU_CHU)) return;
+  var t = n.nodeValue, frag = document.createDocumentFragment(), cuoi = 0, doi = 0, m;
+  /* Lua chon trong <select> chi hien chu (trinh duyet bo qua the con): bo emoji, khong chen
+     bieu tuong. Chu cua lua chon tu bo khoang trang dau, nen khong can cat them. */
+  var laOpt = cha.tagName === 'OPTION' || cha.tagName === 'OPTGROUP';
+  UIB_RE_KY.lastIndex = 0;
+  while ((m = UIB_RE_KY.exec(t))) {
+    var k = uiBTenKy(m[0]);
+    if (!k) continue;
+    var truoc = t.slice(cuoi, m.index), sau = m.index + m[0].length;
+    var dauDong = !/\S/.test(truoc) && !(n.previousSibling && /\S/.test(n.previousSibling.textContent || ''));
+    if (dauDong) sau += (/^\s*/.exec(t.slice(sau)) || [''])[0].length;
+    if (truoc) frag.appendChild(document.createTextNode(truoc));
+    if (!laOpt) {
+      var sp = document.createElement('span');
+      if (k.ten) {
+        sp.className = 'uik uichu' + (dauDong ? ' uichu-dau' : '');
+        var tt = uiBTrangThai(m[0], cha, !/\S/.test(t.replace(m[0], '')));
+        sp.innerHTML = uiBSvg(k.ten, 16) + (tt ? '<span class="uisr">' + tt + '</span>' : '');
+      }
+      else { sp.className = 'uicham uicham-' + k.cham + (dauDong ? ' uichu-dau' : ''); }
+      frag.appendChild(sp);
+    }
+    cuoi = sau; doi++;
+  }
+  if (!doi) return;
+  if (cuoi < t.length) frag.appendChild(document.createTextNode(t.slice(cuoi)));
+  cha.replaceChild(frag, n);
+  uiBGiuTen(cha, t);
 }
 function uiBGoiY(o) {
   if (o.getAttribute('data-uib-goi')) return;
@@ -78678,11 +78832,169 @@ function uiBDauNut(b) {
   t.nodeValue = t.nodeValue.slice(m[0].length);
   b.insertBefore(sp, t);
 }
+/* v691 (#614, anh Viet 24/11 "ep nut"): hang flex gom khoi chu va mot nut khong xuong dong.
+   May hep thi nut giu nguyen be rong, khoi chu bi ep thanh cot hep cao 4, 5 dong (the Den bu
+   khach o Khuyen mai). Do THAT bang hinh hoc sau moi lan ve: khoi chu hep hon 45% hang ma cao
+   tu 4 dong, canh no la nut, thi cho nut xuong hang rieng, rong ca hang (nhu nut Chinh uu dai
+   ngay tren), khoi chu lay lai be ngang. Chi doi bo cuc o giao dien moi, khong doi noi dung hay thu tu bam. */
+function uiBEpChu(t, hang) {
+  var rt = t.getBoundingClientRect(), rh = hang.getBoundingClientRect();
+  if (!rt.width || !rh.width || rt.width > rh.width * 0.45) return false;
+  var cs = getComputedStyle(t), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4 || 20;
+  return rt.height >= lh * 3.6;
+}
+function uiBGoEp() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('#vgb button, #vgb .btn, .sh button, .sh .btn');
+  for (var i = 0; i < ds.length; i++) {
+    var b = ds[i], hang = b.parentElement;
+    if (!hang || hang.classList.contains('uib-xuong') || hang.closest('.vh, .vf, .chips')) continue;
+    if (getComputedStyle(hang).display.indexOf('flex') < 0 || getComputedStyle(hang).flexDirection.indexOf('column') === 0) continue;
+    var con = hang.children, ep = null;
+    for (var j = 0; j < con.length; j++) {
+      var c = con[j];
+      if (c === b || c.tagName === 'BUTTON' || c.classList.contains('btn')) continue;
+      if ((c.textContent || '').trim().length > 20 && uiBEpChu(c, hang)) { ep = c; break; }
+    }
+    if (!ep) continue;
+    hang.classList.add('uib-xuong');
+    b.classList.add('uib-xuong-nut');
+  }
+}
+/* v691 (ra doc lap UI51): chan man co nut phu ma nhan dai (Luu va them khach tiep theo) bi gioi han
+   50% nen xuong hai dong. Do THAT: nut nao trong .vf co chu xuong dong thi chan xep doc, moi nut
+   rong ca hang, nhan nam tren mot dong. */
+function uiBVfDoc() {
+  if (!uiB()) return;
+  var vf = document.querySelectorAll('.vf');
+  for (var i = 0; i < vf.length; i++) {
+    if (vf[i].classList.contains('uib-vf-doc')) continue;
+    var nut = vf[i].querySelectorAll('.btn');
+    for (var j = 0; j < nut.length; j++) if (uiBSoDong(nut[j]) > 1) { vf[i].classList.add('uib-vf-doc'); break; }
+  }
+  /* v691 (#614, 22 nhan xuong dong): hang nut .btn ngang khong mang lop .vf (Tai mau Excel, Moi tai
+     khoan moi, Quet ma me...). Cung phep do: mot nut gay hai dong thi ca hang xep doc, nut rong het. */
+  var goc = document.querySelectorAll('#vgb, .sh');
+  for (var g = 0; g < goc.length; g++) {
+    var tat = goc[g].querySelectorAll('.btn');
+    for (var k = 0; k < tat.length; k++) {
+      var cha = tat[k].parentElement;
+      if (!cha || cha.classList.contains('vf') || cha.classList.contains('uib-hang-doc')) continue;
+      var cs = getComputedStyle(cha);
+      /* Hang flex ngang, hoac luoi nhieu cot (Gop chuyen, Xep tuyen, In don, Doi soat COD o Van don). */
+      var luoi = cs.display.indexOf('grid') >= 0 && cs.gridTemplateColumns.split(' ').length > 1;
+      if (!luoi && (cs.display.indexOf('flex') < 0 || cs.flexDirection !== 'row')) continue;
+      if (cha.querySelectorAll(':scope > .btn').length < 2) continue;
+      if (uiBSoDong(tat[k]) > 1) cha.classList.add('uib-hang-doc');
+    }
+  }
+}
+/* v691 (ra doc lap UI66): hai nut .btn xep doc lien nhau khong co khe (Luu nhap, Luu va ghi so luon).
+   Do THAT: nut dung ngay duoi mot nut khac cung cha, khe duoi 8 thi them khe 12. */
+function uiBCachNut() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('#vgb .btn + .btn, .sh .btn + .btn');
+  for (var i = 0; i < ds.length; i++) {
+    var b = ds[i], tr = b.previousElementSibling;
+    if (b.classList.contains('uib-cach')) continue;
+    var a = tr.getBoundingClientRect(), c = b.getBoundingClientRect();
+    if (!a.width || !c.width) continue;
+    var ngang = Math.min(a.right, c.right) - Math.max(a.left, c.left);
+    if (ngang > 20 && c.top >= a.bottom - 1 && c.top - a.bottom < 8) b.classList.add('uib-cach');
+  }
+}
+/* v691 (ra doc lap UI85, UI86, UI87): o chon goc cua trinh duyet (ngan hang, nhom mon, tai khoan sao
+   ke) thanh O CHON CUA APP: mot nut hien lua chon dang co, bam mo hop chon chung (sheet) co o tim tu 8
+   lua chon. Select goc van giu trong trang (an di) de ma cu doc .value, nghe change nhu cu: chon xong
+   thi dat .value va phat change, input. Khong doi o don vi trong dong hang (.uom), o nhieu lua chon,
+   hay o danh dau data-uib-goc. */
+var UIB_CHON = 'select:not([multiple]):not(.uom):not([data-uib-goc])';
+function uiBTenChon(sel) {
+  var t = sel.getAttribute('aria-label') || sel.getAttribute('title') || '';
+  if (!t && sel.id) { var lb = document.querySelector('label[for="' + sel.id + '"]'); if (lb) t = lb.textContent; }
+  if (!t) { var tr = sel.previousElementSibling; if (tr && (tr.tagName === 'LABEL' || /lbl|nhan|label/i.test(tr.className || ''))) t = tr.textContent; }
+  if (!t && sel.closest('label')) t = (sel.closest('label').childNodes[0] || {}).textContent || '';
+  /* Nhan viet bang mot the chu dung ngay tren (div, span, b ngan, khong co nut ben trong). */
+  if (!t) { var tr2 = sel.previousElementSibling; if (tr2 && /^(DIV|SPAN|B|STRONG|P)$/.test(tr2.tagName) && !tr2.querySelector('button,input,select,textarea') && (tr2.textContent || '').trim().length <= 40) t = tr2.textContent; }
+  /* Dong dau kieu "- Chon ngan hang -" la loi nhac: bo gach hai dau, dung lam tieu de. */
+  if (!t && sel.options && sel.options[0] && !sel.options[0].value) t = sel.options[0].text.replace(/^[\s\-\u2013]+|[\s\-\u2013]+$/g, '');
+  return String(t || 'Chọn').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+function uiBVeChon(sel) {
+  var nut = sel.__uibNut; if (!nut) return;
+  var o = sel.options[sel.selectedIndex];
+  var chu = o ? o.text : '';
+  var moi = (chu ? h(chu) : '<span class="uib-chon-trong">Chạm để chọn</span>');
+  if (nut.__uibChu !== moi) { nut.__uibChu = moi; nut.innerHTML = '<span class="uib-chon-chu">' + moi + '</span>' + uiBSvg('chevron-down', 18); }
+  /* Codex #614 P2 vong 2: select goc da an khoi cay truy cap, nen ten truy cap cua nut phai mang ca
+     nhan truong lan gia tri dang chon, va doi theo moi lan ve lai (chon xong, ma cu dat value). */
+  var ten = uiBTenChon(sel) + ': ' + (chu || 'chưa chọn');
+  if (nut.getAttribute('aria-label') !== ten) nut.setAttribute('aria-label', ten);
+  nut.disabled = !!sel.disabled;
+}
+function uiBChon(goc) {
+  if (!uiB() || !goc || !goc.querySelectorAll) return;
+  var ds = Array.prototype.slice.call(goc.querySelectorAll(UIB_CHON));
+  if (goc.matches && goc.matches(UIB_CHON)) ds.push(goc);
+  ds.forEach(function (sel) {
+    if (sel.__uibNut || !sel.closest('#vgb, .sh') || !sel.parentNode) return;
+    var nut = document.createElement('button');
+    nut.type = 'button'; nut.className = 'uib-chon';
+    nut.setAttribute('aria-haspopup', 'listbox');
+    sel.__uibNut = nut; sel.classList.add('uib-chon-goc'); sel.setAttribute('tabindex', '-1'); sel.setAttribute('aria-hidden', 'true');
+    sel.parentNode.insertBefore(nut, sel.nextSibling);
+    uiBVeChon(sel);
+    sel.addEventListener('change', function () { uiBVeChon(sel); });
+    nut.onclick = function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var items = Array.prototype.filter.call(sel.options, function (o) { return !o.hidden; }).map(function (o) { return { label: o.text, value: o.value, tat: o.disabled }; });
+      items = items.filter(function (it) { return !it.tat; });
+      sheet(uiBTenChon(sel), items, sel.value, function (it) {
+        if (sel.value === it.value) { try { nut.focus(); } catch (e3) { } return; }
+        sel.value = it.value;
+        sel.dispatchEvent(new Event('input', { bubbles: true }));
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        uiBVeChon(sel);
+        try { nut.focus(); } catch (e2) { }
+      }, items.length >= 8);
+      /* Codex #614 P2: mo bang ban phim thi dua tieu diem vao dong dang chon (hoac dong dau) cua hop vua mo. */
+      var hop = document.querySelectorAll('.sh'), cuoi = hop[hop.length - 1];
+      var dong = cuoi && (cuoi.querySelector('.shi.on') || cuoi.querySelector('.shi'));
+      if (dong) try { dong.focus(); } catch (e4) { }
+    };
+  });
+}
+/* v691 (ra doc lap UI67-UI82): chu duoi 13 diem. Style viet thang da len 13 bang CSS theo gia tri;
+   phan con lai la luat CSS theo lop cua giao dien cu (.fld .fl, .cdl-nhan, .bdg...). Do THAT sau moi
+   lan ve: phan tu co chu ma co chu tinh ra tu 9.5 toi duoi 13 thi them lop uib-c13 (13 diem). Duoi 9.5
+   la ky hieu trang tri, khong dong. Chi trong #vgb va hop, nen mau in (cua so in rieng) khong doi. */
+function uiBCoChu() {
+  if (!uiB() || !document.createTreeWalker) return;
+  var goc = document.querySelectorAll('#vgb, .sh');
+  for (var g = 0; g < goc.length; g++) {
+    var w = document.createTreeWalker(goc[g], 4), da = [];
+    for (var n = w.nextNode(); n && n.nodeType === 3; n = w.nextNode()) {
+      var cha = n.parentElement;
+      if (!cha || cha.__uib13 || !/\S/.test(n.nodeValue)) continue;
+      cha.__uib13 = 1;
+      if (cha.closest('svg, .uisr, [data-uib-nho]')) continue;
+      var co = parseFloat(getComputedStyle(cha).fontSize);
+      if (co >= 9.5 && co < 12.95) da.push(cha);
+    }
+    for (var i = 0; i < da.length; i++) da[i].classList.add('uib-c13');
+  }
+}
+/* Ma cu co the dat sel.value bang tay (khong phat change): sau moi lan ve, dong bo chu tren nut. */
+function uiBDongBoChon() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('select.uib-chon-goc');
+  for (var i = 0; i < ds.length; i++) uiBVeChon(ds[i]);
+}
 var UIB_HEN_SO = 0;
 function uiBHenVuaSo() {
   if (UIB_HEN_SO) return;
   UIB_HEN_SO = 1;
-  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } };
+  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } try { uiBGoEp(); } catch (e) { } try { uiBVfDoc(); } catch (e) { } try { uiBCachNut(); } catch (e) { } try { uiBDongBoChon(); } catch (e) { } try { uiBCoChu(); } catch (e) { } };
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(f); else setTimeout(f, 16);
 }
 
@@ -78863,6 +79175,16 @@ function uiBCss() {
     'html.ui-b .hub:active,html.ui-b .hub.chon{background:rgba(255,255,255,.6)}' +
     'html.ui-b .hub .hi,html.ui-b .li .hi{width:var(--ui-disc);height:var(--ui-disc);flex:0 0 var(--ui-disc);border-radius:var(--ui-r-16);' +
     'color:var(--ui-ink);background:radial-gradient(120% 120% at 25% 20%,#fff 0,rgba(var(--ui-nhom-rgb),.85) 78%)}' +
+    /* #613: một khuôn cho giá trị dài + nút/chip. Flex wrap dựa trên bề rộng
+       thực của thẻ, dùng được cả hộp thoại và khi phóng chữ, không đoán thiết bị. */
+    'html.ui-b .ui-dong-chon{display:flex;flex-wrap:wrap;align-items:center;gap:8px;word-break:normal;overflow-wrap:anywhere}' +
+    'html.ui-b .ui-dong-chon-noi-dung{flex:1 1 240px;min-width:0;max-width:100%}' +
+    'html.ui-b .ui-dong-chon-thao-tac{display:flex;flex:0 1 auto;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%;min-width:0;margin-left:auto}' +
+    'html.ui-b .ui-dong-chon .cdl-lnk{flex:0 1 auto;min-width:44px;min-height:44px;max-width:100%;word-break:normal;overflow-wrap:anywhere;white-space:normal;font-size:15px;padding:8px}' +
+    'html.ui-b .ui-dong-chon .cdl-chip{max-width:100%;min-width:0;white-space:normal}' +
+    'html.ui-b .ui-dong-chon>.cdl-lnk{margin-left:auto}' +
+    'html.ui-b .ui-dong-chon>b{min-width:0;flex:1 1 240px!important;overflow-wrap:anywhere}' +
+    'html.ui-b .ui-dong-chon>.ui-dong-chon-trang-thai{flex:0 1 auto;max-width:100%;white-space:normal!important}' +
     'html.ui-b .hub .h1{font-size:15px;font-weight:600;color:var(--ui-ink);margin-bottom:4px;overflow-wrap:anywhere}' +
     'html.ui-b .hub .h2{font-size:13px;color:var(--ui-text-3);line-height:1.4;overflow-wrap:anywhere}' +
     'html.ui-b .hub .fc{color:var(--ui-text-3)!important}' +
@@ -79039,6 +79361,71 @@ function uiBCss() {
     'html.ui-b .sh .x:focus-visible,html.ui-b #tlDong:focus-visible,html.ui-b .btn:focus-visible,html.ui-b .chip:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}' +
     'html.ui-b .shb:focus{outline:0}' +
     'html.ui-b .uidau{margin-right:8px;vertical-align:-4px}' +
+    /* v691: bieu tuong thay emoji giua chu theo co chu cua dong (1.15em), dau dong co khoang cach. */
+    /* v691: vung bam 44 cho chip va o nhap o MOI man (quet 134 man: 354 chip, o cao 34 den 37). */
+    'html.ui-b .posc{min-height:var(--ui-tap)}' +
+    /* v691 (ra doc lap UI90-UI98): chip, nut, o chon con mau cu viet thang trong style (xanh co vit,
+       hoac, tim). Doi ve bo mau ui-b THEO LOAI, khong vá tung man: nen dam cu thanh nen muc, chu trang;
+       nen nhat thanh nen sang co vien muc; chi chu, vien cu thanh muc. Mau hoac (canh bao) thanh mau cho. */
+    'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#0d9488"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #0d9488"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#0f766e"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #0f766e"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#115e59"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #115e59"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#14b8a6"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #14b8a6"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#7c3aed"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #7c3aed"]{background:var(--ui-ink)!important;border-color:var(--ui-ink)!important;color:#fff!important}' +
+    'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#ccfbf1"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #ccfbf1"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#f0fdfa"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#ecfdf5"]{background:var(--ui-header-tint)!important;border-color:var(--ui-ink)!important;color:var(--ui-ink)!important}' +
+    'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#0d9488"]:not([style*="background:#0d9488"]):not([style*="background: #0d9488"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#0f766e"]:not([style*="background:#0f766e"]):not([style*="background: #0f766e"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#115e59"]:not([style*="background:#115e59"]):not([style*="background: #115e59"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#14b8a6"]:not([style*="background:#14b8a6"]):not([style*="background: #14b8a6"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#7c3aed"]:not([style*="background:#7c3aed"]):not([style*="background: #7c3aed"]){border-color:var(--ui-line)!important;color:var(--ui-ink)!important}' +
+    'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#b45309"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#92400e"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#78350f"]{color:var(--ui-cho)!important;border-color:var(--ui-line)!important;background:var(--ui-glass-solid)!important}' +
+    /* posChipNut, locHang: lop chung (posc, posc-on), dang chon la nen muc nhu .chip.on. */
+    'html.ui-b .posc{background:var(--ui-glass-solid)!important;border-color:var(--ui-line)!important;color:var(--ui-ink)!important;font-size:var(--ui-fs-15)!important;padding:0 16px!important}' +
+    'html.ui-b .posc.posc-on{background:var(--ui-ink)!important;border-color:var(--ui-ink)!important;color:#fff!important}' +
+    'html.ui-b .posc.posc-xoa{color:var(--ui-loi)!important}' +
+    /* v691 (VD-CHIP, Codex 614): ba hang chip loc cua Van don moi hang mot chip thi xep chung mot hang
+       ngat dong; hang nhieu chip van rieng mot hang cuon ngang. */
+    'html.ui-b :has(> .lochang){flex-direction:row!important;flex-wrap:wrap!important;align-items:center}' +
+    'html.ui-b :has(> .lochang) > *{flex:1 1 100%;min-width:0}' +
+    'html.ui-b :has(> .lochang) > .lochang:not(:has(> :nth-child(2))){display:contents}' +
+    /* v691 (UI62): cong tac 48x30 cua Cai dat loi: vien trong suot 7 diem quanh nut cho vung bam 62x44,
+       hinh cong tac giu nguyen (num tinh theo vung trong vien). Khong phu lop vo hinh. */
+    'html.ui-b .cdl-tg{box-sizing:content-box!important;border:7px solid transparent!important;background-clip:padding-box!important}' +
+    /* v691 (UI51): chan man xep doc khi nhan nut phu dai (do that o uiBVfDoc). */
+    'html.ui-b .vf.uib-vf-doc{flex-direction:column!important;align-items:stretch!important}' +
+    'html.ui-b .vf.uib-vf-doc>.btn{flex:0 0 auto!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important}' +
+    'html.ui-b .vf.uib-vf-doc>.btn+.btn{margin-top:8px!important}' +
+    'html.ui-b .uib-hang-doc{flex-direction:column!important;align-items:stretch!important;flex-wrap:nowrap!important;grid-template-columns:1fr!important}' +
+    'html.ui-b .uib-hang-doc>.btn{flex:0 0 auto!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important}' +
+    'html.ui-b .uib-hang-doc>.btn+.btn{margin-top:8px!important}' +
+    /* v691 (#614): nút có min-height viết thẳng dưới 44 (tab Biên tập menu 42) lên 44. */
+    'html.ui-b :is(#vgb,.sh) button:is([style*="min-height:36px"],[style*="min-height:38px"],[style*="min-height:40px"],[style*="min-height:42px"]){min-height:var(--ui-tap)!important}' +
+    /* Ô tích trong nhãn: bấm cả nhãn là tích, nhãn cao tối thiểu 44. */
+    'html.ui-b :is(#vgb,.sh) label:has(>input:is([type=checkbox],[type=radio])){min-height:var(--ui-tap)}' +
+    /* Ba ô tóm tắt Tuyển dụng: ba cột 105 điểm làm gãy nhãn; giao diện mới xếp một cột, số bên phải. */
+    'html.ui-b [data-tdtom]{grid-template-columns:1fr!important}' +
+    'html.ui-b [data-tdtom]>.btn{display:grid!important;grid-template-columns:1fr auto;align-items:center;column-gap:12px}' +
+    'html.ui-b [data-tdtom]>.btn>div:nth-child(2){grid-column:2;grid-row:1/span 2}' +
+    /* v691 (UI66): hai nut xep doc sat nhau thi co khe (do that o uiBCachNut). */
+    'html.ui-b .btn.uib-cach{margin-top:12px!important}' +
+    'html.ui-b .uib-c13{font-size:var(--ui-fs-13)!important}' +
+    /* v691 (rà độc lập, gãy một chữ lẻ cuối dòng): ngắt dòng cân hơn ở mọi chữ của app. */
+    'html.ui-b #vgb,html.ui-b .sh{text-wrap:pretty}' +
+    /* v691 (UI65, UI53, UI54, UI60): moi nut trong hop chon va man con thap hon 44 (nut Xong, chip nhom,
+       nut quet 38x38, Phan nang cao) dat toi thieu 44. */
+    'html.ui-b :is(#vgb,.sh) button:not(.cdl-tg):not(.uib-chon){min-height:var(--ui-tap)}' +
+    'html.ui-b :is(#vgb,.sh) button:not(.cdl-tg):not(.uib-chon):not(.btn){min-width:var(--ui-tap)}' +
+    /* v691 (UI85-87): o chon cua app thay o chon goc. */
+    'html.ui-b select.uib-chon-goc{display:none!important}' +
+    'html.ui-b .uib-chon{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:var(--ui-tap);box-sizing:border-box;' +
+    'padding:12px 16px;border:1px solid var(--ui-line);border-radius:var(--ui-r-14);background:var(--ui-glass-solid);color:var(--ui-ink);font:inherit;font-size:var(--ui-fs-15);text-align:left;cursor:pointer}' +
+    'html.ui-b .uib-chon:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}' +
+    'html.ui-b .uib-chon[disabled]{opacity:.55;cursor:default}' +
+    'html.ui-b .uib-chon-chu{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    'html.ui-b .uib-chon-trong{color:var(--ui-huy)}' +
+    'html.ui-b .uib-chon svg{flex:none;width:18px;height:18px}' +
+    /* v691 (ra doc lap UI67-UI82): chu duoi 13 diem viet thang trong style (10 toi 12.5) len 13, theo loai. */
+    'html.ui-b :is(#vgb,.sh) [style*="font-size:10px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 10px"],html.ui-b :is(#vgb,.sh) [style*="font-size:10.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 10.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size:11px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 11px"],html.ui-b :is(#vgb,.sh) [style*="font-size:11.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 11.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size:12px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 12px"],html.ui-b :is(#vgb,.sh) [style*="font-size:12.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 12.5px"]{font-size:var(--ui-fs-13)!important}' +
+    'html.ui-b .uib-xuong{flex-wrap:wrap!important;row-gap:12px}html.ui-b .uib-xuong>.uib-xuong-nut{flex:1 1 100%!important;max-width:100%;margin-left:0!important;margin-right:0!important}' +
+    'html.ui-b .chip{min-height:var(--ui-tap);display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}' +
+    'html.ui-b #vgb input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),html.ui-b #vgb select,' +
+    'html.ui-b .sh input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),html.ui-b .sh select,html.ui-b #vgb textarea,html.ui-b .sh textarea{min-height:var(--ui-tap);box-sizing:border-box}' +
+    'html.ui-b #vgb input[type=checkbox],html.ui-b #vgb input[type=radio],html.ui-b .sh input[type=checkbox],html.ui-b .sh input[type=radio]{width:22px;height:22px;accent-color:var(--ui-robin)}' +
+    'html.ui-b .uisr{position:absolute;width:1px;height:1px;padding:0;margin:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}' +
+    'html.ui-b .uichu{vertical-align:-0.18em}html.ui-b .uichu svg{width:1.15em;height:1.15em}' +
+    'html.ui-b .uichu-dau{margin-right:0.4em}html.ui-b .uicham.uichu-dau{vertical-align:0}' +
     /* Codex #604: bieu tuong lop ve chen vao nut, o, chip KHONG nhan cu bam. 43 ham bam kiem
        thang e.target (vi du e.target.hasAttribute("data-y")); truoc day emoji la nut chu nen
        dich van la phan tu cha. Bieu tuong khong nhan cu bam thi dich giu nguyen nhu cu. */

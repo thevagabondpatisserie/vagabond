@@ -517,3 +517,125 @@ def _():
 	la("nạp trước load, bật: màu vỏ giữ màu mới", _nap_app("loading")["mau_vo"].upper(), G.MAU_VO_APP.upper())
 	la("HTML lệch phiên bản: gỡ giao diện mới thì vỏ về màu cũ", _nap_app("complete", "lech")["mau_vo"].upper(), "#50DBF2")
 
+
+
+@ca("ui-b v691 (#614): máy quét chữ tra đúng biểu tượng cho emoji có và không có U+FE0F, chấm màu, chuỗi ghép; emoji ngoài bảng giữ nguyên; bắt cả mũi tên tam giác")
+def _ui_b_tra_ky_v691():
+	"""Phần thuần của uiBQuetChu (81-ui-b.js): uiBTenKy và UIB_RE_KY. Phần chạm DOM (thay nút chữ,
+	chừa vùng giữ nguyên, gỡ ép nút) kiểm bằng kịch bản chu-lan-emoji của cong_cu/ui_b/chup.cjs
+	trong trình duyệt thật, vì DOM giả không có TreeWalker và không đo hình học."""
+	kich = (
+		"const vm=require('vm'),fs=require('fs');const g={window:{},document:{},navigator:{}};vm.createContext(g);"
+		"vm.runInContext(fs.readFileSync(process.argv[1],'utf8'),g);"
+		"const t=k=>vm.runInContext('uiBTenKy('+JSON.stringify(k)+')',g);"
+		"const re=vm.runInContext('UIB_RE_KY',g);"
+		"process.stdout.write(JSON.stringify({a:t('⚠️'),b:t('⚠'),c:t('\U0001f7e2'),d:t('\U0001f9d1‍\U0001f4bc'),e:t('\U0001f9a9'),f:t('◀'),"
+		"m:('◀ x ⚠️ y \U0001f9d1‍\U0001f4bc z').match(re)}))"
+	)
+	r = subprocess.run(["node", "-e", kich, os.path.join(BEP, "81-ui-b.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("có U+FE0F và không có ra cùng biểu tượng", k["a"], k["b"])
+	la("emoji cảnh báo có biểu tượng", bool(k["a"] and k["a"].get("ten")), True)
+	la("chấm xanh thành chấm trạng thái xong", k["c"], {"cham": "xong"})
+	la("chuỗi ghép lấy ký tự đầu", bool(k["d"] and k["d"].get("ten")), True)
+	la("emoji ngoài bảng đối chiếu thì không đổi", k["e"], None)
+	la("mũi tên tam giác có biểu tượng", bool(k["f"] and k["f"].get("ten")), True)
+	la("biểu thức bắt trọn ba ký tự, kể cả chuỗi ghép", k["m"], ["◀", "⚠️", "\U0001f9d1‍\U0001f4bc"])
+
+
+@ca("ui-b v691 (Codex #614): xem trước lời chúc (pre-wrap qua lớp CSS) và bảng chèn biểu tượng của Bài đăng nằm trong vùng [data-giu-emoji], chạy hàm thật")
+def _ui_b_giu_emoji_v691():
+	"""Vùng nội dung sẽ in ra (lời chúc trên thiệp) hay sẽ chèn vào bài (bảng chèn, có cả ❤️ và 🤍
+	cùng ra một hình tim nếu đổi) phải giữ nguyên emoji ở giao diện mới. Máy quét chữ 81-ui-b.js
+	chỉ chừa vùng đánh dấu rõ, không đoán theo white-space. Chạy tqVeForm và bdSheetBieuTuong thật
+	trong node (hanh_vi/ui_b_giu_emoji_v691.js), soi HTML ra."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "ui_b_giu_emoji_v691.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("có khung xem trước lời chúc", k["loi_chuc"]["co_khung"], True)
+	la("lời chúc có emoji để soi", k["loi_chuc"]["tong"] > 0, True)
+	la("emoji của lời chúc ngoài vùng giữ", k["loi_chuc"]["ngoai"], 0)
+	la("bảng chèn có đủ hai tim", k["bang_chen"]["co_tim"], True)
+	la("emoji của bảng chèn ngoài vùng giữ", k["bang_chen"]["ngoai"], 0)
+
+
+@ca("ui-b v691 (Codex #614 P2 vòng 2): nút thay ô chọn có tên truy cập gồm nhãn trường và giá trị đang chọn, đổi theo mỗi lần chọn; chạy uiBTenChon, uiBVeChon thật")
+def _ui_b_nut_chon_ten_v691():
+	"""Bẫy Codex chỉ: aria-label chỉ có nhãn trường (Phạm vi) và đặt một lần, select gốc đã ẩn khỏi
+	cây truy cập, nên trình đọc màn hình không đọc được đang chọn gì (hanh_vi/nut_chon_ten_614.js)."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "nut_chon_ten_614.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("tên truy cập theo giá trị: lúc đầu, sau khi chọn, khi trống", [k["dau"], k["sau_chon"], k["trong"]],
+		["Phạm vi: Một ngày", "Phạm vi: Khoảng ngày", "Phạm vi: chưa chọn"])
+
+
+@ca("ui-b v691 (Codex #614 P2): hộp chọn thay ô chọn hệ điều hành dùng được bằng bàn phím: Enter, Space chọn dòng, mũi tên đi giữa các dòng; chạy sheet() và hopPhim() thật")
+def _ui_b_hop_chon_phim_v691():
+	"""Bẫy Codex chỉ: dòng .shi không có tabindex, data-phim nên hopPhim không bấm hộ; select gốc
+	đã ẩn nên người dùng bàn phím mở được hộp mà không đổi được giá trị (hanh_vi/hop_chon_phim_614.js)."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "hop_chon_phim_614.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	for p in ("enter", "space"):
+		la(p + ": mọi dòng vào được bằng Tab, vai option", [k[p]["tabindex"], k[p]["role"]], [["0"] * 3, ["option"] * 3])
+		la(p + ": chọn đúng dòng Tân Bình, hộp đóng, chặn phím mặc định", [k[p]["chon"], k[p]["con_hop"], k[p]["chan"]], [["TB"], 0, 1])
+	la("mũi tên xuống tới dòng cuối thì dừng, lên về dòng trước", k["mui_ten"], [2, 2, 1])
+
+
+@ca("ui-b v691 (#614 rà độc lập UI83, UI84, UI88, UI89): mã nhóm Zalo gập, ô bot hiện tên bot, nhãn Chức danh riêng, đơn vị đ; giao diện cũ giữ nguyên, chạy hàm thật")
+def _ui_b_ra_doc_lap_v691():
+	"""Chạy cdlVeDong, tqVeForm, scrLichChi thật trong node ở hai chế độ (hanh_vi/ui_b_ra_doc_lap_v691.js).
+	Bẫy đã gặp: mã nhóm 64 ký tự trải dài màn, ô bot hiện số trơn "1" mà người dùng không biết là gì,
+	nhãn tiếng Anh, ô tiền không đơn vị. Giao diện cũ phải giữ nguyên dòng mã và số bot."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "ui_b_ra_doc_lap_v691.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("giao diện mới gập mã đầy đủ trong Xem mã đầy đủ", k["ma_nhom"]["moi_gap"], True)
+	la("giao diện mới không còn mã dài ngoài khối gập", k["ma_nhom"]["moi_ngoai_details"], False)
+	la("giao diện cũ giữ dòng mã, không thêm khối gập", [k["ma_nhom"]["cu_hien_ma"], k["ma_nhom"]["cu_co_details"]], [True, False])
+	la("ô bot giao diện mới hiện tên", [k["bot"]["moi_1"], k["bot"]["moi_trong"], k["bot"]["moi_3"]], ["Bot chính (số 1)", "Máy tự chọn khi lưu", "Bot kho (số 3)"])
+	la("ô bot giao diện cũ giữ số", k["bot"]["cu_1"], "1")
+	la("nhãn Chức danh riêng, ô vẫn ghi trường cũ", k["chuc_danh"], {"moi": True, "cu": False, "truong": True})
+	la("ô số tiền lịch chi có đơn vị đ", k["don_vi"], {"co": True, "o_tien": True})
+
+
+@ca("ui-b v691 (Codex #614 vòng 2): nút chỉ có ký tự hình (✓, ✕, 📷, 🔍, 🗑) trong nguồn đều có tên thao tác aria-label hay title")
+def _ui_b_nut_chi_ky_tu_co_ten():
+	"""Giao diện mới đổi ký tự hình thành SVG aria-hidden, nên nút chỉ có ký tự mà không có tên thì
+	thành nút không tên với trình đọc màn hình. Lớp vẽ có lưới đỡ (uiBGiuTen giữ ký tự cũ làm tên,
+	kiểm ở kịch bản chu-lan-emoji), nhưng tên đúng là tên THAO TÁC, đặt ngay trong nguồn."""
+	the = re.compile(r"<(button|a)\b([^>]*)>\s*((?:&#\d+;|[\U0001F000-\U0001FAFF←-⇿⌀-⏿■-◿☀-➿⬀-⯿️‍]|\s)+)\s*</\1>")
+	thieu = []
+	for ten in sorted(os.listdir(BEP)):
+		if not ten.endswith(".js") or ten.startswith("81-ui-b"):
+			continue
+		# Khung cũ (01) giữ nguyên từng byte (ca "ui-b về cũ"); giao diện mới vẽ nút Quay lại riêng có tên.
+		bo = ('id="vgbBack"',)
+		for i, dong in enumerate(_doc(BEP, ten).split("\n"), 1):
+			for m in the.finditer(dong):
+				if "aria-label" not in m.group(2) and "title=" not in m.group(2) and not any(b in m.group(2) for b in bo):
+					thieu.append("%s:%d %s" % (ten, i, m.group(0)[:60]))
+	la("nút chỉ có ký tự hình mà thiếu tên", thieu, [])
+
+
+@ca("ui-b v691 (rà độc lập UI18, UI19): mọi emoji trong nguồn lớp vẽ, kể cả danh mục Zalo chung cai_dat_loi_chung.js, đều có biểu tượng hay chấm trong bảng đối chiếu")
+def _ui_b_bang_phu_moi_emoji():
+	"""Máy quét chữ chỉ đổi emoji có trong bảng (bieu_tuong_nguon.py); emoji ngoài bảng giữ nguyên nên
+	lọt ra màn. Bản 690 thiếu 🚨 🚀 🛠 của danh mục loại tin, chủ đề Zalo (nạp riêng, ngoài bep/)."""
+	import importlib.util
+	duong = os.path.join(GOI, "..", "cong_cu", "ui_b", "bieu_tuong_nguon.py")
+	spec = importlib.util.spec_from_file_location("bieu_tuong_nguon_thu", duong)
+	N = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(N)
+	co = set(k.replace("️", "") for k in list(N.GOC) + list(N.DE_XUAT) + list(N.CHAM))
+	ky = re.compile("[\U0001F000-\U0001FAFF←-⇿⌀-⏿■-◿☀-➿⬀-⯿]")
+	tep = [os.path.join(BEP, t) for t in sorted(os.listdir(BEP)) if t.endswith(".js") and not t.startswith("81-ui-b")]
+	tep.append(os.path.join(GOI, "public", "js", "cai_dat_loi_chung.js"))
+	thieu = {}
+	for t in tep:
+		for m in ky.findall(open(t, encoding="utf-8").read()):
+			if m not in co:
+				thieu[m] = os.path.basename(t)
+	la("emoji chưa có biểu tượng", thieu, {})

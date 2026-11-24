@@ -152,7 +152,9 @@ function doTrongTrang(thamSo) {
     if (lopTren && !lopTren.contains(n)) return;
     /* Màn chưa chuyển: chỉ chấm phần khung đã chuyển, tức đầu trang. */
     if (chiDau && !n.closest('.vh')) return;
-    var rc = n.getBoundingClientRect();
+    /* Ô tích nằm trong nhãn: bấm cả nhãn đều tích, nên vùng bấm là hộp của nhãn. */
+    var vung = (n.type === 'checkbox' || n.type === 'radio') && n.closest('label') ? n.closest('label') : n;
+    var rc = vung.getBoundingClientRect();
     if (rc.height < 43.5 || rc.width < 43.5) r.nhoNut.push(nhan(n) + ' ' + Math.round(rc.width) + 'x' + Math.round(rc.height));
     if (rc.top >= 0 && rc.bottom <= window.innerHeight && rc.left >= 0 && rc.right <= window.innerWidth) {
       var e = document.elementFromPoint(rc.left + rc.width / 2, rc.top + rc.height / 2);
@@ -195,7 +197,10 @@ function doTrongTrang(thamSo) {
     var khoaPhong = ho + '|' + cs.fontWeight;
     if (!daGhiPhong[khoaPhong]) { daGhiPhong[khoaPhong] = 1; r.phongDung.push({ ho: ho, dam: cs.fontWeight }); }
     /* Codex UI04: soi emoji ở MỌI chữ của app và hộp đang mở, không chỉ nút và tiêu đề. */
-    if (/[\u{1F000}-\u{1FAFF}☀-➿]/u.test(chu) && cha.closest('#vgb, .sh, #tlKhung, .vf')) r.emoji.push(chu.slice(0, 28));
+    /* v691: chữ sẽ gửi đi hoặc người dùng tự viết (ô soạn, [data-giu-emoji], xem trước bài đăng) phải
+       giữ nguyên emoji (đặc tả bản 4 mục 1), cùng danh sách UIB_GIU_CHU của 81-ui-b.js. */
+    if (/[\u{1F000}-\u{1FAFF}☀-➿]/u.test(chu) && cha.closest('#vgb, .sh, #tlKhung, .vf') &&
+      !cha.closest('textarea, [contenteditable], [data-giu-emoji], .bd-phai')) r.emoji.push(chu.slice(0, 28));
     /* Codex UI07: chữ bị cắt TRONG thẻ dù cả trang không cuộn ngang. Tìm lớp cha gần nhất có
        cắt tràn (hidden hoặc clip, không tính lớp cuộn được), không có thì lấy khung màn. */
     if (!lopTren || lopTren.contains(cha)) {
@@ -372,4 +377,6 @@ async function chay() {
     bang.filter(function (b) { return b.ket_qua === 'Chưa chuyển'; }).length + ' Chưa chuyển.');
   process.exit(truot ? 1 : 0);
 }
-chay().catch(function (e) { console.error(e); process.exit(1); });
+/* Công cụ khác (quet_man.cjs) dùng lại cách mở trang và phép đo, không chạy bộ chụp. */
+if (require.main === module) chay().catch(function (e) { console.error(e); process.exit(1); });
+module.exports = { moTrang: moTrang, doTrongTrang: doTrongTrang, ORIGIN: ORIGIN };

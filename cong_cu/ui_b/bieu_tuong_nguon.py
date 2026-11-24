@@ -63,6 +63,8 @@ DE_XUAT = {
 	"🥭": "apple", "🍫": "cookie", "🎄": "tree-pine", "🔥": "flame", "❤": "heart", "🤍": "heart",
 	"👉": "arrow-right", "◦": "circle", "✧": "sparkle", "➤": "arrow-right", "✿": "flower",
 	"❀": "flower", "↗": "arrow-up-right",
+	# v691 (#614, UI18, UI19): danh mục Zalo chung cai_dat_loi_chung.js.
+	"🚨": "circle-alert", "🚀": "megaphone", "🛠": "wrench"
 }
 
 # Chấm màu trạng thái: vẽ thành chấm tròn tô màu trạng thái của bộ chuẩn.

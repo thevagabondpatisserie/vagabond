@@ -257,7 +257,7 @@ function scrTiecXuat() {
       ? '<div class="lst hd-bang">' + d.dong.map(function (m, i) {
         return '<div class="card hd-dong hd-form" data-i="' + i + '">' +
           '<div class="hd-so">' + h(m.ten || m.ma) +
-          '<button class="hd-xoa" data-xoa>✕</button></div>' +
+          '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
           '<div class="l2" style="margin-bottom:8px">' + h(m.ma) +
           ' · tồn ' + num(m.ton) + ' ' + h(m.dvt) + '</div>' +
           '<div class="row2">' +

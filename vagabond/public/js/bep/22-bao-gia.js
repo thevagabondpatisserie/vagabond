@@ -1437,7 +1437,7 @@ async function scrBgSua(name) {
        Thong tu 86/2024 va co bo nho dem bay ngay. */
     '<div style="display:flex;flex-direction:row;gap:6px">' +
     oi('ma_so_thue', 'Mã số thuế khách, gõ xong máy tự điền tên', d.ma_so_thue) +
-    '<button class="btn gh" data-t="tramst" style="flex:none;width:46px;height:44px;margin:0;padding:0;font-size:17px">🔍</button></div>' +
+    '<button class="btn gh" data-t="tramst" aria-label="Tra mã số thuế" style="flex:none;width:46px;height:44px;margin:0;padding:0;font-size:17px">🔍</button></div>' +
     (d._mst_bao ? '<div ' + BGNHAN + '>' + h(d._mst_bao) + '</div>' : '') +
     '<textarea ' + BGTA + ' id="bgf_dia_chi" rows="2" placeholder="Địa chỉ khách">' + h(d.dia_chi) + '</textarea>' +
     '</div>';
@@ -1466,7 +1466,7 @@ async function scrBgSua(name) {
       '<div data-anh="' + i + '" style="cursor:pointer">' + bgAnhO(x.hinh, 46) + '</div>' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dg_' + i + '_ten_mon', x.ten_mon, 'Tên sản phẩm') +
-      '<button data-xoa="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;font-size:16px;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá dòng" data-xoa="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;font-size:16px;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dg_' + i + '_ten_en', x.ten_en, 'Name in English') + '</div>' : '') +
       '<div style="display:flex;flex-direction:row;gap:6px;flex-wrap:wrap;align-items:center">' +
       '<span style="font-size:12px;color:#8a8f9c">SL</span>' + bgOSo('dg_' + i + '_so_luong', x.so_luong, 62) +
@@ -1543,7 +1543,7 @@ async function scrBgSua(name) {
   d.dich_vu.forEach(function (x, i) {
     html += '<div style="border:1.5px solid #eef0f4;border-radius:12px;padding:8px;margin-bottom:7px;display:grid;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_ten_vi', x.ten_vi, 'Hạng mục') +
-      '<button data-xdv="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá hạng mục" data-xdv="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_ten_en', x.ten_en, 'Description in English') + '</div>' : '') +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_gia_vi', x.gia_vi, 'Đơn giá, vd Miễn phí') + (d.song_ngu ? bgOChu('dv_' + i + '_gia_en', x.gia_en, 'vd Free of charge') : '') + '</div></div>';
   });
@@ -1554,7 +1554,7 @@ async function scrBgSua(name) {
   d.moc.forEach(function (x, i) {
     html += '<div style="border:1.5px solid #eef0f4;border-radius:12px;padding:8px;margin-bottom:7px;display:grid;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('mc_' + i + '_moc_vi', x.moc_vi, 'Mốc thời gian') +
-      '<button data-xmc="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá mốc" data-xmc="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? bgOChu('mc_' + i + '_moc_en', x.moc_en, 'Timeline in English') : '') +
       '<textarea ' + BGTA + ' id="mc_' + i + '_noi_dung_vi" rows="2" placeholder="Nội dung">' + h(x.noi_dung_vi) + '</textarea>' +
       (d.song_ngu ? '<textarea ' + BGTA + ' id="mc_' + i + '_noi_dung_en" rows="2" placeholder="Action in English">' + h(x.noi_dung_en) + '</textarea>' : '') +
