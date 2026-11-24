@@ -909,6 +909,13 @@ function cdlVeDong(fnBang, i, nhap) {
   };
 }
 
+/* v691 (Codex #614): bảng vẽ lại sau mỗi lần tích, dòng cũ mất đi. Đưa focus về đúng dòng vừa
+   đổi để người dùng bàn phím, trình đọc màn hình không bị ném về đầu trang. */
+function cdlGiuFocus(box, thuoc, ma) {
+  var ds = box.querySelectorAll('[' + thuoc + ']');
+  for (var i = 0; i < ds.length; i++) if (ds[i].getAttribute(thuoc) === ma) { try { ds[i].focus(); } catch (e) { } return; }
+}
+
 /* Hộp chọn loại tin, chủ đề: mỗi lựa chọn có tên, biểu tượng và một dòng giải
    thích (cùng nguồn với Desk). Không tích gì là nhận tất cả. */
 function cdlChonZalo(cot, nhap, xong) {
@@ -921,8 +928,9 @@ function cdlChonZalo(cot, nhap, xong) {
       '<div class="cdl-mo" style="padding:6px 14px">Không tích ô nào là nhóm nhận <b>tất cả</b> ' + (cot === 'loai_tin' ? 'loại tin.' : 'chủ đề.') + '</div>' +
       '<div class="shl">' + DM.map(function (m) {
         var n = N[m] || ['', m, ''];
-        /* v691 (Codex #614): trạng thái chọn đọc được bằng trình đọc màn hình, không chỉ bằng ký tự. */
-        return '<div class="shi" data-cdlz="' + h(m) + '" role="checkbox" tabindex="0" aria-checked="' + (dang.indexOf(m) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(m) >= 0 ? '☑' : '☐') +
+        /* v691 (Codex #614): trạng thái chọn đọc được bằng trình đọc màn hình, không chỉ bằng ký tự;
+           data-phim để bộ phím chung (hopPhim, 00-nen.js) đổi Space, Enter thành bấm. */
+        return '<div class="shi" data-cdlz="' + h(m) + '" role="checkbox" tabindex="0" data-phim="1" aria-checked="' + (dang.indexOf(m) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(m) >= 0 ? '☑' : '☐') +
           '</span><span style="font-size:18px">' + h(n[0]) + '</span><span style="flex:1"><b>' + h(n[1]) + '</b><div class="cdl-mo">' + h(n[2]) + '</div></span></div>';
       }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdlzxong="1" style="width:100%;margin:0">Xong</button></div>';
   }
@@ -933,7 +941,8 @@ function cdlChonZalo(cot, nhap, xong) {
     if (r) {
       var m = r.getAttribute('data-cdlz'), k = dang.indexOf(m);
       if (k >= 0) dang.splice(k, 1); else dang.push(m);
-      return ve();
+      ve();
+      return cdlGiuFocus(box, 'data-cdlz', m);
     }
     if (e.target.closest('[data-cdlzxong]') || e.target.closest('.x')) {
       if (e.target.closest('[data-cdlzxong]')) nhap[cot] = DM.filter(function (m) { return dang.indexOf(m) >= 0; }).join(', ');
@@ -980,7 +989,7 @@ function cdlChonTinZalo(nhap, xong) {
       return '<div' + (typeof uiB === 'function' && uiB() ? ' class="ui-dong-chon"' : '') + ' style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
         '<button class="cdl-lnk" data-cdltca="' + k + '">' + ((tu || chiDaTich) ? 'Chọn cả ' + bp.tin.length + ' tin đang hiện' : 'Chọn cả mục') + '</button></div>' +
         bp.tin.map(function (t) {
-          return '<div class="shi" data-cdlt="' + h(t.ma) + '" role="checkbox" tabindex="0" aria-checked="' + (dang.indexOf(t.ma) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
+          return '<div class="shi" data-cdlt="' + h(t.ma) + '" role="checkbox" tabindex="0" data-phim="1" aria-checked="' + (dang.indexOf(t.ma) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
             '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
         }).join('');
     }).join('') : '<div class="cdl-mo" data-cdltrong="1" style="padding:16px 14px">' +
@@ -1000,7 +1009,8 @@ function cdlChonTinZalo(nhap, xong) {
     if (r) {
       var m = r.getAttribute('data-cdlt'), k = dang.indexOf(m);
       if (k >= 0) dang.splice(k, 1); else dang.push(m);
-      return ve();
+      ve();
+      return cdlGiuFocus(box, 'data-cdlt', m);
     }
     var chi = e.target.closest('[data-cdltchi]');
     if (chi) {

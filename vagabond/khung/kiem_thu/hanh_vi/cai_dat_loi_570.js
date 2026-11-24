@@ -60,6 +60,20 @@ function layThat() {
   return JSON.parse(cp.execFileSync('python3', ['-c', py, GOC], { encoding: 'utf8', maxBuffer: 1 << 26 }));
 }
 var LAY = layThat();
+/* v691 (Codex #614): bộ phím chung THẬT của app (hopPhim, 00-nen.js), để bấm Space, Enter trên
+   dòng chọn đi đúng đường người dùng bàn phím đi. Không có hộp nào đang mở theo hopTren. */
+function phimThat(tai) {
+  var nen = fs.readFileSync(path.join(BEP, '00-nen.js'), 'utf8');
+  var i = nen.indexOf('\nfunction hopPhim(e) {'), j = nen.indexOf('\n}\n', i);
+  if (i < 0 || j < 0) throw new Error('Không thấy hopPhim trong 00-nen.js');
+  return new Function('hopTren', 'hopDangSua', 'hopDong', 'tlDong', 'document', 'return (' + nen.slice(i + 1, j + 2) + ');')(
+    function () { return null; }, function () { return false; }, function () { }, function () { }, tai);
+}
+function bamPhim(tai, el, phim) {
+  var chan = 0;
+  phimThat(tai)({ key: phim, target: el, preventDefault: function () { chan++; }, stopPropagation: function () { } });
+  return chan;
+}
 var NGAN_HANG = [
   { bin: '970422', ten: 'MB Bank', ma: 'MB' }, { bin: '970405', ten: 'Agribank', ma: 'VBA' },
   { bin: '970436', ten: 'Vietcombank', ma: 'VCB' },
@@ -292,7 +306,18 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     dong.forEach(function (d) {
       dung('loại ' + d.getAttribute('data-cdlz') + ' có dòng giải thích', chu(d.querySelectorAll('.cdl-mo')[0] || {}).length > 10);
     });
-    box.onclick({ target: dong.filter(function (d) { return d.getAttribute('data-cdlz') === 'canh_bao'; })[0] });
+    /* v691 (Codex #614): dòng là checkbox: Space trên dòng đổi lựa chọn, focus ở lại đúng dòng. */
+    var dCb = dong.filter(function (d) { return d.getAttribute('data-cdlz') === 'canh_bao'; })[0];
+    bang('dòng chọn loại tin là checkbox, chưa tích', [dCb.getAttribute('role'), dCb.getAttribute('aria-checked')], ['checkbox', 'false']);
+    dCb.focus();
+    bang('Space trên dòng được bộ phím chung nhận', bamPhim(m.tai, dCb, ' '), 1);
+    var dCb2 = box.querySelectorAll('[data-cdlz]').filter(function (d) { return d.getAttribute('data-cdlz') === 'canh_bao'; })[0];
+    bang('Space tích dòng: aria-checked thành true', dCb2.getAttribute('aria-checked'), 'true');
+    dung('focus ở lại đúng dòng vừa đổi', m.tai.activeElement === dCb2);
+    bamPhim(m.tai, dCb2, 'Enter');
+    var dCb3 = box.querySelectorAll('[data-cdlz]').filter(function (d) { return d.getAttribute('data-cdlz') === 'canh_bao'; })[0];
+    bang('Enter bỏ tích lại', dCb3.getAttribute('aria-checked'), 'false');
+    box.onclick({ target: dCb3 });
     box.onclick({ target: box.querySelectorAll('[data-cdlzxong]')[0] });
     bam(m, mot(m, '#cdlDongXong'));
     bang('quay lại tab, có 2 nhóm', tim(m, '[data-cdldong]').length, 2);
@@ -654,6 +679,15 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('tích một tin: bảng giữ vị trí cuộn', box.querySelector('.shl').scrollTop, 640);
     box.onclick({ target: box.querySelectorAll('[data-cdlt]')[Math.floor(dong.length / 2)] });
     bang('bỏ tích lại cũng giữ vị trí', box.querySelector('.shl').scrollTop, 640);
+    /* v691 (Codex #614): Space trên dòng tin cũng đổi lựa chọn và giữ focus. */
+    var tPh = box.querySelectorAll('[data-cdlt]')[Math.floor(dong.length / 2)], maPh = tPh.getAttribute('data-cdlt');
+    var truocPh = tPh.getAttribute('aria-checked');
+    tPh.focus();
+    bang('Space trên dòng tin được bộ phím chung nhận', bamPhim(m.tai, tPh, ' '), 1);
+    var tPh2 = box.querySelectorAll('[data-cdlt]').filter(function (d) { return d.getAttribute('data-cdlt') === maPh; })[0];
+    bang('Space đổi aria-checked của dòng tin', [truocPh, tPh2.getAttribute('aria-checked')], [truocPh, truocPh === 'true' ? 'false' : 'true']);
+    dung('focus ở lại đúng dòng tin vừa đổi', m.tai.activeElement === tPh2);
+    bamPhim(m.tai, tPh2, ' ');
     var ca0 = box.querySelectorAll('[data-cdltca]');
     bang('mỗi bộ phận một nút Chọn cả mục', ca0.length, m.g.VGB_ZALO_BO_PHAN.length);
     /* v606: mục Ban giám đốc đứng đầu, nên tìm nút theo tên bộ phận chứ không theo vị trí. */

@@ -112,6 +112,12 @@ Anh Việt thấy sau bản 690 "vẫn còn nhiều emoji cũ bị lẫn", nút 
 - Hai bảng chọn tin Zalo ở Cài đặt lõi (`cdlChonZalo`, `cdlChonTinZalo`) thành `role="checkbox"` có `aria-checked`, `tabindex`.
 - Kịch bản `chu-lan-emoji` kiểm: dòng tích, dòng chưa tích, ô ✅, và không thêm chữ thừa ở dòng có `aria-checked`, nút "☑ Chọn hết", nhãn "✅ Đã lưu". Cố tình làm hỏng 5 chỗ, bắt 5.
 
+**Bàn phím cho dòng chọn (Codex vòng 4).** Hai bảng chọn tin Zalo đã có vai checkbox nhưng Space không đổi gì: bộ phím chung `hopPhim` (00-nen.js) chỉ bấm hộ phần tử có `data-phim`. Sửa:
+
+- Hai loại dòng có thêm `data-phim`.
+- Sau khi vẽ lại, `cdlGiuFocus` đưa focus về đúng dòng vừa đổi.
+- `cai_dat_loi_570.js` gọi `hopPhim` THẬT với Space và Enter trên cả hai bảng, kiểm `aria-checked` đổi và focus ở lại. Trên mã trước khi sửa đỏ 2 ca. Cố tình làm hỏng 3 chỗ, bắt 3.
+
 **Còn lại, chưa sửa trong vòng này:**
 
 - 45 chip tự vẽ dưới 44.
