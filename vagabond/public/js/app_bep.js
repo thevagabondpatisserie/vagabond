@@ -18464,7 +18464,8 @@ function posChipNut(attr, chu, dangChon, laXoa, mau) {
   var chuMau = dangChon ? '#fff' : (laXoa ? '#b3261e' : '#374151');
   /* v617: chip đang chọn mang data-chipchon để màn cuộn nó vào tầm nhìn
      (hàng chip cuộn ngang không còn cắt mất chip đang chọn ở mép). */
-  return '<button ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
+  /* v691: lớp posc để giao diện mới đặt vùng bấm 44 cho cả 259 chỗ gọi (giao diện cũ không đổi). */
+  return '<button class="posc" ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
     ';color:' + chuMau + ';border-radius:999px;padding:9px 15px;font-size:14px;font-weight:' +
     (dangChon ? '800' : '600') + ';cursor:pointer;white-space:nowrap;line-height:1.2">' + chu + '</button>';
 }
@@ -78592,7 +78593,66 @@ function uiBQuet(goc) {
     var nut = goc.querySelectorAll('.btn, .chip');
     if (goc.matches && goc.matches('.btn, .chip')) uiBDauNut(goc);
     for (var q = 0; q < nut.length; q++) uiBDauNut(nut[q]);
+    uiBQuetChu(goc);
   } catch (e) { }
+}
+
+/* v691 (#614, anh Viet 24/11 "con nhieu emoji cu bi lan"): may quet chi phu o mot bieu tuong
+   va dau nhan .btn/.chip, nen emoji trong nut tron, chip tu ve, nhan, dong canh bao, dong trong
+   van con: quet 134 man bang cong_cu/ui_b/quet_man.cjs ra 206 cho o 58 man. Nay quet MOI chu
+   trong vung app va hop: emoji co trong bang doi chieu thanh bieu tuong cung co chu, cham mau
+   thanh cham. Emoji ngoai bang giu nguyen (cong cu quet bao ra de bo sung bang).
+   KHONG dung toi: o nhap, vung soan, va noi dung hien nguyen van (khung white-space pre, xem
+   truoc bai dang, [data-giu-emoji]): do la chu se gui di hoac chu nguoi dung tu viet, phai thay
+   dung nhu se gui (dac ta ban 4 muc 1). */
+var UIB_RE_KY = /(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*/g;
+var UIB_GIU_CHU = 'svg, script, style, textarea, input, [contenteditable], [data-giu-emoji], .bd-phai, [style*="white-space:pre"], [style*="white-space: pre"]';
+function uiBTenKy(ky) {
+  var s = ky.replace(/\uFE0F/g, '');
+  if (UIB_EMOJI[s]) return { ten: UIB_EMOJI[s] };
+  if (UIB_CHAM[s]) return { cham: UIB_CHAM[s] };
+  /* Chuoi ghep (ZWJ): lay ky dau, vi du nguoi + do nghe. */
+  var dau = s.split('\u200D')[0];
+  if (dau !== s && UIB_EMOJI[dau]) return { ten: UIB_EMOJI[dau] };
+  return null;
+}
+function uiBQuetChu(goc) {
+  if (!goc || !document.createTreeWalker) return;
+  if (goc.nodeType === 1 && goc.closest && goc.closest(UIB_GIU_CHU)) return;
+  var w = document.createTreeWalker(goc, 4 /* NodeFilter.SHOW_TEXT */), ds = [];
+  /* Chi nut chu that (nodeType 3): moi truong khong co TreeWalker that thi dung ngay, khong lap mai. */
+  for (var n = w.nextNode(); n && n.nodeType === 3; n = w.nextNode()) {
+    UIB_RE_KY.lastIndex = 0;
+    if (UIB_RE_KY.test(n.nodeValue)) ds.push(n);
+  }
+  for (var i = 0; i < ds.length; i++) uiBThayChu(ds[i]);
+}
+function uiBThayChu(n) {
+  var cha = n.parentNode;
+  if (!cha || cha.nodeType !== 1 || cha.closest(UIB_GIU_CHU)) return;
+  var t = n.nodeValue, frag = document.createDocumentFragment(), cuoi = 0, doi = 0, m;
+  /* Lua chon trong <select> chi hien chu (trinh duyet bo qua the con): bo emoji, khong chen
+     bieu tuong. Chu cua lua chon tu bo khoang trang dau, nen khong can cat them. */
+  var laOpt = cha.tagName === 'OPTION' || cha.tagName === 'OPTGROUP';
+  UIB_RE_KY.lastIndex = 0;
+  while ((m = UIB_RE_KY.exec(t))) {
+    var k = uiBTenKy(m[0]);
+    if (!k) continue;
+    var truoc = t.slice(cuoi, m.index), sau = m.index + m[0].length;
+    var dauDong = !/\S/.test(truoc) && !(n.previousSibling && /\S/.test(n.previousSibling.textContent || ''));
+    if (dauDong) sau += (/^\s*/.exec(t.slice(sau)) || [''])[0].length;
+    if (truoc) frag.appendChild(document.createTextNode(truoc));
+    if (!laOpt) {
+      var sp = document.createElement('span');
+      if (k.ten) { sp.className = 'uik uichu' + (dauDong ? ' uichu-dau' : ''); sp.innerHTML = uiBSvg(k.ten, 16); }
+      else { sp.className = 'uicham uicham-' + k.cham + (dauDong ? ' uichu-dau' : ''); }
+      frag.appendChild(sp);
+    }
+    cuoi = sau; doi++;
+  }
+  if (!doi) return;
+  if (cuoi < t.length) frag.appendChild(document.createTextNode(t.slice(cuoi)));
+  cha.replaceChild(frag, n);
 }
 function uiBGoiY(o) {
   if (o.getAttribute('data-uib-goi')) return;
@@ -78690,11 +78750,40 @@ function uiBDauNut(b) {
   t.nodeValue = t.nodeValue.slice(m[0].length);
   b.insertBefore(sp, t);
 }
+/* v691 (#614, anh Viet 24/11 "ep nut"): hang flex gom khoi chu va mot nut khong xuong dong.
+   May hep thi nut giu nguyen be rong, khoi chu bi ep thanh cot hep cao 4, 5 dong (the Den bu
+   khach o Khuyen mai). Do THAT bang hinh hoc sau moi lan ve: khoi chu hep hon 45% hang ma cao
+   tu 4 dong, canh no la nut, thi cho nut xuong hang rieng, rong ca hang (nhu nut Chinh uu dai
+   ngay tren), khoi chu lay lai be ngang. Chi doi bo cuc o giao dien moi, khong doi noi dung hay thu tu bam. */
+function uiBEpChu(t, hang) {
+  var rt = t.getBoundingClientRect(), rh = hang.getBoundingClientRect();
+  if (!rt.width || !rh.width || rt.width > rh.width * 0.45) return false;
+  var cs = getComputedStyle(t), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4 || 20;
+  return rt.height >= lh * 3.6;
+}
+function uiBGoEp() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('#vgb button, #vgb .btn, .sh button, .sh .btn');
+  for (var i = 0; i < ds.length; i++) {
+    var b = ds[i], hang = b.parentElement;
+    if (!hang || hang.classList.contains('uib-xuong') || hang.closest('.vh, .vf, .chips')) continue;
+    if (getComputedStyle(hang).display.indexOf('flex') < 0 || getComputedStyle(hang).flexDirection.indexOf('column') === 0) continue;
+    var con = hang.children, ep = null;
+    for (var j = 0; j < con.length; j++) {
+      var c = con[j];
+      if (c === b || c.tagName === 'BUTTON' || c.classList.contains('btn')) continue;
+      if ((c.textContent || '').trim().length > 20 && uiBEpChu(c, hang)) { ep = c; break; }
+    }
+    if (!ep) continue;
+    hang.classList.add('uib-xuong');
+    b.classList.add('uib-xuong-nut');
+  }
+}
 var UIB_HEN_SO = 0;
 function uiBHenVuaSo() {
   if (UIB_HEN_SO) return;
   UIB_HEN_SO = 1;
-  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } };
+  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } try { uiBGoEp(); } catch (e) { } };
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(f); else setTimeout(f, 16);
 }
 
@@ -79061,6 +79150,16 @@ function uiBCss() {
     'html.ui-b .sh .x:focus-visible,html.ui-b #tlDong:focus-visible,html.ui-b .btn:focus-visible,html.ui-b .chip:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}' +
     'html.ui-b .shb:focus{outline:0}' +
     'html.ui-b .uidau{margin-right:8px;vertical-align:-4px}' +
+    /* v691: bieu tuong thay emoji giua chu theo co chu cua dong (1.15em), dau dong co khoang cach. */
+    /* v691: vung bam 44 cho chip va o nhap o MOI man (quet 134 man: 354 chip, o cao 34 den 37). */
+    'html.ui-b .posc{min-height:var(--ui-tap)}' +
+    'html.ui-b .uib-xuong{flex-wrap:wrap!important;row-gap:12px}html.ui-b .uib-xuong>.uib-xuong-nut{flex:1 1 100%!important;max-width:100%;margin-left:0!important;margin-right:0!important}' +
+    'html.ui-b .chip{min-height:var(--ui-tap);display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}' +
+    'html.ui-b #vgb input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),html.ui-b #vgb select,' +
+    'html.ui-b .sh input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),html.ui-b .sh select,html.ui-b #vgb textarea,html.ui-b .sh textarea{min-height:var(--ui-tap);box-sizing:border-box}' +
+    'html.ui-b #vgb input[type=checkbox],html.ui-b #vgb input[type=radio],html.ui-b .sh input[type=checkbox],html.ui-b .sh input[type=radio]{width:22px;height:22px;accent-color:var(--ui-robin)}' +
+    'html.ui-b .uichu{vertical-align:-0.18em}html.ui-b .uichu svg{width:1.15em;height:1.15em}' +
+    'html.ui-b .uichu-dau{margin-right:0.4em}html.ui-b .uicham.uichu-dau{vertical-align:0}' +
     /* Codex #604: bieu tuong lop ve chen vao nut, o, chip KHONG nhan cu bam. 43 ham bam kiem
        thang e.target (vi du e.target.hasAttribute("data-y")); truoc day emoji la nut chu nen
        dich van la phan tu cha. Bieu tuong khong nhan cu bam thi dich giu nguyen nhu cu. */

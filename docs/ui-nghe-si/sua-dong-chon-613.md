@@ -55,3 +55,59 @@ Dùng cùng môi trường, phông, dữ liệu và phiên bản bundle để so
 | Hộp thư địa chỉ dài 390 px | [Ảnh](anh-613/truoc-hop-chay-390.jpg) | [Ảnh](anh-613/sau-hop-chay-390.jpg) |
 
 [Bảng số đo](anh-613/ket-qua.json). Ảnh từ site thật và ảnh anh gửi không đưa lên repo.
+
+## Vòng tiếp theo trong cùng PR (v691, Claude nhận PR theo chỉ dẫn anh Việt 24/11/2026)
+
+Anh Việt thấy sau bản 690 "vẫn còn nhiều emoji cũ bị lẫn", nút bị ép, xuống hàng xấu. PR này nhận thêm phần sửa theo loại, ở lớp vẽ chung (`81-ui-b.js`), không vá từng màn.
+
+**Đo trước khi sửa.** Máy chụp chỉ có kịch bản cho khung chung (19 ô), nên thêm `cong_cu/ui_b/quet_man.cjs`. Công cụ đọc mọi mã màn trong `vgbGo` (134 màn), mở từng màn từ trang chủ ở giao diện mới, 390 px, máy chủ giả. Hàm chưa có dữ liệu thử thì trả "rỗng vô hạn" để màn đi tới trạng thái rỗng thay vì nổ. Sau đó dùng lại đúng phép đo của máy chụp. Bản 690:
+
+- 206 chỗ còn emoji ở 58 màn;
+- 373 nút, chip, ô dưới 44 điểm;
+- 22 nhãn xuống dòng.
+
+**Ba loại đã sửa:**
+
+| Loại | Nguyên nhân | Sửa | Sau sửa (134 màn) |
+|---|---|---|---|
+| Emoji sót | Máy quét chỉ phủ ô một biểu tượng và đầu nhãn `.btn`/`.chip`. Nút trơn, chip tự vẽ, nhãn, dòng cảnh báo, lựa chọn của ô chọn đều lọt. | `uiBQuetChu`: quét mọi nút chữ trong vùng app và hộp. Emoji có trong bảng đối chiếu thành biểu tượng cùng cỡ chữ, chấm màu thành chấm trạng thái. Lựa chọn trong ô chọn chỉ bỏ emoji. Chừa ô nhập, ô soạn, khung pre-line (nội dung tin, kịch bản), xem trước bài đăng, `[data-giu-emoji]`. | 0 chỗ |
+| Vùng bấm dưới 44 | Chip `posChipNut` (259 chỗ gọi), `.chip`, ô nhập, ô chọn cao 30 tới 37. | Lớp `posc` cho chip chung. Chiều cao tối thiểu 44 cho chip, ô nhập, ô chọn, ô soạn ở giao diện mới. Ô tích 22 điểm. | 45 chỗ còn lại, đều là chip tự vẽ riêng từng màn |
+| Nút ép chữ | Hàng flex: đoạn giải thích `flex:1;min-width:0` cạnh một nút không xuống dòng, máy hẹp thì đoạn chữ thành cột 4, 5 dòng (thẻ Đền bù khách ở Khuyến mãi). | `uiBGoEp`: đo thật sau mỗi lần vẽ. Khối chữ hẹp hơn 45% hàng mà cao từ 4 dòng thì cho nút xuống hàng riêng, rộng cả hàng. | Thẻ Đền bù như ảnh dưới |
+
+**Không đổi:**
+
+- Giao diện cũ: so 60 ảnh chế độ tắt với main, 0 điểm ảnh khác.
+- Chữ lưu và chữ gửi đi.
+- Cách bấm: biểu tượng không nhận cú bấm, đích bấm vẫn là nút.
+
+**Kiểm:**
+
+- Kịch bản `chu-lan-emoji` của máy chụp kiểm các điểm sau:
+  - nút trơn, dòng cảnh báo hai emoji, lựa chọn của ô chọn đã đổi;
+  - pre-line, `data-giu-emoji`, ô soạn giữ nguyên;
+  - hàng bị ép đã gỡ;
+  - bấm đúng biểu tượng vẫn chạy hành động.
+- Ca thuần `ui-b v691` trong `thu_giao_dien_ui_b.py`.
+- Cố tình làm hỏng 7 chỗ, bắt 5. Hai chỗ lọt là lớp thừa ở lựa chọn của ô chọn: trình duyệt tự bỏ khoảng trắng và thẻ con của lựa chọn. Đã bỏ phần cắt khoảng trắng thừa.
+
+| Màn 390 px | Bản 690 | Bản 691 |
+|---|---|---|
+| Vận đơn | [Ảnh](anh-614/truoc-van-don-390.jpg) | [Ảnh](anh-614/sau-van-don-390.jpg) |
+| Khuyến mãi | [Ảnh](anh-614/truoc-khuyen-mai-390.jpg) | [Ảnh](anh-614/sau-khuyen-mai-390.jpg) |
+
+Ảnh dữ liệu giả của máy chủ thử.
+
+**Còn lại, chưa sửa trong vòng này:**
+
+- 45 chip tự vẽ dưới 44.
+- 22 nhãn ngắn xuống dòng: chip có số dính chữ như "Chờ xác nhận0 bàn" ở Đặt bàn, nút "Tải mẫu Excel" hai dòng ở Bảng giá mua.
+- Hàng chip lọc của Vận đơn xếp dọc từng chip một.
+- Tiêu đề màn dài gãy hai dòng.
+
+Chờ báo cáo rà độc lập của Codex để gom theo loại.
+
+```
+node cong_cu/ui_b/quet_man.cjs --ra /tmp/quet --anh
+node cong_cu/ui_b/chup.cjs --ra /tmp/anh --man chu-lan-emoji --khung 390x844
+python3 cong_cu/ui_b/so_che_do_tat.py --ra /tmp/so-tat
+```

@@ -145,4 +145,60 @@ module.exports = [
       var a2 = await t.getAttribute('#thuPhim b', 'aria-expanded');
       return (a1 === 'true' && a2 === 'false') ? [] : ['Enter trên nút có phím riêng: lần 1 ' + a1 + ', lần 2 ' + a2 + ' (phải true rồi false)'];
     } }
+  ,
+  /* v691 (#614): emoji giữa chữ ở mọi phần tử của lớp vẽ thành biểu tượng (nút trơn, chip tự vẽ,
+     nhãn, dòng cảnh báo, lựa chọn); chữ sẽ gửi đi (xem trước pre-line, ô soạn, [data-giu-emoji])
+     giữ nguyên emoji. Hàng có nút ép khối chữ thành cột hẹp thì nút xuống hàng riêng. Thêm
+     phần tử SAU khi app chạy để đi đúng đường bộ theo dõi. */
+  { ten: 'chu-lan-emoji', cho: '.gwrap', pham_vi: '#thuChu', mo: async function (t) {
+    await t.evaluate(function () {
+      window.__bam = 0;
+      var w = document.createElement('div'); w.id = 'thuChu'; w.className = 'card';
+      w.setAttribute('style', 'position:fixed;left:12px;right:12px;top:110px;z-index:60;max-height:640px;overflow:auto');
+      w.innerHTML = '<button id="cNut" data-y style="min-height:44px">📋 Bảng</button>' +
+        '<div id="cCanh" class="sec">⚠️ Đơn chưa có thẻ khung giờ · 📚 Tất cả</div>' +
+        '<select id="cChon"><option>🟢 Đã ghi sổ</option></select>' +
+        '<div id="cXem" style="white-space:pre-line">Chào chị 🎉 món mới</div>' +
+        '<div id="cGiu" data-giu-emoji>Tin gửi 🎁</div>' +
+        '<textarea id="cSoan">Nháp 🍰</textarea>' +
+        '<div id="cHang" style="display:flex;align-items:center;gap:12px;margin-top:12px">' +
+        '<div style="flex:1;min-width:0">Giao trễ, sai trang trí, bánh hỏng: cấp một mã giảm cho đơn sau, mỗi đơn một mã.</div>' +
+        '<button id="cEp" class="btn gh" style="margin:0;white-space:nowrap;width:auto;font-size:17px;padding:10px 22px">Cấp mã đền bù thật dài</button></div>';
+      w.onclick = function (e) { if (e.target.hasAttribute('data-y')) window.__bam++; };
+      /* Trong #vgb như thân một màn thật (bước gỡ ép chỉ soi vùng app và hộp). */
+      document.getElementById('vgb').appendChild(w);
+    });
+    await t.waitForTimeout(250); },
+    kiem: async function (t, bat) {
+      var d = await t.evaluate(function () {
+        function q(id) { return document.getElementById(id); }
+        var co = /[\u{1F000}-\u{1FAFF}☀-➿]/u;
+        var ep = q('cEp'), hang = q('cHang'), chu = hang.firstElementChild;
+        return {
+          nut: co.test(q('cNut').textContent), nutIc: !!q('cNut').querySelector('svg'),
+          canh: co.test(q('cCanh').textContent), canhIc: q('cCanh').querySelectorAll('svg').length,
+          chon: q('cChon').options[0].text,
+          xem: q('cXem').textContent, giu: q('cGiu').textContent, soan: q('cSoan').value,
+          chuRong: chu.getBoundingClientRect().width, hangRong: hang.getBoundingClientRect().width,
+          nutDuoi: ep.getBoundingClientRect().top >= chu.getBoundingClientRect().bottom - 1
+        };
+      });
+      var loi = [];
+      if (bat) {
+        if (d.nut || !d.nutIc) loi.push('nút trơn còn emoji hoặc chưa có biểu tượng');
+        if (d.canh || d.canhIc !== 2) loi.push('dòng cảnh báo còn emoji hoặc thiếu biểu tượng (có ' + d.canhIc + ')');
+        if (d.chon !== 'Đã ghi sổ') loi.push('lựa chọn trong ô chọn còn emoji: ' + d.chon);
+        if (d.chuRong < d.hangRong * 0.6 || !d.nutDuoi) loi.push('khối chữ vẫn bị nút ép: rộng ' + Math.round(d.chuRong) + '/' + Math.round(d.hangRong));
+      } else {
+        if (d.chon !== '🟢 Đã ghi sổ' || !d.nut) loi.push('giao diện cũ bị đổi: emoji của nút hay lựa chọn mất');
+      }
+      if (d.xem !== 'Chào chị 🎉 món mới') loi.push('xem trước tin bị đổi: ' + d.xem);
+      if (d.giu !== 'Tin gửi 🎁') loi.push('vùng data-giu-emoji bị đổi');
+      if (d.soan !== 'Nháp 🍰') loi.push('ô soạn bị đổi');
+      var r = await t.evaluate(function () { var b = document.getElementById('cNut'), rb = b.getBoundingClientRect(), ic = b.querySelector('.uichu'); var ri = ic ? ic.getBoundingClientRect() : rb; return { x: ri.left + ri.width / 2, y: ri.top + ri.height / 2 }; });
+      await t.mouse.click(r.x, r.y);
+      var n = await t.evaluate(function () { return window.__bam; });
+      if (n !== 1) loi.push('bấm vào biểu tượng thay emoji không chạy hành động của nút (đếm ' + n + ')');
+      return loi;
+    } }
 ];

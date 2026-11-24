@@ -4,6 +4,7 @@
 - Owner Codex, nhánh `codex/ui-dong-chon-khong-vo-chu`.
 - Base `4cbc52607f378312297ddbbf4cfa3f614490e663`, code đã kiểm `ceac3a35334347854ec8d3c9d0892f31a219bc4b`.
 - APPVER 688, một dòng patch. Đã đọc main và mọi remote ref: main 685, hai PR mở 611/612 dùng 686/687.
+- 24/11/2026: anh Việt giao Claude làm tiếp trong PR này. Main đã dùng 688 tới 690, PR nâng lên 691 và nhận thêm phần emoji sót, vùng bấm 44, nút ép chữ ở lớp vẽ chung (mục cuối của báo cáo).
 
 ## Kết quả
 

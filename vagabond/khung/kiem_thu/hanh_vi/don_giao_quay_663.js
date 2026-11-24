@@ -86,7 +86,8 @@ function app(traDs) {
     dung('tổng 6 đơn, đã thu 647.000 đ', h.indexOf('6 đơn · 647.000 đ') >= 0);
     ['data-dqtt=""', 'data-dqcach="giao"', 'data-dqcach="lay"', 'data-dqngay="1"', 'data-dqngay="7"', 'id="dqTim"'].forEach(function (k) { dung('có ' + k, h.indexOf(k) >= 0); });
     dung('chip chờ xác nhận có đếm 2', /data-dqtt="Chờ quầy xác nhận"[^>]*>Chờ xác nhận <b>2<\/b>/.test(h));
-    var chip = h.match(/<button data-dq(tt|cach|ngay)="[^"]*"[^>]*>/g) || [];
+    /* v691: posChipNut gắn lớp posc trước thuộc tính của chip. */
+    var chip = h.match(/<button (?:class="[^"]*" )?data-dq(tt|cach|ngay)="[^"]*"[^>]*>/g) || [];
     dung('có chip', chip.length >= 11);
     chip.forEach(function (c) { if (c.indexOf('border-radius:999px') >= 0) dung('chip cao 44: ' + c.slice(0, 40), c.indexOf('min-height:44px') >= 0); });
     dung('ảnh món', h.indexOf('/files/mousse.jpg') >= 0);

@@ -517,3 +517,28 @@ def _():
 	la("nạp trước load, bật: màu vỏ giữ màu mới", _nap_app("loading")["mau_vo"].upper(), G.MAU_VO_APP.upper())
 	la("HTML lệch phiên bản: gỡ giao diện mới thì vỏ về màu cũ", _nap_app("complete", "lech")["mau_vo"].upper(), "#50DBF2")
 
+
+
+@ca("ui-b v691 (#614): máy quét chữ tra đúng biểu tượng cho emoji có và không có U+FE0F, chấm màu, chuỗi ghép; emoji ngoài bảng giữ nguyên; bắt cả mũi tên tam giác")
+def _ui_b_tra_ky_v691():
+	"""Phần thuần của uiBQuetChu (81-ui-b.js): uiBTenKy và UIB_RE_KY. Phần chạm DOM (thay nút chữ,
+	chừa vùng giữ nguyên, gỡ ép nút) kiểm bằng kịch bản chu-lan-emoji của cong_cu/ui_b/chup.cjs
+	trong trình duyệt thật, vì DOM giả không có TreeWalker và không đo hình học."""
+	kich = (
+		"const vm=require('vm'),fs=require('fs');const g={window:{},document:{},navigator:{}};vm.createContext(g);"
+		"vm.runInContext(fs.readFileSync(process.argv[1],'utf8'),g);"
+		"const t=k=>vm.runInContext('uiBTenKy('+JSON.stringify(k)+')',g);"
+		"const re=vm.runInContext('UIB_RE_KY',g);"
+		"process.stdout.write(JSON.stringify({a:t('⚠️'),b:t('⚠'),c:t('\U0001f7e2'),d:t('\U0001f9d1‍\U0001f4bc'),e:t('\U0001f9a9'),f:t('◀'),"
+		"m:('◀ x ⚠️ y \U0001f9d1‍\U0001f4bc z').match(re)}))"
+	)
+	r = subprocess.run(["node", "-e", kich, os.path.join(BEP, "81-ui-b.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("có U+FE0F và không có ra cùng biểu tượng", k["a"], k["b"])
+	la("emoji cảnh báo có biểu tượng", bool(k["a"] and k["a"].get("ten")), True)
+	la("chấm xanh thành chấm trạng thái xong", k["c"], {"cham": "xong"})
+	la("chuỗi ghép lấy ký tự đầu", bool(k["d"] and k["d"].get("ten")), True)
+	la("emoji ngoài bảng đối chiếu thì không đổi", k["e"], None)
+	la("mũi tên tam giác có biểu tượng", bool(k["f"] and k["f"].get("ten")), True)
+	la("biểu thức bắt trọn ba ký tự, kể cả chuỗi ghép", k["m"], ["◀", "⚠️", "\U0001f9d1‍\U0001f4bc"])

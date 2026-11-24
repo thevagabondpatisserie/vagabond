@@ -844,3 +844,16 @@ Từ khoá: chọn tin nhận, nhóm Zalo, chữ vỡ, nút hẹp, ngân hàng, 
 Trong giao diện mới, phần đã chọn dài sẽ xuống dòng theo từ; nút Chọn vẫn đủ rộng để bấm. Khi khung hẹp, nút chuyển xuống hàng dưới. Áp dụng cho tin nhận, nhóm Zalo, loại tin, chủ đề, ngân hàng, tài khoản và nút khai hoặc đổi khoá.
 
 Thao tác chọn và lưu giữ nguyên. Thẻ Hộp thư đối soát cũng tự xuống hàng để địa chỉ dài không đẩy trạng thái ra ngoài thẻ.
+
+## Biểu tượng thay emoji và nút đủ to trong giao diện mới
+Từ khoá: emoji, biểu tượng, nút nhỏ, chip, ép chữ, giao diện mới, Nghệ sĩ công nghệ
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi người đang bật giao diện mới | Mọi màn của app | Không có nút mới |
+
+Trong giao diện mới, emoji cũ trên nút, chip, nhãn, dòng cảnh báo và dòng trống đều hiện thành biểu tượng nét mảnh cùng bộ. Emoji trong lựa chọn của ô chọn được bỏ, chỉ còn chữ.
+
+Chip lọc, ô nhập và ô chọn cao đủ một ngón tay. Thẻ có một nút bên cạnh đoạn giải thích (ví dụ Đền bù khách gặp sự cố ở Khuyến mãi): khi màn hẹp, nút xuống một hàng riêng để đoạn chữ không bị ép thành cột.
+
+Những chỗ giữ nguyên emoji: nội dung tin nhắn, kịch bản, xem trước bài đăng và ô đang soạn, vì đó là chữ sẽ gửi đi đúng như đang thấy. Giao diện cũ không đổi gì.
