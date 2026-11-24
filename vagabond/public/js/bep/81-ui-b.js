@@ -528,8 +528,10 @@ function uiBThayMot(el) {
   var cham = UIB_CHAM[chu];
   if (!ten && !cham) return;
   el.setAttribute('data-uib', '1');
+  var chuCu = el.textContent;
   if (ten) el.innerHTML = uiBSvg(ten, el.classList.contains('e1') ? 40 : 24);
   else el.innerHTML = '<span class="uicham uicham-' + cham + '"></span>';
+  uiBGiuTen(el, chuCu);
 }
 
 function uiBQuet(goc) {
@@ -572,6 +574,17 @@ function uiBTenKy(ky) {
   if (dau !== s && UIB_EMOJI[dau]) return { ten: UIB_EMOJI[dau] };
   return null;
 }
+/* Codex #614 vong 2: nut chi co ky tu hinh (✓, ✕, 📷) lay ky tu do lam ten truy cap. Doi thanh
+   SVG aria-hidden thi nut thanh khong ten voi trinh doc man hinh. Nut nao het chu va chua co ten
+   thi giu ky tu cu lam aria-label (bang ten cu). Nut thuong dung da co ten thao tac dat trong
+   nguon (aria-label "Xoá dòng", "Quét mã"...), lop nay chi la luoi do cho nut moi them sau. */
+function uiBGiuTen(el, chuCu) {
+  var nut = el.closest && el.closest('button, a[href], [role=button], [role=link], summary, .chip, .posc');
+  if (!nut || nut.hasAttribute('aria-label') || nut.hasAttribute('aria-labelledby') || nut.hasAttribute('title')) return;
+  if (/[0-9A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/.test(nut.textContent || '')) return;
+  var ten = String(chuCu || '').trim();
+  if (ten) nut.setAttribute('aria-label', ten);
+}
 function uiBQuetChu(goc) {
   if (!goc || !document.createTreeWalker) return;
   if (goc.nodeType === 1 && goc.closest && goc.closest(UIB_GIU_CHU)) return;
@@ -609,6 +622,7 @@ function uiBThayChu(n) {
   if (!doi) return;
   if (cuoi < t.length) frag.appendChild(document.createTextNode(t.slice(cuoi)));
   cha.replaceChild(frag, n);
+  uiBGiuTen(cha, t);
 }
 function uiBGoiY(o) {
   if (o.getAttribute('data-uib-goi')) return;

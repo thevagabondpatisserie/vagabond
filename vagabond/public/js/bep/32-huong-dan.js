@@ -167,7 +167,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.dinh_luong || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="dinh_luong" data-i="' + i + '">' +
       '<div class="hd-so">Nguyên liệu ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       '<div class="row2">' + hdO('Tên nguyên liệu', 'ten', x.ten) +
       hdO('Mã hàng', 'ma_hang', x.ma_hang, 'text', 'không bắt buộc') + '</div>' +
       '<div class="row2">' + hdO('Số lượng', 'so_luong', x.so_luong, 'number') +
@@ -182,7 +182,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.buoc || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="buoc" data-i="' + i + '">' +
       '<div class="hd-so">Bước ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       hdO('Công đoạn', 'cong_doan', x.cong_doan, 'text', 'vd: Đánh bông lòng trắng') +
       hdODai('Cách làm', 'mo_ta', x.mo_ta, 'Viết như đang cầm tay chỉ việc', 3) +
       '<div class="row2">' + hdO('Thời gian (phút)', 'thoi_gian_phut', x.thoi_gian_phut, 'number') +
@@ -209,7 +209,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.tieu_chi || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="tieu_chi" data-i="' + i + '">' +
       '<div class="hd-so">Tiêu chí ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       hdO('Tiêu chí', 'tieu_chi', x.tieu_chi, 'text', 'vd: Màu ruột bánh') +
       hdODai('Đạt khi', 'dat_khi', x.dat_khi, '', 2) +
       hdODai('Không đạt khi', 'khong_dat_khi', x.khong_dat_khi, '', 2) +

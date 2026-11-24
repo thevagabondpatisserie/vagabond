@@ -100,6 +100,12 @@ Anh Việt thấy sau bản 690 "vẫn còn nhiều emoji cũ bị lẫn", nút 
 
 Ảnh dữ liệu giả của máy chủ thử.
 
+**Tên truy cập (Codex vòng 2).** Nút chỉ có ký tự hình (✓, ✕, 📷, 🔍, 🗑) lấy chính ký tự làm tên với trình đọc màn hình. Đổi thành SVG `aria-hidden` thì nút mất tên. Sửa hai tầng:
+
+- 23 nút trong nguồn có tên thao tác (`aria-label` "Xoá dòng", "Quét mã", "Hoàn tất lệnh", "Ngày trước", "Tra mã số thuế"...). Nút Quay lại của khung cũ giữ nguyên từng byte, vì giao diện mới có nút riêng đã có tên.
+- Lưới đỡ `uiBGiuTen`: nút nào hết chữ sau khi đổi và chưa có tên thì giữ ký tự cũ làm `aria-label`, bằng tên cũ.
+- Ca chốt nguồn không còn nút chỉ ký tự mà thiếu tên. Trên mã trước khi sửa ca đỏ với 24 chỗ. Kịch bản `chu-lan-emoji` kiểm lưới đỡ: bỏ lưới thì trượt.
+
 **Còn lại, chưa sửa trong vòng này:**
 
 - 45 chip tự vẽ dưới 44.

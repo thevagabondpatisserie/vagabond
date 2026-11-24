@@ -9946,7 +9946,7 @@ function mfgPickItem(title, groups, onPick) {
   box.innerHTML = '<div class="shh"><b>' + h(title) + '</b><div class="x">&times;</div></div>' +
     '<div style="padding:10px 14px 6px;display:flex;gap:8px;align-items:center">' +
     '<input class="nt" id="mpq" placeholder="Gõ tên hoặc mã (từ 2 ký tự)" style="height:46px;padding:0 12px;flex:1">' +
-    '<button class="sbtn" id="mpsc" style="width:46px;height:46px;flex:0 0 46px">&#128247;</button></div>' +
+    '<button class="sbtn" id="mpsc" aria-label="Quét mã" style="width:46px;height:46px;flex:0 0 46px">&#128247;</button></div>' +
     '<div class="shl" style="min-height:170px"></div>';
   ov.appendChild(box); document.body.appendChild(ov);
   var lst = box.querySelector('.shl'), inp = box.querySelector('#mpq'), seq = 0, tmr = null;
@@ -10076,7 +10076,7 @@ async function scrMfgList() {
       mfgDongSo(kl(w.so_da, w.dvt) + ' / ' + kl(w.so_can, w.dvt),
         '<span class="st ' + mauTt(w) + '">' + h(w.ten_trang_thai) + '</span>') +
       noiChip(w) + '</div>' +
-      '<button class="lok" data-ok="' + h(w.ten) + '"' + (coLam(w) ? '' : ' disabled') + '>✓</button></div>';
+      '<button class="lok" aria-label="Hoàn tất lệnh" data-ok="' + h(w.ten) + '"' + (coLam(w) ? '' : ' disabled') + '>✓</button></div>';
   }
   function theGop(g) {
     var mo = !!mfgMo[g.ma_mon];
@@ -10088,7 +10088,7 @@ async function scrMfgList() {
       mfgDongSo(kl(g.so_da, g.dvt) + ' / ' + kl(g.so_can, g.dvt),
         '<span class="lsl">' + (mo ? 'Thu lại' : 'Xem ' + g.so_lenh + ' lệnh') + '</span>') +
       noiChip({ chip: gopChip(g), ngay_can: g.ngay_can, xong: 0 }) + '</div>' +
-      '<button class="lok" data-gok="' + h(g.ma_mon) + '"' + (conLai > 0.0001 ? '' : ' disabled') + '>✓</button></div>' +
+      '<button class="lok" aria-label="Hoàn tất các lệnh của món" data-gok="' + h(g.ma_mon) + '"' + (conLai > 0.0001 ? '' : ' disabled') + '>✓</button></div>' +
       (mo ? '<div class="lcon">' + g.con.map(function (c) { return hangLenh(c, 1); }).join('') +
         '<button class="btn gh" data-gin="' + h(g.ma_mon) + '" style="margin-top:2px">🖨️ In tem cả ' + g.so_lenh + ' lệnh</button></div>' : '') +
       '</div>';
@@ -15396,7 +15396,7 @@ function timDonO() {
   return '<div style="display:flex;gap:7px;margin-top:9px">' +
     '<input id="tdO" placeholder="Nhập mã đơn Pancake, mã đơn ERP, SĐT, tên khách, địa chỉ..." ' +
     'style="flex:1;min-width:0;border:1.5px solid #e5e7eb;border-radius:9px;padding:9px 12px;font-size:13px">' +
-    '<button id="tdNut" class="btn gh" style="margin:0;width:auto;padding:8px 14px;flex:0 0 auto">🔍</button>' +
+    '<button id="tdNut" aria-label="Tìm" class="btn gh" style="margin:0;width:auto;padding:8px 14px;flex:0 0 auto">🔍</button>' +
     '</div>';
 }
 
@@ -15972,7 +15972,7 @@ async function scrDsView(name, can) {
           '<div style="font-size:11.5px;color:#6b7280">mã ' + h(dsvKhach.ma) +
           (dsvThe && dsvThe.ten_hang ? ' · hạng ' + h(dsvThe.ten_hang) : '') +
           (dsvThe && dsvThe.giam_gia ? ' · <b style="color:#b45309">ưu đãi giảm ' + dsvThe.giam_gia + '%</b>' : '') + '</div></div>' +
-          '<button id="dsvKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>' +
+          '<button id="dsvKhachBo" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>' +
           dsvVeDiem() + dsvVeHt()
         : '<button class="btn gh" id="dsvKhachChon" style="margin:0">🎫 Chọn khách hàng thân thiết</button>') +
       (d.docstatus === 1
@@ -16561,7 +16561,7 @@ async function scrDsNhapTay() {
         '<b style="font-size:14px">' + h(dsTay.khach_ten || dsTay.khach_ma) + '</b>' +
         '<div style="font-size:11.5px;color:#6b7280">mã ' + h(dsTay.khach_ma) +
         (dsTay.khach_hang ? ' · hạng ' + h(dsTay.khach_hang) : '') + '</div></div>' +
-        '<button id="dstKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
+        '<button id="dstKhachBo" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
       : '<button class="btn gh" id="dstKhachChon" style="margin:0">🎫 Chọn khách hàng thân thiết</button>') +
     '</div>' +
     '</div>';
@@ -16583,7 +16583,7 @@ async function scrDsNhapTay() {
         ? '<img src="' + h(m.anh) + '" style="width:42px;height:42px;flex:none;border-radius:9px;object-fit:cover;background:#f2f4f7" onerror="this.style.visibility=\'hidden\'">'
         : '<div style="width:42px;height:42px;flex:none;border-radius:9px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font-size:19px">🎂</div>') +
       '<div style="flex:1;min-width:0">' + h(m.ten) + '<div style="color:#a0a6b4;font-size:12px">' + money(m.qty) + ' x ' + money(m.rate) + ' đ</div></div>' +
-      '<b>' + money(m.qty * m.rate) + '</b><button class="ic" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
+      '<b>' + money(m.qty * m.rate) + '</b><button class="ic" aria-label="Xoá dòng" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="dstThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Giảm giá và phí giao</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
@@ -17913,7 +17913,7 @@ async function scrPosQuay() {
       '<b style="min-width:22px;text-align:center;font-size:15px">' + money(m.qty) + '</b>' +
       '<button data-cong="' + i + '" style="' + NUT + '">+</button>' +
       '<b style="min-width:70px;text-align:right;font-size:15px">' + money(m.qty * m.rate) + '</b>' +
-      '<button data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
+      '<button aria-label="Xoá dòng" data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="posThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Thanh toán</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
@@ -17975,7 +17975,7 @@ async function scrPosQuay() {
         '<span style="font-size:17px">👤</span>' +
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(posDon.ten || posDon.khach_ma) + '</b>' +
         '<div style="font-size:11.5px;color:#0b7c93">mã ' + h(posDon.khach_ma) + (posDon.khach_hang ? ' · hạng ' + h(posDon.khach_hang) : '') + '</div></div>' +
-        '<button id="posBoKhach" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
+        '<button id="posBoKhach" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
       : '') +
     '<input class="tin" id="posTen" placeholder="Tên khách, mã khách, MST hoặc số điện thoại" autocomplete="off" value="' + h(posDon.ten || '') + '">' +
     '<div id="posTenGoi"></div></div>' +
@@ -18588,7 +18588,7 @@ function posKhoiKhachNo() {
       '<span style="font-size:18px">📒</span>' +
       '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(k.ten) + '</b>' +
       '<div style="font-size:12px;color:#92400e">Ghi nợ cho khách này · mã ' + h(k.ma) + (k.mst ? ' · MST ' + h(k.mst) : '') + '</div></div>' +
-      '<button id="posBoKhachNo" style="border:0;background:transparent;color:#b3261e;font-size:18px;cursor:pointer">✕</button></div></div>';
+      '<button id="posBoKhachNo" aria-label="Bỏ khách ghi nợ" style="border:0;background:transparent;color:#b3261e;font-size:18px;cursor:pointer">✕</button></div></div>';
   }
   return '<button id="posChonKhachNo" class="btn gh" style="margin:0;border-color:#fcd34d;color:#92400e">📒 Chọn khách công nợ (bắt buộc)</button>';
 }
@@ -20441,7 +20441,7 @@ async function scrPosBill(name) {
           '<b style="min-width:20px;text-align:center">' + money(m.qty) + '</b>' +
           '<button data-scong="' + i + '" style="' + NUT + '">+</button>' +
           '<b style="min-width:66px;text-align:right">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</b>' +
-          '<button data-sxoa="' + i + '" style="' + NUT + ';color:#b3261e">✕</button>'
+          '<button aria-label="Xoá dòng" data-sxoa="' + i + '" style="' + NUT + ';color:#b3261e">✕</button>'
         : '<b style="white-space:nowrap">x' + money(m.qty) + '</b><b style="min-width:76px;text-align:right">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</b>') +
       '</div>';
   });
@@ -27215,9 +27215,9 @@ async function scrVanDon() {
   /* Hai nut lui/toi mot ngay: tren dien thoai bam nhanh hon mo bang chon
      ngay, va khong dinh loi bang chon ngay lam trang bi ve lai. */
   var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:8px">' +
-    '<button class="btn gh" id="vdLui" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">◀</button>' +
+    '<button class="btn gh" id="vdLui" aria-label="Ngày trước" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">◀</button>' +
     '<input type="date" class="hin" id="vdDate" value="' + vdNgay + '" style="flex:1;margin:0;min-width:0">' +
-    '<button class="btn gh" id="vdToi" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">▶</button></div>';
+    '<button class="btn gh" id="vdToi" aria-label="Ngày sau" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">▶</button></div>';
   if (isSales() || vdLaKeToan()) html += '<button class="btn gh" id="vdDongBo" style="margin:0 0 10px">🔄 Đồng bộ đơn Pancake ngày ' + vdNgay.split('-').reverse().join('/') + '</button>';
   var ICON = VD_TT_ICON;
   /* THU TU LOC, doi cho la sai so tren tab: o tim truoc, roi tab, roi chip.
@@ -27972,7 +27972,7 @@ async function scrVdChiPhi() {
       '<div class="h2">' + vn + ' · ' + h((r.shipper || '').split('@')[0]) + ' · ' + h(r.trang_thai) + (r.so_hoa_don ? ' · HĐ ' + h(r.so_hoa_don) : '') + '</div>' +
       (r.nha_cung_cap ? '<div class="h2">' + h(r.nha_cung_cap) + '</div>' : '') +
       (r.ghi_chu_duyet ? '<div class="h2" style="color:#b3261e">' + h(r.ghi_chu_duyet) + '</div>' : '') + '</div>' +
-      (r.anh_hoa_don ? '<a href="' + h(r.anh_hoa_don) + '" target="_blank">📷</a>' : '') + '</div>';
+      (r.anh_hoa_don ? '<a href="' + h(r.anh_hoa_don) + '" target="_blank" aria-label="Xem ảnh hoá đơn">📷</a>' : '') + '</div>';
   });
   html += '</div>';
 
@@ -29394,7 +29394,7 @@ function posKhoiKm() {
         /* Uu dai hang di theo khach, khong phai chuong trinh thu ngan chon:
            khong co nut bo. Muon bo thi bo chon khach. */
         (a.loai === 'hang' ? '' :
-          '<button data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button>') + '</div>';
+          '<button aria-label="Bỏ ' + h(a.ten || a.ma) + '" data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button>') + '</div>';
     });
     html += '</div>';
   }
@@ -43124,7 +43124,7 @@ async function scrNoiDungCK(hs, ck) {
       '<div style="font-size:11.5px;color:#6b7280;font-weight:700;letter-spacing:.3px">' + nhan + '</div>' +
       '<div style="display:flex;gap:8px;align-items:center;margin-top:3px">' +
       '<b style="flex:1 1 auto;min-width:0;font-size:14.5px;word-break:break-word;overflow-wrap:anywhere">' + h(gt || '(chưa có)') + '</b>' +
-      (gt ? '<button class="btn gh" data-ckc="' + khoa + '" style="flex:0 0 auto;width:auto;margin:0;padding:5px 11px;font-size:12px;white-space:nowrap">📋</button>' : '') +
+      (gt ? '<button class="btn gh" aria-label="Chép" data-ckc="' + khoa + '" style="flex:0 0 auto;width:auto;margin:0;padding:5px 11px;font-size:12px;white-space:nowrap">📋</button>' : '') +
       '</div></div>';
   };
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
@@ -48122,7 +48122,7 @@ async function scrBgSua(name) {
        Thong tu 86/2024 va co bo nho dem bay ngay. */
     '<div style="display:flex;flex-direction:row;gap:6px">' +
     oi('ma_so_thue', 'Mã số thuế khách, gõ xong máy tự điền tên', d.ma_so_thue) +
-    '<button class="btn gh" data-t="tramst" style="flex:none;width:46px;height:44px;margin:0;padding:0;font-size:17px">🔍</button></div>' +
+    '<button class="btn gh" data-t="tramst" aria-label="Tra mã số thuế" style="flex:none;width:46px;height:44px;margin:0;padding:0;font-size:17px">🔍</button></div>' +
     (d._mst_bao ? '<div ' + BGNHAN + '>' + h(d._mst_bao) + '</div>' : '') +
     '<textarea ' + BGTA + ' id="bgf_dia_chi" rows="2" placeholder="Địa chỉ khách">' + h(d.dia_chi) + '</textarea>' +
     '</div>';
@@ -48151,7 +48151,7 @@ async function scrBgSua(name) {
       '<div data-anh="' + i + '" style="cursor:pointer">' + bgAnhO(x.hinh, 46) + '</div>' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dg_' + i + '_ten_mon', x.ten_mon, 'Tên sản phẩm') +
-      '<button data-xoa="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;font-size:16px;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá dòng" data-xoa="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;font-size:16px;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dg_' + i + '_ten_en', x.ten_en, 'Name in English') + '</div>' : '') +
       '<div style="display:flex;flex-direction:row;gap:6px;flex-wrap:wrap;align-items:center">' +
       '<span style="font-size:12px;color:#8a8f9c">SL</span>' + bgOSo('dg_' + i + '_so_luong', x.so_luong, 62) +
@@ -48228,7 +48228,7 @@ async function scrBgSua(name) {
   d.dich_vu.forEach(function (x, i) {
     html += '<div style="border:1.5px solid #eef0f4;border-radius:12px;padding:8px;margin-bottom:7px;display:grid;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_ten_vi', x.ten_vi, 'Hạng mục') +
-      '<button data-xdv="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá hạng mục" data-xdv="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_ten_en', x.ten_en, 'Description in English') + '</div>' : '') +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('dv_' + i + '_gia_vi', x.gia_vi, 'Đơn giá, vd Miễn phí') + (d.song_ngu ? bgOChu('dv_' + i + '_gia_en', x.gia_en, 'vd Free of charge') : '') + '</div></div>';
   });
@@ -48239,7 +48239,7 @@ async function scrBgSua(name) {
   d.moc.forEach(function (x, i) {
     html += '<div style="border:1.5px solid #eef0f4;border-radius:12px;padding:8px;margin-bottom:7px;display:grid;gap:6px">' +
       '<div style="display:flex;flex-direction:row;gap:6px">' + bgOChu('mc_' + i + '_moc_vi', x.moc_vi, 'Mốc thời gian') +
-      '<button data-xmc="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
+      '<button aria-label="Xoá mốc" data-xmc="' + i + '" style="flex:none;width:38px;height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff;color:#b3261e;cursor:pointer">🗑</button></div>' +
       (d.song_ngu ? bgOChu('mc_' + i + '_moc_en', x.moc_en, 'Timeline in English') : '') +
       '<textarea ' + BGTA + ' id="mc_' + i + '_noi_dung_vi" rows="2" placeholder="Nội dung">' + h(x.noi_dung_vi) + '</textarea>' +
       (d.song_ngu ? '<textarea ' + BGTA + ' id="mc_' + i + '_noi_dung_en" rows="2" placeholder="Action in English">' + h(x.noi_dung_en) + '</textarea>' : '') +
@@ -52091,7 +52091,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.dinh_luong || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="dinh_luong" data-i="' + i + '">' +
       '<div class="hd-so">Nguyên liệu ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       '<div class="row2">' + hdO('Tên nguyên liệu', 'ten', x.ten) +
       hdO('Mã hàng', 'ma_hang', x.ma_hang, 'text', 'không bắt buộc') + '</div>' +
       '<div class="row2">' + hdO('Số lượng', 'so_luong', x.so_luong, 'number') +
@@ -52106,7 +52106,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.buoc || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="buoc" data-i="' + i + '">' +
       '<div class="hd-so">Bước ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       hdO('Công đoạn', 'cong_doan', x.cong_doan, 'text', 'vd: Đánh bông lòng trắng') +
       hdODai('Cách làm', 'mo_ta', x.mo_ta, 'Viết như đang cầm tay chỉ việc', 3) +
       '<div class="row2">' + hdO('Thời gian (phút)', 'thoi_gian_phut', x.thoi_gian_phut, 'number') +
@@ -52133,7 +52133,7 @@ function hdVe() {
   html += '<div class="lst hd-bang">' + (d.tieu_chi || []).map(function (x, i) {
     return '<div class="card hd-dong hd-form" data-b="tieu_chi" data-i="' + i + '">' +
       '<div class="hd-so">Tiêu chí ' + (i + 1) +
-      '<button class="hd-xoa" data-xoa>✕</button></div>' +
+      '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
       hdO('Tiêu chí', 'tieu_chi', x.tieu_chi, 'text', 'vd: Màu ruột bánh') +
       hdODai('Đạt khi', 'dat_khi', x.dat_khi, '', 2) +
       hdODai('Không đạt khi', 'khong_dat_khi', x.khong_dat_khi, '', 2) +
@@ -52558,7 +52558,7 @@ function scrTiecXuat() {
       ? '<div class="lst hd-bang">' + d.dong.map(function (m, i) {
         return '<div class="card hd-dong hd-form" data-i="' + i + '">' +
           '<div class="hd-so">' + h(m.ten || m.ma) +
-          '<button class="hd-xoa" data-xoa>✕</button></div>' +
+          '<button class="hd-xoa" aria-label="Xoá dòng" data-xoa>✕</button></div>' +
           '<div class="l2" style="margin-bottom:8px">' + h(m.ma) +
           ' · tồn ' + num(m.ton) + ' ' + h(m.dvt) + '</div>' +
           '<div class="row2">' +
@@ -78578,8 +78578,10 @@ function uiBThayMot(el) {
   var cham = UIB_CHAM[chu];
   if (!ten && !cham) return;
   el.setAttribute('data-uib', '1');
+  var chuCu = el.textContent;
   if (ten) el.innerHTML = uiBSvg(ten, el.classList.contains('e1') ? 40 : 24);
   else el.innerHTML = '<span class="uicham uicham-' + cham + '"></span>';
+  uiBGiuTen(el, chuCu);
 }
 
 function uiBQuet(goc) {
@@ -78622,6 +78624,17 @@ function uiBTenKy(ky) {
   if (dau !== s && UIB_EMOJI[dau]) return { ten: UIB_EMOJI[dau] };
   return null;
 }
+/* Codex #614 vong 2: nut chi co ky tu hinh (✓, ✕, 📷) lay ky tu do lam ten truy cap. Doi thanh
+   SVG aria-hidden thi nut thanh khong ten voi trinh doc man hinh. Nut nao het chu va chua co ten
+   thi giu ky tu cu lam aria-label (bang ten cu). Nut thuong dung da co ten thao tac dat trong
+   nguon (aria-label "Xoá dòng", "Quét mã"...), lop nay chi la luoi do cho nut moi them sau. */
+function uiBGiuTen(el, chuCu) {
+  var nut = el.closest && el.closest('button, a[href], [role=button], [role=link], summary, .chip, .posc');
+  if (!nut || nut.hasAttribute('aria-label') || nut.hasAttribute('aria-labelledby') || nut.hasAttribute('title')) return;
+  if (/[0-9A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/.test(nut.textContent || '')) return;
+  var ten = String(chuCu || '').trim();
+  if (ten) nut.setAttribute('aria-label', ten);
+}
 function uiBQuetChu(goc) {
   if (!goc || !document.createTreeWalker) return;
   if (goc.nodeType === 1 && goc.closest && goc.closest(UIB_GIU_CHU)) return;
@@ -78659,6 +78672,7 @@ function uiBThayChu(n) {
   if (!doi) return;
   if (cuoi < t.length) frag.appendChild(document.createTextNode(t.slice(cuoi)));
   cha.replaceChild(frag, n);
+  uiBGiuTen(cha, t);
 }
 function uiBGoiY(o) {
   if (o.getAttribute('data-uib-goi')) return;

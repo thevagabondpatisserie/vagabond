@@ -874,7 +874,7 @@ async function scrPosQuay() {
       '<b style="min-width:22px;text-align:center;font-size:15px">' + money(m.qty) + '</b>' +
       '<button data-cong="' + i + '" style="' + NUT + '">+</button>' +
       '<b style="min-width:70px;text-align:right;font-size:15px">' + money(m.qty * m.rate) + '</b>' +
-      '<button data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
+      '<button aria-label="Xoá dòng" data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="posThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Thanh toán</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
@@ -936,7 +936,7 @@ async function scrPosQuay() {
         '<span style="font-size:17px">👤</span>' +
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(posDon.ten || posDon.khach_ma) + '</b>' +
         '<div style="font-size:11.5px;color:#0b7c93">mã ' + h(posDon.khach_ma) + (posDon.khach_hang ? ' · hạng ' + h(posDon.khach_hang) : '') + '</div></div>' +
-        '<button id="posBoKhach" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
+        '<button id="posBoKhach" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
       : '') +
     '<input class="tin" id="posTen" placeholder="Tên khách, mã khách, MST hoặc số điện thoại" autocomplete="off" value="' + h(posDon.ten || '') + '">' +
     '<div id="posTenGoi"></div></div>' +
@@ -1549,7 +1549,7 @@ function posKhoiKhachNo() {
       '<span style="font-size:18px">📒</span>' +
       '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(k.ten) + '</b>' +
       '<div style="font-size:12px;color:#92400e">Ghi nợ cho khách này · mã ' + h(k.ma) + (k.mst ? ' · MST ' + h(k.mst) : '') + '</div></div>' +
-      '<button id="posBoKhachNo" style="border:0;background:transparent;color:#b3261e;font-size:18px;cursor:pointer">✕</button></div></div>';
+      '<button id="posBoKhachNo" aria-label="Bỏ khách ghi nợ" style="border:0;background:transparent;color:#b3261e;font-size:18px;cursor:pointer">✕</button></div></div>';
   }
   return '<button id="posChonKhachNo" class="btn gh" style="margin:0;border-color:#fcd34d;color:#92400e">📒 Chọn khách công nợ (bắt buộc)</button>';
 }

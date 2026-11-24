@@ -558,3 +558,22 @@ def _ui_b_giu_emoji_v691():
 	la("emoji của lời chúc ngoài vùng giữ", k["loi_chuc"]["ngoai"], 0)
 	la("bảng chèn có đủ hai tim", k["bang_chen"]["co_tim"], True)
 	la("emoji của bảng chèn ngoài vùng giữ", k["bang_chen"]["ngoai"], 0)
+
+
+@ca("ui-b v691 (Codex #614 vòng 2): nút chỉ có ký tự hình (✓, ✕, 📷, 🔍, 🗑) trong nguồn đều có tên thao tác aria-label hay title")
+def _ui_b_nut_chi_ky_tu_co_ten():
+	"""Giao diện mới đổi ký tự hình thành SVG aria-hidden, nên nút chỉ có ký tự mà không có tên thì
+	thành nút không tên với trình đọc màn hình. Lớp vẽ có lưới đỡ (uiBGiuTen giữ ký tự cũ làm tên,
+	kiểm ở kịch bản chu-lan-emoji), nhưng tên đúng là tên THAO TÁC, đặt ngay trong nguồn."""
+	the = re.compile(r"<(button|a)\b([^>]*)>\s*((?:&#\d+;|[\U0001F000-\U0001FAFF←-⇿⌀-⏿■-◿☀-➿⬀-⯿️‍]|\s)+)\s*</\1>")
+	thieu = []
+	for ten in sorted(os.listdir(BEP)):
+		if not ten.endswith(".js") or ten.startswith("81-ui-b"):
+			continue
+		# Khung cũ (01) giữ nguyên từng byte (ca "ui-b về cũ"); giao diện mới vẽ nút Quay lại riêng có tên.
+		bo = ('id="vgbBack"',)
+		for i, dong in enumerate(_doc(BEP, ten).split("\n"), 1):
+			for m in the.finditer(dong):
+				if "aria-label" not in m.group(2) and "title=" not in m.group(2) and not any(b in m.group(2) for b in bo):
+					thieu.append("%s:%d %s" % (ten, i, m.group(0)[:60]))
+	la("nút chỉ có ký tự hình mà thiếu tên", thieu, [])
