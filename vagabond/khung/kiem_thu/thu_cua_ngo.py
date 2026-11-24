@@ -936,4 +936,4 @@ def _web_vue_route():
     for path in ('/web_moi/banh', '/web_moi/banh/xong/token', '/web_moi/chinh-sach-bao-mat',
                  '/web_moi/dieu-khoan', '/web_moi/giao-hang-doi-tra', '/dat-ban', '/thanh-vien', '/tt', '/xhd'):
         la(path + ' giữ nguyên trên miền khách', dich_chuyen_huong(MIEN_KHACH, path), '')
-    la('Desk vẫn không lộ', dich_chuyen_huong(MIEN_KHACH, '/desk'), '/banh')
+    la('Desk vẫn không lộ', dich_chuyen_huong(MIEN_KHACH, '/desk'), '/')

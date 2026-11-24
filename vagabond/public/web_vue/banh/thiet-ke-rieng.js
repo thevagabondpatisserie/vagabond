@@ -13,6 +13,7 @@ import {h, reactive} from '../lib/vue.esm-browser.prod.js';
 import {ND, t, telSo} from '../kho/chu.js';
 import {ghi as ghiApi} from '../kho/api.js';
 import {tienVN, tkrTinh, tkrNgaySomNhat, tkrSoNgay, tkrTuGia, tkrBatTrangTri} from '../kho/thuan.js';
+import {laMienSach, diaChiMan} from './duong-sach.js';
 
 export const LOAI_TKR = 'thiet_ke_rieng';
 const PHUT_HOI = 8000, LAN_HOI_TOI_DA = 90;
@@ -149,7 +150,7 @@ export async function guiTuVan() {
 
 /* ---------------- điều hướng ---------------- */
 export function moTkr(id, win = window) {
-  const url = win.location.pathname + win.location.search + '#/thiet-ke-rieng' + (id ? '/' + encodeURIComponent(id) : '');
+  const url = diaChiMan(laMienSach(win.location.hostname), '#/thiet-ke-rieng' + (id ? '/' + encodeURIComponent(id) : ''), win.location.pathname, win.location.search);
   win.history.pushState({vgb: 1}, '', url);
   win.dispatchEvent(new win.PopStateEvent('popstate', {state: {vgb: 1}}));
   if (win.scrollTo) win.scrollTo(0, 0);

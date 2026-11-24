@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v692
+- Link trang đặt bánh không còn chữ banh#
+
 ## v690
 - Con số trên ô Trang chủ
 

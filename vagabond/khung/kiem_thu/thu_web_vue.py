@@ -136,7 +136,9 @@ def _seo():
 	seo = nap('web_vue.py', 'seo_banh', g)()
 	la('tiêu đề', seo['title'], 'Tiêu đề đã xuất bản')
 	la('ảnh tuyệt đối', seo['image'], 'https://order.thevagabondpatisserie.com/assets/vagabond/web_order/og-banh.jpg')
-	la('canonical', seo['url'], 'https://order.thevagabondpatisserie.com/banh')
+	la('canonical trang chủ (v692 đường sạch)', seo['url'], 'https://order.thevagabondpatisserie.com/')
+	la('canonical /banh cũ về trang chủ', nap('web_vue.py', 'seo_banh', g)('order.thevagabondpatisserie.com', '/banh')['url'], 'https://order.thevagabondpatisserie.com/')
+	la('canonical đúng màn', nap('web_vue.py', 'seo_banh', g)('order.thevagabondpatisserie.com', '/tuyen-dung/VT-1/')['url'], 'https://order.thevagabondpatisserie.com/tuyen-dung/VT-1')
 
 
 @ca('#471 biên nhận Vue token sai trả404, không token không đọc đơn; giữ header riêng tư')

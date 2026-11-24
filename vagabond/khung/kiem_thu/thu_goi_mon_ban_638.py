@@ -109,7 +109,7 @@ def _ky():
 	for b in (0, 100, "-1", "5a", None, ""):
 		dung("bàn %r không hợp lệ" % (b,), not g.dung_khoa(KHOA, "TCV", b, k))
 	nem("site chưa có khoá", lambda: g.khoa_ban("", "TCV", 5), ValueError)
-	la("đường QR", g.duong_qr("tcv", "5", k), "/banh?diem=TCV&ban=5&k=%s#/in-store" % k)
+	la("đường QR (v692 đường sạch)", g.duong_qr("tcv", "5", k), "/in-store?diem=TCV&ban=5&k=%s" % k)
 	# v647: tên bàn là chuỗi (bàn theo khu A1, B1); bàn số giữ chuỗi "5" nên
 	# khoá và link QR bàn số in trước v647 không đổi (thu_qr_ban_khu_647).
 	la("khoảng bàn, gõ ngược vẫn đúng", g.ds_ban(5, 2), ["2", "3", "4", "5"])
@@ -940,7 +940,7 @@ def _to_qr():
 	la("ba tờ", [t["ban"] for t in kq["to"]], ["1", "2", "3"])
 	la("tên điểm", kq["to"][0]["ten_diem"], "NVHTN")
 	for t, u in zip(kq["to"], ve):
-		m = re.match(r"https://order\.thevagabondpatisserie\.com/banh\?diem=NVHTN&ban=(\d+)&k=([0-9a-f]{16})#/in-store$", u)
+		m = re.match(r"https://order\.thevagabondpatisserie\.com/in-store\?diem=NVHTN&ban=(\d+)&k=([0-9a-f]{16})$", u)
 		dung("link tuyệt đối miền khách " + u, m)
 		dung("khoá đúng bàn", m and m.group(1) == t["ban"] and g.dung_khoa(KHOA, "NVHTN", t["ban"], m.group(2)))
 

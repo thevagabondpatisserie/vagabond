@@ -508,12 +508,15 @@ def _():
 	la("app vào Desk thì về app", dich_chuyen_huong(MIEN_APP, "/app", D), "/bep")
 	la("app vào trang khách thì về app", dich_chuyen_huong(MIEN_APP, "/banh", D), "/bep")
 	la("erp vào app thì về Desk", dich_chuyen_huong(MIEN_DESK, "/bep", D), "/app")
-	la("order vào app thì về trang bánh", dich_chuyen_huong(MIEN_KHACH, "/bep", D), "/banh")
-	la("order vào Desk thì về trang bánh", dich_chuyen_huong(MIEN_KHACH, "/app", D), "/banh")
+	# v692: trang chủ trang đặt bánh là "/" (đường sạch, không còn /banh#).
+	la("order vào app thì về trang bánh", dich_chuyen_huong(MIEN_KHACH, "/bep", D), "/")
+	la("order vào Desk thì về trang bánh", dich_chuyen_huong(MIEN_KHACH, "/app", D), "/")
+	la("order vào màn tuyển dụng của trang bánh, dù trùng tên màn app", dich_chuyen_huong(MIEN_KHACH, "/tuyen-dung", D), "")
+	la("app vào tuyển dụng vẫn là màn app", dich_chuyen_huong(MIEN_APP, "/tuyen-dung", D), "")
 	# Goc cua tung mien.
 	la("app vào gốc", dich_chuyen_huong(MIEN_APP, "/", D), "/bep")
 	la("erp vào gốc", dich_chuyen_huong(MIEN_DESK, "/", D), "/app")
-	la("order vào gốc", dich_chuyen_huong(MIEN_KHACH, "/", D), "/banh")
+	la("order vào gốc là trang đặt bánh, không chuyển", dich_chuyen_huong(MIEN_KHACH, "/", D), "")
 
 
 @ca("ten mien: chi co MOT khai bao update_website_context trong hooks")
@@ -591,8 +594,9 @@ def _():
 def thu_mien_chinh():
     from vagabond.ten_mien import dich_chuyen_huong
     for m in ('thevagabondpatisserie.com','www.thevagabondpatisserie.com','order.thevagabondpatisserie.com'):
-        for d in ('/', '/app', '/bep'):
-            la('Miền khách về đặt bánh',dich_chuyen_huong(m,d),'/banh')
+        la('Gốc miền khách là trang đặt bánh', dich_chuyen_huong(m, '/'), '')
+        for d in ('/app', '/bep'):
+            la('Miền khách về đặt bánh',dich_chuyen_huong(m,d),'/')
         for d in ('/dat-ban','/thanh-vien','/tt','/xhd','/api/method/x','/assets/a.js'):
             la('Giữ đường khách và tài nguyên',dich_chuyen_huong(m,d),'')
 

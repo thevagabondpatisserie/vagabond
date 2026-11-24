@@ -117,20 +117,23 @@ def du_lieu_cau_truc(goc, anh):
         "telephone": DIEN_THOAI, "priceRange": "$$", "servesCuisine": "French pastry",
         "address": {"@type": "PostalAddress", "streetAddress": "9 Trần Cao Vân",
             "addressLocality": "Phường Sài Gòn", "addressRegion": "TP. Hồ Chí Minh", "addressCountry": "VN"},
-        "hasMenu": goc + "/banh",
+        "hasMenu": goc + "/",
     }, {"@context": "https://schema.org", "@type": "WebSite", "name": TEN_TIEM, "url": goc + "/"}]
     return json.dumps(d, ensure_ascii=False).replace("</", "<\\/")
 
 
-def seo_banh(mien="order.thevagabondpatisserie.com"):
+def seo_banh(mien="order.thevagabondpatisserie.com", duong="/"):
     nd = noi_dung_web.cong_khai()
     nhan = nd.get('nhan') or {}
     goc = 'https://' + mien
+    # v692: canonical là đường sạch của đúng màn; "/" và "/banh" cũ là trang chủ "/".
+    d = "/".join(x for x in str(duong or "").split("/") if x)
+    d = "/" if d in ("", "banh") else "/" + d
     anh = goc + SEO_ANH
     return {'description': SEO_MO_TA[:300],
             'image': anh,
             'title': nhan.get('dat_banh_e7c59d5a1') or 'Đặt bánh · The Vagabond Pâtisserie',
-            'url': goc + '/banh',
+            'url': goc + d,
             'ld_json': du_lieu_cau_truc(goc, anh)}
 
 

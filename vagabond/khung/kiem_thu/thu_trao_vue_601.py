@@ -129,11 +129,15 @@ def _():
 @ca("v601 tráo Vue: tại /banh trang cho máy tìm kiếm đọc, ở đường thử /web_moi/banh vẫn noindex")
 def _():
 	from vagabond.khung.kiem_thu.thu_su_co_290 import nap, D
-	for duong, mong in (("/banh", True), ("/", True), ("/web_moi/banh", False)):
+	from vagabond.ten_mien import la_duong_spa
+	# v692: màn đường sạch (/tuyen-dung/<mã>, /banh/<bánh>) cũng công khai; biên nhận, đường thử thì không.
+	for duong, mong in (("/banh", True), ("/", True), ("/web_moi/banh", False), ("/tuyen-dung/VT-1", True),
+			("/banh/bo-mon", True), ("/banh/xong/abc", False)):
 		fr = D(local=D(request=D(path=duong)), sessions=D(get_csrf_token=lambda: "c"))
 		c = D()
 		nap("www/web_moi/banh.py", "get_context", {"frappe": fr, "seo_banh": lambda *a: {},
-			"cong_tac_mien_chinh": lambda: 0, "mien_cong_khai": lambda b: "order.thevagabondpatisserie.com"})(c)
+			"cong_tac_mien_chinh": lambda: 0, "mien_cong_khai": lambda b: "order.thevagabondpatisserie.com",
+			"la_duong_spa": la_duong_spa})(c)
 		la("cong_khai tại " + duong, c.cong_khai, mong)
 	html = (GOC / "www/web_moi/banh.html").read_text()
 	dung("robots chỉ khi không công khai", '{% if not cong_khai %}<meta name="robots" content="noindex,nofollow">{% endif %}' in html)
