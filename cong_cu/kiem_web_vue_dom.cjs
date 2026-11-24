@@ -109,6 +109,23 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.notEqual(await page.locator('#sum').innerText(),before);
     await page.locator('#cartList .sl-vien button[aria-label="Bớt 1"]').click();
     assert.equal(await page.locator('#sum').innerText(),before);
+    /* v692: trần dĩa, nĩa theo cỡ bánh. Một bánh 12cm được 10 bộ: bấm tới 10 thì nút Thêm 1
+       khoá, hiện dòng tối đa; thêm chiếc thứ hai thì trần 20; bớt về một chiếc thì số tự hạ về 10. */
+    const dia=page.locator('#c-dc-dia'), themDia=dia.locator('button[aria-label="Thêm 1"]');
+    assert.match(await page.locator('.dc-tran').innerText(),/Tối đa 10 bộ/);
+    for(let i=0;i<12;i++){ if(await themDia.isDisabled()) break; await themDia.click(); }
+    assert.equal(await dia.locator('output').innerText(),'10');
+    assert.equal(await themDia.isDisabled(),true,'tới trần thì khoá Thêm 1');
+    assert.equal(await dia.locator('.dc-het').innerText(),'Đã chọn tối đa số lượng cho phép');
+    assert.equal(await page.locator('#c-dc-nia .dc-het').count(),0,'nĩa chưa tới trần thì không báo');
+    await page.locator('#cartList .sl-vien button[aria-label="Thêm 1"]').click();
+    assert.match(await page.locator('.dc-tran').innerText(),/Tối đa 20 bộ/);
+    assert.equal(await themDia.isDisabled(),false); assert.equal(await dia.locator('.dc-het').count(),0);
+    await themDia.click(); await themDia.click();
+    assert.equal(await dia.locator('output').innerText(),'12');
+    await page.locator('#cartList .sl-vien button[aria-label="Bớt 1"]').click();
+    assert.equal(await dia.locator('output').innerText(),'10','bớt bánh thì số dĩa hạ theo trần');
+    assert.equal(await dia.locator('.dc-het').count(),1);
     const ev=await page.evaluate(()=>Array.from(window.fbq?.queue||[],a=>Array.from(a)[1]));
     for(const e of ['PageView','ViewContent','AddToCart','InitiateCheckout']) assert(ev.includes(e),e);
     /* v664: cùng chỗ bắn Pixel thì bắn GA4 (thẻ GA thật của máy chủ, mã thử G-THU12345). */
@@ -204,7 +221,8 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.equal(calls[0].hoa_don.tax_code,'0312345678001');
     assert.equal(calls[0].nguoi_nhan.ho_ten,'Người nhận');
     const dcGui=calls[2].items.filter(x=>/^BAPK0001[8]|^BAPK00020/.test(x.variation_id));
-    assert.deepEqual(dcGui,[{variation_id:'BAPK00020',quantity:2},{variation_id:'BAPK00018',quantity:1}]);
+    /* v692: F06 đã đưa dĩa lên trần 10 của một bánh 12cm. */
+    assert.deepEqual(dcGui,[{variation_id:'BAPK00020',quantity:10},{variation_id:'BAPK00018',quantity:1}]);
     assert.doesNotMatch(String(calls[2].note||''),/nĩa/i);
   });
   await test('F22/F23 biên nhận DOM, gỡ token, reload cùng biên nhận, Pixel một GuiDon',async()=>{
@@ -964,6 +982,41 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await p.locator('.vsk-dong').click(); await p.locator('[data-vsk=a1] .vsk-nut').click();
     assert.equal(await p.locator('.vsk-ma').innerText(),'AAAA1111','mở lại A thấy đúng mã vé');
     assert.deepEqual(loi,[]); await c.close();
+  });
+  await test('F60 v692 đường gọn trên tên miền khách: link cũ /banh#/x tự đổi, giữ chuỗi hỏi, Back và tải lại đúng màn',async()=>{
+    const KH='http://thevagabondpatisserie.com';
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
+    /* Mọi yêu cầu tới tên miền khách chuyển về máy thử, kèm X-Vgb-Host; nơi khác chặn. */
+    await c.route('**/*',async r=>{
+      const u=r.request().url();
+      if(u.startsWith(url)) return r.continue();
+      if(!u.startsWith(KH+'/')) return r.abort();
+      /* Đóng ngữ cảnh lúc ảnh còn đang tải thì bỏ qua, không làm nổ cả bộ ca. */
+      try{ const f=await r.fetch({url:url+u.slice(KH.length),headers:{...r.request().headers(),'x-vgb-host':'thevagabondpatisserie.com'}});
+        await r.fulfill({response:f}); }catch(e){ try{ await r.abort(); }catch(e2){} }
+    });
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    const dangO=async(duong,id)=>{
+      await p.waitForFunction(([d,i])=>location.pathname===d&&!location.hash&&document.getElementById(i)&&!document.getElementById(i).hidden,[duong,id],{timeout:8000});
+    };
+    await p.goto(KH+'/banh?utm_source=zalo#/tuyen-dung');
+    await dangO('/tuyen-dung','tuyen_dung');
+    assert.equal(new URL(p.url()).search,'?utm_source=zalo','giữ chuỗi hỏi của link cũ');
+    assert.doesNotMatch(p.url(),/banh#/);
+    await p.goto(KH+'/banh#/uu-dai'); await dangO('/uu-dai','uu_dai');
+    /* Bấm sang màn khác bằng Vành: đường gọn, không có #; Back về đúng màn cũ; tải lại giữ màn. */
+    await p.locator('.vanh-ds [data-tab="tuyen_dung"]').dispatchEvent('click');
+    await dangO('/tuyen-dung','tuyen_dung');
+    await p.goBack(); await dangO('/uu-dai','uu_dai');
+    await p.reload(); await dangO('/uu-dai','uu_dai');
+    /* Mở thẳng đường gọn (link mới) và trang chủ. */
+    await p.goto(KH+'/tuyen-dung'); await dangO('/tuyen-dung','tuyen_dung');
+    await p.goto(KH+'/banh'); await p.waitForFunction(()=>location.pathname==='/'&&!location.hash,null,{timeout:8000});
+    /* Thẻ <a> trỏ màn dùng href gọn để Sao chép liên kết ra link gọn. */
+    const hrefs=await p.evaluate(()=>Array.from(document.querySelectorAll('a[href]'),a=>a.getAttribute('href')).filter(h=>/^#\//.test(h)));
+    assert.deepEqual(hrefs,[],'không còn href #/ trên tên miền khách');
+    assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
   });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);

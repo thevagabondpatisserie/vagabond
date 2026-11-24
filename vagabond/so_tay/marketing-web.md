@@ -722,3 +722,22 @@ Từ v681 (giám đốc chốt 21/11/2026: mọi nội dung trên web chính s�
 - Ô Thiệp nhỏ chưa có ảnh thì web hiện khung chữ "Thiệp nhỏ"; tải ảnh lên là hiện ảnh.
 
 **Bạn cần làm:** Marketing chụp ảnh mẫu cờ có lời chúc và ảnh thiệp nhỏ, tải vào hai ô Mẫu cờ cắm lời chúc và Thiệp nhỏ miễn phí rồi bấm Lưu.
+
+## Link trang đặt bánh không còn chữ banh#
+Từ khoá: đường dẫn, link chia sẻ, link tuyển dụng, link ưu đãi, QR bàn, banh#, thevagabondpatisserie.com/tuyen-dung
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, Quầy | Trang đặt bánh trên thevagabondpatisserie.com | Sao chép liên kết của trình duyệt |
+
+Từ v692 (giám đốc yêu cầu 24/11/2026).
+
+**Trước đây:** mọi trang con của trang đặt bánh có dạng thevagabondpatisserie.com/banh#/tuyen-dung, /banh#/uu-dai, /banh#/dat-truoc. QR bàn in dạng /banh?diem=..&ban=..#/in-store.
+**Từ nay:**
+- Trang chủ đặt bánh là thevagabondpatisserie.com, không còn /banh.
+- Mỗi trang con có link gọn: /dat-truoc, /in-season, /in-store, /dac-biet-tuan-nay, /uu-dai, /uu-dai/<mã ưu đãi>, /tuyen-dung, /tuyen-dung/<mã vị trí>, /ve-su-kien, /thiet-ke-rieng, /banh/<tên bánh>, /gio-hang.
+- Link cũ đã gửi khách, đã đăng bài, đã in (kể cả QR bàn cũ) vẫn mở đúng trang: thanh địa chỉ tự đổi sang link gọn, giữ nguyên phần ?utm_ và ?ban=.
+- QR bàn tạo mới in link gọn /in-store?diem=..&ban=..&k=...
+- Google đọc từng trang con theo link gọn (sơ đồ trang có /, /dat-truoc, /uu-dai, /tuyen-dung).
+
+**Bạn cần làm:** từ nay khi chia sẻ link, mở đúng trang trên thevagabondpatisserie.com rồi sao chép thanh địa chỉ. Không cần in lại QR bàn cũ. Link trong bài đăng cũ không cần sửa.

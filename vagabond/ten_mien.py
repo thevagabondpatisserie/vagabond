@@ -35,13 +35,37 @@ MIEN_CHINH = "thevagabondpatisserie.com"
 CAC_MIEN_KHACH = (MIEN_KHACH, MIEN_CHINH, "www." + MIEN_CHINH)
 
 # Trang chu cua tung mien.
+# v692 (anh Việt 24/11/2026): trang đặt bánh nằm ngay ở "/" của tên miền khách,
+# không còn "/banh#/...". Xem DUONG_SPA bên dưới.
 NHA = {
 	MIEN_APP: "/bep",
 	MIEN_DESK: "/app",
-	MIEN_KHACH: "/banh",
-	MIEN_CHINH: "/banh",
-	"www." + MIEN_CHINH: "/banh",
+	MIEN_KHACH: "/",
+	MIEN_CHINH: "/",
+	"www." + MIEN_CHINH: "/",
 }
+
+# v692: các màn của trang đặt bánh, trước đây là /banh#/<màn>, nay là đường
+# sạch /<màn> trên tên miền khách (anh Việt 24/11/2026: bỏ chữ "banh#" trong
+# mọi link). Link cũ /banh#/<màn> vẫn mở được: trang tự đổi địa chỉ sang
+# đường sạch. "tuyen-dung" trùng tên màn Tuyển dụng của app nội bộ: trên tên
+# miền khách là trang tuyển dụng cho khách, trên tên miền app vẫn là màn app.
+DUONG_SPA = ("dat-truoc", "in-season", "in-store", "uu-dai", "tuyen-dung", "ve-su-kien", "tiec",
+	"dac-biet-tuan-nay", "thiet-ke-rieng", "gio-hang")
+
+
+def la_duong_spa(duong):
+	"""THUẦN: đường này trên tên miền khách là một màn của trang đặt bánh.
+
+	Gồm "/" (Có sẵn hôm nay), "/banh" cũ, các màn DUONG_SPA (kể cả trang con
+	như /tuyen-dung/<mã>) và /banh/<bánh>. Biên nhận /banh/xong[/<mã>] không phải."""
+	d = _sach(duong).strip("/")
+	if d in ("", "banh"):
+		return True
+	p = d.split("/")
+	if p[0] in DUONG_SPA:
+		return True
+	return p[0] == "banh" and len(p) == 2 and p[1] not in ("", "xong")
 
 # Duong dan KHONG BAO GIO bi dinh vao, du o mien nao. Xem dieu 3 o tren.
 CHUA_RA = (
@@ -117,7 +141,7 @@ def dich_chuyen_huong(host, duong, duong_app=()):
 	d = _sach(duong)
 
 	# Duong dung chung, khong bao gio dinh vao.
-	if d == "/" :
+	if d == "/":
 		return NHA[m] if NHA[m] != "/" else ""
 	for x in CHUA_RA:
 		if d == x.rstrip("/") or d.startswith(x):
@@ -135,8 +159,15 @@ def dich_chuyen_huong(host, duong, duong_app=()):
 	if m == MIEN_DESK:
 		return "" if la_desk else (NHA[m] if (la_app or la_khach) else "")
 	if m in CAC_MIEN_KHACH:
+		# v692: màn của trang đặt bánh (kể cả /tuyen-dung trùng tên màn app) là đường khách.
+		la_khach = la_khach or la_duong_spa(d)
 		return "" if la_khach else (NHA[m] if (la_app or la_desk) else "")
 	return ""
+
+
+def la_trang_dat_banh_khach(host, duong):
+	"""THUẦN: tên miền khách và đường là một màn của trang đặt bánh (v692)."""
+	return _mien(host) in CAC_MIEN_KHACH and la_duong_spa(duong)
 
 
 def link_khach(duong):
@@ -218,7 +249,7 @@ DAU_BAI_WP = ("/the-vagabond-nhung-nguoi-lam-banh-lang-thang-tim-cai-dep",)
 KHONG_CHUYEN = ("/api/", "/assets/", "/files/", "/private/", "/socket.io/", "/.well-known/", "/backups/")
 
 
-def chuyen_ten_mien(host, duong, phuong_thuc="GET", chuoi_hoi="", bat=False):
+def chuyen_ten_mien(host, duong, phuong_thuc="GET", chuoi_hoi="", bat=False, vue=True):
 	"""THUẦN: (địa chỉ đích, mã) nếu lượt này phải chuyển, None nếu cho đi tiếp.
 
 	host, duong, chuoi_hoi lấy nguyên từ request (chuoi_hoi không có dấu ?).
@@ -248,12 +279,13 @@ def chuyen_ten_mien(host, duong, phuong_thuc="GET", chuoi_hoi="", bat=False):
 	# Tên miền chính.
 	d = _sach(goc)
 	if d == "/":
-		# 302: trang chủ thương hiệu sau này sẽ nằm ở "/", đừng để trình duyệt
-		# nhớ vĩnh viễn. Giữ chuỗi hỏi để không mất mã utm của quảng cáo.
-		return ("/banh" + ("?" + hoi if hoi else ""), 302)
+		# v692: trang đặt bánh bản Vue phát thẳng ở "/". Chỉ khi công tắc
+		# "Dùng trang đặt bánh bản mới" tắt (trang cũ chỉ có ở /banh) mới chuyển
+		# 302 về /banh như trước. Giữ chuỗi hỏi để không mất mã utm.
+		return None if vue else ("/banh" + ("?" + hoi if hoi else ""), 302)
 	thap = d.lower()
 	if _thuoc(thap, DUONG_WP) or any(thap.startswith(x) for x in DAU_BAI_WP):
-		return ("/banh", 301)
+		return ("/" if vue else "/banh", 301)
 	return None
 
 
@@ -290,7 +322,11 @@ def truoc_request():
 			return
 		qs = req.query_string.decode("utf-8", "ignore") if isinstance(req.query_string, bytes) else str(req.query_string or "")
 		# Chỉ order. cần công tắc; đọc Cài đặt đúng lúc đó.
-		kq = chuyen_ten_mien(req.host, req.path, req.method, qs, cong_tac_mien_chinh() if m == MIEN_KHACH else 0)
+		vue = 1
+		if m == MIEN_CHINH:
+			# v692: "/" phát trang đặt bánh bản Vue khi công tắc bản mới bật, tắt thì về /banh cũ.
+			vue = int(frappe.db.get_single_value("Vagabond Settings", "web_ban_vue", cache=True) or 0)
+		kq = chuyen_ten_mien(req.host, req.path, req.method, qs, cong_tac_mien_chinh() if m == MIEN_KHACH else 0, vue)
 		if not kq:
 			return
 		dich, ma = kq

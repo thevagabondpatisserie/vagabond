@@ -23,22 +23,24 @@ GOC = Path(__file__).resolve().parents[2]
 CHINH = "thevagabondpatisserie.com"
 
 
-def _c(host, duong, pt="GET", hoi="", bat=1):
+def _c(host, duong, pt="GET", hoi="", bat=1, vue=True):
 	from vagabond.ten_mien import chuyen_ten_mien
-	return chuyen_ten_mien(host, duong, pt, hoi, bat)
+	return chuyen_ten_mien(host, duong, pt, hoi, bat, vue)
 
 
 @ca("v605 công tắc tắt: order. chạy như trước; tên miền chính, www vẫn là cửa khách (Codex #491 P1)")
 def _tat():
 	for d in ("/", "/banh", "/shop/"):
 		la("tắt order" + d, _c("order." + CHINH, d, bat=0), None)
-	la("tắt: chính / vẫn về /banh", _c(CHINH, "/", bat=0), ("/banh", 302))
-	la("tắt: chính /shop vẫn 301", _c(CHINH, "/shop/", bat=0), ("/banh", 301))
+	# v692: "/" là trang đặt bánh; chỉ khi tắt bản Vue mới về /banh cũ.
+	la("tắt: chính / là trang đặt bánh", _c(CHINH, "/", bat=0), None)
+	la("tắt: chính /shop vẫn 301 về trang chủ", _c(CHINH, "/shop/", bat=0), ("/", 301))
+	la("tắt bản Vue: chính / vẫn về /banh", _c(CHINH, "/", bat=0, vue=False), ("/banh", 302))
 	la("tắt: www vẫn về chính", _c("www." + CHINH, "/banh", bat=0), ("https://%s/banh" % CHINH, 301))
 	from vagabond.ten_mien import dich_chuyen_huong
 	for h in (CHINH, "www." + CHINH):
 		for d in ("/app", "/bep", "/app/user"):
-			la("chính không mở nội bộ " + h + d, dich_chuyen_huong(h, d), "/banh")
+			la("chính không mở nội bộ " + h + d, dich_chuyen_huong(h, d), "/")
 
 
 @ca("v605 order. và www. chuyển 301 về tên miền chính, giữ đường và chuỗi hỏi")
@@ -67,13 +69,14 @@ def _an_toan():
 
 @ca("v605 tên miền chính: / về /banh (302, giữ utm); đường WordPress cũ 301 về /banh; trang khách đi thẳng")
 def _chinh():
-	la("trang chủ", _c(CHINH, "/"), ("/banh", 302))
-	la("trang chủ giữ utm", _c(CHINH, "/", hoi="utm_campaign=t10"), ("/banh?utm_campaign=t10", 302))
+	# v692: trang chủ là trang đặt bánh, không chuyển nữa; tắt bản Vue thì như cũ.
+	la("trang chủ", _c(CHINH, "/"), None)
+	la("tắt bản Vue: trang chủ giữ utm", _c(CHINH, "/", hoi="utm_campaign=t10", vue=False), ("/banh?utm_campaign=t10", 302))
 	for d in ("/shop/", "/products/", "/product/very-berry/", "/en/", "/en/product/roman-de-la-rose/",
 			"/gioi-thieu/", "/lien-he/", "/tin-tuc", "/2026mooncake/", "/product-category/whole-cake-vi/",
 			"/the-vagabond-nhung-nguoi-lam-banh-lang-thang-tim-cai-dep-3/", "/wp-content/uploads/2026/04/a.png",
 			"/wp-login.php", "/cart/", "/checkout/", "/my-account/", "/category/news/", "/author/tvp-editor/", "/SHOP/"):
-		la("WP " + d, _c(CHINH, d), ("/banh", 301))
+		la("WP " + d, _c(CHINH, d), ("/", 301))
 	for d in ("/banh", "/banh/xong/T", "/dat-ban", "/thanh-vien", "/xhd", "/tt/x", "/chinh-sach-bao-mat",
 			"/login", "/robots.txt", "/sitemap.xml", "/favicon.ico", "/endless", "/enx", "/productx"):
 		la("đi thẳng " + d, _c(CHINH, d), None)
@@ -144,8 +147,10 @@ def _hook():
 	la("miền app: không đọc Cài đặt", doc, [])
 
 	e, doc, H = _chay_hook(_Req(CHINH, "/"))
-	la("trang chủ 302", (e.code, e.get_response()), (302, ("REDIRECT", "/banh", 302)))
-	la("tên miền chính: không đọc Cài đặt", doc, [])
+	la("trang chủ: bản Vue bật thì ở lại", e, None)
+	la("tên miền chính: chỉ đọc công tắc bản Vue", doc, [("Vagabond Settings", "web_ban_vue", True)])
+	e, doc, H = _chay_hook(_Req(CHINH, "/"), bat=0)
+	la("trang chủ: bản Vue tắt thì 302 về /banh", (e.code, e.get_response()), (302, ("REDIRECT", "/banh", 302)))
 
 	e, doc, H = _chay_hook(_Req("order." + CHINH, "/banh"), bat=0)
 	la("công tắc tắt", e, None)
@@ -199,7 +204,7 @@ def _seo_mac_dinh():
 	dung("tệp ảnh có thật", (GOC / "public/web_order/og-banh.jpg").is_file())
 	s = _seo(mien=CHINH)
 	la("ảnh, canonical theo tên miền chính", (s["image"], s["url"]),
-		("https://%s/assets/vagabond/web_order/og-banh.jpg" % CHINH, "https://%s/banh" % CHINH))
+		("https://%s/assets/vagabond/web_order/og-banh.jpg" % CHINH, "https://%s/" % CHINH))
 	dung("mô tả không quá 300", len(web_vue.SEO_MO_TA) <= 300)
 
 

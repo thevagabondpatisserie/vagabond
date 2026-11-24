@@ -27,6 +27,7 @@ import {VeSuKien, dongSheet as dongSheetVe} from './ve-su-kien.js';
 import {DacBietTuan} from './dac-biet-tuan.js';
 import {GoiYMua} from './goi-y-mua.js';
 import {gaTuMeta} from '../kho/thuan.js';
+import {laMienSach, manHienTai, diaChiMan, doiLinkCu, hrefMan} from './duong-sach.js';
 
 function luuTruAnToan() {
   try { const s = window.sessionStorage; s.getItem('x'); return s; } catch (e) { return null; }
@@ -169,14 +170,17 @@ export function khoiDong(goc = '#app') {
       const tienTom = n => kho.T.tienVN(n);
       return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, DUNG_CU_DON, PAYS, HUONG_SIZE, THIEP_EP_KIM, ANH_CO, LOGO_TT, anhWeb, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
-        go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
+        go, nav, navBack, hm: x => hrefMan(SACH, x), moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
         moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh, chonNguoiNhan, cuonToi, dongYBo, nhapOMa, phimOMa, doiSoDt};
     }
   });
 
   /* ---------------- điều hướng ---------------- */
+  /* v692: tên miền khách dùng đường sạch /<màn>, tên miền khác giữ #/<màn> (duong-sach.js). */
+  const SACH = laMienSach(location.hostname);
+  function man() { return manHienTai(SACH, location.pathname, location.hash); }
   function nav(h, thay) {
-    const url = location.pathname + location.search + (h === '#/' ? '' : h);
+    const url = diaChiMan(SACH, h, location.pathname, location.search);
     if (thay) history.replaceState({vgb: 1}, '', url); else history.pushState({vgb: 1}, '', url);
     apDuongDan();
   }
@@ -195,7 +199,7 @@ export function khoiDong(goc = '#app') {
   S.trang = 'danh_muc';
   function apDuongDan() {
     kho.nhip();
-    const h = (location.hash || '#/').replace(/^#/, '');
+    const h = man();
     const mBanh = h.match(/^\/banh\/(.+)$/), mMua = h.match(/^\/in-season\/(.+)$/);
     const truocDo = S.trang;
     /* v625: trang chi tiết một vị trí tuyển dụng. */
@@ -372,38 +376,47 @@ export function khoiDong(goc = '#app') {
   /* Trình biên tập chọn khối ưu đãi/tuyển dụng thì mở đúng chuyên mục. */
   window.addEventListener('vgb-xem-thu-chon', e => {
     const nd = e.detail && e.detail.noi_dung, chon = ((nd && nd.khoi) || []).find(k => k.id === e.detail.chon);
-    if (chon && ['uu_dai', 'tuyen_dung'].includes(chon.loai) && location.hash !== '#/' + chon.loai.replace('_', '-')) go(chon.loai);
-    if (chon && chon.loai === 'tiec' && location.hash !== '#/ve-su-kien') go('tiec');
-    if (chon && chon.loai === 'thiet_ke_rieng' && location.hash !== '#/thiet-ke-rieng/' + encodeURIComponent(chon.id)) nav('#/thiet-ke-rieng/' + encodeURIComponent(chon.id));
+    if (chon && ['uu_dai', 'tuyen_dung'].includes(chon.loai) && man() !== '/' + chon.loai.replace('_', '-')) go(chon.loai);
+    if (chon && chon.loai === 'tiec' && man() !== '/ve-su-kien') go('tiec');
+    if (chon && chon.loai === 'thiet_ke_rieng' && man() !== '/thiet-ke-rieng/' + encodeURIComponent(chon.id)) nav('#/thiet-ke-rieng/' + encodeURIComponent(chon.id));
   });
 
   const vm = app.mount(goc);
 
   /* ---------------- nạp dữ liệu ---------------- */
   kho.phucHoiGio();
+  /* v692: link cũ /banh#/<màn> (đã gửi khách, in trên QR bàn) đổi ngay sang đường sạch. */
+  const cu = doiLinkCu(SACH, location.pathname, location.hash, location.search);
+  if (cu) history.replaceState(history.state, '', cu);
+  /* Thẻ <a href="#/..."> trong mẫu: đường sạch thì chặn lại, đi bằng nav để không gắn #. */
+  if (SACH) document.addEventListener('click', e => {
+    const a = e.target && e.target.closest ? e.target.closest('a[href^="#/"]') : null;
+    if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault(); nav(a.getAttribute('href')); window.scrollTo(0, 0);
+  });
   apDuongDan();
   napNoiDung().then(() => {
     if (ND.diem_nhan) kho.capNhatDiemNhan(ND.diem_nhan);
     /* Link chia sẻ #/thiet-ke-rieng/<mã> mở trước khi nội dung về: chọn sẵn size sau khi có tác phẩm. */
-    const m = (location.hash || '').match(/^#\/thiet-ke-rieng\/(.+)$/); if (m) moTacPham(decodeURIComponent(m[1]));
+    const m = man().match(/^\/thiet-ke-rieng\/(.+)$/); if (m) moTacPham(decodeURIComponent(m[1]));
   });
   kho.napTon().then(apDuongDanNeuBanh);
   setInterval(kho.napTon, 60000);
-  kho.napMua().then(() => { if (/^#\/in-season\//.test(location.hash || '')) apDuongDan(); });
+  kho.napMua().then(() => { if (/^\/in-season\//.test(man())) apDuongDan(); });
   setInterval(kho.napMua, 300000);
   kho.napQuay();
   setInterval(kho.napQuay, 60000);
   /* v638: link QR một bàn. Đúng thì mở thẳng tab Tại quầy ở chế độ gọi món;
      mất phần #/in-store (vài app quét QR cắt) thì tự thêm lại. */
   kho.goiBan.kiemLink().then(b => {
-    if (b && b.ok && !/^#\/in-store/.test(location.hash || '')) nav('#/in-store', true);
+    if (b && b.ok && !/^\/in-store/.test(man())) nav('#/in-store', true);
   });
   kho.napCauHinh().then(ch => {
     const px = ch ? String(ch.pixel_id || '').replace(/\D/g, '') : '';
     if (px && !pixel.id && !ND.xemThu) { pixel.id = px; napPixel(px); }
   });
   function apDuongDanNeuBanh() {
-    if (!/^#\/banh\//.test(location.hash || '')) return;
+    if (!/^\/banh\//.test(man())) return;
     if (!S.cur) { apDuongDan(); return; }
     if (S.tab === 'today' && !S.cur.sizes.some(s => S.TODAY[s.id] > 0)) S.tab = 'order';
   }

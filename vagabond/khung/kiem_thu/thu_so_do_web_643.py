@@ -22,13 +22,15 @@ def _so_do():
 	goc = ET.fromstring(x.encode())
 	ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 	loc = [e.text for e in goc.findall("s:url/s:loc", ns)]
-	dung("có trang đặt bánh", "https://thevagabondpatisserie.com/banh" in loc)
+	dung("có trang đặt bánh (đường sạch v692)", "https://thevagabondpatisserie.com/" in loc)
+	dung("không còn /banh cũ", "https://thevagabondpatisserie.com/banh" not in loc)
+	dung("có màn đặt trước, tuyển dụng", {"https://thevagabondpatisserie.com/dat-truoc", "https://thevagabondpatisserie.com/tuyen-dung"} <= set(loc))
 	dung("mọi địa chỉ trên tên miền chính", loc and all(u.startswith("https://thevagabondpatisserie.com/") for u in loc))
 	dung("không địa chỉ nội bộ frappe.cloud", "frappe.cloud" not in x)
 	duong = [u[len("https://thevagabondpatisserie.com"):] for u in loc]
 	la("không trang nhân viên", [d for d in duong if d in NOI_BO or any(d == a or d.startswith(a + "/") for a in ten_mien.DAU_APP)], [])
 	la("ngày cập nhật", {e.text for e in goc.findall("s:url/s:lastmod", ns)}, {"2026-11-07"})
-	dung("mọi trang trong sơ đồ là trang khách của tên miền chính", all(any(d == a for a in ten_mien.DAU_KHACH) for d in duong))
+	dung("mọi trang trong sơ đồ là trang khách của tên miền chính", all(ten_mien.la_duong_spa(d) or any(d == a for a in ten_mien.DAU_KHACH) for d in duong))
 
 
 @ca("v643 /sitemap.xml: luật định tuyến trỏ về trang của tiệm, có mẫu và bộ điều khiển đi cùng")

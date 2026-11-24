@@ -334,7 +334,7 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm",
 			"_gan_giam_pancake", "_doc_lai_don_pancake", "_tong_pancake",
 			"_gui_pancake", "la_loi_the", "bot_the", "_them_dong", "cau_mien_phi", "_don_dau",
-			"_diem_don", "_diem_hien", "_tra_diem_khi_tu_choi"):
+			"_diem_don", "_diem_hien", "_tra_diem_khi_tu_choi", "tran_dung_cu", "_chot_dung_cu"):
 		nap("don_hang.py", ten, g)
 	g["TEN_THE"] = _hang_so("don_hang.py", "TEN_THE")
 	g["TEN_DIEM"] = _hang_so("don_hang.py", "TEN_DIEM")
@@ -342,6 +342,9 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 	g.setdefault("diem_web", DIEM_KHONG)
 	g["_bao_lech_tong_pancake"] = lambda *a: vet.su.append(("bao_lech", a))
 	g["MAX_DONG"], g["MAX_SL"] = 30, 20
+	# v692: trần dĩa, nĩa theo cỡ bánh (hằng số thật của don_hang.py).
+	for k in ("DC_CO_NHO", "DC_BO_NHO", "DC_BO_LON"):
+		g[k] = _hang_so("don_hang.py", k)
 	g["_UUID"] = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 	return vet, nap("don_hang.py", "tao_don", g)
 

@@ -60,7 +60,7 @@ await ca('1. Tab Đặt bánh trước: lịch bắt đầu từ Ngày mai 12/11
   const k = taoKho(mt);
   k.S.tab = 'order';
   const goc = nut('goc');
-  createApp({template: '<div>' + LICH + '</div>', setup: () => ({S: k.S, kho: k, t: t0})}).mount(goc);
+  createApp({template: '<div>' + LICH + '</div>', setup: () => ({S: k.S, kho: k, t: t0, nav: () => {}, hm: x => x})}).mount(goc);
   await nextTick();
   const ngay = tim(goc, n => n.the === 'button' && /\bday\b/.test(n.props.class || '')).map(n => chu(n));
   la('ô đầu là Ngày mai 12/11', ngay[0], 'Ngày mai12/11');

@@ -272,6 +272,9 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_chot_chan,
 	# v689 điểm bán mới hoặc đang tắt chọn được ở mọi nghiệp vụ sau bán (anh Việt 23/11/2026).
 	thu_diem_ban_689,
+	# v692 bỏ "/banh#" trong mọi link trang đặt bánh: đường sạch /tuyen-dung, /dat-truoc...
+	thu_duong_sach_692,
+	thu_dia_nia_theo_co_692,
 	# v687 làm mới token Zalo OA có khoá, nghỉ sau khi bị từ chối (sự cố 22/11/2026).
 	thu_zalo_token_687,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.

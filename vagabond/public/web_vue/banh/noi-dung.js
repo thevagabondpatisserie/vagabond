@@ -6,6 +6,9 @@ import {h, reactive} from '../lib/vue.esm-browser.prod.js';
 import {ND, t, chonKhoi, telChu, telSo} from '../kho/chu.js';
 import {ghi} from '../kho/api.js';
 import {BieuTuong} from './bieu-tuong.js';
+import {laMienSach, diaChiMan, hrefMan} from './duong-sach.js';
+/* v692: href của thẻ <a> theo kiểu đường của trang đang mở (node kiểm không có location). */
+const hrefSach = man => hrefMan(laMienSach(globalThis.location && globalThis.location.hostname), man);
 
 const LOAI_RIENG = ['tieu_de_muc', 'kenh_dat_hang', 'zalo_oa', 'nut_kenh', 'uu_dai', 'tuyen_dung', 'tiec'];
 /* v667 (anh Việt 17/11/2026): trang /banh không còn khối Câu chuyện ở bất kỳ tab nào
@@ -351,7 +354,8 @@ export const TheMuc = {
 export const TD = reactive({mo: ''});
 const VIEC_HIEN = 4;
 export function moViTri(ma, win = window) {
-  const url = win.location.pathname + win.location.search + (ma ? '#/tuyen-dung/' + encodeURIComponent(ma) : '#/tuyen-dung');
+  /* v692: tên miền khách dùng đường sạch /tuyen-dung/<mã>, nơi khác giữ #/. */
+  const url = diaChiMan(laMienSach(win.location.hostname), ma ? '#/tuyen-dung/' + encodeURIComponent(ma) : '#/tuyen-dung', win.location.pathname, win.location.search);
   win.history.pushState({vgb: 1}, '', url);
   win.dispatchEvent(new win.PopStateEvent('popstate', {state: {vgb: 1}}));
   if (win.scrollTo) win.scrollTo(0, 0);
@@ -387,7 +391,7 @@ export const TheTuyen = {
   props: {k: Object},
   render() {
     const k = this.k, anh = anhTuyen(k);
-    return h('a', {class: 'td-the' + lopChon(k), href: '#/tuyen-dung/' + encodeURIComponent(k.ma), 'data-khoi': k.id, 'data-vt': k.ma,
+    return h('a', {class: 'td-the' + lopChon(k), href: hrefSach('#/tuyen-dung/' + encodeURIComponent(k.ma)), 'data-khoi': k.id, 'data-vt': k.ma,
       onClick: e => { e.preventDefault(); moViTri(k.ma); }}, [
       h('div', {class: 'td-anh'}, [
         anh ? h('img', {src: anh, alt: '', loading: 'lazy'}) : null,
@@ -427,7 +431,7 @@ export const ChiTietTuyen = {
     return h('article', {class: 'td-chi-tiet' + lopChon(k), 'data-khoi': k.id, 'data-vt': k.ma}, [
       h('div', {class: 'td-hero'}, [
         anh ? h('img', {src: anh, alt: '', loading: 'eager'}) : null,
-        h('a', {class: 'td-lui', href: '#/tuyen-dung', 'aria-label': t('td_ve_ds', 'Về danh sách vị trí'),
+        h('a', {class: 'td-lui', href: hrefSach('#/tuyen-dung'), 'aria-label': t('td_ve_ds', 'Về danh sách vị trí'),
           onClick: e => { e.preventDefault(); moViTri(''); }}, '←'),
         h('div', {class: 'td-h'}, [
           h('p', {class: 'td-tren'}, [k.nhom, k.tuyen_gap ? t('td_gap', 'Tuyển gấp') : t('td_dang_tuyen', 'Đang tuyển')].filter(Boolean).join(' · ')),
@@ -455,7 +459,7 @@ function DanhSachTuyen(ds, homNay) {
     const k = ds.find(x => x.ma === TD.mo);
     if (k) return h(ChiTietTuyen, {k, homNay, key: k.ma});
     return h('div', {class: 'td-het'}, [h('p', {class: 'cm-rong'}, t('td_het', 'Vị trí này đã ngừng nhận hồ sơ. Bạn xem các vị trí khác đang tuyển nhé.')),
-      h('a', {class: 'cm-nut', href: '#/tuyen-dung', onClick: e => { e.preventDefault(); moViTri(''); }}, t('td_xem_khac', 'Xem các vị trí đang tuyển'))]);
+      h('a', {class: 'cm-nut', href: hrefSach('#/tuyen-dung'), onClick: e => { e.preventDefault(); moViTri(''); }}, t('td_xem_khac', 'Xem các vị trí đang tuyển'))]);
   }
   return null;
 }
@@ -467,7 +471,7 @@ function DanhSachTuyen(ds, homNay) {
    dòng đầu "điều kiện" là mức giảm) hay thẻ Marketing soạn trong trình biên tập. */
 export const UD = reactive({mo: ''});
 function diToi(duong, win = window) {
-  win.history.pushState({vgb: 1}, '', win.location.pathname + win.location.search + duong);
+  win.history.pushState({vgb: 1}, '', diaChiMan(laMienSach(win.location.hostname), duong, win.location.pathname, win.location.search));
   win.dispatchEvent(new win.PopStateEvent('popstate', {state: {vgb: 1}}));
   if (win.scrollTo) win.scrollTo(0, 0);
 }
@@ -517,7 +521,7 @@ export const TheUuDai = {
   props: {k: Object, homNay: String},
   render() {
     const k = this.k, anh = anhUuDai(k), han = hanUuDai(k, this.homNay), {muc} = tachUuDai(k);
-    return h('a', {class: 'td-the ud-the' + lopChon(k), href: '#/uu-dai/' + encodeURIComponent(k.id), 'data-khoi': k.id, 'data-ud': k.id,
+    return h('a', {class: 'td-the ud-the' + lopChon(k), href: hrefSach('#/uu-dai/' + encodeURIComponent(k.id)), 'data-khoi': k.id, 'data-ud': k.id,
       onClick: e => { e.preventDefault(); if (ND.xemThu) chonKhoi(k.id); else moUuDai(k.id); }}, [
       h('div', {class: 'td-anh ud-anh' + (anh ? '' : ' ud-nen')}, [
         anh ? h('img', {src: anh, alt: k.mo_ta_anh || '', loading: 'lazy'}) : h('span', {class: 'ud-nen-chu', 'aria-hidden': 'true'}, chuNen(k, muc)),
@@ -563,7 +567,7 @@ export const ChiTietUuDai = {
     return h('article', {class: 'td-chi-tiet ud-chi-tiet' + lopChon(k), 'data-khoi': k.id, 'data-ud': k.id}, [
       h('div', {class: 'td-hero' + (anh ? '' : ' ud-nen')}, [
         anh ? h('img', {src: anh, alt: k.mo_ta_anh || '', loading: 'eager'}) : null,
-        h('a', {class: 'td-lui', href: '#/uu-dai', 'aria-label': t('ud_ve_ds', 'Về danh sách ưu đãi'), onClick: e => { e.preventDefault(); moUuDai(''); }}, '←'),
+        h('a', {class: 'td-lui', href: hrefSach('#/uu-dai'), 'aria-label': t('ud_ve_ds', 'Về danh sách ưu đãi'), onClick: e => { e.preventDefault(); moUuDai(''); }}, '←'),
         h('div', {class: 'td-h'}, [
           h('p', {class: 'td-tren'}, [k.nhan || k.nhom, han || t('ud_dang_dien_ra', 'Đang diễn ra')].filter(Boolean).join(' · ')),
           h('h1', null, k.tieu_de)])]),
@@ -571,7 +575,7 @@ export const ChiTietUuDai = {
       k.ma_uu_dai ? h(ChepMa, {ma: k.ma_uu_dai, key: k.ma_uu_dai}) : null,
       k.noi_dung ? h('section', {class: 'td-muc'}, [h('h3', null, t('ud_chi_tiet', 'Chi tiết')), h(DoanGap, {chu: k.noi_dung})]) : null,
       dsDk.length ? h('section', {class: 'td-muc'}, [h('h3', null, t('ud_dieu_kien', 'Điều kiện')), h('ul', null, dsDk.map(x => h('li', null, x)))]) : null,
-      duong ? h('div', {class: 'td-day'}, [h('a', {class: 'td-ung', href: duong,
+      duong ? h('div', {class: 'td-day'}, [h('a', {class: 'td-ung', href: rieng ? duong : hrefSach(duong),
         onClick: rieng ? undefined : e => { e.preventDefault(); diToi(duong); }}, rieng ? (k.nut || t('xem_chi_tiet_muc', 'Xem chi tiết')) : t('ud_dat_banh', 'Đặt bánh ngay'))]) : null
     ]);
   }
@@ -587,7 +591,7 @@ function ChiTietUuDaiNeuMo(ds, homNay) {
   const k = ds.find(x => x.id === UD.mo);
   if (k) return h(ChiTietUuDai, {k, homNay, key: k.id});
   return h('div', {class: 'td-het'}, [h('p', {class: 'cm-rong'}, t('ud_het', 'Ưu đãi này đã kết thúc. Quý khách xem các ưu đãi khác nhé.')),
-    h('a', {class: 'cm-nut', href: '#/uu-dai', onClick: e => { e.preventDefault(); moUuDai(''); }}, t('ud_xem_khac', 'Xem các ưu đãi đang có'))]);
+    h('a', {class: 'cm-nut', href: hrefSach('#/uu-dai'), onClick: e => { e.preventDefault(); moUuDai(''); }}, t('ud_xem_khac', 'Xem các ưu đãi đang có'))]);
 }
 const LOC = reactive({uu_dai: {tim: '', nhom: ''}, tuyen_dung: {tim: '', nhom: ''}, tiec: {tim: '', nhom: ''}});
 export function dsMuc(loai, homNay = ngayVN()) {

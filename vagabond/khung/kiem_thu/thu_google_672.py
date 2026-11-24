@@ -448,10 +448,10 @@ def _so_do_mon():
 	with um.patch.object(gm, "mon_dua_google", lambda lam_moi=False: ds), um.patch.object(vs, "nowdate", lambda: "2026-11-18"):
 		vs.get_context(ctx)
 	loc = [e.text for e in ET.fromstring(ctx.so_do.encode()).findall("s:url/s:loc", ns)]
-	dung("vẫn có trang đặt bánh", gm.GOC + "/banh" in loc)
+	dung("vẫn có trang đặt bánh", gm.GOC + "/" in loc)
 	la("có hai trang bánh", [u for u in loc if "/mon/" in u], [gm.duong_mon("MOCHI/1"), gm.duong_mon("TART")])
 	duong = [u[len(gm.GOC):] for u in loc]
-	dung("mọi trang là trang khách", all(any(d == a or d.startswith(a + "/") for a in tm.DAU_KHACH) for d in duong))
+	dung("mọi trang là trang khách", all(tm.la_duong_spa(d) or any(d == a or d.startswith(a + "/") for a in tm.DAU_KHACH) for d in duong))
 	ghi = []
 
 	def hong(lam_moi=False):

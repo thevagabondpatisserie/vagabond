@@ -49,7 +49,7 @@ const DAU = MAU.slice(MAU.indexOf('<header>'), MAU.indexOf('</header>') + '</hea
 async function veDau(nhan = {}) {
   apNoiDung({nhan, san_pham: {}, lien_he: {}, khoi: [], thong_tin: {}, ve: {}});
   const goc = nut('goc');
-  createApp({template: DAU, setup: () => ({t, nav: () => {}, LOGO: '/logo.png', telSo: () => '0931224334', telChu: () => '0931 224 334'})}).mount(goc);
+  createApp({template: DAU, setup: () => ({t, nav: () => {}, hm: x => x, LOGO: '/logo.png', telSo: () => '0931224334', telChu: () => '0931 224 334'})}).mount(goc);
   await nextTick();
   const nav = tim(goc, n => n.the === 'nav' && String(n.props.class || '').split(' ').includes('dich-vu'));
   la('đúng một hàng nút dịch vụ', nav.length, 1);

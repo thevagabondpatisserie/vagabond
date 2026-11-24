@@ -17,6 +17,7 @@ import {h} from '../lib/vue.esm-browser.prod.js';
 import {ND, t, telChu, telSo} from '../kho/chu.js';
 import {linkHopLe} from '../kho/thuan.js';
 import {LOGO} from './anh.js';
+import {laMienSach, hrefMan} from './duong-sach.js';
 import {cuaHangHien, chiDuongAnToan, dsMuc, ngayVN} from './noi-dung.js';
 
 /* ---------- phần thuần ---------- */
@@ -144,7 +145,7 @@ export const ChanTrang = {
         lien.email ? h('a', {href: 'mailto:' + lien.email}, lien.email) : null
       ])], 'ctrLienHe'),
       this.muc('mua', t('ct630_mua_banh', 'Mua bánh'), [h('nav', {class: 'ctr-ds', 'aria-label': t('ct630_mua_banh', 'Mua bánh')},
-        mua.map(m => h('a', {href: m.href, 'data-tab': m.k || undefined,
+        mua.map(m => h('a', {href: /^#\//.test(m.href) ? hrefMan(laMienSach(globalThis.location && globalThis.location.hostname), m.href) : m.href, 'data-tab': m.k || undefined,
           onClick: m.k && this.go ? e => { e.preventDefault(); this.go(m.k); } : undefined}, m.ten)))], 'ctrMua')
     ];
     const day = [

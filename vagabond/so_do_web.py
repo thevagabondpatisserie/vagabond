@@ -16,7 +16,11 @@ GOC = "https://thevagabondpatisserie.com"
 # (đường dẫn, độ ưu tiên). Chỉ trang khách công khai. Thêm trang khách mới thì
 # thêm ở đây; trang của nhân viên TUYỆT ĐỐI không đưa vào.
 TRANG_CONG_KHAI = (
-	("/banh", "1.0"),
+	# v692: trang đặt bánh ở "/" và các màn đường sạch (không còn /banh#/...).
+	("/", "1.0"),
+	("/dat-truoc", "0.9"),
+	("/uu-dai", "0.6"),
+	("/tuyen-dung", "0.5"),
 	("/dat-ban", "0.8"),
 	("/thanh-vien", "0.7"),
 	("/banh-si", "0.7"),

@@ -84,10 +84,10 @@ def _tuong_thich():
 	cu = hmac.new(KHOA.encode(), b"goi-mon-ban:TCV:5", hashlib.sha256).hexdigest()[:16]
 	la("khoá bàn 5", g.khoa_ban(KHOA, "TCV", 5), cu)
 	la("khoá bàn ' 05 '", g.khoa_ban(KHOA, "TCV", " 05 "), cu)
-	la("đường QR", g.duong_qr("TCV", 5, cu), "/banh?diem=TCV&ban=5&k=%s#/in-store" % cu)
+	la("đường QR", g.duong_qr("TCV", 5, cu), "/in-store?diem=TCV&ban=5&k=%s" % cu)
 	k = g.khoa_ban(KHOA, "TCV", "A1")
 	dung("bàn A1 khác bàn 1", k != g.khoa_ban(KHOA, "TCV", 1))
-	la("đường QR theo khu", g.duong_qr("tcv", "a01", k), "/banh?diem=TCV&ban=A1&k=%s#/in-store" % k)
+	la("đường QR theo khu", g.duong_qr("tcv", "a01", k), "/in-store?diem=TCV&ban=A1&k=%s" % k)
 	dung("khoá A1 không mở được A2", not g.dung_khoa(KHOA, "TCV", "A2", k))
 
 

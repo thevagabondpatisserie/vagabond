@@ -5,7 +5,7 @@ const GOI = 'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-
 
 export const MAU = `
 <header><div class="wrap hd">
-  <div class="hd-left"><a href="#/" @click.prevent="nav('#/')" :aria-label="t('dat_banh_86376d53a','Về trang chủ')"><img class="logo" :src="LOGO" :alt="t('dat_banh_913466c0d','The Vagabond Pâtisserie')"></a></div>
+  <div class="hd-left"><a :href="hm('#/')" @click.prevent="nav('#/')" :aria-label="t('dat_banh_86376d53a','Về trang chủ')"><img class="logo" :src="LOGO" :alt="t('dat_banh_913466c0d','The Vagabond Pâtisserie')"></a></div>
   <a class="hd-phone" :href="'tel:'+telSo()"><svg viewBox="0 0 24 24"><path d="${GOI}"/></svg>{{ telChu() }}</a>
   <nav class="dich-vu" :aria-label="t('dat_banh_2c5093996','Dịch vụ')"><a href="/dat-ban">{{ t('nut_dat_ban','Đặt bàn') }}</a><a href="/banh-si">{{ t('nut_khach_si','Khách sỉ') }}</a><a href="/thanh-vien">{{ t('nut_thanh_vien','Thành viên') }}</a></nav>
 </div></header>
@@ -153,7 +153,7 @@ export const MAU = `
   <div class="wrap">
     <div class="sec"><span class="n"><span>{{ t('dat_banh_6dcd4ce23','A') }}</span></span><h3><span>{{ t('dat_banh_41d54a1aa','Ngày nhận bánh') }}</span></h3><i class="rule"></i></div>
     <div class="rail" id="rail"><button v-for="d in kho.ngayRailDatTruoc.value" :key="d.i" class="day" :class="{on: d.on, best: d.best, off: d.off}" @click="kho.pick(d.i)"><span>{{ d.ten }}</span><b>{{ d.ngay }}</b></button></div>
-    <div class="note hom-nay-goi"><a href="#/">{{ t('can_banh_hom_nay','Cần bánh hôm nay? Xem tab Có sẵn hôm nay') }} →</a></div>
+    <div class="note hom-nay-goi"><a :href="hm('#/')" @click.prevent="nav('#/')">{{ t('can_banh_hom_nay','Cần bánh hôm nay? Xem tab Có sẵn hôm nay') }} →</a></div>
     <div class="sec"><span class="n"><span>{{ t('dat_banh_ae4f281df','B') }}</span></span><h3><span>{{ t('dat_banh_722864cac','Khung giờ nhận') }}</span></h3><i class="rule"></i></div>
     <div class="rail" id="slots"><button v-for="k in kho.khungRail.value" :key="k.i" class="slot" :class="{on: k.on, off: k.off}" @click="kho.pickSlot(k.i)" :disabled="k.off" :aria-disabled="k.off ? 'true' : null">{{ k.t }}</button></div>
     <div class="note" id="orderNote"><dong-chu :phan="kho.ghiChuDatTruoc.value"/></div>
@@ -214,9 +214,10 @@ export const MAU = `
     <div class="dc-don" id="c-dc" v-if="S.CART.length">
       <div class="dc-tieu">{{ t('dc_don_tieu','Dụng cụ ăn tặng kèm') }}</div>
       <div class="dc-mo">{{ t('dc_don_mo','The Vagabond gửi kèm chỉ khi quý khách cần nhằm hạn chế dụng cụ ăn uống sử dụng một lần. Quý khách cần bao nhiêu vui lòng nhập số lượng.') }}</div>
-      <ul class="acc dc-ds"><li v-for="x in DUNG_CU_DON" :key="x.k" :id="'c-dc-' + x.k"><img :src="anhWeb(x.ka, x.i)" alt=""><span class="nm">{{ t(x.kt, x.n) }}<small>{{ t('dc_don_tang','tặng kèm, 0 đ') }}</small></span>
+      <div class="dc-mo dc-tran">{{ t('dc_don_tran','Tối đa {so} bộ cho giỏ hiện tại: bánh 12cm, 16cm được 10 bộ; bánh 18cm, 20cm được 15 bộ.',{so:kho.tranDc.value}) }}</div>
+      <ul class="acc dc-ds"><li v-for="x in DUNG_CU_DON" :key="x.k" :id="'c-dc-' + x.k"><img :src="anhWeb(x.ka, x.i)" alt=""><span class="nm">{{ t(x.kt, x.n) }}<small>{{ t('dc_don_tang','tặng kèm, 0 đ') }}</small><small class="dc-het" v-if="S.DC[x.k] && S.DC[x.k]>=kho.tranDc.value" role="status">{{ t('dc_don_toi_da','Đã chọn tối đa số lượng cho phép') }}</small></span>
         <div class="sl-vien" role="group" :aria-label="t('so_luong_cua','Số lượng {ten}',{ten:t(x.kt, x.n)})"><button type="button" :disabled="!S.DC[x.k]" :aria-label="t('sl_bot_1','Bớt 1')" @click="kho.doiDc(x.k,-1)"><bieu-tuong loai="tru"/></button>
-          <output aria-live="polite">{{ S.DC[x.k] }}</output><button type="button" :disabled="S.DC[x.k]>=20" :aria-label="t('sl_them_1','Thêm 1')" @click="kho.doiDc(x.k,1)"><bieu-tuong loai="cong"/></button></div></li></ul>
+          <output aria-live="polite">{{ S.DC[x.k] }}</output><button type="button" :disabled="S.DC[x.k]>=kho.tranDc.value" :aria-label="t('sl_them_1','Thêm 1')" @click="kho.doiDc(x.k,1)"><bieu-tuong loai="cong"/></button></div></li></ul>
     </div>
     <goi-y-mua id-khoi="gyGio" :tieu="t('gy_tieu_gio','GIAO KÈM CÙNG CHUYẾN')" :ds="kho.goiYGio.value" :them="kho.themGoiY" :thanh="kho.thanhMienPhiGio.value"/>
 

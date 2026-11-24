@@ -26,12 +26,28 @@ def cong_tac_bat():
 		return 0
 
 
+def duong_khach_spa():
+	"""Request này là một màn của trang đặt bánh trên tên miền khách (v692)."""
+	try:
+		from vagabond.ten_mien import la_trang_dat_banh_khach
+
+		req = getattr(frappe.local, "request", None)
+		return bool(req) and la_trang_dat_banh_khach(req.host, req.path)
+	except Exception:
+		return False
+
+
 class TrangBanhVue(TemplatePage):
 	# Frappe tạo bộ dựng này cho MỌI request web (trước cả trang tĩnh, tài liệu).
 	# Đường khác /banh, /banh/xong thì không quét tệp, không đọc Cài đặt: chỉ giữ vài thuộc
 	# tính tối thiểu rồi can_render trả False ngay.
 	def __init__(self, path=None, http_status_code=None):
 		self.duong_goc = str(path or "").strip("/ ")
+		# v692: trên tên miền khách, "/" và các màn /dat-truoc, /tuyen-dung...
+		# là trang đặt bánh. Xét theo đường THẬT của request, vì luật định tuyến
+		# đã đổi /tuyen-dung thành trang app nội bộ trước khi tới đây.
+		if duong_khach_spa():
+			self.duong_goc = "banh"
 		if self.duong_goc not in TEP_VUE:
 			self.path = self.duong_goc
 			self.http_status_code = http_status_code or 200

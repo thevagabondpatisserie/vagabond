@@ -90,7 +90,9 @@ DAI_TEN = 40
 # Không đọc được giờ mở cửa trên thẻ Cửa hàng (marketing chưa điền) thì dùng
 # khung này, để mã QR chụp lại mang về nhà lúc nửa đêm không réo nhóm Zalo.
 GIO_MAC_DINH = "Mỗi ngày 7:00 - 22:00"
-DUONG_TRANG = "/banh"
+# v692 (anh Việt 24/11/2026): QR bàn dùng đường sạch /in-store, bỏ "/banh#".
+# QR đã in theo dạng cũ /banh?...#/in-store vẫn mở đúng (trang tự đổi địa chỉ).
+DUONG_TRANG = "/in-store"
 # Câu nói đơn đã có người xử lý (thu ngân thứ hai bấm sau).
 CAU_DA_XU_LY = {TT_NHAN: "đã được nhận", TT_TU_CHOI: "đã bị từ chối", TT_HET_HAN: "đã hết hạn"}
 LY_DO_TU_CHOI = ("Hết món", "Quầy quá đông", "Bàn không có khách", "Đơn trùng", "Khác")
@@ -141,7 +143,7 @@ def dung_khoa(bi_mat, diem, ban, k):
 
 def duong_qr(diem, ban, k):
 	"""Đường tương đối in thành QR. Tab TẠI QUẦY mở thẳng. THUẦN."""
-	return "%s?diem=%s&ban=%s&k=%s#/in-store" % (DUONG_TRANG, chuan_diem(diem), chuan_ban(ban), k)
+	return "%s?diem=%s&ban=%s&k=%s" % (DUONG_TRANG, chuan_diem(diem), chuan_ban(ban), k)
 
 
 def ds_ban(tu, den):

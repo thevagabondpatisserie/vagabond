@@ -520,8 +520,10 @@ await ca('Dĩa, nĩa tặng kèm (anh Việt 20/11/2026): chọn một lần cho
   const k = taoKho(mt); k.phucHoiGio();
   la('mặc định không gửi', [k.S.DC.dia, k.S.DC.nia], [0, 0]);
   la('giỏ trống: không gửi dĩa, nĩa dù đã bấm', (k.doiDc('dia', 1), k.T.hangGui(k.S.CART, k.S.DC)), []);
+  la('v692 giỏ trống: trần 0, bấm Thêm không lên số', [k.S.DC.dia, k.tranDc.value], [0, 0]);
   coThem(k); coThem(k);
-  k.doiDc('dia', 3); k.doiDc('nia', 1); k.doiDc('nia', -1); k.doiDc('nia', -1); k.doiDc('nia', 2);
+  la('v692 hai bánh 12cm: trần 20 bộ', k.tranDc.value, 20);
+  k.doiDc('dia', 4); k.doiDc('nia', 1); k.doiDc('nia', -1); k.doiDc('nia', -1); k.doiDc('nia', 2);
   la('nút − không xuống dưới 0', [k.S.DC.dia, k.S.DC.nia], [4, 2]);
   for (let i = 0; i < 40; i++) k.doiDc('nia', 1);
   la('kẹp 20 (bằng trần số lượng của máy chủ)', k.S.DC.nia, 20);
@@ -543,6 +545,20 @@ await ca('Dĩa, nĩa tặng kèm (anh Việt 20/11/2026): chọn một lần cho
   la('v681: thiệp giỏ bản trước chuyển sang từng chiếc', k3.S.CART[0].chiec.map(c => c.thiep), ['nho', 'nho']);
   la('không gửi hai lần', k3.T.hangGui(k3.S.CART, k3.S.DC).filter(x => x.variation_id.startsWith('BAPK')), [{variation_id: 'BAPK00020', quantity: 2}, {variation_id: 'BAPK00018', quantity: 4}]);
   dung('ghi chú bếp không còn nĩa, dĩa theo bánh', !/nĩa/.test(k3.T.chuDungCu(k3.S.CART[0])));
+  /* Codex #619 P2: tải lại giỏ có hàng mùa vụ (chờ nạp) và món gợi ý: trần tính đủ các dòng
+     sẽ khôi phục, không kẹp mất số khách đã chọn. */
+  const goc = JSON.parse(kho.get([...kho.keys()][0]));
+  goc.gio = [{k: 'Mứt mùa', id: 'BAMV00001', cm: 0, qty: 2, price: 1, adds: [], wish: ''}]; goc.dc = {dia: 2, nia: 2};
+  kho.set([...kho.keys()][0], JSON.stringify(goc));
+  const k4 = taoKho(mt); k4.phucHoiGio(); await Promise.resolve();
+  la('chỉ hàng mùa vụ chờ nạp: giữ 2 dĩa, 2 nĩa', [k4.S.DC.dia, k4.S.DC.nia, k4.tranDc.value], [2, 2, 2]);
+  goc.gio = [Object.assign({}, luu.gio[0], {qty: 1, dung_cu: {nia: 0, dia: 0, thiep: 0}}),
+    {k: 'Biscotti', id: 'BACF00027', cm: 0, goi_y: 1, qty: 1, price: 190000}]; goc.dc = {dia: 11, nia: 11};
+  kho.set([...kho.keys()][0], JSON.stringify(goc));
+  const k5 = taoKho(mt); k5.phucHoiGio(); await Promise.resolve();
+  /* Món gợi ý chỉ ở lại khi giỏ không có bánh hôm nay (boGoiYNeuHomNay): trần đúng theo giỏ còn lại. */
+  const tr5 = 10 + k5.S.CART.filter(o => o.goi_y).length;
+  la('bánh 12cm và món gợi ý: trần theo giỏ còn lại, số đã chọn kẹp đúng trần đó', [k5.S.DC.dia, k5.S.DC.nia, k5.tranDc.value], [tr5, tr5, tr5]);
   /* Gửi đơn. */
   k.pick(3); k.pickSlot(6);
   Object.assign(k.S.f, {name: 'Khách', phone: '0901234567', addr: '12 Nguyễn Huệ Quận 1'}); k.S.CO.dongy = true;

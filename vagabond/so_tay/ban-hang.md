@@ -2009,3 +2009,21 @@ Từ v684 (giám đốc duyệt 22/11/2026).
 - Tin chỉ chạy khi ô **Mã mẫu ZNS xác nhận đơn đặt bánh trên web** trong Vagabond Settings có mã mẫu Zalo đã duyệt. Để trống là không gửi, đơn vẫn chạy như cũ.
 
 **Bạn cần làm:** khách báo không nhận tin thì mở đơn trên Desk, xem Lý do chưa gửi (số sai, khách không dùng Zalo); gửi khách đường dẫn biên nhận qua kênh khác nếu cần.
+
+## Web đặt bánh: số dĩa, nĩa tặng tối đa theo cỡ bánh
+Từ khoá: dĩa giấy, nĩa gỗ, dụng cụ ăn tặng kèm, tối đa, size nhỏ, Đã chọn tối đa số lượng cho phép
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Khách trên web; Sales; Bếp | Trang đặt bánh, Thông tin đơn hàng, khối Dụng cụ ăn tặng kèm | Nút − và + |
+
+Từ v692 (giám đốc chốt 24/11/2026, Sales báo khách đặt size nhỏ xin quá nhiều dĩa, nĩa).
+
+**Trước đây:** mọi đơn được chọn tới 20 dĩa và 20 nĩa, kể cả đơn chỉ có một bánh 12cm.
+**Từ nay:**
+- Mỗi bánh 12cm hoặc 16cm được 10 bộ dĩa, nĩa; mỗi bánh 18cm hoặc 20cm được 15 bộ. Đơn nhiều bánh cộng lại, cả đơn tối đa 20 mỗi loại. Bánh một cỡ, đồ uống 1 bộ mỗi món; nến, thiệp không tính.
+- Khối Dụng cụ ăn tặng kèm ghi số bộ tối đa của giỏ hiện tại. Khách bấm tới số đó thì nút + khoá và hiện dòng "Đã chọn tối đa số lượng cho phép".
+- Khách bớt bánh trong giỏ thì số dĩa, nĩa tự hạ theo mức mới.
+- Hệ thống cũng kẹp lại khi nhận đơn: đơn về Pancake không bao giờ vượt mức này.
+
+**Bạn cần làm:** không cần thao tác. Khách cần nhiều hơn mức này thì Sales thêm tay trên đơn Pancake sau khi trao đổi với khách.

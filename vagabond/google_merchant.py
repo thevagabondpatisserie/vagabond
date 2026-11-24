@@ -100,7 +100,7 @@ def xml_tep(ds, goc=GOC):
 	e = lambda s: escape(str(s if s is not None else ""))
 	dong = ['<?xml version="1.0" encoding="UTF-8"?>',
 		'<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">', "<channel>",
-		"<title>%s</title>" % e(THUONG_HIEU), "<link>%s</link>" % e(goc.rstrip("/") + "/banh"),
+		"<title>%s</title>" % e(THUONG_HIEU), "<link>%s</link>" % e(goc.rstrip("/") + "/"),
 		"<description>%s</description>" % e("Bánh đặc biệt tuần này và bánh theo mùa của " + THUONG_HIEU)]
 	for m in ds or []:
 		dong.append("<item>")
