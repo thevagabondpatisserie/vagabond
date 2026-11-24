@@ -1018,6 +1018,40 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(hrefs,[],'không còn href #/ trên tên miền khách');
     assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
   });
+  await test('F61 v693 chữ web: không chữ nào dưới 13 px ở các màn chính, Tại quầy dùng Qualy, nút Xem giỏ đủ chữ, thẻ Đã thêm mới',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    /* Tên quầy và món giả; tên dài đủ để nút Xem giỏ bị ép nếu thanh giỏ co sai. */
+    await c.route('**/api/method/vagabond.kiem_kho.con_tren_quay_web*',r=>r.fulfill({json:{message:{quay:[
+      {ma:'TCV',ten:'Quầy fixture',mon:[
+        {ma:'M1',ten:'Bánh mẫu nhân kem rất dài, Full size',nhom:'Bánh lạnh',gia:100000,con:26,giao:1,mo_ta:'Vỏ giòn, nhân kem mẫu.'},
+        {ma:'M2',ten:'Bánh mẫu thứ hai, Mini size',nhom:'Bánh lạnh',gia:40000,con:4,giao:1}]}]}}}));
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    const nhoHon13=()=>p.evaluate(()=>{const o=[];for(const e of document.querySelectorAll('body *')){
+      const st=getComputedStyle(e); if(st.display==='none'||st.visibility==='hidden') continue;
+      const r=e.getBoundingClientRect(); if(!r.width||!r.height) continue;
+      if([...e.childNodes].some(n=>n.nodeType===3&&n.textContent.trim())&&parseFloat(st.fontSize)<13) o.push((e.className||e.tagName)+' '+st.fontSize);}
+      return o;});
+    for(const man of ['#/','#/dat-truoc','#/in-season','#/uu-dai','#/tuyen-dung']){
+      await p.goto(url+'/web_moi/banh'+man); await p.waitForTimeout(400);
+      assert.deepEqual(await nhoHon13(),[],'màn '+man+' có chữ dưới 13 px');
+    }
+    await p.goto(url+'/web_moi/banh#/in-store'); await p.waitForTimeout(400);
+    const ff=await p.locator('#storeBody .gb-mon-chu>b').first().evaluate(e=>getComputedStyle(e).fontFamily);
+    assert.match(ff,/Qualy/,'tên món Tại quầy dùng Qualy như các màn khác');
+    const nut=p.locator('#storeBody .gb-cong'); await nut.nth(0).click(); await nut.nth(1).click();
+    const toast=p.locator('#toast'); await p.waitForFunction(()=>document.querySelector('#toast').classList.contains('on'));
+    const tst=await toast.evaluate(e=>{const s=getComputedStyle(e);return {nen:s.backgroundColor,vien:s.borderTopColor,bo:parseFloat(s.borderTopLeftRadius),ff:s.fontFamily,co:parseFloat(s.fontSize)};});
+    assert.notEqual(tst.nen,'rgb(79, 219, 242)','thẻ Đã thêm không còn khối nền xanh cũ');
+    assert.equal(tst.vien,'rgb(79, 219, 242)'); assert.ok(tst.bo>=20); assert.match(tst.ff,/Qualy/); assert.ok(tst.co>=13);
+    await p.waitForSelector('#gbBar.on');
+    const go=await p.locator('#gbXemGio').evaluate(b=>{const s=b.querySelector('span:not(.vt-so)'),v=b.querySelector('.vt-so');
+      const rs=s.getBoundingClientRect(),rv=v.getBoundingClientRect();return {chu:s.innerText,tran:s.scrollWidth>s.clientWidth+1,de:rs.right>rv.left+1,co:parseFloat(getComputedStyle(b).fontSize)};});
+    assert.equal(go.tran,false,'chữ Xem giỏ bị cắt'); assert.equal(go.de,false,'vòng số đè lên chữ Xem giỏ');
+    assert.match(go.chu,/xem giỏ/i); assert.ok(go.co>=16);
+    assert.deepEqual(await nhoHon13(),[],'màn Tại quầy có chữ dưới 13 px');
+    assert.deepEqual(loi,[]); await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
