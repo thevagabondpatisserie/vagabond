@@ -13,8 +13,8 @@ html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .
   position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;
   min-height:52px;padding:0 60px 0 24px;margin:0;border:1px solid var(--nm);border-radius:999px;
   background:transparent;color:var(--vt-ink);box-shadow:none;text-decoration:none;
-  font:600 12.5px/1.2 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif);
-  font-style:normal;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;text-align:center;
+  font:600 var(--nut-chu,16px)/1.2 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif);
+  font-style:normal;letter-spacing:var(--nut-gian,.06em);text-transform:uppercase;white-space:nowrap;text-align:center;
 }
 html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .btn,a.td-ung)::before{
   content:"";position:absolute;z-index:-1;top:4px;bottom:4px;left:4px;right:52px;border-radius:999px;background:var(--nm);
@@ -28,12 +28,13 @@ html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .
 /* Hàng mùa vụ giữ màu cam của mục (anh Việt: cam giữ nguyên). */
 html body .sheet.mua button.btn{--nm:var(--amber,#DB7E2A)}
 /* Nút trong thanh .cta (Gửi đặt bánh, Thêm vào giỏ) giãn hết hàng. */
-html body .cta button.btn:not(.btn-xs){flex:1;min-width:0;padding:0 60px 0 22px;font-size:12.5px}
+html body .cta button.btn:not(.btn-xs){flex:1;min-width:0;padding:0 60px 0 22px;font-size:var(--nut-chu,16px)}
 /* Chữ dài (tiếng Anh, giá kèm) không được đè lên mặt trăng: cắt bằng dấu ba chấm thay vì tràn. */
 html body :is(button.btn:not(.btn-xs),.bar .go,a.web-nut,.ctr-nut-chinh,.empty .btn,a.td-ung)>span:not(.vt-so){overflow:hidden;text-overflow:ellipsis}
 
 /* Thanh giỏ dưới đáy: mặt trăng hiện SỐ BÁNH trong giỏ thay mũi tên. */
-html body .bar .go{padding:0 60px 0 22px}
+/* v693: nút Xem giỏ không co lại khi chữ bên trái dài, chữ "Xem giỏ" luôn hiện đủ (ảnh anh Việt 24/11/2026 chỉ còn "XEM"). */
+html body .bar .go{flex:none;padding:0 60px 0 22px}
 html body .bar .go .vt-so{
   position:absolute;top:4px;bottom:4px;right:4px;width:42px;border-radius:50%;background:var(--nm);
   display:grid;place-items:center;color:var(--vt-ink);font:600 15px/1 var(--sans,sans-serif);letter-spacing:0;
@@ -55,7 +56,7 @@ html body .sheet.mua .cta:has(>a.tel)>button.btn{border-color:var(--amber,#DB7E2
 /* ---------- 2. Nút phụ: viên viền xanh mờ, nền xanh 6%, chữ xanh in hoa ---------- */
 html body :is(.cart-add,.sua-gio,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a,nav.dich-vu a){
   border:1px solid rgba(79,219,242,.5);border-radius:999px;background:rgba(79,219,242,.06);color:var(--vt-xanh);
-  font:500 12px/1.3 var(--sans,sans-serif);font-style:normal;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;
+  font:500 13px/1.3 var(--sans,sans-serif);font-style:normal;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;
 }
 html body :is(.cart-add,.sua-gio,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a){
   position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;
@@ -65,8 +66,9 @@ html body :is(.cart-add,.sua-gio,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a)
 html body :is(.cart-add,.sua-gio,.huong-size,.td-them,.ctr-nut-vien,.vsk-rong a):hover{background:rgba(79,219,242,.12)}
 /* Thanh dịch vụ đầu trang: Đặt bàn, Khách sỉ, Thành viên vừa một hàng ở 390 px. */
 html body nav.dich-vu{gap:6px}
-html body nav.dich-vu a{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:44px;height:44px;min-width:44px;padding:0 11px;font-size:10.5px;white-space:nowrap}
-@media(max-width:374px){html body nav.dich-vu a{padding:0 8px;font-size:10px}}
+/* v693: nhãn 13 px (trước 10,5 px in hoa) viết thường, giãn nhẹ để ba nút vẫn vừa một hàng ở 390 px. */
+html body nav.dich-vu a{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:44px;height:44px;min-width:44px;padding:0 11px;font-size:13px;white-space:nowrap;text-transform:none;letter-spacing:.02em}
+@media(max-width:374px){html body nav.dich-vu a{padding:0 8px;font-size:13px}}
 /* v667 (mẫu anh Việt duyệt 17/11/2026): viên nhìn thấy cao 32 px, vùng bấm vẫn 44 px
    (AGENTS.md điều 13). Viền và nền vẽ bằng ::before lùi 6 px trên dưới. */
 html body nav.dich-vu a{isolation:isolate;border-color:transparent;background:transparent}
@@ -76,7 +78,7 @@ html body nav.dich-vu a:hover::before{background:rgba(79,219,242,.12)}
 html body button.btn-xs{
   border:0;border-radius:999px;background:var(--vt-xanh);color:var(--vt-ink);
   box-shadow:0 0 0 3px #000,0 0 0 4px var(--vt-xanh);
-  font:600 12px/1.2 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;font-style:normal;
+  font:600 13px/1.2 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;font-style:normal;
 }
 
 /* ---------- 3. Ô chọn ---------- */
@@ -157,7 +159,7 @@ html body aside.kenh-noi.thu .kenh-bang{display:none}
 
 /* Luật cũ ".cta .btn:not(.btn-md):not(.btn-lg):not(.btn-xs)" (thao-tac.css) có độ ưu tiên
    cao hơn nhóm :is ở trên, nên nút trong thanh .cta phải nhắc lại hình viên tròn. */
-html body .cta button.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){border-radius:999px;min-height:52px;padding:0 60px 0 22px;letter-spacing:.16em;font-size:12.5px}
+html body .cta button.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){border-radius:999px;min-height:52px;padding:0 60px 0 22px;letter-spacing:var(--nut-gian,.06em);font-size:var(--nut-chu,16px)}
 html body .cta:has(>a.tel)>button.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){min-height:58px;padding:0 70px 0 22px}
 html body .cta>a.tel:not(.x){border-radius:50%;width:48px;min-height:48px;flex:0 0 48px}
 
@@ -166,13 +168,13 @@ html body .cta>a.tel:not(.x){border-radius:50%;width:48px;min-height:48px;flex:0
    ô lọc một dòng cao 40. Mục tiêu vùng đầu khoảng 210 px ở 390 px. */
 html body .quay-gat{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:16px 0 0;padding:4px;border:1px solid var(--vt-xanh);border-radius:34px}
 html body .quay-gat button{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:54px;padding:6px 8px;border:0;border-radius:28px;
-  background:transparent;color:rgba(255,255,255,.78);font:600 11.5px/1.3 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;font-style:normal;text-align:center;cursor:pointer}
+  background:transparent;color:rgba(255,255,255,.78);font:600 13px/1.3 var(--sans,sans-serif);letter-spacing:.1em;text-transform:uppercase;font-style:normal;text-align:center;cursor:pointer}
 html body .quay-gat button span{display:block;white-space:nowrap}
 html body .quay-gat button[aria-pressed=true]{background:var(--vt-xanh);color:var(--vt-ink)}
-html body .quay-dong{margin:10px 0 0;font:500 10.5px/1.5 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+html body .quay-dong{margin:10px 0 0;font:500 13px/1.5 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.55)}
 html body .quay-dong b{font-weight:500;color:var(--paper,#fff)}
 html body .gb-tim{min-height:50px;margin:14px 0 0;padding:0 4px 0 20px;border:1px solid rgba(79,219,242,.5);border-radius:999px;background:transparent}
-html body .gb-tim input{min-height:48px;font:14.5px var(--qualy,var(--sans))}
+html body .gb-tim input{min-height:48px;font:14.5px var(--qualy,var(--qualy))}
 html body .gb-tim-xoa{margin-right:0}
 /* Kính lúp tròn 40 px như mẫu duyệt, vùng bấm vẫn 44 px (AGENTS.md điều 13): nền xanh vẽ
    bằng gradient tròn bán kính 20 px giữa ô 44 px. */
@@ -187,8 +189,8 @@ html body :is(.gb-tang,.gb-chips) button{position:relative;isolation:isolate;fle
 html body :is(.gb-tang,.gb-chips) button::before{content:"";position:absolute;z-index:-1;inset:2px 0;border:1px solid rgba(255,255,255,.2);border-radius:999px}
 html body :is(.gb-tang,.gb-chips) button[aria-pressed=true]{background:transparent;box-shadow:none;color:var(--vt-ink)}
 html body :is(.gb-tang,.gb-chips) button[aria-pressed=true]::before{background:var(--vt-xanh);border-color:var(--vt-xanh);box-shadow:0 0 0 3px #000,0 0 0 4px rgba(79,219,242,.5)}
-html body .gb-tang button b{font:600 12px/1 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase}
-html body .gb-tang button span{font-size:12px;opacity:.75}
+html body .gb-tang button b{font:600 13px/1 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase}
+html body .gb-tang button span{font-size:13px;opacity:.75}
 html body .gb-chips button{padding:0 14px;display:inline-flex}
 /* Ghi chú cuối danh sách: Messenger và số điện thoại là chữ xanh gạch chân trong câu. */
 html body .store-note a{display:inline;padding:0;border:0;background:none;color:var(--vt-xanh);text-decoration:underline;text-underline-offset:3px;font:inherit;letter-spacing:normal;text-transform:none}
@@ -206,11 +208,11 @@ html body .dbt-moc li:last-child::before{display:none}
 html body .dbt-moc li i{position:absolute;top:0;left:0;width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:#000;box-sizing:border-box}
 html body .dbt-moc li.on{color:var(--paper,#fff)}
 html body .dbt-moc li.on i{background:var(--vt-xanh);border-color:var(--vt-xanh);box-shadow:0 0 0 4px rgba(79,219,242,.22)}
-html body .dbt-moc li b{display:block;font:600 10px/1.3 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase}
-html body .dbt-moc li span{display:block;margin-top:3px;font:11px/1.3 var(--sans,sans-serif);letter-spacing:.04em}
+html body .dbt-moc li b{display:block;font:600 13px/1.3 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase}
+html body .dbt-moc li span{display:block;margin-top:3px;font:13px/1.3 var(--sans,sans-serif);letter-spacing:.04em}
 html body .dbt-dem{display:inline-flex;align-items:center;gap:14px;margin:22px 0 0;padding:8px 22px 8px 20px;border:1px solid rgba(79,219,242,.4);border-radius:999px}
 html body .dbt-dem>b{font:400 34px/1 'Vagabond Sans',var(--sans,sans-serif);color:var(--vt-xanh);white-space:nowrap}
-html body .dbt-dem>span{display:flex;flex-direction:column;font:500 10.5px/1.45 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+html body .dbt-dem>span{display:flex;flex-direction:column;font:500 13px/1.45 var(--sans,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62)}
 html body .dbt-dem>span>span:first-child{color:var(--paper,#fff)}
 html body .dbt-ds{margin-top:26px}
 html body .dbt-the{position:relative;flex:0 0 292px;height:440px;border-radius:28px;overflow:hidden;background:#071a1d;scroll-snap-align:start;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
@@ -220,19 +222,19 @@ html body .dbt-anh{position:absolute;inset:0;cursor:pointer}
 html body .dbt-the.khoa .dbt-anh{cursor:default}
 html body .dbt-anh img{width:100%;height:100%;object-fit:cover;display:block}
 html body .dbt-anh::after{content:"";position:absolute;inset:40% 0 0;background:linear-gradient(to bottom,rgba(0,0,0,0),rgba(0,0,0,.86) 62%,#000)}
-html body .dbt-goc{position:absolute;top:16px;left:16px;padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.55);font:600 10px/1 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--paper,#fff);pointer-events:none}
+html body .dbt-goc{position:absolute;top:16px;left:16px;padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.55);font:600 13px/1 var(--sans,sans-serif);letter-spacing:.1em;text-transform:uppercase;color:var(--paper,#fff);pointer-events:none}
 html body .dbt-chu{position:absolute;left:0;right:0;bottom:0;padding:0 20px 20px;pointer-events:none}
 html body .dbt-chu :is(button,a){pointer-events:auto}
 html body .dbt-ten{margin:0;font:400 40px/1 'Vagabond Sans',var(--sans,sans-serif);text-transform:uppercase;color:var(--paper,#fff)}
 html body .dbt-mot .dbt-ten{font-size:52px}
 html body .dbt-mo{margin:8px 0 0;font:14px/1.45 var(--qualy,var(--sans));color:rgba(255,255,255,.72)}
 html body .dbt-gia{display:flex;align-items:baseline;gap:10px;margin:10px 0 0}
-html body .dbt-gia span{font:500 10.5px/1 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+html body .dbt-gia span{font:500 13px/1 var(--sans,sans-serif);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6)}
 html body .dbt-gia b{font:600 15px/1 var(--sans,sans-serif);color:var(--vt-xanh)}
 html body .dbt-tang span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 html body .dbt-tang{margin:12px 0 0;font:13px/1.45 var(--qualy,var(--sans));color:rgba(255,255,255,.75)}
-html body .dbt-tang b{display:block;margin-bottom:3px;font:600 10px/1.3 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--vt-xanh)}
-html body .dbt-khoa{display:inline-block;margin:12px 0 0;padding:7px 12px;border:1px solid rgba(255,255,255,.3);border-radius:999px;font:600 10.5px/1 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--paper,#fff)}
+html body .dbt-tang b{display:block;margin-bottom:3px;font:600 13px/1.3 var(--sans,sans-serif);letter-spacing:.1em;text-transform:uppercase;color:var(--vt-xanh)}
+html body .dbt-khoa{display:inline-block;margin:12px 0 0;padding:7px 12px;border:1px solid rgba(255,255,255,.3);border-radius:999px;font:600 13px/1 var(--sans,sans-serif);letter-spacing:.1em;text-transform:uppercase;color:var(--paper,#fff)}
 html body .dbt-mot .dbt-khoa{display:none}
 html body .dbt .dbt-dat.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){display:flex;width:100%;margin-top:16px;border-radius:999px;min-height:52px}
 html body .dbt-cong{position:absolute;top:12px;right:12px;width:44px;height:44px;border:0;border-radius:50%;background:var(--vt-xanh);color:var(--vt-ink);display:grid;place-items:center;cursor:pointer;padding:0}
@@ -249,7 +251,7 @@ html body .dbt-cham i.on{width:18px;border-radius:999px;background:var(--vt-xanh
    phải ảnh (vùng bấm 44px), tên tối đa 2 dòng, câu lý do màu xanh, giá. Vuốt ngang;
    vuốt dọc vẫn cuộn trang. Không khung chen ngang. */
 html body .gy{margin:22px 0 6px}
-html body .gy-tieu{margin:0 0 10px;font:600 11px/1.4 var(--sans,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--vt-xanh,#4FDBF2)}
+html body .gy-tieu{margin:0 0 10px;font:600 13px/1.4 var(--sans,sans-serif);letter-spacing:.1em;text-transform:uppercase;color:var(--vt-xanh,#4FDBF2)}
 html body .gy-bang{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:2px 2px 8px;
   margin:0 -2px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x pan-y}
 html body .gy-bang::-webkit-scrollbar{display:none}
@@ -278,19 +280,19 @@ html body .gb-sheet .gb-dau-bang{padding:max(14px,env(safe-area-inset-top)) 20px
   background:radial-gradient(120% 90% at 85% 0%,rgba(79,219,242,.10),transparent 60%),var(--bg)}
 html body .gb-sheet .gb-dau-bang::before{content:"";position:absolute;left:-30%;right:-10%;top:30%;height:120px;border:1px solid rgba(79,219,242,.28);border-radius:50%;transform:rotate(-8deg);pointer-events:none}
 html body .gb-sheet .gb-dau-bang::after{content:"";position:absolute;left:20px;right:20px;bottom:0;height:1px;background:linear-gradient(90deg,rgba(79,219,242,.5),rgba(255,255,255,.08))}
-html body .gb-sheet .gb-dau-chu small{font:500 10.5px/1.4 var(--sans);letter-spacing:.2em;color:var(--fog);margin-bottom:6px}
+html body .gb-sheet .gb-dau-chu small{font:400 13px/1.4 var(--qualy);letter-spacing:.1em;color:var(--fog);margin-bottom:6px}
 html body .gb-sheet .gb-dau-chu h2{font-family:'Vagabond Sans',var(--sans);font-size:34px;line-height:1;letter-spacing:.02em;text-transform:uppercase;color:var(--cyan)}
 html body .gb-sheet .gb-x{position:relative;z-index:1;border:1px solid var(--vt-xanh);background:rgba(0,0,0,.6);color:var(--vt-xanh);box-shadow:0 0 0 3px #000,0 0 0 4px rgba(79,219,242,.35)}
-html body .gb-sheet .gb-than{padding:6px 20px 24px;font-family:var(--qualy,var(--sans))}
+html body .gb-sheet .gb-than{padding:6px 20px 24px;font-family:var(--qualy,var(--qualy))}
 html body .gb-sec{display:flex;align-items:center;gap:12px;margin:22px 0 12px}
-html body .gb-sec .n{font:500 11px/1 var(--sans);letter-spacing:.14em;color:var(--cyan)}
-html body .gb-sec h3{margin:0;font:400 11px/1.3 var(--sans);letter-spacing:.22em;text-transform:uppercase;color:var(--fog)}
+html body .gb-sec .n{font:500 13px/1 var(--sans);letter-spacing:.1em;color:var(--cyan)}
+html body .gb-sec h3{margin:0;font:400 13px/1.3 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--fog)}
 html body .gb-sec .rule{flex:1;height:1px;background:var(--line)}
 /* Lượt đã gọi: thẻ bo 18, chip trạng thái có chấm màu. */
-html body .gb-luot{border:1px solid rgba(255,255,255,.16);border-radius:18px;background:#0B0B0B;padding:14px 16px;margin-bottom:10px;font-family:var(--qualy,var(--sans))}
+html body .gb-luot{border:1px solid rgba(255,255,255,.16);border-radius:18px;background:#0B0B0B;padding:14px 16px;margin-bottom:10px;font-family:var(--qualy,var(--qualy))}
 html body .gb-luot-dau{align-items:center;margin-bottom:8px}
-html body .gb-luot-dau b{font:600 13px/1.3 var(--sans);letter-spacing:.06em}
-html body .gb-tt{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border-radius:999px;border:1px solid rgba(255,255,255,.2);font:500 12.5px/1.2 var(--sans);text-align:left}
+html body .gb-luot-dau b{font:400 13px/1.3 var(--qualy);letter-spacing:.06em}
+html body .gb-tt{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border-radius:999px;border:1px solid rgba(255,255,255,.2);font:500 13px/1.2 var(--sans);text-align:left}
 html body .gb-tt::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
 html body .gb-tt.cho{color:#F4C26B;border-color:rgba(244,194,107,.45);background:rgba(244,194,107,.07)}
 html body .gb-tt.ok{color:var(--cyan);border-color:rgba(79,219,242,.45);background:rgba(79,219,242,.07)}
@@ -300,48 +302,48 @@ html body .gb-luot-dong{font-size:14.5px}
 html body .gb-club{border:1px solid rgba(79,219,242,.45);border-radius:18px;background:rgba(79,219,242,.05);padding:14px 16px 16px}
 html body .gb-club-dau{display:flex;align-items:flex-start;gap:12px}
 html body .gb-club-dau>span{flex:1;min-width:0}
-html body .gb-club-dau b{display:block;font:600 15px/1.35 var(--qualy,var(--sans));color:var(--paper)}
+html body .gb-club-dau b{display:block;font:400 15px/1.35 var(--qualy,var(--qualy));color:var(--paper)}
 html body .gb-club-dau small{display:block;font-size:13px;line-height:1.5;color:var(--fog);margin-top:3px}
 html body .gb-club-ic{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--vt-xanh);color:var(--vt-xanh)}
 html body .gb-club-ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.4}
 html body .gb-club.gan .gb-club-ic{background:var(--vt-xanh);color:var(--vt-ink)}
-html body .gb-chip{display:inline-flex;align-items:center;min-height:26px;padding:0 10px;border-radius:999px;font:500 12px/1.2 var(--sans);font-style:normal;letter-spacing:.06em;white-space:nowrap}
+html body .gb-chip{display:inline-flex;align-items:center;min-height:26px;padding:0 10px;border-radius:999px;font:500 13px/1.2 var(--sans);font-style:normal;letter-spacing:.06em;white-space:nowrap}
 html body .gb-chip.ok{color:var(--cyan);border:1px solid rgba(79,219,242,.45);background:rgba(79,219,242,.08)}
 html body .gb-club .gb-phu{margin:10px 0 0}
 html body .gb-club-nut{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;margin-top:14px;border:0;border-radius:999px;background:var(--vt-xanh);color:var(--vt-ink);
-  box-shadow:0 0 0 3px #000,0 0 0 4px var(--vt-xanh);font:600 12.5px/1.2 var(--sans);letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
+  box-shadow:0 0 0 3px #000,0 0 0 4px var(--vt-xanh);font:600 13px/1.2 var(--sans);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
 html body .gb-club .gb-ud{margin:12px 0 0;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:#0B0B0B;min-height:56px}
 html body .gb-ud-ic{background:rgba(79,219,242,.12);border:1px solid rgba(79,219,242,.45)}
-html body .gb-ud em{font:600 12px/1.2 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--vt-xanh)}
+html body .gb-ud em{font:600 13px/1.2 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--vt-xanh)}
 /* Tạm tính và số lớn. */
 html body .gb-tong-ban{border-top:0;margin:0 0 6px;padding-top:0}
 html body .gb-tong-ban>div{font-size:14px}
 html body .gb-tong-ban>div.lon{margin-top:8px;padding-top:12px;border-top:1px dashed rgba(255,255,255,.18)}
-html body .gb-tong-ban>div.lon span{font:500 11px/1.3 var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--fog)}
-html body .gb-tong-ban>div.lon b{font:400 26px/1.1 var(--qualy,var(--sans));color:var(--cyan)}
+html body .gb-tong-ban>div.lon span{font:500 13px/1.3 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--fog)}
+html body .gb-tong-ban>div.lon b{font:400 26px/1.1 var(--qualy,var(--qualy));color:var(--cyan)}
 html body .gb-so-lon{margin:18px 0 0;padding:18px 18px 16px;border:1px solid rgba(79,219,242,.45);border-radius:18px;background:rgba(79,219,242,.05);display:flex;flex-direction:column;gap:6px}
-html body .gb-so-lon small{font:500 11px/1.3 var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--fog)}
-html body .gb-so-lon b{font:400 36px/1.05 var(--qualy,var(--sans));color:var(--cyan)}
+html body .gb-so-lon small{font:500 13px/1.3 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--fog)}
+html body .gb-so-lon b{font:400 36px/1.05 var(--qualy,var(--qualy));color:var(--cyan)}
 html body .gb-so-lon .gb-chip{align-self:flex-start;margin-top:4px}
 /* Nút phụ: viên viền xanh mờ, chữ in hoa. */
 html body .gb-sheet .gb-ghost{flex:1;min-height:48px;border:1px solid rgba(79,219,242,.5);border-radius:999px;background:rgba(79,219,242,.06);color:var(--vt-xanh);
-  font:500 11.5px/1.2 var(--sans);letter-spacing:.14em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+  font:500 13px/1.2 var(--sans);letter-spacing:.1em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 html body .gb-sheet .gb-ghost svg{width:16px;height:16px}
 /* Thẻ chọn (cách trả, ưu đãi): bo 18 như ô size bánh. */
 html body .gb-sheet .gb-ly{border:1px solid rgba(255,255,255,.16);border-radius:18px;background:#0B0B0B;padding:14px 16px;margin-bottom:10px}
 html body .gb-sheet .gb-ly.on{border-color:var(--vt-xanh);background:rgba(79,219,242,.08);box-shadow:0 0 0 1px rgba(79,219,242,.5)}
-html body .gb-sheet .gb-ly b{font-family:var(--qualy,var(--sans))}
+html body .gb-sheet .gb-ly b{font-family:var(--qualy,var(--qualy))}
 html body .gb-sheet .gb-ly small{font-size:13px;line-height:1.45}
 html body .gb-sheet .gb-ly-ic{border-radius:50%;border:1px solid rgba(79,219,242,.5);background:rgba(79,219,242,.08)}
 html body .gb-ud-tag{border-radius:999px;padding:2px 10px;border-color:rgba(79,219,242,.45);background:rgba(79,219,242,.06)}
 html body .gb-ud-k.tat .gb-ud-tag{border-color:rgba(244,194,107,.45);background:rgba(244,194,107,.06)}
-html body .gb-sheet .fld input{min-height:50px;border-radius:999px;padding:0 20px;border:1px solid rgba(255,255,255,.2);background:#0B0B0B;font:15px var(--qualy,var(--sans))}
+html body .gb-sheet .fld input{min-height:50px;border-radius:999px;padding:0 20px;border:1px solid rgba(255,255,255,.2);background:#0B0B0B;font:15px var(--qualy,var(--qualy))}
 html body .gb-sheet .fld label{display:none}
 html body .gb-sheet .gb-phu{font-size:13px;line-height:1.6}
 /* Nút chính dưới đáy: kiểu vệ tinh như Thêm vào giỏ. */
 html body .gb-sheet .gb-day{border-top:0;background:linear-gradient(180deg,rgba(0,0,0,0),var(--bg) 28%);padding-top:22px}
 html body .gb-sheet .gb-cta{position:relative;isolation:isolate;min-height:56px;padding:0 64px 0 24px;border:1px solid var(--vt-xanh);border-radius:999px;background:transparent;color:var(--vt-ink);
-  font:600 12.5px/1.2 var(--sans);letter-spacing:.16em}
+  font:600 13px/1.2 var(--sans);letter-spacing:.1em}
 html body .gb-sheet .gb-cta::before{content:"";position:absolute;z-index:-1;top:4px;bottom:4px;left:4px;right:54px;border-radius:999px;background:var(--vt-xanh)}
 html body .gb-sheet .gb-cta::after{content:"";position:absolute;top:4px;bottom:4px;right:4px;width:46px;border-radius:50%;
   background:var(--vt-xanh) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 17L17 7M9 7h8v8' fill='none' stroke='%231A1A1A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/20px no-repeat}
@@ -360,7 +362,7 @@ html body .gb-tt,html body .gb-sheet .gb-cta{font-size:13px}
 html body .gb-chip.xam{color:var(--fog);border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.04)}
 html body .gb-ck{margin-top:4px}
 html body .gb-ck-dau{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-html body .gb-ck-dau b{font:400 26px/1.1 var(--qualy,var(--sans));color:var(--cyan)}
+html body .gb-ck-dau b{font:400 26px/1.1 var(--qualy,var(--qualy));color:var(--cyan)}
 html body .gb-ck-app{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 html body .gb-ck-nut{display:flex;flex-direction:column;justify-content:center;min-height:56px;padding:8px 14px;border:1px solid rgba(79,219,242,.5);border-radius:16px;
   background:rgba(79,219,242,.06);color:var(--paper);text-decoration:none;min-width:0}
