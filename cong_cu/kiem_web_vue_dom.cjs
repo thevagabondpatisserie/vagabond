@@ -992,8 +992,9 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       const u=r.request().url();
       if(u.startsWith(url)) return r.continue();
       if(!u.startsWith(KH+'/')) return r.abort();
-      const f=await r.fetch({url:url+u.slice(KH.length),headers:{...r.request().headers(),'x-vgb-host':'thevagabondpatisserie.com'}});
-      return r.fulfill({response:f});
+      /* Đóng ngữ cảnh lúc ảnh còn đang tải thì bỏ qua, không làm nổ cả bộ ca. */
+      try{ const f=await r.fetch({url:url+u.slice(KH.length),headers:{...r.request().headers(),'x-vgb-host':'thevagabondpatisserie.com'}});
+        await r.fulfill({response:f}); }catch(e){ try{ await r.abort(); }catch(e2){} }
     });
     const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
     const dangO=async(duong,id)=>{
@@ -1015,7 +1016,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     /* Thẻ <a> trỏ màn dùng href gọn để Sao chép liên kết ra link gọn. */
     const hrefs=await p.evaluate(()=>Array.from(document.querySelectorAll('a[href]'),a=>a.getAttribute('href')).filter(h=>/^#\//.test(h)));
     assert.deepEqual(hrefs,[],'không còn href #/ trên tên miền khách');
-    assert.deepEqual(loi,[]); await c.close();
+    assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
   });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
