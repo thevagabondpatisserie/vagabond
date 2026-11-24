@@ -39,6 +39,7 @@ node cong_cu/ui_b/quet_man.cjs --ra /tmp/quet [--khung 360x780] [--app tệp]
 - `_ui_b_bang_phu_moi_emoji`: đỏ trên bảng cũ (🚨 🚀 🛠), xanh bây giờ.
 - Làm hỏng có chủ ý, bắt được 10 trên 10: ba chỗ trong 51-cai-dat-loi.js (ca node), sáu chỗ trong 81-ui-b.js (công cụ rà trên Chromium: `uiBCoChu`, `uiBCachNut`, `uiBChon`, viền công tắc, xếp dọc hàng nút, min-height 44), một bộ chọn ngoài `html.ui-b` có dấu phẩy ngoài cùng (`kiem_khai_bao.py` vẫn bắt sau khi sửa cách tách bộ chọn).
 - Bàn phím (Codex #614 P2 trên e4b8594): dòng của hộp chọn có tabindex, vai option, Enter và Space chọn qua bộ phím chung, mũi tên lên xuống đi giữa các dòng; mở hộp thì tiêu điểm vào dòng đang chọn, chọn xong về lại nút. Ca `_ui_b_hop_chon_phim_v691` đỏ trên e4b8594, xanh bây giờ; làm hỏng 3 chỗ, bắt 3. Chromium: mở bằng nút, mũi tên xuống, Enter đổi giá trị, change phát một lần.
+- Tên truy cập (Codex #614 P2 vòng 2 trên 2c865c8): nút đọc là "nhãn trường: giá trị đang chọn" (ví dụ Ngân hàng: MB Bank), đổi theo mỗi lần chọn hay khi mã cũ đặt giá trị; trống thì "chưa chọn". Ca `_ui_b_nut_chon_ten_v691` đỏ trên 2c865c8, xanh bây giờ; làm hỏng 2 chỗ, bắt 2.
 - Ô chọn mới thử thật: mở hộp, chạm Techcombank, select đổi giá trị, input và change phát một lần, hộp đóng, nút cao 45.
 
 ## Chưa kiểm

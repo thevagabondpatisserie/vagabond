@@ -837,6 +837,10 @@ function uiBVeChon(sel) {
   var chu = o ? o.text : '';
   var moi = (chu ? h(chu) : '<span class="uib-chon-trong">Chạm để chọn</span>');
   if (nut.__uibChu !== moi) { nut.__uibChu = moi; nut.innerHTML = '<span class="uib-chon-chu">' + moi + '</span>' + uiBSvg('chevron-down', 18); }
+  /* Codex #614 P2 vong 2: select goc da an khoi cay truy cap, nen ten truy cap cua nut phai mang ca
+     nhan truong lan gia tri dang chon, va doi theo moi lan ve lai (chon xong, ma cu dat value). */
+  var ten = uiBTenChon(sel) + ': ' + (chu || 'chưa chọn');
+  if (nut.getAttribute('aria-label') !== ten) nut.setAttribute('aria-label', ten);
   nut.disabled = !!sel.disabled;
 }
 function uiBChon(goc) {
@@ -848,7 +852,6 @@ function uiBChon(goc) {
     var nut = document.createElement('button');
     nut.type = 'button'; nut.className = 'uib-chon';
     nut.setAttribute('aria-haspopup', 'listbox');
-    nut.setAttribute('aria-label', uiBTenChon(sel));
     sel.__uibNut = nut; sel.classList.add('uib-chon-goc'); sel.setAttribute('tabindex', '-1'); sel.setAttribute('aria-hidden', 'true');
     sel.parentNode.insertBefore(nut, sel.nextSibling);
     uiBVeChon(sel);

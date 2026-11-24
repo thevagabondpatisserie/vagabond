@@ -560,6 +560,17 @@ def _ui_b_giu_emoji_v691():
 	la("emoji của bảng chèn ngoài vùng giữ", k["bang_chen"]["ngoai"], 0)
 
 
+@ca("ui-b v691 (Codex #614 P2 vòng 2): nút thay ô chọn có tên truy cập gồm nhãn trường và giá trị đang chọn, đổi theo mỗi lần chọn; chạy uiBTenChon, uiBVeChon thật")
+def _ui_b_nut_chon_ten_v691():
+	"""Bẫy Codex chỉ: aria-label chỉ có nhãn trường (Phạm vi) và đặt một lần, select gốc đã ẩn khỏi
+	cây truy cập, nên trình đọc màn hình không đọc được đang chọn gì (hanh_vi/nut_chon_ten_614.js)."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "nut_chon_ten_614.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("tên truy cập theo giá trị: lúc đầu, sau khi chọn, khi trống", [k["dau"], k["sau_chon"], k["trong"]],
+		["Phạm vi: Một ngày", "Phạm vi: Khoảng ngày", "Phạm vi: chưa chọn"])
+
+
 @ca("ui-b v691 (Codex #614 P2): hộp chọn thay ô chọn hệ điều hành dùng được bằng bàn phím: Enter, Space chọn dòng, mũi tên đi giữa các dòng; chạy sheet() và hopPhim() thật")
 def _ui_b_hop_chon_phim_v691():
 	"""Bẫy Codex chỉ: dòng .shi không có tabindex, data-phim nên hopPhim không bấm hộ; select gốc
