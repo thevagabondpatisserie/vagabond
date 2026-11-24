@@ -113,6 +113,24 @@ def _tt_kho(r):
 _TT_CHUA_TRU = ("chua_tru", "mot_phan")
 
 
+def chip_diem_hd(cac_diem=None):
+	"""Chip lọc điểm bán của màn Hoá đơn bán ra: [{ma, ten}], mã là mã quầy,
+	điểm không có quầy là "SALES" (cùng quy ước dòng hoá đơn ở dưới). THUẦN khi
+	truyền `cac_diem`; không truyền thì đọc danh mục điểm bán (mọi điểm đã khai)."""
+	if cac_diem is None:
+		from vagabond import diem_ban
+
+		cac_diem = diem_ban.ds()
+	ra, da = [], set()
+	for d in cac_diem:
+		ma = (str(d.get("quay") or "").strip().upper() or "SALES")
+		if ma in da:
+			continue
+		da.add(ma)
+		ra.append({"ma": ma, "ten": d.get("ten_ngan") or d.get("ten") or ma})
+	return ra
+
+
 @frappe.whitelist()
 def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=None):
 	_kiem_quyen()
@@ -227,6 +245,9 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 		loc_ra = ra
 	return {
 		"hd": loc_ra[:TRAN_DONG],
+		# v689: chip điểm bán lấy từ danh mục điểm bán, kể cả điểm đang tắt;
+		# khoá lọc là mã quầy, điểm không quầy (Sales Online) là SALES như trên.
+		"diem_ds": chip_diem_hd(),
 		"tong_dong": len(loc_ra),
 		"bi_cat": max(0, len(loc_ra) - TRAN_DONG),
 		"dem": dem,

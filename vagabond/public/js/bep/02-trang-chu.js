@@ -224,12 +224,13 @@ async function tcDungHtml(can) {
          3. Man hinh co ca don HOM NAY, the thi cat hom nay di.
          Loi ghi chu ngay tren day tu truoc van noi "lay theo 14 ngay gan day",
          tuc y dinh ban dau la vay, chi la code khong lam. */
-      var mocTreo = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
-      dtn = (await tcGoi(can, 'si_treo', function () { return nenDemDanhSach('Sales Invoice', {
-        fields: ['name'],
-        filters: { posting_date: ['>=', mocTreo], docstatus: 0, custom_pancake_id: ['!=', ''], vgb_quay: ['in', ['', null]], vgb_huy: 0, vgb_tam_tinh: 0 },
-        limit_page_length: 0
-      }); }, [])).length;
+      /* Codex kiểm v685 (UI15): ô từng đếm từ ngày 14 ngày trước theo giờ UTC
+         của trình duyệt tới hết hôm nay, còn màn lấy theo ngày của site từ 14
+         ngày trước tới hôm qua, nên ô hiện 11 mà màn chỉ có 3. Nay máy chủ
+         đếm bằng đúng bộ lọc của màn (ban_hang._loc_don_treo). */
+      dtn = Number((await tcGoi(can, 'si_treo', function () {
+        return api('vagabond.ban_hang.dem_don_treo', { so_ngay: 14 });
+      }, {})).so) || 0;
     } catch (e) { }
     html += '<div class="sec">Bán hàng</div><div class="card">' +
       /* Ba diem ban gio nam chung mot cua: bam vao la chon D1, NVHTN hay
@@ -420,7 +421,7 @@ async function tcDungHtml(can) {
       /* Bien nhan nop tien mat, ban cua KE TOAN: bay phieu cua MOI nguoi,
          loc theo diem ban, xuat Excel. Nhan vien lap phieu o o cung ten
          ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
-      card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
+      card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của mọi điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
       /* v628 Quỹ tiền mặt công ty (anh Việt duyệt 02/11/2026): chị Dung kiểm quỹ, ghi nộp ngân hàng.
          Người xem Tài chính mà không thuộc khối này mở từ dòng Quỹ công ty ở màn Tiền hiện có. */
       card('🪙', 'Quỹ tiền mặt công ty', 'Tiền trong quỹ, kiểm quỹ, nộp tiền mặt vào ngân hàng', 0, 'TCQUY') +

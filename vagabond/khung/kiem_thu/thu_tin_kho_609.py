@@ -284,7 +284,9 @@ def _lich():
 	# v613: không tiền, vẫn có phần trăm đã về.
 	dung("dòng có phần trăm, không tiền", "40%" in goi[0].dong[0] and "3.000.000" not in goi[0].dong[0])
 	bl_hd = []
-	goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=lambda dt, **k: (bl_hd.append(k.get("filters")), ga(dt))[1])
+	# #610: mốc 01/11/2026 sau ngày giả HOM_NAY; ca lịch chung lùi mốc về trước phiếu giả.
+	with um.patch.object(tk, "NHAC_HOA_DON_TU", "2026-07-01"):
+		goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=lambda dt, **k: (bl_hd.append(k.get("filters")), ga(dt))[1])
 	la("chưa hoá đơn", [(g.ma_tin, g.khoa) for g in goi], [("tm_hang_ve_chua_hoa_don", "pnk-chua-hd:%s" % hom)])
 	la("loại phiếu trả hàng NCC (Codex #495 vòng 4)", bl_hd[0].get("is_return"), 0)
 	bo_loc, bo_loc_k = [], []
@@ -454,3 +456,41 @@ def _noi_day():
 	# Lời gọi nằm trong nhánh da_nhan: tìm If bao quanh.
 	bao_quanh = [n for n in ast.walk(td) if isinstance(n, ast.If) and any(c is goi[0] for c in ast.walk(n)) and "da_nhan" in ast.unparse(n.test)]
 	dung("chỉ khi Pancake đã nhận", len(bao_quanh) >= 1)
+
+
+@ca("#610 tin nhắc hàng về chưa có hoá đơn chỉ xét phiếu nhập từ 01/11/2026 (anh Việt chốt 23/11/2026)")
+def _nhac_hoa_don_tu_0111():
+	la("mốc mặc định", tk.NHAC_HOA_DON_TU, "2026-11-01")
+	# Biên: phiếu 01/11 đủ quá 3 ngày từ 04/11; trước đó chưa có gì để nhắc.
+	la("03/11: chưa có phiếu nào vừa mới vừa quá hạn", tk.khoang_nhac_hoa_don("2026-11-03"), None)
+	la("04/11: chỉ đúng ngày 01/11", tk.khoang_nhac_hoa_don("2026-11-04"), ("2026-11-01", "2026-11-01"))
+	la("23/11: từ 01/11 tới 20/11", tk.khoang_nhac_hoa_don("2026-11-23"), ("2026-11-01", "2026-11-20"))
+	la("qua năm: 02/01/2027", tk.khoang_nhac_hoa_don(datetime.date(2027, 1, 2)), ("2026-11-01", "2026-12-30"))
+	la("tiêu đề", tk.tieu_de_nhac_hoa_don(5), "5 phiếu nhập từ 01/11 quá 3 ngày chưa có hoá đơn")
+
+	# Chạy thật hàm lịch ngày 23/11: bộ lọc gửi xuống đúng khoảng, phiếu trả về được báo.
+	bo_loc = []
+
+	def ga(dt, **k):
+		bo_loc.append((dt, k.get("filters")))
+		return [D(name="PNK-11", supplier_name="Cty E", posting_date="2026-11-05")]
+	with um.patch.object(tk, "nowdate", lambda: "2026-11-23"):
+		goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=ga)
+	la("một lần đọc phiếu nhập", [d for d, _ in bo_loc], ["Purchase Receipt"])
+	f = bo_loc[0][1]
+	la("lọc ngày nhập trong khoảng", f.get("posting_date"), ["between", ["2026-11-01", "2026-11-20"]])
+	la("giữ các điều kiện cũ", (f.get("docstatus"), f.get("is_return"), f.get("per_billed"), f.get("status")),
+		(1, 0, ["<", 99.99], ["!=", "Closed"]))
+	la("một tin", [(g.ma_tin, g.loai, g.khoa) for g in goi], [("tm_hang_ve_chua_hoa_don", "viec", "pnk-chua-hd:2026-11-23")])
+	la("tiêu đề có mốc", goi[0].tieu_de, "1 phiếu nhập từ 01/11 quá 3 ngày chưa có hoá đơn")
+	# Codex #611: đường gửi thật đổi mọi link phiếu nhập về màn Nhập kho của app, bỏ hết
+	# tham số; nên không hứa lọc ngày ở đường dẫn. Kiểm sau bước đổi link thật.
+	from vagabond import lien_ket_app
+	la("đường dẫn sau bước đổi link thật: màn Nhập kho",
+		lien_ket_app.doi_link(goi[0].link, "https://app.vagabond.test", {"vagabond.test"}), "https://app.vagabond.test/nhap-kho")
+
+	# Trước ngày đủ hạn: không đọc, không gửi.
+	bo_loc[:] = []
+	with um.patch.object(tk, "nowdate", lambda: "2026-11-03"):
+		goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=ga)
+	la("03/11: không đọc phiếu, không gửi", (bo_loc, goi), ([], []))

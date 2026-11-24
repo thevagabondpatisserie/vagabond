@@ -225,11 +225,14 @@ def _the_phieu_chi_khop_man():
 
 @ca("trang chu: the Don con treo dem dung cai man Don con treo bay ra")
 def _the_don_treo_khop_man():
+	# v690 (Codex kiểm v685, UI15): ô không còn tự dựng bộ lọc ở trình duyệt
+	# (mốc UTC, lấy cả hôm nay nên lệch màn). Máy chủ đếm bằng đúng bộ lọc
+	# của màn: hành vi chạy thật ở thu_don_treo_mot_nguon.py và
+	# hanh_vi/trang_chu_nhanh_pr_b.js; ở đây chỉ giữ dấu để không ai đưa
+	# bộ lọc riêng quay lại Trang chủ.
 	s = _js("02-trang-chu.js")
-	dung("co moc 14 ngay nhu man hinh", "mocTreo" in s)
-	dung("chi dem don chua vao quay", "vgb_quay: ['in', ['', null]]" in s)
-	dung("khong con cat hom nay di",
-		"posting_date: ['<', today()], docstatus: 0, custom_pancake_id" not in s)
+	dung("the hoi may chu dem bang bo loc cua man", "vagabond.ban_hang.dem_don_treo" in s)
+	dung("khong con bo loc rieng o trinh duyet", "mocTreo" not in s)
 
 
 @ca("kho chung tu: tab Da huy khong keo phieu xuat dung noi bo vao")

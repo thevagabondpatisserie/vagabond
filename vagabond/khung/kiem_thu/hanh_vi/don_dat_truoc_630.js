@@ -73,6 +73,8 @@ function dungMoi(vai) {
       khung.innerHTML = html + (opt && opt.footer ? '<div class="vf">' + opt.footer + '</div>' : ''); khung._nghe = {}; khung.onclick = null; that._t = t; return khung;
     },
     go: function (fn) { dieuHuong.push(fn.name || 'anDanh'); return fn(); },
+    /* v690: màn async hỏi vgbManNay (phần 01) trước khi vẽ; ca này nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
+    vgbManNay: function () { return function () { return true; }; },
     busy: function () {},
     toast: function (m) { toastDs.push(m); },
     api: function (duong, ts) {

@@ -356,7 +356,8 @@ def doanh_thu_diem(diem=None, pham_vi=None, tu_ngay=None, den_ngay=None):
 
 	ds_diem = [
 		{"ma": d["ma"], "ten": d["ten"], "ten_ngan": d["ten_ngan"]}
-		for d in db.ds(chi_bat=True)
+		# v689: mọi điểm đã khai, kể cả đang tắt (hội chợ xong vẫn còn tiền mặt phải nộp).
+		for d in db.ds()
 	]
 	if not diem:
 		return {"diem": ds_diem, "chon": "", "theo_ngay": [], "tong_tien_mat": 0.0}

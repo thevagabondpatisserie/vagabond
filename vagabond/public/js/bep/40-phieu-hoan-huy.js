@@ -108,16 +108,19 @@ function phDay(r, buoc) {
 
 async function scrPhieuHoanHuy() {
   frame('Danh sách phiếu hoàn tiền', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
+  var conMan = vgbManNay(scrPhieuHoanHuy);
   var kq;
   try {
     kq = await api('vagabond.don_huy.ds_phieu', {
       diem: phDiem, loai: phLoai, trang_thai: phLoc, tim: phTim,
     });
   } catch (e) {
+    if (!conMan()) return;
     frame('Danh sách phiếu hoàn tiền', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var dong = kq.dong || [], buoc = kq.buoc || [];
 
   var html = '<div class="card" style="padding:12px 13px">' +
@@ -193,6 +196,7 @@ async function scrPhieuHoanHuy() {
     '<button class="btn gh" data-phb="don" style="flex:1">↩️ Đơn đã huỷ</button>' +
     '<button class="btn gh" data-phb="excel" style="flex:1">📄 Xuất Excel</button></div>';
 
+  if (!conMan()) return;
   frame('Danh sách phiếu hoàn tiền', html, { footer: foot });
   var o = document.getElementById('phTim');
   if (o) {

@@ -684,9 +684,11 @@ var cbNgay = 7, cbLoai = null;
 
 async function scrCanhBaoTT() {
   frame('Cảnh báo thanh toán', '<div class="emp"><div class="e1">⏳</div><div>Đang soát hoá đơn...</div></div>');
+  var conMan = vgbManNay(scrCanhBaoTT);
   var d;
   try { d = await api('vagabond.van_don.canh_bao_thanh_toan', { so_ngay: cbNgay }); }
-  catch (e) { frame('Cảnh báo thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame('Cảnh báo thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (!conMan()) return;
   var rows = d.rows || [], dem = d.dem || {};
 
   var MAU = {
@@ -732,6 +734,7 @@ async function scrCanhBaoTT() {
     (d.bo_qua_nhap_lieu ? '<br><br>Đã bỏ qua ' + d.bo_qua_nhap_lieu + ' tờ nhập từ đợt chuyển dữ liệu Fabi. Những tờ đó không có phương thức vì bên Fabi không có trường này, không phải Sales chọn thiếu.' : '') +
     '</div>';
 
+  if (!conMan()) return;
   var b = frame('Cảnh báo thanh toán', html, {});
   Array.prototype.forEach.call(document.querySelectorAll('[data-cbn]'), function (el) {
     el.onclick = function () { cbNgay = +el.getAttribute('data-cbn'); go(scrCanhBaoTT, true); };

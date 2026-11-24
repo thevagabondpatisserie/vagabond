@@ -144,12 +144,15 @@ function sdtTtCua(x) {
 }
 async function scrSoDuTraTruoc() {
   frame('Số dư trả trước của khách', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng số dư...</div></div>');
+  var conMan = vgbManNay(scrSoDuTraTruoc);
   var kq;
   try { kq = await api('vagabond.tra_truoc_khach.ds', { tim: sdtTim }); }
   catch (e) {
+    if (!conMan()) return;
     frame('Số dư trả trước của khách', '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var tatCa = kq.khach || [];
   var dem = { tat_ca: tatCa.length };
   tatCa.forEach(function (x) {
@@ -190,6 +193,7 @@ async function scrSoDuTraTruoc() {
       '<b style="white-space:nowrap;color:#0f766e">' + money(x.kha_dung_tam || 0) + '</b></div>';
   });
   html += '</div>';
+  if (!conMan()) return;
   var than = frame('Số dư trả trước của khách', html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') sdtTt = k;

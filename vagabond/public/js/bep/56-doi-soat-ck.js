@@ -118,12 +118,15 @@ async function scrDoiSoatCk() {
   var tieuDe = 'Đối soát chuyển khoản';
   if (!dsckNgay) dsckNgay = today();
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc bill chuyển khoản...</div></div>');
+  var conMan = vgbManNay(scrDoiSoatCk);
   var kq;
   try { kq = await api('vagabond.doi_soat_ck.ds_bill_ck', { ngay: dsckNgay }); }
   catch (e) {
+    if (!conMan()) return;
     frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>');
     return;
   }
+  if (!conMan()) return;
   var tatCa = kq.rows || [];
   var dem = { tat_ca: tatCa.length, chua_xong: 0, du: 0 };
   var diemDs = dsckDsDiem(kq, tatCa), demDiem = { tat_ca: tatCa.length };
@@ -187,6 +190,7 @@ async function scrDoiSoatCk() {
       '</div></div>';
   });
   html += '</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') dsckTt = k;

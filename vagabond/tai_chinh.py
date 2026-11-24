@@ -798,13 +798,21 @@ def _tinh_tien():
 				if not n["dong_bo"] and n["so_bao"] > 0:
 					# Không đồng bộ giao dịch về app, SePay báo số dư: lấy luôn.
 					d["so_du"] = n["so_bao"]
+					d["so_sepay"] = 1
 					d["ghi"].append("Số dư SePay báo")
 				elif m:
 					vao, ra, so_gd = _phat_sinh_nh(n["bank_account"], m["ngay_chot"])
 					d.update(vao=vao, ra=ra, so_gd=so_gd)
 					d["so_du"] = so_du_tu_moc(m, vao, ra)
 					d["doi_chieu"] = doi_chieu(d["so_du"], n["so_bao"])
-				if n["dong_bo"] and not m:
+				elif n["so_bao"] > 0:
+					# #610 (anh Việt 23/11/2026): tài khoản đồng bộ giao dịch mà chưa chốt
+					# số dư đầu (Shinhan) vẫn có số: lấy số SePay báo như tài khoản không
+					# đồng bộ, cho tới khi Kế toán chốt số dư đầu.
+					d["so_du"] = n["so_bao"]
+					d["so_sepay"] = 1
+					d["ghi"].append("Số dư SePay báo, chưa chốt số dư đầu")
+				if n["dong_bo"] and not m and d["so_du"] is None:
 					d["ghi"].append("Chưa chốt số dư đầu")
 				if not n["dong_bo"] and n["so_bao"] <= 0 and not m:
 					if so_bao:

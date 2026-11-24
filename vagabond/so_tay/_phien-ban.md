@@ -12,9 +12,22 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
-## v688
-
+## v691
 - Ô chọn không bị ép chữ trên điện thoại
+
+## v690
+- Con số trên ô Trang chủ
+
+## v689
+- Lập biên nhận nộp tiền mặt
+- Xem hoá đơn mua vào và hoá đơn bán ra
+
+## v688
+- Tin nhắc hàng về chưa có hoá đơn chỉ tính phiếu từ 01/11/2026
+- Xem tiền hiện có từng tài khoản, từng két
+
+## v687
+- Không đổi thao tác: máy làm mới mã kết nối Zalo OA mỗi lần một lượt, Zalo từ chối mã thì nghỉ 10 phút thay vì gọi lại liên tục; dán Refresh token mới trong Cài đặt thì máy thử ngay; mỗi lần cập nhật app máy tự gỡ loại tin Zalo đã bỏ khỏi các nhóm nhận tin, để một tin cũ không chặn lưu trang Cài đặt
 
 ## v685
 - Con số trên ô Trang chủ

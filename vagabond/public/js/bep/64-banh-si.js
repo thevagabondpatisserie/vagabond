@@ -122,9 +122,11 @@ async function scrDonSiWeb() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc đơn sỉ...</div></div>');
+  var conMan = vgbManNay(scrDonSiWeb);
   var kq;
   try { kq = await api('vagabond.banh_si.ds_don', {}); }
-  catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  if (!conMan()) return;
   /* Lọc khách và ngày giao áp cả thẻ tóm tắt lẫn danh sách; mỗi hàng chip đếm
      theo các hàng còn lại để số trên chip khớp số thẻ hiện ra. */
   var goc = kq.rows || [], homNay = kq.hom_nay;
@@ -145,6 +147,7 @@ async function scrDonSiWeb() {
   };
   var html = dsCongCu(cc) + bsiTomTat(kqLoc) + '<div id="bsiDs">' + bsiVeDs(kqLoc) + '</div>' +
     '<div style="font-size:12px;color:#98a2b3;margin:10px 16px 18px;line-height:1.5">Ngày giao sớm nhất là ngày đặt + 3. Khách trả cuối kỳ: giao được ngay, hoá đơn ghi công nợ hạn 15 ngày. Khách trả trước: tiền về và kế toán ghi sổ phiếu thu rồi mới giao.</div>';
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') { bsiTt = k || ''; bsiTim = ''; }
@@ -479,11 +482,13 @@ async function scrKhachSiWeb() {
     return;
   }
   frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc...</div></div>');
+  var conMan = vgbManNay(scrKhachSiWeb);
   var dk, kh;
   try {
     dk = await api('vagabond.banh_si.ds_dang_ky', { trang_thai: bsiKhTab === 'dk' ? bsiDkTt : '' });
     kh = await api('vagabond.banh_si.ds_khach', { tim: bsiKhTab === 'kh' ? bsiKhTim : '' });
-  } catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  } catch (e) { if (!conMan()) return; frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + ' Kiểm tra mạng rồi mở lại màn.</div></div>'); return; }
+  if (!conMan()) return;
   var dem = dk.dem || {};
   /* Thanh công cụ chung (v534): hàng thẻ Đăng ký / Khách đang đặt, hàng trạng
      thái đăng ký có đếm, ô tìm khách ở thẻ Khách đang đặt. */
@@ -501,6 +506,7 @@ async function scrKhachSiWeb() {
     html += ks.length ? ks.map(bsiTheKhach).join('') : '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🏢</div><div>' +
       (bsiKhTim ? 'Không có khách nào khớp ô tìm.' : 'Chưa có khách nào mở đặt sỉ trên web. Duyệt một đăng ký ở thẻ Đăng ký.') + '</div></div></div>';
   }
+  if (!conMan()) return;
   var than = frame(tieuDe, html);
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tab') bsiKhTab = k || 'dk';

@@ -343,7 +343,7 @@ def bang_theo_nguon(nguon=None):
 			ra["%s|%s" % (ma, ten)] = tk_cho(ten, ma)
 	# Diem chua co nguon nao khai o day van phai tra duoc tai khoan, de man
 	# nao chi biet minh o quay nao (chua chon nguon) van sinh duoc QR.
-	for d in diem_ban.ds(chi_bat=True):
+	for d in diem_ban.ds():
 		ra["%s|" % d["ma"]] = tk_cho("", d["ma"])
 	return ra
 
@@ -370,7 +370,8 @@ def danh_sach():
 	# Diem ban len truoc nguon don: day moi la cach anh Viet chia dong tien
 	# (moi diem mot tai khoan ao MB), con tai khoan theo nguon chi de xu ly
 	# vai truong hop le nhu khach si.
-	for d in diem_ban.ds(chi_bat=True):
+	# v689: khai được tài khoản cho cả điểm đang tắt, trước khi mở bán lại.
+	for d in diem_ban.ds():
 		k = CN_DIEM + d["ma"]
 		nguon.append({
 			"v": k, "lg": "", "ic": "🏪",

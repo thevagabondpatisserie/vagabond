@@ -39,6 +39,7 @@ function bntSo(o) {
 async function scrBntDs() {
   var tua = bntTuaDe();
   frame(tua, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc phiếu...</div></div>');
+  var conMan = vgbManNay(scrBntDs);
   var kq, dsDiem = [];
   try {
     kq = await api('vagabond.nop_quy.danh_sach', {
@@ -46,12 +47,14 @@ async function scrBntDs() {
       tim: bntTim, diem: bntDiem, chi_toi: BNT_TOI
     });
   } catch (e) {
+    if (!conMan()) return;
     frame(tua, '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
   /* Danh sach diem ban lay tu chinh cua doanh thu, khong go tay ba diem
      vao day: them diem thu tu ma man nay khong biet la bat dau lech. */
   try { dsDiem = (await api('vagabond.nop_quy.doanh_thu_diem', {})).diem || []; } catch (e) { }
+  if (!conMan()) return;
   var ds = kq.ds || [], dem = kq.dem || {};
 
   var html = '';
@@ -104,6 +107,7 @@ async function scrBntDs() {
     }).join('') + '</div>';
   }
 
+  if (!conMan()) return;
   var b = frame(tua, html);
   b.onclick = function (e) {
     var t = e.target.closest('[data-bntdiem]');

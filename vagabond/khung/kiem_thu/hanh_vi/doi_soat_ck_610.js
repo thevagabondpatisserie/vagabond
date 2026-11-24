@@ -110,6 +110,8 @@ function dungMoi(vai) {
     hasRole: function (r) { return vai.indexOf(r) >= 0; },
     frame: function (t, html) { khung.innerHTML = html; khung.onclick = null; that._t = t; return khung; },
     go: function (fn) { that.S.stack.push(fn); return fn(); },
+    /* v690: màn async hỏi vgbManNay (phần 01) trước khi vẽ; ca này nạp riêng phần màn nên giả hàm đó luôn còn đứng. */
+    vgbManNay: function () { return function () { return true; }; },
     busy: function () {},
     toast: function (m) { toastDs.push(m); },
     confirmSheet: function (t, m) { hoi.push(m); return Promise.resolve(true); },

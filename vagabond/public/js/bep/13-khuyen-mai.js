@@ -495,13 +495,19 @@ function kmDoiDong(giaTri, ma) {
   return da.join('\n');
 }
 
-/* Ba diem ban. Don Sales online khong mang ma quay nen quy uoc la SALES,
-   may chu cung hieu quy uoc nay (khuyen_mai._hop_kenh). */
-var KM_QUAY = [
-  { ma: 'SALES', ten: 'Sales Online' },
-  { ma: 'TCV', ten: 'District 1' },
-  { ma: 'NVHTN', ten: 'NVHTN' }
-];
+/* Diem ban lay tu danh muc may chu (khuyen_mai.danh_muc -> _quay_ds), gom
+   ca diem dang tat: them diem ban la co chip, khong go tay danh sach o day
+   (v689, anh Viet 23/11/2026). Don Sales online khong mang ma quay nen quy
+   uoc la SALES, may chu cung hieu quy uoc nay (khuyen_mai._hop_kenh). */
+function kmQuayDs() { return (kmDm && kmDm.quay) || []; }
+
+/* Codex #617: sheet chuong trinh mo thang tu CRM Zalo (58-crm.js) khi chua ghe
+   man Khuyen mai thi kmDm con null, chip QUAY, nhom mon, hang khach rong het.
+   Moi cua vao sheet nap danh muc tai day, khong dua vao man danh sach. */
+async function kmNapDm() {
+  if (!kmDm) { try { kmDm = await api('vagabond.khuyen_mai.danh_muc', {}); } catch (e) { kmDm = null; } }
+  return kmDm;
+}
 
 var KM_CACH = [
   { k: 'Giam tong hoa don', nhan: 'Giảm tổng hoá đơn', ic: '🧾', mo: 'Giảm % hoặc số tiền trên cả hoá đơn' },
@@ -530,21 +536,27 @@ function kmTheChip(t, nhan) { return posChipNut('data-kmthe="' + t + '"', nhan, 
 
 async function scrKhuyenMai() {
   frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chương trình...</div></div>');
+  var conMan = vgbManNay(scrKhuyenMai);
   var ct, cb;
   try {
     ct = await api('vagabond.khuyen_mai.ds_ctkm', { tat_ca: 1 });
     cb = await api('vagabond.khuyen_mai.ds_combo', { tat_ca: 1 });
     /* Hang khach, nhom khach, nhom mon va quay lay tu may de bay ra thanh
        chip cho bam, khoi go tay (anh Viet 12/08/2026). */
-    if (!kmDm) { try { kmDm = await api('vagabond.khuyen_mai.danh_muc', {}); } catch (e2) { kmDm = null; } }
+    await kmNapDm();
   } catch (e) {
+    if (!conMan()) return;
     frame('Khuyến mãi - combo', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
   }
   /* v645: ưu đãi đơn đầu tiên trên web (không phải chương trình ERP). Đọc hỏng
      thì màn vẫn chạy và thẻ báo chưa tải được kèm nút Thử lại (Codex #548). */
-  try { kmDonDau = await api('vagabond.don_dau_web.doc_cai_dat', {}); }
-  catch (e3) { kmDonDau = { loi: (e3 && e3.message) || 'Không tải được' }; }
+  var kmDd;
+  try { kmDd = await api('vagabond.don_dau_web.doc_cai_dat', {}); }
+  catch (e3) { kmDd = { loi: (e3 && e3.message) || 'Không tải được' }; }
+  /* Lượt mở cũ về muộn không ghi đè dữ liệu của lượt đang hiện (vgbManNay, phần 01). */
+  if (!conMan()) return;
+  kmDonDau = kmDd;
   kmData = { ct: (ct && ct.km) || [], cb: (cb && cb.combo) || [] };
   var dsCt = kmData.ct, dsCb = kmData.cb;
   var dangBat = dsCt.filter(function (x) { return x.bat; }).length;
@@ -569,6 +581,7 @@ async function scrKhuyenMai() {
   else if (kmThe === 'lo') html += '<div class="card" id="kmLoBox" style="padding:6px 14px"><div class="emp" style="padding:22px"><div class="e1">⏳</div><div>Đang đọc lô mã...</div></div></div>';
   else html += '<div class="card" id="kmBcBox" style="padding:6px 14px"><div class="emp" style="padding:22px"><div class="e1">⏳</div><div>Đang cộng sổ...</div></div></div>';
 
+  if (!conMan()) return;
   var b = frame('Khuyến mãi - combo', html, {
     fab: (kmThe === 'ct' || kmThe === 'cb'),
     onFab: function () { kmThe === 'cb' ? kmSheetCombo(null) : kmSheetCtkm(null); }
@@ -896,11 +909,11 @@ function kmChipPhamVi(x) {
   if (quay.length) {
     quay.forEach(function (q) {
       var ten = q;
-      for (var i = 0; i < KM_QUAY.length; i++) if (KM_QUAY[i].ma === q) ten = KM_QUAY[i].ten;
+      kmQuayDs().forEach(function (d) { if (d.ma === q) ten = d.ten; });
       out += kmChipNho('🏪 ' + h(ten), '#f5f3ff', '#5b21b6');
     });
   } else {
-    out += kmChipNho('🏪 cả ba điểm', '#f6f7f9', '#6b7280');
+    out += kmChipNho('🏪 mọi điểm bán', '#f6f7f9', '#6b7280');
   }
   return out;
 }
@@ -1051,6 +1064,7 @@ function kmN(id) { var o = document.getElementById(id); return o ? (parseFloat(o
 
 async function kmSheetCtkm(ma) {
   var km = null;
+  await kmNapDm();
   if (ma) {
     try { var r = await api('vagabond.khuyen_mai.xem_ctkm', { ma: ma }); km = r.km; }
     catch (e) { toast((e && e.message) || 'Không mở được'); return; }
@@ -1167,8 +1181,8 @@ async function kmSheetCtkm(ma) {
       }).join('') + '</div>' +
       '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px">Không chọn kênh nào = áp dụng mọi kênh.</div>' +
       '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">QUẦY</div>' +
-      kmChipNhieu('data-kmquay', (kmDm && kmDm.quay) || KM_QUAY, k.quay) +
-      '<div style="font-size:11.5px;color:#98a2b3;margin:-6px 0 10px">Không chọn quầy nào = áp dụng cả ba điểm bán.</div>';
+      kmChipNhieu('data-kmquay', kmQuayDs(), k.quay) +
+      '<div style="font-size:11.5px;color:#98a2b3;margin:-6px 0 10px">Không chọn quầy nào = áp dụng mọi điểm bán.</div>';
 
     /* --- doi tuong --- */
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">ĐỐI TƯỢNG KHÁCH</div>' +
@@ -1544,6 +1558,7 @@ function kmDsKenh() {
 /* ---------- Sheet cau hinh combo ---------- */
 async function kmSheetCombo(ma) {
   var cb = null;
+  await kmNapDm();
   if (ma) {
     cb = (kmData.cb || []).filter(function (x) { return x.name === ma; })[0];
     if (cb) cb = JSON.parse(JSON.stringify(cb));
@@ -1710,8 +1725,8 @@ async function kmSheetCombo(ma) {
       '<div style="flex:1">' + kmO('ĐẾN NGÀY', 'cbDenNgay', s.den_ngay, '', 'date') + '</div></div>';
 
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">QUẦY</div>' +
-      kmChipNhieu('data-cbquay', (kmDm && kmDm.quay) || KM_QUAY, s.quay) +
-      '<div style="font-size:11.5px;color:#98a2b3;margin:-6px 0 10px">Không chọn quầy nào = bán ở cả ba điểm.</div>';
+      kmChipNhieu('data-cbquay', kmQuayDs(), s.quay) +
+      '<div style="font-size:11.5px;color:#98a2b3;margin:-6px 0 10px">Không chọn quầy nào = bán ở mọi điểm bán.</div>';
 
     html += '<div style="font-size:12.5px;color:#b3261e;font-weight:700;margin:8px 0 6px">CHỐNG GIAN LẬN</div>' +
       '<div style="display:flex;gap:7px;margin-bottom:10px">' +

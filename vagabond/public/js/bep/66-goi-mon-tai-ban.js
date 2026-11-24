@@ -544,9 +544,11 @@ function gmbMoTaDong(d) {
 
 async function scrGmbInQr() {
   frame('In QR tại bàn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải các điểm bán...</div></div>');
+  var conMan = vgbManNay(scrGmbInQr);
   var ds;
   try { ds = await api('vagabond.goi_mon_ban.diem_in_qr', {}); }
-  catch (e) { frame('In QR tại bàn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được điểm bán. Kéo xuống để thử lại.') + '</div></div>'); return; }
+  catch (e) { if (!conMan()) return; frame('In QR tại bàn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Chưa tải được điểm bán. Kéo xuống để thử lại.') + '</div></div>'); return; }
+  if (!conMan()) return;
   ds = ds || [];
   if (!ds.length) { frame('In QR tại bàn', '<div class="emp"><div class="e1">🏬</div><div>Chưa có điểm bán nào có quầy. Bật quầy ở Cài đặt, Điểm bán.</div></div>'); return; }
   if (!ds.some(function (d) { return d.ma === gqDiem; })) gmbDoiDiem(ds[0]);

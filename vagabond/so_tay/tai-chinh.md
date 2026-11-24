@@ -39,7 +39,7 @@ Chốt số dư: nhập số dư CUỐI NGÀY của ngày chốt (ví dụ số 
 3. Đọc chip: Khớp SePay (xanh), Lệch SePay kèm số (vàng), Chưa chốt.
 
 **Lưu ý**
-- Ngân hàng tính theo giao dịch SePay. MB, OCB, ACB: SePay không báo số dư nên không có chip khớp. Shinhan: lấy luôn số SePay báo.
+- Ngân hàng tính theo giao dịch SePay. MB, OCB, ACB: SePay không báo số dư nên không có chip khớp. Shinhan: lấy luôn số SePay báo, kể cả khi chưa chốt số dư đầu (từ v688, ghi "Số dư SePay báo, chưa chốt số dư đầu"); bản tin Tiền cuối ngày cộng số này.
 - Két: cộng tiền mặt vào két đúng như màn Chốt ca, trừ phiếu nộp quỹ đã giao. Dòng Chốt ca ghi số thu ngân đếm lần gần nhất để so.
 - Quỹ công ty: cộng phiếu nộp quỹ đã ký nhận, cộng trừ thu chi tiền mặt kế toán đã ghi sổ. Tiền khách nạp hoặc đặt cọc tại quầy đã tính ở két nên không cộng lần nữa vào quỹ.
 - Chi tiền mặt không qua app thì app không thấy. Đếm lại rồi chốt lại số dư.
