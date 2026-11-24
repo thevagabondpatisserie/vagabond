@@ -125,7 +125,7 @@ Anh Việt thấy sau bản 690 "vẫn còn nhiều emoji cũ bị lẫn", nút 
 - Hàng chip lọc của Vận đơn xếp dọc từng chip một.
 - Tiêu đề màn dài gãy hai dòng.
 
-Chờ báo cáo rà độc lập của Codex để gom theo loại.
+Đã gom theo loại và sửa sau báo cáo rà độc lập của Codex: xem [ra-doc-lap-614.md](ra-doc-lap-614.md).
 
 ```
 node cong_cu/ui_b/quet_man.cjs --ra /tmp/quet --anh

@@ -15,6 +15,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 ## v691
 - Ô chọn không bị ép chữ trên điện thoại
 - Biểu tượng thay emoji và nút đủ to trong giao diện mới
+- Ô chọn, hàng nút và chữ nhỏ trong giao diện mới
 
 ## v690
 - Con số trên ô Trang chủ

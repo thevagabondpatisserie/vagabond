@@ -845,6 +845,22 @@ Trong giao diện mới, phần đã chọn dài sẽ xuống dòng theo từ; n
 
 Thao tác chọn và lưu giữ nguyên. Thẻ Hộp thư đối soát cũng tự xuống hàng để địa chỉ dài không đẩy trạng thái ra ngoài thẻ.
 
+## Ô chọn, hàng nút và chữ nhỏ trong giao diện mới
+Từ khoá: ô chọn, hộp chọn, nút gãy chữ, chữ nhỏ, công tắc, mã nhóm Zalo, bot gửi, giao diện mới
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi người đang bật giao diện mới | Mọi màn có ô chọn, hàng nút | Bấm ô chọn để mở hộp chọn |
+
+- Ô chọn (ngân hàng, nhóm món, loại...) là một nút cao đủ một ngón tay. Bấm vào mở hộp chọn có ô Tìm nhanh, chạm một dòng là xong.
+- Hai nút đứng cạnh nhau mà chữ gãy hai dòng (Tải mẫu Excel ở Bảng giá mua, Mời tài khoản mới ở Quản lý người dùng) tự xếp thành hai nút rộng chồng nhau.
+- Chữ dưới 13 điểm (nhãn ô, dòng phụ, trạng thái phiếu) lên 13 điểm.
+- Công tắc ở Cài đặt lõi có vùng bấm rộng hơn hình công tắc.
+- Ba ô tóm tắt ở Tuyển dụng xếp một cột, số bên phải.
+- Nhóm Zalo ở Cài đặt lõi gập mã đầy đủ, bấm Xem mã đầy đủ mới mở. Ô Bot gửi hiện tên bot; chưa lưu thì ghi Máy tự chọn khi lưu.
+
+Ở cả hai giao diện: ô Title riêng của phiếu tặng quà đổi thành Chức danh riêng; ô số tiền lịch chi ghi đơn vị (đ); nút chọn nhà cung cấp của lịch chi rút gọn thành Chọn nhà cung cấp.
+
 ## Biểu tượng thay emoji và nút đủ to trong giao diện mới
 Từ khoá: emoji, biểu tượng, nút nhỏ, chip, ép chữ, giao diện mới, Nghệ sĩ công nghệ
 

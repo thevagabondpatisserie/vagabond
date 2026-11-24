@@ -432,12 +432,15 @@ var UIB_EMOJI = {
   "🗺": "map",
   "🙅": "user-x",
   "🙋": "hand",
+  "🚀": "megaphone",
   "🚕": "car-taxi-front",
   "🚚": "truck",
   "🚧": "construction",
+  "🚨": "circle-alert",
   "🚫": "ban",
   "🛍": "shopping-bag",
   "🛒": "shopping-cart",
+  "🛠": "wrench",
   "🛡": "shield",
   "🛵": "bike",
   "🤍": "heart",
@@ -550,6 +553,7 @@ function uiBQuet(goc) {
     if (goc.matches && goc.matches('.btn, .chip')) uiBDauNut(goc);
     for (var q = 0; q < nut.length; q++) uiBDauNut(nut[q]);
     uiBQuetChu(goc);
+    uiBChon(goc);
   } catch (e) { }
 }
 
@@ -768,11 +772,133 @@ function uiBGoEp() {
     b.classList.add('uib-xuong-nut');
   }
 }
+/* v691 (ra doc lap UI51): chan man co nut phu ma nhan dai (Luu va them khach tiep theo) bi gioi han
+   50% nen xuong hai dong. Do THAT: nut nao trong .vf co chu xuong dong thi chan xep doc, moi nut
+   rong ca hang, nhan nam tren mot dong. */
+function uiBVfDoc() {
+  if (!uiB()) return;
+  var vf = document.querySelectorAll('.vf');
+  for (var i = 0; i < vf.length; i++) {
+    if (vf[i].classList.contains('uib-vf-doc')) continue;
+    var nut = vf[i].querySelectorAll('.btn');
+    for (var j = 0; j < nut.length; j++) if (uiBSoDong(nut[j]) > 1) { vf[i].classList.add('uib-vf-doc'); break; }
+  }
+  /* v691 (#614, 22 nhan xuong dong): hang nut .btn ngang khong mang lop .vf (Tai mau Excel, Moi tai
+     khoan moi, Quet ma me...). Cung phep do: mot nut gay hai dong thi ca hang xep doc, nut rong het. */
+  var goc = document.querySelectorAll('#vgb, .sh');
+  for (var g = 0; g < goc.length; g++) {
+    var tat = goc[g].querySelectorAll('.btn');
+    for (var k = 0; k < tat.length; k++) {
+      var cha = tat[k].parentElement;
+      if (!cha || cha.classList.contains('vf') || cha.classList.contains('uib-hang-doc')) continue;
+      var cs = getComputedStyle(cha);
+      /* Hang flex ngang, hoac luoi nhieu cot (Gop chuyen, Xep tuyen, In don, Doi soat COD o Van don). */
+      var luoi = cs.display.indexOf('grid') >= 0 && cs.gridTemplateColumns.split(' ').length > 1;
+      if (!luoi && (cs.display.indexOf('flex') < 0 || cs.flexDirection !== 'row')) continue;
+      if (cha.querySelectorAll(':scope > .btn').length < 2) continue;
+      if (uiBSoDong(tat[k]) > 1) cha.classList.add('uib-hang-doc');
+    }
+  }
+}
+/* v691 (ra doc lap UI66): hai nut .btn xep doc lien nhau khong co khe (Luu nhap, Luu va ghi so luon).
+   Do THAT: nut dung ngay duoi mot nut khac cung cha, khe duoi 8 thi them khe 12. */
+function uiBCachNut() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('#vgb .btn + .btn, .sh .btn + .btn');
+  for (var i = 0; i < ds.length; i++) {
+    var b = ds[i], tr = b.previousElementSibling;
+    if (b.classList.contains('uib-cach')) continue;
+    var a = tr.getBoundingClientRect(), c = b.getBoundingClientRect();
+    if (!a.width || !c.width) continue;
+    var ngang = Math.min(a.right, c.right) - Math.max(a.left, c.left);
+    if (ngang > 20 && c.top >= a.bottom - 1 && c.top - a.bottom < 8) b.classList.add('uib-cach');
+  }
+}
+/* v691 (ra doc lap UI85, UI86, UI87): o chon goc cua trinh duyet (ngan hang, nhom mon, tai khoan sao
+   ke) thanh O CHON CUA APP: mot nut hien lua chon dang co, bam mo hop chon chung (sheet) co o tim tu 8
+   lua chon. Select goc van giu trong trang (an di) de ma cu doc .value, nghe change nhu cu: chon xong
+   thi dat .value va phat change, input. Khong doi o don vi trong dong hang (.uom), o nhieu lua chon,
+   hay o danh dau data-uib-goc. */
+var UIB_CHON = 'select:not([multiple]):not(.uom):not([data-uib-goc])';
+function uiBTenChon(sel) {
+  var t = sel.getAttribute('aria-label') || sel.getAttribute('title') || '';
+  if (!t && sel.id) { var lb = document.querySelector('label[for="' + sel.id + '"]'); if (lb) t = lb.textContent; }
+  if (!t) { var tr = sel.previousElementSibling; if (tr && (tr.tagName === 'LABEL' || /lbl|nhan|label/i.test(tr.className || ''))) t = tr.textContent; }
+  if (!t && sel.closest('label')) t = (sel.closest('label').childNodes[0] || {}).textContent || '';
+  /* Nhan viet bang mot the chu dung ngay tren (div, span, b ngan, khong co nut ben trong). */
+  if (!t) { var tr2 = sel.previousElementSibling; if (tr2 && /^(DIV|SPAN|B|STRONG|P)$/.test(tr2.tagName) && !tr2.querySelector('button,input,select,textarea') && (tr2.textContent || '').trim().length <= 40) t = tr2.textContent; }
+  /* Dong dau kieu "- Chon ngan hang -" la loi nhac: bo gach hai dau, dung lam tieu de. */
+  if (!t && sel.options && sel.options[0] && !sel.options[0].value) t = sel.options[0].text.replace(/^[\s\-\u2013]+|[\s\-\u2013]+$/g, '');
+  return String(t || 'Chọn').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+function uiBVeChon(sel) {
+  var nut = sel.__uibNut; if (!nut) return;
+  var o = sel.options[sel.selectedIndex];
+  var chu = o ? o.text : '';
+  var moi = (chu ? h(chu) : '<span class="uib-chon-trong">Chạm để chọn</span>');
+  if (nut.__uibChu !== moi) { nut.__uibChu = moi; nut.innerHTML = '<span class="uib-chon-chu">' + moi + '</span>' + uiBSvg('chevron-down', 18); }
+  nut.disabled = !!sel.disabled;
+}
+function uiBChon(goc) {
+  if (!uiB() || !goc || !goc.querySelectorAll) return;
+  var ds = Array.prototype.slice.call(goc.querySelectorAll(UIB_CHON));
+  if (goc.matches && goc.matches(UIB_CHON)) ds.push(goc);
+  ds.forEach(function (sel) {
+    if (sel.__uibNut || !sel.closest('#vgb, .sh') || !sel.parentNode) return;
+    var nut = document.createElement('button');
+    nut.type = 'button'; nut.className = 'uib-chon';
+    nut.setAttribute('aria-haspopup', 'listbox');
+    nut.setAttribute('aria-label', uiBTenChon(sel));
+    sel.__uibNut = nut; sel.classList.add('uib-chon-goc'); sel.setAttribute('tabindex', '-1'); sel.setAttribute('aria-hidden', 'true');
+    sel.parentNode.insertBefore(nut, sel.nextSibling);
+    uiBVeChon(sel);
+    sel.addEventListener('change', function () { uiBVeChon(sel); });
+    nut.onclick = function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var items = Array.prototype.filter.call(sel.options, function (o) { return !o.hidden; }).map(function (o) { return { label: o.text, value: o.value, tat: o.disabled }; });
+      items = items.filter(function (it) { return !it.tat; });
+      sheet(uiBTenChon(sel), items, sel.value, function (it) {
+        if (sel.value === it.value) return;
+        sel.value = it.value;
+        sel.dispatchEvent(new Event('input', { bubbles: true }));
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        uiBVeChon(sel);
+        try { nut.focus(); } catch (e2) { }
+      }, items.length >= 8);
+    };
+  });
+}
+/* v691 (ra doc lap UI67-UI82): chu duoi 13 diem. Style viet thang da len 13 bang CSS theo gia tri;
+   phan con lai la luat CSS theo lop cua giao dien cu (.fld .fl, .cdl-nhan, .bdg...). Do THAT sau moi
+   lan ve: phan tu co chu ma co chu tinh ra tu 9.5 toi duoi 13 thi them lop uib-c13 (13 diem). Duoi 9.5
+   la ky hieu trang tri, khong dong. Chi trong #vgb va hop, nen mau in (cua so in rieng) khong doi. */
+function uiBCoChu() {
+  if (!uiB() || !document.createTreeWalker) return;
+  var goc = document.querySelectorAll('#vgb, .sh');
+  for (var g = 0; g < goc.length; g++) {
+    var w = document.createTreeWalker(goc[g], 4), da = [];
+    for (var n = w.nextNode(); n && n.nodeType === 3; n = w.nextNode()) {
+      var cha = n.parentElement;
+      if (!cha || cha.__uib13 || !/\S/.test(n.nodeValue)) continue;
+      cha.__uib13 = 1;
+      if (cha.closest('svg, .uisr, [data-uib-nho]')) continue;
+      var co = parseFloat(getComputedStyle(cha).fontSize);
+      if (co >= 9.5 && co < 12.95) da.push(cha);
+    }
+    for (var i = 0; i < da.length; i++) da[i].classList.add('uib-c13');
+  }
+}
+/* Ma cu co the dat sel.value bang tay (khong phat change): sau moi lan ve, dong bo chu tren nut. */
+function uiBDongBoChon() {
+  if (!uiB()) return;
+  var ds = document.querySelectorAll('select.uib-chon-goc');
+  for (var i = 0; i < ds.length; i++) uiBVeChon(ds[i]);
+}
 var UIB_HEN_SO = 0;
 function uiBHenVuaSo() {
   if (UIB_HEN_SO) return;
   UIB_HEN_SO = 1;
-  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } try { uiBGoEp(); } catch (e) { } };
+  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } try { uiBGoEp(); } catch (e) { } try { uiBVfDoc(); } catch (e) { } try { uiBCachNut(); } catch (e) { } try { uiBDongBoChon(); } catch (e) { } try { uiBCoChu(); } catch (e) { } };
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(f); else setTimeout(f, 16);
 }
 
@@ -1142,6 +1268,60 @@ function uiBCss() {
     /* v691: bieu tuong thay emoji giua chu theo co chu cua dong (1.15em), dau dong co khoang cach. */
     /* v691: vung bam 44 cho chip va o nhap o MOI man (quet 134 man: 354 chip, o cao 34 den 37). */
     'html.ui-b .posc{min-height:var(--ui-tap)}' +
+    /* v691 (ra doc lap UI90-UI98): chip, nut, o chon con mau cu viet thang trong style (xanh co vit,
+       hoac, tim). Doi ve bo mau ui-b THEO LOAI, khong vá tung man: nen dam cu thanh nen muc, chu trang;
+       nen nhat thanh nen sang co vien muc; chi chu, vien cu thanh muc. Mau hoac (canh bao) thanh mau cho. */
+    'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#0d9488"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #0d9488"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#0f766e"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #0f766e"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#115e59"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #115e59"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#14b8a6"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #14b8a6"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#7c3aed"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #7c3aed"]{background:var(--ui-ink)!important;border-color:var(--ui-ink)!important;color:#fff!important}' +
+    'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#ccfbf1"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background: #ccfbf1"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#f0fdfa"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="background:#ecfdf5"]{background:var(--ui-header-tint)!important;border-color:var(--ui-ink)!important;color:var(--ui-ink)!important}' +
+    'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#0d9488"]:not([style*="background:#0d9488"]):not([style*="background: #0d9488"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#0f766e"]:not([style*="background:#0f766e"]):not([style*="background: #0f766e"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#115e59"]:not([style*="background:#115e59"]):not([style*="background: #115e59"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#14b8a6"]:not([style*="background:#14b8a6"]):not([style*="background: #14b8a6"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#7c3aed"]:not([style*="background:#7c3aed"]):not([style*="background: #7c3aed"]){border-color:var(--ui-line)!important;color:var(--ui-ink)!important}' +
+    'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#b45309"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#92400e"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#78350f"]{color:var(--ui-cho)!important;border-color:var(--ui-line)!important;background:var(--ui-glass-solid)!important}' +
+    /* posChipNut, locHang: lop chung (posc, posc-on), dang chon la nen muc nhu .chip.on. */
+    'html.ui-b .posc{background:var(--ui-glass-solid)!important;border-color:var(--ui-line)!important;color:var(--ui-ink)!important;font-size:var(--ui-fs-15)!important;padding:0 16px!important}' +
+    'html.ui-b .posc.posc-on{background:var(--ui-ink)!important;border-color:var(--ui-ink)!important;color:#fff!important}' +
+    'html.ui-b .posc.posc-xoa{color:var(--ui-loi)!important}' +
+    /* v691 (VD-CHIP, Codex 614): ba hang chip loc cua Van don moi hang mot chip thi xep chung mot hang
+       ngat dong; hang nhieu chip van rieng mot hang cuon ngang. */
+    'html.ui-b :has(> .lochang){flex-direction:row!important;flex-wrap:wrap!important;align-items:center}' +
+    'html.ui-b :has(> .lochang) > *{flex:1 1 100%;min-width:0}' +
+    'html.ui-b :has(> .lochang) > .lochang:not(:has(> :nth-child(2))){display:contents}' +
+    /* v691 (UI62): cong tac 48x30 cua Cai dat loi: vien trong suot 7 diem quanh nut cho vung bam 62x44,
+       hinh cong tac giu nguyen (num tinh theo vung trong vien). Khong phu lop vo hinh. */
+    'html.ui-b .cdl-tg{box-sizing:content-box!important;border:7px solid transparent!important;background-clip:padding-box!important}' +
+    /* v691 (UI51): chan man xep doc khi nhan nut phu dai (do that o uiBVfDoc). */
+    'html.ui-b .vf.uib-vf-doc{flex-direction:column!important;align-items:stretch!important}' +
+    'html.ui-b .vf.uib-vf-doc>.btn{flex:0 0 auto!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important}' +
+    'html.ui-b .vf.uib-vf-doc>.btn+.btn{margin-top:8px!important}' +
+    'html.ui-b .uib-hang-doc{flex-direction:column!important;align-items:stretch!important;flex-wrap:nowrap!important;grid-template-columns:1fr!important}' +
+    'html.ui-b .uib-hang-doc>.btn{flex:0 0 auto!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important}' +
+    'html.ui-b .uib-hang-doc>.btn+.btn{margin-top:8px!important}' +
+    /* v691 (#614): nút có min-height viết thẳng dưới 44 (tab Biên tập menu 42) lên 44. */
+    'html.ui-b :is(#vgb,.sh) button:is([style*="min-height:36px"],[style*="min-height:38px"],[style*="min-height:40px"],[style*="min-height:42px"]){min-height:var(--ui-tap)!important}' +
+    /* Ô tích trong nhãn: bấm cả nhãn là tích, nhãn cao tối thiểu 44. */
+    'html.ui-b :is(#vgb,.sh) label:has(>input:is([type=checkbox],[type=radio])){min-height:var(--ui-tap)}' +
+    /* Ba ô tóm tắt Tuyển dụng: ba cột 105 điểm làm gãy nhãn; giao diện mới xếp một cột, số bên phải. */
+    'html.ui-b [data-tdtom]{grid-template-columns:1fr!important}' +
+    'html.ui-b [data-tdtom]>.btn{display:grid!important;grid-template-columns:1fr auto;align-items:center;column-gap:12px}' +
+    'html.ui-b [data-tdtom]>.btn>div:nth-child(2){grid-column:2;grid-row:1/span 2}' +
+    /* v691 (UI66): hai nut xep doc sat nhau thi co khe (do that o uiBCachNut). */
+    'html.ui-b .btn.uib-cach{margin-top:12px!important}' +
+    'html.ui-b .uib-c13{font-size:var(--ui-fs-13)!important}' +
+    /* v691 (rà độc lập, gãy một chữ lẻ cuối dòng): ngắt dòng cân hơn ở mọi chữ của app. */
+    'html.ui-b #vgb,html.ui-b .sh{text-wrap:pretty}' +
+    /* v691 (UI65, UI53, UI54, UI60): moi nut trong hop chon va man con thap hon 44 (nut Xong, chip nhom,
+       nut quet 38x38, Phan nang cao) dat toi thieu 44. */
+    'html.ui-b :is(#vgb,.sh) button:not(.cdl-tg):not(.uib-chon){min-height:var(--ui-tap)}' +
+    'html.ui-b :is(#vgb,.sh) button:not(.cdl-tg):not(.uib-chon):not(.btn){min-width:var(--ui-tap)}' +
+    /* v691 (UI85-87): o chon cua app thay o chon goc. */
+    'html.ui-b select.uib-chon-goc{display:none!important}' +
+    'html.ui-b .uib-chon{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:var(--ui-tap);box-sizing:border-box;' +
+    'padding:12px 16px;border:1px solid var(--ui-line);border-radius:var(--ui-r-14);background:var(--ui-glass-solid);color:var(--ui-ink);font:inherit;font-size:var(--ui-fs-15);text-align:left;cursor:pointer}' +
+    'html.ui-b .uib-chon:focus-visible{outline:3px solid var(--ui-robin);outline-offset:2px}' +
+    'html.ui-b .uib-chon[disabled]{opacity:.55;cursor:default}' +
+    'html.ui-b .uib-chon-chu{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    'html.ui-b .uib-chon-trong{color:var(--ui-huy)}' +
+    'html.ui-b .uib-chon svg{flex:none;width:18px;height:18px}' +
+    /* v691 (ra doc lap UI67-UI82): chu duoi 13 diem viet thang trong style (10 toi 12.5) len 13, theo loai. */
+    'html.ui-b :is(#vgb,.sh) [style*="font-size:10px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 10px"],html.ui-b :is(#vgb,.sh) [style*="font-size:10.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 10.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size:11px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 11px"],html.ui-b :is(#vgb,.sh) [style*="font-size:11.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 11.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size:12px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 12px"],html.ui-b :is(#vgb,.sh) [style*="font-size:12.5px"],html.ui-b :is(#vgb,.sh) [style*="font-size: 12.5px"]{font-size:var(--ui-fs-13)!important}' +
     'html.ui-b .uib-xuong{flex-wrap:wrap!important;row-gap:12px}html.ui-b .uib-xuong>.uib-xuong-nut{flex:1 1 100%!important;max-width:100%;margin-left:0!important;margin-right:0!important}' +
     'html.ui-b .chip{min-height:var(--ui-tap);display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}' +
     'html.ui-b #vgb input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),html.ui-b #vgb select,' +

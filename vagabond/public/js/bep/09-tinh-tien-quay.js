@@ -1371,14 +1371,15 @@ function locHang(ds, dangChon, attr, rows) {
     var n = rows.filter(c.loc).length;
     if (!n && c.k !== '') return '';
     var on = c.k === dangChon;
-    return '<button ' + attr + '="' + h(c.k) + '" style="flex:0 0 auto;border:1.5px solid ' +
+    /* v691: lớp posc chung với posChipNut để giao diện mới tô theo ui-b, cao 44. */
+    return '<button class="posc' + (on ? ' posc-on' : '') + '" ' + attr + '="' + h(c.k) + '"' + (on ? ' aria-pressed="true"' : '') + ' style="flex:0 0 auto;border:1.5px solid ' +
       (on ? '#0d9488' : '#d7dce5') + ';background:' + (on ? '#0d9488' : '#fff') +
       ';color:' + (on ? '#fff' : '#374151') + ';border-radius:999px;padding:7px 13px;font-size:12.5px;' +
       'font-weight:' + (on ? '800' : '600') + ';cursor:pointer;white-space:nowrap;font-family:inherit">' +
       c.nhan + ' <span style="opacity:.75">' + n + '</span></button>';
   }).join('');
   /* v618: lớp cuon-ngang (00-nen.js) giấu thanh cuộn xám dưới hàng chip. */
-  return '<div class="cuon-ngang" style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+  return '<div class="cuon-ngang lochang" style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
 }
 
 /* Chip nguon don + phuong thuc thanh toan sinh theo du lieu that cua ngay,
@@ -1426,7 +1427,8 @@ function posChipNut(attr, chu, dangChon, laXoa, mau) {
   /* v617: chip đang chọn mang data-chipchon để màn cuộn nó vào tầm nhìn
      (hàng chip cuộn ngang không còn cắt mất chip đang chọn ở mép). */
   /* v691: lớp posc để giao diện mới đặt vùng bấm 44 cho cả 259 chỗ gọi (giao diện cũ không đổi). */
-  return '<button class="posc" ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
+  /* v691: posc-on, posc-xoa để giao diện mới tô chip theo bộ màu ui-b (giao diện cũ giữ style viết thẳng). */
+  return '<button class="posc' + (dangChon ? ' posc-on' : '') + (laXoa ? ' posc-xoa' : '') + '" ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
     ';color:' + chuMau + ';border-radius:999px;padding:9px 15px;font-size:14px;font-weight:' +
     (dangChon ? '800' : '600') + ';cursor:pointer;white-space:nowrap;line-height:1.2">' + chu + '</button>';
 }

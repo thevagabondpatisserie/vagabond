@@ -80,7 +80,8 @@ def kiem(css):
 	if not tach_luat(css):
 		loi.append("không đọc được luật CSS nào: chưa kiểm được gì")
 	for chon, kb in tach_luat(css):
-		for c in chon.split(","):
+		# Tách bộ chọn ở dấu phẩy cấp ngoài cùng; dấu phẩy trong :is(...), :not(...) thuộc một bộ chọn.
+		for c in re.split(r",(?![^(]*\))", chon):
 			if not c.strip().startswith("html.ui-b"):
 				loi.append("bộ chọn không nằm dưới html.ui-b: " + c.strip()[:60])
 		for dong in re.split(r";(?![^(]*\))", kb):

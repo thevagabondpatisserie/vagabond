@@ -152,7 +152,9 @@ function doTrongTrang(thamSo) {
     if (lopTren && !lopTren.contains(n)) return;
     /* Màn chưa chuyển: chỉ chấm phần khung đã chuyển, tức đầu trang. */
     if (chiDau && !n.closest('.vh')) return;
-    var rc = n.getBoundingClientRect();
+    /* Ô tích nằm trong nhãn: bấm cả nhãn đều tích, nên vùng bấm là hộp của nhãn. */
+    var vung = (n.type === 'checkbox' || n.type === 'radio') && n.closest('label') ? n.closest('label') : n;
+    var rc = vung.getBoundingClientRect();
     if (rc.height < 43.5 || rc.width < 43.5) r.nhoNut.push(nhan(n) + ' ' + Math.round(rc.width) + 'x' + Math.round(rc.height));
     if (rc.top >= 0 && rc.bottom <= window.innerHeight && rc.left >= 0 && rc.right <= window.innerWidth) {
       var e = document.elementFromPoint(rc.left + rc.width / 2, rc.top + rc.height / 2);

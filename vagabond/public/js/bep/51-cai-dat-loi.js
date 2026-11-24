@@ -118,6 +118,7 @@ function cdlCss() {
     '.cdl-row:first-child{border-top:0}' +
     '.cdl-x{flex:1;min-width:0}.cdl-x b{display:block;font-size:14px;font-weight:500}' +
     '.cdl-x small{display:block;font-size:13px;color:#6b737b;line-height:1.4}' +
+    '.cdl-ma summary{cursor:pointer;min-height:44px;display:flex;align-items:center}' +
     '.cdl-tg{width:48px;height:30px;border-radius:15px;background:#cfd6db;position:relative;flex:none;border:0;cursor:pointer}' +
     '.cdl-tg:after{content:"";position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;top:3px;left:3px;box-shadow:0 1px 2px rgba(0,0,0,.2)}' +
     '.cdl-tg.on{background:#22a05a}.cdl-tg.on:after{left:21px}' +
@@ -866,8 +867,16 @@ function cdlVeDong(fnBang, i, nhap) {
         (coTin ? '<div class="cdl-mo">Không dùng: nhóm đã chọn Tin nhận.</div>' : '') + '</div>';
     }
     if (fnBang === 'zalo_nhom' && c.fn === 'chat_id') {
-      return '<div class="cdl-f">' + nhan + cdlGiaTri((v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b><div class="cdl-mo">' + h(v) + '</div></span>' : '<span style="color:#9aa1a8">Chưa chọn</span>'),
+      /* v691 (rà độc lập UI83): tên nhóm đã có mã ngắn của tệp chung; giao diện mới gập mã đầy đủ, bấm mới mở. */
+      var maHien = uiB() && v ?
+        '<details class="cdl-ma"><summary class="cdl-mo">Xem mã đầy đủ</summary><div class="cdl-mo" style="word-break:break-all">' + h(v) + '</div></details>' :
+        '<div class="cdl-mo">' + h(v) + '</div>';
+      return '<div class="cdl-f">' + nhan + cdlGiaTri((v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b>' + maHien + '</span>' : '<span style="color:#9aa1a8">Chưa chọn</span>'),
         '<button class="cdl-lnk" data-cdldnhom="1">Chọn nhóm đã nhắn bot</button>') + mo + '</div>';
+    }
+    if (fnBang === 'zalo_nhom' && c.fn === 'bot' && uiB()) {
+      /* v691 (rà độc lập UI84): máy tự điền số bot khi lưu; giao diện mới hiện TÊN bot thay số trơn. */
+      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + h(cdlBotNhom(v)) + '</div>' + mo + '</div>';
     }
     if (c.chi_doc && choGhi.indexOf(c.fn) < 0) {
       return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + h(v == null ? '' : v) + '</div>' + mo + '</div>';
@@ -1042,6 +1051,12 @@ function cdlChonTinZalo(nhap, xong) {
  * bản tải lúc mở màn nên nhóm vừa nhắc bot không hiện. Từ nay: đọc danh sách mới
  * từ máy chủ mỗi lần bấm, gọi nhóm bằng MÃ NHÓM (bot cũng trả lời mã này trong
  * nhóm), báo nhóm nào đang gán cho dòng nào, và không tự lấy tên người làm tên nhóm. */
+function cdlBotNhom(ma) {
+  /* v691 (UI84): ô bot của nhóm Zalo. Trống là máy chọn khi lưu, 1 là bot chính, số khác đọc tên ở cdlTenBot. */
+  var m = String(ma == null ? '' : ma).trim();
+  if (!m) return 'Máy tự chọn khi lưu';
+  return m === '1' ? 'Bot chính (số 1)' : cdlTenBot(m);
+}
 function cdlNhanNhomZalo(x) {
   // Dùng ngoặc vuông để bộ tách hàm của ca DOM không hiểu nhầm phương thức
   // module chung là một hàm toàn cục nằm trong app_bep.js.

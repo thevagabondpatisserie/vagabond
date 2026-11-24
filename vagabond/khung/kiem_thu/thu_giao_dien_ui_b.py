@@ -560,6 +560,23 @@ def _ui_b_giu_emoji_v691():
 	la("emoji của bảng chèn ngoài vùng giữ", k["bang_chen"]["ngoai"], 0)
 
 
+@ca("ui-b v691 (#614 rà độc lập UI83, UI84, UI88, UI89): mã nhóm Zalo gập, ô bot hiện tên bot, nhãn Chức danh riêng, đơn vị đ; giao diện cũ giữ nguyên, chạy hàm thật")
+def _ui_b_ra_doc_lap_v691():
+	"""Chạy cdlVeDong, tqVeForm, scrLichChi thật trong node ở hai chế độ (hanh_vi/ui_b_ra_doc_lap_v691.js).
+	Bẫy đã gặp: mã nhóm 64 ký tự trải dài màn, ô bot hiện số trơn "1" mà người dùng không biết là gì,
+	nhãn tiếng Anh, ô tiền không đơn vị. Giao diện cũ phải giữ nguyên dòng mã và số bot."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "ui_b_ra_doc_lap_v691.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("giao diện mới gập mã đầy đủ trong Xem mã đầy đủ", k["ma_nhom"]["moi_gap"], True)
+	la("giao diện mới không còn mã dài ngoài khối gập", k["ma_nhom"]["moi_ngoai_details"], False)
+	la("giao diện cũ giữ dòng mã, không thêm khối gập", [k["ma_nhom"]["cu_hien_ma"], k["ma_nhom"]["cu_co_details"]], [True, False])
+	la("ô bot giao diện mới hiện tên", [k["bot"]["moi_1"], k["bot"]["moi_trong"], k["bot"]["moi_3"]], ["Bot chính (số 1)", "Máy tự chọn khi lưu", "Bot kho (số 3)"])
+	la("ô bot giao diện cũ giữ số", k["bot"]["cu_1"], "1")
+	la("nhãn Chức danh riêng, ô vẫn ghi trường cũ", k["chuc_danh"], {"moi": True, "cu": False, "truong": True})
+	la("ô số tiền lịch chi có đơn vị đ", k["don_vi"], {"co": True, "o_tien": True})
+
+
 @ca("ui-b v691 (Codex #614 vòng 2): nút chỉ có ký tự hình (✓, ✕, 📷, 🔍, 🗑) trong nguồn đều có tên thao tác aria-label hay title")
 def _ui_b_nut_chi_ky_tu_co_ten():
 	"""Giao diện mới đổi ký tự hình thành SVG aria-hidden, nên nút chỉ có ký tự mà không có tên thì
@@ -577,3 +594,24 @@ def _ui_b_nut_chi_ky_tu_co_ten():
 				if "aria-label" not in m.group(2) and "title=" not in m.group(2) and not any(b in m.group(2) for b in bo):
 					thieu.append("%s:%d %s" % (ten, i, m.group(0)[:60]))
 	la("nút chỉ có ký tự hình mà thiếu tên", thieu, [])
+
+
+@ca("ui-b v691 (rà độc lập UI18, UI19): mọi emoji trong nguồn lớp vẽ, kể cả danh mục Zalo chung cai_dat_loi_chung.js, đều có biểu tượng hay chấm trong bảng đối chiếu")
+def _ui_b_bang_phu_moi_emoji():
+	"""Máy quét chữ chỉ đổi emoji có trong bảng (bieu_tuong_nguon.py); emoji ngoài bảng giữ nguyên nên
+	lọt ra màn. Bản 690 thiếu 🚨 🚀 🛠 của danh mục loại tin, chủ đề Zalo (nạp riêng, ngoài bep/)."""
+	import importlib.util
+	duong = os.path.join(GOI, "..", "cong_cu", "ui_b", "bieu_tuong_nguon.py")
+	spec = importlib.util.spec_from_file_location("bieu_tuong_nguon_thu", duong)
+	N = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(N)
+	co = set(k.replace("️", "") for k in list(N.GOC) + list(N.DE_XUAT) + list(N.CHAM))
+	ky = re.compile("[\U0001F000-\U0001FAFF←-⇿⌀-⏿■-◿☀-➿⬀-⯿]")
+	tep = [os.path.join(BEP, t) for t in sorted(os.listdir(BEP)) if t.endswith(".js") and not t.startswith("81-ui-b")]
+	tep.append(os.path.join(GOI, "public", "js", "cai_dat_loi_chung.js"))
+	thieu = {}
+	for t in tep:
+		for m in ky.findall(open(t, encoding="utf-8").read()):
+			if m not in co:
+				thieu[m] = os.path.basename(t)
+	la("emoji chưa có biểu tượng", thieu, {})

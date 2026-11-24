@@ -609,7 +609,7 @@ function ldcLichMo(x) {
 /* THUẦN: ô chọn nhà cung cấp (AGENTS QT-31: chọn từ danh mục, không gõ tự do). */
 function ldcONcc(id, f) {
   return '<button type="button" class="btn gh" id="' + id + '" style="margin:0;min-height:44px;font-size:14px;text-align:left;width:100%">' +
-    (f.nha_cung_cap ? '🏭 ' + h(f.ten_ncc || f.nha_cung_cap) + ' <span style="color:#667085">· bấm để đổi</span>' : '🔎 Chọn nhà cung cấp trong danh mục') + '</button>';
+    (f.nha_cung_cap ? '🏭 ' + h(f.ten_ncc || f.nha_cung_cap) + ' <span style="color:#667085">· bấm để đổi</span>' : '🔎 Chọn nhà cung cấp') + '</button>';
 }
 
 /* Mở ô chọn nhà cung cấp: gõ một phần tên, mã hay MST, chọn trong danh mục.
@@ -754,7 +754,7 @@ function scrLichChi() {
     ldcO('Nhà cung cấp', 'Chọn trong danh mục để máy biết tháng nào đã có hoá đơn, hồ sơ thanh toán của nhà đó.', ldcONcc('lcNcc', f)) +
     (f.nha_cung_cap ? '' : ldcO('Người nhận khác', 'Chỉ ghi khi bên nhận không có trong danh mục nhà cung cấp.',
       '<input id="lcNhan" value="' + h(f.nguoi_nhan || '') + '" style="' + LDC_O + '">')) +
-    ldcO('Số tiền mỗi tháng', '', '<input id="lcTien" inputmode="numeric" value="' + h(f.so_tien ? money(f.so_tien) : '') + '" style="' + LDC_O + '">') +
+    ldcO('Số tiền mỗi tháng (đ)', '', '<input id="lcTien" inputmode="numeric" value="' + h(f.so_tien ? money(f.so_tien) : '') + '" style="' + LDC_O + '">') +
     ldcO('Ngày chi trong tháng', 'Tháng ngắn hơn thì máy lùi về ngày cuối tháng. Tháng đã có hồ sơ thanh toán hay hoá đơn mua của đúng người nhận thì máy không tính thêm.',
       '<input id="lcNgay" type="number" min="1" max="31" value="' + h(String(f.ngay_trong_thang || 20)) + '" style="' + LDC_O + '">') +
     '<button type="button" class="btn gh" id="lcBat" style="margin:0;min-height:44px;font-size:14px;text-align:left">' + ldcChuBat(f.bat) + '</button>' +
