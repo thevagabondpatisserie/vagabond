@@ -921,7 +921,8 @@ function cdlChonZalo(cot, nhap, xong) {
       '<div class="cdl-mo" style="padding:6px 14px">Không tích ô nào là nhóm nhận <b>tất cả</b> ' + (cot === 'loai_tin' ? 'loại tin.' : 'chủ đề.') + '</div>' +
       '<div class="shl">' + DM.map(function (m) {
         var n = N[m] || ['', m, ''];
-        return '<div class="shi" data-cdlz="' + h(m) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(m) >= 0 ? '☑' : '☐') +
+        /* v691 (Codex #614): trạng thái chọn đọc được bằng trình đọc màn hình, không chỉ bằng ký tự. */
+        return '<div class="shi" data-cdlz="' + h(m) + '" role="checkbox" tabindex="0" aria-checked="' + (dang.indexOf(m) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(m) >= 0 ? '☑' : '☐') +
           '</span><span style="font-size:18px">' + h(n[0]) + '</span><span style="flex:1"><b>' + h(n[1]) + '</b><div class="cdl-mo">' + h(n[2]) + '</div></span></div>';
       }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdlzxong="1" style="width:100%;margin:0">Xong</button></div>';
   }
@@ -979,7 +980,7 @@ function cdlChonTinZalo(nhap, xong) {
       return '<div' + (typeof uiB === 'function' && uiB() ? ' class="ui-dong-chon"' : '') + ' style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
         '<button class="cdl-lnk" data-cdltca="' + k + '">' + ((tu || chiDaTich) ? 'Chọn cả ' + bp.tin.length + ' tin đang hiện' : 'Chọn cả mục') + '</button></div>' +
         bp.tin.map(function (t) {
-          return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
+          return '<div class="shi" data-cdlt="' + h(t.ma) + '" role="checkbox" tabindex="0" aria-checked="' + (dang.indexOf(t.ma) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
             '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
         }).join('');
     }).join('') : '<div class="cdl-mo" data-cdltrong="1" style="padding:16px 14px">' +

@@ -106,6 +106,12 @@ Anh Việt thấy sau bản 690 "vẫn còn nhiều emoji cũ bị lẫn", nút 
 - Lưới đỡ `uiBGiuTen`: nút nào hết chữ sau khi đổi và chưa có tên thì giữ ký tự cũ làm `aria-label`, bằng tên cũ.
 - Ca chốt nguồn không còn nút chỉ ký tự mà thiếu tên. Trên mã trước khi sửa ca đỏ với 24 chỗ. Kịch bản `chu-lan-emoji` kiểm lưới đỡ: bỏ lưới thì trượt.
 
+**Trạng thái chọn (Codex vòng 3).** Ký tự đánh dấu (☑ ☐ ⬜, ✅ đứng một mình) là trạng thái của dòng chọn. Đổi thành SVG `aria-hidden` thì trình đọc màn hình không còn phân biệt dòng đã tích. Sửa hai tầng:
+
+- `uiBTrangThai` kèm chữ ẩn "đã đánh dấu" hoặc "chưa đánh dấu" ngay chỗ ký tự. Bỏ qua khi phần tử đã có `aria-checked`/`aria-pressed`, hoặc khi ký tự chỉ trang trí đầu nhãn một nút có chữ ("☑ Chọn hết").
+- Hai bảng chọn tin Zalo ở Cài đặt lõi (`cdlChonZalo`, `cdlChonTinZalo`) thành `role="checkbox"` có `aria-checked`, `tabindex`.
+- Kịch bản `chu-lan-emoji` kiểm: dòng tích, dòng chưa tích, ô ✅, và không thêm chữ thừa ở dòng có `aria-checked`, nút "☑ Chọn hết", nhãn "✅ Đã lưu". Cố tình làm hỏng 5 chỗ, bắt 5.
+
 **Còn lại, chưa sửa trong vòng này:**
 
 - 45 chip tự vẽ dưới 44.

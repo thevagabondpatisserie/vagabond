@@ -62689,7 +62689,8 @@ function cdlChonZalo(cot, nhap, xong) {
       '<div class="cdl-mo" style="padding:6px 14px">Không tích ô nào là nhóm nhận <b>tất cả</b> ' + (cot === 'loai_tin' ? 'loại tin.' : 'chủ đề.') + '</div>' +
       '<div class="shl">' + DM.map(function (m) {
         var n = N[m] || ['', m, ''];
-        return '<div class="shi" data-cdlz="' + h(m) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(m) >= 0 ? '☑' : '☐') +
+        /* v691 (Codex #614): trạng thái chọn đọc được bằng trình đọc màn hình, không chỉ bằng ký tự. */
+        return '<div class="shi" data-cdlz="' + h(m) + '" role="checkbox" tabindex="0" aria-checked="' + (dang.indexOf(m) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(m) >= 0 ? '☑' : '☐') +
           '</span><span style="font-size:18px">' + h(n[0]) + '</span><span style="flex:1"><b>' + h(n[1]) + '</b><div class="cdl-mo">' + h(n[2]) + '</div></span></div>';
       }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdlzxong="1" style="width:100%;margin:0">Xong</button></div>';
   }
@@ -62747,7 +62748,7 @@ function cdlChonTinZalo(nhap, xong) {
       return '<div' + (typeof uiB === 'function' && uiB() ? ' class="ui-dong-chon"' : '') + ' style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
         '<button class="cdl-lnk" data-cdltca="' + k + '">' + ((tu || chiDaTich) ? 'Chọn cả ' + bp.tin.length + ' tin đang hiện' : 'Chọn cả mục') + '</button></div>' +
         bp.tin.map(function (t) {
-          return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
+          return '<div class="shi" data-cdlt="' + h(t.ma) + '" role="checkbox" tabindex="0" aria-checked="' + (dang.indexOf(t.ma) >= 0) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
             '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
         }).join('');
     }).join('') : '<div class="cdl-mo" data-cdltrong="1" style="padding:16px 14px">' +
@@ -78579,7 +78580,8 @@ function uiBThayMot(el) {
   if (!ten && !cham) return;
   el.setAttribute('data-uib', '1');
   var chuCu = el.textContent;
-  if (ten) el.innerHTML = uiBSvg(ten, el.classList.contains('e1') ? 40 : 24);
+  var ttMot = uiBTrangThai(chuCu.trim(), el, true);
+  if (ten) el.innerHTML = uiBSvg(ten, el.classList.contains('e1') ? 40 : 24) + (ttMot ? '<span class="uisr">' + ttMot + '</span>' : '');
   else el.innerHTML = '<span class="uicham uicham-' + cham + '"></span>';
   uiBGiuTen(el, chuCu);
 }
@@ -78635,6 +78637,20 @@ function uiBGiuTen(el, chuCu) {
   var ten = String(chuCu || '').trim();
   if (ten) nut.setAttribute('aria-label', ten);
 }
+/* Codex #614 vong 3: ky tu danh dau (☑ ☐ ⬜, ✅ dung mot minh) la TRANG THAI chon cua dong. Doi
+   thanh SVG aria-hidden thi trinh doc man hinh khong con phan biet dong da tich. Kem chu an
+   "da danh dau"/"chua danh dau" ngay cho ky tu, tru khi phan tu da noi trang thai bang
+   aria-checked/aria-pressed, hoac ky tu chi la trang tri dau nhan cua mot nut co chu. */
+var UIB_TT_KY = { '\u2611': 1, '\u2612': 1, '\u2705': 1, '\u2610': 0, '\u2B1C': 0 };
+function uiBTrangThai(ky, el, mot) {
+  var s = String(ky || '').replace(/\uFE0F/g, '');
+  if (!(s in UIB_TT_KY)) return '';
+  if (s === '\u2705' && !mot) return '';
+  if (el.closest('[aria-checked], [aria-pressed], [role=checkbox], [role=switch]')) return '';
+  var nut = el.closest('button, .btn, .chip, .posc');
+  if (nut && /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/.test((nut.textContent || '').replace(ky, ''))) return '';
+  return UIB_TT_KY[s] ? 'đã đánh dấu' : 'chưa đánh dấu';
+}
 function uiBQuetChu(goc) {
   if (!goc || !document.createTreeWalker) return;
   if (goc.nodeType === 1 && goc.closest && goc.closest(UIB_GIU_CHU)) return;
@@ -78663,7 +78679,11 @@ function uiBThayChu(n) {
     if (truoc) frag.appendChild(document.createTextNode(truoc));
     if (!laOpt) {
       var sp = document.createElement('span');
-      if (k.ten) { sp.className = 'uik uichu' + (dauDong ? ' uichu-dau' : ''); sp.innerHTML = uiBSvg(k.ten, 16); }
+      if (k.ten) {
+        sp.className = 'uik uichu' + (dauDong ? ' uichu-dau' : '');
+        var tt = uiBTrangThai(m[0], cha, !/\S/.test(t.replace(m[0], '')));
+        sp.innerHTML = uiBSvg(k.ten, 16) + (tt ? '<span class="uisr">' + tt + '</span>' : '');
+      }
       else { sp.className = 'uicham uicham-' + k.cham + (dauDong ? ' uichu-dau' : ''); }
       frag.appendChild(sp);
     }
@@ -79178,6 +79198,7 @@ function uiBCss() {
     'html.ui-b #vgb input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),html.ui-b #vgb select,' +
     'html.ui-b .sh input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),html.ui-b .sh select,html.ui-b #vgb textarea,html.ui-b .sh textarea{min-height:var(--ui-tap);box-sizing:border-box}' +
     'html.ui-b #vgb input[type=checkbox],html.ui-b #vgb input[type=radio],html.ui-b .sh input[type=checkbox],html.ui-b .sh input[type=radio]{width:22px;height:22px;accent-color:var(--ui-robin)}' +
+    'html.ui-b .uisr{position:absolute;width:1px;height:1px;padding:0;margin:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}' +
     'html.ui-b .uichu{vertical-align:-0.18em}html.ui-b .uichu svg{width:1.15em;height:1.15em}' +
     'html.ui-b .uichu-dau{margin-right:0.4em}html.ui-b .uicham.uichu-dau{vertical-align:0}' +
     /* Codex #604: bieu tuong lop ve chen vao nut, o, chip KHONG nhan cu bam. 43 ham bam kiem

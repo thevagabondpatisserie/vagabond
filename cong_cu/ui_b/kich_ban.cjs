@@ -166,6 +166,10 @@ module.exports = [
         '<div id="cChen" data-giu-emoji><button data-bdchen="❤️" style="width:48px;height:48px">❤️</button><button data-bdchen="🤍" style="width:48px;height:48px">🤍</button></div>' +
         /* Codex #614 vòng 2: nút chỉ có ký tự hình phải còn tên truy cập sau khi đổi thành SVG. */
         '<button id="cTrong" style="width:48px;height:48px">✓</button><button id="cCoTen" aria-label="Xoá dòng" style="width:48px;height:48px">✕</button>' +
+        /* Codex #614 vòng 3: ký tự đánh dấu là trạng thái chọn, phải còn đọc được. */
+        '<div id="cTich" data-a><span>☑</span><span>Tin đã chọn</span></div><div id="cChua" data-b><span>☐</span><span>Tin chưa chọn</span></div>' +
+        '<div id="cAria" role="checkbox" aria-checked="true"><span>☑</span> Có vai</div><div class="hi" id="cO">✅</div>' +
+        '<button id="cHet" style="min-height:44px">☑ Chọn hết</button><span id="cLuu">✅ Đã lưu</span>' +
         '<div id="cGiu" data-giu-emoji>Tin gửi 🎁</div>' +
         '<textarea id="cSoan">Nháp 🍰</textarea>' +
         '<div id="cHang" style="display:flex;align-items:center;gap:12px;margin-top:12px">' +
@@ -187,6 +191,8 @@ module.exports = [
           chon: q('cChon').options[0].text,
           xem: q('cXem').textContent, giu: q('cGiu').textContent, soan: q('cSoan').value,
           hoi: co.test(q('cHoi').textContent), hoiIc: !!q('cHoi').querySelector('svg'),
+          tich: q('cTich').textContent, chua: q('cChua').textContent, aria: q('cAria').textContent, o: q('cO').textContent,
+          het: q('cHet').textContent, luu: q('cLuu').textContent,
           tenTrong: q('cTrong').getAttribute('aria-label'), tenCo: q('cCoTen').getAttribute('aria-label'), trongIc: !!q('cTrong').querySelector('svg'),
           chen: Array.prototype.map.call(q('cChen').querySelectorAll('button'), function (b) { return b.textContent; }),
           chuRong: chu.getBoundingClientRect().width, hangRong: hang.getBoundingClientRect().width,
@@ -201,6 +207,9 @@ module.exports = [
         if (d.hoi || !d.hoiIc) loi.push('hộp thoại pre-wrap của lớp vẽ còn emoji');
         if (!d.trongIc || d.tenTrong !== '✓') loi.push('nút chỉ có ký tự hình mất tên truy cập (aria-label ' + d.tenTrong + ')');
         if (d.tenCo !== 'Xoá dòng') loi.push('tên thao tác đặt sẵn bị ghi đè: ' + d.tenCo);
+        if (d.tich.indexOf('đã đánh dấu') < 0 || d.chua.indexOf('chưa đánh dấu') < 0) loi.push('dòng chọn mất trạng thái: ' + d.tich + ' | ' + d.chua);
+        if (d.o.indexOf('đã đánh dấu') < 0) loi.push('ô biểu tượng ✅ mất trạng thái: ' + d.o);
+        if (/đánh dấu/.test(d.aria + d.het + d.luu)) loi.push('thêm chữ trạng thái thừa (đã có aria-checked, nhãn nút, nhãn có chữ): ' + [d.aria, d.het, d.luu].join(' | '));
         if (d.chuRong < d.hangRong * 0.6 || !d.nutDuoi) loi.push('khối chữ vẫn bị nút ép: rộng ' + Math.round(d.chuRong) + '/' + Math.round(d.hangRong));
       } else {
         if (d.chon !== '🟢 Đã ghi sổ' || !d.nut) loi.push('giao diện cũ bị đổi: emoji của nút hay lựa chọn mất');
