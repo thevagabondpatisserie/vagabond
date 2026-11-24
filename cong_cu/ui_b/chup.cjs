@@ -195,10 +195,10 @@ function doTrongTrang(thamSo) {
     var khoaPhong = ho + '|' + cs.fontWeight;
     if (!daGhiPhong[khoaPhong]) { daGhiPhong[khoaPhong] = 1; r.phongDung.push({ ho: ho, dam: cs.fontWeight }); }
     /* Codex UI04: soi emoji ở MỌI chữ của app và hộp đang mở, không chỉ nút và tiêu đề. */
-    /* v691: chữ sẽ gửi đi hoặc người dùng tự viết (ô soạn, xem trước pre-line, [data-giu-emoji]) phải
+    /* v691: chữ sẽ gửi đi hoặc người dùng tự viết (ô soạn, [data-giu-emoji], xem trước bài đăng) phải
        giữ nguyên emoji (đặc tả bản 4 mục 1), cùng danh sách UIB_GIU_CHU của 81-ui-b.js. */
     if (/[\u{1F000}-\u{1FAFF}☀-➿]/u.test(chu) && cha.closest('#vgb, .sh, #tlKhung, .vf') &&
-      !cha.closest('textarea, [contenteditable], [data-giu-emoji], .bd-phai, [style*="white-space:pre"], [style*="white-space: pre"]')) r.emoji.push(chu.slice(0, 28));
+      !cha.closest('textarea, [contenteditable], [data-giu-emoji], .bd-phai')) r.emoji.push(chu.slice(0, 28));
     /* Codex UI07: chữ bị cắt TRONG thẻ dù cả trang không cuộn ngang. Tìm lớp cha gần nhất có
        cắt tràn (hidden hoặc clip, không tính lớp cuộn được), không có thì lấy khung màn. */
     if (!lopTren || lopTren.contains(cha)) {

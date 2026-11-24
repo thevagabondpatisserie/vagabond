@@ -147,7 +147,8 @@ module.exports = [
     } }
   ,
   /* v691 (#614): emoji giữa chữ ở mọi phần tử của lớp vẽ thành biểu tượng (nút trơn, chip tự vẽ,
-     nhãn, dòng cảnh báo, lựa chọn); chữ sẽ gửi đi (xem trước pre-line, ô soạn, [data-giu-emoji])
+     nhãn, dòng cảnh báo, lựa chọn, hộp thoại pre-wrap); chữ sẽ gửi đi hay in ra (ô soạn, vùng
+     đánh dấu [data-giu-emoji] như xem trước lời chúc và bảng chèn biểu tượng)
      giữ nguyên emoji. Hàng có nút ép khối chữ thành cột hẹp thì nút xuống hàng riêng. Thêm
      phần tử SAU khi app chạy để đi đúng đường bộ theo dõi. */
   { ten: 'chu-lan-emoji', cho: '.gwrap', pham_vi: '#thuChu', mo: async function (t) {
@@ -158,7 +159,11 @@ module.exports = [
       w.innerHTML = '<button id="cNut" data-y style="min-height:44px">📋 Bảng</button>' +
         '<div id="cCanh" class="sec">⚠️ Đơn chưa có thẻ khung giờ · 📚 Tất cả</div>' +
         '<select id="cChon"><option>🟢 Đã ghi sổ</option></select>' +
-        '<div id="cXem" style="white-space:pre-line">Chào chị 🎉 món mới</div>' +
+        /* Codex #614: xem trước lời chúc nhận pre-wrap qua LỚP CSS, bảng chèn có hai tim khác nhau. */
+        '<style>#thuChu .thuLc,#thuChu .thuHoi{white-space:pre-wrap}</style>' +
+        '<div id="cHoi" class="thuHoi">✅ Đã lưu phiếu</div>' +
+        '<div id="cXem" class="thuLc" data-giu-emoji>Chào chị 🎉 món mới</div>' +
+        '<div id="cChen" data-giu-emoji><button data-bdchen="❤️" style="width:48px;height:48px">❤️</button><button data-bdchen="🤍" style="width:48px;height:48px">🤍</button></div>' +
         '<div id="cGiu" data-giu-emoji>Tin gửi 🎁</div>' +
         '<textarea id="cSoan">Nháp 🍰</textarea>' +
         '<div id="cHang" style="display:flex;align-items:center;gap:12px;margin-top:12px">' +
@@ -179,6 +184,8 @@ module.exports = [
           canh: co.test(q('cCanh').textContent), canhIc: q('cCanh').querySelectorAll('svg').length,
           chon: q('cChon').options[0].text,
           xem: q('cXem').textContent, giu: q('cGiu').textContent, soan: q('cSoan').value,
+          hoi: co.test(q('cHoi').textContent), hoiIc: !!q('cHoi').querySelector('svg'),
+          chen: Array.prototype.map.call(q('cChen').querySelectorAll('button'), function (b) { return b.textContent; }),
           chuRong: chu.getBoundingClientRect().width, hangRong: hang.getBoundingClientRect().width,
           nutDuoi: ep.getBoundingClientRect().top >= chu.getBoundingClientRect().bottom - 1
         };
@@ -188,11 +195,13 @@ module.exports = [
         if (d.nut || !d.nutIc) loi.push('nút trơn còn emoji hoặc chưa có biểu tượng');
         if (d.canh || d.canhIc !== 2) loi.push('dòng cảnh báo còn emoji hoặc thiếu biểu tượng (có ' + d.canhIc + ')');
         if (d.chon !== 'Đã ghi sổ') loi.push('lựa chọn trong ô chọn còn emoji: ' + d.chon);
+        if (d.hoi || !d.hoiIc) loi.push('hộp thoại pre-wrap của lớp vẽ còn emoji');
         if (d.chuRong < d.hangRong * 0.6 || !d.nutDuoi) loi.push('khối chữ vẫn bị nút ép: rộng ' + Math.round(d.chuRong) + '/' + Math.round(d.hangRong));
       } else {
         if (d.chon !== '🟢 Đã ghi sổ' || !d.nut) loi.push('giao diện cũ bị đổi: emoji của nút hay lựa chọn mất');
       }
-      if (d.xem !== 'Chào chị 🎉 món mới') loi.push('xem trước tin bị đổi: ' + d.xem);
+      if (d.xem !== 'Chào chị 🎉 món mới') loi.push('xem trước lời chúc bị đổi: ' + d.xem);
+      if (d.chen.join(' ') !== '❤️ 🤍') loi.push('bảng chèn biểu tượng bị đổi: ' + d.chen.join(' '));
       if (d.giu !== 'Tin gửi 🎁') loi.push('vùng data-giu-emoji bị đổi');
       if (d.soan !== 'Nháp 🍰') loi.push('ô soạn bị đổi');
       var r = await t.evaluate(function () { var b = document.getElementById('cNut'), rb = b.getBoundingClientRect(), ic = b.querySelector('.uichu'); var ri = ic ? ic.getBoundingClientRect() : rb; return { x: ri.left + ri.width / 2, y: ri.top + ri.height / 2 }; });

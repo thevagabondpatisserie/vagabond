@@ -340,7 +340,8 @@ function tqVeForm(dm, p) {
 
     '<div class="vxl" style="margin-top:18px">5. LỜI CHÚC</div>' +
     tqChon('Mẫu lời chúc', 'tqMau', p.mau_loi_chuc, 'Lấy mẫu mặc định của đợt') +
-    '<div class="tqlc" id="tqXemLc">' + (lc ? h(lc) : 'Chọn mẫu rồi lời chúc sẽ hiện ở đây') + '</div>' +
+    /* v691 (Codex #614): lời chúc in ra thiệp, xem trước phải giữ nguyên emoji ở giao diện mới. */
+    '<div class="tqlc" id="tqXemLc" data-giu-emoji>' + (lc ? h(lc) : 'Chọn mẫu rồi lời chúc sẽ hiện ở đây') + '</div>' +
     '<div class="vxl" style="margin-top:12px">' +
     '<label><input type="checkbox" id="tqSuaTay"' + (p.sua_tay ? ' checked' : '') + '> ' +
     'Sửa tay lời chúc này</label></div>' +

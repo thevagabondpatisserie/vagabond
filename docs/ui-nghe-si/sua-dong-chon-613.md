@@ -70,7 +70,7 @@ Anh Việt thấy sau bản 690 "vẫn còn nhiều emoji cũ bị lẫn", nút 
 
 | Loại | Nguyên nhân | Sửa | Sau sửa (134 màn) |
 |---|---|---|---|
-| Emoji sót | Máy quét chỉ phủ ô một biểu tượng và đầu nhãn `.btn`/`.chip`. Nút trơn, chip tự vẽ, nhãn, dòng cảnh báo, lựa chọn của ô chọn đều lọt. | `uiBQuetChu`: quét mọi nút chữ trong vùng app và hộp. Emoji có trong bảng đối chiếu thành biểu tượng cùng cỡ chữ, chấm màu thành chấm trạng thái. Lựa chọn trong ô chọn chỉ bỏ emoji. Chừa ô nhập, ô soạn, khung pre-line (nội dung tin, kịch bản), xem trước bài đăng, `[data-giu-emoji]`. | 0 chỗ |
+| Emoji sót | Máy quét chỉ phủ ô một biểu tượng và đầu nhãn `.btn`/`.chip`. Nút trơn, chip tự vẽ, nhãn, dòng cảnh báo, lựa chọn của ô chọn đều lọt. | `uiBQuetChu`: quét mọi nút chữ trong vùng app và hộp. Emoji có trong bảng đối chiếu thành biểu tượng cùng cỡ chữ, chấm màu thành chấm trạng thái. Lựa chọn trong ô chọn chỉ bỏ emoji. Chừa ô nhập, ô soạn, xem trước bài đăng và vùng đánh dấu rõ `[data-giu-emoji]` (xem trước lời chúc in lên thiệp, bảng chèn biểu tượng của Bài đăng, theo Codex vòng 1). Không đoán theo `white-space: pre`: khung pre đặt qua lớp CSS thì lọt, còn hộp thoại và ghi chú dùng pre-line lại là lớp vẽ. | 0 chỗ |
 | Vùng bấm dưới 44 | Chip `posChipNut` (259 chỗ gọi), `.chip`, ô nhập, ô chọn cao 30 tới 37. | Lớp `posc` cho chip chung. Chiều cao tối thiểu 44 cho chip, ô nhập, ô chọn, ô soạn ở giao diện mới. Ô tích 22 điểm. | 45 chỗ còn lại, đều là chip tự vẽ riêng từng màn |
 | Nút ép chữ | Hàng flex: đoạn giải thích `flex:1;min-width:0` cạnh một nút không xuống dòng, máy hẹp thì đoạn chữ thành cột 4, 5 dòng (thẻ Đền bù khách ở Khuyến mãi). | `uiBGoEp`: đo thật sau mỗi lần vẽ. Khối chữ hẹp hơn 45% hàng mà cao từ 4 dòng thì cho nút xuống hàng riêng, rộng cả hàng. | Thẻ Đền bù như ảnh dưới |
 
@@ -87,7 +87,10 @@ Anh Việt thấy sau bản 690 "vẫn còn nhiều emoji cũ bị lẫn", nút 
   - pre-line, `data-giu-emoji`, ô soạn giữ nguyên;
   - hàng bị ép đã gỡ;
   - bấm đúng biểu tượng vẫn chạy hành động.
-- Ca thuần `ui-b v691` trong `thu_giao_dien_ui_b.py`.
+- Hai ca trong `thu_giao_dien_ui_b.py`:
+  - ca thuần tra biểu tượng;
+  - ca chạy hàm thật `tqVeForm`, `bdSheetBieuTuong`: mọi emoji của lời chúc và bảng chèn nằm trong vùng giữ. Bỏ đánh dấu thì hỏng: 2 trên 33 emoji lọt ra.
+- Kịch bản `chu-lan-emoji` có thêm hai chỗ: xem trước pre-wrap qua lớp CSS giữ nguyên, hai tim ❤️ 🤍 giữ nguyên.
 - Cố tình làm hỏng 7 chỗ, bắt 5. Hai chỗ lọt là lớp thừa ở lựa chọn của ô chọn: trình duyệt tự bỏ khoảng trắng và thẻ con của lựa chọn. Đã bỏ phần cắt khoảng trắng thừa.
 
 | Màn 390 px | Bản 690 | Bản 691 |

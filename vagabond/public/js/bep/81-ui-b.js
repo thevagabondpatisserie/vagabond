@@ -555,11 +555,14 @@ function uiBQuet(goc) {
    van con: quet 134 man bang cong_cu/ui_b/quet_man.cjs ra 206 cho o 58 man. Nay quet MOI chu
    trong vung app va hop: emoji co trong bang doi chieu thanh bieu tuong cung co chu, cham mau
    thanh cham. Emoji ngoai bang giu nguyen (cong cu quet bao ra de bo sung bang).
-   KHONG dung toi: o nhap, vung soan, va noi dung hien nguyen van (khung white-space pre, xem
-   truoc bai dang, [data-giu-emoji]): do la chu se gui di hoac chu nguoi dung tu viet, phai thay
-   dung nhu se gui (dac ta ban 4 muc 1). */
+   KHONG dung toi: o nhap, vung soan, va noi dung hien nguyen van da danh dau [data-giu-emoji]
+   (xem truoc loi chuc, bang chen bieu tuong) hay xem truoc bai dang: do la chu se gui di, se in
+   ra, phai thay dung nhu vay (dac ta ban 4 muc 1). */
 var UIB_RE_KY = /(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*/g;
-var UIB_GIU_CHU = 'svg, script, style, textarea, input, [contenteditable], [data-giu-emoji], .bd-phai, [style*="white-space:pre"], [style*="white-space: pre"]';
+/* Codex #614: KHONG doan theo white-space pre. Khung pre dat qua lop CSS (loi chuc .tqlc) thi lot,
+   con hop thoai, ghi chu cung dung pre-line ma la lop ve. Vung can giu thi danh dau ro bang
+   data-giu-emoji ngay trong nguon: xem truoc loi chuc, bang chen bieu tuong, xem truoc bai dang. */
+var UIB_GIU_CHU = 'svg, script, style, textarea, input, [contenteditable], [data-giu-emoji], .bd-phai';
 function uiBTenKy(ky) {
   var s = ky.replace(/\uFE0F/g, '');
   if (UIB_EMOJI[s]) return { ten: UIB_EMOJI[s] };

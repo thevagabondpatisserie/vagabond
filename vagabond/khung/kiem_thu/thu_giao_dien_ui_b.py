@@ -542,3 +542,19 @@ def _ui_b_tra_ky_v691():
 	la("emoji ngoài bảng đối chiếu thì không đổi", k["e"], None)
 	la("mũi tên tam giác có biểu tượng", bool(k["f"] and k["f"].get("ten")), True)
 	la("biểu thức bắt trọn ba ký tự, kể cả chuỗi ghép", k["m"], ["◀", "⚠️", "\U0001f9d1‍\U0001f4bc"])
+
+
+@ca("ui-b v691 (Codex #614): xem trước lời chúc (pre-wrap qua lớp CSS) và bảng chèn biểu tượng của Bài đăng nằm trong vùng [data-giu-emoji], chạy hàm thật")
+def _ui_b_giu_emoji_v691():
+	"""Vùng nội dung sẽ in ra (lời chúc trên thiệp) hay sẽ chèn vào bài (bảng chèn, có cả ❤️ và 🤍
+	cùng ra một hình tim nếu đổi) phải giữ nguyên emoji ở giao diện mới. Máy quét chữ 81-ui-b.js
+	chỉ chừa vùng đánh dấu rõ, không đoán theo white-space. Chạy tqVeForm và bdSheetBieuTuong thật
+	trong node (hanh_vi/ui_b_giu_emoji_v691.js), soi HTML ra."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "ui_b_giu_emoji_v691.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("có khung xem trước lời chúc", k["loi_chuc"]["co_khung"], True)
+	la("lời chúc có emoji để soi", k["loi_chuc"]["tong"] > 0, True)
+	la("emoji của lời chúc ngoài vùng giữ", k["loi_chuc"]["ngoai"], 0)
+	la("bảng chèn có đủ hai tim", k["bang_chen"]["co_tim"], True)
+	la("emoji của bảng chèn ngoài vùng giữ", k["bang_chen"]["ngoai"], 0)
