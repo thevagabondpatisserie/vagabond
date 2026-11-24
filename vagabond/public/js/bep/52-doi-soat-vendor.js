@@ -131,9 +131,9 @@ function dsvnKhoiHop(ht) {
     (ht.doc_luc ? 'Đọc lần cuối ' + h(String(ht.doc_luc).slice(11, 16)) + ' ' + dmy(String(ht.doc_luc).slice(0, 10)).slice(0, 5) + ' · tự đọc mỗi 15 phút' :
       'Chưa đọc lần nào.');
   return '<div class="card" style="padding:13px 14px;border:1.5px solid #68d5e7">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:16px">Hộp thư ' +
-    h(ht.dia_chi || 'doisoat@') + '</b><span style="background:' + trang[1] + ';color:' + trang[2] +
-    ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(trang[0]) + '</span></div>' +
+    '<div' + (typeof uiB === 'function' && uiB() ? ' class="ui-dong-chon"' : '') + ' style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:16px">Hộp thư ' +
+    h(ht.dia_chi || 'doisoat@') + '</b><span class="ui-dong-chon-trang-thai" style="background:' + trang[1] + ';color:' + trang[2] +
+    ';border-radius:999px;padding:3px 9px;font-size:' + (typeof uiB === 'function' && uiB() ? '13' : '12') + 'px;font-weight:600;white-space:nowrap">' + h(trang[0]) + '</span></div>' +
     '<div style="font-size:13px;color:' + (ht.trang === 'loi' ? '#b42318' : '#667085') + ';margin-top:4px">' + h(dong) + '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
     o('ve', 'Thư về hôm nay', ht.ve_hom_nay, '#067647') + o('chua_ve', 'Thư chưa về', ht.chua_ve, '#b42318') +

@@ -1017,7 +1017,7 @@ async function scrPosBill(name) {
           '<b style="min-width:20px;text-align:center">' + money(m.qty) + '</b>' +
           '<button data-scong="' + i + '" style="' + NUT + '">+</button>' +
           '<b style="min-width:66px;text-align:right">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</b>' +
-          '<button data-sxoa="' + i + '" style="' + NUT + ';color:#b3261e">✕</button>'
+          '<button aria-label="Xoá dòng" data-sxoa="' + i + '" style="' + NUT + ';color:#b3261e">✕</button>'
         : '<b style="white-space:nowrap">x' + money(m.qty) + '</b><b style="min-width:76px;text-align:right">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</b>') +
       '</div>';
   });

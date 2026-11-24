@@ -125,9 +125,9 @@ async function scrVanDon() {
   /* Hai nut lui/toi mot ngay: tren dien thoai bam nhanh hon mo bang chon
      ngay, va khong dinh loi bang chon ngay lam trang bi ve lai. */
   var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:8px">' +
-    '<button class="btn gh" id="vdLui" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">◀</button>' +
+    '<button class="btn gh" id="vdLui" aria-label="Ngày trước" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">◀</button>' +
     '<input type="date" class="hin" id="vdDate" value="' + vdNgay + '" style="flex:1;margin:0;min-width:0">' +
-    '<button class="btn gh" id="vdToi" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">▶</button></div>';
+    '<button class="btn gh" id="vdToi" aria-label="Ngày sau" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">▶</button></div>';
   if (isSales() || vdLaKeToan()) html += '<button class="btn gh" id="vdDongBo" style="margin:0 0 10px">🔄 Đồng bộ đơn Pancake ngày ' + vdNgay.split('-').reverse().join('/') + '</button>';
   var ICON = VD_TT_ICON;
   /* THU TU LOC, doi cho la sai so tren tab: o tim truoc, roi tab, roi chip.
@@ -882,7 +882,7 @@ async function scrVdChiPhi() {
       '<div class="h2">' + vn + ' · ' + h((r.shipper || '').split('@')[0]) + ' · ' + h(r.trang_thai) + (r.so_hoa_don ? ' · HĐ ' + h(r.so_hoa_don) : '') + '</div>' +
       (r.nha_cung_cap ? '<div class="h2">' + h(r.nha_cung_cap) + '</div>' : '') +
       (r.ghi_chu_duyet ? '<div class="h2" style="color:#b3261e">' + h(r.ghi_chu_duyet) + '</div>' : '') + '</div>' +
-      (r.anh_hoa_don ? '<a href="' + h(r.anh_hoa_don) + '" target="_blank">📷</a>' : '') + '</div>';
+      (r.anh_hoa_don ? '<a href="' + h(r.anh_hoa_don) + '" target="_blank" aria-label="Xem ảnh hoá đơn">📷</a>' : '') + '</div>';
   });
   html += '</div>';
 
@@ -960,7 +960,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '690';
+var APPVER = '691';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

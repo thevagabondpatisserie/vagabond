@@ -1050,7 +1050,9 @@ var BD_BIEU_TUONG = ['✨', '🌸', '🍓', '🍑', '🍋', '🥭', '🍫', '☕
 function bdSheetBieuTuong(b, k) {
   var ov = crmMoSheet('<div style="font-size:17px;font-weight:800;margin:0 2px 4px">Biểu tượng</div>' +
     '<div style="font-size:13px;color:#667085;margin:0 2px 10px">Chạm để chèn vào chỗ con trỏ trong chữ ' + h(bdKenh(k).ten) + '.</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:4px">' + BD_BIEU_TUONG.map(function (x) {
+    /* v691 (Codex #614): bảng chèn giữ nguyên emoji ở giao diện mới, vì ❤️ và 🤍 cùng thành một hình
+       tim thì người soạn không phân biệt được ký tự sẽ chèn. */
+    '<div data-giu-emoji style="display:flex;flex-wrap:wrap;gap:4px">' + BD_BIEU_TUONG.map(function (x) {
       return '<button data-bdchen="' + h(x) + '" style="width:48px;height:48px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;font-size:22px;cursor:pointer">' + h(x) + '</button>';
     }).join('') + '</div>');
   ov.onclick = function (e) {

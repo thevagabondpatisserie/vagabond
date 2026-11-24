@@ -874,7 +874,7 @@ async function scrPosQuay() {
       '<b style="min-width:22px;text-align:center;font-size:15px">' + money(m.qty) + '</b>' +
       '<button data-cong="' + i + '" style="' + NUT + '">+</button>' +
       '<b style="min-width:70px;text-align:right;font-size:15px">' + money(m.qty * m.rate) + '</b>' +
-      '<button data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
+      '<button aria-label="Xoá dòng" data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="posThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Thanh toán</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
@@ -936,7 +936,7 @@ async function scrPosQuay() {
         '<span style="font-size:17px">👤</span>' +
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(posDon.ten || posDon.khach_ma) + '</b>' +
         '<div style="font-size:11.5px;color:#0b7c93">mã ' + h(posDon.khach_ma) + (posDon.khach_hang ? ' · hạng ' + h(posDon.khach_hang) : '') + '</div></div>' +
-        '<button id="posBoKhach" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
+        '<button id="posBoKhach" aria-label="Bỏ khách đã chọn" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
       : '') +
     '<input class="tin" id="posTen" placeholder="Tên khách, mã khách, MST hoặc số điện thoại" autocomplete="off" value="' + h(posDon.ten || '') + '">' +
     '<div id="posTenGoi"></div></div>' +
@@ -1371,14 +1371,15 @@ function locHang(ds, dangChon, attr, rows) {
     var n = rows.filter(c.loc).length;
     if (!n && c.k !== '') return '';
     var on = c.k === dangChon;
-    return '<button ' + attr + '="' + h(c.k) + '" style="flex:0 0 auto;border:1.5px solid ' +
+    /* v691: lớp posc chung với posChipNut để giao diện mới tô theo ui-b, cao 44. */
+    return '<button class="posc' + (on ? ' posc-on' : '') + '" ' + attr + '="' + h(c.k) + '"' + (on ? ' aria-pressed="true"' : '') + ' style="flex:0 0 auto;border:1.5px solid ' +
       (on ? '#0d9488' : '#d7dce5') + ';background:' + (on ? '#0d9488' : '#fff') +
       ';color:' + (on ? '#fff' : '#374151') + ';border-radius:999px;padding:7px 13px;font-size:12.5px;' +
       'font-weight:' + (on ? '800' : '600') + ';cursor:pointer;white-space:nowrap;font-family:inherit">' +
       c.nhan + ' <span style="opacity:.75">' + n + '</span></button>';
   }).join('');
   /* v618: lớp cuon-ngang (00-nen.js) giấu thanh cuộn xám dưới hàng chip. */
-  return '<div class="cuon-ngang" style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+  return '<div class="cuon-ngang lochang" style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
 }
 
 /* Chip nguon don + phuong thuc thanh toan sinh theo du lieu that cua ngay,
@@ -1425,7 +1426,9 @@ function posChipNut(attr, chu, dangChon, laXoa, mau) {
   var chuMau = dangChon ? '#fff' : (laXoa ? '#b3261e' : '#374151');
   /* v617: chip đang chọn mang data-chipchon để màn cuộn nó vào tầm nhìn
      (hàng chip cuộn ngang không còn cắt mất chip đang chọn ở mép). */
-  return '<button ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
+  /* v691: lớp posc để giao diện mới đặt vùng bấm 44 cho cả 259 chỗ gọi (giao diện cũ không đổi). */
+  /* v691: posc-on, posc-xoa để giao diện mới tô chip theo bộ màu ui-b (giao diện cũ giữ style viết thẳng). */
+  return '<button class="posc' + (dangChon ? ' posc-on' : '') + (laXoa ? ' posc-xoa' : '') + '" ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
     ';color:' + chuMau + ';border-radius:999px;padding:9px 15px;font-size:14px;font-weight:' +
     (dangChon ? '800' : '600') + ';cursor:pointer;white-space:nowrap;line-height:1.2">' + chu + '</button>';
 }
@@ -1548,7 +1551,7 @@ function posKhoiKhachNo() {
       '<span style="font-size:18px">📒</span>' +
       '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(k.ten) + '</b>' +
       '<div style="font-size:12px;color:#92400e">Ghi nợ cho khách này · mã ' + h(k.ma) + (k.mst ? ' · MST ' + h(k.mst) : '') + '</div></div>' +
-      '<button id="posBoKhachNo" style="border:0;background:transparent;color:#b3261e;font-size:18px;cursor:pointer">✕</button></div></div>';
+      '<button id="posBoKhachNo" aria-label="Bỏ khách ghi nợ" style="border:0;background:transparent;color:#b3261e;font-size:18px;cursor:pointer">✕</button></div></div>';
   }
   return '<button id="posChonKhachNo" class="btn gh" style="margin:0;border-color:#fcd34d;color:#92400e">📒 Chọn khách công nợ (bắt buộc)</button>';
 }
