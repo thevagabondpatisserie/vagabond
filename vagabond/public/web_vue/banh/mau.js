@@ -214,9 +214,10 @@ export const MAU = `
     <div class="dc-don" id="c-dc" v-if="S.CART.length">
       <div class="dc-tieu">{{ t('dc_don_tieu','Dụng cụ ăn tặng kèm') }}</div>
       <div class="dc-mo">{{ t('dc_don_mo','The Vagabond gửi kèm chỉ khi quý khách cần nhằm hạn chế dụng cụ ăn uống sử dụng một lần. Quý khách cần bao nhiêu vui lòng nhập số lượng.') }}</div>
-      <ul class="acc dc-ds"><li v-for="x in DUNG_CU_DON" :key="x.k" :id="'c-dc-' + x.k"><img :src="anhWeb(x.ka, x.i)" alt=""><span class="nm">{{ t(x.kt, x.n) }}<small>{{ t('dc_don_tang','tặng kèm, 0 đ') }}</small></span>
+      <div class="dc-mo dc-tran">{{ t('dc_don_tran','Tối đa {so} bộ cho giỏ hiện tại: bánh 12cm, 16cm được 10 bộ; bánh 18cm, 20cm được 15 bộ.',{so:kho.tranDc.value}) }}</div>
+      <ul class="acc dc-ds"><li v-for="x in DUNG_CU_DON" :key="x.k" :id="'c-dc-' + x.k"><img :src="anhWeb(x.ka, x.i)" alt=""><span class="nm">{{ t(x.kt, x.n) }}<small>{{ t('dc_don_tang','tặng kèm, 0 đ') }}</small><small class="dc-het" v-if="S.DC[x.k] && S.DC[x.k]>=kho.tranDc.value" role="status">{{ t('dc_don_toi_da','Đã chọn tối đa số lượng cho phép') }}</small></span>
         <div class="sl-vien" role="group" :aria-label="t('so_luong_cua','Số lượng {ten}',{ten:t(x.kt, x.n)})"><button type="button" :disabled="!S.DC[x.k]" :aria-label="t('sl_bot_1','Bớt 1')" @click="kho.doiDc(x.k,-1)"><bieu-tuong loai="tru"/></button>
-          <output aria-live="polite">{{ S.DC[x.k] }}</output><button type="button" :disabled="S.DC[x.k]>=20" :aria-label="t('sl_them_1','Thêm 1')" @click="kho.doiDc(x.k,1)"><bieu-tuong loai="cong"/></button></div></li></ul>
+          <output aria-live="polite">{{ S.DC[x.k] }}</output><button type="button" :disabled="S.DC[x.k]>=kho.tranDc.value" :aria-label="t('sl_them_1','Thêm 1')" @click="kho.doiDc(x.k,1)"><bieu-tuong loai="cong"/></button></div></li></ul>
     </div>
     <goi-y-mua id-khoi="gyGio" :tieu="t('gy_tieu_gio','GIAO KÈM CÙNG CHUYẾN')" :ds="kho.goiYGio.value" :them="kho.themGoiY" :thanh="kho.thanhMienPhiGio.value"/>
 

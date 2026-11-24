@@ -8155,6 +8155,16 @@
     "nhom": "dat_banh",
     "mac_dinh": "tặng kèm, 0 đ"
   },
+  "dc_don_toi_da": {
+    "ten": "Thông tin đơn hàng: dòng báo dưới dĩa, nĩa khi khách đã chọn tới trần",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã chọn tối đa số lượng cho phép"
+  },
+  "dc_don_tran": {
+    "ten": "Thông tin đơn hàng: dòng nói trần dĩa, nĩa theo cỡ bánh ({so} là số bộ tối đa của giỏ)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tối đa {so} bộ cho giỏ hiện tại: bánh 12cm, 16cm được 10 bộ; bánh 18cm, 20cm được 15 bộ."
+  },
   "dc_don_dia": {
     "ten": "Thông tin đơn hàng: tên dĩa tặng kèm",
     "nhom": "dat_banh",

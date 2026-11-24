@@ -60,6 +60,55 @@ def _lam_sach_hang(items, tang=("BAPK00020", "BAPK00018")):
 	return [{"variation_id": ma, "quantity": sl} for ma, sl in gom.items()]
 
 
+# v692 (giám đốc chốt 24/11/2026): trần dĩa, nĩa tặng theo cỡ bánh. Bánh tới 16cm
+# được 10 bộ, bánh 18cm trở lên 15 bộ, nhân số chiếc; món không có cỡ 1 bộ mỗi món;
+# phụ kiện (mã BAPK) không tính; cộng cả đơn, không quá MAX_SL. Trùng tranDcDong,
+# tranDcGio ở web_vue/kho/thuan.js (ca thu_dia_nia_theo_co_692 chạy cùng bộ số).
+DC_CO_NHO = 16
+DC_BO_NHO = 10
+DC_BO_LON = 15
+
+
+def tran_dung_cu(dong):
+	"""THUẦN. dong: [(mã, cỡ cm, số lượng)] của mọi món trong đơn. Trả số bộ dĩa,
+	nĩa tặng tối đa của cả đơn."""
+	tong = 0
+	for ma, cm, sl in dong or []:
+		try:
+			q = max(0, int(sl or 0))
+			c = int(cm or 0)
+		except (TypeError, ValueError):
+			continue
+		if str(ma or "").upper().startswith("BAPK"):
+			continue
+		tong += q * ((DC_BO_NHO if c <= DC_CO_NHO else DC_BO_LON) if c > 0 else 1)
+	return min(MAX_SL, tong)
+
+
+def _chot_dung_cu(hang, ten_mon=None):
+	"""Máy chủ CHỐT số dĩa, nĩa tặng theo trần cỡ bánh (trang cũ, gọi thẳng cửa tạo
+	đơn hay sửa số trên trình duyệt đều không vượt). ten_mon: {mã: tên món} nếu đã
+	đọc; không có thì đọc hồ sơ món. Dòng còn 0 thì bỏ."""
+	tang = _lam_sach_hang.__defaults__[0]
+	if not any(h["variation_id"] in tang for h in hang):
+		return hang
+	from vagabond.kiem_banh import _tach_ten_size
+
+	if ten_mon is None:
+		ten_mon = _gia_va_ten([h["variation_id"] for h in hang if h["variation_id"] not in tang])[1]
+	tran = tran_dung_cu([(h["variation_id"], _tach_ten_size(ten_mon.get(h["variation_id"]) or "")[1], h["quantity"])
+		for h in hang if h["variation_id"] not in tang])
+	ra = []
+	for h in hang:
+		if h["variation_id"] in tang:
+			sl = min(int(h["quantity"]), tran)
+			if sl < 1:
+				continue
+			h = dict(h, quantity=sl)
+		ra.append(h)
+	return ra
+
+
 _UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
@@ -573,6 +622,8 @@ def tao_don(don=None):
 
 	chiec = chiec_banh.chuan_chiec(don.get("chiec"), hang)
 	hang = chiec_banh.chot_thiep_ep_kim(hang, chiec)
+	# v692: dĩa, nĩa tặng không vượt trần theo cỡ bánh, chốt cùng chỗ với thiệp ép kim.
+	hang = _chot_dung_cu(hang)
 
 	ten = (don.get("ho_ten") or "").strip()
 	dien_thoai = _so(don.get("dien_thoai"))

@@ -297,6 +297,14 @@ class Xu(BaseHTTPRequestHandler):
 			if tep.suffix == '.js':
 				kieu = 'text/javascript; charset=utf-8'
 			return self.gui(200, kieu, tep.read_bytes())
+		# v692 (Codex #619): giả tên miền khách bằng đầu X-Vgb-Host (ca DOM chuyển tiếp
+		# http://thevagabondpatisserie.com về máy thử). Máy chủ thật quyết màn bằng đúng
+		# hàm ten_mien.la_trang_dat_banh_khach nên đường gọn phát trang đặt bánh bản Vue.
+		mien = self.headers.get('X-Vgb-Host') or ''
+		if mien:
+			from vagabond.ten_mien import la_trang_dat_banh_khach
+			if la_trang_dat_banh_khach(mien, duong):
+				duong = '/web_moi/banh'
 		if duong == '/web_moi/banh':
 			s = (GOC / 'vagabond/www/web_moi/banh.html').read_text().replace('{{ csrf_token }}', 'thu')
 			# v664: thẻ Google Analytics THẬT do máy chủ dựng (mã thử); gtag.js ngoài mạng bị chặn,

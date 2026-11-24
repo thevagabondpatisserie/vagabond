@@ -40,8 +40,9 @@ def _hang_so(ten):
 def _don_hang():
 	"""Hàm THẬT nạp từ don_hang.py (không import cả mô-đun), như ca #367."""
 	from vagabond import don_web
-	g = dict(json=json, re=re, don_web=don_web, MAX_DONG=_hang_so("MAX_DONG"), MAX_SL=_hang_so("MAX_SL"))
-	for ten in ("_so", "_lam_sach_hang", "_gan_giam_pancake", "tao_don", "xem_uu_dai"):
+	g = dict(json=json, re=re, don_web=don_web, MAX_DONG=_hang_so("MAX_DONG"), MAX_SL=_hang_so("MAX_SL"),
+		DC_CO_NHO=_hang_so("DC_CO_NHO"), DC_BO_NHO=_hang_so("DC_BO_NHO"), DC_BO_LON=_hang_so("DC_BO_LON"))
+	for ten in ("_so", "_lam_sach_hang", "_gan_giam_pancake", "tran_dung_cu", "_chot_dung_cu", "tao_don", "xem_uu_dai"):
 		nap("don_hang.py", ten, g)
 	return types.SimpleNamespace(**g)
 

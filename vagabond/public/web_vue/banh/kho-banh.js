@@ -611,11 +611,14 @@ export function taoKho(moiTruong) {
     }).join(' · ');
   }
   function cartRemove(i) { S.CART.splice(i, 1); }
-  /* Nút − và + của dĩa, nĩa tặng kèm, kẹp 0 tới 30. */
+  /* Nút − và + của dĩa, nĩa tặng kèm. v692: trần theo cỡ bánh trong giỏ (T.tranDcGio);
+     bớt bánh làm trần thấp xuống thì số đã chọn tự hạ theo. */
+  const tranDc = computed(() => T.tranDcGio(S.CART));
   function doiDc(k, d) {
     if (k !== 'dia' && k !== 'nia') return;
-    S.DC[k] = T.chuanDcDon({...S.DC, [k]: (S.DC[k] || 0) + d})[k];
+    S.DC[k] = T.chuanDcDon({...S.DC, [k]: (S.DC[k] || 0) + d}, tranDc.value)[k];
   }
+  watch(tranDc, tr => { const x = T.chuanDcDon(S.DC, tr); if (x.dia !== S.DC.dia) S.DC.dia = x.dia; if (x.nia !== S.DC.nia) S.DC.nia = x.nia; });
   const dongGio = computed(() => S.CART.map((o, i) => {
     const ex = [];
     const dc = o.dung_cu || {};
@@ -1706,7 +1709,7 @@ export function taoKho(moiTruong) {
     coTruoc, banhHomNay, banhDatTruoc, tongTon, kichThuocDangBan, dongTrangThai, ghiChuHomNay, theBanh,
     curSize, moBanh, dongBanh, setSize, doiSoLuong, toggleNum, clearNums, toggleAdd, phuKienChon, tienNutThem,
     gioiHanNhan, soDatTruoc, chuHetNgay, addToCart, themNhanh, suaDongGio,
-    soBanh, tienBanh, cartQty, cartRemove, doiDc, dongGio,
+    soBanh, tienBanh, cartQty, cartRemove, doiDc, tranDc, dongGio,
     giaThiep, dsChiec, datCo, datThiep, batThiep, moMauCo, chiecMauCo, soThiepEpKim, dongYBo, giuLai,
     gcHien, gioTreChon, doiGc, chonGioTre, theTomTat, khoaUuDai, uuHienTai, giam, xemUuDai, apMaUuDai, goiYMa,
     theDonDau, guiMaDonDau, xacThucDonDau, theDiem, dungDiem, tienDiem, theThanhVien, daXacThuc, nhapMa, xoaLuiMa, doiSo,

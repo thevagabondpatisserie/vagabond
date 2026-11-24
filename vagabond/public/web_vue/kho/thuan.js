@@ -334,15 +334,32 @@ export function xungDotGio(gio, o, boQua = -1) {
    có sẵn trên hệ thống, anh chọn dùng Nĩa gỗ (không tạo món Nĩa giấy). Trần 20
    mỗi loại, bằng MAX_SL của máy chủ (don_hang.py). */
 export const MA_DIA_TANG = 'BAPK00020', MA_NIA_TANG = 'BAPK00018', DC_TOI_DA = 20;
-export function chuanDcDon(d) {
-  const so = x => Math.min(DC_TOI_DA, Math.max(0, parseInt(x) || 0));
+/* v692 (giám đốc chốt 24/11/2026, Sales báo khách size nhỏ xin quá nhiều): trần dĩa,
+   nĩa theo cỡ bánh trong giỏ. Bánh tới 16cm được 10 bộ, bánh 18cm trở lên 15 bộ, nhân
+   số chiếc; món không có cỡ (bánh một cỡ, đồ uống) 1 bộ mỗi món; phụ kiện (mã BAPK:
+   nến, thiệp) không tính. Cộng cả giỏ, không quá DC_TOI_DA. Trùng
+   don_hang.tran_dung_cu (ca thu_dia_nia_theo_co_692 chạy cùng bộ số hai phía). */
+export const DC_CO_NHO = 16, DC_BO_NHO = 10, DC_BO_LON = 15;
+export function tranDcDong(id, cm, qty) {
+  const q = Math.max(0, parseInt(qty) || 0);
+  if (String(id || '').toUpperCase().startsWith('BAPK')) return 0;
+  const c = parseInt(cm) || 0;
+  return q * (c > 0 ? (c <= DC_CO_NHO ? DC_BO_NHO : DC_BO_LON) : 1);
+}
+export function tranDcGio(gio) {
+  const tong = (gio || []).reduce((s, o) => s + tranDcDong(o && o.id, o && o.cm, o && o.qty), 0);
+  return Math.min(DC_TOI_DA, tong);
+}
+export function chuanDcDon(d, tran) {
+  const tr = tran === undefined || tran === null ? DC_TOI_DA : Math.min(DC_TOI_DA, Math.max(0, parseInt(tran) || 0));
+  const so = x => Math.min(tr, Math.max(0, parseInt(x) || 0));
   d = d || {};
   return {dia: so(d.dia), nia: so(d.nia)};
 }
 /* Giỏ lưu từ bản trước (nĩa, dĩa ghi theo từng bánh): cộng về số của đơn, nhân số
    bánh, rồi xoá số ở dòng để không gửi hai lần. Trả số mới của đơn. */
 export function gomDcCu(gio, dc) {
-  const ra = chuanDcDon(dc);
+  const ra = chuanDcDon(dc, tranDcGio(gio));
   (gio || []).forEach(o => {
     const d = o && o.dung_cu;
     if (!d) return;
@@ -350,7 +367,7 @@ export function gomDcCu(gio, dc) {
     ra.dia += (parseInt(d.dia) || 0) * q; ra.nia += (parseInt(d.nia) || 0) * q;
     if (d.dia || d.nia) o.dung_cu = Object.assign({}, d, {nia: 0, dia: 0});
   });
-  return chuanDcDon(ra);
+  return chuanDcDon(ra, tranDcGio(gio));
 }
 export function hangGui(gio, dc) {
   /* v589: MỘT nguồn cho danh sách món gửi máy chủ, dùng chung lúc gửi đơn và
@@ -364,7 +381,7 @@ export function hangGui(gio, dc) {
     if (ek) qty[MA_THIEP_EP_KIM] = (qty[MA_THIEP_EP_KIM] || 0) + ek;
   });
   if (gio.length) {
-    const x = chuanDcDon(dc);
+    const x = chuanDcDon(dc, tranDcGio(gio));
     if (x.dia) qty[MA_DIA_TANG] = (qty[MA_DIA_TANG] || 0) + x.dia;
     if (x.nia) qty[MA_NIA_TANG] = (qty[MA_NIA_TANG] || 0) + x.nia;
   }

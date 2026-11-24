@@ -299,6 +299,8 @@ body.has-bar .sheet,body.has-bar main{padding-bottom:86px}
 .dc-ds{margin-top:10px}
 .dc-ds li:last-child{border-bottom:0}
 .dc-ds .nm small{font-size:13px}
+.dc-ds .nm small.dc-het{color:var(--cyan-bright,#8EEAF8);font-style:normal;font-family:inherit;margin-top:2px}
+.dc-tran{margin-top:4px}
 .dc-ds img{width:48px;height:48px}
 .dc-ds li{gap:10px}
 .cart-add{margin-top:16px;width:100%;border:1px dashed var(--line);padding:14px;font-size:12px;

@@ -520,8 +520,10 @@ await ca('Dĩa, nĩa tặng kèm (anh Việt 20/11/2026): chọn một lần cho
   const k = taoKho(mt); k.phucHoiGio();
   la('mặc định không gửi', [k.S.DC.dia, k.S.DC.nia], [0, 0]);
   la('giỏ trống: không gửi dĩa, nĩa dù đã bấm', (k.doiDc('dia', 1), k.T.hangGui(k.S.CART, k.S.DC)), []);
+  la('v692 giỏ trống: trần 0, bấm Thêm không lên số', [k.S.DC.dia, k.tranDc.value], [0, 0]);
   coThem(k); coThem(k);
-  k.doiDc('dia', 3); k.doiDc('nia', 1); k.doiDc('nia', -1); k.doiDc('nia', -1); k.doiDc('nia', 2);
+  la('v692 hai bánh 12cm: trần 20 bộ', k.tranDc.value, 20);
+  k.doiDc('dia', 4); k.doiDc('nia', 1); k.doiDc('nia', -1); k.doiDc('nia', -1); k.doiDc('nia', 2);
   la('nút − không xuống dưới 0', [k.S.DC.dia, k.S.DC.nia], [4, 2]);
   for (let i = 0; i < 40; i++) k.doiDc('nia', 1);
   la('kẹp 20 (bằng trần số lượng của máy chủ)', k.S.DC.nia, 20);
