@@ -560,6 +560,19 @@ def _ui_b_giu_emoji_v691():
 	la("emoji của bảng chèn ngoài vùng giữ", k["bang_chen"]["ngoai"], 0)
 
 
+@ca("ui-b v691 (Codex #614 P2): hộp chọn thay ô chọn hệ điều hành dùng được bằng bàn phím: Enter, Space chọn dòng, mũi tên đi giữa các dòng; chạy sheet() và hopPhim() thật")
+def _ui_b_hop_chon_phim_v691():
+	"""Bẫy Codex chỉ: dòng .shi không có tabindex, data-phim nên hopPhim không bấm hộ; select gốc
+	đã ẩn nên người dùng bàn phím mở được hộp mà không đổi được giá trị (hanh_vi/hop_chon_phim_614.js)."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "hop_chon_phim_614.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	for p in ("enter", "space"):
+		la(p + ": mọi dòng vào được bằng Tab, vai option", [k[p]["tabindex"], k[p]["role"]], [["0"] * 3, ["option"] * 3])
+		la(p + ": chọn đúng dòng Tân Bình, hộp đóng, chặn phím mặc định", [k[p]["chon"], k[p]["con_hop"], k[p]["chan"]], [["TB"], 0, 1])
+	la("mũi tên xuống tới dòng cuối thì dừng, lên về dòng trước", k["mui_ten"], [2, 2, 1])
+
+
 @ca("ui-b v691 (#614 rà độc lập UI83, UI84, UI88, UI89): mã nhóm Zalo gập, ô bot hiện tên bot, nhãn Chức danh riêng, đơn vị đ; giao diện cũ giữ nguyên, chạy hàm thật")
 def _ui_b_ra_doc_lap_v691():
 	"""Chạy cdlVeDong, tqVeForm, scrLichChi thật trong node ở hai chế độ (hanh_vi/ui_b_ra_doc_lap_v691.js).

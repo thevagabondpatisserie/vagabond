@@ -3397,13 +3397,15 @@ function sheet(title, items, cur, onPick, searchable) {
   var box = document.createElement('div'); box.className = 'shb';
   var hd = '<div class="shh"><b>' + h(title) + '</b><div class="x" role="button" tabindex="0" aria-label="Đóng" data-phim="1">&times;</div></div>';
   if (searchable) hd += '<div style="padding:10px 14px 4px;display:flex;gap:8px"><input class="nt" placeholder="Tìm nhanh..." style="height:46px;padding:0 12px;flex:1"><button class="nt" id="shQuet" title="Quét mã vạch" style="height:46px;width:54px;flex:none;font-size:20px;cursor:pointer">&#128247;</button></div>';
-  box.innerHTML = hd + '<div class="shl"></div>';
+  box.innerHTML = hd + '<div class="shl" role="listbox" aria-label="' + h(title) + '"></div>';
   var lst = box.querySelector('.shl');
   function draw(q) {
     q = (q || '').toLowerCase();
     var f = items.filter(function (it) { return vgbKhop([it.label, it.tim, it.value], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (it, i) {
-      return '<div class="shi' + (it.value === cur ? ' on' : '') + '" data-i="' + items.indexOf(it) + '">' +
+      /* v691 (Codex #614 P2): dong chon bam duoc bang ban phim. tabindex va data-phim de hopPhim bam ho
+         Enter, Space; mui ten len xuong o lst.onkeydown. Click giu nguyen. */
+      return '<div class="shi' + (it.value === cur ? ' on' : '') + '" role="option" tabindex="0" data-phim="1" aria-selected="' + (it.value === cur) + '" data-i="' + items.indexOf(it) + '">' +
         (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span class="shic">' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
         (it.value === cur ? '<span>&#10003;</span>' : '') + '</div>';
     }).join('') : '<div class="emp"><div class="e2">Không tìm thấy</div></div>';
@@ -3424,6 +3426,14 @@ function sheet(title, items, cur, onPick, searchable) {
   lst.onclick = function (e) {
     var r = e.target.closest('.shi'); if (!r) return;
     close(); onPick(items[+r.dataset.i]);
+  };
+  lst.onkeydown = function (e) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    var ds = Array.prototype.slice.call(lst.querySelectorAll('.shi'));
+    if (!ds.length) return;
+    var i = ds.indexOf(document.activeElement);
+    i = e.key === 'ArrowDown' ? Math.min(ds.length - 1, i + 1) : Math.max(0, i < 0 ? 0 : i - 1);
+    e.preventDefault(); ds[i].focus();
   };
   return close;
 }
@@ -78937,13 +78947,17 @@ function uiBChon(goc) {
       var items = Array.prototype.filter.call(sel.options, function (o) { return !o.hidden; }).map(function (o) { return { label: o.text, value: o.value, tat: o.disabled }; });
       items = items.filter(function (it) { return !it.tat; });
       sheet(uiBTenChon(sel), items, sel.value, function (it) {
-        if (sel.value === it.value) return;
+        if (sel.value === it.value) { try { nut.focus(); } catch (e3) { } return; }
         sel.value = it.value;
         sel.dispatchEvent(new Event('input', { bubbles: true }));
         sel.dispatchEvent(new Event('change', { bubbles: true }));
         uiBVeChon(sel);
         try { nut.focus(); } catch (e2) { }
       }, items.length >= 8);
+      /* Codex #614 P2: mo bang ban phim thi dua tieu diem vao dong dang chon (hoac dong dau) cua hop vua mo. */
+      var hop = document.querySelectorAll('.sh'), cuoi = hop[hop.length - 1];
+      var dong = cuoi && (cuoi.querySelector('.shi.on') || cuoi.querySelector('.shi'));
+      if (dong) try { dong.focus(); } catch (e4) { }
     };
   });
 }

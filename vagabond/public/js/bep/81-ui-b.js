@@ -858,13 +858,17 @@ function uiBChon(goc) {
       var items = Array.prototype.filter.call(sel.options, function (o) { return !o.hidden; }).map(function (o) { return { label: o.text, value: o.value, tat: o.disabled }; });
       items = items.filter(function (it) { return !it.tat; });
       sheet(uiBTenChon(sel), items, sel.value, function (it) {
-        if (sel.value === it.value) return;
+        if (sel.value === it.value) { try { nut.focus(); } catch (e3) { } return; }
         sel.value = it.value;
         sel.dispatchEvent(new Event('input', { bubbles: true }));
         sel.dispatchEvent(new Event('change', { bubbles: true }));
         uiBVeChon(sel);
         try { nut.focus(); } catch (e2) { }
       }, items.length >= 8);
+      /* Codex #614 P2: mo bang ban phim thi dua tieu diem vao dong dang chon (hoac dong dau) cua hop vua mo. */
+      var hop = document.querySelectorAll('.sh'), cuoi = hop[hop.length - 1];
+      var dong = cuoi && (cuoi.querySelector('.shi.on') || cuoi.querySelector('.shi'));
+      if (dong) try { dong.focus(); } catch (e4) { }
     };
   });
 }
