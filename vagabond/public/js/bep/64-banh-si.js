@@ -63,7 +63,7 @@ function bsiKhop(r, q) {
 }
 function bsiThe(r, coTien) {
   var nhap = (r.phieu || []).filter(function (p) { return p.docstatus === 0; }).length;
-  return '<div class="card" data-bsithe="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
+  return '<div class="card" data-bsithe="' + h(r.name) + '" role="button" tabindex="0" data-phim="1" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:15.5px;font-weight:800;color:#0b2a33">' + h(r.ma) + '</span>' + bsiChip(r) + '</div>' +
     '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' + bsiLogo(r.logo) +
@@ -356,7 +356,7 @@ var bsiKhMo = '';
 
 function bsiTheDk(r) {
   var m = r.trang_thai === 'Chờ duyệt' ? BSI_MAU.cho_tt : r.trang_thai === 'Đã duyệt' ? BSI_MAU.da_giao : BSI_MAU.da_huy;
-  return '<div class="card" data-bsidk="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
+  return '<div class="card" data-bsidk="' + h(r.name) + '" role="button" tabindex="0" data-phim="1" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:15.5px">' + h(r.ten_quan) + '</b>' +
     '<span style="background:' + m.nen + ';color:' + m.chu + ';border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap">' + h(r.trang_thai) + '</span></div>' +
     '<div style="font-size:13px;color:#475467;margin-top:2px">' + h(r.loai_hinh) + ' · ' + h(r.luong_tuan) + '/tuần</div>' +
@@ -365,7 +365,7 @@ function bsiTheDk(r) {
     (r.xu_ly ? '<div style="font-size:12.5px;color:#475467;margin-top:3px">' + h(r.xu_ly) + '</div>' : '') + '</div>';
 }
 function bsiTheKhach(r) {
-  return '<div class="card" data-bsikh="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
+  return '<div class="card" data-bsikh="' + h(r.name) + '" role="button" tabindex="0" data-phim="1" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;align-items:center;gap:10px">' + bsiLogo(r.logo) +
     '<b style="font-size:15.5px;flex:1;min-width:0">' + h(r.customer_name || r.name) + '</b>' +
     (r.vgb_si_cuoi_ky ? '<span style="background:#e0f2fe;color:#075985;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700">Cuối kỳ 15 ngày</span>' :
@@ -604,14 +604,14 @@ async function scrGiaSi() {
     '<span style="flex:1"><b style="font-size:14.5px">Số Zalo đăng nhập</b><div style="font-size:12.5px;color:#98a2b3">' + h(k.vgb_si_sdt || 'Chưa có, khách chưa đăng nhập được') + '</div></span><span>›</span></button></div>';
   html += '<div class="card" style="padding:6px 13px"><div style="font-size:13.5px;font-weight:700;margin:6px 0 2px">Giá riêng đang áp · ' + gia.length + ' món</div>' +
     (gia.length ? gia.map(function (g) {
-      return '<div data-bsigiamon="' + h(g.ma) + '" role="button" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3;min-height:44px;cursor:pointer">' + anhMon(g.anh) +
+      return '<div data-bsigiamon="' + h(g.ma) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3;min-height:44px;cursor:pointer">' + anhMon(g.anh) +
         '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14.5px">' + h(g.ten) + '</div><div style="font-size:12.5px;color:#98a2b3">' + h(g.ma) + (g.dvt ? ' · ' + h(g.dvt) : '') + '</div></div>' +
         '<b style="font-size:15px">' + money(g.gia) + 'đ</b></div>';
     }).join('') : '<div style="font-size:13px;color:#b45309;padding:6px 0 10px">Chưa có món nào. Khách chỉ thấy món đã khai giá riêng. Chọn từ gợi ý bên dưới hoặc thêm món.</div>') + '</div>';
   if (goiY.length) {
     html += '<div class="card" style="padding:6px 13px"><div style="font-size:13.5px;font-weight:700;margin:6px 0 2px">Gợi ý từ hoá đơn 180 ngày · ' + goiY.length + ' món</div>' +
       goiY.map(function (g) {
-        return '<div data-bsigoiy="' + h(g.ma) + '" role="button" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3;min-height:44px;cursor:pointer">' + anhMon(g.anh) +
+        return '<div data-bsigoiy="' + h(g.ma) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3;min-height:44px;cursor:pointer">' + anhMon(g.anh) +
           '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14.5px">' + h(g.ten) + '</div><div style="font-size:12.5px;color:#98a2b3">Đã trả ' + h(bsiDdMm(g.ngay)) + (g.tu_ma ? ' · mã sỉ ' + h(g.tu_ma) : '') + '</div></div>' +
           '<span style="font-size:14px;color:#0369a1;font-weight:700">' + money(g.gia) + 'đ ›</span></div>';
       }).join('') + '</div>';

@@ -58,7 +58,7 @@ function ddtKhop(r, q) {
 }
 function ddtThe(r) {
   var nhap = (r.phieu || []).filter(function (p) { return p.docstatus === 0; }).length;
-  return '<div class="card" data-ddtthe="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
+  return '<div class="card" data-ddtthe="' + h(r.name) + '" role="button" tabindex="0" data-phim="1" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:15.5px;font-weight:800;color:#0b2a33">' + h(r.ma) + (r.gio ? ' · ' + h(r.gio) : '') + '</span>' + ddtChip(r) + '</div>' +
     /* Codex #531 vòng 7 (AGENTS 2b.4): ảnh tác phẩm từ danh mục, chưa có thì ô 🍰. */

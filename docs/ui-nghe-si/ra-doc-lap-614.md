@@ -135,3 +135,17 @@ node cong_cu/ui_b/quet_man.cjs --ra /tmp/quet [--khung 360x780] [--app tệp]
 | UI97 | F | pos | Đã sửa ở SHA cuối | đỏ trên d270a2b, xanh SHA cuối; màu cũ trên nút, chip sang bảng mới |
 | UI98 | F | pos_mon | Đã sửa ở SHA cuối | đỏ trên d270a2b, xanh SHA cuối; màu cũ trên nút, chip sang bảng mới |
 | VD-CHIP | B | vd | Đã sửa ở d270a2b | khép trên d270a2b và SHA cuối |
+
+## Test live 26/11/2026 trên v692 và bản sửa v693
+
+Codex test trên site thật (comment 7183585416 trên #614): 82 đạt, UI18 còn, thêm UI99 tới UI102. Sửa theo loại ở PR sửa tiếp:
+
+| Mã | Loại | Sửa | Bằng chứng |
+|---|---|---|---|
+| UI18 | Bộ quét emoji thiếu dải | Thêm ℹ (U+2139) và nhóm 203C, 2049, 2934, 2935, 3030, 303D, 3297, 3299 vào bộ quét của lớp vẽ, ca kiểm và ba công cụ đo (công cụ đo cũ cũng bỏ sót ℹ nên vòng trước báo khép nhầm) | Ca `_ui_b_ky_ve_duoc_v693` đưa đủ 258 emoji của nguồn vào bộ quét thật; ra_muc UI18 còn trên v692, khép trên bản sửa |
+| UI101 | Biểu tượng do máy chủ trả | Ca bảng biểu tượng quét cả mô đun Python; thêm 13 biểu tượng (🩺 🏧 🎩 👑 🪪 💻 📉 🥤 🩹 🍁 🕯 ► ℹ), lấy nét từ lucide-static 1.77.0 | Chromium: ba ô mẫu bút toán còn chữ trên v692, thành biểu tượng trên bản sửa |
+| UI99 | Chip co nhỏ hơn chữ | Chip, posc trong lớp vẽ không co (flex-shrink 0, rộng tối thiểu bằng chữ); hàng cuộn ngang thì cuộn | Xuất bán sỉ, Xuất trả 360: 4 chip cắt trên v692, 0 trên bản sửa; hàng chip kiểu Giá vốn: 5 cắt, 0. Quét 134 màn có thêm đo chữ bị cắt và tràn ngang: 0 và 0 ở 360, 390 |
+| UI100 | Lớp đo giữ từ khung cũ | Đổi chiều rộng khung thì gỡ năm lớp đặt theo phép đo (uib-vf-doc, uib-hang-doc, uib-xuong, uib-xuong-nut, uib-cach) rồi đo lại | Vận đơn 683 > 360 > 683 trên cùng màn: thanh đáy 121 > 249 > 249 trên v692, 121 > 249 > 121 trên bản sửa |
+| UI102 | Ô chọn và thẻ bấm tự vẽ không vào được bằng Tab | Vai nút, tabindex, data-phim, tên "nhãn: giá trị" cho ô Phân loại, thẻ chọn kho, thẻ chọn bên nhận, thẻ Bank Account sao kê; thêm Tab và phím cho 10 phần tử vai nút khác (Cài đặt lõi 4, Bánh sỉ 5, Đơn đặt trước 1) | Ca `_ui_b_o_chon_tu_ve_v693` (hàm vẽ thật và bộ phím chung); ca chốt `_ui_b_vai_nut_co_phim_v693`; Chromium: Tab vào Phân loại, Enter mở hộp |
+
+Kèm: ô chọn đứng đầu thẻ lấy nhãn từ đầu mục ngay trên (Nhập sao kê: "Chọn tài khoản").

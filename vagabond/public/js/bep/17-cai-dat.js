@@ -2427,7 +2427,8 @@ function seVe() {
       ? '<div style="font-size:12px;color:#6b7280;margin-top:10px">Khai thêm số tài khoản từ SePay</div>' +
         '<input class="tin" id="seMapSo" inputmode="numeric" placeholder="Số tài khoản như SePay hiển thị"' +
         ' value="' + h((d.chua_map || [])[0] || '') + '" style="margin:6px 0 8px">' +
-        '<div class="fieldcard" data-semaptk="1" style="margin-bottom:8px;min-height:52px">' +
+        '<div class="fieldcard" data-semaptk="1" role="button" tabindex="0" data-phim="1" aria-haspopup="dialog" aria-label="' +
+        h('Bank Account nhận sao kê: ' + seMapNhan(d)) + '" style="margin-bottom:8px;min-height:52px">' +
         '<div class="fi" style="font-size:20px">🏦</div><div class="fb"><div class="fl">Bank Account nhận sao kê</div>' +
         '<div class="fv">' + h(seMapNhan(d)) + '</div></div><div class="fc">›</div></div>' +
         '<button class="btn" id="seMapThem" style="margin:0;width:100%">➕ Thêm vào bản đồ</button>' +
