@@ -10,7 +10,7 @@
 .trang-dich-vu .db .db-anh-chu{position:relative;z-index:1;padding:28px 28px 32px;width:100%}
 .trang-dich-vu .db .nhan{font-size:13px;letter-spacing:.14em}
 .trang-dich-vu .db .h1{font-size:clamp(36px,4.2vw,52px);line-height:.98;margin:8px 0 6px}
-.trang-dich-vu .db .db-co-so{font:italic 20px var(--serif);color:var(--paper);opacity:.92;margin-bottom:10px}
+.trang-dich-vu .db .db-co-so{font:20px var(--serif);color:var(--paper);opacity:.92;margin-bottom:10px}
 .trang-dich-vu .db .db-co-so:empty{display:none}
 .trang-dich-vu .db .db-mo{font:14px var(--sans);color:var(--fog);line-height:1.6;margin-top:6px}
 .trang-dich-vu .db .db-mo b{color:var(--paper);font-weight:500}
