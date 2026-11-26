@@ -275,6 +275,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	# v692 bỏ "/banh#" trong mọi link trang đặt bánh: đường sạch /tuyen-dung, /dat-truoc...
 	thu_duong_sach_692,
 	thu_dia_nia_theo_co_692,
+	# v693 đệm 30 giây hai hàm trang khách gọi theo nhịp (sự cố hết trần máy chủ 25/11/2026).
+	thu_bo_dem_web_693,
 	# v687 làm mới token Zalo OA có khoá, nghỉ sau khi bị từ chối (sự cố 22/11/2026).
 	thu_zalo_token_687,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.

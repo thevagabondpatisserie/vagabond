@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v693
+- Không đổi thao tác: trang đặt bánh đọc số Có sẵn hôm nay và Tại quầy qua bộ đệm 30 giây của máy chủ, tab trình duyệt đang ẩn thì ngừng hỏi máy chủ theo nhịp, để site không chạm trần thời gian máy chủ của gói (sự cố 25/11/2026). Số trên web có thể chậm tối đa 30 giây so với màn Kiểm bánh, Kiểm kho.
+
 ## v692
 - Link trang đặt bánh không còn chữ banh#
 - Web đặt bánh: số dĩa, nĩa tặng tối đa theo cỡ bánh

@@ -1661,6 +1661,15 @@ def _soi_pancake(c, k, ma):
 
 @frappe.whitelist(allow_guest=True)
 def co_the_ban_hom_nay():
+	"""Trang đặt bánh gọi mỗi phút trên mọi trình duyệt đang mở: kết quả giống
+	nhau cho mọi khách nên đệm 30 giây cho cả site (v693, sự cố hết trần thời
+	gian máy chủ 25/11/2026, xem bo_dem_web)."""
+	from vagabond.bo_dem_web import qua_bo_dem
+
+	return qua_bo_dem("co_the_ban_hom_nay", _co_the_ban_hom_nay_tinh)
+
+
+def _co_the_ban_hom_nay_tinh():
 	"""Cho trang dat banh order.thevagabondpatisserie.com.
 
 	Truoc 06/08/2026 ham nay chi tra cap ma - so luong, con ten, anh, gia thi

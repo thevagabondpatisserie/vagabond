@@ -401,11 +401,21 @@ export function khoiDong(goc = '#app') {
     const m = man().match(/^\/thiet-ke-rieng\/(.+)$/); if (m) moTacPham(decodeURIComponent(m[1]));
   });
   kho.napTon().then(apDuongDanNeuBanh);
-  setInterval(kho.napTon, 60000);
+  /* v693 (sự cố 25/11/2026, site hết trần thời gian máy chủ): tab trình duyệt đang
+     ẩn (máy khoá, chuyển app, tab nền) thì không hỏi máy chủ theo nhịp; mở lại thì
+     đọc ngay một lượt. Màn hình quầy để mở cả ngày không còn gọi suông. */
+  const khiHien = f => () => { if (!document.hidden) f(); };
+  setInterval(khiHien(kho.napTon), 60000);
   kho.napMua().then(() => { if (/^\/in-season\//.test(man())) apDuongDan(); });
-  setInterval(kho.napMua, 300000);
+  setInterval(khiHien(kho.napMua), 300000);
   kho.napQuay();
-  setInterval(kho.napQuay, 60000);
+  setInterval(khiHien(kho.napQuay), 60000);
+  let anTu = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { anTu = Date.now(); return; }
+    if (anTu && Date.now() - anTu >= 60000) { kho.napTon(); kho.napQuay(); if (Date.now() - anTu >= 300000) kho.napMua(); }
+    anTu = 0;
+  });
   /* v638: link QR một bàn. Đúng thì mở thẳng tab Tại quầy ở chế độ gọi món;
      mất phần #/in-store (vài app quét QR cắt) thì tự thêm lại. */
   kho.goiBan.kiemLink().then(b => {

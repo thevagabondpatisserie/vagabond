@@ -1018,6 +1018,24 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(hrefs,[],'không còn href #/ trên tên miền khách');
     assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
   });
+  await test('F61 v693 tab ẩn không hỏi máy chủ theo nhịp; mở lại thì đọc ngay một lượt',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.addInitScript(()=>{try{sessionStorage.setItem('vgb_vanh_mo','1');localStorage.setItem('vgb_vanh_goi_y','1');}catch(e){}});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const p=await c.newPage(); await p.clock.install();
+    const dem={ton:0,quay:0}; p.on('request',q=>{const u=q.url(); if(/co_the_ban_hom_nay/.test(u))dem.ton++; if(/con_tren_quay_web/.test(u))dem.quay++;});
+    await p.goto(url+'/web_moi/banh#/'); await p.waitForFunction(()=>document.querySelector('#bar'),null,{timeout:8000});
+    await p.clock.runFor(1000);
+    await p.clock.runFor(60000);
+    assert.ok(dem.ton>=2&&dem.quay>=2,'tab hiện: nhịp một phút vẫn đọc '+JSON.stringify(dem));
+    const an=v=>p.evaluate(h=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>h});Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>h?'hidden':'visible'});document.dispatchEvent(new Event('visibilitychange'));},v);
+    await an(true); const truoc={...dem};
+    await p.clock.runFor(5*60000);
+    assert.deepEqual(dem,truoc,'tab ẩn năm phút: không gọi máy chủ');
+    await an(false); await p.clock.runFor(500);
+    assert.equal(dem.ton,truoc.ton+1,'mở lại: đọc tồn ngay một lượt'); assert.equal(dem.quay,truoc.quay+1,'mở lại: đọc quầy ngay một lượt');
+    await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
