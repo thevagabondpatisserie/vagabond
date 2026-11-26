@@ -28,6 +28,7 @@ import {DacBietTuan} from './dac-biet-tuan.js';
 import {GoiYMua} from './goi-y-mua.js';
 import {gaTuMeta} from '../kho/thuan.js';
 import {laMienSach, manHienTai, diaChiMan, doiLinkCu, hrefMan} from './duong-sach.js';
+import {nhipDoc} from './nhip-doc.js';
 
 function luuTruAnToan() {
   try { const s = window.sessionStorage; s.getItem('x'); return s; } catch (e) { return null; }
@@ -400,12 +401,17 @@ export function khoiDong(goc = '#app') {
     /* Link chia sẻ #/thiet-ke-rieng/<mã> mở trước khi nội dung về: chọn sẵn size sau khi có tác phẩm. */
     const m = man().match(/^\/thiet-ke-rieng\/(.+)$/); if (m) moTacPham(decodeURIComponent(m[1]));
   });
-  kho.napTon().then(apDuongDanNeuBanh);
-  setInterval(kho.napTon, 60000);
-  kho.napMua().then(() => { if (/^\/in-season\//.test(man())) apDuongDan(); });
-  setInterval(kho.napMua, 300000);
-  kho.napQuay();
-  setInterval(kho.napQuay, 60000);
+  /* v693 (sự cố 25/11/2026, site hết trần thời gian máy chủ): mỗi loại số một nhịp
+     duy nhất (nhipDoc). Tab đang ẩn (máy khoá, chuyển app, tab nền) thì không hỏi máy
+     chủ; hiện lại thì đọc ngay nếu số đã cũ. Lượt đang chạy chưa xong thì không gửi
+     thêm, vừa đọc xong thì nhịp kế tiếp bỏ qua: không có yêu cầu trùng. */
+  const ton = nhipDoc(kho.napTon, 60000), mua = nhipDoc(kho.napMua, 300000), quay = nhipDoc(kho.napQuay, 60000);
+  ton.chay().then(apDuongDanNeuBanh);
+  mua.chay().then(() => { if (/^\/in-season\//.test(man())) apDuongDan(); });
+  quay.chay();
+  const cacNhip = [ton, mua, quay];
+  setInterval(() => cacNhip.forEach(n => n.nhip()), 5000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) cacNhip.forEach(n => n.hien()); });
   /* v638: link QR một bàn. Đúng thì mở thẳng tab Tại quầy ở chế độ gọi món;
      mất phần #/in-store (vài app quét QR cắt) thì tự thêm lại. */
   kho.goiBan.kiemLink().then(b => {

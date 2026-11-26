@@ -809,6 +809,15 @@ def gop_combo_kenh(tai_ban, giao):
 
 @frappe.whitelist(allow_guest=True)
 def con_tren_quay_web():
+	"""Trang đặt bánh gọi mỗi phút trên mọi trình duyệt đang mở: kết quả giống
+	nhau cho mọi khách nên đệm 30 giây cho cả site (v693, sự cố hết trần thời
+	gian máy chủ 25/11/2026, xem bo_dem_web)."""
+	from vagabond.bo_dem_web import qua_bo_dem
+
+	return qua_bo_dem("con_tren_quay_web", _con_tren_quay_web_tinh)
+
+
+def _con_tren_quay_web_tinh():
 	"""Tab "In store" cua trang dat banh: tung quay dang con gi, bao nhieu cai.
 
 	Anh Viet 03/09/2026: *"em cho them 1 tab In Store ke ben tab In Season
