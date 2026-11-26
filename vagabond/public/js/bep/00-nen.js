@@ -426,6 +426,11 @@ button,input,select,textarea{font-family:inherit;font-style:inherit;font-stretch
 .kkpk b{color:#05323C;font-weight:800}
 .rok{width:32px;height:32px;flex:0 0 32px;border-radius:50%;border:2px solid #cfd6e4;color:transparent;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;background:#fff;cursor:pointer;margin-top:-1px}
 .ic1.ok .rok{background:#12a150;border-color:#12a150;color:#fff}
+/* v694: vòng Đã đếm có nhãn chữ, vùng chạm 44 điểm (vòng 32 điểm nằm trong). */
+.rokw{flex:0 0 auto;min-width:56px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;margin-top:-4px}
+.rokw .rok{margin-top:0}
+.rokl{font-size:13px;line-height:1.1;color:#5a6070;white-space:nowrap}
+.ic1.ok .rokl{color:#12a150;font-weight:600}
 .ic1.ok{box-shadow:0 0 0 2px #12a150}
 /* Nút thêm/bỏ món trên màn tạo lệnh sản xuất (#206): bấm nhiều lần trên
    điện thoại nên phải đủ 44 điểm (AGENTS.md mục 13); .rok gốc 32 điểm là
@@ -1099,6 +1104,30 @@ function confirmSheet(title, msg, okLabel, danger) {
       '<div style="font-size:15px;color:var(--ui-text-2,#5a6070);line-height:1.5;margin-bottom:var(--ui-kh-16,18px);white-space:pre-line">' + h(msg) + '</div>' +
       '<button class="btn ' + (danger ? 'dg' : '') + '" data-y>' + h(okLabel || 'Đồng ý') + '</button>' +
       '<button class="btn gh" data-n style="margin-top:var(--ui-kh-8,9px)">Huỷ</button></div>';
+    document.body.appendChild(ov);
+    ov.onclick = function (e) {
+      if (e.target === ov || e.target.hasAttribute('data-n')) { ov.remove(); res(false); }
+      if (e.target.hasAttribute('data-y')) { ov.remove(); res(true); }
+    };
+  });
+}
+/* v694 (giám đốc chốt 26/11/2026): hỏi lại có danh sách. Nút CHÍNH (trên, nổi) là
+   quay lại; chỉ bấm đúng nút phụ ghi rõ việc mới trả true. Chạm ra ngoài là quay lại.
+   o: {tieuDe, loi, ds: [{ten, phu}], nutQuayLai, nutTiepTuc}. */
+function chonSheet(o) {
+  return new Promise(function (res) {
+    var ov = document.createElement('div'); ov.className = 'sh';
+    ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
+      '<div style="font-size:var(--ui-fs-17,17.5px);font-weight:700;margin-bottom:8px">' + h(o.tieuDe) + '</div>' +
+      '<div style="font-size:15px;color:var(--ui-text-2,#5a6070);line-height:1.5;margin-bottom:10px;white-space:pre-line">' + h(o.loi) + '</div>' +
+      '<div class="chs-ds" style="max-height:40vh;overflow-y:auto;border:1px solid #e4e7ec;border-radius:10px;margin-bottom:var(--ui-kh-16,18px)">' +
+      (o.ds || []).map(function (x) {
+        return '<div class="chs-d" style="display:flex;gap:10px;justify-content:space-between;align-items:center;min-height:44px;padding:8px 12px;border-bottom:1px solid #f0f2f5;font-size:15px">' +
+          '<span style="flex:1;min-width:0;overflow-wrap:anywhere">' + h(x.ten) + '</span>' +
+          '<b style="flex:0 0 auto;white-space:nowrap">' + h(x.phu) + '</b></div>';
+      }).join('') + '</div>' +
+      '<button class="btn" data-n>' + h(o.nutQuayLai || 'Quay lại') + '</button>' +
+      '<button class="btn gh" data-y style="margin-top:var(--ui-kh-8,9px);white-space:normal;line-height:1.35;min-height:44px">' + h(o.nutTiepTuc) + '</button></div>';
     document.body.appendChild(ov);
     ov.onclick = function (e) {
       if (e.target === ov || e.target.hasAttribute('data-n')) { ov.remove(); res(false); }

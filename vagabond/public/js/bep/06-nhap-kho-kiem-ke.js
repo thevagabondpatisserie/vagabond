@@ -226,6 +226,32 @@ async function rcvScanOpen() {
 
 var rcvD = null;
 
+/* v694 (giám đốc chốt 26/11/2026, Kho báo PNK-2026-01107: hai dòng không bấm
+   Đã đếm vẫn được nhập). Vòng Đã đếm chỉ là dấu theo dõi của người đếm; hệ thống
+   nhập theo ô Số lượng thực nhận (điền sẵn bằng số còn lại). Trước khi xác nhận,
+   dòng nào CHƯA đánh dấu mà số lượng > 0 thì hiện danh sách; mặc định quay lại
+   kiểm, chỉ nút "Xác nhận nhập cả các dòng chưa đánh dấu" mới cho đi tiếp. */
+var NHK_GOI_Y = 'Vòng <b>Đã đếm</b> chỉ để bạn đánh dấu món đã đếm xong. Hệ thống nhập theo ô <b>Số lượng thực nhận</b>: món không về thì bấm &minus; cho về 0.';
+function nhkNutDem(attr, i, ok) {
+  return '<div class="rokw" ' + attr + '="' + i + '" role="button" aria-pressed="' + (ok ? 'true' : 'false') + '" aria-label="Đánh dấu đã đếm">' +
+    '<div class="rok">&#10003;</div><span class="rokl">Đã đếm</span></div>';
+}
+function nhkChuaDem(L) {
+  return L.filter(function (x) { return !x.ok && (x.got || 0) > 0.0001; })
+    .map(function (x) { return { ten: x.nm, phu: num(x.got) + ' ' + (x.uom || '') }; });
+}
+async function nhkHoiChuaDem(L) {
+  var ds = nhkChuaDem(L);
+  if (!ds.length) return true;
+  return chonSheet({
+    tieuDe: 'Còn ' + ds.length + ' dòng chưa đánh dấu Đã đếm',
+    loi: 'Các dòng dưới đây chưa đánh dấu Đã đếm nhưng ô Số lượng thực nhận lớn hơn 0. Nếu tiếp tục, hệ thống nhập kho đúng các số này. Món chưa về thì quay lại, bấm \u2212 cho về 0.',
+    ds: ds,
+    nutQuayLai: 'Quay lại kiểm',
+    nutTiepTuc: 'Xác nhận nhập cả các dòng chưa đánh dấu'
+  });
+}
+
 function hsdNote(x) {
   if (x.giu) return 'Chưa đọc được HSD lô. Máy chủ giữ hạn đã lưu nếu anh chị chưa sửa ô ngày.';
   if (!x.hsd) return 'Chưa nhập HSD trên bao bì. Có thể để trống khi chưa biết.';
@@ -311,6 +337,7 @@ async function scrRecvDoc(name) {
     var x = rcvD.lines[i], el = document.querySelector('#vgbBody [data-r="' + i + '"]');
     if (!el) return;
     if (x.ok) el.classList.add('ok'); else el.classList.remove('ok');
+    var rk = el.querySelector('.rokw'); if (rk) rk.setAttribute('aria-pressed', x.ok ? 'true' : 'false');
     if (x.got > 0) el.classList.remove('zero'); else el.classList.add('zero');
     var q = el.querySelector('[data-q]');
     if (q && String(q.value) !== String(x.got)) q.value = x.got;
@@ -338,6 +365,7 @@ async function scrRecvDoc(name) {
     if (!keep.length) return toast('Chưa có món nào có số lượng, chưa nhập kho được');
     var du = L.filter(function (x) { return (x.got || 0) > (x.ord || 0) + 0.0001; });
     if (du.length) return toast('Nhà cung cấp giao dư ' + du.length + ' món so với số còn phải nhận. Chỉ nhập đúng số còn lại, phần dư báo Thu mua lên đơn bổ sung rồi nhập sau.', 7000);
+    if (!await nhkHoiChuaDem(L)) return;
     var thieu = L.filter(function (x) { return (x.got || 0) < (x.ord || 0) - 0.0001; });
     var msg = 'Nhập kho ' + keep.length + ' món.';
     if (thieu.length) msg += ' Có ' + thieu.length + ' món nhận thiếu hoặc không về, phần còn lại vẫn treo trên đơn mua hàng - vào tab "Còn phải nhận" để nhận đợt sau.';
@@ -364,7 +392,7 @@ async function scrRecvDoc(name) {
       '<div class="kpb"><i id="rcvpb" style="width:' + (L.length ? Math.round(okN * 100 / L.length) : 0) + '%"></i></div></div>' +
       '<div class="kv"><span>Nhà cung cấp</span><b>' + h(doc.supplier_name || doc.supplier || '') + '</b></div>' +
       '<div class="kv"><span>Số phiếu</span><b>' + h(name) + '</b></div></div>';
-    body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Không nhập quá số còn lại: nhà cung cấp giao dư thì báo thu mua lên đơn bổ sung. Bấm nút máy ảnh ở góc trên để quét mã từng món cho nhanh.</div>';
+    body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Không nhập quá số còn lại: nhà cung cấp giao dư thì báo thu mua lên đơn bổ sung. Bấm nút máy ảnh ở góc trên để quét mã từng món cho nhanh.<br>' + NHK_GOI_Y + '</div>';
     var chuaGiaN = (doc.items || []).filter(function (rr) { return !((rr.rate || 0) > 0); }).length;
     if (chuaGiaN) body += '<div style="margin:10px 12px;padding:12px 14px;border-radius:14px;background:#fff6e5;color:#8a5b00;font-size:13px;line-height:1.5">Đơn này có ' + chuaGiaN + ' món chưa có đơn giá. Vẫn nhập kho được nhưng giá vốn ghi 0, nhớ báo kế toán bổ sung giá.</div>';
     body += L.map(function (x, i) {
@@ -372,7 +400,7 @@ async function scrRecvDoc(name) {
         '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
         '<div class="in">' + h(x.nm) +
         '<div class="ig">' + h(x.code) + ' \u00b7 ' + h(shortWh(x.wh) || '') + '</div></div>' +
-        '<div class="rok" data-ok="' + i + '">&#10003;</div></div>' +
+        nhkNutDem('data-ok', i, x.ok) + '</div>' +
         (x.po
           ? nhpBaSo({ sl_dat: x.po.dat, sl_da_nhan: x.po.daNhan, sl_con: x.po.con })
           : '<div style="padding:0 12px 8px;font-size:12.5px;color:#5a6070">Đặt ' + num(x.ord) + ' ' + h(x.uom) + '</div>') +
@@ -559,6 +587,7 @@ async function scrNhpDon(don) {
     var x = L[i], el = document.querySelector('#vgbBody [data-nr="' + i + '"]');
     if (!el) return;
     el.classList.toggle('ok', !!x.ok);
+    var rk = el.querySelector('.rokw'); if (rk) rk.setAttribute('aria-pressed', x.ok ? 'true' : 'false');
     el.classList.toggle('zero', !(x.got > 0));
     var q = el.querySelector('[data-nq]');
     if (q && String(q.value) !== String(x.got)) q.value = x.got;
@@ -573,6 +602,7 @@ async function scrNhpDon(don) {
   async function nhpLuu() {
     var gui = L.filter(function (x) { return (x.got || 0) > 0.0001; });
     if (!gui.length) return toast('Chưa có món nào có số lượng, chưa nhập kho được');
+    if (!await nhkHoiChuaDem(L)) return;
     var thieu = conL.filter(function (x) { return (x.got || 0) < x.con - 0.0001; });
     var msg = 'Nhập kho ' + gui.length + ' món cho đợt ' + d.dot_toi + '.';
     if (thieu.length) msg += ' Còn ' + thieu.length + ' món nhận thiếu, phần chưa nhận vẫn treo trên đơn mua để lần sau nhận tiếp.';
@@ -642,7 +672,7 @@ async function scrNhpDon(don) {
     }
 
     body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Nhà cung cấp giao dư trong <b>' +
-      num(d.dung_sai_thua || 0) + '%</b> thì máy cho nhận và ghi lại vết; dư nhiều hơn thì báo thu mua lên đơn bổ sung.</div>';
+      num(d.dung_sai_thua || 0) + '%</b> thì máy cho nhận và ghi lại vết; dư nhiều hơn thì báo thu mua lên đơn bổ sung.<br>' + NHK_GOI_Y + '</div>';
 
     body += '<div class="sec">Đợt ' + d.dot_toi + ' · ' + conL.length + ' món còn phải nhận</div>';
     body += L.map(function (x, i) {
@@ -658,7 +688,7 @@ async function scrNhpDon(don) {
         '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
         '<div class="in">' + h(x.nm) +
         '<div class="ig">' + h(x.code) + ' · ' + h(shortWh(x.wh) || '') + '</div></div>' +
-        '<div class="rok" data-nok="' + i + '">&#10003;</div></div>' +
+        nhkNutDem('data-nok', i, x.ok) + '</div>' +
         nhpBaSo({ sl_dat: x.dat, sl_da_nhan: x.daNhan, sl_con: x.con }) +
         '<div class="qw"><div style="flex:1;min-width:0">' +
         '<div class="lb">Số lượng thực nhận' + (Math.abs(x.got - x.con) > 0.0001 ? ' <b class="lbw">(khác số còn lại)</b>' : '') + '</div>' +

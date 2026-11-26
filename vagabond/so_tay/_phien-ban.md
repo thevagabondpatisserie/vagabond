@@ -12,6 +12,8 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v694
+- Hỏi lại khi còn dòng chưa đánh dấu Đã đếm lúc nhập kho
 ## v693
 - Không đổi thao tác: trang đặt bánh đọc số Có sẵn hôm nay và Tại quầy qua bộ đệm của máy chủ (tính lại sau 30 giây, một lượt cho cả site), tab trình duyệt đang ẩn thì ngừng hỏi máy chủ, hiện lại thì đọc ngay; để site không chạm trần thời gian máy chủ của gói (sự cố 25/11/2026). Độ trễ số trên web so với màn Kiểm bánh, Kiểm kho: trước bản này tới khoảng 1 phút; từ bản này thường tới khoảng 1 phút 35 giây (chu kỳ đọc của trình duyệt 60 tới 65 giây, cộng bản đệm tới 30 giây), lâu nhất khoảng 1 phút 50 giây khi máy chủ đang tính lại chậm. Đặt đơn vẫn kiểm tồn và giá thật, không dùng bản đệm.
 
