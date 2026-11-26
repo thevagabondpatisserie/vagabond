@@ -1050,6 +1050,11 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.equal(go.tran,false,'chữ Xem giỏ bị cắt'); assert.equal(go.de,false,'vòng số đè lên chữ Xem giỏ');
     assert.match(go.chu,/xem giỏ/i); assert.ok(go.co>=16);
     assert.deepEqual(await nhoHon13(),[],'màn Tại quầy có chữ dưới 13 px');
+    /* v693 (ảnh anh Việt 26/11): bảng Đặt giao, mỗi ô nhập phải có nhãn nhìn thấy (ô không có chữ gợi ý). */
+    await p.locator('#gbXemGio').click(); await p.waitForTimeout(500);
+    const oNhap=await p.evaluate(()=>[...document.querySelectorAll('.gb-sheet .fld')].filter(f=>{const i=f.querySelector('input,textarea');return i&&i.offsetParent&&getComputedStyle(i).visibility==='visible'&&i.closest('.gb-sheet').getBoundingClientRect().width>0&&getComputedStyle(i.closest('.gb-sheet')).visibility==='visible';}).map(f=>{const l=f.querySelector('label');const r=l&&l.getBoundingClientRect();return {id:f.querySelector('input,textarea').id,nhan:l?l.innerText.trim():'',cao:r?r.height:0};}));
+    assert.ok(oNhap.length>=3,'bảng Đặt giao có ô nhập');
+    for(const o of oNhap){ assert.ok(o.nhan&&o.cao>0,'ô '+o.id+' mất nhãn'); }
     assert.deepEqual(loi,[]); await c.close();
   });
   assert.deepEqual(errors,[]);
