@@ -338,7 +338,9 @@ html body .gb-sheet .gb-ly-ic{border-radius:50%;border:1px solid rgba(79,219,242
 html body .gb-ud-tag{border-radius:999px;padding:2px 10px;border-color:rgba(79,219,242,.45);background:rgba(79,219,242,.06)}
 html body .gb-ud-k.tat .gb-ud-tag{border-color:rgba(244,194,107,.45);background:rgba(244,194,107,.06)}
 html body .gb-sheet .fld input{min-height:50px;border-radius:999px;padding:0 20px;border:1px solid rgba(255,255,255,.2);background:#0B0B0B;font:15px var(--qualy,var(--qualy))}
-html body .gb-sheet .fld label{display:none}
+/* v693 (ảnh anh Việt 26/11/2026): ô nhập của bảng Đặt giao không có chữ gợi ý, ẩn nhãn làm khách không biết ô nào nhập gì.
+   Nhãn luôn hiện phía trên ô, cỡ chú thích 13 px. */
+html body .gb-sheet .fld label{display:block;margin:0 0 8px 8px;font:var(--chu-13,13px)/1.4 var(--qualy);letter-spacing:.02em;text-transform:none;color:var(--fog)}
 html body .gb-sheet .gb-phu{font-size:13px;line-height:1.6}
 /* Nút chính dưới đáy: kiểu vệ tinh như Thêm vào giỏ. */
 html body .gb-sheet .gb-day{border-top:0;background:linear-gradient(180deg,rgba(0,0,0,0),var(--bg) 28%);padding-top:22px}
