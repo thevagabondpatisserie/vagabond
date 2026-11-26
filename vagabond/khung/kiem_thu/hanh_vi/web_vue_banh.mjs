@@ -337,6 +337,117 @@ await ca('Hàng mùa vụ: không thêm quá số còn của mùa', async () => 
   la('giỏ', k.S.CART[0].qty, 1);
 });
 
+/* v693 (anh Việt chốt 26/11/2026): mùa Giáng sinh GIẢ, cùng hình với máy chủ trả (mua_vu_web.gom_nhom). */
+const MUA_NOEL = () => ({co: 1, ten_mua: 'Giáng sinh thử', den_ngay: '2026-12-31', mon: [],
+  luat: {panettone: {truoc: 3, thu: [2, 4, 6]}, buche: {truoc: 2, thu: null}}, sot_moi_banh: 2,
+  sot: [{ma: 'SOT1', ten: 'Sốt Một', gia: 45000, anh: ''}, {ma: 'SOT2', ten: 'Sốt Hai', gia: 0, anh: ''}],
+  nhom: [
+    {khoa: 'classic-panettone', ten: 'Classic Panettone', gop: 1, loai: 'panettone', anh: '', het: 0, gia_tu: 320000, la_hop: 0, ruot: '', sizes: [
+      {ma: 'PAN1', nhan: 'Bánh lớn 680gr', ten: 'x', gia: 780000, anh: '', con: 5, het: 0}, {ma: 'PAN2', nhan: 'Bánh Mini 250gr', ten: 'x', gia: 320000, anh: '', con: 2, het: 0}]},
+    {khoa: 'BU1', ten: 'Bûche Thử', gop: 0, loai: 'buche', anh: '', het: 0, gia_tu: 990000, la_hop: 0, ruot: '', sizes: [{ma: 'BU1', nhan: '', ten: 'Bûche Thử', gia: 990000, anh: '', con: 4, het: 0}]},
+    {khoa: 'CU1', ten: 'Hộp cũ', gop: 0, loai: '', anh: '', het: 0, gia_tu: 100000, la_hop: 1, ruot: '', sizes: [{ma: 'CU1', nhan: '', ten: 'Hộp cũ', gia: 100000, anh: '', con: 9, het: 0}]}]});
+
+await ca('v693 gộp size và giỏ Panettone: một thẻ nhiều size, sốt tối đa 2 hũ mỗi bánh, không dĩa nĩa, không cờ, thiệp miễn phí từng chiếc', async () => {
+  const {mt} = moiTruong('2026-11-26T09:00:00');   /* thứ Năm */
+  const k = taoKho(mt);
+  k.S.MUA = MUA_NOEL();
+  la('ba thẻ cho bốn mã', k.nhomMua.value.map(g => g.khoa), ['classic-panettone', 'BU1', 'CU1']);
+  la('link cũ theo mã mở đúng thẻ và đúng size', [k.moMua('PAN2').khoa, k.muaDangXem.value.z.ma], ['classic-panettone', 'PAN2']);
+  k.dongMuaXem(); k.moMua('classic-panettone');
+  la('mở thẻ chọn sẵn size đầu còn hàng', k.muaDangXem.value.z.ma, 'PAN1');
+  k.doiSotMua('SOT1', 1); k.doiSotMua('SOT1', 1); k.doiSotMua('SOT2', 1);
+  la('hũ thứ ba bị chặn', [k.soSotChon.value, k.S.muaXem.sot], [2, {SOT1: 2}]);
+  k.doiSotMua('SOT1', -1); k.doiSotMua('SOT2', 1);
+  k.doiSlMua(1);
+  la('nút thêm: (bánh + 2 hũ) x 2', k.tienNutMua.value, (780000 + 45000 + 0) * 2);
+  la('thêm vào giỏ', k.themTuMuaXem(), true);
+  const o = k.S.CART[0];
+  la('dòng giỏ: mã size, loại, nhãn, sốt là món mua thêm', [o.id, o.qty, o.loai, o.nhan, o.adds.map(a => a.id)], ['PAN1', 2, 'panettone', 'Bánh lớn 680gr', ['SOT1', 'SOT2']]);
+  la('tên trong giỏ kèm nhãn size', k.tenMonGio(o), 'Classic Panettone · Bánh lớn 680gr');
+  la('tiền bánh', k.tienBanh.value, 825000 * 2);
+  la('Panettone không có dĩa nĩa', k.tranDc.value, 0);
+  k.doiDc('dia', 1); la('bấm thêm dĩa vẫn 0', k.S.DC.dia, 0);
+  la('mỗi chiếc một thẻ thiệp, không cờ, chọn sẵn thiệp miễn phí', k.dsChiec.value.map(x => [x.coCo, x.mua, x.c.co, x.c.thiep]), [[false, true, false, 'nho'], [false, true, false, 'nho']]);
+  la('không chiếc nào cắm cờ', k.coChiecCamCo.value, false);
+  const id = o.chiec[0].id;
+  k.datCo(id, true); k.datThiep(id, 'ep_kim');
+  la('không bật được cờ, không đổi được sang thiệp ép kim', [o.chiec[0].co, o.chiec[0].thiep], [false, 'nho']);
+  k.batThiep(id, false); la('bỏ thiệp được', o.chiec[0].thiep, 'khong');
+  la('món gửi máy chủ: mỗi size một dòng, sốt là dòng riêng nhân số bánh, không dĩa nĩa, không thiệp ép kim',
+    hangGui(k.S.CART, k.S.DC).map(h => [h.variation_id, h.quantity]), [['PAN1', 2], ['SOT1', 2], ['SOT2', 2]]);
+  la('chiếc gửi máy chủ không có cờ', k.T.chiecGui(k.S.CART, k.tenMonGio).map(c => [c.ma, c.co, c.loi_chuc, c.thiep]), [['PAN1', false, '', 'khong'], ['PAN1', false, '', 'nho']]);
+  /* Tồn: size Mini còn 2. */
+  k.moMua('classic-panettone'); k.setSizeMua('PAN2'); k.doiSlMua(1); k.doiSlMua(1);
+  la('số lượng không vượt số còn của size', k.muaDangXem.value.sl, 2);
+  /* Bûche: có cờ, dĩa nĩa theo luật hiện có, phụ kiện như bánh sinh nhật, không có sốt. */
+  k.dongMuaXem(); k.moMua('BU1'); k.toggleNum(2); k.toggleAdd('BAPK00024');
+  la('Bûche không có mục sốt', k.duocChonSot.value, false);
+  k.themTuMuaXem();
+  const b = k.S.CART.find(x => x.id === 'BU1');
+  la('Bûche: nến số và nón là món mua thêm', b.adds.map(a => a.id), ['BAPK00005', 'BAPK00024']);
+  la('Bûche có cờ; tiêu đề mục là Lời chúc và thiệp', [b.chiec[0].co, k.coChiecCamCo.value], [true, true]);
+  la('trần dĩa nĩa chỉ tính Bûche (món một cỡ: 1 bộ)', k.tranDc.value, 1);
+  /* Hàng mùa vụ thường (không loại): như trước, không chiếc, thêm nhanh được. */
+  la('hàng mùa cũ thêm nhanh', k.themHangMua('CU1'), true);
+  la('hàng mùa cũ không có chiếc', k.S.CART.find(x => x.id === 'CU1').chiec, undefined);
+});
+
+await ca('v693 lịch nhận theo loại: Panettone thứ 2, 4, 6 trước 3 ngày, Bûche trước 2 ngày, giỏ trộn theo lịch chặt hơn, không quá ngày kết thúc mùa; ngày sai bị mờ, bấm không chọn được, gửi đơn bị chặn', async () => {
+  let gui = 0;   /* 26/11/2026 là thứ Năm; 30/11 là thứ Hai */
+  const a = moiTruong('2026-11-26T09:00:00', {'vagabond.don_hang.tao_don': () => { gui++; return {ok: 0, ly_do: 'ngay_mua_vu', nhac: ['Máy chủ: ngày sai lịch.']}; }});
+  const k = taoKho(a.mt);
+  k.S.MUA = MUA_NOEL();
+  la('giỏ thường: lịch 14 ngày', k.ngayRail.value.length, 14);
+  k.themHangMua('BU1');
+  const mo = () => k.ngayRail.value.filter(d => !d.off).map(d => d.i);
+  la('Bûche: lịch dài tới ngày kết thúc mùa 31/12 (36 ngày)', k.ngayRail.value.length, 36);
+  la('Bûche: mờ hôm nay và ngày mai, mở từ ngày thứ hai tới 31/12', [mo()[0], mo().length, mo().at(-1)], [2, 34, 35]);
+  la('ngày đang chọn tự dời tới ngày hợp lệ gần nhất, chờ khách xác nhận', [k.picked.value, k.S.daChonNgay], [2, false]);
+  k.themHangMua('PAN1');
+  /* Từ 26/11: thứ 2, 4, 6 đủ 3 ngày là 30/11 (4), 02/12 (6), 04/12 (8) ... 30/12 (34). */
+  la('giỏ trộn theo lịch Panettone', mo().slice(0, 4).concat(mo().at(-1)), [4, 6, 8, 11, 34]);
+  la('ngày tự dời sang thứ Hai 30/11', k.picked.value, 4);
+  dung('dòng dưới lịch nói rõ luật của giỏ trộn', k.ghiChuGio.value.map(x => x.chu).join('').includes('cả Panettone và Bûche'));
+  k.pick(5);
+  la('bấm thứ Ba không chọn được', k.picked.value, 4);
+  dung('có câu báo luật', (k.S.toast.chu || '').includes('thứ 2, thứ 4, thứ 6'));
+  k.pick(6); la('bấm thứ Tư chọn được', [k.picked.value, k.S.daChonNgay], [6, true]);
+  /* Bỏ Bûche, còn Panettone: vẫn lịch Panettone. Bỏ Panettone: lịch về 14 ngày. */
+  k.cartRemove(0); la('chỉ còn Panettone', mo().slice(0, 2), [4, 6]);
+  /* Bánh có sẵn hôm nay không chung đơn với hàng mùa vụ phải đặt trước. */
+  k.S.TODAY = {BAWC00139: 3}; k.S.tab = 'today'; k.moBanh(k.S.CAKES.find(c => c.k === 'CANDLE'));
+  la('thêm bánh hôm nay bị chặn', k.addToCart(), false);
+  dung('câu tách đơn', (k.S.toast.chu || '').includes('mùa Giáng sinh'));
+  /* Cài đặt mùa đổi trong lúc khách đang soạn giỏ (napMua 5 phút một lần). */
+  Object.assign(k.S.f, {name: 'A', phone: '0901234567', addr: '12 Đường Thử Nghiệm'}); k.S.CO.dongy = true;
+  k.S.MUA = Object.assign(MUA_NOEL(), {luat: {panettone: {truoc: 3, thu: [3]}, buche: {truoc: 2, thu: null}}});
+  la('cài đặt mùa đổi sang chỉ thứ Ba: ngày đang chọn tự dời sang thứ Ba 01/12', k.picked.value, 5);
+  /* Máy chủ từ chối (đồng hồ hoặc cài đặt phía máy chủ khác): hiện câu máy chủ, mở lại lịch. */
+  k.S.MUA = MUA_NOEL(); k.pick(6); k.pickSlot(6);
+  const kq = await k.submitOrder();
+  la('máy chủ từ chối ngày: về bước lịch, lịch mở', [gui, kq.buoc, k.S.moLich], [1, 'lich', true]);
+  dung('hiện câu của máy chủ', k.S.goi.gui.map(x => x.chu).join('').includes('Máy chủ: ngày sai lịch.'));
+  /* Hết mùa: giỏ rỗng hàng mang luật thì lịch về 14 ngày. */
+  k.S.CART.splice(0); la('giỏ rỗng: lịch 14 ngày', k.ngayRail.value.length, 14);
+});
+
+await ca('v693 giỏ lưu có bánh mùa vụ: tải lại trang giữ size, sốt, thiệp; giá và tên sốt lấy lại từ máy chủ, sốt lạ hoặc quá trần bị bỏ', async () => {
+  const a = moiTruong('2026-11-26T09:00:00', {'vagabond.mua_vu.hang_theo_mua': () => MUA_NOEL()});
+  a.kho.set('vgb-gio-v1', JSON.stringify({luc: new Date('2026-11-26T08:00:00').getTime(), ngay: '2026-12-02', slot: 6, daChonNgay: true, daChonGio: true,
+    gio: [{id: 'PAN2', qty: 2, cm: 0, price: 1, mua: 1, loai: 'buche', nhan: 'sai', k: 'tên cũ',
+      adds: [{id: 'SOT1', n: 'tên bịa', p: 1}, {id: 'LA', n: 'x', p: 5}, {id: 'SOT2', n: 'x', p: 9}, {id: 'SOT1', n: 'x', p: 9}],
+      chiec: [{id: 'c1', co: true, wish: 'cờ', thiep: 'ep_kim', loi_thiep: 'Noel vui'}, {id: 'c2', co: false, wish: '', thiep: 'khong', loi_thiep: ''}]}], truong: {}, co: {mode: 'ship'}}));
+  const k = taoKho(a.mt);
+  k.phucHoiGio();
+  la('chờ nạp mùa', [k.S.CART.length, k.S.gioCho.mua.length], [0, 1]);
+  await k.napMua();
+  const o = k.S.CART[0];
+  la('giá, loại, nhãn, tên lấy từ máy chủ, không lấy trong bản lưu', [o.id, o.qty, o.price, o.loai, o.nhan, o.k], ['PAN2', 2, 320000, 'panettone', 'Bánh Mini 250gr', 'Classic Panettone']);
+  la('sốt: bỏ mã lạ, giữ tối đa 2 hũ, tên và giá theo máy chủ', o.adds.map(x => [x.id, x.n, x.p]), [['SOT1', 'Sốt Một', 45000], ['SOT2', 'Sốt Hai', 0]]);
+  la('thiệp và lời thiệp giữ; cờ, lời chúc, thiệp ép kim của Panettone bị bỏ', o.chiec.map(c => [c.id, c.co, c.wish, c.thiep, c.loi_thiep]), [['c1', false, '', 'nho', 'Noel vui'], ['c2', false, '', 'khong', '']]);
+  la('ngày đã chọn hợp lệ (thứ Tư 02/12) được giữ', [k.picked.value, k.S.daChonNgay], [6, true]);
+});
+
 await ca('Thêm nhanh: nhiều cỡ thì mở chi tiết, một cỡ thì thêm thẳng', async () => {
   const {mt} = moiTruong('2026-10-11T08:00:00');
   const k = taoKho(mt);
@@ -1326,14 +1437,17 @@ await ca('v681 luật mọi ảnh trên web chính sửa được ở trình bi�
   const SO = JSON.parse(readFileSync(new URL('../../../public/web_order/chu-mac-dinh.json', import.meta.url), 'utf8'));
   const oAnh = Object.keys(SO).filter(k => SO[k].anh).sort();
   la('sổ nhãn và bảng ảnh có sẵn cùng một bộ khoá', Object.keys(ANH_O_MAC_DINH).sort(), oAnh);
-  dung('đủ 25 ô ảnh', oAnh.length === 25);
+  /* v693: thêm 7 ô ảnh hộp, túi, thiệp của bánh mùa Giáng sinh (KEM_MUA). */
+  dung('đủ 32 ô ảnh', oAnh.length === 32);
   /* Mọi khoá anhWeb('...') viết thẳng trong trang đều có trong sổ, và ngược lại mọi ô đều được trang dùng. */
   const nguon = MAU + readFileSync(new URL('../../../public/web_vue/banh/du-lieu.js', import.meta.url), 'utf8');
   const dung1 = [...nguon.matchAll(/anhWeb\('([a-z0-9_]+)'/g)].map(m => m[1]);
   dung1.forEach(k => dung('khoá ' + k + ' có trong sổ', oAnh.includes(k)));
   /* Luật: mọi <img :src> trong mẫu trang hoặc đi qua anhWeb, hoặc là ảnh lấy từ dữ liệu máy chủ đã sửa được
      ở thẻ Bánh, Banner, Món (danh sách dưới), hoặc logo thương hiệu, logo đơn vị thanh toán. Thêm ảnh gắn cứng mới thì ca đỏ. */
-  const TU_MAY_CHU = new Set(['x.m.anh', 'm.anh', 'x.c.img', 'd.o.img', 'x.o.img', 'b.img', 'muaXem.m.anh', 'chiTiet.anhs[anhChon] || chiTiet.c.img', 'u', 'LOGO', 'LOGO_TT[l].src']);
+  const TU_MAY_CHU = new Set(['x.m.anh', 'm.anh', 'x.c.img', 'd.o.img', 'x.o.img', 'b.img', 'muaXem.m.anh',
+    /* v693: ảnh thẻ mùa vụ (hồ sơ món, Pancake hoặc thẻ Bánh của trình biên tập) và ảnh hũ sốt (hồ sơ món). */
+    'x.g.anh', 'muaXem.anh', 'x.y.anh', 'chiTiet.anhs[anhChon] || chiTiet.c.img', 'u', 'LOGO', 'LOGO_TT[l].src']);
   const src = [...MAU.matchAll(/:src="([^"]+)"/g)].map(m => m[1]);
   const la1 = src.filter(e => !e.startsWith('anhWeb(') && !TU_MAY_CHU.has(e));
   la('ảnh gắn cứng chưa vào trình biên tập', la1, []);

@@ -199,7 +199,9 @@ def _phong_thuong_hieu():
 	cmap = TTFont(os.path.join(GOC, "vagabond", "public", "mau_in", "VagabondSans-Regular.otf")).getBestCmap()
 	# #367 (PR424) mo them hon 400 nhan chu than (khoa sinh tu dong, duoi _<9 hex>),
 	# dung phong than Qualy/he thong chu khong dung Vagabond Sans, nen khong kiem o day.
-	chu = "".join(v["mac_dinh"] for k, v in NHAN.items() if not re.search(r"_[0-9a-f]{9}$", k)) + "".join(k.get("tieu_de", "") for k in MAC_DINH["khoi"])
+	# v693: nhan mv_ (banh mua Giang sinh, co chu "Bûche") la chu than cua tab In season,
+	# dung phong than nhu cac nhan sinh tu dong, khong ve bang Vagabond Sans.
+	chu = "".join(v["mac_dinh"] for k, v in NHAN.items() if not re.search(r"_[0-9a-f]{9}$|^mv_", k)) + "".join(k.get("tieu_de", "") for k in MAC_DINH["khoi"])
 	chu += "ăâđêôơưẠẢÃẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈĨỊỌỎÕỐỒỔỖỘỚỜỞỠỢỤỦŨỨỪỬỮỰỲỴỶỸ"
 	thieu = sorted({c for c in chu if not c.isspace() and ord(c) not in cmap})
 	la("phông có đủ ký tự cho mọi nhãn và dấu tiếng Việt", thieu, [])

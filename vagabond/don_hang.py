@@ -69,11 +69,14 @@ DC_BO_NHO = 10
 DC_BO_LON = 15
 
 
-def tran_dung_cu(dong):
+def tran_dung_cu(dong, khong_dc=()):
 	"""THUẦN. dong: [(mã, cỡ cm, số lượng)] của mọi món trong đơn. Trả số bộ dĩa,
-	nĩa tặng tối đa của cả đơn."""
+	nĩa tặng tối đa của cả đơn. khong_dc: các mã không được dĩa, nĩa (v693:
+	Panettone của mùa đang chạy, anh Việt chốt 26/11/2026)."""
 	tong = 0
 	for ma, cm, sl in dong or []:
+		if ma in khong_dc:
+			continue
 		try:
 			q = max(0, int(sl or 0))
 			c = int(cm or 0)
@@ -96,8 +99,16 @@ def _chot_dung_cu(hang, ten_mon=None):
 
 	if ten_mon is None:
 		ten_mon = _gia_va_ten([h["variation_id"] for h in hang if h["variation_id"] not in tang])[1]
+	# v693: Panettone không có dĩa, nĩa. Không đọc được mùa thì tính như trước.
+	try:
+		from vagabond import mua_vu_web
+
+		khong_dc = mua_vu_web.ma_khong_dung_cu()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được loại hàng mùa vụ cho dĩa, nĩa")
+		khong_dc = set()
 	tran = tran_dung_cu([(h["variation_id"], _tach_ten_size(ten_mon.get(h["variation_id"]) or "")[1], h["quantity"])
-		for h in hang if h["variation_id"] not in tang])
+		for h in hang if h["variation_id"] not in tang], khong_dc)
 	ra = []
 	for h in hang:
 		if h["variation_id"] in tang:
@@ -727,6 +738,25 @@ def tao_don(don=None):
 		# nham ca tiem vi mot loi phu la cai gia dat hon nhieu so voi mot don
 		# mua vu lot qua, ma don do van con chot chan o before_submit ben trong.
 		ton_don_web.bao_loi(ngay)
+
+	# v693 (anh Việt chốt 26/11/2026): hàng mùa vụ Giáng sinh có lịch nhận riêng
+	# (Panettone chỉ nhận theo thứ đã cài và đặt trước đủ ngày, Bûche đặt trước đủ
+	# ngày, không quá ngày kết thúc mùa) và sốt chấm tối đa 2 hũ mỗi bánh Panettone.
+	# Trang khách đã khoá ngày sai, ở đây chặn lại vì ai cũng gọi thẳng được. Nằm
+	# dưới phép tìm trùng nonce vì phụ thuộc ngày hôm nay và cài đặt của mùa. Đọc
+	# mùa hỏng thì ghi lỗi, không chặn đơn thường.
+	try:
+		from vagabond import mua_vu_web
+
+		mua_web = mua_vu_web.doc_mua_web()
+		tu_choi_mua = mua_vu_web.kiem_don(hang, ngay, mua_web)
+		if chiec and not tu_choi_mua:
+			chiec = mua_vu_web.chot_chiec(chiec, (mua_web or {}).get("loai_theo_ma"))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không kiểm được lịch nhận hàng mùa vụ")
+		tu_choi_mua = None
+	if tu_choi_mua:
+		return {"ok": 0, "ly_do": tu_choi_mua["ly_do"], "nhac": tu_choi_mua["nhac"]}
 
 	# Tien banh TINH LAI o day theo gia ho so mon (QT-19). Con so trinh duyet
 	# hien cho khach khong duoc dung de quyet mien phi giao.

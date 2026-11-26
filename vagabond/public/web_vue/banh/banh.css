@@ -1152,3 +1152,24 @@ html body .ph-chu small{font-size:13px;opacity:.75;overflow:hidden;text-overflow
 html body .ph-chu em{font-style:normal;color:var(--cyan,#4FDBF2);opacity:1}
 html body .ph-tien{flex:none;font-size:14px;color:var(--cyan,#4FDBF2);white-space:nowrap}
 html body .ph-rong{margin:0;padding:14px 16px;font-size:14px;line-height:1.45}
+
+/* v693: tab In season mùa Giáng sinh (Panettone, Bûche). Dòng luật lịch nhận dưới tiêu đề
+   tab và trong sheet chi tiết; ô chữ thay ảnh khi Marketing chưa tải ảnh hộp, túi, thiệp;
+   thẻ thiệp miễn phí của từng chiếc bánh mùa vụ. Chữ không dưới 13 px. */
+.mua-luat{font-family:var(--sans);font-size:13px;line-height:1.5;color:var(--fog);margin-top:8px;text-wrap:pretty}
+.fine.mua-luat-ct{color:var(--amber)}
+.acc .acc-chu{flex:0 0 62px;width:62px;height:62px;display:grid;place-items:center;text-align:center;padding:4px;border:1px dashed var(--line);border-radius:8px;font-size:13px;line-height:1.2;color:var(--fog-2);overflow:hidden;overflow-wrap:anywhere}
+.mua-sot{margin-top:14px}
+.th-mua{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:center;margin-top:12px}
+.th-mua .th-anh{height:86px}
+.th-mua .th-trong{padding:6px;text-align:center}
+.th-mua p{font-size:13px;line-height:1.5;color:var(--fog)}
+.th-mua p b{display:block;font-size:14.5px;font-weight:500;color:var(--paper,#fff);margin-bottom:2px}
+.sheet.mua .size[disabled]{opacity:.45;cursor:not-allowed}
+.c-price .c-tu{margin-right:.3em}
+.mua-sot-du{color:var(--cyan);padding:10px 0 12px}
+/* v693 cổng giao diện: chữ trong tab In season và sheet bánh mùa vụ không dưới 13 px (luật chữ web). */
+#season .mua-han,#season .mua-hd .num span,#season .card .tagline,#season .c-sizes .sz,#season .c-go,
+.sheet.mua .avail,.sheet.mua .layer .i,.sheet.mua .sec .n,.sheet.mua .size span,.sheet.mua .size em,.sheet.mua .fine span,.sheet.mua .acc small,.sheet.mua .cta .btn,.sheet.mua .numlab,.sheet.mua .numlab b,.sheet.mua .hint,.sheet.mua .addons .pr,.sheet.mua .du-phong summary small{font-size:13px}
+#season .card .tagline{letter-spacing:.08em}
+html body section.sheet.mua .cta button.btn:not(.btn-md):not(.btn-lg):not(.btn-xs){font-size:13px}

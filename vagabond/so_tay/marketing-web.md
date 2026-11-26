@@ -741,3 +741,29 @@ Từ v692 (giám đốc yêu cầu 24/11/2026).
 - Google đọc từng trang con theo link gọn (sơ đồ trang có /, /dat-truoc, /uu-dai, /tuyen-dung).
 
 **Bạn cần làm:** từ nay khi chia sẻ link, mở đúng trang trên thevagabondpatisserie.com rồi sao chép thanh địa chỉ. Không cần in lại QR bàn cũ. Link trong bài đăng cũ không cần sửa.
+
+## Nội dung và ảnh hộp, túi, thiệp của bánh mùa Giáng sinh
+Từ khoá: mô tả panettone, mô tả bûche, nguyên liệu chính, dị ứng, bảo quản, ảnh hộp, ảnh túi, ảnh thiệp, nâu champagne, xanh turquoise, thẻ bánh mùa vụ, in season
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Trình biên tập web, thẻ Bánh và thẻ Trang và chữ | [[Lưu bánh]] |
+
+Nhập mô tả, nguyên liệu, dị ứng, bảo quản cho từng thẻ bánh của tab In season, và tải ảnh hộp, túi, thiệp.
+
+**Nhập nội dung từng bánh**
+1. Sales hoặc Marketing điền Loại trên web (và Nhóm trên web nếu có) cho dòng sản phẩm ở màn Kiểm bánh theo mùa. Thẻ của bánh tự có trong thẻ Bánh.
+2. Mở trình biên tập web, thẻ Bánh, bấm viên lọc [[Mùa vụ]], chọn bánh.
+3. Điền Mô tả, Tầng hương vị, Thành phần dễ gây dị ứng, Bảo quản và sử dụng. Với Panettone, ô Tầng hương vị hiện trên web là Nguyên liệu chính, mỗi dòng một nguyên liệu.
+4. Bấm [[Lưu bánh]]. Khách thấy ngay.
+
+**Tải ảnh hộp, túi, thiệp**
+1. Mở thẻ Trang và chữ, nhóm Ảnh trên trang.
+2. Tìm các ô bắt đầu bằng Kèm theo bánh mùa vụ, tải ảnh cho từng ô rồi xuất bản như các ô ảnh khác.
+
+**Lưu ý**
+- Ô nào để trống thì trang đặt bánh không hiện mục đó.
+- Thẻ bánh mùa vụ không có công tắc Hiện trên web: bánh hiện khi mùa đang bán.
+- Chưa thêm ảnh ở thẻ Bánh thì web dùng ảnh của hồ sơ món.
+- Chưa tải ảnh hộp, túi, thiệp thì web hiện ô chữ thay ảnh.
+- Chữ Hộp màu nâu champagne, Hộp màu xanh turquoise sửa được ở thẻ Trang và chữ.

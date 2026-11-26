@@ -12,6 +12,11 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v693
+- Bánh mùa Giáng sinh trên web: gộp size, loại bánh và nhãn size
+- Bánh mùa Giáng sinh trên web: sốt chấm và lịch nhận
+- Nội dung và ảnh hộp, túi, thiệp của bánh mùa Giáng sinh
+
 ## v692
 - Link trang đặt bánh không còn chữ banh#
 - Web đặt bánh: số dĩa, nĩa tặng tối đa theo cỡ bánh

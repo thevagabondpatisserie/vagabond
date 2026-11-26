@@ -242,7 +242,15 @@ export function cartTotal(gio, giaThiep = 0) { return gio.reduce((a, x) => a + t
 export const MA_THIEP_EP_KIM = 'BAPK00002';
 export const LOAI_THIEP = ['khong', 'nho', 'ep_kim'];
 export const LOI_CHUC_TOI_DA = 60, LOI_THIEP_TOI_DA = 80;
-export function laDongBanh(o) { return !!o && (o.nguon === 'today' || o.nguon === 'order') && !o.goi_y; }
+export function laDongBanh(o) { return !!o && ((o.nguon === 'today' || o.nguon === 'order') || laMuaCoChiec(o)) && !o.goi_y; }
+/* v693 (anh Việt chốt 26/11/2026): bánh mùa vụ Giáng sinh. Dòng giỏ của hàng mùa vụ
+   không có nguon, mang mua: 1 và loai ('panettone', 'buche' hoặc ''). Panettone và
+   Bûche có thiệp theo TỪNG CHIẾC như bánh sinh nhật; Panettone không cắm cờ lời chúc
+   và không được dĩa, nĩa tặng. Loại khác (hàng mùa cũ) giữ như trước, không có chiếc. */
+export const LOAI_MUA_CO_LUAT = ['panettone', 'buche'];
+export function laDongMua(o) { return !!o && !o.nguon && !!o.mua; }
+export function laMuaCoChiec(o) { return laDongMua(o) && LOAI_MUA_CO_LUAT.includes(o.loai); }
+export function khongCamCo(o) { return laDongMua(o) && o.loai === 'panettone'; }
 let demChiec = 0;
 export function taoIdChiec(luc = Date.now()) {
   demChiec = (demChiec + 1) % 1679616;
@@ -258,12 +266,20 @@ export function chuanChiec(x) {
 }
 /* Chiếc đã có lời chúc hoặc thiệp: bỏ chiếc này phải hỏi lại khách. */
 export function chiecCoNoiDung(c) { return !!c && (!!String(c.wish || '').trim() || c.thiep !== 'khong' || !!String(c.loi_thiep || '').trim()); }
+/* v693: chiếc bánh mùa vụ chọn sẵn thiệp miễn phí, nên chỉ hỏi lại khi khách đã gõ lời. */
+export function chiecCanHoi(o, c) { return laDongMua(o) ? (!!c && (!!String(c.wish || '').trim() || !!String(c.loi_thiep || '').trim())) : chiecCoNoiDung(c); }
 export function dongBoChiec(o, taoId = taoIdChiec) {
   /* Giữ o.chiec dài đúng o.qty: thừa thì bỏ chiếc CUỐI, thiếu thì thêm chiếc mới. */
   if (!laDongBanh(o)) return o;
   if (!Array.isArray(o.chiec)) o.chiec = [];
   if (o.chiec.length > o.qty) o.chiec.splice(o.qty);
-  while (o.chiec.length < o.qty) o.chiec.push(chiecMoi(taoId()));
+  /* v693: bánh mùa vụ có thiệp kèm trong hộp nên chiếc mới chọn sẵn thiệp miễn phí. */
+  while (o.chiec.length < o.qty) o.chiec.push(Object.assign(chiecMoi(taoId()), laDongMua(o) ? {thiep: 'nho'} : null));
+  /* v693: hàng mùa vụ chỉ có thiệp miễn phí; Panettone không cắm cờ, không lời chúc. */
+  if (laDongMua(o)) o.chiec.forEach(c => {
+    if (c.thiep === 'ep_kim') c.thiep = 'nho';
+    if (khongCamCo(o)) { c.co = false; c.wish = ''; }
+  });
   return o;
 }
 export function soEpKim(o) { return laDongBanh(o) && Array.isArray(o.chiec) ? o.chiec.filter(c => c.thiep === 'ep_kim').length : 0; }
@@ -340,14 +356,16 @@ export const MA_DIA_TANG = 'BAPK00020', MA_NIA_TANG = 'BAPK00018', DC_TOI_DA = 2
    nến, thiệp) không tính. Cộng cả giỏ, không quá DC_TOI_DA. Trùng
    don_hang.tran_dung_cu (ca thu_dia_nia_theo_co_692 chạy cùng bộ số hai phía). */
 export const DC_CO_NHO = 16, DC_BO_NHO = 10, DC_BO_LON = 15;
-export function tranDcDong(id, cm, qty) {
+export function tranDcDong(id, cm, qty, loai) {
   const q = Math.max(0, parseInt(qty) || 0);
   if (String(id || '').toUpperCase().startsWith('BAPK')) return 0;
+  /* v693: Panettone không có dĩa, nĩa tặng (trùng don_hang.tran_dung_cu, khong_dc). */
+  if (loai === 'panettone') return 0;
   const c = parseInt(cm) || 0;
   return q * (c > 0 ? (c <= DC_CO_NHO ? DC_BO_NHO : DC_BO_LON) : 1);
 }
 export function tranDcGio(gio) {
-  const tong = (gio || []).reduce((s, o) => s + tranDcDong(o && o.id, o && o.cm, o && o.qty), 0);
+  const tong = (gio || []).reduce((s, o) => s + tranDcDong(o && o.id, o && o.cm, o && o.qty, o && laDongMua(o) ? o.loai : ''), 0);
   return Math.min(DC_TOI_DA, tong);
 }
 export function chuanDcDon(d, tran) {
@@ -573,4 +591,50 @@ export function itemsGuiDon(ev) {
   const e = ev || {};
   const ds = Array.isArray(e.mon_sl) && e.mon_sl.length ? e.mon_sl : (e.ma_mon || []).map(ma => ({ma, sl: 1}));
   return gopSoLuong(ds).map(x => ({item_id: x.ma, quantity: x.sl}));
+}
+
+/* ---------------- v693: lịch nhận và sốt chấm của hàng mùa vụ ----------------
+   Cùng luật với máy chủ (vagabond/mua_vu_web.py: luat_don, ngay_hop_le, tran_sot);
+   ca thu_mua_vu_web_693 chạy cùng bộ số hai phía. Thứ ghi kiểu Việt: 2 là thứ Hai
+   ... 7 là thứ Bảy, 8 là Chủ nhật. luat: {panettone: {truoc, thu}, buche: {...}},
+   thu null là ngày nào cũng nhận. */
+export const SOT_MOI_BANH = 2;
+export function thuVN(d) { const g = d.getDay(); return g === 0 ? 8 : g + 1; }
+export function luatGioMua(gio, luat) {
+  /* Luật của CẢ giỏ: đặt trước theo loại cần nhiều ngày nhất, thứ là phần chung. */
+  const loai = LOAI_MUA_CO_LUAT.filter(l => (gio || []).some(o => laDongMua(o) && o.loai === l) && luat && luat[l]);
+  if (!loai.length) return null;
+  let truoc = 0, thu = null;
+  loai.forEach(l => {
+    const x = luat[l];
+    truoc = Math.max(truoc, parseInt(x.truoc) || 0);
+    if (Array.isArray(x.thu)) thu = thu === null ? x.thu.slice() : thu.filter(t => x.thu.includes(t));
+  });
+  return {loai, truoc, thu};
+}
+export function ngayMuaChan(lech, ngay, ld, denNgayIso) {
+  /* lech: số ngày từ hôm nay tới ngày nhận; ngay: Date của ngày nhận. Trả '' khi
+     nhận được, hoặc 'som', 'qua_mua', 'sai_thu'. */
+  if (!ld) return '';
+  if (lech < ld.truoc) return 'som';
+  if (denNgayIso && isoNgay(ngay) > denNgayIso) return 'qua_mua';
+  if (Array.isArray(ld.thu) && !ld.thu.includes(thuVN(ngay))) return 'sai_thu';
+  return '';
+}
+export function chuThuMua(thu) { return (thu || []).map(x => (x === 8 ? 'Chủ nhật' : 'thứ ' + x)).join(', '); }
+export function tranSot(soPanettone, moiBanh = SOT_MOI_BANH) { return Math.max(0, parseInt(soPanettone) || 0) * Math.max(0, parseInt(moiBanh) || 0); }
+/* Bảng chọn sốt của MỘT bánh ({mã: số hũ}): đổi `ma` thêm `d`, tổng không quá `toiDa`. */
+export function doiSot(chon, ma, d, toiDa = SOT_MOI_BANH) {
+  const ra = Object.assign({}, chon);
+  const tong = Object.values(ra).reduce((a, n) => a + (parseInt(n) || 0), 0);
+  const moi = (parseInt(ra[ma]) || 0) + d;
+  if (moi < 0 || (d > 0 && tong + d > toiDa)) return ra;
+  if (moi === 0) delete ra[ma]; else ra[ma] = moi;
+  return ra;
+}
+/* Tên các món mua thêm của một dòng, món trùng gộp lại: "Sốt Trứng Muối × 2, Nón sinh nhật". */
+export function tenAddsGop(adds) {
+  const dem = new Map();
+  (adds || []).forEach(a => dem.set(a.n, (dem.get(a.n) || 0) + 1));
+  return [...dem].map(([n, so]) => (so > 1 ? n + ' × ' + so : n)).join(', ');
 }

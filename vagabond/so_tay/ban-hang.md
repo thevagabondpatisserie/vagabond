@@ -1494,6 +1494,62 @@ Dành cho hàng làm một lô số lượng giới hạn, để không nhận �
 **Lưu ý**
 - Mùa đang bán thì máy tự kéo đơn Pancake mỗi phút, kể cả đơn khách sửa món hay số lượng.
 
+## Bánh mùa Giáng sinh trên web: gộp size, loại bánh và nhãn size
+Từ khoá: in season, panettone, bûche, buche, gộp size, nhóm trên web, nhãn size, loại trên web, bánh lớn, bánh mini, giáng sinh, noel, mùa vụ trên web
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, Marketing | Kiểm bánh theo mùa (/kiem-banh-theo-mua) | [[Nhóm trên web]] |
+
+Ba ô ở từng dòng sản phẩm quyết bánh hiện thế nào ở tab In season của web. Lưu xong web đổi trong vài phút.
+
+**Các bước**
+1. Mở mùa đang bán, bấm nút Bếp làm (hình bút chì) ở dòng sản phẩm.
+2. Chọn [[Nhóm trên web]], gõ tên thẻ bánh, ví dụ Classic Panettone. Các mã cùng tên nhóm gộp thành một thẻ, khách bấm vào mới chọn size.
+3. Chọn [[Nhãn size trên web]], gõ chữ khách thấy, ví dụ Bánh lớn 680gr hoặc Bánh Mini 250gr.
+4. Chọn [[Loại trên web]]: Panettone, Bûche hoặc Khác.
+
+**Loại trên web quyết điều gì**
+| Loại | Lịch nhận | Giỏ hàng |
+|---|---|---|
+| Panettone | Mặc định thứ 2, 4, 6, đặt trước 3 ngày | Không dĩa nĩa, không cờ lời chúc, thiệp miễn phí, có sốt chấm |
+| Bûche | Mặc định đặt trước 2 ngày | Cờ lời chúc, dĩa nĩa, phụ kiện như bánh sinh nhật |
+| Khác, để trống | Như trước | Như trước |
+
+**Lưu ý**
+- Sáu mã Panettone (ba vị, hai size) điền đủ thì thành ba thẻ trên web.
+- Dòng chưa điền Nhóm trên web vẫn hiện, đứng một thẻ riêng.
+- Nhãn size có chữ Mini thì web ghi Hộp màu xanh turquoise, không thì Hộp màu nâu champagne.
+- Đơn có cả Panettone và Bûche theo lịch của Panettone. Ngày nhận không quá ngày kết thúc mùa.
+
+## Bánh mùa Giáng sinh trên web: sốt chấm và lịch nhận
+Từ khoá: sốt chấm, sốt panettone, sốt trứng muối, pastry cream, 2 hũ, lịch nhận panettone, thứ 2 4 6, đặt trước 3 ngày, bûche đặt trước 2 ngày, cài đặt mùa vụ
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán giá thành, Marketing | Desk, bản ghi Vagabond Mua Vu của mùa đang bán | Save |
+
+Khai sốt chấm bán kèm Panettone và đổi lịch nhận. Làm một lần đầu mùa, ở mục Trang web (tab In season) của bản ghi mùa.
+
+**Khai sốt chấm**
+1. Tạo mã hàng cho từng hũ sốt, đặt giá bán, Đồng bộ Pancake.
+2. Ở bảng Sốt chấm bán kèm Panettone thêm dòng, chọn mã hàng sốt. Mỗi hũ một dòng. Bấm Save.
+
+Khách chọn tối đa 2 hũ cho mỗi bánh. Giá theo giá bán của mã hàng, giá 0 thì web ghi Miễn phí. Trên đơn Pancake mỗi loại sốt là một dòng riêng.
+
+**Đổi lịch nhận**
+| Ô | Ghi gì | Để trống thì |
+|---|---|---|
+| Panettone: nhận vào thứ | Ví dụ 2,4,6. CN là Chủ nhật | Thứ 2, 4, 6 |
+| Panettone: đặt trước ít nhất (ngày) | Số ngày, 0 là nhận ngay hôm đặt | 3 ngày |
+| Bûche: nhận vào thứ | Như trên | Ngày nào cũng nhận |
+| Bûche: đặt trước ít nhất (ngày) | Số ngày | 2 ngày |
+
+**Lưu ý**
+- Ghi sai dạng thì máy không cho lưu và nói cách ghi đúng.
+- Bảng sốt để trống thì web không hiện mục sốt. Sốt chỉ bán kèm Panettone.
+- Mã sốt chưa đồng bộ Pancake thì đơn có sốt báo lỗi mã bán hàng.
+
 ## Cấp mã đền bù cho khách gặp sự cố
 Từ khoá: đền bù, xin lỗi khách, giao trễ, sai trang trí, sai lời chúc, thiếu món, bánh hỏng, khiếu nại, voucher đền bù, service recovery
 

@@ -11,7 +11,7 @@
 import {reactive, computed, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 import {CONFIG, SLOTS, cakesGoc, NUMS, ADDONS, PICKUPS_GOC, LY_DO, TEN_DIEM, NHAN_MAC_DINH,
-  THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS, THIEP_EP_KIM, GHI_CHU_NHANH, THE_VIET_THIEP} from './du-lieu.js';
+  THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS, THIEP_EP_KIM, GHI_CHU_NHANH, THE_VIET_THIEP, kemMua} from './du-lieu.js';
 import {thuong, dam, mau, lienKet, cauCoSo, noi} from './chu-giau.js';
 import {taoGoiBan, cauDn} from './kho-goi-ban.js';
 import * as D from './dbt-thuan.js';
@@ -47,7 +47,8 @@ export function taoKho(moiTruong) {
     gioCho: {mua: [], banh: []}, daPhucHoi: false,
     /* bảng chi tiết đang mở */
     cur: null, curSizeId: '', soLuong: 1, wish: '', nia: 0, dia: 0, thiep: 0, nums: [], adds: [], dongDangSua: -1, huongSize: false,
-    muaDangXem: null,
+    /* v693: thẻ mùa vụ đang mở: {khoa, ma (size đang chọn), sl, sot: {mã: số hũ mỗi bánh}}. */
+    muaXem: null,
     CO: {mode: 'ship', pickupId: 'bep-tan-son-hoa', pay: 'bank', other: false, gift: false, vat: false, dongy: false, uudai: false,
       ship: null, shipTrangThai: null, shipKm: null, payBao: false, phuong: '', phTim: '', phMo: false, nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
       ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null,
@@ -113,6 +114,36 @@ export function taoKho(moiTruong) {
     const iso = isoNgayThu(i);
     return gio.filter(o => o.nguon !== 'today').map(o => S.TRUOC_RF[o.id])
       .find(r => r && r.chi_refill && !dotRefill(r, iso)) || null;
+  }
+  /* v693 (anh Việt chốt 26/11/2026): hàng mùa vụ Giáng sinh có lịch nhận riêng. Giỏ có
+     Panettone thì chỉ nhận theo thứ đã cài và đặt trước đủ ngày; Bûche đặt trước đủ ngày;
+     giỏ có cả hai theo lịch chặt hơn; không ngày nào sau ngày kết thúc mùa. Luật do máy
+     chủ trả (S.MUA.luat), máy chủ chặn lại ở mua_vu_web.kiem_don. */
+  const luatCuaGio = (gio = S.CART) => T.luatGioMua(gio, S.MUA.luat || null);
+  function ngayThu(i) { const d = new Date(bay()); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); return d; }
+  function muaChan(i, gio = S.CART) {
+    const ld = luatCuaGio(gio);
+    return ld ? T.ngayMuaChan(i, ngayThu(i), ld, S.MUA.den_ngay || '') : '';
+  }
+  /* Lịch thường có 14 ngày. Giỏ có hàng mùa vụ mang luật thì lịch dài tới ngày kết thúc
+     mùa (đơn Giáng sinh đặt từ cuối tháng 11), không quá 62 ngày. */
+  const SO_NGAY_RAIL = 14, SO_NGAY_MUA_TOI_DA = 62;
+  function soNgayRail(gio = S.CART) {
+    if (!luatCuaGio(gio) || !S.MUA.den_ngay) return SO_NGAY_RAIL;
+    const l = T.lechNgay(homNayIso(), S.MUA.den_ngay);
+    return Math.max(SO_NGAY_RAIL, Math.min(SO_NGAY_MUA_TOI_DA, (l === null ? 0 : l) + 1));
+  }
+  function cauLuatMua(gio = S.CART) {
+    const ld = luatCuaGio(gio);
+    if (!ld) return '';
+    const ve = [];
+    if (Array.isArray(ld.thu)) ve.push(t('mv_luat_thu', 'chỉ nhận {thu}', {thu: T.chuThuMua(ld.thu)}));
+    ve.push(ld.truoc ? t('mv_luat_truoc', 'cần đặt trước ít nhất {so} ngày', {so: ld.truoc}) : t('mv_luat_ngay', 'nhận được ngay trong ngày'));
+    const luat = ve.join(t('mv_luat_va', ' và '));
+    const caHai = ld.loai.length > 1;
+    const cau = caHai ? t('mv_luat_ca_hai', 'Đơn có cả Panettone và Bûche nên cả đơn theo lịch chặt hơn: {luat}.', {luat})
+      : ld.loai[0] === 'panettone' ? t('mv_luat_pan', 'Panettone {luat}.', {luat}) : t('mv_luat_buche', 'Bûche {luat}.', {luat});
+    return cau + (S.MUA.den_ngay ? ' ' + t('mv_luat_het_mua', 'Mùa này nhận bánh tới hết {ngay}.', {ngay: ngayNgan(S.MUA.den_ngay)}) : '');
   }
   /* v660: một bánh nhiều đợt refill. Trả đợt có khoảng ngày chứa ngày iso
      (r.ds là mọi đợt còn suất; máy chủ bản cũ chỉ có r.tu, r.den). */
@@ -202,21 +233,31 @@ export function taoKho(moiTruong) {
     if (i <= SO_NGAY_DAT_TRUOC && Object.values(S.TRUOC_XA).some(n => n > 0)) return true;
     const iso = isoNgayThu(i);
     if (Object.values(S.TRUOC_RF).some(r => dotRefill(r, iso))) return true;
+    /* v693: giỏ có hàng mùa vụ mang luật thì ngày hợp luật của mùa cũng có trên lịch. */
+    if (luatCuaGio() && !muaChan(i)) return true;
     return !!dotDbt.value && D.gioCoMonDot(S.CART, maDbt.value) && !dbtChan(i);
   }
   /* Thêm dòng `o` vào giỏ thì còn ngày nào nhận được cả giỏ không (ngày mai tới
      13 ngày sau). Không còn thì khách đặt đơn riêng: bánh đặt trước nhận ngày
      mai, bánh của mẻ chỉ nhận trong khoảng của mẻ. */
   function conNgayChung(o, boDong = -1) {
-    if (!T.laBanhDatTruoc(o)) return true;
     const gio = S.CART.filter((_x, j) => j !== boDong).concat([o]);
-    for (let i = 1; i < 14; i++) if (!refillChan(i, gio) && !datTruocChan(i, gio) && !dbtChan(i, gio)) return true;
+    /* v693: hàng mùa vụ mang luật (trong giỏ hay sắp thêm) cũng phải có chung ngày nhận. */
+    if (!T.laBanhDatTruoc(o) && !luatCuaGio(gio)) return true;
+    for (let i = luatCuaGio(gio) ? 0 : 1, n = soNgayRail(gio); i < n; i++) {
+      if (i === 0 && T.chanHomNay(gio)) continue;
+      if (!refillChan(i, gio) && !datTruocChan(i, gio) && !dbtChan(i, gio) && !muaChan(i, gio)) return true;
+    }
     return false;
   }
+  /* v693: bánh có sẵn hôm nay nhận trong ngày, hàng mùa vụ mang luật phải đặt trước:
+     hai loại không chung một đơn (cùng cách tách đơn của v649). */
+  const tronMuaHomNay = (o, boDong = -1) => { const gio = S.CART.filter((_x, j) => j !== boDong).concat([o]); return !!luatCuaGio(gio) && luatCuaGio(gio).truoc > 0 && gio.some(T.laBanhHomNay); };
+  const cauTachMua = () => t('mv_tach_don', 'Bánh có sẵn hôm nay nhận trong ngày, còn bánh mùa Giáng sinh trong giỏ cần đặt trước. Quý khách gửi đơn đang có trước rồi đặt tiếp.');
   const cauKhongNgayChung = () => t('dat_truoc_khac_ngay', 'Bánh này và bánh trong giỏ không có chung ngày nhận (bánh đặt trước nhận trong 3 ngày tới theo số còn của từng ngày, bánh làm theo mẻ nhận trong khoảng của mẻ). Quý khách gửi đơn đang có trước rồi đặt tiếp.');
   const ngayRail = computed(() => {
     const goc = bay(); const ra = [];
-    for (let i = 0; i < 14; i++) { const nh = T.nhanNgay(i, goc, DAYS, t); ra.push({i, ten: nh.ten, ngay: nh.ngay, on: i === picked.value, best: i >= 2, off: !!refillChan(i) || dbtChan(i) || datTruocChan(i) || (i === 0 && homNayBiChan.value)}); }
+    for (let i = 0, n = soNgayRail(); i < n; i++) { const nh = T.nhanNgay(i, goc, DAYS, t); ra.push({i, ten: nh.ten, ngay: nh.ngay, on: i === picked.value, best: i >= 2, off: !!refillChan(i) || dbtChan(i) || datTruocChan(i) || !!muaChan(i) || (i === 0 && homNayBiChan.value)}); }
     return ra;
   });
   /* Lịch của tab Đặt bánh trước bắt đầu từ ngày mai (Loan Anh 11/11/2026: chọn
@@ -240,6 +281,7 @@ export function taoKho(moiTruong) {
   }
   function pick(i) {
     if (i === 0 && homNayBiChan.value) { toast(cauTachDon('')); return; }
+    if (muaChan(i)) { toast(cauLuatMua()); return; }
     if (datTruocChan(i)) { toast(t('dat_truoc_chi_mai', 'Ngày này không còn nhận bánh đặt trước trong giỏ. Bánh đặt trước nhận trong 3 ngày tới, quý khách chọn ngày còn sáng hoặc gọi 0931 224 334.')); return; }
     if (dbtChan(i)) { toast(t('dbt_chi_giao', 'Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.', {ngay: ngayGiaoDbt()})); return; }
     const rc = refillChan(i);
@@ -316,6 +358,8 @@ export function taoKho(moiTruong) {
     else if (hong) ra.push(thuong(' '), dam(t('dat_banh_967f3cc7d', 'Khung giờ quý khách chọn lúc nãy không còn kịp nữa, quý khách chọn lại một khung khác.')));
     if (!hong && S.gioBiDoi) ra.push(thuong(' '), dam(t('dat_banh_5ca501e79', 'Khung giờ quý khách chọn lúc nãy không dùng được cho ngày này, quý khách chọn lại một khung khác.')));
     else if (!hong && !daChot.value) ra.push(thuong(' '), dam(t('dat_banh_56b5e229a', 'Quý khách chọn cả ngày và khung giờ nhận')));
+    /* v693: giỏ có hàng mùa vụ mang luật thì nói rõ vì sao nhiều ngày bị mờ. */
+    if (luatCuaGio()) ra.push(thuong(' ' + cauLuatMua()));
     return ra;
   });
 
@@ -441,7 +485,8 @@ export function taoKho(moiTruong) {
     return n === null ? 0 : n;
   }
   const daCo = id => T.daCoTrongGio(S.CART, id);
-  const tenMonGio = o => tmon(o.id, 'ten', o.k);
+  /* v693: dòng hàng mùa vụ gộp size hiện kèm nhãn size (Classic Panettone · Bánh lớn 680gr). */
+  const tenMonGio = o => tmon(o.id, 'ten', o.k) + (T.laDongMua(o) && o.nhan ? ' · ' + o.nhan : '');
   /* #463 (Codex, anh Việt 20/11/2026): khách đã xác nhận ngày nhận mà cỡ bánh hết
      ĐÚNG ngày đó thì không thêm. Trước đây số 0 bị hiểu là "không giới hạn" nên
      bánh vẫn vào giỏ, rồi giỏ tự dời ngày nhận sang ngày còn bánh. Giữ ngày, giữ
@@ -456,6 +501,7 @@ export function taoKho(moiTruong) {
     if (!kichThuocDangBan(c).some(s => s.id === sz.id)) { toast(t('het_size', 'Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.')); return false; }
     const xd = T.xungDotGio(S.CART, {cm: sz.cm, nguon: S.tab === 'today' ? 'today' : 'order'}, S.dongDangSua);
     if (xd) { toast(cauTachDon(xd)); return false; }
+    if (tronMuaHomNay({id: sz.id, cm: sz.cm, nguon: S.tab === 'today' ? 'today' : 'order'}, S.dongDangSua)) { toast(cauTachMua()); return false; }
     if (chanThemDbt(sz.id, S.soLuong, S.dongDangSua)) return false;
     if (!conNgayChung({id: sz.id, nguon: S.tab === 'today' ? 'today' : 'order'}, S.dongDangSua)) { toast(cauKhongNgayChung()); return false; }
     if (hetNgayDaChon(sz.id, S.tab === 'today' ? 'today' : 'order')) { toast(cauHetNgayDaChon()); return false; }
@@ -503,6 +549,7 @@ export function taoKho(moiTruong) {
     const sz = ds[0], gh = gioiHanNhan(sz.id, cheDo === 'today' ? 'today' : 'order');
     const xd = T.xungDotGio(S.CART, {cm: sz.cm, nguon: cheDo === 'today' ? 'today' : 'order'});
     if (xd) { toast(cauTachDon(xd)); return 'chan'; }
+    if (tronMuaHomNay({id: sz.id, cm: sz.cm, nguon: cheDo === 'today' ? 'today' : 'order'})) { toast(cauTachMua()); return 'chan'; }
     if (chanThemDbt(sz.id, 1)) return 'chan';
     if (!conNgayChung({id: sz.id, nguon: cheDo === 'today' ? 'today' : 'order'})) { toast(cauKhongNgayChung()); return 'chan'; }
     if (hetNgayDaChon(sz.id, cheDo === 'today' ? 'today' : 'order')) { toast(cauHetNgayDaChon()); return 'chan'; }
@@ -541,7 +588,7 @@ export function taoKho(moiTruong) {
   function cartQty(i, d) {
     const o = S.CART[i]; if (!o) return;
     /* v681: giảm là bỏ chiếc CUỐI. Chiếc đó có lời chúc hoặc thiệp thì hỏi lại. */
-    if (d < 0 && T.laDongBanh(o) && Array.isArray(o.chiec) && T.chiecCoNoiDung(o.chiec[o.qty - 1]) && !S.hoiBo) {
+    if (d < 0 && T.laDongBanh(o) && Array.isArray(o.chiec) && T.chiecCanHoi(o, o.chiec[o.qty - 1]) && !S.hoiBo) {
       S.hoiBo = {chu: t('hoi_bo_chiec', 'Bỏ chiếc {so}? Lời chúc và thiệp của chiếc này sẽ mất.', {so: o.qty}),
         nut: t('hoi_bo_chiec_nut', 'Bỏ chiếc này'), lam: () => { o.qty -= 1; if (o.qty <= 0) S.CART.splice(S.CART.indexOf(o), 1); else T.dongBoChiec(o); }};
       return 'hoi';
@@ -571,14 +618,18 @@ export function taoKho(moiTruong) {
     const ra = [];
     S.CART.forEach((o, i) => {
       if (!T.laDongBanh(o) || !Array.isArray(o.chiec)) return;
-      o.chiec.forEach((c, j) => ra.push({o, c, i, j, ten: tenMonGio(o),
+      /* v693: mua = hàng mùa vụ (chỉ thiệp miễn phí); coCo = có cờ lời chúc (Panettone không). */
+      o.chiec.forEach((c, j) => ra.push({o, c, i, j, ten: tenMonGio(o), mua: T.laDongMua(o), coCo: !T.khongCamCo(o), loai: T.laDongMua(o) ? o.loai : '',
         phu: (o.cm ? 'Ø ' + o.cm + 'cm · ' : '') + t('chiec_phu', 'bánh {so}/{tong}', {so: j + 1, tong: o.qty})}));
     });
     return ra;
   });
   const timChiec = id => { for (const o of S.CART) { const c = (o.chiec || []).find(x => x.id === id); if (c) return c; } return null; };
-  function datCo(id, co) { const c = timChiec(id); if (c) c.co = !!co; }
-  function datThiep(id, loai) { const c = timChiec(id); if (c && T.LOAI_THIEP.includes(loai)) c.thiep = loai; }
+  const dongCuaChiec = id => S.CART.find(o => (o.chiec || []).some(x => x.id === id)) || null;
+  function datCo(id, co) { const c = timChiec(id); if (c && !T.khongCamCo(dongCuaChiec(id))) c.co = !!co; }
+  function datThiep(id, loai) { const c = timChiec(id); if (c && T.LOAI_THIEP.includes(loai) && !(loai === 'ep_kim' && T.laDongMua(dongCuaChiec(id)))) c.thiep = loai; }
+  /* Có chiếc nào còn cờ lời chúc không: tiêu đề mục là "Lời chúc và thiệp" hay chỉ "Thiệp". */
+  const coChiecCamCo = computed(() => dsChiec.value.some(x => x.coCo));
   /* Công tắc Cần thiệp: bật thì chọn sẵn Thiệp nhỏ (miễn phí), khách đổi được sang ép kim. */
   function batThiep(id, bat) { const c = timChiec(id); if (c) c.thiep = bat ? (c.thiep === 'khong' ? 'nho' : c.thiep) : 'khong'; }
   function moMauCo(id) { S.mauCo = id || ''; }
@@ -627,8 +678,12 @@ export function taoKho(moiTruong) {
     const chuDc = [(dc.nia || dc.dia) ? t('dung_cu_gio', '{nia} nĩa gỗ, {dia} dĩa bã mía', {nia: dc.nia || 0, dia: dc.dia || 0}) : '',
       dc.thiep ? t('dung_cu_thiep_gio', '{so} thiệp nhỏ', {so: dc.thiep}) : ''].filter(Boolean).join(', ');
     if (chuDc) ex.push([thuong(chuDc)]);
-    if (o.adds.length) ex.push([thuong(t('dat_banh_2c04193c6', 'Thêm: {gia_tri_a}', {gia_tri_a: o.adds.map(a => a.n).join(', ')}))]);
+    /* v693: bánh mùa vụ nói rõ hộp, túi, thiệp đã gồm trong giá (một nguồn với sheet chi tiết: kemMua). */
+    const kem = T.laDongMua(o) ? kemMua(o.loai, o.nhan).map(a => t(a.k, a.n)) : [];
+    if (kem.length) ex.push([thuong(t('mv_gio_kem', 'Đã gồm: {ds}', {ds: kem.join(', ')}))]);
+    if (o.adds.length) ex.push([thuong(t('dat_banh_2c04193c6', 'Thêm: {gia_tri_a}', {gia_tri_a: T.tenAddsGop(o.adds)}))]);
     return {i, o, ten: tenMonGio(o), phu: o.goi_y ? t('gy_dong_phu', 'Giao kèm cùng chuyến, mã {ma}', {ma: o.id})
+      : T.laDongMua(o) && o.nhan ? t('mv_gio_ma', 'Mã {ma}', {ma: o.id})
       : (o.cm ? t('dat_banh_7498bc8a8', 'Ø {gia_tri_a}cm · mã {gia_tri_b}', {gia_tri_a: o.cm, gia_tri_b: o.id}) : t('gio_ma_mot_co', 'Một cỡ, mã {ma}', {ma: o.id})),
       ex, tien: T.tienVN(T.tienDong(o, giaThiep.value))};
   }));
@@ -1291,6 +1346,8 @@ export function taoKho(moiTruong) {
     if (!S.CART.length) { toast(t('dat_banh_28c1cf2d1', 'Giỏ chưa có bánh nào')); return {buoc: 'gio'}; }
     /* v649: giỏ cũ lưu từ trước có cả hai loại bánh thì nhờ khách tách đơn. */
     if (T.gioTron(S.CART)) { toast(cauTachDon('co_hom_nay')); return {buoc: 'gio'}; }
+    /* v693: hàng mùa vụ mang luật: ngày nhận phải hợp lịch của mùa (máy chủ kiểm lại). */
+    if (muaChan(picked.value)) { S.moLich = true; toast(cauLuatMua()); return {buoc: 'lich'}; }
     /* v667: món của đợt cuối tuần: giờ mở, chốt đơn và ngày giao của đợt. */
     if (dotDbt.value && D.gioCoMonDot(S.CART, maDbt.value)) {
       const tt = D.trangThaiDot(dotDbt.value, lucDbt());
@@ -1336,15 +1393,16 @@ export function taoKho(moiTruong) {
     if (gcMa.includes('di_ung')) lines.push('DỊ ỨNG: ' + (S.f.note || '').trim().replace(/\s+/g, ' ').slice(0, 300));
     let soDong = 0;
     S.CART.forEach(o => {
-      const ten = `${o.k}${o.cm ? ' Ø' + o.cm + 'cm' : ''}`;
-      const kem = o.adds.length ? `kèm: ${o.adds.map(a => a.n).join(', ')}` : '';
+      const ten = `${o.k}${T.laDongMua(o) && o.nhan ? ' ' + o.nhan : ''}${o.cm ? ' Ø' + o.cm + 'cm' : ''}`;
+      const kem = o.adds.length ? `kèm: ${T.tenAddsGop(o.adds)}` : '';
       if (T.laDongBanh(o) && Array.isArray(o.chiec) && o.chiec.length) {
         const dc = T.chuDungCuNiaDia(o);
         o.chiec.forEach((c, j) => {
           const bits = [ten];
-          bits.push(c.co === false ? 'không cắm cờ' : `lời chúc: ${String(c.wish || '').trim()}`);
+          /* v693: Panettone không có cờ nên không ghi gì về cờ; thiệp mùa vụ gọi đúng tên thiệp trong hộp. */
+          if (!T.khongCamCo(o)) bits.push(c.co === false ? 'không cắm cờ' : `lời chúc: ${String(c.wish || '').trim()}`);
           if (c.thiep !== 'khong') {
-            const loai = c.thiep === 'ep_kim' ? 'thiệp ép kim' : 'thiệp nhỏ';
+            const loai = c.thiep === 'ep_kim' ? 'thiệp ép kim' : (T.laDongMua(o) ? (o.loai === 'buche' ? 'thiệp bûche' : 'thiệp Giáng sinh') : 'thiệp nhỏ');
             bits.push(`${loai}: ${String(c.loi_thiep || '').trim() || 'để trắng'}`);
           }
           if (kem) bits.push(kem);
@@ -1426,6 +1484,14 @@ export function taoKho(moiTruong) {
         void napTon(); void napMua();
         return {buoc: 'het_hang', don};
       }
+      if (m && ['ngay_mua_vu', 'sot_qua_so'].includes(m.ly_do)) {
+        /* v693: máy chủ từ chối ngày nhận hoặc số hũ sốt của hàng mùa vụ (cài đặt mùa vừa đổi). */
+        S.dangGui = false;
+        S.goi.gui = loiGui((m.nhac || []).join(' ') || lyDo(m.ly_do), mxh('messenger', CONFIG.messenger));
+        void napMua();
+        if (m.ly_do === 'ngay_mua_vu') { S.moLich = true; return {buoc: 'lich', don}; }
+        return {buoc: 'loi', don};
+      }
       const vi = (m && m.ly_do === 'ma_uu_dai' && m.chi_tiet) ? String(m.chi_tiet) : ((m && lyDo(m.ly_do)) || t('dat_banh_5db00ac93', 'Không gửi được đơn lúc này.'));
       if (m && m.ly_do === 'ma_uu_dai') {
         S.CO.uuMa = ''; S.f.ma = ''; S.CO.uu = null; S.CO.uuDangHoi = null;
@@ -1505,14 +1571,27 @@ export function taoKho(moiTruong) {
   async function napMua() {
     try {
       S.MUA = await doc('vagabond.mua_vu.hang_theo_mua') || {co: 0, mon: []};
+      /* v693: dòng mùa vụ đang trong giỏ lấy lại giá, loại, nhãn size và giá sốt theo máy chủ. */
+      S.CART.forEach(o => {
+        if (!T.laDongMua(o) && !(o.cm === 0 && !o.nguon)) return;
+        const x = timSizeMua(o.id); if (!x) return;
+        Object.assign(o, {price: x.z.gia || 0, mua: 1, loai: x.g.loai || '', nhan: x.z.nhan || ''});
+        o.adds = addsMuaTuLuu(o.adds, x.g);
+        T.dongBoChiec(o);
+      });
       if (S.gioCho.mua.length) {
         S.gioCho.mua.forEach(o => {
-          const m = (S.MUA.mon || []).find(x => x.ma === o.id);
-          if (m && !m.het) S.CART.push({k: m.ten, img: m.anh || '', id: m.ma, cm: 0, price: m.gia || 0, wish: '', adds: [], qty: Math.min(o.qty, m.con)});
+          const x = timSizeMua(o.id);
+          if (!x || x.z.het) return;
+          const d = dongMua(x, Math.min(o.qty, x.z.con), addsMuaTuLuu(o.adds, x.g));
+          /* Giữ thiệp, lời chúc từng chiếc khách đã ghi trước khi tải lại trang. */
+          if (Array.isArray(o.chiec)) d.chiec = o.chiec.slice(0, 99).map(T.chuanChiec);
+          T.dongBoChiec(d);
+          S.CART.push(d);
         });
         S.gioCho.mua = [];
       }
-      if (!(S.MUA.co && (S.MUA.mon || []).length) && S.tab === 'season') S.tab = 'today';
+      if (!coMua.value && S.tab === 'season') S.tab = 'today';
     } catch (e) { /* không có mùa thì thôi */ }
   }
   async function napQuay() {
@@ -1529,19 +1608,127 @@ export function taoKho(moiTruong) {
   }
 
   /* ---------------- hàng mùa vụ ---------------- */
-  const coMua = computed(() => !!(S.MUA.co && (S.MUA.mon || []).length));
+  /* v693: mỗi THẺ của tab In season là một nhóm (máy chủ gộp size theo "Nhóm trên web":
+     mua_vu_web.gom_nhom). Máy chủ bản trước chưa trả nhóm thì mỗi mã một thẻ như cũ. */
+  const nhomMua = computed(() => {
+    const n = S.MUA.nhom;
+    if (Array.isArray(n) && n.length) return n;
+    return (S.MUA.mon || []).map(m => ({khoa: m.ma, ten: m.ten, gop: 0, loai: '', anh: m.anh || '', la_hop: m.la_hop, ruot: m.ruot || '', het: m.het, gia_tu: m.gia || 0,
+      sizes: [{ma: m.ma, nhan: '', ten: m.ten, gia: m.gia || 0, anh: m.anh || '', con: m.con, het: m.het}]}));
+  });
+  const coMua = computed(() => !!(S.MUA.co && nhomMua.value.length));
   const timMonMua = ma => (S.MUA.mon || []).find(x => x.ma === ma) || null;
-  function themHangMua(ma) {
-    const m = timMonMua(ma);
-    if (!m || m.het) return false;
-    if (daCo(ma) >= m.con) { toast(t('dat_banh_3b1a7e8cc', 'Mùa này chỉ còn') + ' ' + m.con + ' ' + t('dat_banh_5faac70d7', 'phần. Cần nhiều hơn quý khách gọi 0931 224 334')); return false; }
-    const o = {k: m.ten, img: m.anh || '', id: m.ma, cm: 0, price: m.gia || 0, wish: '', adds: [], qty: 1};
+  /* Tìm thẻ theo khoá đường dẫn; link cũ mang mã hàng thì mở thẻ chứa mã đó. */
+  const timNhomMua = k => nhomMua.value.find(g => g.khoa === k) || nhomMua.value.find(g => g.sizes.some(z => z.ma === k)) || null;
+  const timSizeMua = ma => { for (const g of nhomMua.value) { const z = g.sizes.find(x => x.ma === ma); if (z) return {g, z}; } return null; };
+  /* Sốt chấm bán kèm Panettone: mã khai ở Mùa vụ, giá theo hồ sơ món; chưa khai thì không hiện. */
+  const sotMua = computed(() => (Array.isArray(S.MUA.sot) ? S.MUA.sot : []));
+  const sotMoiBanh = computed(() => { const n = parseInt(S.MUA.sot_moi_banh); return Number.isFinite(n) && n >= 0 ? n : T.SOT_MOI_BANH; });
+  const addSot = x => ({id: x.ma, n: tmon(x.ma, 'ten', x.ten), p: x.gia || 0, sot: 1});
+  /* Món mua thêm của một dòng mùa vụ đọc từ nơi không tin được (giỏ lưu, bản cũ): Panettone
+     chỉ giữ sốt đang bán, không quá trần mỗi bánh; Bûche giữ phụ kiện như bánh sinh nhật.
+     Tên và giá lấy lại từ nguồn hiện có, KHÔNG lấy trong bản lưu. */
+  function addsMuaTuLuu(adds, g) {
+    const ra = [];
+    (Array.isArray(adds) ? adds : []).slice(0, 20).forEach(a => {
+      const id = a && a.id;
+      if (g.loai === 'panettone') {
+        const x = sotMua.value.find(y => y.ma === id);
+        if (x && ra.length < sotMoiBanh.value) ra.push(addSot(x));
+      } else if (g.loai === 'buche') {
+        const n = NUMS.find(y => y.id === id);
+        if (n) { ra.push({id: n.id, n: t('dat_banh_909dfa9ae', 'Nến số') + ' ' + n.n, p: n.p}); return; }
+        const y = ADDONS.find(z => z.id === id);
+        if (y) ra.push({id: y.id, n: t(y.k, y.n), p: y.p});
+      }
+    });
+    return ra;
+  }
+  function dongMua(x, sl, adds) {
+    return {k: x.g.ten, img: x.z.anh || x.g.anh || '', id: x.z.ma, cm: 0, price: x.z.gia || 0, wish: '', adds: adds || [], qty: sl,
+      mua: 1, loai: x.g.loai || '', nhan: x.z.nhan || ''};
+  }
+  const cauHetMua = con => t('dat_banh_3b1a7e8cc', 'Mùa này chỉ còn') + ' ' + con + ' ' + t('dat_banh_5faac70d7', 'phần. Cần nhiều hơn quý khách gọi 0931 224 334');
+  function themHangMua(ma, sl = 1, adds = []) {
+    const x = timSizeMua(ma);
+    if (!x || x.z.het) return false;
+    if (daCo(ma) + sl > x.z.con) { toast(cauHetMua(x.z.con)); return false; }
+    const o = dongMua(x, sl, adds);
+    if (tronMuaHomNay(o)) { toast(cauTachMua()); return false; }
+    if (!conNgayChung(o)) { toast(t('mv_khong_ngay_chung', 'Bánh này và bánh trong giỏ không có chung ngày nhận. Quý khách gửi đơn đang có trước rồi đặt tiếp.')); return false; }
     const hit = T.themVaoGio(S.CART, o);
-    suKien('AddToCart', {content_ids: [o.id], contents: [{id: o.id, quantity: 1}], content_type: 'product', value: o.price, currency: 'VND'});
+    suKien('AddToCart', {content_ids: [o.id], contents: [{id: o.id, quantity: sl}], content_type: 'product', value: T.lineUnit(o) * sl, currency: 'VND'});
     toast(hit ? t('dat_banh_cf8a493c0', 'Thêm 1 phần nữa, giỏ có') + ' ' + soBanh.value + ' ' + t('dat_banh_9900d8257', 'món')
-      : t('dat_banh_1998bbe74', 'Đã thêm') + ' ' + tmon(m.ma, 'ten', m.ten) + ' ' + t('dat_banh_478beb847', 'vào giỏ'));
+      : t('dat_banh_1998bbe74', 'Đã thêm') + ' ' + tenMonGio(o) + ' ' + t('dat_banh_478beb847', 'vào giỏ'));
     return true;
   }
+  /* Sheet chi tiết của một thẻ mùa vụ: size, số lượng, sốt (Panettone), phụ kiện (Bûche). */
+  function moMua(khoa) {
+    const g = timNhomMua(khoa);
+    if (!g) { S.muaXem = null; return null; }
+    const z = g.sizes.find(x => x.ma === khoa) || g.sizes.find(x => !x.het) || g.sizes[0];
+    /* Đang mở đúng thẻ này (trang áp lại đường dẫn sau khi nạp mùa) thì giữ lựa chọn của khách. */
+    if (S.muaXem && S.muaXem.khoa === g.khoa) return g;
+    S.nums = []; S.adds = [];
+    S.muaXem = {khoa: g.khoa, ma: z.ma, sl: 1, sot: {}};
+    suKien('ViewContent', {content_ids: g.sizes.map(x => x.ma), content_type: 'product', content_name: g.ten, value: g.gia_tu || 0, currency: 'VND'});
+    return g;
+  }
+  function dongMuaXem() { S.muaXem = null; }
+  const muaDangXem = computed(() => {
+    const m = S.muaXem, g = m ? timNhomMua(m.khoa) : null;
+    if (!g) return null;
+    return {g, z: g.sizes.find(x => x.ma === m.ma) || g.sizes[0], sl: m.sl, sot: m.sot};
+  });
+  function setSizeMua(ma) {
+    const x = muaDangXem.value;
+    if (!x || !x.g.sizes.some(z => z.ma === ma)) return;
+    S.muaXem.ma = ma;
+    const z = x.g.sizes.find(y => y.ma === ma);
+    S.muaXem.sl = Math.max(1, Math.min(S.muaXem.sl, Math.max(1, z.con - daCo(ma))));
+  }
+  function doiSlMua(d) {
+    const x = muaDangXem.value; if (!x) return;
+    const moi = S.muaXem.sl + d;
+    if (moi < 1) return;
+    if (daCo(x.z.ma) + moi > x.z.con) { toast(cauHetMua(x.z.con)); return; }
+    S.muaXem.sl = moi;
+  }
+  /* Sốt của MỘT bánh: tổng không quá trần (2 hũ); đổi số lượng bánh thì số hũ nhân theo. */
+  const duocChonSot = computed(() => !!muaDangXem.value && muaDangXem.value.g.loai === 'panettone' && sotMua.value.length > 0 && sotMoiBanh.value > 0);
+  const soSotChon = computed(() => (S.muaXem ? Object.values(S.muaXem.sot).reduce((a, n) => a + n, 0) : 0));
+  function doiSotMua(ma, d) {
+    if (!duocChonSot.value || !sotMua.value.some(x => x.ma === ma)) return;
+    if (d > 0 && soSotChon.value >= sotMoiBanh.value) { toast(t('mv_sot_toi_da', 'Mỗi bánh chọn tối đa {so} hũ sốt.', {so: sotMoiBanh.value})); return; }
+    S.muaXem.sot = T.doiSot(S.muaXem.sot, ma, d, sotMoiBanh.value);
+  }
+  /* Món mua thêm của dòng sắp thêm: sốt (Panettone) hoặc nến số, nón, sash, đồ dự phòng (Bûche). */
+  const addsMuaXem = computed(() => {
+    const x = muaDangXem.value; if (!x) return [];
+    if (x.g.loai === 'buche') return phuKienChon.value.map(a => ({...a}));
+    if (!duocChonSot.value) return [];
+    const ra = [];
+    sotMua.value.forEach(y => { for (let i = 0; i < (x.sot[y.ma] || 0); i++) ra.push(addSot(y)); });
+    return ra;
+  });
+  const tienNutMua = computed(() => { const x = muaDangXem.value; return x ? (x.z.gia + addsMuaXem.value.reduce((a, y) => a + y.p, 0)) * x.sl : 0; });
+  function themTuMuaXem() {
+    const x = muaDangXem.value;
+    if (!x || !themHangMua(x.z.ma, x.sl, addsMuaXem.value)) return false;
+    S.muaXem.sl = 1; S.muaXem.sot = {}; S.nums = []; S.adds = [];
+    return true;
+  }
+  /* Dòng luật dưới tiêu đề tab và trong sheet chi tiết, theo đúng luật máy chủ trả. */
+  function chuLuatLoai(loai) {
+    const x = (S.MUA.luat || {})[loai];
+    if (!x) return '';
+    const ve = [];
+    if (Array.isArray(x.thu)) ve.push(t('mv_the_thu', 'nhận {thu}', {thu: T.chuThuMua(x.thu)}));
+    ve.push(x.truoc ? t('mv_the_truoc', 'đặt trước ít nhất {so} ngày', {so: x.truoc}) : t('mv_the_ngay', 'nhận được trong ngày'));
+    return ve.join(', ');
+  }
+  const luatTabMua = computed(() => T.LOAI_MUA_CO_LUAT.filter(l => nhomMua.value.some(g => g.loai === l) && chuLuatLoai(l))
+    .map(l => (l === 'panettone' ? 'Panettone' : 'Bûche') + ': ' + chuLuatLoai(l)).join(' · '));
   const hanMua = computed(() => {
     if (!S.MUA.den_ngay) return '';
     const d = new Date(S.MUA.den_ngay + 'T00:00:00');
@@ -1697,6 +1884,17 @@ export function taoKho(moiTruong) {
     if (fixSlot()) S.daChonGio = false;
   }
   watch(() => [S.CART.map(o => o.id + ':' + (o.goi_y ? 1 : 0)).join(','), maDbt.value, picked.value, S.tab, S.TRUOC_RF, S.daPhucHoi, S.tonNapXong], theoNgayMai, {flush: 'sync', immediate: true});
+  /* v693: ngày đang chọn không hợp lịch của hàng mùa vụ trong giỏ (vừa thêm Panettone, giỏ
+     lưu từ hôm trước, cài đặt mùa vừa đổi) thì dời sang ngày hợp lệ gần nhất và nhờ khách
+     xác nhận lại lịch. */
+  function theoNgayMua() {
+    if (!muaChan(picked.value)) return;
+    const d = ngayRail.value.find(x => !x.off);
+    if (!d) return;
+    neoNgay(d.i); S.daChonNgay = false;
+    if (fixSlot()) S.daChonGio = false;
+  }
+  watch(() => [S.CART.map(o => o.id + ':' + (o.loai || '')).join(','), S.MUA.luat, S.MUA.den_ngay, picked.value], theoNgayMua, {flush: 'sync'});
   /* v668: giỏ đổi bánh thì hỏi lại khối gợi ý (không gọi dịch vụ ngoài, máy chủ tự xếp). */
   watch(() => S.CART.map(o => o.id).join(','), () => { void napGoiY(); });
 
@@ -1721,5 +1919,7 @@ export function taoKho(moiTruong) {
     lookupPhone, diaChiLuu, selAddr, goiYDiaChi, chonGoiY, lookupMst,
     moGio, roiGio, submitOrder,
     napTon, napMua, napQuay, napCauHinh, coMua, timMonMua, themHangMua, hanMua,
+    nhomMua, timNhomMua, sotMua, sotMoiBanh, moMua, dongMuaXem, muaDangXem, setSizeMua, doiSlMua, duocChonSot, soSotChon, doiSotMua, addsMuaXem, tienNutMua, themTuMuaXem,
+    chuLuatLoai, luatTabMua, cauLuatMua, coChiecCamCo, tenMonGio, muaChan,
     phucHoiGio, luuGio, toast, nhip: dongHoNhich, lyDo};
 }
