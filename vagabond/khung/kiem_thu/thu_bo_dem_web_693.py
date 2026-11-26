@@ -112,6 +112,26 @@ def _khong_cung_tinh():
 	la("đều nhận bản cũ", ra, [{"lan": 1}] * 20)
 
 
+@ca("v693 bộ đệm (Codex #622 P2): giành được khoá thì đọc lại; request khác vừa làm mới thì không tính nữa")
+def _doc_lai_sau_khoa():
+	from vagabond import bo_dem_web as bd
+	r, m = _Redis(), _Moc()
+	k = bd.khoa_dem("co_the_ban_hom_nay", "2026-11-26")
+	r.kho[k] = {"luc": m.t - 60, "gt": {"lan": "cu"}}
+	goc_set = r.set
+
+	def set_sau_khi_a_xong(ten, v, nx=False, ex=None):
+		# Thứ tự Codex chỉ: B đọc thấy bản cũ, A giành khoá, tính, ghi bản mới, nhả khoá;
+		# rồi B mới giành khoá.
+		r.kho[k] = {"luc": m.t, "gt": {"lan": "moi tu A"}}
+		return goc_set(ten, v, nx=nx, ex=ex)
+	r.set = set_sau_khi_a_xong
+	d, tinh = _dem()
+	la("B trả bản A vừa tính", _goi(bd, r, m, tinh), {"lan": "moi tu A"})
+	la("B không tính lại", len(d), 0)
+	la("B nhả khoá", r.khoa_giu, set())
+
+
 @ca("v693 bộ đệm: đầu ngày chưa có bản nào, khoá đang giữ: chờ đọc bản vừa tính, hết giờ thì tự tính")
 def _dau_ngay():
 	from vagabond import bo_dem_web as bd

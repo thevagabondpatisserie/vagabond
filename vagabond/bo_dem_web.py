@@ -93,6 +93,12 @@ def qua_bo_dem(ten, tinh, giay=GIAY_DEM, bay=None, ngu=None):
 		return goi["gt"]
 	if _giu_khoa(c, khoa):
 		try:
+			# Codex #622: giữa lúc đọc bản cũ và lúc giành khoá, request khác có thể
+			# vừa tính xong, ghi bản mới và nhả khoá. Đọc lại SAU khoá; còn tươi thì
+			# dùng luôn, không tính lần nữa.
+			moi, _ = _doc(c, khoa)
+			if moi and bay() - moi["luc"] < giay:
+				return moi["gt"]
 			ra = tinh()
 			_ghi(c, khoa, ra, bay())
 			return ra
