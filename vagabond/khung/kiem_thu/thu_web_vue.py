@@ -101,7 +101,7 @@ def _link_banh_cho_ton():
 	s = (VUE / 'banh/app.js').read_text()
 	la('lối về trang chủ khi không thấy bánh có điều kiện tonDaThu', s.count("if (!c) { if (S.tonDaThu) nav('#/', true); return; }"), 1)
 	dung('không còn lối về trang chủ vô điều kiện', "if (!c) { nav('#/', true); return; }" not in s)
-	dung('nạp tồn xong thì mở lại đường dẫn bánh', 'kho.napTon().then(apDuongDanNeuBanh)' in s)
+	dung('nạp tồn xong thì mở lại đường dẫn bánh (v693 qua nhịp đọc)', 'ton.chay().then(apDuongDanNeuBanh)' in s and 'nhipDoc(kho.napTon, 60000)' in s)
 
 
 @ca('Web Vue: node CI tay không chạy được mô đun ES (package.json type module)')

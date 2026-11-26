@@ -28,6 +28,7 @@ import {DacBietTuan} from './dac-biet-tuan.js';
 import {GoiYMua} from './goi-y-mua.js';
 import {gaTuMeta} from '../kho/thuan.js';
 import {laMienSach, manHienTai, diaChiMan, doiLinkCu, hrefMan} from './duong-sach.js';
+import {nhipDoc} from './nhip-doc.js';
 
 function luuTruAnToan() {
   try { const s = window.sessionStorage; s.getItem('x'); return s; } catch (e) { return null; }
@@ -400,22 +401,17 @@ export function khoiDong(goc = '#app') {
     /* Link chia sẻ #/thiet-ke-rieng/<mã> mở trước khi nội dung về: chọn sẵn size sau khi có tác phẩm. */
     const m = man().match(/^\/thiet-ke-rieng\/(.+)$/); if (m) moTacPham(decodeURIComponent(m[1]));
   });
-  kho.napTon().then(apDuongDanNeuBanh);
-  /* v693 (sự cố 25/11/2026, site hết trần thời gian máy chủ): tab trình duyệt đang
-     ẩn (máy khoá, chuyển app, tab nền) thì không hỏi máy chủ theo nhịp; mở lại thì
-     đọc ngay một lượt. Màn hình quầy để mở cả ngày không còn gọi suông. */
-  const khiHien = f => () => { if (!document.hidden) f(); };
-  setInterval(khiHien(kho.napTon), 60000);
-  kho.napMua().then(() => { if (/^\/in-season\//.test(man())) apDuongDan(); });
-  setInterval(khiHien(kho.napMua), 300000);
-  kho.napQuay();
-  setInterval(khiHien(kho.napQuay), 60000);
-  let anTu = 0;
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { anTu = Date.now(); return; }
-    if (anTu && Date.now() - anTu >= 60000) { kho.napTon(); kho.napQuay(); if (Date.now() - anTu >= 300000) kho.napMua(); }
-    anTu = 0;
-  });
+  /* v693 (sự cố 25/11/2026, site hết trần thời gian máy chủ): mỗi loại số một nhịp
+     duy nhất (nhipDoc). Tab đang ẩn (máy khoá, chuyển app, tab nền) thì không hỏi máy
+     chủ; hiện lại thì đọc ngay nếu số đã cũ. Lượt đang chạy chưa xong thì không gửi
+     thêm, vừa đọc xong thì nhịp kế tiếp bỏ qua: không có yêu cầu trùng. */
+  const ton = nhipDoc(kho.napTon, 60000), mua = nhipDoc(kho.napMua, 300000), quay = nhipDoc(kho.napQuay, 60000);
+  ton.chay().then(apDuongDanNeuBanh);
+  mua.chay().then(() => { if (/^\/in-season\//.test(man())) apDuongDan(); });
+  quay.chay();
+  const cacNhip = [ton, mua, quay];
+  setInterval(() => cacNhip.forEach(n => n.nhip()), 5000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) cacNhip.forEach(n => n.hien()); });
   /* v638: link QR một bàn. Đúng thì mở thẳng tab Tại quầy ở chế độ gọi món;
      mất phần #/in-store (vài app quét QR cắt) thì tự thêm lại. */
   kho.goiBan.kiemLink().then(b => {
