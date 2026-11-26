@@ -234,3 +234,50 @@ def _mot_nguon():
 	dung("lịch, lúc bấm ngày, lúc gửi đơn đều qua muaChan", kho.count("muaChan(") >= 6)
 	dl = (GOC / "vagabond/public/web_vue/banh/du-lieu.js").read_text()
 	dung("chữ anh Việt chốt cho hộp", "Hộp màu nâu champagne" in dl and "Hộp màu xanh turquoise" in dl)
+
+
+@ca("v693 Codex #625: loại hiệu lực của từng mã là MỘT phép cho thẻ trên web và phép kiểm lúc tạo đơn; nhóm chỉ điền loại ở một size thì size kia vẫn theo loại của nhóm")
+def _loai_hieu_luc():
+	w = _w()
+	dong = [{"ma": "P1", "nhom": "Nhóm X", "loai": "Panettone"}, {"ma": "P2", "nhom": "nhóm  x", "loai": ""},
+		{"ma": "B1", "nhom": "", "loai": "Bûche"}, {"ma": "L1", "nhom": "Nhóm Y", "loai": "Bûche"}, {"ma": "L2", "nhom": "Nhóm Y", "loai": "Panettone"},
+		{"ma": "K1", "nhom": "", "loai": "Khác"}, {"ma": "K2", "nhom": "Nhóm Z", "loai": ""}]
+	loai = w.loai_hieu_luc(dong)
+	la("size chưa điền loại theo loại của nhóm; nhóm lẫn hai loại theo Panettone; Khác và trống không có khoá", loai,
+		{"P1": "panettone", "P2": "panettone", "B1": "buche", "L1": "panettone", "L2": "panettone"})
+	mon = [dict(_mon(d["ma"], 100, nhom=d["nhom"]), loai=loai.get(d["ma"], "")) for d in dong]
+	la("thẻ trên web mang đúng loại đó", {g["ten"]: g["loai"] for g in w.gom_nhom(mon)},
+		{"Nhóm X": "panettone", "B1": "buche", "Nhóm Y": "panettone", "K1": "", "Nhóm Z": ""})
+	mua = {"loai_theo_ma": loai, "ma_sot": ["S1"], "luat": w.luat_mua({}), "den_ngay": D(2026, 12, 31)}
+	hn = D(2026, 11, 26)
+	h = lambda **k: [{"variation_id": ma, "quantity": sl} for ma, sl in k.items()]  # noqa: E731
+	la("size chưa điền loại kèm 1 hũ sốt, ngày đúng lịch: nhận (trước đây bị từ chối với trần 0 hũ)", w.xet_don(h(P2=1, S1=1), D(2026, 11, 30), hn, mua), None)
+	la("size chưa điền loại vẫn theo lịch Panettone", (w.xet_don(h(P2=1), D(2026, 12, 1), hn, mua) or {}).get("ly_do"), "ngay_mua_vu")
+	src = (GOC / "vagabond/mua_vu.py").read_text() + (GOC / "vagabond/mua_vu_web.py").read_text()
+	web, mvs = (GOC / "vagabond/mua_vu_web.py").read_text(), (GOC / "vagabond/mua_vu.py").read_text()
+	la("mua_vu_web chỉ đọc ô loai_web ở loai_cua_mua", web.count('get("loai_web")'), 1)
+	dung("hang_theo_mua không tự đọc ô loai_web", "loai_web" not in mvs[mvs.index("def hang_theo_mua("):])
+	dung("tab In season, lúc tạo đơn, thẻ nội dung đều qua loai_cua_mua", src.count("loai_cua_mua(doc)") >= 3)
+
+
+@ca("v693 Codex #625: thẻ nội dung và tab In season chọn tên bằng MỘT phép; tên món đổi sau khi thẻ đã tạo thì vẫn tìm ra thẻ theo mã hàng")
+def _the_noi_dung():
+	w = _w()
+	la("có nhóm thì theo nhóm", w.ten_the(" Nhóm  X ", "Tên hồ sơ", "Tên Pancake", "M1"), "Nhóm X")
+	la("không nhóm: tên hồ sơ món trước tên trên dòng", w.ten_the("", "Tên hồ sơ", "Tên Pancake", "M1"), "Tên hồ sơ")
+	la("thiếu cả hai thì mã", w.ten_the(None, None, "", "M1"), "M1")
+	la("thẻ gom_nhom dùng đúng phép đó", w.gom_nhom([_mon("M1", 1, ten="Tên hồ sơ")])[0]["ten"], w.ten_the("", "Tên hồ sơ", None, "M1"))
+	sg = {"tên pancake": {"khoa": "tên pancake", "ma_hang": "M1\nM2", "mo_ta": "a"}, "bánh khác": {"khoa": "bánh khác", "ma_hang": "Z9", "mo_ta": "b"}}
+	la("tìm theo khoá tên", w.tim_the(sg, "Bánh  Khác", ["KHONG"])["mo_ta"], "b")
+	la("tên lệch thì tìm theo mã hàng gắn trên thẻ", w.tim_the(sg, "Tên hồ sơ", ["M2"])["mo_ta"], "a")
+	la("mã là đoạn con của mã khác không khớp nhầm", w.tim_the(sg, "x", ["M"]), None)
+	la("không có thẻ", w.tim_the({}, "x", ["M1"]), None)
+	# Khoá tên của nhóm phải trùng khoá thẻ Bánh của trình biên tập (hai tệp, một cách tính).
+	from vagabond.khung.kiem_thu import thu_dia_nia_theo_co_692 as t692
+
+	g = {"unicodedata": __import__("unicodedata")}
+	t692.nap("banh_web.py", "khoa_banh", g)
+	for ten in ("Classic  Panettone", "BÛCHE Rừng Thông", "  Saigonettone ", "Bûche de Noël"):
+		la("khoá tên trùng banh_web.khoa_banh: " + ten, w.khoa_nhom(ten), g["khoa_banh"](ten))
+	web = (GOC / "vagabond/mua_vu_web.py").read_text()
+	dung("đọc nội dung và tạo thẻ đều qua tim_the, ten_the", web.count("tim_the(") >= 3 and web.count("ten_the(") >= 3)

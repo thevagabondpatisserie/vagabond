@@ -180,6 +180,55 @@ def cau_luat(ld, den_ngay=None):
 	return cau + " Quý khách chọn lại ngày nhận."
 
 
+def loai_hieu_luc(dong):
+	"""{mã: loại hiệu lực} của mọi dòng Mùa vụ. dong: [{"ma", "nhom", "loai"}].
+
+	MỘT phép cho cả hai phía (Codex #625): thẻ trên trang khách (gom_nhom) và phép
+	kiểm lúc tạo đơn (lịch, sốt, dĩa nĩa) phải thấy cùng một loại cho từng mã.
+	Các dòng cùng "Nhóm trên web" dùng chung một loại: có dòng nào là Panettone
+	thì cả nhóm là Panettone (luật chặt hơn), không thì loại đầu tiên có điền.
+	Dòng chưa điền nhóm giữ loại của chính nó. Mã không có loại thì không có khoá."""
+	theo_nhom = {}
+	for d in dong or []:
+		ten = " ".join(str(d.get("nhom") or "").split())
+		loai = chuan_loai(d.get("loai"))
+		if not ten or not loai:
+			continue
+		k = khoa_nhom(ten)
+		if loai == PANETTONE or k not in theo_nhom:
+			theo_nhom[k] = loai
+	ra = {}
+	for d in dong or []:
+		ten = " ".join(str(d.get("nhom") or "").split())
+		loai = theo_nhom.get(khoa_nhom(ten)) if ten else chuan_loai(d.get("loai"))
+		if loai and d.get("ma"):
+			ra[d["ma"]] = loai
+	return ra
+
+
+def ten_the(nhom_web, ten_mon, ten_banh, ma):
+	"""Tên thẻ của một dòng: tên nhóm nếu có, không thì tên hồ sơ món, rồi tên
+	trên dòng, rồi mã. MỘT phép cho tab In season (hang_theo_mua) và thẻ nội
+	dung của trình biên tập (Codex #625: hai nơi chọn tên khác nhau thì nội dung
+	Marketing nhập không lên web)."""
+	return " ".join(str(nhom_web or "").split()) or ten_mon or ten_banh or ma
+
+
+def tim_the(so_ghi, ten, cac_ma, khoa=None):
+	"""Thẻ nội dung của một nhóm: theo khoá tên trước; không thấy thì theo MÃ
+	HÀNG đã gắn trên thẻ (tên món đổi sau khi thẻ đã tạo vẫn tìm ra). so_ghi:
+	{khoá: bản ghi có "ma_hang" nhiều dòng}. khoa: hàm tính khoá tên."""
+	sg = so_ghi or {}
+	bg = sg.get((khoa or khoa_nhom)(ten))
+	if bg:
+		return bg
+	ma = set(cac_ma or [])
+	for x in sg.values():
+		if ma & {m.strip() for m in str(x.get("ma_hang") or "").splitlines() if m.strip()}:
+			return x
+	return None
+
+
 def gom_nhom(mon):
 	"""Gộp danh sách phẳng (mỗi mã một dòng) thành các thẻ của tab In season.
 
@@ -196,7 +245,7 @@ def gom_nhom(mon):
 		if not g:
 			g = nhom[khoa] = {
 				"khoa": duong_dan_nhom(ten_nhom) if ten_nhom else str(m.get("ma") or ""),
-				"ten": ten_nhom or m.get("ten") or m.get("ma"),
+				"ten": ten_the(ten_nhom, m.get("ten"), None, m.get("ma")),
 				"gop": 1 if ten_nhom else 0,
 				"loai": "", "anh": "", "la_hop": 0, "ruot": "", "sizes": [],
 			}
@@ -293,11 +342,16 @@ def doc_mua_web():
 		return None
 	return {
 		"doc": doc,
-		"loai_theo_ma": {d.ma_hang: chuan_loai(d.get("loai_web")) for d in doc.dong if chuan_loai(d.get("loai_web"))},
+		"loai_theo_ma": loai_cua_mua(doc),
 		"luat": luat_mua({k: doc.get(k) for k in ("panettone_thu", "panettone_truoc", "buche_thu", "buche_truoc")}),
 		"ma_sot": [s.ma_hang for s in doc.get("sot_web") or [] if s.ma_hang],
 		"den_ngay": frappe.utils.getdate(doc.den_ngay) if doc.den_ngay else None,
 	}
+
+
+def loai_cua_mua(doc):
+	"""{mã: loại hiệu lực} của một bản ghi Mùa vụ (xem loai_hieu_luc)."""
+	return loai_hieu_luc([{"ma": d.ma_hang, "nhom": d.get("nhom_web"), "loai": d.get("loai_web")} for d in doc.dong])
 
 
 def kiem_don(hang, ngay_nhan, mua):
@@ -348,7 +402,7 @@ def noi_dung_nhom(nhom):
 
 	sg = banh_web.so_ghi() or {}
 	for g in nhom:
-		bg = sg.get(banh_web.khoa_banh(g["ten"]))
+		bg = tim_the(sg, g["ten"], [s["ma"] for s in g["sizes"]], banh_web.khoa_banh)
 		if not bg:
 			continue
 		g["mo_ta"] = " ".join(banh_web.tach_dong(bg.get("mo_ta")))
@@ -372,18 +426,27 @@ def tao_the_noi_dung(doc):
 
 	if not banh_web._bang_co():
 		return 0
+	loai = loai_cua_mua(doc)
+	ten_mon = {x["item_code"]: x.get("item_name") for x in frappe.get_all("Item",
+		filters={"item_code": ["in", [d.ma_hang for d in doc.dong]]}, fields=["item_code", "item_name"], limit_page_length=0)}
 	nhom = {}
 	for d in doc.dong:
 		ten_nhom = " ".join(str(d.get("nhom_web") or "").split())
-		if not ten_nhom and not chuan_loai(d.get("loai_web")):
+		if not ten_nhom and not loai.get(d.ma_hang):
 			continue
 		if frappe.utils.cint(d.khong_tran):
 			continue
-		ten = ten_nhom or d.ten_banh or d.ma_hang
+		ten = ten_the(ten_nhom, ten_mon.get(d.ma_hang), d.ten_banh, d.ma_hang)
 		nhom.setdefault(banh_web.khoa_banh(ten), {"ten": ten, "ma": []})["ma"].append(d.ma_hang)
+	the_mua = frappe.get_all(banh_web.DT, filters={"mua_vu": 1}, fields=["name", "ma_hang"], limit_page_length=0, ignore_permissions=True)
 	so = 0
 	for khoa, g in nhom.items():
 		r = frappe.db.sql("select name from `tab%s` where khoa=%%s for update" % banh_web.DT, (khoa,))
+		if not r:
+			# Tên món đổi sau khi thẻ đã tạo: thẻ mùa vụ cũ còn gắn mã thì dùng lại, không tạo thẻ thứ hai.
+			cu = tim_the({x["name"]: x for x in the_mua}, "", g["ma"], lambda _t: None)
+			if cu:
+				r = frappe.db.sql("select name from `tab%s` where name=%%s for update" % banh_web.DT, (cu["name"],))
 		if r:
 			bg = frappe.get_doc(banh_web.DT, r[0][0])
 			ma_hang = bg.ma_hang

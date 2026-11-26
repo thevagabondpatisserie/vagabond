@@ -2896,6 +2896,8 @@ def hang_theo_mua():
 
 	from vagabond import mua_vu_web
 
+	# v693 (Codex #625): loại hiệu lực của từng mã, cùng phép với lúc tạo đơn.
+	loai_theo_ma = mua_vu_web.loai_cua_mua(doc)
 	ten_theo_ma = {d.ma_hang: (d.ten_banh or d.ma_hang) for d in doc.dong}
 	ruot = _ruot_cua_hop([m.as_dict() for m in doc.get("dinh_muc") or []], ten_theo_ma)
 	la_hop = ma_la_hop([m.as_dict() for m in doc.get("dinh_muc") or []])
@@ -2939,7 +2941,7 @@ def hang_theo_mua():
 				# v693: gop size va luat theo loai (Sales, Marketing dien o dong Mua vu).
 				"nhom": " ".join(str(d.get("nhom_web") or "").split()),
 				"nhan_size": " ".join(str(d.get("nhan_size") or "").split()),
-				"loai": mua_vu_web.chuan_loai(d.get("loai_web")),
+				"loai": loai_theo_ma.get(d.ma_hang, ""),
 			}
 		)
 	if not mon:

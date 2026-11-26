@@ -46,8 +46,9 @@ def _mua(ma=None, **them):
 		"tu_ngay": hn, "den_ngay": frappe.utils.add_days(hn, 30),
 		"dong": [
 			{"ma_hang": p1, "ten_banh": "Panettone Thử 693", "sx_dau_mua": 9, "nhom_web": "Panettone Thử 693", "nhan_size": "Bánh lớn 680gr", "loai_web": "Panettone"},
-			{"ma_hang": p2, "ten_banh": "Panettone Thử 693 Mini", "sx_dau_mua": 4, "nhom_web": "Panettone Thử 693", "nhan_size": "Bánh Mini 250gr", "loai_web": "Panettone"},
-			{"ma_hang": b1, "ten_banh": "Bûche Thử 693", "sx_dau_mua": 3, "loai_web": "Bûche"}],
+			{"ma_hang": p2, "ten_banh": "Panettone Thử 693 Mini", "sx_dau_mua": 4, "nhom_web": "Panettone Thử 693", "nhan_size": "Bánh Mini 250gr"},
+			# Codex #625: size Mini chưa điền loại (theo loại của nhóm); tên trên dòng Bûche khác tên hồ sơ món.
+			{"ma_hang": b1, "ten_banh": "Bûche Tên Pancake 693", "sx_dau_mua": 3, "loai_web": "Bûche"}],
 		"sot_web": [{"ma_hang": s1}]}, **them))
 	return doc, (p1, p2, b1, s1)
 
