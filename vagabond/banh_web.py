@@ -387,7 +387,7 @@ def _the(bg, sizes=None):
 	return {"khoa": bg["khoa"], "ten": bg["ten"], "trang_thai": bg["trang_thai"], "anh": doc_anh(bg.get("anh")),
 		"mo_ta": bg.get("mo_ta") or "", "tang": bg.get("tang") or "",
 		"di_ung": bg.get("di_ung") or "", "bao_quan": bg.get("bao_quan") or "", "ma_hang": tach_dong(bg.get("ma_hang")),
-		"sizes": sizes or [], "dua_luc": str(bg.get("dua_luc") or "")}
+		"sizes": sizes or [], "dua_luc": str(bg.get("dua_luc") or ""), "mua_vu": 1 if bg.get("mua_vu") else 0}
 
 
 def _sizes(ds_ma):
@@ -410,7 +410,7 @@ def ds_bien_tap():
 	_kiem_marketing()
 	if not _bang_co():
 		return {"banh": [], "dem": {}}
-	ds = frappe.get_all(DT, fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang", "dua_luc"],
+	ds = frappe.get_all(DT, fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang", "dua_luc", "mua_vu"],
 		limit_page_length=0, ignore_permissions=True)
 	sz = _sizes({m for x in ds for m in tach_dong(x.ma_hang)})
 	thu = {CHO_ANH: 0, DANG_HIEN: 1, DA_AN: 2}
@@ -483,6 +483,10 @@ def luu(khoa=None, anh=None, mo_ta="", tang="", trang_thai=None, di_ung=None, ba
 			frappe.throw("Dị ứng và Bảo quản mỗi ô tối đa 1.000 ký tự.")
 		bg.set(o_ten, str(gia_tri).strip())
 	bg.trang_thai = tt if moi else CHO_ANH
+	# v693: thẻ nội dung của bánh mùa vụ không chờ ảnh, không quyết việc hiện bánh
+	# (bánh hiện theo Mùa vụ); giữ Đã ẩn để không vào danh sách nhắc Marketing.
+	if frappe.utils.cint(bg.get("mua_vu")):
+		bg.trang_thai = DA_AN
 	bg.flags.ignore_permissions = True
 	bg.save()
 	return dict(ds_bien_tap(), khoa=khoa)

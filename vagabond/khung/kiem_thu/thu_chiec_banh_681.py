@@ -109,7 +109,7 @@ def _():
 def _():
 	from vagabond import noi_dung_web as ndw
 	o_anh = sorted(k for k, v in ndw.NHAN.items() if v.get("anh"))
-	la("25 ô ảnh, nhóm Ảnh trên trang", (len(o_anh), {ndw.NHAN[k]["nhom"] for k in o_anh}, ndw._nhom_nhan()["anh"]), (25, {"anh"}, "Ảnh trên trang"))
+	la("32 ô ảnh (v693 thêm 7 ô hộp, túi, thiệp mùa Giáng sinh), nhóm Ảnh trên trang", (len(o_anh), {ndw.NHAN[k]["nhom"] for k in o_anh}, ndw._nhom_nhan()["anh"]), (32, {"anh"}, "Ảnh trên trang"))
 	nd = {"khoi": [], "nhan": {}}
 	moi = ndw.ap_nhan(nd, {"anh_co_mau": ["", "/files/web-1a2b3c.webp"], "anh_thiep_nho": ["", "/files/thiep.JPG".lower()]})
 	la("nhận ảnh đã tải lên", (moi["nhan"]["anh_co_mau"], moi["nhan"]["anh_thiep_nho"]), ("/files/web-1a2b3c.webp", "/files/thiep.jpg"))

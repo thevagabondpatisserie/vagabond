@@ -68,6 +68,27 @@ export const ACC = [
   {k: 'phu_kien_8034a0777', ka: 'anh_pk_co_cam', n: 'Cờ cắm in lời chúc', ks: 'pk_co_cam_mo_681', sub: 'lời chúc chọn ở bước Thông tin đơn hàng', i: ANH_DUNG_CU[1]}
 ];
 
+/* v693 (anh Việt chốt 26/11/2026): đồ kèm theo mỗi bánh mùa Giáng sinh, đã gồm trong giá.
+   Chữ "nâu champagne", "xanh turquoise" đúng như anh chốt. Ảnh do Marketing tải ở trình
+   biên tập (ô ảnh `ka`); chưa có ảnh thì hiện chữ, không dùng ảnh mẫu. Bánh Mini nhận ra
+   theo chữ "Mini" trong Nhãn size của dòng Mùa vụ. */
+const KEM_TUI_PAN = {k: 'mv_kem_tui_pan', ka: 'anh_mv_tui_pan', n: 'Túi Panettone', ks: 'mv_kem_tui_pan_mo', sub: 'túi riêng cho hộp Panettone'};
+const KEM_THIEP_NOEL = {k: 'mv_kem_thiep_noel', ka: 'anh_mv_thiep_noel', n: 'Thiệp Giáng sinh', ks: 'mv_kem_thiep_mo', sub: 'miễn phí, ghi lời ở bước Thông tin đơn hàng'};
+export const KEM_MUA = {
+  panettone_lon: [{k: 'mv_kem_hop_pan_lon', ka: 'anh_mv_hop_pan_lon', n: 'Hộp màu nâu champagne', ks: 'mv_kem_hop_pan_lon_mo', sub: 'hộp riêng cho bánh lớn'}, KEM_TUI_PAN, KEM_THIEP_NOEL],
+  panettone_mini: [{k: 'mv_kem_hop_pan_mini', ka: 'anh_mv_hop_pan_mini', n: 'Hộp màu xanh turquoise', ks: 'mv_kem_hop_pan_mini_mo', sub: 'hộp riêng cho bánh Mini'}, KEM_TUI_PAN, KEM_THIEP_NOEL],
+  buche: [{k: 'mv_kem_hop_buche', ka: 'anh_mv_hop_buche', n: 'Hộp Bûche', ks: 'mv_kem_hop_buche_mo', sub: 'hộp riêng cho bánh Bûche'},
+    {k: 'mv_kem_tui_buche', ka: 'anh_mv_tui_buche', n: 'Túi Bûche', ks: 'mv_kem_tui_buche_mo', sub: 'túi riêng cho hộp Bûche'},
+    {k: 'mv_kem_thiep_buche', ka: 'anh_mv_thiep_buche', n: 'Thiệp Bûche', ks: 'mv_kem_thiep_mo', sub: 'miễn phí, ghi lời ở bước Thông tin đơn hàng'}]
+};
+export function kemMua(loai, nhanSize) {
+  if (loai === 'buche') return KEM_MUA.buche;
+  if (loai === 'panettone') return /mini/i.test(String(nhanSize || '')) ? KEM_MUA.panettone_mini : KEM_MUA.panettone_lon;
+  return [];
+}
+/* Ô ảnh thiệp của từng chiếc bánh mùa vụ ở bước Thông tin đơn hàng (cùng ô ảnh với mục Kèm theo). */
+export const THIEP_MUA = {panettone: KEM_THIEP_NOEL, buche: KEM_MUA.buche[2]};
+
 /* Dĩa, nĩa tặng kèm cho cả đơn ở trang Thông tin đơn hàng (anh Việt 20/11/2026).
    Mã món lấy từ kho/thuan.js (một nguồn với danh sách gửi máy chủ). Ảnh là ảnh
    dụng cụ đang dùng trên web. */
@@ -121,7 +142,8 @@ export const ANH_CO = ANH_DUNG_CU[1];
 export const ANH_O_MAC_DINH = Object.fromEntries([
   ...ACC.map(x => [x.ka, x.i]), ...DUNG_CU_DON.map(x => [x.ka, x.i]),
   ...NUMS.map(x => [x.ka, x.img]), ...ADDONS.map(x => [x.ka, x.img]),
-  [THIEP_EP_KIM.ka, THIEP_EP_KIM.img], ['anh_co_mau', ANH_CO], ['anh_thiep_nho', '']
+  [THIEP_EP_KIM.ka, THIEP_EP_KIM.img], ['anh_co_mau', ANH_CO], ['anh_thiep_nho', ''],
+  ...[...KEM_MUA.panettone_lon, ...KEM_MUA.panettone_mini, ...KEM_MUA.buche].map(x => [x.ka, ''])
 ]);
 /* v681 (BẢN 2 mục 2.7): logo cách thanh toán là tệp trong repo, không gọi link ngoài
    lúc chạy. Visa, Mastercard, JCB: payrexx/payment-logos (CC0). Napas, VietQR: logo chính
@@ -173,6 +195,10 @@ export const LY_DO = {
   can_tai_lai_trang: ['dat_banh_b608d6713', 'Trang đặt bánh vừa được cập nhật. Quý khách tải lại trang rồi gửi lại, giỏ hàng cần chọn lại.'],
   chua_dong_y_chinh_sach: ['dat_banh_ea9153cee', 'Quý khách chọn ô đồng ý ngay trên nút gửi.'],
   het_hang_mua_vu: ['dat_banh_b221cfead', 'Một món mùa vụ trong giỏ vừa hết phần. Quý khách bớt số lượng rồi gửi lại.'],
+  /* v693: lịch nhận và sốt chấm của hàng mùa vụ (mua_vu_web.py); máy chủ gửi kèm câu cụ thể. */
+  ngay_mua_vu: ['mv_ly_ngay', 'Ngày nhận chưa đúng lịch của bánh mùa Giáng sinh trong giỏ. Quý khách chọn lại ngày nhận.'],
+  sot_qua_so: ['mv_ly_sot', 'Mỗi bánh Panettone chọn tối đa 2 hũ sốt. Quý khách bớt sốt rồi gửi lại.'],
+  sl_mua_qua_tran: ['mv_ly_sl', 'Mỗi đơn trên web nhận tối đa 20 cho mỗi loại bánh hoặc sốt mùa vụ. Quý khách bớt số lượng rồi gửi lại.'],
   /* v667: món của đợt Đặc biệt tuần này (dac_biet_tuan.py). */
   dac_biet_chua_mo: ['dbt_ly_chua_mo', 'Món cuối tuần chưa mở đơn. Quý khách quay lại khi mở đơn nhé.'],
   dac_biet_da_chot: ['dbt_ly_da_chot', 'Món cuối tuần đã chốt đơn tuần này. Quý khách bỏ món này khỏi giỏ để gửi phần còn lại.'],

@@ -1351,7 +1351,11 @@
      chỉ tới đây khi có người bấm Đưa lên web ở màn Danh mục sản phẩm; chưa có
      ảnh thì khách chưa thấy. Lưu là khách thấy ngay. */
   const CHO_ANH = 'Chờ ảnh', DANG_HIEN = 'Đang hiện', DA_AN = 'Đã ẩn';
-  const TT_BANH = {'Chờ ảnh': 'sap', 'Đang hiện': 'dang', 'Đã ẩn': 'an'};
+  const TT_BANH = {'Chờ ảnh': 'sap', 'Đang hiện': 'dang', 'Đã ẩn': 'an', 'Mùa vụ': 'dang'};
+  /* v693: thẻ nội dung của bánh mùa vụ (tab In season). Bánh hiện theo Mùa vụ nên
+     thẻ không có công tắc Hiện trên web; nhãn trạng thái ghi Mùa vụ. */
+  const MUA_VU = 'Mùa vụ';
+  const ttBanh = x => (x.mua_vu ? MUA_VU : x.trang_thai);
   let BB = null, bTai = false, banhChon = '', banhLoc = '', banhTim = '', bSua = null, bGoc = '', bBao = '';
   function banhDangChon() { return BB && BB.banh.find(x => x.khoa === banhChon) || null; }
   function banSua(x) { return x ? {anh: x.anh.map(a => ({url: a.url})), mo_ta: x.mo_ta || '', tang: x.tang || '', di_ung: x.di_ung || '', bao_quan: x.bao_quan || '', hien: x.trang_thai === DANG_HIEN} : null; }
@@ -1387,7 +1391,9 @@
     g.append(tao('p', 'bt-chu-phu', 'Mỗi bánh một bộ ảnh dùng chung cho mọi size. Giá, size, tồn lấy từ ERP. Bánh mới tới đây khi có người bấm Đưa lên web ở màn Danh mục sản phẩm trên app. Lưu là khách thấy ngay.'));
     const dem = BB.dem || {};
     const chips = tao('div', 'bt-chips');
-    [['', 'Tất cả', BB.banh.length], [CHO_ANH, CHO_ANH, dem[CHO_ANH] || 0], [DANG_HIEN, DANG_HIEN, dem[DANG_HIEN] || 0], [DA_AN, DA_AN, dem[DA_AN] || 0]].forEach(([k, ten, so]) => {
+    const soMua = BB.banh.filter(x => x.mua_vu).length;
+    [['', 'Tất cả', BB.banh.length], [CHO_ANH, CHO_ANH, dem[CHO_ANH] || 0], [DANG_HIEN, DANG_HIEN, dem[DANG_HIEN] || 0], [DA_AN, DA_AN, Math.max(0, (dem[DA_AN] || 0) - soMua)]]
+      .concat(soMua ? [[MUA_VU, MUA_VU, soMua]] : []).forEach(([k, ten, so]) => {
       const b = tao('button', 'bt-chip' + (k === banhLoc ? ' dang' : ''), ten + ' · ' + so); b.type = 'button';
       b.dataset.locBanh = k || 'tat_ca'; b.setAttribute('aria-pressed', String(k === banhLoc));
       b.onclick = () => { banhLoc = k; ve(); };
@@ -1402,7 +1408,7 @@
     function veDs() {
       ds.replaceChildren();
       const q = banhTim.trim().toLocaleLowerCase('vi');
-      const loc = BB.banh.filter(x => (!banhLoc || x.trang_thai === banhLoc) && (!q || (x.ten + ' ' + (x.ma_hang || []).join(' ')).toLocaleLowerCase('vi').includes(q)));
+      const loc = BB.banh.filter(x => (!banhLoc || ttBanh(x) === banhLoc) && (!q || (x.ten + ' ' + (x.ma_hang || []).join(' ')).toLocaleLowerCase('vi').includes(q)));
       if (!BB.banh.length) { ds.append(tao('p', 'bt-rong', 'Chưa có bánh nào. Bấm Đưa lên web ở màn Danh mục sản phẩm trên app để thêm bánh.')); return; }
       if (!loc.length) { ds.append(tao('p', 'bt-rong', 'Không thấy bánh nào khớp.')); return; }
       loc.forEach(x => {
@@ -1411,7 +1417,7 @@
         if (x.anh.length) { const i = tao('img'); i.src = x.anh[0].url; i.alt = ''; b.append(i); }
         else b.append(tao('span', 'bt-banh-trong', '+'));
         const chu = tao('span', 'bt-banh-chu'); chu.append(tao('b', '', x.ten), tao('small', '', chuSize(x) + ' · ' + x.anh.length + ' ảnh'));
-        b.append(chu, tao('span', 'bt-tt ' + (TT_BANH[x.trang_thai] || 'an'), x.trang_thai));
+        b.append(chu, tao('span', 'bt-tt ' + (TT_BANH[ttBanh(x)] || 'an'), ttBanh(x)));
         /* Codex PR #547: đang lưu hay đang tải ảnh thì không cho đổi bánh, để
            phản hồi máy chủ luôn về đúng bản sửa đang mở (ba vòng rà cho thấy
            mọi cách đổi bánh giữa chừng đều làm lệch bản sửa với máy chủ). */
@@ -1475,12 +1481,17 @@
       o('Thành phần dễ gây dị ứng', bSua.di_ung, v => { bSua.di_ung = v; }, {nhieuDong: true, dong: 3, ten: 'di_ung_banh', goi: 'Sữa, trứng, gluten, các loại hạt', chu: 'Khách thấy dưới phần mô tả bánh. Để trống thì trang đặt bánh không hiện mục này.'}),
       o('Bảo quản và sử dụng', bSua.bao_quan, v => { bSua.bao_quan = v; }, {nhieuDong: true, dong: 3, ten: 'bao_quan_banh', goi: 'Giữ lạnh 2 đến 6 độ C, dùng trong ngày', chu: 'Khách thấy dưới phần mô tả bánh. Để trống thì trang đặt bánh không hiện mục này.'}));
     g.append(haiThem);
+    if (x.mua_vu) {
+      const ghi = tao('p', 'bt-chu-phu', 'Bánh mùa vụ: khách thấy bánh này trong tab In season khi Mùa vụ đang bán, không cần bật Hiện trên web. Ô nào để trống thì trang đặt bánh không hiện mục đó. Với Panettone, ô Tầng hương vị hiện trên web là Nguyên liệu chính, mỗi dòng một nguyên liệu. Chưa thêm ảnh ở đây thì web dùng ảnh của hồ sơ món.');
+      ghi.dataset.ghiChuMuaVu = '1';
+      g.append(ghi);
+    }
     const ct = congTac('Hiện trên web', bSua.hien, v => {
       if (v && !bSua.anh.length) { bSua.hien = false; bBao = 'Thêm ít nhất một ảnh trước khi bật Hiện trên web.'; ve(); return; }
       bSua.hien = v;
     }, v => (v ? 'Khách thấy bánh này khi có tồn hoặc nhận đặt' : (bSua.anh.length ? 'Khách không thấy bánh này. ERP và Pancake không đổi' : 'Thêm ảnh rồi bật, khách mới thấy')));
     ct.dataset.congTacBanh = '1';
-    g.append(ct);
+    if (!x.mua_vu) g.append(ct);
     const hang = tao('div', 'bt-hang-nut');
     const luu = tao('button', 'bt-nut chinh', 'Lưu bánh'); luu.type = 'button'; luu.dataset.luuBanh = '1';
     luu.onclick = () => luuBanh(x.khoa);
@@ -1547,7 +1558,7 @@
         bao('Đã lưu bản lúc bấm Lưu. Còn thay đổi gõ trong lúc lưu, bấm Lưu bánh lần nữa.');
       } else {
         moBanh(x);
-        bao(hien ? 'Đã lưu. Khách thấy ngay.' : 'Đã lưu. Bánh đang ẩn với khách.');
+        bao(x && x.mua_vu ? 'Đã lưu. Khách thấy ngay trong tab In season.' : (hien ? 'Đã lưu. Khách thấy ngay.' : 'Đã lưu. Bánh đang ẩn với khách.'));
       }
     } catch (e) { bao(e.message, true); }
     finally { khoa(false); }

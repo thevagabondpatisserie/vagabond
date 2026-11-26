@@ -135,6 +135,41 @@ MUA = {'co': 1, 'ten_mua': 'Trung thu 2026', 'den_ngay': '2026-10-20', 'mon': [
 	{'ma': 'TTHOP01', 'ten': 'Hộp Trăng Rằm', 'gia': 890000, 'con': 24, 'het': 0, 'anh': '/assets/vagabond/web_order/tay-lam-banh-minh-hoa.jpg',
 		'ruot': '1 x Dừa Bưởi Xí Muội, 80gram, 1 x Đậu Xanh Trà Xanh, 80gram'},
 	{'ma': 'TTHOP02', 'ten': 'Hộp Sương Thu', 'gia': 650000, 'con': 0, 'het': 1, 'anh': ''}]}
+
+
+def mua_noel():
+	"""v693: mùa Giáng sinh GIẢ (mã, giá, tồn, nội dung đều bịa cùng dạng) để chụp ảnh và
+	chạy ca DOM tab In season. Bật bằng VGB_MUA=noel hoặc gọi hang_theo_mua?vgb_mua=noel.
+	Ngày kết thúc mùa tính từ hôm nay để ca kiểm không hết hạn. Nhóm dựng bằng ĐÚNG
+	phép gộp của máy chủ (mua_vu_web.gom_nhom)."""
+	import datetime
+	if str(GOC) not in sys.path:
+		sys.path.insert(0, str(GOC))
+	from vagabond import mua_vu_web
+	anh = '/assets/vagabond/web_order/tay-lam-banh-minh-hoa.jpg'
+	def m(ma, ten, gia, con, nhom='', nhan='', loai=''):
+		return {'ma': ma, 'ten': ten, 'gia': gia, 'con': con, 'het': 0 if con > 0 else 1, 'anh': anh, 'la_hop': 0, 'ruot': '',
+			'nhom': nhom, 'nhan_size': nhan, 'loai': loai}
+	mon = [
+		m('NOELBU01', 'Bûche Rừng Thông', 1600000, 12, loai='buche'),
+		m('NOELPA01', 'Classic Panettone 680gr', 780000, 40, 'Classic Panettone', 'Bánh lớn 680gr', 'panettone'),
+		m('NOELPA02', 'Classic Panettone Mini 250gr', 320000, 3, 'Classic Panettone', 'Bánh Mini 250gr', 'panettone'),
+		m('NOELPA03', 'Saigonettone 680gr', 780000, 25, 'Saigonettone', 'Bánh lớn 680gr', 'panettone'),
+		m('NOELPA04', 'Saigonettone Mini 250gr', 320000, 0, 'Saigonettone', 'Bánh Mini 250gr', 'panettone'),
+		m('NOELKH01', 'Hộp quà Giáng sinh', 450000, 8)]
+	nhom = mua_vu_web.gom_nhom(mon)
+	for g in nhom:
+		if g['ten'] == 'Classic Panettone':
+			g.update(mo_ta='Panettone ủ men tự nhiên nhiều ngày, thớ bánh xé sợi, ẩm và thơm bơ. Vỏ cam ngâm vani cùng nho khô rải đều trong ruột bánh.',
+				tang=['Men tự nhiên', 'Bơ lạt', 'Vỏ cam ngâm vani', 'Nho khô'], di_ung='Gluten (bột mì), sữa, trứng, hạnh nhân.',
+				bao_quan='Để nơi khô mát, dùng trong 7 ngày kể từ ngày nhận.')
+	return {'co': 1, 'ten_mua': 'Giáng sinh (thử)', 'den_ngay': str(datetime.date.today() + datetime.timedelta(days=40)),
+		'mon': mon, 'nhom': nhom, 'luat': mua_vu_web.luat_mua({}),
+		'sot': [{'ma': 'NOELSO01', 'ten': 'Sốt Trứng Muối', 'gia': 45000, 'anh': ''}, {'ma': 'NOELSO02', 'ten': 'Sốt Pastry Cream', 'gia': 45000, 'anh': ''},
+			{'ma': 'NOELSO03', 'ten': 'Sốt Panettone', 'gia': 0, 'anh': ''}],
+		'sot_moi_banh': mua_vu_web.SOT_MOI_BANH}
+
+
 QUAY = {'cap_nhat': '2026-10-11 09:41:00', 'quay': [
 	{'ma': 'TCV', 'ten': 'Trần Cao Vân', 'dia_chi': '9 Trần Cao Vân', 'mon': [
 		{'ma': 'TEST1', 'ten': 'Biscotti', 'nhom': 'Bánh nhẹ', 'con': 12, 'gia': 90000, 'anh': '/assets/vagabond/web_order/anh-bia.png'}]},
@@ -208,7 +243,7 @@ def tra_loi_get(phuong, q):
 				{'cm': 16, 'ma': 'BAWC00140', 'gia': 880000, 'con': 3, 'con_mai': 0, 'con_xa': 3}]}]})
 		return TON
 	if phuong == 'hang_theo_mua':
-		return MUA
+		return mua_noel() if (os.environ.get('VGB_MUA') == 'noel' or 'vgb_mua=noel' in (q or '')) else MUA
 	if phuong == 'con_tren_quay_web':
 		return QUAY
 	if phuong == 'cau_hinh_web':

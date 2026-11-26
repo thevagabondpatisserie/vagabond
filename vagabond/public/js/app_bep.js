@@ -2772,6 +2772,11 @@ button,input,select,textarea{font-family:inherit;font-style:inherit;font-stretch
 .kkpk b{color:#05323C;font-weight:800}
 .rok{width:32px;height:32px;flex:0 0 32px;border-radius:50%;border:2px solid #cfd6e4;color:transparent;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;background:#fff;cursor:pointer;margin-top:-1px}
 .ic1.ok .rok{background:#12a150;border-color:#12a150;color:#fff}
+/* v694: vòng Đã đếm có nhãn chữ, vùng chạm 44 điểm (vòng 32 điểm nằm trong). */
+.rokw{flex:0 0 auto;min-width:56px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;margin-top:-4px}
+.rokw .rok{margin-top:0}
+.rokl{font-size:13px;line-height:1.1;color:#5a6070;white-space:nowrap}
+.ic1.ok .rokl{color:#12a150;font-weight:600}
 .ic1.ok{box-shadow:0 0 0 2px #12a150}
 /* Nút thêm/bỏ món trên màn tạo lệnh sản xuất (#206): bấm nhiều lần trên
    điện thoại nên phải đủ 44 điểm (AGENTS.md mục 13); .rok gốc 32 điểm là
@@ -3445,6 +3450,30 @@ function confirmSheet(title, msg, okLabel, danger) {
       '<div style="font-size:15px;color:var(--ui-text-2,#5a6070);line-height:1.5;margin-bottom:var(--ui-kh-16,18px);white-space:pre-line">' + h(msg) + '</div>' +
       '<button class="btn ' + (danger ? 'dg' : '') + '" data-y>' + h(okLabel || 'Đồng ý') + '</button>' +
       '<button class="btn gh" data-n style="margin-top:var(--ui-kh-8,9px)">Huỷ</button></div>';
+    document.body.appendChild(ov);
+    ov.onclick = function (e) {
+      if (e.target === ov || e.target.hasAttribute('data-n')) { ov.remove(); res(false); }
+      if (e.target.hasAttribute('data-y')) { ov.remove(); res(true); }
+    };
+  });
+}
+/* v694 (giám đốc chốt 26/11/2026): hỏi lại có danh sách. Nút CHÍNH (trên, nổi) là
+   quay lại; chỉ bấm đúng nút phụ ghi rõ việc mới trả true. Chạm ra ngoài là quay lại.
+   o: {tieuDe, loi, ds: [{ten, phu}], nutQuayLai, nutTiepTuc}. */
+function chonSheet(o) {
+  return new Promise(function (res) {
+    var ov = document.createElement('div'); ov.className = 'sh';
+    ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
+      '<div style="font-size:var(--ui-fs-17,17.5px);font-weight:700;margin-bottom:8px">' + h(o.tieuDe) + '</div>' +
+      '<div style="font-size:15px;color:var(--ui-text-2,#5a6070);line-height:1.5;margin-bottom:10px;white-space:pre-line">' + h(o.loi) + '</div>' +
+      '<div class="chs-ds" style="max-height:40vh;overflow-y:auto;border:1px solid #e4e7ec;border-radius:10px;margin-bottom:var(--ui-kh-16,18px)">' +
+      (o.ds || []).map(function (x) {
+        return '<div class="chs-d" style="display:flex;gap:10px;justify-content:space-between;align-items:center;min-height:44px;padding:8px 12px;border-bottom:1px solid #f0f2f5;font-size:15px">' +
+          '<span style="flex:1;min-width:0;overflow-wrap:anywhere">' + h(x.ten) + '</span>' +
+          '<b style="flex:0 0 auto;white-space:nowrap">' + h(x.phu) + '</b></div>';
+      }).join('') + '</div>' +
+      '<button class="btn" data-n>' + h(o.nutQuayLai || 'Quay lại') + '</button>' +
+      '<button class="btn gh" data-y style="margin-top:var(--ui-kh-8,9px);white-space:normal;line-height:1.35;min-height:44px">' + h(o.nutTiepTuc) + '</button></div>';
     document.body.appendChild(ov);
     ov.onclick = function (e) {
       if (e.target === ov || e.target.hasAttribute('data-n')) { ov.remove(); res(false); }
@@ -12337,6 +12366,32 @@ async function rcvScanOpen() {
 
 var rcvD = null;
 
+/* v694 (giám đốc chốt 26/11/2026, Kho báo PNK-2026-01107: hai dòng không bấm
+   Đã đếm vẫn được nhập). Vòng Đã đếm chỉ là dấu theo dõi của người đếm; hệ thống
+   nhập theo ô Số lượng thực nhận (điền sẵn bằng số còn lại). Trước khi xác nhận,
+   dòng nào CHƯA đánh dấu mà số lượng > 0 thì hiện danh sách; mặc định quay lại
+   kiểm, chỉ nút "Xác nhận nhập cả các dòng chưa đánh dấu" mới cho đi tiếp. */
+var NHK_GOI_Y = 'Vòng <b>Đã đếm</b> chỉ để bạn đánh dấu món đã đếm xong. Hệ thống nhập theo ô <b>Số lượng thực nhận</b>: món không về thì bấm &minus; cho về 0.';
+function nhkNutDem(attr, i, ok) {
+  return '<div class="rokw" ' + attr + '="' + i + '" role="button" aria-pressed="' + (ok ? 'true' : 'false') + '" aria-label="Đánh dấu đã đếm">' +
+    '<div class="rok">&#10003;</div><span class="rokl">Đã đếm</span></div>';
+}
+function nhkChuaDem(L) {
+  return L.filter(function (x) { return !x.ok && (x.got || 0) > 0.0001; })
+    .map(function (x) { return { ten: x.nm, phu: num(x.got) + ' ' + (x.uom || '') }; });
+}
+async function nhkHoiChuaDem(L) {
+  var ds = nhkChuaDem(L);
+  if (!ds.length) return true;
+  return chonSheet({
+    tieuDe: 'Còn ' + ds.length + ' dòng chưa đánh dấu Đã đếm',
+    loi: 'Các dòng dưới đây chưa đánh dấu Đã đếm nhưng ô Số lượng thực nhận lớn hơn 0. Nếu tiếp tục, hệ thống nhập kho đúng các số này. Món chưa về thì quay lại, bấm \u2212 cho về 0.',
+    ds: ds,
+    nutQuayLai: 'Quay lại kiểm',
+    nutTiepTuc: 'Xác nhận nhập cả các dòng chưa đánh dấu'
+  });
+}
+
 function hsdNote(x) {
   if (x.giu) return 'Chưa đọc được HSD lô. Máy chủ giữ hạn đã lưu nếu anh chị chưa sửa ô ngày.';
   if (!x.hsd) return 'Chưa nhập HSD trên bao bì. Có thể để trống khi chưa biết.';
@@ -12422,6 +12477,7 @@ async function scrRecvDoc(name) {
     var x = rcvD.lines[i], el = document.querySelector('#vgbBody [data-r="' + i + '"]');
     if (!el) return;
     if (x.ok) el.classList.add('ok'); else el.classList.remove('ok');
+    var rk = el.querySelector('.rokw'); if (rk) rk.setAttribute('aria-pressed', x.ok ? 'true' : 'false');
     if (x.got > 0) el.classList.remove('zero'); else el.classList.add('zero');
     var q = el.querySelector('[data-q]');
     if (q && String(q.value) !== String(x.got)) q.value = x.got;
@@ -12449,6 +12505,7 @@ async function scrRecvDoc(name) {
     if (!keep.length) return toast('Chưa có món nào có số lượng, chưa nhập kho được');
     var du = L.filter(function (x) { return (x.got || 0) > (x.ord || 0) + 0.0001; });
     if (du.length) return toast('Nhà cung cấp giao dư ' + du.length + ' món so với số còn phải nhận. Chỉ nhập đúng số còn lại, phần dư báo Thu mua lên đơn bổ sung rồi nhập sau.', 7000);
+    if (!await nhkHoiChuaDem(L)) return;
     var thieu = L.filter(function (x) { return (x.got || 0) < (x.ord || 0) - 0.0001; });
     var msg = 'Nhập kho ' + keep.length + ' món.';
     if (thieu.length) msg += ' Có ' + thieu.length + ' món nhận thiếu hoặc không về, phần còn lại vẫn treo trên đơn mua hàng - vào tab "Còn phải nhận" để nhận đợt sau.';
@@ -12475,7 +12532,7 @@ async function scrRecvDoc(name) {
       '<div class="kpb"><i id="rcvpb" style="width:' + (L.length ? Math.round(okN * 100 / L.length) : 0) + '%"></i></div></div>' +
       '<div class="kv"><span>Nhà cung cấp</span><b>' + h(doc.supplier_name || doc.supplier || '') + '</b></div>' +
       '<div class="kv"><span>Số phiếu</span><b>' + h(name) + '</b></div></div>';
-    body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Không nhập quá số còn lại: nhà cung cấp giao dư thì báo thu mua lên đơn bổ sung. Bấm nút máy ảnh ở góc trên để quét mã từng món cho nhanh.</div>';
+    body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Không nhập quá số còn lại: nhà cung cấp giao dư thì báo thu mua lên đơn bổ sung. Bấm nút máy ảnh ở góc trên để quét mã từng món cho nhanh.<br>' + NHK_GOI_Y + '</div>';
     var chuaGiaN = (doc.items || []).filter(function (rr) { return !((rr.rate || 0) > 0); }).length;
     if (chuaGiaN) body += '<div style="margin:10px 12px;padding:12px 14px;border-radius:14px;background:#fff6e5;color:#8a5b00;font-size:13px;line-height:1.5">Đơn này có ' + chuaGiaN + ' món chưa có đơn giá. Vẫn nhập kho được nhưng giá vốn ghi 0, nhớ báo kế toán bổ sung giá.</div>';
     body += L.map(function (x, i) {
@@ -12483,7 +12540,7 @@ async function scrRecvDoc(name) {
         '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
         '<div class="in">' + h(x.nm) +
         '<div class="ig">' + h(x.code) + ' \u00b7 ' + h(shortWh(x.wh) || '') + '</div></div>' +
-        '<div class="rok" data-ok="' + i + '">&#10003;</div></div>' +
+        nhkNutDem('data-ok', i, x.ok) + '</div>' +
         (x.po
           ? nhpBaSo({ sl_dat: x.po.dat, sl_da_nhan: x.po.daNhan, sl_con: x.po.con })
           : '<div style="padding:0 12px 8px;font-size:12.5px;color:#5a6070">Đặt ' + num(x.ord) + ' ' + h(x.uom) + '</div>') +
@@ -12670,6 +12727,7 @@ async function scrNhpDon(don) {
     var x = L[i], el = document.querySelector('#vgbBody [data-nr="' + i + '"]');
     if (!el) return;
     el.classList.toggle('ok', !!x.ok);
+    var rk = el.querySelector('.rokw'); if (rk) rk.setAttribute('aria-pressed', x.ok ? 'true' : 'false');
     el.classList.toggle('zero', !(x.got > 0));
     var q = el.querySelector('[data-nq]');
     if (q && String(q.value) !== String(x.got)) q.value = x.got;
@@ -12684,6 +12742,7 @@ async function scrNhpDon(don) {
   async function nhpLuu() {
     var gui = L.filter(function (x) { return (x.got || 0) > 0.0001; });
     if (!gui.length) return toast('Chưa có món nào có số lượng, chưa nhập kho được');
+    if (!await nhkHoiChuaDem(L)) return;
     var thieu = conL.filter(function (x) { return (x.got || 0) < x.con - 0.0001; });
     var msg = 'Nhập kho ' + gui.length + ' món cho đợt ' + d.dot_toi + '.';
     if (thieu.length) msg += ' Còn ' + thieu.length + ' món nhận thiếu, phần chưa nhận vẫn treo trên đơn mua để lần sau nhận tiếp.';
@@ -12753,7 +12812,7 @@ async function scrNhpDon(don) {
     }
 
     body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Nhà cung cấp giao dư trong <b>' +
-      num(d.dung_sai_thua || 0) + '%</b> thì máy cho nhận và ghi lại vết; dư nhiều hơn thì báo thu mua lên đơn bổ sung.</div>';
+      num(d.dung_sai_thua || 0) + '%</b> thì máy cho nhận và ghi lại vết; dư nhiều hơn thì báo thu mua lên đơn bổ sung.<br>' + NHK_GOI_Y + '</div>';
 
     body += '<div class="sec">Đợt ' + d.dot_toi + ' · ' + conL.length + ' món còn phải nhận</div>';
     body += L.map(function (x, i) {
@@ -12769,7 +12828,7 @@ async function scrNhpDon(don) {
         '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
         '<div class="in">' + h(x.nm) +
         '<div class="ig">' + h(x.code) + ' · ' + h(shortWh(x.wh) || '') + '</div></div>' +
-        '<div class="rok" data-nok="' + i + '">&#10003;</div></div>' +
+        nhkNutDem('data-nok', i, x.ok) + '</div>' +
         nhpBaSo({ sl_dat: x.dat, sl_da_nhan: x.daNhan, sl_con: x.con }) +
         '<div class="qw"><div style="flex:1;min-width:0">' +
         '<div class="lb">Số lượng thực nhận' + (Math.abs(x.got - x.con) > 0.0001 ? ' <b class="lbw">(khác số còn lại)</b>' : '') + '</div>' +
@@ -25284,6 +25343,7 @@ function mvDsSpHtml(ds) {
       '<b style="font-size:13.5px">' + h(x.ten_banh || x.ma_hang) + '</b>' +
       '<div style="font-size:11px;color:#98a2b3">' + h(x.ma_hang) +
       (x.nhan_ngan ? ' · lịch ghi <b>' + h(x.nhan_ngan) + '</b>' : '') +
+      (x.nhom_web || x.loai_web ? ' · web: ' + h([x.nhom_web, x.nhan_size, x.loai_web].filter(Boolean).join(', ')) : '') +
       (x.tran_ngay ? ' · trần ' + money(x.tran_ngay) + '/ngày' : '') + '</div></div>' +
       '<div style="text-align:right"><b style="font-size:15px;color:' + mau + '">' + h(nhan) + '</b>' +
       '<div style="font-size:11px;color:#9ca3af">' +
@@ -25410,9 +25470,28 @@ async function mvSuaSx(ma) {
     {
       value: 'khong_tran', label: x.khong_tran ? 'Bỏ đánh dấu "chỉ làm theo hộp"' : 'Đánh dấu "chỉ làm theo hộp"',
       phu: x.khong_tran ? 'bật lại chốt chặn bán lố cho mã này' : 'không đặt trần riêng, không chặn bán lố, không lên chip cảnh báo'
-    }
+    },
+    /* v693: ba ô quyết cách bánh hiện trên tab In season của web đặt bánh. */
+    { value: 'nhom_web', label: 'Nhóm trên web', phu: x.nhom_web ? 'đang là ' + x.nhom_web : 'chưa đặt, bánh đứng một thẻ riêng trên web' },
+    { value: 'nhan_size', label: 'Nhãn size trên web', phu: x.nhan_size ? 'đang là ' + x.nhan_size : 'chưa đặt, ví dụ Bánh lớn 680gr' },
+    { value: 'loai_web', label: 'Loại trên web', phu: x.loai_web ? 'đang là ' + x.loai_web : 'chưa chọn, web bán như hàng mùa vụ thường' }
   ], '', async function (it) {
     if (it.value === 'khong_tran') return mvLuuO(ma, 'khong_tran', x.khong_tran ? 0 : 1);
+    if (it.value === 'nhom_web' || it.value === 'nhan_size') {
+      var chu = await hoiNhap(it.value === 'nhom_web'
+        ? 'Tên thẻ bánh trên web, ví dụ Classic Panettone. Các mã cùng tên nhóm gộp thành một thẻ. Để trống là đứng riêng.'
+        : 'Chữ khách thấy khi chọn size, ví dụ Bánh lớn 680gr hoặc Bánh Mini 250gr.', String(x[it.value] || ''));
+      if (chu === null) return;
+      return mvLuuO(ma, it.value, String(chu).trim());
+    }
+    if (it.value === 'loai_web') {
+      return sheet('Loại trên web của "' + ten + '"', [
+        { value: 'Panettone', label: 'Panettone', phu: 'nhận theo thứ đã cài, không cờ lời chúc, không dĩa nĩa, có sốt chấm' },
+        { value: 'Bûche', label: 'Bûche', phu: 'đặt trước theo số ngày đã cài, cờ lời chúc và phụ kiện như bánh sinh nhật' },
+        { value: 'Khác', label: 'Khác', phu: 'hàng mùa vụ thường, không có lịch riêng' },
+        { value: 'bo_chon', label: 'Bỏ chọn', phu: 'như Khác' }
+      ], x.loai_web || 'bo_chon', function (l) { return mvLuuO(ma, 'loai_web', l.value === 'bo_chon' ? '' : l.value); });
+    }
     if (it.value === 'nhan_ngan') {
       var n = await hoiNhap('Nhãn ngắn hiện trong ô lịch tháng (tối đa 6 chữ)', String(x.nhan_ngan || ''));
       if (n === null) return;
@@ -28062,7 +28141,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '692';
+var APPVER = '696';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

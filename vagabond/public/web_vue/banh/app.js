@@ -12,7 +12,7 @@ import {createApp, computed, watch, nextTick} from '../lib/vue.esm-browser.prod.
 import {ND, t, tMon, napNoiDung, laXemThu, telChu, telSo, mxh, anhWeb} from '../kho/chu.js';
 import {doc, ghi} from '../kho/api.js';
 import {taoKho} from './kho-banh.js';
-import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE, DUNG_CU_DON, THIEP_EP_KIM, ANH_CO, LOGO_TT} from './du-lieu.js';
+import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE, DUNG_CU_DON, THIEP_EP_KIM, ANH_CO, LOGO_TT, kemMua, THIEP_MUA} from './du-lieu.js';
 import {LOGO} from './anh.js';
 import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
 import {KhoiNoiDung, TieuDeMuc, KenhNoi, ChuyenMuc, dsMuc, TD, UD} from './noi-dung.js';
@@ -28,6 +28,7 @@ import {DacBietTuan} from './dac-biet-tuan.js';
 import {GoiYMua} from './goi-y-mua.js';
 import {gaTuMeta} from '../kho/thuan.js';
 import {laMienSach, manHienTai, diaChiMan, doiLinkCu, hrefMan} from './duong-sach.js';
+import {nhipDoc} from './nhip-doc.js';
 
 function luuTruAnToan() {
   try { const s = window.sessionStorage; s.getItem('x'); return s; } catch (e) { return null; }
@@ -154,24 +155,38 @@ export function khoiDong(goc = '#app') {
         const ra = [];
         S.CART.forEach(o => {
           const x = o.qty > 1 ? ' ' + t('dat_banh_67fba2f35', '×') + ' ' + o.qty : '';
-          ra.push({k: o.id + 'b' + ra.length, nhan: tMon(o.id, 'ten', o.k) + (o.cm ? ' · Ø ' + o.cm + 'cm' : '') + x, gia: kho.T.tienVN(o.price * o.qty)});
+          ra.push({k: o.id + 'b' + ra.length, nhan: kho.tenMonGio(o) + (o.cm ? ' · Ø ' + o.cm + 'cm' : '') + x, gia: kho.T.tienVN(o.price * o.qty)});
           o.adds.forEach(a => ra.push({k: a.id + 'a' + ra.length, nhan: '+ ' + a.n + x, gia: kho.T.tienVN(a.p * o.qty)}));
         });
         return ra;
       });
-      const monMua = computed(() => (S.MUA.mon || []).map(m => ({m, ten: tMon(m.ma, 'ten', m.ten), moTa: tMon(m.ma, 'mo_ta', m.ruot),
-        chip: m.het ? t('dat_banh_053152152', 'Tạm hết') : kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)})));
+      /* v693: mỗi thẻ của tab In season là một nhóm bánh (gộp size). Thẻ nhiều size hoặc có
+         lựa chọn (sốt, phụ kiện) thì bấm vào mới chọn; thẻ một mã như mùa cũ vẫn có nút thêm nhanh. */
+      const tinhSize = (g, z) => (z.het ? t('dat_banh_053152152', 'Tạm hết') : kho.T.nhanTon(z.con, g.loai ? t('dat_banh_3556aabb5', 'bánh') : t('dat_banh_d2cd4ec77', 'phần'), t));
+      const monMua = computed(() => kho.nhomMua.value.map(g => ({g, ten: tMon(g.sizes[0].ma, 'ten', g.ten), moTa: g.gop ? '' : tMon(g.sizes[0].ma, 'mo_ta', g.ruot),
+        tu: g.sizes.length > 1, gia: tienTom(g.gia_tu || 0), nhanh: g.sizes.length === 1 && !g.loai && !g.het,
+        chips: g.sizes.map(z => ({ma: z.ma, has: !z.het, chu: g.sizes.length > 1 && z.nhan ? (z.het ? z.nhan + ' · ' + tinhSize(g, z) : z.nhan) : tinhSize(g, z)}))})));
       const muaXem = computed(() => {
-        const m = S.muaDangXem; if (!m) return null;
-        const moTa = tMon(m.ma, 'mo_ta', m.ruot);
-        return {m, ten: tMon(m.ma, 'ten', m.ten), ruot: kho.T.tachRuot(moTa),
-          tinh: m.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)};
+        const x = kho.muaDangXem.value; if (!x) return null;
+        const {g, z} = x, ma = g.sizes[0].ma;
+        const moTaCu = g.gop ? '' : tMon(ma, 'mo_ta', g.ruot);
+        const tang = (g.tang || []).filter(l => String(l).trim());
+        const anhs = (g.anhs && g.anhs.length ? g.anhs : [z.anh || g.anh].filter(Boolean)).slice(0, 5);
+        return {g, z, sl: x.sl, ten: tMon(ma, 'ten', g.ten), anhs, anh: (g.anhs && g.anhs[0]) || z.anh || g.anh,
+          ruot: g.loai ? [] : kho.T.tachRuot(moTaCu),
+          moTa: g.mo_ta || '', tang, diUng: g.di_ung || '', baoQuan: g.bao_quan || '',
+          coNoiDung: !!(g.mo_ta || tang.length || g.di_ung || g.bao_quan),
+          tinh: z.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + tinhSize(g, z),
+          sizes: g.sizes.map(s => ({s, on: s.ma === z.ma, gia: tienTom(s.gia || 0), nhan: s.nhan || t('dat_banh_8a6c6356d', '1 cỡ'), em: tinhSize(g, s)})),
+          kem: kemMua(g.loai, z.nhan), luat: kho.chuLuatLoai(g.loai),
+          sot: kho.duocChonSot.value ? kho.sotMua.value.map(y => ({y, ten: tMon(y.ma, 'ten', y.ten), gia: y.gia > 0 ? tienTom(y.gia) : t('mv_sot_mien_phi', 'Miễn phí'), so: x.sot[y.ma] || 0})) : [],
+          laBuche: g.loai === 'buche'};
       });
       const tienTom = n => kho.T.tienVN(n);
       return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, DUNG_CU_DON, PAYS, HUONG_SIZE, THIEP_EP_KIM, ANH_CO, LOGO_TT, anhWeb, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, hm: x => hrefMan(SACH, x), moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
-        moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh, chonNguoiNhan, cuonToi, dongYBo, nhapOMa, phimOMa, doiSoDt};
+        moMua: g => nav('#/in-season/' + encodeURIComponent(g.khoa)), themTuMua, THIEP_MUA, tgl, gioMo2: () => nav('#/gio-hang'), mxh, chonNguoiNhan, cuonToi, dongYBo, nhapOMa, phimOMa, doiSoDt};
     }
   });
 
@@ -229,18 +244,18 @@ export function khoiDong(goc = '#app') {
       if (!(S.dongDangSua >= 0 && S.cur === c)) { S.dongDangSua = -1; kho.moBanh(c); }
       S.anhChon = 0;
       if (truocDo === 'gio') kho.roiGio();
-      S.muaDangXem = null; S.trang = 'banh';
+      kho.dongMuaXem(); S.trang = 'banh';
       return;
     }
     if (mMua) {
-      const m = kho.timMonMua(decodeURIComponent(mMua[1]));
+      const m = kho.moMua(decodeURIComponent(mMua[1]));
       S.cur = null; if (truocDo === 'gio') kho.roiGio();
-      S.tab = 'season'; S.muaDangXem = m; S.trang = m ? 'mua' : 'danh_muc';
+      S.tab = 'season'; S.trang = m ? 'mua' : 'danh_muc';
       return;
     }
     if (/^\/gio-hang/.test(h)) {
       if (!S.CART.length) { nav('#/', true); return; }
-      S.cur = null; S.muaDangXem = null; S.trang = 'gio';
+      S.cur = null; kho.dongMuaXem(); S.trang = 'gio';
       if (truocDo !== 'gio') { kho.moGio(); nextTick(() => { const co = document.getElementById('checkout'); if (co) co.scrollTop = 0; }); }
       return;
     }
@@ -250,7 +265,7 @@ export function khoiDong(goc = '#app') {
   function dongHet() {
     dongSheetVe();
     if (S.trang === 'gio') kho.roiGio();
-    S.cur = null; S.dongDangSua = -1; S.muaDangXem = null; S.trang = 'danh_muc';
+    S.cur = null; S.dongDangSua = -1; kho.dongMuaXem(); S.trang = 'danh_muc';
   }
   window.addEventListener('popstate', apDuongDan);
 
@@ -263,7 +278,7 @@ export function khoiDong(goc = '#app') {
   }
   function suaDongGio(i) { const c = kho.suaDongGio(i); if (!c) return; const giu = S.dongDangSua; nav('#/banh/' + kho.T.slug(c.k)); S.dongDangSua = giu; }
   function moGio() { if (!S.CART.length) { kho.toast(t('dat_banh_28c1cf2d1', 'Giỏ chưa có bánh nào')); return; } nav('#/gio-hang'); }
-  function themTuMua() { if (S.muaDangXem && kho.themHangMua(S.muaDangXem.ma)) nhichThanh(); }
+  function themTuMua() { if (kho.themTuMuaXem()) { nhichThanh(); nav('#/in-season'); } }
   function tgl(k) {
     S.CO[k] = !S.CO[k];
     if ((k === 'other' || k === 'vat') && S.CO[k]) nextTick(() => { const o = document.querySelector(k === 'other' ? '#otherBlock input' : '#vatBlock input'); if (o) o.focus(); });
@@ -400,12 +415,17 @@ export function khoiDong(goc = '#app') {
     /* Link chia sẻ #/thiet-ke-rieng/<mã> mở trước khi nội dung về: chọn sẵn size sau khi có tác phẩm. */
     const m = man().match(/^\/thiet-ke-rieng\/(.+)$/); if (m) moTacPham(decodeURIComponent(m[1]));
   });
-  kho.napTon().then(apDuongDanNeuBanh);
-  setInterval(kho.napTon, 60000);
-  kho.napMua().then(() => { if (/^\/in-season\//.test(man())) apDuongDan(); });
-  setInterval(kho.napMua, 300000);
-  kho.napQuay();
-  setInterval(kho.napQuay, 60000);
+  /* v693 (sự cố 25/11/2026, site hết trần thời gian máy chủ): mỗi loại số một nhịp
+     duy nhất (nhipDoc). Tab đang ẩn (máy khoá, chuyển app, tab nền) thì không hỏi máy
+     chủ; hiện lại thì đọc ngay nếu số đã cũ. Lượt đang chạy chưa xong thì không gửi
+     thêm, vừa đọc xong thì nhịp kế tiếp bỏ qua: không có yêu cầu trùng. */
+  const ton = nhipDoc(kho.napTon, 60000), mua = nhipDoc(kho.napMua, 300000), quay = nhipDoc(kho.napQuay, 60000);
+  ton.chay().then(apDuongDanNeuBanh);
+  mua.chay().then(() => { if (/^\/in-season\//.test(man())) apDuongDan(); });
+  quay.chay();
+  const cacNhip = [ton, mua, quay];
+  setInterval(() => cacNhip.forEach(n => n.nhip()), 5000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) cacNhip.forEach(n => n.hien()); });
   /* v638: link QR một bàn. Đúng thì mở thẳng tab Tại quầy ở chế độ gọi món;
      mất phần #/in-store (vài app quét QR cắt) thì tự thêm lại. */
   kho.goiBan.kiemLink().then(b => {

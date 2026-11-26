@@ -12,13 +12,14 @@
  "search_fields": "ten,ma_hang",
  "sort_field": "modified",
  "sort_order": "DESC",
- "modified": "2026-11-19 14:00:00.000000",
+ "modified": "2026-11-26 12:00:00.000000",
  "description": "v644: ảnh, mô tả và tầng hương vị của MỘT bánh trên web (mọi size dùng chung). Sửa ở trình biên tập web, thẻ Bánh.",
  "field_order": [
   "khoa",
   "ten",
   "trang_thai",
   "ma_hang",
+  "mua_vu",
   "anh",
   "mo_ta",
   "tang",
@@ -61,6 +62,13 @@
    "fieldtype": "Small Text",
    "read_only": 1,
    "description": "Mỗi dòng một mã hàng ERP thuộc bánh này."
+  },
+  {
+   "fieldname": "mua_vu",
+   "fieldtype": "Check",
+   "label": "Bánh mùa vụ",
+   "default": "0",
+   "description": "Thẻ nội dung của bánh mùa vụ (tab In season). Bánh hiện theo Mùa vụ, không theo trạng thái của thẻ này."
   },
   {
    "fieldname": "anh",

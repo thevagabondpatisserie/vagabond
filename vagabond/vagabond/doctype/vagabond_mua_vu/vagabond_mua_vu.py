@@ -27,6 +27,15 @@ class VagabondMuaVu(Document):
 		hang gioi han thi mot don giu cho chua chot van la mot hop khong con
 		de ban cho nguoi khac. Khach huy thi don huy, so tu tra lai.
 		"""
+		# v693: bốn ô lịch của web người điền tay, ghi sai thì chặn ngay ở cửa nhập.
+		from vagabond import mua_vu_web
+
+		loi = mua_vu_web.loi_cai_dat({k: self.get(k) for k in ("panettone_thu", "panettone_truoc", "buche_thu", "buche_truoc")})
+		if loi:
+			import frappe
+
+			frappe.throw(" ".join(loi))
+
 		from vagabond.mua_vu import (
 			ap_doi_ruot,
 			banh_le_trong_hop,
@@ -140,3 +149,16 @@ class VagabondMuaVu(Document):
 				d.ghep_duoc = 0
 				d.con_thuc_te = cint(d.co_the_ban)
 				d.ruot_khong_rang_buoc = 0
+
+	def on_update(self):
+		"""v693: nhóm bánh mùa vụ có Loại hoặc Nhóm trên web được một thẻ nội dung
+		ở trình biên tập (thẻ Bánh). Hỏng bước này không được làm hỏng việc lưu
+		Mùa vụ (đồng bộ Pancake lưu bản ghi này theo nhịp)."""
+		import frappe
+
+		try:
+			from vagabond import mua_vu_web
+
+			mua_vu_web.tao_the_noi_dung(self)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Vagabond: không tạo được thẻ nội dung bánh mùa vụ")

@@ -9417,5 +9417,277 @@
     "ten": "Ô Phường giao: chữ cũ sau tên quận cũ (Quận 3 cũ)",
     "nhom": "gio_hang",
     "mac_dinh": "cũ"
+  },
+  "mv_sot_mien_phi": {
+    "ten": "Sốt chấm: chữ thay giá khi giá bằng 0",
+    "nhom": "dat_banh",
+    "mac_dinh": "Miễn phí"
+  },
+  "mv_ly_ngay": {
+    "ten": "Mùa vụ: máy chủ từ chối ngày nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày nhận chưa đúng lịch của bánh mùa Giáng sinh trong giỏ. Quý khách chọn lại ngày nhận."
+  },
+  "mv_ly_sot": {
+    "ten": "Mùa vụ: máy chủ từ chối số hũ sốt",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi bánh Panettone chọn tối đa 2 hũ sốt. Quý khách bớt sốt rồi gửi lại."
+  },
+  "mv_luat_thu": {
+    "ten": "Lịch nhận mùa vụ: vế thứ nhận ({thu} là các thứ)",
+    "nhom": "dat_banh",
+    "mac_dinh": "chỉ nhận {thu}"
+  },
+  "mv_luat_truoc": {
+    "ten": "Lịch nhận mùa vụ: vế đặt trước ({so} là số ngày)",
+    "nhom": "dat_banh",
+    "mac_dinh": "cần đặt trước ít nhất {so} ngày"
+  },
+  "mv_luat_ngay": {
+    "ten": "Lịch nhận mùa vụ: vế nhận trong ngày",
+    "nhom": "dat_banh",
+    "mac_dinh": "nhận được ngay trong ngày"
+  },
+  "mv_luat_va": {
+    "ten": "Lịch nhận mùa vụ: chữ nối hai vế",
+    "nhom": "dat_banh",
+    "mac_dinh": " và "
+  },
+  "mv_luat_ca_hai": {
+    "ten": "Lịch nhận mùa vụ: giỏ có cả Panettone và Bûche ({luat} là luật chung)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đơn có cả Panettone và Bûche nên cả đơn theo lịch chặt hơn: {luat}."
+  },
+  "mv_luat_pan": {
+    "ten": "Lịch nhận mùa vụ: giỏ có Panettone",
+    "nhom": "dat_banh",
+    "mac_dinh": "Panettone {luat}."
+  },
+  "mv_luat_buche": {
+    "ten": "Lịch nhận mùa vụ: giỏ có Bûche",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bûche {luat}."
+  },
+  "mv_luat_het_mua": {
+    "ten": "Lịch nhận mùa vụ: ngày cuối của mùa ({ngay})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mùa này nhận bánh tới hết {ngay}."
+  },
+  "mv_tach_don": {
+    "ten": "Mùa vụ: nhắc tách đơn khi giỏ có bánh hôm nay",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh có sẵn hôm nay nhận trong ngày, còn bánh mùa Giáng sinh trong giỏ cần đặt trước. Quý khách gửi đơn đang có trước rồi đặt tiếp."
+  },
+  "mv_gio_kem": {
+    "ten": "Giỏ: dòng đồ đã gồm trong giá của bánh mùa vụ ({ds})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã gồm: {ds}"
+  },
+  "mv_khong_ngay_chung": {
+    "ten": "Mùa vụ: bánh sắp thêm không chung ngày nhận với giỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh này và bánh trong giỏ không có chung ngày nhận. Quý khách gửi đơn đang có trước rồi đặt tiếp."
+  },
+  "mv_sot_toi_da": {
+    "ten": "Sốt chấm: nhắc khi chọn quá số hũ ({so})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi bánh chọn tối đa {so} hũ sốt."
+  },
+  "mv_the_thu": {
+    "ten": "Tab In season: vế thứ nhận trong dòng lịch",
+    "nhom": "dat_banh",
+    "mac_dinh": "nhận {thu}"
+  },
+  "mv_the_truoc": {
+    "ten": "Tab In season: vế đặt trước trong dòng lịch",
+    "nhom": "dat_banh",
+    "mac_dinh": "đặt trước ít nhất {so} ngày"
+  },
+  "mv_the_ngay": {
+    "ten": "Tab In season: vế nhận trong ngày",
+    "nhom": "dat_banh",
+    "mac_dinh": "nhận được trong ngày"
+  },
+  "mv_gia_tu": {
+    "ten": "Tab In season: chữ \"từ\" trước giá thấp nhất của thẻ nhiều size",
+    "nhom": "dat_banh",
+    "mac_dinh": "từ"
+  },
+  "mv_thiep_tieu_de": {
+    "ten": "Giỏ: tiêu đề mục Thiệp khi không bánh nào có cờ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thiệp"
+  },
+  "mv_thiep_nhan": {
+    "ten": "Giỏ: nhãn Thiệp của bánh mùa vụ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thiệp (miễn phí)"
+  },
+  "mv_thiep_mo_ta": {
+    "ten": "Giỏ: giải thích thiệp miễn phí của bánh mùa vụ",
+    "nhom": "dat_banh",
+    "mac_dinh": "The Vagabond viết tay lời quý khách gửi lên thiệp. Để trống thì gửi thiệp trơn."
+  },
+  "mv_nguyen_lieu": {
+    "ten": "Bánh mùa vụ: tiêu đề Nguyên liệu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nguyên liệu"
+  },
+  "mv_nguyen_lieu_chinh": {
+    "ten": "Bánh mùa vụ: chữ nghiêng sau Nguyên liệu",
+    "nhom": "dat_banh",
+    "mac_dinh": "chính"
+  },
+  "mv_chon_size": {
+    "ten": "Bánh mùa vụ: tiêu đề mục chọn size",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn size bánh"
+  },
+  "mv_luat_tieu": {
+    "ten": "Bánh mùa vụ: chữ đầu dòng lịch nhận trong chi tiết bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lịch nhận bánh:"
+  },
+  "mv_sot_tieu_de": {
+    "ten": "Sốt chấm: tiêu đề mục",
+    "nhom": "dat_banh",
+    "mac_dinh": "Sốt chấm đi kèm"
+  },
+  "mv_sot_mo_ta": {
+    "ten": "Sốt chấm: dòng giải thích ({so} là số hũ tối đa mỗi bánh)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn tối đa {so} hũ cho mỗi bánh. Đặt nhiều bánh thì số hũ nhân theo số bánh."
+  },
+  "mv_sot_chu": {
+    "ten": "Sốt chấm: chữ trong ô khi sốt chưa có ảnh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Sốt"
+  },
+  "mv_sot_du": {
+    "ten": "Sốt chấm: báo đã chọn đủ ({so})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã chọn đủ {so} hũ cho mỗi bánh."
+  },
+  "mv_kem_tui_pan": {
+    "ten": "Kèm theo bánh mùa vụ: Túi Panettone",
+    "nhom": "san_pham",
+    "mac_dinh": "Túi Panettone"
+  },
+  "mv_kem_tui_pan_mo": {
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (túi riêng cho hộp Panettone)",
+    "nhom": "san_pham",
+    "mac_dinh": "túi riêng cho hộp Panettone"
+  },
+  "anh_mv_tui_pan": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Túi Panettone (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_kem_thiep_noel": {
+    "ten": "Kèm theo bánh mùa vụ: Thiệp Giáng sinh",
+    "nhom": "san_pham",
+    "mac_dinh": "Thiệp Giáng sinh"
+  },
+  "mv_kem_thiep_mo": {
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (miễn phí, ghi lời ở bước Thông tin đơn hàng)",
+    "nhom": "san_pham",
+    "mac_dinh": "miễn phí, ghi lời ở bước Thông tin đơn hàng"
+  },
+  "anh_mv_thiep_noel": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Thiệp Giáng sinh (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_kem_hop_pan_lon": {
+    "ten": "Kèm theo bánh mùa vụ: Hộp màu nâu champagne",
+    "nhom": "san_pham",
+    "mac_dinh": "Hộp màu nâu champagne"
+  },
+  "mv_kem_hop_pan_lon_mo": {
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (hộp riêng cho bánh lớn)",
+    "nhom": "san_pham",
+    "mac_dinh": "hộp riêng cho bánh lớn"
+  },
+  "anh_mv_hop_pan_lon": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Hộp màu nâu champagne (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_kem_hop_pan_mini": {
+    "ten": "Kèm theo bánh mùa vụ: Hộp màu xanh turquoise",
+    "nhom": "san_pham",
+    "mac_dinh": "Hộp màu xanh turquoise"
+  },
+  "mv_kem_hop_pan_mini_mo": {
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (hộp riêng cho bánh Mini)",
+    "nhom": "san_pham",
+    "mac_dinh": "hộp riêng cho bánh Mini"
+  },
+  "anh_mv_hop_pan_mini": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Hộp màu xanh turquoise (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_kem_hop_buche": {
+    "ten": "Kèm theo bánh mùa vụ: Hộp Bûche",
+    "nhom": "san_pham",
+    "mac_dinh": "Hộp Bûche"
+  },
+  "mv_kem_hop_buche_mo": {
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (hộp riêng cho bánh Bûche)",
+    "nhom": "san_pham",
+    "mac_dinh": "hộp riêng cho bánh Bûche"
+  },
+  "anh_mv_hop_buche": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Hộp Bûche (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_kem_tui_buche": {
+    "ten": "Kèm theo bánh mùa vụ: Túi Bûche",
+    "nhom": "san_pham",
+    "mac_dinh": "Túi Bûche"
+  },
+  "mv_kem_tui_buche_mo": {
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (túi riêng cho hộp Bûche)",
+    "nhom": "san_pham",
+    "mac_dinh": "túi riêng cho hộp Bûche"
+  },
+  "anh_mv_tui_buche": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Túi Bûche (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_kem_thiep_buche": {
+    "ten": "Kèm theo bánh mùa vụ: Thiệp Bûche",
+    "nhom": "san_pham",
+    "mac_dinh": "Thiệp Bûche"
+  },
+  "anh_mv_thiep_buche": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Thiệp Bûche (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_gio_ma": {
+    "ten": "Giỏ: dòng mã của bánh mùa vụ đã có nhãn size trong tên ({ma})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã {ma}"
+  },
+  "mv_sl_toi_da": {
+    "ten": "Mùa vụ: nhắc trần số lượng mỗi mã trong một đơn ({so})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi đơn trên web nhận tối đa {so} cho mỗi loại bánh, sốt hoặc phụ kiện. Cần nhiều hơn quý khách gọi 0931 224 334"
+  },
+  "mv_ly_sl": {
+    "ten": "Mùa vụ: máy chủ từ chối số lượng vượt trần mỗi mã",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi đơn trên web nhận tối đa 20 cho mỗi loại bánh hoặc sốt mùa vụ. Quý khách bớt số lượng rồi gửi lại."
   }
 }
