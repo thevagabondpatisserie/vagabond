@@ -419,13 +419,47 @@ def sot_cho_web(doc):
 	return ra
 
 
+def the_cua(khoa, cac_ma, chi_mua_vu=False, cot=("name", "khoa", "ma_hang")):
+	"""Thẻ Bánh trên web chỉ của đúng các khoá tên `khoa` và các thẻ có gắn một
+	trong các mã `cac_ma` (Codex #626 P1: không đọc cả bảng, để phép này chỉ chạm
+	bản ghi của nhóm đang xét, kể cả khi ca bench chạy trên site thật).
+	chi_mua_vu: chỉ lấy thẻ mùa vụ ở phần tìm theo mã. Trả {name: bản ghi}."""
+	import frappe
+
+	from vagabond import banh_web
+
+	ra = {}
+	khoa = sorted({k for k in khoa or [] if k})
+	if khoa:
+		for x in frappe.get_all(banh_web.DT, filters={"khoa": ["in", khoa]}, fields=list(cot), limit_page_length=0, ignore_permissions=True):
+			ra[x["name"]] = x
+	ma = sorted({str(m).strip() for m in cac_ma or [] if str(m or "").strip()})
+	if ma:
+		loc = {"mua_vu": 1} if chi_mua_vu else {}
+		hoac = [[banh_web.DT, "ma_hang", "like", "%" + m.replace("%", "").replace("_", "\\_") + "%"] for m in ma]
+		for x in frappe.get_all(banh_web.DT, filters=loc, or_filters=hoac, fields=list(cot), limit_page_length=0, ignore_permissions=True):
+			# LIKE chỉ thu hẹp; khớp đúng từng dòng mã ở tim_the.
+			ra[x["name"]] = x
+	return ra
+
+
 def noi_dung_nhom(nhom):
 	"""Gắn mô tả, nguyên liệu, dị ứng, bảo quản và bộ ảnh Marketing nhập ở thẻ
 	Bánh của trình biên tập (khoá theo tên nhóm) vào từng thẻ. Ô để trống thì
-	không gắn, trang khách không hiện mục đó."""
+	không gắn, trang khách không hiện mục đó. Chỉ đọc thẻ của đúng các nhóm này."""
 	from vagabond import banh_web
 
-	sg = banh_web.so_ghi() or {}
+	if not banh_web.dang_dung() or not nhom:
+		return nhom
+	try:
+		ds = the_cua([banh_web.khoa_banh(g["ten"]) for g in nhom], [s["ma"] for g in nhom for s in g["sizes"]],
+			cot=("name", "khoa", "ten", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang"))
+	except Exception:
+		import frappe
+
+		frappe.log_error(title="Bánh mùa vụ trên web: không đọc được thẻ nội dung", message=frappe.get_traceback())
+		return nhom
+	sg = {x["khoa"]: x for x in ds.values()}
 	for g in nhom:
 		bg = tim_the(sg, g["ten"], [s["ma"] for s in g["sizes"]], banh_web.khoa_banh)
 		if not bg:
@@ -463,7 +497,7 @@ def tao_the_noi_dung(doc):
 			continue
 		ten = ten_the(ten_nhom, ten_mon.get(d.ma_hang), d.ten_banh, d.ma_hang)
 		nhom.setdefault(banh_web.khoa_banh(ten), {"ten": ten, "ma": []})["ma"].append(d.ma_hang)
-	the_mua = frappe.get_all(banh_web.DT, filters={"mua_vu": 1}, fields=["name", "ma_hang"], limit_page_length=0, ignore_permissions=True)
+	the_mua = list(the_cua([], [m for g in nhom.values() for m in g["ma"]], chi_mua_vu=True).values())
 	so = 0
 	for khoa, g in nhom.items():
 		r = frappe.db.sql("select name from `tab%s` where khoa=%%s for update" % banh_web.DT, (khoa,))

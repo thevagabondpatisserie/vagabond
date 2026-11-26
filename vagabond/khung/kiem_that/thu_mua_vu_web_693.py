@@ -6,10 +6,14 @@ Mùa vụ có ô lịch ghi sai bị chặn; lưu hợp lệ thì tạo đúng m
 mỗi nhóm và không tạo trùng; hang_theo_mua trả nhóm đã gộp size kèm sốt, luật và
 nội dung; phép kiểm lúc tạo đơn từ chối ngày sai.
 
-Dữ liệu trong ca là GIẢ (mã, tên, giá). Ca KHÔNG đọc mùa thật của site: hàm chọn
-mùa cho web được thay bằng bản ghi của ca, và có phép kiểm chứng minh danh sách
-mùa đang bán của site không đổi.
+Dữ liệu trong ca là GIẢ (mã, tên, giá). Ca KHÔNG đọc bản ghi thật của site
+(Codex #626 P1): hàm chọn mùa cho web được thay bằng bản ghi của ca; mọi truy vấn
+thẻ Bánh trên web đi qua mua_vu_web.the_cua, chỉ lấy đúng khoá và mã của ca, và
+một bộ ghi chép bắt mọi lần đọc bảng thẻ Bánh để chứng minh không dòng nào ngoài
+phạm vi ca; bản ghi thật được chứng minh giữ nguyên bằng số đếm và mốc sửa cuối
+(chỉ phép tổng hợp, không đọc nội dung).
 """
+import contextlib
 import datetime
 from unittest.mock import patch
 
@@ -21,6 +25,45 @@ from vagabond import mua_vu_web as mw
 from vagabond.khung.kiem_that.nen import _DA_TAO, ca, dung, la
 
 TEN_MUA = "Mua Kiem Thu Web 693"
+TIEN_TO = "BASS-KIEM-693-"
+KHOA_CA = ("Panettone Thử 693", "Bûche Thử 693")
+
+
+def _khoa_ca():
+	return [bw.khoa_banh(t) for t in KHOA_CA]
+
+
+def _dau_vet_that():
+	"""Số đếm và mốc sửa cuối của bản ghi THẬT (ngoài phạm vi ca) ở hai bảng ca
+	chạm tới. Chỉ phép tổng hợp, không đọc nội dung bản ghi nào."""
+	a = frappe.db.sql("select count(*), max(modified) from `tab%s` where khoa not in %%(k)s" % bw.DT, {"k": tuple(_khoa_ca())})[0]
+	b = frappe.db.sql("select count(*), max(modified) from `tab%s` where ifnull(ten_mua, '') != %%(t)s" % mv.DT, {"t": TEN_MUA})[0]
+	return (int(a[0]), str(a[1] or ""), int(b[0]), str(b[1] or ""))
+
+
+@contextlib.contextmanager
+def _ghi_lan_doc_the():
+	"""Ghi lại mọi dòng thẻ Bánh trên web được đọc trong khối; so_ghi (đọc cả bảng)
+	bị cấm hẳn. Trả danh sách các dòng đã đọc."""
+	goc, doc = frappe.get_all, []
+
+	def get_all(dt, *a, **k):
+		ra = goc(dt, *a, **k)
+		if dt == bw.DT:
+			doc.extend(ra)
+		return ra
+
+	def cam():
+		raise AssertionError("ca bench không được đọc cả bảng thẻ Bánh (so_ghi)")
+
+	with patch.object(frappe, "get_all", get_all), patch.object(bw, "so_ghi", cam):
+		yield doc
+
+
+def _chi_trong_ca(doc):
+	"""Mọi dòng đã đọc thuộc ca: khoá của ca hoặc có gắn mã thử."""
+	khoa = set(_khoa_ca())
+	return [x for x in doc if x.get("khoa") not in khoa and TIEN_TO not in str(x.get("ma_hang") or "")]
 
 
 def _mon(ma, ten, gia):
@@ -59,8 +102,9 @@ def _():
 	dung("ô của Mùa vụ", all(m.has_field(f) for f in ("sot_web", "panettone_thu", "panettone_truoc", "buche_thu", "buche_truoc")))
 	dung("ô của dòng", all(md.has_field(f) for f in ("nhom_web", "nhan_size", "loai_web")))
 	dung("thẻ Bánh có cờ mùa vụ", frappe.get_meta(bw.DT).has_field("mua_vu"))
-	mua_that = sorted(mv.mua_dang_chay())
-	truoc = frappe.db.count(bw.DT)
+	vet = _dau_vet_that()
+	dem_ca = lambda: frappe.db.count(bw.DT, {"khoa": ["in", _khoa_ca()]})  # noqa: E731
+	truoc = dem_ca()
 	ma = _ma_thu()
 	sai, _ma = _mua(ma, panettone_thu="thứ hai")
 	loi = ""
@@ -70,23 +114,29 @@ def _():
 		loi = str(e)
 	dung("ô thứ ghi sai bị chặn, câu nói cách ghi đúng: " + loi[:80], "2,4,6" in loi)
 	doc, (p1, p2, _b1, _s1) = _mua(ma, panettone_truoc="0", buche_thu="7,CN")
-	doc.insert(ignore_permissions=True)
+	with _ghi_lan_doc_the() as da_doc:
+		doc.insert(ignore_permissions=True)
 	_DA_TAO.append((doc.doctype, doc.name))
-	khoa_p, khoa_b = bw.khoa_banh("Panettone Thử 693"), bw.khoa_banh("Bûche Thử 693")
+	khoa_p, khoa_b = _khoa_ca()
 	for k in (khoa_p, khoa_b):
 		_DA_TAO.append((bw.DT, k))
-	la("hai nhóm, hai thẻ nội dung mới", frappe.db.count(bw.DT) - truoc, 2)
+	la("tạo thẻ nội dung không đọc dòng nào ngoài ca", _chi_trong_ca(da_doc), [])
+	la("hai nhóm, hai thẻ nội dung mới", dem_ca() - truoc, 2)
 	bg = frappe.get_doc(bw.DT, khoa_p)
 	la("thẻ mùa vụ: cờ, không chờ ảnh, đủ hai mã size", (int(bg.mua_vu), bg.trang_thai, bw.tach_dong(bg.ma_hang)), (1, bw.DA_AN, [p1, p2]))
 	doc.reload()
-	doc.save(ignore_permissions=True)
-	la("lưu lại không tạo trùng", frappe.db.count(bw.DT) - truoc, 2)
+	with _ghi_lan_doc_the() as da_doc:
+		doc.save(ignore_permissions=True)
+	dung("lưu lại có đọc thẻ của ca", len(da_doc) >= 1)
+	la("lưu lại không đọc dòng nào ngoài ca", _chi_trong_ca(da_doc), [])
+	la("lưu lại không tạo trùng", dem_ca() - truoc, 2)
 	la("số 0 và ô đã điền được giữ đúng, ô trống là None hoặc rỗng", (doc.panettone_truoc, doc.buche_thu, doc.panettone_thu or "", doc.buche_truoc or ""), ("0", "7,CN", "", ""))
-	la("mùa đang bán thật của site chỉ thêm mùa của ca", sorted(mv.mua_dang_chay()), sorted(mua_that + [doc.name]))
+	la("bản ghi thật của hai bảng giữ nguyên (số đếm, mốc sửa cuối)", _dau_vet_that(), vet)
 
 
 @ca("v693 bench: hang_theo_mua gộp size, kèm sốt theo giá hồ sơ món, luật theo ô cài đặt, nội dung thẻ Bánh; lúc tạo đơn ngày sai và quá 2 hũ sốt bị từ chối")
 def _():
+	vet = _dau_vet_that()
 	doc, (p1, p2, b1, s1) = _mua(panettone_truoc="1", buche_thu="7,CN")
 	doc.insert(ignore_permissions=True)
 	_DA_TAO.append((doc.doctype, doc.name))
@@ -95,8 +145,10 @@ def _():
 		_DA_TAO.append((bw.DT, k))
 	frappe.db.set_value(bw.DT, khoa_p, {"mo_ta": "Mô tả thử 693.", "tang": "Men tự nhiên\nBơ", "di_ung": "Gluten", "bao_quan": ""})
 	doc.reload()
-	with patch.object(mv, "mua_cho_web", lambda: doc), patch.object(bw, "dang_dung", lambda: True):
+	with patch.object(mv, "mua_cho_web", lambda: doc), patch.object(bw, "dang_dung", lambda: True), _ghi_lan_doc_the() as da_doc:
 		kq = mv.hang_theo_mua()
+		dung("tab In season có đọc thẻ của ca", any(x.get("khoa") == khoa_p for x in da_doc))
+		la("tab In season không đọc dòng thẻ Bánh nào ngoài ca", _chi_trong_ca(da_doc), [])
 		la("có mùa của ca", (kq["co"], kq["ten_mua"]), (1, TEN_MUA))
 		g = next(x for x in kq["nhom"] if x["ten"] == "Panettone Thử 693")
 		la("một thẻ hai size, size lớn trước", [(s["ma"], s["nhan"], s["gia"]) for s in g["sizes"]], [(p1, "Bánh lớn 680gr", 780000), (p2, "Bánh Mini 250gr", 320000)])
@@ -115,3 +167,4 @@ def _():
 		la("Panettone nhận hôm nay khi cài trước 1 ngày: từ chối", (mw.kiem_don(h(**{p2: 1}), str(hn), mua) or {}).get("ly_do"), "ngay_mua_vu")
 		la("1 bánh 3 hũ sốt: từ chối", (mw.kiem_don(h(**{p1: 1, s1: 3}), str(tot), mua) or {}).get("ly_do"), "sot_qua_so")
 		la("mã Panettone không tính dĩa nĩa", mw.ma_khong_dung_cu(), {p1, p2})
+	la("bản ghi thật của hai bảng giữ nguyên (số đếm, mốc sửa cuối)", _dau_vet_that(), vet)

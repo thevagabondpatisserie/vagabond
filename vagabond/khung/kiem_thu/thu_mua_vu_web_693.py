@@ -310,3 +310,81 @@ const sot = {id: 'S1', n: 's', p: 1, sot: 1};
 console.log(JSON.stringify([T.maVuotSl([{id: 'P1', cm: 0, qty: 11, mua: 1, loai: 'panettone', adds: [sot, sot]}]), T.maVuotSl([{id: 'P1', cm: 0, qty: 10, mua: 1, loai: 'panettone', adds: [sot, sot]}]),
   T.maVuotSl([{id: 'P1', cm: 0, qty: 12, adds: []}, {id: 'P1', cm: 0, qty: 9, adds: [sot]}])]));
 """), [["S1"], [], ["P1"]])
+
+
+@ca("v696 Codex #626 P1: nội dung thẻ và việc tạo thẻ chỉ đọc thẻ Bánh của đúng các nhóm đang xét, không đọc cả bảng (ca bench chạy trên site thật không chạm bản ghi thật)")
+def _chi_doc_the_cua_nhom():
+	import sys
+	import types
+
+	w = _w()
+	BANG = [
+		{"name": "that a", "khoa": "that a", "ten": "Thật A", "mua_vu": 0, "ma_hang": "MA-THAT-1", "mo_ta": "x", "tang": "", "di_ung": "", "bao_quan": "", "anh": "[]"},
+		{"name": "that b", "khoa": "that b", "ten": "Thật B", "mua_vu": 1, "ma_hang": "MA-THAT-2", "mo_ta": "y", "tang": "", "di_ung": "", "bao_quan": "", "anh": "[]"},
+		{"name": "nhom gia", "khoa": "nhom gia", "ten": "Nhóm Giả", "mua_vu": 1, "ma_hang": "GIA-1\nGIA-2", "mo_ta": "Mô tả giả", "tang": "A\nB", "di_ung": "", "bao_quan": "", "anh": "[]"},
+		{"name": "ten cu", "khoa": "ten cu", "ten": "Tên cũ", "mua_vu": 1, "ma_hang": "GIA-9", "mo_ta": "Theo mã", "tang": "", "di_ung": "", "bao_quan": "", "anh": "[]"},
+		{"name": "banh thuong", "khoa": "banh thuong", "ten": "Bánh thường", "mua_vu": 0, "ma_hang": "GIA-8", "mo_ta": "", "tang": "", "di_ung": "", "bao_quan": "", "anh": "[]"}]
+	goi, doc_ra = [], []
+
+	def khop(x, loc):
+		for k, v in (loc or {}).items():
+			if isinstance(v, list) and v[0] == "in":
+				if x.get(k) not in v[1]:
+					return False
+			elif x.get(k) != v:
+				return False
+		return True
+
+	def get_all(dt, filters=None, or_filters=None, fields=None, **_k):
+		goi.append((dt, filters, or_filters))
+		ra = [x for x in BANG if khop(x, filters)]
+		if or_filters:
+			ra = [x for x in ra if any(f[3].strip("%").replace("\\_", "_") in x[f[1]] for f in or_filters)]
+		ra = [{c: x.get(c) for c in (fields or ["name"])} for x in ra]
+		doc_ra.extend(ra)
+		return ra
+
+	fr = types.ModuleType("frappe")
+	fr.get_all = get_all
+	fr.log_error = lambda *a, **k: None
+	bw = types.ModuleType("vagabond.banh_web")
+	bw.DT = "Vagabond Banh Web"
+	bw.dang_dung = lambda: True
+	bw.khoa_banh = w.khoa_nhom
+	bw.so_ghi = lambda: (_ for _ in ()).throw(AssertionError("không được đọc cả bảng"))
+	bw.tach_dong = lambda v, n=None: [x for x in str(v or "").split("\n") if x.strip()][:n]
+	bw.doc_anh = lambda v: []
+	bw.SO_TANG_TOI_DA, bw.SO_ANH_TOI_DA = 8, 5
+	import vagabond
+
+	cu = {k: sys.modules.get(k) for k in ("frappe", "vagabond.banh_web")}
+	cu_attr = getattr(vagabond, "banh_web", None)
+	sys.modules["frappe"], sys.modules["vagabond.banh_web"] = fr, bw
+	vagabond.banh_web = bw
+	try:
+		nhom = [{"ten": "Nhóm Giả", "sizes": [{"ma": "GIA-1"}, {"ma": "GIA-2"}]}, {"ten": "Tên mới", "sizes": [{"ma": "GIA-9"}]}]
+		w.noi_dung_nhom(nhom)
+		la("nội dung theo khoá tên", (nhom[0].get("mo_ta"), nhom[0].get("tang")), ("Mô tả giả", ["A", "B"]))
+		la("tên đổi thì vẫn tìm ra theo mã", nhom[1].get("mo_ta"), "Theo mã")
+		dung("mọi lần đọc bảng thẻ đều có bộ lọc", all(f or of for dt, f, of in goi if dt == bw.DT))
+		la("không dòng thật nào bị đọc", sorted({x["name"] for x in doc_ra} - {"nhom gia", "ten cu"}), [])
+		goi.clear(); doc_ra.clear()
+		ra = w.the_cua([], ["GIA-9"], chi_mua_vu=True)
+		la("tìm thẻ mùa vụ theo mã chỉ trả đúng thẻ có mã đó", sorted(ra), ["ten cu"])
+		la("tìm thẻ mùa vụ bỏ qua thẻ bánh thường cùng mã", sorted(w.the_cua([], ["GIA-8"], chi_mua_vu=True)), [])
+		la("không giới hạn mùa vụ thì thấy thẻ bánh thường", sorted(w.the_cua([], ["GIA-8"])), ["banh thuong"])
+		n = len(goi)
+		la("không truyền khoá, không truyền mã thì không đọc gì", (w.the_cua([], []), len(goi) - n), ({}, 0))
+	finally:
+		for k, v in cu.items():
+			if v is None:
+				sys.modules.pop(k, None)
+			else:
+				sys.modules[k] = v
+		if cu_attr is None:
+			delattr(vagabond, "banh_web") if hasattr(vagabond, "banh_web") else None
+		else:
+			vagabond.banh_web = cu_attr
+	web = (GOC / "vagabond/mua_vu_web.py").read_text()
+	dung("mua_vu_web không còn gọi so_ghi", "so_ghi(" not in web)
+	dung("tạo thẻ không còn đọc mọi thẻ mùa vụ", 'filters={"mua_vu": 1}, fields=["name", "ma_hang"]' not in web)
