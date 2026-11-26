@@ -88,7 +88,7 @@ def _lich():
 	cau = w.cau_luat(ca_hai, het)
 	dung("câu cho đơn trộn nói rõ lịch chặt hơn, thứ, số ngày, ngày cuối mùa",
 		all(x in cau for x in ("cả Panettone và Bûche", "thứ 2, thứ 4, thứ 6", "ít nhất 3 ngày", "31/12")))
-	dung("câu không có gạch dài", "—" not in cau and "–" not in cau)
+	dung("câu không có gạch dài", chr(8212) not in cau and chr(8211) not in cau)
 
 
 @ca("v693 ô cài đặt lịch của Mùa vụ có áp thật: số 0 là giá trị người dùng chọn, để trống mới về mặc định, ghi sai bị chặn lúc lưu")
