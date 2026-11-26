@@ -25343,6 +25343,7 @@ function mvDsSpHtml(ds) {
       '<b style="font-size:13.5px">' + h(x.ten_banh || x.ma_hang) + '</b>' +
       '<div style="font-size:11px;color:#98a2b3">' + h(x.ma_hang) +
       (x.nhan_ngan ? ' · lịch ghi <b>' + h(x.nhan_ngan) + '</b>' : '') +
+      (x.nhom_web || x.loai_web ? ' · web: ' + h([x.nhom_web, x.nhan_size, x.loai_web].filter(Boolean).join(', ')) : '') +
       (x.tran_ngay ? ' · trần ' + money(x.tran_ngay) + '/ngày' : '') + '</div></div>' +
       '<div style="text-align:right"><b style="font-size:15px;color:' + mau + '">' + h(nhan) + '</b>' +
       '<div style="font-size:11px;color:#9ca3af">' +
@@ -25469,9 +25470,28 @@ async function mvSuaSx(ma) {
     {
       value: 'khong_tran', label: x.khong_tran ? 'Bỏ đánh dấu "chỉ làm theo hộp"' : 'Đánh dấu "chỉ làm theo hộp"',
       phu: x.khong_tran ? 'bật lại chốt chặn bán lố cho mã này' : 'không đặt trần riêng, không chặn bán lố, không lên chip cảnh báo'
-    }
+    },
+    /* v693: ba ô quyết cách bánh hiện trên tab In season của web đặt bánh. */
+    { value: 'nhom_web', label: 'Nhóm trên web', phu: x.nhom_web ? 'đang là ' + x.nhom_web : 'chưa đặt, bánh đứng một thẻ riêng trên web' },
+    { value: 'nhan_size', label: 'Nhãn size trên web', phu: x.nhan_size ? 'đang là ' + x.nhan_size : 'chưa đặt, ví dụ Bánh lớn 680gr' },
+    { value: 'loai_web', label: 'Loại trên web', phu: x.loai_web ? 'đang là ' + x.loai_web : 'chưa chọn, web bán như hàng mùa vụ thường' }
   ], '', async function (it) {
     if (it.value === 'khong_tran') return mvLuuO(ma, 'khong_tran', x.khong_tran ? 0 : 1);
+    if (it.value === 'nhom_web' || it.value === 'nhan_size') {
+      var chu = await hoiNhap(it.value === 'nhom_web'
+        ? 'Tên thẻ bánh trên web, ví dụ Classic Panettone. Các mã cùng tên nhóm gộp thành một thẻ. Để trống là đứng riêng.'
+        : 'Chữ khách thấy khi chọn size, ví dụ Bánh lớn 680gr hoặc Bánh Mini 250gr.', String(x[it.value] || ''));
+      if (chu === null) return;
+      return mvLuuO(ma, it.value, String(chu).trim());
+    }
+    if (it.value === 'loai_web') {
+      return sheet('Loại trên web của "' + ten + '"', [
+        { value: 'Panettone', label: 'Panettone', phu: 'nhận theo thứ đã cài, không cờ lời chúc, không dĩa nĩa, có sốt chấm' },
+        { value: 'Bûche', label: 'Bûche', phu: 'đặt trước theo số ngày đã cài, cờ lời chúc và phụ kiện như bánh sinh nhật' },
+        { value: 'Khác', label: 'Khác', phu: 'hàng mùa vụ thường, không có lịch riêng' },
+        { value: 'bo_chon', label: 'Bỏ chọn', phu: 'như Khác' }
+      ], x.loai_web || 'bo_chon', function (l) { return mvLuuO(ma, 'loai_web', l.value === 'bo_chon' ? '' : l.value); });
+    }
     if (it.value === 'nhan_ngan') {
       var n = await hoiNhap('Nhãn ngắn hiện trong ô lịch tháng (tối đa 6 chữ)', String(x.nhan_ngan || ''));
       if (n === null) return;
@@ -28121,7 +28141,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '695';
+var APPVER = '696';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

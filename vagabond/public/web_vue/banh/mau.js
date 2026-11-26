@@ -28,20 +28,21 @@ export const MAU = `
       <div class="meta"><span class="num" id="muaSo"><span>{{ t('dat_banh_323acda9d','00 / In season') }}</span></span></div>
       <h1 class="h1" id="muaTen">{{ S.MUA.ten_mua || t('dat_banh_d7e8f3298','Hàng theo mùa') }}</h1>
       <div class="mua-han" id="muaHan">{{ kho.hanMua.value }}</div>
+      <div class="mua-luat" id="muaLuat" v-if="kho.luatTabMua.value">{{ kho.luatTabMua.value }}</div>
     </div>
     <div class="grid" id="muaLuoi">
-      <div class="card-o" v-for="x in monMua" :key="x.m.ma">
-        <button class="card mua" :class="{het: x.m.het}" @click="moMua(x.m)">
-          <div class="ph"><i class="tagline">{{ t('nhan_seasonal','Seasonal') }}</i><anh-mon :src="x.m.anh"/></div>
+      <div class="card-o" v-for="x in monMua" :key="x.g.khoa">
+        <button class="card mua" :class="{het: x.g.het}" :data-nhom="x.g.khoa" @click="moMua(x.g)">
+          <div class="ph"><i class="tagline">{{ t('nhan_seasonal','Seasonal') }}</i><anh-mon :src="x.g.anh"/></div>
           <div class="c-body">
             <div class="c-name">{{ x.ten }}</div>
-            <div class="c-price"><b>{{ tienTom(x.m.gia||0) }}</b></div>
+            <div class="c-price"><span v-if="x.tu" class="c-tu">{{ t('mv_gia_tu','từ') }}</span><b>{{ x.gia }}</b></div>
             <div class="ruot" v-if="x.moTa">{{ t('dat_banh_afcf62369','Gồm') }} {{ x.moTa }}</div>
-            <div class="c-sizes"><i class="sz" :class="{has: !x.m.het}">{{ x.chip }}</i></div>
+            <div class="c-sizes"><i class="sz" v-for="c in x.chips" :key="c.ma" :class="{has: c.has}">{{ c.chu }}</i></div>
             <div class="c-go">{{ t('dat_banh_00b018c50','Xem chi tiết →') }}</div>
           </div>
         </button>
-        <button v-if="!x.m.het" class="c-them" @click="kho.themHangMua(x.m.ma)" :aria-label="t('them_nhanh_mon','Thêm nhanh {ten} vào giỏ',{ten:x.ten})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+        <button v-if="x.nhanh" class="c-them" @click="kho.themHangMua(x.g.sizes[0].ma)" :aria-label="t('them_nhanh_mon','Thêm nhanh {ten} vào giỏ',{ten:x.ten})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       </div>
     </div>
   </section>
@@ -211,7 +212,7 @@ export const MAU = `
           <div class="p">{{ d.tien }}</div></div></li>
     </ul>
     <button class="cart-add" @click="navBack()"><bieu-tuong loai="cong"/><span>{{ t('dat_banh_7ddb8bc3b','Chọn thêm bánh') }}</span></button>
-    <div class="dc-don" id="c-dc" v-if="S.CART.length">
+    <div class="dc-don" id="c-dc" v-if="S.CART.length && kho.tranDc.value > 0">
       <div class="dc-tieu">{{ t('dc_don_tieu','Dụng cụ ăn tặng kèm') }}</div>
       <div class="dc-mo">{{ t('dc_don_mo','The Vagabond gửi kèm chỉ khi quý khách cần nhằm hạn chế dụng cụ ăn uống sử dụng một lần. Quý khách cần bao nhiêu vui lòng nhập số lượng.') }}</div>
       <div class="dc-mo dc-tran">{{ t('dc_don_tran','Tối đa {so} bộ cho giỏ hiện tại: bánh 12cm, 16cm được 10 bộ; bánh 18cm, 20cm được 15 bộ.',{so:kho.tranDc.value}) }}</div>
@@ -223,27 +224,34 @@ export const MAU = `
 
     <!-- v681 (BẢN 2 mục 2.1): mỗi CHIẾC bánh một thẻ lời chúc và thiệp. -->
     <template v-if="kho.dsChiec.value.length">
-    <div class="sec" id="c-loi-chuc"><span class="n">02</span><h3><span>{{ t('lc_tieu_de','Lời chúc và thiệp') }}</span></h3><i class="rule"></i></div>
+    <div class="sec" id="c-loi-chuc"><span class="n">02</span><h3><span>{{ kho.coChiecCamCo.value ? t('lc_tieu_de','Lời chúc và thiệp') : t('mv_thiep_tieu_de','Thiệp') }}</span></h3><i class="rule"></i></div>
     <div class="lc-ds">
       <div class="lc-the" v-for="x in kho.dsChiec.value" :key="x.c.id" :id="'lc-' + x.c.id">
         <div class="lc-dau"><img :src="x.o.img" alt=""><div><b>{{ x.ten }}</b><small>{{ x.phu }}</small></div></div>
+        <template v-if="x.coCo">
         <div class="lc-nhan" :id="'lcn-' + x.c.id">{{ t('lc_co_nhan','Cờ cắm lời chúc') }}</div>
         <div class="hai-nua" role="radiogroup" :aria-labelledby="'lcn-' + x.c.id">
           <button type="button" role="radio" :aria-checked="x.c.co !== false ? 'true' : 'false'" :class="{on: x.c.co !== false}" @click="kho.datCo(x.c.id, true)">{{ t('lc_can_co','Cần cờ') }}</button>
           <button type="button" role="radio" :aria-checked="x.c.co === false ? 'true' : 'false'" :class="{on: x.c.co === false}" @click="kho.datCo(x.c.id, false)">{{ t('lc_khong_co','Không cần cờ') }}</button>
         </div>
-        <div class="lc-co" v-if="x.c.co !== false">
+        </template>
+        <div class="lc-co" v-if="x.coCo && x.c.co !== false">
           <div class="lc-o"><input :id="'lcw-' + x.c.id" maxlength="60" autocomplete="off" :aria-label="t('lc_o_chuc','Lời chúc in trên cờ')" :placeholder="t('dat_banh_ed04b0946','Happy Birthday...')" v-model="x.c.wish">
             <button type="button" class="lc-mau" :aria-label="t('lc_xem_mau','Xem mẫu cờ chúc')" @click="kho.moMauCo(x.c.id)"><img :src="anhWeb('anh_co_mau', ANH_CO)" alt=""><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></i></button></div>
           <div class="lc-dem"><span>{{ t('lc_bam_mau','Bấm hình cờ để xem mẫu') }}</span><span>{{ (x.c.wish || '').length }}/60</span></div>
         </div>
-        <div class="lc-nhan" :id="'lctn-' + x.c.id">{{ t('lc_thiep_nhan','Thiệp') }}</div>
+        <div class="lc-nhan" :id="'lctn-' + x.c.id">{{ x.mua ? t('mv_thiep_nhan','Thiệp (miễn phí)') : t('lc_thiep_nhan','Thiệp') }}</div>
         <div class="hai-nua" role="radiogroup" :aria-labelledby="'lctn-' + x.c.id">
           <button type="button" role="radio" :aria-checked="x.c.thiep === 'khong' ? 'true' : 'false'" :class="{on: x.c.thiep === 'khong'}" @click="kho.batThiep(x.c.id, false)">{{ t('lc_khong_thiep','Không cần thiệp') }}</button>
           <button type="button" role="radio" :aria-checked="x.c.thiep !== 'khong' ? 'true' : 'false'" :class="{on: x.c.thiep !== 'khong'}" @click="kho.batThiep(x.c.id, true)">{{ t('lc_can_thiep','Cần thiệp') }}</button>
         </div>
         <template v-if="x.c.thiep !== 'khong'">
-          <div class="th-luoi" role="radiogroup" :aria-label="t('lc_loai_thiep','Loại thiệp')">
+          <!-- v693: bánh mùa vụ chỉ có thiệp miễn phí kèm trong hộp, không chọn loại. -->
+          <div class="th-mua" v-if="x.mua" :data-thiep-mua="x.loai">
+            <span class="th-anh"><img v-if="anhWeb(THIEP_MUA[x.loai].ka, '')" :src="anhWeb(THIEP_MUA[x.loai].ka, '')" alt=""><span v-else class="th-trong">{{ t(THIEP_MUA[x.loai].k, THIEP_MUA[x.loai].n) }}</span></span>
+            <p><b>{{ t(THIEP_MUA[x.loai].k, THIEP_MUA[x.loai].n) }}</b><span>{{ t('mv_thiep_mo_ta','The Vagabond viết tay lời quý khách gửi lên thiệp. Để trống thì gửi thiệp trơn.') }}</span></p>
+          </div>
+          <div class="th-luoi" v-else role="radiogroup" :aria-label="t('lc_loai_thiep','Loại thiệp')">
             <button type="button" role="radio" class="th-the" data-thiep="nho" :class="{on: x.c.thiep === 'nho'}" :aria-checked="x.c.thiep === 'nho' ? 'true' : 'false'" @click="kho.datThiep(x.c.id, 'nho')">
               <span class="th-anh"><img v-if="anhWeb('anh_thiep_nho', '')" :src="anhWeb('anh_thiep_nho', '')" alt=""><span v-else class="th-trong">{{ t('lc_thiep_nho','Thiệp nhỏ') }}</span></span>
               <b>{{ t('lc_thiep_nho','Thiệp nhỏ') }}</b><span class="th-gia">{{ t('lc_mien_phi','miễn phí') }}</span><i class="th-chon" v-if="x.c.thiep === 'nho'" aria-hidden="true">✓</i></button>
@@ -432,19 +440,80 @@ export const MAU = `
   <template v-if="muaXem">
   <div class="wrap"><div class="hero-img">
     <button class="close" type="button" :aria-label="t('dong_chi_tiet_banh','Đóng chi tiết bánh')" @click="nav('#/in-season')"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
-    <anh-mon id="sm-img" :src="muaXem.m.anh" :lazy="false"/>
+    <anh-mon id="sm-img" :src="muaXem.anh" :lazy="false"/>
   </div></div>
   <div class="wrap">
     <div class="s-head"><h2 id="sm-name">{{ muaXem.ten }}</h2><div id="sm-avail"><div class="avail">{{ muaXem.tinh }}</div></div></div>
-    <div class="sec"><span class="n">01</span><h3><span>{{ t('dat_banh_71efef066','Giá') }}</span></h3><i class="rule"></i></div>
-    <div id="sm-gia" style="font-size:22px;margin-top:14px"><b style="font-weight:400">{{ tienTom(muaXem.m.gia||0) }}</b></div>
+    <!-- v693: mô tả, nguyên liệu, dị ứng, bảo quản Marketing nhập ở trình biên tập; ô để trống thì không hiện mục đó. -->
+    <details class="tuy-chon" id="sm-thong-tin" v-if="muaXem.coNoiDung" :key="'ttm' + muaXem.g.khoa" open>
+      <summary><span>{{ t('chi_tiet_huong_vi','Mô tả và hương vị') }}</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></summary>
+      <div class="desc" id="sm-desc" v-if="muaXem.moTa">{{ muaXem.moTa }}</div>
+      <div id="sm-layers" v-if="muaXem.tang.length"><h3 class="h-sec"><template v-if="muaXem.laBuche">{{ t('dat_banh_f84afdac6','Tầng hương') }} <em>{{ t('dat_banh_17a765496','lớp vị') }}</em></template><template v-else>{{ t('mv_nguyen_lieu','Nguyên liệu') }} <em>{{ t('mv_nguyen_lieu_chinh','chính') }}</em></template></h3>
+        <div class="layers"><div class="layer" v-for="(l,i) in muaXem.tang" :key="i"><span class="i">{{ String(i+1).padStart(2,'0') }}</span><div><b>{{ l }}</b></div></div></div></div>
+      <div class="them-tt" id="sm-di-ung" v-if="muaXem.diUng"><h3 class="h-sec">{{ t('ct675_di_ung','Thành phần dễ gây dị ứng') }}</h3><p>{{ muaXem.diUng }}</p></div>
+      <div class="them-tt" id="sm-bao-quan" v-if="muaXem.baoQuan"><h3 class="h-sec">{{ t('ct675_bao_quan','Bảo quản và sử dụng') }}</h3><p>{{ muaXem.baoQuan }}</p></div>
+    </details>
+
+    <template v-if="muaXem.sizes.length > 1">
+      <div class="sec"><span class="n">01</span><h3><span>{{ t('mv_chon_size','Chọn size bánh') }}</span></h3><i class="rule"></i></div>
+      <div class="sizes" id="sm-sizes"><button v-for="z in muaXem.sizes" :key="z.s.ma" class="size" :class="{on: z.on}" :disabled="!!z.s.het" :data-ma="z.s.ma" @click="kho.setSizeMua(z.s.ma)"><b>{{ z.gia }}</b><span>{{ z.nhan }}</span><em>{{ z.em }}</em></button></div>
+    </template>
+    <template v-else>
+      <div class="sec"><span class="n">01</span><h3><span>{{ t('dat_banh_71efef066','Giá') }}</span></h3><i class="rule"></i></div>
+      <div id="sm-gia" style="font-size:22px;margin-top:14px"><b style="font-weight:400">{{ tienTom(muaXem.z.gia||0) }}</b></div>
+    </template>
     <div class="fine"><span>{{ t('dat_banh_c02f89b47','Giá đã gồm thuế GTGT. Chưa gồm phí vận chuyển nếu có.') }}</span></div>
+    <div class="fine mua-luat-ct" id="sm-luat" v-if="muaXem.luat"><span>{{ t('mv_luat_tieu','Lịch nhận bánh:') }} {{ muaXem.luat }}.</span></div>
+
+    <div class="chon-so-luong" v-if="!muaXem.z.het"><span id="sm-qty-label">{{ t('so_luong_banh','Số lượng bánh') }}</span><div class="qty"><button type="button" id="sm-minus" :disabled="muaXem.sl<=1" @click="kho.doiSlMua(-1)" :aria-label="t('giam_so_luong','Giảm số lượng')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><output id="sm-qty" aria-labelledby="sm-qty-label" aria-live="polite">{{ muaXem.sl }}</output><button type="button" id="sm-plus" @click="kho.doiSlMua(1)" :aria-label="t('tang_so_luong','Tăng số lượng')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button></div></div>
+
     <div id="sm-khoiruot" v-if="muaXem.ruot.length">
       <div class="sec"><span class="n">02</span><h3><span>{{ t('dat_banh_488b179ee','Trong hộp có gì') }}</span></h3><i class="rule"></i></div>
       <div class="mua-ruot" id="sm-ruot"><div v-for="(r,i) in muaXem.ruot" :key="i"><b>{{ r[0] }}</b><span>{{ r[1] }}</span></div></div>
     </div>
+    <template v-if="muaXem.kem.length">
+      <div class="sec"><span class="n">02</span><h3><span>{{ t('pk_co_san_tieu_de','Kèm theo mỗi bánh') }}</span></h3><i class="rule"></i></div>
+      <div class="co-san">
+        <div class="co-san-mo">{{ t('pk_co_san_mo_ta','Đã nằm trong giá bánh, quý khách không phải mua thêm.') }}</div>
+        <ul class="acc" id="sm-acc"><li v-for="a in muaXem.kem" :key="a.k"><img v-if="anhWeb(a.ka, '')" :src="anhWeb(a.ka, '')" alt=""><span v-else class="acc-chu" aria-hidden="true">{{ t(a.k, a.n).split(' ')[0] }}</span><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul></div>
+    </template>
+    <!-- v693: sốt chấm bán kèm Panettone, tối đa 2 hũ mỗi bánh; mã sốt khai ở Mùa vụ, chưa khai thì không có mục này. -->
+    <template v-if="muaXem.sot.length">
+      <div class="sec"><span class="n">03</span><h3><span>{{ t('mv_sot_tieu_de','Sốt chấm đi kèm') }}</span></h3><i class="rule"></i></div>
+      <div class="dc-don mua-sot" id="sm-sot">
+        <div class="dc-mo">{{ t('mv_sot_mo_ta','Chọn tối đa {so} hũ cho mỗi bánh. Đặt nhiều bánh thì số hũ nhân theo số bánh.',{so:kho.sotMoiBanh.value}) }}</div>
+        <ul class="acc dc-ds"><li v-for="x in muaXem.sot" :key="x.y.ma" :data-sot="x.y.ma"><img v-if="x.y.anh" :src="x.y.anh" alt=""><span v-else class="acc-chu" aria-hidden="true">{{ t('mv_sot_chu','Sốt') }}</span><span class="nm">{{ x.ten }}<small>{{ x.gia }}</small></span>
+          <div class="sl-vien" role="group" :aria-label="t('so_luong_cua','Số lượng {ten}',{ten:x.ten})"><button type="button" :disabled="!x.so" :aria-label="t('sl_bot_1','Bớt 1')" @click="kho.doiSotMua(x.y.ma,-1)"><bieu-tuong loai="tru"/></button>
+            <output aria-live="polite">{{ x.so }}</output><button type="button" :disabled="kho.soSotChon.value>=kho.sotMoiBanh.value" :aria-label="t('sl_them_1','Thêm 1')" @click="kho.doiSotMua(x.y.ma,1)"><bieu-tuong loai="cong"/></button></div></li></ul>
+        <div class="dc-mo mua-sot-du" id="sm-sot-du" v-if="kho.soSotChon.value>=kho.sotMoiBanh.value" role="status">{{ t('mv_sot_du','Đã chọn đủ {so} hũ cho mỗi bánh.',{so:kho.sotMoiBanh.value}) }}</div>
+      </div>
+    </template>
+    <!-- v693: Bûche mua thêm phụ kiện như bánh ổ sinh nhật (nến số, nón, sash, đồ dự phòng). -->
+    <details class="tuy-chon mua-pk" id="sm-phu-kien" v-if="muaXem.laBuche" :key="'pkm' + muaXem.g.khoa">
+      <summary><span class="mua-pk-chu"><b>{{ t('pk_mua_them_681','Mua thêm phụ kiện') }}</b><small>{{ t('pk_mua_them_phu_681','Nến số, nón và sash sinh nhật') }}</small></span><span class="mua-pk-nut" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></span></summary>
+    <div class="numlab"><span>{{ t('dat_banh_909dfa9ae','Nến số') }}</span> <b><span>{{ t('dat_banh_87aff9ee8','17.000 đ / số') }}</span></b></div>
+    <div class="nums" id="sm-nums"><button v-for="x in NUMS" :key="x.n" class="numbtn" :class="{on: S.nums.includes(x.n)}" @click="kho.toggleNum(x.n)" :aria-label="t('nen_so','Nến số {so}',{so:x.n})"><img :src="anhWeb(x.ka, x.img)" :alt="t('nen_so','Nến số {so}',{so:x.n})"></button></div>
+    <div class="numpick" id="sm-numpick">
+      <template v-if="S.nums.length"><span>{{ t('dat_banh_21e08aca8','Số trên bánh') }}</span><span class="big">{{ S.nums.join('') }}</span>
+        <button class="x" @click="kho.clearNums()"><bieu-tuong loai="bo"/>{{ t('dat_banh_82339c0a8','Xoá') }}</button></template>
+      <span v-else style="color:var(--fog-2)">{{ t('dat_banh_16dd7180d','Bấm lần lượt từng số, ví dụ bấm 2 rồi 6 được số 26.') }}</span>
+    </div>
+    <ul class="addons" id="sm-addons"><li v-for="a in ADDONS.filter(x => !x.du_phong)" :key="a.id"><button :class="{on: S.adds.includes(a.id)}" @click="kho.toggleAdd(a.id)">
+      <span class="bx"><bieu-tuong v-if="S.adds.includes(a.id)" loai="chon"/></span>
+      <span class="ph"><img :src="anhWeb(a.ka, a.img)" alt=""></span>
+      <span class="nm">{{ t(a.k, a.n) }}</span><span class="pr">{{ tienTom(a.p) }}</span></button></li></ul>
+    <p class="hint" id="sm-mau-ngau-nhien">{{ t('pk_mau_ngau_nhien','Màu nón và sash giao ngẫu nhiên.') }}</p>
+    <!-- Hộp, túi, nến dự phòng thu vào dòng gấp vì bánh đã có sẵn một bộ. Đã chọn món dự phòng (sửa dòng giỏ) thì mở sẵn. -->
+    <details class="du-phong" id="sm-duphong" :key="'dpm' + muaXem.g.khoa" :open="ADDONS.some(x => x.du_phong && S.adds.includes(x.id))"><summary><span>{{ t('pk_du_phong_hoi','Cần thêm hộp, túi hay nến dự phòng?') }}</span> <small>{{ t('pk_du_phong_mo','Mỗi bánh đã có sẵn một bộ.') }}</small></summary>
+    <ul class="addons" id="sm-addons-dp"><li v-for="a in ADDONS.filter(x => x.du_phong)" :key="a.id"><button :class="{on: S.adds.includes(a.id)}" @click="kho.toggleAdd(a.id)">
+      <span class="bx"><bieu-tuong v-if="S.adds.includes(a.id)" loai="chon"/></span>
+      <span class="ph"><img :src="anhWeb(a.ka, a.img)" alt=""></span>
+      <span class="nm">{{ t(a.k, a.n) }}</span><span class="pr">{{ tienTom(a.p) }}</span></button></li></ul></details>
+    </details>
+    <div class="addsum" id="sm-addsum" aria-live="polite" v-if="kho.addsMuaXem.value.length">{{ t('dat_banh_fc2a93d57','Đã chọn thêm:') }} <b>{{ kho.T.tenAddsGop(kho.addsMuaXem.value) }}</b> {{ t('dat_banh_b6d0a562d','· cộng thêm') }} <b>{{ tienTom(kho.addsMuaXem.value.reduce((a,x)=>a+x.p,0)) }}</b></div>
+
     <div class="cta">
-      <button class="btn" id="sm-cta" :disabled="!!muaXem.m.het" @click="themTuMua()">{{ muaXem.m.het ? t('dat_banh_a6001ad7a','Hết hàng') : t('dat_banh_b742ca205','Thêm vào giỏ') }}</button>
+      <button class="btn" id="sm-cta" :disabled="!!muaXem.z.het" @click="themTuMua()">{{ muaXem.z.het ? t('dat_banh_a6001ad7a','Hết hàng') : t('dat_banh_34d469c70','Thêm vào giỏ · {gia_tri_a}',{gia_tri_a: tienTom(kho.tienNutMua.value)}) }}</button>
       <a class="tel" :aria-label="t('goi_ho_tro_dat_banh','Gọi hỗ trợ đặt bánh')" :href="'tel:'+telSo()"><svg viewBox="0 0 24 24"><path d="${GOI}"/></svg></a>
     </div>
   </div>

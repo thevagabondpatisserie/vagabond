@@ -12,6 +12,11 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v696
+- Bánh mùa Giáng sinh trên web: gộp size, loại bánh và nhãn size
+- Bánh mùa Giáng sinh trên web: sốt chấm và lịch nhận
+- Nội dung và ảnh hộp, túi, thiệp của bánh mùa Giáng sinh
+
 ## v695
 - Không đổi thao tác: trang đặt bánh của khách đổi cỡ chữ (không chữ nào dưới 13 px), chữ phụ sáng hơn, tab Tại quầy dùng phông Qualy, thẻ "Đã thêm vào giỏ" mới, nút Xem giỏ hiện đủ chữ.
 

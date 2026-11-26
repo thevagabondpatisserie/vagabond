@@ -25,6 +25,14 @@
   "doi_ruot",
   "sec_lich",
   "lich",
+  "sec_web",
+  "sot_web",
+  "panettone_thu",
+  "panettone_truoc",
+  "cb_web",
+  "buche_thu",
+  "buche_truoc",
+  "sec_khac",
   "ma_loai_tru",
   "ghi_chu"
  ],
@@ -148,6 +156,55 @@
    "options": "Vagabond Mua Vu Doi Ruot"
   },
   {
+   "fieldname": "sec_web",
+   "fieldtype": "Section Break",
+   "label": "Trang web (tab In season)"
+  },
+  {
+   "fieldname": "sot_web",
+   "fieldtype": "Table",
+   "label": "Sốt chấm bán kèm Panettone",
+   "options": "Vagabond Mua Vu Sot",
+   "description": "Mỗi dòng một mã hàng sốt. Khách chọn tối đa 2 hũ cho mỗi bánh Panettone, giá lấy theo giá bán của mã hàng (giá 0 thì web ghi Miễn phí). Mã phải đã đồng bộ sang Pancake. Để trống thì web không hiện mục sốt."
+  },
+  {
+   "fieldname": "panettone_thu",
+   "fieldtype": "Data",
+   "label": "Panettone: nhận vào thứ",
+   "length": 40,
+   "description": "Ghi các thứ cách nhau dấu phẩy, ví dụ 2,4,6. CN là Chủ nhật. Ghi \"tất cả\" là ngày nào cũng nhận. Để trống: thứ 2, 4, 6."
+  },
+  {
+   "fieldname": "panettone_truoc",
+   "fieldtype": "Data",
+   "label": "Panettone: đặt trước ít nhất (ngày)",
+   "length": 4,
+   "description": "Số ngày từ hôm đặt tới ngày nhận. Ghi 0 là nhận được ngay hôm đặt. Để trống: 3 ngày."
+  },
+  {
+   "fieldname": "cb_web",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "buche_thu",
+   "fieldtype": "Data",
+   "label": "Bûche: nhận vào thứ",
+   "length": 40,
+   "description": "Ghi các thứ cách nhau dấu phẩy, ví dụ 2,4,6. CN là Chủ nhật. Để trống: ngày nào cũng nhận."
+  },
+  {
+   "fieldname": "buche_truoc",
+   "fieldtype": "Data",
+   "label": "Bûche: đặt trước ít nhất (ngày)",
+   "length": 4,
+   "description": "Số ngày từ hôm đặt tới ngày nhận. Ghi 0 là nhận được ngay hôm đặt. Để trống: 2 ngày."
+  },
+  {
+   "fieldname": "sec_khac",
+   "fieldtype": "Section Break",
+   "label": "Khác"
+  },
+  {
    "description": "Moi dong mot ma hang. Ma nam trong day thi dong bo KHONG tu keo ve mua nua. Nut X tren man hinh tu ghi vao day.",
    "fieldname": "ma_loai_tru",
    "fieldtype": "Small Text",
@@ -161,7 +218,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-17 09:00:00.000000",
+ "modified": "2026-11-26 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Mua Vu",

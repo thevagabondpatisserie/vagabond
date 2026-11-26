@@ -308,7 +308,8 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await page.goto(url+'/web_moi/banh#/in-season/TTHOP02');
     await page.locator('#sheetMua.open').waitFor(); assert(await page.locator('#sm-cta').isDisabled());
     await page.goto(url+'/web_moi/banh#/in-season/TTHOP01');
-    await page.locator('#sm-cta').click(); await page.locator('#sheetMua .close').click(); await page.locator('#bar .go').click();
+    /* v693: thêm xong thì sheet mùa vụ tự đóng về tab In season, như sheet bánh thường (không còn phải bấm ✕). */
+    await page.locator('#sm-cta').click(); await page.locator('#sheetMua.open').waitFor({state:'detached'}).catch(()=>{}); await page.waitForURL(/#\/in-season$/); await page.locator('#bar .go').click();
     assert.match(await page.locator('#cartList').innerText(),/Hộp Trăng Rằm/i);
     await page.route('**/api/method/vagabond.kiem_banh.co_the_ban_hom_nay*',r=>r.fulfill({status:500,json:{}}));
     await page.goto(url+'/web_moi/banh');
@@ -1079,6 +1080,91 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.ok(oNhap.length>=3,'bảng Đặt giao có ô nhập');
     for(const o of oNhap){ assert.ok(o.nhan&&o.cao>0,'ô '+o.id+' mất nhãn'); }
     assert.deepEqual(loi,[]); await c.close();
+  });
+  await test('F63 v696 tab In season mùa Giáng sinh: gộp size, đồ kèm theo size, sốt tối đa 2 hũ, giỏ Panettone không dĩa nĩa không cờ, lịch thứ 2 4 6 trước 3 ngày, máy chủ từ chối ngày sai',async()=>{
+    /* Dữ liệu GIẢ của cong_cu/xem_thu_web_vue.py (mua_noel), ngày kết thúc mùa = hôm nay + 40 ngày. */
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    await c.route('**/api/method/vagabond.mua_vu.hang_theo_mua*',r=>r.continue({url:url+'/api/method/vagabond.mua_vu.hang_theo_mua?vgb_mua=noel'}));
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    await p.goto(url+'/web_moi/banh#/in-season'); await p.locator('#muaLuoi .card').first().waitFor();
+    assert.equal(await p.locator('#muaLuoi .card').count(),4,'6 mã thành 4 thẻ');
+    const the=p.locator('#muaLuoi [data-nhom="classic-panettone"]');
+    assert.match(await the.innerText(),/từ\s*320\.000/i); assert.match(await the.innerText(),/Bánh lớn 680gr/i); assert.match(await the.innerText(),/Bánh Mini 250gr/i);
+    assert.equal(await p.locator('#muaLuoi .card-o').filter({has:the}).locator('.c-them').count(),0,'thẻ nhiều size không có nút thêm nhanh');
+    assert.equal(await p.locator('#muaLuoi .card-o').filter({has:p.locator('[data-nhom="NOELKH01"]')}).locator('.c-them').count(),1,'hàng mùa thường vẫn thêm nhanh');
+    assert.match(await p.locator('#muaLuat').innerText(),/Panettone: nhận thứ 2, thứ 4, thứ 6, đặt trước ít nhất 3 ngày · Bûche: đặt trước ít nhất 2 ngày/);
+    assert.match(await p.locator('#muaLuoi [data-nhom="saigonettone"]').innerText(),/Bánh Mini 250gr · Tạm hết/i,'size hết ghi rõ bằng chữ');
+    const chuTab=await p.evaluate(()=>Math.min(...[...document.querySelectorAll('#season .mua-hd *, #muaLuoi *')].filter(e=>e.children.length===0&&e.textContent.trim()&&e.offsetParent).map(e=>parseFloat(getComputedStyle(e).fontSize))));
+    assert(chuTab>=13,'chữ nhỏ nhất của tab '+chuTab);
+    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+1),false,'tab không tràn ngang ở 390 px');
+    await the.click(); await p.locator('#sheetMua.open').waitFor();
+    assert.equal(await p.locator('#sm-sizes .size').count(),2);
+    assert.match(await p.locator('#sm-desc').innerText(),/men tự nhiên/i);
+    assert.match(await p.locator('#sm-layers').innerText(),/Nguyên liệu/i);
+    assert.match(await p.locator('#sm-di-ung').innerText(),/Gluten/); assert.match(await p.locator('#sm-bao-quan').innerText(),/7 ngày/);
+    assert.match(await p.locator('#sm-acc').innerText(),/Hộp màu nâu champagne/); assert.match(await p.locator('#sm-acc').innerText(),/Thiệp Giáng sinh/);
+    assert.equal(await p.locator('#sm-acc img').count(),0,'chưa có ảnh thì hiện chữ, không dùng ảnh mẫu');
+    await p.locator('#sm-sizes [data-ma="NOELPA02"]').click();
+    assert.match(await p.locator('#sm-acc').innerText(),/Hộp màu xanh turquoise/);
+    assert.match(await p.locator('#sm-luat').innerText(),/thứ 2, thứ 4, thứ 6/);
+    const cong=ma=>p.locator(`#sm-sot [data-sot="${ma}"] .sl-vien button`).last();
+    await cong('NOELSO01').click(); await cong('NOELSO01').click();
+    assert(await cong('NOELSO03').isDisabled(),'đủ 2 hũ thì khoá nút thêm của mọi sốt');
+    assert.match(await p.locator('#sm-sot-du').innerText(),/đủ 2 hũ/);
+    assert.match(await p.locator('#sm-sot [data-sot="NOELSO03"]').innerText(),/Miễn phí/);
+    assert.match(await p.locator('#sm-cta').innerText(),/410\.000/,'320.000 + 2 hũ 45.000');
+    /* Chuẩn chạm: nút size, nút cộng trừ, nút thêm cao từ 44 px; chữ trong sheet từ 13 px; không tràn ngang. */
+    const do1=await p.evaluate(()=>{const s=document.querySelector('#sheetMua');
+      const nut=[...s.querySelectorAll('button')].filter(b=>b.offsetParent).map(b=>Math.round(b.getBoundingClientRect().height));
+      const chu=[...s.querySelectorAll('*')].filter(e=>e.children.length===0&&e.textContent.trim()&&e.offsetParent).map(e=>parseFloat(getComputedStyle(e).fontSize));
+      return {nut:Math.min(...nut),chu:Math.min(...chu),tran:s.scrollWidth>s.clientWidth+1};});
+    assert(do1.nut>=44,'nút thấp nhất '+do1.nut); assert(do1.chu>=13,'chữ nhỏ nhất '+do1.chu); assert.equal(do1.tran,false);
+    await p.locator('#sm-plus').click(); await p.locator('#sm-plus').click(); await p.locator('#sm-plus').click();
+    assert.equal(await p.locator('#sm-qty').innerText(),'3','size Mini còn 3: không vượt');
+    await p.locator('#sm-minus').click(); await p.locator('#sm-minus').click();
+    await p.locator('#sm-cta').click(); await p.waitForURL(/#\/in-season$/);
+    await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    assert.match(await p.locator('#cartList').innerText(),/Classic Panettone · Bánh Mini 250gr/);
+    assert.match(await p.locator('#cartList').innerText(),/Sốt Trứng Muối × 2/);
+    assert.match(await p.locator('#cartList').innerText(),/Hộp màu xanh turquoise/);
+    assert.equal(await p.locator('#c-dc').count(),0,'giỏ Panettone không có mục dụng cụ ăn');
+    assert.equal((await p.locator('#c-loi-chuc').innerText()).replace(/\s+/g,' ').trim().toLowerCase(),'02 thiệp');
+    assert.doesNotMatch(await p.locator('.lc-ds').innerText(),/cờ/i,'không có cờ lời chúc');
+    await p.locator('[data-thiep-mua="panettone"]').waitFor();
+    assert.equal(await p.locator('.lc-ds .th-luoi').count(),0,'không chọn loại thiệp, chỉ thiệp miễn phí');
+    /* Lịch: mọi ngày còn sáng là thứ 2, 4, 6 và cách hôm nay từ 3 ngày; có 41 ô tới ngày kết thúc mùa. */
+    const lich=await p.evaluate(()=>[...document.querySelectorAll('#c-days .day')].map((b,i)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+i);return {i,thu:d.getDay(),off:b.classList.contains('off'),on:b.classList.contains('on')};}));
+    assert.equal(lich.length,41);
+    const sang=lich.filter(x=>!x.off);
+    assert(sang.length>=15&&sang.every(x=>x.i>=3&&[1,3,5].includes(x.thu)),'ngày sáng sai luật: '+JSON.stringify(sang.slice(0,5)));
+    assert(lich.filter(x=>x.i>=3&&[1,3,5].includes(x.thu)).every(x=>!x.off),'ngày đúng luật phải sáng');
+    assert.equal(lich.find(x=>x.on).i,sang[0].i,'ngày tự chọn là ngày hợp lệ gần nhất');
+    const mo=lich.find(x=>x.off&&x.i>3);
+    await p.locator('#c-days .day').nth(mo.i).click();
+    assert.equal(await p.locator('#c-days .day.on').count(),1); assert.equal((await p.evaluate(()=>[...document.querySelectorAll('#c-days .day')].findIndex(b=>b.classList.contains('on')))),sang[0].i,'bấm ngày mờ không đổi ngày');
+    assert.match(await p.locator('#c-prep').innerText(),/Panettone chỉ nhận thứ 2, thứ 4, thứ 6 và cần đặt trước ít nhất 3 ngày/);
+    /* Máy chủ từ chối ngày (đồng hồ hoặc cài đặt phía máy chủ khác): hiện câu máy chủ, mở lại lịch, giữ giỏ. */
+    const gui=[];
+    await p.route('**/api/method/vagabond.don_hang.tao_don',r=>{gui.push(JSON.parse(r.request().postDataJSON().don));return r.fulfill({json:{message:{ok:0,ly_do:'ngay_mua_vu',nhac:['Panettone chỉ nhận thứ 2, thứ 4, thứ 6 (máy chủ).']}}});});
+    await p.locator('#c-days .day').nth(sang[1].i).click(); await p.locator('#c-slots button:not([disabled])').first().click();
+    await p.locator('#m-pick').click(); await p.locator('#pickList button').first().click();
+    await p.locator('#f-name').fill('KHÁCH THỬ F61'); await p.locator('#f-phone').fill('0900000061');
+    await p.locator('#c-dongy').click(); await p.locator('#btnSend').click();
+    await p.waitForFunction(()=>document.querySelector('#sendHint').innerText.includes('(máy chủ)'));
+    assert.equal(gui.length,1);
+    assert.deepEqual(gui[0].items.map(h=>[h.variation_id,h.quantity]),[['NOELPA02',1],['NOELSO01',2]],'mỗi size một dòng, sốt là dòng riêng, không dĩa nĩa');
+    assert.deepEqual(gui[0].chiec.map(x=>[x.ma,x.co,x.thiep]),[['NOELPA02',false,'nho']]);
+    assert.match(gui[0].note_print,/Classic Panettone Bánh Mini 250gr/); assert.doesNotMatch(gui[0].note_print,/cờ/i); assert.match(gui[0].note_print,/thiệp Giáng sinh/);
+    await p.locator('#c-days').waitFor(); assert.match(await p.locator('#cartList').innerText(),/Classic Panettone/);
+    /* Bûche: có cờ lời chúc, có dụng cụ ăn, có Mua thêm phụ kiện; đơn trộn theo lịch Panettone. */
+    await p.goto(url+'/web_moi/banh#/in-season/NOELBU01'); await p.locator('#sheetMua.open').waitFor();
+    assert.match(await p.locator('#sm-acc').innerText(),/Hộp Bûche/); assert.equal(await p.locator('#sm-sot').count(),0); assert.equal(await p.locator('#sm-phu-kien').count(),1);
+    await p.locator('#sm-cta').click(); await p.waitForURL(/#\/in-season$/); await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    assert.equal(await p.locator('#c-dc').count(),1,'có Bûche thì có mục dụng cụ ăn');
+    assert.match(await p.locator('.lc-ds').innerText(),/Cờ cắm lời chúc/i); await p.locator('[data-thiep-mua="buche"]').waitFor();
+    assert.match(await p.locator('#c-prep').innerText(),/cả Panettone và Bûche/);
+    assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
   });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);

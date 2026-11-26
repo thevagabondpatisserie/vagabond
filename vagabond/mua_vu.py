@@ -1405,6 +1405,9 @@ def bang(mua=None):
 				"ten_banh": d.ten_banh or "",
 				"hinh": d.hinh or anh_mon.get(d.ma_hang, ""),
 				"nhan_ngan": d.nhan_ngan or "",
+				"nhom_web": d.get("nhom_web") or "",
+				"nhan_size": d.get("nhan_size") or "",
+				"loai_web": d.get("loai_web") or "",
 				"khong_tran": cint(d.khong_tran),
 				"tran_ngay": cint(d.tran_ngay),
 				"san_xuat": d.san_xuat or 0,
@@ -1885,7 +1888,10 @@ SUA_DUOC = {
 	# Them 21/08/2026: o so hop nha in da giao, tach hoi o San xuat cua bep.
 	"nha_in_giao",
 	"ghi_chu", "tran_ngay", "nhan_ngan", "khong_tran",
+	# v693: ba o quyet cach hien tren tab In season cua web (mua_vu_web.py).
+	"nhom_web", "nhan_size", "loai_web",
 }
+LOAI_WEB = ("", "Panettone", "Bûche", "Khác")
 
 
 @frappe.whitelist()
@@ -1901,7 +1907,8 @@ def luu_o(mua=None, ma_hang=None, truong=None, gia_tri=None):
 	if truong not in SUA_DUOC:
 		frappe.throw(
 			"Cột này máy tự đếm từ đơn Pancake nên không sửa tay được. Chỉ sửa được "
-			"ô Số lượng sản xuất, Trần mỗi ngày, Nhãn ngắn, Không đặt trần và Ghi chú."
+			"ô Số lượng sản xuất, Trần mỗi ngày, Nhãn ngắn, Không đặt trần, Ghi chú "
+			"và ba ô của web: Nhóm trên web, Nhãn size, Loại trên web."
 		)
 	doc = frappe.get_doc(DT, mua)
 	if doc.tinh_trang == "Da dong":
@@ -1923,6 +1930,14 @@ def luu_o(mua=None, ma_hang=None, truong=None, gia_tri=None):
 				d.nhan_ngan = _khong_dau(gia_tri).replace(" ", "")[:6]
 			elif truong == "khong_tran":
 				d.khong_tran = 1 if cint(gia_tri) else 0
+			elif truong == "nhom_web":
+				d.nhom_web = " ".join(str(gia_tri or "").split())[:60]
+			elif truong == "nhan_size":
+				d.nhan_size = " ".join(str(gia_tri or "").split())[:40]
+			elif truong == "loai_web":
+				if str(gia_tri or "") not in LOAI_WEB:
+					frappe.throw("Loại trên web chỉ chọn Panettone, Bûche, Khác hoặc để trống.")
+				d.loai_web = str(gia_tri or "")
 			else:
 				d.ghi_chu = str(gia_tri or "")[:140]
 			doc.save()  # giu quyen that cua nguoi dang sua, de con vet ai sua gi
@@ -2838,6 +2853,24 @@ def _anh_danh_muc_pancake(cac_ma):
 	return ra
 
 
+def mua_cho_web():
+	"""Ban ghi mua dang chay tren web, hoac None. MOT noi chon mua cho ca tab
+	In season (hang_theo_mua) lan phep kiem luc tao don (mua_vu_web.kiem_don).
+
+	Mot mua mot lan. Hai mua cung chay la chuyen hiem va luc do lay mua co
+	ngay ket thuc gan nhat, vi do la mua dang gap."""
+	cac_mua = mua_dang_chay(getdate())
+	if not cac_mua:
+		return None
+	ten_mua = sorted(
+		cac_mua, key=lambda m: str(frappe.db.get_value(DT, m, "den_ngay") or "9999-12-31")
+	)[0]
+	try:
+		return frappe.get_doc(DT, ten_mua)
+	except Exception:
+		return None
+
+
 @frappe.whitelist(allow_guest=True)
 def hang_theo_mua():
 	"""Nhom hang mua vu cho trang dat banh order.thevagabondpatisserie.com.
@@ -2857,20 +2890,14 @@ def hang_theo_mua():
 	thi khach biet de hoi dot sau.
 	"""
 	rong = {"co": 0, "mon": []}
-	ngay = getdate()
-	cac_mua = mua_dang_chay(ngay)
-	if not cac_mua:
-		return rong
-	# Mot mua mot lan. Hai mua cung chay la chuyen hiem va luc do lay mua co
-	# ngay ket thuc gan nhat, vi do la mua dang gap.
-	ten_mua = sorted(
-		cac_mua, key=lambda m: str(frappe.db.get_value(DT, m, "den_ngay") or "9999-12-31")
-	)[0]
-	try:
-		doc = frappe.get_doc(DT, ten_mua)
-	except Exception:
+	doc = mua_cho_web()
+	if not doc:
 		return rong
 
+	from vagabond import mua_vu_web
+
+	# v693 (Codex #625): loại hiệu lực của từng mã, cùng phép với lúc tạo đơn.
+	loai_theo_ma = mua_vu_web.loai_cua_mua(doc)
 	ten_theo_ma = {d.ma_hang: (d.ten_banh or d.ma_hang) for d in doc.dong}
 	ruot = _ruot_cua_hop([m.as_dict() for m in doc.get("dinh_muc") or []], ten_theo_ma)
 	la_hop = ma_la_hop([m.as_dict() for m in doc.get("dinh_muc") or []])
@@ -2911,6 +2938,10 @@ def hang_theo_mua():
 				"het": 0 if con > 0 else 1,
 				"la_hop": 1 if d.ma_hang in la_hop else 0,
 				"ruot": ruot.get(d.ma_hang, ""),
+				# v693: gop size va luat theo loai (Sales, Marketing dien o dong Mua vu).
+				"nhom": " ".join(str(d.get("nhom_web") or "").split()),
+				"nhan_size": " ".join(str(d.get("nhan_size") or "").split()),
+				"loai": loai_theo_ma.get(d.ma_hang, ""),
 			}
 		)
 	if not mon:
@@ -2918,10 +2949,26 @@ def hang_theo_mua():
 
 	# Hop len truoc banh le, roi trong moi nhom thi con hang len truoc.
 	mon.sort(key=lambda m: (-m["la_hop"], m["het"], m["ten"]))
+	# v693: `mon` giu nguyen dang phang cho trang con mo tu truoc; `nhom` la cac
+	# the cua tab In season (gop size), kem noi dung Marketing nhap o trinh bien tap.
+	nhom = mua_vu_web.gom_nhom(mon)
+	try:
+		mua_vu_web.noi_dung_nhom(nhom)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được nội dung bánh mùa vụ")
+	try:
+		sot = mua_vu_web.sot_cho_web(doc)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được sốt chấm mùa vụ")
+		sot = []
 	return {
 		"co": 1,
 		"mua": doc.name,
 		"ten_mua": doc.ten_mua,
 		"den_ngay": str(doc.den_ngay or ""),
 		"mon": mon,
+		"nhom": nhom,
+		"luat": mua_vu_web.luat_mua({k: doc.get(k) for k in ("panettone_thu", "panettone_truoc", "buche_thu", "buche_truoc")}),
+		"sot": sot,
+		"sot_moi_banh": mua_vu_web.SOT_MOI_BANH,
 	}
