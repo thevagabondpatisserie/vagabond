@@ -198,6 +198,7 @@ export const LY_DO = {
   /* v693: lịch nhận và sốt chấm của hàng mùa vụ (mua_vu_web.py); máy chủ gửi kèm câu cụ thể. */
   ngay_mua_vu: ['mv_ly_ngay', 'Ngày nhận chưa đúng lịch của bánh mùa Giáng sinh trong giỏ. Quý khách chọn lại ngày nhận.'],
   sot_qua_so: ['mv_ly_sot', 'Mỗi bánh Panettone chọn tối đa 2 hũ sốt. Quý khách bớt sốt rồi gửi lại.'],
+  sl_mua_qua_tran: ['mv_ly_sl', 'Mỗi đơn trên web nhận tối đa 20 cho mỗi loại bánh hoặc sốt mùa vụ. Quý khách bớt số lượng rồi gửi lại.'],
   /* v667: món của đợt Đặc biệt tuần này (dac_biet_tuan.py). */
   dac_biet_chua_mo: ['dbt_ly_chua_mo', 'Món cuối tuần chưa mở đơn. Quý khách quay lại khi mở đơn nhé.'],
   dac_biet_da_chot: ['dbt_ly_da_chot', 'Món cuối tuần đã chốt đơn tuần này. Quý khách bỏ món này khỏi giỏ để gửi phần còn lại.'],

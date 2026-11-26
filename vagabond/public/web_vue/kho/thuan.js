@@ -638,3 +638,11 @@ export function tenAddsGop(adds) {
   (adds || []).forEach(a => dem.set(a.n, (dem.get(a.n) || 0) + 1));
   return [...dem].map(([n, so]) => (so > 1 ? n + ' × ' + so : n)).join(', ');
 }
+/* v693 (Codex #625 vòng 2): máy chủ giữ tối đa 20 cho MỖI MÃ trong một đơn (MAX_SL ở
+   don_hang.py, _lam_sach_hang lặng lẽ cắt phần dư). Giỏ mùa vụ phải dừng ở đúng con số đó,
+   tính trên danh sách món sẽ gửi (bánh, sốt, phụ kiện đã nhân số bánh), để tiền khách thấy
+   khớp đơn máy chủ tạo. Trả các mã vượt trần. */
+export const SL_MA_TOI_DA = 20;
+export function maVuotSl(gio, tran = SL_MA_TOI_DA) {
+  return hangGui(gio || [], null).filter(h => h.quantity > tran).map(h => h.variation_id);
+}

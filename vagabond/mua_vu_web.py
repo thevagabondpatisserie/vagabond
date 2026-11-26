@@ -310,12 +310,37 @@ def ngay_tu_iso(v):
 		return None
 
 
-def xet_don(hang, ngay, hom_nay, mua):
+def vuot_sl(items_tho, cac_ma, tran):
+	"""THUẦN: các mã mùa vụ (bánh, sốt) mà trình duyệt gửi quá `tran` cái trong
+	một đơn. items_tho: danh sách "items" NGUYÊN của trình duyệt, trước bước làm
+	sạch (bước đó lặng lẽ cắt mỗi mã về trần, Codex #625 vòng 2: đơn tạo ra thiếu
+	hàng và thấp tiền hơn màn khách đã xác nhận). Dòng rác bị bỏ qua như bước làm sạch."""
+	tong = {}
+	for it in items_tho if isinstance(items_tho, list) else []:
+		if not isinstance(it, dict):
+			continue
+		ma = str(it.get("variation_id") or "").strip()
+		try:
+			sl = int(it.get("quantity") or 0)
+		except (TypeError, ValueError):
+			continue
+		if ma and sl > 0:
+			tong[ma] = tong.get(ma, 0) + sl
+	can = set(cac_ma or [])
+	return sorted(ma for ma, sl in tong.items() if ma in can and sl > int(tran))
+
+
+def xet_don(hang, ngay, hom_nay, mua, items_tho=None, tran_sl=None):
 	"""THUẦN: xét một đơn theo cài đặt mùa `mua` ({loai_theo_ma, luat, ma_sot,
-	den_ngay}). Trả None khi nhận được, hoặc {"ly_do", "nhac": [câu]}."""
+	den_ngay}). Trả None khi nhận được, hoặc {"ly_do", "nhac": [câu]}.
+	items_tho, tran_sl: danh sách món nguyên của trình duyệt và trần mỗi mã của
+	bước làm sạch, để từ chối rõ thay vì tạo đơn đã bị cắt bớt."""
 	if not mua:
 		return None
 	loai_theo_ma = mua.get("loai_theo_ma") or {}
+	if tran_sl is not None and vuot_sl(items_tho, list(loai_theo_ma) + list(mua.get("ma_sot") or []), tran_sl):
+		return {"ly_do": "sl_mua_qua_tran", "nhac": [
+			"Mỗi đơn trên web nhận tối đa %d cho mỗi loại bánh hoặc sốt mùa vụ. Quý khách bớt số lượng rồi gửi lại, hoặc gọi 0931 224 334." % int(tran_sl)]}
 	vuot = kiem_sot(hang, mua.get("ma_sot"), loai_theo_ma)
 	if vuot:
 		return {"ly_do": "sot_qua_so", "nhac": [
@@ -354,15 +379,15 @@ def loai_cua_mua(doc):
 	return loai_hieu_luc([{"ma": d.ma_hang, "nhom": d.get("nhom_web"), "loai": d.get("loai_web")} for d in doc.dong])
 
 
-def kiem_don(hang, ngay_nhan, mua):
-	"""Lúc tạo đơn web: lịch nhận và số hũ sốt của hàng mùa vụ. mua: kết quả
-	doc_mua_web(). Trả None hoặc {"ly_do", "nhac"}. Đơn không có hàng mang luật,
-	không có sốt thì None."""
+def kiem_don(hang, ngay_nhan, mua, items_tho=None, tran_sl=None):
+	"""Lúc tạo đơn web: lịch nhận, số hũ sốt và trần số lượng mỗi mã của hàng mùa
+	vụ. mua: kết quả doc_mua_web(). Trả None hoặc {"ly_do", "nhac"}. Đơn không có
+	hàng mang luật, không có sốt thì None."""
 	import frappe
 
 	if not mua:
 		return None
-	return xet_don(hang, ngay_tu_iso(ngay_nhan), frappe.utils.getdate(frappe.utils.nowdate()), mua)
+	return xet_don(hang, ngay_tu_iso(ngay_nhan), frappe.utils.getdate(frappe.utils.nowdate()), mua, items_tho, tran_sl)
 
 
 def ma_khong_dung_cu():

@@ -431,6 +431,29 @@ await ca('v693 lịch nhận theo loại: Panettone thứ 2, 4, 6 trước 3 ng�
   k.S.CART.splice(0); la('giỏ rỗng: lịch 14 ngày', k.ngayRail.value.length, 14);
 });
 
+await ca('v693 Codex #625 vòng 2: máy chủ giữ tối đa 20 cho mỗi mã trong một đơn, nên giỏ mùa vụ không cho vượt 20 bánh mỗi size hay 20 hũ mỗi loại sốt (trước đây 11 bánh x 2 hũ gửi 22 hũ, máy chủ lặng lẽ cắt còn 20)', async () => {
+  const {mt} = moiTruong('2026-11-26T09:00:00');
+  const k = taoKho(mt);
+  const m = MUA_NOEL(); m.nhom[0].sizes[0].con = 40; m.nhom[1].sizes[0].con = 40; k.S.MUA = m;
+  k.moMua('classic-panettone'); k.doiSotMua('SOT1', 1); k.doiSotMua('SOT1', 1);
+  for (let i = 0; i < 15; i++) k.doiSlMua(1);
+  la('số lượng ở sheet dừng ở 10 bánh khi mỗi bánh 2 hũ cùng loại (20 hũ)', k.muaDangXem.value.sl, 10);
+  dung('có câu nói rõ trần 20', (k.S.toast.chu || '').includes('20'));
+  la('thêm 10 bánh', k.themTuMuaXem(), true);
+  la('gửi đúng 10 bánh, 20 hũ', hangGui(k.S.CART, k.S.DC).map(h => [h.variation_id, h.quantity]), [['PAN1', 10], ['SOT1', 20]]);
+  k.cartQty(0, 1);
+  la('nút + trong giỏ không vượt', k.S.CART[0].qty, 10);
+  k.moMua('classic-panettone'); k.doiSotMua('SOT1', 1);
+  la('thêm một bánh nữa kèm hũ thứ 21 bị chặn', [k.themTuMuaXem(), k.S.CART.length], [false, 1]);
+  k.doiSotMua('SOT1', -1); k.doiSotMua('SOT2', 1);
+  la('đổi sang sốt khác thì thêm được', k.themTuMuaXem(), true);
+  /* Không sốt: mỗi size tối đa 20 bánh trong một đơn. */
+  k.S.CART.splice(0); k.moMua('BU1');
+  for (let i = 0; i < 30; i++) k.doiSlMua(1);
+  la('Bûche dừng ở 20', k.muaDangXem.value.sl, 20);
+  la('trần của máy chủ và trình duyệt là một con số', k.T.SL_MA_TOI_DA, 20);
+});
+
 await ca('v693 giỏ lưu có bánh mùa vụ: tải lại trang giữ size, sốt, thiệp; giá và tên sốt lấy lại từ máy chủ, sốt lạ hoặc quá trần bị bỏ', async () => {
   const a = moiTruong('2026-11-26T09:00:00', {'vagabond.mua_vu.hang_theo_mua': () => MUA_NOEL()});
   a.kho.set('vgb-gio-v1', JSON.stringify({luc: new Date('2026-11-26T08:00:00').getTime(), ngay: '2026-12-02', slot: 6, daChonNgay: true, daChonGio: true,

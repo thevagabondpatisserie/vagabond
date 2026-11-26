@@ -600,6 +600,8 @@ export function taoKho(moiTruong) {
       if (o.cm !== 0 && hetNgayDaChon(o.id, o.nguon)) { toast(cauHetNgayDaChon()); return; }
       if (gh && daCo(o.id) >= gh) { toast(t('dat_truoc_con_mai_ngan', 'Size này chỉ còn nhận {gia_tri_a} bánh.', {gia_tri_a: gh})); return; }
       if (m && daCo(o.id) >= m.con) { toast(t('dat_banh_3b1a7e8cc', 'Mùa này chỉ còn') + ' ' + m.con + ' ' + t('dat_banh_5faac70d7', 'phần. Cần nhiều hơn quý khách gọi 0931 224 334')); return; }
+      /* v693 (Codex #625 vòng 2): nút + của dòng mùa vụ cũng dừng ở 20 cho mỗi mã (bánh, sốt, phụ kiện). */
+      if (T.laDongMua(o) && muaVuotSl(Object.assign({}, o, {qty: o.qty + 1}), o)) { toast(cauSlToiDa()); return; }
       /* Codex #579: nút + trong giỏ cũng giữ giờ chốt và số lượng của đợt. */
       if (chanThemDbt(o.id, 1)) return;
     }
@@ -1484,7 +1486,7 @@ export function taoKho(moiTruong) {
         void napTon(); void napMua();
         return {buoc: 'het_hang', don};
       }
-      if (m && ['ngay_mua_vu', 'sot_qua_so'].includes(m.ly_do)) {
+      if (m && ['ngay_mua_vu', 'sot_qua_so', 'sl_mua_qua_tran'].includes(m.ly_do)) {
         /* v693: máy chủ từ chối ngày nhận hoặc số hũ sốt của hàng mùa vụ (cài đặt mùa vừa đổi). */
         S.dangGui = false;
         S.goi.gui = loiGui((m.nhac || []).join(' ') || lyDo(m.ly_do), mxh('messenger', CONFIG.messenger));
@@ -1649,11 +1651,19 @@ export function taoKho(moiTruong) {
       mua: 1, loai: x.g.loai || '', nhan: x.z.nhan || ''};
   }
   const cauHetMua = con => t('dat_banh_3b1a7e8cc', 'Mùa này chỉ còn') + ' ' + con + ' ' + t('dat_banh_5faac70d7', 'phần. Cần nhiều hơn quý khách gọi 0931 224 334');
+  /* v693 (Codex #625 vòng 2): dòng mùa vụ `o` (đã mang số lượng mới) có làm mã nào của chính
+     nó (bánh, sốt, phụ kiện) vượt 20 trong đơn không. boQua: dòng giỏ đang được thay. */
+  function muaVuotSl(o, boQua = null) {
+    const cua = new Set([o.id].concat((o.adds || []).map(a => a.id)));
+    return T.maVuotSl(S.CART.filter(x => x !== boQua).concat([o])).some(id => cua.has(id));
+  }
+  const cauSlToiDa = () => t('mv_sl_toi_da', 'Mỗi đơn trên web nhận tối đa {so} cho mỗi loại bánh, sốt hoặc phụ kiện. Cần nhiều hơn quý khách gọi 0931 224 334', {so: T.SL_MA_TOI_DA});
   function themHangMua(ma, sl = 1, adds = []) {
     const x = timSizeMua(ma);
     if (!x || x.z.het) return false;
     if (daCo(ma) + sl > x.z.con) { toast(cauHetMua(x.z.con)); return false; }
     const o = dongMua(x, sl, adds);
+    if (muaVuotSl(o)) { toast(cauSlToiDa()); return false; }
     if (tronMuaHomNay(o)) { toast(cauTachMua()); return false; }
     if (!conNgayChung(o)) { toast(t('mv_khong_ngay_chung', 'Bánh này và bánh trong giỏ không có chung ngày nhận. Quý khách gửi đơn đang có trước rồi đặt tiếp.')); return false; }
     const hit = T.themVaoGio(S.CART, o);
@@ -1692,6 +1702,7 @@ export function taoKho(moiTruong) {
     const moi = S.muaXem.sl + d;
     if (moi < 1) return;
     if (daCo(x.z.ma) + moi > x.z.con) { toast(cauHetMua(x.z.con)); return; }
+    if (d > 0 && muaVuotSl(dongMua(x, moi, addsMuaXem.value))) { toast(cauSlToiDa()); return; }
     S.muaXem.sl = moi;
   }
   /* Sốt của MỘT bánh: tổng không quá trần (2 hũ); đổi số lượng bánh thì số hũ nhân theo. */

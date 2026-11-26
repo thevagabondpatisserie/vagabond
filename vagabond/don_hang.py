@@ -749,7 +749,7 @@ def tao_don(don=None):
 		from vagabond import mua_vu_web
 
 		mua_web = mua_vu_web.doc_mua_web()
-		tu_choi_mua = mua_vu_web.kiem_don(hang, ngay, mua_web)
+		tu_choi_mua = mua_vu_web.kiem_don(hang, ngay, mua_web, don.get("items"), MAX_SL)
 		if chiec and not tu_choi_mua:
 			chiec = mua_vu_web.chot_chiec(chiec, (mua_web or {}).get("loai_theo_ma"))
 	except Exception:

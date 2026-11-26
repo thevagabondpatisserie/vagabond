@@ -160,7 +160,7 @@ def _may_chu():
 	la("chuỗi hỏng", w.ngay_tu_iso("hom nay"), None)
 	src = (GOC / "vagabond/don_hang.py").read_text()
 	tao = src[src.index("def tao_don("):]
-	dung("tao_don gọi mua_vu_web.kiem_don và trả đúng lý do", "mua_vu_web.kiem_don(hang, ngay, mua_web)" in tao and 'tu_choi_mua["ly_do"]' in tao)
+	dung("tao_don gọi mua_vu_web.kiem_don và trả đúng lý do", 'mua_vu_web.kiem_don(hang, ngay, mua_web, don.get("items"), MAX_SL)' in tao and 'tu_choi_mua["ly_do"]' in tao)
 	dung("phép kiểm theo trạng thái máy chủ nằm sau phép tìm trùng nonce", tao.index("don_web.tim_trung(khoa)") < tao.index("mua_vu_web.kiem_don("))
 	dung("kiểm trước khi đổi mã sang UUID Pancake", tao.index("mua_vu_web.kiem_don(") < tao.index("_uuid_tu_ma(c, k, h["))
 
@@ -281,3 +281,32 @@ def _the_noi_dung():
 		la("khoá tên trùng banh_web.khoa_banh: " + ten, w.khoa_nhom(ten), g["khoa_banh"](ten))
 	web = (GOC / "vagabond/mua_vu_web.py").read_text()
 	dung("đọc nội dung và tạo thẻ đều qua tim_the, ten_the", web.count("tim_the(") >= 3 and web.count("ten_the(") >= 3)
+
+
+@ca("v693 Codex #625 vòng 2: bước làm sạch cắt mỗi mã về 20 nên máy chủ từ chối rõ đơn mùa vụ gửi quá 20 một mã (bánh hoặc sốt), không tạo đơn đã bị cắt bớt; trần hai phía là một con số")
+def _tran_moi_ma():
+	w = _w()
+	loai = {"P1": "panettone", "B1": "buche"}
+	tho = lambda **k: [{"variation_id": ma, "quantity": sl} for ma, sl in k.items()]  # noqa: E731
+	la("11 bánh, 22 hũ một loại: sốt vượt", w.vuot_sl(tho(P1=11, S1=22), ["P1", "B1", "S1"], 20), ["S1"])
+	la("dòng trùng mã cộng lại rồi mới so", w.vuot_sl(tho(P1=12) + tho(P1=9), ["P1"], 20), ["P1"])
+	la("đúng 20 thì nhận", w.vuot_sl(tho(P1=20, S1=20), ["P1", "S1"], 20), [])
+	la("mã không thuộc mùa (bánh thường, dĩa nĩa) không xét ở đây", w.vuot_sl(tho(BANHGIA=25), ["P1"], 20), [])
+	la("dữ liệu rác không làm nổ", w.vuot_sl([None, {"variation_id": "P1", "quantity": "x"}, 7, {"quantity": 30}], ["P1"], 20), [])
+	la("items không phải danh sách", w.vuot_sl("x", ["P1"], 20), [])
+	mua = {"loai_theo_ma": loai, "ma_sot": ["S1"], "luat": w.luat_mua({}), "den_ngay": D(2026, 12, 31)}
+	# Sau bước làm sạch đơn còn 11 bánh 20 hũ (hợp trần 22 hũ) và ngày đúng lịch: trước đây lọt.
+	sach = tho(P1=11, S1=20)
+	kq = w.xet_don(sach, D(2026, 11, 30), D(2026, 11, 26), mua, tho(P1=11, S1=22), 20)
+	la("máy chủ từ chối, nêu lý do riêng", (kq or {}).get("ly_do"), "sl_mua_qua_tran")
+	dung("câu nói rõ trần 20", "tối đa 20" in kq["nhac"][0])
+	la("đơn trong trần vẫn nhận", w.xet_don(tho(P1=10, S1=20), D(2026, 11, 30), D(2026, 11, 26), mua, tho(P1=10, S1=20), 20), None)
+	from vagabond.khung.kiem_thu import thu_dia_nia_theo_co_692 as t692
+
+	la("trần của trình duyệt bằng MAX_SL của máy chủ", _node("import * as T from './vagabond/public/web_vue/kho/thuan.js'; console.log(T.SL_MA_TOI_DA)"), t692._hang_so("MAX_SL"))
+	la("trình duyệt tính trên danh sách món sẽ gửi (sốt nhân số bánh)", _node("""
+import * as T from './vagabond/public/web_vue/kho/thuan.js';
+const sot = {id: 'S1', n: 's', p: 1, sot: 1};
+console.log(JSON.stringify([T.maVuotSl([{id: 'P1', cm: 0, qty: 11, mua: 1, loai: 'panettone', adds: [sot, sot]}]), T.maVuotSl([{id: 'P1', cm: 0, qty: 10, mua: 1, loai: 'panettone', adds: [sot, sot]}]),
+  T.maVuotSl([{id: 'P1', cm: 0, qty: 12, adds: []}, {id: 'P1', cm: 0, qty: 9, adds: [sot]}])]));
+"""), [["S1"], [], ["P1"]])

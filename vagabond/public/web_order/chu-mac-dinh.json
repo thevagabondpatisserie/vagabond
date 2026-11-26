@@ -9679,5 +9679,15 @@
     "ten": "Giỏ: dòng mã của bánh mùa vụ đã có nhãn size trong tên ({ma})",
     "nhom": "dat_banh",
     "mac_dinh": "Mã {ma}"
+  },
+  "mv_sl_toi_da": {
+    "ten": "Mùa vụ: nhắc trần số lượng mỗi mã trong một đơn ({so})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi đơn trên web nhận tối đa {so} cho mỗi loại bánh, sốt hoặc phụ kiện. Cần nhiều hơn quý khách gọi 0931 224 334"
+  },
+  "mv_ly_sl": {
+    "ten": "Mùa vụ: máy chủ từ chối số lượng vượt trần mỗi mã",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi đơn trên web nhận tối đa 20 cho mỗi loại bánh hoặc sốt mùa vụ. Quý khách bớt số lượng rồi gửi lại."
   }
 }
