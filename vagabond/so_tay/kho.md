@@ -819,3 +819,20 @@ Bên nhận bấm Đã nhận hàng mà kho xuất chưa có đủ món trong s�
 **Lưu ý**
 - Trong câu đó, món ghi "kho đang có ..." là thiếu số lượng; món ghi "có hàng nhưng máy chưa có giá nhập, báo kế toán" là kho có hàng mà chưa có giá vốn.
 - Từ 25/10/2026, nhận hàng không được vì kho xuất thiếu thì máy không ghi phiếu nào, nhóm Zalo Kho nhận tin "Nhận hàng không được: kho xuất chưa đủ hàng" kèm phiếu, người bấm, món thiếu.
+
+## Hỏi lại khi còn dòng chưa đánh dấu Đã đếm lúc nhập kho
+Từ khoá: Đã đếm, tick, vòng tròn, nhập kho, nhận hàng, xác nhận nhập kho, chưa đánh dấu, nhập nhầm món chưa về
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kho | Nhập kho (phiếu chờ nhập) và Nhận hàng theo đơn mua | Xác nhận nhập kho, Xác nhận nhận hàng |
+
+Từ v694 (giám đốc chốt 26/11/2026, Kho báo hai món không bấm dấu vẫn được nhập).
+
+**Trước đây:** vòng tròn bên phải mỗi món không có chữ. Nhiều người hiểu không bấm vòng là không nhập món đó, nhưng hệ thống nhập mọi món có ô Số lượng thực nhận lớn hơn 0 (ô này điền sẵn bằng số còn lại), kể cả món chưa bấm vòng.
+**Từ nay:**
+- Vòng tròn có chữ **Đã đếm** và dòng giải thích đầu màn: vòng chỉ để đánh dấu món đã đếm xong; hệ thống nhập theo ô Số lượng thực nhận.
+- Bấm Xác nhận nhập kho (hoặc Xác nhận nhận hàng) mà còn món chưa đánh dấu Đã đếm và số lượng lớn hơn 0: hiện danh sách các món đó kèm số lượng và đơn vị sẽ nhập.
+- Nút chính là **Quay lại kiểm**. Muốn nhập luôn thì phải bấm đúng nút **Xác nhận nhập cả các dòng chưa đánh dấu**.
+
+**Bạn cần làm:** đếm tới đâu bấm Đã đếm tới đó. Món không về thì bấm − cho về 0 (bấm − hay sửa số cũng tự đánh dấu Đã đếm). Thấy danh sách hỏi lại thì quay lại kiểm từng món trong danh sách.

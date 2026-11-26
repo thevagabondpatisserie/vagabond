@@ -10,6 +10,8 @@ async function canh(ngay,canhBao,cu=false,loiDoc=null,chuaSua=false){
   h:x=>String(x||''),num:String,dmy:String,shortWh:String,vgbCss:()=>{},busy:v=>{dangCho=v;},toast:m=>suKien.push(['toast',m]),
   errMsg:e=>{throw e;},back:()=>suKien.push(['back']),
   getList:async(dt)=>{if(dt==='Batch' && loiDoc==='loi')throw Error('mạng');return dt==='Item'?[{name:'M',has_batch_no:1,shelf_life_in_days:90}]:[];},
+  /* v694: dòng chưa bấm Đã đếm thì có hỏi lại; ca này đi tiếp để kiểm phần HSD. */
+  chonSheet:async(o)=>{suKien.push(['chon',o.tieuDe]);return true;},
   confirmSheet:async(t,m)=>{assert.strictEqual(dangCho,0,'lớp chờ không được che sheet');suKien.push(['dialog',t,m]);return true;},
   frame:(t,html,o={})=>{document.body.innerHTML='';const b=new ElementGia('div'); b.setAttribute('id','vgbBody'); b.innerHTML=html+(o.footer||'');b.parentNode=document.body;document.body.children.push(b);return b;},
   api:async(url,args)=>{

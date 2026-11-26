@@ -12,6 +12,9 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v694
+- Hỏi lại khi còn dòng chưa đánh dấu Đã đếm lúc nhập kho
+
 ## v692
 - Link trang đặt bánh không còn chữ banh#
 - Web đặt bánh: số dĩa, nĩa tặng tối đa theo cỡ bánh
