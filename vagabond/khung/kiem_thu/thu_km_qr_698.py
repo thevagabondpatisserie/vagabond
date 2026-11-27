@@ -54,6 +54,8 @@ CTKM = [
 	_km("KM-TANG", "Tặng Bánh Giả", cach_thuc="Tang mon", kieu_giam="Phan tram", cach_ma="Ma co dinh", quay="TCV",
 		dong_mon=[{"item_code": BANH, "vai_tro": "Uu dai", "so_luong": 1, "kieu_giam": None, "gia_tri": 0}]),
 	_km("KM-WEB", "Chỉ Website giả", gia_tri=10000, kenh="Website"),
+	_km("KM-TANG2", "Tặng 2 Bánh Giả", cach_thuc="Tang mon", kieu_giam="Phan tram", cach_ma="Ma co dinh", quay="TCV",
+		dong_mon=[{"item_code": BANH, "vai_tro": "Uu dai", "so_luong": 2, "kieu_giam": None, "gia_tri": 0}]),
 ]
 KM = {c.name: c for c in CTKM}
 
@@ -156,3 +158,20 @@ def _giao_dien():
 	r = subprocess.run(["node", os.path.join(GOC, "vagabond/khung/kiem_thu/hanh_vi/bill_km_tang_698.js")],
 		capture_output=True, text=True, timeout=180)
 	la("bill_km_tang_698.js", (r.returncode, (r.stdout + r.stderr)[-800:] if r.returncode else ""), (0, ""))
+
+
+@ca("Codex #630 (loại 3): bill đã có 1 bánh tặng giá cũ 30.000 đ, giá quầy nay 45.000 đ, chương trình tặng 2: dòng tự thêm theo giá dòng đã có trên bill, trừ đúng tiền hai bánh, khách chỉ trả món thường; chốt tính lại không lệch")
+def _codex630_gia_dong():
+	si = _hd(items=[{"item_code": "GIA-THUONG", "qty": 1, "rate": 100000}, {"item_code": BANH, "qty": 1, "rate": 30000}])
+	with _moi_truong(si, gia_diem={BANH: 45000}):
+		ds = {x["ma"]: x for x in u.ds_quay(si.name)["ds"]}
+		r = u.ap_quay(si.name, "ctkm", "KM-TANG2")
+	la("danh sách báo đúng số trừ", (ds["KM-TANG2"]["giam"], ds["KM-TANG2"]["tang"]), (60000, "1 Bánh Giả"))
+	la("dòng thêm theo giá dòng đã có", [(x.item_code, float(x.rate)) for x in si["items"]][-1], (BANH, 30000.0))
+	la("trừ hai bánh, khách trả đúng món thường", (r["giam"], si.grand_total), (60000, 100000.0))
+	with _moi_truong(si, gia_diem={BANH: 45000}):
+		kq = u.truoc_chot(si)
+	la("chốt tính lại không lệch", (sum(a["giam"] for a in kq["ap"]), si.grand_total), (60000, 100000.0))
+	la("hai dòng cùng món khác giá: lấy dòng đầu như khuyen_mai._tinh_mot", u.gia_dong_dau(
+		[{"item_code": BANH, "rate": 30000}, {"item_code": "GIA-THUONG", "rate": 100000}, {"item_code": BANH, "rate": 45000}]), {BANH: 30000.0, "GIA-THUONG": 100000.0})
+	la("phép thuần: giá dòng trên bill trước giá điểm", u.dong_tang_thuan([{"item_code": BANH, "qty": 1, "rate": 50000}], {BANH: 45000}, {BANH: 30000})[0]["rate"], 30000.0)
