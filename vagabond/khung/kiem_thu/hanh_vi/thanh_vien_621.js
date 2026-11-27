@@ -56,7 +56,7 @@ function hoSoDu(them) {
     bang('ba con số', [chuOf(t.tim('so-don')), chuOf(t.tim('so-vc')), chuOf(t.tim('so-hs'))], ['1', '1', '4/5']);
     dung('đã nhận quà: không có khung mời', K.an(t.tim('moi-ho-so')));
     bang('mã thành viên trên thanh', chuOf(t.tim('vach-phai')), 'Mã KL0412');
-    dung('ảnh đại diện mặc định là hình bánh đen trắng', t.tim('av-chinh').classList.contains('xam') && /anh-bia\.png/.test(t.tim('av-chinh').style.backgroundImage));
+    dung('ảnh đại diện mặc định là hình bánh đen trắng', t.tim('av-chinh').classList.contains('xam') && /anh-bia\.jpg/.test(t.tim('av-chinh').style.backgroundImage));
   });
 
   await ca('chưa nhận quà, hồ sơ thiếu: khung mời nói rõ giá trị quà và mở đúng tab Hồ sơ', async function () {

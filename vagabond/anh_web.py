@@ -39,8 +39,52 @@ import os
 import re
 from urllib.parse import urlsplit
 
-ANH_NEN = "/assets/vagabond/web_order/anh-bia.png"
+# v697: ảnh nền thay cho món chưa có ảnh. Bản PNG cũ 2731 x 4096 nặng 8,3 MB làm
+# trang Tại quầy tải chậm (28 món dùng chung); bản JPG 1366 x 2048 nặng dưới 300 KB.
+# Tệp PNG cũ giữ lại trong repo cho đường dẫn đã gửi đi (nguồn cấp Google Merchant cũ).
+ANH_NEN = "/assets/vagabond/web_order/anh-bia.jpg"
+ANH_NEN_CU = "/assets/vagabond/web_order/anh-bia.png"
+# Mọi bản ảnh nền: nơi nào cần nhận ra "đây là ảnh nền, không phải ảnh bánh" dùng bộ này.
+CAC_ANH_NEN = (ANH_NEN, ANH_NEN_CU)
 SO_ANH_TOI_DA = 5
+# v697 (anh Việt 27/11/2026, ảnh bánh hiện chậm): ảnh tải lên cho web thu về cạnh dài
+# chừng này và nén lại nếu lớn hơn hoặc nặng hơn ngưỡng. Ảnh trang chi tiết rộng tối đa
+# khoảng 900 điểm CSS, màn Retina gấp đôi vẫn đủ nét.
+CANH_ANH_TOI_DA = 1600
+ANH_NANG_BYTE = 500 * 1024
+
+
+def thu_nho_anh(noi_dung, canh=CANH_ANH_TOI_DA, nguong=ANH_NANG_BYTE):
+	"""THUẦN (cần Pillow): (byte ảnh, đuôi) để lưu cho web.
+
+	Ảnh có cạnh dài hơn `canh` hoặc nặng hơn `nguong`: xoay đúng chiều theo EXIF
+	(ảnh chụp điện thoại), thu về cạnh dài `canh`, nén lại. Ảnh có nền trong giữ
+	PNG, còn lại JPEG chất lượng 82. Ảnh chỉ quá nặng mà nén lại không nhẹ
+	hơn thì giữ bản gốc.
+	Ảnh đã nhỏ và nhẹ thì trả nguyên. Đuôi là 'png', 'jpg' hoặc 'webp'."""
+	from io import BytesIO
+
+	from PIL import Image, ImageOps
+
+	with Image.open(BytesIO(noi_dung)) as goc:
+		duoi = {"PNG": "png", "JPEG": "jpg", "WEBP": "webp"}.get(goc.format)
+		qua_canh = max(goc.size) > canh
+		if not qua_canh and len(noi_dung) <= nguong:
+			return noi_dung, duoi
+		anh = ImageOps.exif_transpose(goc)
+		anh.thumbnail((canh, canh), Image.LANCZOS)
+		trong = anh.mode in ("RGBA", "LA", "PA") or (anh.mode == "P" and "transparency" in anh.info)
+		ra = BytesIO()
+		if trong:
+			anh.save(ra, "PNG", optimize=True)
+			moi_duoi = "png"
+		else:
+			anh.convert("RGB").save(ra, "JPEG", quality=82, optimize=True, progressive=True)
+			moi_duoi = "jpg"
+	moi = ra.getvalue()
+	# Ảnh quá cạnh thì luôn dùng bản đã thu (trang không phải tải ảnh khổ lớn); chỉ
+	# quá nặng mà nén lại không nhẹ hơn thì giữ bản gốc.
+	return (moi, moi_duoi) if (qua_canh or len(moi) < len(noi_dung)) else (noi_dung, duoi)
 
 
 def anh_cong_khai(u):

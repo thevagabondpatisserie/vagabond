@@ -26007,6 +26007,9 @@ Nền ô đậm dần theo số lượng, nên ngày cao điểm nổi lên còn
 hẳn ra. Ngày quá khứ làm mờ: dồn khách vào một ngày đã qua thì vô nghĩa. */
 function mvVeLuoi(d, ds) {
   var L = d.lich || { ngay: [], o: {}, muc: {}, tai: {}, tran: {} };
+  /* v697: ngày đã bấm Ngưng nhận trên web (nút trong hộp chi tiết ngày). */
+  var ngung = {};
+  (L.ngung || []).forEach(function (x) { ngung[x] = 1; });
   var tong = {}, mon = {};
   /* Anh Việt 18/08/2026: "Lịch tháng thì hiện phải click vào mới ra chi tiết.
      Em cho hiện sản phẩm + số lượng của ngày đó luôn trong ô". Ô lịch trên
@@ -26066,7 +26069,7 @@ function mvVeLuoi(d, ds) {
 
   var html = canhBao + '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 8px;line-height:1.6">' +
     'Trong ô là <b>nhãn sản phẩm và số lượng</b> của ngày đó. Bấm vào ô để xem tên khách. ' +
-    'Ngày nhạt là ngày còn trống, dồn khách vào đó được.' +
+    'Ngày nhạt là ngày còn trống, dồn khách vào đó được. Ô có chữ <b>Ngưng</b> là ngày đã ngưng nhận trên web.' +
     (tranTen ? '<br>Trần mỗi ngày: <b>' + h(tranTen) + '</b>. Ô vàng là đã tới ' +
       Math.round((L.ty_le_vang || 0.75) * 100) + ' phần trăm trần, ô đỏ là đã chạm trần.' : '') +
     '</div>';
@@ -26100,12 +26103,18 @@ function mvVeLuoi(d, ds) {
           'text-overflow:ellipsis;max-width:100%">' + h(nhanCua[p[0]] || p[0]) +
           ' <b>' + p[1] + '</b></div>';
       }).join('') + (ms.length > 3 ? '<div style="font-size:8px;opacity:.7">+' + (ms.length - 3) + ' món</div>' : '');
-      o += '<div ' + (t ? 'data-mvng="' + iso + '"' : '') + ' style="min-height:58px;border-radius:8px;' +
-        'padding:3px 2px;background:' + (ngoai ? nen : '#f4f5f7') + ';border:1px solid ' + vien +
+      /* v697: mọi ngày trong mùa chưa qua đều bấm được để xem chi tiết và bấm
+         Ngưng nhận ngày này, kể cả ngày chưa có đơn. */
+      var bam = t || (ngoai && !qua);
+      var ng = !!ngung[iso];
+      o += '<div ' + (bam ? 'data-mvng="' + iso + '" role="button" tabindex="0" aria-label="Ngày ' + dd + '/' + mo + (ng ? ', đã ngưng nhận trên web' : '') + '"' : '') +
+        ' style="min-height:58px;border-radius:8px;' +
+        'padding:3px 2px;background:' + (ngoai ? nen : '#f4f5f7') + ';border:' + (ng ? '2px dashed #b3261e' : '1px solid ' + vien) +
         ';display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;' +
-        'color:' + chu + ';' + (qua ? 'opacity:.42;' : '') + (t ? 'cursor:pointer;' : '') + '">' +
+        'color:' + chu + ';' + (qua ? 'opacity:.42;' : '') + (bam ? 'cursor:pointer;' : '') + '">' +
         '<div style="font-size:10px;line-height:1.1;font-weight:' + (t ? '800' : '500') + '">' + dd +
-        (t ? ' · ' + t : '') + '</div>' + dongMon +
+        (t ? ' · ' + t : '') + '</div>' +
+        (ng ? '<div style="font-size:9px;line-height:1.3;font-weight:800;color:#b3261e">Ngưng</div>' : '') + dongMon +
         '</div>';
     }
     html += '<div class="sec">' + mvTenThang(mo) + ' ' + y + '</div>' +
@@ -26143,18 +26152,50 @@ function mvXemNgay(iso) {
   var d = MV.data, L = d.lich || { o: {} }, o = L.o[iso] || {};
   var ten = {};
   (d.dong || []).forEach(function (x) { ten[x.ma_hang] = x.ten_banh || x.ma_hang; });
+  var tran = L.tran || {};
   var dong = Object.keys(o).sort().map(function (m) {
     var v = o[m];
+    /* v697: mã có trần mỗi ngày thì ghi số đã nhận trên trần (mọi kênh, máy chủ đếm cùng
+       phép với cửa nhận đơn web), để biết web còn nhận mấy. */
+    var nhan = ((L.da_nhan || {})[iso] || {})[m] || 0;
     return '<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #f2f4f7;font-size:13px">' +
       '<div style="flex:1;min-width:0">' + h(String(ten[m] || m)) + '</div>' +
       '<b style="color:#0f766e">' + money(v.chot || 0) + '</b>' +
-      (v.cho ? '<span style="color:#b45309">+' + money(v.cho) + ' chờ</span>' : '') + '</div>';
+      (v.cho ? '<span style="color:#b45309">+' + money(v.cho) + ' chờ</span>' : '') +
+      (tran[m] ? '<span style="color:' + (nhan >= tran[m] ? '#b3261e' : '#6b7280') + '">' + money(nhan) + '/' + money(tran[m]) + ' trần</span>' : '') +
+      '</div>';
   }).join('');
   var khach = Object.keys(o).map(function (m) { return o[m].khach || ''; }).filter(Boolean).join(', ');
-  var hop = hopKhung(mvNgayDay(iso), dong +
-    (khach ? '<div style="font-size:11.5px;color:#6b7280;margin-top:10px;line-height:1.6">Khách: ' +
-      h(khach.slice(0, 260)) + '</div>' : ''));
+  var daNgung = (L.ngung || []).indexOf(iso) >= 0;
+  var homNay = new Date().toISOString().slice(0, 10);
+  var duocBam = iso >= homNay && iso >= (d.tu_ngay || '') && iso <= (d.den_ngay || '9999');
+  var hop = hopKhung(mvNgayDay(iso), (dong || '<div style="font-size:13px;color:#6b7280;padding:4px 0">Chưa có đơn nhận ngày này.</div>') +
+    (khach ? '<div style="font-size:12px;color:#6b7280;margin-top:10px;line-height:1.6">Khách: ' +
+      h(khach.slice(0, 260)) + '</div>' : '') +
+    (duocBam ? '<div style="font-size:13px;line-height:1.6;color:' + (daNgung ? '#b3261e' : '#4b5563') + ';margin-top:12px">' +
+      (daNgung ? 'Web đang <b>ngưng nhận</b> ngày này: khách không chọn được ngày này cho bánh của mùa. Sales vẫn nhận tay được.'
+        : 'Web còn nhận ngày này' + (Object.keys(tran).length ? ' tới khi đủ trần mỗi ngày của từng bánh.' : '.') +
+          ' Vượt trần đột xuất thì bấm Ngưng nhận ngày này.') + '</div>' : ''),
+    duocBam ? '<button class="btn ' + (daNgung ? 'gh' : 'dg') + '" id="mvNgungNgay" style="margin:0;flex:1;min-height:44px">' +
+      (daNgung ? 'Mở nhận lại ngày này' : 'Ngưng nhận ngày này') + '</button>' : '');
   hop.box.querySelector('.x').onclick = hop.dong;
+  var nut = hop.box.querySelector('#mvNgungNgay');
+  if (nut) nut.onclick = function () { hop.dong(); mvNgungNgay(iso, !daNgung); };
+}
+
+/* v697 (anh Việt 27/11/2026): tắt khẩn cấp cả ngày nhận trên web khi vượt trần đột
+   xuất, hoặc mở lại. Máy chủ lưu vào Mùa vụ và trang khách làm mờ ngày đó. */
+async function mvNgungNgay(iso, ngung) {
+  var ok = await confirmSheet(ngung ? 'Ngưng nhận ngày ' + mvNgay(iso) + ' trên web?' : 'Mở nhận lại ngày ' + mvNgay(iso) + ' trên web?',
+    ngung ? 'Khách đặt trên web không chọn được ngày này cho bánh của mùa. Đơn đã nhận giữ nguyên, Sales vẫn nhận tay được.'
+      : 'Khách lại chọn được ngày này, theo trần mỗi ngày của từng bánh.',
+    ngung ? 'Ngưng nhận' : 'Mở nhận lại', !!ngung);
+  if (!ok) return;
+  busy(true);
+  try {
+    MV.data = await api('vagabond.mua_vu.ngung_ngay', { mua: MV.mua, ngay: iso, ngung: ngung ? 1 : 0 });
+    busy(false); mvVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Lưu lỗi', 'Không lưu được'); }
 }
 
 /* ---------- Đợt hàng nhà in (anh Việt chốt 18/08/2026) ----------
@@ -28141,7 +28182,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '696';
+var APPVER = '697';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

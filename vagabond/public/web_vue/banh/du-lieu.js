@@ -13,7 +13,7 @@ export const CONFIG = {
 export const THE_XUAT_HOA_DON = 74;
 export const THE_BANH_TANG = 68;
 const CDN = 'https://content.pancake.vn/';
-export const ANH_NEN = '/assets/vagabond/web_order/anh-bia.png';
+export const ANH_NEN = '/assets/vagabond/web_order/anh-bia.jpg';
 
 /* Khung giờ = thẻ Pancake, id = giờ bắt đầu + 76. */
 export const SLOTS = [
@@ -57,37 +57,70 @@ export function cakesGoc() {
   ];
 }
 
-/* Phụ kiện có sẵn trong hộp bánh (chỉ để hiện). Tên đi qua t() lúc vẽ.
-   v597 (Minh Vũ báo): khách tưởng phải mua thêm hộp, túi. Hộp và túi lấy đúng
-   ảnh của dòng mua thêm, một nguồn ảnh. Nĩa, dĩa chuyển xuống ô ghi số. */
-export const ACC = [
-  {k: 'pk_hop_banh', ka: 'anh_pk_hop_banh', n: 'Hộp bánh', ks: 'pk_hop_banh_mo', sub: 'hộp giấy Vagabond, vừa size bánh', i: ANH_PHU_KIEN.BAPK00016},
-  {k: 'pk_tui_vai', ka: 'anh_pk_tui_vai', n: 'Túi vải đen The Vagabond', ks: 'pk_tui_vai_mo', sub: 'xách đi tiện, dùng lại được', i: ANH_PHU_KIEN.BAPK00015},
-  {k: 'phu_kien_262b4eaaa', ka: 'anh_pk_dao', n: 'Dao gỗ cắt bánh', ks: '', sub: '', i: ANH_DUNG_CU[2]},
-  {k: 'phu_kien_e0fe21772', ka: 'anh_pk_nen_xoan', n: 'Nến xoắn', ks: 'pk_nen_xoan_mo', sub: 'vỉ 6 cây', i: ANH_DUNG_CU[0]},
-  {k: 'phu_kien_8034a0777', ka: 'anh_pk_co_cam', n: 'Cờ cắm in lời chúc', ks: 'pk_co_cam_mo_681', sub: 'lời chúc chọn ở bước Thông tin đơn hàng', i: ANH_DUNG_CU[1]}
+/* Đồ kèm theo mỗi bánh, đã gồm trong giá (chỉ để hiện). Tên, dòng phụ đi qua t()
+   lúc vẽ; ảnh là ô ảnh `ka` Marketing tải ở trình biên tập (thẻ Trang và chữ), ô
+   trống thì dùng ảnh có sẵn `i`, không có ảnh có sẵn thì hiện chữ.
+   v597 (Minh Vũ báo): khách tưởng phải mua thêm hộp, túi; hộp và túi lấy đúng ảnh
+   của dòng mua thêm, một nguồn ảnh.
+   v693 (anh Việt chốt 26/11/2026): đồ kèm bánh mùa Giáng sinh. Chữ "nâu champagne",
+   "xanh turquoise" đúng như anh chốt.
+   v697 (anh Việt chốt 27/11/2026, Danh sách cố định): danh mục cố định MỘT nguồn
+   cho trang khách, giỏ hàng và trình biên tập (thẻ Bánh). Mỗi bánh Marketing tích
+   chọn đồ kèm, bánh nhiều size chọn áp cho size nào; chưa chọn thì theo KEM_MAC_DINH.
+   Túi Panettone tách hai ô ảnh (Minh Vũ báo 27/11): bánh lớn giữ ô cũ anh_mv_tui_pan
+   (ảnh đã tải không mất), bánh Mini có ô mới. Mã `ma` trùng banh_web.MA_KEM. */
+export const DO_KEM = [
+  {ma: 'hop_banh', k: 'pk_hop_banh', ka: 'anh_pk_hop_banh', n: 'Hộp bánh', ks: 'pk_hop_banh_mo', sub: 'hộp giấy Vagabond, vừa size bánh', i: ANH_PHU_KIEN.BAPK00016},
+  {ma: 'tui_vai', k: 'pk_tui_vai', ka: 'anh_pk_tui_vai', n: 'Túi vải đen The Vagabond', ks: 'pk_tui_vai_mo', sub: 'xách đi tiện, dùng lại được', i: ANH_PHU_KIEN.BAPK00015},
+  {ma: 'dao_go', k: 'phu_kien_262b4eaaa', ka: 'anh_pk_dao', n: 'Dao gỗ cắt bánh', ks: '', sub: '', i: ANH_DUNG_CU[2]},
+  {ma: 'nen_xoan', k: 'phu_kien_e0fe21772', ka: 'anh_pk_nen_xoan', n: 'Nến xoắn', ks: 'pk_nen_xoan_mo', sub: 'vỉ 6 cây', i: ANH_DUNG_CU[0]},
+  {ma: 'co_cam', k: 'phu_kien_8034a0777', ka: 'anh_pk_co_cam', n: 'Cờ cắm in lời chúc', ks: 'pk_co_cam_mo_681', sub: 'lời chúc chọn ở bước Thông tin đơn hàng', i: ANH_DUNG_CU[1]},
+  {ma: 'hop_pan_lon', k: 'mv_kem_hop_pan_lon', ka: 'anh_mv_hop_pan_lon', n: 'Hộp màu nâu champagne', ks: 'mv_kem_hop_pan_lon_mo', sub: 'hộp riêng cho bánh lớn', i: ''},
+  {ma: 'hop_pan_mini', k: 'mv_kem_hop_pan_mini', ka: 'anh_mv_hop_pan_mini', n: 'Hộp màu xanh turquoise', ks: 'mv_kem_hop_pan_mini_mo', sub: 'hộp riêng cho bánh Mini', i: ''},
+  {ma: 'tui_pan_lon', k: 'mv_kem_tui_pan', ka: 'anh_mv_tui_pan', n: 'Túi Panettone', ks: 'mv_kem_tui_pan_mo', sub: 'túi riêng cho hộp bánh lớn', i: ''},
+  {ma: 'tui_pan_mini', k: 'mv_kem_tui_pan_mini', ka: 'anh_mv_tui_pan_mini', n: 'Túi Panettone Mini', ks: 'mv_kem_tui_pan_mini_mo', sub: 'túi riêng cho hộp bánh Mini', i: ''},
+  {ma: 'thiep_noel', k: 'mv_kem_thiep_noel', ka: 'anh_mv_thiep_noel', n: 'Thiệp Giáng sinh', ks: 'mv_kem_thiep_mo', sub: 'miễn phí, ghi lời ở bước Thông tin đơn hàng', i: ''},
+  {ma: 'hop_buche', k: 'mv_kem_hop_buche', ka: 'anh_mv_hop_buche', n: 'Hộp Bûche', ks: 'mv_kem_hop_buche_mo', sub: 'hộp riêng cho bánh Bûche', i: ''},
+  {ma: 'tui_buche', k: 'mv_kem_tui_buche', ka: 'anh_mv_tui_buche', n: 'Túi Bûche', ks: 'mv_kem_tui_buche_mo', sub: 'túi riêng cho hộp Bûche', i: ''},
+  {ma: 'thiep_buche', k: 'mv_kem_thiep_buche', ka: 'anh_mv_thiep_buche', n: 'Thiệp Bûche', ks: 'mv_kem_thiep_mo', sub: 'miễn phí, ghi lời ở bước Thông tin đơn hàng', i: ''}
 ];
-
-/* v693 (anh Việt chốt 26/11/2026): đồ kèm theo mỗi bánh mùa Giáng sinh, đã gồm trong giá.
-   Chữ "nâu champagne", "xanh turquoise" đúng như anh chốt. Ảnh do Marketing tải ở trình
-   biên tập (ô ảnh `ka`); chưa có ảnh thì hiện chữ, không dùng ảnh mẫu. Bánh Mini nhận ra
-   theo chữ "Mini" trong Nhãn size của dòng Mùa vụ. */
-const KEM_TUI_PAN = {k: 'mv_kem_tui_pan', ka: 'anh_mv_tui_pan', n: 'Túi Panettone', ks: 'mv_kem_tui_pan_mo', sub: 'túi riêng cho hộp Panettone'};
-const KEM_THIEP_NOEL = {k: 'mv_kem_thiep_noel', ka: 'anh_mv_thiep_noel', n: 'Thiệp Giáng sinh', ks: 'mv_kem_thiep_mo', sub: 'miễn phí, ghi lời ở bước Thông tin đơn hàng'};
-export const KEM_MUA = {
-  panettone_lon: [{k: 'mv_kem_hop_pan_lon', ka: 'anh_mv_hop_pan_lon', n: 'Hộp màu nâu champagne', ks: 'mv_kem_hop_pan_lon_mo', sub: 'hộp riêng cho bánh lớn'}, KEM_TUI_PAN, KEM_THIEP_NOEL],
-  panettone_mini: [{k: 'mv_kem_hop_pan_mini', ka: 'anh_mv_hop_pan_mini', n: 'Hộp màu xanh turquoise', ks: 'mv_kem_hop_pan_mini_mo', sub: 'hộp riêng cho bánh Mini'}, KEM_TUI_PAN, KEM_THIEP_NOEL],
-  buche: [{k: 'mv_kem_hop_buche', ka: 'anh_mv_hop_buche', n: 'Hộp Bûche', ks: 'mv_kem_hop_buche_mo', sub: 'hộp riêng cho bánh Bûche'},
-    {k: 'mv_kem_tui_buche', ka: 'anh_mv_tui_buche', n: 'Túi Bûche', ks: 'mv_kem_tui_buche_mo', sub: 'túi riêng cho hộp Bûche'},
-    {k: 'mv_kem_thiep_buche', ka: 'anh_mv_thiep_buche', n: 'Thiệp Bûche', ks: 'mv_kem_thiep_mo', sub: 'miễn phí, ghi lời ở bước Thông tin đơn hàng'}]
+const KEM_THEO_MA = Object.fromEntries(DO_KEM.map(x => [x.ma, x]));
+/* Đồ kèm khi Marketing chưa chọn cho bánh (bản ghi chưa có ô kem_theo). `chi`: chỉ
+   size lớn ('lon') hay chỉ size Mini ('mini'), nhận theo chữ "Mini" trong Nhãn size.
+   v697 (nhân viên báo 27/11): Bûche có thêm nến xoắn, dao gỗ, cờ cắm như bánh kem. */
+export const KEM_MAC_DINH = {
+  thuong: ['hop_banh', 'tui_vai', 'dao_go', 'nen_xoan', 'co_cam'].map(ma => ({ma})),
+  panettone: [{ma: 'hop_pan_lon', chi: 'lon'}, {ma: 'hop_pan_mini', chi: 'mini'}, {ma: 'tui_pan_lon', chi: 'lon'}, {ma: 'tui_pan_mini', chi: 'mini'}, {ma: 'thiep_noel'}],
+  buche: ['hop_buche', 'tui_buche', 'thiep_buche', 'dao_go', 'nen_xoan', 'co_cam'].map(ma => ({ma}))
 };
-export function kemMua(loai, nhanSize) {
-  if (loai === 'buche') return KEM_MUA.buche;
-  if (loai === 'panettone') return /mini/i.test(String(nhanSize || '')) ? KEM_MUA.panettone_mini : KEM_MUA.panettone_lon;
-  return [];
+export const laSizeMini = nhan => /mini/i.test(String(nhan || ''));
+/* MỘT phép cho mục Kèm theo mỗi bánh (trang bánh thường, tab In season), dòng "Đã
+   gồm" trong giỏ và ô chọn ở trình biên tập.
+   dsDat: ô kem_theo của bánh ([{ma, size}], size '' là mọi size) hoặc null khi
+   Marketing chưa chọn. Mảng rỗng là bánh không kèm gì (giá trị người dùng đã chọn).
+   loai: '' bánh thường, 'panettone', 'buche'. sizeMa, nhanSize: size đang xem. */
+export function kemCho(dsDat, loai, sizeMa, nhanSize) {
+  if (Array.isArray(dsDat)) {
+    const thay = new Set();
+    return dsDat.filter(x => x && KEM_THEO_MA[x.ma] && (!x.size || x.size === sizeMa) && !thay.has(x.ma) && thay.add(x.ma)).map(x => KEM_THEO_MA[x.ma]);
+  }
+  const mini = laSizeMini(nhanSize);
+  const ds = KEM_MAC_DINH[loai === 'panettone' || loai === 'buche' ? loai : 'thuong'];
+  return ds.filter(x => !x.chi || x.chi === (mini ? 'mini' : 'lon')).map(x => KEM_THEO_MA[x.ma]);
+}
+/* Mặc định trải ra từng mã size (trình biên tập hiện ô đã tích theo mặc định).
+   sizes: [{ma, nhan}]. Đồ áp cho mọi size thì size ''. */
+export function kemMacDinhTheoSize(loai, sizes) {
+  const ds = KEM_MAC_DINH[loai === 'panettone' || loai === 'buche' ? loai : 'thuong'];
+  const ra = [];
+  ds.forEach(x => {
+    if (!x.chi) { ra.push({ma: x.ma, size: ''}); return; }
+    (sizes || []).filter(s => laSizeMini(s.nhan) === (x.chi === 'mini')).forEach(s => ra.push({ma: x.ma, size: s.ma}));
+  });
+  return ra;
 }
 /* Ô ảnh thiệp của từng chiếc bánh mùa vụ ở bước Thông tin đơn hàng (cùng ô ảnh với mục Kèm theo). */
-export const THIEP_MUA = {panettone: KEM_THIEP_NOEL, buche: KEM_MUA.buche[2]};
+export const THIEP_MUA = {panettone: KEM_THEO_MA.thiep_noel, buche: KEM_THEO_MA.thiep_buche};
 
 /* Dĩa, nĩa tặng kèm cho cả đơn ở trang Thông tin đơn hàng (anh Việt 20/11/2026).
    Mã món lấy từ kho/thuan.js (một nguồn với danh sách gửi máy chủ). Ảnh là ảnh
@@ -140,10 +173,9 @@ export const ANH_CO = ANH_DUNG_CU[1];
    MỘT nguồn: trang dùng anhWeb(ka, ảnh có sẵn), trình biên tập nạp bảng này để
    hiện ảnh đang dùng. Khoá trùng sổ nhãn chu-mac-dinh.json (cờ "anh"). */
 export const ANH_O_MAC_DINH = Object.fromEntries([
-  ...ACC.map(x => [x.ka, x.i]), ...DUNG_CU_DON.map(x => [x.ka, x.i]),
+  ...DO_KEM.map(x => [x.ka, x.i]), ...DUNG_CU_DON.map(x => [x.ka, x.i]),
   ...NUMS.map(x => [x.ka, x.img]), ...ADDONS.map(x => [x.ka, x.img]),
-  [THIEP_EP_KIM.ka, THIEP_EP_KIM.img], ['anh_co_mau', ANH_CO], ['anh_thiep_nho', ''],
-  ...[...KEM_MUA.panettone_lon, ...KEM_MUA.panettone_mini, ...KEM_MUA.buche].map(x => [x.ka, ''])
+  [THIEP_EP_KIM.ka, THIEP_EP_KIM.img], ['anh_co_mau', ANH_CO], ['anh_thiep_nho', '']
 ]);
 /* v681 (BẢN 2 mục 2.7): logo cách thanh toán là tệp trong repo, không gọi link ngoài
    lúc chạy. Visa, Mastercard, JCB: payrexx/payment-logos (CC0). Napas, VietQR: logo chính

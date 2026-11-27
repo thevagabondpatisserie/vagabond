@@ -12,6 +12,12 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v697
+- Bánh mùa vụ trên web: trần mỗi ngày và ngưng nhận một ngày
+- Thẻ Bánh: chọn đồ kèm theo mỗi bánh
+- Ảnh bánh trên web tự thu nhỏ khi tải lên
+- Nội dung và ảnh hộp, túi, thiệp của bánh mùa Giáng sinh
+
 ## v696
 - Bánh mùa Giáng sinh trên web: gộp size, loại bánh và nhãn size
 - Bánh mùa Giáng sinh trên web: sốt chấm và lịch nhận

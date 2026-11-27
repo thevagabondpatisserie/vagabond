@@ -9458,6 +9458,16 @@
     "nhom": "dat_banh",
     "mac_dinh": "Đơn có cả Panettone và Bûche nên cả đơn theo lịch chặt hơn: {luat}."
   },
+  "mv_ngay_ngung": {
+    "ten": "Lịch nhận bánh mùa vụ: ngày đã bấm Ngưng nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày này đã nhận đủ đơn bánh mùa lễ. Quý khách chọn ngày khác hoặc gọi 0931 224 334."
+  },
+  "mv_ngay_day": {
+    "ten": "Lịch nhận bánh mùa vụ: ngày đã gần đủ trần (giữ {so} và {ten})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày này chỉ còn nhận {so} {ten}. Quý khách chọn ngày khác hoặc bớt số lượng."
+  },
   "mv_luat_pan": {
     "ten": "Lịch nhận mùa vụ: giỏ có Panettone",
     "nhom": "dat_banh",
@@ -9569,17 +9579,33 @@
     "mac_dinh": "Đã chọn đủ {so} hũ cho mỗi bánh."
   },
   "mv_kem_tui_pan": {
-    "ten": "Kèm theo bánh mùa vụ: Túi Panettone",
+    "ten": "Kèm theo bánh mùa vụ: Túi Panettone bánh lớn",
     "nhom": "san_pham",
     "mac_dinh": "Túi Panettone"
   },
   "mv_kem_tui_pan_mo": {
-    "ten": "Kèm theo bánh mùa vụ: dòng phụ (túi riêng cho hộp Panettone)",
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (túi riêng cho hộp bánh lớn)",
     "nhom": "san_pham",
-    "mac_dinh": "túi riêng cho hộp Panettone"
+    "mac_dinh": "túi riêng cho hộp bánh lớn"
   },
   "anh_mv_tui_pan": {
-    "ten": "Kèm theo bánh mùa vụ: ảnh Túi Panettone (để trống thì web hiện chữ)",
+    "ten": "Kèm theo bánh mùa vụ: ảnh Túi Panettone bánh lớn (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_kem_tui_pan_mini": {
+    "ten": "Kèm theo bánh mùa vụ: Túi Panettone Mini",
+    "nhom": "san_pham",
+    "mac_dinh": "Túi Panettone Mini"
+  },
+  "mv_kem_tui_pan_mini_mo": {
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (túi riêng cho hộp bánh Mini)",
+    "nhom": "san_pham",
+    "mac_dinh": "túi riêng cho hộp bánh Mini"
+  },
+  "anh_mv_tui_pan_mini": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Túi Panettone Mini (để trống thì web hiện chữ)",
     "nhom": "anh",
     "mac_dinh": "",
     "anh": true

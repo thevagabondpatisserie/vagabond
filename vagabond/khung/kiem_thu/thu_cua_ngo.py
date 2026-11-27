@@ -688,6 +688,8 @@ CUA_NGO = {
 		# Them 28/08/2026: bang doi ruot hop, sua cho may dem sai
 		# nhung hop khach xin doi banh ben trong.
 		"them_doi_ruot", "xoa_doi_ruot",
+		# v697: nút Ngưng nhận ngày này (tắt cả ngày nhận trên web).
+		"ngung_ngay",
 	],
 	# Goi y so cho phieu YCSX, them 23/08/2026. Mo dun nay CHI DOC, mot cua
 	# duy nhat. Them cua thu hai vao day thi phai hoi lai: mot man goi y ma

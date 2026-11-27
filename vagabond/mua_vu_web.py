@@ -289,6 +289,98 @@ def kiem_sot(hang, ma_sot, loai_theo_ma, moi_banh=SOT_MOI_BANH):
 	return (so_sot, tran) if so_sot > tran else None
 
 
+# v697 (anh Việt chốt 27/11/2026): trần số bánh mỗi ngày nhận theo ô "Trần mỗi ngày"
+# của từng mã trên màn Kiểm bánh theo mùa, đếm mọi kênh (bảng Đơn theo ngày đồng bộ
+# Pancake mỗi 5 phút, gồm đơn chốt, đơn chờ chốt, kênh khác), cộng đơn web tạo sau
+# lần đồng bộ cuối. Nút "Ngưng nhận ngày này" tắt cả ngày trên web khi vượt đột xuất.
+# Lùi mốc đếm đơn web chừng này phút trước lần đồng bộ cuối: đơn tạo trong lúc đang
+# kéo Pancake không lọt khỏi cả hai nguồn (đếm thừa thì chặn sớm, an toàn hơn đếm thiếu).
+LUI_DEM_WEB_PHUT = 10
+CAU_NGAY_NGUNG = ("Ngày %s đã nhận đủ đơn bánh mùa lễ trên web. Quý khách chọn ngày khác "
+	"hoặc gọi 0931 224 334 để được hỗ trợ.")
+CAU_NGAY_DAY = "%s ngày %s chỉ còn nhận %d bánh, quý khách đang chọn %d. Quý khách chọn ngày khác hoặc bớt số lượng."
+
+
+def doc_ngay_ngung(s):
+	"""THUẦN: các ngày (YYYY-MM-DD) đã bấm Ngưng nhận, mỗi dòng một ngày; dòng lạ bỏ."""
+	ra = set()
+	for d in str(s or "").replace(",", "\n").splitlines():
+		d = d.strip()
+		if ngay_tu_iso(d):
+			ra.add(ngay_tu_iso(d).isoformat())
+	return sorted(ra)
+
+
+def da_nhan_theo_ngay(lich, don_web_moi):
+	"""THUẦN: {(mã, ngày ISO): số đã nhận} từ bảng Đơn theo ngày của Mùa vụ
+	(lich: [{"ma", "ngay", "so"}]) cộng đơn web chưa vào bảng
+	(don_web_moi: [{"ngay", "mon": [{"ma", "sl"}]}])."""
+	ra = {}
+	for r in lich or []:
+		k = (str(r.get("ma") or ""), str(r.get("ngay") or "")[:10])
+		ra[k] = ra.get(k, 0) + max(0, int(r.get("so") or 0))
+	for d in don_web_moi or []:
+		ng = str(d.get("ngay") or "")[:10]
+		for m in d.get("mon") or []:
+			try:
+				sl = int(m.get("sl") or 0)
+			except (TypeError, ValueError):
+				continue
+			if m.get("ma") and sl > 0:
+				k = (str(m["ma"]), ng)
+				ra[k] = ra.get(k, 0) + sl
+	return ra
+
+
+def xet_ngay(hang, ngay_iso, tran, da_nhan, ngung, ma_mua, ten=None):
+	"""THUẦN: đơn có hàng của mùa nhận ngày `ngay_iso` còn chỗ không.
+
+	Trả None khi nhận được, hoặc {"ly_do": "ngay_mua_vu", "nhac": [câu]} (cùng lý do
+	với lịch nhận để trang khách mở lại lịch). tran: {mã: trần > 0}; da_nhan:
+	{(mã, ngày): số}; ngung: các ngày đã bấm Ngưng nhận; ma_mua: mọi mã của mùa."""
+	ngay_iso = str(ngay_iso or "")[:10]
+	cua_mua = set(ma_mua or [])
+	gop = {}
+	for h in hang or []:
+		ma = h.get("variation_id")
+		if ma in cua_mua:
+			gop[ma] = gop.get(ma, 0) + max(0, int(h.get("quantity") or 0))
+	if not gop or not ngay_iso:
+		return None
+	nhan = ngay_tu_iso(ngay_iso)
+	chu_ngay = nhan.strftime("%d/%m/%Y") if nhan else ngay_iso
+	if ngay_iso in set(ngung or []):
+		return {"ly_do": "ngay_mua_vu", "nhac": [CAU_NGAY_NGUNG % chu_ngay]}
+	nhac = []
+	for ma, sl in gop.items():
+		t = int((tran or {}).get(ma) or 0)
+		if t <= 0:
+			continue
+		da = int((da_nhan or {}).get((ma, ngay_iso)) or 0)
+		if da + sl > t:
+			nhac.append(CAU_NGAY_DAY % ((ten or {}).get(ma) or ma, chu_ngay, max(0, t - da), sl))
+	return {"ly_do": "ngay_mua_vu", "nhac": nhac} if nhac else None
+
+
+def han_ngay_cho_web(tran, da_nhan, ngung, tu_iso=""):
+	"""THUẦN: phần trang khách cần để làm mờ ngày: trần từng mã, số đã nhận của
+	các mã có trần (từ ngày `tu_iso`), các ngày đã ngưng."""
+	tran = {m: int(t) for m, t in (tran or {}).items() if int(t or 0) > 0}
+	da = {}
+	for (ma, ng), so in (da_nhan or {}).items():
+		if ma in tran and so and ng >= tu_iso:
+			da.setdefault(ma, {})[ng] = int(so)
+	return {"tran": tran, "da": da, "ngung": [d for d in ngung or [] if d >= tu_iso]}
+
+
+def bo_hang_mua(hang, mua):
+	"""THUẦN (v697): bỏ các dòng hàng thuộc mùa đang bán trên web khỏi phép kiểm tồn
+	của bánh đặt trước thường (ton_don_web: nhận tới ba ngày tới). Hàng mùa vụ theo
+	lịch nhận của loại và hạn mức của Mùa vụ. mua: kết quả doc_mua_web hoặc None."""
+	ma = set((mua or {}).get("ma_mua") or ())
+	return [h for h in hang or [] if h.get("variation_id") not in ma]
+
+
 def chot_chiec(chiec, loai_theo_ma):
 	"""Chiếc bánh Panettone không cắm cờ lời chúc: bỏ cờ và lời chúc trình duyệt
 	gửi kèm. Chiếc của bánh khác giữ nguyên. chiec None (trang cũ) thì trả None."""
@@ -370,6 +462,9 @@ def doc_mua_web():
 		"loai_theo_ma": loai_cua_mua(doc),
 		"luat": luat_mua({k: doc.get(k) for k in ("panettone_thu", "panettone_truoc", "buche_thu", "buche_truoc")}),
 		"ma_sot": [s.ma_hang for s in doc.get("sot_web") or [] if s.ma_hang],
+		# v697: mọi mã của mùa (kể cả dòng chưa điền Loại trên web), để cửa nhận đơn
+		# không xét các mã này theo luật bánh đặt trước thường (bo_hang_mua).
+		"ma_mua": [d.ma_hang for d in doc.dong if d.ma_hang],
 		"den_ngay": frappe.utils.getdate(doc.den_ngay) if doc.den_ngay else None,
 	}
 
@@ -388,6 +483,73 @@ def kiem_don(hang, ngay_nhan, mua, items_tho=None, tran_sl=None):
 	if not mua:
 		return None
 	return xet_don(hang, ngay_tu_iso(ngay_nhan), frappe.utils.getdate(frappe.utils.nowdate()), mua, items_tho, tran_sl)
+
+
+def _don_web_sau_dong_bo(doc, cac_ma):
+	"""Đơn web có hàng của mùa tạo sau lần đồng bộ Pancake cuối (lùi LUI_DEM_WEB_PHUT),
+	chưa huỷ, nhận trong khoảng mùa: [{"ngay", "mon"}]. Chưa đồng bộ lần nào thì lấy hết."""
+	import json
+
+	import frappe
+
+	loc = {"trang_thai": ["!=", "Da huy"]}
+	if doc.get("dong_bo_luc"):
+		loc["creation"] = [">", frappe.utils.add_to_date(doc.dong_bo_luc, minutes=-LUI_DEM_WEB_PHUT)]
+	if doc.get("tu_ngay") and doc.get("den_ngay"):
+		loc["ngay_nhan"] = ["between", [str(doc.tu_ngay) + " 00:00:00", str(doc.den_ngay) + " 23:59:59"]]
+	ra = []
+	cac_ma = set(cac_ma or [])
+	if not cac_ma:
+		return ra
+	# Chỉ lấy đơn có nhắc tới mã của mùa (LIKE thu hẹp; khớp đúng từng món ở dưới):
+	# không đọc đơn web nào khác, kể cả khi ca bench chạy trên site thật.
+	hoac = [["snapshot", "like", '%%"%s"%%' % m.replace("%", "").replace("_", "\\_")] for m in sorted(cac_ma)]
+	for x in frappe.get_all("Vagabond Don Web", filters=loc, or_filters=hoac, fields=["ngay_nhan", "snapshot"], limit_page_length=0, ignore_permissions=True):
+		try:
+			mon = [m for m in (json.loads(x.snapshot or "{}").get("mon") or []) if m.get("ma") in cac_ma]
+		except (TypeError, ValueError, AttributeError):
+			continue
+		if mon and x.ngay_nhan:
+			ra.append({"ngay": str(x.ngay_nhan)[:10], "mon": mon})
+	return ra
+
+
+def doc_han_ngay(doc):
+	"""(trần {mã: n}, đã nhận {(mã, ngày): số}, ngày ngưng [ISO], tên {mã: tên}) của
+	một bản ghi Mùa vụ. Đếm mọi kênh theo bảng Đơn theo ngày như màn Lịch tháng."""
+	from frappe.utils import cint
+
+	tran = {d.ma_hang: cint(d.tran_ngay) for d in doc.dong if d.ma_hang and cint(d.tran_ngay) > 0}
+	ten = {d.ma_hang: d.ten_banh or d.ma_hang for d in doc.dong if d.ma_hang}
+	ngung = doc_ngay_ngung(doc.get("ngay_ngung_web"))
+	if not tran:
+		return tran, {}, ngung, ten
+	lich = [{"ma": l.ma_hang, "ngay": str(l.ngay), "so": cint(l.so_luong) + cint(l.cho_chot) + cint(l.don_khac)}
+		for l in doc.get("lich") or [] if l.ma_hang in tran]
+	return tran, da_nhan_theo_ngay(lich, _don_web_sau_dong_bo(doc, tran)), ngung, ten
+
+
+def khoa_ngay(ngay):
+	"""Khoá tệp theo ngày nhận: hai đơn cùng ngày xét trần và ghi lần lượt."""
+	try:
+		from frappe.utils.synchronization import filelock
+	except Exception:  # pragma: no cover
+		import contextlib
+
+		return contextlib.nullcontext()
+	return filelock("vgb_mua_ngay_" + str(ngay or "")[:10], timeout=20)
+
+
+def xet_ngay_that(hang, ngay, mua):
+	"""Đọc lại Mùa vụ (SAU khoá ngày, bên gọi đã kết thúc giao dịch đọc) và xét trần
+	ngày, ngày ngưng cho đơn này. mua: kết quả doc_mua_web."""
+	import frappe
+
+	if not mua or not ngay:
+		return None
+	doc = frappe.get_doc("Vagabond Mua Vu", mua["doc"].name)
+	tran, da, ngung, ten = doc_han_ngay(doc)
+	return xet_ngay(hang, str(ngay)[:10], tran, da, ngung, mua.get("ma_mua"), ten)
 
 
 def ma_khong_dung_cu():
@@ -453,7 +615,7 @@ def noi_dung_nhom(nhom):
 		return nhom
 	try:
 		ds = the_cua([banh_web.khoa_banh(g["ten"]) for g in nhom], [s["ma"] for g in nhom for s in g["sizes"]],
-			cot=("name", "khoa", "ten", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang"))
+			cot=("name", "khoa", "ten", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "kem_theo", "ma_hang"))
 	except Exception:
 		import frappe
 
@@ -468,6 +630,8 @@ def noi_dung_nhom(nhom):
 		g["tang"] = banh_web.tach_dong(bg.get("tang"), banh_web.SO_TANG_TOI_DA)
 		g["di_ung"] = " ".join(banh_web.tach_dong(bg.get("di_ung")))
 		g["bao_quan"] = " ".join(banh_web.tach_dong(bg.get("bao_quan")))
+		# v697: đồ kèm Marketing chọn ở thẻ Bánh; None là chưa chọn (trang khách dùng bộ mặc định theo loại).
+		g["kem_theo"] = banh_web.doc_kem(bg.get("kem_theo"))
 		anhs = [x["url"] for x in banh_web.doc_anh(bg.get("anh"))][:banh_web.SO_ANH_TOI_DA]
 		if anhs:
 			g["anh"], g["anhs"] = anhs[0], anhs

@@ -32,6 +32,7 @@
   "cb_web",
   "buche_thu",
   "buche_truoc",
+  "ngay_ngung_web",
   "sec_khac",
   "ma_loai_tru",
   "ghi_chu"
@@ -200,6 +201,13 @@
    "description": "Số ngày từ hôm đặt tới ngày nhận. Ghi 0 là nhận được ngay hôm đặt. Để trống: 2 ngày."
   },
   {
+   "fieldname": "ngay_ngung_web",
+   "fieldtype": "Small Text",
+   "label": "Ngày ngưng nhận trên web",
+   "read_only": 1,
+   "description": "Mỗi dòng một ngày (YYYY-MM-DD). Bấm Ngưng nhận ngày này ở màn Kiểm bánh theo mùa, Lịch tháng, để tắt hoặc mở lại."
+  },
+  {
    "fieldname": "sec_khac",
    "fieldtype": "Section Break",
    "label": "Khác"
@@ -218,7 +226,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-26 12:00:00.000000",
+ "modified": "2026-11-27 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Mua Vu",
