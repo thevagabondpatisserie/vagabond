@@ -168,3 +168,47 @@ def _():
 		la("1 bánh 3 hũ sốt: từ chối", (mw.kiem_don(h(**{p1: 1, s1: 3}), str(tot), mua) or {}).get("ly_do"), "sot_qua_so")
 		la("mã Panettone không tính dĩa nĩa", mw.ma_khong_dung_cu(), {p1, p2})
 	la("bản ghi thật của hai bảng giữ nguyên (số đếm, mốc sửa cuối)", _dau_vet_that(), vet)
+
+
+@ca("v697 bench: trần mỗi ngày và nút Ngưng nhận ngày này trên ERPNext thật; xét theo bảng Đơn theo ngày của ca; không đọc đơn web thật")
+def _():
+	vet = _dau_vet_that()
+	dung("ô ngày ngưng sau migrate", frappe.get_meta(mv.DT).has_field("ngay_ngung_web"))
+	doc, (p1, p2, _b1, _s1) = _mua()
+	doc.dong[0].tran_ngay = 2
+	hn = frappe.utils.getdate(frappe.utils.nowdate())
+	ngay = str(hn + datetime.timedelta(days=10))
+	doc.append("lich", {"ngay": ngay, "ma_hang": p1, "so_luong": 1, "cho_chot": 0, "don_khac": 0})
+	doc.dong_bo_luc = frappe.utils.now_datetime()
+	doc.insert(ignore_permissions=True)
+	_DA_TAO.append((doc.doctype, doc.name))
+	for k in _khoa_ca():
+		_DA_TAO.append((bw.DT, k))
+	doc.reload()
+	goc, dw = frappe.get_all, []
+
+	def get_all(dt, *a, **k):
+		ra = goc(dt, *a, **k)
+		if dt == "Vagabond Don Web":
+			dw.extend(ra)
+		return ra
+
+	h = lambda **k: [{"variation_id": ma, "quantity": sl} for ma, sl in k.items()]  # noqa: E731
+	with patch.object(mv, "mua_cho_web", lambda: doc), patch.object(frappe, "get_all", get_all):
+		mua = mw.doc_mua_web()
+		la("1 đã nhận + 1 đúng trần 2: nhận", mw.xet_ngay_that(h(**{p1: 1}), ngay, mua), None)
+		la("1 đã nhận + 2 vượt trần: từ chối", (mw.xet_ngay_that(h(**{p1: 2}), ngay, mua) or {}).get("ly_do"), "ngay_mua_vu")
+		kq = mv.ngung_ngay(mua=doc.name, ngay=ngay, ngung=1)
+		la("bảng Lịch tháng trả ngày ngưng và số đã nhận", (kq["lich"]["ngung"], kq["lich"]["da_nhan"].get(ngay)), ([ngay], {p1: 1}))
+		la("ngày ngưng: size không đặt trần cũng bị từ chối", (mw.xet_ngay_that(h(**{p2: 1}), ngay, mua) or {}).get("ly_do"), "ngay_mua_vu")
+		la("trang khách nhận ngày ngưng", mv.hang_theo_mua()["han_ngay"]["ngung"], [ngay])
+		mv.ngung_ngay(mua=doc.name, ngay=ngay, ngung=0)
+		la("mở lại thì nhận", mw.xet_ngay_that(h(**{p2: 1}), ngay, mua), None)
+		loi = ""
+		try:
+			mv.ngung_ngay(mua=doc.name, ngay=str(hn + datetime.timedelta(days=60)), ngung=1)
+		except frappe.ValidationError as e:
+			loi = str(e)
+		dung("ngày ngoài khoảng mùa bị chặn: " + loi[:60], "ngoài khoảng" in loi)
+	la("không đọc đơn web thật nào (chỉ đơn nhắc mã của ca)", [x for x in dw if not any(m in str(x.get("snapshot") or "") for m in (p1, p2))], [])
+	la("bản ghi thật của hai bảng giữ nguyên (số đếm, mốc sửa cuối)", _dau_vet_that(), vet)
