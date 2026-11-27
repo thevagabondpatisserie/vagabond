@@ -153,7 +153,7 @@
 @media(min-width:760px){.tab-duoi{left:50%;right:auto;width:560px;transform:translateX(-50%);border:1px solid var(--line);bottom:16px}}
 /* Bảng để quầy (?bang=) */
 .bang-quay{max-width:420px;margin:0 auto;border:1px solid var(--line-2)}
-.bq-anh{height:240px;background:url("/assets/vagabond/web_order/anh-bia.png") 50% 12%/cover;position:relative}
+.bq-anh{height:240px;background:url("/assets/vagabond/web_order/anh-bia.jpg") 50% 12%/cover;position:relative}
 .bq-anh img{position:absolute;left:22px;top:20px;height:34px}
 .bq-noi{padding:24px}
 .bq-noi h2{color:var(--paper)!important;font-size:28px!important;letter-spacing:.06em;margin-top:10px}

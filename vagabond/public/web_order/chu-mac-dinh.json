@@ -9569,17 +9569,33 @@
     "mac_dinh": "Đã chọn đủ {so} hũ cho mỗi bánh."
   },
   "mv_kem_tui_pan": {
-    "ten": "Kèm theo bánh mùa vụ: Túi Panettone",
+    "ten": "Kèm theo bánh mùa vụ: Túi Panettone bánh lớn",
     "nhom": "san_pham",
     "mac_dinh": "Túi Panettone"
   },
   "mv_kem_tui_pan_mo": {
-    "ten": "Kèm theo bánh mùa vụ: dòng phụ (túi riêng cho hộp Panettone)",
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (túi riêng cho hộp bánh lớn)",
     "nhom": "san_pham",
-    "mac_dinh": "túi riêng cho hộp Panettone"
+    "mac_dinh": "túi riêng cho hộp bánh lớn"
   },
   "anh_mv_tui_pan": {
-    "ten": "Kèm theo bánh mùa vụ: ảnh Túi Panettone (để trống thì web hiện chữ)",
+    "ten": "Kèm theo bánh mùa vụ: ảnh Túi Panettone bánh lớn (để trống thì web hiện chữ)",
+    "nhom": "anh",
+    "mac_dinh": "",
+    "anh": true
+  },
+  "mv_kem_tui_pan_mini": {
+    "ten": "Kèm theo bánh mùa vụ: Túi Panettone Mini",
+    "nhom": "san_pham",
+    "mac_dinh": "Túi Panettone Mini"
+  },
+  "mv_kem_tui_pan_mini_mo": {
+    "ten": "Kèm theo bánh mùa vụ: dòng phụ (túi riêng cho hộp bánh Mini)",
+    "nhom": "san_pham",
+    "mac_dinh": "túi riêng cho hộp bánh Mini"
+  },
+  "anh_mv_tui_pan_mini": {
+    "ten": "Kèm theo bánh mùa vụ: ảnh Túi Panettone Mini (để trống thì web hiện chữ)",
     "nhom": "anh",
     "mac_dinh": "",
     "anh": true

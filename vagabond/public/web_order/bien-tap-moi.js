@@ -1035,12 +1035,20 @@
 
   /* ------------------------------------------------------------ trang và chữ */
   /* v681: ảnh có sẵn của từng ô ảnh, nạp từ CHÍNH dữ liệu trang đặt bánh (một nguồn). */
-  let ANH_CO_SAN = {}, ANH_CO_SAN_XONG = false;
+  /* v697: dữ liệu trang đặt bánh (ảnh có sẵn, danh mục đồ kèm) nạp MỘT lần, giữ ở
+     window.VgbDuLieuWeb cho mọi thẻ dùng chung. DL null là chưa nạp hoặc nạp lỗi. */
+  let ANH_CO_SAN = {}, ANH_CO_SAN_XONG = false, DL = null, DL_LOI = false, DL_HUA = null;
+  function napDuLieu() {
+    if (DL_HUA) return DL_HUA;
+    const co = window.VgbDuLieuWeb;
+    DL_HUA = (co ? Promise.resolve(co) : import('/assets/vagabond/web_vue/banh/du-lieu.js'))
+      .then(m => { window.VgbDuLieuWeb = m; DL = m; ANH_CO_SAN = m.ANH_O_MAC_DINH || {}; })
+      .catch(() => { DL_LOI = true; /* không nạp được thì chỉ hiện chữ, vẫn tải ảnh được */ });
+    return DL_HUA;
+  }
   function napAnhCoSan() {
     ANH_CO_SAN_XONG = true;
-    return import('/assets/vagabond/web_vue/banh/du-lieu.js')
-      .then(m => { ANH_CO_SAN = m.ANH_O_MAC_DINH || {}; })
-      .catch(() => { /* không nạp được thì chỉ hiện chữ, vẫn tải ảnh được */ });
+    return napDuLieu();
   }
   const choDien = s => (String(s || '').match(/\{[a-z_]+\}/g) || []).sort();
   function loiChu(khoa, chu) {
@@ -1358,7 +1366,9 @@
   const ttBanh = x => (x.mua_vu ? MUA_VU : x.trang_thai);
   let BB = null, bTai = false, banhChon = '', banhLoc = '', banhTim = '', bSua = null, bGoc = '', bBao = '';
   function banhDangChon() { return BB && BB.banh.find(x => x.khoa === banhChon) || null; }
-  function banSua(x) { return x ? {anh: x.anh.map(a => ({url: a.url})), mo_ta: x.mo_ta || '', tang: x.tang || '', di_ung: x.di_ung || '', bao_quan: x.bao_quan || '', hien: x.trang_thai === DANG_HIEN} : null; }
+  /* v697: kem null là bánh đang theo bộ đồ kèm mặc định; mảng (kể cả rỗng) là Marketing đã chọn riêng. */
+  function banSua(x) { return x ? {anh: x.anh.map(a => ({url: a.url})), mo_ta: x.mo_ta || '', tang: x.tang || '', di_ung: x.di_ung || '', bao_quan: x.bao_quan || '', hien: x.trang_thai === DANG_HIEN,
+    kem: Array.isArray(x.kem_theo) ? x.kem_theo.map(e => ({ma: e.ma, size: e.size || ''})) : null} : null; }
   function moBanh(x) {
     banhChon = x ? x.khoa : ''; bBao = '';
     bSua = banSua(x);
@@ -1481,6 +1491,7 @@
       o('Thành phần dễ gây dị ứng', bSua.di_ung, v => { bSua.di_ung = v; }, {nhieuDong: true, dong: 3, ten: 'di_ung_banh', goi: 'Sữa, trứng, gluten, các loại hạt', chu: 'Khách thấy dưới phần mô tả bánh. Để trống thì trang đặt bánh không hiện mục này.'}),
       o('Bảo quản và sử dụng', bSua.bao_quan, v => { bSua.bao_quan = v; }, {nhieuDong: true, dong: 3, ten: 'bao_quan_banh', goi: 'Giữ lạnh 2 đến 6 độ C, dùng trong ngày', chu: 'Khách thấy dưới phần mô tả bánh. Để trống thì trang đặt bánh không hiện mục này.'}));
     g.append(haiThem);
+    g.append(oKemTheo(x));
     if (x.mua_vu) {
       const ghi = tao('p', 'bt-chu-phu', 'Bánh mùa vụ: khách thấy bánh này trong tab In season khi Mùa vụ đang bán, không cần bật Hiện trên web. Ô nào để trống thì trang đặt bánh không hiện mục đó. Với Panettone, ô Tầng hương vị hiện trên web là Nguyên liệu chính, mỗi dòng một nguyên liệu. Chưa thêm ảnh ở đây thì web dùng ảnh của hồ sơ món.');
       ghi.dataset.ghiChuMuaVu = '1';
@@ -1498,6 +1509,90 @@
     const xem = tao('a', 'bt-nut', 'Xem như khách'); xem.href = '/banh'; xem.target = '_blank'; xem.rel = 'noopener';
     hang.append(luu, xem);
     g.append(hang);
+    return g;
+  }
+  /* ------------------------------------------------ v697 kèm theo mỗi bánh
+     Anh Việt chốt 27/11/2026 (Danh sách cố định): danh mục đồ kèm cố định ở
+     du-lieu.js DO_KEM; mỗi bánh tích chọn, bánh nhiều size chọn áp cho size nào.
+     Chưa chọn gì thì bánh theo bộ mặc định (kemMacDinhTheoSize), lần bấm đầu chép
+     bộ mặc định ra rồi sửa trên đó. Khách thấy ở mục Kèm theo mỗi bánh và dòng
+     "Đã gồm" trong giỏ. */
+  function kemDangDung(x) { return Array.isArray(bSua.kem) ? bSua.kem : (DL ? DL.kemMacDinhTheoSize(x.loai || '', x.sizes || []) : []); }
+  function sapKem(ds, x) {
+    /* Thứ tự cố định (danh mục rồi size) để bật rồi tắt lại không bị tính là đã sửa. */
+    const thuMon = m => DL.DO_KEM.findIndex(d => d.ma === m);
+    const thuSize = sz => (sz ? 1 + (x.sizes || []).findIndex(z => z.ma === sz) : 0);
+    return ds.slice().sort((a, b) => thuMon(a.ma) - thuMon(b.ma) || thuSize(a.size) - thuSize(b.size));
+  }
+  function datKem(x, ds) {
+    /* Chọn ra đúng bộ mặc định thì coi như chưa chọn riêng (bánh tiếp tục theo mặc định). */
+    const moi = sapKem(ds, x), md = sapKem(DL.kemMacDinhTheoSize(x.loai || '', x.sizes || []), x);
+    bSua.kem = JSON.stringify(moi) === JSON.stringify(md) ? null : moi;
+    ve();
+  }
+  function tenSize(z) { return z.cm ? 'Ø ' + z.cm + ' cm' : String(z.nhan || z.ma); }
+  function oKemTheo(x) {
+    const g = tao('div', 'bt-o bt-kem'); g.dataset.kemTheo = '1';
+    g.append(tao('span', 'bt-nhan', 'Kèm theo mỗi bánh'));
+    if (!DL) {
+      g.append(tao('p', 'bt-rong', DL_LOI ? 'Chưa tải được danh sách đồ kèm. Tải lại trang để chọn; bánh vẫn giữ đồ kèm đã lưu.' : 'Đang tải danh sách đồ kèm...'));
+      if (!DL_LOI) napDuLieu().then(() => { if (the === 'banh') ve(); });
+      return g;
+    }
+    const nhan = (B && B.nhan) || {};
+    const macDinh = !Array.isArray(bSua.kem);
+    const dau = tao('div', 'bt-kem-dau');
+    dau.append(tao('span', 'bt-tt ' + (macDinh ? 'an' : 'dang'), macDinh ? 'Bộ mặc định' : 'Đã chọn riêng'));
+    if (!macDinh) {
+      const vb = tao('button', 'bt-nut vien', 'Về mặc định'); vb.type = 'button'; vb.dataset.kemMacDinh = '1';
+      vb.onclick = () => { bSua.kem = null; ve(); };
+      dau.append(vb);
+    }
+    g.append(dau, tao('span', 'bt-goi-y', 'Đồ đã gồm trong giá bánh. Bấm một dòng để thêm hoặc bỏ. Tên và ảnh từng món sửa ở thẻ Trang và chữ, nhóm Ảnh trên trang. Bấm Lưu bánh để khách thấy.'));
+    const ds = kemDangDung(x), sizes = x.sizes || [];
+    const khung = tao('div', 'bt-kem-ds');
+    DL.DO_KEM.forEach(m => {
+      const cua = ds.filter(e => e.ma === m.ma), on = cua.length > 0;
+      const hang = tao('div', 'bt-kem-hang' + (on ? ' dang' : '')); hang.dataset.kem = m.ma;
+      const ten = nhan[m.k] || m.n, phu = (m.ks && nhan[m.ks]) || m.sub;
+      const b = tao('button', 'bt-kem-nut'); b.type = 'button'; b.setAttribute('aria-pressed', String(on));
+      b.setAttribute('aria-label', (on ? 'Bỏ ' : 'Thêm ') + ten);
+      const anhU = nhan[m.ka] || m.i;
+      if (anhU) { const im = tao('img', 'bt-kem-anh'); im.src = anhU; im.alt = ''; b.append(im); }
+      else b.append(tao('span', 'bt-kem-anh trong', ten.split(' ')[0]));
+      const chu = tao('span', 'bt-kem-chu'); chu.append(tao('b', '', ten));
+      if (phu) chu.append(tao('small', '', phu));
+      b.append(chu, tao('span', 'bt-kem-tich', on ? 'Đã kèm' : 'Thêm'));
+      b.onclick = () => {
+        const moi = kemDangDung(x).filter(e => e.ma !== m.ma);
+        if (!on) moi.push({ma: m.ma, size: ''});
+        datKem(x, moi);
+      };
+      hang.append(b);
+      if (on && sizes.length > 1) {
+        const moiSize = cua.some(e => !e.size);
+        const chips = tao('div', 'bt-chips bt-kem-size'); chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', 'Áp cho size nào: ' + ten);
+        const datSize = dsSize => datKem(x, kemDangDung(x).filter(e => e.ma !== m.ma).concat(dsSize.map(sz => ({ma: m.ma, size: sz}))));
+        const c0 = tao('button', 'bt-chip' + (moiSize ? ' dang' : ''), 'Mọi size'); c0.type = 'button'; c0.dataset.kemSize = '';
+        c0.setAttribute('aria-pressed', String(moiSize)); c0.onclick = () => datSize(['']);
+        chips.append(c0);
+        sizes.forEach(z => {
+          const chon = !moiSize && cua.some(e => e.size === z.ma);
+          const c = tao('button', 'bt-chip' + (chon ? ' dang' : ''), tenSize(z)); c.type = 'button'; c.dataset.kemSize = z.ma; c.title = String(z.nhan || z.ma);
+          c.setAttribute('aria-pressed', String(chon));
+          c.onclick = () => {
+            const dang = moiSize ? [] : cua.map(e => e.size);
+            const ra = chon ? dang.filter(sz => sz !== z.ma) : dang.concat([z.ma]);
+            /* Bỏ size cuối cùng thì về Mọi size; muốn bỏ hẳn đồ này thì bấm lại dòng của nó. */
+            datSize(ra.length ? ra : ['']);
+          };
+          chips.append(c);
+        });
+        hang.append(chips);
+      }
+      khung.append(hang);
+    });
+    g.append(khung);
     return g;
   }
   async function taiAnhBanh(khoaBanh, tep) {
@@ -1548,7 +1643,8 @@
        mốc "đã lưu" sang bản máy chủ vừa nhận; không thay cả bản sửa. */
     const sua = bSua, gui = JSON.stringify(bSua);
     try {
-      BB = await api('luu', {khoa: khoaBanh, anh: sua.anh, mo_ta: sua.mo_ta, tang: sua.tang, di_ung: sua.di_ung, bao_quan: sua.bao_quan, trang_thai: sua.hien ? DANG_HIEN : DA_AN}, 'banh_web');
+      BB = await api('luu', {khoa: khoaBanh, anh: sua.anh, mo_ta: sua.mo_ta, tang: sua.tang, di_ung: sua.di_ung, bao_quan: sua.bao_quan, trang_thai: sua.hien ? DANG_HIEN : DA_AN,
+        kem_theo: Array.isArray(sua.kem) ? sua.kem : ''}, 'banh_web');
       if (B) B.banh_cho_anh = (BB.dem || {})[CHO_ANH] || 0;
       const x = BB.banh.find(y => y.khoa === khoaBanh) || null;
       const hien = x && x.trang_thai === DANG_HIEN;
