@@ -123,7 +123,21 @@ export function taoKho(moiTruong) {
   function ngayThu(i) { const d = new Date(bay()); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); return d; }
   function muaChan(i, gio = S.CART) {
     const ld = luatCuaGio(gio);
-    return ld ? T.ngayMuaChan(i, ngayThu(i), ld, S.MUA.den_ngay || '') : '';
+    const ly = ld ? T.ngayMuaChan(i, ngayThu(i), ld, S.MUA.den_ngay || '') : '';
+    if (ly) return ly;
+    /* v697: ngày đã đủ trần hoặc đã bấm Ngưng nhận (S.MUA.han_ngay) cũng mờ. */
+    const d = T.ngayMuaDay(gio, T.isoNgay(ngayThu(i)), S.MUA.han_ngay);
+    return d ? d.ly : '';
+  }
+  /* Câu nhắc khi khách bấm ngày mờ vì hàng mùa vụ: lịch của loại, hay ngày đã đủ bánh. */
+  function cauMuaChan(i, gio = S.CART) {
+    const ld = luatCuaGio(gio);
+    if (ld && T.ngayMuaChan(i, ngayThu(i), ld, S.MUA.den_ngay || '')) return cauLuatMua(gio);
+    const d = T.ngayMuaDay(gio, T.isoNgay(ngayThu(i)), S.MUA.han_ngay);
+    if (!d) return cauLuatMua(gio);
+    if (d.ly === 'ngung') return t('mv_ngay_ngung', 'Ngày này đã nhận đủ đơn bánh mùa lễ. Quý khách chọn ngày khác hoặc gọi 0931 224 334.');
+    const o = gio.find(x => x.id === d.ma);
+    return t('mv_ngay_day', 'Ngày này chỉ còn nhận {so} {ten}. Quý khách chọn ngày khác hoặc bớt số lượng.', {so: d.con, ten: o ? tenMonGio(o) : d.ma});
   }
   /* Lịch thường có 14 ngày. Giỏ có hàng mùa vụ mang luật thì lịch dài tới ngày kết thúc
      mùa (đơn Giáng sinh đặt từ cuối tháng 11), không quá 62 ngày. */
@@ -281,7 +295,7 @@ export function taoKho(moiTruong) {
   }
   function pick(i) {
     if (i === 0 && homNayBiChan.value) { toast(cauTachDon('')); return; }
-    if (muaChan(i)) { toast(cauLuatMua()); return; }
+    if (muaChan(i)) { toast(cauMuaChan(i)); return; }
     if (datTruocChan(i)) { toast(t('dat_truoc_chi_mai', 'Ngày này không còn nhận bánh đặt trước trong giỏ. Bánh đặt trước nhận trong 3 ngày tới, quý khách chọn ngày còn sáng hoặc gọi 0931 224 334.')); return; }
     if (dbtChan(i)) { toast(t('dbt_chi_giao', 'Món cuối tuần chỉ giao, nhận vào {ngay}. Quý khách chọn một trong các ngày này.', {ngay: ngayGiaoDbt()})); return; }
     const rc = refillChan(i);
@@ -1351,7 +1365,7 @@ export function taoKho(moiTruong) {
     /* v649: giỏ cũ lưu từ trước có cả hai loại bánh thì nhờ khách tách đơn. */
     if (T.gioTron(S.CART)) { toast(cauTachDon('co_hom_nay')); return {buoc: 'gio'}; }
     /* v693: hàng mùa vụ mang luật: ngày nhận phải hợp lịch của mùa (máy chủ kiểm lại). */
-    if (muaChan(picked.value)) { S.moLich = true; toast(cauLuatMua()); return {buoc: 'lich'}; }
+    if (muaChan(picked.value)) { S.moLich = true; toast(cauMuaChan(picked.value)); return {buoc: 'lich'}; }
     /* v667: món của đợt cuối tuần: giờ mở, chốt đơn và ngày giao của đợt. */
     if (dotDbt.value && D.gioCoMonDot(S.CART, maDbt.value)) {
       const tt = D.trangThaiDot(dotDbt.value, lucDbt());
@@ -1907,7 +1921,7 @@ export function taoKho(moiTruong) {
     neoNgay(d.i); S.daChonNgay = false;
     if (fixSlot()) S.daChonGio = false;
   }
-  watch(() => [S.CART.map(o => o.id + ':' + (o.loai || '')).join(','), S.MUA.luat, S.MUA.den_ngay, picked.value], theoNgayMua, {flush: 'sync'});
+  watch(() => [S.CART.map(o => o.id + ':' + (o.loai || '') + ':' + o.qty).join(','), S.MUA.luat, S.MUA.den_ngay, S.MUA.han_ngay, picked.value], theoNgayMua, {flush: 'sync'});
   /* v668: giỏ đổi bánh thì hỏi lại khối gợi ý (không gọi dịch vụ ngoài, máy chủ tự xếp). */
   watch(() => S.CART.map(o => o.id).join(','), () => { void napGoiY(); });
 
