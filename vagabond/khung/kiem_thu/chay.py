@@ -281,6 +281,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_nhap_kho_chua_dem_694,
 	# v696 tab In season cho Panettone và Bûche: gộp size, lịch theo loại, sốt chấm (anh Việt 26/11/2026).
 	thu_mua_vu_web_693,
+	# v697 Kèm theo mỗi bánh chọn ở trình biên tập, Túi Panettone hai ô ảnh, ảnh web nhẹ (anh Việt 27/11/2026).
+	thu_kem_theo_697,
 	# v687 làm mới token Zalo OA có khoá, nghỉ sau khi bị từ chối (sự cố 22/11/2026).
 	thu_zalo_token_687,
 	# v657 quy tắc chữ ERP: không gọi tên người, mốc BOM, NCC chỉ được giảm.

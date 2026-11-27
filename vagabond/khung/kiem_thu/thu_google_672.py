@@ -66,6 +66,8 @@ def _gop():
 	la("ảnh tương đối thành đường dẫn đủ", ds[0]["anh"], "https://thevagabondpatisserie.com/files/chao.jpg")
 	dung("mô tả trống thì có câu mặc định nhắc tên bánh", ds[0]["mo_ta"].startswith("Bánh Trung thu Chao đỏ") and "9 Trần Cao Vân" in ds[0]["mo_ta"])
 	la("ảnh nền có tham số vẫn bị bỏ", gm.anh_tuyet_doi(gm.ANH_NEN + "?v=1"), "")
+	# v697: ảnh nền đổi sang JPG nhẹ; đường dẫn PNG cũ vẫn là ảnh nền, không gửi Google.
+	la("ảnh nền PNG cũ vẫn bị bỏ", gm.anh_tuyet_doi("/assets/vagabond/web_order/anh-bia.png"), "")
 	la("ảnh http không an toàn bị bỏ", gm.anh_tuyet_doi("http://x/y.jpg"), "")
 	la("đặt trước thiếu giờ mở đặt thì coi là hết (Google bắt có ngày)", gm.gop_mon([[_mon(con=gm.DAT_TRUOC)]])[0]["con"], gm.HET)
 	la("tình trạng lạ thì còn hàng", gm.gop_mon([[_mon(con="xyz")]])[0]["con"], gm.CON)

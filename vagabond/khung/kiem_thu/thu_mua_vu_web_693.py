@@ -354,6 +354,7 @@ def _chi_doc_the_cua_nhom():
 	bw.so_ghi = lambda: (_ for _ in ()).throw(AssertionError("không được đọc cả bảng"))
 	bw.tach_dong = lambda v, n=None: [x for x in str(v or "").split("\n") if x.strip()][:n]
 	bw.doc_anh = lambda v: []
+	bw.doc_kem = lambda v: None  # v697: ô kem_theo, không đọc ở ca này
 	bw.SO_TANG_TOI_DA, bw.SO_ANH_TOI_DA = 8, 5
 	import vagabond
 
