@@ -20308,7 +20308,8 @@ function pbDongKm(x) {
     '<span style="width:34px;height:34px;flex:none;border-radius:9px;background:#f0fdfa;display:flex;align-items:center;justify-content:center;font-size:17px">🎫</span>' +
     '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600">' + h(x.ten) + '</div>' +
     '<div style="font-size:13px;color:' + (duoc ? '#05603a' : '#9a3412') + ';margin-top:2px">' +
-    (duoc ? 'Giảm ' + money(x.giam) + ' đ' + (x.can_otp ? ' · cần OTP quản lý' : '') : 'Không áp được: ' + h(x.ly_do || 'chưa đủ điều kiện')) +
+    (duoc ? (x.tang ? 'Tặng ' + h(x.tang) + ' (máy thêm vào bill), trừ ' + money(x.giam) + ' đ' : 'Giảm ' + money(x.giam) + ' đ') +
+      (x.can_otp ? ' · cần OTP quản lý' : '') : 'Không áp được: ' + h(x.ly_do || 'chưa đủ điều kiện')) +
     '</div></div></div>';
 }
 
@@ -21194,7 +21195,7 @@ async function scrPosBill(name) {
       catch (e) { busy(false); return toast((e && e.message) || 'Chưa áp được, thử lại.', 5000); }
       busy(false);
       if (r && r.ok) {
-        toast('Đã áp ' + (r.ten || ma) + ', giảm ' + money(r.giam) + ' đ.');
+        toast('Đã áp ' + (r.ten || ma) + (r.tang ? ', thêm món tặng ' + r.tang : '') + ', giảm ' + money(r.giam) + ' đ.');
         return go(function () { scrPosBill(name); }, true);
       }
       if (r && r.can_otp && !otp) {
@@ -28182,7 +28183,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '697';
+var APPVER = '698';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
