@@ -472,6 +472,8 @@ export function tronMon(cakes, nhom) {
       /* Codex #594: nhóm không mang hai khoá này (nguồn cũ) thì giữ giá trị đã có, không xoá. */
       if ('di_ung' in g) c.diUng = g.di_ung || '';
       if ('bao_quan' in g) c.baoQuan = g.bao_quan || '';
+      /* v697: đồ kèm theo mỗi bánh Marketing chọn ở thẻ Bánh; null là chưa chọn (bộ mặc định). */
+      if ('kem_theo' in g) c.kemTheo = Array.isArray(g.kem_theo) ? g.kem_theo : null;
     }
     else if (g.mo_ta) c.desc = g.mo_ta;
     if (g.tang && g.tang.length) {
