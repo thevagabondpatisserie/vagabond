@@ -12,7 +12,7 @@ import {createApp, computed, watch, nextTick} from '../lib/vue.esm-browser.prod.
 import {ND, t, tMon, napNoiDung, laXemThu, telChu, telSo, mxh, anhWeb} from '../kho/chu.js';
 import {doc, ghi} from '../kho/api.js';
 import {taoKho} from './kho-banh.js';
-import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE, DUNG_CU_DON, THIEP_EP_KIM, ANH_CO, LOGO_TT, kemMua, THIEP_MUA} from './du-lieu.js';
+import {DAYS, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE, DUNG_CU_DON, THIEP_EP_KIM, ANH_CO, LOGO_TT, kemCho, THIEP_MUA} from './du-lieu.js';
 import {LOGO} from './anh.js';
 import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
 import {KhoiNoiDung, TieuDeMuc, KenhNoi, ChuyenMuc, dsMuc, TD, UD} from './noi-dung.js';
@@ -132,6 +132,8 @@ export function khoiDong(goc = '#app') {
         const tang = !c.tuWeb && tangChu ? tangChu.split('\n').filter(x => x.trim()).map(x => [x, '']) : c.layers;
         const anhs = (c.anhs && c.anhs.length ? c.anhs : (c.img ? [c.img] : [])).slice(0, 5);
         return {c, ten: tMon(ma, 'ten', c.k), vi: kho.T.laChuViet(c.k), moTa: c.tuWeb ? c.desc : tMon(ma, 'mo_ta', c.desc), tang, anhs, diUng: c.diUng || '', baoQuan: c.baoQuan || '',
+          /* v697: đồ kèm theo mỗi bánh Marketing chọn ở thẻ Bánh (theo size đang xem); chưa chọn thì bộ mặc định. */
+          kem: kemCho(c.kemTheo, '', ma, ''),
           tinhTrang: avail.length ? 'co' : (nTruoc !== null ? 'dat' : (nhanMua ? 'mua' : 'truoc')), nhanMua,
           datChu: nTruoc === null ? '' : t('ct677_dat_truoc_ngay', 'Đặt trước, nhận {ngay}', {ngay: nh.ngay}) + ' · '
             + (nTruoc > 0 ? kho.T.nhanTon(nTruoc, banh, t) : t('ct677_het_ngay_nay', 'hết ngày này, quý khách chọn ngày khác')),
@@ -178,12 +180,12 @@ export function khoiDong(goc = '#app') {
           coNoiDung: !!(g.mo_ta || tang.length || g.di_ung || g.bao_quan),
           tinh: z.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + tinhSize(g, z),
           sizes: g.sizes.map(s => ({s, on: s.ma === z.ma, gia: tienTom(s.gia || 0), nhan: s.nhan || t('dat_banh_8a6c6356d', '1 cỡ'), em: tinhSize(g, s)})),
-          kem: kemMua(g.loai, z.nhan), luat: kho.chuLuatLoai(g.loai),
+          kem: kemCho(g.kem_theo, g.loai, z.ma, z.nhan), luat: kho.chuLuatLoai(g.loai),
           sot: kho.duocChonSot.value ? kho.sotMua.value.map(y => ({y, ten: tMon(y.ma, 'ten', y.ten), gia: y.gia > 0 ? tienTom(y.gia) : t('mv_sot_mien_phi', 'Miễn phí'), so: x.sot[y.ma] || 0})) : [],
           laBuche: g.loai === 'buche'};
       });
       const tienTom = n => kho.T.tienVN(n);
-      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, DUNG_CU_DON, PAYS, HUONG_SIZE, THIEP_EP_KIM, ANH_CO, LOGO_TT, anhWeb, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
+      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, NUMS, ADDONS, DUNG_CU_DON, PAYS, HUONG_SIZE, THIEP_EP_KIM, ANH_CO, LOGO_TT, anhWeb, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coTkr, coQuay, mucVanh, quayHien, tenQuayHaiDong, chuongQuay, nhacQr, gbDauHien, nhacQrHien, chinhSach, baoMat,
         ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, hm: x => hrefMan(SACH, x), moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
         moMua: g => nav('#/in-season/' + encodeURIComponent(g.khoa)), themTuMua, THIEP_MUA, tgl, gioMo2: () => nav('#/gio-hang'), mxh, chonNguoiNhan, cuonToi, dongYBo, nhapOMa, phimOMa, doiSoDt};

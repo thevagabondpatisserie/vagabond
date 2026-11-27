@@ -11,7 +11,7 @@
 import {reactive, computed, watch} from '../lib/vue.esm-browser.prod.js';
 import * as T from '../kho/thuan.js';
 import {CONFIG, SLOTS, cakesGoc, NUMS, ADDONS, PICKUPS_GOC, LY_DO, TEN_DIEM, NHAN_MAC_DINH,
-  THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS, THIEP_EP_KIM, GHI_CHU_NHANH, THE_VIET_THIEP, kemMua} from './du-lieu.js';
+  THE_XUAT_HOA_DON, THE_BANH_TANG, DAYS, PAYS, THIEP_EP_KIM, GHI_CHU_NHANH, THE_VIET_THIEP, kemCho} from './du-lieu.js';
 import {thuong, dam, mau, lienKet, cauCoSo, noi} from './chu-giau.js';
 import {taoGoiBan, cauDn} from './kho-goi-ban.js';
 import * as D from './dbt-thuan.js';
@@ -680,8 +680,10 @@ export function taoKho(moiTruong) {
     const chuDc = [(dc.nia || dc.dia) ? t('dung_cu_gio', '{nia} nĩa gỗ, {dia} dĩa bã mía', {nia: dc.nia || 0, dia: dc.dia || 0}) : '',
       dc.thiep ? t('dung_cu_thiep_gio', '{so} thiệp nhỏ', {so: dc.thiep}) : ''].filter(Boolean).join(', ');
     if (chuDc) ex.push([thuong(chuDc)]);
-    /* v693: bánh mùa vụ nói rõ hộp, túi, thiệp đã gồm trong giá (một nguồn với sheet chi tiết: kemMua). */
-    const kem = T.laDongMua(o) ? kemMua(o.loai, o.nhan).map(a => t(a.k, a.n)) : [];
+    /* v693: bánh mùa vụ nói rõ hộp, túi, thiệp đã gồm trong giá (một nguồn với sheet chi tiết: kemCho).
+       v697: theo đồ kèm Marketing chọn cho nhóm của dòng (ô kem_theo), chưa chọn thì mặc định. */
+    const gMua = T.laDongMua(o) ? timSizeMua(o.id) : null;
+    const kem = T.laDongMua(o) ? kemCho(gMua ? gMua.g.kem_theo : null, o.loai, o.id, o.nhan).map(a => t(a.k, a.n)) : [];
     if (kem.length) ex.push([thuong(t('mv_gio_kem', 'Đã gồm: {ds}', {ds: kem.join(', ')}))]);
     if (o.adds.length) ex.push([thuong(t('dat_banh_2c04193c6', 'Thêm: {gia_tri_a}', {gia_tri_a: T.tenAddsGop(o.adds)}))]);
     return {i, o, ten: tenMonGio(o), phu: o.goi_y ? t('gy_dong_phu', 'Giao kèm cùng chuyến, mã {ma}', {ma: o.id})
