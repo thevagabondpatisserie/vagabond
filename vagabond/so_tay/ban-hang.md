@@ -1550,6 +1550,30 @@ Khách chọn tối đa 2 hũ cho mỗi bánh. Giá theo giá bán của mã hà
 - Bảng sốt để trống thì web không hiện mục sốt. Sốt chỉ bán kèm Panettone.
 - Mã sốt chưa đồng bộ Pancake thì đơn có sốt báo lỗi mã bán hàng.
 
+## Bánh mùa vụ trên web: trần mỗi ngày và ngưng nhận một ngày
+Từ khoá: trần mỗi ngày, giới hạn số bánh mỗi ngày, ngày đủ đơn, ngưng nhận ngày này, mở nhận lại, đặt xa ngày, bûche 23/12, lịch tháng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, quản lý Sales | Kiểm bánh theo mùa, thẻ Lịch tháng | [[Ngưng nhận ngày này]] |
+
+Khách đặt bánh của mùa trên web được chọn ngày nhận tới hết mùa. Mỗi ngày web chỉ nhận tới Trần mỗi ngày của từng bánh. Ngày đủ số thì lịch của khách tự mờ ngày đó.
+
+**Đặt trần mỗi ngày**
+1. Mở Kiểm bánh theo mùa, chọn mùa, thẻ Sản phẩm.
+2. Bấm bánh, chọn Trần mỗi ngày, gõ số bánh tối đa nhận cho một ngày của đúng size đó.
+3. Để 0 là không giới hạn theo ngày.
+
+**Ngưng nhận một ngày khi vượt trần đột xuất**
+1. Thẻ Lịch tháng, bấm vào ô ngày.
+2. Bấm [[Ngưng nhận ngày này]], xác nhận. Ô ngày có chữ Ngưng, viền đỏ.
+3. Muốn mở lại thì bấm vào ô đó, bấm [[Mở nhận lại ngày này]].
+
+**Lưu ý**
+- Số đã nhận đếm mọi kênh: đơn Pancake đã chốt, đơn chờ chốt, kênh khác, cộng đơn web vừa đặt chưa kịp đồng bộ. Hộp chi tiết ngày ghi số đã nhận trên trần của từng bánh.
+- Ngưng nhận chỉ tắt trên web, cho mọi bánh của mùa. Đơn đã nhận giữ nguyên, Sales vẫn nhận tay được.
+- Ngày quá khứ không bấm Ngưng được.
+
 ## Cấp mã đền bù cho khách gặp sự cố
 Từ khoá: đền bù, xin lỗi khách, giao trễ, sai trang trí, sai lời chúc, thiếu món, bánh hỏng, khiếu nại, voucher đền bù, service recovery
 

@@ -13,6 +13,7 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 
 
 ## v697
+- Bánh mùa vụ trên web: trần mỗi ngày và ngưng nhận một ngày
 - Thẻ Bánh: chọn đồ kèm theo mỗi bánh
 - Ảnh bánh trên web tự thu nhỏ khi tải lên
 - Nội dung và ảnh hộp, túi, thiệp của bánh mùa Giáng sinh
