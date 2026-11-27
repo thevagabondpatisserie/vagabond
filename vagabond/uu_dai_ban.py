@@ -183,18 +183,33 @@ def _tinh(si, ud, co_khoa=False, them=()):
 		khach=ud.get("khach") or None, sdt=ud.get("sdt") or None, ngay=str(getdate(nowdate())))
 
 
-def dong_tang_thuan(them_mon, gia_diem):
+def dong_tang_thuan(them_mon, gia_diem, gia_bill=None):
 	"""THUẦN: dòng món tặng thêm vào bill cho chương trình Tặng món khi món chưa
-	có trong bill. Giá là giá quầy đang bán (giá riêng của điểm nếu có, không thì
-	giá khuyen_mai gợi ý), cùng cách nút "+ Thêm món tặng vào đơn" của màn Tính
-	tiền (posGiaTang), để bill in "món 25.000" và dòng khuyến mãi trừ lại đúng số đó."""
+	có (hay chưa đủ số) trong bill, để bill in "món 25.000" và dòng khuyến mãi trừ
+	lại đúng số đó. Giá theo thứ tự:
+	- món đã có trên bill: giá dòng đầu của món đó (gia_bill). khuyen_mai._tinh_mot
+	  tính tiền tặng theo giá dòng đầu cho MỌI cái, nên dòng thêm phải cùng giá,
+	  không thì bill lệch (Codex #630). Màn Tính tiền cũng cộng vào dòng đã có;
+	- không thì giá riêng của điểm, không có nữa thì giá khuyen_mai gợi ý, cùng
+	  cách nút "+ Thêm món tặng vào đơn" của màn Tính tiền (posGiaTang)."""
 	ra = []
 	for t in them_mon or []:
 		ma = str(t.get("item_code") or "").strip()
 		sl = flt(t.get("qty"))
 		if ma and sl > 0:
-			g = (gia_diem or {}).get(ma)
+			g = (gia_bill or {}).get(ma)
+			if g is None:
+				g = (gia_diem or {}).get(ma)
 			ra.append({"item_code": ma, "qty": sl, "rate": flt(g) if g is not None else flt(t.get("rate"))})
+	return ra
+
+
+def gia_dong_dau(items):
+	"""THUẦN: {mã: giá dòng đầu tiên của mã đó trên bill}."""
+	ra = {}
+	for d in items or []:
+		if d.get("item_code") and d["item_code"] not in ra:
+			ra[d["item_code"]] = flt(d.get("rate"))
 	return ra
 
 
@@ -203,7 +218,7 @@ def dong_tang(si, them_mon):
 		return []
 	from vagabond import diem_ban
 
-	return dong_tang_thuan(them_mon, diem_ban.gia_rieng_cua_quay(si.get("vgb_quay")))
+	return dong_tang_thuan(them_mon, diem_ban.gia_rieng_cua_quay(si.get("vgb_quay")), gia_dong_dau(_items(si)))
 
 
 def _tinh_quay(si, ud):
