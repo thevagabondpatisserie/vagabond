@@ -1461,7 +1461,7 @@ await ca('v681 luật mọi ảnh trên web chính sửa được ở trình bi�
   const oAnh = Object.keys(SO).filter(k => SO[k].anh).sort();
   la('sổ nhãn và bảng ảnh có sẵn cùng một bộ khoá', Object.keys(ANH_O_MAC_DINH).sort(), oAnh);
   /* v693: thêm 7 ô ảnh hộp, túi, thiệp của bánh mùa Giáng sinh (KEM_MUA). */
-  dung('đủ 32 ô ảnh', oAnh.length === 32);
+  dung('đủ 33 ô ảnh (v697 thêm ô Túi Panettone Mini)', oAnh.length === 33);
   /* Mọi khoá anhWeb('...') viết thẳng trong trang đều có trong sổ, và ngược lại mọi ô đều được trang dùng. */
   const nguon = MAU + readFileSync(new URL('../../../public/web_vue/banh/du-lieu.js', import.meta.url), 'utf8');
   const dung1 = [...nguon.matchAll(/anhWeb\('([a-z0-9_]+)'/g)].map(m => m[1]);
