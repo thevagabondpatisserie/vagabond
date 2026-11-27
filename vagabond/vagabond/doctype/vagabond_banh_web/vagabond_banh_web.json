@@ -12,7 +12,7 @@
  "search_fields": "ten,ma_hang",
  "sort_field": "modified",
  "sort_order": "DESC",
- "modified": "2026-11-26 12:00:00.000000",
+ "modified": "2026-11-27 12:00:00.000000",
  "description": "v644: ảnh, mô tả và tầng hương vị của MỘT bánh trên web (mọi size dùng chung). Sửa ở trình biên tập web, thẻ Bánh.",
  "field_order": [
   "khoa",
@@ -25,6 +25,7 @@
   "tang",
   "di_ung",
   "bao_quan",
+  "kem_theo",
   "dua_boi",
   "dua_luc",
   "nhac_luc"
@@ -100,6 +101,13 @@
    "label": "Bảo quản và sử dụng",
    "fieldtype": "Small Text",
    "description": "Ví dụ: giữ lạnh 2 đến 6 độ C, dùng trong ngày. Để trống thì trang đặt bánh không hiện mục này."
+  },
+  {
+   "fieldname": "kem_theo",
+   "label": "Kèm theo mỗi bánh (JSON)",
+   "fieldtype": "Code",
+   "read_only": 1,
+   "description": "Marketing chọn ở trình biên tập web, thẻ Bánh. Để trống là bộ mặc định."
   },
   {
    "fieldname": "dua_boi",
