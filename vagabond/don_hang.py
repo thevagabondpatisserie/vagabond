@@ -772,7 +772,8 @@ def tao_don(don=None):
 	# hien cho khach khong duoc dung de quyet mien phi giao.
 	hang_goc = [dict(h) for h in hang]
 	# v671: dòng đem đi kiểm và giữ tồn tủ, Đủ decor, refill (món của đợt giữ số theo đợt).
-	hang_ton = dbt.bo_mon_dot(hang_goc, ma_dbt)
+	# v697: hàng của mùa đang bán cũng không giữ theo tủ, BTP (giữ theo trần ngày của Mùa vụ).
+	hang_ton = mua_vu_web.bo_hang_mua(dbt.bo_mon_dot(hang_goc, ma_dbt), mua_web)
 	gia, ten_mon = _gia_va_ten([h["variation_id"] for h in hang_goc])
 	tien_banh, _thieu_gia = don_web.tinh_tien_banh(hang_goc, gia)
 
@@ -976,11 +977,26 @@ def tao_don(don=None):
 	# tim trung va phep ghi, de hai lan bam cung luc khong cung lot qua.
 	# v645: đơn dùng ưu đãi đơn đầu tiên thì khoá thêm theo số, xét lại ngay
 	# dưới khoá: hai đơn cùng số gửi cùng lúc chỉ một đơn được giảm.
+	# v697: đơn có hàng của mùa đang bán thì khoá thêm theo ngày nhận và xét trần
+	# mỗi ngày, ngày ngưng dưới khoá: hai đơn cùng ngày không cùng lấy chỗ cuối.
+	co_mua_ngay = bool(mua_web and ngay and set(mua_web.get("ma_mua") or ()) & {h["variation_id"] for h in hang_goc})
 	with don_web.khoa_ghi(khoa), (don_dau_web.khoa_so(dien_thoai) if dung_dau else contextlib.nullcontext()), \
-			(dbt.khoa_suat(dot) if co_dbt else contextlib.nullcontext()):
+			(dbt.khoa_suat(dot) if co_dbt else contextlib.nullcontext()), \
+			(mua_vu_web.khoa_ngay(ngay) if co_mua_ngay else contextlib.nullcontext()):
 		trung = don_web.tim_trung(khoa)
 		if trung:
 			return don_web.phan_hoi(trung, nonce, trung=True)
+		if co_mua_ngay:
+			# Kết thúc giao dịch đọc từ đầu yêu cầu để thấy đơn vừa commit của khách
+			# khác và nút Ngưng nhận vừa bấm. Đọc hỏng thì ghi lỗi, không chặn đơn.
+			frappe.db.commit()
+			try:
+				tc_ngay = mua_vu_web.xet_ngay_that(hang_goc, ngay, mua_web)
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "Vagabond: không xét được trần ngày mùa vụ")
+				tc_ngay = None
+			if tc_ngay:
+				return {"ok": 0, "ly_do": tc_ngay["ly_do"], "nhac": tc_ngay["nhac"]}
 		if co_dbt:
 			# v667: đọc SAU khoá đợt. Kết thúc giao dịch đọc từ đầu yêu cầu để thấy
 			# đơn vừa commit của khách khác và bản đợt Marketing vừa lưu (MariaDB
@@ -993,7 +1009,7 @@ def tao_don(don=None):
 			except Exception:
 				frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc lại được đợt Đặc biệt tuần này")
 				dot_x, ma_x = dot, ma_dbt
-			hang_ton = dbt.bo_mon_dot(hang_goc, ma_x)
+			hang_ton = mua_vu_web.bo_hang_mua(dbt.bo_mon_dot(hang_goc, ma_x), mua_web)
 			ly_dbt = dbt.kiem_don(dot_x, hang_dbt, ma_x, ngay, dbt.luc_vn())
 			if ly_dbt:
 				return {"ok": 0, "ly_do": ly_dbt, "ngay_giao": list(dot_x.get("ngay_giao") or [])}
