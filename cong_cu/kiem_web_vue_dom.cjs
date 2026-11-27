@@ -1216,6 +1216,32 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.equal(await p.locator('#s-acc').count(),0);
     assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
   });
+  await test('F65 v697 trần mỗi ngày và Ngưng nhận ngày này: ngày đủ bánh và ngày đã ngưng mờ trên lịch, bấm vào nói rõ vì sao, thêm số lượng thì ngày vừa đủ cũng mờ',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const iso=i=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+i);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+    /* Bûche nhận được từ ngày thứ 2 kể từ hôm nay. Ngày 5 đã nhận 2 trên trần 3, ngày 6 đã ngưng. */
+    await c.route('**/api/method/vagabond.mua_vu.hang_theo_mua*',async r=>{
+      const d=await (await r.fetch({url:url+'/api/method/vagabond.mua_vu.hang_theo_mua?vgb_mua=noel'})).json();
+      d.message.han_ngay={tran:{NOELBU01:3},da:{NOELBU01:{[iso(5)]:2}},ngung:[iso(6)]};
+      return r.fulfill({json:d});
+    });
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    await p.goto(url+'/web_moi/banh#/in-season/NOELBU01'); await p.locator('#sheetMua.open').waitFor();
+    await p.locator('#sm-cta').click(); await p.waitForURL(/#\/in-season$/); await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    const tat=async i=>p.locator('#c-days .day').nth(i).evaluate(b=>b.classList.contains('off'));
+    assert.deepEqual([await tat(4),await tat(5),await tat(6),await tat(7)],[false,false,true,false],'1 bánh: ngày 5 còn 1 chỗ, ngày 6 đã ngưng');
+    await p.locator('#c-days .day').nth(6).click();
+    await p.waitForFunction(()=>/đã nhận đủ đơn bánh mùa lễ/.test(document.querySelector('#toast').innerText));
+    /* Thêm một bánh nữa: ngày 5 (2 đã nhận + 2) vượt trần 3, mờ theo. */
+    await p.goto(url+'/web_moi/banh#/in-season/NOELBU01'); await p.locator('#sheetMua.open').waitFor();
+    await p.locator('#sm-cta').click(); await p.waitForURL(/#\/in-season$/); await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    assert.equal(await tat(5),true,'2 bánh vượt trần ngày 5');
+    await p.locator('#c-days .day').nth(5).click();
+    await p.waitForFunction(()=>/chỉ còn nhận 1/.test(document.querySelector('#toast').innerText));
+    assert.equal(await tat(7),false);
+    assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
