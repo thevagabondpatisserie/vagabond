@@ -9458,6 +9458,16 @@
     "nhom": "dat_banh",
     "mac_dinh": "Đơn có cả Panettone và Bûche nên cả đơn theo lịch chặt hơn: {luat}."
   },
+  "mv_ngay_ngung": {
+    "ten": "Lịch nhận bánh mùa vụ: ngày đã bấm Ngưng nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày này đã nhận đủ đơn bánh mùa lễ. Quý khách chọn ngày khác hoặc gọi 0931 224 334."
+  },
+  "mv_ngay_day": {
+    "ten": "Lịch nhận bánh mùa vụ: ngày đã gần đủ trần (giữ {so} và {ten})",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày này chỉ còn nhận {so} {ten}. Quý khách chọn ngày khác hoặc bớt số lượng."
+  },
   "mv_luat_pan": {
     "ten": "Lịch nhận mùa vụ: giỏ có Panettone",
     "nhom": "dat_banh",
