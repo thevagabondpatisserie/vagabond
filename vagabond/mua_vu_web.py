@@ -289,6 +289,14 @@ def kiem_sot(hang, ma_sot, loai_theo_ma, moi_banh=SOT_MOI_BANH):
 	return (so_sot, tran) if so_sot > tran else None
 
 
+def bo_hang_mua(hang, mua):
+	"""THUẦN (v697): bỏ các dòng hàng thuộc mùa đang bán trên web khỏi phép kiểm tồn
+	của bánh đặt trước thường (ton_don_web: nhận tới ba ngày tới). Hàng mùa vụ theo
+	lịch nhận của loại và hạn mức của Mùa vụ. mua: kết quả doc_mua_web hoặc None."""
+	ma = set((mua or {}).get("ma_mua") or ())
+	return [h for h in hang or [] if h.get("variation_id") not in ma]
+
+
 def chot_chiec(chiec, loai_theo_ma):
 	"""Chiếc bánh Panettone không cắm cờ lời chúc: bỏ cờ và lời chúc trình duyệt
 	gửi kèm. Chiếc của bánh khác giữ nguyên. chiec None (trang cũ) thì trả None."""
@@ -370,6 +378,9 @@ def doc_mua_web():
 		"loai_theo_ma": loai_cua_mua(doc),
 		"luat": luat_mua({k: doc.get(k) for k in ("panettone_thu", "panettone_truoc", "buche_thu", "buche_truoc")}),
 		"ma_sot": [s.ma_hang for s in doc.get("sot_web") or [] if s.ma_hang],
+		# v697: mọi mã của mùa (kể cả dòng chưa điền Loại trên web), để cửa nhận đơn
+		# không xét các mã này theo luật bánh đặt trước thường (bo_hang_mua).
+		"ma_mua": [d.ma_hang for d in doc.dong if d.ma_hang],
 		"den_ngay": frappe.utils.getdate(doc.den_ngay) if doc.den_ngay else None,
 	}
 
@@ -453,7 +464,7 @@ def noi_dung_nhom(nhom):
 		return nhom
 	try:
 		ds = the_cua([banh_web.khoa_banh(g["ten"]) for g in nhom], [s["ma"] for g in nhom for s in g["sizes"]],
-			cot=("name", "khoa", "ten", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang"))
+			cot=("name", "khoa", "ten", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "kem_theo", "ma_hang"))
 	except Exception:
 		import frappe
 
@@ -468,6 +479,8 @@ def noi_dung_nhom(nhom):
 		g["tang"] = banh_web.tach_dong(bg.get("tang"), banh_web.SO_TANG_TOI_DA)
 		g["di_ung"] = " ".join(banh_web.tach_dong(bg.get("di_ung")))
 		g["bao_quan"] = " ".join(banh_web.tach_dong(bg.get("bao_quan")))
+		# v697: đồ kèm Marketing chọn ở thẻ Bánh; None là chưa chọn (trang khách dùng bộ mặc định theo loại).
+		g["kem_theo"] = banh_web.doc_kem(bg.get("kem_theo"))
 		anhs = [x["url"] for x in banh_web.doc_anh(bg.get("anh"))][:banh_web.SO_ANH_TOI_DA]
 		if anhs:
 			g["anh"], g["anhs"] = anhs[0], anhs

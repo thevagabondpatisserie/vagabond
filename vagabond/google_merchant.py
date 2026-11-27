@@ -21,11 +21,15 @@ import json
 from urllib.parse import quote
 from xml.sax.saxutils import escape
 
+from vagabond import anh_web
+
+# v697: ảnh nền lấy từ anh_web (một nguồn); bộ CAC_ANH_NEN gồm cả bản PNG cũ.
+ANH_NEN, CAC_ANH_NEN = anh_web.ANH_NEN, anh_web.CAC_ANH_NEN
+
 GOC = "https://thevagabondpatisserie.com"
 THUONG_HIEU = "The Vagabond Pâtisserie"
 # Mã danh mục sản phẩm Google: Food, Beverages & Tobacco > Food Items > Bakery.
 DANH_MUC_GG = "1876"
-ANH_NEN = "/assets/vagabond/web_order/anh-bia.png"
 NGUON_DAC_BIET, NGUON_MUA = "dac_biet", "theo_mua"
 TEN_NGUON = {NGUON_DAC_BIET: "Đặc biệt tuần này", NGUON_MUA: "Theo mùa"}
 CON, HET, DAT_TRUOC = "in_stock", "out_of_stock", "preorder"
@@ -42,7 +46,7 @@ def anh_tuyet_doi(u, goc=GOC):
 	"""THUẦN: đường dẫn ảnh đầy đủ https, hoặc "" khi không dùng được cho Google
 	(rỗng, ảnh riêng tư, ảnh nền thương hiệu thay cho ảnh bánh)."""
 	u = str(u or "").strip()
-	if not u or u.startswith("/private") or "/private/files/" in u or u.split("?")[0].endswith(ANH_NEN):
+	if not u or u.startswith("/private") or "/private/files/" in u or u.split("?")[0].endswith(CAC_ANH_NEN):
 		return ""
 	if u.startswith("//"):
 		u = "https:" + u

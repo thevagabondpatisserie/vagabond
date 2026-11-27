@@ -705,10 +705,21 @@ def tao_don(don=None):
 	# F21 cách B: tìm nonce ở trên, rồi mới đọc tồn tại lúc gửi. Nguồn
 	# không đọc được thì nhận như cũ, nhưng phải báo Sales đối chiếu.
 	from vagabond import ton_don_web
+	# v697 (anh Việt gửi ảnh 27/11/2026): Ours Bûche nhận 23/12 bị từ chối "bánh
+	# đặt trước, nhận trong 3 ngày tới" vì mã Bûche cũng có trên bảng BTP. Hàng của
+	# mùa đang bán trên web theo lịch và hạn mức của Mùa vụ (kiểm ở dưới), không theo
+	# luật ba ngày của bánh đặt trước thường. Đọc mùa MỘT lần cho cả hai phép.
+	from vagabond import mua_vu_web
+
+	try:
+		mua_web = mua_vu_web.doc_mua_web()
+		loi_mua = None
+	except Exception:
+		mua_web, loi_mua = None, frappe.get_traceback()
 	try:
 		# v671 (Minh Vũ 18/11/2026): món của đợt giữ số theo đợt (đã xét ở trên và
 		# dưới khoá đợt), không xét tồn tủ hay Đủ decor như bánh đặt trước thường.
-		nhac_ton = ton_don_web.kiem(dbt.bo_mon_dot(hang, ma_dbt), ngay)
+		nhac_ton = ton_don_web.kiem(mua_vu_web.bo_hang_mua(dbt.bo_mon_dot(hang, ma_dbt), mua_web), ngay)
 	except Exception:
 		ton_don_web.bao_loi(ngay)
 		nhac_ton = []
@@ -746,9 +757,8 @@ def tao_don(don=None):
 	# dưới phép tìm trùng nonce vì phụ thuộc ngày hôm nay và cài đặt của mùa. Đọc
 	# mùa hỏng thì ghi lỗi, không chặn đơn thường.
 	try:
-		from vagabond import mua_vu_web
-
-		mua_web = mua_vu_web.doc_mua_web()
+		if loi_mua:
+			raise RuntimeError(loi_mua)
 		tu_choi_mua = mua_vu_web.kiem_don(hang, ngay, mua_web, don.get("items"), MAX_SL)
 		if chiec and not tu_choi_mua:
 			chiec = mua_vu_web.chot_chiec(chiec, (mua_web or {}).get("loai_theo_ma"))
