@@ -194,7 +194,8 @@ def _():
 		return ra
 
 	h = lambda **k: [{"variation_id": ma, "quantity": sl} for ma, sl in k.items()]  # noqa: E731
-	with patch.object(mv, "mua_cho_web", lambda: doc), patch.object(frappe, "get_all", get_all):
+	# Đọc lại bản ghi mỗi lần như mua_cho_web thật (nút Ngưng nhận lưu bằng get_doc riêng).
+	with patch.object(mv, "mua_cho_web", lambda: frappe.get_doc(doc.doctype, doc.name)), patch.object(frappe, "get_all", get_all):
 		mua = mw.doc_mua_web()
 		la("1 đã nhận + 1 đúng trần 2: nhận", mw.xet_ngay_that(h(**{p1: 1}), ngay, mua), None)
 		la("1 đã nhận + 2 vượt trần: từ chối", (mw.xet_ngay_that(h(**{p1: 2}), ngay, mua) or {}).get("ly_do"), "ngay_mua_vu")
