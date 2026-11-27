@@ -7,8 +7,9 @@ Chốt:
 - đúng bằng trần thì nhận, vượt thì từ chối; trần 0 là không giới hạn; mã ngoài mùa
   không xét; ngày đã ngưng từ chối mọi đơn có hàng của mùa;
 - trang khách (thuan.js ngayMuaDay) và máy chủ (mua_vu_web.xet_ngay) chạy CÙNG bộ số;
-- cửa nhận đơn xét dưới khoá ngày, sau phép tìm trùng, đọc lại sau khi kết thúc
-  giao dịch đọc.
+- cửa nhận đơn (tao_don chạy thật trên môi trường giả của bộ #367) xét dưới khoá
+  ngày, sau phép tìm trùng, đọc lại sau khi kết thúc giao dịch đọc; nút Ngưng nhận
+  (ngung_ngay chạy thật) khoá dòng mùa rồi mới đọc.
 Dữ liệu trong ca là GIẢ.
 """
 import json
@@ -119,21 +120,140 @@ def _():
 	la("chỉ đơn có nhắc mã có trần (LIKE)", hoac, [["snapshot", "like", '%"GIA-P1"%']])
 
 
-@ca("v697 cửa nhận đơn: hàng của mùa xét trần ngày dưới khoá ngày, sau phép tìm trùng, đọc lại sau khi kết thúc giao dịch; nút Ngưng nhận khoá dòng mùa trước khi đọc")
+def _mua_gia(lich, ngung=""):
+	"""Bản ghi Mùa vụ GIẢ: GIA-P1 trần 3, GIA-P2 không trần; bảng Đơn theo ngày `lich`."""
+	dong = [types.SimpleNamespace(ma_hang="GIA-P1", tran_ngay=3, ten_banh="Panettone Thử", nhom_web="", loai_web="", get=lambda k: None),
+		types.SimpleNamespace(ma_hang="GIA-P2", tran_ngay=0, ten_banh="Panettone Mini Thử", nhom_web="", loai_web="", get=lambda k: None)]
+	v = {"name": "MUA-GIA-1", "dong_bo_luc": None, "tu_ngay": "2026-11-24", "den_ngay": "2026-12-31", "lich": [
+		types.SimpleNamespace(ma_hang=m, ngay=n, so_luong=s, cho_chot=0, don_khac=0) for m, n, s in lich],
+		"ngay_ngung_web": ngung, "sot_web": [], "panettone_thu": "", "panettone_truoc": "", "buche_thu": "", "buche_truoc": "", "tinh_trang": "Dang ban"}
+	return types.SimpleNamespace(dong=dong, get=v.get, **v)
+
+
+def _tao_mua(hang, dau, sau=None, ngay="2026-12-23T10:00:00", ton=None):
+	"""Chạy don_hang.tao_don THẬT (môi trường giả của bộ ca #367). `dau`: Mùa vụ lúc
+	đầu yêu cầu; `sau`: Mùa vụ đọc lại dưới khoá ngày (khách khác vừa đặt, Sales vừa
+	bấm Ngưng nhận). `ton`: {tên: hàm} thay phần đọc site của ton_don_web để chạy
+	luật ba ngày THẬT (mặc định bỏ qua luật đó). Trả (kết quả, vết)."""
+	import contextlib
+	import sys
+	import unittest.mock as um
+
+	from vagabond import giu_ton_web, mua_vu, mua_vu_web, ton_don_web
+	from vagabond.khung.kiem_thu import thu_don_web_367 as t367
+
+	vet, tao_don = t367._moi_truong_tao_don(lambda v: t367._Tra(200, {"data": {"id": "91500"}}))
+	khoa = []
+
+	@contextlib.contextmanager
+	def khoa_ngay(ng):
+		khoa.append(ng)
+		vet.su.append("khoa_ngay")
+		yield
+
+	def get_doc(dt, ten=None):
+		vet.su.append("doc_lai")
+		return sau or dau
+	fr = sys.modules["frappe"]
+	don = t367._don(ngay_nhan=ngay)
+	don["items"] = hang
+	vo_ton = [um.patch.object(ton_don_web, k, f, create=True) for k, f in (ton or {"kiem": lambda h, n: []}).items()]
+	with contextlib.ExitStack() as st:
+		for x in vo_ton:
+			st.enter_context(x)
+		r, khoa = _chay_tao(tao_don, don, dau, mua_vu, mua_vu_web, giu_ton_web, khoa_ngay, get_doc, fr, um), khoa
+	vet.khoa_ngay = khoa
+	return r, vet
+
+
+def _chay_tao(tao_don, don, dau, mua_vu, mua_vu_web, giu_ton_web, khoa_ngay, get_doc, fr, um):
+	with um.patch.object(mua_vu, "mua_cho_web", lambda: dau), um.patch.object(mua_vu, "kiem_han_muc", lambda *a, **k: []), \
+			um.patch.object(mua_vu_web, "khoa_ngay", khoa_ngay), \
+			um.patch.object(fr, "get_doc", get_doc, create=True), um.patch.object(fr, "get_all", lambda *a, **k: [], create=True), \
+			um.patch.object(giu_ton_web, "kiem_va_giu", lambda h, n: ([], None), create=True), \
+			um.patch.object(giu_ton_web, "kiem_va_giu_refill", lambda h, n: ([], None), create=True):
+		return tao_don(json.dumps(don))
+
+
+@ca("v697 cửa nhận đơn THẬT (tao_don): vượt trần, ngày đã ngưng bị từ chối và không ghi đơn; đúng bằng trần thì ghi; đọc lại Mùa vụ dưới khoá ngày sau khi kết thúc giao dịch đọc")
 def _():
-	src = (GOC / "vagabond/don_hang.py").read_text(encoding="utf-8")
-	tao = src[src.index("def tao_don("):]
-	vt = tao.index("(mua_vu_web.khoa_ngay(ngay) if co_mua_ngay else contextlib.nullcontext()):")
-	dung("khoá ngày nằm trong cùng khối khoá ghi", vt > tao.index("with don_web.khoa_ghi(khoa)"))
-	sau = tao[vt:]
-	dung("xét sau phép tìm trùng, sau commit đọc", sau.index("tim_trung(khoa)") < sau.index("frappe.db.commit()") < sau.index("xet_ngay_that(hang_goc, ngay, mua_web)"))
-	dung("xét trước khi ghi bản ghi", sau.index("xet_ngay_that(") < sau.index("don_web.tao_ban_ghi("))
-	mv = (GOC / "vagabond/mua_vu.py").read_text(encoding="utf-8")
-	ng = mv[mv.index("def ngung_ngay("):]
-	ng = ng[:ng.index("\ndef ")]
-	dung("kiểm quyền", "_kiem_quyen()" in ng)
-	dung("khoá dòng mùa rồi mới đọc danh sách ngày", ng.index("for update") < ng.index("frappe.get_doc(DT, mua)") < ng.index("doc_ngay_ngung("))
-	dung("trang khách nhận trần ngày từ hang_theo_mua", '"han_ngay": han_ngay' in mv)
+	p1 = lambda sl: [{"variation_id": "GIA-P1", "quantity": sl}]  # noqa: E731
+	r, vet = _tao_mua(p1(2), _mua_gia([("GIA-P1", "2026-12-23", 2)]))
+	la("2 đã nhận + 2 vượt trần 3: từ chối", r.get("ly_do"), "ngay_mua_vu")
+	dung("câu báo còn 1 bánh: " + str(r.get("nhac")), "chỉ còn nhận 1 bánh" in (r.get("nhac") or [""])[0])
+	dung("không ghi đơn, không gọi Pancake", "ghi" not in vet.su and "post" not in vet.su)
+	r, vet = _tao_mua([{"variation_id": "GIA-P2", "quantity": 1}], _mua_gia([], ngung="2026-12-23"))
+	la("ngày đã ngưng: size không đặt trần cũng bị từ chối", (r.get("ly_do"), "ghi" in vet.su), ("ngay_mua_vu", False))
+	r, vet = _tao_mua(p1(1), _mua_gia([("GIA-P1", "2026-12-23", 2)]))
+	la("2 đã nhận + 1 đúng bằng trần: ghi đơn", (r.get("ok"), "ghi" in vet.su), (1, True))
+	la("khoá đúng ngày nhận", [str(x)[:10] for x in vet.khoa_ngay], ["2026-12-23"])
+	su = vet.su
+	dung("thứ tự: khoá ghi, khoá ngày, commit, đọc lại, ghi: " + str(su),
+		su.index("khoa") < su.index("khoa_ngay") < su.index("commit") < su.index("doc_lai") < su.index("ghi"))
+	# Hai khách cùng lúc: lúc đầu yêu cầu bảng còn 1 chỗ, dưới khoá đọc lại thì khách
+	# trước vừa lấy chỗ cuối (hoặc Sales vừa bấm Ngưng nhận).
+	r, vet = _tao_mua(p1(1), _mua_gia([("GIA-P1", "2026-12-23", 2)]), sau=_mua_gia([("GIA-P1", "2026-12-23", 3)]))
+	la("chỗ cuối vừa bị lấy: từ chối theo bản đọc dưới khoá", (r.get("ly_do"), "ghi" in vet.su), ("ngay_mua_vu", False))
+	r, vet = _tao_mua(p1(1), _mua_gia([]), sau=_mua_gia([], ngung="2026-12-23"))
+	la("vừa bấm Ngưng nhận: từ chối", (r.get("ly_do"), "ghi" in vet.su), ("ngay_mua_vu", False))
+	r, vet = _tao_mua([{"variation_id": "GIA-THUONG", "quantity": 1}], _mua_gia([], ngung="2026-12-23"))
+	la("giỏ không có hàng của mùa: không khoá ngày, ghi đơn", (r.get("ok"), vet.khoa_ngay), (1, []))
+
+
+@ca("v697 nút Ngưng nhận ngày này THẬT (mua_vu.ngung_ngay): kiểm quyền, khoá dòng mùa rồi mới đọc, ngưng hai lần giữ một ngày, mở lại bỏ đúng ngày, ngoài mùa và mùa đã đóng bị chặn")
+def _():
+	import sys
+	import unittest.mock as um
+
+	from vagabond import mua_vu
+
+	fr = sys.modules["frappe"]
+	su, luu = [], {}
+	doc = _mua_gia([], ngung="2026-12-24")
+
+	def get_doc(dt, ten):
+		su.append("doc")
+		return doc
+
+	def save():
+		su.append("luu")
+		luu["ngung"] = doc.ngay_ngung_web
+	doc.save = save
+
+	class Loi(Exception):
+		pass
+
+	def throw(m, *a, **k):
+		raise Loi(m)
+	db = types.SimpleNamespace(exists=lambda *a: True, sql=lambda q, *a, **k: su.append("khoa" if "for update" in q else "sql"),
+		commit=lambda: su.append("commit"))
+	# ban_hang kéo requests ở đầu tệp (CI không có): thay bằng mô đun giả chỉ có cửa kiểm quyền.
+	ban_hang = types.SimpleNamespace(_kiem_quyen=lambda: su.append("quyen"))
+	with um.patch.dict(sys.modules, {"vagabond.ban_hang": ban_hang}), um.patch.object(fr, "db", db, create=True), \
+			um.patch.object(fr, "get_doc", get_doc, create=True), um.patch.object(fr, "throw", throw, create=True), \
+			um.patch.object(mua_vu, "bang", lambda m: {"lich": {"ngung": luu.get("ngung")}}):
+		mua_vu.ngung_ngay(mua="MUA-GIA-1", ngay="2026-12-23", ngung=1)
+		la("thứ tự: quyền, khoá dòng, đọc, lưu, commit", su, ["quyen", "khoa", "doc", "luu", "commit"])
+		la("thêm ngày, giữ ngày cũ", luu["ngung"], "2026-12-23\n2026-12-24")
+		mua_vu.ngung_ngay(mua="MUA-GIA-1", ngay="2026-12-23", ngung=1)
+		la("ngưng hai lần: vẫn một ngày", luu["ngung"], "2026-12-23\n2026-12-24")
+		mua_vu.ngung_ngay(mua="MUA-GIA-1", ngay="2026-12-23", ngung=0)
+		la("mở lại bỏ đúng ngày", luu["ngung"], "2026-12-24")
+		loi = []
+		for ngay in ("2027-01-05", "khong-phai-ngay"):
+			try:
+				mua_vu.ngung_ngay(mua="MUA-GIA-1", ngay=ngay, ngung=1)
+			except Loi as e:
+				loi.append(str(e))
+		la("ngoài mùa và ngày hỏng bị chặn", len(loi), 2)
+		doc.tinh_trang = "Da dong"
+		try:
+			mua_vu.ngung_ngay(mua="MUA-GIA-1", ngay="2026-12-23", ngung=1)
+			dong = ""
+		except Loi as e:
+			dong = str(e)
+		dung("mùa đã đóng bị chặn", "đã đóng" in dong)
+	la("ngày ở cổng không đổi sau các lần bị chặn", luu["ngung"], "2026-12-24")
 	cua = (GOC / "vagabond/khung/kiem_thu/thu_cua_ngo.py").read_text(encoding="utf-8")
 	dung("ngung_ngay có trong danh sách cửa", '"ngung_ngay"' in cua)
 

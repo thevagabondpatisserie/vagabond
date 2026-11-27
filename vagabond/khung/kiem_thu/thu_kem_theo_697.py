@@ -196,7 +196,13 @@ def _():
 		moi = t.kiem(w.bo_hang_mua(hang, mua), "2026-12-23")
 	dung("trước v697: Bûche bị chặn", any("GIA-BU1" in x for x in cu))
 	la("từ v697: chỉ bánh thường còn bị nhắc", [x.split(" là ")[0] for x in moi], ["GIA-THUONG"])
-	src = (GOC / "vagabond/don_hang.py").read_text(encoding="utf-8")
-	tao = src[src.index("def tao_don("):]
-	dung("cửa nhận đơn bỏ mã mùa trước khi xét luật ba ngày", "ton_don_web.kiem(mua_vu_web.bo_hang_mua(" in tao)
-	dung("đọc mùa một lần cho hai phép", tao.count("mua_vu_web.doc_mua_web()") == 1)
+	# Cửa nhận đơn THẬT (tao_don, môi trường giả của bộ #367) với luật ba ngày THẬT:
+	# mã của mùa nhận 23/12 ghi được, bánh thường trên bảng BTP vẫn bị chặn.
+	from vagabond.khung.kiem_thu import thu_tran_ngay_697 as t697
+	btp2 = type("B", (), {"dong": [type("D", (), {"ma_hang": m, "ten_banh": m})() for m in ("GIA-P1", "GIA-THUONG")]})()
+	ton = {"hom_nay": lambda: datetime.date(2026, 11, 27), "_kiem_refill": lambda h, n, nay: (set(), []), "_ton_phieu": lambda ng: {}}
+	with patch.object(t.frappe, "get_single", lambda dt: btp2, create=True):
+		r, vet = t697._tao_mua([{"variation_id": "GIA-P1", "quantity": 1}], t697._mua_gia([]), ton=ton)
+		la("cửa nhận đơn: hàng của mùa nhận 23/12 ghi được", (r.get("ok"), "ghi" in vet.su), (1, True))
+		r, vet = t697._tao_mua([{"variation_id": "GIA-P1", "quantity": 1}, {"variation_id": "GIA-THUONG", "quantity": 1}], t697._mua_gia([]), ton=ton)
+		la("cửa nhận đơn: bánh thường cùng giỏ vẫn bị luật ba ngày", (r.get("ly_do"), "ghi" in vet.su), ("het_hang", False))
