@@ -11,7 +11,8 @@ Repo công khai: tên người trong ảnh vẽ là tên giả, giờ giấc là
 - **Kết quả sẽ thấy:** nhân viên chấm công bằng một nút; quản lý duyệt mọi loại yêu cầu ở một chỗ; kế toán khoá bảng công tháng và xuất gửi bên làm lương; phiếu KPI tự lấy giờ công.
 - **Anh đã chốt (27 và 28/11):** dùng Frappe HR thay iPOS HRM; màn nhân viên làm trong app Vagabond; tối giản, một app cho cả nhân viên và quản lý; lương giai đoạn đầu vẫn để bên làm lương tính, ERP chỉ xuất bảng công; chấm công kiểm wifi công ty cộng định vị; khuôn mặt làm trước bước lưu ảnh, tự so ảnh làm sau; danh sách nhân viên lấy trước từ danh sách tài khoản; 6 ô theo phương án A; câu chữ theo bản vẽ 2.
 - **Anh chốt thêm 28/11:** giữ y ba cách tính của iPOS ở mục 4; Xin đi muộn, Xin về sớm tối đa 3 lần mỗi tháng và tự sửa được trong Cài đặt; đường mạng các điểm có địa chỉ cố định; mẫu văn bản đồng ý dùng ảnh khuôn mặt do Claude soạn (`mau-dong-y-du-lieu-cham-cong.md`); danh sách nhân viên lấy từ iPOS HRM.
-- **Còn chờ anh:** xem mục 8.
+- **Anh chốt tối 28/11 (lần 2):** duyệt mẫu đồng ý dữ liệu chấm công, nhân viên đọc và ký ngay trong app; người phụ trách quầy, bếp có khoản thưởng riêng, tự cài được.
+- **Còn chờ anh:** xem mục 9.
 
 ## 2. Bảy ô mới trong mục Nhân sự
 
@@ -140,7 +141,8 @@ Danh sách ô và mặc định. Mặc định lấy đúng giá trị iPOS củ
 | Yêu cầu và duyệt | Xoay ca, Xin ra ngoài trong ca | Tắt |
 | Loại nghỉ | Có lương (mới), số ngày mỗi năm, tối đa mỗi tháng, chuyển năm sau (mới), áp dụng cho, áp dụng từ | Theo 8 loại trên iPOS |
 | Bộ phận và thưởng | Nhóm thưởng của bộ phận: Sales, Marketing, Quản lý cửa hàng, Quầy và bar, Bếp, Hỗ trợ, Không hưởng | Theo bảng ghép mục 3.9 đề xuất hoa hồng |
-| Bộ phận và thưởng | Người phụ trách (người duyệt yêu cầu của bộ phận) và tối đa số người phụ trách. Chỉ nhóm Hỗ trợ có mức phụ trách 1,5 triệu (3.6 đề xuất hoa hồng) | Chưa chọn; 1 người |
+| Bộ phận và thưởng | Người phụ trách (người duyệt yêu cầu của bộ phận) và tối đa số người phụ trách. Nhóm Hỗ trợ có mức phụ trách 1,5 triệu (3.6 đề xuất hoa hồng) | Chưa chọn; 1 người |
+| Bộ phận và thưởng | Thưởng phụ trách cho quầy (theo điểm) và bếp, anh chốt 28/11 là có và tự cài: kiểu Không có / Hệ số phần chia quỹ / Mức cố định mỗi tháng, kèm giá trị | Không có, cho tới khi anh đặt |
 | Nhân viên (hồ sơ) | Nhóm thưởng riêng của từng người, đè lên nhóm của bộ phận | Để trống = theo bộ phận |
 | Bảng công | Kỳ công (mới) | Hàng tháng, ngày 1 |
 | Bảng công | Quản lý sửa công sau khi hết tuần; sửa sau khi khoá kỳ | 1 ngày; 0 ngày |
@@ -158,13 +160,49 @@ Năm câu về người phụ trách hôm 28/11 giờ thành ô cài đặt, anh
 
 Không đưa vào đợt này: thẻ Hợp đồng và Lương, bảo hiểm của iPOS; "Phải hoàn thành công việc của ca để chấm ra" vì chưa làm Giao việc. Cài đặt hoa hồng (mốc, tỷ lệ, trần) giữ ở màn Bảng chỉ tiêu và bậc hoa hồng đang có.
 
-## 8. Câu hỏi
+## 8. Gửi onboard cho bên làm lương
+
+Anh Việt nêu tối 28/11: hiện sau phỏng vấn, Kế toán nhắn tay 8 mục vào nhóm chat với bên làm lương. Cần nút gửi email onboard ngay dưới tên ứng viên, tự lấy thông tin ứng viên, có chỗ điền email người nhận. Bản vẽ chờ anh duyệt.
+
+| Ảnh | Nội dung |
+|---|---|
+| ![](anh/ob1-nut-gui.jpg) | Nút **Gửi onboard** dưới tên ứng viên; nhãn onboard trên từng dòng; nút lọc "Chưa gửi onboard". Ô tìm tên ứng viên đã có sẵn ở màn Tuyển dụng |
+| ![](anh/ob2-phieu.jpg) | Phiếu onboard 3 bước. Bước 1 quản lý soát thông tin lấy từ hồ sơ ứng viên và vị trí tuyển. Bước 2 Kế toán điền lương |
+| ![](anh/ob3-gui-va-sau-gui.jpg) | Bước 3 xem trước email và gửi; các việc hệ thống làm sau khi gửi |
+
+Luật:
+- Tám mục của email giữ đúng như tin nhắn tay hiện nay: họ tên, số điện thoại, email, bộ phận và trưởng bộ phận, ngày bắt đầu tính lương, lương chính thức và phụ cấp, lương thử việc, thời gian thử việc.
+- Nút chỉ hiện khi ứng viên ở Đề nghị nhận việc hoặc Đã nhận việc.
+- Lương là thông tin kín: chỉ Kế toán và giám đốc thấy và nhập bước 2. Quản lý tuyển dụng chỉ làm bước 1 rồi "Gửi Kế toán điền lương".
+- Không gửi trùng: mỗi ứng viên một phiếu onboard. Đã gửi thì nút thành "Gửi bản cập nhật", email ghi rõ mục nào đổi. Bấm hai lần liên tiếp chỉ ra một email.
+- "Đã gửi" chỉ ghi khi hệ thống email nhận thư để gửi; gửi hỏng thì nhãn đỏ "Gửi chưa được" và báo Kế toán.
+- Lưu lịch sử: ai gửi, lúc nào, gửi tới đâu, nội dung.
+- Sau khi gửi, hệ thống tạo hồ sơ Nhân viên (trạng thái Thử việc, nhóm thưởng theo bộ phận), mời tạo tài khoản app, giao việc ký đồng ý dữ liệu chấm công, và nhắc trước khi hết thử việc.
+- Ứng viên được báo trước trong lời đồng ý lúc nộp hồ sơ rằng khi nhận việc, thông tin sẽ chuyển cho đơn vị trả lương.
+- Tài khoản ngân hàng, giấy tờ tuỳ thân: ERP không thu, bên làm lương tự thu qua lời mời của họ như hiện nay.
+
+Cài đặt thêm (nhóm "Onboard" trong Cài đặt nhân sự):
+
+| Ô | Mặc định |
+|---|---|
+| Email bên làm lương (nhiều địa chỉ) | Để trống, anh điền |
+| Đồng gửi | Kế toán |
+| Lương thử việc, % lương chính thức | 85 |
+| Thời gian thử việc | 2 tháng |
+| Nhắc trước khi hết thử việc | 7 ngày |
+| Tiêu đề và lời mở đầu email | Mẫu sẵn, sửa được |
+
+Tham khảo SAP SuccessFactors: onboard bắt đầu từ chính hồ sơ ứng viên trong phần tuyển dụng, rồi quản lý tuyển dụng soát lại dữ liệu người mới trước khi các bước sau chạy.
+
+## 9. Câu hỏi
 
 **Cho anh Việt**
 Đã chốt 28/11: giữ y ba cách tính của iPOS; hạn mức 3 lần mỗi tháng, sửa trong Cài đặt; địa chỉ mạng cố định; Claude soạn mẫu đồng ý.
 
-1. Đọc và duyệt mẫu `mau-dong-y-du-lieu-cham-cong.md`. Đây là bản Claude soạn, không phải ý kiến luật sư; anh nên nhờ người có chuyên môn pháp lý xem lại trước khi cho nhân viên ký.
-2. Người không đồng ý chụp ảnh: em đề xuất cho chấm công không ảnh, quản lý xác nhận lượt chấm (mẫu mục 5). Anh đồng ý cách này?
+Đã chốt tối 28/11: anh duyệt mẫu `mau-dong-y-du-lieu-cham-cong.md` (kể cả đường chấm công cho người không đồng ý chụp ảnh). Cách ký: nhân viên đọc và bấm đồng ý ngay trong app lúc đăng ký ảnh khuôn mặt lần đầu; hệ thống lưu người ký, giờ ký, phiên bản mẫu và ba ô đã tích; đổi nội dung mẫu thì hỏi ký lại. Bản in ký giấy dùng khi cần. Mẫu vẫn là bản Claude soạn, nên nhờ người có chuyên môn pháp lý xem lại.
+
+1. Duyệt 3 ảnh onboard ở mục 8.
+2. Email bên làm lương nhận onboard: anh điền trong Cài đặt khi có màn, không ghi vào repo.
 
 **Cho Codex**
 - Rà luồng: có chỗ nào một yêu cầu bị duyệt hai lần, hoặc ca bị xếp trùng người, khi hai quản lý cùng thao tác?

@@ -1,6 +1,6 @@
 # Mẫu văn bản đồng ý xử lý dữ liệu chấm công
 
-Bản nháp Claude soạn ngày 28/11/2026. Đây không phải ý kiến luật sư. Trước khi cho nhân viên ký, nên nhờ người có chuyên môn pháp lý đối chiếu với Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15 (hiệu lực 01/01/2026) và Nghị định 356/2025/NĐ-CP.
+Claude soạn ngày 28/11/2026, anh Việt duyệt nội dung tối 28/11. Đây không phải ý kiến luật sư. Trước khi cho nhân viên ký, nên nhờ người có chuyên môn pháp lý đối chiếu với Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15 (hiệu lực 01/01/2026) và Nghị định 356/2025/NĐ-CP.
 
 Lý do cần văn bản này:
 - ảnh khuôn mặt (dữ liệu sinh trắc học) và vị trí định vị thuộc nhóm dữ liệu cá nhân nhạy cảm;

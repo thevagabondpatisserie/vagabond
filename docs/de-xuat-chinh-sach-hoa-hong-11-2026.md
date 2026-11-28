@@ -11,7 +11,8 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - **Kết quả sẽ thấy:** mỗi người mở app thấy số của mình đang chạy trong tháng, kèm từng dòng tính. Kế toán chỉ soát ngoại lệ.
 - **Anh đã chốt:** mốc 600 triệu cho Marketing, trần 6 triệu/người/tháng, thưởng mùa vụ riêng, ngày ghi sổ hoá đơn, giờ công theo bảng chấm công bên làm lương (17/11). Ngày 27/11 anh đồng ý 4 điểm mới: quyết toán theo quý, tại bàn tính 10% phần gọi thêm đã trả tiền, mức chuẩn cho bộ phận hỗ trợ, thẻ "D1" trên Pancake.
 - **Anh chốt tối 28/11:** foodapp giảm trơn (Q6); luật làm không trọn quý (Q7). Người phụ trách và nhóm thưởng anh tự chọn trong Cài đặt nhân sự.
-- **Còn chờ anh:** Q8 (mục 8).
+- **Anh chốt thêm 28/11:** người phụ trách quầy và bếp có thưởng phụ trách, tự cài (Q8, mục 3.10).
+- **Còn chờ anh:** đặt con số thưởng phụ trách khi có màn Cài đặt.
 
 ## 2. Bốn nguyên tắc
 
@@ -94,7 +95,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - Gộp hay tách bill không đổi doanh thu, nên không đổi quỹ. Bản 1 tính theo bill bình quân nhân số bill: gộp hai bàn thành một bill làm quỹ tăng, đã bỏ.
 - **Huỷ và hoàn tiền giảm quỹ dần, không còn vách 3%:** hệ số quỹ = 1 khi tỷ lệ huỷ hoàn từ 2% trở xuống, giảm đều về 0 ở 6%. Ví dụ 3,2% thì nhận 70% quỹ. Tỷ lệ = tiền hàng huỷ và hoàn trên tổng tiền hàng tại chỗ của điểm đó trong tháng, theo ngày ghi sổ.
 - Chia theo giờ công (F11).
-- Người phụ trách quầy của điểm (chọn trong Cài đặt nhân sự) là người duyệt mặc định của điểm, không có khoản thưởng riêng ngoài phần chia quỹ theo giờ công. Có thêm khoản riêng hay không là Q8.
+- Người phụ trách quầy của điểm (chọn trong Cài đặt nhân sự) là người duyệt mặc định của điểm, không có khoản thưởng riêng ngoài phần chia quỹ theo giờ công. Khoản riêng của người phụ trách theo mục 3.10.
 
 **Món chỉ định:** mỗi tháng giám đốc chọn 3 đến 5 món, 3.000 đến 5.000 đ mỗi phần bán ra, ghi theo người bán trên bill.
 
@@ -102,7 +103,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 
 - Quỹ bếp = 0,5% x (doanh thu bánh ổ cộng bánh theo mùa) x hệ số chất lượng.
 - Hệ số 1 khi hàng lỗi phải làm lại từ 2% trở xuống VÀ hao hụt trong định mức; 0,5 khi trượt một điều; 0 khi trượt cả hai.
-- Bếp trưởng chia theo giờ công. Người phụ trách bếp là người duyệt yêu cầu của bếp, không có khoản thưởng riêng (Q8).
+- Bếp trưởng chia theo giờ công. Người phụ trách bếp là người duyệt yêu cầu của bếp, thưởng phụ trách theo mục 3.10.
 
 ### 3.6 Kế toán, Thu mua, Thiết kế, Chụp ảnh, Giao hàng (anh chốt 27/11)
 
@@ -161,6 +162,21 @@ Lấy từ danh sách nhân viên đang làm trên iPOS HRM ngày 28/11/2026 (62
 | STEWARDING, SERCURITY | 2 | Chưa có trong chính sách | Cần anh chọn: đưa vào 3.6 hay không |
 
 Một tài khoản chung "Quản lý nhân sự" trên iPOS không phải người, bỏ qua.
+
+### 3.10 Thưởng phụ trách quầy và bếp (anh chốt 28/11)
+
+Người phụ trách quầy của từng điểm và người phụ trách bếp có thêm thưởng phụ trách. Kiểu và mức đặt trong Cài đặt nhân sự, riêng cho từng điểm và cho bếp:
+
+| Kiểu | Cách tính | Ai chịu |
+|---|---|---|
+| Không có (mặc định cho tới khi anh đặt) | Chỉ nhận phần chia theo giờ công | |
+| Hệ số phần chia quỹ | Giờ công của người phụ trách nhân hệ số khi chia quỹ, ví dụ 1,5 | Tổng quỹ không đổi; những người còn lại nhận ít đi một chút |
+| Mức cố định mỗi tháng | Cộng thêm một số tiền cố định | Công ty chi thêm ngoài quỹ |
+
+- Ví dụ hệ số 1,5: quỹ 4 triệu, 5 người cùng 160 giờ. Không hệ số mỗi người 800.000 đ. Có hệ số: người phụ trách tính 240 giờ, nhận 1.091.000 đ; bốn người còn lại mỗi người 727.000 đ.
+- Mức cố định chỉ chi khi tháng đó bộ phận có quỹ lớn hơn 0 và người phụ trách đạt xếp loại từ Đạt, để không thành lương cứng trá hình. Điều kiện này cũng là ô cài đặt (bật mặc định).
+- Thưởng phụ trách là khoản thường: cộng vào rồi mới chặn trần 6 triệu (3.7).
+- Đổi kiểu hoặc mức áp từ kỳ sau. Đổi người phụ trách giữa tháng thì tính theo số ngày giữ vai.
 
 ## 4. Số liệu nền (làm tròn)
 
@@ -232,7 +248,7 @@ Một tài khoản chung "Quản lý nhân sự" trên iPOS không phải ngư�
 - Q5. Danh sách người theo bộ phận: anh Việt cho lấy từ iPOS HRM (28/11). Danh sách có tên thật nên giữ ngoài repo; bảng ghép bộ phận iPOS sang bộ phận hoa hồng ở mục 3.9. Anh Việt chốt tối 28/11: người phụ trách, nhóm thưởng của từng người và bộ phận đều là ô cài đặt anh tự chọn trên app (mục 7 tài liệu nhân sự), không chốt cứng trong chính sách.
 - Q6. Đã chốt 28/11: foodapp giảm trơn (mục 3.2).
 - Q7. Đã chốt 28/11: luật "làm không trọn quý" ở mục 3.0.
-- Q8. Người phụ trách quầy (theo điểm) và người phụ trách bếp có thêm khoản thưởng riêng không? Hiện chính sách chỉ cho họ vai người duyệt; quỹ đội và quỹ bếp chia theo giờ công như mọi người. Mức phụ trách 1,5 triệu chỉ có ở nhóm Hỗ trợ (3.6).
+- Q8. Đã chốt 28/11: người phụ trách quầy (theo điểm) và người phụ trách bếp CÓ khoản thưởng riêng, mức do anh tự đặt trong Cài đặt nhân sự (mục 3.10).
 
 **Cho Codex, vòng 2.** Bản 1 Codex chỉ ra 10 điểm. Đối chiếu:
 
@@ -258,5 +274,6 @@ Một tài khoản chung "Quản lý nhân sự" trên iPOS không phải ngư�
 | (cùng loại, tự quét) Chạy lại quyết toán quý | 3.0: tính lại từ đầu, thay số cũ |
 | Người đổi bộ phận cũng được miễn thu hồi tạm chi thừa (trên 0df97ed) | 3.0: miễn chỉ cho người nghỉ việc; đổi bộ phận thì phần thừa đi theo F2d. Đã quét: F6 chỉ nói nghỉ việc, không chỗ nào khác miễn thu hồi |
 | Chọn người phụ trách quầy, bếp ngầm cấp một khoản thưởng chưa có trong chính sách (trên 196d5e7) | 3.4, 3.5: phụ trách chỉ là người duyệt, không có khoản riêng; mức 1,5 triệu chỉ ở 3.6; thêm Q8. Đã quét: tài liệu nhân sự mục 7 và ảnh cd4 sửa cùng |
+| (anh Việt chốt Q8 sau đó) | 3.10: thưởng phụ trách là khoản có định nghĩa riêng, tự cài, nằm trong trần 6 triệu |
 
 Nhờ rà: các luật mới có tạo kẽ hở mới nào không, nhất là quyết toán quý khi người đổi bộ phận giữa quý, mức nền quỹ đội, và trạng thái chờ đối soát của đơn D1.
