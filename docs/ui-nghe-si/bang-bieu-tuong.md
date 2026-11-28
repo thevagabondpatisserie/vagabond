@@ -59,7 +59,7 @@ Việc thay chỉ làm ở LỚP VẼ giao diện. Chuỗi dữ liệu, tin gử
 | 🔒 | lock |
 | 📦 | package |
 
-## Đề xuất cho phần còn lại (193 ký tự, chờ duyệt)
+## Đề xuất cho phần còn lại (206 ký tự, chờ duyệt)
 
 Một số ký tự (trái cây, hoa, lá cờ) chỉ xuất hiện trong tên món hoặc nội dung, không phải biểu tượng chức năng; vẫn có dòng để không sót.
 
@@ -258,6 +258,19 @@ Một số ký tự (trái cây, hoa, lá cờ) chỉ xuất hiện trong tên m
 | 🚨 | circle-alert |
 | 🚀 | megaphone |
 | 🛠 | wrench |
+| ℹ | info |
+| 🩺 | stethoscope |
+| 🏧 | banknote |
+| 🎩 | briefcase |
+| 👑 | crown |
+| 🪪 | id-card |
+| 💻 | laptop |
+| 📉 | trending-down |
+| 🥤 | cup-soda |
+| 🩹 | bandage |
+| 🍁 | leaf |
+| 🕯 | flame |
+| ► | play |
 
 ## Chấm màu trạng thái (8 ký tự)
 
