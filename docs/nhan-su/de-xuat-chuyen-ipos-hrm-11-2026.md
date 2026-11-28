@@ -7,13 +7,13 @@ Repo công khai: tên người trong ảnh vẽ là tên giả, giờ giấc là
 ## 1. Tóm tắt cho anh Việt
 
 - **Vấn đề:** chấm công, xếp lịch, đơn từ đang nằm ở iPOS HRM, tách khỏi ERP, chia hai app (nhân viên và quản lý), hơn 45 ô chức năng. Giờ công cho thưởng phải nạp tay.
-- **Việc sẽ làm:** dùng Frappe HR làm phần máy phía sau (hồ sơ, ca, lượt chấm, bảng công, phép). Màn bấm hằng ngày đặt trong mục **Nhân sự** của app Vagabond: **một app, thêm 6 ô**. Tài khoản quản lý tự thấy thêm ô duyệt, không cần app thứ hai.
+- **Việc sẽ làm:** dùng Frappe HR làm phần máy phía sau (hồ sơ, ca, lượt chấm, bảng công, phép). Màn bấm hằng ngày đặt trong mục **Nhân sự** của app Vagabond: **một app, thêm 7 ô** (6 ô làm việc và ô Cài đặt nhân sự). Tài khoản quản lý tự thấy thêm ô duyệt, không cần app thứ hai.
 - **Kết quả sẽ thấy:** nhân viên chấm công bằng một nút; quản lý duyệt mọi loại yêu cầu ở một chỗ; kế toán khoá bảng công tháng và xuất gửi bên làm lương; phiếu KPI tự lấy giờ công.
 - **Anh đã chốt (27 và 28/11):** dùng Frappe HR thay iPOS HRM; màn nhân viên làm trong app Vagabond; tối giản, một app cho cả nhân viên và quản lý; lương giai đoạn đầu vẫn để bên làm lương tính, ERP chỉ xuất bảng công; chấm công kiểm wifi công ty cộng định vị; khuôn mặt làm trước bước lưu ảnh, tự so ảnh làm sau; danh sách nhân viên lấy trước từ danh sách tài khoản; 6 ô theo phương án A; câu chữ theo bản vẽ 2.
 - **Anh chốt thêm 28/11:** giữ y ba cách tính của iPOS ở mục 4; Xin đi muộn, Xin về sớm tối đa 3 lần mỗi tháng và tự sửa được trong Cài đặt; đường mạng các điểm có địa chỉ cố định; mẫu văn bản đồng ý dùng ảnh khuôn mặt do Claude soạn (`mau-dong-y-du-lieu-cham-cong.md`); danh sách nhân viên lấy từ iPOS HRM.
-- **Còn chờ anh:** xem mục 7.
+- **Còn chờ anh:** xem mục 8.
 
-## 2. Sáu ô mới trong mục Nhân sự
+## 2. Bảy ô mới trong mục Nhân sự
 
 ![Mục Nhân sự sau khi thêm 6 ô](anh/0-sau-o-nhan-su.jpg)
 
@@ -24,7 +24,8 @@ Repo công khai: tên người trong ảnh vẽ là tên giả, giờ giấc là
 | Duyệt | Quản lý trở lên | Mọi yêu cầu chờ duyệt ở một danh sách |
 | Xếp lịch | Quản lý trở lên | Xếp ca theo tuần cho điểm mình quản |
 | Bảng chấm công | Quản lý xem điểm mình; Kế toán khoá kỳ và xuất | Theo dõi trong ngày, tổng hợp công tháng |
-| Nhân viên | Kế toán, giám đốc | Hồ sơ, điểm làm, bộ phận, người duyệt yêu cầu |
+| Nhân viên | Kế toán, giám đốc | Hồ sơ, điểm làm, bộ phận, người duyệt yêu cầu, nhóm thưởng |
+| Cài đặt nhân sự | Kế toán, giám đốc | Mọi cài đặt ở mục 7 (anh Việt chốt 28/11: mọi phần đều tự cài được) |
 
 Năm ô đang có (Tuyển dụng, Duyệt KPI và hoa hồng, Bảng chỉ tiêu và bậc hoa hồng, Điểm KPI của tôi, Hoa hồng giới thiệu) giữ nguyên.
 
@@ -80,7 +81,84 @@ Năm ô đang có (Tuyển dụng, Duyệt KPI và hoa hồng, Bảng chỉ tiê
 
 Nguyên tắc: không chép lượt chấm cũ từ iPOS sang; chỉ nhập số ngày phép còn tại ngày chuyển. Mỗi đợt một PR, Codex rà, anh duyệt mới lên site.
 
-## 7. Câu hỏi
+## 7. Cài đặt nhân sự
+
+Anh Việt chốt tối 28/11: mọi phần đều phải tự cài được, có ô Cài đặt trong mục Nhân sự, tham khảo Cài đặt của iPOS HRM. Em đọc đủ 6 thẻ Cài đặt, form Thêm mới ca làm việc và màn Quy trình phê duyệt của iPOS (chỉ xem, không lưu).
+
+Luật chung cho mọi cài đặt:
+- Chỉ giám đốc và kế toán sửa được.
+- Mỗi lần sửa ghi người sửa, giờ sửa, giá trị cũ và mới.
+- Cài đặt ảnh hưởng tới công hoặc thưởng áp dụng từ kỳ sau, không đổi số của kỳ đang chạy.
+- Số 0 và ô để trống là hai giá trị khác nhau, ghi rõ trên từng ô (ví dụ hạn mức 0 là không cho gửi, để trống là không giới hạn).
+- Địa chỉ mạng chỉ hiện "Đã khai", không hiện số.
+
+| Ảnh | Nhóm |
+|---|---|
+| ![](anh/cd1-tong-quan.jpg) | **Tổng quan:** ô thứ 7 và màn Cài đặt nhân sự, 9 nhóm có nhãn màu (đã khai, thiếu, chưa khai) và ô tìm |
+| ![](anh/cd2-cham-cong.jpg) | **Chấm công** |
+| ![](anh/cd3-yeu-cau-duyet.jpg) | **Yêu cầu và duyệt** |
+| ![](anh/cd4-bo-phan-diem-lam.jpg) | **Bộ phận và thưởng, Điểm làm:** 5 câu về người phụ trách thành 5 ô cài đặt |
+| ![](anh/cd5-ca-loai-nghi.jpg) | **Ca làm việc, Loại nghỉ** |
+| ![](anh/cd6-chung-xep-lich-bang-cong.jpg) | **Chung, Xếp lịch, Bảng công** |
+
+Danh sách ô và mặc định. Mặc định lấy đúng giá trị iPOS của tiệm ngày 28/11, trừ dòng ghi "mới":
+
+| Nhóm | Ô | Mặc định |
+|---|---|---|
+| Chung | Tiền tố mã nhân viên | NV |
+| Chung | Làm và chấm công nhiều điểm | Bật |
+| Chung | Ca qua đêm | Tắt |
+| Chung | Giữ mã cũ khi nhân viên quay lại | Tắt |
+| Chung | Tự chuyển nghỉ việc khi không chấm công N ngày liên tục | Tắt |
+| Chung | Nhân viên tự gửi xin nghỉ việc | Bật |
+| Điểm làm | Địa chỉ, vị trí, địa chỉ mạng công ty (bấm lấy tự động khi đang ở tiệm) | Khai mỗi điểm |
+| Điểm làm | Bán kính cho phép chấm | 100 m |
+| Điểm làm | Phụ trách quầy (hưởng mức phụ trách quỹ đội 3.4, là người duyệt mặc định của điểm) | Chưa chọn |
+| Điểm làm | Đang hoạt động | Theo iPOS |
+| Ca | Điểm, bộ phận áp dụng; giờ ca; nghỉ giữa ca | Theo 8 ca trên iPOS |
+| Ca | Được phép đi muộn, về sớm (phút) | 0 |
+| Ca | Cần chấm ra; tính tăng ca | Bật; tắt |
+| Ca | Cách tính giờ làm | Theo giờ ca |
+| Ca | Hệ số công (mới) | 1 |
+| Xếp lịch | Khoá lịch tuần sau từ thứ, giờ | Tắt |
+| Xếp lịch | Hai ca nối tiếp tự vào ca sau | Bật |
+| Xếp lịch | Tự duyệt ca phát sinh đủ giờ vào, ra | Tắt |
+| Chấm công | Cách kiểm: Wifi công ty + Định vị / chỉ Wifi công ty / chỉ định vị | Wifi công ty + Định vị |
+| Chấm công | Chấm ở điểm khác cùng công ty | Bật |
+| Chấm công | Chấm ngoài vị trí thì chờ duyệt | Tắt |
+| Chấm công | Chụp ảnh khuôn mặt (mới) | Bật; người không đồng ý thì quản lý xác nhận từng lượt |
+| Chấm công | Chỉ chấm trên thiết bị đã đăng ký (mới) | Bật |
+| Chấm công | Giữ ảnh chấm công (mới) | 6 tháng |
+| Chấm công | Chấm vào sớm nhất trước giờ ca; chấm ra muộn nhất sau giờ ca | 60 phút; 60 phút |
+| Chấm công | Cảnh báo khi chấm xa điểm làm quá | 50 m |
+| Chấm công | Tính công theo giờ ca khi đi muộn, về sớm (trong mức, quá mức) cho toàn thời gian và bán thời gian: 8 công tắc | Tắt cả 8 |
+| Chấm công | Dùng giờ quản lý sửa để tính công | Bật |
+| Chấm công | Báo khi vào ca, ra ca (chọn người nhận) | Bật; Giám đốc, Quản lý điểm |
+| Chấm công | Báo khi đi muộn, về sớm (Zalo nhóm bộ phận) | Tắt |
+| Yêu cầu và duyệt | Mỗi loại: cho gửi, tối đa mỗi tháng, gửi trước giờ ca ít nhất, số cấp duyệt, người duyệt mỗi cấp, người nhận báo khi xong | Theo iPOS: Đổi ca, Nhờ làm thay 2 cấp, còn lại 1 cấp |
+| Yêu cầu và duyệt | Xin đi muộn, Xin về sớm: tối đa mỗi tháng | 3 lần (anh chốt) |
+| Yêu cầu và duyệt | Xoay ca, Xin ra ngoài trong ca | Tắt |
+| Loại nghỉ | Có lương (mới), số ngày mỗi năm, tối đa mỗi tháng, chuyển năm sau (mới), áp dụng cho, áp dụng từ | Theo 8 loại trên iPOS |
+| Bộ phận và thưởng | Nhóm thưởng của bộ phận: Sales, Marketing, Quản lý cửa hàng, Quầy và bar, Bếp, Hỗ trợ, Không hưởng | Theo bảng ghép mục 3.9 đề xuất hoa hồng |
+| Bộ phận và thưởng | Người phụ trách và tối đa số người phụ trách | Chưa chọn; 1 người |
+| Nhân viên (hồ sơ) | Nhóm thưởng riêng của từng người, đè lên nhóm của bộ phận | Để trống = theo bộ phận |
+| Bảng công | Kỳ công (mới) | Hàng tháng, ngày 1 |
+| Bảng công | Quản lý sửa công sau khi hết tuần; sửa sau khi khoá kỳ | 1 ngày; 0 ngày |
+| Bảng công | Mẫu xuất cho bên làm lương (mới) | Mẫu bên làm lương đang nhận |
+
+Năm câu về người phụ trách hôm 28/11 giờ thành ô cài đặt, anh tự chọn trên app, không cần sửa code:
+
+| Câu | Ô cài đặt |
+|---|---|
+| 9 người Văn phòng thuộc bộ phận nào | Nhóm thưởng trên hồ sơ từng người |
+| 3 người Marketing ai hưởng hoa hồng Marketing | Nhóm thưởng trên hồ sơ từng người |
+| Mỗi bộ phận mấy người phụ trách | Tối đa người phụ trách và chọn người, ở Bộ phận và thưởng |
+| Thanh Niên ai phụ trách quầy | Phụ trách quầy, ở Điểm làm |
+| Bảo vệ, tạp vụ có thưởng không | Nhóm thưởng của bộ phận = Không hưởng |
+
+Không đưa vào đợt này: thẻ Hợp đồng và Lương, bảo hiểm của iPOS; "Phải hoàn thành công việc của ca để chấm ra" vì chưa làm Giao việc. Cài đặt hoa hồng (mốc, tỷ lệ, trần) giữ ở màn Bảng chỉ tiêu và bậc hoa hồng đang có.
+
+## 8. Câu hỏi
 
 **Cho anh Việt**
 Đã chốt 28/11: giữ y ba cách tính của iPOS; hạn mức 3 lần mỗi tháng, sửa trong Cài đặt; địa chỉ mạng cố định; Claude soạn mẫu đồng ý.
