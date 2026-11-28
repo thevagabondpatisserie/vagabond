@@ -1,6 +1,6 @@
 # Đề xuất chính sách hoa hồng và thưởng toàn tiệm, máy tự tính
 
-Bản 2, 27/11/2026. Chưa có code. Bản 1 (17/11) nằm ở PR #582, Codex đã rà và chỉ ra 10 điểm; PR đó đã đóng vì nhánh quá cũ, bản này dựng lại trên main. Bàn ở issue #583.
+Bản 2, 27/11/2026, sửa ngày 28/11 theo 2 góp ý Codex trên #628. Chưa có code. Bản 1 (17/11) nằm ở PR #582, Codex đã rà và chỉ ra 10 điểm; PR đó đã đóng vì nhánh quá cũ, bản này dựng lại trên main. Bàn ở issue #583.
 
 Repo này công khai nên tài liệu không ghi tên người, không ghi lương từng người. Số trong ví dụ là số tròn.
 
@@ -10,7 +10,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - **Việc sẽ làm:** một chính sách cho mọi bộ phận, một nguồn số liệu. Ngày 1 hằng tháng máy tự dựng phiếu KPI cho từng người, đi theo đường duyệt 5 bước đang có. Cuối quý máy tính lại phần của Sales và Marketing trên tổng quý.
 - **Kết quả sẽ thấy:** mỗi người mở app thấy số của mình đang chạy trong tháng, kèm từng dòng tính. Kế toán chỉ soát ngoại lệ.
 - **Anh đã chốt:** mốc 600 triệu cho Marketing, trần 6 triệu/người/tháng, thưởng mùa vụ riêng, ngày ghi sổ hoá đơn, giờ công theo bảng chấm công bên làm lương (17/11). Ngày 27/11 anh đồng ý 4 điểm mới: quyết toán theo quý, tại bàn tính 10% phần gọi thêm đã trả tiền, mức chuẩn cho bộ phận hỗ trợ, thẻ "D1" trên Pancake.
-- **Còn chờ anh:** Q5 danh sách người theo bộ phận, Q6 foodapp (mục 8).
+- **Còn chờ anh:** Q5 danh sách người theo bộ phận, Q6 foodapp, Q7 luật làm không trọn quý (mục 8).
 
 ## 2. Bốn nguyên tắc
 
@@ -36,7 +36,14 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 | Phiếu tháng 3 | 3,0 tr | 1,5 tr |
 
 - Quý đầu tiên áp: tháng 1 đến 3/2027. Tháng 12/2026 chạy theo tháng như cũ.
-- Người nghỉ giữa quý: quyết toán tới tháng cuối đã làm đủ, không đòi lại phần tạm chi đã nhận (giống F6).
+- **Làm không trọn quý** (vào làm, nghỉ việc, hoặc đổi bộ phận giữa quý): quyết toán trên đúng những ngày người đó giữ vai này.
+  - Doanh thu tính: hoá đơn ghi sổ từ ngày bắt đầu tới ngày kết thúc giữ vai trong quý, kể cả tháng làm dở.
+  - Mốc và trần tính theo tỷ lệ ngày: mốc quý 1,8 tỷ x số ngày giữ vai / số ngày của quý. Trần làm tương tự.
+  - Người nghỉ việc được quyết toán ngay ở phiếu tháng nghỉ, không chờ hết quý.
+  - Ví dụ: nghỉ ngày 15/2 trong quý 1/2027 (90 ngày). Ngày giữ vai 1/1 tới 15/2 là 46 ngày. Mốc = 1,8 tỷ x 46/90 = 920 triệu. Doanh thu 1/1 tới 15/2 là 1.000 triệu thì phần quý = 3% x 80 triệu = 2,4 triệu.
+  - Tạm chi tháng làm dở cũng dùng mốc tháng theo tỷ lệ ngày, để tháng nghỉ không bị mốc cả tháng.
+  - Tạm chi đã nhận nhiều hơn số quyết toán thì không đòi lại (F6). Ít hơn thì chi bổ sung ở phiếu tháng nghỉ.
+- **Chạy lại quyết toán quý:** phiếu tháng cuối quý luôn tính lại từ đầu (số đúng của quý trừ tổng đã chi tạm), thay số cũ chứ không cộng thêm. Bấm tính hai lần ra cùng một số.
 
 ### 3.1 Sales (đặt bánh online)
 
@@ -142,7 +149,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 | F3 | Khách đặt bằng chính số của người giới thiệu | Không tính. Đã có (`tu_gioi_thieu`) |
 | F4 | Hai nhân viên cùng phục vụ một bàn | Mỗi lượt gọi thêm một người, theo số ở lượt đó. Chỉ quản lý đổi người, có lý do và vết (`doi_nguoi` đã có) |
 | F5 | Dời đơn qua tháng để ăn mốc | Quyết toán quý (3.0) |
-| F6 | Nhân viên nghỉ việc | Nhận phần đã ghi sổ tới ngày nghỉ. Không đòi lại tạm chi và khoản hoàn về sau |
+| F6 | Nhân viên nghỉ việc | Nhận phần đã ghi sổ tới ngày nghỉ, quyết toán ngay ở phiếu tháng nghỉ theo luật "làm không trọn quý" (3.0). Không đòi lại tạm chi và khoản hoàn về sau |
 | F7 | Nhân viên mới, thử việc | Có hoa hồng như nhân viên chính thức. Thưởng hiệu quả tính theo ngày công |
 | F8 | Hàng tặng, nội bộ, khách sỉ, hợp đồng B2B | Không vào doanh thu tính hoa hồng |
 | F9 | Doanh thu có VAT hay chưa | Mốc đặt theo giá có VAT. Máy đọc giá trị có VAT, trừ giảm giá, trừ phí giao |
@@ -157,7 +164,10 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 **F2, thu hồi khi huỷ hoặc hoàn tiền:**
 - F2a. Ba trạng thái tách bạch: phiếu **đã duyệt**, **đã đẩy đề nghị chi** (hiện `kpi.day_chi` chỉ tạo nháp đề nghị chi), **đã chi** (kế toán đánh dấu khi bên làm lương đã trả). Đơn hoàn trước khi phiếu đã chi thì tính lại phiếu, không thu hồi.
 - F2b. Sau khi đã chi: thu hồi đúng người **đã nhận tiền** của đơn đó, đọc từ dòng phiếu đã chi, không đọc người giới thiệu hiện tại trên hoá đơn (quản lý có thể đã đổi người sau đó).
-- F2c. Mỗi đơn hoàn chỉ thu hồi một lần, khoá theo mã đơn và mã phiếu. Hoàn một phần thì thu theo tỷ lệ tiền hoàn.
+- F2c. Mỗi **chứng từ hoàn** xử lý đúng một lần, khoá theo mã chứng từ hoàn (không khoá theo mã đơn). Một đơn hoàn một phần nhiều lần thì mỗi lần hoàn là một dòng thu hồi riêng.
+  - Tiền thu hồi lần đó = hoa hồng đã chi của đơn x tiền hoàn lần đó / tiền tính hoa hồng của đơn.
+  - Sổ thu hồi giữ tổng tiền hoàn luỹ kế của đơn. Tổng thu hồi của một đơn không bao giờ vượt hoa hồng đã chi cho đơn đó.
+  - Ví dụ: đơn 1.000.000 đ, đã chi 30.000 đ. Hoàn 200.000 đ rồi hoàn thêm 300.000 đ thì thu 6.000 đ rồi 9.000 đ. Xử lý lại chứng từ hoàn thứ nhất thì không thu thêm.
 - F2d. Trừ vào hoa hồng các kỳ sau của người đó, không trừ lương cứng, không trừ âm quá số được nhận kỳ đó. Sau 3 kỳ chưa trừ hết thì giám đốc duyệt xoá phần còn lại.
 
 ## 6. Dữ liệu máy cần, đã có hay chưa
@@ -192,6 +202,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - Đã chốt 27/11: quyết toán theo quý; tại bàn 10% phần gọi thêm đã trả; mức chuẩn cho bộ phận hỗ trợ; thẻ "D1" trên Pancake, đơn chưa rõ chờ đối soát.
 - Q5. Danh sách người theo bộ phận, ai là người phụ trách.
 - Q6. Foodapp đổi sang giảm trơn hay giữ bậc như hiện tại?
+- Q7. Luật "làm không trọn quý" ở mục 3.0 (mốc theo tỷ lệ ngày, người nghỉ quyết toán ngay tháng nghỉ): em đề xuất, chờ anh chốt.
 
 **Cho Codex, vòng 2.** Bản 1 Codex chỉ ra 10 điểm. Đối chiếu:
 
@@ -207,5 +218,13 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 | C5 thu hồi sai người, khoản treo | F2a đến F2d |
 | C6 thứ tự trần, giới thiệu ngoài trần | 3.7 |
 | C7 mã giới thiệu không chứng minh nơi nhận đơn | 3.8 |
+
+**Vòng 2 trên #628 (28/11):**
+
+| Góp ý | Sửa ở |
+|---|---|
+| Hoàn một phần nhiều lần bị khoá chống trùng nuốt lần sau | F2c: khoá theo chứng từ hoàn, sổ luỹ kế, trần bằng tiền đã chi |
+| Người nghỉ giữa quý: hai luật chọi nhau | 3.0 "làm không trọn quý", F6, Q7. Gộp luôn người vào làm và đổi bộ phận giữa quý |
+| (cùng loại, tự quét) Chạy lại quyết toán quý | 3.0: tính lại từ đầu, thay số cũ |
 
 Nhờ rà: các luật mới có tạo kẽ hở mới nào không, nhất là quyết toán quý khi người đổi bộ phận giữa quý, mức nền quỹ đội, và trạng thái chờ đối soát của đơn D1.
