@@ -50,9 +50,9 @@
 
   /* Hình bánh có sẵn làm ảnh đại diện: ảnh của web, cắt đúng chỗ, đen trắng. */
   const ANH_MAU = {
-    'croissant': ['/assets/vagabond/web_order/anh-bia.png', '20% 30%'],
+    'croissant': ['/assets/vagabond/web_order/anh-bia.jpg', '20% 30%'],
     'entremet': ['/assets/vagabond/web_order/tay-lam-banh-minh-hoa.jpg', '76% 72%'],
-    'lop-banh': ['/assets/vagabond/web_order/anh-bia.png', '55% 62%'],
+    'lop-banh': ['/assets/vagabond/web_order/anh-bia.jpg', '55% 62%'],
     'quay': ['/assets/vagabond/images/quay-sales.jpg', '50% 45%'],
   };
   const SO_THICH = [['croissant', C('tv6_st_croissant', 'Croissant và bánh mì')], ['entremet', C('tv6_st_entremet', 'Entremet')],

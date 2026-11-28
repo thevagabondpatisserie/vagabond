@@ -1189,6 +1189,13 @@ def luu_anh_cong_khai():
             anh.verify()
     except Exception:
         frappe.throw("Không đọc được ảnh. Chọn ảnh PNG, JPG hoặc WebP dưới 25 triệu điểm ảnh.")
+    # v697: ảnh chụp thẳng từ máy ảnh (5 tới 10 MB) làm trang bánh tải chậm. Thu về
+    # cạnh dài 1600 và nén lại trước khi lưu; nén hỏng thì lưu bản gốc như cũ.
+    try:
+        from vagabond.anh_web import thu_nho_anh
+        noi_dung, duoi = thu_nho_anh(noi_dung)
+    except Exception:
+        frappe.log_error(title="Ảnh web: không thu nhỏ được, lưu bản gốc", message=frappe.get_traceback())
     # Frappe utils/file_manager.py:save_file tự kiểm cỡ, băm và lưu File.
     # Tên tạo ở máy chủ để tên người dùng không trở thành đường dẫn.
     f = save_file("web-" + frappe.generate_hash(length=12) + "." + duoi, noi_dung, None, None, is_private=0)

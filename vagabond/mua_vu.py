@@ -1466,6 +1466,10 @@ def bang(mua=None):
 			"tai": tai_ngay,
 			"tran": tran,
 			"ty_le_vang": TY_LE_VANG,
+			# v697: ngày đã bấm Ngưng nhận trên web (nút trong hộp chi tiết ngày) và
+			# số đã nhận từng ngày của mã có trần, MỘT phép với cửa nhận đơn web.
+			"ngung": _ngay_ngung(doc),
+			"da_nhan": _da_nhan_ngay(doc),
 		},
 		"dot": [
 			{
@@ -1944,6 +1948,57 @@ def luu_o(mua=None, ma_hang=None, truong=None, gia_tri=None):
 			frappe.db.commit()
 			return {"ok": 1, "co_the_ban": d.co_the_ban, "san_xuat": d.san_xuat}
 	frappe.throw("Không thấy mã hàng %s trong mùa này. Bấm Đồng bộ rồi thử lại." % ma_hang)
+
+
+def _da_nhan_ngay(doc):
+	"""{ngày: {mã: số đã nhận}} của các mã có Trần mỗi ngày (mua_vu_web.doc_han_ngay)."""
+	from vagabond import mua_vu_web
+
+	try:
+		_tran, da, _ngung, _ten = mua_vu_web.doc_han_ngay(doc)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đếm được đơn theo ngày cho trần ngày")
+		return {}
+	ra = {}
+	for (ma, ng), so in da.items():
+		ra.setdefault(ng, {})[ma] = so
+	return ra
+
+
+def _ngay_ngung(doc):
+	from vagabond import mua_vu_web
+
+	return mua_vu_web.doc_ngay_ngung(doc.get("ngay_ngung_web"))
+
+
+@frappe.whitelist(methods=["POST"])
+def ngung_ngay(mua=None, ngay=None, ngung=1):
+	"""v697 (anh Việt 27/11/2026): nút "Ngưng nhận ngày này" ở màn Kiểm bánh theo
+	mùa, Lịch tháng. Tắt khẩn cấp cả ngày nhận trên web (mọi bánh của mùa) khi đã
+	vượt trần đột xuất; bấm lần nữa là mở lại. Sales vẫn nhận tay ngoài web."""
+	from vagabond import mua_vu_web
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	ng = mua_vu_web.ngay_tu_iso(ngay)
+	if not ng or not mua or not frappe.db.exists(DT, mua):
+		frappe.throw("Ngày hoặc mùa không hợp lệ. Tải lại màn Kiểm bánh theo mùa.")
+	# Khoá dòng mùa rồi mới đọc danh sách ngày (hai người bấm cùng lúc không mất lượt nào).
+	frappe.db.sql("select name from `tab%s` where name=%%s for update" % DT, (mua,))
+	doc = frappe.get_doc(DT, mua)
+	if doc.tinh_trang == "Da dong":
+		frappe.throw("Mùa vụ này đã đóng nên không sửa nữa. Mở lại mùa rồi sửa.")
+	if (doc.tu_ngay and ng < getdate(doc.tu_ngay)) or (doc.den_ngay and ng > getdate(doc.den_ngay)):
+		frappe.throw("Ngày %s nằm ngoài khoảng của mùa này." % ng.strftime("%d/%m/%Y"))
+	ds = set(mua_vu_web.doc_ngay_ngung(doc.get("ngay_ngung_web")))
+	if cint(ngung):
+		ds.add(ng.isoformat())
+	else:
+		ds.discard(ng.isoformat())
+	doc.ngay_ngung_web = "\n".join(sorted(ds))
+	doc.save()  # giu quyen that cua nguoi dang sua, de con vet ai ngung ngay nao
+	frappe.db.commit()
+	return bang(mua)
 
 
 @frappe.whitelist()
@@ -2961,6 +3016,14 @@ def hang_theo_mua():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được sốt chấm mùa vụ")
 		sot = []
+	# v697: trần mỗi ngày và ngày ngưng nhận để trang khách làm mờ ngày đã đủ. Đọc
+	# hỏng thì không làm mờ (máy chủ vẫn xét lại dưới khoá ngày lúc tạo đơn).
+	try:
+		tran, da, ngung, _ten = mua_vu_web.doc_han_ngay(doc)
+		han_ngay = mua_vu_web.han_ngay_cho_web(tran, da, ngung, frappe.utils.nowdate())
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc được trần ngày mùa vụ")
+		han_ngay = None
 	return {
 		"co": 1,
 		"mua": doc.name,
@@ -2971,4 +3034,5 @@ def hang_theo_mua():
 		"luat": mua_vu_web.luat_mua({k: doc.get(k) for k in ("panettone_thu", "panettone_truoc", "buche_thu", "buche_truoc")}),
 		"sot": sot,
 		"sot_moi_banh": mua_vu_web.SOT_MOI_BANH,
+		"han_ngay": han_ngay,
 	}

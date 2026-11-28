@@ -1166,6 +1166,82 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.match(await p.locator('#c-prep').innerText(),/cả Panettone và Bûche/);
     assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
   });
+  await test('F64 v697 Kèm theo mỗi bánh theo thẻ Bánh: Bûche có nến xoắn, dao gỗ, cờ cắm; Panettone lớn và Mini mỗi size một túi; Marketing chọn riêng theo size hay bỏ hết thì trang, giỏ theo đúng',async()=>{
+    /* Dữ liệu GIẢ của cong_cu/xem_thu_web_vue.py (mua_noel và bánh đặt trước CANDLE); ô kem_theo gắn bằng chặn phản hồi. */
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    let kemPan=null, kemBu=null, kemCandle;
+    await c.route('**/api/method/vagabond.mua_vu.hang_theo_mua*',async r=>{
+      const d=await (await r.fetch({url:url+'/api/method/vagabond.mua_vu.hang_theo_mua?vgb_mua=noel'})).json();
+      (d.message.nhom||[]).forEach(g=>{ if(g.ten==='Classic Panettone') g.kem_theo=kemPan; if(g.loai==='buche') g.kem_theo=kemBu; });
+      return r.fulfill({json:d});
+    });
+    await c.route('**/api/method/vagabond.kiem_banh.co_the_ban_hom_nay*',async r=>{
+      const d=await (await r.fetch()).json();
+      d.message.dat_truoc.nhom.forEach(g=>{ if(g.ten==='CANDLE'){ Object.assign(g,{mo_ta:'Mô tả thẻ Bánh',tang:['Vỏ - shell'],tu_web:1}); if(kemCandle!==undefined) g.kem_theo=kemCandle; } });
+      return r.fulfill({json:d});
+    });
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    const kem=async()=>(await p.locator('#sm-acc li').evaluateAll(ds=>ds.map(x=>x.dataset.kem)));
+    /* 1. Chưa chọn: bộ mặc định. */
+    await p.goto(url+'/web_moi/banh#/in-season/NOELBU01'); await p.locator('#sheetMua.open').waitFor();
+    assert.deepEqual(await kem(),['hop_buche','tui_buche','thiep_buche','dao_go','nen_xoan','co_cam'],'Bûche có nến xoắn, dao gỗ, cờ cắm');
+    assert.match(await p.locator('#sm-acc').innerText(),/Nến xoắn[\s\S]*Cờ cắm in lời chúc/);
+    assert.equal(await p.locator('#sm-acc img').count(),3,'đồ có ảnh có sẵn (dao, nến, cờ) hiện ảnh; hộp, túi, thiệp chưa có ảnh hiện chữ');
+    await p.goto(url+'/web_moi/banh#/in-season/classic-panettone'); await p.locator('#sheetMua.open').waitFor();
+    assert.deepEqual(await kem(),['hop_pan_lon','tui_pan_lon','thiep_noel']);
+    await p.locator('#sm-sizes [data-ma="NOELPA02"]').click();
+    assert.deepEqual(await kem(),['hop_pan_mini','tui_pan_mini','thiep_noel'],'Mini có túi riêng');
+    assert.match(await p.locator('#sm-acc').innerText(),/Túi Panettone Mini/);
+    /* 2. Marketing chọn riêng theo size, bỏ hết đồ kèm của Bûche. */
+    kemPan=[{ma:'thiep_noel',size:''},{ma:'dao_go',size:'NOELPA02'},{ma:'la_khong_co',size:''}]; kemBu=[];
+    await p.goto(url+'/web_moi/banh#/'); await p.reload(); await p.goto(url+'/web_moi/banh#/in-season/classic-panettone'); await p.locator('#sheetMua.open').waitFor();
+    assert.deepEqual(await kem(),['thiep_noel'],'bánh lớn chỉ thiệp; mã lạ không hiện');
+    await p.locator('#sm-sizes [data-ma="NOELPA02"]').click();
+    assert.deepEqual(await kem(),['thiep_noel','dao_go'],'Mini có thêm dao gỗ');
+    await p.locator('#sm-cta').click(); await p.waitForURL(/#\/in-season$/);
+    await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    assert.match(await p.locator('#cartList').innerText(),/Đã gồm: Thiệp Giáng sinh, Dao gỗ cắt bánh/,'giỏ theo đúng đồ kèm của size');
+    await p.goto(url+'/web_moi/banh#/in-season/NOELBU01'); await p.locator('#sheetMua.open').waitFor();
+    assert.equal(await p.locator('#sm-acc').count(),0,'bỏ hết đồ kèm thì không hiện mục Kèm theo mỗi bánh');
+    /* 3. Bánh thường có thẻ Bánh: chưa chọn thì bộ có sẵn; chọn riêng thì theo thẻ; bỏ hết thì ẩn mục. */
+    const keThuong=async()=>(await p.locator('#s-acc li').evaluateAll(ds=>ds.map(x=>x.dataset.kem)));
+    await p.goto(url+'/web_moi/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
+    assert.deepEqual(await keThuong(),['hop_banh','tui_vai','dao_go','nen_xoan','co_cam']);
+    kemCandle=[{ma:'hop_banh',size:''},{ma:'thiep_noel',size:''}];
+    await p.reload(); await p.locator('#sheet.open').waitFor({state:'visible'}); await p.waitForTimeout(300);
+    assert.deepEqual(await keThuong(),['hop_banh','thiep_noel']);
+    kemCandle=[];
+    await p.reload(); await p.locator('#sheet.open').waitFor({state:'visible'}); await p.waitForTimeout(300);
+    assert.equal(await p.locator('#s-acc').count(),0);
+    assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
+  });
+  await test('F65 v697 trần mỗi ngày và Ngưng nhận ngày này: ngày đủ bánh và ngày đã ngưng mờ trên lịch, bấm vào nói rõ vì sao, thêm số lượng thì ngày vừa đủ cũng mờ',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const iso=i=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+i);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+    /* Bûche nhận được từ ngày thứ 2 kể từ hôm nay. Ngày 5 đã nhận 2 trên trần 3, ngày 6 đã ngưng. */
+    await c.route('**/api/method/vagabond.mua_vu.hang_theo_mua*',async r=>{
+      const d=await (await r.fetch({url:url+'/api/method/vagabond.mua_vu.hang_theo_mua?vgb_mua=noel'})).json();
+      d.message.han_ngay={tran:{NOELBU01:3},da:{NOELBU01:{[iso(5)]:2}},ngung:[iso(6)]};
+      return r.fulfill({json:d});
+    });
+    const p=await c.newPage(); const loi=[]; p.on('pageerror',e=>loi.push(e.message));
+    await p.goto(url+'/web_moi/banh#/in-season/NOELBU01'); await p.locator('#sheetMua.open').waitFor();
+    await p.locator('#sm-cta').click(); await p.waitForURL(/#\/in-season$/); await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    const tat=async i=>p.locator('#c-days .day').nth(i).evaluate(b=>b.classList.contains('off'));
+    assert.deepEqual([await tat(4),await tat(5),await tat(6),await tat(7)],[false,false,true,false],'1 bánh: ngày 5 còn 1 chỗ, ngày 6 đã ngưng');
+    await p.locator('#c-days .day').nth(6).click();
+    await p.waitForFunction(()=>/đã nhận đủ đơn bánh mùa lễ/.test(document.querySelector('#toast').innerText));
+    /* Thêm một bánh nữa: ngày 5 (2 đã nhận + 2) vượt trần 3, mờ theo. */
+    await p.goto(url+'/web_moi/banh#/in-season/NOELBU01'); await p.locator('#sheetMua.open').waitFor();
+    await p.locator('#sm-cta').click(); await p.waitForURL(/#\/in-season$/); await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    assert.equal(await tat(5),true,'2 bánh vượt trần ngày 5');
+    await p.locator('#c-days .day').nth(5).click();
+    await p.waitForFunction(()=>/chỉ còn nhận 1/.test(document.querySelector('#toast').innerText));
+    assert.equal(await tat(7),false);
+    assert.deepEqual(loi,[]); await c.unrouteAll({behavior:'ignoreErrors'}); await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

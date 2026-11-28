@@ -199,7 +199,7 @@ function doTrongTrang(thamSo) {
     /* Codex UI04: soi emoji ở MỌI chữ của app và hộp đang mở, không chỉ nút và tiêu đề. */
     /* v691: chữ sẽ gửi đi hoặc người dùng tự viết (ô soạn, [data-giu-emoji], xem trước bài đăng) phải
        giữ nguyên emoji (đặc tả bản 4 mục 1), cùng danh sách UIB_GIU_CHU của 81-ui-b.js. */
-    if (/[\u{1F000}-\u{1FAFF}☀-➿]/u.test(chu) && cha.closest('#vgb, .sh, #tlKhung, .vf') &&
+    if (/[\u{1F000}-\u{1FAFF}☀-➿ℹ‼⁉⤴⤵〰〽㊗㊙]/u.test(chu) && cha.closest('#vgb, .sh, #tlKhung, .vf') &&
       !cha.closest('textarea, [contenteditable], [data-giu-emoji], .bd-phai')) r.emoji.push(chu.slice(0, 28));
     /* Codex UI07: chữ bị cắt TRONG thẻ dù cả trang không cuộn ngang. Tìm lớp cha gần nhất có
        cắt tràn (hidden hoặc clip, không tính lớp cuộn được), không có thì lấy khung màn. */

@@ -103,6 +103,10 @@ def giam_tu_kq(kq, cho_otp=False):
 	if not ap:
 		bo = [b for b in kq.get("bo") or [] if not str(b.get("ten") or "").startswith("Ưu đãi hạng")]
 		return 0, (bo[0].get("ly_do") if bo else "không đủ điều kiện")
+	if sum(flt(a.get("giam")) for a in ap) <= 0 and kq.get("them_mon"):
+		# v698: chương trình Tặng món đủ điều kiện nhưng món tặng chưa có trong
+		# hoá đơn (quầy áp thì máy tự thêm, xem dong_tang).
+		return 0, "món tặng chưa có trong hoá đơn"
 	# Codex PR #546 vòng 1: khuyen_mai.tinh chỉ BÁO cờ can_otp, không chặn. Mã
 	# trong Ví quà của chương trình cần OTP quản lý đi qua đây được, nên mọi
 	# đường (danh sách, chọn, gọi thêm, chốt) đều về 0 ở đúng một chỗ này.
@@ -150,14 +154,92 @@ def _items(si):
 		for d in (si.get("items") or []) if d.get("item_code")]
 
 
-def _tinh(si, ud, co_khoa=False):
+# v698 (Dễ báo 27/11/2026: bill gọi món qua QR không chọn được chương trình nào).
+# Phiếu gọi QR tại bàn là khách ngồi tại chỗ (ban_hang.NGUON_CU cũng tính thanh
+# toán như "Tại chỗ"), mà màn cấu hình khuyến mãi không có chip "QR tại bàn",
+# nên chương trình mở cho kênh Tại chỗ (voucher Grab Dine Out) bị chặn ở bill
+# QR. Khi QUẦY áp (ud có "cach"), xét kênh như bill Tại chỗ. Khách tự chọn trên
+# trang bàn vẫn xét theo nguồn gốc (_ds_ctkm, chon): khách không tự lấy được
+# voucher Grab.
+KENH_TAI_CHO = "Tại chỗ"
+
+
+def nguon_km(nguon, quay_ap):
+	"""THUẦN: nguồn đơn đem xét luật kênh khuyến mãi của hoá đơn bàn."""
+	from vagabond import goi_mon_ban
+
+	n = (nguon or "").strip()
+	return KENH_TAI_CHO if (quay_ap and n == goi_mon_ban.NGUON_QR) else n
+
+
+def _tinh(si, ud, co_khoa=False, them=()):
+	"""them: dòng món tặng sẽ thêm vào bill (dong_tang), tính như đã có trong giỏ."""
 	from vagabond import khuyen_mai
 
 	f = khuyen_mai.tinh_co_khoa if co_khoa else khuyen_mai.tinh
-	return f(_items(si), ctkm=[ud["ma"]] if ud["loai"] == "ctkm" else [],
+	return f(_items(si) + [dict(x) for x in them or ()], ctkm=[ud["ma"]] if ud["loai"] == "ctkm" else [],
 		ma=ud["ma"] if ud["loai"] == "ma" else None,
-		quay=si.get("vgb_quay"), nguon=si.get("custom_nguon"),
+		quay=si.get("vgb_quay"), nguon=nguon_km(si.get("custom_nguon"), bool(ud.get("cach"))),
 		khach=ud.get("khach") or None, sdt=ud.get("sdt") or None, ngay=str(getdate(nowdate())))
+
+
+def dong_tang_thuan(them_mon, gia_diem, gia_bill=None):
+	"""THUẦN: dòng món tặng thêm vào bill cho chương trình Tặng món khi món chưa
+	có (hay chưa đủ số) trong bill, để bill in "món 25.000" và dòng khuyến mãi trừ
+	lại đúng số đó. Giá theo thứ tự:
+	- món đã có trên bill: giá dòng đầu của món đó (gia_bill). khuyen_mai._tinh_mot
+	  tính tiền tặng theo giá dòng đầu cho MỌI cái, nên dòng thêm phải cùng giá,
+	  không thì bill lệch (Codex #630). Màn Tính tiền cũng cộng vào dòng đã có;
+	- không thì giá riêng của điểm, không có nữa thì giá khuyen_mai gợi ý, cùng
+	  cách nút "+ Thêm món tặng vào đơn" của màn Tính tiền (posGiaTang)."""
+	ra = []
+	for t in them_mon or []:
+		ma = str(t.get("item_code") or "").strip()
+		sl = flt(t.get("qty"))
+		if ma and sl > 0:
+			g = (gia_bill or {}).get(ma)
+			if g is None:
+				g = (gia_diem or {}).get(ma)
+			ra.append({"item_code": ma, "qty": sl, "rate": flt(g) if g is not None else flt(t.get("rate"))})
+	return ra
+
+
+def gia_dong_dau(items):
+	"""THUẦN: {mã: giá dòng đầu tiên của mã đó trên bill}."""
+	ra = {}
+	for d in items or []:
+		if d.get("item_code") and d["item_code"] not in ra:
+			ra[d["item_code"]] = flt(d.get("rate"))
+	return ra
+
+
+def dong_tang(si, them_mon):
+	if not them_mon:
+		return []
+	from vagabond import diem_ban
+
+	return dong_tang_thuan(them_mon, diem_ban.gia_rieng_cua_quay(si.get("vgb_quay")), gia_dong_dau(_items(si)))
+
+
+def _tinh_quay(si, ud):
+	"""Quầy áp: tính, chương trình Tặng món mà món tặng chưa có thì tính lại như
+	đã thêm. Trả (kết quả, dòng món tặng sẽ thêm)."""
+	kq = _tinh(si, ud)
+	them = dong_tang(si, kq.get("them_mon"))
+	if them:
+		kq = _tinh(si, ud, them=them)
+	return kq, them
+
+
+def mo_ta_tang(them, ten=None):
+	"""THUẦN: "1 Croissant Cherry, 2 Plain Croissant"."""
+	return ", ".join("%g %s" % (flt(x["qty"]), (ten or {}).get(x["item_code"]) or x["item_code"]) for x in them or [])
+
+
+def _ten_tang(them):
+	from vagabond import khuyen_mai
+
+	return {x["item_code"]: khuyen_mai._ten_mon(x["item_code"]) for x in them or []}
 
 
 def giam_hieu_luc(si, giam):
@@ -508,16 +590,19 @@ def ds_quay(name=None):
 	if chan:
 		return {"ok": 0, "cau": chan}
 	kh, sdt = _khach_bill(si)
-	kq = khuyen_mai.ds_ctkm(quay=si.get("vgb_quay"), nguon=si.get("custom_nguon"), khach=kh, sdt=sdt)
+	kq = khuyen_mai.ds_ctkm(quay=si.get("vgb_quay"), nguon=nguon_km(si.get("custom_nguon"), True), khach=kh, sdt=sdt)
 	ra = []
 	for c in (kq or {}).get("km") or []:
 		if c.get("cach_ma") == "Ma dung mot lan":
 			continue  # chương trình phát mã một lần chỉ áp qua mã
 		x = {"ma": c["name"], "ten": c.get("ten") or c["name"], "can_otp": cint(c.get("can_otp")),
-			"giam": 0, "ly_do": c.get("ly_do") or ""}
+			"giam": 0, "ly_do": c.get("ly_do") or "", "tang": ""}
 		if cint(c.get("dung_duoc")):
 			try:
-				g, ly = giam_tu_kq(_tinh(si, {"loai": "ctkm", "ma": c["name"], "khach": kh, "sdt": sdt}), cho_otp=True)
+				kq1, them = _tinh_quay(si, {"loai": "ctkm", "ma": c["name"], "khach": kh, "sdt": sdt, "cach": CACH_QUAY})
+				g, ly = giam_tu_kq(kq1, cho_otp=True)
+				if them and g > 0:
+					x["tang"] = mo_ta_tang(them, _ten_tang(them))
 			except Exception as e:
 				g, ly = 0, str(getattr(e, "message", "") or e)[:140]
 			x["giam"], x["ly_do"] = int(round(g)), ly
@@ -544,7 +629,7 @@ def ap_quay(name=None, loai=None, ma=None, otp=None):
 	ud = {"loai": loai, "ma": ma, "sdt": sdt, "khach": kh, "luc": str(now_datetime()),
 		"cach": CACH_QUAY, "nguoi": frappe.session.user}
 	try:
-		kq = _tinh(si, ud)
+		kq, them = _tinh_quay(si, ud)
 	except Exception as e:
 		return {"ok": 0, "cau": str(getattr(e, "message", "") or e)[:200] or "Chưa áp được ưu đãi này."}
 	ap = [a for a in kq.get("ap") or [] if a.get("loai") != "hang"]
@@ -560,15 +645,23 @@ def ap_quay(name=None, loai=None, ma=None, otp=None):
 	giam, ly = giam_tu_kq(kq, cho_otp=cint(ud.get("otp")))
 	if giam <= 0:
 		return {"ok": 0, "cau": "Ưu đãi chưa dùng được cho hoá đơn này: %s." % ly}
+	tang = ""
+	if them:
+		# v698: món tặng chưa có trong bill thì thêm dòng (giá quầy) trước khi
+		# đặt phần giảm, một dòng hoá đơn dựng như màn Tính tiền, sửa bill.
+		tang = mo_ta_tang(them, _ten_tang(them))
+		for r in them:
+			si.append("items", ban_hang._dung_dong_mon(r))
 	ud["ten"] = next((a.get("ten") for a in ap), "") or ma
 	ud["ly_do"] = ""
 	ud["giam"] = int(round(dat_giam(si, giam)))
 	si.vgb_ud_ban = json.dumps(ud, ensure_ascii=False)
-	si.add_comment("Comment", "Quầy áp khuyến mãi %s, giảm %s đ (%s)." % (ud["ten"], "{:,.0f}".format(ud["giam"]).replace(",", "."), ud["cach"]))
+	si.add_comment("Comment", "Quầy áp khuyến mãi %s%s, giảm %s đ (%s)." % (ud["ten"], (", thêm món tặng " + tang) if tang else "",
+		"{:,.0f}".format(ud["giam"]).replace(",", "."), ud["cach"]))
 	si.flags.ignore_permissions = True
 	si.save(ignore_permissions=True)
 	frappe.db.commit()
-	return {"ok": 1, "ten": ud["ten"], "giam": ud["giam"], "grand_total": flt(si.grand_total)}
+	return {"ok": 1, "ten": ud["ten"], "giam": ud["giam"], "tang": tang, "grand_total": flt(si.grand_total)}
 
 
 class UuDaiDoi(frappe.ValidationError):

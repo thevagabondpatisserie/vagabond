@@ -705,10 +705,21 @@ def tao_don(don=None):
 	# F21 cách B: tìm nonce ở trên, rồi mới đọc tồn tại lúc gửi. Nguồn
 	# không đọc được thì nhận như cũ, nhưng phải báo Sales đối chiếu.
 	from vagabond import ton_don_web
+	# v697 (anh Việt gửi ảnh 27/11/2026): Ours Bûche nhận 23/12 bị từ chối "bánh
+	# đặt trước, nhận trong 3 ngày tới" vì mã Bûche cũng có trên bảng BTP. Hàng của
+	# mùa đang bán trên web theo lịch và hạn mức của Mùa vụ (kiểm ở dưới), không theo
+	# luật ba ngày của bánh đặt trước thường. Đọc mùa MỘT lần cho cả hai phép.
+	from vagabond import mua_vu_web
+
+	try:
+		mua_web = mua_vu_web.doc_mua_web()
+		loi_mua = None
+	except Exception:
+		mua_web, loi_mua = None, frappe.get_traceback()
 	try:
 		# v671 (Minh Vũ 18/11/2026): món của đợt giữ số theo đợt (đã xét ở trên và
 		# dưới khoá đợt), không xét tồn tủ hay Đủ decor như bánh đặt trước thường.
-		nhac_ton = ton_don_web.kiem(dbt.bo_mon_dot(hang, ma_dbt), ngay)
+		nhac_ton = ton_don_web.kiem(mua_vu_web.bo_hang_mua(dbt.bo_mon_dot(hang, ma_dbt), mua_web), ngay)
 	except Exception:
 		ton_don_web.bao_loi(ngay)
 		nhac_ton = []
@@ -746,9 +757,8 @@ def tao_don(don=None):
 	# dưới phép tìm trùng nonce vì phụ thuộc ngày hôm nay và cài đặt của mùa. Đọc
 	# mùa hỏng thì ghi lỗi, không chặn đơn thường.
 	try:
-		from vagabond import mua_vu_web
-
-		mua_web = mua_vu_web.doc_mua_web()
+		if loi_mua:
+			raise RuntimeError(loi_mua)
 		tu_choi_mua = mua_vu_web.kiem_don(hang, ngay, mua_web, don.get("items"), MAX_SL)
 		if chiec and not tu_choi_mua:
 			chiec = mua_vu_web.chot_chiec(chiec, (mua_web or {}).get("loai_theo_ma"))
@@ -762,7 +772,8 @@ def tao_don(don=None):
 	# hien cho khach khong duoc dung de quyet mien phi giao.
 	hang_goc = [dict(h) for h in hang]
 	# v671: dòng đem đi kiểm và giữ tồn tủ, Đủ decor, refill (món của đợt giữ số theo đợt).
-	hang_ton = dbt.bo_mon_dot(hang_goc, ma_dbt)
+	# v697: hàng của mùa đang bán cũng không giữ theo tủ, BTP (giữ theo trần ngày của Mùa vụ).
+	hang_ton = mua_vu_web.bo_hang_mua(dbt.bo_mon_dot(hang_goc, ma_dbt), mua_web)
 	gia, ten_mon = _gia_va_ten([h["variation_id"] for h in hang_goc])
 	tien_banh, _thieu_gia = don_web.tinh_tien_banh(hang_goc, gia)
 
@@ -966,11 +977,26 @@ def tao_don(don=None):
 	# tim trung va phep ghi, de hai lan bam cung luc khong cung lot qua.
 	# v645: đơn dùng ưu đãi đơn đầu tiên thì khoá thêm theo số, xét lại ngay
 	# dưới khoá: hai đơn cùng số gửi cùng lúc chỉ một đơn được giảm.
+	# v697: đơn có hàng của mùa đang bán thì khoá thêm theo ngày nhận và xét trần
+	# mỗi ngày, ngày ngưng dưới khoá: hai đơn cùng ngày không cùng lấy chỗ cuối.
+	co_mua_ngay = bool(mua_web and ngay and set(mua_web.get("ma_mua") or ()) & {h["variation_id"] for h in hang_goc})
 	with don_web.khoa_ghi(khoa), (don_dau_web.khoa_so(dien_thoai) if dung_dau else contextlib.nullcontext()), \
-			(dbt.khoa_suat(dot) if co_dbt else contextlib.nullcontext()):
+			(dbt.khoa_suat(dot) if co_dbt else contextlib.nullcontext()), \
+			(mua_vu_web.khoa_ngay(ngay) if co_mua_ngay else contextlib.nullcontext()):
 		trung = don_web.tim_trung(khoa)
 		if trung:
 			return don_web.phan_hoi(trung, nonce, trung=True)
+		if co_mua_ngay:
+			# Kết thúc giao dịch đọc từ đầu yêu cầu để thấy đơn vừa commit của khách
+			# khác và nút Ngưng nhận vừa bấm. Đọc hỏng thì ghi lỗi, không chặn đơn.
+			frappe.db.commit()
+			try:
+				tc_ngay = mua_vu_web.xet_ngay_that(hang_goc, ngay, mua_web)
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "Vagabond: không xét được trần ngày mùa vụ")
+				tc_ngay = None
+			if tc_ngay:
+				return {"ok": 0, "ly_do": tc_ngay["ly_do"], "nhac": tc_ngay["nhac"]}
 		if co_dbt:
 			# v667: đọc SAU khoá đợt. Kết thúc giao dịch đọc từ đầu yêu cầu để thấy
 			# đơn vừa commit của khách khác và bản đợt Marketing vừa lưu (MariaDB
@@ -983,7 +1009,7 @@ def tao_don(don=None):
 			except Exception:
 				frappe.log_error(frappe.get_traceback(), "Vagabond: không đọc lại được đợt Đặc biệt tuần này")
 				dot_x, ma_x = dot, ma_dbt
-			hang_ton = dbt.bo_mon_dot(hang_goc, ma_x)
+			hang_ton = mua_vu_web.bo_hang_mua(dbt.bo_mon_dot(hang_goc, ma_x), mua_web)
 			ly_dbt = dbt.kiem_don(dot_x, hang_dbt, ma_x, ngay, dbt.luc_vn())
 			if ly_dbt:
 				return {"ok": 0, "ly_do": ly_dbt, "ngay_giao": list(dot_x.get("ngay_giao") or [])}

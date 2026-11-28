@@ -35,7 +35,7 @@ import unicodedata
 
 import frappe
 
-from vagabond.anh_web import ANH_NEN, SO_ANH_TOI_DA, anh_cong_khai
+from vagabond.anh_web import CAC_ANH_NEN, SO_ANH_TOI_DA, anh_cong_khai
 
 DT = "Vagabond Banh Web"
 CHO_ANH, DANG_HIEN, DA_AN = "Chờ ảnh", "Đang hiện", "Đã ẩn"
@@ -45,6 +45,12 @@ TRANG_THAI = (CHO_ANH, DANG_HIEN, DA_AN)
 NGUONG_GIONG = 6
 SO_TANG_TOI_DA = 12
 CAU_CAN_ANH = "Thêm ít nhất một ảnh trước khi bật Hiện trên web."
+# v697 (anh Việt chốt 27/11/2026, Danh sách cố định): mã đồ kèm theo mỗi bánh.
+# MỘT danh mục: web_vue/banh/du-lieu.js DO_KEM (tên, ảnh, dòng phụ); ở đây chỉ giữ
+# mã để kiểm lại lúc lưu (ca thu_kem_theo_697 chốt hai bên trùng nhau).
+MA_KEM = ("hop_banh", "tui_vai", "dao_go", "nen_xoan", "co_cam", "hop_pan_lon", "hop_pan_mini",
+	"tui_pan_lon", "tui_pan_mini", "thiep_noel", "hop_buche", "tui_buche", "thiep_buche")
+CAU_KEM_SAI = "Đồ kèm không hợp lệ. Tải lại thẻ Bánh rồi chọn lại."
 
 
 # ------------------------------------------------------------------ THUẦN
@@ -118,6 +124,57 @@ def kiem_luu(trang_thai, anh):
 	return trang_thai
 
 
+def doc_kem(s):
+	"""THUẦN: ô kem_theo đã lưu -> [{ma, size}] hoặc None khi Marketing chưa chọn
+	(trang khách dùng bộ mặc định). Mảng rỗng là bánh không kèm gì. Ô hỏng thì None."""
+	if s is None or (isinstance(s, str) and not s.strip()):
+		return None
+	if isinstance(s, (list, tuple)):
+		ds = s
+	else:
+		try:
+			ds = json.loads(s)
+		except (TypeError, ValueError):
+			return None
+	if not isinstance(ds, list):
+		return None
+	ra = []
+	for x in ds:
+		if isinstance(x, dict) and x.get("ma") in MA_KEM:
+			ra.append({"ma": x["ma"], "size": str(x.get("size") or "")})
+	return ra
+
+
+def chuan_kem(ds, cac_ma_size):
+	"""THUẦN: kiểm đồ kèm gửi lên lúc Lưu bánh. Mỗi đồ kèm một mã trong MA_KEM, size
+	là '' (mọi size) hoặc một mã size của chính bánh này. Có "mọi size" thì bỏ dòng
+	theo size của cùng đồ đó. Sai mã thì ValueError (chặn ở cửa ghi)."""
+	if isinstance(ds, str):
+		try:
+			ds = json.loads(ds)
+		except ValueError:
+			raise ValueError(CAU_KEM_SAI)
+	if not isinstance(ds, (list, tuple)) or len(ds) > 100:
+		raise ValueError(CAU_KEM_SAI)
+	size_hop_le = set(cac_ma_size or [])
+	ra, moi_size = [], set()
+	for x in ds:
+		if not isinstance(x, dict) or x.get("ma") not in MA_KEM:
+			raise ValueError(CAU_KEM_SAI)
+		sz = str(x.get("size") or "")
+		if sz and sz not in size_hop_le:
+			raise ValueError(CAU_KEM_SAI)
+		if not sz:
+			moi_size.add(x["ma"])
+		ra.append({"ma": x["ma"], "size": sz})
+	gon = []
+	for x in ra:
+		if (x["size"] and x["ma"] in moi_size) or x in gon:
+			continue
+		gon.append(x)
+	return gon
+
+
 def hien_duoc(ban_ghi):
 	"""THUẦN: khách được thấy bánh này: Đang hiện và có ít nhất một ảnh."""
 	return bool(ban_ghi) and ban_ghi.get("trang_thai") == DANG_HIEN and bool(doc_anh(ban_ghi.get("anh")))
@@ -144,6 +201,8 @@ def ap_nhom(ds_nhom, so_ghi):
 		# v675: dị ứng, bảo quản do Marketing điền ở thẻ Bánh; trống thì trang khách ẩn mục.
 		g["di_ung"] = " ".join(tach_dong(bg.get("di_ung")))
 		g["bao_quan"] = " ".join(tach_dong(bg.get("bao_quan")))
+		# v697: đồ kèm Marketing chọn; None là chưa chọn, trang khách dùng bộ mặc định.
+		g["kem_theo"] = doc_kem(bg.get("kem_theo"))
 		g["tu_web"] = 1
 		ra.append(g)
 	return ra
@@ -248,7 +307,7 @@ def so_ghi():
 	if not dang_dung():
 		return None
 	try:
-		ds = frappe.get_all(DT, fields=["name", "khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang"],
+		ds = frappe.get_all(DT, fields=["name", "khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "kem_theo", "ma_hang"],
 			limit_page_length=0, ignore_permissions=True)
 	except Exception:
 		frappe.log_error(title="Bánh trên web: không đọc được bảng", message=frappe.get_traceback())
@@ -387,6 +446,7 @@ def _the(bg, sizes=None):
 	return {"khoa": bg["khoa"], "ten": bg["ten"], "trang_thai": bg["trang_thai"], "anh": doc_anh(bg.get("anh")),
 		"mo_ta": bg.get("mo_ta") or "", "tang": bg.get("tang") or "",
 		"di_ung": bg.get("di_ung") or "", "bao_quan": bg.get("bao_quan") or "", "ma_hang": tach_dong(bg.get("ma_hang")),
+		"kem_theo": doc_kem(bg.get("kem_theo")), "loai": bg.get("loai") or "",
 		"sizes": sizes or [], "dua_luc": str(bg.get("dua_luc") or ""), "mua_vu": 1 if bg.get("mua_vu") else 0}
 
 
@@ -400,8 +460,24 @@ def _sizes(ds_ma):
 	ra = {}
 	for x in it:
 		ra[x.item_code] = {"ma": x.item_code, "cm": _tach_ten_size(x.item_name)[1], "gia": int(x.standard_rate or 0),
-			"ngung": int(x.disabled or 0)}
+			"ngung": int(x.disabled or 0), "nhan": x.item_name or x.item_code}
 	return ra
+
+
+def _mua_cho_the():
+	"""v697: ({mã: loại}, {mã: Nhãn size}) của mùa đang chạy, để thẻ bánh mùa vụ ở
+	trình biên tập biết bộ đồ kèm mặc định và tên size. Không đọc được thì rỗng."""
+	try:
+		from vagabond import mua_vu_web
+
+		mua = mua_vu_web.doc_mua_web()
+	except Exception:
+		frappe.log_error(title="Bánh trên web: không đọc được Mùa vụ cho thẻ Bánh", message=frappe.get_traceback())
+		return {}, {}
+	if not mua:
+		return {}, {}
+	nhan = {d.ma_hang: " ".join(str(d.get("nhan_size") or "").split()) for d in mua["doc"].dong if d.ma_hang}
+	return mua.get("loai_theo_ma") or {}, {k: v for k, v in nhan.items() if v}
 
 
 @frappe.whitelist()
@@ -410,9 +486,17 @@ def ds_bien_tap():
 	_kiem_marketing()
 	if not _bang_co():
 		return {"banh": [], "dem": {}}
-	ds = frappe.get_all(DT, fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "ma_hang", "dua_luc", "mua_vu"],
+	ds = frappe.get_all(DT, fields=["khoa", "ten", "trang_thai", "anh", "mo_ta", "tang", "di_ung", "bao_quan", "kem_theo", "ma_hang", "dua_luc", "mua_vu"],
 		limit_page_length=0, ignore_permissions=True)
 	sz = _sizes({m for x in ds for m in tach_dong(x.ma_hang)})
+	if any(x.mua_vu for x in ds):
+		loai_ma, nhan_ma = _mua_cho_the()
+		for m, nh in nhan_ma.items():
+			if m in sz:
+				sz[m]["nhan"] = nh
+		for x in ds:
+			if x.mua_vu:
+				x["loai"] = next((loai_ma[m] for m in tach_dong(x.ma_hang) if m in loai_ma), "")
 	thu = {CHO_ANH: 0, DANG_HIEN: 1, DA_AN: 2}
 	ds.sort(key=lambda x: (thu.get(x.trang_thai, 3), khoa_banh(x.ten)))
 	ra = [_the(x, sorted([sz[m] for m in tach_dong(x.ma_hang) if m in sz], key=lambda s: s["cm"] or 999)) for x in ds]
@@ -452,11 +536,22 @@ def them_anh(khoa=None, url=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def luu(khoa=None, anh=None, mo_ta="", tang="", trang_thai=None, di_ung=None, bao_quan=None):
+def luu(khoa=None, anh=None, mo_ta="", tang="", trang_thai=None, di_ung=None, bao_quan=None, kem_theo=None):
 	"""Lưu một bánh: thứ tự ảnh (ảnh đầu là ảnh bìa), mô tả, tầng hương vị,
-	Hiện trên web. Lưu là khách thấy ngay."""
+	Hiện trên web, đồ kèm theo mỗi bánh. Lưu là khách thấy ngay.
+
+	kem_theo (v697): None là màn cũ không gửi, giữ nguyên; chuỗi rỗng là Về mặc
+	định; danh sách [{ma, size}] (kể cả rỗng: bánh không kèm gì) thì kiểm rồi lưu."""
 	_kiem_marketing()
 	bg = _doc_khoa(khoa)
+	if kem_theo is not None:
+		if isinstance(kem_theo, str) and not kem_theo.strip():
+			bg.kem_theo = ""
+		else:
+			try:
+				bg.kem_theo = json.dumps(chuan_kem(kem_theo, tach_dong(bg.ma_hang)), ensure_ascii=False)
+			except ValueError as e:
+				frappe.throw(str(e))
 	cu = {x["url"]: x for x in doc_anh(bg.anh)}
 	moi = []
 	for u in doc_anh(json.loads(anh) if isinstance(anh, str) else (anh or [])):
@@ -568,7 +663,7 @@ def gieo_that():
 	tao = 0
 	for g in ds:
 		k = khoa_banh(g["ten"])
-		anh = gop_trung([{"url": u, "bam": bam_url(u)} for u in (g.get("anhs") or []) if u != ANH_NEN])
+		anh = gop_trung([{"url": u, "bam": bam_url(u)} for u in (g.get("anhs") or []) if u not in CAC_ANH_NEN])
 		chu = g.get("_chu") or {}
 		mo_ta = chu.get("mo_ta") or g.get("mo_ta") or ""
 		tang = "\n".join(tach_dong(chu.get("tang") or "\n".join(g.get("tang") or []), SO_TANG_TOI_DA))

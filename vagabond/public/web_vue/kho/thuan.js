@@ -472,6 +472,8 @@ export function tronMon(cakes, nhom) {
       /* Codex #594: nhóm không mang hai khoá này (nguồn cũ) thì giữ giá trị đã có, không xoá. */
       if ('di_ung' in g) c.diUng = g.di_ung || '';
       if ('bao_quan' in g) c.baoQuan = g.bao_quan || '';
+      /* v697: đồ kèm theo mỗi bánh Marketing chọn ở thẻ Bánh; null là chưa chọn (bộ mặc định). */
+      if ('kem_theo' in g) c.kemTheo = Array.isArray(g.kem_theo) ? g.kem_theo : null;
     }
     else if (g.mo_ta) c.desc = g.mo_ta;
     if (g.tang && g.tang.length) {
@@ -620,6 +622,26 @@ export function ngayMuaChan(lech, ngay, ld, denNgayIso) {
   if (denNgayIso && isoNgay(ngay) > denNgayIso) return 'qua_mua';
   if (Array.isArray(ld.thu) && !ld.thu.includes(thuVN(ngay))) return 'sai_thu';
   return '';
+}
+/* v697 (anh Việt chốt 27/11/2026): trần số bánh mỗi ngày nhận (ô "Trần mỗi ngày" của
+   màn Kiểm bánh theo mùa, đếm mọi kênh) và ngày đã bấm Ngưng nhận. hn là han_ngay máy
+   chủ trả ({tran: {mã: n}, da: {mã: {ngày: số}}, ngung: [ngày]}). Trả null khi ngày
+   `iso` nhận được cả phần mùa vụ của giỏ, hoặc {ly: 'ngung'} / {ly: 'day', ma, con}.
+   Máy chủ xét lại dưới khoá ngày lúc tạo đơn (mua_vu_web.xet_ngay, cùng luật). */
+export function ngayMuaDay(gio, iso, hn) {
+  if (!hn) return null;
+  const mua = (gio || []).filter(laDongMua);
+  if (!mua.length) return null;
+  if ((hn.ngung || []).includes(iso)) return {ly: 'ngung'};
+  const gop = {};
+  mua.forEach(o => { gop[o.id] = (gop[o.id] || 0) + Math.max(0, parseInt(o.qty) || 0); });
+  for (const ma of Object.keys(gop)) {
+    const tr = parseInt((hn.tran || {})[ma]) || 0;
+    if (tr <= 0) continue;
+    const da = parseInt(((hn.da || {})[ma] || {})[iso]) || 0;
+    if (da + gop[ma] > tr) return {ly: 'day', ma, con: Math.max(0, tr - da)};
+  }
+  return null;
 }
 export function chuThuMua(thu) { return (thu || []).map(x => (x === 8 ? 'Chủ nhật' : 'thứ ' + x)).join(', '); }
 export function tranSot(soPanettone, moiBanh = SOT_MOI_BANH) { return Math.max(0, parseInt(soPanettone) || 0) * Math.max(0, parseInt(moiBanh) || 0); }

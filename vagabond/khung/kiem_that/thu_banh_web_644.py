@@ -123,3 +123,25 @@ def _luong():
 	bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN, di_ung="", bao_quan="")
 	g = kb._anh_noi_dung_web(nhom())
 	la("v675 gửi rỗng là xoá, khách không còn thấy", (g[0]["di_ung"], g[0]["bao_quan"]), ("", ""))
+	# v697: đồ kèm theo mỗi bánh. Chưa chọn là None (bộ mặc định); chọn theo size của
+	# chính bánh; màn cũ không gửi thì giữ; size của bánh khác bị chặn ở cửa ghi;
+	# mảng rỗng là bánh không kèm gì; chuỗi rỗng là về mặc định.
+	dung("v697 bảng có ô kem_theo sau migrate", frappe.get_meta(bw.DT).has_field("kem_theo"))
+	la("v697 chưa chọn", kb._anh_noi_dung_web(nhom())[0]["kem_theo"], None)
+	bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN, kem_theo=[{"ma": "dao_go", "size": m16}, {"ma": "nen_xoan", "size": ""}])
+	la("v697 khách thấy đồ kèm đã chọn", kb._anh_noi_dung_web(nhom())[0]["kem_theo"], [{"ma": "dao_go", "size": m16}, {"ma": "nen_xoan", "size": ""}])
+	bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN)
+	x = next(b for b in bw.ds_bien_tap()["banh"] if b["khoa"] == khoa)
+	la("v697 màn cũ không gửi thì giữ", x["kem_theo"], [{"ma": "dao_go", "size": m16}, {"ma": "nen_xoan", "size": ""}])
+	for sai in ([{"ma": "dao_go", "size": "MA-BANH-KHAC"}], [{"ma": "ruou_vang", "size": ""}]):
+		try:
+			bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN, kem_theo=sai)
+			chan = ""
+		except Exception as e:
+			chan = str(e)
+		dung("v697 chặn đồ kèm sai: %s" % sai, bw.CAU_KEM_SAI in chan)
+	la("v697 bị chặn thì không ghi gì", kb._anh_noi_dung_web(nhom())[0]["kem_theo"], [{"ma": "dao_go", "size": m16}, {"ma": "nen_xoan", "size": ""}])
+	bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN, kem_theo=[])
+	la("v697 bỏ hết là không kèm gì, không bị thay mặc định", kb._anh_noi_dung_web(nhom())[0]["kem_theo"], [])
+	bw.luu(khoa, anh_luu, "Mô tả web.", "Vỏ - shell", bw.DANG_HIEN, kem_theo="")
+	la("v697 về mặc định", kb._anh_noi_dung_web(nhom())[0]["kem_theo"], None)

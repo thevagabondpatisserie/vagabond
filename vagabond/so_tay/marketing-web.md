@@ -760,6 +760,7 @@ Nhập mô tả, nguyên liệu, dị ứng, bảo quản cho từng thẻ bánh
 **Tải ảnh hộp, túi, thiệp**
 1. Mở thẻ Trang và chữ, nhóm Ảnh trên trang.
 2. Tìm các ô bắt đầu bằng Kèm theo bánh mùa vụ, tải ảnh cho từng ô rồi xuất bản như các ô ảnh khác.
+3. Túi Panettone có hai ô riêng: ô "ảnh Túi Panettone bánh lớn" và ô "ảnh Túi Panettone Mini". Ảnh đã tải trước đây nằm ở ô bánh lớn.
 
 **Lưu ý**
 - Ô nào để trống thì trang đặt bánh không hiện mục đó.
@@ -767,3 +768,43 @@ Nhập mô tả, nguyên liệu, dị ứng, bảo quản cho từng thẻ bánh
 - Chưa thêm ảnh ở thẻ Bánh thì web dùng ảnh của hồ sơ món.
 - Chưa tải ảnh hộp, túi, thiệp thì web hiện ô chữ thay ảnh.
 - Chữ Hộp màu nâu champagne, Hộp màu xanh turquoise sửa được ở thẻ Trang và chữ.
+
+## Thẻ Bánh: chọn đồ kèm theo mỗi bánh
+Từ khoá: kèm theo mỗi bánh, đồ kèm, hộp, túi, nến xoắn, dao gỗ, cờ cắm, thiệp, túi panettone mini, đã gồm trong giá, bộ mặc định
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Trình biên tập web, thẻ Bánh | [[Lưu bánh]] |
+
+Chọn đồ nào đã gồm trong giá của từng bánh. Khách thấy ở mục Kèm theo mỗi bánh và dòng "Đã gồm" trong giỏ.
+
+**Các bước**
+1. Mở trình biên tập web, thẻ Bánh, chọn bánh.
+2. Kéo xuống mục Kèm theo mỗi bánh. Mỗi dòng là một đồ kèm: bấm dòng để thêm (hiện chữ Đã kèm) hoặc bỏ.
+3. Bánh nhiều size: dưới mỗi đồ đang kèm có các viên size. Chọn Mọi size, hoặc chọn đúng size được kèm đồ đó.
+4. Bấm [[Lưu bánh]]. Khách thấy ngay.
+
+**Lưu ý**
+- Bánh chưa chọn gì thì theo bộ mặc định (nhãn Bộ mặc định). Bánh thường: hộp bánh, túi vải, dao gỗ, nến xoắn, cờ cắm. Panettone: hộp và túi theo size lớn hay Mini, thiệp Giáng sinh. Bûche: hộp, túi, thiệp Bûche, dao gỗ, nến xoắn, cờ cắm.
+- Đã chọn riêng mà muốn quay về bộ mặc định thì bấm nút Về mặc định ngay dưới tiêu đề mục rồi bấm [[Lưu bánh]].
+- Bỏ hết đồ kèm thì trang bánh không hiện mục Kèm theo mỗi bánh.
+- Tên, dòng phụ, ảnh của từng đồ kèm sửa ở thẻ Trang và chữ, nhóm Ảnh trên trang; danh sách đồ kèm cố định, muốn thêm loại đồ kèm mới thì cần sửa phần mềm.
+
+## Ảnh bánh trên web tự thu nhỏ khi tải lên
+Từ khoá: ảnh nặng, ảnh hiện chậm, thu nhỏ ảnh, tải lại ảnh, ảnh máy ảnh
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing | Trình biên tập web, thẻ Bánh và thẻ Trang và chữ | [[Tải ảnh]] |
+
+Ảnh tải lên cho web lớn hơn 1600 điểm ảnh hoặc nặng hơn 500 KB được máy thu nhỏ và nén lại, xoay đúng chiều. Trang bánh hiện ảnh nhanh hơn trên điện thoại.
+
+**Thay ảnh nặng đã tải trước đây**
+1. Mở trình biên tập web, thẻ Bánh, chọn bánh có ảnh hiện chậm.
+2. Bấm ✕ trên ảnh cũ, bấm [[Lưu bánh]].
+3. Bấm [[Tải ảnh]], chọn lại đúng tấm đó. Máy lưu bản đã thu nhỏ.
+4. Đặt lại thứ tự ảnh nếu cần, bấm [[Lưu bánh]].
+
+**Lưu ý**
+- Phải bỏ ảnh cũ và lưu trước, vì máy nhận ra ảnh giống ảnh đã có và không thêm lần nữa.
+- Món chưa có ảnh dùng ảnh nền thương hiệu, nay là bản nhẹ (dưới 300 KB thay cho 8 MB).

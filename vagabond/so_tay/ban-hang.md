@@ -1331,6 +1331,25 @@ Từ v678 (cửa hàng báo 20/11/2026).
 **Bạn cần làm**
 1. Đang Sửa hoá đơn mà muốn áp khuyến mãi: lưu thay đổi món trước, rồi bấm Chương trình hoặc Nhập mã.
 
+## Khuyến mãi trên bill gọi QR: voucher Grab và tặng bánh
+Từ khoá: bill gọi QR, QR tại bàn, voucher Grab, Grab Dine-Out, tặng bánh, tặng món, chưa đủ điều kiện, không áp được, khuyến mãi bill tạm tính
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quầy | Bill Tạm tính trên app (bill khách gọi qua QR) | Chương trình; Nhập mã |
+
+Từ v698 (cửa hàng báo 27/11/2026: bill gọi QR bấm Chương trình thì dòng nào cũng "Không áp được").
+
+**Trước đây:** bill khách gọi qua QR không áp được voucher Grab Dine-Out, vì voucher chỉ mở cho bill Tại chỗ. Chương trình tặng bánh (ví dụ Tặng Bánh Croissant Cherry) báo "chưa đủ điều kiện" khi bánh tặng chưa có trong bill.
+**Từ nay:**
+- Quầy áp khuyến mãi trên bill gọi QR thì máy xét như bill Tại chỗ: voucher Grab Dine-Out áp được như ở màn Tính tiền.
+- Chương trình tặng bánh ghi "Tặng 1 ... (máy thêm vào bill), trừ ... đ". Bấm vào là máy thêm bánh tặng vào bill theo giá quầy và trừ đúng số đó, tổng bill không đổi. Lịch sử hoá đơn ghi món tặng đã thêm.
+- Khách tự chọn ưu đãi trên trang gọi món vẫn như cũ: không thấy voucher Grab.
+
+**Bạn cần làm**
+1. Món tặng là đồ uống thì báo pha chế làm như món gọi thêm.
+2. Muốn bỏ món tặng: bấm Bỏ ưu đãi này trước, rồi Sửa hoá đơn xoá dòng món tặng.
+
 ## Voucher Grab Dine-Out: giảm đúng phần tiệm chịu
 Từ khoá: voucher Grab, Grab Dine-Out, GD-, voucher 200.000, voucher 300.000, giảm giá Grab, đối soát Grab, tiệm chịu
 
@@ -1549,6 +1568,30 @@ Khách chọn tối đa 2 hũ cho mỗi bánh. Giá theo giá bán của mã hà
 - Ghi sai dạng thì máy không cho lưu và nói cách ghi đúng.
 - Bảng sốt để trống thì web không hiện mục sốt. Sốt chỉ bán kèm Panettone.
 - Mã sốt chưa đồng bộ Pancake thì đơn có sốt báo lỗi mã bán hàng.
+
+## Bánh mùa vụ trên web: trần mỗi ngày và ngưng nhận một ngày
+Từ khoá: trần mỗi ngày, giới hạn số bánh mỗi ngày, ngày đủ đơn, ngưng nhận ngày này, mở nhận lại, đặt xa ngày, bûche 23/12, lịch tháng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, quản lý Sales | Kiểm bánh theo mùa, thẻ Lịch tháng | [[Ngưng nhận ngày này]] |
+
+Khách đặt bánh của mùa trên web được chọn ngày nhận tới hết mùa. Mỗi ngày web chỉ nhận tới Trần mỗi ngày của từng bánh. Ngày đủ số thì lịch của khách tự mờ ngày đó.
+
+**Đặt trần mỗi ngày**
+1. Mở Kiểm bánh theo mùa, chọn mùa, thẻ Sản phẩm.
+2. Bấm bánh, chọn Trần mỗi ngày, gõ số bánh tối đa nhận cho một ngày của đúng size đó.
+3. Để 0 là không giới hạn theo ngày.
+
+**Ngưng nhận một ngày khi vượt trần đột xuất**
+1. Thẻ Lịch tháng, bấm vào ô ngày.
+2. Bấm [[Ngưng nhận ngày này]], xác nhận. Ô ngày có chữ Ngưng, viền đỏ.
+3. Muốn mở lại thì bấm vào ô đó, bấm [[Mở nhận lại ngày này]].
+
+**Lưu ý**
+- Số đã nhận đếm mọi kênh: đơn Pancake đã chốt, đơn chờ chốt, kênh khác, cộng đơn web vừa đặt chưa kịp đồng bộ. Hộp chi tiết ngày ghi số đã nhận trên trần của từng bánh.
+- Ngưng nhận chỉ tắt trên web, cho mọi bánh của mùa. Đơn đã nhận giữ nguyên, Sales vẫn nhận tay được.
+- Ngày quá khứ không bấm Ngưng được.
 
 ## Cấp mã đền bù cho khách gặp sự cố
 Từ khoá: đền bù, xin lỗi khách, giao trễ, sai trang trí, sai lời chúc, thiếu món, bánh hỏng, khiếu nại, voucher đền bù, service recovery

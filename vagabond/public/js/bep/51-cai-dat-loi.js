@@ -284,19 +284,19 @@ function cdlVeTong() {
   var chua = th.can.filter(function (t) { return t.trang === 'no'; });
   if (th.can.length) {
     html += '<div class="cdl-tieu">CẦN XỬ LÝ</div>' + nang.map(function (t) {
-      return '<div class="cdl-viec ' + t.trang + '" data-cdltoi="' + h(t.toi) + '" role="button"><div class="cdl-x"><b>' + h(t.ten) + ': ' + h(t.ghi) + '</b>' +
+      return '<div class="cdl-viec ' + t.trang + '" data-cdltoi="' + h(t.toi) + '" role="button" tabindex="0" data-phim="1"><div class="cdl-x"><b>' + h(t.ten) + ': ' + h(t.ghi) + '</b>' +
         (t.hau ? '<small>' + h(t.hau) + '</small>' : '') + '</div><span class="cdl-di">Sửa ›</span></div>';
     }).join('') +
     (chua.length ? '<div class="cdl-viec"><div class="cdl-x"><b>' + chua.length + ' kết nối chưa khai</b>' +
       '<small>Chỉ cần khai cái tiệm có dùng. Bấm một tên để tới đúng ô.</small>' +
       '<div class="cdl-chips">' + chua.map(function (t) {
-        return cdlChip('no', t.ten, ' data-cdltoi="' + h(t.toi) + '" role="button" title="' + h(t.hau) + '"');
+        return cdlChip('no', t.ten, ' data-cdltoi="' + h(t.toi) + '" role="button" tabindex="0" data-phim="1" title="' + h(t.hau) + '"');
       }).join('') + '</div></div></div>' : '');
   }
   html += '<div class="cdl-khoi" id="cdlNhom">' + (CDL.d.bo_cuc || []).map(function (t) {
     var nh = cdlNhanNhom(t, ds);
     var mo = CDL_MO[t.fn] || t.muc.map(function (m) { return m.nhan; }).filter(Boolean).join(', ');
-    return '<div class="cdl-nhom" data-cdltab="' + h(t.fn) + '" role="button"><span class="cdl-ic">' + (CDL_IC[t.fn] || '⚙️') +
+    return '<div class="cdl-nhom" data-cdltab="' + h(t.fn) + '" role="button" tabindex="0" data-phim="1"><span class="cdl-ic">' + (CDL_IC[t.fn] || '⚙️') +
       '</span><span class="cdl-x"><b>' + h(t.nhan) + '</b><small>' + h(mo) + '</small></span>' +
       (nh ? '<span class="cdl-nhan ' + nh.trang + '">' + h(nh.chu) + '</span>' : '') + '<span class="cdl-mui">&#8250;</span></div>';
   }).join('') + '</div>';
@@ -352,7 +352,7 @@ function cdlVeTab(fnTab, oToi) {
     var coLoi = m.o.some(function (o) { return loi[o.fn]; });
     /* Mục có ô lỗi luôn mở sẵn: người mở nhóm này thường là để sửa đúng lỗi đó. */
     var mo = coLoi || (oToi && m.o.some(function (o) { return o.fn === oToi; })) || !m.gon || CDL['mo_' + m.fn];
-    var dau = '<div class="cdl-mhd"' + (m.gon ? ' data-cdlgon="' + h(m.fn) + '" role="button" style="cursor:pointer"' : '') + '>' +
+    var dau = '<div class="cdl-mhd"' + (m.gon ? ' data-cdlgon="' + h(m.fn) + '" role="button" tabindex="0" data-phim="1" style="cursor:pointer"' : '') + '>' +
       '<span class="cdl-x">' + h(m.nhan || '') + '</span>' +
       (tt ? '<span class="cdl-nhan ' + tt.trang + '">' + h(cdlChuTT(tt)) + '</span>' : '') +
       (m.gon ? '<span class="cdl-mui">' + (mo ? '▾' : '▸') + '</span>' : '') + '</div>';

@@ -589,7 +589,9 @@ vi đúng bằng yêu cầu. */
 var HS_BN_MO = 0;   /* 1 khi tấm trượt đang mở, để ca kiểm đọc được trạng thái */
 
 function hsTheBenNhan(id, icon, ten, phu, daChon) {
-  return '<div class="card"><div class="hub" id="' + h(id) + '" data-hsbn-mo="' + h(id) + '">' +
+  /* v693 (test live #614 UI102, cùng loại): thẻ chọn bên nhận vào được bằng Tab, Enter, Space. */
+  return '<div class="card"><div class="hub" id="' + h(id) + '" data-hsbn-mo="' + h(id) + '" role="button" tabindex="0" data-phim="1" aria-haspopup="dialog" aria-label="' +
+    h((daChon ? 'Đổi: ' : 'Chọn: ') + ten) + '">' +
     '<div class="hi">' + icon + '</div>' +
     '<div class="ht"><div class="h1">' + h(ten) + '</div>' +
     '<div class="h2">' + h(phu || '') + '</div></div>' +

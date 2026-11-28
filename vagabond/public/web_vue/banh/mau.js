@@ -475,7 +475,7 @@ export const MAU = `
       <div class="sec"><span class="n">02</span><h3><span>{{ t('pk_co_san_tieu_de','Kèm theo mỗi bánh') }}</span></h3><i class="rule"></i></div>
       <div class="co-san">
         <div class="co-san-mo">{{ t('pk_co_san_mo_ta','Đã nằm trong giá bánh, quý khách không phải mua thêm.') }}</div>
-        <ul class="acc" id="sm-acc"><li v-for="a in muaXem.kem" :key="a.k"><img v-if="anhWeb(a.ka, '')" :src="anhWeb(a.ka, '')" alt=""><span v-else class="acc-chu" aria-hidden="true">{{ t(a.k, a.n).split(' ')[0] }}</span><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul></div>
+        <ul class="acc" id="sm-acc"><li v-for="a in muaXem.kem" :key="a.ma" :data-kem="a.ma"><img v-if="anhWeb(a.ka, a.i)" :src="anhWeb(a.ka, a.i)" alt=""><span v-else class="acc-chu" aria-hidden="true">{{ t(a.k, a.n).split(' ')[0] }}</span><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul></div>
     </template>
     <!-- v693: sốt chấm bán kèm Panettone, tối đa 2 hũ mỗi bánh; mã sốt khai ở Mùa vụ, chưa khai thì không có mục này. -->
     <template v-if="muaXem.sot.length">
@@ -548,10 +548,12 @@ export const MAU = `
 
     <div class="chon-so-luong"><span id="s-qty-label">{{ t('so_luong_banh','Số lượng bánh') }}</span><div class="qty"><button type="button" id="s-minus" :disabled="S.soLuong<=1" @click="kho.doiSoLuong(-1)" :aria-label="t('giam_so_luong','Giảm số lượng')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><output id="s-qty" aria-labelledby="s-qty-label" aria-live="polite">{{ S.soLuong }}</output><button type="button" @click="kho.doiSoLuong(1)" :aria-label="t('tang_so_luong','Tăng số lượng')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button></div></div>
     <!-- v598 (port v597): khách tưởng phải mua thêm hộp, túi (Minh Vũ báo). Khung này luôn hiện, không gấp, nói rõ đồ đã có sẵn trong giá bánh. -->
+    <template v-if="chiTiet.kem.length">
     <div class="sec"><span class="n">02</span><h3><span>{{ t('pk_co_san_tieu_de','Kèm theo mỗi bánh') }}</span></h3><i class="rule"></i></div>
     <div class="co-san">
       <div class="co-san-mo">{{ t('pk_co_san_mo_ta','Đã nằm trong giá bánh, quý khách không phải mua thêm.') }}</div>
-      <ul class="acc" id="s-acc"><li v-for="a in ACC" :key="a.k"><img :src="anhWeb(a.ka, a.i)" alt=""><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul></div>
+      <ul class="acc" id="s-acc"><li v-for="a in chiTiet.kem" :key="a.ma" :data-kem="a.ma"><img v-if="anhWeb(a.ka, a.i)" :src="anhWeb(a.ka, a.i)" alt=""><span v-else class="acc-chu" aria-hidden="true">{{ t(a.k, a.n).split(' ')[0] }}</span><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul></div>
+    </template>
 
     <!-- v681 (BẢN 2 mục 1.2): dòng Mua thêm phụ kiện, lấp lánh MỘT lần khi lần đầu lọt vào màn hình. -->
     <details class="tuy-chon mua-pk" id="s-phu-kien" :key="'pk' + chiTiet.c.k">
