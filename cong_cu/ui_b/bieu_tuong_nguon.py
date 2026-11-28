@@ -64,7 +64,12 @@ DE_XUAT = {
 	"👉": "arrow-right", "◦": "circle", "✧": "sparkle", "➤": "arrow-right", "✿": "flower",
 	"❀": "flower", "↗": "arrow-up-right",
 	# v691 (#614, UI18, UI19): danh mục Zalo chung cai_dat_loi_chung.js.
-	"🚨": "circle-alert", "🚀": "megaphone", "🛠": "wrench"
+	"🚨": "circle-alert", "🚀": "megaphone", "🛠": "wrench",
+	# v693 (test live #614, UI18, UI101): biểu tượng do máy chủ trả (mẫu bút toán, vai trò, báo cáo,
+	# danh mục) và ℹ ngoài dải emoji cũ của bộ quét.
+	"ℹ": "info", "🩺": "stethoscope", "🏧": "banknote", "🎩": "briefcase", "👑": "crown",
+	"🪪": "id-card", "💻": "laptop", "📉": "trending-down", "🥤": "cup-soda", "🩹": "bandage",
+	"🍁": "leaf", "🕯": "flame", "►": "play"
 }
 
 # Chấm màu trạng thái: vẽ thành chấm tròn tô màu trạng thái của bộ chuẩn.

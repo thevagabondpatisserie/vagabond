@@ -96,7 +96,7 @@ async function chay() {
       /* Emoji kèm phần tử chứa nó, để biết sửa ở đâu. */
       dong.emoji = await o.trang.evaluate(function () {
         var r = [], w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-        var re = /([\u{1F000}-\u{1FAFF}←-⇿⌀-⏿☀-➿⬀-⯿])️?/u;
+        var re = /([\u{1F000}-\u{1FAFF}←-⇿⌀-⏿☀-➿⬀-⯿ℹ‼⁉⤴⤵〰〽㊗㊙])️?/u;
         for (var n = w.nextNode(); n; n = w.nextNode()) {
           var cha = n.parentElement; if (!cha || cha.closest('svg, script, style')) continue;
           if (!cha.closest('#vgb, .sh, #tlKhung, .vf')) continue;
@@ -109,12 +109,23 @@ async function chay() {
         return r;
       });
       dong.xuong_dong = d.xuongDong; dong.cat = d.cat; dong.nho_nut = d.nhoNut;
+      /* Test live #614 UI99: chip, nút đủ cao 44 mà chữ bên trong bị co cắt (rộng nội dung lớn hơn
+         rộng hộp). Đo chữ trong từng hộp, không chỉ trang có tràn ngang hay không. */
+      dong.chip_cat = await o.trang.evaluate(function () {
+        var r = [];
+        document.querySelectorAll('#vgb .posc, #vgb .chip, #vgb .btn, .sh .posc, .sh .chip, .sh .btn').forEach(function (e) {
+          if (!e.offsetParent || getComputedStyle(e).whiteSpace.indexOf('nowrap') < 0) return;
+          if (e.scrollWidth > e.clientWidth + 1) r.push((e.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24) + ' ' + e.clientWidth + '/' + e.scrollWidth);
+        });
+        return r;
+      });
+      dong.tran_ngang = await o.trang.evaluate(function () { return document.documentElement.scrollWidth > innerWidth + 1; });
       if (ANH) await o.trang.screenshot({ path: path.join(RA, ma[i] + '.png') });
     } catch (e) { dong.loi_js.push('không mở được: ' + String(e.message || e).split('\n')[0]); }
     if (o.loi.length) dong.loi_js = dong.loi_js.concat(o.loi.slice(0, 3));
     bang.push(dong);
     console.log((dong.emoji.length ? 'EMOJI ' + dong.emoji.length : 'sạch   ') + '  ' + ma[i] + '  ' + dong.tieu_de.slice(0, 40) +
-      (dong.xuong_dong.length ? '  | xuống dòng ' + dong.xuong_dong.length : '') + (dong.nho_nut.length ? '  | nút nhỏ ' + dong.nho_nut.length : '') +
+      (dong.xuong_dong.length ? '  | xuống dòng ' + dong.xuong_dong.length : '') + (dong.nho_nut.length ? '  | nút nhỏ ' + dong.nho_nut.length : '') + (dong.chip_cat && dong.chip_cat.length ? '  | chữ bị cắt ' + dong.chip_cat.length : '') + (dong.tran_ngang ? '  | TRÀN NGANG' : '') +
       (dong.loi_js.length ? '  | LỖI ' + dong.loi_js[0].slice(0, 80) : ''));
     await o.ctx.close();
   }
