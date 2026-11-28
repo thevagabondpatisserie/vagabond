@@ -162,21 +162,26 @@ Không đưa vào đợt này: thẻ Hợp đồng và Lương, bảo hiểm c�
 
 ## 8. Gửi onboard cho bên làm lương
 
-Anh Việt nêu tối 28/11: hiện sau phỏng vấn, Kế toán nhắn tay 8 mục vào nhóm chat với bên làm lương. Cần nút gửi email onboard ngay dưới tên ứng viên, tự lấy thông tin ứng viên, có chỗ điền email người nhận. Bản vẽ chờ anh duyệt.
+Anh Việt nêu tối 28/11: hiện sau phỏng vấn, Kế toán nhắn tay 8 mục vào nhóm chat với bên làm lương. Cần nút ngay dưới tên ứng viên, tự lấy thông tin ứng viên, có chỗ điền email người nhận. Anh chốt luồng tối 28/11 (lần 3): quản lý đề xuất, Kế toán hoặc giám đốc duyệt, duyệt xong mới gửi bên làm lương. Bản vẽ đã vẽ lại theo luồng này, chờ anh duyệt.
 
 | Ảnh | Nội dung |
 |---|---|
-| ![](anh/ob1-nut-gui.jpg) | Nút **Gửi onboard** dưới tên ứng viên; nhãn onboard trên từng dòng; nút lọc "Chưa gửi onboard". Ô tìm tên ứng viên đã có sẵn ở màn Tuyển dụng |
-| ![](anh/ob2-phieu.jpg) | Phiếu onboard 3 bước. Bước 1 quản lý soát thông tin lấy từ hồ sơ ứng viên và vị trí tuyển. Bước 2 Kế toán điền lương |
-| ![](anh/ob3-gui-va-sau-gui.jpg) | Bước 3 xem trước email và gửi; các việc hệ thống làm sau khi gửi |
+| ![](anh/ob1-nut-gui.jpg) | Nút **Đề xuất onboard** dưới tên ứng viên; nhãn onboard trên từng dòng; nút lọc "Chưa gửi onboard". Ô tìm tên ứng viên đã có sẵn ở màn Tuyển dụng |
+| ![](anh/ob2-phieu.jpg) | Bước 1 quản lý điền phiếu (thông tin điền sẵn từ hồ sơ ứng viên và vị trí tuyển, quản lý nhập ngày và lương) rồi bấm Đề xuất onboard. Bước 2 Kế toán hoặc giám đốc duyệt trong Việc cần làm |
+| ![](anh/ob3-gui-va-sau-gui.jpg) | Bước 3, chỉ có sau khi duyệt: xem trước rồi Gửi bên làm lương (email và Việc cần làm của tài khoản bên làm lương); các việc hệ thống làm sau khi gửi |
 
 Luật:
 - Tám mục của email giữ đúng như tin nhắn tay hiện nay: họ tên, số điện thoại, email, bộ phận và trưởng bộ phận, ngày bắt đầu tính lương, lương chính thức và phụ cấp, lương thử việc, thời gian thử việc.
-- Nút chỉ hiện khi ứng viên ở Đề nghị nhận việc hoặc Đã nhận việc.
-- Lương là thông tin kín: chỉ Kế toán và giám đốc thấy và nhập bước 2. Quản lý tuyển dụng chỉ làm bước 1 rồi "Gửi Kế toán điền lương".
+- Nút Đề xuất onboard chỉ hiện khi ứng viên ở Đề nghị nhận việc hoặc Đã nhận việc.
+- Quản lý tuyển dụng thấy và nhập được lương trên phiếu, rồi bấm "Đề xuất onboard". Nhân viên thường và quản lý không có quyền Tuyển dụng không thấy lương.
+- Đề xuất vào Việc cần làm của Kế toán và giám đốc; một người duyệt là đủ. Hai người bấm cùng lúc thì chỉ ghi một lượt duyệt, người sau thấy "Đã duyệt". "Trả lại" phải ghi lý do, phiếu về quản lý để sửa và đề xuất lại.
+- Nút "Gửi bên làm lương" chỉ có khi phiếu Đã duyệt. Sửa lương, phụ cấp, ngày sau khi duyệt thì phiếu về Chờ duyệt, phải duyệt lại mới gửi được.
+- Một lần gửi tới hai nơi: email tới địa chỉ trong Cài đặt, và một việc trong Việc cần làm của tài khoản bên làm lương. Họ đánh dấu xong thì hồ sơ ứng viên hiện "Bên làm lương đã nhận". Chưa có tài khoản đó thì chỉ gửi email.
+- Tài khoản bên làm lương (anh tạo sau, để họ tự quản lý nhân sự và xuất bảng công như trên iPOS HRM) là người ngoài công ty: vai riêng chỉ vào mục Nhân sự (hồ sơ nhân viên, bảng công, xuất bảng công, việc onboard), không thấy bán hàng, kho, kế toán, hoa hồng. Phạm vi chi tiết chốt trước đợt làm tài khoản này.
+- Nhãn trên dòng ứng viên: Chưa đề xuất, Chờ duyệt, Đã duyệt (chờ gửi), Đã gửi onboard.
 - Không gửi trùng: mỗi ứng viên một phiếu onboard. Đã gửi thì nút thành "Gửi bản cập nhật", email ghi rõ mục nào đổi. Bấm hai lần liên tiếp chỉ ra một email.
 - "Đã gửi" chỉ ghi khi hệ thống email nhận thư để gửi; gửi hỏng thì nhãn đỏ "Gửi chưa được" và báo Kế toán.
-- Lưu lịch sử: ai gửi, lúc nào, gửi tới đâu, nội dung.
+- Lưu lịch sử: ai đề xuất, ai duyệt hoặc trả lại, ai gửi, lúc nào, gửi tới đâu, nội dung.
 - Sau khi gửi, hệ thống tạo hồ sơ Nhân viên (trạng thái Thử việc, nhóm thưởng theo bộ phận), mời tạo tài khoản app, giao việc ký đồng ý dữ liệu chấm công, và nhắc trước khi hết thử việc.
 - Ứng viên được báo trước trong lời đồng ý lúc nộp hồ sơ rằng khi nhận việc, thông tin sẽ chuyển cho đơn vị trả lương.
 - Tài khoản ngân hàng, giấy tờ tuỳ thân: ERP không thu, bên làm lương tự thu qua lời mời của họ như hiện nay.
@@ -187,6 +192,8 @@ Cài đặt thêm (nhóm "Onboard" trong Cài đặt nhân sự):
 |---|---|
 | Email bên làm lương (nhiều địa chỉ) | Để trống, anh điền |
 | Đồng gửi | Kế toán |
+| Người duyệt đề xuất onboard | Kế toán, giám đốc |
+| Tài khoản bên làm lương nhận việc trong app | Để trống cho tới khi tạo tài khoản |
 | Lương thử việc, % lương chính thức | 85 |
 | Thời gian thử việc | 2 tháng |
 | Nhắc trước khi hết thử việc | 7 ngày |
@@ -201,7 +208,7 @@ Tham khảo SAP SuccessFactors: onboard bắt đầu từ chính hồ sơ ứng 
 
 Đã chốt tối 28/11: anh duyệt mẫu `mau-dong-y-du-lieu-cham-cong.md` (kể cả đường chấm công cho người không đồng ý chụp ảnh). Cách ký: nhân viên đọc và bấm đồng ý ngay trong app lúc đăng ký ảnh khuôn mặt lần đầu; hệ thống lưu người ký, giờ ký, phiên bản mẫu và ba ô đã tích; đổi nội dung mẫu thì hỏi ký lại. Bản in ký giấy dùng khi cần. Mẫu vẫn là bản Claude soạn, nên nhờ người có chuyên môn pháp lý xem lại.
 
-1. Duyệt 3 ảnh onboard ở mục 8.
+1. Duyệt 3 ảnh onboard ở mục 8 (đã vẽ lại theo luồng đề xuất, duyệt, gửi).
 2. Email bên làm lương nhận onboard: anh điền trong Cài đặt khi có màn, không ghi vào repo.
 
 **Cho Codex**

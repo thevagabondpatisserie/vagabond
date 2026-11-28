@@ -12,7 +12,8 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - **Anh đã chốt:** mốc 600 triệu cho Marketing, trần 6 triệu/người/tháng, thưởng mùa vụ riêng, ngày ghi sổ hoá đơn, giờ công theo bảng chấm công bên làm lương (17/11). Ngày 27/11 anh đồng ý 4 điểm mới: quyết toán theo quý, tại bàn tính 10% phần gọi thêm đã trả tiền, mức chuẩn cho bộ phận hỗ trợ, thẻ "D1" trên Pancake.
 - **Anh chốt tối 28/11:** foodapp giảm trơn (Q6); luật làm không trọn quý (Q7). Người phụ trách và nhóm thưởng anh tự chọn trong Cài đặt nhân sự.
 - **Anh chốt thêm 28/11:** người phụ trách quầy và bếp có thưởng phụ trách, tự cài (Q8, mục 3.10).
-- **Còn chờ anh:** đặt con số thưởng phụ trách khi có màn Cài đặt.
+- **Anh định hướng 28/11:** thưởng phụ trách không quá khoảng 1,5 triệu một tháng.
+- **Còn chờ anh:** đặt con số cụ thể cho từng điểm và bếp khi có màn Cài đặt.
 
 ## 2. Bốn nguyên tắc
 
@@ -176,6 +177,7 @@ Người phụ trách quầy của từng điểm và người phụ trách bế
 - Ví dụ hệ số 1,5: quỹ 4 triệu, 5 người cùng 160 giờ. Không hệ số mỗi người 800.000 đ. Có hệ số: người phụ trách tính 240 giờ, nhận 1.091.000 đ; bốn người còn lại mỗi người 727.000 đ.
 - Mức cố định chỉ chi khi tháng đó bộ phận có quỹ lớn hơn 0 và người phụ trách đạt xếp loại từ Đạt, để không thành lương cứng trá hình. Điều kiện này cũng là ô cài đặt (bật mặc định).
 - Thưởng phụ trách là khoản thường: cộng vào rồi mới chặn trần 6 triệu (3.7).
+- Anh định hướng tối 28/11: mức khoảng 1,5 triệu đồng một tháng trở lại. Ô nhập vì vậy chặn trần 1.500.000 đ một người một tháng cho kiểu Mức cố định; với kiểu Hệ số, phần nhận thêm so với chia đều cũng không vượt trần này. Trần là ô cài đặt, chỉ giám đốc sửa.
 - Đổi kiểu hoặc mức áp từ kỳ sau. Đổi người phụ trách giữa tháng thì tính theo số ngày giữ vai.
 
 ## 4. Số liệu nền (làm tròn)
