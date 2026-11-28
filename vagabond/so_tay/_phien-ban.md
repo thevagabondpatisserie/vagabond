@@ -12,6 +12,10 @@ Bản chỉ sửa lỗi ngầm, nhân viên không thao tác gì khác, thì ghi
 `- Không đổi thao tác: <lý do>` thay cho tên mục.
 
 
+## v698
+- Khuyến mãi trên bill gọi QR: voucher Grab và tặng bánh
+- Chip, thanh nút và bàn phím trong giao diện mới
+
 ## v697
 - Bánh mùa vụ trên web: trần mỗi ngày và ngưng nhận một ngày
 - Thẻ Bánh: chọn đồ kèm theo mỗi bánh

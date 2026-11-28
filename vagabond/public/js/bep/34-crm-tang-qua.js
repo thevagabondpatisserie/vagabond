@@ -286,8 +286,11 @@ function tqO(nhan, id, gt, chu) {
 
 function tqChon(nhan, id, gt, chu) {
   /* O CHON, khong o go (QT-31). Bam mo bang chon, khong go tu do. */
+  /* v693 (test live #614 UI102): ô chọn tự vẽ vào được bằng Tab, Enter hoặc Space mở (bộ phím
+     chung bấm hộ data-phim), trình đọc màn hình đọc "nhãn: giá trị". */
   return '<div class="vxl">' + h(nhan) + '</div>' +
-    '<div class="vxi" id="' + id + '" data-chon="' + id + '" ' +
+    '<div class="vxi" id="' + id + '" data-chon="' + id + '" role="button" tabindex="0" data-phim="1" aria-haspopup="dialog" ' +
+    'aria-label="' + h(nhan + ': ' + (gt || 'chưa chọn')) + '" ' +
     'style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
     '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' +
     (gt ? '' : ';color:#98a2b3') + '">' + h(gt || chu || 'Chạm để chọn') + '</span>' +

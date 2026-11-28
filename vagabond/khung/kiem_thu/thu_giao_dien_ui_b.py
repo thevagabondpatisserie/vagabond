@@ -620,6 +620,49 @@ def _ui_b_nut_chi_ky_tu_co_ten():
 	la("nút chỉ có ký tự hình mà thiếu tên", thieu, [])
 
 
+def _ui_b_emoji_nguon():
+	"""Mọi emoji (ký tự gốc, chưa kèm FE0F) trong nguồn sẽ vẽ lên màn: lớp vẽ bep/ (trừ 81), danh mục
+	Zalo chung, và mô đun Python của app. Trả {emoji: tệp gặp đầu tiên}."""
+	ky = re.compile("[\U0001F000-\U0001FAFF←-⇿⌀-⏿■-◿☀-➿⬀-⯿ℹ‼⁉⤴⤵〰〽㊗㊙]")
+	tep = [os.path.join(BEP, t) for t in sorted(os.listdir(BEP)) if t.endswith(".js") and not t.startswith("81-ui-b")]
+	tep.append(os.path.join(GOI, "public", "js", "cai_dat_loi_chung.js"))
+	tep += [os.path.join(GOI, t) for t in sorted(os.listdir(GOI)) if t.endswith(".py")]
+	gap = {}
+	for t in tep:
+		for m in ky.findall(open(t, encoding="utf-8").read()):
+			gap.setdefault(m, os.path.basename(t))
+	return gap
+
+
+@ca("ui-b v693 (test live #614 UI102): ô chọn tự vẽ bằng div vào được bằng Tab, đọc nhãn: giá trị, Enter và Space mở như bấm; chạy hàm vẽ thật và bộ phím chung")
+def _ui_b_o_chon_tu_ve_v693():
+	"""Bẫy test live chỉ: ô Phân loại ở phiếu tặng quà là div bấm chuột được nhưng không role, không
+	tabindex, nên người dùng bàn phím không mở được (hanh_vi/o_chon_tu_ve_phim_693.js). Cùng loại:
+	thẻ chọn kho ở Xuất kho, thẻ chọn bên nhận ở Hồ sơ thanh toán."""
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "o_chon_tu_ve_phim_693.js")], capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	for o, ten in (("phan_loai", "Phân loại: Khách sỉ"), ("phan_loai_trong", "Phân loại: chưa chọn"),
+			("kho_xuat", "Kho xuất: Kho thành phẩm"), ("ben_nhan", "Đổi: Nhà cung cấp giả A")):
+		la(o + ": vai nút, vào bằng Tab, tên đọc được", [k[o]["role"], k[o]["tabindex"], k[o]["ten"]], ["button", "0", ten])
+		la(o + ": Enter và Space mở đúng một lần", [k[o]["enter"], k[o]["space"]], [1, 1])
+
+
+@ca("ui-b v693 (test live #614 UI102, chốt cùng loại): mọi phần tử vai nút không phải thẻ button đều vào được bằng Tab và bộ phím chung bấm hộ")
+def _ui_b_vai_nut_co_phim_v693():
+	"""role=button trên div mà thiếu tabindex thì Tab bỏ qua; thiếu data-phim thì Enter, Space không làm
+	gì (bộ phím chung chỉ bấm hộ phần tử mang data-phim). Chốt không còn chỗ nào trong lớp vẽ."""
+	thieu = []
+	for t in sorted(os.listdir(BEP)):
+		if not t.endswith(".js") or t.startswith("81-ui-b"):
+			continue
+		for so, dong in enumerate(open(os.path.join(BEP, t), encoding="utf-8"), 1):
+			for m in re.finditer(r"<(div|span|li|a)\b[^<>]*role=\"button\"[^<>]*", dong):
+				if 'tabindex="0"' not in m.group(0) or "data-phim" not in m.group(0):
+					thieu.append("%s:%d" % (t, so))
+	la("vai nút thiếu Tab hay bộ phím", thieu, [])
+
+
 @ca("ui-b v691 (rà độc lập UI18, UI19): mọi emoji trong nguồn lớp vẽ, kể cả danh mục Zalo chung cai_dat_loi_chung.js, đều có biểu tượng hay chấm trong bảng đối chiếu")
 def _ui_b_bang_phu_moi_emoji():
 	"""Máy quét chữ chỉ đổi emoji có trong bảng (bieu_tuong_nguon.py); emoji ngoài bảng giữ nguyên nên
@@ -630,12 +673,24 @@ def _ui_b_bang_phu_moi_emoji():
 	N = importlib.util.module_from_spec(spec)
 	spec.loader.exec_module(N)
 	co = set(k.replace("️", "") for k in list(N.GOC) + list(N.DE_XUAT) + list(N.CHAM))
-	ky = re.compile("[\U0001F000-\U0001FAFF←-⇿⌀-⏿■-◿☀-➿⬀-⯿]")
-	tep = [os.path.join(BEP, t) for t in sorted(os.listdir(BEP)) if t.endswith(".js") and not t.startswith("81-ui-b")]
-	tep.append(os.path.join(GOI, "public", "js", "cai_dat_loi_chung.js"))
+	# v693 (test live #614 UI18, UI101): thêm ký hiệu emoji ngoài khối chính (ℹ U+2139 và nhóm 203C,
+	# 2049, 2934, 2935, 3030, 303D, 3297, 3299), và quét cả mô đun Python của app vì biểu tượng mẫu
+	# bút toán, vai trò, báo cáo do máy chủ trả về rồi mới vẽ lên màn.
 	thieu = {}
-	for t in tep:
-		for m in ky.findall(open(t, encoding="utf-8").read()):
-			if m not in co:
-				thieu[m] = os.path.basename(t)
+	for m, t in _ui_b_emoji_nguon().items():
+		if m not in co:
+			thieu[m] = t
 	la("emoji chưa có biểu tượng", thieu, {})
+
+
+@ca("ui-b v693 (test live #614 UI18, UI101): mọi emoji trong nguồn app được BỘ QUÉT THẬT của 81-ui-b.js nhận ra và đổi ra biểu tượng, kể cả ℹ️ ngoài dải cũ và biểu tượng do máy chủ trả")
+def _ui_b_ky_ve_duoc_v693():
+	"""Có trong bảng chưa đủ: ℹ️ đã có tên mà UIB_RE_KY không nhận ra (U+2139 ngoài dải), nên vẫn lọt
+	ra hộp Chọn loại tin. Ca đưa đủ danh sách emoji của nguồn vào bộ quét thật (hanh_vi/ui_b_ky_ve_duoc_693.js)."""
+	ds = sorted(_ui_b_emoji_nguon())
+	r = subprocess.run(["node", os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "ui_b_ky_ve_duoc_693.js")],
+		input=json.dumps(ds).encode("utf-8"), capture_output=True, cwd=GOC)
+	la("node chạy được", r.returncode, 0)
+	k = json.loads(r.stdout.decode("utf-8"))
+	la("có đủ emoji để soi", k["so"] > 100 and "ℹ" in ds and "🩺" in ds, True)
+	la("emoji bộ quét bỏ sót hay không đổi được", k["hong"], {})

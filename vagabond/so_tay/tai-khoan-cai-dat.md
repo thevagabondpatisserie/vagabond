@@ -861,6 +861,20 @@ Từ khoá: ô chọn, hộp chọn, nút gãy chữ, chữ nhỏ, công tắc, 
 
 Ở cả hai giao diện: ô Title riêng của phiếu tặng quà đổi thành Chức danh riêng; ô số tiền lịch chi ghi đơn vị (đ); nút chọn nhà cung cấp của lịch chi rút gọn thành Chọn nhà cung cấp.
 
+## Chip, thanh nút và bàn phím trong giao diện mới
+Từ khoá: chip bị cắt chữ, xoay máy, đổi khung, thanh nút đáy, bàn phím, Tab, ô chọn tự vẽ, biểu tượng mẫu bút toán, giao diện mới
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi người đang bật giao diện mới | Giá vốn tạm tính, Xuất bán sỉ, Xuất trả nhà cung cấp, Vận đơn, Tặng quà, Bút toán | Không có nút mới |
+
+- Chip trong hàng cuộn ngang (Tất cả, Bánh nướng, 7 ngày, 90 ngày, Một năm) giữ đủ chữ; hàng dài thì vuốt ngang.
+- Xoay máy hay kéo cửa sổ rộng ra thì thanh nút đáy ở Vận đơn về lại hàng ngang, không còn chiếm gần hết màn.
+- Ô Phân loại ở Thêm khách nhận quà, thẻ chọn kho ở Xuất kho, thẻ chọn bên nhận ở Hồ sơ thanh toán: bấm Tab tới, Enter hoặc phím cách để mở.
+- Biểu tượng mẫu bút toán (Trích bảo hiểm, Rút tiền) và loại tin Thông báo hiện thành biểu tượng như các dòng khác.
+
+Thao tác lưu, ghi sổ giữ nguyên.
+
 ## Biểu tượng thay emoji và nút đủ to trong giao diện mới
 Từ khoá: emoji, biểu tượng, nút nhỏ, chip, ép chữ, giao diện mới, Nghệ sĩ công nghệ
 

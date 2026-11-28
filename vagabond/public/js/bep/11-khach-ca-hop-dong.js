@@ -4385,7 +4385,7 @@ function mvVeLuoi(d, ds) {
          Ngưng nhận ngày này, kể cả ngày chưa có đơn. */
       var bam = t || (ngoai && !qua);
       var ng = !!ngung[iso];
-      o += '<div ' + (bam ? 'data-mvng="' + iso + '" role="button" tabindex="0" aria-label="Ngày ' + dd + '/' + mo + (ng ? ', đã ngưng nhận trên web' : '') + '"' : '') +
+      o += '<div ' + (bam ? 'data-mvng="' + iso + '" role="button" tabindex="0" data-phim="1" aria-label="Ngày ' + dd + '/' + mo + (ng ? ', đã ngưng nhận trên web' : '') + '"' : '') +
         ' style="min-height:58px;border-radius:8px;' +
         'padding:3px 2px;background:' + (ngoai ? nen : '#f4f5f7') + ';border:' + (ng ? '2px dashed #b3261e' : '1px solid ' + vien) +
         ';display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;' +

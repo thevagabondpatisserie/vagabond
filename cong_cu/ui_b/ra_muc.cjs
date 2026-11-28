@@ -175,7 +175,7 @@ function doMan() {
   }
   function chuCua(n) { return ((n.getAttribute && n.getAttribute('aria-label')) || n.textContent || '').replace(/\s+/g, ' ').trim(); }
   var GIU = 'textarea, input, [contenteditable], [data-giu-emoji], .bd-phai, svg, script, style, .uisr';
-  var EMO = /[\u{1F000}-\u{1FAFF}←-⇿⌀-⏿☀-➿⬀-⯿]/gu;
+  var EMO = /[\u{1F000}-\u{1FAFF}←-⇿⌀-⏿☀-➿⬀-⯿ℹ‼⁉⤴⤵〰〽㊗㊙]/gu;
   phamVi.forEach(function (goc) {
     r.chuMan += ' ' + (goc.innerText || '');
     var w = document.createTreeWalker(goc, NodeFilter.SHOW_TEXT);
@@ -352,6 +352,16 @@ async function chay() {
       await trang.evaluate(function () { return document.fonts.ready; });
       d = await trang.evaluate(doMan);
       if (process.env.RA_JS) console.log('JS ' + ten + ': ' + JSON.stringify(await trang.evaluate(process.env.RA_JS)));
+      /* RA_DOI=360x780,683x384: đổi khung trên CÙNG màn đang mở (không mở lại), đo lại RA_JS sau mỗi lần
+         đổi. Dùng cho lỗi chỉ hiện sau khi xoay máy hay kéo cửa sổ (test live #614 UI100). */
+      if (process.env.RA_DOI && process.env.RA_JS) {
+        for (const kk of process.env.RA_DOI.split(',')) {
+          const [w2, h2] = kk.split('x').map(Number);
+          await trang.setViewportSize({ width: w2, height: h2 });
+          await trang.waitForTimeout(600);
+          console.log('JS ' + ten + ' sau ' + kk + ': ' + JSON.stringify(await trang.evaluate(process.env.RA_JS)));
+        }
+      }
       if (process.env.RA_GO) console.log('GỠ ' + ten + ': ' + JSON.stringify(await trang.evaluate(function (q) { var e = document.querySelector(q); if (!e) return null; var c = getComputedStyle(e); return { bs: c.boxSizing, b: c.borderTopWidth, w: c.width, h: c.height, cls: e.className, rule: Array.prototype.slice.call(document.styleSheets).map(function (x) { try { return Array.prototype.filter.call(x.cssRules, function (r) { return r.selectorText && e.matches(r.selectorText.replace(/::?after|::?before/g, '')); }).map(function (r) { return r.cssText.slice(0, 140); }); } catch (er) { return []; } }).reduce(function (a, b) { return a.concat(b); }, []) }; }, process.env.RA_GO)));
       await trang.screenshot({ path: path.join(RA, ten + '.png'), fullPage: true });
     } catch (e) { loi.unshift('mở: ' + String(e.message || e).split('\n')[0]); }
