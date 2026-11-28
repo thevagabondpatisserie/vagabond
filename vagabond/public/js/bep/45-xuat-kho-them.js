@@ -100,7 +100,9 @@ function xktOChon(id, ic, nhan, gt, opt) {
   return '<div class="vf" id="' + id + 'O">' +
     '<div class="vfh"><span class="ic">' + ic + '</span><b>' + h(nhan) + '</b>' +
     (opt.batBuoc ? '<span class="bat">Bắt buộc</span>' : '') + '</div>' +
-    '<div class="xktthe" id="' + id + '" role="button" tabindex="0">' + trai +
+    /* v693 (test live #614 UI102, cùng loại): Enter, Space mở qua bộ phím chung; tên "nhãn: giá trị". */
+    '<div class="xktthe" id="' + id + '" role="button" tabindex="0" data-phim="1" aria-haspopup="dialog" aria-label="' +
+    h(nhan + ': ' + (coGt ? gt.ten : 'chưa chọn')) + '">' + trai +
     '<div style="flex:1;min-width:0">' +
     (coGt
       ? '<div style="font-size:15px;font-weight:700;color:#101828;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(gt.ten) + '</div>' +

@@ -233,7 +233,7 @@ var rcvD = null;
    kiểm, chỉ nút "Xác nhận nhập cả các dòng chưa đánh dấu" mới cho đi tiếp. */
 var NHK_GOI_Y = 'Vòng <b>Đã đếm</b> chỉ để bạn đánh dấu món đã đếm xong. Hệ thống nhập theo ô <b>Số lượng thực nhận</b>: món không về thì bấm &minus; cho về 0.';
 function nhkNutDem(attr, i, ok) {
-  return '<div class="rokw" ' + attr + '="' + i + '" role="button" aria-pressed="' + (ok ? 'true' : 'false') + '" aria-label="Đánh dấu đã đếm">' +
+  return '<div class="rokw" ' + attr + '="' + i + '" role="button" tabindex="0" data-phim="1" aria-pressed="' + (ok ? 'true' : 'false') + '" aria-label="Đánh dấu đã đếm">' +
     '<div class="rok">&#10003;</div><span class="rokl">Đã đếm</span></div>';
 }
 function nhkChuaDem(L) {
