@@ -12373,7 +12373,7 @@ var rcvD = null;
    kiểm, chỉ nút "Xác nhận nhập cả các dòng chưa đánh dấu" mới cho đi tiếp. */
 var NHK_GOI_Y = 'Vòng <b>Đã đếm</b> chỉ để bạn đánh dấu món đã đếm xong. Hệ thống nhập theo ô <b>Số lượng thực nhận</b>: món không về thì bấm &minus; cho về 0.';
 function nhkNutDem(attr, i, ok) {
-  return '<div class="rokw" ' + attr + '="' + i + '" role="button" aria-pressed="' + (ok ? 'true' : 'false') + '" aria-label="Đánh dấu đã đếm">' +
+  return '<div class="rokw" ' + attr + '="' + i + '" role="button" tabindex="0" data-phim="1" aria-pressed="' + (ok ? 'true' : 'false') + '" aria-label="Đánh dấu đã đếm">' +
     '<div class="rok">&#10003;</div><span class="rokl">Đã đếm</span></div>';
 }
 function nhkChuaDem(L) {
@@ -26108,7 +26108,7 @@ function mvVeLuoi(d, ds) {
          Ngưng nhận ngày này, kể cả ngày chưa có đơn. */
       var bam = t || (ngoai && !qua);
       var ng = !!ngung[iso];
-      o += '<div ' + (bam ? 'data-mvng="' + iso + '" role="button" tabindex="0" aria-label="Ngày ' + dd + '/' + mo + (ng ? ', đã ngưng nhận trên web' : '') + '"' : '') +
+      o += '<div ' + (bam ? 'data-mvng="' + iso + '" role="button" tabindex="0" data-phim="1" aria-label="Ngày ' + dd + '/' + mo + (ng ? ', đã ngưng nhận trên web' : '') + '"' : '') +
         ' style="min-height:58px;border-radius:8px;' +
         'padding:3px 2px;background:' + (ngoai ? nen : '#f4f5f7') + ';border:' + (ng ? '2px dashed #b3261e' : '1px solid ' + vien) +
         ';display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;' +
@@ -37685,7 +37685,8 @@ function seVe() {
       ? '<div style="font-size:12px;color:#6b7280;margin-top:10px">Khai thêm số tài khoản từ SePay</div>' +
         '<input class="tin" id="seMapSo" inputmode="numeric" placeholder="Số tài khoản như SePay hiển thị"' +
         ' value="' + h((d.chua_map || [])[0] || '') + '" style="margin:6px 0 8px">' +
-        '<div class="fieldcard" data-semaptk="1" style="margin-bottom:8px;min-height:52px">' +
+        '<div class="fieldcard" data-semaptk="1" role="button" tabindex="0" data-phim="1" aria-haspopup="dialog" aria-label="' +
+        h('Bank Account nhận sao kê: ' + seMapNhan(d)) + '" style="margin-bottom:8px;min-height:52px">' +
         '<div class="fi" style="font-size:20px">🏦</div><div class="fb"><div class="fl">Bank Account nhận sao kê</div>' +
         '<div class="fv">' + h(seMapNhan(d)) + '</div></div><div class="fc">›</div></div>' +
         '<button class="btn" id="seMapThem" style="margin:0;width:100%">➕ Thêm vào bản đồ</button>' +
@@ -40897,7 +40898,9 @@ vi đúng bằng yêu cầu. */
 var HS_BN_MO = 0;   /* 1 khi tấm trượt đang mở, để ca kiểm đọc được trạng thái */
 
 function hsTheBenNhan(id, icon, ten, phu, daChon) {
-  return '<div class="card"><div class="hub" id="' + h(id) + '" data-hsbn-mo="' + h(id) + '">' +
+  /* v693 (test live #614 UI102, cùng loại): thẻ chọn bên nhận vào được bằng Tab, Enter, Space. */
+  return '<div class="card"><div class="hub" id="' + h(id) + '" data-hsbn-mo="' + h(id) + '" role="button" tabindex="0" data-phim="1" aria-haspopup="dialog" aria-label="' +
+    h((daChon ? 'Đổi: ' : 'Chọn: ') + ten) + '">' +
     '<div class="hi">' + icon + '</div>' +
     '<div class="ht"><div class="h1">' + h(ten) + '</div>' +
     '<div class="h2">' + h(phu || '') + '</div></div>' +
@@ -53122,8 +53125,11 @@ function tqO(nhan, id, gt, chu) {
 
 function tqChon(nhan, id, gt, chu) {
   /* O CHON, khong o go (QT-31). Bam mo bang chon, khong go tu do. */
+  /* v693 (test live #614 UI102): ô chọn tự vẽ vào được bằng Tab, Enter hoặc Space mở (bộ phím
+     chung bấm hộ data-phim), trình đọc màn hình đọc "nhãn: giá trị". */
   return '<div class="vxl">' + h(nhan) + '</div>' +
-    '<div class="vxi" id="' + id + '" data-chon="' + id + '" ' +
+    '<div class="vxi" id="' + id + '" data-chon="' + id + '" role="button" tabindex="0" data-phim="1" aria-haspopup="dialog" ' +
+    'aria-label="' + h(nhan + ': ' + (gt || 'chưa chọn')) + '" ' +
     'style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
     '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' +
     (gt ? '' : ';color:#98a2b3') + '">' + h(gt || chu || 'Chạm để chọn') + '</span>' +
@@ -58108,7 +58114,9 @@ function xktOChon(id, ic, nhan, gt, opt) {
   return '<div class="vf" id="' + id + 'O">' +
     '<div class="vfh"><span class="ic">' + ic + '</span><b>' + h(nhan) + '</b>' +
     (opt.batBuoc ? '<span class="bat">Bắt buộc</span>' : '') + '</div>' +
-    '<div class="xktthe" id="' + id + '" role="button" tabindex="0">' + trai +
+    /* v693 (test live #614 UI102, cùng loại): Enter, Space mở qua bộ phím chung; tên "nhãn: giá trị". */
+    '<div class="xktthe" id="' + id + '" role="button" tabindex="0" data-phim="1" aria-haspopup="dialog" aria-label="' +
+    h(nhan + ': ' + (coGt ? gt.ten : 'chưa chọn')) + '">' + trai +
     '<div style="flex:1;min-width:0">' +
     (coGt
       ? '<div style="font-size:15px;font-weight:700;color:#101828;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(gt.ten) + '</div>' +
@@ -62186,19 +62194,19 @@ function cdlVeTong() {
   var chua = th.can.filter(function (t) { return t.trang === 'no'; });
   if (th.can.length) {
     html += '<div class="cdl-tieu">CẦN XỬ LÝ</div>' + nang.map(function (t) {
-      return '<div class="cdl-viec ' + t.trang + '" data-cdltoi="' + h(t.toi) + '" role="button"><div class="cdl-x"><b>' + h(t.ten) + ': ' + h(t.ghi) + '</b>' +
+      return '<div class="cdl-viec ' + t.trang + '" data-cdltoi="' + h(t.toi) + '" role="button" tabindex="0" data-phim="1"><div class="cdl-x"><b>' + h(t.ten) + ': ' + h(t.ghi) + '</b>' +
         (t.hau ? '<small>' + h(t.hau) + '</small>' : '') + '</div><span class="cdl-di">Sửa ›</span></div>';
     }).join('') +
     (chua.length ? '<div class="cdl-viec"><div class="cdl-x"><b>' + chua.length + ' kết nối chưa khai</b>' +
       '<small>Chỉ cần khai cái tiệm có dùng. Bấm một tên để tới đúng ô.</small>' +
       '<div class="cdl-chips">' + chua.map(function (t) {
-        return cdlChip('no', t.ten, ' data-cdltoi="' + h(t.toi) + '" role="button" title="' + h(t.hau) + '"');
+        return cdlChip('no', t.ten, ' data-cdltoi="' + h(t.toi) + '" role="button" tabindex="0" data-phim="1" title="' + h(t.hau) + '"');
       }).join('') + '</div></div></div>' : '');
   }
   html += '<div class="cdl-khoi" id="cdlNhom">' + (CDL.d.bo_cuc || []).map(function (t) {
     var nh = cdlNhanNhom(t, ds);
     var mo = CDL_MO[t.fn] || t.muc.map(function (m) { return m.nhan; }).filter(Boolean).join(', ');
-    return '<div class="cdl-nhom" data-cdltab="' + h(t.fn) + '" role="button"><span class="cdl-ic">' + (CDL_IC[t.fn] || '⚙️') +
+    return '<div class="cdl-nhom" data-cdltab="' + h(t.fn) + '" role="button" tabindex="0" data-phim="1"><span class="cdl-ic">' + (CDL_IC[t.fn] || '⚙️') +
       '</span><span class="cdl-x"><b>' + h(t.nhan) + '</b><small>' + h(mo) + '</small></span>' +
       (nh ? '<span class="cdl-nhan ' + nh.trang + '">' + h(nh.chu) + '</span>' : '') + '<span class="cdl-mui">&#8250;</span></div>';
   }).join('') + '</div>';
@@ -62254,7 +62262,7 @@ function cdlVeTab(fnTab, oToi) {
     var coLoi = m.o.some(function (o) { return loi[o.fn]; });
     /* Mục có ô lỗi luôn mở sẵn: người mở nhóm này thường là để sửa đúng lỗi đó. */
     var mo = coLoi || (oToi && m.o.some(function (o) { return o.fn === oToi; })) || !m.gon || CDL['mo_' + m.fn];
-    var dau = '<div class="cdl-mhd"' + (m.gon ? ' data-cdlgon="' + h(m.fn) + '" role="button" style="cursor:pointer"' : '') + '>' +
+    var dau = '<div class="cdl-mhd"' + (m.gon ? ' data-cdlgon="' + h(m.fn) + '" role="button" tabindex="0" data-phim="1" style="cursor:pointer"' : '') + '>' +
       '<span class="cdl-x">' + h(m.nhan || '') + '</span>' +
       (tt ? '<span class="cdl-nhan ' + tt.trang + '">' + h(cdlChuTT(tt)) + '</span>' : '') +
       (m.gon ? '<span class="cdl-mui">' + (mo ? '▾' : '▸') + '</span>' : '') + '</div>';
@@ -70119,7 +70127,7 @@ function ddtKhop(r, q) {
 }
 function ddtThe(r) {
   var nhap = (r.phieu || []).filter(function (p) { return p.docstatus === 0; }).length;
-  return '<div class="card" data-ddtthe="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
+  return '<div class="card" data-ddtthe="' + h(r.name) + '" role="button" tabindex="0" data-phim="1" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:15.5px;font-weight:800;color:#0b2a33">' + h(r.ma) + (r.gio ? ' · ' + h(r.gio) : '') + '</span>' + ddtChip(r) + '</div>' +
     /* Codex #531 vòng 7 (AGENTS 2b.4): ảnh tác phẩm từ danh mục, chưa có thì ô 🍰. */
@@ -70546,7 +70554,7 @@ function bsiKhop(r, q) {
 }
 function bsiThe(r, coTien) {
   var nhap = (r.phieu || []).filter(function (p) { return p.docstatus === 0; }).length;
-  return '<div class="card" data-bsithe="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
+  return '<div class="card" data-bsithe="' + h(r.name) + '" role="button" tabindex="0" data-phim="1" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
     '<span style="font-size:15.5px;font-weight:800;color:#0b2a33">' + h(r.ma) + '</span>' + bsiChip(r) + '</div>' +
     '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' + bsiLogo(r.logo) +
@@ -70839,7 +70847,7 @@ var bsiKhMo = '';
 
 function bsiTheDk(r) {
   var m = r.trang_thai === 'Chờ duyệt' ? BSI_MAU.cho_tt : r.trang_thai === 'Đã duyệt' ? BSI_MAU.da_giao : BSI_MAU.da_huy;
-  return '<div class="card" data-bsidk="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
+  return '<div class="card" data-bsidk="' + h(r.name) + '" role="button" tabindex="0" data-phim="1" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:15.5px">' + h(r.ten_quan) + '</b>' +
     '<span style="background:' + m.nen + ';color:' + m.chu + ';border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap">' + h(r.trang_thai) + '</span></div>' +
     '<div style="font-size:13px;color:#475467;margin-top:2px">' + h(r.loai_hinh) + ' · ' + h(r.luong_tuan) + '/tuần</div>' +
@@ -70848,7 +70856,7 @@ function bsiTheDk(r) {
     (r.xu_ly ? '<div style="font-size:12.5px;color:#475467;margin-top:3px">' + h(r.xu_ly) + '</div>' : '') + '</div>';
 }
 function bsiTheKhach(r) {
-  return '<div class="card" data-bsikh="' + h(r.name) + '" role="button" tabindex="0" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
+  return '<div class="card" data-bsikh="' + h(r.name) + '" role="button" tabindex="0" data-phim="1" style="padding:12px 13px;cursor:pointer;min-height:44px">' +
     '<div style="display:flex;align-items:center;gap:10px">' + bsiLogo(r.logo) +
     '<b style="font-size:15.5px;flex:1;min-width:0">' + h(r.customer_name || r.name) + '</b>' +
     (r.vgb_si_cuoi_ky ? '<span style="background:#e0f2fe;color:#075985;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700">Cuối kỳ 15 ngày</span>' :
@@ -71087,14 +71095,14 @@ async function scrGiaSi() {
     '<span style="flex:1"><b style="font-size:14.5px">Số Zalo đăng nhập</b><div style="font-size:12.5px;color:#98a2b3">' + h(k.vgb_si_sdt || 'Chưa có, khách chưa đăng nhập được') + '</div></span><span>›</span></button></div>';
   html += '<div class="card" style="padding:6px 13px"><div style="font-size:13.5px;font-weight:700;margin:6px 0 2px">Giá riêng đang áp · ' + gia.length + ' món</div>' +
     (gia.length ? gia.map(function (g) {
-      return '<div data-bsigiamon="' + h(g.ma) + '" role="button" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3;min-height:44px;cursor:pointer">' + anhMon(g.anh) +
+      return '<div data-bsigiamon="' + h(g.ma) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3;min-height:44px;cursor:pointer">' + anhMon(g.anh) +
         '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14.5px">' + h(g.ten) + '</div><div style="font-size:12.5px;color:#98a2b3">' + h(g.ma) + (g.dvt ? ' · ' + h(g.dvt) : '') + '</div></div>' +
         '<b style="font-size:15px">' + money(g.gia) + 'đ</b></div>';
     }).join('') : '<div style="font-size:13px;color:#b45309;padding:6px 0 10px">Chưa có món nào. Khách chỉ thấy món đã khai giá riêng. Chọn từ gợi ý bên dưới hoặc thêm món.</div>') + '</div>';
   if (goiY.length) {
     html += '<div class="card" style="padding:6px 13px"><div style="font-size:13.5px;font-weight:700;margin:6px 0 2px">Gợi ý từ hoá đơn 180 ngày · ' + goiY.length + ' món</div>' +
       goiY.map(function (g) {
-        return '<div data-bsigoiy="' + h(g.ma) + '" role="button" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3;min-height:44px;cursor:pointer">' + anhMon(g.anh) +
+        return '<div data-bsigoiy="' + h(g.ma) + '" role="button" tabindex="0" data-phim="1" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3;min-height:44px;cursor:pointer">' + anhMon(g.anh) +
           '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14.5px">' + h(g.ten) + '</div><div style="font-size:12.5px;color:#98a2b3">Đã trả ' + h(bsiDdMm(g.ngay)) + (g.tu_ma ? ' · mã sỉ ' + h(g.tu_ma) : '') + '</div></div>' +
           '<span style="font-size:14px;color:#0369a1;font-weight:700">' + money(g.gia) + 'đ ›</span></div>';
       }).join('') + '</div>';
@@ -78256,6 +78264,7 @@ var UIB_NET = {
   "arrow-up-right": "<path d=\"M7 7h10v10\"/><path d=\"M7 17 17 7\"/>",
   "badge-plus": "<path d=\"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z\"/><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"16\"/><line x1=\"8\" x2=\"16\" y1=\"12\" y2=\"12\"/>",
   "ban": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M4.929 4.929 19.07 19.071\"/>",
+  "bandage": "<path d=\"M10 10.01h.01\"/><path d=\"M10 14.01h.01\"/><path d=\"M14 10.01h.01\"/><path d=\"M14 14.01h.01\"/><path d=\"M18 6v12\"/><path d=\"M6 6v12\"/><rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2\"/>",
   "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>",
   "bell": "<path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/><path d=\"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326\"/>",
   "bell-off": "<path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/><path d=\"M17 17H4a1 1 0 0 1-.74-1.673C4.59 13.956 6 12.499 6 8a6 6 0 0 1 .258-1.742\"/><path d=\"m2 2 20 20\"/><path d=\"M8.668 3.01A6 6 0 0 1 18 8c0 2.687.77 4.653 1.707 6.05\"/>",
@@ -78307,6 +78316,7 @@ var UIB_NET = {
   "cooking-pot": "<path d=\"M2 12h20\"/><path d=\"M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8\"/><path d=\"m4 8 16-4\"/><path d=\"m8.86 6.78-.45-1.81a2 2 0 0 1 1.45-2.43l1.94-.48a2 2 0 0 1 2.43 1.46l.45 1.8\"/>",
   "credit-card": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><line x1=\"2\" x2=\"22\" y1=\"10\" y2=\"10\"/><path d=\"M6 14h2\"/>",
   "croissant": "<path d=\"M10.2 18H4.774a1.5 1.5 0 0 1-1.352-.97 11 11 0 0 1 .132-6.487\"/><path d=\"M18 10.2V4.774a1.5 1.5 0 0 0-.97-1.352 11 11 0 0 0-6.486.132\"/><path d=\"M18 5a4 3 0 0 1 4 3 2 2 0 0 1-2 2 10 10 0 0 0-5.139 1.42\"/><path d=\"M5 18a3 4 0 0 0 3 4 2 2 0 0 0 2-2 10 10 0 0 1 1.42-5.14\"/><path d=\"M8.709 2.554a10 10 0 0 0-6.155 6.155 1.5 1.5 0 0 0 .676 1.626l9.807 5.42a2 2 0 0 0 2.718-2.718l-5.42-9.807a1.5 1.5 0 0 0-1.626-.676\"/>",
+  "crown": "<path d=\"M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z\"/><path d=\"M5 21h14\"/>",
   "cup-soda": "<path d=\"m6 8 1.75 12.28a2 2 0 0 0 2 1.72h4.54a2 2 0 0 0 2-1.72L18 8\"/><path d=\"M5 8h14\"/><path d=\"M7 15a6.47 6.47 0 0 1 5 0 6.47 6.47 0 0 0 5 0\"/><path d=\"m12 8 1-6h2\"/>",
   "dessert": "<path d=\"M10.162 3.167A10 10 0 0 0 2 13a2 2 0 0 0 4 0v-1a2 2 0 0 1 4 0v4a2 2 0 0 0 4 0v-4a2 2 0 0 1 4 0v1a2 2 0 0 0 4-.006 10 10 0 0 0-8.161-9.826\"/><path d=\"M20.804 14.869a9 9 0 0 1-17.608 0\"/><circle cx=\"12\" cy=\"4\" r=\"2\"/>",
   "diamond": "<path d=\"M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z\"/>",
@@ -78341,12 +78351,15 @@ var UIB_NET = {
   "heart-handshake": "<path d=\"M19.414 14.414C21 12.828 22 11.5 22 9.5a5.5 5.5 0 0 0-9.591-3.676.6.6 0 0 1-.818.001A5.5 5.5 0 0 0 2 9.5c0 2.3 1.5 4 3 5.5l5.535 5.362a2 2 0 0 0 2.879.052 2.12 2.12 0 0 0-.004-3 2.124 2.124 0 1 0 3-3 2.124 2.124 0 0 0 3.004 0 2 2 0 0 0 0-2.828l-1.881-1.882a2.41 2.41 0 0 0-3.409 0l-1.71 1.71a2 2 0 0 1-2.828 0 2 2 0 0 1 0-2.828l2.823-2.762\"/>",
   "hourglass": "<path d=\"M5 22h14\"/><path d=\"M5 2h14\"/><path d=\"M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22\"/><path d=\"M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2\"/>",
   "house": "<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>",
+  "id-card": "<path d=\"M13 19a4 4 0 00-8 0\"/><path d=\"M16 10h2\"/><path d=\"M16 14h2\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><rect x=\"2\" y=\"5\" width=\"20\" height=\"14\" rx=\"2\"/>",
   "image": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"/><circle cx=\"9\" cy=\"9\" r=\"2\"/><path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\"/>",
   "inbox": "<polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/>",
+  "info": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4\"/><path d=\"M12 8h.01\"/>",
   "key": "<path d=\"m2 21 9.6-9.6\"/><path d=\"m7.5 15.5 2.3 2.3a1 1 0 0 1 0 1.4l-2.1 2.1a1 1 0 0 1-1.4 0L4 19\"/><circle cx=\"15.5\" cy=\"7.5\" r=\"5.5\"/>",
   "key-round": "<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>",
   "keyboard": "<path d=\"M10 8h.01\"/><path d=\"M12 12h.01\"/><path d=\"M14 8h.01\"/><path d=\"M16 12h.01\"/><path d=\"M18 8h.01\"/><path d=\"M6 8h.01\"/><path d=\"M7 16h10\"/><path d=\"M8 12h.01\"/><rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/>",
   "landmark": "<path d=\"M10 18v-7\"/><path d=\"M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z\"/><path d=\"M14 18v-7\"/><path d=\"M18 18v-7\"/><path d=\"M3 22h18\"/><path d=\"M6 18v-7\"/>",
+  "laptop": "<path d=\"M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z\"/><path d=\"M20.054 15.987H3.946\"/>",
   "leaf": "<path d=\"M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20\"/><path d=\"M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13\"/>",
   "library": "<path d=\"m16 6 4 14\"/><path d=\"M12 6v14\"/><path d=\"M8 8v12\"/><path d=\"M4 4v16\"/>",
   "lightbulb": "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>",
@@ -78414,6 +78427,7 @@ var UIB_NET = {
   "square": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/>",
   "square-check": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"m16 9-5.5 5.5L8 12\"/>",
   "star": "<path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\"/>",
+  "stethoscope": "<path d=\"M11 2v2\"/><path d=\"M5 2v2\"/><path d=\"M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1\"/><path d=\"M8 15a6 6 0 0 0 12 0v-3\"/><circle cx=\"20\" cy=\"10\" r=\"2\"/>",
   "store": "<path d=\"M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5\"/><path d=\"M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244\"/><path d=\"M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05\"/>",
   "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2\"/><path d=\"M12 20v2\"/><path d=\"m4.93 4.93 1.41 1.41\"/><path d=\"m17.66 17.66 1.41 1.41\"/><path d=\"M2 12h2\"/><path d=\"M20 12h2\"/><path d=\"m6.34 17.66-1.41 1.41\"/><path d=\"m19.07 4.93-1.41 1.41\"/>",
   "sunrise": "<path d=\"M12 2v8\"/><path d=\"m4.93 10.93 1.41 1.41\"/><path d=\"M2 18h2\"/><path d=\"M20 18h2\"/><path d=\"m19.07 10.93-1.41 1.41\"/><path d=\"M22 22H2\"/><path d=\"m8 6 4-4 4 4\"/><path d=\"M16 18a4 4 0 0 0-8 0\"/>",
@@ -78424,6 +78438,7 @@ var UIB_NET = {
   "ticket-percent": "<path d=\"M2 9a3 3 0 1 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 1 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z\"/><path d=\"M9 9h.01\"/><path d=\"m15 9-6 6\"/><path d=\"M15 15h.01\"/>",
   "trash-2": "<path d=\"M10 11v6\"/><path d=\"M14 11v6\"/><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/><path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/>",
   "tree-pine": "<path d=\"m17 14 3 3.3a1 1 0 0 1-.7 1.7H4.7a1 1 0 0 1-.7-1.7L7 14h-.3a1 1 0 0 1-.7-1.7L9 9h-.2A1 1 0 0 1 8 7.3L12 3l4 4.3a1 1 0 0 1-.8 1.7H15l3 3.3a1 1 0 0 1-.7 1.7H17Z\"/><path d=\"M12 22v-3\"/>",
+  "trending-down": "<path d=\"M16 17h6v-6\"/><path d=\"m22 17-8.5-8.5-5 5L2 7\"/>",
   "triangle": "<path d=\"M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"/>",
   "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>",
   "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>",
@@ -78441,6 +78456,7 @@ var UIB_NET = {
 };
 var UIB_EMOJI = {
   "×": "x",
+  "ℹ": "info",
   "←": "arrow-left",
   "↑": "arrow-up",
   "→": "arrow-right",
@@ -78463,6 +78479,7 @@ var UIB_EMOJI = {
   "▴": "chevron-up",
   "▶": "play",
   "▸": "chevron-right",
+  "►": "play",
   "▼": "chevron-down",
   "▾": "chevron-down",
   "◀": "chevron-left",
@@ -78526,6 +78543,7 @@ var UIB_EMOJI = {
   "🌤": "cloud-sun",
   "🌸": "flower-2",
   "🌾": "wheat",
+  "🍁": "leaf",
   "🍂": "leaf",
   "🍋": "citrus",
   "🍑": "apple",
@@ -78544,6 +78562,7 @@ var UIB_EMOJI = {
   "🎖": "medal",
   "🎟": "ticket-percent",
   "🎨": "palette",
+  "🎩": "briefcase",
   "🎫": "ticket",
   "🎯": "target",
   "🎵": "music",
@@ -78553,6 +78572,7 @@ var UIB_EMOJI = {
   "🏠": "house",
   "🏢": "building-2",
   "🏦": "landmark",
+  "🏧": "banknote",
   "🏪": "store",
   "🏬": "store",
   "🏭": "factory",
@@ -78563,6 +78583,7 @@ var UIB_EMOJI = {
   "👉": "arrow-right",
   "👋": "hand",
   "👍": "thumbs-up",
+  "👑": "crown",
   "👔": "shirt",
   "👤": "circle-user-round",
   "👥": "users",
@@ -78577,6 +78598,7 @@ var UIB_EMOJI = {
   "💳": "credit-card",
   "💵": "banknote",
   "💸": "hand-coins",
+  "💻": "laptop",
   "💼": "briefcase",
   "💾": "save",
   "📁": "folder",
@@ -78584,6 +78606,7 @@ var UIB_EMOJI = {
   "📄": "file-text",
   "📅": "calendar",
   "📈": "chart-line",
+  "📉": "trending-down",
   "📊": "chart-column",
   "📋": "clipboard-list",
   "📌": "pin",
@@ -78631,6 +78654,7 @@ var UIB_EMOJI = {
   "🕒": "clock-3",
   "🕓": "clock-4",
   "🕘": "clock-9",
+  "🕯": "flame",
   "🖊": "pen",
   "🖥": "monitor",
   "🖨": "printer",
@@ -78660,6 +78684,7 @@ var UIB_EMOJI = {
   "🥚": "egg",
   "🥡": "shopping-bag",
   "🥣": "soup",
+  "🥤": "cup-soda",
   "🥭": "apple",
   "🥮": "cookie",
   "🧁": "dessert",
@@ -78679,8 +78704,11 @@ var UIB_EMOJI = {
   "🧹": "paintbrush",
   "🧺": "shopping-basket",
   "🧾": "receipt",
+  "🩹": "bandage",
+  "🩺": "stethoscope",
   "🪑": "armchair",
   "🪙": "coins",
+  "🪪": "id-card",
   "🫙": "container"
 };
 var UIB_CHAM = {"⚪": "huy", "⭕": "loi", "🔴": "loi", "🔵": "nhom", "🟠": "cho", "🟡": "cho", "🟢": "xong", "🟣": "nhom"};
@@ -78775,7 +78803,8 @@ function uiBQuet(goc) {
    KHONG dung toi: o nhap, vung soan, va noi dung hien nguyen van da danh dau [data-giu-emoji]
    (xem truoc loi chuc, bang chen bieu tuong) hay xem truoc bai dang: do la chu se gui di, se in
    ra, phai thay dung nhu vay (dac ta ban 4 muc 1). */
-var UIB_RE_KY = /(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*/g;
+/* v693 (test live #614 UI18): them i trong vong U+2139 va ky hieu emoji ngoai dai cu (203C, 2049, 2934, 2935, 3030, 303D, 3297, 3299). */
+var UIB_RE_KY = /(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2139\u203C\u2049\u2934\u2935\u3030\u303D\u3297\u3299\u2190-\u21FF\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*/g;
 /* Codex #614: KHONG doan theo white-space pre. Khung pre dat qua lop CSS (loi chuc .tqlc) thi lot,
    con hop thoai, ghi chu cung dung pre-line ma la lop ve. Vung can giu thi danh dau ro bang
    data-giu-emoji ngay trong nguon: xem truoc loi chuc, bang chen bieu tuong, xem truoc bai dang. */
@@ -78938,7 +78967,7 @@ function uiBVuaDay() {
 }
 /* Emoji dau nhan cua nut va chip (ban 4: khong con emoji trong nut): doi thanh bieu tuong
    chung, giu nguyen chu. Ma dat lai chu cua nut thi bo theo doi quet lai. */
-var UIB_RE_DAU = /^(\s*)((?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*)\s*/;
+var UIB_RE_DAU = /^(\s*)((?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2139\u203C\u2049\u2934\u2935\u3030\u303D\u3297\u3299\u2190-\u21FF\u2300-\u23FF\u2600-\u27BF\u2B00-\u2BFF])(?:\uFE0F)?(?:\u200D(?:[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])(?:\uFE0F)?)*)\s*/;
 function uiBDauNut(b) {
   var t = b.firstChild;
   while (t && t.nodeType === 3 && !t.nodeValue.trim()) t = t.nextSibling;
@@ -79037,6 +79066,12 @@ function uiBTenChon(sel) {
   if (!t && sel.closest('label')) t = (sel.closest('label').childNodes[0] || {}).textContent || '';
   /* Nhan viet bang mot the chu dung ngay tren (div, span, b ngan, khong co nut ben trong). */
   if (!t) { var tr2 = sel.previousElementSibling; if (tr2 && /^(DIV|SPAN|B|STRONG|P)$/.test(tr2.tagName) && !tr2.querySelector('button,input,select,textarea') && (tr2.textContent || '').trim().length <= 40) t = tr2.textContent; }
+  /* v693 (test live #614, Nhap sao ke): o chon dung dau the, nhan la dau muc ngay tren the (.sec
+     "1. Chon tai khoan"). Bo so thu tu dau muc. */
+  if (!t && !sel.previousElementSibling && sel.parentElement) {
+    var tr3 = sel.parentElement.previousElementSibling;
+    if (tr3 && (/(^|\s)(sec|vxl|vfh)(\s|$)/.test(tr3.className || '')) && (tr3.textContent || '').trim().length <= 40) t = tr3.textContent.replace(/^\s*\d+[.)]\s*/, '');
+  }
   /* Dong dau kieu "- Chon ngan hang -" la loi nhac: bo gach hai dau, dung lam tieu de. */
   if (!t && sel.options && sel.options[0] && !sel.options[0].value) t = sel.options[0].text.replace(/^[\s\-\u2013]+|[\s\-\u2013]+$/g, '');
   return String(t || 'Chọn').replace(/\s+/g, ' ').trim().slice(0, 60);
@@ -79112,10 +79147,29 @@ function uiBDongBoChon() {
   for (var i = 0; i < ds.length; i++) uiBVeChon(ds[i]);
 }
 var UIB_HEN_SO = 0;
+/* v693 (test live #614 UI100): cac lop gan theo phep do (hang nut xep doc, nut xuong hang, khe giua
+   hai nut) chi dung cho KHUNG luc do. Doi khung (xoay may, keo cua so, 360 > 683) ma giu lop cu thi
+   thanh nut day van xep doc chiem gan het man ngang. Khung doi chieu rong thi go het cac lop do,
+   de cac phep do ngay sau tinh lai theo khung hien tai. Lop khong phu thuoc khung (uib-c13, o chon)
+   giu nguyen. */
+var UIB_LOP_KHUNG = ['uib-vf-doc', 'uib-hang-doc', 'uib-xuong', 'uib-xuong-nut', 'uib-cach'];
+var UIB_RONG;
+function uiBDoLaiKhung() {
+  var w = window.innerWidth || 0;
+  if (UIB_RONG === w) return false;
+  var cu = UIB_RONG;
+  UIB_RONG = w;
+  if (cu == null) return false;
+  for (var i = 0; i < UIB_LOP_KHUNG.length; i++) {
+    var ds = document.querySelectorAll('.' + UIB_LOP_KHUNG[i]);
+    for (var j = 0; j < ds.length; j++) ds[j].classList.remove(UIB_LOP_KHUNG[i]);
+  }
+  return true;
+}
 function uiBHenVuaSo() {
   if (UIB_HEN_SO) return;
   UIB_HEN_SO = 1;
-  var f = function () { UIB_HEN_SO = 0; try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } try { uiBGoEp(); } catch (e) { } try { uiBVfDoc(); } catch (e) { } try { uiBCachNut(); } catch (e) { } try { uiBDongBoChon(); } catch (e) { } try { uiBCoChu(); } catch (e) { } };
+  var f = function () { UIB_HEN_SO = 0; try { uiBDoLaiKhung(); } catch (e) { } try { uiBVuaSo(); } catch (e) { } try { uiBVuaDay(); } catch (e) { } try { uiBGoEp(); } catch (e) { } try { uiBVfDoc(); } catch (e) { } try { uiBCachNut(); } catch (e) { } try { uiBDongBoChon(); } catch (e) { } try { uiBCoChu(); } catch (e) { } };
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(f); else setTimeout(f, 16);
 }
 
@@ -79493,6 +79547,9 @@ function uiBCss() {
     'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#0d9488"]:not([style*="background:#0d9488"]):not([style*="background: #0d9488"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#0f766e"]:not([style*="background:#0f766e"]):not([style*="background: #0f766e"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#115e59"]:not([style*="background:#115e59"]):not([style*="background: #115e59"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#14b8a6"]:not([style*="background:#14b8a6"]):not([style*="background: #14b8a6"]),html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#7c3aed"]:not([style*="background:#7c3aed"]):not([style*="background: #7c3aed"]){border-color:var(--ui-line)!important;color:var(--ui-ink)!important}' +
     'html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#b45309"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#92400e"],html.ui-b :is(#vgb,.sh) :is(button,.chip,[role=button],.posc)[style*="#78350f"]{color:var(--ui-cho)!important;border-color:var(--ui-line)!important;background:var(--ui-glass-solid)!important}' +
     /* posChipNut, locHang: lop chung (posc, posc-on), dang chon la nen muc nhu .chip.on. */
+    /* v693 (test live #614 UI99): chip trong hang cuon ngang khong duoc co nho hon chu (Tat ca 52 diem
+       ma chu can 90, chu bi cat). Hang cuon ngang thi cuon; hang xuong dong thi xuong dong. */
+    'html.ui-b :is(#vgb,.sh) :is(.posc,.chip){flex-shrink:0!important;min-width:max-content}' +
     'html.ui-b .posc{background:var(--ui-glass-solid)!important;border-color:var(--ui-line)!important;color:var(--ui-ink)!important;font-size:var(--ui-fs-15)!important;padding:0 16px!important}' +
     'html.ui-b .posc.posc-on{background:var(--ui-ink)!important;border-color:var(--ui-ink)!important;color:#fff!important}' +
     'html.ui-b .posc.posc-xoa{color:var(--ui-loi)!important}' +
