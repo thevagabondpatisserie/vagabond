@@ -83,7 +83,7 @@ Nguyên tắc: không chép lượt chấm cũ từ iPOS sang; chỉ nhập số
 
 ## 7. Cài đặt nhân sự
 
-Anh Việt chốt tối 28/11: mọi phần đều phải tự cài được, có ô Cài đặt trong mục Nhân sự, tham khảo Cài đặt của iPOS HRM. Em đọc đủ 6 thẻ Cài đặt, form Thêm mới ca làm việc và màn Quy trình phê duyệt của iPOS (chỉ xem, không lưu).
+Anh Việt chốt tối 28/11: mọi phần đều phải tự cài được, có ô Cài đặt trong mục Nhân sự, tham khảo Cài đặt của iPOS HRM. Anh duyệt 6 ảnh cùng tối; ảnh 4 sửa sau đó theo góp ý Codex để tách vai người phụ trách khỏi quyền hưởng thưởng. Em đọc đủ 6 thẻ Cài đặt, form Thêm mới ca làm việc và màn Quy trình phê duyệt của iPOS (chỉ xem, không lưu).
 
 Luật chung cho mọi cài đặt:
 - Chỉ giám đốc và kế toán sửa được.
@@ -113,7 +113,7 @@ Danh sách ô và mặc định. Mặc định lấy đúng giá trị iPOS củ
 | Chung | Nhân viên tự gửi xin nghỉ việc | Bật |
 | Điểm làm | Địa chỉ, vị trí, địa chỉ mạng công ty (bấm lấy tự động khi đang ở tiệm) | Khai mỗi điểm |
 | Điểm làm | Bán kính cho phép chấm | 100 m |
-| Điểm làm | Phụ trách quầy (hưởng mức phụ trách quỹ đội 3.4, là người duyệt mặc định của điểm) | Chưa chọn |
+| Điểm làm | Phụ trách quầy: người duyệt mặc định của điểm, không cộng thêm tiền (quỹ đội chia theo giờ công) | Chưa chọn |
 | Điểm làm | Đang hoạt động | Theo iPOS |
 | Ca | Điểm, bộ phận áp dụng; giờ ca; nghỉ giữa ca | Theo 8 ca trên iPOS |
 | Ca | Được phép đi muộn, về sớm (phút) | 0 |
@@ -140,7 +140,7 @@ Danh sách ô và mặc định. Mặc định lấy đúng giá trị iPOS củ
 | Yêu cầu và duyệt | Xoay ca, Xin ra ngoài trong ca | Tắt |
 | Loại nghỉ | Có lương (mới), số ngày mỗi năm, tối đa mỗi tháng, chuyển năm sau (mới), áp dụng cho, áp dụng từ | Theo 8 loại trên iPOS |
 | Bộ phận và thưởng | Nhóm thưởng của bộ phận: Sales, Marketing, Quản lý cửa hàng, Quầy và bar, Bếp, Hỗ trợ, Không hưởng | Theo bảng ghép mục 3.9 đề xuất hoa hồng |
-| Bộ phận và thưởng | Người phụ trách và tối đa số người phụ trách | Chưa chọn; 1 người |
+| Bộ phận và thưởng | Người phụ trách (người duyệt yêu cầu của bộ phận) và tối đa số người phụ trách. Chỉ nhóm Hỗ trợ có mức phụ trách 1,5 triệu (3.6 đề xuất hoa hồng) | Chưa chọn; 1 người |
 | Nhân viên (hồ sơ) | Nhóm thưởng riêng của từng người, đè lên nhóm của bộ phận | Để trống = theo bộ phận |
 | Bảng công | Kỳ công (mới) | Hàng tháng, ngày 1 |
 | Bảng công | Quản lý sửa công sau khi hết tuần; sửa sau khi khoá kỳ | 1 ngày; 0 ngày |
@@ -152,7 +152,7 @@ Năm câu về người phụ trách hôm 28/11 giờ thành ô cài đặt, anh
 |---|---|
 | 9 người Văn phòng thuộc bộ phận nào | Nhóm thưởng trên hồ sơ từng người |
 | 3 người Marketing ai hưởng hoa hồng Marketing | Nhóm thưởng trên hồ sơ từng người |
-| Mỗi bộ phận mấy người phụ trách | Tối đa người phụ trách và chọn người, ở Bộ phận và thưởng |
+| Mỗi bộ phận mấy người phụ trách | Tối đa người phụ trách và chọn người, ở Bộ phận và thưởng. Chỉ nhóm Hỗ trợ có mức 1,5 triệu; quầy và bếp có thêm khoản riêng hay không là Q8 của đề xuất hoa hồng |
 | Thanh Niên ai phụ trách quầy | Phụ trách quầy, ở Điểm làm |
 | Bảo vệ, tạp vụ có thưởng không | Nhóm thưởng của bộ phận = Không hưởng |
 

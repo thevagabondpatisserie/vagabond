@@ -10,7 +10,8 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - **Việc sẽ làm:** một chính sách cho mọi bộ phận, một nguồn số liệu. Ngày 1 hằng tháng máy tự dựng phiếu KPI cho từng người, đi theo đường duyệt 5 bước đang có. Cuối quý máy tính lại phần của Sales và Marketing trên tổng quý.
 - **Kết quả sẽ thấy:** mỗi người mở app thấy số của mình đang chạy trong tháng, kèm từng dòng tính. Kế toán chỉ soát ngoại lệ.
 - **Anh đã chốt:** mốc 600 triệu cho Marketing, trần 6 triệu/người/tháng, thưởng mùa vụ riêng, ngày ghi sổ hoá đơn, giờ công theo bảng chấm công bên làm lương (17/11). Ngày 27/11 anh đồng ý 4 điểm mới: quyết toán theo quý, tại bàn tính 10% phần gọi thêm đã trả tiền, mức chuẩn cho bộ phận hỗ trợ, thẻ "D1" trên Pancake.
-- **Còn chờ anh:** Q6 foodapp, Q7 luật làm không trọn quý (mục 8). Người phụ trách và nhóm thưởng anh tự chọn trong Cài đặt nhân sự.
+- **Anh chốt tối 28/11:** foodapp giảm trơn (Q6); luật làm không trọn quý (Q7). Người phụ trách và nhóm thưởng anh tự chọn trong Cài đặt nhân sự.
+- **Còn chờ anh:** Q8 (mục 8).
 
 ## 2. Bốn nguyên tắc
 
@@ -63,7 +64,12 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - **Chi phí quảng cáo tính theo ngày quảng cáo chạy thật** (báo cáo theo ngày của nền tảng), không theo ngày xuất hoá đơn hay ngày nạp tiền. Dời ngày thanh toán không đổi được r.
 - **Chi phí dùng chung phải chia trước.** Chiến dịch chạy cho cả bánh ổ và bánh mùa vụ thì ghi tỷ lệ chia lúc tạo chiến dịch; không sửa tỷ lệ sau khi chiến dịch đã chạy. Chiến dịch không ghi tỷ lệ thì tính cả vào bánh ổ.
 - Chi quảng cáo trên 100 triệu/tháng phải xin giám đốc duyệt trước, kèm ngân sách và mục tiêu. **Đã duyệt vẫn tính vào tỷ lệ chi phí.** Bản 1 có ngoại lệ "khoản đã duyệt không làm giảm r", bỏ vì nó thưởng cho việc xin loại chi phí ra khỏi phép tính.
-- Foodapp giữ bảng hiện tại: tỷ lệ 1%, 0,6%, 0,3%, 0 theo chi phí khuyến mãi app (dưới 15%, 15 đến 18%, 18 đến 21%, trên 21%), điều kiện huỷ đơn từ 3% trở xuống và điểm đánh giá từ 4,7. Xem Q6.
+- Foodapp **giảm trơn** (anh chốt 28/11, thay bảng bậc 1%, 0,6%, 0,3%, 0): tỷ lệ theo chi phí khuyến mãi app trên doanh thu app.
+  - Từ 15% trở xuống: 1%.
+  - Từ 15% tới 21%: giảm đều về 0.
+  - Trên 21%: 0.
+  - Giữ hai điều kiện: huỷ đơn từ 3% trở xuống, điểm đánh giá từ 4,7.
+  - Ví dụ doanh thu app 450 triệu: chi phí 15,1% được 4,4 triệu (bảng bậc chỉ 2,7 triệu); chi phí 18,1% được 2,2 triệu (bảng bậc 1,35 triệu); chi phí 20% được 0,75 triệu (bảng bậc 1,35 triệu).
 - Mùa vụ 0,3% như Sales.
 
 ### 3.3 Quản lý cửa hàng
@@ -88,6 +94,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - Gộp hay tách bill không đổi doanh thu, nên không đổi quỹ. Bản 1 tính theo bill bình quân nhân số bill: gộp hai bàn thành một bill làm quỹ tăng, đã bỏ.
 - **Huỷ và hoàn tiền giảm quỹ dần, không còn vách 3%:** hệ số quỹ = 1 khi tỷ lệ huỷ hoàn từ 2% trở xuống, giảm đều về 0 ở 6%. Ví dụ 3,2% thì nhận 70% quỹ. Tỷ lệ = tiền hàng huỷ và hoàn trên tổng tiền hàng tại chỗ của điểm đó trong tháng, theo ngày ghi sổ.
 - Chia theo giờ công (F11).
+- Người phụ trách quầy của điểm (chọn trong Cài đặt nhân sự) là người duyệt mặc định của điểm, không có khoản thưởng riêng ngoài phần chia quỹ theo giờ công. Có thêm khoản riêng hay không là Q8.
 
 **Món chỉ định:** mỗi tháng giám đốc chọn 3 đến 5 món, 3.000 đến 5.000 đ mỗi phần bán ra, ghi theo người bán trên bill.
 
@@ -95,7 +102,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 
 - Quỹ bếp = 0,5% x (doanh thu bánh ổ cộng bánh theo mùa) x hệ số chất lượng.
 - Hệ số 1 khi hàng lỗi phải làm lại từ 2% trở xuống VÀ hao hụt trong định mức; 0,5 khi trượt một điều; 0 khi trượt cả hai.
-- Bếp trưởng chia theo giờ công.
+- Bếp trưởng chia theo giờ công. Người phụ trách bếp là người duyệt yêu cầu của bếp, không có khoản thưởng riêng (Q8).
 
 ### 3.6 Kế toán, Thu mua, Thiết kế, Chụp ảnh, Giao hàng (anh chốt 27/11)
 
@@ -223,8 +230,9 @@ Một tài khoản chung "Quản lý nhân sự" trên iPOS không phải ngư�
 - Đã chốt 17/11: tính theo ngày ghi sổ; giờ công theo bảng chấm công bên làm lương; người nhận tại bàn em quyết.
 - Đã chốt 27/11: quyết toán theo quý; tại bàn 10% phần gọi thêm đã trả; mức chuẩn cho bộ phận hỗ trợ; thẻ "D1" trên Pancake, đơn chưa rõ chờ đối soát.
 - Q5. Danh sách người theo bộ phận: anh Việt cho lấy từ iPOS HRM (28/11). Danh sách có tên thật nên giữ ngoài repo; bảng ghép bộ phận iPOS sang bộ phận hoa hồng ở mục 3.9. Anh Việt chốt tối 28/11: người phụ trách, nhóm thưởng của từng người và bộ phận đều là ô cài đặt anh tự chọn trên app (mục 7 tài liệu nhân sự), không chốt cứng trong chính sách.
-- Q6. Foodapp đổi sang giảm trơn hay giữ bậc như hiện tại?
-- Q7. Luật "làm không trọn quý" ở mục 3.0 (mốc theo tỷ lệ ngày, người nghỉ quyết toán ngay tháng nghỉ): em đề xuất, chờ anh chốt.
+- Q6. Đã chốt 28/11: foodapp giảm trơn (mục 3.2).
+- Q7. Đã chốt 28/11: luật "làm không trọn quý" ở mục 3.0.
+- Q8. Người phụ trách quầy (theo điểm) và người phụ trách bếp có thêm khoản thưởng riêng không? Hiện chính sách chỉ cho họ vai người duyệt; quỹ đội và quỹ bếp chia theo giờ công như mọi người. Mức phụ trách 1,5 triệu chỉ có ở nhóm Hỗ trợ (3.6).
 
 **Cho Codex, vòng 2.** Bản 1 Codex chỉ ra 10 điểm. Đối chiếu:
 
@@ -249,5 +257,6 @@ Một tài khoản chung "Quản lý nhân sự" trên iPOS không phải ngư�
 | Người nghỉ giữa quý: hai luật chọi nhau | 3.0 "làm không trọn quý", F6, Q7. Gộp luôn người vào làm và đổi bộ phận giữa quý |
 | (cùng loại, tự quét) Chạy lại quyết toán quý | 3.0: tính lại từ đầu, thay số cũ |
 | Người đổi bộ phận cũng được miễn thu hồi tạm chi thừa (trên 0df97ed) | 3.0: miễn chỉ cho người nghỉ việc; đổi bộ phận thì phần thừa đi theo F2d. Đã quét: F6 chỉ nói nghỉ việc, không chỗ nào khác miễn thu hồi |
+| Chọn người phụ trách quầy, bếp ngầm cấp một khoản thưởng chưa có trong chính sách (trên 196d5e7) | 3.4, 3.5: phụ trách chỉ là người duyệt, không có khoản riêng; mức 1,5 triệu chỉ ở 3.6; thêm Q8. Đã quét: tài liệu nhân sự mục 7 và ảnh cd4 sửa cùng |
 
 Nhờ rà: các luật mới có tạo kẽ hở mới nào không, nhất là quyết toán quý khi người đổi bộ phận giữa quý, mức nền quỹ đội, và trạng thái chờ đối soát của đơn D1.
