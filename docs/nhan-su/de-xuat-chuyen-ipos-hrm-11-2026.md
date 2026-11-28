@@ -1,6 +1,6 @@
 # Đề xuất chuyển Nhân sự từ iPOS HRM sang app Vagabond
 
-Bản 28/11/2026. Chưa có code. Đi chung PR với đề xuất hoa hồng (`docs/de-xuat-chinh-sach-hoa-hong-11-2026.md`) vì giờ công và hồ sơ nhân viên ở đây là đầu vào của phiếu KPI.
+Bản 28/11/2026, cập nhật trưa 28/11 theo trả lời của anh Việt. Chưa có code. Đi chung PR với đề xuất hoa hồng (`docs/de-xuat-chinh-sach-hoa-hong-11-2026.md`) vì giờ công và hồ sơ nhân viên ở đây là đầu vào của phiếu KPI.
 
 Repo công khai: tên người trong ảnh vẽ là tên giả, giờ giấc là ví dụ. Không ghi tên wifi, mã thiết bị, lương của ai.
 
@@ -10,6 +10,7 @@ Repo công khai: tên người trong ảnh vẽ là tên giả, giờ giấc là
 - **Việc sẽ làm:** dùng Frappe HR làm phần máy phía sau (hồ sơ, ca, lượt chấm, bảng công, phép). Màn bấm hằng ngày đặt trong mục **Nhân sự** của app Vagabond: **một app, thêm 6 ô**. Tài khoản quản lý tự thấy thêm ô duyệt, không cần app thứ hai.
 - **Kết quả sẽ thấy:** nhân viên chấm công bằng một nút; quản lý duyệt mọi loại yêu cầu ở một chỗ; kế toán khoá bảng công tháng và xuất gửi bên làm lương; phiếu KPI tự lấy giờ công.
 - **Anh đã chốt (27 và 28/11):** dùng Frappe HR thay iPOS HRM; màn nhân viên làm trong app Vagabond; tối giản, một app cho cả nhân viên và quản lý; lương giai đoạn đầu vẫn để bên làm lương tính, ERP chỉ xuất bảng công; chấm công kiểm wifi công ty cộng định vị; khuôn mặt làm trước bước lưu ảnh, tự so ảnh làm sau; danh sách nhân viên lấy trước từ danh sách tài khoản; 6 ô theo phương án A; câu chữ theo bản vẽ 2.
+- **Anh chốt thêm 28/11:** giữ y ba cách tính của iPOS ở mục 4; Xin đi muộn, Xin về sớm tối đa 3 lần mỗi tháng và tự sửa được trong Cài đặt; đường mạng các điểm có địa chỉ cố định; mẫu văn bản đồng ý dùng ảnh khuôn mặt do Claude soạn (`mau-dong-y-du-lieu-cham-cong.md`); danh sách nhân viên lấy từ iPOS HRM.
 - **Còn chờ anh:** xem mục 7.
 
 ## 2. Sáu ô mới trong mục Nhân sự
@@ -47,7 +48,7 @@ Năm ô đang có (Tuyển dụng, Duyệt KPI và hoa hồng, Bảng chỉ tiê
 - **Tên gọi:** Đi muộn, Về sớm, Quên chấm vào, Quên chấm ra, Nghỉ phép, Nghỉ không phép, Ca phát sinh, Trùng thiết bị. Tên sáu loại yêu cầu giữ như iPOS.
 - **Ca gắn theo bộ phận:** Phục vụ có Full Sáng 06:00 - 14:30, Full Tối 12:30 - 21:00, Part Sáng, Part Tối; bếp có Pastry 1, Pastry 2, Baker 1, Baker 2. Khai lại y như vậy.
 - **Loại ngày nghỉ:** 8 loại đang dùng (phép năm theo nhóm, nghỉ không lương, nghỉ lễ). Mỗi loại có tổng ngày và hạn mức tháng; khai lại y như vậy.
-- **Cách tính đang bật, giữ nguyên:**
+- **Cách tính đang bật, giữ nguyên (anh chốt 28/11):**
   - làm nhiều chi nhánh;
   - hai ca nối tiếp thì tự vào ca sau;
   - chấm khi chưa có lịch thì thành Ca phát sinh, chờ duyệt;
@@ -59,11 +60,12 @@ Năm ô đang có (Tuyển dụng, Duyệt KPI và hoa hồng, Bảng chỉ tiê
 
 ## 5. Kỹ thuật
 
-- **Wifi công ty:** app chạy trên trình duyệt nên không đọc được tên wifi như app iPOS. Máy chủ kiểm lượt chấm có đi ra từ đường mạng của điểm làm hay không. Định vị trong bán kính điểm làm là lớp dự phòng. Cần biết đường mạng mỗi điểm có địa chỉ cố định không.
+- **Wifi công ty:** app chạy trên trình duyệt nên không đọc được tên wifi như app iPOS. Máy chủ kiểm lượt chấm có đi ra từ địa chỉ mạng cố định của điểm làm hay không (anh xác nhận các điểm có địa chỉ cố định, 28/11). Định vị trong bán kính điểm làm là lớp dự phòng. Địa chỉ mạng khai trong Cài đặt nhân sự, ở mục Điểm làm; không ghi vào repo.
 - **Thiết bị đúng:** ghi nhớ điện thoại lần đầu; đổi máy thì quản lý duyệt.
 - **Khuôn mặt:** đợt đầu lưu ảnh kèm lượt chấm để quản lý xem lại; đợt sau mới tự so ảnh, sau khi thử độ chính xác trên điện thoại thật. Ảnh khuôn mặt là dữ liệu cá nhân nhạy cảm: cần văn bản nhân viên đồng ý, ảnh không để ở chỗ công khai.
 - **Frappe HR:** site đang chạy Frappe 16 và ERPNext 16, chưa cài Frappe HR, chưa có hồ sơ nhân viên. Cài thử trên bản thử trước, không đụng site thật cho tới khi anh cho phép.
-- **Hồ sơ đầu tiên:** lấy từ các tài khoản đang bật trong app, lọc bỏ tài khoản máy. Ai thiếu điểm làm hoặc người duyệt thì hiện nhãn "Thiếu hồ sơ".
+- **Hồ sơ đầu tiên:** lấy từ danh sách nhân viên đang làm trên iPOS HRM (61 người, đọc ngày 28/11): mã nhân viên, tên, bộ phận, điểm làm, loại nhân viên, ngày vào; ghép với tài khoản đang có trong app. Ai chưa có tài khoản, hoặc thiếu điểm làm, người duyệt, thì hiện nhãn "Thiếu hồ sơ". Danh sách có tên thật nên chỉ nạp thẳng vào site, không lưu trong repo.
+- **Cài đặt nhân sự** (chỉ giám đốc và kế toán): hạn mức Xin đi muộn, Xin về sớm mỗi tháng (mặc định 3, sửa được; đặt 0 nghĩa là không cho xin, khác với để trống); điểm làm kèm địa chỉ mạng và bán kính định vị; ca; loại nghỉ.
 - **Nối với hoa hồng:** giờ công trong bảng chấm công là nguồn cho F11 (chia quỹ theo giờ công) và F7 (thưởng hiệu quả theo ngày công) của đề xuất hoa hồng, thay cho bảng nạp tay.
 
 ## 6. Lộ trình
@@ -81,10 +83,10 @@ Nguyên tắc: không chép lượt chấm cũ từ iPOS sang; chỉ nhập số
 ## 7. Câu hỏi
 
 **Cho anh Việt**
-1. Hai ca nối tiếp, Ca phát sinh, giờ quản lý sửa dùng để tính công: giữ y iPOS như mục 4?
-2. Hạn mức tháng cho Xin đi muộn, Xin về sớm: iPOS có cấu hình này, tiệm đặt bao nhiêu lần?
-3. Đường mạng ở Thanh Niên, District 1, bếp có địa chỉ cố định không (hỏi nhà mạng)?
-4. Mẫu văn bản đồng ý dùng ảnh khuôn mặt: nhờ bên pháp lý soạn.
+Đã chốt 28/11: giữ y ba cách tính của iPOS; hạn mức 3 lần mỗi tháng, sửa trong Cài đặt; địa chỉ mạng cố định; Claude soạn mẫu đồng ý.
+
+1. Đọc và duyệt mẫu `mau-dong-y-du-lieu-cham-cong.md`. Đây là bản Claude soạn, không phải ý kiến luật sư; anh nên nhờ người có chuyên môn pháp lý xem lại trước khi cho nhân viên ký.
+2. Người không đồng ý chụp ảnh: em đề xuất cho chấm công không ảnh, quản lý xác nhận lượt chấm (mẫu mục 5). Anh đồng ý cách này?
 
 **Cho Codex**
 - Rà luồng: có chỗ nào một yêu cầu bị duyệt hai lần, hoặc ca bị xếp trùng người, khi hai quản lý cùng thao tác?

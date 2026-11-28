@@ -1,6 +1,6 @@
 # Đề xuất chính sách hoa hồng và thưởng toàn tiệm, máy tự tính
 
-Bản 2, 27/11/2026, sửa ngày 28/11 theo 2 góp ý Codex trên #628. Chưa có code. Bản 1 (17/11) nằm ở PR #582, Codex đã rà và chỉ ra 10 điểm; PR đó đã đóng vì nhánh quá cũ, bản này dựng lại trên main. Bàn ở issue #583.
+Bản 2, 27/11/2026, sửa ngày 28/11 theo 3 góp ý Codex trên #628. Chưa có code. Bản 1 (17/11) nằm ở PR #582, Codex đã rà và chỉ ra 10 điểm; PR đó đã đóng vì nhánh quá cũ, bản này dựng lại trên main. Bàn ở issue #583.
 
 Repo này công khai nên tài liệu không ghi tên người, không ghi lương từng người. Số trong ví dụ là số tròn.
 
@@ -10,7 +10,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 - **Việc sẽ làm:** một chính sách cho mọi bộ phận, một nguồn số liệu. Ngày 1 hằng tháng máy tự dựng phiếu KPI cho từng người, đi theo đường duyệt 5 bước đang có. Cuối quý máy tính lại phần của Sales và Marketing trên tổng quý.
 - **Kết quả sẽ thấy:** mỗi người mở app thấy số của mình đang chạy trong tháng, kèm từng dòng tính. Kế toán chỉ soát ngoại lệ.
 - **Anh đã chốt:** mốc 600 triệu cho Marketing, trần 6 triệu/người/tháng, thưởng mùa vụ riêng, ngày ghi sổ hoá đơn, giờ công theo bảng chấm công bên làm lương (17/11). Ngày 27/11 anh đồng ý 4 điểm mới: quyết toán theo quý, tại bàn tính 10% phần gọi thêm đã trả tiền, mức chuẩn cho bộ phận hỗ trợ, thẻ "D1" trên Pancake.
-- **Còn chờ anh:** Q5 danh sách người theo bộ phận, Q6 foodapp, Q7 luật làm không trọn quý (mục 8).
+- **Còn chờ anh:** soát danh sách người phụ trách (Q5), Q6 foodapp, Q7 luật làm không trọn quý (mục 8).
 
 ## 2. Bốn nguyên tắc
 
@@ -42,7 +42,11 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
   - Người nghỉ việc được quyết toán ngay ở phiếu tháng nghỉ, không chờ hết quý.
   - Ví dụ: nghỉ ngày 15/2 trong quý 1/2027 (90 ngày). Ngày giữ vai 1/1 tới 15/2 là 46 ngày. Mốc = 1,8 tỷ x 46/90 = 920 triệu. Doanh thu 1/1 tới 15/2 là 1.000 triệu thì phần quý = 3% x 80 triệu = 2,4 triệu.
   - Tạm chi tháng làm dở cũng dùng mốc tháng theo tỷ lệ ngày, để tháng nghỉ không bị mốc cả tháng.
-  - Tạm chi đã nhận nhiều hơn số quyết toán thì không đòi lại (F6). Ít hơn thì chi bổ sung ở phiếu tháng nghỉ.
+  - Tạm chi đã nhận ít hơn số quyết toán thì chi bổ sung ở phiếu tháng kết thúc vai.
+  - Tạm chi đã nhận nhiều hơn số quyết toán:
+    - **nghỉ việc:** không đòi lại (F6);
+    - **đổi bộ phận hoặc vào làm giữa quý, vẫn làm ở tiệm:** phần thừa là khoản trừ, đi theo F2d (trừ vào hoa hồng các kỳ sau, không trừ lương cứng, sau 3 kỳ giám đốc duyệt xoá).
+  - Ví dụ đổi bộ phận: làm Sales tới 15/2, tháng 1 đã tạm chi 6 triệu, quyết toán tới 15/2 được 2,4 triệu thì phần thừa 3,6 triệu được trừ dần vào hoa hồng ở bộ phận mới.
 - **Chạy lại quyết toán quý:** phiếu tháng cuối quý luôn tính lại từ đầu (số đúng của quý trừ tổng đã chi tạm), thay số cũ chứ không cộng thêm. Bấm tính hai lần ra cùng một số.
 
 ### 3.1 Sales (đặt bánh online)
@@ -133,6 +137,24 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
   - Không thẻ, không dấu hiệu D1: đơn online, tính cho Sales.
 - Marketing tính trên cả hai nhóm nên không bị ảnh hưởng bởi việc xếp.
 
+### 3.9 Ghép bộ phận iPOS HRM sang bộ phận hoa hồng
+
+Lấy từ danh sách nhân viên đang làm trên iPOS HRM ngày 28/11/2026 (62 tài khoản, 61 người). Chỉ ghi số người; danh sách tên giữ ngoài repo.
+
+| Bộ phận trên iPOS | Số người | Bộ phận hoa hồng | Ghi chú |
+|---|---|---|---|
+| SERVER, CASHIER, BARISTA | 16 | Quầy và bar (3.4), theo điểm làm | Quỹ đội chia theo điểm; người có vai quản lý điểm trên iPOS là ứng viên người phụ trách |
+| KITCHEN PASTRY | 22 | Bếp (3.5) | Bếp trưởng chia quỹ theo giờ công |
+| ACCOUNTING | 5 | Kế toán (3.6) | |
+| Purchasing | 1 | Thu mua (3.6) | |
+| MARKETING | 3 | Marketing (3.2) hoặc Thiết kế, Chụp ảnh (3.6) | Cần anh chỉ ai hưởng 3.2, ai hưởng 3.6 |
+| SHIPPER | 2 | Giao hàng (3.6) | |
+| KD | 1 | Quản lý cửa hàng (3.3) | |
+| ADMIN | 9 | Tách từng người | Gồm chủ, quản lý điểm, Sales (3.1) và nhân viên văn phòng; cần anh chỉ từng người |
+| STEWARDING, SERCURITY | 2 | Chưa có trong chính sách | Cần anh chọn: đưa vào 3.6 hay không |
+
+Một tài khoản chung "Quản lý nhân sự" trên iPOS không phải người, bỏ qua.
+
 ## 4. Số liệu nền (làm tròn)
 
 - Doanh thu toàn tiệm tháng thường khoảng 2 tỷ: đơn online khoảng 1,1 tỷ, tại quầy khoảng 0,5 tỷ, app giao hàng khoảng 0,45 tỷ.
@@ -200,7 +222,7 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 **Cho anh Việt**
 - Đã chốt 17/11: tính theo ngày ghi sổ; giờ công theo bảng chấm công bên làm lương; người nhận tại bàn em quyết.
 - Đã chốt 27/11: quyết toán theo quý; tại bàn 10% phần gọi thêm đã trả; mức chuẩn cho bộ phận hỗ trợ; thẻ "D1" trên Pancake, đơn chưa rõ chờ đối soát.
-- Q5. Danh sách người theo bộ phận, ai là người phụ trách.
+- Q5. Danh sách người theo bộ phận: anh Việt cho lấy từ iPOS HRM (28/11). Danh sách có tên thật nên giữ ngoài repo; bảng ghép bộ phận iPOS sang bộ phận hoa hồng ở mục 3.9. Còn chờ anh soát người phụ trách và nhóm ADMIN.
 - Q6. Foodapp đổi sang giảm trơn hay giữ bậc như hiện tại?
 - Q7. Luật "làm không trọn quý" ở mục 3.0 (mốc theo tỷ lệ ngày, người nghỉ quyết toán ngay tháng nghỉ): em đề xuất, chờ anh chốt.
 
@@ -226,5 +248,6 @@ Repo này công khai nên tài liệu không ghi tên người, không ghi lươ
 | Hoàn một phần nhiều lần bị khoá chống trùng nuốt lần sau | F2c: khoá theo chứng từ hoàn, sổ luỹ kế, trần bằng tiền đã chi |
 | Người nghỉ giữa quý: hai luật chọi nhau | 3.0 "làm không trọn quý", F6, Q7. Gộp luôn người vào làm và đổi bộ phận giữa quý |
 | (cùng loại, tự quét) Chạy lại quyết toán quý | 3.0: tính lại từ đầu, thay số cũ |
+| Người đổi bộ phận cũng được miễn thu hồi tạm chi thừa (trên 0df97ed) | 3.0: miễn chỉ cho người nghỉ việc; đổi bộ phận thì phần thừa đi theo F2d. Đã quét: F6 chỉ nói nghỉ việc, không chỗ nào khác miễn thu hồi |
 
 Nhờ rà: các luật mới có tạo kẽ hở mới nào không, nhất là quyết toán quý khi người đổi bộ phận giữa quý, mức nền quỹ đội, và trạng thái chờ đối soát của đơn D1.
